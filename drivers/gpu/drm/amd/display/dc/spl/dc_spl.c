@@ -913,6 +913,25 @@ static void spl_set_filters_data(struct dscl_prog_data *dscl_prog_data,
 	dscl_prog_data->filter_v_c = spl_dscl_get_filter_coeffs_64p(
 				data->taps.v_taps_c, data->ratios.vert_c);
 }
+
+static const uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps)
+{
+	if ((taps == 3) || (taps == 4) || (taps == 6))
+		return spl_get_filter_isharp_bs_4tap_64p();
+	else {
+		/* should never happen, bug */
+		return NULL;
+	}
+}
+static void spl_set_blur_scale_data(struct dscl_prog_data *dscl_prog_data,
+		const struct spl_scaler_data *data)
+{
+	dscl_prog_data->filter_blur_scale_h = spl_dscl_get_blur_scale_coeffs_64p(
+				data->taps.h_taps);
+	dscl_prog_data->filter_blur_scale_v = spl_dscl_get_blur_scale_coeffs_64p(
+				data->taps.v_taps);
+}
+
 /* Populate dscl prog data structure from scaler data calculated by SPL */
 static void spl_set_dscl_prog_data(struct spl_in *spl_in, struct spl_out *spl_out)
 {
@@ -1226,10 +1245,18 @@ static void spl_set_isharp_noise_det_mode(struct dscl_prog_data *dscl_prog_data)
 	else if (dscl_prog_data->taps.h_taps == 3)
 		dscl_prog_data->isharp_noise_det.mode = 0;	// ISHARP_NOISEDET_MODE
 };
-/* Set EASF data */
+/* Set Sharpener data */
 static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
-		struct adaptive_sharpness adp_sharpness)
+		struct adaptive_sharpness adp_sharpness, bool enable_isharp,
+		enum linear_light_scaling lls_pref, enum spl_pixel_format format,
+		const struct spl_scaler_data *data)
 {
+	/* Turn off sharpener if not required */
+	if (!enable_isharp) {
+		dscl_prog_data->isharp_en = 0;
+		return;
+	}
+
 	dscl_prog_data->isharp_en = 1;	// ISHARP_EN
 	dscl_prog_data->isharp_noise_det.enable = 1;	// ISHARP_NOISEDET_EN
 	// Set ISHARP_NOISEDET_MODE if htaps = 6-tap
@@ -1243,7 +1270,11 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 	dscl_prog_data->isharp_noise_det.pwl_end_in = 13;	// ISHARP_NOISEDET_PWL_END_IN
 	dscl_prog_data->isharp_noise_det.pwl_slope = 1623;	// ISHARP_NOISEDET_PWL_SLOPE
 
-	dscl_prog_data->isharp_fmt.mode = 1;	//	ISHARP_FMT_MODE
+	if ((lls_pref == LLS_PREF_NO) && !spl_is_yuv420(format)) /* ISHARP_FMT_MODE */
+		dscl_prog_data->isharp_fmt.mode = 1;
+	else
+		dscl_prog_data->isharp_fmt.mode = 0;
+
 	dscl_prog_data->isharp_fmt.norm = 0x3C00;	// ISHARP_FMT_NORM
 	dscl_prog_data->isharp_lba.mode = 0;	// ISHARP_LBA_MODE
 	// ISHARP_LBA_PWL_SEG0: ISHARP Local Brightness Adjustment PWL Segment 0
@@ -1269,7 +1300,7 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 	// ISHARP_LBA_PWL_SEG5: ISHARP LBA PWL Segment 5
 	dscl_prog_data->isharp_lba.in_seg[5] = 1023; // ISHARP LBA PWL for Seg 5.INPUT value in U0.10 format
 	dscl_prog_data->isharp_lba.base_seg[5] = 0;	// ISHARP LBA PWL for Seg 5. BASE value in U0.6 format
-	switch (adp_sharpness.sharpness)	{
+	switch (adp_sharpness.sharpness) {
 	case SHARPNESS_LOW:
 		dscl_prog_data->isharp_delta = spl_get_filter_isharp_1D_lut_0p5x();
 		break;
@@ -1284,17 +1315,28 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 	}
 
 	// Program the nldelta soft clip values
-	dscl_prog_data->isharp_nldelta_sclip.enable_p = 1;	//	ISHARP_NLDELTA_SCLIP_EN_P
-	dscl_prog_data->isharp_nldelta_sclip.pivot_p = 70;	//	ISHARP_NLDELTA_SCLIP_PIVOT_P
-	dscl_prog_data->isharp_nldelta_sclip.slope_p = 24;	//	ISHARP_NLDELTA_SCLIP_SLOPE_P
-	dscl_prog_data->isharp_nldelta_sclip.enable_n = 1;	//	ISHARP_NLDELTA_SCLIP_EN_N
-	dscl_prog_data->isharp_nldelta_sclip.pivot_n = 70;	//	ISHARP_NLDELTA_SCLIP_PIVOT_N
-	dscl_prog_data->isharp_nldelta_sclip.slope_n = 24;	//	ISHARP_NLDELTA_SCLIP_SLOPE_N
+	if (lls_pref == LLS_PREF_YES) {
+		dscl_prog_data->isharp_nldelta_sclip.enable_p = 0;	/* ISHARP_NLDELTA_SCLIP_EN_P */
+		dscl_prog_data->isharp_nldelta_sclip.pivot_p = 0;	/* ISHARP_NLDELTA_SCLIP_PIVOT_P */
+		dscl_prog_data->isharp_nldelta_sclip.slope_p = 0;	/* ISHARP_NLDELTA_SCLIP_SLOPE_P */
+		dscl_prog_data->isharp_nldelta_sclip.enable_n = 1;	/* ISHARP_NLDELTA_SCLIP_EN_N */
+		dscl_prog_data->isharp_nldelta_sclip.pivot_n = 71;	/* ISHARP_NLDELTA_SCLIP_PIVOT_N */
+		dscl_prog_data->isharp_nldelta_sclip.slope_n = 16;	/* ISHARP_NLDELTA_SCLIP_SLOPE_N */
+	} else {
+		dscl_prog_data->isharp_nldelta_sclip.enable_p = 1;	/* ISHARP_NLDELTA_SCLIP_EN_P */
+		dscl_prog_data->isharp_nldelta_sclip.pivot_p = 70;	/* ISHARP_NLDELTA_SCLIP_PIVOT_P */
+		dscl_prog_data->isharp_nldelta_sclip.slope_p = 24;	/* ISHARP_NLDELTA_SCLIP_SLOPE_P */
+		dscl_prog_data->isharp_nldelta_sclip.enable_n = 1;	/* ISHARP_NLDELTA_SCLIP_EN_N */
+		dscl_prog_data->isharp_nldelta_sclip.pivot_n = 70;	/* ISHARP_NLDELTA_SCLIP_PIVOT_N */
+		dscl_prog_data->isharp_nldelta_sclip.slope_n = 24;	/* ISHARP_NLDELTA_SCLIP_SLOPE_N */
+	}
 
 	// Set the values as per lookup table
+	spl_set_blur_scale_data(dscl_prog_data, data);
 }
 static bool spl_get_isharp_en(struct adaptive_sharpness adp_sharpness,
-		int vscale_ratio, int hscale_ratio, struct spl_taps taps)
+		int vscale_ratio, int hscale_ratio, struct spl_taps taps,
+		enum spl_pixel_format format)
 {
 	bool enable_isharp = false;
 
@@ -1306,6 +1348,10 @@ static bool spl_get_isharp_en(struct adaptive_sharpness adp_sharpness,
 		return enable_isharp;
 	}
 	// Scaling is up to 1:1 (no scaling) or upscaling
+
+	/* Only apply sharpness to NV12 and not P010 */
+	if (format != SPL_PIXEL_FORMAT_420BPP8)
+		return enable_isharp;
 
 	// LB support horizontal taps 4,6 or vertical taps 3, 4, 6
 	if (taps.h_taps == 4 || taps.h_taps == 6 ||
@@ -1342,13 +1388,14 @@ static bool spl_choose_lls_policy(enum spl_pixel_format format,
 	return false;
 }
 
-/* Caclulate scaler parameters */
+/* Calculate scaler parameters */
 bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 {
 	bool res = false;
 	bool enable_easf_v = false;
 	bool enable_easf_h = false;
 	bool lls_enable_easf = true;
+	const struct spl_scaler_data *data = &spl_out->scl_data;
 	// All SPL calls
 	/* recout calculation */
 	/* depends on h_active */
@@ -1400,10 +1447,12 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 	}
 	// Set EASF
 	spl_set_easf_data(spl_out->dscl_prog_data, enable_easf_v, enable_easf_h, spl_in->lls_pref,
-		spl_in->basic_in.format);	// Set iSHARP
+		spl_in->basic_in.format);
+	// Set iSHARP
 	bool enable_isharp = spl_get_isharp_en(spl_in->adaptive_sharpness, vratio, hratio,
-								spl_out->scl_data.taps);
-	if (enable_isharp)
-		spl_set_isharp_data(spl_out->dscl_prog_data, spl_in->adaptive_sharpness);
+		spl_out->scl_data.taps, spl_in->basic_in.format);
+	spl_set_isharp_data(spl_out->dscl_prog_data, spl_in->adaptive_sharpness, enable_isharp,
+		spl_in->lls_pref, spl_in->basic_in.format, data);
+
 	return res;
 }

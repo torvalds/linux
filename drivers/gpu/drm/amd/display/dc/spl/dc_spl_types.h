@@ -393,6 +393,9 @@ struct dscl_prog_data {
 	struct isharp_fmt isharp_fmt;   //      ISHARP_FMT
 	const uint32_t *isharp_delta;
 	struct isharp_nldelta_sclip isharp_nldelta_sclip;       //      ISHARP_NLDELTA_SCLIP
+	/* blur and scale filter */
+	const uint16_t *filter_blur_scale_v;
+	const uint16_t *filter_blur_scale_h;
 };
 
 /* SPL input and output definitions */

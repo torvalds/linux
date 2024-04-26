@@ -387,6 +387,19 @@ bool dcn401_validate_bandwidth(struct dc *dc,
 	SRI_ARR(DSCL_EASF_V_BF3_PWL_SEG5, DSCL, id),                             \
 	SRI_ARR(DSCL_SC_MATRIX_C0C1, DSCL, id),                                  \
 	SRI_ARR(DSCL_SC_MATRIX_C2C3, DSCL, id),                                  \
+	SRI_ARR(ISHARP_MODE, DSCL, id),                                          \
+	SRI_ARR(ISHARP_NOISEDET_THRESHOLD, DSCL, id),                            \
+	SRI_ARR(ISHARP_NOISE_GAIN_PWL, DSCL, id),                                \
+	SRI_ARR(ISHARP_LBA_PWL_SEG0, DSCL, id),                                  \
+	SRI_ARR(ISHARP_LBA_PWL_SEG1, DSCL, id),                                  \
+	SRI_ARR(ISHARP_LBA_PWL_SEG2, DSCL, id),                                  \
+	SRI_ARR(ISHARP_LBA_PWL_SEG3, DSCL, id),                                  \
+	SRI_ARR(ISHARP_LBA_PWL_SEG4, DSCL, id),                                  \
+	SRI_ARR(ISHARP_LBA_PWL_SEG5, DSCL, id),                                  \
+	SRI_ARR(ISHARP_DELTA_CTRL, DSCL, id),                                    \
+	SRI_ARR(ISHARP_DELTA_DATA, DSCL, id),                                    \
+	SRI_ARR(ISHARP_DELTA_INDEX, DSCL, id),                                   \
+	SRI_ARR(ISHARP_NLDELTA_SOFT_CLIP, DSCL, id),                             \
 	SRI_ARR(SCL_VERT_FILTER_INIT_BOT, DSCL, id),                             \
 	SRI_ARR(SCL_VERT_FILTER_INIT_BOT_C, DSCL, id)
 

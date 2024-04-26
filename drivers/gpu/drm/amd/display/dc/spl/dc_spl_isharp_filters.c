@@ -241,7 +241,7 @@ static const uint32_t filter_isharp_1D_lut_2p0x[32] = {
 // <CoefType>		LanczosEd
 // <CoefQuant>		S1.10
 //========================================================
-static const uint32_t filter_isharp_wide_6tap_64p[198] = {
+static const uint16_t filter_isharp_wide_6tap_64p[198] = {
 0x0000, 0x0000, 0x0400, 0x0000, 0x0000, 0x0000,
 0x0003, 0x0FF3, 0x0400, 0x000D, 0x0FFD, 0x0000,
 0x0006, 0x0FE7, 0x03FE, 0x001C, 0x0FF9, 0x0000,
@@ -285,7 +285,7 @@ static const uint32_t filter_isharp_wide_6tap_64p[198] = {
 // <CoefType>		Blur & Scale LPF
 // <CoefQuant>		S1.10
 //========================================================
-static const uint32_t filter_isharp_bs_4tap_64p[198] = {
+static const uint16_t filter_isharp_bs_4tap_64p[198] = {
 0x0000, 0x00E5, 0x0237, 0x00E4, 0x0000, 0x0000,
 0x0000, 0x00DE, 0x0237, 0x00EB, 0x0000, 0x0000,
 0x0000, 0x00D7, 0x0236, 0x00F2, 0x0001, 0x0000,
@@ -340,11 +340,11 @@ const uint32_t *spl_get_filter_isharp_1D_lut_2p0x(void)
 {
 	return filter_isharp_1D_lut_2p0x;
 }
-const uint32_t *spl_get_filter_isharp_wide_6tap_64p(void)
+const uint16_t *spl_get_filter_isharp_wide_6tap_64p(void)
 {
 	return filter_isharp_wide_6tap_64p;
 }
-const uint32_t *spl_get_filter_isharp_bs_4tap_64p(void)
+const uint16_t *spl_get_filter_isharp_bs_4tap_64p(void)
 {
 	return filter_isharp_bs_4tap_64p;
 }
