@@ -339,6 +339,14 @@ static int audio_probe(struct platform_device *pdev)
 
 		/* backward-compatible with existing devices */
 		switch (ctx->amp_type) {
+		case CODEC_MAX98357A:
+			card_name = devm_kstrdup(&pdev->dev, "cmlda7219max",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
+			break;
 		case CODEC_MAX98390:
 			card_name = devm_kstrdup(&pdev->dev,
 						 "cml_max98390_da7219",
