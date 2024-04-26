@@ -787,7 +787,7 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
 void xe_device_declare_wedged(struct xe_device *xe)
 {
 	if (xe->wedged.mode == 0) {
-		drm_dbg(&xe->drm, "Wedged mode is forcebly disabled\n");
+		drm_dbg(&xe->drm, "Wedged mode is forcibly disabled\n");
 		return;
 	}
 
