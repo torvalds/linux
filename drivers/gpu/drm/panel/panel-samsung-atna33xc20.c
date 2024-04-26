@@ -36,7 +36,7 @@ struct atana33xc20_panel {
 	struct gpio_desc *el_on3_gpio;
 	struct drm_dp_aux *aux;
 
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 
 	ktime_t powered_off_time;
 	ktime_t powered_on_time;
@@ -253,9 +253,12 @@ static int atana33xc20_get_modes(struct drm_panel *panel,
 
 	pm_runtime_get_sync(panel->dev);
 
-	if (!p->edid)
-		p->edid = drm_get_edid(connector, &aux_ep->aux->ddc);
-	num = drm_add_edid_modes(connector, p->edid);
+	if (!p->drm_edid)
+		p->drm_edid = drm_edid_read_ddc(connector, &aux_ep->aux->ddc);
+
+	drm_edid_connector_update(connector, p->drm_edid);
+
+	num = drm_edid_connector_add_modes(connector);
 
 	pm_runtime_mark_last_busy(panel->dev);
 	pm_runtime_put_autosuspend(panel->dev);
@@ -351,7 +354,7 @@ static void atana33xc20_remove(struct dp_aux_ep_device *aux_ep)
 	drm_panel_disable(&panel->base);
 	drm_panel_unprepare(&panel->base);
 
-	kfree(panel->edid);
+	drm_edid_free(panel->drm_edid);
 }
 
 static void atana33xc20_shutdown(struct dp_aux_ep_device *aux_ep)

@@ -953,7 +953,7 @@ struct drm_mode_config {
 	struct drm_property *modifiers_property;
 
 	/**
-	 * @size_hints_propertty: Plane SIZE_HINTS property.
+	 * @size_hints_property: Plane SIZE_HINTS property.
 	 */
 	struct drm_property *size_hints_property;
 
