@@ -24,9 +24,9 @@ enum iio_backend_data_source {
 
 /**
  * IIO_BACKEND_EX_INFO - Helper for an IIO extended channel attribute
- * @_name:	Attribute name
- * @_shared:	Whether the attribute is shared between all channels
- * @_what:	Data private to the driver
+ * @_name: Attribute name
+ * @_shared: Whether the attribute is shared between all channels
+ * @_what: Data private to the driver
  */
 #define IIO_BACKEND_EX_INFO(_name, _shared, _what) {	\
 	.name = (_name),				\
@@ -38,10 +38,10 @@ enum iio_backend_data_source {
 
 /**
  * struct iio_backend_data_fmt - Backend data format
- * @type:		Data type.
- * @sign_extend:	Bool to tell if the data is sign extended.
- * @enable:		Enable/Disable the data format module. If disabled,
- *			not formatting will happen.
+ * @type: Data type.
+ * @sign_extend: Bool to tell if the data is sign extended.
+ * @enable: Enable/Disable the data format module. If disabled,
+ *	    not formatting will happen.
  */
 struct iio_backend_data_fmt {
 	enum iio_backend_data_type type;
@@ -51,18 +51,18 @@ struct iio_backend_data_fmt {
 
 /**
  * struct iio_backend_ops - operations structure for an iio_backend
- * @enable:		Enable backend.
- * @disable:		Disable backend.
- * @chan_enable:	Enable one channel.
- * @chan_disable:	Disable one channel.
- * @data_format_set:	Configure the data format for a specific channel.
- * @data_source_set:	Configure the data source for a specific channel.
- * @set_sample_rate:	Configure the sampling rate for a specific channel.
- * @request_buffer:	Request an IIO buffer.
- * @free_buffer:	Free an IIO buffer.
- * @extend_chan_spec:	Extend an IIO channel.
- * @ext_info_set:	Extended info setter.
- * @ext_info_get:	Extended info getter.
+ * @enable: Enable backend.
+ * @disable: Disable backend.
+ * @chan_enable: Enable one channel.
+ * @chan_disable: Disable one channel.
+ * @data_format_set: Configure the data format for a specific channel.
+ * @data_source_set: Configure the data source for a specific channel.
+ * @set_sample_rate: Configure the sampling rate for a specific channel.
+ * @request_buffer: Request an IIO buffer.
+ * @free_buffer: Free an IIO buffer.
+ * @extend_chan_spec: Extend an IIO channel.
+ * @ext_info_set: Extended info setter.
+ * @ext_info_get: Extended info getter.
  **/
 struct iio_backend_ops {
 	int (*enable)(struct iio_backend *back);
