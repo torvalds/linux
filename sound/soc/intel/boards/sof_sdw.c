@@ -1280,6 +1280,7 @@ struct sof_sdw_endpoint {
 	u32 link_mask;
 	const char *codec_name;
 	const char *name_prefix;
+	bool include_sidecar;
 
 	struct sof_sdw_codec_info *codec_info;
 	const struct sof_sdw_dai_info *dai_info;
@@ -1335,7 +1336,8 @@ static struct sof_sdw_dailink *find_dailink(struct sof_sdw_dailink *dailinks,
 
 static int parse_sdw_endpoints(struct snd_soc_card *card,
 			       struct sof_sdw_dailink *sof_dais,
-			       struct sof_sdw_endpoint *sof_ends)
+			       struct sof_sdw_endpoint *sof_ends,
+			       int *num_devs)
 {
 	struct device *dev = card->dev;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -1345,6 +1347,7 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 	struct sof_sdw_endpoint *sof_end = sof_ends;
 	int num_dais = 0;
 	int i, j;
+	int ret;
 
 	for (adr_link = mach_params->links; adr_link->num_adr; adr_link++) {
 		int num_link_dailinks = 0;
@@ -1380,6 +1383,14 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 				adr_dev->name_prefix, codec_name);
 
 			sof_end->name_prefix = adr_dev->name_prefix;
+
+			if (codec_info->count_sidecar && codec_info->add_sidecar) {
+				ret = codec_info->count_sidecar(card, &num_dais, num_devs);
+				if (ret)
+					return ret;
+
+				sof_end->include_sidecar = true;
+			}
 
 			for (j = 0; j < adr_dev->num_endpoints; j++) {
 				const struct snd_soc_acpi_endpoint *adr_end;
@@ -1453,12 +1464,19 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct sof_sdw_endpoint *sof_end;
 	int stream;
+	int ret;
 
 	list_for_each_entry(sof_end, &sof_dai->endpoints, list) {
 		if (sof_end->name_prefix) {
 			(*codec_conf)->dlc.name = sof_end->codec_name;
 			(*codec_conf)->name_prefix = sof_end->name_prefix;
 			(*codec_conf)++;
+		}
+
+		if (sof_end->include_sidecar) {
+			ret = sof_end->codec_info->add_sidecar(card, dai_links, codec_conf);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -1757,7 +1775,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		goto err_dai;
 	}
 
-	ret = parse_sdw_endpoints(card, sof_dais, sof_ends);
+	ret = parse_sdw_endpoints(card, sof_dais, sof_ends, &num_devs);
 	if (ret < 0)
 		goto err_end;
 
