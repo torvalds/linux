@@ -537,6 +537,7 @@ extern const struct pmc_bit_map lnl_vnn_misc_status_map[];
 extern const struct pmc_bit_map *lnl_lpm_maps[];
 extern const struct pmc_bit_map lnl_pfear_map[];
 extern const struct pmc_bit_map *ext_lnl_pfear_map[];
+extern const struct pmc_bit_map lnl_signal_status_map[];
 
 /* ARL */
 extern const struct pmc_bit_map arl_socs_ltr_show_map[];

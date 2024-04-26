@@ -317,6 +317,26 @@ const struct pmc_bit_map lnl_clocksource_status_map[] = {
 	{}
 };
 
+const struct pmc_bit_map lnl_signal_status_map[] = {
+	{"LSX_Wake0_STS",                BIT(0)},
+	{"LSX_Wake1_STS",                BIT(1)},
+	{"LSX_Wake2_STS",                BIT(2)},
+	{"LSX_Wake3_STS",                BIT(3)},
+	{"LSX_Wake4_STS",                BIT(4)},
+	{"LSX_Wake5_STS",                BIT(5)},
+	{"LSX_Wake6_STS",                BIT(6)},
+	{"LSX_Wake7_STS",                BIT(7)},
+	{"LPSS_Wake0_STS",               BIT(8)},
+	{"LPSS_Wake1_STS",               BIT(9)},
+	{"Int_Timer_SS_Wake0_STS",       BIT(10)},
+	{"Int_Timer_SS_Wake1_STS",       BIT(11)},
+	{"Int_Timer_SS_Wake2_STS",       BIT(12)},
+	{"Int_Timer_SS_Wake3_STS",       BIT(13)},
+	{"Int_Timer_SS_Wake4_STS",       BIT(14)},
+	{"Int_Timer_SS_Wake5_STS",       BIT(15)},
+	{}
+};
+
 const struct pmc_bit_map *lnl_lpm_maps[] = {
 	lnl_clocksource_status_map,
 	lnl_power_gating_status_0_map,
@@ -331,7 +351,7 @@ const struct pmc_bit_map *lnl_lpm_maps[] = {
 	lnl_vnn_req_status_2_map,
 	lnl_vnn_req_status_3_map,
 	lnl_vnn_misc_status_map,
-	mtl_socm_signal_status_map,
+	lnl_signal_status_map,
 	NULL
 };
 
