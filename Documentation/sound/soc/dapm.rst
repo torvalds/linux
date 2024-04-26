@@ -50,7 +50,7 @@ Stream domain
 All DAPM power switching decisions are made automatically by consulting an audio
 routing map of the whole machine. This map is specific to each machine and
 consists of the interconnections between every audio component (including
-internal codec components). All audio components that effect power are called
+internal codec components). All audio components that affect power are called
 widgets hereafter.
 
 
@@ -221,7 +221,7 @@ when the Mic is inserted:-::
 Codec (BIAS) Domain
 -------------------
 
-The codec bias power domain has no widgets and is handled by the codecs DAPM
+The codec bias power domain has no widgets and is handled by the codec DAPM
 event handler. This handler is called when the codec powerstate is changed wrt
 to any stream event or by kernel PM events.
 
@@ -236,7 +236,7 @@ a virtual widget - a widget with no control bits e.g.
 
   SND_SOC_DAPM_MIXER("AC97 Mixer", SND_SOC_NOPM, 0, 0, NULL, 0),
 
-This can be used to merge to signal paths together in software.
+This can be used to merge two signal paths together in software.
 
 After all the widgets have been defined, they can then be added to the DAPM
 subsystem individually with a call to snd_soc_dapm_new_control().
