@@ -1768,6 +1768,7 @@ static int svs_bank_resource_setup(struct svs_platform *svsp)
 	const struct svs_bank_pdata *bdata;
 	struct svs_bank *svsb;
 	struct dev_pm_opp *opp;
+	char tz_name_buf[20];
 	unsigned long freq;
 	int count, ret;
 	u32 idx, i;
@@ -1819,10 +1820,12 @@ static int svs_bank_resource_setup(struct svs_platform *svsp)
 		}
 
 		if (!IS_ERR_OR_NULL(bdata->tzone_name)) {
-			svsb->tzd = thermal_zone_get_zone_by_name(bdata->tzone_name);
+			snprintf(tz_name_buf, ARRAY_SIZE(tz_name_buf),
+				 "%s-thermal", bdata->tzone_name);
+			svsb->tzd = thermal_zone_get_zone_by_name(tz_name_buf);
 			if (IS_ERR(svsb->tzd)) {
 				dev_err(svsb->dev, "cannot get \"%s\" thermal zone\n",
-					bdata->tzone_name);
+					tz_name_buf);
 				return PTR_ERR(svsb->tzd);
 			}
 		}
