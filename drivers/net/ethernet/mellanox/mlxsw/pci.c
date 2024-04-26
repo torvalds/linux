@@ -127,7 +127,41 @@ struct mlxsw_pci {
 	u8 num_cqs; /* Number of CQs */
 	u8 num_sdqs; /* Number of SDQs */
 	bool skip_reset;
+	struct net_device *napi_dev_tx;
+	struct net_device *napi_dev_rx;
 };
+
+static int mlxsw_pci_napi_devs_init(struct mlxsw_pci *mlxsw_pci)
+{
+	int err;
+
+	mlxsw_pci->napi_dev_tx = alloc_netdev_dummy(0);
+	if (!mlxsw_pci->napi_dev_tx)
+		return -ENOMEM;
+	strscpy(mlxsw_pci->napi_dev_tx->name, "mlxsw_tx",
+		sizeof(mlxsw_pci->napi_dev_tx->name));
+
+	mlxsw_pci->napi_dev_rx = alloc_netdev_dummy(0);
+	if (!mlxsw_pci->napi_dev_rx) {
+		err = -ENOMEM;
+		goto err_alloc_rx;
+	}
+	strscpy(mlxsw_pci->napi_dev_rx->name, "mlxsw_rx",
+		sizeof(mlxsw_pci->napi_dev_rx->name));
+	dev_set_threaded(mlxsw_pci->napi_dev_rx, true);
+
+	return 0;
+
+err_alloc_rx:
+	free_netdev(mlxsw_pci->napi_dev_tx);
+	return err;
+}
+
+static void mlxsw_pci_napi_devs_fini(struct mlxsw_pci *mlxsw_pci)
+{
+	free_netdev(mlxsw_pci->napi_dev_rx);
+	free_netdev(mlxsw_pci->napi_dev_tx);
+}
 
 static void mlxsw_pci_queue_tasklet_schedule(struct mlxsw_pci_queue *q)
 {
@@ -1721,6 +1755,10 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_requery_resources;
 
+	err = mlxsw_pci_napi_devs_init(mlxsw_pci);
+	if (err)
+		goto err_napi_devs_init;
+
 	err = mlxsw_pci_aqs_init(mlxsw_pci, mbox);
 	if (err)
 		goto err_aqs_init;
@@ -1738,6 +1776,8 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 err_request_eq_irq:
 	mlxsw_pci_aqs_fini(mlxsw_pci);
 err_aqs_init:
+	mlxsw_pci_napi_devs_fini(mlxsw_pci);
+err_napi_devs_init:
 err_requery_resources:
 err_config_profile:
 err_cqe_v_check:
@@ -1765,6 +1805,7 @@ static void mlxsw_pci_fini(void *bus_priv)
 
 	free_irq(pci_irq_vector(mlxsw_pci->pdev, 0), mlxsw_pci);
 	mlxsw_pci_aqs_fini(mlxsw_pci);
+	mlxsw_pci_napi_devs_fini(mlxsw_pci);
 	mlxsw_pci_fw_area_fini(mlxsw_pci);
 	mlxsw_pci_free_irq_vectors(mlxsw_pci);
 }
