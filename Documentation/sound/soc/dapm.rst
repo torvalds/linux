@@ -250,8 +250,42 @@ a virtual widget - a widget with no control bits e.g.
 
 This can be used to merge two signal paths together in software.
 
-After all the widgets have been defined, they can then be added to the DAPM
-subsystem individually with a call to snd_soc_dapm_new_control().
+Registering DAPM controls
+=========================
+
+In many cases the DAPM widgets implemented statically in a ``static const
+struct snd_soc_dapm_widget`` array and the routes connecting them in a
+``static const struct snd_soc_dapm_route`` array in a codec driver, and
+simply declared via the ``dapm_widgets`` and ``num_dapm_widgets`` fields of
+the ``struct snd_soc_component_driver`` so the driver registration will
+take care of populating them::
+
+  static const struct snd_soc_dapm_widget wm2000_dapm_widgets[] = {
+  	SND_SOC_DAPM_OUTPUT("SPKN"),
+  	SND_SOC_DAPM_OUTPUT("SPKP"),
+  	...
+  };
+
+  /* Target, Path, Source */
+  static const struct snd_soc_dapm_route wm2000_audio_map[] = {
+  	{ "SPKN", NULL, "ANC Engine" },
+  	{ "SPKP", NULL, "ANC Engine" },
+	...
+  };
+
+  static const struct snd_soc_component_driver soc_component_dev_wm2000 = {
+	...
+  	.dapm_widgets		= wm2000_dapm_widgets,
+  	.num_dapm_widgets	= ARRAY_SIZE(wm2000_dapm_widgets),
+	...
+  };
+
+In more complex cases the list of DAPM widgets and/or routes can be only
+known at build time. This happens for example when a driver supports
+different models having a different set of features. In those cases
+separate widgets and routes arrays implementing the case-specific features
+can be registered programmatically by calling snd_soc_dapm_new_controls()
+and snd_soc_dapm_add_routes().
 
 
 Codec/DSP Widget Interconnections
