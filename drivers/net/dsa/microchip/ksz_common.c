@@ -3087,9 +3087,6 @@ static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
 
 	ksz_set_xmii(dev, port, state->interface);
 
-	if (dev->dev_ops->phylink_mac_config)
-		dev->dev_ops->phylink_mac_config(dev, port, mode, state);
-
 	if (dev->dev_ops->setup_rgmii_delay)
 		dev->dev_ops->setup_rgmii_delay(dev, port);
 }
