@@ -172,12 +172,19 @@ static int print_package_info(struct isst_id *id, FILE *outf)
 	int level = 1;
 
 	if (out_format_is_json()) {
-		if (api_version() > 1)
-			snprintf(header, sizeof(header), "package-%d:die-%d:powerdomain-%d:cpu-%d",
-				 id->pkg, id->die, id->punit, id->cpu);
-		else
+		if (api_version() > 1) {
+			if (id->cpu < 0)
+				snprintf(header, sizeof(header),
+					 "package-%d:die-%d:powerdomain-%d:cpu-None",
+					 id->pkg, id->die, id->punit);
+			else
+				snprintf(header, sizeof(header),
+					 "package-%d:die-%d:powerdomain-%d:cpu-%d",
+					 id->pkg, id->die, id->punit, id->cpu);
+		} else {
 			snprintf(header, sizeof(header), "package-%d:die-%d:cpu-%d",
 				 id->pkg, id->die, id->cpu);
+		}
 		format_and_print(outf, level, header, NULL);
 		return 1;
 	}
@@ -189,7 +196,12 @@ static int print_package_info(struct isst_id *id, FILE *outf)
 		snprintf(header, sizeof(header), "powerdomain-%d", id->punit);
 		format_and_print(outf, level++, header, NULL);
 	}
-	snprintf(header, sizeof(header), "cpu-%d", id->cpu);
+
+	if (id->cpu < 0)
+		snprintf(header, sizeof(header), "cpu-None");
+	else
+		snprintf(header, sizeof(header), "cpu-%d", id->cpu);
+
 	format_and_print(outf, level, header, NULL);
 
 	return level;
