@@ -205,6 +205,7 @@ struct stmmac_priv {
 	u32 tx_coal_frames[MTL_MAX_TX_QUEUES];
 	u32 tx_coal_timer[MTL_MAX_TX_QUEUES];
 	u32 rx_coal_frames[MTL_MAX_TX_QUEUES];
+	bool tx_coal_timer_disable;
 
 	int hwts_tx_en;
 	bool tx_path_in_lpi_mode;
@@ -324,7 +325,6 @@ struct stmmac_priv {
 	/* XDP BPF Program */
 	unsigned long *af_xdp_zc_qps;
 	struct bpf_prog *xdp_prog;
-
 	bool phy_irq_enabled;
 	bool boot_kpi;
 	bool early_eth;
