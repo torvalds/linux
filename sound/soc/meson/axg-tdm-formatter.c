@@ -392,6 +392,46 @@ void axg_tdm_stream_free(struct axg_tdm_stream *ts)
 }
 EXPORT_SYMBOL_GPL(axg_tdm_stream_free);
 
+int axg_tdm_stream_set_cont_clocks(struct axg_tdm_stream *ts,
+				   unsigned int fmt)
+{
+	int ret = 0;
+
+	if (fmt & SND_SOC_DAIFMT_CONT) {
+		/* Clock are already enabled - skipping */
+		if (ts->clk_enabled)
+			return 0;
+
+		ret = clk_prepare_enable(ts->iface->mclk);
+		if (ret)
+			return ret;
+
+		ret = clk_prepare_enable(ts->iface->sclk);
+		if (ret)
+			goto err_sclk;
+
+		ret = clk_prepare_enable(ts->iface->lrclk);
+		if (ret)
+			goto err_lrclk;
+
+		ts->clk_enabled = true;
+		return 0;
+	}
+
+	/* Clocks are already disabled - skipping */
+	if (!ts->clk_enabled)
+		return 0;
+
+	clk_disable_unprepare(ts->iface->lrclk);
+err_lrclk:
+	clk_disable_unprepare(ts->iface->sclk);
+err_sclk:
+	clk_disable_unprepare(ts->iface->mclk);
+	ts->clk_enabled = false;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(axg_tdm_stream_set_cont_clocks);
+
 MODULE_DESCRIPTION("Amlogic AXG TDM formatter driver");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_LICENSE("GPL v2");

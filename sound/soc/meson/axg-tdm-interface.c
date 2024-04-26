@@ -309,6 +309,7 @@ static int axg_tdm_iface_hw_params(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
 	struct axg_tdm_iface *iface = snd_soc_dai_get_drvdata(dai);
+	struct axg_tdm_stream *ts = snd_soc_dai_get_dma_data(dai, substream);
 	int ret;
 
 	switch (iface->fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -346,7 +347,19 @@ static int axg_tdm_iface_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 	}
 
-	return 0;
+	ret = axg_tdm_stream_set_cont_clocks(ts, iface->fmt);
+	if (ret)
+		dev_err(dai->dev, "failed to apply continuous clock setting\n");
+
+	return ret;
+}
+
+static int axg_tdm_iface_hw_free(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
+{
+	struct axg_tdm_stream *ts = snd_soc_dai_get_dma_data(dai, substream);
+
+	return axg_tdm_stream_set_cont_clocks(ts, 0);
 }
 
 static int axg_tdm_iface_trigger(struct snd_pcm_substream *substream,
@@ -417,6 +430,7 @@ static const struct snd_soc_dai_ops axg_tdm_iface_ops = {
 	.set_fmt	= axg_tdm_iface_set_fmt,
 	.startup	= axg_tdm_iface_startup,
 	.hw_params	= axg_tdm_iface_hw_params,
+	.hw_free	= axg_tdm_iface_hw_free,
 	.trigger	= axg_tdm_iface_trigger,
 };
 
