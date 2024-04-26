@@ -48,16 +48,10 @@ int mana_ib_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	struct mana_ib_cq *cq = container_of(ibcq, struct mana_ib_cq, ibcq);
 	struct ib_device *ibdev = ibcq->device;
 	struct mana_ib_dev *mdev;
-	struct gdma_context *gc;
 
 	mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
-	gc = mdev_to_gc(mdev);
 
-	if (cq->queue.id != INVALID_QUEUE_ID) {
-		kfree(gc->cq_table[cq->queue.id]);
-		gc->cq_table[cq->queue.id] = NULL;
-	}
-
+	mana_ib_remove_cq_cb(mdev, cq);
 	mana_ib_destroy_queue(mdev, &cq->queue);
 
 	return 0;
@@ -88,4 +82,15 @@ int mana_ib_install_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq)
 	gdma_cq->id = cq->queue.id;
 	gc->cq_table[cq->queue.id] = gdma_cq;
 	return 0;
+}
+
+void mana_ib_remove_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq)
+{
+	struct gdma_context *gc = mdev_to_gc(mdev);
+
+	if (cq->queue.id >= gc->max_num_cqs || cq->queue.id == INVALID_QUEUE_ID)
+		return;
+
+	kfree(gc->cq_table[cq->queue.id]);
+	gc->cq_table[cq->queue.id] = NULL;
 }

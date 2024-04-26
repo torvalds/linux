@@ -255,6 +255,7 @@ static inline void copy_in_reverse(u8 *dst, const u8 *src, u32 size)
 }
 
 int mana_ib_install_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq);
+void mana_ib_remove_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq);
 
 int mana_ib_create_zero_offset_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 					  mana_handle_t *gdma_region);
