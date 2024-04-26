@@ -638,21 +638,12 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct sof_card_private *ctx;
 	char *card_name;
-	bool is_legacy_cpu = false;
 	int ret;
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_rt5682_quirk = (unsigned long)pdev->id_entry->driver_data;
 
 	dmi_check_system(sof_rt5682_quirk_table);
-
-	if (soc_intel_is_byt() || soc_intel_is_cht()) {
-		is_legacy_cpu = true;
-
-		/* default quirk for legacy cpu */
-		sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
-				   SOF_SSP_PORT_CODEC(2);
-	}
 
 	dev_dbg(&pdev->dev, "sof_rt5682_quirk = %lx\n", sof_rt5682_quirk);
 
@@ -676,7 +667,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 		ctx->hdmi.idisp_codec = true;
 
-	if (is_legacy_cpu) {
+	if (soc_intel_is_byt() || soc_intel_is_cht()) {
 		ctx->rt5682.is_legacy_cpu = true;
 		ctx->dmic_be_num = 0;
 		/* HDMI is not supported by SOF on Baytrail/CherryTrail */
@@ -792,6 +783,8 @@ static int sof_audio_probe(struct platform_device *pdev)
 static const struct platform_device_id board_ids[] = {
 	{
 		.name = "sof_rt5682",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_SSP_PORT_CODEC(2)),
 	},
 	{
 		.name = "glk_rt5682_def",
