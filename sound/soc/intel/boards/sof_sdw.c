@@ -1882,12 +1882,6 @@ static int sof_sdw_card_late_probe(struct snd_soc_card *card)
 /* SoC card */
 static const char sdw_card_long_name[] = "Intel Soundwire SOF";
 
-static struct snd_soc_card card_sof_sdw = {
-	.name = "soundwire",
-	.owner = THIS_MODULE,
-	.late_probe = sof_sdw_card_late_probe,
-};
-
 /* helper to get the link that the codec DAI is used */
 static struct snd_soc_dai_link *mc_find_codec_dai_used(struct snd_soc_card *card,
 						       const char *dai_name)
@@ -1939,19 +1933,23 @@ static void mc_dailink_exit_loop(struct snd_soc_card *card)
 
 static int mc_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = &card_sof_sdw;
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(&pdev->dev);
+	struct snd_soc_card *card;
 	struct mc_private *ctx;
 	int amp_num = 0, i;
 	int ret;
 
-	card->dev = &pdev->dev;
+	dev_dbg(&pdev->dev, "Entry\n");
 
-	dev_dbg(card->dev, "Entry\n");
-
-	ctx = devm_kzalloc(card->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	card = &ctx->card;
+	card->dev = &pdev->dev;
+	card->name = "soundwire",
+	card->owner = THIS_MODULE,
+	card->late_probe = sof_sdw_card_late_probe,
 
 	snd_soc_card_set_drvdata(card, ctx);
 

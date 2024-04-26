@@ -101,6 +101,7 @@ struct sof_sdw_codec_info {
 };
 
 struct mc_private {
+	struct snd_soc_card card;
 	struct snd_soc_jack sdw_headset;
 	struct sof_hdmi_private hdmi;
 	struct device *headset_codec_dev; /* only one headset per card */
