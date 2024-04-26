@@ -30,7 +30,6 @@
 
 /* Driver-specific board quirks: from bit 0 to 7 */
 #define SOF_RT5682_MCLK_EN			BIT(0)
-#define SOF_RT5682_MCLK_BYTCHT_EN		BIT(1)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -206,7 +205,7 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 			}
 		}
 
-		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
+		if (ctx->rt5682.is_legacy_cpu) {
 			/*
 			 * The firmware might enable the clock at
 			 * boot (this information may or may not
@@ -279,7 +278,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 	int pll_id, pll_source, pll_in, pll_out, clk_id, ret;
 
 	if (ctx->rt5682.mclk_en) {
-		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
+		if (ctx->rt5682.is_legacy_cpu) {
 			ret = clk_prepare_enable(ctx->rt5682.mclk);
 			if (ret < 0) {
 				dev_err(rtd->dev,
@@ -661,7 +660,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 		/* default quirk for legacy cpu */
 		sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
-				   SOF_RT5682_MCLK_BYTCHT_EN |
 				   SOF_SSP_PORT_CODEC(2);
 	}
 
@@ -728,26 +726,27 @@ static int sof_audio_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN)
+	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
 		ctx->rt5682.mclk_en = true;
 
-	/* need to get main clock from pmc */
-	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
-		ctx->rt5682.mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
-		if (IS_ERR(ctx->rt5682.mclk)) {
-			ret = PTR_ERR(ctx->rt5682.mclk);
+		/* need to get main clock from pmc */
+		if (ctx->rt5682.is_legacy_cpu) {
+			ctx->rt5682.mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
+			if (IS_ERR(ctx->rt5682.mclk)) {
+				ret = PTR_ERR(ctx->rt5682.mclk);
 
-			dev_err(&pdev->dev,
-				"Failed to get MCLK from pmc_plt_clk_3: %d\n",
-				ret);
-			return ret;
-		}
+				dev_err(&pdev->dev,
+					"Failed to get MCLK from pmc_plt_clk_3: %d\n",
+					ret);
+				return ret;
+			}
 
-		ret = clk_prepare_enable(ctx->rt5682.mclk);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"could not configure MCLK state");
-			return ret;
+			ret = clk_prepare_enable(ctx->rt5682.mclk);
+			if (ret < 0) {
+				dev_err(&pdev->dev,
+					"could not configure MCLK state");
+				return ret;
+			}
 		}
 	}
 
