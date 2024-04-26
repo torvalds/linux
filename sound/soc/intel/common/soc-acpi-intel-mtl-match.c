@@ -357,7 +357,7 @@ static const struct snd_soc_acpi_adr_device rt714_1_adr[] = {
 	}
 };
 
-static const struct snd_soc_acpi_link_adr mtl_712_only[] = {
+static const struct snd_soc_acpi_link_adr mtl_712_l0_1712_l3[] = {
 	{
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt712_0_single_adr),
@@ -367,6 +367,15 @@ static const struct snd_soc_acpi_link_adr mtl_712_only[] = {
 		.mask = BIT(3),
 		.num_adr = ARRAY_SIZE(rt1712_3_single_adr),
 		.adr_d = rt1712_3_single_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr mtl_712_l0[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt712_0_single_adr),
+		.adr_d = rt712_0_single_adr,
 	},
 	{}
 };
@@ -769,9 +778,15 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 	},
 	{
 		.link_mask = BIT(3) | BIT(0),
-		.links = mtl_712_only,
+		.links = mtl_712_l0_1712_l3,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-rt712-l0-rt1712-l3.tplg",
+	},
+	{
+		.link_mask = BIT(0),
+		.links = mtl_712_l0,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-rt712-l0.tplg",
 	},
 	{
 		.link_mask = GENMASK(2, 0),
