@@ -376,23 +376,29 @@ jacks can also be switched OFF.
 DAPM Widget Events
 ==================
 
-Some widgets can register their interest with the DAPM core in PM events.
-e.g. A Speaker with an amplifier registers a widget so the amplifier can be
-powered only when the spk is in use.
-::
+Widgets needing to implement a more complex behaviour than what DAPM can do
+can set a custom "event handler" by setting a function pointer. An example
+is a power supply needing to enable a GPIO::
 
-  /* turn speaker amplifier on/off depending on use */
-  static int corgi_amp_event(struct snd_soc_dapm_widget *w, int event)
+  static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
+  					  struct snd_kcontrol *kcontrol, int event)
   {
-	gpio_set_value(CORGI_GPIO_APM_ON, SND_SOC_DAPM_EVENT_ON(event));
-	return 0;
+  	if (SND_SOC_DAPM_EVENT_ON(event))
+  		gpiod_set_value_cansleep(gpio_pa, true);
+  	else
+  		gpiod_set_value_cansleep(gpio_pa, false);
+
+  	return 0;
   }
 
-  /* corgi machine dapm widgets */
-  static const struct snd_soc_dapm_widget wm8731_dapm_widgets =
-	SND_SOC_DAPM_SPK("Ext Spk", corgi_amp_event);
+  static const struct snd_soc_dapm_widget st_widgets[] = {
+  	...
+  	SND_SOC_DAPM_SUPPLY("Speaker Power", SND_SOC_NOPM, 0, 0,
+  			    sof_es8316_speaker_power_event,
+  			    SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
+  };
 
-Please see soc-dapm.h for all other widgets that support events.
+See soc-dapm.h for all other widgets that support events.
 
 
 Event types
