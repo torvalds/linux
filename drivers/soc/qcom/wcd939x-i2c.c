@@ -1332,6 +1332,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Select MG2, GSBU1 */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SELECT0, 0x03, 0x1);
+			/* Select  AGND MG2 */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SELECT1, 0x01, 0x0);
 			/* Disable OVP_MG1_BIAS PCOMP_DYN_BST_EN */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_MG1_BIAS, 0x08, 0x00);
@@ -1346,6 +1349,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 			/* Select MG1, GSBU2 */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SELECT0, 0x03, 0x2);
+			/* Select  AGND MG2 */
+			regmap_update_bits(wcd_usbss_ctxt_->regmap,
+					WCD_USBSS_SWITCH_SELECT1, 0x01, 0x1);
 			/* Enable SENSE, MIC, AGND switches */
 			regmap_update_bits(wcd_usbss_ctxt_->regmap,
 					WCD_USBSS_SWITCH_SETTINGS_ENABLE, 0x07, 0x07);
