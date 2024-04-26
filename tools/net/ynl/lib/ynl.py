@@ -233,10 +233,9 @@ class NlMsg:
                     miss_type = self.extack['miss-type']
                     if miss_type in attr_space.attrs_by_val:
                         spec = attr_space.attrs_by_val[miss_type]
-                        desc = spec['name']
+                        self.extack['miss-type'] = spec['name']
                         if 'doc' in spec:
-                            desc += f" ({spec['doc']})"
-                        self.extack['miss-type'] = desc
+                            self.extack['miss-type-doc'] = spec['doc']
 
     def _decode_policy(self, raw):
         policy = {}
