@@ -26,6 +26,7 @@ def define_autoghgvm():
         "drivers/pinctrl/qcom/pinctrl-lemans.ko",
         "drivers/pinctrl/qcom/pinctrl-monaco_auto.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
+        "drivers/remoteproc/qcom_sysmon.ko",
         "drivers/remoteproc/rproc_qcom_common.ko",
         "drivers/rpmsg/qcom_glink.ko",
         "drivers/rpmsg/qcom_glink_cma.ko",
@@ -37,6 +38,7 @@ def define_autoghgvm():
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
         "drivers/soc/qcom/minidump.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
+        "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/rename_devices.ko",
         "drivers/soc/qcom/rq_stats.ko",
         "drivers/soc/qcom/smem.ko",
@@ -53,6 +55,8 @@ def define_autoghgvm():
         "drivers/virtio/virtio_mmio.ko",
         "kernel/trace/qcom_ipc_logging.ko",
         "net/core/failover.ko",
+        "net/qrtr/qrtr.ko",
+        "net/qrtr/qrtr-mhi.ko",
     ]
 
     for variant in lxc_variants:
