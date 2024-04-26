@@ -84,7 +84,7 @@ properties:
       "#interrupt-cells":
         const: 1
 
-      "interrupt-controller": true
+      interrupt-controller: true
 
     required:
       - "#address-cells"

@@ -29,39 +29,39 @@ properties:
       allowable by a module in the slot, in milli-Watts. Presently, modules can
       be up to 1W, 1.5W or 2W.
 
-  "mod-def0-gpios":
+  mod-def0-gpios:
     maxItems: 1
     description:
       GPIO phandle and a specifier of the MOD-DEF0 (AKA Mod_ABS) module
       presence input gpio signal, active (module absent) high. Must not be
       present for SFF modules
 
-  "los-gpios":
+  los-gpios:
     maxItems: 1
     description:
       GPIO phandle and a specifier of the Receiver Loss of Signal Indication
       input gpio signal, active (signal lost) high
 
-  "tx-fault-gpios":
+  tx-fault-gpios:
     maxItems: 1
     description:
       GPIO phandle and a specifier of the Module Transmitter Fault input gpio
       signal, active (fault condition) high
 
-  "tx-disable-gpios":
+  tx-disable-gpios:
     maxItems: 1
     description:
       GPIO phandle and a specifier of the Transmitter Disable output gpio
       signal, active (Tx disable) high
 
-  "rate-select0-gpios":
+  rate-select0-gpios:
     maxItems: 1
     description:
       GPIO phandle and a specifier of the Rx Signaling Rate Select (AKA RS0)
       output gpio signal, low - low Rx rate, high - high Rx rate Must not be
       present for SFF modules
 
-  "rate-select1-gpios":
+  rate-select1-gpios:
     maxItems: 1
     description:
       GPIO phandle and a specifier of the Tx Signaling Rate Select (AKA RS1)
