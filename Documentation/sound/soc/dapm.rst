@@ -48,7 +48,7 @@ Stream domain
       stopped respectively. e.g. aplay, arecord.
 
 All DAPM power switching decisions are made automatically by consulting an audio
-routing map of the whole machine. This map is specific to each machine and
+routing graph of the whole machine. This graph is specific to each machine and
 consists of the interconnections between every audio component (including
 internal codec components). All audio components that affect power are called
 widgets hereafter.
@@ -229,7 +229,7 @@ to any stream event or by kernel PM events.
 Virtual Widgets
 ---------------
 
-Sometimes widgets exist in the codec or machine audio map that don't have any
+Sometimes widgets exist in the codec or machine audio graph that don't have any
 corresponding soft power control. In this case it is necessary to create
 a virtual widget - a widget with no control bits e.g.
 ::
@@ -247,7 +247,7 @@ Codec/DSP Widget Interconnections
 
 Widgets are connected to each other within the codec, platform and machine by
 audio paths (called interconnections). Each interconnection must be defined in
-order to create a map of all audio paths between widgets.
+order to create a graph of all audio paths between widgets.
 
 This is easiest with a diagram of the codec or DSP (and schematic of the machine
 audio system), as it requires joining widgets together via their audio signal
