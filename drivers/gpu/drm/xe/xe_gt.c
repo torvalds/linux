@@ -378,7 +378,9 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 			 err);
 
 	/* Initialize CCS mode sysfs after early initialization of HW engines */
-	xe_gt_ccs_mode_sysfs_init(gt);
+	err = xe_gt_ccs_mode_sysfs_init(gt);
+	if (err)
+		goto err_force_wake;
 
 	/*
 	 * Stash hardware-reported version.  Since this register does not exist
