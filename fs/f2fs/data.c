@@ -4179,7 +4179,8 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	map.m_lblk = bytes_to_blks(inode, offset);
 	map.m_len = bytes_to_blks(inode, offset + length - 1) - map.m_lblk + 1;
 	map.m_next_pgofs = &next_pgofs;
-	map.m_seg_type = f2fs_rw_hint_to_seg_type(inode->i_write_hint);
+	map.m_seg_type = f2fs_rw_hint_to_seg_type(F2FS_I_SB(inode),
+						inode->i_write_hint);
 	if (flags & IOMAP_WRITE)
 		map.m_may_create = true;
 
