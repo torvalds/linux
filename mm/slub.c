@@ -2806,7 +2806,7 @@ static void deactivate_slab(struct kmem_cache *s, struct slab *slab,
 	struct slab new;
 	struct slab old;
 
-	if (slab->freelist) {
+	if (READ_ONCE(slab->freelist)) {
 		stat(s, DEACTIVATE_REMOTE_FREES);
 		tail = DEACTIVATE_TO_TAIL;
 	}
