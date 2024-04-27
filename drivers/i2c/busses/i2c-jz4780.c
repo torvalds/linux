@@ -565,7 +565,7 @@ static inline int jz4780_i2c_xfer_read(struct jz4780_i2c *i2c,
 				       int idx)
 {
 	int ret = 0;
-	long timeout;
+	unsigned long time_left;
 	int wait_time = JZ4780_I2C_TIMEOUT * (len + 5);
 	unsigned short tmp;
 	unsigned long flags;
@@ -600,10 +600,10 @@ static inline int jz4780_i2c_xfer_read(struct jz4780_i2c *i2c,
 
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
-	timeout = wait_for_completion_timeout(&i2c->trans_waitq,
-					      msecs_to_jiffies(wait_time));
+	time_left = wait_for_completion_timeout(&i2c->trans_waitq,
+						msecs_to_jiffies(wait_time));
 
-	if (!timeout) {
+	if (!time_left) {
 		dev_err(&i2c->adap.dev, "irq read timeout\n");
 		dev_dbg(&i2c->adap.dev, "send cmd count:%d  %d\n",
 			i2c->cmd, i2c->cmd_buf[i2c->cmd]);
@@ -627,7 +627,7 @@ static inline int jz4780_i2c_xfer_write(struct jz4780_i2c *i2c,
 {
 	int ret = 0;
 	int wait_time = JZ4780_I2C_TIMEOUT * (len + 5);
-	long timeout;
+	unsigned long time_left;
 	unsigned short tmp;
 	unsigned long flags;
 
@@ -655,14 +655,14 @@ static inline int jz4780_i2c_xfer_write(struct jz4780_i2c *i2c,
 
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
-	timeout = wait_for_completion_timeout(&i2c->trans_waitq,
-					      msecs_to_jiffies(wait_time));
-	if (timeout && !i2c->stop_hold) {
+	time_left = wait_for_completion_timeout(&i2c->trans_waitq,
+						msecs_to_jiffies(wait_time));
+	if (time_left && !i2c->stop_hold) {
 		unsigned short i2c_sta;
 		int write_in_process;
 
-		timeout = JZ4780_I2C_TIMEOUT * 100;
-		for (; timeout > 0; timeout--) {
+		time_left = JZ4780_I2C_TIMEOUT * 100;
+		for (; time_left > 0; time_left--) {
 			i2c_sta = jz4780_i2c_readw(i2c, JZ4780_I2C_STA);
 
 			write_in_process = (i2c_sta & JZ4780_I2C_STA_MSTACT) ||
@@ -673,7 +673,7 @@ static inline int jz4780_i2c_xfer_write(struct jz4780_i2c *i2c,
 		}
 	}
 
-	if (!timeout) {
+	if (!time_left) {
 		dev_err(&i2c->adap.dev, "write wait timeout\n");
 		ret = -EIO;
 	}
