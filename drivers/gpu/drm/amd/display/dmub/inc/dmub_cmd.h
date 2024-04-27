@@ -81,6 +81,16 @@
  */
 #define NUM_BL_CURVE_SEGS               16
 
+/**
+ * Maximum number of segments in ABM ACE curve.
+ */
+#define ABM_MAX_NUM_OF_ACE_SEGMENTS         64
+
+/**
+ * Maximum number of bins in ABM histogram.
+ */
+#define ABM_MAX_NUM_OF_HG_BINS              64
+
 /* Maximum number of SubVP streams */
 #define DMUB_MAX_SUBVP_STREAMS 2
 
@@ -3865,6 +3875,82 @@ enum dmub_cmd_abm_type {
 	 * on restore we update state with passed in data.
 	 */
 	DMUB_CMD__ABM_SAVE_RESTORE	= 7,
+
+	/**
+	 * Query ABM caps.
+	 */
+	DMUB_CMD__ABM_QUERY_CAPS	= 8,
+};
+
+struct abm_ace_curve {
+	/**
+	 * @offsets: ACE curve offsets.
+	 */
+	uint32_t offsets[ABM_MAX_NUM_OF_ACE_SEGMENTS];
+
+	/**
+	 * @thresholds: ACE curve thresholds.
+	 */
+	uint32_t thresholds[ABM_MAX_NUM_OF_ACE_SEGMENTS];
+
+	/**
+	 * @slopes: ACE curve slopes.
+	 */
+	uint32_t slopes[ABM_MAX_NUM_OF_ACE_SEGMENTS];
+};
+
+struct fixed_pt_format {
+	/**
+	 * @sign_bit: Indicates whether one bit is reserved for the sign.
+	 */
+	bool sign_bit;
+
+	/**
+	 * @num_int_bits: Number of bits used for integer part.
+	 */
+	uint8_t num_int_bits;
+
+	/**
+	 * @num_frac_bits: Number of bits used for fractional part.
+	 */
+	uint8_t num_frac_bits;
+
+	/**
+	 * @pad: Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad;
+};
+
+struct abm_caps {
+	/**
+	 * @num_hg_bins: Number of histogram bins.
+	 */
+	uint8_t num_hg_bins;
+
+	/**
+	 * @num_ace_segments: Number of ACE curve segments.
+	 */
+	uint8_t num_ace_segments;
+
+	/**
+	 * @pad: Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+
+	/**
+	 * @ace_thresholds_format: Format of the ACE thresholds. If not programmable, it is set to 0.
+	 */
+	struct fixed_pt_format ace_thresholds_format;
+
+	/**
+	 * @ace_offsets_format: Format of the ACE offsets. If not programmable, it is set to 0.
+	 */
+	struct fixed_pt_format ace_offsets_format;
+
+	/**
+	 * @ace_slopes_format: Format of the ACE slopes.
+	 */
+	struct fixed_pt_format ace_slopes_format;
 };
 
 /**
@@ -4272,6 +4358,54 @@ struct dmub_rb_cmd_abm_pause {
 	 * Data passed from driver to FW in a DMUB_CMD__ABM_PAUSE command.
 	 */
 	struct dmub_cmd_abm_pause_data abm_pause_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__ABM_QUERY_CAPS command.
+ */
+struct dmub_cmd_abm_query_caps_in {
+	/**
+	 * Panel instance.
+	 */
+	uint8_t panel_inst;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[3];
+};
+
+/**
+ * Data passed from FW to driver in a DMUB_CMD__ABM_QUERY_CAPS command.
+ */
+struct dmub_cmd_abm_query_caps_out {
+	/**
+	 * SW Algorithm caps.
+	 */
+	struct abm_caps sw_caps;
+
+	/**
+	 * ABM HW caps.
+	 */
+	struct abm_caps hw_caps;
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_QUERY_CAPS command.
+ */
+struct dmub_rb_cmd_abm_query_caps {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed between FW and driver in a DMUB_CMD__ABM_QUERY_CAPS command.
+	 */
+	union {
+		struct dmub_cmd_abm_query_caps_in  abm_query_caps_in;
+		struct dmub_cmd_abm_query_caps_out abm_query_caps_out;
+	} data;
 };
 
 /**
@@ -4837,6 +4971,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__ABM_SAVE_RESTORE command.
 	 */
 	struct dmub_rb_cmd_abm_save_restore abm_save_restore;
+
+	/**
+	 * Definition of a DMUB_CMD__ABM_QUERY_CAPS command.
+	 */
+	struct dmub_rb_cmd_abm_query_caps abm_query_caps;
 
 	/**
 	 * Definition of a DMUB_CMD__DP_AUX_ACCESS command.
