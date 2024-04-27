@@ -24,7 +24,7 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 {
 	struct i40e_filter_program_desc *fdir_desc;
 	struct i40e_pf *pf = tx_ring->vsi->back;
-	u32 flex_ptype, dtype_cmd;
+	u32 flex_ptype, dtype_cmd, vsi_id;
 	u16 i;
 
 	/* grab the next descriptor */
@@ -42,8 +42,8 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_PCTYPE_MASK, fdata->pctype);
 
 	/* Use LAN VSI Id if not programmed by user */
-	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_DEST_VSI_MASK,
-				 fdata->dest_vsi ? : pf->vsi[pf->lan_vsi]->id);
+	vsi_id = fdata->dest_vsi ? : i40e_pf_get_main_vsi(pf)->id;
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_DEST_VSI_MASK, vsi_id);
 
 	dtype_cmd = I40E_TX_DESC_DTYPE_FILTER_PROG;
 
@@ -869,7 +869,7 @@ u32 i40e_get_tx_pending(struct i40e_ring *ring, bool in_sw)
  **/
 void i40e_detect_recover_hung(struct i40e_pf *pf)
 {
-	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
+	struct i40e_vsi *vsi = i40e_pf_get_main_vsi(pf);
 	struct i40e_ring *tx_ring = NULL;
 	struct net_device *netdev;
 	unsigned int i;

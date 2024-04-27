@@ -1373,6 +1373,17 @@ i40e_pf_get_vsi_by_seid(struct i40e_pf *pf, u16 seid)
 }
 
 /**
+ * i40e_pf_get_main_vsi - get pointer to main VSI
+ * @pf: pointer to a PF
+ *
+ * Return: pointer to main VSI or NULL if it does not exist
+ **/
+static inline struct i40e_vsi *i40e_pf_get_main_vsi(struct i40e_pf *pf)
+{
+	return (pf->lan_vsi != I40E_NO_VSI) ? pf->vsi[pf->lan_vsi] : NULL;
+}
+
+/**
  * i40e_pf_get_veb_by_seid - find VEB by SEID
  * @pf: pointer to a PF
  * @seid: SEID of the VSI
