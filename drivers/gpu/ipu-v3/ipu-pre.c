@@ -113,8 +113,8 @@ int ipu_pre_get_available_count(void)
 struct ipu_pre *
 ipu_pre_lookup_by_phandle(struct device *dev, const char *name, int index)
 {
-	struct device_node *pre_node = of_parse_phandle(dev->of_node,
-							name, index);
+	struct device_node *pre_node __free(device_node) =
+		of_parse_phandle(dev->of_node, name, index);
 	struct ipu_pre *pre;
 
 	mutex_lock(&ipu_pre_list_mutex);
@@ -123,13 +123,10 @@ ipu_pre_lookup_by_phandle(struct device *dev, const char *name, int index)
 			mutex_unlock(&ipu_pre_list_mutex);
 			device_link_add(dev, pre->dev,
 					DL_FLAG_AUTOREMOVE_CONSUMER);
-			of_node_put(pre_node);
 			return pre;
 		}
 	}
 	mutex_unlock(&ipu_pre_list_mutex);
-
-	of_node_put(pre_node);
 
 	return NULL;
 }
