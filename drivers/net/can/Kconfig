@@ -187,9 +187,8 @@ config CAN_SLCAN
 	  slcand) can be found in the can-utils at the linux-can project, see
 	  https://github.com/linux-can/can-utils for details.
 
-	  The slcan driver supports up to 10 CAN netdevices by default which
-	  can be changed by the 'maxdev=xx' module option. This driver can
-	  also be built as a module. If so, the module will be called slcan.
+	  This driver can also be built as a module. If so, the module
+	  will be called slcan.
 
 config CAN_SUN4I
 	tristate "Allwinner A10 CAN controller"
