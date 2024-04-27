@@ -871,16 +871,11 @@ static inline void emit_a32_alu_r64(const bool is64, const s8 dst[],
 }
 
 /* dst = src (4 bytes)*/
-static inline void emit_a32_mov_r(const s8 dst, const s8 src, const u8 off,
-				  struct jit_ctx *ctx) {
+static inline void emit_a32_mov_r(const s8 dst, const s8 src, struct jit_ctx *ctx) {
 	const s8 *tmp = bpf2a32[TMP_REG_1];
 	s8 rt;
 
 	rt = arm_bpf_get_reg32(src, tmp[0], ctx);
-	if (off && off != 32) {
-		emit(ARM_LSL_I(rt, rt, 32 - off), ctx);
-		emit(ARM_ASR_I(rt, rt, 32 - off), ctx);
-	}
 	arm_bpf_put_reg32(dst, rt, ctx);
 }
 
@@ -889,15 +884,15 @@ static inline void emit_a32_mov_r64(const bool is64, const s8 dst[],
 				  const s8 src[],
 				  struct jit_ctx *ctx) {
 	if (!is64) {
-		emit_a32_mov_r(dst_lo, src_lo, 0, ctx);
+		emit_a32_mov_r(dst_lo, src_lo, ctx);
 		if (!ctx->prog->aux->verifier_zext)
 			/* Zero out high 4 bytes */
 			emit_a32_mov_i(dst_hi, 0, ctx);
 	} else if (__LINUX_ARM_ARCH__ < 6 &&
 		   ctx->cpu_architecture < CPU_ARCH_ARMv5TE) {
 		/* complete 8 byte move */
-		emit_a32_mov_r(dst_lo, src_lo, 0, ctx);
-		emit_a32_mov_r(dst_hi, src_hi, 0, ctx);
+		emit_a32_mov_r(dst_lo, src_lo, ctx);
+		emit_a32_mov_r(dst_hi, src_hi, ctx);
 	} else if (is_stacked(src_lo) && is_stacked(dst_lo)) {
 		const u8 *tmp = bpf2a32[TMP_REG_1];
 
@@ -917,17 +912,52 @@ static inline void emit_a32_mov_r64(const bool is64, const s8 dst[],
 static inline void emit_a32_movsx_r64(const bool is64, const u8 off, const s8 dst[], const s8 src[],
 				      struct jit_ctx *ctx) {
 	const s8 *tmp = bpf2a32[TMP_REG_1];
-	const s8 *rt;
+	s8 rs;
+	s8 rd;
 
-	rt = arm_bpf_get_reg64(dst, tmp, ctx);
+	if (is_stacked(dst_lo))
+		rd = tmp[1];
+	else
+		rd = dst_lo;
+	rs = arm_bpf_get_reg32(src_lo, rd, ctx);
+	/* rs may be one of src[1], dst[1], or tmp[1] */
 
-	emit_a32_mov_r(dst_lo, src_lo, off, ctx);
+	/* Sign extend rs if needed. If off == 32, lower 32-bits of src are moved to dst and sign
+	 * extension only happens in the upper 64 bits.
+	 */
+	if (off != 32) {
+		/* Sign extend rs into rd */
+		emit(ARM_LSL_I(rd, rs, 32 - off), ctx);
+		emit(ARM_ASR_I(rd, rd, 32 - off), ctx);
+	} else {
+		rd = rs;
+	}
+
+	/* Write rd to dst_lo
+	 *
+	 * Optimization:
+	 * Assume:
+	 * 1. dst == src and stacked.
+	 * 2. off == 32
+	 *
+	 * In this case src_lo was loaded into rd(tmp[1]) but rd was not sign extended as off==32.
+	 * So, we don't need to write rd back to dst_lo as they have the same value.
+	 * This saves us one str instruction.
+	 */
+	if (dst_lo != src_lo || off != 32)
+		arm_bpf_put_reg32(dst_lo, rd, ctx);
+
 	if (!is64) {
 		if (!ctx->prog->aux->verifier_zext)
 			/* Zero out high 4 bytes */
 			emit_a32_mov_i(dst_hi, 0, ctx);
 	} else {
-		emit(ARM_ASR_I(rt[0], rt[1], 31), ctx);
+		if (is_stacked(dst_hi)) {
+			emit(ARM_ASR_I(tmp[0], rd, 31), ctx);
+			arm_bpf_put_reg32(dst_hi, tmp[0], ctx);
+		} else {
+			emit(ARM_ASR_I(dst_hi, rd, 31), ctx);
+		}
 	}
 }
 
