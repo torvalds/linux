@@ -44,7 +44,7 @@ $(obj)/vdso32_wrapper.o : $(obj)/vdso32.so
 quiet_cmd_vdso_and_check = VDSO    $@
       cmd_vdso_and_check = $(cmd_ld); $(cmd_vdso_check)
 
-$(obj)/vdso32.so.dbg: $(src)/vdso32.lds $(obj-vdso32) FORCE
+$(obj)/vdso32.so.dbg: $(obj)/vdso32.lds $(obj-vdso32) FORCE
 	$(call if_changed,vdso_and_check)
 
 # strip rule for the .so file
