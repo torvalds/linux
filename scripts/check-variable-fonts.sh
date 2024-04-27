@@ -20,10 +20,6 @@
 # suggestions if variable-font files of "Noto CJK" fonts are in the list of
 # fonts accessible from XeTeX.
 #
-# Assumption:
-# File names are not modified from those of upstream Noto CJK fonts:
-#     https://github.com/notofonts/noto-cjk/
-#
 # References:
 # [1]: https://lore.kernel.org/r/8734tqsrt7.fsf@meer.lwn.net/
 # [2]: https://lore.kernel.org/r/1708585803.600323099@f111.i.mail.ru/
@@ -96,13 +92,15 @@
 
 export XDG_CONFIG_HOME=${FONTS_CONF_DENY_VF}
 
-vffonts=`fc-list -b | grep -iE 'file: .*noto.*cjk.*-vf' | \
-	 sed -e 's/\tfile:/  file:/' -e 's/(s)$//' | sort | uniq`
+notocjkvffonts=`fc-list : file family variable | \
+		grep 'variable=True' | \
+		grep -E -e 'Noto (Sans|Sans Mono|Serif) CJK' | \
+		sed -e 's/^/    /' -e 's/: Noto S.*$//' | sort | uniq`
 
-if [ "x$vffonts" != "x" ] ; then
+if [ "x$notocjkvffonts" != "x" ] ; then
 	echo '============================================================================='
 	echo 'XeTeX is confused by "variable font" files listed below:'
-	echo "$vffonts"
+	echo "$notocjkvffonts"
 	echo
 	echo 'For CJK pages in PDF, they need to be hidden from XeTeX by denylisting.'
 	echo 'Or, CJK pages can be skipped by uninstalling texlive-xecjk.'
