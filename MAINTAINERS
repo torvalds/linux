@@ -16798,12 +16798,6 @@ S:	Maintained
 F:	drivers/leds/leds-pca9532.c
 F:	include/linux/leds-pca9532.h
 
-PCA9541 I2C BUS MASTER SELECTOR DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	drivers/i2c/muxes/i2c-mux-pca9541.c
-
 PCI DRIVER FOR AARDVARK (Marvell Armada 3700)
 M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 M:	Pali Rohár <pali@kernel.org>
