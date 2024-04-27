@@ -466,10 +466,9 @@ void sym_calc_value(struct symbol *sym)
 			if (sym->flags & SYMBOL_CHANGED)
 				sym_set_changed(choice_sym);
 		}
-	}
 
-	if (sym->flags & SYMBOL_NO_WRITE)
 		sym->flags &= ~SYMBOL_WRITE;
+	}
 
 	if (sym->flags & SYMBOL_NEED_SET_CHOICE_VALUES)
 		set_all_choice_values(sym);

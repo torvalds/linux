@@ -222,7 +222,7 @@ config_option: T_MODULES T_EOL
 choice: T_CHOICE T_EOL
 {
 	struct symbol *sym = sym_lookup(NULL, 0);
-	sym->flags |= SYMBOL_NO_WRITE;
+
 	menu_add_entry(sym);
 	menu_add_expr(P_CHOICE, NULL, NULL);
 	printd(DEBUG_PARSE, "%s:%d:choice\n", cur_filename, cur_lineno);
