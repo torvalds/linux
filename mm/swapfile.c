@@ -902,7 +902,7 @@ static int scan_swap_map_slots(struct swap_info_struct *si,
 		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
 
 		/* Locate the first empty (unaligned) cluster */
-		for (; last_in_cluster <= si->highest_bit; offset++) {
+		for (; last_in_cluster <= READ_ONCE(si->highest_bit); offset++) {
 			if (si->swap_map[offset])
 				last_in_cluster = offset + SWAPFILE_CLUSTER;
 			else if (offset == last_in_cluster) {
