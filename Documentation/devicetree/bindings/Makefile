@@ -25,7 +25,7 @@ quiet_cmd_extract_ex = DTEX    $@
 $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
 	$(call if_changed,extract_ex)
 
-find_all_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
+find_all_cmd = find $(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' \)
 
 find_cmd = $(find_all_cmd) | \
@@ -37,12 +37,12 @@ CHK_DT_EXAMPLES := $(patsubst $(srctree)/%.yaml,%.example.dtb, $(shell $(find_cm
 quiet_cmd_yamllint = LINT    $(src)
       cmd_yamllint = ($(find_cmd) | \
                      xargs -n200 -P$$(nproc) \
-		     $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint >&2) \
+		     $(DT_SCHEMA_LINT) -f parsable -c $(src)/.yamllint >&2) \
 		     && touch $@ || true
 
 quiet_cmd_chk_bindings = CHKDT   $(src)
       cmd_chk_bindings = ($(find_cmd) | \
-			  xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(srctree)/$(src)) \
+			  xargs -n200 -P$$(nproc) $(DT_DOC_CHECKER) -u $(src)) \
 			  && touch $@ || true
 
 quiet_cmd_mk_schema = SCHEMA  $@

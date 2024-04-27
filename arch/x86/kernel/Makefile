@@ -40,7 +40,7 @@ KMSAN_SANITIZE_sev.o					:= n
 KCOV_INSTRUMENT_head$(BITS).o				:= n
 KCOV_INSTRUMENT_sev.o					:= n
 
-CFLAGS_irq.o := -I $(srctree)/$(src)/../include/asm/trace
+CFLAGS_irq.o := -I $(src)/../include/asm/trace
 
 obj-y			+= head_$(BITS).o
 obj-y			+= head$(BITS).o

@@ -41,7 +41,7 @@ CFLAGS_display/intel_fbdev.o = -Wno-override-init
 # drivers. Define I915 when building i915.
 subdir-ccflags-y += -DI915
 
-subdir-ccflags-y += -I$(srctree)/$(src)
+subdir-ccflags-y += -I$(src)
 
 # Please keep these build lists sorted!
 
@@ -434,7 +434,7 @@ no-header-test := \
 
 always-$(CONFIG_DRM_I915_WERROR) += \
 	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
-		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
+		$(shell cd $(src) && find * -name '*.h')))
 
 quiet_cmd_hdrtest = HDRTEST $(patsubst %.hdrtest,%.h,$@)
       cmd_hdrtest = $(CC) $(filter-out $(CFLAGS_GCOV), $(c_flags)) -S -o /dev/null -x c /dev/null -include $<; \

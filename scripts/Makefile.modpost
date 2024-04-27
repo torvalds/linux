@@ -112,7 +112,7 @@ else
 
 # set src + obj - they may be used in the modules's Makefile
 obj := $(KBUILD_EXTMOD)
-src := $(obj)
+src := $(if $(VPATH),$(VPATH)/)$(obj)
 
 # Include the module's Makefile to find KBUILD_EXTRA_SYMBOLS
 include $(kbuild-file)

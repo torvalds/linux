@@ -263,7 +263,14 @@ srctree := $(abs_srctree)
 endif
 
 objtree		:= .
+
+VPATH		:=
+
+ifeq ($(KBUILD_EXTMOD),)
+ifdef building_out_of_srctree
 VPATH		:= $(srctree)
+endif
+endif
 
 export building_out_of_srctree srctree objtree VPATH
 

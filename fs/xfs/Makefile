@@ -4,8 +4,8 @@
 # All Rights Reserved.
 #
 
-ccflags-y += -I $(srctree)/$(src)		# needed for trace events
-ccflags-y += -I $(srctree)/$(src)/libxfs
+ccflags-y += -I $(src)		# needed for trace events
+ccflags-y += -I $(src)/libxfs
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
 

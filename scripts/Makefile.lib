@@ -209,13 +209,13 @@ _c_flags += $(if $(patsubst n%,, \
 	-D__KCSAN_INSTRUMENT_BARRIERS__)
 endif
 
-# $(srctree)/$(src) for including checkin headers from generated source files
-# $(objtree)/$(obj) for including generated headers from checkin source files
+# $(src) for including checkin headers from generated source files
+# $(obj) for including generated headers from checkin source files
 ifeq ($(KBUILD_EXTMOD),)
 ifdef building_out_of_srctree
-_c_flags   += $(addprefix -I $(srctree)/,$(src)) $(addprefix -I $(objtree)/,$(obj))
-_a_flags   += $(addprefix -I $(srctree)/,$(src)) $(addprefix -I $(objtree)/,$(obj))
-_cpp_flags += $(addprefix -I $(srctree)/,$(src)) $(addprefix -I $(objtree)/,$(obj))
+_c_flags   += $(addprefix -I, $(src) $(obj))
+_a_flags   += $(addprefix -I, $(src) $(obj))
+_cpp_flags += $(addprefix -I, $(src) $(obj))
 endif
 endif
 

@@ -129,7 +129,7 @@ targets += mtools.conf
 # genimage.sh requires bash, but it also has a bunch of other
 # external dependencies.
 quiet_cmd_genimage = GENIMAGE $3
-cmd_genimage = $(BASH) $(srctree)/$(src)/genimage.sh $2 $3 $(obj)/bzImage \
+      cmd_genimage = $(BASH) $(src)/genimage.sh $2 $3 $(obj)/bzImage \
 		$(obj)/mtools.conf '$(FDARGS)' $(FDINITRD)
 
 PHONY += bzdisk fdimage fdimage144 fdimage288 hdimage isoimage

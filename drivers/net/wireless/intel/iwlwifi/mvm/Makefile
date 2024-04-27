@@ -15,4 +15,4 @@ iwlmvm-$(CONFIG_IWLWIFI_LEDS) += led.o
 iwlmvm-$(CONFIG_PM) += d3.o
 iwlmvm-$(CONFIG_IWLMEI) += vendor-cmd.o
 
-ccflags-y += -I $(srctree)/$(src)/../
+ccflags-y += -I $(src)/../

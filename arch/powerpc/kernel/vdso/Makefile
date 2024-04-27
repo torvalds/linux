@@ -90,10 +90,10 @@ $(obj)/vgettimeofday-64.o: %-64.o: %.c FORCE
 	$(call if_changed_dep,cc_o_c)
 
 # Generate VDSO offsets using helper script
-gen-vdso32sym := $(srctree)/$(src)/gen_vdso32_offsets.sh
+gen-vdso32sym := $(src)/gen_vdso32_offsets.sh
 quiet_cmd_vdso32sym = VDSO32SYM $@
       cmd_vdso32sym = $(NM) $< | $(gen-vdso32sym) | LC_ALL=C sort > $@
-gen-vdso64sym := $(srctree)/$(src)/gen_vdso64_offsets.sh
+gen-vdso64sym := $(src)/gen_vdso64_offsets.sh
 quiet_cmd_vdso64sym = VDSO64SYM $@
       cmd_vdso64sym = $(NM) $< | $(gen-vdso64sym) | LC_ALL=C sort > $@
 
