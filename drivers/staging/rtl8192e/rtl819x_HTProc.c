@@ -275,11 +275,11 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 		   cap_ele->chl_width, cap_ele->max_amsdu_size, cap_ele->DssCCk);
 
 	if (is_encrypt) {
-		cap_ele->MPDUDensity	= 7;
+		cap_ele->mpdu_density	= 7;
 		cap_ele->max_rx_ampdu_factor	= 2;
 	} else {
 		cap_ele->max_rx_ampdu_factor	= 3;
-		cap_ele->MPDUDensity	= 0;
+		cap_ele->mpdu_density	= 0;
 	}
 
 	memcpy(cap_ele->MCS, ieee->reg_dot11ht_oper_rate_set, 16);
@@ -479,7 +479,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 						      HT_AGG_SIZE_32K);
 	}
 
-	ht_info->current_mpdu_density = pPeerHTCap->MPDUDensity;
+	ht_info->current_mpdu_density = pPeerHTCap->mpdu_density;
 	if (ht_info->iot_action & HT_IOT_ACT_TX_USE_AMSDU_8K)
 		ht_info->current_ampdu_enable = false;
 

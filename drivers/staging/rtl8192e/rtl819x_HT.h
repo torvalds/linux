@@ -40,7 +40,7 @@ struct ht_capab_ele {
 	u8	lsig_txop_protect:1;
 
 	u8	max_rx_ampdu_factor:2;
-	u8	MPDUDensity:3;
+	u8	mpdu_density:3;
 	u8	Rsvd2:3;
 
 	u8	MCS[16];
