@@ -265,7 +265,6 @@ static const struct lp50xx_chip_info lp50xx_chip_info_tbl[] = {
 struct lp50xx_led {
 	struct led_classdev_mc mc_cdev;
 	struct lp50xx *priv;
-	unsigned long bank_modules;
 	u8 ctrl_bank_enabled;
 	int led_number;
 };
