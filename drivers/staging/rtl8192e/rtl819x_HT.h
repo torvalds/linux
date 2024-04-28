@@ -28,7 +28,7 @@ struct ht_capab_ele {
 	u8	chl_width:1;
 	u8	mimo_pwr_save:2;
 	u8	GreenField:1;
-	u8	ShortGI20Mhz:1;
+	u8	short_gi_20mhz:1;
 	u8	short_gi_40mhz:1;
 	u8	TxSTBC:1;
 	u8	RxSTBC:2;

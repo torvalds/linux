@@ -259,7 +259,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 
 	cap_ele->mimo_pwr_save		= 3;
 	cap_ele->GreenField		= 0;
-	cap_ele->ShortGI20Mhz		= 1;
+	cap_ele->short_gi_20mhz		= 1;
 	cap_ele->short_gi_40mhz		= 1;
 
 	cap_ele->TxSTBC			= 1;
@@ -457,7 +457,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 	ht_info->cur_tx_bw40mhz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?
 				 true : false);
 
-	ht_info->cur_short_gi_20mhz = ((pPeerHTCap->ShortGI20Mhz == 1) ? true : false);
+	ht_info->cur_short_gi_20mhz = ((pPeerHTCap->short_gi_20mhz == 1) ? true : false);
 	ht_info->cur_short_gi_40mhz = ((pPeerHTCap->short_gi_40mhz == 1) ? true : false);
 
 	ht_info->current_ampdu_enable = ht_info->ampdu_enable;
