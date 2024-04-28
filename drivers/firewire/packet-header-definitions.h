@@ -165,4 +165,70 @@ static inline void async_header_set_extended_tcode(u32 header[ASYNC_HEADER_QUADL
 	header[3] |= (((u32)extended_tcode) << ASYNC_HEADER_Q3_EXTENDED_TCODE_SHIFT) & ASYNC_HEADER_Q3_EXTENDED_TCODE_MASK;
 }
 
+#define ISOC_HEADER_DATA_LENGTH_SHIFT		16
+#define ISOC_HEADER_DATA_LENGTH_MASK		0xffff0000
+#define ISOC_HEADER_TAG_SHIFT			14
+#define ISOC_HEADER_TAG_MASK			0x0000c000
+#define ISOC_HEADER_CHANNEL_SHIFT		8
+#define ISOC_HEADER_CHANNEL_MASK		0x00003f00
+#define ISOC_HEADER_TCODE_SHIFT			4
+#define ISOC_HEADER_TCODE_MASK			0x000000f0
+#define ISOC_HEADER_SY_SHIFT			0
+#define ISOC_HEADER_SY_MASK			0x0000000f
+
+static inline unsigned int isoc_header_get_data_length(u32 header)
+{
+	return (header & ISOC_HEADER_DATA_LENGTH_MASK) >> ISOC_HEADER_DATA_LENGTH_SHIFT;
+}
+
+static inline unsigned int isoc_header_get_tag(u32 header)
+{
+	return (header & ISOC_HEADER_TAG_MASK) >> ISOC_HEADER_TAG_SHIFT;
+}
+
+static inline unsigned int isoc_header_get_channel(u32 header)
+{
+	return (header & ISOC_HEADER_CHANNEL_MASK) >> ISOC_HEADER_CHANNEL_SHIFT;
+}
+
+static inline unsigned int isoc_header_get_tcode(u32 header)
+{
+	return (header & ISOC_HEADER_TCODE_MASK) >> ISOC_HEADER_TCODE_SHIFT;
+}
+
+static inline unsigned int isoc_header_get_sy(u32 header)
+{
+	return (header & ISOC_HEADER_SY_MASK) >> ISOC_HEADER_SY_SHIFT;
+}
+
+static inline void isoc_header_set_data_length(u32 *header, unsigned int data_length)
+{
+	*header &= ~ISOC_HEADER_DATA_LENGTH_MASK;
+	*header |= (((u32)data_length) << ISOC_HEADER_DATA_LENGTH_SHIFT) & ISOC_HEADER_DATA_LENGTH_MASK;
+}
+
+static inline void isoc_header_set_tag(u32 *header, unsigned int tag)
+{
+	*header &= ~ISOC_HEADER_TAG_MASK;
+	*header |= (((u32)tag) << ISOC_HEADER_TAG_SHIFT) & ISOC_HEADER_TAG_MASK;
+}
+
+static inline void isoc_header_set_channel(u32 *header, unsigned int channel)
+{
+	*header &= ~ISOC_HEADER_CHANNEL_MASK;
+	*header |= (((u32)channel) << ISOC_HEADER_CHANNEL_SHIFT) & ISOC_HEADER_CHANNEL_MASK;
+}
+
+static inline void isoc_header_set_tcode(u32 *header, unsigned int tcode)
+{
+	*header &= ~ISOC_HEADER_TCODE_MASK;
+	*header |= (((u32)tcode) << ISOC_HEADER_TCODE_SHIFT) & ISOC_HEADER_TCODE_MASK;
+}
+
+static inline void isoc_header_set_sy(u32 *header, unsigned int sy)
+{
+	*header &= ~ISOC_HEADER_SY_MASK;
+	*header |= (((u32)sy) << ISOC_HEADER_SY_SHIFT) & ISOC_HEADER_SY_MASK;
+}
+
 #endif // _FIREWIRE_PACKET_HEADER_DEFINITIONS_H

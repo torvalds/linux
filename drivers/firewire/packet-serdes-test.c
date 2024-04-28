@@ -167,6 +167,26 @@ static void deserialize_async_header_block_response(const u32 header[ASYNC_HEADE
 	*extended_tcode = async_header_get_extended_tcode(header);
 }
 
+static void serialize_isoc_header(u32 *header, unsigned int data_length, unsigned int tag,
+				  unsigned int channel, unsigned int tcode, unsigned int sy)
+{
+	isoc_header_set_data_length(header, data_length);
+	isoc_header_set_tag(header, tag);
+	isoc_header_set_channel(header, channel);
+	isoc_header_set_tcode(header, tcode);
+	isoc_header_set_sy(header, sy);
+}
+
+static void deserialize_isoc_header(u32 header, unsigned int *data_length, unsigned int *tag,
+				    unsigned int *channel, unsigned int *tcode, unsigned int *sy)
+{
+	*data_length = isoc_header_get_data_length(header);
+	*tag = isoc_header_get_tag(header);
+	*channel = isoc_header_get_channel(header);
+	*tcode = isoc_header_get_tcode(header);
+	*sy = isoc_header_get_sy(header);
+}
+
 static void test_async_header_write_quadlet_request(struct kunit *test)
 {
 	static const u32 expected[ASYNC_HEADER_QUADLET_COUNT] = {
@@ -515,6 +535,29 @@ static void test_async_header_lock_response(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, header, expected, sizeof(expected));
 }
 
+static void test_isoc_header(struct kunit *test)
+{
+	const u32 expected = 0x00d08dec;
+	u32 header = 0;
+
+	unsigned int data_length;
+	unsigned int tag;
+	unsigned int channel;
+	unsigned int tcode;
+	unsigned int sy;
+
+	deserialize_isoc_header(expected, &data_length, &tag, &channel, &tcode, &sy);
+
+	KUNIT_EXPECT_EQ(test, 0xd0, data_length);
+	KUNIT_EXPECT_EQ(test, 0x02, tag);
+	KUNIT_EXPECT_EQ(test, 0x0d, channel);
+	KUNIT_EXPECT_EQ(test, 0x0e, tcode);
+	KUNIT_EXPECT_EQ(test, 0x0c, sy);
+
+	serialize_isoc_header(&header, data_length, tag, channel, tcode, sy);
+
+	KUNIT_EXPECT_EQ(test, header, expected);
+}
 
 static struct kunit_case packet_serdes_test_cases[] = {
 	KUNIT_CASE(test_async_header_write_quadlet_request),
@@ -526,6 +569,7 @@ static struct kunit_case packet_serdes_test_cases[] = {
 	KUNIT_CASE(test_async_header_read_block_response),
 	KUNIT_CASE(test_async_header_lock_request),
 	KUNIT_CASE(test_async_header_lock_response),
+	KUNIT_CASE(test_isoc_header),
 	{}
 };
 
