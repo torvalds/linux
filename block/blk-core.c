@@ -494,7 +494,8 @@ __setup("fail_make_request=", setup_fail_make_request);
 
 bool should_fail_request(struct block_device *part, unsigned int bytes)
 {
-	return part->bd_make_it_fail && should_fail(&fail_make_request, bytes);
+	return bdev_test_flag(part, BD_MAKE_IT_FAIL) &&
+	       should_fail(&fail_make_request, bytes);
 }
 
 static int __init fail_make_request_debugfs(void)
