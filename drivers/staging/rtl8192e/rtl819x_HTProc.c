@@ -638,10 +638,10 @@ static void ht_set_connect_bw_mode_callback(struct rtllib_device *ieee)
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
 	if (ht_info->cur_bw_40mhz) {
-		if (ht_info->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_UPPER)
+		if (ht_info->cur_sta_ext_chnl_offset == HT_EXTCHNL_OFFSET_UPPER)
 			ieee->set_chan(ieee->dev,
 				       ieee->current_network.channel + 2);
-		else if (ht_info->CurSTAExtChnlOffset ==
+		else if (ht_info->cur_sta_ext_chnl_offset ==
 			 HT_EXTCHNL_OFFSET_LOWER)
 			ieee->set_chan(ieee->dev,
 				       ieee->current_network.channel - 2);
@@ -650,7 +650,7 @@ static void ht_set_connect_bw_mode_callback(struct rtllib_device *ieee)
 				       ieee->current_network.channel);
 
 		ieee->set_bw_mode_handler(ieee->dev, HT_CHANNEL_WIDTH_20_40,
-				       ht_info->CurSTAExtChnlOffset);
+				       ht_info->cur_sta_ext_chnl_offset);
 	} else {
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
 		ieee->set_bw_mode_handler(ieee->dev, HT_CHANNEL_WIDTH_20,
@@ -680,14 +680,14 @@ void ht_set_connect_bw_mode(struct rtllib_device *ieee,
 		if (Offset == HT_EXTCHNL_OFFSET_UPPER ||
 		    Offset == HT_EXTCHNL_OFFSET_LOWER) {
 			ht_info->cur_bw_40mhz = true;
-			ht_info->CurSTAExtChnlOffset = Offset;
+			ht_info->cur_sta_ext_chnl_offset = Offset;
 		} else {
 			ht_info->cur_bw_40mhz = false;
-			ht_info->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_NO_EXT;
+			ht_info->cur_sta_ext_chnl_offset = HT_EXTCHNL_OFFSET_NO_EXT;
 		}
 	} else {
 		ht_info->cur_bw_40mhz = false;
-		ht_info->CurSTAExtChnlOffset = HT_EXTCHNL_OFFSET_NO_EXT;
+		ht_info->cur_sta_ext_chnl_offset = HT_EXTCHNL_OFFSET_NO_EXT;
 	}
 
 	netdev_dbg(ieee->dev, "%s():ht_info->bCurBW40MHz:%x\n", __func__,
