@@ -257,7 +257,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 	else
 		cap_ele->chl_width = 1;
 
-	cap_ele->MimoPwrSave		= 3;
+	cap_ele->mimo_pwr_save		= 3;
 	cap_ele->GreenField		= 0;
 	cap_ele->ShortGI20Mhz		= 1;
 	cap_ele->ShortGI40Mhz		= 1;
