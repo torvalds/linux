@@ -498,7 +498,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 						       pMcsFilter);
 	ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
 
-	ht_info->current_op_mode = pPeerHTInfo->OptMode;
+	ht_info->current_op_mode = pPeerHTInfo->opt_mode;
 }
 
 void ht_initialize_ht_info(struct rtllib_device *ieee)
@@ -617,7 +617,7 @@ void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
 
 	if (ht_info->current_ht_support) {
 		if (pNetwork->bssht.bd_ht_info_len != 0)
-			ht_info->current_op_mode = pPeerHTInfo->OptMode;
+			ht_info->current_op_mode = pPeerHTInfo->opt_mode;
 	}
 }
 EXPORT_SYMBOL(HT_update_self_and_peer_setting);

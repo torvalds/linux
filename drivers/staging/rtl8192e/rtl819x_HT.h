@@ -62,7 +62,7 @@ struct ht_info_ele {
 	u8	PSMPAccessOnly:1;
 	u8	SrvIntGranularity:3;
 
-	u8	OptMode:2;
+	u8	opt_mode:2;
 	u8	NonGFDevPresent:1;
 	u8	Revd1:5;
 	u8	Revd2:8;
