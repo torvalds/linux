@@ -533,11 +533,17 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 	}
 
 	switch (tcode) {
-	case 0x0: case 0x6: case 0x8:
+	case TCODE_WRITE_QUADLET_REQUEST:
+	case TCODE_READ_QUADLET_RESPONSE:
+	case TCODE_CYCLE_START:
 		snprintf(specific, sizeof(specific), " = %08x",
 			 be32_to_cpu((__force __be32)header[3]));
 		break;
-	case 0x1: case 0x5: case 0x7: case 0x9: case 0xb:
+	case TCODE_WRITE_BLOCK_REQUEST:
+	case TCODE_READ_BLOCK_REQUEST:
+	case TCODE_READ_BLOCK_RESPONSE:
+	case TCODE_LOCK_REQUEST:
+	case TCODE_LOCK_RESPONSE:
 		snprintf(specific, sizeof(specific), " %x,%x",
 			 async_header_get_data_length(header),
 			 async_header_get_extended_tcode(header));
@@ -547,7 +553,7 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 	}
 
 	switch (tcode) {
-	case 0xa:
+	case TCODE_STREAM_DATA:
 		ohci_notice(ohci, "A%c %s, %s\n",
 			    dir, evts[evt], tcodes[tcode]);
 		break;
@@ -555,7 +561,11 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 		ohci_notice(ohci, "A%c %s, PHY %08x %08x\n",
 			    dir, evts[evt], header[1], header[2]);
 		break;
-	case 0x0: case 0x1: case 0x4: case 0x5: case 0x9:
+	case TCODE_WRITE_QUADLET_REQUEST:
+	case TCODE_WRITE_BLOCK_REQUEST:
+	case TCODE_READ_QUADLET_REQUEST:
+	case TCODE_READ_BLOCK_REQUEST:
+	case TCODE_LOCK_REQUEST:
 		ohci_notice(ohci,
 			    "A%c spd %x tl %02x, %04x -> %04x, %s, %s, %012llx%s\n",
 			    dir, speed, async_header_get_tlabel(header),
