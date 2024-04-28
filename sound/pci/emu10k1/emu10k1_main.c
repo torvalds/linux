@@ -864,28 +864,9 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 
 	snd_emu1010_fpga_lock(emu);
 
-	/* Disable 48Volt power to Audio Dock */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, 0);
-
-	/* ID, should read & 0x7f = 0x55. (Bit 7 is the IRQ bit) */
-	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg);
-	dev_dbg(emu->card->dev, "reg1 = 0x%x\n", reg);
-	if ((reg & 0x3f) == 0x15) {
-		/* FPGA netlist already present so clear it */
-		/* Return to programming mode */
-
-		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_HANA);
-	}
-	snd_emu1010_fpga_read(emu, EMU_HANA_ID, &reg);
-	dev_dbg(emu->card->dev, "reg2 = 0x%x\n", reg);
-	if ((reg & 0x3f) == 0x15) {
-		/* FPGA failed to return to programming mode */
-		dev_info(emu->card->dev,
-			 "emu1010: FPGA failed to return to programming mode\n");
-		return -ENODEV;
-	}
-	dev_info(emu->card->dev, "emu1010: EMU_HANA_ID = 0x%x\n", reg);
-
+	dev_info(emu->card->dev, "emu1010: Loading Hana Firmware\n");
+	snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG,
+			       EMU_HANA_FPGA_CONFIG_HANA);
 	err = snd_emu1010_load_firmware(emu, 0, &emu->firmware);
 	if (err < 0) {
 		dev_info(emu->card->dev, "emu1010: Loading Firmware failed\n");
