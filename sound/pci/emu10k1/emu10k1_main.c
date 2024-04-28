@@ -737,6 +737,12 @@ static void snd_emu1010_load_dock_firmware(struct snd_emu10k1 *emu)
 	u32 tmp, tmp2;
 	int err;
 
+	// The docking events clearly arrive prematurely - while the
+	// Dock's FPGA seems to be successfully programmed, the Dock
+	// fails to initialize subsequently if we don't give it some
+	// time to "warm up" here.
+	msleep(200);
+
 	dev_info(emu->card->dev, "emu1010: Loading Audio Dock Firmware\n");
 	/* Return to Audio Dock programming mode */
 	snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG,
