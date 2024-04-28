@@ -683,7 +683,7 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu, int dock,
 			return err;
 	}
 
-	snd_emu1010_load_firmware_entry(emu, *fw);
+	snd_emu1010_load_firmware_entry(emu, dock, *fw);
 	return 0;
 }
 
@@ -699,9 +699,6 @@ static void snd_emu1010_load_dock_firmware(struct snd_emu10k1 *emu)
 	msleep(200);
 
 	dev_info(emu->card->dev, "emu1010: Loading Audio Dock Firmware\n");
-	/* Return to Audio Dock programming mode */
-	snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG,
-			       EMU_HANA_FPGA_CONFIG_AUDIODOCK);
 	err = snd_emu1010_load_firmware(emu, 1, &emu->dock_fw);
 	if (err < 0)
 		return;
@@ -820,8 +817,6 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	snd_emu1010_fpga_lock(emu);
 
 	dev_info(emu->card->dev, "emu1010: Loading Hana Firmware\n");
-	snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG,
-			       EMU_HANA_FPGA_CONFIG_HANA);
 	err = snd_emu1010_load_firmware(emu, 0, &emu->firmware);
 	if (err < 0) {
 		dev_info(emu->card->dev, "emu1010: Loading Firmware failed\n");

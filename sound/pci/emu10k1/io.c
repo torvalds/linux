@@ -422,7 +422,7 @@ void snd_emu1010_update_clock(struct snd_emu10k1 *emu)
 	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, leds);
 }
 
-void snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
+void snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu, int dock,
 				     const struct firmware *fw_entry)
 {
 	__always_unused u16 write_post;
@@ -439,6 +439,11 @@ void snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 	//   resistor.
 	// GPO6 -> FPGA CCLK & FPGA input
 	// GPO5 -> FPGA DIN (dual function)
+
+	// If the FPGA is already programmed, return it to programming mode
+	snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG,
+			       dock ? EMU_HANA_FPGA_CONFIG_AUDIODOCK :
+				      EMU_HANA_FPGA_CONFIG_HANA);
 
 	// Assert reset line for 100uS
 	outw(0x00, emu->port + A_GPIO);
