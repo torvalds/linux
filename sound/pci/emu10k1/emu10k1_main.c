@@ -652,16 +652,13 @@ static int snd_emu10k1_cardbus_init(struct snd_emu10k1 *emu)
 	return 0;
 }
 
-static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
+static void snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 				     const struct firmware *fw_entry)
 {
 	int n, i;
 	u16 reg;
 	u8 value;
 	__always_unused u16 write_post;
-
-	if (!fw_entry)
-		return -EIO;
 
 	/* The FPGA is a Xilinx Spartan IIE XC2S50E */
 	/* On E-MU 0404b it is a Xilinx Spartan III XC3S50 */
@@ -694,8 +691,6 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 	outw(0x10, emu->port + A_GPIO);
 	write_post = inw(emu->port + A_GPIO);
 	spin_unlock_irq(&emu->emu_lock);
-
-	return 0;
 }
 
 /* firmware file names, per model, init-fw and dock-fw (optional) */
@@ -729,7 +724,8 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 *emu, int dock,
 			return err;
 	}
 
-	return snd_emu1010_load_firmware_entry(emu, *fw);
+	snd_emu1010_load_firmware_entry(emu, *fw);
+	return 0;
 }
 
 static void snd_emu1010_load_dock_firmware(struct snd_emu10k1 *emu)
