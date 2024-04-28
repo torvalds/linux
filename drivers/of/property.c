@@ -576,7 +576,8 @@ EXPORT_SYMBOL_GPL(of_prop_next_string);
 int of_graph_parse_endpoint(const struct device_node *node,
 			    struct of_endpoint *endpoint)
 {
-	struct device_node *port_node = of_get_parent(node);
+	struct device_node *port_node __free(device_node) =
+			    of_get_parent(node);
 
 	WARN_ONCE(!port_node, "%s(): endpoint %pOF has no parent node\n",
 		  __func__, node);
@@ -590,8 +591,6 @@ int of_graph_parse_endpoint(const struct device_node *node,
 	 */
 	of_property_read_u32(port_node, "reg", &endpoint->port);
 	of_property_read_u32(node, "reg", &endpoint->id);
-
-	of_node_put(port_node);
 
 	return 0;
 }
