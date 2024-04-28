@@ -1838,6 +1838,9 @@ static int phylink_validate_phy(struct phylink *pl, struct phy_device *phy,
 					     interfaces);
 	}
 
+	phylink_dbg(pl, "PHY %s doesn't supply possible interfaces\n",
+		    phydev_name(phy));
+
 	/* Check whether we would use rate matching for the proposed interface
 	 * mode.
 	 */
