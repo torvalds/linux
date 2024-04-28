@@ -1148,6 +1148,7 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 			 * presented in the kernel BTF.
 			 */
 			if (libbpf_is_mem_zeroed(mdata, msize)) {
+				st_ops->progs[i] = NULL;
 				pr_info("struct_ops %s: member %s not found in kernel, skipping it as it's set to zero\n",
 					map->name, mname);
 				continue;
