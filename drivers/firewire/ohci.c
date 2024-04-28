@@ -40,6 +40,7 @@
 
 #include "core.h"
 #include "ohci.h"
+#include "packet-header-definitions.h"
 
 #define ohci_info(ohci, f, args...)	dev_info(ohci->card.device, f, ##args)
 #define ohci_notice(ohci, f, args...)	dev_notice(ohci->card.device, f, ##args)
@@ -1550,12 +1551,6 @@ static int handle_at_packet(struct context *context,
 	return 1;
 }
 
-#define HEADER_GET_DESTINATION(q)	(((q) >> 16) & 0xffff)
-#define HEADER_GET_TCODE(q)		(((q) >> 4) & 0x0f)
-#define HEADER_GET_OFFSET_HIGH(q)	(((q) >> 0) & 0xffff)
-#define HEADER_GET_DATA_LENGTH(q)	(((q) >> 16) & 0xffff)
-#define HEADER_GET_EXTENDED_TCODE(q)	(((q) >> 0) & 0xffff)
-
 static u32 get_cycle_time(struct fw_ohci *ohci);
 
 static void handle_local_rom(struct fw_ohci *ohci,
@@ -1564,9 +1559,9 @@ static void handle_local_rom(struct fw_ohci *ohci,
 	struct fw_packet response;
 	int tcode, length, i;
 
-	tcode = HEADER_GET_TCODE(packet->header[0]);
+	tcode = async_header_get_tcode(packet->header);
 	if (TCODE_IS_BLOCK_PACKET(tcode))
-		length = HEADER_GET_DATA_LENGTH(packet->header[3]);
+		length = async_header_get_data_length(packet->header);
 	else
 		length = 4;
 
@@ -1595,10 +1590,10 @@ static void handle_local_lock(struct fw_ohci *ohci,
 	__be32 *payload, lock_old;
 	u32 lock_arg, lock_data;
 
-	tcode = HEADER_GET_TCODE(packet->header[0]);
-	length = HEADER_GET_DATA_LENGTH(packet->header[3]);
+	tcode = async_header_get_tcode(packet->header);
+	length = async_header_get_data_length(packet->header);
 	payload = packet->payload;
-	ext_tcode = HEADER_GET_EXTENDED_TCODE(packet->header[3]);
+	ext_tcode = async_header_get_extended_tcode(packet->header);
 
 	if (tcode == TCODE_LOCK_REQUEST &&
 	    ext_tcode == EXTCODE_COMPARE_SWAP && length == 8) {
@@ -1646,10 +1641,7 @@ static void handle_local_request(struct context *ctx, struct fw_packet *packet)
 		packet->callback(packet, &ctx->ohci->card, packet->ack);
 	}
 
-	offset =
-		((unsigned long long)
-		 HEADER_GET_OFFSET_HIGH(packet->header[1]) << 32) |
-		packet->header[2];
+	offset = async_header_get_offset(packet->header);
 	csr = offset - CSR_REGISTER_BASE;
 
 	/* Handle config rom reads. */
@@ -1683,7 +1675,7 @@ static void at_context_transmit(struct context *ctx, struct fw_packet *packet)
 
 	spin_lock_irqsave(&ctx->ohci->lock, flags);
 
-	if (HEADER_GET_DESTINATION(packet->header[0]) == ctx->ohci->node_id &&
+	if (async_header_get_destination(packet->header) == ctx->ohci->node_id &&
 	    ctx->ohci->generation == packet->generation) {
 		spin_unlock_irqrestore(&ctx->ohci->lock, flags);
 
