@@ -4,7 +4,7 @@
 Unreliable Guide To Hacking The Linux Kernel
 ============================================
 
-:Author: Rusty Russell
+:Author: Rusty Russell and Hk
 
 Introduction
 ============
