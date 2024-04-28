@@ -104,7 +104,7 @@ struct rt_hi_throughput {
 	u8 ampdu_enable;
 	u8 current_ampdu_enable;
 	u8 ampdu_factor;
-	u8 CurrentAMPDUFactor;
+	u8 current_ampdu_factor;
 	u8 current_mpdu_density;
 	u8 forced_ampdu_factor;
 	u8 forced_mpdu_density;

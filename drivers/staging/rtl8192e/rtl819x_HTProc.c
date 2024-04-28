@@ -470,12 +470,12 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 
 	if (ieee->current_network.bssht.bd_rt2rt_aggregation) {
 		if (ieee->pairwise_key_type != KEY_TYPE_NA)
-			ht_info->CurrentAMPDUFactor =
+			ht_info->current_ampdu_factor =
 					 pPeerHTCap->MaxRxAMPDUFactor;
 		else
-			ht_info->CurrentAMPDUFactor = HT_AGG_SIZE_64K;
+			ht_info->current_ampdu_factor = HT_AGG_SIZE_64K;
 	} else {
-		ht_info->CurrentAMPDUFactor = min_t(u32, pPeerHTCap->MaxRxAMPDUFactor,
+		ht_info->current_ampdu_factor = min_t(u32, pPeerHTCap->MaxRxAMPDUFactor,
 						    HT_AGG_SIZE_32K);
 	}
 
@@ -514,7 +514,7 @@ void ht_initialize_ht_info(struct rtllib_device *ieee)
 	ht_info->cur_short_gi_40mhz = false;
 
 	ht_info->current_mpdu_density = 0;
-	ht_info->CurrentAMPDUFactor = ht_info->ampdu_factor;
+	ht_info->current_ampdu_factor = ht_info->ampdu_factor;
 
 	memset((void *)(&ht_info->self_ht_cap), 0,
 	       sizeof(ht_info->self_ht_cap));
