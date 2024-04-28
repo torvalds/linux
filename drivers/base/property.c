@@ -905,7 +905,7 @@ EXPORT_SYMBOL_GPL(fwnode_device_is_available);
 
 /**
  * device_get_child_node_count - return the number of child nodes for device
- * @dev: Device to cound the child nodes for
+ * @dev: Device to count the child nodes for
  *
  * Return: the number of child nodes for a given device.
  */
