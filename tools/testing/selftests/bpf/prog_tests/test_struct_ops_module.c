@@ -66,6 +66,7 @@ static void test_struct_ops_load(void)
 	 * auto-loading, or it will fail to load.
 	 */
 	bpf_program__set_autoload(skel->progs.test_2, false);
+	bpf_map__set_autocreate(skel->maps.testmod_zeroed, false);
 
 	err = struct_ops_module__load(skel);
 	if (!ASSERT_OK(err, "struct_ops_module_load"))
@@ -103,6 +104,10 @@ static void test_struct_ops_not_zeroed(void)
 	if (!ASSERT_OK_PTR(skel, "struct_ops_module_open"))
 		return;
 
+	skel->struct_ops.testmod_zeroed->zeroed = 0;
+	/* zeroed_op prog should be not loaded automatically now */
+	skel->struct_ops.testmod_zeroed->zeroed_op = NULL;
+
 	err = struct_ops_module__load(skel);
 	ASSERT_OK(err, "struct_ops_module_load");
 
@@ -118,6 +123,7 @@ static void test_struct_ops_not_zeroed(void)
 	 * value of "zeroed" is non-zero.
 	 */
 	skel->struct_ops.testmod_zeroed->zeroed = 0xdeadbeef;
+	skel->struct_ops.testmod_zeroed->zeroed_op = NULL;
 	err = struct_ops_module__load(skel);
 	ASSERT_ERR(err, "struct_ops_module_load_not_zeroed");
 
@@ -148,15 +154,23 @@ static void test_struct_ops_incompatible(void)
 {
 	struct struct_ops_module *skel;
 	struct bpf_link *link;
+	int err;
 
-	skel = struct_ops_module__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+	skel = struct_ops_module__open();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_module_open"))
 		return;
+
+	bpf_map__set_autocreate(skel->maps.testmod_zeroed, false);
+
+	err = struct_ops_module__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto cleanup;
 
 	link = bpf_map__attach_struct_ops(skel->maps.testmod_incompatible);
 	if (ASSERT_OK_PTR(link, "attach_struct_ops"))
 		bpf_link__destroy(link);
 
+cleanup:
 	struct_ops_module__destroy(skel);
 }
 

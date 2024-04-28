@@ -63,10 +63,17 @@ struct bpf_testmod_ops___zeroed {
 	int zeroed;
 };
 
+SEC("?struct_ops/test_3")
+int BPF_PROG(zeroed_op)
+{
+	return 1;
+}
+
 SEC(".struct_ops.link")
 struct bpf_testmod_ops___zeroed testmod_zeroed = {
 	.test_1 = (void *)test_1,
 	.test_2 = (void *)test_2_v2,
+	.zeroed_op = (void *)zeroed_op,
 };
 
 struct bpf_testmod_ops___incompatible {
