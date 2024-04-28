@@ -129,8 +129,8 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 		else
 			ht_cap = (struct ht_capab_ele *)
 				 &network->bssht.bd_ht_cap_buf[0];
-		is40M = (ht_cap->ChlWidth) ? 1 : 0;
-		isShortGI = (ht_cap->ChlWidth) ?
+		is40M = (ht_cap->chl_width) ? 1 : 0;
+		isShortGI = (ht_cap->chl_width) ?
 				((ht_cap->ShortGI40Mhz) ? 1 : 0) :
 				((ht_cap->ShortGI20Mhz) ? 1 : 0);
 

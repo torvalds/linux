@@ -253,9 +253,9 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 
 	cap_ele->AdvCoding		= 0;
 	if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev))
-		cap_ele->ChlWidth = 0;
+		cap_ele->chl_width = 0;
 	else
-		cap_ele->ChlWidth = 1;
+		cap_ele->chl_width = 1;
 
 	cap_ele->MimoPwrSave		= 3;
 	cap_ele->GreenField		= 0;
@@ -272,7 +272,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 
 	netdev_dbg(ieee->dev,
 		   "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n",
-		   cap_ele->ChlWidth, cap_ele->MaxAMSDUSize, cap_ele->DssCCk);
+		   cap_ele->chl_width, cap_ele->MaxAMSDUSize, cap_ele->DssCCk);
 
 	if (is_encrypt) {
 		cap_ele->MPDUDensity	= 7;
@@ -302,7 +302,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 			cap_ele->ShortGI40Mhz		= 0;
 
 		if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev)) {
-			cap_ele->ChlWidth = 0;
+			cap_ele->chl_width = 0;
 			cap_ele->MCS[1] = 0;
 		}
 	}
@@ -452,7 +452,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 	print_hex_dump_bytes("%s: ", __func__, DUMP_PREFIX_NONE,
 			     pPeerHTCap, sizeof(struct ht_capab_ele));
 #endif
-	ht_set_connect_bw_mode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth),
+	ht_set_connect_bw_mode(ieee, (enum ht_channel_width)(pPeerHTCap->chl_width),
 			   (enum ht_extchnl_offset)(pPeerHTInfo->ExtChlOffset));
 	ht_info->cur_tx_bw40mhz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?
 				 true : false);

@@ -25,7 +25,7 @@ enum ht_extchnl_offset {
 
 struct ht_capab_ele {
 	u8	AdvCoding:1;
-	u8	ChlWidth:1;
+	u8	chl_width:1;
 	u8	MimoPwrSave:2;
 	u8	GreenField:1;
 	u8	ShortGI20Mhz:1;
