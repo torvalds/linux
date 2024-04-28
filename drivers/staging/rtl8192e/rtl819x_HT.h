@@ -30,7 +30,7 @@ struct ht_capab_ele {
 	u8	green_field:1;
 	u8	short_gi_20mhz:1;
 	u8	short_gi_40mhz:1;
-	u8	TxSTBC:1;
+	u8	tx_stbc:1;
 	u8	RxSTBC:2;
 	u8	DelayBA:1;
 	u8	MaxAMSDUSize:1;
