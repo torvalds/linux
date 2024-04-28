@@ -126,6 +126,8 @@ int smc_ism_get_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 
 	if (!vlanid)			/* No valid vlan id */
 		return -EINVAL;
+	if (!smcd->ops->add_vlan_id)
+		return -EOPNOTSUPP;
 
 	/* create new vlan entry, in case we need it */
 	new_vlan = kzalloc(sizeof(*new_vlan), GFP_KERNEL);
@@ -171,6 +173,8 @@ int smc_ism_put_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 
 	if (!vlanid)			/* No valid vlan id */
 		return -EINVAL;
+	if (!smcd->ops->del_vlan_id)
+		return -EOPNOTSUPP;
 
 	spin_lock_irqsave(&smcd->lock, flags);
 	list_for_each_entry(vlan, &smcd->vlan, list) {
@@ -368,7 +372,8 @@ static void smcd_handle_sw_event(struct smc_ism_event_work *wrk)
 		smc_smcd_terminate(wrk->smcd, &peer_gid, ev_info.vlan_id);
 		break;
 	case ISM_EVENT_CODE_TESTLINK:	/* Activity timer */
-		if (ev_info.code == ISM_EVENT_REQUEST) {
+		if (ev_info.code == ISM_EVENT_REQUEST &&
+		    wrk->smcd->ops->signal_event) {
 			ev_info.code = ISM_EVENT_RESPONSE;
 			wrk->smcd->ops->signal_event(wrk->smcd,
 						     &peer_gid,
@@ -537,6 +542,8 @@ int smc_ism_signal_shutdown(struct smc_link_group *lgr)
 	union smcd_sw_event_info ev_info;
 
 	if (lgr->peer_shutdown)
+		return 0;
+	if (!lgr->smcd->ops->signal_event)
 		return 0;
 
 	memcpy(ev_info.uid, lgr->id, SMC_LGR_ID_SIZE);
