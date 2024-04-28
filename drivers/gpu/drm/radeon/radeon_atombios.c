@@ -923,8 +923,12 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 		max_device = ATOM_MAX_SUPPORTED_DEVICE_INFO;
 
 	for (i = 0; i < max_device; i++) {
-		ATOM_CONNECTOR_INFO_I2C ci =
-		    supported_devices->info.asConnInfo[i];
+		ATOM_CONNECTOR_INFO_I2C ci;
+
+		if (frev > 1)
+			ci = supported_devices->info_2d1.asConnInfo[i];
+		else
+			ci = supported_devices->info.asConnInfo[i];
 
 		bios_connectors[i].valid = false;
 

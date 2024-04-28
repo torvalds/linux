@@ -78,7 +78,7 @@ static int onboard_hub_power_on(struct onboard_hub *hub)
 	err = regulator_bulk_enable(hub->pdata->num_supplies, hub->supplies);
 	if (err) {
 		dev_err(hub->dev, "failed to enable supplies: %pe\n", ERR_PTR(err));
-		return err;
+		goto disable_clk;
 	}
 
 	fsleep(hub->pdata->reset_us);
@@ -87,6 +87,10 @@ static int onboard_hub_power_on(struct onboard_hub *hub)
 	hub->is_powered_on = true;
 
 	return 0;
+
+disable_clk:
+	clk_disable_unprepare(hub->clk);
+	return err;
 }
 
 static int onboard_hub_power_off(struct onboard_hub *hub)

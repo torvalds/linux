@@ -249,7 +249,10 @@ int bch2_journal_replay(struct bch_fs *c)
 
 		struct journal_key *k = *kp;
 
-		replay_now_at(j, k->journal_seq);
+		if (k->journal_seq)
+			replay_now_at(j, k->journal_seq);
+		else
+			replay_now_at(j, j->replay_journal_seq_end);
 
 		ret = commit_do(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc|

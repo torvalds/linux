@@ -5,19 +5,19 @@
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * Vineetg: April 2011 :
- *  -MMU v1: moved out legacy code into a seperate file
+ *  -MMU v1: moved out legacy code into a separate file
  *  -MMU v3: PD{0,1} bits layout changed: They don't overlap anymore,
  *      helps avoid a shift when preparing PD0 from PTE
  *
  * Vineetg: July 2009
- *  -For MMU V2, we need not do heuristics at the time of commiting a D-TLB
- *   entry, so that it doesn't knock out it's I-TLB entry
+ *  -For MMU V2, we need not do heuristics at the time of committing a D-TLB
+ *   entry, so that it doesn't knock out its I-TLB entry
  *  -Some more fine tuning:
  *   bmsk instead of add, asl.cc instead of branch, delay slot utilise etc
  *
  * Vineetg: July 2009
  *  -Practically rewrote the I/D TLB Miss handlers
- *   Now 40 and 135 instructions a peice as compared to 131 and 449 resp.
+ *   Now 40 and 135 instructions apiece as compared to 131 and 449 resp.
  *   Hence Leaner by 1.5 K
  *   Used Conditional arithmetic to replace excessive branching
  *   Also used short instructions wherever possible

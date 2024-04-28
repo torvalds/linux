@@ -3060,7 +3060,7 @@ void mlx5_esw_offloads_devcom_init(struct mlx5_eswitch *esw, u64 key)
 						     key,
 						     mlx5_esw_offloads_devcom_event,
 						     esw);
-	if (IS_ERR_OR_NULL(esw->devcom))
+	if (IS_ERR(esw->devcom))
 		return;
 
 	mlx5_devcom_send_event(esw->devcom,

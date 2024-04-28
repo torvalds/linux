@@ -797,6 +797,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *curr_ctx = NULL;
+	bool new_idle;
 	int ret = 0;
 
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_NAN))
@@ -829,8 +830,6 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 out:
 	rcu_assign_pointer(link->conf->chanctx_conf, conf);
 
-	sdata->vif.cfg.idle = !conf;
-
 	if (curr_ctx && ieee80211_chanctx_num_assigned(local, curr_ctx) > 0) {
 		ieee80211_recalc_chanctx_chantype(local, curr_ctx);
 		ieee80211_recalc_smps_chanctx(local, curr_ctx);
@@ -843,9 +842,27 @@ out:
 		ieee80211_recalc_chanctx_min_def(local, new_ctx, NULL);
 	}
 
-	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
-	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
-		ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_IDLE);
+	if (conf) {
+		new_idle = false;
+	} else {
+		struct ieee80211_link_data *tmp;
+
+		new_idle = true;
+		for_each_sdata_link(local, tmp) {
+			if (rcu_access_pointer(tmp->conf->chanctx_conf)) {
+				new_idle = false;
+				break;
+			}
+		}
+	}
+
+	if (new_idle != sdata->vif.cfg.idle) {
+		sdata->vif.cfg.idle = new_idle;
+
+		if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
+		    sdata->vif.type != NL80211_IFTYPE_MONITOR)
+			ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_IDLE);
+	}
 
 	ieee80211_check_fast_xmit_iface(sdata);
 
