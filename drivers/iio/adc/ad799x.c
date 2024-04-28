@@ -524,7 +524,7 @@ done:
 	return IRQ_HANDLED;
 }
 
-static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_SAMP_FREQ(0644,
 			      ad799x_read_frequency,
 			      ad799x_write_frequency);
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("15625 7812 3906 1953 976 488 244 0");
