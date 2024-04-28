@@ -189,8 +189,8 @@ EXPORT_SYMBOL(end_buffer_write_sync);
 static struct buffer_head *
 __find_get_block_slow(struct block_device *bdev, sector_t block)
 {
-	struct inode *bd_inode = bdev->bd_inode;
-	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct address_space *bd_mapping = bdev->bd_mapping;
+	const int blkbits = bd_mapping->host->i_blkbits;
 	struct buffer_head *ret = NULL;
 	pgoff_t index;
 	struct buffer_head *bh;
@@ -199,7 +199,7 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 	int all_mapped = 1;
 	static DEFINE_RATELIMIT_STATE(last_warned, HZ, 1);
 
-	index = ((loff_t)block << bd_inode->i_blkbits) / PAGE_SIZE;
+	index = ((loff_t)block << blkbits) / PAGE_SIZE;
 	folio = __filemap_get_folio(bd_mapping, index, FGP_ACCESSED, 0);
 	if (IS_ERR(folio))
 		goto out;
@@ -233,7 +233,7 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 		       (unsigned long long)block,
 		       (unsigned long long)bh->b_blocknr,
 		       bh->b_state, bh->b_size, bdev,
-		       1 << bd_inode->i_blkbits);
+		       1 << blkbits);
 	}
 out_unlock:
 	spin_unlock(&bd_mapping->i_private_lock);
@@ -1696,16 +1696,16 @@ EXPORT_SYMBOL(create_empty_buffers);
  */
 void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 {
-	struct inode *bd_inode = bdev->bd_inode;
-	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct address_space *bd_mapping = bdev->bd_mapping;
+	const int blkbits = bd_mapping->host->i_blkbits;
 	struct folio_batch fbatch;
-	pgoff_t index = ((loff_t)block << bd_inode->i_blkbits) / PAGE_SIZE;
+	pgoff_t index = ((loff_t)block << blkbits) / PAGE_SIZE;
 	pgoff_t end;
 	int i, count;
 	struct buffer_head *bh;
 	struct buffer_head *head;
 
-	end = ((loff_t)(block + len - 1) << bd_inode->i_blkbits) / PAGE_SIZE;
+	end = ((loff_t)(block + len - 1) << blkbits) / PAGE_SIZE;
 	folio_batch_init(&fbatch);
 	while (filemap_get_folios(bd_mapping, &index, end, &fbatch)) {
 		count = folio_batch_count(&fbatch);
