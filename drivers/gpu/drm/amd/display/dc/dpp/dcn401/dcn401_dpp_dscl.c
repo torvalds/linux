@@ -779,75 +779,42 @@ static void dpp401_dscl_program_isharp(struct dpp *dpp_base,
 		const struct scaler_data *scl_data)
 {
 	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
+	const struct dscl_prog_data *data;
 
 	if (memcmp(&dpp->scl_data, scl_data, sizeof(*scl_data)) == 0)
 		return;
 
 	PERF_TRACE();
 	dpp->scl_data = *scl_data;
-	// ISHARP_EN
-	REG_SET(ISHARP_MODE, 0,
-		ISHARP_EN, scl_data->dscl_prog_data.isharp_en);
-		// ISHARP_NOISEDET_EN
-		REG_SET(ISHARP_MODE, 0,
-				ISHARP_NOISEDET_EN, scl_data->dscl_prog_data.isharp_noise_det.enable);
-		// ISHARP_NOISEDET_MODE
-		REG_SET(ISHARP_MODE, 0,
-				ISHARP_NOISEDET_MODE, scl_data->dscl_prog_data.isharp_noise_det.mode);
-		// ISHARP_NOISEDET_UTHRE
-		REG_SET(ISHARP_NOISEDET_THRESHOLD, 0,
-				ISHARP_NOISEDET_UTHRE, scl_data->dscl_prog_data.isharp_noise_det.uthreshold);
-		// ISHARP_NOISEDET_DTHRE
-		REG_SET(ISHARP_NOISEDET_THRESHOLD, 0,
-				ISHARP_NOISEDET_DTHRE, scl_data->dscl_prog_data.isharp_noise_det.dthreshold);
-		REG_SET(ISHARP_MODE, 0,
-				ISHARP_NOISEDET_MODE, scl_data->dscl_prog_data.isharp_noise_det.mode);
-		// ISHARP_NOISEDET_UTHRE
-		REG_SET(ISHARP_NOISEDET_THRESHOLD, 0,
-				ISHARP_NOISEDET_UTHRE, scl_data->dscl_prog_data.isharp_noise_det.uthreshold);
-		// ISHARP_NOISEDET_DTHRE
-		REG_SET(ISHARP_NOISEDET_THRESHOLD, 0,
-				ISHARP_NOISEDET_DTHRE, scl_data->dscl_prog_data.isharp_noise_det.dthreshold);
-		// ISHARP_NOISEDET_PWL_START_IN
-		REG_SET(ISHARP_NOISE_GAIN_PWL, 0,
-				ISHARP_NOISEDET_PWL_START_IN, scl_data->dscl_prog_data.isharp_noise_det.pwl_start_in);
-		// ISHARP_NOISEDET_PWL_END_IN
-		REG_SET(ISHARP_NOISE_GAIN_PWL, 0,
-				ISHARP_NOISEDET_PWL_END_IN, scl_data->dscl_prog_data.isharp_noise_det.pwl_end_in);
-		// ISHARP_NOISEDET_PWL_SLOPE
-		REG_SET(ISHARP_NOISE_GAIN_PWL, 0,
-				ISHARP_NOISEDET_PWL_SLOPE, scl_data->dscl_prog_data.isharp_noise_det.pwl_slope);
-		// ISHARP_LBA_MODE
-		REG_SET(ISHARP_MODE, 0,
-				ISHARP_LBA_MODE, scl_data->dscl_prog_data.isharp_lba.mode);
-		// TODO: ISHARP_LBA: IN_SEG, BASE_SEG, SLOPE_SEG
-		// ISHARP_FMT_MODE
-		REG_SET(ISHARP_MODE, 0,
-				ISHARP_FMT_MODE, scl_data->dscl_prog_data.isharp_fmt.mode);
-		// ISHARP_FMT_NORM
-		REG_SET(ISHARP_MODE, 0,
-				ISHARP_FMT_NORM, scl_data->dscl_prog_data.isharp_fmt.norm);
-		// ISHARP_DELTA_LUT
-		dpp401_dscl_set_isharp_filter(dpp, scl_data->dscl_prog_data.isharp_delta);
-		// ISHARP_NLDELTA_SCLIP_EN_P
-		REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0,
-				ISHARP_NLDELTA_SCLIP_EN_P, scl_data->dscl_prog_data.isharp_nldelta_sclip.enable_p);
-		// ISHARP_NLDELTA_SCLIP_PIVOT_P
-		REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0,
-				ISHARP_NLDELTA_SCLIP_PIVOT_P, scl_data->dscl_prog_data.isharp_nldelta_sclip.pivot_p);
-		// ISHARP_NLDELTA_SCLIP_SLOPE_P
-		REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0,
-				ISHARP_NLDELTA_SCLIP_SLOPE_P, scl_data->dscl_prog_data.isharp_nldelta_sclip.slope_p);
-		// ISHARP_NLDELTA_SCLIP_EN_N
-		REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0,
-				ISHARP_NLDELTA_SCLIP_EN_N, scl_data->dscl_prog_data.isharp_nldelta_sclip.enable_n);
-		// ISHARP_NLDELTA_SCLIP_PIVOT_N
-		REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0,
-				ISHARP_NLDELTA_SCLIP_PIVOT_N, scl_data->dscl_prog_data.isharp_nldelta_sclip.pivot_n);
-		// ISHARP_NLDELTA_SCLIP_SLOPE_N
-		REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0,
-				ISHARP_NLDELTA_SCLIP_SLOPE_N, scl_data->dscl_prog_data.isharp_nldelta_sclip.slope_n);
-		PERF_TRACE();
+	data = &scl_data->dscl_prog_data;
+
+	REG_SET(ISHARP_MODE, 0,	ISHARP_EN, data->isharp_en);
+
+	REG_SET(ISHARP_MODE, 0,	              ISHARP_NOISEDET_EN,    data->isharp_noise_det.enable);
+	REG_SET(ISHARP_MODE, 0,               ISHARP_NOISEDET_MODE,  data->isharp_noise_det.mode);
+	REG_SET(ISHARP_NOISEDET_THRESHOLD, 0, ISHARP_NOISEDET_UTHRE, data->isharp_noise_det.uthreshold);
+	REG_SET(ISHARP_NOISEDET_THRESHOLD, 0, ISHARP_NOISEDET_DTHRE, data->isharp_noise_det.dthreshold);
+	REG_SET(ISHARP_MODE, 0,               ISHARP_NOISEDET_MODE,  data->isharp_noise_det.mode);
+	REG_SET(ISHARP_NOISEDET_THRESHOLD, 0, ISHARP_NOISEDET_UTHRE, data->isharp_noise_det.uthreshold);
+	REG_SET(ISHARP_NOISEDET_THRESHOLD, 0, ISHARP_NOISEDET_DTHRE, data->isharp_noise_det.dthreshold);
+	REG_SET(ISHARP_NOISE_GAIN_PWL, 0, ISHARP_NOISEDET_PWL_START_IN, data->isharp_noise_det.pwl_start_in);
+	REG_SET(ISHARP_NOISE_GAIN_PWL, 0, ISHARP_NOISEDET_PWL_END_IN, data->isharp_noise_det.pwl_end_in);
+	REG_SET(ISHARP_NOISE_GAIN_PWL, 0, ISHARP_NOISEDET_PWL_SLOPE, data->isharp_noise_det.pwl_slope);
+
+	REG_SET(ISHARP_MODE, 0, ISHARP_LBA_MODE, data->isharp_lba.mode);
+	// TODO: ISHARP_LBA: IN_SEG, BASE_SEG, SLOPE_SEG
+	REG_SET(ISHARP_MODE, 0, ISHARP_FMT_MODE, data->isharp_fmt.mode);
+	REG_SET(ISHARP_MODE, 0, ISHARP_FMT_NORM, data->isharp_fmt.norm);
+
+	dpp401_dscl_set_isharp_filter(dpp, data->isharp_delta);
+
+	REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0, ISHARP_NLDELTA_SCLIP_EN_P,    data->isharp_nldelta_sclip.enable_p);
+	REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0, ISHARP_NLDELTA_SCLIP_PIVOT_P, data->isharp_nldelta_sclip.pivot_p);
+	REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0, ISHARP_NLDELTA_SCLIP_SLOPE_P, data->isharp_nldelta_sclip.slope_p);
+	REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0, ISHARP_NLDELTA_SCLIP_EN_N,    data->isharp_nldelta_sclip.enable_n);
+	REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0, ISHARP_NLDELTA_SCLIP_PIVOT_N, data->isharp_nldelta_sclip.pivot_n);
+	REG_SET(ISHARP_NLDELTA_SOFT_CLIP, 0, ISHARP_NLDELTA_SCLIP_SLOPE_N, data->isharp_nldelta_sclip.slope_n);
+	PERF_TRACE();
 } // dpp401_dscl_program_isharp
 /**
  * dpp401_dscl_set_scaler_manual_scale - Manually program scaler and line buffer
