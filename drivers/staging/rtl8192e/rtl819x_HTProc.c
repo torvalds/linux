@@ -260,7 +260,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 	cap_ele->mimo_pwr_save		= 3;
 	cap_ele->GreenField		= 0;
 	cap_ele->ShortGI20Mhz		= 1;
-	cap_ele->ShortGI40Mhz		= 1;
+	cap_ele->short_gi_40mhz		= 1;
 
 	cap_ele->TxSTBC			= 1;
 	cap_ele->RxSTBC			= 0;
@@ -299,7 +299,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 			cap_ele->MCS[1] &= 0x00;
 
 		if (ht->iot_action & HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI)
-			cap_ele->ShortGI40Mhz		= 0;
+			cap_ele->short_gi_40mhz		= 0;
 
 		if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev)) {
 			cap_ele->chl_width = 0;
@@ -458,7 +458,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 				 true : false);
 
 	ht_info->cur_short_gi_20mhz = ((pPeerHTCap->ShortGI20Mhz == 1) ? true : false);
-	ht_info->cur_short_gi_40mhz = ((pPeerHTCap->ShortGI40Mhz == 1) ? true : false);
+	ht_info->cur_short_gi_40mhz = ((pPeerHTCap->short_gi_40mhz == 1) ? true : false);
 
 	ht_info->current_ampdu_enable = ht_info->ampdu_enable;
 	if (ieee->rtllib_ap_sec_type &&
