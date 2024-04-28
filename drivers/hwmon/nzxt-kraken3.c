@@ -27,11 +27,6 @@
 enum kinds { X53, Z53 } __packed;
 enum pwm_enable { off, manual, curve } __packed;
 
-static const char *const kraken3_device_names[] = {
-	[X53] = "x53",
-	[Z53] = "z53",
-};
-
 #define DRIVER_NAME		"nzxt_kraken3"
 #define STATUS_REPORT_ID	0x75
 #define FIRMWARE_REPORT_ID	0x11
@@ -849,14 +844,14 @@ static int firmware_version_show(struct seq_file *seqf, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(firmware_version);
 
-static void kraken3_debugfs_init(struct kraken3_data *priv)
+static void kraken3_debugfs_init(struct kraken3_data *priv, const char *device_name)
 {
 	char name[64];
 
 	if (!priv->firmware_version[0])
 		return;		/* Nothing to display in debugfs */
 
-	scnprintf(name, sizeof(name), "%s_%s-%s", DRIVER_NAME, kraken3_device_names[priv->kind],
+	scnprintf(name, sizeof(name), "%s_%s-%s", DRIVER_NAME, device_name,
 		  dev_name(&priv->hdev->dev));
 
 	priv->debugfs = debugfs_create_dir(name, NULL);
@@ -866,6 +861,7 @@ static void kraken3_debugfs_init(struct kraken3_data *priv)
 static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct kraken3_data *priv;
+	const char *device_name;
 	int ret;
 
 	priv = devm_kzalloc(&hdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -905,9 +901,11 @@ static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id
 	case USB_PRODUCT_ID_X53:
 	case USB_PRODUCT_ID_X53_SECOND:
 		priv->kind = X53;
+		device_name = "x53";
 		break;
 	case USB_PRODUCT_ID_Z53:
 		priv->kind = Z53;
+		device_name = "z53";
 		break;
 	default:
 		break;
@@ -936,8 +934,7 @@ static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id
 	if (ret < 0)
 		hid_warn(hdev, "fw version request failed with %d\n", ret);
 
-	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev,
-							  kraken3_device_names[priv->kind], priv,
+	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev, device_name, priv,
 							  &kraken3_chip_info, kraken3_groups);
 	if (IS_ERR(priv->hwmon_dev)) {
 		ret = PTR_ERR(priv->hwmon_dev);
@@ -945,7 +942,7 @@ static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id
 		goto fail_and_close;
 	}
 
-	kraken3_debugfs_init(priv);
+	kraken3_debugfs_init(priv, device_name);
 
 	return 0;
 
