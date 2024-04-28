@@ -91,6 +91,11 @@ bool smc_ism_is_v2_capable(void)
 	return smc_ism_v2_capable;
 }
 
+void smc_ism_set_v2_capable(void)
+{
+	smc_ism_v2_capable = true;
+}
+
 /* Set a connection using this DMBE. */
 void smc_ism_set_conn(struct smc_connection *conn)
 {
@@ -439,7 +444,7 @@ static struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 static void smcd_register_dev(struct ism_dev *ism)
 {
 	const struct smcd_ops *ops = ism_get_smcd_ops();
-	struct smcd_dev *smcd;
+	struct smcd_dev *smcd, *fentry;
 
 	if (!ops)
 		return;
@@ -454,16 +459,23 @@ static void smcd_register_dev(struct ism_dev *ism)
 	if (smc_pnetid_by_dev_port(&ism->pdev->dev, 0, smcd->pnetid))
 		smc_pnetid_by_table_smcd(smcd);
 
+	if (smcd->ops->supports_v2())
+		smc_ism_set_v2_capable();
 	mutex_lock(&smcd_dev_list.mutex);
-	if (list_empty(&smcd_dev_list.list)) {
-		if (smcd->ops->supports_v2())
-			smc_ism_v2_capable = true;
-	}
-	/* sort list: devices without pnetid before devices with pnetid */
-	if (smcd->pnetid[0])
+	/* sort list:
+	 * - devices without pnetid before devices with pnetid;
+	 * - loopback-ism always at the very beginning;
+	 */
+	if (!smcd->pnetid[0]) {
+		fentry = list_first_entry_or_null(&smcd_dev_list.list,
+						  struct smcd_dev, list);
+		if (fentry && smc_ism_is_loopback(fentry))
+			list_add(&smcd->list, &fentry->list);
+		else
+			list_add(&smcd->list, &smcd_dev_list.list);
+	} else {
 		list_add_tail(&smcd->list, &smcd_dev_list.list);
-	else
-		list_add(&smcd->list, &smcd_dev_list.list);
+	}
 	mutex_unlock(&smcd_dev_list.mutex);
 
 	pr_warn_ratelimited("smc: adding smcd device %s with pnetid %.16s%s\n",
