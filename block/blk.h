@@ -428,6 +428,8 @@ static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
 
 struct block_device *bdev_alloc(struct gendisk *disk, u8 partno);
 void bdev_add(struct block_device *bdev, dev_t dev);
+void bdev_unhash(struct block_device *bdev);
+void bdev_drop(struct block_device *bdev);
 
 int blk_alloc_ext_minor(void);
 void blk_free_ext_minor(unsigned int minor);

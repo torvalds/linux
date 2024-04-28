@@ -656,7 +656,7 @@ void del_gendisk(struct gendisk *disk)
 	 */
 	mutex_lock(&disk->open_mutex);
 	xa_for_each(&disk->part_tbl, idx, part)
-		remove_inode_hash(part->bd_inode);
+		bdev_unhash(part);
 	mutex_unlock(&disk->open_mutex);
 
 	/*
@@ -1191,7 +1191,7 @@ static void disk_release(struct device *dev)
 	if (test_bit(GD_ADDED, &disk->state) && disk->fops->free_disk)
 		disk->fops->free_disk(disk);
 
-	iput(disk->part0->bd_inode);	/* frees the disk */
+	bdev_drop(disk->part0);	/* frees the disk */
 }
 
 static int block_uevent(const struct device *dev, struct kobj_uevent_env *env)
@@ -1381,7 +1381,7 @@ out_erase_part0:
 out_destroy_part_tbl:
 	xa_destroy(&disk->part_tbl);
 	disk->part0->bd_disk = NULL;
-	iput(disk->part0->bd_inode);
+	bdev_drop(disk->part0);
 out_free_bdi:
 	bdi_put(disk->bdi);
 out_free_bioset:
