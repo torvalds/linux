@@ -1382,7 +1382,7 @@ static int at_context_queue_packet(struct context *ctx,
 					(packet->header[0] & 0xffff0000));
 		header[2] = cpu_to_le32(packet->header[2]);
 
-		if (TCODE_IS_BLOCK_PACKET(tcode))
+		if (tcode_is_block_packet(tcode))
 			header[3] = cpu_to_le32(packet->header[3]);
 		else
 			header[3] = (__force __le32) packet->header[3];
@@ -1570,7 +1570,7 @@ static void handle_local_rom(struct fw_ohci *ohci,
 	int tcode, length, i;
 
 	tcode = async_header_get_tcode(packet->header);
-	if (TCODE_IS_BLOCK_PACKET(tcode))
+	if (tcode_is_block_packet(tcode))
 		length = async_header_get_data_length(packet->header);
 	else
 		length = 4;
@@ -1579,7 +1579,7 @@ static void handle_local_rom(struct fw_ohci *ohci,
 	if (i + length > CONFIG_ROM_SIZE) {
 		fw_fill_response(&response, packet->header,
 				 RCODE_ADDRESS_ERROR, NULL, 0);
-	} else if (!TCODE_IS_READ_REQUEST(tcode)) {
+	} else if (!tcode_is_read_request(tcode)) {
 		fw_fill_response(&response, packet->header,
 				 RCODE_TYPE_ERROR, NULL, 0);
 	} else {
