@@ -264,7 +264,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 
 	cap_ele->tx_stbc			= 1;
 	cap_ele->rx_stbc			= 0;
-	cap_ele->DelayBA		= 0;
+	cap_ele->delay_ba		= 0;
 	cap_ele->MaxAMSDUSize = (MAX_RECEIVE_BUFFER_SIZE >= 7935) ? 1 : 0;
 	cap_ele->DssCCk = 1;
 	cap_ele->PSMP = 0;
