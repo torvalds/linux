@@ -652,47 +652,6 @@ static int snd_emu10k1_cardbus_init(struct snd_emu10k1 *emu)
 	return 0;
 }
 
-static void snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
-				     const struct firmware *fw_entry)
-{
-	int n, i;
-	u16 reg;
-	u8 value;
-	__always_unused u16 write_post;
-
-	/* The FPGA is a Xilinx Spartan IIE XC2S50E */
-	/* On E-MU 0404b it is a Xilinx Spartan III XC3S50 */
-	/* GPIO7 -> FPGA PGMN
-	 * GPIO6 -> FPGA CCLK
-	 * GPIO5 -> FPGA DIN
-	 * FPGA CONFIG OFF -> FPGA PGMN
-	 */
-	spin_lock_irq(&emu->emu_lock);
-	outw(0x00, emu->port + A_GPIO); /* Set PGMN low for 100uS. */
-	write_post = inw(emu->port + A_GPIO);
-	udelay(100);
-	outw(0x80, emu->port + A_GPIO); /* Leave bit 7 set during netlist setup. */
-	write_post = inw(emu->port + A_GPIO);
-	udelay(100); /* Allow FPGA memory to clean */
-	for (n = 0; n < fw_entry->size; n++) {
-		value = fw_entry->data[n];
-		for (i = 0; i < 8; i++) {
-			reg = 0x80;
-			if (value & 0x1)
-				reg = reg | 0x20;
-			value = value >> 1;
-			outw(reg, emu->port + A_GPIO);
-			write_post = inw(emu->port + A_GPIO);
-			outw(reg | 0x40, emu->port + A_GPIO);
-			write_post = inw(emu->port + A_GPIO);
-		}
-	}
-	/* After programming, set GPIO bit 4 high again. */
-	outw(0x10, emu->port + A_GPIO);
-	write_post = inw(emu->port + A_GPIO);
-	spin_unlock_irq(&emu->emu_lock);
-}
-
 /* firmware file names, per model, init-fw and dock-fw (optional) */
 static const char * const firmware_names[5][2] = {
 	[EMU_MODEL_EMU1010] = {
