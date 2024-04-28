@@ -31,9 +31,6 @@
 #include "core.h"
 #include "packet-header-definitions.h"
 
-#define HEADER_TCODE(tcode)		((tcode) << 4)
-#define HEADER_DATA_LENGTH(length)	((length) << 16)
-
 #define HEADER_DESTINATION_IS_BROADCAST(header) \
 	((async_header_get_destination(header) & 0x3f) == 0x3f)
 
@@ -215,10 +212,11 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 	int ext_tcode;
 
 	if (tcode == TCODE_STREAM_DATA) {
-		packet->header[0] =
-			HEADER_DATA_LENGTH(length) |
-			destination_id |
-			HEADER_TCODE(TCODE_STREAM_DATA);
+		// The value of destination_id argument should include tag, channel, and sy fields
+		// as isochronous packet header has.
+		packet->header[0] = destination_id;
+		isoc_header_set_data_length(packet->header, length);
+		isoc_header_set_tcode(packet->header, TCODE_STREAM_DATA);
 		packet->header_length = 4;
 		packet->payload = payload;
 		packet->payload_length = length;
