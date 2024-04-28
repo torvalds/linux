@@ -517,14 +517,14 @@ static const char *tcodes[] = {
 static void log_ar_at_event(struct fw_ohci *ohci,
 			    char dir, int speed, u32 *header, int evt)
 {
-	int tcode = header[0] >> 4 & 0xf;
+	int tcode = async_header_get_tcode(header);
 	char specific[12];
 
 	if (likely(!(param_debug & OHCI_PARAM_DEBUG_AT_AR)))
 		return;
 
 	if (unlikely(evt >= ARRAY_SIZE(evts)))
-			evt = 0x1f;
+		evt = 0x1f;
 
 	if (evt == OHCI1394_evt_bus_reset) {
 		ohci_notice(ohci, "A%c evt_bus_reset, generation %d\n",
@@ -539,7 +539,8 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 		break;
 	case 0x1: case 0x5: case 0x7: case 0x9: case 0xb:
 		snprintf(specific, sizeof(specific), " %x,%x",
-			 header[3] >> 16, header[3] & 0xffff);
+			 async_header_get_data_length(header),
+			 async_header_get_extended_tcode(header));
 		break;
 	default:
 		specific[0] = '\0';
@@ -556,17 +557,17 @@ static void log_ar_at_event(struct fw_ohci *ohci,
 		break;
 	case 0x0: case 0x1: case 0x4: case 0x5: case 0x9:
 		ohci_notice(ohci,
-			    "A%c spd %x tl %02x, %04x -> %04x, %s, %s, %04x%08x%s\n",
-			    dir, speed, header[0] >> 10 & 0x3f,
-			    header[1] >> 16, header[0] >> 16, evts[evt],
-			    tcodes[tcode], header[1] & 0xffff, header[2], specific);
+			    "A%c spd %x tl %02x, %04x -> %04x, %s, %s, %012llx%s\n",
+			    dir, speed, async_header_get_tlabel(header),
+			    async_header_get_source(header), async_header_get_destination(header),
+			    evts[evt], tcodes[tcode], async_header_get_offset(header), specific);
 		break;
 	default:
 		ohci_notice(ohci,
 			    "A%c spd %x tl %02x, %04x -> %04x, %s, %s%s\n",
-			    dir, speed, header[0] >> 10 & 0x3f,
-			    header[1] >> 16, header[0] >> 16, evts[evt],
-			    tcodes[tcode], specific);
+			    dir, speed, async_header_get_tlabel(header),
+			    async_header_get_source(header), async_header_get_destination(header),
+			    evts[evt], tcodes[tcode], specific);
 	}
 }
 
@@ -854,7 +855,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	p.header[1] = cond_le32_to_cpu(buffer[1]);
 	p.header[2] = cond_le32_to_cpu(buffer[2]);
 
-	tcode = (p.header[0] >> 4) & 0x0f;
+	tcode = async_header_get_tcode(p.header);
 	switch (tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 	case TCODE_READ_QUADLET_RESPONSE:
@@ -875,7 +876,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	case TCODE_LOCK_RESPONSE:
 		p.header[3] = cond_le32_to_cpu(buffer[3]);
 		p.header_length = 16;
-		p.payload_length = p.header[3] >> 16;
+		p.payload_length = async_header_get_data_length(p.header);
 		if (p.payload_length > MAX_ASYNC_PAYLOAD) {
 			ar_context_abort(ctx, "invalid packet length");
 			return NULL;
@@ -912,8 +913,7 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 	 * Several controllers, notably from NEC and VIA, forget to
 	 * write ack_complete status at PHY packet reception.
 	 */
-	if (evt == OHCI1394_evt_no_status &&
-	    (p.header[0] & 0xff) == (OHCI1394_phy_tcode << 4))
+	if (evt == OHCI1394_evt_no_status && tcode == OHCI1394_phy_tcode)
 		p.ack = ACK_COMPLETE;
 
 	/*
@@ -1354,7 +1354,7 @@ static int at_context_queue_packet(struct context *ctx,
 	 * accordingly.
 	 */
 
-	tcode = (packet->header[0] >> 4) & 0x0f;
+	tcode = async_header_get_tcode(packet->header);
 	header = (__le32 *) &d[1];
 	switch (tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
