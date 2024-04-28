@@ -2854,6 +2854,7 @@ static struct cxl_pmem_region *cxl_pmem_region_alloc(struct cxl_region *cxlr)
 		if (i == 0) {
 			cxl_nvb = cxl_find_nvdimm_bridge(cxlmd);
 			if (!cxl_nvb) {
+				kfree(cxlr_pmem);
 				cxlr_pmem = ERR_PTR(-ENODEV);
 				goto out;
 			}
