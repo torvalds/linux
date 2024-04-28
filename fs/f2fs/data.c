@@ -1595,8 +1595,9 @@ next_block:
 	}
 
 	/* use out-place-update for direct IO under LFS mode */
-	if (map->m_may_create &&
-	    (is_hole || (f2fs_lfs_mode(sbi) && flag == F2FS_GET_BLOCK_DIO))) {
+	if (map->m_may_create && (is_hole ||
+		(flag == F2FS_GET_BLOCK_DIO && f2fs_lfs_mode(sbi) &&
+		!f2fs_is_pinned_file(inode)))) {
 		if (unlikely(f2fs_cp_error(sbi))) {
 			err = -EIO;
 			goto sync_out;
