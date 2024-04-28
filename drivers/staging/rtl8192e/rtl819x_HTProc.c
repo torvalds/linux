@@ -251,7 +251,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 		*len = 26 + 2;
 	}
 
-	cap_ele->AdvCoding		= 0;
+	cap_ele->adv_coding		= 0;
 	if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev))
 		cap_ele->chl_width = 0;
 	else
