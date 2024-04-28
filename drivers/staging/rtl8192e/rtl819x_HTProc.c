@@ -283,7 +283,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 	}
 
 	memcpy(cap_ele->MCS, ieee->reg_dot11ht_oper_rate_set, 16);
-	memset(&cap_ele->ExtHTCapInfo, 0, 2);
+	memset(&cap_ele->ext_ht_cap_info, 0, 2);
 	memset(cap_ele->TxBFCap, 0, 4);
 
 	cap_ele->ASCap = 0;

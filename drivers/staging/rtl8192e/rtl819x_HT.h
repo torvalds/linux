@@ -45,7 +45,7 @@ struct ht_capab_ele {
 
 	u8	MCS[16];
 
-	u16	ExtHTCapInfo;
+	u16	ext_ht_cap_info;
 
 	u8	TxBFCap[4];
 
