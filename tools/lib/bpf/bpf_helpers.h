@@ -186,10 +186,21 @@ enum libbpf_tristate {
 #define __kptr __attribute__((btf_type_tag("kptr")))
 #define __percpu_kptr __attribute__((btf_type_tag("percpu_kptr")))
 
-#define bpf_ksym_exists(sym) ({									\
-	_Static_assert(!__builtin_constant_p(!!sym), #sym " should be marked as __weak");	\
-	!!sym;											\
+#if defined (__clang__)
+#define bpf_ksym_exists(sym) ({						\
+	_Static_assert(!__builtin_constant_p(!!sym),			\
+		       #sym " should be marked as __weak");		\
+	!!sym;								\
 })
+#elif __GNUC__ > 8
+#define bpf_ksym_exists(sym) ({						\
+	_Static_assert(__builtin_has_attribute (*sym, __weak__),	\
+		       #sym " should be marked as __weak");		\
+	!!sym;								\
+})
+#else
+#define bpf_ksym_exists(sym) !!sym
+#endif
 
 #define __arg_ctx __attribute__((btf_decl_tag("arg:ctx")))
 #define __arg_nonnull __attribute((btf_decl_tag("arg:nonnull")))
