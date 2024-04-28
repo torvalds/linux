@@ -1305,11 +1305,19 @@ static void rtl8366rb_phylink_get_caps(struct dsa_switch *ds, int port,
 }
 
 static void
-rtl8366rb_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
-		      phy_interface_t interface, struct phy_device *phydev,
+rtl8366rb_mac_config(struct phylink_config *config, unsigned int mode,
+		     const struct phylink_link_state *state)
+{
+}
+
+static void
+rtl8366rb_mac_link_up(struct phylink_config *config, struct phy_device *phydev,
+		      unsigned int mode, phy_interface_t interface,
 		      int speed, int duplex, bool tx_pause, bool rx_pause)
 {
-	struct realtek_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct realtek_priv *priv = dp->ds->priv;
+	int port = dp->index;
 	unsigned int val;
 	int ret;
 
@@ -1375,10 +1383,12 @@ rtl8366rb_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 }
 
 static void
-rtl8366rb_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+rtl8366rb_mac_link_down(struct phylink_config *config, unsigned int mode,
 			phy_interface_t interface)
 {
-	struct realtek_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct realtek_priv *priv = dp->ds->priv;
+	int port = dp->index;
 	int ret;
 
 	if (port != priv->cpu_port)
@@ -2028,12 +2038,16 @@ static int rtl8366rb_detect(struct realtek_priv *priv)
 	return 0;
 }
 
+static const struct phylink_mac_ops rtl8366rb_phylink_mac_ops = {
+	.mac_config = rtl8366rb_mac_config,
+	.mac_link_down = rtl8366rb_mac_link_down,
+	.mac_link_up = rtl8366rb_mac_link_up,
+};
+
 static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.get_tag_protocol = rtl8366_get_tag_protocol,
 	.setup = rtl8366rb_setup,
 	.phylink_get_caps = rtl8366rb_phylink_get_caps,
-	.phylink_mac_link_up = rtl8366rb_mac_link_up,
-	.phylink_mac_link_down = rtl8366rb_mac_link_down,
 	.get_strings = rtl8366_get_strings,
 	.get_ethtool_stats = rtl8366_get_ethtool_stats,
 	.get_sset_count = rtl8366_get_sset_count,
@@ -2071,6 +2085,7 @@ static const struct realtek_ops rtl8366rb_ops = {
 const struct realtek_variant rtl8366rb_variant = {
 	.ds_ops = &rtl8366rb_switch_ops,
 	.ops = &rtl8366rb_ops,
+	.phylink_mac_ops = &rtl8366rb_phylink_mac_ops,
 	.clk_delay = 10,
 	.cmd_read = 0xa9,
 	.cmd_write = 0xa8,
