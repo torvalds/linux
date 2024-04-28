@@ -276,9 +276,9 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 
 	if (is_encrypt) {
 		cap_ele->MPDUDensity	= 7;
-		cap_ele->MaxRxAMPDUFactor	= 2;
+		cap_ele->max_rx_ampdu_factor	= 2;
 	} else {
-		cap_ele->MaxRxAMPDUFactor	= 3;
+		cap_ele->max_rx_ampdu_factor	= 3;
 		cap_ele->MPDUDensity	= 0;
 	}
 
@@ -471,12 +471,12 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 	if (ieee->current_network.bssht.bd_rt2rt_aggregation) {
 		if (ieee->pairwise_key_type != KEY_TYPE_NA)
 			ht_info->current_ampdu_factor =
-					 pPeerHTCap->MaxRxAMPDUFactor;
+					 pPeerHTCap->max_rx_ampdu_factor;
 		else
 			ht_info->current_ampdu_factor = HT_AGG_SIZE_64K;
 	} else {
-		ht_info->current_ampdu_factor = min_t(u32, pPeerHTCap->MaxRxAMPDUFactor,
-						    HT_AGG_SIZE_32K);
+		ht_info->current_ampdu_factor = min_t(u32, pPeerHTCap->max_rx_ampdu_factor,
+						      HT_AGG_SIZE_32K);
 	}
 
 	ht_info->current_mpdu_density = pPeerHTCap->MPDUDensity;
