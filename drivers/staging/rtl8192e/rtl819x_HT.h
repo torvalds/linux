@@ -34,7 +34,7 @@ struct ht_capab_ele {
 	u8	rx_stbc:2;
 	u8	delay_ba:1;
 	u8	max_amsdu_size:1;
-	u8	DssCCk:1;
+	u8	dss_cck:1;
 	u8	PSMP:1;
 	u8	Rsvd1:1;
 	u8	lsig_txop_protect:1;
