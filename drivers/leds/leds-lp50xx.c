@@ -278,7 +278,6 @@ struct lp50xx_led {
  * @dev: pointer to the devices device struct
  * @lock: lock for reading/writing the device
  * @chip_info: chip specific information (ie num_leds)
- * @num_of_banked_leds: holds the number of banked LEDs
  * @leds: array of LED strings
  */
 struct lp50xx {
@@ -289,7 +288,6 @@ struct lp50xx {
 	struct device *dev;
 	struct mutex lock;
 	const struct lp50xx_chip_info *chip_info;
-	int num_of_banked_leds;
 
 	/* This needs to be at the end of the struct */
 	struct lp50xx_led leds[];
@@ -402,8 +400,6 @@ static int lp50xx_probe_leds(struct fwnode_handle *child, struct lp50xx *priv,
 			dev_err(priv->dev, "reg property is invalid\n");
 			return -EINVAL;
 		}
-
-		priv->num_of_banked_leds = num_leds;
 
 		ret = fwnode_property_read_u32_array(child, "reg", led_banks, num_leds);
 		if (ret) {
