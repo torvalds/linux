@@ -74,7 +74,7 @@ struct extent_map {
 	 * The full on-disk extent length, matching
 	 * btrfs_file_extent_item::disk_num_bytes.
 	 */
-	u64 orig_block_len;
+	u64 disk_num_bytes;
 
 	/*
 	 * The decompressed size of the whole on-disk extent, matching
