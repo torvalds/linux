@@ -12361,10 +12361,10 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* ELS cmd tag <ulpIoTag> completes */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"0139 Ignoring ELS cmd code x%x completion Data: "
+			"0139 Ignoring ELS cmd code x%x ref cnt x%x Data: "
 			"x%x x%x x%x x%px\n",
-			ulp_command, ulp_status, ulp_word4, iotag,
-			cmdiocb->ndlp);
+			ulp_command, kref_read(&cmdiocb->ndlp->kref),
+			ulp_status, ulp_word4, iotag, cmdiocb->ndlp);
 	/*
 	 * Deref the ndlp after free_iocb. sli_release_iocb will access the ndlp
 	 * if exchange is busy.
@@ -12460,7 +12460,9 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		}
 	}
 
-	if (phba->link_state < LPFC_LINK_UP ||
+	/* Just close the exchange under certain conditions. */
+	if (test_bit(FC_UNLOADING, &vport->load_flag) ||
+	    phba->link_state < LPFC_LINK_UP ||
 	    (phba->sli_rev == LPFC_SLI_REV4 &&
 	     phba->sli4_hba.link_state.status == LPFC_FC_LA_TYPE_LINK_DOWN) ||
 	    (phba->link_flag & LS_EXTERNAL_LOOPBACK))
@@ -12507,10 +12509,10 @@ abort_iotag_exit:
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
 			 "0339 Abort IO XRI x%x, Original iotag x%x, "
 			 "abort tag x%x Cmdjob : x%px Abortjob : x%px "
-			 "retval x%x\n",
+			 "retval x%x : IA %d\n",
 			 ulp_context, (phba->sli_rev == LPFC_SLI_REV4) ?
 			 cmdiocb->iotag : iotag, iotag, cmdiocb, abtsiocbp,
-			 retval);
+			 retval, ia);
 	if (retval) {
 		cmdiocb->cmd_flag &= ~LPFC_DRIVER_ABORTED;
 		__lpfc_sli_release_iocbq(phba, abtsiocbp);
