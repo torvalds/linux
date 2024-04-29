@@ -119,7 +119,7 @@ static void dccg401_wait_for_dentist_change_done(
 static void dccg401_get_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
-		enum pixel_rate_div *tmds_div,
+		uint32_t *tmds_div,
 		uint32_t *dp_dto_int)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
@@ -161,7 +161,7 @@ static void dccg401_set_pixel_rate_div(
 		enum pixel_rate_div unused)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-	enum pixel_rate_div cur_tmds_div = PIXEL_RATE_DIV_NA;
+	uint32_t cur_tmds_div = PIXEL_RATE_DIV_NA;
 	uint32_t dp_dto_int;
 	uint32_t reg_val;
 
@@ -962,6 +962,7 @@ static const struct dccg_funcs dccg401_funcs = {
 	.otg_add_pixel = dccg401_otg_add_pixel,
 	.otg_drop_pixel = dccg401_otg_drop_pixel,
 	.set_pixel_rate_div = dccg401_set_pixel_rate_div,
+	.get_pixel_rate_div = dccg401_get_pixel_rate_div,
 	.set_dp_dto = dccg401_set_dp_dto,
 	.enable_symclk_se = dccg401_enable_symclk_se,
 	.disable_symclk_se = dccg401_disable_symclk_se,

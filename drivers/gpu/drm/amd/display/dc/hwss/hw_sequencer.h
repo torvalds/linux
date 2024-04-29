@@ -339,6 +339,9 @@ struct hw_sequencer_funcs {
 			struct dc_state *context);
 	void (*exit_optimized_pwr_state)(const struct dc *dc,
 			struct dc_state *context);
+	void (*calculate_pix_rate_divider)(struct dc *dc,
+			struct dc_state *context,
+			const struct dc_stream_state *stream);
 
 	/* Audio Related */
 	void (*enable_audio_stream)(struct pipe_ctx *pipe_ctx);

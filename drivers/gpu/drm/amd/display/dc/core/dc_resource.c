@@ -3969,6 +3969,12 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 
 	res = dc_validate_global_state(dc, context, fast_validate);
 
+	/* calculate pixel rate divider after deciding pxiel clock & odm combine  */
+	if ((dc->hwss.calculate_pix_rate_divider) && (res == DC_OK)) {
+		for (i = 0; i < add_streams_count; i++)
+			dc->hwss.calculate_pix_rate_divider(dc, context, add_streams[i]);
+	}
+
 fail:
 	if (res != DC_OK)
 		DC_LOG_WARNING("%s:resource validation failed, dc_status:%d\n",

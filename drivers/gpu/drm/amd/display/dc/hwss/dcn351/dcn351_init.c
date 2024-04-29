@@ -122,6 +122,7 @@ static const struct hw_sequencer_funcs dcn351_funcs = {
 	.hw_block_power_down = dcn351_hw_block_power_down,
 	.root_clock_control = dcn35_root_clock_control,
 	.set_long_vtotal = dcn35_set_long_vblank,
+	.calculate_pix_rate_divider = dcn32_calculate_pix_rate_divider,
 };
 
 static const struct hwseq_private_funcs dcn351_private_funcs = {

@@ -119,6 +119,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.apply_update_flags_for_phantom = dcn32_apply_update_flags_for_phantom,
 	.blank_phantom = dcn32_blank_phantom,
 	.is_pipe_topology_transition_seamless = dcn32_is_pipe_topology_transition_seamless,
+	.calculate_pix_rate_divider = dcn32_calculate_pix_rate_divider,
 };
 
 static const struct hwseq_private_funcs dcn32_private_funcs = {

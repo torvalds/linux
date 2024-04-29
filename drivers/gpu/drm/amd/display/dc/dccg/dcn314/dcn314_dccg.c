@@ -58,8 +58,8 @@ static void dccg314_trigger_dio_fifo_resync(
 static void dccg314_get_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
-		enum pixel_rate_div *k1,
-		enum pixel_rate_div *k2)
+		uint32_t *k1,
+		uint32_t *k2)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	uint32_t val_k1 = PIXEL_RATE_DIV_NA, val_k2 = PIXEL_RATE_DIV_NA;
@@ -93,8 +93,8 @@ static void dccg314_get_pixel_rate_div(
 		return;
 	}
 
-	*k1 = (enum pixel_rate_div)val_k1;
-	*k2 = (enum pixel_rate_div)val_k2;
+	*k1 = val_k1;
+	*k2 = val_k2;
 }
 
 static void dccg314_set_pixel_rate_div(
@@ -104,7 +104,8 @@ static void dccg314_set_pixel_rate_div(
 		enum pixel_rate_div k2)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-	enum pixel_rate_div cur_k1 = PIXEL_RATE_DIV_NA, cur_k2 = PIXEL_RATE_DIV_NA;
+	uint32_t cur_k1 = PIXEL_RATE_DIV_NA;
+	uint32_t cur_k2 = PIXEL_RATE_DIV_NA;
 
 	// Don't program 0xF into the register field. Not valid since
 	// K1 / K2 field is only 1 / 2 bits wide
@@ -373,6 +374,7 @@ static const struct dccg_funcs dccg314_funcs = {
 	.disable_dsc = dccg31_disable_dscclk,
 	.enable_dsc = dccg31_enable_dscclk,
 	.set_pixel_rate_div = dccg314_set_pixel_rate_div,
+	.get_pixel_rate_div = dccg314_get_pixel_rate_div,
 	.trigger_dio_fifo_resync = dccg314_trigger_dio_fifo_resync,
 	.set_valid_pixel_rate = dccg314_set_valid_pixel_rate,
 	.set_dtbclk_p_src = dccg314_set_dtbclk_p_src

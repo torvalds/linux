@@ -114,6 +114,7 @@ static const struct hw_sequencer_funcs dcn314_funcs = {
 	.optimize_pwr_state = dcn21_optimize_pwr_state,
 	.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state,
 	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
+	.calculate_pix_rate_divider = dcn314_calculate_pix_rate_divider,
 };
 
 static const struct hwseq_private_funcs dcn314_private_funcs = {
