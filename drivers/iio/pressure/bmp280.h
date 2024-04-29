@@ -452,12 +452,12 @@ struct bmp280_chip_info {
 	int num_sampling_freq_avail;
 	int sampling_freq_default;
 
-	int (*chip_config)(struct bmp280_data *);
-	int (*read_temp)(struct bmp280_data *, int *, int *);
-	int (*read_press)(struct bmp280_data *, int *, int *);
-	int (*read_humid)(struct bmp280_data *, int *, int *);
-	int (*read_calib)(struct bmp280_data *);
-	int (*preinit)(struct bmp280_data *);
+	int (*chip_config)(struct bmp280_data *data);
+	int (*read_temp)(struct bmp280_data *data, int *val, int *val2);
+	int (*read_press)(struct bmp280_data *data, int *val, int *val2);
+	int (*read_humid)(struct bmp280_data *data, int *val, int *val2);
+	int (*read_calib)(struct bmp280_data *data);
+	int (*preinit)(struct bmp280_data *data);
 };
 
 /* Chip infos for each variant */
@@ -476,7 +476,7 @@ extern const struct regmap_config bmp580_regmap_config;
 /* Probe called from different transports */
 int bmp280_common_probe(struct device *dev,
 			struct regmap *regmap,
-			const struct bmp280_chip_info *,
+			const struct bmp280_chip_info *chip_info,
 			const char *name,
 			int irq);
 
