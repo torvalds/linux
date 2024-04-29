@@ -149,6 +149,7 @@ static const char * const link_type_name[] = {
 	[BPF_LINK_TYPE_TCX]			= "tcx",
 	[BPF_LINK_TYPE_UPROBE_MULTI]		= "uprobe_multi",
 	[BPF_LINK_TYPE_NETKIT]			= "netkit",
+	[BPF_LINK_TYPE_SOCKMAP]			= "sockmap",
 };
 
 static const char * const map_type_name[] = {
@@ -1965,6 +1966,20 @@ static struct extern_desc *find_extern_by_name(const struct bpf_object *obj,
 
 	for (i = 0; i < obj->nr_extern; i++) {
 		if (strcmp(obj->externs[i].name, name) == 0)
+			return &obj->externs[i];
+	}
+	return NULL;
+}
+
+static struct extern_desc *find_extern_by_name_with_len(const struct bpf_object *obj,
+							const void *name, int len)
+{
+	const char *ext_name;
+	int i;
+
+	for (i = 0; i < obj->nr_extern; i++) {
+		ext_name = obj->externs[i].name;
+		if (strlen(ext_name) == len && strncmp(ext_name, name, len) == 0)
 			return &obj->externs[i];
 	}
 	return NULL;
@@ -7986,7 +8001,10 @@ static int bpf_object__sanitize_maps(struct bpf_object *obj)
 	return 0;
 }
 
-int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *ctx)
+typedef int (*kallsyms_cb_t)(unsigned long long sym_addr, char sym_type,
+			     const char *sym_name, void *ctx);
+
+static int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *ctx)
 {
 	char sym_type, sym_name[500];
 	unsigned long long sym_addr;
@@ -8026,8 +8044,13 @@ static int kallsyms_cb(unsigned long long sym_addr, char sym_type,
 	struct bpf_object *obj = ctx;
 	const struct btf_type *t;
 	struct extern_desc *ext;
+	char *res;
 
-	ext = find_extern_by_name(obj, sym_name);
+	res = strstr(sym_name, ".llvm.");
+	if (sym_type == 'd' && res)
+		ext = find_extern_by_name_with_len(obj, sym_name, res - sym_name);
+	else
+		ext = find_extern_by_name(obj, sym_name);
 	if (!ext || ext->type != EXT_KSYM)
 		return 0;
 
@@ -12509,6 +12532,12 @@ struct bpf_link *
 bpf_program__attach_netns(const struct bpf_program *prog, int netns_fd)
 {
 	return bpf_program_attach_fd(prog, netns_fd, "netns", NULL);
+}
+
+struct bpf_link *
+bpf_program__attach_sockmap(const struct bpf_program *prog, int map_fd)
+{
+	return bpf_program_attach_fd(prog, map_fd, "sockmap", NULL);
 }
 
 struct bpf_link *bpf_program__attach_xdp(const struct bpf_program *prog, int ifindex)

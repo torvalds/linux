@@ -2,7 +2,7 @@
 #ifndef __BPF_CORE_READ_H__
 #define __BPF_CORE_READ_H__
 
-#include <bpf/bpf_helpers.h>
+#include "bpf_helpers.h"
 
 /*
  * enum bpf_field_info_kind is passed as a second argument into

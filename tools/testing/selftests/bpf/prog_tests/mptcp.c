@@ -273,6 +273,8 @@ static int run_mptcpify(int cgroup_fd)
 	if (!ASSERT_OK_PTR(mptcpify_skel, "skel_open_load"))
 		return libbpf_get_error(mptcpify_skel);
 
+	mptcpify_skel->bss->pid = getpid();
+
 	err = mptcpify__attach(mptcpify_skel);
 	if (!ASSERT_OK(err, "skel_attach"))
 		goto out;

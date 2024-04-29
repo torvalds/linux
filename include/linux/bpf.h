@@ -184,8 +184,8 @@ struct bpf_map_ops {
 };
 
 enum {
-	/* Support at most 10 fields in a BTF type */
-	BTF_FIELDS_MAX	   = 10,
+	/* Support at most 11 fields in a BTF type */
+	BTF_FIELDS_MAX	   = 11,
 };
 
 enum btf_field_type {
@@ -202,6 +202,7 @@ enum btf_field_type {
 	BPF_GRAPH_NODE = BPF_RB_NODE | BPF_LIST_NODE,
 	BPF_GRAPH_ROOT = BPF_RB_ROOT | BPF_LIST_HEAD,
 	BPF_REFCOUNT   = (1 << 9),
+	BPF_WORKQUEUE  = (1 << 10),
 };
 
 typedef void (*btf_dtor_kfunc_t)(void *);
@@ -238,6 +239,7 @@ struct btf_record {
 	u32 field_mask;
 	int spin_lock_off;
 	int timer_off;
+	int wq_off;
 	int refcount_off;
 	struct btf_field fields[];
 };
@@ -312,6 +314,8 @@ static inline const char *btf_field_type_name(enum btf_field_type type)
 		return "bpf_spin_lock";
 	case BPF_TIMER:
 		return "bpf_timer";
+	case BPF_WORKQUEUE:
+		return "bpf_wq";
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 		return "kptr";
@@ -340,6 +344,8 @@ static inline u32 btf_field_type_size(enum btf_field_type type)
 		return sizeof(struct bpf_spin_lock);
 	case BPF_TIMER:
 		return sizeof(struct bpf_timer);
+	case BPF_WORKQUEUE:
+		return sizeof(struct bpf_wq);
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 	case BPF_KPTR_PERCPU:
@@ -367,6 +373,8 @@ static inline u32 btf_field_type_align(enum btf_field_type type)
 		return __alignof__(struct bpf_spin_lock);
 	case BPF_TIMER:
 		return __alignof__(struct bpf_timer);
+	case BPF_WORKQUEUE:
+		return __alignof__(struct bpf_wq);
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 	case BPF_KPTR_PERCPU:
@@ -406,6 +414,7 @@ static inline void bpf_obj_init_field(const struct btf_field *field, void *addr)
 		/* RB_ROOT_CACHED 0-inits, no need to do anything after memset */
 	case BPF_SPIN_LOCK:
 	case BPF_TIMER:
+	case BPF_WORKQUEUE:
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 	case BPF_KPTR_PERCPU:
@@ -525,6 +534,7 @@ static inline void zero_map_value(struct bpf_map *map, void *dst)
 void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,
 			   bool lock_src);
 void bpf_timer_cancel_and_free(void *timer);
+void bpf_wq_cancel_and_free(void *timer);
 void bpf_list_head_free(const struct btf_field *field, void *list_head,
 			struct bpf_spin_lock *spin_lock);
 void bpf_rb_root_free(const struct btf_field *field, void *rb_root,
@@ -1265,6 +1275,7 @@ int bpf_dynptr_check_size(u32 size);
 u32 __bpf_dynptr_size(const struct bpf_dynptr_kern *ptr);
 const void *__bpf_dynptr_data(const struct bpf_dynptr_kern *ptr, u32 len);
 void *__bpf_dynptr_data_rw(const struct bpf_dynptr_kern *ptr, u32 len);
+bool __bpf_dynptr_is_rdonly(const struct bpf_dynptr_kern *ptr);
 
 #ifdef CONFIG_BPF_JIT
 int bpf_trampoline_link_prog(struct bpf_tramp_link *link, struct bpf_trampoline *tr);
@@ -2209,6 +2220,7 @@ void bpf_map_free_record(struct bpf_map *map);
 struct btf_record *btf_record_dup(const struct btf_record *rec);
 bool btf_record_equal(const struct btf_record *rec_a, const struct btf_record *rec_b);
 void bpf_obj_free_timer(const struct btf_record *rec, void *obj);
+void bpf_obj_free_workqueue(const struct btf_record *rec, void *obj);
 void bpf_obj_free_fields(const struct btf_record *rec, void *obj);
 void __bpf_obj_drop_impl(void *p, const struct btf_record *rec, bool percpu);
 
@@ -3010,6 +3022,7 @@ int sock_map_prog_detach(const union bpf_attr *attr, enum bpf_prog_type ptype);
 int sock_map_update_elem_sys(struct bpf_map *map, void *key, void *value, u64 flags);
 int sock_map_bpf_prog_query(const union bpf_attr *attr,
 			    union bpf_attr __user *uattr);
+int sock_map_link_create(const union bpf_attr *attr, struct bpf_prog *prog);
 
 void sock_map_unhash(struct sock *sk);
 void sock_map_destroy(struct sock *sk);
@@ -3107,6 +3120,11 @@ static inline int sock_map_bpf_prog_query(const union bpf_attr *attr,
 					  union bpf_attr __user *uattr)
 {
 	return -EINVAL;
+}
+
+static inline int sock_map_link_create(const union bpf_attr *attr, struct bpf_prog *prog)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_BPF_SYSCALL */
 #endif /* CONFIG_NET && CONFIG_BPF_SYSCALL */
