@@ -244,6 +244,16 @@ static unsigned long damon_pa_pageout(struct damon_region *r, struct damos *s)
 {
 	unsigned long addr, applied;
 	LIST_HEAD(folio_list);
+	bool ignore_references = false;
+	struct damos_filter *filter;
+
+	/* respect user's page level reference check handling request */
+	damos_for_each_filter(filter, s) {
+		if (filter->type == DAMOS_FILTER_TYPE_YOUNG) {
+			ignore_references = true;
+			break;
+		}
+	}
 
 	for (addr = r->ar.start; addr < r->ar.end; addr += PAGE_SIZE) {
 		struct folio *folio = damon_get_folio(PHYS_PFN(addr));
@@ -265,7 +275,7 @@ static unsigned long damon_pa_pageout(struct damon_region *r, struct damos *s)
 put_folio:
 		folio_put(folio);
 	}
-	applied = reclaim_pages(&folio_list, false);
+	applied = reclaim_pages(&folio_list, ignore_references);
 	cond_resched();
 	return applied * PAGE_SIZE;
 }
