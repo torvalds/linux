@@ -235,14 +235,14 @@ static int bme280_read_calib(struct bmp280_data *data)
 	 * Humidity data is only available on BME280.
 	 */
 
-	ret = regmap_read(data->regmap, BMP280_REG_COMP_H1, &tmp);
+	ret = regmap_read(data->regmap, BME280_REG_COMP_H1, &tmp);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H1 comp value\n");
 		return ret;
 	}
 	calib->H1 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H2,
+	ret = regmap_bulk_read(data->regmap, BME280_REG_COMP_H2,
 			       &data->le16, sizeof(data->le16));
 	if (ret < 0) {
 		dev_err(dev, "failed to read H2 comp value\n");
@@ -250,14 +250,14 @@ static int bme280_read_calib(struct bmp280_data *data)
 	}
 	calib->H2 = sign_extend32(le16_to_cpu(data->le16), 15);
 
-	ret = regmap_read(data->regmap, BMP280_REG_COMP_H3, &tmp);
+	ret = regmap_read(data->regmap, BME280_REG_COMP_H3, &tmp);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H3 comp value\n");
 		return ret;
 	}
 	calib->H3 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H4,
+	ret = regmap_bulk_read(data->regmap, BME280_REG_COMP_H4,
 			       &data->be16, sizeof(data->be16));
 	if (ret < 0) {
 		dev_err(dev, "failed to read H4 comp value\n");
@@ -266,15 +266,15 @@ static int bme280_read_calib(struct bmp280_data *data)
 	calib->H4 = sign_extend32(((be16_to_cpu(data->be16) >> 4) & 0xff0) |
 				  (be16_to_cpu(data->be16) & 0xf), 11);
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H5,
+	ret = regmap_bulk_read(data->regmap, BME280_REG_COMP_H5,
 			       &data->le16, sizeof(data->le16));
 	if (ret < 0) {
 		dev_err(dev, "failed to read H5 comp value\n");
 		return ret;
 	}
-	calib->H5 = sign_extend32(FIELD_GET(BMP280_COMP_H5_MASK, le16_to_cpu(data->le16)), 11);
+	calib->H5 = sign_extend32(FIELD_GET(BME280_COMP_H5_MASK, le16_to_cpu(data->le16)), 11);
 
-	ret = regmap_read(data->regmap, BMP280_REG_COMP_H6, &tmp);
+	ret = regmap_read(data->regmap, BME280_REG_COMP_H6, &tmp);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H6 comp value\n");
 		return ret;
@@ -290,7 +290,7 @@ static int bme280_read_calib(struct bmp280_data *data)
  *
  * Taken from BME280 datasheet, Section 4.2.3, "Compensation formula".
  */
-static u32 bmp280_compensate_humidity(struct bmp280_data *data,
+static u32 bme280_compensate_humidity(struct bmp280_data *data,
 				      s32 adc_humidity)
 {
 	struct bmp280_calib *calib = &data->calib.bmp280;
@@ -430,7 +430,7 @@ static int bmp280_read_press(struct bmp280_data *data,
 	return IIO_VAL_FRACTIONAL;
 }
 
-static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
+static int bme280_read_humid(struct bmp280_data *data, int *val, int *val2)
 {
 	u32 comp_humidity;
 	s32 adc_humidity;
@@ -441,7 +441,7 @@ static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_HUMIDITY_MSB,
+	ret = regmap_bulk_read(data->regmap, BME280_REG_HUMIDITY_MSB,
 			       &data->be16, sizeof(data->be16));
 	if (ret < 0) {
 		dev_err(data->dev, "failed to read humidity\n");
@@ -454,7 +454,7 @@ static int bmp280_read_humid(struct bmp280_data *data, int *val, int *val2)
 		dev_err(data->dev, "reading humidity skipped\n");
 		return -EIO;
 	}
-	comp_humidity = bmp280_compensate_humidity(data, adc_humidity);
+	comp_humidity = bme280_compensate_humidity(data, adc_humidity);
 
 	*val = comp_humidity * 1000 / 1024;
 
@@ -538,7 +538,7 @@ static int bmp280_read_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int bmp280_write_oversampling_ratio_humid(struct bmp280_data *data,
+static int bme280_write_oversampling_ratio_humid(struct bmp280_data *data,
 						 int val)
 {
 	const int *avail = data->chip_info->oversampling_humid_avail;
@@ -682,7 +682,7 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 		mutex_lock(&data->lock);
 		switch (chan->type) {
 		case IIO_HUMIDITYRELATIVE:
-			ret = bmp280_write_oversampling_ratio_humid(data, val);
+			ret = bme280_write_oversampling_ratio_humid(data, val);
 			break;
 		case IIO_PRESSURE:
 			ret = bmp280_write_oversampling_ratio_press(data, val);
@@ -832,16 +832,15 @@ EXPORT_SYMBOL_NS(bmp280_chip_info, IIO_BMP280);
 
 static int bme280_chip_config(struct bmp280_data *data)
 {
-	u8 osrs = FIELD_PREP(BMP280_OSRS_HUMIDITY_MASK, data->oversampling_humid + 1);
+	u8 osrs = FIELD_PREP(BME280_OSRS_HUMIDITY_MASK, data->oversampling_humid + 1);
 	int ret;
 
 	/*
 	 * Oversampling of humidity must be set before oversampling of
 	 * temperature/pressure is set to become effective.
 	 */
-	ret = regmap_update_bits(data->regmap, BMP280_REG_CTRL_HUMIDITY,
-				  BMP280_OSRS_HUMIDITY_MASK, osrs);
-
+	ret = regmap_update_bits(data->regmap, BME280_REG_CTRL_HUMIDITY,
+				 BME280_OSRS_HUMIDITY_MASK, osrs);
 	if (ret < 0)
 		return ret;
 
@@ -869,12 +868,12 @@ const struct bmp280_chip_info bme280_chip_info = {
 
 	.oversampling_humid_avail = bmp280_oversampling_avail,
 	.num_oversampling_humid_avail = ARRAY_SIZE(bmp280_oversampling_avail),
-	.oversampling_humid_default = BMP280_OSRS_HUMIDITY_16X - 1,
+	.oversampling_humid_default = BME280_OSRS_HUMIDITY_16X - 1,
 
 	.chip_config = bme280_chip_config,
 	.read_temp = bmp280_read_temp,
 	.read_press = bmp280_read_press,
-	.read_humid = bmp280_read_humid,
+	.read_humid = bme280_read_humid,
 	.read_calib = bme280_read_calib,
 };
 EXPORT_SYMBOL_NS(bme280_chip_info, IIO_BMP280);
