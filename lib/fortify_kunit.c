@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Runtime test cases for CONFIG_FORTIFY_SOURCE. For testing memcpy(),
- * see FORTIFY_MEM_* tests in LKDTM (drivers/misc/lkdtm/fortify.c).
+ * Runtime test cases for CONFIG_FORTIFY_SOURCE. For additional memcpy()
+ * testing see FORTIFY_MEM_* tests in LKDTM (drivers/misc/lkdtm/fortify.c).
  *
  * For corner cases with UBSAN, try testing with:
  *
@@ -18,8 +18,10 @@
 /* We don't need to fill dmesg with the fortify WARNs during testing. */
 #ifdef DEBUG
 # define FORTIFY_REPORT_KUNIT(x...) __fortify_report(x)
+# define FORTIFY_WARN_KUNIT(x...)   WARN_ONCE(x)
 #else
 # define FORTIFY_REPORT_KUNIT(x...) do { } while (0)
+# define FORTIFY_WARN_KUNIT(x...)   do { } while (0)
 #endif
 
 /* Redefine fortify_panic() to track failures. */
@@ -28,6 +30,14 @@ void fortify_add_kunit_error(int write);
 	FORTIFY_REPORT_KUNIT(FORTIFY_REASON(func, write), avail, size);	\
 	fortify_add_kunit_error(write);					\
 	return (retfail);						\
+} while (0)
+
+/* Redefine fortify_warn_once() to track memcpy() failures. */
+#define fortify_warn_once(chk_func, x...) do {				\
+	bool __result = chk_func;					\
+	FORTIFY_WARN_KUNIT(__result, x);				\
+	if (__result)							\
+		fortify_add_kunit_error(1);				\
 } while (0)
 
 #include <kunit/device.h>
@@ -818,6 +828,74 @@ static void fortify_test_strlcat(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);
 }
 
+/* Check for 0-sized arrays... */
+struct fortify_zero_sized {
+	unsigned long bytes_before;
+	char buf[0];
+	unsigned long bytes_after;
+};
+
+#define __fortify_test(memfunc)					\
+static void fortify_test_##memfunc(struct kunit *test)		\
+{								\
+	struct fortify_zero_sized zero = { };			\
+	struct fortify_padding pad = { };			\
+	char srcA[sizeof(pad.buf) + 2];				\
+	char srcB[sizeof(pad.buf) + 2];				\
+	size_t len = sizeof(pad.buf) + unconst;			\
+								\
+	memset(srcA, 'A', sizeof(srcA));			\
+	KUNIT_ASSERT_EQ(test, srcA[0], 'A');			\
+	memset(srcB, 'B', sizeof(srcB));			\
+	KUNIT_ASSERT_EQ(test, srcB[0], 'B');			\
+								\
+	memfunc(pad.buf, srcA, 0 + unconst);			\
+	KUNIT_EXPECT_EQ(test, pad.buf[0], '\0');		\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf + 1, srcB, 1 + unconst);		\
+	KUNIT_EXPECT_EQ(test, pad.buf[0], '\0');		\
+	KUNIT_EXPECT_EQ(test, pad.buf[1], 'B');			\
+	KUNIT_EXPECT_EQ(test, pad.buf[2], '\0');		\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf, srcA, 1 + unconst);			\
+	KUNIT_EXPECT_EQ(test, pad.buf[0], 'A');			\
+	KUNIT_EXPECT_EQ(test, pad.buf[1], 'B');			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf, srcA, len - 1);			\
+	KUNIT_EXPECT_EQ(test, pad.buf[1], 'A');			\
+	KUNIT_EXPECT_EQ(test, pad.buf[len - 1], '\0');		\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf, srcA, len);				\
+	KUNIT_EXPECT_EQ(test, pad.buf[1], 'A');			\
+	KUNIT_EXPECT_EQ(test, pad.buf[len - 1], 'A');		\
+	KUNIT_EXPECT_EQ(test, pad.bytes_after, 0);		\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	memfunc(pad.buf, srcA, len + 1);			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 1);	\
+	memfunc(pad.buf + 1, srcB, len);			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 2);	\
+								\
+	/* Reset error counter. */				\
+	fortify_write_overflows = 0;				\
+	/* Copy nothing into nothing: no errors. */		\
+	memfunc(zero.buf, srcB, 0 + unconst);			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	/* We currently explicitly ignore zero-sized dests. */	\
+	memfunc(zero.buf, srcB, 1 + unconst);			\
+	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+}
+__fortify_test(memcpy)
+__fortify_test(memmove)
+
 static void fortify_test_memscan(struct kunit *test)
 {
 	char haystack[] = "Where oh where is my memory range?";
@@ -977,7 +1055,8 @@ static struct kunit_case fortify_test_cases[] = {
 	KUNIT_CASE(fortify_test_strncat),
 	KUNIT_CASE(fortify_test_strlcat),
 	/* skip memset: performs bounds checking on whole structs */
-	/* skip memcpy: still using warn-and-overwrite instead of hard-fail */
+	KUNIT_CASE(fortify_test_memcpy),
+	KUNIT_CASE(fortify_test_memmove),
 	KUNIT_CASE(fortify_test_memscan),
 	KUNIT_CASE(fortify_test_memchr),
 	KUNIT_CASE(fortify_test_memchr_inv),
