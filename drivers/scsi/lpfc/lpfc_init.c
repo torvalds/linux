@@ -4773,7 +4773,10 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	shost->max_id = LPFC_MAX_TARGET;
 	shost->max_lun = vport->cfg_max_luns;
 	shost->this_id = -1;
-	shost->max_cmd_len = 16;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		shost->max_cmd_len = LPFC_FCP_CDB_LEN_32;
+	else
+		shost->max_cmd_len = LPFC_FCP_CDB_LEN;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		if (!phba->cfg_fcp_mq_threshold ||
@@ -8231,7 +8234,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		 * our max amount and we need to limit lpfc_sg_seg_cnt
 		 * to minimize the risk of running out.
 		 */
-		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd32) +
 				sizeof(struct fcp_rsp) + max_buf_size;
 
 		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
@@ -8253,7 +8256,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		 * the FCP rsp, a SGE for each, and a SGE for up to
 		 * cfg_sg_seg_cnt data segments.
 		 */
-		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd32) +
 				sizeof(struct fcp_rsp) +
 				((phba->cfg_sg_seg_cnt + extra) *
 				sizeof(struct sli4_sge));
@@ -8316,7 +8319,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->lpfc_cmd_rsp_buf_pool =
 			dma_pool_create("lpfc_cmd_rsp_buf_pool",
 					&phba->pcidev->dev,
-					sizeof(struct fcp_cmnd) +
+					sizeof(struct fcp_cmnd32) +
 					sizeof(struct fcp_rsp),
 					i, 0);
 	if (!phba->lpfc_cmd_rsp_buf_pool) {

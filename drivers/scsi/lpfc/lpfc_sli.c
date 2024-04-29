@@ -10595,18 +10595,18 @@ lpfc_prep_embed_io(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 			BUFF_TYPE_BDE_IMMED;
 		wqe->generic.bde.tus.f.bdeSize = sgl->sge_len;
 		wqe->generic.bde.addrHigh = 0;
-		wqe->generic.bde.addrLow =  88;  /* Word 22 */
+		wqe->generic.bde.addrLow =  72;  /* Word 18 */
 
 		bf_set(wqe_wqes, &wqe->fcp_iwrite.wqe_com, 1);
 		bf_set(wqe_dbde, &wqe->fcp_iwrite.wqe_com, 0);
 
-		/* Word 22-29  FCP CMND Payload */
-		ptr = &wqe->words[22];
-		memcpy(ptr, fcp_cmnd, sizeof(struct fcp_cmnd));
+		/* Word 18-29  FCP CMND Payload */
+		ptr = &wqe->words[18];
+		memcpy(ptr, fcp_cmnd, sgl->sge_len);
 	} else {
 		/* Word 0-2 - Inline BDE */
 		wqe->generic.bde.tus.f.bdeFlags =  BUFF_TYPE_BDE_64;
-		wqe->generic.bde.tus.f.bdeSize = sizeof(struct fcp_cmnd);
+		wqe->generic.bde.tus.f.bdeSize = sgl->sge_len;
 		wqe->generic.bde.addrHigh = sgl->addr_hi;
 		wqe->generic.bde.addrLow =  sgl->addr_lo;
 
@@ -22469,7 +22469,7 @@ lpfc_get_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
 		}
 
 		tmp->fcp_rsp = (struct fcp_rsp *)((uint8_t *)tmp->fcp_cmnd +
-				sizeof(struct fcp_cmnd));
+				sizeof(struct fcp_cmnd32));
 
 		spin_lock_irqsave(&hdwq->hdwq_lock, iflags);
 		list_add_tail(&tmp->list_node, &lpfc_buf->dma_cmd_rsp_list);
