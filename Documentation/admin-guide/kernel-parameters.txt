@@ -7308,7 +7308,7 @@
 			This can be changed after boot by writing to the
 			matching /sys/module/workqueue/parameters file. All
 			workqueues with the "default" affinity scope will be
-			updated accordignly.
+			updated accordingly.
 
 	workqueue.debug_force_rr_cpu
 			Workqueue used to implicitly guarantee that work

@@ -173,7 +173,7 @@ When accessing IDE registers with A6=1 (for example $84x),
 the timing will always be mode 0 8-bit compatible, no matter
 what you have selected in the speed register:
 
-781ns select, IOR/IOW after 4 clock cycles (=314ns) aktive.
+781ns select, IOR/IOW after 4 clock cycles (=314ns) active.
 
 All  the  timings with a very short select-signal (the 355ns
 fast  accesses)  depend  on the accelerator card used in the
