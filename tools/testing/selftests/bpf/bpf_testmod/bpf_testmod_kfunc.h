@@ -64,6 +64,22 @@ struct prog_test_fail3 {
 	char arr2[];
 };
 
+struct init_sock_args {
+	int af;
+	int type;
+};
+
+struct addr_args {
+	char addr[sizeof(struct __kernel_sockaddr_storage)];
+	int addrlen;
+};
+
+struct sendmsg_args {
+	struct addr_args addr;
+	char msg[10];
+	int msglen;
+};
+
 struct prog_test_ref_kfunc *
 bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr) __ksym;
 void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
@@ -107,4 +123,15 @@ void bpf_kfunc_call_test_fail3(struct prog_test_fail3 *p);
 void bpf_kfunc_call_test_mem_len_fail1(void *mem, int len);
 
 void bpf_kfunc_common_test(void) __ksym;
+
+int bpf_kfunc_init_sock(struct init_sock_args *args) __ksym;
+void bpf_kfunc_close_sock(void) __ksym;
+int bpf_kfunc_call_kernel_connect(struct addr_args *args) __ksym;
+int bpf_kfunc_call_kernel_bind(struct addr_args *args) __ksym;
+int bpf_kfunc_call_kernel_listen(void) __ksym;
+int bpf_kfunc_call_kernel_sendmsg(struct sendmsg_args *args) __ksym;
+int bpf_kfunc_call_sock_sendmsg(struct sendmsg_args *args) __ksym;
+int bpf_kfunc_call_kernel_getsockname(struct addr_args *args) __ksym;
+int bpf_kfunc_call_kernel_getpeername(struct addr_args *args) __ksym;
+
 #endif /* _BPF_TESTMOD_KFUNC_H */
