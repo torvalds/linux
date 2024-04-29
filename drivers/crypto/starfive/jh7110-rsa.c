@@ -537,15 +537,13 @@ static int starfive_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct starfive_cryp_ctx *ctx = akcipher_tfm_ctx(tfm);
 
+	ctx->cryp = starfive_cryp_find_dev(ctx);
+	if (!ctx->cryp)
+		return -ENODEV;
+
 	ctx->akcipher_fbk = crypto_alloc_akcipher("rsa-generic", 0, 0);
 	if (IS_ERR(ctx->akcipher_fbk))
 		return PTR_ERR(ctx->akcipher_fbk);
-
-	ctx->cryp = starfive_cryp_find_dev(ctx);
-	if (!ctx->cryp) {
-		crypto_free_akcipher(ctx->akcipher_fbk);
-		return -ENODEV;
-	}
 
 	akcipher_set_reqsize(tfm, sizeof(struct starfive_cryp_request_ctx) +
 			     sizeof(struct crypto_akcipher) + 32);
