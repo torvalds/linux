@@ -129,6 +129,12 @@ comment to pass arbitrary or predefined notes:
 
     Cc: <stable@vger.kernel.org> # see patch description, needs adjustments for <= 6.3
 
+There furthermore is a variant of the stable tag you can use to make the stable
+team's backporting tools (e.g AUTOSEL or scripts that look for commits
+containing a 'Fixes:' tag) ignore a change::
+
+     Cc: <stable+noautosel@kernel.org> # reason goes here, and must be present
+
 .. _option_2:
 
 Option 2
