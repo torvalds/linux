@@ -80,7 +80,7 @@
 		 * because the can not be enabled simultaneously on a
 		 * single SoC.
 		 */
-		opp-50-300000000{
+		opp-50-300000000 {
 			/* OPP50 */
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <950000 931000 969000>;
@@ -88,7 +88,7 @@
 			opp-suspend;
 		};
 
-		opp-100-275000000{
+		opp-100-275000000 {
 			/* OPP100-1 */
 			opp-hz = /bits/ 64 <275000000>;
 			opp-microvolt = <1100000 1078000 1122000>;
@@ -96,7 +96,7 @@
 			opp-suspend;
 		};
 
-		opp-100-300000000{
+		opp-100-300000000 {
 			/* OPP100-2 */
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <1100000 1078000 1122000>;
@@ -104,7 +104,7 @@
 			opp-suspend;
 		};
 
-		opp-100-500000000{
+		opp-100-500000000 {
 			/* OPP100-3 */
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <1100000 1078000 1122000>;
