@@ -628,7 +628,7 @@ static void vlv_load_wgc_csc(struct intel_crtc *crtc,
 
 	intel_de_write_fw(dev_priv, PIPE_WGC_C21_C20(dev_priv, pipe),
 			  csc->coeff[7] << 16 | csc->coeff[6]);
-	intel_de_write_fw(dev_priv, PIPE_WGC_C22(pipe),
+	intel_de_write_fw(dev_priv, PIPE_WGC_C22(dev_priv, pipe),
 			  csc->coeff[8]);
 }
 
@@ -657,7 +657,7 @@ static void vlv_read_wgc_csc(struct intel_crtc *crtc,
 	csc->coeff[6] = tmp & 0xffff;
 	csc->coeff[7] = tmp >> 16;
 
-	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C22(pipe));
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C22(dev_priv, pipe));
 	csc->coeff[8] = tmp & 0xffff;
 }
 
