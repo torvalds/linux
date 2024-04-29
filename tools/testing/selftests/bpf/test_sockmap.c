@@ -1887,10 +1887,13 @@ static int check_whitelist(struct _test *t, struct sockmap_options *opt)
 	while (entry) {
 		if ((opt->prepend && strstr(opt->prepend, entry) != 0) ||
 		    strstr(opt->map, entry) != 0 ||
-		    strstr(t->title, entry) != 0)
+		    strstr(t->title, entry) != 0) {
+			free(ptr);
 			return 0;
+		}
 		entry = strtok(NULL, ",");
 	}
+	free(ptr);
 	return -EINVAL;
 }
 
@@ -1907,10 +1910,13 @@ static int check_blacklist(struct _test *t, struct sockmap_options *opt)
 	while (entry) {
 		if ((opt->prepend && strstr(opt->prepend, entry) != 0) ||
 		    strstr(opt->map, entry) != 0 ||
-		    strstr(t->title, entry) != 0)
+		    strstr(t->title, entry) != 0) {
+			free(ptr);
 			return 0;
+		}
 		entry = strtok(NULL, ",");
 	}
+	free(ptr);
 	return -EINVAL;
 }
 

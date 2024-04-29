@@ -792,10 +792,13 @@ static int parse_stats(const char *stats_str, struct stat_specs *specs)
 
 	while ((next = strtok_r(state ? NULL : input, ",", &state))) {
 		err = parse_stat(next, specs);
-		if (err)
+		if (err) {
+			free(input);
 			return err;
+		}
 	}
 
+	free(input);
 	return 0;
 }
 
