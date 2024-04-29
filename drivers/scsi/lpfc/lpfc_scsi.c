@@ -474,9 +474,11 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 				ndlp = psb->rdata->pnode;
 			else
 				ndlp = NULL;
-
-			rrq_empty = list_empty(&phba->active_rrq_list);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
+
+			spin_lock_irqsave(&phba->rrq_list_lock, iflag);
+			rrq_empty = list_empty(&phba->active_rrq_list);
+			spin_unlock_irqrestore(&phba->rrq_list_lock, iflag);
 			if (ndlp && !offline) {
 				lpfc_set_rrq_active(phba, ndlp,
 					psb->cur_iocbq.sli4_lxritag, rxid, 1);
