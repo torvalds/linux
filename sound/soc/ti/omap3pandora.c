@@ -7,7 +7,7 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
-#include <linux/gpio/consumer.h>
+#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
@@ -21,11 +21,12 @@
 
 #include "omap-mcbsp.h"
 
+#define OMAP3_PANDORA_DAC_POWER_GPIO	118
+#define OMAP3_PANDORA_AMP_POWER_GPIO	14
+
 #define PREFIX "ASoC omap3pandora: "
 
 static struct regulator *omap3pandora_dac_reg;
-static struct gpio_desc *dac_power_gpio;
-static struct gpio_desc *amp_power_gpio;
 
 static int omap3pandora_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -77,9 +78,9 @@ static int omap3pandora_dac_event(struct snd_soc_dapm_widget *w,
 			return ret;
 		}
 		mdelay(1);
-		gpiod_set_value(dac_power_gpio, 1);
+		gpio_set_value(OMAP3_PANDORA_DAC_POWER_GPIO, 1);
 	} else {
-		gpiod_set_value(dac_power_gpio, 0);
+		gpio_set_value(OMAP3_PANDORA_DAC_POWER_GPIO, 0);
 		mdelay(1);
 		regulator_disable(omap3pandora_dac_reg);
 	}
@@ -91,9 +92,9 @@ static int omap3pandora_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		gpiod_set_value(amp_power_gpio, 1);
+		gpio_set_value(OMAP3_PANDORA_AMP_POWER_GPIO, 1);
 	else
-		gpiod_set_value(amp_power_gpio, 0);
+		gpio_set_value(OMAP3_PANDORA_AMP_POWER_GPIO, 0);
 
 	return 0;
 }
@@ -228,10 +229,35 @@ static int __init omap3pandora_soc_init(void)
 
 	pr_info("OMAP3 Pandora SoC init\n");
 
+	ret = gpio_request(OMAP3_PANDORA_DAC_POWER_GPIO, "dac_power");
+	if (ret) {
+		pr_err(PREFIX "Failed to get DAC power GPIO\n");
+		return ret;
+	}
+
+	ret = gpio_direction_output(OMAP3_PANDORA_DAC_POWER_GPIO, 0);
+	if (ret) {
+		pr_err(PREFIX "Failed to set DAC power GPIO direction\n");
+		goto fail0;
+	}
+
+	ret = gpio_request(OMAP3_PANDORA_AMP_POWER_GPIO, "amp_power");
+	if (ret) {
+		pr_err(PREFIX "Failed to get amp power GPIO\n");
+		goto fail0;
+	}
+
+	ret = gpio_direction_output(OMAP3_PANDORA_AMP_POWER_GPIO, 0);
+	if (ret) {
+		pr_err(PREFIX "Failed to set amp power GPIO direction\n");
+		goto fail1;
+	}
+
 	omap3pandora_snd_device = platform_device_alloc("soc-audio", -1);
 	if (omap3pandora_snd_device == NULL) {
 		pr_err(PREFIX "Platform device allocation failed\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail1;
 	}
 
 	platform_set_drvdata(omap3pandora_snd_device, &snd_soc_card_omap3pandora);
@@ -240,20 +266,6 @@ static int __init omap3pandora_soc_init(void)
 	if (ret) {
 		pr_err(PREFIX "Unable to add platform device\n");
 		goto fail2;
-	}
-
-	dac_power_gpio = devm_gpiod_get(&omap3pandora_snd_device->dev,
-					"dac", GPIOD_OUT_LOW);
-	if (IS_ERR(dac_power_gpio)) {
-		ret = PTR_ERR(dac_power_gpio);
-		goto fail3;
-	}
-
-	amp_power_gpio = devm_gpiod_get(&omap3pandora_snd_device->dev,
-					"amp", GPIOD_OUT_LOW);
-	if (IS_ERR(amp_power_gpio)) {
-		ret = PTR_ERR(amp_power_gpio);
-		goto fail3;
 	}
 
 	omap3pandora_dac_reg = regulator_get(&omap3pandora_snd_device->dev, "vcc");
@@ -271,7 +283,10 @@ fail3:
 	platform_device_del(omap3pandora_snd_device);
 fail2:
 	platform_device_put(omap3pandora_snd_device);
-
+fail1:
+	gpio_free(OMAP3_PANDORA_AMP_POWER_GPIO);
+fail0:
+	gpio_free(OMAP3_PANDORA_DAC_POWER_GPIO);
 	return ret;
 }
 module_init(omap3pandora_soc_init);
@@ -280,6 +295,8 @@ static void __exit omap3pandora_soc_exit(void)
 {
 	regulator_put(omap3pandora_dac_reg);
 	platform_device_unregister(omap3pandora_snd_device);
+	gpio_free(OMAP3_PANDORA_AMP_POWER_GPIO);
+	gpio_free(OMAP3_PANDORA_DAC_POWER_GPIO);
 }
 module_exit(omap3pandora_soc_exit);
 
