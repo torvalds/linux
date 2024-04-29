@@ -321,4 +321,14 @@ void tpm_bios_log_setup(struct tpm_chip *chip);
 void tpm_bios_log_teardown(struct tpm_chip *chip);
 int tpm_dev_common_init(void);
 void tpm_dev_common_exit(void);
+
+#ifdef CONFIG_TCG_TPM2_HMAC
+int tpm2_sessions_init(struct tpm_chip *chip);
+#else
+static inline int tpm2_sessions_init(struct tpm_chip *chip)
+{
+	return 0;
+}
+#endif
+
 #endif

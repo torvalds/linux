@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 #include <linux/highmem.h>
 #include <crypto/hash_info.h>
+#include <crypto/aes.h>
 
 #define TPM_DIGEST_SIZE 20	/* Max TPM v1.2 PCR size */
 #define TPM_MAX_DIGEST_SIZE SHA512_DIGEST_SIZE
@@ -35,12 +36,15 @@ struct trusted_key_options;
 enum tpm_algorithms {
 	TPM_ALG_ERROR		= 0x0000,
 	TPM_ALG_SHA1		= 0x0004,
+	TPM_ALG_AES		= 0x0006,
 	TPM_ALG_KEYEDHASH	= 0x0008,
 	TPM_ALG_SHA256		= 0x000B,
 	TPM_ALG_SHA384		= 0x000C,
 	TPM_ALG_SHA512		= 0x000D,
 	TPM_ALG_NULL		= 0x0010,
 	TPM_ALG_SM3_256		= 0x0012,
+	TPM_ALG_ECC		= 0x0023,
+	TPM_ALG_CFB		= 0x0043,
 };
 
 /*
@@ -48,6 +52,11 @@ enum tpm_algorithms {
  * basically a count of every hash in tpm_algorithms above
  */
 #define TPM_MAX_HASHES	5
+
+enum tpm2_curves {
+	TPM2_ECC_NONE		= 0x0000,
+	TPM2_ECC_NIST_P256	= 0x0003,
+};
 
 struct tpm_digest {
 	u16 alg_id;
@@ -116,6 +125,20 @@ struct tpm_chip_seqops {
 	const struct seq_operations *seqops;
 };
 
+/* fixed define for the curve we use which is NIST_P256 */
+#define EC_PT_SZ	32
+
+/*
+ * fixed define for the size of a name.  This is actually HASHALG size
+ * plus 2, so 32 for SHA256
+ */
+#define TPM2_NAME_SIZE	34
+
+/*
+ * The maximum size for an object context
+ */
+#define TPM2_MAX_CONTEXT_SIZE 4096
+
 struct tpm_chip {
 	struct device dev;
 	struct device devs;
@@ -170,6 +193,17 @@ struct tpm_chip {
 
 	/* active locality */
 	int locality;
+
+#ifdef CONFIG_TCG_TPM2_HMAC
+	/* details for communication security via sessions */
+
+	/* saved context for NULL seed */
+	u8 null_key_context[TPM2_MAX_CONTEXT_SIZE];
+	 /* name of NULL seed */
+	u8 null_key_name[TPM2_NAME_SIZE];
+	u8 null_ec_key_x[EC_PT_SZ];
+	u8 null_ec_key_y[EC_PT_SZ];
+#endif
 };
 
 #define TPM_HEADER_SIZE		10
@@ -194,6 +228,7 @@ enum tpm2_timeouts {
 enum tpm2_structures {
 	TPM2_ST_NO_SESSIONS	= 0x8001,
 	TPM2_ST_SESSIONS	= 0x8002,
+	TPM2_ST_CREATION	= 0x8021,
 };
 
 /* Indicates from what layer of the software stack the error comes from */
@@ -243,6 +278,7 @@ enum tpm2_command_codes {
 };
 
 enum tpm2_permanent_handles {
+	TPM2_RH_NULL		= 0x40000007,
 	TPM2_RS_PW		= 0x40000009,
 };
 
@@ -318,8 +354,27 @@ struct tpm_buf {
 enum tpm2_object_attributes {
 	TPM2_OA_FIXED_TPM		= BIT(1),
 	TPM2_OA_FIXED_PARENT		= BIT(4),
+	TPM2_OA_SENSITIVE_DATA_ORIGIN	= BIT(5),
 	TPM2_OA_USER_WITH_AUTH		= BIT(6),
+	TPM2_OA_NO_DA			= BIT(10),
+	TPM2_OA_RESTRICTED		= BIT(16),
+	TPM2_OA_DECRYPT			= BIT(17),
 };
+
+/*
+ * definitions for the canonical template.  These are mandated
+ * by the TCG key template documents
+ */
+
+#define AES_KEY_BYTES	AES_KEYSIZE_128
+#define AES_KEY_BITS	(AES_KEY_BYTES*8)
+#define TPM2_OA_TMPL	(TPM2_OA_NO_DA |			\
+			 TPM2_OA_FIXED_TPM |			\
+			 TPM2_OA_FIXED_PARENT |			\
+			 TPM2_OA_SENSITIVE_DATA_ORIGIN |	\
+			 TPM2_OA_USER_WITH_AUTH |		\
+			 TPM2_OA_DECRYPT |			\
+			 TPM2_OA_RESTRICTED)
 
 enum tpm2_session_attributes {
 	TPM2_SA_CONTINUE_SESSION	= BIT(0),
@@ -373,6 +428,16 @@ extern int tpm_pcr_extend(struct tpm_chip *chip, u32 pcr_idx,
 extern int tpm_get_random(struct tpm_chip *chip, u8 *data, size_t max);
 extern struct tpm_chip *tpm_default_chip(void);
 void tpm2_flush_context(struct tpm_chip *chip, u32 handle);
+
+static inline void tpm_buf_append_empty_auth(struct tpm_buf *buf, u32 handle)
+{
+	/* simple authorization for empty auth */
+	tpm_buf_append_u32(buf, 9);		/* total length of auth */
+	tpm_buf_append_u32(buf, handle);
+	tpm_buf_append_u16(buf, 0);		/* nonce len */
+	tpm_buf_append_u8(buf, 0);		/* attributes */
+	tpm_buf_append_u16(buf, 0);		/* hmac len */
+}
 #else
 static inline int tpm_is_tpm2(struct tpm_chip *chip)
 {
@@ -398,6 +463,10 @@ static inline int tpm_get_random(struct tpm_chip *chip, u8 *data, size_t max)
 static inline struct tpm_chip *tpm_default_chip(void)
 {
 	return NULL;
+}
+
+static inline void tpm_buf_append_empty_auth(struct tpm_buf *buf, u32 handle)
+{
 }
 #endif
 #endif

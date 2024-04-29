@@ -759,6 +759,11 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 		rc = 0;
 	}
 
+	if (rc)
+		goto out;
+
+	rc = tpm2_sessions_init(chip);
+
 out:
 	/*
 	 * Infineon TPM in field upgrade mode will return no data for the number
