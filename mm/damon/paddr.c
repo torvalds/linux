@@ -244,15 +244,21 @@ static unsigned long damon_pa_pageout(struct damon_region *r, struct damos *s)
 {
 	unsigned long addr, applied;
 	LIST_HEAD(folio_list);
-	bool ignore_references = false;
+	bool install_young_filter = true;
 	struct damos_filter *filter;
 
-	/* respect user's page level reference check handling request */
+	/* check access in page level again by default */
 	damos_for_each_filter(filter, s) {
 		if (filter->type == DAMOS_FILTER_TYPE_YOUNG) {
-			ignore_references = true;
+			install_young_filter = false;
 			break;
 		}
+	}
+	if (install_young_filter) {
+		filter = damos_new_filter(DAMOS_FILTER_TYPE_YOUNG, true);
+		if (!filter)
+			return 0;
+		damos_add_filter(s, filter);
 	}
 
 	for (addr = r->ar.start; addr < r->ar.end; addr += PAGE_SIZE) {
@@ -275,7 +281,9 @@ static unsigned long damon_pa_pageout(struct damon_region *r, struct damos *s)
 put_folio:
 		folio_put(folio);
 	}
-	applied = reclaim_pages(&folio_list, ignore_references);
+	if (install_young_filter)
+		damos_destroy_filter(filter);
+	applied = reclaim_pages(&folio_list, true);
 	cond_resched();
 	return applied * PAGE_SIZE;
 }
