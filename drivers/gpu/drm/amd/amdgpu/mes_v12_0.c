@@ -86,18 +86,76 @@ static const struct amdgpu_ring_funcs mes_v12_0_ring_funcs = {
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 
+static const char *mes_v12_0_opcodes[] = {
+	"SET_HW_RSRC",
+	"SET_SCHEDULING_CONFIG",
+	"ADD_QUEUE",
+	"REMOVE_QUEUE",
+	"PERFORM_YIELD",
+	"SET_GANG_PRIORITY_LEVEL",
+	"SUSPEND",
+	"RESUME",
+	"RESET",
+	"SET_LOG_BUFFER",
+	"CHANGE_GANG_PRORITY",
+	"QUERY_SCHEDULER_STATUS",
+	"SET_DEBUG_VMID",
+	"MISC",
+	"UPDATE_ROOT_PAGE_TABLE",
+	"AMD_LOG",
+	"SET_SE_MODE",
+	"SET_GANG_SUBMIT",
+	"SET_HW_RSRC_1",
+};
+
+static const char *mes_v12_0_misc_opcodes[] = {
+	"WRITE_REG",
+	"INV_GART",
+	"QUERY_STATUS",
+	"READ_REG",
+	"WAIT_REG_MEM",
+	"SET_SHADER_DEBUGGER",
+	"NOTIFY_WORK_ON_UNMAPPED_QUEUE",
+	"NOTIFY_TO_UNMAP_PROCESSES",
+};
+
+static const char *mes_v12_0_get_op_string(union MESAPI__MISC *x_pkt)
+{
+	const char *op_str = NULL;
+
+	if (x_pkt->header.opcode < ARRAY_SIZE(mes_v12_0_opcodes))
+		op_str = mes_v12_0_opcodes[x_pkt->header.opcode];
+
+	return op_str;
+}
+
+static const char *mes_v12_0_get_misc_op_string(union MESAPI__MISC *x_pkt)
+{
+	const char *op_str = NULL;
+
+	if ((x_pkt->header.opcode == MES_SCH_API_MISC) &&
+	    (x_pkt->opcode < ARRAY_SIZE(mes_v12_0_misc_opcodes)))
+		op_str = mes_v12_0_misc_opcodes[x_pkt->opcode];
+
+	return op_str;
+}
+
 static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 						    void *pkt, int size,
 						    int api_status_off)
 {
 	int ndw = size / 4;
 	signed long r;
-	union MESAPI__ADD_QUEUE *x_pkt = pkt;
+	union MESAPI__MISC *x_pkt = pkt;
 	struct MES_API_STATUS *api_status;
 	struct amdgpu_device *adev = mes->adev;
 	struct amdgpu_ring *ring = &mes->ring;
 	unsigned long flags;
 	signed long timeout = adev->usec_timeout;
+	const char *op_str, *misc_op_str;
+
+	if (x_pkt->header.opcode >= MES_SCH_API_MAX)
+		return -EINVAL;
 
 	if (amdgpu_emu_mode) {
 		timeout *= 100;
@@ -121,13 +179,28 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	amdgpu_ring_commit(ring);
 	spin_unlock_irqrestore(&mes->ring_lock, flags);
 
-	DRM_DEBUG("MES msg=%d was emitted\n", x_pkt->header.opcode);
+	op_str = mes_v12_0_get_op_string(x_pkt);
+	misc_op_str = mes_v12_0_get_misc_op_string(x_pkt);
+
+	if (misc_op_str)
+		dev_dbg(adev->dev, "MES msg=%s (%s) was emitted\n", op_str, misc_op_str);
+	else if (op_str)
+		dev_dbg(adev->dev, "MES msg=%s was emitted\n", op_str);
+	else
+		dev_dbg(adev->dev, "MES msg=%d was emitted\n", x_pkt->header.opcode);
 
 	r = amdgpu_fence_wait_polling(ring, ring->fence_drv.sync_seq,
 		      timeout);
 	if (r < 1) {
-		DRM_ERROR("MES failed to response msg=%d\n",
-			  x_pkt->header.opcode);
+		if (misc_op_str)
+			dev_err(adev->dev, "MES failed to respond to msg=%s (%s)\n",
+				op_str, misc_op_str);
+		else if (op_str)
+			dev_err(adev->dev, "MES failed to respond to msg=%s\n",
+				op_str);
+		else
+			dev_err(adev->dev, "MES failed to respond to msg=%d\n",
+				x_pkt->header.opcode);
 
 		while (halt_if_hws_hang)
 			schedule();
