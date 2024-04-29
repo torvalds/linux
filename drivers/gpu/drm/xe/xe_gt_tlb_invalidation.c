@@ -305,7 +305,7 @@ int xe_gt_tlb_invalidation_range(struct xe_gt *gt,
 	} else {
 		u64 orig_start = start;
 		u64 length = end - start;
-		u64 align, end;
+		u64 align;
 
 		if (length < SZ_4K)
 			length = SZ_4K;
