@@ -77,6 +77,21 @@ static inline bool store_ip(stack_trace_consume_fn consume_entry, void *cookie,
 	return consume_entry(cookie, ip);
 }
 
+static inline bool ip_invalid(unsigned long ip)
+{
+	/*
+	 * Perform some basic checks if an instruction address taken
+	 * from unreliable source is invalid.
+	 */
+	if (ip & 1)
+		return true;
+	if (ip < mmap_min_addr)
+		return true;
+	if (ip >= current->mm->context.asce_limit)
+		return true;
+	return false;
+}
+
 void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *cookie,
 				 struct perf_callchain_entry_ctx *entry,
 				 const struct pt_regs *regs, bool perf)
@@ -86,6 +101,8 @@ void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *coo
 	bool first = true;
 
 	if (is_compat_task())
+		return;
+	if (!current->mm)
 		return;
 	ip = instruction_pointer(regs);
 	if (!store_ip(consume_entry, cookie, entry, perf, ip))
@@ -101,15 +118,16 @@ void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *coo
 		sf = (void __user *)sp;
 		if (__get_user(ip, &sf->gprs[8]))
 			break;
-		if (ip & 0x1) {
+		if (ip_invalid(ip)) {
 			/*
 			 * If the instruction address is invalid, and this
 			 * is the first stack frame, assume r14 has not
 			 * been written to the stack yet. Otherwise exit.
 			 */
-			if (first && !(regs->gprs[14] & 0x1))
-				ip = regs->gprs[14];
-			else
+			if (!first)
+				break;
+			ip = regs->gprs[14];
+			if (ip_invalid(ip))
 				break;
 		}
 		if (!store_ip(consume_entry, cookie, entry, perf, ip))
