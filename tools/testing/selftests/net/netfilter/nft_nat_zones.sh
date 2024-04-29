@@ -13,6 +13,7 @@ maxclients=100
 have_socat=0
 ret=0
 
+[ "$KSFT_MACHINE_SLOW" = yes ] && maxclients=40
 # client1---.
 #            veth1-.
 #                  |

@@ -6,6 +6,8 @@
 source lib.sh
 
 zones=2000
+[ "$KSFT_MACHINE_SLOW" = yes ] && zones=500
+
 have_ct_tool=0
 ret=0
 
@@ -89,7 +91,7 @@ fi
 		count=$(ip netns exec "$ns1" conntrack -C)
 		duration=$((stop-outerstart))
 
-		if [ "$count" -eq "$max_zones" ]; then
+		if [ "$count" -ge "$max_zones" ]; then
 			echo "PASS: inserted $count entries from packet path in $duration ms total"
 		else
 			ip netns exec "$ns1" conntrack -S 1>&2

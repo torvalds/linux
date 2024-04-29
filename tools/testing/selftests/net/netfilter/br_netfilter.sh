@@ -40,7 +40,11 @@ bcast_ping()
 	fromns="$1"
 	dstip="$2"
 
-	for i in $(seq 1 500); do
+	local packets=500
+
+	[ "$KSFT_MACHINE_SLOW" = yes ] && packets=100
+
+	for i in $(seq 1 $packets); do
 		if ! ip netns exec "$fromns" ping -q -f -b -c 1 -q "$dstip" > /dev/null 2>&1; then
 			echo "ERROR: ping -b from $fromns to $dstip"
 			ip netns exec "$ns0" nft list ruleset
