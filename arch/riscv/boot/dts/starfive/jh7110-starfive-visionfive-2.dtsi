@@ -303,7 +303,7 @@
 	bus-width = <4>;
 	no-sdio;
 	no-mmc;
-	broken-cd;
+	cd-gpios = <&sysgpio 41 GPIO_ACTIVE_LOW>;
 	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
 	pinctrl-names = "default";
