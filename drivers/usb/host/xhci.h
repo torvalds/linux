@@ -1588,7 +1588,7 @@ struct xhci_hcd {
 #define XHCI_RESET_ON_RESUME	BIT_ULL(7)
 #define	XHCI_SW_BW_CHECKING	BIT_ULL(8)
 #define XHCI_AMD_0x96_HOST	BIT_ULL(9)
-#define XHCI_TRUST_TX_LENGTH	BIT_ULL(10)
+#define XHCI_TRUST_TX_LENGTH	BIT_ULL(10) /* Deprecated */
 #define XHCI_LPM_SUPPORT	BIT_ULL(11)
 #define XHCI_INTEL_HOST		BIT_ULL(12)
 #define XHCI_SPURIOUS_REBOOT	BIT_ULL(13)
@@ -1725,8 +1725,6 @@ static inline bool xhci_has_one_roothub(struct xhci_hcd *xhci)
 	dev_err(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_warn(xhci, fmt, args...) \
 	dev_warn(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
-#define xhci_warn_ratelimited(xhci, fmt, args...) \
-	dev_warn_ratelimited(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 #define xhci_info(xhci, fmt, args...) \
 	dev_info(xhci_to_hcd(xhci)->self.controller , fmt , ## args)
 
