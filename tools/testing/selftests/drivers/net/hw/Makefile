@@ -16,6 +16,7 @@ TEST_FILES := \
 	#
 
 TEST_INCLUDES := \
+	$(wildcard lib/py/*.py ../lib/py/*.py) \
 	../../../net/lib.sh \
 	../../../net/forwarding/lib.sh \
 	../../../net/forwarding/ipip_lib.sh \
