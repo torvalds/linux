@@ -151,8 +151,8 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	struct amdgpu_device *adev = mes->adev;
 	struct amdgpu_ring *ring = &mes->ring;
 	unsigned long flags;
-	signed long timeout = adev->usec_timeout;
 	const char *op_str, *misc_op_str;
+	signed long timeout = 3000000; /* 3000 ms */
 
 	if (x_pkt->header.opcode >= MES_SCH_API_MAX)
 		return -EINVAL;
