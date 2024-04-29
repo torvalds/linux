@@ -57,6 +57,16 @@ config SPI_MEM
 
 comment "SPI Master Controller Drivers"
 
+config SPI_AIROHA_SNFI
+	tristate "Airoha SPI NAND Flash Interface"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	depends on SPI_MASTER
+	select REGMAP_MMIO
+	help
+	  This enables support for SPI-NAND mode on the Airoha NAND
+	  Flash Interface found on Airoha ARM SoCs. This controller
+	  is implemented as a SPI-MEM controller.
+
 config SPI_ALTERA
 	tristate "Altera SPI Controller platform driver"
 	select SPI_ALTERA_CORE
