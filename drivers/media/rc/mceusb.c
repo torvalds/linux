@@ -494,7 +494,6 @@ struct mceusb_dev {
 	u32 carrier;
 	unsigned char tx_mask;
 
-	char name[128];
 	char phys[64];
 	enum mceusb_model_type model;
 
@@ -1591,16 +1590,10 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 		goto out;
 	}
 
-	snprintf(ir->name, sizeof(ir->name), "%s (%04x:%04x)",
-		 mceusb_model[ir->model].name ?
-			mceusb_model[ir->model].name :
-			"Media Center Ed. eHome Infrared Remote Transceiver",
-		 le16_to_cpu(ir->usbdev->descriptor.idVendor),
-		 le16_to_cpu(ir->usbdev->descriptor.idProduct));
-
 	usb_make_path(ir->usbdev, ir->phys, sizeof(ir->phys));
 
-	rc->device_name = ir->name;
+	rc->device_name = mceusb_model[ir->model].name ? :
+		"Media Center Ed. eHome Infrared Remote Transceiver";
 	rc->input_phys = ir->phys;
 	usb_to_input_id(ir->usbdev, &rc->input_id);
 	rc->dev.parent = dev;
