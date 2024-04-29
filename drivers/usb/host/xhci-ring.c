@@ -2723,20 +2723,16 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 */
 		xhci_dbg(xhci, "underrun event on endpoint\n");
 		if (!list_empty(&ep_ring->td_list))
-			xhci_dbg(xhci, "Underrun Event for slot %d ep %d "
-					"still with TDs queued?\n",
-				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
-				 ep_index);
+			xhci_dbg(xhci, "Underrun Event for slot %u ep %d still with TDs queued?\n",
+				 slot_id, ep_index);
 		if (ep->skip)
 			break;
 		return 0;
 	case COMP_RING_OVERRUN:
 		xhci_dbg(xhci, "overrun event on endpoint\n");
 		if (!list_empty(&ep_ring->td_list))
-			xhci_dbg(xhci, "Overrun Event for slot %d ep %d "
-					"still with TDs queued?\n",
-				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
-				 ep_index);
+			xhci_dbg(xhci, "Overrun Event for slot %u ep %d still with TDs queued?\n",
+				 slot_id, ep_index);
 		if (ep->skip)
 			break;
 		return 0;
@@ -2795,9 +2791,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			if (!(trb_comp_code == COMP_STOPPED ||
 			      trb_comp_code == COMP_STOPPED_LENGTH_INVALID ||
 			      ep_ring->last_td_was_short)) {
-				xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
-						TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
-						ep_index);
+				xhci_warn(xhci, "WARN Event TRB for slot %u ep %d with no TDs queued?\n",
+					  slot_id, ep_index);
 			}
 			if (ep->skip) {
 				ep->skip = false;
