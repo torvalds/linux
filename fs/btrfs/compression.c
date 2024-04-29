@@ -590,7 +590,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 	cb = alloc_compressed_bio(inode, file_offset, REQ_OP_READ,
 				  end_bbio_compressed_read);
 
-	cb->start = em->orig_start;
+	cb->start = em->start - em->offset;
 	em_len = em->len;
 	em_start = em->start;
 

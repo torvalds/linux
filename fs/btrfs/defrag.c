@@ -707,7 +707,6 @@ iterate:
 		 */
 		if (key.offset > start) {
 			em->start = start;
-			em->orig_start = start;
 			em->block_start = EXTENT_MAP_HOLE;
 			em->disk_bytenr = EXTENT_MAP_HOLE;
 			em->disk_num_bytes = 0;

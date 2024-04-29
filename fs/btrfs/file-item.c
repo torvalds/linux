@@ -1293,8 +1293,6 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 	    type == BTRFS_FILE_EXTENT_PREALLOC) {
 		em->start = extent_start;
 		em->len = btrfs_file_extent_end(path) - extent_start;
-		em->orig_start = extent_start -
-			btrfs_file_extent_offset(leaf, fi);
 		bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 		if (bytenr == 0) {
 			em->block_start = EXTENT_MAP_HOLE;
@@ -1327,10 +1325,9 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		em->len = fs_info->sectorsize;
 		em->offset = 0;
 		/*
-		 * Initialize orig_start and block_len with the same values
+		 * Initialize block_len with the same values
 		 * as in inode.c:btrfs_get_extent().
 		 */
-		em->orig_start = EXTENT_MAP_HOLE;
 		em->block_len = (u64)-1;
 		extent_map_set_compression(em, compress_type);
 	} else {

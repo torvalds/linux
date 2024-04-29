@@ -62,15 +62,6 @@ struct extent_map {
 	u64 len;
 
 	/*
-	 * The file offset of the original file extent before splitting.
-	 *
-	 * This is an in-memory only member, matching
-	 * extent_map::start - btrfs_file_extent_item::offset for
-	 * regular/preallocated extents. EXTENT_MAP_HOLE otherwise.
-	 */
-	u64 orig_start;
-
-	/*
 	 * The bytenr of the full on-disk extent.
 	 *
 	 * For regular extents it's btrfs_file_extent_item::disk_bytenr.

@@ -528,7 +528,7 @@ struct btrfs_file_extent {
 };
 
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
-			      u64 *orig_start, u64 *orig_block_len,
+			      u64 *orig_block_len,
 			      u64 *ram_bytes, struct btrfs_file_extent *file_extent,
 			      bool nowait, bool strict);
 
