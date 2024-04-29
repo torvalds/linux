@@ -137,6 +137,7 @@ properties:
               - microsoft,dempsey
               - microsoft,makepeace
               - microsoft,moneypenny
+              - motorola,falcon
               - samsung,s3ve3g
           - const: qcom,msm8226
 
