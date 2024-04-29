@@ -77,7 +77,7 @@ def rand_port():
     """
     Get unprivileged port, for now just random, one day we may decide to check if used.
     """
-    return random.randint(1024, 65535)
+    return random.randint(10000, 65535)
 
 
 def wait_port_listen(port, proto="tcp", ns=None, host=None, sleep=0.005, deadline=5):
