@@ -25,12 +25,17 @@
 static void intel_shim_vs_init(struct sdw_intel *sdw)
 {
 	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u16 doais;
+	u16 dods;
 	u16 act;
 
+	doais = 0x3;
+	dods = 0x1;
+
 	act = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL);
-	u16p_replace_bits(&act, 0x1, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
+	u16p_replace_bits(&act, doais, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
+	u16p_replace_bits(&act, dods, SDW_SHIM2_INTEL_VS_ACTMCTL_DODS);
 	act |= SDW_SHIM2_INTEL_VS_ACTMCTL_DACTQE;
-	act |=  SDW_SHIM2_INTEL_VS_ACTMCTL_DODS;
 	intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL, act);
 	usleep_range(10, 15);
 }
