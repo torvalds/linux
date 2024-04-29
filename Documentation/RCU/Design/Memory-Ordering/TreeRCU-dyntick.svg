@@ -537,7 +537,7 @@
        font-style="normal"
        y="-8368.1475"
        x="2463.3262"
-       xml:space="preserve">rcu_implicit_dynticks_qs()</text>
+       xml:space="preserve">rcu_watching_snap_recheck()</text>
   </g>
   <g
      id="g4504"

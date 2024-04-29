@@ -899,7 +899,7 @@
      font-style="normal"
      y="1858.8729"
      x="4414.1836"
-     xml:space="preserve">rcu_implicit_dynticks_qs()</text>
+     xml:space="preserve">rcu_watching_snap_recheck()</text>
   <text
      xml:space="preserve"
      x="14659.87"

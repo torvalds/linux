@@ -3029,7 +3029,7 @@
        font-style="normal"
        y="38425.035"
        x="-337.79462"
-       xml:space="preserve">rcu_implicit_dynticks_qs()</text>
+       xml:space="preserve">rcu_watching_snap_recheck()</text>
     <text
        xml:space="preserve"
        x="9907.8887"
