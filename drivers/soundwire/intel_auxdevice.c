@@ -159,10 +159,14 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 		return -ENOMEM;
 
 	/* initialize with hardware defaults, in case the properties are not found */
+	intel_prop->doaise = 0x1;
 	intel_prop->doais = 0x3;
 	intel_prop->dodse  = 0x0;
 	intel_prop->dods  = 0x1;
 
+	fwnode_property_read_u16(link,
+				 "intel-sdw-doaise",
+				 &intel_prop->doaise);
 	fwnode_property_read_u16(link,
 				 "intel-sdw-doais",
 				 &intel_prop->doais);
@@ -174,7 +178,8 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 				 &intel_prop->dods);
 	bus->vendor_specific_prop = intel_prop;
 
-	dev_dbg(bus->dev, "doais %#x dodse %#x dods %#x\n",
+	dev_dbg(bus->dev, "doaise %#x doais %#x dodse %#x dods %#x\n",
+		intel_prop->doaise,
 		intel_prop->doais,
 		intel_prop->dodse,
 		intel_prop->dods);

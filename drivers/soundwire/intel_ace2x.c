@@ -27,17 +27,20 @@ static void intel_shim_vs_init(struct sdw_intel *sdw)
 	void __iomem *shim_vs = sdw->link_res->shim_vs;
 	struct sdw_bus *bus = &sdw->cdns.bus;
 	struct sdw_intel_prop *intel_prop;
+	u16 doaise;
 	u16 doais;
 	u16 dodse;
 	u16 dods;
 	u16 act;
 
 	intel_prop = bus->vendor_specific_prop;
+	doaise = intel_prop->doaise;
 	doais = intel_prop->doais;
 	dodse = intel_prop->dodse;
 	dods = intel_prop->dods;
 
 	act = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_ACTMCTL);
+	u16p_replace_bits(&act, doaise, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAISE);
 	u16p_replace_bits(&act, doais, SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS);
 	u16p_replace_bits(&act, dodse, SDW_SHIM2_INTEL_VS_ACTMCTL_DODSE);
 	u16p_replace_bits(&act, dods, SDW_SHIM2_INTEL_VS_ACTMCTL_DODS);
