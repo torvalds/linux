@@ -265,6 +265,50 @@
 		interrupts = <70 IRQ_TYPE_EDGE_FALLING>;
 		wakeup-source;
 	};
+
+	pmic@61 {
+		compatible = "ti,lp8733";
+		reg = <0x61>;
+
+		buck0-in-supply = <&vcc_5v0_som>;
+		buck1-in-supply = <&vcc_5v0_som>;
+		ldo0-in-supply = <&vdd_3v3>;
+		ldo1-in-supply = <&vdd_3v3>;
+
+		regulators {
+			vdd_core: buck0 {
+				regulator-name = "VDD_CORE";
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <750000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vdd_3v3: buck1 {
+				regulator-name = "VDD_3V3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vdd_1v8_ldo0: ldo0 {
+				regulator-name = "VDD_1V8_LDO0";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vdda_1v8: ldo1 {
+				regulator-name = "VDDA_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
 };
 
 &main_r5fss0_core0 {
