@@ -616,7 +616,7 @@ static void vlv_load_wgc_csc(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	intel_de_write_fw(dev_priv, PIPE_WGC_C01_C00(pipe),
+	intel_de_write_fw(dev_priv, PIPE_WGC_C01_C00(dev_priv, pipe),
 			  csc->coeff[1] << 16 | csc->coeff[0]);
 	intel_de_write_fw(dev_priv, PIPE_WGC_C02(pipe),
 			  csc->coeff[2]);
@@ -639,7 +639,7 @@ static void vlv_read_wgc_csc(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 	u32 tmp;
 
-	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C01_C00(pipe));
+	tmp = intel_de_read_fw(dev_priv, PIPE_WGC_C01_C00(dev_priv, pipe));
 	csc->coeff[0] = tmp & 0xffff;
 	csc->coeff[1] = tmp >> 16;
 
