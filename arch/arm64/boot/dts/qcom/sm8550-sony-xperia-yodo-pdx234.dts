@@ -757,7 +757,6 @@
 &usb_dp_qmpphy {
 	vdda-phy-supply = <&pm8550vs_2_l3>;
 	vdda-pll-supply = <&pm8550ve_l3>;
-	orientation-switch;
 
 	status = "okay";
 };
