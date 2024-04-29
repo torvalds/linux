@@ -2727,7 +2727,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 					"still with TDs queued?\n",
 				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 				 ep_index);
-		goto cleanup;
+		if (ep->skip)
+			break;
+		return 0;
 	case COMP_RING_OVERRUN:
 		xhci_dbg(xhci, "overrun event on endpoint\n");
 		if (!list_empty(&ep_ring->td_list))
@@ -2735,7 +2737,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 					"still with TDs queued?\n",
 				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 				 ep_index);
-		goto cleanup;
+		if (ep->skip)
+			break;
+		return 0;
 	case COMP_MISSED_SERVICE_ERROR:
 		/*
 		 * When encounter missed service error, one or more isoc tds
@@ -2770,7 +2774,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		xhci_warn(xhci,
 			  "ERROR Unknown event condition %u for slot %u ep %u , HC probably busted\n",
 			  trb_comp_code, slot_id, ep_index);
-		goto cleanup;
+		if (ep->skip)
+			break;
+		return 0;
 	}
 
 	do {
@@ -2834,14 +2840,14 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 */
 		if (!ep_seg && (trb_comp_code == COMP_STOPPED ||
 			   trb_comp_code == COMP_STOPPED_LENGTH_INVALID)) {
-			goto cleanup;
+			continue;
 		}
 
 		if (!ep_seg) {
 
 			if (ep->skip && usb_endpoint_xfer_isoc(&td->urb->ep->desc)) {
 				skip_isoc_td(xhci, td, ep, status);
-				goto cleanup;
+				continue;
 			}
 
 			/*
@@ -2926,19 +2932,17 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 							      trb_comp_code))
 				xhci_handle_halted_endpoint(xhci, ep, td,
 							    EP_HARD_RESET);
-			goto cleanup;
+		} else {
+			td->status = status;
+
+			/* update the urb's actual_length and give back to the core */
+			if (usb_endpoint_xfer_control(&td->urb->ep->desc))
+				process_ctrl_td(xhci, ep, ep_ring, td, ep_trb, event);
+			else if (usb_endpoint_xfer_isoc(&td->urb->ep->desc))
+				process_isoc_td(xhci, ep, ep_ring, td, ep_trb, event);
+			else
+				process_bulk_intr_td(xhci, ep, ep_ring, td, ep_trb, event);
 		}
-
-		td->status = status;
-
-		/* update the urb's actual_length and give back to the core */
-		if (usb_endpoint_xfer_control(&td->urb->ep->desc))
-			process_ctrl_td(xhci, ep, ep_ring, td, ep_trb, event);
-		else if (usb_endpoint_xfer_isoc(&td->urb->ep->desc))
-			process_isoc_td(xhci, ep, ep_ring, td, ep_trb, event);
-		else
-			process_bulk_intr_td(xhci, ep, ep_ring, td, ep_trb, event);
-cleanup:;
 	/*
 	 * If ep->skip is set, it means there are missed tds on the
 	 * endpoint ring need to take care of.
