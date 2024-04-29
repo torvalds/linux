@@ -200,8 +200,11 @@
 };
 
 &i2c1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio5 14 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 15 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	clock-frequency = <400000>;
 	status = "okay";
 
@@ -241,8 +244,11 @@
 };
 
 &i2c6 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c6>;
+	pinctrl-1 = <&pinctrl_i2c6_gpio>;
+	scl-gpios = <&gpio3 19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio3 20 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	clock-frequency = <400000>;
 	status = "okay";
 
@@ -602,38 +608,50 @@
 
 	pinctrl_i2c1: i2c1grp {
 		fsl,pins =
-			<MX8MP_IOMUXC_I2C1_SCL__I2C1_SCL		0x400001c3>,
-			<MX8MP_IOMUXC_I2C1_SDA__I2C1_SDA		0x400001c3>;
+			<MX8MP_IOMUXC_I2C1_SCL__I2C1_SCL		0x400001e0>,
+			<MX8MP_IOMUXC_I2C1_SDA__I2C1_SDA		0x400001e0>;
+	};
+
+	pinctrl_i2c1_gpio: i2c1gpiogrp {
+		fsl,pins =
+			<MX8MP_IOMUXC_I2C1_SCL__GPIO5_IO14		0x1e0>,
+			<MX8MP_IOMUXC_I2C1_SDA__GPIO5_IO15		0x1e0>;
 	};
 
 	pinctrl_i2c2: i2c2grp {
 		fsl,pins =
-			<MX8MP_IOMUXC_I2C2_SCL__I2C2_SCL		0x400001c3>,
-			<MX8MP_IOMUXC_I2C2_SDA__I2C2_SDA		0x400001c3>;
+			<MX8MP_IOMUXC_I2C2_SCL__I2C2_SCL		0x400001e0>,
+			<MX8MP_IOMUXC_I2C2_SDA__I2C2_SDA		0x400001e0>;
 	};
 
 	pinctrl_i2c3: i2c3grp {
 		fsl,pins =
-			<MX8MP_IOMUXC_I2C3_SCL__I2C3_SCL		0x400001c3>,
-			<MX8MP_IOMUXC_I2C3_SDA__I2C3_SDA		0x400001c3>;
+			<MX8MP_IOMUXC_I2C3_SCL__I2C3_SCL		0x400001e0>,
+			<MX8MP_IOMUXC_I2C3_SDA__I2C3_SDA		0x400001e0>;
 	};
 
 	pinctrl_i2c4: i2c4grp {
 		fsl,pins =
-			<MX8MP_IOMUXC_I2C4_SCL__I2C4_SCL		0x400001c3>,
-			<MX8MP_IOMUXC_I2C4_SDA__I2C4_SDA		0x400001c3>;
+			<MX8MP_IOMUXC_I2C4_SCL__I2C4_SCL		0x400001e0>,
+			<MX8MP_IOMUXC_I2C4_SDA__I2C4_SDA		0x400001e0>;
 	};
 
 	pinctrl_i2c5: i2c5grp {
 		fsl,pins =
-			<MX8MP_IOMUXC_SPDIF_TX__I2C5_SCL		0x400001c3>,
-			<MX8MP_IOMUXC_SPDIF_RX__I2C5_SDA		0x400001c3>;
+			<MX8MP_IOMUXC_SPDIF_TX__I2C5_SCL		0x400001e0>,
+			<MX8MP_IOMUXC_SPDIF_RX__I2C5_SDA		0x400001e0>;
 	};
 
 	pinctrl_i2c6: i2c6grp {
 		fsl,pins =
-			<MX8MP_IOMUXC_SAI5_RXFS__I2C6_SCL		0x400001c3>,
-			<MX8MP_IOMUXC_SAI5_RXC__I2C6_SDA		0x400001c3>;
+			<MX8MP_IOMUXC_SAI5_RXFS__I2C6_SCL		0x400001e0>,
+			<MX8MP_IOMUXC_SAI5_RXC__I2C6_SDA		0x400001e0>;
+	};
+
+	pinctrl_i2c6_gpio: i2c6gpiogrp {
+		fsl,pins =
+			<MX8MP_IOMUXC_SAI5_RXFS__GPIO3_IO19		0x1e0>,
+			<MX8MP_IOMUXC_SAI5_RXC__GPIO3_IO20		0x1e0>;
 	};
 
 	pinctrl_lcd0_backlight: lcd0-backlightgrp {
