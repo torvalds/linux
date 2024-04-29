@@ -808,18 +808,30 @@ static int option__cmp(const void *va, const void *vb)
 
 static struct option *options__order(const struct option *opts)
 {
-	int nr_opts = 0, nr_group = 0, len;
-	const struct option *o = opts;
-	struct option *opt, *ordered, *group;
+	int nr_opts = 0, nr_group = 0, nr_parent = 0, len;
+	const struct option *o, *p = opts;
+	struct option *opt, *ordered = NULL, *group;
 
-	for (o = opts; o->type != OPTION_END; o++)
-		++nr_opts;
+	/* flatten the options that have parents */
+	for (p = opts; p != NULL; p = o->parent) {
+		for (o = p; o->type != OPTION_END; o++)
+			++nr_opts;
 
-	len = sizeof(*o) * (nr_opts + 1);
-	ordered = malloc(len);
-	if (!ordered)
-		goto out;
-	memcpy(ordered, opts, len);
+		/*
+		 * the length is given by the number of options plus a null
+		 * terminator for the last loop iteration.
+		 */
+		len = sizeof(*o) * (nr_opts + !o->parent);
+		group = realloc(ordered, len);
+		if (!group)
+			goto out;
+		ordered = group;
+		memcpy(&ordered[nr_parent], p, sizeof(*o) * (nr_opts - nr_parent));
+
+		nr_parent = nr_opts;
+	}
+	/* copy the last OPTION_END */
+	memcpy(&ordered[nr_opts], o, sizeof(*o));
 
 	/* sort each option group individually */
 	for (opt = group = ordered; opt->type != OPTION_END; opt++) {
