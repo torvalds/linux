@@ -29,6 +29,7 @@
 #include <asm/byteorder.h>
 
 #include "core.h"
+#include <trace/events/firewire.h>
 #include "packet-header-definitions.h"
 
 #define HEADER_DESTINATION_IS_BROADCAST(header) \
@@ -172,6 +173,9 @@ static void transmit_complete_callback(struct fw_packet *packet,
 {
 	struct fw_transaction *t =
 	    container_of(packet, struct fw_transaction, packet);
+
+	trace_async_request_outbound_complete((uintptr_t)t, packet->generation, packet->speed,
+					      status, packet->timestamp);
 
 	switch (status) {
 	case ACK_COMPLETE:
@@ -393,6 +397,9 @@ void __fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode
 	list_add_tail(&t->link, &card->transaction_list);
 
 	spin_unlock_irqrestore(&card->lock, flags);
+
+	trace_async_request_outbound_initiate((uintptr_t)t, generation, speed, t->packet.header, payload,
+					      tcode_is_read_request(tcode) ? 0 : length / 4);
 
 	card->driver->send_request(card, &t->packet);
 }
