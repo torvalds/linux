@@ -3227,7 +3227,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 	 */
 	fcp_cmnd->fcpDl = cpu_to_be32(scsi_bufflen(scsi_cmnd));
 	/* Set first-burst provided it was successfully negotiated */
-	if (!(phba->hba_flag & HBA_FCOE_MODE) &&
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag) &&
 	    vport->cfg_first_burst_size &&
 	    scsi_cmnd->sc_data_direction == DMA_TO_DEVICE) {
 		u32 init_len, total_len;
@@ -3423,7 +3423,7 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	fcp_cmnd->fcpDl = be32_to_cpu(fcpdl);
 
 	/* Set first-burst provided it was successfully negotiated */
-	if (!(phba->hba_flag & HBA_FCOE_MODE) &&
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag) &&
 	    vport->cfg_first_burst_size &&
 	    scsi_cmnd->sc_data_direction == DMA_TO_DEVICE) {
 		u32 init_len, total_len;
@@ -5043,7 +5043,7 @@ lpfc_check_pci_resettable(struct lpfc_hba *phba)
 
 		/* Check for valid Emulex Device ID */
 		if (phba->sli_rev != LPFC_SLI_REV4 ||
-		    phba->hba_flag & HBA_FCOE_MODE) {
+		    test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"8347 Incapable PCI reset device: "
 					"0x%04x\n", ptr->device);
@@ -5520,7 +5520,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	spin_lock(&phba->hbalock);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_IOQ_FLUSH) {
+	if (test_bit(HBA_IOQ_FLUSH, &phba->hba_flag)) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			"3168 SCSI Layer abort requested I/O has been "
 			"flushed by LLD.\n");

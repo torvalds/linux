@@ -504,7 +504,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 * must have ACCed the remote NPorts FLOGI to us
 		 * to make it here.
 		 */
-		if (phba->hba_flag & HBA_FLOGI_OUTSTANDING)
+		if (test_bit(HBA_FLOGI_OUTSTANDING, &phba->hba_flag))
 			lpfc_els_abort_flogi(phba);
 
 		ed_tov = be32_to_cpu(sp->cmn.e_d_tov);

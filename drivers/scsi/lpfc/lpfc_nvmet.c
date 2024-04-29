@@ -3395,14 +3395,12 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	/* If the hba is getting reset, this flag is set.  It is
 	 * cleared when the reset is complete and rings reestablished.
 	 */
-	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_IOQ_FLUSH) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+	if (test_bit(HBA_IOQ_FLUSH, &phba->hba_flag)) {
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6163 Driver in reset cleanup - flushing "
-				"NVME Req now. hba_flag x%x oxid x%x\n",
+				"NVME Req now. hba_flag x%lx oxid x%x\n",
 				phba->hba_flag, ctxp->oxid);
 		lpfc_sli_release_iocbq(phba, abts_wqeq);
 		spin_lock_irqsave(&ctxp->ctxlock, flags);
@@ -3411,6 +3409,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 		return 0;
 	}
 
+	spin_lock_irqsave(&phba->hbalock, flags);
 	/* Outstanding abort is in progress */
 	if (abts_wqeq->cmd_flag & LPFC_DRIVER_ABORTED) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
