@@ -71,7 +71,7 @@ extern void console_verbose(void);
 
 /* strlen("ratelimit") + 1 */
 #define DEVKMSG_STR_MAX_SIZE 10
-extern char devkmsg_log_str[];
+extern char devkmsg_log_str[DEVKMSG_STR_MAX_SIZE];
 struct ctl_table;
 
 extern int suppress_printk;
