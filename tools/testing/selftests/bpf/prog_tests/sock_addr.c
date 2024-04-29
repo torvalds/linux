@@ -3,16 +3,44 @@
 
 #include "test_progs.h"
 
+#include "bind4_prog.skel.h"
+#include "bind6_prog.skel.h"
 #include "connect_unix_prog.skel.h"
+#include "connect4_prog.skel.h"
+#include "connect6_prog.skel.h"
+#include "sendmsg4_prog.skel.h"
+#include "sendmsg6_prog.skel.h"
+#include "recvmsg4_prog.skel.h"
+#include "recvmsg6_prog.skel.h"
 #include "sendmsg_unix_prog.skel.h"
 #include "recvmsg_unix_prog.skel.h"
 #include "getsockname_unix_prog.skel.h"
 #include "getpeername_unix_prog.skel.h"
 #include "network_helpers.h"
 
+#define TEST_NS                 "sock_addr"
+#define TEST_IF_PREFIX          "test_sock_addr"
+#define TEST_IPV4               "127.0.0.4"
+#define TEST_IPV6               "::6"
+
+#define SERV4_IP                "192.168.1.254"
+#define SERV4_REWRITE_IP        "127.0.0.1"
+#define SRC4_IP                 "172.16.0.1"
+#define SRC4_REWRITE_IP         TEST_IPV4
+#define SERV4_PORT              4040
+#define SERV4_REWRITE_PORT      4444
+
+#define SERV6_IP                "face:b00c:1234:5678::abcd"
+#define SERV6_REWRITE_IP        "::1"
+#define SERV6_V4MAPPED_IP       "::ffff:192.168.0.4"
+#define SRC6_IP                 "::1"
+#define SRC6_REWRITE_IP         TEST_IPV6
+#define SERV6_PORT              6060
+#define SERV6_REWRITE_PORT      6666
+
 #define SERVUN_ADDRESS         "bpf_cgroup_unix_test"
 #define SERVUN_REWRITE_ADDRESS "bpf_cgroup_unix_test_rewrite"
-#define SRCUN_ADDRESS	       "bpf_cgroup_unix_test_src"
+#define SRCUN_ADDRESS          "bpf_cgroup_unix_test_src"
 
 enum sock_addr_test_type {
 	SOCK_ADDR_TEST_BIND,
@@ -43,130 +71,148 @@ struct sock_addr_test {
 	const char *expected_src_addr;
 };
 
-static void *connect_unix_prog_load(int cgroup_fd)
-{
-	struct connect_unix_prog *skel;
-
-	skel = connect_unix_prog__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "skel_open"))
-		goto cleanup;
-
-	skel->links.connect_unix_prog = bpf_program__attach_cgroup(
-		skel->progs.connect_unix_prog, cgroup_fd);
-	if (!ASSERT_OK_PTR(skel->links.connect_unix_prog, "prog_attach"))
-		goto cleanup;
-
-	return skel;
-cleanup:
-	connect_unix_prog__destroy(skel);
-	return NULL;
+#define BPF_SKEL_FUNCS(skel_name, prog_name) \
+static void *skel_name##_load(int cgroup_fd) \
+{ \
+	struct skel_name *skel; \
+	skel = skel_name##__open_and_load(); \
+	if (!ASSERT_OK_PTR(skel, "skel_open")) \
+		goto cleanup; \
+	skel->links.prog_name = bpf_program__attach_cgroup( \
+		skel->progs.prog_name, cgroup_fd); \
+	if (!ASSERT_OK_PTR(skel->links.prog_name, "prog_attach")) \
+		goto cleanup; \
+	return skel; \
+cleanup: \
+	skel_name##__destroy(skel); \
+	return NULL; \
+} \
+static void skel_name##_destroy(void *skel) \
+{ \
+	skel_name##__destroy(skel); \
 }
 
-static void connect_unix_prog_destroy(void *skel)
-{
-	connect_unix_prog__destroy(skel);
-}
-
-static void *sendmsg_unix_prog_load(int cgroup_fd)
-{
-	struct sendmsg_unix_prog *skel;
-
-	skel = sendmsg_unix_prog__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "skel_open"))
-		goto cleanup;
-
-	skel->links.sendmsg_unix_prog = bpf_program__attach_cgroup(
-		skel->progs.sendmsg_unix_prog, cgroup_fd);
-	if (!ASSERT_OK_PTR(skel->links.sendmsg_unix_prog, "prog_attach"))
-		goto cleanup;
-
-	return skel;
-cleanup:
-	sendmsg_unix_prog__destroy(skel);
-	return NULL;
-}
-
-static void sendmsg_unix_prog_destroy(void *skel)
-{
-	sendmsg_unix_prog__destroy(skel);
-}
-
-static void *recvmsg_unix_prog_load(int cgroup_fd)
-{
-	struct recvmsg_unix_prog *skel;
-
-	skel = recvmsg_unix_prog__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "skel_open"))
-		goto cleanup;
-
-	skel->links.recvmsg_unix_prog = bpf_program__attach_cgroup(
-		skel->progs.recvmsg_unix_prog, cgroup_fd);
-	if (!ASSERT_OK_PTR(skel->links.recvmsg_unix_prog, "prog_attach"))
-		goto cleanup;
-
-	return skel;
-cleanup:
-	recvmsg_unix_prog__destroy(skel);
-	return NULL;
-}
-
-static void recvmsg_unix_prog_destroy(void *skel)
-{
-	recvmsg_unix_prog__destroy(skel);
-}
-
-static void *getsockname_unix_prog_load(int cgroup_fd)
-{
-	struct getsockname_unix_prog *skel;
-
-	skel = getsockname_unix_prog__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "skel_open"))
-		goto cleanup;
-
-	skel->links.getsockname_unix_prog = bpf_program__attach_cgroup(
-		skel->progs.getsockname_unix_prog, cgroup_fd);
-	if (!ASSERT_OK_PTR(skel->links.getsockname_unix_prog, "prog_attach"))
-		goto cleanup;
-
-	return skel;
-cleanup:
-	getsockname_unix_prog__destroy(skel);
-	return NULL;
-}
-
-static void getsockname_unix_prog_destroy(void *skel)
-{
-	getsockname_unix_prog__destroy(skel);
-}
-
-static void *getpeername_unix_prog_load(int cgroup_fd)
-{
-	struct getpeername_unix_prog *skel;
-
-	skel = getpeername_unix_prog__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "skel_open"))
-		goto cleanup;
-
-	skel->links.getpeername_unix_prog = bpf_program__attach_cgroup(
-		skel->progs.getpeername_unix_prog, cgroup_fd);
-	if (!ASSERT_OK_PTR(skel->links.getpeername_unix_prog, "prog_attach"))
-		goto cleanup;
-
-	return skel;
-cleanup:
-	getpeername_unix_prog__destroy(skel);
-	return NULL;
-}
-
-static void getpeername_unix_prog_destroy(void *skel)
-{
-	getpeername_unix_prog__destroy(skel);
-}
+BPF_SKEL_FUNCS(bind4_prog, bind_v4_prog);
+BPF_SKEL_FUNCS(bind6_prog, bind_v6_prog);
+BPF_SKEL_FUNCS(connect4_prog, connect_v4_prog);
+BPF_SKEL_FUNCS(connect6_prog, connect_v6_prog);
+BPF_SKEL_FUNCS(connect_unix_prog, connect_unix_prog);
+BPF_SKEL_FUNCS(sendmsg4_prog, sendmsg_v4_prog);
+BPF_SKEL_FUNCS(sendmsg6_prog, sendmsg_v6_prog);
+BPF_SKEL_FUNCS(sendmsg_unix_prog, sendmsg_unix_prog);
+BPF_SKEL_FUNCS(recvmsg4_prog, recvmsg4_prog);
+BPF_SKEL_FUNCS(recvmsg6_prog, recvmsg6_prog);
+BPF_SKEL_FUNCS(recvmsg_unix_prog, recvmsg_unix_prog);
+BPF_SKEL_FUNCS(getsockname_unix_prog, getsockname_unix_prog);
+BPF_SKEL_FUNCS(getpeername_unix_prog, getpeername_unix_prog);
 
 static struct sock_addr_test tests[] = {
+	/* bind - system calls */
+	{
+		SOCK_ADDR_TEST_BIND,
+		"bind4: bind (stream)",
+		bind4_prog_load,
+		bind4_prog_destroy,
+		AF_INET,
+		SOCK_STREAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+	},
+	{
+		SOCK_ADDR_TEST_BIND,
+		"bind4: bind (dgram)",
+		bind4_prog_load,
+		bind4_prog_destroy,
+		AF_INET,
+		SOCK_DGRAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+	},
+	{
+		SOCK_ADDR_TEST_BIND,
+		"bind6: bind (stream)",
+		bind6_prog_load,
+		bind6_prog_destroy,
+		AF_INET6,
+		SOCK_STREAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+	},
+	{
+		SOCK_ADDR_TEST_BIND,
+		"bind6: bind (dgram)",
+		bind6_prog_load,
+		bind6_prog_destroy,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+	},
+
+	/* connect - system calls */
 	{
 		SOCK_ADDR_TEST_CONNECT,
-		"connect_unix",
+		"connect4: connect (stream)",
+		connect4_prog_load,
+		connect4_prog_destroy,
+		AF_INET,
+		SOCK_STREAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SRC4_REWRITE_IP,
+	},
+	{
+		SOCK_ADDR_TEST_CONNECT,
+		"connect4: connect (dgram)",
+		connect4_prog_load,
+		connect4_prog_destroy,
+		AF_INET,
+		SOCK_DGRAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SRC4_REWRITE_IP,
+	},
+	{
+		SOCK_ADDR_TEST_CONNECT,
+		"connect6: connect (stream)",
+		connect6_prog_load,
+		connect6_prog_destroy,
+		AF_INET6,
+		SOCK_STREAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SRC6_REWRITE_IP,
+	},
+	{
+		SOCK_ADDR_TEST_CONNECT,
+		"connect6: connect (dgram)",
+		connect6_prog_load,
+		connect6_prog_destroy,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SRC6_REWRITE_IP,
+	},
+	{
+		SOCK_ADDR_TEST_CONNECT,
+		"connect_unix: connect (stream)",
 		connect_unix_prog_load,
 		connect_unix_prog_destroy,
 		AF_UNIX,
@@ -177,9 +223,37 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 	},
+
+	/* sendmsg - system calls */
 	{
 		SOCK_ADDR_TEST_SENDMSG,
-		"sendmsg_unix",
+		"sendmsg4: sendmsg (dgram)",
+		sendmsg4_prog_load,
+		sendmsg4_prog_destroy,
+		AF_INET,
+		SOCK_DGRAM,
+		SERV4_IP,
+		SERV4_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SRC4_REWRITE_IP,
+	},
+	{
+		SOCK_ADDR_TEST_SENDMSG,
+		"sendmsg6: sendmsg (dgram)",
+		sendmsg6_prog_load,
+		sendmsg6_prog_destroy,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_IP,
+		SERV6_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SRC6_REWRITE_IP,
+	},
+	{
+		SOCK_ADDR_TEST_SENDMSG,
+		"sendmsg_unix: sendmsg (dgram)",
 		sendmsg_unix_prog_load,
 		sendmsg_unix_prog_destroy,
 		AF_UNIX,
@@ -190,9 +264,37 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 	},
+
+	/* recvmsg - system calls */
 	{
 		SOCK_ADDR_TEST_RECVMSG,
-		"recvmsg_unix-dgram",
+		"recvmsg4: recvfrom (dgram)",
+		recvmsg4_prog_load,
+		recvmsg4_prog_destroy,
+		AF_INET,
+		SOCK_DGRAM,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SERV4_IP,
+	},
+	{
+		SOCK_ADDR_TEST_RECVMSG,
+		"recvmsg6: recvfrom (dgram)",
+		recvmsg6_prog_load,
+		recvmsg6_prog_destroy,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SERV6_IP,
+	},
+	{
+		SOCK_ADDR_TEST_RECVMSG,
+		"recvmsg_unix: recvfrom (dgram)",
 		recvmsg_unix_prog_load,
 		recvmsg_unix_prog_destroy,
 		AF_UNIX,
@@ -205,7 +307,7 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_RECVMSG,
-		"recvmsg_unix-stream",
+		"recvmsg_unix: recvfrom (stream)",
 		recvmsg_unix_prog_load,
 		recvmsg_unix_prog_destroy,
 		AF_UNIX,
@@ -216,6 +318,8 @@ static struct sock_addr_test tests[] = {
 		0,
 		SERVUN_ADDRESS,
 	},
+
+	/* getsockname - system calls */
 	{
 		SOCK_ADDR_TEST_GETSOCKNAME,
 		"getsockname_unix",
@@ -229,6 +333,8 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 	},
+
+	/* getpeername - system calls */
 	{
 		SOCK_ADDR_TEST_GETPEERNAME,
 		"getpeername_unix",
@@ -558,13 +664,52 @@ cleanup:
 		close(serv);
 }
 
+static int setup_test_env(struct nstoken **tok)
+{
+	int err;
+
+	SYS_NOFAIL("ip netns delete %s", TEST_NS);
+	SYS(fail, "ip netns add %s", TEST_NS);
+	*tok = open_netns(TEST_NS);
+	if (!ASSERT_OK_PTR(*tok, "netns token"))
+		goto fail;
+
+	SYS(fail, "ip link add dev %s1 type veth peer name %s2", TEST_IF_PREFIX,
+	    TEST_IF_PREFIX);
+	SYS(fail, "ip link set lo up");
+	SYS(fail, "ip link set %s1 up", TEST_IF_PREFIX);
+	SYS(fail, "ip link set %s2 up", TEST_IF_PREFIX);
+	SYS(fail, "ip -4 addr add %s/8 dev %s1", TEST_IPV4, TEST_IF_PREFIX);
+	SYS(fail, "ip -6 addr add %s/128 nodad dev %s1", TEST_IPV6, TEST_IF_PREFIX);
+
+	err = 0;
+	goto out;
+fail:
+	err = -1;
+	close_netns(*tok);
+	*tok = NULL;
+	SYS_NOFAIL("ip netns delete %s", TEST_NS);
+out:
+	return err;
+}
+
+static void cleanup_test_env(struct nstoken *tok)
+{
+	close_netns(tok);
+	SYS_NOFAIL("ip netns delete %s", TEST_NS);
+}
+
 void test_sock_addr(void)
 {
+	struct nstoken *tok = NULL;
 	int cgroup_fd = -1;
 	void *skel;
 
 	cgroup_fd = test__join_cgroup("/sock_addr");
 	if (!ASSERT_GE(cgroup_fd, 0, "join_cgroup"))
+		goto cleanup;
+
+	if (!ASSERT_OK(setup_test_env(&tok), "setup_test_env"))
 		goto cleanup;
 
 	for (size_t i = 0; i < ARRAY_SIZE(tests); ++i) {
@@ -607,6 +752,7 @@ void test_sock_addr(void)
 	}
 
 cleanup:
+	cleanup_test_env(tok);
 	if (cgroup_fd >= 0)
 		close(cgroup_fd);
 }
