@@ -14,9 +14,9 @@
 	compatible = "renesas,s4sk", "renesas,r8a779f4", "renesas,r8a779f0";
 
 	aliases {
-		serial0	= &hscif0;
-		serial1	= &hscif1;
-		eth0	= &rswitch;
+		serial0 = &hscif0;
+		serial1 = &hscif1;
+		ethernet0 = &rswitch;
 	};
 
 	chosen {
