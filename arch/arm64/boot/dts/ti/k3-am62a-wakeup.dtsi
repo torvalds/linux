@@ -59,7 +59,6 @@
 		clock-names = "vbus", "osc32k";
 		power-domains = <&k3_pds 117 TI_SCI_PD_EXCLUSIVE>;
 		wakeup-source;
-		status = "disabled";
 	};
 
 	wkup_rti0: watchdog@2b000000 {
