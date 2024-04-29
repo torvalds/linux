@@ -285,7 +285,8 @@ sys_t_clock_sync(struct stm_data *data, unsigned int m, unsigned int c)
 }
 
 static ssize_t sys_t_write(struct stm_data *data, struct stm_output *output,
-			   unsigned int chan, const char *buf, size_t count)
+			   unsigned int chan, const char *buf, size_t count,
+			   struct stm_source_data *source)
 {
 	struct sys_t_output *op = output->pdrv_private;
 	unsigned int c = output->channel + chan;
