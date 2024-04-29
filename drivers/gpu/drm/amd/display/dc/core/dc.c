@@ -3664,6 +3664,10 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 				break;
 			}
 		}
+		if (stream_update) {
+			/* more than address update, need to acquire FAMS2 lock */
+			should_offload_fams2_flip = false;
+		}
 	}
 
 	dc_exit_ips_for_hw_access(dc);
