@@ -6985,7 +6985,7 @@ nodefer:	kfree_skb_napi_cache(skb);
 	DEBUG_NET_WARN_ON_ONCE(skb->destructor);
 
 	sd = &per_cpu(softnet_data, cpu);
-	defer_max = READ_ONCE(sysctl_skb_defer_max);
+	defer_max = READ_ONCE(net_hotdata.sysctl_skb_defer_max);
 	if (READ_ONCE(sd->defer_count) >= defer_max)
 		goto nodefer;
 
