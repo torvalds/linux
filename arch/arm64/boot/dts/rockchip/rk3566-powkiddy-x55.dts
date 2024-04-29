@@ -11,6 +11,7 @@
 
 / {
 	model = "Powkiddy x55";
+	chassis-type = "handset";
 	compatible = "powkiddy,x55", "rockchip,rk3566";
 
 	aliases {
