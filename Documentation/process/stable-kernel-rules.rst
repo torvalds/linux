@@ -79,10 +79,9 @@ stable tree without anything else needing to be done by the author or
 subsystem maintainer.
 
 To sent additional instructions to the stable team, use a shell-style inline
-comment:
+comment to pass arbitrary or predefined notes:
 
- * To specify any additional patch prerequisites for cherry picking use the
-   following format in the sign-off area:
+ * Specify any additional patch prerequisites for cherry picking:
 
    .. code-block:: none
 
@@ -114,8 +113,7 @@ comment:
    prerequisite of patch2 if you have already marked patch1 for stable
    inclusion.
 
- * For patches that may have kernel version prerequisites specify them using
-   the following format in the sign-off area:
+ * Point out kernel version prerequisites:
 
    .. code-block:: none
 
@@ -132,14 +130,13 @@ comment:
    Note, such tagging is unnecessary if the stable team can derive the
    appropriate versions from Fixes: tags.
 
- * To delay pick up of patches, use the following format:
+ * Delay pick up of patches:
 
    .. code-block:: none
 
      Cc: <stable@vger.kernel.org> # after 4 weeks in mainline
 
- * For any other requests, just add a note to the stable tag. This for example
-   can be used to point out known problems:
+ * Point out known problems:
 
    .. code-block:: none
 
