@@ -95,6 +95,10 @@ void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *coo
 	while (1) {
 		if (__get_user(sp, &sf->back_chain))
 			break;
+		/* Sanity check: ABI requires SP to be 8 byte aligned. */
+		if (!sp || sp & 0x7)
+			break;
+		sf = (void __user *)sp;
 		if (__get_user(ip, &sf->gprs[8]))
 			break;
 		if (ip & 0x1) {
@@ -110,10 +114,6 @@ void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *coo
 		}
 		if (!store_ip(consume_entry, cookie, entry, perf, ip))
 			return;
-		/* Sanity check: ABI requires SP to be aligned 8 bytes. */
-		if (!sp || sp & 0x7)
-			break;
-		sf = (void __user *)sp;
 		first = false;
 	}
 	pagefault_enable();
