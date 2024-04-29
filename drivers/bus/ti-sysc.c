@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * ti-sysc.c - Texas Instruments sysc interconnect target driver
+ *
+ * TI SoCs have an interconnect target wrapper IP for many devices. The wrapper
+ * IP manages clock gating, resets, and PM capabilities for the connected devices.
+ *
+ * Copyright (C) 2017-2024 Texas Instruments Incorporated - https://www.ti.com/
+ *
+ * Many features are based on the earlier omap_hwmod arch code with thanks to all
+ * the people who developed and debugged the code over the years:
+ *
+ * Copyright (C) 2009-2011 Nokia Corporation
+ * Copyright (C) 2011-2021 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include <linux/io.h>
@@ -1458,8 +1469,7 @@ static int __maybe_unused sysc_noirq_suspend(struct device *dev)
 
 	ddata = dev_get_drvdata(dev);
 
-	if (ddata->cfg.quirks &
-	    (SYSC_QUIRK_LEGACY_IDLE | SYSC_QUIRK_NO_IDLE))
+	if (ddata->cfg.quirks & SYSC_QUIRK_NO_IDLE)
 		return 0;
 
 	if (!ddata->enabled)
@@ -1477,8 +1487,7 @@ static int __maybe_unused sysc_noirq_resume(struct device *dev)
 
 	ddata = dev_get_drvdata(dev);
 
-	if (ddata->cfg.quirks &
-	    (SYSC_QUIRK_LEGACY_IDLE | SYSC_QUIRK_NO_IDLE))
+	if (ddata->cfg.quirks & SYSC_QUIRK_NO_IDLE)
 		return 0;
 
 	if (ddata->cfg.quirks & SYSC_QUIRK_REINIT_ON_RESUME) {
@@ -1529,19 +1538,6 @@ struct sysc_revision_quirk {
 	}
 
 static const struct sysc_revision_quirk sysc_revision_quirks[] = {
-	/* These drivers need to be fixed to not use pm_runtime_irq_safe() */
-	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x00000046, 0xffffffff,
-		   SYSC_QUIRK_SWSUP_SIDLE_ACT | SYSC_QUIRK_LEGACY_IDLE),
-	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x00000052, 0xffffffff,
-		   SYSC_QUIRK_SWSUP_SIDLE_ACT | SYSC_QUIRK_LEGACY_IDLE),
-	/* Uarts on omap4 and later */
-	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x50411e03, 0xffff00ff,
-		   SYSC_QUIRK_SWSUP_SIDLE_ACT | SYSC_QUIRK_LEGACY_IDLE),
-	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x47422e03, 0xffffffff,
-		   SYSC_QUIRK_SWSUP_SIDLE_ACT | SYSC_QUIRK_LEGACY_IDLE),
-	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x47424e03, 0xffffffff,
-		   SYSC_QUIRK_SWSUP_SIDLE_ACT | SYSC_QUIRK_LEGACY_IDLE),
-
 	/* Quirks that need to be set based on the module address */
 	SYSC_QUIRK("mcpdm", 0x40132000, 0, 0x10, -ENODEV, 0x50000800, 0xffffffff,
 		   SYSC_QUIRK_EXT_OPT_CLOCK | SYSC_QUIRK_NO_RESET_ON_INIT |
@@ -1599,6 +1595,17 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 		   SYSC_QUIRK_SWSUP_SIDLE | SYSC_QUIRK_SWSUP_MSTANDBY),
 	SYSC_QUIRK("sata", 0, 0xfc, 0x1100, -ENODEV, 0x5e412000, 0xffffffff,
 		   SYSC_QUIRK_SWSUP_SIDLE | SYSC_QUIRK_SWSUP_MSTANDBY),
+	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x00000046, 0xffffffff,
+		   SYSC_QUIRK_SWSUP_SIDLE_ACT),
+	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x00000052, 0xffffffff,
+		   SYSC_QUIRK_SWSUP_SIDLE_ACT),
+	/* Uarts on omap4 and later */
+	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x50411e03, 0xffff00ff,
+		   SYSC_QUIRK_SWSUP_SIDLE_ACT),
+	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x47422e03, 0xffffffff,
+		   SYSC_QUIRK_SWSUP_SIDLE_ACT),
+	SYSC_QUIRK("uart", 0, 0x50, 0x54, 0x58, 0x47424e03, 0xffffffff,
+		   SYSC_QUIRK_SWSUP_SIDLE_ACT),
 	SYSC_QUIRK("usb_host_hs", 0, 0, 0x10, 0x14, 0x50700100, 0xffffffff,
 		   SYSC_QUIRK_SWSUP_SIDLE | SYSC_QUIRK_SWSUP_MSTANDBY),
 	SYSC_QUIRK("usb_host_hs", 0, 0, 0x10, -ENODEV, 0x50700101, 0xffffffff,
@@ -2145,8 +2152,7 @@ static int sysc_reset(struct sysc *ddata)
 	sysc_offset = ddata->offsets[SYSC_SYSCONFIG];
 
 	if (ddata->legacy_mode ||
-	    ddata->cap->regbits->srst_shift < 0 ||
-	    ddata->cfg.quirks & SYSC_QUIRK_NO_RESET_ON_INIT)
+	    ddata->cap->regbits->srst_shift < 0)
 		return 0;
 
 	sysc_mask = BIT(ddata->cap->regbits->srst_shift);
@@ -2240,12 +2246,14 @@ static int sysc_init_module(struct sysc *ddata)
 			goto err_main_clocks;
 	}
 
-	error = sysc_reset(ddata);
-	if (error)
-		dev_err(ddata->dev, "Reset failed with %d\n", error);
+	if (!(ddata->cfg.quirks & SYSC_QUIRK_NO_RESET_ON_INIT)) {
+		error = sysc_reset(ddata);
+		if (error)
+			dev_err(ddata->dev, "Reset failed with %d\n", error);
 
-	if (error && !ddata->legacy_mode)
-		sysc_disable_module(ddata->dev);
+		if (error && !ddata->legacy_mode)
+			sysc_disable_module(ddata->dev);
+	}
 
 err_main_clocks:
 	if (error)
@@ -2447,89 +2455,6 @@ static int __maybe_unused sysc_child_runtime_resume(struct device *dev)
 	return pm_generic_runtime_resume(dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int sysc_child_suspend_noirq(struct device *dev)
-{
-	struct sysc *ddata;
-	int error;
-
-	ddata = sysc_child_to_parent(dev);
-
-	dev_dbg(ddata->dev, "%s %s\n", __func__,
-		ddata->name ? ddata->name : "");
-
-	error = pm_generic_suspend_noirq(dev);
-	if (error) {
-		dev_err(dev, "%s error at %i: %i\n",
-			__func__, __LINE__, error);
-
-		return error;
-	}
-
-	if (!pm_runtime_status_suspended(dev)) {
-		error = pm_generic_runtime_suspend(dev);
-		if (error) {
-			dev_dbg(dev, "%s busy at %i: %i\n",
-				__func__, __LINE__, error);
-
-			return 0;
-		}
-
-		error = sysc_runtime_suspend(ddata->dev);
-		if (error) {
-			dev_err(dev, "%s error at %i: %i\n",
-				__func__, __LINE__, error);
-
-			return error;
-		}
-
-		ddata->child_needs_resume = true;
-	}
-
-	return 0;
-}
-
-static int sysc_child_resume_noirq(struct device *dev)
-{
-	struct sysc *ddata;
-	int error;
-
-	ddata = sysc_child_to_parent(dev);
-
-	dev_dbg(ddata->dev, "%s %s\n", __func__,
-		ddata->name ? ddata->name : "");
-
-	if (ddata->child_needs_resume) {
-		ddata->child_needs_resume = false;
-
-		error = sysc_runtime_resume(ddata->dev);
-		if (error)
-			dev_err(ddata->dev,
-				"%s runtime resume error: %i\n",
-				__func__, error);
-
-		error = pm_generic_runtime_resume(dev);
-		if (error)
-			dev_err(ddata->dev,
-				"%s generic runtime resume: %i\n",
-				__func__, error);
-	}
-
-	return pm_generic_resume_noirq(dev);
-}
-#endif
-
-static struct dev_pm_domain sysc_child_pm_domain = {
-	.ops = {
-		SET_RUNTIME_PM_OPS(sysc_child_runtime_suspend,
-				   sysc_child_runtime_resume,
-				   NULL)
-		USE_PLATFORM_PM_SLEEP_OPS
-		SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sysc_child_suspend_noirq,
-					      sysc_child_resume_noirq)
-	}
-};
-
 /* Caller needs to take list_lock if ever used outside of cpu_pm */
 static void sysc_reinit_modules(struct sysc_soc_info *soc)
 {
@@ -2600,25 +2525,6 @@ out_unlock:
 	mutex_unlock(&sysc_soc->list_lock);
 }
 
-/**
- * sysc_legacy_idle_quirk - handle children in omap_device compatible way
- * @ddata: device driver data
- * @child: child device driver
- *
- * Allow idle for child devices as done with _od_runtime_suspend().
- * Otherwise many child devices will not idle because of the permanent
- * parent usecount set in pm_runtime_irq_safe().
- *
- * Note that the long term solution is to just modify the child device
- * drivers to not set pm_runtime_irq_safe() and then this can be just
- * dropped.
- */
-static void sysc_legacy_idle_quirk(struct sysc *ddata, struct device *child)
-{
-	if (ddata->cfg.quirks & SYSC_QUIRK_LEGACY_IDLE)
-		dev_pm_domain_set(child, &sysc_child_pm_domain);
-}
-
 static int sysc_notifier_call(struct notifier_block *nb,
 			      unsigned long event, void *device)
 {
@@ -2635,7 +2541,6 @@ static int sysc_notifier_call(struct notifier_block *nb,
 		error = sysc_child_add_clocks(ddata, dev);
 		if (error)
 			return error;
-		sysc_legacy_idle_quirk(ddata, dev);
 		break;
 	default:
 		break;
@@ -2859,8 +2764,7 @@ static const struct sysc_capabilities sysc_34xx_sr = {
 	.type = TI_SYSC_OMAP34XX_SR,
 	.sysc_mask = SYSC_OMAP2_CLOCKACTIVITY,
 	.regbits = &sysc_regbits_omap34xx_sr,
-	.mod_quirks = SYSC_QUIRK_USE_CLOCKACT | SYSC_QUIRK_UNCACHED |
-		      SYSC_QUIRK_LEGACY_IDLE,
+	.mod_quirks = SYSC_QUIRK_USE_CLOCKACT | SYSC_QUIRK_UNCACHED,
 };
 
 /*
@@ -2881,13 +2785,12 @@ static const struct sysc_capabilities sysc_36xx_sr = {
 	.type = TI_SYSC_OMAP36XX_SR,
 	.sysc_mask = SYSC_OMAP3_SR_ENAWAKEUP,
 	.regbits = &sysc_regbits_omap36xx_sr,
-	.mod_quirks = SYSC_QUIRK_UNCACHED | SYSC_QUIRK_LEGACY_IDLE,
+	.mod_quirks = SYSC_QUIRK_UNCACHED,
 };
 
 static const struct sysc_capabilities sysc_omap4_sr = {
 	.type = TI_SYSC_OMAP4_SR,
 	.regbits = &sysc_regbits_omap36xx_sr,
-	.mod_quirks = SYSC_QUIRK_LEGACY_IDLE,
 };
 
 /*
