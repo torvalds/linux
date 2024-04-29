@@ -19,8 +19,13 @@
 #include "sd_ops.h"
 #include "mmc_ops.h"
 
+/*
+ * Extensive testing has shown that some specific SD cards
+ * require an increased command timeout to be successfully
+ * initialized.
+ */
 #define SD_APP_OP_COND_PERIOD_US	(10 * 1000) /* 10ms */
-#define SD_APP_OP_COND_TIMEOUT_MS	1000 /* 1s */
+#define SD_APP_OP_COND_TIMEOUT_MS	2000 /* 2s */
 
 struct sd_app_op_cond_busy_data {
 	struct mmc_host *host;
