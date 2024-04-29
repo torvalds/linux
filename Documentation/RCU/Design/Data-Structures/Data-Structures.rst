@@ -921,10 +921,10 @@ This portion of the ``rcu_data`` structure is declared as follows:
 
 ::
 
-     1   int dynticks_snap;
+     1   int watching_snap;
      2   unsigned long dynticks_fqs;
 
-The ``->dynticks_snap`` field is used to take a snapshot of the
+The ``->watching_snap`` field is used to take a snapshot of the
 corresponding CPU's dyntick-idle state when forcing quiescent states,
 and is therefore accessed from other CPUs. Finally, the
 ``->dynticks_fqs`` field is used to count the number of times this CPU
