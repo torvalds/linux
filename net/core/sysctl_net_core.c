@@ -24,6 +24,7 @@
 #include <net/busy_poll.h>
 #include <net/pkt_sched.h>
 #include <net/hotdata.h>
+#include <net/proto_memory.h>
 #include <net/rps.h>
 
 #include "dev.h"
