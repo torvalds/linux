@@ -164,7 +164,7 @@ Description: Complete Generic Linux kernel and headers
 
 Package: SRCPKGNAME-system76
 Build-Profiles: <!stage1>
-Architecture: amd64
+Architecture: amd64 arm64
 Section: kernel
 Depends:
  ${misc:Depends},
