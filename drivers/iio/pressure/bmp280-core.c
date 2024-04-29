@@ -1771,7 +1771,7 @@ const struct bmp280_chip_info bmp580_chip_info = {
 };
 EXPORT_SYMBOL_NS(bmp580_chip_info, IIO_BMP280);
 
-static int bmp180_measure(struct bmp280_data *data, u8 ctrl_meas)
+static int bmp180_wait_for_eoc(struct bmp280_data *data, u8 ctrl_meas)
 {
 	const int conversion_time_max[] = { 4500, 7500, 13500, 25500 };
 	unsigned int delay_us;
@@ -1820,9 +1820,9 @@ static int bmp180_read_adc_temp(struct bmp280_data *data, int *val)
 {
 	int ret;
 
-	ret = bmp180_measure(data,
-			     FIELD_PREP(BMP180_MEAS_CTRL_MASK, BMP180_MEAS_TEMP) |
-			     BMP180_MEAS_SCO);
+	ret = bmp180_wait_for_eoc(data,
+				  FIELD_PREP(BMP180_MEAS_CTRL_MASK, BMP180_MEAS_TEMP) |
+				  BMP180_MEAS_SCO);
 	if (ret)
 		return ret;
 
@@ -1920,10 +1920,10 @@ static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
 	u8 oss = data->oversampling_press;
 	int ret;
 
-	ret = bmp180_measure(data,
-			     FIELD_PREP(BMP180_MEAS_CTRL_MASK, BMP180_MEAS_PRESS) |
-			     FIELD_PREP(BMP180_OSRS_PRESS_MASK, oss) |
-			     BMP180_MEAS_SCO);
+	ret = bmp180_wait_for_eoc(data,
+				  FIELD_PREP(BMP180_MEAS_CTRL_MASK, BMP180_MEAS_PRESS) |
+				  FIELD_PREP(BMP180_OSRS_PRESS_MASK, oss) |
+				  BMP180_MEAS_SCO);
 	if (ret)
 		return ret;
 
