@@ -48,6 +48,10 @@ properties:
   clock-names:
     maxItems: 3
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
 required:
   - compatible
   - reg

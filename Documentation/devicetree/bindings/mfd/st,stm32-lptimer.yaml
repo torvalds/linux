@@ -44,6 +44,10 @@ properties:
 
   wakeup-source: true
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
   pwm:
     type: object
     additionalProperties: false

@@ -12,6 +12,7 @@ menuconfig ARCH_STM32
 	select PINCTRL
 	select RESET_CONTROLLER
 	select STM32_EXTI
+	select STM32_FIREWALL
 	help
 	  Support for STMicroelectronics STM32 processors.
 
