@@ -408,19 +408,6 @@ static int i2c_hid_set_power(struct i2c_hid *ihid, int power_state)
 
 	i2c_hid_dbg(ihid, "%s\n", __func__);
 
-	/*
-	 * Some devices require to send a command to wakeup before power on.
-	 * The call will get a return value (EREMOTEIO) but device will be
-	 * triggered and activated. After that, it goes like a normal device.
-	 */
-	if (power_state == I2C_HID_PWR_ON) {
-		ret = i2c_hid_set_power_command(ihid, I2C_HID_PWR_ON);
-
-		/* Device was already activated */
-		if (!ret)
-			goto set_pwr_exit;
-	}
-
 	ret = i2c_hid_set_power_command(ihid, power_state);
 	if (ret)
 		dev_err(&ihid->client->dev,
@@ -998,6 +985,14 @@ static int i2c_hid_core_resume(struct i2c_hid *ihid)
 		i2c_hid_core_power_up(ihid);
 
 	enable_irq(client->irq);
+
+	/* Make sure the device is awake on the bus */
+	ret = i2c_hid_probe_address(ihid);
+	if (ret < 0) {
+		dev_err(&client->dev, "nothing at address after resume: %d\n",
+			ret);
+		return -ENXIO;
+	}
 
 	/* Instead of resetting device, simply powers the device on. This
 	 * solves "incomplete reports" on Raydium devices 2386:3118 and
