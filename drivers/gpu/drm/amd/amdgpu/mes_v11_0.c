@@ -696,7 +696,7 @@ static void mes_v11_0_enable(struct amdgpu_device *adev, bool enable)
 		if (amdgpu_emu_mode)
 			msleep(100);
 		else
-			udelay(50);
+			udelay(500);
 	} else {
 		data = RREG32_SOC15(GC, 0, regCP_MES_CNTL);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_ACTIVE, 0);
