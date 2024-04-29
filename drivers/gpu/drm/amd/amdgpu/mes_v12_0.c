@@ -153,6 +153,10 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	unsigned long flags;
 	const char *op_str, *misc_op_str;
 	signed long timeout = 3000000; /* 3000 ms */
+	u32 fence_offset;
+	u64 fence_gpu_addr;
+	u64 *fence_ptr;
+	int ret;
 
 	if (x_pkt->header.opcode >= MES_SCH_API_MAX)
 		return -EINVAL;
@@ -165,15 +169,24 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	}
 	BUG_ON(size % 4 != 0);
 
+	ret = amdgpu_device_wb_get(adev, &fence_offset);
+	if (ret)
+		return ret;
+	fence_gpu_addr =
+		adev->wb.gpu_addr + (fence_offset * 4);
+	fence_ptr = (u64 *)&adev->wb.wb[fence_offset];
+	*fence_ptr = 0;
+
 	spin_lock_irqsave(&mes->ring_lock, flags);
 	if (amdgpu_ring_alloc(ring, ndw)) {
 		spin_unlock_irqrestore(&mes->ring_lock, flags);
+		amdgpu_device_wb_free(adev, fence_offset);
 		return -ENOMEM;
 	}
 
 	api_status = (struct MES_API_STATUS *)((char *)pkt + api_status_off);
-	api_status->api_completion_fence_addr = mes->ring.fence_drv.gpu_addr;
-	api_status->api_completion_fence_value = ++mes->ring.fence_drv.sync_seq;
+	api_status->api_completion_fence_addr = fence_gpu_addr;
+	api_status->api_completion_fence_value = 1;
 
 	amdgpu_ring_write_multiple(ring, pkt, ndw);
 	amdgpu_ring_commit(ring);
@@ -189,8 +202,9 @@ static int mes_v12_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	else
 		dev_dbg(adev->dev, "MES msg=%d was emitted\n", x_pkt->header.opcode);
 
-	r = amdgpu_fence_wait_polling(ring, ring->fence_drv.sync_seq,
-		      timeout);
+	r = amdgpu_mes_fence_wait_polling(fence_ptr, (u64)1, timeout);
+	amdgpu_device_wb_free(adev, fence_offset);
+
 	if (r < 1) {
 		if (misc_op_str)
 			dev_err(adev->dev, "MES failed to respond to msg=%s (%s)\n",
