@@ -5598,37 +5598,35 @@ struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
 			      struct btrfs_root *root, struct btrfs_path *path)
 {
 	struct inode *inode;
+	int ret;
 
 	inode = btrfs_iget_locked(s, ino, root);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
-	if (inode->i_state & I_NEW) {
-		int ret;
+	if (!(inode->i_state & I_NEW))
+		return inode;
 
-		ret = btrfs_read_locked_inode(inode, path);
-		if (!ret) {
-			ret = btrfs_add_inode_to_root(BTRFS_I(inode), true);
-			if (ret) {
-				iget_failed(inode);
-				inode = ERR_PTR(ret);
-			} else {
-				unlock_new_inode(inode);
-			}
-		} else {
-			iget_failed(inode);
-			/*
-			 * ret > 0 can come from btrfs_search_slot called by
-			 * btrfs_read_locked_inode, this means the inode item
-			 * was not found.
-			 */
-			if (ret > 0)
-				ret = -ENOENT;
-			inode = ERR_PTR(ret);
-		}
-	}
+	ret = btrfs_read_locked_inode(inode, path);
+	/*
+	 * ret > 0 can come from btrfs_search_slot called by
+	 * btrfs_read_locked_inode(), this means the inode item was not found.
+	 */
+	if (ret > 0)
+		ret = -ENOENT;
+	if (ret < 0)
+		goto error;
+
+	ret = btrfs_add_inode_to_root(BTRFS_I(inode), true);
+	if (ret < 0)
+		goto error;
+
+	unlock_new_inode(inode);
 
 	return inode;
+error:
+	iget_failed(inode);
+	return ERR_PTR(ret);
 }
 
 struct inode *btrfs_iget(struct super_block *s, u64 ino, struct btrfs_root *root)
