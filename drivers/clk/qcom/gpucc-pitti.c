@@ -513,6 +513,9 @@ static int gpu_cc_pitti_probe(struct platform_device *pdev)
 	clk_zonda_evo_pll_configure(&gpu_cc_pll0, regmap, &gpu_cc_pll0_config);
 	clk_lucid_evo_pll_configure(&gpu_cc_pll1, regmap, &gpu_cc_pll1_config);
 
+	/* Enable frequency limiter irq */
+	regmap_write(regmap, 0x91ac, 0x0);
+
 	/*
 	 * Keep clocks always enabled:
 	 *	gpu_cc_ahb_clk
