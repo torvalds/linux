@@ -118,6 +118,16 @@
 			status = "disabled";
 		};
 
+		pm6150l_lpg: pwm {
+			compatible = "qcom,pm6150l-lpg", "qcom,pm8150l-lpg";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#pwm-cells = <2>;
+
+			status = "disabled";
+		};
+
 		pm6150l_wled: leds@d800 {
 			compatible = "qcom,pm6150l-wled";
 			reg = <0xd800>, <0xd900>;
