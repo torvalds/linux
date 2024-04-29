@@ -529,9 +529,10 @@ int drm_version(struct drm_device *dev, void *data,
 	version->version_patchlevel = dev->driver->patchlevel;
 	err = drm_copy_field(version->name, &version->name_len,
 			dev->driver->name);
+
+	/* Driver date is deprecated. Return the empty string. */
 	if (!err)
-		err = drm_copy_field(version->date, &version->date_len,
-				dev->driver->date);
+		err = drm_copy_field(version->date, &version->date_len, "");
 	if (!err)
 		err = drm_copy_field(version->desc, &version->desc_len,
 				dev->driver->desc);

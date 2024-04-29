@@ -947,9 +947,9 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	}
 	drm_panic_register(dev);
 
-	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
+	DRM_INFO("Initialized %s %d.%d.%d for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor,
-		 driver->patchlevel, driver->date,
+		 driver->patchlevel,
 		 dev->dev ? dev_name(dev->dev) : "virtual device",
 		 dev->primary ? dev->primary->index : dev->accel->index);
 
