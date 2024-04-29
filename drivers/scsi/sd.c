@@ -3120,6 +3120,7 @@ static void sd_read_io_hints(struct scsi_disk *sdkp, unsigned char *buffer)
 {
 	struct scsi_device *sdp = sdkp->device;
 	const struct scsi_io_group_descriptor *desc, *start, *end;
+	u16 permanent_stream_count_old;
 	struct scsi_sense_hdr sshdr;
 	struct scsi_mode_data data;
 	int res;
@@ -3140,12 +3141,13 @@ static void sd_read_io_hints(struct scsi_disk *sdkp, unsigned char *buffer)
 	for (desc = start; desc < end; desc++)
 		if (!desc->st_enble || !sd_is_perm_stream(sdkp, desc - start))
 			break;
+	permanent_stream_count_old = sdkp->permanent_stream_count;
 	sdkp->permanent_stream_count = desc - start;
 	if (sdkp->rscs && sdkp->permanent_stream_count < 2)
 		sd_printk(KERN_INFO, sdkp,
 			  "Unexpected: RSCS has been set and the permanent stream count is %u\n",
 			  sdkp->permanent_stream_count);
-	else if (sdkp->permanent_stream_count)
+	else if (sdkp->permanent_stream_count != permanent_stream_count_old)
 		sd_printk(KERN_INFO, sdkp, "permanent stream count = %d\n",
 			  sdkp->permanent_stream_count);
 }
