@@ -38,6 +38,7 @@ struct net_hotdata {
 	int			max_backlog;
 	int			dev_tx_weight;
 	int			dev_rx_weight;
+	int			sysctl_max_skb_frags;
 };
 
 #define inet_ehash_secret	net_hotdata.tcp_protocol.secret

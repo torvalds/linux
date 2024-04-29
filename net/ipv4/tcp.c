@@ -280,6 +280,7 @@
 #include <linux/uaccess.h>
 #include <asm/ioctls.h>
 #include <net/busy_poll.h>
+#include <net/hotdata.h>
 #include <net/rps.h>
 
 /* Track pending CMSGs. */
@@ -1188,7 +1189,7 @@ new_segment:
 
 			if (!skb_can_coalesce(skb, i, pfrag->page,
 					      pfrag->offset)) {
-				if (i >= READ_ONCE(sysctl_max_skb_frags)) {
+				if (i >= READ_ONCE(net_hotdata.sysctl_max_skb_frags)) {
 					tcp_mark_push(tp, skb);
 					goto new_segment;
 				}

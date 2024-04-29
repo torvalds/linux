@@ -18,5 +18,6 @@ struct net_hotdata net_hotdata __cacheline_aligned = {
 	.max_backlog = 1000,
 	.dev_tx_weight = 64,
 	.dev_rx_weight = 64,
+	.sysctl_max_skb_frags = MAX_SKB_FRAGS,
 };
 EXPORT_SYMBOL(net_hotdata);

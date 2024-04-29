@@ -353,8 +353,6 @@ struct sk_buff;
 
 #define MAX_SKB_FRAGS CONFIG_MAX_SKB_FRAGS
 
-extern int sysctl_max_skb_frags;
-
 /* Set skb_shinfo(skb)->gso_size to this in case you want skb_segment to
  * segment using its current segmentation instead.
  */

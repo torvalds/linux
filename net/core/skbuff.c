@@ -109,9 +109,6 @@ static struct kmem_cache *skbuff_ext_cache __ro_after_init;
 #define SKB_SMALL_HEAD_HEADROOM						\
 	SKB_WITH_OVERHEAD(SKB_SMALL_HEAD_CACHE_SIZE)
 
-int sysctl_max_skb_frags __read_mostly = MAX_SKB_FRAGS;
-EXPORT_SYMBOL(sysctl_max_skb_frags);
-
 /* kcm_write_msgs() relies on casting paged frags to bio_vec to use
  * iov_iter_bvec(). These static asserts ensure the cast is valid is long as the
  * netmem is a page.
@@ -7040,7 +7037,7 @@ static void skb_splice_csum_page(struct sk_buff *skb, struct page *page,
 ssize_t skb_splice_from_iter(struct sk_buff *skb, struct iov_iter *iter,
 			     ssize_t maxsize, gfp_t gfp)
 {
-	size_t frag_limit = READ_ONCE(sysctl_max_skb_frags);
+	size_t frag_limit = READ_ONCE(net_hotdata.sysctl_max_skb_frags);
 	struct page *pages[8], **ppages = pages;
 	ssize_t spliced = 0, ret = 0;
 	unsigned int i;
