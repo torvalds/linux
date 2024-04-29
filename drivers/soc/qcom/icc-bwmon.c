@@ -282,7 +282,7 @@ static const struct regmap_config msm8998_bwmon_regmap_cfg = {
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
 	 */
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static const struct regmap_config msm8998_bwmon_global_regmap_cfg = {
@@ -301,7 +301,7 @@ static const struct regmap_config msm8998_bwmon_global_regmap_cfg = {
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
 	 */
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static const struct reg_field sdm845_cpu_bwmon_reg_fields[] = {
@@ -369,7 +369,7 @@ static const struct regmap_config sdm845_cpu_bwmon_regmap_cfg = {
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
 	 */
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 /* BWMON v5 */
@@ -446,7 +446,7 @@ static const struct regmap_config sdm845_llcc_bwmon_regmap_cfg = {
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
 	 */
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static void bwmon_clear_counters(struct icc_bwmon *bwmon, bool clear_all)
