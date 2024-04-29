@@ -421,7 +421,7 @@ extern char *wmi_get_acpi_device_uid(const char *guid);
 
 extern char acpi_video_backlight_string[];
 extern long acpi_is_video_device(acpi_handle handle);
-extern int acpi_blacklisted(void);
+
 extern void acpi_osi_setup(char *str);
 extern bool acpi_osi_is_win8(void);
 
