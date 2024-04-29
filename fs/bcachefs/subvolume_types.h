@@ -20,6 +20,8 @@ struct snapshot_t {
 };
 
 struct snapshot_table {
+	struct rcu_head		rcu;
+	size_t			nr;
 #ifndef RUST_BINDGEN
 	DECLARE_FLEX_ARRAY(struct snapshot_t, s);
 #else

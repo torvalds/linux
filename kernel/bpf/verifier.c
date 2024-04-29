@@ -18379,15 +18379,18 @@ static int resolve_pseudo_ldimm64(struct bpf_verifier_env *env)
 				}
 				if (!env->prog->jit_requested) {
 					verbose(env, "JIT is required to use arena\n");
+					fdput(f);
 					return -EOPNOTSUPP;
 				}
 				if (!bpf_jit_supports_arena()) {
 					verbose(env, "JIT doesn't support arena\n");
+					fdput(f);
 					return -EOPNOTSUPP;
 				}
 				env->prog->aux->arena = (void *)map;
 				if (!bpf_arena_get_user_vm_start(env->prog->aux->arena)) {
 					verbose(env, "arena's user address must be set via map_extra or mmap()\n");
+					fdput(f);
 					return -EINVAL;
 				}
 			}

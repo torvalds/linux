@@ -144,6 +144,8 @@ Example::
 		#dma-cells = <1>;
 		clocks = <&clock_controller 0>, <&clock_controller 1>;
 		clock-names = "bus", "host";
+		#address-cells = <1>;
+		#size-cells = <1>;
 		vendor,custom-property = <2>;
 		status = "disabled";
 

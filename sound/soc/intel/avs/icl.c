@@ -66,7 +66,7 @@ static_assert(sizeof(struct avs_icl_memwnd2_desc) == 12);
 struct avs_icl_memwnd2 {
 	union {
 		struct avs_icl_memwnd2_desc slot_desc[AVS_ICL_MEMWND2_SLOTS_COUNT];
-		u8 rsvd[PAGE_SIZE];
+		u8 rsvd[SZ_4K];
 	};
 	u8 slot_array[AVS_ICL_MEMWND2_SLOTS_COUNT][SZ_4K];
 } __packed;

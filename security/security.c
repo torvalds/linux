@@ -1793,11 +1793,11 @@ int security_path_mknod(const struct path *dir, struct dentry *dentry,
 EXPORT_SYMBOL(security_path_mknod);
 
 /**
- * security_path_post_mknod() - Update inode security field after file creation
+ * security_path_post_mknod() - Update inode security after reg file creation
  * @idmap: idmap of the mount
  * @dentry: new file
  *
- * Update inode security field after a file has been created.
+ * Update inode security field after a regular file has been created.
  */
 void security_path_post_mknod(struct mnt_idmap *idmap, struct dentry *dentry)
 {
