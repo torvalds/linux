@@ -5,6 +5,7 @@
  *  Copyright IBM Corp. 2006
  */
 
+#include <linux/perf_event.h>
 #include <linux/stacktrace.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
@@ -62,8 +63,23 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 	return 0;
 }
 
-void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
-			  const struct pt_regs *regs)
+static inline bool store_ip(stack_trace_consume_fn consume_entry, void *cookie,
+			    struct perf_callchain_entry_ctx *entry, bool perf,
+			    unsigned long ip)
+{
+#ifdef CONFIG_PERF_EVENTS
+	if (perf) {
+		if (perf_callchain_store(entry, ip))
+			return false;
+		return true;
+	}
+#endif
+	return consume_entry(cookie, ip);
+}
+
+void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *cookie,
+				 struct perf_callchain_entry_ctx *entry,
+				 const struct pt_regs *regs, bool perf)
 {
 	struct stack_frame_user __user *sf;
 	unsigned long ip, sp;
@@ -71,7 +87,8 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 
 	if (is_compat_task())
 		return;
-	if (!consume_entry(cookie, instruction_pointer(regs)))
+	ip = instruction_pointer(regs);
+	if (!store_ip(consume_entry, cookie, entry, perf, ip))
 		return;
 	sf = (void __user *)user_stack_pointer(regs);
 	pagefault_disable();
@@ -91,8 +108,8 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 			else
 				break;
 		}
-		if (!consume_entry(cookie, ip))
-			break;
+		if (!store_ip(consume_entry, cookie, entry, perf, ip))
+			return;
 		/* Sanity check: ABI requires SP to be aligned 8 bytes. */
 		if (!sp || sp & 0x7)
 			break;
@@ -100,6 +117,12 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 		first = false;
 	}
 	pagefault_enable();
+}
+
+void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
+			  const struct pt_regs *regs)
+{
+	arch_stack_walk_user_common(consume_entry, cookie, NULL, regs, false);
 }
 
 unsigned long return_address(unsigned int n)
