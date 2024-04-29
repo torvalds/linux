@@ -1307,11 +1307,9 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		if (compress_type != BTRFS_COMPRESS_NONE) {
 			extent_map_set_compression(em, compress_type);
 			em->block_start = bytenr;
-			em->block_len = em->disk_num_bytes;
 		} else {
 			bytenr += btrfs_file_extent_offset(leaf, fi);
 			em->block_start = bytenr;
-			em->block_len = em->len;
 			if (type == BTRFS_FILE_EXTENT_PREALLOC)
 				em->flags |= EXTENT_FLAG_PREALLOC;
 		}
@@ -1324,11 +1322,6 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		em->start = 0;
 		em->len = fs_info->sectorsize;
 		em->offset = 0;
-		/*
-		 * Initialize block_len with the same values
-		 * as in inode.c:btrfs_get_extent().
-		 */
-		em->block_len = (u64)-1;
 		extent_map_set_compression(em, compress_type);
 	} else {
 		btrfs_err(fs_info,

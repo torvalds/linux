@@ -183,11 +183,18 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 	return NULL;
 }
 
+static inline u64 extent_map_block_len(const struct extent_map *em)
+{
+	if (extent_map_is_compressed(em))
+		return em->disk_num_bytes;
+	return em->len;
+}
+
 static inline u64 extent_map_block_end(const struct extent_map *em)
 {
-	if (em->block_start + em->block_len < em->block_start)
+	if (em->block_start + extent_map_block_len(em) < em->block_start)
 		return (u64)-1;
-	return em->block_start + em->block_len;
+	return em->block_start + extent_map_block_len(em);
 }
 
 static bool can_merge_extent_map(const struct extent_map *em)
@@ -290,10 +297,9 @@ static void dump_extent_map(struct btrfs_fs_info *fs_info, const char *prefix,
 	if (!IS_ENABLED(CONFIG_BTRFS_DEBUG))
 		return;
 	btrfs_crit(fs_info,
-"%s, start=%llu len=%llu disk_bytenr=%llu disk_num_bytes=%llu ram_bytes=%llu offset=%llu block_start=%llu block_len=%llu flags=0x%x",
+"%s, start=%llu len=%llu disk_bytenr=%llu disk_num_bytes=%llu ram_bytes=%llu offset=%llu block_start=%llu flags=0x%x",
 		prefix, em->start, em->len, em->disk_bytenr, em->disk_num_bytes,
-		em->ram_bytes, em->offset, em->block_start,
-		em->block_len, em->flags);
+		em->ram_bytes, em->offset, em->block_start, em->flags);
 	ASSERT(0);
 }
 
@@ -315,9 +321,6 @@ static void validate_extent_map(struct btrfs_fs_info *fs_info, struct extent_map
 			if (em->block_start != em->disk_bytenr)
 				dump_extent_map(fs_info,
 					"mismatch block_start/disk_bytenr/offset", em);
-			if (em->disk_num_bytes != em->block_len)
-				dump_extent_map(fs_info,
-					"mismatch disk_num_bytes/block_len", em);
 		} else if (em->block_start != em->disk_bytenr + em->offset) {
 			dump_extent_map(fs_info,
 				"mismatch block_start/disk_bytenr/offset", em);
@@ -355,7 +358,6 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 		if (rb && can_merge_extent_map(merge) && mergeable_maps(merge, em)) {
 			em->start = merge->start;
 			em->len += merge->len;
-			em->block_len += merge->block_len;
 			em->block_start = merge->block_start;
 			em->generation = max(em->generation, merge->generation);
 
@@ -376,7 +378,6 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 		merge = rb_entry(rb, struct extent_map, rb_node);
 	if (rb && can_merge_extent_map(merge) && mergeable_maps(em, merge)) {
 		em->len += merge->len;
-		em->block_len += merge->block_len;
 		if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE)
 			merge_ondisk_extents(em, merge);
 		validate_extent_map(fs_info, em);
@@ -670,7 +671,6 @@ static noinline int merge_extent_mapping(struct btrfs_inode *inode,
 	if (em->block_start < EXTENT_MAP_LAST_BYTE &&
 	    !extent_map_is_compressed(em)) {
 		em->block_start += start_diff;
-		em->block_len = em->len;
 		em->offset += start_diff;
 	}
 	return add_extent_mapping(inode, em, 0);
@@ -890,17 +890,11 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			if (em->block_start < EXTENT_MAP_LAST_BYTE) {
 				split->block_start = em->block_start;
 
-				if (compressed)
-					split->block_len = em->block_len;
-				else
-					split->block_len = split->len;
 				split->disk_bytenr = em->disk_bytenr;
-				split->disk_num_bytes = max(split->block_len,
-							    em->disk_num_bytes);
+				split->disk_num_bytes = em->disk_num_bytes;
 				split->offset = em->offset;
 				split->ram_bytes = em->ram_bytes;
 			} else {
-				split->block_len = 0;
 				split->block_start = em->block_start;
 				split->disk_bytenr = em->disk_bytenr;
 				split->disk_num_bytes = 0;
@@ -930,23 +924,18 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			split->generation = gen;
 
 			if (em->block_start < EXTENT_MAP_LAST_BYTE) {
-				split->disk_num_bytes = max(em->block_len,
-							    em->disk_num_bytes);
+				split->disk_num_bytes = em->disk_num_bytes;
 				split->offset = em->offset + end - em->start;
 				split->ram_bytes = em->ram_bytes;
-				if (compressed) {
-					split->block_len = em->block_len;
-				} else {
+				if (!compressed) {
 					const u64 diff = end - em->start;
 
-					split->block_len = split->len;
 					split->block_start += diff;
 				}
 			} else {
 				split->disk_num_bytes = 0;
 				split->offset = 0;
 				split->ram_bytes = split->len;
-				split->block_len = 0;
 			}
 
 			if (extent_map_in_tree(em)) {
@@ -1104,7 +1093,6 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 	split_pre->disk_num_bytes = split_pre->len;
 	split_pre->offset = 0;
 	split_pre->block_start = new_logical;
-	split_pre->block_len = split_pre->len;
 	split_pre->ram_bytes = split_pre->len;
 	split_pre->flags = flags;
 	split_pre->generation = em->generation;
@@ -1123,7 +1111,6 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 	split_mid->disk_num_bytes = split_mid->len;
 	split_mid->offset = 0;
 	split_mid->block_start = em->block_start + pre;
-	split_mid->block_len = split_mid->len;
 	split_mid->ram_bytes = split_mid->len;
 	split_mid->flags = flags;
 	split_mid->generation = em->generation;

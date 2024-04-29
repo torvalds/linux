@@ -103,15 +103,6 @@ struct extent_map {
 	u64 block_start;
 
 	/*
-	 * The on-disk length for the file extent.
-	 *
-	 * For compressed extents it matches btrfs_file_extent_item::disk_num_bytes.
-	 * For uncompressed extents it matches extent_map::len.
-	 * For holes and inline extents it's -1 and shouldn't be used.
-	 */
-	u64 block_len;
-
-	/*
 	 * Generation of the extent map, for merged em it's the highest
 	 * generation of all merged ems.
 	 * For non-merged extents, it's from btrfs_file_extent_item::generation.
