@@ -54,6 +54,18 @@
  *	handles because handles have to be processed specially when
  *	calculating the HMAC.  In particular, for NV, volatile and
  *	permanent objects you now need to provide the name.
+ * tpm_buf_append_hmac_session() which appends the hmac session to the
+ *	buf in the same way tpm_buf_append_auth does().
+ * tpm_buf_fill_hmac_session() This calculates the correct hash and
+ *	places it in the buffer.  It must be called after the complete
+ *	command buffer is finalized so it can fill in the correct HMAC
+ *	based on the parameters.
+ * tpm_buf_check_hmac_response() which checks the session response in
+ *	the buffer and calculates what it should be.  If there's a
+ *	mismatch it will log a warning and return an error.  If
+ *	tpm_buf_append_hmac_session() did not specify
+ *	TPM_SA_CONTINUE_SESSION then the session will be closed (if it
+ *	hasn't been consumed) and the auth structure freed.
  */
 
 #include "tpm.h"
@@ -103,7 +115,23 @@ struct tpm2_auth {
 		/* scratch for key + IV */
 		u8 scratch[AES_KEY_BYTES + AES_BLOCK_SIZE];
 	};
+	/*
+	 * the session key and passphrase are the same size as the
+	 * name digest (sha256 again).  The session key is constant
+	 * for the use of the session and the passphrase can change
+	 * with every invocation.
+	 *
+	 * Note: these fields must be adjacent and in this order
+	 * because several HMAC/KDF schemes use the combination of the
+	 * session_key and passphrase.
+	 */
 	u8 session_key[SHA256_DIGEST_SIZE];
+	u8 passphrase[SHA256_DIGEST_SIZE];
+	int passphrase_len;
+	struct crypto_aes_ctx aes_ctx;
+	/* saved session attributes: */
+	u8 attrs;
+	__be32 ordinal;
 
 	/*
 	 * memory for three authorization handles.  We know them by
@@ -309,6 +337,230 @@ static void tpm_buf_append_salt(struct tpm_buf *buf, struct tpm_chip *chip)
 	crypto_free_kpp(kpp);
 }
 
+/**
+ * tpm_buf_append_hmac_session() - Append a TPM session element
+ * @chip: the TPM chip structure
+ * @buf: The buffer to be appended
+ * @attributes: The session attributes
+ * @passphrase: The session authority (NULL if none)
+ * @passphrase_len: The length of the session authority (0 if none)
+ *
+ * This fills in a session structure in the TPM command buffer, except
+ * for the HMAC which cannot be computed until the command buffer is
+ * complete.  The type of session is controlled by the @attributes,
+ * the main ones of which are TPM2_SA_CONTINUE_SESSION which means the
+ * session won't terminate after tpm_buf_check_hmac_response(),
+ * TPM2_SA_DECRYPT which means this buffers first parameter should be
+ * encrypted with a session key and TPM2_SA_ENCRYPT, which means the
+ * response buffer's first parameter needs to be decrypted (confusing,
+ * but the defines are written from the point of view of the TPM).
+ *
+ * Any session appended by this command must be finalized by calling
+ * tpm_buf_fill_hmac_session() otherwise the HMAC will be incorrect
+ * and the TPM will reject the command.
+ *
+ * As with most tpm_buf operations, success is assumed because failure
+ * will be caused by an incorrect programming model and indicated by a
+ * kernel message.
+ */
+void tpm_buf_append_hmac_session(struct tpm_chip *chip, struct tpm_buf *buf,
+				 u8 attributes, u8 *passphrase,
+				 int passphrase_len)
+{
+	u8 nonce[SHA256_DIGEST_SIZE];
+	u32 len;
+	struct tpm2_auth *auth = chip->auth;
+
+	/*
+	 * The Architecture Guide requires us to strip trailing zeros
+	 * before computing the HMAC
+	 */
+	while (passphrase && passphrase_len > 0
+	       && passphrase[passphrase_len - 1] == '\0')
+		passphrase_len--;
+
+	auth->attrs = attributes;
+	auth->passphrase_len = passphrase_len;
+	if (passphrase_len)
+		memcpy(auth->passphrase, passphrase, passphrase_len);
+
+	if (auth->session != tpm_buf_length(buf)) {
+		/* we're not the first session */
+		len = get_unaligned_be32(&buf->data[auth->session]);
+		if (4 + len + auth->session != tpm_buf_length(buf)) {
+			WARN(1, "session length mismatch, cannot append");
+			return;
+		}
+
+		/* add our new session */
+		len += 9 + 2 * SHA256_DIGEST_SIZE;
+		put_unaligned_be32(len, &buf->data[auth->session]);
+	} else {
+		tpm_buf_append_u32(buf, 9 + 2 * SHA256_DIGEST_SIZE);
+	}
+
+	/* random number for our nonce */
+	get_random_bytes(nonce, sizeof(nonce));
+	memcpy(auth->our_nonce, nonce, sizeof(nonce));
+	tpm_buf_append_u32(buf, auth->handle);
+	/* our new nonce */
+	tpm_buf_append_u16(buf, SHA256_DIGEST_SIZE);
+	tpm_buf_append(buf, nonce, SHA256_DIGEST_SIZE);
+	tpm_buf_append_u8(buf, auth->attrs);
+	/* and put a placeholder for the hmac */
+	tpm_buf_append_u16(buf, SHA256_DIGEST_SIZE);
+	tpm_buf_append(buf, nonce, SHA256_DIGEST_SIZE);
+}
+EXPORT_SYMBOL(tpm_buf_append_hmac_session);
+
+/**
+ * tpm_buf_fill_hmac_session() - finalize the session HMAC
+ * @chip: the TPM chip structure
+ * @buf: The buffer to be appended
+ *
+ * This command must not be called until all of the parameters have
+ * been appended to @buf otherwise the computed HMAC will be
+ * incorrect.
+ *
+ * This function computes and fills in the session HMAC using the
+ * session key and, if TPM2_SA_DECRYPT was specified, computes the
+ * encryption key and encrypts the first parameter of the command
+ * buffer with it.
+ *
+ * As with most tpm_buf operations, success is assumed because failure
+ * will be caused by an incorrect programming model and indicated by a
+ * kernel message.
+ */
+void tpm_buf_fill_hmac_session(struct tpm_chip *chip, struct tpm_buf *buf)
+{
+	u32 cc, handles, val;
+	struct tpm2_auth *auth = chip->auth;
+	int i;
+	struct tpm_header *head = (struct tpm_header *)buf->data;
+	off_t offset_s = TPM_HEADER_SIZE, offset_p;
+	u8 *hmac = NULL;
+	u32 attrs;
+	u8 cphash[SHA256_DIGEST_SIZE];
+	struct sha256_state sctx;
+
+	/* save the command code in BE format */
+	auth->ordinal = head->ordinal;
+
+	cc = be32_to_cpu(head->ordinal);
+
+	i = tpm2_find_cc(chip, cc);
+	if (i < 0) {
+		dev_err(&chip->dev, "Command 0x%x not found in TPM\n", cc);
+		return;
+	}
+	attrs = chip->cc_attrs_tbl[i];
+
+	handles = (attrs >> TPM2_CC_ATTR_CHANDLES) & GENMASK(2, 0);
+
+	/*
+	 * just check the names, it's easy to make mistakes.  This
+	 * would happen if someone added a handle via
+	 * tpm_buf_append_u32() instead of tpm_buf_append_name()
+	 */
+	for (i = 0; i < handles; i++) {
+		u32 handle = tpm_buf_read_u32(buf, &offset_s);
+
+		if (auth->name_h[i] != handle) {
+			dev_err(&chip->dev, "TPM: handle %d wrong for name\n",
+				  i);
+			return;
+		}
+	}
+	/* point offset_s to the start of the sessions */
+	val = tpm_buf_read_u32(buf, &offset_s);
+	/* point offset_p to the start of the parameters */
+	offset_p = offset_s + val;
+	for (i = 1; offset_s < offset_p; i++) {
+		u32 handle = tpm_buf_read_u32(buf, &offset_s);
+		u16 len;
+		u8 a;
+
+		/* nonce (already in auth) */
+		len = tpm_buf_read_u16(buf, &offset_s);
+		offset_s += len;
+
+		a = tpm_buf_read_u8(buf, &offset_s);
+
+		len = tpm_buf_read_u16(buf, &offset_s);
+		if (handle == auth->handle && auth->attrs == a) {
+			hmac = &buf->data[offset_s];
+			/*
+			 * save our session number so we know which
+			 * session in the response belongs to us
+			 */
+			auth->session = i;
+		}
+
+		offset_s += len;
+	}
+	if (offset_s != offset_p) {
+		dev_err(&chip->dev, "TPM session length is incorrect\n");
+		return;
+	}
+	if (!hmac) {
+		dev_err(&chip->dev, "TPM could not find HMAC session\n");
+		return;
+	}
+
+	/* encrypt before HMAC */
+	if (auth->attrs & TPM2_SA_DECRYPT) {
+		u16 len;
+
+		/* need key and IV */
+		tpm2_KDFa(auth->session_key, SHA256_DIGEST_SIZE
+			  + auth->passphrase_len, "CFB", auth->our_nonce,
+			  auth->tpm_nonce, AES_KEY_BYTES + AES_BLOCK_SIZE,
+			  auth->scratch);
+
+		len = tpm_buf_read_u16(buf, &offset_p);
+		aes_expandkey(&auth->aes_ctx, auth->scratch, AES_KEY_BYTES);
+		aescfb_encrypt(&auth->aes_ctx, &buf->data[offset_p],
+			       &buf->data[offset_p], len,
+			       auth->scratch + AES_KEY_BYTES);
+		/* reset p to beginning of parameters for HMAC */
+		offset_p -= 2;
+	}
+
+	sha256_init(&sctx);
+	/* ordinal is already BE */
+	sha256_update(&sctx, (u8 *)&head->ordinal, sizeof(head->ordinal));
+	/* add the handle names */
+	for (i = 0; i < handles; i++) {
+		enum tpm2_mso_type mso = tpm2_handle_mso(auth->name_h[i]);
+
+		if (mso == TPM2_MSO_PERSISTENT ||
+		    mso == TPM2_MSO_VOLATILE ||
+		    mso == TPM2_MSO_NVRAM) {
+			sha256_update(&sctx, auth->name[i],
+				      name_size(auth->name[i]));
+		} else {
+			__be32 h = cpu_to_be32(auth->name_h[i]);
+
+			sha256_update(&sctx, (u8 *)&h, 4);
+		}
+	}
+	if (offset_s != tpm_buf_length(buf))
+		sha256_update(&sctx, &buf->data[offset_s],
+			      tpm_buf_length(buf) - offset_s);
+	sha256_final(&sctx, cphash);
+
+	/* now calculate the hmac */
+	tpm2_hmac_init(&sctx, auth->session_key, sizeof(auth->session_key)
+		       + auth->passphrase_len);
+	sha256_update(&sctx, cphash, sizeof(cphash));
+	sha256_update(&sctx, auth->our_nonce, sizeof(auth->our_nonce));
+	sha256_update(&sctx, auth->tpm_nonce, sizeof(auth->tpm_nonce));
+	sha256_update(&sctx, &auth->attrs, 1);
+	tpm2_hmac_final(&sctx, auth->session_key, sizeof(auth->session_key)
+			+ auth->passphrase_len, hmac);
+}
+EXPORT_SYMBOL(tpm_buf_fill_hmac_session);
+
 static int tpm2_parse_read_public(char *name, struct tpm_buf *buf)
 {
 	struct tpm_header *head = (struct tpm_header *)buf->data;
@@ -406,6 +658,154 @@ void tpm_buf_append_name(struct tpm_chip *chip, struct tpm_buf *buf,
 		memcpy(auth->name[slot], name, name_size(name));
 }
 EXPORT_SYMBOL(tpm_buf_append_name);
+
+/**
+ * tpm_buf_check_hmac_response() - check the TPM return HMAC for correctness
+ * @chip: the TPM chip structure
+ * @buf: the original command buffer (which now contains the response)
+ * @rc: the return code from tpm_transmit_cmd
+ *
+ * If @rc is non zero, @buf may not contain an actual return, so @rc
+ * is passed through as the return and the session cleaned up and
+ * de-allocated if required (this is required if
+ * TPM2_SA_CONTINUE_SESSION was not specified as a session flag).
+ *
+ * If @rc is zero, the response HMAC is computed against the returned
+ * @buf and matched to the TPM one in the session area.  If there is a
+ * mismatch, an error is logged and -EINVAL returned.
+ *
+ * The reason for this is that the command issue and HMAC check
+ * sequence should look like:
+ *
+ *	rc = tpm_transmit_cmd(...);
+ *	rc = tpm_buf_check_hmac_response(&buf, auth, rc);
+ *	if (rc)
+ *		...
+ *
+ * Which is easily layered into the current contrl flow.
+ *
+ * Returns: 0 on success or an error.
+ */
+int tpm_buf_check_hmac_response(struct tpm_chip *chip, struct tpm_buf *buf,
+				int rc)
+{
+	struct tpm_header *head = (struct tpm_header *)buf->data;
+	struct tpm2_auth *auth = chip->auth;
+	off_t offset_s, offset_p;
+	u8 rphash[SHA256_DIGEST_SIZE];
+	u32 attrs;
+	struct sha256_state sctx;
+	u16 tag = be16_to_cpu(head->tag);
+	u32 cc = be32_to_cpu(auth->ordinal);
+	int parm_len, len, i, handles;
+
+	if (auth->session >= TPM_HEADER_SIZE) {
+		WARN(1, "tpm session not filled correctly\n");
+		goto out;
+	}
+
+	if (rc != 0)
+		/* pass non success rc through and close the session */
+		goto out;
+
+	rc = -EINVAL;
+	if (tag != TPM2_ST_SESSIONS) {
+		dev_err(&chip->dev, "TPM: HMAC response check has no sessions tag\n");
+		goto out;
+	}
+
+	i = tpm2_find_cc(chip, cc);
+	if (i < 0)
+		goto out;
+	attrs = chip->cc_attrs_tbl[i];
+	handles = (attrs >> TPM2_CC_ATTR_RHANDLE) & 1;
+
+	/* point to area beyond handles */
+	offset_s = TPM_HEADER_SIZE + handles * 4;
+	parm_len = tpm_buf_read_u32(buf, &offset_s);
+	offset_p = offset_s;
+	offset_s += parm_len;
+	/* skip over any sessions before ours */
+	for (i = 0; i < auth->session - 1; i++) {
+		len = tpm_buf_read_u16(buf, &offset_s);
+		offset_s += len + 1;
+		len = tpm_buf_read_u16(buf, &offset_s);
+		offset_s += len;
+	}
+	/* TPM nonce */
+	len = tpm_buf_read_u16(buf, &offset_s);
+	if (offset_s + len > tpm_buf_length(buf))
+		goto out;
+	if (len != SHA256_DIGEST_SIZE)
+		goto out;
+	memcpy(auth->tpm_nonce, &buf->data[offset_s], len);
+	offset_s += len;
+	attrs = tpm_buf_read_u8(buf, &offset_s);
+	len = tpm_buf_read_u16(buf, &offset_s);
+	if (offset_s + len != tpm_buf_length(buf))
+		goto out;
+	if (len != SHA256_DIGEST_SIZE)
+		goto out;
+	/*
+	 * offset_s points to the HMAC. now calculate comparison, beginning
+	 * with rphash
+	 */
+	sha256_init(&sctx);
+	/* yes, I know this is now zero, but it's what the standard says */
+	sha256_update(&sctx, (u8 *)&head->return_code,
+		      sizeof(head->return_code));
+	/* ordinal is already BE */
+	sha256_update(&sctx, (u8 *)&auth->ordinal, sizeof(auth->ordinal));
+	sha256_update(&sctx, &buf->data[offset_p], parm_len);
+	sha256_final(&sctx, rphash);
+
+	/* now calculate the hmac */
+	tpm2_hmac_init(&sctx, auth->session_key, sizeof(auth->session_key)
+		       + auth->passphrase_len);
+	sha256_update(&sctx, rphash, sizeof(rphash));
+	sha256_update(&sctx, auth->tpm_nonce, sizeof(auth->tpm_nonce));
+	sha256_update(&sctx, auth->our_nonce, sizeof(auth->our_nonce));
+	sha256_update(&sctx, &auth->attrs, 1);
+	/* we're done with the rphash, so put our idea of the hmac there */
+	tpm2_hmac_final(&sctx, auth->session_key, sizeof(auth->session_key)
+			+ auth->passphrase_len, rphash);
+	if (memcmp(rphash, &buf->data[offset_s], SHA256_DIGEST_SIZE) == 0) {
+		rc = 0;
+	} else {
+		dev_err(&chip->dev, "TPM: HMAC check failed\n");
+		goto out;
+	}
+
+	/* now do response decryption */
+	if (auth->attrs & TPM2_SA_ENCRYPT) {
+		/* need key and IV */
+		tpm2_KDFa(auth->session_key, SHA256_DIGEST_SIZE
+			  + auth->passphrase_len, "CFB", auth->tpm_nonce,
+			  auth->our_nonce, AES_KEY_BYTES + AES_BLOCK_SIZE,
+			  auth->scratch);
+
+		len = tpm_buf_read_u16(buf, &offset_p);
+		aes_expandkey(&auth->aes_ctx, auth->scratch, AES_KEY_BYTES);
+		aescfb_decrypt(&auth->aes_ctx, &buf->data[offset_p],
+			       &buf->data[offset_p], len,
+			       auth->scratch + AES_KEY_BYTES);
+	}
+
+ out:
+	if ((auth->attrs & TPM2_SA_CONTINUE_SESSION) == 0) {
+		if (rc)
+			/* manually close the session if it wasn't consumed */
+			tpm2_flush_context(chip, auth->handle);
+		memzero_explicit(auth, sizeof(*auth));
+	} else {
+		/* reset for next use  */
+		auth->session = TPM_HEADER_SIZE;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(tpm_buf_check_hmac_response);
+
 /**
  * tpm2_end_auth_session() - kill the allocated auth session
  * @chip: the TPM chip structure
