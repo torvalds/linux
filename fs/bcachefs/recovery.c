@@ -597,56 +597,54 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (c->opts.norecovery)
 		c->opts.recovery_pass_last = BCH_RECOVERY_PASS_journal_replay - 1;
 
-	if (!c->opts.nochanges) {
-		mutex_lock(&c->sb_lock);
-		struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
-		bool write_sb = false;
+	mutex_lock(&c->sb_lock);
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+	bool write_sb = false;
 
-		if (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb)) {
-			ext->recovery_passes_required[0] |=
-				cpu_to_le64(bch2_recovery_passes_to_stable(BIT_ULL(BCH_RECOVERY_PASS_check_topology)));
-			write_sb = true;
-		}
-
-		u64 sb_passes = bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
-		if (sb_passes) {
-			struct printbuf buf = PRINTBUF;
-			prt_str(&buf, "superblock requires following recovery passes to be run:\n  ");
-			prt_bitflags(&buf, bch2_recovery_passes, sb_passes);
-			bch_info(c, "%s", buf.buf);
-			printbuf_exit(&buf);
-		}
-
-		if (bch2_check_version_downgrade(c)) {
-			struct printbuf buf = PRINTBUF;
-
-			prt_str(&buf, "Version downgrade required:");
-
-			__le64 passes = ext->recovery_passes_required[0];
-			bch2_sb_set_downgrade(c,
-					BCH_VERSION_MINOR(bcachefs_metadata_version_current),
-					BCH_VERSION_MINOR(c->sb.version));
-			passes = ext->recovery_passes_required[0] & ~passes;
-			if (passes) {
-				prt_str(&buf, "\n  running recovery passes: ");
-				prt_bitflags(&buf, bch2_recovery_passes,
-					     bch2_recovery_passes_from_stable(le64_to_cpu(passes)));
-			}
-
-			bch_info(c, "%s", buf.buf);
-			printbuf_exit(&buf);
-			write_sb = true;
-		}
-
-		if (check_version_upgrade(c))
-			write_sb = true;
-
-		if (write_sb)
-			bch2_write_super(c);
-
-		c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
-		mutex_unlock(&c->sb_lock);
+	if (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb)) {
+		ext->recovery_passes_required[0] |=
+			cpu_to_le64(bch2_recovery_passes_to_stable(BIT_ULL(BCH_RECOVERY_PASS_check_topology)));
+		write_sb = true;
 	}
+
+	u64 sb_passes = bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+	if (sb_passes) {
+		struct printbuf buf = PRINTBUF;
+		prt_str(&buf, "superblock requires following recovery passes to be run:\n  ");
+		prt_bitflags(&buf, bch2_recovery_passes, sb_passes);
+		bch_info(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
+
+	if (bch2_check_version_downgrade(c)) {
+		struct printbuf buf = PRINTBUF;
+
+		prt_str(&buf, "Version downgrade required:");
+
+		__le64 passes = ext->recovery_passes_required[0];
+		bch2_sb_set_downgrade(c,
+				      BCH_VERSION_MINOR(bcachefs_metadata_version_current),
+				      BCH_VERSION_MINOR(c->sb.version));
+		passes = ext->recovery_passes_required[0] & ~passes;
+		if (passes) {
+			prt_str(&buf, "\n  running recovery passes: ");
+			prt_bitflags(&buf, bch2_recovery_passes,
+				     bch2_recovery_passes_from_stable(le64_to_cpu(passes)));
+		}
+
+		bch_info(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+		write_sb = true;
+	}
+
+	if (check_version_upgrade(c))
+		write_sb = true;
+
+	if (write_sb)
+		bch2_write_super(c);
+
+	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+	mutex_unlock(&c->sb_lock);
 
 	if (c->opts.fsck && IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
 		c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
@@ -832,8 +830,8 @@ use_clean:
 	}
 
 	mutex_lock(&c->sb_lock);
-	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
-	bool write_sb = false;
+	ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+	write_sb = false;
 
 	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) != le16_to_cpu(c->disk_sb.sb->version)) {
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, le16_to_cpu(c->disk_sb.sb->version));
