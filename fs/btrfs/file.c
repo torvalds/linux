@@ -2349,6 +2349,7 @@ out:
 		hole_em->orig_start = offset;
 
 		hole_em->block_start = EXTENT_MAP_HOLE;
+		hole_em->disk_bytenr = EXTENT_MAP_HOLE;
 		hole_em->block_len = 0;
 		hole_em->disk_num_bytes = 0;
 		hole_em->generation = trans->transid;

@@ -71,10 +71,27 @@ struct extent_map {
 	u64 orig_start;
 
 	/*
+	 * The bytenr of the full on-disk extent.
+	 *
+	 * For regular extents it's btrfs_file_extent_item::disk_bytenr.
+	 * For holes it's EXTENT_MAP_HOLE and for inline extents it's
+	 * EXTENT_MAP_INLINE.
+	 */
+	u64 disk_bytenr;
+
+	/*
 	 * The full on-disk extent length, matching
 	 * btrfs_file_extent_item::disk_num_bytes.
 	 */
 	u64 disk_num_bytes;
+
+	/*
+	 * Offset inside the decompressed extent.
+	 *
+	 * For regular extents it's btrfs_file_extent_item::offset.
+	 * For holes and inline extents it's 0.
+	 */
+	u64 offset;
 
 	/*
 	 * The decompressed size of the whole on-disk extent, matching
