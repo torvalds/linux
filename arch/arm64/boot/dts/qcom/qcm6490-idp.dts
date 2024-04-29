@@ -667,6 +667,7 @@
 };
 
 &usb_1_dwc3 {
+	/delete-property/ usb-role-switch;
 	dr_mode = "peripheral";
 };
 
