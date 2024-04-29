@@ -5,6 +5,7 @@
  *	Copyright (C) 2016 Red Hat, Inc.
  */
 
+#include <linux/error-injection.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -550,6 +551,7 @@ struct page *page_pool_alloc_pages(struct page_pool *pool, gfp_t gfp)
 	return page;
 }
 EXPORT_SYMBOL(page_pool_alloc_pages);
+ALLOW_ERROR_INJECTION(page_pool_alloc_pages, NULL);
 
 /* Calculate distance between two u32 values, valid if distance is below 2^(31)
  *  https://en.wikipedia.org/wiki/Serial_number_arithmetic#General_Solution
