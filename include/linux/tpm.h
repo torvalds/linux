@@ -31,6 +31,14 @@
 struct tpm_chip;
 struct trusted_key_payload;
 struct trusted_key_options;
+/* opaque structure, holds auth session parameters like the session key */
+struct tpm2_auth;
+
+enum tpm2_session_types {
+	TPM2_SE_HMAC	= 0x00,
+	TPM2_SE_POLICY	= 0x01,
+	TPM2_SE_TRIAL	= 0x02,
+};
 
 /* if you add a new hash to this, increment TPM_MAX_HASHES below */
 enum tpm_algorithms {
@@ -203,6 +211,7 @@ struct tpm_chip {
 	u8 null_key_name[TPM2_NAME_SIZE];
 	u8 null_ec_key_x[EC_PT_SZ];
 	u8 null_ec_key_y[EC_PT_SZ];
+	struct tpm2_auth *auth;
 #endif
 };
 
@@ -266,6 +275,7 @@ enum tpm2_command_codes {
 	TPM2_CC_CONTEXT_LOAD	        = 0x0161,
 	TPM2_CC_CONTEXT_SAVE	        = 0x0162,
 	TPM2_CC_FLUSH_CONTEXT	        = 0x0165,
+	TPM2_CC_START_AUTH_SESS		= 0x0176,
 	TPM2_CC_VERIFY_SIGNATURE        = 0x0177,
 	TPM2_CC_GET_CAPABILITY	        = 0x017A,
 	TPM2_CC_GET_RANDOM	        = 0x017B,
@@ -349,16 +359,21 @@ struct tpm_buf {
 	u32 flags;
 	u32 length;
 	u8 *data;
+	u8 handles;
 };
 
 enum tpm2_object_attributes {
 	TPM2_OA_FIXED_TPM		= BIT(1),
+	TPM2_OA_ST_CLEAR		= BIT(2),
 	TPM2_OA_FIXED_PARENT		= BIT(4),
 	TPM2_OA_SENSITIVE_DATA_ORIGIN	= BIT(5),
 	TPM2_OA_USER_WITH_AUTH		= BIT(6),
+	TPM2_OA_ADMIN_WITH_POLICY	= BIT(7),
 	TPM2_OA_NO_DA			= BIT(10),
+	TPM2_OA_ENCRYPTED_DUPLICATION	= BIT(11),
 	TPM2_OA_RESTRICTED		= BIT(16),
 	TPM2_OA_DECRYPT			= BIT(17),
+	TPM2_OA_SIGN			= BIT(18),
 };
 
 /*
@@ -378,6 +393,11 @@ enum tpm2_object_attributes {
 
 enum tpm2_session_attributes {
 	TPM2_SA_CONTINUE_SESSION	= BIT(0),
+	TPM2_SA_AUDIT_EXCLUSIVE		= BIT(1),
+	TPM2_SA_AUDIT_RESET		= BIT(3),
+	TPM2_SA_DECRYPT			= BIT(5),
+	TPM2_SA_ENCRYPT			= BIT(6),
+	TPM2_SA_AUDIT			= BIT(7),
 };
 
 struct tpm2_hash {
@@ -469,4 +489,18 @@ static inline void tpm_buf_append_empty_auth(struct tpm_buf *buf, u32 handle)
 {
 }
 #endif
+#ifdef CONFIG_TCG_TPM2_HMAC
+
+int tpm2_start_auth_session(struct tpm_chip *chip);
+void tpm2_end_auth_session(struct tpm_chip *chip);
+#else
+static inline int tpm2_start_auth_session(struct tpm_chip *chip)
+{
+	return 0;
+}
+static inline void tpm2_end_auth_session(struct tpm_chip *chip)
+{
+}
+#endif	/* CONFIG_TCG_TPM2_HMAC */
+
 #endif

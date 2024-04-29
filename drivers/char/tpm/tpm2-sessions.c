@@ -3,12 +3,100 @@
 /*
  * Copyright (C) 2018 James.Bottomley@HansenPartnership.com
  *
+ * Cryptographic helper routines for handling TPM2 sessions for
+ * authorization HMAC and request response encryption.
+ *
+ * The idea is to ensure that every TPM command is HMAC protected by a
+ * session, meaning in-flight tampering would be detected and in
+ * addition all sensitive inputs and responses should be encrypted.
+ *
+ * The basic way this works is to use a TPM feature called salted
+ * sessions where a random secret used in session construction is
+ * encrypted to the public part of a known TPM key.  The problem is we
+ * have no known keys, so initially a primary Elliptic Curve key is
+ * derived from the NULL seed (we use EC because most TPMs generate
+ * these keys much faster than RSA ones).  The curve used is NIST_P256
+ * because that's now mandated to be present in 'TCG TPM v2.0
+ * Provisioning Guidance'
+ *
+ * Threat problems: the initial TPM2_CreatePrimary is not (and cannot
+ * be) session protected, so a clever Man in the Middle could return a
+ * public key they control to this command and from there intercept
+ * and decode all subsequent session based transactions.  The kernel
+ * cannot mitigate this threat but, after boot, userspace can get
+ * proof this has not happened by asking the TPM to certify the NULL
+ * key.  This certification would chain back to the TPM Endorsement
+ * Certificate and prove the NULL seed primary had not been tampered
+ * with and thus all sessions must have been cryptographically secure.
+ * To assist with this, the initial NULL seed public key name is made
+ * available in a sysfs file.
+ *
+ * Use of these functions:
+ *
+ * The design is all the crypto, hash and hmac gunk is confined in this
+ * file and never needs to be seen even by the kernel internal user.  To
+ * the user there's an init function tpm2_sessions_init() that needs to
+ * be called once per TPM which generates the NULL seed primary key.
+ *
+ * These are the usage functions:
+ *
+ * tpm2_start_auth_session() which allocates the opaque auth structure
+ *	and gets a session from the TPM.  This must be called before
+ *	any of the following functions.  The session is protected by a
+ *	session_key which is derived from a random salt value
+ *	encrypted to the NULL seed.
+ * tpm2_end_auth_session() kills the session and frees the resources.
+ *	Under normal operation this function is done by
+ *	tpm_buf_check_hmac_response(), so this is only to be used on
+ *	error legs where the latter is not executed.
  */
 
 #include "tpm.h"
+#include <linux/random.h>
+#include <linux/scatterlist.h>
 #include <asm/unaligned.h>
+#include <crypto/kpp.h>
+#include <crypto/ecdh.h>
 #include <crypto/hash.h>
 #include <crypto/hmac.h>
+
+/*
+ * This is the structure that carries all the auth information (like
+ * session handle, nonces, session key and auth) from use to use it is
+ * designed to be opaque to anything outside.
+ */
+struct tpm2_auth {
+	u32 handle;
+	/*
+	 * This has two meanings: before tpm_buf_fill_hmac_session()
+	 * it marks the offset in the buffer of the start of the
+	 * sessions (i.e. after all the handles).  Once the buffer has
+	 * been filled it markes the session number of our auth
+	 * session so we can find it again in the response buffer.
+	 *
+	 * The two cases are distinguished because the first offset
+	 * must always be greater than TPM_HEADER_SIZE and the second
+	 * must be less than or equal to 5.
+	 */
+	u32 session;
+	/*
+	 * the size here is variable and set by the size of our_nonce
+	 * which must be between 16 and the name hash length. we set
+	 * the maximum sha256 size for the greatest protection
+	 */
+	u8 our_nonce[SHA256_DIGEST_SIZE];
+	u8 tpm_nonce[SHA256_DIGEST_SIZE];
+	/*
+	 * the salt is only used across the session command/response
+	 * after that it can be used as a scratch area
+	 */
+	union {
+		u8 salt[EC_PT_SZ];
+		/* scratch for key + IV */
+		u8 scratch[AES_KEY_BYTES + AES_BLOCK_SIZE];
+	};
+	u8 session_key[SHA256_DIGEST_SIZE];
+};
 
 /*
  * It turns out the crypto hmac(sha256) is hard for us to consume
@@ -112,6 +200,199 @@ static void tpm2_KDFe(u8 z[EC_PT_SZ], const char *str, u8 *pt_u, u8 *pt_v,
 	sha256_update(&sctx, pt_v, EC_PT_SZ);
 	sha256_final(&sctx, out);
 }
+
+static void tpm_buf_append_salt(struct tpm_buf *buf, struct tpm_chip *chip)
+{
+	struct crypto_kpp *kpp;
+	struct kpp_request *req;
+	struct scatterlist s[2], d[1];
+	struct ecdh p = {0};
+	u8 encoded_key[EC_PT_SZ], *x, *y;
+	unsigned int buf_len;
+
+	/* secret is two sized points */
+	tpm_buf_append_u16(buf, (EC_PT_SZ + 2)*2);
+	/*
+	 * we cheat here and append uninitialized data to form
+	 * the points.  All we care about is getting the two
+	 * co-ordinate pointers, which will be used to overwrite
+	 * the uninitialized data
+	 */
+	tpm_buf_append_u16(buf, EC_PT_SZ);
+	x = &buf->data[tpm_buf_length(buf)];
+	tpm_buf_append(buf, encoded_key, EC_PT_SZ);
+	tpm_buf_append_u16(buf, EC_PT_SZ);
+	y = &buf->data[tpm_buf_length(buf)];
+	tpm_buf_append(buf, encoded_key, EC_PT_SZ);
+	sg_init_table(s, 2);
+	sg_set_buf(&s[0], x, EC_PT_SZ);
+	sg_set_buf(&s[1], y, EC_PT_SZ);
+
+	kpp = crypto_alloc_kpp("ecdh-nist-p256", CRYPTO_ALG_INTERNAL, 0);
+	if (IS_ERR(kpp)) {
+		dev_err(&chip->dev, "crypto ecdh allocation failed\n");
+		return;
+	}
+
+	buf_len = crypto_ecdh_key_len(&p);
+	if (sizeof(encoded_key) < buf_len) {
+		dev_err(&chip->dev, "salt buffer too small needs %d\n",
+			buf_len);
+		goto out;
+	}
+	crypto_ecdh_encode_key(encoded_key, buf_len, &p);
+	/* this generates a random private key */
+	crypto_kpp_set_secret(kpp, encoded_key, buf_len);
+
+	/* salt is now the public point of this private key */
+	req = kpp_request_alloc(kpp, GFP_KERNEL);
+	if (!req)
+		goto out;
+	kpp_request_set_input(req, NULL, 0);
+	kpp_request_set_output(req, s, EC_PT_SZ*2);
+	crypto_kpp_generate_public_key(req);
+	/*
+	 * we're not done: now we have to compute the shared secret
+	 * which is our private key multiplied by the tpm_key public
+	 * point, we actually only take the x point and discard the y
+	 * point and feed it through KDFe to get the final secret salt
+	 */
+	sg_set_buf(&s[0], chip->null_ec_key_x, EC_PT_SZ);
+	sg_set_buf(&s[1], chip->null_ec_key_y, EC_PT_SZ);
+	kpp_request_set_input(req, s, EC_PT_SZ*2);
+	sg_init_one(d, chip->auth->salt, EC_PT_SZ);
+	kpp_request_set_output(req, d, EC_PT_SZ);
+	crypto_kpp_compute_shared_secret(req);
+	kpp_request_free(req);
+
+	/*
+	 * pass the shared secret through KDFe for salt. Note salt
+	 * area is used both for input shared secret and output salt.
+	 * This works because KDFe fully consumes the secret before it
+	 * writes the salt
+	 */
+	tpm2_KDFe(chip->auth->salt, "SECRET", x, chip->null_ec_key_x,
+		  chip->auth->salt);
+
+ out:
+	crypto_free_kpp(kpp);
+}
+/**
+ * tpm2_end_auth_session() - kill the allocated auth session
+ * @chip: the TPM chip structure
+ *
+ * ends the session started by tpm2_start_auth_session and frees all
+ * the resources.  Under normal conditions,
+ * tpm_buf_check_hmac_response() will correctly end the session if
+ * required, so this function is only for use in error legs that will
+ * bypass the normal invocation of tpm_buf_check_hmac_response().
+ */
+void tpm2_end_auth_session(struct tpm_chip *chip)
+{
+	tpm2_flush_context(chip, chip->auth->handle);
+	memzero_explicit(chip->auth, sizeof(*chip->auth));
+}
+EXPORT_SYMBOL(tpm2_end_auth_session);
+
+static int tpm2_parse_start_auth_session(struct tpm2_auth *auth,
+					 struct tpm_buf *buf)
+{
+	struct tpm_header *head = (struct tpm_header *)buf->data;
+	u32 tot_len = be32_to_cpu(head->length);
+	off_t offset = TPM_HEADER_SIZE;
+	u32 val;
+
+	/* we're starting after the header so adjust the length */
+	tot_len -= TPM_HEADER_SIZE;
+
+	/* should have handle plus nonce */
+	if (tot_len != 4 + 2 + sizeof(auth->tpm_nonce))
+		return -EINVAL;
+
+	auth->handle = tpm_buf_read_u32(buf, &offset);
+	val = tpm_buf_read_u16(buf, &offset);
+	if (val != sizeof(auth->tpm_nonce))
+		return -EINVAL;
+	memcpy(auth->tpm_nonce, &buf->data[offset], sizeof(auth->tpm_nonce));
+	/* now compute the session key from the nonces */
+	tpm2_KDFa(auth->salt, sizeof(auth->salt), "ATH", auth->tpm_nonce,
+		  auth->our_nonce, sizeof(auth->session_key),
+		  auth->session_key);
+
+	return 0;
+}
+
+/**
+ * tpm2_start_auth_session() - create a HMAC authentication session with the TPM
+ * @chip: the TPM chip structure to create the session with
+ *
+ * This function loads the NULL seed from its saved context and starts
+ * an authentication session on the null seed, fills in the
+ * @chip->auth structure to contain all the session details necessary
+ * for performing the HMAC, encrypt and decrypt operations and
+ * returns.  The NULL seed is flushed before this function returns.
+ *
+ * Return: zero on success or actual error encountered.
+ */
+int tpm2_start_auth_session(struct tpm_chip *chip)
+{
+	struct tpm_buf buf;
+	struct tpm2_auth *auth = chip->auth;
+	int rc;
+	/* null seed context has no offset, but we must provide one */
+	unsigned int offset = 0;
+	u32 nullkey;
+
+	rc = tpm2_load_context(chip, chip->null_key_context, &offset,
+			       &nullkey);
+	if (rc)
+		goto out;
+
+	auth->session = TPM_HEADER_SIZE;
+
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_START_AUTH_SESS);
+	if (rc)
+		goto out;
+
+	/* salt key handle */
+	tpm_buf_append_u32(&buf, nullkey);
+	/* bind key handle */
+	tpm_buf_append_u32(&buf, TPM2_RH_NULL);
+	/* nonce caller */
+	get_random_bytes(auth->our_nonce, sizeof(auth->our_nonce));
+	tpm_buf_append_u16(&buf, sizeof(auth->our_nonce));
+	tpm_buf_append(&buf, auth->our_nonce, sizeof(auth->our_nonce));
+
+	/* append encrypted salt and squirrel away unencrypted in auth */
+	tpm_buf_append_salt(&buf, chip);
+	/* session type (HMAC, audit or policy) */
+	tpm_buf_append_u8(&buf, TPM2_SE_HMAC);
+
+	/* symmetric encryption parameters */
+	/* symmetric algorithm */
+	tpm_buf_append_u16(&buf, TPM_ALG_AES);
+	/* bits for symmetric algorithm */
+	tpm_buf_append_u16(&buf, AES_KEY_BITS);
+	/* symmetric algorithm mode (must be CFB) */
+	tpm_buf_append_u16(&buf, TPM_ALG_CFB);
+	/* hash algorithm for session */
+	tpm_buf_append_u16(&buf, TPM_ALG_SHA256);
+
+	rc = tpm_transmit_cmd(chip, &buf, 0, "start auth session");
+	tpm2_flush_context(chip, nullkey);
+
+	if (rc == TPM2_RC_SUCCESS)
+		rc = tpm2_parse_start_auth_session(auth, &buf);
+
+	tpm_buf_destroy(&buf);
+
+	if (rc)
+		goto out;
+
+ out:
+	return rc;
+}
+EXPORT_SYMBOL(tpm2_start_auth_session);
 
 /**
  * tpm2_parse_create_primary() - parse the data returned from TPM_CC_CREATE_PRIMARY
@@ -422,6 +703,10 @@ int tpm2_sessions_init(struct tpm_chip *chip)
 	rc = tpm2_create_null_primary(chip);
 	if (rc)
 		dev_err(&chip->dev, "TPM: security failed (NULL seed derivation): %d\n", rc);
+
+	chip->auth = kmalloc(sizeof(*chip->auth), GFP_KERNEL);
+	if (!chip->auth)
+		return -ENOMEM;
 
 	return rc;
 }

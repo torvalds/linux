@@ -30,6 +30,8 @@ if TCG_TPM
 config TCG_TPM2_HMAC
 	bool "Use HMAC and encrypted transactions on the TPM bus"
 	default y
+	select CRYPTO_ECDH
+	select CRYPTO_LIB_AESCFB
 	select CRYPTO_LIB_SHA256
 	help
 	  Setting this causes us to deploy a scheme which uses request
