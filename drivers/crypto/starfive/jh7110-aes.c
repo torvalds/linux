@@ -590,12 +590,16 @@ static int starfive_aes_do_one_req(struct crypto_engine *engine, void *areq)
 	if (ret)
 		return ret;
 
+	if (!cryp->total_in)
+		goto finish_req;
+
 	starfive_aes_dma_init(cryp);
 
 	ret = starfive_aes_map_sg(cryp, rctx->in_sg, rctx->out_sg);
 	if (ret)
 		return ret;
 
+finish_req:
 	starfive_aes_finish_req(ctx);
 
 	return 0;
