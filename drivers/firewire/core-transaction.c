@@ -973,11 +973,13 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 {
 	struct fw_request *request;
 	unsigned long long offset;
+	unsigned int tcode;
 
 	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
 		return;
 
-	if (tcode_is_link_internal(async_header_get_tcode(p->header))) {
+	tcode = async_header_get_tcode(p->header);
+	if (tcode_is_link_internal(tcode)) {
 		fw_cdev_handle_phy_packet(card, p);
 		return;
 	}
@@ -987,6 +989,10 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 		/* FIXME: send statically allocated busy packet. */
 		return;
 	}
+
+	trace_async_request_inbound((uintptr_t)request, p->generation, p->speed, p->ack,
+				    p->timestamp, p->header, request->data,
+				    tcode_is_read_request(tcode) ? 0 : request->length / 4);
 
 	offset = async_header_get_offset(p->header);
 
