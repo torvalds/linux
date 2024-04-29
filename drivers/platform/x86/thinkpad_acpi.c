@@ -3912,7 +3912,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			if (tp_features.hotkey_wlsw &&
 					hkey == TP_HKEY_EV_RFKILL_CHANGED) {
 				tpacpi_send_radiosw_update();
-				send_acpi_ev = 0;
+				send_acpi_ev = false;
 				known_ev = true;
 			}
 			break;
