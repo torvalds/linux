@@ -880,10 +880,10 @@ static const struct xhci_driver_data reneses_data = {
 
 /* PCI driver selection metadata; PCI hotplugging uses this */
 static const struct pci_device_id pci_ids[] = {
-	{ PCI_DEVICE(0x1912, 0x0014),
+	{ PCI_DEVICE(PCI_VENDOR_ID_RENESAS, 0x0014),
 		.driver_data =  (unsigned long)&reneses_data,
 	},
-	{ PCI_DEVICE(0x1912, 0x0015),
+	{ PCI_DEVICE(PCI_VENDOR_ID_RENESAS, 0x0015),
 		.driver_data =  (unsigned long)&reneses_data,
 	},
 	/* handle any USB 3.0 xHCI controller */
