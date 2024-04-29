@@ -2804,7 +2804,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				xhci_handle_halted_endpoint(xhci, ep, NULL,
 							    EP_HARD_RESET);
 			}
-			goto cleanup;
+			return 0;
 		}
 
 		/* We've skipped all the TDs on the ep ring when ep->skip set */
@@ -2812,7 +2812,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			ep->skip = false;
 			xhci_dbg(xhci, "All tds on the ep_ring skipped. Clear skip flag for slot %u ep %u.\n",
 				 slot_id, ep_index);
-			goto cleanup;
+			return 0;
 		}
 
 		td = list_first_entry(&ep_ring->td_list, struct xhci_td,
@@ -2851,7 +2851,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			if ((xhci->quirks & XHCI_SPURIOUS_SUCCESS) &&
 			    ep_ring->last_td_was_short) {
 				ep_ring->last_td_was_short = false;
-				goto cleanup;
+				return 0;
 			}
 
 			/*
