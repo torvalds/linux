@@ -4221,6 +4221,11 @@ xfs_bmapi_allocate(
 	if (bma->blkno == NULLFSBLOCK)
 		return -ENOSPC;
 
+	if (WARN_ON_ONCE(!xfs_valid_startblock(bma->ip, bma->blkno))) {
+		xfs_bmap_mark_sick(bma->ip, whichfork);
+		return -EFSCORRUPTED;
+	}
+
 	if (bma->flags & XFS_BMAPI_ZERO) {
 		error = xfs_zero_extent(bma->ip, bma->blkno, bma->length);
 		if (error)
@@ -4712,12 +4717,6 @@ xfs_bmapi_convert_one_delalloc(
 	error = xfs_bmapi_allocate(&bma);
 	if (error)
 		goto out_finish;
-
-	if (WARN_ON_ONCE(!xfs_valid_startblock(ip, bma.got.br_startblock))) {
-		xfs_bmap_mark_sick(ip, whichfork);
-		error = -EFSCORRUPTED;
-		goto out_finish;
-	}
 
 	XFS_STATS_ADD(mp, xs_xstrat_bytes, XFS_FSB_TO_B(mp, bma.length));
 	XFS_STATS_INC(mp, xs_xstrat_quick);
