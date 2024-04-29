@@ -5493,7 +5493,7 @@ out:
 	return err;
 }
 
-static int btrfs_add_inode_to_root(struct btrfs_inode *inode)
+static int btrfs_add_inode_to_root(struct btrfs_inode *inode, bool prealloc)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_inode *existing;
@@ -5503,9 +5503,11 @@ static int btrfs_add_inode_to_root(struct btrfs_inode *inode)
 	if (inode_unhashed(&inode->vfs_inode))
 		return 0;
 
-	ret = xa_reserve(&root->inodes, ino, GFP_NOFS);
-	if (ret)
-		return ret;
+	if (prealloc) {
+		ret = xa_reserve(&root->inodes, ino, GFP_NOFS);
+		if (ret)
+			return ret;
+	}
 
 	spin_lock(&root->inode_lock);
 	existing = xa_store(&root->inodes, ino, inode, GFP_ATOMIC);
@@ -5606,7 +5608,7 @@ struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
 
 		ret = btrfs_read_locked_inode(inode, path);
 		if (!ret) {
-			ret = btrfs_add_inode_to_root(BTRFS_I(inode));
+			ret = btrfs_add_inode_to_root(BTRFS_I(inode), true);
 			if (ret) {
 				iget_failed(inode);
 				inode = ERR_PTR(ret);
@@ -6237,6 +6239,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_item_batch batch;
 	unsigned long ptr;
 	int ret;
+	bool xa_reserved = false;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -6250,6 +6253,11 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 	inode->i_ino = objectid;
+
+	ret = xa_reserve(&root->inodes, objectid, GFP_NOFS);
+	if (ret)
+		goto out;
+	xa_reserved = true;
 
 	if (args->orphan) {
 		/*
@@ -6424,8 +6432,9 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	ret = btrfs_add_inode_to_root(BTRFS_I(inode));
-	if (ret) {
+	ret = btrfs_add_inode_to_root(BTRFS_I(inode), false);
+	if (WARN_ON(ret)) {
+		/* Shouldn't happen, we used xa_reserve() before. */
 		btrfs_abort_transaction(trans, ret);
 		goto discard;
 	}
@@ -6456,6 +6465,9 @@ discard:
 	ihold(inode);
 	discard_new_inode(inode);
 out:
+	if (xa_reserved)
+		xa_release(&root->inodes, objectid);
+
 	btrfs_free_path(path);
 	return ret;
 }
