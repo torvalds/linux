@@ -850,7 +850,7 @@ int bpf_jit_add_poke_descriptor(struct bpf_prog *prog,
 		return -EINVAL;
 	}
 
-	tab = krealloc(tab, size * sizeof(*poke), GFP_KERNEL);
+	tab = krealloc_array(tab, size, sizeof(*poke), GFP_KERNEL);
 	if (!tab)
 		return -ENOMEM;
 
