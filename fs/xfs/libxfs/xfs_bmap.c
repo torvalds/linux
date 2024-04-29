@@ -4187,11 +4187,6 @@ xfs_bmapi_allocate(
 	ASSERT(bma->length > 0);
 	ASSERT(bma->length <= XFS_MAX_BMBT_EXTLEN);
 
-	if (bma->wasdel) {
-		if (!xfs_iext_peek_prev_extent(ifp, &bma->icur, &bma->prev))
-			bma->prev.br_startoff = NULLFILEOFF;
-	}
-
 	if (bma->flags & XFS_BMAPI_CONTIG)
 		bma->minlen = bma->length;
 	else
