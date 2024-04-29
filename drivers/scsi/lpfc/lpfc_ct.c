@@ -291,9 +291,9 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	did = bf_get(els_rsp64_sid, &ctiocbq->wqe.xmit_els_rsp);
 	if (ulp_status) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "6438 Unsol CT: status:x%x/x%x did : x%x\n",
-				 ulp_status, ulp_word4, did);
+		lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+			      "6438 Unsol CT: status:x%x/x%x did : x%x\n",
+			      ulp_status, ulp_word4, did);
 		return;
 	}
 
@@ -303,17 +303,17 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	ndlp = lpfc_findnode_did(vport, did);
 	if (!ndlp) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "6439 Unsol CT: NDLP Not Found for DID : x%x",
-				 did);
+		lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+			      "6439 Unsol CT: NDLP Not Found for DID : x%x",
+			      did);
 		return;
 	}
 
 	ct_req = (struct lpfc_sli_ct_request *)ctiocbq->cmd_dmabuf->virt;
 
 	mi_cmd = be16_to_cpu(ct_req->CommandResponse.bits.CmdRsp);
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "6442 : MI Cmd : x%x Not Supported\n", mi_cmd);
+	lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+		      "6442 MI Cmd : x%x Not Supported\n", mi_cmd);
 	lpfc_ct_reject_event(ndlp, ct_req,
 			     bf_get(wqe_ctxt_tag,
 				    &ctiocbq->wqe.xmit_els_rsp.wqe_com),
