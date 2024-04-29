@@ -4524,8 +4524,9 @@ xfs_bmapi_write(
 			bma.length = XFS_FILBLKS_MIN(len, XFS_MAX_BMBT_EXTLEN);
 
 			if (wasdelay) {
-				bma.offset = bma.got.br_startoff;
-				bma.length = bma.got.br_blockcount;
+				bma.length = XFS_FILBLKS_MIN(bma.length,
+					bma.got.br_blockcount -
+					(bno - bma.got.br_startoff));
 			} else {
 				if (!eof)
 					bma.length = XFS_FILBLKS_MIN(bma.length,
