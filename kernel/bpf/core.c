@@ -26,6 +26,7 @@
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/objtool.h>
+#include <linux/overflow.h>
 #include <linux/rbtree_latch.h>
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
@@ -2455,13 +2456,14 @@ EXPORT_SYMBOL(bpf_empty_prog_array);
 
 struct bpf_prog_array *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags)
 {
-	if (prog_cnt)
-		return kzalloc(sizeof(struct bpf_prog_array) +
-			       sizeof(struct bpf_prog_array_item) *
-			       (prog_cnt + 1),
-			       flags);
+	struct bpf_prog_array *p;
 
-	return &bpf_empty_prog_array.hdr;
+	if (prog_cnt)
+		p = kzalloc(struct_size(p, items, prog_cnt + 1), flags);
+	else
+		p = &bpf_empty_prog_array.hdr;
+
+	return p;
 }
 
 void bpf_prog_array_free(struct bpf_prog_array *progs)
