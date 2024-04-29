@@ -50,7 +50,6 @@ struct block_device {
 	bool			bd_write_holder;
 	bool			bd_has_submit_bio;
 	dev_t			bd_dev;
-	struct inode		*bd_inode;	/* will die */
 	struct address_space	*bd_mapping;	/* page cache */
 
 	atomic_t		bd_openers;
