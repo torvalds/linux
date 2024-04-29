@@ -1120,8 +1120,6 @@
 
 	vdda-phy-supply = <&vreg_l6b_1p2>;
 	vdda-pll-supply = <&vreg_l1b_0p91>;
-
-	orientation-switch;
 };
 
 &usb_1_qmpphy_out {
