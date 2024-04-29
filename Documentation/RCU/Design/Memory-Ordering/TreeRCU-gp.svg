@@ -2974,7 +2974,7 @@
        font-style="normal"
        y="38114.047"
        x="-334.33856"
-       xml:space="preserve">dyntick_save_progress_counter()</text>
+       xml:space="preserve">rcu_watching_snap_save()</text>
     <g
        style="fill:none;stroke-width:0.025in"
        transform="translate(1749.9916,25880.249)"

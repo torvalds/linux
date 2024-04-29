@@ -528,7 +528,7 @@
        font-style="normal"
        y="-8652.5312"
        x="2466.7822"
-       xml:space="preserve">dyntick_save_progress_counter()</text>
+       xml:space="preserve">rcu_watching_snap_save()</text>
     <text
        style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"
        id="text202-7-2-7-2-0"
