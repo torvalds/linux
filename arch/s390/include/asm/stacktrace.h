@@ -13,6 +13,11 @@ struct stack_frame_user {
 	unsigned long empty2[4];
 };
 
+struct stack_frame_vdso_wrapper {
+	struct stack_frame_user sf;
+	unsigned long return_address;
+};
+
 struct perf_callchain_entry_ctx;
 
 void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *cookie,
