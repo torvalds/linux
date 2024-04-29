@@ -1593,13 +1593,56 @@ static struct regmap_irq_chip cs35l41_regmap_irq_chip = {
 	.runtime_pm = true,
 };
 
+static void cs35l41_configure_interrupt(struct cs35l41_hda *cs35l41, int irq_pol)
+{
+	int irq;
+	int ret;
+	int i;
+
+	if (!cs35l41->irq) {
+		dev_warn(cs35l41->dev, "No Interrupt Found");
+		goto err;
+	}
+
+	ret = devm_regmap_add_irq_chip(cs35l41->dev, cs35l41->regmap, cs35l41->irq,
+					IRQF_ONESHOT | IRQF_SHARED | irq_pol,
+					0, &cs35l41_regmap_irq_chip, &cs35l41->irq_data);
+	if (ret) {
+		dev_dbg(cs35l41->dev, "Unable to add IRQ Chip: %d.", ret);
+		goto err;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cs35l41_irqs); i++) {
+		irq = regmap_irq_get_virq(cs35l41->irq_data, cs35l41_irqs[i].irq);
+		if (irq < 0) {
+			ret = irq;
+			dev_dbg(cs35l41->dev, "Unable to map IRQ %s: %d.", cs35l41_irqs[i].name,
+				ret);
+			goto err;
+		}
+
+		ret = devm_request_threaded_irq(cs35l41->dev, irq, NULL,
+						cs35l41_irqs[i].handler,
+						IRQF_ONESHOT | IRQF_SHARED | irq_pol,
+						cs35l41_irqs[i].name, cs35l41);
+		if (ret) {
+			dev_dbg(cs35l41->dev, "Unable to allocate IRQ %s:: %d.",
+				cs35l41_irqs[i].name, ret);
+			goto err;
+		}
+	}
+	return;
+err:
+	dev_warn(cs35l41->dev,
+		 "IRQ Config Failed. Amp errors may not be recoverable without reboot.");
+}
+
 static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 {
 	struct cs35l41_hw_cfg *hw_cfg = &cs35l41->hw_cfg;
 	bool using_irq = false;
-	int irq, irq_pol;
+	int irq_pol;
 	int ret;
-	int i;
 
 	if (!cs35l41->hw_cfg.valid)
 		return -EINVAL;
@@ -1642,26 +1685,8 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 
 	irq_pol = cs35l41_gpio_config(cs35l41->regmap, hw_cfg);
 
-	if (cs35l41->irq && using_irq) {
-		ret = devm_regmap_add_irq_chip(cs35l41->dev, cs35l41->regmap, cs35l41->irq,
-					       IRQF_ONESHOT | IRQF_SHARED | irq_pol,
-					       0, &cs35l41_regmap_irq_chip, &cs35l41->irq_data);
-		if (ret)
-			return ret;
-
-		for (i = 0; i < ARRAY_SIZE(cs35l41_irqs); i++) {
-			irq = regmap_irq_get_virq(cs35l41->irq_data, cs35l41_irqs[i].irq);
-			if (irq < 0)
-				return irq;
-
-			ret = devm_request_threaded_irq(cs35l41->dev, irq, NULL,
-							cs35l41_irqs[i].handler,
-							IRQF_ONESHOT | IRQF_SHARED | irq_pol,
-							cs35l41_irqs[i].name, cs35l41);
-			if (ret)
-				return ret;
-		}
-	}
+	if (using_irq)
+		cs35l41_configure_interrupt(cs35l41, irq_pol);
 
 	return cs35l41_hda_channel_map(cs35l41->dev, 0, NULL, 1, &hw_cfg->spk_pos);
 }
