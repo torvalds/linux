@@ -447,7 +447,7 @@
 			pinctrl-names = "default";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0x6 0x110102d4 0x24>;
+			reg = <0x6 0x110102f8 0x24>;
 		};
 
 		mdio3: mdio@61101031c {
@@ -460,7 +460,7 @@
 			reg = <0x6 0x1101031c 0x24>;
 		};
 
-		serdes: serdes@10808000 {
+		serdes: serdes@610808000 {
 			compatible = "microchip,sparx5-serdes";
 			#phy-cells = <1>;
 			clocks = <&sys_clk>;
