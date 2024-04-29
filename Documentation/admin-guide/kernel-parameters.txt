@@ -431,6 +431,9 @@
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
 
+	arm64.no32bit_el0 [ARM64] Unconditionally disable the execution of
+			32 bit applications.
+
 	arm64.nobti	[ARM64] Unconditionally disable Branch Target
 			Identification support
 
