@@ -3,10 +3,10 @@
 #define _PROTO_MEMORY_H
 
 #include <net/sock.h>
+#include <net/hotdata.h>
 
 /* 1 MB per cpu, in page units */
 #define SK_MEMORY_PCPU_RESERVE (1 << (20 - PAGE_SHIFT))
-extern int sysctl_mem_pcpu_rsv;
 
 static inline bool sk_has_memory_pressure(const struct sock *sk)
 {
@@ -65,7 +65,7 @@ sk_memory_allocated_add(const struct sock *sk, int val)
 
 	val = this_cpu_add_return(*proto->per_cpu_fw_alloc, val);
 
-	if (unlikely(val >= READ_ONCE(sysctl_mem_pcpu_rsv)))
+	if (unlikely(val >= READ_ONCE(net_hotdata.sysctl_mem_pcpu_rsv)))
 		proto_memory_pcpu_drain(proto);
 }
 
@@ -76,7 +76,7 @@ sk_memory_allocated_sub(const struct sock *sk, int val)
 
 	val = this_cpu_sub_return(*proto->per_cpu_fw_alloc, val);
 
-	if (unlikely(val <= -READ_ONCE(sysctl_mem_pcpu_rsv)))
+	if (unlikely(val <= -READ_ONCE(net_hotdata.sysctl_mem_pcpu_rsv)))
 		proto_memory_pcpu_drain(proto);
 }
 

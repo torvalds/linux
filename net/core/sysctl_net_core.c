@@ -416,7 +416,7 @@ static struct ctl_table net_core_table[] = {
 	},
 	{
 		.procname	= "mem_pcpu_rsv",
-		.data		= &sysctl_mem_pcpu_rsv,
+		.data		= &net_hotdata.sysctl_mem_pcpu_rsv,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
