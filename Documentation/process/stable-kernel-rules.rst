@@ -6,7 +6,7 @@ Everything you ever wanted to know about Linux -stable releases
 Rules on what kind of patches are accepted, and which ones are not, into the
 "-stable" tree:
 
- - It or an equivalent fix must already exist in Linus' tree (upstream).
+ - It or an equivalent fix must already exist in Linux mainline (upstream).
  - It must be obviously correct and tested.
  - It cannot be bigger than 100 lines, with context.
  - It must follow the
@@ -134,7 +134,7 @@ comment to pass arbitrary or predefined notes:
 
    .. code-block:: none
 
-     Cc: <stable@vger.kernel.org> # after 4 weeks in mainline
+     Cc: <stable@vger.kernel.org> # after -rc3
 
  * Point out known problems:
 
