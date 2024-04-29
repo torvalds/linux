@@ -606,7 +606,7 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		       struct bkey_s new,
 		       unsigned flags)
 {
-	s64 nr = bkey_is_inode(new.k) - bkey_is_inode(old.k);
+	s64 nr = (s64) bkey_is_inode(new.k) - (s64) bkey_is_inode(old.k);
 
 	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
 		if (nr) {
