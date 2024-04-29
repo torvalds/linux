@@ -1856,6 +1856,9 @@ struct can_nocow_file_extent_args {
 	u64 extent_offset;
 	/* Number of bytes that can be written to in NOCOW mode. */
 	u64 num_bytes;
+
+	/* The expected file extent for the NOCOW write. */
+	struct btrfs_file_extent file_extent;
 };
 
 /*
@@ -1920,6 +1923,12 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 
 	extent_end = btrfs_file_extent_end(path);
 
+	args->file_extent.disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
+	args->file_extent.disk_num_bytes = btrfs_file_extent_disk_num_bytes(leaf, fi);
+	args->file_extent.ram_bytes = btrfs_file_extent_ram_bytes(leaf, fi);
+	args->file_extent.offset = btrfs_file_extent_offset(leaf, fi);
+	args->file_extent.compression = btrfs_file_extent_compression(leaf, fi);
+
 	/*
 	 * The following checks can be expensive, as they need to take other
 	 * locks and do btree or rbtree searches, so release the path to avoid
@@ -1953,6 +1962,9 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	args->disk_bytenr += args->extent_offset;
 	args->disk_bytenr += args->start - key->offset;
 	args->num_bytes = min(args->end + 1, extent_end) - args->start;
+
+	args->file_extent.num_bytes = args->num_bytes;
+	args->file_extent.offset += args->start - key->offset;
 
 	/*
 	 * Force COW if csums exist in the range. This ensures that csums for a
@@ -7138,7 +7150,8 @@ static bool btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr)
  */
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
-			      u64 *ram_bytes, bool nowait, bool strict)
+			      u64 *ram_bytes, struct btrfs_file_extent *file_extent,
+			      bool nowait, bool strict)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct can_nocow_file_extent_args nocow_args = { 0 };
@@ -7227,6 +7240,8 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 		*orig_start = key.offset - nocow_args.extent_offset;
 	if (orig_block_len)
 		*orig_block_len = nocow_args.disk_num_bytes;
+	if (file_extent)
+		memcpy(file_extent, &nocow_args.file_extent, sizeof(*file_extent));
 
 	*len = nocow_args.num_bytes;
 	ret = 1;
@@ -7446,7 +7461,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		block_start = em->block_start + (start - em->start);
 
 		if (can_nocow_extent(inode, start, &len, &orig_start,
-				     &orig_block_len, &ram_bytes, false, false) == 1) {
+				     &orig_block_len, &ram_bytes, NULL, false, false) == 1) {
 			bg = btrfs_inc_nocow_writers(fs_info, block_start);
 			if (bg)
 				can_nocow = true;
@@ -10640,7 +10655,7 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 		free_extent_map(em);
 		em = NULL;
 
-		ret = can_nocow_extent(inode, start, &len, NULL, NULL, NULL, false, true);
+		ret = can_nocow_extent(inode, start, &len, NULL, NULL, NULL, NULL, false, true);
 		if (ret < 0) {
 			goto out;
 		} else if (ret) {
