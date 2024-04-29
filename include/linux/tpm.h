@@ -275,6 +275,7 @@ enum tpm2_command_codes {
 	TPM2_CC_CONTEXT_LOAD	        = 0x0161,
 	TPM2_CC_CONTEXT_SAVE	        = 0x0162,
 	TPM2_CC_FLUSH_CONTEXT	        = 0x0165,
+	TPM2_CC_READ_PUBLIC		= 0x0173,
 	TPM2_CC_START_AUTH_SESS		= 0x0176,
 	TPM2_CC_VERIFY_SIGNATURE        = 0x0177,
 	TPM2_CC_GET_CAPABILITY	        = 0x017A,
@@ -291,6 +292,21 @@ enum tpm2_permanent_handles {
 	TPM2_RH_NULL		= 0x40000007,
 	TPM2_RS_PW		= 0x40000009,
 };
+
+/* Most Significant Octet for key types  */
+enum tpm2_mso_type {
+	TPM2_MSO_NVRAM		= 0x01,
+	TPM2_MSO_SESSION	= 0x02,
+	TPM2_MSO_POLICY		= 0x03,
+	TPM2_MSO_PERMANENT	= 0x40,
+	TPM2_MSO_VOLATILE	= 0x80,
+	TPM2_MSO_PERSISTENT	= 0x81,
+};
+
+static inline enum tpm2_mso_type tpm2_handle_mso(u32 handle)
+{
+	return handle >> 24;
+}
 
 enum tpm2_capabilities {
 	TPM2_CAP_HANDLES	= 1,
@@ -492,6 +508,8 @@ static inline void tpm_buf_append_empty_auth(struct tpm_buf *buf, u32 handle)
 #ifdef CONFIG_TCG_TPM2_HMAC
 
 int tpm2_start_auth_session(struct tpm_chip *chip);
+void tpm_buf_append_name(struct tpm_chip *chip, struct tpm_buf *buf,
+			 u32 handle, u8 *name);
 void tpm2_end_auth_session(struct tpm_chip *chip);
 #else
 static inline int tpm2_start_auth_session(struct tpm_chip *chip)
@@ -500,6 +518,14 @@ static inline int tpm2_start_auth_session(struct tpm_chip *chip)
 }
 static inline void tpm2_end_auth_session(struct tpm_chip *chip)
 {
+}
+static inline void tpm_buf_append_name(struct tpm_chip *chip,
+				       struct tpm_buf *buf,
+				       u32 handle, u8 *name)
+{
+	tpm_buf_append_u32(buf, handle);
+	/* count the number of handles in the upper bits of flags */
+	buf->handles++;
 }
 #endif	/* CONFIG_TCG_TPM2_HMAC */
 
