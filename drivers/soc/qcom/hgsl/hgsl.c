@@ -4379,10 +4379,13 @@ static int qcom_hgsl_remove(struct platform_device *pdev)
 		if (tcsr_receiver) {
 			hgsl_tcsr_disable(tcsr_receiver);
 			hgsl_tcsr_free(tcsr_receiver);
-			flush_workqueue(hgsl->wq);
-			destroy_workqueue(hgsl->wq);
-			hgsl->wq = NULL;
 		}
+	}
+
+	if (hgsl->wq) {
+		flush_workqueue(hgsl->wq);
+		destroy_workqueue(hgsl->wq);
+		hgsl->wq = NULL;
 	}
 
 	kfree(hgsl->contexts);
