@@ -7270,7 +7270,6 @@ ath12k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath12k_base *ab;
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	int ret;
-	struct ath12k_wmi_peer_create_arg param;
 
 	/* For multi radio wiphy, the vdev was not created during add_interface
 	 * create now since we have a channel ctx now to assign to a specific ar/fw
@@ -7304,21 +7303,6 @@ ath12k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ON(arvif->is_started)) {
 		ret = -EBUSY;
 		goto out;
-	}
-
-	if (ab->hw_params->vdev_start_delay &&
-	    arvif->vdev_type != WMI_VDEV_TYPE_AP &&
-	    arvif->vdev_type != WMI_VDEV_TYPE_MONITOR) {
-		param.vdev_id = arvif->vdev_id;
-		param.peer_type = WMI_PEER_TYPE_DEFAULT;
-		param.peer_addr = ar->mac_addr;
-
-		ret = ath12k_peer_create(ar, arvif, NULL, &param);
-		if (ret) {
-			ath12k_warn(ab, "failed to create peer after vdev start delay: %d",
-				    ret);
-			goto out;
-		}
 	}
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
