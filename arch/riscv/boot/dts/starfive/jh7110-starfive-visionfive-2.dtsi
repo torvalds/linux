@@ -41,12 +41,12 @@
 		priority = <224>;
 	};
 
-	pwmdac_codec: pwmdac-codec {
+	pwmdac_codec: audio-codec {
 		compatible = "linux,spdif-dit";
 		#sound-dai-cells = <0>;
 	};
 
-	sound-pwmdac {
+	sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "StarFive-PWMDAC-Sound-Card";
 		#address-cells = <1>;
