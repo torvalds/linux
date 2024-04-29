@@ -886,6 +886,7 @@ struct sdw_master_ops {
  * @port_ops: Master port callback ops
  * @params: Current bus parameters
  * @prop: Master properties
+ * @vendor_specific_prop: pointer to non-standard properties
  * @m_rt_list: List of Master instance of all stream(s) running on Bus. This
  * is used to compute and program bus bandwidth, clock, frame shape,
  * transport and port parameters
@@ -920,6 +921,7 @@ struct sdw_bus {
 	const struct sdw_master_port_ops *port_ops;
 	struct sdw_bus_params params;
 	struct sdw_master_prop prop;
+	void *vendor_specific_prop;
 	struct list_head m_rt_list;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;

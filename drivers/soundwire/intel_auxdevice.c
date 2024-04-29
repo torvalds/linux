@@ -122,6 +122,7 @@ static void generic_new_peripheral_assigned(struct sdw_bus *bus,
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
+	struct sdw_intel_prop *intel_prop;
 	struct fwnode_handle *link;
 	char name[32];
 	u32 quirk_mask;
@@ -152,6 +153,26 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 
 	prop->quirks = SDW_MASTER_QUIRKS_CLEAR_INITIAL_CLASH |
 		SDW_MASTER_QUIRKS_CLEAR_INITIAL_PARITY;
+
+	intel_prop = devm_kzalloc(bus->dev, sizeof(*intel_prop), GFP_KERNEL);
+	if (!intel_prop)
+		return -ENOMEM;
+
+	/* initialize with hardware defaults, in case the properties are not found */
+	intel_prop->doais = 0x3;
+	intel_prop->dods  = 0x1;
+
+	fwnode_property_read_u16(link,
+				 "intel-sdw-doais",
+				 &intel_prop->doais);
+	fwnode_property_read_u16(link,
+				 "intel-sdw-dods",
+				 &intel_prop->dods);
+	bus->vendor_specific_prop = intel_prop;
+
+	dev_dbg(bus->dev, "doais %#x dods %#x\n",
+		intel_prop->doais,
+		intel_prop->dods);
 
 	return 0;
 }
