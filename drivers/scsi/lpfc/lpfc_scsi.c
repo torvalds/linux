@@ -5327,7 +5327,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 					 cmnd->cmnd[0],
 					 scsi_prot_ref_tag(cmnd),
 					 scsi_logical_block_count(cmnd),
-					 (cmnd->cmnd[1]>>5));
+					 scsi_get_prot_type(cmnd));
 		}
 		err = lpfc_bg_scsi_prep_dma_buf(phba, lpfc_cmd);
 	} else {
