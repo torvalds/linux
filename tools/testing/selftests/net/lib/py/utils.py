@@ -56,15 +56,21 @@ class bkg(cmd):
         return self.process(terminate=self.terminate)
 
 
-def ip(args, json=None, ns=None, host=None):
-    cmd_str = "ip "
+def tool(name, args, json=None, ns=None, host=None):
+    cmd_str = name + ' '
     if json:
-        cmd_str += '-j '
+        cmd_str += '--json '
     cmd_str += args
     cmd_obj = cmd(cmd_str, ns=ns, host=host)
     if json:
         return _json.loads(cmd_obj.stdout)
     return cmd_obj
+
+
+def ip(args, json=None, ns=None, host=None):
+    if ns:
+        args = f'-netns {ns} ' + args
+    return tool('ip', args, json=json, host=host)
 
 
 def rand_port():
