@@ -55,6 +55,26 @@
 	status = "okay";
 };
 
+&i2c2 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c2_pins_a>;
+	pinctrl-1 = <&i2c2_sleep_pins_a>;
+	i2c-scl-rising-time-ns = <100>;
+	i2c-scl-falling-time-ns = <13>;
+	clock-frequency = <400000>;
+	status = "okay";
+};
+
+&i2c8 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c8_pins_a>;
+	pinctrl-1 = <&i2c8_sleep_pins_a>;
+	i2c-scl-rising-time-ns = <57>;
+	i2c-scl-falling-time-ns = <7>;
+	clock-frequency = <400000>;
+	status = "disabled";
+};
+
 &sdmmc1 {
 	pinctrl-names = "default", "opendrain", "sleep";
 	pinctrl-0 = <&sdmmc1_b4_pins_a>;
@@ -66,6 +86,20 @@
 	bus-width = <4>;
 	vmmc-supply = <&vdd_sdcard>;
 	status = "okay";
+};
+
+&spi3 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spi3_pins_a>;
+	pinctrl-1 = <&spi3_sleep_pins_a>;
+	status = "disabled";
+};
+
+&spi8 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spi8_pins_a>;
+	pinctrl-1 = <&spi8_sleep_pins_a>;
+	status = "disabled";
 };
 
 &usart2 {
