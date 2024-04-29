@@ -212,10 +212,6 @@ enum ath12k_dev_flags {
 	ATH12K_FLAG_EXT_IRQ_ENABLED,
 };
 
-enum ath12k_monitor_flags {
-	ATH12K_FLAG_MONITOR_ENABLED,
-};
-
 struct ath12k_tx_conf {
 	bool changed;
 	u16 ac;
@@ -532,7 +528,6 @@ struct ath12k {
 
 	unsigned long dev_flags;
 	unsigned int filter_flags;
-	unsigned long monitor_flags;
 	u32 min_tx_power;
 	u32 max_tx_power;
 	u32 txpower_limit_2g;
