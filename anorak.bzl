@@ -147,6 +147,7 @@ def define_anorak():
         "kernel/trace/qcom_ipc_logging.ko",
         "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
+        "net/qrtr/qrtr-mhi.ko",
         "net/qrtr/qrtr-smd.ko",
         "net/wireless/cfg80211.ko",
         "sound/usb/snd-usb-audio-qmi.ko",
