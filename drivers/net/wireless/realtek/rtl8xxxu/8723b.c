@@ -13,20 +13,8 @@
  * additional 8xxx chips like the 8192cu, 8188cus, etc.
  */
 
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
-#include <linux/usb.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/firmware.h>
-#include <linux/moduleparam.h>
-#include <net/mac80211.h>
-#include "rtl8xxxu.h"
 #include "regs.h"
+#include "rtl8xxxu.h"
 
 static const struct rtl8xxxu_reg8val rtl8723b_mac_init_table[] = {
 	{0x02f, 0x30}, {0x035, 0x00}, {0x039, 0x08}, {0x04e, 0xe0},
