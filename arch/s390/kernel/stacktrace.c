@@ -92,10 +92,16 @@ static inline bool ip_invalid(unsigned long ip)
 	return false;
 }
 
+static inline bool ip_within_vdso(unsigned long ip)
+{
+	return in_range(ip, current->mm->context.vdso_base, vdso_text_size());
+}
+
 void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *cookie,
 				 struct perf_callchain_entry_ctx *entry,
 				 const struct pt_regs *regs, bool perf)
 {
+	struct stack_frame_vdso_wrapper __user *sf_vdso;
 	struct stack_frame_user __user *sf;
 	unsigned long ip, sp;
 	bool first = true;
@@ -112,11 +118,25 @@ void arch_stack_walk_user_common(stack_trace_consume_fn consume_entry, void *coo
 	while (1) {
 		if (__get_user(sp, &sf->back_chain))
 			break;
+		/*
+		 * VDSO entry code has a non-standard stack frame layout.
+		 * See VDSO user wrapper code for details.
+		 */
+		if (!sp && ip_within_vdso(ip)) {
+			sf_vdso = (void __user *)sf;
+			if (__get_user(ip, &sf_vdso->return_address))
+				break;
+			sp = (unsigned long)sf + STACK_FRAME_VDSO_OVERHEAD;
+			sf = (void __user *)sp;
+			if (__get_user(sp, &sf->back_chain))
+				break;
+		} else {
+			sf = (void __user *)sp;
+			if (__get_user(ip, &sf->gprs[8]))
+				break;
+		}
 		/* Sanity check: ABI requires SP to be 8 byte aligned. */
-		if (!sp || sp & 0x7)
-			break;
-		sf = (void __user *)sp;
-		if (__get_user(ip, &sf->gprs[8]))
+		if (sp & 0x7)
 			break;
 		if (ip_invalid(ip)) {
 			/*

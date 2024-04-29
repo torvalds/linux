@@ -66,6 +66,7 @@ int main(void)
 	OFFSET(__SF_SIE_CONTROL_PHYS, stack_frame, sie_control_block_phys);
 	DEFINE(STACK_FRAME_OVERHEAD, sizeof(struct stack_frame));
 	BLANK();
+	OFFSET(__SFUSER_BACKCHAIN, stack_frame_user, back_chain);
 	DEFINE(STACK_FRAME_USER_OVERHEAD, sizeof(struct stack_frame_user));
 	OFFSET(__SFVDSO_RETURN_ADDRESS, stack_frame_vdso_wrapper, return_address);
 	DEFINE(STACK_FRAME_VDSO_OVERHEAD, sizeof(struct stack_frame_vdso_wrapper));
