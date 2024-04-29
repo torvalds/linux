@@ -170,7 +170,7 @@ static void add_stack_record_to_list(struct stack_record *stack_record,
 
 	/* Filter gfp_mask the same way stackdepot does, for consistency */
 	gfp_mask &= ~GFP_ZONEMASK;
-	gfp_mask &= (GFP_ATOMIC | GFP_KERNEL);
+	gfp_mask &= (GFP_ATOMIC | GFP_KERNEL | __GFP_NOLOCKDEP);
 	gfp_mask |= __GFP_NOWARN;
 
 	set_current_in_page_owner();
