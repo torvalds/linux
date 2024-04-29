@@ -308,7 +308,7 @@ static unsigned int xhci_num_trbs_free(struct xhci_hcd *xhci, struct xhci_ring *
 		free += last_on_seg - enq;
 		enq_seg = enq_seg->next;
 		enq = enq_seg->trbs;
-	} while (i++ <= ring->num_segs);
+	} while (i++ < ring->num_segs);
 
 	return free;
 }
