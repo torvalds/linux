@@ -2336,7 +2336,12 @@ static inline const char *xhci_decode_portsc(char *str, u32 portsc)
 {
 	int ret;
 
-	ret = sprintf(str, "%s %s %s Link:%s PortSpeed:%d ",
+	ret = sprintf(str, "0x%08x ", portsc);
+
+	if (portsc == ~(u32)0)
+		return str;
+
+	ret += sprintf(str + ret, "%s %s %s Link:%s PortSpeed:%d ",
 		      portsc & PORT_POWER	? "Powered" : "Powered-off",
 		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
 		      portsc & PORT_PE		? "Enabled" : "Disabled",
