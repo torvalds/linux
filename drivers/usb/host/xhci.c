@@ -4511,23 +4511,14 @@ static int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
  * only USB2 ports extended protocol capability values are cached.
  * Return 1 if capability is supported
  */
-static int xhci_check_usb2_port_capability(struct xhci_hcd *xhci, int port,
+static bool xhci_check_usb2_port_capability(struct xhci_hcd *xhci, int portnum,
 					   unsigned capability)
 {
-	u32 port_offset, port_count;
-	int i;
+	struct xhci_port *port;
 
-	for (i = 0; i < xhci->num_ext_caps; i++) {
-		if (xhci->ext_caps[i] & capability) {
-			/* port offsets starts at 1 */
-			port_offset = XHCI_EXT_PORT_OFF(xhci->ext_caps[i]) - 1;
-			port_count = XHCI_EXT_PORT_COUNT(xhci->ext_caps[i]);
-			if (port >= port_offset &&
-			    port < port_offset + port_count)
-				return 1;
-		}
-	}
-	return 0;
+	port = xhci->usb2_rhub.ports[portnum];
+
+	return !!(port->port_cap->protocol_caps & capability);
 }
 
 static int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
