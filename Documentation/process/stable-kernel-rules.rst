@@ -72,6 +72,10 @@ for stable trees, add this tag in the sign-off area::
 
   Cc: stable@vger.kernel.org
 
+Use ``Cc: stable@kernel.org`` instead when fixing unpublished vulnerabilities:
+it reduces the chance of accidentally exposing the fix to the public by way of
+'git send-email', as mails sent to that address are not delivered anywhere.
+
 Once the patch is mainlined it will be applied to the stable tree without
 anything else needing to be done by the author or subsystem maintainer.
 
