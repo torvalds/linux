@@ -4528,14 +4528,11 @@ xfs_bmapi_write(
 			 * allocation length request (which can be 64 bits in
 			 * length) and the bma length request, which is
 			 * xfs_extlen_t and therefore 32 bits. Hence we have to
-			 * check for 32-bit overflows and handle them here.
+			 * be careful and do the min() using the larger type to
+			 * avoid overflows.
 			 */
-			if (len > (xfs_filblks_t)XFS_MAX_BMBT_EXTLEN)
-				bma.length = XFS_MAX_BMBT_EXTLEN;
-			else
-				bma.length = len;
+			bma.length = XFS_FILBLKS_MIN(len, XFS_MAX_BMBT_EXTLEN);
 
-			ASSERT(len > 0);
 			ASSERT(bma.length > 0);
 			error = xfs_bmapi_allocate(&bma);
 			if (error) {
