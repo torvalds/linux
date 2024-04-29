@@ -80,6 +80,9 @@
 /* maximum number of names the TPM must remember for authorization */
 #define AUTH_MAX_NAMES	3
 
+static int tpm2_create_primary(struct tpm_chip *chip, u32 hierarchy,
+			       u32 *handle, u8 *name);
+
 /*
  * This is the structure that carries all the auth information (like
  * session handle, nonces, session key and auth) from use to use it is
@@ -851,6 +854,37 @@ static int tpm2_parse_start_auth_session(struct tpm2_auth *auth,
 	return 0;
 }
 
+static int tpm2_load_null(struct tpm_chip *chip, u32 *null_key)
+{
+	int rc;
+	unsigned int offset = 0; /* dummy offset for null seed context */
+	u8 name[SHA256_DIGEST_SIZE + 2];
+
+	rc = tpm2_load_context(chip, chip->null_key_context, &offset,
+			       null_key);
+	if (rc != -EINVAL)
+		return rc;
+
+	/* an integrity failure may mean the TPM has been reset */
+	dev_err(&chip->dev, "NULL key integrity failure!\n");
+	/* check the null name against what we know */
+	tpm2_create_primary(chip, TPM2_RH_NULL, NULL, name);
+	if (memcmp(name, chip->null_key_name, sizeof(name)) == 0)
+		/* name unchanged, assume transient integrity failure */
+		return rc;
+	/*
+	 * Fatal TPM failure: the NULL seed has actually changed, so
+	 * the TPM must have been illegally reset.  All in-kernel TPM
+	 * operations will fail because the NULL primary can't be
+	 * loaded to salt the sessions, but disable the TPM anyway so
+	 * userspace programmes can't be compromised by it.
+	 */
+	dev_err(&chip->dev, "NULL name has changed, disabling TPM due to interference\n");
+	chip->flags |= TPM_CHIP_FLAG_DISABLE;
+
+	return rc;
+}
+
 /**
  * tpm2_start_auth_session() - create a HMAC authentication session with the TPM
  * @chip: the TPM chip structure to create the session with
@@ -868,12 +902,9 @@ int tpm2_start_auth_session(struct tpm_chip *chip)
 	struct tpm_buf buf;
 	struct tpm2_auth *auth = chip->auth;
 	int rc;
-	/* null seed context has no offset, but we must provide one */
-	unsigned int offset = 0;
-	u32 nullkey;
+	u32 null_key;
 
-	rc = tpm2_load_context(chip, chip->null_key_context, &offset,
-			       &nullkey);
+	rc = tpm2_load_null(chip, &null_key);
 	if (rc)
 		goto out;
 
@@ -884,7 +915,7 @@ int tpm2_start_auth_session(struct tpm_chip *chip)
 		goto out;
 
 	/* salt key handle */
-	tpm_buf_append_u32(&buf, nullkey);
+	tpm_buf_append_u32(&buf, null_key);
 	/* bind key handle */
 	tpm_buf_append_u32(&buf, TPM2_RH_NULL);
 	/* nonce caller */
@@ -908,7 +939,7 @@ int tpm2_start_auth_session(struct tpm_chip *chip)
 	tpm_buf_append_u16(&buf, TPM_ALG_SHA256);
 
 	rc = tpm_transmit_cmd(chip, &buf, 0, "start auth session");
-	tpm2_flush_context(chip, nullkey);
+	tpm2_flush_context(chip, null_key);
 
 	if (rc == TPM2_RC_SUCCESS)
 		rc = tpm2_parse_start_auth_session(auth, &buf);
@@ -930,6 +961,7 @@ EXPORT_SYMBOL(tpm2_start_auth_session);
  * @buf:	The response buffer from the chip
  * @handle:	pointer to be filled in with the return handle of the primary
  * @hierarchy:	The hierarchy the primary was created for
+ * @name:	pointer to be filled in with the primary key name
  *
  * Return:
  * * 0		- OK
@@ -937,15 +969,20 @@ EXPORT_SYMBOL(tpm2_start_auth_session);
  * * TPM_RC	- A TPM error
  */
 static int tpm2_parse_create_primary(struct tpm_chip *chip, struct tpm_buf *buf,
-				     u32 *handle, u32 hierarchy)
+				     u32 *handle, u32 hierarchy, u8 *name)
 {
 	struct tpm_header *head = (struct tpm_header *)buf->data;
 	off_t offset_r = TPM_HEADER_SIZE, offset_t;
 	u16 len = TPM_HEADER_SIZE;
 	u32 total_len = be32_to_cpu(head->length);
-	u32 val, param_len;
+	u32 val, param_len, keyhandle;
 
-	*handle = tpm_buf_read_u32(buf, &offset_r);
+	keyhandle = tpm_buf_read_u32(buf, &offset_r);
+	if (handle)
+		*handle = keyhandle;
+	else
+		tpm2_flush_context(chip, keyhandle);
+
 	param_len = tpm_buf_read_u32(buf, &offset_r);
 	/*
 	 * param_len doesn't include the header, but all the other
@@ -958,9 +995,14 @@ static int tpm2_parse_create_primary(struct tpm_chip *chip, struct tpm_buf *buf,
 		return -EINVAL;
 	len = tpm_buf_read_u16(buf, &offset_r);
 	offset_t = offset_r;
-	/* now we have the public area, compute the name of the object */
-	put_unaligned_be16(TPM_ALG_SHA256, chip->null_key_name);
-	sha256(&buf->data[offset_r], len, chip->null_key_name + 2);
+	if (name) {
+		/*
+		 * now we have the public area, compute the name of
+		 * the object
+		 */
+		put_unaligned_be16(TPM_ALG_SHA256, name);
+		sha256(&buf->data[offset_r], len, name + 2);
+	}
 
 	/* validate the public key */
 	val = tpm_buf_read_u16(buf, &offset_t);
@@ -1089,6 +1131,7 @@ static int tpm2_parse_create_primary(struct tpm_chip *chip, struct tpm_buf *buf,
  * @chip:      the TPM chip to create under
  * @hierarchy: The hierarchy handle to create under
  * @handle:    The returned volatile handle on success
+ * @name:      The name of the returned key
  *
  * For platforms that might not have a persistent primary, this can be
  * used to create one quickly on the fly (it uses Elliptic Curve not
@@ -1103,7 +1146,7 @@ static int tpm2_parse_create_primary(struct tpm_chip *chip, struct tpm_buf *buf,
  * * TPM_RC	- A TPM error
  */
 static int tpm2_create_primary(struct tpm_chip *chip, u32 hierarchy,
-			       u32 *handle)
+			       u32 *handle, u8 *name)
 {
 	int rc;
 	struct tpm_buf buf;
@@ -1193,7 +1236,8 @@ static int tpm2_create_primary(struct tpm_chip *chip, u32 hierarchy,
 			      "attempting to create NULL primary");
 
 	if (rc == TPM2_RC_SUCCESS)
-		rc = tpm2_parse_create_primary(chip, &buf, handle, hierarchy);
+		rc = tpm2_parse_create_primary(chip, &buf, handle, hierarchy,
+					       name);
 
 	tpm_buf_destroy(&buf);
 
@@ -1205,7 +1249,8 @@ static int tpm2_create_null_primary(struct tpm_chip *chip)
 	u32 null_key;
 	int rc;
 
-	rc = tpm2_create_primary(chip, TPM2_RH_NULL, &null_key);
+	rc = tpm2_create_primary(chip, TPM2_RH_NULL, &null_key,
+				 chip->null_key_name);
 
 	if (rc == TPM2_RC_SUCCESS) {
 		unsigned int offset = 0; /* dummy offset for null key context */

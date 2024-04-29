@@ -105,6 +105,9 @@ int tpm2_load_context(struct tpm_chip *chip, u8 *buf,
 		*handle = 0;
 		tpm_buf_destroy(&tbuf);
 		return -ENOENT;
+	} else if (tpm2_rc_value(rc) == TPM2_RC_INTEGRITY) {
+		tpm_buf_destroy(&tbuf);
+		return -EINVAL;
 	} else if (rc > 0) {
 		dev_warn(&chip->dev, "%s: failed with a TPM error 0x%04X\n",
 			 __func__, rc);
