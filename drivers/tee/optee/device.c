@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/uuid.h>
 #include "optee_private.h"
 

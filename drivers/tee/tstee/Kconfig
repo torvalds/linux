@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ARM_TSTEE
+	tristate "Arm Trusted Services TEE driver"
+	depends on ARM_FFA_TRANSPORT
+	default n
+	help
+	  The Trusted Services project provides a framework for developing and
+	  deploying device Root of Trust services in FF-A Secure Partitions.
+	  This driver provides an interface to make Trusted Services Secure
+	  Partitions accessible for user space clients, since the FF-A driver
+	  doesn't implement a user space interface directly.
