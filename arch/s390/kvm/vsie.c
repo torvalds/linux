@@ -362,7 +362,7 @@ end:
 	case -EACCES:
 		return set_validity_icpt(scb_s, 0x003CU);
 	}
-	scb_s->crycbd = ((__u32)(__u64) &vsie_page->crycb) | CRYCB_FORMAT2;
+	scb_s->crycbd = (u32)virt_to_phys(&vsie_page->crycb) | CRYCB_FORMAT2;
 	return 0;
 }
 
