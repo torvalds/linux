@@ -5,9 +5,7 @@
 
 #include "lib_float_math.h"
 
-#ifndef ASSERT
 #define ASSERT(condition)
-#endif
 
 #define isNaN(number) ((number) != (number))
 
@@ -130,6 +128,18 @@ float math_log(float a, float b)
 float math_log2(float a)
 {
 	return math_log(a, 2.0);
+}
+
+// approximate log2 value of a input
+//  - precise if the input pwr of 2, else the approximation will be an integer = floor(actual_log2)
+unsigned int math_log2_approx(unsigned int a)
+{
+	unsigned int log2_val = 0;
+	while (a > 1) {
+		a = a >> 1;
+		log2_val++;
+	}
+	return log2_val;
 }
 
 double math_round(double a)

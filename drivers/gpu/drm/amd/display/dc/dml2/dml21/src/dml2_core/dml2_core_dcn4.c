@@ -66,7 +66,6 @@ struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	.cursor_64bpp_support = true,
 	.dynamic_metadata_vm_enabled = false,
 
-	.max_num_hdmi_frl_outputs = 1,
 	.max_num_dp2p0_outputs = 4,
 	.max_num_dp2p0_streams = 4,
 	.imall_supported = 1,
@@ -78,6 +77,84 @@ struct dml2_core_ip_params core_dcn4_ip_caps_base = {
 	.subvp_swath_height_margin_lines = 16,
 };
 
+struct dml2_core_ip_params core_dcn4sw_ip_caps_base = {
+	.vblank_nom_default_us = 668,
+	.remote_iommu_outstanding_translations = 256,
+	.rob_buffer_size_kbytes = 192,
+	.config_return_buffer_size_in_kbytes = 1280,
+	.config_return_buffer_segment_size_in_kbytes = 64,
+	.compressed_buffer_segment_size_in_kbytes = 64,
+	.dpte_buffer_size_in_pte_reqs_luma = 68,
+	.dpte_buffer_size_in_pte_reqs_chroma = 36,
+	.pixel_chunk_size_kbytes = 8,
+	.alpha_pixel_chunk_size_kbytes = 4,
+	.min_pixel_chunk_size_bytes = 1024,
+	.writeback_chunk_size_kbytes = 8,
+	.line_buffer_size_bits = 1171920,
+	.max_line_buffer_lines = 32,
+	.writeback_interface_buffer_size_kbytes = 90,
+
+	//Number of pipes after DCN Pipe harvesting
+	.max_num_dpp = 4,
+	.max_num_otg = 4,
+	.max_num_wb = 1,
+	.max_dchub_pscl_bw_pix_per_clk = 4,
+	.max_pscl_lb_bw_pix_per_clk = 2,
+	.max_lb_vscl_bw_pix_per_clk = 4,
+	.max_vscl_hscl_bw_pix_per_clk = 4,
+	.max_hscl_ratio = 6,
+	.max_vscl_ratio = 6,
+	.max_hscl_taps = 8,
+	.max_vscl_taps = 8,
+	.dispclk_ramp_margin_percent = 1,
+	.dppclk_delay_subtotal = 47,
+	.dppclk_delay_scl = 50,
+	.dppclk_delay_scl_lb_only = 16,
+	.dppclk_delay_cnvc_formatter = 28,
+	.dppclk_delay_cnvc_cursor = 6,
+	.cursor_buffer_size = 24,
+	.cursor_chunk_size = 2,
+	.dispclk_delay_subtotal = 125,
+	.max_inter_dcn_tile_repeaters = 8,
+	.writeback_max_hscl_ratio = 1,
+	.writeback_max_vscl_ratio = 1,
+	.writeback_min_hscl_ratio = 1,
+	.writeback_min_vscl_ratio = 1,
+	.writeback_max_hscl_taps = 1,
+	.writeback_max_vscl_taps = 1,
+	.writeback_line_buffer_buffer_size = 0,
+	.num_dsc = 4,
+	.maximum_dsc_bits_per_component = 12,
+	.maximum_pixels_per_line_per_dsc_unit = 5760,
+	.dsc422_native_support = true,
+	.dcc_supported = true,
+	.ptoi_supported = false,
+
+	.cursor_64bpp_support = true,
+	.dynamic_metadata_vm_enabled = false,
+
+	.max_num_hdmi_frl_outputs = 1,
+	.max_num_dp2p0_outputs = 4,
+	.max_num_dp2p0_streams = 4,
+	.imall_supported = 1,
+	.max_flip_time_us = 80,
+	.words_per_channel = 16,
+
+	.subvp_fw_processing_delay_us = 15,
+	.subvp_pstate_allow_width_us = 20,
+	.subvp_swath_height_margin_lines = 16,
+
+	.dcn_mrq_present = 1,
+	.zero_size_buffer_entries = 512,
+	.compbuf_reserved_space_zs = 64,
+	.dcc_meta_buffer_size_bytes = 6272,
+	.meta_chunk_size_kbytes = 2,
+	.min_meta_chunk_size_bytes = 256,
+
+	.dchub_arb_to_ret_delay = 102,
+	.hostvm_mode = 1,
+};
+
 static void patch_ip_caps_with_explicit_ip_params(struct dml2_ip_capabilities *ip_caps, const struct dml2_core_ip_params *ip_params)
 {
 	ip_caps->pipe_count = ip_params->max_num_dpp;
@@ -85,10 +162,14 @@ static void patch_ip_caps_with_explicit_ip_params(struct dml2_ip_capabilities *i
 	ip_caps->num_dsc = ip_params->num_dsc;
 	ip_caps->max_num_dp2p0_streams = ip_params->max_num_dp2p0_streams;
 	ip_caps->max_num_dp2p0_outputs = ip_params->max_num_dp2p0_outputs;
+	ip_caps->max_num_hdmi_frl_outputs = ip_params->max_num_hdmi_frl_outputs;
 	ip_caps->rob_buffer_size_kbytes = ip_params->rob_buffer_size_kbytes;
 	ip_caps->config_return_buffer_size_in_kbytes = ip_params->config_return_buffer_size_in_kbytes;
+	ip_caps->config_return_buffer_segment_size_in_kbytes = ip_params->config_return_buffer_segment_size_in_kbytes;
 	ip_caps->meta_fifo_size_in_kentries = ip_params->meta_fifo_size_in_kentries;
 	ip_caps->compressed_buffer_segment_size_in_kbytes = ip_params->compressed_buffer_segment_size_in_kbytes;
+	ip_caps->max_flip_time_us = ip_params->max_flip_time_us;
+	ip_caps->hostvm_mode = ip_params->hostvm_mode;
 
 	// FIXME_STAGE2: cleanup after adding all dv override to ip_caps
 	ip_caps->subvp_drr_scheduling_margin_us = 100;
@@ -104,10 +185,14 @@ static void patch_ip_params_with_ip_caps(struct dml2_core_ip_params *ip_params, 
 	ip_params->num_dsc = ip_caps->num_dsc;
 	ip_params->max_num_dp2p0_streams = ip_caps->max_num_dp2p0_streams;
 	ip_params->max_num_dp2p0_outputs = ip_caps->max_num_dp2p0_outputs;
+	ip_params->max_num_hdmi_frl_outputs = ip_caps->max_num_hdmi_frl_outputs;
 	ip_params->rob_buffer_size_kbytes = ip_caps->rob_buffer_size_kbytes;
 	ip_params->config_return_buffer_size_in_kbytes = ip_caps->config_return_buffer_size_in_kbytes;
+	ip_params->config_return_buffer_segment_size_in_kbytes = ip_caps->config_return_buffer_segment_size_in_kbytes;
 	ip_params->meta_fifo_size_in_kentries = ip_caps->meta_fifo_size_in_kentries;
 	ip_params->compressed_buffer_segment_size_in_kbytes = ip_caps->compressed_buffer_segment_size_in_kbytes;
+	ip_params->max_flip_time_us = ip_caps->max_flip_time_us;
+	ip_params->hostvm_mode = ip_caps->hostvm_mode;
 }
 
 bool core_dcn4_initialize(struct dml2_core_initialize_in_out *in_out)
@@ -343,14 +428,12 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 
 				programming->stream_programming[main_plane->stream_index].uclk_pstate_method = programming->plane_programming[plane_index].uclk_pstate_support_method;
 
-				// If FAMS2 is required, populate stream params
-				if (programming->fams2_required) {
-					dml2_core_calcs_get_stream_fams2_programming(&core->clean_me_up.mode_lib,
-						display_cfg,
-						&programming->stream_programming[main_plane->stream_index].fams2_params,
-						programming->stream_programming[main_plane->stream_index].uclk_pstate_method,
-						plane_index);
-				}
+				/* unconditionally populate fams2 params */
+				dml2_core_calcs_get_stream_fams2_programming(&core->clean_me_up.mode_lib,
+					display_cfg,
+					&programming->stream_programming[main_plane->stream_index].fams2_params,
+					programming->stream_programming[main_plane->stream_index].uclk_pstate_method,
+					plane_index);
 
 				stream_already_populated_mask |= (0x1 << main_plane->stream_index);
 			}
@@ -394,7 +477,7 @@ bool core_dcn4_mode_support(struct dml2_core_mode_support_in_out *in_out)
 
 	bool result;
 	unsigned int i, stream_index, stream_bitmask;
-	int unsigned odm_count, dpp_count;
+	int unsigned odm_count, num_odm_output_segments, dpp_count;
 
 	expand_implict_subvp(in_out->display_cfg, &l->svp_expanded_display_cfg, &core->scratch);
 
@@ -448,6 +531,10 @@ bool core_dcn4_mode_support(struct dml2_core_mode_support_in_out *in_out)
 
 		stream_bitmask = 0;
 		for (i = 0; i < l->svp_expanded_display_cfg.num_planes; i++) {
+			odm_count = 1;
+			dpp_count = l->mode_support_ex_params.out_evaluation_info->DPPPerSurface[i];
+			num_odm_output_segments = 1;
+
 			switch (l->mode_support_ex_params.out_evaluation_info->ODMMode[i]) {
 			case dml2_odm_mode_bypass:
 				odm_count = 1;
@@ -467,7 +554,11 @@ bool core_dcn4_mode_support(struct dml2_core_mode_support_in_out *in_out)
 				break;
 			case dml2_odm_mode_split_1to2:
 			case dml2_odm_mode_mso_1to2:
+				num_odm_output_segments = 2;
+				break;
 			case dml2_odm_mode_mso_1to4:
+				num_odm_output_segments = 4;
+				break;
 			case dml2_odm_mode_auto:
 			default:
 				odm_count = 1;
@@ -486,6 +577,7 @@ bool core_dcn4_mode_support(struct dml2_core_mode_support_in_out *in_out)
 
 			if (!((stream_bitmask >> stream_index) & 0x1)) {
 				in_out->mode_support_result.cfg_support_info.stream_support_info[stream_index].odms_used = odm_count;
+				in_out->mode_support_result.cfg_support_info.stream_support_info[stream_index].num_odm_output_segments = num_odm_output_segments;
 				in_out->mode_support_result.cfg_support_info.stream_support_info[stream_index].dsc_enable = l->mode_support_ex_params.out_evaluation_info->DSCEnabled[i];
 				in_out->mode_support_result.cfg_support_info.stream_support_info[stream_index].num_dsc_slices = l->mode_support_ex_params.out_evaluation_info->NumberOfDSCSlices[i];
 				dml2_core_calcs_get_stream_support_info(&l->svp_expanded_display_cfg, &core->clean_me_up.mode_lib, &in_out->mode_support_result.cfg_support_info.stream_support_info[stream_index], i);

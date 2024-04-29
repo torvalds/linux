@@ -380,7 +380,11 @@ struct dml2_plane_parameters {
 		enum dml2_refresh_from_mall_mode_override refresh_from_mall;
 		unsigned int det_size_override_kb;
 		unsigned int mpcc_combine_factor;
-		long reserved_vblank_time_ns; // 0 = no override, -ve = no reserved time, +ve = explicit reserved time
+
+		// reserved_vblank_time_ns is the minimum time to reserve in vblank for Twait
+		// The actual reserved vblank time used for the corresponding stream in mode_programming would be at least as much as this per-plane override.
+		long reserved_vblank_time_ns;
+		unsigned int max_vactive_det_fill_delay_us; // 0 = no reserved time, +ve = explicit max delay
 		unsigned int gpuvm_min_page_size_kbytes;
 
 		enum dml2_svp_mode_override legacy_svp_config; //TODO remove in favor of svp_config
@@ -407,6 +411,7 @@ struct dml2_stream_parameters {
 		enum dml2_odm_mode odm_mode;
 		bool disable_dynamic_odm;
 		bool disable_subvp;
+		bool disable_fams2_drr;
 		int minimum_vblank_idle_requirement_us;
 		bool minimize_active_latency_hiding;
 
@@ -429,7 +434,7 @@ struct dml2_display_cfg {
 	bool minimize_det_reallocation;
 
 	unsigned int gpuvm_max_page_table_levels;
-	unsigned int hostvm_max_page_table_levels;
+	unsigned int hostvm_max_non_cached_page_table_levels;
 
 	struct dml2_plane_parameters plane_descriptors[DML2_MAX_PLANES];
 	struct dml2_stream_parameters stream_descriptors[DML2_MAX_PLANES];

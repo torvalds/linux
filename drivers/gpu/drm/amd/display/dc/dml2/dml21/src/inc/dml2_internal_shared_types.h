@@ -146,10 +146,13 @@ struct core_plane_support_info {
 	int active_latency_hiding_us;
 	int mall_svp_size_requirement_ways;
 	int nominal_vblank_pstate_latency_hiding_us;
+	unsigned int dram_change_vactive_det_fill_delay_us;
 };
 
 struct core_stream_support_info {
 	unsigned int odms_used;
+	unsigned int num_odm_output_segments; // for odm split mode (e.g. a value of 2 for odm_mode_mso_1to2)
+
 	/* FAMS2 SubVP support info */
 	unsigned int phantom_min_v_active;
 	unsigned int phantom_v_startup;
@@ -270,6 +273,7 @@ struct dml2_fams2_meta {
 	double max_frame_time_us;
 	unsigned int dram_clk_change_blackout_otg_vlines;
 	struct {
+		double max_vactive_det_fill_delay_us;
 		unsigned int max_vactive_det_fill_delay_otg_vlines;
 		struct dml2_fams2_per_method_common_meta common;
 	} method_vactive;
@@ -390,6 +394,7 @@ struct dml2_core_mode_programming_in_out {
 	* Outputs (also Input the clk freq are also from programming struct)
 	*/
 	struct dml2_display_cfg_programming *programming;
+
 };
 
 struct dml2_core_populate_informative_in_out {
@@ -481,7 +486,7 @@ struct dml2_pmo_initialize_in_out {
 	struct dml2_soc_bb *soc_bb;
 	struct dml2_ip_capabilities *ip_caps;
 	struct dml2_pmo_options *options;
-	int min_clock_table_size;
+	int mcg_clock_table_size;
 };
 
 struct dml2_pmo_optimize_dcc_mcache_in_out {
@@ -602,14 +607,14 @@ enum dml2_pmo_pstate_strategy {
 	dml2_pmo_pstate_strategy_fw_vactive_drr = 11,
 	dml2_pmo_pstate_strategy_fw_vblank_drr = 12,
 	dml2_pmo_pstate_strategy_fw_svp_drr = 13,
-	dml2_pmo_pstate_strategy_reserved_fw_drr_fixed = 20,
+	dml2_pmo_pstate_strategy_reserved_fw_drr_clamped = 20,
 	dml2_pmo_pstate_strategy_fw_drr = 21,
 	dml2_pmo_pstate_strategy_reserved_fw_drr_var = 22,
 };
 
 #define PMO_NO_DRR_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw - dml2_pmo_pstate_strategy_na + 1)) - 1) << dml2_pmo_pstate_strategy_na)
 #define PMO_DRR_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw_drr_var - dml2_pmo_pstate_strategy_fw_vactive_drr + 1)) - 1) << dml2_pmo_pstate_strategy_fw_vactive_drr)
-#define PMO_DRR_FIXED_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_fw_drr - dml2_pmo_pstate_strategy_fw_vactive_drr + 1)) - 1) << dml2_pmo_pstate_strategy_fw_vactive_drr)
+#define PMO_DRR_CLAMPED_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw_drr_clamped - dml2_pmo_pstate_strategy_fw_vactive_drr + 1)) - 1) << dml2_pmo_pstate_strategy_fw_vactive_drr)
 #define PMO_DRR_VAR_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw_drr_var - dml2_pmo_pstate_strategy_fw_drr + 1)) - 1) << dml2_pmo_pstate_strategy_fw_drr)
 #define PMO_FW_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw_drr_var - dml2_pmo_pstate_strategy_fw_svp + 1)) - 1) << dml2_pmo_pstate_strategy_fw_svp)
 
@@ -671,7 +676,7 @@ struct dml2_pmo_init_data {
 	union {
 		struct {
 			/* populated once during initialization */
-			enum dml2_pmo_pstate_strategy expanded_strategy_list_1_display[PMO_DCN4_MAX_BASE_STRATEGIES * 1][PMO_DCN4_MAX_DISPLAYS];
+			enum dml2_pmo_pstate_strategy expanded_strategy_list_1_display[PMO_DCN4_MAX_BASE_STRATEGIES * 2][PMO_DCN4_MAX_DISPLAYS];
 			enum dml2_pmo_pstate_strategy expanded_strategy_list_2_display[PMO_DCN4_MAX_BASE_STRATEGIES * 2 * 2][PMO_DCN4_MAX_DISPLAYS];
 			enum dml2_pmo_pstate_strategy expanded_strategy_list_3_display[PMO_DCN4_MAX_BASE_STRATEGIES * 6 * 2][PMO_DCN4_MAX_DISPLAYS];
 			enum dml2_pmo_pstate_strategy expanded_strategy_list_4_display[PMO_DCN4_MAX_BASE_STRATEGIES * 24 * 2][PMO_DCN4_MAX_DISPLAYS];
@@ -689,7 +694,7 @@ struct dml2_pmo_instance {
 	int disp_clk_vmin_threshold;
 	int mpc_combine_limit;
 	int odm_combine_limit;
-	int min_clock_table_size;
+	int mcg_clock_table_size;
 
 	union {
 		struct {

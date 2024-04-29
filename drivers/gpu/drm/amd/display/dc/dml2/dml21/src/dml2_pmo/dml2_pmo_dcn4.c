@@ -284,7 +284,7 @@ bool pmo_dcn4_initialize(struct dml2_pmo_initialize_in_out *in_out)
 	pmo->ip_caps = in_out->ip_caps;
 	pmo->mpc_combine_limit = 2;
 	pmo->odm_combine_limit = 4;
-	pmo->min_clock_table_size = in_out->min_clock_table_size;
+	pmo->mcg_clock_table_size = in_out->mcg_clock_table_size;
 
 	pmo->fams_params.v1.subvp.fw_processing_delay_us = 10;
 	pmo->fams_params.v1.subvp.prefetch_end_to_mall_start_us = 50;
@@ -499,11 +499,11 @@ bool pmo_dcn4_optimize_for_vmin(struct dml2_pmo_optimize_for_vmin_in_out *in_out
 
 static bool are_timings_trivially_synchronizable(const struct display_configuation_with_meta *display_config, int mask)
 {
-	unsigned int i;
+	unsigned char i;
 	bool identical = true;
 	bool contains_drr = false;
-	unsigned int remap_array[DML2_MAX_PLANES];
-	unsigned int remap_array_size = 0;
+	unsigned char remap_array[DML2_MAX_PLANES];
+	unsigned char remap_array_size = 0;
 
 	// Create a remap array to enable simple iteration through only masked stream indicies
 	for (i = 0; i < display_config->display_config.num_streams; i++) {
@@ -603,7 +603,7 @@ static bool all_planes_match_strategy(const struct display_configuation_with_met
 }
 
 static bool subvp_subvp_schedulable(struct dml2_pmo_instance *pmo, const struct display_configuation_with_meta *display_cfg,
-	unsigned int *svp_stream_indicies, int svp_stream_count)
+	unsigned char *svp_stream_indicies, char svp_stream_count)
 {
 	struct dml2_pmo_scratch *s = &pmo->scratch;
 	int i;
@@ -669,10 +669,10 @@ static bool validate_svp_cofunctionality(struct dml2_pmo_instance *pmo,
 	const struct display_configuation_with_meta *display_cfg, int svp_stream_mask)
 {
 	bool result = false;
-	unsigned int stream_index;
+	unsigned char stream_index;
 
-	unsigned int svp_stream_indicies[2] = { 0 };
-	unsigned int svp_stream_count = 0;
+	unsigned char svp_stream_indicies[2] = { 0 };
+	unsigned char svp_stream_count = 0;
 
 	// Find the SVP streams, store only the first 2, but count all of them
 	for (stream_index = 0; stream_index < display_cfg->display_config.num_streams; stream_index++) {
@@ -696,7 +696,7 @@ static bool validate_svp_cofunctionality(struct dml2_pmo_instance *pmo,
 static bool validate_drr_cofunctionality(struct dml2_pmo_instance *pmo,
 	const struct display_configuation_with_meta *display_cfg, int drr_stream_mask)
 {
-	unsigned int stream_index;
+	unsigned char stream_index;
 	int drr_stream_count = 0;
 
 	// Find the SVP streams and count all of them
@@ -712,7 +712,7 @@ static bool validate_drr_cofunctionality(struct dml2_pmo_instance *pmo,
 static bool validate_svp_drr_cofunctionality(struct dml2_pmo_instance *pmo,
 	const struct display_configuation_with_meta *display_cfg, int svp_stream_mask, int drr_stream_mask)
 {
-	unsigned int stream_index;
+	unsigned char stream_index;
 	int drr_stream_count = 0;
 	int svp_stream_count = 0;
 
@@ -781,7 +781,7 @@ static bool validate_svp_drr_cofunctionality(struct dml2_pmo_instance *pmo,
 static bool validate_svp_vblank_cofunctionality(struct dml2_pmo_instance *pmo,
 	const struct display_configuation_with_meta *display_cfg, int svp_stream_mask, int vblank_stream_mask)
 {
-	unsigned int stream_index;
+	unsigned char stream_index;
 	int vblank_stream_count = 0;
 	int svp_stream_count = 0;
 
@@ -853,7 +853,7 @@ static bool validate_pstate_support_strategy_cofunctionality(struct dml2_pmo_ins
 {
 	struct dml2_pmo_scratch *s = &pmo->scratch;
 
-	unsigned int stream_index = 0;
+	unsigned char stream_index = 0;
 
 	unsigned int svp_count = 0;
 	unsigned int svp_stream_mask = 0;
@@ -967,7 +967,7 @@ bool pmo_dcn4_init_for_pstate_support(struct dml2_pmo_init_for_pstate_support_in
 	memset(s, 0, sizeof(struct dml2_pmo_scratch));
 
 	pmo->scratch.pmo_dcn4.min_latency_index = in_out->base_display_config->stage1.min_clk_index_for_latency;
-	pmo->scratch.pmo_dcn4.max_latency_index = pmo->min_clock_table_size;
+	pmo->scratch.pmo_dcn4.max_latency_index = pmo->mcg_clock_table_size - 1;
 	pmo->scratch.pmo_dcn4.cur_latency_index = in_out->base_display_config->stage1.min_clk_index_for_latency;
 
 	// First build the stream plane mask (array of bitfields indexed by stream, indicating plane mapping)
@@ -1071,7 +1071,7 @@ static void reset_display_configuration(struct display_configuation_with_meta *d
 
 static void setup_planes_for_drr_by_mask(struct display_configuation_with_meta *display_config, int plane_mask)
 {
-	unsigned int plane_index;
+	unsigned char plane_index;
 	struct dml2_plane_parameters *plane;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
@@ -1088,7 +1088,7 @@ static void setup_planes_for_drr_by_mask(struct display_configuation_with_meta *
 
 static void setup_planes_for_svp_by_mask(struct display_configuation_with_meta *display_config, int plane_mask)
 {
-	unsigned int plane_index;
+	unsigned char plane_index;
 	int stream_index = -1;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
@@ -1110,7 +1110,7 @@ static void setup_planes_for_svp_by_mask(struct display_configuation_with_meta *
 
 static void setup_planes_for_vblank_by_mask(struct display_configuation_with_meta *display_config, int plane_mask)
 {
-	unsigned int plane_index;
+	unsigned char plane_index;
 	struct dml2_plane_parameters *plane;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
@@ -1127,7 +1127,7 @@ static void setup_planes_for_vblank_by_mask(struct display_configuation_with_met
 
 static void setup_planes_for_vactive_by_mask(struct display_configuation_with_meta *display_config, int plane_mask)
 {
-	unsigned int plane_index;
+	unsigned char plane_index;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
@@ -1139,7 +1139,7 @@ static void setup_planes_for_vactive_by_mask(struct display_configuation_with_me
 static bool setup_display_config(struct display_configuation_with_meta *display_config, struct dml2_pmo_scratch *scratch, int strategy_index)
 {
 	bool success = true;
-	unsigned int stream_index;
+	unsigned char stream_index;
 
 	reset_display_configuration(display_config);
 
@@ -1164,7 +1164,7 @@ static bool setup_display_config(struct display_configuation_with_meta *display_
 static int get_minimum_reserved_time_us_for_planes(struct display_configuation_with_meta *display_config, int plane_mask)
 {
 	int min_time_us = 0xFFFFFF;
-	unsigned int plane_index = 0;
+	unsigned char plane_index = 0;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {

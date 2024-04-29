@@ -120,11 +120,11 @@ static const struct dml2_soc_bb dml2_socbb_dcn401 = {
 				.num_clk_values = 2,
 		},
 		.phyclk_d18 = {
-				.clk_values_khz = {667000, 667000},
+				.clk_values_khz = {625000, 625000},
 				.num_clk_values = 2,
 		},
 		.phyclk_d32 = {
-				.clk_values_khz = {2000000, 2000000},
+				.clk_values_khz = {625000, 625000},
 				.num_clk_values = 2,
 		},
 		.dram_config = {
@@ -289,17 +289,29 @@ static const struct dml2_soc_bb dml2_socbb_dcn401 = {
 		.dram_clk_change_blackout_us = 400,
 		.fclk_change_blackout_us = 0,
 		.g7_ppt_blackout_us = 0,
-		.stutter_enter_plus_exit_latency_us = 21,
-		.stutter_exit_latency_us = 16,
+		.stutter_enter_plus_exit_latency_us = 54,
+		.stutter_exit_latency_us = 41,
 		.z8_stutter_enter_plus_exit_latency_us = 0,
 		.z8_stutter_exit_latency_us = 0,
+		/*
+		.g6_temp_read_blackout_us = {
+			23.00,
+			10.00,
+			10.00,
+			8.00,
+			8.00,
+			5.00,
+			5.00,
+			5.00,
+		},
+		*/
 	},
 
 	 .vmin_limit = {
 		.dispclk_khz = 600 * 1000,
 	 },
 
-	.dprefclk_mhz = 700,
+	.dprefclk_mhz = 720,
 	.xtalclk_mhz = 100,
 	.pcie_refclk_mhz = 100,
 	.dchub_refclk_mhz = 50,
@@ -309,8 +321,8 @@ static const struct dml2_soc_bb dml2_socbb_dcn401 = {
 	.return_bus_width_bytes = 64,
 	.hostvm_min_page_size_kbytes = 0,
 	.gpuvm_min_page_size_kbytes = 256,
-	.phy_downspread_percent = 0,
-	.dcn_downspread_percent = 0,
+	.phy_downspread_percent = 0.38,
+	.dcn_downspread_percent = 0.38,
 	.dispclk_dppclk_vco_speed_mhz = 4500,
 	.do_urgent_latency_adjustment = 0,
 	.mem_word_bytes = 32,
@@ -329,6 +341,7 @@ static const struct dml2_ip_capabilities dml2_dcn401_max_ip_caps = {
 	.max_num_dp2p0_outputs = 4,
 	.rob_buffer_size_kbytes = 192,
 	.config_return_buffer_size_in_kbytes = 1344,
+	.config_return_buffer_segment_size_in_kbytes = 64,
 	.meta_fifo_size_in_kentries = 22,
 	.compressed_buffer_segment_size_in_kbytes = 64,
 	.subvp_drr_scheduling_margin_us = 100,

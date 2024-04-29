@@ -58,7 +58,10 @@ static void calculate_system_active_minimums(struct dml2_dpmm_map_mode_to_soc_dp
 	min_uclk_avg = (double)min_uclk_avg / ((double)in_out->soc_bb->qos_parameters.derate_table.system_active_average.dram_derate_percent_pixel / 100);
 
 	min_uclk_urgent = dram_bw_kbps_to_uclk_khz(mode_support_result->global.active.urgent_bw_dram_kbps, &in_out->soc_bb->clk_table.dram_config);
-	min_uclk_urgent = (double)min_uclk_urgent / ((double)in_out->soc_bb->qos_parameters.derate_table.system_active_urgent.dram_derate_percent_pixel / 100);
+	if (in_out->display_cfg->display_config.hostvm_enable)
+		min_uclk_urgent = (double)min_uclk_urgent / ((double)in_out->soc_bb->qos_parameters.derate_table.system_active_urgent.dram_derate_percent_pixel_and_vm / 100);
+	else
+		min_uclk_urgent = (double)min_uclk_urgent / ((double)in_out->soc_bb->qos_parameters.derate_table.system_active_urgent.dram_derate_percent_pixel / 100);
 
 	min_uclk_bw = min_uclk_urgent > min_uclk_avg ? min_uclk_urgent : min_uclk_avg;
 
@@ -226,13 +229,9 @@ static bool round_up_to_next_dpm(unsigned long *clock_value, const struct dml2_c
 	return round_up_and_copy_to_next_dpm(*clock_value, clock_value, clock_table);
 }
 
-static bool map_min_clocks_to_dpm(const struct dml2_core_mode_support_result *mode_support_result, struct dml2_display_cfg_programming *display_cfg, const struct dml2_soc_state_table *state_table)
+static bool map_soc_min_clocks_to_dpm_fine_grained(struct dml2_display_cfg_programming *display_cfg, const struct dml2_soc_state_table *state_table)
 {
 	bool result;
-	unsigned int i;
-
-	if (!state_table || !display_cfg)
-		return false;
 
 	result = round_up_to_next_dpm(&display_cfg->min_clocks.dcn4.active.dcfclk_khz, &state_table->dcfclk);
 	if (result)
@@ -253,6 +252,77 @@ static bool map_min_clocks_to_dpm(const struct dml2_core_mode_support_result *mo
 		result = round_up_to_next_dpm(&display_cfg->min_clocks.dcn4.idle.fclk_khz, &state_table->fclk);
 	if (result)
 		result = round_up_to_next_dpm(&display_cfg->min_clocks.dcn4.idle.uclk_khz, &state_table->uclk);
+
+	return result;
+}
+
+static bool map_soc_min_clocks_to_dpm_coarse_grained(struct dml2_display_cfg_programming *display_cfg, const struct dml2_soc_state_table *state_table)
+{
+	bool result;
+	int index;
+
+	result = false;
+	for (index = 0; index < state_table->uclk.num_clk_values; index++) {
+		if (display_cfg->min_clocks.dcn4.active.dcfclk_khz <= state_table->dcfclk.clk_values_khz[index] &&
+			display_cfg->min_clocks.dcn4.active.fclk_khz <= state_table->fclk.clk_values_khz[index] &&
+			display_cfg->min_clocks.dcn4.active.uclk_khz <= state_table->uclk.clk_values_khz[index]) {
+			display_cfg->min_clocks.dcn4.active.dcfclk_khz = state_table->dcfclk.clk_values_khz[index];
+			display_cfg->min_clocks.dcn4.active.fclk_khz = state_table->fclk.clk_values_khz[index];
+			display_cfg->min_clocks.dcn4.active.uclk_khz = state_table->uclk.clk_values_khz[index];
+			result = true;
+			break;
+		}
+	}
+
+	if (result) {
+		result = false;
+		for (index = 0; index < state_table->uclk.num_clk_values; index++) {
+			if (display_cfg->min_clocks.dcn4.idle.dcfclk_khz <= state_table->dcfclk.clk_values_khz[index] &&
+				display_cfg->min_clocks.dcn4.idle.fclk_khz <= state_table->fclk.clk_values_khz[index] &&
+				display_cfg->min_clocks.dcn4.idle.uclk_khz <= state_table->uclk.clk_values_khz[index]) {
+				display_cfg->min_clocks.dcn4.idle.dcfclk_khz = state_table->dcfclk.clk_values_khz[index];
+				display_cfg->min_clocks.dcn4.idle.fclk_khz = state_table->fclk.clk_values_khz[index];
+				display_cfg->min_clocks.dcn4.idle.uclk_khz = state_table->uclk.clk_values_khz[index];
+				result = true;
+				break;
+			}
+		}
+	}
+
+	// SVP is not supported on any coarse grained SoCs
+	display_cfg->min_clocks.dcn4.svp_prefetch.dcfclk_khz = 0;
+	display_cfg->min_clocks.dcn4.svp_prefetch.fclk_khz = 0;
+	display_cfg->min_clocks.dcn4.svp_prefetch.uclk_khz = 0;
+
+	return result;
+}
+
+static bool map_min_clocks_to_dpm(const struct dml2_core_mode_support_result *mode_support_result, struct dml2_display_cfg_programming *display_cfg, const struct dml2_soc_state_table *state_table)
+{
+	bool result = false;
+	bool dcfclk_fine_grained = false, fclk_fine_grained = false, clock_state_count_identical = false;
+	unsigned int i;
+
+	if (!state_table || !display_cfg)
+		return false;
+
+	if (state_table->dcfclk.num_clk_values == 2) {
+		dcfclk_fine_grained = true;
+	}
+
+	if (state_table->fclk.num_clk_values == 2) {
+		fclk_fine_grained = true;
+	}
+
+	if (state_table->fclk.num_clk_values == state_table->dcfclk.num_clk_values &&
+		state_table->fclk.num_clk_values == state_table->uclk.num_clk_values) {
+		clock_state_count_identical = true;
+	}
+
+	if (dcfclk_fine_grained || fclk_fine_grained || !clock_state_count_identical)
+		result = map_soc_min_clocks_to_dpm_fine_grained(display_cfg, state_table);
+	else
+		result = map_soc_min_clocks_to_dpm_coarse_grained(display_cfg, state_table);
 
 	if (result)
 		result = round_up_to_next_dpm(&display_cfg->min_clocks.dcn4.dispclk_khz, &state_table->dispclk);
@@ -285,11 +355,11 @@ static bool map_min_clocks_to_dpm(const struct dml2_core_mode_support_result *mo
 
 static bool are_timings_trivially_synchronizable(struct dml2_display_cfg *display_config, int mask)
 {
-	unsigned int i;
+	unsigned char i;
 	bool identical = true;
 	bool contains_drr = false;
-	unsigned int remap_array[DML2_MAX_PLANES];
-	unsigned int remap_array_size = 0;
+	unsigned char remap_array[DML2_MAX_PLANES];
+	unsigned char remap_array_size = 0;
 
 	// Create a remap array to enable simple iteration through only masked stream indicies
 	for (i = 0; i < display_config->num_streams; i++) {
@@ -324,10 +394,10 @@ static bool are_timings_trivially_synchronizable(struct dml2_display_cfg *displa
 
 static int find_smallest_idle_time_in_vblank_us(struct dml2_dpmm_map_mode_to_soc_dpm_params_in_out *in_out, int mask)
 {
-	unsigned int i;
+	unsigned char i;
 	int min_idle_us = 0;
-	unsigned int remap_array[DML2_MAX_PLANES];
-	unsigned int remap_array_size = 0;
+	unsigned char remap_array[DML2_MAX_PLANES];
+	unsigned char remap_array_size = 0;
 	const struct dml2_core_mode_support_result *mode_support_result = &in_out->display_cfg->mode_support_result;
 
 	// Create a remap array to enable simple iteration through only masked stream indicies
@@ -468,7 +538,7 @@ static bool map_mode_to_soc_dpm(struct dml2_dpmm_map_mode_to_soc_dpm_params_in_o
 	calculate_svp_prefetch_minimums(in_out);
 	calculate_idle_minimums(in_out);
 
-	// In DCN4, there's no support for FCLK or DCFCLK DPM change before SVP prefetch starts, therefore
+	// In NV4, there's no support for FCLK or DCFCLK DPM change before SVP prefetch starts, therefore
 	// active minimums must be boosted to prefetch minimums
 	if (in_out->programming->min_clocks.dcn4.svp_prefetch.uclk_khz > in_out->programming->min_clocks.dcn4.active.uclk_khz)
 		in_out->programming->min_clocks.dcn4.active.uclk_khz = in_out->programming->min_clocks.dcn4.svp_prefetch.uclk_khz;

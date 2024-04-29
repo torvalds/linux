@@ -20,6 +20,7 @@ float math_pow(float a, float exp);
 double math_fabs(double a);
 float math_log(float a, float b);
 float math_log2(float a);
+unsigned int math_log2_approx(unsigned int a);
 double math_round(double a);
 
 #endif

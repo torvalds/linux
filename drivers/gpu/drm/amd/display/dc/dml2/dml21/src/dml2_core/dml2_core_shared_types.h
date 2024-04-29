@@ -73,7 +73,6 @@ struct dml2_core_ip_params {
 	unsigned int subvp_swath_height_margin_lines;
 	unsigned int subvp_fw_processing_delay_us;
 	unsigned int subvp_pstate_allow_width_us;
-	double max_vactive_det_fill_delay_us;
 
 	// MRQ
 	bool dcn_mrq_present;
@@ -207,6 +206,7 @@ struct dml2_core_internal_mode_support_info {
 	bool ScaleRatioAndTapsSupport;
 	bool SourceFormatPixelAndScanSupport;
 	bool P2IWith420;
+	bool DSCSlicesODMModeSupported;
 	bool DSCOnlyIfNecessaryWithBPP;
 	bool DSC422NativeNotSupported;
 	bool LinkRateDoesNotMatchDPVersion;
@@ -238,7 +238,6 @@ struct dml2_core_internal_mode_support_info {
 	bool LinkCapacitySupport;
 
 	bool ROBSupport;
-	bool ROBUrgencyAvoidance;
 	bool OutstandingRequestsSupport;
 	bool OutstandingRequestsUrgencyAvoidance;
 
@@ -301,6 +300,7 @@ struct dml2_core_internal_mode_support_info {
 	double avg_bandwidth_required[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max];
 	double urg_vactive_bandwidth_required[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // active bandwidth, scaled by urg burst factor
 	double urg_bandwidth_required[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // include vm, prefetch, active bandwidth, scaled by urg burst factor
+	double urg_bandwidth_required_qual[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // include vm, prefetch, active bandwidth, scaled by urg burst factor, use qual_row_bw
 	double urg_bandwidth_required_flip[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // include vm, prefetch, active bandwidth + flip
 
 	double non_urg_bandwidth_required[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // same as urg_bandwidth, except not scaled by urg burst factor
@@ -308,7 +308,6 @@ struct dml2_core_internal_mode_support_info {
 
 	bool avg_bandwidth_support_ok[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max];
 
-	double max_non_urgent_latency_us;
 	double max_urgent_latency_us;
 	double avg_non_urgent_latency_us;
 	double avg_urgent_latency_us;
@@ -480,6 +479,10 @@ struct dml2_core_internal_mode_support {
 	double meta_row_bw[DML2_MAX_PLANES];
 	unsigned int meta_row_bytes[DML2_MAX_PLANES];
 	double dpte_row_bw[DML2_MAX_PLANES];
+	double excess_vactive_fill_bw_l[DML2_MAX_PLANES];
+	double excess_vactive_fill_bw_c[DML2_MAX_PLANES];
+	double surface_avg_vactive_required_bw[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max][DML2_MAX_PLANES];
+	double surface_peak_required_bw[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max][DML2_MAX_PLANES];
 
 	// Something that should be feedback to caller
 	enum dml2_odm_mode ODMMode[DML2_MAX_PLANES];
@@ -503,6 +506,7 @@ struct dml2_core_internal_mode_support {
 	double VActiveLatencyHidingMargin[DML2_MAX_PLANES];
 	double VActiveLatencyHidingUs[DML2_MAX_PLANES];
 	unsigned int MaxVStartupLines[DML2_MAX_PLANES];
+	double dram_change_vactive_det_fill_delay_us[DML2_MAX_PLANES];
 
 	unsigned int num_mcaches_l[DML2_MAX_PLANES];
 	unsigned int mcache_row_bytes_l[DML2_MAX_PLANES];
@@ -557,6 +561,8 @@ struct dml2_core_internal_mode_program {
 	unsigned int SwathWidthSingleDPPC[DML2_MAX_PLANES];
 	double SurfaceReadBandwidthLuma[DML2_MAX_PLANES];
 	double SurfaceReadBandwidthChroma[DML2_MAX_PLANES];
+	double excess_vactive_fill_bw_l[DML2_MAX_PLANES];
+	double excess_vactive_fill_bw_c[DML2_MAX_PLANES];
 
 	unsigned int PixelPTEBytesPerRow[DML2_MAX_PLANES];
 	unsigned int vm_bytes[DML2_MAX_PLANES];
@@ -798,6 +804,7 @@ struct dml2_core_internal_mode_program {
 
 	double urg_vactive_bandwidth_required[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // active bandwidth, scaled by urg burst factor
 	double urg_bandwidth_required[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // include vm, prefetch, active bandwidth, scaled by urg burst factor
+	double urg_bandwidth_required_qual[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // include vm, prefetch, active bandwidth, scaled by urg burst factor, use qual_row_bw
 	double urg_bandwidth_required_flip[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // include vm, prefetch, active bandwidth + flip
 	double non_urg_bandwidth_required[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max]; // same as urg_bandwidth, except not scaled by urg burst factor
 	double non_urg_bandwidth_required_flip[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max];
@@ -853,8 +860,12 @@ struct dml2_core_calcs_mode_support_locals {
 
 	unsigned int meta_row_height_luma[DML2_MAX_PLANES];
 	unsigned int meta_row_height_chroma[DML2_MAX_PLANES];
+	unsigned int meta_row_bytes_per_row_ub_l[DML2_MAX_PLANES];
+	unsigned int meta_row_bytes_per_row_ub_c[DML2_MAX_PLANES];
+	unsigned int dpte_row_bytes_per_row_l[DML2_MAX_PLANES];
+	unsigned int dpte_row_bytes_per_row_c[DML2_MAX_PLANES];
 
-	bool dummy_boolean[3];
+	bool dummy_boolean[2];
 	unsigned int dummy_integer[3];
 	unsigned int dummy_integer_array[36][DML2_MAX_PLANES];
 	enum dml2_odm_mode dummy_odm_mode[DML2_MAX_PLANES];
@@ -863,6 +874,7 @@ struct dml2_core_calcs_mode_support_locals {
 	double dummy_single_array[DML2_MAX_PLANES];
 	struct dml2_core_internal_watermarks dummy_watermark;
 	double dummy_bw[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max];
+	double surface_dummy_bw[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max][DML2_MAX_PLANES];
 
 	unsigned int MaximumVStartup[DML2_MAX_PLANES];
 	unsigned int DSTYAfterScaler[DML2_MAX_PLANES];
@@ -934,6 +946,10 @@ struct dml2_core_calcs_mode_support_locals {
 	unsigned int cursor_bytes_per_line[DML2_MAX_PLANES];
 	unsigned int cursor_lines_per_chunk[DML2_MAX_PLANES];
 	unsigned int cursor_bytes[DML2_MAX_PLANES];
+	bool stream_visited[DML2_MAX_PLANES];
+
+	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
 };
 
 struct dml2_core_calcs_mode_programming_locals {
@@ -946,6 +962,8 @@ struct dml2_core_calcs_mode_programming_locals {
 	double SOCCLK; /// <brief Basically just the clock freq at the min (or given) state
 
 	double dummy_bw[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max];
+	double surface_dummy_bw[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max][DML2_MAX_PLANES];
+	double surface_dummy_bw0[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max][DML2_MAX_PLANES];
 	unsigned int dummy_integer_array[2][DML2_MAX_PLANES];
 	enum dml2_output_encoder_class dummy_output_encoder_array[DML2_MAX_PLANES];
 	double dummy_single_array[2][DML2_MAX_PLANES];
@@ -984,6 +1002,11 @@ struct dml2_core_calcs_mode_programming_locals {
 	unsigned int full_swath_bytes_l[DML2_MAX_PLANES];
 	unsigned int full_swath_bytes_c[DML2_MAX_PLANES];
 
+	unsigned int meta_row_bytes_per_row_ub_l[DML2_MAX_PLANES];
+	unsigned int meta_row_bytes_per_row_ub_c[DML2_MAX_PLANES];
+	unsigned int dpte_row_bytes_per_row_l[DML2_MAX_PLANES];
+	unsigned int dpte_row_bytes_per_row_c[DML2_MAX_PLANES];
+
 	unsigned int tdlut_pte_bytes_per_frame[DML2_MAX_PLANES];
 	unsigned int tdlut_bytes_per_frame[DML2_MAX_PLANES];
 	unsigned int tdlut_row_bytes[DML2_MAX_PLANES];
@@ -1004,6 +1027,9 @@ struct dml2_core_calcs_mode_programming_locals {
 	double Tvm_trips_flip_rounded[DML2_MAX_PLANES];
 	double Tr0_trips_flip_rounded[DML2_MAX_PLANES];
 	unsigned int per_pipe_flip_bytes[DML2_MAX_PLANES];
+
+	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
+	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
 };
 
 struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_locals {
@@ -1113,6 +1139,8 @@ struct dml2_core_calcs_CalculateVMRowAndSwath_params {
 	unsigned int *MaxNumSwathC;
 	double *dpte_row_bw;
 	unsigned int *PixelPTEBytesPerRow;
+	unsigned int *dpte_row_bytes_per_row_l;
+	unsigned int *dpte_row_bytes_per_row_c;
 	unsigned int *vm_bytes;
 	bool *use_one_row_for_frame;
 	bool *use_one_row_for_frame_flip;
@@ -1134,6 +1162,8 @@ struct dml2_core_calcs_CalculateVMRowAndSwath_params {
 	unsigned int *meta_pte_bytes_per_frame_ub_c;
 	double *meta_row_bw;
 	unsigned int *meta_row_bytes;
+	unsigned int *meta_row_bytes_per_row_ub_l;
+	unsigned int *meta_row_bytes_per_row_ub_c;
 };
 
 struct dml2_core_calcs_CalculatePrefetchSchedule_locals {
@@ -1307,6 +1337,7 @@ struct dml2_core_shared_get_urgent_bandwidth_required_locals {
 struct dml2_core_shared_calculate_peak_bandwidth_required_locals {
 	double unity_array[DML2_MAX_PLANES];
 	double zero_array[DML2_MAX_PLANES];
+	double surface_dummy_bw[DML2_MAX_PLANES];
 };
 
 struct dml2_core_shared_CalculateFlipSchedule_locals {
@@ -1588,6 +1619,7 @@ struct dml2_core_calcs_CalculateStutterEfficiency_locals {
 	double TotalZeroSizeCompressedReadBandwidth;
 	double AverageDCCZeroSizeFraction;
 	double AverageZeroSizeCompressionRate;
+	bool stream_visited[DML2_MAX_PLANES];
 };
 
 struct dml2_core_calcs_CalculateStutterEfficiency_params {
@@ -1870,6 +1902,73 @@ struct dml2_core_calcs_calculate_tdlut_setting_params {
 	unsigned int *tdlut_bytes_per_group;
 };
 
+struct dml2_core_calcs_calculate_peak_bandwidth_required_params {
+	// output
+	double (*urg_vactive_bandwidth_required)[dml2_core_internal_bw_max];
+	double (*urg_bandwidth_required)[dml2_core_internal_bw_max];
+	double (*urg_bandwidth_required_qual)[dml2_core_internal_bw_max];
+	double (*non_urg_bandwidth_required)[dml2_core_internal_bw_max];
+	double (*surface_avg_vactive_required_bw)[dml2_core_internal_bw_max][DML2_MAX_PLANES];
+	double (*surface_peak_required_bw)[dml2_core_internal_bw_max][DML2_MAX_PLANES];
+
+	// input
+	const struct dml2_display_cfg *display_cfg;
+	bool inc_flip_bw;
+	unsigned int num_active_planes;
+	unsigned int *num_of_dpp;
+	double *dcc_dram_bw_nom_overhead_factor_p0;
+	double *dcc_dram_bw_nom_overhead_factor_p1;
+	double *dcc_dram_bw_pref_overhead_factor_p0;
+	double *dcc_dram_bw_pref_overhead_factor_p1;
+	double *mall_prefetch_sdp_overhead_factor;
+	double *mall_prefetch_dram_overhead_factor;
+	double *surface_read_bandwidth_l;
+	double *surface_read_bandwidth_c;
+	double *prefetch_bandwidth_l;
+	double *prefetch_bandwidth_c;
+	double *excess_vactive_fill_bw_l;
+	double *excess_vactive_fill_bw_c;
+	double *cursor_bw;
+	double *dpte_row_bw;
+	double *meta_row_bw;
+	double *prefetch_cursor_bw;
+	double *prefetch_vmrow_bw;
+	double *flip_bw;
+	double *urgent_burst_factor_l;
+	double *urgent_burst_factor_c;
+	double *urgent_burst_factor_cursor;
+	double *urgent_burst_factor_prefetch_l;
+	double *urgent_burst_factor_prefetch_c;
+	double *urgent_burst_factor_prefetch_cursor;
+};
+
+struct dml2_core_calcs_calculate_bytes_to_fetch_required_to_hide_latency_params {
+	/* inputs */
+	const struct dml2_display_cfg *display_cfg;
+	bool mrq_present;
+	unsigned int num_active_planes;
+	unsigned int *num_of_dpp;
+	unsigned int *meta_row_height_l;
+	unsigned int *meta_row_height_c;
+	unsigned int *meta_row_bytes_per_row_ub_l;
+	unsigned int *meta_row_bytes_per_row_ub_c;
+	unsigned int *dpte_row_height_l;
+	unsigned int *dpte_row_height_c;
+	unsigned int *dpte_bytes_per_row_l;
+	unsigned int *dpte_bytes_per_row_c;
+	unsigned int *byte_per_pix_l;
+	unsigned int *byte_per_pix_c;
+	unsigned int *swath_width_l;
+	unsigned int *swath_width_c;
+	unsigned int *swath_height_l;
+	unsigned int *swath_height_c;
+	double latency_to_hide_us;
+
+	/* outputs */
+	unsigned int *bytes_required_l;
+	unsigned int *bytes_required_c;
+};
+
 // A list of overridable function pointers in the core
 // shared calculation library.
 struct dml2_core_shared_calculation_funcs {
@@ -1903,6 +2002,8 @@ struct dml2_core_internal_scratch {
 	struct dml2_core_shared_calculate_vm_and_row_bytes_params calculate_vm_and_row_bytes_params;
 	struct dml2_core_shared_calculate_mcache_setting_locals calculate_mcache_setting_locals;
 	struct dml2_core_shared_CalculateMetaAndPTETimes_params CalculateMetaAndPTETimes_params;
+	struct dml2_core_calcs_calculate_peak_bandwidth_required_params calculate_peak_bandwidth_params;
+	struct dml2_core_calcs_calculate_bytes_to_fetch_required_to_hide_latency_params calculate_bytes_to_fetch_required_to_hide_latency_params;
 };
 
 //struct dml2_svp_mode_override;

@@ -29,8 +29,6 @@
 #include "lib_float_math.h"
 #include "dml2_pmo_dcn4_fams2.h"
 
-#define PMO_DCN4_MIN_TIME_TO_DISALLOW_MS 0.0
-
 static const double MIN_VACTIVE_MARGIN_PCT = 0.25; // We need more than non-zero margin because DET buffer granularity can alter vactive latency hiding
 
 static const enum dml2_pmo_pstate_strategy base_strategy_list_1_display[][PMO_DCN4_MAX_DISPLAYS] = {
@@ -318,7 +316,7 @@ static enum dml2_pmo_pstate_strategy convert_strategy_to_drr_variant(const enum 
 	case dml2_pmo_pstate_strategy_fw_drr:
 	case dml2_pmo_pstate_strategy_reserved_hw:
 	case dml2_pmo_pstate_strategy_reserved_fw:
-	case dml2_pmo_pstate_strategy_reserved_fw_drr_fixed:
+	case dml2_pmo_pstate_strategy_reserved_fw_drr_clamped:
 	case dml2_pmo_pstate_strategy_reserved_fw_drr_var:
 	case dml2_pmo_pstate_strategy_na:
 	default:
@@ -492,13 +490,11 @@ static void expand_base_strategies(
 		expand_base_strategy(pmo, base_strategies_list[i], stream_count);
 	}
 
-	if (stream_count > 1) {
-		/* expand base strategies to DRR variants */
-		num_pre_variant_strategies = get_num_expanded_strategies(&pmo->init_data, stream_count);
-		expanded_strategy_list = get_expanded_strategy_list(&pmo->init_data, stream_count);
-		for (i = 0; i < num_pre_variant_strategies; i++) {
-			expand_variant_strategy(pmo, expanded_strategy_list[i], stream_count);
-		}
+	/* expand base strategies to DRR variants */
+	num_pre_variant_strategies = get_num_expanded_strategies(&pmo->init_data, stream_count);
+	expanded_strategy_list = get_expanded_strategy_list(&pmo->init_data, stream_count);
+	for (i = 0; i < num_pre_variant_strategies; i++) {
+		expand_variant_strategy(pmo, expanded_strategy_list[i], stream_count);
 	}
 
 	/* add back all DRR */
@@ -514,7 +510,7 @@ bool pmo_dcn4_fams2_initialize(struct dml2_pmo_initialize_in_out *in_out)
 	pmo->ip_caps = in_out->ip_caps;
 	pmo->mpc_combine_limit = 2;
 	pmo->odm_combine_limit = 4;
-	pmo->min_clock_table_size = in_out->min_clock_table_size;
+	pmo->mcg_clock_table_size = in_out->mcg_clock_table_size;
 
 	pmo->fams_params.v2.subvp.refresh_rate_limit_max = 175;
 	pmo->fams_params.v2.subvp.refresh_rate_limit_min = 0;
@@ -887,7 +883,7 @@ static bool all_timings_support_drr(const struct dml2_pmo_instance *pmo,
 			stream_descriptor = &display_config->display_config.stream_descriptors[i];
 			stream_fams2_meta = &pmo->scratch.pmo_dcn4.stream_fams2_meta[i];
 
-			if (!stream_descriptor->timing.drr_config.enabled)
+			if (!stream_descriptor->timing.drr_config.enabled || stream_descriptor->overrides.disable_fams2_drr)
 				return false;
 
 			/* cannot support required vtotal */
@@ -920,7 +916,7 @@ static bool all_timings_support_svp(const struct dml2_pmo_instance *pmo,
 	const struct dml2_plane_parameters *plane_descriptor;
 	const struct dml2_fams2_meta *stream_fams2_meta;
 	unsigned int microschedule_vlines;
-	unsigned int i;
+	unsigned char i;
 
 	unsigned int num_planes_per_stream[DML2_MAX_PLANES] = { 0 };
 
@@ -1016,7 +1012,7 @@ static void build_method_scheduling_params(
 	struct dml2_fams2_meta *stream_fams2_meta)
 {
 	stream_method_fams2_meta->allow_time_us =
-			(double)(stream_method_fams2_meta->allow_end_otg_vline - stream_method_fams2_meta->allow_start_otg_vline) *
+			(double)((int)stream_method_fams2_meta->allow_end_otg_vline - (int)stream_method_fams2_meta->allow_start_otg_vline) *
 			stream_fams2_meta->otg_vline_time_us;
 	if (stream_method_fams2_meta->allow_time_us >= stream_method_fams2_meta->period_us) {
 		/* when allow wave overlaps an entire frame, it is always schedulable (DRR can do this)*/
@@ -1052,7 +1048,7 @@ static struct dml2_fams2_per_method_common_meta *get_per_method_common_meta(
 		break;
 	case dml2_pmo_pstate_strategy_reserved_hw:
 	case dml2_pmo_pstate_strategy_reserved_fw:
-	case dml2_pmo_pstate_strategy_reserved_fw_drr_fixed:
+	case dml2_pmo_pstate_strategy_reserved_fw_drr_clamped:
 	case dml2_pmo_pstate_strategy_reserved_fw_drr_var:
 	case dml2_pmo_pstate_strategy_na:
 	default:
@@ -1113,7 +1109,8 @@ static bool is_timing_group_schedulable(
 	/* calculate the rest of the meta */
 	build_method_scheduling_params(group_fams2_meta, &pmo->scratch.pmo_dcn4.stream_fams2_meta[base_stream_idx]);
 
-	return true;
+	return group_fams2_meta->allow_time_us > 0.0 &&
+			group_fams2_meta->disallow_time_us < pmo->ip_caps->fams2.max_allow_delay_us;
 }
 
 static bool is_config_schedulable(
@@ -1125,14 +1122,15 @@ static bool is_config_schedulable(
 	bool schedulable;
 	struct dml2_pmo_scratch *s = &pmo->scratch;
 
+	double max_allow_delay_us = 0.0;
+
 	memset(s->pmo_dcn4.group_common_fams2_meta, 0, sizeof(s->pmo_dcn4.group_common_fams2_meta));
 	memset(s->pmo_dcn4.sorted_group_gtl_disallow_index, 0, sizeof(unsigned int) * DML2_MAX_PLANES);
 
 	/* search for a general solution to the schedule */
 
 	/* STAGE 0: Early return for special cases */
-	if (display_cfg->display_config.num_streams <= 1) {
-		/* single stream is always schedulable */
+	if (display_cfg->display_config.num_streams == 0) {
 		return true;
 	}
 
@@ -1146,6 +1144,7 @@ static bool is_config_schedulable(
 			schedulable = false;
 			break;
 		}
+		max_allow_delay_us += s->pmo_dcn4.group_common_fams2_meta[i].disallow_time_us;
 	}
 
 	if ((schedulable && s->pmo_dcn4.num_timing_groups <= 1) || !schedulable) {
@@ -1211,7 +1210,7 @@ static bool is_config_schedulable(
 		}
 	}
 
-	if (schedulable) {
+	if (schedulable && max_allow_delay_us < pmo->ip_caps->fams2.max_allow_delay_us) {
 		return true;
 	}
 
@@ -1243,6 +1242,7 @@ static bool is_config_schedulable(
 	for (i = 0; i < s->pmo_dcn4.num_timing_groups - 1; i++) {
 		unsigned int sorted_i = s->pmo_dcn4.sorted_group_gtl_period_index[i];
 		unsigned int sorted_ip1 = s->pmo_dcn4.sorted_group_gtl_period_index[i + 1];
+
 		if (s->pmo_dcn4.group_common_fams2_meta[sorted_i].allow_time_us < s->pmo_dcn4.group_common_fams2_meta[sorted_ip1].period_us ||
 				s->pmo_dcn4.group_is_drr_enabled[sorted_ip1]) {
 			schedulable = false;
@@ -1250,38 +1250,34 @@ static bool is_config_schedulable(
 		}
 	}
 
-	/* STAGE 4: For similar frequencies, and when using HW exclusive modes, check disallow alignments are within allowed threshold */
+	if (schedulable && max_allow_delay_us < pmo->ip_caps->fams2.max_allow_delay_us) {
+		return true;
+	}
+
+	/* STAGE 4: When using HW exclusive modes, check disallow alignments are within allowed threshold */
 	if (s->pmo_dcn4.num_timing_groups == 2 &&
 			!is_bit_set_in_bitfield(PMO_FW_STRATEGY_MASK, per_stream_pstate_strategy[0]) &&
 			!is_bit_set_in_bitfield(PMO_FW_STRATEGY_MASK, per_stream_pstate_strategy[1])) {
-		double period_delta = s->pmo_dcn4.group_common_fams2_meta[0].period_us - s->pmo_dcn4.group_common_fams2_meta[1].period_us;
+		double period_ratio;
+		double max_shift_us;
+		double shift_per_period;
 
 		/* default period_0 > period_1 */
 		unsigned int lrg_idx = 0;
 		unsigned int sml_idx = 1;
-		if (period_delta < 0.0) {
+		if (s->pmo_dcn4.group_common_fams2_meta[0].period_us < s->pmo_dcn4.group_common_fams2_meta[1].period_us) {
 			/* period_0 < period_1 */
 			lrg_idx = 1;
 			sml_idx = 0;
-			period_delta = math_fabs(period_delta);
 		}
+		period_ratio = s->pmo_dcn4.group_common_fams2_meta[lrg_idx].period_us / s->pmo_dcn4.group_common_fams2_meta[sml_idx].period_us;
+		shift_per_period = s->pmo_dcn4.group_common_fams2_meta[sml_idx].period_us * (period_ratio - math_floor(period_ratio));
+		max_shift_us = s->pmo_dcn4.group_common_fams2_meta[lrg_idx].disallow_time_us - s->pmo_dcn4.group_common_fams2_meta[sml_idx].allow_time_us;
+		max_allow_delay_us = max_shift_us / shift_per_period * s->pmo_dcn4.group_common_fams2_meta[lrg_idx].period_us;
 
-		if (s->pmo_dcn4.group_common_fams2_meta[lrg_idx].disallow_time_us >= s->pmo_dcn4.group_common_fams2_meta[sml_idx].allow_time_us) {
-			double time_until_disallow_us = (s->pmo_dcn4.group_common_fams2_meta[lrg_idx].allow_time_us +
-				s->pmo_dcn4.group_common_fams2_meta[sml_idx].allow_time_us) /
-				period_delta *
-				s->pmo_dcn4.group_common_fams2_meta[sml_idx].period_us;
-			double time_until_allow_us = (s->pmo_dcn4.group_common_fams2_meta[lrg_idx].disallow_time_us -
-				s->pmo_dcn4.group_common_fams2_meta[sml_idx].allow_time_us) /
-				period_delta *
-				s->pmo_dcn4.group_common_fams2_meta[sml_idx].period_us;
-
-			if (time_until_disallow_us > PMO_DCN4_MIN_TIME_TO_DISALLOW_MS &&
-				time_until_allow_us < pmo->ip_caps->fams2.max_allow_delay_us) {
-				schedulable = true;
-			}
-		} else {
-			/* if the allow is not maskable, it is always schedulable within a frame */
+		if (shift_per_period > 0.0 &&
+			shift_per_period < s->pmo_dcn4.group_common_fams2_meta[lrg_idx].allow_time_us + s->pmo_dcn4.group_common_fams2_meta[sml_idx].allow_time_us &&
+			max_allow_delay_us < pmo->ip_caps->fams2.max_allow_delay_us) {
 			schedulable = true;
 		}
 	}
@@ -1308,7 +1304,7 @@ static bool stream_matches_drr_policy(struct dml2_pmo_instance *pmo,
 			is_bit_set_in_bitfield(PMO_FW_STRATEGY_MASK, stream_pstate_strategy) &&
 			stream_descriptor->timing.drr_config.enabled &&
 			stream_descriptor->timing.drr_config.drr_active_variable) {
-		/* DRR is variable, fw exclusive methods require DRR to be fixed */
+		/* DRR is variable, fw exclusive methods require DRR to be clamped */
 		strategy_matches_drr_requirements = false;
 	} else if (is_bit_set_in_bitfield(PMO_DRR_VAR_STRATEGY_MASK, stream_pstate_strategy) &&
 			pmo->options->disable_drr_var_when_var_active &&
@@ -1322,10 +1318,9 @@ static bool stream_matches_drr_policy(struct dml2_pmo_instance *pmo,
 			stream_descriptor->timing.drr_config.disallowed)) {
 		/* DRR variable strategies are disallowed due to settings or policy */
 		strategy_matches_drr_requirements = false;
-	} else if (is_bit_set_in_bitfield(PMO_DRR_FIXED_STRATEGY_MASK, stream_pstate_strategy) &&
-			(pmo->options->disable_drr_fixed ||
-			(stream_descriptor->timing.drr_config.enabled &&
-			stream_descriptor->timing.drr_config.drr_active_variable))) {
+	} else if (is_bit_set_in_bitfield(PMO_DRR_CLAMPED_STRATEGY_MASK, stream_pstate_strategy) &&
+			(pmo->options->disable_drr_clamped ||
+			!stream_descriptor->timing.drr_config.enabled)) {
 		/* DRR fixed strategies are disallowed due to settings or policy */
 		strategy_matches_drr_requirements = false;
 	} else if (is_bit_set_in_bitfield(PMO_FW_STRATEGY_MASK, stream_pstate_strategy) &&
@@ -1420,6 +1415,21 @@ static int get_vactive_pstate_margin(const struct display_configuation_with_meta
 	return min_vactive_margin_us;
 }
 
+static unsigned int get_vactive_det_fill_latency_delay_us(const struct display_configuation_with_meta *display_cfg, int plane_mask)
+{
+	unsigned char i;
+	unsigned int max_vactive_fill_us = 0;
+
+	for (i = 0; i < DML2_MAX_PLANES; i++) {
+		if (is_bit_set_in_bitfield(plane_mask, i)) {
+			if (display_cfg->mode_support_result.cfg_support_info.plane_support_info[i].dram_change_vactive_det_fill_delay_us > max_vactive_fill_us)
+				max_vactive_fill_us = display_cfg->mode_support_result.cfg_support_info.plane_support_info[i].dram_change_vactive_det_fill_delay_us;
+		}
+	}
+
+	return max_vactive_fill_us;
+}
+
 static void build_fams2_meta_per_stream(struct dml2_pmo_instance *pmo,
 	struct display_configuation_with_meta *display_config,
 	int stream_index)
@@ -1474,18 +1484,34 @@ static void build_fams2_meta_per_stream(struct dml2_pmo_instance *pmo,
 			(unsigned int)math_ceil(ip_caps->fams2.min_allow_width_us / stream_fams2_meta->otg_vline_time_us);
 	/* this value should account for urgent latency */
 	stream_fams2_meta->dram_clk_change_blackout_otg_vlines =
-			(unsigned int)math_ceil(display_config->mode_support_result.cfg_support_info.clean_me_up.support_info.watermarks.DRAMClockChangeWatermark /
+			(unsigned int)math_ceil(pmo->soc_bb->power_management_parameters.dram_clk_change_blackout_us /
 			stream_fams2_meta->otg_vline_time_us);
 
 	/* scheduling params should be built based on the worst case for allow_time:disallow_time */
 
 	/* vactive */
-	stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_otg_vlines =
-			(unsigned int)math_ceil(ip_caps->max_vactive_det_fill_delay_us / stream_fams2_meta->otg_vline_time_us);
-	stream_fams2_meta->method_vactive.common.allow_start_otg_vline =
+	if (display_config->display_config.num_streams == 1) {
+		/* for single stream, guarantee at least an instant of allow */
+		stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_otg_vlines = (unsigned int)math_floor(
+				math_max2(0.0,
+				timing->v_active - stream_fams2_meta->min_allow_width_otg_vlines - stream_fams2_meta->dram_clk_change_blackout_otg_vlines));
+	} else {
+		/* for multi stream, bound to a max fill time defined by IP caps */
+		stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_otg_vlines =
+				(unsigned int)math_floor((double)ip_caps->max_vactive_det_fill_delay_us / stream_fams2_meta->otg_vline_time_us);
+	}
+	stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_us = stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_otg_vlines * stream_fams2_meta->otg_vline_time_us;
+
+	if (stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_us > 0.0) {
+		stream_fams2_meta->method_vactive.common.allow_start_otg_vline =
 			timing->v_blank_end + stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_otg_vlines;
-	stream_fams2_meta->method_vactive.common.allow_end_otg_vline =
-			timing->v_blank_end + timing->v_active - stream_fams2_meta->dram_clk_change_blackout_otg_vlines;
+		stream_fams2_meta->method_vactive.common.allow_end_otg_vline =
+			timing->v_blank_end + timing->v_active -
+			stream_fams2_meta->dram_clk_change_blackout_otg_vlines;
+	} else {
+		stream_fams2_meta->method_vactive.common.allow_start_otg_vline = 0;
+		stream_fams2_meta->method_vactive.common.allow_end_otg_vline = 0;
+	}
 	stream_fams2_meta->method_vactive.common.period_us = stream_fams2_meta->nom_frame_time_us;
 	build_method_scheduling_params(&stream_fams2_meta->method_vactive.common, stream_fams2_meta);
 
@@ -1583,7 +1609,7 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 	const struct dml2_plane_parameters *plane_descriptor;
 	const enum dml2_pmo_pstate_strategy(*strategy_list)[PMO_DCN4_MAX_DISPLAYS] = NULL;
 	unsigned int strategy_list_size = 0;
-	unsigned int plane_index, stream_index, i;
+	unsigned char plane_index, stream_index, i;
 
 	state->performed = true;
 	in_out->base_display_config->stage3.min_clk_index_for_latency = in_out->base_display_config->stage1.min_clk_index_for_latency;
@@ -1594,7 +1620,7 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 	memset(s, 0, sizeof(struct dml2_pmo_scratch));
 
 	pmo->scratch.pmo_dcn4.min_latency_index = in_out->base_display_config->stage1.min_clk_index_for_latency;
-	pmo->scratch.pmo_dcn4.max_latency_index = pmo->min_clock_table_size;
+	pmo->scratch.pmo_dcn4.max_latency_index = pmo->mcg_clock_table_size;
 	pmo->scratch.pmo_dcn4.cur_latency_index = in_out->base_display_config->stage1.min_clk_index_for_latency;
 
 	// First build the stream plane mask (array of bitfields indexed by stream, indicating plane mapping)
@@ -1636,16 +1662,7 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 	}
 
 	if (s->pmo_dcn4.num_pstate_candidates > 0) {
-		// There's this funny case...
-		// If the first entry in the candidate list is all vactive, then we can consider it "tested", so the current index is 0
-		// Otherwise the current index should be -1 because we run the optimization at least once
-		s->pmo_dcn4.cur_pstate_candidate = 0;
-		for (i = 0; i < display_config->display_config.num_streams; i++) {
-			if (s->pmo_dcn4.per_stream_pstate_strategy[0][i] != dml2_pmo_pstate_strategy_vactive) {
-				s->pmo_dcn4.cur_pstate_candidate = -1;
-				break;
-			}
-		}
+		s->pmo_dcn4.cur_pstate_candidate = -1;
 		return true;
 	} else {
 		return false;
@@ -1685,7 +1702,7 @@ static void setup_planes_for_drr_by_mask(struct display_configuation_with_meta *
 	struct dml2_pmo_instance *pmo,
 	int plane_mask)
 {
-	unsigned int plane_index;
+	unsigned char plane_index;
 	struct dml2_plane_parameters *plane;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
@@ -1706,7 +1723,7 @@ static void setup_planes_for_svp_by_mask(struct display_configuation_with_meta *
 {
 	struct dml2_pmo_scratch *scratch = &pmo->scratch;
 
-	unsigned int plane_index;
+	unsigned char plane_index;
 	int stream_index = -1;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
@@ -1750,7 +1767,7 @@ static void setup_planes_for_vblank_by_mask(struct display_configuation_with_met
 	struct dml2_pmo_instance *pmo,
 	int plane_mask)
 {
-	unsigned int plane_index;
+	unsigned char plane_index;
 	struct dml2_plane_parameters *plane;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
@@ -1786,11 +1803,19 @@ static void setup_planes_for_vactive_by_mask(struct display_configuation_with_me
 	struct dml2_pmo_instance *pmo,
 	int plane_mask)
 {
-	unsigned int plane_index;
+	unsigned char plane_index;
+	unsigned int stream_index;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
+			stream_index = display_config->display_config.plane_descriptors[plane_index].stream_index;
+
 			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_vactive;
+
+			if (!pmo->options->disable_vactive_det_fill_bw_pad) {
+				display_config->display_config.plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us =
+					(unsigned int)math_floor(pmo->scratch.pmo_dcn4.stream_fams2_meta[stream_index].method_vactive.max_vactive_det_fill_delay_us);
+			}
 		}
 	}
 }
@@ -1800,10 +1825,18 @@ static void setup_planes_for_vactive_drr_by_mask(struct display_configuation_wit
 	int plane_mask)
 {
 	unsigned char plane_index;
+	unsigned int stream_index;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
+			stream_index = display_config->display_config.plane_descriptors[plane_index].stream_index;
+
 			display_config->stage3.pstate_switch_modes[plane_index] = dml2_uclk_pstate_support_method_fw_vactive_drr;
+
+			if (!pmo->options->disable_vactive_det_fill_bw_pad) {
+				display_config->display_config.plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us =
+					(unsigned int)math_floor(pmo->scratch.pmo_dcn4.stream_fams2_meta[stream_index].method_vactive.max_vactive_det_fill_delay_us);
+			}
 		}
 	}
 }
@@ -1846,7 +1879,7 @@ static bool setup_display_config(struct display_configuation_with_meta *display_
 	}
 
 	/* copy FAMS2 meta */
-	if (fams2_required) {
+	if (success) {
 		display_config->stage3.fams2_required = fams2_required;
 		memcpy(&display_config->stage3.stream_fams2_meta,
 			&scratch->pmo_dcn4.stream_fams2_meta,
@@ -1859,7 +1892,7 @@ static bool setup_display_config(struct display_configuation_with_meta *display_
 static int get_minimum_reserved_time_us_for_planes(struct display_configuation_with_meta *display_config, int plane_mask)
 {
 	int min_time_us = 0xFFFFFF;
-	unsigned int plane_index = 0;
+	unsigned char plane_index = 0;
 
 	for (plane_index = 0; plane_index < display_config->display_config.num_planes; plane_index++) {
 		if (is_bit_set_in_bitfield(plane_mask, plane_index)) {
@@ -1888,10 +1921,12 @@ bool pmo_dcn4_fams2_test_for_pstate_support(struct dml2_pmo_test_for_pstate_supp
 		return false;
 
 	for (stream_index = 0; stream_index < in_out->base_display_config->display_config.num_streams; stream_index++) {
+		struct dml2_fams2_meta *stream_fams2_meta = &s->pmo_dcn4.stream_fams2_meta[stream_index];
 
 		if (s->pmo_dcn4.per_stream_pstate_strategy[s->pmo_dcn4.cur_pstate_candidate][stream_index] == dml2_pmo_pstate_strategy_vactive ||
 				s->pmo_dcn4.per_stream_pstate_strategy[s->pmo_dcn4.cur_pstate_candidate][stream_index] == dml2_pmo_pstate_strategy_fw_vactive_drr) {
-			if (get_vactive_pstate_margin(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) < (MIN_VACTIVE_MARGIN_PCT * in_out->instance->soc_bb->power_management_parameters.dram_clk_change_blackout_us)) {
+			if (get_vactive_pstate_margin(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) < (MIN_VACTIVE_MARGIN_PCT * in_out->instance->soc_bb->power_management_parameters.dram_clk_change_blackout_us) ||
+					get_vactive_det_fill_latency_delay_us(in_out->base_display_config, s->pmo_dcn4.stream_plane_mask[stream_index]) > stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_us) {
 				p_state_supported = false;
 				break;
 			}

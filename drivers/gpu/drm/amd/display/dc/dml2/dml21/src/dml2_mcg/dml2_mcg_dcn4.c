@@ -37,51 +37,27 @@ static unsigned long round_up_to_quantized_values(unsigned long value, const uns
 	return 0;
 }
 
-static bool build_min_clock_table(const struct dml2_soc_bb *soc_bb, struct dml2_mcg_min_clock_table *min_table)
+static bool build_min_clk_table_fine_grained(const struct dml2_soc_bb *soc_bb, struct dml2_mcg_min_clock_table *min_table)
 {
+	bool dcfclk_fine_grained = false, fclk_fine_grained = false;
+
 	int i;
 	unsigned int j;
 
-	bool dcfclk_fine_grained = false, fclk_fine_grained = false;
-	unsigned long min_dcfclk_khz = 0, max_dcfclk_khz = 0;
-	unsigned long min_fclk_khz = 0, max_fclk_khz = 0;
+	unsigned long min_dcfclk_khz = 0;
+	unsigned long min_fclk_khz = 0;
 	unsigned long prev_100, cur_50;
-
-	if (!soc_bb || !min_table)
-		return false;
-
-	if (soc_bb->clk_table.dcfclk.num_clk_values < 2 || soc_bb->clk_table.fclk.num_clk_values < 2)
-		return false;
-
-	if (soc_bb->clk_table.uclk.num_clk_values > DML_MCG_MAX_CLK_TABLE_SIZE)
-		return false;
-
-	min_table->fixed_clocks_khz.amclk = 0;
-	min_table->fixed_clocks_khz.dprefclk = soc_bb->dprefclk_mhz * 1000;
-	min_table->fixed_clocks_khz.pcierefclk = soc_bb->pcie_refclk_mhz * 1000;
-	min_table->fixed_clocks_khz.dchubrefclk = soc_bb->dchub_refclk_mhz * 1000;
-	min_table->fixed_clocks_khz.xtalclk = soc_bb->xtalclk_mhz * 1000;
 
 	if (soc_bb->clk_table.dcfclk.num_clk_values == 2) {
 		dcfclk_fine_grained = true;
 	}
-	max_dcfclk_khz = soc_bb->clk_table.dcfclk.clk_values_khz[soc_bb->clk_table.dcfclk.num_clk_values - 1];
-	min_dcfclk_khz = soc_bb->clk_table.dcfclk.clk_values_khz[0];
 
 	if (soc_bb->clk_table.fclk.num_clk_values == 2) {
 		fclk_fine_grained = true;
 	}
-	max_fclk_khz = soc_bb->clk_table.fclk.clk_values_khz[soc_bb->clk_table.fclk.num_clk_values - 1];
+
+	min_dcfclk_khz = soc_bb->clk_table.dcfclk.clk_values_khz[0];
 	min_fclk_khz = soc_bb->clk_table.fclk.clk_values_khz[0];
-
-	min_table->max_clocks_khz.dispclk = soc_bb->clk_table.dispclk.clk_values_khz[soc_bb->clk_table.dispclk.num_clk_values - 1];
-	min_table->max_clocks_khz.dppclk = soc_bb->clk_table.dppclk.clk_values_khz[soc_bb->clk_table.dppclk.num_clk_values - 1];
-	min_table->max_clocks_khz.dscclk = soc_bb->clk_table.dscclk.clk_values_khz[soc_bb->clk_table.dscclk.num_clk_values - 1];
-	min_table->max_clocks_khz.dtbclk = soc_bb->clk_table.dtbclk.clk_values_khz[soc_bb->clk_table.dtbclk.num_clk_values - 1];
-	min_table->max_clocks_khz.phyclk = soc_bb->clk_table.phyclk.clk_values_khz[soc_bb->clk_table.phyclk.num_clk_values - 1];
-
-	min_table->max_clocks_khz.dcfclk = max_dcfclk_khz;
-	min_table->max_clocks_khz.fclk = max_fclk_khz;
 
 	// First calculate the table for "balanced" bandwidths across UCLK/FCLK
 	for (i = 0; i < soc_bb->clk_table.uclk.num_clk_values; i++) {
@@ -153,4 +129,67 @@ static bool build_min_clock_table(const struct dml2_soc_bb *soc_bb, struct dml2_
 	}
 
 	return true;
+}
+
+static bool build_min_clk_table_coarse_grained(const struct dml2_soc_bb *soc_bb, struct dml2_mcg_min_clock_table *min_table)
+{
+	int i;
+
+	for (i = 0; i < soc_bb->clk_table.uclk.num_clk_values; i++) {
+		min_table->dram_bw_table.entries[i].pre_derate_dram_bw_kbps = uclk_to_dram_bw_kbps(soc_bb->clk_table.uclk.clk_values_khz[i], &soc_bb->clk_table.dram_config);
+		min_table->dram_bw_table.entries[i].min_dcfclk_khz = soc_bb->clk_table.dcfclk.clk_values_khz[i];
+		min_table->dram_bw_table.entries[i].min_fclk_khz = soc_bb->clk_table.fclk.clk_values_khz[i];
+	}
+	min_table->dram_bw_table.num_entries = soc_bb->clk_table.uclk.num_clk_values;
+
+	return true;
+}
+
+static bool build_min_clock_table(const struct dml2_soc_bb *soc_bb, struct dml2_mcg_min_clock_table *min_table)
+{
+	bool result;
+	bool dcfclk_fine_grained = false, fclk_fine_grained = false, clock_state_count_equal = false;
+
+	if (!soc_bb || !min_table)
+		return false;
+
+	if (soc_bb->clk_table.dcfclk.num_clk_values < 2 || soc_bb->clk_table.fclk.num_clk_values < 2)
+		return false;
+
+	if (soc_bb->clk_table.uclk.num_clk_values > DML_MCG_MAX_CLK_TABLE_SIZE)
+		return false;
+
+	if (soc_bb->clk_table.dcfclk.num_clk_values == 2) {
+		dcfclk_fine_grained = true;
+	}
+
+	if (soc_bb->clk_table.fclk.num_clk_values == 2) {
+		fclk_fine_grained = true;
+	}
+
+	if (soc_bb->clk_table.fclk.num_clk_values == soc_bb->clk_table.dcfclk.num_clk_values &&
+		soc_bb->clk_table.fclk.num_clk_values == soc_bb->clk_table.uclk.num_clk_values)
+		clock_state_count_equal = true;
+
+	min_table->fixed_clocks_khz.amclk = 0;
+	min_table->fixed_clocks_khz.dprefclk = soc_bb->dprefclk_mhz * 1000;
+	min_table->fixed_clocks_khz.pcierefclk = soc_bb->pcie_refclk_mhz * 1000;
+	min_table->fixed_clocks_khz.dchubrefclk = soc_bb->dchub_refclk_mhz * 1000;
+	min_table->fixed_clocks_khz.xtalclk = soc_bb->xtalclk_mhz * 1000;
+
+	min_table->max_clocks_khz.dispclk = soc_bb->clk_table.dispclk.clk_values_khz[soc_bb->clk_table.dispclk.num_clk_values - 1];
+	min_table->max_clocks_khz.dppclk = soc_bb->clk_table.dppclk.clk_values_khz[soc_bb->clk_table.dppclk.num_clk_values - 1];
+	min_table->max_clocks_khz.dscclk = soc_bb->clk_table.dscclk.clk_values_khz[soc_bb->clk_table.dscclk.num_clk_values - 1];
+	min_table->max_clocks_khz.dtbclk = soc_bb->clk_table.dtbclk.clk_values_khz[soc_bb->clk_table.dtbclk.num_clk_values - 1];
+	min_table->max_clocks_khz.phyclk = soc_bb->clk_table.phyclk.clk_values_khz[soc_bb->clk_table.phyclk.num_clk_values - 1];
+
+	min_table->max_clocks_khz.dcfclk = soc_bb->clk_table.dcfclk.clk_values_khz[soc_bb->clk_table.dcfclk.num_clk_values - 1];
+	min_table->max_clocks_khz.fclk = soc_bb->clk_table.fclk.clk_values_khz[soc_bb->clk_table.fclk.num_clk_values - 1];
+
+	if (dcfclk_fine_grained || fclk_fine_grained || !clock_state_count_equal)
+		result = build_min_clk_table_fine_grained(soc_bb, min_table);
+	else
+		result = build_min_clk_table_coarse_grained(soc_bb, min_table);
+
+	return result;
 }

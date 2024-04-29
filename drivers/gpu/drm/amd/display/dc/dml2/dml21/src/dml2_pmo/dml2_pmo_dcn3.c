@@ -22,6 +22,23 @@ static void sort(double *list_a, int list_a_size)
 	}
 }
 
+static double get_max_reserved_time_on_all_planes_with_stream_index(struct display_configuation_with_meta *config, unsigned int stream_index)
+{
+	struct dml2_plane_parameters *plane_descriptor;
+	long max_reserved_time_ns = 0;
+
+	for (unsigned int i = 0; i < config->display_config.num_planes; i++) {
+		plane_descriptor = &config->display_config.plane_descriptors[i];
+
+		if (plane_descriptor->stream_index == stream_index)
+			if (plane_descriptor->overrides.reserved_vblank_time_ns > max_reserved_time_ns)
+				max_reserved_time_ns = plane_descriptor->overrides.reserved_vblank_time_ns;
+	}
+
+	return (max_reserved_time_ns / 1000.0);
+}
+
+
 static void set_reserved_time_on_all_planes_with_stream_index(struct display_configuation_with_meta *config, unsigned int stream_index, double reserved_time_us)
 {
 	struct dml2_plane_parameters *plane_descriptor;
@@ -183,11 +200,11 @@ static int count_planes_with_stream_index(const struct dml2_display_cfg *display
 
 static bool are_timings_trivially_synchronizable(struct display_configuation_with_meta *display_config, int mask)
 {
-	unsigned int i;
+	unsigned char i;
 	bool identical = true;
 	bool contains_drr = false;
-	unsigned int remap_array[DML2_MAX_PLANES];
-	unsigned int remap_array_size = 0;
+	unsigned char remap_array[DML2_MAX_PLANES];
+	unsigned char remap_array_size = 0;
 
 	// Create a remap array to enable simple iteration through only masked stream indicies
 	for (i = 0; i < display_config->display_config.num_streams; i++) {
@@ -227,7 +244,7 @@ bool pmo_dcn3_initialize(struct dml2_pmo_initialize_in_out *in_out)
 	pmo->ip_caps = in_out->ip_caps;
 	pmo->mpc_combine_limit = 2;
 	pmo->odm_combine_limit = 4;
-	pmo->min_clock_table_size = in_out->min_clock_table_size;
+	pmo->mcg_clock_table_size = in_out->mcg_clock_table_size;
 
 	pmo->options = in_out->options;
 
@@ -520,7 +537,7 @@ bool pmo_dcn3_init_for_pstate_support(struct dml2_pmo_init_for_pstate_support_in
 	state->performed = true;
 	state->min_clk_index_for_latency = in_out->base_display_config->stage1.min_clk_index_for_latency;
 	pmo->scratch.pmo_dcn3.min_latency_index = in_out->base_display_config->stage1.min_clk_index_for_latency;
-	pmo->scratch.pmo_dcn3.max_latency_index = pmo->min_clock_table_size;
+	pmo->scratch.pmo_dcn3.max_latency_index = pmo->mcg_clock_table_size - 1;
 	pmo->scratch.pmo_dcn3.cur_latency_index = in_out->base_display_config->stage1.min_clk_index_for_latency;
 
 	pmo->scratch.pmo_dcn3.stream_mask = 0xF;
@@ -577,6 +594,8 @@ bool pmo_dcn3_init_for_pstate_support(struct dml2_pmo_init_for_pstate_support_in
 			min_reserved_vblank_time = max_double2(min_reserved_vblank_time,
 				in_out->instance->soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us);
 		*/
+
+		min_reserved_vblank_time = get_max_reserved_time_on_all_planes_with_stream_index(in_out->base_display_config, stream_index);
 
 		// Insert the absolute minimum into the array
 		candidate_count = 1;

@@ -59,7 +59,7 @@ static void dml21_apply_debug_options(const struct dc *in_dc, struct dml2_contex
 	pmo_options->disable_svp = ((in_dc->debug.dml21_disable_pstate_method_mask >> 2) & 1) ||
 			in_dc->debug.force_disable_subvp ||
 			disable_fams2;
-	pmo_options->disable_drr_fixed = ((in_dc->debug.dml21_disable_pstate_method_mask >> 3) & 1) ||
+	pmo_options->disable_drr_clamped = ((in_dc->debug.dml21_disable_pstate_method_mask >> 3) & 1) ||
 			disable_fams2;
 	pmo_options->disable_drr_var = ((in_dc->debug.dml21_disable_pstate_method_mask >> 4) & 1) ||
 			disable_fams2;

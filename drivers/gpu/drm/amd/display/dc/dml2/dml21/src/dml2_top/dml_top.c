@@ -72,7 +72,7 @@ bool dml2_initialize_instance(struct dml2_initialize_instance_in_out *in_out)
 		pmo_init_params.instance = &dml->pmo_instance;
 		pmo_init_params.soc_bb = &dml->soc_bbox;
 		pmo_init_params.ip_caps = &dml->ip_caps;
-		pmo_init_params.min_clock_table_size = dml->min_clk_table.dram_bw_table.num_entries;
+		pmo_init_params.mcg_clock_table_size = dml->min_clk_table.dram_bw_table.num_entries;
 		pmo_init_params.options = &dml->pmo_options;
 		dml->pmo_instance.initialize(&pmo_init_params);
 	}
@@ -123,6 +123,7 @@ bool dml2_check_mode_supported(struct dml2_check_mode_supported_in_out *in_out)
 	}
 
 	in_out->is_supported = mcache_success;
+	result = result && in_out->is_supported;
 
 	return result;
 }

@@ -72,9 +72,10 @@ struct dml2_pmo_options {
 	bool disable_vblank;
 	bool disable_svp;
 	bool disable_drr_var;
-	bool disable_drr_fixed;
+	bool disable_drr_clamped;
 	bool disable_drr_var_when_var_active;
 	bool disable_fams2;
+	bool disable_vactive_det_fill_bw_pad; /* dml2_project_dcn4x_stage2_auto_drr_svp and above only */
 	bool disable_dyn_odm;
 	bool disable_dyn_odm_for_multi_stream;
 	bool disable_dyn_odm_for_stream_with_svp;
@@ -331,7 +332,6 @@ struct dml2_mode_support_info {
 	bool DTBCLKRequiredMoreThanSupported;
 	bool LinkCapacitySupport;
 	bool ROBSupport;
-	bool ROBUrgencyAvoidance;
 	bool OutstandingRequestsSupport;
 	bool OutstandingRequestsUrgencyAvoidance;
 	bool PTEBufferSizeNotExceeded;
@@ -659,6 +659,7 @@ struct dml2_display_cfg_programming {
 			double DSCDelay[DML2_MAX_PLANES];
 			double MaxActiveDRAMClockChangeLatencySupported[DML2_MAX_PLANES];
 			unsigned int PrefetchMode[DML2_MAX_PLANES]; // LEGACY_ONLY
+			bool ROBUrgencyAvoidance;
 		} misc;
 
 		struct dml2_mode_support_info mode_support_info;
@@ -714,5 +715,6 @@ struct dml2_unit_test_in_out {
 	*/
 	struct dml2_instance *dml2_instance;
 };
+
 
 #endif

@@ -169,8 +169,11 @@ struct dml2_ip_capabilities {
 	unsigned int max_num_dp2p0_outputs;
 	unsigned int rob_buffer_size_kbytes;
 	unsigned int config_return_buffer_size_in_kbytes;
+	unsigned int config_return_buffer_segment_size_in_kbytes;
 	unsigned int meta_fifo_size_in_kentries;
 	unsigned int compressed_buffer_segment_size_in_kbytes;
+	unsigned int max_flip_time_us;
+	unsigned int hostvm_mode;
 	unsigned int subvp_drr_scheduling_margin_us;
 	unsigned int subvp_prefetch_end_to_mall_start_us;
 	unsigned int subvp_fw_processing_delay;

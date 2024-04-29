@@ -319,6 +319,26 @@ bool dml2_top_mcache_validate_admissability(struct top_mcache_validate_admissabi
 	return all_pass;
 }
 
+static void reset_mcache_allocations(struct dml2_hubp_pipe_mcache_regs *per_plane_pipe_mcache_regs)
+{
+	// Initialize all entries to special valid MCache ID and special valid split coordinate
+	per_plane_pipe_mcache_regs->main.p0.mcache_id_first = MCACHE_ID_UNASSIGNED;
+	per_plane_pipe_mcache_regs->main.p0.mcache_id_second = MCACHE_ID_UNASSIGNED;
+	per_plane_pipe_mcache_regs->main.p0.split_location = SPLIT_LOCATION_UNDEFINED;
+
+	per_plane_pipe_mcache_regs->mall.p0.mcache_id_first = MCACHE_ID_UNASSIGNED;
+	per_plane_pipe_mcache_regs->mall.p0.mcache_id_second = MCACHE_ID_UNASSIGNED;
+	per_plane_pipe_mcache_regs->mall.p0.split_location = SPLIT_LOCATION_UNDEFINED;
+
+	per_plane_pipe_mcache_regs->main.p1.mcache_id_first = MCACHE_ID_UNASSIGNED;
+	per_plane_pipe_mcache_regs->main.p1.mcache_id_second = MCACHE_ID_UNASSIGNED;
+	per_plane_pipe_mcache_regs->main.p1.split_location = SPLIT_LOCATION_UNDEFINED;
+
+	per_plane_pipe_mcache_regs->mall.p1.mcache_id_first = MCACHE_ID_UNASSIGNED;
+	per_plane_pipe_mcache_regs->mall.p1.mcache_id_second = MCACHE_ID_UNASSIGNED;
+	per_plane_pipe_mcache_regs->mall.p1.split_location = SPLIT_LOCATION_UNDEFINED;
+}
+
 bool dml2_top_mcache_build_mcache_programming(struct dml2_build_mcache_programming_in_out *params)
 {
 	bool success = true;
@@ -333,22 +353,7 @@ bool dml2_top_mcache_build_mcache_programming(struct dml2_build_mcache_programmi
 			// Allocate storage for the mcache regs
 			params->per_plane_pipe_mcache_regs[config_index][pipe_index] = &params->mcache_regs_set[free_per_plane_reg_index++];
 
-			// First initialize all entries to special valid MCache ID and special valid split coordinate
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->main.p0.mcache_id_first = MCACHE_ID_UNASSIGNED;
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->main.p0.mcache_id_second = MCACHE_ID_UNASSIGNED;
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->main.p0.split_location = SPLIT_LOCATION_UNDEFINED;
-
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->mall.p0.mcache_id_first = MCACHE_ID_UNASSIGNED;
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->mall.p0.mcache_id_second = MCACHE_ID_UNASSIGNED;
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->mall.p0.split_location = SPLIT_LOCATION_UNDEFINED;
-
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->main.p1.mcache_id_first = MCACHE_ID_UNASSIGNED;
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->main.p1.mcache_id_second = MCACHE_ID_UNASSIGNED;
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->main.p1.split_location = SPLIT_LOCATION_UNDEFINED;
-
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->mall.p1.mcache_id_first = MCACHE_ID_UNASSIGNED;
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->mall.p1.mcache_id_second = MCACHE_ID_UNASSIGNED;
-			params->per_plane_pipe_mcache_regs[config_index][pipe_index]->mall.p1.split_location = SPLIT_LOCATION_UNDEFINED;
+			reset_mcache_allocations(params->per_plane_pipe_mcache_regs[config_index][pipe_index]);
 
 			if (params->mcache_configurations[config_index].plane_descriptor->surface.dcc.enable) {
 				// P0 always enabled

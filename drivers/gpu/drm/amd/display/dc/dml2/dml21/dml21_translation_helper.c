@@ -338,7 +338,8 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 }
 
 static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cfg *timing,
-		struct dc_stream_state *stream)
+		struct dc_stream_state *stream,
+		struct dml2_context *dml_ctx)
 {
 	unsigned int hblank_start, vblank_start;
 
@@ -372,7 +373,12 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	timing->drr_config.drr_active_variable = stream->vrr_active_variable;
 	timing->drr_config.drr_active_fixed = stream->vrr_active_fixed;
 	timing->drr_config.disallowed = !stream->allow_freesync;
-	//timing->drr_config.max_instant_vtotal_delta = timing-><drr no flicker delta lum>;
+
+	if (dml_ctx->config.callbacks.get_max_flickerless_instant_vtotal_increase &&
+			stream->ctx->dc->config.enable_fpo_flicker_detection == 1)
+		timing->drr_config.max_instant_vtotal_delta = dml_ctx->config.callbacks.get_max_flickerless_instant_vtotal_increase(stream, false);
+	else
+		timing->drr_config.max_instant_vtotal_delta = 0;
 
 	if (stream->timing.flags.DSC) {
 		timing->dsc.enable = dml2_dsc_enable;
@@ -505,7 +511,8 @@ static void populate_dml21_stream_overrides_from_stream_state(
 		stream_desc->overrides.odm_mode =  dml2_odm_mode_auto;
 		break;
 	}
-	if (!stream->ctx->dc->debug.enable_single_display_2to1_odm_policy)
+	if (!stream->ctx->dc->debug.enable_single_display_2to1_odm_policy ||
+			stream->debug.force_odm_combine_segments > 0)
 		stream_desc->overrides.disable_dynamic_odm = true;
 	stream_desc->overrides.disable_subvp = stream->ctx->dc->debug.force_disable_subvp;
 }
@@ -699,7 +706,7 @@ static const struct scaler_data *get_scaler_data_for_plane(
 			temp_pipe->stream = pipe->stream;
 			temp_pipe->plane_state = pipe->plane_state;
 			temp_pipe->plane_res.scl_data.taps = pipe->plane_res.scl_data.taps;
-
+			temp_pipe->stream_res = pipe->stream_res;
 			dml_ctx->config.callbacks.build_scaling_params(temp_pipe);
 			break;
 		}
@@ -956,7 +963,7 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 			disp_cfg_stream_location = dml_dispcfg->num_streams++;
 
 		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location <= __DML2_WRAPPER_MAX_STREAMS_PLANES__);
-		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index]);
+		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index], dml_ctx);
 		populate_dml21_output_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].output, context->streams[stream_index], &context->res_ctx.pipe_ctx[stream_index]);
 		populate_dml21_stream_overrides_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location], context->streams[stream_index]);
 
@@ -1007,6 +1014,8 @@ void dml21_copy_clocks_to_dc_state(struct dml2_context *in_ctx, struct dc_state 
 	context->bw_ctx.bw.dcn.clk.dcfclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4.active.dcfclk_khz;
 	context->bw_ctx.bw.dcn.clk.dramclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4.active.uclk_khz;
 	context->bw_ctx.bw.dcn.clk.fclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4.active.fclk_khz;
+	context->bw_ctx.bw.dcn.clk.idle_dramclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4.idle.uclk_khz;
+	context->bw_ctx.bw.dcn.clk.idle_fclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4.idle.fclk_khz;
 	context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4.deepsleep_dcfclk_khz;
 	context->bw_ctx.bw.dcn.clk.fclk_p_state_change_support = in_ctx->v21.mode_programming.programming->fclk_pstate_supported;
 	context->bw_ctx.bw.dcn.clk.p_state_change_support = in_ctx->v21.mode_programming.programming->uclk_pstate_supported;
