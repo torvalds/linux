@@ -282,7 +282,6 @@
 &pwm2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
-	#pwm-cells = <2>;
 	status = "okay";
 };
 
