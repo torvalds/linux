@@ -314,7 +314,7 @@ static int starfive_aes_read_authtag(struct starfive_cryp_ctx *ctx)
 					 cryp->total_in, cryp->authsize, 1);
 	} else {
 		if (crypto_memneq(cryp->tag_in, cryp->tag_out, cryp->authsize))
-			return dev_err_probe(cryp->dev, -EBADMSG, "Failed tag verification\n");
+			return -EBADMSG;
 	}
 
 	return 0;
@@ -753,14 +753,16 @@ static bool starfive_aes_check_unaligned(struct starfive_cryp_dev *cryp,
 	int i;
 
 	for_each_sg(src, tsg, sg_nents(src), i)
-		if (!IS_ALIGNED(tsg->length, AES_BLOCK_SIZE) &&
-		    !sg_is_last(tsg))
+		if (!IS_ALIGNED(tsg->offset, sizeof(u32)) ||
+		    (!IS_ALIGNED(tsg->length, AES_BLOCK_SIZE) &&
+		     !sg_is_last(tsg)))
 			return true;
 
 	if (src != dst)
 		for_each_sg(dst, tsg, sg_nents(dst), i)
-			if (!IS_ALIGNED(tsg->length, AES_BLOCK_SIZE) &&
-			    !sg_is_last(tsg))
+			if (!IS_ALIGNED(tsg->offset, sizeof(u32)) ||
+			    (!IS_ALIGNED(tsg->length, AES_BLOCK_SIZE) &&
+			     !sg_is_last(tsg)))
 				return true;
 
 	return false;
