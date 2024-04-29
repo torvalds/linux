@@ -272,8 +272,8 @@ static inline int is_module_addr(void *addr)
 #define _REGION3_ENTRY_DIRTY	0x2000	/* SW region dirty bit */
 #define _REGION3_ENTRY_YOUNG	0x1000	/* SW region young bit */
 #define _REGION3_ENTRY_LARGE	0x0400	/* RTTE-format control, large page  */
-#define _REGION3_ENTRY_READ	0x0002	/* SW region read bit */
-#define _REGION3_ENTRY_WRITE	0x0001	/* SW region write bit */
+#define _REGION3_ENTRY_WRITE	0x0002	/* SW region write bit */
+#define _REGION3_ENTRY_READ	0x0001	/* SW region read bit */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
 #define _REGION3_ENTRY_SOFT_DIRTY 0x4000 /* SW region soft dirty bit */
