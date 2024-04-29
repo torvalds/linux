@@ -164,7 +164,7 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 	enum netfs_how_to_modify howto;
 	enum netfs_folio_trace trace;
 	unsigned int bdp_flags = (iocb->ki_flags & IOCB_SYNC) ? 0: BDP_ASYNC;
-	ssize_t written = 0, ret;
+	ssize_t written = 0, ret, ret2;
 	loff_t i_size, pos = iocb->ki_pos, from, to;
 	size_t max_chunk = PAGE_SIZE << MAX_PAGECACHE_ORDER;
 	bool maybe_trouble = false;
@@ -172,14 +172,13 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 	if (unlikely(test_bit(NETFS_ICTX_WRITETHROUGH, &ctx->flags) ||
 		     iocb->ki_flags & (IOCB_DSYNC | IOCB_SYNC))
 	    ) {
-		if (pos < i_size_read(inode)) {
-			ret = filemap_write_and_wait_range(mapping, pos, pos + iter->count);
-			if (ret < 0) {
-				goto out;
-			}
-		}
-
 		wbc_attach_fdatawrite_inode(&wbc, mapping->host);
+
+		ret = filemap_write_and_wait_range(mapping, pos, pos + iter->count);
+		if (ret < 0) {
+			wbc_detach_inode(&wbc);
+			goto out;
+		}
 
 		wreq = netfs_begin_writethrough(iocb, iter->count);
 		if (IS_ERR(wreq)) {
@@ -395,10 +394,12 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 
 out:
 	if (unlikely(wreq)) {
-		ret = netfs_end_writethrough(wreq, iocb);
+		ret2 = netfs_end_writethrough(wreq, iocb);
 		wbc_detach_inode(&wbc);
-		if (ret == -EIOCBQUEUED)
-			return ret;
+		if (ret2 == -EIOCBQUEUED)
+			return ret2;
+		if (ret == 0)
+			ret = ret2;
 	}
 
 	iocb->ki_pos += written;

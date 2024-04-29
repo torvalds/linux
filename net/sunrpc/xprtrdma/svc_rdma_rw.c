@@ -231,28 +231,6 @@ static void svc_rdma_write_info_free(struct svc_rdma_write_info *info)
 }
 
 /**
- * svc_rdma_write_chunk_release - Release Write chunk I/O resources
- * @rdma: controlling transport
- * @ctxt: Send context that is being released
- */
-void svc_rdma_write_chunk_release(struct svcxprt_rdma *rdma,
-				  struct svc_rdma_send_ctxt *ctxt)
-{
-	struct svc_rdma_write_info *info;
-	struct svc_rdma_chunk_ctxt *cc;
-
-	while (!list_empty(&ctxt->sc_write_info_list)) {
-		info = list_first_entry(&ctxt->sc_write_info_list,
-					struct svc_rdma_write_info, wi_list);
-		list_del(&info->wi_list);
-
-		cc = &info->wi_cc;
-		svc_rdma_wake_send_waiters(rdma, cc->cc_sqecount);
-		svc_rdma_write_info_free(info);
-	}
-}
-
-/**
  * svc_rdma_reply_chunk_release - Release Reply chunk I/O resources
  * @rdma: controlling transport
  * @ctxt: Send context that is being released
@@ -308,11 +286,13 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_chunk_ctxt *cc =
 			container_of(cqe, struct svc_rdma_chunk_ctxt, cc_cqe);
+	struct svc_rdma_write_info *info =
+			container_of(cc, struct svc_rdma_write_info, wi_cc);
 
 	switch (wc->status) {
 	case IB_WC_SUCCESS:
 		trace_svcrdma_wc_write(&cc->cc_cid);
-		return;
+		break;
 	case IB_WC_WR_FLUSH_ERR:
 		trace_svcrdma_wc_write_flush(wc, &cc->cc_cid);
 		break;
@@ -320,11 +300,12 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 		trace_svcrdma_wc_write_err(wc, &cc->cc_cid);
 	}
 
-	/* The RDMA Write has flushed, so the client won't get
-	 * some of the outgoing RPC message. Signal the loss
-	 * to the client by closing the connection.
-	 */
-	svc_xprt_deferred_close(&rdma->sc_xprt);
+	svc_rdma_wake_send_waiters(rdma, cc->cc_sqecount);
+
+	if (unlikely(wc->status != IB_WC_SUCCESS))
+		svc_xprt_deferred_close(&rdma->sc_xprt);
+
+	svc_rdma_write_info_free(info);
 }
 
 /**
@@ -620,19 +601,13 @@ static int svc_rdma_xb_write(const struct xdr_buf *xdr, void *data)
 	return xdr->len;
 }
 
-/* Link Write WRs for @chunk onto @sctxt's WR chain.
- */
-static int svc_rdma_prepare_write_chunk(struct svcxprt_rdma *rdma,
-					struct svc_rdma_send_ctxt *sctxt,
-					const struct svc_rdma_chunk *chunk,
-					const struct xdr_buf *xdr)
+static int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
+				     const struct svc_rdma_chunk *chunk,
+				     const struct xdr_buf *xdr)
 {
 	struct svc_rdma_write_info *info;
 	struct svc_rdma_chunk_ctxt *cc;
-	struct ib_send_wr *first_wr;
 	struct xdr_buf payload;
-	struct list_head *pos;
-	struct ib_cqe *cqe;
 	int ret;
 
 	if (xdr_buf_subsegment(xdr, &payload, chunk->ch_position,
@@ -648,25 +623,10 @@ static int svc_rdma_prepare_write_chunk(struct svcxprt_rdma *rdma,
 	if (ret != payload.len)
 		goto out_err;
 
-	ret = -EINVAL;
-	if (unlikely(cc->cc_sqecount > rdma->sc_sq_depth))
-		goto out_err;
-
-	first_wr = sctxt->sc_wr_chain;
-	cqe = &cc->cc_cqe;
-	list_for_each(pos, &cc->cc_rwctxts) {
-		struct svc_rdma_rw_ctxt *rwc;
-
-		rwc = list_entry(pos, struct svc_rdma_rw_ctxt, rw_list);
-		first_wr = rdma_rw_ctx_wrs(&rwc->rw_ctx, rdma->sc_qp,
-					   rdma->sc_port_num, cqe, first_wr);
-		cqe = NULL;
-	}
-	sctxt->sc_wr_chain = first_wr;
-	sctxt->sc_sqecount += cc->cc_sqecount;
-	list_add(&info->wi_list, &sctxt->sc_write_info_list);
-
 	trace_svcrdma_post_write_chunk(&cc->cc_cid, cc->cc_sqecount);
+	ret = svc_rdma_post_chunk_ctxt(rdma, cc);
+	if (ret < 0)
+		goto out_err;
 	return 0;
 
 out_err:
@@ -675,27 +635,25 @@ out_err:
 }
 
 /**
- * svc_rdma_prepare_write_list - Construct WR chain for sending Write list
+ * svc_rdma_send_write_list - Send all chunks on the Write list
  * @rdma: controlling RDMA transport
- * @write_pcl: Write list provisioned by the client
- * @sctxt: Send WR resources
+ * @rctxt: Write list provisioned by the client
  * @xdr: xdr_buf containing an RPC Reply message
  *
  * Returns zero on success, or a negative errno if one or more
  * Write chunks could not be sent.
  */
-int svc_rdma_prepare_write_list(struct svcxprt_rdma *rdma,
-				const struct svc_rdma_pcl *write_pcl,
-				struct svc_rdma_send_ctxt *sctxt,
-				const struct xdr_buf *xdr)
+int svc_rdma_send_write_list(struct svcxprt_rdma *rdma,
+			     const struct svc_rdma_recv_ctxt *rctxt,
+			     const struct xdr_buf *xdr)
 {
 	struct svc_rdma_chunk *chunk;
 	int ret;
 
-	pcl_for_each_chunk(chunk, write_pcl) {
+	pcl_for_each_chunk(chunk, &rctxt->rc_write_pcl) {
 		if (!chunk->ch_payload_length)
 			break;
-		ret = svc_rdma_prepare_write_chunk(rdma, sctxt, chunk, xdr);
+		ret = svc_rdma_send_write_chunk(rdma, chunk, xdr);
 		if (ret < 0)
 			return ret;
 	}

@@ -63,6 +63,9 @@ struct thread_with_stdio {
 	const struct thread_with_stdio_ops	*ops;
 };
 
+void bch2_thread_with_stdio_init(struct thread_with_stdio *,
+				 const struct thread_with_stdio_ops *);
+int __bch2_run_thread_with_stdio(struct thread_with_stdio *);
 int bch2_run_thread_with_stdio(struct thread_with_stdio *,
 			       const struct thread_with_stdio_ops *);
 int bch2_run_thread_with_stdout(struct thread_with_stdio *,

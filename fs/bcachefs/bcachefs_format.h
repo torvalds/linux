@@ -1504,7 +1504,8 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_stripe))						\
 	x(reflink,		7,	BTREE_ID_EXTENTS|BTREE_ID_DATA,		\
 	  BIT_ULL(KEY_TYPE_reflink_v)|						\
-	  BIT_ULL(KEY_TYPE_indirect_inline_data))				\
+	  BIT_ULL(KEY_TYPE_indirect_inline_data)|				\
+	  BIT_ULL(KEY_TYPE_error))						\
 	x(subvolumes,		8,	0,					\
 	  BIT_ULL(KEY_TYPE_subvolume))						\
 	x(snapshots,		9,	0,					\

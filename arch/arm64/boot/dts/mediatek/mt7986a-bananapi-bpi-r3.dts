@@ -146,19 +146,19 @@
 
 &cpu_thermal {
 	cooling-maps {
-		cpu-active-high {
+		map-cpu-active-high {
 			/* active: set fan to cooling level 2 */
 			cooling-device = <&fan 2 2>;
 			trip = <&cpu_trip_active_high>;
 		};
 
-		cpu-active-med {
+		map-cpu-active-med {
 			/* active: set fan to cooling level 1 */
 			cooling-device = <&fan 1 1>;
 			trip = <&cpu_trip_active_med>;
 		};
 
-		cpu-active-low {
+		map-cpu-active-low {
 			/* active: set fan to cooling level 0 */
 			cooling-device = <&fan 0 0>;
 			trip = <&cpu_trip_active_low>;
