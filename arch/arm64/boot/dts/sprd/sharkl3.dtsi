@@ -24,7 +24,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x20e00000 0x4000>;
 
-			apahb_gate: apahb-gate {
+			apahb_gate: apahb-gate@0 {
 				compatible = "sprd,sc9863a-apahb-gate";
 				reg = <0x0 0x1020>;
 				#clock-cells = <1>;
@@ -39,7 +39,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x402b0000 0x4000>;
 
-			pmu_gate: pmu-gate {
+			pmu_gate: pmu-gate@0 {
 				compatible = "sprd,sc9863a-pmu-gate";
 				reg = <0 0x1200>;
 				clocks = <&ext_26m>;
@@ -56,7 +56,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x402e0000 0x4000>;
 
-			aonapb_gate: aonapb-gate {
+			aonapb_gate: aonapb-gate@0 {
 				compatible = "sprd,sc9863a-aonapb-gate";
 				reg = <0 0x1100>;
 				#clock-cells = <1>;
@@ -71,7 +71,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x40353000 0x3000>;
 
-			pll: pll {
+			pll: pll@0 {
 				compatible = "sprd,sc9863a-pll";
 				reg = <0 0x100>;
 				clocks = <&ext_26m>;
@@ -88,7 +88,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x40359000 0x3000>;
 
-			mpll: mpll {
+			mpll: mpll@0 {
 				compatible = "sprd,sc9863a-mpll";
 				reg = <0 0x100>;
 				#clock-cells = <1>;
@@ -103,7 +103,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x4035c000 0x3000>;
 
-			rpll: rpll {
+			rpll: rpll@0 {
 				compatible = "sprd,sc9863a-rpll";
 				reg = <0 0x100>;
 				clocks = <&ext_26m>;
@@ -120,7 +120,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x40363000 0x3000>;
 
-			dpll: dpll {
+			dpll: dpll@0 {
 				compatible = "sprd,sc9863a-dpll";
 				reg = <0 0x100>;
 				#clock-cells = <1>;
@@ -135,7 +135,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x60800000 0x3000>;
 
-			mm_gate: mm-gate {
+			mm_gate: mm-gate@0 {
 				compatible = "sprd,sc9863a-mm-gate";
 				reg = <0 0x1100>;
 				#clock-cells = <1>;
@@ -150,7 +150,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0x71300000 0x4000>;
 
-			apapb_gate: apapb-gate {
+			apapb_gate: apapb-gate@0 {
 				compatible = "sprd,sc9863a-apapb-gate";
 				reg = <0 0x1000>;
 				clocks = <&ext_26m>;

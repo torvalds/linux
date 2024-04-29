@@ -103,7 +103,6 @@
 
 		/* ECAM at 0x3000_0000 - 0x4000_0000 */
 		reg = <0x0 0x30000000  0x0 0x10000000>;
-		reg-names = "PCI ECAM";
 
 		/*
 		 * PCI ranges:
