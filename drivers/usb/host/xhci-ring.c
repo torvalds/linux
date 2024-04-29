@@ -2587,7 +2587,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	struct xhci_ep_ctx *ep_ctx;
 	u32 trb_comp_code;
 	int td_num = 0;
-	bool handling_skipped_tds = false;
 
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	ep_index = TRB_TO_EP_ID(le32_to_cpu(event->flags)) - 1;
@@ -2748,13 +2747,13 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		xhci_dbg(xhci,
 			 "Miss service interval error for slot %u ep %u, set skip flag\n",
 			 slot_id, ep_index);
-		goto cleanup;
+		return 0;
 	case COMP_NO_PING_RESPONSE_ERROR:
 		ep->skip = true;
 		xhci_dbg(xhci,
 			 "No Ping response error for slot %u ep %u, Skip one Isoc TD\n",
 			 slot_id, ep_index);
-		goto cleanup;
+		return 0;
 
 	case COMP_INCOMPATIBLE_DEVICE_ERROR:
 		/* needs disable slot command to recover */
@@ -2939,18 +2938,14 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			process_isoc_td(xhci, ep, ep_ring, td, ep_trb, event);
 		else
 			process_bulk_intr_td(xhci, ep, ep_ring, td, ep_trb, event);
-cleanup:
-		handling_skipped_tds = ep->skip &&
-			trb_comp_code != COMP_MISSED_SERVICE_ERROR &&
-			trb_comp_code != COMP_NO_PING_RESPONSE_ERROR;
-
+cleanup:;
 	/*
 	 * If ep->skip is set, it means there are missed tds on the
 	 * endpoint ring need to take care of.
 	 * Process them as short transfer until reach the td pointed by
 	 * the event.
 	 */
-	} while (handling_skipped_tds);
+	} while (ep->skip);
 
 	return 0;
 
