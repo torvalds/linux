@@ -668,6 +668,9 @@ static void free_response_callback(struct fw_packet *packet,
 {
 	struct fw_request *request = container_of(packet, struct fw_request, response);
 
+	trace_async_response_outbound_complete((uintptr_t)request, packet->generation,
+					       packet->speed, status, packet->timestamp);
+
 	// Decrease the reference count since not at in-flight.
 	fw_request_put(request);
 
@@ -850,6 +853,9 @@ static struct fw_request *allocate_request(struct fw_card *card,
 void fw_send_response(struct fw_card *card,
 		      struct fw_request *request, int rcode)
 {
+	u32 *data = NULL;
+	unsigned int data_length = 0;
+
 	/* unified transaction or broadcast transaction: don't respond */
 	if (request->ack != ACK_PENDING ||
 	    HEADER_DESTINATION_IS_BROADCAST(request->request_header)) {
@@ -857,16 +863,19 @@ void fw_send_response(struct fw_card *card,
 		return;
 	}
 
-	if (rcode == RCODE_COMPLETE)
-		fw_fill_response(&request->response, request->request_header,
-				 rcode, request->data,
-				 fw_get_response_length(request));
-	else
-		fw_fill_response(&request->response, request->request_header,
-				 rcode, NULL, 0);
+	if (rcode == RCODE_COMPLETE) {
+		data = request->data;
+		data_length = fw_get_response_length(request);
+	}
+
+	fw_fill_response(&request->response, request->request_header, rcode, data, data_length);
 
 	// Increase the reference count so that the object is kept during in-flight.
 	fw_request_get(request);
+
+	trace_async_response_outbound_initiate((uintptr_t)request, request->response.generation,
+					       request->response.speed, request->response.header,
+					       data, data ? data_length / 4 : 0);
 
 	card->driver->send_response(card, &request->response);
 }
