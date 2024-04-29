@@ -1277,8 +1277,12 @@ static bool kick_pool(struct worker_pool *pool)
 	    !cpumask_test_cpu(p->wake_cpu, pool->attrs->__pod_cpumask)) {
 		struct work_struct *work = list_first_entry(&pool->worklist,
 						struct work_struct, entry);
-		p->wake_cpu = cpumask_any_distribute(pool->attrs->__pod_cpumask);
-		get_work_pwq(work)->stats[PWQ_STAT_REPATRIATED]++;
+		int wake_cpu = cpumask_any_and_distribute(pool->attrs->__pod_cpumask,
+							  cpu_online_mask);
+		if (wake_cpu < nr_cpu_ids) {
+			p->wake_cpu = wake_cpu;
+			get_work_pwq(work)->stats[PWQ_STAT_REPATRIATED]++;
+		}
 	}
 #endif
 	wake_up_process(p);
@@ -1594,6 +1598,15 @@ static void wq_update_node_max_active(struct workqueue_struct *wq, int off_cpu)
 	if (off_cpu >= 0)
 		total_cpus--;
 
+	/* If all CPUs of the wq get offline, use the default values */
+	if (unlikely(!total_cpus)) {
+		for_each_node(node)
+			wq_node_nr_active(wq, node)->max = min_active;
+
+		wq_node_nr_active(wq, NUMA_NO_NODE)->max = max_active;
+		return;
+	}
+
 	for_each_node(node) {
 		int node_cpus;
 
@@ -1606,7 +1619,7 @@ static void wq_update_node_max_active(struct workqueue_struct *wq, int off_cpu)
 			      min_active, max_active);
 	}
 
-	wq_node_nr_active(wq, NUMA_NO_NODE)->max = min_active;
+	wq_node_nr_active(wq, NUMA_NO_NODE)->max = max_active;
 }
 
 /**
