@@ -7,6 +7,111 @@
 
 #include "tpm.h"
 #include <asm/unaligned.h>
+#include <crypto/hash.h>
+#include <crypto/hmac.h>
+
+/*
+ * It turns out the crypto hmac(sha256) is hard for us to consume
+ * because it assumes a fixed key and the TPM seems to change the key
+ * on every operation, so we weld the hmac init and final functions in
+ * here to give it the same usage characteristics as a regular hash
+ */
+static void tpm2_hmac_init(struct sha256_state *sctx, u8 *key, u32 key_len)
+{
+	u8 pad[SHA256_BLOCK_SIZE];
+	int i;
+
+	sha256_init(sctx);
+	for (i = 0; i < sizeof(pad); i++) {
+		if (i < key_len)
+			pad[i] = key[i];
+		else
+			pad[i] = 0;
+		pad[i] ^= HMAC_IPAD_VALUE;
+	}
+	sha256_update(sctx, pad, sizeof(pad));
+}
+
+static void tpm2_hmac_final(struct sha256_state *sctx, u8 *key, u32 key_len,
+			    u8 *out)
+{
+	u8 pad[SHA256_BLOCK_SIZE];
+	int i;
+
+	for (i = 0; i < sizeof(pad); i++) {
+		if (i < key_len)
+			pad[i] = key[i];
+		else
+			pad[i] = 0;
+		pad[i] ^= HMAC_OPAD_VALUE;
+	}
+
+	/* collect the final hash;  use out as temporary storage */
+	sha256_final(sctx, out);
+
+	sha256_init(sctx);
+	sha256_update(sctx, pad, sizeof(pad));
+	sha256_update(sctx, out, SHA256_DIGEST_SIZE);
+	sha256_final(sctx, out);
+}
+
+/*
+ * assume hash sha256 and nonces u, v of size SHA256_DIGEST_SIZE but
+ * otherwise standard tpm2_KDFa.  Note output is in bytes not bits.
+ */
+static void tpm2_KDFa(u8 *key, u32 key_len, const char *label, u8 *u,
+		      u8 *v, u32 bytes, u8 *out)
+{
+	u32 counter = 1;
+	const __be32 bits = cpu_to_be32(bytes * 8);
+
+	while (bytes > 0) {
+		struct sha256_state sctx;
+		__be32 c = cpu_to_be32(counter);
+
+		tpm2_hmac_init(&sctx, key, key_len);
+		sha256_update(&sctx, (u8 *)&c, sizeof(c));
+		sha256_update(&sctx, label, strlen(label)+1);
+		sha256_update(&sctx, u, SHA256_DIGEST_SIZE);
+		sha256_update(&sctx, v, SHA256_DIGEST_SIZE);
+		sha256_update(&sctx, (u8 *)&bits, sizeof(bits));
+		tpm2_hmac_final(&sctx, key, key_len, out);
+
+		bytes -= SHA256_DIGEST_SIZE;
+		counter++;
+		out += SHA256_DIGEST_SIZE;
+	}
+}
+
+/*
+ * Somewhat of a bastardization of the real KDFe.  We're assuming
+ * we're working with known point sizes for the input parameters and
+ * the hash algorithm is fixed at sha256.  Because we know that the
+ * point size is 32 bytes like the hash size, there's no need to loop
+ * in this KDF.
+ */
+static void tpm2_KDFe(u8 z[EC_PT_SZ], const char *str, u8 *pt_u, u8 *pt_v,
+		      u8 *out)
+{
+	struct sha256_state sctx;
+	/*
+	 * this should be an iterative counter, but because we know
+	 *  we're only taking 32 bytes for the point using a sha256
+	 *  hash which is also 32 bytes, there's only one loop
+	 */
+	__be32 c = cpu_to_be32(1);
+
+	sha256_init(&sctx);
+	/* counter (BE) */
+	sha256_update(&sctx, (u8 *)&c, sizeof(c));
+	/* secret value */
+	sha256_update(&sctx, z, EC_PT_SZ);
+	/* string including trailing zero */
+	sha256_update(&sctx, str, strlen(str)+1);
+	sha256_update(&sctx, pt_u, EC_PT_SZ);
+	sha256_update(&sctx, pt_v, EC_PT_SZ);
+	sha256_final(&sctx, out);
+}
 
 /**
  * tpm2_parse_create_primary() - parse the data returned from TPM_CC_CREATE_PRIMARY
