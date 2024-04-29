@@ -507,7 +507,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		 */
 		if (!em || cur < em->start ||
 		    (cur + fs_info->sectorsize > extent_map_end(em)) ||
-		    (em->block_start >> SECTOR_SHIFT) != orig_bio->bi_iter.bi_sector) {
+		    (extent_map_block_start(em) >> SECTOR_SHIFT) !=
+		    orig_bio->bi_iter.bi_sector) {
 			free_extent_map(em);
 			unlock_extent(tree, cur, page_end, NULL);
 			unlock_page(page);

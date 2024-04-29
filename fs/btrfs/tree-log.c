@@ -4597,6 +4597,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_root *csum_root;
+	u64 block_start;
 	u64 csum_offset;
 	u64 csum_len;
 	u64 mod_start = em->start;
@@ -4606,7 +4607,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 
 	if (inode->flags & BTRFS_INODE_NODATASUM ||
 	    (em->flags & EXTENT_FLAG_PREALLOC) ||
-	    em->block_start == EXTENT_MAP_HOLE)
+	    em->disk_bytenr == EXTENT_MAP_HOLE)
 		return 0;
 
 	list_for_each_entry(ordered, &ctx->ordered_extents, log_list) {
@@ -4677,10 +4678,11 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	}
 
 	/* block start is already adjusted for the file extent offset. */
-	csum_root = btrfs_csum_root(trans->fs_info, em->block_start);
-	ret = btrfs_lookup_csums_list(csum_root, em->block_start + csum_offset,
-				      em->block_start + csum_offset +
-				      csum_len - 1, &ordered_sums, false);
+	block_start = extent_map_block_start(em);
+	csum_root = btrfs_csum_root(trans->fs_info, block_start);
+	ret = btrfs_lookup_csums_list(csum_root, block_start + csum_offset,
+				      block_start + csum_offset + csum_len - 1,
+				      &ordered_sums, false);
 	if (ret < 0)
 		return ret;
 	ret = 0;
@@ -4711,6 +4713,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	enum btrfs_compression_type compress_type;
 	u64 extent_offset = em->offset;
+	u64 block_start = extent_map_block_start(em);
 	u64 block_len;
 	int ret;
 
@@ -4723,11 +4726,10 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	block_len = em->disk_num_bytes;
 	compress_type = extent_map_compression(em);
 	if (compress_type != BTRFS_COMPRESS_NONE) {
-		btrfs_set_stack_file_extent_disk_bytenr(&fi, em->block_start);
+		btrfs_set_stack_file_extent_disk_bytenr(&fi, block_start);
 		btrfs_set_stack_file_extent_disk_num_bytes(&fi, block_len);
-	} else if (em->block_start < EXTENT_MAP_LAST_BYTE) {
-		btrfs_set_stack_file_extent_disk_bytenr(&fi, em->block_start -
-							extent_offset);
+	} else if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE) {
+		btrfs_set_stack_file_extent_disk_bytenr(&fi, block_start - extent_offset);
 		btrfs_set_stack_file_extent_disk_num_bytes(&fi, block_len);
 	}
 

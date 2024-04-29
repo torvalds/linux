@@ -1295,7 +1295,6 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		em->len = btrfs_file_extent_end(path) - extent_start;
 		bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 		if (bytenr == 0) {
-			em->block_start = EXTENT_MAP_HOLE;
 			em->disk_bytenr = EXTENT_MAP_HOLE;
 			em->disk_num_bytes = 0;
 			em->offset = 0;
@@ -1306,10 +1305,8 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		em->offset = btrfs_file_extent_offset(leaf, fi);
 		if (compress_type != BTRFS_COMPRESS_NONE) {
 			extent_map_set_compression(em, compress_type);
-			em->block_start = bytenr;
 		} else {
 			bytenr += btrfs_file_extent_offset(leaf, fi);
-			em->block_start = bytenr;
 			if (type == BTRFS_FILE_EXTENT_PREALLOC)
 				em->flags |= EXTENT_FLAG_PREALLOC;
 		}
@@ -1317,7 +1314,6 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		/* Tree-checker has ensured this. */
 		ASSERT(extent_start == 0);
 
-		em->block_start = EXTENT_MAP_INLINE;
 		em->disk_bytenr = EXTENT_MAP_INLINE;
 		em->start = 0;
 		em->len = fs_info->sectorsize;

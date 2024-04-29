@@ -2347,7 +2347,6 @@ out:
 		hole_em->len = end - offset;
 		hole_em->ram_bytes = hole_em->len;
 
-		hole_em->block_start = EXTENT_MAP_HOLE;
 		hole_em->disk_bytenr = EXTENT_MAP_HOLE;
 		hole_em->disk_num_bytes = 0;
 		hole_em->generation = trans->transid;
@@ -2380,7 +2379,7 @@ static int find_first_non_hole(struct btrfs_inode *inode, u64 *start, u64 *len)
 		return PTR_ERR(em);
 
 	/* Hole or vacuum extent(only exists in no-hole mode) */
-	if (em->block_start == EXTENT_MAP_HOLE) {
+	if (em->disk_bytenr == EXTENT_MAP_HOLE) {
 		ret = 1;
 		*len = em->start + em->len > *start + *len ?
 		       0 : *start + *len - em->start - em->len;
@@ -3037,7 +3036,7 @@ static int btrfs_zero_range_check_range_boundary(struct btrfs_inode *inode,
 	if (IS_ERR(em))
 		return PTR_ERR(em);
 
-	if (em->block_start == EXTENT_MAP_HOLE)
+	if (em->disk_bytenr == EXTENT_MAP_HOLE)
 		ret = RANGE_BOUNDARY_HOLE;
 	else if (em->flags & EXTENT_FLAG_PREALLOC)
 		ret = RANGE_BOUNDARY_PREALLOC_EXTENT;
@@ -3101,7 +3100,7 @@ static int btrfs_zero_range(struct inode *inode,
 		ASSERT(IS_ALIGNED(alloc_start, sectorsize));
 		len = offset + len - alloc_start;
 		offset = alloc_start;
-		alloc_hint = em->block_start + em->len;
+		alloc_hint = extent_map_block_start(em) + em->len;
 	}
 	free_extent_map(em);
 
@@ -3119,7 +3118,7 @@ static int btrfs_zero_range(struct inode *inode,
 							   mode);
 			goto out;
 		}
-		if (len < sectorsize && em->block_start != EXTENT_MAP_HOLE) {
+		if (len < sectorsize && em->disk_bytenr != EXTENT_MAP_HOLE) {
 			free_extent_map(em);
 			ret = btrfs_truncate_block(BTRFS_I(inode), offset, len,
 						   0);
@@ -3332,7 +3331,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		last_byte = min(extent_map_end(em), alloc_end);
 		actual_end = min_t(u64, extent_map_end(em), offset + len);
 		last_byte = ALIGN(last_byte, blocksize);
-		if (em->block_start == EXTENT_MAP_HOLE ||
+		if (em->disk_bytenr == EXTENT_MAP_HOLE ||
 		    (cur_offset >= inode->i_size &&
 		     !(em->flags & EXTENT_FLAG_PREALLOC))) {
 			const u64 range_len = last_byte - cur_offset;

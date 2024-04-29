@@ -1773,7 +1773,9 @@ static void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered,
 	write_lock(&em_tree->lock);
 	em = search_extent_mapping(em_tree, ordered->file_offset,
 				   ordered->num_bytes);
-	em->block_start = logical;
+	/* The em should be a new COW extent, thus it should not have an offset. */
+	ASSERT(em->offset == 0);
+	em->disk_bytenr = logical;
 	free_extent_map(em);
 	write_unlock(&em_tree->lock);
 }
