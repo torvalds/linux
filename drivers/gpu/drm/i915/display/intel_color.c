@@ -1227,7 +1227,7 @@ static void i9xx_load_lut_8(struct intel_crtc *crtc,
 	lut = blob->data;
 
 	for (i = 0; i < 256; i++)
-		intel_de_write_fw(dev_priv, PALETTE(pipe, i),
+		intel_de_write_fw(dev_priv, PALETTE(dev_priv, pipe, i),
 				  i9xx_lut_8(&lut[i]));
 }
 
@@ -1240,9 +1240,11 @@ static void i9xx_load_lut_10(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 0),
+		intel_de_write_fw(dev_priv,
+				  PALETTE(dev_priv, pipe, 2 * i + 0),
 				  i9xx_lut_10_ldw(&lut[i]));
-		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 1),
+		intel_de_write_fw(dev_priv,
+				  PALETTE(dev_priv, pipe, 2 * i + 1),
 				  i9xx_lut_10_udw(&lut[i]));
 	}
 }
@@ -1274,9 +1276,11 @@ static void i965_load_lut_10p6(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 0),
+		intel_de_write_fw(dev_priv,
+				  PALETTE(dev_priv, pipe, 2 * i + 0),
 				  i965_lut_10p6_ldw(&lut[i]));
-		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 1),
+		intel_de_write_fw(dev_priv,
+				  PALETTE(dev_priv, pipe, 2 * i + 1),
 				  i965_lut_10p6_udw(&lut[i]));
 	}
 
@@ -3150,7 +3154,8 @@ static struct drm_property_blob *i9xx_read_lut_8(struct intel_crtc *crtc)
 	lut = blob->data;
 
 	for (i = 0; i < LEGACY_LUT_LENGTH; i++) {
-		u32 val = intel_de_read_fw(dev_priv, PALETTE(pipe, i));
+		u32 val = intel_de_read_fw(dev_priv,
+					   PALETTE(dev_priv, pipe, i));
 
 		i9xx_lut_8_pack(&lut[i], val);
 	}
@@ -3176,8 +3181,10 @@ static struct drm_property_blob *i9xx_read_lut_10(struct intel_crtc *crtc)
 	lut = blob->data;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		ldw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 0));
-		udw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 1));
+		ldw = intel_de_read_fw(dev_priv,
+				       PALETTE(dev_priv, pipe, 2 * i + 0));
+		udw = intel_de_read_fw(dev_priv,
+				       PALETTE(dev_priv, pipe, 2 * i + 1));
 
 		i9xx_lut_10_pack(&lut[i], ldw, udw);
 	}
@@ -3224,8 +3231,10 @@ static struct drm_property_blob *i965_read_lut_10p6(struct intel_crtc *crtc)
 	lut = blob->data;
 
 	for (i = 0; i < lut_size - 1; i++) {
-		u32 ldw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 0));
-		u32 udw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 1));
+		u32 ldw = intel_de_read_fw(dev_priv,
+					   PALETTE(dev_priv, pipe, 2 * i + 0));
+		u32 udw = intel_de_read_fw(dev_priv,
+					   PALETTE(dev_priv, pipe, 2 * i + 1));
 
 		i965_lut_10p6_pack(&lut[i], ldw, udw);
 	}

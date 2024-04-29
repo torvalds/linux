@@ -30,7 +30,7 @@
 #define   PALETTE_10BIT_BLUE_EXP_MASK	REG_GENMASK(7, 6)
 #define   PALETTE_10BIT_BLUE_MANT_MASK	REG_GENMASK(5, 2)
 #define   PALETTE_10BIT_BLUE_UDW_MASK	REG_GENMASK(1, 0)
-#define PALETTE(pipe, i) _MMIO(DISPLAY_MMIO_BASE(dev_priv) +			\
+#define PALETTE(dev_priv, pipe, i) _MMIO(DISPLAY_MMIO_BASE(dev_priv) +			\
 			       _PICK_EVEN_2RANGES(pipe, 2,			\
 						  _PALETTE_A, _PALETTE_B,	\
 						  _CHV_PALETTE_C, _CHV_PALETTE_C) + \
