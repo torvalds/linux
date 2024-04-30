@@ -25,6 +25,7 @@ msm_dma_iommu_mapping.ko
 mem-hooks.ko
 mdt_loader.ko
 pinctrl-msm.ko
+pinctrl-anorak.ko
 secure_buffer.ko
 msm-geni-se.ko
 qcom_llcc_pmu.ko
