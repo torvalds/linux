@@ -290,7 +290,7 @@ static int __init sifive_ccache_init(void)
 	struct device_node *np;
 	struct resource res;
 	const struct of_device_id *match;
-	unsigned long quirks;
+	unsigned long quirks __maybe_unused;
 	int rc;
 
 	np = of_find_matching_node_and_match(NULL, sifive_ccache_ids, &match);
