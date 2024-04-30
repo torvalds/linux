@@ -876,7 +876,8 @@ gen8_de_misc_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 			if (DISPLAY_VER(dev_priv) >= 12)
-				iir_reg = TRANS_PSR_IIR(intel_dp->psr.transcoder);
+				iir_reg = TRANS_PSR_IIR(dev_priv,
+						        intel_dp->psr.transcoder);
 			else
 				iir_reg = EDP_PSR_IIR;
 
@@ -1458,7 +1459,9 @@ void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 			intel_uncore_write(uncore,
 				           TRANS_PSR_IMR(dev_priv, trans),
 				           0xffffffff);
-			intel_uncore_write(uncore, TRANS_PSR_IIR(trans), 0xffffffff);
+			intel_uncore_write(uncore,
+				           TRANS_PSR_IIR(dev_priv, trans),
+				           0xffffffff);
 		}
 	} else {
 		intel_uncore_write(uncore, EDP_PSR_IMR, 0xffffffff);
@@ -1690,7 +1693,8 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 			if (!intel_display_power_is_enabled(dev_priv, domain))
 				continue;
 
-			gen3_assert_iir_is_zero(uncore, TRANS_PSR_IIR(trans));
+			gen3_assert_iir_is_zero(uncore,
+						TRANS_PSR_IIR(dev_priv, trans));
 		}
 	} else {
 		gen3_assert_iir_is_zero(uncore, EDP_PSR_IIR);

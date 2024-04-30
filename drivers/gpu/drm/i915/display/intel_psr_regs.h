@@ -67,7 +67,7 @@
 #define _PSR_IMR_A				0x60814
 #define _PSR_IIR_A				0x60818
 #define TRANS_PSR_IMR(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _PSR_IMR_A)
-#define TRANS_PSR_IIR(tran)			_MMIO_TRANS2(dev_priv, tran, _PSR_IIR_A)
+#define TRANS_PSR_IIR(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _PSR_IIR_A)
 #define   _EDP_PSR_TRANS_SHIFT(trans)		((trans) == TRANSCODER_EDP ? \
 						 0 : ((trans) - TRANSCODER_A + 1) * 8)
 #define   TGL_PSR_MASK			REG_GENMASK(2, 0)

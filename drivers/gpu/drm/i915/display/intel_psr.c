@@ -314,7 +314,7 @@ static i915_reg_t psr_iir_reg(struct drm_i915_private *dev_priv,
 			      enum transcoder cpu_transcoder)
 {
 	if (DISPLAY_VER(dev_priv) >= 12)
-		return TRANS_PSR_IIR(cpu_transcoder);
+		return TRANS_PSR_IIR(dev_priv, cpu_transcoder);
 	else
 		return EDP_PSR_IIR;
 }
