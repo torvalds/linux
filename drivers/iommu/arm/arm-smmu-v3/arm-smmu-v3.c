@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/pci-ats.h>
 #include <linux/platform_device.h>
+#include <kunit/visibility.h>
 
 #include "arm-smmu-v3.h"
 #include "../../dma-iommu.h"
@@ -40,17 +41,6 @@ enum arm_smmu_msi_index {
 	GERROR_MSI_INDEX,
 	PRIQ_MSI_INDEX,
 	ARM_SMMU_MAX_MSIS,
-};
-
-struct arm_smmu_entry_writer_ops;
-struct arm_smmu_entry_writer {
-	const struct arm_smmu_entry_writer_ops *ops;
-	struct arm_smmu_master *master;
-};
-
-struct arm_smmu_entry_writer_ops {
-	void (*get_used)(const __le64 *entry, __le64 *used);
-	void (*sync)(struct arm_smmu_entry_writer *writer);
 };
 
 #define NUM_ENTRY_QWORDS 8
@@ -979,7 +969,8 @@ void arm_smmu_tlb_inv_asid(struct arm_smmu_device *smmu, u16 asid)
  * would be nice if this was complete according to the spec, but minimally it
  * has to capture the bits this driver uses.
  */
-static void arm_smmu_get_ste_used(const __le64 *ent, __le64 *used_bits)
+VISIBLE_IF_KUNIT
+void arm_smmu_get_ste_used(const __le64 *ent, __le64 *used_bits)
 {
 	unsigned int cfg = FIELD_GET(STRTAB_STE_0_CFG, le64_to_cpu(ent[0]));
 
@@ -1101,8 +1092,9 @@ static bool entry_set(struct arm_smmu_entry_writer *writer, __le64 *entry,
  * V=0 process. This relies on the IGNORED behavior described in the
  * specification.
  */
-static void arm_smmu_write_entry(struct arm_smmu_entry_writer *writer,
-				 __le64 *entry, const __le64 *target)
+VISIBLE_IF_KUNIT
+void arm_smmu_write_entry(struct arm_smmu_entry_writer *writer, __le64 *entry,
+			  const __le64 *target)
 {
 	__le64 unused_update[NUM_ENTRY_QWORDS];
 	u8 used_qword_diff;
@@ -1256,7 +1248,8 @@ struct arm_smmu_cd_writer {
 	unsigned int ssid;
 };
 
-static void arm_smmu_get_cd_used(const __le64 *ent, __le64 *used_bits)
+VISIBLE_IF_KUNIT
+void arm_smmu_get_cd_used(const __le64 *ent, __le64 *used_bits)
 {
 	used_bits[0] = cpu_to_le64(CTXDESC_CD_0_V);
 	if (!(ent[0] & cpu_to_le64(CTXDESC_CD_0_V)))
@@ -1514,7 +1507,8 @@ static void arm_smmu_write_ste(struct arm_smmu_master *master, u32 sid,
 	}
 }
 
-static void arm_smmu_make_abort_ste(struct arm_smmu_ste *target)
+VISIBLE_IF_KUNIT
+void arm_smmu_make_abort_ste(struct arm_smmu_ste *target)
 {
 	memset(target, 0, sizeof(*target));
 	target->data[0] = cpu_to_le64(
@@ -1522,8 +1516,9 @@ static void arm_smmu_make_abort_ste(struct arm_smmu_ste *target)
 		FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_ABORT));
 }
 
-static void arm_smmu_make_bypass_ste(struct arm_smmu_device *smmu,
-				     struct arm_smmu_ste *target)
+VISIBLE_IF_KUNIT
+void arm_smmu_make_bypass_ste(struct arm_smmu_device *smmu,
+			      struct arm_smmu_ste *target)
 {
 	memset(target, 0, sizeof(*target));
 	target->data[0] = cpu_to_le64(
@@ -1535,8 +1530,9 @@ static void arm_smmu_make_bypass_ste(struct arm_smmu_device *smmu,
 							 STRTAB_STE_1_SHCFG_INCOMING));
 }
 
-static void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
-				      struct arm_smmu_master *master)
+VISIBLE_IF_KUNIT
+void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
+			       struct arm_smmu_master *master)
 {
 	struct arm_smmu_ctx_desc_cfg *cd_table = &master->cd_table;
 	struct arm_smmu_device *smmu = master->smmu;
@@ -1585,9 +1581,10 @@ static void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
 	}
 }
 
-static void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
-					struct arm_smmu_master *master,
-					struct arm_smmu_domain *smmu_domain)
+VISIBLE_IF_KUNIT
+void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
+				 struct arm_smmu_master *master,
+				 struct arm_smmu_domain *smmu_domain)
 {
 	struct arm_smmu_s2_cfg *s2_cfg = &smmu_domain->s2_cfg;
 	const struct io_pgtable_cfg *pgtbl_cfg =

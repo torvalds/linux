@@ -8,6 +8,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
+#include <kunit/visibility.h>
 
 #include "arm-smmu-v3.h"
 #include "../../io-pgtable-arm.h"
@@ -120,9 +121,10 @@ static u64 page_size_to_cd(void)
 	return ARM_LPAE_TCR_TG0_4K;
 }
 
-static void arm_smmu_make_sva_cd(struct arm_smmu_cd *target,
-				 struct arm_smmu_master *master,
-				 struct mm_struct *mm, u16 asid)
+VISIBLE_IF_KUNIT
+void arm_smmu_make_sva_cd(struct arm_smmu_cd *target,
+			  struct arm_smmu_master *master, struct mm_struct *mm,
+			  u16 asid)
 {
 	u64 par;
 
