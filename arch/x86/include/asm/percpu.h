@@ -178,7 +178,7 @@ do {									\
 		(void)pto_tmp__;					\
 	}								\
 	asm qual(__pcpu_op2_##size("mov", "%[val]", __percpu_arg([var])) \
-	    : [var] "+m" (__my_cpu_var(_var))				\
+	    : [var] "=m" (__my_cpu_var(_var))				\
 	    : [val] __pcpu_reg_imm_##size(pto_val__));			\
 } while (0)
 
