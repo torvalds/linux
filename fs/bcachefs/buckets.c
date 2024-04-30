@@ -973,16 +973,9 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	*sectors = insert ? bp.bucket_len : -((s64) bp.bucket_len);
 
 	if (flags & BTREE_TRIGGER_transactional) {
-		struct btree_iter iter;
-		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, &iter, bucket);
-		int ret = PTR_ERR_OR_ZERO(a);
-		if (ret)
-			return ret;
-
-		ret = __mark_pointer(trans, k, &p.ptr, *sectors, bp.data_type, &a->v) ?:
-			bch2_trans_update(trans, &iter, &a->k_i, 0);
-		bch2_trans_iter_exit(trans, &iter);
-
+		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, bucket);
+		int ret = PTR_ERR_OR_ZERO(a) ?:
+			__mark_pointer(trans, k, &p.ptr, *sectors, bp.data_type, &a->v);
 		if (ret)
 			return ret;
 
@@ -1266,7 +1259,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 	int ret = 0;
 
 	struct bkey_i_alloc_v4 *a =
-		bch2_trans_start_alloc_update(trans, &iter, POS(ca->dev_idx, b));
+		bch2_trans_start_alloc_update_noupdate(trans, &iter, POS(ca->dev_idx, b));
 	if (IS_ERR(a))
 		return PTR_ERR(a);
 

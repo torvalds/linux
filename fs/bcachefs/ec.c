@@ -269,20 +269,10 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	struct bpos bucket = PTR_BUCKET_POS(c, ptr);
 
 	if (flags & BTREE_TRIGGER_transactional) {
-		struct btree_iter iter;
 		struct bkey_i_alloc_v4 *a =
-			bch2_trans_start_alloc_update(trans, &iter, bucket);
-		int ret = PTR_ERR_OR_ZERO(a) ?:
-			__mark_stripe_bucket(trans, s, ptr_idx, deleting, iter.pos, &a->v);
-		if (ret)
-			goto err;
-
-		ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
-		if (ret)
-			goto err;
-err:
-		bch2_trans_iter_exit(trans, &iter);
-		return ret;
+			bch2_trans_start_alloc_update(trans, bucket);
+		return PTR_ERR_OR_ZERO(a) ?:
+			__mark_stripe_bucket(trans, s, ptr_idx, deleting, bucket, &a->v);
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {

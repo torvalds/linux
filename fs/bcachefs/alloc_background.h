@@ -179,7 +179,9 @@ static inline void set_alloc_v4_u64s(struct bkey_i_alloc_v4 *a)
 }
 
 struct bkey_i_alloc_v4 *
-bch2_trans_start_alloc_update(struct btree_trans *, struct btree_iter *, struct bpos);
+bch2_trans_start_alloc_update_noupdate(struct btree_trans *, struct btree_iter *, struct bpos);
+struct bkey_i_alloc_v4 *
+bch2_trans_start_alloc_update(struct btree_trans *, struct bpos);
 
 void __bch2_alloc_to_v4(struct bkey_s_c, struct bch_alloc_v4 *);
 

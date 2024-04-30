@@ -429,22 +429,18 @@ struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut(struct btree_trans *trans, struct b
 }
 
 struct bkey_i_alloc_v4 *
-bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree_iter *iter,
-			      struct bpos pos)
+bch2_trans_start_alloc_update_noupdate(struct btree_trans *trans, struct btree_iter *iter,
+				       struct bpos pos)
 {
-	struct bkey_s_c k;
-	struct bkey_i_alloc_v4 *a;
-	int ret;
-
-	k = bch2_bkey_get_iter(trans, iter, BTREE_ID_alloc, pos,
-			     BTREE_ITER_with_updates|
-			     BTREE_ITER_cached|
-			     BTREE_ITER_intent);
-	ret = bkey_err(k);
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, iter, BTREE_ID_alloc, pos,
+					       BTREE_ITER_with_updates|
+					       BTREE_ITER_cached|
+					       BTREE_ITER_intent);
+	int ret = bkey_err(k);
 	if (unlikely(ret))
 		return ERR_PTR(ret);
 
-	a = bch2_alloc_to_v4_mut_inlined(trans, k);
+	struct bkey_i_alloc_v4 *a = bch2_alloc_to_v4_mut_inlined(trans, k);
 	ret = PTR_ERR_OR_ZERO(a);
 	if (unlikely(ret))
 		goto err;
@@ -452,6 +448,20 @@ bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree_iter *iter
 err:
 	bch2_trans_iter_exit(trans, iter);
 	return ERR_PTR(ret);
+}
+
+__flatten
+struct bkey_i_alloc_v4 *bch2_trans_start_alloc_update(struct btree_trans *trans, struct bpos pos)
+{
+	struct btree_iter iter;
+	struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update_noupdate(trans, &iter, pos);
+	int ret = PTR_ERR_OR_ZERO(a);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
+	bch2_trans_iter_exit(trans, &iter);
+	return unlikely(ret) ? ERR_PTR(ret) : a;
 }
 
 static struct bpos alloc_gens_pos(struct bpos pos, unsigned *offset)
@@ -1908,7 +1918,6 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 				 s64 *nr_to_invalidate)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter alloc_iter = { NULL };
 	struct bkey_i_alloc_v4 *a = NULL;
 	struct printbuf buf = PRINTBUF;
 	struct bpos bucket = u64_to_bucket(lru_k.k->p.offset);
@@ -1926,7 +1935,7 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	if (bch2_bucket_is_open_safe(c, bucket.inode, bucket.offset))
 		return 0;
 
-	a = bch2_trans_start_alloc_update(trans, &alloc_iter, bucket);
+	a = bch2_trans_start_alloc_update(trans, bucket);
 	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		goto out;
@@ -1951,18 +1960,15 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	a->v.io_time[READ]	= atomic64_read(&c->io_clock[READ].now);
 	a->v.io_time[WRITE]	= atomic64_read(&c->io_clock[WRITE].now);
 
-	ret =   bch2_trans_update(trans, &alloc_iter, &a->k_i,
-				BTREE_TRIGGER_bucket_invalidate) ?:
-		bch2_trans_commit(trans, NULL, NULL,
-				  BCH_WATERMARK_btree|
-				  BCH_TRANS_COMMIT_no_enospc);
+	ret = bch2_trans_commit(trans, NULL, NULL,
+				BCH_WATERMARK_btree|
+				BCH_TRANS_COMMIT_no_enospc);
 	if (ret)
 		goto out;
 
 	trace_and_count(c, bucket_invalidate, c, bucket.inode, bucket.offset, cached_sectors);
 	--*nr_to_invalidate;
 out:
-	bch2_trans_iter_exit(trans, &alloc_iter);
 	printbuf_exit(&buf);
 	return ret;
 err:
@@ -2175,7 +2181,7 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	if (bch2_trans_relock(trans))
 		bch2_trans_begin(trans);
 
-	a = bch2_trans_start_alloc_update(trans, &iter,  POS(dev, bucket_nr));
+	a = bch2_trans_start_alloc_update_noupdate(trans, &iter, POS(dev, bucket_nr));
 	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		return ret;
