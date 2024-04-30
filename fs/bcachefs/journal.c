@@ -1182,11 +1182,11 @@ void bch2_fs_journal_stop(struct journal *j)
 	cancel_delayed_work_sync(&j->write_work);
 
 	BUG_ON(!bch2_journal_error(j) &&
-	       test_bit(JOURNAL_REPLAY_DONE, &j->flags) &&
+	       test_bit(JOURNAL_replay_done, &j->flags) &&
 	       j->last_empty_seq != journal_cur_seq(j));
 
 	if (!bch2_journal_error(j))
-		clear_bit(JOURNAL_RUNNING, &j->flags);
+		clear_bit(JOURNAL_running, &j->flags);
 }
 
 int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
@@ -1260,7 +1260,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 
 	spin_lock(&j->lock);
 
-	set_bit(JOURNAL_RUNNING, &j->flags);
+	set_bit(JOURNAL_running, &j->flags);
 	j->last_flush_write = jiffies;
 
 	j->reservations.idx = j->reservations.unwritten_idx = journal_cur_seq(j);
@@ -1401,6 +1401,13 @@ int bch2_fs_journal_init(struct journal *j)
 
 /* debug: */
 
+static const char * const bch2_journal_flags_strs[] = {
+#define x(n)	#n,
+	JOURNAL_FLAGS()
+#undef x
+	NULL
+};
+
 void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
@@ -1415,6 +1422,9 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	rcu_read_lock();
 	s = READ_ONCE(j->reservations);
 
+	prt_printf(out, "flags:\t");
+	prt_bitflags(out, bch2_journal_flags_strs, j->flags);
+	prt_newline(out);
 	prt_printf(out, "dirty journal entries:\t%llu/%llu\n",	fifo_used(&j->pin), j->pin.size);
 	prt_printf(out, "seq:\t%llu\n",				journal_cur_seq(j));
 	prt_printf(out, "seq_ondisk:\t%llu\n",			j->seq_ondisk);
@@ -1452,10 +1462,6 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 
 	prt_printf(out, "unwritten entries:\n");
 	bch2_journal_bufs_to_text(out, j);
-
-	prt_printf(out,
-	       "replay done:\t%i\n",
-	       test_bit(JOURNAL_REPLAY_DONE,	&j->flags));
 
 	prt_printf(out, "space:\n");
 	printbuf_indent_add(out, 2);

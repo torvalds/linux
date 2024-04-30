@@ -129,12 +129,17 @@ enum journal_space_from {
 	journal_space_nr,
 };
 
+#define JOURNAL_FLAGS()			\
+	x(replay_done)			\
+	x(running)			\
+	x(may_skip_flush)		\
+	x(need_flush_write)		\
+	x(space_low)
+
 enum journal_flags {
-	JOURNAL_REPLAY_DONE,
-	JOURNAL_RUNNING,
-	JOURNAL_MAY_SKIP_FLUSH,
-	JOURNAL_NEED_FLUSH_WRITE,
-	JOURNAL_SPACE_LOW,
+#define x(n)	JOURNAL_##n,
+	JOURNAL_FLAGS()
+#undef x
 };
 
 /* Reasons we may fail to get a journal reservation: */

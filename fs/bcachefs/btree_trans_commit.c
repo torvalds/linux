@@ -337,7 +337,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 	EBUG_ON(!i->level &&
 		btree_type_has_snapshots(i->btree_id) &&
 		!(i->flags & BTREE_UPDATE_internal_snapshot_node) &&
-		test_bit(JOURNAL_REPLAY_DONE, &trans->c->journal.flags) &&
+		test_bit(JOURNAL_replay_done, &trans->c->journal.flags) &&
 		i->k->k.p.snapshot &&
 		bch2_snapshot_is_internal_node(trans->c, i->k->k.p.snapshot) > 0);
 }

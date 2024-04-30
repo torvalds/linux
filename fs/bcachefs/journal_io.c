@@ -1954,14 +1954,14 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 	 * So if we're in an error state, and we're still starting up, we don't
 	 * write anything at all.
 	 */
-	if (error && test_bit(JOURNAL_NEED_FLUSH_WRITE, &j->flags))
+	if (error && test_bit(JOURNAL_need_flush_write, &j->flags))
 		return -EIO;
 
 	if (error ||
 	    w->noflush ||
 	    (!w->must_flush &&
 	     (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
-	     test_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags))) {
+	     test_bit(JOURNAL_may_skip_flush, &j->flags))) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(w->data, true);
 		w->data->last_seq	= 0;
@@ -1972,7 +1972,7 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 		w->must_flush = true;
 		j->last_flush_write = jiffies;
 		j->nr_flush_writes++;
-		clear_bit(JOURNAL_NEED_FLUSH_WRITE, &j->flags);
+		clear_bit(JOURNAL_need_flush_write, &j->flags);
 	}
 
 	return 0;

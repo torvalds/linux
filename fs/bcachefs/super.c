@@ -284,7 +284,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	bch_verbose(c, "flushing journal and stopping allocators complete, journal seq %llu",
 		    journal_cur_seq(&c->journal));
 
-	if (test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags) &&
+	if (test_bit(JOURNAL_replay_done, &c->journal.flags) &&
 	    !test_bit(BCH_FS_emergency_ro, &c->flags))
 		set_bit(BCH_FS_clean_shutdown, &c->flags);
 
@@ -466,8 +466,8 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	 * overwriting whatever was there previously, and there must always be
 	 * at least one non-flush write in the journal or recovery will fail:
 	 */
-	set_bit(JOURNAL_NEED_FLUSH_WRITE, &c->journal.flags);
-	set_bit(JOURNAL_RUNNING, &c->journal.flags);
+	set_bit(JOURNAL_need_flush_write, &c->journal.flags);
+	set_bit(JOURNAL_running, &c->journal.flags);
 
 	for_each_rw_member(c, ca)
 		bch2_dev_allocator_add(c, ca);

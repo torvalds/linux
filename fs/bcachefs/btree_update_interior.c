@@ -1157,12 +1157,12 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	flags |= watermark;
 
 	if (watermark < BCH_WATERMARK_reclaim &&
-	    test_bit(JOURNAL_SPACE_LOW, &c->journal.flags)) {
+	    test_bit(JOURNAL_space_low, &c->journal.flags)) {
 		if (flags & BCH_TRANS_COMMIT_journal_reclaim)
 			return ERR_PTR(-BCH_ERR_journal_reclaim_would_deadlock);
 
 		ret = drop_locks_do(trans,
-			({ wait_event(c->journal.wait, !test_bit(JOURNAL_SPACE_LOW, &c->journal.flags)); 0; }));
+			({ wait_event(c->journal.wait, !test_bit(JOURNAL_space_low, &c->journal.flags)); 0; }));
 		if (ret)
 			return ERR_PTR(ret);
 	}
@@ -1362,7 +1362,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 	BUG_ON(insert->k.type == KEY_TYPE_btree_ptr_v2 &&
 	       !btree_ptr_sectors_written(insert));
 
-	if (unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)))
+	if (unlikely(!test_bit(JOURNAL_replay_done, &c->journal.flags)))
 		bch2_journal_key_overwritten(c, b->c.btree_id, b->c.level, insert->k.p);
 
 	if (bch2_bkey_invalid(c, bkey_i_to_s_c(insert),

@@ -3170,7 +3170,7 @@ got_trans:
 	trans->locking_wait.task = current;
 	trans->locked		= true;
 	trans->journal_replay_not_finished =
-		unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)) &&
+		unlikely(!test_bit(JOURNAL_replay_done, &c->journal.flags)) &&
 		atomic_inc_not_zero(&c->journal_keys.ref);
 	trans->nr_paths		= ARRAY_SIZE(trans->_paths);
 	trans->paths_allocated	= trans->_paths_allocated;
