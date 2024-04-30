@@ -133,7 +133,7 @@
 #define HSW_SRD_DEBUG				_MMIO(0x64860)
 #define _SRD_DEBUG_A				0x60860
 #define _SRD_DEBUG_EDP				0x6f860
-#define EDP_PSR_DEBUG(tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_DEBUG_A)
+#define EDP_PSR_DEBUG(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_DEBUG_A)
 #define   EDP_PSR_DEBUG_MASK_MAX_SLEEP		REG_BIT(28)
 #define   EDP_PSR_DEBUG_MASK_LPSP		REG_BIT(27)
 #define   EDP_PSR_DEBUG_MASK_MEMUP		REG_BIT(26)
