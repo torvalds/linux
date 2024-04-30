@@ -980,8 +980,10 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	xe_gt_WARN(q->gt, q->flags & EXEC_QUEUE_FLAG_VM && !exec_queue_killed(q),
 		   "VM job timed out on non-killed execqueue\n");
 
-	simple_error_capture(q);
-	xe_devcoredump(job);
+	if (!exec_queue_killed(q)) {
+		simple_error_capture(q);
+		xe_devcoredump(job);
+	}
 
 	trace_xe_sched_job_timedout(job);
 
