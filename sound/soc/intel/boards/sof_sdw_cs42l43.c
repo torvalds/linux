@@ -124,10 +124,14 @@ int cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_card *card = rtd->card;
 	int ret;
 
-	card->components = devm_kasprintf(card->dev, GFP_KERNEL, "%s spk:cs42l43-spk",
-					  card->components);
-	if (!card->components)
-		return -ENOMEM;
+	if (!(sof_sdw_quirk & SOF_SIDECAR_AMPS)) {
+		/* Will be set by the bridge code in this case */
+		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+						  "%s spk:cs42l43-spk",
+						  card->components);
+		if (!card->components)
+			return -ENOMEM;
+	}
 
 	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l43_spk_widgets,
 					ARRAY_SIZE(cs42l43_spk_widgets));
@@ -155,7 +159,7 @@ int sof_sdw_cs42l43_spk_init(struct snd_soc_card *card,
 
 	info->amp_num++;
 
-	return 0;
+	return bridge_cs35l56_spk_init(card, dai_links, info, playback);
 }
 
 int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
