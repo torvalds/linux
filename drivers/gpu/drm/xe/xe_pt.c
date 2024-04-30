@@ -619,9 +619,40 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
 	int ret;
 
-	if ((vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT) &&
-	    (is_devmem || !IS_DGFX(xe)))
-		xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
+	/**
+	 * Default atomic expectations for different allocation scenarios are as follows:
+	 *
+	 * 1. Traditional API: When the VM is not in LR mode:
+	 *    - Device atomics are expected to function with all allocations.
+	 *
+	 * 2. Compute/SVM API: When the VM is in LR mode:
+	 *    - Device atomics are the default behavior when the bo is placed in a single region.
+	 *    - In all other cases device atomics will be disabled with AE=0 until an application
+	 *      request differently using a ioctl like madvise.
+	 */
+	if (vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT) {
+		if (xe_vm_in_lr_mode(xe_vma_vm(vma))) {
+			if (bo && xe_bo_has_single_placement(bo))
+				xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
+			/**
+			 * If a SMEM+LMEM allocation is backed by SMEM, a device
+			 * atomics will cause a gpu page fault and which then
+			 * gets migrated to LMEM, bind such allocations with
+			 * device atomics enabled.
+			 */
+			else if (is_devmem && !xe_bo_has_single_placement(bo))
+				xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
+		} else {
+			xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
+		}
+
+		/**
+		 * Unset AE if the platform(PVC) doesn't support it on an
+		 * allocation
+		 */
+		if (!xe->info.has_device_atomics_on_smem && !is_devmem)
+			xe_walk.default_pte &= ~XE_USM_PPGTT_PTE_AE;
+	}
 
 	if (is_devmem) {
 		xe_walk.default_pte |= XE_PPGTT_PTE_DM;
