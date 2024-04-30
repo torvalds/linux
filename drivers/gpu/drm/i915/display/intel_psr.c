@@ -2052,7 +2052,7 @@ static void intel_psr_wait_exit_locked(struct intel_dp *intel_dp)
 	u32 psr_status_mask;
 
 	if (intel_dp->psr.psr2_enabled) {
-		psr_status = EDP_PSR2_STATUS(cpu_transcoder);
+		psr_status = EDP_PSR2_STATUS(dev_priv, cpu_transcoder);
 		psr_status_mask = EDP_PSR2_STATUS_STATE_MASK;
 	} else {
 		psr_status = psr_status_reg(dev_priv, cpu_transcoder);
@@ -2768,7 +2768,7 @@ static int _psr2_ready_for_pipe_update_locked(struct intel_dp *intel_dp)
 	 * EDP_PSR2_STATUS_STATE_DEEP_SLEEP to be cleared.
 	 */
 	return intel_de_wait_for_clear(dev_priv,
-				       EDP_PSR2_STATUS(cpu_transcoder),
+				       EDP_PSR2_STATUS(dev_priv, cpu_transcoder),
 				       EDP_PSR2_STATUS_STATE_DEEP_SLEEP, 50);
 }
 
@@ -2835,7 +2835,7 @@ static bool __psr_wait_for_idle_locked(struct intel_dp *intel_dp)
 		return false;
 
 	if (intel_dp->psr.psr2_enabled) {
-		reg = EDP_PSR2_STATUS(cpu_transcoder);
+		reg = EDP_PSR2_STATUS(dev_priv, cpu_transcoder);
 		mask = EDP_PSR2_STATUS_STATE_MASK;
 	} else {
 		reg = psr_status_reg(dev_priv, cpu_transcoder);
@@ -3467,7 +3467,8 @@ psr_source_status(struct intel_dp *intel_dp, struct seq_file *m)
 			"BUF_ON",
 			"TG_ON"
 		};
-		val = intel_de_read(dev_priv, EDP_PSR2_STATUS(cpu_transcoder));
+		val = intel_de_read(dev_priv,
+				    EDP_PSR2_STATUS(dev_priv, cpu_transcoder));
 		status_val = REG_FIELD_GET(EDP_PSR2_STATUS_STATE_MASK, val);
 		if (status_val < ARRAY_SIZE(live_status))
 			status = live_status[status_val];
