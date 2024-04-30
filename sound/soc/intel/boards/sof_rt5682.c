@@ -30,7 +30,6 @@
 
 /* Driver-specific board quirks: from bit 0 to 7 */
 #define SOF_RT5682_MCLK_EN			BIT(0)
-#define SOF_RT5682_MCLK_BYTCHT_EN		BIT(1)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -76,15 +75,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(0) |
 					SOF_SSP_PORT_AMP(1)),
-	},
-	{
-		.callback = sof_rt5682_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Ice Lake Client"),
-		},
-		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
-					SOF_SSP_PORT_CODEC(0)),
 	},
 	{
 		.callback = sof_rt5682_quirk_cb,
@@ -165,7 +155,7 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	int extra_jack_data;
 	int ret, mclk_freq;
 
-	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
+	if (ctx->rt5682.mclk_en) {
 		mclk_freq = sof_dai_get_mclk(rtd);
 		if (mclk_freq <= 0) {
 			dev_err(rtd->dev, "invalid mclk freq %d\n", mclk_freq);
@@ -206,7 +196,7 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 			}
 		}
 
-		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
+		if (ctx->rt5682.is_legacy_cpu) {
 			/*
 			 * The firmware might enable the clock at
 			 * boot (this information may or may not
@@ -278,8 +268,8 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	int pll_id, pll_source, pll_in, pll_out, clk_id, ret;
 
-	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
-		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
+	if (ctx->rt5682.mclk_en) {
+		if (ctx->rt5682.is_legacy_cpu) {
 			ret = clk_prepare_enable(ctx->rt5682.mclk);
 			if (ret < 0) {
 				dev_err(rtd->dev,
@@ -327,36 +317,12 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		pll_in = params_rate(params) * 50;
-	}
-
-	switch (ctx->codec_type) {
-	case CODEC_RT5650:
-		pll_id = 0; /* not used in codec driver */
-		clk_id = RT5645_SCLK_S_PLL1;
-		break;
-	case CODEC_RT5682:
-		pll_id = RT5682_PLL1;
-		clk_id = RT5682_SCLK_S_PLL1;
-		break;
-	case CODEC_RT5682S:
-		/*
-		 * For MCLK = 24.576MHz and sample rate = 96KHz case, use PLL1  We don't test
-		 * pll_out or params_rate() here since rt5682s PLL2 doesn't support 24.576MHz
-		 * input, so we have no choice but to use PLL1. Besides, we will not use PLL at
-		 * all if pll_in == pll_out. ex, MCLK = 24.576Mhz and sample rate = 48KHz
-		 */
-		if (pll_in == 24576000) {
-			pll_id = RT5682S_PLL1;
-			clk_id = RT5682S_SCLK_S_PLL1;
-		} else {
-			pll_id = RT5682S_PLL2;
-			clk_id = RT5682S_SCLK_S_PLL2;
+		/* get the tplg configured bclk. */
+		pll_in = sof_dai_get_bclk(rtd);
+		if (pll_in <= 0) {
+			dev_err(rtd->dev, "invalid bclk freq %d\n", pll_in);
+			return -EINVAL;
 		}
-		break;
-	default:
-		dev_err(rtd->dev, "invalid codec type %d\n", ctx->codec_type);
-		return -EINVAL;
 	}
 
 	pll_out = params_rate(params) * 512;
@@ -379,6 +345,40 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 	} else {
+		switch (ctx->codec_type) {
+		case CODEC_RT5650:
+			pll_id = 0; /* not used in codec driver */
+			clk_id = RT5645_SCLK_S_PLL1;
+			break;
+		case CODEC_RT5682:
+			pll_id = RT5682_PLL1;
+			clk_id = RT5682_SCLK_S_PLL1;
+			break;
+		case CODEC_RT5682S:
+			/* check plla_table and pllb_table in rt5682s.c */
+			switch (pll_in) {
+			case 3072000:
+			case 24576000:
+				/*
+				 * For MCLK = 24.576MHz and sample rate = 96KHz case, use PLL1  We don't test
+				 * pll_out or params_rate() here since rt5682s PLL2 doesn't support 24.576MHz
+				 * input, so we have no choice but to use PLL1. Besides, we will not use PLL at
+				 * all if pll_in == pll_out. ex, MCLK = 24.576Mhz and sample rate = 48KHz
+				 */
+				pll_id = RT5682S_PLL1;
+				clk_id = RT5682S_SCLK_S_PLL1;
+				break;
+			default:
+				pll_id = RT5682S_PLL2;
+				clk_id = RT5682S_SCLK_S_PLL2;
+				break;
+			}
+			break;
+		default:
+			dev_err(rtd->dev, "invalid codec type %d\n", ctx->codec_type);
+			return -EINVAL;
+		}
+
 		/* Configure pll for codec */
 		ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source, pll_in,
 					  pll_out);
@@ -431,16 +431,11 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 static const struct snd_kcontrol_new sof_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("Left Spk"),
-	SOC_DAPM_PIN_SWITCH("Right Spk"),
-
 };
 
 static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SPK("Left Spk", NULL),
-	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route sof_map[] = {
@@ -450,6 +445,17 @@ static const struct snd_soc_dapm_route sof_map[] = {
 
 	/* other jacks */
 	{ "IN1P", NULL, "Headset Mic" },
+};
+
+static const struct snd_kcontrol_new rt5650_spk_kcontrols[] = {
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
+
+};
+
+static const struct snd_soc_dapm_widget rt5650_spk_widgets[] = {
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route rt5650_spk_dapm_routes[] = {
@@ -462,6 +468,22 @@ static int rt5650_spk_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, rt5650_spk_widgets,
+					ARRAY_SIZE(rt5650_spk_widgets));
+	if (ret) {
+		dev_err(rtd->dev, "fail to add rt5650 spk widgets, ret %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = snd_soc_add_card_controls(card, rt5650_spk_kcontrols,
+					ARRAY_SIZE(rt5650_spk_kcontrols));
+	if (ret) {
+		dev_err(rtd->dev, "fail to add rt5650 spk kcontrols, ret %d\n",
+			ret);
+		return ret;
+	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, rt5650_spk_dapm_routes,
 				      ARRAY_SIZE(rt5650_spk_dapm_routes));
@@ -613,27 +635,25 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 	return 0;
 }
 
+#define GLK_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_AMP,         \
+					SOF_LINK_CODEC,      \
+					SOF_LINK_DMIC01,     \
+					SOF_LINK_IDISP_HDMI, \
+					SOF_LINK_NONE,       \
+					SOF_LINK_NONE,       \
+					SOF_LINK_NONE)
+
 static int sof_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct sof_card_private *ctx;
 	char *card_name;
-	bool is_legacy_cpu = false;
 	int ret;
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_rt5682_quirk = (unsigned long)pdev->id_entry->driver_data;
 
 	dmi_check_system(sof_rt5682_quirk_table);
-
-	if (soc_intel_is_byt() || soc_intel_is_cht()) {
-		is_legacy_cpu = true;
-
-		/* default quirk for legacy cpu */
-		sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
-				   SOF_RT5682_MCLK_BYTCHT_EN |
-				   SOF_SSP_PORT_CODEC(2);
-	}
 
 	dev_dbg(&pdev->dev, "sof_rt5682_quirk = %lx\n", sof_rt5682_quirk);
 
@@ -654,43 +674,71 @@ static int sof_audio_probe(struct platform_device *pdev)
 			ctx->amp_type = CODEC_RT5650;
 	}
 
-	if (ctx->amp_type == CODEC_RT1011 && soc_intel_is_cml()) {
-		/* backward-compatible with existing cml devices */
-		card_name = devm_kstrdup(&pdev->dev, "cml_rt1011_rt5682",
-					 GFP_KERNEL);
-		if (!card_name)
-			return -ENOMEM;
+	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
+		ctx->hdmi.idisp_codec = true;
 
-		sof_audio_card_rt5682.name = card_name;
-	}
-
-	if (is_legacy_cpu) {
+	if (soc_intel_is_byt() || soc_intel_is_cht()) {
 		ctx->rt5682.is_legacy_cpu = true;
 		ctx->dmic_be_num = 0;
 		/* HDMI is not supported by SOF on Baytrail/CherryTrail */
 		ctx->hdmi_num = 0;
-	} else {
-		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
-			ctx->hdmi.idisp_codec = true;
+	} else if (soc_intel_is_glk()) {
+		/* dmic16k not support */
+		ctx->dmic_be_num = 1;
+
+		/* overwrite the DAI link order for GLK boards */
+		ctx->link_order_overwrite = GLK_LINK_ORDER;
+
+		/* backward-compatible with existing devices */
+		switch (ctx->amp_type) {
+		case CODEC_MAX98357A:
+			card_name = devm_kstrdup(&pdev->dev, "glkrt5682max",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			sof_audio_card_rt5682.name = card_name;
+			break;
+		default:
+			break;
+		}
+	} else if (soc_intel_is_cml()) {
+		/* backward-compatible with existing devices */
+		switch (ctx->amp_type) {
+		case CODEC_RT1011:
+			card_name = devm_kstrdup(&pdev->dev, "cml_rt1011_rt5682",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			sof_audio_card_rt5682.name = card_name;
+			break;
+		default:
+			break;
+		}
 	}
 
-	/* need to get main clock from pmc */
-	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
-		ctx->rt5682.mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
-		if (IS_ERR(ctx->rt5682.mclk)) {
-			ret = PTR_ERR(ctx->rt5682.mclk);
+	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
+		ctx->rt5682.mclk_en = true;
 
-			dev_err(&pdev->dev,
-				"Failed to get MCLK from pmc_plt_clk_3: %d\n",
-				ret);
-			return ret;
-		}
+		/* need to get main clock from pmc */
+		if (ctx->rt5682.is_legacy_cpu) {
+			ctx->rt5682.mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
+			if (IS_ERR(ctx->rt5682.mclk)) {
+				ret = PTR_ERR(ctx->rt5682.mclk);
 
-		ret = clk_prepare_enable(ctx->rt5682.mclk);
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"could not configure MCLK state");
-			return ret;
+				dev_err(&pdev->dev,
+					"Failed to get MCLK from pmc_plt_clk_3: %d\n",
+					ret);
+				return ret;
+			}
+
+			ret = clk_prepare_enable(ctx->rt5682.mclk);
+			if (ret < 0) {
+				dev_err(&pdev->dev,
+					"could not configure MCLK state");
+				return ret;
+			}
 		}
 	}
 
@@ -745,6 +793,19 @@ static int sof_audio_probe(struct platform_device *pdev)
 static const struct platform_device_id board_ids[] = {
 	{
 		.name = "sof_rt5682",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_SSP_PORT_CODEC(2)),
+	},
+	{
+		.name = "glk_rt5682_def",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_SSP_PORT_CODEC(2) |
+					SOF_SSP_PORT_AMP(1)),
+	},
+	{
+		.name = "icl_rt5682_def",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_SSP_PORT_CODEC(0)),
 	},
 	{
 		.name = "cml_rt5682_def",

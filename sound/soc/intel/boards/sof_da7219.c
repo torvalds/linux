@@ -19,8 +19,10 @@
 #include "sof_maxim_common.h"
 
 /* Driver-specific board quirks: from bit 0 to 7 */
-#define SOF_DA7219_JSL_BOARD			BIT(0)
-#define SOF_DA7219_MCLK_EN			BIT(1)
+#define SOF_DA7219_GLK_BOARD			BIT(0)
+#define SOF_DA7219_CML_BOARD			BIT(1)
+#define SOF_DA7219_JSL_BOARD			BIT(2)
+#define SOF_DA7219_MCLK_EN			BIT(3)
 
 #define DIALOG_CODEC_DAI	"da7219-hifi"
 
@@ -266,6 +268,9 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 
 	/* codec-specific fields for speaker amplifier */
 	switch (ctx->amp_type) {
+	case CODEC_MAX98357A:
+		max_98357a_dai_link(ctx->amp_link);
+		break;
 	case CODEC_MAX98360A:
 		max_98360a_dai_link(ctx->amp_link);
 		break;
@@ -281,6 +286,9 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 			return -EINVAL;
 		}
 		break;
+	case CODEC_MAX98390:
+		max_98390_dai_link(dev, ctx->amp_link);
+		break;
 	default:
 		dev_err(dev, "invalid amp type %d\n", ctx->amp_type);
 		return -EINVAL;
@@ -288,6 +296,22 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 
 	return 0;
 }
+
+#define GLK_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_AMP,         \
+					SOF_LINK_CODEC,      \
+					SOF_LINK_DMIC01,     \
+					SOF_LINK_IDISP_HDMI, \
+					SOF_LINK_NONE,       \
+					SOF_LINK_NONE,       \
+					SOF_LINK_NONE)
+
+#define CML_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_AMP,         \
+					SOF_LINK_CODEC,      \
+					SOF_LINK_DMIC01,     \
+					SOF_LINK_IDISP_HDMI, \
+					SOF_LINK_DMIC16K,    \
+					SOF_LINK_NONE,       \
+					SOF_LINK_NONE)
 
 #define JSL_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_AMP,         \
 					SOF_LINK_CODEC,      \
@@ -301,6 +325,7 @@ static int audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct sof_card_private *ctx;
+	char *card_name;
 	unsigned long board_quirk = 0;
 	int ret;
 
@@ -317,7 +342,53 @@ static int audio_probe(struct platform_device *pdev)
 	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 		ctx->hdmi.idisp_codec = true;
 
-	if (board_quirk & SOF_DA7219_JSL_BOARD) {
+	if (board_quirk & SOF_DA7219_GLK_BOARD) {
+		/* dmic16k not support */
+		ctx->dmic_be_num = 1;
+
+		/* overwrite the DAI link order for GLK boards */
+		ctx->link_order_overwrite = GLK_LINK_ORDER;
+
+		/* backward-compatible with existing devices */
+		switch (ctx->amp_type) {
+		case CODEC_MAX98357A:
+			card_name = devm_kstrdup(&pdev->dev, "glkda7219max",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
+			break;
+		default:
+			break;
+		}
+	} else if (board_quirk & SOF_DA7219_CML_BOARD) {
+		/* overwrite the DAI link order for CML boards */
+		ctx->link_order_overwrite = CML_LINK_ORDER;
+
+		/* backward-compatible with existing devices */
+		switch (ctx->amp_type) {
+		case CODEC_MAX98357A:
+			card_name = devm_kstrdup(&pdev->dev, "cmlda7219max",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
+			break;
+		case CODEC_MAX98390:
+			card_name = devm_kstrdup(&pdev->dev,
+						 "cml_max98390_da7219",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
+			break;
+		default:
+			break;
+		}
+	} else if (board_quirk & SOF_DA7219_JSL_BOARD) {
 		ctx->da7219.is_jsl_board = true;
 
 		/* overwrite the DAI link order for JSL boards */
@@ -326,13 +397,20 @@ static int audio_probe(struct platform_device *pdev)
 		/* backward-compatible with existing devices */
 		switch (ctx->amp_type) {
 		case CODEC_MAX98360A:
-			card_da7219.name = devm_kstrdup(&pdev->dev,
-							"da7219max98360a",
-							GFP_KERNEL);
+			card_name = devm_kstrdup(&pdev->dev, "da7219max98360a",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
 			break;
 		case CODEC_MAX98373:
-			card_da7219.name = devm_kstrdup(&pdev->dev, "da7219max",
-							GFP_KERNEL);
+			card_name = devm_kstrdup(&pdev->dev, "da7219max",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
 			break;
 		default:
 			break;
@@ -352,6 +430,10 @@ static int audio_probe(struct platform_device *pdev)
 	case CODEC_MAX98373:
 		max_98373_set_codec_conf(&card_da7219);
 		break;
+	case CODEC_MAX98390:
+		max_98390_set_codec_conf(&pdev->dev, &card_da7219);
+		break;
+	case CODEC_MAX98357A:
 	case CODEC_MAX98360A:
 	case CODEC_NONE:
 		/* no codec conf required */
@@ -374,6 +456,18 @@ static int audio_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id board_ids[] = {
+	{
+		.name = "glk_da7219_def",
+		.driver_data = (kernel_ulong_t)(SOF_DA7219_GLK_BOARD |
+					SOF_SSP_PORT_CODEC(2) |
+					SOF_SSP_PORT_AMP(1)),
+	},
+	{
+		.name = "cml_da7219_def",
+		.driver_data = (kernel_ulong_t)(SOF_DA7219_CML_BOARD |
+					SOF_SSP_PORT_CODEC(0) |
+					SOF_SSP_PORT_AMP(1)),
+	},
 	{
 		.name = "jsl_da7219_def",
 		.driver_data = (kernel_ulong_t)(SOF_DA7219_JSL_BOARD |

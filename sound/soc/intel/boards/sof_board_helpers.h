@@ -101,10 +101,12 @@ struct sof_da7219_private {
  *
  * @mclk: mclk clock data
  * @is_legacy_cpu: true for BYT/CHT boards
+ * @mclk_en: true for mclk pin is connected
  */
 struct sof_rt5682_private {
 	struct clk *mclk;
 	bool is_legacy_cpu;
+	bool mclk_en;
 };
 
 /*

@@ -301,26 +301,21 @@ config SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
 	tristate
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98357A
-	select SND_SOC_MAX98390
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_INTEL_HDA_DSP_COMMON
 
-config SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
-	tristate
-	select SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
-
 if SND_SOC_INTEL_APL
 
 config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
-	tristate "Broxton with DA7219 and MAX98357A/MAX98390 in I2S Mode"
+	tristate "Broxton with DA7219 and MAX98357A in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	depends on SND_HDA_CODEC_HDMI
-	select SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
+	select SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
 	help
 	   This adds support for ASoC machine driver for Broxton-P platforms
-	   with DA7219 + MAX98357A/MAX98390 I2S audio codec.
+	   with DA7219 + MAX98357A I2S audio codec.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
@@ -433,30 +428,21 @@ if SND_SOC_SOF_GEMINILAKE
 
 config SND_SOC_INTEL_GLK_DA7219_MAX98357A_MACH
 	tristate "GLK with DA7219 and MAX98357A in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
-	select SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
+	imply SND_SOC_INTEL_SOF_DA7219_MACH
 	help
 	   This adds support for ASoC machine driver for Geminilake platforms
-	   with DA7219 + MAX98357A I2S audio codec.
+	   with DA7219 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_DA7219_MACH instead.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
 config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	tristate "GLK with RT5682 and MAX98357A in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
-	select SND_SOC_RT5682_I2C
-	select SND_SOC_RT5682S
-	select SND_SOC_MAX98357A
-	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
-	select SND_SOC_INTEL_HDA_DSP_COMMON
+	imply SND_SOC_INTEL_SOF_RT5682_MACH
 	help
 	   This adds support for ASoC machine driver for Geminilake platforms
-	   with RT5682 + MAX98357A I2S audio codec.
+	   with RT5682 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_RT5682_MACH instead.
 	   Say Y if you have such a device.
 	   If unsure select "N".
 
@@ -487,6 +473,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	depends on ((SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC) &&\
 		    (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
 		   (SND_SOC_SOF_BAYTRAIL && (X86_INTEL_LPSS || COMPILE_TEST))
+	select SND_SOC_MAX98357A
 	select SND_SOC_MAX98373_I2C
 	select SND_SOC_MAX98390
 	select SND_SOC_RT1011
@@ -584,12 +571,11 @@ if (SND_SOC_SOF_COMETLAKE && SND_SOC_SOF_HDA_LINK)
 
 config SND_SOC_INTEL_CML_LP_DA7219_MAX98357A_MACH
 	tristate "CML_LP with DA7219 and MAX98357A in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
+	imply SND_SOC_INTEL_SOF_DA7219_MACH
 	help
 	   This adds support for ASoC machine driver for Cometlake platforms
-	   with DA7219 + MAX98357A I2S audio codec.
+	   with DA7219 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_DA7219_MACH instead.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
@@ -614,6 +600,7 @@ config SND_SOC_INTEL_SOF_DA7219_MACH
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98357A
 	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98390
 	select SND_SOC_DMIC
 	select SND_SOC_INTEL_SOF_BOARD_HELPERS
 	select SND_SOC_INTEL_SOF_MAXIM_COMMON
