@@ -296,7 +296,7 @@ static i915_reg_t psr_status_reg(struct drm_i915_private *dev_priv,
 				 enum transcoder cpu_transcoder)
 {
 	if (DISPLAY_VER(dev_priv) >= 8)
-		return EDP_PSR_STATUS(cpu_transcoder);
+		return EDP_PSR_STATUS(dev_priv, cpu_transcoder);
 	else
 		return HSW_SRD_STATUS;
 }
