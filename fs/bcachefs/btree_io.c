@@ -1308,7 +1308,7 @@ static void btree_node_read_work(struct work_struct *work)
 	while (1) {
 		retry = true;
 		bch_info(c, "retrying read");
-		ca = bch2_dev_get_ioref2(c, rb->pick.ptr.dev, READ);
+		ca = bch2_dev_get_ioref(c, rb->pick.ptr.dev, READ);
 		rb->have_ioref		= ca != NULL;
 		bio_reset(bio, NULL, REQ_OP_READ|REQ_SYNC|REQ_META);
 		bio->bi_iter.bi_sector	= rb->pick.ptr.offset;
@@ -1618,7 +1618,7 @@ static int btree_node_read_all_replicas(struct bch_fs *c, struct btree *b, bool 
 
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, pick, entry) {
-		struct bch_dev *ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
+		struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
 		struct btree_read_bio *rb =
 			container_of(ra->bio[i], struct btree_read_bio, bio);
 		rb->c			= c;
@@ -1695,7 +1695,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 		return;
 	}
 
-	ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
+	ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
 
 	bio = bio_alloc_bioset(NULL,
 			       buf_pages(b->data, btree_buf_bytes(b)),

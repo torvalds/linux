@@ -732,11 +732,16 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 	struct bch_stripe *v = &bkey_i_to_stripe(&buf->key)->v;
 	unsigned offset = 0, bytes = buf->size << 9;
 	struct bch_extent_ptr *ptr = &v->ptrs[idx];
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 	enum bch_data_type data_type = idx < v->nr_blocks - v->nr_redundant
 		? BCH_DATA_user
 		: BCH_DATA_parity;
 	int rw = op_is_write(opf);
+
+	struct bch_dev *ca = bch2_dev_get_ioref(c, ptr->dev, rw);
+	if (!ca) {
+		clear_bit(idx, buf->valid);
+		return;
+	}
 
 	if (dev_ptr_stale(ca, ptr)) {
 		bch_err_ratelimited(c,
@@ -746,10 +751,6 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		return;
 	}
 
-	if (!bch2_dev_get_ioref(ca, rw)) {
-		clear_bit(idx, buf->valid);
-		return;
-	}
 
 	this_cpu_add(ca->io_done->sectors[rw][data_type], buf->size);
 
@@ -1354,20 +1355,18 @@ static void zero_out_rest_of_ec_bucket(struct bch_fs *c,
 				       unsigned block,
 				       struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, ob->dev);
-	unsigned offset = ca->mi.bucket_size - ob->sectors_free;
-	int ret;
-
-	if (!bch2_dev_get_ioref(ca, WRITE)) {
+	struct bch_dev *ca = bch2_dev_get_ioref(c, ob->dev, WRITE);
+	if (!ca) {
 		s->err = -BCH_ERR_erofs_no_writes;
 		return;
 	}
 
+	unsigned offset = ca->mi.bucket_size - ob->sectors_free;
 	memset(s->new_stripe.data[block] + (offset << 9),
 	       0,
 	       ob->sectors_free << 9);
 
-	ret = blkdev_issue_zeroout(ca->disk_sb.bdev,
+	int ret = blkdev_issue_zeroout(ca->disk_sb.bdev,
 			ob->bucket * ca->mi.bucket_size + offset,
 			ob->sectors_free,
 			GFP_KERNEL, 0);

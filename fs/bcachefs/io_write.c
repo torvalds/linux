@@ -409,7 +409,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = nocow
 			? bch2_dev_have_ref(c, ptr->dev)
-			: bch2_dev_get_ioref2(c, ptr->dev, type == BCH_DATA_btree ? READ : WRITE);
+			: bch2_dev_get_ioref(c, ptr->dev, type == BCH_DATA_btree ? READ : WRITE);
 
 		if (to_entry(ptr + 1) < ptrs.end) {
 			n = to_wbio(bio_alloc_clone(NULL, &wbio->bio, GFP_NOFS, &c->replica_set));
@@ -1265,7 +1265,7 @@ retry:
 		/* Get iorefs before dropping btree locks: */
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		bkey_for_each_ptr(ptrs, ptr) {
-			struct bch_dev *ca = bch2_dev_get_ioref2(c, ptr->dev, WRITE);
+			struct bch_dev *ca = bch2_dev_get_ioref(c, ptr->dev, WRITE);
 			if (unlikely(!ca))
 				goto err_get_ioref;
 

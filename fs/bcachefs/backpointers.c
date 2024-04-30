@@ -486,7 +486,7 @@ found:
 
 	bytes = p.crc.compressed_size << 9;
 
-	struct bch_dev *ca = bch2_dev_get_ioref2(c, dev, READ);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, dev, READ);
 	if (!ca)
 		return false;
 

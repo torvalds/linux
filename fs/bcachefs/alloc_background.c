@@ -1679,7 +1679,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 
 	struct bch_dev *ca = s->ca && s->ca->dev_idx == pos.inode
 		? s->ca
-		: bch2_dev_get_ioref2(c, pos.inode, WRITE);
+		: bch2_dev_get_ioref(c, pos.inode, WRITE);
 	if (!ca) {
 		bch2_btree_iter_set_pos(need_discard_iter, POS(pos.inode + 1, 0));
 		return 0;
@@ -1860,7 +1860,7 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 			if (i->snapshot)
 				continue;
 
-			ca = bch2_dev_get_ioref2(c, i->inode, WRITE);
+			ca = bch2_dev_get_ioref(c, i->inode, WRITE);
 			if (!ca) {
 				darray_remove_item(&c->discard_buckets_in_flight, i);
 				continue;

@@ -29,19 +29,6 @@ static inline bool bch2_dev_is_readable(struct bch_dev *ca)
 		ca->mi.state != BCH_MEMBER_STATE_failed;
 }
 
-static inline bool bch2_dev_get_ioref(struct bch_dev *ca, int rw)
-{
-	if (!percpu_ref_tryget(&ca->io_ref))
-		return false;
-
-	if (ca->mi.state == BCH_MEMBER_STATE_rw ||
-	    (ca->mi.state == BCH_MEMBER_STATE_ro && rw == READ))
-		return true;
-
-	percpu_ref_put(&ca->io_ref);
-	return false;
-}
-
 static inline unsigned dev_mask_nr(const struct bch_devs_mask *devs)
 {
 	return bitmap_weight(devs->d, BCH_SB_MEMBERS_MAX);
@@ -285,7 +272,7 @@ static inline struct bch_dev *bch2_dev_iterate(struct bch_fs *c, struct bch_dev 
 	return bch2_dev_tryget(c, dev_idx);
 }
 
-static inline struct bch_dev *bch2_dev_get_ioref2(struct bch_fs *c, unsigned dev, int rw)
+static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev, int rw)
 {
 	rcu_read_lock();
 	struct bch_dev *ca = bch2_dev_rcu(c, dev);

@@ -830,7 +830,7 @@ retry_pick:
 		goto err;
 	}
 
-	struct bch_dev *ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
 
 	/*
 	 * Stale dirty pointers are treated as IO errors, but @failed isn't

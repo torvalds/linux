@@ -40,7 +40,7 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	struct bio *bio;
 	bool failed = false, saw_error = false;
 
-	struct bch_dev *ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
+	struct bch_dev *ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
 	if (!ca)
 		return false;
 
@@ -194,7 +194,7 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 		return;
 	}
 
-	ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
+	ca = bch2_dev_get_ioref(c, pick.ptr.dev, READ);
 	if (!ca) {
 		prt_printf(out, "error getting device to read from: not online\n");
 		return;
