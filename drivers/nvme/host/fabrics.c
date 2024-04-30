@@ -559,8 +559,20 @@ out_free_data:
 }
 EXPORT_SYMBOL_GPL(nvmf_connect_io_queue);
 
-bool nvmf_should_reconnect(struct nvme_ctrl *ctrl)
+/*
+ * Evaluate the status information returned by the transport in order to decided
+ * if a reconnect attempt should be scheduled.
+ *
+ * Do not retry when:
+ *
+ * - the DNR bit is set and the specification states no further connect
+ *   attempts with the same set of paramenters should be attempted.
+ */
+bool nvmf_should_reconnect(struct nvme_ctrl *ctrl, int status)
 {
+	if (status > 0 && (status & NVME_SC_DNR))
+		return false;
+
 	if (ctrl->opts->max_reconnects == -1 ||
 	    ctrl->nr_reconnects < ctrl->opts->max_reconnects)
 		return true;
