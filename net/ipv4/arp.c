@@ -1054,8 +1054,7 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 		return arp_req_set_public(net, r, dev);
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
-	if (r->arp_flags & ATF_PERM)
-		r->arp_flags |= ATF_COM;
+
 	if (!dev) {
 		struct rtable *rt = ip_route_output(net, ip, 0, 0, 0,
 						    RT_SCOPE_LINK);
@@ -1092,8 +1091,12 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 	err = PTR_ERR(neigh);
 	if (!IS_ERR(neigh)) {
 		unsigned int state = NUD_STALE;
-		if (r->arp_flags & ATF_PERM)
+
+		if (r->arp_flags & ATF_PERM) {
+			r->arp_flags |= ATF_COM;
 			state = NUD_PERMANENT;
+		}
+
 		err = neigh_update(neigh, (r->arp_flags & ATF_COM) ?
 				   r->arp_ha.sa_data : NULL, state,
 				   NEIGH_UPDATE_F_OVERRIDE |
