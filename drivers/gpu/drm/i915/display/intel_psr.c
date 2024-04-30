@@ -1812,7 +1812,7 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp)
 
 	alpm_ctl |= ALPM_CTL_ALPM_ENTRY_CHECK(psr->alpm_parameters.check_entry_lines);
 
-	intel_de_write(dev_priv, ALPM_CTL(cpu_transcoder), alpm_ctl);
+	intel_de_write(dev_priv, ALPM_CTL(dev_priv, cpu_transcoder), alpm_ctl);
 }
 
 static void intel_psr_enable_source(struct intel_dp *intel_dp,
@@ -2112,7 +2112,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 
 	/* Panel Replay on eDP is always using ALPM aux less. */
 	if (intel_dp->psr.panel_replay_enabled && intel_dp_is_edp(intel_dp)) {
-		intel_de_rmw(dev_priv, ALPM_CTL(cpu_transcoder),
+		intel_de_rmw(dev_priv, ALPM_CTL(dev_priv, cpu_transcoder),
 			     ALPM_CTL_ALPM_ENABLE |
 			     ALPM_CTL_ALPM_AUX_LESS_ENABLE, 0);
 

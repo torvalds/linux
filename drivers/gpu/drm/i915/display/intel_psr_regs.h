@@ -297,7 +297,7 @@
 						  _SEL_FETCH_PLANE_BASE_1_A)
 
 #define _ALPM_CTL_A	0x60950
-#define ALPM_CTL(tran)	_MMIO_TRANS2(dev_priv, tran, _ALPM_CTL_A)
+#define ALPM_CTL(dev_priv, tran)	_MMIO_TRANS2(dev_priv, tran, _ALPM_CTL_A)
 #define  ALPM_CTL_ALPM_ENABLE				REG_BIT(31)
 #define  ALPM_CTL_ALPM_AUX_LESS_ENABLE			REG_BIT(30)
 #define  ALPM_CTL_LOBF_ENABLE				REG_BIT(29)
