@@ -907,9 +907,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 		bch2_dev_usage_update_m(c, ca, &old_gc, &gc);
 	percpu_up_read(&c->mark_lock);
 
-	if (gen_after(old->gen, gc.gen))
-		return 0;
-
 	if (fsck_err_on(new.data_type != gc.data_type, c,
 			alloc_key_data_type_wrong,
 			"bucket %llu:%llu gen %u has wrong data_type"
