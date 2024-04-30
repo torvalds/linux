@@ -25,6 +25,7 @@ def define_anorak():
         "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/nvmem/nvmem_qfprom.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
+        "drivers/pinctrl/qcom/pinctrl-anorak.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/power/reset/qcom-dload-mode.ko",
         "drivers/power/reset/qcom-reboot-reason.ko",
