@@ -200,12 +200,12 @@ int bch2_link_trans(struct btree_trans *trans,
 
 	ret = bch2_inode_peek(trans, &inode_iter, inode_u, inum, BTREE_ITER_intent);
 	if (ret)
-		goto err;
+		return ret;
 
 	inode_u->bi_ctime = now;
 	ret = bch2_inode_nlink_inc(inode_u);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_intent);
 	if (ret)
