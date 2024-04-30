@@ -24,6 +24,7 @@
 #include <net/xdp.h>
 #include <net/net_failover.h>
 #include <net/netdev_rx_queue.h>
+#include <net/netdev_queues.h>
 
 static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
@@ -78,6 +79,7 @@ static const unsigned long guest_offloads[] = {
 struct virtnet_stat_desc {
 	char desc[ETH_GSTRING_LEN];
 	size_t offset;
+	size_t qstat_offset;
 };
 
 struct virtnet_sq_free_stats {
@@ -107,31 +109,157 @@ struct virtnet_rq_stats {
 	u64_stats_t kicks;
 };
 
-#define VIRTNET_SQ_STAT(m)	offsetof(struct virtnet_sq_stats, m)
-#define VIRTNET_RQ_STAT(m)	offsetof(struct virtnet_rq_stats, m)
+#define VIRTNET_SQ_STAT(name, m) {name, offsetof(struct virtnet_sq_stats, m), -1}
+#define VIRTNET_RQ_STAT(name, m) {name, offsetof(struct virtnet_rq_stats, m), -1}
+
+#define VIRTNET_SQ_STAT_QSTAT(name, m)				\
+	{							\
+		name,						\
+		offsetof(struct virtnet_sq_stats, m),		\
+		offsetof(struct netdev_queue_stats_tx, m),	\
+	}
+
+#define VIRTNET_RQ_STAT_QSTAT(name, m)				\
+	{							\
+		name,						\
+		offsetof(struct virtnet_rq_stats, m),		\
+		offsetof(struct netdev_queue_stats_rx, m),	\
+	}
 
 static const struct virtnet_stat_desc virtnet_sq_stats_desc[] = {
-	{ "packets",		VIRTNET_SQ_STAT(packets) },
-	{ "bytes",		VIRTNET_SQ_STAT(bytes) },
-	{ "xdp_tx",		VIRTNET_SQ_STAT(xdp_tx) },
-	{ "xdp_tx_drops",	VIRTNET_SQ_STAT(xdp_tx_drops) },
-	{ "kicks",		VIRTNET_SQ_STAT(kicks) },
-	{ "tx_timeouts",	VIRTNET_SQ_STAT(tx_timeouts) },
+	VIRTNET_SQ_STAT("xdp_tx",       xdp_tx),
+	VIRTNET_SQ_STAT("xdp_tx_drops", xdp_tx_drops),
+	VIRTNET_SQ_STAT("kicks",        kicks),
+	VIRTNET_SQ_STAT("tx_timeouts",  tx_timeouts),
 };
 
 static const struct virtnet_stat_desc virtnet_rq_stats_desc[] = {
-	{ "packets",		VIRTNET_RQ_STAT(packets) },
-	{ "bytes",		VIRTNET_RQ_STAT(bytes) },
-	{ "drops",		VIRTNET_RQ_STAT(drops) },
-	{ "xdp_packets",	VIRTNET_RQ_STAT(xdp_packets) },
-	{ "xdp_tx",		VIRTNET_RQ_STAT(xdp_tx) },
-	{ "xdp_redirects",	VIRTNET_RQ_STAT(xdp_redirects) },
-	{ "xdp_drops",		VIRTNET_RQ_STAT(xdp_drops) },
-	{ "kicks",		VIRTNET_RQ_STAT(kicks) },
+	VIRTNET_RQ_STAT("drops",         drops),
+	VIRTNET_RQ_STAT("xdp_packets",   xdp_packets),
+	VIRTNET_RQ_STAT("xdp_tx",        xdp_tx),
+	VIRTNET_RQ_STAT("xdp_redirects", xdp_redirects),
+	VIRTNET_RQ_STAT("xdp_drops",     xdp_drops),
+	VIRTNET_RQ_STAT("kicks",         kicks),
 };
 
-#define VIRTNET_SQ_STATS_LEN	ARRAY_SIZE(virtnet_sq_stats_desc)
-#define VIRTNET_RQ_STATS_LEN	ARRAY_SIZE(virtnet_rq_stats_desc)
+static const struct virtnet_stat_desc virtnet_sq_stats_desc_qstat[] = {
+	VIRTNET_SQ_STAT_QSTAT("packets", packets),
+	VIRTNET_SQ_STAT_QSTAT("bytes",   bytes),
+};
+
+static const struct virtnet_stat_desc virtnet_rq_stats_desc_qstat[] = {
+	VIRTNET_RQ_STAT_QSTAT("packets", packets),
+	VIRTNET_RQ_STAT_QSTAT("bytes",   bytes),
+};
+
+#define VIRTNET_STATS_DESC_CQ(name) \
+	{#name, offsetof(struct virtio_net_stats_cvq, name), -1}
+
+#define VIRTNET_STATS_DESC_RX(class, name) \
+	{#name, offsetof(struct virtio_net_stats_rx_ ## class, rx_ ## name), -1}
+
+#define VIRTNET_STATS_DESC_TX(class, name) \
+	{#name, offsetof(struct virtio_net_stats_tx_ ## class, tx_ ## name), -1}
+
+
+static const struct virtnet_stat_desc virtnet_stats_cvq_desc[] = {
+	VIRTNET_STATS_DESC_CQ(command_num),
+	VIRTNET_STATS_DESC_CQ(ok_num),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_rx_basic_desc[] = {
+	VIRTNET_STATS_DESC_RX(basic, packets),
+	VIRTNET_STATS_DESC_RX(basic, bytes),
+
+	VIRTNET_STATS_DESC_RX(basic, notifications),
+	VIRTNET_STATS_DESC_RX(basic, interrupts),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_tx_basic_desc[] = {
+	VIRTNET_STATS_DESC_TX(basic, packets),
+	VIRTNET_STATS_DESC_TX(basic, bytes),
+
+	VIRTNET_STATS_DESC_TX(basic, notifications),
+	VIRTNET_STATS_DESC_TX(basic, interrupts),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_rx_csum_desc[] = {
+	VIRTNET_STATS_DESC_RX(csum, needs_csum),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_tx_gso_desc[] = {
+	VIRTNET_STATS_DESC_TX(gso, gso_packets_noseg),
+	VIRTNET_STATS_DESC_TX(gso, gso_bytes_noseg),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_rx_speed_desc[] = {
+	VIRTNET_STATS_DESC_RX(speed, ratelimit_bytes),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_tx_speed_desc[] = {
+	VIRTNET_STATS_DESC_TX(speed, ratelimit_bytes),
+};
+
+#define VIRTNET_STATS_DESC_RX_QSTAT(class, name, qstat_field)			\
+	{									\
+		#name,								\
+		offsetof(struct virtio_net_stats_rx_ ## class, rx_ ## name),	\
+		offsetof(struct netdev_queue_stats_rx, qstat_field),		\
+	}
+
+#define VIRTNET_STATS_DESC_TX_QSTAT(class, name, qstat_field)			\
+	{									\
+		#name,								\
+		offsetof(struct virtio_net_stats_tx_ ## class, tx_ ## name),	\
+		offsetof(struct netdev_queue_stats_tx, qstat_field),		\
+	}
+
+static const struct virtnet_stat_desc virtnet_stats_rx_basic_desc_qstat[] = {
+	VIRTNET_STATS_DESC_RX_QSTAT(basic, drops,         hw_drops),
+	VIRTNET_STATS_DESC_RX_QSTAT(basic, drop_overruns, hw_drop_overruns),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_tx_basic_desc_qstat[] = {
+	VIRTNET_STATS_DESC_TX_QSTAT(basic, drops,          hw_drops),
+	VIRTNET_STATS_DESC_TX_QSTAT(basic, drop_malformed, hw_drop_errors),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_rx_csum_desc_qstat[] = {
+	VIRTNET_STATS_DESC_RX_QSTAT(csum, csum_valid, csum_unnecessary),
+	VIRTNET_STATS_DESC_RX_QSTAT(csum, csum_none,  csum_none),
+	VIRTNET_STATS_DESC_RX_QSTAT(csum, csum_bad,   csum_bad),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_tx_csum_desc_qstat[] = {
+	VIRTNET_STATS_DESC_TX_QSTAT(csum, csum_none,  csum_none),
+	VIRTNET_STATS_DESC_TX_QSTAT(csum, needs_csum, needs_csum),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_rx_gso_desc_qstat[] = {
+	VIRTNET_STATS_DESC_RX_QSTAT(gso, gso_packets,           hw_gro_packets),
+	VIRTNET_STATS_DESC_RX_QSTAT(gso, gso_bytes,             hw_gro_bytes),
+	VIRTNET_STATS_DESC_RX_QSTAT(gso, gso_packets_coalesced, hw_gro_wire_packets),
+	VIRTNET_STATS_DESC_RX_QSTAT(gso, gso_bytes_coalesced,   hw_gro_wire_bytes),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_tx_gso_desc_qstat[] = {
+	VIRTNET_STATS_DESC_TX_QSTAT(gso, gso_packets,        hw_gso_packets),
+	VIRTNET_STATS_DESC_TX_QSTAT(gso, gso_bytes,          hw_gso_bytes),
+	VIRTNET_STATS_DESC_TX_QSTAT(gso, gso_segments,       hw_gso_wire_packets),
+	VIRTNET_STATS_DESC_TX_QSTAT(gso, gso_segments_bytes, hw_gso_wire_bytes),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_rx_speed_desc_qstat[] = {
+	VIRTNET_STATS_DESC_RX_QSTAT(speed, ratelimit_packets, hw_drop_ratelimits),
+};
+
+static const struct virtnet_stat_desc virtnet_stats_tx_speed_desc_qstat[] = {
+	VIRTNET_STATS_DESC_TX_QSTAT(speed, ratelimit_packets, hw_drop_ratelimits),
+};
+
+#define VIRTNET_Q_TYPE_RX 0
+#define VIRTNET_Q_TYPE_TX 1
+#define VIRTNET_Q_TYPE_CQ 2
 
 struct virtnet_interrupt_coalesce {
 	u32 max_packets;
@@ -249,6 +377,7 @@ struct control_buf {
 	struct virtio_net_ctrl_coal_tx coal_tx;
 	struct virtio_net_ctrl_coal_rx coal_rx;
 	struct virtio_net_ctrl_coal_vq coal_vq;
+	struct virtio_net_stats_capabilities stats_cap;
 };
 
 struct virtnet_info {
@@ -340,6 +469,8 @@ struct virtnet_info {
 
 	/* failover when STANDBY feature enabled */
 	struct failover *failover;
+
+	u64 device_stats_cap;
 };
 
 struct padded_vnet_hdr {
@@ -423,6 +554,17 @@ static int vq2rxq(struct virtqueue *vq)
 static int rxq2vq(int rxq)
 {
 	return rxq * 2;
+}
+
+static int vq_type(struct virtnet_info *vi, int qid)
+{
+	if (qid == vi->max_queue_pairs * 2)
+		return VIRTNET_Q_TYPE_CQ;
+
+	if (qid % 2)
+		return VIRTNET_Q_TYPE_TX;
+
+	return VIRTNET_Q_TYPE_RX;
 }
 
 static inline struct virtio_net_common_hdr *
@@ -2145,7 +2287,7 @@ static int virtnet_receive(struct receive_queue *rq, int budget,
 
 	u64_stats_set(&stats.packets, packets);
 	u64_stats_update_begin(&rq->stats.syncp);
-	for (i = 0; i < VIRTNET_RQ_STATS_LEN; i++) {
+	for (i = 0; i < ARRAY_SIZE(virtnet_rq_stats_desc); i++) {
 		size_t offset = virtnet_rq_stats_desc[i].offset;
 		u64_stats_t *item, *src;
 
@@ -2153,6 +2295,10 @@ static int virtnet_receive(struct receive_queue *rq, int budget,
 		src = (u64_stats_t *)((u8 *)&stats + offset);
 		u64_stats_add(item, u64_stats_read(src));
 	}
+
+	u64_stats_add(&rq->stats.packets, u64_stats_read(&stats.packets));
+	u64_stats_add(&rq->stats.bytes, u64_stats_read(&stats.bytes));
+
 	u64_stats_update_end(&rq->stats.syncp);
 
 	return packets;
@@ -2527,11 +2673,12 @@ static int virtnet_tx_resize(struct virtnet_info *vi,
  * supported by the hypervisor, as indicated by feature bits, should
  * never fail unless improperly formatted.
  */
-static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
-				 struct scatterlist *out)
+static bool virtnet_send_command_reply(struct virtnet_info *vi, u8 class, u8 cmd,
+				       struct scatterlist *out,
+				       struct scatterlist *in)
 {
-	struct scatterlist *sgs[4], hdr, stat;
-	unsigned out_num = 0, tmp;
+	struct scatterlist *sgs[5], hdr, stat;
+	u32 out_num = 0, tmp, in_num = 0;
 	int ret;
 
 	/* Caller should know better */
@@ -2549,10 +2696,13 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 
 	/* Add return status. */
 	sg_init_one(&stat, &vi->ctrl->status, sizeof(vi->ctrl->status));
-	sgs[out_num] = &stat;
+	sgs[out_num + in_num++] = &stat;
 
-	BUG_ON(out_num + 1 > ARRAY_SIZE(sgs));
-	ret = virtqueue_add_sgs(vi->cvq, sgs, out_num, 1, vi, GFP_ATOMIC);
+	if (in)
+		sgs[out_num + in_num++] = in;
+
+	BUG_ON(out_num + in_num > ARRAY_SIZE(sgs));
+	ret = virtqueue_add_sgs(vi->cvq, sgs, out_num, in_num, vi, GFP_ATOMIC);
 	if (ret < 0) {
 		dev_warn(&vi->vdev->dev,
 			 "Failed to add sgs for command vq: %d\n.", ret);
@@ -2572,6 +2722,12 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	}
 
 	return vi->ctrl->status == VIRTIO_NET_OK;
+}
+
+static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
+				 struct scatterlist *out)
+{
+	return virtnet_send_command_reply(vi, class, cmd, out, NULL);
 }
 
 static int virtnet_set_mac_address(struct net_device *dev, void *p)
@@ -3297,25 +3453,654 @@ static int virtnet_set_channels(struct net_device *dev,
 	return err;
 }
 
+static void virtnet_stats_sprintf(u8 **p, const char *fmt, const char *noq_fmt,
+				  int num, int qid, const struct virtnet_stat_desc *desc)
+{
+	int i;
+
+	if (qid < 0) {
+		for (i = 0; i < num; ++i)
+			ethtool_sprintf(p, noq_fmt, desc[i].desc);
+	} else {
+		for (i = 0; i < num; ++i)
+			ethtool_sprintf(p, fmt, qid, desc[i].desc);
+	}
+}
+
+/* qid == -1: for rx/tx queue total field */
+static void virtnet_get_stats_string(struct virtnet_info *vi, int type, int qid, u8 **data)
+{
+	const struct virtnet_stat_desc *desc;
+	const char *fmt, *noq_fmt;
+	u8 *p = *data;
+	u32 num;
+
+	if (type == VIRTNET_Q_TYPE_CQ && qid >= 0) {
+		noq_fmt = "cq_hw_%s";
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_CVQ) {
+			desc = &virtnet_stats_cvq_desc[0];
+			num = ARRAY_SIZE(virtnet_stats_cvq_desc);
+
+			virtnet_stats_sprintf(&p, NULL, noq_fmt, num, -1, desc);
+		}
+	}
+
+	if (type == VIRTNET_Q_TYPE_RX) {
+		fmt = "rx%u_%s";
+		noq_fmt = "rx_%s";
+
+		desc = &virtnet_rq_stats_desc[0];
+		num = ARRAY_SIZE(virtnet_rq_stats_desc);
+
+		virtnet_stats_sprintf(&p, fmt, noq_fmt, num, qid, desc);
+
+		fmt = "rx%u_hw_%s";
+		noq_fmt = "rx_hw_%s";
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_BASIC) {
+			desc = &virtnet_stats_rx_basic_desc[0];
+			num = ARRAY_SIZE(virtnet_stats_rx_basic_desc);
+
+			virtnet_stats_sprintf(&p, fmt, noq_fmt, num, qid, desc);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_CSUM) {
+			desc = &virtnet_stats_rx_csum_desc[0];
+			num = ARRAY_SIZE(virtnet_stats_rx_csum_desc);
+
+			virtnet_stats_sprintf(&p, fmt, noq_fmt, num, qid, desc);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_SPEED) {
+			desc = &virtnet_stats_rx_speed_desc[0];
+			num = ARRAY_SIZE(virtnet_stats_rx_speed_desc);
+
+			virtnet_stats_sprintf(&p, fmt, noq_fmt, num, qid, desc);
+		}
+	}
+
+	if (type == VIRTNET_Q_TYPE_TX) {
+		fmt = "tx%u_%s";
+		noq_fmt = "tx_%s";
+
+		desc = &virtnet_sq_stats_desc[0];
+		num = ARRAY_SIZE(virtnet_sq_stats_desc);
+
+		virtnet_stats_sprintf(&p, fmt, noq_fmt, num, qid, desc);
+
+		fmt = "tx%u_hw_%s";
+		noq_fmt = "tx_hw_%s";
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_BASIC) {
+			desc = &virtnet_stats_tx_basic_desc[0];
+			num = ARRAY_SIZE(virtnet_stats_tx_basic_desc);
+
+			virtnet_stats_sprintf(&p, fmt, noq_fmt, num, qid, desc);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_GSO) {
+			desc = &virtnet_stats_tx_gso_desc[0];
+			num = ARRAY_SIZE(virtnet_stats_tx_gso_desc);
+
+			virtnet_stats_sprintf(&p, fmt, noq_fmt, num, qid, desc);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_SPEED) {
+			desc = &virtnet_stats_tx_speed_desc[0];
+			num = ARRAY_SIZE(virtnet_stats_tx_speed_desc);
+
+			virtnet_stats_sprintf(&p, fmt, noq_fmt, num, qid, desc);
+		}
+	}
+
+	*data = p;
+}
+
+struct virtnet_stats_ctx {
+	/* The stats are write to qstats or ethtool -S */
+	bool to_qstat;
+
+	/* Used to calculate the offset inside the output buffer. */
+	u32 desc_num[3];
+
+	/* The actual supported stat types. */
+	u32 bitmap[3];
+
+	/* Used to calculate the reply buffer size. */
+	u32 size[3];
+
+	/* Record the output buffer. */
+	u64 *data;
+};
+
+static void virtnet_stats_ctx_init(struct virtnet_info *vi,
+				   struct virtnet_stats_ctx *ctx,
+				   u64 *data, bool to_qstat)
+{
+	u32 queue_type;
+
+	ctx->data = data;
+	ctx->to_qstat = to_qstat;
+
+	if (to_qstat) {
+		ctx->desc_num[VIRTNET_Q_TYPE_RX] = ARRAY_SIZE(virtnet_rq_stats_desc_qstat);
+		ctx->desc_num[VIRTNET_Q_TYPE_TX] = ARRAY_SIZE(virtnet_sq_stats_desc_qstat);
+
+		queue_type = VIRTNET_Q_TYPE_RX;
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_BASIC) {
+			ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_RX_BASIC;
+			ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_rx_basic_desc_qstat);
+			ctx->size[queue_type]     += sizeof(struct virtio_net_stats_rx_basic);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_CSUM) {
+			ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_RX_CSUM;
+			ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_rx_csum_desc_qstat);
+			ctx->size[queue_type]     += sizeof(struct virtio_net_stats_rx_csum);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_GSO) {
+			ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_RX_GSO;
+			ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_rx_gso_desc_qstat);
+			ctx->size[queue_type]     += sizeof(struct virtio_net_stats_rx_gso);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_SPEED) {
+			ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_RX_SPEED;
+			ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_rx_speed_desc_qstat);
+			ctx->size[queue_type]     += sizeof(struct virtio_net_stats_rx_speed);
+		}
+
+		queue_type = VIRTNET_Q_TYPE_TX;
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_BASIC) {
+			ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_TX_BASIC;
+			ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_tx_basic_desc_qstat);
+			ctx->size[queue_type]     += sizeof(struct virtio_net_stats_tx_basic);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_CSUM) {
+			ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_TX_CSUM;
+			ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_tx_csum_desc_qstat);
+			ctx->size[queue_type]     += sizeof(struct virtio_net_stats_tx_csum);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_GSO) {
+			ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_TX_GSO;
+			ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_tx_gso_desc_qstat);
+			ctx->size[queue_type]     += sizeof(struct virtio_net_stats_tx_gso);
+		}
+
+		if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_SPEED) {
+			ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_TX_SPEED;
+			ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_tx_speed_desc_qstat);
+			ctx->size[queue_type]     += sizeof(struct virtio_net_stats_tx_speed);
+		}
+
+		return;
+	}
+
+	ctx->desc_num[VIRTNET_Q_TYPE_RX] = ARRAY_SIZE(virtnet_rq_stats_desc);
+	ctx->desc_num[VIRTNET_Q_TYPE_TX] = ARRAY_SIZE(virtnet_sq_stats_desc);
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_CVQ) {
+		queue_type = VIRTNET_Q_TYPE_CQ;
+
+		ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_CVQ;
+		ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_cvq_desc);
+		ctx->size[queue_type]     += sizeof(struct virtio_net_stats_cvq);
+	}
+
+	queue_type = VIRTNET_Q_TYPE_RX;
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_BASIC) {
+		ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_RX_BASIC;
+		ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_rx_basic_desc);
+		ctx->size[queue_type]     += sizeof(struct virtio_net_stats_rx_basic);
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_CSUM) {
+		ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_RX_CSUM;
+		ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_rx_csum_desc);
+		ctx->size[queue_type]     += sizeof(struct virtio_net_stats_rx_csum);
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_SPEED) {
+		ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_RX_SPEED;
+		ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_rx_speed_desc);
+		ctx->size[queue_type]     += sizeof(struct virtio_net_stats_rx_speed);
+	}
+
+	queue_type = VIRTNET_Q_TYPE_TX;
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_BASIC) {
+		ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_TX_BASIC;
+		ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_tx_basic_desc);
+		ctx->size[queue_type]     += sizeof(struct virtio_net_stats_tx_basic);
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_GSO) {
+		ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_TX_GSO;
+		ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_tx_gso_desc);
+		ctx->size[queue_type]     += sizeof(struct virtio_net_stats_tx_gso);
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_SPEED) {
+		ctx->bitmap[queue_type]   |= VIRTIO_NET_STATS_TYPE_TX_SPEED;
+		ctx->desc_num[queue_type] += ARRAY_SIZE(virtnet_stats_tx_speed_desc);
+		ctx->size[queue_type]     += sizeof(struct virtio_net_stats_tx_speed);
+	}
+}
+
+/* stats_sum_queue - Calculate the sum of the same fields in sq or rq.
+ * @sum: the position to store the sum values
+ * @num: field num
+ * @q_value: the first queue fields
+ * @q_num: number of the queues
+ */
+static void stats_sum_queue(u64 *sum, u32 num, u64 *q_value, u32 q_num)
+{
+	u32 step = num;
+	int i, j;
+	u64 *p;
+
+	for (i = 0; i < num; ++i) {
+		p = sum + i;
+		*p = 0;
+
+		for (j = 0; j < q_num; ++j)
+			*p += *(q_value + i + j * step);
+	}
+}
+
+static void virtnet_fill_total_fields(struct virtnet_info *vi,
+				      struct virtnet_stats_ctx *ctx)
+{
+	u64 *data, *first_rx_q, *first_tx_q;
+	u32 num_cq, num_rx, num_tx;
+
+	num_cq = ctx->desc_num[VIRTNET_Q_TYPE_CQ];
+	num_rx = ctx->desc_num[VIRTNET_Q_TYPE_RX];
+	num_tx = ctx->desc_num[VIRTNET_Q_TYPE_TX];
+
+	first_rx_q = ctx->data + num_rx + num_tx + num_cq;
+	first_tx_q = first_rx_q + vi->curr_queue_pairs * num_rx;
+
+	data = ctx->data;
+
+	stats_sum_queue(data, num_rx, first_rx_q, vi->curr_queue_pairs);
+
+	data = ctx->data + num_rx;
+
+	stats_sum_queue(data, num_tx, first_tx_q, vi->curr_queue_pairs);
+}
+
+static void virtnet_fill_stats_qstat(struct virtnet_info *vi, u32 qid,
+				     struct virtnet_stats_ctx *ctx,
+				     const u8 *base, bool drv_stats, u8 reply_type)
+{
+	const struct virtnet_stat_desc *desc;
+	const u64_stats_t *v_stat;
+	u64 offset, bitmap;
+	const __le64 *v;
+	u32 queue_type;
+	int i, num;
+
+	queue_type = vq_type(vi, qid);
+	bitmap = ctx->bitmap[queue_type];
+
+	if (drv_stats) {
+		if (queue_type == VIRTNET_Q_TYPE_RX) {
+			desc = &virtnet_rq_stats_desc_qstat[0];
+			num = ARRAY_SIZE(virtnet_rq_stats_desc_qstat);
+		} else {
+			desc = &virtnet_sq_stats_desc_qstat[0];
+			num = ARRAY_SIZE(virtnet_sq_stats_desc_qstat);
+		}
+
+		for (i = 0; i < num; ++i) {
+			offset = desc[i].qstat_offset / sizeof(*ctx->data);
+			v_stat = (const u64_stats_t *)(base + desc[i].offset);
+			ctx->data[offset] = u64_stats_read(v_stat);
+		}
+		return;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_RX_BASIC) {
+		desc = &virtnet_stats_rx_basic_desc_qstat[0];
+		num = ARRAY_SIZE(virtnet_stats_rx_basic_desc_qstat);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_RX_BASIC)
+			goto found;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_RX_CSUM) {
+		desc = &virtnet_stats_rx_csum_desc_qstat[0];
+		num = ARRAY_SIZE(virtnet_stats_rx_csum_desc_qstat);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_RX_CSUM)
+			goto found;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_RX_GSO) {
+		desc = &virtnet_stats_rx_gso_desc_qstat[0];
+		num = ARRAY_SIZE(virtnet_stats_rx_gso_desc_qstat);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_RX_GSO)
+			goto found;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_RX_SPEED) {
+		desc = &virtnet_stats_rx_speed_desc_qstat[0];
+		num = ARRAY_SIZE(virtnet_stats_rx_speed_desc_qstat);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_RX_SPEED)
+			goto found;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_TX_BASIC) {
+		desc = &virtnet_stats_tx_basic_desc_qstat[0];
+		num = ARRAY_SIZE(virtnet_stats_tx_basic_desc_qstat);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_TX_BASIC)
+			goto found;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_TX_CSUM) {
+		desc = &virtnet_stats_tx_csum_desc_qstat[0];
+		num = ARRAY_SIZE(virtnet_stats_tx_csum_desc_qstat);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_TX_CSUM)
+			goto found;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_TX_GSO) {
+		desc = &virtnet_stats_tx_gso_desc_qstat[0];
+		num = ARRAY_SIZE(virtnet_stats_tx_gso_desc_qstat);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_TX_GSO)
+			goto found;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_TX_SPEED) {
+		desc = &virtnet_stats_tx_speed_desc_qstat[0];
+		num = ARRAY_SIZE(virtnet_stats_tx_speed_desc_qstat);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_TX_SPEED)
+			goto found;
+	}
+
+	return;
+
+found:
+	for (i = 0; i < num; ++i) {
+		offset = desc[i].qstat_offset / sizeof(*ctx->data);
+		v = (const __le64 *)(base + desc[i].offset);
+		ctx->data[offset] = le64_to_cpu(*v);
+	}
+}
+
+/* virtnet_fill_stats - copy the stats to qstats or ethtool -S
+ * The stats source is the device or the driver.
+ *
+ * @vi: virtio net info
+ * @qid: the vq id
+ * @ctx: stats ctx (initiated by virtnet_stats_ctx_init())
+ * @base: pointer to the device reply or the driver stats structure.
+ * @drv_stats: designate the base type (device reply, driver stats)
+ * @type: the type of the device reply (if drv_stats is true, this must be zero)
+ */
+static void virtnet_fill_stats(struct virtnet_info *vi, u32 qid,
+			       struct virtnet_stats_ctx *ctx,
+			       const u8 *base, bool drv_stats, u8 reply_type)
+{
+	u32 queue_type, num_rx, num_tx, num_cq;
+	const struct virtnet_stat_desc *desc;
+	const u64_stats_t *v_stat;
+	u64 offset, bitmap;
+	const __le64 *v;
+	int i, num;
+
+	if (ctx->to_qstat)
+		return virtnet_fill_stats_qstat(vi, qid, ctx, base, drv_stats, reply_type);
+
+	num_cq = ctx->desc_num[VIRTNET_Q_TYPE_CQ];
+	num_rx = ctx->desc_num[VIRTNET_Q_TYPE_RX];
+	num_tx = ctx->desc_num[VIRTNET_Q_TYPE_TX];
+
+	queue_type = vq_type(vi, qid);
+	bitmap = ctx->bitmap[queue_type];
+
+	/* skip the total fields of pairs */
+	offset = num_rx + num_tx;
+
+	if (queue_type == VIRTNET_Q_TYPE_TX) {
+		offset += num_cq + num_rx * vi->curr_queue_pairs + num_tx * (qid / 2);
+
+		num = ARRAY_SIZE(virtnet_sq_stats_desc);
+		if (drv_stats) {
+			desc = &virtnet_sq_stats_desc[0];
+			goto drv_stats;
+		}
+
+		offset += num;
+
+	} else if (queue_type == VIRTNET_Q_TYPE_RX) {
+		offset += num_cq + num_rx * (qid / 2);
+
+		num = ARRAY_SIZE(virtnet_rq_stats_desc);
+		if (drv_stats) {
+			desc = &virtnet_rq_stats_desc[0];
+			goto drv_stats;
+		}
+
+		offset += num;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_CVQ) {
+		desc = &virtnet_stats_cvq_desc[0];
+		num = ARRAY_SIZE(virtnet_stats_cvq_desc);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_CVQ)
+			goto found;
+
+		offset += num;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_RX_BASIC) {
+		desc = &virtnet_stats_rx_basic_desc[0];
+		num = ARRAY_SIZE(virtnet_stats_rx_basic_desc);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_RX_BASIC)
+			goto found;
+
+		offset += num;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_RX_CSUM) {
+		desc = &virtnet_stats_rx_csum_desc[0];
+		num = ARRAY_SIZE(virtnet_stats_rx_csum_desc);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_RX_CSUM)
+			goto found;
+
+		offset += num;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_RX_SPEED) {
+		desc = &virtnet_stats_rx_speed_desc[0];
+		num = ARRAY_SIZE(virtnet_stats_rx_speed_desc);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_RX_SPEED)
+			goto found;
+
+		offset += num;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_TX_BASIC) {
+		desc = &virtnet_stats_tx_basic_desc[0];
+		num = ARRAY_SIZE(virtnet_stats_tx_basic_desc);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_TX_BASIC)
+			goto found;
+
+		offset += num;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_TX_GSO) {
+		desc = &virtnet_stats_tx_gso_desc[0];
+		num = ARRAY_SIZE(virtnet_stats_tx_gso_desc);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_TX_GSO)
+			goto found;
+
+		offset += num;
+	}
+
+	if (bitmap & VIRTIO_NET_STATS_TYPE_TX_SPEED) {
+		desc = &virtnet_stats_tx_speed_desc[0];
+		num = ARRAY_SIZE(virtnet_stats_tx_speed_desc);
+		if (reply_type == VIRTIO_NET_STATS_TYPE_REPLY_TX_SPEED)
+			goto found;
+
+		offset += num;
+	}
+
+	return;
+
+found:
+	for (i = 0; i < num; ++i) {
+		v = (const __le64 *)(base + desc[i].offset);
+		ctx->data[offset + i] = le64_to_cpu(*v);
+	}
+
+	return;
+
+drv_stats:
+	for (i = 0; i < num; ++i) {
+		v_stat = (const u64_stats_t *)(base + desc[i].offset);
+		ctx->data[offset + i] = u64_stats_read(v_stat);
+	}
+}
+
+static int __virtnet_get_hw_stats(struct virtnet_info *vi,
+				  struct virtnet_stats_ctx *ctx,
+				  struct virtio_net_ctrl_queue_stats *req,
+				  int req_size, void *reply, int res_size)
+{
+	struct virtio_net_stats_reply_hdr *hdr;
+	struct scatterlist sgs_in, sgs_out;
+	void *p;
+	u32 qid;
+	int ok;
+
+	sg_init_one(&sgs_out, req, req_size);
+	sg_init_one(&sgs_in, reply, res_size);
+
+	ok = virtnet_send_command_reply(vi, VIRTIO_NET_CTRL_STATS,
+					VIRTIO_NET_CTRL_STATS_GET,
+					&sgs_out, &sgs_in);
+
+	if (!ok)
+		return ok;
+
+	for (p = reply; p - reply < res_size; p += le16_to_cpu(hdr->size)) {
+		hdr = p;
+		qid = le16_to_cpu(hdr->vq_index);
+		virtnet_fill_stats(vi, qid, ctx, p, false, hdr->type);
+	}
+
+	return 0;
+}
+
+static void virtnet_make_stat_req(struct virtnet_info *vi,
+				  struct virtnet_stats_ctx *ctx,
+				  struct virtio_net_ctrl_queue_stats *req,
+				  int qid, int *idx)
+{
+	int qtype = vq_type(vi, qid);
+	u64 bitmap = ctx->bitmap[qtype];
+
+	if (!bitmap)
+		return;
+
+	req->stats[*idx].vq_index = cpu_to_le16(qid);
+	req->stats[*idx].types_bitmap[0] = cpu_to_le64(bitmap);
+	*idx += 1;
+}
+
+/* qid: -1: get stats of all vq.
+ *     > 0: get the stats for the special vq. This must not be cvq.
+ */
+static int virtnet_get_hw_stats(struct virtnet_info *vi,
+				struct virtnet_stats_ctx *ctx, int qid)
+{
+	int qnum, i, j, res_size, qtype, last_vq, first_vq;
+	struct virtio_net_ctrl_queue_stats *req;
+	bool enable_cvq;
+	void *reply;
+	int ok;
+
+	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_DEVICE_STATS))
+		return 0;
+
+	if (qid == -1) {
+		last_vq = vi->curr_queue_pairs * 2 - 1;
+		first_vq = 0;
+		enable_cvq = true;
+	} else {
+		last_vq = qid;
+		first_vq = qid;
+		enable_cvq = false;
+	}
+
+	qnum = 0;
+	res_size = 0;
+	for (i = first_vq; i <= last_vq ; ++i) {
+		qtype = vq_type(vi, i);
+		if (ctx->bitmap[qtype]) {
+			++qnum;
+			res_size += ctx->size[qtype];
+		}
+	}
+
+	if (enable_cvq && ctx->bitmap[VIRTNET_Q_TYPE_CQ]) {
+		res_size += ctx->size[VIRTNET_Q_TYPE_CQ];
+		qnum += 1;
+	}
+
+	req = kcalloc(qnum, sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	reply = kmalloc(res_size, GFP_KERNEL);
+	if (!reply) {
+		kfree(req);
+		return -ENOMEM;
+	}
+
+	j = 0;
+	for (i = first_vq; i <= last_vq ; ++i)
+		virtnet_make_stat_req(vi, ctx, req, i, &j);
+
+	if (enable_cvq)
+		virtnet_make_stat_req(vi, ctx, req, vi->max_queue_pairs * 2, &j);
+
+	ok = __virtnet_get_hw_stats(vi, ctx, req, sizeof(*req) * j, reply, res_size);
+
+	kfree(req);
+	kfree(reply);
+
+	return ok;
+}
+
 static void virtnet_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	unsigned int i, j;
+	unsigned int i;
 	u8 *p = data;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < vi->curr_queue_pairs; i++) {
-			for (j = 0; j < VIRTNET_RQ_STATS_LEN; j++)
-				ethtool_sprintf(&p, "rx_queue_%u_%s", i,
-						virtnet_rq_stats_desc[j].desc);
-		}
+		/* Generate the total field names. */
+		virtnet_get_stats_string(vi, VIRTNET_Q_TYPE_RX, -1, &p);
+		virtnet_get_stats_string(vi, VIRTNET_Q_TYPE_TX, -1, &p);
 
-		for (i = 0; i < vi->curr_queue_pairs; i++) {
-			for (j = 0; j < VIRTNET_SQ_STATS_LEN; j++)
-				ethtool_sprintf(&p, "tx_queue_%u_%s", i,
-						virtnet_sq_stats_desc[j].desc);
-		}
+		virtnet_get_stats_string(vi, VIRTNET_Q_TYPE_CQ, 0, &p);
+
+		for (i = 0; i < vi->curr_queue_pairs; ++i)
+			virtnet_get_stats_string(vi, VIRTNET_Q_TYPE_RX, i, &p);
+
+		for (i = 0; i < vi->curr_queue_pairs; ++i)
+			virtnet_get_stats_string(vi, VIRTNET_Q_TYPE_TX, i, &p);
 		break;
 	}
 }
@@ -3323,11 +4108,17 @@ static void virtnet_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 static int virtnet_get_sset_count(struct net_device *dev, int sset)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
+	struct virtnet_stats_ctx ctx = {0};
+	u32 pair_count;
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		return vi->curr_queue_pairs * (VIRTNET_RQ_STATS_LEN +
-					       VIRTNET_SQ_STATS_LEN);
+		virtnet_stats_ctx_init(vi, &ctx, NULL, false);
+
+		pair_count = ctx.desc_num[VIRTNET_Q_TYPE_RX] + ctx.desc_num[VIRTNET_Q_TYPE_TX];
+
+		return pair_count + ctx.desc_num[VIRTNET_Q_TYPE_CQ] +
+			vi->curr_queue_pairs * pair_count;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3337,40 +4128,32 @@ static void virtnet_get_ethtool_stats(struct net_device *dev,
 				      struct ethtool_stats *stats, u64 *data)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	unsigned int idx = 0, start, i, j;
+	struct virtnet_stats_ctx ctx = {0};
+	unsigned int start, i;
 	const u8 *stats_base;
-	const u64_stats_t *p;
-	size_t offset;
+
+	virtnet_stats_ctx_init(vi, &ctx, data, false);
+	if (virtnet_get_hw_stats(vi, &ctx, -1))
+		dev_warn(&vi->dev->dev, "Failed to get hw stats.\n");
 
 	for (i = 0; i < vi->curr_queue_pairs; i++) {
 		struct receive_queue *rq = &vi->rq[i];
+		struct send_queue *sq = &vi->sq[i];
 
 		stats_base = (const u8 *)&rq->stats;
 		do {
 			start = u64_stats_fetch_begin(&rq->stats.syncp);
-			for (j = 0; j < VIRTNET_RQ_STATS_LEN; j++) {
-				offset = virtnet_rq_stats_desc[j].offset;
-				p = (const u64_stats_t *)(stats_base + offset);
-				data[idx + j] = u64_stats_read(p);
-			}
+			virtnet_fill_stats(vi, i * 2, &ctx, stats_base, true, 0);
 		} while (u64_stats_fetch_retry(&rq->stats.syncp, start));
-		idx += VIRTNET_RQ_STATS_LEN;
-	}
-
-	for (i = 0; i < vi->curr_queue_pairs; i++) {
-		struct send_queue *sq = &vi->sq[i];
 
 		stats_base = (const u8 *)&sq->stats;
 		do {
 			start = u64_stats_fetch_begin(&sq->stats.syncp);
-			for (j = 0; j < VIRTNET_SQ_STATS_LEN; j++) {
-				offset = virtnet_sq_stats_desc[j].offset;
-				p = (const u64_stats_t *)(stats_base + offset);
-				data[idx + j] = u64_stats_read(p);
-			}
+			virtnet_fill_stats(vi, i * 2 + 1, &ctx, stats_base, true, 0);
 		} while (u64_stats_fetch_retry(&sq->stats.syncp, start));
-		idx += VIRTNET_SQ_STATS_LEN;
 	}
+
+	virtnet_fill_total_fields(vi, &ctx);
 }
 
 static void virtnet_get_channels(struct net_device *dev,
@@ -3903,6 +4686,95 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.set_rxfh = virtnet_set_rxfh,
 	.get_rxnfc = virtnet_get_rxnfc,
 	.set_rxnfc = virtnet_set_rxnfc,
+};
+
+static void virtnet_get_queue_stats_rx(struct net_device *dev, int i,
+				       struct netdev_queue_stats_rx *stats)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	struct receive_queue *rq = &vi->rq[i];
+	struct virtnet_stats_ctx ctx = {0};
+
+	virtnet_stats_ctx_init(vi, &ctx, (void *)stats, true);
+
+	virtnet_get_hw_stats(vi, &ctx, i * 2);
+	virtnet_fill_stats(vi, i * 2, &ctx, (void *)&rq->stats, true, 0);
+}
+
+static void virtnet_get_queue_stats_tx(struct net_device *dev, int i,
+				       struct netdev_queue_stats_tx *stats)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	struct send_queue *sq = &vi->sq[i];
+	struct virtnet_stats_ctx ctx = {0};
+
+	virtnet_stats_ctx_init(vi, &ctx, (void *)stats, true);
+
+	virtnet_get_hw_stats(vi, &ctx, i * 2 + 1);
+	virtnet_fill_stats(vi, i * 2 + 1, &ctx, (void *)&sq->stats, true, 0);
+}
+
+static void virtnet_get_base_stats(struct net_device *dev,
+				   struct netdev_queue_stats_rx *rx,
+				   struct netdev_queue_stats_tx *tx)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+
+	/* The queue stats of the virtio-net will not be reset. So here we
+	 * return 0.
+	 */
+	rx->bytes = 0;
+	rx->packets = 0;
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_BASIC) {
+		rx->hw_drops = 0;
+		rx->hw_drop_overruns = 0;
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_CSUM) {
+		rx->csum_unnecessary = 0;
+		rx->csum_none = 0;
+		rx->csum_bad = 0;
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_GSO) {
+		rx->hw_gro_packets = 0;
+		rx->hw_gro_bytes = 0;
+		rx->hw_gro_wire_packets = 0;
+		rx->hw_gro_wire_bytes = 0;
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_RX_SPEED)
+		rx->hw_drop_ratelimits = 0;
+
+	tx->bytes = 0;
+	tx->packets = 0;
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_BASIC) {
+		tx->hw_drops = 0;
+		tx->hw_drop_errors = 0;
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_CSUM) {
+		tx->csum_none = 0;
+		tx->needs_csum = 0;
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_GSO) {
+		tx->hw_gso_packets = 0;
+		tx->hw_gso_bytes = 0;
+		tx->hw_gso_wire_packets = 0;
+		tx->hw_gso_wire_bytes = 0;
+	}
+
+	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_SPEED)
+		tx->hw_drop_ratelimits = 0;
+}
+
+static const struct netdev_stat_ops virtnet_stat_ops = {
+	.get_queue_stats_rx	= virtnet_get_queue_stats_rx,
+	.get_queue_stats_tx	= virtnet_get_queue_stats_tx,
+	.get_base_stats		= virtnet_get_base_stats,
 };
 
 static void virtnet_freeze_down(struct virtio_device *vdev)
@@ -4708,6 +5580,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	dev->priv_flags |= IFF_UNICAST_FLT | IFF_LIVE_ADDR_CHANGE |
 			   IFF_TX_SKB_NO_LINEAR;
 	dev->netdev_ops = &virtnet_netdev;
+	dev->stat_ops = &virtnet_stat_ops;
 	dev->features = NETIF_F_HIGHDMA;
 
 	dev->ethtool_ops = &virtnet_ethtool_ops;
@@ -4936,6 +5809,25 @@ static int virtnet_probe(struct virtio_device *vdev)
 		}
 	}
 
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_DEVICE_STATS)) {
+		struct scatterlist sg;
+		__le64 v;
+
+		sg_init_one(&sg, &vi->ctrl->stats_cap, sizeof(vi->ctrl->stats_cap));
+
+		if (!virtnet_send_command_reply(vi, VIRTIO_NET_CTRL_STATS,
+						VIRTIO_NET_CTRL_STATS_QUERY,
+						NULL, &sg)) {
+			pr_debug("virtio_net: fail to get stats capability\n");
+			rtnl_unlock();
+			err = -EINVAL;
+			goto free_unregister_netdev;
+		}
+
+		v = vi->ctrl->stats_cap.supported_stats_types[0];
+		vi->device_stats_cap = le64_to_cpu(v);
+	}
+
 	rtnl_unlock();
 
 	err = virtnet_cpu_notif_add(vi);
@@ -5064,7 +5956,7 @@ static struct virtio_device_id id_table[] = {
 	VIRTIO_NET_F_SPEED_DUPLEX, VIRTIO_NET_F_STANDBY, \
 	VIRTIO_NET_F_RSS, VIRTIO_NET_F_HASH_REPORT, VIRTIO_NET_F_NOTF_COAL, \
 	VIRTIO_NET_F_VQ_NOTF_COAL, \
-	VIRTIO_NET_F_GUEST_HDRLEN
+	VIRTIO_NET_F_GUEST_HDRLEN, VIRTIO_NET_F_DEVICE_STATS
 
 static unsigned int features[] = {
 	VIRTNET_FEATURES,
