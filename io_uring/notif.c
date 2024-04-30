@@ -38,6 +38,7 @@ void io_tx_ubuf_complete(struct sk_buff *skb, struct ubuf_info *uarg,
 {
 	struct io_notif_data *nd = container_of(uarg, struct io_notif_data, uarg);
 	struct io_kiocb *notif = cmd_to_io_kiocb(nd);
+	unsigned tw_flags;
 
 	if (nd->zc_report) {
 		if (success && !nd->zc_used && skb)
@@ -53,8 +54,10 @@ void io_tx_ubuf_complete(struct sk_buff *skb, struct ubuf_info *uarg,
 		io_tx_ubuf_complete(skb, &nd->head->uarg, success);
 		return;
 	}
+
+	tw_flags = nd->next ? 0 : IOU_F_TWQ_LAZY_WAKE;
 	notif->io_task_work.func = io_notif_tw_complete;
-	__io_req_task_work_add(notif, IOU_F_TWQ_LAZY_WAKE);
+	__io_req_task_work_add(notif, tw_flags);
 }
 
 static int io_link_skb(struct sk_buff *skb, struct ubuf_info *uarg)
