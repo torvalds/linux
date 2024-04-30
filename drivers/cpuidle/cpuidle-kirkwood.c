@@ -59,15 +59,14 @@ static int kirkwood_cpuidle_probe(struct platform_device *pdev)
 	return cpuidle_register(&kirkwood_idle_driver, NULL);
 }
 
-static int kirkwood_cpuidle_remove(struct platform_device *pdev)
+static void kirkwood_cpuidle_remove(struct platform_device *pdev)
 {
 	cpuidle_unregister(&kirkwood_idle_driver);
-	return 0;
 }
 
 static struct platform_driver kirkwood_cpuidle_driver = {
 	.probe = kirkwood_cpuidle_probe,
-	.remove = kirkwood_cpuidle_remove,
+	.remove_new = kirkwood_cpuidle_remove,
 	.driver = {
 		   .name = "kirkwood_cpuidle",
 		   },
