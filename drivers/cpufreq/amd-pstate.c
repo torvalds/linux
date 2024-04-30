@@ -792,7 +792,7 @@ free_cpufreq_put:
 	mutex_unlock(&amd_pstate_driver_lock);
 }
 
-/**
+/*
  * Get pstate transition delay time from ACPI tables that firmware set
  * instead of using hardcode value directly.
  */
@@ -807,7 +807,7 @@ static u32 amd_pstate_get_transition_delay_us(unsigned int cpu)
 	return transition_delay_ns / NSEC_PER_USEC;
 }
 
-/**
+/*
  * Get pstate transition latency value from ACPI tables that firmware
  * set instead of using hardcode value directly.
  */
@@ -822,7 +822,7 @@ static u32 amd_pstate_get_transition_latency(unsigned int cpu)
 	return transition_latency;
 }
 
-/**
+/*
  * amd_pstate_init_freq: Initialize the max_freq, min_freq,
  *                       nominal_freq and lowest_nonlinear_freq for
  *                       the @cpudata object.
@@ -842,7 +842,6 @@ static int amd_pstate_init_freq(struct amd_cpudata *cpudata)
 	u32 lowest_nonlinear_perf, lowest_nonlinear_freq;
 	u32 boost_ratio, lowest_nonlinear_ratio;
 	struct cppc_perf_caps cppc_perf;
-
 
 	ret = cppc_get_perf_caps(cpudata->cpu, &cppc_perf);
 	if (ret)
