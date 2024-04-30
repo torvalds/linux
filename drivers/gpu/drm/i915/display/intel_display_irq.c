@@ -1455,7 +1455,9 @@ void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 			if (!intel_display_power_is_enabled(dev_priv, domain))
 				continue;
 
-			intel_uncore_write(uncore, TRANS_PSR_IMR(trans), 0xffffffff);
+			intel_uncore_write(uncore,
+				           TRANS_PSR_IMR(dev_priv, trans),
+				           0xffffffff);
 			intel_uncore_write(uncore, TRANS_PSR_IIR(trans), 0xffffffff);
 		}
 	} else {
