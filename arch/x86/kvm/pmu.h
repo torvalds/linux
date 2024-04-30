@@ -129,7 +129,7 @@ static inline bool pmc_is_fixed(struct kvm_pmc *pmc)
 static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,
 						 u64 data)
 {
-	return !(pmu->global_ctrl_mask & data);
+	return !(pmu->global_ctrl_rsvd & data);
 }
 
 /* returns general purpose PMC with the specified MSR. Note that it can be

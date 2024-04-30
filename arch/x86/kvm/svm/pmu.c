@@ -199,8 +199,8 @@ static void amd_pmu_refresh(struct kvm_vcpu *vcpu)
 					 kvm_pmu_cap.num_counters_gp);
 
 	if (pmu->version > 1) {
-		pmu->global_ctrl_mask = ~((1ull << pmu->nr_arch_gp_counters) - 1);
-		pmu->global_status_mask = pmu->global_ctrl_mask;
+		pmu->global_ctrl_rsvd = ~((1ull << pmu->nr_arch_gp_counters) - 1);
+		pmu->global_status_rsvd = pmu->global_ctrl_rsvd;
 	}
 
 	pmu->counter_bitmask[KVM_PMC_GP] = ((u64)1 << 48) - 1;

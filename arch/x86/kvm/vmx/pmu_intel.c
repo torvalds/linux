@@ -348,14 +348,14 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 	switch (msr) {
 	case MSR_CORE_PERF_FIXED_CTR_CTRL:
-		if (data & pmu->fixed_ctr_ctrl_mask)
+		if (data & pmu->fixed_ctr_ctrl_rsvd)
 			return 1;
 
 		if (pmu->fixed_ctr_ctrl != data)
 			reprogram_fixed_counters(pmu, data);
 		break;
 	case MSR_IA32_PEBS_ENABLE:
-		if (data & pmu->pebs_enable_mask)
+		if (data & pmu->pebs_enable_rsvd)
 			return 1;
 
 		if (pmu->pebs_enable != data) {
@@ -371,7 +371,7 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		pmu->ds_area = data;
 		break;
 	case MSR_PEBS_DATA_CFG:
-		if (data & pmu->pebs_data_cfg_mask)
+		if (data & pmu->pebs_data_cfg_rsvd)
 			return 1;
 
 		pmu->pebs_data_cfg = data;
@@ -456,7 +456,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	union cpuid10_eax eax;
 	union cpuid10_edx edx;
 	u64 perf_capabilities;
-	u64 counter_mask;
+	u64 counter_rsvd;
 	int i;
 
 	memset(&lbr_desc->records, 0, sizeof(lbr_desc->records));
@@ -502,21 +502,21 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	}
 
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++)
-		pmu->fixed_ctr_ctrl_mask &= ~(0xbull << (i * 4));
-	counter_mask = ~(((1ull << pmu->nr_arch_gp_counters) - 1) |
+		pmu->fixed_ctr_ctrl_rsvd &= ~(0xbull << (i * 4));
+	counter_rsvd = ~(((1ull << pmu->nr_arch_gp_counters) - 1) |
 		(((1ull << pmu->nr_arch_fixed_counters) - 1) << KVM_FIXED_PMC_BASE_IDX));
-	pmu->global_ctrl_mask = counter_mask;
+	pmu->global_ctrl_rsvd = counter_rsvd;
 
 	/*
 	 * GLOBAL_STATUS and GLOBAL_OVF_CONTROL (a.k.a. GLOBAL_STATUS_RESET)
 	 * share reserved bit definitions.  The kernel just happens to use
 	 * OVF_CTRL for the names.
 	 */
-	pmu->global_status_mask = pmu->global_ctrl_mask
+	pmu->global_status_rsvd = pmu->global_ctrl_rsvd
 			& ~(MSR_CORE_PERF_GLOBAL_OVF_CTRL_OVF_BUF |
 			    MSR_CORE_PERF_GLOBAL_OVF_CTRL_COND_CHGD);
 	if (vmx_pt_mode_is_host_guest())
-		pmu->global_status_mask &=
+		pmu->global_status_rsvd &=
 				~MSR_CORE_PERF_GLOBAL_OVF_CTRL_TRACE_TOPA_PMI;
 
 	entry = kvm_find_cpuid_entry_index(vcpu, 7, 0);
@@ -544,15 +544,15 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 
 	if (perf_capabilities & PERF_CAP_PEBS_FORMAT) {
 		if (perf_capabilities & PERF_CAP_PEBS_BASELINE) {
-			pmu->pebs_enable_mask = counter_mask;
+			pmu->pebs_enable_rsvd = counter_rsvd;
 			pmu->reserved_bits &= ~ICL_EVENTSEL_ADAPTIVE;
 			for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
-				pmu->fixed_ctr_ctrl_mask &=
+				pmu->fixed_ctr_ctrl_rsvd &=
 					~(1ULL << (KVM_FIXED_PMC_BASE_IDX + i * 4));
 			}
-			pmu->pebs_data_cfg_mask = ~0xff00000full;
+			pmu->pebs_data_cfg_rsvd = ~0xff00000full;
 		} else {
-			pmu->pebs_enable_mask =
+			pmu->pebs_enable_rsvd =
 				~((1ull << pmu->nr_arch_gp_counters) - 1);
 		}
 	}

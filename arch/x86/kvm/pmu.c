@@ -681,13 +681,13 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!msr_info->host_initiated)
 			break;
 
-		if (data & pmu->global_status_mask)
+		if (data & pmu->global_status_rsvd)
 			return 1;
 
 		pmu->global_status = data;
 		break;
 	case MSR_AMD64_PERF_CNTR_GLOBAL_CTL:
-		data &= ~pmu->global_ctrl_mask;
+		data &= ~pmu->global_ctrl_rsvd;
 		fallthrough;
 	case MSR_CORE_PERF_GLOBAL_CTRL:
 		if (!kvm_valid_perf_global_ctrl(pmu, data))
@@ -704,7 +704,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		 * GLOBAL_OVF_CTRL, a.k.a. GLOBAL STATUS_RESET, clears bits in
 		 * GLOBAL_STATUS, and so the set of reserved bits is the same.
 		 */
-		if (data & pmu->global_status_mask)
+		if (data & pmu->global_status_rsvd)
 			return 1;
 		fallthrough;
 	case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR:
@@ -768,11 +768,11 @@ void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->counter_bitmask[KVM_PMC_FIXED] = 0;
 	pmu->reserved_bits = 0xffffffff00200000ull;
 	pmu->raw_event_mask = X86_RAW_EVENT_MASK;
-	pmu->global_ctrl_mask = ~0ull;
-	pmu->global_status_mask = ~0ull;
-	pmu->fixed_ctr_ctrl_mask = ~0ull;
-	pmu->pebs_enable_mask = ~0ull;
-	pmu->pebs_data_cfg_mask = ~0ull;
+	pmu->global_ctrl_rsvd = ~0ull;
+	pmu->global_status_rsvd = ~0ull;
+	pmu->fixed_ctr_ctrl_rsvd = ~0ull;
+	pmu->pebs_enable_rsvd = ~0ull;
+	pmu->pebs_data_cfg_rsvd = ~0ull;
 	bitmap_zero(pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX);
 
 	if (!vcpu->kvm->arch.enable_pmu)
