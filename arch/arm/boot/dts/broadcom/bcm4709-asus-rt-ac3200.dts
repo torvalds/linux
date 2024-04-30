@@ -1,33 +1,36 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Author: Arınç ÜNAL <arinc.unal@arinc9.com>
+ * Author: Tom Brautaset <tbrautaset@gmail.com>
  */
 
-#include "bcm47094.dtsi"
+/dts-v1/;
+
+#include "bcm4709.dtsi"
 #include "bcm5301x-nand-cs0-bch8.dtsi"
 
 #include <dt-bindings/leds/common.h>
 
 / {
+	compatible = "asus,rt-ac3200", "brcm,bcm4709", "brcm,bcm4708";
+	model = "ASUS RT-AC3200";
+
 	memory@0 {
 		reg = <0x00000000 0x08000000>,
-		      <0x88000000 0x18000000>;
+		      <0x88000000 0x08000000>;
 		device_type = "memory";
 	};
 
 	nvram@1c080000 {
 		compatible = "brcm,nvram";
 		reg = <0x1c080000 0x00180000>;
+
+		et0macaddr: et0macaddr {
+			#nvmem-cell-cells = <1>;
+		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-
-		button-led {
-			label = "Backlight";
-			linux,code = <KEY_BRIGHTNESS_ZERO>;
-			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
-		};
 
 		button-reset {
 			label = "Reset";
@@ -38,48 +41,24 @@
 		button-wifi {
 			label = "Wi-Fi";
 			linux,code = <KEY_RFKILL>;
-			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
+			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
 		};
 
 		button-wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
+			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
 		};
 	};
 
 	leds {
 		compatible = "gpio-leds";
 
-		led-lan {
-			color = <LED_COLOR_ID_WHITE>;
-			function = LED_FUNCTION_LAN;
-			gpios = <&chipcommon 21 GPIO_ACTIVE_LOW>;
-		};
-
 		led-power {
 			color = <LED_COLOR_ID_WHITE>;
 			function = LED_FUNCTION_POWER;
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
-		};
-
-		led-usb2 {
-			color = <LED_COLOR_ID_WHITE>;
-			function = LED_FUNCTION_USB;
-			function-enumerator = <1>;
-			gpios = <&chipcommon 16 GPIO_ACTIVE_LOW>;
-			trigger-sources = <&ehci_port2>;
-			linux,default-trigger = "usbport";
-		};
-
-		led-usb3 {
-			color = <LED_COLOR_ID_WHITE>;
-			function = LED_FUNCTION_USB;
-			function-enumerator = <2>;
-			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
-			trigger-sources = <&ehci_port1>, <&xhci_port1>;
-			linux,default-trigger = "usbport";
 		};
 
 		led-wan-red {
@@ -91,9 +70,24 @@
 		led-wps {
 			color = <LED_COLOR_ID_WHITE>;
 			function = LED_FUNCTION_WPS;
-			gpios = <&chipcommon 19 GPIO_ACTIVE_LOW>;
+			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&gmac0 {
+	nvmem-cells = <&et0macaddr 0>;
+	nvmem-cell-names = "mac-address";
+};
+
+&gmac1 {
+	nvmem-cells = <&et0macaddr 1>;
+	nvmem-cell-names = "mac-address";
+};
+
+&gmac2 {
+	nvmem-cells = <&et0macaddr 2>;
+	nvmem-cell-names = "mac-address";
 };
 
 &nandcs {
@@ -126,11 +120,11 @@
 
 	ports {
 		port@0 {
-			label = "lan4";
+			label = "wan";
 		};
 
 		port@1 {
-			label = "lan3";
+			label = "lan1";
 		};
 
 		port@2 {
@@ -138,23 +132,11 @@
 		};
 
 		port@3 {
-			label = "lan1";
+			label = "lan3";
 		};
 
 		port@4 {
-			label = "wan";
-		};
-
-		port@5 {
-			label = "cpu";
-		};
-
-		port@7 {
-			label = "cpu";
-		};
-
-		port@8 {
-			label = "cpu";
+			label = "lan4";
 		};
 	};
 };
