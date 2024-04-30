@@ -625,12 +625,12 @@ int bch2_alloc_read(struct bch_fs *c)
 /* Free space/discard btree: */
 
 static int bch2_bucket_do_index(struct btree_trans *trans,
+				struct bch_dev *ca,
 				struct bkey_s_c alloc_k,
 				const struct bch_alloc_v4 *a,
 				bool set)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, alloc_k.k->p.inode);
 	struct btree_iter iter;
 	struct bkey_s_c old;
 	struct bkey_i *k;
@@ -770,8 +770,8 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		if (old_a->data_type != new_a->data_type ||
 		    (new_a->data_type == BCH_DATA_free &&
 		     alloc_freespace_genbits(*old_a) != alloc_freespace_genbits(*new_a))) {
-			ret =   bch2_bucket_do_index(trans, old, old_a, false) ?:
-				bch2_bucket_do_index(trans, new.s_c, new_a, true);
+			ret =   bch2_bucket_do_index(trans, ca, old, old_a, false) ?:
+				bch2_bucket_do_index(trans, ca, new.s_c, new_a, true);
 			if (ret)
 				return ret;
 		}
@@ -790,8 +790,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 				return ret;
 		}
 
-		new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a,
-						bch2_dev_bkey_exists(c, new.k->p.inode));
+		new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a, ca);
 		if (old_a->fragmentation_lru != new_a->fragmentation_lru) {
 			ret = bch2_lru_change(trans,
 					BCH_LRU_FRAGMENTATION_START,
@@ -2078,7 +2077,7 @@ int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
 			struct bch_alloc_v4 a_convert;
 			const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 
-			ret =   bch2_bucket_do_index(trans, k, a, true) ?:
+			ret =   bch2_bucket_do_index(trans, ca, k, a, true) ?:
 				bch2_trans_commit(trans, NULL, NULL,
 						  BCH_TRANS_COMMIT_no_enospc);
 			if (ret)
