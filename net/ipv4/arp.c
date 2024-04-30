@@ -1003,6 +1003,27 @@ out_of_mem:
  *	User level interface (ioctl)
  */
 
+static struct net_device *arp_req_dev(struct net *net, struct arpreq *r)
+{
+	struct net_device *dev;
+	struct rtable *rt;
+	__be32 ip;
+
+	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
+
+	rt = ip_route_output(net, ip, 0, 0, 0, RT_SCOPE_LINK);
+	if (IS_ERR(rt))
+		return ERR_CAST(rt);
+
+	dev = rt->dst.dev;
+	ip_rt_put(rt);
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	return dev;
+}
+
 /*
  *	Set (create) an ARP cache entry.
  */
@@ -1045,25 +1066,17 @@ static int arp_req_set_public(struct net *net, struct arpreq *r,
 static int arp_req_set(struct net *net, struct arpreq *r,
 		       struct net_device *dev)
 {
-	__be32 ip;
 	struct neighbour *neigh;
+	__be32 ip;
 	int err;
 
 	if (r->arp_flags & ATF_PUBL)
 		return arp_req_set_public(net, r, dev);
 
-	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
-
 	if (!dev) {
-		struct rtable *rt = ip_route_output(net, ip, 0, 0, 0,
-						    RT_SCOPE_LINK);
-
-		if (IS_ERR(rt))
-			return PTR_ERR(rt);
-		dev = rt->dst.dev;
-		ip_rt_put(rt);
-		if (!dev)
-			return -EINVAL;
+		dev = arp_req_dev(net, r);
+		if (IS_ERR(dev))
+			return PTR_ERR(dev);
 	}
 	switch (dev->type) {
 #if IS_ENABLED(CONFIG_FDDI)
@@ -1085,6 +1098,8 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 			return -EINVAL;
 		break;
 	}
+
+	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 
 	neigh = __neigh_lookup_errno(&arp_tbl, &ip, dev);
 	err = PTR_ERR(neigh);
@@ -1191,14 +1206,9 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	if (!dev) {
-		struct rtable *rt = ip_route_output(net, ip, 0, 0, 0,
-						    RT_SCOPE_LINK);
-		if (IS_ERR(rt))
-			return PTR_ERR(rt);
-		dev = rt->dst.dev;
-		ip_rt_put(rt);
-		if (!dev)
-			return -EINVAL;
+		dev = arp_req_dev(net, r);
+		if (IS_ERR(dev))
+			return PTR_ERR(dev);
 	}
 	return arp_invalidate(dev, ip, true);
 }
