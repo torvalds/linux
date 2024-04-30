@@ -490,7 +490,7 @@ static const struct of_device_id adm1266_of_match[] = {
 MODULE_DEVICE_TABLE(of, adm1266_of_match);
 
 static const struct i2c_device_id adm1266_id[] = {
-	{ "adm1266", 0 },
+	{ "adm1266" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adm1266_id);

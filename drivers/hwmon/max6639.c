@@ -610,7 +610,7 @@ static int max6639_resume(struct device *dev)
 }
 
 static const struct i2c_device_id max6639_id[] = {
-	{"max6639", 0},
+	{"max6639"},
 	{ }
 };
 

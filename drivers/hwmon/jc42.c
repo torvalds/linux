@@ -609,7 +609,7 @@ static const struct dev_pm_ops jc42_dev_pm_ops = {
 #endif /* CONFIG_PM */
 
 static const struct i2c_device_id jc42_id[] = {
-	{ "jc42", 0 },
+	{ "jc42" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, jc42_id);

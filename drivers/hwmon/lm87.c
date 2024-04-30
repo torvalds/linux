@@ -975,7 +975,7 @@ static int lm87_probe(struct i2c_client *client)
  */
 
 static const struct i2c_device_id lm87_id[] = {
-	{ "lm87", 0 },
+	{ "lm87" },
 	{ "adm1024", 0 },
 	{ }
 };

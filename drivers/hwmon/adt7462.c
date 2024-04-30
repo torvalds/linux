@@ -1809,7 +1809,7 @@ static int adt7462_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adt7462_id[] = {
-	{ "adt7462", 0 },
+	{ "adt7462" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7462_id);

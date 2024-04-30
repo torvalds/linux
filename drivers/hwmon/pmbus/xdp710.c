@@ -110,7 +110,7 @@ static const struct of_device_id xdp710_of_match[] = {
 };
 
 static const struct i2c_device_id xdp710_id[] = {
-	{"xdp710", 0},
+	{"xdp710"},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, xdp710_id);

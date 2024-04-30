@@ -72,7 +72,7 @@ static const int stts751_intervals[] = {
 };
 
 static const struct i2c_device_id stts751_id[] = {
-	{ "stts751", 0 },
+	{ "stts751" },
 	{ }
 };
 
