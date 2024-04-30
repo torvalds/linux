@@ -144,6 +144,29 @@
 #define __pcpu_reg_imm_4(x) "ri" (x)
 #define __pcpu_reg_imm_8(x) "re" (x)
 
+#ifdef CONFIG_USE_X86_SEG_SUPPORT
+
+#define __raw_cpu_read(qual, pcp)					\
+({									\
+	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp));		\
+})
+
+#define __raw_cpu_write(qual, pcp, val)					\
+do {									\
+	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp)) = (val);	\
+} while (0)
+
+#else /* CONFIG_USE_X86_SEG_SUPPORT */
+
+#define percpu_from_op(size, qual, op, _var)				\
+({									\
+	__pcpu_type_##size pfo_val__;					\
+	asm qual (__pcpu_op2_##size(op, __percpu_arg([var]), "%[val]")	\
+	    : [val] __pcpu_reg_##size("=", pfo_val__)			\
+	    : [var] "m" (__my_cpu_var(_var)));				\
+	(typeof(_var))(unsigned long) pfo_val__;			\
+})
+
 #define percpu_to_op(size, qual, op, _var, _val)			\
 do {									\
 	__pcpu_type_##size pto_val__ = __pcpu_cast_##size(_val);	\
@@ -156,6 +179,17 @@ do {									\
 	    : [var] "+m" (__my_cpu_var(_var))				\
 	    : [val] __pcpu_reg_imm_##size(pto_val__));			\
 } while (0)
+
+#endif /* CONFIG_USE_X86_SEG_SUPPORT */
+
+#define percpu_stable_op(size, op, _var)				\
+({									\
+	__pcpu_type_##size pfo_val__;					\
+	asm(__pcpu_op2_##size(op, __force_percpu_arg(a[var]), "%[val]")	\
+	    : [val] __pcpu_reg_##size("=", pfo_val__)			\
+	    : [var] "i" (&(_var)));					\
+	(typeof(_var))(unsigned long) pfo_val__;			\
+})
 
 #define percpu_unary_op(size, qual, op, _var)				\
 ({									\
@@ -197,24 +231,6 @@ do {									\
 	else								\
 		percpu_binary_op(size, qual, "add", var, val);		\
 } while (0)
-
-#define percpu_from_op(size, qual, op, _var)				\
-({									\
-	__pcpu_type_##size pfo_val__;					\
-	asm qual (__pcpu_op2_##size(op, __percpu_arg([var]), "%[val]")	\
-	    : [val] __pcpu_reg_##size("=", pfo_val__)			\
-	    : [var] "m" (__my_cpu_var(_var)));				\
-	(typeof(_var))(unsigned long) pfo_val__;			\
-})
-
-#define percpu_stable_op(size, op, _var)				\
-({									\
-	__pcpu_type_##size pfo_val__;					\
-	asm(__pcpu_op2_##size(op, __force_percpu_arg(a[var]), "%[val]")	\
-	    : [val] __pcpu_reg_##size("=", pfo_val__)			\
-	    : [var] "i" (&(_var)));					\
-	(typeof(_var))(unsigned long) pfo_val__;			\
-})
 
 /*
  * Add return operation
@@ -433,17 +449,6 @@ do {									\
 #define this_cpu_read_stable(pcp)	__pcpu_size_call_return(this_cpu_read_stable_, pcp)
 
 #ifdef CONFIG_USE_X86_SEG_SUPPORT
-
-#define __raw_cpu_read(qual, pcp)					\
-({									\
-	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp));		\
-})
-
-#define __raw_cpu_write(qual, pcp, val)					\
-do {									\
-	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp)) = (val);	\
-} while (0)
-
 #define raw_cpu_read_1(pcp)		__raw_cpu_read(, pcp)
 #define raw_cpu_read_2(pcp)		__raw_cpu_read(, pcp)
 #define raw_cpu_read_4(pcp)		__raw_cpu_read(, pcp)
