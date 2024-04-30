@@ -2599,6 +2599,7 @@ fs_initcall(bpf_event_init);
 struct bpf_session_run_ctx {
 	struct bpf_run_ctx run_ctx;
 	bool is_return;
+	void *data;
 };
 
 #ifdef CONFIG_FPROBE
@@ -2819,11 +2820,12 @@ static u64 bpf_kprobe_multi_entry_ip(struct bpf_run_ctx *ctx)
 static int
 kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
 			   unsigned long entry_ip, struct pt_regs *regs,
-			   bool is_return)
+			   bool is_return, void *data)
 {
 	struct bpf_kprobe_multi_run_ctx run_ctx = {
 		.session_ctx = {
 			.is_return = is_return,
+			.data = data,
 		},
 		.link = link,
 		.entry_ip = entry_ip,
@@ -2859,7 +2861,7 @@ kprobe_multi_link_handler(struct fprobe *fp, unsigned long fentry_ip,
 	int err;
 
 	link = container_of(fp, struct bpf_kprobe_multi_link, fp);
-	err = kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), regs, false);
+	err = kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), regs, false, data);
 	return is_kprobe_session(link->link.prog) ? err : 0;
 }
 
@@ -2871,7 +2873,7 @@ kprobe_multi_link_exit_handler(struct fprobe *fp, unsigned long fentry_ip,
 	struct bpf_kprobe_multi_link *link;
 
 	link = container_of(fp, struct bpf_kprobe_multi_link, fp);
-	kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), regs, true);
+	kprobe_multi_link_prog_run(link, get_entry_ip(fentry_ip), regs, true, data);
 }
 
 static int symbols_cmp_r(const void *a, const void *b, const void *priv)
@@ -3089,6 +3091,8 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		link->fp.entry_handler = kprobe_multi_link_handler;
 	if ((flags & BPF_F_KPROBE_MULTI_RETURN) || is_kprobe_session(prog))
 		link->fp.exit_handler = kprobe_multi_link_exit_handler;
+	if (is_kprobe_session(prog))
+		link->fp.entry_data_size = sizeof(u64);
 
 	link->addrs = addrs;
 	link->cookies = cookies;
@@ -3526,10 +3530,19 @@ __bpf_kfunc bool bpf_session_is_return(void)
 	return session_ctx->is_return;
 }
 
+__bpf_kfunc __u64 *bpf_session_cookie(void)
+{
+	struct bpf_session_run_ctx *session_ctx;
+
+	session_ctx = container_of(current->bpf_ctx, struct bpf_session_run_ctx, run_ctx);
+	return session_ctx->data;
+}
+
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(kprobe_multi_kfunc_set_ids)
 BTF_ID_FLAGS(func, bpf_session_is_return)
+BTF_ID_FLAGS(func, bpf_session_cookie)
 BTF_KFUNCS_END(kprobe_multi_kfunc_set_ids)
 
 static int bpf_kprobe_multi_filter(const struct bpf_prog *prog, u32 kfunc_id)
