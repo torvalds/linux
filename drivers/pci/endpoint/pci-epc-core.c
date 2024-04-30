@@ -775,14 +775,15 @@ void pci_epc_notify_pending_init(struct pci_epc *epc, struct pci_epf *epf)
 EXPORT_SYMBOL_GPL(pci_epc_notify_pending_init);
 
 /**
- * pci_epc_bme_notify() - Notify the EPF device that the EPC device has received
- *			  the BME event from the Root complex
- * @epc: the EPC device that received the BME event
+ * pci_epc_bus_master_enable_notify() - Notify the EPF device that the EPC
+ *					device has received the Bus Master
+ *					Enable event from the Root complex
+ * @epc: the EPC device that received the Bus Master Enable event
  *
- * Invoke to Notify the EPF device that the EPC device has received the Bus
- * Master Enable (BME) event from the Root complex
+ * Notify the EPF device that the EPC device has generated the Bus Master Enable
+ * event due to host setting the Bus Master Enable bit in the Command register.
  */
-void pci_epc_bme_notify(struct pci_epc *epc)
+void pci_epc_bus_master_enable_notify(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
@@ -792,13 +793,13 @@ void pci_epc_bme_notify(struct pci_epc *epc)
 	mutex_lock(&epc->list_lock);
 	list_for_each_entry(epf, &epc->pci_epf, list) {
 		mutex_lock(&epf->lock);
-		if (epf->event_ops && epf->event_ops->bme)
-			epf->event_ops->bme(epf);
+		if (epf->event_ops && epf->event_ops->bus_master_enable)
+			epf->event_ops->bus_master_enable(epf);
 		mutex_unlock(&epf->lock);
 	}
 	mutex_unlock(&epc->list_lock);
 }
-EXPORT_SYMBOL_GPL(pci_epc_bme_notify);
+EXPORT_SYMBOL_GPL(pci_epc_bus_master_enable_notify);
 
 /**
  * pci_epc_destroy() - destroy the EPC device
