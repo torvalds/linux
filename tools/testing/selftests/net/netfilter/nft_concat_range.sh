@@ -19,7 +19,7 @@ source lib.sh
 # - timeout: check that packets match entries until they expire
 # - performance: estimate matching rate, compare with rbtree and hash baselines
 TESTS="reported_issues correctness concurrency timeout"
-[ "${quicktest}" != "1" ] && TESTS="${TESTS} performance"
+[ -n "$NFT_CONCAT_RANGE_TESTS" ] && TESTS="${NFT_CONCAT_RANGE_TESTS}"
 
 # Set types, defined by TYPE_ variables below
 TYPES="net_port port_net net6_port port_proto net6_port_mac net6_port_mac_proto
@@ -31,7 +31,7 @@ BUGS="flush_remove_add reload"
 
 # List of possible paths to pktgen script from kernel tree for performance tests
 PKTGEN_SCRIPT_PATHS="
-	../../../../samples/pktgen/pktgen_bench_xmit_mode_netif_receive.sh
+	../../../../../samples/pktgen/pktgen_bench_xmit_mode_netif_receive.sh
 	pktgen/pktgen_bench_xmit_mode_netif_receive.sh"
 
 # Definition of set types:
@@ -951,6 +951,10 @@ cleanup() {
 	killall iperf				2>/dev/null
 	killall netperf				2>/dev/null
 	killall netserver			2>/dev/null
+}
+
+cleanup_exit() {
+	cleanup
 	rm -f "$tmp"
 }
 
@@ -1371,6 +1375,9 @@ test_timeout() {
 	setup veth send_"${proto}" set || return ${ksft_skip}
 
 	timeout=3
+
+	[ "$KSFT_MACHINE_SLOW" = "yes" ] && timeout=8
+
 	range_size=1
 	for i in $(seq "$start" $((start + count))); do
 		end=$((start + range_size))
@@ -1386,7 +1393,7 @@ test_timeout() {
 		range_size=$((range_size + 1))
 		start=$((end + range_size))
 	done
-	sleep 3
+	sleep $timeout
 	for i in $(seq "$start" $((start + count))); do
 		end=$((start + range_size))
 		srcstart=$((start + src_delta))
@@ -1480,10 +1487,13 @@ test_performance() {
 }
 
 test_bug_flush_remove_add() {
+	rounds=100
+	[ "$KSFT_MACHINE_SLOW" = "yes" ] && rounds=10
+
 	set_cmd='{ set s { type ipv4_addr . inet_service; flags interval; }; }'
 	elem1='{ 10.0.0.1 . 22-25, 10.0.0.1 . 10-20 }'
 	elem2='{ 10.0.0.1 . 10-20, 10.0.0.1 . 22-25 }'
-	for i in $(seq 1 100); do
+	for i in $(seq 1 $rounds); do
 		nft add table t "$set_cmd"	|| return ${ksft_skip}
 		nft add element t s "$elem1"	2>/dev/null || return 1
 		nft flush set t s		2>/dev/null || return 1
@@ -1552,7 +1562,7 @@ test_reported_issues() {
 # Run everything in a separate network namespace
 [ "${1}" != "run" ] && { unshare -n "${0}" run; exit $?; }
 tmp="$(mktemp)"
-trap cleanup EXIT
+trap cleanup_exit EXIT
 
 # Entry point for test runs
 passed=0
@@ -1584,9 +1594,15 @@ for name in ${TESTS}; do
 			continue
 		fi
 
-		printf "  %-60s  " "${display}"
+		[ "$KSFT_MACHINE_SLOW" = "yes" ] && count=1
+
+		printf "  %-32s  " "${display}"
+		tthen=$(date +%s)
 		eval test_"${name}"
 		ret=$?
+
+		tnow=$(date +%s)
+		printf "%5ds%-30s" $((tnow-tthen))
 
 		if [ $ret -eq 0 ]; then
 			printf "[ OK ]\n"
