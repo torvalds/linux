@@ -7,6 +7,7 @@ target_name = "autogvm"
 def define_autogvm_lxc():
     _autogvm_lxc_in_tree_modules = [
         # keep sorted
+        "drivers/rpmsg/qcom_glink_cma.ko",
         "drivers/soc/qcom/hgsl/qcom_hgsl.ko",
     ]
 
