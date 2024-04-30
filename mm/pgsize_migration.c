@@ -20,6 +20,9 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
+typedef void (*show_pad_maps_fn)	(struct seq_file *m, struct vm_area_struct *vma);
+typedef int  (*show_pad_smaps_fn)	(struct seq_file *m, void *v);
+
 #ifdef CONFIG_64BIT
 #if PAGE_SIZE == SZ_4K
 DEFINE_STATIC_KEY_TRUE(pgsize_migration_enabled);
@@ -303,7 +306,7 @@ struct vm_area_struct *get_data_vma(struct vm_area_struct *vma)
  * and @pad.
  */
 void show_map_pad_vma(struct vm_area_struct *vma, struct vm_area_struct *pad,
-		      struct seq_file *m, show_pad_vma_fn func)
+		      struct seq_file *m, void *func, bool smaps)
 {
 	if (!pad)
 		return;
@@ -320,7 +323,10 @@ void show_map_pad_vma(struct vm_area_struct *vma, struct vm_area_struct *pad,
 	 */
 	BUG_ON(!vma);
 
-	func(m, pad);
+	if (smaps)
+		((show_pad_smaps_fn)func)(m, pad);
+	else
+		((show_pad_maps_fn)func)(m, pad);
 
 	kfree(pad);
 	kfree(vma);
