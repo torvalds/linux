@@ -156,6 +156,8 @@ do {									\
 	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp)) = (val);	\
 } while (0)
 
+#define __raw_cpu_read_const(pcp)	__raw_cpu_read(, , pcp)
+
 #else /* CONFIG_USE_X86_SEG_SUPPORT */
 
 #define __raw_cpu_read(size, qual, _var)				\
@@ -179,6 +181,12 @@ do {									\
 	    : [var] "+m" (__my_cpu_var(_var))				\
 	    : [val] __pcpu_reg_imm_##size(pto_val__));			\
 } while (0)
+
+/*
+ * The generic per-cpu infrastrucutre is not suitable for
+ * reading const-qualified variables.
+ */
+#define __raw_cpu_read_const(pcp)	({ BUILD_BUG(); (typeof(pcp))0; })
 
 #endif /* CONFIG_USE_X86_SEG_SUPPORT */
 
@@ -470,16 +478,7 @@ do {									\
 #define this_cpu_write_8(pcp, val)	__raw_cpu_write(8, volatile, pcp, val)
 #endif
 
-#ifdef CONFIG_USE_X86_SEG_SUPPORT
-#define this_cpu_read_const(pcp)	__raw_cpu_read(, , pcp)
-#else /* CONFIG_USE_X86_SEG_SUPPORT */
-
-/*
- * The generic per-cpu infrastrucutre is not suitable for
- * reading const-qualified variables.
- */
-#define this_cpu_read_const(pcp)	({ BUILD_BUG(); (typeof(pcp))0; })
-#endif /* CONFIG_USE_X86_SEG_SUPPORT */
+#define this_cpu_read_const(pcp)	__raw_cpu_read_const(pcp)
 
 #define this_cpu_read_stable_1(pcp)	percpu_stable_op(1, "mov", pcp)
 #define this_cpu_read_stable_2(pcp)	percpu_stable_op(2, "mov", pcp)
