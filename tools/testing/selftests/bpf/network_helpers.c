@@ -80,19 +80,19 @@ int settimeo(int fd, int timeout_ms)
 
 #define save_errno_close(fd) ({ int __save = errno; close(fd); errno = __save; })
 
-static int __start_server(int type, int protocol, const struct sockaddr *addr,
-			  socklen_t addrlen, int timeout_ms, bool reuseport)
+static int __start_server(int type, const struct sockaddr *addr, socklen_t addrlen,
+			  bool reuseport, const struct network_helper_opts *opts)
 {
 	int on = 1;
 	int fd;
 
-	fd = socket(addr->sa_family, type, protocol);
+	fd = socket(addr->sa_family, type, opts->proto);
 	if (fd < 0) {
 		log_err("Failed to create server socket");
 		return -1;
 	}
 
-	if (settimeo(fd, timeout_ms))
+	if (settimeo(fd, opts->timeout_ms))
 		goto error_close;
 
 	if (reuseport &&
@@ -120,35 +120,27 @@ error_close:
 	return -1;
 }
 
-static int start_server_proto(int family, int type, int protocol,
-			      const char *addr_str, __u16 port, int timeout_ms)
+int start_server(int family, int type, const char *addr_str, __u16 port,
+		 int timeout_ms)
 {
+	struct network_helper_opts opts = {
+		.timeout_ms	= timeout_ms,
+	};
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
 
 	if (make_sockaddr(family, addr_str, port, &addr, &addrlen))
 		return -1;
 
-	return __start_server(type, protocol, (struct sockaddr *)&addr,
-			      addrlen, timeout_ms, false);
-}
-
-int start_server(int family, int type, const char *addr_str, __u16 port,
-		 int timeout_ms)
-{
-	return start_server_proto(family, type, 0, addr_str, port, timeout_ms);
-}
-
-int start_mptcp_server(int family, const char *addr_str, __u16 port,
-		       int timeout_ms)
-{
-	return start_server_proto(family, SOCK_STREAM, IPPROTO_MPTCP, addr_str,
-				  port, timeout_ms);
+	return __start_server(type, (struct sockaddr *)&addr, addrlen, false, &opts);
 }
 
 int *start_reuseport_server(int family, int type, const char *addr_str,
 			    __u16 port, int timeout_ms, unsigned int nr_listens)
 {
+	struct network_helper_opts opts = {
+		.timeout_ms = timeout_ms,
+	};
 	struct sockaddr_storage addr;
 	unsigned int nr_fds = 0;
 	socklen_t addrlen;
@@ -164,8 +156,7 @@ int *start_reuseport_server(int family, int type, const char *addr_str,
 	if (!fds)
 		return NULL;
 
-	fds[0] = __start_server(type, 0, (struct sockaddr *)&addr, addrlen,
-				timeout_ms, true);
+	fds[0] = __start_server(type, (struct sockaddr *)&addr, addrlen, true, &opts);
 	if (fds[0] == -1)
 		goto close_fds;
 	nr_fds = 1;
@@ -174,8 +165,7 @@ int *start_reuseport_server(int family, int type, const char *addr_str,
 		goto close_fds;
 
 	for (; nr_fds < nr_listens; nr_fds++) {
-		fds[nr_fds] = __start_server(type, 0, (struct sockaddr *)&addr,
-					     addrlen, timeout_ms, true);
+		fds[nr_fds] = __start_server(type, (struct sockaddr *)&addr, addrlen, true, &opts);
 		if (fds[nr_fds] == -1)
 			goto close_fds;
 	}
@@ -193,8 +183,7 @@ int start_server_addr(int type, const struct sockaddr_storage *addr, socklen_t l
 	if (!opts)
 		opts = &default_opts;
 
-	return __start_server(type, 0, (struct sockaddr *)addr, len,
-			      opts->timeout_ms, 0);
+	return __start_server(type, (struct sockaddr *)addr, len, 0, opts);
 }
 
 void free_fds(int *fds, unsigned int nr_close_fds)
