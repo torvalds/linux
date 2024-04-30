@@ -308,17 +308,12 @@
 		jal	octeon_mult_restore
 #endif
 #ifdef CONFIG_CPU_HAS_SMARTMIPS
-		LONG_L	$24, PT_ACX(sp)
-		mtlhx	$24
-		LONG_L	$24, PT_HI(sp)
-		mtlhx	$24
+		LONG_L	$14, PT_ACX(sp)
 		LONG_L	$24, PT_LO(sp)
-		mtlhx	$24
+		LONG_L	$15, PT_HI(sp)
 #elif !defined(CONFIG_CPU_MIPSR6)
 		LONG_L	$24, PT_LO(sp)
-		mtlo	$24
-		LONG_L	$24, PT_HI(sp)
-		mthi	$24
+		LONG_L	$15, PT_HI(sp)
 #endif
 #ifdef CONFIG_32BIT
 		cfi_ld	$8, PT_R8, \docfi
@@ -327,6 +322,14 @@
 		cfi_ld	$10, PT_R10, \docfi
 		cfi_ld	$11, PT_R11, \docfi
 		cfi_ld	$12, PT_R12, \docfi
+#ifdef CONFIG_CPU_HAS_SMARTMIPS
+		mtlhx	$14
+		mtlhx	$15
+		mtlhx	$24
+#elif !defined(CONFIG_CPU_MIPSR6)
+		mtlo	$24
+		mthi	$15
+#endif
 		cfi_ld	$13, PT_R13, \docfi
 		cfi_ld	$14, PT_R14, \docfi
 		cfi_ld	$15, PT_R15, \docfi
