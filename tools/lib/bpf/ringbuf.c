@@ -301,7 +301,7 @@ int ring_buffer__consume_n(struct ring_buffer *rb, size_t n)
 		if (n == 0)
 			break;
 	}
-	return res;
+	return res > INT_MAX ? INT_MAX : res;
 }
 
 /* Consume available ring buffer(s) data without event polling.
