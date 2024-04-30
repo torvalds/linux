@@ -844,7 +844,8 @@ static void dg2_activate_panel_replay(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	intel_de_rmw(dev_priv, PSR2_MAN_TRK_CTL(intel_dp->psr.transcoder),
+	intel_de_rmw(dev_priv,
+		     PSR2_MAN_TRK_CTL(dev_priv, intel_dp->psr.transcoder),
 		     0, ADLP_PSR2_MAN_TRK_CTL_SF_CONTINUOS_FULL_FRAME);
 
 	intel_de_rmw(dev_priv, TRANS_DP2_CTL(intel_dp->psr.transcoder), 0,
@@ -919,10 +920,12 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	if (intel_dp->psr.psr2_sel_fetch_enabled) {
 		u32 tmp;
 
-		tmp = intel_de_read(dev_priv, PSR2_MAN_TRK_CTL(cpu_transcoder));
+		tmp = intel_de_read(dev_priv,
+				    PSR2_MAN_TRK_CTL(dev_priv, cpu_transcoder));
 		drm_WARN_ON(&dev_priv->drm, !(tmp & PSR2_MAN_TRK_CTL_ENABLE));
 	} else if (HAS_PSR2_SEL_FETCH(dev_priv)) {
-		intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(cpu_transcoder), 0);
+		intel_de_write(dev_priv,
+			       PSR2_MAN_TRK_CTL(dev_priv, cpu_transcoder), 0);
 	}
 
 	if (psr2_su_region_et_valid(intel_dp))
@@ -1681,7 +1684,8 @@ void intel_psr_get_config(struct intel_encoder *encoder,
 		goto unlock;
 
 	if (HAS_PSR2_SEL_FETCH(dev_priv)) {
-		val = intel_de_read(dev_priv, PSR2_MAN_TRK_CTL(cpu_transcoder));
+		val = intel_de_read(dev_priv,
+				    PSR2_MAN_TRK_CTL(dev_priv, cpu_transcoder));
 		if (val & PSR2_MAN_TRK_CTL_ENABLE)
 			pipe_config->enable_psr2_sel_fetch = true;
 	}
@@ -2251,7 +2255,7 @@ static void psr_force_hw_tracking_exit(struct intel_dp *intel_dp)
 
 	if (intel_dp->psr.psr2_sel_fetch_enabled)
 		intel_de_write(dev_priv,
-			       PSR2_MAN_TRK_CTL(cpu_transcoder),
+			       PSR2_MAN_TRK_CTL(dev_priv, cpu_transcoder),
 			       man_trk_ctl_enable_bit_get(dev_priv) |
 			       man_trk_ctl_partial_frame_bit_get(dev_priv) |
 			       man_trk_ctl_single_full_frame_bit_get(dev_priv) |
@@ -2293,7 +2297,7 @@ void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_st
 		break;
 	}
 
-	intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(cpu_transcoder),
+	intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(dev_priv, cpu_transcoder),
 		       crtc_state->psr2_man_track_ctl);
 
 	if (!crtc_state->enable_psr2_su_region_et)
@@ -3014,7 +3018,9 @@ static void _psr_invalidate_handle(struct intel_dp *intel_dp)
 		val = man_trk_ctl_enable_bit_get(dev_priv) |
 		      man_trk_ctl_partial_frame_bit_get(dev_priv) |
 		      man_trk_ctl_continuos_full_frame(dev_priv);
-		intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(cpu_transcoder), val);
+		intel_de_write(dev_priv,
+			       PSR2_MAN_TRK_CTL(dev_priv, cpu_transcoder),
+			       val);
 		intel_de_write(dev_priv, CURSURFLIVE(intel_dp->psr.pipe), 0);
 		intel_dp->psr.psr2_sel_fetch_cff_enabled = true;
 	} else {
@@ -3112,7 +3118,8 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
 				 * SU configuration in case update is sent for any reason after
 				 * sff bit gets cleared by the HW on next vblank.
 				 */
-				intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(cpu_transcoder),
+				intel_de_write(dev_priv,
+					       PSR2_MAN_TRK_CTL(dev_priv, cpu_transcoder),
 					       val);
 				intel_de_write(dev_priv, CURSURFLIVE(intel_dp->psr.pipe), 0);
 				intel_dp->psr.psr2_sel_fetch_cff_enabled = false;
