@@ -1307,7 +1307,7 @@ static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_i
 		return ret;
 
 	a_mut->v.oldest_gen = ca->oldest_gen[iter->pos.offset];
-	a_mut->v.data_type = alloc_data_type(a_mut->v, a_mut->v.data_type);
+	alloc_data_type_set(&a_mut->v, a_mut->v.data_type);
 
 	return bch2_trans_update(trans, iter, &a_mut->k_i, 0);
 }

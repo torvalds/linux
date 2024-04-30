@@ -39,32 +39,6 @@ static inline u8 alloc_gc_gen(struct bch_alloc_v4 a)
 	return a.gen - a.oldest_gen;
 }
 
-static inline enum bch_data_type __alloc_data_type(u32 dirty_sectors,
-						   u32 cached_sectors,
-						   u32 stripe,
-						   struct bch_alloc_v4 a,
-						   enum bch_data_type data_type)
-{
-	if (stripe)
-		return data_type == BCH_DATA_parity ? data_type : BCH_DATA_stripe;
-	if (dirty_sectors)
-		return data_type;
-	if (cached_sectors)
-		return BCH_DATA_cached;
-	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
-		return BCH_DATA_need_discard;
-	if (alloc_gc_gen(a) >= BUCKET_GC_GEN_MAX)
-		return BCH_DATA_need_gc_gens;
-	return BCH_DATA_free;
-}
-
-static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
-						 enum bch_data_type data_type)
-{
-	return __alloc_data_type(a.dirty_sectors, a.cached_sectors,
-				 a.stripe, a, data_type);
-}
-
 static inline enum bch_data_type bucket_data_type(enum bch_data_type data_type)
 {
 	switch (data_type) {
@@ -99,6 +73,37 @@ static inline unsigned bch2_bucket_sectors_fragmented(struct bch_dev *ca,
 	int d = bch2_bucket_sectors_dirty(a);
 
 	return d ? max(0, ca->mi.bucket_size - d) : 0;
+}
+
+static inline enum bch_data_type __alloc_data_type(u32 dirty_sectors,
+						   u32 cached_sectors,
+						   u32 stripe,
+						   struct bch_alloc_v4 a,
+						   enum bch_data_type data_type)
+{
+	if (stripe)
+		return data_type == BCH_DATA_parity ? data_type : BCH_DATA_stripe;
+	if (dirty_sectors)
+		return data_type;
+	if (cached_sectors)
+		return BCH_DATA_cached;
+	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
+		return BCH_DATA_need_discard;
+	if (alloc_gc_gen(a) >= BUCKET_GC_GEN_MAX)
+		return BCH_DATA_need_gc_gens;
+	return BCH_DATA_free;
+}
+
+static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
+						 enum bch_data_type data_type)
+{
+	return __alloc_data_type(a.dirty_sectors, a.cached_sectors,
+				 a.stripe, a, data_type);
+}
+
+static inline void alloc_data_type_set(struct bch_alloc_v4 *a, enum bch_data_type data_type)
+{
+	a->data_type = alloc_data_type(*a, data_type);
 }
 
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)

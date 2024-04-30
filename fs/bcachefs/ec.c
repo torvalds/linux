@@ -290,7 +290,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 			goto err;
 
 		if (deleting)
-			a->v.data_type = alloc_data_type(a->v, BCH_DATA_user);
+			alloc_data_type_set(&a->v, BCH_DATA_user);
 
 		ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
 		if (ret)

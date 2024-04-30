@@ -741,7 +741,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
 
-		new_a->data_type = alloc_data_type(*new_a, new_a->data_type);
+		alloc_data_type_set(new_a, new_a->data_type);
 
 		if (bch2_bucket_sectors(*new_a) > bch2_bucket_sectors(*old_a)) {
 			new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
@@ -1761,7 +1761,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	}
 
 	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
-	a->v.data_type = alloc_data_type(a->v, a->v.data_type);
+	alloc_data_type_set(&a->v, a->v.data_type);
 write:
 	ret =   bch2_trans_update(trans, &iter, &a->k_i, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
@@ -1830,7 +1830,7 @@ static int bch2_clear_bucket_needs_discard(struct btree_trans *trans, struct bpo
 
 	BUG_ON(a->v.dirty_sectors);
 	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
-	a->v.data_type = alloc_data_type(a->v, a->v.data_type);
+	alloc_data_type_set(&a->v, a->v.data_type);
 
 	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
 err:
