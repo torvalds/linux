@@ -122,7 +122,7 @@ void prueth_xmit_free(struct prueth_tx_chn *tx_chn,
 }
 
 int emac_tx_complete_packets(struct prueth_emac *emac, int chn,
-			     int budget)
+			     int budget, bool *tdown)
 {
 	struct net_device *ndev = emac->ndev;
 	struct cppi5_host_desc_t *desc_tx;
@@ -145,6 +145,7 @@ int emac_tx_complete_packets(struct prueth_emac *emac, int chn,
 		if (cppi5_desc_is_tdcm(desc_dma)) {
 			if (atomic_dec_and_test(&emac->tdown_cnt))
 				complete(&emac->tdown_complete);
+			*tdown = true;
 			break;
 		}
 
@@ -190,19 +191,37 @@ int emac_tx_complete_packets(struct prueth_emac *emac, int chn,
 	return num_tx;
 }
 
+static enum hrtimer_restart emac_tx_timer_callback(struct hrtimer *timer)
+{
+	struct prueth_tx_chn *tx_chns =
+			container_of(timer, struct prueth_tx_chn, tx_hrtimer);
+
+	enable_irq(tx_chns->irq);
+	return HRTIMER_NORESTART;
+}
+
 static int emac_napi_tx_poll(struct napi_struct *napi_tx, int budget)
 {
 	struct prueth_tx_chn *tx_chn = prueth_napi_to_tx_chn(napi_tx);
 	struct prueth_emac *emac = tx_chn->emac;
+	bool tdown = false;
 	int num_tx_packets;
 
-	num_tx_packets = emac_tx_complete_packets(emac, tx_chn->id, budget);
+	num_tx_packets = emac_tx_complete_packets(emac, tx_chn->id, budget,
+						  &tdown);
 
 	if (num_tx_packets >= budget)
 		return budget;
 
-	if (napi_complete_done(napi_tx, num_tx_packets))
-		enable_irq(tx_chn->irq);
+	if (napi_complete_done(napi_tx, num_tx_packets)) {
+		if (unlikely(tx_chn->tx_pace_timeout_ns && !tdown)) {
+			hrtimer_start(&tx_chn->tx_hrtimer,
+				      ns_to_ktime(tx_chn->tx_pace_timeout_ns),
+				      HRTIMER_MODE_REL_PINNED);
+		} else {
+			enable_irq(tx_chn->irq);
+		}
+	}
 
 	return num_tx_packets;
 }
@@ -226,6 +245,9 @@ int prueth_ndev_add_tx_napi(struct prueth_emac *emac)
 		struct prueth_tx_chn *tx_chn = &emac->tx_chns[i];
 
 		netif_napi_add_tx(emac->ndev, &tx_chn->napi_tx, emac_napi_tx_poll);
+		hrtimer_init(&tx_chn->tx_hrtimer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL_PINNED);
+		tx_chn->tx_hrtimer.function = &emac_tx_timer_callback;
 		ret = request_irq(tx_chn->irq, prueth_tx_irq,
 				  IRQF_TRIGGER_HIGH, tx_chn->name,
 				  tx_chn);
@@ -871,8 +893,15 @@ int emac_napi_rx_poll(struct napi_struct *napi_rx, int budget)
 			break;
 	}
 
-	if (num_rx < budget && napi_complete_done(napi_rx, num_rx))
-		enable_irq(emac->rx_chns.irq[rx_flow]);
+	if (num_rx < budget && napi_complete_done(napi_rx, num_rx)) {
+		if (unlikely(emac->rx_pace_timeout_ns)) {
+			hrtimer_start(&emac->rx_hrtimer,
+				      ns_to_ktime(emac->rx_pace_timeout_ns),
+				      HRTIMER_MODE_REL_PINNED);
+		} else {
+			enable_irq(emac->rx_chns.irq[rx_flow]);
+		}
+	}
 
 	return num_rx;
 }

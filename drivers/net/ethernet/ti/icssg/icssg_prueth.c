@@ -243,6 +243,16 @@ static void emac_adjust_link(struct net_device *ndev)
 	}
 }
 
+static enum hrtimer_restart emac_rx_timer_callback(struct hrtimer *timer)
+{
+	struct prueth_emac *emac =
+			container_of(timer, struct prueth_emac, rx_hrtimer);
+	int rx_flow = PRUETH_RX_FLOW_DATA;
+
+	enable_irq(emac->rx_chns.irq[rx_flow]);
+	return HRTIMER_NORESTART;
+}
+
 static int emac_phy_connect(struct prueth_emac *emac)
 {
 	struct prueth *prueth = emac->prueth;
@@ -582,8 +592,10 @@ static int emac_ndo_stop(struct net_device *ndev)
 		netdev_err(ndev, "tx teardown timeout\n");
 
 	prueth_reset_tx_chan(emac, emac->tx_ch_num, true);
-	for (i = 0; i < emac->tx_ch_num; i++)
+	for (i = 0; i < emac->tx_ch_num; i++) {
 		napi_disable(&emac->tx_chns[i].napi_tx);
+		hrtimer_cancel(&emac->tx_chns[i].tx_hrtimer);
+	}
 
 	max_rx_flows = PRUETH_MAX_RX_FLOWS;
 	k3_udma_glue_tdown_rx_chn(emac->rx_chns.rx_chn, true);
@@ -591,6 +603,7 @@ static int emac_ndo_stop(struct net_device *ndev)
 	prueth_reset_rx_chan(&emac->rx_chns, max_rx_flows, true);
 
 	napi_disable(&emac->napi_rx);
+	hrtimer_cancel(&emac->rx_hrtimer);
 
 	cancel_work_sync(&emac->rx_mode_work);
 
@@ -801,6 +814,9 @@ static int prueth_netdev_init(struct prueth *prueth,
 	ndev->features = ndev->hw_features;
 
 	netif_napi_add(ndev, &emac->napi_rx, emac_napi_rx_poll);
+	hrtimer_init(&emac->rx_hrtimer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_REL_PINNED);
+	emac->rx_hrtimer.function = &emac_rx_timer_callback;
 	prueth->emac[mac] = emac;
 
 	return 0;
