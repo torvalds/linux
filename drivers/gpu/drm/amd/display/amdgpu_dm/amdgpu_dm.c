@@ -597,12 +597,14 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	if (!acrtc)
 		return;
 
-	if (acrtc->wb_pending) {
-		if (acrtc->wb_conn) {
-			spin_lock_irqsave(&acrtc->wb_conn->job_lock, flags);
+	if (acrtc->wb_conn) {
+		spin_lock_irqsave(&acrtc->wb_conn->job_lock, flags);
+
+		if (acrtc->wb_pending) {
 			job = list_first_entry_or_null(&acrtc->wb_conn->job_queue,
 						       struct drm_writeback_job,
 						       list_entry);
+			acrtc->wb_pending = false;
 			spin_unlock_irqrestore(&acrtc->wb_conn->job_lock, flags);
 
 			if (job) {
@@ -620,8 +622,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 							       acrtc->dm_irq_params.stream, 0);
 			}
 		} else
-			DRM_ERROR("%s: no amdgpu_crtc wb_conn\n", __func__);
-		acrtc->wb_pending = false;
+			spin_unlock_irqrestore(&acrtc->wb_conn->job_lock, flags);
 	}
 
 	vrr_active = amdgpu_dm_crtc_vrr_active_irq(acrtc);
