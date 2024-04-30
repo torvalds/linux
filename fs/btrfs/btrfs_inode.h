@@ -225,11 +225,20 @@ struct btrfs_inode {
 		u64 last_dir_index_offset;
 	};
 
-	/*
-	 * Total number of bytes pending defrag, used by stat to check whether
-	 * it needs COW. Protected by 'lock'.
-	 */
-	u64 defrag_bytes;
+	union {
+		/*
+		 * Total number of bytes pending defrag, used by stat to check whether
+		 * it needs COW. Protected by 'lock'.
+		 * Used by inodes other than the data relocation inode.
+		 */
+		u64 defrag_bytes;
+
+		/*
+		 * Logical address of the block group being relocated.
+		 * Used only by the data relocation inode.
+		 */
+		u64 reloc_block_group_start;
+	};
 
 	/*
 	 * The size of the file stored in the metadata on disk.  data=ordered
@@ -238,12 +247,21 @@ struct btrfs_inode {
 	 */
 	u64 disk_i_size;
 
-	/*
-	 * If this is a directory then index_cnt is the counter for the index
-	 * number for new files that are created. For an empty directory, this
-	 * must be initialized to BTRFS_DIR_START_INDEX.
-	 */
-	u64 index_cnt;
+	union {
+		/*
+		 * If this is a directory then index_cnt is the counter for the
+		 * index number for new files that are created. For an empty
+		 * directory, this must be initialized to BTRFS_DIR_START_INDEX.
+		 */
+		u64 index_cnt;
+
+		/*
+		 * If this is not a directory, this is the number of bytes
+		 * outstanding that are going to need csums. This is used in
+		 * ENOSPC accounting. Protected by 'lock'.
+		 */
+		u64 csum_bytes;
+	};
 
 	/* Cache the directory index number to speed the dir/file remove */
 	u64 dir_index;
@@ -265,12 +283,6 @@ struct btrfs_inode {
 	 * Protected by the vfs inode lock.
 	 */
 	u64 last_reflink_trans;
-
-	/*
-	 * Number of bytes outstanding that are going to need csums.  This is
-	 * used in ENOSPC accounting. Protected by 'lock'.
-	 */
-	u64 csum_bytes;
 
 	/* Backwards incompatible flags, lower half of inode_item::flags  */
 	u32 flags;

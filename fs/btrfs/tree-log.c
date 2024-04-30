@@ -1644,7 +1644,8 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 	}
-	BTRFS_I(inode)->index_cnt = (u64)-1;
+	if (S_ISDIR(inode->i_mode))
+		BTRFS_I(inode)->index_cnt = (u64)-1;
 
 	if (inode->i_nlink == 0) {
 		if (S_ISDIR(inode->i_mode)) {

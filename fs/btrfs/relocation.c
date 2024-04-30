@@ -962,7 +962,7 @@ static int get_new_location(struct inode *reloc_inode, u64 *new_bytenr,
 	if (!path)
 		return -ENOMEM;
 
-	bytenr -= BTRFS_I(reloc_inode)->index_cnt;
+	bytenr -= BTRFS_I(reloc_inode)->reloc_block_group_start;
 	ret = btrfs_lookup_file_extent(NULL, root, path,
 			btrfs_ino(BTRFS_I(reloc_inode)), bytenr, 0);
 	if (ret < 0)
@@ -2797,7 +2797,7 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 	u64 alloc_hint = 0;
 	u64 start;
 	u64 end;
-	u64 offset = inode->index_cnt;
+	u64 offset = inode->reloc_block_group_start;
 	u64 num_bytes;
 	int nr;
 	int ret = 0;
@@ -2951,7 +2951,7 @@ static int relocate_one_folio(struct inode *inode, struct file_ra_state *ra,
 			      int *cluster_nr, unsigned long index)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	u64 offset = BTRFS_I(inode)->index_cnt;
+	u64 offset = BTRFS_I(inode)->reloc_block_group_start;
 	const unsigned long last_index = (cluster->end - offset) >> PAGE_SHIFT;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 	struct folio *folio;
@@ -3086,7 +3086,7 @@ release_folio:
 static int relocate_file_extent_cluster(struct inode *inode,
 					const struct file_extent_cluster *cluster)
 {
-	u64 offset = BTRFS_I(inode)->index_cnt;
+	u64 offset = BTRFS_I(inode)->reloc_block_group_start;
 	unsigned long index;
 	unsigned long last_index;
 	struct file_ra_state *ra;
@@ -3915,7 +3915,7 @@ static noinline_for_stack struct inode *create_reloc_inode(
 		inode = NULL;
 		goto out;
 	}
-	BTRFS_I(inode)->index_cnt = group->start;
+	BTRFS_I(inode)->reloc_block_group_start = group->start;
 
 	ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 out:
@@ -4395,7 +4395,7 @@ int btrfs_reloc_clone_csums(struct btrfs_ordered_extent *ordered)
 {
 	struct btrfs_inode *inode = BTRFS_I(ordered->inode);
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	u64 disk_bytenr = ordered->file_offset + inode->index_cnt;
+	u64 disk_bytenr = ordered->file_offset + inode->reloc_block_group_start;
 	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, disk_bytenr);
 	LIST_HEAD(list);
 	int ret;

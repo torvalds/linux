@@ -3856,7 +3856,9 @@ static int btrfs_read_locked_inode(struct inode *inode,
 	inode->i_rdev = 0;
 	rdev = btrfs_inode_rdev(leaf, inode_item);
 
-	BTRFS_I(inode)->index_cnt = (u64)-1;
+	if (S_ISDIR(inode->i_mode))
+		BTRFS_I(inode)->index_cnt = (u64)-1;
+
 	btrfs_inode_split_flags(btrfs_inode_flags(leaf, inode_item),
 				&BTRFS_I(inode)->flags, &BTRFS_I(inode)->ro_flags);
 
@@ -6268,8 +6270,10 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 	}
-	/* index_cnt is ignored for everything but a dir. */
-	BTRFS_I(inode)->index_cnt = BTRFS_DIR_START_INDEX;
+
+	if (S_ISDIR(inode->i_mode))
+		BTRFS_I(inode)->index_cnt = BTRFS_DIR_START_INDEX;
+
 	BTRFS_I(inode)->generation = trans->transid;
 	inode->i_generation = BTRFS_I(inode)->generation;
 
@@ -8435,8 +8439,12 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->disk_i_size = 0;
 	ei->flags = 0;
 	ei->ro_flags = 0;
+	/*
+	 * ->index_cnt will be properly initialized later when creating a new
+	 * inode (btrfs_create_new_inode()) or when reading an existing inode
+	 * from disk (btrfs_read_locked_inode()).
+	 */
 	ei->csum_bytes = 0;
-	ei->index_cnt = (u64)-1;
 	ei->dir_index = 0;
 	ei->last_unlink_trans = 0;
 	ei->last_reflink_trans = 0;
@@ -8511,9 +8519,10 @@ void btrfs_destroy_inode(struct inode *vfs_inode)
 	if (!S_ISDIR(vfs_inode->i_mode)) {
 		WARN_ON(inode->delalloc_bytes);
 		WARN_ON(inode->new_delalloc_bytes);
+		WARN_ON(inode->csum_bytes);
 	}
-	WARN_ON(inode->csum_bytes);
-	WARN_ON(inode->defrag_bytes);
+	if (!root || !btrfs_is_data_reloc_root(root))
+		WARN_ON(inode->defrag_bytes);
 
 	/*
 	 * This can happen where we create an inode, but somebody else also
