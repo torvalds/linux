@@ -39,13 +39,22 @@ static inline u8 alloc_gc_gen(struct bch_alloc_v4 a)
 	return a.gen - a.oldest_gen;
 }
 
-static inline void __bucket_m_to_alloc(struct bch_alloc_v4 *dst, struct bucket b)
+static inline void alloc_to_bucket(struct bucket *dst, struct bch_alloc_v4 src)
 {
-	dst->gen		= b.gen;
-	dst->data_type		= b.data_type;
-	dst->dirty_sectors	= b.dirty_sectors;
-	dst->cached_sectors	= b.cached_sectors;
-	dst->stripe		= b.stripe;
+	dst->gen		= src.gen;
+	dst->data_type		= src.data_type;
+	dst->dirty_sectors	= src.dirty_sectors;
+	dst->cached_sectors	= src.cached_sectors;
+	dst->stripe		= src.stripe;
+}
+
+static inline void __bucket_m_to_alloc(struct bch_alloc_v4 *dst, struct bucket src)
+{
+	dst->gen		= src.gen;
+	dst->data_type		= src.data_type;
+	dst->dirty_sectors	= src.dirty_sectors;
+	dst->cached_sectors	= src.cached_sectors;
+	dst->stripe		= src.stripe;
 }
 
 static inline struct bch_alloc_v4 bucket_m_to_alloc(struct bucket b)
@@ -73,7 +82,7 @@ static inline bool bucket_data_type_mismatch(enum bch_data_type bucket,
 		bucket_data_type(bucket) != bucket_data_type(ptr);
 }
 
-static inline unsigned bch2_bucket_sectors(struct bch_alloc_v4 a)
+static inline unsigned bch2_bucket_sectors_total(struct bch_alloc_v4 a)
 {
 	return a.dirty_sectors + a.cached_sectors;
 }

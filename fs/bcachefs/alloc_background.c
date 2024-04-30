@@ -263,7 +263,7 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 	case BCH_DATA_free:
 	case BCH_DATA_need_gc_gens:
 	case BCH_DATA_need_discard:
-		bkey_fsck_err_on(bch2_bucket_sectors(*a.v) || a.v->stripe,
+		bkey_fsck_err_on(bch2_bucket_sectors_total(*a.v) || a.v->stripe,
 				 c, err, alloc_key_empty_but_have_data,
 				 "empty data type free but have data");
 		break;
@@ -743,7 +743,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 		alloc_data_type_set(new_a, new_a->data_type);
 
-		if (bch2_bucket_sectors(*new_a) > bch2_bucket_sectors(*old_a)) {
+		if (bch2_bucket_sectors_total(*new_a) > bch2_bucket_sectors_total(*old_a)) {
 			new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
 			new_a->io_time[WRITE]= max_t(u64, 1, atomic64_read(&c->io_clock[WRITE].now));
 			SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, true);
@@ -1703,7 +1703,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
-	if (a->v.dirty_sectors) {
+	if (bch2_bucket_sectors_total(a->v)) {
 		if (bch2_trans_inconsistent_on(c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info,
 					       trans, "attempting to discard bucket with dirty data\n%s",
 					       (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))

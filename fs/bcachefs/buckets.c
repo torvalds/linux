@@ -943,23 +943,18 @@ static int __mark_pointer(struct btree_trans *trans,
 			  struct bkey_s_c k,
 			  const struct bch_extent_ptr *ptr,
 			  s64 sectors, enum bch_data_type ptr_data_type,
-			  u8 bucket_gen, u8 *bucket_data_type,
-			  u32 *dirty_sectors, u32 *cached_sectors)
+			  struct bch_alloc_v4 *a)
 {
 	u32 *dst_sectors = !ptr->cached
-		? dirty_sectors
-		: cached_sectors;
+		? &a->dirty_sectors
+		: &a->cached_sectors;
 	int ret = bch2_bucket_ref_update(trans, k, ptr, sectors, ptr_data_type,
-					 bucket_gen, *bucket_data_type, dst_sectors);
+					 a->gen, a->data_type, dst_sectors);
 
 	if (ret)
 		return ret;
 
-	if (!*dirty_sectors && !*cached_sectors)
-		*bucket_data_type = 0;
-	else if (*bucket_data_type != BCH_DATA_stripe)
-		*bucket_data_type = ptr_data_type;
-
+	alloc_data_type_set(a, ptr_data_type);
 	return 0;
 }
 
@@ -984,9 +979,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		if (ret)
 			return ret;
 
-		ret = __mark_pointer(trans, k, &p.ptr, *sectors, bp.data_type,
-				     a->v.gen, &a->v.data_type,
-				     &a->v.dirty_sectors, &a->v.cached_sectors) ?:
+		ret = __mark_pointer(trans, k, &p.ptr, *sectors, bp.data_type, &a->v) ?:
 			bch2_trans_update(trans, &iter, &a->k_i, 0);
 		bch2_trans_iter_exit(trans, &iter);
 
@@ -1003,30 +996,20 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	if (flags & BTREE_TRIGGER_gc) {
 		struct bch_fs *c = trans->c;
 		struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
-		enum bch_data_type data_type = bch2_bkey_ptr_data_type(k, p, entry);
 
 		percpu_down_read(&c->mark_lock);
-		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
+		struct bucket *g = gc_bucket(ca, bucket.offset);
 		bucket_lock(g);
-		struct bch_alloc_v4 old = bucket_m_to_alloc(*g);
+		struct bch_alloc_v4 old = bucket_m_to_alloc(*g), new = old;
 
-		u8 bucket_data_type = g->data_type;
-		int ret = __mark_pointer(trans, k, &p.ptr, *sectors,
-				     data_type, g->gen,
-				     &bucket_data_type,
-				     &g->dirty_sectors,
-				     &g->cached_sectors);
-		if (ret) {
-			bucket_unlock(g);
-			percpu_up_read(&c->mark_lock);
-			return ret;
+		int ret = __mark_pointer(trans, k, &p.ptr, *sectors, bp.data_type, &new);
+		if (!ret) {
+			alloc_to_bucket(g, new);
+			bch2_dev_usage_update(c, ca, &old, &new, 0, true);
 		}
-
-		g->data_type = bucket_data_type;
-		struct bch_alloc_v4 new = bucket_m_to_alloc(*g);
 		bucket_unlock(g);
-		bch2_dev_usage_update(c, ca, &old, &new, 0, true);
 		percpu_up_read(&c->mark_lock);
+		return ret;
 	}
 
 	return 0;
