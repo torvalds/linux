@@ -31,3 +31,6 @@ crypto-qti-virt.ko
 virtio_blk_qti_crypto.ko
 qcom-ipcc.ko
 debug_symbol.ko
+virtio_net.ko
+net_failover.ko
+failover.ko
