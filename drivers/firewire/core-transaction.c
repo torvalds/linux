@@ -463,6 +463,8 @@ static DECLARE_COMPLETION(phy_config_done);
 static void transmit_phy_packet_callback(struct fw_packet *packet,
 					 struct fw_card *card, int status)
 {
+	trace_async_phy_outbound_complete((uintptr_t)packet, packet->generation, status,
+					  packet->timestamp);
 	complete(&phy_config_done);
 }
 
@@ -500,6 +502,10 @@ void fw_send_phy_config(struct fw_card *card,
 	phy_config_packet.header[2] = ~data;
 	phy_config_packet.generation = generation;
 	reinit_completion(&phy_config_done);
+
+	trace_async_phy_outbound_initiate((uintptr_t)&phy_config_packet,
+					  phy_config_packet.generation, phy_config_packet.header[1],
+					  phy_config_packet.header[2]);
 
 	card->driver->send_request(card, &phy_config_packet);
 	wait_for_completion_timeout(&phy_config_done, timeout);
