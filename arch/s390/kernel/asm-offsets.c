@@ -13,7 +13,6 @@
 #include <linux/purgatory.h>
 #include <linux/pgtable.h>
 #include <linux/ftrace.h>
-#include <asm/idle.h>
 #include <asm/gmap.h>
 #include <asm/stacktrace.h>
 
@@ -70,11 +69,6 @@ int main(void)
 	DEFINE(STACK_FRAME_USER_OVERHEAD, sizeof(struct stack_frame_user));
 	OFFSET(__SFVDSO_RETURN_ADDRESS, stack_frame_vdso_wrapper, return_address);
 	DEFINE(STACK_FRAME_VDSO_OVERHEAD, sizeof(struct stack_frame_vdso_wrapper));
-	BLANK();
-	/* idle data offsets */
-	OFFSET(__CLOCK_IDLE_ENTER, s390_idle_data, clock_idle_enter);
-	OFFSET(__TIMER_IDLE_ENTER, s390_idle_data, timer_idle_enter);
-	OFFSET(__MT_CYCLES_ENTER, s390_idle_data, mt_cycles_enter);
 	BLANK();
 	/* hardware defined lowcore locations 0x000 - 0x1ff */
 	OFFSET(__LC_EXT_PARAMS, lowcore, ext_params);

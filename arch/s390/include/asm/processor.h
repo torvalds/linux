@@ -40,6 +40,7 @@
 #include <asm/setup.h>
 #include <asm/runtime_instr.h>
 #include <asm/irqflags.h>
+#include <asm/alternative.h>
 
 typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
 
@@ -90,6 +91,14 @@ static __always_inline bool test_cpu_flag_of(int flag, int cpu)
 static inline void get_cpu_id(struct cpuid *ptr)
 {
 	asm volatile("stidp %0" : "=Q" (*ptr));
+}
+
+static __always_inline unsigned long get_cpu_timer(void)
+{
+	unsigned long timer;
+
+	asm volatile("stpt	%[timer]" : [timer] "=Q" (timer));
+	return timer;
 }
 
 void s390_adjust_jiffies(void);
@@ -392,6 +401,11 @@ static __always_inline void __noreturn disabled_wait(void)
 static __always_inline bool regs_irqs_disabled(struct pt_regs *regs)
 {
 	return arch_irqs_disabled_flags(regs->psw.mask);
+}
+
+static __always_inline void bpon(void)
+{
+	asm volatile(ALTERNATIVE("nop", ".insn	rrf,0xb2e80000,0,0,13,0", 82));
 }
 
 #endif /* __ASSEMBLY__ */
