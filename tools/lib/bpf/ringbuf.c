@@ -405,7 +405,7 @@ int ring__map_fd(const struct ring *r)
 
 int ring__consume_n(struct ring *r, size_t n)
 {
-	int res;
+	int64_t res;
 
 	res = ringbuf_process_ring(r, n);
 	if (res < 0)
