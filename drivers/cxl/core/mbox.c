@@ -56,6 +56,9 @@ static struct cxl_mem_command cxl_mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(GET_LSA, 0x8, CXL_VARIABLE_PAYLOAD, 0),
 	CXL_CMD(GET_HEALTH_INFO, 0, 0x12, 0),
 	CXL_CMD(GET_LOG, 0x18, CXL_VARIABLE_PAYLOAD, CXL_CMD_FLAG_FORCE_ENABLE),
+	CXL_CMD(GET_LOG_CAPS, 0x10, 0x4, 0),
+	CXL_CMD(CLEAR_LOG, 0x10, 0, 0),
+	CXL_CMD(GET_SUP_LOG_SUBLIST, 0x2, CXL_VARIABLE_PAYLOAD, 0),
 	CXL_CMD(SET_PARTITION_INFO, 0x0a, 0, 0),
 	CXL_CMD(SET_LSA, CXL_VARIABLE_PAYLOAD, 0, 0),
 	CXL_CMD(GET_ALERT_CONFIG, 0, 0x10, 0),
@@ -330,6 +333,15 @@ static bool cxl_payload_from_user_allowed(u16 opcode, void *payload_in)
 		if (pi->flags & CXL_SET_PARTITION_IMMEDIATE_FLAG)
 			return false;
 		break;
+	}
+	case CXL_MBOX_OP_CLEAR_LOG: {
+		const uuid_t *uuid = (uuid_t *)payload_in;
+
+		/*
+		 * Restrict the ‘Clear log’ action to only apply to
+		 * Vendor debug logs.
+		 */
+		return uuid_equal(uuid, &DEFINE_CXL_VENDOR_DEBUG_UUID);
 	}
 	default:
 		break;
