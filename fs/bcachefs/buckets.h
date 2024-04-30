@@ -310,8 +310,6 @@ bch2_fs_usage_read_short(struct bch_fs *);
 void bch2_dev_usage_update(struct bch_fs *, struct bch_dev *,
 			   const struct bch_alloc_v4 *,
 			   const struct bch_alloc_v4 *, u64, bool);
-void bch2_dev_usage_update_m(struct bch_fs *, struct bch_dev *,
-			     struct bucket *, struct bucket *);
 
 /* key/bucket marking: */
 

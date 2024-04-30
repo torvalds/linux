@@ -318,26 +318,6 @@ void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	preempt_enable();
 }
 
-static inline struct bch_alloc_v4 bucket_m_to_alloc(struct bucket b)
-{
-	return (struct bch_alloc_v4) {
-		.gen		= b.gen,
-		.data_type	= b.data_type,
-		.dirty_sectors	= b.dirty_sectors,
-		.cached_sectors	= b.cached_sectors,
-		.stripe		= b.stripe,
-	};
-}
-
-void bch2_dev_usage_update_m(struct bch_fs *c, struct bch_dev *ca,
-			     struct bucket *old, struct bucket *new)
-{
-	struct bch_alloc_v4 old_a = bucket_m_to_alloc(*old);
-	struct bch_alloc_v4 new_a = bucket_m_to_alloc(*new);
-
-	bch2_dev_usage_update(c, ca, &old_a, &new_a, 0, true);
-}
-
 static inline int __update_replicas(struct bch_fs *c,
 				    struct bch_fs_usage *fs_usage,
 				    struct bch_replicas_entry_v1 *r,
@@ -1028,7 +1008,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		percpu_down_read(&c->mark_lock);
 		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 		bucket_lock(g);
-		struct bucket old = *g;
+		struct bch_alloc_v4 old = bucket_m_to_alloc(*g);
 
 		u8 bucket_data_type = g->data_type;
 		int ret = __mark_pointer(trans, k, &p.ptr, *sectors,
@@ -1043,9 +1023,9 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		}
 
 		g->data_type = bucket_data_type;
-		struct bucket new = *g;
+		struct bch_alloc_v4 new = bucket_m_to_alloc(*g);
 		bucket_unlock(g);
-		bch2_dev_usage_update_m(c, ca, &old, &new);
+		bch2_dev_usage_update(c, ca, &old, &new, 0, true);
 		percpu_up_read(&c->mark_lock);
 	}
 
@@ -1336,14 +1316,13 @@ static int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 			u64 b, enum bch_data_type data_type, unsigned sectors,
 			enum btree_iter_update_trigger_flags flags)
 {
-	struct bucket old, new, *g;
 	int ret = 0;
 
 	percpu_down_read(&c->mark_lock);
-	g = gc_bucket(ca, b);
+	struct bucket *g = gc_bucket(ca, b);
 
 	bucket_lock(g);
-	old = *g;
+	struct bch_alloc_v4 old = bucket_m_to_alloc(*g);
 
 	if (bch2_fs_inconsistent_on(g->data_type &&
 			g->data_type != data_type, c,
@@ -1365,11 +1344,11 @@ static int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 
 	g->data_type = data_type;
 	g->dirty_sectors += sectors;
-	new = *g;
+	struct bch_alloc_v4 new = bucket_m_to_alloc(*g);
 err:
 	bucket_unlock(g);
 	if (!ret)
-		bch2_dev_usage_update_m(c, ca, &old, &new);
+		bch2_dev_usage_update(c, ca, &old, &new, 0, true);
 	percpu_up_read(&c->mark_lock);
 	return ret;
 }

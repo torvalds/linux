@@ -307,7 +307,7 @@ err:
 		struct bucket *g = gc_bucket(ca, bucket.offset);
 
 		bucket_lock(g);
-		struct bucket old = *g;
+		struct bch_alloc_v4 old = bucket_m_to_alloc(*g);
 		u8 data_type = g->data_type;
 
 		int ret = __mark_stripe_bucket(trans, s, ptr_idx, deleting, bucket,
@@ -318,10 +318,10 @@ err:
 					       &g->stripe,
 					       &g->stripe_redundancy);
 		g->data_type = data_type;
-		struct bucket new = *g;
+		struct bch_alloc_v4 new = bucket_m_to_alloc(*g);
 		bucket_unlock(g);
 		if (!ret)
-			bch2_dev_usage_update_m(c, ca, &old, &new);
+			bch2_dev_usage_update(c, ca, &old, &new, 0, true);
 		percpu_up_read(&c->mark_lock);
 		return ret;
 	}

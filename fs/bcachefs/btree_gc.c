@@ -871,40 +871,35 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch2_dev_bkey_exists(c, iter->pos.inode);
-	struct bucket old_gc, gc, *b;
 	struct bkey_i_alloc_v4 *a;
-	struct bch_alloc_v4 old_convert, new;
+	struct bch_alloc_v4 old_gc, gc, old_convert, new;
 	const struct bch_alloc_v4 *old;
 	int ret;
 
 	old = bch2_alloc_to_v4(k, &old_convert);
-	new = *old;
+	gc = new = *old;
 
 	percpu_down_read(&c->mark_lock);
-	b = gc_bucket(ca, iter->pos.offset);
-	old_gc = *b;
+	__bucket_m_to_alloc(&gc, *gc_bucket(ca, iter->pos.offset));
+
+	old_gc = gc;
 
 	if ((old->data_type == BCH_DATA_sb ||
 	     old->data_type == BCH_DATA_journal) &&
 	    !bch2_dev_is_online(ca)) {
-		b->data_type = old->data_type;
-		b->dirty_sectors = old->dirty_sectors;
+		gc.data_type = old->data_type;
+		gc.dirty_sectors = old->dirty_sectors;
 	}
 
 	/*
-	 * b->data_type doesn't yet include need_discard & need_gc_gen states -
+	 * gc.data_type doesn't yet include need_discard & need_gc_gen states -
 	 * fix that here:
 	 */
-	b->data_type = __alloc_data_type(b->dirty_sectors,
-					 b->cached_sectors,
-					 b->stripe,
-					 *old,
-					 b->data_type);
-	gc = *b;
+	alloc_data_type_set(&gc, gc.data_type);
 
 	if (gc.data_type != old_gc.data_type ||
 	    gc.dirty_sectors != old_gc.dirty_sectors)
-		bch2_dev_usage_update_m(c, ca, &old_gc, &gc);
+		bch2_dev_usage_update(c, ca, &old_gc, &gc, 0, true);
 	percpu_up_read(&c->mark_lock);
 
 	if (fsck_err_on(new.data_type != gc.data_type, c,

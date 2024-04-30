@@ -39,6 +39,22 @@ static inline u8 alloc_gc_gen(struct bch_alloc_v4 a)
 	return a.gen - a.oldest_gen;
 }
 
+static inline void __bucket_m_to_alloc(struct bch_alloc_v4 *dst, struct bucket b)
+{
+	dst->gen		= b.gen;
+	dst->data_type		= b.data_type;
+	dst->dirty_sectors	= b.dirty_sectors;
+	dst->cached_sectors	= b.cached_sectors;
+	dst->stripe		= b.stripe;
+}
+
+static inline struct bch_alloc_v4 bucket_m_to_alloc(struct bucket b)
+{
+	struct bch_alloc_v4 ret = {};
+	__bucket_m_to_alloc(&ret, b);
+	return ret;
+}
+
 static inline enum bch_data_type bucket_data_type(enum bch_data_type data_type)
 {
 	switch (data_type) {
@@ -75,30 +91,20 @@ static inline unsigned bch2_bucket_sectors_fragmented(struct bch_dev *ca,
 	return d ? max(0, ca->mi.bucket_size - d) : 0;
 }
 
-static inline enum bch_data_type __alloc_data_type(u32 dirty_sectors,
-						   u32 cached_sectors,
-						   u32 stripe,
-						   struct bch_alloc_v4 a,
-						   enum bch_data_type data_type)
+static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
+						 enum bch_data_type data_type)
 {
-	if (stripe)
+	if (a.stripe)
 		return data_type == BCH_DATA_parity ? data_type : BCH_DATA_stripe;
-	if (dirty_sectors)
+	if (a.dirty_sectors)
 		return data_type;
-	if (cached_sectors)
+	if (a.cached_sectors)
 		return BCH_DATA_cached;
 	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
 		return BCH_DATA_need_discard;
 	if (alloc_gc_gen(a) >= BUCKET_GC_GEN_MAX)
 		return BCH_DATA_need_gc_gens;
 	return BCH_DATA_free;
-}
-
-static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
-						 enum bch_data_type data_type)
-{
-	return __alloc_data_type(a.dirty_sectors, a.cached_sectors,
-				 a.stripe, a, data_type);
 }
 
 static inline void alloc_data_type_set(struct bch_alloc_v4 *a, enum bch_data_type data_type)
