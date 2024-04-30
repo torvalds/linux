@@ -487,6 +487,9 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 
 	update_temperature(tz);
 
+	if (tz->temperature == THERMAL_TEMP_INVALID)
+		return;
+
 	__thermal_zone_set_trips(tz);
 
 	tz->notify_event = event;
