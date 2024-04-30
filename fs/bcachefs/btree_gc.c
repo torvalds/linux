@@ -865,10 +865,10 @@ static inline bool bch2_alloc_v4_cmp(struct bch_alloc_v4 l,
 
 static int bch2_alloc_write_key(struct btree_trans *trans,
 				struct btree_iter *iter,
+				struct bch_dev *ca,
 				struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, iter->pos.inode);
 	struct bkey_i_alloc_v4 *a;
 	struct bch_alloc_v4 old_gc, gc, old_convert, new;
 	const struct bch_alloc_v4 *old;
@@ -965,7 +965,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c)
 					POS(ca->dev_idx, ca->mi.nbuckets - 1),
 					BTREE_ITER_slots|BTREE_ITER_prefetch, k,
 					NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
-				bch2_alloc_write_key(trans, &iter, k)));
+				bch2_alloc_write_key(trans, &iter, ca, k)));
 		if (ret) {
 			bch2_dev_put(ca);
 			break;
