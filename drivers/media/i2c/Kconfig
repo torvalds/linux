@@ -1586,6 +1586,23 @@ config VIDEO_DS90UB960
 	  Device driver for the Texas Instruments DS90UB960
 	  FPD-Link III Deserializer and DS90UB9702 FPD-Link IV Deserializer.
 
+config VIDEO_MAX96717
+	tristate "Maxim MAX96717 GMSL2 Serializer support"
+	depends on OF && I2C && VIDEO_DEV && COMMON_CLK
+	select I2C_MUX
+	select MEDIA_CONTROLLER
+	select GPIOLIB
+	select V4L2_CCI_I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Device driver for the Maxim MAX96717 GMSL2 Serializer.
+	  MAX96717 serializers convert video on a MIPI CSI-2
+	  input to a GMSL2 output.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96717.
+
 endmenu
 
 endif # VIDEO_DEV

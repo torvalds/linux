@@ -13514,6 +13514,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/media/i2c/maxim,max96712.yaml
 F:	drivers/staging/media/max96712/max96712.c
 
+MAX96717 GMSL2 SERIALIZER DRIVER
+M:	Julien Massot <julien.massot@collabora.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/maxim,max96717.yaml
+F:	drivers/media/i2c/max96717.c
+
 MAX9860 MONO AUDIO VOICE CODEC DRIVER
 M:	Peter Rosin <peda@axentia.se>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
