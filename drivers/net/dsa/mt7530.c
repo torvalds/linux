@@ -2484,7 +2484,8 @@ mt7530_setup(struct dsa_switch *ds)
 			if (!phy_node)
 				continue;
 
-			if (phy_node->parent == priv->dev->of_node->parent) {
+			if (phy_node->parent == priv->dev->of_node->parent ||
+			    phy_node->parent->parent == priv->dev->of_node) {
 				ret = of_get_phy_mode(mac_np, &interface);
 				if (ret && ret != -ENODEV) {
 					of_node_put(mac_np);
