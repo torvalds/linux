@@ -12,16 +12,13 @@ maintainers:
 properties:
   compatible:
     oneOf:
-      - items:
-          - const: renesas,sdhi-sh73a0  # R-Mobile APE6
-      - items:
-          - const: renesas,sdhi-r7s72100 # RZ/A1H
-      - items:
-          - const: renesas,sdhi-r7s9210 # SH-Mobile AG5
-      - items:
-          - const: renesas,sdhi-r8a73a4 # R-Mobile APE6
-      - items:
-          - const: renesas,sdhi-r8a7740 # R-Mobile A1
+      - enum:
+          - renesas,sdhi-mmc-r8a77470 # RZ/G1C
+          - renesas,sdhi-r7s72100 # RZ/A1H
+          - renesas,sdhi-r7s9210 # SH-Mobile AG5
+          - renesas,sdhi-r8a73a4 # R-Mobile APE6
+          - renesas,sdhi-r8a7740 # R-Mobile A1
+          - renesas,sdhi-sh73a0  # R-Mobile APE6
       - items:
           - enum:
               - renesas,sdhi-r8a7778 # R-Car M1
@@ -40,8 +37,6 @@ properties:
               - renesas,sdhi-r8a7793  # R-Car M2-N
               - renesas,sdhi-r8a7794  # R-Car E2
           - const: renesas,rcar-gen2-sdhi # R-Car Gen2 and RZ/G1
-      - items:
-          - const: renesas,sdhi-mmc-r8a77470 # RZ/G1C (SDHI/MMC IP)
       - items:
           - enum:
               - renesas,sdhi-r8a774a1  # RZ/G2M
