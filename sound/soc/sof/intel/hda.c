@@ -1645,6 +1645,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct snd_soc_acpi_link_adr *link;
+	struct sdw_extended_slave_id *ids;
 	struct snd_soc_acpi_mach *mach;
 	struct sof_intel_hda_dev *hdev;
 	u32 link_mask;
@@ -1653,91 +1654,108 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 	hdev = pdata->hw_pdata;
 	link_mask = hdev->info.link_mask;
 
+	if (!link_mask) {
+		dev_info(sdev->dev, "SoundWire links not enabled\n");
+		return NULL;
+	}
+
+	if (!hdev->sdw) {
+		dev_dbg(sdev->dev, "SoundWire context not allocated\n");
+		return NULL;
+	}
+
+	if (!hdev->sdw->num_slaves) {
+		dev_warn(sdev->dev, "No SoundWire peripheral detected in ACPI tables\n");
+		return NULL;
+	}
+
 	/*
 	 * Select SoundWire machine driver if needed using the
 	 * alternate tables. This case deals with SoundWire-only
 	 * machines, for mixed cases with I2C/I2S the detection relies
 	 * on the HID list.
 	 */
-	if (link_mask) {
-		for (mach = pdata->desc->alt_machines;
-		     mach && mach->link_mask; mach++) {
+	for (mach = pdata->desc->alt_machines;
+	     mach && mach->link_mask; mach++) {
+		/*
+		 * On some platforms such as Up Extreme all links
+		 * are enabled but only one link can be used by
+		 * external codec. Instead of exact match of two masks,
+		 * first check whether link_mask of mach is subset of
+		 * link_mask supported by hw and then go on searching
+		 * link_adr
+		 */
+		if (~link_mask & mach->link_mask)
+			continue;
+
+		/* No need to match adr if there is no links defined */
+		if (!mach->links)
+			break;
+
+		link = mach->links;
+		for (i = 0; i < hdev->info.count && link->num_adr;
+		     i++, link++) {
 			/*
-			 * On some platforms such as Up Extreme all links
-			 * are enabled but only one link can be used by
-			 * external codec. Instead of exact match of two masks,
-			 * first check whether link_mask of mach is subset of
-			 * link_mask supported by hw and then go on searching
-			 * link_adr
+			 * Try next machine if any expected Slaves
+			 * are not found on this link.
 			 */
-			if (~link_mask & mach->link_mask)
-				continue;
-
-			/* No need to match adr if there is no links defined */
-			if (!mach->links)
-				break;
-
-			link = mach->links;
-			for (i = 0; i < hdev->info.count && link->num_adr;
-			     i++, link++) {
-				/*
-				 * Try next machine if any expected Slaves
-				 * are not found on this link.
-				 */
-				if (!snd_soc_acpi_sdw_link_slaves_found(sdev->dev, link,
-									hdev->sdw->ids,
-									hdev->sdw->num_slaves))
-					break;
-			}
-			/* Found if all Slaves are checked */
-			if (i == hdev->info.count || !link->num_adr)
+			if (!snd_soc_acpi_sdw_link_slaves_found(sdev->dev, link,
+								hdev->sdw->ids,
+								hdev->sdw->num_slaves))
 				break;
 		}
-		if (mach && mach->link_mask) {
-			int dmic_num = 0;
-			bool tplg_fixup;
-			const char *tplg_filename;
-
-			mach->mach_params.links = mach->links;
-			mach->mach_params.link_mask = mach->link_mask;
-			mach->mach_params.platform = dev_name(sdev->dev);
-
-			if (pdata->tplg_filename) {
-				tplg_fixup = false;
-			} else {
-				tplg_fixup = true;
-				tplg_filename = mach->sof_tplg_filename;
-			}
-
-			/*
-			 * DMICs use up to 4 pins and are typically pin-muxed with SoundWire
-			 * link 2 and 3, or link 1 and 2, thus we only try to enable dmics
-			 * if all conditions are true:
-			 * a) 2 or fewer links are used by SoundWire
-			 * b) the NHLT table reports the presence of microphones
-			 */
-			if (hweight_long(mach->link_mask) <= 2) {
-				int ret;
-
-				ret = dmic_detect_topology_fixup(sdev, &tplg_filename, "",
-								 &dmic_num, tplg_fixup);
-				if (ret < 0)
-					return NULL;
-			}
-			if (tplg_fixup)
-				pdata->tplg_filename = tplg_filename;
-			mach->mach_params.dmic_num = dmic_num;
-
-			dev_dbg(sdev->dev,
-				"SoundWire machine driver %s topology %s\n",
-				mach->drv_name,
-				pdata->tplg_filename);
-
-			return mach;
-		}
-
-		dev_info(sdev->dev, "No SoundWire machine driver found\n");
+		/* Found if all Slaves are checked */
+		if (i == hdev->info.count || !link->num_adr)
+			break;
 	}
+	if (mach && mach->link_mask) {
+		int dmic_num = 0;
+		bool tplg_fixup;
+		const char *tplg_filename;
+
+		mach->mach_params.links = mach->links;
+		mach->mach_params.link_mask = mach->link_mask;
+		mach->mach_params.platform = dev_name(sdev->dev);
+
+		if (pdata->tplg_filename) {
+			tplg_fixup = false;
+		} else {
+			tplg_fixup = true;
+			tplg_filename = mach->sof_tplg_filename;
+		}
+
+		/*
+		 * DMICs use up to 4 pins and are typically pin-muxed with SoundWire
+		 * link 2 and 3, or link 1 and 2, thus we only try to enable dmics
+		 * if all conditions are true:
+		 * a) 2 or fewer links are used by SoundWire
+		 * b) the NHLT table reports the presence of microphones
+		 */
+		if (hweight_long(mach->link_mask) <= 2) {
+			int ret;
+
+			ret = dmic_detect_topology_fixup(sdev, &tplg_filename, "",
+							 &dmic_num, tplg_fixup);
+			if (ret < 0)
+				return NULL;
+		}
+		if (tplg_fixup)
+			pdata->tplg_filename = tplg_filename;
+		mach->mach_params.dmic_num = dmic_num;
+
+		dev_dbg(sdev->dev,
+			"SoundWire machine driver %s topology %s\n",
+			mach->drv_name,
+			pdata->tplg_filename);
+
+		return mach;
+	}
+
+	dev_info(sdev->dev, "No SoundWire machine driver found for the ACPI-reported configuration:\n");
+	ids = hdev->sdw->ids;
+	for (i = 0; i < hdev->sdw->num_slaves; i++)
+		dev_info(sdev->dev, "link %d mfg_id 0x%04x part_id 0x%04x version %#x\n",
+			 ids[i].link_id, ids[i].id.mfg_id, ids[i].id.part_id, ids[i].id.sdw_version);
 
 	return NULL;
 }
