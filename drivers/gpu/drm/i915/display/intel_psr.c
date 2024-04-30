@@ -1798,7 +1798,8 @@ static void lnl_alpm_configure(struct intel_dp *intel_dp)
 			       PORT_ALPM_CTL_SILENCE_PERIOD(
 				       psr->alpm_parameters.silence_period_sym_clocks));
 
-		intel_de_write(dev_priv, PORT_ALPM_LFPS_CTL(cpu_transcoder),
+		intel_de_write(dev_priv,
+			       PORT_ALPM_LFPS_CTL(dev_priv, cpu_transcoder),
 			       PORT_ALPM_LFPS_CTL_LFPS_CYCLE_COUNT(10) |
 			       PORT_ALPM_LFPS_CTL_LFPS_HALF_CYCLE_DURATION(
 				       psr->alpm_parameters.lfps_half_cycle_num_of_syms) |
