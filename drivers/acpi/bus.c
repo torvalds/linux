@@ -112,6 +112,17 @@ int acpi_bus_get_status(struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
+	if (!device->status.present && device->status.enabled) {
+		pr_info(FW_BUG "Device [%s] status [%08x]: not present and enabled\n",
+			device->pnp.bus_id, (u32)sta);
+		device->status.enabled = 0;
+		/*
+		 * The status is clearly invalid, so clear the functional bit as
+		 * well to avoid attempting to use the device.
+		 */
+		device->status.functional = 0;
+	}
+
 	acpi_set_device_status(device, sta);
 
 	if (device->status.functional && !device->status.present) {
