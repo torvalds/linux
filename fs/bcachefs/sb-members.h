@@ -262,6 +262,14 @@ static inline struct bch_dev *bch2_dev_bucket_tryget(struct bch_fs *c, struct bp
 	return ca;
 }
 
+static inline struct bch_dev *bch2_dev_iterate(struct bch_fs *c, struct bch_dev *ca, unsigned dev_idx)
+{
+	if (ca && ca->dev_idx == dev_idx)
+		return ca;
+	bch2_dev_put(ca);
+	return bch2_dev_tryget(c, dev_idx);
+}
+
 /* XXX kill, move to struct bch_fs */
 static inline struct bch_devs_mask bch2_online_devs(struct bch_fs *c)
 {
