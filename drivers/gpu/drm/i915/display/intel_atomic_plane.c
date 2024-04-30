@@ -600,7 +600,7 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state)) {
 		new_crtc_state->do_async_flip = true;
 		new_crtc_state->async_flip_planes |= BIT(plane->id);
-	} else if (plane->need_async_flip_disable_wa &&
+	} else if (plane->need_async_flip_toggle_wa &&
 		   new_crtc_state->uapi.async_flip) {
 		/*
 		 * On platforms with double buffered async flip bit we

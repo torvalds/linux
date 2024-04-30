@@ -456,7 +456,7 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 
 	/* see intel_plane_atomic_calc_changes() */
-	if (plane->need_async_flip_disable_wa &&
+	if (plane->need_async_flip_toggle_wa &&
 	    crtc_state->async_flip_planes & BIT(plane->id))
 		dspcntr |= DISP_ASYNC_FLIP;
 
@@ -878,7 +878,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->enable_flip_done = vlv_primary_enable_flip_done;
 		plane->disable_flip_done = vlv_primary_disable_flip_done;
 	} else if (IS_BROADWELL(dev_priv)) {
-		plane->need_async_flip_disable_wa = true;
+		plane->need_async_flip_toggle_wa = true;
 		plane->async_flip = g4x_primary_async_flip;
 		plane->enable_flip_done = bdw_primary_enable_flip_done;
 		plane->disable_flip_done = bdw_primary_disable_flip_done;

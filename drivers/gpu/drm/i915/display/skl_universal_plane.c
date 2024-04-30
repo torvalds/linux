@@ -1175,7 +1175,7 @@ skl_plane_update_arm(struct intel_plane *plane,
 		skl_plane_ctl_crtc(crtc_state);
 
 	/* see intel_plane_atomic_calc_changes() */
-	if (plane->need_async_flip_disable_wa &&
+	if (plane->need_async_flip_toggle_wa &&
 	    crtc_state->async_flip_planes & BIT(plane->id))
 		plane_ctl |= PLANE_CTL_ASYNC_FLIP;
 
@@ -2371,8 +2371,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	plane->check_plane = skl_plane_check;
 
 	if (plane_id == PLANE_PRIMARY) {
-		plane->need_async_flip_disable_wa = IS_DISPLAY_VER(dev_priv,
-								   9, 10);
+		plane->need_async_flip_toggle_wa = IS_DISPLAY_VER(dev_priv, 9, 10);
 		plane->async_flip = skl_plane_async_flip;
 		plane->enable_flip_done = skl_plane_enable_flip_done;
 		plane->disable_flip_done = skl_plane_disable_flip_done;
