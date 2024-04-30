@@ -7800,7 +7800,7 @@ void __init hugetlb_cma_reserve(int order)
 		 * huge page demotion.
 		 */
 		res = cma_declare_contiguous_nid(0, size, 0,
-					PAGE_SIZE << HUGETLB_PAGE_ORDER,
+					PAGE_SIZE << order,
 					HUGETLB_PAGE_ORDER, false, name,
 					&hugetlb_cma[nid], nid);
 		if (res) {
