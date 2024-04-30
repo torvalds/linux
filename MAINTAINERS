@@ -15161,9 +15161,8 @@ F:	drivers/scsi/myrb.*
 F:	drivers/scsi/myrs.*
 
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
-M:	Chris Lee <christopher.lee@cspi.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Orphan
 W:	https://www.cspi.com/ethernet-products/support/downloads/
 F:	drivers/net/ethernet/myricom/myri10ge/
 
