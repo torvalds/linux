@@ -1003,11 +1003,15 @@ out_of_mem:
  *	User level interface (ioctl)
  */
 
-static struct net_device *arp_req_dev_by_name(struct net *net, struct arpreq *r)
+static struct net_device *arp_req_dev_by_name(struct net *net, struct arpreq *r,
+					      bool getarp)
 {
 	struct net_device *dev;
 
-	dev = __dev_get_by_name(net, r->arp_dev);
+	if (getarp)
+		dev = dev_get_by_name_rcu(net, r->arp_dev);
+	else
+		dev = __dev_get_by_name(net, r->arp_dev);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -1028,7 +1032,7 @@ static struct net_device *arp_req_dev(struct net *net, struct arpreq *r)
 	__be32 ip;
 
 	if (r->arp_dev[0])
-		return arp_req_dev_by_name(net, r);
+		return arp_req_dev_by_name(net, r, false);
 
 	if (r->arp_flags & ATF_PUBL)
 		return NULL;
@@ -1166,7 +1170,7 @@ static int arp_req_get(struct net *net, struct arpreq *r)
 	if (!r->arp_dev[0])
 		return -ENODEV;
 
-	dev = arp_req_dev_by_name(net, r);
+	dev = arp_req_dev_by_name(net, r, true);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
@@ -1188,7 +1192,7 @@ static int arp_req_get(struct net *net, struct arpreq *r)
 	neigh_release(neigh);
 
 	r->arp_ha.sa_family = dev->type;
-	strscpy(r->arp_dev, dev->name, sizeof(r->arp_dev));
+	netdev_copy_name(dev, r->arp_dev);
 
 	return 0;
 }
@@ -1287,23 +1291,27 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	else if (*netmask && *netmask != htonl(0xFFFFFFFFUL))
 		return -EINVAL;
 
-	rtnl_lock();
-
 	switch (cmd) {
 	case SIOCDARP:
+		rtnl_lock();
 		err = arp_req_delete(net, &r);
+		rtnl_unlock();
 		break;
 	case SIOCSARP:
+		rtnl_lock();
 		err = arp_req_set(net, &r);
+		rtnl_unlock();
 		break;
 	case SIOCGARP:
+		rcu_read_lock();
 		err = arp_req_get(net, &r);
+		rcu_read_unlock();
+
+		if (!err && copy_to_user(arg, &r, sizeof(r)))
+			err = -EFAULT;
 		break;
 	}
 
-	rtnl_unlock();
-	if (cmd == SIOCGARP && !err && copy_to_user(arg, &r, sizeof(r)))
-		err = -EFAULT;
 	return err;
 }
 
