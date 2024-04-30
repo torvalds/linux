@@ -24,8 +24,6 @@
 
 struct dsa_8021q_context;
 struct tc_action;
-struct phy_device;
-struct phylink_link_state;
 
 #define DSA_TAG_PROTO_NONE_VALUE		0
 #define DSA_TAG_PROTO_BRCM_VALUE		1
@@ -867,11 +865,6 @@ struct dsa_switch_ops {
 	int	(*phy_write)(struct dsa_switch *ds, int port,
 			     int regnum, u16 val);
 
-	/*
-	 * Link state adjustment (called from libphy)
-	 */
-	void	(*adjust_link)(struct dsa_switch *ds, int port,
-				struct phy_device *phydev);
 	/*
 	 * PHYLINK integration
 	 */
