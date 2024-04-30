@@ -1793,6 +1793,7 @@ static int nfsd4_do_async_copy(void *data)
 	}
 
 do_callback:
+	set_bit(NFSD4_COPY_F_COMPLETED, &copy->cp_flags);
 	nfsd4_send_cb_offload(copy);
 	cleanup_async_copy(copy);
 	return 0;
@@ -2002,11 +2003,16 @@ nfsd4_offload_status(struct svc_rqst *rqstp,
 	struct nfsd4_copy *copy;
 	struct nfs4_client *clp = cstate->clp;
 
+	os->completed = false;
 	spin_lock(&clp->async_lock);
 	copy = find_async_copy_locked(clp, &os->stateid);
-	if (copy)
+	if (copy) {
 		os->count = copy->cp_res.wr_bytes_written;
-	else
+		if (test_bit(NFSD4_COPY_F_COMPLETED, &copy->cp_flags)) {
+			os->completed = true;
+			os->status = copy->nfserr;
+		}
+	} else
 		status = nfserr_bad_stateid;
 	spin_unlock(&clp->async_lock);
 

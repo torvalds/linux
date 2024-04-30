@@ -5271,7 +5271,12 @@ nfsd4_encode_offload_status(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (nfserr != nfs_ok)
 		return nfserr;
 	/* osr_complete<1> */
-	if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
+	if (os->completed) {
+		if (xdr_stream_encode_u32(xdr, 1) != XDR_UNIT)
+			return nfserr_resource;
+		if (xdr_stream_encode_be32(xdr, os->status) != XDR_UNIT)
+			return nfserr_resource;
+	} else if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
 		return nfserr_resource;
 	return nfs_ok;
 }
