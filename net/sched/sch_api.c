@@ -1353,6 +1353,7 @@ err_out5:
 	if (ops->destroy)
 		ops->destroy(sch);
 err_out3:
+	lockdep_unregister_key(&sch->root_lock_key);
 	netdev_put(dev, &sch->dev_tracker);
 	qdisc_free(sch);
 err_out2:
