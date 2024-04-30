@@ -73,6 +73,9 @@ XfrmAcquireError:
 XfrmFwdHdrError:
 	Forward routing of a packet is not allowed
 
+XfrmInStateDirError:
+        State direction mismatch (lookup found an output state on the input path, expected input or no direction)
+
 Outbound errors
 ~~~~~~~~~~~~~~~
 XfrmOutError:
