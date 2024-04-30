@@ -1737,7 +1737,7 @@ static void cleanup_async_copy(struct nfsd4_copy *copy)
 	nfs4_put_copy(copy);
 }
 
-static void nfsd4_send_cb_offload(struct nfsd4_copy *copy, __be32 nfserr)
+static void nfsd4_send_cb_offload(struct nfsd4_copy *copy)
 {
 	struct nfsd4_cb_offload *cbo;
 
@@ -1747,12 +1747,12 @@ static void nfsd4_send_cb_offload(struct nfsd4_copy *copy, __be32 nfserr)
 
 	memcpy(&cbo->co_res, &copy->cp_res, sizeof(copy->cp_res));
 	memcpy(&cbo->co_fh, &copy->fh, sizeof(copy->fh));
-	cbo->co_nfserr = nfserr;
+	cbo->co_nfserr = copy->nfserr;
 
 	nfsd4_init_cb(&cbo->co_cb, copy->cp_clp, &nfsd4_cb_offload_ops,
 		      NFSPROC4_CLNT_CB_OFFLOAD);
 	trace_nfsd_cb_offload(copy->cp_clp, &cbo->co_res.cb_stateid,
-			      &cbo->co_fh, copy->cp_count, nfserr);
+			      &cbo->co_fh, copy->cp_count, copy->nfserr);
 	nfsd4_run_cb(&cbo->co_cb);
 }
 
@@ -1766,7 +1766,6 @@ static void nfsd4_send_cb_offload(struct nfsd4_copy *copy, __be32 nfserr)
 static int nfsd4_do_async_copy(void *data)
 {
 	struct nfsd4_copy *copy = (struct nfsd4_copy *)data;
-	__be32 nfserr;
 
 	trace_nfsd_copy_do_async(copy);
 	if (nfsd4_ssc_is_inter(copy)) {
@@ -1777,24 +1776,24 @@ static int nfsd4_do_async_copy(void *data)
 		if (IS_ERR(filp)) {
 			switch (PTR_ERR(filp)) {
 			case -EBADF:
-				nfserr = nfserr_wrong_type;
+				copy->nfserr = nfserr_wrong_type;
 				break;
 			default:
-				nfserr = nfserr_offload_denied;
+				copy->nfserr = nfserr_offload_denied;
 			}
 			/* ss_mnt will be unmounted by the laundromat */
 			goto do_callback;
 		}
-		nfserr = nfsd4_do_copy(copy, filp, copy->nf_dst->nf_file,
-				       false);
+		copy->nfserr = nfsd4_do_copy(copy, filp, copy->nf_dst->nf_file,
+					     false);
 		nfsd4_cleanup_inter_ssc(copy->ss_nsui, filp, copy->nf_dst);
 	} else {
-		nfserr = nfsd4_do_copy(copy, copy->nf_src->nf_file,
-				       copy->nf_dst->nf_file, false);
+		copy->nfserr = nfsd4_do_copy(copy, copy->nf_src->nf_file,
+					     copy->nf_dst->nf_file, false);
 	}
 
 do_callback:
-	nfsd4_send_cb_offload(copy, nfserr);
+	nfsd4_send_cb_offload(copy);
 	cleanup_async_copy(copy);
 	return 0;
 }
