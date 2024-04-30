@@ -20,7 +20,6 @@
 #include "mtk_common.h"
 #include "remoteproc_internal.h"
 
-#define MAX_CODE_SIZE 0x500000
 #define SECTION_NAME_IPI_BUFFER ".ipi_buffer"
 
 /**
@@ -94,14 +93,15 @@ static void scp_ipi_handler(struct mtk_scp *scp)
 {
 	struct mtk_share_obj __iomem *rcv_obj = scp->recv_buf;
 	struct scp_ipi_desc *ipi_desc = scp->ipi_desc;
-	u8 tmp_data[SCP_SHARE_BUFFER_SIZE];
 	scp_ipi_handler_t handler;
 	u32 id = readl(&rcv_obj->id);
 	u32 len = readl(&rcv_obj->len);
+	const struct mtk_scp_sizes_data *scp_sizes;
 
-	if (len > SCP_SHARE_BUFFER_SIZE) {
-		dev_err(scp->dev, "ipi message too long (len %d, max %d)", len,
-			SCP_SHARE_BUFFER_SIZE);
+	scp_sizes = scp->data->scp_sizes;
+	if (len > scp_sizes->ipi_share_buffer_size) {
+		dev_err(scp->dev, "ipi message too long (len %d, max %zd)", len,
+			scp_sizes->ipi_share_buffer_size);
 		return;
 	}
 	if (id >= SCP_IPI_MAX) {
@@ -117,8 +117,9 @@ static void scp_ipi_handler(struct mtk_scp *scp)
 		return;
 	}
 
-	memcpy_fromio(tmp_data, &rcv_obj->share_buf, len);
-	handler(tmp_data, len, ipi_desc[id].priv);
+	memset(scp->share_buf, 0, scp_sizes->ipi_share_buffer_size);
+	memcpy_fromio(scp->share_buf, &rcv_obj->share_buf, len);
+	handler(scp->share_buf, len, ipi_desc[id].priv);
 	scp_ipi_unlock(scp, id);
 
 	scp->ipi_id_ack[id] = true;
@@ -133,6 +134,8 @@ static int scp_ipi_init(struct mtk_scp *scp, const struct firmware *fw)
 {
 	int ret;
 	size_t buf_sz, offset;
+	size_t share_buf_offset;
+	const struct mtk_scp_sizes_data *scp_sizes;
 
 	/* read the ipi buf addr from FW itself first */
 	ret = scp_elf_read_ipi_buf_addr(scp, fw, &offset);
@@ -152,12 +155,15 @@ static int scp_ipi_init(struct mtk_scp *scp, const struct firmware *fw)
 		return -EOVERFLOW;
 	}
 
+	scp_sizes = scp->data->scp_sizes;
 	scp->recv_buf = (struct mtk_share_obj __iomem *)
 			(scp->sram_base + offset);
+	share_buf_offset = sizeof(scp->recv_buf->id)
+		+ sizeof(scp->recv_buf->len) + scp_sizes->ipi_share_buffer_size;
 	scp->send_buf = (struct mtk_share_obj __iomem *)
-			(scp->sram_base + offset + sizeof(*scp->recv_buf));
-	memset_io(scp->recv_buf, 0, sizeof(*scp->recv_buf));
-	memset_io(scp->send_buf, 0, sizeof(*scp->send_buf));
+			(scp->sram_base + offset + share_buf_offset);
+	memset_io(scp->recv_buf, 0, share_buf_offset);
+	memset_io(scp->send_buf, 0, share_buf_offset);
 
 	return 0;
 }
@@ -741,14 +747,16 @@ stop:
 static void *mt8183_scp_da_to_va(struct mtk_scp *scp, u64 da, size_t len)
 {
 	int offset;
+	const struct mtk_scp_sizes_data *scp_sizes;
 
+	scp_sizes = scp->data->scp_sizes;
 	if (da < scp->sram_size) {
 		offset = da;
 		if (offset >= 0 && (offset + len) <= scp->sram_size)
 			return (void __force *)scp->sram_base + offset;
-	} else if (scp->dram_size) {
+	} else if (scp_sizes->max_dram_size) {
 		offset = da - scp->dma_addr;
-		if (offset >= 0 && (offset + len) <= scp->dram_size)
+		if (offset >= 0 && (offset + len) <= scp_sizes->max_dram_size)
 			return scp->cpu_addr + offset;
 	}
 
@@ -758,7 +766,9 @@ static void *mt8183_scp_da_to_va(struct mtk_scp *scp, u64 da, size_t len)
 static void *mt8192_scp_da_to_va(struct mtk_scp *scp, u64 da, size_t len)
 {
 	int offset;
+	const struct mtk_scp_sizes_data *scp_sizes;
 
+	scp_sizes = scp->data->scp_sizes;
 	if (da >= scp->sram_phys &&
 	    (da + len) <= scp->sram_phys + scp->sram_size) {
 		offset = da - scp->sram_phys;
@@ -774,9 +784,9 @@ static void *mt8192_scp_da_to_va(struct mtk_scp *scp, u64 da, size_t len)
 	}
 
 	/* optional memory region */
-	if (scp->dram_size &&
+	if (scp_sizes->max_dram_size &&
 	    da >= scp->dma_addr &&
-	    (da + len) <= scp->dma_addr + scp->dram_size) {
+	    (da + len) <= scp->dma_addr + scp_sizes->max_dram_size) {
 		offset = da - scp->dma_addr;
 		return scp->cpu_addr + offset;
 	}
@@ -997,6 +1007,7 @@ EXPORT_SYMBOL_GPL(scp_mapping_dm_addr);
 static int scp_map_memory_region(struct mtk_scp *scp)
 {
 	int ret;
+	const struct mtk_scp_sizes_data *scp_sizes;
 
 	ret = of_reserved_mem_device_init(scp->dev);
 
@@ -1012,8 +1023,8 @@ static int scp_map_memory_region(struct mtk_scp *scp)
 	}
 
 	/* Reserved SCP code size */
-	scp->dram_size = MAX_CODE_SIZE;
-	scp->cpu_addr = dma_alloc_coherent(scp->dev, scp->dram_size,
+	scp_sizes = scp->data->scp_sizes;
+	scp->cpu_addr = dma_alloc_coherent(scp->dev, scp_sizes->max_dram_size,
 					   &scp->dma_addr, GFP_KERNEL);
 	if (!scp->cpu_addr)
 		return -ENOMEM;
@@ -1023,10 +1034,13 @@ static int scp_map_memory_region(struct mtk_scp *scp)
 
 static void scp_unmap_memory_region(struct mtk_scp *scp)
 {
-	if (scp->dram_size == 0)
+	const struct mtk_scp_sizes_data *scp_sizes;
+
+	scp_sizes = scp->data->scp_sizes;
+	if (scp_sizes->max_dram_size == 0)
 		return;
 
-	dma_free_coherent(scp->dev, scp->dram_size, scp->cpu_addr,
+	dma_free_coherent(scp->dev, scp_sizes->max_dram_size, scp->cpu_addr,
 			  scp->dma_addr);
 	of_reserved_mem_device_release(scp->dev);
 }
@@ -1090,6 +1104,7 @@ static struct mtk_scp *scp_rproc_init(struct platform_device *pdev,
 	struct resource *res;
 	const char *fw_name = "scp.img";
 	int ret, i;
+	const struct mtk_scp_sizes_data *scp_sizes;
 
 	ret = rproc_of_parse_firmware(dev, 0, &fw_name);
 	if (ret < 0 && ret != -EINVAL)
@@ -1137,6 +1152,13 @@ static struct mtk_scp *scp_rproc_init(struct platform_device *pdev,
 		goto release_dev_mem;
 	}
 
+	scp_sizes = scp->data->scp_sizes;
+	scp->share_buf = kzalloc(scp_sizes->ipi_share_buffer_size, GFP_KERNEL);
+	if (!scp->share_buf) {
+		dev_err(dev, "Failed to allocate IPI share buffer\n");
+		goto release_dev_mem;
+	}
+
 	init_waitqueue_head(&scp->run.wq);
 	init_waitqueue_head(&scp->ack_wq);
 
@@ -1156,6 +1178,8 @@ static struct mtk_scp *scp_rproc_init(struct platform_device *pdev,
 remove_subdev:
 	scp_remove_rpmsg_subdev(scp);
 	scp_ipi_unregister(scp, SCP_IPI_INIT);
+	kfree(scp->share_buf);
+	scp->share_buf = NULL;
 release_dev_mem:
 	scp_unmap_memory_region(scp);
 	for (i = 0; i < SCP_IPI_MAX; i++)
@@ -1171,6 +1195,8 @@ static void scp_free(struct mtk_scp *scp)
 
 	scp_remove_rpmsg_subdev(scp);
 	scp_ipi_unregister(scp, SCP_IPI_INIT);
+	kfree(scp->share_buf);
+	scp->share_buf = NULL;
 	scp_unmap_memory_region(scp);
 	for (i = 0; i < SCP_IPI_MAX; i++)
 		mutex_destroy(&scp->ipi_desc[i].lock);
@@ -1357,6 +1383,21 @@ static void scp_remove(struct platform_device *pdev)
 	mutex_destroy(&scp_cluster->cluster_lock);
 }
 
+static const struct mtk_scp_sizes_data default_scp_sizes = {
+	.max_dram_size = 0x500000,
+	.ipi_share_buffer_size = 288,
+};
+
+static const struct mtk_scp_sizes_data mt8188_scp_sizes = {
+	.max_dram_size = 0x500000,
+	.ipi_share_buffer_size = 600,
+};
+
+static const struct mtk_scp_sizes_data mt8188_scp_c1_sizes = {
+	.max_dram_size = 0xA00000,
+	.ipi_share_buffer_size = 600,
+};
+
 static const struct mtk_scp_of_data mt8183_of_data = {
 	.scp_clk_get = mt8183_scp_clk_get,
 	.scp_before_load = mt8183_scp_before_load,
@@ -1368,6 +1409,7 @@ static const struct mtk_scp_of_data mt8183_of_data = {
 	.host_to_scp_reg = MT8183_HOST_TO_SCP,
 	.host_to_scp_int_bit = MT8183_HOST_IPC_INT_BIT,
 	.ipi_buf_offset = 0x7bdb0,
+	.scp_sizes = &default_scp_sizes,
 };
 
 static const struct mtk_scp_of_data mt8186_of_data = {
@@ -1381,6 +1423,7 @@ static const struct mtk_scp_of_data mt8186_of_data = {
 	.host_to_scp_reg = MT8183_HOST_TO_SCP,
 	.host_to_scp_int_bit = MT8183_HOST_IPC_INT_BIT,
 	.ipi_buf_offset = 0x3bdb0,
+	.scp_sizes = &default_scp_sizes,
 };
 
 static const struct mtk_scp_of_data mt8188_of_data = {
@@ -1393,6 +1436,7 @@ static const struct mtk_scp_of_data mt8188_of_data = {
 	.scp_da_to_va = mt8192_scp_da_to_va,
 	.host_to_scp_reg = MT8192_GIPC_IN_SET,
 	.host_to_scp_int_bit = MT8192_HOST_IPC_INT_BIT,
+	.scp_sizes = &mt8188_scp_sizes,
 };
 
 static const struct mtk_scp_of_data mt8188_of_data_c1 = {
@@ -1405,6 +1449,7 @@ static const struct mtk_scp_of_data mt8188_of_data_c1 = {
 	.scp_da_to_va = mt8192_scp_da_to_va,
 	.host_to_scp_reg = MT8192_GIPC_IN_SET,
 	.host_to_scp_int_bit = MT8195_CORE1_HOST_IPC_INT_BIT,
+	.scp_sizes = &mt8188_scp_c1_sizes,
 };
 
 static const struct mtk_scp_of_data mt8192_of_data = {
@@ -1417,6 +1462,7 @@ static const struct mtk_scp_of_data mt8192_of_data = {
 	.scp_da_to_va = mt8192_scp_da_to_va,
 	.host_to_scp_reg = MT8192_GIPC_IN_SET,
 	.host_to_scp_int_bit = MT8192_HOST_IPC_INT_BIT,
+	.scp_sizes = &default_scp_sizes,
 };
 
 static const struct mtk_scp_of_data mt8195_of_data = {
@@ -1429,6 +1475,7 @@ static const struct mtk_scp_of_data mt8195_of_data = {
 	.scp_da_to_va = mt8192_scp_da_to_va,
 	.host_to_scp_reg = MT8192_GIPC_IN_SET,
 	.host_to_scp_int_bit = MT8192_HOST_IPC_INT_BIT,
+	.scp_sizes = &default_scp_sizes,
 };
 
 static const struct mtk_scp_of_data mt8195_of_data_c1 = {
@@ -1441,6 +1488,7 @@ static const struct mtk_scp_of_data mt8195_of_data_c1 = {
 	.scp_da_to_va = mt8192_scp_da_to_va,
 	.host_to_scp_reg = MT8192_GIPC_IN_SET,
 	.host_to_scp_int_bit = MT8195_CORE1_HOST_IPC_INT_BIT,
+	.scp_sizes = &default_scp_sizes,
 };
 
 static const struct mtk_scp_of_data *mt8188_of_data_cores[] = {
