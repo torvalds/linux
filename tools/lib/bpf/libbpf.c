@@ -9862,16 +9862,28 @@ static int find_kernel_btf_id(struct bpf_object *obj, const char *attach_name,
 			      enum bpf_attach_type attach_type,
 			      int *btf_obj_fd, int *btf_type_id)
 {
-	int ret, i;
+	int ret, i, mod_len;
+	const char *fn_name, *mod_name = NULL;
 
-	ret = find_attach_btf_id(obj->btf_vmlinux, attach_name, attach_type);
-	if (ret > 0) {
-		*btf_obj_fd = 0; /* vmlinux BTF */
-		*btf_type_id = ret;
-		return 0;
+	fn_name = strchr(attach_name, ':');
+	if (fn_name) {
+		mod_name = attach_name;
+		mod_len = fn_name - mod_name;
+		fn_name++;
 	}
-	if (ret != -ENOENT)
-		return ret;
+
+	if (!mod_name || strncmp(mod_name, "vmlinux", mod_len) == 0) {
+		ret = find_attach_btf_id(obj->btf_vmlinux,
+					 mod_name ? fn_name : attach_name,
+					 attach_type);
+		if (ret > 0) {
+			*btf_obj_fd = 0; /* vmlinux BTF */
+			*btf_type_id = ret;
+			return 0;
+		}
+		if (ret != -ENOENT)
+			return ret;
+	}
 
 	ret = load_module_btfs(obj);
 	if (ret)
@@ -9880,7 +9892,12 @@ static int find_kernel_btf_id(struct bpf_object *obj, const char *attach_name,
 	for (i = 0; i < obj->btf_module_cnt; i++) {
 		const struct module_btf *mod = &obj->btf_modules[i];
 
-		ret = find_attach_btf_id(mod->btf, attach_name, attach_type);
+		if (mod_name && strncmp(mod->name, mod_name, mod_len) != 0)
+			continue;
+
+		ret = find_attach_btf_id(mod->btf,
+					 mod_name ? fn_name : attach_name,
+					 attach_type);
 		if (ret > 0) {
 			*btf_obj_fd = mod->fd;
 			*btf_type_id = ret;
