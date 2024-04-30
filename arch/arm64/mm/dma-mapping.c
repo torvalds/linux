@@ -7,7 +7,6 @@
 #include <linux/gfp.h>
 #include <linux/cache.h>
 #include <linux/dma-map-ops.h>
-#include <linux/iommu.h>
 #include <xen/xen.h>
 
 #include <asm/cacheflush.h>
@@ -38,13 +37,6 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 
 	dcache_clean_poc(start, start + size);
 }
-
-#ifdef CONFIG_IOMMU_DMA
-void arch_teardown_dma_ops(struct device *dev)
-{
-	dev->dma_ops = NULL;
-}
-#endif
 
 void arch_setup_dma_ops(struct device *dev, bool coherent)
 {
