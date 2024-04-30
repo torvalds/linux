@@ -19,6 +19,7 @@
 static struct i915_vma *
 intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 		     const struct i915_gtt_view *view,
+		     unsigned int alignment,
 		     bool uses_fence,
 		     unsigned long *out_flags,
 		     struct i915_address_space *vm)
@@ -28,7 +29,6 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
-	u32 alignment;
 	int ret;
 
 	/*
@@ -40,8 +40,6 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 
 	if (WARN_ON(!i915_gem_object_is_framebuffer(obj)))
 		return ERR_PTR(-EINVAL);
-
-	alignment = 4096 * 512;
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
@@ -267,14 +265,16 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 				i915_gem_object_get_dma_address(intel_fb_obj(fb), 0);
 	} else {
 		struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+		unsigned int alignment = intel_surf_alignment(fb, 0);
 
-		vma = intel_dpt_pin(intel_fb->dpt_vm);
+		vma = intel_dpt_pin(intel_fb->dpt_vm, alignment / 512);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 
 		plane_state->ggtt_vma = vma;
 
-		vma = intel_pin_fb_obj_dpt(fb, &plane_state->view.gtt, false,
+		vma = intel_pin_fb_obj_dpt(fb, &plane_state->view.gtt,
+					   alignment, false,
 					   &plane_state->flags, intel_fb->dpt_vm);
 		if (IS_ERR(vma)) {
 			intel_dpt_unpin(intel_fb->dpt_vm);
