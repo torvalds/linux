@@ -1001,7 +1001,6 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		struct bucket *g = gc_bucket(ca, bucket.offset);
 		bucket_lock(g);
 		struct bch_alloc_v4 old = bucket_m_to_alloc(*g), new = old;
-
 		int ret = __mark_pointer(trans, k, &p.ptr, *sectors, bp.data_type, &new);
 		if (!ret) {
 			alloc_to_bucket(g, new);
