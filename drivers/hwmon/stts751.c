@@ -91,7 +91,6 @@ struct stts751_priv {
 	int event_max, event_min;
 	int therm;
 	int hyst;
-	bool smbus_timeout;
 	int temp;
 	unsigned long last_update, last_alert_update;
 	u8 config;
