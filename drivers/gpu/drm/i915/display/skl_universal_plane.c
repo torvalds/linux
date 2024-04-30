@@ -1174,6 +1174,11 @@ skl_plane_update_arm(struct intel_plane *plane,
 	plane_ctl = plane_state->ctl |
 		skl_plane_ctl_crtc(crtc_state);
 
+	/* see intel_plane_atomic_calc_changes() */
+	if (plane->need_async_flip_disable_wa &&
+	    crtc_state->async_flip_planes & BIT(plane->id))
+		plane_ctl |= PLANE_CTL_ASYNC_FLIP;
+
 	if (DISPLAY_VER(dev_priv) >= 10)
 		plane_color_ctl = plane_state->color_ctl |
 			glk_plane_color_ctl_crtc(crtc_state);

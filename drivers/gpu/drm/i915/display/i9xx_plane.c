@@ -455,6 +455,11 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 
 	dspcntr = plane_state->ctl | i9xx_plane_ctl_crtc(crtc_state);
 
+	/* see intel_plane_atomic_calc_changes() */
+	if (plane->need_async_flip_disable_wa &&
+	    crtc_state->async_flip_planes & BIT(plane->id))
+		dspcntr |= DISP_ASYNC_FLIP;
+
 	linear_offset = intel_fb_xy_to_linear(x, y, plane_state, 0);
 
 	if (DISPLAY_VER(dev_priv) >= 4)

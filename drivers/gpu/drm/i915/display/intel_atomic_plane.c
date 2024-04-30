@@ -437,10 +437,6 @@ static bool intel_plane_do_async_flip(struct intel_plane *plane,
 	 * only X-tile is supported with async flips, though we could
 	 * extend this so other scanout parameters (stride/etc) could
 	 * be changed as well...
-	 *
-	 * FIXME: Platforms with need_async_flip_disable_wa==true will
-	 * now end up doing two sync flips initially. Would be nice to
-	 * combine those into just the one sync flip...
 	 */
 	return DISPLAY_VER(i915) < 9 || old_crtc_state->uapi.async_flip;
 }
@@ -603,6 +599,17 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 
 	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state)) {
 		new_crtc_state->do_async_flip = true;
+		new_crtc_state->async_flip_planes |= BIT(plane->id);
+	} else if (plane->need_async_flip_disable_wa &&
+		   new_crtc_state->uapi.async_flip) {
+		/*
+		 * On platforms with double buffered async flip bit we
+		 * set the bit already one frame early during the sync
+		 * flip (see {i9xx,skl}_plane_update_arm()). The
+		 * hardware will therefore be ready to perform a real
+		 * async flip during the next commit, without having
+		 * to wait yet another frame for the bit to latch.
+		 */
 		new_crtc_state->async_flip_planes |= BIT(plane->id);
 	}
 
