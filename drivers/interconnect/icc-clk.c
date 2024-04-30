@@ -108,7 +108,7 @@ struct icc_provider *icc_clk_register(struct device *dev,
 	for (i = 0, j = 0; i < num_clocks; i++) {
 		qp->clocks[i].clk = data[i].clk;
 
-		node = icc_node_create(first_id + j);
+		node = icc_node_create(first_id + data[i].master_id);
 		if (IS_ERR(node)) {
 			ret = PTR_ERR(node);
 			goto err;
@@ -118,10 +118,10 @@ struct icc_provider *icc_clk_register(struct device *dev,
 		node->data = &qp->clocks[i];
 		icc_node_add(node, provider);
 		/* link to the next node, slave */
-		icc_link_create(node, first_id + j + 1);
+		icc_link_create(node, first_id + data[i].slave_id);
 		onecell->nodes[j++] = node;
 
-		node = icc_node_create(first_id + j);
+		node = icc_node_create(first_id + data[i].slave_id);
 		if (IS_ERR(node)) {
 			ret = PTR_ERR(node);
 			goto err;

@@ -11,6 +11,8 @@ struct device;
 struct icc_clk_data {
 	struct clk *clk;
 	const char *name;
+	unsigned int master_id;
+	unsigned int slave_id;
 };
 
 struct icc_provider *icc_clk_register(struct device *dev,
