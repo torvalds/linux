@@ -167,9 +167,9 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 				struct bkey_s_c_stripe s,
 				unsigned ptr_idx, bool deleting,
 				struct bpos bucket,
-				struct bch_alloc_v4 *a)
+				struct bch_alloc_v4 *a,
+				enum btree_iter_update_trigger_flags flags)
 {
-	struct bch_fs *c = trans->c;
 	const struct bch_extent_ptr *ptr = s.v->ptrs + ptr_idx;
 	unsigned nr_data = s.v->nr_blocks - s.v->nr_redundant;
 	bool parity = ptr_idx >= nr_data;
@@ -177,6 +177,14 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 	s64 sectors = parity ? le16_to_cpu(s.v->sectors) : 0;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
+
+	struct bch_fs *c = trans->c;
+	struct bch_dev *ca = bch2_dev_tryget(c, ptr->dev);
+	if (unlikely(!ca)) {
+		if (!(flags & BTREE_TRIGGER_overwrite))
+			ret = -EIO;
+		goto err;
+	}
 
 	if (deleting)
 		sectors = -sectors;
@@ -239,7 +247,7 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 	}
 
 	if (sectors) {
-		ret = bch2_bucket_ref_update(trans, s.s_c, ptr, sectors, data_type,
+		ret = bch2_bucket_ref_update(trans, ca, s.s_c, ptr, sectors, data_type,
 					     a->gen, a->data_type, &a->dirty_sectors);
 		if (ret)
 			goto err;
@@ -255,6 +263,7 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 
 	alloc_data_type_set(a, data_type);
 err:
+	bch2_dev_put(ca);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -272,7 +281,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 		struct bkey_i_alloc_v4 *a =
 			bch2_trans_start_alloc_update(trans, bucket);
 		return PTR_ERR_OR_ZERO(a) ?:
-			__mark_stripe_bucket(trans, s, ptr_idx, deleting, bucket, &a->v);
+			__mark_stripe_bucket(trans, s, ptr_idx, deleting, bucket, &a->v, flags);
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {
@@ -282,7 +291,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 		struct bucket *g = gc_bucket(ca, bucket.offset);
 		bucket_lock(g);
 		struct bch_alloc_v4 old = bucket_m_to_alloc(*g), new = old;
-		int ret = __mark_stripe_bucket(trans, s, ptr_idx, deleting, bucket, &new);
+		int ret = __mark_stripe_bucket(trans, s, ptr_idx, deleting, bucket, &new, flags);
 		if (!ret) {
 			alloc_to_bucket(g, new);
 			bch2_dev_usage_update(c, ca, &old, &new, 0, true);
