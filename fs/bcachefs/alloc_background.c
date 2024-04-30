@@ -739,11 +739,9 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	int ret = 0;
 
-	if (bch2_trans_inconsistent_on(!bch2_dev_bucket_exists(c, new.k->p), trans,
-				       "alloc key for invalid device or bucket"))
+	struct bch_dev *ca = bch2_dev_bucket_tryget(c, new.k->p);
+	if (!ca)
 		return -EIO;
-
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, new.k->p.inode);
 
 	struct bch_alloc_v4 old_a_convert;
 	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
@@ -773,7 +771,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 			ret =   bch2_bucket_do_index(trans, ca, old, old_a, false) ?:
 				bch2_bucket_do_index(trans, ca, new.s_c, new_a, true);
 			if (ret)
-				return ret;
+				goto err;
 		}
 
 		if (new_a->data_type == BCH_DATA_cached &&
@@ -787,7 +785,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 					      bucket_to_u64(new.k->p),
 					      old_lru, new_lru);
 			if (ret)
-				return ret;
+				goto err;
 		}
 
 		new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a, ca);
@@ -797,13 +795,13 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 					bucket_to_u64(new.k->p),
 					old_a->fragmentation_lru, new_a->fragmentation_lru);
 			if (ret)
-				return ret;
+				goto err;
 		}
 
 		if (old_a->gen != new_a->gen) {
 			ret = bch2_bucket_gen_update(trans, new.k->p, new_a->gen);
 			if (ret)
-				return ret;
+				goto err;
 		}
 
 		/*
@@ -816,7 +814,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 			ret = bch2_update_cached_sectors_list(trans, new.k->p.inode,
 							      -((s64) old_a->cached_sectors));
 			if (ret)
-				return ret;
+				goto err;
 		}
 	}
 
@@ -853,7 +851,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 			if (ret) {
 				bch2_fs_fatal_error(c,
 					"setting bucket_needs_journal_commit: %s", bch2_err_str(ret));
-				return ret;
+				goto err;
 			}
 		}
 
@@ -907,8 +905,9 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		bucket_unlock(g);
 		percpu_up_read(&c->mark_lock);
 	}
-
-	return 0;
+err:
+	bch2_dev_put(ca);
+	return ret;
 }
 
 /*
