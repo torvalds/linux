@@ -1326,7 +1326,7 @@ static int mes_v11_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->mes.ring.sched.ready)
-		return 0;
+		goto out;
 
 	if (!adev->enable_mes_kiq) {
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
@@ -1363,6 +1363,7 @@ static int mes_v11_0_hw_init(void *handle)
 		goto failure;
 	}
 
+out:
 	/*
 	 * Disable KIQ ring usage from the driver once MES is enabled.
 	 * MES uses KIQ ring exclusively so driver cannot access KIQ ring
