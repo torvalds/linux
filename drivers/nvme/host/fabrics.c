@@ -567,10 +567,16 @@ EXPORT_SYMBOL_GPL(nvmf_connect_io_queue);
  *
  * - the DNR bit is set and the specification states no further connect
  *   attempts with the same set of paramenters should be attempted.
+ *
+ * - when the authentication attempt fails, because the key was invalid.
+ *   This error code is set on the host side.
  */
 bool nvmf_should_reconnect(struct nvme_ctrl *ctrl, int status)
 {
 	if (status > 0 && (status & NVME_SC_DNR))
+		return false;
+
+	if (status == -EKEYREJECTED)
 		return false;
 
 	if (ctrl->opts->max_reconnects == -1 ||
