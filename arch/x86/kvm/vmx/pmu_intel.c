@@ -502,7 +502,12 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	}
 
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++)
-		pmu->fixed_ctr_ctrl_rsvd &= ~(0xbull << (i * 4));
+		pmu->fixed_ctr_ctrl_rsvd &=
+			 ~intel_fixed_bits_by_idx(i,
+						  INTEL_FIXED_0_KERNEL |
+						  INTEL_FIXED_0_USER |
+						  INTEL_FIXED_0_ENABLE_PMI);
+
 	counter_rsvd = ~(((1ull << pmu->nr_arch_gp_counters) - 1) |
 		(((1ull << pmu->nr_arch_fixed_counters) - 1) << KVM_FIXED_PMC_BASE_IDX));
 	pmu->global_ctrl_rsvd = counter_rsvd;
@@ -546,10 +551,9 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 		if (perf_capabilities & PERF_CAP_PEBS_BASELINE) {
 			pmu->pebs_enable_rsvd = counter_rsvd;
 			pmu->reserved_bits &= ~ICL_EVENTSEL_ADAPTIVE;
-			for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
+			for (i = 0; i < pmu->nr_arch_fixed_counters; i++)
 				pmu->fixed_ctr_ctrl_rsvd &=
-					~(1ULL << (KVM_FIXED_PMC_BASE_IDX + i * 4));
-			}
+					~intel_fixed_bits_by_idx(i, ICL_FIXED_0_ADAPTIVE);
 			pmu->pebs_data_cfg_rsvd = ~0xff00000full;
 		} else {
 			pmu->pebs_enable_rsvd =
