@@ -737,6 +737,12 @@ static int pci_epf_test_epc_init(struct pci_epf *epf)
 	bool linkup_notifier = false;
 	int ret;
 
+	epf_test->dma_supported = true;
+
+	ret = pci_epf_test_init_dma_chan(epf_test);
+	if (ret)
+		epf_test->dma_supported = false;
+
 	if (epf->vfunc_no <= 1) {
 		ret = pci_epc_write_header(epc, epf->func_no, epf->vfunc_no, header);
 		if (ret) {
@@ -882,12 +888,6 @@ static int pci_epf_test_bind(struct pci_epf *epf)
 	ret = pci_epf_test_alloc_space(epf);
 	if (ret)
 		return ret;
-
-	epf_test->dma_supported = true;
-
-	ret = pci_epf_test_init_dma_chan(epf_test);
-	if (ret)
-		epf_test->dma_supported = false;
 
 	return 0;
 }
