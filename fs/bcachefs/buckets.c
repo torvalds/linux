@@ -988,7 +988,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 			goto err;
 
 		if (!p.ptr.cached) {
-			ret = bch2_bucket_backpointer_mod(trans, bucket, bp, k, insert);
+			ret = bch2_bucket_backpointer_mod(trans, ca, bucket, bp, k, insert);
 			if (ret)
 				goto err;
 		}

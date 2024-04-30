@@ -342,7 +342,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		struct bch_backpointer bp;
 		struct bpos bp_pos = POS_MIN;
 
-		ret = bch2_get_next_backpointer(trans, POS(ca->dev_idx, b), -1,
+		ret = bch2_get_next_backpointer(trans, ca, POS(ca->dev_idx, b), -1,
 						&bp_pos, &bp,
 						BTREE_ITER_nopreserve);
 		if (ret) {

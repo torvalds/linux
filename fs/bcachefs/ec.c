@@ -1198,6 +1198,7 @@ err:
 }
 
 static int ec_stripe_update_extent(struct btree_trans *trans,
+				   struct bch_dev *ca,
 				   struct bpos bucket, u8 gen,
 				   struct ec_stripe_buf *s,
 				   struct bpos *bp_pos)
@@ -1213,7 +1214,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	struct bkey_i *n;
 	int ret, dev, block;
 
-	ret = bch2_get_next_backpointer(trans, bucket, gen,
+	ret = bch2_get_next_backpointer(trans, ca, bucket, gen,
 				bp_pos, &bp, BTREE_ITER_cached);
 	if (ret)
 		return ret;
@@ -1311,7 +1312,7 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 		ret = commit_do(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_check_rw|
 				BCH_TRANS_COMMIT_no_enospc,
-			ec_stripe_update_extent(trans, bucket_pos, ptr.gen, s, &bp_pos));
+			ec_stripe_update_extent(trans, ca, bucket_pos, ptr.gen, s, &bp_pos));
 		if (ret)
 			break;
 		if (bkey_eq(bp_pos, POS_MAX))

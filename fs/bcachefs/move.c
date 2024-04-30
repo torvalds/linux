@@ -729,7 +729,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 
 		bch2_trans_begin(trans);
 
-		ret = bch2_get_next_backpointer(trans, bucket, gen,
+		ret = bch2_get_next_backpointer(trans, ca, bucket, gen,
 						&bp_pos, &bp,
 						BTREE_ITER_cached);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
