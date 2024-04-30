@@ -384,24 +384,23 @@ static int max96717_disable_streams(struct v4l2_subdev *sd,
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
 	u64 sink_streams;
-	int ret;
+
+	/*
+	 * Stop the CSI receiver first then the source,
+	 * otherwise the device may become unresponsive
+	 * while holding the I2C bus low.
+	 */
+	priv->enabled_source_streams &= ~streams_mask;
+	if (!priv->enabled_source_streams)
+		max96717_start_csi(priv, false);
 
 	sink_streams = v4l2_subdev_state_xlate_streams(state,
 						       MAX96717_PAD_SOURCE,
 						       MAX96717_PAD_SINK,
 						       &streams_mask);
 
-	ret = v4l2_subdev_disable_streams(priv->source_sd, priv->source_sd_pad,
-					  sink_streams);
-	if (ret)
-		return ret;
-
-	priv->enabled_source_streams &= ~streams_mask;
-
-	if (!priv->enabled_source_streams)
-		max96717_start_csi(priv, false);
-
-	return 0;
+	return v4l2_subdev_disable_streams(priv->source_sd, priv->source_sd_pad,
+					   sink_streams);
 }
 
 static const struct v4l2_subdev_pad_ops max96717_pad_ops = {
