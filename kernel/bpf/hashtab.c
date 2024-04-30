@@ -221,13 +221,11 @@ static bool htab_has_extra_elems(struct bpf_htab *htab)
 	return !htab_is_percpu(htab) && !htab_is_lru(htab);
 }
 
-static void htab_free_prealloced_timers(struct bpf_htab *htab)
+static void htab_free_prealloced_timers_and_wq(struct bpf_htab *htab)
 {
 	u32 num_entries = htab->map.max_entries;
 	int i;
 
-	if (!btf_record_has_field(htab->map.record, BPF_TIMER))
-		return;
 	if (htab_has_extra_elems(htab))
 		num_entries += num_possible_cpus();
 
@@ -235,27 +233,12 @@ static void htab_free_prealloced_timers(struct bpf_htab *htab)
 		struct htab_elem *elem;
 
 		elem = get_htab_elem(htab, i);
-		bpf_obj_free_timer(htab->map.record, elem->key + round_up(htab->map.key_size, 8));
-		cond_resched();
-	}
-}
-
-static void htab_free_prealloced_wq(struct bpf_htab *htab)
-{
-	u32 num_entries = htab->map.max_entries;
-	int i;
-
-	if (!btf_record_has_field(htab->map.record, BPF_WORKQUEUE))
-		return;
-	if (htab_has_extra_elems(htab))
-		num_entries += num_possible_cpus();
-
-	for (i = 0; i < num_entries; i++) {
-		struct htab_elem *elem;
-
-		elem = get_htab_elem(htab, i);
-		bpf_obj_free_workqueue(htab->map.record,
-				       elem->key + round_up(htab->map.key_size, 8));
+		if (btf_record_has_field(htab->map.record, BPF_TIMER))
+			bpf_obj_free_timer(htab->map.record,
+					   elem->key + round_up(htab->map.key_size, 8));
+		if (btf_record_has_field(htab->map.record, BPF_WORKQUEUE))
+			bpf_obj_free_workqueue(htab->map.record,
+					       elem->key + round_up(htab->map.key_size, 8));
 		cond_resched();
 	}
 }
@@ -1515,7 +1498,7 @@ static void delete_all_elements(struct bpf_htab *htab)
 	migrate_enable();
 }
 
-static void htab_free_malloced_timers_or_wq(struct bpf_htab *htab, bool is_timer)
+static void htab_free_malloced_timers_and_wq(struct bpf_htab *htab)
 {
 	int i;
 
@@ -1527,10 +1510,10 @@ static void htab_free_malloced_timers_or_wq(struct bpf_htab *htab, bool is_timer
 
 		hlist_nulls_for_each_entry(l, n, head, hash_node) {
 			/* We only free timer on uref dropping to zero */
-			if (is_timer)
+			if (btf_record_has_field(htab->map.record, BPF_TIMER))
 				bpf_obj_free_timer(htab->map.record,
 						   l->key + round_up(htab->map.key_size, 8));
-			else
+			if (btf_record_has_field(htab->map.record, BPF_WORKQUEUE))
 				bpf_obj_free_workqueue(htab->map.record,
 						       l->key + round_up(htab->map.key_size, 8));
 		}
@@ -1544,17 +1527,11 @@ static void htab_map_free_timers_and_wq(struct bpf_map *map)
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 
 	/* We only free timer and workqueue on uref dropping to zero */
-	if (btf_record_has_field(htab->map.record, BPF_TIMER)) {
+	if (btf_record_has_field(htab->map.record, BPF_TIMER | BPF_WORKQUEUE)) {
 		if (!htab_is_prealloc(htab))
-			htab_free_malloced_timers_or_wq(htab, true);
+			htab_free_malloced_timers_and_wq(htab);
 		else
-			htab_free_prealloced_timers(htab);
-	}
-	if (btf_record_has_field(htab->map.record, BPF_WORKQUEUE)) {
-		if (!htab_is_prealloc(htab))
-			htab_free_malloced_timers_or_wq(htab, false);
-		else
-			htab_free_prealloced_wq(htab);
+			htab_free_prealloced_timers_and_wq(htab);
 	}
 }
 
