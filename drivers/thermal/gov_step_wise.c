@@ -93,16 +93,6 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 		if (instance->initialized && old_target == instance->target)
 			continue;
 
-		if (trip->type == THERMAL_TRIP_PASSIVE) {
-			/* If needed, update the status of passive polling. */
-			if (old_target == THERMAL_NO_TARGET &&
-			    instance->target != THERMAL_NO_TARGET)
-				tz->passive++;
-			else if (old_target != THERMAL_NO_TARGET &&
-				 instance->target == THERMAL_NO_TARGET)
-				tz->passive--;
-		}
-
 		instance->initialized = true;
 
 		mutex_lock(&instance->cdev->lock);

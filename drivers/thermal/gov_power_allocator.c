@@ -66,6 +66,7 @@ struct power_actor {
  * struct power_allocator_params - parameters for the power allocator governor
  * @allocated_tzp:	whether we have allocated tzp for this thermal zone and
  *			it needs to be freed on unbind
+ * @update_cdevs:	whether or not update cdevs on the next run
  * @err_integral:	accumulated error in the PID controller.
  * @prev_err:	error in the previous iteration of the PID controller.
  *		Used to calculate the derivative term.
@@ -84,6 +85,7 @@ struct power_actor {
  */
 struct power_allocator_params {
 	bool allocated_tzp;
+	bool update_cdevs;
 	s64 err_integral;
 	s32 prev_err;
 	u32 sustainable_power;
@@ -533,7 +535,7 @@ static void reset_pid_controller(struct power_allocator_params *params)
 	params->prev_err = 0;
 }
 
-static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
+static void allow_maximum_power(struct thermal_zone_device *tz)
 {
 	struct power_allocator_params *params = tz->governor_data;
 	struct thermal_cooling_device *cdev;
@@ -555,7 +557,7 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 		 */
 		cdev->ops->get_requested_power(cdev, &req_power);
 
-		if (update)
+		if (params->update_cdevs)
 			__thermal_cdev_update(cdev);
 
 		mutex_unlock(&cdev->lock);
@@ -752,13 +754,13 @@ static void power_allocator_manage(struct thermal_zone_device *tz)
 
 	if (trip && tz->temperature < trip->temperature) {
 		reset_pid_controller(params);
-		allow_maximum_power(tz, tz->passive);
-		tz->passive = 0;
+		allow_maximum_power(tz);
+		params->update_cdevs = false;
 		return;
 	}
 
 	allocate_power(tz, params->trip_max->temperature);
-	tz->passive = 1;
+	params->update_cdevs = true;
 }
 
 static struct thermal_governor thermal_gov_power_allocator = {
