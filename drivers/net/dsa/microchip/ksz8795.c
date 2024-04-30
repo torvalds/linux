@@ -1702,11 +1702,15 @@ static void ksz8_cpu_port_link_up(struct ksz_device *dev, int speed, int duplex,
 		 SW_10_MBIT, ctrl);
 }
 
-void ksz8_phylink_mac_link_up(struct ksz_device *dev, int port,
-			      unsigned int mode, phy_interface_t interface,
-			      struct phy_device *phydev, int speed, int duplex,
+void ksz8_phylink_mac_link_up(struct phylink_config *config,
+			      struct phy_device *phydev, unsigned int mode,
+			      phy_interface_t interface, int speed, int duplex,
 			      bool tx_pause, bool rx_pause)
 {
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ksz_device *dev = dp->ds->priv;
+	int port = dp->index;
+
 	/* If the port is the CPU port, apply special handling. Only the CPU
 	 * port is configured via global registers.
 	 */
