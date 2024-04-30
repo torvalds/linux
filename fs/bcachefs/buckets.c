@@ -1144,7 +1144,7 @@ static int __trigger_extent(struct btree_trans *trans,
 	enum bch_data_type data_type = bkey_is_btree_ptr(k.k)
 		? BCH_DATA_btree
 		: BCH_DATA_user;
-	s64 dirty_sectors = 0;
+	s64 replicas_sectors = 0;
 	int ret = 0;
 
 	r.e.data_type	= data_type;
@@ -1170,7 +1170,7 @@ static int __trigger_extent(struct btree_trans *trans,
 					return ret;
 			}
 		} else if (!p.has_ec) {
-			dirty_sectors	       += disk_sectors;
+			replicas_sectors       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
 			ret = bch2_trigger_stripe_ptr(trans, k, p, data_type, disk_sectors, flags);
@@ -1188,8 +1188,8 @@ static int __trigger_extent(struct btree_trans *trans,
 
 	if (r.e.nr_devs) {
 		ret = !gc
-			? bch2_update_replicas_list(trans, &r.e, dirty_sectors)
-			: bch2_update_replicas(c, k, &r.e, dirty_sectors, 0, true);
+			? bch2_update_replicas_list(trans, &r.e, replicas_sectors)
+			: bch2_update_replicas(c, k, &r.e, replicas_sectors, 0, true);
 		if (unlikely(ret && gc)) {
 			struct printbuf buf = PRINTBUF;
 
