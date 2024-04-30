@@ -467,4 +467,13 @@ config RANDOM_TRUST_BOOTLOADER
 	  believe its RNG facilities may be faulty. This may also be configured
 	  at boot time with "random.trust_bootloader=on/off".
 
+config VIRTIO_EAVB
+	tristate "Virtio eavb driver"
+	depends on VIRTIO
+	help
+	  This the virtual eavb frontend driver based on virtio. Eavb
+	  means ethernet Audio Video Bridging. It provides unified ioctl
+	  interface for userspace. Say Y if you want to support virtual
+	  eavb.
+
 endmenu
