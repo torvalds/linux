@@ -940,6 +940,18 @@ struct net_device *dev_get_by_napi_id(unsigned int napi_id)
 }
 EXPORT_SYMBOL(dev_get_by_napi_id);
 
+static DEFINE_SEQLOCK(netdev_rename_lock);
+
+void netdev_copy_name(struct net_device *dev, char *name)
+{
+	unsigned int seq;
+
+	do {
+		seq = read_seqbegin(&netdev_rename_lock);
+		strscpy(name, dev->name, IFNAMSIZ);
+	} while (read_seqretry(&netdev_rename_lock, seq));
+}
+
 /**
  *	netdev_get_name - get a netdevice name, knowing its ifindex.
  *	@net: network namespace
@@ -951,7 +963,6 @@ int netdev_get_name(struct net *net, char *name, int ifindex)
 	struct net_device *dev;
 	int ret;
 
-	down_read(&devnet_rename_sem);
 	rcu_read_lock();
 
 	dev = dev_get_by_index_rcu(net, ifindex);
@@ -960,12 +971,11 @@ int netdev_get_name(struct net *net, char *name, int ifindex)
 		goto out;
 	}
 
-	strcpy(name, dev->name);
+	netdev_copy_name(dev, name);
 
 	ret = 0;
 out:
 	rcu_read_unlock();
-	up_read(&devnet_rename_sem);
 	return ret;
 }
 
@@ -1217,7 +1227,10 @@ int dev_change_name(struct net_device *dev, const char *newname)
 
 	memcpy(oldname, dev->name, IFNAMSIZ);
 
+	write_seqlock(&netdev_rename_lock);
 	err = dev_get_valid_name(net, dev, newname);
+	write_sequnlock(&netdev_rename_lock);
+
 	if (err < 0) {
 		up_write(&devnet_rename_sem);
 		return err;
@@ -1257,7 +1270,9 @@ rollback:
 		if (err >= 0) {
 			err = ret;
 			down_write(&devnet_rename_sem);
+			write_seqlock(&netdev_rename_lock);
 			memcpy(dev->name, oldname, IFNAMSIZ);
+			write_sequnlock(&netdev_rename_lock);
 			memcpy(oldname, newname, IFNAMSIZ);
 			WRITE_ONCE(dev->name_assign_type, old_assign_type);
 			old_assign_type = NET_NAME_RENAMED;
@@ -11403,8 +11418,12 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	dev_net_set(dev, net);
 	dev->ifindex = new_ifindex;
 
-	if (new_name[0]) /* Rename the netdev to prepared name */
+	if (new_name[0]) {
+		/* Rename the netdev to prepared name */
+		write_seqlock(&netdev_rename_lock);
 		strscpy(dev->name, new_name, IFNAMSIZ);
+		write_sequnlock(&netdev_rename_lock);
+	}
 
 	/* Fixup kobjects */
 	dev_set_uevent_suppress(&dev->dev, 1);
