@@ -1003,11 +1003,35 @@ out_of_mem:
  *	User level interface (ioctl)
  */
 
+static struct net_device *arp_req_dev_by_name(struct net *net, struct arpreq *r)
+{
+	struct net_device *dev;
+
+	dev = __dev_get_by_name(net, r->arp_dev);
+	if (!dev)
+		return ERR_PTR(-ENODEV);
+
+	/* Mmmm... It is wrong... ARPHRD_NETROM == 0 */
+	if (!r->arp_ha.sa_family)
+		r->arp_ha.sa_family = dev->type;
+
+	if ((r->arp_flags & ATF_COM) && r->arp_ha.sa_family != dev->type)
+		return ERR_PTR(-EINVAL);
+
+	return dev;
+}
+
 static struct net_device *arp_req_dev(struct net *net, struct arpreq *r)
 {
 	struct net_device *dev;
 	struct rtable *rt;
 	__be32 ip;
+
+	if (r->arp_dev[0])
+		return arp_req_dev_by_name(net, r);
+
+	if (r->arp_flags & ATF_PUBL)
+		return NULL;
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 
@@ -1063,21 +1087,20 @@ static int arp_req_set_public(struct net *net, struct arpreq *r,
 	return arp_req_set_proxy(net, dev, 1);
 }
 
-static int arp_req_set(struct net *net, struct arpreq *r,
-		       struct net_device *dev)
+static int arp_req_set(struct net *net, struct arpreq *r)
 {
 	struct neighbour *neigh;
+	struct net_device *dev;
 	__be32 ip;
 	int err;
+
+	dev = arp_req_dev(net, r);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	if (r->arp_flags & ATF_PUBL)
 		return arp_req_set_public(net, r, dev);
 
-	if (!dev) {
-		dev = arp_req_dev(net, r);
-		if (IS_ERR(dev))
-			return PTR_ERR(dev);
-	}
 	switch (dev->type) {
 #if IS_ENABLED(CONFIG_FDDI)
 	case ARPHRD_FDDI:
@@ -1134,10 +1157,18 @@ static unsigned int arp_state_to_flags(struct neighbour *neigh)
  *	Get an ARP cache entry.
  */
 
-static int arp_req_get(struct arpreq *r, struct net_device *dev)
+static int arp_req_get(struct net *net, struct arpreq *r)
 {
 	__be32 ip = ((struct sockaddr_in *) &r->arp_pa)->sin_addr.s_addr;
 	struct neighbour *neigh;
+	struct net_device *dev;
+
+	if (!r->arp_dev[0])
+		return -ENODEV;
+
+	dev = arp_req_dev_by_name(net, r);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	neigh = neigh_lookup(&arp_tbl, &ip, dev);
 	if (!neigh)
@@ -1201,20 +1232,20 @@ static int arp_req_delete_public(struct net *net, struct arpreq *r,
 	return arp_req_set_proxy(net, dev, 0);
 }
 
-static int arp_req_delete(struct net *net, struct arpreq *r,
-			  struct net_device *dev)
+static int arp_req_delete(struct net *net, struct arpreq *r)
 {
+	struct net_device *dev;
 	__be32 ip;
+
+	dev = arp_req_dev(net, r);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	if (r->arp_flags & ATF_PUBL)
 		return arp_req_delete_public(net, r, dev);
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
-	if (!dev) {
-		dev = arp_req_dev(net, r);
-		if (IS_ERR(dev))
-			return PTR_ERR(dev);
-	}
+
 	return arp_invalidate(dev, ip, true);
 }
 
@@ -1224,7 +1255,6 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 
 int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 {
-	struct net_device *dev = NULL;
 	struct arpreq r;
 	__be32 *netmask;
 	int err;
@@ -1258,35 +1288,19 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		return -EINVAL;
 
 	rtnl_lock();
-	if (r.arp_dev[0]) {
-		err = -ENODEV;
-		dev = __dev_get_by_name(net, r.arp_dev);
-		if (!dev)
-			goto out;
-
-		/* Mmmm... It is wrong... ARPHRD_NETROM==0 */
-		if (!r.arp_ha.sa_family)
-			r.arp_ha.sa_family = dev->type;
-		err = -EINVAL;
-		if ((r.arp_flags & ATF_COM) && r.arp_ha.sa_family != dev->type)
-			goto out;
-	} else if (cmd == SIOCGARP) {
-		err = -ENODEV;
-		goto out;
-	}
 
 	switch (cmd) {
 	case SIOCDARP:
-		err = arp_req_delete(net, &r, dev);
+		err = arp_req_delete(net, &r);
 		break;
 	case SIOCSARP:
-		err = arp_req_set(net, &r, dev);
+		err = arp_req_set(net, &r);
 		break;
 	case SIOCGARP:
-		err = arp_req_get(&r, dev);
+		err = arp_req_get(net, &r);
 		break;
 	}
-out:
+
 	rtnl_unlock();
 	if (cmd == SIOCGARP && !err && copy_to_user(arg, &r, sizeof(r)))
 		err = -EFAULT;
