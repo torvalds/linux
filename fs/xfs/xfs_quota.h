@@ -215,10 +215,11 @@ xfs_quota_reserve_blkres(struct xfs_inode *ip, int64_t blocks)
 	return xfs_trans_reserve_quota_nblks(NULL, ip, blocks, 0, false);
 }
 
-static inline int
-xfs_quota_unreserve_blkres(struct xfs_inode *ip, int64_t blocks)
+static inline void
+xfs_quota_unreserve_blkres(struct xfs_inode *ip, uint64_t blocks)
 {
-	return xfs_quota_reserve_blkres(ip, -blocks);
+	/* don't return an error as unreserving quotas can't fail */
+	xfs_quota_reserve_blkres(ip, -(int64_t)blocks);
 }
 
 extern int xfs_mount_reset_sbqflags(struct xfs_mount *);

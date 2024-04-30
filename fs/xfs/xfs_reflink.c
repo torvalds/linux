@@ -592,10 +592,8 @@ xfs_reflink_cancel_cow_blocks(
 		trace_xfs_reflink_cancel_cow(ip, &del);
 
 		if (isnullstartblock(del.br_startblock)) {
-			error = xfs_bmap_del_extent_delay(ip, XFS_COW_FORK,
-					&icur, &got, &del);
-			if (error)
-				break;
+			xfs_bmap_del_extent_delay(ip, XFS_COW_FORK, &icur, &got,
+					&del);
 		} else if (del.br_state == XFS_EXT_UNWRITTEN || cancel_real) {
 			ASSERT((*tpp)->t_highest_agno == NULLAGNUMBER);
 
@@ -618,10 +616,7 @@ xfs_reflink_cancel_cow_blocks(
 			xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
 
 			/* Remove the quota reservation */
-			error = xfs_quota_unreserve_blkres(ip,
-					del.br_blockcount);
-			if (error)
-				break;
+			xfs_quota_unreserve_blkres(ip, del.br_blockcount);
 		} else {
 			/* Didn't do anything, push cursor back. */
 			xfs_iext_prev(ifp, &icur);

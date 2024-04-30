@@ -443,7 +443,6 @@ xfs_discard_folio(
 {
 	struct xfs_inode	*ip = XFS_I(folio->mapping->host);
 	struct xfs_mount	*mp = ip->i_mount;
-	int			error;
 
 	if (xfs_is_shutdown(mp))
 		return;
@@ -457,11 +456,8 @@ xfs_discard_folio(
 	 * byte of the next folio. Hence the end offset is only dependent on the
 	 * folio itself and not the start offset that is passed in.
 	 */
-	error = xfs_bmap_punch_delalloc_range(ip, pos,
+	xfs_bmap_punch_delalloc_range(ip, pos,
 				folio_pos(folio) + folio_size(folio));
-
-	if (error && !xfs_is_shutdown(mp))
-		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
 }
 
 static const struct iomap_writeback_ops xfs_writeback_ops = {
