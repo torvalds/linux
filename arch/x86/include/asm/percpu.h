@@ -146,28 +146,28 @@
 
 #ifdef CONFIG_USE_X86_SEG_SUPPORT
 
-#define __raw_cpu_read(qual, pcp)					\
+#define __raw_cpu_read(size, qual, pcp)					\
 ({									\
 	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp));		\
 })
 
-#define __raw_cpu_write(qual, pcp, val)					\
+#define __raw_cpu_write(size, qual, pcp, val)				\
 do {									\
 	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp)) = (val);	\
 } while (0)
 
 #else /* CONFIG_USE_X86_SEG_SUPPORT */
 
-#define percpu_from_op(size, qual, op, _var)				\
+#define __raw_cpu_read(size, qual, _var)				\
 ({									\
 	__pcpu_type_##size pfo_val__;					\
-	asm qual (__pcpu_op2_##size(op, __percpu_arg([var]), "%[val]")	\
+	asm qual (__pcpu_op2_##size("mov", __percpu_arg([var]), "%[val]") \
 	    : [val] __pcpu_reg_##size("=", pfo_val__)			\
 	    : [var] "m" (__my_cpu_var(_var)));				\
 	(typeof(_var))(unsigned long) pfo_val__;			\
 })
 
-#define percpu_to_op(size, qual, op, _var, _val)			\
+#define __raw_cpu_write(size, qual, _var, _val)				\
 do {									\
 	__pcpu_type_##size pto_val__ = __pcpu_cast_##size(_val);	\
 	if (0) {		                                        \
@@ -175,7 +175,7 @@ do {									\
 		pto_tmp__ = (_val);					\
 		(void)pto_tmp__;					\
 	}								\
-	asm qual(__pcpu_op2_##size(op, "%[val]", __percpu_arg([var]))	\
+	asm qual(__pcpu_op2_##size("mov", "%[val]", __percpu_arg([var])) \
 	    : [var] "+m" (__my_cpu_var(_var))				\
 	    : [val] __pcpu_reg_imm_##size(pto_val__));			\
 } while (0)
@@ -448,53 +448,31 @@ do {									\
  */
 #define this_cpu_read_stable(pcp)	__pcpu_size_call_return(this_cpu_read_stable_, pcp)
 
+#define raw_cpu_read_1(pcp)		__raw_cpu_read(1, , pcp)
+#define raw_cpu_read_2(pcp)		__raw_cpu_read(2, , pcp)
+#define raw_cpu_read_4(pcp)		__raw_cpu_read(4, , pcp)
+#define raw_cpu_write_1(pcp, val)	__raw_cpu_write(1, , pcp, val)
+#define raw_cpu_write_2(pcp, val)	__raw_cpu_write(2, , pcp, val)
+#define raw_cpu_write_4(pcp, val)	__raw_cpu_write(4, , pcp, val)
+
+#define this_cpu_read_1(pcp)		__raw_cpu_read(1, volatile, pcp)
+#define this_cpu_read_2(pcp)		__raw_cpu_read(2, volatile, pcp)
+#define this_cpu_read_4(pcp)		__raw_cpu_read(4, volatile, pcp)
+#define this_cpu_write_1(pcp, val)	__raw_cpu_write(1, volatile, pcp, val)
+#define this_cpu_write_2(pcp, val)	__raw_cpu_write(2, volatile, pcp, val)
+#define this_cpu_write_4(pcp, val)	__raw_cpu_write(4, volatile, pcp, val)
+
+#ifdef CONFIG_X86_64
+#define raw_cpu_read_8(pcp)		__raw_cpu_read(8, , pcp)
+#define raw_cpu_write_8(pcp, val)	__raw_cpu_write(8, , pcp, val)
+
+#define this_cpu_read_8(pcp)		__raw_cpu_read(8, volatile, pcp)
+#define this_cpu_write_8(pcp, val)	__raw_cpu_write(8, volatile, pcp, val)
+#endif
+
 #ifdef CONFIG_USE_X86_SEG_SUPPORT
-#define raw_cpu_read_1(pcp)		__raw_cpu_read(, pcp)
-#define raw_cpu_read_2(pcp)		__raw_cpu_read(, pcp)
-#define raw_cpu_read_4(pcp)		__raw_cpu_read(, pcp)
-#define raw_cpu_write_1(pcp, val)	__raw_cpu_write(, pcp, val)
-#define raw_cpu_write_2(pcp, val)	__raw_cpu_write(, pcp, val)
-#define raw_cpu_write_4(pcp, val)	__raw_cpu_write(, pcp, val)
-
-#define this_cpu_read_1(pcp)		__raw_cpu_read(volatile, pcp)
-#define this_cpu_read_2(pcp)		__raw_cpu_read(volatile, pcp)
-#define this_cpu_read_4(pcp)		__raw_cpu_read(volatile, pcp)
-#define this_cpu_write_1(pcp, val)	__raw_cpu_write(volatile, pcp, val)
-#define this_cpu_write_2(pcp, val)	__raw_cpu_write(volatile, pcp, val)
-#define this_cpu_write_4(pcp, val)	__raw_cpu_write(volatile, pcp, val)
-
-#ifdef CONFIG_X86_64
-#define raw_cpu_read_8(pcp)		__raw_cpu_read(, pcp)
-#define raw_cpu_write_8(pcp, val)	__raw_cpu_write(, pcp, val)
-
-#define this_cpu_read_8(pcp)		__raw_cpu_read(volatile, pcp)
-#define this_cpu_write_8(pcp, val)	__raw_cpu_write(volatile, pcp, val)
-#endif
-
-#define this_cpu_read_const(pcp)	__raw_cpu_read(, pcp)
+#define this_cpu_read_const(pcp)	__raw_cpu_read(, , pcp)
 #else /* CONFIG_USE_X86_SEG_SUPPORT */
-
-#define raw_cpu_read_1(pcp)		percpu_from_op(1, , "mov", pcp)
-#define raw_cpu_read_2(pcp)		percpu_from_op(2, , "mov", pcp)
-#define raw_cpu_read_4(pcp)		percpu_from_op(4, , "mov", pcp)
-#define raw_cpu_write_1(pcp, val)	percpu_to_op(1, , "mov", (pcp), val)
-#define raw_cpu_write_2(pcp, val)	percpu_to_op(2, , "mov", (pcp), val)
-#define raw_cpu_write_4(pcp, val)	percpu_to_op(4, , "mov", (pcp), val)
-
-#define this_cpu_read_1(pcp)		percpu_from_op(1, volatile, "mov", pcp)
-#define this_cpu_read_2(pcp)		percpu_from_op(2, volatile, "mov", pcp)
-#define this_cpu_read_4(pcp)		percpu_from_op(4, volatile, "mov", pcp)
-#define this_cpu_write_1(pcp, val)	percpu_to_op(1, volatile, "mov", (pcp), val)
-#define this_cpu_write_2(pcp, val)	percpu_to_op(2, volatile, "mov", (pcp), val)
-#define this_cpu_write_4(pcp, val)	percpu_to_op(4, volatile, "mov", (pcp), val)
-
-#ifdef CONFIG_X86_64
-#define raw_cpu_read_8(pcp)		percpu_from_op(8, , "mov", pcp)
-#define raw_cpu_write_8(pcp, val)	percpu_to_op(8, , "mov", (pcp), val)
-
-#define this_cpu_read_8(pcp)		percpu_from_op(8, volatile, "mov", pcp)
-#define this_cpu_write_8(pcp, val)	percpu_to_op(8, volatile, "mov", (pcp), val)
-#endif
 
 /*
  * The generic per-cpu infrastrucutre is not suitable for
