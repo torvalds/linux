@@ -768,7 +768,7 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
-			     PTR_BUCKET_POS(c, &ptr),
+			     PTR_BUCKET_POS(ca, &ptr),
 			     BTREE_ITER_cached);
 
 	prt_printf(&buf, "Attempting to read from stale dirty pointer:\n");

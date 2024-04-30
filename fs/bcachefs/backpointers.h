@@ -120,7 +120,7 @@ static inline enum bch_data_type bch2_bkey_ptr_data_type(struct bkey_s_c k,
 	}
 }
 
-static inline void bch2_extent_ptr_to_bp(struct bch_fs *c,
+static inline void bch2_extent_ptr_to_bp(struct bch_fs *c, struct bch_dev *ca,
 			   enum btree_id btree_id, unsigned level,
 			   struct bkey_s_c k, struct extent_ptr_decoded p,
 			   const union bch_extent_entry *entry,
@@ -130,7 +130,7 @@ static inline void bch2_extent_ptr_to_bp(struct bch_fs *c,
 	s64 sectors = level ? btree_sectors(c) : k.k->size;
 	u32 bucket_offset;
 
-	*bucket_pos = PTR_BUCKET_POS_OFFSET(c, &p.ptr, &bucket_offset);
+	*bucket_pos = PTR_BUCKET_POS_OFFSET(ca, &p.ptr, &bucket_offset);
 	*bp = (struct bch_backpointer) {
 		.btree_id	= btree_id,
 		.level		= level,

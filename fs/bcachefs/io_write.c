@@ -1117,10 +1117,12 @@ static inline void bch2_nocow_write_unlock(struct bch_write_op *op)
 	for_each_keylist_key(&op->insert_keys, k) {
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(k));
 
-		bkey_for_each_ptr(ptrs, ptr)
+		bkey_for_each_ptr(ptrs, ptr) {
+			struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 			bch2_bucket_nocow_unlock(&c->nocow_locks,
-						 PTR_BUCKET_POS(c, ptr),
+						 PTR_BUCKET_POS(ca, ptr),
 						 BUCKET_NOCOW_LOCK_UPDATE);
+		}
 	}
 }
 
@@ -1270,12 +1272,13 @@ retry:
 		/* Get iorefs before dropping btree locks: */
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		bkey_for_each_ptr(ptrs, ptr) {
-			struct bpos b = PTR_BUCKET_POS(c, ptr);
+			struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
+			struct bpos b = PTR_BUCKET_POS(ca, ptr);
 			struct nocow_lock_bucket *l =
 				bucket_nocow_lock(&c->nocow_locks, bucket_to_u64(b));
 			prefetch(l);
 
-			if (unlikely(!bch2_dev_get_ioref(bch2_dev_bkey_exists(c, ptr->dev), WRITE)))
+			if (unlikely(!bch2_dev_get_ioref(ca, WRITE)))
 				goto err_get_ioref;
 
 			/* XXX allocating memory with btree locks held - rare */

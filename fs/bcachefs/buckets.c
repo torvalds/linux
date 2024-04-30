@@ -977,7 +977,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 
 	struct bpos bucket;
 	struct bch_backpointer bp;
-	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, entry, &bucket, &bp);
+	bch2_extent_ptr_to_bp(trans->c, ca, btree_id, level, k, p, entry, &bucket, &bp);
 	*sectors = insert ? bp.bucket_len : -((s64) bp.bucket_len);
 
 	if (flags & BTREE_TRIGGER_transactional) {

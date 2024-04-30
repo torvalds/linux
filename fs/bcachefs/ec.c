@@ -164,6 +164,7 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 /* Triggers: */
 
 static int __mark_stripe_bucket(struct btree_trans *trans,
+				struct bch_dev *ca,
 				struct bkey_s_c_stripe s,
 				unsigned ptr_idx, bool deleting,
 				struct bpos bucket,
@@ -179,13 +180,6 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 	int ret = 0;
 
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch2_dev_tryget(c, ptr->dev);
-	if (unlikely(!ca)) {
-		if (!(flags & BTREE_TRIGGER_overwrite))
-			ret = -EIO;
-		goto err;
-	}
-
 	if (deleting)
 		sectors = -sectors;
 
@@ -263,7 +257,6 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 
 	alloc_data_type_set(a, data_type);
 err:
-	bch2_dev_put(ca);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -275,34 +268,40 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	const struct bch_extent_ptr *ptr = s.v->ptrs + ptr_idx;
-	struct bpos bucket = PTR_BUCKET_POS(c, ptr);
+	int ret = 0;
+
+	struct bch_dev *ca = bch2_dev_tryget(c, ptr->dev);
+	if (unlikely(!ca)) {
+		if (!(flags & BTREE_TRIGGER_overwrite))
+			ret = -EIO;
+		goto err;
+	}
+
+	struct bpos bucket = PTR_BUCKET_POS(ca, ptr);
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bkey_i_alloc_v4 *a =
 			bch2_trans_start_alloc_update(trans, bucket);
-		return PTR_ERR_OR_ZERO(a) ?:
-			__mark_stripe_bucket(trans, s, ptr_idx, deleting, bucket, &a->v, flags);
+		ret = PTR_ERR_OR_ZERO(a) ?:
+			__mark_stripe_bucket(trans, ca, s, ptr_idx, deleting, bucket, &a->v, flags);
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
-
 		percpu_down_read(&c->mark_lock);
 		struct bucket *g = gc_bucket(ca, bucket.offset);
 		bucket_lock(g);
 		struct bch_alloc_v4 old = bucket_m_to_alloc(*g), new = old;
-		int ret = __mark_stripe_bucket(trans, s, ptr_idx, deleting, bucket, &new, flags);
+		ret = __mark_stripe_bucket(trans, ca, s, ptr_idx, deleting, bucket, &new, flags);
 		if (!ret) {
 			alloc_to_bucket(g, new);
 			bch2_dev_usage_update(c, ca, &old, &new, 0, true);
 		}
 		bucket_unlock(g);
 		percpu_up_read(&c->mark_lock);
-		return ret;
 	}
-
-	BUG();
-	return 0;
+err:
+	bch2_dev_put(ca);
+	return ret;
 }
 
 static int mark_stripe_buckets(struct btree_trans *trans,
@@ -1298,17 +1297,21 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 {
 	struct bch_fs *c = trans->c;
 	struct bch_stripe *v = &bkey_i_to_stripe(&s->key)->v;
-	struct bch_extent_ptr bucket = v->ptrs[block];
-	struct bpos bucket_pos = PTR_BUCKET_POS(c, &bucket);
+	struct bch_extent_ptr ptr = v->ptrs[block];
 	struct bpos bp_pos = POS_MIN;
 	int ret = 0;
+
+	struct bch_dev *ca = bch2_dev_tryget(c, ptr.dev);
+	if (!ca)
+		return -EIO;
+
+	struct bpos bucket_pos = PTR_BUCKET_POS(ca, &ptr);
 
 	while (1) {
 		ret = commit_do(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_check_rw|
 				BCH_TRANS_COMMIT_no_enospc,
-			ec_stripe_update_extent(trans, bucket_pos, bucket.gen,
-						s, &bp_pos));
+			ec_stripe_update_extent(trans, bucket_pos, ptr.gen, s, &bp_pos));
 		if (ret)
 			break;
 		if (bkey_eq(bp_pos, POS_MAX))
@@ -1317,6 +1320,7 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 		bp_pos = bpos_nosnap_successor(bp_pos);
 	}
 
+	bch2_dev_put(ca);
 	return ret;
 }
 
