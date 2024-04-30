@@ -1310,6 +1310,19 @@ void arm_smmu_make_s1_cd(struct arm_smmu_cd *target,
 	target->data[3] = cpu_to_le64(cd->mair);
 }
 
+void arm_smmu_clear_cd(struct arm_smmu_master *master, ioasid_t ssid)
+{
+	struct arm_smmu_cd target = {};
+	struct arm_smmu_cd *cdptr;
+
+	if (!master->cd_table.cdtab)
+		return;
+	cdptr = arm_smmu_get_cd_ptr(master, ssid);
+	if (WARN_ON(!cdptr))
+		return;
+	arm_smmu_write_cd_entry(master, ssid, cdptr, &target);
+}
+
 int arm_smmu_write_ctx_desc(struct arm_smmu_master *master, int ssid,
 			    struct arm_smmu_ctx_desc *cd)
 {
@@ -1320,7 +1333,6 @@ int arm_smmu_write_ctx_desc(struct arm_smmu_master *master, int ssid,
 	 * (2) Install a secondary CD, for SID+SSID traffic.
 	 * (4) Quiesce the context without clearing the valid bit. Disable
 	 *     translation, and ignore any translation fault.
-	 * (5) Remove a secondary CD.
 	 */
 	u64 val;
 	struct arm_smmu_cd target;
@@ -1339,10 +1351,7 @@ int arm_smmu_write_ctx_desc(struct arm_smmu_master *master, int ssid,
 	target = *cd_table_entry;
 	val = le64_to_cpu(cdptr->data[0]);
 
-	if (!cd) { /* (5) */
-		memset(cdptr, 0, sizeof(*cdptr));
-		val = 0;
-	} else if (cd == &quiet_cd) { /* (4) */
+	if (cd == &quiet_cd) { /* (4) */
 		val &= ~(CTXDESC_CD_0_TCR_T0SZ | CTXDESC_CD_0_TCR_TG0 |
 			 CTXDESC_CD_0_TCR_IRGN0 | CTXDESC_CD_0_TCR_ORGN0 |
 			 CTXDESC_CD_0_TCR_SH0);
@@ -2674,9 +2683,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	case ARM_SMMU_DOMAIN_S2:
 		arm_smmu_make_s2_domain_ste(&target, master, smmu_domain);
 		arm_smmu_install_ste_for_dev(master, &target);
-		if (master->cd_table.cdtab)
-			arm_smmu_write_ctx_desc(master, IOMMU_NO_PASID,
-						      NULL);
+		arm_smmu_clear_cd(master, IOMMU_NO_PASID);
 		break;
 	}
 
@@ -2724,8 +2731,7 @@ static int arm_smmu_attach_dev_ste(struct device *dev,
 	 * arm_smmu_domain->devices to avoid races updating the same context
 	 * descriptor from arm_smmu_share_asid().
 	 */
-	if (master->cd_table.cdtab)
-		arm_smmu_write_ctx_desc(master, IOMMU_NO_PASID, NULL);
+	arm_smmu_clear_cd(master, IOMMU_NO_PASID);
 	return 0;
 }
 
