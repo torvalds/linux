@@ -295,51 +295,86 @@ static int rpc_handshake(struct hgsl_hyp_priv_t *priv,
 	struct hgsl_hab_channel_t *hab_channel)
 {
 	int ret = 0;
-	int rval = GSL_SUCCESS;
+	int rval = GSL_FAILURE;
 	struct gsl_hab_payload *send_buf = NULL;
 	struct gsl_hab_payload *recv_buf = NULL;
-	struct handshake_params_t params = { 0 };
+	union {
+		struct handshake_params_t v1;
+		struct handshake_params_v2_t v2;
+	} params;
+	size_t params_size;
+	int handshake_version;
 	int tmp = 0;
 	enum gsl_rpc_server_type_t server_type = GSL_RPC_SERVER_TYPE_LAST;
 	enum gsl_rpc_server_mode_t server_mode = GSL_RPC_SERVER_MODE_LAST;
 
 	RPC_TRACE();
 
-	ret = hgsl_rpc_parcel_reset(hab_channel);
-	if (ret) {
-		LOGE("hgsl_rpc_parcel_reset failed %d", ret);
-		goto out;
+	for (handshake_version = 2; handshake_version >= 1; handshake_version--) {
+		ret = hgsl_rpc_parcel_reset(hab_channel);
+		if (ret) {
+			LOGE("hgsl_rpc_parcel_reset failed %d", ret);
+			goto out;
+		}
+
+		send_buf = &hab_channel->send_buf;
+		recv_buf = &hab_channel->recv_buf;
+
+		switch (handshake_version) {
+		case 1:
+			params_size = sizeof(params.v1);
+			params.v1.client_type = g_client_type;
+			params.v1.client_version = g_client_version;
+			params.v1.pid = priv->client_pid;
+			params.v1.size = sizeof(params.v1);
+			strscpy(params.v1.name, priv->client_name, sizeof(params.v1.name));
+			LOGD("client process name is (%s), handshake version %d",
+				params.v1.name, handshake_version);
+			break;
+		case 2:
+			params_size = sizeof(params.v2);
+			params.v2.client_type = g_client_type;
+			params.v2.client_version = g_client_version;
+			params.v2.pid = priv->client_pid;
+			params.v2.size = sizeof(params.v2);
+			strscpy(params.v2.name, priv->client_name, sizeof(params.v2.name));
+			params.v2.uid = from_kuid(current_user_ns(), current_uid());
+			LOGD("client process name is (%s), uid %u, handshake version %d",
+				params.v2.name, params.v2.uid, handshake_version);
+			break;
+		default:
+			LOGE("Unknown handshake version %d", handshake_version);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		ret = gsl_rpc_write(send_buf, &params, params_size);
+		if (ret) {
+			LOGE("gsl_rpc_write failed %d", ret);
+			goto out;
+		}
+
+		ret = gsl_rpc_transact_ext(RPC_HANDSHAKE, handshake_version, hab_channel, 0);
+		if (ret) {
+			LOGE("gsl_rpc_transact_ext failed %d", ret);
+			goto out;
+		}
+
+		ret = gsl_rpc_read_int32_l(recv_buf, &rval);
+		if (ret) {
+			LOGE("gsl_rpc_read_int32_l failed %d", ret);
+			goto out;
+		}
+
+		if (rval != GSL_SUCCESS) {
+			LOGE("Handshake failed %d, BE sent error %d, try smaller version",
+					handshake_version, rval);
+		} else {
+			LOGD("Handshake success %d", handshake_version);
+			break;
+		}
 	}
-
-	send_buf = &hab_channel->send_buf;
-	recv_buf = &hab_channel->recv_buf;
-
-	params.client_type = g_client_type;
-	params.client_version = g_client_version;
-	params.pid = priv->client_pid;
-	params.size = sizeof(params);
-	/* send the current process name to the server */
-	strscpy(params.name, priv->client_name, sizeof(params.name));
-	LOGD("client process name is (%s)", params.name);
-
-	ret = gsl_rpc_write(send_buf, &params, sizeof(params));
-	if (ret) {
-		LOGE("gsl_rpc_write failed %d", ret);
-		goto out;
-	}
-
-	ret = gsl_rpc_transact_ext(RPC_HANDSHAKE, 1, hab_channel, 0);
-	if (ret) {
-		LOGE("gsl_rpc_transact_ext failed %d", ret);
-		goto out;
-	}
-
-	ret = gsl_rpc_read_int32_l(recv_buf, &rval);
-	if ((!ret) && (rval != GSL_SUCCESS)) {
-		LOGE("BE sent error %d", rval);
-		ret = -EINVAL;
-	}
-	if (!ret) {
+	if (ret == 0 && rval == GSL_SUCCESS) {
 		ret = gsl_rpc_read_int32_l(recv_buf, &priv->conn_id);
 		if (ret) {
 			LOGE("Failed to read conn_id %d", ret);
