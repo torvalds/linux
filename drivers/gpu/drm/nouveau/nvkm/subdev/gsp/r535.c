@@ -1264,6 +1264,7 @@ static void build_registry(struct nvkm_gsp *gsp, PACKED_REGISTRY_TABLE *registry
 			str_offset += reg->vlen;
 			break;
 		default:
+			break;
 		}
 
 		i++;
