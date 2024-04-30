@@ -2303,7 +2303,7 @@ void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_st
 	if (!crtc_state->enable_psr2_su_region_et)
 		return;
 
-	intel_de_write(dev_priv, PIPE_SRCSZ_ERLY_TPT(crtc->pipe),
+	intel_de_write(dev_priv, PIPE_SRCSZ_ERLY_TPT(dev_priv, crtc->pipe),
 		       crtc_state->pipe_srcsz_early_tpt);
 }
 
