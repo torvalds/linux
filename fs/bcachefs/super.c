@@ -1764,9 +1764,28 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (dynamic_fault("bcachefs:add:no_slot"))
 		goto no_slot;
 
-	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++)
-		if (!bch2_member_exists(c->disk_sb.sb, dev_idx))
-			goto have_slot;
+	if (c->sb.nr_devices < BCH_SB_MEMBERS_MAX) {
+		dev_idx = c->sb.nr_devices;
+		goto have_slot;
+	}
+
+	int best = -1;
+	u64 best_last_mount = 0;
+	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++) {
+		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, dev_idx);
+		if (bch2_member_alive(&m))
+			continue;
+
+		u64 last_mount = le64_to_cpu(m.last_mount);
+		if (best < 0 || last_mount < best_last_mount) {
+			best = dev_idx;
+			best_last_mount = last_mount;
+		}
+	}
+	if (best >= 0) {
+		dev_idx = best;
+		goto have_slot;
+	}
 no_slot:
 	ret = -BCH_ERR_ENOSPC_sb_members;
 	bch_err_msg(c, ret, "setting up new superblock");
