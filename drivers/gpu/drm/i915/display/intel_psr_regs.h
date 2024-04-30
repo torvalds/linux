@@ -153,7 +153,7 @@
 
 #define _PSR2_CTL_A				0x60900
 #define _PSR2_CTL_EDP				0x6f900
-#define EDP_PSR2_CTL(tran)			_MMIO_TRANS2(dev_priv, tran, _PSR2_CTL_A)
+#define EDP_PSR2_CTL(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _PSR2_CTL_A)
 #define   EDP_PSR2_ENABLE			REG_BIT(31)
 #define   EDP_SU_TRACK_ENABLE			REG_BIT(30) /* up to adl-p */
 #define   TGL_EDP_PSR2_BLOCK_COUNT_MASK		REG_BIT(28)
