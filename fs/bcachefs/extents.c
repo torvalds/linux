@@ -983,7 +983,7 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 {
 	out->atomic++;
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_safe(c, ptr->dev);
+	struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
 	if (!ca) {
 		prt_printf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
 			   (u64) ptr->offset, ptr->gen,

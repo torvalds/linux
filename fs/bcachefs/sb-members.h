@@ -210,7 +210,7 @@ static inline struct bch_dev *bch2_dev_locked(struct bch_fs *c, unsigned dev)
 					 lockdep_is_held(&c->state_lock));
 }
 
-static inline struct bch_dev *bch2_dev_safe(struct bch_fs *c, unsigned dev)
+static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *c, unsigned dev)
 {
 	return c && dev < c->sb.nr_devices
 		? rcu_dereference(c->devs[dev])

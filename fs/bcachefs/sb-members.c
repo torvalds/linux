@@ -3,6 +3,7 @@
 #include "bcachefs.h"
 #include "btree_cache.h"
 #include "disk_groups.h"
+#include "error.h"
 #include "opts.h"
 #include "replicas.h"
 #include "sb-members.h"
