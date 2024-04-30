@@ -847,6 +847,8 @@ static int isst_if_get_perf_level(void __user *argp)
 {
 	struct isst_perf_level_info perf_level;
 	struct tpmi_per_power_domain_info *power_domain_info;
+	unsigned long level_mask;
+	u8 level, support;
 
 	if (copy_from_user(&perf_level, argp, sizeof(perf_level)))
 		return -EFAULT;
@@ -866,12 +868,34 @@ static int isst_if_get_perf_level(void __user *argp)
 		      SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH, SST_MUL_FACTOR_NONE)
 	perf_level.enabled = !!(power_domain_info->sst_header.cap_mask & BIT(1));
 
-	_read_bf_level_info("bf_support", perf_level.sst_bf_support, 0, 0,
-			    SST_BF_FEATURE_SUPPORTED_START, SST_BF_FEATURE_SUPPORTED_WIDTH,
-			    SST_MUL_FACTOR_NONE);
-	_read_tf_level_info("tf_support", perf_level.sst_tf_support, 0, 0,
-			    SST_TF_FEATURE_SUPPORTED_START, SST_TF_FEATURE_SUPPORTED_WIDTH,
-			    SST_MUL_FACTOR_NONE);
+	level_mask = perf_level.level_mask;
+	perf_level.sst_bf_support = 0;
+	for_each_set_bit(level, &level_mask, BITS_PER_BYTE) {
+		/*
+		 * Read BF support for a level. Read output is updated
+		 * to "support" variable by the below macro.
+		 */
+		_read_bf_level_info("bf_support", support, level, 0, SST_BF_FEATURE_SUPPORTED_START,
+				    SST_BF_FEATURE_SUPPORTED_WIDTH, SST_MUL_FACTOR_NONE);
+
+		/* If supported set the bit for the level */
+		if (support)
+			perf_level.sst_bf_support |= BIT(level);
+	}
+
+	perf_level.sst_tf_support = 0;
+	for_each_set_bit(level, &level_mask, BITS_PER_BYTE) {
+		/*
+		 * Read TF support for a level. Read output is updated
+		 * to "support" variable by the below macro.
+		 */
+		_read_tf_level_info("tf_support", support, level, 0, SST_TF_FEATURE_SUPPORTED_START,
+				    SST_TF_FEATURE_SUPPORTED_WIDTH, SST_MUL_FACTOR_NONE);
+
+		/* If supported set the bit for the level */
+		if (support)
+			perf_level.sst_tf_support |= BIT(level);
+	}
 
 	if (copy_to_user(argp, &perf_level, sizeof(perf_level)))
 		return -EFAULT;
@@ -1648,7 +1672,7 @@ void tpmi_sst_dev_resume(struct auxiliary_device *auxdev)
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_resume, INTEL_TPMI_SST);
 
-#define ISST_TPMI_API_VERSION	0x02
+#define ISST_TPMI_API_VERSION	0x03
 
 int tpmi_sst_init(void)
 {
