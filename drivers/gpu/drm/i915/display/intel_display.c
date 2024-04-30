@@ -109,6 +109,7 @@
 #include "intel_sdvo.h"
 #include "intel_snps_phy.h"
 #include "intel_tc.h"
+#include "intel_tdf.h"
 #include "intel_tv.h"
 #include "intel_vblank.h"
 #include "intel_vdsc.h"
@@ -7232,6 +7233,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	int i;
 
 	intel_atomic_commit_fence_wait(state);
+
+	intel_td_flush(dev_priv);
 
 	drm_atomic_helper_wait_for_dependencies(&state->base);
 	drm_dp_mst_atomic_wait_for_dependencies(&state->base);
