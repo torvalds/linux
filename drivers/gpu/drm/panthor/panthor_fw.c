@@ -1083,10 +1083,11 @@ int panthor_fw_post_reset(struct panthor_device *ptdev)
 		if (!ret)
 			goto out;
 
-		/* Force a disable, so we get a fresh boot on the next
-		 * panthor_fw_start() call.
+		/* Forcibly reset the MCU and force a slow reset, so we get a
+		 * fresh boot on the next panthor_fw_start() call.
 		 */
-		gpu_write(ptdev, MCU_CONTROL, MCU_CONTROL_DISABLE);
+		panthor_fw_stop(ptdev);
+		ptdev->fw->fast_reset = false;
 		drm_err(&ptdev->base, "FW fast reset failed, trying a slow reset");
 	}
 
