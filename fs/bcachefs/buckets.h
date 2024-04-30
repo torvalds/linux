@@ -35,11 +35,6 @@ static inline u64 sector_to_bucket_and_offset(const struct bch_dev *ca, sector_t
 	return div_u64_rem(s, ca->mi.bucket_size, offset);
 }
 
-static inline bool bucket_valid(const struct bch_dev *ca, u64 b)
-{
-	return b - ca->mi.first_bucket < ca->mi.nbuckets_minus_first;
-}
-
 #define for_each_bucket(_b, _buckets)				\
 	for (_b = (_buckets)->b + (_buckets)->first_bucket;	\
 	     _b < (_buckets)->b + (_buckets)->nbuckets; _b++)

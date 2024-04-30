@@ -190,6 +190,11 @@ static inline bool bch2_dev_exists(const struct bch_fs *c, unsigned dev)
 	return dev < c->sb.nr_devices && c->devs[dev];
 }
 
+static inline bool bucket_valid(const struct bch_dev *ca, u64 b)
+{
+	return b - ca->mi.first_bucket < ca->mi.nbuckets_minus_first;
+}
+
 /*
  * If a key exists that references a device, the device won't be going away and
  * we can omit rcu_read_lock():
@@ -234,6 +239,26 @@ static inline struct bch_dev *bch2_dev_tryget(struct bch_fs *c, unsigned dev)
 	struct bch_dev *ca = bch2_dev_tryget_noerror(c, dev);
 	if (!ca)
 		bch2_dev_missing(c, dev);
+	return ca;
+}
+
+static inline struct bch_dev *bch2_dev_bucket_tryget_noerror(struct bch_fs *c, struct bpos bucket)
+{
+	struct bch_dev *ca = bch2_dev_tryget_noerror(c, bucket.inode);
+	if (ca && !bucket_valid(ca, bucket.offset)) {
+		bch2_dev_put(ca);
+		ca = NULL;
+	}
+	return ca;
+}
+
+void bch2_dev_bucket_missing(struct bch_fs *, struct bpos);
+
+static inline struct bch_dev *bch2_dev_bucket_tryget(struct bch_fs *c, struct bpos bucket)
+{
+	struct bch_dev *ca = bch2_dev_bucket_tryget_noerror(c, bucket);
+	if (!ca)
+		bch2_dev_bucket_missing(c, bucket);
 	return ca;
 }
 

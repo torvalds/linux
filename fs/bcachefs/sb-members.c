@@ -14,6 +14,11 @@ void bch2_dev_missing(struct bch_fs *c, unsigned dev)
 	bch2_fs_inconsistent(c, "pointer to nonexistent device %u", dev);
 }
 
+void bch2_dev_bucket_missing(struct bch_fs *c, struct bpos bucket)
+{
+	bch2_fs_inconsistent(c, "pointer to nonexistent bucket %llu:%llu", bucket.inode, bucket.offset);
+}
+
 #define x(t, n, ...) [n] = #t,
 static const char * const bch2_iops_measurements[] = {
 	BCH_IOPS_MEASUREMENTS()

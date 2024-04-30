@@ -1024,24 +1024,25 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 			 struct btree_iter *bucket_gens_iter)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca;
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a;
 	unsigned discard_key_type, freespace_key_type;
 	unsigned gens_offset;
 	struct bkey_s_c k;
 	struct printbuf buf = PRINTBUF;
-	int ret;
+	int ret = 0;
 
-	if (fsck_err_on(!bch2_dev_bucket_exists(c, alloc_k.k->p), c,
-			alloc_key_to_missing_dev_bucket,
+	struct bch_dev *ca = bch2_dev_bucket_tryget_noerror(c, alloc_k.k->p);
+	if (fsck_err_on(!ca,
+			c, alloc_key_to_missing_dev_bucket,
 			"alloc key for invalid device:bucket %llu:%llu",
 			alloc_k.k->p.inode, alloc_k.k->p.offset))
-		return bch2_btree_delete_at(trans, alloc_iter, 0);
+		ret = bch2_btree_delete_at(trans, alloc_iter, 0);
+	if (!ca)
+		return ret;
 
-	ca = bch2_dev_bkey_exists(c, alloc_k.k->p.inode);
 	if (!ca->mi.freespace_initialized)
-		return 0;
+		goto out;
 
 	a = bch2_alloc_to_v4(alloc_k, &a_convert);
 
@@ -1140,8 +1141,10 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 		if (ret)
 			goto err;
 	}
+out:
 err:
 fsck_err:
+	bch2_dev_put(ca);
 	printbuf_exit(&buf);
 	return ret;
 }
