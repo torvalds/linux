@@ -172,7 +172,7 @@ static void nft_bitmap_activate(const struct net *net,
 	nft_bitmap_location(set, nft_set_ext_key(&be->ext), &idx, &off);
 	/* Enter 11 state. */
 	priv->bitmap[idx] |= (genmask << off);
-	nft_set_elem_change_active(net, set, &be->ext);
+	nft_clear(net, &be->ext);
 }
 
 static void nft_bitmap_flush(const struct net *net,
@@ -221,8 +221,6 @@ static void nft_bitmap_walk(const struct nft_ctx *ctx,
 
 	list_for_each_entry_rcu(be, &priv->list, head) {
 		if (iter->count < iter->skip)
-			goto cont;
-		if (!nft_set_elem_active(&be->ext, iter->genmask))
 			goto cont;
 
 		iter->err = iter->fn(ctx, set, iter, &be->priv);

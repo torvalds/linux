@@ -598,6 +598,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 		i++;
 	}
 
+	unsigned durability_required = max(0, (int) (io_opts.data_replicas - durability_have));
+
 	/*
 	 * If current extent durability is less than io_opts.data_replicas,
 	 * we're not trying to rereplicate the extent up to data_replicas here -
@@ -607,7 +609,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	 * rereplicate, currently, so that users don't get an unexpected -ENOSPC
 	 */
 	if (!(m->data_opts.write_flags & BCH_WRITE_CACHED) &&
-	    durability_have >= io_opts.data_replicas) {
+	    !durability_required) {
 		m->data_opts.kill_ptrs |= m->data_opts.rewrite_ptrs;
 		m->data_opts.rewrite_ptrs = 0;
 		/* if iter == NULL, it's just a promote */
@@ -616,11 +618,18 @@ int bch2_data_update_init(struct btree_trans *trans,
 		goto done;
 	}
 
-	m->op.nr_replicas = min(durability_removing, io_opts.data_replicas - durability_have) +
+	m->op.nr_replicas = min(durability_removing, durability_required) +
 		m->data_opts.extra_replicas;
-	m->op.nr_replicas_required = m->op.nr_replicas;
 
-	BUG_ON(!m->op.nr_replicas);
+	/*
+	 * If device(s) were set to durability=0 after data was written to them
+	 * we can end up with a duribilty=0 extent, and the normal algorithm
+	 * that tries not to increase durability doesn't work:
+	 */
+	if (!(durability_have + durability_removing))
+		m->op.nr_replicas = max((unsigned) m->op.nr_replicas, 1);
+
+	m->op.nr_replicas_required = m->op.nr_replicas;
 
 	if (reserve_sectors) {
 		ret = bch2_disk_reservation_add(c, &m->op.res, reserve_sectors,

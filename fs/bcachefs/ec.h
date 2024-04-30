@@ -32,6 +32,8 @@ static inline unsigned stripe_csums_per_device(const struct bch_stripe *s)
 static inline unsigned stripe_csum_offset(const struct bch_stripe *s,
 					  unsigned dev, unsigned csum_idx)
 {
+	EBUG_ON(s->csum_type >= BCH_CSUM_NR);
+
 	unsigned csum_bytes = bch_crc_bytes[s->csum_type];
 
 	return sizeof(struct bch_stripe) +

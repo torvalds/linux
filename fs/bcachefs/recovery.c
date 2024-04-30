@@ -47,20 +47,6 @@ void bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
 	}
 }
 
-static bool btree_id_is_alloc(enum btree_id id)
-{
-	switch (id) {
-	case BTREE_ID_alloc:
-	case BTREE_ID_backpointers:
-	case BTREE_ID_need_discard:
-	case BTREE_ID_freespace:
-	case BTREE_ID_bucket_gens:
-		return true;
-	default:
-		return false;
-	}
-}
-
 /* for -o reconstruct_alloc: */
 static void bch2_reconstruct_alloc(struct bch_fs *c)
 {
@@ -263,7 +249,10 @@ int bch2_journal_replay(struct bch_fs *c)
 
 		struct journal_key *k = *kp;
 
-		replay_now_at(j, k->journal_seq);
+		if (k->journal_seq)
+			replay_now_at(j, k->journal_seq);
+		else
+			replay_now_at(j, j->replay_journal_seq_end);
 
 		ret = commit_do(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc|

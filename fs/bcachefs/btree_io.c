@@ -831,7 +831,7 @@ static int bset_key_invalid(struct bch_fs *c, struct btree *b,
 		(rw == WRITE ? bch2_bkey_val_invalid(c, k, READ, err) : 0);
 }
 
-static bool __bkey_valid(struct bch_fs *c, struct btree *b,
+static bool bkey_packed_valid(struct bch_fs *c, struct btree *b,
 			 struct bset *i, struct bkey_packed *k)
 {
 	if (bkey_p_next(k) > vstruct_last(i))
@@ -840,7 +840,7 @@ static bool __bkey_valid(struct bch_fs *c, struct btree *b,
 	if (k->format > KEY_FORMAT_CURRENT)
 		return false;
 
-	if (k->u64s < bkeyp_key_u64s(&b->format, k))
+	if (!bkeyp_u64s_valid(&b->format, k))
 		return false;
 
 	struct printbuf buf = PRINTBUF;
@@ -884,11 +884,13 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				 "invalid bkey format %u", k->format))
 			goto drop_this_key;
 
-		if (btree_err_on(k->u64s < bkeyp_key_u64s(&b->format, k),
+		if (btree_err_on(!bkeyp_u64s_valid(&b->format, k),
 				 -BCH_ERR_btree_node_read_err_fixable,
 				 c, NULL, b, i,
 				 btree_node_bkey_bad_u64s,
-				 "k->u64s too small (%u < %u)", k->u64s, bkeyp_key_u64s(&b->format, k)))
+				 "bad k->u64s %u (min %u max %zu)", k->u64s,
+				 bkeyp_key_u64s(&b->format, k),
+				 U8_MAX - BKEY_U64s + bkeyp_key_u64s(&b->format, k)))
 			goto drop_this_key;
 
 		if (!write)
@@ -947,13 +949,12 @@ drop_this_key:
 			 * do
 			 */
 
-			if (!__bkey_valid(c, b, i, (void *) ((u64 *) k + next_good_key))) {
+			if (!bkey_packed_valid(c, b, i, (void *) ((u64 *) k + next_good_key))) {
 				for (next_good_key = 1;
 				     next_good_key < (u64 *) vstruct_last(i) - (u64 *) k;
 				     next_good_key++)
-					if (__bkey_valid(c, b, i, (void *) ((u64 *) k + next_good_key)))
+					if (bkey_packed_valid(c, b, i, (void *) ((u64 *) k + next_good_key)))
 						goto got_good_key;
-
 			}
 
 			/*
@@ -1339,7 +1340,9 @@ start:
 			       rb->start_time);
 	bio_put(&rb->bio);
 
-	if (saw_error && !btree_node_read_error(b)) {
+	if (saw_error &&
+	    !btree_node_read_error(b) &&
+	    c->curr_recovery_pass != BCH_RECOVERY_PASS_scan_for_btree_nodes) {
 		printbuf_reset(&buf);
 		bch2_bpos_to_text(&buf, b->key.k.p);
 		bch_err_ratelimited(c, "%s: rewriting btree node at btree=%s level=%u %s due to error",

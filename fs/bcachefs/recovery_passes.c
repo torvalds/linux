@@ -44,7 +44,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
-	if (keys->nr || c->opts.fsck || !c->sb.clean)
+	if (keys->nr || c->opts.fsck || !c->sb.clean || c->recovery_passes_explicit)
 		return bch2_fs_read_write_early(c);
 	return 0;
 }

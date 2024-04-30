@@ -29,7 +29,7 @@
 #include "uncore-frequency-common.h"
 
 #define	UNCORE_MAJOR_VERSION		0
-#define	UNCORE_MINOR_VERSION		1
+#define	UNCORE_MINOR_VERSION		2
 #define UNCORE_HEADER_INDEX		0
 #define UNCORE_FABRIC_CLUSTER_OFFSET	8
 
@@ -329,7 +329,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 			goto remove_clusters;
 		}
 
-		if (TPMI_MINOR_VERSION(pd_info->ufs_header_ver) != UNCORE_MINOR_VERSION)
+		if (TPMI_MINOR_VERSION(pd_info->ufs_header_ver) > UNCORE_MINOR_VERSION)
 			dev_info(&auxdev->dev, "Uncore: Ignore: Unsupported minor version:%lx\n",
 				 TPMI_MINOR_VERSION(pd_info->ufs_header_ver));
 

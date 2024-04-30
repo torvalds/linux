@@ -169,6 +169,7 @@ static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 	} else {
 		mutex_lock(&bc->lock);
 		list_move_tail(&ck->list, &bc->freed_pcpu);
+		bc->nr_freed_pcpu++;
 		mutex_unlock(&bc->lock);
 	}
 }
@@ -245,6 +246,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 		if (!list_empty(&bc->freed_pcpu)) {
 			ck = list_last_entry(&bc->freed_pcpu, struct bkey_cached, list);
 			list_del_init(&ck->list);
+			bc->nr_freed_pcpu--;
 		}
 		mutex_unlock(&bc->lock);
 	}
@@ -659,7 +661,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		commit_flags |= BCH_WATERMARK_reclaim;
 
 	if (ck->journal.seq != journal_last_seq(j) ||
-	    j->watermark == BCH_WATERMARK_stripe)
+	    !test_bit(JOURNAL_SPACE_LOW, &c->journal.flags))
 		commit_flags |= BCH_TRANS_COMMIT_no_journal_res;
 
 	ret   = bch2_btree_iter_traverse(&b_iter) ?:
@@ -840,8 +842,6 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 	 * Newest freed entries are at the end of the list - once we hit one
 	 * that's too new to be freed, we can bail out:
 	 */
-	scanned += bc->nr_freed_nonpcpu;
-
 	list_for_each_entry_safe(ck, t, &bc->freed_nonpcpu, list) {
 		if (!poll_state_synchronize_srcu(&c->btree_trans_barrier,
 						 ck->btree_trans_barrier_seq))
@@ -855,11 +855,6 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		bc->nr_freed_nonpcpu--;
 	}
 
-	if (scanned >= nr)
-		goto out;
-
-	scanned += bc->nr_freed_pcpu;
-
 	list_for_each_entry_safe(ck, t, &bc->freed_pcpu, list) {
 		if (!poll_state_synchronize_srcu(&c->btree_trans_barrier,
 						 ck->btree_trans_barrier_seq))
@@ -872,9 +867,6 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		freed++;
 		bc->nr_freed_pcpu--;
 	}
-
-	if (scanned >= nr)
-		goto out;
 
 	rcu_read_lock();
 	tbl = rht_dereference_rcu(bc->table.tbl, &bc->table);
@@ -891,12 +883,12 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 			next = rht_dereference_bucket_rcu(pos->next, tbl, bc->shrink_iter);
 			ck = container_of(pos, struct bkey_cached, hash);
 
-			if (test_bit(BKEY_CACHED_DIRTY, &ck->flags))
+			if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
 				goto next;
-
-			if (test_bit(BKEY_CACHED_ACCESSED, &ck->flags))
+			} else if (test_bit(BKEY_CACHED_ACCESSED, &ck->flags)) {
 				clear_bit(BKEY_CACHED_ACCESSED, &ck->flags);
-			else if (bkey_cached_lock_for_evict(ck)) {
+				goto next;
+			} else if (bkey_cached_lock_for_evict(ck)) {
 				bkey_cached_evict(bc, ck);
 				bkey_cached_free(bc, ck);
 			}
@@ -914,7 +906,6 @@ next:
 	} while (scanned < nr && bc->shrink_iter != start);
 
 	rcu_read_unlock();
-out:
 	memalloc_nofs_restore(flags);
 	srcu_read_unlock(&c->btree_trans_barrier, srcu_idx);
 	mutex_unlock(&bc->lock);

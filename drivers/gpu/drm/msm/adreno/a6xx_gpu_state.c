@@ -852,7 +852,7 @@ static void a6xx_get_shader_block(struct msm_gpu *gpu,
 			(block->type << 8) | i);
 
 		in += CRASHDUMP_READ(in, REG_A6XX_HLSQ_DBG_AHB_READ_APERTURE,
-			block->size, dumper->iova + A6XX_CD_DATA_OFFSET);
+			block->size, out);
 
 		out += block->size * sizeof(u32);
 	}
