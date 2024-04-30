@@ -197,7 +197,6 @@ struct npcm7xx_pwm_fan_data {
 	void __iomem *fan_base;
 	int pwm_modules;
 	unsigned long pwm_clk_freq;
-	unsigned long fan_clk_freq;
 	struct clk *pwm_clk;
 	struct clk *fan_clk;
 	struct mutex pwm_lock[NPCM7XX_PWM_MAX_MODULES];
