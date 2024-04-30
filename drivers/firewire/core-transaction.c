@@ -995,6 +995,8 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 
 	tcode = async_header_get_tcode(p->header);
 	if (tcode_is_link_internal(tcode)) {
+		trace_async_phy_inbound((uintptr_t)p, p->generation, p->ack, p->timestamp,
+					 p->header[1], p->header[2]);
 		fw_cdev_handle_phy_packet(card, p);
 		return;
 	}

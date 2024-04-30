@@ -254,6 +254,36 @@ TRACE_EVENT(async_phy_outbound_complete,
 	)
 );
 
+TRACE_EVENT(async_phy_inbound,
+	TP_PROTO(u64 packet, unsigned int generation, unsigned int status, unsigned int timestamp, u32 first_quadlet, u32 second_quadlet),
+	TP_ARGS(packet, generation, status, timestamp, first_quadlet, second_quadlet),
+	TP_STRUCT__entry(
+		__field(u64, packet)
+		__field(u8, generation)
+		__field(u8, status)
+		__field(u16, timestamp)
+		__field(u32, first_quadlet)
+		__field(u32, second_quadlet)
+	),
+	TP_fast_assign(
+		__entry->packet = packet;
+		__entry->generation = generation;
+		__entry->status = status;
+		__entry->timestamp = timestamp;
+		__entry->first_quadlet = first_quadlet;
+		__entry->second_quadlet = second_quadlet
+	),
+	TP_printk(
+		"packet=0x%016llx generation=%u status=%u timestamp=0x%04x first_quadlet=0x%08x second_quadlet=0x%08x",
+		__entry->packet,
+		__entry->generation,
+		__entry->status,
+		__entry->timestamp,
+		__entry->first_quadlet,
+		__entry->second_quadlet
+	)
+);
+
 #endif // _FIREWIRE_TRACE_EVENT_H
 
 #include <trace/define_trace.h>
