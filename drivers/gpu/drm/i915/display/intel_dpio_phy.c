@@ -30,6 +30,7 @@
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dpio_phy.h"
+#include "vlv_dpio_phy_regs.h"
 #include "vlv_sideband.h"
 
 /**
