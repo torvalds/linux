@@ -299,10 +299,21 @@ union MESAPI__ADD_QUEUE {
 			uint32_t skip_process_ctx_clear : 1;
 			uint32_t map_legacy_kq		: 1;
 			uint32_t exclusively_scheduled	: 1;
-			uint32_t reserved		: 17;
+			uint32_t is_long_running        : 1;
+			uint32_t is_dwm_queue           : 1;
+			uint32_t is_video_blit_queue    : 1;
+			uint32_t reserved               : 14;
 		};
-		struct MES_API_STATUS		api_status;
-		uint64_t                        tma_addr;
+		struct MES_API_STATUS       api_status;
+		uint64_t                    tma_addr;
+		uint32_t                    sch_id;
+		uint64_t                    timestamp;
+		uint32_t                    process_context_array_index;
+		uint32_t                    gang_context_array_index;
+		uint32_t                    pipe_id;
+		uint32_t                    queue_id;
+		uint32_t                    alignment_mode_setting;
+		uint64_t                    unmap_flag_addr;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];

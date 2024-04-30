@@ -2243,6 +2243,13 @@ static int resource_stream_to_stream_idx(struct dc_state *state,
 			stream_idx = i;
 			break;
 		}
+
+	/* never return negative array index */
+	if (stream_idx == -1) {
+		ASSERT(0);
+		return 0;
+	}
+
 	return stream_idx;
 }
 
@@ -3035,7 +3042,7 @@ bool resource_update_pipes_for_plane_with_slice_count(
 	int i;
 	int dpp_pipe_count;
 	int cur_slice_count;
-	struct pipe_ctx *dpp_pipes[MAX_PIPES];
+	struct pipe_ctx *dpp_pipes[MAX_PIPES] = {0};
 	bool result = true;
 
 	dpp_pipe_count = resource_get_dpp_pipes_for_plane(plane,
@@ -3186,6 +3193,9 @@ static struct audio *find_first_free_audio(
 		enum dce_version dc_version)
 {
 	int i, available_audio_count;
+
+	if (id == ENGINE_ID_UNKNOWN)
+		return NULL;
 
 	available_audio_count = pool->audio_count;
 

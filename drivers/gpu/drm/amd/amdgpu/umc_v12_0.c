@@ -28,6 +28,8 @@
 #include "umc/umc_12_0_0_sh_mask.h"
 #include "mp/mp_13_0_6_sh_mask.h"
 
+#define MAX_ECC_NUM_PER_RETIREMENT  32
+
 static inline uint64_t get_umc_v12_0_reg_offset(struct amdgpu_device *adev,
 					    uint32_t node_inst,
 					    uint32_t umc_inst,
@@ -222,6 +224,66 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	}
 }
 
+static int umc_v12_0_convert_err_addr(struct amdgpu_device *adev,
+				struct ta_ras_query_address_input *addr_in,
+				uint64_t *pfns, int len)
+{
+	uint32_t col, row, row_xor, bank, channel_index;
+	uint64_t soc_pa, retired_page, column, err_addr;
+	struct ta_ras_query_address_output addr_out;
+	uint32_t pos = 0;
+
+	err_addr = addr_in->ma.err_addr;
+	addr_in->addr_type = TA_RAS_MCA_TO_PA;
+	if (psp_ras_query_address(&adev->psp, addr_in, &addr_out)) {
+		dev_warn(adev->dev, "Failed to query RAS physical address for 0x%llx",
+			err_addr);
+		return 0;
+	}
+
+	soc_pa = addr_out.pa.pa;
+	bank = addr_out.pa.bank;
+	channel_index = addr_out.pa.channel_idx;
+
+	col = (err_addr >> 1) & 0x1fULL;
+	row = (err_addr >> 10) & 0x3fffULL;
+	row_xor = row ^ (0x1ULL << 13);
+	/* clear [C3 C2] in soc physical address */
+	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
+	/* clear [C4] in soc physical address */
+	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
+
+	/* loop for all possibilities of [C4 C3 C2] */
+	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
+		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
+		retired_page |= (((column & 0x4) >> 2) << UMC_V12_0_PA_C4_BIT);
+
+		if (pos >= len)
+			return 0;
+		pfns[pos++] = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+
+		/* include column bit 0 and 1 */
+		col &= 0x3;
+		col |= (column << 2);
+		dev_info(adev->dev,
+			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
+			retired_page, row, col, bank, channel_index);
+
+		/* shift R13 bit */
+		retired_page ^= (0x1ULL << UMC_V12_0_PA_R13_BIT);
+
+		if (pos >= len)
+			return 0;
+		pfns[pos++] = retired_page >> AMDGPU_GPU_PAGE_SHIFT;
+
+		dev_info(adev->dev,
+			"Error Address(PA):0x%-10llx Row:0x%-4x Col:0x%-2x Bank:0x%x Channel:0x%x\n",
+			retired_page, row_xor, col, bank, channel_index);
+	}
+
+	return pos;
+}
+
 static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
 					uint32_t node_inst, uint32_t umc_inst,
 					uint32_t ch_inst, void *data)
@@ -314,6 +376,7 @@ static int umc_v12_0_err_cnt_init_per_channel(struct amdgpu_device *adev,
 	return 0;
 }
 
+#ifdef TO_BE_REMOVED
 static void umc_v12_0_ecc_info_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
@@ -382,6 +445,7 @@ static void umc_v12_0_ecc_info_query_ras_error_address(struct amdgpu_device *ade
 		}
 	}
 }
+#endif
 
 static bool umc_v12_0_check_ecc_err_status(struct amdgpu_device *adev,
 			enum amdgpu_mca_error_type type, void *ras_error_status)
@@ -446,6 +510,11 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 	if (ret)
 		return ret;
 
+	amdgpu_umc_update_ecc_status(adev,
+		bank->regs[ACA_REG_IDX_STATUS],
+		bank->regs[ACA_REG_IDX_IPID],
+		bank->regs[ACA_REG_IDX_ADDR]);
+
 	ext_error_code = ACA_REG__STATUS__ERRORCODEEXT(status);
 	count = ext_error_code == 0 ?
 		ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]) : 1ULL;
@@ -479,6 +548,152 @@ static int umc_v12_0_ras_late_init(struct amdgpu_device *adev, struct ras_common
 	return 0;
 }
 
+static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
+			uint64_t status, uint64_t ipid, uint64_t addr)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint16_t hwid, mcatype;
+	struct ta_ras_query_address_input addr_in;
+	uint64_t page_pfn[UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL];
+	uint64_t err_addr, hash_val = 0;
+	struct ras_ecc_err *ecc_err;
+	int count;
+	int ret;
+
+	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
+	mcatype = REG_GET_FIELD(ipid, MCMP1_IPIDT0, McaType);
+
+	if ((hwid != MCA_UMC_HWID_V12_0) || (mcatype != MCA_UMC_MCATYPE_V12_0))
+		return 0;
+
+	if (!status)
+		return 0;
+
+	if (!umc_v12_0_is_deferred_error(adev, status))
+		return 0;
+
+	err_addr = REG_GET_FIELD(addr,
+				MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
+
+	dev_info(adev->dev,
+		"UMC:IPID:0x%llx, socket:%llu, aid:%llu, inst:%llu, ch:%llu, err_addr:0x%llx\n",
+		ipid,
+		MCA_IPID_2_SOCKET_ID(ipid),
+		MCA_IPID_2_DIE_ID(ipid),
+		MCA_IPID_2_UMC_INST(ipid),
+		MCA_IPID_2_UMC_CH(ipid),
+		err_addr);
+
+	memset(page_pfn, 0, sizeof(page_pfn));
+
+	memset(&addr_in, 0, sizeof(addr_in));
+	addr_in.ma.err_addr = err_addr;
+	addr_in.ma.ch_inst = MCA_IPID_2_UMC_CH(ipid);
+	addr_in.ma.umc_inst = MCA_IPID_2_UMC_INST(ipid);
+	addr_in.ma.node_inst = MCA_IPID_2_DIE_ID(ipid);
+	addr_in.ma.socket_id = MCA_IPID_2_SOCKET_ID(ipid);
+
+	count = umc_v12_0_convert_err_addr(adev,
+				&addr_in, page_pfn, ARRAY_SIZE(page_pfn));
+	if (count <= 0) {
+		dev_warn(adev->dev, "Fail to convert error address! count:%d\n", count);
+		return 0;
+	}
+
+	ret = amdgpu_umc_build_pages_hash(adev,
+			page_pfn, count, &hash_val);
+	if (ret) {
+		dev_err(adev->dev, "Fail to build error pages hash\n");
+		return ret;
+	}
+
+	ecc_err = kzalloc(sizeof(*ecc_err), GFP_KERNEL);
+	if (!ecc_err)
+		return -ENOMEM;
+
+	ecc_err->err_pages.pfn = kcalloc(count, sizeof(*ecc_err->err_pages.pfn), GFP_KERNEL);
+	if (!ecc_err->err_pages.pfn) {
+		kfree(ecc_err);
+		return -ENOMEM;
+	}
+
+	memcpy(ecc_err->err_pages.pfn, page_pfn, count * sizeof(*ecc_err->err_pages.pfn));
+	ecc_err->err_pages.count = count;
+
+	ecc_err->hash_index = hash_val;
+	ecc_err->status = status;
+	ecc_err->ipid = ipid;
+	ecc_err->addr = addr;
+
+	ret = amdgpu_umc_logs_ecc_err(adev, &con->umc_ecc_log.de_page_tree, ecc_err);
+	if (ret) {
+		if (ret == -EEXIST)
+			con->umc_ecc_log.de_updated = true;
+		else
+			dev_err(adev->dev, "Fail to log ecc error! ret:%d\n", ret);
+
+		kfree(ecc_err->err_pages.pfn);
+		kfree(ecc_err);
+		return ret;
+	}
+
+	con->umc_ecc_log.de_updated = true;
+
+	return 0;
+}
+
+static int umc_v12_0_fill_error_record(struct amdgpu_device *adev,
+				struct ras_ecc_err *ecc_err, void *ras_error_status)
+{
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+	uint32_t i = 0;
+	int ret = 0;
+
+	if (!err_data || !ecc_err)
+		return -EINVAL;
+
+	for (i = 0; i < ecc_err->err_pages.count; i++) {
+		ret = amdgpu_umc_fill_error_record(err_data,
+				ecc_err->addr,
+				ecc_err->err_pages.pfn[i] << AMDGPU_GPU_PAGE_SHIFT,
+				MCA_IPID_2_UMC_CH(ecc_err->ipid),
+				MCA_IPID_2_UMC_INST(ecc_err->ipid));
+		if (ret)
+			break;
+	}
+
+	err_data->de_count++;
+
+	return ret;
+}
+
+static void umc_v12_0_query_ras_ecc_err_addr(struct amdgpu_device *adev,
+					void *ras_error_status)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_ecc_err *entries[MAX_ECC_NUM_PER_RETIREMENT];
+	struct radix_tree_root *ecc_tree;
+	int new_detected, ret, i;
+
+	ecc_tree = &con->umc_ecc_log.de_page_tree;
+
+	mutex_lock(&con->umc_ecc_log.lock);
+	new_detected = radix_tree_gang_lookup_tag(ecc_tree, (void **)entries,
+			0, ARRAY_SIZE(entries), UMC_ECC_NEW_DETECTED_TAG);
+	for (i = 0; i < new_detected; i++) {
+		if (!entries[i])
+			continue;
+
+		ret = umc_v12_0_fill_error_record(adev, entries[i], ras_error_status);
+		if (ret) {
+			dev_err(adev->dev, "Fail to fill umc error record, ret:%d\n", ret);
+			break;
+		}
+		radix_tree_tag_clear(ecc_tree, entries[i]->hash_index, UMC_ECC_NEW_DETECTED_TAG);
+	}
+	mutex_unlock(&con->umc_ecc_log.lock);
+}
+
 struct amdgpu_umc_ras umc_v12_0_ras = {
 	.ras_block = {
 		.hw_ops = &umc_v12_0_ras_hw_ops,
@@ -486,8 +701,8 @@ struct amdgpu_umc_ras umc_v12_0_ras = {
 	},
 	.err_cnt_init = umc_v12_0_err_cnt_init,
 	.query_ras_poison_mode = umc_v12_0_query_ras_poison_mode,
-	.ecc_info_query_ras_error_count = umc_v12_0_ecc_info_query_ras_error_count,
-	.ecc_info_query_ras_error_address = umc_v12_0_ecc_info_query_ras_error_address,
+	.ecc_info_query_ras_error_address = umc_v12_0_query_ras_ecc_err_addr,
 	.check_ecc_err_status = umc_v12_0_check_ecc_err_status,
+	.update_ecc_status = umc_v12_0_update_ecc_status,
 };
 

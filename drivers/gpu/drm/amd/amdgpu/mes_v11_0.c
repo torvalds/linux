@@ -100,18 +100,76 @@ static const struct amdgpu_ring_funcs mes_v11_0_ring_funcs = {
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 
+static const char *mes_v11_0_opcodes[] = {
+	"SET_HW_RSRC",
+	"SET_SCHEDULING_CONFIG",
+	"ADD_QUEUE",
+	"REMOVE_QUEUE",
+	"PERFORM_YIELD",
+	"SET_GANG_PRIORITY_LEVEL",
+	"SUSPEND",
+	"RESUME",
+	"RESET",
+	"SET_LOG_BUFFER",
+	"CHANGE_GANG_PRORITY",
+	"QUERY_SCHEDULER_STATUS",
+	"PROGRAM_GDS",
+	"SET_DEBUG_VMID",
+	"MISC",
+	"UPDATE_ROOT_PAGE_TABLE",
+	"AMD_LOG",
+};
+
+static const char *mes_v11_0_misc_opcodes[] = {
+	"WRITE_REG",
+	"INV_GART",
+	"QUERY_STATUS",
+	"READ_REG",
+	"WAIT_REG_MEM",
+	"SET_SHADER_DEBUGGER",
+};
+
+static const char *mes_v11_0_get_op_string(union MESAPI__MISC *x_pkt)
+{
+	const char *op_str = NULL;
+
+	if (x_pkt->header.opcode < ARRAY_SIZE(mes_v11_0_opcodes))
+		op_str = mes_v11_0_opcodes[x_pkt->header.opcode];
+
+	return op_str;
+}
+
+static const char *mes_v11_0_get_misc_op_string(union MESAPI__MISC *x_pkt)
+{
+	const char *op_str = NULL;
+
+	if ((x_pkt->header.opcode == MES_SCH_API_MISC) &&
+	    (x_pkt->opcode < ARRAY_SIZE(mes_v11_0_misc_opcodes)))
+		op_str = mes_v11_0_misc_opcodes[x_pkt->opcode];
+
+	return op_str;
+}
+
 static int mes_v11_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 						    void *pkt, int size,
 						    int api_status_off)
 {
 	int ndw = size / 4;
 	signed long r;
-	union MESAPI__ADD_QUEUE *x_pkt = pkt;
+	union MESAPI__MISC *x_pkt = pkt;
 	struct MES_API_STATUS *api_status;
 	struct amdgpu_device *adev = mes->adev;
 	struct amdgpu_ring *ring = &mes->ring;
 	unsigned long flags;
 	signed long timeout = 3000000; /* 3000 ms */
+	const char *op_str, *misc_op_str;
+	u32 fence_offset;
+	u64 fence_gpu_addr;
+	u64 *fence_ptr;
+	int ret;
+
+	if (x_pkt->header.opcode >= MES_SCH_API_MAX)
+		return -EINVAL;
 
 	if (amdgpu_emu_mode) {
 		timeout *= 100;
@@ -121,27 +179,52 @@ static int mes_v11_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	}
 	BUG_ON(size % 4 != 0);
 
+	ret = amdgpu_device_wb_get(adev, &fence_offset);
+	if (ret)
+		return ret;
+	fence_gpu_addr =
+		adev->wb.gpu_addr + (fence_offset * 4);
+	fence_ptr = (u64 *)&adev->wb.wb[fence_offset];
+	*fence_ptr = 0;
+
 	spin_lock_irqsave(&mes->ring_lock, flags);
 	if (amdgpu_ring_alloc(ring, ndw)) {
 		spin_unlock_irqrestore(&mes->ring_lock, flags);
+		amdgpu_device_wb_free(adev, fence_offset);
 		return -ENOMEM;
 	}
 
 	api_status = (struct MES_API_STATUS *)((char *)pkt + api_status_off);
-	api_status->api_completion_fence_addr = mes->ring.fence_drv.gpu_addr;
-	api_status->api_completion_fence_value = ++mes->ring.fence_drv.sync_seq;
+	api_status->api_completion_fence_addr = fence_gpu_addr;
+	api_status->api_completion_fence_value = 1;
 
 	amdgpu_ring_write_multiple(ring, pkt, ndw);
 	amdgpu_ring_commit(ring);
 	spin_unlock_irqrestore(&mes->ring_lock, flags);
 
-	DRM_DEBUG("MES msg=%d was emitted\n", x_pkt->header.opcode);
+	op_str = mes_v11_0_get_op_string(x_pkt);
+	misc_op_str = mes_v11_0_get_misc_op_string(x_pkt);
 
-	r = amdgpu_fence_wait_polling(ring, ring->fence_drv.sync_seq,
-		      timeout);
+	if (misc_op_str)
+		dev_dbg(adev->dev, "MES msg=%s (%s) was emitted\n", op_str, misc_op_str);
+	else if (op_str)
+		dev_dbg(adev->dev, "MES msg=%s was emitted\n", op_str);
+	else
+		dev_dbg(adev->dev, "MES msg=%d was emitted\n", x_pkt->header.opcode);
+
+	r = amdgpu_mes_fence_wait_polling(fence_ptr, (u64)1, timeout);
+	amdgpu_device_wb_free(adev, fence_offset);
 	if (r < 1) {
-		DRM_ERROR("MES failed to response msg=%d\n",
-			  x_pkt->header.opcode);
+
+		if (misc_op_str)
+			dev_err(adev->dev, "MES failed to respond to msg=%s (%s)\n",
+				op_str, misc_op_str);
+		else if (op_str)
+			dev_err(adev->dev, "MES failed to respond to msg=%s\n",
+				op_str);
+		else
+			dev_err(adev->dev, "MES failed to respond to msg=%d\n",
+				x_pkt->header.opcode);
 
 		while (halt_if_hws_hang)
 			schedule();
@@ -1334,6 +1417,8 @@ static const struct amd_ip_funcs mes_v11_0_ip_funcs = {
 	.hw_fini = mes_v11_0_hw_fini,
 	.suspend = mes_v11_0_suspend,
 	.resume = mes_v11_0_resume,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version mes_v11_0_ip_block = {

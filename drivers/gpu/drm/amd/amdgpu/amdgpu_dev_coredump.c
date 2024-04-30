@@ -262,6 +262,20 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 	drm_printf(&p, "Faulty page starting at address: 0x%016llx\n", fault_info->addr);
 	drm_printf(&p, "Protection fault status register: 0x%x\n\n", fault_info->status);
 
+	/* dump the ip state for each ip */
+	drm_printf(&p, "IP Dump\n");
+	for (int i = 0; i < coredump->adev->num_ip_blocks; i++) {
+		if (coredump->adev->ip_blocks[i].version->funcs->print_ip_state) {
+			drm_printf(&p, "IP: %s\n",
+				   coredump->adev->ip_blocks[i]
+					   .version->funcs->name);
+			coredump->adev->ip_blocks[i]
+				.version->funcs->print_ip_state(
+					(void *)coredump->adev, &p);
+			drm_printf(&p, "\n");
+		}
+	}
+
 	/* Add ring buffer information */
 	drm_printf(&p, "Ring buffer information\n");
 	for (int i = 0; i < coredump->adev->num_rings; i++) {

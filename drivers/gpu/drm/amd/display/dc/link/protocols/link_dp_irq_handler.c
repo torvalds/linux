@@ -120,7 +120,7 @@ bool dp_parse_link_loss_status(
 
 static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 {
-	union dpcd_psr_configuration psr_configuration;
+	union dpcd_psr_configuration psr_configuration = {0};
 
 	if (!link->psr_settings.psr_feature_enabled)
 		return false;
@@ -186,9 +186,9 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 
 static void handle_hpd_irq_replay_sink(struct dc_link *link)
 {
-	union dpcd_replay_configuration replay_configuration;
+	union dpcd_replay_configuration replay_configuration = {0};
 	/*AMD Replay version reuse DP_PSR_ERROR_STATUS for REPLAY_ERROR status.*/
-	union psr_error_status replay_error_status;
+	union psr_error_status replay_error_status = {0};
 
 	if (!link->replay_settings.replay_feature_enabled)
 		return;
@@ -280,7 +280,7 @@ void dp_handle_link_loss(struct dc_link *link)
 static void read_dpcd204h_on_irq_hpd(struct dc_link *link, union hpd_irq_data *irq_data)
 {
 	enum dc_status retval;
-	union lane_align_status_updated dpcd_lane_status_updated;
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
 
 	retval = core_link_read_dpcd(
 			link,
@@ -320,7 +320,7 @@ enum dc_status dp_read_hpd_rx_irq_data(
 		/* Read 14 bytes in a single read and then copy only the required fields.
 		 * This is more efficient than doing it in two separate AUX reads. */
 
-		uint8_t tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI + 1];
+		uint8_t tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI + 1] = {0};
 
 		retval = core_link_read_dpcd(
 			link,

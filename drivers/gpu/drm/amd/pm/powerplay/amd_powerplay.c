@@ -302,6 +302,8 @@ static const struct amd_ip_funcs pp_ip_funcs = {
 	.soft_reset = pp_sw_reset,
 	.set_clockgating_state = pp_set_clockgating_state,
 	.set_powergating_state = pp_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version pp_smu_ip_block =

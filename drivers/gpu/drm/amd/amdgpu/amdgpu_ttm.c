@@ -236,7 +236,7 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 	dst_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
 	dst_addr += window * AMDGPU_GTT_MAX_TRANSFER_SIZE * 8;
 	amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_addr,
-				dst_addr, num_bytes, false);
+				dst_addr, num_bytes, 0);
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
@@ -296,6 +296,8 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	struct dma_fence *fence = NULL;
 	int r = 0;
 
+	uint32_t copy_flags = 0;
+
 	if (!adev->mman.buffer_funcs_enabled) {
 		DRM_ERROR("Trying to move memory with ring turned off.\n");
 		return -EINVAL;
@@ -323,8 +325,11 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		if (r)
 			goto error;
 
-		r = amdgpu_copy_buffer(ring, from, to, cur_size,
-				       resv, &next, false, true, tmz);
+		if (tmz)
+			copy_flags |= AMDGPU_COPY_FLAGS_TMZ;
+
+		r = amdgpu_copy_buffer(ring, from, to, cur_size, resv,
+				       &next, false, true, copy_flags);
 		if (r)
 			goto error;
 
@@ -1489,7 +1494,7 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 		swap(src_addr, dst_addr);
 
 	amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_addr, dst_addr,
-				PAGE_SIZE, false);
+				PAGE_SIZE, 0);
 
 	amdgpu_ring_pad_ib(adev->mman.buffer_funcs_ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
@@ -2140,7 +2145,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,
 		       struct dma_resv *resv,
 		       struct dma_fence **fence, bool direct_submit,
-		       bool vm_needs_flush, bool tmz)
+		       bool vm_needs_flush, uint32_t copy_flags)
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned int num_loops, num_dw;
@@ -2166,8 +2171,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
 
 		amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_offset,
-					dst_offset, cur_size_in_bytes, tmz);
-
+					dst_offset, cur_size_in_bytes, copy_flags);
 		src_offset += cur_size_in_bytes;
 		dst_offset += cur_size_in_bytes;
 		byte_count -= cur_size_in_bytes;

@@ -65,7 +65,7 @@ int smu_v14_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	char fw_name[30];
-	char ucode_prefix[30];
+	char ucode_prefix[15];
 	int err = 0;
 	const struct smc_firmware_header_v1_0 *hdr;
 	const struct common_firmware_header *header;
@@ -136,7 +136,8 @@ int smu_v14_0_load_microcode(struct smu_context *smu)
 		    1 & ~MP1_SMN_PUB_CTRL__LX3_RESET_MASK);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
+			amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
 			mp1_fw_flags = RREG32_PCIE(MP1_Public |
 						   (smnMP1_FIRMWARE_FLAGS_14_0_0 & 0xffffffff));
 		else
@@ -209,7 +210,8 @@ int smu_v14_0_check_fw_status(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t mp1_fw_flags;
 
-	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0))
+	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
+		amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
 		mp1_fw_flags = RREG32_PCIE(MP1_Public |
 					   (smnMP1_FIRMWARE_FLAGS_14_0_0 & 0xffffffff));
 	else
@@ -856,7 +858,8 @@ static int smu_v14_0_set_irq_state(struct amdgpu_device *adev,
 		// TODO
 
 		/* For MP1 SW irqs */
-		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0)) {
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
+			amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
 			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0);
 			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 1);
 			WREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_CTRL_mp1_14_0_0, val);
@@ -872,7 +875,8 @@ static int smu_v14_0_set_irq_state(struct amdgpu_device *adev,
 		// TODO
 
 		/* For MP1 SW irqs */
-		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0)) {
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
+			amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
 			val = RREG32_SOC15(MP1, 0, regMP1_SMN_IH_SW_INT_mp1_14_0_0);
 			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, ID, 0xFE);
 			val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, VALID, 0);

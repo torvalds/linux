@@ -2716,6 +2716,11 @@ static int mca_umc_mca_get_err_count(const struct mca_ras_info *mca_ras, struct 
 	    umc_v12_0_is_correctable_error(adev, status0))
 		*count = (ext_error_code == 0) ? odecc_err_cnt : 1;
 
+	amdgpu_umc_update_ecc_status(adev,
+			entry->regs[MCA_REG_IDX_STATUS],
+			entry->regs[MCA_REG_IDX_IPID],
+			entry->regs[MCA_REG_IDX_ADDR]);
+
 	return 0;
 }
 

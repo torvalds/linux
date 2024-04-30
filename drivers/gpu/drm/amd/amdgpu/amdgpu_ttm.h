@@ -109,6 +109,8 @@ struct amdgpu_copy_mem {
 	unsigned long			offset;
 };
 
+#define AMDGPU_COPY_FLAGS_TMZ		(1 << 0)
+
 int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size);
 void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev);
 int amdgpu_preempt_mgr_init(struct amdgpu_device *adev);
@@ -149,7 +151,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,
 		       struct dma_resv *resv,
 		       struct dma_fence **fence, bool direct_submit,
-		       bool vm_needs_flush, bool tmz);
+		       bool vm_needs_flush, uint32_t copy_flags);
 int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			       const struct amdgpu_copy_mem *src,
 			       const struct amdgpu_copy_mem *dst,
