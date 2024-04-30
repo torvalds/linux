@@ -312,7 +312,7 @@ static const struct attribute_group *spi_master_groups[] = {
 
 static void spi_statistics_add_transfer_stats(struct spi_statistics __percpu *pcpu_stats,
 					      struct spi_transfer *xfer,
-					      struct spi_controller *ctlr)
+					      struct spi_message *msg)
 {
 	int l2len = min(fls(xfer->len), SPI_STATISTICS_HISTO_SIZE) - 1;
 	struct spi_statistics *stats;
@@ -328,11 +328,9 @@ static void spi_statistics_add_transfer_stats(struct spi_statistics __percpu *pc
 	u64_stats_inc(&stats->transfer_bytes_histo[l2len]);
 
 	u64_stats_add(&stats->bytes, xfer->len);
-	if ((xfer->tx_buf) &&
-	    (xfer->tx_buf != ctlr->dummy_tx))
+	if (spi_valid_txbuf(msg, xfer))
 		u64_stats_add(&stats->bytes_tx, xfer->len);
-	if ((xfer->rx_buf) &&
-	    (xfer->rx_buf != ctlr->dummy_rx))
+	if (spi_valid_rxbuf(msg, xfer))
 		u64_stats_add(&stats->bytes_rx, xfer->len);
 
 	u64_stats_update_end(&stats->syncp);
@@ -1618,8 +1616,8 @@ static int spi_transfer_one_message(struct spi_controller *ctlr,
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		trace_spi_transfer_start(msg, xfer);
 
-		spi_statistics_add_transfer_stats(statm, xfer, ctlr);
-		spi_statistics_add_transfer_stats(stats, xfer, ctlr);
+		spi_statistics_add_transfer_stats(statm, xfer, msg);
+		spi_statistics_add_transfer_stats(stats, xfer, msg);
 
 		if (!ctlr->ptp_sts_supported) {
 			xfer->ptp_sts_word_pre = 0;
