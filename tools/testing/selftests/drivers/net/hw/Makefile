@@ -9,6 +9,7 @@ TEST_PROGS = \
 	hw_stats_l3.sh \
 	hw_stats_l3_gre.sh \
 	loopback.sh \
+	pp_alloc_fail.py \
 	#
 
 TEST_FILES := \
@@ -16,6 +17,7 @@ TEST_FILES := \
 	#
 
 TEST_INCLUDES := \
+	$(wildcard lib/py/*.py ../lib/py/*.py) \
 	../../../net/lib.sh \
 	../../../net/forwarding/lib.sh \
 	../../../net/forwarding/ipip_lib.sh \

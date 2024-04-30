@@ -56,10 +56,10 @@ class bkg(cmd):
         return self.process(terminate=self.terminate)
 
 
-def ip(args, json=None, ns=None, host=None):
-    cmd_str = "ip "
+def tool(name, args, json=None, ns=None, host=None):
+    cmd_str = name + ' '
     if json:
-        cmd_str += '-j '
+        cmd_str += '--json '
     cmd_str += args
     cmd_obj = cmd(cmd_str, ns=ns, host=host)
     if json:
@@ -67,11 +67,17 @@ def ip(args, json=None, ns=None, host=None):
     return cmd_obj
 
 
+def ip(args, json=None, ns=None, host=None):
+    if ns:
+        args = f'-netns {ns} ' + args
+    return tool('ip', args, json=json, host=host)
+
+
 def rand_port():
     """
     Get unprivileged port, for now just random, one day we may decide to check if used.
     """
-    return random.randint(1024, 65535)
+    return random.randint(10000, 65535)
 
 
 def wait_port_listen(port, proto="tcp", ns=None, host=None, sleep=0.005, deadline=5):

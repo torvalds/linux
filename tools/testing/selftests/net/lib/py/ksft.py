@@ -11,6 +11,10 @@ KSFT_RESULT = None
 KSFT_RESULT_ALL = True
 
 
+class KsftFailEx(Exception):
+    pass
+
+
 class KsftSkipEx(Exception):
     pass
 
