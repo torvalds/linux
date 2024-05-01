@@ -31,6 +31,7 @@
 #include <linux/log2.h>
 #include <linux/dmi.h>
 #include <linux/atomic.h>
+#include <linux/crc16.h>
 
 #include "kfd_priv.h"
 #include "kfd_crat.h"
@@ -1091,14 +1092,17 @@ void kfd_topology_shutdown(void)
 
 static uint32_t kfd_generate_gpu_id(struct kfd_node *gpu)
 {
-	uint32_t hashout;
+	uint32_t gpu_id;
 	uint32_t buf[8];
 	uint64_t local_mem_size;
-	int i;
+	struct kfd_topology_device *dev;
+	bool is_unique;
+	uint8_t *crc_buf;
 
 	if (!gpu)
 		return 0;
 
+	crc_buf = (uint8_t *)&buf;
 	local_mem_size = gpu->local_mem_info.local_mem_size_private +
 			gpu->local_mem_info.local_mem_size_public;
 	buf[0] = gpu->adev->pdev->devfn;
@@ -1111,10 +1115,34 @@ static uint32_t kfd_generate_gpu_id(struct kfd_node *gpu)
 	buf[6] = upper_32_bits(local_mem_size);
 	buf[7] = (ffs(gpu->xcc_mask) - 1) | (NUM_XCC(gpu->xcc_mask) << 16);
 
-	for (i = 0, hashout = 0; i < 8; i++)
-		hashout ^= hash_32(buf[i], KFD_GPU_ID_HASH_WIDTH);
+	gpu_id = crc16(0, crc_buf, sizeof(buf)) &
+		 ((1 << KFD_GPU_ID_HASH_WIDTH) - 1);
 
-	return hashout;
+	/* There is a very small possibility when generating a
+	 * 16 (KFD_GPU_ID_HASH_WIDTH) bit value from 8 word buffer
+	 * that the value could be 0 or non-unique. So, check if
+	 * it is unique and non-zero. If not unique increment till
+	 * unique one is found. In case of overflow, restart from 1
+	 */
+
+	down_read(&topology_lock);
+	do {
+		is_unique = true;
+		if (!gpu_id)
+			gpu_id = 1;
+		list_for_each_entry(dev, &topology_device_list, list) {
+			if (dev->gpu && dev->gpu_id == gpu_id) {
+				is_unique = false;
+				break;
+			}
+		}
+		if (unlikely(!is_unique))
+			gpu_id = (gpu_id + 1) &
+				  ((1 << KFD_GPU_ID_HASH_WIDTH) - 1);
+	} while (!is_unique);
+	up_read(&topology_lock);
+
+	return gpu_id;
 }
 /* kfd_assign_gpu - Attach @gpu to the correct kfd topology device. If
  *		the GPU device is not already present in the topology device
@@ -1945,7 +1973,6 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	struct amdgpu_gfx_config *gfx_info = &gpu->adev->gfx.config;
 	struct amdgpu_cu_info *cu_info = &gpu->adev->gfx.cu_info;
 
-	gpu_id = kfd_generate_gpu_id(gpu);
 	if (gpu->xcp && !gpu->xcp->ddev) {
 		dev_warn(gpu->adev->dev,
 			 "Won't add GPU to topology since it has no drm node assigned.");
@@ -1968,6 +1995,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	if (res)
 		return res;
 
+	gpu_id = kfd_generate_gpu_id(gpu);
 	dev->gpu_id = gpu_id;
 	gpu->id = gpu_id;
 
