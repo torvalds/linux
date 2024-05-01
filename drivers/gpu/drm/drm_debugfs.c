@@ -597,10 +597,10 @@ static int bridges_show(struct seq_file *m, void *data)
 		drm_printf(&p, "\ttype: [%d] %s\n",
 			   bridge->type,
 			   drm_get_connector_type_name(bridge->type));
-#ifdef CONFIG_OF
+
 		if (bridge->of_node)
 			drm_printf(&p, "\tOF: %pOFfc\n", bridge->of_node);
-#endif
+
 		drm_printf(&p, "\tops: [0x%x]", bridge->ops);
 		if (bridge->ops & DRM_BRIDGE_OP_DETECT)
 			drm_puts(&p, " detect");
