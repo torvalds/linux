@@ -1303,7 +1303,7 @@ retry:
 			bch2_cut_back(POS(op->pos.inode, op->pos.offset + bio_sectors(bio)), op->insert_keys.top);
 
 		darray_for_each(buckets, i) {
-			struct bch_dev *ca = bch2_dev_bkey_exists(c, i->b.inode);
+			struct bch_dev *ca = bch2_dev_have_ref(c, i->b.inode);
 
 			__bch2_bucket_nocow_lock(&c->nocow_locks, i->l,
 						 bucket_to_u64(i->b),
@@ -1380,7 +1380,7 @@ err:
 	return;
 err_get_ioref:
 	darray_for_each(buckets, i)
-		percpu_ref_put(&bch2_dev_bkey_exists(c, i->b.inode)->io_ref);
+		percpu_ref_put(&bch2_dev_have_ref(c, i->b.inode)->io_ref);
 
 	/* Fall back to COW path: */
 	goto out;

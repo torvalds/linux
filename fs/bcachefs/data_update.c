@@ -360,7 +360,7 @@ void bch2_data_update_exit(struct data_update *update)
 		bch2_bkey_ptrs_c(bkey_i_to_s_c(update->k.k));
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca = bch2_dev_have_ref(c, ptr->dev);
 		if (c->opts.nocow_enabled)
 			bch2_bucket_nocow_unlock(&c->nocow_locks,
 						 PTR_BUCKET_POS(ca, ptr), 0);
@@ -559,7 +559,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_have_ref(c, p.ptr.dev);
 		struct bpos bucket = PTR_BUCKET_POS(ca, &p.ptr);
 		bool locked;
 
@@ -664,7 +664,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 err:
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_have_ref(c, p.ptr.dev);
 		struct bpos bucket = PTR_BUCKET_POS(ca, &p.ptr);
 		if ((1U << i) & ptrs_locked)
 			bch2_bucket_nocow_unlock(&c->nocow_locks, bucket, 0);

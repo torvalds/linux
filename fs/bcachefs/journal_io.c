@@ -1386,7 +1386,7 @@ int bch2_journal_read(struct bch_fs *c,
 			continue;
 
 		darray_for_each(i->ptrs, ptr) {
-			struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
+			struct bch_dev *ca = bch2_dev_have_ref(c, ptr->dev);
 
 			if (!ptr->csum_good)
 				bch_err_dev_offset(ca, ptr->sector,
@@ -1396,7 +1396,7 @@ int bch2_journal_read(struct bch_fs *c,
 		}
 
 		ret = jset_validate(c,
-				    bch2_dev_bkey_exists(c, i->ptrs.data[0].dev),
+				    bch2_dev_have_ref(c, i->ptrs.data[0].dev),
 				    &i->j,
 				    i->ptrs.data[0].sector,
 				    READ);
