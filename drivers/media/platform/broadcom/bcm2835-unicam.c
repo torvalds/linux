@@ -55,6 +55,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
+#include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "bcm2835-unicam-regs.h"
