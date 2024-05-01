@@ -631,13 +631,13 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 			buf[j] = sw_stats[k];
 
 skip_tpa_ring_stats:
-		sw = (u64 *)&cpr->sw_stats.rx;
+		sw = (u64 *)&cpr->sw_stats->rx;
 		if (is_rx_ring(bp, i)) {
 			for (k = 0; k < NUM_RING_RX_SW_STATS; j++, k++)
 				buf[j] = sw[k];
 		}
 
-		sw = (u64 *)&cpr->sw_stats.cmn;
+		sw = (u64 *)&cpr->sw_stats->cmn;
 		for (k = 0; k < NUM_RING_CMN_SW_STATS; j++, k++)
 			buf[j] = sw[k];
 	}

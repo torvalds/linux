@@ -1152,7 +1152,7 @@ struct bnxt_cp_ring_info {
 	struct bnxt_stats_mem	stats;
 	u32			hw_stats_ctx_id;
 
-	struct bnxt_sw_stats	sw_stats;
+	struct bnxt_sw_stats	*sw_stats;
 
 	struct bnxt_ring_struct	cp_ring_struct;
 
