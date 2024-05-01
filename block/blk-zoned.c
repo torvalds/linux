@@ -1222,8 +1222,7 @@ void blk_zone_write_plug_bio_endio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
 	struct blk_zone_wplug *zwplug =
-		disk_get_zone_wplug(bio->bi_bdev->bd_disk,
-				    bio->bi_iter.bi_sector);
+		disk_get_zone_wplug(disk, bio->bi_iter.bi_sector);
 	unsigned long flags;
 
 	if (WARN_ON_ONCE(!zwplug))
