@@ -307,6 +307,7 @@ static void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
 	size_t buffer_queue_slots;
 	int idx = rx->q_num;
 	size_t size;
+	u32 qpl_id;
 	int i;
 
 	completion_queue_slots = rx->dqo.complq.mask + 1;
@@ -325,7 +326,11 @@ static void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
 			gve_free_page_dqo(priv, bs, !rx->dqo.qpl);
 	}
 
-	rx->dqo.qpl = NULL;
+	if (rx->dqo.qpl) {
+		qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
+		gve_free_queue_page_list(priv, rx->dqo.qpl, qpl_id);
+		rx->dqo.qpl = NULL;
+	}
 
 	if (rx->dqo.bufq.desc_ring) {
 		size = sizeof(rx->dqo.bufq.desc_ring[0]) * buffer_queue_slots;
@@ -377,7 +382,9 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 				 int idx)
 {
 	struct device *hdev = &priv->pdev->dev;
+	int qpl_page_cnt;
 	size_t size;
+	u32 qpl_id;
 
 	const u32 buffer_queue_slots = cfg->ring_size;
 	const u32 completion_queue_slots = cfg->ring_size;
@@ -418,9 +425,13 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 		goto err;
 
 	if (!cfg->raw_addressing) {
-		u32 qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
+		qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
+		qpl_page_cnt = gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
 
-		rx->dqo.qpl = &cfg->qpls[qpl_id];
+		rx->dqo.qpl = gve_alloc_queue_page_list(priv, qpl_id,
+							qpl_page_cnt);
+		if (!rx->dqo.qpl)
+			goto err;
 		rx->dqo.next_qpl_page_idx = 0;
 	}
 
@@ -453,12 +464,6 @@ int gve_rx_alloc_rings_dqo(struct gve_priv *priv,
 	struct gve_rx_ring *rx;
 	int err;
 	int i;
-
-	if (!cfg->raw_addressing && !cfg->qpls) {
-		netif_err(priv, drv, priv->dev,
-			  "Cannot alloc QPL ring before allocing QPLs\n");
-		return -EINVAL;
-	}
 
 	rx = kvcalloc(cfg->qcfg->max_queues, sizeof(struct gve_rx_ring),
 		      GFP_KERNEL);

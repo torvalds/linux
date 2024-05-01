@@ -538,20 +538,17 @@ static int gve_adjust_ring_sizes(struct gve_priv *priv,
 {
 	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
 	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
-	struct gve_qpls_alloc_cfg qpls_alloc_cfg = {0};
 	int err;
 
 	/* get current queue configuration */
-	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
-				&tx_alloc_cfg, &rx_alloc_cfg);
+	gve_get_curr_alloc_cfgs(priv, &tx_alloc_cfg, &rx_alloc_cfg);
 
 	/* copy over the new ring_size from ethtool */
 	tx_alloc_cfg.ring_size = new_tx_desc_cnt;
 	rx_alloc_cfg.ring_size = new_rx_desc_cnt;
 
 	if (netif_running(priv->dev)) {
-		err = gve_adjust_config(priv, &qpls_alloc_cfg,
-					&tx_alloc_cfg, &rx_alloc_cfg);
+		err = gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
 		if (err)
 			return err;
 	}

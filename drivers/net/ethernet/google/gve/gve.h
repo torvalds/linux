@@ -638,25 +638,9 @@ struct gve_ptype_lut {
 	struct gve_ptype ptypes[GVE_NUM_PTYPES];
 };
 
-/* Parameters for allocating queue page lists */
-struct gve_qpls_alloc_cfg {
-	struct gve_queue_config *tx_cfg;
-	struct gve_queue_config *rx_cfg;
-
-	u16 num_xdp_queues;
-	bool raw_addressing;
-	bool is_gqi;
-
-	/* Allocated resources are returned here */
-	struct gve_queue_page_list *qpls;
-};
-
 /* Parameters for allocating resources for tx queues */
 struct gve_tx_alloc_rings_cfg {
 	struct gve_queue_config *qcfg;
-
-	/* qpls must already be allocated */
-	struct gve_queue_page_list *qpls;
 
 	u16 ring_size;
 	u16 start_idx;
@@ -672,9 +656,6 @@ struct gve_rx_alloc_rings_cfg {
 	/* tx config is also needed to determine QPL ids */
 	struct gve_queue_config *qcfg;
 	struct gve_queue_config *qcfg_tx;
-
-	/* qpls must already be allocated */
-	struct gve_queue_page_list *qpls;
 
 	u16 ring_size;
 	u16 packet_buffer_size;
@@ -701,7 +682,6 @@ struct gve_priv {
 	struct net_device *dev;
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
 	struct gve_rx_ring *rx; /* array of rx_cfg.num_queues */
-	struct gve_queue_page_list *qpls; /* array of num qpls */
 	struct gve_notify_block *ntfy_blocks; /* array of num_ntfy_blks */
 	struct gve_irq_db *irq_db_indices; /* array of num_ntfy_blks */
 	dma_addr_t irq_db_indices_bus;
@@ -1025,7 +1005,6 @@ static inline u32 gve_rx_qpl_id(struct gve_priv *priv, int rx_qid)
 	return priv->tx_cfg.max_queues + rx_qid;
 }
 
-/* Returns the index into priv->qpls where a certain rx queue's QPL resides */
 static inline u32 gve_get_rx_qpl_id(const struct gve_queue_config *tx_cfg, int rx_qid)
 {
 	return tx_cfg->max_queues + rx_qid;
@@ -1036,7 +1015,6 @@ static inline u32 gve_tx_start_qpl_id(struct gve_priv *priv)
 	return gve_tx_qpl_id(priv, 0);
 }
 
-/* Returns the index into priv->qpls where the first rx queue's QPL resides */
 static inline u32 gve_rx_start_qpl_id(const struct gve_queue_config *tx_cfg)
 {
 	return gve_get_rx_qpl_id(tx_cfg, 0);
@@ -1090,6 +1068,12 @@ int gve_alloc_page(struct gve_priv *priv, struct device *dev,
 		   enum dma_data_direction, gfp_t gfp_flags);
 void gve_free_page(struct device *dev, struct page *page, dma_addr_t dma,
 		   enum dma_data_direction);
+/* qpls */
+struct gve_queue_page_list *gve_alloc_queue_page_list(struct gve_priv *priv,
+						      u32 id, int pages);
+void gve_free_queue_page_list(struct gve_priv *priv,
+			      struct gve_queue_page_list *qpl,
+			      u32 id);
 /* tx handling */
 netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev);
 int gve_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
@@ -1126,11 +1110,9 @@ int gve_set_hsplit_config(struct gve_priv *priv, u8 tcp_data_split);
 void gve_schedule_reset(struct gve_priv *priv);
 int gve_reset(struct gve_priv *priv, bool attempt_teardown);
 void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
-			     struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
 			     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
 			     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
 int gve_adjust_config(struct gve_priv *priv,
-		      struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
 		      struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
 		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
 int gve_adjust_queues(struct gve_priv *priv,
