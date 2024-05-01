@@ -476,29 +476,6 @@ static bool disk_insert_zone_wplug(struct gendisk *disk,
 	return true;
 }
 
-static void disk_remove_zone_wplug(struct gendisk *disk,
-				   struct blk_zone_wplug *zwplug)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
-	zwplug->flags |= BLK_ZONE_WPLUG_UNHASHED;
-	atomic_dec(&zwplug->ref);
-	hlist_del_init_rcu(&zwplug->node);
-	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
-}
-
-static inline bool disk_should_remove_zone_wplug(struct gendisk *disk,
-						 struct blk_zone_wplug *zwplug)
-{
-	/* If the zone is still busy, the plug cannot be removed. */
-	if (zwplug->flags & BLK_ZONE_WPLUG_BUSY)
-		return false;
-
-	/* We can remove zone write plugs for zones that are empty or full. */
-	return !zwplug->wp_offset || zwplug->wp_offset >= disk->zone_capacity;
-}
-
 static struct blk_zone_wplug *disk_get_zone_wplug(struct gendisk *disk,
 						  sector_t sector)
 {
@@ -534,9 +511,41 @@ static inline void disk_put_zone_wplug(struct blk_zone_wplug *zwplug)
 	if (atomic_dec_and_test(&zwplug->ref)) {
 		WARN_ON_ONCE(!bio_list_empty(&zwplug->bio_list));
 		WARN_ON_ONCE(!list_empty(&zwplug->link));
+		WARN_ON_ONCE(!(zwplug->flags & BLK_ZONE_WPLUG_UNHASHED));
 
 		call_rcu(&zwplug->rcu_head, disk_free_zone_wplug_rcu);
 	}
+}
+
+static inline bool disk_should_remove_zone_wplug(struct gendisk *disk,
+						 struct blk_zone_wplug *zwplug)
+{
+	/* If the zone is still busy, the plug cannot be removed. */
+	if (zwplug->flags & BLK_ZONE_WPLUG_BUSY)
+		return false;
+
+	/* We can remove zone write plugs for zones that are empty or full. */
+	return !zwplug->wp_offset || zwplug->wp_offset >= disk->zone_capacity;
+}
+
+static void disk_remove_zone_wplug(struct gendisk *disk,
+				   struct blk_zone_wplug *zwplug)
+{
+	unsigned long flags;
+
+	/* If the zone write plug was already removed, we have nothing to do. */
+	if (zwplug->flags & BLK_ZONE_WPLUG_UNHASHED)
+		return;
+
+	/*
+	 * Mark the zone write plug as unhashed and drop the extra reference we
+	 * took when the plug was inserted in the hash table.
+	 */
+	zwplug->flags |= BLK_ZONE_WPLUG_UNHASHED;
+	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
+	hlist_del_init_rcu(&zwplug->node);
+	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
+	disk_put_zone_wplug(zwplug);
 }
 
 static void blk_zone_wplug_bio_work(struct work_struct *work);
