@@ -272,6 +272,7 @@
 #include <net/inet_common.h>
 #include <net/tcp.h>
 #include <net/mptcp.h>
+#include <net/proto_memory.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
 #include <net/sock.h>
@@ -280,6 +281,7 @@
 #include <linux/uaccess.h>
 #include <asm/ioctls.h>
 #include <net/busy_poll.h>
+#include <net/hotdata.h>
 #include <net/rps.h>
 
 /* Track pending CMSGs. */
@@ -1188,7 +1190,7 @@ new_segment:
 
 			if (!skb_can_coalesce(skb, i, pfrag->page,
 					      pfrag->offset)) {
-				if (i >= READ_ONCE(sysctl_max_skb_frags)) {
+				if (i >= READ_ONCE(net_hotdata.sysctl_max_skb_frags)) {
 					tcp_mark_push(tp, skb);
 					goto new_segment;
 				}
@@ -2751,7 +2753,15 @@ static bool tcp_too_many_orphans(int shift)
 		READ_ONCE(sysctl_tcp_max_orphans);
 }
 
-bool tcp_check_oom(struct sock *sk, int shift)
+static bool tcp_out_of_memory(const struct sock *sk)
+{
+	if (sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
+	    sk_memory_allocated(sk) > sk_prot_mem_limits(sk, 2))
+		return true;
+	return false;
+}
+
+bool tcp_check_oom(const struct sock *sk, int shift)
 {
 	bool too_many_orphans, out_of_socket_memory;
 

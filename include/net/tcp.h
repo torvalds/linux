@@ -296,14 +296,6 @@ static inline bool between(__u32 seq1, __u32 seq2, __u32 seq3)
 	return seq3 - seq2 >= seq1 - seq2;
 }
 
-static inline bool tcp_out_of_memory(struct sock *sk)
-{
-	if (sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
-	    sk_memory_allocated(sk) > sk_prot_mem_limits(sk, 2))
-		return true;
-	return false;
-}
-
 static inline void tcp_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
 {
 	sk_wmem_queued_add(sk, -skb->truesize);
@@ -316,7 +308,7 @@ static inline void tcp_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
 
 void sk_forced_mem_schedule(struct sock *sk, int size);
 
-bool tcp_check_oom(struct sock *sk, int shift);
+bool tcp_check_oom(const struct sock *sk, int shift);
 
 
 extern struct proto tcp_prot;

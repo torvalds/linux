@@ -36,7 +36,6 @@ int dev_addr_init(struct net_device *dev);
 void dev_addr_check(struct net_device *dev);
 
 /* sysctls not referred to from outside net/core/ */
-extern unsigned int	sysctl_skb_defer_max;
 extern int		netdev_unregister_timeout_secs;
 extern int		weight_p;
 extern int		dev_weight_rx_bias;
