@@ -751,6 +751,9 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 	if (fs->num_request_queues == 0)
 		return -EINVAL;
 
+	/* Truncate nr of request queues to nr_cpu_id */
+	fs->num_request_queues = min_t(unsigned int, fs->num_request_queues,
+					nr_cpu_ids);
 	fs->nvqs = VQ_REQUEST + fs->num_request_queues;
 	fs->vqs = kcalloc(fs->nvqs, sizeof(fs->vqs[VQ_HIPRIO]), GFP_KERNEL);
 	if (!fs->vqs)
