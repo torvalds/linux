@@ -1193,7 +1193,6 @@ static void bch2_dev_free(struct bch_dev *ca)
 	bch2_dev_journal_exit(ca);
 
 	free_percpu(ca->io_done);
-	bioset_exit(&ca->replica_set);
 	bch2_dev_buckets_free(ca);
 	free_page((unsigned long) ca->sb_read_scratch);
 
@@ -1317,8 +1316,6 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
 	    !(ca->sb_read_scratch = (void *) __get_free_page(GFP_KERNEL)) ||
 	    bch2_dev_buckets_alloc(c, ca) ||
-	    bioset_init(&ca->replica_set, 4,
-			offsetof(struct bch_write_bio, bio), 0) ||
 	    !(ca->io_done	= alloc_percpu(*ca->io_done)))
 		goto err;
 

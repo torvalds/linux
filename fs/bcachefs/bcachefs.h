@@ -569,9 +569,6 @@ struct bch_dev {
 
 	struct bch_devs_mask	self;
 
-	/* biosets used in cloned bios for writing multiple replicas */
-	struct bio_set		replica_set;
-
 	/*
 	 * Buckets:
 	 * Per-bucket arrays are protected by c->mark_lock, bucket_lock and
@@ -995,6 +992,7 @@ struct bch_fs {
 	struct bio_set		bio_read;
 	struct bio_set		bio_read_split;
 	struct bio_set		bio_write;
+	struct bio_set		replica_set;
 	struct mutex		bio_bounce_pages_lock;
 	mempool_t		bio_bounce_pages;
 	struct bucket_nocow_lock_table

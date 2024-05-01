@@ -412,8 +412,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 
 		if (to_entry(ptr + 1) < ptrs.end) {
-			n = to_wbio(bio_alloc_clone(NULL, &wbio->bio,
-						GFP_NOFS, &ca->replica_set));
+			n = to_wbio(bio_alloc_clone(NULL, &wbio->bio, GFP_NOFS, &c->replica_set));
 
 			n->bio.bi_end_io	= wbio->bio.bi_end_io;
 			n->bio.bi_private	= wbio->bio.bi_private;
@@ -1667,13 +1666,14 @@ void bch2_write_op_to_text(struct printbuf *out, struct bch_write_op *op)
 void bch2_fs_io_write_exit(struct bch_fs *c)
 {
 	mempool_exit(&c->bio_bounce_pages);
+	bioset_exit(&c->replica_set);
 	bioset_exit(&c->bio_write);
 }
 
 int bch2_fs_io_write_init(struct bch_fs *c)
 {
-	if (bioset_init(&c->bio_write, 1, offsetof(struct bch_write_bio, bio),
-			BIOSET_NEED_BVECS))
+	if (bioset_init(&c->bio_write,   1, offsetof(struct bch_write_bio, bio), BIOSET_NEED_BVECS) ||
+	    bioset_init(&c->replica_set, 4, offsetof(struct bch_write_bio, bio), 0))
 		return -BCH_ERR_ENOMEM_bio_write_init;
 
 	if (mempool_init_page_pool(&c->bio_bounce_pages,
