@@ -690,7 +690,6 @@ static int journal_entry_dev_usage_validate(struct bch_fs *c,
 		container_of(entry, struct jset_entry_dev_usage, entry);
 	unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
 	unsigned expected = sizeof(*u);
-	unsigned dev;
 	int ret = 0;
 
 	if (journal_entry_err_on(bytes < expected,
@@ -698,16 +697,6 @@ static int journal_entry_dev_usage_validate(struct bch_fs *c,
 				 journal_entry_dev_usage_bad_size,
 				 "bad size (%u < %u)",
 				 bytes, expected)) {
-		journal_entry_null_range(entry, vstruct_next(entry));
-		return ret;
-	}
-
-	dev = le32_to_cpu(u->dev);
-
-	if (journal_entry_err_on(!bch2_dev_exists(c, dev),
-				 c, version, jset, entry,
-				 journal_entry_dev_usage_bad_dev,
-				 "bad dev")) {
 		journal_entry_null_range(entry, vstruct_next(entry));
 		return ret;
 	}

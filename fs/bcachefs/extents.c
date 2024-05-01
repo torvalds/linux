@@ -1101,21 +1101,7 @@ static int extent_ptr_invalid(struct bch_fs *c,
 			      bool metadata,
 			      struct printbuf *err)
 {
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	int ret = 0;
-
-	if (!bch2_dev_exists(c, ptr->dev)) {
-		/*
-		 * If we're in the write path this key might have already been
-		 * overwritten, and we could be seeing a device that doesn't
-		 * exist anymore due to racing with device removal:
-		 */
-		if (flags & BKEY_INVALID_WRITE)
-			return 0;
-
-		bkey_fsck_err(c, err, ptr_to_invalid_device,
-			   "pointer to invalid device (%u)", ptr->dev);
-	}
 
 	rcu_read_lock();
 	struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
@@ -1130,6 +1116,7 @@ static int extent_ptr_invalid(struct bch_fs *c,
 	unsigned bucket_size	= ca->mi.bucket_size;
 	rcu_read_unlock();
 
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	bkey_for_each_ptr(ptrs, ptr2)
 		bkey_fsck_err_on(ptr != ptr2 && ptr->dev == ptr2->dev, c, err,
 				 ptr_to_duplicate_device,
