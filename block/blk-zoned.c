@@ -634,12 +634,14 @@ again:
 	return zwplug;
 }
 
-static inline void blk_zone_wplug_bio_io_error(struct bio *bio)
+static inline void blk_zone_wplug_bio_io_error(struct blk_zone_wplug *zwplug,
+					       struct bio *bio)
 {
-	struct request_queue *q = bio->bi_bdev->bd_disk->queue;
+	struct request_queue *q = zwplug->disk->queue;
 
 	bio_clear_flag(bio, BIO_ZONE_WRITE_PLUGGING);
 	bio_io_error(bio);
+	disk_put_zone_wplug(zwplug);
 	blk_queue_exit(q);
 }
 
@@ -650,10 +652,8 @@ static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
 {
 	struct bio *bio;
 
-	while ((bio = bio_list_pop(&zwplug->bio_list))) {
-		blk_zone_wplug_bio_io_error(bio);
-		disk_put_zone_wplug(zwplug);
-	}
+	while ((bio = bio_list_pop(&zwplug->bio_list)))
+		blk_zone_wplug_bio_io_error(zwplug, bio);
 }
 
 /*
@@ -673,8 +673,7 @@ static void disk_zone_wplug_abort_unaligned(struct gendisk *disk,
 		if (wp_offset >= zone_capacity ||
 		    (bio_op(bio) != REQ_OP_ZONE_APPEND &&
 		     bio_offset_from_zone_start(bio) != wp_offset)) {
-			blk_zone_wplug_bio_io_error(bio);
-			disk_put_zone_wplug(zwplug);
+			blk_zone_wplug_bio_io_error(zwplug, bio);
 			continue;
 		}
 
