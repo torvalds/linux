@@ -982,6 +982,7 @@ static void __init pmd_thp_tests(struct pgtable_debug_args *args)
 #ifndef __HAVE_ARCH_PMDP_INVALIDATE
 	WARN_ON(!pmd_trans_huge(pmd_mkinvalid(pmd_mkhuge(pmd))));
 	WARN_ON(!pmd_present(pmd_mkinvalid(pmd_mkhuge(pmd))));
+	WARN_ON(!pmd_leaf(pmd_mkinvalid(pmd_mkhuge(pmd))));
 #endif /* __HAVE_ARCH_PMDP_INVALIDATE */
 }
 
