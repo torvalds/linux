@@ -386,7 +386,7 @@ struct iwl_trans_pcie {
 	dma_addr_t iml_dma_addr;
 	struct iwl_trans *trans;
 
-	struct net_device napi_dev;
+	struct net_device *napi_dev;
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;
