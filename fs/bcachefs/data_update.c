@@ -467,7 +467,6 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 
 	while (data_opts.kill_ptrs) {
 		unsigned i = 0, drop = __fls(data_opts.kill_ptrs);
-		struct bch_extent_ptr *ptr;
 
 		bch2_bkey_drop_ptrs(bkey_i_to_s(n), ptr, i++ == drop);
 		data_opts.kill_ptrs ^= 1U << drop;

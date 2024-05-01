@@ -838,8 +838,6 @@ union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s k,
 
 void bch2_bkey_drop_device(struct bkey_s k, unsigned dev)
 {
-	struct bch_extent_ptr *ptr;
-
 	bch2_bkey_drop_ptrs(k, ptr, ptr->dev == dev);
 }
 
@@ -974,8 +972,6 @@ void bch2_extent_ptr_set_cached(struct bkey_s k, struct bch_extent_ptr *ptr)
  */
 bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 {
-	struct bch_extent_ptr *ptr;
-
 	bch2_bkey_drop_ptrs(k, ptr,
 		ptr->cached &&
 		ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr));

@@ -481,7 +481,6 @@ static void bch2_write_done(struct closure *cl)
 static noinline int bch2_write_drop_io_error_ptrs(struct bch_write_op *op)
 {
 	struct keylist *keys = &op->insert_keys;
-	struct bch_extent_ptr *ptr;
 	struct bkey_i *src, *dst = keys->keys, *n;
 
 	for (src = keys->keys; src != keys->top; src = n) {

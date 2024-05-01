@@ -1865,7 +1865,6 @@ static void btree_node_write_work(struct work_struct *work)
 		container_of(work, struct btree_write_bio, work);
 	struct bch_fs *c	= wbio->wbio.c;
 	struct btree *b		= wbio->wbio.bio.bi_private;
-	struct bch_extent_ptr *ptr;
 	int ret = 0;
 
 	btree_bounce_free(c,

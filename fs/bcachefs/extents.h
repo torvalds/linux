@@ -654,7 +654,7 @@ union bch_extent_entry *bch2_bkey_drop_ptr(struct bkey_s,
 do {									\
 	struct bkey_ptrs _ptrs = bch2_bkey_ptrs(_k);			\
 									\
-	_ptr = &_ptrs.start->ptr;					\
+	struct bch_extent_ptr *_ptr = &_ptrs.start->ptr;		\
 									\
 	while ((_ptr = bkey_ptr_next(_ptrs, _ptr))) {			\
 		if (_cond) {						\

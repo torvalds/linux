@@ -1200,7 +1200,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	const struct bch_extent_ptr *ptr_c;
-	struct bch_extent_ptr *ptr, *ec_ptr = NULL;
+	struct bch_extent_ptr *ec_ptr = NULL;
 	struct bch_extent_stripe_ptr stripe_ptr;
 	struct bkey_i *n;
 	int ret, dev, block;
