@@ -2440,6 +2440,7 @@ struct bnxt {
 #define BNXT_LINK_CFG_CHANGE_SP_EVENT	21
 #define BNXT_THERMAL_THRESHOLD_SP_EVENT	22
 #define BNXT_FW_ECHO_REQUEST_SP_EVENT	23
+#define BNXT_RESTART_ULP_SP_EVENT	24
 
 	struct delayed_work	fw_reset_task;
 	int			fw_reset_state;
