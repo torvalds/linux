@@ -993,19 +993,25 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
+	struct bch_dev *ca = NULL;
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
 					 BTREE_ITER_prefetch, k, ({
-			struct bch_dev *ca = bch2_dev_bkey_exists(c, k.k->p.inode);
-			struct bucket *g = gc_bucket(ca, k.k->p.offset);
+			ca = bch2_dev_iterate(c, ca, k.k->p.inode);
+			if (!ca) {
+				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
+				continue;
+			}
 
 			struct bch_alloc_v4 a_convert;
 			const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 
+			struct bucket *g = gc_bucket(ca, k.k->p.offset);
 			g->gen_valid	= 1;
 			g->gen		= a->gen;
 			0;
 		})));
+	bch2_dev_put(ca);
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -1254,22 +1260,29 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 		return -EROFS;
 
 	percpu_down_read(&c->mark_lock);
+	rcu_read_lock();
 	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+		if (!ca)
+			continue;
 
 		if (dev_ptr_stale(ca, ptr) > 16) {
+			rcu_read_unlock();
 			percpu_up_read(&c->mark_lock);
 			goto update;
 		}
 	}
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
-		u8 *gen = &ca->oldest_gen[PTR_BUCKET_NR(ca, ptr)];
+		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+		if (!ca)
+			continue;
 
+		u8 *gen = &ca->oldest_gen[PTR_BUCKET_NR(ca, ptr)];
 		if (gen_after(*gen, ptr->gen))
 			*gen = ptr->gen;
 	}
+	rcu_read_unlock();
 	percpu_up_read(&c->mark_lock);
 	return 0;
 update:
@@ -1282,10 +1295,9 @@ update:
 	return 0;
 }
 
-static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_iter *iter,
-				       struct bkey_s_c k)
+static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct bch_dev *ca,
+				       struct btree_iter *iter, struct bkey_s_c k)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(trans->c, iter->pos.inode);
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 	struct bkey_i_alloc_v4 *a_mut;
@@ -1355,14 +1367,23 @@ int bch2_gc_gens(struct bch_fs *c)
 				goto err;
 		}
 
+	struct bch_dev *ca = NULL;
 	ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
 				POS_MIN,
 				BTREE_ITER_prefetch,
 				k,
 				NULL, NULL,
-				BCH_TRANS_COMMIT_no_enospc,
-			bch2_alloc_write_oldest_gen(trans, &iter, k)));
+				BCH_TRANS_COMMIT_no_enospc, ({
+			ca = bch2_dev_iterate(c, ca, k.k->p.inode);
+			if (!ca) {
+				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
+				continue;
+			}
+			bch2_alloc_write_oldest_gen(trans, ca, &iter, k);
+		})));
+	bch2_dev_put(ca);
+
 	if (ret)
 		goto err;
 
