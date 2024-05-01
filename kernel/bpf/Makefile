@@ -44,7 +44,7 @@ obj-$(CONFIG_BPF_SYSCALL) += bpf_struct_ops.o
 obj-$(CONFIG_BPF_SYSCALL) += cpumask.o
 obj-${CONFIG_BPF_LSM} += bpf_lsm.o
 endif
-ifeq ($(CONFIG_CRYPTO),y)
+ifneq ($(CONFIG_CRYPTO),)
 obj-$(CONFIG_BPF_SYSCALL) += crypto.o
 endif
 obj-$(CONFIG_BPF_PRELOAD) += preload/
