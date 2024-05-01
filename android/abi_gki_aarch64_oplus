@@ -53,6 +53,8 @@
   mmc_wait_for_cmd
   __mod_lruvec_state
   __mod_zone_page_state
+  neigh_xmit
+  netif_receive_skb_core
   nf_ct_attach
   nf_ct_delete
   nf_register_net_hook
@@ -79,6 +81,7 @@
   root_mem_cgroup
   rtc_read_alarm
   rtc_set_alarm
+  __rtnl_link_register
   __rtnl_link_unregister
   sdio_memcpy_fromio
   sdio_memcpy_toio
@@ -123,7 +126,10 @@
   __traceiter_android_vh_record_rwsem_lock_starttime
   __traceiter_android_vh_alter_mutex_list_add
   __traceiter_android_vh_binder_free_proc
+  __traceiter_android_vh_binder_has_special_work_ilocked
   __traceiter_android_vh_binder_has_work_ilocked
+  __traceiter_android_vh_binder_ioctl_end
+  __traceiter_android_vh_binder_looper_exited
   __traceiter_android_vh_binder_looper_state_registered
   __traceiter_android_vh_binder_new_ref
   __traceiter_android_vh_binder_del_ref
@@ -134,9 +140,12 @@
   __traceiter_android_vh_binder_proc_transaction_finish
   __traceiter_android_vh_binder_read_done
   __traceiter_android_vh_binder_select_worklist_ilocked
+  __traceiter_android_vh_binder_select_special_worklist
+  __traceiter_android_vh_binder_spawn_new_thread
   __traceiter_android_vh_binder_thread_read
   __traceiter_android_vh_binder_thread_release
   __traceiter_android_vh_binder_wait_for_work
+  __traceiter_android_vh_binder_detect_low_async_space
   __traceiter_android_vh_cgroup_set_task
   __traceiter_android_vh_check_folio_look_around_ref
   __traceiter_android_vh_dup_task_struct
@@ -158,6 +167,7 @@
   __traceiter_android_vh_dm_bufio_shrink_scan_bypass
   __traceiter_android_vh_mutex_unlock_slowpath
   __traceiter_android_vh_rtmutex_waiter_prio
+  __traceiter_android_vh_rt_mutex_steal
   __traceiter_android_vh_rwsem_can_spin_on_owner
   __traceiter_android_vh_rwsem_opt_spin_finish
   __traceiter_android_vh_rwsem_opt_spin_start
@@ -202,13 +212,18 @@
   __traceiter_android_vh_free_oem_binder_struct
   __traceiter_android_vh_binder_special_task
   __traceiter_android_vh_binder_free_buf
+  __traceiter_android_vh_binder_buffer_release
+  __traceiter_android_vh_copy_process
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_rtmutex_force_update
   __tracepoint_android_vh_account_process_tick_gran
   __tracepoint_android_vh_account_task_time
   __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_binder_free_proc
+  __tracepoint_android_vh_binder_has_special_work_ilocked
   __tracepoint_android_vh_binder_has_work_ilocked
+  __tracepoint_android_vh_binder_ioctl_end
+  __tracepoint_android_vh_binder_looper_exited
   __tracepoint_android_vh_binder_looper_state_registered
   __tracepoint_android_vh_binder_new_ref
   __tracepoint_android_vh_binder_del_ref
@@ -219,9 +234,12 @@
   __tracepoint_android_vh_binder_proc_transaction_finish
   __tracepoint_android_vh_binder_read_done
   __tracepoint_android_vh_binder_select_worklist_ilocked
+  __tracepoint_android_vh_binder_select_special_worklist
+  __tracepoint_android_vh_binder_spawn_new_thread
   __tracepoint_android_vh_binder_thread_read
   __tracepoint_android_vh_binder_thread_release
   __tracepoint_android_vh_binder_wait_for_work
+  __tracepoint_android_vh_binder_detect_low_async_space
   __tracepoint_android_vh_cgroup_set_task
   __tracepoint_android_vh_check_folio_look_around_ref
   __tracepoint_android_vh_do_futex
@@ -258,6 +276,7 @@
   __tracepoint_android_vh_record_rtmutex_lock_starttime
   __tracepoint_android_vh_record_rwsem_lock_starttime
   __tracepoint_android_vh_rtmutex_waiter_prio
+  __tracepoint_android_vh_rt_mutex_steal
   __tracepoint_android_vh_rwsem_can_spin_on_owner
   __tracepoint_android_vh_rwsem_opt_spin_finish
   __tracepoint_android_vh_rwsem_opt_spin_start
@@ -302,6 +321,8 @@
   __tracepoint_android_vh_free_oem_binder_struct
   __tracepoint_android_vh_binder_special_task
   __tracepoint_android_vh_binder_free_buf
+  __tracepoint_android_vh_binder_buffer_release
+  __tracepoint_android_vh_copy_process
   __trace_puts
   try_to_free_mem_cgroup_pages
   typec_mux_get_drvdata
@@ -313,4 +334,6 @@
   wakeup_source_remove
   wake_up_state
   wq_worker_comm
+  xt_register_match
+  xt_unregister_match
   zero_pfn

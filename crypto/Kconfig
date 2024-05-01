@@ -79,6 +79,33 @@ config CRYPTO_FIPS140_MOD_EVAL_TESTING
 	  errors and support for a userspace interface to some of the module's
 	  services.  This option should not be enabled in production builds.
 
+config CRYPTO_FIPS140_MOD_DEBUG_INTEGRITY_CHECK
+	bool "Debug the integrity check in FIPS 140 module"
+	depends on CRYPTO_FIPS140_MOD
+	help
+	  This option makes the FIPS 140 module provide debugfs files containing
+	  the text and rodata that were used for the integrity check, i.e. the
+	  runtime text and rodata with relocations and code patches unapplied.
+	  This option also makes the module load even if the integrity check
+	  fails so that these files can be used to debug the failure.  (A
+	  possible failure mode is that the kernel has added a new type of code
+	  patching and the module needs to be updated to disable or unapply it.)
+
+	  This option must not be enabled in production builds.
+
+	  Example commands for debugging an integrity check failure:
+
+		adb root
+		adb shell mount debugfs -t debugfs /sys/kernel/debug
+		adb shell cp /sys/kernel/debug/fips140/{text,rodata} /data/local/tmp/
+		adb pull /data/local/tmp/text text.checked
+		adb pull /data/local/tmp/rodata rodata.checked
+		llvm-objcopy -O binary --only-section=.text fips140.ko text.orig
+		llvm-objcopy -O binary --only-section=.rodata fips140.ko rodata.orig
+		for f in {text,rodata}.{orig,checked}; do xxd -g1 $f > $f.xxd; done
+		vimdiff text.{orig,checked}.xxd
+		vimdiff rodata.{orig,checked}.xxd
+
 config CRYPTO_ALGAPI
 	tristate
 	select CRYPTO_ALGAPI2

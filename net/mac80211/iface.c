@@ -697,7 +697,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	ieee80211_recalc_ps(local);
 
 	if (cancel_scan)
-		flush_delayed_work(&local->scan_work);
+		wiphy_delayed_work_flush(local->hw.wiphy, &local->scan_work);
 
 	if (local->open_count == 0) {
 		ieee80211_stop_device(local);

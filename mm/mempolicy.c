@@ -1543,8 +1543,10 @@ SYSCALL_DEFINE4(set_mempolicy_home_node, unsigned long, start, unsigned long, le
 		/*
 		 * Only update home node if there is an existing vma policy
 		 */
-		if (!new)
+		if (!new) {
+			prev = vma;
 			continue;
+		}
 
 		/*
 		 * If any vma in the range got policy other than MPOL_BIND

@@ -13,6 +13,7 @@
 #define IWL_FW_INI_DOMAIN_ALWAYS_ON		0
 #define IWL_FW_INI_REGION_ID_MASK		GENMASK(15, 0)
 #define IWL_FW_INI_REGION_DUMP_POLICY_MASK	GENMASK(31, 16)
+#define IWL_FW_INI_PRESET_DISABLE		0xff
 
 /**
  * struct iwl_fw_ini_hcmd

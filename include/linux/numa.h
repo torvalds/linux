@@ -12,6 +12,7 @@
 #define MAX_NUMNODES    (1 << NODES_SHIFT)
 
 #define	NUMA_NO_NODE	(-1)
+#define	NUMA_NO_MEMBLK	(-1)
 
 /* optionally keep NUMA memory info available post init */
 #ifdef CONFIG_NUMA_KEEP_MEMINFO
@@ -41,6 +42,12 @@ static inline int phys_to_target_node(u64 start)
 	pr_info_once("Unknown target node for memory at 0x%llx, assuming node 0\n",
 			start);
 	return 0;
+}
+#endif
+#ifndef numa_fill_memblks
+static inline int __init numa_fill_memblks(u64 start, u64 end)
+{
+	return NUMA_NO_MEMBLK;
 }
 #endif
 #else /* !CONFIG_NUMA */

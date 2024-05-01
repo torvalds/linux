@@ -132,20 +132,21 @@ static int verity_hash_update(struct dm_verity *v, struct ahash_request *req,
  * Wrapper for crypto_ahash_init, which handles verity salting.
  */
 static int verity_hash_init(struct dm_verity *v, struct ahash_request *req,
-				struct crypto_wait *wait)
+				struct crypto_wait *wait, bool may_sleep)
 {
 	int r;
 
 	ahash_request_set_tfm(req, v->tfm);
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP |
-					CRYPTO_TFM_REQ_MAY_BACKLOG,
-					crypto_req_done, (void *)wait);
+	ahash_request_set_callback(req,
+		may_sleep ? CRYPTO_TFM_REQ_MAY_SLEEP | CRYPTO_TFM_REQ_MAY_BACKLOG : 0,
+		crypto_req_done, (void *)wait);
 	crypto_init_wait(wait);
 
 	r = crypto_wait_req(crypto_ahash_init(req), wait);
 
 	if (unlikely(r < 0)) {
-		DMERR("crypto_ahash_init failed: %d", r);
+		if (r != -ENOMEM)
+			DMERR("crypto_ahash_init failed: %d", r);
 		return r;
 	}
 
@@ -176,12 +177,12 @@ out:
 }
 
 int verity_hash(struct dm_verity *v, struct ahash_request *req,
-		const u8 *data, size_t len, u8 *digest)
+		const u8 *data, size_t len, u8 *digest, bool may_sleep)
 {
 	int r;
 	struct crypto_wait wait;
 
-	r = verity_hash_init(v, req, &wait);
+	r = verity_hash_init(v, req, &wait, may_sleep);
 	if (unlikely(r < 0))
 		goto out;
 
@@ -317,7 +318,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 
 		r = verity_hash(v, verity_io_hash_req(v, io),
 				data, 1 << v->hash_dev_block_bits,
-				verity_io_real_digest(v, io));
+				verity_io_real_digest(v, io), !io->in_tasklet);
 		if (unlikely(r < 0))
 			goto release_ret_r;
 
@@ -548,7 +549,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 			continue;
 		}
 
-		r = verity_hash_init(v, req, &wait);
+		r = verity_hash_init(v, req, &wait, !io->in_tasklet);
 		if (unlikely(r < 0))
 			return r;
 
@@ -630,7 +631,6 @@ static void verity_work(struct work_struct *w)
 
 	io->in_tasklet = false;
 
-	verity_fec_init_io(io);
 	verity_finish_io(io, errno_to_blk_status(verity_verify_io(io)));
 }
 
@@ -641,7 +641,7 @@ static void verity_tasklet(unsigned long data)
 
 	io->in_tasklet = true;
 	err = verity_verify_io(io);
-	if (err == -EAGAIN) {
+	if (err == -EAGAIN || err == -ENOMEM) {
 		/* fallback to retrying with work-queue */
 		INIT_WORK(&io->work, verity_work);
 		queue_work(io->v->verify_wq, &io->work);
@@ -656,7 +656,9 @@ static void verity_end_io(struct bio *bio)
 	struct dm_verity_io *io = bio->bi_private;
 
 	if (bio->bi_status &&
-	    (!verity_fec_is_enabled(io->v) || verity_is_system_shutting_down())) {
+	    (!verity_fec_is_enabled(io->v) ||
+	     verity_is_system_shutting_down() ||
+	     (bio->bi_opf & REQ_RAHEAD))) {
 		verity_finish_io(io, bio->bi_status);
 		return;
 	}
@@ -777,6 +779,8 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	bio->bi_end_io = verity_end_io;
 	bio->bi_private = io;
 	io->iter = bio->bi_iter;
+
+	verity_fec_init_io(io);
 
 	verity_submit_prefetch(v, io);
 
@@ -1018,7 +1022,7 @@ static int verity_alloc_zero_digest(struct dm_verity *v)
 		goto out;
 
 	r = verity_hash(v, req, zero_data, 1 << v->data_dev_block_bits,
-			v->zero_digest);
+			v->zero_digest, true);
 
 out:
 	kfree(req);

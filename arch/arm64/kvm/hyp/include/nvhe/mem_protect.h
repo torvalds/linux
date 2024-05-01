@@ -104,6 +104,7 @@ int refill_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages,
 		    struct kvm_hyp_memcache *host_mc);
 
 int module_change_host_page_prot(u64 pfn, enum kvm_pgtable_prot prot);
+int module_change_host_page_prot_range(u64 pfn, enum kvm_pgtable_prot prot, u64 nr_pages);
 
 void destroy_hyp_vm_pgt(struct pkvm_hyp_vm *vm);
 void drain_hyp_pool(struct pkvm_hyp_vm *vm, struct kvm_hyp_memcache *mc);

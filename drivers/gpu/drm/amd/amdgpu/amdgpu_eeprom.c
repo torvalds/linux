@@ -79,6 +79,8 @@
  * That is, for an I2C EEPROM driver everything is controlled by
  * the "eeprom_addr".
  *
+ * See also top of amdgpu_ras_eeprom.c.
+ *
  * P.S. If you need to write, lock and read the Identification Page,
  * (M24M02-DR device only, which we do not use), change the "7" to
  * "0xF" in the macro below, and let the client set bit 20 to 1 in

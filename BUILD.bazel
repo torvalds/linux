@@ -99,16 +99,22 @@ filegroup(
     name = "aarch64_additional_kmi_symbol_lists",
     srcs = [
         # keep sorted
+        "android/abi_gki_aarch64_asr",
         "android/abi_gki_aarch64_asus",
         "android/abi_gki_aarch64_db845c",
         "android/abi_gki_aarch64_exynos",
         "android/abi_gki_aarch64_exynosauto",
+        "android/abi_gki_aarch64_fips140",
         "android/abi_gki_aarch64_galaxy",
+        "android/abi_gki_aarch64_honda",
         "android/abi_gki_aarch64_honor",
         "android/abi_gki_aarch64_imx",
         "android/abi_gki_aarch64_meizu",
+        "android/abi_gki_aarch64_moto",
         "android/abi_gki_aarch64_mtk",
+        "android/abi_gki_aarch64_nothing",
         "android/abi_gki_aarch64_oplus",
+        "android/abi_gki_aarch64_pasa",
         "android/abi_gki_aarch64_pixel",
         "android/abi_gki_aarch64_qcom",
         "android/abi_gki_aarch64_rockchip",
@@ -194,6 +200,34 @@ copy_to_dist_dir(
         ":kernel_aarch64_microdroid",
     ],
     dist_dir = "out/kernel_aarch64_microdroid/dist",
+    flat = True,
+    log = "info",
+)
+
+kernel_build(
+    name = "kernel_aarch64_microdroid_16k",
+    srcs = ["//common:kernel_aarch64_sources"],
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "vmlinux",
+        "vmlinux.symvers",
+    ],
+    build_config = "build.config.microdroid.aarch64",
+    make_goals = [
+        "Image",
+    ],
+    page_size = "16k",
+)
+
+copy_to_dist_dir(
+    name = "kernel_aarch64_microdroid_16k_dist",
+    data = [
+        ":kernel_aarch64_microdroid_16k",
+    ],
+    dist_dir = "out/kernel_aarch64_microdroid_16k/dist",
     flat = True,
     log = "info",
 )
@@ -690,7 +724,14 @@ kernel_build(
     outs = [],
     base_kernel = ":kernel_aarch64",
     build_config = "build.config.gki.aarch64.fips140",
+    kmi_symbol_list = "android/abi_gki_aarch64_fips140",
     module_outs = ["crypto/fips140.ko"],
+)
+
+kernel_abi(
+    name = "fips140_abi",
+    kernel_build = ":fips140",
+    kmi_symbol_list_add_only = True,
 )
 
 copy_to_dist_dir(

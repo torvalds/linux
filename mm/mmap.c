@@ -530,6 +530,7 @@ inline int vma_expand(struct ma_state *mas, struct vm_area_struct *vma,
 	struct anon_vma *anon_vma = vma->anon_vma;
 	struct file *file = vma->vm_file;
 	bool remove_next = false;
+	struct vm_area_struct *anon_dup = NULL;
 
 	vma_start_write(vma);
 	if (next && (vma != next) && (end == next->vm_end)) {
@@ -544,6 +545,8 @@ inline int vma_expand(struct ma_state *mas, struct vm_area_struct *vma,
 			error = anon_vma_clone(vma, next);
 			if (error)
 				return error;
+
+			anon_dup = vma;
 		}
 	}
 
@@ -619,6 +622,9 @@ inline int vma_expand(struct ma_state *mas, struct vm_area_struct *vma,
 	return 0;
 
 nomem:
+	if (anon_dup)
+		unlink_anon_vmas(anon_dup);
+
 	return -ENOMEM;
 }
 
@@ -652,6 +658,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	int remove_next = 0;
 	MA_STATE(mas, &mm->mm_mt, start, end - 1);
 	struct vm_area_struct *exporter = NULL, *importer = NULL;
+	struct vm_area_struct *anon_dup = NULL;
 
 	vma_start_write(vma);
 	if (next)
@@ -739,6 +746,8 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 			error = anon_vma_clone(importer, exporter);
 			if (error)
 				return error;
+
+			anon_dup = importer;
 		}
 	}
 
@@ -751,8 +760,12 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	}
 
 
-	if (mas_preallocate(&mas, vma, GFP_KERNEL))
+	if (mas_preallocate(&mas, vma, GFP_KERNEL)) {
+		if (anon_dup)
+			unlink_anon_vmas(anon_dup);
+
 		return -ENOMEM;
+	}
 
 	vma_adjust_trans_huge(orig_vma, start, end, adjust_next);
 	if (file) {
@@ -3250,12 +3263,12 @@ int vm_brk_flags(unsigned long addr, unsigned long request, unsigned long flags)
 	if (!len)
 		return 0;
 
-	if (mmap_write_lock_killable(mm))
-		return -EINTR;
-
 	/* Until we need other flags, refuse anything except VM_EXEC. */
 	if ((flags & (~VM_EXEC)) != 0)
 		return -EINVAL;
+
+	if (mmap_write_lock_killable(mm))
+		return -EINTR;
 
 	ret = check_brk_limits(addr, len);
 	if (ret)
@@ -3303,10 +3316,11 @@ void exit_mmap(struct mm_struct *mm)
 	arch_exit_mmap(mm);
 
 	vma = mas_find(&mas, ULONG_MAX);
-	if (!vma) {
+	if (!vma || unlikely(xa_is_zero(vma))) {
 		/* Can happen if dup_mmap() received an OOM */
 		mmap_read_unlock(mm);
-		return;
+		mmap_write_lock(mm);
+		goto destroy;
 	}
 
 	lru_add_drain();
@@ -3339,11 +3353,13 @@ void exit_mmap(struct mm_struct *mm)
 		remove_vma(vma, true);
 		count++;
 		cond_resched();
-	} while ((vma = mas_find(&mas, ULONG_MAX)) != NULL);
+		vma = mas_find(&mas, ULONG_MAX);
+	} while (vma && likely(!xa_is_zero(vma)));
 
 	BUG_ON(count != mm->map_count);
 
 	trace_exit_mmap(mm);
+destroy:
 	__mt_destroy(&mm->mm_mt);
 	mmap_write_unlock(mm);
 	vm_unacct_memory(nr_accounted);

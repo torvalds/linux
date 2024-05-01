@@ -308,6 +308,7 @@
   clk_set_rate
   clk_sync_state
   clk_unprepare
+  clk_unregister_fixed_rate
   close_candev
   close_fd
   cma_alloc
@@ -648,6 +649,7 @@
   devm_platform_ioremap_resource_byname
   devm_power_supply_register
   devm_pwm_get
+  devm_qcom_smem_state_get
   devm_regmap_add_irq_chip
   devm_regmap_del_irq_chip
   devm_regmap_field_alloc
@@ -1207,6 +1209,10 @@
   genlmsg_put
   genl_register_family
   genl_unregister_family
+  genphy_c45_an_config_aneg
+  genphy_c45_check_and_restart_aneg
+  genphy_c45_pma_setup_forced
+  genphy_c45_read_status
   __genphy_config_aneg
   genphy_read_abilities
   genphy_read_mmd_unsupported
@@ -1242,6 +1248,7 @@
   get_option
   get_page_owner_handle
   get_pfnblock_flags_mask
+  get_phy_device
   get_pid_task
   get_random_bytes
   get_random_u16
@@ -1388,6 +1395,7 @@
   __hvc_resize
   __hw_addr_init
   __hw_addr_sync
+  __hw_addr_sync_dev
   __hw_addr_unsync
   hwrng_register
   hwrng_unregister
@@ -1483,6 +1491,7 @@
   ieee802154_xmit_hw_error
   iio_buffer_init
   iio_buffer_put
+  iio_channel_get
   iio_device_attach_buffer
   iio_device_claim_direct_mode
   iio_device_release_direct_mode
@@ -2013,6 +2022,7 @@
   netdev_change_features
   netdev_core_stats_alloc
   netdev_err
+  netdev_features_change
   netdev_increment_features
   netdev_info
   netdev_lower_state_changed
@@ -2273,6 +2283,7 @@
   pci_disable_device
   pci_disable_msi
   pcie_capability_clear_and_set_word
+  pcie_capability_read_dword
   pcie_capability_read_word
   pci_enable_device
   pci_enable_pcie_error_reporting
@@ -2293,11 +2304,13 @@
   pci_read_config_word
   __pci_register_driver
   pci_release_region
+  pci_remove_root_bus
   pci_request_region
   pci_restore_state
   pci_save_state
   pci_set_master
   pci_set_power_state
+  pci_stop_root_bus
   pci_store_saved_state
   pci_unregister_driver
   pci_walk_bus
@@ -2328,6 +2341,8 @@
   perf_trace_run_bpf_submit
   phy_attached_info
   phy_calibrate
+  phy_device_free
+  phy_device_register
   phy_do_ioctl_running
   phy_drivers_register
   phy_drivers_unregister
@@ -2367,12 +2382,18 @@
   phylink_start
   phylink_stop
   phylink_suspend
+  phy_lookup_setting
+  phy_loopback
   phy_mac_interrupt
   phy_modify
   phy_modify_mmd
+  phy_modify_mmd_changed
   phy_power_off
   phy_power_on
   phy_read_mmd
+  phy_resolve_aneg_linkmode
+  phy_restart_aneg
+  phy_set_max_speed
   phy_set_mode_ext
   phy_suspend
   phy_trigger_machine
@@ -3434,6 +3455,7 @@
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_skip_swap_map_write
   __traceiter_android_vh_timer_calc_index
+  __traceiter_android_vh_try_fixup_sea
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_send_command
@@ -3582,6 +3604,7 @@
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_skip_swap_map_write
   __tracepoint_android_vh_timer_calc_index
+  __tracepoint_android_vh_try_fixup_sea
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_send_command
@@ -3804,6 +3827,8 @@
   usb_free_urb
   usb_function_register
   usb_function_unregister
+  usb_gadget_connect
+  usb_gadget_disconnect
   usb_gadget_wakeup
   usb_get_dev
   usb_get_from_anchor

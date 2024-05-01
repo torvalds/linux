@@ -707,20 +707,19 @@ static netdev_tx_t octep_start_xmit(struct sk_buff *skb,
 		hw_desc->dptr = tx_buffer->sglist_dma;
 	}
 
-	/* Flush the hw descriptor before writing to doorbell */
-	wmb();
-
-	/* Ring Doorbell to notify the NIC there is a new packet */
-	writel(1, iq->doorbell_reg);
+	netdev_tx_sent_queue(iq->netdev_q, skb->len);
+	skb_tx_timestamp(skb);
 	atomic_inc(&iq->instr_pending);
 	wi++;
 	if (wi == iq->max_count)
 		wi = 0;
 	iq->host_write_index = wi;
+	/* Flush the hw descriptor before writing to doorbell */
+	wmb();
 
-	netdev_tx_sent_queue(iq->netdev_q, skb->len);
+	/* Ring Doorbell to notify the NIC there is a new packet */
+	writel(1, iq->doorbell_reg);
 	iq->stats.instr_posted++;
-	skb_tx_timestamp(skb);
 	return NETDEV_TX_OK;
 
 dma_map_sg_err:

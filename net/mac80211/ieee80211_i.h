@@ -1361,7 +1361,7 @@ struct ieee80211_local {
 	/* wowlan is enabled -- don't reconfig on resume */
 	bool wowlan;
 
-	struct work_struct radar_detected_work;
+	struct wiphy_work radar_detected_work;
 
 	/* number of RX chains the hardware has */
 	u8 rx_chains;
@@ -1438,14 +1438,14 @@ struct ieee80211_local {
 	int hw_scan_ies_bufsize;
 	struct cfg80211_scan_info scan_info;
 
-	struct work_struct sched_scan_stopped_work;
+	struct wiphy_work sched_scan_stopped_work;
 	struct ieee80211_sub_if_data __rcu *sched_scan_sdata;
 	struct cfg80211_sched_scan_request __rcu *sched_scan_req;
 	u8 scan_addr[ETH_ALEN];
 
 	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;
-	struct delayed_work scan_work;
+	struct wiphy_delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
 	/* For backward compatibility only -- do not use */
 	struct cfg80211_chan_def _oper_chandef;
@@ -1538,9 +1538,9 @@ struct ieee80211_local {
 	/*
 	 * Remain-on-channel support
 	 */
-	struct delayed_work roc_work;
+	struct wiphy_delayed_work roc_work;
 	struct list_head roc_list;
-	struct work_struct hw_roc_start, hw_roc_done;
+	struct wiphy_work hw_roc_start, hw_roc_done;
 	unsigned long hw_roc_start_time;
 	u64 roc_cookie_counter;
 
@@ -1862,7 +1862,7 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata);
 
 /* scan/BSS handling */
-void ieee80211_scan_work(struct work_struct *work);
+void ieee80211_scan_work(struct wiphy *wiphy, struct wiphy_work *work);
 int ieee80211_request_ibss_scan(struct ieee80211_sub_if_data *sdata,
 				const u8 *ssid, u8 ssid_len,
 				struct ieee80211_channel **channels,
@@ -1892,7 +1892,8 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 				       struct cfg80211_sched_scan_request *req);
 int ieee80211_request_sched_scan_stop(struct ieee80211_local *local);
 void ieee80211_sched_scan_end(struct ieee80211_local *local);
-void ieee80211_sched_scan_stopped_work(struct work_struct *work);
+void ieee80211_sched_scan_stopped_work(struct wiphy *wiphy,
+				       struct wiphy_work *work);
 
 /* off-channel/mgmt-tx */
 void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local);
@@ -2062,6 +2063,7 @@ void
 ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const struct ieee80211_vht_cap *vht_cap_ie,
+				    const struct ieee80211_vht_cap *vht_cap_ie2,
 				    struct link_sta_info *link_sta);
 enum ieee80211_sta_rx_bandwidth
 ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta);
@@ -2482,7 +2484,8 @@ bool ieee80211_is_radar_required(struct ieee80211_local *local);
 void ieee80211_dfs_cac_timer(unsigned long data);
 void ieee80211_dfs_cac_timer_work(struct work_struct *work);
 void ieee80211_dfs_cac_cancel(struct ieee80211_local *local);
-void ieee80211_dfs_radar_detected_work(struct work_struct *work);
+void ieee80211_dfs_radar_detected_work(struct wiphy *wiphy,
+				       struct wiphy_work *work);
 int ieee80211_send_action_csa(struct ieee80211_sub_if_data *sdata,
 			      struct cfg80211_csa_settings *csa_settings);
 

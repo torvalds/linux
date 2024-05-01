@@ -850,6 +850,7 @@ drivers/firmware/arm_scmi/clock.c
 drivers/firmware/arm_scmi/common.h
 drivers/firmware/arm_scmi/driver.c
 drivers/firmware/arm_scmi/mailbox.c
+drivers/firmware/arm_scmi/msg.c
 drivers/firmware/arm_scmi/notify.c
 drivers/firmware/arm_scmi/notify.h
 drivers/firmware/arm_scmi/perf.c
@@ -861,6 +862,7 @@ drivers/firmware/arm_scmi/sensors.c
 drivers/firmware/arm_scmi/shmem.c
 drivers/firmware/arm_scmi/smc.c
 drivers/firmware/arm_scmi/system.c
+drivers/firmware/arm_scmi/virtio.c
 drivers/firmware/arm_scmi/voltage.c
 drivers/firmware/arm_scpi.c
 drivers/firmware/efi/arm-runtime.c
@@ -1208,7 +1210,6 @@ drivers/media/mc/mc-devnode.c
 drivers/media/mc/mc-entity.c
 drivers/media/mc/mc-request.c
 drivers/media/rc/bpf-lirc.c
-drivers/media/rc/keymaps/rc-cec.c
 drivers/media/rc/lirc_dev.c
 drivers/media/rc/rc-core-priv.h
 drivers/media/rc/rc-ir-raw.c
@@ -1410,6 +1411,7 @@ drivers/nvdimm/region_devs.c
 drivers/nvme/host/core.c
 drivers/nvme/host/fabrics.h
 drivers/nvme/host/ioctl.c
+drivers/nvme/host/multipath.c
 drivers/nvme/host/nvme.h
 drivers/nvme/host/pci.c
 drivers/nvme/host/trace.c
@@ -1505,6 +1507,7 @@ drivers/power/supply/power_supply_core.c
 drivers/power/supply/power_supply_leds.c
 drivers/power/supply/power_supply_sysfs.c
 drivers/power/supply/samsung-sdi-battery.h
+drivers/powercap/idle_inject.c
 drivers/powercap/powercap_sys.c
 drivers/pps/kapi.c
 drivers/pps/kc.h
@@ -1597,6 +1600,7 @@ drivers/staging/android/ashmem.c
 drivers/staging/android/ashmem.h
 drivers/staging/android/uapi/ashmem.h
 drivers/thermal/cpufreq_cooling.c
+drivers/thermal/cpuidle_cooling.c
 drivers/thermal/devfreq_cooling.c
 drivers/thermal/gov_power_allocator.c
 drivers/thermal/gov_step_wise.c
@@ -2769,6 +2773,7 @@ include/linux/crc8.h
 include/linux/cred.h
 include/linux/crypto.h
 include/linux/ctype.h
+include/linux/damon.h
 include/linux/dax.h
 include/linux/dcache.h
 include/linux/dccp.h
@@ -2952,6 +2957,7 @@ include/linux/i3c/master.h
 include/linux/i8042.h
 include/linux/icmp.h
 include/linux/icmpv6.h
+include/linux/idle_inject.h
 include/linux/idr.h
 include/linux/ieee80211.h
 include/linux/ieee802154.h
@@ -4149,6 +4155,7 @@ include/trace/events/clk.h
 include/trace/events/cma.h
 include/trace/events/compaction.h
 include/trace/events/cpuhp.h
+include/trace/events/damon.h
 include/trace/events/devfreq.h
 include/trace/events/devlink.h
 include/trace/events/dma_fence.h
@@ -4243,12 +4250,14 @@ include/trace/hooks/cpuidle.h
 include/trace/hooks/cpuidle_psci.h
 include/trace/hooks/creds.h
 include/trace/hooks/debug.h
+include/trace/hooks/delayacct.h
 include/trace/hooks/dmabuf.h
 include/trace/hooks/dtask.h
 include/trace/hooks/epoch.h
 include/trace/hooks/fault.h
 include/trace/hooks/fips140.h
 include/trace/hooks/fpsimd.h
+include/trace/hooks/fs.h
 include/trace/hooks/ftrace_dump.h
 include/trace/hooks/futex.h
 include/trace/hooks/gic.h
@@ -4742,6 +4751,7 @@ include/uapi/linux/virtio_fs.h
 include/uapi/linux/virtio_ids.h
 include/uapi/linux/virtio_net.h
 include/uapi/linux/virtio_ring.h
+include/uapi/linux/virtio_scmi.h
 include/uapi/linux/virtio_types.h
 include/uapi/linux/virtio_vsock.h
 include/uapi/linux/vm_sockets.h
@@ -4944,6 +4954,7 @@ kernel/context_tracking.c
 kernel/cpu.c
 kernel/cpu_pm.c
 kernel/cred.c
+kernel/delayacct.c
 kernel/dma/coherent.c
 kernel/dma/contiguous.c
 kernel/dma/debug.h
@@ -5487,6 +5498,16 @@ mm/cma.c
 mm/cma.h
 mm/cma_debug.c
 mm/compaction.c
+mm/damon/core-test.h
+mm/damon/core.c
+mm/damon/ops-common.c
+mm/damon/ops-common.h
+mm/damon/sysfs-common.c
+mm/damon/sysfs-common.h
+mm/damon/sysfs-schemes.c
+mm/damon/sysfs.c
+mm/damon/vaddr-test.h
+mm/damon/vaddr.c
 mm/debug.c
 mm/dmapool.c
 mm/early_ioremap.c

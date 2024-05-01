@@ -455,6 +455,7 @@ bool is_switch_decoder(struct device *dev)
 {
 	return is_root_decoder(dev) || dev->type == &cxl_decoder_switch_type;
 }
+EXPORT_SYMBOL_NS_GPL(is_switch_decoder, CXL);
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev)
 {
@@ -482,6 +483,7 @@ struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
 		return NULL;
 	return container_of(dev, struct cxl_switch_decoder, cxld.dev);
 }
+EXPORT_SYMBOL_NS_GPL(to_cxl_switch_decoder, CXL);
 
 static void cxl_ep_release(struct cxl_ep *ep)
 {
@@ -655,16 +657,10 @@ err:
 	return ERR_PTR(rc);
 }
 
-/**
- * devm_cxl_add_port - register a cxl_port in CXL memory decode hierarchy
- * @host: host device for devm operations
- * @uport: "physical" device implementing this upstream port
- * @component_reg_phys: (optional) for configurable cxl_port instances
- * @parent_dport: next hop up in the CXL memory decode hierarchy
- */
-struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
-				   resource_size_t component_reg_phys,
-				   struct cxl_dport *parent_dport)
+static struct cxl_port *__devm_cxl_add_port(struct device *host,
+					    struct device *uport,
+					    resource_size_t component_reg_phys,
+					    struct cxl_dport *parent_dport)
 {
 	struct cxl_port *port;
 	struct device *dev;
@@ -701,6 +697,40 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 err:
 	put_device(dev);
 	return ERR_PTR(rc);
+}
+
+/**
+ * devm_cxl_add_port - register a cxl_port in CXL memory decode hierarchy
+ * @host: host device for devm operations
+ * @uport: "physical" device implementing this upstream port
+ * @component_reg_phys: (optional) for configurable cxl_port instances
+ * @parent_dport: next hop up in the CXL memory decode hierarchy
+ */
+struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
+				   resource_size_t component_reg_phys,
+				   struct cxl_dport *parent_dport)
+{
+	struct cxl_port *port, *parent_port;
+
+	port = __devm_cxl_add_port(host, uport, component_reg_phys,
+				   parent_dport);
+
+	parent_port = parent_dport ? parent_dport->port : NULL;
+	if (IS_ERR(port)) {
+		dev_dbg(uport, "Failed to add%s%s%s: %ld\n",
+			parent_port ? " port to " : "",
+			parent_port ? dev_name(&parent_port->dev) : "",
+			parent_port ? "" : " root port",
+			PTR_ERR(port));
+	} else {
+		dev_dbg(uport, "%s added%s%s%s\n",
+			dev_name(&port->dev),
+			parent_port ? " to " : "",
+			parent_port ? dev_name(&parent_port->dev) : "",
+			parent_port ? "" : " (root port)");
+	}
+
+	return port;
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_port, CXL);
 
@@ -1121,47 +1151,6 @@ static void reap_dports(struct cxl_port *port)
 		devm_kfree(&port->dev, dport);
 	}
 }
-
-int devm_cxl_add_endpoint(struct cxl_memdev *cxlmd,
-			  struct cxl_dport *parent_dport)
-{
-	struct cxl_port *parent_port = parent_dport->port;
-	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_port *endpoint, *iter, *down;
-	int rc;
-
-	/*
-	 * Now that the path to the root is established record all the
-	 * intervening ports in the chain.
-	 */
-	for (iter = parent_port, down = NULL; !is_cxl_root(iter);
-	     down = iter, iter = to_cxl_port(iter->dev.parent)) {
-		struct cxl_ep *ep;
-
-		ep = cxl_ep_load(iter, cxlmd);
-		ep->next = down;
-	}
-
-	endpoint = devm_cxl_add_port(&parent_port->dev, &cxlmd->dev,
-				     cxlds->component_reg_phys, parent_dport);
-	if (IS_ERR(endpoint))
-		return PTR_ERR(endpoint);
-
-	dev_dbg(&cxlmd->dev, "add: %s\n", dev_name(&endpoint->dev));
-
-	rc = cxl_endpoint_autoremove(cxlmd, endpoint);
-	if (rc)
-		return rc;
-
-	if (!endpoint->dev.driver) {
-		dev_err(&cxlmd->dev, "%s failed probe\n",
-			dev_name(&endpoint->dev));
-		return -ENXIO;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_NS_GPL(devm_cxl_add_endpoint, CXL);
 
 static void cxl_detach_ep(void *data)
 {
