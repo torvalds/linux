@@ -1656,6 +1656,74 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	return queue_limits_commit_update(q, &lim);
 }
 
+static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
+				    struct blk_revalidate_zone_args *args)
+{
+	struct gendisk *disk = args->disk;
+	struct request_queue *q = disk->queue;
+
+	if (zone->capacity != zone->len) {
+		pr_warn("%s: Invalid conventional zone capacity\n",
+			disk->disk_name);
+		return -ENODEV;
+	}
+
+	if (!disk_need_zone_resources(disk))
+		return 0;
+
+	if (!args->conv_zones_bitmap) {
+		args->conv_zones_bitmap =
+			blk_alloc_zone_bitmap(q->node, args->nr_zones);
+		if (!args->conv_zones_bitmap)
+			return -ENOMEM;
+	}
+
+	set_bit(idx, args->conv_zones_bitmap);
+
+	return 0;
+}
+
+static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
+				   struct blk_revalidate_zone_args *args)
+{
+	struct gendisk *disk = args->disk;
+	struct blk_zone_wplug *zwplug;
+	unsigned int wp_offset;
+	unsigned long flags;
+
+	/*
+	 * Remember the capacity of the first sequential zone and check
+	 * if it is constant for all zones.
+	 */
+	if (!args->zone_capacity)
+		args->zone_capacity = zone->capacity;
+	if (zone->capacity != args->zone_capacity) {
+		pr_warn("%s: Invalid variable zone capacity\n",
+			disk->disk_name);
+		return -ENODEV;
+	}
+
+	/*
+	 * We need to track the write pointer of all zones that are not
+	 * empty nor full. So make sure we have a zone write plug for
+	 * such zone if the device has a zone write plug hash table.
+	 */
+	if (!disk->zone_wplugs_hash)
+		return 0;
+
+	wp_offset = blk_zone_wp_offset(zone);
+	if (!wp_offset || wp_offset >= zone->capacity)
+		return 0;
+
+	zwplug = disk_get_and_lock_zone_wplug(disk, zone->wp, GFP_NOIO, &flags);
+	if (!zwplug)
+		return -ENOMEM;
+	spin_unlock_irqrestore(&zwplug->lock, flags);
+	disk_put_zone_wplug(zwplug);
+
+	return 0;
+}
+
 /*
  * Helper function to check the validity of zones of a zoned block device.
  */
@@ -1664,12 +1732,9 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 {
 	struct blk_revalidate_zone_args *args = data;
 	struct gendisk *disk = args->disk;
-	struct request_queue *q = disk->queue;
 	sector_t capacity = get_capacity(disk);
-	sector_t zone_sectors = q->limits.chunk_sectors;
-	struct blk_zone_wplug *zwplug;
-	unsigned long flags;
-	unsigned int wp_offset;
+	sector_t zone_sectors = disk->queue->limits.chunk_sectors;
+	int ret;
 
 	/* Check for bad zones and holes in the zone report */
 	if (zone->start != args->sector) {
@@ -1709,62 +1774,22 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 	/* Check zone type */
 	switch (zone->type) {
 	case BLK_ZONE_TYPE_CONVENTIONAL:
-		if (zone->capacity != zone->len) {
-			pr_warn("%s: Invalid conventional zone capacity\n",
-				disk->disk_name);
-			return -ENODEV;
-		}
-
-		if (!disk_need_zone_resources(disk))
-			break;
-		if (!args->conv_zones_bitmap) {
-			args->conv_zones_bitmap =
-				blk_alloc_zone_bitmap(q->node, args->nr_zones);
-			if (!args->conv_zones_bitmap)
-				return -ENOMEM;
-		}
-		set_bit(idx, args->conv_zones_bitmap);
+		ret = blk_revalidate_conv_zone(zone, idx, args);
 		break;
 	case BLK_ZONE_TYPE_SEQWRITE_REQ:
-		/*
-		 * Remember the capacity of the first sequential zone and check
-		 * if it is constant for all zones.
-		 */
-		if (!args->zone_capacity)
-			args->zone_capacity = zone->capacity;
-		if (zone->capacity != args->zone_capacity) {
-			pr_warn("%s: Invalid variable zone capacity\n",
-				disk->disk_name);
-			return -ENODEV;
-		}
-
-		/*
-		 * We need to track the write pointer of all zones that are not
-		 * empty nor full. So make sure we have a zone write plug for
-		 * such zone if the device has a zone write plug hash table.
-		 */
-		if (!disk->zone_wplugs_hash)
-			break;
-		wp_offset = blk_zone_wp_offset(zone);
-		if (wp_offset && wp_offset < zone->capacity) {
-			zwplug = disk_get_and_lock_zone_wplug(disk, zone->wp,
-							      GFP_NOIO, &flags);
-			if (!zwplug)
-				return -ENOMEM;
-			spin_unlock_irqrestore(&zwplug->lock, flags);
-			disk_put_zone_wplug(zwplug);
-		}
-
+		ret = blk_revalidate_seq_zone(zone, idx, args);
 		break;
 	case BLK_ZONE_TYPE_SEQWRITE_PREF:
 	default:
 		pr_warn("%s: Invalid zone type 0x%x at sectors %llu\n",
 			disk->disk_name, (int)zone->type, zone->start);
-		return -ENODEV;
+		ret = -ENODEV;
 	}
 
-	args->sector += zone->len;
-	return 0;
+	if (!ret)
+		args->sector += zone->len;
+
+	return ret;
 }
 
 /**
