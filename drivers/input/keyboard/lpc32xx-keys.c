@@ -57,14 +57,13 @@ struct lpc32xx_kscan_drv {
 	struct input_dev *input;
 	struct clk *clk;
 	void __iomem *kscan_base;
-	unsigned int irq;
 
 	u32 matrix_sz;		/* Size of matrix in XxY, ie. 3 = 3x3 */
 	u32 deb_clks;		/* Debounce clocks (based on 32KHz clock) */
 	u32 scan_delay;		/* Scan delay (based on 32KHz clock) */
 
-	unsigned short *keymap;	/* Pointer to key map for the scan matrix */
 	unsigned int row_shift;
+	unsigned short *keymap;	/* Pointer to key map for the scan matrix */
 
 	u8 lastkeystates[8];
 };
