@@ -917,19 +917,19 @@ static void kmemdup_test(struct kunit *test)
 
 	/* Out of bounds by 1 byte. */
 	copy = kmemdup(src, len + 1, GFP_KERNEL);
-	KUNIT_EXPECT_NULL(test, copy);
+	KUNIT_EXPECT_PTR_EQ(test, copy, ZERO_SIZE_PTR);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 1);
 	kfree(copy);
 
 	/* Way out of bounds. */
 	copy = kmemdup(src, len * 2, GFP_KERNEL);
-	KUNIT_EXPECT_NULL(test, copy);
+	KUNIT_EXPECT_PTR_EQ(test, copy, ZERO_SIZE_PTR);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 2);
 	kfree(copy);
 
 	/* Starting offset causing out of bounds. */
 	copy = kmemdup(src + 1, len, GFP_KERNEL);
-	KUNIT_EXPECT_NULL(test, copy);
+	KUNIT_EXPECT_PTR_EQ(test, copy, ZERO_SIZE_PTR);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 3);
 	kfree(copy);
 }
