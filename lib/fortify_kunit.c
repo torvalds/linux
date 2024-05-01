@@ -363,6 +363,31 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(kvmalloc)
 } while (0)
 DEFINE_ALLOC_SIZE_TEST_PAIR(devm_kmalloc)
 
+static const char * const test_strs[] = {
+	"",
+	"Hello there",
+	"A longer string, just for variety",
+};
+
+#define TEST_realloc(checker)	do {					\
+	gfp_t gfp = GFP_KERNEL;						\
+	size_t len;							\
+	int i;								\
+									\
+	for (i = 0; i < ARRAY_SIZE(test_strs); i++) {			\
+		len = strlen(test_strs[i]);				\
+		KUNIT_EXPECT_EQ(test, __builtin_constant_p(len), 0);	\
+		checker(len, kmemdup_array(test_strs[i], len, 1, gfp),	\
+			kfree(p));					\
+		checker(len, kmemdup(test_strs[i], len, gfp),		\
+			kfree(p));					\
+	}								\
+} while (0)
+static void fortify_test_realloc_size(struct kunit *test)
+{
+	TEST_realloc(check_dynamic);
+}
+
 /*
  * We can't have an array at the end of a structure or else
  * builds without -fstrict-flex-arrays=3 will report them as
@@ -1046,6 +1071,7 @@ static struct kunit_case fortify_test_cases[] = {
 	KUNIT_CASE(fortify_test_alloc_size_kvmalloc_dynamic),
 	KUNIT_CASE(fortify_test_alloc_size_devm_kmalloc_const),
 	KUNIT_CASE(fortify_test_alloc_size_devm_kmalloc_dynamic),
+	KUNIT_CASE(fortify_test_realloc_size),
 	KUNIT_CASE(fortify_test_strlen),
 	KUNIT_CASE(fortify_test_strnlen),
 	KUNIT_CASE(fortify_test_strcpy),
