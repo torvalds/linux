@@ -16,6 +16,14 @@ ssize_t of_modalias(const struct device_node *np, char *str, ssize_t len)
 	ssize_t csize;
 	ssize_t tsize;
 
+	/*
+	 * Prevent a kernel oops in vsnprintf() -- it only allows passing a
+	 * NULL ptr when the length is also 0. Also filter out the negative
+	 * lengths...
+	 */
+	if ((len > 0 && !str) || len < 0)
+		return -EINVAL;
+
 	/* Name & Type */
 	/* %p eats all alphanum characters, so %c must be used here */
 	csize = snprintf(str, len, "of:N%pOFn%c%s", np, 'T',

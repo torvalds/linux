@@ -2237,6 +2237,7 @@ static int amdgpu_discovery_set_umsch_mm_ip_blocks(struct amdgpu_device *adev)
 {
 	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(4, 0, 5):
+	case IP_VERSION(4, 0, 6):
 		if (amdgpu_umsch_mm & 0x1) {
 			amdgpu_device_ip_block_add(adev, &umsch_mm_v4_0_ip_block);
 			adev->enable_umsch_mm = true;

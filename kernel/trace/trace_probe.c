@@ -839,7 +839,7 @@ out:
 void store_trace_entry_data(void *edata, struct trace_probe *tp, struct pt_regs *regs)
 {
 	struct probe_entry_arg *earg = tp->entry_arg;
-	unsigned long val;
+	unsigned long val = 0;
 	int i;
 
 	if (!earg)

@@ -5854,10 +5854,8 @@ SetEARetry:
 	parm_data->list.EA_flags = 0;
 	/* we checked above that name len is less than 255 */
 	parm_data->list.name_len = (__u8)name_len;
-	/* EA names are always ASCII */
-	if (ea_name)
-		strncpy(parm_data->list.name, ea_name, name_len);
-	parm_data->list.name[name_len] = '\0';
+	/* EA names are always ASCII and NUL-terminated */
+	strscpy(parm_data->list.name, ea_name ?: "", name_len + 1);
 	parm_data->list.value_len = cpu_to_le16(ea_value_len);
 	/* caller ensures that ea_value_len is less than 64K but
 	we need to ensure that it fits within the smb */

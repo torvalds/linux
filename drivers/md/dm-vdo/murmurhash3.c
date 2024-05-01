@@ -8,33 +8,14 @@
 
 #include "murmurhash3.h"
 
+#include <asm/unaligned.h>
+
 static inline u64 rotl64(u64 x, s8 r)
 {
 	return (x << r) | (x >> (64 - r));
 }
 
 #define ROTL64(x, y) rotl64(x, y)
-static __always_inline u64 getblock64(const u64 *p, int i)
-{
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-	return p[i];
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-	return __builtin_bswap64(p[i]);
-#else
-#error "can't figure out byte order"
-#endif
-}
-
-static __always_inline void putblock64(u64 *p, int i, u64 value)
-{
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-	p[i] = value;
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-	p[i] = __builtin_bswap64(value);
-#else
-#error "can't figure out byte order"
-#endif
-}
 
 /* Finalization mix - force all bits of a hash block to avalanche */
 
@@ -60,6 +41,8 @@ void murmurhash3_128(const void *key, const int len, const u32 seed, void *out)
 	const u64 c1 = 0x87c37b91114253d5LLU;
 	const u64 c2 = 0x4cf5ad432745937fLLU;
 
+	u64 *hash_out = out;
+
 	/* body */
 
 	const u64 *blocks = (const u64 *)(data);
@@ -67,8 +50,8 @@ void murmurhash3_128(const void *key, const int len, const u32 seed, void *out)
 	int i;
 
 	for (i = 0; i < nblocks; i++) {
-		u64 k1 = getblock64(blocks, i * 2 + 0);
-		u64 k2 = getblock64(blocks, i * 2 + 1);
+		u64 k1 = get_unaligned_le64(&blocks[i * 2]);
+		u64 k2 = get_unaligned_le64(&blocks[i * 2 + 1]);
 
 		k1 *= c1;
 		k1 = ROTL64(k1, 31);
@@ -170,6 +153,6 @@ void murmurhash3_128(const void *key, const int len, const u32 seed, void *out)
 	h1 += h2;
 	h2 += h1;
 
-	putblock64((u64 *)out, 0, h1);
-	putblock64((u64 *)out, 1, h2);
+	put_unaligned_le64(h1, &hash_out[0]);
+	put_unaligned_le64(h2, &hash_out[1]);
 }

@@ -375,6 +375,7 @@ DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(get_reparse_compound_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(delete_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(mkdir_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(tdis_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(mknod_enter);
 
 DECLARE_EVENT_CLASS(smb3_inf_compound_done_class,
 	TP_PROTO(unsigned int xid,
@@ -415,7 +416,7 @@ DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(query_wsl_ea_compound_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(delete_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(mkdir_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(tdis_done);
-
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(mknod_done);
 
 DECLARE_EVENT_CLASS(smb3_inf_compound_err_class,
 	TP_PROTO(unsigned int xid,
@@ -461,6 +462,7 @@ DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(query_wsl_ea_compound_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(mkdir_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(delete_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(tdis_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(mknod_err);
 
 /*
  * For logging SMB3 Status code and Command for responses which return errors

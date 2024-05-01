@@ -460,7 +460,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		return -EIO;
 	}
 
-	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+	mp = pmb->ctx_buf;
 
 	/* This dmabuf was allocated by lpfc_read_sparam. The dmabuf is no
 	 * longer needed.  Prevent unintended ctx_buf access as the mbox is
@@ -2217,7 +2217,7 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 	/* Cleanup any outstanding ELS commands */
 	lpfc_els_flush_all_cmd(phba);
 	psli->slistat.link_event++;
-	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
+	lpfc_read_topology(phba, pmb, pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = vport;
 	/* Block ELS IOCBs until we have processed this mbox command */
@@ -5454,7 +5454,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	phba->sli.slistat.link_event++;
 
 	/* Create lpfc_handle_latt mailbox command from link ACQE */
-	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
+	lpfc_read_topology(phba, pmb, pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = phba->pport;
 
@@ -6347,7 +6347,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	phba->sli.slistat.link_event++;
 
 	/* Create lpfc_handle_latt mailbox command from link ACQE */
-	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
+	lpfc_read_topology(phba, pmb, pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = phba->pport;
 
@@ -7704,6 +7704,9 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 			((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) ?
 				"NVME" : " "),
 			(phba->nvmet_support ? "NVMET" : " "));
+
+	/* ras_fwlog state */
+	spin_lock_init(&phba->ras_fwlog_lock);
 
 	/* Initialize the IO buffer list used by driver for SLI3 SCSI */
 	spin_lock_init(&phba->scsi_buf_list_get_lock);
@@ -13055,7 +13058,7 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 		rc = request_threaded_irq(eqhdl->irq,
 					  &lpfc_sli4_hba_intr_handler,
 					  &lpfc_sli4_hba_intr_handler_th,
-					  IRQF_ONESHOT, name, eqhdl);
+					  0, name, eqhdl);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 					"0486 MSI-X fast-path (%d) "

@@ -1,7 +1,5 @@
 Binding for Texas Instruments FAPLL clock.
 
-Binding status: Unstable - ABI compatibility may be broken in the future
-
 This binding uses the common clock binding[1]. It assumes a
 register-mapped FAPLL with usually two selectable input clocks
 (reference clock and bypass clock), and one or more child

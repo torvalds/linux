@@ -144,17 +144,4 @@ config CXL_REGION_INVALIDATION_TEST
 	  If unsure, or if this kernel is meant for production environments,
 	  say N.
 
-config CXL_PMU
-	tristate "CXL Performance Monitoring Unit"
-	default CXL_BUS
-	depends on PERF_EVENTS
-	help
-	  Support performance monitoring as defined in CXL rev 3.0
-	  section 13.2: Performance Monitoring. CXL components may have
-	  one or more CXL Performance Monitoring Units (CPMUs).
-
-	  Say 'y/m' to enable a driver that will attach to performance
-	  monitoring units and provide standard perf based interfaces.
-
-	  If unsure say 'm'.
 endif

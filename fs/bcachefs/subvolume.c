@@ -595,6 +595,78 @@ err:
 	return ret;
 }
 
+int bch2_initialize_subvolumes(struct bch_fs *c)
+{
+	struct bkey_i_snapshot_tree	root_tree;
+	struct bkey_i_snapshot		root_snapshot;
+	struct bkey_i_subvolume		root_volume;
+	int ret;
+
+	bkey_snapshot_tree_init(&root_tree.k_i);
+	root_tree.k.p.offset		= 1;
+	root_tree.v.master_subvol	= cpu_to_le32(1);
+	root_tree.v.root_snapshot	= cpu_to_le32(U32_MAX);
+
+	bkey_snapshot_init(&root_snapshot.k_i);
+	root_snapshot.k.p.offset = U32_MAX;
+	root_snapshot.v.flags	= 0;
+	root_snapshot.v.parent	= 0;
+	root_snapshot.v.subvol	= cpu_to_le32(BCACHEFS_ROOT_SUBVOL);
+	root_snapshot.v.tree	= cpu_to_le32(1);
+	SET_BCH_SNAPSHOT_SUBVOL(&root_snapshot.v, true);
+
+	bkey_subvolume_init(&root_volume.k_i);
+	root_volume.k.p.offset = BCACHEFS_ROOT_SUBVOL;
+	root_volume.v.flags	= 0;
+	root_volume.v.snapshot	= cpu_to_le32(U32_MAX);
+	root_volume.v.inode	= cpu_to_le64(BCACHEFS_ROOT_INO);
+
+	ret =   bch2_btree_insert(c, BTREE_ID_snapshot_trees,	&root_tree.k_i, NULL, 0) ?:
+		bch2_btree_insert(c, BTREE_ID_snapshots,	&root_snapshot.k_i, NULL, 0) ?:
+		bch2_btree_insert(c, BTREE_ID_subvolumes,	&root_volume.k_i, NULL, 0);
+	bch_err_fn(c, ret);
+	return ret;
+}
+
+static int __bch2_fs_upgrade_for_subvolumes(struct btree_trans *trans)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	struct bch_inode_unpacked inode;
+	int ret;
+
+	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+			       SPOS(0, BCACHEFS_ROOT_INO, U32_MAX), 0);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	if (!bkey_is_inode(k.k)) {
+		bch_err(trans->c, "root inode not found");
+		ret = -BCH_ERR_ENOENT_inode;
+		goto err;
+	}
+
+	ret = bch2_inode_unpack(k, &inode);
+	BUG_ON(ret);
+
+	inode.bi_subvol = BCACHEFS_ROOT_SUBVOL;
+
+	ret = bch2_inode_write(trans, &iter, &inode);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+/* set bi_subvol on root inode */
+int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
+{
+	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
+				__bch2_fs_upgrade_for_subvolumes(trans));
+	bch_err_fn(c, ret);
+	return ret;
+}
+
 int bch2_fs_subvolumes_init(struct bch_fs *c)
 {
 	INIT_WORK(&c->snapshot_delete_work, bch2_delete_dead_snapshots_work);
