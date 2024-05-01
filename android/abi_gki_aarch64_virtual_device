@@ -87,6 +87,7 @@
   dma_fence_signal_locked
   dma_free_attrs
   dmam_alloc_attrs
+  dma_max_mapping_size
   dma_set_coherent_mask
   dma_set_mask
   dma_sync_sg_for_device
