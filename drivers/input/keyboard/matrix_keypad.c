@@ -37,7 +37,6 @@ struct matrix_keypad {
 	spinlock_t lock;
 	bool scan_pending;
 	bool stopped;
-	bool gpio_all_disabled;
 };
 
 /*
