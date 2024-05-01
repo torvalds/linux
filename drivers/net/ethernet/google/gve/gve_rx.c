@@ -99,8 +99,8 @@ void gve_rx_stop_ring_gqi(struct gve_priv *priv, int idx)
 	gve_rx_reset_ring_gqi(priv, idx);
 }
 
-static void gve_rx_free_ring_gqi(struct gve_priv *priv, struct gve_rx_ring *rx,
-				 struct gve_rx_alloc_rings_cfg *cfg)
+void gve_rx_free_ring_gqi(struct gve_priv *priv, struct gve_rx_ring *rx,
+			  struct gve_rx_alloc_rings_cfg *cfg)
 {
 	struct device *dev = &priv->pdev->dev;
 	u32 slots = rx->mask + 1;
@@ -264,10 +264,10 @@ void gve_rx_start_ring_gqi(struct gve_priv *priv, int idx)
 	gve_add_napi(priv, ntfy_idx, gve_napi_poll);
 }
 
-static int gve_rx_alloc_ring_gqi(struct gve_priv *priv,
-				 struct gve_rx_alloc_rings_cfg *cfg,
-				 struct gve_rx_ring *rx,
-				 int idx)
+int gve_rx_alloc_ring_gqi(struct gve_priv *priv,
+			  struct gve_rx_alloc_rings_cfg *cfg,
+			  struct gve_rx_ring *rx,
+			  int idx)
 {
 	struct device *hdev = &priv->pdev->dev;
 	u32 slots = cfg->ring_size;

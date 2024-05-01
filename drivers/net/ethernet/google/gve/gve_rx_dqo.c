@@ -299,8 +299,8 @@ void gve_rx_stop_ring_dqo(struct gve_priv *priv, int idx)
 	gve_rx_reset_ring_dqo(priv, idx);
 }
 
-static void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
-				 struct gve_rx_alloc_rings_cfg *cfg)
+void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
+			  struct gve_rx_alloc_rings_cfg *cfg)
 {
 	struct device *hdev = &priv->pdev->dev;
 	size_t completion_queue_slots;
@@ -376,10 +376,10 @@ void gve_rx_start_ring_dqo(struct gve_priv *priv, int idx)
 	gve_add_napi(priv, ntfy_idx, gve_napi_poll_dqo);
 }
 
-static int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
-				 struct gve_rx_alloc_rings_cfg *cfg,
-				 struct gve_rx_ring *rx,
-				 int idx)
+int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
+			  struct gve_rx_alloc_rings_cfg *cfg,
+			  struct gve_rx_ring *rx,
+			  int idx)
 {
 	struct device *hdev = &priv->pdev->dev;
 	int qpl_page_cnt;

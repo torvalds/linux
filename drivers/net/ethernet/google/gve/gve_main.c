@@ -17,6 +17,7 @@
 #include <linux/workqueue.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
+#include <net/netdev_queues.h>
 #include <net/sch_generic.h>
 #include <net/xdp_sock_drv.h>
 #include "gve.h"
@@ -1238,16 +1239,28 @@ void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
 	gve_rx_get_curr_alloc_cfg(priv, rx_alloc_cfg);
 }
 
+static void gve_rx_start_ring(struct gve_priv *priv, int i)
+{
+	if (gve_is_gqi(priv))
+		gve_rx_start_ring_gqi(priv, i);
+	else
+		gve_rx_start_ring_dqo(priv, i);
+}
+
 static void gve_rx_start_rings(struct gve_priv *priv, int num_rings)
 {
 	int i;
 
-	for (i = 0; i < num_rings; i++) {
-		if (gve_is_gqi(priv))
-			gve_rx_start_ring_gqi(priv, i);
-		else
-			gve_rx_start_ring_dqo(priv, i);
-	}
+	for (i = 0; i < num_rings; i++)
+		gve_rx_start_ring(priv, i);
+}
+
+static void gve_rx_stop_ring(struct gve_priv *priv, int i)
+{
+	if (gve_is_gqi(priv))
+		gve_rx_stop_ring_gqi(priv, i);
+	else
+		gve_rx_stop_ring_dqo(priv, i);
 }
 
 static void gve_rx_stop_rings(struct gve_priv *priv, int num_rings)
@@ -1257,12 +1270,8 @@ static void gve_rx_stop_rings(struct gve_priv *priv, int num_rings)
 	if (!priv->rx)
 		return;
 
-	for (i = 0; i < num_rings; i++) {
-		if (gve_is_gqi(priv))
-			gve_rx_stop_ring_gqi(priv, i);
-		else
-			gve_rx_stop_ring_dqo(priv, i);
-	}
+	for (i = 0; i < num_rings; i++)
+		gve_rx_stop_ring(priv, i);
 }
 
 static void gve_queues_mem_remove(struct gve_priv *priv)
@@ -1877,6 +1886,15 @@ static void gve_turnup(struct gve_priv *priv)
 	gve_set_napi_enabled(priv);
 }
 
+static void gve_turnup_and_check_status(struct gve_priv *priv)
+{
+	u32 status;
+
+	gve_turnup(priv);
+	status = ioread32be(&priv->reg_bar0->device_status);
+	gve_handle_link_status(priv, GVE_DEVICE_STATUS_LINK_STATUS_MASK & status);
+}
+
 static void gve_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct gve_notify_block *block;
@@ -2323,6 +2341,140 @@ static void gve_write_version(u8 __iomem *driver_version_register)
 	writeb('\n', driver_version_register);
 }
 
+static int gve_rx_queue_stop(struct net_device *dev, void *per_q_mem, int idx)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct gve_rx_ring *gve_per_q_mem;
+	int err;
+
+	if (!priv->rx)
+		return -EAGAIN;
+
+	/* Destroying queue 0 while other queues exist is not supported in DQO */
+	if (!gve_is_gqi(priv) && idx == 0)
+		return -ERANGE;
+
+	/* Single-queue destruction requires quiescence on all queues */
+	gve_turndown(priv);
+
+	/* This failure will trigger a reset - no need to clean up */
+	err = gve_adminq_destroy_single_rx_queue(priv, idx);
+	if (err)
+		return err;
+
+	if (gve_is_qpl(priv)) {
+		/* This failure will trigger a reset - no need to clean up */
+		err = gve_unregister_qpl(priv, gve_rx_get_qpl(priv, idx));
+		if (err)
+			return err;
+	}
+
+	gve_rx_stop_ring(priv, idx);
+
+	/* Turn the unstopped queues back up */
+	gve_turnup_and_check_status(priv);
+
+	gve_per_q_mem = (struct gve_rx_ring *)per_q_mem;
+	*gve_per_q_mem = priv->rx[idx];
+	memset(&priv->rx[idx], 0, sizeof(priv->rx[idx]));
+	return 0;
+}
+
+static void gve_rx_queue_mem_free(struct net_device *dev, void *per_q_mem)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct gve_rx_alloc_rings_cfg cfg = {0};
+	struct gve_rx_ring *gve_per_q_mem;
+
+	gve_per_q_mem = (struct gve_rx_ring *)per_q_mem;
+	gve_rx_get_curr_alloc_cfg(priv, &cfg);
+
+	if (gve_is_gqi(priv))
+		gve_rx_free_ring_gqi(priv, gve_per_q_mem, &cfg);
+	else
+		gve_rx_free_ring_dqo(priv, gve_per_q_mem, &cfg);
+}
+
+static int gve_rx_queue_mem_alloc(struct net_device *dev, void *per_q_mem,
+				  int idx)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct gve_rx_alloc_rings_cfg cfg = {0};
+	struct gve_rx_ring *gve_per_q_mem;
+	int err;
+
+	if (!priv->rx)
+		return -EAGAIN;
+
+	gve_per_q_mem = (struct gve_rx_ring *)per_q_mem;
+	gve_rx_get_curr_alloc_cfg(priv, &cfg);
+
+	if (gve_is_gqi(priv))
+		err = gve_rx_alloc_ring_gqi(priv, &cfg, gve_per_q_mem, idx);
+	else
+		err = gve_rx_alloc_ring_dqo(priv, &cfg, gve_per_q_mem, idx);
+
+	return err;
+}
+
+static int gve_rx_queue_start(struct net_device *dev, void *per_q_mem, int idx)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct gve_rx_ring *gve_per_q_mem;
+	int err;
+
+	if (!priv->rx)
+		return -EAGAIN;
+
+	gve_per_q_mem = (struct gve_rx_ring *)per_q_mem;
+	priv->rx[idx] = *gve_per_q_mem;
+
+	/* Single-queue creation requires quiescence on all queues */
+	gve_turndown(priv);
+
+	gve_rx_start_ring(priv, idx);
+
+	if (gve_is_qpl(priv)) {
+		/* This failure will trigger a reset - no need to clean up */
+		err = gve_register_qpl(priv, gve_rx_get_qpl(priv, idx));
+		if (err)
+			goto abort;
+	}
+
+	/* This failure will trigger a reset - no need to clean up */
+	err = gve_adminq_create_single_rx_queue(priv, idx);
+	if (err)
+		goto abort;
+
+	if (gve_is_gqi(priv))
+		gve_rx_write_doorbell(priv, &priv->rx[idx]);
+	else
+		gve_rx_post_buffers_dqo(&priv->rx[idx]);
+
+	/* Turn the unstopped queues back up */
+	gve_turnup_and_check_status(priv);
+	return 0;
+
+abort:
+	gve_rx_stop_ring(priv, idx);
+
+	/* All failures in this func result in a reset, by clearing the struct
+	 * at idx, we prevent a double free when that reset runs. The reset,
+	 * which needs the rtnl lock, will not run till this func returns and
+	 * its caller gives up the lock.
+	 */
+	memset(&priv->rx[idx], 0, sizeof(priv->rx[idx]));
+	return err;
+}
+
+static const struct netdev_queue_mgmt_ops gve_queue_mgmt_ops = {
+	.ndo_queue_mem_size	=	sizeof(struct gve_rx_ring),
+	.ndo_queue_mem_alloc	=	gve_rx_queue_mem_alloc,
+	.ndo_queue_mem_free	=	gve_rx_queue_mem_free,
+	.ndo_queue_start	=	gve_rx_queue_start,
+	.ndo_queue_stop		=	gve_rx_queue_stop,
+};
+
 static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int max_tx_queues, max_rx_queues;
@@ -2377,6 +2529,7 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 	dev->ethtool_ops = &gve_ethtool_ops;
 	dev->netdev_ops = &gve_netdev_ops;
+	dev->queue_mgmt_ops = &gve_queue_mgmt_ops;
 
 	/* Set default and supported features.
 	 *
