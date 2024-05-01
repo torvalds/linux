@@ -870,14 +870,21 @@ const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned 
 bool bch2_bkey_has_target(struct bch_fs *c, struct bkey_s_c k, unsigned target)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	struct bch_dev *ca;
+	bool ret = false;
 
+	rcu_read_lock();
 	bkey_for_each_ptr(ptrs, ptr)
 		if (bch2_dev_in_target(c, ptr->dev, target) &&
+		    (ca = bch2_dev_rcu(c, ptr->dev)) &&
 		    (!ptr->cached ||
-		     !dev_ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr)))
-			return true;
+		     !dev_ptr_stale_rcu(ca, ptr))) {
+			ret = true;
+			break;
+		}
+	rcu_read_unlock();
 
-	return false;
+	return ret;
 }
 
 bool bch2_bkey_matches_ptr(struct bch_fs *c, struct bkey_s_c k,
