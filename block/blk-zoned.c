@@ -1513,10 +1513,6 @@ static int disk_revalidate_zone_resources(struct gendisk *disk,
 	if (!disk->zone_wplugs_hash)
 		return disk_alloc_zone_resources(disk, pool_size);
 
-	/* Resize the zone write plug memory pool if needed. */
-	if (disk->zone_wplugs_pool->min_nr != pool_size)
-		return mempool_resize(disk->zone_wplugs_pool, pool_size);
-
 	return 0;
 }
 
@@ -1536,11 +1532,24 @@ static int disk_update_zone_resources(struct gendisk *disk,
 				      struct blk_revalidate_zone_args *args)
 {
 	struct request_queue *q = disk->queue;
+	unsigned int nr_seq_zones, nr_conv_zones = 0;
+	unsigned int pool_size;
 	struct queue_limits lim;
 
 	disk->nr_zones = args->nr_zones;
 	disk->zone_capacity = args->zone_capacity;
 	swap(disk->conv_zones_bitmap, args->conv_zones_bitmap);
+	if (disk->conv_zones_bitmap)
+		nr_conv_zones = bitmap_weight(disk->conv_zones_bitmap,
+					      disk->nr_zones);
+	if (nr_conv_zones >= disk->nr_zones) {
+		pr_warn("%s: Invalid number of conventional zones %u / %u\n",
+			disk->disk_name, nr_conv_zones, disk->nr_zones);
+		return -ENODEV;
+	}
+
+	if (!disk->zone_wplugs_pool)
+		return 0;
 
 	/*
 	 * If the device has no limit on the maximum number of open and active
@@ -1549,14 +1558,23 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	 * dynamic zone write plug allocation when simultaneously writing to
 	 * more zones than the size of the mempool.
 	 */
-	if (disk->zone_wplugs_pool) {
-		lim = queue_limits_start_update(q);
-		if (!lim.max_open_zones && !lim.max_active_zones)
-			lim.max_open_zones = disk->zone_wplugs_pool->min_nr;
-		return queue_limits_commit_update(q, &lim);
+	lim = queue_limits_start_update(q);
+
+	nr_seq_zones = disk->nr_zones - nr_conv_zones;
+	pool_size = max(lim.max_open_zones, lim.max_active_zones);
+	if (!pool_size)
+		pool_size = min(BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE, nr_seq_zones);
+
+	mempool_resize(disk->zone_wplugs_pool, pool_size);
+
+	if (!lim.max_open_zones && !lim.max_active_zones) {
+		if (pool_size < nr_seq_zones)
+			lim.max_open_zones = pool_size;
+		else
+			lim.max_open_zones = 0;
 	}
 
-	return 0;
+	return queue_limits_commit_update(q, &lim);
 }
 
 /*
