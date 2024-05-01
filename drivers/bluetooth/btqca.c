@@ -235,6 +235,11 @@ static int qca_read_fw_board_id(struct hci_dev *hdev, u16 *bid)
 		goto out;
 	}
 
+	if (skb->len < 3) {
+		err = -EILSEQ;
+		goto out;
+	}
+
 	*bid = (edl->data[1] << 8) + edl->data[2];
 	bt_dev_dbg(hdev, "%s: bid = %x", __func__, *bid);
 
