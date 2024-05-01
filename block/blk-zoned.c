@@ -885,11 +885,16 @@ void blk_zone_write_plug_bio_merged(struct bio *bio)
 	bio_set_flag(bio, BIO_ZONE_WRITE_PLUGGING);
 
 	/*
-	 * Increase the plug reference count and advance the zone write
-	 * pointer offset.
+	 * Get a reference on the zone write plug of the target zone and advance
+	 * the zone write pointer offset. Given that this is a merge, we already
+	 * have at least one request and one BIO referencing the zone write
+	 * plug. So this should not fail.
 	 */
 	zwplug = disk_get_zone_wplug(bio->bi_bdev->bd_disk,
 				     bio->bi_iter.bi_sector);
+	if (WARN_ON_ONCE(!zwplug))
+		return;
+
 	spin_lock_irqsave(&zwplug->lock, flags);
 	zwplug->wp_offset += bio_sectors(bio);
 	spin_unlock_irqrestore(&zwplug->lock, flags);
