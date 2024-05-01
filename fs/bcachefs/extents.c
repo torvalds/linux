@@ -252,7 +252,6 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 	const union bch_extent_entry *en_r;
 	struct extent_ptr_decoded lp, rp;
 	bool use_right_ptr;
-	struct bch_dev *ca;
 
 	en_l = l_ptrs.start;
 	en_r = r_ptrs.start;
@@ -283,8 +282,12 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 			return false;
 
 		/* Extents may not straddle buckets: */
-		ca = bch2_dev_bkey_exists(c, lp.ptr.dev);
-		if (PTR_BUCKET_NR(ca, &lp.ptr) != PTR_BUCKET_NR(ca, &rp.ptr))
+		rcu_read_lock();
+		struct bch_dev *ca = bch2_dev_rcu(c, lp.ptr.dev);
+		bool same_bucket = ca && PTR_BUCKET_NR(ca, &lp.ptr) == PTR_BUCKET_NR(ca, &rp.ptr);
+		rcu_read_unlock();
+
+		if (!same_bucket)
 			return false;
 
 		if (lp.has_ec			!= rp.has_ec ||
