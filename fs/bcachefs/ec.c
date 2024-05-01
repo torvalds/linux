@@ -633,19 +633,21 @@ static void ec_validate_checksums(struct bch_fs *c, struct ec_stripe_buf *buf)
 			struct bch_csum got = ec_block_checksum(buf, i, offset);
 
 			if (bch2_crc_cmp(want, got)) {
-				struct printbuf err = PRINTBUF;
-				struct bch_dev *ca = bch2_dev_bkey_exists(c, v->ptrs[i].dev);
+				struct bch_dev *ca = bch2_dev_tryget(c, v->ptrs[i].dev);
+				if (ca) {
+					struct printbuf err = PRINTBUF;
 
-				prt_str(&err, "stripe ");
-				bch2_csum_err_msg(&err, v->csum_type, want, got);
-				prt_printf(&err, "  for %ps at %u of\n  ", (void *) _RET_IP_, i);
-				bch2_bkey_val_to_text(&err, c, bkey_i_to_s_c(&buf->key));
-				bch_err_ratelimited(ca, "%s", err.buf);
-				printbuf_exit(&err);
+					prt_str(&err, "stripe ");
+					bch2_csum_err_msg(&err, v->csum_type, want, got);
+					prt_printf(&err, "  for %ps at %u of\n  ", (void *) _RET_IP_, i);
+					bch2_bkey_val_to_text(&err, c, bkey_i_to_s_c(&buf->key));
+					bch_err_ratelimited(ca, "%s", err.buf);
+					printbuf_exit(&err);
+
+					bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
+				}
 
 				clear_bit(i, buf->valid);
-
-				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 				break;
 			}
 
