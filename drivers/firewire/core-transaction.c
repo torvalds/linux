@@ -1390,12 +1390,5 @@ static void __exit fw_core_cleanup(void)
 	idr_destroy(&fw_device_idr);
 }
 
-int fw_core_param_debug;
-module_param_named(debug, fw_core_param_debug, int, 0644);
-MODULE_PARM_DESC(debug, "Verbose logging (default = 0"
-	", bus resets = "	__stringify(FW_CORE_PARAM_DEBUG_BUSRESETS)
-	")");
-
-
 module_init(fw_core_init);
 module_exit(fw_core_cleanup);

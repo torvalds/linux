@@ -245,10 +245,6 @@ static inline bool tcode_is_link_internal(unsigned int tcode)
 /* OHCI-1394's default upper bound for physical DMA: 4 GB */
 #define FW_MAX_PHYSICAL_RANGE		(1ULL << 32)
 
-#define FW_CORE_PARAM_DEBUG_BUSRESETS	1
-
-extern int fw_core_param_debug;
-
 void fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
 int fw_get_response_length(struct fw_request *request);
