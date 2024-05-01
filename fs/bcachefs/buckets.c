@@ -479,8 +479,20 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 
 	percpu_down_read(&c->mark_lock);
 
+	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, ptrs_c, p, entry_c) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
+		if (!ca) {
+			if (fsck_err(c, ptr_to_invalid_device,
+				     "pointer to missing device %u\n"
+				     "while marking %s",
+				     p.ptr.dev,
+				     (printbuf_reset(&buf),
+				      bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+				do_update = true;
+			continue;
+		}
+
 		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 		enum bch_data_type data_type = bch2_bkey_ptr_data_type(k, p, entry_c);
 
@@ -590,6 +602,7 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 				do_update = true;
 		}
 	}
+	rcu_read_unlock();
 
 	if (do_update) {
 		if (flags & BTREE_TRIGGER_is_root) {
@@ -603,6 +616,10 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
+		rcu_read_lock();
+		bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, !bch2_dev_rcu(c, ptr->dev));
+		rcu_read_unlock();
+
 		if (level) {
 			/*
 			 * We don't want to drop btree node pointers - if the
@@ -610,19 +627,22 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 			 * sort it out:
 			 */
 			struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
+			rcu_read_lock();
 			bkey_for_each_ptr(ptrs, ptr) {
-				struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
+				struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
 				struct bucket *g = PTR_GC_BUCKET(ca, ptr);
 
 				ptr->gen = g->gen;
 			}
+			rcu_read_unlock();
 		} else {
 			struct bkey_ptrs ptrs;
 			union bch_extent_entry *entry;
 restart_drop_ptrs:
 			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
+			rcu_read_lock();
 			bkey_for_each_ptr_decode(bkey_i_to_s(new).k, ptrs, p, entry) {
-				struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
+				struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
 				struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 				enum bch_data_type data_type = bch2_bkey_ptr_data_type(bkey_i_to_s_c(new), p, entry);
 
@@ -637,6 +657,7 @@ restart_drop_ptrs:
 					goto restart_drop_ptrs;
 				}
 			}
+			rcu_read_unlock();
 again:
 			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
 			bkey_extent_entry_for_each(ptrs, entry) {

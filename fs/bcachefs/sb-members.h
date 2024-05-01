@@ -189,17 +189,6 @@ static inline struct bch_dev *bch2_dev_have_ref(const struct bch_fs *c, unsigned
 	return rcu_dereference_check(c->devs[dev], 1);
 }
 
-/*
- * If a key exists that references a device, the device won't be going away and
- * we can omit rcu_read_lock():
- */
-static inline struct bch_dev *bch2_dev_bkey_exists(const struct bch_fs *c, unsigned dev)
-{
-	EBUG_ON(!bch2_dev_exists(c, dev));
-
-	return rcu_dereference_check(c->devs[dev], 1);
-}
-
 static inline struct bch_dev *bch2_dev_locked(struct bch_fs *c, unsigned dev)
 {
 	EBUG_ON(!bch2_dev_exists(c, dev));
