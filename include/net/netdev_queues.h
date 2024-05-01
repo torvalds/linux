@@ -88,6 +88,37 @@ struct netdev_stat_ops {
 };
 
 /**
+ * struct netdev_queue_mgmt_ops - netdev ops for queue management
+ *
+ * @ndo_queue_mem_size: Size of the struct that describes a queue's memory.
+ *
+ * @ndo_queue_mem_alloc: Allocate memory for an RX queue at the specified index.
+ *			 The new memory is written at the specified address.
+ *
+ * @ndo_queue_mem_free:	Free memory from an RX queue.
+ *
+ * @ndo_queue_start:	Start an RX queue with the specified memory and at the
+ *			specified index.
+ *
+ * @ndo_queue_stop:	Stop the RX queue at the specified index. The stopped
+ *			queue's memory is written at the specified address.
+ */
+struct netdev_queue_mgmt_ops {
+	size_t			ndo_queue_mem_size;
+	int			(*ndo_queue_mem_alloc)(struct net_device *dev,
+						       void *per_queue_mem,
+						       int idx);
+	void			(*ndo_queue_mem_free)(struct net_device *dev,
+						      void *per_queue_mem);
+	int			(*ndo_queue_start)(struct net_device *dev,
+						   void *per_queue_mem,
+						   int idx);
+	int			(*ndo_queue_stop)(struct net_device *dev,
+						  void *per_queue_mem,
+						  int idx);
+};
+
+/**
  * DOC: Lockless queue stopping / waking helpers.
  *
  * The netif_txq_maybe_stop() and __netif_txq_completed_wake()
