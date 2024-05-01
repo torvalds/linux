@@ -1903,9 +1903,12 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 
 static void bch2_discard_one_bucket_fast(struct bch_fs *c, struct bpos bucket)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, bucket.inode);
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_rcu(c, bucket.inode);
+	bool dead = !ca || percpu_ref_is_dying(&ca->io_ref);
+	rcu_read_unlock();
 
-	if (!percpu_ref_is_dying(&ca->io_ref) &&
+	if (!dead &&
 	    !discard_in_flight_add(c, bucket) &&
 	    bch2_write_ref_tryget(c, BCH_WRITE_REF_discard_fast) &&
 	    !queue_work(c->write_ref_wq, &c->discard_fast_work))
