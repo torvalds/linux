@@ -3039,7 +3039,13 @@ do_wbinvd:
 
 void sev_guest_memory_reclaimed(struct kvm *kvm)
 {
-	if (!sev_guest(kvm))
+	/*
+	 * With SNP+gmem, private/encrypted memory is unreachable via the
+	 * hva-based mmu notifiers, so these events are only actually
+	 * pertaining to shared pages where there is no need to perform
+	 * the WBINVD to flush associated caches.
+	 */
+	if (!sev_guest(kvm) || sev_snp_guest(kvm))
 		return;
 
 	wbinvd_on_all_cpus();
