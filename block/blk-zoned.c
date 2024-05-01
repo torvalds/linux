@@ -531,7 +531,7 @@ static inline bool disk_should_remove_zone_wplug(struct gendisk *disk,
 	/*
 	 * Completions of BIOs with blk_zone_write_plug_bio_endio() may
 	 * happen after handling a request completion with
-	 * blk_zone_write_plug_complete_request() (e.g. with split BIOs
+	 * blk_zone_write_plug_finish_request() (e.g. with split BIOs
 	 * that are chained). In such case, disk_zone_wplug_unplug_bio()
 	 * should not attempt to remove the zone write plug until all BIO
 	 * completions are seen. Check by looking at the zone write plug
@@ -921,7 +921,7 @@ void blk_zone_write_plug_init_request(struct request *req)
 
 	/*
 	 * Indicate that completion of this request needs to be handled with
-	 * blk_zone_write_plug_complete_request(), which will drop the reference
+	 * blk_zone_write_plug_finish_request(), which will drop the reference
 	 * on the zone write plug we took above on entry to this function.
 	 */
 	req->rq_flags |= RQF_ZONE_WRITE_PLUGGING;
@@ -1255,7 +1255,7 @@ void blk_zone_write_plug_bio_endio(struct bio *bio)
 	disk_put_zone_wplug(zwplug);
 
 	/*
-	 * For BIO-based devices, blk_zone_write_plug_complete_request()
+	 * For BIO-based devices, blk_zone_write_plug_finish_request()
 	 * is not called. So we need to schedule execution of the next
 	 * plugged BIO here.
 	 */
@@ -1266,11 +1266,12 @@ void blk_zone_write_plug_bio_endio(struct bio *bio)
 	disk_put_zone_wplug(zwplug);
 }
 
-void blk_zone_write_plug_complete_request(struct request *req)
+void blk_zone_write_plug_finish_request(struct request *req)
 {
 	struct gendisk *disk = req->q->disk;
-	struct blk_zone_wplug *zwplug = disk_get_zone_wplug(disk, req->__sector);
+	struct blk_zone_wplug *zwplug;
 
+	zwplug = disk_get_zone_wplug(disk, req->__sector);
 	if (WARN_ON_ONCE(!zwplug))
 		return;
 

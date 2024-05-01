@@ -453,11 +453,11 @@ static inline void blk_zone_bio_endio(struct bio *bio)
 		blk_zone_write_plug_bio_endio(bio);
 }
 
-void blk_zone_write_plug_complete_request(struct request *rq);
-static inline void blk_zone_complete_request(struct request *rq)
+void blk_zone_write_plug_finish_request(struct request *rq);
+static inline void blk_zone_finish_request(struct request *rq)
 {
 	if (rq->rq_flags & RQF_ZONE_WRITE_PLUGGING)
-		blk_zone_write_plug_complete_request(rq);
+		blk_zone_write_plug_finish_request(rq);
 }
 int blkdev_report_zones_ioctl(struct block_device *bdev, unsigned int cmd,
 		unsigned long arg);
@@ -491,7 +491,7 @@ static inline void blk_zone_update_request_bio(struct request *rq,
 static inline void blk_zone_bio_endio(struct bio *bio)
 {
 }
-static inline void blk_zone_complete_request(struct request *rq)
+static inline void blk_zone_finish_request(struct request *rq)
 {
 }
 static inline int blkdev_report_zones_ioctl(struct block_device *bdev,

@@ -691,6 +691,8 @@ static void blk_mq_finish_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
+	blk_zone_finish_request(rq);
+
 	if (rq->rq_flags & RQF_USE_SCHED) {
 		q->elevator->type->ops.finish_request(rq);
 		/*
@@ -828,8 +830,6 @@ static void blk_complete_request(struct request *req)
 		bio = next;
 	} while (bio);
 
-	blk_zone_complete_request(req);
-
 	/*
 	 * Reset counters so that the request stacking driver
 	 * can find how many bytes remain in the request
@@ -940,7 +940,6 @@ bool blk_update_request(struct request *req, blk_status_t error,
 	 * completely done
 	 */
 	if (!req->bio) {
-		blk_zone_complete_request(req);
 		/*
 		 * Reset counters so that the request stacking driver
 		 * can find how many bytes remain in the request
@@ -2996,7 +2995,6 @@ new_request:
 	if (ret != BLK_STS_OK) {
 		bio->bi_status = ret;
 		bio_endio(bio);
-		blk_zone_complete_request(rq);
 		blk_mq_free_request(rq);
 		return;
 	}
