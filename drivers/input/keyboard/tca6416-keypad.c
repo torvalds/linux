@@ -45,7 +45,6 @@ struct tca6416_keypad_chip {
 	struct i2c_client *client;
 	struct input_dev *input;
 	int io_size;
-	int irqnum;
 	u16 pinmask;
 	bool use_polling;
 	struct tca6416_button buttons[];
