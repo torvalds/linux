@@ -210,6 +210,11 @@ struct vcpu_sev_es_state {
 	bool ghcb_sa_sync;
 	bool ghcb_sa_free;
 
+	/* SNP Page-State-Change buffer entries currently being processed */
+	u16 psc_idx;
+	u16 psc_inflight;
+	bool psc_2m;
+
 	u64 ghcb_registered_gpa;
 };
 

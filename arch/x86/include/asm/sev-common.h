@@ -129,8 +129,19 @@ enum psc_op {
  *   The VMGEXIT_PSC_MAX_ENTRY determines the size of the PSC structure, which
  *   is a local stack variable in set_pages_state(). Do not increase this value
  *   without evaluating the impact to stack usage.
+ *
+ *   Use VMGEXIT_PSC_MAX_COUNT in cases where the actual GHCB-defined max value
+ *   is needed, such as when processing GHCB requests on the hypervisor side.
  */
 #define VMGEXIT_PSC_MAX_ENTRY		64
+#define VMGEXIT_PSC_MAX_COUNT		253
+
+#define VMGEXIT_PSC_ERROR_GENERIC	(0x100UL << 32)
+#define VMGEXIT_PSC_ERROR_INVALID_HDR	((1UL << 32) | 1)
+#define VMGEXIT_PSC_ERROR_INVALID_ENTRY	((1UL << 32) | 2)
+
+#define VMGEXIT_PSC_OP_PRIVATE		1
+#define VMGEXIT_PSC_OP_SHARED		2
 
 struct psc_hdr {
 	u16 cur_entry;

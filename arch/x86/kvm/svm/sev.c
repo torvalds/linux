@@ -3274,6 +3274,10 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	case SVM_VMGEXIT_HV_FEATURES:
 	case SVM_VMGEXIT_TERM_REQUEST:
 		break;
+	case SVM_VMGEXIT_PSC:
+		if (!sev_snp_guest(vcpu->kvm) || !kvm_ghcb_sw_scratch_is_valid(svm))
+			goto vmgexit_err;
+		break;
 	default:
 		reason = GHCB_ERR_INVALID_EVENT;
 		goto vmgexit_err;
@@ -3501,6 +3505,183 @@ static int snp_begin_psc_msr(struct vcpu_svm *svm, u64 ghcb_msr)
 	vcpu->arch.complete_userspace_io = snp_complete_psc_msr;
 
 	return 0; /* forward request to userspace */
+}
+
+struct psc_buffer {
+	struct psc_hdr hdr;
+	struct psc_entry entries[];
+} __packed;
+
+static int snp_begin_psc(struct vcpu_svm *svm, struct psc_buffer *psc);
+
+static void snp_complete_psc(struct vcpu_svm *svm, u64 psc_ret)
+{
+	svm->sev_es.psc_inflight = 0;
+	svm->sev_es.psc_idx = 0;
+	svm->sev_es.psc_2m = false;
+	ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, psc_ret);
+}
+
+static void __snp_complete_one_psc(struct vcpu_svm *svm)
+{
+	struct psc_buffer *psc = svm->sev_es.ghcb_sa;
+	struct psc_entry *entries = psc->entries;
+	struct psc_hdr *hdr = &psc->hdr;
+	__u16 idx;
+
+	/*
+	 * Everything in-flight has been processed successfully. Update the
+	 * corresponding entries in the guest's PSC buffer and zero out the
+	 * count of in-flight PSC entries.
+	 */
+	for (idx = svm->sev_es.psc_idx; svm->sev_es.psc_inflight;
+	     svm->sev_es.psc_inflight--, idx++) {
+		struct psc_entry *entry = &entries[idx];
+
+		entry->cur_page = entry->pagesize ? 512 : 1;
+	}
+
+	hdr->cur_entry = idx;
+}
+
+static int snp_complete_one_psc(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct psc_buffer *psc = svm->sev_es.ghcb_sa;
+
+	if (vcpu->run->hypercall.ret) {
+		snp_complete_psc(svm, VMGEXIT_PSC_ERROR_GENERIC);
+		return 1; /* resume guest */
+	}
+
+	__snp_complete_one_psc(svm);
+
+	/* Handle the next range (if any). */
+	return snp_begin_psc(svm, psc);
+}
+
+static int snp_begin_psc(struct vcpu_svm *svm, struct psc_buffer *psc)
+{
+	struct psc_entry *entries = psc->entries;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct psc_hdr *hdr = &psc->hdr;
+	struct psc_entry entry_start;
+	u16 idx, idx_start, idx_end;
+	int npages;
+	bool huge;
+	u64 gfn;
+
+	if (!(vcpu->kvm->arch.hypercall_exit_enabled & (1 << KVM_HC_MAP_GPA_RANGE))) {
+		snp_complete_psc(svm, VMGEXIT_PSC_ERROR_GENERIC);
+		return 1;
+	}
+
+next_range:
+	/* There should be no other PSCs in-flight at this point. */
+	if (WARN_ON_ONCE(svm->sev_es.psc_inflight)) {
+		snp_complete_psc(svm, VMGEXIT_PSC_ERROR_GENERIC);
+		return 1;
+	}
+
+	/*
+	 * The PSC descriptor buffer can be modified by a misbehaved guest after
+	 * validation, so take care to only use validated copies of values used
+	 * for things like array indexing.
+	 */
+	idx_start = hdr->cur_entry;
+	idx_end = hdr->end_entry;
+
+	if (idx_end >= VMGEXIT_PSC_MAX_COUNT) {
+		snp_complete_psc(svm, VMGEXIT_PSC_ERROR_INVALID_HDR);
+		return 1;
+	}
+
+	/* Find the start of the next range which needs processing. */
+	for (idx = idx_start; idx <= idx_end; idx++, hdr->cur_entry++) {
+		entry_start = entries[idx];
+
+		gfn = entry_start.gfn;
+		huge = entry_start.pagesize;
+		npages = huge ? 512 : 1;
+
+		if (entry_start.cur_page > npages || !IS_ALIGNED(gfn, npages)) {
+			snp_complete_psc(svm, VMGEXIT_PSC_ERROR_INVALID_ENTRY);
+			return 1;
+		}
+
+		if (entry_start.cur_page) {
+			/*
+			 * If this is a partially-completed 2M range, force 4K handling
+			 * for the remaining pages since they're effectively split at
+			 * this point. Subsequent code should ensure this doesn't get
+			 * combined with adjacent PSC entries where 2M handling is still
+			 * possible.
+			 */
+			npages -= entry_start.cur_page;
+			gfn += entry_start.cur_page;
+			huge = false;
+		}
+
+		if (npages)
+			break;
+	}
+
+	if (idx > idx_end) {
+		/* Nothing more to process. */
+		snp_complete_psc(svm, 0);
+		return 1;
+	}
+
+	svm->sev_es.psc_2m = huge;
+	svm->sev_es.psc_idx = idx;
+	svm->sev_es.psc_inflight = 1;
+
+	/*
+	 * Find all subsequent PSC entries that contain adjacent GPA
+	 * ranges/operations and can be combined into a single
+	 * KVM_HC_MAP_GPA_RANGE exit.
+	 */
+	while (++idx <= idx_end) {
+		struct psc_entry entry = entries[idx];
+
+		if (entry.operation != entry_start.operation ||
+		    entry.gfn != entry_start.gfn + npages ||
+		    entry.cur_page || !!entry.pagesize != huge)
+			break;
+
+		svm->sev_es.psc_inflight++;
+		npages += huge ? 512 : 1;
+	}
+
+	switch (entry_start.operation) {
+	case VMGEXIT_PSC_OP_PRIVATE:
+	case VMGEXIT_PSC_OP_SHARED:
+		vcpu->run->exit_reason = KVM_EXIT_HYPERCALL;
+		vcpu->run->hypercall.nr = KVM_HC_MAP_GPA_RANGE;
+		vcpu->run->hypercall.args[0] = gfn_to_gpa(gfn);
+		vcpu->run->hypercall.args[1] = npages;
+		vcpu->run->hypercall.args[2] = entry_start.operation == VMGEXIT_PSC_OP_PRIVATE
+					       ? KVM_MAP_GPA_RANGE_ENCRYPTED
+					       : KVM_MAP_GPA_RANGE_DECRYPTED;
+		vcpu->run->hypercall.args[2] |= entry_start.pagesize
+						? KVM_MAP_GPA_RANGE_PAGE_SZ_2M
+						: KVM_MAP_GPA_RANGE_PAGE_SZ_4K;
+		vcpu->arch.complete_userspace_io = snp_complete_one_psc;
+		return 0; /* forward request to userspace */
+	default:
+		/*
+		 * Only shared/private PSC operations are currently supported, so if the
+		 * entire range consists of unsupported operations (e.g. SMASH/UNSMASH),
+		 * then consider the entire range completed and avoid exiting to
+		 * userspace. In theory snp_complete_psc() can always be called directly
+		 * at this point to complete the current range and start the next one,
+		 * but that could lead to unexpected levels of recursion.
+		 */
+		__snp_complete_one_psc(svm);
+		goto next_range;
+	}
+
+	unreachable();
 }
 
 static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
@@ -3760,6 +3941,13 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 		vcpu->run->system_event.type = KVM_SYSTEM_EVENT_SEV_TERM;
 		vcpu->run->system_event.ndata = 1;
 		vcpu->run->system_event.data[0] = control->ghcb_gpa;
+		break;
+	case SVM_VMGEXIT_PSC:
+		ret = setup_vmgexit_scratch(svm, true, control->exit_info_2);
+		if (ret)
+			break;
+
+		ret = snp_begin_psc(svm, svm->sev_es.ghcb_sa);
 		break;
 	case SVM_VMGEXIT_UNSUPPORTED_EVENT:
 		vcpu_unimpl(vcpu,
