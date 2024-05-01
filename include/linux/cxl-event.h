@@ -5,6 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/uuid.h>
+#include <linux/workqueue_types.h>
 
 /*
  * Common Event Record Format
@@ -152,5 +153,30 @@ struct cxl_cper_event_rec {
 
 	union cxl_event event;
 } __packed;
+
+struct cxl_cper_work_data {
+	enum cxl_event_type event_type;
+	struct cxl_cper_event_rec rec;
+};
+
+#ifdef CONFIG_ACPI_APEI_GHES
+int cxl_cper_register_work(struct work_struct *work);
+int cxl_cper_unregister_work(struct work_struct *work);
+int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd);
+#else
+static inline int cxl_cper_register_work(struct work_struct *work);
+{
+	return 0;
+}
+
+static inline int cxl_cper_unregister_work(struct work_struct *work);
+{
+	return 0;
+}
+static inline int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd)
+{
+	return 0;
+}
+#endif
 
 #endif /* _LINUX_CXL_EVENT_H */
