@@ -19,6 +19,60 @@ static struct cgroup_rstat_cpu *cgroup_rstat_cpu(struct cgroup *cgrp, int cpu)
 	return per_cpu_ptr(cgrp->rstat_cpu, cpu);
 }
 
+/*
+ * Helper functions for rstat per CPU lock (cgroup_rstat_cpu_lock).
+ *
+ * This makes it easier to diagnose locking issues and contention in
+ * production environments. The parameter @fast_path determine the
+ * tracepoints being added, allowing us to diagnose "flush" related
+ * operations without handling high-frequency fast-path "update" events.
+ */
+static __always_inline
+unsigned long _cgroup_rstat_cpu_lock(raw_spinlock_t *cpu_lock, int cpu,
+				     struct cgroup *cgrp, const bool fast_path)
+{
+	unsigned long flags;
+	bool contended;
+
+	/*
+	 * The _irqsave() is needed because cgroup_rstat_lock is
+	 * spinlock_t which is a sleeping lock on PREEMPT_RT. Acquiring
+	 * this lock with the _irq() suffix only disables interrupts on
+	 * a non-PREEMPT_RT kernel. The raw_spinlock_t below disables
+	 * interrupts on both configurations. The _irqsave() ensures
+	 * that interrupts are always disabled and later restored.
+	 */
+	contended = !raw_spin_trylock_irqsave(cpu_lock, flags);
+	if (contended) {
+		if (fast_path)
+			trace_cgroup_rstat_cpu_lock_contended_fastpath(cgrp, cpu, contended);
+		else
+			trace_cgroup_rstat_cpu_lock_contended(cgrp, cpu, contended);
+
+		raw_spin_lock_irqsave(cpu_lock, flags);
+	}
+
+	if (fast_path)
+		trace_cgroup_rstat_cpu_locked_fastpath(cgrp, cpu, contended);
+	else
+		trace_cgroup_rstat_cpu_locked(cgrp, cpu, contended);
+
+	return flags;
+}
+
+static __always_inline
+void _cgroup_rstat_cpu_unlock(raw_spinlock_t *cpu_lock, int cpu,
+			      struct cgroup *cgrp, unsigned long flags,
+			      const bool fast_path)
+{
+	if (fast_path)
+		trace_cgroup_rstat_cpu_unlock_fastpath(cgrp, cpu, false);
+	else
+		trace_cgroup_rstat_cpu_unlock(cgrp, cpu, false);
+
+	raw_spin_unlock_irqrestore(cpu_lock, flags);
+}
+
 /**
  * cgroup_rstat_updated - keep track of updated rstat_cpu
  * @cgrp: target cgroup
@@ -44,7 +98,7 @@ __bpf_kfunc void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 	if (data_race(cgroup_rstat_cpu(cgrp, cpu)->updated_next))
 		return;
 
-	raw_spin_lock_irqsave(cpu_lock, flags);
+	flags = _cgroup_rstat_cpu_lock(cpu_lock, cpu, cgrp, true);
 
 	/* put @cgrp and all ancestors on the corresponding updated lists */
 	while (true) {
@@ -72,7 +126,7 @@ __bpf_kfunc void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 		cgrp = parent;
 	}
 
-	raw_spin_unlock_irqrestore(cpu_lock, flags);
+	_cgroup_rstat_cpu_unlock(cpu_lock, cpu, cgrp, flags, true);
 }
 
 /**
@@ -153,15 +207,7 @@ static struct cgroup *cgroup_rstat_updated_list(struct cgroup *root, int cpu)
 	struct cgroup *head = NULL, *parent, *child;
 	unsigned long flags;
 
-	/*
-	 * The _irqsave() is needed because cgroup_rstat_lock is
-	 * spinlock_t which is a sleeping lock on PREEMPT_RT. Acquiring
-	 * this lock with the _irq() suffix only disables interrupts on
-	 * a non-PREEMPT_RT kernel. The raw_spinlock_t below disables
-	 * interrupts on both configurations. The _irqsave() ensures
-	 * that interrupts are always disabled and later restored.
-	 */
-	raw_spin_lock_irqsave(cpu_lock, flags);
+	flags = _cgroup_rstat_cpu_lock(cpu_lock, cpu, root, false);
 
 	/* Return NULL if this subtree is not on-list */
 	if (!rstatc->updated_next)
@@ -198,7 +244,7 @@ static struct cgroup *cgroup_rstat_updated_list(struct cgroup *root, int cpu)
 	if (child != root)
 		head = cgroup_rstat_push_children(head, child, cpu);
 unlock_ret:
-	raw_spin_unlock_irqrestore(cpu_lock, flags);
+	_cgroup_rstat_cpu_unlock(cpu_lock, cpu, root, flags, false);
 	return head;
 }
 
