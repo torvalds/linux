@@ -427,7 +427,7 @@ static inline bool bio_is_zone_append(struct bio *bio)
 		bio_flagged(bio, BIO_EMULATES_ZONE_APPEND);
 }
 void blk_zone_write_plug_bio_merged(struct bio *bio);
-void blk_zone_write_plug_attempt_merge(struct request *rq);
+void blk_zone_write_plug_init_request(struct request *rq);
 static inline void blk_zone_update_request_bio(struct request *rq,
 					       struct bio *bio)
 {
@@ -481,7 +481,7 @@ static inline bool bio_is_zone_append(struct bio *bio)
 static inline void blk_zone_write_plug_bio_merged(struct bio *bio)
 {
 }
-static inline void blk_zone_write_plug_attempt_merge(struct request *rq)
+static inline void blk_zone_write_plug_init_request(struct request *rq)
 {
 }
 static inline void blk_zone_update_request_bio(struct request *rq,

@@ -3001,11 +3001,11 @@ new_request:
 		return;
 	}
 
+	if (bio_zone_write_plugging(bio))
+		blk_zone_write_plug_init_request(rq);
+
 	if (op_is_flush(bio->bi_opf) && blk_insert_flush(rq))
 		return;
-
-	if (bio_zone_write_plugging(bio))
-		blk_zone_write_plug_attempt_merge(rq);
 
 	if (plug) {
 		blk_add_rq_to_plug(plug, rq);

@@ -874,8 +874,9 @@ void blk_zone_write_plug_bio_merged(struct bio *bio)
 
 	/*
 	 * If the BIO was already plugged, then we were called through
-	 * blk_zone_write_plug_attempt_merge() -> blk_attempt_bio_merge().
-	 * For this case, blk_zone_write_plug_attempt_merge() will handle the
+	 * blk_zone_write_plug_init_request() -> blk_attempt_bio_merge().
+	 * For this case, we already hold a reference on the zone write plug for
+	 * the BIO and blk_zone_write_plug_init_request() will handle the
 	 * zone write pointer offset update.
 	 */
 	if (bio_flagged(bio, BIO_ZONE_WRITE_PLUGGING))
@@ -899,7 +900,7 @@ void blk_zone_write_plug_bio_merged(struct bio *bio)
  * already went through zone write plugging (either a new BIO or one that was
  * unplugged).
  */
-void blk_zone_write_plug_attempt_merge(struct request *req)
+void blk_zone_write_plug_init_request(struct request *req)
 {
 	sector_t req_back_sector = blk_rq_pos(req) + blk_rq_sectors(req);
 	struct request_queue *q = req->q;
@@ -909,6 +910,9 @@ void blk_zone_write_plug_attempt_merge(struct request *req)
 		disk_get_zone_wplug(disk, blk_rq_pos(req));
 	unsigned long flags;
 	struct bio *bio;
+
+	if (WARN_ON_ONCE(!zwplug))
+		return;
 
 	/*
 	 * Indicate that completion of this request needs to be handled with
@@ -1269,7 +1273,7 @@ void blk_zone_write_plug_complete_request(struct request *req)
 
 	/*
 	 * Drop the reference we took when the request was initialized in
-	 * blk_zone_write_plug_attempt_merge().
+	 * blk_zone_write_plug_init_request().
 	 */
 	disk_put_zone_wplug(zwplug);
 
