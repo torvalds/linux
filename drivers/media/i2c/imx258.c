@@ -20,6 +20,8 @@
 #define IMX258_MODE_STANDBY		0x00
 #define IMX258_MODE_STREAMING		0x01
 
+#define IMX258_REG_RESET		0x0103
+
 /* Chip ID */
 #define IMX258_REG_CHIP_ID		0x0016
 #define IMX258_CHIP_ID			0x0258
@@ -1051,6 +1053,16 @@ static int imx258_start_streaming(struct imx258 *imx258)
 	const struct imx258_reg_list *reg_list;
 	const struct imx258_link_freq_config *link_freq_cfg;
 	int ret, link_freq_index;
+
+	ret = imx258_write_reg(imx258, IMX258_REG_RESET, IMX258_REG_VALUE_08BIT,
+			       0x01);
+	if (ret) {
+		dev_err(&client->dev, "%s failed to reset sensor\n", __func__);
+		return ret;
+	}
+
+	/* 12ms is required from poweron to standby */
+	fsleep(12000);
 
 	/* Setup PLL */
 	link_freq_index = imx258->cur_mode->link_freq_index;
