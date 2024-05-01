@@ -100,7 +100,7 @@ static void bch2_open_bucket_hash_remove(struct bch_fs *c, struct open_bucket *o
 
 void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, ob->dev);
+	struct bch_dev *ca = ob_dev(c, ob);
 
 	if (ob->ec) {
 		ec_stripe_new_put(c, ob->ec, STRIPE_REF_io);
@@ -684,8 +684,7 @@ static int add_new_bucket(struct bch_fs *c,
 			   unsigned flags,
 			   struct open_bucket *ob)
 {
-	unsigned durability =
-		bch2_dev_bkey_exists(c, ob->dev)->mi.durability;
+	unsigned durability = ob_dev(c, ob)->mi.durability;
 
 	BUG_ON(*nr_effective >= nr_replicas);
 
@@ -831,7 +830,7 @@ static bool want_bucket(struct bch_fs *c,
 			bool *have_cache, bool ec,
 			struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, ob->dev);
+	struct bch_dev *ca = ob_dev(c, ob);
 
 	if (!test_bit(ob->dev, devs_may_alloc->d))
 		return false;
@@ -901,7 +900,7 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 		struct open_bucket *ob = c->open_buckets + c->open_buckets_partial[i];
 
 		if (want_bucket(c, wp, devs_may_alloc, have_cache, ec, ob)) {
-			struct bch_dev *ca = bch2_dev_bkey_exists(c, ob->dev);
+			struct bch_dev *ca = ob_dev(c, ob);
 			struct bch_dev_usage usage;
 			u64 avail;
 
@@ -1286,7 +1285,7 @@ deallocate_extra_replicas(struct bch_fs *c,
 	unsigned i;
 
 	open_bucket_for_each(c, ptrs, ob, i) {
-		unsigned d = bch2_dev_bkey_exists(c, ob->dev)->mi.durability;
+		unsigned d = ob_dev(c, ob)->mi.durability;
 
 		if (d && d <= extra_replicas) {
 			extra_replicas -= d;
@@ -1443,7 +1442,7 @@ err:
 
 struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *c, struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, ob->dev);
+	struct bch_dev *ca = ob_dev(c, ob);
 
 	return (struct bch_extent_ptr) {
 		.type	= 1 << BCH_EXTENT_ENTRY_ptr,
@@ -1519,7 +1518,7 @@ void bch2_fs_allocator_foreground_init(struct bch_fs *c)
 
 static void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, ob->dev);
+	struct bch_dev *ca = ob_dev(c, ob);
 	unsigned data_type = ob->data_type;
 	barrier(); /* READ_ONCE() doesn't work on bitfields */
 

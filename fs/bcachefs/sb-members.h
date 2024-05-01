@@ -195,6 +195,13 @@ static inline bool bucket_valid(const struct bch_dev *ca, u64 b)
 	return b - ca->mi.first_bucket < ca->mi.nbuckets_minus_first;
 }
 
+static inline struct bch_dev *bch2_dev_have_ref(const struct bch_fs *c, unsigned dev)
+{
+	EBUG_ON(!bch2_dev_exists(c, dev));
+
+	return rcu_dereference_check(c->devs[dev], 1);
+}
+
 /*
  * If a key exists that references a device, the device won't be going away and
  * we can omit rcu_read_lock():

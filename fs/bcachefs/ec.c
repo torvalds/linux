@@ -1550,16 +1550,13 @@ void bch2_ec_bucket_cancel(struct bch_fs *c, struct open_bucket *ob)
 void *bch2_writepoint_ec_buf(struct bch_fs *c, struct write_point *wp)
 {
 	struct open_bucket *ob = ec_open_bucket(c, &wp->ptrs);
-	struct bch_dev *ca;
-	unsigned offset;
-
 	if (!ob)
 		return NULL;
 
 	BUG_ON(!ob->ec->new_stripe.data[ob->ec_idx]);
 
-	ca	= bch2_dev_bkey_exists(c, ob->dev);
-	offset	= ca->mi.bucket_size - ob->sectors_free;
+	struct bch_dev *ca	= ob_dev(c, ob);
+	unsigned offset		= ca->mi.bucket_size - ob->sectors_free;
 
 	return ob->ec->new_stripe.data[ob->ec_idx] + (offset << 9);
 }
