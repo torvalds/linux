@@ -204,7 +204,6 @@ DEFINE_EVENT(async_outbound_complete_template, async_response_outbound_complete,
 #undef ASYNC_HEADER_GET_SOURCE
 #undef ASYNC_HEADER_GET_OFFSET
 #undef ASYNC_HEADER_GET_RCODE
-#undef QUADLET_SIZE
 
 TRACE_EVENT(async_phy_outbound_initiate,
 	TP_PROTO(u64 packet, unsigned int generation, u32 first_quadlet, u32 second_quadlet),
@@ -316,6 +315,33 @@ DEFINE_EVENT(bus_reset_arrange_template, bus_reset_postpone,
 	TP_PROTO(unsigned int generation, bool short_reset),
 	TP_ARGS(generation, short_reset)
 );
+
+TRACE_EVENT(bus_reset_handle,
+	TP_PROTO(unsigned int generation, unsigned int node_id, bool bm_abdicate, u32 *self_ids, unsigned int self_id_count),
+	TP_ARGS(generation, node_id, bm_abdicate, self_ids, self_id_count),
+	TP_STRUCT__entry(
+		__field(u8, generation)
+		__field(u8, node_id)
+		__field(bool, bm_abdicate)
+		__dynamic_array(u32, self_ids, self_id_count)
+	),
+	TP_fast_assign(
+		__entry->generation = generation;
+		__entry->node_id = node_id;
+		__entry->bm_abdicate = bm_abdicate;
+		memcpy(__get_dynamic_array(self_ids), self_ids, __get_dynamic_array_len(self_ids));
+	),
+	TP_printk(
+		"generation=%u node_id=0x%04x bm_abdicate=%s self_ids=%s",
+		__entry->generation,
+		__entry->node_id,
+		__entry->bm_abdicate ? "true" : "false",
+		__print_array(__get_dynamic_array(self_ids),
+			      __get_dynamic_array_len(self_ids) / QUADLET_SIZE, QUADLET_SIZE)
+	)
+);
+
+#undef QUADLET_SIZE
 
 #endif // _FIREWIRE_TRACE_EVENT_H
 
