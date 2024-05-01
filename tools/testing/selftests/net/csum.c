@@ -682,7 +682,7 @@ static int recv_verify_packet_ipv6(void *nh, int len)
 }
 
 /* return whether auxdata includes TP_STATUS_CSUM_VALID */
-static bool recv_verify_packet_csum(struct msghdr *msg)
+static uint32_t recv_get_packet_csum_status(struct msghdr *msg)
 {
 	struct tpacket_auxdata *aux = NULL;
 	struct cmsghdr *cm;
@@ -706,7 +706,7 @@ static bool recv_verify_packet_csum(struct msghdr *msg)
 	if (!aux)
 		error(1, 0, "cmsg: no auxdata");
 
-	return aux->tp_status & TP_STATUS_CSUM_VALID;
+	return aux->tp_status;
 }
 
 static int recv_packet(int fd)
@@ -716,6 +716,7 @@ static int recv_packet(int fd)
 	char ctrl[CMSG_SPACE(sizeof(struct tpacket_auxdata))];
 	struct pkt *buf = (void *)_buf;
 	struct msghdr msg = {0};
+	uint32_t tp_status;
 	struct iovec iov;
 	int len, ret;
 
@@ -737,6 +738,17 @@ static int recv_packet(int fd)
 		if (len == -1)
 			error(1, errno, "recv p");
 
+		tp_status = recv_get_packet_csum_status(&msg);
+
+		/* GRO might coalesce randomized packets. Such GSO packets are
+		 * then reinitialized for csum offload (CHECKSUM_PARTIAL), with
+		 * a pseudo csum. Do not try to validate these checksums.
+		 */
+		if (tp_status & TP_STATUS_CSUMNOTREADY) {
+			fprintf(stderr, "cmsg: GSO packet has partial csum: skip\n");
+			continue;
+		}
+
 		if (cfg_family == PF_INET6)
 			ret = recv_verify_packet_ipv6(buf, len);
 		else
@@ -753,7 +765,7 @@ static int recv_packet(int fd)
 		 * Do not fail if kernel does not validate a good csum:
 		 * Absence of validation does not imply invalid.
 		 */
-		if (recv_verify_packet_csum(&msg) && cfg_bad_csum) {
+		if (tp_status & TP_STATUS_CSUM_VALID && cfg_bad_csum) {
 			fprintf(stderr, "cmsg: expected bad csum, pf_packet returns valid\n");
 			bad_validations++;
 		}
