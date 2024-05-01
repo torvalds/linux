@@ -237,7 +237,6 @@ enum gp2ap020a00f_thresh_val_id {
 };
 
 struct gp2ap020a00f_data {
-	const struct gp2ap020a00f_platform_data *pdata;
 	struct i2c_client *client;
 	struct mutex lock;
 	char *buffer;
