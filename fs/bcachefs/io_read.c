@@ -758,11 +758,11 @@ err:
 }
 
 static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
+						   struct bch_dev *ca,
 						   struct bkey_s_c k,
 						   struct bch_extent_ptr ptr)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr.dev);
 	struct btree_iter iter;
 	struct printbuf buf = PRINTBUF;
 	int ret;
@@ -842,7 +842,7 @@ retry_pick:
 	if ((flags & BCH_READ_IN_RETRY) &&
 	    !pick.ptr.cached &&
 	    unlikely(dev_ptr_stale(ca, &pick.ptr))) {
-		read_from_stale_dirty_pointer(trans, k, pick.ptr);
+		read_from_stale_dirty_pointer(trans, ca, k, pick.ptr);
 		bch2_mark_io_failure(failed, &pick);
 		goto retry_pick;
 	}
