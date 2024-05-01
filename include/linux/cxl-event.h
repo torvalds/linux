@@ -164,12 +164,12 @@ int cxl_cper_register_work(struct work_struct *work);
 int cxl_cper_unregister_work(struct work_struct *work);
 int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd);
 #else
-static inline int cxl_cper_register_work(struct work_struct *work);
+static inline int cxl_cper_register_work(struct work_struct *work)
 {
 	return 0;
 }
 
-static inline int cxl_cper_unregister_work(struct work_struct *work);
+static inline int cxl_cper_unregister_work(struct work_struct *work)
 {
 	return 0;
 }
