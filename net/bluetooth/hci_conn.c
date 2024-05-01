@@ -2132,7 +2132,7 @@ int hci_le_big_create_sync(struct hci_dev *hdev, struct hci_conn *hcon,
 	memcpy(pdu->bis, bis, num_bis);
 
 	return hci_send_cmd(hdev, HCI_OP_LE_BIG_CREATE_SYNC,
-			    sizeof(*pdu) + num_bis, pdu);
+			    struct_size(pdu, bis, num_bis), pdu);
 }
 
 static void create_big_complete(struct hci_dev *hdev, void *data, int err)
