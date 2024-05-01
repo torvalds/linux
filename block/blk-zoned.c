@@ -658,6 +658,54 @@ static void disk_zone_wplug_abort_unaligned(struct gendisk *disk,
 	bio_list_merge(&zwplug->bio_list, &bl);
 }
 
+static inline void disk_zone_wplug_set_error(struct gendisk *disk,
+					     struct blk_zone_wplug *zwplug)
+{
+	unsigned long flags;
+
+	if (zwplug->flags & BLK_ZONE_WPLUG_ERROR)
+		return;
+
+	/*
+	 * At this point, we already have a reference on the zone write plug.
+	 * However, since we are going to add the plug to the disk zone write
+	 * plugs work list, increase its reference count. This reference will
+	 * be dropped in disk_zone_wplugs_work() once the error state is
+	 * handled, or in disk_zone_wplug_clear_error() if the zone is reset or
+	 * finished.
+	 */
+	zwplug->flags |= BLK_ZONE_WPLUG_ERROR;
+	atomic_inc(&zwplug->ref);
+
+	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
+	list_add_tail(&zwplug->link, &disk->zone_wplugs_err_list);
+	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
+}
+
+static inline void disk_zone_wplug_clear_error(struct gendisk *disk,
+					       struct blk_zone_wplug *zwplug)
+{
+	unsigned long flags;
+
+	if (!(zwplug->flags & BLK_ZONE_WPLUG_ERROR))
+		return;
+
+	/*
+	 * We are racing with the error handling work which drops the reference
+	 * on the zone write plug after handling the error state. So remove the
+	 * plug from the error list and drop its reference count only if the
+	 * error handling has not yet started, that is, if the zone write plug
+	 * is still listed.
+	 */
+	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
+	if (!list_empty(&zwplug->link)) {
+		list_del_init(&zwplug->link);
+		zwplug->flags &= ~BLK_ZONE_WPLUG_ERROR;
+		disk_put_zone_wplug(zwplug);
+	}
+	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
+}
+
 /*
  * Set a zone write plug write pointer offset to either 0 (zone reset case)
  * or to the zone size (zone finish case). This aborts all plugged BIOs, which
@@ -691,12 +739,7 @@ static void disk_zone_wplug_set_wp_offset(struct gendisk *disk,
 	 * in a good state. So clear the error flag and decrement the
 	 * error count if we were in error state.
 	 */
-	if (zwplug->flags & BLK_ZONE_WPLUG_ERROR) {
-		zwplug->flags &= ~BLK_ZONE_WPLUG_ERROR;
-		spin_lock(&disk->zone_wplugs_lock);
-		list_del_init(&zwplug->link);
-		spin_unlock(&disk->zone_wplugs_lock);
-	}
+	disk_zone_wplug_clear_error(disk, zwplug);
 
 	/*
 	 * The zone write plug now has no BIO plugged: remove it from the
@@ -883,26 +926,6 @@ void blk_zone_write_plug_attempt_merge(struct request *req)
 		req_back_sector += bio_sectors(bio);
 	}
 	spin_unlock_irqrestore(&zwplug->lock, flags);
-}
-
-static inline void disk_zone_wplug_set_error(struct gendisk *disk,
-					     struct blk_zone_wplug *zwplug)
-{
-	if (!(zwplug->flags & BLK_ZONE_WPLUG_ERROR)) {
-		unsigned long flags;
-
-		/*
-		 * Increase the plug reference count. The reference will be
-		 * dropped in disk_zone_wplugs_work() once the error state
-		 * is handled.
-		 */
-		zwplug->flags |= BLK_ZONE_WPLUG_ERROR;
-		atomic_inc(&zwplug->ref);
-
-		spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
-		list_add_tail(&zwplug->link, &disk->zone_wplugs_err_list);
-		spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
-	}
 }
 
 /*
