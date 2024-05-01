@@ -176,6 +176,25 @@ to SNP_CONFIG command defined in the SEV-SNP spec. The current values of
 the firmware parameters affected by this command can be queried via
 SNP_PLATFORM_STATUS.
 
+2.7 SNP_VLEK_LOAD
+-----------------
+:Technology: sev-snp
+:Type: hypervisor ioctl cmd
+:Parameters (in): struct sev_user_data_snp_vlek_load
+:Returns (out): 0 on success, -negative on error
+
+When requesting an attestation report a guest is able to specify whether
+it wants SNP firmware to sign the report using either a Versioned Chip
+Endorsement Key (VCEK), which is derived from chip-unique secrets, or a
+Versioned Loaded Endorsement Key (VLEK) which is obtained from an AMD
+Key Derivation Service (KDS) and derived from seeds allocated to
+enrolled cloud service providers.
+
+In the case of VLEK keys, the SNP_VLEK_LOAD SNP command is used to load
+them into the system after obtaining them from the KDS, and corresponds
+closely to the SNP_VLEK_LOAD firmware command specified in the SEV-SNP
+spec.
+
 3. SEV-SNP CPUID Enforcement
 ============================
 
