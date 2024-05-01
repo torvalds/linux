@@ -53,6 +53,41 @@ static void gve_rx_unfill_pages(struct gve_priv *priv,
 	rx->data.page_info = NULL;
 }
 
+static void gve_rx_ctx_clear(struct gve_rx_ctx *ctx)
+{
+	ctx->skb_head = NULL;
+	ctx->skb_tail = NULL;
+	ctx->total_size = 0;
+	ctx->frag_cnt = 0;
+	ctx->drop_pkt = false;
+}
+
+static void gve_rx_init_ring_state_gqi(struct gve_rx_ring *rx)
+{
+	rx->desc.seqno = 1;
+	rx->cnt = 0;
+	gve_rx_ctx_clear(&rx->ctx);
+}
+
+static void gve_rx_reset_ring_gqi(struct gve_priv *priv, int idx)
+{
+	struct gve_rx_ring *rx = &priv->rx[idx];
+	const u32 slots = priv->rx_desc_cnt;
+	size_t size;
+
+	/* Reset desc ring */
+	if (rx->desc.desc_ring) {
+		size = slots * sizeof(rx->desc.desc_ring[0]);
+		memset(rx->desc.desc_ring, 0, size);
+	}
+
+	/* Reset q_resources */
+	if (rx->q_resources)
+		memset(rx->q_resources, 0, sizeof(*rx->q_resources));
+
+	gve_rx_init_ring_state_gqi(rx);
+}
+
 void gve_rx_stop_ring_gqi(struct gve_priv *priv, int idx)
 {
 	int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
@@ -62,6 +97,7 @@ void gve_rx_stop_ring_gqi(struct gve_priv *priv, int idx)
 
 	gve_remove_napi(priv, ntfy_idx);
 	gve_rx_remove_from_block(priv, idx);
+	gve_rx_reset_ring_gqi(priv, idx);
 }
 
 static void gve_rx_free_ring_gqi(struct gve_priv *priv, struct gve_rx_ring *rx,
@@ -222,15 +258,6 @@ alloc_err_rda:
 	return err;
 }
 
-static void gve_rx_ctx_clear(struct gve_rx_ctx *ctx)
-{
-	ctx->skb_head = NULL;
-	ctx->skb_tail = NULL;
-	ctx->total_size = 0;
-	ctx->frag_cnt = 0;
-	ctx->drop_pkt = false;
-}
-
 void gve_rx_start_ring_gqi(struct gve_priv *priv, int idx)
 {
 	int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
@@ -309,9 +336,8 @@ static int gve_rx_alloc_ring_gqi(struct gve_priv *priv,
 		err = -ENOMEM;
 		goto abort_with_q_resources;
 	}
-	rx->cnt = 0;
 	rx->db_threshold = slots / 2;
-	rx->desc.seqno = 1;
+	gve_rx_init_ring_state_gqi(rx);
 
 	rx->packet_buffer_size = GVE_DEFAULT_RX_BUFFER_SIZE;
 	gve_rx_ctx_clear(&rx->ctx);
