@@ -697,6 +697,9 @@ enum sev_cmd_id {
 	/* Second time is the charm; improved versions of the above ioctls.  */
 	KVM_SEV_INIT2,
 
+	/* SNP-specific commands */
+	KVM_SEV_SNP_LAUNCH_START = 100,
+
 	KVM_SEV_NR_MAX,
 };
 
@@ -822,6 +825,14 @@ struct kvm_sev_receive_update_data {
 	__u64 trans_uaddr;
 	__u32 trans_len;
 	__u32 pad2;
+};
+
+struct kvm_sev_snp_launch_start {
+	__u64 policy;
+	__u8 gosvw[16];
+	__u16 flags;
+	__u8 pad0[6];
+	__u64 pad1[4];
 };
 
 #define KVM_X2APIC_API_USE_32BIT_IDS            (1ULL << 0)
