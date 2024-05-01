@@ -605,7 +605,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 
 	ret = qca_tlv_check_data(hdev, config, data, size, soc_type);
 	if (ret)
-		return ret;
+		goto out;
 
 	segment = data;
 	remain = size;
