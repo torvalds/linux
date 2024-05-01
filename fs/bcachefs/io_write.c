@@ -434,6 +434,8 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 		n->nocow		= nocow;
 		n->submit_time		= local_clock();
 		n->inode_offset		= bkey_start_offset(&k->k);
+		if (nocow)
+			n->nocow_bucket	= PTR_BUCKET_NR(ca, ptr);
 		n->bio.bi_iter.bi_sector = ptr->offset;
 
 		if (likely(n->have_ioref)) {
@@ -659,8 +661,12 @@ static void bch2_write_endio(struct bio *bio)
 		op->flags |= BCH_WRITE_IO_ERROR;
 	}
 
-	if (wbio->nocow)
+	if (wbio->nocow) {
+		bch2_bucket_nocow_unlock(&c->nocow_locks,
+					 POS(ca->dev_idx, wbio->nocow_bucket),
+					 BUCKET_NOCOW_LOCK_UPDATE);
 		set_bit(wbio->dev, op->devs_need_flush->d);
+	}
 
 	if (wbio->have_ioref) {
 		bch2_latency_acct(ca, wbio->submit_time, WRITE);
@@ -1114,22 +1120,6 @@ static bool bch2_extent_is_writeable(struct bch_write_op *op,
 	return replicas >= op->opts.data_replicas;
 }
 
-static inline void bch2_nocow_write_unlock(struct bch_write_op *op)
-{
-	struct bch_fs *c = op->c;
-
-	for_each_keylist_key(&op->insert_keys, k) {
-		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(k));
-
-		bkey_for_each_ptr(ptrs, ptr) {
-			struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
-			bch2_bucket_nocow_unlock(&c->nocow_locks,
-						 PTR_BUCKET_POS(ca, ptr),
-						 BUCKET_NOCOW_LOCK_UPDATE);
-		}
-	}
-}
-
 static int bch2_nocow_write_convert_one_unwritten(struct btree_trans *trans,
 						  struct btree_iter *iter,
 						  struct bkey_i *orig,
@@ -1200,8 +1190,6 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 
 static void __bch2_nocow_write_done(struct bch_write_op *op)
 {
-	bch2_nocow_write_unlock(op);
-
 	if (unlikely(op->flags & BCH_WRITE_IO_ERROR)) {
 		op->error = -EIO;
 	} else if (unlikely(op->flags & BCH_WRITE_CONVERT_UNWRITTEN))
