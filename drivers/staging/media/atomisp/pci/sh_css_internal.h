@@ -511,7 +511,7 @@ struct sh_css_sp_pipeline {
  * of the associated pipe. Dynamic means that the data address can
  * change with every (frame) iteration of the associated pipe
  *
- * s3a and dis are now also dynamic but (stil) handled separately
+ * s3a and dis are now also dynamic but (still) handled separately
  */
 #define SH_CSS_NUM_DYNAMIC_FRAME_IDS (3)
 
@@ -599,7 +599,7 @@ struct sh_css_sp_stage {
 
 /*
  * Time: 2012-07-19, 17:40.
- * Note: Add a new data memeber "debug" in "sh_css_sp_group". This
+ * Note: Add a new data member "debug" in "sh_css_sp_group". This
  * data member is used to pass the debugging command from the
  * Host to the SP.
  *
