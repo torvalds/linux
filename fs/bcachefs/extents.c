@@ -675,16 +675,16 @@ static inline unsigned __extent_ptr_durability(struct bch_dev *ca, struct extent
 
 unsigned bch2_extent_ptr_desired_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, p->ptr.dev);
+	struct bch_dev *ca = bch2_dev_rcu(c, p->ptr.dev);
 
-	return __extent_ptr_durability(ca, p);
+	return ca ? __extent_ptr_durability(ca, p) : 0;
 }
 
 unsigned bch2_extent_ptr_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
 {
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, p->ptr.dev);
+	struct bch_dev *ca = bch2_dev_rcu(c, p->ptr.dev);
 
-	if (ca->mi.state == BCH_MEMBER_STATE_failed)
+	if (!ca || ca->mi.state == BCH_MEMBER_STATE_failed)
 		return 0;
 
 	return __extent_ptr_durability(ca, p);
@@ -697,8 +697,10 @@ unsigned bch2_bkey_durability(struct bch_fs *c, struct bkey_s_c k)
 	struct extent_ptr_decoded p;
 	unsigned durability = 0;
 
+	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 		durability += bch2_extent_ptr_durability(c, &p);
+	rcu_read_unlock();
 
 	return durability;
 }
@@ -710,9 +712,11 @@ static unsigned bch2_bkey_durability_safe(struct bch_fs *c, struct bkey_s_c k)
 	struct extent_ptr_decoded p;
 	unsigned durability = 0;
 
+	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 		if (p.ptr.dev < c->sb.nr_devices && c->devs[p.ptr.dev])
 			durability += bch2_extent_ptr_durability(c, &p);
+	rcu_read_unlock();
 
 	return durability;
 }

@@ -203,6 +203,8 @@ restart_drop_conflicting_replicas:
 
 		/* Now, drop excess replicas: */
 restart_drop_extra_replicas:
+
+		rcu_read_lock();
 		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs(bkey_i_to_s(insert)), p, entry) {
 			unsigned ptr_durability = bch2_extent_ptr_durability(c, &p);
 
@@ -214,6 +216,7 @@ restart_drop_extra_replicas:
 				goto restart_drop_extra_replicas;
 			}
 		}
+		rcu_read_unlock();
 
 		/* Finally, add the pointers we just wrote: */
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry)
@@ -552,6 +555,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		struct bpos bucket = PTR_BUCKET_POS(ca, &p.ptr);
 		bool locked;
 
+		rcu_read_lock();
 		if (((1U << i) & m->data_opts.rewrite_ptrs)) {
 			BUG_ON(p.ptr.cached);
 
@@ -565,6 +569,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 			bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
 			durability_have += bch2_extent_ptr_durability(c, &p);
 		}
+		rcu_read_unlock();
 
 		/*
 		 * op->csum_type is normally initialized from the fs/file's

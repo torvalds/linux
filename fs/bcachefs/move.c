@@ -1033,6 +1033,7 @@ static bool drop_extra_replicas_pred(struct bch_fs *c, void *arg,
 	struct extent_ptr_decoded p;
 	unsigned i = 0;
 
+	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, bch2_bkey_ptrs_c(k), p, entry) {
 		unsigned d = bch2_extent_ptr_durability(c, &p);
 
@@ -1043,6 +1044,7 @@ static bool drop_extra_replicas_pred(struct bch_fs *c, void *arg,
 
 		i++;
 	}
+	rcu_read_unlock();
 
 	return data_opts->kill_ptrs != 0;
 }
