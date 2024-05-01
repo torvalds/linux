@@ -541,7 +541,6 @@ static void __bch2_read_endio(struct work_struct *work)
 	struct bch_read_bio *rbio =
 		container_of(work, struct bch_read_bio, work);
 	struct bch_fs *c	= rbio->c;
-	struct bch_dev *ca	= bch2_dev_bkey_exists(c, rbio->pick.ptr.dev);
 	struct bio *src		= &rbio->bio;
 	struct bio *dst		= &bch2_rbio_parent(rbio)->bio;
 	struct bvec_iter dst_iter = rbio->bvec_iter;
@@ -647,13 +646,15 @@ csum_err:
 	prt_str(&buf, "data ");
 	bch2_csum_err_msg(&buf, crc.csum_type, rbio->pick.crc.csum, csum);
 
-	bch_err_inum_offset_ratelimited(ca,
-		rbio->read_pos.inode,
-		rbio->read_pos.offset << 9,
-		"data %s", buf.buf);
+	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
+	if (ca) {
+		bch_err_inum_offset_ratelimited(ca,
+			rbio->read_pos.inode,
+			rbio->read_pos.offset << 9,
+			"data %s", buf.buf);
+		bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
+	}
 	printbuf_exit(&buf);
-
-	bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 	goto out;
 decompression_err:
@@ -675,7 +676,7 @@ static void bch2_read_endio(struct bio *bio)
 	struct bch_read_bio *rbio =
 		container_of(bio, struct bch_read_bio, bio);
 	struct bch_fs *c	= rbio->c;
-	struct bch_dev *ca	= bch2_dev_bkey_exists(c, rbio->pick.ptr.dev);
+	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
 	struct workqueue_struct *wq = NULL;
 	enum rbio_context context = RBIO_CONTEXT_NULL;
 
@@ -687,17 +688,21 @@ static void bch2_read_endio(struct bio *bio)
 	if (!rbio->split)
 		rbio->bio.bi_end_io = rbio->end_io;
 
-	if (bch2_dev_inum_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_read,
-				    rbio->read_pos.inode,
-				    rbio->read_pos.offset,
-				    "data read error: %s",
-			       bch2_blk_status_to_str(bio->bi_status))) {
+	if (bio->bi_status) {
+		if (ca) {
+			bch_err_inum_offset_ratelimited(ca,
+				rbio->read_pos.inode,
+				rbio->read_pos.offset,
+				"data read error: %s",
+				bch2_blk_status_to_str(bio->bi_status));
+			bch2_io_error(ca, BCH_MEMBER_ERROR_read);
+		}
 		bch2_rbio_error(rbio, READ_RETRY_AVOID, bio->bi_status);
 		return;
 	}
 
 	if (((rbio->flags & BCH_READ_RETRY_IF_STALE) && race_fault()) ||
-	    dev_ptr_stale(ca, &rbio->pick.ptr)) {
+	    (ca && dev_ptr_stale(ca, &rbio->pick.ptr))) {
 		trace_and_count(c, read_reuse_race, &rbio->bio);
 
 		if (rbio->flags & BCH_READ_RETRY_IF_STALE)
