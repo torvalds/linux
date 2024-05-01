@@ -63,7 +63,7 @@ struct bpf_testmod_ops___zeroed {
 	int zeroed;
 };
 
-SEC("?struct_ops/test_3")
+SEC("struct_ops/test_3")
 int BPF_PROG(zeroed_op)
 {
 	return 1;

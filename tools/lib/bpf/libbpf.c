@@ -1128,6 +1128,7 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 		const struct btf_type *mtype, *kern_mtype;
 		__u32 mtype_id, kern_mtype_id;
 		void *mdata, *kern_mdata;
+		struct bpf_program *prog;
 		__s64 msize, kern_msize;
 		__u32 moff, kern_moff;
 		__u32 kern_member_idx;
@@ -1145,19 +1146,35 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 
 		kern_member = find_member_by_name(kern_btf, kern_type, mname);
 		if (!kern_member) {
-			/* Skip all zeros or null fields if they are not
-			 * presented in the kernel BTF.
-			 */
-			if (libbpf_is_mem_zeroed(mdata, msize)) {
-				st_ops->progs[i] = NULL;
-				pr_info("struct_ops %s: member %s not found in kernel, skipping it as it's set to zero\n",
+			if (!libbpf_is_mem_zeroed(mdata, msize)) {
+				pr_warn("struct_ops init_kern %s: Cannot find member %s in kernel BTF\n",
 					map->name, mname);
-				continue;
+				return -ENOTSUP;
 			}
 
-			pr_warn("struct_ops init_kern %s: Cannot find member %s in kernel BTF\n",
+			prog = st_ops->progs[i];
+			if (prog) {
+				/* If we had declaratively set struct_ops callback, we need to
+				 * first validate that it's actually a struct_ops program.
+				 * And then force its autoload to false, because it doesn't have
+				 * a chance of succeeding from POV of the current struct_ops map.
+				 * If this program is still referenced somewhere else, though,
+				 * then bpf_object_adjust_struct_ops_autoload() will update its
+				 * autoload accordingly.
+				 */
+				if (!is_valid_st_ops_program(obj, prog)) {
+					pr_warn("struct_ops init_kern %s: member %s is declaratively assigned a non-struct_ops program\n",
+						map->name, mname);
+					return -EINVAL;
+				}
+				prog->autoload = false;
+				st_ops->progs[i] = NULL;
+			}
+
+			/* Skip all-zero/NULL fields if they are not present in the kernel BTF */
+			pr_info("struct_ops %s: member %s not found in kernel, skipping it as it's set to zero\n",
 				map->name, mname);
-			return -ENOTSUP;
+			continue;
 		}
 
 		kern_member_idx = kern_member - btf_members(kern_type);
@@ -1183,8 +1200,6 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 		}
 
 		if (btf_is_ptr(mtype)) {
-			struct bpf_program *prog;
-
 			/* Update the value from the shadow type */
 			prog = *(void **)mdata;
 			st_ops->progs[i] = prog;
