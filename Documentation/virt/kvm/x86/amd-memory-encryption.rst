@@ -95,12 +95,18 @@ Returns: 0 on success, -negative on error
         struct kvm_sev_init {
                 __u64 vmsa_features;  /* initial value of features field in VMSA */
                 __u32 flags;          /* must be 0 */
-                __u32 pad[9];
+                __u16 ghcb_version;   /* maximum guest GHCB version allowed */
+                __u16 pad1;
+                __u32 pad2[8];
         };
 
 It is an error if the hypervisor does not support any of the bits that
 are set in ``flags`` or ``vmsa_features``.  ``vmsa_features`` must be
 0 for SEV virtual machines, as they do not have a VMSA.
+
+``ghcb_version`` must be 0 for SEV virtual machines, as they do not issue GHCB
+requests. If ``ghcb_version`` is 0 for any other guest type, then the maximum
+allowed guest GHCB protocol will default to version 2.
 
 This command replaces the deprecated KVM_SEV_INIT and KVM_SEV_ES_INIT commands.
 The commands did not have any parameters (the ```data``` field was unused) and
@@ -112,7 +118,8 @@ They behave as if:
   KVM_SEV_ES_INIT
 
 * the ``flags`` and ``vmsa_features`` fields of ``struct kvm_sev_init`` are
-  set to zero
+  set to zero, and ``ghcb_version`` is set to 0 for KVM_SEV_INIT and 1 for
+  KVM_SEV_ES_INIT.
 
 If the ``KVM_X86_SEV_VMSA_FEATURES`` attribute does not exist, the hypervisor only
 supports KVM_SEV_INIT and KVM_SEV_ES_INIT.  In that case, note that KVM_SEV_ES_INIT
