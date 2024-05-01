@@ -466,12 +466,12 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		} else {
 			struct hl_bd *bd = queue->kernel_address;
 
-			bd += hl_pi_2_offset(queue->pi);
+			bd += hl_pi_2_offset(pi);
 
 			dev_err(hdev->dev, "Device CPU packet timeout (status = 0x%x)\n"
-					"Pkt info: dma_addr: 0x%llx, kernel_addr: %p, len:0x%x, ctl: 0x%x, ptr:0x%llx, dram_bd:%u\n",
-					tmp, pkt_dma_addr, (void *)pkt, bd->len, bd->ctl, bd->ptr,
-					queue->dram_bd);
+				"Pkt info[%u]: dma_addr: 0x%llx, kernel_addr: %p, len:0x%x, ctl: 0x%x, ptr:0x%llx, dram_bd:%u\n",
+				tmp, pi, pkt_dma_addr, (void *)pkt, bd->len, bd->ctl, bd->ptr,
+				queue->dram_bd);
 		}
 		hdev->device_cpu_disabled = true;
 		goto out;
@@ -681,12 +681,10 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 	int rc;
 
 	memset(&hb_pkt, 0, sizeof(hb_pkt));
-	hb_pkt.ctl = cpu_to_le32(CPUCP_PACKET_TEST <<
-					CPUCP_PKT_CTL_OPCODE_SHIFT);
+	hb_pkt.ctl = cpu_to_le32(CPUCP_PACKET_TEST << CPUCP_PKT_CTL_OPCODE_SHIFT);
 	hb_pkt.value = cpu_to_le64(CPUCP_PACKET_FENCE_VAL);
 
-	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &hb_pkt,
-						sizeof(hb_pkt), 0, &result);
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &hb_pkt, sizeof(hb_pkt), 0, &result);
 
 	if ((rc) || (result != CPUCP_PACKET_FENCE_VAL))
 		return -EIO;
@@ -696,6 +694,8 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 		dev_warn(hdev->dev, "FW reported EQ fault during heartbeat\n");
 		rc = -EIO;
 	}
+
+	hdev->heartbeat_debug_info.last_pq_heartbeat_ts = ktime_get_real_seconds();
 
 	return rc;
 }
