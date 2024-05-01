@@ -15,13 +15,11 @@ enum bkey_invalid_flags;
 
 static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
 {
-	struct bch_dev *ca;
-
-	if (!bch2_dev_exists(c, pos.inode))
-		return false;
-
-	ca = bch2_dev_bkey_exists(c, pos.inode);
-	return bucket_valid(ca, pos.offset);
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_rcu(c, pos.inode);
+	bool ret = ca && bucket_valid(ca, pos.offset);
+	rcu_read_unlock();
+	return ret;
 }
 
 static inline u64 bucket_to_u64(struct bpos bucket)
