@@ -66,10 +66,24 @@ static const char * const metadata_ete_ro[] = {
 	[CS_ETE_TS_SOURCE]		= "ts_source",
 };
 
-static bool cs_etm_is_etmv4(struct perf_pmu *cs_etm_pmu, struct perf_cpu cpu);
+enum cs_etm_version { CS_NOT_PRESENT, CS_ETMV3, CS_ETMV4, CS_ETE };
+
 static bool cs_etm_is_ete(struct perf_pmu *cs_etm_pmu, struct perf_cpu cpu);
 static int cs_etm_get_ro(struct perf_pmu *pmu, struct perf_cpu cpu, const char *path, __u64 *val);
 static bool cs_etm_pmu_path_exists(struct perf_pmu *pmu, struct perf_cpu cpu, const char *path);
+
+static enum cs_etm_version cs_etm_get_version(struct perf_pmu *cs_etm_pmu,
+					      struct perf_cpu cpu)
+{
+	if (cs_etm_is_ete(cs_etm_pmu, cpu))
+		return CS_ETE;
+	else if (cs_etm_pmu_path_exists(cs_etm_pmu, cpu, metadata_etmv4_ro[CS_ETMV4_TRCIDR0]))
+		return CS_ETMV4;
+	else if (cs_etm_pmu_path_exists(cs_etm_pmu, cpu, metadata_etmv3_ro[CS_ETM_ETMCCER]))
+		return CS_ETMV3;
+
+	return CS_NOT_PRESENT;
+}
 
 static int cs_etm_validate_context_id(struct perf_pmu *cs_etm_pmu, struct evsel *evsel,
 				      struct perf_cpu cpu)
@@ -85,7 +99,7 @@ static int cs_etm_validate_context_id(struct perf_pmu *cs_etm_pmu, struct evsel 
 		return 0;
 
 	/* Not supported in etmv3 */
-	if (!cs_etm_is_etmv4(cs_etm_pmu, cpu)) {
+	if (cs_etm_get_version(cs_etm_pmu, cpu) == CS_ETMV3) {
 		pr_err("%s: contextid not supported in ETMv3, disable with %s/contextid=0/\n",
 		       CORESIGHT_ETM_PMU_NAME, CORESIGHT_ETM_PMU_NAME);
 		return -EINVAL;
@@ -141,7 +155,7 @@ static int cs_etm_validate_timestamp(struct perf_pmu *cs_etm_pmu, struct evsel *
 	      perf_pmu__format_bits(cs_etm_pmu, "timestamp")))
 		return 0;
 
-	if (!cs_etm_is_etmv4(cs_etm_pmu, cpu)) {
+	if (cs_etm_get_version(cs_etm_pmu, cpu) == CS_ETMV3) {
 		pr_err("%s: timestamp not supported in ETMv3, disable with %s/timestamp=0/\n",
 		       CORESIGHT_ETM_PMU_NAME, CORESIGHT_ETM_PMU_NAME);
 		return -EINVAL;
@@ -205,6 +219,11 @@ static int cs_etm_validate_config(struct perf_pmu *cs_etm_pmu,
 	}
 
 	perf_cpu_map__for_each_cpu_skip_any(cpu, idx, intersect_cpus) {
+		if (cs_etm_get_version(cs_etm_pmu, cpu) == CS_NOT_PRESENT) {
+			pr_err("%s: Not found on CPU %d. Check hardware and firmware support and that all Coresight drivers are loaded\n",
+			       CORESIGHT_ETM_PMU_NAME, cpu.cpu);
+			return -EINVAL;
+		}
 		err = cs_etm_validate_context_id(cs_etm_pmu, evsel, cpu);
 		if (err)
 			break;
@@ -536,13 +555,13 @@ cs_etm_info_priv_size(struct auxtrace_record *itr,
 		/* Event can be "any" CPU so count all online CPUs. */
 		intersect_cpus = perf_cpu_map__new_online_cpus();
 	}
+	/* Count number of each type of ETM. Don't count if that CPU has CS_NOT_PRESENT. */
 	perf_cpu_map__for_each_cpu_skip_any(cpu, idx, intersect_cpus) {
-		if (cs_etm_is_ete(cs_etm_pmu, cpu))
-			ete++;
-		else if (cs_etm_is_etmv4(cs_etm_pmu, cpu))
-			etmv4++;
-		else
-			etmv3++;
+		enum cs_etm_version v = cs_etm_get_version(cs_etm_pmu, cpu);
+
+		ete   += v == CS_ETE;
+		etmv4 += v == CS_ETMV4;
+		etmv3 += v == CS_ETMV3;
 	}
 	perf_cpu_map__put(intersect_cpus);
 
@@ -550,12 +569,6 @@ cs_etm_info_priv_size(struct auxtrace_record *itr,
 	       (ete   * CS_ETE_PRIV_SIZE) +
 	       (etmv4 * CS_ETMV4_PRIV_SIZE) +
 	       (etmv3 * CS_ETMV3_PRIV_SIZE));
-}
-
-static bool cs_etm_is_etmv4(struct perf_pmu *cs_etm_pmu, struct perf_cpu cpu)
-{
-	/* Take any of the RO files for ETMv4 and see if it present */
-	return cs_etm_pmu_path_exists(cs_etm_pmu, cpu, metadata_etmv4_ro[CS_ETMV4_TRCIDR0]);
 }
 
 static int cs_etm_get_ro(struct perf_pmu *pmu, struct perf_cpu cpu, const char *path, __u64 *val)
@@ -706,21 +719,26 @@ static void cs_etm_get_metadata(struct perf_cpu cpu, u32 *offset,
 	struct perf_pmu *cs_etm_pmu = cs_etm_get_pmu(itr);
 
 	/* first see what kind of tracer this cpu is affined to */
-	if (cs_etm_is_ete(cs_etm_pmu, cpu)) {
+	switch (cs_etm_get_version(cs_etm_pmu, cpu)) {
+	case CS_ETE:
 		magic = __perf_cs_ete_magic;
 		cs_etm_save_ete_header(&info->priv[*offset], itr, cpu);
 
 		/* How much space was used */
 		increment = CS_ETE_PRIV_MAX;
 		nr_trc_params = CS_ETE_PRIV_MAX - CS_ETM_COMMON_BLK_MAX_V1;
-	} else if (cs_etm_is_etmv4(cs_etm_pmu, cpu)) {
+		break;
+
+	case CS_ETMV4:
 		magic = __perf_cs_etmv4_magic;
 		cs_etm_save_etmv4_header(&info->priv[*offset], itr, cpu);
 
 		/* How much space was used */
 		increment = CS_ETMV4_PRIV_MAX;
 		nr_trc_params = CS_ETMV4_PRIV_MAX - CS_ETMV4_TRCCONFIGR;
-	} else {
+		break;
+
+	case CS_ETMV3:
 		magic = __perf_cs_etmv3_magic;
 		/* Get configuration register */
 		info->priv[*offset + CS_ETM_ETMCR] = cs_etm_get_config(itr);
@@ -736,6 +754,13 @@ static void cs_etm_get_metadata(struct perf_cpu cpu, u32 *offset,
 		/* How much space was used */
 		increment = CS_ETM_PRIV_MAX;
 		nr_trc_params = CS_ETM_PRIV_MAX - CS_ETM_ETMCR;
+		break;
+
+	default:
+	case CS_NOT_PRESENT:
+		/* Unreachable, CPUs already validated in cs_etm_validate_config() */
+		assert(true);
+		return;
 	}
 
 	/* Build generic header portion */
