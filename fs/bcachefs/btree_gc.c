@@ -1257,7 +1257,7 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 
-		if (ptr_stale(ca, ptr) > 16) {
+		if (dev_ptr_stale(ca, ptr) > 16) {
 			percpu_up_read(&c->mark_lock);
 			goto update;
 		}

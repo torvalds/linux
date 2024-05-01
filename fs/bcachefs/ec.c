@@ -714,7 +714,7 @@ static void ec_block_endio(struct bio *bio)
 			       bch2_blk_status_to_str(bio->bi_status)))
 		clear_bit(ec_bio->idx, ec_bio->buf->valid);
 
-	if (ptr_stale(ca, ptr)) {
+	if (dev_ptr_stale(ca, ptr)) {
 		bch_err_ratelimited(ca->fs,
 				    "error %s stripe: stale pointer after io",
 				    bio_data_dir(bio) == READ ? "reading from" : "writing to");
@@ -738,7 +738,7 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		: BCH_DATA_parity;
 	int rw = op_is_write(opf);
 
-	if (ptr_stale(ca, ptr)) {
+	if (dev_ptr_stale(ca, ptr)) {
 		bch_err_ratelimited(c,
 				    "error %s stripe: stale pointer",
 				    rw == READ ? "reading from" : "writing to");

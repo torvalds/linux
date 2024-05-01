@@ -697,7 +697,7 @@ static void bch2_read_endio(struct bio *bio)
 	}
 
 	if (((rbio->flags & BCH_READ_RETRY_IF_STALE) && race_fault()) ||
-	    ptr_stale(ca, &rbio->pick.ptr)) {
+	    dev_ptr_stale(ca, &rbio->pick.ptr)) {
 		trace_and_count(c, read_reuse_race, &rbio->bio);
 
 		if (rbio->flags & BCH_READ_RETRY_IF_STALE)
@@ -841,7 +841,7 @@ retry_pick:
 	 */
 	if ((flags & BCH_READ_IN_RETRY) &&
 	    !pick.ptr.cached &&
-	    unlikely(ptr_stale(ca, &pick.ptr))) {
+	    unlikely(dev_ptr_stale(ca, &pick.ptr))) {
 		read_from_stale_dirty_pointer(trans, k, pick.ptr);
 		bch2_mark_io_failure(failed, &pick);
 		goto retry_pick;

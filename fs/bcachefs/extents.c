@@ -132,7 +132,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 		if (!ret && !p.ptr.cached)
 			ret = -EIO;
 
-		if (p.ptr.cached && ptr_stale(ca, &p.ptr))
+		if (p.ptr.cached && dev_ptr_stale(ca, &p.ptr))
 			continue;
 
 		f = failed ? dev_io_failures(failed, p.ptr.dev) : NULL;
@@ -874,7 +874,7 @@ bool bch2_bkey_has_target(struct bch_fs *c, struct bkey_s_c k, unsigned target)
 	bkey_for_each_ptr(ptrs, ptr)
 		if (bch2_dev_in_target(c, ptr->dev, target) &&
 		    (!ptr->cached ||
-		     !ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr)))
+		     !dev_ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr)))
 			return true;
 
 	return false;
@@ -981,7 +981,7 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 {
 	bch2_bkey_drop_ptrs(k, ptr,
 		ptr->cached &&
-		ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr));
+		dev_ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr));
 
 	return bkey_deleted(k.k);
 }
@@ -1005,7 +1005,7 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 			prt_str(out, " cached");
 		if (ptr->unwritten)
 			prt_str(out, " unwritten");
-		if (bucket_valid(ca, b) && ptr_stale(ca, ptr))
+		if (bucket_valid(ca, b) && dev_ptr_stale_rcu(ca, ptr))
 			prt_printf(out, " stale");
 	}
 	rcu_read_unlock();
