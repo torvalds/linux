@@ -4,6 +4,7 @@
 
 use super::{AllocError, Flags};
 use alloc::vec::Vec;
+use core::ptr;
 
 /// Extensions to [`Vec`].
 pub trait VecExt<T>: Sized {
@@ -134,14 +135,20 @@ impl<T> VecExt<T> for Vec<T> {
         let new_cap = core::cmp::max(cap * 2, len.checked_add(additional).ok_or(AllocError)?);
         let layout = core::alloc::Layout::array::<T>(new_cap).map_err(|_| AllocError)?;
 
-        let (ptr, len, cap) = destructure(self);
+        let (old_ptr, len, cap) = destructure(self);
+
+        // We need to make sure that `ptr` is either NULL or comes from a previous call to
+        // `krealloc_aligned`. A `Vec<T>`'s `ptr` value is not guaranteed to be NULL and might be
+        // dangling after being created with `Vec::new`. Instead, we can rely on `Vec<T>`'s capacity
+        // to be zero if no memory has been allocated yet.
+        let ptr = if cap == 0 { ptr::null_mut() } else { old_ptr };
 
         // SAFETY: `ptr` is valid because it's either NULL or comes from a previous call to
         // `krealloc_aligned`. We also verified that the type is not a ZST.
         let new_ptr = unsafe { super::allocator::krealloc_aligned(ptr.cast(), layout, flags) };
         if new_ptr.is_null() {
             // SAFETY: We are just rebuilding the existing `Vec` with no changes.
-            unsafe { rebuild(self, ptr, len, cap) };
+            unsafe { rebuild(self, old_ptr, len, cap) };
             Err(AllocError)
         } else {
             // SAFETY: `ptr` has been reallocated with the layout for `new_cap` elements. New cap
