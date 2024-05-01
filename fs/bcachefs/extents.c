@@ -986,9 +986,14 @@ void bch2_extent_ptr_set_cached(struct bkey_s k, struct bch_extent_ptr *ptr)
  */
 bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 {
+	struct bch_dev *ca;
+
+	rcu_read_lock();
 	bch2_bkey_drop_ptrs(k, ptr,
 		ptr->cached &&
-		dev_ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr));
+		(ca = bch2_dev_rcu(c, ptr->dev)) &&
+		dev_ptr_stale_rcu(ca, ptr));
+	rcu_read_unlock();
 
 	return bkey_deleted(k.k);
 }
