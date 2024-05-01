@@ -1083,9 +1083,6 @@ static int extent_ptr_invalid(struct bch_fs *c,
 			      struct printbuf *err)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	u64 bucket;
-	u32 bucket_offset;
-	struct bch_dev *ca;
 	int ret = 0;
 
 	if (!bch2_dev_exists(c, ptr->dev)) {
@@ -1101,24 +1098,35 @@ static int extent_ptr_invalid(struct bch_fs *c,
 			   "pointer to invalid device (%u)", ptr->dev);
 	}
 
-	ca = bch2_dev_bkey_exists(c, ptr->dev);
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
+	if (!ca) {
+		rcu_read_unlock();
+		return 0;
+	}
+	u32 bucket_offset;
+	u64 bucket = sector_to_bucket_and_offset(ca, ptr->offset, &bucket_offset);
+	unsigned first_bucket	= ca->mi.first_bucket;
+	u64 nbuckets		= ca->mi.nbuckets;
+	unsigned bucket_size	= ca->mi.bucket_size;
+	rcu_read_unlock();
+
 	bkey_for_each_ptr(ptrs, ptr2)
 		bkey_fsck_err_on(ptr != ptr2 && ptr->dev == ptr2->dev, c, err,
 				 ptr_to_duplicate_device,
 				 "multiple pointers to same device (%u)", ptr->dev);
 
-	bucket = sector_to_bucket_and_offset(ca, ptr->offset, &bucket_offset);
 
-	bkey_fsck_err_on(bucket >= ca->mi.nbuckets, c, err,
+	bkey_fsck_err_on(bucket >= nbuckets, c, err,
 			 ptr_after_last_bucket,
-			 "pointer past last bucket (%llu > %llu)", bucket, ca->mi.nbuckets);
-	bkey_fsck_err_on(ptr->offset < bucket_to_sector(ca, ca->mi.first_bucket), c, err,
+			 "pointer past last bucket (%llu > %llu)", bucket, nbuckets);
+	bkey_fsck_err_on(bucket < first_bucket, c, err,
 			 ptr_before_first_bucket,
-			 "pointer before first bucket (%llu < %u)", bucket, ca->mi.first_bucket);
-	bkey_fsck_err_on(bucket_offset + size_ondisk > ca->mi.bucket_size, c, err,
+			 "pointer before first bucket (%llu < %u)", bucket, first_bucket);
+	bkey_fsck_err_on(bucket_offset + size_ondisk > bucket_size, c, err,
 			 ptr_spans_multiple_buckets,
 			 "pointer spans multiple buckets (%u + %u > %u)",
-		       bucket_offset, size_ondisk, ca->mi.bucket_size);
+		       bucket_offset, size_ondisk, bucket_size);
 fsck_err:
 	return ret;
 }
