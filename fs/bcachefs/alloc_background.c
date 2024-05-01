@@ -960,35 +960,34 @@ static struct bkey_s_c bch2_get_key_or_hole(struct btree_iter *iter, struct bpos
 	}
 }
 
-static bool next_bucket(struct bch_fs *c, struct bpos *bucket)
+static bool next_bucket(struct bch_fs *c, struct bch_dev **ca, struct bpos *bucket)
 {
-	struct bch_dev *ca;
+	if (*ca) {
+		if (bucket->offset < (*ca)->mi.first_bucket)
+			bucket->offset = (*ca)->mi.first_bucket;
 
-	if (bch2_dev_bucket_exists(c, *bucket))
-		return true;
-
-	if (bch2_dev_exists(c, bucket->inode)) {
-		ca = bch2_dev_bkey_exists(c, bucket->inode);
-
-		if (bucket->offset < ca->mi.first_bucket) {
-			bucket->offset = ca->mi.first_bucket;
+		if (bucket->offset < (*ca)->mi.nbuckets)
 			return true;
-		}
 
+		bch2_dev_put(*ca);
+		*ca = NULL;
 		bucket->inode++;
 		bucket->offset = 0;
 	}
 
 	rcu_read_lock();
-	ca = __bch2_next_dev_idx(c, bucket->inode, NULL);
-	if (ca)
-		*bucket = POS(ca->dev_idx, ca->mi.first_bucket);
+	*ca = __bch2_next_dev_idx(c, bucket->inode, NULL);
+	if (*ca) {
+		*bucket = POS((*ca)->dev_idx, (*ca)->mi.first_bucket);
+		bch2_dev_get(*ca);
+	}
 	rcu_read_unlock();
 
-	return ca != NULL;
+	return *ca != NULL;
 }
 
-static struct bkey_s_c bch2_get_key_or_real_bucket_hole(struct btree_iter *iter, struct bkey *hole)
+static struct bkey_s_c bch2_get_key_or_real_bucket_hole(struct btree_iter *iter,
+					struct bch_dev **ca, struct bkey *hole)
 {
 	struct bch_fs *c = iter->trans->c;
 	struct bkey_s_c k;
@@ -997,22 +996,21 @@ again:
 	if (bkey_err(k))
 		return k;
 
-	if (!k.k->type) {
-		struct bpos bucket = bkey_start_pos(k.k);
+	*ca = bch2_dev_iterate_noerror(c, *ca, k.k->p.inode);
 
-		if (!bch2_dev_bucket_exists(c, bucket)) {
-			if (!next_bucket(c, &bucket))
+	if (!k.k->type) {
+		struct bpos hole_start = bkey_start_pos(k.k);
+
+		if (!*ca || !bucket_valid(*ca, hole_start.offset)) {
+			if (!next_bucket(c, ca, &hole_start))
 				return bkey_s_c_null;
 
-			bch2_btree_iter_set_pos(iter, bucket);
+			bch2_btree_iter_set_pos(iter, hole_start);
 			goto again;
 		}
 
-		if (!bch2_dev_bucket_exists(c, k.k->p)) {
-			struct bch_dev *ca = bch2_dev_bkey_exists(c, bucket.inode);
-
-			bch2_key_resize(hole, ca->mi.nbuckets - bucket.offset);
-		}
+		if (k.k->p.offset > (*ca)->mi.nbuckets)
+			bch2_key_resize(hole, (*ca)->mi.nbuckets - hole_start.offset);
 	}
 
 	return k;
@@ -1154,17 +1152,16 @@ fsck_err:
 
 static noinline_for_stack
 int bch2_check_alloc_hole_freespace(struct btree_trans *trans,
+				    struct bch_dev *ca,
 				    struct bpos start,
 				    struct bpos *end,
 				    struct btree_iter *freespace_iter)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca;
 	struct bkey_s_c k;
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	ca = bch2_dev_bkey_exists(c, start.inode);
 	if (!ca->mi.freespace_initialized)
 		return 0;
 
@@ -1342,30 +1339,25 @@ int bch2_check_bucket_gens_key(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_i_bucket_gens g;
-	struct bch_dev *ca;
 	u64 start = bucket_gens_pos_to_alloc(k.k->p, 0).offset;
 	u64 end = bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0).offset;
 	u64 b;
-	bool need_update = false, dev_exists;
+	bool need_update = false;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	BUG_ON(k.k->type != KEY_TYPE_bucket_gens);
 	bkey_reassemble(&g.k_i, k);
 
-	/* if no bch_dev, skip out whether we repair or not */
-	dev_exists = bch2_dev_exists(c, k.k->p.inode);
-	if (!dev_exists) {
-		if (fsck_err_on(!dev_exists, c,
-				bucket_gens_to_invalid_dev,
-				"bucket_gens key for invalid device:\n  %s",
-				(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+	struct bch_dev *ca = bch2_dev_tryget_noerror(c, k.k->p.inode);
+	if (!ca) {
+		if (fsck_err(c, bucket_gens_to_invalid_dev,
+			     "bucket_gens key for invalid device:\n  %s",
+			     (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			ret = bch2_btree_delete_at(trans, iter, 0);
-		}
 		goto out;
 	}
 
-	ca = bch2_dev_bkey_exists(c, k.k->p.inode);
 	if (fsck_err_on(end <= ca->mi.first_bucket ||
 			start >= ca->mi.nbuckets, c,
 			bucket_gens_to_invalid_buckets,
@@ -1403,6 +1395,7 @@ int bch2_check_bucket_gens_key(struct btree_trans *trans,
 	}
 out:
 fsck_err:
+	bch2_dev_put(ca);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1411,6 +1404,7 @@ int bch2_check_alloc_info(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter, discard_iter, freespace_iter, bucket_gens_iter;
+	struct bch_dev *ca = NULL;
 	struct bkey hole;
 	struct bkey_s_c k;
 	int ret = 0;
@@ -1429,7 +1423,7 @@ int bch2_check_alloc_info(struct bch_fs *c)
 
 		bch2_trans_begin(trans);
 
-		k = bch2_get_key_or_real_bucket_hole(&iter, &hole);
+		k = bch2_get_key_or_real_bucket_hole(&iter, &ca, &hole);
 		ret = bkey_err(k);
 		if (ret)
 			goto bkey_err;
@@ -1450,7 +1444,7 @@ int bch2_check_alloc_info(struct bch_fs *c)
 		} else {
 			next = k.k->p;
 
-			ret = bch2_check_alloc_hole_freespace(trans,
+			ret = bch2_check_alloc_hole_freespace(trans, ca,
 						    bkey_start_pos(k.k),
 						    &next,
 						    &freespace_iter) ?:
@@ -1478,6 +1472,8 @@ bkey_err:
 	bch2_trans_iter_exit(trans, &freespace_iter);
 	bch2_trans_iter_exit(trans, &discard_iter);
 	bch2_trans_iter_exit(trans, &iter);
+	bch2_dev_put(ca);
+	ca = NULL;
 
 	if (ret < 0)
 		goto err;

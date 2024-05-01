@@ -269,6 +269,14 @@ static inline struct bch_dev *bch2_dev_bucket_tryget(struct bch_fs *c, struct bp
 	return ca;
 }
 
+static inline struct bch_dev *bch2_dev_iterate_noerror(struct bch_fs *c, struct bch_dev *ca, unsigned dev_idx)
+{
+	if (ca && ca->dev_idx == dev_idx)
+		return ca;
+	bch2_dev_put(ca);
+	return bch2_dev_tryget_noerror(c, dev_idx);
+}
+
 static inline struct bch_dev *bch2_dev_iterate(struct bch_fs *c, struct bch_dev *ca, unsigned dev_idx)
 {
 	if (ca && ca->dev_idx == dev_idx)
