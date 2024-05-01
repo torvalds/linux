@@ -1402,9 +1402,22 @@ int smu_v14_0_set_vcn_enable(struct smu_context *smu,
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
-						      SMU_MSG_PowerUpVcn : SMU_MSG_PowerDownVcn,
-						      i << 16U, NULL);
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
+		    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+			if (i == 0)
+				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+								      SMU_MSG_PowerUpVcn0 : SMU_MSG_PowerDownVcn0,
+								      i << 16U, NULL);
+			else if (i == 1)
+				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+								      SMU_MSG_PowerUpVcn1 : SMU_MSG_PowerDownVcn1,
+								      i << 16U, NULL);
+		} else {
+			ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+							      SMU_MSG_PowerUpVcn : SMU_MSG_PowerDownVcn,
+							      i << 16U, NULL);
+		}
+
 		if (ret)
 			return ret;
 	}
@@ -1415,9 +1428,34 @@ int smu_v14_0_set_vcn_enable(struct smu_context *smu,
 int smu_v14_0_set_jpeg_enable(struct smu_context *smu,
 			      bool enable)
 {
-	return smu_cmn_send_smc_msg_with_param(smu, enable ?
-					       SMU_MSG_PowerUpJpeg : SMU_MSG_PowerDownJpeg,
-					       0, NULL);
+	struct amdgpu_device *adev = smu->adev;
+	int i, ret = 0;
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
+		if (adev->jpeg.harvest_config & (1 << i))
+			continue;
+
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
+		    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+			if (i == 0)
+				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+								      SMU_MSG_PowerUpJpeg0 : SMU_MSG_PowerDownJpeg0,
+								      i << 16U, NULL);
+			else if (i == 1 && amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+								      SMU_MSG_PowerUpJpeg1 : SMU_MSG_PowerDownJpeg1,
+								      i << 16U, NULL);
+		} else {
+			ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+							      SMU_MSG_PowerUpJpeg : SMU_MSG_PowerDownJpeg,
+							      i << 16U, NULL);
+		}
+
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 int smu_v14_0_run_btc(struct smu_context *smu)

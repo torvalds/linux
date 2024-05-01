@@ -1653,20 +1653,22 @@ long populate_vma_page_range(struct vm_area_struct *vma,
 	if (vma->vm_flags & VM_LOCKONFAULT)
 		return nr_pages;
 
+	/* ... similarly, we've never faulted in PROT_NONE pages */
+	if (!vma_is_accessible(vma))
+		return -EFAULT;
+
 	gup_flags = FOLL_TOUCH;
 	/*
 	 * We want to touch writable mappings with a write fault in order
 	 * to break COW, except for shared mappings because these don't COW
 	 * and we would not want to dirty them for nothing.
+	 *
+	 * Otherwise, do a read fault, and use FOLL_FORCE in case it's not
+	 * readable (ie write-only or executable).
 	 */
 	if ((vma->vm_flags & (VM_WRITE | VM_SHARED)) == VM_WRITE)
 		gup_flags |= FOLL_WRITE;
-
-	/*
-	 * We want mlock to succeed for regions that have any permissions
-	 * other than PROT_NONE.
-	 */
-	if (vma_is_accessible(vma))
+	else
 		gup_flags |= FOLL_FORCE;
 
 	if (locked)

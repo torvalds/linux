@@ -1541,7 +1541,7 @@ sub create_parameterlist($$$$) {
                     save_struct_actual($2);
 
                     push_parameter($2, "$type $1", $arg, $file, $declaration_name);
-                } elsif ($param =~ m/(.*?):(\d+)/) {
+                } elsif ($param =~ m/(.*?):(\w+)/) {
                     if ($type ne "") { # skip unnamed bit-fields
                         save_struct_actual($1);
                         push_parameter($1, "$type:$2", $arg, $file, $declaration_name)
