@@ -49,11 +49,6 @@ void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			       struct journal_replay *j)
 {
 	darray_for_each(j->ptrs, i) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, i->dev);
-		u64 offset;
-
-		div64_u64_rem(i->sector, ca->mi.bucket_size, &offset);
-
 		if (i != j->ptrs.data)
 			prt_printf(out, " ");
 		prt_printf(out, "%u:%u:%u (sector %llu)",
