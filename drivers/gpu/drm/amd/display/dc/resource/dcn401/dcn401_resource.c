@@ -1772,8 +1772,8 @@ static bool dcn401_resource_construct(
 	pool->base.pipe_count = num_pipes;
 	pool->base.mpcc_count = num_pipes;
 	dc->caps.max_downscale_ratio = 600;
-	dc->caps.i2c_speed_in_khz = 100;
-	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a applied by default*/
+	dc->caps.i2c_speed_in_khz = 95;
+	dc->caps.i2c_speed_in_khz_hdcp = 95; /*1.4 w/a applied by default*/
 	/* TODO: Bring max cursor size back to 256 after subvp cursor corruption is fixed*/
 	dc->caps.max_cursor_size = 64;
 	dc->caps.cursor_not_scaled = true;
