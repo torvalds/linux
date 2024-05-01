@@ -1664,10 +1664,11 @@ static int blk_revalidate_zone_cb(struct blk_zone *zone, unsigned int idx,
 		 * empty nor full. So make sure we have a zone write plug for
 		 * such zone if the device has a zone write plug hash table.
 		 */
+		if (!disk->zone_wplugs_hash)
+			break;
 		wp_offset = blk_zone_wp_offset(zone);
-		if (disk->zone_wplugs_hash &&
-		    wp_offset && wp_offset < zone_sectors) {
-			zwplug = disk_get_and_lock_zone_wplug(disk, zone->start,
+		if (wp_offset && wp_offset < zone->capacity) {
+			zwplug = disk_get_and_lock_zone_wplug(disk, zone->wp,
 							      GFP_NOIO, &flags);
 			if (!zwplug)
 				return -ENOMEM;
