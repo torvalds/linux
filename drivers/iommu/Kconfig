@@ -376,7 +376,7 @@ config ARM_SMMU_QCOM
 
 config ARM_SMMU_QCOM_DEBUG
 	bool "ARM SMMU QCOM implementation defined debug support"
-	depends on ARM_SMMU_QCOM
+	depends on ARM_SMMU_QCOM=y
 	help
 	  Support for implementation specific debug features in ARM SMMU
 	  hardware found in QTI platforms. This include support for
