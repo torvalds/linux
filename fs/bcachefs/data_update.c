@@ -544,8 +544,16 @@ int bch2_data_update_init(struct btree_trans *trans,
 	m->op.compression_opt	= background_compression(io_opts);
 	m->op.watermark		= m->data_opts.btree_insert_flags & BCH_WATERMARK_MASK;
 
-	bkey_for_each_ptr(ptrs, ptr)
-		bch2_dev_get(bch2_dev_bkey_exists(c, ptr->dev));
+	bkey_for_each_ptr(ptrs, ptr) {
+		if (!bch2_dev_tryget(c, ptr->dev)) {
+			bkey_for_each_ptr(ptrs, ptr2) {
+				if (ptr2 == ptr)
+					break;
+				bch2_dev_put(bch2_dev_have_ref(c, ptr2->dev));
+			}
+			return -BCH_ERR_data_update_done;
+		}
+	}
 
 	unsigned durability_have = 0, durability_removing = 0;
 
