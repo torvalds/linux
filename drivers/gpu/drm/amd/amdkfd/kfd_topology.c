@@ -1772,7 +1772,7 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 	pr_debug("Added [%d] GPU cache entries\n", num_of_entries);
 }
 
-static int kfd_topology_add_device_locked(struct kfd_node *gpu, uint32_t gpu_id,
+static int kfd_topology_add_device_locked(struct kfd_node *gpu,
 					  struct kfd_topology_device **dev)
 {
 	int proximity_domain = ++topology_crat_proximity_domain;
@@ -1785,8 +1785,7 @@ static int kfd_topology_add_device_locked(struct kfd_node *gpu, uint32_t gpu_id,
 					    COMPUTE_UNIT_GPU, gpu,
 					    proximity_domain);
 	if (res) {
-		pr_err("Error creating VCRAT for GPU (ID: 0x%x)\n",
-		       gpu_id);
+		dev_err(gpu->adev->dev, "Error creating VCRAT\n");
 		topology_crat_proximity_domain--;
 		goto err;
 	}
@@ -1797,8 +1796,7 @@ static int kfd_topology_add_device_locked(struct kfd_node *gpu, uint32_t gpu_id,
 				   &temp_topology_device_list,
 				   proximity_domain);
 	if (res) {
-		pr_err("Error parsing VCRAT for GPU (ID: 0x%x)\n",
-		       gpu_id);
+		dev_err(gpu->adev->dev, "Error parsing VCRAT\n");
 		topology_crat_proximity_domain--;
 		goto err;
 	}
@@ -1824,8 +1822,8 @@ static int kfd_topology_add_device_locked(struct kfd_node *gpu, uint32_t gpu_id,
 	if (!res)
 		sys_props.generation_count++;
 	else
-		pr_err("Failed to update GPU (ID: 0x%x) to sysfs topology. res=%d\n",
-		       gpu_id, res);
+		dev_err(gpu->adev->dev, "Failed to update GPU to sysfs topology. res=%d\n",
+			res);
 
 err:
 	kfd_destroy_crat_image(crat_image);
@@ -1950,11 +1948,10 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	gpu_id = kfd_generate_gpu_id(gpu);
 	if (gpu->xcp && !gpu->xcp->ddev) {
 		dev_warn(gpu->adev->dev,
-		"Won't add GPU (ID: 0x%x) to topology since it has no drm node assigned.",
-		gpu_id);
+			 "Won't add GPU to topology since it has no drm node assigned.");
 		return 0;
 	} else {
-		pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
+		dev_dbg(gpu->adev->dev, "Adding new GPU to topology\n");
 	}
 
 	/* Check to see if this gpu device exists in the topology_device_list.
@@ -1966,7 +1963,7 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	down_write(&topology_lock);
 	dev = kfd_assign_gpu(gpu);
 	if (!dev)
-		res = kfd_topology_add_device_locked(gpu, gpu_id, &dev);
+		res = kfd_topology_add_device_locked(gpu, &dev);
 	up_write(&topology_lock);
 	if (res)
 		return res;
