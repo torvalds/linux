@@ -1048,33 +1048,6 @@ struct octet_string {
 	u16 length;
 };
 
-struct rtl_hdr_3addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-	u8 payload[];
-} __packed;
-
-struct rtl_info_element {
-	u8 id;
-	u8 len;
-	u8 data[];
-} __packed;
-
-struct rtl_probe_rsp {
-	struct rtl_hdr_3addr header;
-	u32 time_stamp[2];
-	__le16 beacon_interval;
-	__le16 capability;
-	/*SSID, supported rates, FH params, DS params,
-	 * CF params, IBSS params, TIM (if beacon), RSN
-	 */
-	struct rtl_info_element info_element[];
-} __packed;
-
 struct rtl_led_ctl {
 	bool led_opendrain;
 	enum rtl_led_pin sw_led0;
