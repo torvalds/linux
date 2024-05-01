@@ -1937,12 +1937,16 @@ static void gve_turndown(struct gve_priv *priv)
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
 		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
+		if (!gve_tx_was_added_to_block(priv, idx))
+			continue;
 		napi_disable(&block->napi);
 	}
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
 		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
+		if (!gve_rx_was_added_to_block(priv, idx))
+			continue;
 		napi_disable(&block->napi);
 	}
 
@@ -1965,6 +1969,9 @@ static void gve_turnup(struct gve_priv *priv)
 		int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
 		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
+		if (!gve_tx_was_added_to_block(priv, idx))
+			continue;
+
 		napi_enable(&block->napi);
 		if (gve_is_gqi(priv)) {
 			iowrite32be(0, gve_irq_doorbell(priv, block));
@@ -1976,6 +1983,9 @@ static void gve_turnup(struct gve_priv *priv)
 	for (idx = 0; idx < priv->rx_cfg.num_queues; idx++) {
 		int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
 		struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+		if (!gve_rx_was_added_to_block(priv, idx))
+			continue;
 
 		napi_enable(&block->napi);
 		if (gve_is_gqi(priv)) {
