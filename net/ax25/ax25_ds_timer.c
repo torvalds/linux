@@ -55,6 +55,7 @@ void ax25_ds_set_timer(ax25_dev *ax25_dev)
 	ax25_dev->dama.slave_timeout =
 		msecs_to_jiffies(ax25_dev->values[AX25_VALUES_DS_TIMEOUT]) / 10;
 	mod_timer(&ax25_dev->dama.slave_timer, jiffies + HZ);
+	return;
 }
 
 /*
