@@ -4727,3 +4727,18 @@ next_pfn:
 		cond_resched();
 	}
 }
+
+int sev_private_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn)
+{
+	int level, rc;
+	bool assigned;
+
+	if (!sev_snp_guest(kvm))
+		return 0;
+
+	rc = snp_lookup_rmpentry(pfn, &assigned, &level);
+	if (rc || !assigned)
+		return PG_LEVEL_4K;
+
+	return level;
+}
