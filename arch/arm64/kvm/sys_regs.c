@@ -3510,26 +3510,16 @@ void kvm_sys_regs_create_debugfs(struct kvm *kvm)
 			    &idregs_debug_fops);
 }
 
-static void kvm_reset_id_regs(struct kvm_vcpu *vcpu)
+static void reset_vm_ftr_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *reg)
 {
-	const struct sys_reg_desc *idreg = first_idreg;
-	u32 id = reg_to_encoding(idreg);
+	u32 id = reg_to_encoding(reg);
 	struct kvm *kvm = vcpu->kvm;
 
 	if (test_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags))
 		return;
 
 	lockdep_assert_held(&kvm->arch.config_lock);
-
-	/* Initialize all idregs */
-	while (is_vm_ftr_id_reg(id)) {
-		IDREG(kvm, id) = idreg->reset(vcpu, idreg);
-
-		idreg++;
-		id = reg_to_encoding(idreg);
-	}
-
-	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
+	IDREG(kvm, id) = reg->reset(vcpu, reg);
 }
 
 /**
@@ -3541,19 +3531,22 @@ static void kvm_reset_id_regs(struct kvm_vcpu *vcpu)
  */
 void kvm_reset_sys_regs(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = vcpu->kvm;
 	unsigned long i;
-
-	kvm_reset_id_regs(vcpu);
 
 	for (i = 0; i < ARRAY_SIZE(sys_reg_descs); i++) {
 		const struct sys_reg_desc *r = &sys_reg_descs[i];
 
-		if (is_vm_ftr_id_reg(reg_to_encoding(r)))
+		if (!r->reset)
 			continue;
 
-		if (r->reset)
+		if (is_vm_ftr_id_reg(reg_to_encoding(r)))
+			reset_vm_ftr_id_reg(vcpu, r);
+		else
 			r->reset(vcpu, r);
 	}
+
+	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
 }
 
 /**
