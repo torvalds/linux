@@ -157,6 +157,9 @@ int set_blocksize(struct file *file, int size)
 	if (size < bdev_logical_block_size(bdev))
 		return -EINVAL;
 
+	if (!file->private_data)
+		return -EINVAL;
+
 	/* Don't change the size if it is same as current */
 	if (inode->i_blkbits != blksize_bits(size)) {
 		sync_blockdev(bdev);

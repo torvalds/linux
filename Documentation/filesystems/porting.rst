@@ -1134,3 +1134,10 @@ superblock of the main block device, i.e., the one stored in sb->s_bdev. Block
 device freezing now works for any block device owned by a given superblock, not
 just the main block device. The get_active_super() helper and bd_fsfreeze_sb
 pointer are gone.
+
+---
+
+**mandatory**
+
+set_blocksize() takes opened struct file instead of struct block_device now
+and it *must* be opened exclusive.
