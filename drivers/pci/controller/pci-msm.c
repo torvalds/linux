@@ -7748,13 +7748,10 @@ static int msm_pcie_check_l0s_support(struct pci_dev *pdev, void *dev)
 
 	/* check parent supports L0s */
 	if (parent) {
-		u32 val2;
 
 		pci_read_config_dword(parent, parent->pcie_cap + PCI_EXP_LNKCAP,
 					&val);
-		pci_read_config_dword(parent, parent->pcie_cap + PCI_EXP_LNKCTL,
-					&val2);
-		val = (val & BIT(10)) && (val2 & PCI_EXP_LNKCTL_ASPM_L0S);
+		val = (val & BIT(10));
 		if (!val) {
 			PCIE_DBG(pcie_dev,
 				"PCIe: RC%d: Parent PCI device %02x:%02x.%01x does not support L0s\n",
