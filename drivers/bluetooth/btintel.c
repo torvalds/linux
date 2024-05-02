@@ -481,6 +481,7 @@ static int btintel_version_info_tlv(struct hci_dev *hdev,
 	case 0x19:	/* Slr-F */
 	case 0x1b:      /* Mgr */
 	case 0x1c:	/* Gale Peak (GaP) */
+	case 0x1e:	/* BlazarI (Bzr) */
 		break;
 	default:
 		bt_dev_err(hdev, "Unsupported Intel hardware variant (0x%x)",
@@ -2698,6 +2699,7 @@ static void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
 	case 0x19:
 	case 0x1b:
 	case 0x1c:
+	case 0x1e:
 		hci_set_msft_opcode(hdev, 0xFC1E);
 		break;
 	default:
@@ -3037,6 +3039,7 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 	case 0x19:
 	case 0x1b:
 	case 0x1c:
+	case 0x1e:
 		/* Display version information of TLV type */
 		btintel_version_info_tlv(hdev, &ver_tlv);
 
