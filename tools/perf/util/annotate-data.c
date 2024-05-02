@@ -28,6 +28,8 @@
 /* register number of the stack pointer */
 #define X86_REG_SP 7
 
+static void delete_var_types(struct die_var_type *var_types);
+
 enum type_state_kind {
 	TSR_KIND_INVALID = 0,
 	TSR_KIND_TYPE,
@@ -557,8 +559,8 @@ static bool global_var__add(struct data_loc_info *dloc, u64 addr,
 	if (gvar == NULL)
 		return false;
 
-	gvar->name = strdup(name);
-	if (gvar->name == NULL) {
+	gvar->name = name ? strdup(name) : NULL;
+	if (name && gvar->name == NULL) {
 		free(gvar);
 		return false;
 	}
@@ -612,6 +614,53 @@ static bool get_global_var_info(struct data_loc_info *dloc, u64 addr,
 	return true;
 }
 
+static void global_var__collect(struct data_loc_info *dloc)
+{
+	Dwarf *dwarf = dloc->di->dbg;
+	Dwarf_Off off, next_off;
+	Dwarf_Die cu_die, type_die;
+	size_t header_size;
+
+	/* Iterate all CU and collect global variables that have no location in a register. */
+	off = 0;
+	while (dwarf_nextcu(dwarf, off, &next_off, &header_size,
+			    NULL, NULL, NULL) == 0) {
+		struct die_var_type *var_types = NULL;
+		struct die_var_type *pos;
+
+		if (dwarf_offdie(dwarf, off + header_size, &cu_die) == NULL) {
+			off = next_off;
+			continue;
+		}
+
+		die_collect_global_vars(&cu_die, &var_types);
+
+		for (pos = var_types; pos; pos = pos->next) {
+			const char *var_name = NULL;
+			int var_offset = 0;
+
+			if (pos->reg != -1)
+				continue;
+
+			if (!dwarf_offdie(dwarf, pos->die_off, &type_die))
+				continue;
+
+			if (!get_global_var_info(dloc, pos->addr, &var_name,
+						 &var_offset))
+				continue;
+
+			if (var_offset != 0)
+				continue;
+
+			global_var__add(dloc, pos->addr, var_name, &type_die);
+		}
+
+		delete_var_types(var_types);
+
+		off = next_off;
+	}
+}
+
 static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 				u64 ip, u64 var_addr, int *var_offset,
 				Dwarf_Die *type_die)
@@ -620,7 +669,11 @@ static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 	int offset;
 	const char *var_name = NULL;
 	struct global_var_entry *gvar;
+	struct dso *dso = map__dso(dloc->ms->map);
 	Dwarf_Die var_die;
+
+	if (RB_EMPTY_ROOT(&dso->global_vars))
+		global_var__collect(dloc);
 
 	gvar = global_var__find(dloc, var_addr);
 	if (gvar) {
