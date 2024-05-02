@@ -2436,7 +2436,6 @@ config TEST_LKM
 
 config TEST_BITOPS
 	tristate "Test module for compilation of bitops operations"
-	depends on m
 	help
 	  This builds the "test_bitops" module that is much like the
 	  TEST_LKM module except that it does a basic exercise of the
