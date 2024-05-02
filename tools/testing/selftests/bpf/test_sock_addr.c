@@ -97,11 +97,7 @@ static int sendmsg_deny_prog_load(const struct sock_addr_test *test);
 static int recvmsg_allow_prog_load(const struct sock_addr_test *test);
 static int recvmsg_deny_prog_load(const struct sock_addr_test *test);
 static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test);
-static int recvmsg4_rw_c_prog_load(const struct sock_addr_test *test);
-static int sendmsg4_rw_c_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_asm_prog_load(const struct sock_addr_test *test);
-static int recvmsg6_rw_c_prog_load(const struct sock_addr_test *test);
-static int sendmsg6_rw_c_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_v4mapped_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_wildcard_prog_load(const struct sock_addr_test *test);
 
@@ -136,34 +132,6 @@ static struct sock_addr_test tests[] = {
 		ATTACH_REJECT,
 	},
 	{
-		"bind4: rewrite IP & TCP port in",
-		bind4_prog_load,
-		BPF_CGROUP_INET4_BIND,
-		BPF_CGROUP_INET4_BIND,
-		AF_INET,
-		SOCK_STREAM,
-		SERV4_IP,
-		SERV4_PORT,
-		SERV4_REWRITE_IP,
-		SERV4_REWRITE_PORT,
-		NULL,
-		SUCCESS,
-	},
-	{
-		"bind4: rewrite IP & UDP port in",
-		bind4_prog_load,
-		BPF_CGROUP_INET4_BIND,
-		BPF_CGROUP_INET4_BIND,
-		AF_INET,
-		SOCK_DGRAM,
-		SERV4_IP,
-		SERV4_PORT,
-		SERV4_REWRITE_IP,
-		SERV4_REWRITE_PORT,
-		NULL,
-		SUCCESS,
-	},
-	{
 		"bind6: load prog with wrong expected attach type",
 		bind6_prog_load,
 		BPF_CGROUP_INET4_BIND,
@@ -190,34 +158,6 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 		ATTACH_REJECT,
-	},
-	{
-		"bind6: rewrite IP & TCP port in",
-		bind6_prog_load,
-		BPF_CGROUP_INET6_BIND,
-		BPF_CGROUP_INET6_BIND,
-		AF_INET6,
-		SOCK_STREAM,
-		SERV6_IP,
-		SERV6_PORT,
-		SERV6_REWRITE_IP,
-		SERV6_REWRITE_PORT,
-		NULL,
-		SUCCESS,
-	},
-	{
-		"bind6: rewrite IP & UDP port in",
-		bind6_prog_load,
-		BPF_CGROUP_INET6_BIND,
-		BPF_CGROUP_INET6_BIND,
-		AF_INET6,
-		SOCK_DGRAM,
-		SERV6_IP,
-		SERV6_PORT,
-		SERV6_REWRITE_IP,
-		SERV6_REWRITE_PORT,
-		NULL,
-		SUCCESS,
 	},
 
 	/* connect */
@@ -250,34 +190,6 @@ static struct sock_addr_test tests[] = {
 		ATTACH_REJECT,
 	},
 	{
-		"connect4: rewrite IP & TCP port",
-		connect4_prog_load,
-		BPF_CGROUP_INET4_CONNECT,
-		BPF_CGROUP_INET4_CONNECT,
-		AF_INET,
-		SOCK_STREAM,
-		SERV4_IP,
-		SERV4_PORT,
-		SERV4_REWRITE_IP,
-		SERV4_REWRITE_PORT,
-		SRC4_REWRITE_IP,
-		SUCCESS,
-	},
-	{
-		"connect4: rewrite IP & UDP port",
-		connect4_prog_load,
-		BPF_CGROUP_INET4_CONNECT,
-		BPF_CGROUP_INET4_CONNECT,
-		AF_INET,
-		SOCK_DGRAM,
-		SERV4_IP,
-		SERV4_PORT,
-		SERV4_REWRITE_IP,
-		SERV4_REWRITE_PORT,
-		SRC4_REWRITE_IP,
-		SUCCESS,
-	},
-	{
 		"connect6: load prog with wrong expected attach type",
 		connect6_prog_load,
 		BPF_CGROUP_INET4_CONNECT,
@@ -304,34 +216,6 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 		ATTACH_REJECT,
-	},
-	{
-		"connect6: rewrite IP & TCP port",
-		connect6_prog_load,
-		BPF_CGROUP_INET6_CONNECT,
-		BPF_CGROUP_INET6_CONNECT,
-		AF_INET6,
-		SOCK_STREAM,
-		SERV6_IP,
-		SERV6_PORT,
-		SERV6_REWRITE_IP,
-		SERV6_REWRITE_PORT,
-		SRC6_REWRITE_IP,
-		SUCCESS,
-	},
-	{
-		"connect6: rewrite IP & UDP port",
-		connect6_prog_load,
-		BPF_CGROUP_INET6_CONNECT,
-		BPF_CGROUP_INET6_CONNECT,
-		AF_INET6,
-		SOCK_DGRAM,
-		SERV6_IP,
-		SERV6_PORT,
-		SERV6_REWRITE_IP,
-		SERV6_REWRITE_PORT,
-		SRC6_REWRITE_IP,
-		SUCCESS,
 	},
 
 	/* sendmsg */
@@ -366,20 +250,6 @@ static struct sock_addr_test tests[] = {
 	{
 		"sendmsg4: rewrite IP & port (asm)",
 		sendmsg4_rw_asm_prog_load,
-		BPF_CGROUP_UDP4_SENDMSG,
-		BPF_CGROUP_UDP4_SENDMSG,
-		AF_INET,
-		SOCK_DGRAM,
-		SERV4_IP,
-		SERV4_PORT,
-		SERV4_REWRITE_IP,
-		SERV4_REWRITE_PORT,
-		SRC4_REWRITE_IP,
-		SUCCESS,
-	},
-	{
-		"sendmsg4: rewrite IP & port (C)",
-		sendmsg4_rw_c_prog_load,
 		BPF_CGROUP_UDP4_SENDMSG,
 		BPF_CGROUP_UDP4_SENDMSG,
 		AF_INET,
@@ -436,20 +306,6 @@ static struct sock_addr_test tests[] = {
 	{
 		"sendmsg6: rewrite IP & port (asm)",
 		sendmsg6_rw_asm_prog_load,
-		BPF_CGROUP_UDP6_SENDMSG,
-		BPF_CGROUP_UDP6_SENDMSG,
-		AF_INET6,
-		SOCK_DGRAM,
-		SERV6_IP,
-		SERV6_PORT,
-		SERV6_REWRITE_IP,
-		SERV6_REWRITE_PORT,
-		SRC6_REWRITE_IP,
-		SUCCESS,
-	},
-	{
-		"sendmsg6: rewrite IP & port (C)",
-		sendmsg6_rw_c_prog_load,
 		BPF_CGROUP_UDP6_SENDMSG,
 		BPF_CGROUP_UDP6_SENDMSG,
 		AF_INET6,
@@ -574,34 +430,6 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 		LOAD_REJECT,
-	},
-	{
-		"recvmsg4: rewrite IP & port (C)",
-		recvmsg4_rw_c_prog_load,
-		BPF_CGROUP_UDP4_RECVMSG,
-		BPF_CGROUP_UDP4_RECVMSG,
-		AF_INET,
-		SOCK_DGRAM,
-		SERV4_REWRITE_IP,
-		SERV4_REWRITE_PORT,
-		SERV4_REWRITE_IP,
-		SERV4_REWRITE_PORT,
-		SERV4_IP,
-		SUCCESS,
-	},
-	{
-		"recvmsg6: rewrite IP & port (C)",
-		recvmsg6_rw_c_prog_load,
-		BPF_CGROUP_UDP6_RECVMSG,
-		BPF_CGROUP_UDP6_RECVMSG,
-		AF_INET6,
-		SOCK_DGRAM,
-		SERV6_REWRITE_IP,
-		SERV6_REWRITE_PORT,
-		SERV6_REWRITE_IP,
-		SERV6_REWRITE_PORT,
-		SERV6_IP,
-		SUCCESS,
 	},
 };
 
@@ -761,16 +589,6 @@ static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test)
 	return load_insns(test, insns, ARRAY_SIZE(insns));
 }
 
-static int recvmsg4_rw_c_prog_load(const struct sock_addr_test *test)
-{
-	return load_path(test, RECVMSG4_PROG_PATH);
-}
-
-static int sendmsg4_rw_c_prog_load(const struct sock_addr_test *test)
-{
-	return load_path(test, SENDMSG4_PROG_PATH);
-}
-
 static int sendmsg6_rw_dst_asm_prog_load(const struct sock_addr_test *test,
 					 const char *rw_dst_ip)
 {
@@ -829,11 +647,6 @@ static int sendmsg6_rw_asm_prog_load(const struct sock_addr_test *test)
 	return sendmsg6_rw_dst_asm_prog_load(test, SERV6_REWRITE_IP);
 }
 
-static int recvmsg6_rw_c_prog_load(const struct sock_addr_test *test)
-{
-	return load_path(test, RECVMSG6_PROG_PATH);
-}
-
 static int sendmsg6_rw_v4mapped_prog_load(const struct sock_addr_test *test)
 {
 	return sendmsg6_rw_dst_asm_prog_load(test, SERV6_V4MAPPED_IP);
@@ -842,11 +655,6 @@ static int sendmsg6_rw_v4mapped_prog_load(const struct sock_addr_test *test)
 static int sendmsg6_rw_wildcard_prog_load(const struct sock_addr_test *test)
 {
 	return sendmsg6_rw_dst_asm_prog_load(test, WILDCARD6_IP);
-}
-
-static int sendmsg6_rw_c_prog_load(const struct sock_addr_test *test)
-{
-	return load_path(test, SENDMSG6_PROG_PATH);
 }
 
 static int cmp_addr(const struct sockaddr_storage *addr1,
