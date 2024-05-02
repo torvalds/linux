@@ -88,6 +88,9 @@ struct bnxt_en_dev {
 
 	u16				ulp_num_msix_vec;
 	u16				ulp_num_ctxs;
+
+					/* serialize ulp operations */
+	struct mutex			en_dev_lock;
 };
 
 static inline bool bnxt_ulp_registered(struct bnxt_en_dev *edev)

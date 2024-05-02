@@ -113,6 +113,7 @@ int bnxt_register_dev(struct bnxt_en_dev *edev,
 	int rc = 0;
 
 	rtnl_lock();
+	mutex_lock(&edev->en_dev_lock);
 	if (!bp->irq_tbl) {
 		rc = -ENODEV;
 		goto exit;
@@ -136,6 +137,7 @@ int bnxt_register_dev(struct bnxt_en_dev *edev,
 	bnxt_fill_msix_vecs(bp, bp->edev->msix_entries);
 	edev->flags |= BNXT_EN_FLAG_MSIX_REQUESTED;
 exit:
+	mutex_unlock(&edev->en_dev_lock);
 	rtnl_unlock();
 	return rc;
 }
@@ -150,6 +152,7 @@ void bnxt_unregister_dev(struct bnxt_en_dev *edev)
 
 	ulp = edev->ulp_tbl;
 	rtnl_lock();
+	mutex_lock(&edev->en_dev_lock);
 	if (ulp->msix_requested)
 		edev->flags &= ~BNXT_EN_FLAG_MSIX_REQUESTED;
 	edev->ulp_tbl->msix_requested = 0;
@@ -165,6 +168,7 @@ void bnxt_unregister_dev(struct bnxt_en_dev *edev)
 		msleep(100);
 		i++;
 	}
+	mutex_unlock(&edev->en_dev_lock);
 	rtnl_unlock();
 	return;
 }
@@ -223,6 +227,12 @@ void bnxt_ulp_stop(struct bnxt *bp)
 	if (!edev)
 		return;
 
+	mutex_lock(&edev->en_dev_lock);
+	if (!bnxt_ulp_registered(edev)) {
+		mutex_unlock(&edev->en_dev_lock);
+		return;
+	}
+
 	edev->flags |= BNXT_EN_FLAG_ULP_STOPPED;
 	if (aux_priv) {
 		struct auxiliary_device *adev;
@@ -237,6 +247,7 @@ void bnxt_ulp_stop(struct bnxt *bp)
 			adrv->suspend(adev, pm);
 		}
 	}
+	mutex_unlock(&edev->en_dev_lock);
 }
 
 void bnxt_ulp_start(struct bnxt *bp, int err)
@@ -251,6 +262,12 @@ void bnxt_ulp_start(struct bnxt *bp, int err)
 
 	if (err)
 		return;
+
+	mutex_lock(&edev->en_dev_lock);
+	if (!bnxt_ulp_registered(edev)) {
+		mutex_unlock(&edev->en_dev_lock);
+		return;
+	}
 
 	if (edev->ulp_tbl->msix_requested)
 		bnxt_fill_msix_vecs(bp, edev->msix_entries);
@@ -267,7 +284,7 @@ void bnxt_ulp_start(struct bnxt *bp, int err)
 			adrv->resume(adev);
 		}
 	}
-
+	mutex_unlock(&edev->en_dev_lock);
 }
 
 void bnxt_ulp_irq_stop(struct bnxt *bp)
@@ -383,6 +400,7 @@ static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 	edev->l2_db_size = bp->db_size;
 	edev->l2_db_size_nc = bp->db_size;
 	edev->l2_db_offset = bp->db_offset;
+	mutex_init(&edev->en_dev_lock);
 
 	if (bp->flags & BNXT_FLAG_ROCEV1_CAP)
 		edev->flags |= BNXT_EN_FLAG_ROCEV1_CAP;
