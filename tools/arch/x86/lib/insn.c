@@ -294,6 +294,10 @@ int insn_get_opcode(struct insn *insn)
 		m = insn_vex_m_bits(insn);
 		p = insn_vex_p_bits(insn);
 		insn->attr = inat_get_avx_attribute(op, m, p);
+		/* SCALABLE EVEX uses p bits to encode operand size */
+		if (inat_evex_scalable(insn->attr) && !insn_vex_w_bit(insn) &&
+		    p == INAT_PFX_OPNDSZ)
+			insn->opnd_bytes = 2;
 		if ((inat_must_evex(insn->attr) && !insn_is_evex(insn)) ||
 		    (!inat_accept_vex(insn->attr) &&
 		     !inat_is_group(insn->attr))) {

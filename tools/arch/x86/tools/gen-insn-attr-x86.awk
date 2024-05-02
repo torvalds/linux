@@ -83,6 +83,8 @@ BEGIN {
 	vexonly_expr = "\\(v\\)"
 	# All opcodes with (ev) superscript supports *only* EVEX prefix
 	evexonly_expr = "\\(ev\\)"
+	# (es) is the same as (ev) but also "SCALABLE" i.e. W and pp determine operand size
+	evex_scalable_expr = "\\(es\\)"
 
 	prefix_expr = "\\(Prefix\\)"
 	prefix_num["Operand-Size"] = "INAT_PFX_OPNDSZ"
@@ -332,6 +334,8 @@ function convert_operands(count,opnd,       i,j,imm,mod)
 		# check VEX codes
 		if (match(ext, evexonly_expr))
 			flags = add_flags(flags, "INAT_VEXOK | INAT_EVEXONLY")
+		else if (match(ext, evex_scalable_expr))
+			flags = add_flags(flags, "INAT_VEXOK | INAT_EVEXONLY | INAT_EVEX_SCALABLE")
 		else if (match(ext, vexonly_expr))
 			flags = add_flags(flags, "INAT_VEXOK | INAT_VEXONLY")
 		else if (match(ext, vexok_expr) || match(opcode, vexok_opcode_expr))
