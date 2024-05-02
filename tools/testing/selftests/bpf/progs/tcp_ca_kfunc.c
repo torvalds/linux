@@ -5,7 +5,7 @@
 #include <bpf/bpf_tracing.h>
 
 extern void bbr_init(struct sock *sk) __ksym;
-extern void bbr_main(struct sock *sk, const struct rate_sample *rs) __ksym;
+extern void bbr_main(struct sock *sk, u32 ack, int flag, const struct rate_sample *rs) __ksym;
 extern u32 bbr_sndbuf_expand(struct sock *sk) __ksym;
 extern u32 bbr_undo_cwnd(struct sock *sk) __ksym;
 extern void bbr_cwnd_event(struct sock *sk, enum tcp_ca_event event) __ksym;
@@ -42,9 +42,9 @@ void BPF_PROG(in_ack_event, struct sock *sk, u32 flags)
 }
 
 SEC("struct_ops/cong_control")
-void BPF_PROG(cong_control, struct sock *sk, const struct rate_sample *rs)
+void BPF_PROG(cong_control, struct sock *sk, u32 ack, int flag, const struct rate_sample *rs)
 {
-	bbr_main(sk, rs);
+	bbr_main(sk, ack, flag, rs);
 }
 
 SEC("struct_ops/cong_avoid")

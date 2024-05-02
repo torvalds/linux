@@ -307,7 +307,8 @@ static u32 bpf_tcp_ca_min_tso_segs(struct sock *sk)
 	return 0;
 }
 
-static void bpf_tcp_ca_cong_control(struct sock *sk, const struct rate_sample *rs)
+static void bpf_tcp_ca_cong_control(struct sock *sk, u32 ack, int flag,
+				    const struct rate_sample *rs)
 {
 }
 
