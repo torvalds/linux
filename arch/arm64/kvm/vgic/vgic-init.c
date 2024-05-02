@@ -182,27 +182,22 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	return 0;
 }
 
-/**
- * kvm_vgic_vcpu_init() - Initialize static VGIC VCPU data
- * structures and register VCPU-specific KVM iodevs
- *
- * @vcpu: pointer to the VCPU being created and initialized
- *
- * Only do initialization, but do not actually enable the
- * VGIC CPU interface
- */
-int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
+static int vgic_allocate_private_irqs_locked(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
-	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
-	int ret = 0;
 	int i;
 
-	vgic_cpu->rd_iodev.base_addr = VGIC_ADDR_UNDEF;
+	lockdep_assert_held(&vcpu->kvm->arch.config_lock);
 
-	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
-	raw_spin_lock_init(&vgic_cpu->ap_list_lock);
-	atomic_set(&vgic_cpu->vgic_v3.its_vpe.vlpi_count, 0);
+	if (vgic_cpu->private_irqs)
+		return 0;
+
+	vgic_cpu->private_irqs = kcalloc(VGIC_NR_PRIVATE_IRQS,
+					 sizeof(struct vgic_irq),
+					 GFP_KERNEL_ACCOUNT);
+
+	if (!vgic_cpu->private_irqs)
+		return -ENOMEM;
 
 	/*
 	 * Enable and configure all SGIs to be edge-triggered and
@@ -227,8 +222,47 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 		}
 	}
 
+	return 0;
+}
+
+static int vgic_allocate_private_irqs(struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	mutex_lock(&vcpu->kvm->arch.config_lock);
+	ret = vgic_allocate_private_irqs_locked(vcpu);
+	mutex_unlock(&vcpu->kvm->arch.config_lock);
+
+	return ret;
+}
+
+/**
+ * kvm_vgic_vcpu_init() - Initialize static VGIC VCPU data
+ * structures and register VCPU-specific KVM iodevs
+ *
+ * @vcpu: pointer to the VCPU being created and initialized
+ *
+ * Only do initialization, but do not actually enable the
+ * VGIC CPU interface
+ */
+int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	int ret = 0;
+
+	vgic_cpu->rd_iodev.base_addr = VGIC_ADDR_UNDEF;
+
+	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
+	raw_spin_lock_init(&vgic_cpu->ap_list_lock);
+	atomic_set(&vgic_cpu->vgic_v3.its_vpe.vlpi_count, 0);
+
 	if (!irqchip_in_kernel(vcpu->kvm))
 		return 0;
+
+	ret = vgic_allocate_private_irqs(vcpu);
+	if (ret)
+		return ret;
 
 	/*
 	 * If we are creating a VCPU with a GICv3 we must also register the
@@ -285,10 +319,13 @@ int vgic_init(struct kvm *kvm)
 
 	/* Initialize groups on CPUs created before the VGIC type was known */
 	kvm_for_each_vcpu(idx, vcpu, kvm) {
-		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+		ret = vgic_allocate_private_irqs_locked(vcpu);
+		if (ret)
+			goto out;
 
 		for (i = 0; i < VGIC_NR_PRIVATE_IRQS; i++) {
-			struct vgic_irq *irq = &vgic_cpu->private_irqs[i];
+			struct vgic_irq *irq = vgic_get_irq(kvm, vcpu, i);
+
 			switch (dist->vgic_model) {
 			case KVM_DEV_TYPE_ARM_VGIC_V3:
 				irq->group = 1;
@@ -300,8 +337,12 @@ int vgic_init(struct kvm *kvm)
 				break;
 			default:
 				ret = -EINVAL;
-				goto out;
 			}
+
+			vgic_put_irq(kvm, irq);
+
+			if (ret)
+				goto out;
 		}
 	}
 
@@ -381,6 +422,9 @@ static void __kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 	vgic_flush_pending_lpis(vcpu);
 
 	INIT_LIST_HEAD(&vgic_cpu->ap_list_head);
+	kfree(vgic_cpu->private_irqs);
+	vgic_cpu->private_irqs = NULL;
+
 	if (vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
 		vgic_unregister_redist_iodev(vcpu);
 		vgic_cpu->rd_iodev.base_addr = VGIC_ADDR_UNDEF;
