@@ -138,6 +138,7 @@ enum aarch64_insn_special_register {
 enum aarch64_insn_system_register {
 	AARCH64_INSN_SYSREG_TPIDR_EL1	= 0x4684,
 	AARCH64_INSN_SYSREG_TPIDR_EL2	= 0x6682,
+	AARCH64_INSN_SYSREG_SP_EL0	= 0x4208,
 };
 
 enum aarch64_insn_variant {

@@ -1228,6 +1228,21 @@ emit_cond_jmp:
 		const u8 r0 = bpf2a64[BPF_REG_0];
 		bool func_addr_fixed;
 		u64 func_addr;
+		u32 cpu_offset;
+
+		/* Implement helper call to bpf_get_smp_processor_id() inline */
+		if (insn->src_reg == 0 && insn->imm == BPF_FUNC_get_smp_processor_id) {
+			cpu_offset = offsetof(struct thread_info, cpu);
+
+			emit(A64_MRS_SP_EL0(tmp), ctx);
+			if (is_lsi_offset(cpu_offset, 2)) {
+				emit(A64_LDR32I(r0, tmp, cpu_offset), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, cpu_offset, ctx);
+				emit(A64_LDR32(r0, tmp, tmp2), ctx);
+			}
+			break;
+		}
 
 		ret = bpf_jit_get_func_addr(ctx->prog, insn, extra_pass,
 					    &func_addr, &func_addr_fixed);
@@ -2571,6 +2586,16 @@ bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
 bool bpf_jit_supports_percpu_insn(void)
 {
 	return true;
+}
+
+bool bpf_jit_inlines_helper_call(s32 imm)
+{
+	switch (imm) {
+	case BPF_FUNC_get_smp_processor_id:
+		return true;
+	default:
+		return false;
+	}
 }
 
 void bpf_jit_free(struct bpf_prog *prog)
