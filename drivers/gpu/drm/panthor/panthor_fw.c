@@ -1142,6 +1142,7 @@ void panthor_fw_unplug(struct panthor_device *ptdev)
 	 * state to keep the active_refcnt balanced.
 	 */
 	panthor_vm_put(ptdev->fw->vm);
+	ptdev->fw->vm = NULL;
 
 	panthor_gpu_power_off(ptdev, L2, ptdev->gpu_info.l2_present, 20000);
 }
