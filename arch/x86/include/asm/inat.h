@@ -35,6 +35,8 @@
 #define INAT_PFX_VEX2	13	/* 2-bytes VEX prefix */
 #define INAT_PFX_VEX3	14	/* 3-bytes VEX prefix */
 #define INAT_PFX_EVEX	15	/* EVEX prefix */
+/* x86-64 REX2 prefix */
+#define INAT_PFX_REX2	16	/* 0xD5 */
 
 #define INAT_LSTPFX_MAX	3
 #define INAT_LGCPFX_MAX	11
@@ -50,7 +52,7 @@
 
 /* Legacy prefix */
 #define INAT_PFX_OFFS	0
-#define INAT_PFX_BITS	4
+#define INAT_PFX_BITS	5
 #define INAT_PFX_MAX    ((1 << INAT_PFX_BITS) - 1)
 #define INAT_PFX_MASK	(INAT_PFX_MAX << INAT_PFX_OFFS)
 /* Escape opcodes */
@@ -77,6 +79,8 @@
 #define INAT_VEXOK	(1 << (INAT_FLAG_OFFS + 5))
 #define INAT_VEXONLY	(1 << (INAT_FLAG_OFFS + 6))
 #define INAT_EVEXONLY	(1 << (INAT_FLAG_OFFS + 7))
+#define INAT_NO_REX2	(1 << (INAT_FLAG_OFFS + 8))
+#define INAT_REX2_VARIANT	(1 << (INAT_FLAG_OFFS + 9))
 /* Attribute making macros for attribute tables */
 #define INAT_MAKE_PREFIX(pfx)	(pfx << INAT_PFX_OFFS)
 #define INAT_MAKE_ESCAPE(esc)	(esc << INAT_ESC_OFFS)
@@ -126,6 +130,11 @@ static inline int inat_is_operand_size_prefix(insn_attr_t attr)
 static inline int inat_is_rex_prefix(insn_attr_t attr)
 {
 	return (attr & INAT_PFX_MASK) == INAT_PFX_REX;
+}
+
+static inline int inat_is_rex2_prefix(insn_attr_t attr)
+{
+	return (attr & INAT_PFX_MASK) == INAT_PFX_REX2;
 }
 
 static inline int inat_last_prefix_id(insn_attr_t attr)
