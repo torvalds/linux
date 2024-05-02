@@ -374,7 +374,7 @@ static void test_reg_set_fail(struct kvm_vcpu *vcpu, uint64_t reg,
 	TEST_ASSERT_EQ(val, old_val);
 }
 
-static void test_user_set_reg(struct kvm_vcpu *vcpu, bool aarch64_only)
+static void test_vm_ftr_id_regs(struct kvm_vcpu *vcpu, bool aarch64_only)
 {
 	uint64_t masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
 	struct reg_mask_range range = {
@@ -476,7 +476,7 @@ int main(void)
 
 	ksft_set_plan(ftr_cnt);
 
-	test_user_set_reg(vcpu, aarch64_only);
+	test_vm_ftr_id_regs(vcpu, aarch64_only);
 	test_guest_reg_read(vcpu);
 
 	kvm_vm_free(vm);
