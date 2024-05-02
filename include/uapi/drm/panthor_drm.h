@@ -939,7 +939,11 @@ struct drm_panthor_tiler_heap_create {
  * struct drm_panthor_tiler_heap_destroy - Arguments passed to DRM_IOCTL_PANTHOR_TILER_HEAP_DESTROY
  */
 struct drm_panthor_tiler_heap_destroy {
-	/** @handle: Handle of the tiler heap to destroy */
+	/**
+	 * @handle: Handle of the tiler heap to destroy.
+	 *
+	 * Must be a valid heap handle returned by DRM_IOCTL_PANTHOR_TILER_HEAP_CREATE.
+	 */
 	__u32 handle;
 
 	/** @pad: Padding field, MBZ. */
