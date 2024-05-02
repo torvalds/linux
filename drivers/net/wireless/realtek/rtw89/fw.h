@@ -1979,6 +1979,23 @@ static inline void RTW89_SET_WOW_CAM_UPD_VALID(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(31));
 }
 
+struct rtw89_h2c_wow_gtk_ofld {
+	__le32 w0;
+	__le32 w1;
+	struct rtw89_wow_gtk_info gtk_info;
+} __packed;
+
+#define RTW89_H2C_WOW_GTK_OFLD_W0_EN BIT(0)
+#define RTW89_H2C_WOW_GTK_OFLD_W0_TKIP_EN BIT(1)
+#define RTW89_H2C_WOW_GTK_OFLD_W0_IEEE80211W_EN BIT(2)
+#define RTW89_H2C_WOW_GTK_OFLD_W0_PAIRWISE_WAKEUP BIT(3)
+#define RTW89_H2C_WOW_GTK_OFLD_W0_NOREKEY_WAKEUP BIT(4)
+#define RTW89_H2C_WOW_GTK_OFLD_W0_MAC_ID GENMASK(23, 16)
+#define RTW89_H2C_WOW_GTK_OFLD_W0_GTK_RSP_ID GENMASK(31, 24)
+#define RTW89_H2C_WOW_GTK_OFLD_W1_PMF_SA_QUERY_ID GENMASK(7, 0)
+#define RTW89_H2C_WOW_GTK_OFLD_W1_PMF_BIP_SEC_ALGO GENMASK(9, 8)
+#define RTW89_H2C_WOW_GTK_OFLD_W1_ALGO_AKM_SUIT GENMASK(17, 10)
+
 enum rtw89_btc_btf_h2c_class {
 	BTFC_SET = 0x10,
 	BTFC_GET = 0x11,
@@ -3843,6 +3860,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_FUNC_KEEP_ALIVE		0x0
 #define H2C_FUNC_DISCONNECT_DETECT	0x1
 #define H2C_FUNC_WOW_GLOBAL		0x2
+#define H2C_FUNC_GTK_OFLD		0x3
 #define H2C_FUNC_WAKEUP_CTRL		0x8
 #define H2C_FUNC_WOW_CAM_UPD		0xC
 
@@ -4361,6 +4379,9 @@ int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif, bool enable);
 int rtw89_fw_wow_cam_update(struct rtw89_dev *rtwdev,
 			    struct rtw89_wow_cam_info *cam_info);
+int rtw89_fw_h2c_wow_gtk_ofld(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif *rtwvif,
+			      bool enable);
 int rtw89_fw_h2c_add_mcc(struct rtw89_dev *rtwdev,
 			 const struct rtw89_fw_mcc_add_req *p);
 int rtw89_fw_h2c_start_mcc(struct rtw89_dev *rtwdev,

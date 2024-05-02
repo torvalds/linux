@@ -5215,11 +5215,24 @@ struct rtw89_wow_key_info {
 	u8 gtk_rx_iv[4][8];
 } __packed;
 
+struct rtw89_wow_gtk_info {
+	u8 kck[32];
+	u8 kek[32];
+	u8 tk1[16];
+	u8 txmickey[8];
+	u8 rxmickey[8];
+	__le32 igtk_keyid;
+	__le64 ipn;
+	u8 igtk[2][32];
+	u8 psk[32];
+} __packed;
+
 struct rtw89_wow_param {
 	struct ieee80211_vif *wow_vif;
 	DECLARE_BITMAP(flags, RTW89_WOW_FLAG_NUM);
 	struct rtw89_wow_cam_info patterns[RTW89_MAX_PATTERN_NUM];
 	struct rtw89_wow_key_info key_info;
+	struct rtw89_wow_gtk_info gtk_info;
 	u8 pattern_cnt;
 	u8 ptk_alg;
 	u8 gtk_alg;

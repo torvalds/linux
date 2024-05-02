@@ -1106,6 +1106,28 @@ static void rtw89_ops_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 
 	device_set_wakeup_enable(rtwdev->dev, enabled);
 }
+
+static void rtw89_set_rekey_data(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct cfg80211_gtk_rekey_data *data)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_gtk_info *gtk_info = &rtw_wow->gtk_info;
+
+	if (data->kek_len > sizeof(gtk_info->kek) ||
+	    data->kck_len > sizeof(gtk_info->kck)) {
+		rtw89_warn(rtwdev, "kek or kck length over fw limit\n");
+		return;
+	}
+
+	mutex_lock(&rtwdev->mutex);
+
+	memcpy(gtk_info->kek, data->kek, data->kek_len);
+	memcpy(gtk_info->kck, data->kck, data->kck_len);
+
+	mutex_unlock(&rtwdev->mutex);
+}
 #endif
 
 const struct ieee80211_ops rtw89_ops = {
@@ -1151,6 +1173,7 @@ const struct ieee80211_ops rtw89_ops = {
 	.suspend		= rtw89_ops_suspend,
 	.resume			= rtw89_ops_resume,
 	.set_wakeup		= rtw89_ops_set_wakeup,
+	.set_rekey_data		= rtw89_set_rekey_data,
 #endif
 };
 EXPORT_SYMBOL(rtw89_ops);

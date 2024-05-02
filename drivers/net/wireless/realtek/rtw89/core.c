@@ -4511,7 +4511,8 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP |
-			    WIPHY_FLAG_AP_UAPSD;
+			    WIPHY_FLAG_AP_UAPSD |
+			    WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK;
 
 	if (!chip->support_rnr)
 		hw->wiphy->flags |= WIPHY_FLAG_SPLIT_SCAN_6GHZ;
