@@ -258,7 +258,6 @@ struct parport_driver {
 	int (*probe)(struct pardevice *);
 	struct device_driver driver;
 	bool devmodel;
-	struct list_head list;
 };
 
 #define to_parport_driver(n) container_of(n, struct parport_driver, driver)
