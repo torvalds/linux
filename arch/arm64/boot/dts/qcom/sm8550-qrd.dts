@@ -720,17 +720,6 @@
 	status = "okay";
 };
 
-&gcc {
-	clocks = <&bi_tcxo_div2>, <&sleep_clk>,
-		 <&pcie0_phy>,
-		 <&pcie1_phy>,
-		 <0>,
-		 <&ufs_mem_phy 0>,
-		 <&ufs_mem_phy 1>,
-		 <&ufs_mem_phy 2>,
-		 <&usb_dp_qmpphy QMP_USB43DP_USB3_PIPE_CLK>;
-};
-
 &gpi_dma1 {
 	status = "okay";
 };
@@ -807,10 +796,6 @@
 
 &mdss_dp0_out {
 	data-lanes = <0 1>;
-};
-
-&pcie_1_phy_aux_clk {
-	status = "disabled";
 };
 
 &pcie0 {
@@ -904,10 +889,6 @@
 	linux,code = <KEY_VOLUMEDOWN>;
 
 	status = "okay";
-};
-
-&pcie_1_phy_aux_clk {
-	clock-frequency = <1000>;
 };
 
 &qupv3_id_0 {
