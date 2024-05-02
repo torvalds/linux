@@ -151,7 +151,7 @@ static int erofs_fscache_read_io_async(struct fscache_cookie *cookie,
 		if (WARN_ON(len == 0))
 			source = NETFS_INVALID_READ;
 		if (source != NETFS_READ_FROM_CACHE) {
-			erofs_err(NULL, "prepare_read failed (source %d)", source);
+			erofs_err(NULL, "prepare_ondemand_read failed (source %d)", source);
 			return -EIO;
 		}
 
