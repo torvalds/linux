@@ -6024,7 +6024,7 @@ out:
 	cb->args[1] = idx;
 	cb->args[0] = h;
 
-	return skb->len;
+	return err;
 }
 
 void rtnl_offload_xstats_notify(struct net_device *dev)
