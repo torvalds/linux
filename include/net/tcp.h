@@ -1172,7 +1172,7 @@ struct tcp_congestion_ops {
 	/* call when packets are delivered to update cwnd and pacing rate,
 	 * after all the ca_state processing. (optional)
 	 */
-	void (*cong_control)(struct sock *sk, const struct rate_sample *rs);
+	void (*cong_control)(struct sock *sk, u32 ack, int flag, const struct rate_sample *rs);
 
 
 	/* new value of cwnd after loss (required) */
