@@ -714,6 +714,8 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "RS64_MEC_P2_STACK";
 	case AMDGPU_UCODE_ID_CP_RS64_MEC_P3_STACK:
 		return "RS64_MEC_P3_STACK";
+	case AMDGPU_UCODE_ID_ISP:
+		return "ISP";
 	default:
 		return "UNKNOWN UCODE";
 	}
@@ -1412,6 +1414,9 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
 		break;
 	case VPE_HWIP:
 		ip_name = "vpe";
+		break;
+	case ISP_HWIP:
+		ip_name = "isp";
 		break;
 	default:
 		BUG();
