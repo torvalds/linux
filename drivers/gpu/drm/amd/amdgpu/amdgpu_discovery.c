@@ -106,6 +106,7 @@
 #include "jpeg_v5_0_0.h"
 
 #include "amdgpu_vpe.h"
+#include "amdgpu_isp.h"
 
 #define FIRMWARE_IP_DISCOVERY "amdgpu/ip_discovery.bin"
 MODULE_FIRMWARE(FIRMWARE_IP_DISCOVERY);
@@ -710,6 +711,10 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 			break;
 		case SDMA0_HWID:
 			adev->sdma.sdma_mask &=
+				~(1U << harvest_info->list[i].number_instance);
+			break;
+		case ISP_HWID:
+			adev->isp.harvest_config |=
 				~(1U << harvest_info->list[i].number_instance);
 			break;
 		default:
@@ -2377,6 +2382,20 @@ static int amdgpu_discovery_set_umsch_mm_ip_blocks(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int amdgpu_discovery_set_isp_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (amdgpu_ip_version(adev, ISP_HWIP, 0)) {
+	case IP_VERSION(4, 1, 0):
+	case IP_VERSION(4, 1, 1):
+		amdgpu_device_ip_block_add(adev, &isp_ip_block);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
@@ -2903,6 +2922,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
+	r = amdgpu_discovery_set_isp_ip_blocks(adev);
+	if (r)
+		return r;
 	return 0;
 }
 
