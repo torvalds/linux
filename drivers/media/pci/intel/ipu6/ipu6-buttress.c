@@ -552,11 +552,15 @@ int ipu6_buttress_reset_authentication(struct ipu6_device *isp)
 int ipu6_buttress_map_fw_image(struct ipu6_bus_device *sys,
 			       const struct firmware *fw, struct sg_table *sgt)
 {
+	bool is_vmalloc = is_vmalloc_addr(fw->data);
 	struct page **pages;
 	const void *addr;
 	unsigned long n_pages;
 	unsigned int i;
 	int ret;
+
+	if (!is_vmalloc && !virt_addr_valid(fw->data))
+		return -EDOM;
 
 	n_pages = PHYS_PFN(PAGE_ALIGN(fw->size));
 
@@ -566,7 +570,8 @@ int ipu6_buttress_map_fw_image(struct ipu6_bus_device *sys,
 
 	addr = fw->data;
 	for (i = 0; i < n_pages; i++) {
-		struct page *p = vmalloc_to_page(addr);
+		struct page *p = is_vmalloc ?
+			vmalloc_to_page(addr) : virt_to_page(addr);
 
 		if (!p) {
 			ret = -ENOMEM;
