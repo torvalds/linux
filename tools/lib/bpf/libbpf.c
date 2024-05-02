@@ -11605,7 +11605,7 @@ static int attach_kprobe_session(const struct bpf_program *prog, long cookie,
 	spec = prog->sec_name + sizeof("kprobe.session/") - 1;
 	n = sscanf(spec, "%m[a-zA-Z0-9_.*?]", &pattern);
 	if (n < 1) {
-		pr_warn("kprobe session pattern is invalid: %s\n", pattern);
+		pr_warn("kprobe session pattern is invalid: %s\n", spec);
 		return -EINVAL;
 	}
 
