@@ -1630,6 +1630,68 @@ void die_collect_vars(Dwarf_Die *sc_die, struct die_var_type **var_types)
 
 	die_find_child(sc_die, __die_collect_vars_cb, (void *)var_types, &die_mem);
 }
+
+static int __die_collect_global_vars_cb(Dwarf_Die *die_mem, void *arg)
+{
+	struct die_var_type **var_types = arg;
+	Dwarf_Die type_die;
+	int tag = dwarf_tag(die_mem);
+	Dwarf_Attribute attr;
+	Dwarf_Addr base, start, end;
+	Dwarf_Op *ops;
+	size_t nops;
+	struct die_var_type *vt;
+
+	if (tag != DW_TAG_variable)
+		return DIE_FIND_CB_SIBLING;
+
+	if (dwarf_attr(die_mem, DW_AT_location, &attr) == NULL)
+		return DIE_FIND_CB_SIBLING;
+
+	/* Only collect the location with an absolute address. */
+	if (dwarf_getlocations(&attr, 0, &base, &start, &end, &ops, &nops) <= 0)
+		return DIE_FIND_CB_SIBLING;
+
+	if (ops->atom != DW_OP_addr)
+		return DIE_FIND_CB_SIBLING;
+
+	if (!check_allowed_ops(ops, nops))
+		return DIE_FIND_CB_SIBLING;
+
+	if (die_get_real_type(die_mem, &type_die) == NULL)
+		return DIE_FIND_CB_SIBLING;
+
+	vt = malloc(sizeof(*vt));
+	if (vt == NULL)
+		return DIE_FIND_CB_END;
+
+	vt->die_off = dwarf_dieoffset(&type_die);
+	vt->addr = ops->number;
+	vt->reg = -1;
+	vt->offset = 0;
+	vt->next = *var_types;
+	*var_types = vt;
+
+	return DIE_FIND_CB_SIBLING;
+}
+
+/**
+ * die_collect_global_vars - Save all global variables
+ * @cu_die: a CU DIE
+ * @var_types: a pointer to save the resulting list
+ *
+ * Save all global variables in the @cu_die and save them to @var_types.
+ * The @var_types is a singly-linked list containing type and location info.
+ * Actual type can be retrieved using dwarf_offdie() with 'die_off' later.
+ *
+ * Callers should free @var_types.
+ */
+void die_collect_global_vars(Dwarf_Die *cu_die, struct die_var_type **var_types)
+{
+	Dwarf_Die die_mem;
+
+	die_find_child(cu_die, __die_collect_global_vars_cb, (void *)var_types, &die_mem);
+}
 #endif /* HAVE_DWARF_GETLOCATIONS_SUPPORT */
 
 #ifdef HAVE_DWARF_CFI_SUPPORT

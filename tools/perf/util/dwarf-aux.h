@@ -171,6 +171,9 @@ Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr addr,
 /* Save all variables and parameters in this scope */
 void die_collect_vars(Dwarf_Die *sc_die, struct die_var_type **var_types);
 
+/* Save all global variables in this CU */
+void die_collect_global_vars(Dwarf_Die *cu_die, struct die_var_type **var_types);
+
 #else /*  HAVE_DWARF_GETLOCATIONS_SUPPORT */
 
 static inline int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
@@ -200,6 +203,11 @@ static inline Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die __maybe_unu
 
 static inline void die_collect_vars(Dwarf_Die *sc_die __maybe_unused,
 				    struct die_var_type **var_types __maybe_unused)
+{
+}
+
+static inline void die_collect_global_vars(Dwarf_Die *cu_die __maybe_unused,
+					   struct die_var_type **var_types __maybe_unused)
 {
 }
 
