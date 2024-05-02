@@ -252,7 +252,6 @@ struct parport {
 
 struct parport_driver {
 	const char *name;
-	void (*attach) (struct parport *);
 	void (*detach) (struct parport *);
 	void (*match_port)(struct parport *);
 	int (*probe)(struct pardevice *);
