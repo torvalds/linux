@@ -150,8 +150,6 @@ static int rtw89_cam_get_addr_cam_key_idx(struct rtw89_addr_cam_entry *addr_cam,
 	case RTW89_ADDR_CAM_SEC_NONE:
 		return -EINVAL;
 	case RTW89_ADDR_CAM_SEC_ALL_UNI:
-		if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-			return -EINVAL;
 		idx = find_first_zero_bit(addr_cam->sec_cam_map,
 					  RTW89_SEC_CAM_IN_ADDR_CAM);
 		if (idx >= RTW89_SEC_CAM_IN_ADDR_CAM)
@@ -232,6 +230,11 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 
 	rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+
+	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    key->cipher == WLAN_CIPHER_SUITE_WEP104)
+		addr_cam->sec_ent_mode = RTW89_ADDR_CAM_SEC_ALL_UNI;
+
 	ret = rtw89_cam_get_addr_cam_key_idx(addr_cam, sec_cam, key, &key_idx);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get addr cam key idx %d, %d\n",
