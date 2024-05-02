@@ -839,7 +839,6 @@ static struct parport_driver pp_driver = {
 	.probe		= pp_probe,
 	.match_port	= pp_attach,
 	.detach		= pp_detach,
-	.devmodel	= true,
 };
 
 static int __init ppdev_init(void)

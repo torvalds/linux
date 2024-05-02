@@ -318,7 +318,6 @@ static struct parport_driver spi_lm70llp_drv = {
 	.name =		DRVNAME,
 	.match_port =	spi_lm70llp_attach,
 	.detach =	spi_lm70llp_detach,
-	.devmodel =	true,
 };
 module_parport_driver(spi_lm70llp_drv);
 

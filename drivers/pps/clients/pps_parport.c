@@ -216,7 +216,6 @@ static struct parport_driver pps_parport_driver = {
 	.name = KBUILD_MODNAME,
 	.match_port = parport_attach,
 	.detach = parport_detach,
-	.devmodel = true,
 };
 module_parport_driver(pps_parport_driver);
 

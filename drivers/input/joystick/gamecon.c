@@ -1016,7 +1016,6 @@ static struct parport_driver gc_parport_driver = {
 	.name = "gamecon",
 	.match_port = gc_attach,
 	.detach = gc_detach,
-	.devmodel = true,
 };
 
 static int __init gc_init(void)

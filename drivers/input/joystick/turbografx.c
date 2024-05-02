@@ -274,7 +274,6 @@ static struct parport_driver tgfx_parport_driver = {
 	.name = "turbografx",
 	.match_port = tgfx_attach,
 	.detach = tgfx_detach,
-	.devmodel = true,
 };
 
 static int __init tgfx_init(void)

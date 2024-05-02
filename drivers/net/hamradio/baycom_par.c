@@ -503,7 +503,6 @@ static int baycom_par_probe(struct pardevice *par_dev)
 static struct parport_driver baycom_par_driver = {
 	.name = "bcp",
 	.probe = baycom_par_probe,
-	.devmodel = true,
 };
 
 static int __init init_baycompar(void)
