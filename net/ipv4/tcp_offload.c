@@ -266,39 +266,45 @@ struct sk_buff *tcp_gro_lookup(struct list_head *head, struct tcphdr *th)
 	return NULL;
 }
 
-struct sk_buff *tcp_gro_receive(struct list_head *head, struct sk_buff *skb)
+struct tcphdr *tcp_gro_pull_header(struct sk_buff *skb)
 {
-	struct sk_buff *pp = NULL;
-	struct sk_buff *p;
+	unsigned int thlen, hlen, off;
 	struct tcphdr *th;
-	struct tcphdr *th2;
-	unsigned int len;
-	unsigned int thlen;
-	__be32 flags;
-	unsigned int mss = 1;
-	unsigned int hlen;
-	unsigned int off;
-	int flush = 1;
-	int i;
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*th);
 	th = skb_gro_header(skb, hlen, off);
 	if (unlikely(!th))
-		goto out;
+		return NULL;
 
 	thlen = th->doff * 4;
 	if (thlen < sizeof(*th))
-		goto out;
+		return NULL;
 
 	hlen = off + thlen;
 	if (!skb_gro_may_pull(skb, hlen)) {
 		th = skb_gro_header_slow(skb, hlen, off);
 		if (unlikely(!th))
-			goto out;
+			return NULL;
 	}
 
 	skb_gro_pull(skb, thlen);
+
+	return th;
+}
+
+struct sk_buff *tcp_gro_receive(struct list_head *head, struct sk_buff *skb,
+				struct tcphdr *th)
+{
+	unsigned int thlen = th->doff * 4;
+	struct sk_buff *pp = NULL;
+	struct sk_buff *p;
+	struct tcphdr *th2;
+	unsigned int len;
+	__be32 flags;
+	unsigned int mss = 1;
+	int flush = 1;
+	int i;
 
 	len = skb_gro_len(skb);
 	flags = tcp_flag_word(th);
@@ -376,7 +382,6 @@ out_check_final:
 	if (p && (!NAPI_GRO_CB(skb)->same_flow || flush))
 		pp = p;
 
-out:
 	NAPI_GRO_CB(skb)->flush |= (flush != 0);
 
 	return pp;
@@ -405,15 +410,23 @@ EXPORT_SYMBOL(tcp_gro_complete);
 INDIRECT_CALLABLE_SCOPE
 struct sk_buff *tcp4_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
+	struct tcphdr *th;
+
 	/* Don't bother verifying checksum if we're going to flush anyway. */
 	if (!NAPI_GRO_CB(skb)->flush &&
 	    skb_gro_checksum_validate(skb, IPPROTO_TCP,
-				      inet_gro_compute_pseudo)) {
-		NAPI_GRO_CB(skb)->flush = 1;
-		return NULL;
-	}
+				      inet_gro_compute_pseudo))
+		goto flush;
 
-	return tcp_gro_receive(head, skb);
+	th = tcp_gro_pull_header(skb);
+	if (!th)
+		goto flush;
+
+	return tcp_gro_receive(head, skb, th);
+
+flush:
+	NAPI_GRO_CB(skb)->flush = 1;
+	return NULL;
 }
 
 INDIRECT_CALLABLE_SCOPE int tcp4_gro_complete(struct sk_buff *skb, int thoff)
