@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/time64.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -168,8 +169,8 @@ int spi_bitbang_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if (!hz)
 		hz = spi->max_speed_hz;
 	if (hz) {
-		cs->nsecs = (1000000000/2) / hz;
-		if (cs->nsecs > (MAX_UDELAY_MS * 1000 * 1000))
+		cs->nsecs = (NSEC_PER_SEC / 2) / hz;
+		if (cs->nsecs > (MAX_UDELAY_MS * NSEC_PER_MSEC))
 			return -EINVAL;
 	}
 
