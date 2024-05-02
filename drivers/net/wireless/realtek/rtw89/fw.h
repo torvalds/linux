@@ -1856,45 +1856,18 @@ static inline void RTW89_SET_DISCONNECT_DETECT_TRYOK_BCNFAIL_COUNT_LIMIT(void *h
 	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(7, 0));
 }
 
-static inline void RTW89_SET_WOW_GLOBAL_ENABLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
-}
+struct rtw89_h2c_wow_global {
+	__le32 w0;
+	struct rtw89_wow_key_info key_info;
+} __packed;
 
-static inline void RTW89_SET_WOW_GLOBAL_DROP_ALL_PKT(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(1));
-}
-
-static inline void RTW89_SET_WOW_GLOBAL_RX_PARSE_AFTER_WAKE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(2));
-}
-
-static inline void RTW89_SET_WOW_GLOBAL_WAKE_BAR_PULLED(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(3));
-}
-
-static inline void RTW89_SET_WOW_GLOBAL_MAC_ID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(15, 8));
-}
-
-static inline void RTW89_SET_WOW_GLOBAL_PAIRWISE_SEC_ALGO(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(23, 16));
-}
-
-static inline void RTW89_SET_WOW_GLOBAL_GROUP_SEC_ALGO(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 24));
-}
-
-static inline void RTW89_SET_WOW_GLOBAL_REMOTECTRL_INFO_CONTENT(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(31, 0));
-}
+#define RTW89_H2C_WOW_GLOBAL_W0_ENABLE BIT(0)
+#define RTW89_H2C_WOW_GLOBAL_W0_DROP_ALL_PKT BIT(1)
+#define RTW89_H2C_WOW_GLOBAL_W0_RX_PARSE_AFTER_WAKE BIT(2)
+#define RTW89_H2C_WOW_GLOBAL_W0_WAKE_BAR_PULLED BIT(3)
+#define RTW89_H2C_WOW_GLOBAL_W0_MAC_ID GENMASK(15, 8)
+#define RTW89_H2C_WOW_GLOBAL_W0_PAIRWISE_SEC_ALGO GENMASK(23, 16)
+#define RTW89_H2C_WOW_GLOBAL_W0_GROUP_SEC_ALGO GENMASK(31, 24)
 
 static inline void RTW89_SET_WOW_WAKEUP_CTRL_PATTERN_MATCH_ENABLE(void *h2c, u32 val)
 {

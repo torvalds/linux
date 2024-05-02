@@ -6353,30 +6353,32 @@ fail:
 	return ret;
 }
 
-#define H2C_WOW_GLOBAL_LEN 8
 int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			    bool enable)
 {
-	struct sk_buff *skb;
+	struct rtw89_h2c_wow_global *h2c;
 	u8 macid = rtwvif->mac_id;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
 	int ret;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_WOW_GLOBAL_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
-		rtw89_err(rtwdev, "failed to alloc skb for keep alive\n");
+		rtw89_err(rtwdev, "failed to alloc skb for wow global\n");
 		return -ENOMEM;
 	}
 
-	skb_put(skb, H2C_WOW_GLOBAL_LEN);
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_wow_global *)skb->data;
 
-	RTW89_SET_WOW_GLOBAL_ENABLE(skb->data, enable);
-	RTW89_SET_WOW_GLOBAL_MAC_ID(skb->data, macid);
+	h2c->w0 = le32_encode_bits(enable, RTW89_H2C_WOW_GLOBAL_W0_ENABLE) |
+		  le32_encode_bits(macid, RTW89_H2C_WOW_GLOBAL_W0_MAC_ID);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
 			      H2C_CL_MAC_WOW,
 			      H2C_FUNC_WOW_GLOBAL, 0, 1,
-			      H2C_WOW_GLOBAL_LEN);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
