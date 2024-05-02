@@ -281,6 +281,9 @@ int panthor_heap_create(struct panthor_heap_pool *pool,
 	if (initial_chunk_count == 0)
 		return -EINVAL;
 
+	if (initial_chunk_count > max_chunks)
+		return -EINVAL;
+
 	if (hweight32(chunk_size) != 1 ||
 	    chunk_size < SZ_256K || chunk_size > SZ_2M)
 		return -EINVAL;

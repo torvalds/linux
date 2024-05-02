@@ -895,13 +895,17 @@ struct drm_panthor_tiler_heap_create {
 	/** @vm_id: VM ID the tiler heap should be mapped to */
 	__u32 vm_id;
 
-	/** @initial_chunk_count: Initial number of chunks to allocate. */
+	/** @initial_chunk_count: Initial number of chunks to allocate. Must be at least one. */
 	__u32 initial_chunk_count;
 
 	/** @chunk_size: Chunk size. Must be a power of two at least 256KB large. */
 	__u32 chunk_size;
 
-	/** @max_chunks: Maximum number of chunks that can be allocated. */
+	/**
+	 * @max_chunks: Maximum number of chunks that can be allocated.
+	 *
+	 * Must be at least @initial_chunk_count.
+	 */
 	__u32 max_chunks;
 
 	/**
