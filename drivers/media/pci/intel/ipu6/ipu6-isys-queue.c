@@ -34,7 +34,7 @@ static int queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
 	if (!*num_planes) {
 		sizes[0] = size;
 	} else if (sizes[0] < size) {
-		dev_err(dev, "%s: queue setup: size %u < %u\n",
+		dev_dbg(dev, "%s: queue setup: size %u < %u\n",
 			av->vdev.name, sizes[0], size);
 		return -EINVAL;
 	}
@@ -359,7 +359,7 @@ static void buf_queue(struct vb2_buffer *vb)
 	 */
 	ret = buffer_list_get(stream, &bl);
 	if (ret < 0) {
-		dev_warn(dev, "No buffers available\n");
+		dev_dbg(dev, "No buffers available\n");
 		goto out;
 	}
 
@@ -426,7 +426,7 @@ static int ipu6_isys_link_fmt_validate(struct ipu6_isys_queue *aq)
 
 	if (format.width != ipu6_isys_get_frame_width(av) ||
 	    format.height != ipu6_isys_get_frame_height(av)) {
-		dev_err(dev, "wrong width or height %ux%u (%ux%u expected)\n",
+		dev_dbg(dev, "wrong width or height %ux%u (%ux%u expected)\n",
 			ipu6_isys_get_frame_width(av),
 			ipu6_isys_get_frame_height(av), format.width,
 			format.height);
@@ -521,13 +521,13 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 
 	ret = ipu6_isys_setup_video(av, &source_entity, &nr_queues);
 	if (ret < 0) {
-		dev_err(dev, "failed to setup video\n");
+		dev_dbg(dev, "failed to setup video\n");
 		goto out_return_buffers;
 	}
 
 	ret = ipu6_isys_link_fmt_validate(aq);
 	if (ret) {
-		dev_err(dev,
+		dev_dbg(dev,
 			"%s: link format validation failed (%d)\n",
 			av->vdev.name, ret);
 		goto out_pipeline_stop;
