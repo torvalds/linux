@@ -347,18 +347,16 @@ int add_iaa_compression_mode(const char *name,
 		goto free;
 
 	if (ll_table) {
-		mode->ll_table = kzalloc(ll_table_size, GFP_KERNEL);
+		mode->ll_table = kmemdup(ll_table, ll_table_size, GFP_KERNEL);
 		if (!mode->ll_table)
 			goto free;
-		memcpy(mode->ll_table, ll_table, ll_table_size);
 		mode->ll_table_size = ll_table_size;
 	}
 
 	if (d_table) {
-		mode->d_table = kzalloc(d_table_size, GFP_KERNEL);
+		mode->d_table = kmemdup(d_table, d_table_size, GFP_KERNEL);
 		if (!mode->d_table)
 			goto free;
-		memcpy(mode->d_table, d_table, d_table_size);
 		mode->d_table_size = d_table_size;
 	}
 
