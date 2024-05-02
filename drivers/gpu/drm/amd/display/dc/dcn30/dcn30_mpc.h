@@ -1091,10 +1091,6 @@ void mpc3_power_on_ogam_lut(
 
 void mpc3_init_mpcc(struct mpcc *mpcc, int mpcc_inst);
 
-void mpc3_mpc_init_single_inst(
-	struct mpc *mpc,
-	unsigned int mpcc_id);
-
 enum dc_lut_mode mpc3_get_ogam_current(
 	struct mpc *mpc,
 	int mpcc_id);

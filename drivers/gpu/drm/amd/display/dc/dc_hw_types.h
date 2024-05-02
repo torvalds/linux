@@ -125,9 +125,6 @@ struct dc_plane_address {
 	union large_integer page_table_base;
 
 	uint8_t vmid;
-	/* dc should use hw flip queue rather than directly programming the surface address.
-	 * Value is determined on each flip. */
-	bool offload_flip;
 };
 
 struct dc_size {
