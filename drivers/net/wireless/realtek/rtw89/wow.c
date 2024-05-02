@@ -454,6 +454,7 @@ static int rtw89_wow_check_fw_status(struct rtw89_dev *rtwdev, bool wow_enable)
 static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 {
 	enum rtw89_fw_type fw_type = wow ? RTW89_FW_WOWLAN : RTW89_FW_NORMAL;
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
@@ -518,6 +519,9 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 		rtw89_phy_set_bss_color(rtwdev, wow_vif);
 		rtw89_chip_cfg_txpwr_ul_tb_offset(rtwdev, wow_vif);
 	}
+
+	if (chip_gen == RTW89_CHIP_BE)
+		rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, RTW89_PHY_0, 5);
 
 	rtw89_mac_hw_mgnt_sec(rtwdev, wow);
 	rtw89_hci_enable_intr(rtwdev);
