@@ -1314,6 +1314,9 @@ static int check_matching_type(struct type_state *state,
 			return -1;
 		}
 
+		if (stack->kind != TSR_KIND_TYPE)
+			return 0;
+
 		*type_die = stack->type;
 		/* Update the type offset from the start of slot */
 		dloc->type_offset -= stack->offset;
@@ -1342,6 +1345,9 @@ static int check_matching_type(struct type_state *state,
 			setup_stack_canary(dloc);
 			return -1;
 		}
+
+		if (stack->kind != TSR_KIND_TYPE)
+			return 0;
 
 		*type_die = stack->type;
 		/* Update the type offset from the start of slot */
