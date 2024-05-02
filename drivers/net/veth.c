@@ -717,7 +717,7 @@ static void veth_xdp_get(struct xdp_buff *xdp)
 		return;
 
 	for (i = 0; i < sinfo->nr_frags; i++)
-		__skb_frag_ref(&sinfo->frags[i], false);
+		__skb_frag_ref(&sinfo->frags[i]);
 }
 
 static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,

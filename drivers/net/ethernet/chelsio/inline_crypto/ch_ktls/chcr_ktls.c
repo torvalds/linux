@@ -1659,7 +1659,7 @@ static void chcr_ktls_copy_record_in_skb(struct sk_buff *nskb,
 	for (i = 0; i < record->num_frags; i++) {
 		skb_shinfo(nskb)->frags[i] = record->frags[i];
 		/* increase the frag ref count */
-		__skb_frag_ref(&skb_shinfo(nskb)->frags[i], nskb->pp_recycle);
+		__skb_frag_ref(&skb_shinfo(nskb)->frags[i]);
 	}
 
 	skb_shinfo(nskb)->nr_frags = record->num_frags;
