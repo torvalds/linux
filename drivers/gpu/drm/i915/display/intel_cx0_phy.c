@@ -3078,9 +3078,10 @@ static void intel_c20pll_state_verify(const struct intel_crtc_state *state,
 	const struct intel_c20pll_state *mpll_sw_state = &state->dpll_hw_state.cx0pll.c20;
 	bool sw_use_mpllb = intel_c20phy_use_mpllb(mpll_sw_state);
 	bool hw_use_mpllb = intel_c20phy_use_mpllb(mpll_hw_state);
+	int clock = intel_c20pll_calc_port_clock(encoder, mpll_sw_state);
 	int i;
 
-	I915_STATE_WARN(i915, mpll_hw_state->clock != mpll_sw_state->clock,
+	I915_STATE_WARN(i915, mpll_hw_state->clock != clock,
 			"[CRTC:%d:%s] mismatch in C20: Register CLOCK (expected %d, found %d)",
 			crtc->base.base.id, crtc->base.name,
 			mpll_sw_state->clock, mpll_hw_state->clock);
