@@ -12,6 +12,21 @@
 #include "util.h"
 #include "wow.h"
 
+void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	const u8 *rsn, *ies = mgmt->u.assoc_req.variable;
+	struct rtw89_rsn_ie *rsn_ie;
+
+	rsn = cfg80211_find_ie(WLAN_EID_RSN, ies, skb->len);
+	if (!rsn)
+		return;
+
+	rsn_ie = (struct rtw89_rsn_ie *)rsn;
+	rtw_wow->akm = rsn_ie->akm_cipher_suite.type;
+}
+
 static void rtw89_wow_leave_deep_ps(struct rtw89_dev *rtwdev)
 {
 	__rtw89_leave_ps_mode(rtwdev);

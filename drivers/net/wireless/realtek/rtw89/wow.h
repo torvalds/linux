@@ -15,7 +15,31 @@ enum rtw89_wake_reason {
 	RTW89_WOW_RSN_RX_NLO = 0x55,
 };
 
+struct rtw89_cipher_suite {
+	u8 oui[3];
+	u8 type;
+} __packed;
+
+struct rtw89_rsn_ie {
+	u8 tag_number;
+	u8 tag_length;
+	__le16 rsn_version;
+	struct rtw89_cipher_suite group_cipher_suite;
+	__le16 pairwise_cipher_suite_cnt;
+	struct rtw89_cipher_suite pairwise_cipher_suite;
+	__le16 akm_cipher_suite_cnt;
+	struct rtw89_cipher_suite akm_cipher_suite;
+} __packed;
+
+#ifdef CONFIG_PM
 int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan);
 int rtw89_wow_resume(struct rtw89_dev *rtwdev);
+void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb);
+#else
+static inline
+void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
+{
+}
+#endif
 
 #endif
