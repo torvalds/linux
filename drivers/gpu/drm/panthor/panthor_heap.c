@@ -410,6 +410,13 @@ out_unlock:
  * @renderpasses_in_flight: Number of render passes currently in-flight.
  * @pending_frag_count: Number of fragment jobs waiting for execution/completion.
  * @new_chunk_gpu_va: Pointer used to return the chunk VA.
+ *
+ * Return:
+ * - 0 if a new heap was allocated
+ * - -ENOMEM if the tiler context reached the maximum number of chunks
+ *   or if too many render passes are in-flight
+ *   or if the allocation failed
+ * - -EINVAL if any of the arguments passed to panthor_heap_grow() is invalid
  */
 int panthor_heap_grow(struct panthor_heap_pool *pool,
 		      u64 heap_gpu_va,
@@ -439,10 +446,7 @@ int panthor_heap_grow(struct panthor_heap_pool *pool,
 	 * handler provided by the userspace driver, if any).
 	 */
 	if (renderpasses_in_flight > heap->target_in_flight ||
-	    (pending_frag_count > 0 && heap->chunk_count >= heap->max_chunks)) {
-		ret = -EBUSY;
-		goto out_unlock;
-	} else if (heap->chunk_count >= heap->max_chunks) {
+	    heap->chunk_count >= heap->max_chunks) {
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
