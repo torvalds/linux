@@ -1073,9 +1073,9 @@ static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 static int gfx_v11_0_gfx_ring_init(struct amdgpu_device *adev, int ring_id,
 				   int me, int pipe, int queue)
 {
-	int r;
 	struct amdgpu_ring *ring;
 	unsigned int irq_type;
+	unsigned int hw_prio;
 
 	ring = &adev->gfx.gfx_ring[ring_id];
 
@@ -1094,11 +1094,10 @@ static int gfx_v11_0_gfx_ring_init(struct amdgpu_device *adev, int ring_id,
 	sprintf(ring->name, "gfx_%d.%d.%d", ring->me, ring->pipe, ring->queue);
 
 	irq_type = AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP + ring->pipe;
-	r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq, irq_type,
-			     AMDGPU_RING_PRIO_DEFAULT, NULL);
-	if (r)
-		return r;
-	return 0;
+	hw_prio = amdgpu_gfx_is_high_priority_graphics_queue(adev, ring) ?
+		AMDGPU_GFX_PIPE_PRIO_HIGH : AMDGPU_GFX_PIPE_PRIO_NORMAL;
+	return amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq, irq_type,
+				hw_prio, NULL);
 }
 
 static int gfx_v11_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
@@ -3806,6 +3805,24 @@ static void gfx_v11_0_cp_set_doorbell_range(struct amdgpu_device *adev)
 		     (adev->doorbell_index.userqueue_end * 2) << 2);
 }
 
+static void gfx_v11_0_gfx_mqd_set_priority(struct amdgpu_device *adev,
+					   struct v11_gfx_mqd *mqd,
+					   struct amdgpu_mqd_prop *prop)
+{
+	bool priority = 0;
+	u32 tmp;
+
+	/* set up default queue priority level
+	 * 0x0 = low priority, 0x1 = high priority
+	 */
+	if (prop->hqd_pipe_priority == AMDGPU_GFX_PIPE_PRIO_HIGH)
+		priority = 1;
+
+	tmp = RREG32_SOC15(GC, 0, regCP_GFX_HQD_QUEUE_PRIORITY);
+	tmp = REG_SET_FIELD(tmp, CP_GFX_HQD_QUEUE_PRIORITY, PRIORITY_LEVEL, priority);
+	mqd->cp_gfx_hqd_queue_priority = tmp;
+}
+
 static int gfx_v11_0_gfx_mqd_init(struct amdgpu_device *adev, void *m,
 				  struct amdgpu_mqd_prop *prop)
 {
@@ -3834,11 +3851,8 @@ static int gfx_v11_0_gfx_mqd_init(struct amdgpu_device *adev, void *m,
 	tmp = REG_SET_FIELD(tmp, CP_GFX_HQD_VMID, VMID, 0);
 	mqd->cp_gfx_hqd_vmid = 0;
 
-	/* set up default queue priority level
-	 * 0x0 = low priority, 0x1 = high priority */
-	tmp = RREG32_SOC15(GC, 0, regCP_GFX_HQD_QUEUE_PRIORITY);
-	tmp = REG_SET_FIELD(tmp, CP_GFX_HQD_QUEUE_PRIORITY, PRIORITY_LEVEL, 0);
-	mqd->cp_gfx_hqd_queue_priority = tmp;
+	/* set up gfx queue priority */
+	gfx_v11_0_gfx_mqd_set_priority(adev, mqd, prop);
 
 	/* set up time quantum */
 	tmp = RREG32_SOC15(GC, 0, regCP_GFX_HQD_QUANTUM);
