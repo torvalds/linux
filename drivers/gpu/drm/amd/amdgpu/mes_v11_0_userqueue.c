@@ -180,6 +180,34 @@ static int mes_v11_0_userq_create_ctx_space(struct amdgpu_userq_mgr *uq_mgr,
 		return r;
 	}
 
+	/* Shadow, GDS and CSA objects come directly from userspace */
+	if (mqd_user->ip_type == AMDGPU_HW_IP_GFX) {
+		struct v11_gfx_mqd *mqd = queue->mqd.cpu_ptr;
+		struct drm_amdgpu_userq_mqd_gfx11 *mqd_gfx_v11;
+
+		if (mqd_user->mqd_size != sizeof(*mqd_gfx_v11) || !mqd_user->mqd) {
+			DRM_ERROR("Invalid GFX MQD\n");
+			return -EINVAL;
+		}
+
+		mqd_gfx_v11 = memdup_user(u64_to_user_ptr(mqd_user->mqd), mqd_user->mqd_size);
+		if (IS_ERR(mqd_gfx_v11)) {
+			DRM_ERROR("Failed to read user MQD\n");
+			amdgpu_userqueue_destroy_object(uq_mgr, ctx);
+			return -ENOMEM;
+		}
+
+		mqd->shadow_base_lo = mqd_gfx_v11->shadow_va & 0xFFFFFFFC;
+		mqd->shadow_base_hi = upper_32_bits(mqd_gfx_v11->shadow_va);
+
+		mqd->gds_bkup_base_lo = mqd_gfx_v11->gds_va & 0xFFFFFFFC;
+		mqd->gds_bkup_base_hi = upper_32_bits(mqd_gfx_v11->gds_va);
+
+		mqd->fw_work_area_base_lo = mqd_gfx_v11->csa_va & 0xFFFFFFFC;
+		mqd->fw_work_area_base_hi = upper_32_bits(mqd_gfx_v11->csa_va);
+		kfree(mqd_gfx_v11);
+	}
+
 	return 0;
 }
 

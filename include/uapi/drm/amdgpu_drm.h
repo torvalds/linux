@@ -409,6 +409,25 @@ union drm_amdgpu_userq {
 	struct drm_amdgpu_userq_out out;
 };
 
+/* GFX V11 IP specific MQD parameters */
+struct drm_amdgpu_userq_mqd_gfx11 {
+	/**
+	 * @shadow_va: Virtual address of the GPU memory to hold the shadow buffer.
+	 * Use AMDGPU_INFO_IOCTL to find the exact size of the object.
+	 */
+	__u64   shadow_va;
+	/**
+	 * @gds_va: Virtual address of the GPU memory to hold the GDS buffer.
+	 * Use AMDGPU_INFO_IOCTL to find the exact size of the object.
+	 */
+	__u64   gds_va;
+	/**
+	 * @csa_va: Virtual address of the GPU memory to hold the CSA buffer.
+	 * Use AMDGPU_INFO_IOCTL to find the exact size of the object.
+	 */
+	__u64   csa_va;
+};
+
 /* vm ioctl */
 #define AMDGPU_VM_OP_RESERVE_VMID	1
 #define AMDGPU_VM_OP_UNRESERVE_VMID	2

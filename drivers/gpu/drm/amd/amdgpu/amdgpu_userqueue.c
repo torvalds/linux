@@ -188,6 +188,12 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	uint64_t index;
 	int qid, r = 0;
 
+	/* Usermode queues are only supported for GFX IP as of now */
+	if (args->in.ip_type != AMDGPU_HW_IP_GFX) {
+		DRM_ERROR("Usermode queue doesn't support IP type %u\n", args->in.ip_type);
+		return -EINVAL;
+	}
+
 	if (args->in.flags) {
 		DRM_ERROR("Usermode queue flags not supported yet\n");
 		return -EINVAL;
