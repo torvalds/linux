@@ -253,8 +253,8 @@ int panthor_heap_destroy(struct panthor_heap_pool *pool, u32 handle)
  * @pool: Pool to instantiate the heap context from.
  * @initial_chunk_count: Number of chunk allocated at initialization time.
  * Must be at least 1.
- * @chunk_size: The size of each chunk. Must be a power of two between 256k
- * and 2M.
+ * @chunk_size: The size of each chunk. Must be page-aligned and lie in the
+ * [128k:8M] range.
  * @max_chunks: Maximum number of chunks that can be allocated.
  * @target_in_flight: Maximum number of in-flight render passes.
  * @heap_ctx_gpu_va: Pointer holding the GPU address of the allocated heap
@@ -284,8 +284,8 @@ int panthor_heap_create(struct panthor_heap_pool *pool,
 	if (initial_chunk_count > max_chunks)
 		return -EINVAL;
 
-	if (hweight32(chunk_size) != 1 ||
-	    chunk_size < SZ_256K || chunk_size > SZ_2M)
+	if (!IS_ALIGNED(chunk_size, PAGE_SIZE) ||
+	    chunk_size < SZ_128K || chunk_size > SZ_8M)
 		return -EINVAL;
 
 	down_read(&pool->lock);

@@ -898,7 +898,11 @@ struct drm_panthor_tiler_heap_create {
 	/** @initial_chunk_count: Initial number of chunks to allocate. Must be at least one. */
 	__u32 initial_chunk_count;
 
-	/** @chunk_size: Chunk size. Must be a power of two at least 256KB large. */
+	/**
+	 * @chunk_size: Chunk size.
+	 *
+	 * Must be page-aligned and lie in the [128k:8M] range.
+	 */
 	__u32 chunk_size;
 
 	/**
