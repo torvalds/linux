@@ -2585,7 +2585,7 @@ int parse_events_term__term(struct parse_events_term **term,
 }
 
 int parse_events_term__clone(struct parse_events_term **new,
-			     struct parse_events_term *term)
+			     const struct parse_events_term *term)
 {
 	char *str;
 	struct parse_events_term temp = *term;

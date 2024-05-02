@@ -24,4 +24,6 @@ int perf_pmus__num_core_pmus(void);
 bool perf_pmus__supports_extended_type(void);
 char *perf_pmus__default_pmu_name(void);
 
+struct perf_pmu *perf_pmus__add_test_pmu(int test_sysfs_dirfd, const char *name);
+
 #endif /* __PMUS_H */

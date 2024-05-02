@@ -178,7 +178,7 @@ int parse_events_term__term(struct parse_events_term **term,
 			    enum parse_events__term_type term_rhs,
 			    void *loc_term, void *loc_val);
 int parse_events_term__clone(struct parse_events_term **new,
-			     struct parse_events_term *term);
+			     const struct parse_events_term *term);
 void parse_events_term__delete(struct parse_events_term *term);
 
 void parse_events_terms__delete(struct parse_events_terms *terms);

@@ -124,7 +124,8 @@ struct perf_pmu *perf_pmus__find(const char *name)
 		return NULL;
 
 	dirfd = perf_pmu__event_source_devices_fd();
-	pmu = perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name);
+	pmu = perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name,
+			       /*eager_load=*/false);
 	close(dirfd);
 
 	if (!pmu) {
@@ -159,7 +160,8 @@ static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name)
 	if (core_pmu && read_sysfs_core_pmus)
 		return NULL;
 
-	return perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name);
+	return perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name,
+				/*eager_load=*/false);
 }
 
 static int pmus_cmp(void *priv __maybe_unused,
@@ -695,4 +697,14 @@ struct perf_pmu *evsel__find_pmu(const struct evsel *evsel)
 struct perf_pmu *perf_pmus__find_core_pmu(void)
 {
 	return perf_pmus__scan_core(NULL);
+}
+
+struct perf_pmu *perf_pmus__add_test_pmu(int test_sysfs_dirfd, const char *name)
+{
+	/*
+	 * Some PMU functions read from the sysfs mount point, so care is
+	 * needed, hence passing the eager_load flag to load things like the
+	 * format files.
+	 */
+	return perf_pmu__lookup(&other_pmus, test_sysfs_dirfd, name, /*eager_load=*/true);
 }
