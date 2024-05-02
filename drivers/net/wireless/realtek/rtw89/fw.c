@@ -20,6 +20,12 @@ struct rtw89_eapol_2_of_2 {
 	u8 rsvd[92];
 } __packed __aligned(2);
 
+struct rtw89_sa_query {
+	struct ieee80211_hdr_3addr hdr;
+	u8 category;
+	u8 action;
+} __packed __aligned(2);
+
 static const u8 mss_signature[] = {0x4D, 0x53, 0x53, 0x4B, 0x50, 0x4F, 0x4F, 0x4C};
 
 union rtw89_fw_element_arg {
@@ -2192,6 +2198,31 @@ static struct sk_buff *rtw89_eapol_get(struct rtw89_dev *rtwdev,
 	return skb;
 }
 
+static struct sk_buff *rtw89_sa_query_get(struct rtw89_dev *rtwdev,
+					  struct rtw89_vif *rtwvif)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct rtw89_sa_query *sa_query;
+	struct sk_buff *skb;
+
+	skb = dev_alloc_skb(sizeof(*sa_query));
+	if (!skb)
+		return NULL;
+
+	sa_query = skb_put_zero(skb, sizeof(*sa_query));
+	sa_query->hdr.frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+						  IEEE80211_STYPE_ACTION |
+						  IEEE80211_FCTL_PROTECTED);
+	ether_addr_copy(sa_query->hdr.addr1, bss_conf->bssid);
+	ether_addr_copy(sa_query->hdr.addr2, vif->addr);
+	ether_addr_copy(sa_query->hdr.addr3, bss_conf->bssid);
+	sa_query->category = WLAN_CATEGORY_SA_QUERY;
+	sa_query->action = WLAN_ACTION_SA_QUERY_RESPONSE;
+
+	return skb;
+}
+
 static int rtw89_fw_h2c_add_general_pkt(struct rtw89_dev *rtwdev,
 					struct rtw89_vif *rtwvif,
 					enum rtw89_fw_pkt_ofld_type type,
@@ -2221,6 +2252,9 @@ static int rtw89_fw_h2c_add_general_pkt(struct rtw89_dev *rtwdev,
 		break;
 	case RTW89_PKT_OFLD_TYPE_EAPOL_KEY:
 		skb = rtw89_eapol_get(rtwdev, rtwvif);
+		break;
+	case RTW89_PKT_OFLD_TYPE_SA_QUERY:
+		skb = rtw89_sa_query_get(rtwdev, rtwvif);
 		break;
 	default:
 		goto err;
@@ -6556,6 +6590,7 @@ int rtw89_fw_h2c_wow_gtk_ofld(struct rtw89_dev *rtwdev,
 	struct rtw89_h2c_wow_gtk_ofld *h2c;
 	u8 macid = rtwvif->mac_id;
 	u32 len = sizeof(*h2c);
+	u8 pkt_id_sa_query = 0;
 	struct sk_buff *skb;
 	u8 pkt_id_eapol = 0;
 	int ret;
@@ -6583,13 +6618,24 @@ int rtw89_fw_h2c_wow_gtk_ofld(struct rtw89_dev *rtwdev,
 	if (ret)
 		goto fail;
 
-	/* not support TKIP and IEEE80211W yet */
+	if (gtk_info->igtk_keyid) {
+		ret = rtw89_fw_h2c_add_general_pkt(rtwdev, rtwvif,
+						   RTW89_PKT_OFLD_TYPE_SA_QUERY,
+						   &pkt_id_sa_query);
+		if (ret)
+			goto fail;
+	}
+
+	/* not support TKIP yet */
 	h2c->w0 = le32_encode_bits(enable, RTW89_H2C_WOW_GTK_OFLD_W0_EN) |
 		  le32_encode_bits(0, RTW89_H2C_WOW_GTK_OFLD_W0_TKIP_EN) |
-		  le32_encode_bits(0, RTW89_H2C_WOW_GTK_OFLD_W0_IEEE80211W_EN) |
+		  le32_encode_bits(gtk_info->igtk_keyid ? 1 : 0,
+				   RTW89_H2C_WOW_GTK_OFLD_W0_IEEE80211W_EN) |
 		  le32_encode_bits(macid, RTW89_H2C_WOW_GTK_OFLD_W0_MAC_ID) |
 		  le32_encode_bits(pkt_id_eapol, RTW89_H2C_WOW_GTK_OFLD_W0_GTK_RSP_ID);
-	h2c->w1 = le32_encode_bits(rtw_wow->akm, RTW89_H2C_WOW_GTK_OFLD_W1_ALGO_AKM_SUIT);
+	h2c->w1 = le32_encode_bits(gtk_info->igtk_keyid ? pkt_id_sa_query : 0,
+				   RTW89_H2C_WOW_GTK_OFLD_W1_PMF_SA_QUERY_ID) |
+		  le32_encode_bits(rtw_wow->akm, RTW89_H2C_WOW_GTK_OFLD_W1_ALGO_AKM_SUIT);
 	h2c->gtk_info = rtw_wow->gtk_info;
 
 hdr:

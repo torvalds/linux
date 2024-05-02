@@ -5159,6 +5159,9 @@ rtw89_mac_c2h_wow_aoac_rpt(struct rtw89_dev *rtwdev, struct sk_buff *skb, u32 le
 	memcpy(aoac_rpt->gtk, c2h->gtk, sizeof(aoac_rpt->gtk));
 	memcpy(aoac_rpt->ptk_rx_iv, c2h->ptk_rx_iv, sizeof(aoac_rpt->ptk_rx_iv));
 	memcpy(aoac_rpt->gtk_rx_iv, c2h->gtk_rx_iv, sizeof(aoac_rpt->gtk_rx_iv));
+	aoac_rpt->igtk_key_id = le64_to_cpu(c2h->igtk_key_id);
+	aoac_rpt->igtk_ipn = le64_to_cpu(c2h->igtk_ipn);
+	memcpy(aoac_rpt->igtk, c2h->igtk, sizeof(aoac_rpt->igtk));
 
 	cond = RTW89_WOW_WAIT_COND(H2C_FUNC_AOAC_REPORT_REQ);
 	rtw89_complete_cond(wait, cond, &data);

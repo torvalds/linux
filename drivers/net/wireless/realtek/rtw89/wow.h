@@ -12,6 +12,15 @@
 #define RTW89_KEY_PN_4 GENMASK_ULL(39, 32)
 #define RTW89_KEY_PN_5 GENMASK_ULL(47, 40)
 
+#define RTW89_IGTK_IPN_0 GENMASK_ULL(7, 0)
+#define RTW89_IGTK_IPN_1 GENMASK_ULL(15, 8)
+#define RTW89_IGTK_IPN_2 GENMASK_ULL(23, 16)
+#define RTW89_IGTK_IPN_3 GENMASK_ULL(31, 24)
+#define RTW89_IGTK_IPN_4 GENMASK_ULL(39, 32)
+#define RTW89_IGTK_IPN_5 GENMASK_ULL(47, 40)
+#define RTW89_IGTK_IPN_6 GENMASK_ULL(55, 48)
+#define RTW89_IGTK_IPN_7 GENMASK_ULL(63, 56)
+
 #define RTW89_WOW_VALID_CHECK 0xDD
 #define RTW89_WOW_SYMBOL_CHK_PTK BIT(0)
 #define RTW89_WOW_SYMBOL_CHK_GTK BIT(1)
@@ -50,6 +59,7 @@ struct rtw89_cipher_info {
 
 struct rtw89_set_key_info_iter_data {
 	u32 gtk_cipher;
+	u32 igtk_cipher;
 	bool rx_ready;
 	bool error;
 };

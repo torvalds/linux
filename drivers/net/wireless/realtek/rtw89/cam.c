@@ -356,6 +356,9 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		ext_key = true;
 		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		hw_key_type = RTW89_SEC_KEY_TYPE_BIP_CCMP128;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}

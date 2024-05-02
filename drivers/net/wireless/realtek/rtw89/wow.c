@@ -35,6 +35,7 @@ static const struct rtw89_cipher_info rtw89_cipher_info_defs[] = {
 	{WLAN_CIPHER_SUITE_GCMP,	.fw_alg = 8,	.len = WLAN_KEY_LEN_GCMP,},
 	{WLAN_CIPHER_SUITE_CCMP_256,	.fw_alg = 7,	.len = WLAN_KEY_LEN_CCMP_256,},
 	{WLAN_CIPHER_SUITE_GCMP_256,	.fw_alg = 23,	.len = WLAN_KEY_LEN_GCMP_256,},
+	{WLAN_CIPHER_SUITE_AES_CMAC,	.fw_alg = 32,	.len = WLAN_KEY_LEN_AES_CMAC,},
 };
 
 static const
@@ -203,6 +204,63 @@ static int rtw89_tx_iv_to_pn(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static int rtw89_rx_pn_get_pmf(struct rtw89_dev *rtwdev,
+			       struct ieee80211_key_conf *key,
+			       struct rtw89_wow_gtk_info *gtk_info)
+{
+	struct ieee80211_key_seq seq;
+	u64 pn;
+
+	if (key->keyidx == 4)
+		memcpy(gtk_info->igtk[0], key->key, key->keylen);
+	else if (key->keyidx == 5)
+		memcpy(gtk_info->igtk[1], key->key, key->keylen);
+	else
+		return -EINVAL;
+
+	ieee80211_get_key_rx_seq(key, 0, &seq);
+
+	/* seq.ccmp.pn[] is BE order array */
+	pn = u64_encode_bits(seq.ccmp.pn[0], RTW89_KEY_PN_5) |
+	     u64_encode_bits(seq.ccmp.pn[1], RTW89_KEY_PN_4) |
+	     u64_encode_bits(seq.ccmp.pn[2], RTW89_KEY_PN_3) |
+	     u64_encode_bits(seq.ccmp.pn[3], RTW89_KEY_PN_2) |
+	     u64_encode_bits(seq.ccmp.pn[4], RTW89_KEY_PN_1) |
+	     u64_encode_bits(seq.ccmp.pn[5], RTW89_KEY_PN_0);
+	gtk_info->ipn = cpu_to_le64(pn);
+	gtk_info->igtk_keyid = cpu_to_le32(key->keyidx);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d pn-%llx\n",
+		    __func__, key->keyidx, pn);
+
+	return 0;
+}
+
+static int rtw89_rx_pn_set_pmf(struct rtw89_dev *rtwdev,
+			       struct ieee80211_key_conf *key,
+			       u64 pn)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
+	struct ieee80211_key_seq seq;
+
+	if (key->keyidx != aoac_rpt->igtk_key_id)
+		return 0;
+
+	/* seq.ccmp.pn[] is BE order array */
+	seq.ccmp.pn[0] = u64_get_bits(pn, RTW89_KEY_PN_5);
+	seq.ccmp.pn[1] = u64_get_bits(pn, RTW89_KEY_PN_4);
+	seq.ccmp.pn[2] = u64_get_bits(pn, RTW89_KEY_PN_3);
+	seq.ccmp.pn[3] = u64_get_bits(pn, RTW89_KEY_PN_2);
+	seq.ccmp.pn[4] = u64_get_bits(pn, RTW89_KEY_PN_1);
+	seq.ccmp.pn[5] = u64_get_bits(pn, RTW89_KEY_PN_0);
+
+	ieee80211_set_key_rx_seq(key, 0, &seq);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d pn-%*ph\n",
+		    __func__, key->keyidx, 6, seq.ccmp.pn);
+
+	return 0;
+}
+
 static void rtw89_wow_get_key_info_iter(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
 					struct ieee80211_sta *sta,
@@ -212,6 +270,7 @@ static void rtw89_wow_get_key_info_iter(struct ieee80211_hw *hw,
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_wow_key_info *key_info = &rtw_wow->key_info;
+	struct rtw89_wow_gtk_info *gtk_info = &rtw_wow->gtk_info;
 	const struct rtw89_cipher_info *cipher_info;
 	bool *err = data;
 	int ret;
@@ -245,6 +304,11 @@ static void rtw89_wow_get_key_info_iter(struct ieee80211_hw *hw,
 			rtw_wow->gtk_alg = cipher_info->fw_alg;
 			key_info->gtk_keyidx = key->keyidx;
 		}
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		ret = rtw89_rx_pn_get_pmf(rtwdev, key, gtk_info);
+		if (ret)
+			goto err;
 		break;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_WOW, "unsupport cipher %x\n",
@@ -299,6 +363,17 @@ static void rtw89_wow_set_key_info_iter(struct ieee80211_hw *hw,
 
 		if (!sta && update_tx_key_info && aoac_rpt->rekey_ok)
 			iter_data->gtk_cipher = key->cipher;
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		if (update_tx_key_info) {
+			if (aoac_rpt->rekey_ok)
+				iter_data->igtk_cipher = key->cipher;
+		} else {
+			ret = rtw89_rx_pn_set_pmf(rtwdev, key,
+						  aoac_rpt->igtk_ipn);
+			if (ret)
+				goto err;
+		}
 		break;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_WOW, "unsupport cipher %x\n",
@@ -392,6 +467,7 @@ static int rtw89_wow_get_aoac_rpt_reg(struct rtw89_dev *rtwdev)
 	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
 	struct rtw89_mac_c2h_info c2h_info = {};
 	struct rtw89_mac_h2c_info h2c_info = {};
+	u8 igtk_ipn[8];
 	u8 key_idx;
 	int ret;
 
@@ -443,6 +519,30 @@ static int rtw89_wow_get_aoac_rpt_reg(struct rtw89_dev *rtwdev)
 		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_2_W1_PTK_IV_6);
 	aoac_rpt->ptk_rx_iv[7] =
 		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_2_W1_PTK_IV_7);
+	igtk_ipn[0] =
+		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_2_W1_IGTK_IPN_IV_0);
+	igtk_ipn[1] =
+		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_2_W1_IGTK_IPN_IV_1);
+	igtk_ipn[2] =
+		u32_get_bits(c2h_info.u.c2hreg[2], RTW89_C2HREG_AOAC_RPT_2_W2_IGTK_IPN_IV_2);
+	igtk_ipn[3] =
+		u32_get_bits(c2h_info.u.c2hreg[2], RTW89_C2HREG_AOAC_RPT_2_W2_IGTK_IPN_IV_3);
+	igtk_ipn[4] =
+		u32_get_bits(c2h_info.u.c2hreg[2], RTW89_C2HREG_AOAC_RPT_2_W2_IGTK_IPN_IV_4);
+	igtk_ipn[5] =
+		u32_get_bits(c2h_info.u.c2hreg[2], RTW89_C2HREG_AOAC_RPT_2_W2_IGTK_IPN_IV_5);
+	igtk_ipn[6] =
+		u32_get_bits(c2h_info.u.c2hreg[3], RTW89_C2HREG_AOAC_RPT_2_W3_IGTK_IPN_IV_6);
+	igtk_ipn[7] =
+		u32_get_bits(c2h_info.u.c2hreg[3], RTW89_C2HREG_AOAC_RPT_2_W3_IGTK_IPN_IV_7);
+	aoac_rpt->igtk_ipn = u64_encode_bits(igtk_ipn[0], RTW89_IGTK_IPN_0) |
+			     u64_encode_bits(igtk_ipn[1], RTW89_IGTK_IPN_1) |
+			     u64_encode_bits(igtk_ipn[2], RTW89_IGTK_IPN_2) |
+			     u64_encode_bits(igtk_ipn[3], RTW89_IGTK_IPN_3) |
+			     u64_encode_bits(igtk_ipn[4], RTW89_IGTK_IPN_4) |
+			     u64_encode_bits(igtk_ipn[5], RTW89_IGTK_IPN_5) |
+			     u64_encode_bits(igtk_ipn[6], RTW89_IGTK_IPN_6) |
+			     u64_encode_bits(igtk_ipn[7], RTW89_IGTK_IPN_7);
 
 	return 0;
 }
@@ -540,6 +640,16 @@ static void rtw89_wow_update_key_info(struct rtw89_dev *rtwdev, bool rx_ready)
 
 	rtw89_rx_iv_to_pn(rtwdev, key,
 			  aoac_rpt->gtk_rx_iv[key->keyidx]);
+
+	if (!data.igtk_cipher)
+		return;
+
+	key = rtw89_wow_gtk_rekey(rtwdev, data.igtk_cipher, aoac_rpt->igtk_key_id,
+				  aoac_rpt->igtk);
+	if (!key)
+		return;
+
+	rtw89_rx_pn_set_pmf(rtwdev, key, aoac_rpt->igtk_ipn);
 	ieee80211_gtk_rekey_notify(wow_vif, wow_vif->bss_conf.bssid,
 				   aoac_rpt->eapol_key_replay_count,
 				   GFP_KERNEL);
