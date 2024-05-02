@@ -4592,10 +4592,8 @@ static void gfx_v10_0_alloc_dump_mem(struct amdgpu_device *adev)
 	if (ptr == NULL) {
 		DRM_ERROR("Failed to allocate memory for IP Dump\n");
 		adev->gfx.ip_dump = NULL;
-		adev->gfx.reg_count = 0;
 	} else {
 		adev->gfx.ip_dump = ptr;
-		adev->gfx.reg_count = reg_count;
 	}
 }
 
