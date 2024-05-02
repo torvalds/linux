@@ -220,7 +220,7 @@ unsigned long find_first_bit(const unsigned long *addr, unsigned long size)
  *	 idx = find_first_bit(addr, size);
  *
  * Returns the bit number of the N'th set bit.
- * If no such, returns @size.
+ * If no such, returns >= @size.
  */
 static inline
 unsigned long find_nth_bit(const unsigned long *addr, unsigned long size, unsigned long n)

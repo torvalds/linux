@@ -87,7 +87,7 @@ out:										\
 	if (sz % BITS_PER_LONG)							\
 		tmp = (FETCH) & BITMAP_LAST_WORD_MASK(sz);			\
 found:										\
-	sz = min(idx * BITS_PER_LONG + fns(tmp, nr), sz);			\
+	sz = idx * BITS_PER_LONG + fns(tmp, nr);				\
 out:										\
 	sz;									\
 })
