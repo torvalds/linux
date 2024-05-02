@@ -1281,7 +1281,16 @@ cs_slot_process_fatal_event_locked(struct panthor_device *ptdev,
 	if (group)
 		group->fatal_queues |= BIT(cs_id);
 
-	sched_queue_delayed_work(sched, tick, 0);
+	if (CS_EXCEPTION_TYPE(fatal) == DRM_PANTHOR_EXCEPTION_CS_UNRECOVERABLE) {
+		/* If this exception is unrecoverable, queue a reset, and make
+		 * sure we stop scheduling groups until the reset has happened.
+		 */
+		panthor_device_schedule_reset(ptdev);
+		cancel_delayed_work(&sched->tick_work);
+	} else {
+		sched_queue_delayed_work(sched, tick, 0);
+	}
+
 	drm_warn(&ptdev->base,
 		 "CSG slot %d CS slot: %d\n"
 		 "CS_FATAL.EXCEPTION_TYPE: 0x%x (%s)\n"
