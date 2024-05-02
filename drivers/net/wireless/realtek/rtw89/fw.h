@@ -48,6 +48,32 @@ struct rtw89_c2hreg_phycap {
 #define RTW89_C2HREG_PHYCAP_W3_ANT_TX_NUM GENMASK(15, 8)
 #define RTW89_C2HREG_PHYCAP_W3_ANT_RX_NUM GENMASK(23, 16)
 
+#define RTW89_C2HREG_AOAC_RPT_1_W0_KEY_IDX GENMASK(23, 16)
+#define RTW89_C2HREG_AOAC_RPT_1_W1_IV_0 GENMASK(7, 0)
+#define RTW89_C2HREG_AOAC_RPT_1_W1_IV_1 GENMASK(15, 8)
+#define RTW89_C2HREG_AOAC_RPT_1_W1_IV_2 GENMASK(23, 16)
+#define RTW89_C2HREG_AOAC_RPT_1_W1_IV_3 GENMASK(31, 24)
+#define RTW89_C2HREG_AOAC_RPT_1_W2_IV_4 GENMASK(7, 0)
+#define RTW89_C2HREG_AOAC_RPT_1_W2_IV_5 GENMASK(15, 8)
+#define RTW89_C2HREG_AOAC_RPT_1_W2_IV_6 GENMASK(23, 16)
+#define RTW89_C2HREG_AOAC_RPT_1_W2_IV_7 GENMASK(31, 24)
+#define RTW89_C2HREG_AOAC_RPT_1_W3_PTK_IV_0 GENMASK(7, 0)
+#define RTW89_C2HREG_AOAC_RPT_1_W3_PTK_IV_1 GENMASK(15, 8)
+#define RTW89_C2HREG_AOAC_RPT_1_W3_PTK_IV_2 GENMASK(23, 16)
+#define RTW89_C2HREG_AOAC_RPT_1_W3_PTK_IV_3 GENMASK(31, 24)
+#define RTW89_C2HREG_AOAC_RPT_2_W0_PTK_IV_4 GENMASK(23, 16)
+#define RTW89_C2HREG_AOAC_RPT_2_W0_PTK_IV_5 GENMASK(31, 24)
+#define RTW89_C2HREG_AOAC_RPT_2_W1_PTK_IV_6 GENMASK(7, 0)
+#define RTW89_C2HREG_AOAC_RPT_2_W1_PTK_IV_7 GENMASK(15, 8)
+#define RTW89_C2HREG_AOAC_RPT_2_W1_IGTK_IPN_IV_0 GENMASK(23, 16)
+#define RTW89_C2HREG_AOAC_RPT_2_W1_IGTK_IPN_IV_1 GENMASK(31, 24)
+#define RTW89_C2HREG_AOAC_RPT_2_W2_IGTK_IPN_IV_2 GENMASK(7, 0)
+#define RTW89_C2HREG_AOAC_RPT_2_W2_IGTK_IPN_IV_3 GENMASK(15, 8)
+#define RTW89_C2HREG_AOAC_RPT_2_W2_IGTK_IPN_IV_4 GENMASK(23, 16)
+#define RTW89_C2HREG_AOAC_RPT_2_W2_IGTK_IPN_IV_5 GENMASK(31, 24)
+#define RTW89_C2HREG_AOAC_RPT_2_W3_IGTK_IPN_IV_6 GENMASK(7, 0)
+#define RTW89_C2HREG_AOAC_RPT_2_W3_IGTK_IPN_IV_7 GENMASK(15, 8)
+
 struct rtw89_h2creg_hdr {
 	u32 w0;
 };
@@ -98,8 +124,11 @@ enum rtw89_mac_h2c_type {
 	RTW89_FWCMD_H2CREG_FUNC_GET_FEATURE,
 	RTW89_FWCMD_H2CREG_FUNC_GETPKT_INFORM,
 	RTW89_FWCMD_H2CREG_FUNC_SCH_TX_EN,
-	RTW89_FWCMD_H2CREG_FUNC_WOW_TRX_STOP = 0x6,
-	RTW89_FWCMD_H2CREG_FUNC_WOW_CPUIO_RX_CTRL = 0xA,
+	RTW89_FWCMD_H2CREG_FUNC_WOW_TRX_STOP,
+	RTW89_FWCMD_H2CREG_FUNC_AOAC_RPT_1,
+	RTW89_FWCMD_H2CREG_FUNC_AOAC_RPT_2,
+	RTW89_FWCMD_H2CREG_FUNC_AOAC_RPT_3_REQ,
+	RTW89_FWCMD_H2CREG_FUNC_WOW_CPUIO_RX_CTRL,
 };
 
 enum rtw89_mac_c2h_type {
@@ -3352,6 +3381,10 @@ struct rtw89_h2c_mrc_upd_duration {
 #define RTW89_H2C_MRC_UPD_DURATION_SLOT_SLOT_IDX GENMASK(7, 0)
 #define RTW89_H2C_MRC_UPD_DURATION_SLOT_DURATION GENMASK(31, 16)
 
+struct rtw89_h2c_wow_aoac {
+	__le32 w0;
+} __packed;
+
 #define RTW89_C2H_HEADER_LEN 8
 
 struct rtw89_c2h_hdr {
@@ -3579,6 +3612,30 @@ struct rtw89_c2h_pkt_ofld_rsp {
 #define RTW89_C2H_PKT_OFLD_RSP_W2_PTK_ID GENMASK(7, 0)
 #define RTW89_C2H_PKT_OFLD_RSP_W2_PTK_OP GENMASK(10, 8)
 #define RTW89_C2H_PKT_OFLD_RSP_W2_PTK_LEN GENMASK(31, 16)
+
+struct rtw89_c2h_wow_aoac_report {
+	struct rtw89_c2h_hdr c2h_hdr;
+	u8 rpt_ver;
+	u8 sec_type;
+	u8 key_idx;
+	u8 pattern_idx;
+	u8 rekey_ok;
+	u8 rsvd1[3];
+	u8 ptk_tx_iv[8];
+	u8 eapol_key_replay_count[8];
+	u8 gtk[32];
+	u8 ptk_rx_iv[8];
+	u8 gtk_rx_iv[4][8];
+	__le64 igtk_key_id;
+	__le64 igtk_ipn;
+	u8 igtk[32];
+	u8 csa_pri_ch;
+	u8 csa_bw_ch_offset;
+	u8 csa_ch_band_chsw_failed;
+	u8 csa_rsvd1;
+} __packed;
+
+#define RTW89_C2H_WOW_AOAC_RPT_REKEY_IDX BIT(0)
 
 struct rtw89_h2c_bcnfltr {
 	__le32 w0;
@@ -3857,12 +3914,20 @@ struct rtw89_fw_h2c_rf_reg_info {
 
 /* CLASS 1 - WOW */
 #define H2C_CL_MAC_WOW			0x1
-#define H2C_FUNC_KEEP_ALIVE		0x0
-#define H2C_FUNC_DISCONNECT_DETECT	0x1
-#define H2C_FUNC_WOW_GLOBAL		0x2
-#define H2C_FUNC_GTK_OFLD		0x3
-#define H2C_FUNC_WAKEUP_CTRL		0x8
-#define H2C_FUNC_WOW_CAM_UPD		0xC
+enum rtw89_wow_h2c_func {
+	H2C_FUNC_KEEP_ALIVE		= 0x0,
+	H2C_FUNC_DISCONNECT_DETECT	= 0x1,
+	H2C_FUNC_WOW_GLOBAL		= 0x2,
+	H2C_FUNC_GTK_OFLD		= 0x3,
+	H2C_FUNC_WAKEUP_CTRL		= 0x8,
+	H2C_FUNC_WOW_CAM_UPD		= 0xC,
+	H2C_FUNC_AOAC_REPORT_REQ	= 0xD,
+
+	NUM_OF_RTW89_WOW_H2C_FUNC,
+};
+
+#define RTW89_WOW_WAIT_COND(func) \
+	(NUM_OF_RTW89_WOW_H2C_FUNC + (func))
 
 /* CLASS 2 - PS */
 #define H2C_CL_MAC_PS			0x2
@@ -4382,6 +4447,7 @@ int rtw89_fw_wow_cam_update(struct rtw89_dev *rtwdev,
 int rtw89_fw_h2c_wow_gtk_ofld(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif *rtwvif,
 			      bool enable);
+int rtw89_fw_h2c_wow_request_aoac(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_add_mcc(struct rtw89_dev *rtwdev,
 			 const struct rtw89_fw_mcc_add_req *p);
 int rtw89_fw_h2c_start_mcc(struct rtw89_dev *rtwdev,

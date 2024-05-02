@@ -5137,6 +5137,34 @@ rtw89_mac_c2h_mrc_tsf_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len
 }
 
 static void
+rtw89_mac_c2h_wow_aoac_rpt(struct rtw89_dev *rtwdev, struct sk_buff *skb, u32 len)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
+	const struct rtw89_c2h_wow_aoac_report *c2h =
+		(const struct rtw89_c2h_wow_aoac_report *)skb->data;
+	struct rtw89_completion_data data = {};
+	unsigned int cond;
+
+	aoac_rpt->rpt_ver = c2h->rpt_ver;
+	aoac_rpt->sec_type = c2h->sec_type;
+	aoac_rpt->key_idx = c2h->key_idx;
+	aoac_rpt->pattern_idx = c2h->pattern_idx;
+	aoac_rpt->rekey_ok = u8_get_bits(c2h->rekey_ok,
+					 RTW89_C2H_WOW_AOAC_RPT_REKEY_IDX);
+	memcpy(aoac_rpt->ptk_tx_iv, c2h->ptk_tx_iv, sizeof(aoac_rpt->ptk_tx_iv));
+	memcpy(aoac_rpt->eapol_key_replay_count, c2h->eapol_key_replay_count,
+	       sizeof(aoac_rpt->eapol_key_replay_count));
+	memcpy(aoac_rpt->gtk, c2h->gtk, sizeof(aoac_rpt->gtk));
+	memcpy(aoac_rpt->ptk_rx_iv, c2h->ptk_rx_iv, sizeof(aoac_rpt->ptk_rx_iv));
+	memcpy(aoac_rpt->gtk_rx_iv, c2h->gtk_rx_iv, sizeof(aoac_rpt->gtk_rx_iv));
+
+	cond = RTW89_WOW_WAIT_COND(H2C_FUNC_AOAC_REPORT_REQ);
+	rtw89_complete_cond(wait, cond, &data);
+}
+
+static void
 rtw89_mac_c2h_mrc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
 	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
@@ -5223,6 +5251,12 @@ void (* const rtw89_mac_c2h_mrc_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_MAC_C2H_FUNC_MRC_STATUS_RPT] = rtw89_mac_c2h_mrc_status_rpt,
 };
 
+static
+void (* const rtw89_mac_c2h_wow_handler[])(struct rtw89_dev *rtwdev,
+					   struct sk_buff *c2h, u32 len) = {
+	[RTW89_MAC_C2H_FUNC_AOAC_REPORT] = rtw89_mac_c2h_wow_aoac_rpt,
+};
+
 static void rtw89_mac_c2h_scanofld_rsp_atomic(struct rtw89_dev *rtwdev,
 					      struct sk_buff *skb)
 {
@@ -5275,6 +5309,8 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		return true;
 	case RTW89_MAC_C2H_CLASS_MRC:
 		return true;
+	case RTW89_MAC_C2H_CLASS_WOW:
+		return true;
 	}
 }
 
@@ -5300,6 +5336,10 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_MAC_C2H_CLASS_MRC:
 		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MRC)
 			handler = rtw89_mac_c2h_mrc_handler[func];
+		break;
+	case RTW89_MAC_C2H_CLASS_WOW:
+		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_WOW)
+			handler = rtw89_mac_c2h_wow_handler[func];
 		break;
 	case RTW89_MAC_C2H_CLASS_FWDBG:
 		return;

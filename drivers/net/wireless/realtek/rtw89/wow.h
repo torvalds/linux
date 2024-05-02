@@ -48,6 +48,12 @@ struct rtw89_cipher_info {
 	enum ieee80211_key_len len;
 };
 
+struct rtw89_set_key_info_iter_data {
+	u32 gtk_cipher;
+	bool rx_ready;
+	bool error;
+};
+
 #ifdef CONFIG_PM
 int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan);
 int rtw89_wow_resume(struct rtw89_dev *rtwdev);

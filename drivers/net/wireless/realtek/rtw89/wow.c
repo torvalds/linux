@@ -128,6 +128,81 @@ static int rtw89_tx_pn_to_iv(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static int _iv_to_pn(struct rtw89_dev *rtwdev, u8 *iv, u64 *pn, u8 *key_id,
+		     struct ieee80211_key_conf *key)
+{
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		*pn = u64_encode_bits(iv[2], RTW89_KEY_PN_0) |
+		      u64_encode_bits(iv[0], RTW89_KEY_PN_1);
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		*pn = u64_encode_bits(iv[0], RTW89_KEY_PN_0) |
+		      u64_encode_bits(iv[1], RTW89_KEY_PN_1);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*pn |= u64_encode_bits(iv[4], RTW89_KEY_PN_2) |
+	       u64_encode_bits(iv[5], RTW89_KEY_PN_3) |
+	       u64_encode_bits(iv[6], RTW89_KEY_PN_4) |
+	       u64_encode_bits(iv[7], RTW89_KEY_PN_5);
+
+	if (key_id)
+		*key_id = *(iv + 3) >> 6;
+
+	return 0;
+}
+
+static int rtw89_rx_iv_to_pn(struct rtw89_dev *rtwdev,
+			     struct ieee80211_key_conf *key,
+			     u8 *iv)
+{
+	struct ieee80211_key_seq seq;
+	int err;
+	u64 pn;
+
+	err = _iv_to_pn(rtwdev, iv, &pn, NULL, key);
+	if (err)
+		return err;
+
+	/* seq.ccmp.pn[] is BE order array */
+	seq.ccmp.pn[0] = u64_get_bits(pn, RTW89_KEY_PN_5);
+	seq.ccmp.pn[1] = u64_get_bits(pn, RTW89_KEY_PN_4);
+	seq.ccmp.pn[2] = u64_get_bits(pn, RTW89_KEY_PN_3);
+	seq.ccmp.pn[3] = u64_get_bits(pn, RTW89_KEY_PN_2);
+	seq.ccmp.pn[4] = u64_get_bits(pn, RTW89_KEY_PN_1);
+	seq.ccmp.pn[5] = u64_get_bits(pn, RTW89_KEY_PN_0);
+
+	ieee80211_set_key_rx_seq(key, 0, &seq);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d iv-%*ph to pn-%*ph\n",
+		    __func__, key->keyidx, 8, iv, 6, seq.ccmp.pn);
+
+	return 0;
+}
+
+static int rtw89_tx_iv_to_pn(struct rtw89_dev *rtwdev,
+			     struct ieee80211_key_conf *key,
+			     u8 *iv)
+{
+	int err;
+	u64 pn;
+
+	err = _iv_to_pn(rtwdev, iv, &pn, NULL, key);
+	if (err)
+		return err;
+
+	atomic64_set(&key->tx_pn, pn);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s key %d iv-%*ph to pn-%llx\n",
+		    __func__, key->keyidx, 8, iv, pn);
+
+	return 0;
+}
+
 static void rtw89_wow_get_key_info_iter(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
 					struct ieee80211_sta *sta,
@@ -182,10 +257,67 @@ err:
 	*err = true;
 }
 
+static void rtw89_wow_set_key_info_iter(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_sta *sta,
+					struct ieee80211_key_conf *key,
+					void *data)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
+	struct rtw89_set_key_info_iter_data *iter_data = data;
+	bool update_tx_key_info = iter_data->rx_ready;
+	int ret;
+
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		if (sta && !update_tx_key_info) {
+			ret = rtw89_rx_iv_to_pn(rtwdev, key,
+						aoac_rpt->ptk_rx_iv);
+			if (ret)
+				goto err;
+		}
+
+		if (sta && update_tx_key_info) {
+			ret = rtw89_tx_iv_to_pn(rtwdev, key,
+						aoac_rpt->ptk_tx_iv);
+			if (ret)
+				goto err;
+		}
+
+		if (!sta && !update_tx_key_info) {
+			ret = rtw89_rx_iv_to_pn(rtwdev, key,
+						aoac_rpt->gtk_rx_iv[key->keyidx]);
+			if (ret)
+				goto err;
+		}
+
+		if (!sta && update_tx_key_info && aoac_rpt->rekey_ok)
+			iter_data->gtk_cipher = key->cipher;
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_WOW, "unsupport cipher %x\n",
+			    key->cipher);
+		goto err;
+	}
+
+	return;
+
+err:
+	iter_data->error = true;
+}
+
 static void rtw89_wow_key_clear(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 
+	memset(&rtw_wow->aoac_rpt, 0, sizeof(rtw_wow->aoac_rpt));
+	memset(&rtw_wow->gtk_info, 0, sizeof(rtw_wow->gtk_info));
 	memset(&rtw_wow->key_info, 0, sizeof(rtw_wow->key_info));
 	rtw_wow->ptk_alg = 0;
 	rtw_wow->gtk_alg = 0;
@@ -211,6 +343,206 @@ static void rtw89_wow_construct_key_info(struct rtw89_dev *rtwdev)
 	key_info->valid_check = RTW89_WOW_VALID_CHECK;
 	key_info->symbol_check_en = RTW89_WOW_SYMBOL_CHK_PTK |
 				    RTW89_WOW_SYMBOL_CHK_GTK;
+}
+
+static void rtw89_wow_debug_aoac_rpt(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
+
+	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_WOW))
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] rpt_ver = %d\n",
+		    aoac_rpt->rpt_ver);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] sec_type = %d\n",
+		    aoac_rpt->sec_type);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] key_idx = %d\n",
+		    aoac_rpt->key_idx);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] pattern_idx = %d\n",
+		    aoac_rpt->pattern_idx);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] rekey_ok = %d\n",
+		    aoac_rpt->rekey_ok);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] ptk_tx_iv = %*ph\n",
+		    8, aoac_rpt->ptk_tx_iv);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW,
+		    "[aoac_rpt] eapol_key_replay_count = %*ph\n",
+		    8, aoac_rpt->eapol_key_replay_count);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] ptk_rx_iv = %*ph\n",
+		    8, aoac_rpt->ptk_rx_iv);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] gtk_rx_iv[0] = %*ph\n",
+		    8, aoac_rpt->gtk_rx_iv[0]);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] gtk_rx_iv[1] = %*ph\n",
+		    8, aoac_rpt->gtk_rx_iv[1]);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] gtk_rx_iv[2] = %*ph\n",
+		    8, aoac_rpt->gtk_rx_iv[2]);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] gtk_rx_iv[3] = %*ph\n",
+		    8, aoac_rpt->gtk_rx_iv[3]);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] igtk_key_id = %llu\n",
+		    aoac_rpt->igtk_key_id);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] igtk_ipn = %llu\n",
+		    aoac_rpt->igtk_ipn);
+	rtw89_debug(rtwdev, RTW89_DBG_WOW, "[aoac_rpt] igtk = %*ph\n",
+		    32, aoac_rpt->igtk);
+}
+
+static int rtw89_wow_get_aoac_rpt_reg(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
+	struct rtw89_mac_c2h_info c2h_info = {};
+	struct rtw89_mac_h2c_info h2c_info = {};
+	u8 key_idx;
+	int ret;
+
+	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_AOAC_RPT_1;
+	h2c_info.content_len = 2;
+	ret = rtw89_fw_msg_reg(rtwdev, &h2c_info, &c2h_info);
+	if (ret)
+		return ret;
+
+	aoac_rpt->key_idx =
+		u32_get_bits(c2h_info.u.c2hreg[0], RTW89_C2HREG_AOAC_RPT_1_W0_KEY_IDX);
+	key_idx = aoac_rpt->key_idx;
+	aoac_rpt->gtk_rx_iv[key_idx][0] =
+		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_1_W1_IV_0);
+	aoac_rpt->gtk_rx_iv[key_idx][1] =
+		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_1_W1_IV_1);
+	aoac_rpt->gtk_rx_iv[key_idx][2] =
+		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_1_W1_IV_2);
+	aoac_rpt->gtk_rx_iv[key_idx][3] =
+		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_1_W1_IV_3);
+	aoac_rpt->gtk_rx_iv[key_idx][4] =
+		u32_get_bits(c2h_info.u.c2hreg[2], RTW89_C2HREG_AOAC_RPT_1_W2_IV_4);
+	aoac_rpt->gtk_rx_iv[key_idx][5] =
+		u32_get_bits(c2h_info.u.c2hreg[2], RTW89_C2HREG_AOAC_RPT_1_W2_IV_5);
+	aoac_rpt->gtk_rx_iv[key_idx][6] =
+		u32_get_bits(c2h_info.u.c2hreg[2], RTW89_C2HREG_AOAC_RPT_1_W2_IV_6);
+	aoac_rpt->gtk_rx_iv[key_idx][7] =
+		u32_get_bits(c2h_info.u.c2hreg[2], RTW89_C2HREG_AOAC_RPT_1_W2_IV_7);
+	aoac_rpt->ptk_rx_iv[0] =
+		u32_get_bits(c2h_info.u.c2hreg[3], RTW89_C2HREG_AOAC_RPT_1_W3_PTK_IV_0);
+	aoac_rpt->ptk_rx_iv[1] =
+		u32_get_bits(c2h_info.u.c2hreg[3], RTW89_C2HREG_AOAC_RPT_1_W3_PTK_IV_1);
+	aoac_rpt->ptk_rx_iv[2] =
+		u32_get_bits(c2h_info.u.c2hreg[3], RTW89_C2HREG_AOAC_RPT_1_W3_PTK_IV_2);
+	aoac_rpt->ptk_rx_iv[3] =
+		u32_get_bits(c2h_info.u.c2hreg[3], RTW89_C2HREG_AOAC_RPT_1_W3_PTK_IV_3);
+
+	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_AOAC_RPT_2;
+	h2c_info.content_len = 2;
+	ret = rtw89_fw_msg_reg(rtwdev, &h2c_info, &c2h_info);
+	if (ret)
+		return ret;
+
+	aoac_rpt->ptk_rx_iv[4] =
+		u32_get_bits(c2h_info.u.c2hreg[0], RTW89_C2HREG_AOAC_RPT_2_W0_PTK_IV_4);
+	aoac_rpt->ptk_rx_iv[5] =
+		u32_get_bits(c2h_info.u.c2hreg[0], RTW89_C2HREG_AOAC_RPT_2_W0_PTK_IV_5);
+	aoac_rpt->ptk_rx_iv[6] =
+		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_2_W1_PTK_IV_6);
+	aoac_rpt->ptk_rx_iv[7] =
+		u32_get_bits(c2h_info.u.c2hreg[1], RTW89_C2HREG_AOAC_RPT_2_W1_PTK_IV_7);
+
+	return 0;
+}
+
+static int rtw89_wow_get_aoac_rpt(struct rtw89_dev *rtwdev, bool rx_ready)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	int ret;
+
+	if (!rtw_wow->ptk_alg)
+		return -EPERM;
+
+	if (!rx_ready) {
+		ret = rtw89_wow_get_aoac_rpt_reg(rtwdev);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to get aoac rpt by reg\n");
+			return ret;
+		}
+	} else {
+		ret = rtw89_fw_h2c_wow_request_aoac(rtwdev);
+		if (ret) {
+			rtw89_err(rtwdev, "wow: failed to get aoac rpt by pkt\n");
+			return ret;
+		}
+	}
+
+	rtw89_wow_debug_aoac_rpt(rtwdev);
+
+	return 0;
+}
+
+static struct ieee80211_key_conf *rtw89_wow_gtk_rekey(struct rtw89_dev *rtwdev,
+						      u32 cipher, u8 keyidx, u8 *gtk)
+{
+	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	const struct rtw89_cipher_info *cipher_info;
+	struct ieee80211_key_conf *rekey_conf;
+	struct ieee80211_key_conf *key;
+	u8 sz;
+
+	cipher_info = rtw89_cipher_alg_recognize(cipher);
+	sz = struct_size(rekey_conf, key, cipher_info->len);
+	rekey_conf = kmalloc(sz, GFP_KERNEL);
+	if (!rekey_conf)
+		return NULL;
+
+	rekey_conf->cipher = cipher;
+	rekey_conf->keyidx = keyidx;
+	rekey_conf->keylen = cipher_info->len;
+	memcpy(rekey_conf->key, gtk,
+	       flex_array_size(rekey_conf, key, cipher_info->len));
+
+	/* ieee80211_gtk_rekey_add() will call set_key(), therefore we
+	 * need to unlock mutex
+	 */
+	mutex_unlock(&rtwdev->mutex);
+	key = ieee80211_gtk_rekey_add(wow_vif, rekey_conf, -1);
+	mutex_lock(&rtwdev->mutex);
+
+	kfree(rekey_conf);
+	if (IS_ERR(key)) {
+		rtw89_err(rtwdev, "ieee80211_gtk_rekey_add failed\n");
+		return NULL;
+	}
+
+	return key;
+}
+
+static void rtw89_wow_update_key_info(struct rtw89_dev *rtwdev, bool rx_ready)
+{
+	struct ieee80211_vif *wow_vif = rtwdev->wow.wow_vif;
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
+	struct rtw89_set_key_info_iter_data data = {.error = false,
+						    .rx_ready = rx_ready};
+	struct ieee80211_key_conf *key;
+
+	rcu_read_lock();
+	ieee80211_iter_keys_rcu(rtwdev->hw, wow_vif,
+				rtw89_wow_set_key_info_iter, &data);
+	rcu_read_unlock();
+
+	if (data.error) {
+		rtw89_debug(rtwdev, RTW89_DBG_WOW, "%s error\n", __func__);
+		return;
+	}
+
+	if (!data.gtk_cipher)
+		return;
+
+	key = rtw89_wow_gtk_rekey(rtwdev, data.gtk_cipher, aoac_rpt->key_idx,
+				  aoac_rpt->gtk);
+	if (!key)
+		return;
+
+	rtw89_rx_iv_to_pn(rtwdev, key,
+			  aoac_rpt->gtk_rx_iv[key->keyidx]);
+	ieee80211_gtk_rekey_notify(wow_vif, wow_vif->bss_conf.bssid,
+				   aoac_rpt->eapol_key_replay_count,
+				   GFP_KERNEL);
 }
 
 static void rtw89_wow_leave_deep_ps(struct rtw89_dev *rtwdev)
@@ -260,6 +592,8 @@ static void rtw89_wow_set_rx_filter(struct rtw89_dev *rtwdev, bool enable)
 
 static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
 	u32 wow_reason_reg = rtwdev->chip->wow_reason_reg;
 	struct cfg80211_wowlan_nd_info nd_info;
 	struct cfg80211_wowlan_wakeup wakeup = {
@@ -286,10 +620,7 @@ static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 		rtw89_debug(rtwdev, RTW89_DBG_WOW, "WOW: Rx gtk rekey\n");
 		break;
 	case RTW89_WOW_RSN_RX_PATTERN_MATCH:
-		/* Current firmware and driver don't report pattern index
-		 * Use pattern_idx to 0 defaultly.
-		 */
-		wakeup.pattern_idx = 0;
+		wakeup.pattern_idx = aoac_rpt->pattern_idx;
 		rtw89_debug(rtwdev, RTW89_DBG_WOW, "WOW: Rx pattern match packet\n");
 		break;
 	case RTW89_WOW_RSN_RX_NLO:
@@ -808,7 +1139,22 @@ static int rtw89_wow_disable_trx_pre(struct rtw89_dev *rtwdev)
 		rtw89_err(rtwdev, "failed to config mac\n");
 		return ret;
 	}
+
+	/* Before enabling interrupt, we need to get AOAC report by reg due to RX
+	 * not enabled yet. Also, we need to sync RX related IV from firmware to
+	 * mac80211 before receiving RX packets from driver.
+	 * After enabling interrupt, we can get AOAC report from h2c and c2h, and
+	 * can get TX IV and complete rekey info. We need to update TX related IV
+	 * and new GTK info if rekey happened.
+	 */
+	ret = rtw89_wow_get_aoac_rpt(rtwdev, false);
+	if (!ret)
+		rtw89_wow_update_key_info(rtwdev, false);
+
 	rtw89_hci_enable_intr(rtwdev);
+	ret = rtw89_wow_get_aoac_rpt(rtwdev, true);
+	if (!ret)
+		rtw89_wow_update_key_info(rtwdev, true);
 
 	return 0;
 }
@@ -893,6 +1239,7 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
+	rtw89_wow_key_clear(rtwdev);
 	rtw89_fw_release_general_pkt_list(rtwdev, true);
 
 	ret = rtw89_wow_cfg_wake(rtwdev, false);

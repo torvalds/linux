@@ -6612,6 +6612,35 @@ fail:
 	return ret;
 }
 
+int rtw89_fw_h2c_wow_request_aoac(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
+	struct rtw89_h2c_wow_aoac *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for aoac\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+
+	/* This H2C only nofity firmware to generate AOAC report C2H,
+	 * no need any parameter.
+	 */
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_WOW,
+			      H2C_FUNC_AOAC_REPORT_REQ, 1, 0,
+			      len);
+
+	cond = RTW89_WOW_WAIT_COND(H2C_FUNC_AOAC_REPORT_REQ);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
 /* Return < 0, if failures happen during waiting for the condition.
  * Return 0, when waiting for the condition succeeds.
  * Return > 0, if the wait is considered unreachable due to driver/FW design,
