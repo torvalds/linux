@@ -341,7 +341,7 @@ struct xe_reg_sr;
  *	};
  */
 #define XE_RTP_RULES(...)							\
-	.n_rules = _XE_COUNT_ARGS(__VA_ARGS__),					\
+	.n_rules = COUNT_ARGS(__VA_ARGS__),					\
 	.rules = (const struct xe_rtp_rule[]) {					\
 		XE_RTP_PASTE_FOREACH(RULE_, COMMA, (__VA_ARGS__))	\
 	}
@@ -366,7 +366,7 @@ struct xe_reg_sr;
  *	};
  */
 #define XE_RTP_ACTIONS(...)							\
-	.n_actions = _XE_COUNT_ARGS(__VA_ARGS__),				\
+	.n_actions = COUNT_ARGS(__VA_ARGS__),					\
 	.actions = (const struct xe_rtp_action[]) {				\
 		XE_RTP_PASTE_FOREACH(ACTION_, COMMA, (__VA_ARGS__))	\
 	}
