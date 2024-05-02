@@ -14,7 +14,6 @@
 #include <linux/mii.h>
 #include <linux/of_mdio.h>
 #include <linux/slab.h>
-#include <linux/ipc_logging.h>
 #include <linux/poll.h>
 #include <linux/debugfs.h>
 #include <linux/iommu.h>
@@ -168,6 +167,8 @@
 
 #define DWMAC4_PCS_BASE			0x000000e0
 #define RGMII_CONFIG_10M_CLK_DVD	GENMASK(18, 10)
+
+void *ipc_emac_log_ctxt;
 
 struct emac_emb_smmu_cb_ctx emac_emb_smmu_ctx = {0};
 struct plat_stmmacenet_data *plat_dat;
@@ -1833,6 +1834,173 @@ static void qcom_ethqos_phy_resume_clks(struct qcom_ethqos *ethqos)
 	ETHQOSDBG("Exit\n");
 }
 
+static ssize_t read_phy_reg_dump(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct qcom_ethqos *ethqos = file->private_data;
+	unsigned int len = 0, buf_len = 2000;
+	char *buf;
+	ssize_t ret_cnt;
+	int phydata = 0;
+	int i = 0;
+
+	struct platform_device *pdev = ethqos->pdev;
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	if (!ethqos || !dev->phydev) {
+		ETHQOSERR("NULL Pointer\n");
+		return -EINVAL;
+	}
+
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	len += scnprintf(buf + len, buf_len - len,
+					 "\n************* PHY Reg dump *************\n");
+
+	for (i = 0; i < 32; i++) {
+		phydata = ethqos_mdio_read(priv, priv->plat->phy_addr, i);
+		len += scnprintf(buf + len, buf_len - len,
+					 "MII Register (%#x) = %#x\n",
+					 i, phydata);
+	}
+
+	if (len > buf_len) {
+		ETHQOSERR("(len > buf_len) buffer not sufficient\n");
+		len = buf_len;
+	}
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+	return ret_cnt;
+}
+
+static ssize_t read_rgmii_reg_dump(struct file *file,
+				   char __user *user_buf, size_t count,
+				   loff_t *ppos)
+{
+	struct qcom_ethqos *ethqos = file->private_data;
+	unsigned int len = 0, buf_len = 2000;
+	char *buf;
+	ssize_t ret_cnt;
+	int rgmii_data = 0;
+	struct platform_device *pdev = ethqos->pdev;
+
+	struct net_device *dev = platform_get_drvdata(pdev);
+
+	if (!ethqos || !dev->phydev) {
+		ETHQOSERR("NULL Pointer\n");
+		return -EINVAL;
+	}
+
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	len += scnprintf(buf + len, buf_len - len,
+					 "\n************* RGMII Reg dump *************\n");
+	rgmii_data = rgmii_readl(ethqos, RGMII_IO_MACRO_CONFIG);
+	len += scnprintf(buf + len, buf_len - len,
+					 "RGMII_IO_MACRO_CONFIG Register = %#x\n",
+					 rgmii_data);
+	rgmii_data = rgmii_readl(ethqos, SDCC_HC_REG_DLL_CONFIG);
+	len += scnprintf(buf + len, buf_len - len,
+					 "SDCC_HC_REG_DLL_CONFIG Register = %#x\n",
+					 rgmii_data);
+	rgmii_data = rgmii_readl(ethqos, SDCC_HC_REG_DDR_CONFIG);
+	len += scnprintf(buf + len, buf_len - len,
+					 "SDCC_HC_REG_DDR_CONFIG Register = %#x\n",
+					 rgmii_data);
+	rgmii_data = rgmii_readl(ethqos, SDCC_HC_REG_DLL_CONFIG2);
+	len += scnprintf(buf + len, buf_len - len,
+					 "SDCC_HC_REG_DLL_CONFIG2 Register = %#x\n",
+					 rgmii_data);
+	rgmii_data = rgmii_readl(ethqos, SDC4_STATUS);
+	len += scnprintf(buf + len, buf_len - len,
+					 "SDC4_STATUS Register = %#x\n",
+					 rgmii_data);
+	rgmii_data = rgmii_readl(ethqos, SDCC_USR_CTL);
+	len += scnprintf(buf + len, buf_len - len,
+					 "SDCC_USR_CTL Register = %#x\n",
+					 rgmii_data);
+	rgmii_data = rgmii_readl(ethqos, RGMII_IO_MACRO_CONFIG2);
+	len += scnprintf(buf + len, buf_len - len,
+					 "RGMII_IO_MACRO_CONFIG2 Register = %#x\n",
+					 rgmii_data);
+	rgmii_data = rgmii_readl(ethqos, RGMII_IO_MACRO_DEBUG1);
+	len += scnprintf(buf + len, buf_len - len,
+					 "RGMII_IO_MACRO_DEBUG1 Register = %#x\n",
+					 rgmii_data);
+	rgmii_data = rgmii_readl(ethqos, EMAC_SYSTEM_LOW_POWER_DEBUG);
+	len += scnprintf(buf + len, buf_len - len,
+					 "EMAC_SYSTEM_LOW_POWER_DEBUG Register = %#x\n",
+					 rgmii_data);
+
+	if (len > buf_len) {
+		ETHQOSERR("(len > buf_len) buffer not sufficient\n");
+		len = buf_len;
+	}
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+	return ret_cnt;
+}
+
+static const struct file_operations fops_phy_reg_dump = {
+	.read = read_phy_reg_dump,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations fops_rgmii_reg_dump = {
+	.read = read_rgmii_reg_dump,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static int ethqos_create_debugfs(struct qcom_ethqos        *ethqos)
+{
+	static struct dentry *phy_reg_dump;
+	static struct dentry *rgmii_reg_dump;
+
+	if (!ethqos) {
+		ETHQOSERR("Null Param %s\n", __func__);
+		return -ENOMEM;
+	}
+
+	ethqos->debugfs_dir = debugfs_create_dir("eth", NULL);
+
+	if (!ethqos->debugfs_dir || IS_ERR(ethqos->debugfs_dir)) {
+		ETHQOSERR("Can't create debugfs dir\n");
+		return -ENOMEM;
+	}
+
+	phy_reg_dump = debugfs_create_file("phy_reg_dump", 0400,
+					   ethqos->debugfs_dir, ethqos,
+					   &fops_phy_reg_dump);
+	if (!phy_reg_dump || IS_ERR(phy_reg_dump)) {
+		ETHQOSERR("Can't create phy_dump %p\n", phy_reg_dump);
+		goto fail;
+	}
+
+	rgmii_reg_dump = debugfs_create_file("rgmii_reg_dump", 0400,
+					     ethqos->debugfs_dir, ethqos,
+					     &fops_rgmii_reg_dump);
+	if (!rgmii_reg_dump || IS_ERR(rgmii_reg_dump)) {
+		ETHQOSERR("Can't create rgmii_dump %p\n", rgmii_reg_dump);
+		goto fail;
+	}
+	return 0;
+
+fail:
+	debugfs_remove_recursive(ethqos->debugfs_dir);
+	return -ENOMEM;
+}
+
 static void qcom_ethqos_bringup_iface(struct work_struct *work)
 {
 	struct platform_device *pdev = NULL;
@@ -2017,6 +2185,13 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 				    "qcom,emac-smmu-embedded"))
 		return emac_emb_smmu_cb_probe(pdev, plat_dat);
 
+	ipc_emac_log_ctxt = ipc_log_context_create(IPCLOG_STATE_PAGES,
+						   "emac", 0);
+	if (!ipc_emac_log_ctxt)
+		ETHQOSERR("Error creating logging context for emac\n");
+	else
+		ETHQOSDBG("IPC logging has been enabled for emac\n");
+
 	ETHQOSINFO("M - Ethernet probe start\n");
 
 #ifdef MODULE
@@ -2196,6 +2371,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	pethqos = ethqos;
 	rgmii_dump(ethqos);
+	ethqos_create_debugfs(ethqos);
 
 	ndev = dev_get_drvdata(&ethqos->pdev->dev);
 	priv = netdev_priv(ndev);
