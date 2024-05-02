@@ -7,7 +7,7 @@
 #include "chardev.h"
 #include "journal.h"
 #include "move.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "replicas.h"
 #include "super.h"
 #include "super-io.h"
@@ -134,42 +134,38 @@ static long bch2_ioctl_incremental(struct bch_ioctl_incremental __user *user_arg
 struct fsck_thread {
 	struct thread_with_stdio thr;
 	struct bch_fs		*c;
-	char			**devs;
-	size_t			nr_devs;
 	struct bch_opts		opts;
 };
 
 static void bch2_fsck_thread_exit(struct thread_with_stdio *_thr)
 {
 	struct fsck_thread *thr = container_of(_thr, struct fsck_thread, thr);
-	if (thr->devs)
-		for (size_t i = 0; i < thr->nr_devs; i++)
-			kfree(thr->devs[i]);
-	kfree(thr->devs);
 	kfree(thr);
 }
 
 static int bch2_fsck_offline_thread_fn(struct thread_with_stdio *stdio)
 {
 	struct fsck_thread *thr = container_of(stdio, struct fsck_thread, thr);
-	struct bch_fs *c = bch2_fs_open(thr->devs, thr->nr_devs, thr->opts);
+	struct bch_fs *c = thr->c;
 
-	if (IS_ERR(c))
-		return PTR_ERR(c);
+	int ret = PTR_ERR_OR_ZERO(c);
+	if (ret)
+		return ret;
 
-	int ret = 0;
-	if (test_bit(BCH_FS_errors_fixed, &c->flags))
-		ret |= 1;
-	if (test_bit(BCH_FS_error, &c->flags))
-		ret |= 4;
+	ret = bch2_fs_start(thr->c);
+	if (ret)
+		goto err;
 
-	bch2_fs_stop(c);
-
-	if (ret & 1)
+	if (test_bit(BCH_FS_errors_fixed, &c->flags)) {
 		bch2_stdio_redirect_printf(&stdio->stdio, false, "%s: errors fixed\n", c->name);
-	if (ret & 4)
+		ret |= 1;
+	}
+	if (test_bit(BCH_FS_error, &c->flags)) {
 		bch2_stdio_redirect_printf(&stdio->stdio, false, "%s: still has errors\n", c->name);
-
+		ret |= 4;
+	}
+err:
+	bch2_fs_stop(c);
 	return ret;
 }
 
@@ -182,7 +178,7 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 {
 	struct bch_ioctl_fsck_offline arg;
 	struct fsck_thread *thr = NULL;
-	u64 *devs = NULL;
+	darray_str(devs) = {};
 	long ret = 0;
 
 	if (copy_from_user(&arg, user_arg, sizeof(arg)))
@@ -194,28 +190,31 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!(devs = kcalloc(arg.nr_devs, sizeof(*devs), GFP_KERNEL)) ||
-	    !(thr = kzalloc(sizeof(*thr), GFP_KERNEL)) ||
-	    !(thr->devs = kcalloc(arg.nr_devs, sizeof(*thr->devs), GFP_KERNEL))) {
+	for (size_t i = 0; i < arg.nr_devs; i++) {
+		u64 dev_u64;
+		ret = copy_from_user_errcode(&dev_u64, &user_arg->devs[i], sizeof(u64));
+		if (ret)
+			goto err;
+
+		char *dev_str = strndup_user((char __user *)(unsigned long) dev_u64, PATH_MAX);
+		ret = PTR_ERR_OR_ZERO(dev_str);
+		if (ret)
+			goto err;
+
+		ret = darray_push(&devs, dev_str);
+		if (ret) {
+			kfree(dev_str);
+			goto err;
+		}
+	}
+
+	thr = kzalloc(sizeof(*thr), GFP_KERNEL);
+	if (!thr) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
 	thr->opts = bch2_opts_empty();
-	thr->nr_devs = arg.nr_devs;
-
-	if (copy_from_user(devs, &user_arg->devs[0],
-			   array_size(sizeof(user_arg->devs[0]), arg.nr_devs))) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	for (size_t i = 0; i < arg.nr_devs; i++) {
-		thr->devs[i] = strndup_user((char __user *)(unsigned long) devs[i], PATH_MAX);
-		ret = PTR_ERR_OR_ZERO(thr->devs[i]);
-		if (ret)
-			goto err;
-	}
 
 	if (arg.opts) {
 		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
@@ -230,15 +229,28 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 	opt_set(thr->opts, stdio, (u64)(unsigned long)&thr->thr.stdio);
 
-	ret = bch2_run_thread_with_stdio(&thr->thr, &bch2_offline_fsck_ops);
-err:
-	if (ret < 0) {
-		if (thr)
-			bch2_fsck_thread_exit(&thr->thr);
-		pr_err("ret %s", bch2_err_str(ret));
-	}
-	kfree(devs);
+	/* We need request_key() to be called before we punt to kthread: */
+	opt_set(thr->opts, nostart, true);
+
+	bch2_thread_with_stdio_init(&thr->thr, &bch2_offline_fsck_ops);
+
+	thr->c = bch2_fs_open(devs.data, arg.nr_devs, thr->opts);
+
+	if (!IS_ERR(thr->c) &&
+	    thr->c->opts.errors == BCH_ON_ERROR_panic)
+		thr->c->opts.errors = BCH_ON_ERROR_ro;
+
+	ret = __bch2_run_thread_with_stdio(&thr->thr);
+out:
+	darray_for_each(devs, i)
+		kfree(*i);
+	darray_exit(&devs);
 	return ret;
+err:
+	if (thr)
+		bch2_fsck_thread_exit(&thr->thr);
+	pr_err("ret %s", bch2_err_str(ret));
+	goto out;
 }
 
 static long bch2_global_ioctl(unsigned cmd, void __user *arg)

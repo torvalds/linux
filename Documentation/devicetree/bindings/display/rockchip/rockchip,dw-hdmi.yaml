@@ -15,6 +15,7 @@ description: |
 
 allOf:
   - $ref: ../bridge/synopsys,dw-hdmi.yaml#
+  - $ref: /schemas/sound/dai-common.yaml#
 
 properties:
   compatible:
@@ -124,6 +125,9 @@ properties:
     description:
       phandle to the GRF to mux vopl/vopb.
 
+  "#sound-dai-cells":
+    const: 0
+
 required:
   - compatible
   - reg
@@ -153,6 +157,7 @@ examples:
         ddc-i2c-bus = <&i2c5>;
         power-domains = <&power RK3288_PD_VIO>;
         rockchip,grf = <&grf>;
+        #sound-dai-cells = <0>;
 
         ports {
             #address-cells = <1>;

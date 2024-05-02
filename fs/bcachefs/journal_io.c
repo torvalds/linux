@@ -247,7 +247,7 @@ static void journal_entry_err_msg(struct printbuf *out,
 
 	if (entry) {
 		prt_str(out, " type=");
-		prt_str(out, bch2_jset_entry_types[entry->type]);
+		bch2_prt_jset_entry_type(out, entry->type);
 	}
 
 	if (!jset) {
@@ -403,7 +403,8 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 	jset_entry_for_each_key(entry, k) {
 		if (!first) {
 			prt_newline(out);
-			prt_printf(out, "%s: ", bch2_jset_entry_types[entry->type]);
+			bch2_prt_jset_entry_type(out, entry->type);
+			prt_str(out, ": ");
 		}
 		prt_printf(out, "btree=%s l=%u ", bch2_btree_id_str(entry->btree_id), entry->level);
 		bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(k));
@@ -563,9 +564,9 @@ static void journal_entry_usage_to_text(struct printbuf *out, struct bch_fs *c,
 	struct jset_entry_usage *u =
 		container_of(entry, struct jset_entry_usage, entry);
 
-	prt_printf(out, "type=%s v=%llu",
-	       bch2_fs_usage_types[u->entry.btree_id],
-	       le64_to_cpu(u->v));
+	prt_str(out, "type=");
+	bch2_prt_fs_usage_type(out, u->entry.btree_id);
+	prt_printf(out, " v=%llu", le64_to_cpu(u->v));
 }
 
 static int journal_entry_data_usage_validate(struct bch_fs *c,
@@ -827,11 +828,11 @@ int bch2_journal_entry_validate(struct bch_fs *c,
 void bch2_journal_entry_to_text(struct printbuf *out, struct bch_fs *c,
 				struct jset_entry *entry)
 {
+	bch2_prt_jset_entry_type(out, entry->type);
+
 	if (entry->type < BCH_JSET_ENTRY_NR) {
-		prt_printf(out, "%s: ", bch2_jset_entry_types[entry->type]);
+		prt_str(out, ": ");
 		bch2_jset_entry_ops[entry->type].to_text(out, c, entry);
-	} else {
-		prt_printf(out, "(unknown type %u)", entry->type);
 	}
 }
 
@@ -1722,7 +1723,7 @@ static void journal_write_endio(struct bio *bio)
 	percpu_ref_put(&ca->io_ref);
 }
 
-static CLOSURE_CALLBACK(do_journal_write)
+static CLOSURE_CALLBACK(journal_write_submit)
 {
 	closure_type(w, struct journal_buf, io);
 	struct journal *j = container_of(w, struct journal, buf[w->idx]);
@@ -1765,6 +1766,44 @@ static CLOSURE_CALLBACK(do_journal_write)
 	}
 
 	continue_at(cl, journal_write_done, j->wq);
+}
+
+static CLOSURE_CALLBACK(journal_write_preflush)
+{
+	closure_type(w, struct journal_buf, io);
+	struct journal *j = container_of(w, struct journal, buf[w->idx]);
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+
+	if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
+		spin_lock(&j->lock);
+		closure_wait(&j->async_wait, cl);
+		spin_unlock(&j->lock);
+
+		continue_at(cl, journal_write_preflush, j->wq);
+		return;
+	}
+
+	if (w->separate_flush) {
+		for_each_rw_member(c, ca) {
+			percpu_ref_get(&ca->io_ref);
+
+			struct journal_device *ja = &ca->journal;
+			struct bio *bio = &ja->bio[w->idx]->bio;
+			bio_reset(bio, ca->disk_sb.bdev,
+				  REQ_OP_WRITE|REQ_SYNC|REQ_META|REQ_PREFLUSH);
+			bio->bi_end_io		= journal_write_endio;
+			bio->bi_private		= ca;
+			closure_bio_submit(bio, cl);
+		}
+
+		continue_at(cl, journal_write_submit, j->wq);
+	} else {
+		/*
+		 * no need to punt to another work item if we're not waiting on
+		 * preflushes
+		 */
+		journal_write_submit(&cl->work);
+	}
 }
 
 static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
@@ -2032,23 +2071,9 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		goto err;
 
 	if (!JSET_NO_FLUSH(w->data))
-		closure_wait_event(&j->async_wait, j->seq_ondisk + 1 == le64_to_cpu(w->data->seq));
-
-	if (!JSET_NO_FLUSH(w->data) && w->separate_flush) {
-		for_each_rw_member(c, ca) {
-			percpu_ref_get(&ca->io_ref);
-
-			struct journal_device *ja = &ca->journal;
-			struct bio *bio = &ja->bio[w->idx]->bio;
-			bio_reset(bio, ca->disk_sb.bdev,
-				  REQ_OP_WRITE|REQ_SYNC|REQ_META|REQ_PREFLUSH);
-			bio->bi_end_io		= journal_write_endio;
-			bio->bi_private		= ca;
-			closure_bio_submit(bio, cl);
-		}
-	}
-
-	continue_at(cl, do_journal_write, j->wq);
+		continue_at(cl, journal_write_preflush, j->wq);
+	else
+		continue_at(cl, journal_write_submit, j->wq);
 	return;
 no_io:
 	continue_at(cl, journal_write_done, j->wq);

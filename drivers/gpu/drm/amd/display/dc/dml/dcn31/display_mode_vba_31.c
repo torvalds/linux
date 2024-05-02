@@ -3679,7 +3679,6 @@ static double TruncToValidBPP(
 			return DesiredBPP;
 		}
 	}
-	return BPP_INVALID;
 }
 
 static noinline void CalculatePrefetchSchedulePerPlane(

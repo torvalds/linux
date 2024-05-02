@@ -166,7 +166,7 @@ static uint8_t get_lowest_dpia_index(struct dc_link *link)
 	uint8_t idx = 0xFF;
 	int i;
 
-	for (i = 0; i < MAX_PIPES * 2; ++i) {
+	for (i = 0; i < MAX_LINKS; ++i) {
 
 		if (!dc_struct->links[i] ||
 				dc_struct->links[i]->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
@@ -196,7 +196,7 @@ static int get_host_router_total_dp_tunnel_bw(const struct dc *dc, uint8_t hr_in
 	struct dc_link *link_dpia_primary, *link_dpia_secondary;
 	int total_bw = 0;
 
-	for (uint8_t i = 0; i < (MAX_PIPES * 2) - 1; ++i) {
+	for (uint8_t i = 0; i < MAX_LINKS - 1; ++i) {
 
 		if (!dc->links[i] || dc->links[i]->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
 			continue;

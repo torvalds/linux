@@ -119,9 +119,10 @@ intel_pmdemand_update_phys_mask(struct drm_i915_private *i915,
 	if (!encoder)
 		return;
 
-	phy = intel_port_to_phy(i915, encoder->port);
-	if (intel_phy_is_tc(i915, phy))
+	if (intel_encoder_is_tc(encoder))
 		return;
+
+	phy = intel_encoder_to_phy(encoder);
 
 	if (set_bit)
 		pmdemand_state->active_combo_phys_mask |= BIT(phy);
@@ -222,14 +223,7 @@ static bool
 intel_pmdemand_encoder_has_tc_phy(struct drm_i915_private *i915,
 				  struct intel_encoder *encoder)
 {
-	enum phy phy;
-
-	if (!encoder)
-		return false;
-
-	phy = intel_port_to_phy(i915, encoder->port);
-
-	return intel_phy_is_tc(i915, phy);
+	return encoder && intel_encoder_is_tc(encoder);
 }
 
 static bool

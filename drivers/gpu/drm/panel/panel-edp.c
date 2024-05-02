@@ -242,7 +242,7 @@ struct panel_edp {
 
 	const struct edp_panel_entry *detected_panel;
 
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 
 	struct drm_display_mode override_mode;
 
@@ -617,13 +617,16 @@ static int panel_edp_get_modes(struct drm_panel *panel,
 	if (p->ddc) {
 		pm_runtime_get_sync(panel->dev);
 
-		if (!p->edid)
-			p->edid = drm_get_edid(connector, p->ddc);
+		if (!p->drm_edid)
+			p->drm_edid = drm_edid_read_ddc(connector, p->ddc);
+
+		drm_edid_connector_update(connector, p->drm_edid);
+
 		/*
 		 * If both edid and hard-coded modes exists, skip edid modes to
 		 * avoid multiple preferred modes.
 		 */
-		if (p->edid && !has_hard_coded_modes) {
+		if (p->drm_edid && !has_hard_coded_modes) {
 			if (has_override_edid_mode) {
 				/*
 				 * override_edid_mode is specified. Use
@@ -632,7 +635,7 @@ static int panel_edp_get_modes(struct drm_panel *panel,
 				num += panel_edp_override_edid_mode(p, connector,
 						p->detected_panel->override_edid_mode);
 			} else {
-				num += drm_add_edid_modes(connector, p->edid);
+				num += drm_edid_connector_add_modes(connector);
 			}
 		}
 
@@ -981,8 +984,8 @@ static void panel_edp_remove(struct device *dev)
 	if (panel->ddc && (!panel->aux || panel->ddc != &panel->aux->ddc))
 		put_device(&panel->ddc->dev);
 
-	kfree(panel->edid);
-	panel->edid = NULL;
+	drm_edid_free(panel->drm_edid);
+	panel->drm_edid = NULL;
 }
 
 static void panel_edp_shutdown(struct device *dev)
@@ -2074,6 +2077,8 @@ static const struct edp_panel_entry edp_panels[] = {
 	EDP_PANEL_ENTRY('C', 'M', 'N', 0x14e5, &delay_200_500_e80_d50, "N140HGA-EA1"),
 
 	EDP_PANEL_ENTRY('C', 'S', 'O', 0x1200, &delay_200_500_e50_p2e200, "MNC207QS1-1"),
+
+	EDP_PANEL_ENTRY('C', 'S', 'W', 0x1100, &delay_200_500_e80_d50, "MNB601LS1-1"),
 
 	EDP_PANEL_ENTRY('H', 'K', 'C', 0x2d51, &delay_200_500_e200, "Unknown"),
 	EDP_PANEL_ENTRY('H', 'K', 'C', 0x2d5b, &delay_200_500_e200, "Unknown"),

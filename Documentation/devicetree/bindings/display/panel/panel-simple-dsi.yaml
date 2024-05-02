@@ -36,6 +36,8 @@ properties:
       - jdi,fhd-r63452
         # Khadas TS050 5" 1080x1920 LCD panel
       - khadas,ts050
+        # Khadas TS050 V2 5" 1080x1920 LCD panel
+      - khadas,ts050v2
         # Kingdisplay KD097D04 9.7" 1536x2048 TFT LCD panel
       - kingdisplay,kd097d04
         # LG ACX467AKM-7 4.95" 1080×1920 LCD Panel

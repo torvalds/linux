@@ -509,17 +509,9 @@ struct xe_device {
 	/* For pcode */
 	struct mutex sb_lock;
 
-	/* Should be in struct intel_display */
-	u32 skl_preferred_vco_freq, max_dotclk_freq;
+	/* only to allow build, not used functionally */
+	u32 irq_mask;
 
-	union {
-		/* only to allow build, not used functionally */
-		u32 irq_mask;
-		u32 de_irq_mask[I915_MAX_PIPES];
-	};
-	u32 pipestat_irq_mask[I915_MAX_PIPES];
-
-	bool display_irqs_enabled;
 	u32 enabled_irq_mask;
 
 	struct intel_uncore {
@@ -531,11 +523,7 @@ struct xe_device {
 		unsigned int hpll_freq;
 		unsigned int czclk_freq;
 		unsigned int fsb_freq, mem_freq, is_ddr3;
-		u8 vblank_enabled;
 	};
-	struct {
-		const char *dmc_firmware_path;
-	} params;
 
 	void *pxp;
 #endif

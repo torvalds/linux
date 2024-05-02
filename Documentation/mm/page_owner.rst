@@ -24,10 +24,10 @@ fragmentation statistics can be obtained through gfp flag information of
 each page. It is already implemented and activated if page owner is
 enabled. Other usages are more than welcome.
 
-It can also be used to show all the stacks and their outstanding
-allocations, which gives us a quick overview of where the memory is going
-without the need to screen through all the pages and match the allocation
-and free operation.
+It can also be used to show all the stacks and their current number of
+allocated base pages, which gives us a quick overview of where the memory
+is going without the need to screen through all the pages and match the
+allocation and free operation.
 
 page owner is disabled by default. So, if you'd like to use it, you need
 to add "page_owner=on" to your boot cmdline. If the kernel is built
@@ -75,42 +75,45 @@ Usage
 
 	cat /sys/kernel/debug/page_owner_stacks/show_stacks > stacks.txt
 	cat stacks.txt
-	 prep_new_page+0xa9/0x120
-	 get_page_from_freelist+0x7e6/0x2140
-	 __alloc_pages+0x18a/0x370
-	 new_slab+0xc8/0x580
-	 ___slab_alloc+0x1f2/0xaf0
-	 __slab_alloc.isra.86+0x22/0x40
-	 kmem_cache_alloc+0x31b/0x350
-	 __khugepaged_enter+0x39/0x100
-	 dup_mmap+0x1c7/0x5ce
-	 copy_process+0x1afe/0x1c90
-	 kernel_clone+0x9a/0x3c0
-	 __do_sys_clone+0x66/0x90
-	 do_syscall_64+0x7f/0x160
-	 entry_SYSCALL_64_after_hwframe+0x6c/0x74
-	stack_count: 234
+	 post_alloc_hook+0x177/0x1a0
+	 get_page_from_freelist+0xd01/0xd80
+	 __alloc_pages+0x39e/0x7e0
+	 allocate_slab+0xbc/0x3f0
+	 ___slab_alloc+0x528/0x8a0
+	 kmem_cache_alloc+0x224/0x3b0
+	 sk_prot_alloc+0x58/0x1a0
+	 sk_alloc+0x32/0x4f0
+	 inet_create+0x427/0xb50
+	 __sock_create+0x2e4/0x650
+	 inet_ctl_sock_create+0x30/0x180
+	 igmp_net_init+0xc1/0x130
+	 ops_init+0x167/0x410
+	 setup_net+0x304/0xa60
+	 copy_net_ns+0x29b/0x4a0
+	 create_new_namespaces+0x4a1/0x820
+	nr_base_pages: 16
 	...
 	...
 	echo 7000 > /sys/kernel/debug/page_owner_stacks/count_threshold
 	cat /sys/kernel/debug/page_owner_stacks/show_stacks> stacks_7000.txt
 	cat stacks_7000.txt
-	 prep_new_page+0xa9/0x120
-	 get_page_from_freelist+0x7e6/0x2140
-	 __alloc_pages+0x18a/0x370
-	 alloc_pages_mpol+0xdf/0x1e0
-	 folio_alloc+0x14/0x50
-	 filemap_alloc_folio+0xb0/0x100
-	 page_cache_ra_unbounded+0x97/0x180
-	 filemap_fault+0x4b4/0x1200
-	 __do_fault+0x2d/0x110
-	 do_pte_missing+0x4b0/0xa30
-	 __handle_mm_fault+0x7fa/0xb70
-	 handle_mm_fault+0x125/0x300
-	 do_user_addr_fault+0x3c9/0x840
-	 exc_page_fault+0x68/0x150
-	 asm_exc_page_fault+0x22/0x30
-	stack_count: 8248
+	 post_alloc_hook+0x177/0x1a0
+	 get_page_from_freelist+0xd01/0xd80
+	 __alloc_pages+0x39e/0x7e0
+	 alloc_pages_mpol+0x22e/0x490
+	 folio_alloc+0xd5/0x110
+	 filemap_alloc_folio+0x78/0x230
+	 page_cache_ra_order+0x287/0x6f0
+	 filemap_get_pages+0x517/0x1160
+	 filemap_read+0x304/0x9f0
+	 xfs_file_buffered_read+0xe6/0x1d0 [xfs]
+	 xfs_file_read_iter+0x1f0/0x380 [xfs]
+	 __kernel_read+0x3b9/0x730
+	 kernel_read_file+0x309/0x4d0
+	 __do_sys_finit_module+0x381/0x730
+	 do_syscall_64+0x8d/0x150
+	 entry_SYSCALL_64_after_hwframe+0x62/0x6a
+	nr_base_pages: 20824
 	...
 
 	cat /sys/kernel/debug/page_owner > page_owner_full.txt

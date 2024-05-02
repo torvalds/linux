@@ -5,6 +5,7 @@
 
 #include "xe_debugfs.h"
 
+#include <linux/debugfs.h>
 #include <linux/string_helpers.h>
 
 #include <drm/drm_debugfs.h>

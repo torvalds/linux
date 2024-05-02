@@ -31,7 +31,7 @@
 #define __DCN_CALCS_H__
 
 #include "bw_fixed.h"
-#include "../dml/display_mode_lib.h"
+#include "dml/display_mode_lib.h"
 
 
 struct dc;
