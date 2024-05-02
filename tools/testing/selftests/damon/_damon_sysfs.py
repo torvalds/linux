@@ -70,16 +70,56 @@ class DamosAccessPattern:
         if err != None:
             return err
 
+qgoal_metric_user_input = 'user_input'
+qgoal_metric_some_mem_psi_us = 'some_mem_psi_us'
+qgoal_metrics = [qgoal_metric_user_input, qgoal_metric_some_mem_psi_us]
+
+class DamosQuotaGoal:
+    metric = None
+    target_value = None
+    current_value = None
+    effective_bytes = None
+    quota = None            # owner quota
+    idx = None
+
+    def __init__(self, metric, target_value=10000, current_value=0):
+        self.metric = metric
+        self.target_value = target_value
+        self.current_value = current_value
+
+    def sysfs_dir(self):
+        return os.path.join(self.quota.sysfs_dir(), 'goals', '%d' % self.idx)
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'target_metric'),
+                         self.metric)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'target_value'),
+                         self.target_value)
+        if err is not None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'current_value'),
+                         self.current_value)
+        if err is not None:
+            return err
+        return None
+
 class DamosQuota:
     sz = None                   # size quota, in bytes
     ms = None                   # time quota
+    goals = None                # quota goals
     reset_interval_ms = None    # quota reset interval
     scheme = None               # owner scheme
 
-    def __init__(self, sz=0, ms=0, reset_interval_ms=0):
+    def __init__(self, sz=0, ms=0, goals=None, reset_interval_ms=0):
         self.sz = sz
         self.ms = ms
         self.reset_interval_ms = reset_interval_ms
+        self.goals = goals if goals is not None else []
+        for idx, goal in enumerate(self.goals):
+            goal.idx = idx
+            goal.quota = self
 
     def sysfs_dir(self):
         return os.path.join(self.scheme.sysfs_dir(), 'quotas')
@@ -95,6 +135,20 @@ class DamosQuota:
                          self.reset_interval_ms)
         if err != None:
             return err
+
+        nr_goals_file = os.path.join(self.sysfs_dir(), 'goals', 'nr_goals')
+        content, err = read_file(nr_goals_file)
+        if err is not None:
+            return err
+        if int(content) != len(self.goals):
+            err = write_file(nr_goals_file, len(self.goals))
+            if err is not None:
+                return err
+        for goal in self.goals:
+            err = goal.stage()
+            if err is not None:
+                return err
+        return None
 
 class DamosStats:
     nr_tried = None
@@ -360,6 +414,34 @@ class Kdamond:
                         return err
                     stat_values.append(int(content))
                 scheme.stats = DamosStats(*stat_values)
+
+    def update_schemes_effective_quotas(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'state'),
+                         'update_schemes_effective_quotas')
+        if err is not None:
+            return err
+        for context in self.contexts:
+            for scheme in context.schemes:
+                for goal in scheme.quota.goals:
+                    content, err = read_file(
+                            os.path.join(scheme.quota.sysfs_dir(),
+                                         'effective_bytes'))
+                    if err is not None:
+                        return err
+                    goal.effective_bytes = int(content)
+        return None
+
+    def commit_schemes_quota_goals(self):
+        for context in self.contexts:
+            for scheme in context.schemes:
+                for goal in scheme.quota.goals:
+                    err = goal.stage()
+                    if err is not None:
+                        print('commit_schemes_quota_goals failed stagign: %s'%
+                              err)
+                        exit(1)
+        return write_file(os.path.join(self.sysfs_dir(), 'state'),
+                         'commit_schemes_quota_goals')
 
 class Kdamonds:
     kdamonds = []
