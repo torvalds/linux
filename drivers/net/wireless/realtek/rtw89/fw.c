@@ -6404,6 +6404,7 @@ fail:
 int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			    bool enable)
 {
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_h2c_wow_global *h2c;
 	u8 macid = rtwvif->mac_id;
 	u32 len = sizeof(*h2c);
@@ -6420,7 +6421,12 @@ int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	h2c = (struct rtw89_h2c_wow_global *)skb->data;
 
 	h2c->w0 = le32_encode_bits(enable, RTW89_H2C_WOW_GLOBAL_W0_ENABLE) |
-		  le32_encode_bits(macid, RTW89_H2C_WOW_GLOBAL_W0_MAC_ID);
+		  le32_encode_bits(macid, RTW89_H2C_WOW_GLOBAL_W0_MAC_ID) |
+		  le32_encode_bits(rtw_wow->ptk_alg,
+				   RTW89_H2C_WOW_GLOBAL_W0_PAIRWISE_SEC_ALGO) |
+		  le32_encode_bits(rtw_wow->gtk_alg,
+				   RTW89_H2C_WOW_GLOBAL_W0_GROUP_SEC_ALGO);
+	h2c->key_info = rtw_wow->key_info;
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,

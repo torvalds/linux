@@ -845,6 +845,12 @@ static int rtw89_wow_fw_start(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
+	ret = rtw89_fw_h2c_wow_gtk_ofld(rtwdev, rtwvif, true);
+	if (ret) {
+		rtw89_err(rtwdev, "wow: failed to enable GTK offload\n");
+		goto out;
+	}
+
 	ret = rtw89_wow_cfg_wake(rtwdev, true);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to config wake\n");
@@ -878,6 +884,12 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 	ret = rtw89_fw_h2c_disconnect_detect(rtwdev, rtwvif, false);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to disable disconnect detect\n");
+		goto out;
+	}
+
+	ret = rtw89_fw_h2c_wow_gtk_ofld(rtwdev, rtwvif, false);
+	if (ret) {
+		rtw89_err(rtwdev, "wow: failed to disable GTK offload\n");
 		goto out;
 	}
 
