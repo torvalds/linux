@@ -457,6 +457,53 @@ static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 	}
 }
 
+/* Politely lifted from arch/arm64/include/asm/cache.h */
+/* Ctypen, bits[3(n - 1) + 2 : 3(n - 1)], for n = 1 to 7 */
+#define CLIDR_CTYPE_SHIFT(level)	(3 * (level - 1))
+#define CLIDR_CTYPE_MASK(level)		(7 << CLIDR_CTYPE_SHIFT(level))
+#define CLIDR_CTYPE(clidr, level)	\
+	(((clidr) & CLIDR_CTYPE_MASK(level)) >> CLIDR_CTYPE_SHIFT(level))
+
+static void test_clidr(struct kvm_vcpu *vcpu)
+{
+	uint64_t clidr;
+	int level;
+
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CLIDR_EL1), &clidr);
+
+	/* find the first empty level in the cache hierarchy */
+	for (level = 1; level < 7; level++) {
+		if (!CLIDR_CTYPE(clidr, level))
+			break;
+	}
+
+	/*
+	 * If you have a mind-boggling 7 levels of cache, congratulations, you
+	 * get to fix this.
+	 */
+	TEST_ASSERT(level <= 7, "can't find an empty level in cache hierarchy");
+
+	/* stick in a unified cache level */
+	clidr |= BIT(2) << CLIDR_CTYPE_SHIFT(level);
+
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CLIDR_EL1), clidr);
+	test_reg_vals[encoding_to_range_idx(SYS_CLIDR_EL1)] = clidr;
+}
+
+static void test_vcpu_ftr_id_regs(struct kvm_vcpu *vcpu)
+{
+	u64 val;
+
+	test_clidr(vcpu);
+
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), &val);
+	val++;
+	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), val);
+
+	test_reg_vals[encoding_to_range_idx(SYS_MPIDR_EL1)] = val;
+	ksft_test_result_pass("%s\n", __func__);
+}
+
 static void test_assert_id_reg_unchanged(struct kvm_vcpu *vcpu, uint32_t encoding)
 {
 	size_t idx = encoding_to_range_idx(encoding);
@@ -476,6 +523,8 @@ static void test_reset_preserves_id_regs(struct kvm_vcpu *vcpu)
 
 	for (int i = 0; i < ARRAY_SIZE(test_regs); i++)
 		test_assert_id_reg_unchanged(vcpu, test_regs[i].reg);
+
+	test_assert_id_reg_unchanged(vcpu, SYS_CLIDR_EL1);
 
 	ksft_test_result_pass("%s\n", __func__);
 }
@@ -504,11 +553,13 @@ int main(void)
 		   ARRAY_SIZE(ftr_id_aa64isar2_el1) + ARRAY_SIZE(ftr_id_aa64pfr0_el1) +
 		   ARRAY_SIZE(ftr_id_aa64mmfr0_el1) + ARRAY_SIZE(ftr_id_aa64mmfr1_el1) +
 		   ARRAY_SIZE(ftr_id_aa64mmfr2_el1) + ARRAY_SIZE(ftr_id_aa64zfr0_el1) -
-		   ARRAY_SIZE(test_regs) + 1;
+		   ARRAY_SIZE(test_regs) + 2;
 
 	ksft_set_plan(test_cnt);
 
 	test_vm_ftr_id_regs(vcpu, aarch64_only);
+	test_vcpu_ftr_id_regs(vcpu);
+
 	test_guest_reg_read(vcpu);
 
 	test_reset_preserves_id_regs(vcpu);
