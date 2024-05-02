@@ -80,6 +80,14 @@
 #define TCP_INFINITE_SSTHRESH	0x7fffffff
 #define TCP_PINGPONG_THRESH	3
 
+#define FLAG_DATA_ACKED 0x04 /* This ACK acknowledged new data.		*/
+#define FLAG_SYN_ACKED 0x10 /* This ACK acknowledged SYN.		*/
+#define FLAG_DATA_SACKED 0x20 /* New SACK.				*/
+#define FLAG_SND_UNA_ADVANCED \
+	0x400 /* Snd_una was changed (!= FLAG_DATA_ACKED) */
+#define FLAG_ACKED (FLAG_DATA_ACKED | FLAG_SYN_ACKED)
+#define FLAG_FORWARD_PROGRESS (FLAG_ACKED | FLAG_DATA_SACKED)
+
 #define fib_nh_dev		nh_common.nhc_dev
 #define fib_nh_gw_family	nh_common.nhc_gw_family
 #define fib_nh_gw6		nh_common.nhc_gw.ipv6
@@ -118,5 +126,7 @@
 #define tw_refcnt		__tw_common.skc_refcnt
 #define tw_v6_daddr		__tw_common.skc_v6_daddr
 #define tw_v6_rcv_saddr		__tw_common.skc_v6_rcv_saddr
+
+#define tcp_jiffies32 ((__u32)bpf_jiffies64())
 
 #endif
