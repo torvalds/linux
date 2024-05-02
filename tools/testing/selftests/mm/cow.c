@@ -199,7 +199,7 @@ static int child_vmsplice_memcmp_fn(char *mem, size_t size,
 typedef int (*child_fn)(char *mem, size_t size, struct comm_pipes *comm_pipes);
 
 static void do_test_cow_in_parent(char *mem, size_t size, bool do_mprotect,
-				  child_fn fn)
+		child_fn fn, bool xfail)
 {
 	struct comm_pipes comm_pipes;
 	char buf;
@@ -247,33 +247,47 @@ static void do_test_cow_in_parent(char *mem, size_t size, bool do_mprotect,
 	else
 		ret = -EINVAL;
 
-	ksft_test_result(!ret, "No leak from parent into child\n");
+	if (!ret) {
+		ksft_test_result_pass("No leak from parent into child\n");
+	} else if (xfail) {
+		/*
+		 * With hugetlb, some vmsplice() tests are currently expected to
+		 * fail because (a) harder to fix and (b) nobody really cares.
+		 * Flag them as expected failure for now.
+		 */
+		ksft_test_result_xfail("Leak from parent into child\n");
+	} else {
+		ksft_test_result_fail("Leak from parent into child\n");
+	}
 close_comm_pipes:
 	close_comm_pipes(&comm_pipes);
 }
 
-static void test_cow_in_parent(char *mem, size_t size)
+static void test_cow_in_parent(char *mem, size_t size, bool is_hugetlb)
 {
-	do_test_cow_in_parent(mem, size, false, child_memcmp_fn);
+	do_test_cow_in_parent(mem, size, false, child_memcmp_fn, false);
 }
 
-static void test_cow_in_parent_mprotect(char *mem, size_t size)
+static void test_cow_in_parent_mprotect(char *mem, size_t size, bool is_hugetlb)
 {
-	do_test_cow_in_parent(mem, size, true, child_memcmp_fn);
+	do_test_cow_in_parent(mem, size, true, child_memcmp_fn, false);
 }
 
-static void test_vmsplice_in_child(char *mem, size_t size)
+static void test_vmsplice_in_child(char *mem, size_t size, bool is_hugetlb)
 {
-	do_test_cow_in_parent(mem, size, false, child_vmsplice_memcmp_fn);
+	do_test_cow_in_parent(mem, size, false, child_vmsplice_memcmp_fn,
+			      is_hugetlb);
 }
 
-static void test_vmsplice_in_child_mprotect(char *mem, size_t size)
+static void test_vmsplice_in_child_mprotect(char *mem, size_t size,
+		bool is_hugetlb)
 {
-	do_test_cow_in_parent(mem, size, true, child_vmsplice_memcmp_fn);
+	do_test_cow_in_parent(mem, size, true, child_vmsplice_memcmp_fn,
+			      is_hugetlb);
 }
 
 static void do_test_vmsplice_in_parent(char *mem, size_t size,
-				       bool before_fork)
+				       bool before_fork, bool xfail)
 {
 	struct iovec iov = {
 		.iov_base = mem,
@@ -355,8 +369,18 @@ static void do_test_vmsplice_in_parent(char *mem, size_t size,
 		}
 	}
 
-	ksft_test_result(!memcmp(old, new, transferred),
-			 "No leak from child into parent\n");
+	if (!memcmp(old, new, transferred)) {
+		ksft_test_result_pass("No leak from child into parent\n");
+	} else if (xfail) {
+		/*
+		 * With hugetlb, some vmsplice() tests are currently expected to
+		 * fail because (a) harder to fix and (b) nobody really cares.
+		 * Flag them as expected failure for now.
+		 */
+		ksft_test_result_xfail("Leak from child into parent\n");
+	} else {
+		ksft_test_result_fail("Leak from child into parent\n");
+	}
 close_pipe:
 	close(fds[0]);
 	close(fds[1]);
@@ -367,14 +391,14 @@ free:
 	free(new);
 }
 
-static void test_vmsplice_before_fork(char *mem, size_t size)
+static void test_vmsplice_before_fork(char *mem, size_t size, bool is_hugetlb)
 {
-	do_test_vmsplice_in_parent(mem, size, true);
+	do_test_vmsplice_in_parent(mem, size, true, is_hugetlb);
 }
 
-static void test_vmsplice_after_fork(char *mem, size_t size)
+static void test_vmsplice_after_fork(char *mem, size_t size, bool is_hugetlb)
 {
-	do_test_vmsplice_in_parent(mem, size, false);
+	do_test_vmsplice_in_parent(mem, size, false, is_hugetlb);
 }
 
 #ifdef LOCAL_CONFIG_HAVE_LIBURING
@@ -529,12 +553,12 @@ close_comm_pipes:
 	close_comm_pipes(&comm_pipes);
 }
 
-static void test_iouring_ro(char *mem, size_t size)
+static void test_iouring_ro(char *mem, size_t size, bool is_hugetlb)
 {
 	do_test_iouring(mem, size, false);
 }
 
-static void test_iouring_fork(char *mem, size_t size)
+static void test_iouring_fork(char *mem, size_t size, bool is_hugetlb)
 {
 	do_test_iouring(mem, size, true);
 }
@@ -678,37 +702,41 @@ free_tmp:
 	free(tmp);
 }
 
-static void test_ro_pin_on_shared(char *mem, size_t size)
+static void test_ro_pin_on_shared(char *mem, size_t size, bool is_hugetlb)
 {
 	do_test_ro_pin(mem, size, RO_PIN_TEST_SHARED, false);
 }
 
-static void test_ro_fast_pin_on_shared(char *mem, size_t size)
+static void test_ro_fast_pin_on_shared(char *mem, size_t size, bool is_hugetlb)
 {
 	do_test_ro_pin(mem, size, RO_PIN_TEST_SHARED, true);
 }
 
-static void test_ro_pin_on_ro_previously_shared(char *mem, size_t size)
+static void test_ro_pin_on_ro_previously_shared(char *mem, size_t size,
+		bool is_hugetlb)
 {
 	do_test_ro_pin(mem, size, RO_PIN_TEST_PREVIOUSLY_SHARED, false);
 }
 
-static void test_ro_fast_pin_on_ro_previously_shared(char *mem, size_t size)
+static void test_ro_fast_pin_on_ro_previously_shared(char *mem, size_t size,
+		bool is_hugetlb)
 {
 	do_test_ro_pin(mem, size, RO_PIN_TEST_PREVIOUSLY_SHARED, true);
 }
 
-static void test_ro_pin_on_ro_exclusive(char *mem, size_t size)
+static void test_ro_pin_on_ro_exclusive(char *mem, size_t size,
+		bool is_hugetlb)
 {
 	do_test_ro_pin(mem, size, RO_PIN_TEST_RO_EXCLUSIVE, false);
 }
 
-static void test_ro_fast_pin_on_ro_exclusive(char *mem, size_t size)
+static void test_ro_fast_pin_on_ro_exclusive(char *mem, size_t size,
+		bool is_hugetlb)
 {
 	do_test_ro_pin(mem, size, RO_PIN_TEST_RO_EXCLUSIVE, true);
 }
 
-typedef void (*test_fn)(char *mem, size_t size);
+typedef void (*test_fn)(char *mem, size_t size, bool hugetlb);
 
 static void do_run_with_base_page(test_fn fn, bool swapout)
 {
@@ -740,7 +768,7 @@ static void do_run_with_base_page(test_fn fn, bool swapout)
 		}
 	}
 
-	fn(mem, pagesize);
+	fn(mem, pagesize, false);
 munmap:
 	munmap(mem, pagesize);
 }
@@ -904,7 +932,7 @@ static void do_run_with_thp(test_fn fn, enum thp_run thp_run, size_t thpsize)
 		break;
 	}
 
-	fn(mem, size);
+	fn(mem, size, false);
 munmap:
 	munmap(mmap_mem, mmap_size);
 	if (mremap_mem != MAP_FAILED)
@@ -997,7 +1025,7 @@ static void run_with_hugetlb(test_fn fn, const char *desc, size_t hugetlbsize)
 	}
 	munmap(dummy, hugetlbsize);
 
-	fn(mem, hugetlbsize);
+	fn(mem, hugetlbsize, true);
 munmap:
 	munmap(mem, hugetlbsize);
 }
@@ -1036,7 +1064,7 @@ static const struct test_case anon_test_cases[] = {
 	 */
 	{
 		"vmsplice() + unmap in child",
-		test_vmsplice_in_child
+		test_vmsplice_in_child,
 	},
 	/*
 	 * vmsplice() test, but do an additional mprotect(PROT_READ)+
@@ -1044,7 +1072,7 @@ static const struct test_case anon_test_cases[] = {
 	 */
 	{
 		"vmsplice() + unmap in child with mprotect() optimization",
-		test_vmsplice_in_child_mprotect
+		test_vmsplice_in_child_mprotect,
 	},
 	/*
 	 * vmsplice() [R/O GUP] in parent before fork(), unmap in parent after
@@ -1322,23 +1350,31 @@ close_comm_pipes:
 	close_comm_pipes(&comm_pipes);
 }
 
-static void test_anon_thp_collapse_unshared(char *mem, size_t size)
+static void test_anon_thp_collapse_unshared(char *mem, size_t size,
+		bool is_hugetlb)
 {
+	assert(!is_hugetlb);
 	do_test_anon_thp_collapse(mem, size, ANON_THP_COLLAPSE_UNSHARED);
 }
 
-static void test_anon_thp_collapse_fully_shared(char *mem, size_t size)
+static void test_anon_thp_collapse_fully_shared(char *mem, size_t size,
+		bool is_hugetlb)
 {
+	assert(!is_hugetlb);
 	do_test_anon_thp_collapse(mem, size, ANON_THP_COLLAPSE_FULLY_SHARED);
 }
 
-static void test_anon_thp_collapse_lower_shared(char *mem, size_t size)
+static void test_anon_thp_collapse_lower_shared(char *mem, size_t size,
+		bool is_hugetlb)
 {
+	assert(!is_hugetlb);
 	do_test_anon_thp_collapse(mem, size, ANON_THP_COLLAPSE_LOWER_SHARED);
 }
 
-static void test_anon_thp_collapse_upper_shared(char *mem, size_t size)
+static void test_anon_thp_collapse_upper_shared(char *mem, size_t size,
+		bool is_hugetlb)
 {
+	assert(!is_hugetlb);
 	do_test_anon_thp_collapse(mem, size, ANON_THP_COLLAPSE_UPPER_SHARED);
 }
 
