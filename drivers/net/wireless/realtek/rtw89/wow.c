@@ -1320,6 +1320,10 @@ static int rtw89_wow_fw_start(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
+	ret = rtw89_fw_h2c_arp_offload(rtwdev, rtwvif, true);
+	if (ret)
+		rtw89_warn(rtwdev, "wow: failed to enable arp offload\n");
+
 	ret = rtw89_wow_cfg_wake(rtwdev, true);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to config wake\n");
@@ -1361,6 +1365,10 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 		rtw89_err(rtwdev, "wow: failed to disable GTK offload\n");
 		goto out;
 	}
+
+	ret = rtw89_fw_h2c_arp_offload(rtwdev, rtwvif, false);
+	if (ret)
+		rtw89_warn(rtwdev, "wow: failed to disable arp offload\n");
 
 	rtw89_wow_key_clear(rtwdev);
 	rtw89_fw_release_general_pkt_list(rtwdev, true);

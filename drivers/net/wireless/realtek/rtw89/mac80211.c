@@ -473,6 +473,9 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_PS)
 		rtw89_recalc_lps(rtwdev);
 
+	if (changed & BSS_CHANGED_ARP_FILTER)
+		rtwvif->ip_addr = vif->cfg.arp_addr_list[0];
+
 	mutex_unlock(&rtwdev->mutex);
 }
 

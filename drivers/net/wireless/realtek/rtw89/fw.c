@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include <linux/if_arp.h>
 #include "cam.h"
 #include "chan.h"
 #include "coex.h"
@@ -24,6 +25,17 @@ struct rtw89_sa_query {
 	struct ieee80211_hdr_3addr hdr;
 	u8 category;
 	u8 action;
+} __packed __aligned(2);
+
+struct rtw89_arp_rsp {
+	struct ieee80211_hdr_3addr addr;
+	u8 llc_hdr[sizeof(rfc1042_header)];
+	__be16 llc_type;
+	struct arphdr arp_hdr;
+	u8 sender_hw[ETH_ALEN];
+	__be32 sender_ip;
+	u8 target_hw[ETH_ALEN];
+	__be32 target_ip;
 } __packed __aligned(2);
 
 static const u8 mss_signature[] = {0x4D, 0x53, 0x53, 0x4B, 0x50, 0x4F, 0x4F, 0x4C};
@@ -2223,6 +2235,48 @@ static struct sk_buff *rtw89_sa_query_get(struct rtw89_dev *rtwdev,
 	return skb;
 }
 
+static struct sk_buff *rtw89_arp_response_get(struct rtw89_dev *rtwdev,
+					      struct rtw89_vif *rtwvif)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_arp_rsp *arp_skb;
+	struct arphdr *arp_hdr;
+	struct sk_buff *skb;
+	__le16 fc;
+
+	skb = dev_alloc_skb(sizeof(struct rtw89_arp_rsp));
+	if (!skb)
+		return NULL;
+
+	arp_skb = skb_put_zero(skb, sizeof(*arp_skb));
+
+	if (rtw_wow->ptk_alg)
+		fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_FCTL_TODS |
+				 IEEE80211_FCTL_PROTECTED);
+	else
+		fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_FCTL_TODS);
+
+	arp_skb->addr.frame_control = fc;
+	ether_addr_copy(arp_skb->addr.addr1, rtwvif->bssid);
+	ether_addr_copy(arp_skb->addr.addr2, rtwvif->mac_addr);
+	ether_addr_copy(arp_skb->addr.addr3, rtwvif->bssid);
+
+	memcpy(arp_skb->llc_hdr, rfc1042_header, sizeof(rfc1042_header));
+	arp_skb->llc_type = htons(ETH_P_ARP);
+
+	arp_hdr = &arp_skb->arp_hdr;
+	arp_hdr->ar_hrd = htons(ARPHRD_ETHER);
+	arp_hdr->ar_pro = htons(ETH_P_IP);
+	arp_hdr->ar_hln = ETH_ALEN;
+	arp_hdr->ar_pln = 4;
+	arp_hdr->ar_op = htons(ARPOP_REPLY);
+
+	ether_addr_copy(arp_skb->sender_hw, rtwvif->mac_addr);
+	arp_skb->sender_ip = rtwvif->ip_addr;
+
+	return skb;
+}
+
 static int rtw89_fw_h2c_add_general_pkt(struct rtw89_dev *rtwdev,
 					struct rtw89_vif *rtwvif,
 					enum rtw89_fw_pkt_ofld_type type,
@@ -2255,6 +2309,9 @@ static int rtw89_fw_h2c_add_general_pkt(struct rtw89_dev *rtwdev,
 		break;
 	case RTW89_PKT_OFLD_TYPE_SA_QUERY:
 		skb = rtw89_sa_query_get(rtwdev, rtwvif);
+		break;
+	case RTW89_PKT_OFLD_TYPE_ARP_RSP:
+		skb = rtw89_arp_response_get(rtwdev, rtwvif);
 		break;
 	default:
 		goto err;
@@ -6375,6 +6432,57 @@ int rtw89_fw_h2c_keep_alive(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			      H2C_CL_MAC_WOW,
 			      H2C_FUNC_KEEP_ALIVE, 0, 1,
 			      H2C_KEEP_ALIVE_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+int rtw89_fw_h2c_arp_offload(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			     bool enable)
+{
+	struct rtw89_h2c_arp_offload *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	u8 pkt_id = 0;
+	int ret;
+
+	if (enable) {
+		ret = rtw89_fw_h2c_add_general_pkt(rtwdev, rtwvif,
+						   RTW89_PKT_OFLD_TYPE_ARP_RSP,
+						   &pkt_id);
+		if (ret)
+			return ret;
+	}
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for arp offload\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_arp_offload *)skb->data;
+
+	h2c->w0 = le32_encode_bits(enable, RTW89_H2C_ARP_OFFLOAD_W0_ENABLE) |
+		  le32_encode_bits(0, RTW89_H2C_ARP_OFFLOAD_W0_ACTION) |
+		  le32_encode_bits(rtwvif->mac_id, RTW89_H2C_ARP_OFFLOAD_W0_MACID) |
+		  le32_encode_bits(pkt_id, RTW89_H2C_ARP_OFFLOAD_W0_PKT_ID);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_WOW,
+			      H2C_FUNC_ARP_OFLD, 0, 1,
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {

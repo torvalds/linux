@@ -2025,6 +2025,17 @@ struct rtw89_h2c_wow_gtk_ofld {
 #define RTW89_H2C_WOW_GTK_OFLD_W1_PMF_BIP_SEC_ALGO GENMASK(9, 8)
 #define RTW89_H2C_WOW_GTK_OFLD_W1_ALGO_AKM_SUIT GENMASK(17, 10)
 
+struct rtw89_h2c_arp_offload {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_H2C_ARP_OFFLOAD_W0_ENABLE BIT(0)
+#define RTW89_H2C_ARP_OFFLOAD_W0_ACTION BIT(1)
+#define RTW89_H2C_ARP_OFFLOAD_W0_MACID GENMASK(23, 16)
+#define RTW89_H2C_ARP_OFFLOAD_W0_PKT_ID GENMASK(31, 24)
+#define RTW89_H2C_ARP_OFFLOAD_W1_CONTENT GENMASK(31, 0)
+
 enum rtw89_btc_btf_h2c_class {
 	BTFC_SET = 0x10,
 	BTFC_GET = 0x11,
@@ -3919,6 +3930,7 @@ enum rtw89_wow_h2c_func {
 	H2C_FUNC_DISCONNECT_DETECT	= 0x1,
 	H2C_FUNC_WOW_GLOBAL		= 0x2,
 	H2C_FUNC_GTK_OFLD		= 0x3,
+	H2C_FUNC_ARP_OFLD		= 0x4,
 	H2C_FUNC_WAKEUP_CTRL		= 0x8,
 	H2C_FUNC_WOW_CAM_UPD		= 0xC,
 	H2C_FUNC_AOAC_REPORT_REQ	= 0xD,
@@ -4436,6 +4448,8 @@ int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif, bool enable);
 int rtw89_fw_h2c_keep_alive(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			    bool enable);
+int rtw89_fw_h2c_arp_offload(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif *rtwvif, bool enable);
 int rtw89_fw_h2c_disconnect_detect(struct rtw89_dev *rtwdev,
 				   struct rtw89_vif *rtwvif, bool enable);
 int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
