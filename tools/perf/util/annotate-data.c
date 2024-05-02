@@ -1256,14 +1256,19 @@ static int check_matching_type(struct type_state *state,
 	if (state->regs[reg].ok && state->regs[reg].kind == TSR_KIND_TYPE) {
 		int tag = dwarf_tag(&state->regs[reg].type);
 
-		pr_debug_dtp("\n");
-
 		/*
 		 * Normal registers should hold a pointer (or array) to
 		 * dereference a memory location.
 		 */
-		if (tag != DW_TAG_pointer_type && tag != DW_TAG_array_type)
+		if (tag != DW_TAG_pointer_type && tag != DW_TAG_array_type) {
+			if (dloc->op->offset < 0 && reg != state->stack_reg)
+				goto check_kernel;
+
+			pr_debug_dtp("\n");
 			return -1;
+		}
+
+		pr_debug_dtp("\n");
 
 		/* Remove the pointer and get the target type */
 		if (die_get_real_type(&state->regs[reg].type, type_die) == NULL)
@@ -1376,12 +1381,14 @@ static int check_matching_type(struct type_state *state,
 		return -1;
 	}
 
-	if (map__dso(dloc->ms->map)->kernel && arch__is(dloc->arch, "x86")) {
+check_kernel:
+	if (map__dso(dloc->ms->map)->kernel) {
 		u64 addr;
 		int offset;
 
 		/* Direct this-cpu access like "%gs:0x34740" */
-		if (dloc->op->segment == INSN_SEG_X86_GS && dloc->op->imm) {
+		if (dloc->op->segment == INSN_SEG_X86_GS && dloc->op->imm &&
+		    arch__is(dloc->arch, "x86")) {
 			pr_debug_dtp(" this-cpu var\n");
 
 			addr = dloc->op->offset;
@@ -1394,17 +1401,13 @@ static int check_matching_type(struct type_state *state,
 			return -1;
 		}
 
-		/* Access to per-cpu base like "-0x7dcf0500(,%rdx,8)" */
+		/* Access to global variable like "-0x7dcf0500(,%rdx,8)" */
 		if (dloc->op->offset < 0 && reg != state->stack_reg) {
-			const char *var_name = NULL;
-
 			addr = (s64) dloc->op->offset;
 
-			if (get_global_var_info(dloc, addr, &var_name, &offset) &&
-			    !strcmp(var_name, "__per_cpu_offset") && offset == 0 &&
-			    get_global_var_type(cu_die, dloc, dloc->ip, addr,
+			if (get_global_var_type(cu_die, dloc, dloc->ip, addr,
 						&offset, type_die)) {
-				pr_debug_dtp(" percpu base\n");
+				pr_debug_dtp(" global var\n");
 
 				dloc->type_offset = offset;
 				return 1;
