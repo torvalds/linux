@@ -1330,7 +1330,7 @@ MODULE_DEVICE_TABLE(of, cs42l56_of_match);
 
 
 static const struct i2c_device_id cs42l56_id[] = {
-	{ "cs42l56", 0 },
+	{ "cs42l56" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs42l56_id);

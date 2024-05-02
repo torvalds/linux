@@ -626,7 +626,7 @@ static int tas2780_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tas2780_i2c_id[] = {
-	{ "tas2780", 0},
+	{ "tas2780"},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas2780_i2c_id);

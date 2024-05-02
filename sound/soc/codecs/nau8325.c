@@ -871,7 +871,7 @@ err:
 }
 
 static const struct i2c_device_id nau8325_i2c_ids[] = {
-	{ "nau8325", 0 },
+	{ "nau8325" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nau8325_i2c_ids);

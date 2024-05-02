@@ -517,7 +517,7 @@ err_enable:
 }
 
 static const struct i2c_device_id wm8523_i2c_id[] = {
-	{ "wm8523", 0 },
+	{ "wm8523" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8523_i2c_id);

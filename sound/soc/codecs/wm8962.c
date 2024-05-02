@@ -3938,7 +3938,7 @@ static const struct dev_pm_ops wm8962_pm = {
 };
 
 static const struct i2c_device_id wm8962_i2c_id[] = {
-	{ "wm8962", 0 },
+	{ "wm8962" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8962_i2c_id);
