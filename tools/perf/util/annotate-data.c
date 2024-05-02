@@ -1031,22 +1031,37 @@ retry:
 		else if (has_reg_type(state, sreg) &&
 			 state->regs[sreg].kind == TSR_KIND_PERCPU_BASE) {
 			u64 ip = dloc->ms->sym->start + dl->al.offset;
+			u64 var_addr = src->offset;
 			int offset;
+
+			if (src->multi_regs) {
+				int reg2 = (sreg == src->reg1) ? src->reg2 : src->reg1;
+
+				if (has_reg_type(state, reg2) && state->regs[reg2].ok &&
+				    state->regs[reg2].kind == TSR_KIND_CONST)
+					var_addr += state->regs[reg2].imm_value;
+			}
 
 			/*
 			 * In kernel, %gs points to a per-cpu region for the
 			 * current CPU.  Access with a constant offset should
 			 * be treated as a global variable access.
 			 */
-			if (get_global_var_type(cu_die, dloc, ip, src->offset,
+			if (get_global_var_type(cu_die, dloc, ip, var_addr,
 						&offset, &type_die) &&
 			    die_get_member_type(&type_die, offset, &type_die)) {
 				tsr->type = type_die;
 				tsr->kind = TSR_KIND_TYPE;
 				tsr->ok = true;
 
-				pr_debug_dtp("mov [%x] percpu %#x(reg%d) -> reg%d",
-					     insn_offset, src->offset, sreg, dst->reg1);
+				if (src->multi_regs) {
+					pr_debug_dtp("mov [%x] percpu %#x(reg%d,reg%d) -> reg%d",
+						     insn_offset, src->offset, src->reg1,
+						     src->reg2, dst->reg1);
+				} else {
+					pr_debug_dtp("mov [%x] percpu %#x(reg%d) -> reg%d",
+						     insn_offset, src->offset, sreg, dst->reg1);
+				}
 				pr_debug_type_name(&tsr->type, tsr->kind);
 			} else {
 				tsr->ok = false;
@@ -1340,6 +1355,17 @@ static int check_matching_type(struct type_state *state,
 
 		pr_debug_dtp(" percpu var\n");
 
+		if (dloc->op->multi_regs) {
+			int reg2 = dloc->op->reg2;
+
+			if (dloc->op->reg2 == reg)
+				reg2 = dloc->op->reg1;
+
+			if (has_reg_type(state, reg2) && state->regs[reg2].ok &&
+			    state->regs[reg2].kind == TSR_KIND_CONST)
+				var_addr += state->regs[reg2].imm_value;
+		}
+
 		if (get_global_var_type(cu_die, dloc, dloc->ip, var_addr,
 					&var_offset, type_die)) {
 			dloc->type_offset = var_offset;
@@ -1527,8 +1553,16 @@ again:
 		found = find_data_type_insn(dloc, reg, &basic_blocks, var_types,
 					    cu_die, type_die);
 		if (found > 0) {
-			pr_debug_dtp("found by insn track: %#x(reg%d) type-offset=%#x\n",
-				     dloc->op->offset, reg, dloc->type_offset);
+			char buf[64];
+
+			if (dloc->op->multi_regs)
+				snprintf(buf, sizeof(buf), "reg%d, reg%d",
+					 dloc->op->reg1, dloc->op->reg2);
+			else
+				snprintf(buf, sizeof(buf), "reg%d", dloc->op->reg1);
+
+			pr_debug_dtp("found by insn track: %#x(%s) type-offset=%#x\n",
+				     dloc->op->offset, buf, dloc->type_offset);
 			pr_debug_type_name(type_die, TSR_KIND_TYPE);
 			ret = 0;
 			break;
