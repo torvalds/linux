@@ -2143,7 +2143,7 @@ struct hci_cp_le_set_cig_params {
 	__le16  c_latency;
 	__le16  p_latency;
 	__u8    num_cis;
-	struct hci_cis_params cis[];
+	struct hci_cis_params cis[] __counted_by(num_cis);
 } __packed;
 
 struct hci_rp_le_set_cig_params {
