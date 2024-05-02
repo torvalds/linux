@@ -1726,28 +1726,30 @@ fail:
 	return ret;
 }
 
-#define H2C_DCTL_SEC_CAM_LEN 68
 int rtw89_fw_h2c_dctl_sec_cam_v1(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif,
 				 struct rtw89_sta *rtwsta)
 {
+	struct rtw89_h2c_dctlinfo_ud_v1 *h2c;
+	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	int ret;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_DCTL_SEC_CAM_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for dctl sec cam\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_DCTL_SEC_CAM_LEN);
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_dctlinfo_ud_v1 *)skb->data;
 
-	rtw89_cam_fill_dctl_sec_cam_info_v1(rtwdev, rtwvif, rtwsta, skb->data);
+	rtw89_cam_fill_dctl_sec_cam_info_v1(rtwdev, rtwvif, rtwsta, h2c);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
 			      H2C_CL_MAC_FR_EXCHG,
 			      H2C_FUNC_MAC_DCTLINFO_UD_V1, 0, 0,
-			      H2C_DCTL_SEC_CAM_LEN);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
