@@ -1221,15 +1221,40 @@ static void aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 NOKPROBE_SYMBOL(aggr_post_handler);
 
 /* Walks the list and increments 'nmissed' if 'p' has child probes. */
-void kprobes_inc_nmissed_count(struct kprobe *p)
+void kprobes_inc_nmissed_count(struct kprobe *p, unsigned flags)
 {
 	struct kprobe *kp;
 
 	if (!kprobe_aggrprobe(p)) {
 		p->nmissed++;
+
+		if (flags > 0) {
+			if (flags & KPROBE_MISSED_SS) {
+				p->nmissed_ss++;
+			} else if (flags & KPROBE_MISSED_OBJPOOL) {
+				p->nmissed_cpu++;
+			} else if (flags & KPROBE_MISSED_RETHOOK) {
+				p->nmissed_rethook++;
+			} else if (flags & KPROBE_MISSED_CALLBACK) {
+				p->nmissed_callback++;
+			}
+		}
 	} else {
-		list_for_each_entry_rcu(kp, &p->list, list)
+		list_for_each_entry_rcu(kp, &p->list, list) {
 			kp->nmissed++;
+
+        	        if (flags > 0) {
+                	        if (flags & KPROBE_MISSED_SS) {
+                        	        p->nmissed_ss++;
+                        	} else if (flags & KPROBE_MISSED_OBJPOOL) {
+                                	p->nmissed_cpu++;
+                        	} else if (flags & KPROBE_MISSED_RETHOOK) {
+                                	p->nmissed_rethook++;
+                        	} else if (flags & KPROBE_MISSED_CALLBACK) {
+					p->nmissed_callback++;
+				}
+                	}
+		}
 	}
 }
 NOKPROBE_SYMBOL(kprobes_inc_nmissed_count);
@@ -2102,6 +2127,7 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 	ri = objpool_pop(&rph->pool);
 	if (!ri) {
 		rp->nmissed++;
+		rp->nmissed_objpool++;
 		return 0;
 	}
 
@@ -2131,6 +2157,7 @@ static int pre_handler_kretprobe(struct kprobe *p, struct pt_regs *regs)
 	rhn = rethook_try_get(rp->rh);
 	if (!rhn) {
 		rp->nmissed++;
+		rp->nmissed_rethook++;
 		return 0;
 	}
 
