@@ -774,6 +774,9 @@ static int umsch_mm_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	if (amdgpu_in_reset(adev) || adev->in_s0ix || adev->in_suspend)
+		return 0;
+
 	return umsch_mm_test(adev);
 }
 

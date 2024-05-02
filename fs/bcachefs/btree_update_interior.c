@@ -21,6 +21,7 @@
 #include "keylist.h"
 #include "recovery_passes.h"
 #include "replicas.h"
+#include "sb-members.h"
 #include "super-io.h"
 #include "trace.h"
 
@@ -605,6 +606,26 @@ static void btree_update_add_key(struct btree_update *as,
 	bch2_keylist_push(keys);
 }
 
+static bool btree_update_new_nodes_marked_sb(struct btree_update *as)
+{
+	for_each_keylist_key(&as->new_keys, k)
+		if (!bch2_dev_btree_bitmap_marked(as->c, bkey_i_to_s_c(k)))
+			return false;
+	return true;
+}
+
+static void btree_update_new_nodes_mark_sb(struct btree_update *as)
+{
+	struct bch_fs *c = as->c;
+
+	mutex_lock(&c->sb_lock);
+	for_each_keylist_key(&as->new_keys, k)
+		bch2_dev_btree_bitmap_mark(c, bkey_i_to_s_c(k));
+
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
+}
+
 /*
  * The transactional part of an interior btree node update, where we journal the
  * update we did to the interior node and update alloc info:
@@ -661,6 +682,9 @@ static void btree_update_nodes_written(struct btree_update *as)
 	ret = bch2_journal_error(&c->journal);
 	if (ret)
 		goto err;
+
+	if (!btree_update_new_nodes_marked_sb(as))
+		btree_update_new_nodes_mark_sb(as);
 
 	/*
 	 * Wait for any in flight writes to finish before we free the old nodes
@@ -1280,23 +1304,29 @@ static void bch2_btree_set_root_inmem(struct bch_fs *c, struct btree *b)
 	bch2_recalc_btree_reserve(c);
 }
 
-static void bch2_btree_set_root(struct btree_update *as,
-				struct btree_trans *trans,
-				struct btree_path *path,
-				struct btree *b)
+static int bch2_btree_set_root(struct btree_update *as,
+			       struct btree_trans *trans,
+			       struct btree_path *path,
+			       struct btree *b,
+			       bool nofail)
 {
 	struct bch_fs *c = as->c;
-	struct btree *old;
 
 	trace_and_count(c, btree_node_set_root, trans, b);
 
-	old = btree_node_root(c, b);
+	struct btree *old = btree_node_root(c, b);
 
 	/*
 	 * Ensure no one is using the old root while we switch to the
 	 * new root:
 	 */
-	bch2_btree_node_lock_write_nofail(trans, path, &old->c);
+	if (nofail) {
+		bch2_btree_node_lock_write_nofail(trans, path, &old->c);
+	} else {
+		int ret = bch2_btree_node_lock_write(trans, path, &old->c);
+		if (ret)
+			return ret;
+	}
 
 	bch2_btree_set_root_inmem(c, b);
 
@@ -1310,6 +1340,7 @@ static void bch2_btree_set_root(struct btree_update *as,
 	 * depend on the new root would have to update the new root.
 	 */
 	bch2_btree_node_unlock_write(trans, path, old);
+	return 0;
 }
 
 /* Interior node updates: */
@@ -1652,14 +1683,15 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 	if (parent) {
 		/* Split a non root node */
 		ret = bch2_btree_insert_node(as, trans, path, parent, &as->parent_keys);
-		if (ret)
-			goto err;
 	} else if (n3) {
-		bch2_btree_set_root(as, trans, trans->paths + path, n3);
+		ret = bch2_btree_set_root(as, trans, trans->paths + path, n3, false);
 	} else {
 		/* Root filled up but didn't need to be split */
-		bch2_btree_set_root(as, trans, trans->paths + path, n1);
+		ret = bch2_btree_set_root(as, trans, trans->paths + path, n1, false);
 	}
+
+	if (ret)
+		goto err;
 
 	if (n3) {
 		bch2_btree_update_get_open_buckets(as, n3);
@@ -1863,7 +1895,9 @@ static void __btree_increase_depth(struct btree_update *as, struct btree_trans *
 	bch2_keylist_add(&as->parent_keys, &b->key);
 	btree_split_insert_keys(as, trans, path_idx, n, &as->parent_keys);
 
-	bch2_btree_set_root(as, trans, path, n);
+	int ret = bch2_btree_set_root(as, trans, path, n, true);
+	BUG_ON(ret);
+
 	bch2_btree_update_get_open_buckets(as, n);
 	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
 	bch2_trans_node_add(trans, path, n);
@@ -1915,6 +1949,22 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 
 	BUG_ON(!trans->paths[path].should_be_locked);
 	BUG_ON(!btree_node_locked(&trans->paths[path], level));
+
+	/*
+	 * Work around a deadlock caused by the btree write buffer not doing
+	 * merges and leaving tons of merges for us to do - we really don't need
+	 * to be doing merges at all from the interior update path, and if the
+	 * interior update path is generating too many new interior updates we
+	 * deadlock:
+	 */
+	if ((flags & BCH_WATERMARK_MASK) == BCH_WATERMARK_interior_updates)
+		return 0;
+
+	if ((flags & BCH_WATERMARK_MASK) <= BCH_WATERMARK_reclaim) {
+		flags &= ~BCH_WATERMARK_MASK;
+		flags |= BCH_WATERMARK_btree;
+		flags |= BCH_TRANS_COMMIT_journal_reclaim;
+	}
 
 	b = trans->paths[path].l[level].b;
 
@@ -2061,6 +2111,10 @@ err:
 		bch2_path_put(trans, new_path, true);
 	bch2_path_put(trans, sib_path, true);
 	bch2_trans_verify_locks(trans);
+	if (ret == -BCH_ERR_journal_reclaim_would_deadlock)
+		ret = 0;
+	if (!ret)
+		ret = bch2_trans_relock(trans);
 	return ret;
 err_free_update:
 	bch2_btree_node_free_never_used(as, trans, n);
@@ -2106,11 +2160,12 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 	if (parent) {
 		bch2_keylist_add(&as->parent_keys, &n->key);
 		ret = bch2_btree_insert_node(as, trans, iter->path, parent, &as->parent_keys);
-		if (ret)
-			goto err;
 	} else {
-		bch2_btree_set_root(as, trans, btree_iter_path(trans, iter), n);
+		ret = bch2_btree_set_root(as, trans, btree_iter_path(trans, iter), n, false);
 	}
+
+	if (ret)
+		goto err;
 
 	bch2_btree_update_get_open_buckets(as, n);
 	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);

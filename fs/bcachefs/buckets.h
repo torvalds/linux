@@ -395,14 +395,6 @@ static inline const char *bch2_data_type_str(enum bch_data_type type)
 		: "(invalid data type)";
 }
 
-static inline void bch2_prt_data_type(struct printbuf *out, enum bch_data_type type)
-{
-	if (type < BCH_DATA_NR)
-		prt_str(out, __bch2_data_types[type]);
-	else
-		prt_printf(out, "(invalid data type %u)", type);
-}
-
 /* disk reservations: */
 
 static inline void bch2_disk_reservation_put(struct bch_fs *c,

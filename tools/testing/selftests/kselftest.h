@@ -292,15 +292,17 @@ void ksft_test_result_code(int exit_code, const char *test_name,
 	}
 
 	/* Docs seem to call for double space if directive is absent */
-	if (!directive[0] && msg[0])
+	if (!directive[0] && msg)
 		directive = " #  ";
 
-	va_start(args, msg);
 	printf("%s %u %s%s", tap_code, ksft_test_num(), test_name, directive);
 	errno = saved_errno;
-	vprintf(msg, args);
+	if (msg) {
+		va_start(args, msg);
+		vprintf(msg, args);
+		va_end(args);
+	}
 	printf("\n");
-	va_end(args);
 }
 
 static inline __noreturn int ksft_exit_pass(void)

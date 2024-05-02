@@ -498,8 +498,13 @@ static inline void set_btree_iter_dontneed(struct btree_iter *iter)
 {
 	struct btree_trans *trans = iter->trans;
 
-	if (!trans->restarted)
-		btree_iter_path(trans, iter)->preserve = false;
+	if (!iter->path || trans->restarted)
+		return;
+
+	struct btree_path *path = btree_iter_path(trans, iter);
+	path->preserve		= false;
+	if (path->ref == 1)
+		path->should_be_locked	= false;
 }
 
 void *__bch2_trans_kmalloc(struct btree_trans *, size_t);

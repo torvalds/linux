@@ -828,6 +828,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	struct bch_fs *c = trans->c;
 	struct bkey deleted = KEY(0, 0, 0);
 	struct bkey_s_c old = (struct bkey_s_c) { &deleted, NULL };
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	deleted.p = k->k->p;
@@ -848,11 +849,23 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	if (ret)
 		goto err;
 
+	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, *k),
+				c, btree_bitmap_not_marked,
+				"btree ptr not marked in member info btree allocated bitmap\n  %s",
+				(bch2_bkey_val_to_text(&buf, c, *k),
+				 buf.buf))) {
+		mutex_lock(&c->sb_lock);
+		bch2_dev_btree_bitmap_mark(c, *k);
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+	}
+
 	ret = commit_do(trans, NULL, NULL, 0,
 			bch2_key_trigger(trans, btree_id, level, old,
 					 unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_GC));
 fsck_err:
 err:
+	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -1574,7 +1587,7 @@ static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
 		ret = PTR_ERR_OR_ZERO(new);
 		if (ret)
-			return ret;
+			goto out;
 
 		if (!r->refcount)
 			new->k.type = KEY_TYPE_deleted;
@@ -1582,6 +1595,7 @@ static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 			*bkey_refcount(bkey_i_to_s(new)) = cpu_to_le64(r->refcount);
 		ret = bch2_trans_update(trans, iter, new, 0);
 	}
+out:
 fsck_err:
 	printbuf_exit(&buf);
 	return ret;
