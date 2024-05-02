@@ -104,7 +104,9 @@ SYM_FUNC_END(v4_coherent_user_range)
  *	- size	- region size
  */
 SYM_TYPED_FUNC_START(v4_flush_kern_dcache_area)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
 	b	v4_dma_flush_range
+#endif
 SYM_FUNC_END(v4_flush_kern_dcache_area)
 
 /*

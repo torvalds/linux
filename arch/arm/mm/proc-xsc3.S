@@ -223,7 +223,9 @@ SYM_FUNC_END(xsc3_flush_user_cache_range)
  *	it also trashes the mini I-cache used by JTAG debuggers.
  */
 SYM_TYPED_FUNC_START(xsc3_coherent_kern_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
 	b	xsc3_coherent_user_range
+#endif
 SYM_FUNC_END(xsc3_coherent_kern_range)
 
 SYM_TYPED_FUNC_START(xsc3_coherent_user_range)

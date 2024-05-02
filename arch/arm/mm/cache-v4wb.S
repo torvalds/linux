@@ -136,7 +136,9 @@ SYM_FUNC_END(v4wb_flush_user_cache_range)
  */
 SYM_TYPED_FUNC_START(v4wb_flush_kern_dcache_area)
 	add	r1, r0, r1
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
 	b	v4wb_coherent_user_range
+#endif
 SYM_FUNC_END(v4wb_flush_kern_dcache_area)
 
 /*
@@ -150,7 +152,9 @@ SYM_FUNC_END(v4wb_flush_kern_dcache_area)
  *	- end	 - virtual end address
  */
 SYM_TYPED_FUNC_START(v4wb_coherent_kern_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
 	b	v4wb_coherent_user_range
+#endif
 SYM_FUNC_END(v4wb_coherent_kern_range)
 
 /*

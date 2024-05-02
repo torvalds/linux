@@ -163,7 +163,9 @@ SYM_FUNC_END(mohawk_flush_user_cache_range)
  *	- end	- virtual end address
  */
 SYM_TYPED_FUNC_START(mohawk_coherent_kern_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
 	b	mohawk_coherent_user_range
+#endif
 SYM_FUNC_END(mohawk_coherent_kern_range)
 
 /*

@@ -112,7 +112,9 @@ SYM_FUNC_END(fa_flush_user_cache_range)
  *	- end	 - virtual end address
  */
 SYM_TYPED_FUNC_START(fa_coherent_kern_range)
+#ifdef CONFIG_CFI_CLANG /* Fallthrough if !CFI */
 	b	fa_coherent_user_range
+#endif
 SYM_FUNC_END(fa_coherent_kern_range)
 
 /*
