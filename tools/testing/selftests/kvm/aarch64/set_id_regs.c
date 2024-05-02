@@ -457,13 +457,36 @@ static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 	}
 }
 
+static void test_assert_id_reg_unchanged(struct kvm_vcpu *vcpu, uint32_t encoding)
+{
+	size_t idx = encoding_to_range_idx(encoding);
+	uint64_t observed;
+
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(encoding), &observed);
+	TEST_ASSERT_EQ(test_reg_vals[idx], observed);
+}
+
+static void test_reset_preserves_id_regs(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Calls KVM_ARM_VCPU_INIT behind the scenes, which will do an
+	 * architectural reset of the vCPU.
+	 */
+	aarch64_vcpu_setup(vcpu, NULL);
+
+	for (int i = 0; i < ARRAY_SIZE(test_regs); i++)
+		test_assert_id_reg_unchanged(vcpu, test_regs[i].reg);
+
+	ksft_test_result_pass("%s\n", __func__);
+}
+
 int main(void)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	bool aarch64_only;
 	uint64_t val, el0;
-	int ftr_cnt;
+	int test_cnt;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_SUPPORTED_REG_MASK_RANGES));
 
@@ -476,17 +499,19 @@ int main(void)
 
 	ksft_print_header();
 
-	ftr_cnt = ARRAY_SIZE(ftr_id_aa64dfr0_el1) + ARRAY_SIZE(ftr_id_dfr0_el1) +
-		  ARRAY_SIZE(ftr_id_aa64isar0_el1) + ARRAY_SIZE(ftr_id_aa64isar1_el1) +
-		  ARRAY_SIZE(ftr_id_aa64isar2_el1) + ARRAY_SIZE(ftr_id_aa64pfr0_el1) +
-		  ARRAY_SIZE(ftr_id_aa64mmfr0_el1) + ARRAY_SIZE(ftr_id_aa64mmfr1_el1) +
-		  ARRAY_SIZE(ftr_id_aa64mmfr2_el1) + ARRAY_SIZE(ftr_id_aa64zfr0_el1) -
-		  ARRAY_SIZE(test_regs);
+	test_cnt = ARRAY_SIZE(ftr_id_aa64dfr0_el1) + ARRAY_SIZE(ftr_id_dfr0_el1) +
+		   ARRAY_SIZE(ftr_id_aa64isar0_el1) + ARRAY_SIZE(ftr_id_aa64isar1_el1) +
+		   ARRAY_SIZE(ftr_id_aa64isar2_el1) + ARRAY_SIZE(ftr_id_aa64pfr0_el1) +
+		   ARRAY_SIZE(ftr_id_aa64mmfr0_el1) + ARRAY_SIZE(ftr_id_aa64mmfr1_el1) +
+		   ARRAY_SIZE(ftr_id_aa64mmfr2_el1) + ARRAY_SIZE(ftr_id_aa64zfr0_el1) -
+		   ARRAY_SIZE(test_regs) + 1;
 
-	ksft_set_plan(ftr_cnt);
+	ksft_set_plan(test_cnt);
 
 	test_vm_ftr_id_regs(vcpu, aarch64_only);
 	test_guest_reg_read(vcpu);
+
+	test_reset_preserves_id_regs(vcpu);
 
 	kvm_vm_free(vm);
 
