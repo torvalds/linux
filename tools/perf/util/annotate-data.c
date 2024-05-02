@@ -1258,11 +1258,12 @@ static void setup_stack_canary(struct data_loc_info *dloc)
  * are similar to global variables and no additional info is needed.
  */
 static int check_matching_type(struct type_state *state,
-			       struct data_loc_info *dloc, int reg,
+			       struct data_loc_info *dloc,
 			       Dwarf_Die *cu_die, Dwarf_Die *type_die)
 {
 	Dwarf_Word size;
 	u32 insn_offset = dloc->ip - dloc->ms->sym->start;
+	int reg = dloc->op->reg1;
 
 	pr_debug_dtp("chk [%x] reg%d offset=%#x ok=%d kind=%d",
 		     insn_offset, reg, dloc->op->offset,
@@ -1448,7 +1449,7 @@ check_kernel:
 }
 
 /* Iterate instructions in basic blocks and update type table */
-static int find_data_type_insn(struct data_loc_info *dloc, int reg,
+static int find_data_type_insn(struct data_loc_info *dloc,
 			       struct list_head *basic_blocks,
 			       struct die_var_type *var_types,
 			       Dwarf_Die *cu_die, Dwarf_Die *type_die)
@@ -1481,7 +1482,7 @@ static int find_data_type_insn(struct data_loc_info *dloc, int reg,
 			update_var_state(&state, dloc, addr, dl->al.offset, var_types);
 
 			if (this_ip == dloc->ip) {
-				ret = check_matching_type(&state, dloc, reg,
+				ret = check_matching_type(&state, dloc,
 							  cu_die, type_die);
 				goto out;
 			}
@@ -1502,7 +1503,7 @@ out:
  * Construct a list of basic blocks for each scope with variables and try to find
  * the data type by updating a type state table through instructions.
  */
-static int find_data_type_block(struct data_loc_info *dloc, int reg,
+static int find_data_type_block(struct data_loc_info *dloc,
 				Dwarf_Die *cu_die, Dwarf_Die *scopes,
 				int nr_scopes, Dwarf_Die *type_die)
 {
@@ -1550,7 +1551,7 @@ again:
 		fixup_var_address(var_types, start);
 
 		/* Find from start of this scope to the target instruction */
-		found = find_data_type_insn(dloc, reg, &basic_blocks, var_types,
+		found = find_data_type_insn(dloc, &basic_blocks, var_types,
 					    cu_die, type_die);
 		if (found > 0) {
 			char buf[64];
@@ -1716,18 +1717,18 @@ retry:
 		goto out;
 	}
 
+	if (loc->multi_regs && reg == loc->reg1 && loc->reg1 != loc->reg2) {
+		reg = loc->reg2;
+		goto retry;
+	}
+
 	if (reg != DWARF_REG_PC) {
-		ret = find_data_type_block(dloc, reg, &cu_die, scopes,
+		ret = find_data_type_block(dloc, &cu_die, scopes,
 					   nr_scopes, type_die);
 		if (ret == 0) {
 			ann_data_stat.insn_track++;
 			goto out;
 		}
-	}
-
-	if (loc->multi_regs && reg == loc->reg1 && loc->reg1 != loc->reg2) {
-		reg = loc->reg2;
-		goto retry;
 	}
 
 	if (ret < 0) {
