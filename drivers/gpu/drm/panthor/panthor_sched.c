@@ -490,6 +490,18 @@ enum panthor_group_state {
 	 * Can no longer be scheduled. The only allowed action is a destruction.
 	 */
 	PANTHOR_CS_GROUP_TERMINATED,
+
+	/**
+	 * @PANTHOR_CS_GROUP_UNKNOWN_STATE: Group is an unknown state.
+	 *
+	 * The FW returned an inconsistent state. The group is flagged unusable
+	 * and can no longer be scheduled. The only allowed action is a
+	 * destruction.
+	 *
+	 * When that happens, we also schedule a FW reset, to start from a fresh
+	 * state.
+	 */
+	PANTHOR_CS_GROUP_UNKNOWN_STATE,
 };
 
 /**
@@ -1127,6 +1139,7 @@ csg_slot_sync_state_locked(struct panthor_device *ptdev, u32 csg_id)
 	struct panthor_fw_csg_iface *csg_iface;
 	struct panthor_group *group;
 	enum panthor_group_state new_state, old_state;
+	u32 csg_state;
 
 	lockdep_assert_held(&ptdev->scheduler->lock);
 
@@ -1137,7 +1150,8 @@ csg_slot_sync_state_locked(struct panthor_device *ptdev, u32 csg_id)
 		return;
 
 	old_state = group->state;
-	switch (csg_iface->output->ack & CSG_STATE_MASK) {
+	csg_state = csg_iface->output->ack & CSG_STATE_MASK;
+	switch (csg_state) {
 	case CSG_STATE_START:
 	case CSG_STATE_RESUME:
 		new_state = PANTHOR_CS_GROUP_ACTIVE;
@@ -1148,10 +1162,27 @@ csg_slot_sync_state_locked(struct panthor_device *ptdev, u32 csg_id)
 	case CSG_STATE_SUSPEND:
 		new_state = PANTHOR_CS_GROUP_SUSPENDED;
 		break;
+	default:
+		/* The unknown state might be caused by a FW state corruption,
+		 * which means the group metadata can't be trusted anymore, and
+		 * the SUSPEND operation might propagate the corruption to the
+		 * suspend buffers. Flag the group state as unknown to make
+		 * sure it's unusable after that point.
+		 */
+		drm_err(&ptdev->base, "Invalid state on CSG %d (state=%d)",
+			csg_id, csg_state);
+		new_state = PANTHOR_CS_GROUP_UNKNOWN_STATE;
+		break;
 	}
 
 	if (old_state == new_state)
 		return;
+
+	/* The unknown state might be caused by a FW issue, reset the FW to
+	 * take a fresh start.
+	 */
+	if (new_state == PANTHOR_CS_GROUP_UNKNOWN_STATE)
+		panthor_device_schedule_reset(ptdev);
 
 	if (new_state == PANTHOR_CS_GROUP_SUSPENDED)
 		csg_slot_sync_queues_state_locked(ptdev, csg_id);
@@ -1783,6 +1814,7 @@ static bool
 group_can_run(struct panthor_group *group)
 {
 	return group->state != PANTHOR_CS_GROUP_TERMINATED &&
+	       group->state != PANTHOR_CS_GROUP_UNKNOWN_STATE &&
 	       !group->destroyed && group->fatal_queues == 0 &&
 	       !group->timedout;
 }
@@ -2557,7 +2589,8 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 
 		if (csg_slot->group) {
 			csgs_upd_ctx_queue_reqs(ptdev, &upd_ctx, i,
-						CSG_STATE_SUSPEND,
+						group_can_run(csg_slot->group) ?
+						CSG_STATE_SUSPEND : CSG_STATE_TERMINATE,
 						CSG_STATE_MASK);
 		}
 	}
