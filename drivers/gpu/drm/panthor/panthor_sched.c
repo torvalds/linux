@@ -2733,15 +2733,22 @@ void panthor_sched_pre_reset(struct panthor_device *ptdev)
 	mutex_unlock(&sched->reset.lock);
 }
 
-void panthor_sched_post_reset(struct panthor_device *ptdev)
+void panthor_sched_post_reset(struct panthor_device *ptdev, bool reset_failed)
 {
 	struct panthor_scheduler *sched = ptdev->scheduler;
 	struct panthor_group *group, *group_tmp;
 
 	mutex_lock(&sched->reset.lock);
 
-	list_for_each_entry_safe(group, group_tmp, &sched->reset.stopped_groups, run_node)
+	list_for_each_entry_safe(group, group_tmp, &sched->reset.stopped_groups, run_node) {
+		/* Consider all previously running group as terminated if the
+		 * reset failed.
+		 */
+		if (reset_failed)
+			group->state = PANTHOR_CS_GROUP_TERMINATED;
+
 		panthor_group_start(group);
+	}
 
 	/* We're done resetting the GPU, clear the reset.in_progress bit so we can
 	 * kick the scheduler.
@@ -2749,9 +2756,11 @@ void panthor_sched_post_reset(struct panthor_device *ptdev)
 	atomic_set(&sched->reset.in_progress, false);
 	mutex_unlock(&sched->reset.lock);
 
-	sched_queue_delayed_work(sched, tick, 0);
-
-	sched_queue_work(sched, sync_upd);
+	/* No need to queue a tick and update syncs if the reset failed. */
+	if (!reset_failed) {
+		sched_queue_delayed_work(sched, tick, 0);
+		sched_queue_work(sched, sync_upd);
+	}
 }
 
 static void group_sync_upd_work(struct work_struct *work)
