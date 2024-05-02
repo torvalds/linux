@@ -184,7 +184,6 @@ struct platform_driver dsi_driver = {
 	.remove_new = samsung_dsim_remove,
 	.driver = {
 		   .name = "exynos-dsi",
-		   .owner = THIS_MODULE,
 		   .pm = &samsung_dsim_pm_ops,
 		   .of_match_table = exynos_dsi_of_match,
 	},

@@ -40,9 +40,6 @@
 #define DSC_PPS_RC_RANGE_MINQP_SHIFT		11
 #define DSC_PPS_RC_RANGE_MAXQP_SHIFT		6
 #define DSC_PPS_NATIVE_420_SHIFT		1
-#define DSC_1_2_MAX_LINEBUF_DEPTH_BITS		16
-#define DSC_1_2_MAX_LINEBUF_DEPTH_VAL		0
-#define DSC_1_1_MAX_LINEBUF_DEPTH_BITS		13
 
 /**
  * struct drm_dsc_rc_range_parameters - DSC Rate Control range parameters

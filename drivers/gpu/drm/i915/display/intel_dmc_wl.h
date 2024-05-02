@@ -12,7 +12,7 @@
 
 #include "i915_reg_defs.h"
 
-struct drm_i915_private;
+struct intel_display;
 
 struct intel_dmc_wl {
 	spinlock_t lock; /* protects enabled, taken  and refcount */
@@ -22,10 +22,10 @@ struct intel_dmc_wl {
 	struct delayed_work work;
 };
 
-void intel_dmc_wl_init(struct drm_i915_private *i915);
-void intel_dmc_wl_enable(struct drm_i915_private *i915);
-void intel_dmc_wl_disable(struct drm_i915_private *i915);
-void intel_dmc_wl_get(struct drm_i915_private *i915, i915_reg_t reg);
-void intel_dmc_wl_put(struct drm_i915_private *i915, i915_reg_t reg);
+void intel_dmc_wl_init(struct intel_display *display);
+void intel_dmc_wl_enable(struct intel_display *display);
+void intel_dmc_wl_disable(struct intel_display *display);
+void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg);
+void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg);
 
 #endif /* __INTEL_WAKELOCK_H__ */

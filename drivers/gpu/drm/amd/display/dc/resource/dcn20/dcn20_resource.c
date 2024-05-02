@@ -62,6 +62,9 @@
 #include "dcn20/dcn20_vmid.h"
 #include "dce/dce_panel_cntl.h"
 
+#include "dcn20/dcn20_dwb.h"
+#include "dcn20/dcn20_mmhubbub.h"
+
 #include "navi10_ip_offset.h"
 
 #include "dcn/dcn_2_0_0_offset.h"
@@ -70,9 +73,6 @@
 #include "dpcs/dpcs_2_0_0_sh_mask.h"
 
 #include "nbio/nbio_2_3_offset.h"
-
-#include "dcn20/dcn20_dwb.h"
-#include "dcn20/dcn20_mmhubbub.h"
 
 #include "mmhub/mmhub_2_0_0_offset.h"
 #include "mmhub/mmhub_2_0_0_sh_mask.h"
@@ -83,11 +83,10 @@
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 #include "vm_helper.h"
+
 #include "link_enc_cfg.h"
-
-#include "amdgpu_socbb.h"
-
 #include "link.h"
+
 #define DC_LOGGER_INIT(logger)
 
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL

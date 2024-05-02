@@ -165,7 +165,7 @@ ENTRY(first_lines_of_secondary)
 	; setup stack (fp, sp)
 	mov	fp, 0
 
-	; set it's stack base to tsk->thread_info bottom
+	; set its stack base to tsk->thread_info bottom
 	GET_TSK_STACK_BASE r0, sp
 
 	j	start_kernel_secondary

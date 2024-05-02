@@ -1143,7 +1143,7 @@ static bool dcn303_resource_construct(
 	int i;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
-	struct ddc_service_init_data ddc_init_data;
+	struct ddc_service_init_data ddc_init_data = {0};
 
 	ctx->dc_bios->regs = &bios_regs;
 

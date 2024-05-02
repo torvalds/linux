@@ -166,7 +166,7 @@ void dcn30_log_color_state(struct dc *dc,
 		 "C21        C22        C23        C24        "
 		 "C31        C32        C33        C34        \n");
 
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);

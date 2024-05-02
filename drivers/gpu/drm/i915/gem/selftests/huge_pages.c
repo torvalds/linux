@@ -1969,19 +1969,19 @@ int i915_gem_huge_page_mock_selftests(void)
 		SUBTEST(igt_mock_memory_region_huge_pages),
 		SUBTEST(igt_mock_ppgtt_misaligned_dma),
 	};
-	struct drm_i915_private *dev_priv;
+	struct drm_i915_private *i915;
 	struct i915_ppgtt *ppgtt;
 	int err;
 
-	dev_priv = mock_gem_device();
-	if (!dev_priv)
+	i915 = mock_gem_device();
+	if (!i915)
 		return -ENOMEM;
 
 	/* Pretend to be a device which supports the 48b PPGTT */
-	RUNTIME_INFO(dev_priv)->ppgtt_type = INTEL_PPGTT_FULL;
-	RUNTIME_INFO(dev_priv)->ppgtt_size = 48;
+	RUNTIME_INFO(i915)->ppgtt_type = INTEL_PPGTT_FULL;
+	RUNTIME_INFO(i915)->ppgtt_size = 48;
 
-	ppgtt = i915_ppgtt_create(to_gt(dev_priv), 0);
+	ppgtt = i915_ppgtt_create(to_gt(i915), 0);
 	if (IS_ERR(ppgtt)) {
 		err = PTR_ERR(ppgtt);
 		goto out_unlock;
@@ -2005,7 +2005,7 @@ int i915_gem_huge_page_mock_selftests(void)
 out_put:
 	i915_vm_put(&ppgtt->vm);
 out_unlock:
-	mock_destroy_device(dev_priv);
+	mock_destroy_device(i915);
 	return err;
 }
 

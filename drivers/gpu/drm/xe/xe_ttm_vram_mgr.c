@@ -91,7 +91,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 
 	min_page_size = mgr->default_page_size;
 	if (tbo->page_alignment)
-		min_page_size = tbo->page_alignment << PAGE_SHIFT;
+		min_page_size = (u64)tbo->page_alignment << PAGE_SHIFT;
 
 	if (WARN_ON(min_page_size < mm->chunk_size)) {
 		err = -EINVAL;
@@ -477,4 +477,16 @@ void xe_ttm_vram_get_used(struct ttm_resource_manager *man,
 	*used = mgr->mm.size - mgr->mm.avail;
 	*used_visible = mgr->visible_size - mgr->visible_avail;
 	mutex_unlock(&mgr->lock);
+}
+
+u64 xe_ttm_vram_get_avail(struct ttm_resource_manager *man)
+{
+	struct xe_ttm_vram_mgr *mgr = to_xe_ttm_vram_mgr(man);
+	u64 avail;
+
+	mutex_lock(&mgr->lock);
+	avail =  mgr->mm.avail;
+	mutex_unlock(&mgr->lock);
+
+	return avail;
 }

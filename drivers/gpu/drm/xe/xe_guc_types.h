@@ -32,6 +32,21 @@ struct xe_guc_db_mgr {
 };
 
 /**
+ * struct xe_guc_id_mgr - GuC context ID Manager.
+ *
+ * Note: GuC context ID Manager is relying on &xe_guc::submission_state.lock
+ * to protect its members.
+ */
+struct xe_guc_id_mgr {
+	/** @bitmap: bitmap to track allocated IDs */
+	unsigned long *bitmap;
+	/** @total: total number of IDs being managed */
+	unsigned int total;
+	/** @used: number of IDs currently in use */
+	unsigned int used;
+};
+
+/**
  * struct xe_guc - Graphic micro controller
  */
 struct xe_guc {
@@ -49,12 +64,10 @@ struct xe_guc {
 	struct xe_guc_db_mgr dbm;
 	/** @submission_state: GuC submission state */
 	struct {
+		/** @submission_state.idm: GuC context ID Manager */
+		struct xe_guc_id_mgr idm;
 		/** @submission_state.exec_queue_lookup: Lookup an xe_engine from guc_id */
 		struct xarray exec_queue_lookup;
-		/** @submission_state.guc_ids: used to allocate new guc_ids, single-lrc */
-		struct ida guc_ids;
-		/** @submission_state.guc_ids_bitmap: used to allocate new guc_ids, multi-lrc */
-		unsigned long *guc_ids_bitmap;
 		/** @submission_state.stopped: submissions are stopped */
 		atomic_t stopped;
 		/** @submission_state.lock: protects submission state */

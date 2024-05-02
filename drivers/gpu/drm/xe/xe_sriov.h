@@ -10,9 +10,13 @@
 #include "xe_device_types.h"
 #include "xe_sriov_types.h"
 
-const char *xe_sriov_mode_to_string(enum xe_sriov_mode mode);
+struct drm_printer;
 
-void xe_sriov_probe_early(struct xe_device *xe, bool has_sriov);
+const char *xe_sriov_mode_to_string(enum xe_sriov_mode mode);
+const char *xe_sriov_function_name(unsigned int n, char *buf, size_t len);
+
+void xe_sriov_probe_early(struct xe_device *xe);
+void xe_sriov_print_info(struct xe_device *xe, struct drm_printer *p);
 int xe_sriov_init(struct xe_device *xe);
 
 static inline enum xe_sriov_mode xe_device_sriov_mode(struct xe_device *xe)

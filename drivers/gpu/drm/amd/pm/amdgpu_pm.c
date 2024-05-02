@@ -4338,6 +4338,13 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 		}
 	}
 
+	/*
+	 * If gpu_od is the only member in the list, that means gpu_od is an
+	 * empty directory, so remove it.
+	 */
+	if (list_is_singular(&adev->pm.od_kobj_list))
+		goto err_out;
+
 	return 0;
 
 err_out:
@@ -4399,6 +4406,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		ret = amdgpu_od_set_init(adev);
 		if (ret)
 			goto err_out1;
+	} else if (adev->pm.pp_feature & PP_OVERDRIVE_MASK) {
+		dev_info(adev->dev, "overdrive feature is not supported\n");
 	}
 
 	adev->pm.sysfs_initialized = true;

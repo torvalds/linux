@@ -1306,7 +1306,7 @@ static void disable_vbios_mode_if_required(
 
 		if (link != NULL && link->link_enc->funcs->is_dig_enabled(link->link_enc)) {
 			unsigned int enc_inst, tg_inst = 0;
-			unsigned int pix_clk_100hz;
+			unsigned int pix_clk_100hz = 0;
 
 			enc_inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 			if (enc_inst != ENGINE_ID_UNKNOWN) {
@@ -1793,7 +1793,7 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		return false;
 
 	if (dc_is_dp_signal(link->connector_signal)) {
-		unsigned int pix_clk_100hz;
+		unsigned int pix_clk_100hz = 0;
 		uint32_t numOdmPipes = 1;
 		uint32_t id_src[4] = {0};
 

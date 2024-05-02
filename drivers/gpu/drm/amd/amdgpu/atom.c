@@ -1243,6 +1243,7 @@ static int amdgpu_atom_execute_table_locked(struct atom_context *ctx, int index,
 	ectx.ps_size = params_size;
 	ectx.abort = false;
 	ectx.last_jump = 0;
+	ectx.last_jump_jiffies = 0;
 	if (ws) {
 		ectx.ws = kcalloc(4, ws, GFP_KERNEL);
 		ectx.ws_size = ws;

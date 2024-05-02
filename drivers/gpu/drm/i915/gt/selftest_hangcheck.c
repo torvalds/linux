@@ -319,7 +319,7 @@ static int igt_hang_sanitycheck(void *arg)
 		i915_request_add(rq);
 
 		timeout = 0;
-		intel_wedge_on_timeout(&w, gt, HZ / 10 /* 100ms */)
+		intel_wedge_on_timeout(&w, gt, HZ / 5 /* 200ms */)
 			timeout = i915_request_wait(rq, 0,
 						    MAX_SCHEDULE_TIMEOUT);
 		if (intel_gt_is_wedged(gt))

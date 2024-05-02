@@ -311,6 +311,10 @@
 #define mmPHYESYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
 #define mmPHYFSYMCLK_CLOCK_CNTL                                                                        0x0057
 #define mmPHYFSYMCLK_CLOCK_CNTL_BASE_IDX                                                               2
+#define regHDMICHARCLK0_CLOCK_CNTL                                                                      0x004a
+#define regHDMICHARCLK0_CLOCK_CNTL_BASE_IDX                                                             2
+#define mmHDMICHARCLK0_CLOCK_CNTL                                                                      0x004a
+#define mmHDMICHARCLK0_CLOCK_CNTL_BASE_IDX                                                             2
 
 
 // addressBlock: dce_dc_dccg_dccg_dfs_dispdec

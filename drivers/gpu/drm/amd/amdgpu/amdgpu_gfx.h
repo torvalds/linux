@@ -433,6 +433,10 @@ struct amdgpu_gfx {
 	uint32_t			num_xcc_per_xcp;
 	struct mutex			partition_mutex;
 	bool				mcbp; /* mid command buffer preemption */
+
+	/* IP reg dump */
+	uint32_t			*ip_dump;
+	uint32_t			reg_count;
 };
 
 struct amdgpu_gfx_ras_reg_entry {

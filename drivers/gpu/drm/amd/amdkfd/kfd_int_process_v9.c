@@ -190,7 +190,8 @@ static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 	dev_warn(dev->adev->dev,
 		 "poison is consumed by client %d, kick off gpu reset flow\n", client_id);
 
-	amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, reset);
+	amdgpu_amdkfd_ras_pasid_poison_consumption_handler(dev->adev,
+		block, pasid, NULL, NULL, reset);
 }
 
 static bool context_id_expected(struct kfd_dev *dev)

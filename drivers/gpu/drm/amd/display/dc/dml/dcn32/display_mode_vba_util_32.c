@@ -1973,8 +1973,8 @@ void dml32_CalculateVMRowAndSwath(
 	unsigned int PTEBufferSizeInRequestsForChroma[DC__NUM_DPP__MAX];
 	unsigned int PDEAndMetaPTEBytesFrameY;
 	unsigned int PDEAndMetaPTEBytesFrameC;
-	unsigned int MetaRowByteY[DC__NUM_DPP__MAX];
-	unsigned int MetaRowByteC[DC__NUM_DPP__MAX];
+	unsigned int MetaRowByteY[DC__NUM_DPP__MAX] = {0};
+	unsigned int MetaRowByteC[DC__NUM_DPP__MAX] = {0};
 	unsigned int PixelPTEBytesPerRowY[DC__NUM_DPP__MAX];
 	unsigned int PixelPTEBytesPerRowC[DC__NUM_DPP__MAX];
 	unsigned int PixelPTEBytesPerRowY_one_row_per_frame[DC__NUM_DPP__MAX];

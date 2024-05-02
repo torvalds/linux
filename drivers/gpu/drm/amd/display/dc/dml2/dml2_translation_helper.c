@@ -250,8 +250,8 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 {
 	struct dml2_policy_build_synthetic_soc_states_scratch *s = &dml2->v20.scratch.create_scratch.build_synthetic_socbb_scratch;
 	struct dml2_policy_build_synthetic_soc_states_params *p = &dml2->v20.scratch.build_synthetic_socbb_params;
-	unsigned int dcfclk_stas_mhz[NUM_DCFCLK_STAS];
-	unsigned int dcfclk_stas_mhz_new[NUM_DCFCLK_STAS_NEW];
+	unsigned int dcfclk_stas_mhz[NUM_DCFCLK_STAS] = {0};
+	unsigned int dcfclk_stas_mhz_new[NUM_DCFCLK_STAS_NEW] = {0};
 	unsigned int dml_project = dml2->v20.dml_core_ctx.project;
 
 	unsigned int i = 0;

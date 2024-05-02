@@ -1827,7 +1827,7 @@ static void intel_c10pll_update_pll(struct intel_crtc_state *crtc_state,
 				    struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	struct intel_cx0pll_state *pll_state = &crtc_state->cx0pll_state;
+	struct intel_cx0pll_state *pll_state = &crtc_state->dpll_hw_state.cx0pll;
 	int i;
 
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
@@ -1859,7 +1859,7 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 
 	for (i = 0; tables[i]; i++) {
 		if (crtc_state->port_clock == tables[i]->clock) {
-			crtc_state->cx0pll_state.c10 = *tables[i];
+			crtc_state->dpll_hw_state.cx0pll.c10 = *tables[i];
 			intel_c10pll_update_pll(crtc_state, encoder);
 
 			return 0;
@@ -1899,7 +1899,7 @@ static void intel_c10_pll_program(struct drm_i915_private *i915,
 				  const struct intel_crtc_state *crtc_state,
 				  struct intel_encoder *encoder)
 {
-	const struct intel_c10pll_state *pll_state = &crtc_state->cx0pll_state.c10;
+	const struct intel_c10pll_state *pll_state = &crtc_state->dpll_hw_state.cx0pll.c10;
 	int i;
 
 	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CONTROL(1),
@@ -2079,7 +2079,7 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 	/* try computed C20 HDMI tables before using consolidated tables */
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		if (intel_c20_compute_hdmi_tmds_pll(crtc_state->port_clock,
-						    &crtc_state->cx0pll_state.c20) == 0)
+						    &crtc_state->dpll_hw_state.cx0pll.c20) == 0)
 			return 0;
 	}
 
@@ -2089,7 +2089,7 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 
 	for (i = 0; tables[i]; i++) {
 		if (crtc_state->port_clock == tables[i]->clock) {
-			crtc_state->cx0pll_state.c20 = *tables[i];
+			crtc_state->dpll_hw_state.cx0pll.c20 = *tables[i];
 			return 0;
 		}
 	}
@@ -2335,7 +2335,7 @@ static void intel_c20_pll_program(struct drm_i915_private *i915,
 				  const struct intel_crtc_state *crtc_state,
 				  struct intel_encoder *encoder)
 {
-	const struct intel_c20pll_state *pll_state = &crtc_state->cx0pll_state.c20;
+	const struct intel_c20pll_state *pll_state = &crtc_state->dpll_hw_state.cx0pll.c20;
 	bool dp = false;
 	int lane = crtc_state->lane_count > 2 ? INTEL_CX0_BOTH_LANES : INTEL_CX0_LANE0;
 	u32 clock = crtc_state->port_clock;
@@ -2484,9 +2484,9 @@ static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 	/* TODO: HDMI FRL */
 	/* DP2.0 10G and 20G rates enable MPLLA*/
 	if (crtc_state->port_clock == 1000000 || crtc_state->port_clock == 2000000)
-		val |= crtc_state->cx0pll_state.ssc_enabled ? XELPDP_SSC_ENABLE_PLLA : 0;
+		val |= crtc_state->dpll_hw_state.cx0pll.ssc_enabled ? XELPDP_SSC_ENABLE_PLLA : 0;
 	else
-		val |= crtc_state->cx0pll_state.ssc_enabled ? XELPDP_SSC_ENABLE_PLLB : 0;
+		val |= crtc_state->dpll_hw_state.cx0pll.ssc_enabled ? XELPDP_SSC_ENABLE_PLLB : 0;
 
 	intel_de_rmw(i915, XELPDP_PORT_CLOCK_CTL(i915, encoder->port),
 		     XELPDP_LANE1_PHY_CLOCK_SELECT | XELPDP_FORWARD_CLOCK_UNGATE |
@@ -3025,7 +3025,7 @@ static void intel_c10pll_state_verify(const struct intel_crtc_state *state,
 				      struct intel_c10pll_state *mpllb_hw_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	const struct intel_c10pll_state *mpllb_sw_state = &state->cx0pll_state.c10;
+	const struct intel_c10pll_state *mpllb_sw_state = &state->dpll_hw_state.cx0pll.c10;
 	int i;
 
 	if (intel_crtc_needs_fastset(state))
@@ -3075,7 +3075,7 @@ static void intel_c20pll_state_verify(const struct intel_crtc_state *state,
 				      struct intel_c20pll_state *mpll_hw_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	const struct intel_c20pll_state *mpll_sw_state = &state->cx0pll_state.c20;
+	const struct intel_c20pll_state *mpll_sw_state = &state->dpll_hw_state.cx0pll.c20;
 	bool sw_use_mpllb = intel_c20phy_use_mpllb(mpll_sw_state);
 	bool hw_use_mpllb = intel_c20phy_use_mpllb(mpll_hw_state);
 	int i;

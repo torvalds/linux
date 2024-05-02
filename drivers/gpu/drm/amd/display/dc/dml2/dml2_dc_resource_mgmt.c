@@ -88,7 +88,8 @@ static int find_disp_cfg_idx_by_plane_id(struct dml2_dml_to_dc_pipe_mapping *map
 			return  i;
 	}
 
-	return -1;
+	ASSERT(false);
+	return __DML2_WRAPPER_MAX_STREAMS_PLANES__;
 }
 
 static int find_disp_cfg_idx_by_stream_id(struct dml2_dml_to_dc_pipe_mapping *mapping, unsigned int stream_id)
@@ -100,7 +101,8 @@ static int find_disp_cfg_idx_by_stream_id(struct dml2_dml_to_dc_pipe_mapping *ma
 			return  i;
 	}
 
-	return -1;
+	ASSERT(false);
+	return __DML2_WRAPPER_MAX_STREAMS_PLANES__;
 }
 
 // The master pipe of a stream is defined as the top pipe in odm slice 0
@@ -862,7 +864,7 @@ static unsigned int get_source_mpc_factor(const struct dml2_context *ctx,
 		struct dc_state *state,
 		const struct dc_plane_state *plane)
 {
-	struct pipe_ctx *dpp_pipes[MAX_PIPES];
+	struct pipe_ctx *dpp_pipes[MAX_PIPES] = {0};
 	int dpp_pipe_count = ctx->config.callbacks.get_dpp_pipes_for_plane(plane,
 			&state->res_ctx, dpp_pipes);
 

@@ -367,7 +367,7 @@ static void dcn10_log_color_state(struct dc *dc,
 		 dc->caps.color.dpp.ocsc);
 
 	DTN_INFO("MPCC:  OPP  DPP  MPCCBOT  MODE  ALPHA_MODE  PREMULT  OVERLAP_ONLY  IDLE\n");
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
@@ -2185,7 +2185,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 	struct dc_crtc_timing *hw_crtc_timing;
 	uint64_t phase[MAX_PIPES];
 	uint64_t modulo[MAX_PIPES];
-	unsigned int pclk;
+	unsigned int pclk = 0;
 
 	uint32_t embedded_pix_clk_100hz;
 	uint16_t embedded_h_total;
@@ -2276,7 +2276,7 @@ void dcn10_enable_vblanks_synchronization(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
-	int i, width, height, master;
+	int i, width = 0, height = 0, master;
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
@@ -2342,7 +2342,7 @@ void dcn10_enable_timing_synchronization(
 	struct dc_context *dc_ctx = dc->ctx;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
-	int i, width, height;
+	int i, width = 0, height = 0;
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 

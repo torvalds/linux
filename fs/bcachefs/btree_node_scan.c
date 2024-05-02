@@ -302,6 +302,8 @@ again:
 
 			start->max_key = bpos_predecessor(n->min_key);
 			start->range_updated = true;
+		} else if (n->level) {
+			n->overwritten = true;
 		} else {
 			struct printbuf buf = PRINTBUF;
 
