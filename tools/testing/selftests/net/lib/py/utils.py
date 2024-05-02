@@ -26,6 +26,9 @@ class cmd:
             self.process(terminate=False, fail=fail)
 
     def process(self, terminate=True, fail=None):
+        if fail is None:
+            fail = not terminate
+
         if terminate:
             self.proc.terminate()
         stdout, stderr = self.proc.communicate(timeout=5)
@@ -43,17 +46,18 @@ class cmd:
 
 
 class bkg(cmd):
-    def __init__(self, comm, shell=True, fail=True, ns=None, host=None,
+    def __init__(self, comm, shell=True, fail=None, ns=None, host=None,
                  exit_wait=False):
         super().__init__(comm, background=True,
                          shell=shell, fail=fail, ns=ns, host=host)
         self.terminate = not exit_wait
+        self.check_fail = fail
 
     def __enter__(self):
         return self
 
     def __exit__(self, ex_type, ex_value, ex_tb):
-        return self.process(terminate=self.terminate)
+        return self.process(terminate=self.terminate, fail=self.check_fail)
 
 
 def tool(name, args, json=None, ns=None, host=None):
