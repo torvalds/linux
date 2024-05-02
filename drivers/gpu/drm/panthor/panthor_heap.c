@@ -127,7 +127,7 @@ static void panthor_free_heap_chunk(struct panthor_vm *vm,
 	heap->chunk_count--;
 	mutex_unlock(&heap->lock);
 
-	panthor_kernel_bo_destroy(vm, chunk->bo);
+	panthor_kernel_bo_destroy(chunk->bo);
 	kfree(chunk);
 }
 
@@ -183,7 +183,7 @@ static int panthor_alloc_heap_chunk(struct panthor_device *ptdev,
 	return 0;
 
 err_destroy_bo:
-	panthor_kernel_bo_destroy(vm, chunk->bo);
+	panthor_kernel_bo_destroy(chunk->bo);
 
 err_free_chunk:
 	kfree(chunk);
@@ -395,7 +395,7 @@ int panthor_heap_return_chunk(struct panthor_heap_pool *pool,
 	mutex_unlock(&heap->lock);
 
 	if (removed) {
-		panthor_kernel_bo_destroy(pool->vm, chunk->bo);
+		panthor_kernel_bo_destroy(chunk->bo);
 		kfree(chunk);
 		ret = 0;
 	} else {
@@ -595,7 +595,7 @@ void panthor_heap_pool_destroy(struct panthor_heap_pool *pool)
 		drm_WARN_ON(&pool->ptdev->base, panthor_heap_destroy_locked(pool, i));
 
 	if (!IS_ERR_OR_NULL(pool->gpu_contexts))
-		panthor_kernel_bo_destroy(pool->vm, pool->gpu_contexts);
+		panthor_kernel_bo_destroy(pool->gpu_contexts);
 
 	/* Reflects the fact the pool has been destroyed. */
 	pool->vm = NULL;

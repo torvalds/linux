@@ -453,7 +453,7 @@ panthor_fw_alloc_queue_iface_mem(struct panthor_device *ptdev,
 
 	ret = panthor_kernel_bo_vmap(mem);
 	if (ret) {
-		panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), mem);
+		panthor_kernel_bo_destroy(mem);
 		return ERR_PTR(ret);
 	}
 
@@ -1134,7 +1134,7 @@ void panthor_fw_unplug(struct panthor_device *ptdev)
 	panthor_fw_stop(ptdev);
 
 	list_for_each_entry(section, &ptdev->fw->sections, node)
-		panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), section->mem);
+		panthor_kernel_bo_destroy(section->mem);
 
 	/* We intentionally don't call panthor_vm_idle() and let
 	 * panthor_mmu_unplug() release the AS we acquired with

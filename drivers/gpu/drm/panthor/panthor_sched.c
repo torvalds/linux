@@ -826,8 +826,8 @@ static void group_free_queue(struct panthor_group *group, struct panthor_queue *
 
 	panthor_queue_put_syncwait_obj(queue);
 
-	panthor_kernel_bo_destroy(group->vm, queue->ringbuf);
-	panthor_kernel_bo_destroy(panthor_fw_vm(group->ptdev), queue->iface.mem);
+	panthor_kernel_bo_destroy(queue->ringbuf);
+	panthor_kernel_bo_destroy(queue->iface.mem);
 
 	kfree(queue);
 }
@@ -837,15 +837,14 @@ static void group_release_work(struct work_struct *work)
 	struct panthor_group *group = container_of(work,
 						   struct panthor_group,
 						   release_work);
-	struct panthor_device *ptdev = group->ptdev;
 	u32 i;
 
 	for (i = 0; i < group->queue_count; i++)
 		group_free_queue(group, group->queues[i]);
 
-	panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), group->suspend_buf);
-	panthor_kernel_bo_destroy(panthor_fw_vm(ptdev), group->protm_suspend_buf);
-	panthor_kernel_bo_destroy(group->vm, group->syncobjs);
+	panthor_kernel_bo_destroy(group->suspend_buf);
+	panthor_kernel_bo_destroy(group->protm_suspend_buf);
+	panthor_kernel_bo_destroy(group->syncobjs);
 
 	panthor_vm_put(group->vm);
 	kfree(group);
