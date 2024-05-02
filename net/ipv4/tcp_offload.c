@@ -407,6 +407,36 @@ void tcp_gro_complete(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(tcp_gro_complete);
 
+static void tcp4_check_fraglist_gro(struct list_head *head, struct sk_buff *skb,
+				    struct tcphdr *th)
+{
+	const struct iphdr *iph;
+	struct sk_buff *p;
+	struct sock *sk;
+	struct net *net;
+	int iif, sdif;
+
+	if (likely(!(skb->dev->features & NETIF_F_GRO_FRAGLIST)))
+		return;
+
+	p = tcp_gro_lookup(head, th);
+	if (p) {
+		NAPI_GRO_CB(skb)->is_flist = NAPI_GRO_CB(p)->is_flist;
+		return;
+	}
+
+	inet_get_iif_sdif(skb, &iif, &sdif);
+	iph = skb_gro_network_header(skb);
+	net = dev_net(skb->dev);
+	sk = __inet_lookup_established(net, net->ipv4.tcp_death_row.hashinfo,
+				       iph->saddr, th->source,
+				       iph->daddr, ntohs(th->dest),
+				       iif, sdif);
+	NAPI_GRO_CB(skb)->is_flist = !sk;
+	if (sk)
+		sock_put(sk);
+}
+
 INDIRECT_CALLABLE_SCOPE
 struct sk_buff *tcp4_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
@@ -421,6 +451,8 @@ struct sk_buff *tcp4_gro_receive(struct list_head *head, struct sk_buff *skb)
 	th = tcp_gro_pull_header(skb);
 	if (!th)
 		goto flush;
+
+	tcp4_check_fraglist_gro(head, skb, th);
 
 	return tcp_gro_receive(head, skb, th);
 
