@@ -69,6 +69,14 @@
 #define GSL_MEMFLAGS_GPUIOCOHERENT      0x80000000
 #define GSL_MEMFLAGS_CACHEMODE_MASK     0x0C000000
 
+/* external or internal buffer */
+#define GSL_MEMFLAGS_USERMEM_HGSL_ALLOC 0x00000020
+#define GSL_MEMFLAGS_USERMEM_ASHMEM     0x00000040
+#define GSL_MEMFLAGS_USERMEM_ADDR       0x00000060
+#define GSL_MEMFLAGS_USERMEM_ION        0x00000080
+#define GSL_MEMFLAGS_USERMEM_SHIFT      5
+#define GSL_MEMFLAGS_USERMEM_MASK       0x000000e0
+
 /****************************************************************************/
 /* cache flags                                                              */
 /****************************************************************************/
