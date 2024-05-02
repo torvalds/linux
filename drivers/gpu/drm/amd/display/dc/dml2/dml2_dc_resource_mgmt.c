@@ -1058,6 +1058,7 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 
 		ODMMode = (const unsigned int *)odm_mode_array;
 		DPPPerSurface = (const unsigned int *)dpp_per_surface_array;
+		disp_cfg_index_max = __DML2_WRAPPER_MAX_STREAMS_PLANES__;
 	} else {
 		ODMMode = (unsigned int *)disp_cfg->hw.ODMMode;
 		DPPPerSurface = disp_cfg->hw.DPPPerSurface;
