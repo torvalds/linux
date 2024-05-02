@@ -301,6 +301,7 @@
 #define LPA_PAUSE_ASYM_FIBER	0x100
 
 #define NB_FIBER_STATS	1
+#define NB_STAT_MAX	3
 
 MODULE_DESCRIPTION("Marvell PHY driver");
 MODULE_AUTHOR("Andy Fleming");
@@ -319,6 +320,23 @@ static const struct marvell_hw_stat marvell_hw_stats[] = {
 	{ "phy_receive_errors_fiber", 1, 21, 16},
 };
 
+static_assert(ARRAY_SIZE(marvell_hw_stats) <= NB_STAT_MAX);
+
+/* "simple" stat list + corresponding marvell_get_*_simple functions are used
+ * on PHYs without a page register
+ */
+struct marvell_hw_stat_simple {
+	const char *string;
+	u8 reg;
+	u8 bits;
+};
+
+static const struct marvell_hw_stat_simple marvell_hw_stats_simple[] = {
+	{ "phy_receive_errors", 21, 16},
+};
+
+static_assert(ARRAY_SIZE(marvell_hw_stats_simple) <= NB_STAT_MAX);
+
 enum {
 	M88E3082_VCT_OFF,
 	M88E3082_VCT_PHASE1,
@@ -326,7 +344,7 @@ enum {
 };
 
 struct marvell_priv {
-	u64 stats[ARRAY_SIZE(marvell_hw_stats)];
+	u64 stats[NB_STAT_MAX];
 	char *hwmon_name;
 	struct device *hwmon_dev;
 	bool cable_test_tdr;
@@ -1978,6 +1996,11 @@ static int marvell_get_sset_count(struct phy_device *phydev)
 		return ARRAY_SIZE(marvell_hw_stats) - NB_FIBER_STATS;
 }
 
+static int marvell_get_sset_count_simple(struct phy_device *phydev)
+{
+	return ARRAY_SIZE(marvell_hw_stats_simple);
+}
+
 static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 {
 	int count = marvell_get_sset_count(phydev);
@@ -1986,6 +2009,17 @@ static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 	for (i = 0; i < count; i++) {
 		strscpy(data + i * ETH_GSTRING_LEN,
 			marvell_hw_stats[i].string, ETH_GSTRING_LEN);
+	}
+}
+
+static void marvell_get_strings_simple(struct phy_device *phydev, u8 *data)
+{
+	int count = marvell_get_sset_count_simple(phydev);
+	int i;
+
+	for (i = 0; i < count; i++) {
+		strscpy(data + i * ETH_GSTRING_LEN,
+			marvell_hw_stats_simple[i].string, ETH_GSTRING_LEN);
 	}
 }
 
@@ -2008,6 +2042,25 @@ static u64 marvell_get_stat(struct phy_device *phydev, int i)
 	return ret;
 }
 
+static u64 marvell_get_stat_simple(struct phy_device *phydev, int i)
+{
+	struct marvell_hw_stat_simple stat = marvell_hw_stats_simple[i];
+	struct marvell_priv *priv = phydev->priv;
+	int val;
+	u64 ret;
+
+	val = phy_read(phydev, stat.reg);
+	if (val < 0) {
+		ret = U64_MAX;
+	} else {
+		val = val & ((1 << stat.bits) - 1);
+		priv->stats[i] += val;
+		ret = priv->stats[i];
+	}
+
+	return ret;
+}
+
 static void marvell_get_stats(struct phy_device *phydev,
 			      struct ethtool_stats *stats, u64 *data)
 {
@@ -2016,6 +2069,16 @@ static void marvell_get_stats(struct phy_device *phydev,
 
 	for (i = 0; i < count; i++)
 		data[i] = marvell_get_stat(phydev, i);
+}
+
+static void marvell_get_stats_simple(struct phy_device *phydev,
+				     struct ethtool_stats *stats, u64 *data)
+{
+	int count = marvell_get_sset_count_simple(phydev);
+	int i;
+
+	for (i = 0; i < count; i++)
+		data[i] = marvell_get_stat_simple(phydev, i);
 }
 
 static int m88e1510_loopback(struct phy_device *phydev, bool enable)
@@ -3925,6 +3988,21 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 	},
 	{
+		.phy_id = MARVELL_PHY_ID_88E6250_FAMILY,
+		.phy_id_mask = MARVELL_PHY_ID_MASK,
+		.name = "Marvell 88E6250 Family",
+		/* PHY_BASIC_FEATURES */
+		.probe = marvell_probe,
+		.aneg_done = marvell_aneg_done,
+		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
+		.resume = genphy_resume,
+		.suspend = genphy_suspend,
+		.get_sset_count = marvell_get_sset_count_simple,
+		.get_strings = marvell_get_strings_simple,
+		.get_stats = marvell_get_stats_simple,
+	},
+	{
 		.phy_id = MARVELL_PHY_ID_88E6341_FAMILY,
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E6341 Family",
@@ -4072,6 +4150,7 @@ static struct mdio_device_id __maybe_unused marvell_tbl[] = {
 	{ MARVELL_PHY_ID_88E1540, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E1545, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E3016, MARVELL_PHY_ID_MASK },
+	{ MARVELL_PHY_ID_88E6250_FAMILY, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E6341_FAMILY, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E6390_FAMILY, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E6393_FAMILY, MARVELL_PHY_ID_MASK },
