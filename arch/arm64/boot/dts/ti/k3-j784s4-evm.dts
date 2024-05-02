@@ -27,6 +27,7 @@
 		mmc1 = &main_sdhci1;
 		i2c0 = &wkup_i2c0;
 		i2c3 = &main_i2c0;
+		ethernet0 = &mcu_cpsw_port1;
 	};
 
 	memory@80000000 {
