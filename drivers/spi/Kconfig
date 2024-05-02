@@ -226,11 +226,11 @@ config SPI_BCMBCA_HSSPI
 	  explicitly.
 
 config SPI_BITBANG
-	tristate "Utilities for Bitbanging SPI masters"
+	tristate "Utilities for Bitbanging SPI host controllers"
 	help
 	  With a few GPIO pins, your system can bitbang the SPI protocol.
 	  Select this to get SPI support through I/O pins (GPIO, parallel
-	  port, etc).  Or, some systems' SPI master controller drivers use
+	  port, etc).  Or, some systems' SPI host controller drivers use
 	  this code to manage the per-word or per-transfer accesses to the
 	  hardware shift registers.
 
