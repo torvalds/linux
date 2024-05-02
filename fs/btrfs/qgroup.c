@@ -3820,14 +3820,14 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 		/* we're resuming qgroup rescan at mount time */
 		if (!(fs_info->qgroup_flags &
 		      BTRFS_QGROUP_STATUS_FLAG_RESCAN)) {
-			btrfs_warn(fs_info,
+			btrfs_debug(fs_info,
 			"qgroup rescan init failed, qgroup rescan is not queued");
 			ret = -EINVAL;
 		} else if (!(fs_info->qgroup_flags &
 			     BTRFS_QGROUP_STATUS_FLAG_ON)) {
-			btrfs_warn(fs_info,
+			btrfs_debug(fs_info,
 			"qgroup rescan init failed, qgroup is not enabled");
-			ret = -EINVAL;
+			ret = -ENOTCONN;
 		}
 
 		if (ret)
@@ -3838,14 +3838,12 @@ qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 
 	if (init_flags) {
 		if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN) {
-			btrfs_warn(fs_info,
-				   "qgroup rescan is already in progress");
 			ret = -EINPROGRESS;
 		} else if (!(fs_info->qgroup_flags &
 			     BTRFS_QGROUP_STATUS_FLAG_ON)) {
-			btrfs_warn(fs_info,
+			btrfs_debug(fs_info,
 			"qgroup rescan init failed, qgroup is not enabled");
-			ret = -EINVAL;
+			ret = -ENOTCONN;
 		} else if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_DISABLED) {
 			/* Quota disable is in progress */
 			ret = -EBUSY;
