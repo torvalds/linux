@@ -313,7 +313,7 @@ struct marvell_hw_stat {
 	u8 bits;
 };
 
-static struct marvell_hw_stat marvell_hw_stats[] = {
+static const struct marvell_hw_stat marvell_hw_stats[] = {
 	{ "phy_receive_errors_copper", 0, 21, 16},
 	{ "phy_idle_errors", 0, 10, 8 },
 	{ "phy_receive_errors_fiber", 1, 21, 16},
