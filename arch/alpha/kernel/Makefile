@@ -60,8 +60,6 @@ obj-$(CONFIG_ALPHA_WILDFIRE)	+= core_wildfire.o
 
 # Board support
 obj-$(CONFIG_ALPHA_ALCOR)	+= sys_alcor.o irq_i8259.o irq_srm.o
-obj-$(CONFIG_ALPHA_EB164)	+= sys_cabriolet.o irq_i8259.o irq_srm.o \
-				   pc873xx.o
 obj-$(CONFIG_ALPHA_LX164)	+= sys_cabriolet.o irq_i8259.o irq_srm.o \
 				   smc37c93x.o
 obj-$(CONFIG_ALPHA_PC164)	+= sys_cabriolet.o irq_i8259.o irq_srm.o \

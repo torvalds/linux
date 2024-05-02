@@ -31,8 +31,7 @@
 #  define NR_IRQS      (32768 + 16)    /* marvel - 32 pids */
 # endif
 
-#elif defined(CONFIG_ALPHA_EB164)     || \
-      defined(CONFIG_ALPHA_PC164)     || \
+#elif defined(CONFIG_ALPHA_PC164)     || \
       defined(CONFIG_ALPHA_LX164)
 # define NR_IRQS	35
 

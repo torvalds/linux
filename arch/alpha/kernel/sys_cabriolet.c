@@ -6,8 +6,7 @@
  *	Copyright (C) 1996 Jay A Estabrook
  *	Copyright (C) 1998, 1999, 2000 Richard Henderson
  *
- * Code supporting the Cabriolet (AlphaPC64), EB66+, and EB164,
- * PC164 and LX164.
+ * Code supporting the PC164 and LX164.
  */
 
 #include <linux/kernel.h>
@@ -307,31 +306,6 @@ alphapc164_init_pci(void)
 /*
  * The System Vector
  */
-
-#if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_EB164)
-struct alpha_machine_vector eb164_mv __initmv = {
-	.vector_name		= "EB164",
-	DO_EV5_MMU,
-	DO_DEFAULT_RTC,
-	DO_CIA_IO,
-	.machine_check		= cia_machine_check,
-	.max_isa_dma_address	= ALPHA_MAX_ISA_DMA_ADDRESS,
-	.min_io_address		= DEFAULT_IO_BASE,
-	.min_mem_address	= CIA_DEFAULT_MEM_BASE,
-
-	.nr_irqs		= 35,
-	.device_interrupt	= cabriolet_device_interrupt,
-
-	.init_arch		= cia_init_arch,
-	.init_irq		= cabriolet_init_irq,
-	.init_rtc		= common_init_rtc,
-	.init_pci		= cia_cab_init_pci,
-	.kill_arch		= cia_kill_arch,
-	.pci_map_irq		= cabriolet_map_irq,
-	.pci_swizzle		= common_swizzle,
-};
-ALIAS_MV(eb164)
-#endif
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_LX164)
 struct alpha_machine_vector lx164_mv __initmv = {

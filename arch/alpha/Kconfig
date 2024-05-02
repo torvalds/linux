@@ -91,7 +91,6 @@ choice
 
 	  Alcor/Alpha-XLT     AS 600, AS 500, XL-300, XL-366
 	  DP264               DP264 / DS20 / ES40 / DS10 / DS10L
-	  EB164               EB164 21164 evaluation board
 	  LX164               AlphaPC164-LX
 	  Miata               Personal Workstation 433/500/600 a/au
 	  Marvel              AlphaServer ES47 / ES80 / GS1280
@@ -133,16 +132,6 @@ config ALPHA_DP264
 	  Various 21264 systems with the tsunami core logic chipset.
 	  API Networks: 264DP, UP2000(+), CS20;
 	  Compaq: DS10(E,L), XP900, XP1000, DS20(E), ES40.
-
-config ALPHA_EB164
-	bool "EB164"
-	help
-	  EB164 21164 evaluation board from DEC.  Uses 21164 and ALCOR.  Has
-	  ISA and PCI expansion (3 ISA slots, 2 64-bit PCI slots (one is
-	  shared with an ISA slot) and 2 32-bit PCI slots.  Uses plus-in
-	  Bcache SIMMs. I/O sub-system provides SuperI/O (2S, 1P, FD), KBD,
-	  MOUSE (PS2 style), RTC/NVRAM.  Boot ROM is Flash.  PC-AT-sized
-	  motherboard.  Requires power supply with 3.3V output.
 
 config ALPHA_EIGER
 	bool "Eiger"
@@ -260,7 +249,7 @@ config ALPHA_EV5
 
 config ALPHA_CIA
 	bool
-	depends on ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_NORITAKE || ALPHA_MIKASA || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR
+	depends on ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_NORITAKE || ALPHA_MIKASA || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_ALCOR
 	default y
 
 config ALPHA_EV56
@@ -350,7 +339,7 @@ config ALPHA_QEMU
 
 
 config ALPHA_SRM
-	bool "Use SRM as bootloader" if ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS
+	bool "Use SRM as bootloader" if ALPHA_PC164 || ALPHA_TAKARA || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS
 	depends on TTY
 	default y if ALPHA_MIKASA || ALPHA_SABLE || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
 	help
