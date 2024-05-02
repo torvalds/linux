@@ -54,9 +54,8 @@ cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 # Install arch-specific kernel image(s)
 #
 # Note:
-#   mips, arm64, and riscv copy the first image found. This may not produce
-#   the desired outcome because it may pick up a stale file remaining in the
-#   build tree.
+#   mips and arm64 copy the first image found. This may not produce the desired
+#   outcome because it may pick up a stale file remaining in the build tree.
 #
 case "${ARCH}" in
 	alpha)
@@ -98,13 +97,12 @@ case "${ARCH}" in
 		done
 		;;
 	riscv)
-		# Please note the following code may copy a stale file.
-		for i in Image.bz2 Image.gz Image; do
-			if [ -f "${objtree}/arch/riscv/boot/${i}" ] ; then
-				cp -v -- "${objtree}/arch/riscv/boot/${i}" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
-				break
-			fi
-		done
+		case "${KBUILD_IMAGE##*/}" in
+			Image.*|vmlinuz.efi)
+				cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}";;
+			*)
+				cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}";;
+		esac
 		;;
 	*)
 		cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
