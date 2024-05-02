@@ -108,7 +108,9 @@ gen_l3_mask_from_pattern(struct xe_device *xe, xe_l3_bank_mask_t dst,
 {
 	unsigned long bit;
 
-	xe_assert(xe, fls(mask) <= patternbits);
+	xe_assert(xe, find_last_bit(pattern, XE_MAX_L3_BANK_MASK_BITS) < patternbits ||
+		  bitmap_empty(pattern, XE_MAX_L3_BANK_MASK_BITS));
+	xe_assert(xe, !mask || patternbits * (__fls(mask) + 1) <= XE_MAX_L3_BANK_MASK_BITS);
 	for_each_set_bit(bit, &mask, 32) {
 		xe_l3_bank_mask_t shifted_pattern = {};
 
