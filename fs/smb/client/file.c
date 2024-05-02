@@ -3032,12 +3032,12 @@ lock_again:
 	}
 
 	if (folio_test_writeback(folio) ||
-	    folio_test_fscache(folio)) {
+	    folio_test_private_2(folio)) { /* [DEPRECATED] */
 		folio_unlock(folio);
 		if (wbc->sync_mode != WB_SYNC_NONE) {
 			folio_wait_writeback(folio);
 #ifdef CONFIG_CIFS_FSCACHE
-			folio_wait_fscache(folio);
+			folio_wait_private_2(folio);
 #endif
 			goto lock_again;
 		}
@@ -4510,8 +4510,8 @@ static vm_fault_t cifs_page_mkwrite(struct vm_fault *vmf)
 	 * be modified.  We then assume the entire folio will need writing back.
 	 */
 #ifdef CONFIG_CIFS_FSCACHE
-	if (folio_test_fscache(folio) &&
-	    folio_wait_fscache_killable(folio) < 0)
+	if (folio_test_private_2(folio) && /* [DEPRECATED] */
+	    folio_wait_private_2_killable(folio) < 0)
 		return VM_FAULT_RETRY;
 #endif
 
@@ -4977,10 +4977,10 @@ static bool cifs_release_folio(struct folio *folio, gfp_t gfp)
 {
 	if (folio_test_private(folio))
 		return 0;
-	if (folio_test_fscache(folio)) {
+	if (folio_test_private_2(folio)) { /* [DEPRECATED] */
 		if (current_is_kswapd() || !(gfp & __GFP_FS))
 			return false;
-		folio_wait_fscache(folio);
+		folio_wait_private_2(folio);
 	}
 	fscache_note_page_release(cifs_inode_cookie(folio->mapping->host));
 	return true;
@@ -4989,7 +4989,7 @@ static bool cifs_release_folio(struct folio *folio, gfp_t gfp)
 static void cifs_invalidate_folio(struct folio *folio, size_t offset,
 				 size_t length)
 {
-	folio_wait_fscache(folio);
+	folio_wait_private_2(folio); /* [DEPRECATED] */
 }
 
 static int cifs_launder_folio(struct folio *folio)
@@ -5009,7 +5009,7 @@ static int cifs_launder_folio(struct folio *folio)
 	if (folio_clear_dirty_for_io(folio))
 		rc = cifs_writepage_locked(&folio->page, &wbc);
 
-	folio_wait_fscache(folio);
+	folio_wait_private_2(folio); /* [DEPRECATED] */
 	return rc;
 }
 
