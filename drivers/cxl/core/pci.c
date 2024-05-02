@@ -525,7 +525,7 @@ static int cxl_cdat_get_length(struct device *dev,
 	__le32 response[2];
 	int rc;
 
-	rc = pci_doe(doe_mb, PCI_DVSEC_VENDOR_ID_CXL,
+	rc = pci_doe(doe_mb, PCI_VENDOR_ID_CXL,
 		     CXL_DOE_PROTOCOL_TABLE_ACCESS,
 		     &request, sizeof(request),
 		     &response, sizeof(response));
@@ -555,7 +555,7 @@ static int cxl_cdat_read_table(struct device *dev,
 		__le32 request = CDAT_DOE_REQ(entry_handle);
 		int rc;
 
-		rc = pci_doe(doe_mb, PCI_DVSEC_VENDOR_ID_CXL,
+		rc = pci_doe(doe_mb, PCI_VENDOR_ID_CXL,
 			     CXL_DOE_PROTOCOL_TABLE_ACCESS,
 			     &request, sizeof(request),
 			     rsp, sizeof(*rsp) + remaining);
@@ -640,7 +640,7 @@ void read_cdat_data(struct cxl_port *port)
 	if (!pdev)
 		return;
 
-	doe_mb = pci_find_doe_mailbox(pdev, PCI_DVSEC_VENDOR_ID_CXL,
+	doe_mb = pci_find_doe_mailbox(pdev, PCI_VENDOR_ID_CXL,
 				      CXL_DOE_PROTOCOL_TABLE_ACCESS);
 	if (!doe_mb) {
 		dev_dbg(dev, "No CDAT mailbox\n");
