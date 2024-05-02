@@ -40,6 +40,8 @@ def main():
     group.add_argument('--multi', dest='multi', nargs=2, action='append',
                        metavar=('DO-OPERATION', 'JSON_TEXT'), type=str)
     group.add_argument('--dump', dest='dump', metavar='DUMP-OPERATION', type=str)
+    group.add_argument('--list-ops', action='store_true')
+    group.add_argument('--list-msgs', action='store_true')
 
     parser.add_argument('--sleep', dest='sleep', type=int)
     parser.add_argument('--subscribe', dest='ntf', type=str)
@@ -80,6 +82,13 @@ def main():
 
     if args.sleep:
         time.sleep(args.sleep)
+
+    if args.list_ops:
+        for op_name, op in ynl.ops.items():
+            print(op_name, " [", ", ".join(op.modes), "]")
+    if args.list_msgs:
+        for op_name, op in ynl.msgs.items():
+            print(op_name, " [", ", ".join(op.modes), "]")
 
     try:
         if args.do:
