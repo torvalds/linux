@@ -2489,6 +2489,10 @@
   power_supply_set_property
   power_supply_unregister
   power_supply_unreg_notifier
+  powercap_register_control_type
+  powercap_register_zone
+  powercap_unregister_control_type
+  powercap_unregister_zone
   ppp_channel_index
   ppp_dev_name
   ppp_input
