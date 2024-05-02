@@ -162,6 +162,8 @@ static void __vcpu_put_deactivate_traps(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_load_vhe(struct kvm_vcpu *vcpu)
 {
+	host_data_ptr(host_ctxt)->__hyp_running_vcpu = vcpu;
+
 	__vcpu_load_switch_sysregs(vcpu);
 	__vcpu_load_activate_traps(vcpu);
 	__load_stage2(vcpu->arch.hw_mmu, vcpu->arch.hw_mmu->arch);
@@ -171,6 +173,8 @@ void kvm_vcpu_put_vhe(struct kvm_vcpu *vcpu)
 {
 	__vcpu_put_deactivate_traps(vcpu);
 	__vcpu_put_switch_sysregs(vcpu);
+
+	host_data_ptr(host_ctxt)->__hyp_running_vcpu = NULL;
 }
 
 static const exit_handler_fn hyp_exit_handlers[] = {
@@ -222,7 +226,6 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	u64 exit_code;
 
 	host_ctxt = host_data_ptr(host_ctxt);
-	host_ctxt->__hyp_running_vcpu = vcpu;
 	guest_ctxt = &vcpu->arch.ctxt;
 
 	sysreg_save_host_state_vhe(host_ctxt);
