@@ -223,7 +223,7 @@ enum erofs_kmap_type {
 };
 
 struct erofs_buf {
-	struct inode *inode;
+	struct address_space *mapping;
 	struct page *page;
 	void *base;
 	enum erofs_kmap_type kmap_type;
@@ -409,7 +409,7 @@ void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 			  erofs_off_t *offset, int *lengthp);
 void erofs_unmap_metabuf(struct erofs_buf *buf);
 void erofs_put_metabuf(struct erofs_buf *buf);
-void *erofs_bread(struct erofs_buf *buf, erofs_blk_t blkaddr,
+void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,
 		  enum erofs_kmap_type type);
 void erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb);
 void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,

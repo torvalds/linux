@@ -132,11 +132,11 @@ void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 	int len, i, cnt;
 
 	*offset = round_up(*offset, 4);
-	ptr = erofs_bread(buf, erofs_blknr(sb, *offset), EROFS_KMAP);
+	ptr = erofs_bread(buf, *offset, EROFS_KMAP);
 	if (IS_ERR(ptr))
 		return ptr;
 
-	len = le16_to_cpu(*(__le16 *)&ptr[erofs_blkoff(sb, *offset)]);
+	len = le16_to_cpu(*(__le16 *)ptr);
 	if (!len)
 		len = U16_MAX + 1;
 	buffer = kmalloc(len, GFP_KERNEL);
@@ -148,12 +148,12 @@ void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 	for (i = 0; i < len; i += cnt) {
 		cnt = min_t(int, sb->s_blocksize - erofs_blkoff(sb, *offset),
 			    len - i);
-		ptr = erofs_bread(buf, erofs_blknr(sb, *offset), EROFS_KMAP);
+		ptr = erofs_bread(buf, *offset, EROFS_KMAP);
 		if (IS_ERR(ptr)) {
 			kfree(buffer);
 			return ptr;
 		}
-		memcpy(buffer + i, ptr + erofs_blkoff(sb, *offset), cnt);
+		memcpy(buffer + i, ptr, cnt);
 		*offset += cnt;
 	}
 	return buffer;
