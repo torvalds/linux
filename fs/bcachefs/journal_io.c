@@ -1722,10 +1722,8 @@ static CLOSURE_CALLBACK(journal_write_submit)
 	unsigned sectors = vstruct_sectors(w->data, c->block_bits);
 
 	extent_for_each_ptr(bkey_i_to_s_extent(&w->key), ptr) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
-		struct journal_device *ja = &ca->journal;
-
-		if (!percpu_ref_tryget(&ca->io_ref)) {
+		struct bch_dev *ca = bch2_dev_get_ioref2(c, ptr->dev, WRITE);
+		if (!ca) {
 			/* XXX: fix this */
 			bch_err(c, "missing device for journal write\n");
 			continue;
@@ -1734,6 +1732,7 @@ static CLOSURE_CALLBACK(journal_write_submit)
 		this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_journal],
 			     sectors);
 
+		struct journal_device *ja = &ca->journal;
 		struct bio *bio = &ja->bio[w->idx]->bio;
 		bio_reset(bio, ca->disk_sb.bdev, REQ_OP_WRITE|REQ_SYNC|REQ_META);
 		bio->bi_iter.bi_sector	= ptr->offset;
