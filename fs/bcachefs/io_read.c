@@ -800,7 +800,6 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 	struct bch_fs *c = trans->c;
 	struct extent_ptr_decoded pick;
 	struct bch_read_bio *rbio = NULL;
-	struct bch_dev *ca = NULL;
 	struct promote_op *promote = NULL;
 	bool bounce = false, read_full = false, narrow_crcs = false;
 	struct bpos data_pos = bkey_start_pos(k.k);
@@ -831,7 +830,7 @@ retry_pick:
 		goto err;
 	}
 
-	ca = bch2_dev_bkey_exists(c, pick.ptr.dev);
+	struct bch_dev *ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
 
 	/*
 	 * Stale dirty pointers are treated as IO errors, but @failed isn't
@@ -841,9 +840,11 @@ retry_pick:
 	 */
 	if ((flags & BCH_READ_IN_RETRY) &&
 	    !pick.ptr.cached &&
+	    ca &&
 	    unlikely(dev_ptr_stale(ca, &pick.ptr))) {
 		read_from_stale_dirty_pointer(trans, ca, k, pick.ptr);
 		bch2_mark_io_failure(failed, &pick);
+		percpu_ref_put(&ca->io_ref);
 		goto retry_pick;
 	}
 
@@ -858,8 +859,11 @@ retry_pick:
 		 * can happen if we retry, and the extent we were going to read
 		 * has been merged in the meantime:
 		 */
-		if (pick.crc.compressed_size > orig->bio.bi_vcnt * PAGE_SECTORS)
+		if (pick.crc.compressed_size > orig->bio.bi_vcnt * PAGE_SECTORS) {
+			if (ca)
+				percpu_ref_put(&ca->io_ref);
 			goto hole;
+		}
 
 		iter.bi_size	= pick.crc.compressed_size << 9;
 		goto get_bio;
@@ -964,7 +968,7 @@ get_bio:
 	rbio->bvec_iter		= iter;
 	rbio->offset_into_extent= offset_into_extent;
 	rbio->flags		= flags;
-	rbio->have_ioref	= pick_ret > 0 && bch2_dev_get_ioref(ca, READ);
+	rbio->have_ioref	= ca != NULL;
 	rbio->narrow_crcs	= narrow_crcs;
 	rbio->hole		= 0;
 	rbio->retry		= 0;
@@ -994,7 +998,7 @@ get_bio:
 	 * If it's being moved internally, we don't want to flag it as a cache
 	 * hit:
 	 */
-	if (pick.ptr.cached && !(flags & BCH_READ_NODECODE))
+	if (ca && pick.ptr.cached && !(flags & BCH_READ_NODECODE))
 		bch2_bucket_io_time_reset(trans, pick.ptr.dev,
 			PTR_BUCKET_NR(ca, &pick.ptr), READ);
 
