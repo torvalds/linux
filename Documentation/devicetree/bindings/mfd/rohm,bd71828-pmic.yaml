@@ -65,12 +65,12 @@ properties:
       here in Ohms.
 
   regulators:
-    $ref: ../regulator/rohm,bd71828-regulator.yaml
+    $ref: /schemas/regulator/rohm,bd71828-regulator.yaml
     description:
       List of child nodes that specify the regulators.
 
   leds:
-    $ref: ../leds/rohm,bd71828-leds.yaml
+    $ref: /schemas/leds/rohm,bd71828-leds.yaml
 
   gpio-reserved-ranges:
     description: |

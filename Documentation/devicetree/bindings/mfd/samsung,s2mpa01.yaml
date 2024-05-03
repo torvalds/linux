@@ -27,7 +27,7 @@ properties:
     maxItems: 1
 
   regulators:
-    $ref: ../regulator/samsung,s2mpa01.yaml
+    $ref: /schemas/regulator/samsung,s2mpa01.yaml
     description:
       List of child nodes that specify the regulators.
 

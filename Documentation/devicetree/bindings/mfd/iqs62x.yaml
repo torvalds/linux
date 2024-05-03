@@ -38,10 +38,10 @@ properties:
       device name with ".bin" as the extension (e.g. iqs620a.bin for IQS620A).
 
   keys:
-    $ref: ../input/iqs62x-keys.yaml
+    $ref: /schemas/input/iqs62x-keys.yaml
 
   pwm:
-    $ref: ../pwm/iqs620a-pwm.yaml
+    $ref: /schemas/pwm/iqs620a-pwm.yaml
 
 required:
   - compatible
