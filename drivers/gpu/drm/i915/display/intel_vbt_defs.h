@@ -189,6 +189,7 @@ enum bdb_block_id {
 	BDB_VSWING_PREEMPH		= 57, /* 218+ */
 	BDB_GENERIC_DTD			= 58, /* 229+ */
 	BDB_INT15_HOOK			= 252, /* VBIOS only */
+	BDB_PRD_TABLE			= 253,
 	BDB_SKIP			= 254, /* VBIOS only */
 };
 
@@ -1569,6 +1570,31 @@ struct generic_dtd_entry {
 struct bdb_generic_dtd {
 	u16 gdtd_size;
 	struct generic_dtd_entry dtd[];	/* up to 24 DTD's */
+} __packed;
+
+/*
+ * Block 253 - PRD Table
+ */
+
+struct prd_entry_old {
+	u8 displays_attached;
+	u8 display_in_pipe_a;
+	u8 display_in_pipe_b;
+} __packed;
+
+struct bdb_prd_table_old {
+	struct prd_entry_old list[0];				/* ???-216 */
+	u16 num_entries;					/* ???-216 */
+} __packed;
+
+struct prd_entry_new {
+	u16 primary_display;
+	u16 secondary_display;
+} __packed;
+
+struct bdb_prd_table_new {
+	u16 num_entries;					/* 217+ */
+	struct prd_entry_new list[];				/* 217+ */
 } __packed;
 
 #endif /* _INTEL_VBT_DEFS_H_ */
