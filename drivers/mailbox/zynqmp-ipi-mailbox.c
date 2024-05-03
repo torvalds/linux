@@ -6,9 +6,11 @@
  */
 
 #include <linux/arm-smccc.h>
+#include <linux/cpuhotplug.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/mailbox_controller.h>
@@ -16,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
 /* IPI agent ID any */
@@ -58,6 +61,8 @@
 #define IPI_BUF_SIZE	0x20U
 #define DST_BIT_POS	9U
 #define SRC_BITMASK	GENMASK(11, 8)
+
+#define MAX_SGI 16
 
 /**
  * struct zynqmp_ipi_mchan - Description of a Xilinx ZynqMP IPI mailbox channel
@@ -111,6 +116,7 @@ struct zynqmp_ipi_mbox {
  * @irq:                  IPI agent interrupt ID
  * @method:               IPI SMC or HVC is going to be used
  * @local_id:             local IPI agent ID
+ * @virq_sgi:             IRQ number mapped to SGI
  * @num_mboxes:           number of mailboxes of this IPI agent
  * @ipi_mboxes:           IPI mailboxes of this IPI agent
  */
@@ -119,9 +125,12 @@ struct zynqmp_ipi_pdata {
 	int irq;
 	unsigned int method;
 	u32 local_id;
+	int virq_sgi;
 	int num_mboxes;
 	struct zynqmp_ipi_mbox ipi_mboxes[] __counted_by(num_mboxes);
 };
+
+static DEFINE_PER_CPU(struct zynqmp_ipi_pdata *, per_cpu_pdata);
 
 static struct device_driver zynqmp_ipi_mbox_driver = {
 	.owner = THIS_MODULE,
@@ -187,6 +196,14 @@ static irqreturn_t zynqmp_ipi_interrupt(int irq, void *data)
 		}
 	}
 	return status;
+}
+
+static irqreturn_t zynqmp_sgi_interrupt(int irq, void *data)
+{
+	struct zynqmp_ipi_pdata **pdata_ptr = data;
+	struct zynqmp_ipi_pdata *pdata = *pdata_ptr;
+
+	return zynqmp_ipi_interrupt(irq, pdata);
 }
 
 /**
@@ -748,6 +765,112 @@ static int versal_ipi_setup(struct zynqmp_ipi_mbox *ipi_mbox,
 	return 0;
 }
 
+static int xlnx_mbox_cpuhp_start(unsigned int cpu)
+{
+	struct zynqmp_ipi_pdata *pdata;
+
+	pdata = get_cpu_var(per_cpu_pdata);
+	put_cpu_var(per_cpu_pdata);
+	enable_percpu_irq(pdata->virq_sgi, IRQ_TYPE_NONE);
+
+	return 0;
+}
+
+static int xlnx_mbox_cpuhp_down(unsigned int cpu)
+{
+	struct zynqmp_ipi_pdata *pdata;
+
+	pdata = get_cpu_var(per_cpu_pdata);
+	put_cpu_var(per_cpu_pdata);
+	disable_percpu_irq(pdata->virq_sgi);
+
+	return 0;
+}
+
+static void xlnx_disable_percpu_irq(void *data)
+{
+	struct zynqmp_ipi_pdata *pdata;
+
+	pdata = *this_cpu_ptr(&per_cpu_pdata);
+
+	disable_percpu_irq(pdata->virq_sgi);
+}
+
+static int xlnx_mbox_init_sgi(struct platform_device *pdev,
+			      int sgi_num,
+			      struct zynqmp_ipi_pdata *pdata)
+{
+	int ret = 0;
+	int cpu;
+
+	/*
+	 * IRQ related structures are used for the following:
+	 * for each SGI interrupt ensure its mapped by GIC IRQ domain
+	 * and that each corresponding linux IRQ for the HW IRQ has
+	 * a handler for when receiving an interrupt from the remote
+	 * processor.
+	 */
+	struct irq_domain *domain;
+	struct irq_fwspec sgi_fwspec;
+	struct device_node *interrupt_parent = NULL;
+	struct device *dev = &pdev->dev;
+
+	/* Find GIC controller to map SGIs. */
+	interrupt_parent = of_irq_find_parent(dev->of_node);
+	if (!interrupt_parent) {
+		dev_err(&pdev->dev, "Failed to find property for Interrupt parent\n");
+		return -EINVAL;
+	}
+
+	/* Each SGI needs to be associated with GIC's IRQ domain. */
+	domain = irq_find_host(interrupt_parent);
+	of_node_put(interrupt_parent);
+
+	/* Each mapping needs GIC domain when finding IRQ mapping. */
+	sgi_fwspec.fwnode = domain->fwnode;
+
+	/*
+	 * When irq domain looks at mapping each arg is as follows:
+	 * 3 args for: interrupt type (SGI), interrupt # (set later), type
+	 */
+	sgi_fwspec.param_count = 1;
+
+	/* Set SGI's hwirq */
+	sgi_fwspec.param[0] = sgi_num;
+	pdata->virq_sgi = irq_create_fwspec_mapping(&sgi_fwspec);
+
+	for_each_possible_cpu(cpu)
+		per_cpu(per_cpu_pdata, cpu) = pdata;
+
+	ret = request_percpu_irq(pdata->virq_sgi, zynqmp_sgi_interrupt, pdev->name,
+				 &per_cpu_pdata);
+	WARN_ON(ret);
+	if (ret) {
+		irq_dispose_mapping(pdata->virq_sgi);
+		return ret;
+	}
+
+	irq_to_desc(pdata->virq_sgi);
+	irq_set_status_flags(pdata->virq_sgi, IRQ_PER_CPU);
+
+	/* Setup function for the CPU hot-plug cases */
+	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "mailbox/sgi:starting",
+			  xlnx_mbox_cpuhp_start, xlnx_mbox_cpuhp_down);
+
+	return ret;
+}
+
+static void xlnx_mbox_cleanup_sgi(struct zynqmp_ipi_pdata *pdata)
+{
+	cpuhp_remove_state(CPUHP_AP_ONLINE_DYN);
+
+	on_each_cpu(xlnx_disable_percpu_irq, NULL, 1);
+
+	irq_clear_status_flags(pdata->virq_sgi, IRQ_PER_CPU);
+	free_percpu_irq(pdata->virq_sgi, &per_cpu_pdata);
+	irq_dispose_mapping(pdata->virq_sgi);
+}
+
 /**
  * zynqmp_ipi_free_mboxes - Free IPI mailboxes devices
  *
@@ -757,6 +880,9 @@ static void zynqmp_ipi_free_mboxes(struct zynqmp_ipi_pdata *pdata)
 {
 	struct zynqmp_ipi_mbox *ipi_mbox;
 	int i;
+
+	if (pdata->irq < MAX_SGI)
+		xlnx_mbox_cleanup_sgi(pdata);
 
 	i = pdata->num_mboxes;
 	for (; i >= 0; i--) {
@@ -773,7 +899,8 @@ static int zynqmp_ipi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *nc, *np = pdev->dev.of_node;
-	struct zynqmp_ipi_pdata *pdata;
+	struct zynqmp_ipi_pdata __percpu *pdata;
+	struct of_phandle_args out_irq;
 	struct zynqmp_ipi_mbox *mbox;
 	int num_mboxes, ret = -EINVAL;
 	setup_ipi_fn ipi_fn;
@@ -821,14 +948,32 @@ static int zynqmp_ipi_probe(struct platform_device *pdev)
 		mbox++;
 	}
 
-	/* IPI IRQ */
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0)
+	ret = of_irq_parse_one(dev_of_node(dev), 0, &out_irq);
+	if (ret < 0) {
+		dev_err(dev, "failed to parse interrupts\n");
 		goto free_mbox_dev;
+	}
+	ret = out_irq.args[1];
 
-	pdata->irq = ret;
-	ret = devm_request_irq(dev, pdata->irq, zynqmp_ipi_interrupt,
-			       IRQF_SHARED, dev_name(dev), pdata);
+	/*
+	 * If Interrupt number is in SGI range, then request SGI else request
+	 * IPI system IRQ.
+	 */
+	if (ret < MAX_SGI) {
+		pdata->irq = ret;
+		ret = xlnx_mbox_init_sgi(pdev, pdata->irq, pdata);
+		if (ret)
+			goto free_mbox_dev;
+	} else {
+		ret = platform_get_irq(pdev, 0);
+		if (ret < 0)
+			goto free_mbox_dev;
+
+		pdata->irq = ret;
+		ret = devm_request_irq(dev, pdata->irq, zynqmp_ipi_interrupt,
+				       IRQF_SHARED, dev_name(dev), pdata);
+	}
+
 	if (ret) {
 		dev_err(dev, "IRQ %d is not requested successfully.\n",
 			pdata->irq);
