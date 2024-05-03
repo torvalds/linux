@@ -147,7 +147,7 @@ enum bdb_block_id {
 	BDB_EXT_MMIO_REGS		= 6, /* VBIOS only */
 	BDB_SWF_IO			= 7, /* VBIOS only */
 	BDB_SWF_MMIO			= 8, /* VBIOS only */
-	BDB_PSR				= 9,
+	BDB_PSR				= 9, /* 165+ */
 	BDB_MODE_REMOVAL_TABLE		= 10,
 	BDB_CHILD_DEVICE_TABLE		= 11,
 	BDB_DRIVER_FEATURES		= 12,
@@ -170,10 +170,10 @@ enum bdb_block_id {
 	BDB_LFP_DATA			= 42,
 	BDB_LFP_BACKLIGHT		= 43,
 	BDB_LFP_POWER			= 44,
-	BDB_MIPI_CONFIG			= 52,
-	BDB_MIPI_SEQUENCE		= 53,
-	BDB_COMPRESSION_PARAMETERS	= 56,
-	BDB_GENERIC_DTD			= 58,
+	BDB_MIPI_CONFIG			= 52, /* 175+ */
+	BDB_MIPI_SEQUENCE		= 53, /* 177+ */
+	BDB_COMPRESSION_PARAMETERS	= 56, /* 213+ */
+	BDB_GENERIC_DTD			= 58, /* 229+ */
 	BDB_SKIP			= 254, /* VBIOS only */
 };
 
