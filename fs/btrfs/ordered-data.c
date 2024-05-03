@@ -264,17 +264,39 @@ static void insert_ordered_extent(struct btrfs_ordered_extent *entry)
  */
 struct btrfs_ordered_extent *btrfs_alloc_ordered_extent(
 			struct btrfs_inode *inode, u64 file_offset,
-			u64 num_bytes, u64 ram_bytes, u64 disk_bytenr,
-			u64 disk_num_bytes, u64 offset, unsigned long flags,
-			int compress_type)
+			struct btrfs_file_extent *file_extent, unsigned long flags)
 {
 	struct btrfs_ordered_extent *entry;
 
 	ASSERT((flags & ~BTRFS_ORDERED_TYPE_FLAGS) == 0);
 
-	entry = alloc_ordered_extent(inode, file_offset, num_bytes, ram_bytes,
-				     disk_bytenr, disk_num_bytes, offset, flags,
-				     compress_type);
+	/*
+	 * For regular writes, we just use the members in @file_extent.
+	 *
+	 * For NOCOW, we don't really care about the numbers except @start and
+	 * file_extent->num_bytes, as we won't insert a file extent item at all.
+	 *
+	 * For PREALLOC, we do not use ordered extent members, but
+	 * btrfs_mark_extent_written() handles everything.
+	 *
+	 * So here we always pass 0 as offset for NOCOW/PREALLOC ordered extents,
+	 * or btrfs_split_ordered_extent() cannot handle it correctly.
+	 */
+	if (flags & ((1U << BTRFS_ORDERED_NOCOW) | (1U << BTRFS_ORDERED_PREALLOC)))
+		entry = alloc_ordered_extent(inode, file_offset,
+					     file_extent->num_bytes,
+					     file_extent->num_bytes,
+					     file_extent->disk_bytenr + file_extent->offset,
+					     file_extent->num_bytes, 0, flags,
+					     file_extent->compression);
+	else
+		entry = alloc_ordered_extent(inode, file_offset,
+					     file_extent->num_bytes,
+					     file_extent->ram_bytes,
+					     file_extent->disk_bytenr,
+					     file_extent->disk_num_bytes,
+					     file_extent->offset, flags,
+					     file_extent->compression);
 	if (!IS_ERR(entry))
 		insert_ordered_extent(entry);
 	return entry;

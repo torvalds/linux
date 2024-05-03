@@ -1221,14 +1221,8 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 	}
 	free_extent_map(em);
 
-	ordered = btrfs_alloc_ordered_extent(inode, start,	/* file_offset */
-				       async_extent->ram_size,	/* num_bytes */
-				       async_extent->ram_size,	/* ram_bytes */
-				       ins.objectid,		/* disk_bytenr */
-				       ins.offset,		/* disk_num_bytes */
-				       0,			/* offset */
-				       1 << BTRFS_ORDERED_COMPRESSED,
-				       async_extent->compress_type);
+	ordered = btrfs_alloc_ordered_extent(inode, start, &file_extent,
+					     1 << BTRFS_ORDERED_COMPRESSED);
 	if (IS_ERR(ordered)) {
 		btrfs_drop_extent_map_range(inode, start, end, false);
 		ret = PTR_ERR(ordered);
@@ -1464,10 +1458,8 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		}
 		free_extent_map(em);
 
-		ordered = btrfs_alloc_ordered_extent(inode, start, ram_size,
-					ram_size, ins.objectid, cur_alloc_size,
-					0, 1 << BTRFS_ORDERED_REGULAR,
-					BTRFS_COMPRESS_NONE);
+		ordered = btrfs_alloc_ordered_extent(inode, start, &file_extent,
+						     1 << BTRFS_ORDERED_REGULAR);
 		if (IS_ERR(ordered)) {
 			unlock_extent(&inode->io_tree, start,
 				      start + ram_size - 1, &cached);
@@ -2192,15 +2184,10 @@ must_cow:
 		}
 
 		ordered = btrfs_alloc_ordered_extent(inode, cur_offset,
-				nocow_args.file_extent.num_bytes,
-				nocow_args.file_extent.num_bytes,
-				nocow_args.file_extent.disk_bytenr +
-				nocow_args.file_extent.offset,
-				nocow_args.file_extent.num_bytes, 0,
+				&nocow_args.file_extent,
 				is_prealloc
 				? (1 << BTRFS_ORDERED_PREALLOC)
-				: (1 << BTRFS_ORDERED_NOCOW),
-				BTRFS_COMPRESS_NONE);
+				: (1 << BTRFS_ORDERED_NOCOW));
 		btrfs_dec_nocow_writers(nocow_bg);
 		if (IS_ERR(ordered)) {
 			if (is_prealloc) {
@@ -7055,27 +7042,9 @@ static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 			goto out;
 	}
 
-	/*
-	 * For regular writes, file_extent->offset is always 0, thus we really
-	 * only need file_extent->disk_bytenr, every other length
-	 * (disk_num_bytes/ram_bytes) should match @len and file_extent->num_bytes.
-	 *
-	 * For NOCOW, we don't really care about the numbers except @start and
-	 * @len, as we won't insert a file extent item at all.
-	 *
-	 * For PREALLOC, we do not use ordered extent members, but
-	 * btrfs_mark_extent_written() handles everything.
-	 *
-	 * So here we always pass 0 as offset for the ordered extent,
-	 * otherwise btrfs_split_ordered_extent() cannot handle it correctly.
-	 */
-	ordered = btrfs_alloc_ordered_extent(inode, start, len, len,
-					     file_extent->disk_bytenr +
-					     file_extent->offset,
-					     len, 0,
+	ordered = btrfs_alloc_ordered_extent(inode, start, file_extent,
 					     (1 << type) |
-					     (1 << BTRFS_ORDERED_DIRECT),
-					     BTRFS_COMPRESS_NONE);
+					     (1 << BTRFS_ORDERED_DIRECT));
 	if (IS_ERR(ordered)) {
 		if (em) {
 			free_extent_map(em);
@@ -10346,12 +10315,9 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	}
 	free_extent_map(em);
 
-	ordered = btrfs_alloc_ordered_extent(inode, start, num_bytes, ram_bytes,
-				       ins.objectid, ins.offset,
-				       encoded->unencoded_offset,
+	ordered = btrfs_alloc_ordered_extent(inode, start, &file_extent,
 				       (1 << BTRFS_ORDERED_ENCODED) |
-				       (1 << BTRFS_ORDERED_COMPRESSED),
-				       compression);
+				       (1 << BTRFS_ORDERED_COMPRESSED));
 	if (IS_ERR(ordered)) {
 		btrfs_drop_extent_map_range(inode, start, end, false);
 		ret = PTR_ERR(ordered);
