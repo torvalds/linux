@@ -179,6 +179,7 @@ enum bdb_block_id {
 	BDB_LFP_POWER			= 44,
 	BDB_EDP_BFI			= 45, /* 160+ */
 	BDB_CHROMATICITY		= 46, /* 169+ */
+	BDB_FIXED_SET_MODE		= 51, /* 172+ */
 	BDB_MIPI_CONFIG			= 52, /* 175+ */
 	BDB_MIPI_SEQUENCE		= 53, /* 177+ */
 	BDB_COMPRESSION_PARAMETERS	= 56, /* 213+ */
@@ -1383,6 +1384,16 @@ struct chromaticity {
 
 struct bdb_chromaticity {
 	struct chromaticity chromaticity[16];
+} __packed;
+
+/*
+ * Block 51 - Fixed Set Mode Table
+ */
+
+struct bdb_fixed_set_mode {
+	u8 enable;
+	u32 x_res;
+	u32 y_res;
 } __packed;
 
 /*
