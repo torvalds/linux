@@ -91,6 +91,29 @@ static int atmel_sha204a_rng_read(struct hwrng *rng, void *data, size_t max,
 	return max;
 }
 
+static int atmel_sha204a_otp_read(struct i2c_client *client, u16 addr, u8 *otp)
+{
+	struct atmel_i2c_cmd cmd;
+	int ret = -1;
+
+	if (atmel_i2c_init_read_otp_cmd(&cmd, addr) < 0) {
+		dev_err(&client->dev, "failed, invalid otp address %04X\n",
+			addr);
+		return ret;
+	}
+
+	ret = atmel_i2c_send_receive(client, &cmd);
+
+	if (cmd.data[0] == 0xff) {
+		dev_err(&client->dev, "failed, device not ready\n");
+		return -ret;
+	}
+
+	memcpy(otp, cmd.data+1, 4);
+
+	return ret;
+}
+
 static int atmel_sha204a_probe(struct i2c_client *client)
 {
 	struct atmel_i2c_client_priv *i2c_priv;
