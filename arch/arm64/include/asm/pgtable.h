@@ -132,6 +132,8 @@ static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
 #define pte_dirty(pte)		(pte_sw_dirty(pte) || pte_hw_dirty(pte))
 
 #define pte_valid(pte)		(!!(pte_val(pte) & PTE_VALID))
+#define pte_present_invalid(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_PRESENT_INVALID)) == PTE_PRESENT_INVALID)
 /*
  * Execute-only user mappings do not have the PTE_USER bit set. All valid
  * kernel mappings have the PTE_UXN bit set.
@@ -259,6 +261,13 @@ static inline pte_t pte_mknoncont(pte_t pte)
 static inline pte_t pte_mkpresent(pte_t pte)
 {
 	return set_pte_bit(pte, __pgprot(PTE_VALID));
+}
+
+static inline pte_t pte_mkinvalid(pte_t pte)
+{
+	pte = set_pte_bit(pte, __pgprot(PTE_PRESENT_INVALID));
+	pte = clear_pte_bit(pte, __pgprot(PTE_VALID));
+	return pte;
 }
 
 static inline pmd_t pmd_mkcont(pmd_t pmd)
@@ -483,7 +492,7 @@ static inline int pmd_protnone(pmd_t pmd)
 }
 #endif
 
-#define pmd_present_invalid(pmd)     (!!(pmd_val(pmd) & PMD_PRESENT_INVALID))
+#define pmd_present_invalid(pmd)	pte_present_invalid(pmd_pte(pmd))
 
 static inline int pmd_present(pmd_t pmd)
 {
@@ -513,14 +522,7 @@ static inline int pmd_trans_huge(pmd_t pmd)
 #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
 #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
 #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
-
-static inline pmd_t pmd_mkinvalid(pmd_t pmd)
-{
-	pmd = set_pmd_bit(pmd, __pgprot(PMD_PRESENT_INVALID));
-	pmd = clear_pmd_bit(pmd, __pgprot(PMD_SECT_VALID));
-
-	return pmd;
-}
+#define pmd_mkinvalid(pmd)	pte_pmd(pte_mkinvalid(pmd_pte(pmd)))
 
 #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
 
@@ -1258,6 +1260,7 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
  *	bits 3-7:	swap type
  *	bits 8-57:	swap offset
  *	bit  58:	PTE_PROT_NONE (must be zero)
+ *	bit  59:	PTE_PRESENT_INVALID (must be zero)
  */
 #define __SWP_TYPE_SHIFT	3
 #define __SWP_TYPE_BITS		5
