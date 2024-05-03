@@ -2,7 +2,18 @@
 
 import os
 
-sysfs_root = '/sys/kernel/mm/damon/admin'
+ksft_skip=4
+
+sysfs_root = None
+with open('/proc/mounts', 'r') as f:
+    for line in f:
+        dev_name, mount_point, dev_fs = line.split()[:3]
+        if dev_fs == 'sysfs':
+            sysfs_root = '%s/kernel/mm/damon/admin' % mount_point
+            break
+if sysfs_root is None:
+    print('Seems sysfs not mounted?')
+    exit(ksft_skip)
 
 def write_file(path, string):
     "Returns error string if failed, or None otherwise"
