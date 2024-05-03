@@ -1944,9 +1944,7 @@ static int btrfs_init_btree_inode(struct super_block *sb)
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree);
 
 	BTRFS_I(inode)->root = btrfs_grab_root(fs_info->tree_root);
-	BTRFS_I(inode)->location.objectid = BTRFS_BTREE_INODE_OBJECTID;
-	BTRFS_I(inode)->location.type = 0;
-	BTRFS_I(inode)->location.offset = 0;
+	BTRFS_I(inode)->objectid = BTRFS_BTREE_INODE_OBJECTID;
 	set_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags);
 	__insert_inode_hash(inode, hash);
 	fs_info->btree_inode = inode;

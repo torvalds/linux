@@ -62,9 +62,7 @@ struct inode *btrfs_new_test_inode(void)
 
 	inode->i_mode = S_IFREG;
 	inode->i_ino = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.offset = 0;
+	BTRFS_I(inode)->objectid = BTRFS_FIRST_FREE_OBJECTID;
 	inode_init_owner(&nop_mnt_idmap, inode, NULL, S_IFREG);
 
 	return inode;

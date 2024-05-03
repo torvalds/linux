@@ -3838,7 +3838,7 @@ static int btrfs_read_locked_inode(struct inode *inode,
 			return -ENOMEM;
 	}
 
-	memcpy(&location, &BTRFS_I(inode)->location, sizeof(location));
+	btrfs_get_inode_key(BTRFS_I(inode), &location);
 
 	ret = btrfs_lookup_inode(NULL, root, path, &location, 0);
 	if (ret) {
@@ -4068,13 +4068,15 @@ static noinline int btrfs_update_inode_item(struct btrfs_trans_handle *trans,
 	struct btrfs_inode_item *inode_item;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
+	struct btrfs_key key;
 	int ret;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
-	ret = btrfs_lookup_inode(trans, inode->root, path, &inode->location, 1);
+	btrfs_get_inode_key(inode, &key);
+	ret = btrfs_lookup_inode(trans, inode->root, path, &key, 1);
 	if (ret) {
 		if (ret > 0)
 			ret = -ENOENT;
@@ -4338,7 +4340,7 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	if (btrfs_ino(inode) == BTRFS_FIRST_FREE_OBJECTID) {
 		objectid = btrfs_root_id(inode->root);
 	} else if (btrfs_ino(inode) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID) {
-		objectid = inode->location.objectid;
+		objectid = inode->objectid;
 	} else {
 		WARN_ON(1);
 		fscrypt_free_filename(&fname);
@@ -5580,9 +5582,7 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 	struct btrfs_iget_args *args = p;
 
 	inode->i_ino = args->ino;
-	BTRFS_I(inode)->location.objectid = args->ino;
-	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-	BTRFS_I(inode)->location.offset = 0;
+	BTRFS_I(inode)->objectid = args->ino;
 	BTRFS_I(inode)->root = btrfs_grab_root(args->root);
 
 	if (args->root && args->root == args->root->fs_info->tree_root &&
@@ -5596,7 +5596,7 @@ static int btrfs_find_actor(struct inode *inode, void *opaque)
 {
 	struct btrfs_iget_args *args = opaque;
 
-	return args->ino == BTRFS_I(inode)->location.objectid &&
+	return args->ino == BTRFS_I(inode)->objectid &&
 		args->root == BTRFS_I(inode)->root;
 }
 
@@ -5673,7 +5673,8 @@ static struct inode *new_simple_dir(struct inode *dir,
 		return ERR_PTR(-ENOMEM);
 
 	BTRFS_I(inode)->root = btrfs_grab_root(root);
-	memcpy(&BTRFS_I(inode)->location, key, sizeof(*key));
+	BTRFS_I(inode)->objectid = key->objectid;
+	set_bit(BTRFS_INODE_ROOT_STUB, &BTRFS_I(inode)->runtime_flags);
 	set_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags);
 
 	inode->i_ino = BTRFS_EMPTY_SUBVOL_DIR_OBJECTID;
@@ -6149,7 +6150,7 @@ static int btrfs_insert_inode_locked(struct inode *inode)
 {
 	struct btrfs_iget_args args;
 
-	args.ino = BTRFS_I(inode)->location.objectid;
+	args.ino = BTRFS_I(inode)->objectid;
 	args.root = BTRFS_I(inode)->root;
 
 	return insert_inode_locked4(inode,
@@ -6256,7 +6257,6 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(dir);
 	struct btrfs_root *root;
 	struct btrfs_inode_item *inode_item;
-	struct btrfs_key *location;
 	struct btrfs_path *path;
 	u64 objectid;
 	struct btrfs_inode_ref *ref;
@@ -6332,10 +6332,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 				BTRFS_INODE_NODATASUM;
 	}
 
-	location = &BTRFS_I(inode)->location;
-	location->objectid = objectid;
-	location->offset = 0;
-	location->type = BTRFS_INODE_ITEM_KEY;
+	BTRFS_I(inode)->objectid = objectid;
 
 	ret = btrfs_insert_inode_locked(inode);
 	if (ret < 0) {

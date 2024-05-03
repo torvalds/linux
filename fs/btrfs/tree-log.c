@@ -4254,8 +4254,10 @@ static int log_inode_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_inode *inode, bool inode_item_dropped)
 {
 	struct btrfs_inode_item *inode_item;
+	struct btrfs_key key;
 	int ret;
 
+	btrfs_get_inode_key(inode, &key);
 	/*
 	 * If we are doing a fast fsync and the inode was logged before in the
 	 * current transaction, then we know the inode was previously logged and
@@ -4267,7 +4269,7 @@ static int log_inode_item(struct btrfs_trans_handle *trans,
 	 * already exists can also result in unnecessarily splitting a leaf.
 	 */
 	if (!inode_item_dropped && inode->logged_trans == trans->transid) {
-		ret = btrfs_search_slot(trans, log, &inode->location, path, 0, 1);
+		ret = btrfs_search_slot(trans, log, &key, path, 0, 1);
 		ASSERT(ret <= 0);
 		if (ret > 0)
 			ret = -ENOENT;
@@ -4281,7 +4283,7 @@ static int log_inode_item(struct btrfs_trans_handle *trans,
 		 * the inode, we set BTRFS_INODE_NEEDS_FULL_SYNC on its runtime
 		 * flags and set ->logged_trans to 0.
 		 */
-		ret = btrfs_insert_empty_item(trans, log, path, &inode->location,
+		ret = btrfs_insert_empty_item(trans, log, path, &key,
 					      sizeof(*inode_item));
 		ASSERT(ret != -EEXIST);
 	}

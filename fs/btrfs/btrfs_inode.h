@@ -99,6 +99,29 @@ enum {
 	 * range).
 	 */
 	BTRFS_INODE_COW_WRITE_ERROR,
+	/*
+	 * Indicate this is a directory that points to a subvolume for which
+	 * there is no root reference item. That's a case like the following:
+	 *
+	 *   $ btrfs subvolume create /mnt/parent
+	 *   $ btrfs subvolume create /mnt/parent/child
+	 *   $ btrfs subvolume snapshot /mnt/parent /mnt/snap
+	 *
+	 * If subvolume "parent" is root 256, subvolume "child" is root 257 and
+	 * snapshot "snap" is root 258, then there's no root reference item (key
+	 * BTRFS_ROOT_REF_KEY in the root tree) for the subvolume "child"
+	 * associated to root 258 (the snapshot) - there's only for the root
+	 * of the "parent" subvolume (root 256). In the chunk root we have a
+	 * (256 BTRFS_ROOT_REF_KEY 257) key but we don't have a
+	 * (258 BTRFS_ROOT_REF_KEY 257) key - the sames goes for backrefs, we
+	 * have a (257 BTRFS_ROOT_BACKREF_KEY 256) but we don't have a
+	 * (257 BTRFS_ROOT_BACKREF_KEY 258) key.
+	 *
+	 * So when opening the "child" dentry from the snapshot's directory,
+	 * we don't find a root ref item and we create a stub inode. This is
+	 * done at new_simple_dir(), called from btrfs_lookup_dentry().
+	 */
+	BTRFS_INODE_ROOT_STUB,
 };
 
 /* in memory btrfs inode */
@@ -106,10 +129,15 @@ struct btrfs_inode {
 	/* which subvolume this inode belongs to */
 	struct btrfs_root *root;
 
-	/* key used to find this inode on disk.  This is used by the code
-	 * to read in roots of subvolumes
+	/*
+	 * This is either:
+	 *
+	 * 1) The objectid of the corresponding BTRFS_INODE_ITEM_KEY;
+	 *
+	 * 2) In case this a root stub inode (BTRFS_INODE_ROOT_STUB flag set),
+	 *    the ID of that root.
 	 */
-	struct btrfs_key location;
+	u64 objectid;
 
 	/* Cached value of inode property 'compression'. */
 	u8 prop_compress;
@@ -340,10 +368,9 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
  */
 static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 {
-	u64 ino = inode->location.objectid;
+	u64 ino = inode->objectid;
 
-	/* type == BTRFS_ROOT_ITEM_KEY: subvol dir */
-	if (inode->location.type == BTRFS_ROOT_ITEM_KEY)
+	if (test_bit(BTRFS_INODE_ROOT_STUB, &inode->runtime_flags))
 		ino = inode->vfs_inode.i_ino;
 	return ino;
 }
@@ -356,6 +383,14 @@ static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 }
 
 #endif
+
+static inline void btrfs_get_inode_key(const struct btrfs_inode *inode,
+				       struct btrfs_key *key)
+{
+	key->objectid = inode->objectid;
+	key->type = BTRFS_INODE_ITEM_KEY;
+	key->offset = 0;
+}
 
 static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 {
