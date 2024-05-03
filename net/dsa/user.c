@@ -2189,6 +2189,58 @@ dsa_user_dcbnl_set_default_prio(struct net_device *dev, struct dcb_app *app)
 	return 0;
 }
 
+/* Update the DSCP prio entries on all user ports of the switch in case
+ * the switch supports global DSCP prio instead of per port DSCP prios.
+ */
+static int dsa_user_dcbnl_ieee_global_dscp_setdel(struct net_device *dev,
+						  struct dcb_app *app, bool del)
+{
+	int (*setdel)(struct net_device *dev, struct dcb_app *app);
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_port *other_dp;
+	int err, restore_err;
+
+	if (del)
+		setdel = dcb_ieee_delapp;
+	else
+		setdel = dcb_ieee_setapp;
+
+	dsa_switch_for_each_user_port(other_dp, ds) {
+		struct net_device *user = other_dp->user;
+
+		if (!user || user == dev)
+			continue;
+
+		err = setdel(user, app);
+		if (err)
+			goto err_try_to_restore;
+	}
+
+	return 0;
+
+err_try_to_restore:
+
+	/* Revert logic to restore previous state of app entries */
+	if (!del)
+		setdel = dcb_ieee_delapp;
+	else
+		setdel = dcb_ieee_setapp;
+
+	dsa_switch_for_each_user_port_continue_reverse(other_dp, ds) {
+		struct net_device *user = other_dp->user;
+
+		if (!user || user == dev)
+			continue;
+
+		restore_err = setdel(user, app);
+		if (restore_err)
+			netdev_err(user, "Failed to restore DSCP prio entry configuration\n");
+	}
+
+	return err;
+}
+
 static int __maybe_unused
 dsa_user_dcbnl_add_dscp_prio(struct net_device *dev, struct dcb_app *app)
 {
@@ -2216,6 +2268,17 @@ dsa_user_dcbnl_add_dscp_prio(struct net_device *dev, struct dcb_app *app)
 
 	err = ds->ops->port_add_dscp_prio(ds, port, dscp, new_prio);
 	if (err) {
+		dcb_ieee_delapp(dev, app);
+		return err;
+	}
+
+	if (!ds->dscp_prio_mapping_is_global)
+		return 0;
+
+	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, false);
+	if (err) {
+		if (ds->ops->port_del_dscp_prio)
+			ds->ops->port_del_dscp_prio(ds, port, dscp, new_prio);
 		dcb_ieee_delapp(dev, app);
 		return err;
 	}
@@ -2286,6 +2349,18 @@ dsa_user_dcbnl_del_dscp_prio(struct net_device *dev, struct dcb_app *app)
 
 	err = ds->ops->port_del_dscp_prio(ds, port, dscp, app->priority);
 	if (err) {
+		dcb_ieee_setapp(dev, app);
+		return err;
+	}
+
+	if (!ds->dscp_prio_mapping_is_global)
+		return 0;
+
+	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, true);
+	if (err) {
+		if (ds->ops->port_add_dscp_prio)
+			ds->ops->port_add_dscp_prio(ds, port, dscp,
+						    app->priority);
 		dcb_ieee_setapp(dev, app);
 		return err;
 	}
