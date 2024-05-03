@@ -191,7 +191,7 @@ struct drm_dp_tunnel_mgr {
 	struct drm_dp_tunnel_group *groups;
 	wait_queue_head_t bw_req_queue;
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	struct ref_tracker_dir ref_tracker;
 #endif
 };
@@ -385,7 +385,7 @@ static void tunnel_put(struct drm_dp_tunnel *tunnel)
 	kref_put(&tunnel->kref, free_tunnel);
 }
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 static void track_tunnel_ref(struct drm_dp_tunnel *tunnel,
 			     struct ref_tracker **tracker)
 {
@@ -1603,7 +1603,7 @@ static void cleanup_group(struct drm_dp_tunnel_group *group)
 	drm_atomic_private_obj_fini(&group->base);
 }
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 static void check_unique_stream_ids(const struct drm_dp_tunnel_group_state *group_state)
 {
 	const struct drm_dp_tunnel_state *tunnel_state;
@@ -1881,7 +1881,7 @@ static void destroy_mgr(struct drm_dp_tunnel_mgr *mgr)
 		drm_WARN_ON(mgr->dev, !list_empty(&mgr->groups[i].tunnels));
 	}
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	ref_tracker_dir_exit(&mgr->ref_tracker);
 #endif
 
@@ -1919,7 +1919,7 @@ drm_dp_tunnel_mgr_create(struct drm_device *dev, int max_group_count)
 		return NULL;
 	}
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	ref_tracker_dir_init(&mgr->ref_tracker, 16, "dptun");
 #endif
 

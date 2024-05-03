@@ -290,3 +290,21 @@ uint64_t kfd_mqd_stride(struct mqd_manager *mm,
 {
 	return mm->mqd_size;
 }
+
+bool kfd_check_hiq_mqd_doorbell_id(struct kfd_node *node, uint32_t doorbell_id,
+				   uint32_t inst)
+{
+	if (doorbell_id) {
+		struct device *dev = node->adev->dev;
+
+		if (node->adev->xcp_mgr && node->adev->xcp_mgr->num_xcps > 0)
+			dev_err(dev, "XCC %d: Queue preemption failed for queue with doorbell_id: %x\n",
+							inst, doorbell_id);
+		else
+			dev_err(dev, "Queue preemption failed for queue with doorbell_id: %x\n",
+							doorbell_id);
+		return true;
+	}
+
+	return false;
+}

@@ -216,6 +216,9 @@
 #define   MTK_PHY_LED_ON_LINK1000		BIT(0)
 #define   MTK_PHY_LED_ON_LINK100		BIT(1)
 #define   MTK_PHY_LED_ON_LINK10			BIT(2)
+#define   MTK_PHY_LED_ON_LINK			(MTK_PHY_LED_ON_LINK10 |\
+						 MTK_PHY_LED_ON_LINK100 |\
+						 MTK_PHY_LED_ON_LINK1000)
 #define   MTK_PHY_LED_ON_LINKDOWN		BIT(3)
 #define   MTK_PHY_LED_ON_FDX			BIT(4) /* Full duplex */
 #define   MTK_PHY_LED_ON_HDX			BIT(5) /* Half duplex */
@@ -231,6 +234,12 @@
 #define   MTK_PHY_LED_BLINK_100RX		BIT(3)
 #define   MTK_PHY_LED_BLINK_10TX		BIT(4)
 #define   MTK_PHY_LED_BLINK_10RX		BIT(5)
+#define   MTK_PHY_LED_BLINK_RX			(MTK_PHY_LED_BLINK_10RX |\
+						 MTK_PHY_LED_BLINK_100RX |\
+						 MTK_PHY_LED_BLINK_1000RX)
+#define   MTK_PHY_LED_BLINK_TX			(MTK_PHY_LED_BLINK_10TX |\
+						 MTK_PHY_LED_BLINK_100TX |\
+						 MTK_PHY_LED_BLINK_1000TX)
 #define   MTK_PHY_LED_BLINK_COLLISION		BIT(6)
 #define   MTK_PHY_LED_BLINK_RX_CRC_ERR		BIT(7)
 #define   MTK_PHY_LED_BLINK_RX_IDLE_ERR		BIT(8)
@@ -1247,11 +1256,9 @@ static int mt798x_phy_led_hw_control_get(struct phy_device *phydev, u8 index,
 	if (blink < 0)
 		return -EIO;
 
-	if ((on & (MTK_PHY_LED_ON_LINK1000 | MTK_PHY_LED_ON_LINK100 |
-		   MTK_PHY_LED_ON_LINK10)) ||
-	    (blink & (MTK_PHY_LED_BLINK_1000RX | MTK_PHY_LED_BLINK_100RX |
-		      MTK_PHY_LED_BLINK_10RX | MTK_PHY_LED_BLINK_1000TX |
-		      MTK_PHY_LED_BLINK_100TX | MTK_PHY_LED_BLINK_10TX)))
+	if ((on & (MTK_PHY_LED_ON_LINK | MTK_PHY_LED_ON_FDX | MTK_PHY_LED_ON_HDX |
+		   MTK_PHY_LED_ON_LINKDOWN)) ||
+	    (blink & (MTK_PHY_LED_BLINK_RX | MTK_PHY_LED_BLINK_TX)))
 		set_bit(bit_netdev, &priv->led_state);
 	else
 		clear_bit(bit_netdev, &priv->led_state);
@@ -1269,7 +1276,7 @@ static int mt798x_phy_led_hw_control_get(struct phy_device *phydev, u8 index,
 	if (!rules)
 		return 0;
 
-	if (on & (MTK_PHY_LED_ON_LINK1000 | MTK_PHY_LED_ON_LINK100 | MTK_PHY_LED_ON_LINK10))
+	if (on & MTK_PHY_LED_ON_LINK)
 		*rules |= BIT(TRIGGER_NETDEV_LINK);
 
 	if (on & MTK_PHY_LED_ON_LINK10)
@@ -1287,10 +1294,10 @@ static int mt798x_phy_led_hw_control_get(struct phy_device *phydev, u8 index,
 	if (on & MTK_PHY_LED_ON_HDX)
 		*rules |= BIT(TRIGGER_NETDEV_HALF_DUPLEX);
 
-	if (blink & (MTK_PHY_LED_BLINK_1000RX | MTK_PHY_LED_BLINK_100RX | MTK_PHY_LED_BLINK_10RX))
+	if (blink & MTK_PHY_LED_BLINK_RX)
 		*rules |= BIT(TRIGGER_NETDEV_RX);
 
-	if (blink & (MTK_PHY_LED_BLINK_1000TX | MTK_PHY_LED_BLINK_100TX | MTK_PHY_LED_BLINK_10TX))
+	if (blink & MTK_PHY_LED_BLINK_TX)
 		*rules |= BIT(TRIGGER_NETDEV_TX);
 
 	return 0;
@@ -1323,15 +1330,19 @@ static int mt798x_phy_led_hw_control_set(struct phy_device *phydev, u8 index,
 		on |= MTK_PHY_LED_ON_LINK1000;
 
 	if (rules & BIT(TRIGGER_NETDEV_RX)) {
-		blink |= MTK_PHY_LED_BLINK_10RX  |
-			 MTK_PHY_LED_BLINK_100RX |
-			 MTK_PHY_LED_BLINK_1000RX;
+		blink |= (on & MTK_PHY_LED_ON_LINK) ?
+			  (((on & MTK_PHY_LED_ON_LINK10) ? MTK_PHY_LED_BLINK_10RX : 0) |
+			   ((on & MTK_PHY_LED_ON_LINK100) ? MTK_PHY_LED_BLINK_100RX : 0) |
+			   ((on & MTK_PHY_LED_ON_LINK1000) ? MTK_PHY_LED_BLINK_1000RX : 0)) :
+			  MTK_PHY_LED_BLINK_RX;
 	}
 
 	if (rules & BIT(TRIGGER_NETDEV_TX)) {
-		blink |= MTK_PHY_LED_BLINK_10TX  |
-			 MTK_PHY_LED_BLINK_100TX |
-			 MTK_PHY_LED_BLINK_1000TX;
+		blink |= (on & MTK_PHY_LED_ON_LINK) ?
+			  (((on & MTK_PHY_LED_ON_LINK10) ? MTK_PHY_LED_BLINK_10TX : 0) |
+			   ((on & MTK_PHY_LED_ON_LINK100) ? MTK_PHY_LED_BLINK_100TX : 0) |
+			   ((on & MTK_PHY_LED_ON_LINK1000) ? MTK_PHY_LED_BLINK_1000TX : 0)) :
+			  MTK_PHY_LED_BLINK_TX;
 	}
 
 	if (blink || on)
@@ -1344,9 +1355,7 @@ static int mt798x_phy_led_hw_control_set(struct phy_device *phydev, u8 index,
 				MTK_PHY_LED0_ON_CTRL,
 			     MTK_PHY_LED_ON_FDX     |
 			     MTK_PHY_LED_ON_HDX     |
-			     MTK_PHY_LED_ON_LINK10  |
-			     MTK_PHY_LED_ON_LINK100 |
-			     MTK_PHY_LED_ON_LINK1000,
+			     MTK_PHY_LED_ON_LINK,
 			     on);
 
 	if (ret)

@@ -52,7 +52,7 @@ static struct intel_guc_slpc *rps_to_slpc(struct intel_rps *rps)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
 
-	return &gt->uc.guc.slpc;
+	return &gt_to_guc(gt)->slpc;
 }
 
 static bool rps_uses_slpc(struct intel_rps *rps)
@@ -1011,6 +1011,10 @@ void intel_rps_boost(struct i915_request *rq)
 	struct intel_guc_slpc *slpc;
 
 	if (i915_request_signaled(rq) || i915_request_has_waitboost(rq))
+		return;
+
+	/* Waitboost is not needed for contexts marked with a Freq hint */
+	if (test_bit(CONTEXT_LOW_LATENCY, &rq->context->flags))
 		return;
 
 	/* Serializes with i915_request_retire() */

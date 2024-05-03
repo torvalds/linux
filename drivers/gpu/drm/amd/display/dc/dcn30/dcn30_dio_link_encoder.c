@@ -30,8 +30,6 @@
 #include "dcn30_dio_link_encoder.h"
 #include "stream_encoder.h"
 #include "dc_bios_types.h"
-/* #include "dcn3ag/dcn3ag_phy_fw.h" */
-
 #include "gpio_service_interface.h"
 
 #define CTX \

@@ -1,31 +1,58 @@
 # SPDX-License-Identifier: MIT
 
-config DRM_DP_AUX_BUS
-	tristate
-	depends on DRM
-	depends on OF || COMPILE_TEST
-
 config DRM_DISPLAY_HELPER
-	tristate
+	tristate "DRM Display Helpers"
 	depends on DRM
+	default y
 	help
 	  DRM helpers for display adapters.
 
-config DRM_DISPLAY_DP_HELPER
-	bool
+config DRM_DISPLAY_DP_AUX_BUS
+	tristate "DRM DisplayPort AUX bus support"
+	depends on DRM
+	depends on OF || COMPILE_TEST
+	default y
+
+config DRM_DISPLAY_DP_AUX_CEC
+	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
+	depends on DRM
 	depends on DRM_DISPLAY_HELPER
+	depends on DRM_DISPLAY_DP_HELPER
+	select CEC_CORE
+	help
+	  Choose this option if you want to enable HDMI CEC support for
+	  DisplayPort/USB-C to HDMI adapters.
+
+	  Note: not all adapters support this feature, and even for those
+	  that do support this they often do not hook up the CEC pin.
+
+config DRM_DISPLAY_DP_AUX_CHARDEV
+	bool "DRM DisplayPort AUX Interface"
+	depends on DRM
+	depends on DRM_DISPLAY_HELPER
+	depends on DRM_DISPLAY_DP_HELPER
+	help
+	  Choose this option to enable a /dev/drm_dp_auxN node that allows to
+	  read and write values to arbitrary DPCD registers on the DP aux
+	  channel.
+
+config DRM_DISPLAY_DP_HELPER
+	bool "DRM DisplayPort Helpers"
+	depends on DRM_DISPLAY_HELPER
+	select DRM_KMS_HELPER
+	default y
 	help
 	  DRM display helpers for DisplayPort.
 
 config DRM_DISPLAY_DP_TUNNEL
-	bool
-	select DRM_DISPLAY_DP_HELPER
+	bool "DRM DisplayPort tunnels support"
+	depends on DRM_DISPLAY_DP_HELPER
 	help
 	  Enable support for DisplayPort tunnels. This allows drivers to use
 	  DP tunnel features like the Bandwidth Allocation mode to maximize the
 	  BW utilization for display streams on Thunderbolt links.
 
-config DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+config DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	bool "Enable debugging the DP tunnel state"
 	depends on REF_TRACKER
 	depends on DRM_DISPLAY_DP_TUNNEL
@@ -39,34 +66,15 @@ config DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
 	  If in doubt, say "N".
 
 config DRM_DISPLAY_HDCP_HELPER
-	bool
+	bool "DRM HDCD Helpers"
 	depends on DRM_DISPLAY_HELPER
+	default y
 	help
 	  DRM display helpers for HDCP.
 
 config DRM_DISPLAY_HDMI_HELPER
-	bool
+	bool "DRM HDMI Helpers"
 	depends on DRM_DISPLAY_HELPER
+	default y
 	help
 	  DRM display helpers for HDMI.
-
-config DRM_DP_AUX_CHARDEV
-	bool "DRM DP AUX Interface"
-	depends on DRM && DRM_DISPLAY_HELPER
-	select DRM_DISPLAY_DP_HELPER
-	help
-	  Choose this option to enable a /dev/drm_dp_auxN node that allows to
-	  read and write values to arbitrary DPCD registers on the DP aux
-	  channel.
-
-config DRM_DP_CEC
-	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
-	depends on DRM && DRM_DISPLAY_HELPER
-	select DRM_DISPLAY_DP_HELPER
-	select CEC_CORE
-	help
-	  Choose this option if you want to enable HDMI CEC support for
-	  DisplayPort/USB-C to HDMI adapters.
-
-	  Note: not all adapters support this feature, and even for those
-	  that do support this they often do not hook up the CEC pin.

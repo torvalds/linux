@@ -341,5 +341,6 @@ static struct platform_driver avs_rt5682_driver = {
 
 module_platform_driver(avs_rt5682_driver)
 
+MODULE_DESCRIPTION("Intel rt5682 machine driver");
 MODULE_AUTHOR("Cezary Rojewski <cezary.rojewski@intel.com>");
 MODULE_LICENSE("GPL");

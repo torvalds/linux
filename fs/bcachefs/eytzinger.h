@@ -5,23 +5,33 @@
 #include <linux/bitops.h>
 #include <linux/log2.h>
 
-#include "util.h"
+#ifdef EYTZINGER_DEBUG
+#define EYTZINGER_BUG_ON(cond)		BUG_ON(cond)
+#else
+#define EYTZINGER_BUG_ON(cond)
+#endif
 
 /*
  * Traversal for trees in eytzinger layout - a full binary tree layed out in an
- * array
- */
-
-/*
- * One based indexing version:
+ * array.
  *
- * With one based indexing each level of the tree starts at a power of two -
- * good for cacheline alignment:
+ * Consider using an eytzinger tree any time you would otherwise be doing binary
+ * search over an array. Binary search is a worst case scenario for branch
+ * prediction and prefetching, but in an eytzinger tree every node's children
+ * are adjacent in memory, thus we can prefetch children before knowing the
+ * result of the comparison, assuming multiple nodes fit on a cacheline.
+ *
+ * Two variants are provided, for one based indexing and zero based indexing.
+ *
+ * Zero based indexing is more convenient, but one based indexing has better
+ * alignment and thus better performance because each new level of the tree
+ * starts at a power of two, and thus if element 0 was cacheline aligned, each
+ * new level will be as well.
  */
 
 static inline unsigned eytzinger1_child(unsigned i, unsigned child)
 {
-	EBUG_ON(child > 1);
+	EYTZINGER_BUG_ON(child > 1);
 
 	return (i << 1) + child;
 }
@@ -58,7 +68,7 @@ static inline unsigned eytzinger1_last(unsigned size)
 
 static inline unsigned eytzinger1_next(unsigned i, unsigned size)
 {
-	EBUG_ON(i > size);
+	EYTZINGER_BUG_ON(i > size);
 
 	if (eytzinger1_right_child(i) <= size) {
 		i = eytzinger1_right_child(i);
@@ -74,7 +84,7 @@ static inline unsigned eytzinger1_next(unsigned i, unsigned size)
 
 static inline unsigned eytzinger1_prev(unsigned i, unsigned size)
 {
-	EBUG_ON(i > size);
+	EYTZINGER_BUG_ON(i > size);
 
 	if (eytzinger1_left_child(i) <= size) {
 		i = eytzinger1_left_child(i) + 1;
@@ -101,7 +111,7 @@ static inline unsigned __eytzinger1_to_inorder(unsigned i, unsigned size,
 	unsigned shift = __fls(size) - b;
 	int s;
 
-	EBUG_ON(!i || i > size);
+	EYTZINGER_BUG_ON(!i || i > size);
 
 	i  ^= 1U << b;
 	i <<= 1;
@@ -126,7 +136,7 @@ static inline unsigned __inorder_to_eytzinger1(unsigned i, unsigned size,
 	unsigned shift;
 	int s;
 
-	EBUG_ON(!i || i > size);
+	EYTZINGER_BUG_ON(!i || i > size);
 
 	/*
 	 * sign bit trick:
@@ -164,7 +174,7 @@ static inline unsigned inorder_to_eytzinger1(unsigned i, unsigned size)
 
 static inline unsigned eytzinger0_child(unsigned i, unsigned child)
 {
-	EBUG_ON(child > 1);
+	EYTZINGER_BUG_ON(child > 1);
 
 	return (i << 1) + 1 + child;
 }
@@ -231,11 +241,9 @@ static inline unsigned inorder_to_eytzinger0(unsigned i, unsigned size)
 	     (_i) != -1;				\
 	     (_i) = eytzinger0_next((_i), (_size)))
 
-typedef int (*eytzinger_cmp_fn)(const void *l, const void *r, size_t size);
-
 /* return greatest node <= @search, or -1 if not found */
-static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
-					 eytzinger_cmp_fn cmp, const void *search)
+static inline int eytzinger0_find_le(void *base, size_t nr, size_t size,
+				     cmp_func_t cmp, const void *search)
 {
 	unsigned i, n = 0;
 
@@ -244,19 +252,36 @@ static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
 
 	do {
 		i = n;
-		n = eytzinger0_child(i, cmp(search, base + i * size, size) >= 0);
+		n = eytzinger0_child(i, cmp(base + i * size, search) <= 0);
 	} while (n < nr);
 
 	if (n & 1) {
-		/* @i was greater than @search, return previous node: */
-
-		if (i == eytzinger0_first(nr))
-			return -1;
-
+		/*
+		 * @i was greater than @search, return previous node:
+		 *
+		 * if @i was leftmost/smallest element,
+		 * eytzinger0_prev(eytzinger0_first())) returns -1, as expected
+		 */
 		return eytzinger0_prev(i, nr);
 	} else {
 		return i;
 	}
+}
+
+static inline int eytzinger0_find_gt(void *base, size_t nr, size_t size,
+				     cmp_func_t cmp, const void *search)
+{
+	ssize_t idx = eytzinger0_find_le(base, nr, size, cmp, search);
+
+	/*
+	 * if eytitzinger0_find_le() returned -1 - no element was <= search - we
+	 * want to return the first element; next/prev identities mean this work
+	 * as expected
+	 *
+	 * similarly if find_le() returns last element, we should return -1;
+	 * identities mean this all works out:
+	 */
+	return eytzinger0_next(idx, nr);
 }
 
 #define eytzinger0_find(base, nr, size, _cmp, search)			\
@@ -269,13 +294,13 @@ static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
 	int _res;							\
 									\
 	while (_i < _nr &&						\
-	       (_res = _cmp(_search, _base + _i * _size, _size)))	\
+	       (_res = _cmp(_search, _base + _i * _size)))		\
 		_i = eytzinger0_child(_i, _res > 0);			\
 	_i;								\
 })
 
-void eytzinger0_sort(void *, size_t, size_t,
-		    int (*cmp_func)(const void *, const void *, size_t),
-		    void (*swap_func)(void *, void *, size_t));
+void eytzinger0_sort_r(void *, size_t, size_t,
+		       cmp_r_func_t, swap_r_func_t, const void *);
+void eytzinger0_sort(void *, size_t, size_t, cmp_func_t, swap_func_t);
 
 #endif /* _EYTZINGER_H */

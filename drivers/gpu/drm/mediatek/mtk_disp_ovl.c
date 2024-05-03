@@ -15,9 +15,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
+#include "mtk_crtc.h"
+#include "mtk_ddp_comp.h"
 #include "mtk_disp_drv.h"
-#include "mtk_drm_crtc.h"
-#include "mtk_drm_ddp_comp.h"
 #include "mtk_drm_drv.h"
 
 #define DISP_REG_OVL_INTEN			0x0004
@@ -659,7 +659,6 @@ struct platform_driver mtk_disp_ovl_driver = {
 	.remove_new	= mtk_disp_ovl_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ovl",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_disp_ovl_driver_dt_match,
 	},
 };

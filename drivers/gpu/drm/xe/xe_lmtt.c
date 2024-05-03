@@ -35,7 +35,7 @@
 
 static bool xe_has_multi_level_lmtt(struct xe_device *xe)
 {
-	return xe->info.platform == XE_PVC;
+	return GRAPHICS_VERx100(xe) >= 1260;
 }
 
 static struct xe_tile *lmtt_to_tile(struct xe_lmtt *lmtt)
@@ -70,8 +70,8 @@ static struct xe_lmtt_pt *lmtt_pt_alloc(struct xe_lmtt *lmtt, unsigned int level
 				  PAGE_ALIGN(lmtt->ops->lmtt_pte_size(level) *
 					     lmtt->ops->lmtt_pte_num(level)),
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(lmtt_to_tile(lmtt)) |
-				  XE_BO_CREATE_PINNED_BIT);
+				  XE_BO_FLAG_VRAM_IF_DGFX(lmtt_to_tile(lmtt)) |
+				  XE_BO_NEEDS_64K | XE_BO_FLAG_PINNED);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto out_free_pt;

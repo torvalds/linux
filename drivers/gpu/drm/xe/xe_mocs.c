@@ -17,10 +17,10 @@
 #include "xe_step_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-#define mocs_dbg drm_dbg
+#define mocs_dbg xe_gt_dbg
 #else
 __printf(2, 3)
-static inline void mocs_dbg(const struct drm_device *dev,
+static inline void mocs_dbg(const struct xe_gt *gt,
 			    const char *format, ...)
 { /* noop */ }
 #endif
@@ -72,7 +72,7 @@ struct xe_mocs_info {
 /* Helper defines */
 #define XELP_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 #define PVC_NUM_MOCS_ENTRIES	3
-#define MTL_NUM_MOCS_ENTRIES    16
+#define MTL_NUM_MOCS_ENTRIES	16
 #define XE2_NUM_MOCS_ENTRIES	16
 
 /* (e)LLC caching options */
@@ -375,6 +375,7 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 
 	switch (xe->info.platform) {
 	case XE_LUNARLAKE:
+	case XE_BATTLEMAGE:
 		info->size = ARRAY_SIZE(xe2_mocs_table);
 		info->table = xe2_mocs_table;
 		info->n_entries = XE2_NUM_MOCS_ENTRIES;
@@ -401,7 +402,11 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		info->size = ARRAY_SIZE(dg2_mocs_desc);
 		info->table = dg2_mocs_desc;
 		info->uc_index = 1;
-		info->n_entries = XELP_NUM_MOCS_ENTRIES;
+		/*
+		 * Last entry is RO on hardware, don't bother with what was
+		 * written when checking later
+		 */
+		info->n_entries = XELP_NUM_MOCS_ENTRIES - 1;
 		info->unused_entries_index = 3;
 		break;
 	case XE_DG1:
@@ -462,24 +467,34 @@ static u32 get_entry_control(const struct xe_mocs_info *info,
 	return info->table[info->unused_entries_index].control_value;
 }
 
-static void __init_mocs_table(struct xe_gt *gt,
-			      const struct xe_mocs_info *info)
+static bool regs_are_mcr(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 
+	if (xe_gt_is_media_type(gt))
+		return MEDIA_VER(xe) >= 20;
+	else
+		return GRAPHICS_VERx100(xe) >= 1250;
+}
+
+static void __init_mocs_table(struct xe_gt *gt,
+			      const struct xe_mocs_info *info)
+{
 	unsigned int i;
 	u32 mocs;
 
-	mocs_dbg(&gt_to_xe(gt)->drm, "entries:%d\n", info->n_entries);
-	drm_WARN_ONCE(&xe->drm, !info->unused_entries_index,
-		      "Unused entries index should have been defined\n");
-	for (i = 0;
-	     i < info->n_entries ? (mocs = get_entry_control(info, i)), 1 : 0;
-	     i++) {
-		mocs_dbg(&gt_to_xe(gt)->drm, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
+	xe_gt_WARN_ONCE(gt, !info->unused_entries_index,
+			"Unused entries index should have been defined\n");
+
+	mocs_dbg(gt, "mocs entries: %d\n", info->n_entries);
+
+	for (i = 0; i < info->n_entries; i++) {
+		mocs = get_entry_control(info, i);
+
+		mocs_dbg(gt, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
 			 XELP_GLOBAL_MOCS(i).addr, mocs);
 
-		if (GRAPHICS_VERx100(gt_to_xe(gt)) > 1250)
+		if (regs_are_mcr(gt))
 			xe_gt_mcr_multicast_write(gt, XEHP_GLOBAL_MOCS(i), mocs);
 		else
 			xe_mmio_write32(gt, XELP_GLOBAL_MOCS(i), mocs);
@@ -510,16 +525,16 @@ static void init_l3cc_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 l3cc;
 
-	mocs_dbg(&gt_to_xe(gt)->drm, "entries:%d\n", info->n_entries);
-	for (i = 0;
-	     i < (info->n_entries + 1) / 2 ?
-	     (l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
-				  get_entry_l3cc(info, 2 * i + 1))), 1 : 0;
-	     i++) {
-		mocs_dbg(&gt_to_xe(gt)->drm, "LNCFCMOCS[%d] 0x%x 0x%x\n", i, XELP_LNCFCMOCS(i).addr,
-			 l3cc);
+	mocs_dbg(gt, "l3cc entries: %d\n", info->n_entries);
 
-		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
+	for (i = 0; i < (info->n_entries + 1) / 2; i++) {
+		l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
+				    get_entry_l3cc(info, 2 * i + 1));
+
+		mocs_dbg(gt, "LNCFCMOCS[%d] 0x%x 0x%x\n", i,
+			 XELP_LNCFCMOCS(i).addr, l3cc);
+
+		if (regs_are_mcr(gt))
 			xe_gt_mcr_multicast_write(gt, XEHP_LNCFCMOCS(i), l3cc);
 		else
 			xe_mmio_write32(gt, XELP_LNCFCMOCS(i), l3cc);
@@ -552,7 +567,10 @@ void xe_mocs_init(struct xe_gt *gt)
 	 * performed by the GuC.
 	 */
 	flags = get_mocs_settings(gt_to_xe(gt), &table);
-	mocs_dbg(&gt_to_xe(gt)->drm, "flag:0x%x\n", flags);
+	mocs_dbg(gt, "flag:0x%x\n", flags);
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
 
 	if (flags & HAS_GLOBAL_MOCS)
 		__init_mocs_table(gt, &table);

@@ -300,7 +300,7 @@ int create_pagecache_thp_and_fd(const char *testfile, size_t fd_size, int *fd,
 		char **addr)
 {
 	size_t i;
-	int dummy;
+	int __attribute__((unused)) dummy = 0;
 
 	srand(time(NULL));
 

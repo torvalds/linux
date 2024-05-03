@@ -294,14 +294,25 @@ static int thread_with_stdio_fn(void *arg)
 	return 0;
 }
 
-int bch2_run_thread_with_stdio(struct thread_with_stdio *thr,
-			       const struct thread_with_stdio_ops *ops)
+void bch2_thread_with_stdio_init(struct thread_with_stdio *thr,
+				 const struct thread_with_stdio_ops *ops)
 {
 	stdio_buf_init(&thr->stdio.input);
 	stdio_buf_init(&thr->stdio.output);
 	thr->ops = ops;
+}
 
+int __bch2_run_thread_with_stdio(struct thread_with_stdio *thr)
+{
 	return bch2_run_thread_with_file(&thr->thr, &thread_with_stdio_fops, thread_with_stdio_fn);
+}
+
+int bch2_run_thread_with_stdio(struct thread_with_stdio *thr,
+			       const struct thread_with_stdio_ops *ops)
+{
+	bch2_thread_with_stdio_init(thr, ops);
+
+	return __bch2_run_thread_with_stdio(thr);
 }
 
 int bch2_run_thread_with_stdout(struct thread_with_stdio *thr,

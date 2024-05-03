@@ -620,6 +620,20 @@ static int gfxhub_v1_2_get_xgmi_info(struct amdgpu_device *adev)
 	return 0;
 }
 
+static bool gfxhub_v1_2_query_utcl2_poison_status(struct amdgpu_device *adev,
+				int xcc_id)
+{
+	u32 fed, status;
+
+	status = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regVM_L2_PROTECTION_FAULT_STATUS);
+	fed = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, FED);
+	/* reset page fault status */
+	WREG32_P(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id),
+			regVM_L2_PROTECTION_FAULT_STATUS), 1, ~1);
+
+	return fed;
+}
+
 const struct amdgpu_gfxhub_funcs gfxhub_v1_2_funcs = {
 	.get_mc_fb_offset = gfxhub_v1_2_get_mc_fb_offset,
 	.setup_vm_pt_regs = gfxhub_v1_2_setup_vm_pt_regs,
@@ -628,6 +642,7 @@ const struct amdgpu_gfxhub_funcs gfxhub_v1_2_funcs = {
 	.set_fault_enable_default = gfxhub_v1_2_set_fault_enable_default,
 	.init = gfxhub_v1_2_init,
 	.get_xgmi_info = gfxhub_v1_2_get_xgmi_info,
+	.query_utcl2_poison_status = gfxhub_v1_2_query_utcl2_poison_status,
 };
 
 static int gfxhub_v1_2_xcp_resume(void *handle, uint32_t inst_mask)

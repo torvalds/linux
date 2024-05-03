@@ -5,6 +5,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/seq_file.h>
 
 #include <drm/drm_blend.h>
 #include <drm/drm_modeset_helper.h>

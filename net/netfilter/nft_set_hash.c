@@ -199,7 +199,7 @@ static void nft_rhash_activate(const struct net *net, const struct nft_set *set,
 {
 	struct nft_rhash_elem *he = nft_elem_priv_cast(elem_priv);
 
-	nft_set_elem_change_active(net, set, &he->ext);
+	nft_clear(net, &he->ext);
 }
 
 static void nft_rhash_flush(const struct net *net,
@@ -285,8 +285,6 @@ static void nft_rhash_walk(const struct nft_ctx *ctx, struct nft_set *set,
 		}
 
 		if (iter->count < iter->skip)
-			goto cont;
-		if (!nft_set_elem_active(&he->ext, iter->genmask))
 			goto cont;
 
 		iter->err = iter->fn(ctx, set, iter, &he->priv);
@@ -599,7 +597,7 @@ static void nft_hash_activate(const struct net *net, const struct nft_set *set,
 {
 	struct nft_hash_elem *he = nft_elem_priv_cast(elem_priv);
 
-	nft_set_elem_change_active(net, set, &he->ext);
+	nft_clear(net, &he->ext);
 }
 
 static void nft_hash_flush(const struct net *net,
@@ -651,8 +649,6 @@ static void nft_hash_walk(const struct nft_ctx *ctx, struct nft_set *set,
 	for (i = 0; i < priv->buckets; i++) {
 		hlist_for_each_entry_rcu(he, &priv->table[i], node) {
 			if (iter->count < iter->skip)
-				goto cont;
-			if (!nft_set_elem_active(&he->ext, iter->genmask))
 				goto cont;
 
 			iter->err = iter->fn(ctx, set, iter, &he->priv);

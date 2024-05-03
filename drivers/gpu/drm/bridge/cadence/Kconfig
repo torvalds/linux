@@ -23,12 +23,12 @@ endif
 
 config DRM_CDNS_MHDP8546
 	tristate "Cadence DPI/DP bridge"
-	select DRM_DISPLAY_DP_HELPER
-	select DRM_DISPLAY_HDCP_HELPER
-	select DRM_DISPLAY_HELPER
+	depends on DRM_DISPLAY_DP_HELPER
+	depends on DRM_DISPLAY_HDCP_HELPER
+	depends on DRM_DISPLAY_HELPER
+	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_PANEL_BRIDGE
-	depends on OF
 	help
 	  Support Cadence DPI to DP bridge. This is an internal
 	  bridge and is meant to be directly embedded in a SoC.

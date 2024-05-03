@@ -747,10 +747,17 @@ bool amdgpu_amdkfd_is_fed(struct amdgpu_device *adev)
 	return amdgpu_ras_get_fed_status(adev);
 }
 
-void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev,
-	enum amdgpu_ras_block block, bool reset)
+void amdgpu_amdkfd_ras_pasid_poison_consumption_handler(struct amdgpu_device *adev,
+				enum amdgpu_ras_block block, uint16_t pasid,
+				pasid_notify pasid_fn, void *data, uint32_t reset)
 {
-	amdgpu_umc_poison_handler(adev, block, reset);
+	amdgpu_umc_pasid_poison_handler(adev, block, pasid, pasid_fn, data, reset);
+}
+
+void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev,
+	enum amdgpu_ras_block block, uint32_t reset)
+{
+	amdgpu_umc_pasid_poison_handler(adev, block, 0, NULL, NULL, reset);
 }
 
 int amdgpu_amdkfd_send_close_event_drain_irq(struct amdgpu_device *adev,
@@ -769,12 +776,20 @@ int amdgpu_amdkfd_send_close_event_drain_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev)
+bool amdgpu_amdkfd_ras_query_utcl2_poison_status(struct amdgpu_device *adev,
+			int hub_inst, int hub_type)
 {
-	if (adev->gfx.ras && adev->gfx.ras->query_utcl2_poison_status)
-		return adev->gfx.ras->query_utcl2_poison_status(adev);
-	else
-		return false;
+	if (!hub_type) {
+		if (adev->gfxhub.funcs->query_utcl2_poison_status)
+			return adev->gfxhub.funcs->query_utcl2_poison_status(adev, hub_inst);
+		else
+			return false;
+	} else {
+		if (adev->mmhub.funcs->query_utcl2_poison_status)
+			return adev->mmhub.funcs->query_utcl2_poison_status(adev, hub_inst);
+		else
+			return false;
+	}
 }
 
 int amdgpu_amdkfd_check_and_lock_kfd(struct amdgpu_device *adev)

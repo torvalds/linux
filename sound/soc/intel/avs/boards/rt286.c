@@ -247,4 +247,5 @@ static struct platform_driver avs_rt286_driver = {
 
 module_platform_driver(avs_rt286_driver);
 
+MODULE_DESCRIPTION("Intel rt286 machine driver");
 MODULE_LICENSE("GPL");

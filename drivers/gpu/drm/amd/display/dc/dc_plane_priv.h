@@ -30,5 +30,6 @@
 
 void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_state);
 void dc_plane_destruct(struct dc_plane_state *plane_state);
+uint8_t dc_plane_get_pipe_mask(struct dc_state *dc_state, const struct dc_plane_state *plane_state);
 
 #endif /* _DC_PLANE_PRIV_H_ */
