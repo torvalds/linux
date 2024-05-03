@@ -965,6 +965,14 @@ struct bdb_sdvo_lvds_dtd {
 } __packed;
 
 /*
+ * Block 24 - SDVO LVDS PnP ID
+ */
+
+struct bdb_sdvo_lvds_pnp_id {
+	struct bdb_edid_pnp_id pnp_id[4];
+} __packed;
+
+/*
  * Block 27 - eDP VBT Block
  */
 
