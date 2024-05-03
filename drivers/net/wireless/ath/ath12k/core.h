@@ -636,11 +636,17 @@ struct ath12k {
 struct ath12k_hw {
 	struct ieee80211_hw *hw;
 	struct ath12k_base *ab;
+
+	/* Protect the write operation of the hardware state ath12k_hw::state
+	 * between hardware start<=>reconfigure<=>stop transitions.
+	 */
+	struct mutex hw_mutex;
 	enum ath12k_hw_state state;
 	bool regd_updated;
 	bool use_6ghz_regd;
 	u8 num_radio;
 
+	/* Keep last */
 	struct ath12k radio[] __aligned(sizeof(void *));
 };
 

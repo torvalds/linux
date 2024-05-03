@@ -1048,6 +1048,8 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 		if (!ah || ah->state == ATH12K_HW_STATE_OFF)
 			continue;
 
+		mutex_lock(&ah->hw_mutex);
+
 		switch (ah->state) {
 		case ATH12K_HW_STATE_ON:
 			ah->state = ATH12K_HW_STATE_RESTARTING;
@@ -1078,6 +1080,8 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 				    "device is wedged, will not restart hw %d\n", i);
 			break;
 		}
+
+		mutex_unlock(&ah->hw_mutex);
 	}
 
 	complete(&ab->driver_recovery);
