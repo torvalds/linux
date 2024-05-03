@@ -179,6 +179,7 @@ enum bdb_block_id {
 	BDB_LFP_POWER			= 44,
 	BDB_EDP_BFI			= 45, /* 160+ */
 	BDB_CHROMATICITY		= 46, /* 169+ */
+	BDB_MIPI			= 50, /* 170-172 */
 	BDB_FIXED_SET_MODE		= 51, /* 172+ */
 	BDB_MIPI_CONFIG			= 52, /* 175+ */
 	BDB_MIPI_SEQUENCE		= 53, /* 177+ */
@@ -1386,6 +1387,52 @@ struct chromaticity {
 
 struct bdb_chromaticity {
 	struct chromaticity chromaticity[16];
+} __packed;
+
+/*
+ * Block 50 - MIPI Block
+ */
+
+struct mipi_data {
+	u16 panel_identifier;
+	u16 bridge_revision;
+
+	u32 dithering:1;
+	u32 pixel_format_18bpp:1;
+	u32 reserved1:1;
+	u32 dphy_params_valid:1;
+	u32 reserved2:28;
+
+	u16 port_info;
+
+	u16 reserved3:2;
+	u16 num_lanes:2;
+	u16 reserved4:12;
+
+	u16 virtual_channel_num:2;
+	u16 video_transfer_mode:2;
+	u16 reserved5:12;
+
+	u32 dsi_ddr_clock;
+	u32 renesas_bridge_ref_clock;
+	u16 power_conservation;
+
+	u32 prepare_count:5;
+	u32 reserved6:3;
+	u32 clk_zero_count:8;
+	u32 trail_count:5;
+	u32 reserved7:3;
+	u32 exit_zero_count:6;
+	u32 reserved8:2;
+
+	u32 high_low_switch_count;
+	u32 lp_byte_clock;
+	u32 clock_lane_switch_time_counter;
+	u32 panel_color_depth;
+} __packed;
+
+struct bdb_mipi {
+	struct mipi_data mipi[16];
 } __packed;
 
 /*
