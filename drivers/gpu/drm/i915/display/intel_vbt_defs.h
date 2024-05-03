@@ -156,6 +156,7 @@ enum bdb_block_id {
 	BDB_EXT_TABLE_PTRS		= 14, /* VBIOS only */
 	BDB_DOT_CLOCK_OVERRIDE		= 15,
 	BDB_DISPLAY_SELECT		= 16,
+	BDB_SV_TEST_FUNCTIONS		= 17,
 	BDB_DRIVER_ROTATION		= 18,
 	BDB_DISPLAY_REMOVE		= 19,
 	BDB_OEM_CUSTOM			= 20,
@@ -834,6 +835,14 @@ struct bdb_dot_clock_override {
 	u8 row_size; /* 8 == gen2, 9 == gen3+ */
 	u8 num_rows;
 	struct dot_clock_override_entry_gen3 table[]; /* or _gen2 */
+} __packed;
+
+/*
+ * Block 17 - SV Test Functions
+ */
+
+struct bdb_sv_test_functions {
+	u8 sv_bits[8];
 } __packed;
 
 /*
