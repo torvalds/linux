@@ -607,28 +607,30 @@ pci_fastcom335_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	writeb(32, p + UART_EXAR_TXTRG);
 	writeb(32, p + UART_EXAR_RXTRG);
 
+	/* Skip the initial (per device) setup */
+	if (idx)
+		return 0;
+
 	/*
 	 * Setup Multipurpose Input/Output pins.
 	 */
-	if (idx == 0) {
-		switch (pcidev->device) {
-		case PCI_DEVICE_ID_COMMTECH_4222PCI335:
-		case PCI_DEVICE_ID_COMMTECH_4224PCI335:
-			writeb(0x78, p + UART_EXAR_MPIOLVL_7_0);
-			writeb(0x00, p + UART_EXAR_MPIOINV_7_0);
-			writeb(0x00, p + UART_EXAR_MPIOSEL_7_0);
-			break;
-		case PCI_DEVICE_ID_COMMTECH_2324PCI335:
-		case PCI_DEVICE_ID_COMMTECH_2328PCI335:
-			writeb(0x00, p + UART_EXAR_MPIOLVL_7_0);
-			writeb(0xc0, p + UART_EXAR_MPIOINV_7_0);
-			writeb(0xc0, p + UART_EXAR_MPIOSEL_7_0);
-			break;
-		}
-		writeb(0x00, p + UART_EXAR_MPIOINT_7_0);
-		writeb(0x00, p + UART_EXAR_MPIO3T_7_0);
-		writeb(0x00, p + UART_EXAR_MPIOOD_7_0);
+	switch (pcidev->device) {
+	case PCI_DEVICE_ID_COMMTECH_4222PCI335:
+	case PCI_DEVICE_ID_COMMTECH_4224PCI335:
+		writeb(0x78, p + UART_EXAR_MPIOLVL_7_0);
+		writeb(0x00, p + UART_EXAR_MPIOINV_7_0);
+		writeb(0x00, p + UART_EXAR_MPIOSEL_7_0);
+		break;
+	case PCI_DEVICE_ID_COMMTECH_2324PCI335:
+	case PCI_DEVICE_ID_COMMTECH_2328PCI335:
+		writeb(0x00, p + UART_EXAR_MPIOLVL_7_0);
+		writeb(0xc0, p + UART_EXAR_MPIOINV_7_0);
+		writeb(0xc0, p + UART_EXAR_MPIOSEL_7_0);
+		break;
 	}
+	writeb(0x00, p + UART_EXAR_MPIOINT_7_0);
+	writeb(0x00, p + UART_EXAR_MPIO3T_7_0);
+	writeb(0x00, p + UART_EXAR_MPIOOD_7_0);
 
 	return 0;
 }
@@ -853,21 +855,19 @@ static enum cti_port_type cti_get_port_type_xr17v35x(struct exar8250 *priv,
 	port_flags = exar_ee_read(priv, offset);
 
 	port_type = FIELD_GET(CTI_EE_MASK_PORT_FLAGS_TYPE, port_flags);
-	if (!CTI_PORT_TYPE_VALID(port_type)) {
-		/*
-		 * If the port type is missing the card assume it is a
-		 * RS232/RS422/RS485 card to be safe.
-		 *
-		 * There is one known board (BEG013) that only has
-		 * 3 of 4 port types written to the EEPROM so this
-		 * acts as a work around.
-		 */
-		dev_warn(&pcidev->dev,
-			"failed to get port %d type from EEPROM\n", port_num);
-		port_type = CTI_PORT_TYPE_RS232_422_485_HW;
-	}
+	if (CTI_PORT_TYPE_VALID(port_type))
+		return port_type;
 
-	return port_type;
+	/*
+	 * If the port type is missing the card assume it is a
+	 * RS232/RS422/RS485 card to be safe.
+	 *
+	 * There is one known board (BEG013) that only has 3 of 4 port types
+	 * written to the EEPROM so this acts as a work around.
+	 */
+	dev_warn(&pcidev->dev, "failed to get port %d type from EEPROM\n", port_num);
+
+	return CTI_PORT_TYPE_RS232_422_485_HW;
 }
 
 static int cti_rs485_config_mpio_tristate(struct uart_port *port,
@@ -1190,11 +1190,10 @@ static void setup_gpio(struct pci_dev *pcidev, u8 __iomem *p)
 	 * devices will export them as GPIOs, so we pre-configure them safely
 	 * as inputs.
 	 */
-
 	u8 dir = 0x00;
 
 	if  ((pcidev->vendor == PCI_VENDOR_ID_EXAR) &&
-		(pcidev->subsystem_vendor != PCI_VENDOR_ID_SEALEVEL)) {
+	     (pcidev->subsystem_vendor != PCI_VENDOR_ID_SEALEVEL)) {
 		// Configure GPIO as inputs for Commtech adapters
 		dir = 0xff;
 	} else {
@@ -1284,27 +1283,28 @@ static int sealevel_rs485_config(struct uart_port *port, struct ktermios *termio
 	if (ret)
 		return ret;
 
-	if (rs485->flags & SER_RS485_ENABLED) {
-		old_lcr = readb(p + UART_LCR);
+	if (!(rs485->flags & SER_RS485_ENABLED))
+		return 0;
 
-		/* Set EFR[4]=1 to enable enhanced feature registers */
-		efr = readb(p + UART_XR_EFR);
-		efr |= UART_EFR_ECB;
-		writeb(efr, p + UART_XR_EFR);
+	old_lcr = readb(p + UART_LCR);
 
-		/* Set MCR to use DTR as Auto-RS485 Enable signal */
-		writeb(UART_MCR_OUT1, p + UART_MCR);
+	/* Set EFR[4]=1 to enable enhanced feature registers */
+	efr = readb(p + UART_XR_EFR);
+	efr |= UART_EFR_ECB;
+	writeb(efr, p + UART_XR_EFR);
 
-		/* Set LCR[7]=1 to enable access to DLD register */
-		writeb(old_lcr | UART_LCR_DLAB, p + UART_LCR);
+	/* Set MCR to use DTR as Auto-RS485 Enable signal */
+	writeb(UART_MCR_OUT1, p + UART_MCR);
 
-		/* Set DLD[7]=1 for inverted RS485 Enable logic */
-		dld = readb(p + UART_EXAR_DLD);
-		dld |= UART_EXAR_DLD_485_POLARITY;
-		writeb(dld, p + UART_EXAR_DLD);
+	/* Set LCR[7]=1 to enable access to DLD register */
+	writeb(old_lcr | UART_LCR_DLAB, p + UART_LCR);
 
-		writeb(old_lcr, p + UART_LCR);
-	}
+	/* Set DLD[7]=1 for inverted RS485 Enable logic */
+	dld = readb(p + UART_EXAR_DLD);
+	dld |= UART_EXAR_DLD_485_POLARITY;
+	writeb(dld, p + UART_EXAR_DLD);
+
+	writeb(old_lcr, p + UART_LCR);
 
 	return 0;
 }
