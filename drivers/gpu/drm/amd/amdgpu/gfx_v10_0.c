@@ -373,7 +373,12 @@ static const struct amdgpu_hwip_reg_entry gc_reg_list_10_1[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME2_HEADER_DUMP),
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
-	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MES_HEADER_DUMP)
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MES_HEADER_DUMP),
+	/* SE status registers */
+	SOC15_REG_ENTRY_STR(GC, 0, mmGRBM_STATUS_SE0),
+	SOC15_REG_ENTRY_STR(GC, 0, mmGRBM_STATUS_SE1),
+	SOC15_REG_ENTRY_STR(GC, 0, mmGRBM_STATUS_SE2),
+	SOC15_REG_ENTRY_STR(GC, 0, mmGRBM_STATUS_SE3)
 };
 
 static const struct soc15_reg_golden golden_settings_gc_10_1[] = {
