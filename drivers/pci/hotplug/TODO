@@ -6,6 +6,8 @@ cpcihp:
   ->set_power callbacks in struct cpci_hp_controller_ops.  Why were they
   introduced?  Can they be removed from the struct?
 
+* Returned code from pci_hp_add_bridge() is not checked.
+
 cpqphp:
 
 * The driver spawns a kthread cpqhp_event_thread() which is woken by the
@@ -15,6 +17,8 @@ cpqphp:
 
 * A large portion of cpqphp_ctrl.c and cpqphp_pci.c concerns resource
   management.  Doesn't this duplicate functionality in the core?
+
+* Returned code from pci_hp_add_bridge() is not checked.
 
 ibmphp:
 
@@ -42,6 +46,8 @@ ibmphp:
 
 * A large portion of ibmphp_res.c and ibmphp_pci.c concerns resource
   management.  Doesn't this duplicate functionality in the core?
+
+* Returned code from pci_hp_add_bridge() is not checked.
 
 sgi_hotplug:
 
