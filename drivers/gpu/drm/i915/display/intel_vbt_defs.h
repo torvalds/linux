@@ -678,6 +678,29 @@ struct bdb_psr {
 } __packed;
 
 /*
+ * Block 10 - Mode Removal Table
+ */
+
+struct mode_removal_table {
+	u16 x_res;
+	u16 y_res;
+	u8 bpp;
+	u16 refresh_rate;
+	u8 removal_flags;
+	u16 panel_flags;
+} __packed;
+
+struct bdb_mode_removal {
+	u8 row_size; /* 8 or 10 bytes */
+	/*
+	 * VBT spec says this is always 20 entries,
+	 * but ALM seems to have only 15 entries.
+	 */
+	struct mode_removal_table modes[];
+	/* u16 terminator; 0x0000 */
+} __packed;
+
+/*
  * Block 12 - Driver Features Data Block
  */
 
