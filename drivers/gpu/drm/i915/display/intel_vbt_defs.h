@@ -184,6 +184,7 @@ enum bdb_block_id {
 	BDB_MIPI_SEQUENCE		= 53, /* 177+ */
 	BDB_RGB_PALETTE			= 54, /* 180+ */
 	BDB_COMPRESSION_PARAMETERS	= 56, /* 213+ */
+	BDB_VSWING_PREEMPH		= 57, /* 218+ */
 	BDB_GENERIC_DTD			= 58, /* 229+ */
 	BDB_SKIP			= 254, /* VBIOS only */
 };
@@ -1479,6 +1480,16 @@ struct dsc_compression_parameters_entry {
 struct bdb_compression_parameters {
 	u16 entry_size;
 	struct dsc_compression_parameters_entry data[16];
+} __packed;
+
+/*
+ * Block 57 -  Vswing PreEmphasis Table
+ */
+
+struct bdb_vswing_preemph {
+	u8 num_tables;
+	u8 num_columns;
+	u32 tables[];
 } __packed;
 
 /*
