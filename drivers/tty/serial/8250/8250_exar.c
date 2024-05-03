@@ -889,11 +889,8 @@ static int cti_port_setup_common(struct exar8250 *priv,
 	port->port.uartclk = priv->osc_freq;
 
 	ret = serial8250_pci_setup_port(pcidev, port, 0, offset, 0);
-	if (ret) {
-		dev_err(&pcidev->dev,
-			"failed to setup pci for port %d err: %d\n", idx, ret);
+	if (ret)
 		return ret;
-	}
 
 	port->port.private_data = (void *)priv;
 	port->port.pm = exar_pm;
@@ -1522,11 +1519,8 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	maxnr = pci_resource_len(pcidev, bar) >> (board->reg_shift + 3);
 
 	nr_ports = exar_get_nr_ports(board, pcidev);
-	if (nr_ports == 0) {
-		dev_err_probe(&pcidev->dev, -ENODEV,
-				"failed to get number of ports\n");
-		return -ENODEV;
-	}
+	if (nr_ports == 0)
+		return dev_err_probe(&pcidev->dev, -ENODEV, "failed to get number of ports\n");
 
 	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, line, nr_ports), GFP_KERNEL);
 	if (!priv)
@@ -1559,7 +1553,7 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
 		rc = board->setup(priv, pcidev, &uart, i);
 		if (rc) {
-			dev_err(&pcidev->dev, "Failed to setup port %u\n", i);
+			dev_err_probe(&pcidev->dev, rc, "Failed to setup port %u\n", i);
 			break;
 		}
 
@@ -1568,10 +1562,9 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 		priv->line[i] = serial8250_register_8250_port(&uart);
 		if (priv->line[i] < 0) {
-			dev_err(&pcidev->dev,
-				"Couldn't register serial port %lx, irq %d, type %d, error %d\n",
-				uart.port.iobase, uart.port.irq,
-				uart.port.iotype, priv->line[i]);
+			dev_err_probe(&pcidev->dev, priv->line[i],
+				"Couldn't register serial port %lx, type %d, irq %d\n",
+				uart.port.iobase, uart.port.iotype, uart.port.irq);
 			break;
 		}
 	}
