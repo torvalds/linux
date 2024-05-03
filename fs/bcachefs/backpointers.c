@@ -54,7 +54,7 @@ int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
 	int ret = 0;
 
 	bkey_fsck_err_on((bp.v->bucket_offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT) >= ca->mi.bucket_size ||
-			 !bpos_eq(bp.k->p, bucket_pos_to_bp(c, bucket, bp.v->bucket_offset)),
+			 !bpos_eq(bp.k->p, bucket_pos_to_bp_noerror(ca, bucket, bp.v->bucket_offset)),
 			 c, err,
 			 backpointer_bucket_offset_wrong,
 			 "backpointer bucket_offset wrong");
