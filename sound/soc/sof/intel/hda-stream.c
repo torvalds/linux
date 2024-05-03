@@ -24,6 +24,10 @@
 #include "../ipc4-priv.h"
 #include "hda.h"
 
+int sof_hda_position_quirk = SOF_HDA_POSITION_QUIRK_USE_DPIB_REGISTERS;
+module_param_named(position_quirk, sof_hda_position_quirk, int, 0444);
+MODULE_PARM_DESC(position_quirk, "SOF HDaudio position quirk");
+
 #define HDA_LTRP_GB_VALUE_US	95
 
 static inline const char *hda_hstream_direction_str(struct hdac_stream *hstream)

@@ -15,10 +15,12 @@
  * Hardware interface for generic Intel audio DSP HDA IP
  */
 
+#include <sound/hda_register.h>
 #include <sound/sof/ipc4/header.h>
 #include <trace/events/sof_intel.h>
 #include "../ops.h"
 #include "hda.h"
+#include "telemetry.h"
 
 EXPORT_TRACEPOINT_SYMBOL(sof_intel_ipc_firmware_initiated);
 EXPORT_TRACEPOINT_SYMBOL(sof_intel_ipc_firmware_response);
@@ -450,3 +452,100 @@ int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+
+void hda_ipc4_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
+{
+	char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
+
+	/* print ROM/FW status */
+	hda_dsp_get_state(sdev, level);
+
+	if (flags & SOF_DBG_DUMP_REGS)
+		sof_ipc4_intel_dump_telemetry_state(sdev, flags);
+	else
+		hda_dsp_dump_ext_rom_status(sdev, level, flags);
+}
+EXPORT_SYMBOL_NS(hda_ipc4_dsp_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
+
+bool hda_check_ipc_irq(struct snd_sof_dev *sdev)
+{
+	const struct sof_intel_dsp_desc *chip;
+
+	chip = get_chip_info(sdev->pdata);
+	if (chip && chip->check_ipc_irq)
+		return chip->check_ipc_irq(sdev);
+
+	return false;
+}
+
+void hda_ipc_irq_dump(struct snd_sof_dev *sdev)
+{
+	u32 adspis;
+	u32 intsts;
+	u32 intctl;
+	u32 ppsts;
+	u8 rirbsts;
+
+	/* read key IRQ stats and config registers */
+	adspis = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIS);
+	intsts = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS);
+	intctl = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL);
+	ppsts = snd_sof_dsp_read(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPSTS);
+	rirbsts = snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, AZX_REG_RIRBSTS);
+
+	dev_err(sdev->dev, "hda irq intsts 0x%8.8x intlctl 0x%8.8x rirb %2.2x\n",
+		intsts, intctl, rirbsts);
+	dev_err(sdev->dev, "dsp irq ppsts 0x%8.8x adspis 0x%8.8x\n", ppsts, adspis);
+}
+EXPORT_SYMBOL_NS(hda_ipc_irq_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
+
+void hda_ipc_dump(struct snd_sof_dev *sdev)
+{
+	u32 hipcie;
+	u32 hipct;
+	u32 hipcctl;
+
+	hda_ipc_irq_dump(sdev);
+
+	/* read IPC status */
+	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE);
+	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL);
+
+	/* dump the IPC regs */
+	/* TODO: parse the raw msg */
+	dev_err(sdev->dev, "host status 0x%8.8x dsp status 0x%8.8x mask 0x%8.8x\n",
+		hipcie, hipct, hipcctl);
+}
+EXPORT_SYMBOL_NS(hda_ipc_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
+
+void hda_ipc4_dump(struct snd_sof_dev *sdev)
+{
+	u32 hipci, hipcie, hipct, hipcte, hipcctl;
+
+	hda_ipc_irq_dump(sdev);
+
+	hipci = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCI);
+	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE);
+	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
+	hipcte = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCTE);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL);
+
+	/* dump the IPC regs */
+	/* TODO: parse the raw msg */
+	dev_err(sdev->dev, "Host IPC initiator: %#x|%#x, target: %#x|%#x, ctl: %#x\n",
+		hipci, hipcie, hipct, hipcte, hipcctl);
+}
+EXPORT_SYMBOL_NS(hda_ipc4_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
+
+bool hda_ipc4_tx_is_busy(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+	u32 val;
+
+	val = snd_sof_dsp_read(sdev, HDA_DSP_BAR, chip->ipc_req);
+
+	return !!(val & chip->ipc_req_mask);
+}
+EXPORT_SYMBOL_NS(hda_ipc4_tx_is_busy, SND_SOC_SOF_INTEL_HDA_COMMON);
