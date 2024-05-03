@@ -285,24 +285,33 @@ static void snd_emu1010_fpga_write_locked(struct snd_emu10k1 *emu, u32 reg, u32 
 	outw(value, emu->port + A_GPIO);
 	udelay(10);
 	outw(value | 0x80 , emu->port + A_GPIO);  /* High bit clocks the value into the fpga. */
+	udelay(10);
 }
 
 void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	if (snd_BUG_ON(!mutex_is_locked(&emu->emu1010.lock)))
+		return;
 	snd_emu1010_fpga_write_locked(emu, reg, value);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-static void snd_emu1010_fpga_read_locked(struct snd_emu10k1 *emu, u32 reg, u32 *value)
+void snd_emu1010_fpga_write_lock(struct snd_emu10k1 *emu, u32 reg, u32 value)
+{
+	snd_emu1010_fpga_lock(emu);
+	snd_emu1010_fpga_write_locked(emu, reg, value);
+	snd_emu1010_fpga_unlock(emu);
+}
+
+void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
 {
 	// The higest input pin is used as the designated interrupt trigger,
 	// so it needs to be masked out.
 	// But note that any other input pin change will also cause an IRQ,
 	// so using this function often causes an IRQ as a side effect.
 	u32 mask = emu->card_capabilities->ca0108_chip ? 0x1f : 0x7f;
+
+	if (snd_BUG_ON(!mutex_is_locked(&emu->emu1010.lock)))
+		return;
 	if (snd_BUG_ON(reg > 0x3f))
 		return;
 	reg += 0x40; /* 0x40 upwards are registers. */
@@ -313,47 +322,31 @@ static void snd_emu1010_fpga_read_locked(struct snd_emu10k1 *emu, u32 reg, u32 *
 	*value = ((inw(emu->port + A_GPIO) >> 8) & mask);
 }
 
-void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&emu->emu_lock, flags);
-	snd_emu1010_fpga_read_locked(emu, reg, value);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
-}
-
 /* Each Destination has one and only one Source,
  * but one Source can feed any number of Destinations simultaneously.
  */
 void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src)
 {
-	unsigned long flags;
-
 	if (snd_BUG_ON(dst & ~0x71f))
 		return;
 	if (snd_BUG_ON(src & ~0x71f))
 		return;
-	spin_lock_irqsave(&emu->emu_lock, flags);
-	snd_emu1010_fpga_write_locked(emu, EMU_HANA_DESTHI, dst >> 8);
-	snd_emu1010_fpga_write_locked(emu, EMU_HANA_DESTLO, dst & 0x1f);
-	snd_emu1010_fpga_write_locked(emu, EMU_HANA_SRCHI, src >> 8);
-	snd_emu1010_fpga_write_locked(emu, EMU_HANA_SRCLO, src & 0x1f);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DESTHI, dst >> 8);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DESTLO, dst & 0x1f);
+	snd_emu1010_fpga_write(emu, EMU_HANA_SRCHI, src >> 8);
+	snd_emu1010_fpga_write(emu, EMU_HANA_SRCLO, src & 0x1f);
 }
 
 u32 snd_emu1010_fpga_link_dst_src_read(struct snd_emu10k1 *emu, u32 dst)
 {
-	unsigned long flags;
 	u32 hi, lo;
 
 	if (snd_BUG_ON(dst & ~0x71f))
 		return 0;
-	spin_lock_irqsave(&emu->emu_lock, flags);
-	snd_emu1010_fpga_write_locked(emu, EMU_HANA_DESTHI, dst >> 8);
-	snd_emu1010_fpga_write_locked(emu, EMU_HANA_DESTLO, dst & 0x1f);
-	snd_emu1010_fpga_read_locked(emu, EMU_HANA_SRCHI, &hi);
-	snd_emu1010_fpga_read_locked(emu, EMU_HANA_SRCLO, &lo);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DESTHI, dst >> 8);
+	snd_emu1010_fpga_write(emu, EMU_HANA_DESTLO, dst & 0x1f);
+	snd_emu1010_fpga_read(emu, EMU_HANA_SRCHI, &hi);
+	snd_emu1010_fpga_read(emu, EMU_HANA_SRCLO, &lo);
 	return (hi << 8) | lo;
 }
 
