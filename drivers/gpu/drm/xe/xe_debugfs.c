@@ -153,6 +153,7 @@ static ssize_t wedged_mode_set(struct file *f, const char __user *ubuf,
 
 	xe->wedged.mode = wedged_mode;
 
+	xe_pm_runtime_get(xe);
 	for_each_gt(gt, xe, id) {
 		ret = xe_guc_ads_scheduler_policy_toggle_reset(&gt->uc.guc.ads);
 		if (ret) {
@@ -160,6 +161,7 @@ static ssize_t wedged_mode_set(struct file *f, const char __user *ubuf,
 			return -EIO;
 		}
 	}
+	xe_pm_runtime_put(xe);
 
 	return size;
 }
