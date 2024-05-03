@@ -1899,6 +1899,11 @@ static int bq256xx_restore(struct device *dev)
 	if (client->irq > 0) {
 		disable_irq_nosync(client->irq);
 		devm_free_irq(dev, client->irq, bq);
+		/*
+		 * Set extcon state depending upon USB connect/disconnect state
+		 * on hibernation exit
+		 */
+		bq256xx_irq_handler_thread(client->irq, bq);
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
 						bq256xx_irq_handler_thread,
 						IRQF_TRIGGER_FALLING |
