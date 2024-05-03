@@ -1477,13 +1477,15 @@ static int rtnl_fill_link_ifmap(struct sk_buff *skb,
 static u32 rtnl_xdp_prog_skb(struct net_device *dev)
 {
 	const struct bpf_prog *generic_xdp_prog;
+	u32 res = 0;
 
-	ASSERT_RTNL();
+	rcu_read_lock();
+	generic_xdp_prog = rcu_dereference(dev->xdp_prog);
+	if (generic_xdp_prog)
+		res = generic_xdp_prog->aux->id;
+	rcu_read_unlock();
 
-	generic_xdp_prog = rtnl_dereference(dev->xdp_prog);
-	if (!generic_xdp_prog)
-		return 0;
-	return generic_xdp_prog->aux->id;
+	return res;
 }
 
 static u32 rtnl_xdp_prog_drv(struct net_device *dev)
