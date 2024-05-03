@@ -131,7 +131,7 @@ static const struct of_device_id cpu_opp_match_list[] = {
 static bool dt_has_supported_hw(void)
 {
 	bool has_opp_supported_hw = false;
-	struct device_node *np, *opp;
+	struct device_node *np;
 	struct device *cpu_dev;
 
 	cpu_dev = get_cpu_device(0);
@@ -142,7 +142,7 @@ static bool dt_has_supported_hw(void)
 	if (!np)
 		return false;
 
-	for_each_child_of_node(np, opp) {
+	for_each_child_of_node_scoped(np, opp) {
 		if (of_find_property(opp, "opp-supported-hw", NULL)) {
 			has_opp_supported_hw = true;
 			break;
