@@ -902,7 +902,8 @@ out:
 		bch2_journal_keys_put_initial(c);
 		bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	}
-	kfree(clean);
+	if (!IS_ERR(clean))
+		kfree(clean);
 
 	if (!ret &&
 	    test_bit(BCH_FS_need_delete_dead_snapshots, &c->flags) &&
