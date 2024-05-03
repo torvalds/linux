@@ -673,26 +673,10 @@ static int ltk050h3146w_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static void ltk050h3146w_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct ltk050h3146w *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = drm_panel_unprepare(&ctx->panel);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to unprepare panel: %d\n", ret);
-
-	ret = drm_panel_disable(&ctx->panel);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to disable panel: %d\n", ret);
-}
-
 static void ltk050h3146w_remove(struct mipi_dsi_device *dsi)
 {
 	struct ltk050h3146w *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
-
-	ltk050h3146w_shutdown(dsi);
 
 	ret = mipi_dsi_detach(dsi);
 	if (ret < 0)
@@ -725,7 +709,6 @@ static struct mipi_dsi_driver ltk050h3146w_driver = {
 	},
 	.probe	= ltk050h3146w_probe,
 	.remove = ltk050h3146w_remove,
-	.shutdown = ltk050h3146w_shutdown,
 };
 module_mipi_dsi_driver(ltk050h3146w_driver);
 
