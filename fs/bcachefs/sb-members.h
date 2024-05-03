@@ -285,6 +285,24 @@ static inline struct bch_dev *bch2_dev_iterate(struct bch_fs *c, struct bch_dev 
 	return bch2_dev_tryget(c, dev_idx);
 }
 
+static inline struct bch_dev *bch2_dev_get_ioref2(struct bch_fs *c, unsigned dev, int rw)
+{
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_rcu(c, dev);
+	if (ca && !percpu_ref_tryget(&ca->io_ref))
+		ca = NULL;
+	rcu_read_unlock();
+
+	if (ca &&
+	    (ca->mi.state == BCH_MEMBER_STATE_rw ||
+	    (ca->mi.state == BCH_MEMBER_STATE_ro && rw == READ)))
+		return ca;
+
+	if (ca)
+		percpu_ref_put(&ca->io_ref);
+	return NULL;
+}
+
 /* XXX kill, move to struct bch_fs */
 static inline struct bch_devs_mask bch2_online_devs(struct bch_fs *c)
 {

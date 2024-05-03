@@ -1657,9 +1657,8 @@ static void discard_buckets_next_dev(struct bch_fs *c, struct discard_buckets_st
 	    bch2_dev_usage_read(s->ca).d[BCH_DATA_free].buckets)
 		bch2_journal_flush_async(&c->journal, NULL);
 
-	bch2_dev_put(s->ca);
-	if (ca)
-		bch2_dev_get(ca);
+	if (s->ca)
+		percpu_ref_put(&s->ca->io_ref);
 	s->ca = ca;
 	s->need_journal_commit_this_dev = 0;
 }
@@ -1673,15 +1672,15 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	struct bpos pos = need_discard_iter->pos;
 	struct btree_iter iter = { NULL };
 	struct bkey_s_c k;
-	struct bch_dev *ca;
 	struct bkey_i_alloc_v4 *a;
 	struct printbuf buf = PRINTBUF;
 	bool discard_locked = false;
 	int ret = 0;
 
-	ca = bch2_dev_bkey_exists(c, pos.inode);
-
-	if (!percpu_ref_tryget(&ca->io_ref)) {
+	struct bch_dev *ca = s->ca && s->ca->dev_idx == pos.inode
+		? s->ca
+		: bch2_dev_get_ioref2(c, pos.inode, WRITE);
+	if (!ca) {
 		bch2_btree_iter_set_pos(need_discard_iter, POS(pos.inode + 1, 0));
 		return 0;
 	}
@@ -1787,7 +1786,6 @@ out:
 		discard_in_flight_remove(c, iter.pos);
 	s->seen++;
 	bch2_trans_iter_exit(trans, &iter);
-	percpu_ref_put(&ca->io_ref);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1862,9 +1860,8 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 			if (i->snapshot)
 				continue;
 
-			ca = bch2_dev_bkey_exists(c, i->inode);
-
-			if (!percpu_ref_tryget(&ca->io_ref)) {
+			ca = bch2_dev_get_ioref2(c, i->inode, WRITE);
+			if (!ca) {
 				darray_remove_item(&c->discard_buckets_in_flight, i);
 				continue;
 			}
