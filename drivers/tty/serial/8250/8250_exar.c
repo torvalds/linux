@@ -1162,12 +1162,12 @@ static int cti_board_init_fpga(struct exar8250 *priv, struct pci_dev *pcidev)
 	// Enable external interrupts in special cfg space register
 	ret = pci_read_config_word(pcidev, CTI_FPGA_CFG_INT_EN_REG, &cfg_val);
 	if (ret)
-		return ret;
+		return pcibios_err_to_errno(ret);
 
 	cfg_val |= CTI_FPGA_CFG_INT_EN_EXT_BIT;
 	ret = pci_write_config_word(pcidev, CTI_FPGA_CFG_INT_EN_REG, cfg_val);
 	if (ret)
-		return ret;
+		return pcibios_err_to_errno(ret);
 
 	// RS485 gate needs to be enabled; otherwise RTS/CTS will not work
 	exar_write_reg(priv, CTI_FPGA_RS485_IO_REG, 0x01);
