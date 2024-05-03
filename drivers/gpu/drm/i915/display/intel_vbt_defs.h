@@ -572,6 +572,15 @@ struct bdb_display_toggle {
 } __packed;
 
 /*
+ * Block 4 - Mode Support List
+ */
+
+struct bdb_mode_support_list {
+	u8 intel_mode_number[0];
+	u16 mode_list_length;
+} __packed;
+
+/*
  * Block 9 - SRD Feature Block
  */
 
