@@ -20,6 +20,7 @@
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
+#include "xe_mocs.h"
 #include "xe_pat.h"
 #include "xe_pm.h"
 #include "xe_reg_sr.h"
@@ -202,6 +203,15 @@ static int pat(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
+static int mocs(struct xe_gt *gt, struct drm_printer *p)
+{
+	xe_pm_runtime_get(gt_to_xe(gt));
+	xe_mocs_dump(gt, p);
+	xe_pm_runtime_put(gt_to_xe(gt));
+
+	return 0;
+}
+
 static int rcs_default_lrc(struct xe_gt *gt, struct drm_printer *p)
 {
 	xe_pm_runtime_get(gt_to_xe(gt));
@@ -257,6 +267,7 @@ static const struct drm_info_list debugfs_list[] = {
 	{"register-save-restore", .show = xe_gt_debugfs_simple_show, .data = register_save_restore},
 	{"workarounds", .show = xe_gt_debugfs_simple_show, .data = workarounds},
 	{"pat", .show = xe_gt_debugfs_simple_show, .data = pat},
+	{"mocs", .show = xe_gt_debugfs_simple_show, .data = mocs},
 	{"default_lrc_rcs", .show = xe_gt_debugfs_simple_show, .data = rcs_default_lrc},
 	{"default_lrc_ccs", .show = xe_gt_debugfs_simple_show, .data = ccs_default_lrc},
 	{"default_lrc_bcs", .show = xe_gt_debugfs_simple_show, .data = bcs_default_lrc},

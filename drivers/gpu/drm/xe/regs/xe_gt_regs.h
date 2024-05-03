@@ -59,6 +59,27 @@
 
 #define XELP_GLOBAL_MOCS(i)			XE_REG(0x4000 + (i) * 4)
 #define XEHP_GLOBAL_MOCS(i)			XE_REG_MCR(0x4000 + (i) * 4)
+#define   LE_SSE_MASK				REG_GENMASK(18, 17)
+#define   LE_SSE(value)				REG_FIELD_PREP(LE_SSE_MASK, value)
+#define   LE_COS_MASK				REG_GENMASK(16, 15)
+#define   LE_COS(value)				REG_FIELD_PREP(LE_COS_MASK)
+#define   LE_SCF_MASK				REG_BIT(14)
+#define   LE_SCF(value)				REG_FIELD_PREP(LE_SCF_MASK, value)
+#define   LE_PFM_MASK				REG_GENMASK(13, 11)
+#define   LE_PFM(value)				REG_FIELD_PREP(LE_PFM_MASK, value)
+#define   LE_SCC_MASK				REG_GENMASK(10, 8)
+#define   LE_SCC(value)				REG_FIELD_PREP(LE_SCC_MASK, value)
+#define   LE_RSC_MASK				REG_BIT(7)
+#define   LE_RSC(value)				REG_FIELD_PREP(LE_RSC_MASK, value)
+#define   LE_AOM_MASK				REG_BIT(6)
+#define   LE_AOM(value)				REG_FIELD_PREP(LE_AOM_MASK, value)
+#define   LE_LRUM_MASK				REG_GENMASK(5, 4)
+#define   LE_LRUM(value)			REG_FIELD_PREP(LE_LRUM_MASK, value)
+#define   LE_TGT_CACHE_MASK			REG_GENMASK(3, 2)
+#define   LE_TGT_CACHE(value)			REG_FIELD_PREP(LE_TGT_CACHE_MASK, value)
+#define   LE_CACHEABILITY_MASK			REG_GENMASK(1, 0)
+#define   LE_CACHEABILITY(value)		REG_FIELD_PREP(LE_CACHEABILITY_MASK, value)
+
 #define CCS_AUX_INV				XE_REG(0x4208)
 
 #define VD0_AUX_INV				XE_REG(0x4218)
@@ -314,9 +335,24 @@
 #define   XEHPC_OVRLSCCC			REG_BIT(0)
 
 /* L3 Cache Control */
+#define LNCFCMOCS_REG_COUNT			32
 #define XELP_LNCFCMOCS(i)			XE_REG(0xb020 + (i) * 4)
 #define XEHP_LNCFCMOCS(i)			XE_REG_MCR(0xb020 + (i) * 4)
-#define LNCFCMOCS_REG_COUNT			32
+#define   L3_UPPER_LKUP_MASK			REG_BIT(23)
+#define   L3_UPPER_GLBGO_MASK			REG_BIT(22)
+#define   L3_UPPER_IDX_CACHEABILITY_MASK	REG_GENMASK(21, 20)
+#define   L3_UPPER_IDX_SCC_MASK			REG_GENMASK(19, 17)
+#define   L3_UPPER_IDX_ESC_MASK			REG_BIT(16)
+#define   L3_LKUP_MASK				REG_BIT(7)
+#define   L3_LKUP(value)			REG_FIELD_PREP(L3_LKUP_MASK, value)
+#define   L3_GLBGO_MASK				REG_BIT(6)
+#define   L3_GLBGO(value)			REG_FIELD_PREP(L3_GLBGO_MASK, value)
+#define   L3_CACHEABILITY_MASK			REG_GENMASK(5, 4)
+#define   L3_CACHEABILITY(value)		REG_FIELD_PREP(L3_CACHEABILITY_MASK, value)
+#define   L3_SCC_MASK				REG_GENMASK(3, 1)
+#define   L3_SCC(value)				REG_FIELD_PREP(L3_SCC_MASK, value)
+#define   L3_ESC_MASK				REG_BIT(0)
+#define   L3_ESC(value)				REG_FIELD_PREP(L3_ESC_MASK, value)
 
 #define XEHP_L3NODEARBCFG			XE_REG_MCR(0xb0b4)
 #define   XEHP_LNESPARE				REG_BIT(19)
