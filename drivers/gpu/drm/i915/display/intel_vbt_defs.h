@@ -898,6 +898,30 @@ struct bdb_display_remove_old {
 } __packed;
 
 /*
+ * Block 20 - OEM Customizable Modes
+ */
+
+struct oem_mode {
+	u8 enable_in_vbios:1;
+	u8 enable_in_os:1;
+	u8 enable_in_gop:1;					/* 207+ */
+	u8 reserved:5;
+	u8 display_flags;					/* ???-216 */
+	u16 x_res;
+	u16 y_res;
+	u8 color_depth;
+	u8 refresh_rate;
+	struct bdb_edid_dtd dtd;
+	u16 display_flags_2;					/* 217+ */
+} __packed;
+
+struct bdb_oem_custom {
+	u8 num_entries;
+	u8 entry_size;
+	struct oem_mode modes[];
+} __packed;
+
+/*
  * Block 22 - SDVO LVDS General Options
  */
 
