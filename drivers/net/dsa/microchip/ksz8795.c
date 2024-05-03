@@ -127,37 +127,56 @@ int ksz8_change_mtu(struct ksz_device *dev, int port, int mtu)
 	return -EOPNOTSUPP;
 }
 
-static void ksz8795_set_prio_queue(struct ksz_device *dev, int port, int queue)
+static int ksz8_port_queue_split(struct ksz_device *dev, int port, int queues)
 {
-	u8 hi, lo;
+	u8 mask_4q, mask_2q;
+	u8 reg_4q, reg_2q;
+	u8 data_4q = 0;
+	u8 data_2q = 0;
+	int ret;
 
-	/* Number of queues can only be 1, 2, or 4. */
-	switch (queue) {
-	case 4:
-	case 3:
-		queue = PORT_QUEUE_SPLIT_4;
-		break;
-	case 2:
-		queue = PORT_QUEUE_SPLIT_2;
-		break;
-	default:
-		queue = PORT_QUEUE_SPLIT_1;
+	if (ksz_is_ksz88x3(dev)) {
+		mask_4q = KSZ8873_PORT_4QUEUE_SPLIT_EN;
+		mask_2q = KSZ8873_PORT_2QUEUE_SPLIT_EN;
+		reg_4q = REG_PORT_CTRL_0;
+		reg_2q = REG_PORT_CTRL_2;
+
+		/* KSZ8795 family switches have Weighted Fair Queueing (WFQ)
+		 * enabled by default. Enable it for KSZ8873 family switches
+		 * too. Default value for KSZ8873 family is strict priority,
+		 * which should be enabled by using TC_SETUP_QDISC_ETS, not
+		 * by default.
+		 */
+		ret = ksz_rmw8(dev, REG_SW_CTRL_3, WEIGHTED_FAIR_QUEUE_ENABLE,
+			       WEIGHTED_FAIR_QUEUE_ENABLE);
+		if (ret)
+			return ret;
+	} else {
+		mask_4q = KSZ8795_PORT_4QUEUE_SPLIT_EN;
+		mask_2q = KSZ8795_PORT_2QUEUE_SPLIT_EN;
+		reg_4q = REG_PORT_CTRL_13;
+		reg_2q = REG_PORT_CTRL_0;
+
+		/* TODO: this is legacy from initial KSZ8795 driver, should be
+		 * moved to appropriate place in the future.
+		 */
+		ret = ksz_rmw8(dev, REG_SW_CTRL_19,
+			       SW_OUT_RATE_LIMIT_QUEUE_BASED,
+			       SW_OUT_RATE_LIMIT_QUEUE_BASED);
+		if (ret)
+			return ret;
 	}
-	ksz_pread8(dev, port, REG_PORT_CTRL_0, &lo);
-	ksz_pread8(dev, port, P_DROP_TAG_CTRL, &hi);
-	lo &= ~PORT_QUEUE_SPLIT_L;
-	if (queue & PORT_QUEUE_SPLIT_2)
-		lo |= PORT_QUEUE_SPLIT_L;
-	hi &= ~PORT_QUEUE_SPLIT_H;
-	if (queue & PORT_QUEUE_SPLIT_4)
-		hi |= PORT_QUEUE_SPLIT_H;
-	ksz_pwrite8(dev, port, REG_PORT_CTRL_0, lo);
-	ksz_pwrite8(dev, port, P_DROP_TAG_CTRL, hi);
 
-	/* Default is port based for egress rate limit. */
-	if (queue != PORT_QUEUE_SPLIT_1)
-		ksz_cfg(dev, REG_SW_CTRL_19, SW_OUT_RATE_LIMIT_QUEUE_BASED,
-			true);
+	if (queues == 4)
+		data_4q = mask_4q;
+	else if (queues == 2)
+		data_2q = mask_2q;
+
+	ret = ksz_prmw8(dev, port, reg_4q, mask_4q, data_4q);
+	if (ret)
+		return ret;
+
+	return ksz_prmw8(dev, port, reg_2q, mask_2q, data_2q);
 }
 
 void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
@@ -1513,6 +1532,7 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	struct dsa_switch *ds = dev->ds;
 	const u32 *masks;
+	int queues;
 	u8 member;
 
 	masks = dev->info->masks;
@@ -1520,8 +1540,15 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	/* enable broadcast storm limit */
 	ksz_port_cfg(dev, port, P_BCAST_STORM_CTRL, PORT_BROADCAST_STORM, true);
 
-	if (!ksz_is_ksz88x3(dev))
-		ksz8795_set_prio_queue(dev, port, 4);
+	/* For KSZ88x3 enable only one queue by default, otherwise we won't
+	 * be able to get rid of PCP prios on Port 2.
+	 */
+	if (ksz_is_ksz88x3(dev))
+		queues = 1;
+	else
+		queues = dev->info->num_tx_queues;
+
+	ksz8_port_queue_split(dev, port, queues);
 
 	/* disable DiffServ priority */
 	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_DIFFSERV_ENABLE, false);
