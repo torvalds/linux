@@ -8651,30 +8651,27 @@ exit:
 	kfree(tb);
 }
 
-static int ath11k_wmi_p2p_noa_event(struct ath11k_base *ab,
-				    struct sk_buff *skb)
+static void ath11k_wmi_p2p_noa_event(struct ath11k_base *ab,
+				     struct sk_buff *skb)
 {
 	const void **tb;
 	const struct wmi_p2p_noa_event *ev;
 	const struct ath11k_wmi_p2p_noa_info *noa;
 	struct ath11k *ar;
-	int ret, vdev_id;
+	int vdev_id;
 	u8 noa_descriptors;
 
 	tb = ath11k_wmi_tlv_parse_alloc(ab, skb, GFP_ATOMIC);
 	if (IS_ERR(tb)) {
-		ret = PTR_ERR(tb);
-		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
-		return ret;
+		ath11k_warn(ab, "failed to parse tlv: %ld\n", PTR_ERR(tb));
+		return;
 	}
 
 	ev = tb[WMI_TAG_P2P_NOA_EVENT];
 	noa = tb[WMI_TAG_P2P_NOA_INFO];
 
-	if (!ev || !noa) {
-		ret = -EPROTO;
+	if (!ev || !noa)
 		goto out;
-	}
 
 	vdev_id = ev->vdev_id;
 	noa_descriptors = u32_get_bits(noa->noa_attr,
@@ -8683,7 +8680,6 @@ static int ath11k_wmi_p2p_noa_event(struct ath11k_base *ab,
 	if (noa_descriptors > WMI_P2P_MAX_NOA_DESCRIPTORS) {
 		ath11k_warn(ab, "invalid descriptor num %d in P2P NoA event\n",
 			    noa_descriptors);
-		return -EINVAL;
 		goto out;
 	}
 
@@ -8696,7 +8692,6 @@ static int ath11k_wmi_p2p_noa_event(struct ath11k_base *ab,
 	if (!ar) {
 		ath11k_warn(ab, "invalid vdev id %d in P2P NoA event\n",
 			    vdev_id);
-		ret = -EINVAL;
 		goto unlock;
 	}
 
@@ -8706,7 +8701,6 @@ unlock:
 	rcu_read_unlock();
 out:
 	kfree(tb);
-	return 0;
 }
 
 static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
