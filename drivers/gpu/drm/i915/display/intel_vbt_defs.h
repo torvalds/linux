@@ -147,6 +147,7 @@ enum bdb_block_id {
 	BDB_EXT_MMIO_REGS		= 6, /* VBIOS only */
 	BDB_SWF_IO			= 7, /* VBIOS only */
 	BDB_SWF_MMIO			= 8, /* VBIOS only */
+	BDB_DOT_CLOCK_OVERRIDE_ALM	= 9,
 	BDB_PSR				= 9, /* 165+ */
 	BDB_MODE_REMOVAL_TABLE		= 10,
 	BDB_CHILD_DEVICE_TABLE		= 11,
@@ -651,6 +652,25 @@ struct bdb_reg_table {
 } __packed;
 
 /*
+ * Block 9 - Undocumented table (ALM only)
+ */
+
+struct dot_clock_override_entry_gen2 {
+	u32 dotclock;
+	u8 n;
+	u8 m1;
+	u8 m2;
+	u8 p1:5;
+	u8 p1_div_by_2:1;
+	u8 reserved:1;
+	u8 p2_div_by_4:1;
+} __packed;
+
+struct bdb_dot_clock_override_alm {
+	struct dot_clock_override_entry_gen2 t[0];
+} __packed;
+
+/*
  * Block 9 - SRD Feature Block
  */
 
@@ -800,17 +820,6 @@ struct bdb_driver_persistence {
 /*
  * Block 15 - Dot Clock Override Table
  */
-
-struct dot_clock_override_entry_gen2 {
-	u32 dotclock;
-	u8 n;
-	u8 m1;
-	u8 m2;
-	u8 p1:5;
-	u8 p1_div_by_2:1;
-	u8 reserved:1;
-	u8 p2_div_by_4:1;
-} __packed;
 
 struct dot_clock_override_entry_gen3 {
 	u32 dotclock;
