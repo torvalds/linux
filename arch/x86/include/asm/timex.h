@@ -2,6 +2,8 @@
 #ifndef _ASM_X86_TIMEX_H
 #define _ASM_X86_TIMEX_H
 
+extern unsigned long random_get_entropy_fallback(void);
+
 #include <asm/processor.h>
 #include <asm/tsc.h>
 
