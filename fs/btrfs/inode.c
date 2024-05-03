@@ -7005,11 +7005,8 @@ out:
 static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 						  struct btrfs_dio_data *dio_data,
 						  const u64 start,
-						  const u64 len,
-						  const u64 orig_block_len,
-						  const u64 ram_bytes,
-						  const int type,
-						  const struct btrfs_file_extent *file_extent)
+						  const struct btrfs_file_extent *file_extent,
+						  const int type)
 {
 	struct extent_map *em = NULL;
 	struct btrfs_ordered_extent *ordered;
@@ -7027,7 +7024,7 @@ static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 		if (em) {
 			free_extent_map(em);
 			btrfs_drop_extent_map_range(inode, start,
-						    start + len - 1, false);
+					start + file_extent->num_bytes - 1, false);
 		}
 		em = ERR_CAST(ordered);
 	} else {
@@ -7070,10 +7067,8 @@ again:
 	file_extent.ram_bytes = ins.offset;
 	file_extent.offset = 0;
 	file_extent.compression = BTRFS_COMPRESS_NONE;
-	em = btrfs_create_dio_extent(inode, dio_data, start, ins.offset,
-				     ins.offset,
-				     ins.offset, BTRFS_ORDERED_REGULAR,
-				     &file_extent);
+	em = btrfs_create_dio_extent(inode, dio_data, start, &file_extent,
+				     BTRFS_ORDERED_REGULAR);
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	if (IS_ERR(em))
 		btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset,
@@ -7440,10 +7435,8 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		}
 		space_reserved = true;
 
-		em2 = btrfs_create_dio_extent(BTRFS_I(inode), dio_data, start, len,
-					      file_extent.disk_num_bytes,
-					      file_extent.ram_bytes, type,
-					      &file_extent);
+		em2 = btrfs_create_dio_extent(BTRFS_I(inode), dio_data, start,
+					      &file_extent, type);
 		btrfs_dec_nocow_writers(bg);
 		if (type == BTRFS_ORDERED_PREALLOC) {
 			free_extent_map(em);
