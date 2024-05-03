@@ -437,23 +437,28 @@ static int zynqmp_dpsub_kms_init(struct zynqmp_dpsub *dpsub)
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret) {
 		dev_err(dpsub->dev, "failed to attach bridge to encoder\n");
-		return ret;
+		goto err_encoder;
 	}
 
 	/* Create the connector for the chain of bridges. */
 	connector = drm_bridge_connector_init(&dpsub->drm->dev, encoder);
 	if (IS_ERR(connector)) {
 		dev_err(dpsub->dev, "failed to created connector\n");
-		return PTR_ERR(connector);
+		ret = PTR_ERR(connector);
+		goto err_encoder;
 	}
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0) {
 		dev_err(dpsub->dev, "failed to attach connector to encoder\n");
-		return ret;
+		goto err_encoder;
 	}
 
 	return 0;
+
+err_encoder:
+	drm_encoder_cleanup(encoder);
+	return ret;
 }
 
 static void zynqmp_dpsub_drm_release(struct drm_device *drm, void *res)
@@ -533,5 +538,6 @@ void zynqmp_dpsub_drm_cleanup(struct zynqmp_dpsub *dpsub)
 
 	drm_dev_unregister(drm);
 	drm_atomic_helper_shutdown(drm);
+	drm_encoder_cleanup(&dpsub->drm->encoder);
 	drm_kms_helper_poll_fini(drm);
 }
