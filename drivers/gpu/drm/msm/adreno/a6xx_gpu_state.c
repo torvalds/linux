@@ -412,7 +412,7 @@ static void a7xx_get_debugbus_blocks(struct msm_gpu *gpu,
 
 		for (i = 0; i < ARRAY_SIZE(a7xx_gbif_debugbus_blocks); i++) {
 			a6xx_get_debugbus_block(gpu,
-				a6xx_state, &a7xx_gbif_debugbus_blocks[i],
+				a6xx_state, &a7xx_debugbus_blocks[a7xx_gbif_debugbus_blocks[i]],
 				&a6xx_state->debugbus[i + debugbus_blocks_count]);
 		}
 	}

@@ -517,9 +517,9 @@ static const struct a6xx_debugbus_block a650_debugbus_blocks[] = {
 	DEBUGBUS(A6XX_DBGBUS_SPTP_5, 0x100),
 };
 
-static const struct a6xx_debugbus_block a7xx_gbif_debugbus_blocks[] = {
-	DEBUGBUS(A7XX_DBGBUS_GBIF_CX, 0x100),
-	DEBUGBUS(A7XX_DBGBUS_GBIF_GX, 0x100),
+static const u32 a7xx_gbif_debugbus_blocks[] = {
+	A7XX_DBGBUS_GBIF_CX,
+	A7XX_DBGBUS_GBIF_GX,
 };
 
 static const struct a6xx_debugbus_block a7xx_cx_debugbus_blocks[] = {
