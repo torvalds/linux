@@ -12,6 +12,9 @@ rm -rf .git/rebase-apply
 apt-get update
 apt-get install -y libssl-dev
 
+# for msm header validation
+apt-get install -y python3-lxml
+
 if [[ "$KERNEL_ARCH" = "arm64" ]]; then
     GCC_ARCH="aarch64-linux-gnu"
     DEBIAN_ARCH="arm64"
