@@ -9816,7 +9816,7 @@ M:	Yicong Yang <yangyicong@hisilicon.com>
 M:	Jonathan Cameron <jonathan.cameron@huawei.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
-F:	Documentation/ABI/testing/sysfs-devices-hisi_ptt
+F:	Documentation/ABI/testing/sysfs-bus-event_source-devices-hisi_ptt
 F:	Documentation/trace/hisi-ptt.rst
 F:	drivers/hwtracing/ptt/
 F:	tools/perf/arch/arm64/util/hisi-ptt.c
