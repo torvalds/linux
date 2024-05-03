@@ -158,7 +158,7 @@ enum bdb_block_id {
 	BDB_DISPLAY_SELECT_OLD		= 16,
 	BDB_SV_TEST_FUNCTIONS		= 17,
 	BDB_DRIVER_ROTATION		= 18,
-	BDB_DISPLAY_REMOVE		= 19,
+	BDB_DISPLAY_REMOVE_OLD		= 19,
 	BDB_OEM_CUSTOM			= 20,
 	BDB_EFP_LIST			= 21, /* workarounds for VGA hsync/vsync */
 	BDB_SDVO_LVDS_OPTIONS		= 22,
@@ -168,7 +168,9 @@ enum bdb_block_id {
 	BDB_TV_OPTIONS			= 26,
 	BDB_EDP				= 27,
 	BDB_DISPLAY_SELECT_IVB		= 29, /* 164+ */
+	BDB_DISPLAY_REMOVE_IVB		= 30, /* 164+ */
 	BDB_DISPLAY_SELECT_HSW		= 31, /* 166+ */
+	BDB_DISPLAY_REMOVE_HSW		= 32, /* 166+ */
 	BDB_LFP_OPTIONS			= 40,
 	BDB_LFP_DATA_PTRS		= 41,
 	BDB_LFP_DATA			= 42,
@@ -881,6 +883,21 @@ struct bdb_driver_rotation {
 } __packed;
 
 /*
+ * Block 19 - Display Configuration Removal Table (pre-IVB)
+ */
+
+struct display_remove_entry_old {
+	u8 display_select_pipe_a;
+	u8 display_select_pipe_b;
+} __packed;
+
+struct bdb_display_remove_old {
+	u8 num_entries;
+	u8 entry_size;
+	struct display_remove_entry_old table[];
+} __packed;
+
+/*
  * Block 22 - SDVO LVDS General Options
  */
 
@@ -1000,6 +1017,20 @@ struct bdb_display_select_ivb {
 } __packed;
 
 /*
+ * Block 30 - Display Configuration Removal Table (IVB)
+ */
+
+struct display_remove_entry_ivb {
+	u8 display_select;
+} __packed;
+
+struct bdb_display_remove_ivb {
+	u8 num_entries;
+	u8 entry_size;
+	struct display_remove_entry_ivb table[];
+} __packed;
+
+/*
  * Block 31 - Toggle List Block (HSW+)
  */
 
@@ -1016,6 +1047,20 @@ struct toggle_list_table_hsw {
 struct bdb_display_select_hsw {
 	/* each table has variable size! */
 	struct toggle_list_table_hsw tables[4];
+} __packed;
+
+/*
+ * Block 32 - Display Configuration Removal Table (HSW+)
+ */
+
+struct display_remove_entry_hsw {
+	u16 display_select;
+} __packed;
+
+struct bdb_display_remove_hsw {
+	u8 num_entries;
+	u8 entry_size;
+	struct display_remove_entry_hsw table[];
 } __packed;
 
 /*
