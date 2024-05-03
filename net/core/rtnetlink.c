@@ -5961,19 +5961,17 @@ static int rtnl_stats_get(struct sk_buff *skb, struct nlmsghdr *nlh,
 static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct netlink_ext_ack *extack = cb->extack;
-	int h, s_h, err, s_idx, s_idxattr, s_prividx;
 	struct rtnl_stats_dump_filters filters;
 	struct net *net = sock_net(skb->sk);
 	unsigned int flags = NLM_F_MULTI;
 	struct if_stats_msg *ifsm;
-	struct hlist_head *head;
+	struct {
+		unsigned long ifindex;
+		int idxattr;
+		int prividx;
+	} *ctx = (void *)cb->ctx;
 	struct net_device *dev;
-	int idx = 0;
-
-	s_h = cb->args[0];
-	s_idx = cb->args[1];
-	s_idxattr = cb->args[2];
-	s_prividx = cb->args[3];
+	int err;
 
 	cb->seq = net->dev_base_seq;
 
@@ -5992,39 +5990,26 @@ static int rtnl_stats_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	if (err)
 		return err;
 
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		idx = 0;
-		head = &net->dev_index_head[h];
-		hlist_for_each_entry(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			err = rtnl_fill_statsinfo(skb, dev, RTM_NEWSTATS,
-						  NETLINK_CB(cb->skb).portid,
-						  cb->nlh->nlmsg_seq, 0,
-						  flags, &filters,
-						  &s_idxattr, &s_prividx,
-						  extack);
-			/* If we ran out of room on the first message,
-			 * we're in trouble
-			 */
-			WARN_ON((err == -EMSGSIZE) && (skb->len == 0));
+	for_each_netdev_dump(net, dev, ctx->ifindex) {
+		err = rtnl_fill_statsinfo(skb, dev, RTM_NEWSTATS,
+					  NETLINK_CB(cb->skb).portid,
+					  cb->nlh->nlmsg_seq, 0,
+					  flags, &filters,
+					  &ctx->idxattr, &ctx->prividx,
+					  extack);
+		/* If we ran out of room on the first message,
+		 * we're in trouble.
+		 */
+		WARN_ON((err == -EMSGSIZE) && (skb->len == 0));
 
-			if (err < 0)
-				goto out;
-			s_prividx = 0;
-			s_idxattr = 0;
-			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
-cont:
-			idx++;
-		}
+		if (err < 0)
+			break;
+		ctx->prividx = 0;
+		ctx->idxattr = 0;
+		nl_dump_check_consistent(cb, nlmsg_hdr(skb));
 	}
-out:
-	cb->args[3] = s_prividx;
-	cb->args[2] = s_idxattr;
-	cb->args[1] = idx;
-	cb->args[0] = h;
 
-	return skb->len;
+	return err;
 }
 
 void rtnl_offload_xstats_notify(struct net_device *dev)
