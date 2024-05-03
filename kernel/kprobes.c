@@ -1232,11 +1232,13 @@ void kprobes_inc_nmissed_count(struct kprobe *p, unsigned flags)
 			if (flags & KPROBE_MISSED_SS) {
 				p->nmissed_ss++;
 			} else if (flags & KPROBE_MISSED_OBJPOOL) {
-				p->nmissed_cpu++;
+				p->nmissed_objpool++;
 			} else if (flags & KPROBE_MISSED_RETHOOK) {
 				p->nmissed_rethook++;
 			} else if (flags & KPROBE_MISSED_CALLBACK) {
 				p->nmissed_callback++;
+			} else if (flags & KPROBE_MISSED_FTRACE_CALLBACK) {
+				p->nmissed_ftrace_callback++;
 			}
 		}
 	} else {
@@ -1247,11 +1249,13 @@ void kprobes_inc_nmissed_count(struct kprobe *p, unsigned flags)
                 	        if (flags & KPROBE_MISSED_SS) {
                         	        p->nmissed_ss++;
                         	} else if (flags & KPROBE_MISSED_OBJPOOL) {
-                                	p->nmissed_cpu++;
+					p->nmissed_objpool++;
                         	} else if (flags & KPROBE_MISSED_RETHOOK) {
                                 	p->nmissed_rethook++;
                         	} else if (flags & KPROBE_MISSED_CALLBACK) {
 					p->nmissed_callback++;
+				} else if (flags & KPROBE_MISSED_FTRACE_CALLBACK) {
+					p->nmissed_ftrace_callback++;
 				}
                 	}
 		}

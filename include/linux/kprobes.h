@@ -38,10 +38,11 @@
 #define KPROBE_REENTER		0x00000004
 #define KPROBE_HIT_SSDONE	0x00000008
 
-#define KPROBE_MISSED_SS	0x00000001
-#define KPROBE_MISSED_OBJPOOL	0x00000002
-#define KPROBE_MISSED_RETHOOK	0x00000004
-#define KPROBE_MISSED_CALLBACK	0x00000008
+#define KPROBE_MISSED_SS		0x00000001
+#define KPROBE_MISSED_OBJPOOL		0x00000002
+#define KPROBE_MISSED_RETHOOK		0x00000004
+#define KPROBE_MISSED_CALLBACK		0x00000008
+#define KPROBE_MISSED_FTRACE_CALLBACK 	0x00000010
 
 #else /* !CONFIG_KPROBES */
 #include <asm-generic/kprobes.h>
@@ -74,6 +75,7 @@ struct kprobe {
 	unsigned long nmissed_objpool;
 	unsigned long nmissed_rethook;
 	unsigned long nmissed_callback;
+	unsigned long nmissed_ftrace_callback;
 
 	/* location of the probe point */
 	kprobe_opcode_t *addr;
@@ -159,6 +161,9 @@ struct kretprobe {
 	kretprobe_handler_t entry_handler;
 	int maxactive;
 	int nmissed;
+
+	int nmissed_rethook;
+
 	size_t data_size;
 #ifdef CONFIG_KRETPROBE_ON_RETHOOK
 	struct rethook *rh;
@@ -292,7 +297,7 @@ extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_arm_kprobe(struct kprobe *p);
 extern void arch_disarm_kprobe(struct kprobe *p);
 extern int arch_init_kprobes(void);
-extern void kprobes_inc_nmissed_count(struct kprobe *p, unsigned flags = 0);
+extern void kprobes_inc_nmissed_count(struct kprobe *p, unsigned flags);
 extern bool arch_within_kprobe_blacklist(unsigned long addr);
 extern int arch_populate_kprobe_blacklist(void);
 extern int kprobe_on_func_entry(kprobe_opcode_t *addr, const char *sym, unsigned long offset);
