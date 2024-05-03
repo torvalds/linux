@@ -635,6 +635,22 @@ struct bdb_generic_mode_table_mgm {
 } __packed;
 
 /*
+ * Block 6 - Extended MMIO Register Table, VBIOS only
+ * Block 7 - IO Software Flag Table, VBIOS only
+ * Block 8 - MMIO SWF Register Table, VBIOS only
+ */
+struct bdb_reg_table {
+	u16 table_id;
+	u8 data_access_size;
+	/*
+	 * offset,value tuples:
+	 * data_access_size==0xce -> u8,u8
+	 * data_access_size==0x02 -> u32,u32
+	 */
+	/* u16 table_end_marker; */
+} __packed;
+
+/*
  * Block 9 - SRD Feature Block
  */
 
