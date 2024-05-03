@@ -715,6 +715,7 @@ static int cti_read_osc_freq(struct exar8250 *priv, u8 eeprom_offset)
 /**
  * cti_get_port_type_xr17c15x_xr17v25x() - Get port type of xr17c15x/xr17v25x
  * @priv: Device's private structure
+ * @pcidev: Pointer to the PCI device for this port
  * @port_num: Port to get type of
  *
  * CTI xr17c15x and xr17v25x based cards port types are based on PCI IDs.
@@ -807,6 +808,7 @@ static enum cti_port_type cti_get_port_type_xr17c15x_xr17v25x(struct exar8250 *p
 /**
  * cti_get_port_type_fpga() - Get the port type of a CTI FPGA card
  * @priv: Device's private structure
+ * @pcidev: Pointer to the PCI device for this port
  * @port_num: Port to get type of
  *
  * FPGA based cards port types are based on PCI IDs.
@@ -836,6 +838,7 @@ static enum cti_port_type cti_get_port_type_fpga(struct exar8250 *priv,
 /**
  * cti_get_port_type_xr17v35x() - Read port type from the EEPROM
  * @priv: Device's private structure
+ * @pcidev: Pointer to the PCI device for this port
  * @port_num: port offset
  *
  * CTI XR17V35X based cards have the port types stored in the EEPROM.
