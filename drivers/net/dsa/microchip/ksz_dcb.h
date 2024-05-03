@@ -11,6 +11,8 @@
 int ksz_port_get_default_prio(struct dsa_switch *ds, int port);
 int ksz_port_set_default_prio(struct dsa_switch *ds, int port, u8 prio);
 int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp);
+int ksz_port_add_dscp_prio(struct dsa_switch *ds, int port, u8 dscp, u8 prio);
+int ksz_port_del_dscp_prio(struct dsa_switch *ds, int port, u8 dscp, u8 prio);
 int ksz_port_set_apptrust(struct dsa_switch *ds, int port,
 			  const unsigned char *sel,
 			  int nsel);

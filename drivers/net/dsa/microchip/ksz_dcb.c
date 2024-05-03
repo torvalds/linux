@@ -310,6 +310,19 @@ int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp)
 	return (data >> shift) & mask;
 }
 
+static int ksz_set_global_dscp_entry(struct ksz_device *dev, u8 dscp, u8 ipv)
+{
+	int reg, per_reg, shift;
+	u8 mask;
+
+	ksz_get_dscp_prio_reg(dev, &reg, &per_reg, &mask);
+
+	shift = (dscp % per_reg) * (8 / per_reg);
+
+	return ksz_rmw8(dev, reg + (dscp / per_reg), mask << shift,
+			ipv << shift);
+}
+
 /**
  * ksz_init_global_dscp_map - Initializes the global DSCP-to-priority mapping
  * @dev: Pointer to the KSZ switch device structure
@@ -321,9 +334,7 @@ int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp)
  */
 static int ksz_init_global_dscp_map(struct ksz_device *dev)
 {
-	int reg, per_reg, ret, dscp;
-	u8 data = 0;
-	u8 mask;
+	int ret, dscp;
 
 	/* On KSZ9xxx variants, DSCP remapping is disabled by default.
 	 * Enable to have, predictable and reproducible behavior across
@@ -337,10 +348,8 @@ static int ksz_init_global_dscp_map(struct ksz_device *dev)
 			return ret;
 	}
 
-	ksz_get_dscp_prio_reg(dev, &reg, &per_reg, &mask);
-
 	for (dscp = 0; dscp < DSCP_MAX; dscp++) {
-		int ipv, shift, tt;
+		int ipv, tt;
 
 		/* Map DSCP to Traffic Type, which is corresponding to the
 		 * Internal Priority Value (IPV) in the switch.
@@ -362,19 +371,40 @@ static int ksz_init_global_dscp_map(struct ksz_device *dev)
 		if (ipv < 0)
 			return ipv;
 
-		shift = (dscp % per_reg) * (8 / per_reg);
-		data |= (ipv & mask) << shift;
-
-		if (dscp % per_reg == per_reg - 1) {
-			ret = ksz_write8(dev, reg + (dscp / per_reg), data);
-			if (ret)
-				return ret;
-
-			data = 0;
-		}
+		ret = ksz_set_global_dscp_entry(dev, dscp, ipv);
 	}
 
 	return 0;
+}
+
+int ksz_port_add_dscp_prio(struct dsa_switch *ds, int port, u8 dscp, u8 prio)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (prio >= dev->info->num_ipvs)
+		return -ERANGE;
+
+	return ksz_set_global_dscp_entry(dev, dscp, prio);
+}
+
+int ksz_port_del_dscp_prio(struct dsa_switch *ds, int port, u8 dscp, u8 prio)
+{
+	struct ksz_device *dev = ds->priv;
+	int ipv;
+
+	if (ksz_port_get_dscp_prio(ds, port, dscp) != prio)
+		return 0;
+
+	if (is_ksz8(dev)) {
+		ipv = ieee8021q_tt_to_tc(IEEE8021Q_TT_BE,
+					 dev->info->num_tx_queues);
+		if (ipv < 0)
+			return ipv;
+	} else {
+		ipv = IEEE8021Q_TT_BE;
+	}
+
+	return ksz_set_global_dscp_entry(dev, dscp, ipv);
 }
 
 /**

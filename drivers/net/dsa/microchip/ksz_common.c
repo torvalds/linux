@@ -2360,6 +2360,7 @@ static int ksz_setup(struct dsa_switch *ds)
 	ksz_init_mib_timer(dev);
 
 	ds->configure_vlan_while_not_filtering = false;
+	ds->dscp_prio_mapping_is_global = true;
 
 	if (dev->dev_ops->setup) {
 		ret = dev->dev_ops->setup(ds);
@@ -3989,6 +3990,8 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_get_default_prio	= ksz_port_get_default_prio,
 	.port_set_default_prio	= ksz_port_set_default_prio,
 	.port_get_dscp_prio	= ksz_port_get_dscp_prio,
+	.port_add_dscp_prio	= ksz_port_add_dscp_prio,
+	.port_del_dscp_prio	= ksz_port_del_dscp_prio,
 	.port_get_apptrust	= ksz_port_get_apptrust,
 	.port_set_apptrust	= ksz_port_set_apptrust,
 };
