@@ -729,15 +729,8 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 
 		scoped_guard(spinlock_irqsave, &dm_device.ha_lock) {
 			has->ha_end_pfn +=  HA_CHUNK;
-
-			if (total_pfn > HA_CHUNK) {
-				processed_pfn = HA_CHUNK;
-				total_pfn -= HA_CHUNK;
-			} else {
-				processed_pfn = total_pfn;
-				total_pfn = 0;
-			}
-
+			processed_pfn = umin(total_pfn, HA_CHUNK);
+			total_pfn -= processed_pfn;
 			has->covered_end_pfn +=  processed_pfn;
 		}
 
@@ -800,7 +793,7 @@ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 {
 	struct hv_hotadd_state *has;
 	struct hv_hotadd_gap *gap;
-	unsigned long residual, new_inc;
+	unsigned long residual;
 	int ret = 0;
 
 	guard(spinlock_irqsave)(&dm_device.ha_lock);
@@ -836,15 +829,9 @@ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 		 * our current limit; extend it.
 		 */
 		if ((start_pfn + pfn_cnt) > has->end_pfn) {
+			/* Extend the region by multiples of HA_CHUNK */
 			residual = (start_pfn + pfn_cnt - has->end_pfn);
-			/*
-			 * Extend the region by multiples of HA_CHUNK.
-			 */
-			new_inc = (residual / HA_CHUNK) * HA_CHUNK;
-			if (residual % HA_CHUNK)
-				new_inc += HA_CHUNK;
-
-			has->end_pfn += new_inc;
+			has->end_pfn += ALIGN(residual, HA_CHUNK);
 		}
 
 		ret = 1;
@@ -915,9 +902,7 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 			 */
 			size = (has->end_pfn - has->ha_end_pfn);
 			if (pfn_cnt <= size) {
-				size = ((pfn_cnt / HA_CHUNK) * HA_CHUNK);
-				if (pfn_cnt % HA_CHUNK)
-					size += HA_CHUNK;
+				size = ALIGN(pfn_cnt, HA_CHUNK);
 			} else {
 				pfn_cnt = size;
 			}
@@ -1011,9 +996,6 @@ static void hot_add_req(struct work_struct *dummy)
 	rg_sz = dm->ha_wrk.ha_region_range.finfo.page_cnt;
 
 	if ((rg_start == 0) && (!dm->host_specified_ha_region)) {
-		unsigned long region_size;
-		unsigned long region_start;
-
 		/*
 		 * The host has not specified the hot-add region.
 		 * Based on the hot-add page range being specified,
@@ -1021,14 +1003,8 @@ static void hot_add_req(struct work_struct *dummy)
 		 * that need to be hot-added while ensuring the alignment
 		 * and size requirements of Linux as it relates to hot-add.
 		 */
-		region_size = (pfn_cnt / HA_CHUNK) * HA_CHUNK;
-		if (pfn_cnt % HA_CHUNK)
-			region_size += HA_CHUNK;
-
-		region_start = (pg_start / HA_CHUNK) * HA_CHUNK;
-
-		rg_start = region_start;
-		rg_sz = region_size;
+		rg_start = ALIGN_DOWN(pg_start, HA_CHUNK);
+		rg_sz = ALIGN(pfn_cnt, HA_CHUNK);
 	}
 
 	if (do_hot_add)
