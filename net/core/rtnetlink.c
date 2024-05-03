@@ -1837,7 +1837,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	if (nla_put_string(skb, IFLA_IFNAME, devname))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, IFLA_TXQLEN, dev->tx_queue_len) ||
+	if (nla_put_u32(skb, IFLA_TXQLEN, READ_ONCE(dev->tx_queue_len)) ||
 	    nla_put_u8(skb, IFLA_OPERSTATE,
 		       netif_running(dev) ? dev->operstate : IF_OPER_DOWN) ||
 	    nla_put_u8(skb, IFLA_LINKMODE, dev->link_mode) ||
