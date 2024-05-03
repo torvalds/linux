@@ -37,11 +37,11 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 	struct btree_node *n_ondisk = c->verify_ondisk;
 	struct btree_node *n_sorted = c->verify_data->data;
 	struct bset *sorted, *inmemory = &b->data->keys;
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, pick.ptr.dev);
 	struct bio *bio;
 	bool failed = false, saw_error = false;
 
-	if (!bch2_dev_get_ioref(ca, READ))
+	struct bch_dev *ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
+	if (!ca)
 		return false;
 
 	bio = bio_alloc_bioset(ca->disk_sb.bdev,
@@ -194,8 +194,8 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 		return;
 	}
 
-	ca = bch2_dev_bkey_exists(c, pick.ptr.dev);
-	if (!bch2_dev_get_ioref(ca, READ)) {
+	ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
+	if (!ca) {
 		prt_printf(out, "error getting device to read from: not online\n");
 		return;
 	}
