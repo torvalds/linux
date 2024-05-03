@@ -167,6 +167,7 @@ enum bdb_block_id {
 	BDB_SDVO_LVDS_PPS		= 25,
 	BDB_TV_OPTIONS			= 26,
 	BDB_EDP				= 27,
+	BDB_EFP_DTD			= 28, /* 161+ */
 	BDB_DISPLAY_SELECT_IVB		= 29, /* 164+ */
 	BDB_DISPLAY_REMOVE_IVB		= 30, /* 164+ */
 	BDB_DISPLAY_SELECT_HSW		= 31, /* 166+ */
@@ -1070,6 +1071,14 @@ struct bdb_edp {
 	u16 edp_fast_link_training_rate[16];			/* 224+ */
 	u16 edp_max_port_link_rate[16];				/* 244+ */
 	u16 edp_dsc_disable;					/* 251+ */
+} __packed;
+
+/*
+ * Block 28 - EFP DTD Block
+ */
+
+struct bdb_efp_dtd {
+	struct bdb_edid_dtd dtd[3];
 } __packed;
 
 /*
