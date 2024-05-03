@@ -155,7 +155,7 @@ enum bdb_block_id {
 	BDB_DRIVER_PERSISTENCE		= 13,
 	BDB_EXT_TABLE_PTRS		= 14, /* VBIOS only */
 	BDB_DOT_CLOCK_OVERRIDE		= 15,
-	BDB_DISPLAY_SELECT		= 16,
+	BDB_DISPLAY_SELECT_OLD		= 16,
 	BDB_SV_TEST_FUNCTIONS		= 17,
 	BDB_DRIVER_ROTATION		= 18,
 	BDB_DISPLAY_REMOVE		= 19,
@@ -167,6 +167,8 @@ enum bdb_block_id {
 	BDB_SDVO_LVDS_PPS		= 25,
 	BDB_TV_OPTIONS			= 26,
 	BDB_EDP				= 27,
+	BDB_DISPLAY_SELECT_IVB		= 29, /* 164+ */
+	BDB_DISPLAY_SELECT_HSW		= 31, /* 166+ */
 	BDB_LFP_OPTIONS			= 40,
 	BDB_LFP_DATA_PTRS		= 41,
 	BDB_LFP_DATA			= 42,
@@ -838,6 +840,27 @@ struct bdb_dot_clock_override {
 } __packed;
 
 /*
+ * Block 16 - Toggle List Block (pre-HSW)
+ */
+
+struct toggle_list_entry_old {
+	u8 display_select_pipe_a;
+	u8 display_select_pipe_b;
+	u8 caps;
+} __packed;
+
+struct toggle_list_table_old {
+	u16 num_entries;
+	u8 entry_size;
+	struct toggle_list_entry_old list[];
+} __packed;
+
+struct bdb_display_select_old {
+	/* each table has variable size! */
+	struct toggle_list_table_old tables[4];
+} __packed;
+
+/*
  * Block 17 - SV Test Functions
  */
 
@@ -955,6 +978,44 @@ struct bdb_edp {
 	u16 edp_fast_link_training_rate[16];			/* 224+ */
 	u16 edp_max_port_link_rate[16];				/* 244+ */
 	u16 edp_dsc_disable;					/* 251+ */
+} __packed;
+
+/*
+ * Block 29 - Toggle List Block (IVB)
+ */
+
+struct toggle_list_entry_ivb {
+	u8 display_select;
+} __packed;
+
+struct toggle_list_table_ivb {
+	u16 num_entries;
+	u8 entry_size;
+	struct toggle_list_entry_ivb list[];
+} __packed;
+
+struct bdb_display_select_ivb {
+	/* each table has variable size! */
+	struct toggle_list_table_ivb tables[4];
+} __packed;
+
+/*
+ * Block 31 - Toggle List Block (HSW+)
+ */
+
+struct toggle_list_entry_hsw {
+	u16 display_select;
+} __packed;
+
+struct toggle_list_table_hsw {
+	u16 num_entries;
+	u8 entry_size;
+	struct toggle_list_entry_hsw list[];
+} __packed;
+
+struct bdb_display_select_hsw {
+	/* each table has variable size! */
+	struct toggle_list_table_hsw tables[4];
 } __packed;
 
 /*
