@@ -581,6 +581,60 @@ struct bdb_mode_support_list {
 } __packed;
 
 /*
+ * Block 5 - Generic Mode Table
+ */
+
+struct generic_mode_table {
+	u16 x_res;
+	u16 y_res;
+	u8 color_depths;
+	u8 refresh_rate[3];
+	u8 reserved;
+	u8 text_cols;
+	u8 text_rows;
+	u8 font_height;
+	u16 page_size;
+	u8 misc;
+} __packed;
+
+struct generic_mode_timings {
+	u32 dotclock_khz;
+	u16 hdisplay;
+	u16 htotal;
+	u16 hblank_start;
+	u16 hblank_end;
+	u16 hsync_start;
+	u16 hsync_end;
+	u16 vdisplay;
+	u16 vtotal;
+	u16 vblank_start;
+	u16 vblank_end;
+	u16 vsync_start;
+	u16 vsync_end;
+} __packed;
+
+struct generic_mode_timings_alm {
+	struct generic_mode_timings timings;
+	u8 wm_8bpp;
+	u8 burst_8bpp;
+	u8 wm_16bpp;
+	u8 burst_16bpp;
+	u8 wm_32bpp;
+	u8 burst_32bpp;
+} __packed;
+
+struct bdb_generic_mode_table_alm {
+	struct generic_mode_table table;
+	struct generic_mode_timings_alm timings[3];
+} __packed;
+
+struct bdb_generic_mode_table_mgm {
+	u16 mode_flag;
+	struct generic_mode_table table;
+	struct generic_mode_timings timings[3];
+} __packed;
+
+/*
  * Block 9 - SRD Feature Block
  */
 
