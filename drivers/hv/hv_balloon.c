@@ -25,6 +25,7 @@
 #include <linux/notifier.h>
 #include <linux/percpu_counter.h>
 #include <linux/page_reporting.h>
+#include <linux/sizes.h>
 
 #include <linux/hyperv.h>
 #include <asm/hyperv-tlfs.h>
@@ -425,11 +426,11 @@ struct dm_info_msg {
  * The range start_pfn : end_pfn specifies the range
  * that the host has asked us to hot add. The range
  * start_pfn : ha_end_pfn specifies the range that we have
- * currently hot added. We hot add in multiples of 128M
- * chunks; it is possible that we may not be able to bring
- * online all the pages in the region. The range
+ * currently hot added. We hot add in chunks equal to the
+ * memory block size; it is possible that we may not be able
+ * to bring online all the pages in the region. The range
  * covered_start_pfn:covered_end_pfn defines the pages that can
- * be brough online.
+ * be brought online.
  */
 
 struct hv_hotadd_state {
@@ -505,8 +506,11 @@ enum hv_dm_state {
 
 static __u8 recv_buffer[HV_HYP_PAGE_SIZE];
 static __u8 balloon_up_send_buffer[HV_HYP_PAGE_SIZE];
+
+static unsigned long ha_pages_in_chunk;
+#define HA_BYTES_IN_CHUNK (ha_pages_in_chunk << PAGE_SHIFT)
+
 #define PAGES_IN_2M (2 * 1024 * 1024 / PAGE_SIZE)
-#define HA_CHUNK (128 * 1024 * 1024 / PAGE_SIZE)
 
 struct hv_dynmem_device {
 	struct hv_device *dev;
@@ -724,21 +728,21 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 	unsigned long processed_pfn;
 	unsigned long total_pfn = pfn_count;
 
-	for (i = 0; i < (size/HA_CHUNK); i++) {
-		start_pfn = start + (i * HA_CHUNK);
+	for (i = 0; i < (size/ha_pages_in_chunk); i++) {
+		start_pfn = start + (i * ha_pages_in_chunk);
 
 		scoped_guard(spinlock_irqsave, &dm_device.ha_lock) {
-			has->ha_end_pfn +=  HA_CHUNK;
-			processed_pfn = umin(total_pfn, HA_CHUNK);
+			has->ha_end_pfn += ha_pages_in_chunk;
+			processed_pfn = umin(total_pfn, ha_pages_in_chunk);
 			total_pfn -= processed_pfn;
-			has->covered_end_pfn +=  processed_pfn;
+			has->covered_end_pfn += processed_pfn;
 		}
 
 		reinit_completion(&dm_device.ol_waitevent);
 
 		nid = memory_add_physaddr_to_nid(PFN_PHYS(start_pfn));
 		ret = add_memory(nid, PFN_PHYS((start_pfn)),
-				(HA_CHUNK << PAGE_SHIFT), MHP_MERGE_RESOURCE);
+				 HA_BYTES_IN_CHUNK, MHP_MERGE_RESOURCE);
 
 		if (ret) {
 			pr_err("hot_add memory failed error is %d\n", ret);
@@ -753,7 +757,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 				do_hot_add = false;
 			}
 			scoped_guard(spinlock_irqsave, &dm_device.ha_lock) {
-				has->ha_end_pfn -= HA_CHUNK;
+				has->ha_end_pfn -= ha_pages_in_chunk;
 				has->covered_end_pfn -=  processed_pfn;
 			}
 			break;
@@ -829,9 +833,9 @@ static int pfn_covered(unsigned long start_pfn, unsigned long pfn_cnt)
 		 * our current limit; extend it.
 		 */
 		if ((start_pfn + pfn_cnt) > has->end_pfn) {
-			/* Extend the region by multiples of HA_CHUNK */
+			/* Extend the region by multiples of ha_pages_in_chunk */
 			residual = (start_pfn + pfn_cnt - has->end_pfn);
-			has->end_pfn += ALIGN(residual, HA_CHUNK);
+			has->end_pfn += ALIGN(residual, ha_pages_in_chunk);
 		}
 
 		ret = 1;
@@ -897,12 +901,12 @@ static unsigned long handle_pg_range(unsigned long pg_start,
 			 * We have some residual hot add range
 			 * that needs to be hot added; hot add
 			 * it now. Hot add a multiple of
-			 * HA_CHUNK that fully covers the pages
+			 * ha_pages_in_chunk that fully covers the pages
 			 * we have.
 			 */
 			size = (has->end_pfn - has->ha_end_pfn);
 			if (pfn_cnt <= size) {
-				size = ALIGN(pfn_cnt, HA_CHUNK);
+				size = ALIGN(pfn_cnt, ha_pages_in_chunk);
 			} else {
 				pfn_cnt = size;
 			}
@@ -1003,8 +1007,8 @@ static void hot_add_req(struct work_struct *dummy)
 		 * that need to be hot-added while ensuring the alignment
 		 * and size requirements of Linux as it relates to hot-add.
 		 */
-		rg_start = ALIGN_DOWN(pg_start, HA_CHUNK);
-		rg_sz = ALIGN(pfn_cnt, HA_CHUNK);
+		rg_start = ALIGN_DOWN(pg_start, ha_pages_in_chunk);
+		rg_sz = ALIGN(pfn_cnt, ha_pages_in_chunk);
 	}
 
 	if (do_hot_add)
@@ -1807,10 +1811,13 @@ static int balloon_connect_vsp(struct hv_device *dev)
 	cap_msg.caps.cap_bits.hot_add = hot_add_enabled();
 
 	/*
-	 * Specify our alignment requirements as it relates
-	 * memory hot-add. Specify 128MB alignment.
+	 * Specify our alignment requirements for memory hot-add. The value is
+	 * the log base 2 of the number of megabytes in a chunk. For example,
+	 * with 256 MiB chunks, the value is 8. The number of MiB in a chunk
+	 * must be a power of 2.
 	 */
-	cap_msg.caps.cap_bits.hot_add_alignment = 7;
+	cap_msg.caps.cap_bits.hot_add_alignment =
+					ilog2(HA_BYTES_IN_CHUNK / SZ_1M);
 
 	/*
 	 * Currently the host does not use these
@@ -1960,8 +1967,23 @@ static int balloon_probe(struct hv_device *dev,
 		hot_add = false;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
+	/*
+	 * Hot-add must operate in chunks that are of size equal to the
+	 * memory block size because that's what the core add_memory()
+	 * interface requires. The Hyper-V interface requires that the memory
+	 * block size be a power of 2, which is guaranteed by the check in
+	 * memory_dev_init().
+	 */
+	ha_pages_in_chunk = memory_block_size_bytes() / PAGE_SIZE;
 	do_hot_add = hot_add;
 #else
+	/*
+	 * Without MEMORY_HOTPLUG, the guest returns a failure status for all
+	 * hot add requests from Hyper-V, and the chunk size is used only to
+	 * specify alignment to Hyper-V as required by the host/guest protocol.
+	 * Somewhat arbitrarily, use 128 MiB.
+	 */
+	ha_pages_in_chunk = SZ_128M / PAGE_SIZE;
 	do_hot_add = false;
 #endif
 	dm_device.dev = dev;
