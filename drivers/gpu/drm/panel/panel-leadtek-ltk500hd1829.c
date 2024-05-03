@@ -40,7 +40,6 @@ struct ltk500hd1829 {
 	struct regulator *vcc;
 	struct regulator *iovcc;
 	const struct ltk500hd1829_desc *panel_desc;
-	bool prepared;
 };
 
 static const struct ltk500hd1829_cmd ltk101b4029w_init[] = {
@@ -492,9 +491,6 @@ static int ltk500hd1829_unprepare(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret < 0)
 		dev_err(panel->dev, "failed to set display off: %d\n", ret);
@@ -510,8 +506,6 @@ static int ltk500hd1829_unprepare(struct drm_panel *panel)
 	regulator_disable(ctx->iovcc);
 	regulator_disable(ctx->vcc);
 
-	ctx->prepared = false;
-
 	return 0;
 }
 
@@ -521,9 +515,6 @@ static int ltk500hd1829_prepare(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	unsigned int i;
 	int ret;
-
-	if (ctx->prepared)
-		return 0;
 
 	ret = regulator_enable(ctx->vcc);
 	if (ret < 0) {
@@ -567,8 +558,6 @@ static int ltk500hd1829_prepare(struct drm_panel *panel)
 		dev_err(panel->dev, "failed to set display on: %d\n", ret);
 		goto disable_iovcc;
 	}
-
-	ctx->prepared = true;
 
 	return 0;
 
