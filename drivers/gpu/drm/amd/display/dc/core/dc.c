@@ -4074,6 +4074,14 @@ static void commit_planes_for_stream(struct dc *dc,
 				if (!should_update_pipe_for_plane(context, pipe_ctx, plane_state))
 					continue;
 
+				if (srf_updates[i].cm2_params &&
+						srf_updates[i].cm2_params->cm2_luts.lut3d_data.lut3d_src ==
+								DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM &&
+						srf_updates[i].cm2_params->component_settings.shaper_3dlut_setting ==
+								DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT &&
+						dc->hwss.trigger_3dlut_dma_load)
+					dc->hwss.trigger_3dlut_dma_load(dc, pipe_ctx);
+
 				/*program triple buffer after lock based on flip type*/
 				if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
 					/*only enable triplebuffer for  fast_update*/

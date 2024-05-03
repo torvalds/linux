@@ -24,6 +24,7 @@ static const struct hw_sequencer_funcs dcn401_funcs = {
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.program_output_csc = dcn20_program_output_csc,
+	.trigger_3dlut_dma_load = dcn401_trigger_3dlut_dma_load,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dcn10_enable_timing_synchronization,
 	.enable_per_frame_crtc_position_reset = dcn10_enable_per_frame_crtc_position_reset,

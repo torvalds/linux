@@ -40,6 +40,8 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 bool dcn401_set_output_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream);
+void dcn401_trigger_3dlut_dma_load(struct dc *dc,
+				struct pipe_ctx *pipe_ctx);
 void dcn401_calculate_dccg_tmds_div_value(struct pipe_ctx *pipe_ctx,
 				unsigned int *tmds_div);
 enum dc_status dcn401_enable_stream_timing(

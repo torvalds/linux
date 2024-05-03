@@ -498,9 +498,9 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		if (m_lut_params.pwl) {
 			if (mpc->funcs->populate_lut)
 				mpc->funcs->populate_lut(mpc, MCM_LUT_1DLUT, m_lut_params, lut_bank_a, mpcc_id);
-			if (mpc->funcs->program_lut_mode)
-				mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, lut1d_xable, lut_bank_a, mpcc_id);
 		}
+		if (mpc->funcs->program_lut_mode)
+			mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, lut1d_xable, lut_bank_a, mpcc_id);
 	}
 
 	/* Shaper */
@@ -519,9 +519,9 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		if (m_lut_params.pwl) {
 			if (mpc->funcs->populate_lut)
 				mpc->funcs->populate_lut(mpc, MCM_LUT_SHAPER, m_lut_params, lut_bank_a, mpcc_id);
-			if (mpc->funcs->program_lut_mode)
-				mpc->funcs->program_lut_mode(mpc, MCM_LUT_SHAPER, shaper_xable, lut_bank_a, mpcc_id);
 		}
+		if (mpc->funcs->program_lut_mode)
+			mpc->funcs->program_lut_mode(mpc, MCM_LUT_SHAPER, shaper_xable, lut_bank_a, mpcc_id);
 	}
 
 	/* 3DLUT */
@@ -632,6 +632,15 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		}
 		break;
 
+	}
+}
+
+void dcn401_trigger_3dlut_dma_load(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+
+	if (hubp->funcs->hubp_enable_3dlut_fl) {
+		hubp->funcs->hubp_enable_3dlut_fl(hubp, true);
 	}
 }
 
