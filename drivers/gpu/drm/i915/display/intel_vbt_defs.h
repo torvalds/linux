@@ -973,6 +973,22 @@ struct bdb_sdvo_lvds_pnp_id {
 } __packed;
 
 /*
+ * Block 25 - SDVO LVDS PPS
+ */
+
+struct sdvo_lvds_pps {
+	u16 t0; /* power on */
+	u16 t1; /* backlight on */
+	u16 t2; /* backlight off */
+	u16 t3; /* power off */
+	u16 t4; /* power cycle */
+} __packed;
+
+struct bdb_sdvo_lvds_pps {
+	struct sdvo_lvds_pps pps[4];
+} __packed;
+
+/*
  * Block 27 - eDP VBT Block
  */
 
