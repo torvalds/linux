@@ -264,7 +264,7 @@ static void insert_ordered_extent(struct btrfs_ordered_extent *entry)
  */
 struct btrfs_ordered_extent *btrfs_alloc_ordered_extent(
 			struct btrfs_inode *inode, u64 file_offset,
-			struct btrfs_file_extent *file_extent, unsigned long flags)
+			const struct btrfs_file_extent *file_extent, unsigned long flags)
 {
 	struct btrfs_ordered_extent *entry;
 
