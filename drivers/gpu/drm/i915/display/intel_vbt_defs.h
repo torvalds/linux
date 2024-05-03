@@ -779,6 +779,25 @@ struct bdb_driver_features {
 } __packed;
 
 /*
+ * Block 13 - Driver Persistent Algorithm
+ */
+
+struct bdb_driver_persistence {
+	u16 hotkey_persistent_algorithm:1;
+	u16 lid_switch_persistent_algorithm:1;
+	u16 power_management_persistent_algorithm:1;
+	u16 hotkey_persistent_on_mds_twin:1;
+	u16 hotkey_persistent_on_refresh_rate:1;
+	u16 hotkey_persistent_on_restore_pipe:1;
+	u16 hotkey_persistent_on_mode:1;
+	u16 edid_persistent_on_mode:1;
+	u16 dvo_hotplug_persistent_on_mode:1;
+	u16 docking_persistent_algorithm:1;
+	u16 rsvd:6;
+	u8 persistent_max_config;
+} __packed;
+
+/*
  * Block 22 - SDVO LVDS General Options
  */
 
