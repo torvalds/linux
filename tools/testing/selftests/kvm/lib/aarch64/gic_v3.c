@@ -9,12 +9,21 @@
 #include "processor.h"
 #include "delay.h"
 
+#include "gic.h"
 #include "gic_v3.h"
 #include "gic_private.h"
 
+#define GICV3_MAX_CPUS			512
+
+#define GICD_INT_DEF_PRI		0xa0
+#define GICD_INT_DEF_PRI_X4		((GICD_INT_DEF_PRI << 24) |\
+					(GICD_INT_DEF_PRI << 16) |\
+					(GICD_INT_DEF_PRI << 8) |\
+					GICD_INT_DEF_PRI)
+
+#define ICC_PMR_DEF_PRIO		0xf0
+
 struct gicv3_data {
-	void *dist_base;
-	void *redist_base[GICV3_MAX_CPUS];
 	unsigned int nr_cpus;
 	unsigned int nr_spis;
 };
@@ -35,17 +44,23 @@ static void gicv3_gicd_wait_for_rwp(void)
 {
 	unsigned int count = 100000; /* 1s */
 
-	while (readl(gicv3_data.dist_base + GICD_CTLR) & GICD_CTLR_RWP) {
+	while (readl(GICD_BASE_GVA + GICD_CTLR) & GICD_CTLR_RWP) {
 		GUEST_ASSERT(count--);
 		udelay(10);
 	}
 }
 
-static void gicv3_gicr_wait_for_rwp(void *redist_base)
+static inline volatile void *gicr_base_cpu(uint32_t cpu)
+{
+	/* Align all the redistributors sequentially */
+	return GICR_BASE_GVA + cpu * SZ_64K * 2;
+}
+
+static void gicv3_gicr_wait_for_rwp(uint32_t cpu)
 {
 	unsigned int count = 100000; /* 1s */
 
-	while (readl(redist_base + GICR_CTLR) & GICR_CTLR_RWP) {
+	while (readl(gicr_base_cpu(cpu) + GICR_CTLR) & GICR_CTLR_RWP) {
 		GUEST_ASSERT(count--);
 		udelay(10);
 	}
@@ -56,7 +71,7 @@ static void gicv3_wait_for_rwp(uint32_t cpu_or_dist)
 	if (cpu_or_dist & DIST_BIT)
 		gicv3_gicd_wait_for_rwp();
 	else
-		gicv3_gicr_wait_for_rwp(gicv3_data.redist_base[cpu_or_dist]);
+		gicv3_gicr_wait_for_rwp(cpu_or_dist);
 }
 
 static enum gicv3_intid_range get_intid_range(unsigned int intid)
@@ -116,15 +131,15 @@ static void gicv3_set_eoi_split(bool split)
 
 uint32_t gicv3_reg_readl(uint32_t cpu_or_dist, uint64_t offset)
 {
-	void *base = cpu_or_dist & DIST_BIT ? gicv3_data.dist_base
-		: sgi_base_from_redist(gicv3_data.redist_base[cpu_or_dist]);
+	volatile void *base = cpu_or_dist & DIST_BIT ? GICD_BASE_GVA
+			: sgi_base_from_redist(gicr_base_cpu(cpu_or_dist));
 	return readl(base + offset);
 }
 
 void gicv3_reg_writel(uint32_t cpu_or_dist, uint64_t offset, uint32_t reg_val)
 {
-	void *base = cpu_or_dist & DIST_BIT ? gicv3_data.dist_base
-		: sgi_base_from_redist(gicv3_data.redist_base[cpu_or_dist]);
+	volatile void *base = cpu_or_dist & DIST_BIT ? GICD_BASE_GVA
+			: sgi_base_from_redist(gicr_base_cpu(cpu_or_dist));
 	writel(reg_val, base + offset);
 }
 
@@ -263,7 +278,7 @@ static bool gicv3_irq_get_pending(uint32_t intid)
 	return gicv3_read_reg(intid, GICD_ISPENDR, 32, 1);
 }
 
-static void gicv3_enable_redist(void *redist_base)
+static void gicv3_enable_redist(volatile void *redist_base)
 {
 	uint32_t val = readl(redist_base + GICR_WAKER);
 	unsigned int count = 100000; /* 1s */
@@ -278,21 +293,15 @@ static void gicv3_enable_redist(void *redist_base)
 	}
 }
 
-static inline void *gicr_base_cpu(void *redist_base, uint32_t cpu)
+static void gicv3_cpu_init(unsigned int cpu)
 {
-	/* Align all the redistributors sequentially */
-	return redist_base + cpu * SZ_64K * 2;
-}
-
-static void gicv3_cpu_init(unsigned int cpu, void *redist_base)
-{
-	void *sgi_base;
+	volatile void *sgi_base;
 	unsigned int i;
-	void *redist_base_cpu;
+	volatile void *redist_base_cpu;
 
 	GUEST_ASSERT(cpu < gicv3_data.nr_cpus);
 
-	redist_base_cpu = gicr_base_cpu(redist_base, cpu);
+	redist_base_cpu = gicr_base_cpu(cpu);
 	sgi_base = sgi_base_from_redist(redist_base_cpu);
 
 	gicv3_enable_redist(redist_base_cpu);
@@ -310,7 +319,7 @@ static void gicv3_cpu_init(unsigned int cpu, void *redist_base)
 		writel(GICD_INT_DEF_PRI_X4,
 				sgi_base + GICR_IPRIORITYR0 + i);
 
-	gicv3_gicr_wait_for_rwp(redist_base_cpu);
+	gicv3_gicr_wait_for_rwp(cpu);
 
 	/* Enable the GIC system register (ICC_*) access */
 	write_sysreg_s(read_sysreg_s(SYS_ICC_SRE_EL1) | ICC_SRE_EL1_SRE,
@@ -320,18 +329,15 @@ static void gicv3_cpu_init(unsigned int cpu, void *redist_base)
 	write_sysreg_s(ICC_PMR_DEF_PRIO, SYS_ICC_PMR_EL1);
 
 	/* Enable non-secure Group-1 interrupts */
-	write_sysreg_s(ICC_IGRPEN1_EL1_ENABLE, SYS_ICC_GRPEN1_EL1);
-
-	gicv3_data.redist_base[cpu] = redist_base_cpu;
+	write_sysreg_s(ICC_IGRPEN1_EL1_MASK, SYS_ICC_IGRPEN1_EL1);
 }
 
 static void gicv3_dist_init(void)
 {
-	void *dist_base = gicv3_data.dist_base;
 	unsigned int i;
 
 	/* Disable the distributor until we set things up */
-	writel(0, dist_base + GICD_CTLR);
+	writel(0, GICD_BASE_GVA + GICD_CTLR);
 	gicv3_gicd_wait_for_rwp();
 
 	/*
@@ -339,33 +345,32 @@ static void gicv3_dist_init(void)
 	 * Also, deactivate and disable them.
 	 */
 	for (i = 32; i < gicv3_data.nr_spis; i += 32) {
-		writel(~0, dist_base + GICD_IGROUPR + i / 8);
-		writel(~0, dist_base + GICD_ICACTIVER + i / 8);
-		writel(~0, dist_base + GICD_ICENABLER + i / 8);
+		writel(~0, GICD_BASE_GVA + GICD_IGROUPR + i / 8);
+		writel(~0, GICD_BASE_GVA + GICD_ICACTIVER + i / 8);
+		writel(~0, GICD_BASE_GVA + GICD_ICENABLER + i / 8);
 	}
 
 	/* Set a default priority for all the SPIs */
 	for (i = 32; i < gicv3_data.nr_spis; i += 4)
 		writel(GICD_INT_DEF_PRI_X4,
-				dist_base + GICD_IPRIORITYR + i);
+				GICD_BASE_GVA + GICD_IPRIORITYR + i);
 
 	/* Wait for the settings to sync-in */
 	gicv3_gicd_wait_for_rwp();
 
 	/* Finally, enable the distributor globally with ARE */
 	writel(GICD_CTLR_ARE_NS | GICD_CTLR_ENABLE_G1A |
-			GICD_CTLR_ENABLE_G1, dist_base + GICD_CTLR);
+			GICD_CTLR_ENABLE_G1, GICD_BASE_GVA + GICD_CTLR);
 	gicv3_gicd_wait_for_rwp();
 }
 
-static void gicv3_init(unsigned int nr_cpus, void *dist_base)
+static void gicv3_init(unsigned int nr_cpus)
 {
 	GUEST_ASSERT(nr_cpus <= GICV3_MAX_CPUS);
 
 	gicv3_data.nr_cpus = nr_cpus;
-	gicv3_data.dist_base = dist_base;
 	gicv3_data.nr_spis = GICD_TYPER_SPIS(
-				readl(gicv3_data.dist_base + GICD_TYPER));
+				readl(GICD_BASE_GVA + GICD_TYPER));
 	if (gicv3_data.nr_spis > 1020)
 		gicv3_data.nr_spis = 1020;
 
@@ -396,3 +401,27 @@ const struct gic_common_ops gicv3_ops = {
 	.gic_irq_get_pending = gicv3_irq_get_pending,
 	.gic_irq_set_config = gicv3_irq_set_config,
 };
+
+void gic_rdist_enable_lpis(vm_paddr_t cfg_table, size_t cfg_table_size,
+			   vm_paddr_t pend_table)
+{
+	volatile void *rdist_base = gicr_base_cpu(guest_get_vcpuid());
+
+	u32 ctlr;
+	u64 val;
+
+	val = (cfg_table |
+	       GICR_PROPBASER_InnerShareable |
+	       GICR_PROPBASER_RaWaWb |
+	       ((ilog2(cfg_table_size) - 1) & GICR_PROPBASER_IDBITS_MASK));
+	writeq_relaxed(val, rdist_base + GICR_PROPBASER);
+
+	val = (pend_table |
+	       GICR_PENDBASER_InnerShareable |
+	       GICR_PENDBASER_RaWaWb);
+	writeq_relaxed(val, rdist_base + GICR_PENDBASER);
+
+	ctlr = readl_relaxed(rdist_base + GICR_CTLR);
+	ctlr |= GICR_CTLR_ENABLE_LPIS;
+	writel_relaxed(ctlr, rdist_base + GICR_CTLR);
+}

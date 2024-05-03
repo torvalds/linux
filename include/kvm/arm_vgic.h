@@ -210,6 +210,12 @@ struct vgic_its {
 	struct mutex		its_lock;
 	struct list_head	device_list;
 	struct list_head	collection_list;
+
+	/*
+	 * Caches the (device_id, event_id) -> vgic_irq translation for
+	 * LPIs that are mapped and enabled.
+	 */
+	struct xarray		translation_cache;
 };
 
 struct vgic_state_iter;
@@ -274,13 +280,8 @@ struct vgic_dist {
 	 */
 	u64			propbaser;
 
-	/* Protects the lpi_list. */
-	raw_spinlock_t		lpi_list_lock;
+#define LPI_XA_MARK_DEBUG_ITER	XA_MARK_0
 	struct xarray		lpi_xa;
-	atomic_t		lpi_count;
-
-	/* LPI translation cache */
-	struct list_head	lpi_translation_cache;
 
 	/* used by vgic-debug */
 	struct vgic_state_iter *iter;
