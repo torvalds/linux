@@ -1278,7 +1278,6 @@ static int mxuport_resume(struct usb_serial *serial)
 
 static struct usb_serial_driver mxuport_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"mxuport",
 	},
 	.description		= "MOXA UPort",

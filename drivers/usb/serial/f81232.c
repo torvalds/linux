@@ -967,7 +967,6 @@ static int f81232_resume(struct usb_serial *serial)
 
 static struct usb_serial_driver f81232_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"f81232",
 	},
 	.id_table =		f81232_id_table,
@@ -994,7 +993,6 @@ static struct usb_serial_driver f81232_device = {
 
 static struct usb_serial_driver f81534a_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"f81534a",
 	},
 	.id_table =		f81534a_id_table,

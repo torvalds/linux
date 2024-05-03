@@ -1234,7 +1234,6 @@ static void pl2303_process_read_urb(struct urb *urb)
 
 static struct usb_serial_driver pl2303_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"pl2303",
 	},
 	.id_table =		id_table,

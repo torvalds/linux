@@ -1082,7 +1082,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_serial_driver xr_device = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name =	"xr_serial",
 	},
 	.id_table		= id_table,
