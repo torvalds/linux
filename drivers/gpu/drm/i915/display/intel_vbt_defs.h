@@ -989,6 +989,18 @@ struct bdb_sdvo_lvds_pps {
 } __packed;
 
 /*
+ * Block 26 - TV Options Block
+ */
+
+struct bdb_tv_options {
+	u16 underscan_overscan_hdtv_component:2;
+	u16 rsvd1:10;
+	u16 underscan_overscan_hdtv_dvi:2;
+	u16 add_modes_to_avoid_overscan_issue:1;
+	u16 d_connector_support:1;
+} __packed;
+
+/*
  * Block 27 - eDP VBT Block
  */
 
