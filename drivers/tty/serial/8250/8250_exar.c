@@ -280,7 +280,7 @@ static inline void exar_ee_deselect(struct exar8250 *priv)
 	exar_write_reg(priv, UART_EXAR_REGB, 0x00);
 }
 
-static inline void exar_ee_write_bit(struct exar8250 *priv, int bit)
+static inline void exar_ee_write_bit(struct exar8250 *priv, u8 bit)
 {
 	u8 value = UART_EXAR_REGB_EECS;
 
