@@ -51,7 +51,7 @@ static void atmel_i2c_checksum(struct atmel_i2c_cmd *cmd)
 	*__crc16 = cpu_to_le16(bitrev16(crc16(0, data, len)));
 }
 
-void atmel_i2c_init_read_cmd(struct atmel_i2c_cmd *cmd)
+void atmel_i2c_init_read_config_cmd(struct atmel_i2c_cmd *cmd)
 {
 	cmd->word_addr = COMMAND;
 	cmd->opcode = OPCODE_READ;
@@ -68,7 +68,7 @@ void atmel_i2c_init_read_cmd(struct atmel_i2c_cmd *cmd)
 	cmd->msecs = MAX_EXEC_TIME_READ;
 	cmd->rxsize = READ_RSP_SIZE;
 }
-EXPORT_SYMBOL(atmel_i2c_init_read_cmd);
+EXPORT_SYMBOL(atmel_i2c_init_read_config_cmd);
 
 void atmel_i2c_init_random_cmd(struct atmel_i2c_cmd *cmd)
 {
@@ -301,7 +301,7 @@ static int device_sanity_check(struct i2c_client *client)
 	if (!cmd)
 		return -ENOMEM;
 
-	atmel_i2c_init_read_cmd(cmd);
+	atmel_i2c_init_read_config_cmd(cmd);
 
 	ret = atmel_i2c_send_receive(client, cmd);
 	if (ret)
