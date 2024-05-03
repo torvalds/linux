@@ -8544,27 +8544,29 @@ static void dev_change_rx_flags(struct net_device *dev, int flags)
 static int __dev_set_promiscuity(struct net_device *dev, int inc, bool notify)
 {
 	unsigned int old_flags = dev->flags;
+	unsigned int promiscuity, flags;
 	kuid_t uid;
 	kgid_t gid;
 
 	ASSERT_RTNL();
 
-	dev->flags |= IFF_PROMISC;
-	dev->promiscuity += inc;
-	if (dev->promiscuity == 0) {
+	promiscuity = dev->promiscuity + inc;
+	if (promiscuity == 0) {
 		/*
 		 * Avoid overflow.
 		 * If inc causes overflow, untouch promisc and return error.
 		 */
-		if (inc < 0)
-			dev->flags &= ~IFF_PROMISC;
-		else {
-			dev->promiscuity -= inc;
+		if (unlikely(inc > 0)) {
 			netdev_warn(dev, "promiscuity touches roof, set promiscuity failed. promiscuity feature of device might be broken.\n");
 			return -EOVERFLOW;
 		}
+		flags = old_flags & ~IFF_PROMISC;
+	} else {
+		flags = old_flags | IFF_PROMISC;
 	}
-	if (dev->flags != old_flags) {
+	WRITE_ONCE(dev->promiscuity, promiscuity);
+	if (flags != old_flags) {
+		WRITE_ONCE(dev->flags, flags);
 		netdev_info(dev, "%s promiscuous mode\n",
 			    dev->flags & IFF_PROMISC ? "entered" : "left");
 		if (audit_enabled) {
@@ -8615,25 +8617,27 @@ EXPORT_SYMBOL(dev_set_promiscuity);
 static int __dev_set_allmulti(struct net_device *dev, int inc, bool notify)
 {
 	unsigned int old_flags = dev->flags, old_gflags = dev->gflags;
+	unsigned int allmulti, flags;
 
 	ASSERT_RTNL();
 
-	dev->flags |= IFF_ALLMULTI;
-	dev->allmulti += inc;
-	if (dev->allmulti == 0) {
+	allmulti = dev->allmulti + inc;
+	if (allmulti == 0) {
 		/*
 		 * Avoid overflow.
 		 * If inc causes overflow, untouch allmulti and return error.
 		 */
-		if (inc < 0)
-			dev->flags &= ~IFF_ALLMULTI;
-		else {
-			dev->allmulti -= inc;
+		if (unlikely(inc > 0)) {
 			netdev_warn(dev, "allmulti touches roof, set allmulti failed. allmulti feature of device might be broken.\n");
 			return -EOVERFLOW;
 		}
+		flags = old_flags & ~IFF_ALLMULTI;
+	} else {
+		flags = old_flags | IFF_ALLMULTI;
 	}
-	if (dev->flags ^ old_flags) {
+	WRITE_ONCE(dev->allmulti, allmulti);
+	if (flags != old_flags) {
+		WRITE_ONCE(dev->flags, flags);
 		netdev_info(dev, "%s allmulticast mode\n",
 			    dev->flags & IFF_ALLMULTI ? "entered" : "left");
 		dev_change_rx_flags(dev, IFF_ALLMULTI);
