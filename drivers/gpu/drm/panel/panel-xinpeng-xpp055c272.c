@@ -306,26 +306,10 @@ static int xpp055c272_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static void xpp055c272_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct xpp055c272 *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = drm_panel_unprepare(&ctx->panel);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to unprepare panel: %d\n", ret);
-
-	ret = drm_panel_disable(&ctx->panel);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to disable panel: %d\n", ret);
-}
-
 static void xpp055c272_remove(struct mipi_dsi_device *dsi)
 {
 	struct xpp055c272 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
-
-	xpp055c272_shutdown(dsi);
 
 	ret = mipi_dsi_detach(dsi);
 	if (ret < 0)
@@ -347,7 +331,6 @@ static struct mipi_dsi_driver xpp055c272_driver = {
 	},
 	.probe	= xpp055c272_probe,
 	.remove = xpp055c272_remove,
-	.shutdown = xpp055c272_shutdown,
 };
 module_mipi_dsi_driver(xpp055c272_driver);
 
