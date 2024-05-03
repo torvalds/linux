@@ -188,6 +188,7 @@ enum bdb_block_id {
 	BDB_COMPRESSION_PARAMETERS	= 56, /* 213+ */
 	BDB_VSWING_PREEMPH		= 57, /* 218+ */
 	BDB_GENERIC_DTD			= 58, /* 229+ */
+	BDB_INT15_HOOK			= 252, /* VBIOS only */
 	BDB_SKIP			= 254, /* VBIOS only */
 };
 
