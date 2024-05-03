@@ -178,17 +178,52 @@ static u8 emc1403_temp_regs[][4] = {
 	},
 };
 
+static s8 emc1403_temp_regs_low[][4] = {
+	[0] = {
+		[temp_min] = -1,
+		[temp_max] = -1,
+		[temp_crit] = -1,
+		[temp_input] = 0x29,
+	},
+	[1] = {
+		[temp_min] = 0x14,
+		[temp_max] = 0x13,
+		[temp_crit] = -1,
+		[temp_input] = 0x10,
+	},
+	[2] = {
+		[temp_min] = 0x18,
+		[temp_max] = 0x17,
+		[temp_crit] = -1,
+		[temp_input] = 0x24,
+	},
+	[3] = {
+		[temp_min] = 0x2f,
+		[temp_max] = 0x2e,
+		[temp_crit] = -1,
+		[temp_input] = 0x2b,
+	},
+};
+
 static int __emc1403_get_temp(struct thermal_data *data, int channel,
 			      enum emc1403_reg_map map, long *val)
 {
 	unsigned int regval;
 	int ret;
+	s8 reg;
 
 	ret = regmap_read(data->regmap, emc1403_temp_regs[channel][map], &regval);
 	if (ret < 0)
 		return ret;
 	*val = regval * 1000;
 
+	reg = emc1403_temp_regs_low[channel][map];
+	if (reg >= 0) {
+		ret = regmap_read(data->regmap, reg, &regval);
+		if (ret < 0)
+			return ret;
+		*val += (regval >> 5) * 125;
+	}
 	return 0;
 }
 
@@ -336,12 +371,26 @@ static int emc1403_set_temp(struct thermal_data *data, int channel,
 {
 	unsigned int regval;
 	int ret;
+	u8 regh;
+	s8 regl;
 
-	val = clamp_val(val, 0, 255000);
+	regh = emc1403_temp_regs[channel][map];
+	regl = emc1403_temp_regs_low[channel][map];
 
 	mutex_lock(&data->mutex);
-	regval = DIV_ROUND_CLOSEST(val, 1000);
-	ret = regmap_write(data->regmap, emc1403_temp_regs[channel][map], regval);
+	if (regl >= 0) {
+		val = clamp_val(val, 0, 255875);
+		regval = DIV_ROUND_CLOSEST(val, 125);
+		ret = regmap_write(data->regmap, regh, regval >> 3);
+		if (ret < 0)
+			goto unlock;
+		ret = regmap_write(data->regmap, regl, (regval & 0x07) << 5);
+	} else {
+		val = clamp_val(val, 0, 255000);
+		regval = DIV_ROUND_CLOSEST(val, 1000);
+		ret = regmap_write(data->regmap, regh, regval);
+	}
+unlock:
 	mutex_unlock(&data->mutex);
 	return ret;
 }
