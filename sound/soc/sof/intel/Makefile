@@ -7,7 +7,7 @@ snd-sof-intel-hda-common-objs := hda.o hda-loader.o hda-stream.o hda-trace.o \
 				 hda-dsp.o hda-ipc.o hda-ctrl.o hda-pcm.o \
 				 hda-dai.o hda-dai-ops.o hda-bus.o \
 				 hda-common-ops.o \
-				 telemetry.o
+				 telemetry.o tracepoints.o
 
 snd-sof-intel-hda-mlink-objs := hda-mlink.o
 
