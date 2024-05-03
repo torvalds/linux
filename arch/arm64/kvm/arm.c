@@ -35,10 +35,11 @@
 #include <asm/virt.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
+#include <asm/kvm_emulate.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nested.h>
 #include <asm/kvm_pkvm.h>
-#include <asm/kvm_emulate.h>
+#include <asm/kvm_ptrauth.h>
 #include <asm/sections.h>
 
 #include <kvm/arm_hypercalls.h>
@@ -218,6 +219,40 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_arm_teardown_hypercalls(kvm);
 }
 
+static bool kvm_has_full_ptr_auth(void)
+{
+	bool apa, gpa, api, gpi, apa3, gpa3;
+	u64 isar1, isar2, val;
+
+	/*
+	 * Check that:
+	 *
+	 * - both Address and Generic auth are implemented for a given
+         *   algorithm (Q5, IMPDEF or Q3)
+	 * - only a single algorithm is implemented.
+	 */
+	if (!system_has_full_ptr_auth())
+		return false;
+
+	isar1 = read_sanitised_ftr_reg(SYS_ID_AA64ISAR1_EL1);
+	isar2 = read_sanitised_ftr_reg(SYS_ID_AA64ISAR2_EL1);
+
+	apa = !!FIELD_GET(ID_AA64ISAR1_EL1_APA_MASK, isar1);
+	val = FIELD_GET(ID_AA64ISAR1_EL1_GPA_MASK, isar1);
+	gpa = (val == ID_AA64ISAR1_EL1_GPA_IMP);
+
+	api = !!FIELD_GET(ID_AA64ISAR1_EL1_API_MASK, isar1);
+	val = FIELD_GET(ID_AA64ISAR1_EL1_GPI_MASK, isar1);
+	gpi = (val == ID_AA64ISAR1_EL1_GPI_IMP);
+
+	apa3 = !!FIELD_GET(ID_AA64ISAR2_EL1_APA3_MASK, isar2);
+	val  = FIELD_GET(ID_AA64ISAR2_EL1_GPA3_MASK, isar2);
+	gpa3 = (val == ID_AA64ISAR2_EL1_GPA3_IMP);
+
+	return (apa == gpa && api == gpi && apa3 == gpa3 &&
+		(apa + api + apa3) == 1);
+}
+
 int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	int r;
@@ -311,7 +346,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_ARM_PTRAUTH_ADDRESS:
 	case KVM_CAP_ARM_PTRAUTH_GENERIC:
-		r = system_has_full_ptr_auth();
+		r = kvm_has_full_ptr_auth();
 		break;
 	case KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE:
 		if (kvm)
@@ -422,6 +457,44 @@ void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
 
 }
 
+static void vcpu_set_pauth_traps(struct kvm_vcpu *vcpu)
+{
+	if (vcpu_has_ptrauth(vcpu)) {
+		/*
+		 * Either we're running running an L2 guest, and the API/APK
+		 * bits come from L1's HCR_EL2, or API/APK are both set.
+		 */
+		if (unlikely(vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu))) {
+			u64 val;
+
+			val = __vcpu_sys_reg(vcpu, HCR_EL2);
+			val &= (HCR_API | HCR_APK);
+			vcpu->arch.hcr_el2 &= ~(HCR_API | HCR_APK);
+			vcpu->arch.hcr_el2 |= val;
+		} else {
+			vcpu->arch.hcr_el2 |= (HCR_API | HCR_APK);
+		}
+
+		/*
+		 * Save the host keys if there is any chance for the guest
+		 * to use pauth, as the entry code will reload the guest
+		 * keys in that case.
+		 * Protected mode is the exception to that rule, as the
+		 * entry into the EL2 code eagerly switch back and forth
+		 * between host and hyp keys (and kvm_hyp_ctxt is out of
+		 * reach anyway).
+		 */
+		if (is_protected_kvm_enabled())
+			return;
+
+		if (vcpu->arch.hcr_el2 & (HCR_API | HCR_APK)) {
+			struct kvm_cpu_context *ctxt;
+			ctxt = this_cpu_ptr_hyp_sym(kvm_hyp_ctxt);
+			ptrauth_save_keys(ctxt);
+		}
+	}
+}
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvm_s2_mmu *mmu;
@@ -460,8 +533,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	else
 		vcpu_set_wfx_traps(vcpu);
 
-	if (vcpu_has_ptrauth(vcpu))
-		vcpu_ptrauth_disable(vcpu);
+	vcpu_set_pauth_traps(vcpu);
+
 	kvm_arch_vcpu_load_debug_state_flags(vcpu);
 
 	if (!cpumask_test_cpu(cpu, vcpu->kvm->arch.supported_cpus))
@@ -1264,7 +1337,7 @@ static unsigned long system_supported_vcpu_features(void)
 	if (!system_supports_sve())
 		clear_bit(KVM_ARM_VCPU_SVE, &features);
 
-	if (!system_has_full_ptr_auth()) {
+	if (!kvm_has_full_ptr_auth()) {
 		clear_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, &features);
 		clear_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, &features);
 	}
