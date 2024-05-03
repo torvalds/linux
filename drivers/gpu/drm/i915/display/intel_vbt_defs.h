@@ -798,6 +798,36 @@ struct bdb_driver_persistence {
 } __packed;
 
 /*
+ * Block 15 - Dot Clock Override Table
+ */
+
+struct dot_clock_override_entry_gen2 {
+	u32 dotclock;
+	u8 n;
+	u8 m1;
+	u8 m2;
+	u8 p1:5;
+	u8 p1_div_by_2:1;
+	u8 reserved:1;
+	u8 p2_div_by_4:1;
+} __packed;
+
+struct dot_clock_override_entry_gen3 {
+	u32 dotclock;
+	u8 n;
+	u8 m1;
+	u8 m2;
+	u8 p1;
+	u8 p2;
+} __packed;
+
+struct bdb_dot_clock_override {
+	u8 row_size; /* 8 == gen2, 9 == gen3+ */
+	u8 num_rows;
+	struct dot_clock_override_entry_gen3 table[]; /* or _gen2 */
+} __packed;
+
+/*
  * Block 22 - SDVO LVDS General Options
  */
 
