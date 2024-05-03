@@ -389,27 +389,11 @@ static void kingdisplay_panel_remove(struct mipi_dsi_device *dsi)
 	struct kingdisplay_panel *kingdisplay = mipi_dsi_get_drvdata(dsi);
 	int err;
 
-	err = drm_panel_unprepare(&kingdisplay->base);
-	if (err < 0)
-		dev_err(&dsi->dev, "failed to unprepare panel: %d\n", err);
-
-	err = drm_panel_disable(&kingdisplay->base);
-	if (err < 0)
-		dev_err(&dsi->dev, "failed to disable panel: %d\n", err);
-
 	err = mipi_dsi_detach(dsi);
 	if (err < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	kingdisplay_panel_del(kingdisplay);
-}
-
-static void kingdisplay_panel_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct kingdisplay_panel *kingdisplay = mipi_dsi_get_drvdata(dsi);
-
-	drm_panel_unprepare(&kingdisplay->base);
-	drm_panel_disable(&kingdisplay->base);
 }
 
 static struct mipi_dsi_driver kingdisplay_panel_driver = {
@@ -419,7 +403,6 @@ static struct mipi_dsi_driver kingdisplay_panel_driver = {
 	},
 	.probe = kingdisplay_panel_probe,
 	.remove = kingdisplay_panel_remove,
-	.shutdown = kingdisplay_panel_shutdown,
 };
 module_mipi_dsi_driver(kingdisplay_panel_driver);
 
