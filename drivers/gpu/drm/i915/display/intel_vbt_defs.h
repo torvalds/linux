@@ -160,9 +160,9 @@ enum bdb_block_id {
 	BDB_OEM_CUSTOM			= 20,
 	BDB_EFP_LIST			= 21, /* workarounds for VGA hsync/vsync */
 	BDB_SDVO_LVDS_OPTIONS		= 22,
-	BDB_SDVO_PANEL_DTDS		= 23,
-	BDB_SDVO_LVDS_PNP_IDS		= 24,
-	BDB_SDVO_LVDS_POWER_SEQ		= 25,
+	BDB_SDVO_LVDS_DTD		= 23,
+	BDB_SDVO_LVDS_PNP_ID		= 24,
+	BDB_SDVO_LVDS_PPS		= 25,
 	BDB_TV_OPTIONS			= 26,
 	BDB_EDP				= 27,
 	BDB_LFP_OPTIONS			= 40,
@@ -686,11 +686,11 @@ struct bdb_sdvo_lvds_options {
 } __packed;
 
 /*
- * Block 23 - SDVO LVDS Panel DTDs
+ * Block 23 - SDVO LVDS DTD
  */
 
-struct bdb_sdvo_panel_dtds {
-	struct bdb_edid_dtd dtds[4];
+struct bdb_sdvo_lvds_dtd {
+	struct bdb_edid_dtd dtd[4];
 } __packed;
 
 /*

@@ -170,8 +170,8 @@ static const struct {
 	  .min_size = sizeof(struct bdb_driver_features), },
 	{ .section_id = BDB_SDVO_LVDS_OPTIONS,
 	  .min_size = sizeof(struct bdb_sdvo_lvds_options), },
-	{ .section_id = BDB_SDVO_PANEL_DTDS,
-	  .min_size = sizeof(struct bdb_sdvo_panel_dtds), },
+	{ .section_id = BDB_SDVO_LVDS_DTD,
+	  .min_size = sizeof(struct bdb_sdvo_lvds_dtd), },
 	{ .section_id = BDB_EDP,
 	  .min_size = sizeof(struct bdb_edp), },
 	{ .section_id = BDB_LFP_OPTIONS,
@@ -1091,19 +1091,18 @@ parse_lfp_backlight(struct drm_i915_private *i915,
 		    panel->vbt.backlight.controller);
 }
 
-/* Try to find sdvo panel data */
 static void
-parse_sdvo_panel_data(struct drm_i915_private *i915,
-		      struct intel_panel *panel)
+parse_sdvo_lvds_data(struct drm_i915_private *i915,
+		     struct intel_panel *panel)
 {
-	const struct bdb_sdvo_panel_dtds *dtds;
+	const struct bdb_sdvo_lvds_dtd *dtd;
 	struct drm_display_mode *panel_fixed_mode;
 	int index;
 
 	index = i915->display.params.vbt_sdvo_panel_type;
 	if (index == -2) {
 		drm_dbg_kms(&i915->drm,
-			    "Ignore SDVO panel mode from BIOS VBT tables.\n");
+			    "Ignore SDVO LVDS mode from BIOS VBT tables.\n");
 		return;
 	}
 
@@ -1117,20 +1116,20 @@ parse_sdvo_panel_data(struct drm_i915_private *i915,
 		index = sdvo_lvds_options->panel_type;
 	}
 
-	dtds = bdb_find_section(i915, BDB_SDVO_PANEL_DTDS);
-	if (!dtds)
+	dtd = bdb_find_section(i915, BDB_SDVO_LVDS_DTD);
+	if (!dtd)
 		return;
 
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 	if (!panel_fixed_mode)
 		return;
 
-	fill_detail_timing_data(i915, panel_fixed_mode, &dtds->dtds[index]);
+	fill_detail_timing_data(i915, panel_fixed_mode, &dtd->dtd[index]);
 
 	panel->vbt.sdvo_lvds_vbt_mode = panel_fixed_mode;
 
 	drm_dbg_kms(&i915->drm,
-		    "Found SDVO panel mode in BIOS VBT tables: " DRM_MODE_FMT "\n",
+		    "Found SDVO LVDS mode in BIOS VBT tables: " DRM_MODE_FMT "\n",
 		    DRM_MODE_ARG(panel_fixed_mode));
 }
 
@@ -3257,7 +3256,7 @@ static void intel_bios_init_panel(struct drm_i915_private *i915,
 	parse_generic_dtd(i915, panel);
 	parse_lfp_data(i915, panel);
 	parse_lfp_backlight(i915, panel);
-	parse_sdvo_panel_data(i915, panel);
+	parse_sdvo_lvds_data(i915, panel);
 	parse_panel_driver_features(i915, panel);
 	parse_power_conservation_features(i915, panel);
 	parse_edp(i915, panel);
