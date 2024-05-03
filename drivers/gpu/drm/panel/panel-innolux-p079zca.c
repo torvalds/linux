@@ -460,27 +460,12 @@ static void innolux_panel_remove(struct mipi_dsi_device *dsi)
 	struct innolux_panel *innolux = mipi_dsi_get_drvdata(dsi);
 	int err;
 
-	err = drm_panel_unprepare(&innolux->base);
-	if (err < 0)
-		dev_err(&dsi->dev, "failed to unprepare panel: %d\n", err);
-
-	err = drm_panel_disable(&innolux->base);
-	if (err < 0)
-		dev_err(&dsi->dev, "failed to disable panel: %d\n", err);
 
 	err = mipi_dsi_detach(dsi);
 	if (err < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	innolux_panel_del(innolux);
-}
-
-static void innolux_panel_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct innolux_panel *innolux = mipi_dsi_get_drvdata(dsi);
-
-	drm_panel_unprepare(&innolux->base);
-	drm_panel_disable(&innolux->base);
 }
 
 static struct mipi_dsi_driver innolux_panel_driver = {
@@ -490,7 +475,6 @@ static struct mipi_dsi_driver innolux_panel_driver = {
 	},
 	.probe = innolux_panel_probe,
 	.remove = innolux_panel_remove,
-	.shutdown = innolux_panel_shutdown,
 };
 module_mipi_dsi_driver(innolux_panel_driver);
 
