@@ -1943,6 +1943,8 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 				   struct qede_arfs_tuple *t,
 				   __u32 location)
 {
+	int err;
+
 	if (location >= QEDE_RFS_MAX_FLTR) {
 		DP_INFO(edev, "Location out-of-bounds\n");
 		return -EINVAL;
@@ -1963,8 +1965,9 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 		return -EINVAL;
 	}
 
-	if (qede_parse_actions(edev, flow_action, NULL))
-		return -EINVAL;
+	err = qede_parse_actions(edev, flow_action, NULL);
+	if (err)
+		return err;
 
 	return 0;
 }
