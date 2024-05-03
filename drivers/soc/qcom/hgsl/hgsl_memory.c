@@ -342,15 +342,27 @@ static void _dma_cache_op(struct device *dev, struct page *page,
 	sg_set_page(&sgl, page, size_bytes, 0);
 	sg_dma_address(&sgl) = page_to_phys(page);
 
+	/*
+	 * APIs for Cache Maintenance Operations are updated in kernel
+	 * version 6.1. Prior to 6.1, dma_sync_sg_for_device() with
+	 * DMA_FROM_DEVICE as direction triggers cache invalidate and
+	 * clean whereas in kernel version 6.1, it triggers only cache
+	 * clean. Hence use dma_sync_sg_for_cpu() for cache invalidate
+	 * for kernel version 6.1 and above.
+	 */
+
 	switch (op) {
 	case GSL_CACHEFLAGS_FLUSH:
-		dma_sync_sg_for_device(dev, &sgl, 1, DMA_BIDIRECTIONAL);
+		/*This change is for kernel version 6.1*/
+		dma_sync_sg_for_device(dev, &sgl, 1, DMA_TO_DEVICE);
+		dma_sync_sg_for_cpu(dev, &sgl, 1, DMA_FROM_DEVICE);
 		break;
 	case GSL_CACHEFLAGS_CLEAN:
 		dma_sync_sg_for_device(dev, &sgl, 1, DMA_TO_DEVICE);
 		break;
 	case GSL_CACHEFLAGS_INVALIDATE:
-		dma_sync_sg_for_device(dev, &sgl, 1, DMA_FROM_DEVICE);
+		/*This change is for kernel version 6.1*/
+		dma_sync_sg_for_cpu(dev, &sgl, 1, DMA_FROM_DEVICE);
 		break;
 	default:
 		LOGE("invalid cache operation");
