@@ -105,8 +105,6 @@ struct lvts_sensor_data {
 
 struct lvts_ctrl_data {
 	struct lvts_sensor_data lvts_sensor[LVTS_SENSOR_MAX];
-	int cal_offset[LVTS_SENSOR_MAX];
-	int num_lvts_sensor;
 	u8 valid_sensor_mask;
 	int offset;
 	int mode;
