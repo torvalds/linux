@@ -64,7 +64,6 @@ struct ksz_chip_data {
 	u8 num_tx_queues;
 	u8 num_ipvs; /* number of Internal Priority Values */
 	bool tc_cbs_supported;
-	bool tc_ets_supported;
 	const struct ksz_dev_ops *ops;
 	const struct phylink_mac_ops *phylink_mac_ops;
 	bool ksz87xx_eee_link_erratum;
