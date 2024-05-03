@@ -627,6 +627,8 @@ pci_fastcom335_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		writeb(0xc0, p + UART_EXAR_MPIOINV_7_0);
 		writeb(0xc0, p + UART_EXAR_MPIOSEL_7_0);
 		break;
+	default:
+		break;
 	}
 	writeb(0x00, p + UART_EXAR_MPIOINT_7_0);
 	writeb(0x00, p + UART_EXAR_MPIO3T_7_0);
@@ -723,8 +725,6 @@ static enum cti_port_type cti_get_port_type_xr17c15x_xr17v25x(struct exar8250 *p
 							struct pci_dev *pcidev,
 							unsigned int port_num)
 {
-	enum cti_port_type port_type;
-
 	switch (pcidev->subsystem_device) {
 	// RS232 only cards
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_232:
@@ -734,24 +734,17 @@ static enum cti_port_type cti_get_port_type_xr17c15x_xr17v25x(struct exar8250 *p
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_SP_232_NS:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_XPRS_LP_232:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_XPRS_LP_232_NS:
-		port_type = CTI_PORT_TYPE_RS232;
-		break;
+		return CTI_PORT_TYPE_RS232;
 	// 1x RS232, 1x RS422/RS485
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_1_1:
-		port_type = (port_num == 0) ?
-			CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
-		break;
+		return (port_num == 0) ? CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
 	// 2x RS232, 2x RS422/RS485
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_2:
-		port_type = (port_num < 2) ?
-			CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
-		break;
+		return (port_num < 2) ? CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
 	// 4x RS232, 4x RS422/RS485
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_4:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_4_SP:
-		port_type = (port_num < 4) ?
-			CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
-		break;
+		return (port_num < 4) ? CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
 	// RS232/RS422/RS485 HW (jumper) selectable
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4:
@@ -774,32 +767,24 @@ static enum cti_port_type cti_get_port_type_xr17c15x_xr17v25x(struct exar8250 *p
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XP_OPTO:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_4_XPRS_OPTO:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_XPRS_LP:
-		port_type = CTI_PORT_TYPE_RS232_422_485_HW;
-		break;
+		return CTI_PORT_TYPE_RS232_422_485_HW;
 	// RS422/RS485 HW (jumper) selectable
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_485:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_485:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_485:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_SP_485:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_XPRS_LP_485:
-		port_type = CTI_PORT_TYPE_RS422_485;
-		break;
+		return CTI_PORT_TYPE_RS422_485;
 	// 6x RS232, 2x RS422/RS485
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_6_2_SP:
-		port_type = (port_num < 6) ?
-			CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
-		break;
+		return (port_num < 6) ? CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
 	// 2x RS232, 6x RS422/RS485
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_6_SP:
-		port_type = (port_num < 2) ?
-			CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
-		break;
+		return (port_num < 2) ? CTI_PORT_TYPE_RS232 : CTI_PORT_TYPE_RS422_485;
 	default:
 		dev_err(&pcidev->dev, "unknown/unsupported device\n");
-		port_type = CTI_PORT_TYPE_NONE;
+		return CTI_PORT_TYPE_NONE;
 	}
-
-	return port_type;
 }
 
 /**
@@ -816,20 +801,15 @@ static enum cti_port_type cti_get_port_type_fpga(struct exar8250 *priv,
 						struct pci_dev *pcidev,
 						unsigned int port_num)
 {
-	enum cti_port_type port_type;
-
 	switch (pcidev->device) {
 	case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_12_XIG00X:
 	case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_12_XIG01X:
 	case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_16:
-		port_type = CTI_PORT_TYPE_RS232_422_485_HW;
-		break;
+		return CTI_PORT_TYPE_RS232_422_485_HW;
 	default:
 		dev_err(&pcidev->dev, "unknown/unsupported device\n");
 		return CTI_PORT_TYPE_NONE;
 	}
-
-	return port_type;
 }
 
 /**
@@ -1493,35 +1473,33 @@ static irqreturn_t exar_misc_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static unsigned int exar_get_nr_ports(struct exar8250_board *board,
-					struct pci_dev *pcidev)
+static unsigned int exar_get_nr_ports(struct exar8250_board *board, struct pci_dev *pcidev)
 {
-	unsigned int nr_ports = 0;
+	if (pcidev->vendor == PCI_VENDOR_ID_ACCESSIO)
+		return BIT(((pcidev->device & 0x38) >> 3) - 1);
 
-	if (pcidev->vendor == PCI_VENDOR_ID_ACCESSIO) {
-		nr_ports = BIT(((pcidev->device & 0x38) >> 3) - 1);
-	} else if (board->num_ports > 0) {
-		// Check if board struct overrides number of ports
-		nr_ports = board->num_ports;
-	} else if (pcidev->vendor == PCI_VENDOR_ID_EXAR) {
-		// Exar encodes # ports in last nibble of PCI Device ID ex. 0358
-		nr_ports = pcidev->device & 0x0f;
-	} else  if (pcidev->vendor == PCI_VENDOR_ID_CONNECT_TECH) {
-		// Handle CTI FPGA cards
+	// Check if board struct overrides number of ports
+	if (board->num_ports > 0)
+		return board->num_ports;
+
+	// Exar encodes # ports in last nibble of PCI Device ID ex. 0358
+	if (pcidev->vendor == PCI_VENDOR_ID_EXAR)
+		return pcidev->device & 0x0f;
+
+	// Handle CTI FPGA cards
+	if (pcidev->vendor == PCI_VENDOR_ID_CONNECT_TECH) {
 		switch (pcidev->device) {
 		case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_12_XIG00X:
 		case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_12_XIG01X:
-			nr_ports = 12;
-			break;
+			return 12;
 		case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_16:
-			nr_ports = 16;
-			break;
+			return 16;
 		default:
-			break;
+			return 0;
 		}
 	}
 
-	return nr_ports;
+	return 0;
 }
 
 static int
