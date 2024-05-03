@@ -153,7 +153,7 @@ Users can write below commands for the kdamond to the ``state`` file.
 - ``clear_schemes_tried_regions``: Clear the DAMON-based operating scheme
   action tried regions directory for each DAMON-based operation scheme of the
   kdamond.
-- ``update_schemes_effective_bytes``: Update the contents of
+- ``update_schemes_effective_quotas``: Update the contents of
   ``effective_bytes`` files for each DAMON-based operation scheme of the
   kdamond.  For more details, refer to :ref:`quotas directory <sysfs_quotas>`.
 
@@ -342,7 +342,7 @@ Based on the user-specified :ref:`goal <sysfs_schemes_quota_goals>`, the
 effective size quota is further adjusted.  Reading ``effective_bytes`` returns
 the current effective size quota.  The file is not updated in real time, so
 users should ask DAMON sysfs interface to update the content of the file for
-the stats by writing a special keyword, ``update_schemes_effective_bytes`` to
+the stats by writing a special keyword, ``update_schemes_effective_quotas`` to
 the relevant ``kdamonds/<N>/state`` file.
 
 Under ``weights`` directory, three files (``sz_permil``,
