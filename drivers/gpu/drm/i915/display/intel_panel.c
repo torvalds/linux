@@ -352,7 +352,7 @@ void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *mode;
 
-	mode = connector->panel.vbt.lfp_lvds_vbt_mode;
+	mode = connector->panel.vbt.lfp_vbt_mode;
 	if (!mode)
 		return;
 

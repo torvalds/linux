@@ -174,18 +174,18 @@ static const struct {
 	  .min_size = sizeof(struct bdb_sdvo_panel_dtds), },
 	{ .section_id = BDB_EDP,
 	  .min_size = sizeof(struct bdb_edp), },
-	{ .section_id = BDB_LVDS_OPTIONS,
-	  .min_size = sizeof(struct bdb_lvds_options), },
+	{ .section_id = BDB_LFP_OPTIONS,
+	  .min_size = sizeof(struct bdb_lfp_options), },
 	/*
-	 * BDB_LVDS_LFP_DATA depends on BDB_LVDS_LFP_DATA_PTRS,
+	 * BDB_LFP_DATA depends on BDB_LFP_DATA_PTRS,
 	 * so keep the two ordered.
 	 */
-	{ .section_id = BDB_LVDS_LFP_DATA_PTRS,
-	  .min_size = sizeof(struct bdb_lvds_lfp_data_ptrs), },
-	{ .section_id = BDB_LVDS_LFP_DATA,
+	{ .section_id = BDB_LFP_DATA_PTRS,
+	  .min_size = sizeof(struct bdb_lfp_data_ptrs), },
+	{ .section_id = BDB_LFP_DATA,
 	  .min_size = 0, /* special case */ },
-	{ .section_id = BDB_LVDS_BACKLIGHT,
-	  .min_size = sizeof(struct bdb_lfp_backlight_data), },
+	{ .section_id = BDB_LFP_BACKLIGHT,
+	  .min_size = sizeof(struct bdb_lfp_backlight), },
 	{ .section_id = BDB_LFP_POWER,
 	  .min_size = sizeof(struct bdb_lfp_power), },
 	{ .section_id = BDB_MIPI_CONFIG,
@@ -200,30 +200,30 @@ static const struct {
 
 static size_t lfp_data_min_size(struct drm_i915_private *i915)
 {
-	const struct bdb_lvds_lfp_data_ptrs *ptrs;
+	const struct bdb_lfp_data_ptrs *ptrs;
 	size_t size;
 
-	ptrs = bdb_find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
+	ptrs = bdb_find_section(i915, BDB_LFP_DATA_PTRS);
 	if (!ptrs)
 		return 0;
 
-	size = sizeof(struct bdb_lvds_lfp_data);
+	size = sizeof(struct bdb_lfp_data);
 	if (ptrs->panel_name.table_size)
 		size = max(size, ptrs->panel_name.offset +
-			   sizeof(struct bdb_lvds_lfp_data_tail));
+			   sizeof(struct bdb_lfp_data_tail));
 
 	return size;
 }
 
 static bool validate_lfp_data_ptrs(const void *bdb,
-				   const struct bdb_lvds_lfp_data_ptrs *ptrs)
+				   const struct bdb_lfp_data_ptrs *ptrs)
 {
 	int fp_timing_size, dvo_timing_size, panel_pnp_id_size, panel_name_size;
 	int data_block_size, lfp_data_size;
 	const void *data_block;
 	int i;
 
-	data_block = find_raw_section(bdb, BDB_LVDS_LFP_DATA);
+	data_block = find_raw_section(bdb, BDB_LFP_DATA);
 	if (!data_block)
 		return false;
 
@@ -232,7 +232,7 @@ static bool validate_lfp_data_ptrs(const void *bdb,
 		return false;
 
 	/* always 3 indicating the presence of fp_timing+dvo_timing+panel_pnp_id */
-	if (ptrs->lvds_entries != 3)
+	if (ptrs->num_entries != 3)
 		return false;
 
 	fp_timing_size = ptrs->ptr[0].fp_timing.table_size;
@@ -311,11 +311,11 @@ static bool validate_lfp_data_ptrs(const void *bdb,
 /* make the data table offsets relative to the data block */
 static bool fixup_lfp_data_ptrs(const void *bdb, void *ptrs_block)
 {
-	struct bdb_lvds_lfp_data_ptrs *ptrs = ptrs_block;
+	struct bdb_lfp_data_ptrs *ptrs = ptrs_block;
 	u32 offset;
 	int i;
 
-	offset = raw_block_offset(bdb, BDB_LVDS_LFP_DATA);
+	offset = raw_block_offset(bdb, BDB_LFP_DATA);
 
 	for (i = 0; i < 16; i++) {
 		if (ptrs->ptr[i].fp_timing.offset < offset ||
@@ -338,7 +338,7 @@ static bool fixup_lfp_data_ptrs(const void *bdb, void *ptrs_block)
 	return validate_lfp_data_ptrs(bdb, ptrs);
 }
 
-static int make_lfp_data_ptr(struct lvds_lfp_data_ptr_table *table,
+static int make_lfp_data_ptr(struct lfp_data_ptr_table *table,
 			     int table_size, int total_size)
 {
 	if (total_size < table_size)
@@ -350,8 +350,8 @@ static int make_lfp_data_ptr(struct lvds_lfp_data_ptr_table *table,
 	return total_size - table_size;
 }
 
-static void next_lfp_data_ptr(struct lvds_lfp_data_ptr_table *next,
-			      const struct lvds_lfp_data_ptr_table *prev,
+static void next_lfp_data_ptr(struct lfp_data_ptr_table *next,
+			      const struct lfp_data_ptr_table *prev,
 			      int size)
 {
 	next->table_size = prev->table_size;
@@ -362,7 +362,7 @@ static void *generate_lfp_data_ptrs(struct drm_i915_private *i915,
 				    const void *bdb)
 {
 	int i, size, table_size, block_size, offset, fp_timing_size;
-	struct bdb_lvds_lfp_data_ptrs *ptrs;
+	struct bdb_lfp_data_ptrs *ptrs;
 	const void *block;
 	void *ptrs_block;
 
@@ -377,7 +377,7 @@ static void *generate_lfp_data_ptrs(struct drm_i915_private *i915,
 
 	fp_timing_size = 38;
 
-	block = find_raw_section(bdb, BDB_LVDS_LFP_DATA);
+	block = find_raw_section(bdb, BDB_LFP_DATA);
 	if (!block)
 		return NULL;
 
@@ -394,7 +394,7 @@ static void *generate_lfp_data_ptrs(struct drm_i915_private *i915,
 	if (!ptrs_block)
 		return NULL;
 
-	*(u8 *)(ptrs_block + 0) = BDB_LVDS_LFP_DATA_PTRS;
+	*(u8 *)(ptrs_block + 0) = BDB_LFP_DATA_PTRS;
 	*(u16 *)(ptrs_block + 1) = sizeof(*ptrs);
 	ptrs = ptrs_block + 3;
 
@@ -408,13 +408,13 @@ static void *generate_lfp_data_ptrs(struct drm_i915_private *i915,
 	size = make_lfp_data_ptr(&ptrs->ptr[0].fp_timing, table_size, size);
 
 	if (ptrs->ptr[0].fp_timing.table_size)
-		ptrs->lvds_entries++;
+		ptrs->num_entries++;
 	if (ptrs->ptr[0].dvo_timing.table_size)
-		ptrs->lvds_entries++;
+		ptrs->num_entries++;
 	if (ptrs->ptr[0].panel_pnp_id.table_size)
-		ptrs->lvds_entries++;
+		ptrs->num_entries++;
 
-	if (size != 0 || ptrs->lvds_entries != 3) {
+	if (size != 0 || ptrs->num_entries != 3) {
 		kfree(ptrs_block);
 		return NULL;
 	}
@@ -461,7 +461,7 @@ init_bdb_block(struct drm_i915_private *i915,
 	block = find_raw_section(bdb, section_id);
 
 	/* Modern VBTs lack the LFP data table pointers block, make one up */
-	if (!block && section_id == BDB_LVDS_LFP_DATA_PTRS) {
+	if (!block && section_id == BDB_LFP_DATA_PTRS) {
 		temp_block = generate_lfp_data_ptrs(i915, bdb);
 		if (temp_block)
 			block = temp_block + 3;
@@ -496,7 +496,7 @@ init_bdb_block(struct drm_i915_private *i915,
 	drm_dbg_kms(&i915->drm, "Found BDB block %d (size %zu, min size %zu)\n",
 		    section_id, block_size, min_size);
 
-	if (section_id == BDB_LVDS_LFP_DATA_PTRS &&
+	if (section_id == BDB_LFP_DATA_PTRS &&
 	    !fixup_lfp_data_ptrs(bdb, entry->data + 3)) {
 		drm_err(&i915->drm, "VBT has malformed LFP data table pointers\n");
 		kfree(entry);
@@ -515,7 +515,7 @@ static void init_bdb_blocks(struct drm_i915_private *i915,
 		enum bdb_block_id section_id = bdb_blocks[i].section_id;
 		size_t min_size = bdb_blocks[i].min_size;
 
-		if (section_id == BDB_LVDS_LFP_DATA)
+		if (section_id == BDB_LFP_DATA)
 			min_size = lfp_data_min_size(i915);
 
 		init_bdb_block(i915, bdb, section_id, min_size);
@@ -580,25 +580,25 @@ fill_detail_timing_data(struct drm_i915_private *i915,
 }
 
 static const struct bdb_edid_dtd *
-get_lvds_dvo_timing(const struct bdb_lvds_lfp_data *data,
-		    const struct bdb_lvds_lfp_data_ptrs *ptrs,
-		    int index)
+get_lfp_dvo_timing(const struct bdb_lfp_data *data,
+		   const struct bdb_lfp_data_ptrs *ptrs,
+		   int index)
 {
 	return (const void *)data + ptrs->ptr[index].dvo_timing.offset;
 }
 
-static const struct lvds_fp_timing *
-get_lvds_fp_timing(const struct bdb_lvds_lfp_data *data,
-		   const struct bdb_lvds_lfp_data_ptrs *ptrs,
-		   int index)
+static const struct fp_timing *
+get_lfp_fp_timing(const struct bdb_lfp_data *data,
+		  const struct bdb_lfp_data_ptrs *ptrs,
+		  int index)
 {
 	return (const void *)data + ptrs->ptr[index].fp_timing.offset;
 }
 
 static const struct drm_edid_product_id *
-get_lvds_pnp_id(const struct bdb_lvds_lfp_data *data,
-		const struct bdb_lvds_lfp_data_ptrs *ptrs,
-		int index)
+get_lfp_pnp_id(const struct bdb_lfp_data *data,
+	       const struct bdb_lfp_data_ptrs *ptrs,
+	       int index)
 {
 	/* These two are supposed to have the same layout in memory. */
 	BUILD_BUG_ON(sizeof(struct bdb_edid_pnp_id) != sizeof(struct drm_edid_product_id));
@@ -606,9 +606,9 @@ get_lvds_pnp_id(const struct bdb_lvds_lfp_data *data,
 	return (const void *)data + ptrs->ptr[index].panel_pnp_id.offset;
 }
 
-static const struct bdb_lvds_lfp_data_tail *
-get_lfp_data_tail(const struct bdb_lvds_lfp_data *data,
-		  const struct bdb_lvds_lfp_data_ptrs *ptrs)
+static const struct bdb_lfp_data_tail *
+get_lfp_data_tail(const struct bdb_lfp_data *data,
+		  const struct bdb_lfp_data_ptrs *ptrs)
 {
 	if (ptrs->panel_name.table_size)
 		return (const void *)data + ptrs->panel_name.offset;
@@ -627,33 +627,33 @@ static int vbt_get_panel_type(struct drm_i915_private *i915,
 			      const struct intel_bios_encoder_data *devdata,
 			      const struct drm_edid *drm_edid, bool use_fallback)
 {
-	const struct bdb_lvds_options *lvds_options;
+	const struct bdb_lfp_options *lfp_options;
 
-	lvds_options = bdb_find_section(i915, BDB_LVDS_OPTIONS);
-	if (!lvds_options)
+	lfp_options = bdb_find_section(i915, BDB_LFP_OPTIONS);
+	if (!lfp_options)
 		return -1;
 
-	if (lvds_options->panel_type > 0xf &&
-	    lvds_options->panel_type != 0xff) {
+	if (lfp_options->panel_type > 0xf &&
+	    lfp_options->panel_type != 0xff) {
 		drm_dbg_kms(&i915->drm, "Invalid VBT panel type 0x%x\n",
-			    lvds_options->panel_type);
+			    lfp_options->panel_type);
 		return -1;
 	}
 
 	if (devdata && devdata->child.handle == DEVICE_HANDLE_LFP2)
-		return lvds_options->panel_type2;
+		return lfp_options->panel_type2;
 
 	drm_WARN_ON(&i915->drm, devdata && devdata->child.handle != DEVICE_HANDLE_LFP1);
 
-	return lvds_options->panel_type;
+	return lfp_options->panel_type;
 }
 
 static int pnpid_get_panel_type(struct drm_i915_private *i915,
 				const struct intel_bios_encoder_data *devdata,
 				const struct drm_edid *drm_edid, bool use_fallback)
 {
-	const struct bdb_lvds_lfp_data *data;
-	const struct bdb_lvds_lfp_data_ptrs *ptrs;
+	const struct bdb_lfp_data *data;
+	const struct bdb_lfp_data_ptrs *ptrs;
 	struct drm_edid_product_id product_id, product_id_nodate;
 	struct drm_printer p;
 	int i, best = -1;
@@ -670,17 +670,17 @@ static int pnpid_get_panel_type(struct drm_i915_private *i915,
 	p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, "EDID");
 	drm_edid_print_product_id(&p, &product_id, true);
 
-	ptrs = bdb_find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
+	ptrs = bdb_find_section(i915, BDB_LFP_DATA_PTRS);
 	if (!ptrs)
 		return -1;
 
-	data = bdb_find_section(i915, BDB_LVDS_LFP_DATA);
+	data = bdb_find_section(i915, BDB_LFP_DATA);
 	if (!data)
 		return -1;
 
 	for (i = 0; i < 16; i++) {
 		const struct drm_edid_product_id *vbt_id =
-			get_lvds_pnp_id(data, ptrs, i);
+			get_lfp_pnp_id(data, ptrs, i);
 
 		/* full match? */
 		if (!memcmp(vbt_id, &product_id, sizeof(*vbt_id)))
@@ -786,25 +786,25 @@ static void
 parse_panel_options(struct drm_i915_private *i915,
 		    struct intel_panel *panel)
 {
-	const struct bdb_lvds_options *lvds_options;
+	const struct bdb_lfp_options *lfp_options;
 	int panel_type = panel->vbt.panel_type;
 	int drrs_mode;
 
-	lvds_options = bdb_find_section(i915, BDB_LVDS_OPTIONS);
-	if (!lvds_options)
+	lfp_options = bdb_find_section(i915, BDB_LFP_OPTIONS);
+	if (!lfp_options)
 		return;
 
-	panel->vbt.lvds_dither = lvds_options->pixel_dither;
+	panel->vbt.lvds_dither = lfp_options->pixel_dither;
 
 	/*
 	 * Empirical evidence indicates the block size can be
 	 * either 4,14,16,24+ bytes. For older VBTs no clear
 	 * relationship between the block size vs. BDB version.
 	 */
-	if (get_blocksize(lvds_options) < 16)
+	if (get_blocksize(lfp_options) < 16)
 		return;
 
-	drrs_mode = panel_bits(lvds_options->dps_panel_type_bits,
+	drrs_mode = panel_bits(lfp_options->dps_panel_type_bits,
 			       panel_type, 2);
 	/*
 	 * VBT has static DRRS = 0 and seamless DRRS = 2.
@@ -832,17 +832,17 @@ parse_panel_options(struct drm_i915_private *i915,
 static void
 parse_lfp_panel_dtd(struct drm_i915_private *i915,
 		    struct intel_panel *panel,
-		    const struct bdb_lvds_lfp_data *lvds_lfp_data,
-		    const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs)
+		    const struct bdb_lfp_data *lfp_data,
+		    const struct bdb_lfp_data_ptrs *lfp_data_ptrs)
 {
 	const struct bdb_edid_dtd *panel_dvo_timing;
-	const struct lvds_fp_timing *fp_timing;
+	const struct fp_timing *fp_timing;
 	struct drm_display_mode *panel_fixed_mode;
 	int panel_type = panel->vbt.panel_type;
 
-	panel_dvo_timing = get_lvds_dvo_timing(lvds_lfp_data,
-					       lvds_lfp_data_ptrs,
-					       panel_type);
+	panel_dvo_timing = get_lfp_dvo_timing(lfp_data,
+					      lfp_data_ptrs,
+					      panel_type);
 
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 	if (!panel_fixed_mode)
@@ -850,15 +850,15 @@ parse_lfp_panel_dtd(struct drm_i915_private *i915,
 
 	fill_detail_timing_data(i915, panel_fixed_mode, panel_dvo_timing);
 
-	panel->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
+	panel->vbt.lfp_vbt_mode = panel_fixed_mode;
 
 	drm_dbg_kms(&i915->drm,
 		    "Found panel mode in BIOS VBT legacy lfp table: " DRM_MODE_FMT "\n",
 		    DRM_MODE_ARG(panel_fixed_mode));
 
-	fp_timing = get_lvds_fp_timing(lvds_lfp_data,
-				       lvds_lfp_data_ptrs,
-				       panel_type);
+	fp_timing = get_lfp_fp_timing(lfp_data,
+				      lfp_data_ptrs,
+				      panel_type);
 
 	/* check the resolution, just to be sure */
 	if (fp_timing->x_res == panel_fixed_mode->hdisplay &&
@@ -874,25 +874,25 @@ static void
 parse_lfp_data(struct drm_i915_private *i915,
 	       struct intel_panel *panel)
 {
-	const struct bdb_lvds_lfp_data *data;
-	const struct bdb_lvds_lfp_data_tail *tail;
-	const struct bdb_lvds_lfp_data_ptrs *ptrs;
+	const struct bdb_lfp_data *data;
+	const struct bdb_lfp_data_tail *tail;
+	const struct bdb_lfp_data_ptrs *ptrs;
 	const struct drm_edid_product_id *pnp_id;
 	struct drm_printer p;
 	int panel_type = panel->vbt.panel_type;
 
-	ptrs = bdb_find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
+	ptrs = bdb_find_section(i915, BDB_LFP_DATA_PTRS);
 	if (!ptrs)
 		return;
 
-	data = bdb_find_section(i915, BDB_LVDS_LFP_DATA);
+	data = bdb_find_section(i915, BDB_LFP_DATA);
 	if (!data)
 		return;
 
-	if (!panel->vbt.lfp_lvds_vbt_mode)
+	if (!panel->vbt.lfp_vbt_mode)
 		parse_lfp_panel_dtd(i915, panel, data, ptrs);
 
-	pnp_id = get_lvds_pnp_id(data, ptrs, panel_type);
+	pnp_id = get_lfp_pnp_id(data, ptrs, panel_type);
 
 	p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, "Panel");
 	drm_edid_print_product_id(&p, pnp_id, false);
@@ -1001,19 +1001,19 @@ parse_generic_dtd(struct drm_i915_private *i915,
 		    "Found panel mode in BIOS VBT generic dtd table: " DRM_MODE_FMT "\n",
 		    DRM_MODE_ARG(panel_fixed_mode));
 
-	panel->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
+	panel->vbt.lfp_vbt_mode = panel_fixed_mode;
 }
 
 static void
 parse_lfp_backlight(struct drm_i915_private *i915,
 		    struct intel_panel *panel)
 {
-	const struct bdb_lfp_backlight_data *backlight_data;
+	const struct bdb_lfp_backlight *backlight_data;
 	const struct lfp_backlight_data_entry *entry;
 	int panel_type = panel->vbt.panel_type;
 	u16 level;
 
-	backlight_data = bdb_find_section(i915, BDB_LVDS_BACKLIGHT);
+	backlight_data = bdb_find_section(i915, BDB_LFP_BACKLIGHT);
 	if (!backlight_data)
 		return;
 
@@ -1677,7 +1677,7 @@ parse_mipi_config(struct drm_i915_private *i915,
 	panel->vbt.dsi.panel_id = MIPI_DSI_UNDEFINED_PANEL_ID;
 
 	/* Block #40 is already parsed and panel_fixed_mode is
-	 * stored in i915->lfp_lvds_vbt_mode
+	 * stored in i915->lfp_vbt_mode
 	 * resuse this when needed
 	 */
 
@@ -3306,8 +3306,8 @@ void intel_bios_fini_panel(struct intel_panel *panel)
 {
 	kfree(panel->vbt.sdvo_lvds_vbt_mode);
 	panel->vbt.sdvo_lvds_vbt_mode = NULL;
-	kfree(panel->vbt.lfp_lvds_vbt_mode);
-	panel->vbt.lfp_lvds_vbt_mode = NULL;
+	kfree(panel->vbt.lfp_vbt_mode);
+	panel->vbt.lfp_vbt_mode = NULL;
 	kfree(panel->vbt.dsi.data);
 	panel->vbt.dsi.data = NULL;
 	kfree(panel->vbt.dsi.pps);

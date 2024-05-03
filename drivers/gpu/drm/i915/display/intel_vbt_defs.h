@@ -165,10 +165,10 @@ enum bdb_block_id {
 	BDB_SDVO_LVDS_POWER_SEQ		= 25,
 	BDB_TV_OPTIONS			= 26,
 	BDB_EDP				= 27,
-	BDB_LVDS_OPTIONS		= 40,
-	BDB_LVDS_LFP_DATA_PTRS		= 41,
-	BDB_LVDS_LFP_DATA		= 42,
-	BDB_LVDS_BACKLIGHT		= 43,
+	BDB_LFP_OPTIONS			= 40,
+	BDB_LFP_DATA_PTRS		= 41,
+	BDB_LFP_DATA			= 42,
+	BDB_LFP_BACKLIGHT		= 43,
 	BDB_LFP_POWER			= 44,
 	BDB_MIPI_CONFIG			= 52,
 	BDB_MIPI_SEQUENCE		= 53,
@@ -769,7 +769,7 @@ struct bdb_edp {
  * Block 40 - LFP Data Block
  */
 
-struct bdb_lvds_options {
+struct bdb_lfp_options {
 	u8 panel_type;
 	u8 panel_type2;						/* 212+ */
 	/* LVDS capabilities, stored in a dword */
@@ -802,22 +802,22 @@ struct bdb_lvds_options {
 /*
  * Block 41 - LFP Data Table Pointers
  */
-struct lvds_lfp_data_ptr_table {
+struct lfp_data_ptr_table {
 	u16 offset; /* offsets are from start of bdb */
 	u8 table_size;
 } __packed;
 
 /* LFP pointer table contains entries to the struct below */
-struct lvds_lfp_data_ptr {
-	struct lvds_lfp_data_ptr_table fp_timing;
-	struct lvds_lfp_data_ptr_table dvo_timing;
-	struct lvds_lfp_data_ptr_table panel_pnp_id;
+struct lfp_data_ptr {
+	struct lfp_data_ptr_table fp_timing;
+	struct lfp_data_ptr_table dvo_timing;
+	struct lfp_data_ptr_table panel_pnp_id;
 } __packed;
 
-struct bdb_lvds_lfp_data_ptrs {
-	u8 lvds_entries;
-	struct lvds_lfp_data_ptr ptr[16];
-	struct lvds_lfp_data_ptr_table panel_name;		/* (156-163?)+ */
+struct bdb_lfp_data_ptrs {
+	u8 num_entries;
+	struct lfp_data_ptr ptr[16];
+	struct lfp_data_ptr_table panel_name;		/* (156-163?)+ */
 } __packed;
 
 /*
@@ -825,7 +825,7 @@ struct bdb_lvds_lfp_data_ptrs {
  */
 
 /* LFP data has 3 blocks per entry */
-struct lvds_fp_timing {
+struct fp_timing {
 	u16 x_res;
 	u16 y_res;
 	u32 lvds_reg;
@@ -846,29 +846,29 @@ struct lvds_fp_timing {
  * the data must be accessed using the data table pointers.
  * Do not use this directly!
  */
-struct lvds_lfp_data_entry {
-	struct lvds_fp_timing fp_timing;
+struct lfp_data_entry {
+	struct fp_timing fp_timing;
 	struct bdb_edid_dtd dvo_timing;
 	struct bdb_edid_pnp_id pnp_id;
 } __packed;
 
-struct bdb_lvds_lfp_data {
-	struct lvds_lfp_data_entry data[16];
+struct bdb_lfp_data {
+	struct lfp_data_entry data[16];
 } __packed;
 
-struct lvds_lfp_black_border {
+struct lfp_black_border {
 	u8 top;		/* 227+ */
 	u8 bottom;	/* 227+ */
 	u8 left;	/* 238+ */
 	u8 right;	/* 238+ */
 } __packed;
 
-struct bdb_lvds_lfp_data_tail {
+struct bdb_lfp_data_tail {
 	struct bdb_edid_product_name panel_name[16];		/* (156-163?)+ */
 	u16 scaling_enable;					/* 187+ */
 	u8 seamless_drrs_min_refresh_rate[16];			/* 188+ */
 	u8 pixel_overlap_count[16];				/* 208+ */
-	struct lvds_lfp_black_border black_border[16];		/* 227+ */
+	struct lfp_black_border black_border[16];		/* 227+ */
 	u16 dual_lfp_port_sync_enable;				/* 231+ */
 	u16 gpu_dithering_for_banding_artifacts;		/* 245+ */
 } __packed;
@@ -901,7 +901,7 @@ struct lfp_brightness_level {
 	u16 reserved;
 } __packed;
 
-struct bdb_lfp_backlight_data {
+struct bdb_lfp_backlight {
 	u8 entry_size;
 	struct lfp_backlight_data_entry data[16];
 	u8 level[16];							/* 162-233 */

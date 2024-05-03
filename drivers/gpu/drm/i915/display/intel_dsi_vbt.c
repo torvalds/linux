@@ -751,7 +751,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	struct intel_connector *connector = intel_dsi->attached_connector;
 	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	struct mipi_pps_data *pps = connector->panel.vbt.dsi.pps;
-	struct drm_display_mode *mode = connector->panel.vbt.lfp_lvds_vbt_mode;
+	struct drm_display_mode *mode = connector->panel.vbt.lfp_vbt_mode;
 	u16 burst_mode_ratio;
 	enum port port;
 
