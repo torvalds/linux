@@ -1182,7 +1182,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 
 	ret = ath11k_ahb_fw_resources_init(ab);
 	if (ret)
-		goto err_core_free;
+		goto err_ce_unmap;
 
 	ret = ath11k_ahb_setup_smp2p_handle(ab);
 	if (ret)
@@ -1233,6 +1233,9 @@ err_release_smp2p_handle:
 
 err_fw_deinit:
 	ath11k_ahb_fw_resource_deinit(ab);
+
+err_ce_unmap:
+	ath11k_ahb_ce_unmap(ab);
 
 err_core_free:
 	ath11k_core_free(ab);
