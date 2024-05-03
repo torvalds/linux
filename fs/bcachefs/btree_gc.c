@@ -815,10 +815,8 @@ static int bch2_gc_done(struct bch_fs *c)
 #undef copy_stripe_field
 #undef copy_field
 fsck_err:
-	if (ca)
-		percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 	bch_err_fn(c, ret);
-
 	percpu_up_write(&c->mark_lock);
 	printbuf_exit(&buf);
 	return ret;
@@ -841,7 +839,7 @@ static int bch2_gc_start(struct bch_fs *c)
 		ca->usage_gc = alloc_percpu(struct bch_dev_usage);
 		if (!ca->usage_gc) {
 			bch_err(c, "error allocating ca->usage_gc");
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			return -BCH_ERR_ENOMEM_gc_start;
 		}
 
@@ -969,7 +967,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c)
 					NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
 				bch2_alloc_write_key(trans, &iter, k)));
 		if (ret) {
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			break;
 		}
 	}
@@ -985,7 +983,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 				ca->mi.nbuckets * sizeof(struct bucket),
 				GFP_KERNEL|__GFP_ZERO);
 		if (!buckets) {
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			bch_err(c, "error allocating ca->buckets[gc]");
 			return -BCH_ERR_ENOMEM_gc_alloc_start;
 		}
@@ -1330,7 +1328,7 @@ int bch2_gc_gens(struct bch_fs *c)
 
 		ca->oldest_gen = kvmalloc(gens->nbuckets, GFP_KERNEL);
 		if (!ca->oldest_gen) {
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			ret = -BCH_ERR_ENOMEM_gc_gens;
 			goto err;
 		}

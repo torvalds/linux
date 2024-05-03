@@ -733,21 +733,21 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 		rcu_read_lock();
 		ca = rcu_dereference(c->devs[dev]);
 		if (ca)
-			percpu_ref_get(&ca->ref);
+			bch2_dev_get(ca);
 		rcu_read_unlock();
 
 		if (!ca)
 			continue;
 
 		if (!ca->mi.durability && *have_cache) {
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			continue;
 		}
 
 		ob = bch2_bucket_alloc_trans(trans, ca, watermark, data_type, cl, &usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
-		percpu_ref_put(&ca->ref);
+		bch2_dev_put(ca);
 
 		if (IS_ERR(ob)) {
 			ret = PTR_ERR(ob);

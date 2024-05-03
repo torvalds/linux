@@ -105,14 +105,28 @@ static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, struct bch_dev *
 	for (struct bch_dev *_ca = NULL;				\
 	     (_ca = __bch2_next_dev((_c), _ca, (_mask)));)
 
+static inline void bch2_dev_get(struct bch_dev *ca)
+{
+	percpu_ref_get(&ca->ref);
+}
+
+static inline void __bch2_dev_put(struct bch_dev *ca)
+{
+	percpu_ref_put(&ca->ref);
+}
+
+static inline void bch2_dev_put(struct bch_dev *ca)
+{
+	if (ca)
+		__bch2_dev_put(ca);
+}
+
 static inline struct bch_dev *bch2_get_next_dev(struct bch_fs *c, struct bch_dev *ca)
 {
 	rcu_read_lock();
-	if (ca)
-		percpu_ref_put(&ca->ref);
-
+	bch2_dev_put(ca);
 	if ((ca = __bch2_next_dev(c, ca, NULL)))
-		percpu_ref_get(&ca->ref);
+		bch2_dev_get(ca);
 	rcu_read_unlock();
 
 	return ca;

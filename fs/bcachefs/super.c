@@ -710,7 +710,7 @@ static int bch2_fs_online(struct bch_fs *c)
 		ret = bch2_dev_sysfs_online(c, ca);
 		if (ret) {
 			bch_err(c, "error creating sysfs objects");
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			goto err;
 		}
 	}
@@ -1613,7 +1613,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	 * We consume a reference to ca->ref, regardless of whether we succeed
 	 * or fail:
 	 */
-	percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 
 	if (!bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_failed, flags)) {
 		bch_err(ca, "Cannot remove without losing data");

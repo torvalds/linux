@@ -523,7 +523,7 @@ int bch2_opt_target_parse(struct bch_fs *c, const char *val, u64 *res,
 	ca = bch2_dev_lookup(c, val);
 	if (!IS_ERR(ca)) {
 		*res = dev_to_target(ca->dev_idx);
-		percpu_ref_put(&ca->ref);
+		bch2_dev_put(ca);
 		return 0;
 	}
 

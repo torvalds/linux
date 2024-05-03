@@ -1656,10 +1656,9 @@ static void discard_buckets_next_dev(struct bch_fs *c, struct discard_buckets_st
 	    bch2_dev_usage_read(s->ca).d[BCH_DATA_free].buckets)
 		bch2_journal_flush_async(&c->journal, NULL);
 
-	if (s->ca)
-		percpu_ref_put(&s->ca->ref);
+	bch2_dev_put(s->ca);
 	if (ca)
-		percpu_ref_get(&ca->ref);
+		bch2_dev_get(ca);
 	s->ca = ca;
 	s->need_journal_commit_this_dev = 0;
 }
@@ -2014,7 +2013,7 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 			invalidate_one_bucket(trans, &iter, k, &nr_to_invalidate));
 
 		if (ret < 0) {
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			break;
 		}
 	}
@@ -2151,7 +2150,7 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 
 		ret = bch2_dev_freespace_init(c, ca, 0, ca->mi.nbuckets);
 		if (ret) {
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			bch_err_fn(c, ret);
 			return ret;
 		}

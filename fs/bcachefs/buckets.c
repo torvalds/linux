@@ -1438,7 +1438,7 @@ int bch2_trans_mark_dev_sbs_flags(struct bch_fs *c,
 	for_each_online_member(c, ca) {
 		int ret = bch2_trans_mark_dev_sb(c, ca, flags);
 		if (ret) {
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			return ret;
 		}
 	}
@@ -1536,7 +1536,7 @@ int bch2_buckets_nouse_alloc(struct bch_fs *c)
 					    sizeof(unsigned long),
 					    GFP_KERNEL|__GFP_ZERO);
 		if (!ca->buckets_nouse) {
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			return -BCH_ERR_ENOMEM_buckets_nouse;
 		}
 	}
