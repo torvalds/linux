@@ -48,9 +48,9 @@ Review cadence
 --------------
 
 The DAMON maintainer does the work on the usual work hour (09:00 to 17:00,
-Mon-Fri) in PST.  The response to patches will occasionally be slow.  Do not
-hesitate to send a ping if you have not heard back within a week of sending a
-patch.
+Mon-Fri) in PT (Pacific Time).  The response to patches will occasionally be
+slow.  Do not hesitate to send a ping if you have not heard back within a week
+of sending a patch.
 
 
 .. [1] https://git.kernel.org/akpm/mm/h/mm-unstable
