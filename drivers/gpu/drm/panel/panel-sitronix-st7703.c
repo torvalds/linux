@@ -58,7 +58,6 @@ struct st7703 {
 	struct gpio_desc *reset_gpio;
 	struct regulator *vcc;
 	struct regulator *iovcc;
-	bool prepared;
 
 	struct dentry *debugfs;
 	const struct st7703_panel_desc *desc;
@@ -752,13 +751,9 @@ static int st7703_unprepare(struct drm_panel *panel)
 {
 	struct st7703 *ctx = panel_to_st7703(panel);
 
-	if (!ctx->prepared)
-		return 0;
-
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
 	regulator_disable(ctx->iovcc);
 	regulator_disable(ctx->vcc);
-	ctx->prepared = false;
 
 	return 0;
 }
@@ -767,9 +762,6 @@ static int st7703_prepare(struct drm_panel *panel)
 {
 	struct st7703 *ctx = panel_to_st7703(panel);
 	int ret;
-
-	if (ctx->prepared)
-		return 0;
 
 	dev_dbg(ctx->dev, "Resetting the panel\n");
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
@@ -792,8 +784,6 @@ static int st7703_prepare(struct drm_panel *panel)
 
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
 	usleep_range(15000, 20000);
-
-	ctx->prepared = true;
 
 	return 0;
 }
@@ -854,7 +844,13 @@ static int allpixelson_set(void *data, u64 val)
 	dev_dbg(ctx->dev, "Setting all pixels on\n");
 	mipi_dsi_generic_write_seq(dsi, ST7703_CMD_ALL_PIXEL_ON);
 	msleep(val * 1000);
-	/* Reset the panel to get video back */
+
+	/*
+	 * Reset the panel to get video back. NOTE: This isn't a
+	 * particularly safe thing to do in general because it assumes
+	 * that the screen was on to begin with, but this is just a
+	 * debugfs file so it's not a huge deal.
+	 */
 	drm_panel_disable(&ctx->panel);
 	drm_panel_unprepare(&ctx->panel);
 	drm_panel_prepare(&ctx->panel);
