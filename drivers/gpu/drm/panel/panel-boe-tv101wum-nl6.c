@@ -52,8 +52,6 @@ struct boe_panel {
 	struct regulator *avee;
 	struct regulator *avdd;
 	struct gpio_desc *enable_gpio;
-
-	bool prepared;
 };
 
 static int boe_tv110c9m_init(struct boe_panel *boe)
@@ -1399,9 +1397,6 @@ static int boe_panel_unprepare(struct drm_panel *panel)
 {
 	struct boe_panel *boe = to_boe_panel(panel);
 
-	if (!boe->prepared)
-		return 0;
-
 	if (boe->desc->discharge_on_disable) {
 		regulator_disable(boe->avee);
 		regulator_disable(boe->avdd);
@@ -1420,8 +1415,6 @@ static int boe_panel_unprepare(struct drm_panel *panel)
 		regulator_disable(boe->pp3300);
 	}
 
-	boe->prepared = false;
-
 	return 0;
 }
 
@@ -1429,9 +1422,6 @@ static int boe_panel_prepare(struct drm_panel *panel)
 {
 	struct boe_panel *boe = to_boe_panel(panel);
 	int ret;
-
-	if (boe->prepared)
-		return 0;
 
 	gpiod_set_value(boe->enable_gpio, 0);
 	usleep_range(1000, 1500);
@@ -1473,8 +1463,6 @@ static int boe_panel_prepare(struct drm_panel *panel)
 	ret = boe->desc->init(boe);
 	if (ret < 0)
 		goto poweroff;
-
-	boe->prepared = true;
 
 	return 0;
 
