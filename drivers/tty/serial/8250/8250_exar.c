@@ -641,7 +641,7 @@ pci_fastcom335_setup(struct exar8250 *priv, struct pci_dev *pcidev,
  * @port_num: Port number to set tristate off
  *
  * Most RS485 capable cards have a power on tristate jumper/switch that ensures
- * the RS422/RS485 transciever does not drive a multi-drop RS485 bus when it is
+ * the RS422/RS485 transceiver does not drive a multi-drop RS485 bus when it is
  * not the master. When this jumper is installed the user must set the RS485
  * mode to Full or Half duplex to disable tristate prior to using the port.
  *
@@ -666,7 +666,7 @@ static int cti_tristate_disable(struct exar8250 *priv, unsigned int port_num)
  * @priv: Device's private structure
  *
  * Some older CTI cards require MPIO_0 to be set low to enable the
- * interupts from the UART to the PLX PCI->PCIe bridge.
+ * interrupts from the UART to the PLX PCI->PCIe bridge.
  *
  * Return: 0 on success, negative error code on failure
  */
@@ -927,7 +927,7 @@ static int cti_port_setup_fpga(struct exar8250 *priv,
 
 	port_type = cti_get_port_type_fpga(priv, pcidev, idx);
 
-	// FPGA shares port offests with XR17C15X
+	// FPGA shares port offsets with XR17C15X
 	offset = idx * UART_EXAR_XR17C15X_PORT_OFFSET;
 	port->port.type = PORT_XR17D15X;
 
@@ -1109,7 +1109,7 @@ static int cti_board_init_xr17v25x(struct exar8250 *priv,
 
 	priv->osc_freq = osc_freq;
 
-	/* enable interupts on cards that need the "PLX fix" */
+	/* enable interrupts on cards that need the "PLX fix" */
 	switch (pcidev->subsystem_device) {
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_XPRS:
 	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_16_XPRS_A:
