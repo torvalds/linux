@@ -43,7 +43,7 @@ static const struct drm_driver amdgpu_xcp_driver = {
 	.minor = 0,
 };
 
-static int pdev_num;
+static int8_t pdev_num;
 static struct xcp_device *xcp_dev[MAX_XCP_PLATFORM_DEVICE];
 
 int amdgpu_xcp_drm_dev_alloc(struct drm_device **ddev)
