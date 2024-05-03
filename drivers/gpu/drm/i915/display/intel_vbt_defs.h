@@ -39,6 +39,50 @@
 
 #include "intel_bios.h"
 
+/* EDID derived structures */
+struct bdb_edid_pnp_id {
+	u16 mfg_name;
+	u16 product_code;
+	u32 serial;
+	u8 mfg_week;
+	u8 mfg_year;
+} __packed;
+
+struct bdb_edid_product_name {
+	char name[13];
+} __packed;
+
+struct bdb_edid_dtd {
+	u16 clock;		/**< In 10khz */
+	u8 hactive_lo;
+	u8 hblank_lo;
+	u8 hblank_hi:4;
+	u8 hactive_hi:4;
+	u8 vactive_lo;
+	u8 vblank_lo;
+	u8 vblank_hi:4;
+	u8 vactive_hi:4;
+	u8 hsync_off_lo;
+	u8 hsync_pulse_width_lo;
+	u8 vsync_pulse_width_lo:4;
+	u8 vsync_off_lo:4;
+	u8 vsync_pulse_width_hi:2;
+	u8 vsync_off_hi:2;
+	u8 hsync_pulse_width_hi:2;
+	u8 hsync_off_hi:2;
+	u8 himage_lo;
+	u8 vimage_lo;
+	u8 vimage_hi:4;
+	u8 himage_hi:4;
+	u8 h_border;
+	u8 v_border;
+	u8 rsvd1:3;
+	u8 digital:2;
+	u8 vsync_positive:1;
+	u8 hsync_positive:1;
+	u8 non_interlaced:1;
+} __packed;
+
 /**
  * struct vbt_header - VBT Header structure
  * @signature:		VBT signature, always starts with "$VBT"
@@ -645,39 +689,8 @@ struct bdb_sdvo_lvds_options {
  * Block 23 - SDVO LVDS Panel DTDs
  */
 
-struct lvds_dvo_timing {
-	u16 clock;		/**< In 10khz */
-	u8 hactive_lo;
-	u8 hblank_lo;
-	u8 hblank_hi:4;
-	u8 hactive_hi:4;
-	u8 vactive_lo;
-	u8 vblank_lo;
-	u8 vblank_hi:4;
-	u8 vactive_hi:4;
-	u8 hsync_off_lo;
-	u8 hsync_pulse_width_lo;
-	u8 vsync_pulse_width_lo:4;
-	u8 vsync_off_lo:4;
-	u8 vsync_pulse_width_hi:2;
-	u8 vsync_off_hi:2;
-	u8 hsync_pulse_width_hi:2;
-	u8 hsync_off_hi:2;
-	u8 himage_lo;
-	u8 vimage_lo;
-	u8 vimage_hi:4;
-	u8 himage_hi:4;
-	u8 h_border;
-	u8 v_border;
-	u8 rsvd1:3;
-	u8 digital:2;
-	u8 vsync_positive:1;
-	u8 hsync_positive:1;
-	u8 non_interlaced:1;
-} __packed;
-
 struct bdb_sdvo_panel_dtds {
-	struct lvds_dvo_timing dtds[4];
+	struct bdb_edid_dtd dtds[4];
 } __packed;
 
 /*
@@ -828,14 +841,6 @@ struct lvds_fp_timing {
 	u16 terminator;
 } __packed;
 
-struct lvds_pnp_id {
-	u16 mfg_name;
-	u16 product_code;
-	u32 serial;
-	u8 mfg_week;
-	u8 mfg_year;
-} __packed;
-
 /*
  * For reference only. fp_timing has variable size so
  * the data must be accessed using the data table pointers.
@@ -843,16 +848,12 @@ struct lvds_pnp_id {
  */
 struct lvds_lfp_data_entry {
 	struct lvds_fp_timing fp_timing;
-	struct lvds_dvo_timing dvo_timing;
-	struct lvds_pnp_id pnp_id;
+	struct bdb_edid_dtd dvo_timing;
+	struct bdb_edid_pnp_id pnp_id;
 } __packed;
 
 struct bdb_lvds_lfp_data {
 	struct lvds_lfp_data_entry data[16];
-} __packed;
-
-struct lvds_lfp_panel_name {
-	u8 name[13];
 } __packed;
 
 struct lvds_lfp_black_border {
@@ -863,7 +864,7 @@ struct lvds_lfp_black_border {
 } __packed;
 
 struct bdb_lvds_lfp_data_tail {
-	struct lvds_lfp_panel_name panel_name[16];		/* (156-163?)+ */
+	struct bdb_edid_product_name panel_name[16];		/* (156-163?)+ */
 	u16 scaling_enable;					/* 187+ */
 	u8 seamless_drrs_min_refresh_rate[16];			/* 188+ */
 	u8 pixel_overlap_count[16];				/* 208+ */

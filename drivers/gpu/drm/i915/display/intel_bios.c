@@ -242,13 +242,13 @@ static bool validate_lfp_data_ptrs(const void *bdb,
 
 	/* fp_timing has variable size */
 	if (fp_timing_size < 32 ||
-	    dvo_timing_size != sizeof(struct lvds_dvo_timing) ||
-	    panel_pnp_id_size != sizeof(struct lvds_pnp_id))
+	    dvo_timing_size != sizeof(struct bdb_edid_dtd) ||
+	    panel_pnp_id_size != sizeof(struct bdb_edid_pnp_id))
 		return false;
 
 	/* panel_name is not present in old VBTs */
 	if (panel_name_size != 0 &&
-	    panel_name_size != sizeof(struct lvds_lfp_panel_name))
+	    panel_name_size != sizeof(struct bdb_edid_product_name))
 		return false;
 
 	lfp_data_size = ptrs->ptr[1].fp_timing.offset - ptrs->ptr[0].fp_timing.offset;
@@ -385,8 +385,8 @@ static void *generate_lfp_data_ptrs(struct drm_i915_private *i915,
 
 	block_size = get_blocksize(block);
 
-	size = fp_timing_size + sizeof(struct lvds_dvo_timing) +
-		sizeof(struct lvds_pnp_id);
+	size = fp_timing_size + sizeof(struct bdb_edid_dtd) +
+		sizeof(struct bdb_edid_pnp_id);
 	if (size * 16 > block_size)
 		return NULL;
 
@@ -398,10 +398,10 @@ static void *generate_lfp_data_ptrs(struct drm_i915_private *i915,
 	*(u16 *)(ptrs_block + 1) = sizeof(*ptrs);
 	ptrs = ptrs_block + 3;
 
-	table_size = sizeof(struct lvds_pnp_id);
+	table_size = sizeof(struct bdb_edid_pnp_id);
 	size = make_lfp_data_ptr(&ptrs->ptr[0].panel_pnp_id, table_size, size);
 
-	table_size = sizeof(struct lvds_dvo_timing);
+	table_size = sizeof(struct bdb_edid_dtd);
 	size = make_lfp_data_ptr(&ptrs->ptr[0].dvo_timing, table_size, size);
 
 	table_size = fp_timing_size;
@@ -419,15 +419,15 @@ static void *generate_lfp_data_ptrs(struct drm_i915_private *i915,
 		return NULL;
 	}
 
-	size = fp_timing_size + sizeof(struct lvds_dvo_timing) +
-		sizeof(struct lvds_pnp_id);
+	size = fp_timing_size + sizeof(struct bdb_edid_dtd) +
+		sizeof(struct bdb_edid_pnp_id);
 	for (i = 1; i < 16; i++) {
 		next_lfp_data_ptr(&ptrs->ptr[i].fp_timing, &ptrs->ptr[i-1].fp_timing, size);
 		next_lfp_data_ptr(&ptrs->ptr[i].dvo_timing, &ptrs->ptr[i-1].dvo_timing, size);
 		next_lfp_data_ptr(&ptrs->ptr[i].panel_pnp_id, &ptrs->ptr[i-1].panel_pnp_id, size);
 	}
 
-	table_size = sizeof(struct lvds_lfp_panel_name);
+	table_size = sizeof(struct bdb_edid_product_name);
 
 	if (16 * (size + table_size) <= block_size) {
 		ptrs->panel_name.table_size = table_size;
@@ -525,7 +525,7 @@ static void init_bdb_blocks(struct drm_i915_private *i915,
 static void
 fill_detail_timing_data(struct drm_i915_private *i915,
 			struct drm_display_mode *panel_fixed_mode,
-			const struct lvds_dvo_timing *dvo_timing)
+			const struct bdb_edid_dtd *dvo_timing)
 {
 	panel_fixed_mode->hdisplay = (dvo_timing->hactive_hi << 8) |
 		dvo_timing->hactive_lo;
@@ -579,7 +579,7 @@ fill_detail_timing_data(struct drm_i915_private *i915,
 	drm_mode_set_name(panel_fixed_mode);
 }
 
-static const struct lvds_dvo_timing *
+static const struct bdb_edid_dtd *
 get_lvds_dvo_timing(const struct bdb_lvds_lfp_data *data,
 		    const struct bdb_lvds_lfp_data_ptrs *ptrs,
 		    int index)
@@ -601,7 +601,7 @@ get_lvds_pnp_id(const struct bdb_lvds_lfp_data *data,
 		int index)
 {
 	/* These two are supposed to have the same layout in memory. */
-	BUILD_BUG_ON(sizeof(struct lvds_pnp_id) != sizeof(struct drm_edid_product_id));
+	BUILD_BUG_ON(sizeof(struct bdb_edid_pnp_id) != sizeof(struct drm_edid_product_id));
 
 	return (const void *)data + ptrs->ptr[index].panel_pnp_id.offset;
 }
@@ -835,7 +835,7 @@ parse_lfp_panel_dtd(struct drm_i915_private *i915,
 		    const struct bdb_lvds_lfp_data *lvds_lfp_data,
 		    const struct bdb_lvds_lfp_data_ptrs *lvds_lfp_data_ptrs)
 {
-	const struct lvds_dvo_timing *panel_dvo_timing;
+	const struct bdb_edid_dtd *panel_dvo_timing;
 	const struct lvds_fp_timing *fp_timing;
 	struct drm_display_mode *panel_fixed_mode;
 	int panel_type = panel->vbt.panel_type;
