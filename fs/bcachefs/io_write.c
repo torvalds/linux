@@ -407,9 +407,9 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 	BUG_ON(c->opts.nochanges);
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		BUG_ON(!bch2_dev_exists(c, ptr->dev));
-
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca = nocow
+			? bch2_dev_have_ref(c, ptr->dev)
+			: bch2_dev_get_ioref2(c, ptr->dev, type == BCH_DATA_btree ? READ : WRITE);
 
 		if (to_entry(ptr + 1) < ptrs.end) {
 			n = to_wbio(bio_alloc_clone(NULL, &wbio->bio, GFP_NOFS, &c->replica_set));
@@ -429,8 +429,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 
 		n->c			= c;
 		n->dev			= ptr->dev;
-		n->have_ioref		= nocow || bch2_dev_get_ioref(ca,
-					type == BCH_DATA_btree ? READ : WRITE);
+		n->have_ioref		= ca != NULL;
 		n->nocow		= nocow;
 		n->submit_time		= local_clock();
 		n->inode_offset		= bkey_start_offset(&k->k);
@@ -650,7 +649,9 @@ static void bch2_write_endio(struct bio *bio)
 	struct bch_write_bio *wbio	= to_wbio(bio);
 	struct bch_write_bio *parent	= wbio->split ? wbio->parent : NULL;
 	struct bch_fs *c		= wbio->c;
-	struct bch_dev *ca		= bch2_dev_bkey_exists(c, wbio->dev);
+	struct bch_dev *ca		= wbio->have_ioref
+		? bch2_dev_have_ref(c, wbio->dev)
+		: NULL;
 
 	if (bch2_dev_inum_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
 				    op->pos.inode,
@@ -1264,14 +1265,14 @@ retry:
 		/* Get iorefs before dropping btree locks: */
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		bkey_for_each_ptr(ptrs, ptr) {
-			struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
+			struct bch_dev *ca = bch2_dev_get_ioref2(c, ptr->dev, WRITE);
+			if (unlikely(!ca))
+				goto err_get_ioref;
+
 			struct bpos b = PTR_BUCKET_POS(ca, ptr);
 			struct nocow_lock_bucket *l =
 				bucket_nocow_lock(&c->nocow_locks, bucket_to_u64(b));
 			prefetch(l);
-
-			if (unlikely(!bch2_dev_get_ioref(ca, WRITE)))
-				goto err_get_ioref;
 
 			/* XXX allocating memory with btree locks held - rare */
 			darray_push_gfp(&buckets, ((struct bucket_to_lock) {
