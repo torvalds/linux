@@ -620,6 +620,11 @@ static inline bool ksz_is_ksz88x3(struct ksz_device *dev)
 	return dev->chip_id == KSZ8830_CHIP_ID;
 }
 
+static inline bool is_ksz8(struct ksz_device *dev)
+{
+	return ksz_is_ksz87xx(dev) || ksz_is_ksz88x3(dev);
+}
+
 static inline int is_lan937x(struct ksz_device *dev)
 {
 	return dev->chip_id == LAN9370_CHIP_ID ||

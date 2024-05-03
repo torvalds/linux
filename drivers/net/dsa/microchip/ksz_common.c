@@ -28,6 +28,7 @@
 #include <net/switchdev.h>
 
 #include "ksz_common.h"
+#include "ksz_dcb.h"
 #include "ksz_ptp.h"
 #include "ksz8.h"
 #include "ksz9477.h"
@@ -2411,6 +2412,10 @@ static int ksz_setup(struct dsa_switch *ds)
 		goto out_ptp_clock_unregister;
 	}
 
+	ret = ksz_dcb_init(dev);
+	if (ret)
+		goto out_ptp_clock_unregister;
+
 	/* start switch */
 	regmap_update_bits(ksz_regmap_8(dev), regs[S_START_CTRL],
 			   SW_START, SW_START);
@@ -2739,7 +2744,7 @@ static int ksz_port_setup(struct dsa_switch *ds, int port)
 	 * there is no need to do anything.
 	 */
 
-	return 0;
+	return ksz_dcb_init_port(dev, port);
 }
 
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
@@ -3982,6 +3987,11 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_setup_tc		= ksz_setup_tc,
 	.get_mac_eee		= ksz_get_mac_eee,
 	.set_mac_eee		= ksz_set_mac_eee,
+	.port_get_default_prio	= ksz_port_get_default_prio,
+	.port_set_default_prio	= ksz_port_set_default_prio,
+	.port_get_dscp_prio	= ksz_port_get_dscp_prio,
+	.port_get_apptrust	= ksz_port_get_apptrust,
+	.port_set_apptrust	= ksz_port_set_apptrust,
 };
 
 struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
