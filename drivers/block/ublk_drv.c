@@ -2177,7 +2177,8 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 		.max_hw_sectors		= p->max_sectors,
 		.chunk_sectors		= p->chunk_sectors,
 		.virt_boundary_mask	= p->virt_boundary_mask,
-
+		.max_segments		= USHRT_MAX,
+		.max_segment_size	= UINT_MAX,
 	};
 	struct gendisk *disk;
 	int ret = -EINVAL;
