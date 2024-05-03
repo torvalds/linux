@@ -327,19 +327,8 @@ static void atana33xc20_remove(struct dp_aux_ep_device *aux_ep)
 	struct atana33xc20_panel *panel = dev_get_drvdata(dev);
 
 	drm_panel_remove(&panel->base);
-	drm_panel_disable(&panel->base);
-	drm_panel_unprepare(&panel->base);
 
 	drm_edid_free(panel->drm_edid);
-}
-
-static void atana33xc20_shutdown(struct dp_aux_ep_device *aux_ep)
-{
-	struct device *dev = &aux_ep->dev;
-	struct atana33xc20_panel *panel = dev_get_drvdata(dev);
-
-	drm_panel_disable(&panel->base);
-	drm_panel_unprepare(&panel->base);
 }
 
 static const struct of_device_id atana33xc20_dt_match[] = {
@@ -362,7 +351,6 @@ static struct dp_aux_ep_driver atana33xc20_driver = {
 	},
 	.probe = atana33xc20_probe,
 	.remove = atana33xc20_remove,
-	.shutdown = atana33xc20_shutdown,
 };
 
 static int __init atana33xc20_init(void)
