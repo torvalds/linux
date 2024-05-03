@@ -141,7 +141,7 @@ struct bdb_header {
 enum bdb_block_id {
 	BDB_GENERAL_FEATURES		= 1,
 	BDB_GENERAL_DEFINITIONS		= 2,
-	BDB_OLD_TOGGLE_LIST		= 3,
+	BDB_DISPLAY_TOGGLE		= 3,
 	BDB_MODE_SUPPORT_LIST		= 4,
 	BDB_GENERIC_MODE_TABLE		= 5,
 	BDB_EXT_MMIO_REGS		= 6, /* VBIOS only */
@@ -559,6 +559,16 @@ struct bdb_general_definitions {
 	 *	     defs->child_dev_size;
 	 */
 	u8 devices[];
+} __packed;
+
+/*
+ * Block 3 - Display Toggle Option Block
+ */
+
+struct bdb_display_toggle {
+	u8 feature_bits;
+	u16 num_entries;					/* ALM only */
+	u16 list[];						/* ALM only */
 } __packed;
 
 /*
