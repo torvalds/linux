@@ -1144,6 +1144,12 @@ attribute-sets:
       -
         name: mcast-querier-state
         type: binary
+      -
+        name: fdb-n-learned
+        type: u32
+      -
+        name: fdb-max-learned
+        type: u32
   -
     name: linkinfo-brport-attrs
     name-prefix: ifla-brport-
