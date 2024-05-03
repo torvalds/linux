@@ -20,6 +20,10 @@
 #include "../ops.h"
 #include "hda.h"
 
+EXPORT_TRACEPOINT_SYMBOL(sof_intel_ipc_firmware_initiated);
+EXPORT_TRACEPOINT_SYMBOL(sof_intel_ipc_firmware_response);
+EXPORT_TRACEPOINT_SYMBOL(sof_intel_hda_irq_ipc_check);
+
 static void hda_dsp_ipc_host_done(struct snd_sof_dev *sdev)
 {
 	/*
@@ -66,6 +70,7 @@ int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc_send_msg, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static inline bool hda_dsp_ipc4_pm_msg(u32 primary)
 {
@@ -92,6 +97,7 @@ void hda_dsp_ipc4_schedule_d0i3_work(struct sof_intel_hda_dev *hdev,
 	mod_delayed_work(system_wq, &hdev->d0i3_work,
 			 msecs_to_jiffies(SOF_HDA_D0I3_WORK_DELAY_MS));
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc4_schedule_d0i3_work, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
@@ -118,6 +124,7 @@ int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc4_send_msg, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 {
@@ -153,6 +160,7 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 		snd_sof_ipc_get_reply(sdev);
 	}
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc_get_reply, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 {
@@ -235,6 +243,7 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc4_irq_thread, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /* IPC handler thread */
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
@@ -347,6 +356,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc_irq_thread, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /* Check if an IPC IRQ occurred */
 bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
@@ -380,6 +390,7 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_check_ipc_irq, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 {

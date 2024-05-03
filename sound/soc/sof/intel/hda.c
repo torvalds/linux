@@ -223,6 +223,7 @@ void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 				HDA_DSP_REG_ADSPIC2_SNDW,
 				enable ? HDA_DSP_REG_ADSPIC2_SNDW : 0);
 }
+EXPORT_SYMBOL_NS(hda_common_enable_sdw_irq, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 {
@@ -236,6 +237,7 @@ void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 	if (chip && chip->enable_sdw_irq)
 		chip->enable_sdw_irq(sdev, enable);
 }
+EXPORT_SYMBOL_NS(hda_sdw_int_enable, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static int hda_sdw_acpi_scan(struct snd_sof_dev *sdev)
 {
@@ -350,6 +352,7 @@ int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_sdw_check_lcount_common, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_sdw_check_lcount_ext(struct snd_sof_dev *sdev)
 {
@@ -375,6 +378,7 @@ int hda_sdw_check_lcount_ext(struct snd_sof_dev *sdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_sdw_check_lcount_ext, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static int hda_sdw_check_lcount(struct snd_sof_dev *sdev)
 {
@@ -407,6 +411,7 @@ int hda_sdw_startup(struct snd_sof_dev *sdev)
 
 	return sdw_intel_startup(hdev->sdw);
 }
+EXPORT_SYMBOL_NS(hda_sdw_startup, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static int hda_sdw_exit(struct snd_sof_dev *sdev)
 {
@@ -448,6 +453,7 @@ bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
 out:
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_common_check_sdw_irq, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static bool hda_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
 {
@@ -481,6 +487,7 @@ bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev)
 
 	return false;
 }
+EXPORT_SYMBOL_NS(hda_sdw_check_wakeen_irq_common, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
 {
@@ -583,6 +590,7 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	/* re-enable clock gating and power gating */
 	return hda_dsp_ctrl_clock_power_gating(sdev, true);
 }
+EXPORT_SYMBOL_NS(hda_dsp_post_fw_run, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /*
  * Debug
@@ -826,6 +834,7 @@ void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
 		dev_printk(level, sdev->dev, "error code: %#x (%s)\n", error_code,
 			   error_text);
 }
+EXPORT_SYMBOL_NS(hda_dsp_get_state, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 				  struct sof_ipc_dsp_oops_xtensa *xoops,
@@ -911,6 +920,7 @@ void hda_ipc4_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	else
 		hda_dsp_dump_ext_rom_status(sdev, level, flags);
 }
+EXPORT_SYMBOL_NS(hda_ipc4_dsp_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static bool hda_check_ipc_irq(struct snd_sof_dev *sdev)
 {
@@ -942,6 +952,7 @@ void hda_ipc_irq_dump(struct snd_sof_dev *sdev)
 		intsts, intctl, rirbsts);
 	dev_err(sdev->dev, "dsp irq ppsts 0x%8.8x adspis 0x%8.8x\n", ppsts, adspis);
 }
+EXPORT_SYMBOL_NS(hda_ipc_irq_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_ipc_dump(struct snd_sof_dev *sdev)
 {
@@ -961,6 +972,7 @@ void hda_ipc_dump(struct snd_sof_dev *sdev)
 	dev_err(sdev->dev, "host status 0x%8.8x dsp status 0x%8.8x mask 0x%8.8x\n",
 		hipcie, hipct, hipcctl);
 }
+EXPORT_SYMBOL_NS(hda_ipc_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_ipc4_dump(struct snd_sof_dev *sdev)
 {
@@ -979,6 +991,7 @@ void hda_ipc4_dump(struct snd_sof_dev *sdev)
 	dev_err(sdev->dev, "Host IPC initiator: %#x|%#x, target: %#x|%#x, ctl: %#x\n",
 		hipci, hipcie, hipct, hipcte, hipcctl);
 }
+EXPORT_SYMBOL_NS(hda_ipc4_dump, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 bool hda_ipc4_tx_is_busy(struct snd_sof_dev *sdev)
 {
@@ -990,6 +1003,7 @@ bool hda_ipc4_tx_is_busy(struct snd_sof_dev *sdev)
 
 	return !!(val & chip->ipc_req_mask);
 }
+EXPORT_SYMBOL_NS(hda_ipc4_tx_is_busy, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static int hda_init(struct snd_sof_dev *sdev)
 {
@@ -1354,6 +1368,7 @@ int hda_dsp_probe_early(struct snd_sof_dev *sdev)
 err:
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_probe_early, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_probe(struct snd_sof_dev *sdev)
 {
@@ -1510,6 +1525,7 @@ hdac_bus_unmap:
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_probe, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_dsp_remove(struct snd_sof_dev *sdev)
 {
@@ -1563,6 +1579,7 @@ skip_disable_dsp:
 	if (!sdev->dspless_mode_selected)
 		iounmap(sdev->bar[HDA_DSP_BAR]);
 }
+EXPORT_SYMBOL_NS(hda_dsp_remove, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_dsp_remove_late(struct snd_sof_dev *sdev)
 {
@@ -1578,6 +1595,7 @@ int hda_power_down_dsp(struct snd_sof_dev *sdev)
 
 	return hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 }
+EXPORT_SYMBOL_NS(hda_power_down_dsp, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 static void hda_generic_machine_select(struct snd_sof_dev *sdev,

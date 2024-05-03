@@ -219,6 +219,7 @@ err:
 	kfree(dump_msg);
 	return ret;
 }
+EXPORT_SYMBOL_NS(cl_dsp_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_cl_trigger(struct device *dev, struct hdac_ext_stream *hext_stream, int cmd)
 {
@@ -393,6 +394,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_cl_boot_firmware_iccmax, SND_SOC_SOF_INTEL_CNL);
 
 static int hda_dsp_boot_imr(struct snd_sof_dev *sdev)
 {
@@ -546,6 +548,7 @@ cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_cl_boot_firmware, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 			      struct sof_ipc4_fw_library *fw_lib, bool reload)
@@ -649,6 +652,7 @@ cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc4_load_library, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 					 const struct sof_ext_man_elem_header *hdr)

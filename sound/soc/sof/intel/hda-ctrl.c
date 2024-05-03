@@ -178,6 +178,7 @@ int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ctrl_clock_power_gating, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 {

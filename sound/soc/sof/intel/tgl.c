@@ -63,7 +63,6 @@ static int tgl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 
 /* Tigerlake ops */
 struct snd_sof_dsp_ops sof_tgl_ops;
-EXPORT_SYMBOL_NS(sof_tgl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 {
@@ -135,7 +134,6 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 	return 0;
 };
-EXPORT_SYMBOL_NS(sof_tgl_ops_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc tgl_chip_info = {
 	/* Tigerlake , Alderlake */
@@ -164,7 +162,6 @@ const struct sof_intel_dsp_desc tgl_chip_info = {
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_5,
 };
-EXPORT_SYMBOL_NS(tgl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc tglh_chip_info = {
 	/* Tigerlake-H */
@@ -193,7 +190,6 @@ const struct sof_intel_dsp_desc tglh_chip_info = {
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_5,
 };
-EXPORT_SYMBOL_NS(tglh_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc ehl_chip_info = {
 	/* Elkhartlake */
@@ -222,7 +218,6 @@ const struct sof_intel_dsp_desc ehl_chip_info = {
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_5,
 };
-EXPORT_SYMBOL_NS(ehl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc adls_chip_info = {
 	/* Alderlake-S */
@@ -251,4 +246,3 @@ const struct sof_intel_dsp_desc adls_chip_info = {
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_5,
 };
-EXPORT_SYMBOL_NS(adls_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);

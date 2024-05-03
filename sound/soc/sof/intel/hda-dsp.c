@@ -126,6 +126,7 @@ int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask)
 	/* set reset state */
 	return hda_dsp_core_reset_enter(sdev, core_mask);
 }
+EXPORT_SYMBOL_NS(hda_dsp_core_stall_reset, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
@@ -151,6 +152,7 @@ bool hda_dsp_core_is_enabled(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	return is_enable;
 }
+EXPORT_SYMBOL_NS(hda_dsp_core_is_enabled, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
@@ -178,6 +180,7 @@ int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_core_run, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /*
  * Power Management.
@@ -229,6 +232,7 @@ int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_core_power_up, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static int hda_dsp_core_power_down(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
@@ -276,6 +280,7 @@ int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask)
 
 	return hda_dsp_core_run(sdev, core_mask);
 }
+EXPORT_SYMBOL_NS(hda_dsp_enable_core, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 				  unsigned int core_mask)
@@ -316,6 +321,7 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_core_reset_power_down, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev)
 {
@@ -334,6 +340,7 @@ void hda_dsp_ipc_int_enable(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIC,
 				HDA_DSP_ADSPIC_IPC, HDA_DSP_ADSPIC_IPC);
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc_int_enable, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev)
 {
@@ -351,6 +358,7 @@ void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
 			HDA_DSP_REG_HIPCCTL_BUSY | HDA_DSP_REG_HIPCCTL_DONE, 0);
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc_int_disable, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static int hda_dsp_wait_d0i3c_done(struct snd_sof_dev *sdev)
 {
@@ -634,6 +642,7 @@ int hda_dsp_set_power_state_ipc3(struct snd_sof_dev *sdev,
 
 	return hda_dsp_set_power_state(sdev, target_state);
 }
+EXPORT_SYMBOL_NS(hda_dsp_set_power_state_ipc3, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_set_power_state_ipc4(struct snd_sof_dev *sdev,
 				 const struct sof_dsp_power_state *target_state)
@@ -645,6 +654,7 @@ int hda_dsp_set_power_state_ipc4(struct snd_sof_dev *sdev,
 
 	return hda_dsp_set_power_state(sdev, target_state);
 }
+EXPORT_SYMBOL_NS(hda_dsp_set_power_state_ipc4, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /*
  * Audio DSP states may transform as below:-
@@ -853,6 +863,7 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 
 	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
+EXPORT_SYMBOL_NS(hda_dsp_resume, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 {
@@ -868,6 +879,7 @@ int hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 
 	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
+EXPORT_SYMBOL_NS(hda_dsp_runtime_resume, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
 {
@@ -1034,12 +1046,14 @@ int hda_dsp_shutdown_dma_flush(struct snd_sof_dev *sdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_shutdown_dma_flush, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_shutdown(struct snd_sof_dev *sdev)
 {
 	sdev->system_suspend_target = SOF_SUSPEND_S3;
 	return snd_sof_suspend(sdev->dev);
 }
+EXPORT_SYMBOL_NS(hda_dsp_shutdown, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 {
@@ -1118,6 +1132,7 @@ power_down:
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_core_get, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 {
@@ -1126,3 +1141,4 @@ int hda_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_disable_interrupts, SND_SOC_SOF_INTEL_HDA_COMMON);

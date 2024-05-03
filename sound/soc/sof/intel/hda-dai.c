@@ -690,6 +690,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 		ipc4_data->nhlt = intel_nhlt_init(sdev->dev);
 	}
 }
+EXPORT_SYMBOL_NS(hda_set_dai_drv_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_ops_free(struct snd_sof_dev *sdev)
 {

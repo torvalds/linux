@@ -97,7 +97,6 @@ static int icl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 
 /* Icelake ops */
 struct snd_sof_dsp_ops sof_icl_ops;
-EXPORT_SYMBOL_NS(sof_icl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int sof_icl_ops_init(struct snd_sof_dev *sdev)
 {
@@ -166,7 +165,6 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev)
 
 	return 0;
 };
-EXPORT_SYMBOL_NS(sof_icl_ops_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc icl_chip_info = {
 	/* Icelake */
@@ -195,4 +193,3 @@ const struct sof_intel_dsp_desc icl_chip_info = {
 	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_0,
 };
-EXPORT_SYMBOL_NS(icl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
