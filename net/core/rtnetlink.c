@@ -1812,6 +1812,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 			    u32 event, int *new_nsid, int new_ifindex,
 			    int tgt_netnsid, gfp_t gfp)
 {
+	char devname[IFNAMSIZ];
 	struct ifinfomsg *ifm;
 	struct nlmsghdr *nlh;
 	struct Qdisc *qdisc;
@@ -1832,8 +1833,11 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	if (tgt_netnsid >= 0 && nla_put_s32(skb, IFLA_TARGET_NETNSID, tgt_netnsid))
 		goto nla_put_failure;
 
-	if (nla_put_string(skb, IFLA_IFNAME, dev->name) ||
-	    nla_put_u32(skb, IFLA_TXQLEN, dev->tx_queue_len) ||
+	netdev_copy_name(dev, devname);
+	if (nla_put_string(skb, IFLA_IFNAME, devname))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_TXQLEN, dev->tx_queue_len) ||
 	    nla_put_u8(skb, IFLA_OPERSTATE,
 		       netif_running(dev) ? dev->operstate : IF_OPER_DOWN) ||
 	    nla_put_u8(skb, IFLA_LINKMODE, dev->link_mode) ||
