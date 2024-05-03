@@ -255,6 +255,16 @@ static const struct xe_mocs_entry gen12_mocs_desc[] = {
 		   L3_1_UC)
 };
 
+static bool regs_are_mcr(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (xe_gt_is_media_type(gt))
+		return MEDIA_VER(xe) >= 20;
+	else
+		return GRAPHICS_VERx100(xe) >= 1250;
+}
+
 static const struct xe_mocs_entry dg1_mocs_desc[] = {
 	/* UC */
 	MOCS_ENTRY(1, 0, L3_1_UC),
@@ -465,16 +475,6 @@ static u32 get_entry_control(const struct xe_mocs_info *info,
 	if (index < info->size && info->table[index].used)
 		return info->table[index].control_value;
 	return info->table[info->unused_entries_index].control_value;
-}
-
-static bool regs_are_mcr(struct xe_gt *gt)
-{
-	struct xe_device *xe = gt_to_xe(gt);
-
-	if (xe_gt_is_media_type(gt))
-		return MEDIA_VER(xe) >= 20;
-	else
-		return GRAPHICS_VERx100(xe) >= 1250;
 }
 
 static void __init_mocs_table(struct xe_gt *gt,
