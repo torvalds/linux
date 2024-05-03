@@ -815,6 +815,7 @@ int hda_sdw_startup(struct snd_sof_dev *sdev);
 void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable);
 void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable);
 bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev);
+void hda_sdw_process_wakeen_common(struct snd_sof_dev *sdev);
 void hda_sdw_process_wakeen(struct snd_sof_dev *sdev);
 bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev);
 
@@ -851,6 +852,10 @@ static inline void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 static inline bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev)
 {
 	return false;
+}
+
+static inline void hda_sdw_process_wakeen_common(struct snd_sof_dev *sdev)
+{
 }
 
 static inline void hda_sdw_process_wakeen(struct snd_sof_dev *sdev)

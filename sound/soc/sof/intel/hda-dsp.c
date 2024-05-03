@@ -1311,6 +1311,21 @@ int hda_sdw_check_lcount(struct snd_sof_dev *sdev)
 
 	return 0;
 }
+
+void hda_sdw_process_wakeen(struct snd_sof_dev *sdev)
+{
+	u32 interface_mask = hda_get_interface_mask(sdev);
+	const struct sof_intel_dsp_desc *chip;
+
+	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
+		return;
+
+	chip = get_chip_info(sdev->pdata);
+	if (chip && chip->sdw_process_wakeen)
+		chip->sdw_process_wakeen(sdev);
+}
+EXPORT_SYMBOL_NS(hda_sdw_process_wakeen, SND_SOC_SOF_INTEL_HDA_COMMON);
+
 #endif
 
 int hda_dsp_disable_interrupts(struct snd_sof_dev *sdev)
