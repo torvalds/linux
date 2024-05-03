@@ -2,7 +2,7 @@
 /*
  * soc-topology-test.c  --  ALSA SoC Topology Kernel Unit Tests
  *
- * Copyright(c) 2021 Intel Corporation. All rights reserved.
+ * Copyright(c) 2021 Intel Corporation.
  */
 
 #include <linux/firmware.h>
