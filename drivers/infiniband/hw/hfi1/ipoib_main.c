@@ -96,7 +96,6 @@ static const struct net_device_ops hfi1_ipoib_netdev_ops = {
 	.ndo_uninit       = hfi1_ipoib_dev_uninit,
 	.ndo_open         = hfi1_ipoib_dev_open,
 	.ndo_stop         = hfi1_ipoib_dev_stop,
-	.ndo_get_stats64  = dev_get_tstats64,
 };
 
 static int hfi1_ipoib_mcast_attach(struct net_device *dev,
