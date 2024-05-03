@@ -1109,7 +1109,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			nonce = btree_nonce(i, b->written << 9);
 			struct bch_csum csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
 			csum_bad = bch2_crc_cmp(bne->csum, csum);
-			if (csum_bad)
+			if (ca && csum_bad)
 				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 
 			btree_err_on(csum_bad,
@@ -1263,12 +1263,14 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	btree_node_reset_sib_u64s(b);
 
+	rcu_read_lock();
 	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&b->key)), ptr) {
-		struct bch_dev *ca2 = bch2_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca2 = bch2_dev_rcu(c, ptr->dev);
 
-		if (ca2->mi.state != BCH_MEMBER_STATE_rw)
+		if (!ca2 || ca2->mi.state != BCH_MEMBER_STATE_rw)
 			set_btree_node_need_rewrite(b);
 	}
+	rcu_read_unlock();
 
 	if (!ptr_written)
 		set_btree_node_need_rewrite(b);
@@ -1293,8 +1295,8 @@ static void btree_node_read_work(struct work_struct *work)
 	struct btree_read_bio *rb =
 		container_of(work, struct btree_read_bio, work);
 	struct bch_fs *c	= rb->c;
+	struct bch_dev *ca	= rb->have_ioref ? bch2_dev_have_ref(c, rb->pick.ptr.dev) : NULL;
 	struct btree *b		= rb->b;
-	struct bch_dev *ca	= bch2_dev_bkey_exists(c, rb->pick.ptr.dev);
 	struct bio *bio		= &rb->bio;
 	struct bch_io_failures failed = { .nr = 0 };
 	struct printbuf buf = PRINTBUF;
@@ -1306,8 +1308,8 @@ static void btree_node_read_work(struct work_struct *work)
 	while (1) {
 		retry = true;
 		bch_info(c, "retrying read");
-		ca = bch2_dev_bkey_exists(c, rb->pick.ptr.dev);
-		rb->have_ioref		= bch2_dev_get_ioref(ca, READ);
+		ca = bch2_dev_get_ioref2(c, rb->pick.ptr.dev, READ);
+		rb->have_ioref		= ca != NULL;
 		bio_reset(bio, NULL, REQ_OP_READ|REQ_SYNC|REQ_META);
 		bio->bi_iter.bi_sector	= rb->pick.ptr.offset;
 		bio->bi_iter.bi_size	= btree_buf_bytes(b);
@@ -1321,7 +1323,7 @@ static void btree_node_read_work(struct work_struct *work)
 start:
 		printbuf_reset(&buf);
 		bch2_btree_pos_to_text(&buf, c, b);
-		bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_read,
+		bch2_dev_io_err_on(ca && bio->bi_status, ca, BCH_MEMBER_ERROR_read,
 				   "btree read error %s for %s",
 				   bch2_blk_status_to_str(bio->bi_status), buf.buf);
 		if (rb->have_ioref)
@@ -1377,7 +1379,7 @@ static void btree_node_read_endio(struct bio *bio)
 	struct bch_fs *c	= rb->c;
 
 	if (rb->have_ioref) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, rb->pick.ptr.dev);
+		struct bch_dev *ca = bch2_dev_have_ref(c, rb->pick.ptr.dev);
 
 		bch2_latency_acct(ca, rb->start_time, READ);
 	}
@@ -1574,7 +1576,7 @@ static void btree_node_read_all_replicas_endio(struct bio *bio)
 	struct btree_node_read_all *ra = rb->ra;
 
 	if (rb->have_ioref) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, rb->pick.ptr.dev);
+		struct bch_dev *ca = bch2_dev_have_ref(c, rb->pick.ptr.dev);
 
 		bch2_latency_acct(ca, rb->start_time, READ);
 	}
@@ -1616,14 +1618,14 @@ static int btree_node_read_all_replicas(struct bch_fs *c, struct btree *b, bool 
 
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, pick, entry) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, pick.ptr.dev);
+		struct bch_dev *ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
 		struct btree_read_bio *rb =
 			container_of(ra->bio[i], struct btree_read_bio, bio);
 		rb->c			= c;
 		rb->b			= b;
 		rb->ra			= ra;
 		rb->start_time		= local_clock();
-		rb->have_ioref		= bch2_dev_get_ioref(ca, READ);
+		rb->have_ioref		= ca != NULL;
 		rb->idx			= i;
 		rb->pick		= pick;
 		rb->bio.bi_iter.bi_sector = pick.ptr.offset;
@@ -1693,7 +1695,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 		return;
 	}
 
-	ca = bch2_dev_bkey_exists(c, pick.ptr.dev);
+	ca = bch2_dev_get_ioref2(c, pick.ptr.dev, READ);
 
 	bio = bio_alloc_bioset(NULL,
 			       buf_pages(b->data, btree_buf_bytes(b)),
@@ -1705,7 +1707,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 	rb->b			= b;
 	rb->ra			= NULL;
 	rb->start_time		= local_clock();
-	rb->have_ioref		= bch2_dev_get_ioref(ca, READ);
+	rb->have_ioref		= ca != NULL;
 	rb->pick		= pick;
 	INIT_WORK(&rb->work, btree_node_read_work);
 	bio->bi_iter.bi_sector	= pick.ptr.offset;
@@ -1909,13 +1911,14 @@ static void btree_node_write_endio(struct bio *bio)
 	struct btree_write_bio *wb	= container_of(orig, struct btree_write_bio, wbio);
 	struct bch_fs *c		= wbio->c;
 	struct btree *b			= wbio->bio.bi_private;
-	struct bch_dev *ca		= bch2_dev_bkey_exists(c, wbio->dev);
+	struct bch_dev *ca		= wbio->have_ioref ? bch2_dev_have_ref(c, wbio->dev) : NULL;
 	unsigned long flags;
 
 	if (wbio->have_ioref)
 		bch2_latency_acct(ca, wbio->submit_time, WRITE);
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
+	if (!ca ||
+	    bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
 			       "btree write error: %s",
 			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("btree")) {
