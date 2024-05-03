@@ -325,6 +325,7 @@ struct ath12k_dp {
 	u8 htt_tgt_ver_major;
 	u8 htt_tgt_ver_minor;
 	struct dp_link_desc_bank link_desc_banks[DP_LINK_DESC_BANKS_MAX];
+	enum hal_rx_buf_return_buf_manager idle_link_rbm;
 	struct dp_srng wbm_idle_ring;
 	struct dp_srng wbm_desc_rel_ring;
 	struct dp_srng tcl_cmd_ring;

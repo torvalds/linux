@@ -1113,7 +1113,8 @@ dma_addr_t ath12k_hal_srng_get_tp_addr(struct ath12k_base *ab,
 dma_addr_t ath12k_hal_srng_get_hp_addr(struct ath12k_base *ab,
 				       struct hal_srng *srng);
 void ath12k_hal_set_link_desc_addr(struct hal_wbm_link_desc *desc, u32 cookie,
-				   dma_addr_t paddr);
+				   dma_addr_t paddr,
+				   enum hal_rx_buf_return_buf_manager rbm);
 u32 ath12k_hal_ce_get_desc_size(enum hal_ce_desc type);
 void ath12k_hal_ce_src_set_desc(struct hal_ce_srng_src_desc *desc, dma_addr_t paddr,
 				u32 len, u32 id, u8 byte_swap_data);
