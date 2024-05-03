@@ -1979,10 +1979,11 @@ static int qede_flow_spec_to_rule(struct qede_dev *edev,
 	struct ethtool_rx_flow_spec_input input = {};
 	struct ethtool_rx_flow_rule *flow;
 	__be16 proto;
-	int err = 0;
+	int err;
 
-	if (qede_flow_spec_validate_unused(edev, fs))
-		return -EOPNOTSUPP;
+	err = qede_flow_spec_validate_unused(edev, fs);
+	if (err)
+		return err;
 
 	switch ((fs->flow_type & ~FLOW_EXT)) {
 	case TCP_V4_FLOW:
