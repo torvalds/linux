@@ -1603,7 +1603,8 @@ static int put_master_ifindex(struct sk_buff *skb, struct net_device *dev)
 
 	upper_dev = netdev_master_upper_dev_get_rcu(dev);
 	if (upper_dev)
-		ret = nla_put_u32(skb, IFLA_MASTER, upper_dev->ifindex);
+		ret = nla_put_u32(skb, IFLA_MASTER,
+				  READ_ONCE(upper_dev->ifindex));
 
 	rcu_read_unlock();
 	return ret;
@@ -1825,8 +1826,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	ifm = nlmsg_data(nlh);
 	ifm->ifi_family = AF_UNSPEC;
 	ifm->__ifi_pad = 0;
-	ifm->ifi_type = dev->type;
-	ifm->ifi_index = dev->ifindex;
+	ifm->ifi_type = READ_ONCE(dev->type);
+	ifm->ifi_index = READ_ONCE(dev->ifindex);
 	ifm->ifi_flags = dev_get_flags(dev);
 	ifm->ifi_change = change;
 
@@ -1839,24 +1840,34 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 
 	if (nla_put_u32(skb, IFLA_TXQLEN, READ_ONCE(dev->tx_queue_len)) ||
 	    nla_put_u8(skb, IFLA_OPERSTATE,
-		       netif_running(dev) ? dev->operstate : IF_OPER_DOWN) ||
-	    nla_put_u8(skb, IFLA_LINKMODE, dev->link_mode) ||
-	    nla_put_u32(skb, IFLA_MTU, dev->mtu) ||
-	    nla_put_u32(skb, IFLA_MIN_MTU, dev->min_mtu) ||
-	    nla_put_u32(skb, IFLA_MAX_MTU, dev->max_mtu) ||
-	    nla_put_u32(skb, IFLA_GROUP, dev->group) ||
-	    nla_put_u32(skb, IFLA_PROMISCUITY, dev->promiscuity) ||
-	    nla_put_u32(skb, IFLA_ALLMULTI, dev->allmulti) ||
-	    nla_put_u32(skb, IFLA_NUM_TX_QUEUES, dev->num_tx_queues) ||
-	    nla_put_u32(skb, IFLA_GSO_MAX_SEGS, dev->gso_max_segs) ||
-	    nla_put_u32(skb, IFLA_GSO_MAX_SIZE, dev->gso_max_size) ||
-	    nla_put_u32(skb, IFLA_GRO_MAX_SIZE, dev->gro_max_size) ||
-	    nla_put_u32(skb, IFLA_GSO_IPV4_MAX_SIZE, dev->gso_ipv4_max_size) ||
-	    nla_put_u32(skb, IFLA_GRO_IPV4_MAX_SIZE, dev->gro_ipv4_max_size) ||
-	    nla_put_u32(skb, IFLA_TSO_MAX_SIZE, dev->tso_max_size) ||
-	    nla_put_u32(skb, IFLA_TSO_MAX_SEGS, dev->tso_max_segs) ||
+		       netif_running(dev) ? READ_ONCE(dev->operstate) :
+					    IF_OPER_DOWN) ||
+	    nla_put_u8(skb, IFLA_LINKMODE, READ_ONCE(dev->link_mode)) ||
+	    nla_put_u32(skb, IFLA_MTU, READ_ONCE(dev->mtu)) ||
+	    nla_put_u32(skb, IFLA_MIN_MTU, READ_ONCE(dev->min_mtu)) ||
+	    nla_put_u32(skb, IFLA_MAX_MTU, READ_ONCE(dev->max_mtu)) ||
+	    nla_put_u32(skb, IFLA_GROUP, READ_ONCE(dev->group)) ||
+	    nla_put_u32(skb, IFLA_PROMISCUITY, READ_ONCE(dev->promiscuity)) ||
+	    nla_put_u32(skb, IFLA_ALLMULTI, READ_ONCE(dev->allmulti)) ||
+	    nla_put_u32(skb, IFLA_NUM_TX_QUEUES,
+			READ_ONCE(dev->num_tx_queues)) ||
+	    nla_put_u32(skb, IFLA_GSO_MAX_SEGS,
+			READ_ONCE(dev->gso_max_segs)) ||
+	    nla_put_u32(skb, IFLA_GSO_MAX_SIZE,
+			READ_ONCE(dev->gso_max_size)) ||
+	    nla_put_u32(skb, IFLA_GRO_MAX_SIZE,
+			READ_ONCE(dev->gro_max_size)) ||
+	    nla_put_u32(skb, IFLA_GSO_IPV4_MAX_SIZE,
+			READ_ONCE(dev->gso_ipv4_max_size)) ||
+	    nla_put_u32(skb, IFLA_GRO_IPV4_MAX_SIZE,
+			READ_ONCE(dev->gro_ipv4_max_size)) ||
+	    nla_put_u32(skb, IFLA_TSO_MAX_SIZE,
+			READ_ONCE(dev->tso_max_size)) ||
+	    nla_put_u32(skb, IFLA_TSO_MAX_SEGS,
+			READ_ONCE(dev->tso_max_segs)) ||
 #ifdef CONFIG_RPS
-	    nla_put_u32(skb, IFLA_NUM_RX_QUEUES, dev->num_rx_queues) ||
+	    nla_put_u32(skb, IFLA_NUM_RX_QUEUES,
+			READ_ONCE(dev->num_rx_queues)) ||
 #endif
 	    put_master_ifindex(skb, dev) ||
 	    nla_put_u8(skb, IFLA_CARRIER, netif_carrier_ok(dev)) ||
