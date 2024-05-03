@@ -6,6 +6,7 @@
  *
  *  Copyright (C) 2017 Sudip Mukherjee, All Rights Reserved.
  */
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -20,7 +21,6 @@
 #include <linux/property.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/bitfield.h>
 
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
