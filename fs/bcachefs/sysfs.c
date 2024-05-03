@@ -346,37 +346,6 @@ static void bch2_gc_gens_pos_to_text(struct printbuf *out, struct bch_fs *c)
 	prt_printf(out, "\n");
 }
 
-static void fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
-{
-	unsigned nr[BCH_DATA_NR];
-
-	memset(nr, 0, sizeof(nr));
-
-	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
-		nr[c->open_buckets[i].data_type]++;
-
-	printbuf_tabstop_push(out, 24);
-
-	percpu_down_read(&c->mark_lock);
-	prt_printf(out, "hidden\t%llu\n",		bch2_fs_usage_read_one(c, &c->usage_base->b.hidden));
-	prt_printf(out, "btree\t%llu\n",		bch2_fs_usage_read_one(c, &c->usage_base->b.btree));
-	prt_printf(out, "data\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.data));
-	prt_printf(out, "cached\t%llu\n",		bch2_fs_usage_read_one(c, &c->usage_base->b.cached));
-	prt_printf(out, "reserved\t%llu\n",		bch2_fs_usage_read_one(c, &c->usage_base->b.reserved));
-	prt_printf(out, "online_reserved\t%llu\n",	percpu_u64_get(c->online_reserved));
-	prt_printf(out, "nr_inodes\t%llu\n",		bch2_fs_usage_read_one(c, &c->usage_base->b.nr_inodes));
-	percpu_up_read(&c->mark_lock);
-
-	prt_newline(out);
-	prt_printf(out, "freelist_wait\t%s\n",			c->freelist_wait.list.first ? "waiting" : "empty");
-	prt_printf(out, "open buckets allocated\t%i\n",		OPEN_BUCKETS_COUNT - c->open_buckets_nr_free);
-	prt_printf(out, "open buckets total\t%u\n",		OPEN_BUCKETS_COUNT);
-	prt_printf(out, "open_buckets_wait\t%s\n",		c->open_buckets_wait.list.first ? "waiting" : "empty");
-	prt_printf(out, "open_buckets_btree\t%u\n",		nr[BCH_DATA_btree]);
-	prt_printf(out, "open_buckets_user\t%u\n",		nr[BCH_DATA_user]);
-	prt_printf(out, "btree reserve cache\t%u\n",		c->btree_reserve_cache_nr);
-}
-
 SHOW(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
@@ -458,7 +427,7 @@ SHOW(bch2_fs)
 		bch2_disk_groups_to_text(out, c);
 
 	if (attr == &sysfs_alloc_debug)
-		fs_alloc_debug_to_text(out, c);
+		bch2_fs_alloc_debug_to_text(out, c);
 
 	return 0;
 }
@@ -779,47 +748,6 @@ struct attribute *bch2_fs_time_stats_files[] = {
 	NULL
 };
 
-static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
-{
-	struct bch_fs *c = ca->fs;
-	struct bch_dev_usage stats = bch2_dev_usage_read(ca);
-	unsigned nr[BCH_DATA_NR];
-
-	memset(nr, 0, sizeof(nr));
-
-	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
-		nr[c->open_buckets[i].data_type]++;
-
-	printbuf_tabstop_push(out, 8);
-	printbuf_tabstop_push(out, 16);
-	printbuf_tabstop_push(out, 16);
-	printbuf_tabstop_push(out, 16);
-	printbuf_tabstop_push(out, 16);
-
-	bch2_dev_usage_to_text(out, &stats);
-
-	prt_newline(out);
-
-	prt_printf(out, "reserves:\n");
-	for (unsigned i = 0; i < BCH_WATERMARK_NR; i++)
-		prt_printf(out, "%s\t%llu\r\n", bch2_watermarks[i], bch2_dev_buckets_reserved(ca, i));
-
-	prt_newline(out);
-
-	printbuf_tabstops_reset(out);
-	printbuf_tabstop_push(out, 24);
-
-	prt_printf(out, "freelist_wait\t%s\n",			c->freelist_wait.list.first ? "waiting" : "empty");
-	prt_printf(out, "open buckets allocated\t%i\n",		OPEN_BUCKETS_COUNT - c->open_buckets_nr_free);
-	prt_printf(out, "open buckets this dev\t%i\n",		ca->nr_open_buckets);
-	prt_printf(out, "open buckets total\t%u\n",		OPEN_BUCKETS_COUNT);
-	prt_printf(out, "open_buckets_wait\t%s\n",		c->open_buckets_wait.list.first ? "waiting" : "empty");
-	prt_printf(out, "open_buckets_btree\t%u\n",		nr[BCH_DATA_btree]);
-	prt_printf(out, "open_buckets_user\t%u\n",		nr[BCH_DATA_user]);
-	prt_printf(out, "buckets_to_invalidate\t%llu\n",	should_invalidate_buckets(ca, stats));
-	prt_printf(out, "btree reserve cache\t%u\n",		c->btree_reserve_cache_nr);
-}
-
 static const char * const bch2_rw[] = {
 	"read",
 	"write",
@@ -889,7 +817,7 @@ SHOW(bch2_dev)
 		     * 100 / CONGESTED_MAX);
 
 	if (attr == &sysfs_alloc_debug)
-		dev_alloc_debug_to_text(out, ca);
+		bch2_dev_alloc_debug_to_text(out, ca);
 
 	return 0;
 }

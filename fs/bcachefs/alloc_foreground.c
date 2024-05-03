@@ -1630,3 +1630,104 @@ void bch2_write_points_to_text(struct printbuf *out, struct bch_fs *c)
 	prt_str(out, "Btree write point\n");
 	bch2_write_point_to_text(out, c, &c->btree_write_point);
 }
+
+void bch2_fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	unsigned nr[BCH_DATA_NR];
+
+	memset(nr, 0, sizeof(nr));
+
+	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
+		nr[c->open_buckets[i].data_type]++;
+
+	printbuf_tabstop_push(out, 24);
+
+	percpu_down_read(&c->mark_lock);
+	prt_printf(out, "hidden\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.hidden));
+	prt_printf(out, "btree\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.btree));
+	prt_printf(out, "data\t%llu\n",				bch2_fs_usage_read_one(c, &c->usage_base->b.data));
+	prt_printf(out, "cached\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.cached));
+	prt_printf(out, "reserved\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.reserved));
+	prt_printf(out, "online_reserved\t%llu\n",		percpu_u64_get(c->online_reserved));
+	prt_printf(out, "nr_inodes\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.nr_inodes));
+	percpu_up_read(&c->mark_lock);
+
+	prt_newline(out);
+	prt_printf(out, "freelist_wait\t%s\n",			c->freelist_wait.list.first ? "waiting" : "empty");
+	prt_printf(out, "open buckets allocated\t%i\n",		OPEN_BUCKETS_COUNT - c->open_buckets_nr_free);
+	prt_printf(out, "open buckets total\t%u\n",		OPEN_BUCKETS_COUNT);
+	prt_printf(out, "open_buckets_wait\t%s\n",		c->open_buckets_wait.list.first ? "waiting" : "empty");
+	prt_printf(out, "open_buckets_btree\t%u\n",		nr[BCH_DATA_btree]);
+	prt_printf(out, "open_buckets_user\t%u\n",		nr[BCH_DATA_user]);
+	prt_printf(out, "btree reserve cache\t%u\n",		c->btree_reserve_cache_nr);
+}
+
+void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
+{
+	struct bch_fs *c = ca->fs;
+	struct bch_dev_usage stats = bch2_dev_usage_read(ca);
+	unsigned nr[BCH_DATA_NR];
+
+	memset(nr, 0, sizeof(nr));
+
+	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
+		nr[c->open_buckets[i].data_type]++;
+
+	printbuf_tabstop_push(out, 12);
+	printbuf_tabstop_push(out, 16);
+	printbuf_tabstop_push(out, 16);
+	printbuf_tabstop_push(out, 16);
+	printbuf_tabstop_push(out, 16);
+
+	bch2_dev_usage_to_text(out, &stats);
+
+	prt_newline(out);
+
+	prt_printf(out, "reserves:\n");
+	for (unsigned i = 0; i < BCH_WATERMARK_NR; i++)
+		prt_printf(out, "%s\t%llu\r\n", bch2_watermarks[i], bch2_dev_buckets_reserved(ca, i));
+
+	prt_newline(out);
+
+	printbuf_tabstops_reset(out);
+	printbuf_tabstop_push(out, 12);
+	printbuf_tabstop_push(out, 16);
+
+	prt_printf(out, "open buckets\t%i\r\n",	ca->nr_open_buckets);
+	prt_printf(out, "buckets to invalidate\t%llu\r\n",	should_invalidate_buckets(ca, stats));
+}
+
+void bch2_print_allocator_stuck(struct bch_fs *c)
+{
+	struct printbuf buf = PRINTBUF;
+
+	prt_printf(&buf, "Allocator stuck? Waited for 10 seconds\n");
+
+	prt_printf(&buf, "Allocator debug:\n");
+	printbuf_indent_add(&buf, 2);
+	bch2_fs_alloc_debug_to_text(&buf, c);
+	printbuf_indent_sub(&buf, 2);
+	prt_newline(&buf);
+
+	for_each_online_member(c, ca) {
+		prt_printf(&buf, "Dev %u:\n", ca->dev_idx);
+		printbuf_indent_add(&buf, 2);
+		bch2_dev_alloc_debug_to_text(&buf, ca);
+		printbuf_indent_sub(&buf, 2);
+		prt_newline(&buf);
+	}
+
+	prt_printf(&buf, "Copygc debug:\n");
+	printbuf_indent_add(&buf, 2);
+	bch2_copygc_wait_to_text(&buf, c);
+	printbuf_indent_sub(&buf, 2);
+	prt_newline(&buf);
+
+	prt_printf(&buf, "Journal debug:\n");
+	printbuf_indent_add(&buf, 2);
+	bch2_journal_debug_to_text(&buf, &c->journal);
+	printbuf_indent_sub(&buf, 2);
+
+	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+	printbuf_exit(&buf);
+}
