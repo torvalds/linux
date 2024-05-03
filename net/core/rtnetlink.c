@@ -1036,8 +1036,8 @@ static size_t rtnl_proto_down_size(const struct net_device *dev)
 {
 	size_t size = nla_total_size(1);
 
-	if (dev->proto_down_reason)
-		size += nla_total_size(0) + nla_total_size(4);
+	/* Assume dev->proto_down_reason is not zero. */
+	size += nla_total_size(0) + nla_total_size(4);
 
 	return size;
 }
@@ -1737,10 +1737,10 @@ static int rtnl_fill_proto_down(struct sk_buff *skb,
 	struct nlattr *pr;
 	u32 preason;
 
-	if (nla_put_u8(skb, IFLA_PROTO_DOWN, dev->proto_down))
+	if (nla_put_u8(skb, IFLA_PROTO_DOWN, READ_ONCE(dev->proto_down)))
 		goto nla_put_failure;
 
-	preason = dev->proto_down_reason;
+	preason = READ_ONCE(dev->proto_down_reason);
 	if (!preason)
 		return 0;
 

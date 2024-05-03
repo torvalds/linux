@@ -9223,7 +9223,7 @@ int dev_change_proto_down(struct net_device *dev, bool proto_down)
 		netif_carrier_off(dev);
 	else
 		netif_carrier_on(dev);
-	dev->proto_down = proto_down;
+	WRITE_ONCE(dev->proto_down, proto_down);
 	return 0;
 }
 
@@ -9237,18 +9237,21 @@ int dev_change_proto_down(struct net_device *dev, bool proto_down)
 void dev_change_proto_down_reason(struct net_device *dev, unsigned long mask,
 				  u32 value)
 {
+	u32 proto_down_reason;
 	int b;
 
 	if (!mask) {
-		dev->proto_down_reason = value;
+		proto_down_reason = value;
 	} else {
+		proto_down_reason = dev->proto_down_reason;
 		for_each_set_bit(b, &mask, 32) {
 			if (value & (1 << b))
-				dev->proto_down_reason |= BIT(b);
+				proto_down_reason |= BIT(b);
 			else
-				dev->proto_down_reason &= ~BIT(b);
+				proto_down_reason &= ~BIT(b);
 		}
 	}
+	WRITE_ONCE(dev->proto_down_reason, proto_down_reason);
 }
 
 struct bpf_xdp_link {
