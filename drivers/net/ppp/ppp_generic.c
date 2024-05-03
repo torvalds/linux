@@ -1357,7 +1357,7 @@ static struct net *ppp_nl_get_link_net(const struct net_device *dev)
 {
 	struct ppp *ppp = netdev_priv(dev);
 
-	return ppp->ppp_net;
+	return READ_ONCE(ppp->ppp_net);
 }
 
 static struct rtnl_link_ops ppp_link_ops __read_mostly = {

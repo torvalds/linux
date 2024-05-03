@@ -1923,9 +1923,6 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 	}
 
-	if (rtnl_fill_link_netnsid(skb, dev, src_net, gfp))
-		goto nla_put_failure;
-
 	if (new_nsid &&
 	    nla_put_s32(skb, IFLA_NEW_NETNSID, *new_nsid) < 0)
 		goto nla_put_failure;
@@ -1938,6 +1935,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	rcu_read_lock();
+	if (rtnl_fill_link_netnsid(skb, dev, src_net, GFP_ATOMIC))
+		goto nla_put_failure_rcu;
 	qdisc = rcu_dereference(dev->qdisc);
 	if (qdisc && nla_put_string(skb, IFLA_QDISC, qdisc->ops->id))
 		goto nla_put_failure_rcu;

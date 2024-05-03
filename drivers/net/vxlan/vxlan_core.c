@@ -4569,7 +4569,7 @@ static struct net *vxlan_get_link_net(const struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 
-	return vxlan->net;
+	return READ_ONCE(vxlan->net);
 }
 
 static struct rtnl_link_ops vxlan_link_ops __read_mostly = {
