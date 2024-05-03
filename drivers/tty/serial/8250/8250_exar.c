@@ -695,7 +695,6 @@ static int cti_read_osc_freq(struct exar8250 *priv, u8 eeprom_offset)
 {
 	u16 lower_word;
 	u16 upper_word;
-	int osc_freq;
 
 	lower_word = exar_ee_read(priv, eeprom_offset);
 	// Check if EEPROM word was blank
@@ -706,10 +705,8 @@ static int cti_read_osc_freq(struct exar8250 *priv, u8 eeprom_offset)
 	if (upper_word == 0xFFFF)
 		return -EIO;
 
-	osc_freq = FIELD_PREP(CTI_EE_MASK_OSC_FREQ_LOWER, lower_word) |
-		FIELD_PREP(CTI_EE_MASK_OSC_FREQ_UPPER, upper_word);
-
-	return osc_freq;
+	return FIELD_PREP(CTI_EE_MASK_OSC_FREQ_LOWER, lower_word) |
+	       FIELD_PREP(CTI_EE_MASK_OSC_FREQ_UPPER, upper_word);
 }
 
 /**
@@ -888,6 +885,19 @@ static int cti_rs485_config_mpio_tristate(struct uart_port *port,
 
 	// Disable power-on RS485 tri-state via MPIO
 	return cti_tristate_disable(priv, port->port_id);
+}
+
+static void cti_board_init_osc_freq(struct exar8250 *priv, struct pci_dev *pcidev, u8 eeprom_offset)
+{
+	int osc_freq;
+
+	osc_freq = cti_read_osc_freq(priv, eeprom_offset);
+	if (osc_freq <= 0) {
+		dev_warn(&pcidev->dev, "failed to read OSC freq from EEPROM, using default\n");
+		osc_freq = CTI_DEFAULT_PCI_OSC_FREQ;
+	}
+
+	priv->osc_freq = osc_freq;
 }
 
 static int cti_port_setup_common(struct exar8250 *priv,
@@ -1095,19 +1105,9 @@ static int cti_board_init_xr17v35x(struct exar8250 *priv,
 	return 0;
 }
 
-static int cti_board_init_xr17v25x(struct exar8250 *priv,
-				struct pci_dev *pcidev)
+static int cti_board_init_xr17v25x(struct exar8250 *priv, struct pci_dev *pcidev)
 {
-	int osc_freq;
-
-	osc_freq = cti_read_osc_freq(priv, CTI_EE_OFF_XR17V25X_OSC_FREQ);
-	if (osc_freq < 0) {
-		dev_warn(&pcidev->dev,
-			"failed to read osc freq from EEPROM, using default\n");
-		osc_freq = CTI_DEFAULT_PCI_OSC_FREQ;
-	}
-
-	priv->osc_freq = osc_freq;
+	cti_board_init_osc_freq(priv, pcidev, CTI_EE_OFF_XR17V25X_OSC_FREQ);
 
 	/* enable interrupts on cards that need the "PLX fix" */
 	switch (pcidev->subsystem_device) {
@@ -1123,19 +1123,9 @@ static int cti_board_init_xr17v25x(struct exar8250 *priv,
 	return 0;
 }
 
-static int cti_board_init_xr17c15x(struct exar8250 *priv,
-				struct pci_dev *pcidev)
+static int cti_board_init_xr17c15x(struct exar8250 *priv, struct pci_dev *pcidev)
 {
-	int osc_freq;
-
-	osc_freq = cti_read_osc_freq(priv, CTI_EE_OFF_XR17C15X_OSC_FREQ);
-	if (osc_freq <= 0) {
-		dev_warn(&pcidev->dev,
-			"failed to read osc freq from EEPROM, using default\n");
-		osc_freq = CTI_DEFAULT_PCI_OSC_FREQ;
-	}
-
-	priv->osc_freq = osc_freq;
+	cti_board_init_osc_freq(priv, pcidev, CTI_EE_OFF_XR17C15X_OSC_FREQ);
 
 	/* enable interrupts on cards that need the "PLX fix" */
 	switch (pcidev->subsystem_device) {
