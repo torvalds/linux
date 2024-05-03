@@ -36,7 +36,6 @@ struct ltk050h3146w {
 	struct regulator *vci;
 	struct regulator *iovcc;
 	const struct ltk050h3146w_desc *panel_desc;
-	bool prepared;
 };
 
 static const struct ltk050h3146w_cmd page1_cmds[] = {
@@ -521,9 +520,6 @@ static int ltk050h3146w_unprepare(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret < 0) {
 		dev_err(ctx->dev, "failed to set display off: %d\n", ret);
@@ -539,8 +535,6 @@ static int ltk050h3146w_unprepare(struct drm_panel *panel)
 	regulator_disable(ctx->iovcc);
 	regulator_disable(ctx->vci);
 
-	ctx->prepared = false;
-
 	return 0;
 }
 
@@ -549,9 +543,6 @@ static int ltk050h3146w_prepare(struct drm_panel *panel)
 	struct ltk050h3146w *ctx = panel_to_ltk050h3146w(panel);
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
-
-	if (ctx->prepared)
-		return 0;
 
 	dev_dbg(ctx->dev, "Resetting the panel\n");
 	ret = regulator_enable(ctx->vci);
@@ -592,8 +583,6 @@ static int ltk050h3146w_prepare(struct drm_panel *panel)
 	}
 
 	msleep(50);
-
-	ctx->prepared = true;
 
 	return 0;
 
