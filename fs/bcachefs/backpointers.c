@@ -486,8 +486,8 @@ found:
 
 	bytes = p.crc.compressed_size << 9;
 
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, dev);
-	if (!bch2_dev_get_ioref(ca, READ))
+	struct bch_dev *ca = bch2_dev_get_ioref2(c, dev, READ);
+	if (!ca)
 		return false;
 
 	data_buf = kvmalloc(bytes, GFP_KERNEL);
