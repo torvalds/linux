@@ -52,7 +52,6 @@ struct xpp055c272 {
 	struct gpio_desc *reset_gpio;
 	struct regulator *vci;
 	struct regulator *iovcc;
-	bool prepared;
 };
 
 static inline struct xpp055c272 *panel_to_xpp055c272(struct drm_panel *panel)
@@ -136,9 +135,6 @@ static int xpp055c272_unprepare(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret < 0)
 		dev_err(ctx->dev, "failed to set display off: %d\n", ret);
@@ -152,8 +148,6 @@ static int xpp055c272_unprepare(struct drm_panel *panel)
 	regulator_disable(ctx->iovcc);
 	regulator_disable(ctx->vci);
 
-	ctx->prepared = false;
-
 	return 0;
 }
 
@@ -162,9 +156,6 @@ static int xpp055c272_prepare(struct drm_panel *panel)
 	struct xpp055c272 *ctx = panel_to_xpp055c272(panel);
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
-
-	if (ctx->prepared)
-		return 0;
 
 	dev_dbg(ctx->dev, "Resetting the panel\n");
 	ret = regulator_enable(ctx->vci);
@@ -208,8 +199,6 @@ static int xpp055c272_prepare(struct drm_panel *panel)
 	}
 
 	msleep(50);
-
-	ctx->prepared = true;
 
 	return 0;
 
