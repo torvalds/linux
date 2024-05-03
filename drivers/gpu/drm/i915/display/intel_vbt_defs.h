@@ -846,6 +846,18 @@ struct bdb_sv_test_functions {
 } __packed;
 
 /*
+ * Block 18 - Driver Rotation
+ */
+
+struct bdb_driver_rotation {
+	u8 rotation_enable;
+	u8 rotation_flags_1;
+	u16 rotation_flags_2;
+	u32 rotation_flags_3;
+	u32 rotation_flags_4;
+} __packed;
+
+/*
  * Block 22 - SDVO LVDS General Options
  */
 
