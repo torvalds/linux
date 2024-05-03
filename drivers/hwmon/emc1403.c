@@ -19,6 +19,7 @@
 #include <linux/sysfs.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
+#include <linux/util_macros.h>
 
 #define THERMAL_PID_REG		0xfd
 #define THERMAL_SMSC_ID_REG	0xfe
@@ -333,6 +334,31 @@ static int emc1403_temp_read(struct thermal_data *data, u32 attr, int channel, l
 	return ret;
 }
 
+static int emc1403_get_convrate(struct thermal_data *data, long *val)
+{
+	unsigned int convrate;
+	int ret;
+
+	ret = regmap_read(data->regmap, 0x04, &convrate);
+	if (ret < 0)
+		return ret;
+	if (convrate > 10)
+		convrate = 4;
+
+	*val = 16000 >> convrate;
+	return 0;
+}
+
+static int emc1403_chip_read(struct thermal_data *data, u32 attr, long *val)
+{
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		return emc1403_get_convrate(data, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int emc1403_read(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long *val)
 {
@@ -341,6 +367,8 @@ static int emc1403_read(struct device *dev, enum hwmon_sensor_types type,
 	switch (type) {
 	case hwmon_temp:
 		return emc1403_temp_read(data, attr, channel, val);
+	case hwmon_chip:
+		return emc1403_chip_read(data, attr, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -409,6 +437,30 @@ static int emc1403_temp_write(struct thermal_data *data, u32 attr, int channel, 
 	}
 }
 
+/* Lookup table for temperature conversion times in msec */
+static const u16 ina3221_conv_time[] = {
+	16000, 8000, 4000, 2000, 1000, 500, 250, 125, 62, 31, 16
+};
+
+static int emc1403_set_convrate(struct thermal_data *data, unsigned int interval)
+{
+	int convrate;
+
+	convrate = find_closest_descending(interval, ina3221_conv_time,
+					   ARRAY_SIZE(ina3221_conv_time));
+	return regmap_write(data->regmap, 0x04, convrate);
+}
+
+static int emc1403_chip_write(struct thermal_data *data, u32 attr, long val)
+{
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		return emc1403_set_convrate(data, clamp_val(val, 0, 100000));
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int emc1403_write(struct device *dev, enum hwmon_sensor_types type,
 			 u32 attr, int channel, long val)
 {
@@ -417,6 +469,8 @@ static int emc1403_write(struct device *dev, enum hwmon_sensor_types type,
 	switch (type) {
 	case hwmon_temp:
 		return emc1403_temp_write(data, attr, channel, val);
+	case hwmon_chip:
+		return emc1403_chip_write(data, attr, val);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -453,18 +507,31 @@ static umode_t emc1403_temp_is_visible(const void *_data, u32 attr, int channel)
 	}
 }
 
+static umode_t emc1403_chip_is_visible(const void *_data, u32 attr)
+{
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		return 0644;
+	default:
+		return 0;
+	}
+}
+
 static umode_t emc1403_is_visible(const void *data, enum hwmon_sensor_types type,
 				  u32 attr, int channel)
 {
 	switch (type) {
 	case hwmon_temp:
 		return emc1403_temp_is_visible(data, attr, channel);
+	case hwmon_chip:
+		return emc1403_chip_is_visible(data, attr);
 	default:
 		return 0;
 	}
 }
 
 static const struct hwmon_channel_info * const emc1403_info[] = {
+	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
 			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
