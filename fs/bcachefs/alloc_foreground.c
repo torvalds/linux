@@ -717,25 +717,16 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct dev_alloc_list devs_sorted =
 		bch2_dev_alloc_list(c, stripe, devs_may_alloc);
-	unsigned dev;
-	struct bch_dev *ca;
 	int ret = -BCH_ERR_insufficient_devices;
-	unsigned i;
 
 	BUG_ON(*nr_effective >= nr_replicas);
 
-	for (i = 0; i < devs_sorted.nr; i++) {
+	for (unsigned i = 0; i < devs_sorted.nr; i++) {
 		struct bch_dev_usage usage;
 		struct open_bucket *ob;
 
-		dev = devs_sorted.devs[i];
-
-		rcu_read_lock();
-		ca = rcu_dereference(c->devs[dev]);
-		if (ca)
-			bch2_dev_get(ca);
-		rcu_read_unlock();
-
+		unsigned dev = devs_sorted.devs[i];
+		struct bch_dev *ca = bch2_dev_tryget_noerror(c, dev);
 		if (!ca)
 			continue;
 

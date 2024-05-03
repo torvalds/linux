@@ -32,12 +32,7 @@ static struct bch_dev *bch2_device_lookup(struct bch_fs *c, u64 dev,
 		if (dev >= c->sb.nr_devices)
 			return ERR_PTR(-EINVAL);
 
-		rcu_read_lock();
-		ca = rcu_dereference(c->devs[dev]);
-		if (ca)
-			bch2_dev_get(ca);
-		rcu_read_unlock();
-
+		ca = bch2_dev_tryget_noerror(c, dev);
 		if (!ca)
 			return ERR_PTR(-EINVAL);
 	} else {
