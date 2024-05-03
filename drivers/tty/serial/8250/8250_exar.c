@@ -324,6 +324,7 @@ static inline u8 exar_ee_read_bit(struct exar8250 *priv)
  * @ee_addr: Offset of EEPROM to read word from
  *
  * Read a single 16bit word from an Exar UART's EEPROM.
+ * The type of the EEPROM is AT93C46D.
  *
  * Return: EEPROM word
  */
@@ -340,13 +341,13 @@ static u16 exar_ee_read(struct exar8250 *priv, u8 ee_addr)
 	exar_ee_write_bit(priv, 0);
 
 	// Send address to read from
-	for (i = 1 << (UART_EXAR_REGB_EE_ADDR_SIZE - 1); i; i >>= 1)
-		exar_ee_write_bit(priv, (ee_addr & i));
+	for (i = UART_EXAR_REGB_EE_ADDR_SIZE - 1; i >= 0; i--)
+		exar_ee_write_bit(priv, ee_addr & BIT(i));
 
-	// Read data 1 bit at a time
-	for (i = 0; i <= UART_EXAR_REGB_EE_DATA_SIZE; i++) {
-		data <<= 1;
-		data |= exar_ee_read_bit(priv);
+	// Read data 1 bit at a time starting with a dummy bit
+	for (i = UART_EXAR_REGB_EE_DATA_SIZE; i >= 0; i--) {
+		if (exar_ee_read_bit(priv))
+			data |= BIT(i);
 	}
 
 	exar_ee_deselect(priv);
