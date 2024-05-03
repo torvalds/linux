@@ -24,7 +24,7 @@
  * interpreted according to the HW layout by SW but any attempted HW access to
  * the address will result in a fault. pte_present() returns true.
  */
-#define PTE_PRESENT_INVALID	(_AT(pteval_t, 1) << 59) /* only when !PTE_VALID */
+#define PTE_PRESENT_INVALID	(PTE_NG)		 /* only when !PTE_VALID */
 
 #define _PROT_DEFAULT		(PTE_TYPE_PAGE | PTE_AF | PTE_SHARED)
 #define _PROT_SECT_DEFAULT	(PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S)
