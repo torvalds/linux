@@ -1725,6 +1725,7 @@ qede_flow_parse_v6_common(struct qede_dev *edev, struct flow_rule *rule,
 			  struct qede_arfs_tuple *t)
 {
 	struct in6_addr zero_addr, addr;
+	int err;
 
 	memset(&zero_addr, 0, sizeof(addr));
 	memset(&addr, 0xff, sizeof(addr));
@@ -1746,8 +1747,9 @@ qede_flow_parse_v6_common(struct qede_dev *edev, struct flow_rule *rule,
 		memcpy(&t->dst_ipv6, &match.key->dst, sizeof(addr));
 	}
 
-	if (qede_flow_parse_ports(edev, rule, t))
-		return -EINVAL;
+	err = qede_flow_parse_ports(edev, rule, t);
+	if (err)
+		return err;
 
 	return qede_set_v6_tuple_to_profile(edev, t, &zero_addr);
 }
@@ -1756,6 +1758,8 @@ static int
 qede_flow_parse_v4_common(struct qede_dev *edev, struct flow_rule *rule,
 			struct qede_arfs_tuple *t)
 {
+	int err;
+
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
 		struct flow_match_ipv4_addrs match;
 
@@ -1770,8 +1774,9 @@ qede_flow_parse_v4_common(struct qede_dev *edev, struct flow_rule *rule,
 		t->dst_ipv4 = match.key->dst;
 	}
 
-	if (qede_flow_parse_ports(edev, rule, t))
-		return -EINVAL;
+	err = qede_flow_parse_ports(edev, rule, t);
+	if (err)
+		return err;
 
 	return qede_set_v4_tuple_to_profile(edev, t);
 }
