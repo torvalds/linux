@@ -89,6 +89,7 @@ u32 hda_get_interface_mask(struct snd_sof_dev *sdev)
 
 	return interface_mask[sdev->dspless_mode_selected];
 }
+EXPORT_SYMBOL_NS(hda_get_interface_mask, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 bool hda_is_chain_dma_supported(struct snd_sof_dev *sdev, u32 dai_type)
 {
@@ -118,6 +119,7 @@ bool hda_is_chain_dma_supported(struct snd_sof_dev *sdev, u32 dai_type)
 		return false;
 	}
 }
+EXPORT_SYMBOL_NS(hda_is_chain_dma_supported, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /*
  * DSP Core control.
@@ -980,6 +982,7 @@ int hda_dsp_runtime_idle(struct snd_sof_dev *sdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_runtime_idle, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 {
@@ -1001,6 +1004,7 @@ int hda_dsp_runtime_suspend(struct snd_sof_dev *sdev)
 
 	return snd_sof_dsp_set_power_state(sdev, &target_state);
 }
+EXPORT_SYMBOL_NS(hda_dsp_runtime_suspend, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
@@ -1061,6 +1065,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 
 	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
 }
+EXPORT_SYMBOL_NS(hda_dsp_suspend, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static unsigned int hda_dsp_check_for_dma_streams(struct snd_sof_dev *sdev)
 {
@@ -1153,6 +1158,7 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_set_hw_params_upon_resume, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_dsp_d0i3_work(struct work_struct *work)
 {
@@ -1179,6 +1185,7 @@ void hda_dsp_d0i3_work(struct work_struct *work)
 				    "error: failed to set DSP state %d substate %d\n",
 				    target_state.state, target_state.substate);
 }
+EXPORT_SYMBOL_NS(hda_dsp_d0i3_work, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
@@ -1311,6 +1318,7 @@ int hda_sdw_check_lcount(struct snd_sof_dev *sdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_sdw_check_lcount, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_sdw_process_wakeen(struct snd_sof_dev *sdev)
 {
@@ -1619,3 +1627,4 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 		hda_dsp_dump_ext_rom_status(sdev, level, flags);
 	}
 }
+EXPORT_SYMBOL_NS(hda_dsp_dump, SND_SOC_SOF_INTEL_HDA_COMMON);

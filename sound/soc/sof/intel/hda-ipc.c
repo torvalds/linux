@@ -398,11 +398,13 @@ int hda_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
 	return HDA_DSP_MBOX_UPLINK_OFFSET;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc_get_mailbox_offset, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 {
 	return SRAM_WINDOW_OFFSET(id);
 }
+EXPORT_SYMBOL_NS(hda_dsp_ipc_get_window_offset, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_ipc_msg_data(struct snd_sof_dev *sdev,
 		     struct snd_sof_pcm_stream *sps,
@@ -428,6 +430,7 @@ int hda_ipc_msg_data(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_ipc_msg_data, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
 			       struct snd_sof_pcm_stream *sps,
@@ -452,6 +455,7 @@ int hda_set_stream_data_offset(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_set_stream_data_offset, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_ipc4_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
@@ -477,6 +481,7 @@ bool hda_check_ipc_irq(struct snd_sof_dev *sdev)
 
 	return false;
 }
+EXPORT_SYMBOL_NS(hda_check_ipc_irq, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_ipc_irq_dump(struct snd_sof_dev *sdev)
 {

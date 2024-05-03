@@ -691,3 +691,4 @@ int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ext_man_get_cavs_config_data, SND_SOC_SOF_INTEL_HDA_COMMON);
