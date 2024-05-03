@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-/* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -1312,3 +1312,4 @@ err_mem:
 	return -1;
 }
 EXPORT_SYMBOL_GPL(qcom_ethqos_serdes_configure_dt);
+MODULE_LICENSE("GPL");
