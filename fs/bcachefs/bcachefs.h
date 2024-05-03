@@ -537,7 +537,13 @@ struct io_count {
 
 struct bch_dev {
 	struct kobject		kobj;
+#ifdef CONFIG_BCACHEFS_DEBUG
+	atomic_long_t		ref;
+	bool			dying;
+	unsigned long		last_put;
+#else
 	struct percpu_ref	ref;
+#endif
 	struct completion	ref_completion;
 	struct percpu_ref	io_ref;
 	struct completion	io_ref_completion;

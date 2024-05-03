@@ -107,12 +107,25 @@ static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, struct bch_dev *
 
 static inline void bch2_dev_get(struct bch_dev *ca)
 {
+#ifdef CONFIG_BCACHEFS_DEBUG
+	BUG_ON(atomic_long_inc_return(&ca->ref) <= 1L);
+#else
 	percpu_ref_get(&ca->ref);
+#endif
 }
 
 static inline void __bch2_dev_put(struct bch_dev *ca)
 {
+#ifdef CONFIG_BCACHEFS_DEBUG
+	long r = atomic_long_dec_return(&ca->ref);
+	if (r < (long) !ca->dying)
+		panic("bch_dev->ref underflow, last put: %pS\n", (void *) ca->last_put);
+	ca->last_put = _THIS_IP_;
+	if (!r)
+		complete(&ca->ref_completion);
+#else
 	percpu_ref_put(&ca->ref);
+#endif
 }
 
 static inline void bch2_dev_put(struct bch_dev *ca)
