@@ -1006,15 +1006,13 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 
 	for (i = 0; i < ab->num_hw; i++) {
 		ah = ab->ah[i];
-		if (!ah)
+		if (!ah || ah->state == ATH12K_HW_STATE_OFF)
 			continue;
 
 		ieee80211_stop_queues(ah->hw);
 
 		for (j = 0; j < ah->num_radio; j++) {
 			ar = &ah->radio[j];
-			if (ar->state == ATH12K_STATE_OFF)
-				continue;
 
 			ath12k_mac_drain_tx(ar);
 			complete(&ar->scan.started);
@@ -1044,47 +1042,42 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 	struct ath12k_hw *ah;
 	struct ath12k *ar;
 	int i, j;
-	u8 restart_count;
 
 	for (i = 0; i < ab->num_hw; i++) {
 		ah = ab->ah[i];
-		if (!ah)
+		if (!ah || ah->state == ATH12K_HW_STATE_OFF)
 			continue;
 
-		for (j = 0, restart_count = 0; j < ah->num_radio; j++) {
-			ar = &ah->radio[j];
-			if (ar->state == ATH12K_STATE_OFF)
-				continue;
+		switch (ah->state) {
+		case ATH12K_HW_STATE_ON:
+			ah->state = ATH12K_HW_STATE_RESTARTING;
 
-			mutex_lock(&ar->conf_mutex);
+			for (j = 0; j < ah->num_radio; j++) {
+				ar = &ah->radio[j];
 
-			switch (ar->state) {
-			case ATH12K_STATE_ON:
-				ar->state = ATH12K_STATE_RESTARTING;
+				mutex_lock(&ar->conf_mutex);
 				ath12k_core_halt(ar);
-				restart_count++;
-				break;
-			case ATH12K_STATE_OFF:
-				ath12k_warn(ab,
-					    "cannot restart radio %d that hasn't been started\n",
-					    j);
-				break;
-			case ATH12K_STATE_RESTARTING:
-				break;
-			case ATH12K_STATE_RESTARTED:
-				ar->state = ATH12K_STATE_WEDGED;
-				fallthrough;
-			case ATH12K_STATE_WEDGED:
-				ath12k_warn(ab,
-					    "device is wedged, will not restart radio %d\n", j);
-				break;
+				mutex_unlock(&ar->conf_mutex);
 			}
-			mutex_unlock(&ar->conf_mutex);
-		}
 
-		/* Restart after all the link/radio got restart */
-		if (restart_count == ah->num_radio)
+			/* Restart after all the link/radio halt */
 			ieee80211_restart_hw(ah->hw);
+			break;
+		case ATH12K_HW_STATE_OFF:
+			ath12k_warn(ab,
+				    "cannot restart hw %d that hasn't been started\n",
+				    i);
+			break;
+		case ATH12K_HW_STATE_RESTARTING:
+			break;
+		case ATH12K_HW_STATE_RESTARTED:
+			ah->state = ATH12K_HW_STATE_WEDGED;
+			fallthrough;
+		case ATH12K_HW_STATE_WEDGED:
+			ath12k_warn(ab,
+				    "device is wedged, will not restart hw %d\n", i);
+			break;
+		}
 	}
 
 	complete(&ab->driver_recovery);
