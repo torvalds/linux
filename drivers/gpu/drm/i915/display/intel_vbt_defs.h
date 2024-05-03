@@ -242,6 +242,7 @@ struct bdb_general_features {
 
 /* Device handle */
 #define DEVICE_HANDLE_CRT	0x0001
+#define DEVICE_HANDLE_TV	0x0002 /* ???-214 */
 #define DEVICE_HANDLE_EFP1	0x0004
 #define DEVICE_HANDLE_EFP2	0x0040
 #define DEVICE_HANDLE_EFP3	0x0020
