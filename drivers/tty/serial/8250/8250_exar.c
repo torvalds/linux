@@ -1737,22 +1737,11 @@ static const struct exar8250_board pbn_exar_XR17V8358 = {
 	.exit		= pci_xr17v35x_exit,
 };
 
-// For Connect Tech cards with Exar vendor/device PCI IDs
 #define CTI_EXAR_DEVICE(devid, bd) {                    \
 	PCI_DEVICE_SUB(                                 \
 		PCI_VENDOR_ID_EXAR,                     \
 		PCI_DEVICE_ID_EXAR_##devid,             \
 		PCI_SUBVENDOR_ID_CONNECT_TECH,          \
-		PCI_ANY_ID), 0, 0,                      \
-		(kernel_ulong_t)&bd                     \
-	}
-
-// For Connect Tech cards with Connect Tech vendor/device PCI IDs (FPGA based)
-#define CTI_PCI_DEVICE(devid, bd) {                     \
-	PCI_DEVICE_SUB(                                 \
-		PCI_VENDOR_ID_CONNECT_TECH,             \
-		PCI_DEVICE_ID_CONNECT_TECH_PCI_##devid, \
-		PCI_ANY_ID,                             \
 		PCI_ANY_ID), 0, 0,                      \
 		(kernel_ulong_t)&bd                     \
 	}
@@ -1786,6 +1775,7 @@ static const struct pci_device_id exar_pci_tbl[] = {
 	EXAR_DEVICE(ACCESSIO, COM_4SM, pbn_exar_XR17C15x),
 	EXAR_DEVICE(ACCESSIO, COM_8SM, pbn_exar_XR17C15x),
 
+	/* Connect Tech cards with Exar vendor/device PCI IDs */
 	CTI_EXAR_DEVICE(XR17C152,       pbn_cti_xr17c15x),
 	CTI_EXAR_DEVICE(XR17C154,       pbn_cti_xr17c15x),
 	CTI_EXAR_DEVICE(XR17C158,       pbn_cti_xr17c15x),
@@ -1798,9 +1788,10 @@ static const struct pci_device_id exar_pci_tbl[] = {
 	CTI_EXAR_DEVICE(XR17V354,       pbn_cti_xr17v35x),
 	CTI_EXAR_DEVICE(XR17V358,       pbn_cti_xr17v35x),
 
-	CTI_PCI_DEVICE(XR79X_12_XIG00X, pbn_cti_fpga),
-	CTI_PCI_DEVICE(XR79X_12_XIG01X, pbn_cti_fpga),
-	CTI_PCI_DEVICE(XR79X_16,        pbn_cti_fpga),
+	/* Connect Tech cards with Connect Tech vendor/device PCI IDs (FPGA based) */
+	EXAR_DEVICE(CONNECT_TECH, PCI_XR79X_12_XIG00X, pbn_cti_fpga),
+	EXAR_DEVICE(CONNECT_TECH, PCI_XR79X_12_XIG01X, pbn_cti_fpga),
+	EXAR_DEVICE(CONNECT_TECH, PCI_XR79X_16,        pbn_cti_fpga),
 
 	IBM_DEVICE(XR17C152, SATURN_SERIAL_ONE_PORT, pbn_exar_ibm_saturn),
 
