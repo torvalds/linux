@@ -182,6 +182,7 @@ enum bdb_block_id {
 	BDB_FIXED_SET_MODE		= 51, /* 172+ */
 	BDB_MIPI_CONFIG			= 52, /* 175+ */
 	BDB_MIPI_SEQUENCE		= 53, /* 177+ */
+	BDB_RGB_PALETTE			= 54, /* 180+ */
 	BDB_COMPRESSION_PARAMETERS	= 56, /* 213+ */
 	BDB_GENERIC_DTD			= 58, /* 229+ */
 	BDB_SKIP			= 254, /* VBIOS only */
@@ -1416,6 +1417,17 @@ struct bdb_mipi_config {
 struct bdb_mipi_sequence {
 	u8 version;
 	u8 data[]; /* up to 6 variable length blocks */
+} __packed;
+
+/*
+ * Block 55 - RGB Palette Table
+ */
+
+struct bdb_rgb_palette {
+	u8 is_enabled;
+	u8 red[256];
+	u8 blue[256];
+	u8 green[256];
 } __packed;
 
 /*
