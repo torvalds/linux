@@ -754,6 +754,7 @@ struct ath12k_base {
 	struct ath12k_qmi qmi;
 	struct ath12k_wmi_base wmi_ab;
 	struct completion fw_ready;
+	u8 device_id;
 	int num_radios;
 	/* HW channel counters frequency value in hertz common to all MACs */
 	u32 cc_freq_hz;

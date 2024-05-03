@@ -1268,6 +1268,16 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	ab->qmi.num_radios = U8_MAX;
 	ab->mlo_capable_flags = ATH12K_INTRA_DEVICE_MLO_SUPPORT;
 
+	/* Device index used to identify the devices in a group.
+	 *
+	 * In Intra-device MLO, only one device present in a group,
+	 * so it is always zero.
+	 *
+	 * In Inter-device MLO, Multiple device present in a group,
+	 * expect non-zero value.
+	 */
+	ab->device_id = 0;
+
 	return ab;
 
 err_free_wq:
