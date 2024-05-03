@@ -922,6 +922,21 @@ struct bdb_oem_custom {
 } __packed;
 
 /*
+ * Block 21 - EFP List
+ */
+
+struct efp_entry {
+	u16 mfg_name;
+	u16 product_code;
+} __packed;
+
+struct bdb_efp_list {
+	u8 num_entries;
+	u8 entry_size;
+	struct efp_entry efp[];
+} __packed;
+
+/*
  * Block 22 - SDVO LVDS General Options
  */
 
