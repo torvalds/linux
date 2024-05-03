@@ -19,6 +19,9 @@
 #include "ksz_ptp.h"
 
 #define KSZ_MAX_NUM_PORTS 8
+/* all KSZ switches count ports from 1 */
+#define KSZ_PORT_1 0
+#define KSZ_PORT_2 1
 
 struct ksz_device;
 struct ksz_port;
