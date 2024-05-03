@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  *
- * Copyright (C) 2013-15, Intel Corporation. All rights reserved.
+ * Copyright (C) 2013-15, Intel Corporation
  */
 
 #ifndef __LINUX_SND_SOC_ACPI_H
