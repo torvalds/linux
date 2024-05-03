@@ -18,7 +18,7 @@
  */
 static inline int values_close(long a, long b, int err)
 {
-	return abs(a - b) <= (a + b) / 100 * err;
+	return labs(a - b) <= (a + b) / 100 * err;
 }
 
 extern int cg_find_unified_root(char *root, size_t len, bool *nsdelegate);
