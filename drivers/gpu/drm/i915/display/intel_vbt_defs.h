@@ -178,6 +178,7 @@ enum bdb_block_id {
 	BDB_LFP_BACKLIGHT		= 43,
 	BDB_LFP_POWER			= 44,
 	BDB_EDP_BFI			= 45, /* 160+ */
+	BDB_CHROMATICITY		= 46, /* 169+ */
 	BDB_MIPI_CONFIG			= 52, /* 175+ */
 	BDB_MIPI_SEQUENCE		= 53, /* 177+ */
 	BDB_COMPRESSION_PARAMETERS	= 56, /* 213+ */
@@ -1357,6 +1358,31 @@ struct edp_bfi {
 struct bdb_edp_bfi {
 	u8 bfi_structure_size;
 	struct edp_bfi bfi[16];
+} __packed;
+
+/*
+ * Block 46 - Chromaticity For Narrow Gamut Panel Configuration Block
+ */
+
+struct chromaticity {
+	u8 chromaticity_enable:1;
+	u8 chromaticity_from_edid_base_block:1;
+	u8 rsvd:6;
+
+	u8 red_green;
+	u8 blue_white;
+	u8 red_x;
+	u8 red_y;
+	u8 green_x;
+	u8 green_y;
+	u8 blue_x;
+	u8 blue_y;
+	u8 white_x;
+	u8 white_y;
+} __packed;
+
+struct bdb_chromaticity {
+	struct chromaticity chromaticity[16];
 } __packed;
 
 /*
