@@ -656,27 +656,11 @@ static void nt36672a_panel_remove(struct mipi_dsi_device *dsi)
 	struct nt36672a_panel *pinfo = mipi_dsi_get_drvdata(dsi);
 	int err;
 
-	err = drm_panel_unprepare(&pinfo->base);
-	if (err < 0)
-		dev_err(&dsi->dev, "failed to unprepare panel: %d\n", err);
-
-	err = drm_panel_disable(&pinfo->base);
-	if (err < 0)
-		dev_err(&dsi->dev, "failed to disable panel: %d\n", err);
-
 	err = mipi_dsi_detach(dsi);
 	if (err < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	drm_panel_remove(&pinfo->base);
-}
-
-static void nt36672a_panel_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct nt36672a_panel *pinfo = mipi_dsi_get_drvdata(dsi);
-
-	drm_panel_disable(&pinfo->base);
-	drm_panel_unprepare(&pinfo->base);
 }
 
 static const struct of_device_id tianma_fhd_video_of_match[] = {
@@ -692,7 +676,6 @@ static struct mipi_dsi_driver nt36672a_panel_driver = {
 	},
 	.probe = nt36672a_panel_probe,
 	.remove = nt36672a_panel_remove,
-	.shutdown = nt36672a_panel_shutdown,
 };
 module_mipi_dsi_driver(nt36672a_panel_driver);
 
