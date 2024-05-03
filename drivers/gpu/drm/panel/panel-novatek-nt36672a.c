@@ -72,8 +72,6 @@ struct nt36672a_panel {
 	struct regulator_bulk_data supplies[ARRAY_SIZE(nt36672a_regulator_names)];
 
 	struct gpio_desc *reset_gpio;
-
-	bool prepared;
 };
 
 static inline struct nt36672a_panel *to_nt36672a_panel(struct drm_panel *panel)
@@ -119,9 +117,6 @@ static int nt36672a_panel_unprepare(struct drm_panel *panel)
 	struct nt36672a_panel *pinfo = to_nt36672a_panel(panel);
 	int ret;
 
-	if (!pinfo->prepared)
-		return 0;
-
 	/* send off cmds */
 	ret = nt36672a_send_cmds(panel, pinfo->desc->off_cmds,
 				 pinfo->desc->num_off_cmds);
@@ -146,8 +141,6 @@ static int nt36672a_panel_unprepare(struct drm_panel *panel)
 	ret = nt36672a_panel_power_off(panel);
 	if (ret < 0)
 		dev_err(panel->dev, "power_off failed ret = %d\n", ret);
-
-	pinfo->prepared = false;
 
 	return ret;
 }
@@ -178,9 +171,6 @@ static int nt36672a_panel_prepare(struct drm_panel *panel)
 {
 	struct nt36672a_panel *pinfo = to_nt36672a_panel(panel);
 	int err;
-
-	if (pinfo->prepared)
-		return 0;
 
 	err = nt36672a_panel_power_on(pinfo);
 	if (err < 0)
@@ -220,8 +210,6 @@ static int nt36672a_panel_prepare(struct drm_panel *panel)
 	}
 
 	msleep(120);
-
-	pinfo->prepared = true;
 
 	return 0;
 
