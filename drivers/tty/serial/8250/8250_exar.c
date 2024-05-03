@@ -237,14 +237,12 @@ struct exar8250_platform {
  * struct exar8250_board - board information
  * @num_ports: number of serial ports
  * @reg_shift: describes UART register mapping in PCI memory
- * @board_init: quirk run once at ->probe() stage before setting up ports
  * @setup: quirk run at ->probe() stage for each port
  * @exit: quirk run at ->remove() stage
  */
 struct exar8250_board {
 	unsigned int num_ports;
 	unsigned int reg_shift;
-	int     (*board_init)(struct exar8250 *priv, struct pci_dev *pcidev);
 	int	(*setup)(struct exar8250 *priv, struct pci_dev *pcidev,
 			 struct uart_8250_port *port, int idx);
 	void	(*exit)(struct pci_dev *pcidev);
@@ -907,9 +905,6 @@ static int cti_port_setup_common(struct exar8250 *priv,
 {
 	int ret;
 
-	if (priv->osc_freq == 0)
-		return -EINVAL;
-
 	port->port.port_id = idx;
 	port->port.uartclk = priv->osc_freq;
 
@@ -927,6 +922,30 @@ static int cti_port_setup_common(struct exar8250 *priv,
 	return 0;
 }
 
+static int cti_board_init_fpga(struct exar8250 *priv, struct pci_dev *pcidev)
+{
+	int ret;
+	u16 cfg_val;
+
+	// FPGA OSC is fixed to the 33MHz PCI clock
+	priv->osc_freq = CTI_DEFAULT_FPGA_OSC_FREQ;
+
+	// Enable external interrupts in special cfg space register
+	ret = pci_read_config_word(pcidev, CTI_FPGA_CFG_INT_EN_REG, &cfg_val);
+	if (ret)
+		return pcibios_err_to_errno(ret);
+
+	cfg_val |= CTI_FPGA_CFG_INT_EN_EXT_BIT;
+	ret = pci_write_config_word(pcidev, CTI_FPGA_CFG_INT_EN_REG, cfg_val);
+	if (ret)
+		return pcibios_err_to_errno(ret);
+
+	// RS485 gate needs to be enabled; otherwise RTS/CTS will not work
+	exar_write_reg(priv, CTI_FPGA_RS485_IO_REG, 0x01);
+
+	return 0;
+}
+
 static int cti_port_setup_fpga(struct exar8250 *priv,
 				struct pci_dev *pcidev,
 				struct uart_8250_port *port,
@@ -934,6 +953,13 @@ static int cti_port_setup_fpga(struct exar8250 *priv,
 {
 	enum cti_port_type port_type;
 	unsigned int offset;
+	int ret;
+
+	if (idx == 0) {
+		ret = cti_board_init_fpga(priv, pcidev);
+		if (ret)
+			return ret;
+	}
 
 	port_type = cti_get_port_type_fpga(priv, pcidev, idx);
 
@@ -953,6 +979,12 @@ static int cti_port_setup_fpga(struct exar8250 *priv,
 	return cti_port_setup_common(priv, pcidev, idx, offset, port);
 }
 
+static void cti_board_init_xr17v35x(struct exar8250 *priv, struct pci_dev *pcidev)
+{
+	// XR17V35X uses the PCIe clock rather than an oscillator
+	priv->osc_freq = CTI_DEFAULT_PCIE_OSC_FREQ;
+}
+
 static int cti_port_setup_xr17v35x(struct exar8250 *priv,
 				struct pci_dev *pcidev,
 				struct uart_8250_port *port,
@@ -961,6 +993,9 @@ static int cti_port_setup_xr17v35x(struct exar8250 *priv,
 	enum cti_port_type port_type;
 	unsigned int offset;
 	int ret;
+
+	if (idx == 0)
+		cti_board_init_xr17v35x(priv, pcidev);
 
 	port_type = cti_get_port_type_xr17v35x(priv, pcidev, idx);
 
@@ -999,6 +1034,22 @@ static int cti_port_setup_xr17v35x(struct exar8250 *priv,
 	return 0;
 }
 
+static void cti_board_init_xr17v25x(struct exar8250 *priv, struct pci_dev *pcidev)
+{
+	cti_board_init_osc_freq(priv, pcidev, CTI_EE_OFF_XR17V25X_OSC_FREQ);
+
+	/* enable interrupts on cards that need the "PLX fix" */
+	switch (pcidev->subsystem_device) {
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_XPRS:
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_16_XPRS_A:
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_16_XPRS_B:
+		cti_plx_int_enable(priv);
+		break;
+	default:
+		break;
+	}
+}
+
 static int cti_port_setup_xr17v25x(struct exar8250 *priv,
 				struct pci_dev *pcidev,
 				struct uart_8250_port *port,
@@ -1007,6 +1058,9 @@ static int cti_port_setup_xr17v25x(struct exar8250 *priv,
 	enum cti_port_type port_type;
 	unsigned int offset;
 	int ret;
+
+	if (idx == 0)
+		cti_board_init_xr17v25x(priv, pcidev);
 
 	port_type = cti_get_port_type_xr17c15x_xr17v25x(priv, pcidev, idx);
 
@@ -1055,6 +1109,25 @@ static int cti_port_setup_xr17v25x(struct exar8250 *priv,
 	return 0;
 }
 
+static void cti_board_init_xr17c15x(struct exar8250 *priv, struct pci_dev *pcidev)
+{
+	cti_board_init_osc_freq(priv, pcidev, CTI_EE_OFF_XR17C15X_OSC_FREQ);
+
+	/* enable interrupts on cards that need the "PLX fix" */
+	switch (pcidev->subsystem_device) {
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_XPRS:
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XPRS_A:
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XPRS_B:
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_XPRS_OPTO:
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XPRS_OPTO_A:
+	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XPRS_OPTO_B:
+		cti_plx_int_enable(priv);
+		break;
+	default:
+		break;
+	}
+}
+
 static int cti_port_setup_xr17c15x(struct exar8250 *priv,
 				struct pci_dev *pcidev,
 				struct uart_8250_port *port,
@@ -1062,6 +1135,9 @@ static int cti_port_setup_xr17c15x(struct exar8250 *priv,
 {
 	enum cti_port_type port_type;
 	unsigned int offset;
+
+	if (idx == 0)
+		cti_board_init_xr17c15x(priv, pcidev);
 
 	port_type = cti_get_port_type_xr17c15x_xr17v25x(priv, pcidev, idx);
 
@@ -1094,78 +1170,6 @@ static int cti_port_setup_xr17c15x(struct exar8250 *priv,
 	}
 
 	return cti_port_setup_common(priv, pcidev, idx, offset, port);
-}
-
-static int cti_board_init_xr17v35x(struct exar8250 *priv,
-				struct pci_dev *pcidev)
-{
-	// XR17V35X uses the PCIe clock rather than an oscillator
-	priv->osc_freq = CTI_DEFAULT_PCIE_OSC_FREQ;
-
-	return 0;
-}
-
-static int cti_board_init_xr17v25x(struct exar8250 *priv, struct pci_dev *pcidev)
-{
-	cti_board_init_osc_freq(priv, pcidev, CTI_EE_OFF_XR17V25X_OSC_FREQ);
-
-	/* enable interrupts on cards that need the "PLX fix" */
-	switch (pcidev->subsystem_device) {
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_8_XPRS:
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_16_XPRS_A:
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_16_XPRS_B:
-		cti_plx_int_enable(priv);
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int cti_board_init_xr17c15x(struct exar8250 *priv, struct pci_dev *pcidev)
-{
-	cti_board_init_osc_freq(priv, pcidev, CTI_EE_OFF_XR17C15X_OSC_FREQ);
-
-	/* enable interrupts on cards that need the "PLX fix" */
-	switch (pcidev->subsystem_device) {
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_XPRS:
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XPRS_A:
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XPRS_B:
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_2_XPRS_OPTO:
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XPRS_OPTO_A:
-	case PCI_SUBDEVICE_ID_CONNECT_TECH_PCI_UART_4_XPRS_OPTO_B:
-		cti_plx_int_enable(priv);
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int cti_board_init_fpga(struct exar8250 *priv, struct pci_dev *pcidev)
-{
-	int ret;
-	u16 cfg_val;
-
-	// FPGA OSC is fixed to the 33MHz PCI clock
-	priv->osc_freq = CTI_DEFAULT_FPGA_OSC_FREQ;
-
-	// Enable external interrupts in special cfg space register
-	ret = pci_read_config_word(pcidev, CTI_FPGA_CFG_INT_EN_REG, &cfg_val);
-	if (ret)
-		return pcibios_err_to_errno(ret);
-
-	cfg_val |= CTI_FPGA_CFG_INT_EN_EXT_BIT;
-	ret = pci_write_config_word(pcidev, CTI_FPGA_CFG_INT_EN_REG, cfg_val);
-	if (ret)
-		return pcibios_err_to_errno(ret);
-
-	// RS485 gate needs to be enabled; otherwise RTS/CTS will not work
-	exar_write_reg(priv, CTI_FPGA_RS485_IO_REG, 0x01);
-
-	return 0;
 }
 
 static int
@@ -1574,15 +1578,6 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	if (board->board_init) {
-		rc = board->board_init(priv, pcidev);
-		if (rc) {
-			dev_err_probe(&pcidev->dev, rc,
-					"failed to init serial board\n");
-			return rc;
-		}
-	}
-
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
 		rc = board->setup(priv, pcidev, &uart, i);
 		if (rc) {
@@ -1664,22 +1659,18 @@ static const struct exar8250_board pbn_fastcom335_8 = {
 };
 
 static const struct exar8250_board pbn_cti_xr17c15x = {
-	.board_init	= cti_board_init_xr17c15x,
 	.setup		= cti_port_setup_xr17c15x,
 };
 
 static const struct exar8250_board pbn_cti_xr17v25x = {
-	.board_init	= cti_board_init_xr17v25x,
 	.setup		= cti_port_setup_xr17v25x,
 };
 
 static const struct exar8250_board pbn_cti_xr17v35x = {
-	.board_init	= cti_board_init_xr17v35x,
 	.setup		= cti_port_setup_xr17v35x,
 };
 
 static const struct exar8250_board pbn_cti_fpga = {
-	.board_init	= cti_board_init_fpga,
 	.setup		= cti_port_setup_fpga,
 };
 
