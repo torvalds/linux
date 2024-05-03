@@ -177,6 +177,7 @@ enum bdb_block_id {
 	BDB_LFP_DATA			= 42,
 	BDB_LFP_BACKLIGHT		= 43,
 	BDB_LFP_POWER			= 44,
+	BDB_EDP_BFI			= 45, /* 160+ */
 	BDB_MIPI_CONFIG			= 52, /* 175+ */
 	BDB_MIPI_SEQUENCE		= 53, /* 177+ */
 	BDB_COMPRESSION_PARAMETERS	= 56, /* 213+ */
@@ -1340,6 +1341,22 @@ struct bdb_lfp_power {
 	u16 elp;							/* 247+ */
 	u16 opst;							/* 247+ */
 	struct aggressiveness_profile2_entry aggressiveness2[16];	/* 247+ */
+} __packed;
+
+/*
+ * Block 45 - eDP BFI Block
+ */
+
+struct edp_bfi {
+	u8 enable_bfi_in_driver:1;
+	u8 enable_brightness_control_in_cui:1;
+	u8 reserved:6;
+	u8 brightness_percentage_when_bfi_disabled;
+} __packed;
+
+struct bdb_edp_bfi {
+	u8 bfi_structure_size;
+	struct edp_bfi bfi[16];
 } __packed;
 
 /*
