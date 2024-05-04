@@ -511,6 +511,44 @@ again:
 	return ob;
 }
 
+static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
+					 enum bch_watermark watermark,
+					 enum bch_data_type data_type,
+					 struct closure *cl,
+					 struct bch_dev_usage *usage,
+					 struct bucket_alloc_state *s,
+					 struct open_bucket *ob)
+{
+	struct printbuf buf = PRINTBUF;
+
+	printbuf_tabstop_push(&buf, 24);
+
+	prt_printf(&buf, "dev\t%s (%u)\n",	ca->name, ca->dev_idx);
+	prt_printf(&buf, "watermark\t%s\n",	bch2_watermarks[watermark]);
+	prt_printf(&buf, "data type\t%s\n",	__bch2_data_types[data_type]);
+	prt_printf(&buf, "blocking\t%u\n",	cl != NULL);
+	prt_printf(&buf, "free\t%llu\n",	usage->d[BCH_DATA_free].buckets);
+	prt_printf(&buf, "avail\t%llu\n",	dev_buckets_free(ca, *usage, watermark));
+	prt_printf(&buf, "copygc_wait\t%lu/%lli\n",
+		   bch2_copygc_wait_amount(c),
+		   c->copygc_wait - atomic64_read(&c->io_clock[WRITE].now));
+	prt_printf(&buf, "seen\t%llu\n",	s->buckets_seen);
+	prt_printf(&buf, "open\t%llu\n",	s->skipped_open);
+	prt_printf(&buf, "need journal commit\t%llu\n", s->skipped_need_journal_commit);
+	prt_printf(&buf, "nocow\t%llu\n",	s->skipped_nocow);
+	prt_printf(&buf, "nouse\t%llu\n",	s->skipped_nouse);
+
+	if (!IS_ERR(ob)) {
+		prt_printf(&buf, "allocated\t%llu\n", ob->bucket);
+		trace_bucket_alloc(c, buf.buf);
+	} else {
+		prt_printf(&buf, "err\t%s\n", bch2_err_str(PTR_ERR(ob)));
+		trace_bucket_alloc_fail(c, buf.buf);
+	}
+
+	printbuf_exit(&buf);
+}
+
 /**
  * bch2_bucket_alloc_trans - allocate a single bucket from a specific device
  * @trans:	transaction object
@@ -583,27 +621,14 @@ err:
 		ob->data_type = data_type;
 
 	if (!IS_ERR(ob))
-		trace_and_count(c, bucket_alloc, ca,
-				bch2_watermarks[watermark],
-				ob->bucket,
-				usage->d[BCH_DATA_free].buckets,
-				avail,
-				bch2_copygc_wait_amount(c),
-				c->copygc_wait - atomic64_read(&c->io_clock[WRITE].now),
-				&s,
-				cl == NULL,
-				"");
+		count_event(c, bucket_alloc);
 	else if (!bch2_err_matches(PTR_ERR(ob), BCH_ERR_transaction_restart))
-		trace_and_count(c, bucket_alloc_fail, ca,
-				bch2_watermarks[watermark],
-				0,
-				usage->d[BCH_DATA_free].buckets,
-				avail,
-				bch2_copygc_wait_amount(c),
-				c->copygc_wait - atomic64_read(&c->io_clock[WRITE].now),
-				&s,
-				cl == NULL,
-				bch2_err_str(PTR_ERR(ob)));
+		count_event(c, bucket_alloc_fail);
+
+	if (!IS_ERR(ob)
+	    ? trace_bucket_alloc_enabled()
+	    : trace_bucket_alloc_fail_enabled())
+		trace_bucket_alloc2(c, ca, watermark, data_type, cl, usage, &s, ob);
 
 	return ob;
 }
