@@ -2004,13 +2004,9 @@ err:
 /* return with ref on ca->ref: */
 struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *name)
 {
-	rcu_read_lock();
-	for_each_member_device_rcu(c, ca, NULL)
-		if (!strcmp(name, ca->name)) {
-			rcu_read_unlock();
+	for_each_member_device(c, ca)
+		if (!strcmp(name, ca->name))
 			return ca;
-		}
-	rcu_read_unlock();
 	return ERR_PTR(-BCH_ERR_ENOENT_dev_not_found);
 }
 
