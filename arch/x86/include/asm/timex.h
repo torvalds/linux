@@ -6,11 +6,10 @@
 #include <asm/tsc.h>
 
 /*
-Fixes failure of vmware installer to build vmmon and vmnet kernel modules
-as random_get_entropy_fallback() is not found in the included files from this
-file.
+* Fix for vmware installer failure to build vmmon and vmnet kernel modules
+* as random_get_entropy_fallback() is not found in this unit.
 */
-extern unsigned long random_get_entropy_fallback(void);
+unsigned long random_get_entropy_fallback(void);
 
 static inline unsigned long random_get_entropy(void)
 {
