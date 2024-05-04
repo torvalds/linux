@@ -591,6 +591,12 @@ struct bch_member {
 	__le64			btree_allocated_bitmap;
 };
 
+/*
+ * This limit comes from the bucket_gens array - it's a single allocation, and
+ * kernel allocation are limited to INT_MAX
+ */
+#define BCH_MEMBER_NBUCKETS_MAX	(INT_MAX - 64)
+
 #define BCH_MEMBER_V1_BYTES	56
 
 LE64_BITMASK(BCH_MEMBER_STATE,		struct bch_member, flags,  0,  4)

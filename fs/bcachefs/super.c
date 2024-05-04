@@ -1959,6 +1959,13 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		goto err;
 	}
 
+	if (nbuckets > BCH_MEMBER_NBUCKETS_MAX) {
+		bch_err(ca, "New device size too big (%llu greater than max %u)",
+			nbuckets, BCH_MEMBER_NBUCKETS_MAX);
+		ret = -BCH_ERR_device_size_too_big;
+		goto err;
+	}
+
 	if (bch2_dev_is_online(ca) &&
 	    get_capacity(ca->disk_sb.bdev->bd_disk) <
 	    ca->mi.bucket_size * nbuckets) {
