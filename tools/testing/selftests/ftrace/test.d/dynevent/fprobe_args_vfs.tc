@@ -1,7 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Fprobe event VFS type argument
-# requires: kprobe_events "%pd/%pD":README
+# requires: dynamic_events "%pd/%pD":README "f[:[<group>/][<event>]] <func-name>[%return] [<args>]":README
+
 
 : "Test argument %pd with name for fprobe"
 echo 'f:testprobe dput name=$arg1:%pd' > dynamic_events
