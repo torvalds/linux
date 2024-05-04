@@ -794,6 +794,8 @@ int conf_write_defconfig(const char *filename)
 	sym_clear_all_valid();
 
 	menu_for_each_entry(menu) {
+		struct menu *choice;
+
 		sym = menu->sym;
 		if (sym && !sym_is_choice(sym)) {
 			sym_calc_value(sym);
@@ -811,12 +813,11 @@ int conf_write_defconfig(const char *filename)
 			 * If symbol is a choice value and equals to the
 			 * default for a choice - skip.
 			 */
-			if (sym_is_choice_value(sym)) {
-				struct symbol *cs;
+			choice = sym_get_choice_menu(sym);
+			if (choice) {
 				struct symbol *ds;
 
-				cs = prop_get_symbol(sym_get_choice_prop(sym));
-				ds = sym_choice_default(cs);
+				ds = sym_choice_default(choice->sym);
 				if (sym == ds) {
 					if ((sym->type == S_BOOLEAN) &&
 					    sym_get_tristate_value(sym) == yes)
