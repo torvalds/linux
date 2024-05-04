@@ -1616,6 +1616,10 @@ int qcom_scm_kgsl_init_regs(u32 gpu_req)
 		.arginfo = QCOM_SCM_ARGS(1),
 	};
 
+	if (!__qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_GPU,
+					  QCOM_SCM_SVC_GPU_INIT_REGS))
+		return -EOPNOTSUPP;
+
 	return qcom_scm_call(__scm->dev, &desc, NULL);
 }
 EXPORT_SYMBOL(qcom_scm_kgsl_init_regs);
