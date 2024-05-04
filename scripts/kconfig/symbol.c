@@ -78,6 +78,41 @@ struct property *sym_get_choice_prop(struct symbol *sym)
 	return NULL;
 }
 
+/**
+ * sym_get_choice_menu - get the parent choice menu if present
+ *
+ * @sym: a symbol pointer
+ *
+ * Return: a choice menu if this function is called against a choice member.
+ */
+struct menu *sym_get_choice_menu(struct symbol *sym)
+{
+	struct menu *menu = NULL;
+	struct menu *m;
+
+	/*
+	 * Choice members must have a prompt. Find a menu entry with a prompt,
+	 * and assume it resides inside a choice block.
+	 */
+	list_for_each_entry(m, &sym->menus, link)
+		if (m->prompt) {
+			menu = m;
+			break;
+		}
+
+	if (!menu)
+		return NULL;
+
+	do {
+		menu = menu->parent;
+	} while (menu && !menu->sym);
+
+	if (menu && menu->sym && sym_is_choice(menu->sym))
+		return menu;
+
+	return NULL;
+}
+
 static struct property *sym_get_default_prop(struct symbol *sym)
 {
 	struct property *prop;
