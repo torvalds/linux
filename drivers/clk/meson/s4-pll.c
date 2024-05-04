@@ -798,6 +798,7 @@ static struct regmap_config clkc_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
 	.reg_stride     = 4,
+	.max_register   = ANACTRL_HDMIPLL_CTRL0,
 };
 
 static struct meson_clk_hw_data s4_pll_clks = {
@@ -853,6 +854,7 @@ static const struct of_device_id clkc_match_table[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, clkc_match_table);
 
 static struct platform_driver s4_driver = {
 	.probe		= meson_s4_pll_probe,
