@@ -30,6 +30,8 @@ static bool zconf_endtoken(const char *tokenname,
 
 struct menu *current_menu, *current_entry;
 
+static bool inside_choice = false;
+
 %}
 
 %union
@@ -145,6 +147,14 @@ config_entry_start: T_CONFIG nonconst_symbol T_EOL
 
 config_stmt: config_entry_start config_option_list
 {
+	if (inside_choice) {
+		if (!current_entry->prompt) {
+			fprintf(stderr, "%s:%d: error: choice member must have a prompt\n",
+				current_entry->filename, current_entry->lineno);
+			yynerrs++;
+		}
+	}
+
 	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
 };
 
@@ -237,10 +247,14 @@ choice_entry: choice choice_option_list
 	}
 
 	$$ = menu_add_menu();
+
+	inside_choice = true;
 };
 
 choice_end: end
 {
+	inside_choice = false;
+
 	if (zconf_endtoken($1, "choice")) {
 		menu_end_menu();
 		printd(DEBUG_PARSE, "%s:%d:endchoice\n", cur_filename, cur_lineno);
