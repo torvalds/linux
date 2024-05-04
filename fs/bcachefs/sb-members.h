@@ -107,10 +107,10 @@ static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, struct bch_dev *
 
 static inline struct bch_dev *bch2_get_next_dev(struct bch_fs *c, struct bch_dev *ca)
 {
+	rcu_read_lock();
 	if (ca)
 		percpu_ref_put(&ca->ref);
 
-	rcu_read_lock();
 	if ((ca = __bch2_next_dev(c, ca, NULL)))
 		percpu_ref_get(&ca->ref);
 	rcu_read_unlock();
@@ -132,10 +132,10 @@ static inline struct bch_dev *bch2_get_next_online_dev(struct bch_fs *c,
 						       struct bch_dev *ca,
 						       unsigned state_mask)
 {
+	rcu_read_lock();
 	if (ca)
 		percpu_ref_put(&ca->io_ref);
 
-	rcu_read_lock();
 	while ((ca = __bch2_next_dev(c, ca, NULL)) &&
 	       (!((1 << ca->mi.state) & state_mask) ||
 		!percpu_ref_tryget(&ca->io_ref)))
