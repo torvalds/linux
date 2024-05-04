@@ -152,13 +152,11 @@ static void sym_validate_range(struct symbol *sym)
 
 static void sym_set_changed(struct symbol *sym)
 {
-	struct property *prop;
+	struct menu *menu;
 
 	sym->flags |= SYMBOL_CHANGED;
-	for (prop = sym->prop; prop; prop = prop->next) {
-		if (prop->menu)
-			prop->menu->flags |= MENU_CHANGED;
-	}
+	list_for_each_entry(menu, &sym->menus, link)
+		menu->flags |= MENU_CHANGED;
 }
 
 static void sym_set_all_changed(void)
