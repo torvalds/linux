@@ -2207,13 +2207,12 @@ static void choose_devnum(struct usb_device *udev)
 	mutex_lock(&bus->devnum_next_mutex);
 
 	/* Try to allocate the next devnum beginning at bus->devnum_next. */
-	devnum = find_next_zero_bit(bus->devmap.devicemap, 128,
-			bus->devnum_next);
+	devnum = find_next_zero_bit(bus->devmap, 128, bus->devnum_next);
 	if (devnum >= 128)
-		devnum = find_next_zero_bit(bus->devmap.devicemap, 128, 1);
+		devnum = find_next_zero_bit(bus->devmap, 128, 1);
 	bus->devnum_next = (devnum >= 127 ? 1 : devnum + 1);
 	if (devnum < 128) {
-		set_bit(devnum, bus->devmap.devicemap);
+		set_bit(devnum, bus->devmap);
 		udev->devnum = devnum;
 	}
 	mutex_unlock(&bus->devnum_next_mutex);
@@ -2222,7 +2221,7 @@ static void choose_devnum(struct usb_device *udev)
 static void release_devnum(struct usb_device *udev)
 {
 	if (udev->devnum > 0) {
-		clear_bit(udev->devnum, udev->bus->devmap.devicemap);
+		clear_bit(udev->devnum, udev->bus->devmap);
 		udev->devnum = -1;
 	}
 }
