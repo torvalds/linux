@@ -1285,7 +1285,7 @@ static int iso_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 		return -ENOTCONN;
 	}
 
-	mtu = iso_pi(sk)->conn->hcon->hdev->iso_mtu;
+	mtu = iso_pi(sk)->conn->hcon->mtu;
 
 	release_sock(sk);
 
