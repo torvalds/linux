@@ -1204,16 +1204,18 @@ out:
 
 static struct symbol *sym_check_choice_deps(struct symbol *choice)
 {
-	struct symbol *sym, *sym2;
-	struct property *prop;
-	struct expr *e;
+	struct menu *choice_menu, *menu;
+	struct symbol *sym2;
 	struct dep_stack stack;
 
 	dep_stack_insert(&stack, choice);
 
-	prop = sym_get_choice_prop(choice);
-	expr_list_for_each_sym(prop->expr, e, sym)
-		sym->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
+	choice_menu = list_first_entry(&choice->menus, struct menu, link);
+
+	menu_for_each_sub_entry(menu, choice_menu) {
+		if (menu->sym)
+			menu->sym->flags |= SYMBOL_CHECK | SYMBOL_CHECKED;
+	}
 
 	choice->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
 	sym2 = sym_check_sym_deps(choice);
@@ -1221,14 +1223,17 @@ static struct symbol *sym_check_choice_deps(struct symbol *choice)
 	if (sym2)
 		goto out;
 
-	expr_list_for_each_sym(prop->expr, e, sym) {
-		sym2 = sym_check_sym_deps(sym);
+	menu_for_each_sub_entry(menu, choice_menu) {
+		if (!menu->sym)
+			continue;
+		sym2 = sym_check_sym_deps(menu->sym);
 		if (sym2)
 			break;
 	}
 out:
-	expr_list_for_each_sym(prop->expr, e, sym)
-		sym->flags &= ~SYMBOL_CHECK;
+	menu_for_each_sub_entry(menu, choice_menu)
+		if (menu->sym)
+			menu->sym->flags &= ~SYMBOL_CHECK;
 
 	if (sym2 && sym_is_choice_value(sym2) &&
 	    prop_get_symbol(sym_get_choice_prop(sym2)) == choice)
