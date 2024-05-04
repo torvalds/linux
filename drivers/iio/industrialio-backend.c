@@ -115,8 +115,8 @@ static DEFINE_MUTEX(iio_back_lock);
 
 /**
  * iio_backend_chan_enable - Enable a backend channel
- * @back:	Backend device
- * @chan:	Channel number
+ * @back: Backend device
+ * @chan: Channel number
  *
  * RETURNS:
  * 0 on success, negative error number on failure.
@@ -129,8 +129,8 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_chan_enable, IIO_BACKEND);
 
 /**
  * iio_backend_chan_disable - Disable a backend channel
- * @back:	Backend device
- * @chan:	Channel number
+ * @back: Backend device
+ * @chan: Channel number
  *
  * RETURNS:
  * 0 on success, negative error number on failure.
@@ -148,8 +148,8 @@ static void __iio_backend_disable(void *back)
 
 /**
  * devm_iio_backend_enable - Device managed backend enable
- * @dev:	Consumer device for the backend
- * @back:	Backend device
+ * @dev: Consumer device for the backend
+ * @back: Backend device
  *
  * RETURNS:
  * 0 on success, negative error number on failure.
@@ -168,9 +168,9 @@ EXPORT_SYMBOL_NS_GPL(devm_iio_backend_enable, IIO_BACKEND);
 
 /**
  * iio_backend_data_format_set - Configure the channel data format
- * @back:	Backend device
- * @chan:	Channel number
- * @data:	Data format
+ * @back: Backend device
+ * @chan: Channel number
+ * @data: Data format
  *
  * Properly configure a channel with respect to the expected data format. A
  * @struct iio_backend_data_fmt must be passed with the settings.
@@ -190,9 +190,9 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_data_format_set, IIO_BACKEND);
 
 /**
  * iio_backend_data_source_set - Select data source
- * @back:	Backend device
- * @chan:	Channel number
- * @data:	Data source
+ * @back: Backend device
+ * @chan: Channel number
+ * @data: Data source
  *
  * A given backend may have different sources to stream/sync data. This allows
  * to choose that source.
@@ -212,9 +212,9 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_data_source_set, IIO_BACKEND);
 
 /**
  * iio_backend_set_sampling_freq - Set channel sampling rate
- * @back:		Backend device
- * @chan:		Channel number
- * @sample_rate_hz:	Sample rate
+ * @back: Backend device
+ * @chan: Channel number
+ * @sample_rate_hz: Sample rate
  *
  * RETURNS:
  * 0 on success, negative error number on failure.
@@ -226,6 +226,92 @@ int iio_backend_set_sampling_freq(struct iio_backend *back, unsigned int chan,
 }
 EXPORT_SYMBOL_NS_GPL(iio_backend_set_sampling_freq, IIO_BACKEND);
 
+/**
+ * iio_backend_test_pattern_set - Configure a test pattern
+ * @back: Backend device
+ * @chan: Channel number
+ * @pattern: Test pattern
+ *
+ * Configure a test pattern on the backend. This is typically used for
+ * calibrating the timings on the data digital interface.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_test_pattern_set(struct iio_backend *back,
+				 unsigned int chan,
+				 enum iio_backend_test_pattern pattern)
+{
+	if (pattern >= IIO_BACKEND_TEST_PATTERN_MAX)
+		return -EINVAL;
+
+	return iio_backend_op_call(back, test_pattern_set, chan, pattern);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_test_pattern_set, IIO_BACKEND);
+
+/**
+ * iio_backend_chan_status - Get the channel status
+ * @back: Backend device
+ * @chan: Channel number
+ * @error: Error indication
+ *
+ * Get the current state of the backend channel. Typically used to check if
+ * there were any errors sending/receiving data.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_chan_status(struct iio_backend *back, unsigned int chan,
+			    bool *error)
+{
+	return iio_backend_op_call(back, chan_status, chan, error);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_chan_status, IIO_BACKEND);
+
+/**
+ * iio_backend_iodelay_set - Set digital I/O delay
+ * @back: Backend device
+ * @lane: Lane number
+ * @taps: Number of taps
+ *
+ * Controls delays on sending/receiving data. One usecase for this is to
+ * calibrate the data digital interface so we get the best results when
+ * transferring data. Note that @taps has no unit since the actual delay per tap
+ * is very backend specific. Hence, frontend devices typically should go through
+ * an array of @taps (the size of that array should typically match the size of
+ * calibration points on the frontend device) and call this API.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_iodelay_set(struct iio_backend *back, unsigned int lane,
+			    unsigned int taps)
+{
+	return iio_backend_op_call(back, iodelay_set, lane, taps);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_iodelay_set, IIO_BACKEND);
+
+/**
+ * iio_backend_data_sample_trigger - Control when to sample data
+ * @back: Backend device
+ * @trigger: Data trigger
+ *
+ * Mostly useful for input backends. Configures the backend for when to sample
+ * data (eg: rising vs falling edge).
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_data_sample_trigger(struct iio_backend *back,
+				    enum iio_backend_sample_trigger trigger)
+{
+	if (trigger >= IIO_BACKEND_SAMPLE_TRIGGER_MAX)
+		return -EINVAL;
+
+	return iio_backend_op_call(back, data_sample_trigger, trigger);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_data_sample_trigger, IIO_BACKEND);
+
 static void iio_backend_free_buffer(void *arg)
 {
 	struct iio_backend_buffer_pair *pair = arg;
@@ -235,9 +321,9 @@ static void iio_backend_free_buffer(void *arg)
 
 /**
  * devm_iio_backend_request_buffer - Device managed buffer request
- * @dev:	Consumer device for the backend
- * @back:	Backend device
- * @indio_dev:	IIO device
+ * @dev: Consumer device for the backend
+ * @back: Backend device
+ * @indio_dev: IIO device
  *
  * Request an IIO buffer from the backend. The type of the buffer (typically
  * INDIO_BUFFER_HARDWARE) is up to the backend to decide. This is because,
@@ -300,10 +386,10 @@ static struct iio_backend *iio_backend_from_indio_dev_parent(const struct device
 
 /**
  * iio_backend_ext_info_get - IIO ext_info read callback
- * @indio_dev:	IIO device
- * @private:	Data private to the driver
- * @chan:	IIO channel
- * @buf:	Buffer where to place the attribute data
+ * @indio_dev: IIO device
+ * @private: Data private to the driver
+ * @chan: IIO channel
+ * @buf: Buffer where to place the attribute data
  *
  * This helper is intended to be used by backends that extend an IIO channel
  * (through iio_backend_extend_chan_spec()) with extended info. In that case,
@@ -335,11 +421,11 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_ext_info_get, IIO_BACKEND);
 
 /**
  * iio_backend_ext_info_set - IIO ext_info write callback
- * @indio_dev:	IIO device
- * @private:	Data private to the driver
- * @chan:	IIO channel
- * @buf:	Buffer holding the sysfs attribute
- * @len:	Buffer length
+ * @indio_dev: IIO device
+ * @private: Data private to the driver
+ * @chan: IIO channel
+ * @buf: Buffer holding the sysfs attribute
+ * @len: Buffer length
  *
  * This helper is intended to be used by backends that extend an IIO channel
  * (trough iio_backend_extend_chan_spec()) with extended info. In that case,
@@ -365,9 +451,9 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_ext_info_set, IIO_BACKEND);
 
 /**
  * iio_backend_extend_chan_spec - Extend an IIO channel
- * @indio_dev:	IIO device
- * @back:	Backend device
- * @chan:	IIO channel
+ * @indio_dev: IIO device
+ * @back: Backend device
+ * @chan: IIO channel
  *
  * Some backends may have their own functionalities and hence capable of
  * extending a frontend's channel.
@@ -449,8 +535,8 @@ static int __devm_iio_backend_get(struct device *dev, struct iio_backend *back)
 
 /**
  * devm_iio_backend_get - Device managed backend device get
- * @dev:	Consumer device for the backend
- * @name:	Backend name
+ * @dev: Consumer device for the backend
+ * @name: Backend name
  *
  * Get's the backend associated with @dev.
  *
@@ -501,8 +587,8 @@ EXPORT_SYMBOL_NS_GPL(devm_iio_backend_get, IIO_BACKEND);
 
 /**
  * __devm_iio_backend_get_from_fwnode_lookup - Device managed fwnode backend device get
- * @dev:	Consumer device for the backend
- * @fwnode:	Firmware node of the backend device
+ * @dev: Consumer device for the backend
+ * @fwnode: Firmware node of the backend device
  *
  * Search the backend list for a device matching @fwnode.
  * This API should not be used and it's only present for preventing the first
@@ -536,7 +622,7 @@ EXPORT_SYMBOL_NS_GPL(__devm_iio_backend_get_from_fwnode_lookup, IIO_BACKEND);
 
 /**
  * iio_backend_get_priv - Get driver private data
- * @back:	Backend device
+ * @back: Backend device
  */
 void *iio_backend_get_priv(const struct iio_backend *back)
 {
@@ -554,9 +640,9 @@ static void iio_backend_unregister(void *arg)
 
 /**
  * devm_iio_backend_register - Device managed backend device register
- * @dev:	Backend device being registered
- * @ops:	Backend ops
- * @priv:	Device private data
+ * @dev: Backend device being registered
+ * @ops: Backend ops
+ * @priv: Device private data
  *
  * @ops is mandatory. Not providing it results in -EINVAL.
  *

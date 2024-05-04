@@ -45,6 +45,7 @@
 #define AD9739A_REG_MU_DUTY		0x25
 #define AD9739A_REG_MU_CNT1		0x26
 #define   AD9739A_MU_EN_MASK		BIT(0)
+#define   AD9739A_MU_GAIN_MASK		BIT(1)
 #define AD9739A_REG_MU_CNT2		0x27
 #define AD9739A_REG_MU_CNT3		0x28
 #define AD9739A_REG_MU_CNT4		0x29
@@ -220,8 +221,8 @@ static int ad9739a_init(struct device *dev, const struct ad9739a_state *st)
 			return ret;
 
 		/* Enable the Mu controller search and track mode. */
-		ret = regmap_set_bits(st->regmap, AD9739A_REG_MU_CNT1,
-				      AD9739A_MU_EN_MASK);
+		ret = regmap_write(st->regmap, AD9739A_REG_MU_CNT1,
+				   AD9739A_MU_EN_MASK | AD9739A_MU_GAIN_MASK);
 		if (ret)
 			return ret;
 

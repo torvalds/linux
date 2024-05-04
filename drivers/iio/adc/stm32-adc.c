@@ -1408,7 +1408,7 @@ static int stm32_adc_single_conv(struct iio_dev *indio_dev,
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
-	long timeout;
+	long time_left;
 	u32 val;
 	int ret;
 
@@ -1440,12 +1440,12 @@ static int stm32_adc_single_conv(struct iio_dev *indio_dev,
 
 	adc->cfg->start_conv(indio_dev, false);
 
-	timeout = wait_for_completion_interruptible_timeout(
+	time_left = wait_for_completion_interruptible_timeout(
 					&adc->completion, STM32_ADC_TIMEOUT);
-	if (timeout == 0) {
+	if (time_left == 0) {
 		ret = -ETIMEDOUT;
-	} else if (timeout < 0) {
-		ret = timeout;
+	} else if (time_left < 0) {
+		ret = time_left;
 	} else {
 		*res = adc->buffer[0];
 		ret = IIO_VAL_INT;

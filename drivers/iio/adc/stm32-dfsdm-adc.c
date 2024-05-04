@@ -1116,7 +1116,7 @@ static int stm32_dfsdm_single_conv(struct iio_dev *indio_dev,
 				   const struct iio_chan_spec *chan, int *res)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
-	long timeout;
+	long time_left;
 	int ret;
 
 	reinit_completion(&adc->completion);
@@ -1141,17 +1141,17 @@ static int stm32_dfsdm_single_conv(struct iio_dev *indio_dev,
 		goto stop_dfsdm;
 	}
 
-	timeout = wait_for_completion_interruptible_timeout(&adc->completion,
-							    DFSDM_TIMEOUT);
+	time_left = wait_for_completion_interruptible_timeout(&adc->completion,
+							      DFSDM_TIMEOUT);
 
 	/* Mask IRQ for regular conversion achievement*/
 	regmap_update_bits(adc->dfsdm->regmap, DFSDM_CR2(adc->fl_id),
 			   DFSDM_CR2_REOCIE_MASK, DFSDM_CR2_REOCIE(0));
 
-	if (timeout == 0)
+	if (time_left == 0)
 		ret = -ETIMEDOUT;
-	else if (timeout < 0)
-		ret = timeout;
+	else if (time_left < 0)
+		ret = time_left;
 	else
 		ret = IIO_VAL_INT;
 

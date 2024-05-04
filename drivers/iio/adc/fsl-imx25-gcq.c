@@ -108,7 +108,7 @@ static int mx25_gcq_get_raw_value(struct device *dev,
 				  struct mx25_gcq_priv *priv,
 				  int *val)
 {
-	long timeout;
+	long time_left;
 	u32 data;
 
 	/* Setup the configuration we want to use */
@@ -121,12 +121,12 @@ static int mx25_gcq_get_raw_value(struct device *dev,
 	regmap_update_bits(priv->regs, MX25_ADCQ_CR, MX25_ADCQ_CR_FQS,
 			   MX25_ADCQ_CR_FQS);
 
-	timeout = wait_for_completion_interruptible_timeout(
+	time_left = wait_for_completion_interruptible_timeout(
 		&priv->completed, MX25_GCQ_TIMEOUT);
-	if (timeout < 0) {
+	if (time_left < 0) {
 		dev_err(dev, "ADC wait for measurement failed\n");
-		return timeout;
-	} else if (timeout == 0) {
+		return time_left;
+	} else if (time_left == 0) {
 		dev_err(dev, "ADC timed out\n");
 		return -ETIMEDOUT;
 	}

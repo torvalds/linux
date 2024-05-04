@@ -55,8 +55,8 @@
 #define APDS9306_ALS_DATA_STAT_MASK	BIT(3)
 
 #define APDS9306_ALS_THRES_VAL_MAX	(BIT(20) - 1)
-#define APDS9306_ALS_THRES_VAR_VAL_MAX	(BIT(3) - 1)
-#define APDS9306_ALS_PERSIST_VAL_MAX	(BIT(4) - 1)
+#define APDS9306_ALS_THRES_VAR_NUM_VALS	8
+#define APDS9306_ALS_PERSIST_NUM_VALS	16
 #define APDS9306_ALS_READ_DATA_DELAY_US	(20 * USEC_PER_MSEC)
 #define APDS9306_NUM_REPEAT_RATES	7
 #define APDS9306_INT_SRC_CLEAR	0
@@ -726,7 +726,7 @@ static int apds9306_event_period_get(struct apds9306_data *data, int *val)
 	if (ret)
 		return ret;
 
-	if (!in_range(period, 0, APDS9306_ALS_PERSIST_VAL_MAX))
+	if (!in_range(period, 0, APDS9306_ALS_PERSIST_NUM_VALS))
 		return -EINVAL;
 
 	*val = period;
@@ -738,7 +738,7 @@ static int apds9306_event_period_set(struct apds9306_data *data, int val)
 {
 	struct apds9306_regfields *rf = &data->rf;
 
-	if (!in_range(val, 0, APDS9306_ALS_PERSIST_VAL_MAX))
+	if (!in_range(val, 0, APDS9306_ALS_PERSIST_NUM_VALS))
 		return -EINVAL;
 
 	return regmap_field_write(rf->int_persist_val, val);
@@ -796,7 +796,7 @@ static int apds9306_event_thresh_adaptive_get(struct apds9306_data *data, int *v
 	if (ret)
 		return ret;
 
-	if (!in_range(thr_adpt, 0, APDS9306_ALS_THRES_VAR_VAL_MAX))
+	if (!in_range(thr_adpt, 0, APDS9306_ALS_THRES_VAR_NUM_VALS))
 		return -EINVAL;
 
 	*val = thr_adpt;
@@ -808,7 +808,7 @@ static int apds9306_event_thresh_adaptive_set(struct apds9306_data *data, int va
 {
 	struct apds9306_regfields *rf = &data->rf;
 
-	if (!in_range(val, 0, APDS9306_ALS_THRES_VAR_VAL_MAX))
+	if (!in_range(val, 0, APDS9306_ALS_THRES_VAR_NUM_VALS))
 		return -EINVAL;
 
 	return regmap_field_write(rf->int_thresh_var_val, val);

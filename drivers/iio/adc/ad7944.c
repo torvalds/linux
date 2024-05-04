@@ -6,6 +6,7 @@
  * Copyright 2024 BayLibre, SAS
  */
 
+#include <linux/align.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -53,6 +54,7 @@ struct ad7944_adc {
 	enum ad7944_spi_mode spi_mode;
 	struct spi_transfer xfers[3];
 	struct spi_message msg;
+	void *chain_mode_buf;
 	/* Chip-specific timing specifications. */
 	const struct ad7944_timing_spec *timing_spec;
 	/* GPIO connected to CNV pin. */
@@ -214,6 +216,46 @@ static int ad7944_4wire_mode_init_msg(struct device *dev, struct ad7944_adc *adc
 	return devm_add_action_or_reset(dev, ad7944_unoptimize_msg, &adc->msg);
 }
 
+static int ad7944_chain_mode_init_msg(struct device *dev, struct ad7944_adc *adc,
+				      const struct iio_chan_spec *chan,
+				      u32 n_chain_dev)
+{
+	struct spi_transfer *xfers = adc->xfers;
+	int ret;
+
+	/*
+	 * NB: SCLK has to be low before we toggle CS to avoid triggering the
+	 * busy indication.
+	 */
+	if (adc->spi->mode & SPI_CPOL)
+		return dev_err_probe(dev, -EINVAL,
+				     "chain mode requires ~SPI_CPOL\n");
+
+	/*
+	 * We only support CNV connected to CS in chain mode and we need CNV
+	 * to be high during the transfer to trigger the conversion.
+	 */
+	if (!(adc->spi->mode & SPI_CS_HIGH))
+		return dev_err_probe(dev, -EINVAL,
+				     "chain mode requires SPI_CS_HIGH\n");
+
+	/* CNV has to be high for full conversion time before reading data. */
+	xfers[0].delay.value = adc->timing_spec->conv_ns;
+	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	xfers[1].rx_buf = adc->chain_mode_buf;
+	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits) * n_chain_dev;
+	xfers[1].bits_per_word = chan->scan_type.realbits;
+
+	spi_message_init_with_transfers(&adc->msg, xfers, 2);
+
+	ret = spi_optimize_message(adc->spi, &adc->msg);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, ad7944_unoptimize_msg, &adc->msg);
+}
+
 /**
  * ad7944_convert_and_acquire - Perform a single conversion and acquisition
  * @adc: The ADC device structure
@@ -223,7 +265,8 @@ static int ad7944_4wire_mode_init_msg(struct device *dev, struct ad7944_adc *adc
  * Perform a conversion and acquisition of a single sample using the
  * pre-optimized adc->msg.
  *
- * Upon successful return adc->sample.raw will contain the conversion result.
+ * Upon successful return adc->sample.raw will contain the conversion result
+ * (or adc->chain_mode_buf if the device is using chain mode).
  */
 static int ad7944_convert_and_acquire(struct ad7944_adc *adc,
 				      const struct iio_chan_spec *chan)
@@ -252,10 +295,17 @@ static int ad7944_single_conversion(struct ad7944_adc *adc,
 	if (ret)
 		return ret;
 
-	if (chan->scan_type.storagebits > 16)
-		*val = adc->sample.raw.u32;
-	else
-		*val = adc->sample.raw.u16;
+	if (adc->spi_mode == AD7944_SPI_MODE_CHAIN) {
+		if (chan->scan_type.storagebits > 16)
+			*val = ((u32 *)adc->chain_mode_buf)[chan->scan_index];
+		else
+			*val = ((u16 *)adc->chain_mode_buf)[chan->scan_index];
+	} else {
+		if (chan->scan_type.storagebits > 16)
+			*val = adc->sample.raw.u32;
+		else
+			*val = adc->sample.raw.u16;
+	}
 
 	if (chan->scan_type.sign == 's')
 		*val = sign_extend32(*val, chan->scan_type.realbits - 1);
@@ -315,13 +365,101 @@ static irqreturn_t ad7944_trigger_handler(int irq, void *p)
 	if (ret)
 		goto out;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &adc->sample.raw,
-					   pf->timestamp);
+	if (adc->spi_mode == AD7944_SPI_MODE_CHAIN)
+		iio_push_to_buffers_with_timestamp(indio_dev, adc->chain_mode_buf,
+						   pf->timestamp);
+	else
+		iio_push_to_buffers_with_timestamp(indio_dev, &adc->sample.raw,
+						   pf->timestamp);
 
 out:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
+}
+
+/**
+ * ad7944_chain_mode_alloc - allocate and initialize channel specs and buffers
+ *                           for daisy-chained devices
+ * @dev: The device for devm_ functions
+ * @chan_template: The channel template for the devices (array of 2 channels
+ *                 voltage and timestamp)
+ * @n_chain_dev: The number of devices in the chain
+ * @chain_chan: Pointer to receive the allocated channel specs
+ * @chain_mode_buf: Pointer to receive the allocated rx buffer
+ * @chain_scan_masks: Pointer to receive the allocated scan masks
+ * Return: 0 on success, a negative error code on failure
+ */
+static int ad7944_chain_mode_alloc(struct device *dev,
+				   const struct iio_chan_spec *chan_template,
+				   u32 n_chain_dev,
+				   struct iio_chan_spec **chain_chan,
+				   void **chain_mode_buf,
+				   unsigned long **chain_scan_masks)
+{
+	struct iio_chan_spec *chan;
+	size_t chain_mode_buf_size;
+	unsigned long *scan_masks;
+	void *buf;
+	int i;
+
+	/* 1 channel for each device in chain plus 1 for soft timestamp */
+
+	chan = devm_kcalloc(dev, n_chain_dev + 1, sizeof(*chan), GFP_KERNEL);
+	if (!chan)
+		return -ENOMEM;
+
+	for (i = 0; i < n_chain_dev; i++) {
+		chan[i] = chan_template[0];
+
+		if (chan_template[0].differential) {
+			chan[i].channel = 2 * i;
+			chan[i].channel2 = 2 * i + 1;
+		} else {
+			chan[i].channel = i;
+		}
+
+		chan[i].scan_index = i;
+	}
+
+	/* soft timestamp */
+	chan[i] = chan_template[1];
+	chan[i].scan_index = i;
+
+	*chain_chan = chan;
+
+	/* 1 word for each voltage channel + aligned u64 for timestamp */
+
+	chain_mode_buf_size = ALIGN(n_chain_dev *
+		BITS_TO_BYTES(chan[0].scan_type.storagebits), sizeof(u64))
+		+ sizeof(u64);
+	buf = devm_kzalloc(dev, chain_mode_buf_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	*chain_mode_buf = buf;
+
+	/*
+	 * Have to limit n_chain_dev due to current implementation of
+	 * available_scan_masks.
+	 */
+	if (n_chain_dev > BITS_PER_LONG)
+		return dev_err_probe(dev, -EINVAL,
+				     "chain is limited to 32 devices\n");
+
+	scan_masks = devm_kcalloc(dev, 2, sizeof(*scan_masks), GFP_KERNEL);
+	if (!scan_masks)
+		return -ENOMEM;
+
+	/*
+	 * Scan mask is needed since we always have to read all devices in the
+	 * chain in one SPI transfer.
+	 */
+	scan_masks[0] = GENMASK(n_chain_dev - 1, 0);
+
+	*chain_scan_masks = scan_masks;
+
+	return 0;
 }
 
 static const char * const ad7944_power_supplies[] = {
@@ -341,6 +479,9 @@ static int ad7944_probe(struct spi_device *spi)
 	struct ad7944_adc *adc;
 	bool have_refin = false;
 	struct regulator *ref;
+	struct iio_chan_spec *chain_chan;
+	unsigned long *chain_scan_masks;
+	u32 n_chain_dev;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*adc));
@@ -474,14 +615,39 @@ static int ad7944_probe(struct spi_device *spi)
 
 		break;
 	case AD7944_SPI_MODE_CHAIN:
-		return dev_err_probe(dev, -EINVAL, "chain mode is not implemented\n");
+		ret = device_property_read_u32(dev, "#daisy-chained-devices",
+					       &n_chain_dev);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					"failed to get #daisy-chained-devices\n");
+
+		ret = ad7944_chain_mode_alloc(dev, chip_info->channels,
+					      n_chain_dev, &chain_chan,
+					      &adc->chain_mode_buf,
+					      &chain_scan_masks);
+		if (ret)
+			return ret;
+
+		ret = ad7944_chain_mode_init_msg(dev, adc, &chain_chan[0],
+						 n_chain_dev);
+		if (ret)
+			return ret;
+
+		break;
 	}
 
 	indio_dev->name = chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7944_iio_info;
-	indio_dev->channels = chip_info->channels;
-	indio_dev->num_channels = ARRAY_SIZE(chip_info->channels);
+
+	if (adc->spi_mode == AD7944_SPI_MODE_CHAIN) {
+		indio_dev->available_scan_masks = chain_scan_masks;
+		indio_dev->channels = chain_chan;
+		indio_dev->num_channels = n_chain_dev + 1;
+	} else {
+		indio_dev->channels = chip_info->channels;
+		indio_dev->num_channels = ARRAY_SIZE(chip_info->channels);
+	}
 
 	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 					      iio_pollfunc_store_time,

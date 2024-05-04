@@ -206,7 +206,7 @@ int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 	unsigned int mode, unsigned int channel)
 {
 	int ret;
-	unsigned long timeout;
+	unsigned long time_left;
 
 	ret = ad_sigma_delta_set_channel(sigma_delta, channel);
 	if (ret)
@@ -223,8 +223,8 @@ int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 
 	sigma_delta->irq_dis = false;
 	enable_irq(sigma_delta->irq_line);
-	timeout = wait_for_completion_timeout(&sigma_delta->completion, 2 * HZ);
-	if (timeout == 0) {
+	time_left = wait_for_completion_timeout(&sigma_delta->completion, 2 * HZ);
+	if (time_left == 0) {
 		sigma_delta->irq_dis = true;
 		disable_irq_nosync(sigma_delta->irq_line);
 		ret = -EIO;
