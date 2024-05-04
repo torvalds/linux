@@ -148,7 +148,6 @@ static int hardlockup_detector_event_create(void)
 
 /**
  * watchdog_hardlockup_enable - Enable the local event
- *
  * @cpu: The CPU to enable hard lockup on.
  */
 void watchdog_hardlockup_enable(unsigned int cpu)
@@ -167,7 +166,6 @@ void watchdog_hardlockup_enable(unsigned int cpu)
 
 /**
  * watchdog_hardlockup_disable - Disable the local event
- *
  * @cpu: The CPU to enable hard lockup on.
  */
 void watchdog_hardlockup_disable(unsigned int cpu)
@@ -277,7 +275,6 @@ int __init watchdog_hardlockup_probe(void)
 
 /**
  * hardlockup_config_perf_event - Overwrite config of wd_hw_attr.
- *
  * @str: number which identifies the raw perf event to use
  */
 void __init hardlockup_config_perf_event(const char *str)
