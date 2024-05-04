@@ -857,10 +857,10 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+	struct rtl92d_rate_mask_h2c rate_mask = {};
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	struct rtl_sta_info *sta_entry = NULL;
-	struct rtl92d_rate_mask_h2c rate_mask;
 	enum wireless_mode wirelessmode;
 	bool shortgi = false;
 	u8 curshortgi_40mhz;
