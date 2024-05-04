@@ -24,6 +24,7 @@
 struct a6xx_gpu_state_obj {
 	const void *handle;
 	u32 *data;
+	u32 count;	/* optional, used when count potentially read from hw */
 };
 
 struct a6xx_gpu_state {
@@ -1437,16 +1438,18 @@ static u32 a7xx_get_cp_roq_size(struct msm_gpu *gpu)
 /* Read a block of data from an indexed register pair */
 static void a6xx_get_indexed_regs(struct msm_gpu *gpu,
 		struct a6xx_gpu_state *a6xx_state,
-		struct a6xx_indexed_registers *indexed,
+		const struct a6xx_indexed_registers *indexed,
 		struct a6xx_gpu_state_obj *obj)
 {
+	u32 count = indexed->count;
 	int i;
 
 	obj->handle = (const void *) indexed;
 	if (indexed->count_fn)
-		indexed->count = indexed->count_fn(gpu);
+		count = indexed->count_fn(gpu);
 
-	obj->data = state_kcalloc(a6xx_state, indexed->count, sizeof(u32));
+	obj->data = state_kcalloc(a6xx_state, count, sizeof(u32));
+	obj->count = count;
 	if (!obj->data)
 		return;
 
@@ -1454,7 +1457,7 @@ static void a6xx_get_indexed_regs(struct msm_gpu *gpu,
 	gpu_write(gpu, indexed->addr, 0);
 
 	/* Read the data - each read increments the internal address by 1 */
-	for (i = 0; i < indexed->count; i++)
+	for (i = 0; i < count; i++)
 		obj->data[i] = gpu_read(gpu, indexed->data);
 }
 
@@ -1890,9 +1893,9 @@ static void a6xx_show_indexed_regs(struct a6xx_gpu_state_obj *obj,
 		return;
 
 	print_name(p, "  - regs-name: ", indexed->name);
-	drm_printf(p, "    dwords: %d\n", indexed->count);
+	drm_printf(p, "    dwords: %d\n", obj->count);
 
-	print_ascii85(p, indexed->count << 2, obj->data);
+	print_ascii85(p, obj->count << 2, obj->data);
 }
 
 static void a6xx_show_debugbus_block(const struct a6xx_debugbus_block *block,
