@@ -487,7 +487,7 @@ load_filename(GtkFileSelection * file_selector, gpointer user_data)
 	if (conf_read(fn))
 		text_insert_msg("Error", "Unable to load configuration !");
 	else
-		display_tree(&rootmenu);
+		display_tree_part();
 }
 
 void on_load1_activate(GtkMenuItem * menuitem, gpointer user_data)
@@ -1399,6 +1399,8 @@ static void display_tree_part(void)
 		display_tree(current);
 	else if (view_mode == SPLIT_VIEW)
 		display_tree(browsed);
+	else if (view_mode == FULL_VIEW)
+		display_tree(&rootmenu);
 	gtk_tree_view_expand_all(GTK_TREE_VIEW(tree2_w));
 }
 
