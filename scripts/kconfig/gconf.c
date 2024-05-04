@@ -1047,7 +1047,7 @@ static gchar **fill_row(struct menu *menu)
 	row[COL_NAME] = g_strdup(sym->name);
 
 	sym_calc_value(sym);
-	sym->flags &= ~SYMBOL_CHANGED;
+	menu->flags &= ~MENU_CHANGED;
 
 	if (sym_is_choice(sym)) {	// parse childs for getting final value
 		struct menu *child;
@@ -1273,7 +1273,7 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 				else
 					goto reparse;	// next child
 			}
-		} else if (sym && (sym->flags & SYMBOL_CHANGED)) {
+		} else if (sym && (child1->flags & MENU_CHANGED)) {
 			set_node(child2, menu1, fill_row(menu1));
 		}
 
@@ -1289,7 +1289,6 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 /* Display the whole tree (single/split/full view) */
 static void display_tree(struct menu *menu)
 {
-	struct symbol *sym;
 	struct property *prop;
 	struct menu *child;
 	enum prop_type ptype;
@@ -1301,11 +1300,9 @@ static void display_tree(struct menu *menu)
 
 	for (child = menu->list; child; child = child->next) {
 		prop = child->prompt;
-		sym = child->sym;
 		ptype = prop ? prop->type : P_UNKNOWN;
 
-		if (sym)
-			sym->flags &= ~SYMBOL_CHANGED;
+		menu->flags &= ~MENU_CHANGED;
 
 		if ((view_mode == SPLIT_VIEW)
 		    && !(child->flags & MENU_ROOT) && (tree == tree1))
