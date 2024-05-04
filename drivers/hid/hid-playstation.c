@@ -1787,7 +1787,7 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
 		if (!buf) {
 			ret = -ENOMEM;
-			goto no_buffer_tail_check;
+			goto transfer_failed;
 		}
 
 		/* We should normally receive the feature report data we asked
@@ -1807,6 +1807,7 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 
 				hid_warn(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
 				ret = -EILSEQ;
+				goto transfer_failed;
 			} else {
 				break;
 			}
@@ -1815,17 +1816,19 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, GFP_KERNEL);
 		if (!buf) {
 			ret = -ENOMEM;
-			goto no_buffer_tail_check;
+			goto transfer_failed;
 		}
 
 		ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION_BT, buf,
 				DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, true);
 
-		if (ret)
+		if (ret) {
 			hid_warn(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
+			goto transfer_failed;
+		}
 	}
 
-	/* Parse buffer. If the transfer failed, this safely copies zeroes. */
+	/* Transfer succeeded - parse the calibration data received. */
 	gyro_pitch_bias  = get_unaligned_le16(&buf[1]);
 	gyro_yaw_bias    = get_unaligned_le16(&buf[3]);
 	gyro_roll_bias   = get_unaligned_le16(&buf[5]);
@@ -1854,6 +1857,9 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	acc_z_plus       = get_unaligned_le16(&buf[31]);
 	acc_z_minus      = get_unaligned_le16(&buf[33]);
 
+	/* Done parsing the buffer, so let's free it. */
+	kfree(buf);
+
 	/*
 	 * Set gyroscope calibration and normalization parameters.
 	 * Data values will be normalized to 1/DS4_GYRO_RES_PER_DEG_S degree/s.
@@ -1877,26 +1883,6 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	ds4->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
 			abs(gyro_roll_minus - gyro_roll_bias);
 
-	/* Done parsing the buffer, so let's free it. */
-	kfree(buf);
-
-no_buffer_tail_check:
-
-	/*
-	 * Sanity check gyro calibration data. This is needed to prevent crashes
-	 * during report handling of virtual, clone or broken devices not implementing
-	 * calibration data properly.
-	 */
-	for (i = 0; i < ARRAY_SIZE(ds4->gyro_calib_data); i++) {
-		if (ds4->gyro_calib_data[i].sens_denom == 0) {
-			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
-					ds4->gyro_calib_data[i].abs_code);
-			ds4->gyro_calib_data[i].bias = 0;
-			ds4->gyro_calib_data[i].sens_numer = DS4_GYRO_RANGE;
-			ds4->gyro_calib_data[i].sens_denom = S16_MAX;
-		}
-	}
-
 	/*
 	 * Set accelerometer calibration and normalization parameters.
 	 * Data values will be normalized to 1/DS4_ACC_RES_PER_G g.
@@ -1919,6 +1905,23 @@ no_buffer_tail_check:
 	ds4->accel_calib_data[2].sens_numer = 2*DS4_ACC_RES_PER_G;
 	ds4->accel_calib_data[2].sens_denom = range_2g;
 
+transfer_failed:
+	/*
+	 * Sanity check gyro calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing
+	 * calibration data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds4->gyro_calib_data); i++) {
+		if (ds4->gyro_calib_data[i].sens_denom == 0) {
+			ds4->gyro_calib_data[i].abs_code = ABS_RX + i;
+			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
+					ds4->gyro_calib_data[i].abs_code);
+			ds4->gyro_calib_data[i].bias = 0;
+			ds4->gyro_calib_data[i].sens_numer = DS4_GYRO_RANGE;
+			ds4->gyro_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
+
 	/*
 	 * Sanity check accelerometer calibration data. This is needed to prevent crashes
 	 * during report handling of virtual, clone or broken devices not implementing calibration
@@ -1926,6 +1929,7 @@ no_buffer_tail_check:
 	 */
 	for (i = 0; i < ARRAY_SIZE(ds4->accel_calib_data); i++) {
 		if (ds4->accel_calib_data[i].sens_denom == 0) {
+			ds4->accel_calib_data[i].abs_code = ABS_X + i;
 			hid_warn(hdev, "Invalid accelerometer calibration data for axis (%d), disabling calibration.",
 					ds4->accel_calib_data[i].abs_code);
 			ds4->accel_calib_data[i].bias = 0;
