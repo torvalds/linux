@@ -1665,6 +1665,15 @@ struct hci_cp_le_set_event_mask {
 	__u8     mask[8];
 } __packed;
 
+/* BLUETOOTH CORE SPECIFICATION Version 5.4 | Vol 4, Part E
+ * 7.8.2 LE Read Buffer Size command
+ * MAX_LE_MTU is 0xffff.
+ * 0 is also valid. It means that no dedicated LE Buffer exists.
+ * It should use the HCI_Read_Buffer_Size command and mtu is shared
+ * between BR/EDR and LE.
+ */
+#define HCI_MIN_LE_MTU 0x001b
+
 #define HCI_OP_LE_READ_BUFFER_SIZE	0x2002
 struct hci_rp_le_read_buffer_size {
 	__u8     status;

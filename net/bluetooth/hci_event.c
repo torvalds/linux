@@ -954,6 +954,9 @@ static u8 hci_cc_read_buffer_size(struct hci_dev *hdev, void *data,
 	BT_DBG("%s acl mtu %d:%d sco mtu %d:%d", hdev->name, hdev->acl_mtu,
 	       hdev->acl_pkts, hdev->sco_mtu, hdev->sco_pkts);
 
+	if (!hdev->acl_mtu || !hdev->acl_pkts)
+		return HCI_ERROR_INVALID_PARAMETERS;
+
 	return rp->status;
 }
 
@@ -1262,6 +1265,9 @@ static u8 hci_cc_le_read_buffer_size(struct hci_dev *hdev, void *data,
 	hdev->le_cnt = hdev->le_pkts;
 
 	BT_DBG("%s le mtu %d:%d", hdev->name, hdev->le_mtu, hdev->le_pkts);
+
+	if (hdev->le_mtu && hdev->le_mtu < HCI_MIN_LE_MTU)
+		return HCI_ERROR_INVALID_PARAMETERS;
 
 	return rp->status;
 }
@@ -2341,8 +2347,8 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 		if (!conn) {
 			conn = hci_conn_add_unset(hdev, ACL_LINK, &cp->bdaddr,
 						  HCI_ROLE_MASTER);
-			if (!conn)
-				bt_dev_err(hdev, "no memory for new connection");
+			if (IS_ERR(conn))
+				bt_dev_err(hdev, "connection err: %ld", PTR_ERR(conn));
 		}
 	}
 
@@ -3153,8 +3159,8 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
 						      BDADDR_BREDR)) {
 			conn = hci_conn_add_unset(hdev, ev->link_type,
 						  &ev->bdaddr, HCI_ROLE_SLAVE);
-			if (!conn) {
-				bt_dev_err(hdev, "no memory for new conn");
+			if (IS_ERR(conn)) {
+				bt_dev_err(hdev, "connection err: %ld", PTR_ERR(conn));
 				goto unlock;
 			}
 		} else {
@@ -3342,8 +3348,8 @@ static void hci_conn_request_evt(struct hci_dev *hdev, void *data,
 	if (!conn) {
 		conn = hci_conn_add_unset(hdev, ev->link_type, &ev->bdaddr,
 					  HCI_ROLE_SLAVE);
-		if (!conn) {
-			bt_dev_err(hdev, "no memory for new connection");
+		if (IS_ERR(conn)) {
+			bt_dev_err(hdev, "connection err: %ld", PTR_ERR(conn));
 			goto unlock;
 		}
 	}
@@ -3819,6 +3825,9 @@ static u8 hci_cc_le_read_buffer_size_v2(struct hci_dev *hdev, void *data,
 
 	BT_DBG("%s acl mtu %d:%d iso mtu %d:%d", hdev->name, hdev->acl_mtu,
 	       hdev->acl_pkts, hdev->iso_mtu, hdev->iso_pkts);
+
+	if (hdev->le_mtu && hdev->le_mtu < HCI_MIN_LE_MTU)
+		return HCI_ERROR_INVALID_PARAMETERS;
 
 	return rp->status;
 }
@@ -5768,8 +5777,8 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 			goto unlock;
 
 		conn = hci_conn_add_unset(hdev, LE_LINK, bdaddr, role);
-		if (!conn) {
-			bt_dev_err(hdev, "no memory for new connection");
+		if (IS_ERR(conn)) {
+			bt_dev_err(hdev, "connection err: %ld", PTR_ERR(conn));
 			goto unlock;
 		}
 
@@ -6497,7 +6506,7 @@ static void hci_le_pa_sync_estabilished_evt(struct hci_dev *hdev, void *data,
 	pa_sync = hci_conn_add_unset(hdev, ISO_LINK, BDADDR_ANY,
 				     HCI_ROLE_SLAVE);
 
-	if (!pa_sync)
+	if (IS_ERR(pa_sync))
 		goto unlock;
 
 	pa_sync->sync_handle = le16_to_cpu(ev->handle);
@@ -6921,7 +6930,7 @@ static void hci_le_cis_req_evt(struct hci_dev *hdev, void *data,
 	if (!cis) {
 		cis = hci_conn_add(hdev, ISO_LINK, &acl->dst, HCI_ROLE_SLAVE,
 				   cis_handle);
-		if (!cis) {
+		if (IS_ERR(cis)) {
 			hci_le_reject_cis(hdev, ev->cis_handle);
 			goto unlock;
 		}
@@ -7030,7 +7039,7 @@ static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
 		if (!bis) {
 			bis = hci_conn_add(hdev, ISO_LINK, BDADDR_ANY,
 					   HCI_ROLE_SLAVE, handle);
-			if (!bis)
+			if (IS_ERR(bis))
 				continue;
 		}
 
