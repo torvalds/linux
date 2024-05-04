@@ -485,7 +485,7 @@ static void ath12k_dp_rx_pdev_srng_free(struct ath12k *ar)
 	struct ath12k_base *ab = ar->ab;
 	int i;
 
-	for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++)
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++)
 		ath12k_dp_srng_cleanup(ab, &dp->rxdma_mon_dst_ring[i]);
 }
 
@@ -530,7 +530,7 @@ static int ath12k_dp_rx_pdev_srng_alloc(struct ath12k *ar)
 	int ret;
 	u32 mac_id = dp->mac_id;
 
-	for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
 		ret = ath12k_dp_srng_setup(ar->ab,
 					   &dp->rxdma_mon_dst_ring[i],
 					   HAL_RXDMA_MONITOR_DST,
@@ -3938,7 +3938,7 @@ void ath12k_dp_rx_free(struct ath12k_base *ab)
 
 	ath12k_dp_srng_cleanup(ab, &dp->rx_refill_buf_ring.refill_buf_ring);
 
-	for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
 		if (ab->hw_params->rx_mac_buf_ring)
 			ath12k_dp_srng_cleanup(ab, &dp->rx_mac_buf_ring[i]);
 	}
@@ -4030,7 +4030,7 @@ int ath12k_dp_rxdma_ring_sel_config_wcn7850(struct ath12k_base *ab)
 	 * and modify the rx_desc struct
 	 */
 
-	for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
 		ring_id = dp->rx_mac_buf_ring[i].ring_id;
 		ret = ath12k_dp_tx_htt_rx_filter_setup(ab, ring_id, i,
 						       HAL_RXDMA_BUF,
@@ -4057,7 +4057,7 @@ int ath12k_dp_rx_htt_setup(struct ath12k_base *ab)
 	}
 
 	if (ab->hw_params->rx_mac_buf_ring) {
-		for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++) {
+		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
 			ring_id = dp->rx_mac_buf_ring[i].ring_id;
 			ret = ath12k_dp_tx_htt_srng_setup(ab, ring_id,
 							  i, HAL_RXDMA_BUF);
@@ -4118,7 +4118,7 @@ int ath12k_dp_rx_alloc(struct ath12k_base *ab)
 	}
 
 	if (ab->hw_params->rx_mac_buf_ring) {
-		for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++) {
+		for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
 			ret = ath12k_dp_srng_setup(ab,
 						   &dp->rx_mac_buf_ring[i],
 						   HAL_RXDMA_BUF, 1,
@@ -4178,7 +4178,7 @@ int ath12k_dp_rx_pdev_alloc(struct ath12k_base *ab, int mac_id)
 		return ret;
 	}
 
-	for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
 		ring_id = dp->rxdma_mon_dst_ring[i].ring_id;
 		ret = ath12k_dp_tx_htt_srng_setup(ab, ring_id,
 						  mac_id + i,

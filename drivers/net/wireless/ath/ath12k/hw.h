@@ -174,7 +174,7 @@ struct ath12k_hw_params {
 	const struct ath12k_hw_hal_params *hal_params;
 
 	bool rxdma1_enable:1;
-	int num_rxmda_per_pdev;
+	int num_rxdma_per_pdev;
 	int num_rxdma_dst_ring;
 	bool rx_mac_buf_ring:1;
 	bool vdev_start_delay:1;

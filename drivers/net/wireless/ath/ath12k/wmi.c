@@ -5693,7 +5693,7 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 		 * event. Otherwise, it goes to fallback.
 		 */
 		if (ab->hw_params->single_pdev_only &&
-		    pdev_idx < ab->hw_params->num_rxmda_per_pdev)
+		    pdev_idx < ab->hw_params->num_rxdma_per_pdev)
 			goto mem_free;
 		else
 			goto fallback;

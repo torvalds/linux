@@ -865,7 +865,7 @@ int ath12k_dp_tx_htt_h2t_ppdu_stats_req(struct ath12k *ar, u32 mask)
 	int ret;
 	int i;
 
-	for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++) {
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++) {
 		skb = ath12k_htc_alloc_skb(ab, len);
 		if (!skb)
 			return -ENOMEM;

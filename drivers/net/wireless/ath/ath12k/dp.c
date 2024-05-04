@@ -907,8 +907,8 @@ int ath12k_dp_service_srng(struct ath12k_base *ab,
 		monitor_mode = ATH12K_DP_RX_MONITOR_MODE;
 		ring_mask = ab->hw_params->ring_mask->rx_mon_dest[grp_id];
 		for (i = 0; i < ab->num_radios; i++) {
-			for (j = 0; j < ab->hw_params->num_rxmda_per_pdev; j++) {
-				int id = i * ab->hw_params->num_rxmda_per_pdev + j;
+			for (j = 0; j < ab->hw_params->num_rxdma_per_pdev; j++) {
+				int id = i * ab->hw_params->num_rxdma_per_pdev + j;
 
 				if (ring_mask & BIT(id)) {
 					work_done =
@@ -928,8 +928,8 @@ int ath12k_dp_service_srng(struct ath12k_base *ab,
 		monitor_mode = ATH12K_DP_TX_MONITOR_MODE;
 		ring_mask = ab->hw_params->ring_mask->tx_mon_dest[grp_id];
 		for (i = 0; i < ab->num_radios; i++) {
-			for (j = 0; j < ab->hw_params->num_rxmda_per_pdev; j++) {
-				int id = i * ab->hw_params->num_rxmda_per_pdev + j;
+			for (j = 0; j < ab->hw_params->num_rxdma_per_pdev; j++) {
+				int id = i * ab->hw_params->num_rxdma_per_pdev + j;
 
 				if (ring_mask & BIT(id)) {
 					work_done =
@@ -1017,7 +1017,7 @@ static void ath12k_dp_service_mon_ring(struct timer_list *t)
 	struct ath12k_base *ab = from_timer(ab, t, mon_reap_timer);
 	int i;
 
-	for (i = 0; i < ab->hw_params->num_rxmda_per_pdev; i++)
+	for (i = 0; i < ab->hw_params->num_rxdma_per_pdev; i++)
 		ath12k_dp_mon_process_ring(ab, i, NULL, DP_MON_SERVICE_BUDGET,
 					   ATH12K_DP_RX_MONITOR_MODE);
 
