@@ -438,7 +438,7 @@ static int sym_title(struct symbol *sym, struct map *map, char *title,
 		     size_t sz, int percent_type)
 {
 	return snprintf(title, sz, "%s  %s [Percent: %s]", sym->name,
-			map__dso(map)->long_name,
+			dso__long_name(map__dso(map)),
 			percent_type_str(percent_type));
 }
 
@@ -967,14 +967,14 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 		return -1;
 
 	dso = map__dso(ms->map);
-	if (dso->annotate_warned)
+	if (dso__annotate_warned(dso))
 		return -1;
 
 	if (not_annotated || !sym->annotate2) {
 		err = symbol__annotate2(ms, evsel, &browser.arch);
 		if (err) {
 			char msg[BUFSIZ];
-			dso->annotate_warned = true;
+			dso__set_annotate_warned(dso);
 			symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 			ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 			return -1;

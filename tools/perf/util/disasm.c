@@ -1054,8 +1054,8 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 		char bf[SBUILD_ID_SIZE + 15] = " with build id ";
 		char *build_id_msg = NULL;
 
-		if (dso->has_build_id) {
-			build_id__sprintf(&dso->bid, bf + 15);
+		if (dso__has_build_id(dso)) {
+			build_id__sprintf(dso__bid(dso), bf + 15);
 			build_id_msg = bf;
 		}
 		scnprintf(buf, buflen,
@@ -1077,11 +1077,11 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 		scnprintf(buf, buflen, "Problems while parsing the CPUID in the arch specific initialization.");
 		break;
 	case SYMBOL_ANNOTATE_ERRNO__BPF_INVALID_FILE:
-		scnprintf(buf, buflen, "Invalid BPF file: %s.", dso->long_name);
+		scnprintf(buf, buflen, "Invalid BPF file: %s.", dso__long_name(dso));
 		break;
 	case SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF:
 		scnprintf(buf, buflen, "The %s BPF file has no BTF section, compile with -g or use pahole -J.",
-			  dso->long_name);
+			  dso__long_name(dso));
 		break;
 	default:
 		scnprintf(buf, buflen, "Internal error: Invalid %d error code\n", errnum);
@@ -1099,7 +1099,7 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 	char *pos;
 	int len;
 
-	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS &&
+	if (dso__symtab_type(dso) == DSO_BINARY_TYPE__KALLSYMS &&
 	    !dso__is_kcore(dso))
 		return SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX;
 
@@ -1108,7 +1108,7 @@ static int dso__disassemble_filename(struct dso *dso, char *filename, size_t fil
 		__symbol__join_symfs(filename, filename_size, build_id_filename);
 		free(build_id_filename);
 	} else {
-		if (dso->has_build_id)
+		if (dso__has_build_id(dso))
 			return ENOMEM;
 		goto fallback;
 	}
@@ -1142,22 +1142,22 @@ fallback:
 		 * cache, or is just a kallsyms file, well, lets hope that this
 		 * DSO is the same as when 'perf record' ran.
 		 */
-		if (dso->kernel && dso->long_name[0] == '/')
-			snprintf(filename, filename_size, "%s", dso->long_name);
+		if (dso__kernel(dso) && dso__long_name(dso)[0] == '/')
+			snprintf(filename, filename_size, "%s", dso__long_name(dso));
 		else
-			__symbol__join_symfs(filename, filename_size, dso->long_name);
+			__symbol__join_symfs(filename, filename_size, dso__long_name(dso));
 
-		mutex_lock(&dso->lock);
-		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
+		mutex_lock(dso__lock(dso));
+		if (access(filename, R_OK) && errno == ENOENT && dso__nsinfo(dso)) {
 			char *new_name = dso__filename_with_chroot(dso, filename);
 			if (new_name) {
 				strlcpy(filename, new_name, filename_size);
 				free(new_name);
 			}
 		}
-		mutex_unlock(&dso->lock);
-	} else if (dso->binary_type == DSO_BINARY_TYPE__NOT_FOUND) {
-		dso->binary_type = DSO_BINARY_TYPE__BUILD_ID_CACHE;
+		mutex_unlock(dso__lock(dso));
+	} else if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND) {
+		dso__set_binary_type(dso, DSO_BINARY_TYPE__BUILD_ID_CACHE);
 	}
 
 	free(build_id_path);
@@ -1425,7 +1425,7 @@ static void print_capstone_detail(cs_insn *insn, char *buf, size_t len,
 		orig_addr = addr + insn->size + op->mem.disp;
 		addr = map__objdump_2mem(map, orig_addr);
 
-		if (map__dso(map)->kernel) {
+		if (dso__kernel(map__dso(map))) {
 			/*
 			 * The kernel maps can be splitted into sections,
 			 * let's find the map first and the search the symbol.
@@ -1479,7 +1479,7 @@ static int symbol__disassemble_capstone(char *filename, struct symbol *sym,
 	if (args->options->objdump_path)
 		return -1;
 
-	nsinfo__mountns_enter(dso->nsinfo, &nsc);
+	nsinfo__mountns_enter(dso__nsinfo(dso), &nsc);
 	fd = open(filename, O_RDONLY);
 	nsinfo__mountns_exit(&nsc);
 	if (fd < 0)
@@ -1679,13 +1679,13 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		 map__unmap_ip(map, sym->end));
 
 	pr_debug("annotating [%p] %30s : [%p] %30s\n",
-		 dso, dso->long_name, sym, sym->name);
+		 dso, dso__long_name(dso), sym, sym->name);
 
-	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO) {
+	if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_PROG_INFO) {
 		return symbol__disassemble_bpf(sym, args);
-	} else if (dso->binary_type == DSO_BINARY_TYPE__BPF_IMAGE) {
+	} else if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_IMAGE) {
 		return symbol__disassemble_bpf_image(sym, args);
-	} else if (dso->binary_type == DSO_BINARY_TYPE__NOT_FOUND) {
+	} else if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND) {
 		return -1;
 	} else if (dso__is_kcore(dso)) {
 		kce.kcore_filename = symfs_filename;

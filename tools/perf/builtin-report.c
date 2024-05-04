@@ -322,7 +322,7 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (al.map != NULL)
-		map__dso(al.map)->hit = 1;
+		dso__set_hit(map__dso(al.map));
 
 	if (ui__has_annotation() || rep->symbol_ipc || rep->total_cycles_mode) {
 		hist__account_cycles(sample->branch_stack, &al, sample,
@@ -609,7 +609,7 @@ static void report__warn_kptr_restrict(const struct report *rep)
 		return;
 
 	if (kernel_map == NULL ||
-	     (map__dso(kernel_map)->hit &&
+	    (dso__hit(map__dso(kernel_map)) &&
 	     (kernel_kmap->ref_reloc_sym == NULL ||
 	      kernel_kmap->ref_reloc_sym->addr == 0))) {
 		const char *desc =
@@ -850,7 +850,7 @@ static int maps__fprintf_task_cb(struct map *map, void *data)
 		prot & PROT_EXEC ? 'x' : '-',
 		map__flags(map) ? 's' : 'p',
 		map__pgoff(map),
-		dso->id.ino, dso->name);
+		dso__id_const(dso)->ino, dso__name(dso));
 
 	if (ret < 0)
 		return ret;

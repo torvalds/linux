@@ -319,7 +319,7 @@ static int block_dso_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 
 	if (map && map__dso(map)) {
 		return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width,
-				 map__dso(map)->short_name);
+				 dso__short_name(map__dso(map)));
 	}
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width,

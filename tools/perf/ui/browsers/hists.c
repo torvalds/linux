@@ -2489,7 +2489,7 @@ add_annotate_opt(struct hist_browser *browser __maybe_unused,
 {
 	struct dso *dso;
 
-	if (!ms->map || (dso = map__dso(ms->map)) == NULL || dso->annotate_warned)
+	if (!ms->map || (dso = map__dso(ms->map)) == NULL || dso__annotate_warned(dso))
 		return 0;
 
 	if (!ms->sym)
@@ -2608,7 +2608,7 @@ static int hists_browser__zoom_map(struct hist_browser *browser, struct map *map
 	} else {
 		struct dso *dso = map__dso(map);
 		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s DSO\"",
-				   __map__is_kernel(map) ? "the Kernel" : dso->short_name);
+				   __map__is_kernel(map) ? "the Kernel" : dso__short_name(dso));
 		browser->hists->dso_filter = dso;
 		perf_hpp__set_elide(HISTC_DSO, true);
 		pstack__push(browser->pstack, &browser->hists->dso_filter);
@@ -2634,7 +2634,7 @@ add_dso_opt(struct hist_browser *browser, struct popup_action *act,
 
 	if (asprintf(optstr, "Zoom %s %s DSO (use the 'k' hotkey to zoom directly into the kernel)",
 		     browser->hists->dso_filter ? "out of" : "into",
-		     __map__is_kernel(map) ? "the Kernel" : map__dso(map)->short_name) < 0)
+		     __map__is_kernel(map) ? "the Kernel" : dso__short_name(map__dso(map))) < 0)
 		return 0;
 
 	act->ms.map = map;
@@ -3110,7 +3110,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			if (!browser->selection ||
 			    !browser->selection->map ||
 			    !map__dso(browser->selection->map) ||
-			    map__dso(browser->selection->map)->annotate_warned) {
+			    dso__annotate_warned(map__dso(browser->selection->map))) {
 				continue;
 			}
 

@@ -148,7 +148,7 @@ static int machine__thread_dso_type_maps_cb(struct map *map, void *data)
 	struct machine__thread_dso_type_maps_cb_args *args = data;
 	struct dso *dso = map__dso(map);
 
-	if (!dso || dso->long_name[0] != '/')
+	if (!dso || dso__long_name(dso)[0] != '/')
 		return 0;
 
 	args->dso_type = dso__type(dso, args->machine);
@@ -361,7 +361,7 @@ struct dso *machine__findnew_vdso(struct machine *machine,
 
 bool dso__is_vdso(struct dso *dso)
 {
-	return !strcmp(dso->short_name, DSO__NAME_VDSO) ||
-	       !strcmp(dso->short_name, DSO__NAME_VDSO32) ||
-	       !strcmp(dso->short_name, DSO__NAME_VDSOX32);
+	return !strcmp(dso__short_name(dso), DSO__NAME_VDSO) ||
+	       !strcmp(dso__short_name(dso), DSO__NAME_VDSO32) ||
+	       !strcmp(dso__short_name(dso), DSO__NAME_VDSOX32);
 }

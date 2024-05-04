@@ -76,7 +76,7 @@ static void check_invariants(const struct maps *maps __maybe_unused)
 		/* Expect at least 1 reference count. */
 		assert(refcount_read(map__refcnt(map)) > 0);
 
-		if (map__dso(map) && map__dso(map)->kernel)
+		if (map__dso(map) && dso__kernel(map__dso(map)))
 			assert(RC_CHK_EQUAL(map__kmap(map)->kmaps, maps));
 
 		if (i > 0) {
@@ -341,7 +341,7 @@ static int map__strcmp(const void *a, const void *b)
 	const struct map *map_b = *(const struct map * const *)b;
 	const struct dso *dso_a = map__dso(map_a);
 	const struct dso *dso_b = map__dso(map_b);
-	int ret = strcmp(dso_a->short_name, dso_b->short_name);
+	int ret = strcmp(dso__short_name(dso_a), dso__short_name(dso_b));
 
 	if (ret == 0 && RC_CHK_ACCESS(map_a) != RC_CHK_ACCESS(map_b)) {
 		/* Ensure distinct but name equal maps have an order. */
@@ -482,7 +482,7 @@ static int __maps__insert(struct maps *maps, struct map *new)
 	}
 	if (map__end(new) < map__start(new))
 		RC_CHK_ACCESS(maps)->ends_broken = true;
-	if (dso && dso->kernel) {
+	if (dso && dso__kernel(dso)) {
 		struct kmap *kmap = map__kmap(new);
 
 		if (kmap)
@@ -766,7 +766,7 @@ sort_again:
 
 		if (use_browser) {
 			pr_debug("overlapping maps in %s (disable tui for more info)\n",
-				map__dso(new)->name);
+				dso__name(map__dso(new)));
 		} else if (verbose >= 2) {
 			pr_debug("overlapping maps:\n");
 			map__fprintf(new, fp);
@@ -989,7 +989,7 @@ static int map__strcmp_name(const void *name, const void *b)
 {
 	const struct dso *dso = map__dso(*(const struct map **)b);
 
-	return strcmp(name, dso->short_name);
+	return strcmp(name, dso__short_name(dso));
 }
 
 struct map *maps__find_by_name(struct maps *maps, const char *name)
@@ -1008,7 +1008,7 @@ struct map *maps__find_by_name(struct maps *maps, const char *name)
 		if (i < maps__nr_maps(maps) && maps__maps_by_name(maps)) {
 			struct dso *dso = map__dso(maps__maps_by_name(maps)[i]);
 
-			if (dso && strcmp(dso->short_name, name) == 0) {
+			if (dso && strcmp(dso__short_name(dso), name) == 0) {
 				result = map__get(maps__maps_by_name(maps)[i]);
 				done = true;
 			}
@@ -1045,7 +1045,7 @@ struct map *maps__find_by_name(struct maps *maps, const char *name)
 					struct map *pos = maps_by_address[i];
 					struct dso *dso = map__dso(pos);
 
-					if (dso && strcmp(dso->short_name, name) == 0) {
+					if (dso && strcmp(dso__short_name(dso), name) == 0) {
 						result = map__get(pos);
 						break;
 					}

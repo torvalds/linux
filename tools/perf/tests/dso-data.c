@@ -228,7 +228,8 @@ static void dsos__delete(int cnt)
 	for (i = 0; i < cnt; i++) {
 		struct dso *dso = dsos[i];
 
-		unlink(dso->name);
+		dso__data_close(dso);
+		unlink(dso__name(dso));
 		dso__put(dso);
 	}
 
@@ -289,14 +290,14 @@ static int test__dso_data_cache(struct test_suite *test __maybe_unused, int subt
 	}
 
 	/* verify the first one is already open */
-	TEST_ASSERT_VAL("dsos[0] is not open", dsos[0]->data.fd != -1);
+	TEST_ASSERT_VAL("dsos[0] is not open", dso__data(dsos[0])->fd != -1);
 
 	/* open +1 dso to reach the allowed limit */
 	fd = dso__data_fd(dsos[i], &machine);
 	TEST_ASSERT_VAL("failed to get fd", fd > 0);
 
 	/* should force the first one to be closed */
-	TEST_ASSERT_VAL("failed to close dsos[0]", dsos[0]->data.fd == -1);
+	TEST_ASSERT_VAL("failed to close dsos[0]", dso__data(dsos[0])->fd == -1);
 
 	/* cleanup everything */
 	dsos__delete(dso_cnt);
@@ -371,7 +372,7 @@ static int test__dso_data_reopen(struct test_suite *test __maybe_unused, int sub
 	 * dso_0 should get closed, because we reached
 	 * the file descriptor limit
 	 */
-	TEST_ASSERT_VAL("failed to close dso_0", dso_0->data.fd == -1);
+	TEST_ASSERT_VAL("failed to close dso_0", dso__data(dso_0)->fd == -1);
 
 	/* open dso_0 */
 	fd = dso__data_fd(dso_0, &machine);
@@ -381,7 +382,7 @@ static int test__dso_data_reopen(struct test_suite *test __maybe_unused, int sub
 	 * dso_1 should get closed, because we reached
 	 * the file descriptor limit
 	 */
-	TEST_ASSERT_VAL("failed to close dso_1", dso_1->data.fd == -1);
+	TEST_ASSERT_VAL("failed to close dso_1", dso__data(dso_1)->fd == -1);
 
 	/* cleanup everything */
 	close(fd_extra);

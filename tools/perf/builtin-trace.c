@@ -2917,7 +2917,7 @@ static void print_location(FILE *f, struct perf_sample *sample,
 {
 
 	if ((verbose > 0 || print_dso) && al->map)
-		fprintf(f, "%s@", map__dso(al->map)->long_name);
+		fprintf(f, "%s@", dso__long_name(map__dso(al->map)));
 
 	if ((verbose > 0 || print_sym) && al->sym)
 		fprintf(f, "%s+0x%" PRIx64, al->sym->name,

@@ -1103,7 +1103,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 	int graph_dotted_len;
 	char buf[512];
 
-	filename = strdup(dso->long_name);
+	filename = strdup(dso__long_name(dso));
 	if (!filename)
 		return -ENOMEM;
 
@@ -1268,7 +1268,7 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel)
 	}
 
 	fprintf(fp, "%s() %s\nEvent: %s\n\n",
-		ms->sym->name, map__dso(ms->map)->long_name, ev_name);
+		ms->sym->name, dso__long_name(map__dso(ms->map)), ev_name);
 	symbol__annotate_fprintf2(ms->sym, fp);
 
 	fclose(fp);
@@ -1526,7 +1526,7 @@ int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
 	if (err) {
 		char msg[BUFSIZ];
 
-		dso->annotate_warned = true;
+		dso__set_annotate_warned(dso);
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 		return -1;
@@ -1535,13 +1535,12 @@ int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
 	if (annotate_opts.print_lines) {
 		srcline_full_filename = annotate_opts.full_path;
 		symbol__calc_lines(ms, &source_line);
-		print_summary(&source_line, dso->long_name);
+		print_summary(&source_line, dso__long_name(dso));
 	}
 
 	hists__scnprintf_title(hists, buf, sizeof(buf));
 	fprintf(stdout, "%s, [percent: %s]\n%s() %s\n",
-		buf, percent_type_str(annotate_opts.percent_type), sym->name,
-		dso->long_name);
+		buf, percent_type_str(annotate_opts.percent_type), sym->name, dso__long_name(dso));
 	symbol__annotate_fprintf2(sym, stdout);
 
 	annotated_source__purge(symbol__annotation(sym)->src);
@@ -1560,7 +1559,7 @@ int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel)
 	if (err) {
 		char msg[BUFSIZ];
 
-		dso->annotate_warned = true;
+		dso__set_annotate_warned(dso);
 		symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 		return -1;
@@ -1571,7 +1570,7 @@ int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel)
 	if (annotate_opts.print_lines) {
 		srcline_full_filename = annotate_opts.full_path;
 		symbol__calc_lines(ms, &source_line);
-		print_summary(&source_line, dso->long_name);
+		print_summary(&source_line, dso__long_name(dso));
 	}
 
 	symbol__annotate_printf(ms, evsel);
@@ -2400,7 +2399,7 @@ retry:
 		}
 
 		/* This CPU access in kernel - pretend PC-relative addressing */
-		if (map__dso(ms->map)->kernel && arch__is(arch, "x86") &&
+		if (dso__kernel(map__dso(ms->map)) && arch__is(arch, "x86") &&
 		    op_loc->segment == INSN_SEG_X86_GS && op_loc->imm) {
 			dloc.var_addr = op_loc->offset;
 			op_loc->reg1 = DWARF_REG_PC;

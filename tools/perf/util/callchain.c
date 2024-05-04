@@ -1205,7 +1205,7 @@ char *callchain_list__sym_name(struct callchain_list *cl,
 	if (show_dso)
 		scnprintf(bf + printed, bfsize - printed, " %s",
 			  cl->ms.map ?
-			  map__dso(cl->ms.map)->short_name :
+			  dso__short_name(map__dso(cl->ms.map)) :
 			  "unknown");
 
 	return bf;

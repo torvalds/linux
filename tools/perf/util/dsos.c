@@ -29,7 +29,7 @@ static void dsos__purge(struct dsos *dsos)
 	for (unsigned int i = 0; i < dsos->cnt; i++) {
 		struct dso *dso = dsos->dsos[i];
 
-		dso->dsos = NULL;
+		dso__set_dsos(dso, NULL);
 		dso__put(dso);
 	}
 
@@ -73,22 +73,22 @@ static int dsos__read_build_ids_cb(struct dso *dso, void *data)
 	struct dsos__read_build_ids_cb_args *args = data;
 	struct nscookie nsc;
 
-	if (args->with_hits && !dso->hit && !dso__is_vdso(dso))
+	if (args->with_hits && !dso__hit(dso) && !dso__is_vdso(dso))
 		return 0;
-	if (dso->has_build_id) {
+	if (dso__has_build_id(dso)) {
 		args->have_build_id = true;
 		return 0;
 	}
-	nsinfo__mountns_enter(dso->nsinfo, &nsc);
-	if (filename__read_build_id(dso->long_name, &dso->bid) > 0) {
+	nsinfo__mountns_enter(dso__nsinfo(dso), &nsc);
+	if (filename__read_build_id(dso__long_name(dso), dso__bid(dso)) > 0) {
 		args->have_build_id = true;
-		dso->has_build_id = true;
-	} else if (errno == ENOENT && dso->nsinfo) {
-		char *new_name = dso__filename_with_chroot(dso, dso->long_name);
+		dso__set_has_build_id(dso);
+	} else if (errno == ENOENT && dso__nsinfo(dso)) {
+		char *new_name = dso__filename_with_chroot(dso, dso__long_name(dso));
 
-		if (new_name && filename__read_build_id(new_name, &dso->bid) > 0) {
+		if (new_name && filename__read_build_id(new_name, dso__bid(dso)) > 0) {
 			args->have_build_id = true;
-			dso->has_build_id = true;
+			dso__set_has_build_id(dso);
 		}
 		free(new_name);
 	}
@@ -110,27 +110,27 @@ bool dsos__read_build_ids(struct dsos *dsos, bool with_hits)
 static int __dso__cmp_long_name(const char *long_name, const struct dso_id *id,
 				const struct dso *b)
 {
-	int rc = strcmp(long_name, b->long_name);
-	return rc ?: dso_id__cmp(id, &b->id);
+	int rc = strcmp(long_name, dso__long_name(b));
+	return rc ?: dso_id__cmp(id, dso__id_const(b));
 }
 
 static int __dso__cmp_short_name(const char *short_name, const struct dso_id *id,
 				 const struct dso *b)
 {
-	int rc = strcmp(short_name, b->short_name);
-	return rc ?: dso_id__cmp(id, &b->id);
+	int rc = strcmp(short_name, dso__short_name(b));
+	return rc ?: dso_id__cmp(id, dso__id_const(b));
 }
 
 static int dsos__cmp_long_name_id_short_name(const void *va, const void *vb)
 {
 	const struct dso *a = *((const struct dso **)va);
 	const struct dso *b = *((const struct dso **)vb);
-	int rc = strcmp(a->long_name, b->long_name);
+	int rc = strcmp(dso__long_name(a), dso__long_name(b));
 
 	if (!rc) {
-		rc = dso_id__cmp(&a->id, &b->id);
+		rc = dso_id__cmp(dso__id_const(a), dso__id_const(b));
 		if (!rc)
-			rc = strcmp(a->short_name, b->short_name);
+			rc = strcmp(dso__short_name(a), dso__short_name(b));
 	}
 	return rc;
 }
@@ -209,7 +209,7 @@ int __dsos__add(struct dsos *dsos, struct dso *dso)
 								 &dsos->dsos[dsos->cnt - 1])
 			<= 0;
 	}
-	dso->dsos = dsos;
+	dso__set_dsos(dso, dsos);
 	return 0;
 }
 
@@ -275,7 +275,7 @@ static void dso__set_basename(struct dso *dso)
 	char *base, *lname;
 	int tid;
 
-	if (sscanf(dso->long_name, "/tmp/perf-%d.map", &tid) == 1) {
+	if (sscanf(dso__long_name(dso), "/tmp/perf-%d.map", &tid) == 1) {
 		if (asprintf(&base, "[JIT] tid %d", tid) < 0)
 			return;
 	} else {
@@ -283,7 +283,7 @@ static void dso__set_basename(struct dso *dso)
 	       * basename() may modify path buffer, so we must pass
                * a copy.
                */
-		lname = strdup(dso->long_name);
+		lname = strdup(dso__long_name(dso));
 		if (!lname)
 			return;
 
@@ -322,7 +322,7 @@ static struct dso *__dsos__findnew_id(struct dsos *dsos, const char *name, struc
 {
 	struct dso *dso = __dsos__find_id(dsos, name, id, false, /*write_locked=*/true);
 
-	if (dso && dso_id__empty(&dso->id) && !dso_id__empty(id))
+	if (dso && dso_id__empty(dso__id(dso)) && !dso_id__empty(id))
 		__dso__inject_id(dso, id);
 
 	return dso ? dso : __dsos__addnew_id(dsos, name, id);
@@ -351,8 +351,8 @@ static int dsos__fprintf_buildid_cb(struct dso *dso, void *data)
 
 	if (args->skip && args->skip(dso, args->parm))
 		return 0;
-	build_id__sprintf(&dso->bid, sbuild_id);
-	args->ret += fprintf(args->fp, "%-40s %s\n", sbuild_id, dso->long_name);
+	build_id__sprintf(dso__bid(dso), sbuild_id);
+	args->ret += fprintf(args->fp, "%-40s %s\n", sbuild_id, dso__long_name(dso));
 	return 0;
 }
 
@@ -396,7 +396,7 @@ size_t dsos__fprintf(struct dsos *dsos, FILE *fp)
 
 static int dsos__hit_all_cb(struct dso *dso, void *data __maybe_unused)
 {
-	dso->hit = true;
+	dso__set_hit(dso);
 	return 0;
 }
 
@@ -432,7 +432,7 @@ struct dso *dsos__findnew_module_dso(struct dsos *dsos,
 	dso__set_basename(dso);
 	dso__set_module_info(dso, m, machine);
 	dso__set_long_name(dso,	strdup(filename), true);
-	dso->kernel = DSO_SPACE__KERNEL;
+	dso__set_kernel(dso, DSO_SPACE__KERNEL);
 	__dsos__add(dsos, dso);
 
 	up_write(&dsos->lock);
@@ -455,8 +455,8 @@ static int dsos__find_kernel_dso_cb(struct dso *dso, void *data)
 	 * Therefore, we pass PERF_RECORD_MISC_CPUMODE_UNKNOWN.
 	 * is_kernel_module() treats it as a kernel cpumode.
 	 */
-	if (!dso->kernel ||
-	    is_kernel_module(dso->long_name, PERF_RECORD_MISC_CPUMODE_UNKNOWN))
+	if (!dso__kernel(dso) ||
+	    is_kernel_module(dso__long_name(dso), PERF_RECORD_MISC_CPUMODE_UNKNOWN))
 		return 0;
 
 	*res = dso__get(dso);

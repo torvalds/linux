@@ -2136,7 +2136,7 @@ static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he)
 {
 	if (hists->dso_filter != NULL &&
-	    (he->ms.map == NULL || map__dso(he->ms.map) != hists->dso_filter)) {
+	    (he->ms.map == NULL || !RC_CHK_EQUAL(map__dso(he->ms.map), hists->dso_filter))) {
 		he->filtered |= (1 << HIST_FILTER__DSO);
 		return true;
 	}
@@ -2816,7 +2816,7 @@ int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool sh
 	}
 	if (dso)
 		printed += scnprintf(bf + printed, size - printed,
-				    ", DSO: %s", dso->short_name);
+				     ", DSO: %s", dso__short_name(dso));
 	if (socket_id > -1)
 		printed += scnprintf(bf + printed, size - printed,
 				    ", Processor Socket: %d", socket_id);

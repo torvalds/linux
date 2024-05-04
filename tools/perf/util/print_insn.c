@@ -104,7 +104,7 @@ static bool is64bitip(struct machine *machine, struct addr_location *al)
 	const struct dso *dso = al->map ? map__dso(al->map) : NULL;
 
 	if (dso)
-		return dso->is_64_bit;
+		return dso__is_64_bit(dso);
 
 	return machine__is(machine, "x86_64") ||
 		machine__normalized_is(machine, "arm64") ||

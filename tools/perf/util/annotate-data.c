@@ -336,7 +336,7 @@ static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
 	/* Check existing nodes in dso->data_types tree */
 	key.self.type_name = type_name;
 	key.self.size = size;
-	node = rb_find(&key, &dso->data_types, data_type_cmp);
+	node = rb_find(&key, dso__data_types(dso), data_type_cmp);
 	if (node) {
 		result = rb_entry(node, struct annotated_data_type, node);
 		free(type_name);
@@ -357,7 +357,7 @@ static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
 	if (symbol_conf.annotate_data_member)
 		add_member_types(result, type_die);
 
-	rb_add(&result->node, &dso->data_types, data_type_less);
+	rb_add(&result->node, dso__data_types(dso), data_type_less);
 	return result;
 }
 
@@ -538,7 +538,7 @@ static struct global_var_entry *global_var__find(struct data_loc_info *dloc, u64
 	struct dso *dso = map__dso(dloc->ms->map);
 	struct rb_node *node;
 
-	node = rb_find((void *)(uintptr_t)addr, &dso->global_vars, global_var_cmp);
+	node = rb_find((void *)(uintptr_t)addr, dso__global_vars(dso), global_var_cmp);
 	if (node == NULL)
 		return NULL;
 
@@ -569,7 +569,7 @@ static bool global_var__add(struct data_loc_info *dloc, u64 addr,
 	gvar->end = addr + size;
 	gvar->die_offset = dwarf_dieoffset(type_die);
 
-	rb_add(&gvar->node, &dso->global_vars, global_var_less);
+	rb_add(&gvar->node, dso__global_vars(dso), global_var_less);
 	return true;
 }
 
@@ -672,7 +672,7 @@ static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 	struct dso *dso = map__dso(dloc->ms->map);
 	Dwarf_Die var_die;
 
-	if (RB_EMPTY_ROOT(&dso->global_vars))
+	if (RB_EMPTY_ROOT(dso__global_vars(dso)))
 		global_var__collect(dloc);
 
 	gvar = global_var__find(dloc, var_addr);
@@ -889,7 +889,7 @@ static void update_insn_state_x86(struct type_state *state,
 			return;
 
 		tsr = &state->regs[dst->reg1];
-		if (map__dso(dloc->ms->map)->kernel &&
+		if (dso__kernel(map__dso(dloc->ms->map)) &&
 		    src->segment == INSN_SEG_X86_GS && src->imm) {
 			u64 ip = dloc->ms->sym->start + dl->al.offset;
 			u64 var_addr;
@@ -1415,7 +1415,7 @@ static int check_matching_type(struct type_state *state,
 	}
 
 check_kernel:
-	if (map__dso(dloc->ms->map)->kernel) {
+	if (dso__kernel(map__dso(dloc->ms->map))) {
 		u64 addr;
 		int offset;
 
@@ -1767,7 +1767,7 @@ struct annotated_data_type *find_data_type(struct data_loc_info *dloc)
 	struct dso *dso = map__dso(dloc->ms->map);
 	Dwarf_Die type_die;
 
-	dloc->di = debuginfo__new(dso->long_name);
+	dloc->di = debuginfo__new(dso__long_name(dso));
 	if (dloc->di == NULL) {
 		pr_debug_dtp("cannot get the debug info\n");
 		return NULL;
@@ -1901,7 +1901,7 @@ static void print_annotated_data_header(struct hist_entry *he, struct evsel *evs
 	}
 
 	printf("Annotate type: '%s' in %s (%d samples):\n",
-	       he->mem_type->self.type_name, dso->name, nr_samples);
+	       he->mem_type->self.type_name, dso__name(dso), nr_samples);
 
 	if (evsel__is_group_event(evsel)) {
 		struct evsel *pos;

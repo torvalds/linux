@@ -60,7 +60,7 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 
 	addr_location__init(&al);
 	if (thread__find_map(thread, sample->cpumode, sample->ip, &al))
-		map__dso(al.map)->hit = 1;
+		dso__set_hit(map__dso(al.map));
 
 	addr_location__exit(&al);
 	thread__put(thread);
@@ -272,10 +272,10 @@ char *__dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 	bool alloc = (bf == NULL);
 	int ret;
 
-	if (!dso->has_build_id)
+	if (!dso__has_build_id(dso))
 		return NULL;
 
-	build_id__sprintf(&dso->bid, sbuild_id);
+	build_id__sprintf(dso__bid_const(dso), sbuild_id);
 	linkname = build_id_cache__linkname(sbuild_id, NULL, 0);
 	if (!linkname)
 		return NULL;
@@ -340,25 +340,25 @@ static int machine__write_buildid_table_cb(struct dso *dso, void *data)
 	size_t name_len;
 	bool in_kernel = false;
 
-	if (!dso->has_build_id)
+	if (!dso__has_build_id(dso))
 		return 0;
 
-	if (!dso->hit && !dso__is_vdso(dso))
+	if (!dso__hit(dso) && !dso__is_vdso(dso))
 		return 0;
 
 	if (dso__is_vdso(dso)) {
-		name = dso->short_name;
-		name_len = dso->short_name_len;
+		name = dso__short_name(dso);
+		name_len = dso__short_name_len(dso);
 	} else if (dso__is_kcore(dso)) {
 		name = args->machine->mmap_name;
 		name_len = strlen(name);
 	} else {
-		name = dso->long_name;
-		name_len = dso->long_name_len;
+		name = dso__long_name(dso);
+		name_len = dso__long_name_len(dso);
 	}
 
-	in_kernel = dso->kernel || is_kernel_module(name, PERF_RECORD_MISC_CPUMODE_UNKNOWN);
-	return write_buildid(name, name_len, &dso->bid, args->machine->pid,
+	in_kernel = dso__kernel(dso) || is_kernel_module(name, PERF_RECORD_MISC_CPUMODE_UNKNOWN);
+	return write_buildid(name, name_len, dso__bid(dso), args->machine->pid,
 			     in_kernel ? args->kmisc : args->umisc, args->fd);
 }
 
@@ -876,11 +876,11 @@ static bool dso__build_id_mismatch(struct dso *dso, const char *name)
 	struct build_id bid;
 	bool ret = false;
 
-	mutex_lock(&dso->lock);
-	if (filename__read_build_id_ns(name, &bid, dso->nsinfo) >= 0)
+	mutex_lock(dso__lock(dso));
+	if (filename__read_build_id_ns(name, &bid, dso__nsinfo(dso)) >= 0)
 		ret = !dso__build_id_equal(dso, &bid);
 
-	mutex_unlock(&dso->lock);
+	mutex_unlock(dso__lock(dso));
 
 	return ret;
 }
@@ -890,13 +890,13 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine,
 {
 	bool is_kallsyms = dso__is_kallsyms(dso);
 	bool is_vdso = dso__is_vdso(dso);
-	const char *name = dso->long_name;
+	const char *name = dso__long_name(dso);
 	const char *proper_name = NULL;
 	const char *root_dir = NULL;
 	char *allocated_name = NULL;
 	int ret = 0;
 
-	if (!dso->has_build_id)
+	if (!dso__has_build_id(dso))
 		return 0;
 
 	if (dso__is_kcore(dso)) {
@@ -921,10 +921,10 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine,
 	if (!is_kallsyms && dso__build_id_mismatch(dso, name))
 		goto out_free;
 
-	mutex_lock(&dso->lock);
-	ret = build_id_cache__add_b(&dso->bid, name, dso->nsinfo,
+	mutex_lock(dso__lock(dso));
+	ret = build_id_cache__add_b(dso__bid(dso), name, dso__nsinfo(dso),
 				    is_kallsyms, is_vdso, proper_name, root_dir);
-	mutex_unlock(&dso->lock);
+	mutex_unlock(dso__lock(dso));
 out_free:
 	free(allocated_name);
 	return ret;

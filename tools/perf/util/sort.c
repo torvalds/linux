@@ -239,11 +239,11 @@ static int64_t _sort__dso_cmp(struct map *map_l, struct map *map_r)
 		return cmp_null(dso_r, dso_l);
 
 	if (verbose > 0) {
-		dso_name_l = dso_l->long_name;
-		dso_name_r = dso_r->long_name;
+		dso_name_l = dso__long_name(dso_l);
+		dso_name_r = dso__long_name(dso_r);
 	} else {
-		dso_name_l = dso_l->short_name;
-		dso_name_r = dso_r->short_name;
+		dso_name_l = dso__short_name(dso_l);
+		dso_name_r = dso__short_name(dso_r);
 	}
 
 	return strcmp(dso_name_l, dso_name_r);
@@ -262,7 +262,7 @@ static int _hist_entry__dso_snprintf(struct map *map, char *bf,
 	const char *dso_name = "[unknown]";
 
 	if (dso)
-		dso_name = verbose > 0 ? dso->long_name : dso->short_name;
+		dso_name = verbose > 0 ? dso__long_name(dso) : dso__short_name(dso);
 
 	return repsep_snprintf(bf, size, "%-*.*s", width, width, dso_name);
 }
@@ -364,7 +364,7 @@ static int _hist_entry__sym_snprintf(struct map_symbol *ms,
 		char o = dso ? dso__symtab_origin(dso) : '!';
 		u64 rip = ip;
 
-		if (dso && dso->kernel && dso->adjust_symbols)
+		if (dso && dso__kernel(dso) && dso__adjust_symbols(dso))
 			rip = map__unmap_ip(map, ip);
 
 		ret += repsep_snprintf(bf, size, "%-#*llx %c ",
@@ -1586,8 +1586,8 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	 */
 
 	if ((left->cpumode != PERF_RECORD_MISC_KERNEL) &&
-	    (!(map__flags(l_map) & MAP_SHARED)) && !l_dso->id.maj && !l_dso->id.min &&
-	    !l_dso->id.ino && !l_dso->id.ino_generation) {
+	    (!(map__flags(l_map) & MAP_SHARED)) && !dso__id(l_dso)->maj && !dso__id(l_dso)->min &&
+	     !dso__id(l_dso)->ino && !dso__id(l_dso)->ino_generation) {
 		/* userspace anonymous */
 
 		if (thread__pid(left->thread) > thread__pid(right->thread))
@@ -1626,7 +1626,8 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 		if ((he->cpumode != PERF_RECORD_MISC_KERNEL) &&
 		     map && !(map__prot(map) & PROT_EXEC) &&
 		     (map__flags(map) & MAP_SHARED) &&
-		    (dso->id.maj || dso->id.min || dso->id.ino || dso->id.ino_generation))
+		     (dso__id(dso)->maj || dso__id(dso)->min || dso__id(dso)->ino ||
+		      dso__id(dso)->ino_generation))
 			level = 's';
 		else if (!map)
 			level = 'X';

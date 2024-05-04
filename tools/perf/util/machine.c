@@ -694,7 +694,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 			err = -ENOMEM;
 			goto out;
 		}
-		dso->kernel = DSO_SPACE__KERNEL;
+		dso__set_kernel(dso, DSO_SPACE__KERNEL);
 		map = map__new2(0, dso);
 		dso__put(dso);
 		if (!map) {
@@ -702,8 +702,8 @@ static int machine__process_ksymbol_register(struct machine *machine,
 			goto out;
 		}
 		if (event->ksymbol.ksym_type == PERF_RECORD_KSYMBOL_TYPE_OOL) {
-			dso->binary_type = DSO_BINARY_TYPE__OOL;
-			dso->data.file_size = event->ksymbol.len;
+			dso__set_binary_type(dso, DSO_BINARY_TYPE__OOL);
+			dso__data(dso)->file_size = event->ksymbol.len;
 			dso__set_loaded(dso);
 		}
 
@@ -718,7 +718,7 @@ static int machine__process_ksymbol_register(struct machine *machine,
 		dso__set_loaded(dso);
 
 		if (is_bpf_image(event->ksymbol.name)) {
-			dso->binary_type = DSO_BINARY_TYPE__BPF_IMAGE;
+			dso__set_binary_type(dso, DSO_BINARY_TYPE__BPF_IMAGE);
 			dso__set_long_name(dso, "", false);
 		}
 	} else {
@@ -888,17 +888,17 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
 	size_t printed = 0;
 	struct dso *kdso = machine__kernel_dso(machine);
 
-	if (kdso->has_build_id) {
+	if (dso__has_build_id(kdso)) {
 		char filename[PATH_MAX];
-		if (dso__build_id_filename(kdso, filename, sizeof(filename),
-					   false))
+
+		if (dso__build_id_filename(kdso, filename, sizeof(filename), false))
 			printed += fprintf(fp, "[0] %s\n", filename);
 	}
 
-	for (i = 0; i < vmlinux_path__nr_entries; ++i)
-		printed += fprintf(fp, "[%d] %s\n",
-				   i + kdso->has_build_id, vmlinux_path[i]);
-
+	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
+		printed += fprintf(fp, "[%d] %s\n", i + dso__has_build_id(kdso),
+				   vmlinux_path[i]);
+	}
 	return printed;
 }
 
@@ -948,7 +948,7 @@ static struct dso *machine__get_kernel(struct machine *machine)
 						 DSO_SPACE__KERNEL_GUEST);
 	}
 
-	if (kernel != NULL && (!kernel->has_build_id))
+	if (kernel != NULL && (!dso__has_build_id(kernel)))
 		dso__read_running_kernel_build_id(kernel, machine);
 
 	return kernel;
@@ -1313,8 +1313,8 @@ static char *get_kernel_version(const char *root_dir)
 
 static bool is_kmod_dso(struct dso *dso)
 {
-	return dso->symtab_type == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE ||
-	       dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE;
+	return dso__symtab_type(dso) == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE ||
+	       dso__symtab_type(dso) == DSO_BINARY_TYPE__GUEST_KMODULE;
 }
 
 static int maps__set_module_path(struct maps *maps, const char *path, struct kmod_path *m)
@@ -1341,8 +1341,8 @@ static int maps__set_module_path(struct maps *maps, const char *path, struct kmo
 	 * we need to update the symtab_type if needed.
 	 */
 	if (m->comp && is_kmod_dso(dso)) {
-		dso->symtab_type++;
-		dso->comp = m->comp;
+		dso__set_symtab_type(dso, dso__symtab_type(dso));
+		dso__set_comp(dso, m->comp);
 	}
 	map__put(map);
 	return 0;
@@ -1643,13 +1643,13 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		if (kernel == NULL)
 			goto out_problem;
 
-		kernel->kernel = dso_space;
+		dso__set_kernel(kernel, dso_space);
 		if (__machine__create_kernel_maps(machine, kernel) < 0) {
 			dso__put(kernel);
 			goto out_problem;
 		}
 
-		if (strstr(kernel->long_name, "vmlinux"))
+		if (strstr(dso__long_name(kernel), "vmlinux"))
 			dso__set_short_name(kernel, "[kernel.vmlinux]", false);
 
 		if (machine__update_kernel_mmap(machine, xm->start, xm->end) < 0) {
@@ -2031,14 +2031,14 @@ static char *callchain_srcline(struct map_symbol *ms, u64 ip)
 		return srcline;
 
 	dso = map__dso(map);
-	srcline = srcline__tree_find(&dso->srclines, ip);
+	srcline = srcline__tree_find(dso__srclines(dso), ip);
 	if (!srcline) {
 		bool show_sym = false;
 		bool show_addr = callchain_param.key == CCKEY_ADDRESS;
 
 		srcline = get_srcline(dso, map__rip_2objdump(map, ip),
 				      ms->sym, show_sym, show_addr, ip);
-		srcline__tree_insert(&dso->srclines, ip, srcline);
+		srcline__tree_insert(dso__srclines(dso), ip, srcline);
 	}
 
 	return srcline;
@@ -2836,12 +2836,12 @@ static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms
 	addr = map__rip_2objdump(map, addr);
 	dso = map__dso(map);
 
-	inline_node = inlines__tree_find(&dso->inlined_nodes, addr);
+	inline_node = inlines__tree_find(dso__inlined_nodes(dso), addr);
 	if (!inline_node) {
 		inline_node = dso__parse_addr_inlines(dso, addr, sym);
 		if (!inline_node)
 			return ret;
-		inlines__tree_insert(&dso->inlined_nodes, inline_node);
+		inlines__tree_insert(dso__inlined_nodes(dso), inline_node);
 	}
 
 	ilist_ms = (struct map_symbol) {
@@ -3130,7 +3130,7 @@ char *machine__resolve_kernel_addr(void *vmachine, unsigned long long *addrp, ch
 	if (sym == NULL)
 		return NULL;
 
-	*modp = __map__is_kmodule(map) ? (char *)map__dso(map)->short_name : NULL;
+	*modp = __map__is_kmodule(map) ? (char *)dso__short_name(map__dso(map)) : NULL;
 	*addrp = map__unmap_ip(map, sym->start);
 	return sym->name;
 }

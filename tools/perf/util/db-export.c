@@ -146,10 +146,10 @@ int db_export__comm_thread(struct db_export *dbe, struct comm *comm,
 int db_export__dso(struct db_export *dbe, struct dso *dso,
 		   struct machine *machine)
 {
-	if (dso->db_id)
+	if (dso__db_id(dso))
 		return 0;
 
-	dso->db_id = ++dbe->dso_last_db_id;
+	dso__set_db_id(dso, ++dbe->dso_last_db_id);
 
 	if (dbe->export_dso)
 		return dbe->export_dso(dbe, dso, machine);
@@ -184,7 +184,7 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 		err = db_export__dso(dbe, dso, maps__machine(al->maps));
 		if (err)
 			return err;
-		*dso_db_id = dso->db_id;
+		*dso_db_id = dso__db_id(dso);
 
 		if (!al->sym) {
 			al->sym = symbol__new(al->addr, 0, 0, 0, "unknown");

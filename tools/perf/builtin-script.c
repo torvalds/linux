@@ -1017,11 +1017,11 @@ static int perf_sample__fprintf_brstackoff(struct perf_sample *sample,
 		to   = entries[i].to;
 
 		if (thread__find_map_fb(thread, sample->cpumode, from, &alf) &&
-		    !map__dso(alf.map)->adjust_symbols)
+		    !dso__adjust_symbols(map__dso(alf.map)))
 			from = map__dso_map_ip(alf.map, from);
 
 		if (thread__find_map_fb(thread, sample->cpumode, to, &alt) &&
-		    !map__dso(alt.map)->adjust_symbols)
+		    !dso__adjust_symbols(map__dso(alt.map)))
 			to = map__dso_map_ip(alt.map, to);
 
 		printed += fprintf(fp, " 0x%"PRIx64, from);
@@ -1082,7 +1082,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		goto out;
 	}
-	if (dso->data.status == DSO_DATA_STATUS_ERROR) {
+	if (dso__data(dso)->status == DSO_DATA_STATUS_ERROR) {
 		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		goto out;
 	}
@@ -1094,7 +1094,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	len = dso__data_read_offset(dso, machine, offset, (u8 *)buffer,
 				    end - start + MAXINSN);
 
-	*is64bit = dso->is_64_bit;
+	*is64bit = dso__is_64_bit(dso);
 	if (len <= 0)
 		pr_debug("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
 			start, end);

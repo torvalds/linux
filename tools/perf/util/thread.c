@@ -457,14 +457,14 @@ int thread__memcpy(struct thread *thread, struct machine *machine,
 
 	dso = map__dso(al.map);
 
-	if (!dso || dso->data.status == DSO_DATA_STATUS_ERROR || map__load(al.map) < 0) {
+	if (!dso || dso__data(dso)->status == DSO_DATA_STATUS_ERROR || map__load(al.map) < 0) {
 		addr_location__exit(&al);
 		return -1;
 	}
 
 	offset = map__map_ip(al.map, ip);
 	if (is64bit)
-		*is64bit = dso->is_64_bit;
+		*is64bit = dso__is_64_bit(dso);
 
 	addr_location__exit(&al);
 
