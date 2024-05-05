@@ -18,30 +18,6 @@
 #include "cgroup_helpers.h"
 #include "network_helpers.h"
 
-static int connect_to_server(const struct sockaddr *addr, socklen_t len)
-{
-	int fd = -1;
-
-	fd = socket(addr->sa_family, SOCK_STREAM, 0);
-	if (fd == -1) {
-		log_err("Failed to create client socket");
-		goto out;
-	}
-
-	if (connect(fd, (const struct sockaddr *)addr, len) == -1) {
-		log_err("Fail to connect to server");
-		goto close_out;
-	}
-
-	goto out;
-
-close_out:
-	close(fd);
-	fd = -1;
-out:
-	return fd;
-}
-
 static int get_map_fd_by_prog_id(int prog_id, bool *xdp)
 {
 	struct bpf_prog_info info = {};
@@ -80,8 +56,7 @@ err:
 	return map_fd;
 }
 
-static int run_test(int server_fd, int results_fd, bool xdp,
-		    const struct sockaddr *addr, socklen_t len)
+static int run_test(int server_fd, int results_fd, bool xdp)
 {
 	int client = -1, srv_client = -1;
 	int ret = 0;
@@ -107,7 +82,7 @@ static int run_test(int server_fd, int results_fd, bool xdp,
 		goto err;
 	}
 
-	client = connect_to_server(addr, len);
+	client = connect_to_fd(server_fd, 0);
 	if (client == -1)
 		goto err;
 
@@ -254,16 +229,13 @@ int main(int argc, char **argv)
 	if (server_dual == -1 || !get_port(server_dual, &addr4dual.sin_port))
 		goto err;
 
-	if (run_test(server, results, xdp,
-		     (const struct sockaddr *)&addr4, sizeof(addr4)))
+	if (run_test(server, results, xdp))
 		goto err;
 
-	if (run_test(server_v6, results, xdp,
-		     (const struct sockaddr *)&addr6, sizeof(addr6)))
+	if (run_test(server_v6, results, xdp))
 		goto err;
 
-	if (run_test(server_dual, results, xdp,
-		     (const struct sockaddr *)&addr4dual, sizeof(addr4dual)))
+	if (run_test(server_dual, results, xdp))
 		goto err;
 
 	printf("ok\n");
