@@ -162,6 +162,9 @@ void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 
 	/* Cause future lookups for this node to fail: */
 	b->hash_val = 0;
+
+	if (b->c.btree_id < BTREE_ID_NR)
+		--bc->used_by_btree[b->c.btree_id];
 }
 
 int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
@@ -169,8 +172,11 @@ int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
 	BUG_ON(b->hash_val);
 	b->hash_val = btree_ptr_hash_val(&b->key);
 
-	return rhashtable_lookup_insert_fast(&bc->table, &b->hash,
-					     bch_btree_cache_params);
+	int ret = rhashtable_lookup_insert_fast(&bc->table, &b->hash,
+						bch_btree_cache_params);
+	if (!ret && b->c.btree_id < BTREE_ID_NR)
+		bc->used_by_btree[b->c.btree_id]++;
+	return ret;
 }
 
 int bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b,
@@ -1269,9 +1275,26 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c, const struc
 	       stats.failed);
 }
 
+static void prt_btree_cache_line(struct printbuf *out, const struct bch_fs *c,
+				 const char *label, unsigned nr)
+{
+	prt_printf(out, "%s\t", label);
+	prt_human_readable_u64(out, nr * c->opts.btree_node_size);
+	prt_printf(out, " (%u)\n", nr);
+}
+
 void bch2_btree_cache_to_text(struct printbuf *out, const struct bch_fs *c)
 {
-	prt_printf(out, "nr nodes:\t\t%u\n", c->btree_cache.used);
-	prt_printf(out, "nr dirty:\t\t%u\n", atomic_read(&c->btree_cache.dirty));
-	prt_printf(out, "cannibalize lock:\t%p\n", c->btree_cache.alloc_lock);
+	const struct btree_cache *bc = &c->btree_cache;
+
+	if (!out->nr_tabstops)
+		printbuf_tabstop_push(out, 24);
+
+	prt_btree_cache_line(out, c, "total:",		bc->used);
+	prt_btree_cache_line(out, c, "nr dirty:",	atomic_read(&bc->dirty));
+	prt_printf(out, "cannibalize lock:\t%p\n",	bc->alloc_lock);
+	prt_newline(out);
+
+	for (unsigned i = 0; i < ARRAY_SIZE(bc->used_by_btree); i++)
+		prt_btree_cache_line(out, c, bch2_btree_id_str(i), bc->used_by_btree[i]);
 }

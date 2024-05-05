@@ -166,6 +166,8 @@ struct btree_cache {
 	atomic_t		dirty;
 	struct shrinker		*shrink;
 
+	unsigned		used_by_btree[BTREE_ID_NR];
+
 	/*
 	 * If we need to allocate memory for a new btree node and that
 	 * allocation fails, we can cannibalize another node in the btree cache
