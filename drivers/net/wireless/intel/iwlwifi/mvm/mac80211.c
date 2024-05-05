@@ -1639,6 +1639,18 @@ static void iwl_mvm_mlo_int_scan_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 	mutex_unlock(&mvmvif->mvm->mutex);
 }
 
+static void iwl_mvm_unblock_esr_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
+{
+	struct iwl_mvm_vif *mvmvif =
+		container_of(wk, struct iwl_mvm_vif, unblock_esr_tpt_wk);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TPT);
+	mutex_unlock(&mvm->mutex);
+}
+
 void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 {
 	lockdep_assert_held(&mvm->mutex);
@@ -1654,6 +1666,9 @@ void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 
 	wiphy_delayed_work_init(&mvmvif->mlo_int_scan_wk,
 				iwl_mvm_mlo_int_scan_wk);
+
+	wiphy_work_init(&mvmvif->unblock_esr_tpt_wk,
+			iwl_mvm_unblock_esr_tpt);
 }
 
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
@@ -1802,6 +1817,8 @@ void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 
 	wiphy_delayed_work_cancel(mvm->hw->wiphy,
 				  &mvmvif->mlo_int_scan_wk);
+
+	wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
 
 	cancel_delayed_work_sync(&mvmvif->csa_work);
 }
@@ -3930,6 +3947,8 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 		memset(&mvmvif->last_esr_exit, 0,
 		       sizeof(mvmvif->last_esr_exit));
 
+		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TPT, 0);
+
 		/* when client is authorized (AP station marked as such),
 		 * try to enable the best link(s).
 		 */
@@ -3989,6 +4008,8 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 
 		wiphy_delayed_work_cancel(mvm->hw->wiphy,
 					  &mvmvif->mlo_int_scan_wk);
+
+		wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
 
 		/* No need for the periodic statistics anymore */
 		if (ieee80211_vif_is_mld(vif) && mvmvif->esr_active)

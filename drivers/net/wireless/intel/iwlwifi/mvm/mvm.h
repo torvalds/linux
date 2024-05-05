@@ -356,6 +356,7 @@ struct iwl_mvm_vif_link_info {
  * @IWL_MVM_ESR_BLOCKED_PREVENTION: Prevent EMLSR to avoid entering and exiting
  *	in a loop.
  * @IWL_MVM_ESR_BLOCKED_WOWLAN: WOWLAN is preventing the enablement of EMLSR
+ * @IWL_MVM_ESR_BLOCKED_TPT: block EMLSR when there is not enough traffic
  * @IWL_MVM_ESR_EXIT_MISSED_BEACON: exited EMLSR due to missed beacons
  * @IWL_MVM_ESR_EXIT_LOW_RSSI: link is deactivated/not allowed for EMLSR
  *	due to low RSSI.
@@ -365,6 +366,7 @@ struct iwl_mvm_vif_link_info {
 enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x1,
 	IWL_MVM_ESR_BLOCKED_WOWLAN	= 0x2,
+	IWL_MVM_ESR_BLOCKED_TPT		= 0x4,
 	IWL_MVM_ESR_EXIT_MISSED_BEACON	= 0x10000,
 	IWL_MVM_ESR_EXIT_LOW_RSSI	= 0x20000,
 	IWL_MVM_ESR_EXIT_COEX		= 0x40000,
@@ -430,6 +432,7 @@ struct iwl_mvm_esr_exit {
  *	&IWL_MVM_ESR_PREVENT_REASONS.
  * @prevent_esr_done_wk: work that should be done when esr prevention ends.
  * @mlo_int_scan_wk: work for the internal MLO scan.
+ * @unblock_esr_tpt_wk: work for unblocking EMLSR when tpt is high enough.
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -527,6 +530,7 @@ struct iwl_mvm_vif {
 	u8 exit_same_reason_count;
 	struct wiphy_delayed_work prevent_esr_done_wk;
 	struct wiphy_delayed_work mlo_int_scan_wk;
+	struct wiphy_work unblock_esr_tpt_wk;
 
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];

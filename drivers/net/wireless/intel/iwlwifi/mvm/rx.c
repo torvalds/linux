@@ -951,6 +951,54 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 	}
 }
 
+static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
+{
+	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
+	struct iwl_mvm_vif *mvmvif;
+	struct iwl_mvm_sta *mvmsta;
+	unsigned long total_tx = 0, total_rx = 0;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!bss_vif)
+		return;
+
+	mvmvif = iwl_mvm_vif_from_mac80211(bss_vif);
+
+	if (!mvmvif->esr_active || !mvmvif->ap_sta)
+		return;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(mvmvif->ap_sta);
+	/* We only count for the AP sta in a MLO connection */
+	if (!mvmsta->mpdu_counters)
+		return;
+
+	/* Sum up RX and TX MPDUs from the different queues/links */
+	for (int q = 0; q < mvm->trans->num_rx_queues; q++) {
+		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
+
+		/* The link IDs that doesn't exist will contain 0 */
+		for (int link = 0; link < IWL_MVM_FW_MAX_LINK_ID; link++) {
+			total_tx += mvmsta->mpdu_counters[q].per_link[link].tx;
+			total_rx += mvmsta->mpdu_counters[q].per_link[link].rx;
+		}
+		/*
+		 * In EMLSR we have statistics every 5 seconds, so we can reset
+		 * the counters upon every statistics notification.
+		 */
+		memset(mvmsta->mpdu_counters[q].per_link, 0,
+		       sizeof(mvmsta->mpdu_counters[q].per_link));
+
+		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
+	}
+
+	/* If we don't have enough MPDUs - exit EMLSR */
+	if (total_tx < IWL_MVM_ENTER_ESR_TPT_THRESH &&
+	    total_rx < IWL_MVM_ENTER_ESR_TPT_THRESH)
+		iwl_mvm_block_esr(mvm, bss_vif, IWL_MVM_ESR_BLOCKED_TPT,
+				  iwl_mvm_get_primary_link(bss_vif));
+}
+
 void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
@@ -978,6 +1026,8 @@ void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
 	ieee80211_iterate_stations_atomic(mvm->hw, iwl_mvm_stats_energy_iter,
 					  average_energy);
 	iwl_mvm_handle_per_phy_stats(mvm, stats->per_phy);
+
+	iwl_mvm_update_esr_mode_tpt(mvm);
 }
 
 void iwl_mvm_handle_rx_system_oper_part1_stats(struct iwl_mvm *mvm,
