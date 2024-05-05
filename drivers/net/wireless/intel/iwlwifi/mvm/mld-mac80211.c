@@ -391,6 +391,18 @@ static int iwl_mvm_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
+	/* update EMLSR mode */
+	if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_STATION) {
+		ret = iwl_mvm_esr_non_bss_link(mvm, vif, link_conf->link_id,
+					       true);
+		/*
+		 * Don't activate this link if failed to exit EMLSR in
+		 * the BSS interface
+		 */
+		if (ret)
+			return ret;
+	}
+
 	mutex_lock(&mvm->mutex);
 	ret = __iwl_mvm_mld_assign_vif_chanctx(mvm, vif, link_conf, ctx, false);
 	mutex_unlock(&mvm->mutex);
@@ -514,6 +526,10 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		iwl_mvm_add_link(mvm, vif, link_conf);
 	}
 	mutex_unlock(&mvm->mutex);
+
+	/* update EMLSR mode */
+	if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_STATION)
+		iwl_mvm_esr_non_bss_link(mvm, vif, link_conf->link_id, false);
 }
 
 static void
