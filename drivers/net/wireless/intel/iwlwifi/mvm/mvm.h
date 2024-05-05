@@ -363,6 +363,8 @@ struct iwl_mvm_vif_link_info {
  *	due to low RSSI.
  * @IWL_MVM_ESR_EXIT_COEX: link is deactivated/not allowed for EMLSR
  *	due to BT Coex.
+ * @IWL_MVM_ESR_EXIT_BANDWIDTH: Bandwidths of primary and secondry links
+ *	preventing the enablement of EMLSR
  */
 enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x1,
@@ -372,6 +374,7 @@ enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_EXIT_MISSED_BEACON	= 0x10000,
 	IWL_MVM_ESR_EXIT_LOW_RSSI	= 0x20000,
 	IWL_MVM_ESR_EXIT_COEX		= 0x40000,
+	IWL_MVM_ESR_EXIT_BANDWIDTH	= 0x80000,
 };
 
 #define IWL_MVM_BLOCK_ESR_REASONS 0xffff

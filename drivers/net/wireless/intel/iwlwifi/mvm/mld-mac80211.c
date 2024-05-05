@@ -693,6 +693,25 @@ static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
 					    &callbacks);
 }
 
+static bool iwl_mvm_esr_bw_criteria(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_bss_conf *link_conf)
+{
+	struct ieee80211_bss_conf *other_link;
+	int link_id;
+
+	/* Exit EMLSR if links don't have equal bandwidths */
+	for_each_vif_active_link(vif, other_link, link_id) {
+		if (link_id == link_conf->link_id)
+			continue;
+		if (link_conf->chanreq.oper.width ==
+		    other_link->chanreq.oper.width)
+			return true;
+	}
+
+	return false;
+}
+
 static void
 iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
@@ -721,6 +740,14 @@ iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_MAC80211(mvm, "Associated in HE mode\n");
 		link_changes |= LINK_CONTEXT_MODIFY_HE_PARAMS;
 	}
+
+	if ((changes & BSS_CHANGED_BANDWIDTH) &&
+	    ieee80211_vif_link_active(vif, link_conf->link_id) &&
+	    mvmvif->esr_active &&
+	    !iwl_mvm_esr_bw_criteria(mvm, vif, link_conf))
+		iwl_mvm_exit_esr(mvm, vif,
+				 IWL_MVM_ESR_EXIT_BANDWIDTH,
+				 iwl_mvm_get_primary_link(vif));
 
 	/* if associated, maybe puncturing changed - we'll check later */
 	if (vif->cfg.assoc)

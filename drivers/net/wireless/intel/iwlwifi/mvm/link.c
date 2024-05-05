@@ -629,6 +629,13 @@ bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 	    iwl_mvm_esr_disallowed_with_link(vif, b, false))
 		return false;
 
+	if (a->chandef->width != b->chandef->width)
+		return false;
+
+	if (!(a->chandef->chan->band == NL80211_BAND_6GHZ &&
+	      b->chandef->chan->band == NL80211_BAND_5GHZ))
+		return false;
+
 	/* Per-combination considerations */
 	return a->chandef->chan->band != b->chandef->chan->band;
 }
