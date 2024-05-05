@@ -3949,6 +3949,9 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 
 		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TPT, 0);
 
+		/* Block until FW notif will arrive */
+		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_FW, 0);
+
 		/* when client is authorized (AP station marked as such),
 		 * try to enable the best link(s).
 		 */
