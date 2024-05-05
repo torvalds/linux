@@ -703,9 +703,9 @@ void iwl_mvm_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	primary_link = best_link->link_id;
 	new_active_links = BIT(best_link->link_id);
 
-	/* eSR is not supported/allowed, or only one usable link */
-	if (max_active_links == 1 || !iwl_mvm_esr_allowed_on_vif(mvm, vif) ||
-	    n_data == 1)
+	/* eSR is not supported/blocked, or only one usable link */
+	if (max_active_links == 1 || !iwl_mvm_vif_has_esr_cap(mvm, vif) ||
+	    mvmvif->esr_disable_reason || n_data == 1)
 		goto set_active;
 
 	for (u8 a = 0; a < n_data; a++)

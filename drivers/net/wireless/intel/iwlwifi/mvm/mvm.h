@@ -2873,8 +2873,7 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 			int duration, u32 activity);
 
 /* EMLSR */
-bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif);
+bool iwl_mvm_vif_has_esr_cap(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		       enum iwl_mvm_esr_state reason,
 		       u8 link_to_keep);
