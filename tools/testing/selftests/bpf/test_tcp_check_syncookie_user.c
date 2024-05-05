@@ -139,21 +139,6 @@ out:
 	return ret;
 }
 
-static bool get_port(int server_fd, in_port_t *port)
-{
-	struct sockaddr_in addr;
-	socklen_t len = sizeof(addr);
-
-	if (getsockname(server_fd, (struct sockaddr *)&addr, &len)) {
-		log_err("Failed to get server addr");
-		return false;
-	}
-
-	/* sin_port and sin6_port are located at the same offset. */
-	*port = addr.sin_port;
-	return true;
-}
-
 static int v6only_true(int fd, const struct post_socket_opts *opts)
 {
 	int mode = true;
@@ -214,19 +199,19 @@ int main(int argc, char **argv)
 
 	server = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr4,
 				   sizeof(addr4), NULL);
-	if (server == -1 || !get_port(server, &addr4.sin_port))
+	if (server == -1)
 		goto err;
 
 	opts.post_socket_cb = v6only_true;
 	server_v6 = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr6,
 				      sizeof(addr6), &opts);
-	if (server_v6 == -1 || !get_port(server_v6, &addr6.sin6_port))
+	if (server_v6 == -1)
 		goto err;
 
 	opts.post_socket_cb = v6only_false;
 	server_dual = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr6dual,
 					sizeof(addr6dual), &opts);
-	if (server_dual == -1 || !get_port(server_dual, &addr4dual.sin_port))
+	if (server_dual == -1)
 		goto err;
 
 	if (run_test(server, results, xdp))
