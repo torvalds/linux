@@ -10,6 +10,14 @@
 
 MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
 
+static struct wiphy wiphy = {
+	.mtx = __MUTEX_INITIALIZER(wiphy.mtx),
+};
+
+static struct ieee80211_hw hw = {
+	.wiphy = &wiphy,
+};
+
 static struct ieee80211_channel chan_5ghz = {
 	.band = NL80211_BAND_5GHZ,
 };
@@ -50,7 +58,10 @@ static struct iwl_fw fw = {
 	},
 };
 
-static struct iwl_mvm mvm = {.fw = &fw};
+static struct iwl_mvm mvm = {
+	.hw = &hw,
+	.fw = &fw,
+};
 
 static const struct link_grading_case {
 	const char *desc;
@@ -237,6 +248,7 @@ static const struct valid_link_pair_case {
 	enum nl80211_chan_width cw_b;
 	s32 sig_a;
 	s32 sig_b;
+	bool csa_a;
 	bool valid;
 } valid_link_pair_cases[] = {
 	{
@@ -335,6 +347,17 @@ static const struct valid_link_pair_case {
 		.cw_b = NL80211_CHAN_WIDTH_160,
 		.valid = true,
 	},
+	{
+		.desc = "CSA active",
+		.chan_a = &chan_6ghz,
+		.cw_a = NL80211_CHAN_WIDTH_160,
+		.sig_a = -5,
+		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_160,
+		.valid = false,
+		/* same as previous entry with valid=true except for CSA */
+		.csa_a = true,
+	},
 };
 
 KUNIT_ARRAY_PARAM_DESC(valid_link_pair, valid_link_pair_cases, desc)
@@ -358,6 +381,7 @@ static void test_valid_link_pair(struct kunit *test)
 		.link_id = 5,
 		.signal = params->sig_b,
 	};
+	struct ieee80211_bss_conf *conf;
 	bool result;
 
 	KUNIT_ASSERT_NOT_NULL(test, vif);
@@ -377,7 +401,20 @@ static void test_valid_link_pair(struct kunit *test)
 	mvm.last_bt_notif.wifi_loss_low_rssi = params->bt;
 	mvmvif->mvm = &mvm;
 
+	conf = kunit_kzalloc(test, sizeof(*vif->link_conf[0]), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conf);
+	conf->chanreq.oper = chandef_a;
+	conf->csa_active = params->csa_a;
+	vif->link_conf[link_a.link_id] = (void __rcu *)conf;
+
+	conf = kunit_kzalloc(test, sizeof(*vif->link_conf[0]), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conf);
+	conf->chanreq.oper = chandef_b;
+	vif->link_conf[link_b.link_id] = (void __rcu *)conf;
+
+	wiphy_lock(&wiphy);
 	result = iwl_mvm_mld_valid_link_pair(vif, &link_a, &link_b);
+	wiphy_unlock(&wiphy);
 
 	KUNIT_EXPECT_EQ(test, result, params->valid);
 

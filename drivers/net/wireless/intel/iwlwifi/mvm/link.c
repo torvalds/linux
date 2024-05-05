@@ -597,8 +597,14 @@ iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct wiphy *wiphy = mvm->hw->wiphy;
+	struct ieee80211_bss_conf *conf;
 	enum iwl_mvm_esr_state ret = 0;
 	s8 thresh;
+
+	conf = wiphy_dereference(wiphy, vif->link_conf[link->link_id]);
+	if (WARN_ON_ONCE(!conf))
+		return false;
 
 	/* BT Coex effects eSR mode only if one of the links is on LB */
 	if (link->chandef->chan->band == NL80211_BAND_2GHZ &&
@@ -611,6 +617,9 @@ iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
 
 	if (link->signal < thresh)
 		ret |= IWL_MVM_ESR_EXIT_LOW_RSSI;
+
+	if (conf->csa_active)
+		ret |= IWL_MVM_ESR_EXIT_CSA;
 
 	if (ret)
 		IWL_DEBUG_INFO(mvm,

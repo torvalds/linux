@@ -1290,6 +1290,45 @@ iwl_mvm_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return NEG_TTLM_RES_ACCEPT;
 }
 
+static int
+iwl_mvm_mld_mac_pre_channel_switch(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_channel_switch *chsw)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	if (mvmvif->esr_active) {
+		u8 primary = iwl_mvm_get_primary_link(vif);
+		int selected;
+
+		/* prefer primary unless quiet CSA on it */
+		if (chsw->link_id == primary && chsw->block_tx)
+			selected = iwl_mvm_get_other_link(vif, primary);
+		else
+			selected = primary;
+
+		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_CSA, selected);
+		mutex_unlock(&mvm->mutex);
+
+		/*
+		 * If we've not kept the link active that's doing the CSA
+		 * then we don't need to do anything else, just return.
+		 */
+		if (selected != chsw->link_id)
+			return 0;
+
+		mutex_lock(&mvm->mutex);
+	}
+
+	ret = iwl_mvm_pre_channel_switch(mvm, vif, chsw);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
@@ -1343,7 +1382,7 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.tx_last_beacon = iwl_mvm_tx_last_beacon,
 
 	.channel_switch = iwl_mvm_channel_switch,
-	.pre_channel_switch = iwl_mvm_pre_channel_switch,
+	.pre_channel_switch = iwl_mvm_mld_mac_pre_channel_switch,
 	.post_channel_switch = iwl_mvm_post_channel_switch,
 	.abort_channel_switch = iwl_mvm_abort_channel_switch,
 	.channel_switch_rx_beacon = iwl_mvm_channel_switch_rx_beacon,
