@@ -37,6 +37,7 @@ static int bmi160_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bmi160_i2c_id[] = {
+	{"bmi120", 0},
 	{"bmi160", 0},
 	{}
 };
@@ -52,12 +53,14 @@ static const struct acpi_device_id bmi160_acpi_match[] = {
 	 * the affected devices are from 2021/2022.
 	 */
 	{"10EC5280", 0},
+	{"BMI0120", 0},
 	{"BMI0160", 0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bmi160_acpi_match);
 
 static const struct of_device_id bmi160_of_match[] = {
+	{ .compatible = "bosch,bmi120" },
 	{ .compatible = "bosch,bmi160" },
 	{ },
 };
