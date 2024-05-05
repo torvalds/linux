@@ -12,56 +12,13 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/elf.h>
-#include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <linux/gfp.h>
-#include <linux/execmem.h>
 
 #include <asm/sections.h>
 #include <asm/smp_plat.h>
 #include <asm/unwind.h>
 #include <asm/opcodes.h>
-
-#ifdef CONFIG_XIP_KERNEL
-/*
- * The XIP kernel text is mapped in the module area for modules and
- * some other stuff to work without any indirect relocations.
- * MODULES_VADDR is redefined here and not in asm/memory.h to avoid
- * recompiling the whole kernel when CONFIG_XIP_KERNEL is turned on/off.
- */
-#undef MODULES_VADDR
-#define MODULES_VADDR	(((unsigned long)_exiprom + ~PMD_MASK) & PMD_MASK)
-#endif
-
-#ifdef CONFIG_MMU
-static struct execmem_info execmem_info __ro_after_init;
-
-struct execmem_info __init *execmem_arch_setup(void)
-{
-	unsigned long fallback_start = 0, fallback_end = 0;
-
-	if (IS_ENABLED(CONFIG_ARM_MODULE_PLTS)) {
-		fallback_start = VMALLOC_START;
-		fallback_end = VMALLOC_END;
-	}
-
-	execmem_info = (struct execmem_info){
-		.ranges = {
-			[EXECMEM_DEFAULT] = {
-				.start	= MODULES_VADDR,
-				.end	= MODULES_END,
-				.pgprot	= PAGE_KERNEL_EXEC,
-				.alignment = 1,
-				.fallback_start	= fallback_start,
-				.fallback_end	= fallback_end,
-			},
-		},
-	};
-
-	return &execmem_info;
-}
-#endif
 
 bool module_init_section(const char *name)
 {

@@ -41,7 +41,6 @@
 
 #include <linux/moduleloader.h>
 #include <linux/elf.h>
-#include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/ftrace.h>
 #include <linux/string.h>
@@ -49,7 +48,6 @@
 #include <linux/bug.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/execmem.h>
 
 #include <asm/unwind.h>
 #include <asm/sections.h>
@@ -172,24 +170,6 @@ static inline int reassemble_22(int as22)
 		((as22 & 0x00f800) << 5) |
 		((as22 & 0x000400) >> 8) |
 		((as22 & 0x0003ff) << 3));
-}
-
-static struct execmem_info execmem_info __ro_after_init;
-
-struct execmem_info __init *execmem_arch_setup(void)
-{
-	execmem_info = (struct execmem_info){
-		.ranges = {
-			[EXECMEM_DEFAULT] = {
-				.start	= VMALLOC_START,
-				.end	= VMALLOC_END,
-				.pgprot	= PAGE_KERNEL_RWX,
-				.alignment = 1,
-			},
-		},
-	};
-
-	return &execmem_info;
 }
 
 #ifndef CONFIG_64BIT

@@ -11,10 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/moduleloader.h>
-#include <linux/vmalloc.h>
 #include <linux/sizes.h>
 #include <linux/pgtable.h>
-#include <linux/execmem.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
 
@@ -905,38 +903,6 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 
 	return 0;
 }
-
-#ifdef CONFIG_MMU
-static struct execmem_info execmem_info __ro_after_init;
-
-struct execmem_info __init *execmem_arch_setup(void)
-{
-	execmem_info = (struct execmem_info){
-		.ranges = {
-			[EXECMEM_DEFAULT] = {
-				.start	= MODULES_VADDR,
-				.end	= MODULES_END,
-				.pgprot	= PAGE_KERNEL,
-				.alignment = 1,
-			},
-			[EXECMEM_KPROBES] = {
-				.start	= VMALLOC_START,
-				.end	= VMALLOC_END,
-				.pgprot	= PAGE_KERNEL_READ_EXEC,
-				.alignment = 1,
-			},
-			[EXECMEM_BPF] = {
-				.start	= BPF_JIT_REGION_START,
-				.end	= BPF_JIT_REGION_END,
-				.pgprot	= PAGE_KERNEL,
-				.alignment = PAGE_SIZE,
-			},
-		},
-	};
-
-	return &execmem_info;
-}
-#endif
 
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,

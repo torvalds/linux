@@ -13,14 +13,12 @@
 #include <linux/elf.h>
 #include <linux/mm.h>
 #include <linux/numa.h>
-#include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/jump_label.h>
-#include <linux/execmem.h>
 #include <asm/jump_label.h>
 
 struct mips_hi16 {
@@ -31,26 +29,6 @@ struct mips_hi16 {
 
 static LIST_HEAD(dbe_list);
 static DEFINE_SPINLOCK(dbe_lock);
-
-#ifdef MODULES_VADDR
-static struct execmem_info execmem_info __ro_after_init;
-
-struct execmem_info __init *execmem_arch_setup(void)
-{
-	execmem_info = (struct execmem_info){
-		.ranges = {
-			[EXECMEM_DEFAULT] = {
-				.start	= MODULES_VADDR,
-				.end	= MODULES_END,
-				.pgprot	= PAGE_KERNEL,
-				.alignment = 1,
-			},
-		},
-	};
-
-	return &execmem_info;
-}
-#endif
 
 static void apply_r_mips_32(u32 *location, u32 base, Elf_Addr v)
 {
