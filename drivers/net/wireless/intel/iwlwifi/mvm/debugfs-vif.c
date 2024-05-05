@@ -722,6 +722,33 @@ static ssize_t iwl_dbgfs_int_mlo_scan_write(struct ieee80211_vif *vif,
 	return ret ?: count;
 }
 
+static ssize_t iwl_dbgfs_block_esr_write(struct ieee80211_vif *vif, char *buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	u32 reason;
+	u8 block;
+	int ret;
+
+	ret = sscanf(buf, "%u %hhu", &reason, &block);
+	if (ret < 0)
+		return ret;
+
+	if (hweight16(reason) != 1 || !(reason & IWL_MVM_BLOCK_ESR_REASONS))
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	if (block)
+		iwl_mvm_block_esr(mvm, vif, reason,
+				  iwl_mvm_get_primary_link(vif));
+	else
+		iwl_mvm_unblock_esr(mvm, vif, reason);
+	mutex_unlock(&mvm->mutex);
+
+	return count;
+}
+
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct ieee80211_vif)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -742,6 +769,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(quota_min, 32);
 MVM_DEBUGFS_READ_FILE_OPS(os_device_timediff);
 MVM_DEBUGFS_WRITE_FILE_OPS(int_mlo_scan, 32);
+MVM_DEBUGFS_WRITE_FILE_OPS(block_esr, 32);
 
 void iwl_mvm_vif_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
@@ -772,6 +800,7 @@ void iwl_mvm_vif_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	debugfs_create_bool("ftm_unprotected", 0200, mvmvif->dbgfs_dir,
 			    &mvmvif->ftm_unprotected);
 	MVM_DEBUGFS_ADD_FILE_VIF(int_mlo_scan, mvmvif->dbgfs_dir, 0200);
+	MVM_DEBUGFS_ADD_FILE_VIF(block_esr, mvmvif->dbgfs_dir, 0600);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
 	    mvmvif == mvm->bf_allowed_vif)
