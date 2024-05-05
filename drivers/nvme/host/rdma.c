@@ -1121,8 +1121,8 @@ static void nvme_rdma_reconnect_ctrl_work(struct work_struct *work)
 	return;
 
 requeue:
-	dev_info(ctrl->ctrl.device, "Failed reconnect attempt %d\n",
-			ctrl->ctrl.nr_reconnects);
+	dev_info(ctrl->ctrl.device, "Failed reconnect attempt %d/%d\n",
+		 ctrl->ctrl.nr_reconnects, ctrl->ctrl.opts->max_reconnects);
 	nvme_rdma_reconnect_or_remove(ctrl, ret);
 }
 
