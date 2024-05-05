@@ -3202,6 +3202,7 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	struct iwl_umac_scan_complete *notif = (void *)pkt->data;
 	u32 uid = __le32_to_cpu(notif->uid);
 	bool aborted = (notif->status == IWL_SCAN_OFFLOAD_ABORTED);
+	bool select_links = false;
 
 	mvm->mei_scan_filter.is_mei_limited_scan = false;
 
@@ -3235,6 +3236,11 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_INT_MLO) {
 		IWL_DEBUG_SCAN(mvm, "Internal MLO scan completed\n");
+		/*
+		 * Other scan types won't necessarily scan for the MLD links channels.
+		 * Therefore, only select links after successful internal scan.
+		 */
+		select_links = notif->status == IWL_SCAN_OFFLOAD_COMPLETED;
 	}
 
 	mvm->scan_status &= ~mvm->scan_uid_status[uid];
@@ -3255,7 +3261,7 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 
 	mvm->scan_uid_status[uid] = 0;
 
-	if (notif->status == IWL_SCAN_OFFLOAD_COMPLETED)
+	if (select_links)
 		iwl_mvm_post_scan_link_selection(mvm);
 }
 
@@ -3517,9 +3523,10 @@ out:
 	return ret;
 }
 
-int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       struct ieee80211_channel **channels,
-			       size_t n_channels)
+static int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_channel **channels,
+				      size_t n_channels)
 {
 	struct cfg80211_scan_request *req = NULL;
 	struct ieee80211_scan_ies ies = {};
@@ -3562,4 +3569,38 @@ int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	IWL_DEBUG_SCAN(mvm, "Internal MLO scan: ret=%d\n", ret);
 	return ret;
+}
+
+int iwl_mvm_int_mlo_scan(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct ieee80211_channel *channels[IEEE80211_MLD_MAX_NUM_LINKS];
+	unsigned long usable_links = ieee80211_vif_usable_links(vif);
+	size_t n_channels = 0;
+	u8 link_id;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (mvm->scan_status & IWL_MVM_SCAN_INT_MLO) {
+		IWL_DEBUG_SCAN(mvm, "Internal MLO scan is already running\n");
+		return -EBUSY;
+	}
+
+	rcu_read_lock();
+
+	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf =
+			rcu_dereference(vif->link_conf[link_id]);
+
+		if (WARN_ON_ONCE(!link_conf))
+			continue;
+
+		channels[n_channels++] = link_conf->chanreq.oper.chan;
+	}
+
+	rcu_read_unlock();
+
+	if (!n_channels)
+		return -EINVAL;
+
+	return iwl_mvm_int_mlo_scan_start(mvm, vif, channels, n_channels);
 }

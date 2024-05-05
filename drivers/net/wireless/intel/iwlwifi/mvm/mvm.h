@@ -429,6 +429,7 @@ struct iwl_mvm_esr_exit {
  *	@last_esr_exit::reason, only counting exits due to
  *	&IWL_MVM_ESR_PREVENT_REASONS.
  * @prevent_esr_done_wk: work that should be done when esr prevention ends.
+ * @mlo_int_scan_wk: work for the internal MLO scan.
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -525,6 +526,7 @@ struct iwl_mvm_vif {
 	struct iwl_mvm_esr_exit last_esr_exit;
 	u8 exit_same_reason_count;
 	struct wiphy_delayed_work prevent_esr_done_wk;
+	struct wiphy_delayed_work mlo_int_scan_wk;
 
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -2089,13 +2091,11 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct ieee80211_scan_ies *ies);
 size_t iwl_mvm_scan_size(struct iwl_mvm *mvm);
 int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify);
-int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       struct ieee80211_channel **channels,
-			       size_t n_channels);
 
 int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm);
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm);
 void iwl_mvm_scan_timeout_wk(struct work_struct *work);
+int iwl_mvm_int_mlo_scan(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 /* Scheduled scan */
 void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,

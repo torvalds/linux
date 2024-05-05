@@ -712,31 +712,7 @@ static ssize_t iwl_dbgfs_int_mlo_scan_write(struct ieee80211_vif *vif,
 	if (!action) {
 		ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_INT_MLO, false);
 	} else if (action == 1) {
-		struct ieee80211_channel *channels[IEEE80211_MLD_MAX_NUM_LINKS];
-		unsigned long usable_links = ieee80211_vif_usable_links(vif);
-		size_t n_channels = 0;
-		u8 link_id;
-
-		rcu_read_lock();
-
-		for_each_set_bit(link_id, &usable_links,
-				 IEEE80211_MLD_MAX_NUM_LINKS) {
-			struct ieee80211_bss_conf *link_conf =
-				rcu_dereference(vif->link_conf[link_id]);
-
-			if (WARN_ON_ONCE(!link_conf))
-				continue;
-
-			channels[n_channels++] = link_conf->chanreq.oper.chan;
-		}
-
-		rcu_read_unlock();
-
-		if (n_channels)
-			ret = iwl_mvm_int_mlo_scan_start(mvm, vif, channels,
-							 n_channels);
-		else
-			ret = -EINVAL;
+		ret = iwl_mvm_int_mlo_scan(mvm, vif);
 	} else {
 		ret = -EINVAL;
 	}

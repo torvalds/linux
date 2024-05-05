@@ -787,37 +787,42 @@ u8 iwl_mvm_get_other_link(struct ieee80211_vif *vif, u8 link_id)
 #define IWL_MVM_ESR_PREVENT_SHORT	(HZ * 300)
 #define IWL_MVM_ESR_PREVENT_LONG	(HZ * 600)
 
-static void iwl_mvm_recalc_esr_prevention(struct iwl_mvm *mvm,
-					  struct iwl_mvm_vif *mvmvif,
-					  enum iwl_mvm_esr_state reason)
+static bool iwl_mvm_check_esr_prevention(struct iwl_mvm *mvm,
+					 struct iwl_mvm_vif *mvmvif,
+					 enum iwl_mvm_esr_state reason)
 {
-	unsigned long now = jiffies;
+	bool timeout_expired = time_after(jiffies,
+					  mvmvif->last_esr_exit.ts +
+					  IWL_MVM_PREVENT_ESR_TIMEOUT);
 	unsigned long delay;
-	bool timeout_expired =
-		time_after(now, mvmvif->last_esr_exit.ts +
-				IWL_MVM_PREVENT_ESR_TIMEOUT);
-
-	if (WARN_ON(!(IWL_MVM_ESR_PREVENT_REASONS & reason)))
-		return;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	mvmvif->last_esr_exit.ts = now;
+	/* Only handle reasons that can cause prevention */
+	if (!(reason & IWL_MVM_ESR_PREVENT_REASONS))
+		return false;
 
-	if (timeout_expired ||
-	    mvmvif->last_esr_exit.reason != reason) {
-		mvmvif->last_esr_exit.reason = reason;
+	/*
+	 * Reset the counter if more than 400 seconds have passed between one
+	 * exit and the other, or if we exited due to a different reason.
+	 * Will also reset the counter after the long prevention is done.
+	 */
+	if (timeout_expired || mvmvif->last_esr_exit.reason != reason) {
 		mvmvif->exit_same_reason_count = 1;
-		return;
+		return false;
 	}
 
 	mvmvif->exit_same_reason_count++;
 	if (WARN_ON(mvmvif->exit_same_reason_count < 2 ||
 		    mvmvif->exit_same_reason_count > 3))
-		return;
+		return false;
 
 	mvmvif->esr_disable_reason |= IWL_MVM_ESR_BLOCKED_PREVENTION;
 
+	/*
+	 * For the second exit, use a short prevention, and for the third one,
+	 * use a long prevention.
+	 */
 	delay = mvmvif->exit_same_reason_count == 2 ?
 		IWL_MVM_ESR_PREVENT_SHORT :
 		IWL_MVM_ESR_PREVENT_LONG;
@@ -828,7 +833,10 @@ static void iwl_mvm_recalc_esr_prevention(struct iwl_mvm *mvm,
 
 	wiphy_delayed_work_queue(mvm->hw->wiphy,
 				 &mvmvif->prevent_esr_done_wk, delay);
+	return true;
 }
+
+#define IWL_MVM_TRIGGER_LINK_SEL_TIME (IWL_MVM_TRIGGER_LINK_SEL_TIME_SEC * HZ)
 
 /* API to exit eSR mode */
 void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -837,6 +845,7 @@ void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u16 new_active_links;
+	bool prevented;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -857,8 +866,25 @@ void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	ieee80211_set_active_links_async(vif, new_active_links);
 
-	if (IWL_MVM_ESR_PREVENT_REASONS & reason)
-		iwl_mvm_recalc_esr_prevention(mvm, mvmvif, reason);
+	/* Prevent EMLSR if needed */
+	prevented = iwl_mvm_check_esr_prevention(mvm, mvmvif, reason);
+
+	/* Remember why and when we exited EMLSR */
+	mvmvif->last_esr_exit.ts = jiffies;
+	mvmvif->last_esr_exit.reason = reason;
+
+	/*
+	 * If EMLSR is prevented now - don't try to get back to EMLSR.
+	 * If we exited due to a blocking event, we will try to get back to
+	 * EMLSR when the corresponding unblocking event will happen.
+	 */
+	if (prevented || reason & IWL_MVM_BLOCK_ESR_REASONS)
+		return;
+
+	/* If EMLSR is not blocked - try enabling it again in 30 seconds */
+	wiphy_delayed_work_queue(mvm->hw->wiphy,
+				 &mvmvif->mlo_int_scan_wk,
+				 round_jiffies_relative(IWL_MVM_TRIGGER_LINK_SEL_TIME));
 }
 
 void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -882,6 +908,43 @@ void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	iwl_mvm_exit_esr(mvm, vif, reason, link_to_keep);
 }
 
+static void iwl_mvm_esr_unblocked(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	bool need_new_sel = time_after(jiffies, mvmvif->last_esr_exit.ts +
+						IWL_MVM_TRIGGER_LINK_SEL_TIME);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!ieee80211_vif_is_mld(vif) || !mvmvif->authorized ||
+	    mvmvif->esr_active)
+		return;
+
+	IWL_DEBUG_INFO(mvm, "EMLSR is unblocked\n");
+
+	/*
+	 * If EMLSR was blocked for more than 30 seconds, or the last link
+	 * selection decided to not enter EMLSR, trigger a new scan.
+	 */
+	if (need_new_sel || hweight16(mvmvif->link_selection_res) < 2) {
+		IWL_DEBUG_INFO(mvm, "Trigger MLO scan\n");
+		wiphy_delayed_work_queue(mvm->hw->wiphy,
+					 &mvmvif->mlo_int_scan_wk, 0);
+	/*
+	 * If EMLSR was blocked for less than 30 seconds, and the last link
+	 * selection decided to use EMLSR, activate EMLSR using the previous
+	 * link selection result.
+	 */
+	} else {
+		IWL_DEBUG_INFO(mvm,
+			       "Use the latest link selection result: 0x%x\n",
+			       mvmvif->link_selection_res);
+		ieee80211_set_active_links_async(vif,
+						 mvmvif->link_selection_res);
+	}
+}
+
 void iwl_mvm_unblock_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 enum iwl_mvm_esr_state reason)
 {
@@ -898,4 +961,7 @@ void iwl_mvm_unblock_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       reason);
 
 	mvmvif->esr_disable_reason &= ~reason;
+
+	if (!mvmvif->esr_disable_reason)
+		iwl_mvm_esr_unblocked(mvm, vif);
 }

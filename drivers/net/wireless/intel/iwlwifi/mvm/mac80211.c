@@ -1625,6 +1625,20 @@ static void iwl_mvm_prevent_esr_done_wk(struct wiphy *wiphy,
 	mutex_unlock(&mvm->mutex);
 }
 
+static void iwl_mvm_mlo_int_scan_wk(struct wiphy *wiphy, struct wiphy_work *wk)
+{
+	struct iwl_mvm_vif *mvmvif = container_of(wk, struct iwl_mvm_vif,
+						  mlo_int_scan_wk.work);
+	struct ieee80211_vif *vif =
+		container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
+
+	mutex_lock(&mvmvif->mvm->mutex);
+
+	iwl_mvm_int_mlo_scan(mvmvif->mvm, vif);
+
+	mutex_unlock(&mvmvif->mvm->mutex);
+}
+
 void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 {
 	lockdep_assert_held(&mvm->mutex);
@@ -1637,6 +1651,9 @@ void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 
 	wiphy_delayed_work_init(&mvmvif->prevent_esr_done_wk,
 				iwl_mvm_prevent_esr_done_wk);
+
+	wiphy_delayed_work_init(&mvmvif->mlo_int_scan_wk,
+				iwl_mvm_mlo_int_scan_wk);
 }
 
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
@@ -1782,6 +1799,9 @@ void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 
 	wiphy_delayed_work_cancel(mvm->hw->wiphy,
 				  &mvmvif->prevent_esr_done_wk);
+
+	wiphy_delayed_work_cancel(mvm->hw->wiphy,
+				  &mvmvif->mlo_int_scan_wk);
 
 	cancel_delayed_work_sync(&mvmvif->csa_work);
 }
@@ -3877,7 +3897,6 @@ out:
 	return callbacks->update_sta(mvm, vif, sta);
 }
 
-
 static int
 iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
@@ -3901,7 +3920,7 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif));
 
 		mvmvif->authorized = 1;
-		mvmvif->link_selection_res = 0;
+		mvmvif->link_selection_res = vif->active_links;
 		mvmvif->link_selection_primary =
 			vif->active_links ? __ffs(vif->active_links) : 0;
 
@@ -3967,6 +3986,9 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 
 		wiphy_delayed_work_cancel(mvm->hw->wiphy,
 					  &mvmvif->prevent_esr_done_wk);
+
+		wiphy_delayed_work_cancel(mvm->hw->wiphy,
+					  &mvmvif->mlo_int_scan_wk);
 
 		/* No need for the periodic statistics anymore */
 		if (ieee80211_vif_is_mld(vif) && mvmvif->esr_active)
