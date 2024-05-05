@@ -803,6 +803,14 @@ config SM_CAMCC_6350
 	  Support for the camera clock controller on SM6350 devices.
 	  Say Y if you want to support camera devices and camera functionality.
 
+config SM_CAMCC_7150
+	tristate "SM7150 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SM_GCC_7150
+	help
+	  Support for the camera clock controller on SM7150 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_CAMCC_8250
 	tristate "SM8250 Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
