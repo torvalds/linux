@@ -59,19 +59,6 @@ static struct omap_dma_dev_attr *d;
 static int enable_1510_mode;
 static u32 errata;
 
-struct dma_link_info {
-	int *linked_dmach_q;
-	int no_of_lchs_linked;
-
-	int q_count;
-	int q_tail;
-	int q_head;
-
-	int chain_state;
-	int chain_mode;
-
-};
-
 static int dma_lch_count;
 static int dma_chan_count;
 static int omap_dma_reserve_channels;
