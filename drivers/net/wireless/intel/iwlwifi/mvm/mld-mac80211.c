@@ -1180,7 +1180,7 @@ bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
 	    !(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP))
 		return false;
 
-	return !(mvmvif->esr_disable_reason & ~IWL_MVM_ESR_BLOCKED_COEX);
+	return !mvmvif->esr_disable_reason;
 }
 
 static bool iwl_mvm_mld_can_activate_links(struct ieee80211_hw *hw,

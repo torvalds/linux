@@ -592,7 +592,8 @@ s8 iwl_mvm_get_esr_rssi_thresh(struct iwl_mvm *mvm,
 
 static u32
 iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
-				 const struct iwl_mvm_link_sel_data *link)
+				 const struct iwl_mvm_link_sel_data *link,
+				 bool primary)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
@@ -601,8 +602,10 @@ iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
 
 	/* BT Coex effects eSR mode only if one of the links is on LB */
 	if (link->chandef->chan->band == NL80211_BAND_2GHZ &&
-	    mvmvif->esr_disable_reason & IWL_MVM_ESR_BLOCKED_COEX)
-		ret |= IWL_MVM_ESR_BLOCKED_COEX;
+	    (!iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif, link->signal,
+						 primary)))
+		ret |= IWL_MVM_ESR_EXIT_COEX;
+
 	thresh = iwl_mvm_get_esr_rssi_thresh(mvm, link->chandef,
 					     false);
 
@@ -622,8 +625,8 @@ bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 				 const struct iwl_mvm_link_sel_data *b)
 {
 	/* Per-link considerations */
-	if (iwl_mvm_esr_disallowed_with_link(vif, a) ||
-	    iwl_mvm_esr_disallowed_with_link(vif, b))
+	if (iwl_mvm_esr_disallowed_with_link(vif, a, true) ||
+	    iwl_mvm_esr_disallowed_with_link(vif, b, false))
 		return false;
 
 	/* Per-combination considerations */

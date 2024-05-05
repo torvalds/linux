@@ -353,20 +353,21 @@ struct iwl_mvm_vif_link_info {
  * For the blocking reasons - use iwl_mvm_(un)block_esr(), and for the exit
  * reasons - use iwl_mvm_exit_esr().
  *
- * @IWL_MVM_ESR_BLOCKED_COEX: COEX is preventing the enablement of EMLSR
  * @IWL_MVM_ESR_BLOCKED_PREVENTION: Prevent EMLSR to avoid entering and exiting
  *	in a loop.
  * @IWL_MVM_ESR_BLOCKED_WOWLAN: WOWLAN is preventing the enablement of EMLSR
  * @IWL_MVM_ESR_EXIT_MISSED_BEACON: exited EMLSR due to missed beacons
  * @IWL_MVM_ESR_EXIT_LOW_RSSI: link is deactivated/not allowed for EMLSR
  *	due to low RSSI.
+ * @IWL_MVM_ESR_EXIT_COEX: link is deactivated/not allowed for EMLSR
+ *	due to BT Coex.
  */
 enum iwl_mvm_esr_state {
-	IWL_MVM_ESR_BLOCKED_COEX	= 0x1,
-	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x2,
-	IWL_MVM_ESR_BLOCKED_WOWLAN	= 0x4,
+	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x1,
+	IWL_MVM_ESR_BLOCKED_WOWLAN	= 0x2,
 	IWL_MVM_ESR_EXIT_MISSED_BEACON	= 0x10000,
 	IWL_MVM_ESR_EXIT_LOW_RSSI	= 0x20000,
+	IWL_MVM_ESR_EXIT_COEX		= 0x40000,
 };
 
 #define IWL_MVM_BLOCK_ESR_REASONS 0xffff
@@ -2221,9 +2222,6 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 u8 iwl_mvm_bt_coex_get_single_ant_msk(struct iwl_mvm *mvm, u8 enabled_ants);
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac);
-void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     int link_id);
 
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -2888,5 +2886,12 @@ void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 s8 iwl_mvm_get_esr_rssi_thresh(struct iwl_mvm *mvm,
 			       const struct cfg80211_chan_def *chandef,
 			       bool low);
-
+void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     int link_id);
+bool
+iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif,
+				   s32 link_rssi,
+				   bool primary);
 #endif /* __IWL_MVM_H__ */

@@ -37,7 +37,20 @@ static struct cfg80211_bss bss = {};
 
 static struct ieee80211_bss_conf link_conf = {.bss = &bss};
 
-static struct iwl_mvm mvm = {};
+static const struct iwl_fw_cmd_version entry = {
+	.group = LEGACY_GROUP,
+	.cmd = BT_PROFILE_NOTIFICATION,
+	.notif_ver = 4
+};
+
+static struct iwl_fw fw = {
+	.ucode_capa = {
+		.n_cmd_versions = 1,
+		.cmd_versions = &entry,
+	},
+};
+
+static struct iwl_mvm mvm = {.fw = &fw};
 
 static const struct link_grading_case {
 	const char *desc;
@@ -217,7 +230,7 @@ kunit_test_suite(link_grading);
 
 static const struct valid_link_pair_case {
 	const char *desc;
-	u32 esr_disable_reason;
+	bool bt;
 	struct ieee80211_channel *chan_a;
 	struct ieee80211_channel *chan_b;
 	enum nl80211_chan_width cw_a;
@@ -240,7 +253,7 @@ static const struct valid_link_pair_case {
 	},
 	{
 		.desc = "LB + HB, with BT.",
-		.esr_disable_reason = 0x1,
+		.bt = true,
 		.chan_a = &chan_2ghz,
 		.chan_b = &chan_5ghz,
 		.valid = false,
@@ -370,7 +383,7 @@ static void test_valid_link_pair(struct kunit *test)
 #endif
 	mvm.trans = trans;
 
-	mvmvif->esr_disable_reason = params->esr_disable_reason;
+	mvm.last_bt_notif.wifi_loss_low_rssi = params->bt;
 	mvmvif->mvm = &mvm;
 
 	result = iwl_mvm_mld_valid_link_pair(vif, &link_a, &link_b);
