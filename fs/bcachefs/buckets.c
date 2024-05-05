@@ -915,7 +915,6 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    enum bch_data_type type,
 				    unsigned sectors)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	int ret = 0;
 
@@ -1046,13 +1045,18 @@ static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
 static int __bch2_trans_mark_dev_sb(struct btree_trans *trans, struct bch_dev *ca,
 			enum btree_iter_update_trigger_flags flags)
 {
-	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
+	struct bch_fs *c = trans->c;
+
+	mutex_lock(&c->sb_lock);
+	struct bch_sb_layout layout = ca->disk_sb.sb->layout;
+	mutex_unlock(&c->sb_lock);
+
 	u64 bucket = 0;
 	unsigned i, bucket_sectors = 0;
 	int ret;
 
-	for (i = 0; i < layout->nr_superblocks; i++) {
-		u64 offset = le64_to_cpu(layout->sb_offset[i]);
+	for (i = 0; i < layout.nr_superblocks; i++) {
+		u64 offset = le64_to_cpu(layout.sb_offset[i]);
 
 		if (offset == BCH_SB_SECTOR) {
 			ret = bch2_trans_mark_metadata_sectors(trans, ca,
@@ -1063,7 +1067,7 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans, struct bch_dev *c
 		}
 
 		ret = bch2_trans_mark_metadata_sectors(trans, ca, offset,
-				      offset + (1 << layout->sb_max_size_bits),
+				      offset + (1 << layout.sb_max_size_bits),
 				      BCH_DATA_sb, &bucket, &bucket_sectors, flags);
 		if (ret)
 			return ret;
