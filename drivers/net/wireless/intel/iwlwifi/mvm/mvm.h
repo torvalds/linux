@@ -353,6 +353,8 @@ struct iwl_mvm_vif_link_info {
  * For the blocking reasons - use iwl_mvm_(un)block_esr(), and for the exit
  * reasons - use iwl_mvm_exit_esr().
  *
+ * Note: new reasons shall be added to HANDLE_ESR_REASONS as well (for logs)
+ *
  * @IWL_MVM_ESR_BLOCKED_PREVENTION: Prevent EMLSR to avoid entering and exiting
  *	in a loop.
  * @IWL_MVM_ESR_BLOCKED_WOWLAN: WOWLAN is preventing the enablement of EMLSR

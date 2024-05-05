@@ -5,6 +5,34 @@
 #include "mvm.h"
 #include "time-event.h"
 
+#define HANDLE_ESR_REASONS(HOW)		\
+	HOW(BLOCKED_PREVENTION)		\
+	HOW(BLOCKED_WOWLAN)		\
+	HOW(BLOCKED_TPT)		\
+	HOW(BLOCKED_FW)			\
+	HOW(BLOCKED_NON_BSS)		\
+	HOW(EXIT_MISSED_BEACON)		\
+	HOW(EXIT_LOW_RSSI)		\
+	HOW(EXIT_COEX)			\
+	HOW(EXIT_BANDWIDTH)		\
+	HOW(EXIT_CSA)
+
+static const char *const iwl_mvm_esr_states_names[] = {
+#define NAME_ENTRY(x) [ilog2(IWL_MVM_ESR_##x)] = #x,
+	HANDLE_ESR_REASONS(NAME_ENTRY)
+};
+
+static const char *iwl_get_esr_state_string(enum iwl_mvm_esr_state state)
+{
+	int offs = ilog2(state);
+
+	if (offs >= ARRAY_SIZE(iwl_mvm_esr_states_names) ||
+	    !iwl_mvm_esr_states_names[offs])
+		return "UNKNOWN";
+
+	return iwl_mvm_esr_states_names[offs];
+}
+
 static u32 iwl_mvm_get_free_fw_link_id(struct iwl_mvm *mvm,
 				       struct iwl_mvm_vif *mvm_vif)
 {
@@ -680,10 +708,16 @@ iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
 	if (conf->csa_active)
 		ret |= IWL_MVM_ESR_EXIT_CSA;
 
+#define NAME_FMT(x) "%s"
+#define NAME_PR(x) (ret & IWL_MVM_ESR_##x) ? "[" #x "]" : "",
+
 	if (ret)
 		IWL_DEBUG_INFO(mvm,
-			       "Link %d is not allowed for esr. Reason: 0x%x\n",
-			       link->link_id, ret);
+			       "Link %d is not allowed for esr. reason = "
+			       HANDLE_ESR_REASONS(NAME_FMT) " (0x%x)\n",
+			       link->link_id,
+			       HANDLE_ESR_REASONS(NAME_PR)
+			       ret);
 	return ret;
 }
 
@@ -903,8 +937,9 @@ static bool iwl_mvm_check_esr_prevention(struct iwl_mvm *mvm,
 		IWL_MVM_ESR_PREVENT_LONG;
 
 	IWL_DEBUG_INFO(mvm,
-		       "Preventing EMLSR for %ld seconds due to %u exits with the reason 0x%x\n",
-		       delay / HZ, mvmvif->exit_same_reason_count, reason);
+		       "Preventing EMLSR for %ld seconds due to %u exits with the reason = %s (0x%x)\n",
+		       delay / HZ, mvmvif->exit_same_reason_count,
+		       iwl_get_esr_state_string(reason), reason);
 
 	wiphy_delayed_work_queue(mvm->hw->wiphy,
 				 &mvmvif->prevent_esr_done_wk, delay);
@@ -936,8 +971,9 @@ void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	new_active_links = BIT(link_to_keep);
 	IWL_DEBUG_INFO(mvm,
-		       "Exiting EMLSR. Reason = 0x%x. Current active links=0x%x, new active links = 0x%x\n",
-		       reason, vif->active_links, new_active_links);
+		       "Exiting EMLSR. reason = %s (0x%x). Current active links=0x%x, new active links = 0x%x\n",
+		       iwl_get_esr_state_string(reason), reason,
+		       vif->active_links, new_active_links);
 
 	ieee80211_set_active_links_async(vif, new_active_links);
 
@@ -975,8 +1011,9 @@ void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	if (!(mvmvif->esr_disable_reason & reason))
-		IWL_DEBUG_INFO(mvm, "Blocking EMLSR mode. reason = 0x%x\n",
-			       reason);
+		IWL_DEBUG_INFO(mvm,
+			       "Blocking EMLSR mode. reason = %s (0x%x)\n",
+			       iwl_get_esr_state_string(reason), reason);
 
 	mvmvif->esr_disable_reason |= reason;
 
@@ -1061,7 +1098,9 @@ void iwl_mvm_unblock_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (!(mvmvif->esr_disable_reason & reason))
 		return;
 
-	IWL_DEBUG_INFO(mvm, "Unblocking EMLSR mode. reason = 0x%x\n", reason);
+	IWL_DEBUG_INFO(mvm,
+		       "Unblocking EMLSR mode. reason = %s (0x%x)\n",
+		       iwl_get_esr_state_string(reason), reason);
 
 	mvmvif->esr_disable_reason &= ~reason;
 
