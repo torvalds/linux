@@ -1137,6 +1137,16 @@ config SM_TCSRCC_8650
 	  Support for the TCSR clock controller on SM8650 devices.
 	  Say Y if you want to use peripheral devices such as SD/UFS.
 
+config SM_VIDEOCC_7150
+	tristate "SM7150 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SM_GCC_7150
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on SM7150 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
 config SM_VIDEOCC_8150
 	tristate "SM8150 Video Clock Controller"
 	depends on ARM64 || COMPILE_TEST
