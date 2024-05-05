@@ -40,7 +40,7 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	if (parent) {
 		u64 parent_root_id;
 
-		fid->parent_objectid = BTRFS_I(parent)->objectid;
+		fid->parent_objectid = btrfs_ino(BTRFS_I(parent));
 		fid->parent_gen = parent->i_generation;
 		parent_root_id = btrfs_root_id(BTRFS_I(parent)->root);
 

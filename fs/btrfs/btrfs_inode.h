@@ -129,15 +129,14 @@ struct btrfs_inode {
 	/* which subvolume this inode belongs to */
 	struct btrfs_root *root;
 
+#if BITS_PER_LONG == 32
 	/*
-	 * This is either:
-	 *
-	 * 1) The objectid of the corresponding BTRFS_INODE_ITEM_KEY;
-	 *
-	 * 2) In case this a root stub inode (BTRFS_INODE_ROOT_STUB flag set),
-	 *    the ID of that root.
+	 * The objectid of the corresponding BTRFS_INODE_ITEM_KEY.
+	 * On 64 bits platforms we can get it from vfs_inode.i_ino, which is an
+	 * unsigned long and therefore 64 bits on such platforms.
 	 */
 	u64 objectid;
+#endif
 
 	/* Cached value of inode property 'compression'. */
 	u8 prop_compress;
@@ -301,16 +300,25 @@ struct btrfs_inode {
 	 */
 	u64 last_unlink_trans;
 
-	/*
-	 * The id/generation of the last transaction where this inode was
-	 * either the source or the destination of a clone/dedupe operation.
-	 * Used when logging an inode to know if there are shared extents that
-	 * need special care when logging checksum items, to avoid duplicate
-	 * checksum items in a log (which can lead to a corruption where we end
-	 * up with missing checksum ranges after log replay).
-	 * Protected by the vfs inode lock.
-	 */
-	u64 last_reflink_trans;
+	union {
+		/*
+		 * The id/generation of the last transaction where this inode
+		 * was either the source or the destination of a clone/dedupe
+		 * operation. Used when logging an inode to know if there are
+		 * shared extents that need special care when logging checksum
+		 * items, to avoid duplicate checksum items in a log (which can
+		 * lead to a corruption where we end up with missing checksum
+		 * ranges after log replay). Protected by the VFS inode lock.
+		 * Used for regular files only.
+		 */
+		u64 last_reflink_trans;
+
+		/*
+		 * In case this a root stub inode (BTRFS_INODE_ROOT_STUB flag set),
+		 * the ID of that root.
+		 */
+		u64 ref_root_id;
+	};
 
 	/* Backwards incompatible flags, lower half of inode_item::flags  */
 	u32 flags;
@@ -387,9 +395,17 @@ static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 static inline void btrfs_get_inode_key(const struct btrfs_inode *inode,
 				       struct btrfs_key *key)
 {
-	key->objectid = inode->objectid;
+	key->objectid = btrfs_ino(inode);
 	key->type = BTRFS_INODE_ITEM_KEY;
 	key->offset = 0;
+}
+
+static inline void btrfs_set_inode_number(struct btrfs_inode *inode, u64 ino)
+{
+#if BITS_PER_LONG == 32
+	inode->objectid = ino;
+#endif
+	inode->vfs_inode.i_ino = ino;
 }
 
 static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
