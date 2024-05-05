@@ -727,8 +727,8 @@ void iwl_mvm_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (hweight16(new_active_links) <= 1)
 		goto set_active;
 
-	/* prefer single link over marginal eSR improvement */
-	if (best_link->grade * 110 / 100 >= max_esr_grade) {
+	/* For equal grade - prefer EMLSR */
+	if (best_link->grade > max_esr_grade) {
 		primary_link = best_link->link_id;
 		new_active_links = BIT(best_link->link_id);
 	}
