@@ -179,7 +179,7 @@ struct allegro_dev {
 	struct list_head channels;
 };
 
-static struct regmap_config allegro_regmap_config = {
+static const struct regmap_config allegro_regmap_config = {
 	.name = "regmap",
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -188,7 +188,7 @@ static struct regmap_config allegro_regmap_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static struct regmap_config allegro_sram_config = {
+static const struct regmap_config allegro_sram_config = {
 	.name = "sram",
 	.reg_bits = 32,
 	.val_bits = 32,
