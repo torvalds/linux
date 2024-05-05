@@ -1585,11 +1585,10 @@ config PCSPKR_PLATFORM
 	  This option allows to disable the internal PC-Speaker
 	  support, saving some memory.
 
-config BASE_FULL
-	default y
-	bool "Enable full-sized data structures for core" if EXPERT
+config BASE_SMALL
+	bool "Enable smaller-sized data structures for core" if EXPERT
 	help
-	  Disabling this option reduces the size of miscellaneous core
+	  Enabling this option reduces the size of miscellaneous core
 	  kernel data structures. This saves memory on small machines,
 	  but may reduce performance.
 
@@ -1943,9 +1942,6 @@ source "arch/Kconfig"
 config RT_MUTEXES
 	bool
 	default y if PREEMPT_RT
-
-config BASE_SMALL
-	def_bool !BASE_FULL
 
 config MODULE_SIG_FORMAT
 	def_bool n
