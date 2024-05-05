@@ -16,44 +16,7 @@
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
-
-static int start_server(const struct sockaddr *addr, socklen_t len, bool dual)
-{
-	int mode = !dual;
-	int fd;
-
-	fd = socket(addr->sa_family, SOCK_STREAM, 0);
-	if (fd == -1) {
-		log_err("Failed to create server socket");
-		goto out;
-	}
-
-	if (addr->sa_family == AF_INET6) {
-		if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&mode,
-			       sizeof(mode)) == -1) {
-			log_err("Failed to set the dual-stack mode");
-			goto close_out;
-		}
-	}
-
-	if (bind(fd, addr, len) == -1) {
-		log_err("Failed to bind server socket");
-		goto close_out;
-	}
-
-	if (listen(fd, 128) == -1) {
-		log_err("Failed to listen on server socket");
-		goto close_out;
-	}
-
-	goto out;
-
-close_out:
-	close(fd);
-	fd = -1;
-out:
-	return fd;
-}
+#include "network_helpers.h"
 
 static int connect_to_server(const struct sockaddr *addr, socklen_t len)
 {
@@ -216,8 +179,23 @@ static bool get_port(int server_fd, in_port_t *port)
 	return true;
 }
 
+static int v6only_true(int fd, const struct post_socket_opts *opts)
+{
+	int mode = true;
+
+	return setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &mode, sizeof(mode));
+}
+
+static int v6only_false(int fd, const struct post_socket_opts *opts)
+{
+	int mode = false;
+
+	return setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &mode, sizeof(mode));
+}
+
 int main(int argc, char **argv)
 {
+	struct network_helper_opts opts = { 0 };
 	struct sockaddr_in addr4;
 	struct sockaddr_in6 addr6;
 	struct sockaddr_in addr4dual;
@@ -259,18 +237,20 @@ int main(int argc, char **argv)
 	addr6dual.sin6_addr = in6addr_any;
 	addr6dual.sin6_port = 0;
 
-	server = start_server((const struct sockaddr *)&addr4, sizeof(addr4),
-			      false);
+	server = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr4,
+				   sizeof(addr4), NULL);
 	if (server == -1 || !get_port(server, &addr4.sin_port))
 		goto err;
 
-	server_v6 = start_server((const struct sockaddr *)&addr6,
-				 sizeof(addr6), false);
+	opts.post_socket_cb = v6only_true;
+	server_v6 = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr6,
+				      sizeof(addr6), &opts);
 	if (server_v6 == -1 || !get_port(server_v6, &addr6.sin6_port))
 		goto err;
 
-	server_dual = start_server((const struct sockaddr *)&addr6dual,
-				   sizeof(addr6dual), true);
+	opts.post_socket_cb = v6only_false;
+	server_dual = start_server_addr(SOCK_STREAM, (struct sockaddr_storage *)&addr6dual,
+					sizeof(addr6dual), &opts);
 	if (server_dual == -1 || !get_port(server_dual, &addr4dual.sin_port))
 		goto err;
 
