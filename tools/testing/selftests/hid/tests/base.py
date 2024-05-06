@@ -8,6 +8,7 @@
 import libevdev
 import os
 import pytest
+import shutil
 import subprocess
 import time
 
@@ -239,6 +240,10 @@ class BaseTestCase:
             script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
             root_dir = (script_dir / "../../../../..").resolve()
             bpf_dir = root_dir / "drivers/hid/bpf/progs"
+
+            udev_hid_bpf = shutil.which("udev-hid-bpf")
+            if not udev_hid_bpf:
+                pytest.skip("udev-hid-bpf not found in $PATH, skipping")
 
             wait = False
             for _, rdesc_fixup in self.hid_bpfs:
