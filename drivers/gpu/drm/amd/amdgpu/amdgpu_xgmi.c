@@ -434,6 +434,9 @@ static ssize_t amdgpu_xgmi_show_connected_port_num(struct device *dev,
 		}
 	}
 
+	if (i == top->num_nodes)
+		return -EINVAL;
+
 	for (i = 0; i < top->num_nodes; i++) {
 		for (j = 0; j < top->nodes[i].num_links; j++)
 			/* node id in sysfs starts from 1 rather than 0 so +1 here */
