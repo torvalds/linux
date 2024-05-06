@@ -10052,7 +10052,7 @@ static void set_or_clear_apicv_inhibit(unsigned long *inhibits,
 static void kvm_apicv_init(struct kvm *kvm)
 {
 	enum kvm_apicv_inhibit reason = enable_apicv ? APICV_INHIBIT_REASON_ABSENT :
-						       APICV_INHIBIT_REASON_DISABLE;
+						       APICV_INHIBIT_REASON_DISABLED;
 
 	set_or_clear_apicv_inhibit(&kvm->arch.apicv_inhibit_reasons, reason, true);
 

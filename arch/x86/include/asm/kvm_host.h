@@ -1207,7 +1207,7 @@ enum kvm_apicv_inhibit {
 	 * APIC acceleration is disabled by a module parameter
 	 * and/or not supported in hardware.
 	 */
-	APICV_INHIBIT_REASON_DISABLE,
+	APICV_INHIBIT_REASON_DISABLED,
 
 	/*
 	 * APIC acceleration is inhibited because AutoEOI feature is
@@ -1285,7 +1285,7 @@ enum kvm_apicv_inhibit {
 	{ BIT(APICV_INHIBIT_REASON_##reason), #reason }
 
 #define APICV_INHIBIT_REASONS				\
-	__APICV_INHIBIT_REASON(DISABLE),		\
+	__APICV_INHIBIT_REASON(DISABLED),		\
 	__APICV_INHIBIT_REASON(HYPERV),			\
 	__APICV_INHIBIT_REASON(ABSENT),			\
 	__APICV_INHIBIT_REASON(BLOCKIRQ),		\
