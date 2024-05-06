@@ -2129,6 +2129,20 @@ static void ieee80211_csa_switch_work(struct wiphy *wiphy,
 
 	link->u.mgd.csa.waiting_bcn = true;
 
+	/* apply new TPE restrictions immediately on the new channel */
+	if (link->u.mgd.csa.ap_chandef.chan->band == NL80211_BAND_6GHZ &&
+	    link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_HE) {
+		ieee80211_rearrange_tpe(&link->u.mgd.csa.tpe,
+					&link->u.mgd.csa.ap_chandef,
+					&link->conf->chanreq.oper);
+		if (memcmp(&link->conf->tpe, &link->u.mgd.csa.tpe,
+			   sizeof(link->u.mgd.csa.tpe))) {
+			link->conf->tpe = link->u.mgd.csa.tpe;
+			ieee80211_link_info_change_notify(sdata, link,
+							  BSS_CHANGED_TPE);
+		}
+	}
+
 	ieee80211_sta_reset_beacon_monitor(sdata);
 	ieee80211_sta_reset_conn_monitor(sdata);
 }
@@ -2379,6 +2393,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 			ch_switch.count = csa_ie.count;
 			ch_switch.delay = csa_ie.max_switch_time;
 		}
+
+		link->u.mgd.csa.tpe = csa_elems->csa_tpe;
 	} else {
 		/*
 		 * If there was no per-STA profile for this link, we
@@ -2516,6 +2532,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 			  "preparing for channel switch failed, disconnecting\n");
 		goto drop_connection;
 	}
+
+	link->u.mgd.csa.ap_chandef = csa_ie.chanreq.ap;
 
 	link->csa.chanreq = csa_ie.chanreq;
 	if (link->u.mgd.conn.mode < IEEE80211_CONN_MODE_EHT ||

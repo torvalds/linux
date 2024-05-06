@@ -977,6 +977,8 @@ struct ieee80211_link_data_managed {
 
 	struct {
 		struct wiphy_delayed_work switch_work;
+		struct cfg80211_chan_def ap_chandef;
+		struct ieee80211_parsed_tpe tpe;
 		unsigned long time;
 		bool waiting_bcn;
 		bool ignored_same_chan;
@@ -1754,6 +1756,7 @@ struct ieee802_11_elems {
 
 	/* not the order in the psd values is per element, not per chandef */
 	struct ieee80211_parsed_tpe tpe;
+	struct ieee80211_parsed_tpe csa_tpe;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;

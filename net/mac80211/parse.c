@@ -607,6 +607,13 @@ _ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params,
 					elem_parse_failed =
 						IEEE80211_PARSE_ERR_BAD_ELEM_SIZE;
 			}
+
+			subelem = cfg80211_find_ext_elem(WLAN_EID_TX_POWER_ENVELOPE,
+							 pos, elen);
+			if (subelem)
+				ieee80211_parse_tpe(&elems->csa_tpe,
+						    subelem->data + 1,
+						    subelem->datalen - 1);
 			break;
 		case WLAN_EID_COUNTRY:
 			elems->country_elem = pos;
@@ -962,6 +969,7 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 
 	/* set all TPE entries to unlimited (but invalid) */
 	ieee80211_clear_tpe(&elems->tpe);
+	ieee80211_clear_tpe(&elems->csa_tpe);
 
 	nontransmitted_profile = elems_parse->scratch_pos;
 	nontransmitted_profile_len =
