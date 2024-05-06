@@ -150,6 +150,7 @@ obj-$(CONFIG_SM_GCC_HOLI) += gcc-holi.o
 obj-$(CONFIG_SM_GCC_PINEAPPLE) += gcc-pineapple.o
 obj-$(CONFIG_SM_GCC_PITTI) += gcc-pitti.o
 obj-$(CONFIG_SM_GCC_VOLCANO) += gcc-volcano.o
+obj-$(CONFIG_SXR_GCC_ANORAK) += gcc-anorak.o
 obj-$(CONFIG_SXR_GCC_NIOBE) += gcc-niobe.o
 obj-$(CONFIG_SM_GPUCC_6150) += gpucc-sm6150.o
 obj-$(CONFIG_SM_GPUCC_6350) += gpucc-sm6350.o
