@@ -251,6 +251,10 @@ static bool gtp_check_ms_ipv6(struct sk_buff *skb, struct pdp_ctx *pctx,
 
 	ip6h = (struct ipv6hdr *)(skb->data + hdrlen);
 
+	if ((ipv6_addr_type(&ip6h->saddr) & IPV6_ADDR_LINKLOCAL) ||
+	    (ipv6_addr_type(&ip6h->daddr) & IPV6_ADDR_LINKLOCAL))
+		return false;
+
 	if (role == GTP_ROLE_SGSN) {
 		ret = ipv6_pdp_addr_equal(&ip6h->daddr, &pctx->ms.addr6);
 	} else {
