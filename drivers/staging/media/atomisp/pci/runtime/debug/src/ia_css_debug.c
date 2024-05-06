@@ -848,7 +848,7 @@ void ia_css_debug_enable_sp_sleep_mode(enum ia_css_sp_sleep_mode mode)
 	fw = &sh_css_sp_fw;
 	HIVE_ADDR_sp_sleep_mode = fw->info.sp.sleep_mode;
 
-	(void)HIVE_ADDR_sp_sleep_mode;	/* Suppres warnings in CRUN */
+	(void)HIVE_ADDR_sp_sleep_mode;	/* Suppress warnings in CRUN */
 
 	sp_dmem_store_uint32(SP0_ID,
 			     (unsigned int)sp_address_of(sp_sleep_mode),
@@ -1334,7 +1334,7 @@ ia_css_debug_pipe_graph_dump_stage(
 
 	if (stage->stage_num == 0) {
 		/*
-		 * There are some implicite assumptions about which bin is the
+		 * There are some implicit assumptions about which bin is the
 		 * input binary e.g. which one is connected to the input system
 		 * Priority:
 		 * 1) sp_raw_copy bin has highest priority
