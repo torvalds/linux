@@ -77,13 +77,6 @@ static const struct old_serial_port old_serial_port[] = {
 
 #define UART_NR	CONFIG_SERIAL_8250_NR_UARTS
 
-#ifdef CONFIG_SERIAL_8250_RSA
-
-#define PORT_RSA_MAX 4
-static unsigned long probe_rsa[PORT_RSA_MAX];
-static unsigned int probe_rsa_count;
-#endif /* CONFIG_SERIAL_8250_RSA  */
-
 struct irq_info {
 	struct			hlist_node node;
 	int			irq;
@@ -348,44 +341,7 @@ static void univ8250_release_irq(struct uart_8250_port *up)
 		serial_unlink_irq_chain(up);
 }
 
-#ifdef CONFIG_SERIAL_8250_RSA
-static int serial8250_request_rsa_resource(struct uart_8250_port *up)
-{
-	unsigned long start = UART_RSA_BASE << up->port.regshift;
-	unsigned int size = 8 << up->port.regshift;
-	struct uart_port *port = &up->port;
-	int ret = -EINVAL;
-
-	switch (port->iotype) {
-	case UPIO_HUB6:
-	case UPIO_PORT:
-		start += port->iobase;
-		if (request_region(start, size, "serial-rsa"))
-			ret = 0;
-		else
-			ret = -EBUSY;
-		break;
-	}
-
-	return ret;
-}
-
-static void serial8250_release_rsa_resource(struct uart_8250_port *up)
-{
-	unsigned long offset = UART_RSA_BASE << up->port.regshift;
-	unsigned int size = 8 << up->port.regshift;
-	struct uart_port *port = &up->port;
-
-	switch (port->iotype) {
-	case UPIO_HUB6:
-	case UPIO_PORT:
-		release_region(port->iobase + offset, size);
-		break;
-	}
-}
-#endif
-
-static const struct uart_ops *base_ops;
+const struct uart_ops *univ8250_port_base_ops = NULL;
 static struct uart_ops univ8250_port_ops;
 
 static const struct uart_8250_ops univ8250_driver_ops = {
@@ -424,69 +380,6 @@ void serial8250_set_isa_configurator(
 }
 EXPORT_SYMBOL(serial8250_set_isa_configurator);
 
-#ifdef CONFIG_SERIAL_8250_RSA
-
-static void univ8250_config_port(struct uart_port *port, int flags)
-{
-	struct uart_8250_port *up = up_to_u8250p(port);
-
-	up->probe &= ~UART_PROBE_RSA;
-	if (port->type == PORT_RSA) {
-		if (serial8250_request_rsa_resource(up) == 0)
-			up->probe |= UART_PROBE_RSA;
-	} else if (flags & UART_CONFIG_TYPE) {
-		int i;
-
-		for (i = 0; i < probe_rsa_count; i++) {
-			if (probe_rsa[i] == up->port.iobase) {
-				if (serial8250_request_rsa_resource(up) == 0)
-					up->probe |= UART_PROBE_RSA;
-				break;
-			}
-		}
-	}
-
-	base_ops->config_port(port, flags);
-
-	if (port->type != PORT_RSA && up->probe & UART_PROBE_RSA)
-		serial8250_release_rsa_resource(up);
-}
-
-static int univ8250_request_port(struct uart_port *port)
-{
-	struct uart_8250_port *up = up_to_u8250p(port);
-	int ret;
-
-	ret = base_ops->request_port(port);
-	if (ret == 0 && port->type == PORT_RSA) {
-		ret = serial8250_request_rsa_resource(up);
-		if (ret < 0)
-			base_ops->release_port(port);
-	}
-
-	return ret;
-}
-
-static void univ8250_release_port(struct uart_port *port)
-{
-	struct uart_8250_port *up = up_to_u8250p(port);
-
-	if (port->type == PORT_RSA)
-		serial8250_release_rsa_resource(up);
-	base_ops->release_port(port);
-}
-
-static void univ8250_rsa_support(struct uart_ops *ops)
-{
-	ops->config_port  = univ8250_config_port;
-	ops->request_port = univ8250_request_port;
-	ops->release_port = univ8250_release_port;
-}
-
-#else
-#define univ8250_rsa_support(x)		do { } while (0)
-#endif /* CONFIG_SERIAL_8250_RSA */
-
 static inline void serial8250_apply_quirks(struct uart_8250_port *up)
 {
 	up->port.quirks |= skip_txen_test ? UPQ_NO_TXEN_TEST : 0;
@@ -504,8 +397,8 @@ static struct uart_8250_port *serial8250_setup_port(int index)
 	up->port.port_id = index;
 
 	serial8250_init_port(up);
-	if (!base_ops)
-		base_ops = up->port.ops;
+	if (!univ8250_port_base_ops)
+		univ8250_port_base_ops = up->port.ops;
 	up->port.ops = &univ8250_port_ops;
 
 	timer_setup(&up->timer, serial8250_timeout, 0);
@@ -539,7 +432,7 @@ static void __init serial8250_isa_init_ports(void)
 		serial8250_setup_port(i);
 
 	/* chain base port ops to support Remote Supervisor Adapter */
-	univ8250_port_ops = *base_ops;
+	univ8250_port_ops = *univ8250_port_base_ops;
 	univ8250_rsa_support(&univ8250_port_ops);
 
 	if (share_irqs)
@@ -1312,10 +1205,6 @@ MODULE_PARM_DESC(nr_uarts, "Maximum number of UARTs supported. (1-" __MODULE_STR
 module_param(skip_txen_test, uint, 0644);
 MODULE_PARM_DESC(skip_txen_test, "Skip checking for the TXEN bug at init time");
 
-#ifdef CONFIG_SERIAL_8250_RSA
-module_param_hw_array(probe_rsa, ulong, ioport, &probe_rsa_count, 0444);
-MODULE_PARM_DESC(probe_rsa, "Probe I/O ports for RSA");
-#endif
 MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
 
 #ifdef CONFIG_SERIAL_8250_DEPRECATED_OPTIONS
@@ -1338,11 +1227,6 @@ static void __used s8250_options(void)
 	module_param_cb(share_irqs, &param_ops_uint, &share_irqs, 0644);
 	module_param_cb(nr_uarts, &param_ops_uint, &nr_uarts, 0644);
 	module_param_cb(skip_txen_test, &param_ops_uint, &skip_txen_test, 0644);
-#ifdef CONFIG_SERIAL_8250_RSA
-	__module_param_call(MODULE_PARAM_PREFIX, probe_rsa,
-		&param_array_ops, .arr = &__param_arr_probe_rsa,
-		0444, -1, 0);
-#endif
 }
 #else
 MODULE_ALIAS("8250_core");
