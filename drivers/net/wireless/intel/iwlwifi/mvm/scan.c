@@ -3178,23 +3178,6 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	return ret;
 }
 
-static void iwl_mvm_find_link_selection_vif(void *_data, u8 *mac,
-					    struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (ieee80211_vif_is_mld(vif) && mvmvif->authorized)
-		iwl_mvm_select_links(mvmvif->mvm, vif);
-}
-
-static void iwl_mvm_post_scan_link_selection(struct iwl_mvm *mvm)
-{
-	ieee80211_iterate_active_interfaces(mvm->hw,
-					    IEEE80211_IFACE_ITER_NORMAL,
-					    iwl_mvm_find_link_selection_vif,
-					    NULL);
-}
-
 void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
@@ -3205,6 +3188,21 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	bool select_links = false;
 
 	mvm->mei_scan_filter.is_mei_limited_scan = false;
+
+	IWL_DEBUG_SCAN(mvm,
+		       "Scan completed: uid=%u type=%u, status=%s, EBS=%s\n",
+		       uid, mvm->scan_uid_status[uid],
+		       notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
+				"completed" : "aborted",
+		       iwl_mvm_ebs_status_str(notif->ebs_status));
+
+	IWL_DEBUG_SCAN(mvm, "Scan completed: scan_status=0x%x\n",
+		       mvm->scan_status);
+
+	IWL_DEBUG_SCAN(mvm,
+		       "Scan completed: line=%u, iter=%u, elapsed time=%u\n",
+		       notif->last_schedule, notif->last_iter,
+		       __le32_to_cpu(notif->time_from_last_iter));
 
 	if (WARN_ON(!(mvm->scan_uid_status[uid] & mvm->scan_status)))
 		return;
@@ -3244,16 +3242,9 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	}
 
 	mvm->scan_status &= ~mvm->scan_uid_status[uid];
-	IWL_DEBUG_SCAN(mvm,
-		       "Scan completed, uid %u type %u, status %s, EBS status %s\n",
-		       uid, mvm->scan_uid_status[uid],
-		       notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
-				"completed" : "aborted",
-		       iwl_mvm_ebs_status_str(notif->ebs_status));
-	IWL_DEBUG_SCAN(mvm,
-		       "Last line %d, Last iteration %d, Time from last iteration %d\n",
-		       notif->last_schedule, notif->last_iter,
-		       __le32_to_cpu(notif->time_from_last_iter));
+
+	IWL_DEBUG_SCAN(mvm, "Scan completed: after update: scan_status=0x%x\n",
+		       mvm->scan_status);
 
 	if (notif->ebs_status != IWL_SCAN_EBS_SUCCESS &&
 	    notif->ebs_status != IWL_SCAN_EBS_INACTIVE)
@@ -3262,7 +3253,7 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	mvm->scan_uid_status[uid] = 0;
 
 	if (select_links)
-		iwl_mvm_post_scan_link_selection(mvm);
+		wiphy_work_queue(mvm->hw->wiphy, &mvm->trig_link_selection_wk);
 }
 
 void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
@@ -3487,6 +3478,10 @@ int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
 {
 	int ret;
 
+	IWL_DEBUG_SCAN(mvm,
+		       "Request to stop scan: type=0x%x, status=0x%x\n",
+		       type, mvm->scan_status);
+
 	if (!(mvm->scan_status & type))
 		return 0;
 
@@ -3498,6 +3493,9 @@ int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
 	ret = iwl_mvm_scan_stop_wait(mvm, type);
 	if (!ret)
 		mvm->scan_status |= type << IWL_MVM_SCAN_STOPPING_SHIFT;
+	else
+		IWL_DEBUG_SCAN(mvm, "Failed to stop scan\n");
+
 out:
 	/* Clear the scan status so the next scan requests will
 	 * succeed and mark the scan as stopping, so that the Rx

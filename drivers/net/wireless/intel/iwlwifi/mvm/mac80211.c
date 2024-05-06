@@ -1350,6 +1350,7 @@ void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_INT_MLO, false);
 	mutex_unlock(&mvm->mutex);
 
+	wiphy_work_cancel(mvm->hw->wiphy, &mvm->trig_link_selection_wk);
 	wiphy_work_flush(mvm->hw->wiphy, &mvm->async_handlers_wiphy_wk);
 	flush_work(&mvm->async_handlers_wk);
 	flush_work(&mvm->add_stream_wk);

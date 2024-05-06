@@ -937,6 +937,8 @@ struct iwl_mvm {
 	/* For async rx handlers that require the wiphy lock */
 	struct wiphy_work async_handlers_wiphy_wk;
 
+	struct wiphy_work trig_link_selection_wk;
+
 	struct work_struct roc_done_wk;
 
 	unsigned long init_status;
