@@ -1060,6 +1060,9 @@ static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 	gtp_set_pktinfo_ipv4(pktinfo, pctx->sk, iph, pctx, rt, &fl4, dev);
 	gtp_push_header(skb, pktinfo);
 
+	netdev_dbg(dev, "gtp -> IP src: %pI4 dst: %pI4\n",
+		   &iph->saddr, &iph->daddr);
+
 	return 0;
 err_rt:
 	ip_rt_put(rt);
@@ -1135,6 +1138,9 @@ static int gtp_build_skb_ip6(struct sk_buff *skb, struct net_device *dev,
 	gtp_set_pktinfo_ipv6(pktinfo, pctx->sk, ip6h, pctx, rt, &fl6, dev);
 	gtp_push_header(skb, pktinfo);
 
+	netdev_dbg(dev, "gtp -> IP src: %pI6 dst: %pI6\n",
+		   &ip6h->saddr, &ip6h->daddr);
+
 	return 0;
 err_rt:
 	dst_release(dst);
@@ -1174,8 +1180,6 @@ static netdev_tx_t gtp_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	switch (proto) {
 	case ETH_P_IP:
-		netdev_dbg(pktinfo.dev, "gtp -> IP src: %pI4 dst: %pI4\n",
-			   &pktinfo.iph->saddr, &pktinfo.iph->daddr);
 		udp_tunnel_xmit_skb(pktinfo.rt, pktinfo.sk, skb,
 				    pktinfo.fl4.saddr, pktinfo.fl4.daddr,
 				    pktinfo.iph->tos,
@@ -1188,8 +1192,6 @@ static netdev_tx_t gtp_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		break;
 	case ETH_P_IPV6:
 #if IS_ENABLED(CONFIG_IPV6)
-		netdev_dbg(pktinfo.dev, "gtp -> IP src: %pI6 dst: %pI6\n",
-			   &pktinfo.ip6h->saddr, &pktinfo.ip6h->daddr);
 		udp_tunnel6_xmit_skb(&pktinfo.rt6->dst, pktinfo.sk, skb, dev,
 				     &pktinfo.fl6.saddr, &pktinfo.fl6.daddr,
 				     ipv6_get_dsfield(pktinfo.ip6h),
