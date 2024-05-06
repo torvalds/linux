@@ -2825,17 +2825,6 @@ struct ieee80211_he_6ghz_oper {
 	u8 minrate;
 } __packed;
 
-/*
- * In "9.4.2.161 Transmit Power Envelope element" of "IEEE Std 802.11ax-2021",
- * it show four types in "Table 9-275a-Maximum Transmit Power Interpretation
- * subfield encoding", and two category for each type in "Table E-12-Regulatory
- * Info subfield encoding in the United States".
- * So it it totally max 8 Transmit Power Envelope element.
- */
-#define IEEE80211_TPE_MAX_IE_COUNT	8
-
-#define IEEE80211_TPE_MAX_POWER_COUNT	8
-
 /* transmit power interpretation type of transmit power envelope element */
 enum ieee80211_tx_power_intrpt_type {
 	IEEE80211_TPE_LOCAL_EIRP,
@@ -2844,23 +2833,106 @@ enum ieee80211_tx_power_intrpt_type {
 	IEEE80211_TPE_REG_CLIENT_EIRP_PSD,
 };
 
+/* category type of transmit power envelope element */
+enum ieee80211_tx_power_category_6ghz {
+	IEEE80211_TPE_CAT_6GHZ_DEFAULT = 0,
+	IEEE80211_TPE_CAT_6GHZ_SUBORDINATE = 1,
+};
+
+/*
+ * For IEEE80211_TPE_LOCAL_EIRP / IEEE80211_TPE_REG_CLIENT_EIRP,
+ * setting to 63.5 dBm means no constraint.
+ */
+#define IEEE80211_TPE_MAX_TX_PWR_NO_CONSTRAINT	127
+
+/*
+ * For IEEE80211_TPE_LOCAL_EIRP_PSD / IEEE80211_TPE_REG_CLIENT_EIRP_PSD,
+ * setting to 127 indicates no PSD limit for the 20 MHz channel.
+ */
+#define IEEE80211_TPE_PSD_NO_LIMIT		127
+
 /**
  * struct ieee80211_tx_pwr_env - Transmit Power Envelope
- * @tx_power_info: Transmit Power Information field
- * @tx_power: Maximum Transmit Power field
+ * @info: Transmit Power Information field
+ * @variable: Maximum Transmit Power field
  *
  * This structure represents the payload of the "Transmit Power
  * Envelope element" as described in IEEE Std 802.11ax-2021 section
  * 9.4.2.161
  */
 struct ieee80211_tx_pwr_env {
-	u8 tx_power_info;
-	s8 tx_power[IEEE80211_TPE_MAX_POWER_COUNT];
+	u8 info;
+	u8 variable[];
 } __packed;
 
 #define IEEE80211_TX_PWR_ENV_INFO_COUNT 0x7
 #define IEEE80211_TX_PWR_ENV_INFO_INTERPRET 0x38
 #define IEEE80211_TX_PWR_ENV_INFO_CATEGORY 0xC0
+
+#define IEEE80211_TX_PWR_ENV_EXT_COUNT	0xF
+
+static inline bool ieee80211_valid_tpe_element(const u8 *data, u8 len)
+{
+	const struct ieee80211_tx_pwr_env *env = (const void *)data;
+	u8 count, interpret, category;
+	u8 needed = sizeof(*env);
+	u8 N; /* also called N in the spec */
+
+	if (len < needed)
+		return false;
+
+	count = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_COUNT);
+	interpret = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_INTERPRET);
+	category = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_CATEGORY);
+
+	switch (category) {
+	case IEEE80211_TPE_CAT_6GHZ_DEFAULT:
+	case IEEE80211_TPE_CAT_6GHZ_SUBORDINATE:
+		break;
+	default:
+		return false;
+	}
+
+	switch (interpret) {
+	case IEEE80211_TPE_LOCAL_EIRP:
+	case IEEE80211_TPE_REG_CLIENT_EIRP:
+		if (count > 3)
+			return false;
+
+		/* count == 0 encodes 1 value for 20 MHz, etc. */
+		needed += count + 1;
+
+		if (len < needed)
+			return false;
+
+		/* there can be extension fields not accounted for in 'count' */
+
+		return true;
+	case IEEE80211_TPE_LOCAL_EIRP_PSD:
+	case IEEE80211_TPE_REG_CLIENT_EIRP_PSD:
+		if (count > 4)
+			return false;
+
+		N = count ? 1 << (count - 1) : 1;
+		needed += N;
+
+		if (len < needed)
+			return false;
+
+		if (len > needed) {
+			u8 K = u8_get_bits(env->variable[N],
+					   IEEE80211_TX_PWR_ENV_EXT_COUNT);
+
+			needed += 1 + K;
+			if (len < needed)
+				return false;
+		}
+
+		return true;
+	}
+
+	return false;
+}
 
 /*
  * ieee80211_he_oper_size - calculate 802.11ax HE Operations IE size

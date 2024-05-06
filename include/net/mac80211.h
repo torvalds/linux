@@ -550,6 +550,39 @@ struct ieee80211_fils_discovery {
 	u32 max_interval;
 };
 
+#define IEEE80211_TPE_EIRP_ENTRIES_320MHZ	5
+struct ieee80211_parsed_tpe_eirp {
+	bool valid;
+	s8 power[IEEE80211_TPE_EIRP_ENTRIES_320MHZ];
+	u8 count;
+};
+
+#define IEEE80211_TPE_PSD_ENTRIES_320MHZ	16
+struct ieee80211_parsed_tpe_psd {
+	bool valid;
+	s8 power[IEEE80211_TPE_PSD_ENTRIES_320MHZ];
+	u8 count, n;
+};
+
+/**
+ * struct ieee80211_parsed_tpe - parsed transmit power envelope information
+ * @max_local: maximum local EIRP, one value for 20, 40, 80, 160, 320 MHz each
+ *	(indexed by TX power category)
+ * @max_reg_client: maximum regulatory client EIRP, one value for 20, 40, 80,
+ *	160, 320 MHz each
+ *	(indexed by TX power category)
+ * @psd_local: maximum local power spectral density, one value for each 20 MHz
+ *	subchannel per bss_conf's chanreq.oper
+ *	(indexed by TX power category)
+ * @psd_reg_client: maximum regulatory power spectral density, one value for
+ *	each 20 MHz subchannel per bss_conf's chanreq.oper
+ *	(indexed by TX power category)
+ */
+struct ieee80211_parsed_tpe {
+	struct ieee80211_parsed_tpe_eirp max_local[2], max_reg_client[2];
+	struct ieee80211_parsed_tpe_psd psd_local[2], psd_reg_client[2];
+};
+
 /**
  * struct ieee80211_bss_conf - holds the BSS's changing parameters
  *
@@ -662,8 +695,7 @@ struct ieee80211_fils_discovery {
  * @beacon_tx_rate: The configured beacon transmit rate that needs to be passed
  *	to driver when rate control is offloaded to firmware.
  * @power_type: power type of BSS for 6 GHz
- * @tx_pwr_env: transmit power envelope array of BSS.
- * @tx_pwr_env_num: number of @tx_pwr_env.
+ * @tpe: transmit power envelope information
  * @pwr_reduction: power constraint of BSS.
  * @eht_support: does this BSS support EHT
  * @csa_active: marks whether a channel switch is going on.
@@ -766,8 +798,9 @@ struct ieee80211_bss_conf {
 	u32 unsol_bcast_probe_resp_interval;
 	struct cfg80211_bitrate_mask beacon_tx_rate;
 	enum ieee80211_ap_reg_power power_type;
-	struct ieee80211_tx_pwr_env tx_pwr_env[IEEE80211_TPE_MAX_IE_COUNT];
-	u8 tx_pwr_env_num;
+
+	struct ieee80211_parsed_tpe tpe;
+
 	u8 pwr_reduction;
 	bool eht_support;
 
