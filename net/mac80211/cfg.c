@@ -4974,12 +4974,16 @@ static void ieee80211_del_intf_link(struct wiphy *wiphy,
 	ieee80211_vif_set_links(sdata, wdev->valid_links, 0);
 }
 
-static int sta_add_link_station(struct ieee80211_local *local,
-				struct ieee80211_sub_if_data *sdata,
-				struct link_station_parameters *params)
+static int
+ieee80211_add_link_station(struct wiphy *wiphy, struct net_device *dev,
+			   struct link_station_parameters *params)
 {
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct sta_info *sta;
 	int ret;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	sta = sta_info_get_bss(sdata, params->mld_mac);
 	if (!sta)
@@ -5006,22 +5010,14 @@ static int sta_add_link_station(struct ieee80211_local *local,
 }
 
 static int
-ieee80211_add_link_station(struct wiphy *wiphy, struct net_device *dev,
+ieee80211_mod_link_station(struct wiphy *wiphy, struct net_device *dev,
 			   struct link_station_parameters *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wiphy_priv(wiphy);
-
-	lockdep_assert_wiphy(sdata->local->hw.wiphy);
-
-	return sta_add_link_station(local, sdata, params);
-}
-
-static int sta_mod_link_station(struct ieee80211_local *local,
-				struct ieee80211_sub_if_data *sdata,
-				struct link_station_parameters *params)
-{
 	struct sta_info *sta;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
 
 	sta = sta_info_get_bss(sdata, params->mld_mac);
 	if (!sta)
@@ -5034,21 +5030,13 @@ static int sta_mod_link_station(struct ieee80211_local *local,
 }
 
 static int
-ieee80211_mod_link_station(struct wiphy *wiphy, struct net_device *dev,
-			   struct link_station_parameters *params)
+ieee80211_del_link_station(struct wiphy *wiphy, struct net_device *dev,
+			   struct link_station_del_parameters *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct sta_info *sta;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
-
-	return sta_mod_link_station(local, sdata, params);
-}
-
-static int sta_del_link_station(struct ieee80211_sub_if_data *sdata,
-				struct link_station_del_parameters *params)
-{
-	struct sta_info *sta;
 
 	sta = sta_info_get_bss(sdata, params->mld_mac);
 	if (!sta)
@@ -5064,17 +5052,6 @@ static int sta_del_link_station(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_remove_link(sta, params->link_id);
 
 	return 0;
-}
-
-static int
-ieee80211_del_link_station(struct wiphy *wiphy, struct net_device *dev,
-			   struct link_station_del_parameters *params)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	lockdep_assert_wiphy(sdata->local->hw.wiphy);
-
-	return sta_del_link_station(sdata, params);
 }
 
 static int ieee80211_set_hw_timestamp(struct wiphy *wiphy,
