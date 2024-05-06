@@ -73,8 +73,7 @@ const struct bus_type iucv_bus = {
 };
 EXPORT_SYMBOL(iucv_bus);
 
-struct device *iucv_root;
-EXPORT_SYMBOL(iucv_root);
+static struct device *iucv_root;
 
 static void iucv_release_device(struct device *device)
 {
