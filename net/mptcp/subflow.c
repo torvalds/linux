@@ -287,6 +287,16 @@ int mptcp_subflow_init_cookie_req(struct request_sock *req,
 }
 EXPORT_SYMBOL_GPL(mptcp_subflow_init_cookie_req);
 
+static enum sk_rst_reason mptcp_get_rst_reason(const struct sk_buff *skb)
+{
+	const struct mptcp_ext *mpext = mptcp_get_ext(skb);
+
+	if (!mpext)
+		return SK_RST_REASON_NOT_SPECIFIED;
+
+	return sk_rst_convert_mptcp_reason(mpext->reset_reason);
+}
+
 static struct dst_entry *subflow_v4_route_req(const struct sock *sk,
 					      struct sk_buff *skb,
 					      struct flowi *fl,
@@ -308,13 +318,9 @@ static struct dst_entry *subflow_v4_route_req(const struct sock *sk,
 		return dst;
 
 	dst_release(dst);
-	if (!req->syncookie) {
-		struct mptcp_ext *mpext = mptcp_get_ext(skb);
-		enum sk_rst_reason reason;
-
-		reason = sk_rst_convert_mptcp_reason(mpext->reset_reason);
-		tcp_request_sock_ops.send_reset(sk, skb, reason);
-	}
+	if (!req->syncookie)
+		tcp_request_sock_ops.send_reset(sk, skb,
+						mptcp_get_rst_reason(skb));
 	return NULL;
 }
 
@@ -381,13 +387,9 @@ static struct dst_entry *subflow_v6_route_req(const struct sock *sk,
 		return dst;
 
 	dst_release(dst);
-	if (!req->syncookie) {
-		struct mptcp_ext *mpext = mptcp_get_ext(skb);
-		enum sk_rst_reason reason;
-
-		reason = sk_rst_convert_mptcp_reason(mpext->reset_reason);
-		tcp6_request_sock_ops.send_reset(sk, skb, reason);
-	}
+	if (!req->syncookie)
+		tcp6_request_sock_ops.send_reset(sk, skb,
+						 mptcp_get_rst_reason(skb));
 	return NULL;
 }
 #endif
@@ -923,7 +925,7 @@ dispose_child:
 	tcp_rsk(req)->drop_req = true;
 	inet_csk_prepare_for_destroy_sock(child);
 	tcp_done(child);
-	reason = sk_rst_convert_mptcp_reason(mptcp_get_ext(skb)->reset_reason);
+	reason = mptcp_get_rst_reason(skb);
 	req->rsk_ops->send_reset(sk, skb, reason);
 
 	/* The last child reference will be released by the caller */
