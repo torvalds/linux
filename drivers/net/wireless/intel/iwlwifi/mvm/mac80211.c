@@ -5899,6 +5899,65 @@ void iwl_mvm_mac_flush_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_unlock(&mvm->mutex);
 }
 
+static int iwl_mvm_mac_get_acs_survey(struct iwl_mvm *mvm, int idx,
+				      struct survey_info *survey)
+{
+	int chan_idx;
+	enum nl80211_band band;
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+
+	if (!mvm->acs_survey) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	/* Find and return the next entry that has a non-zero active time */
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *sband =
+			mvm->hw->wiphy->bands[band];
+
+		if (!sband)
+			continue;
+
+		for (chan_idx = 0; chan_idx < sband->n_channels; chan_idx++) {
+			struct iwl_mvm_acs_survey_channel *info =
+				&mvm->acs_survey->bands[band][chan_idx];
+
+			if (!info->time)
+				continue;
+
+			/* Found (the next) channel to report */
+			survey->channel = &sband->channels[chan_idx];
+			survey->filled = SURVEY_INFO_TIME |
+					 SURVEY_INFO_TIME_BUSY |
+					 SURVEY_INFO_TIME_RX |
+					 SURVEY_INFO_TIME_TX;
+			survey->time = info->time;
+			survey->time_busy = info->time_busy;
+			survey->time_rx = info->time_rx;
+			survey->time_tx = info->time_tx;
+			survey->noise = info->noise;
+			if (survey->noise < 0)
+				survey->filled |= SURVEY_INFO_NOISE_DBM;
+
+			/* Clear time so that channel is only reported once */
+			info->time = 0;
+
+			ret = 0;
+			goto out;
+		}
+	}
+
+	ret = -ENOENT;
+
+out:
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
 int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 			   struct survey_info *survey)
 {
@@ -5911,13 +5970,17 @@ int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 
 	memset(survey, 0, sizeof(*survey));
 
-	/* only support global statistics right now */
-	if (idx != 0)
-		return -ENOENT;
-
 	if (!fw_has_capa(&mvm->fw->ucode_capa,
 			 IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
 		return -ENOENT;
+
+	/*
+	 * Return the beacon stats at index zero and pass on following indices
+	 * to the function returning the full survey, most likely for ACS
+	 * (Automatic Channel Selection).
+	 */
+	if (idx > 0)
+		return iwl_mvm_mac_get_acs_survey(mvm, idx - 1, survey);
 
 	mutex_lock(&mvm->mutex);
 

@@ -473,6 +473,9 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(MAC_CONF_GROUP, ROC_NOTIF,
 		       iwl_mvm_rx_roc_notif, RX_HANDLER_SYNC,
 		       struct iwl_roc_notif),
+	RX_HANDLER_GRP(SCAN_GROUP, CHANNEL_SURVEY_NOTIF,
+		       iwl_mvm_rx_channel_survey_notif, RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_umac_scan_channel_survey_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -1582,6 +1585,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	kfree(mvm->temp_nvm_data);
 	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
+	kfree(mvm->acs_survey);
 
 	cancel_delayed_work_sync(&mvm->tcm.work);
 
