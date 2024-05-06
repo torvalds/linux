@@ -903,6 +903,8 @@ unsigned bcachefs_metadata_required_upgrade_below = bcachefs_metadata_version_re
 #define BCH_SB_SECTOR			8
 #define BCH_SB_MEMBERS_MAX		64 /* XXX kill */
 
+#define BCH_SB_LAYOUT_SIZE_BITS_MAX	16 /* 32 MB */
+
 struct bch_sb_layout {
 	__uuid_t		magic;	/* bcachefs superblock UUID */
 	__u8			layout_type;

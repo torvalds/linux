@@ -649,7 +649,7 @@ reread:
 
 	bytes = vstruct_bytes(sb->sb);
 
-	if (bytes > 512 << sb->sb->layout.sb_max_size_bits) {
+	if (bytes > 512ULL << min(BCH_SB_LAYOUT_SIZE_BITS_MAX, sb->sb->layout.sb_max_size_bits)) {
 		prt_printf(err, "Invalid superblock: too big (got %zu bytes, layout max %lu)",
 		       bytes, 512UL << sb->sb->layout.sb_max_size_bits);
 		return -BCH_ERR_invalid_sb_too_big;
