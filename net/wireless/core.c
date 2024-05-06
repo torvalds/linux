@@ -421,6 +421,8 @@ static void cfg80211_wiphy_work(struct work_struct *work)
 
 	rdev = container_of(work, struct cfg80211_registered_device, wiphy_work);
 
+	trace_wiphy_work_worker_start(&rdev->wiphy);
+
 	wiphy_lock(&rdev->wiphy);
 	if (rdev->suspended)
 		goto out;
@@ -434,6 +436,7 @@ static void cfg80211_wiphy_work(struct work_struct *work)
 			schedule_work(work);
 		spin_unlock_irq(&rdev->wiphy_work_lock);
 
+		trace_wiphy_work_run(&rdev->wiphy, wk);
 		wk->func(&rdev->wiphy, wk);
 	} else {
 		spin_unlock_irq(&rdev->wiphy_work_lock);
@@ -1066,6 +1069,7 @@ void cfg80211_process_wiphy_works(struct cfg80211_registered_device *rdev,
 		list_del_init(&wk->entry);
 		spin_unlock_irqrestore(&rdev->wiphy_work_lock, flags);
 
+		trace_wiphy_work_run(&rdev->wiphy, wk);
 		wk->func(&rdev->wiphy, wk);
 
 		spin_lock_irqsave(&rdev->wiphy_work_lock, flags);
@@ -1610,6 +1614,8 @@ void wiphy_work_queue(struct wiphy *wiphy, struct wiphy_work *work)
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	unsigned long flags;
 
+	trace_wiphy_work_queue(wiphy, work);
+
 	spin_lock_irqsave(&rdev->wiphy_work_lock, flags);
 	if (list_empty(&work->entry))
 		list_add_tail(&work->entry, &rdev->wiphy_work_list);
@@ -1626,6 +1632,8 @@ void wiphy_work_cancel(struct wiphy *wiphy, struct wiphy_work *work)
 
 	lockdep_assert_held(&wiphy->mtx);
 
+	trace_wiphy_work_cancel(wiphy, work);
+
 	spin_lock_irqsave(&rdev->wiphy_work_lock, flags);
 	if (!list_empty(&work->entry))
 		list_del_init(&work->entry);
@@ -1638,6 +1646,8 @@ void wiphy_work_flush(struct wiphy *wiphy, struct wiphy_work *work)
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	unsigned long flags;
 	bool run;
+
+	trace_wiphy_work_flush(wiphy, work);
 
 	spin_lock_irqsave(&rdev->wiphy_work_lock, flags);
 	run = !work || !list_empty(&work->entry);
@@ -1660,6 +1670,8 @@ void wiphy_delayed_work_queue(struct wiphy *wiphy,
 			      struct wiphy_delayed_work *dwork,
 			      unsigned long delay)
 {
+	trace_wiphy_delayed_work_queue(wiphy, &dwork->work, delay);
+
 	if (!delay) {
 		del_timer(&dwork->timer);
 		wiphy_work_queue(wiphy, &dwork->work);

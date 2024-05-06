@@ -243,6 +243,80 @@
 	} while (0)
 
 /*************************************************************
+ *			wiphy work traces		     *
+ *************************************************************/
+
+DECLARE_EVENT_CLASS(wiphy_work_event,
+	TP_PROTO(struct wiphy *wiphy, struct wiphy_work *work),
+	TP_ARGS(wiphy, work),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		__field(void *, instance)
+		__field(void *, func)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		__entry->instance = work;
+		__entry->func = work ? work->func : NULL;
+	),
+	TP_printk(WIPHY_PR_FMT " instance=%p func=%pS",
+		  WIPHY_PR_ARG, __entry->instance, __entry->func)
+);
+
+DEFINE_EVENT(wiphy_work_event, wiphy_work_queue,
+	TP_PROTO(struct wiphy *wiphy, struct wiphy_work *work),
+	TP_ARGS(wiphy, work)
+);
+
+DEFINE_EVENT(wiphy_work_event, wiphy_work_run,
+	TP_PROTO(struct wiphy *wiphy, struct wiphy_work *work),
+	TP_ARGS(wiphy, work)
+);
+
+DEFINE_EVENT(wiphy_work_event, wiphy_work_cancel,
+	TP_PROTO(struct wiphy *wiphy, struct wiphy_work *work),
+	TP_ARGS(wiphy, work)
+);
+
+DEFINE_EVENT(wiphy_work_event, wiphy_work_flush,
+	TP_PROTO(struct wiphy *wiphy, struct wiphy_work *work),
+	TP_ARGS(wiphy, work)
+);
+
+TRACE_EVENT(wiphy_delayed_work_queue,
+	TP_PROTO(struct wiphy *wiphy, struct wiphy_work *work,
+		 unsigned long delay),
+	TP_ARGS(wiphy, work, delay),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		__field(void *, instance)
+		__field(void *, func)
+		__field(unsigned long, delay)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		__entry->instance = work;
+		__entry->func = work->func;
+		__entry->delay = delay;
+	),
+	TP_printk(WIPHY_PR_FMT " instance=%p func=%pS delay=%ld",
+		  WIPHY_PR_ARG, __entry->instance, __entry->func,
+		  __entry->delay)
+);
+
+TRACE_EVENT(wiphy_work_worker_start,
+	TP_PROTO(struct wiphy *wiphy),
+	TP_ARGS(wiphy),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+	),
+	TP_printk(WIPHY_PR_FMT, WIPHY_PR_ARG)
+);
+
+/*************************************************************
  *			rdev->ops traces		     *
  *************************************************************/
 
