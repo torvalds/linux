@@ -494,7 +494,7 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 	int ret;
 	struct iwl_host_cmd cmd = {
 		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
-			      UATS_TABLE_CMD),
+			      MCC_ALLOWED_AP_TYPE_CMD),
 		.flags = 0,
 		.data[0] = &mvm->fwrt.uats_table,
 		.len[0] =  sizeof(mvm->fwrt.uats_table),
@@ -516,7 +516,7 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 					IWL_FW_CMD_VER_UNKNOWN);
 	if (cmd_ver != 1) {
 		IWL_DEBUG_RADIO(mvm,
-				"UATS_TABLE_CMD ver %d not supported\n",
+				"MCC_ALLOWED_AP_TYPE_CMD ver %d not supported\n",
 				cmd_ver);
 		return;
 	}
@@ -529,9 +529,10 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret < 0)
-		IWL_ERR(mvm, "failed to send UATS_TABLE_CMD (%d)\n", ret);
+		IWL_ERR(mvm, "failed to send MCC_ALLOWED_AP_TYPE_CMD (%d)\n",
+			ret);
 	else
-		IWL_DEBUG_RADIO(mvm, "UATS_TABLE_CMD sent to FW\n");
+		IWL_DEBUG_RADIO(mvm, "MCC_ALLOWED_AP_TYPE_CMD sent to FW\n");
 }
 
 static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)

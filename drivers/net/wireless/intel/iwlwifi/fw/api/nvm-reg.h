@@ -46,9 +46,9 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	SAR_OFFSET_MAPPING_TABLE_CMD = 0x4,
 
 	/**
-	 * @UATS_TABLE_CMD: &struct iwl_uats_table_cmd
+	 * @MCC_ALLOWED_AP_TYPE_CMD: &struct iwl_mcc_allowed_ap_type_cmd
 	 */
-	UATS_TABLE_CMD = 0x5,
+	MCC_ALLOWED_AP_TYPE_CMD = 0x5,
 
 	/**
 	 * @PNVM_INIT_COMPLETE_NTFY: &struct iwl_pnvm_init_complete_ntfy
@@ -701,13 +701,13 @@ struct iwl_pnvm_init_complete_ntfy {
 #define UATS_TABLE_COL_SIZE	13
 
 /**
- * struct iwl_uats_table_cmd - struct for UATS_TABLE_CMD
+ * struct iwl_mcc_allowed_ap_type_cmd - struct for MCC_ALLOWED_AP_TYPE_CMD
  * @offset_map: mapping a mcc to UHB AP type support (UATS) allowed
  * @reserved: reserved
  */
-struct iwl_uats_table_cmd {
+struct iwl_mcc_allowed_ap_type_cmd {
 	u8 offset_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
 	__le16 reserved;
-} __packed; /* UATS_TABLE_CMD_S_VER_1 */
+} __packed; /* MCC_ALLOWED_AP_TYPE_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_nvm_reg_h__ */
