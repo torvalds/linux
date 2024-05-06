@@ -362,6 +362,7 @@ struct ieee80211_vif_chanctx_switch {
  *	status changed.
  * @BSS_CHANGED_MLD_VALID_LINKS: MLD valid links status changed.
  * @BSS_CHANGED_MLD_TTLM: negotiated TID to link mapping was changed
+ * @BSS_CHANGED_TPE: transmit power envelope changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -398,6 +399,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_UNSOL_BCAST_PROBE_RESP = 1<<31,
 	BSS_CHANGED_MLD_VALID_LINKS	= BIT_ULL(33),
 	BSS_CHANGED_MLD_TTLM		= BIT_ULL(34),
+	BSS_CHANGED_TPE			= BIT_ULL(35),
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };

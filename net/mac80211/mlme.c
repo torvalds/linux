@@ -973,6 +973,7 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 	struct ieee80211_channel *channel = link->conf->chanreq.oper.chan;
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_chan_req chanreq = {};
+	struct cfg80211_chan_def ap_chandef;
 	enum ieee80211_conn_mode ap_mode;
 	u32 vht_cap_info = 0;
 	u16 ht_opmode;
@@ -988,7 +989,7 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 
 	ap_mode = ieee80211_determine_ap_chan(sdata, channel, vht_cap_info,
 					      elems, true, &link->u.mgd.conn,
-					      &chanreq.ap);
+					      &ap_chandef);
 
 	if (ap_mode != link->u.mgd.conn.mode) {
 		link_info(link,
@@ -998,7 +999,8 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 		return -EINVAL;
 	}
 
-	chanreq.oper = chanreq.ap;
+	chanreq.ap = ap_chandef;
+	chanreq.oper = ap_chandef;
 	if (link->u.mgd.conn.mode < IEEE80211_CONN_MODE_EHT ||
 	    sdata->vif.driver_flags & IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW)
 		chanreq.ap.chan = NULL;
@@ -1025,6 +1027,16 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 	while (link->u.mgd.conn.bw_limit <
 			ieee80211_min_bw_limit_from_chandef(&chanreq.oper))
 		ieee80211_chandef_downgrade(&chanreq.oper, NULL);
+
+	if (ap_chandef.chan->band == NL80211_BAND_6GHZ &&
+	    link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_HE) {
+		ieee80211_rearrange_tpe(&elems->tpe, &ap_chandef,
+					&chanreq.oper);
+		if (memcmp(&link->conf->tpe, &elems->tpe, sizeof(elems->tpe))) {
+			link->conf->tpe = elems->tpe;
+			*changed |= BSS_CHANGED_TPE;
+		}
+	}
 
 	if (ieee80211_chanreq_identical(&chanreq, &link->conf->chanreq))
 		return 0;
