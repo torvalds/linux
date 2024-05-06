@@ -2704,7 +2704,7 @@ err_unicam_put:
 	return ret;
 }
 
-static int unicam_remove(struct platform_device *pdev)
+static void unicam_remove(struct platform_device *pdev)
 {
 	struct unicam_device *unicam = platform_get_drvdata(pdev);
 
@@ -2718,8 +2718,6 @@ static int unicam_remove(struct platform_device *pdev)
 	unicam_put(unicam);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id unicam_of_match[] = {
@@ -2730,7 +2728,7 @@ MODULE_DEVICE_TABLE(of, unicam_of_match);
 
 static struct platform_driver unicam_driver = {
 	.probe		= unicam_probe,
-	.remove		= unicam_remove,
+	.remove_new	= unicam_remove,
 	.driver = {
 		.name	= UNICAM_MODULE_NAME,
 		.pm	= pm_ptr(&unicam_pm_ops),
