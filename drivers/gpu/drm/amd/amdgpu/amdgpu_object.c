@@ -1611,6 +1611,21 @@ u64 amdgpu_bo_print_info(int id, struct amdgpu_bo *bo, struct seq_file *m)
 		case TTM_PL_TT:
 			placement = "GTT";
 			break;
+		case AMDGPU_PL_GDS:
+			placement = "GDS";
+			break;
+		case AMDGPU_PL_GWS:
+			placement = "GWS";
+			break;
+		case AMDGPU_PL_OA:
+			placement = "OA";
+			break;
+		case AMDGPU_PL_PREEMPT:
+			placement = "PREEMPTIBLE";
+			break;
+		case AMDGPU_PL_DOORBELL:
+			placement = "DOORBELL";
+			break;
 		case TTM_PL_SYSTEM:
 		default:
 			placement = "CPU";
