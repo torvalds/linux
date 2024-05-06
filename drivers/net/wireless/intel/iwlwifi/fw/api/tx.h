@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_tx_h__
@@ -793,7 +793,8 @@ enum iwl_mac_beacon_flags {
  * @reserved: reserved
  * @link_id: the firmware id of the link that will use this beacon
  * @tim_idx: the offset of the tim IE in the beacon
- * @tim_size: the length of the tim IE
+ * @tim_size: the length of the tim IE (version < 14)
+ * @btwt_offset: offset to the broadcast TWT IE if present (version >= 14)
  * @ecsa_offset: offset to the ECSA IE if present
  * @csa_offset: offset to the CSA IE if present
  * @frame: the template of the beacon frame
@@ -805,14 +806,18 @@ struct iwl_mac_beacon_cmd {
 	__le32 reserved;
 	__le32 link_id;
 	__le32 tim_idx;
-	__le32 tim_size;
+	union {
+		__le32 tim_size;
+		__le32 btwt_offset;
+	};
 	__le32 ecsa_offset;
 	__le32 csa_offset;
 	struct ieee80211_hdr frame[];
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_10,
 	     * BEACON_TEMPLATE_CMD_API_S_VER_11,
 	     * BEACON_TEMPLATE_CMD_API_S_VER_12,
-	     * BEACON_TEMPLATE_CMD_API_S_VER_13
+	     * BEACON_TEMPLATE_CMD_API_S_VER_13,
+	     * BEACON_TEMPLATE_CMD_API_S_VER_14
 	     */
 
 struct iwl_beacon_notif {

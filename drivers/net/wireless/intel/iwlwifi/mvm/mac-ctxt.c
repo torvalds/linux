@@ -1163,6 +1163,13 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 						   WLAN_EID_EXT_CHANSWITCH_ANN,
 						   beacon->len));
 
+	if (vif->type == NL80211_IFTYPE_AP &&
+	    iwl_fw_lookup_cmd_ver(mvm->fw, BEACON_TEMPLATE_CMD, 0) >= 14)
+		beacon_cmd.btwt_offset =
+			cpu_to_le32(iwl_mvm_find_ie_offset(beacon->data,
+							   WLAN_EID_S1G_TWT,
+							   beacon->len));
+
 	return iwl_mvm_mac_ctxt_send_beacon_cmd(mvm, beacon, &beacon_cmd,
 						sizeof(beacon_cmd));
 }
