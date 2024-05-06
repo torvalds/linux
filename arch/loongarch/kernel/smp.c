@@ -29,6 +29,7 @@
 #include <asm/loongson.h>
 #include <asm/mmu_context.h>
 #include <asm/numa.h>
+#include <asm/paravirt.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
 #include <asm/time.h>
@@ -299,6 +300,7 @@ void __init loongson_smp_setup(void)
 	cpu_data[0].core = cpu_logical_map(0) % loongson_sysconf.cores_per_package;
 	cpu_data[0].package = cpu_logical_map(0) / loongson_sysconf.cores_per_package;
 
+	pv_ipi_init();
 	iocsr_write32(0xffffffff, LOONGARCH_IOCSR_IPI_EN);
 	pr_info("Detected %i available CPU(s)\n", loongson_sysconf.nr_cpus);
 }
@@ -343,7 +345,7 @@ void loongson_init_secondary(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int imask = ECFGF_IP0 | ECFGF_IP1 | ECFGF_IP2 |
-			     ECFGF_IPI | ECFGF_PMC | ECFGF_TIMER;
+			     ECFGF_IPI | ECFGF_PMC | ECFGF_TIMER | ECFGF_SIP0;
 
 	change_csr_ecfg(ECFG0_IM, imask);
 
