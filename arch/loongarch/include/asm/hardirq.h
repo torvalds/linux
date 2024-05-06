@@ -14,6 +14,11 @@ extern void ack_bad_irq(unsigned int irq);
 
 #define NR_IPI	2
 
+enum ipi_msg_type {
+	IPI_RESCHEDULE,
+	IPI_CALL_FUNCTION,
+};
+
 typedef struct {
 	unsigned int ipi_irqs[NR_IPI];
 	unsigned int __softirq_pending;
