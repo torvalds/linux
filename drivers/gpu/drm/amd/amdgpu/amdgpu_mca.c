@@ -415,7 +415,7 @@ static int amdgpu_mca_dispatch_mca_set(struct amdgpu_device *adev, enum amdgpu_r
 
 		count = 0;
 		ret = amdgpu_mca_smu_parse_mca_error_count(adev, blk, type, entry, &count);
-		if (ret)
+		if (ret && ret != -EOPNOTSUPP)
 			return ret;
 
 		if (!count)
