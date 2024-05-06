@@ -46,6 +46,28 @@
 		};
 	};
 
+	goodix_pins_a: goodix-0 {
+		/*
+		 * touchscreen reset needs to be configured
+		 * via the pinctrl not the driver (a pull-down resistor
+		 * has been soldered onto the reset line which forces
+		 * the touchscreen to reset state).
+		 */
+		pins1 {
+			pinmux = <STM32_PINMUX('H', 2, GPIO)>;
+			output-high;
+			bias-pull-up;
+		};
+		/*
+		 * Interrupt line must have a pull-down resistor
+		 * in order to freeze the i2c address at 0x5D
+		 */
+		pins2 {
+			pinmux = <STM32_PINMUX('F', 5, GPIO)>;
+			bias-pull-down;
+		};
+	};
+
 	i2c1_pins_a: i2c1-0 {
 		pins {
 			pinmux = <STM32_PINMUX('D', 12, AF5)>, /* I2C1_SCL */
