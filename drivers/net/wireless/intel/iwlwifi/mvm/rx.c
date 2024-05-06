@@ -951,12 +951,19 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 	}
 }
 
+#define SEC_LINK_MIN_PERC 10
+#define SEC_LINK_MIN_TX 3000
+#define SEC_LINK_MIN_RX 400
+
 static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 {
 	struct ieee80211_vif *bss_vif = iwl_mvm_get_bss_vif(mvm);
 	struct iwl_mvm_vif *mvmvif;
 	struct iwl_mvm_sta *mvmsta;
 	unsigned long total_tx = 0, total_rx = 0;
+	unsigned long sec_link_tx = 0, sec_link_rx = 0;
+	u8 sec_link_tx_perc, sec_link_rx_perc;
+	u8 sec_link;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -973,6 +980,13 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 	if (!mvmsta->mpdu_counters)
 		return;
 
+	/* Get the FW ID of the secondary link */
+	sec_link = iwl_mvm_get_other_link(bss_vif,
+					  iwl_mvm_get_primary_link(bss_vif));
+	if (WARN_ON(!mvmvif->link[sec_link]))
+		return;
+	sec_link = mvmvif->link[sec_link]->fw_link_id;
+
 	/* Sum up RX and TX MPDUs from the different queues/links */
 	for (int q = 0; q < mvm->trans->num_rx_queues; q++) {
 		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
@@ -982,6 +996,10 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 			total_tx += mvmsta->mpdu_counters[q].per_link[link].tx;
 			total_rx += mvmsta->mpdu_counters[q].per_link[link].rx;
 		}
+
+		sec_link_tx += mvmsta->mpdu_counters[q].per_link[sec_link].tx;
+		sec_link_rx += mvmsta->mpdu_counters[q].per_link[sec_link].rx;
+
 		/*
 		 * In EMLSR we have statistics every 5 seconds, so we can reset
 		 * the counters upon every statistics notification.
@@ -994,9 +1012,26 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 
 	/* If we don't have enough MPDUs - exit EMLSR */
 	if (total_tx < IWL_MVM_ENTER_ESR_TPT_THRESH &&
-	    total_rx < IWL_MVM_ENTER_ESR_TPT_THRESH)
+	    total_rx < IWL_MVM_ENTER_ESR_TPT_THRESH) {
 		iwl_mvm_block_esr(mvm, bss_vif, IWL_MVM_ESR_BLOCKED_TPT,
 				  iwl_mvm_get_primary_link(bss_vif));
+		return;
+	}
+
+	/* Calculate the percentage of the secondary link TX/RX */
+	sec_link_tx_perc = total_tx ? sec_link_tx * 100 / total_tx : 0;
+	sec_link_rx_perc = total_rx ? sec_link_rx * 100 / total_rx : 0;
+
+	/*
+	 * The TX/RX percentage is checked only if it exceeds the required
+	 * minimum. In addition, RX is checked only if the TX check failed.
+	 */
+	if ((total_tx > SEC_LINK_MIN_TX &&
+	     sec_link_tx_perc < SEC_LINK_MIN_PERC) ||
+	    (total_rx > SEC_LINK_MIN_RX &&
+	     sec_link_rx_perc < SEC_LINK_MIN_PERC))
+		iwl_mvm_exit_esr(mvm, bss_vif, IWL_MVM_ESR_EXIT_LINK_USAGE,
+				 iwl_mvm_get_primary_link(bss_vif));
 }
 
 void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
