@@ -193,7 +193,7 @@ int devm_regulator_get_enable_read_voltage(struct device *dev, const char *id)
 	if (ret < 0)
 		goto err_release_action;
 
-	return 0;
+	return ret;
 
 err_release_action:
 	devm_release_action(dev, regulator_action_disable, r);
