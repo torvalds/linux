@@ -106,6 +106,23 @@ ip netns exec "$ns1" bash -c 'for i in $(seq 1 $BUSYWAIT_TIMEOUT) ; do
 	sleep 0.1
 	done' &
 
+wait_for_attempt()
+{
+	count=$(ip netns exec "$ns2" conntrack -L -p tcp --dport 80 2>/dev/null | wc -l)
+	if [ "$count" -gt 0 ]; then
+		return 0
+	fi
+
+	return 1
+}
+
+# wait for conntrack to pick the new connection request up before loading
+# the nat redirect rule.
+if ! busywait "$BUSYWAIT_TIMEOUT" wait_for_attempt; then
+	echo "ERROR: $ns2 did not pick up tcp connection from peer"
+	exit 1
+fi
+
 ip netns exec "$ns2" nft -f - <<EOF
 table inet nat {
 	chain prerouting {
@@ -116,12 +133,6 @@ table inet nat {
 EOF
 if [ $? -ne 0 ]; then
 	echo "ERROR: Could not load nat redirect"
-	exit 1
-fi
-
-count=$(ip netns exec "$ns2" conntrack -L -p tcp --dport 80 2>/dev/null | wc -l)
-if [ "$count" -eq 0 ]; then
-	echo "ERROR: $ns2 did not pick up tcp connection from peer"
 	exit 1
 fi
 
@@ -136,7 +147,7 @@ wait_for_redirect()
 }
 echo "INFO: NAT redirect added in ns $ns2, waiting for $BUSYWAIT_TIMEOUT ms for nat to take effect"
 
-busywait $BUSYWAIT_TIMEOUT wait_for_redirect
+busywait "$BUSYWAIT_TIMEOUT" wait_for_redirect
 ret=$?
 
 expect="packets 1 bytes 60"
