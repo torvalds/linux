@@ -12,6 +12,7 @@ void vpu_inst_lock(struct vpu_inst *inst);
 void vpu_inst_unlock(struct vpu_inst *inst);
 void vpu_set_buffer_state(struct vb2_v4l2_buffer *vbuf, unsigned int state);
 unsigned int vpu_get_buffer_state(struct vb2_v4l2_buffer *vbuf);
+void vpu_set_buffer_average_qp(struct vb2_v4l2_buffer *vbuf, u32 qp);
 
 int vpu_v4l2_open(struct file *file, struct vpu_inst *inst);
 int vpu_v4l2_close(struct file *file);
