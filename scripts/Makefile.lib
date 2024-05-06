@@ -154,7 +154,7 @@ _cpp_flags     = $(KBUILD_CPPFLAGS) $(cppflags-y) $(CPPFLAGS_$(target-stem).lds)
 #
 ifeq ($(CONFIG_GCOV_KERNEL),y)
 _c_flags += $(if $(patsubst n%,, \
-		$(GCOV_PROFILE_$(target-stem).o)$(GCOV_PROFILE)$(CONFIG_GCOV_PROFILE_ALL)), \
+		$(GCOV_PROFILE_$(target-stem).o)$(GCOV_PROFILE)$(if $(is-kernel-object),$(CONFIG_GCOV_PROFILE_ALL))), \
 		$(CFLAGS_GCOV))
 endif
 
@@ -165,32 +165,32 @@ endif
 ifeq ($(CONFIG_KASAN),y)
 ifneq ($(CONFIG_KASAN_HW_TAGS),y)
 _c_flags += $(if $(patsubst n%,, \
-		$(KASAN_SANITIZE_$(target-stem).o)$(KASAN_SANITIZE)y), \
+		$(KASAN_SANITIZE_$(target-stem).o)$(KASAN_SANITIZE)$(is-kernel-object)), \
 		$(CFLAGS_KASAN), $(CFLAGS_KASAN_NOSANITIZE))
 endif
 endif
 
 ifeq ($(CONFIG_KMSAN),y)
 _c_flags += $(if $(patsubst n%,, \
-		$(KMSAN_SANITIZE_$(target-stem).o)$(KMSAN_SANITIZE)y), \
+		$(KMSAN_SANITIZE_$(target-stem).o)$(KMSAN_SANITIZE)$(is-kernel-object)), \
 		$(CFLAGS_KMSAN))
 _c_flags += $(if $(patsubst n%,, \
-		$(KMSAN_ENABLE_CHECKS_$(target-stem).o)$(KMSAN_ENABLE_CHECKS)y), \
+		$(KMSAN_ENABLE_CHECKS_$(target-stem).o)$(KMSAN_ENABLE_CHECKS)$(is-kernel-object)), \
 		, -mllvm -msan-disable-checks=1)
 endif
 
 ifeq ($(CONFIG_UBSAN),y)
 _c_flags += $(if $(patsubst n%,, \
-		$(UBSAN_SANITIZE_$(target-stem).o)$(UBSAN_SANITIZE)y), \
+		$(UBSAN_SANITIZE_$(target-stem).o)$(UBSAN_SANITIZE)$(is-kernel-object)), \
 		$(CFLAGS_UBSAN))
 _c_flags += $(if $(patsubst n%,, \
-		$(UBSAN_SIGNED_WRAP_$(target-stem).o)$(UBSAN_SANITIZE_$(target-stem).o)$(UBSAN_SIGNED_WRAP)$(UBSAN_SANITIZE)y), \
+		$(UBSAN_SIGNED_WRAP_$(target-stem).o)$(UBSAN_SANITIZE_$(target-stem).o)$(UBSAN_SIGNED_WRAP)$(UBSAN_SANITIZE)$(is-kernel-object)), \
 		$(CFLAGS_UBSAN_SIGNED_WRAP))
 endif
 
 ifeq ($(CONFIG_KCOV),y)
 _c_flags += $(if $(patsubst n%,, \
-	$(KCOV_INSTRUMENT_$(target-stem).o)$(KCOV_INSTRUMENT)$(CONFIG_KCOV_INSTRUMENT_ALL)), \
+	$(KCOV_INSTRUMENT_$(target-stem).o)$(KCOV_INSTRUMENT)$(if $(is-kernel-object),$(CONFIG_KCOV_INSTRUMENT_ALL))), \
 	$(CFLAGS_KCOV))
 endif
 
@@ -200,7 +200,7 @@ endif
 #
 ifeq ($(CONFIG_KCSAN),y)
 _c_flags += $(if $(patsubst n%,, \
-	$(KCSAN_SANITIZE_$(target-stem).o)$(KCSAN_SANITIZE)y), \
+	$(KCSAN_SANITIZE_$(target-stem).o)$(KCSAN_SANITIZE)$(is-kernel-object)), \
 	$(CFLAGS_KCSAN))
 # Some uninstrumented files provide implied barriers required to avoid false
 # positives: set KCSAN_INSTRUMENT_BARRIERS for barrier instrumentation only.
@@ -219,6 +219,10 @@ _cpp_flags += $(addprefix -I, $(src) $(obj))
 endif
 endif
 
+# If $(is-kernel-object) is 'y', this object will be linked to vmlinux or modules
+is-kernel-object = $(or $(part-of-builtin),$(part-of-module))
+
+part-of-builtin = $(if $(filter $(basename $@).o, $(real-obj-y) $(lib-y)),y)
 part-of-module = $(if $(filter $(basename $@).o, $(real-obj-m)),y)
 quiet_modtag = $(if $(part-of-module),[M],   )
 
