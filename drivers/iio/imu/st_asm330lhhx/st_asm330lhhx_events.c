@@ -626,15 +626,6 @@ int st_asm330lhhx_probe_event(struct st_asm330lhhx_hw *hw)
 		iio_dev->trig = iio_trigger_get(sensor->trig);
 	}
 
-	for (i = ST_ASM330LHHX_ID_EVENT; i < ST_ASM330LHHX_ID_MAX; i++) {
-		if (!hw->iio_devs[i])
-			continue;
-
-		err = devm_iio_device_register(hw->dev, hw->iio_devs[i]);
-		if (err)
-			return err;
-	}
-
 	return 0;
 }
 #endif /* CONFIG_IIO_ST_ASM330LHHX_EN_BASIC_FEATURES */

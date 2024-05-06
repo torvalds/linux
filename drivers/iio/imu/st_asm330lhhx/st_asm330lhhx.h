@@ -21,7 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 
-#include "../../common/stm_iio_types.h"
+#include "stm_iio_types.h"
 
 #define ST_ASM330LHHX_DEBUG_DISCHARGE
 
@@ -751,6 +751,8 @@ struct st_asm330lhhx_hw {
 	s64 ts;
 	u8 i2c_master_pu;
 	u32 module_id;
+	struct regulator *vdd;
+	struct regulator *vio;
 
 	const struct st_asm330lhhx_odr_table_entry *odr_table_entry;
 	struct iio_dev *iio_devs[ST_ASM330LHHX_ID_MAX];
