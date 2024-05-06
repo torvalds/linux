@@ -435,6 +435,13 @@ int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 					   IWL_FW_CMD_VER_UNKNOWN);
 	int ret;
 
+	/*
+	 * Don't request statistics during restart, they'll not have any useful
+	 * information right after restart, nor is clearing needed
+	 */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return 0;
+
 	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
 		return iwl_mvm_request_system_statistics(mvm, clear, cmd_ver);
 
