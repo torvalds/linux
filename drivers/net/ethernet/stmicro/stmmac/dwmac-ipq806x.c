@@ -171,6 +171,9 @@ static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
 
 	switch (gmac->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		div = get_clk_div_rgmii(gmac, speed);
 		clk_bits = NSS_COMMON_CLK_GATE_RGMII_RX_EN(gmac->id) |
 			   NSS_COMMON_CLK_GATE_RGMII_TX_EN(gmac->id);
@@ -410,6 +413,9 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 	val |= NSS_COMMON_GMAC_CTL_CSYS_REQ;
 	switch (gmac->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		val |= NSS_COMMON_GMAC_CTL_PHY_IFACE_SEL;
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
@@ -425,6 +431,9 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 	val &= ~(1 << NSS_COMMON_CLK_SRC_CTRL_OFFSET(gmac->id));
 	switch (gmac->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		val |= NSS_COMMON_CLK_SRC_CTRL_RGMII(gmac->id) <<
 			NSS_COMMON_CLK_SRC_CTRL_OFFSET(gmac->id);
 		break;
@@ -442,6 +451,9 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 	val |= NSS_COMMON_CLK_GATE_PTP_EN(gmac->id);
 	switch (gmac->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		val |= NSS_COMMON_CLK_GATE_RGMII_RX_EN(gmac->id) |
 			NSS_COMMON_CLK_GATE_RGMII_TX_EN(gmac->id);
 		break;
