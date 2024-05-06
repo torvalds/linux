@@ -3633,10 +3633,10 @@ void ieee80211_csa_finish(struct ieee80211_vif *vif, unsigned int link_id)
 				continue;
 
 			wiphy_work_queue(iter->local->hw.wiphy,
-					 &iter->deflink.csa_finalize_work);
+					 &iter->deflink.csa.finalize_work);
 		}
 	}
-	wiphy_work_queue(local->hw.wiphy, &link_data->csa_finalize_work);
+	wiphy_work_queue(local->hw.wiphy, &link_data->csa.finalize_work);
 
 	rcu_read_unlock();
 }
@@ -3723,7 +3723,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 	}
 
 	if (!cfg80211_chandef_identical(&link_conf->chanreq.oper,
-					&link_data->csa_chanreq.oper))
+					&link_data->csa.chanreq.oper))
 		return -EINVAL;
 
 	link_conf->csa_active = false;
@@ -3744,7 +3744,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 	if (err)
 		return err;
 
-	cfg80211_ch_switch_notify(sdata->dev, &link_data->csa_chanreq.oper,
+	cfg80211_ch_switch_notify(sdata->dev, &link_data->csa.chanreq.oper,
 				  link_data->link_id);
 
 	return 0;
@@ -3765,7 +3765,7 @@ static void ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 void ieee80211_csa_finalize_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ieee80211_link_data *link =
-		container_of(work, struct ieee80211_link_data, csa_finalize_work);
+		container_of(work, struct ieee80211_link_data, csa.finalize_work);
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 
@@ -4012,7 +4012,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 	}
 
-	link_data->csa_chanreq = chanreq; 
+	link_data->csa.chanreq = chanreq;
 	link_conf->csa_active = true;
 
 	if (params->block_tx &&
@@ -4023,12 +4023,12 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	cfg80211_ch_switch_started_notify(sdata->dev,
-					  &link_data->csa_chanreq.oper, 0,
+					  &link_data->csa.chanreq.oper, 0,
 					  params->count, params->block_tx);
 
 	if (changed) {
 		ieee80211_link_info_change_notify(sdata, link_data, changed);
-		drv_channel_switch_beacon(sdata, &link_data->csa_chanreq.oper);
+		drv_channel_switch_beacon(sdata, &link_data->csa.chanreq.oper);
 	} else {
 		/* if the beacon didn't change, we can finalize immediately */
 		ieee80211_csa_finalize(link_data);

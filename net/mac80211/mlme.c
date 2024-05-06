@@ -2057,12 +2057,12 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
 }
 
 /* spectrum management related things */
-static void ieee80211_chswitch_work(struct wiphy *wiphy,
-				    struct wiphy_work *work)
+static void ieee80211_csa_switch_work(struct wiphy *wiphy,
+				      struct wiphy_work *work)
 {
 	struct ieee80211_link_data *link =
 		container_of(work, struct ieee80211_link_data,
-			     u.mgd.chswitch_work.work);
+			     u.mgd.csa.switch_work.work);
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
@@ -2085,8 +2085,8 @@ static void ieee80211_chswitch_work(struct wiphy *wiphy,
 	 * update cfg80211 directly.
 	 */
 	if (!ieee80211_vif_link_active(&sdata->vif, link->link_id)) {
-		link->conf->chanreq = link->csa_chanreq;
-		cfg80211_ch_switch_notify(sdata->dev, &link->csa_chanreq.oper,
+		link->conf->chanreq = link->csa.chanreq;
+		cfg80211_ch_switch_notify(sdata->dev, &link->csa.chanreq.oper,
 					  link->link_id);
 		return;
 	}
@@ -2119,7 +2119,7 @@ static void ieee80211_chswitch_work(struct wiphy *wiphy,
 	}
 
 	if (!ieee80211_chanreq_identical(&link->conf->chanreq,
-					 &link->csa_chanreq)) {
+					 &link->csa.chanreq)) {
 		link_info(link,
 			  "failed to finalize channel switch, disconnecting\n");
 		wiphy_work_queue(sdata->local->hw.wiphy,
@@ -2127,7 +2127,7 @@ static void ieee80211_chswitch_work(struct wiphy *wiphy,
 		return;
 	}
 
-	link->u.mgd.csa_waiting_bcn = true;
+	link->u.mgd.csa.waiting_bcn = true;
 
 	ieee80211_sta_reset_beacon_monitor(sdata);
 	ieee80211_sta_reset_conn_monitor(sdata);
@@ -2151,8 +2151,8 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 	}
 
 	link->conf->csa_active = false;
-	link->u.mgd.csa_blocked_tx = false;
-	link->u.mgd.csa_waiting_bcn = false;
+	link->u.mgd.csa.blocked_tx = false;
+	link->u.mgd.csa.waiting_bcn = false;
 
 	ret = drv_post_channel_switch(link);
 	if (ret) {
@@ -2192,7 +2192,7 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
 		}
 
 		wiphy_delayed_work_queue(sdata->local->hw.wiphy,
-					 &link->u.mgd.chswitch_work, 0);
+					 &link->u.mgd.csa.switch_work, 0);
 	}
 
 	rcu_read_unlock();
@@ -2219,7 +2219,7 @@ ieee80211_sta_abort_chanswitch(struct ieee80211_link_data *link)
 	}
 
 	link->conf->csa_active = false;
-	link->u.mgd.csa_blocked_tx = false;
+	link->u.mgd.csa.blocked_tx = false;
 
 	drv_abort_channel_switch(link);
 }
@@ -2324,7 +2324,7 @@ ieee80211_sta_other_link_csa_disappeared(struct ieee80211_link_data *link,
 	 * puncturing configuration, but we don't have enough data to
 	 * detect that.
 	 */
-	if (data.chan != link->csa_chanreq.oper.chan)
+	if (data.chan != link->csa.chanreq.oper.chan)
 		ieee80211_sta_abort_chanswitch(link);
 }
 
@@ -2398,7 +2398,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 			/* already processing - disregard action frames */
 			return;
 		case IEEE80211_CSA_SOURCE_BEACON:
-			if (link->u.mgd.csa_waiting_bcn) {
+			if (link->u.mgd.csa.waiting_bcn) {
 				ieee80211_chswitch_post_beacon(link);
 				/*
 				 * If the CSA is still present after the switch
@@ -2421,7 +2421,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 				return;
 
 			/* switch work ran, so just complete the process */
-			if (link->u.mgd.csa_waiting_bcn) {
+			if (link->u.mgd.csa.waiting_bcn) {
 				ieee80211_chswitch_post_beacon(link);
 				/*
 				 * If the CSA is still present after the switch
@@ -2476,12 +2476,12 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	if (cfg80211_chandef_identical(&csa_ie.chanreq.oper,
 				       &link->conf->chanreq.oper) &&
 	    (!csa_ie.mode || source != IEEE80211_CSA_SOURCE_BEACON)) {
-		if (link->u.mgd.csa_ignored_same_chan)
+		if (link->u.mgd.csa.ignored_same_chan)
 			return;
 		link_info(link,
 			  "AP %pM tries to chanswitch to same channel, ignore\n",
 			  link->u.mgd.bssid);
-		link->u.mgd.csa_ignored_same_chan = true;
+		link->u.mgd.csa.ignored_same_chan = true;
 		return;
 	}
 
@@ -2529,10 +2529,10 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	}
 
 	link->conf->csa_active = true;
-	link->csa_chanreq = csa_ie.chanreq;
-	link->u.mgd.csa_ignored_same_chan = false;
+	link->csa.chanreq = csa_ie.chanreq;
+	link->u.mgd.csa.ignored_same_chan = false;
 	link->u.mgd.beacon_crc_valid = false;
-	link->u.mgd.csa_blocked_tx = csa_ie.mode;
+	link->u.mgd.csa.blocked_tx = csa_ie.mode;
 
 	if (csa_ie.mode &&
 	    !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA)) {
@@ -2547,7 +2547,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 
 	/* we may have to handle timeout for deactivated link in software */
 	now = jiffies;
-	link->u.mgd.csa_time = now +
+	link->u.mgd.csa.time = now +
 			       TU_TO_JIFFIES((max_t(int, csa_ie.count, 1) - 1) *
 					     link->conf->beacon_int);
 
@@ -2557,7 +2557,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		 * Use driver's channel switch callback, the driver will
 		 * later call ieee80211_chswitch_done(). It may deactivate
 		 * the link as well, we handle that elsewhere and queue
-		 * the chswitch_work for the calculated time then.
+		 * the csa.switch_work for the calculated time then.
 		 */
 		drv_channel_switch(local, sdata, &ch_switch);
 		return;
@@ -2565,8 +2565,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 
 	/* channel switch handled in software */
 	wiphy_delayed_work_queue(local->hw.wiphy,
-				 &link->u.mgd.chswitch_work,
-				 link->u.mgd.csa_time - now);
+				 &link->u.mgd.csa.switch_work,
+				 link->u.mgd.csa.time - now);
 	return;
  drop_connection:
 	/*
@@ -2577,7 +2577,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	 * reset when the disconnection worker runs.
 	 */
 	link->conf->csa_active = true;
-	link->u.mgd.csa_blocked_tx = csa_ie.mode;
+	link->u.mgd.csa.blocked_tx = csa_ie.mode;
 	sdata->csa_blocked_queues =
 		csa_ie.mode && !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA);
 
@@ -3630,9 +3630,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sdata->vif.bss_conf.csa_active = false;
-	sdata->deflink.u.mgd.csa_blocked_tx = false;
-	sdata->deflink.u.mgd.csa_waiting_bcn = false;
-	sdata->deflink.u.mgd.csa_ignored_same_chan = false;
+	sdata->deflink.u.mgd.csa.blocked_tx = false;
+	sdata->deflink.u.mgd.csa.waiting_bcn = false;
+	sdata->deflink.u.mgd.csa.ignored_same_chan = false;
 	if (sdata->csa_blocked_queues) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -3960,7 +3960,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 		if (WARN_ON_ONCE(!link))
 			continue;
 
-		if (link->u.mgd.csa_blocked_tx)
+		if (link->u.mgd.csa.blocked_tx)
 			continue;
 
 		tx = true;
@@ -3997,8 +3997,8 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 			       tx, frame_buf);
 	/* the other links will be destroyed */
 	sdata->vif.bss_conf.csa_active = false;
-	sdata->deflink.u.mgd.csa_waiting_bcn = false;
-	sdata->deflink.u.mgd.csa_blocked_tx = false;
+	sdata->deflink.u.mgd.csa.waiting_bcn = false;
+	sdata->deflink.u.mgd.csa.blocked_tx = false;
 	if (sdata->csa_blocked_queues) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -7785,7 +7785,7 @@ static void ieee80211_sta_bcn_mon_timer(struct timer_list *t)
 		return;
 
 	if (sdata->vif.bss_conf.csa_active &&
-	    !sdata->deflink.u.mgd.csa_waiting_bcn)
+	    !sdata->deflink.u.mgd.csa.waiting_bcn)
 		return;
 
 	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)
@@ -7809,7 +7809,7 @@ static void ieee80211_sta_conn_mon_timer(struct timer_list *t)
 		return;
 
 	if (sdata->vif.bss_conf.csa_active &&
-	    !sdata->deflink.u.mgd.csa_waiting_bcn)
+	    !sdata->deflink.u.mgd.csa.waiting_bcn)
 		return;
 
 	sta = sta_info_get(sdata, sdata->vif.cfg.ap_addr);
@@ -8020,8 +8020,8 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
 	else
 		link->u.mgd.req_smps = IEEE80211_SMPS_OFF;
 
-	wiphy_delayed_work_init(&link->u.mgd.chswitch_work,
-				ieee80211_chswitch_work);
+	wiphy_delayed_work_init(&link->u.mgd.csa.switch_work,
+				ieee80211_csa_switch_work);
 
 	ieee80211_clear_tpe(&link->conf->tpe);
 
@@ -9152,7 +9152,7 @@ void ieee80211_mgd_stop_link(struct ieee80211_link_data *link)
 	wiphy_work_cancel(link->sdata->local->hw.wiphy,
 			  &link->u.mgd.recalc_smps);
 	wiphy_delayed_work_cancel(link->sdata->local->hw.wiphy,
-				  &link->u.mgd.chswitch_work);
+				  &link->u.mgd.csa.switch_work);
 }
 
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)

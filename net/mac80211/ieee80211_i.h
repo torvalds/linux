@@ -975,11 +975,13 @@ struct ieee80211_link_data_managed {
 	bool disable_wmm_tracking;
 	bool operating_11g_mode;
 
-	bool csa_waiting_bcn;
-	bool csa_ignored_same_chan;
-	bool csa_blocked_tx;
-	unsigned long csa_time;
-	struct wiphy_delayed_work chswitch_work;
+	struct {
+		struct wiphy_delayed_work switch_work;
+		unsigned long time;
+		bool waiting_bcn;
+		bool ignored_same_chan;
+		bool blocked_tx;
+	} csa;
 
 	struct wiphy_work request_smps_work;
 	/* used to reconfigure hardware SM PS */
@@ -1038,11 +1040,13 @@ struct ieee80211_link_data {
 	struct ieee80211_key __rcu *default_mgmt_key;
 	struct ieee80211_key __rcu *default_beacon_key;
 
-	struct wiphy_work csa_finalize_work;
 
 	bool operating_11g_mode;
 
-	struct ieee80211_chan_req csa_chanreq;
+	struct {
+		struct wiphy_work finalize_work;
+		struct ieee80211_chan_req chanreq;
+	} csa;
 
 	struct wiphy_work color_change_finalize_work;
 	struct delayed_work color_collision_detect_work;
