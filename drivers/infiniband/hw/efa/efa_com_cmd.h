@@ -27,6 +27,7 @@ struct efa_com_create_qp_params {
 	u16 pd;
 	u16 uarn;
 	u8 qp_type;
+	u8 unsolicited_write_recv : 1;
 };
 
 struct efa_com_create_qp_result {
