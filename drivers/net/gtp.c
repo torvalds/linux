@@ -1009,8 +1009,8 @@ static struct sock *gtp_create_sock(int type, struct gtp_dev *gtp)
 
 static int gtp_create_sockets(struct gtp_dev *gtp, struct nlattr *data[])
 {
-	struct sock *sk1u = NULL;
-	struct sock *sk0 = NULL;
+	struct sock *sk1u;
+	struct sock *sk0;
 
 	sk0 = gtp_create_sock(UDP_ENCAP_GTP0, gtp);
 	if (IS_ERR(sk0))
