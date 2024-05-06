@@ -11,6 +11,7 @@
 #include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
+#include "intel_atomic_plane.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
@@ -236,15 +237,11 @@ void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
 int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct i915_vma *vma;
-	bool phys_cursor =
-		plane->id == PLANE_CURSOR &&
-		DISPLAY_INFO(dev_priv)->cursor_needs_physical;
 
 	if (!intel_fb_uses_dpt(fb)) {
-		vma = intel_pin_and_fence_fb_obj(fb, phys_cursor,
+		vma = intel_pin_and_fence_fb_obj(fb, intel_plane_needs_physical(plane),
 						 &plane_state->view.gtt,
 						 intel_plane_uses_fence(plane_state),
 						 &plane_state->flags);
@@ -259,7 +256,7 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 		 * will trigger might_sleep() even if it won't actually sleep,
 		 * which is the case when the fb has already been pinned.
 		 */
-		if (phys_cursor)
+		if (intel_plane_needs_physical(plane))
 			plane_state->phys_dma_addr =
 				i915_gem_object_get_dma_address(intel_fb_obj(fb), 0);
 	} else {
