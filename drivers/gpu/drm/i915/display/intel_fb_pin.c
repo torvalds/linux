@@ -20,7 +20,6 @@ static struct i915_vma *
 intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 		     const struct i915_gtt_view *view,
 		     unsigned int alignment,
-		     bool uses_fence,
 		     unsigned long *out_flags,
 		     struct i915_address_space *vm)
 {
@@ -274,8 +273,8 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 		plane_state->ggtt_vma = vma;
 
 		vma = intel_pin_fb_obj_dpt(fb, &plane_state->view.gtt,
-					   alignment, false,
-					   &plane_state->flags, intel_fb->dpt_vm);
+					   alignment, &plane_state->flags,
+					   intel_fb->dpt_vm);
 		if (IS_ERR(vma)) {
 			intel_dpt_unpin(intel_fb->dpt_vm);
 			plane_state->ggtt_vma = NULL;
