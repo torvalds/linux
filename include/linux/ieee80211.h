@@ -2833,11 +2833,6 @@ struct ieee80211_he_6ghz_oper {
  * So it it totally max 8 Transmit Power Envelope element.
  */
 #define IEEE80211_TPE_MAX_IE_COUNT	8
-/*
- * In "Table 9-277—Meaning of Maximum Transmit Power Count subfield"
- * of "IEEE Std 802.11ax™‐2021", the max power level is 8.
- */
-#define IEEE80211_MAX_NUM_PWR_LEVEL	8
 
 #define IEEE80211_TPE_MAX_POWER_COUNT	8
 
