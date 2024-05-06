@@ -461,41 +461,46 @@ static int icl_plane_max_height(const struct drm_framebuffer *fb,
 }
 
 static unsigned int
+plane_max_stride(struct intel_plane *plane,
+		 u32 pixel_format, u64 modifier,
+		 unsigned int rotation,
+		 unsigned int max_pixels,
+		 unsigned int max_bytes)
+{
+	const struct drm_format_info *info = drm_format_info(pixel_format);
+	int cpp = info->cpp[0];
+
+	if (drm_rotation_90_or_270(rotation))
+		return min(max_pixels, max_bytes / cpp);
+	else
+		return min(max_pixels * cpp, max_bytes);
+}
+
+static unsigned int
+adl_plane_max_stride(struct intel_plane *plane,
+		     u32 pixel_format, u64 modifier,
+		     unsigned int rotation)
+{
+	unsigned int max_pixels = 65536; /* PLANE_OFFSET limit */
+	unsigned int max_bytes = 128 * 1024;
+
+	return plane_max_stride(plane, pixel_format,
+				modifier, rotation,
+				max_pixels, max_bytes);
+}
+
+static unsigned int
 skl_plane_max_stride(struct intel_plane *plane,
 		     u32 pixel_format, u64 modifier,
 		     unsigned int rotation)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-	const struct drm_format_info *info = drm_format_info(pixel_format);
-	int cpp = info->cpp[0];
-	int max_horizontal_pixels = 8192;
-	int max_stride_bytes;
+	unsigned int max_pixels = 8192; /* PLANE_OFFSET limit */
+	unsigned int max_bytes = 32 * 1024;
 
-	if (DISPLAY_VER(i915) >= 13) {
-		/*
-		 * The stride in bytes must not exceed of the size
-		 * of 128K bytes. For pixel formats of 64bpp will allow
-		 * for a 16K pixel surface.
-		 */
-		max_stride_bytes = 131072;
-		if (cpp == 8)
-			max_horizontal_pixels = 16384;
-		else
-			max_horizontal_pixels = 65536;
-	} else {
-		/*
-		 * "The stride in bytes must not exceed the
-		 * of the size of 8K pixels and 32K bytes."
-		 */
-		max_stride_bytes = 32768;
-	}
-
-	if (drm_rotation_90_or_270(rotation))
-		return min(max_horizontal_pixels, max_stride_bytes / cpp);
-	else
-		return min(max_horizontal_pixels * cpp, max_stride_bytes);
+	return plane_max_stride(plane, pixel_format,
+				modifier, rotation,
+				max_pixels, max_bytes);
 }
-
 
 /* Preoffset values for YUV to RGB Conversion */
 #define PREOFF_YUV_TO_RGB_HI		0x1800
@@ -2357,7 +2362,11 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		plane->min_cdclk = skl_plane_min_cdclk;
 	}
 
-	plane->max_stride = skl_plane_max_stride;
+	if (DISPLAY_VER(dev_priv) >= 13)
+		plane->max_stride = adl_plane_max_stride;
+	else
+		plane->max_stride = skl_plane_max_stride;
+
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		plane->update_noarm = icl_plane_update_noarm;
 		plane->update_arm = icl_plane_update_arm;
