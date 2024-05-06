@@ -1128,7 +1128,6 @@ static int cs421x_parse_auto_config(struct hda_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 /*
  *	Manage PDREF, when transitioning to D3hot
  *	(DAC,ADC) -> D3, PDREF=1, AFG->D3
@@ -1153,7 +1152,6 @@ static int cs421x_suspend(struct hda_codec *codec)
 
 	return 0;
 }
-#endif
 
 static const struct hda_codec_ops cs421x_patch_ops = {
 	.build_controls = snd_hda_gen_build_controls,
@@ -1161,9 +1159,7 @@ static const struct hda_codec_ops cs421x_patch_ops = {
 	.init = cs421x_init,
 	.free = cs_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-#ifdef CONFIG_PM
 	.suspend = cs421x_suspend,
-#endif
 };
 
 static int patch_cs4210(struct hda_codec *codec)
