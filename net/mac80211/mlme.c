@@ -789,6 +789,29 @@ static void ieee80211_rearrange_tpe(struct ieee80211_parsed_tpe *tpe,
 	}
 }
 
+/*
+ * The AP part of the channel request is used to distinguish settings
+ * to the device used for wider bandwidth OFDMA. This is used in the
+ * channel context code to assign two channel contexts even if they're
+ * both for the same channel, if the AP bandwidths are incompatible.
+ * If not EHT (or driver override) then ap.chan == NULL indicates that
+ * there's no wider BW OFDMA used.
+ */
+static void ieee80211_set_chanreq_ap(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_chan_req *chanreq,
+				     struct ieee80211_conn_settings *conn,
+				     struct cfg80211_chan_def *ap_chandef)
+{
+	chanreq->ap.chan = NULL;
+
+	if (conn->mode < IEEE80211_CONN_MODE_EHT)
+		return;
+	if (sdata->vif.driver_flags & IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW)
+		return;
+
+	chanreq->ap = *ap_chandef;
+}
+
 static struct ieee802_11_elems *
 ieee80211_determine_chan_mode(struct ieee80211_sub_if_data *sdata,
 			      struct ieee80211_conn_settings *conn,
@@ -886,12 +909,7 @@ again:
 
 	chanreq->oper = *ap_chandef;
 
-	/* wider-bandwidth OFDMA is only done in EHT */
-	if (conn->mode >= IEEE80211_CONN_MODE_EHT &&
-	    !(sdata->vif.driver_flags & IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW))
-		chanreq->ap = *ap_chandef;
-	else
-		chanreq->ap.chan = NULL;
+	ieee80211_set_chanreq_ap(sdata, chanreq, conn, ap_chandef);
 
 	while (!ieee80211_chandef_usable(sdata, &chanreq->oper,
 					 IEEE80211_CHAN_DISABLED)) {
@@ -999,11 +1017,9 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 		return -EINVAL;
 	}
 
-	chanreq.ap = ap_chandef;
 	chanreq.oper = ap_chandef;
-	if (link->u.mgd.conn.mode < IEEE80211_CONN_MODE_EHT ||
-	    sdata->vif.driver_flags & IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW)
-		chanreq.ap.chan = NULL;
+	ieee80211_set_chanreq_ap(sdata, &chanreq, &link->u.mgd.conn,
+				 &ap_chandef);
 
 	/*
 	 * if HT operation mode changed store the new one -
@@ -2535,10 +2551,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 
 	link->u.mgd.csa.ap_chandef = csa_ie.chanreq.ap;
 
-	link->csa.chanreq = csa_ie.chanreq;
-	if (link->u.mgd.conn.mode < IEEE80211_CONN_MODE_EHT ||
-	    sdata->vif.driver_flags & IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW)
-		link->csa.chanreq.ap.chan = NULL;
+	link->csa.chanreq.oper = csa_ie.chanreq.oper;
+	ieee80211_set_chanreq_ap(sdata, &link->csa.chanreq, &link->u.mgd.conn,
+				 &csa_ie.chanreq.ap);
 
 	if (chanctx) {
 		res = ieee80211_link_reserve_chanctx(link, &link->csa.chanreq,
