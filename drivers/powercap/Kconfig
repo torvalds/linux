@@ -46,6 +46,17 @@ config IDLE_INJECT
 	  synchronously on a set of specified CPUs or alternatively
 	  on a per CPU basis.
 
+config QCOM_EPM
+	tristate "Qualcomm Technologies, Inc. EPM Hardware driver"
+	depends on SPMI && NVMEM_SPMI_SDAM
+	default n
+	help
+	  This enables Qualcomm Technologies, Inc. epm hardware
+	  device driver. It provides to measure different pmic
+	  regulators or bucks power consumption data in different
+	  modes. It exposes these data to userspace clients via
+	  powercap sysfs interface.
+
 config DTPM
 	bool "Power capping for Dynamic Thermal Power Management (EXPERIMENTAL)"
 	depends on OF
