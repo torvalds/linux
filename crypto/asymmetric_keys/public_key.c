@@ -115,7 +115,8 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 */
 		if (!hash_algo)
 			return -EINVAL;
-		if (strcmp(hash_algo, "sha224") != 0 &&
+		if (strcmp(hash_algo, "sha1") != 0 &&
+		    strcmp(hash_algo, "sha224") != 0 &&
 		    strcmp(hash_algo, "sha256") != 0 &&
 		    strcmp(hash_algo, "sha384") != 0 &&
 		    strcmp(hash_algo, "sha512") != 0 &&

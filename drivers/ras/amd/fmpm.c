@@ -150,6 +150,8 @@ static unsigned int max_nr_fru;
 /* Total length of record including headers and list of descriptor entries. */
 static size_t max_rec_len;
 
+#define FMPM_MAX_REC_LEN (sizeof(struct fru_rec) + (sizeof(struct cper_fru_poison_desc) * 255))
+
 /* Total number of SPA entries across all FRUs. */
 static unsigned int spa_nr_entries;
 
@@ -475,6 +477,16 @@ static void set_rec_fields(struct fru_rec *rec)
 	struct cper_section_descriptor	*sec_desc = &rec->sec_desc;
 	struct cper_record_header	*hdr	  = &rec->hdr;
 
+	/*
+	 * This is a saved record created with fewer max_nr_entries.
+	 * Update the record lengths and keep everything else as-is.
+	 */
+	if (hdr->record_length && hdr->record_length < max_rec_len) {
+		pr_debug("Growing record 0x%016llx from %u to %zu bytes\n",
+			 hdr->record_id, hdr->record_length, max_rec_len);
+		goto update_lengths;
+	}
+
 	memcpy(hdr->signature, CPER_SIG_RECORD, CPER_SIG_SIZE);
 	hdr->revision			= CPER_RECORD_REV;
 	hdr->signature_end		= CPER_SIG_END;
@@ -489,19 +501,21 @@ static void set_rec_fields(struct fru_rec *rec)
 	hdr->error_severity		= CPER_SEV_RECOVERABLE;
 
 	hdr->validation_bits		= 0;
-	hdr->record_length		= max_rec_len;
 	hdr->creator_id			= CPER_CREATOR_FMP;
 	hdr->notification_type		= CPER_NOTIFY_MCE;
 	hdr->record_id			= cper_next_record_id();
 	hdr->flags			= CPER_HW_ERROR_FLAGS_PREVERR;
 
 	sec_desc->section_offset	= sizeof(struct cper_record_header);
-	sec_desc->section_length	= max_rec_len - sizeof(struct cper_record_header);
 	sec_desc->revision		= CPER_SEC_REV;
 	sec_desc->validation_bits	= 0;
 	sec_desc->flags			= CPER_SEC_PRIMARY;
 	sec_desc->section_type		= CPER_SECTION_TYPE_FMP;
 	sec_desc->section_severity	= CPER_SEV_RECOVERABLE;
+
+update_lengths:
+	hdr->record_length		= max_rec_len;
+	sec_desc->section_length	= max_rec_len - sizeof(struct cper_record_header);
 }
 
 static int save_new_records(void)
@@ -512,16 +526,18 @@ static int save_new_records(void)
 	int ret = 0;
 
 	for_each_fru(i, rec) {
-		if (rec->hdr.record_length)
+		/* No need to update saved records that match the current record size. */
+		if (rec->hdr.record_length == max_rec_len)
 			continue;
+
+		if (!rec->hdr.record_length)
+			set_bit(i, new_records);
 
 		set_rec_fields(rec);
 
 		ret = update_record_on_storage(rec);
 		if (ret)
 			goto out_clear;
-
-		set_bit(i, new_records);
 	}
 
 	return ret;
@@ -641,12 +657,7 @@ static int get_saved_records(void)
 	int ret, pos;
 	ssize_t len;
 
-	/*
-	 * Assume saved records match current max size.
-	 *
-	 * However, this may not be true depending on module parameters.
-	 */
-	old = kmalloc(max_rec_len, GFP_KERNEL);
+	old = kmalloc(FMPM_MAX_REC_LEN, GFP_KERNEL);
 	if (!old) {
 		ret = -ENOMEM;
 		goto out;
@@ -663,21 +674,31 @@ static int get_saved_records(void)
 		 * Make sure to clear temporary buffer between reads to avoid
 		 * leftover data from records of various sizes.
 		 */
-		memset(old, 0, max_rec_len);
+		memset(old, 0, FMPM_MAX_REC_LEN);
 
-		len = erst_read_record(record_id, &old->hdr, max_rec_len,
+		len = erst_read_record(record_id, &old->hdr, FMPM_MAX_REC_LEN,
 				       sizeof(struct fru_rec), &CPER_CREATOR_FMP);
 		if (len < 0)
 			continue;
 
-		if (len > max_rec_len) {
-			pr_debug("Found record larger than max_rec_len\n");
+		new = get_valid_record(old);
+		if (!new) {
+			erst_clear(record_id);
 			continue;
 		}
 
-		new = get_valid_record(old);
-		if (!new)
-			erst_clear(record_id);
+		if (len > max_rec_len) {
+			unsigned int saved_nr_entries;
+
+			saved_nr_entries  = len - sizeof(struct fru_rec);
+			saved_nr_entries /= sizeof(struct cper_fru_poison_desc);
+
+			pr_warn("Saved record found with %u entries.\n", saved_nr_entries);
+			pr_warn("Please increase max_nr_entries to %u.\n", saved_nr_entries);
+
+			ret = -EINVAL;
+			goto out_end;
+		}
 
 		/* Restore the record */
 		memcpy(new, old, len);

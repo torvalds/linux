@@ -751,6 +751,33 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 
 		first_childevt = evt = data->evt;
 
+		/*
+		 * Walking the hierarchy is required in any case when a
+		 * remote expiry was done before. This ensures to not lose
+		 * already queued events in non active groups (see section
+		 * "Required event and timerqueue update after a remote
+		 * expiry" in the documentation at the top).
+		 *
+		 * The two call sites which are executed without a remote expiry
+		 * before, are not prevented from propagating changes through
+		 * the hierarchy by the return:
+		 *  - When entering this path by tmigr_new_timer(), @evt->ignore
+		 *    is never set.
+		 *  - tmigr_inactive_up() takes care of the propagation by
+		 *    itself and ignores the return value. But an immediate
+		 *    return is possible if there is a parent, sparing group
+		 *    locking at this level, because the upper walking call to
+		 *    the parent will take care about removing this event from
+		 *    within the group and update next_expiry accordingly.
+		 *
+		 * However if there is no parent, ie: the hierarchy has only a
+		 * single level so @group is the top level group, make sure the
+		 * first event information of the group is updated properly and
+		 * also handled properly, so skip this fast return path.
+		 */
+		if (evt->ignore && !remote && group->parent)
+			return true;
+
 		raw_spin_lock(&group->lock);
 
 		childstate.state = 0;
@@ -762,8 +789,11 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 	 * queue when the expiry time changed only or when it could be ignored.
 	 */
 	if (timerqueue_node_queued(&evt->nextevt)) {
-		if ((evt->nextevt.expires == nextexp) && !evt->ignore)
+		if ((evt->nextevt.expires == nextexp) && !evt->ignore) {
+			/* Make sure not to miss a new CPU event with the same expiry */
+			evt->cpu = first_childevt->cpu;
 			goto check_toplvl;
+		}
 
 		if (!timerqueue_del(&group->events, &evt->nextevt))
 			WRITE_ONCE(group->next_expiry, KTIME_MAX);
