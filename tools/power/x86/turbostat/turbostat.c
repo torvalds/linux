@@ -1052,6 +1052,7 @@ struct rapl_counter_info_t {
 
 /* struct rapl_counter_info_t for each RAPL domain */
 struct rapl_counter_info_t *rapl_counter_info_perdomain;
+unsigned int rapl_counter_info_perdomain_size;
 
 #define RAPL_COUNTER_FLAG_USE_MSR_SUM (1u << 1)
 
@@ -1451,6 +1452,8 @@ struct topo_params {
 	int allowed_cpus;
 	int allowed_cores;
 	int max_cpu_num;
+	int max_core_id;
+	int max_package_id;
 	int max_die_id;
 	int max_node_num;
 	int nodes_per_pkg;
@@ -3425,15 +3428,18 @@ void write_rapl_counter(struct rapl_counter *rc, struct rapl_counter_info_t *rci
 	rc->scale = rci->scale[idx];
 }
 
-int get_rapl_counters(int cpu, int domain, struct core_data *c, struct pkg_data *p)
+int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct pkg_data *p)
 {
 	unsigned long long perf_data[NUM_RAPL_COUNTERS + 1];
-	struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[domain];
+	struct rapl_counter_info_t *rci;
 
 	if (debug)
 		fprintf(stderr, "%s: cpu%d domain%d\n", __func__, cpu, domain);
 
 	assert(rapl_counter_info_perdomain);
+	assert(domain < rapl_counter_info_perdomain_size);
+
+	rci = &rapl_counter_info_perdomain[domain];
 
 	/*
 	 * If we have any perf counters to read, read them all now, in bulk
@@ -4257,7 +4263,7 @@ void free_fd_rapl_percpu(void)
 	if (!rapl_counter_info_perdomain)
 		return;
 
-	const int num_domains = platform->has_per_core_rapl ? topo.num_cores : topo.num_packages;
+	const int num_domains = rapl_counter_info_perdomain_size;
 
 	for (int domain_id = 0; domain_id < num_domains; ++domain_id) {
 		if (rapl_counter_info_perdomain[domain_id].fd_perf != -1)
@@ -4265,6 +4271,8 @@ void free_fd_rapl_percpu(void)
 	}
 
 	free(rapl_counter_info_perdomain);
+	rapl_counter_info_perdomain = NULL;
+	rapl_counter_info_perdomain_size = 0;
 }
 
 void free_all_buffers(void)
@@ -6582,17 +6590,18 @@ void linux_perf_init(void)
 
 void rapl_perf_init(void)
 {
-	const int num_domains = platform->has_per_core_rapl ? topo.num_cores : topo.num_packages;
+	const unsigned int num_domains = (platform->has_per_core_rapl ? topo.max_core_id : topo.max_package_id) + 1;
 	bool *domain_visited = calloc(num_domains, sizeof(bool));
 
 	rapl_counter_info_perdomain = calloc(num_domains, sizeof(*rapl_counter_info_perdomain));
 	if (rapl_counter_info_perdomain == NULL)
 		err(-1, "calloc rapl_counter_info_percpu");
+	rapl_counter_info_perdomain_size = num_domains;
 
 	/*
 	 * Initialize rapl_counter_info_percpu
 	 */
-	for (int domain_id = 0; domain_id < num_domains; ++domain_id) {
+	for (unsigned int domain_id = 0; domain_id < num_domains; ++domain_id) {
 		struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[domain_id];
 
 		rci->fd_perf = -1;
@@ -6612,7 +6621,7 @@ void rapl_perf_init(void)
 		bool has_counter = 0;
 		double scale;
 		enum rapl_unit unit;
-		int next_domain;
+		unsigned int next_domain;
 
 		memset(domain_visited, 0, num_domains * sizeof(*domain_visited));
 
@@ -6624,6 +6633,8 @@ void rapl_perf_init(void)
 			/* Skip already seen and handled RAPL domains */
 			next_domain =
 			    platform->has_per_core_rapl ? cpus[cpu].physical_core_id : cpus[cpu].physical_package_id;
+
+			assert(next_domain < num_domains);
 
 			if (domain_visited[next_domain])
 				continue;
@@ -7207,6 +7218,8 @@ void topology_probe(bool startup)
 		if (cpus[i].thread_id == 0)
 			topo.num_cores++;
 	}
+	topo.max_core_id = max_core_id;
+	topo.max_package_id = max_package_id;
 
 	topo.cores_per_node = max_core_id + 1;
 	if (debug > 1)
