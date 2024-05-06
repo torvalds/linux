@@ -109,9 +109,7 @@ struct alc_spec {
 
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
-#ifdef CONFIG_PM
 	void (*power_hook)(struct hda_codec *codec);
-#endif
 	void (*shutup)(struct hda_codec *codec);
 
 	int init_amp;
@@ -947,7 +945,6 @@ static int alc_init(struct hda_codec *codec)
 
 #define alc_free	snd_hda_gen_free
 
-#ifdef CONFIG_PM
 static inline void alc_shutup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -986,7 +983,6 @@ static int alc_resume(struct hda_codec *codec)
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
-#endif
 
 /*
  */
@@ -996,11 +992,9 @@ static const struct hda_codec_ops alc_patch_ops = {
 	.init = alc_init,
 	.free = alc_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-#ifdef CONFIG_PM
 	.resume = alc_resume,
 	.suspend = alc_suspend,
 	.check_power_status = snd_hda_gen_check_power_status,
-#endif
 };
 
 
@@ -4041,7 +4035,6 @@ static void alc5505_dsp_init(struct hda_codec *codec)
 #define alc5505_dsp_resume(codec)	alc5505_dsp_back_from_halt(codec)
 #endif
 
-#ifdef CONFIG_PM
 static int alc269_suspend(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -4087,7 +4080,6 @@ static int alc269_resume(struct hda_codec *codec)
 
 	return 0;
 }
-#endif /* CONFIG_PM */
 
 static void alc269_fixup_pincfg_no_hp_to_lineout(struct hda_codec *codec,
 						 const struct hda_fixup *fix, int action)
@@ -7204,7 +7196,7 @@ static void alc287_alc1318_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 	}
 }
 
-static void __maybe_unused alc287_s4_power_gpio3_default(struct hda_codec *codec)
+static void alc287_s4_power_gpio3_default(struct hda_codec *codec)
 {
 	if (is_s4_suspend(codec)) {
 		alc_write_coef_idx(codec, 0x10, 0x8806); /* Change MLK to GPIO3 */
@@ -7219,9 +7211,7 @@ static void alc287_fixup_lenovo_thinkpad_with_alc1318(struct hda_codec *codec,
 
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
-#ifdef CONFIG_PM
 	spec->power_hook = alc287_s4_power_gpio3_default;
-#endif
 	spec->gen.pcm_playback_hook = alc287_alc1318_playback_pcm_hook;
 }
 
@@ -11287,10 +11277,8 @@ static int patch_alc269(struct hda_codec *codec)
 	codec->power_save_node = 0;
 	spec->en_3kpull_low = true;
 
-#ifdef CONFIG_PM
 	codec->patch_ops.suspend = alc269_suspend;
 	codec->patch_ops.resume = alc269_resume;
-#endif
 	spec->shutup = alc_default_shutup;
 	spec->init_hook = alc_default_init;
 
@@ -11588,9 +11576,7 @@ static int patch_alc861(struct hda_codec *codec)
 	if (has_cdefine_beep(codec))
 		spec->gen.beep_nid = 0x23;
 
-#ifdef CONFIG_PM
 	spec->power_hook = alc_power_eapd;
-#endif
 
 	alc_pre_init(codec);
 
