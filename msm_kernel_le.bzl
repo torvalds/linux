@@ -42,6 +42,11 @@ def _define_build_config(
       variant: variant of kernel to build (e.g. "gki")
     """
 
+    # keep earlycon addr in earlycon cmdline param only when provided explicitly in target's bazel file
+    # otherwise, rely on stdout-path
+    earlycon_param = "={}".format(boot_image_opts.earlycon_addr) if boot_image_opts.earlycon_addr != None else ""
+    earlycon_param = "earlycon" + earlycon_param
+
     write_file(
         name = "{}_build_config_bazel".format(target),
         out = "build.config.msm.{}.generated".format(target),
@@ -60,7 +65,7 @@ def _define_build_config(
             "SKIP_UNPACKING_RAMDISK=1",
             "BUILD_INITRAMFS=1",
             '[ -z "$DT_OVERLAY_SUPPORT" ] && DT_OVERLAY_SUPPORT=1',
-            '[ "$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ] && KERNEL_VENDOR_CMDLINE+=\' console=ttyMSM0,115200n8 earlycon=qcom_geni,0x00a9C000 qcom_geni_serial.con_enabled=1 \'',
+            '[ "$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ] && KERNEL_VENDOR_CMDLINE+=\' console=ttyMSM0,115200n8 {} qcom_geni_serial.con_enabled=1 \''.format(earlycon_param),
             "",  # Needed for newline at end of file
         ],
     )

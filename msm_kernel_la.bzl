@@ -48,6 +48,11 @@ def _define_build_config(
       variant: variant of kernel to build (e.g. "gki")
     """
 
+    # keep earlycon addr in earlycon cmdline param only when provided explicitly in target's bazel file
+    # otherwise, rely on stdout-path
+    earlycon_param = "={}".format(boot_image_opts.earlycon_addr) if boot_image_opts.earlycon_addr != None else ""
+    earlycon_param = '[ "$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ] && KERNEL_VENDOR_CMDLINE+=\' earlycon{} \''.format(earlycon_param)
+
     write_file(
         name = "{}_build_config_bazel".format(target),
         out = "build.config.msm.{}.generated".format(target),
@@ -67,7 +72,7 @@ def _define_build_config(
             "BUILD_INIT_BOOT_IMG=1",
             "LZ4_RAMDISK={}".format(int(boot_image_opts.lz4_ramdisk)),
             '[ -z "$DT_OVERLAY_SUPPORT" ] && DT_OVERLAY_SUPPORT=1',
-            '[ "$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ] && KERNEL_VENDOR_CMDLINE+=\' earlycon={} \''.format(boot_image_opts.earlycon_addr),
+            earlycon_param,
             "KERNEL_VENDOR_CMDLINE+=' {} '".format(" ".join(boot_image_opts.kernel_vendor_cmdline_extras)),
             "VENDOR_BOOTCONFIG+='androidboot.first_stage_console=1 androidboot.hardware=qcom_kp'",
             "",  # Needed for newline at end of file
