@@ -1207,6 +1207,9 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	memset(fb_info->fb[DMUB_WINDOW_6_FW_STATE].cpu_addr, 0,
 	       fb_info->fb[DMUB_WINDOW_6_FW_STATE].size);
 
+	memset(fb_info->fb[DMUB_WINDOW_SHARED_STATE].cpu_addr, 0,
+	       fb_info->fb[DMUB_WINDOW_SHARED_STATE].size);
+
 	/* Initialize hardware. */
 	memset(&hw_params, 0, sizeof(hw_params));
 	hw_params.fb_base = adev->gmc.fb_start;
