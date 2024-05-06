@@ -4445,39 +4445,11 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 	if (elems->he_operation &&
 	    link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_HE &&
 	    elems->he_cap) {
-		const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
-
 		ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband,
 						  elems->he_cap,
 						  elems->he_cap_len,
 						  elems->he_6ghz_capa,
 						  link_sta);
-
-		he_6ghz_oper = ieee80211_he_6ghz_oper(elems->he_operation);
-
-		if (is_6ghz && he_6ghz_oper) {
-			switch (u8_get_bits(he_6ghz_oper->control,
-					    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
-			case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
-			case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
-				bss_conf->power_type = IEEE80211_REG_LPI_AP;
-				break;
-			case IEEE80211_6GHZ_CTRL_REG_SP_AP:
-			case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
-				bss_conf->power_type = IEEE80211_REG_SP_AP;
-				break;
-			case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
-				bss_conf->power_type = IEEE80211_REG_VLP_AP;
-				break;
-			default:
-				bss_conf->power_type = IEEE80211_REG_UNSET_AP;
-				break;
-			}
-		} else if (is_6ghz) {
-			link_info(link,
-				  "HE 6 GHz operation missing (on %d MHz), expect issues\n",
-				  bss_conf->chanreq.oper.chan->center_freq);
-		}
 
 		bss_conf->he_support = link_sta->pub->he_cap.has_he;
 		if (elems->rsnx && elems->rsnx_len &&
@@ -5020,6 +4992,23 @@ ieee80211_determine_our_sta_mode_assoc(struct ieee80211_sub_if_data *sdata,
 			       conn->bw_limit, tmp.bw_limit);
 }
 
+static enum ieee80211_ap_reg_power
+ieee80211_ap_power_type(u8 control)
+{
+	switch (u8_get_bits(control, IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
+	case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
+		return IEEE80211_REG_LPI_AP;
+	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
+		return IEEE80211_REG_SP_AP;
+	case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
+		return IEEE80211_REG_VLP_AP;
+	default:
+		return IEEE80211_REG_UNSET_AP;
+	}
+}
+
 static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_link_data *link,
 				  int link_id,
@@ -5052,6 +5041,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (link && is_6ghz && conn->mode >= IEEE80211_CONN_MODE_HE) {
+		const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
 		struct ieee80211_bss_conf *bss_conf;
 		u8 j = 0;
 
@@ -5072,6 +5062,15 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 			       elems->tx_pwr_env_len[i]);
 			j++;
 		}
+
+		he_6ghz_oper = ieee80211_he_6ghz_oper(elems->he_operation);
+		if (he_6ghz_oper)
+			bss_conf->power_type =
+				ieee80211_ap_power_type(he_6ghz_oper->control);
+		else
+			link_info(link,
+				  "HE 6 GHz operation missing (on %d MHz), expect issues\n",
+				  cbss->channel->center_freq);
 	}
 	rcu_read_unlock();
 	/* the element data was RCU protected so no longer valid anyway */
