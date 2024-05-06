@@ -44,6 +44,7 @@ static DEFINE_PER_CPU(struct ladder_device, ladder_devices);
 
 /**
  * ladder_do_selection - prepares private data for a state change
+ * @dev: the CPU
  * @ldev: the ladder device
  * @old_idx: the current state index
  * @new_idx: the new target state index
