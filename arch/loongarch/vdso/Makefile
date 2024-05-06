@@ -1,11 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Objects to go into the VDSO.
 
-KASAN_SANITIZE := n
-UBSAN_SANITIZE := n
-KCOV_INSTRUMENT := n
-OBJECT_FILES_NON_STANDARD := y
-
 # Include the generic Makefile to check the built vdso.
 include $(srctree)/lib/vdso/Makefile
 
@@ -38,8 +33,6 @@ endif
 ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
 	$(filter -E%,$(KBUILD_CFLAGS)) -nostdlib -shared \
 	--hash-style=sysv --build-id -T
-
-GCOV_PROFILE := n
 
 #
 # Shared build commands.

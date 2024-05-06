@@ -39,12 +39,6 @@ endif
 CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) $(CC_FLAGS_SCS)
 CFLAGS_REMOVE_hwprobe.o = $(CC_FLAGS_FTRACE) $(CC_FLAGS_SCS)
 
-# Disable profiling and instrumentation for VDSO code
-GCOV_PROFILE := n
-KCOV_INSTRUMENT := n
-KASAN_SANITIZE := n
-UBSAN_SANITIZE := n
-
 # Force dependency
 $(obj)/vdso.o: $(obj)/vdso.so
 

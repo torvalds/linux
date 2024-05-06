@@ -11,9 +11,6 @@ OBJECTS := head_32.o misc.o cache.o piggy.o \
 targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 \
            vmlinux.bin.lzma vmlinux.bin.xz vmlinux.bin.lzo $(OBJECTS)
 
-GCOV_PROFILE := n
-UBSAN_SANITIZE := n
-
 #
 # IMAGE_OFFSET is the load offset of the compression loader
 #

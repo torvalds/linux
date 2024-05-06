@@ -23,10 +23,6 @@ obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 obj-y += vdso.o vdso-syms.o
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
-# Disable gcov profiling for VDSO code
-GCOV_PROFILE := n
-KCOV_INSTRUMENT := n
-
 # Force dependency
 $(obj)/vdso.o: $(obj)/vdso.so
 

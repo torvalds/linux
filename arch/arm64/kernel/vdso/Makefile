@@ -40,20 +40,12 @@ CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os $(CC_FLAGS_SCS) \
 				$(RANDSTRUCT_CFLAGS) $(GCC_PLUGINS_CFLAGS) \
 				$(CC_FLAGS_LTO) $(CC_FLAGS_CFI) \
 				-Wmissing-prototypes -Wmissing-declarations
-KASAN_SANITIZE			:= n
-KCSAN_SANITIZE			:= n
-UBSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
-KCOV_INSTRUMENT			:= n
 
 CFLAGS_vgettimeofday.o = -O2 -mcmodel=tiny -fasynchronous-unwind-tables
 
 ifneq ($(c-gettimeofday-y),)
   CFLAGS_vgettimeofday.o += -include $(c-gettimeofday-y)
 endif
-
-# Disable gcov profiling for VDSO code
-GCOV_PROFILE := n
 
 targets += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)

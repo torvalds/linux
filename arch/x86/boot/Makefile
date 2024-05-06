@@ -9,19 +9,6 @@
 # Changed by many, many contributors over the years.
 #
 
-# Sanitizer runtimes are unavailable and cannot be linked for early boot code.
-KASAN_SANITIZE			:= n
-KCSAN_SANITIZE			:= n
-KMSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
-
-# Kernel does not boot with kcov instrumentation here.
-# One of the problems observed was insertion of __sanitizer_cov_trace_pc()
-# callback into middle of per-cpu data enabling code. Thus the callback observed
-# inconsistent state and crashed. We are interested mostly in syscall coverage,
-# so boot code is not interesting anyway.
-KCOV_INSTRUMENT		:= n
-
 # If you want to preset the SVGA mode, uncomment the next line and
 # set SVGA_MODE to whatever number you want.
 # Set it to -DSVGA_MODE=NORMAL_VGA if you just want the EGA/VGA mode.
@@ -69,8 +56,6 @@ KBUILD_CFLAGS	:= $(REALMODE_CFLAGS) -D_SETUP
 KBUILD_AFLAGS	:= $(KBUILD_CFLAGS) -D__ASSEMBLY__
 KBUILD_CFLAGS	+= $(call cc-option,-fmacro-prefix-map=$(srctree)/=)
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
-GCOV_PROFILE := n
-UBSAN_SANITIZE := n
 
 $(obj)/bzImage: asflags-y  := $(SVGA_MODE)
 

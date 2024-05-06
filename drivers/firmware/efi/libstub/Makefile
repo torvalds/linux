@@ -56,17 +56,6 @@ KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_CFI), $(KBUILD_CFLAGS))
 # disable LTO
 KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_LTO), $(KBUILD_CFLAGS))
 
-GCOV_PROFILE			:= n
-# Sanitizer runtimes are unavailable and cannot be linked here.
-KASAN_SANITIZE			:= n
-KCSAN_SANITIZE			:= n
-KMSAN_SANITIZE			:= n
-UBSAN_SANITIZE			:= n
-OBJECT_FILES_NON_STANDARD	:= y
-
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
-KCOV_INSTRUMENT			:= n
-
 lib-y				:= efi-stub-helper.o gop.o secureboot.o tpm.o \
 				   file.o mem.o random.o randomalloc.o pci.o \
 				   skip_spaces.o lib-cmdline.o lib-ctype.o \

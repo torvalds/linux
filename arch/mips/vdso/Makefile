@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Objects to go into the VDSO.
 
-# Sanitizer runtimes are unavailable and cannot be linked here.
- KCSAN_SANITIZE			:= n
-
 # Include the generic Makefile to check the built vdso.
 include $(srctree)/lib/vdso/Makefile
 
@@ -59,10 +56,6 @@ ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
 	-G 0 --eh-frame-hdr --hash-style=sysv --build-id=sha1 -T
 
 CFLAGS_REMOVE_vdso.o = $(CC_FLAGS_FTRACE)
-
-GCOV_PROFILE := n
-UBSAN_SANITIZE := n
-KCOV_INSTRUMENT := n
 
 # Check that we don't have PIC 'jalr t9' calls left
 quiet_cmd_vdso_mips_check = VDSOCHK $@
