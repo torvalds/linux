@@ -3976,7 +3976,7 @@ Driver with A Single Source File
 
    Suppose you have a file xyz.c. Add the following two lines::
 
-     snd-xyz-objs := xyz.o
+     snd-xyz-y := xyz.o
      obj-$(CONFIG_SND_XYZ) += snd-xyz.o
 
 2. Create the Kconfig entry
@@ -4019,7 +4019,7 @@ located in the new subdirectory, sound/pci/xyz.
 
 2. Under the directory ``sound/pci/xyz``, create a Makefile::
 
-         snd-xyz-objs := xyz.o abc.o def.o
+         snd-xyz-y := xyz.o abc.o def.o
          obj-$(CONFIG_SND_XYZ) += snd-xyz.o
 
 3. Create the Kconfig entry
