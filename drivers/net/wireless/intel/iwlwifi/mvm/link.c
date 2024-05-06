@@ -22,7 +22,7 @@ static const char *const iwl_mvm_esr_states_names[] = {
 	HANDLE_ESR_REASONS(NAME_ENTRY)
 };
 
-static const char *iwl_get_esr_state_string(enum iwl_mvm_esr_state state)
+const char *iwl_get_esr_state_string(enum iwl_mvm_esr_state state)
 {
 	int offs = ilog2(state);
 

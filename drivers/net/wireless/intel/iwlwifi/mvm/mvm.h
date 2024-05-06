@@ -385,6 +385,8 @@ enum iwl_mvm_esr_state {
 
 #define IWL_MVM_BLOCK_ESR_REASONS 0xffff
 
+const char *iwl_get_esr_state_string(enum iwl_mvm_esr_state state);
+
 /**
  * struct iwl_mvm_esr_exit - details of the last exit from EMLSR mode.
  * @reason: The reason for the last exit from EMLSR.
