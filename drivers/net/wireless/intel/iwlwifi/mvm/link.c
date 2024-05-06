@@ -691,12 +691,11 @@ s8 iwl_mvm_get_esr_rssi_thresh(struct iwl_mvm *mvm,
 }
 
 static u32
-iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
+iwl_mvm_esr_disallowed_with_link(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
 				 const struct iwl_mvm_link_sel_data *link,
 				 bool primary)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = mvmvif->mvm;
 	struct wiphy *wiphy = mvm->hw->wiphy;
 	struct ieee80211_bss_conf *conf;
 	enum iwl_mvm_esr_state ret = 0;
@@ -735,20 +734,30 @@ bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 				 const struct iwl_mvm_link_sel_data *a,
 				 const struct iwl_mvm_link_sel_data *b)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	enum iwl_mvm_esr_state ret = 0;
+
 	/* Per-link considerations */
-	if (iwl_mvm_esr_disallowed_with_link(vif, a, true) ||
-	    iwl_mvm_esr_disallowed_with_link(vif, b, false))
+	if (iwl_mvm_esr_disallowed_with_link(mvm, vif, a, true) ||
+	    iwl_mvm_esr_disallowed_with_link(mvm, vif, b, false))
 		return false;
 
-	if (a->chandef->width != b->chandef->width)
-		return false;
-
-	if (!(a->chandef->chan->band == NL80211_BAND_6GHZ &&
+	if (a->chandef->width != b->chandef->width ||
+	    !(a->chandef->chan->band == NL80211_BAND_6GHZ &&
 	      b->chandef->chan->band == NL80211_BAND_5GHZ))
-		return false;
+		ret |= IWL_MVM_ESR_EXIT_BANDWIDTH;
 
-	/* Per-combination considerations */
-	return a->chandef->chan->band != b->chandef->chan->band;
+	if (ret) {
+		IWL_DEBUG_INFO(mvm,
+			       "Links %d and %d are not a valid pair for EMLSR\n",
+			       a->link_id, b->link_id);
+		iwl_mvm_print_esr_state(mvm, ret);
+		return false;
+	}
+
+	return true;
+
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mvm_mld_valid_link_pair);
 
