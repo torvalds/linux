@@ -46,13 +46,6 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	if (!bdev_max_discard_sectors(bdev))
 		return -EOPNOTSUPP;
 
-	/* In case the discard granularity isn't set by buggy device driver */
-	if (WARN_ON_ONCE(!bdev_discard_granularity(bdev))) {
-		pr_err_ratelimited("%pg: Error: discard_granularity is 0.\n",
-				   bdev);
-		return -EOPNOTSUPP;
-	}
-
 	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
 	if ((sector | nr_sects) & bs_mask)
 		return -EINVAL;
