@@ -1047,6 +1047,63 @@ err:
 	return -EBADMSG;
 }
 
+static int gtp_build_skb_outer_ip6(struct net *net, struct sk_buff *skb,
+				   struct net_device *dev,
+				   struct gtp_pktinfo *pktinfo,
+				   struct pdp_ctx *pctx, __u8 tos)
+{
+	struct dst_entry *dst;
+	struct rt6_info *rt;
+	struct flowi6 fl6;
+	int mtu;
+
+	rt = ip6_route_output_gtp(net, &fl6, pctx->sk, &pctx->peer.addr6,
+				  &inet6_sk(pctx->sk)->saddr);
+	if (IS_ERR(rt)) {
+		netdev_dbg(dev, "no route to SSGN %pI6\n",
+			   &pctx->peer.addr6);
+		dev->stats.tx_carrier_errors++;
+		goto err;
+	}
+	dst = &rt->dst;
+
+	if (rt->dst.dev == dev) {
+		netdev_dbg(dev, "circular route to SSGN %pI6\n",
+			   &pctx->peer.addr6);
+		dev->stats.collisions++;
+		goto err_rt;
+	}
+
+	mtu = dst_mtu(&rt->dst) - dev->hard_header_len -
+		sizeof(struct ipv6hdr) - sizeof(struct udphdr);
+	switch (pctx->gtp_version) {
+	case GTP_V0:
+		mtu -= sizeof(struct gtp0_header);
+		break;
+	case GTP_V1:
+		mtu -= sizeof(struct gtp1_header);
+		break;
+	}
+
+	skb_dst_update_pmtu_no_confirm(skb, mtu);
+
+	if ((!skb_is_gso(skb) && skb->len > mtu) ||
+	    (skb_is_gso(skb) && !skb_gso_validate_network_len(skb, mtu))) {
+		netdev_dbg(dev, "packet too big, fragmentation needed\n");
+		icmpv6_ndo_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		goto err_rt;
+	}
+
+	gtp_set_pktinfo_ipv6(pktinfo, pctx->sk, tos, pctx, rt, &fl6, dev);
+	gtp_push_header(skb, pktinfo);
+
+	return 0;
+err_rt:
+	dst_release(dst);
+err:
+	return -EBADMSG;
+}
+
 static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 			     struct gtp_pktinfo *pktinfo)
 {
@@ -1087,13 +1144,10 @@ static int gtp_build_skb_ip6(struct sk_buff *skb, struct net_device *dev,
 {
 	struct gtp_dev *gtp = netdev_priv(dev);
 	struct net *net = gtp->net;
-	struct dst_entry *dst;
 	struct pdp_ctx *pctx;
 	struct ipv6hdr *ip6h;
-	struct rt6_info *rt;
-	struct flowi6 fl6;
 	__u8 tos;
-	int mtu;
+	int ret;
 
 	/* Read the IP destination address and resolve the PDP context.
 	 * Prepend PDP header with TEI/TID from PDP ctx.
@@ -1111,55 +1165,16 @@ static int gtp_build_skb_ip6(struct sk_buff *skb, struct net_device *dev,
 	}
 	netdev_dbg(dev, "found PDP context %p\n", pctx);
 
-	rt = ip6_route_output_gtp(net, &fl6, pctx->sk, &pctx->peer.addr6,
-				  &inet6_sk(pctx->sk)->saddr);
-	if (IS_ERR(rt)) {
-		netdev_dbg(dev, "no route to SSGN %pI6\n",
-			   &pctx->peer.addr6);
-		dev->stats.tx_carrier_errors++;
-		goto err;
-	}
-	dst = &rt->dst;
-
-	if (rt->dst.dev == dev) {
-		netdev_dbg(dev, "circular route to SSGN %pI6\n",
-			   &pctx->peer.addr6);
-		dev->stats.collisions++;
-		goto err_rt;
-	}
-
-	mtu = dst_mtu(&rt->dst) - dev->hard_header_len -
-		sizeof(struct ipv6hdr) - sizeof(struct udphdr);
-	switch (pctx->gtp_version) {
-	case GTP_V0:
-		mtu -= sizeof(struct gtp0_header);
-		break;
-	case GTP_V1:
-		mtu -= sizeof(struct gtp1_header);
-		break;
-	}
-
-	skb_dst_update_pmtu_no_confirm(skb, mtu);
-
-	if ((!skb_is_gso(skb) && skb->len > mtu) ||
-	    (skb_is_gso(skb) && !skb_gso_validate_network_len(skb, mtu))) {
-		netdev_dbg(dev, "packet too big, fragmentation needed\n");
-		icmpv6_ndo_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
-		goto err_rt;
-	}
-
 	tos = ipv6_get_dsfield(ip6h);
-	gtp_set_pktinfo_ipv6(pktinfo, pctx->sk, tos, pctx, rt, &fl6, dev);
-	gtp_push_header(skb, pktinfo);
+
+	ret = gtp_build_skb_outer_ip6(net, skb, dev, pktinfo, pctx, tos);
+	if (ret < 0)
+		return ret;
 
 	netdev_dbg(dev, "gtp -> IP src: %pI6 dst: %pI6\n",
 		   &ip6h->saddr, &ip6h->daddr);
 
 	return 0;
-err_rt:
-	dst_release(dst);
-err:
-	return -EBADMSG;
 }
 
 static netdev_tx_t gtp_dev_xmit(struct sk_buff *skb, struct net_device *dev)
