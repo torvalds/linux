@@ -2661,10 +2661,8 @@ static int unicam_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
+	if (ret < 0)
 		goto err_unicam_put;
-	}
 
 	ret = devm_request_irq(&pdev->dev, ret, unicam_isr, 0,
 			       "unicam_capture0", unicam);
