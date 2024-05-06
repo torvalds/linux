@@ -2661,9 +2661,8 @@ static int unicam_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
+	if (ret < 0) {
 		dev_err(&pdev->dev, "No IRQ resource\n");
-		ret = -EINVAL;
 		goto err_unicam_put;
 	}
 
@@ -2671,7 +2670,6 @@ static int unicam_probe(struct platform_device *pdev)
 			       "unicam_capture0", unicam);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to request interrupt\n");
-		ret = -EINVAL;
 		goto err_unicam_put;
 	}
 
