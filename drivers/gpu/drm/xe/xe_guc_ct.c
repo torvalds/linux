@@ -120,6 +120,7 @@ static void guc_ct_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc_ct *ct = arg;
 
+	destroy_workqueue(ct->g2h_wq);
 	xa_destroy(&ct->fence_lookup);
 }
 
@@ -144,6 +145,10 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	int err;
 
 	xe_assert(xe, !(guc_ct_size() % PAGE_SIZE));
+
+	ct->g2h_wq = alloc_ordered_workqueue("xe-g2h-wq", 0);
+	if (!ct->g2h_wq)
+		return -ENOMEM;
 
 	spin_lock_init(&ct->fast_lock);
 	xa_init(&ct->fence_lookup);
