@@ -333,18 +333,18 @@ static void __xe_unpin_fb_vma(struct i915_vma *vma)
 }
 
 struct i915_vma *
-intel_pin_and_fence_fb_obj(const struct drm_framebuffer *fb,
-			   bool phys_cursor,
-			   const struct i915_gtt_view *view,
-			   bool uses_fence,
-			   unsigned long *out_flags)
+intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
+		     bool phys_cursor,
+		     const struct i915_gtt_view *view,
+		     bool uses_fence,
+		     unsigned long *out_flags)
 {
 	*out_flags = 0;
 
 	return __xe_pin_fb_vma(to_intel_framebuffer(fb), view);
 }
 
-void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
+void intel_fb_unpin_vma(struct i915_vma *vma, unsigned long flags)
 {
 	__xe_unpin_fb_vma(vma);
 }

@@ -18,11 +18,11 @@
 #include "intel_fb_pin.h"
 
 static struct i915_vma *
-intel_pin_fb_obj_dpt(const struct drm_framebuffer *fb,
-		     const struct i915_gtt_view *view,
-		     unsigned int alignment,
-		     unsigned long *out_flags,
-		     struct i915_address_space *vm)
+intel_fb_pin_to_dpt(const struct drm_framebuffer *fb,
+		    const struct i915_gtt_view *view,
+		    unsigned int alignment,
+		    unsigned long *out_flags,
+		    struct i915_address_space *vm)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -102,11 +102,11 @@ err:
 }
 
 struct i915_vma *
-intel_pin_and_fence_fb_obj(const struct drm_framebuffer *fb,
-			   bool phys_cursor,
-			   const struct i915_gtt_view *view,
-			   bool uses_fence,
-			   unsigned long *out_flags)
+intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
+		     bool phys_cursor,
+		     const struct i915_gtt_view *view,
+		     bool uses_fence,
+		     unsigned long *out_flags)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -226,7 +226,7 @@ err:
 	return vma;
 }
 
-void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags)
+void intel_fb_unpin_vma(struct i915_vma *vma, unsigned long flags)
 {
 	if (flags & PLANE_HAS_FENCE)
 		i915_vma_unpin_fence(vma);
@@ -242,10 +242,10 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	struct i915_vma *vma;
 
 	if (!intel_fb_uses_dpt(&fb->base)) {
-		vma = intel_pin_and_fence_fb_obj(&fb->base, intel_plane_needs_physical(plane),
-						 &plane_state->view.gtt,
-						 intel_plane_uses_fence(plane_state),
-						 &plane_state->flags);
+		vma = intel_fb_pin_to_ggtt(&fb->base, intel_plane_needs_physical(plane),
+					   &plane_state->view.gtt,
+					   intel_plane_uses_fence(plane_state),
+					   &plane_state->flags);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 
@@ -263,17 +263,17 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	} else {
 		unsigned int alignment = intel_surf_alignment(&fb->base, 0);
 
-		vma = intel_dpt_pin(fb->dpt_vm, alignment / 512);
+		vma = intel_dpt_pin_to_ggtt(fb->dpt_vm, alignment / 512);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 
 		plane_state->ggtt_vma = vma;
 
-		vma = intel_pin_fb_obj_dpt(&fb->base, &plane_state->view.gtt,
-					   alignment, &plane_state->flags,
-					   fb->dpt_vm);
+		vma = intel_fb_pin_to_dpt(&fb->base, &plane_state->view.gtt,
+					  alignment, &plane_state->flags,
+					  fb->dpt_vm);
 		if (IS_ERR(vma)) {
-			intel_dpt_unpin(fb->dpt_vm);
+			intel_dpt_unpin_from_ggtt(fb->dpt_vm);
 			plane_state->ggtt_vma = NULL;
 			return PTR_ERR(vma);
 		}
@@ -295,14 +295,14 @@ void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
 	if (!intel_fb_uses_dpt(&fb->base)) {
 		vma = fetch_and_zero(&old_plane_state->ggtt_vma);
 		if (vma)
-			intel_unpin_fb_vma(vma, old_plane_state->flags);
+			intel_fb_unpin_vma(vma, old_plane_state->flags);
 	} else {
 		vma = fetch_and_zero(&old_plane_state->dpt_vma);
 		if (vma)
-			intel_unpin_fb_vma(vma, old_plane_state->flags);
+			intel_fb_unpin_vma(vma, old_plane_state->flags);
 
 		vma = fetch_and_zero(&old_plane_state->ggtt_vma);
 		if (vma)
-			intel_dpt_unpin(fb->dpt_vm);
+			intel_dpt_unpin_from_ggtt(fb->dpt_vm);
 	}
 }
