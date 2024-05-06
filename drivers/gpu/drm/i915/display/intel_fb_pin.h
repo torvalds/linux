@@ -14,7 +14,7 @@ struct intel_plane_state;
 struct i915_gtt_view;
 
 struct i915_vma *
-intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
+intel_pin_and_fence_fb_obj(const struct drm_framebuffer *fb,
 			   bool phys_cursor,
 			   const struct i915_gtt_view *view,
 			   bool uses_fence,
