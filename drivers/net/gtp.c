@@ -136,7 +136,8 @@ static inline u32 ipv4_hashfn(__be32 ip)
 
 static u32 ipv6_hashfn(const struct in6_addr *ip6)
 {
-	return jhash(ip6, sizeof(*ip6), gtp_h_initval);
+	return jhash_2words((__force u32)ip6->s6_addr32[0],
+			    (__force u32)ip6->s6_addr32[1], gtp_h_initval);
 }
 
 /* Resolve a PDP context structure based on the 64bit TID. */
@@ -188,6 +189,24 @@ static struct pdp_ctx *ipv4_pdp_find(struct gtp_dev *gtp, __be32 ms_addr)
 	return NULL;
 }
 
+/* 3GPP TS 29.060: PDN Connection: the association between a MS represented by
+ * [...] one IPv6 *prefix* and a PDN represented by an APN.
+ *
+ * Then, 3GPP TS 29.061, Section 11.2.1.3 says: The size of the prefix shall be
+ * according to the maximum prefix length for a global IPv6 address as
+ * specified in the IPv6 Addressing Architecture, see RFC 4291.
+ *
+ * Finally, RFC 4291 section 2.5.4 states: All Global Unicast addresses other
+ * than those that start with binary 000 have a 64-bit interface ID field
+ * (i.e., n + m = 64).
+ */
+static bool ipv6_pdp_addr_equal(const struct in6_addr *a,
+				const struct in6_addr *b)
+{
+	return a->s6_addr32[0] == b->s6_addr32[0] &&
+	       a->s6_addr32[1] == b->s6_addr32[1];
+}
+
 static struct pdp_ctx *ipv6_pdp_find(struct gtp_dev *gtp,
 				     const struct in6_addr *ms_addr)
 {
@@ -198,7 +217,7 @@ static struct pdp_ctx *ipv6_pdp_find(struct gtp_dev *gtp,
 
 	hlist_for_each_entry_rcu(pdp, head, hlist_addr) {
 		if (pdp->af == AF_INET6 &&
-		    memcmp(&pdp->ms.addr6, ms_addr, sizeof(struct in6_addr)) == 0)
+		    ipv6_pdp_addr_equal(&pdp->ms.addr6, ms_addr))
 			return pdp;
 	}
 
@@ -233,14 +252,12 @@ static bool gtp_check_ms_ipv6(struct sk_buff *skb, struct pdp_ctx *pctx,
 	ip6h = (struct ipv6hdr *)(skb->data + hdrlen);
 
 	if (role == GTP_ROLE_SGSN) {
-		ret = memcmp(&ip6h->daddr, &pctx->ms.addr6,
-			     sizeof(struct in6_addr));
+		ret = ipv6_pdp_addr_equal(&ip6h->daddr, &pctx->ms.addr6);
 	} else {
-		ret = memcmp(&ip6h->saddr, &pctx->ms.addr6,
-			     sizeof(struct in6_addr));
+		ret = ipv6_pdp_addr_equal(&ip6h->saddr, &pctx->ms.addr6);
 	}
 
-	return ret == 0;
+	return ret;
 }
 
 /* Check if the inner IP address in this packet is assigned to any
@@ -1652,11 +1669,17 @@ static void ipv4_pdp_fill(struct pdp_ctx *pctx, struct genl_info *info)
 	gtp_pdp_fill(pctx, info);
 }
 
-static void ipv6_pdp_fill(struct pdp_ctx *pctx, struct genl_info *info)
+static bool ipv6_pdp_fill(struct pdp_ctx *pctx, struct genl_info *info)
 {
 	pctx->peer.addr6 = nla_get_in6_addr(info->attrs[GTPA_PEER_ADDR6]);
 	pctx->ms.addr6 = nla_get_in6_addr(info->attrs[GTPA_MS_ADDR6]);
+	if (pctx->ms.addr6.s6_addr32[2] ||
+	    pctx->ms.addr6.s6_addr32[3])
+		return false;
+
 	gtp_pdp_fill(pctx, info);
+
+	return true;
 }
 
 static struct pdp_ctx *gtp_pdp_add(struct gtp_dev *gtp, struct sock *sk,
@@ -1742,7 +1765,8 @@ static struct pdp_ctx *gtp_pdp_add(struct gtp_dev *gtp, struct sock *sk,
 			ipv4_pdp_fill(pctx, info);
 			break;
 		case AF_INET6:
-			ipv6_pdp_fill(pctx, info);
+			if (!ipv6_pdp_fill(pctx, info))
+				return ERR_PTR(-EADDRNOTAVAIL);
 			break;
 		}
 
@@ -1785,7 +1809,11 @@ static struct pdp_ctx *gtp_pdp_add(struct gtp_dev *gtp, struct sock *sk,
 			return ERR_PTR(-EINVAL);
 		}
 
-		ipv6_pdp_fill(pctx, info);
+		if (!ipv6_pdp_fill(pctx, info)) {
+			sock_put(sk);
+			kfree(pctx);
+			return ERR_PTR(-EADDRNOTAVAIL);
+		}
 		break;
 	}
 	atomic_set(&pctx->tx_seq, 0);
@@ -1918,6 +1946,10 @@ static struct pdp_ctx *gtp_find_pdp_by_link(struct net *net,
 		return ipv4_pdp_find(gtp, ip);
 	} else if (nla[GTPA_MS_ADDR6]) {
 		struct in6_addr addr = nla_get_in6_addr(nla[GTPA_MS_ADDR6]);
+
+		if (addr.s6_addr32[2] ||
+		    addr.s6_addr32[3])
+			return ERR_PTR(-EADDRNOTAVAIL);
 
 		return ipv6_pdp_find(gtp, &addr);
 	} else if (nla[GTPA_VERSION]) {
