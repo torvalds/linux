@@ -673,10 +673,7 @@ static int dwc3_ss_phy_setup(struct dwc3 *dwc, int index)
 
 static int dwc3_hs_phy_setup(struct dwc3 *dwc, int index)
 {
-	unsigned int hw_mode;
 	u32 reg;
-
-	hw_mode = DWC3_GHWPARAMS0_MODE(dwc->hwparams.hwparams0);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(index));
 
