@@ -33,6 +33,19 @@ static const char *iwl_get_esr_state_string(enum iwl_mvm_esr_state state)
 	return iwl_mvm_esr_states_names[offs];
 }
 
+static void iwl_mvm_print_esr_state(struct iwl_mvm *mvm, u32 mask)
+{
+#define NAME_FMT(x) "%s"
+#define NAME_PR(x) (mask & IWL_MVM_ESR_##x) ? "[" #x "]" : "",
+	IWL_DEBUG_INFO(mvm,
+		       "EMLSR state = " HANDLE_ESR_REASONS(NAME_FMT)
+		       " (0x%x)\n",
+		       HANDLE_ESR_REASONS(NAME_PR)
+		       mask);
+#undef NAME_FMT
+#undef NAME_PR
+}
+
 static u32 iwl_mvm_get_free_fw_link_id(struct iwl_mvm *mvm,
 				       struct iwl_mvm_vif *mvm_vif)
 {
@@ -708,16 +721,12 @@ iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
 	if (conf->csa_active)
 		ret |= IWL_MVM_ESR_EXIT_CSA;
 
-#define NAME_FMT(x) "%s"
-#define NAME_PR(x) (ret & IWL_MVM_ESR_##x) ? "[" #x "]" : "",
-
-	if (ret)
+	if (ret) {
 		IWL_DEBUG_INFO(mvm,
-			       "Link %d is not allowed for esr. reason = "
-			       HANDLE_ESR_REASONS(NAME_FMT) " (0x%x)\n",
-			       link->link_id,
-			       HANDLE_ESR_REASONS(NAME_PR)
-			       ret);
+			       "Link %d is not allowed for esr\n",
+			       link->link_id);
+		iwl_mvm_print_esr_state(mvm, ret);
+	}
 	return ret;
 }
 
@@ -1010,10 +1019,12 @@ void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (WARN_ON(!(reason & IWL_MVM_BLOCK_ESR_REASONS)))
 		return;
 
-	if (!(mvmvif->esr_disable_reason & reason))
+	if (!(mvmvif->esr_disable_reason & reason)) {
 		IWL_DEBUG_INFO(mvm,
 			       "Blocking EMLSR mode. reason = %s (0x%x)\n",
 			       iwl_get_esr_state_string(reason), reason);
+		iwl_mvm_print_esr_state(mvm, mvmvif->esr_disable_reason);
+	}
 
 	mvmvif->esr_disable_reason |= reason;
 
@@ -1098,11 +1109,12 @@ void iwl_mvm_unblock_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (!(mvmvif->esr_disable_reason & reason))
 		return;
 
+	mvmvif->esr_disable_reason &= ~reason;
+
 	IWL_DEBUG_INFO(mvm,
 		       "Unblocking EMLSR mode. reason = %s (0x%x)\n",
 		       iwl_get_esr_state_string(reason), reason);
-
-	mvmvif->esr_disable_reason &= ~reason;
+	iwl_mvm_print_esr_state(mvm, mvmvif->esr_disable_reason);
 
 	if (!mvmvif->esr_disable_reason)
 		iwl_mvm_esr_unblocked(mvm, vif);
