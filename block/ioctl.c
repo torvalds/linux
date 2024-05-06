@@ -95,6 +95,7 @@ static int compat_blkpg_ioctl(struct block_device *bdev,
 static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 		unsigned long arg)
 {
+	unsigned int bs_mask = bdev_logical_block_size(bdev) - 1;
 	uint64_t range[2];
 	uint64_t start, len;
 	struct inode *inode = bdev->bd_inode;
@@ -105,6 +106,8 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 
 	if (!bdev_max_discard_sectors(bdev))
 		return -EOPNOTSUPP;
+	if (bdev_read_only(bdev))
+		return -EPERM;
 
 	if (copy_from_user(range, (void __user *)arg, sizeof(range)))
 		return -EFAULT;
@@ -112,9 +115,9 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 	start = range[0];
 	len = range[1];
 
-	if (start & 511)
+	if (!len)
 		return -EINVAL;
-	if (len & 511)
+	if ((start | len) & bs_mask)
 		return -EINVAL;
 
 	if (start + len > bdev_nr_bytes(bdev))
