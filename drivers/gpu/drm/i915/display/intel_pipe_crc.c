@@ -608,8 +608,8 @@ int intel_crtc_set_crc_source(struct drm_crtc *_crtc, const char *source_name)
 		goto out;
 
 	pipe_crc->source = source;
-	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), val);
-	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(dev_priv, pipe), val);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(dev_priv, pipe));
 
 	if (!source) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
@@ -643,8 +643,8 @@ void intel_crtc_enable_pipe_crc(struct intel_crtc *crtc)
 	/* Don't need pipe_crc->lock here, IRQs are not generated. */
 	pipe_crc->skipped = 0;
 
-	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), val);
-	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(dev_priv, pipe), val);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(dev_priv, pipe));
 }
 
 void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc)
@@ -658,7 +658,7 @@ void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc)
 	pipe_crc->skipped = INT_MIN;
 	spin_unlock_irq(&pipe_crc->lock);
 
-	intel_de_write(dev_priv, PIPE_CRC_CTL(pipe), 0);
-	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(pipe));
+	intel_de_write(dev_priv, PIPE_CRC_CTL(dev_priv, pipe), 0);
+	intel_de_posting_read(dev_priv, PIPE_CRC_CTL(dev_priv, pipe));
 	intel_synchronize_irq(dev_priv);
 }
