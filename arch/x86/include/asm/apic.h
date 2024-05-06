@@ -503,13 +503,7 @@ static inline bool lapic_vector_set_in_irr(unsigned int vector)
 
 static inline bool is_vector_pending(unsigned int vector)
 {
-	unsigned int irr;
-
-	irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
-	if (irr  & (1 << (vector % 32)))
-		return true;
-
-	return pi_pending_this_cpu(vector);
+	return lapic_vector_set_in_irr(vector) || pi_pending_this_cpu(vector);
 }
 
 /*
