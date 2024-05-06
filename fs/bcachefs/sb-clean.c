@@ -278,6 +278,17 @@ static int bch2_sb_clean_validate(struct bch_sb *sb,
 		return -BCH_ERR_invalid_sb_clean;
 	}
 
+	for (struct jset_entry *entry = clean->start;
+	     entry != vstruct_end(&clean->field);
+	     entry = vstruct_next(entry)) {
+		if ((void *) vstruct_next(entry) > vstruct_end(&clean->field)) {
+			prt_str(err, "entry type ");
+			bch2_prt_jset_entry_type(err, le16_to_cpu(entry->type));
+			prt_str(err, " overruns end of section");
+			return -BCH_ERR_invalid_sb_clean;
+		}
+	}
+
 	return 0;
 }
 
@@ -295,6 +306,9 @@ static void bch2_sb_clean_to_text(struct printbuf *out, struct bch_sb *sb,
 	for (entry = clean->start;
 	     entry != vstruct_end(&clean->field);
 	     entry = vstruct_next(entry)) {
+		if ((void *) vstruct_next(entry) > vstruct_end(&clean->field))
+			break;
+
 		if (entry->type == BCH_JSET_ENTRY_btree_keys &&
 		    !entry->u64s)
 			continue;
