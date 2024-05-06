@@ -983,32 +983,15 @@ static void gtp_set_pktinfo_ipv6(struct gtp_pktinfo *pktinfo,
 	pktinfo->dev	= dev;
 }
 
-static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
-			     struct gtp_pktinfo *pktinfo)
+static int gtp_build_skb_outer_ip4(struct sk_buff *skb, struct net_device *dev,
+				   struct gtp_pktinfo *pktinfo,
+				   struct pdp_ctx *pctx, __u8 tos,
+				   __be16 frag_off)
 {
-	struct gtp_dev *gtp = netdev_priv(dev);
-	struct pdp_ctx *pctx;
 	struct rtable *rt;
 	struct flowi4 fl4;
-	struct iphdr *iph;
 	__be16 df;
 	int mtu;
-
-	/* Read the IP destination address and resolve the PDP context.
-	 * Prepend PDP header with TEI/TID from PDP ctx.
-	 */
-	iph = ip_hdr(skb);
-	if (gtp->role == GTP_ROLE_SGSN)
-		pctx = ipv4_pdp_find(gtp, iph->saddr);
-	else
-		pctx = ipv4_pdp_find(gtp, iph->daddr);
-
-	if (!pctx) {
-		netdev_dbg(dev, "no PDP ctx found for %pI4, skip\n",
-			   &iph->daddr);
-		return -ENOENT;
-	}
-	netdev_dbg(dev, "found PDP context %p\n", pctx);
 
 	rt = ip4_route_output_gtp(&fl4, pctx->sk, pctx->peer.addr.s_addr,
 				  inet_sk(pctx->sk)->inet_saddr);
@@ -1027,7 +1010,7 @@ static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	/* This is similar to tnl_update_pmtu(). */
-	df = iph->frag_off;
+	df = frag_off;
 	if (df) {
 		mtu = dst_mtu(&rt->dst) - dev->hard_header_len -
 			sizeof(struct iphdr) - sizeof(struct udphdr);
@@ -1045,7 +1028,7 @@ static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 
 	skb_dst_update_pmtu_no_confirm(skb, mtu);
 
-	if (iph->frag_off & htons(IP_DF) &&
+	if (frag_off & htons(IP_DF) &&
 	    ((!skb_is_gso(skb) && skb->len > mtu) ||
 	     (skb_is_gso(skb) && !skb_gso_validate_network_len(skb, mtu)))) {
 		netdev_dbg(dev, "packet too big, fragmentation needed\n");
@@ -1054,17 +1037,49 @@ static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 		goto err_rt;
 	}
 
-	gtp_set_pktinfo_ipv4(pktinfo, pctx->sk, iph->tos, pctx, rt, &fl4, dev);
+	gtp_set_pktinfo_ipv4(pktinfo, pctx->sk, tos, pctx, rt, &fl4, dev);
 	gtp_push_header(skb, pktinfo);
-
-	netdev_dbg(dev, "gtp -> IP src: %pI4 dst: %pI4\n",
-		   &iph->saddr, &iph->daddr);
 
 	return 0;
 err_rt:
 	ip_rt_put(rt);
 err:
 	return -EBADMSG;
+}
+
+static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
+			     struct gtp_pktinfo *pktinfo)
+{
+	struct gtp_dev *gtp = netdev_priv(dev);
+	struct pdp_ctx *pctx;
+	struct iphdr *iph;
+	int ret;
+
+	/* Read the IP destination address and resolve the PDP context.
+	 * Prepend PDP header with TEI/TID from PDP ctx.
+	 */
+	iph = ip_hdr(skb);
+	if (gtp->role == GTP_ROLE_SGSN)
+		pctx = ipv4_pdp_find(gtp, iph->saddr);
+	else
+		pctx = ipv4_pdp_find(gtp, iph->daddr);
+
+	if (!pctx) {
+		netdev_dbg(dev, "no PDP ctx found for %pI4, skip\n",
+			   &iph->daddr);
+		return -ENOENT;
+	}
+	netdev_dbg(dev, "found PDP context %p\n", pctx);
+
+	ret = gtp_build_skb_outer_ip4(skb, dev, pktinfo, pctx,
+				      iph->tos, iph->frag_off);
+	if (ret < 0)
+		return ret;
+
+	netdev_dbg(dev, "gtp -> IP src: %pI4 dst: %pI4\n",
+		   &iph->saddr, &iph->daddr);
+
+	return 0;
 }
 
 static int gtp_build_skb_ip6(struct sk_buff *skb, struct net_device *dev,
