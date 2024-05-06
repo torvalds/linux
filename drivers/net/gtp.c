@@ -567,6 +567,43 @@ static int gtp1u_handle_echo_resp(struct gtp_dev *gtp, struct sk_buff *skb)
 				       msg, 0, GTP_GENL_MCGRP, GFP_ATOMIC);
 }
 
+static int gtp_parse_exthdrs(struct sk_buff *skb, unsigned int *hdrlen)
+{
+	struct gtp_ext_hdr *gtp_exthdr, _gtp_exthdr;
+	unsigned int offset = *hdrlen;
+	__u8 *next_type, _next_type;
+
+	/* From 29.060: "The Extension Header Length field specifies the length
+	 * of the particular Extension header in 4 octets units."
+	 *
+	 * This length field includes length field size itself (1 byte),
+	 * payload (variable length) and next type (1 byte). The extension
+	 * header is aligned to to 4 bytes.
+	 */
+
+	do {
+		gtp_exthdr = skb_header_pointer(skb, offset, sizeof(*gtp_exthdr),
+						&_gtp_exthdr);
+		if (!gtp_exthdr || !gtp_exthdr->len)
+			return -1;
+
+		offset += gtp_exthdr->len * 4;
+
+		/* From 29.060: "If no such Header follows, then the value of
+		 * the Next Extension Header Type shall be 0."
+		 */
+		next_type = skb_header_pointer(skb, offset - 1,
+					       sizeof(_next_type), &_next_type);
+		if (!next_type)
+			return -1;
+
+	} while (*next_type != 0);
+
+	*hdrlen = offset;
+
+	return 0;
+}
+
 static int gtp1u_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb)
 {
 	unsigned int hdrlen = sizeof(struct udphdr) +
@@ -615,6 +652,10 @@ static int gtp1u_udp_encap_recv(struct gtp_dev *gtp, struct sk_buff *skb)
 		netdev_dbg(gtp->dev, "No PDP ctx to decap skb=%p\n", skb);
 		return 1;
 	}
+
+	if (gtp1->flags & GTP1_F_EXTHDR &&
+	    gtp_parse_exthdrs(skb, &hdrlen) < 0)
+		return -1;
 
 	return gtp_rx(pctx, skb, hdrlen, gtp->role);
 }
