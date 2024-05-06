@@ -23,6 +23,19 @@
 #include "ishtp-dev.h"
 #include "hw-ish.h"
 
+enum ishtp_driver_data_index {
+	ISHTP_DRIVER_DATA_NONE,
+	ISHTP_DRIVER_DATA_LNL_M,
+};
+
+#define ISH_FW_FILENAME_LNL_M "intel/ish/ish_lnlm.bin"
+
+static struct ishtp_driver_data ishtp_driver_data[] = {
+	[ISHTP_DRIVER_DATA_LNL_M] = {
+		.fw_filename = ISH_FW_FILENAME_LNL_M,
+	},
+};
+
 static const struct pci_device_id ish_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_CHV)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_BXT_Ax)},
@@ -46,7 +59,7 @@ static const struct pci_device_id ish_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_MTL_P)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_ARL_H)},
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_ARL_S)},
-	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_LNL_M)},
+	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ISH_LNL_M), .driver_data = ISHTP_DRIVER_DATA_LNL_M},
 	{}
 };
 MODULE_DEVICE_TABLE(pci, ish_pci_tbl);
@@ -167,6 +180,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	hw = to_ish_hw(ishtp);
 	ishtp->print_log = ish_event_tracer;
+	ishtp->driver_data = &ishtp_driver_data[ent->driver_data];
 
 	/* mapping IO device memory */
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
@@ -377,3 +391,5 @@ MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 
 MODULE_DESCRIPTION("Intel(R) Integrated Sensor Hub PCI Device Driver");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE(ISH_FW_FILENAME_LNL_M);

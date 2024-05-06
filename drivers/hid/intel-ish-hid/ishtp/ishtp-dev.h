@@ -123,11 +123,28 @@ struct ishtp_hw_ops {
 };
 
 /**
+ * struct ishtp_driver_data - Driver-specific data for ISHTP devices
+ *
+ * This structure holds driver-specific data that can be associated with each
+ * ISHTP device instance. It allows for the storage of data that is unique to
+ * a particular driver or hardware variant.
+ *
+ * @fw_filename: The firmware filename associated with a specific hardware
+ *               variant of the Intel Integrated Sensor Hub (ISH). This allows
+ *               the driver to load the correct firmware based on the device's
+ *               hardware variant.
+ */
+struct ishtp_driver_data {
+	char *fw_filename;
+};
+
+/**
  * struct ishtp_device - ISHTP private device struct
  */
 struct ishtp_device {
 	struct device *devc;	/* pointer to lowest device */
 	struct pci_dev *pdev;	/* PCI device to get device ids */
+	struct ishtp_driver_data *driver_data; /* pointer to driver-specific data */
 
 	/* waitq for waiting for suspend response */
 	wait_queue_head_t suspend_wait;
