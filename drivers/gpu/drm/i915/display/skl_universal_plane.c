@@ -1619,7 +1619,7 @@ skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
 	int aux_x = plane_state->view.color_plane[ccs_plane].x;
 	int aux_y = plane_state->view.color_plane[ccs_plane].y;
 	u32 aux_offset = plane_state->view.color_plane[ccs_plane].offset;
-	u32 alignment = intel_surf_alignment(fb, ccs_plane);
+	unsigned int alignment = intel_surf_alignment(fb, ccs_plane);
 	int hsub;
 	int vsub;
 
@@ -1639,8 +1639,7 @@ skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
 							       plane_state,
 							       ccs_plane,
 							       aux_offset,
-							       aux_offset -
-								alignment);
+							       aux_offset - alignment);
 		aux_x = x * hsub + aux_x % hsub;
 		aux_y = y * vsub + aux_y % vsub;
 	}
@@ -1662,10 +1661,10 @@ int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	const int aux_plane = skl_main_to_aux_plane(fb, 0);
-	const u32 aux_offset = plane_state->view.color_plane[aux_plane].offset;
-	const u32 alignment = intel_surf_alignment(fb, 0);
-	const int w = drm_rect_width(&plane_state->uapi.src) >> 16;
+	int aux_plane = skl_main_to_aux_plane(fb, 0);
+	u32 aux_offset = plane_state->view.color_plane[aux_plane].offset;
+	unsigned int alignment = intel_surf_alignment(fb, 0);
+	int w = drm_rect_width(&plane_state->uapi.src) >> 16;
 
 	intel_add_fb_offsets(x, y, plane_state, 0);
 	*offset = intel_plane_compute_aligned_offset(x, y, plane_state, 0);
@@ -1712,16 +1711,16 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	const unsigned int rotation = plane_state->hw.rotation;
+	unsigned int rotation = plane_state->hw.rotation;
 	int x = plane_state->uapi.src.x1 >> 16;
 	int y = plane_state->uapi.src.y1 >> 16;
-	const int w = drm_rect_width(&plane_state->uapi.src) >> 16;
-	const int h = drm_rect_height(&plane_state->uapi.src) >> 16;
-	const int min_width = intel_plane_min_width(plane, fb, 0, rotation);
-	const int max_width = intel_plane_max_width(plane, fb, 0, rotation);
-	const int max_height = intel_plane_max_height(plane, fb, 0, rotation);
-	const int aux_plane = skl_main_to_aux_plane(fb, 0);
-	const u32 alignment = intel_surf_alignment(fb, 0);
+	int w = drm_rect_width(&plane_state->uapi.src) >> 16;
+	int h = drm_rect_height(&plane_state->uapi.src) >> 16;
+	int min_width = intel_plane_min_width(plane, fb, 0, rotation);
+	int max_width = intel_plane_max_width(plane, fb, 0, rotation);
+	int max_height = intel_plane_max_height(plane, fb, 0, rotation);
+	unsigned int alignment = intel_surf_alignment(fb, 0);
+	int aux_plane = skl_main_to_aux_plane(fb, 0);
 	u32 offset;
 	int ret;
 
@@ -1809,7 +1808,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 	if (ccs_plane) {
 		u32 aux_offset = plane_state->view.color_plane[ccs_plane].offset;
-		u32 alignment = intel_surf_alignment(fb, uv_plane);
+		unsigned int alignment = intel_surf_alignment(fb, uv_plane);
 
 		if (offset > aux_offset)
 			offset = intel_plane_adjust_aligned_offset(&x, &y,
