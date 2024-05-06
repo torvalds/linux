@@ -74,7 +74,7 @@ static int nsim_change_mtu(struct net_device *dev, int new_mtu)
 	if (ns->xdp.prog && new_mtu > NSIM_XDP_MAX_MTU)
 		return -EBUSY;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	return 0;
 }

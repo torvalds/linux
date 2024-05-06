@@ -2120,7 +2120,7 @@ int dsa_user_change_mtu(struct net_device *dev, int new_mtu)
 	if (err)
 		goto out_port_failed;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	dsa_bridge_mtu_normalization(dp);
 

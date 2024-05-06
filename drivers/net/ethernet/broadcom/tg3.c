@@ -14295,7 +14295,7 @@ static void tg3_set_rx_mode(struct net_device *dev)
 static inline void tg3_set_mtu(struct net_device *dev, struct tg3 *tp,
 			       int new_mtu)
 {
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	if (new_mtu > ETH_DATA_LEN) {
 		if (tg3_flag(tp, 5780_CLASS)) {

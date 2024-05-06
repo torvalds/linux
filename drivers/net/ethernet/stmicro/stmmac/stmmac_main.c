@@ -5909,7 +5909,7 @@ static int stmmac_change_mtu(struct net_device *dev, int new_mtu)
 		stmmac_set_rx_mode(dev);
 	}
 
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 	netdev_update_features(dev);
 
 	return 0;

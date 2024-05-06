@@ -7770,7 +7770,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EBUSY;
 	}
 
-	netdev->mtu = (unsigned int)new_mtu;
+	WRITE_ONCE(netdev->mtu, (unsigned int)new_mtu);
 	err = ice_down_up(vsi);
 	if (err)
 		return err;

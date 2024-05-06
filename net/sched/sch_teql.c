@@ -424,7 +424,7 @@ static int teql_master_mtu(struct net_device *dev, int new_mtu)
 		} while ((q = NEXT_SLAVE(q)) != m->slaves);
 	}
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 

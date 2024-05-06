@@ -1375,7 +1375,7 @@ static int mvpp2_bm_update_mtu(struct net_device *dev, int mtu)
 	}
 
 out_set:
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 	dev->wanted_features = dev->features;
 
 	netdev_update_features(dev);

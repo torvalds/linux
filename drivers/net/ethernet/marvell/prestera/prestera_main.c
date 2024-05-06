@@ -489,7 +489,7 @@ static int prestera_port_change_mtu(struct net_device *dev, int mtu)
 	if (err)
 		return err;
 
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 
 	return 0;
 }

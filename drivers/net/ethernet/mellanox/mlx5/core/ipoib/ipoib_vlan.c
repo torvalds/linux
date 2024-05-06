@@ -280,7 +280,7 @@ static int mlx5i_pkey_change_mtu(struct net_device *netdev, int new_mtu)
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 
 	mutex_lock(&priv->state_lock);
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 	mutex_unlock(&priv->state_lock);
 
 	return 0;

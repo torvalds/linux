@@ -4525,7 +4525,7 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 	err = mlx5e_safe_switch_params(priv, &new_params, preactivate, NULL, reset);
 
 out:
-	netdev->mtu = params->sw_mtu;
+	WRITE_ONCE(netdev->mtu, params->sw_mtu);
 	mutex_unlock(&priv->state_lock);
 	return err;
 }

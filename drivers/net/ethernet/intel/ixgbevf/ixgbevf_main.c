@@ -4292,7 +4292,7 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	       netdev->mtu, new_mtu);
 
 	/* must set new MTU before calling down or up */
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (netif_running(netdev))
 		ixgbevf_reinit_locked(adapter);

@@ -690,12 +690,12 @@ static int mana_change_mtu(struct net_device *ndev, int new_mtu)
 		goto out;
 	}
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	err = mana_attach(ndev);
 	if (err) {
 		netdev_err(ndev, "mana_attach failed: %d\n", err);
-		ndev->mtu = old_mtu;
+		WRITE_ONCE(ndev->mtu, old_mtu);
 	}
 
 out:

@@ -402,7 +402,7 @@ static int lan966x_port_change_mtu(struct net_device *dev, int new_mtu)
 
 	lan_wr(DEV_MAC_MAXLEN_CFG_MAX_LEN_SET(LAN966X_HW_MTU(new_mtu)),
 	       lan966x, DEV_MAC_MAXLEN_CFG(port->chip_port));
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	if (!lan966x->fdma)
 		return 0;

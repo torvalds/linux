@@ -4055,7 +4055,7 @@ static int mtk_change_mtu(struct net_device *dev, int new_mtu)
 	}
 
 	mtk_set_mcr_max_rx(mac, length);
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	return 0;
 }

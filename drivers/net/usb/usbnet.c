@@ -398,7 +398,7 @@ int usbnet_change_mtu (struct net_device *net, int new_mtu)
 	// no second zero-length packet read wanted after mtu-sized packets
 	if ((ll_mtu % dev->maxpacket) == 0)
 		return -EDOM;
-	net->mtu = new_mtu;
+	WRITE_ONCE(net->mtu, new_mtu);
 
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 	if (dev->rx_urb_size == old_hard_mtu) {

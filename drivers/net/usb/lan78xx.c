@@ -2528,7 +2528,7 @@ static int lan78xx_change_mtu(struct net_device *netdev, int new_mtu)
 
 	ret = lan78xx_set_rx_max_frame_length(dev, max_frame_len);
 	if (!ret)
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 
 	usb_autopm_put_interface(dev->intf);
 

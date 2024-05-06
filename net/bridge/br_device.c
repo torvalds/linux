@@ -197,7 +197,7 @@ static int br_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	/* this flag will be cleared if the MTU was automatically adjusted */
 	br_opt_toggle(br, BROPT_MTU_SET_BY_USER, true);

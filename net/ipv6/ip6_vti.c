@@ -666,7 +666,8 @@ static void vti6_link_config(struct ip6_tnl *t, bool keep_mtu)
 		dev->flags &= ~IFF_POINTOPOINT;
 
 	if (keep_mtu && dev->mtu) {
-		dev->mtu = clamp(dev->mtu, dev->min_mtu, dev->max_mtu);
+		WRITE_ONCE(dev->mtu,
+			   clamp(dev->mtu, dev->min_mtu, dev->max_mtu));
 		return;
 	}
 

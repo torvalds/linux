@@ -1526,7 +1526,7 @@ static void nfp_net_dp_swap(struct nfp_net *nn, struct nfp_net_dp *dp)
 	*dp = nn->dp;
 	nn->dp = new_dp;
 
-	nn->dp.netdev->mtu = new_dp.mtu;
+	WRITE_ONCE(nn->dp.netdev->mtu, new_dp.mtu);
 
 	if (!netif_is_rxfh_configured(nn->dp.netdev))
 		nfp_net_rss_init_itbl(nn);

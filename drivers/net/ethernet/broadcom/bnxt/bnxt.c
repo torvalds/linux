@@ -14280,7 +14280,7 @@ static int bnxt_change_mtu(struct net_device *dev, int new_mtu)
 	if (netif_running(dev))
 		bnxt_close_nic(bp, true, false);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	bnxt_set_ring_params(bp);
 
 	if (netif_running(dev))

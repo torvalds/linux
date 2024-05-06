@@ -4710,7 +4710,7 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 		}
 	}
 
-	bond_dev->mtu = new_mtu;
+	WRITE_ONCE(bond_dev->mtu, new_mtu);
 
 	return 0;
 

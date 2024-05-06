@@ -897,7 +897,7 @@ static void ip_tunnel_update(struct ip_tunnel_net *itn,
 		t->fwmark = fwmark;
 		mtu = ip_tunnel_bind_dev(dev);
 		if (set_mtu)
-			dev->mtu = mtu;
+			WRITE_ONCE(dev->mtu, mtu);
 	}
 	dst_cache_reset(&t->dst_cache);
 	netdev_state_change(dev);
@@ -1082,7 +1082,7 @@ int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict)
 		new_mtu = max_mtu;
 	}
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__ip_tunnel_change_mtu);

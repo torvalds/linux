@@ -2698,7 +2698,7 @@ static int dpaa2_eth_change_mtu(struct net_device *dev, int new_mtu)
 		return err;
 
 out:
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 

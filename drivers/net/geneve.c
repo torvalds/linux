@@ -1059,7 +1059,7 @@ static int geneve_change_mtu(struct net_device *dev, int new_mtu)
 	else if (new_mtu < dev->min_mtu)
 		new_mtu = dev->min_mtu;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 

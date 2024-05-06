@@ -424,7 +424,7 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 	u16 reg16 = 0;
 	u8 buf[5];
 
-	net->mtu = new_mtu;
+	WRITE_ONCE(net->mtu, new_mtu);
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 
 	aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,

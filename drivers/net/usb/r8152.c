@@ -9365,7 +9365,7 @@ static int rtl8152_change_mtu(struct net_device *dev, int new_mtu)
 	case RTL_VER_01:
 	case RTL_VER_02:
 	case RTL_VER_07:
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 		return 0;
 	default:
 		break;
@@ -9377,7 +9377,7 @@ static int rtl8152_change_mtu(struct net_device *dev, int new_mtu)
 
 	mutex_lock(&tp->control);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	if (netif_running(dev)) {
 		if (tp->rtl_ops.change_mtu)

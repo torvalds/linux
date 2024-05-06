@@ -3184,7 +3184,7 @@ static int lan743x_netdev_change_mtu(struct net_device *netdev, int new_mtu)
 
 	ret = lan743x_mac_set_mtu(adapter, new_mtu);
 	if (!ret)
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 	return ret;
 }
 

@@ -793,7 +793,7 @@ static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 		dev->needed_headroom += len;
 
 	if (set_mtu)
-		dev->mtu = max_t(int, dev->mtu - len, 68);
+		WRITE_ONCE(dev->mtu, max_t(int, dev->mtu - len, 68));
 
 	if (test_bit(IP_TUNNEL_SEQ_BIT, tunnel->parms.o_flags) ||
 	    (test_bit(IP_TUNNEL_CSUM_BIT, tunnel->parms.o_flags) &&

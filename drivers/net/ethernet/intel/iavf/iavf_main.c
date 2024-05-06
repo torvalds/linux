@@ -4296,7 +4296,7 @@ static int iavf_change_mtu(struct net_device *netdev, int new_mtu)
 
 	netdev_dbg(netdev, "changing MTU from %d to %d\n",
 		   netdev->mtu, new_mtu);
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (netif_running(netdev)) {
 		iavf_schedule_reset(adapter, IAVF_FLAG_RESET_NEEDED);

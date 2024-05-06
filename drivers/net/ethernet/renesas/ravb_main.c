@@ -2423,7 +2423,7 @@ static int ravb_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct ravb_private *priv = netdev_priv(ndev);
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	if (netif_running(ndev)) {
 		synchronize_irq(priv->emac_irq);

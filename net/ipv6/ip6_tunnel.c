@@ -1746,7 +1746,7 @@ int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
 		if (new_mtu > IP_MAX_MTU - dev->hard_header_len)
 			return -EINVAL;
 	}
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 EXPORT_SYMBOL(ip6_tnl_change_mtu);
