@@ -31,6 +31,7 @@ config PINCTRL_IMX1_CORE
 config PINCTRL_IMX1
 	bool "IMX1 pinctrl driver"
 	depends on SOC_IMX1
+	default SOC_IMX1
 	select PINCTRL_IMX1_CORE
 	help
 	  Say Y here to enable the imx1 pinctrl driver
@@ -38,6 +39,7 @@ config PINCTRL_IMX1
 config PINCTRL_IMX27
 	bool "IMX27 pinctrl driver"
 	depends on SOC_IMX27
+	default SOC_IMX27
 	select PINCTRL_IMX1_CORE
 	help
 	  Say Y here to enable the imx27 pinctrl driver
@@ -47,6 +49,7 @@ config PINCTRL_IMX25
 	bool "IMX25 pinctrl driver"
 	depends on OF
 	depends on SOC_IMX25
+	default SOC_IMX25
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx25 pinctrl driver
@@ -54,6 +57,7 @@ config PINCTRL_IMX25
 config PINCTRL_IMX35
 	bool "IMX35 pinctrl driver"
 	depends on SOC_IMX35
+	default SOC_IMX35
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx35 pinctrl driver
@@ -61,6 +65,7 @@ config PINCTRL_IMX35
 config PINCTRL_IMX50
 	bool "IMX50 pinctrl driver"
 	depends on SOC_IMX50
+	default SOC_IMX50
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx50 pinctrl driver
@@ -68,6 +73,7 @@ config PINCTRL_IMX50
 config PINCTRL_IMX51
 	bool "IMX51 pinctrl driver"
 	depends on SOC_IMX51
+	default SOC_IMX51
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx51 pinctrl driver
@@ -75,6 +81,7 @@ config PINCTRL_IMX51
 config PINCTRL_IMX53
 	bool "IMX53 pinctrl driver"
 	depends on SOC_IMX53
+	default SOC_IMX53
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx53 pinctrl driver
@@ -82,6 +89,7 @@ config PINCTRL_IMX53
 config PINCTRL_IMX6Q
 	bool "IMX6Q/DL pinctrl driver"
 	depends on SOC_IMX6Q
+	default SOC_IMX6Q
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx6q/dl pinctrl driver
@@ -89,6 +97,7 @@ config PINCTRL_IMX6Q
 config PINCTRL_IMX6SL
 	bool "IMX6SL pinctrl driver"
 	depends on SOC_IMX6SL
+	default SOC_IMX6SL
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx6sl pinctrl driver
@@ -96,6 +105,7 @@ config PINCTRL_IMX6SL
 config PINCTRL_IMX6SLL
 	bool "IMX6SLL pinctrl driver"
 	depends on SOC_IMX6SLL
+	default SOC_IMX6SLL
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx6sll pinctrl driver
@@ -103,6 +113,7 @@ config PINCTRL_IMX6SLL
 config PINCTRL_IMX6SX
 	bool "IMX6SX pinctrl driver"
 	depends on SOC_IMX6SX
+	default SOC_IMX6SX
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx6sx pinctrl driver
@@ -110,6 +121,7 @@ config PINCTRL_IMX6SX
 config PINCTRL_IMX6UL
 	bool "IMX6UL pinctrl driver"
 	depends on SOC_IMX6UL
+	default SOC_IMX6UL
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx6ul pinctrl driver
@@ -117,6 +129,7 @@ config PINCTRL_IMX6UL
 config PINCTRL_IMX7D
 	bool "IMX7D pinctrl driver"
 	depends on SOC_IMX7D
+	default SOC_IMX7D
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx7d pinctrl driver
@@ -124,6 +137,7 @@ config PINCTRL_IMX7D
 config PINCTRL_IMX7ULP
 	bool "IMX7ULP pinctrl driver"
 	depends on SOC_IMX7ULP
+	default SOC_IMX7ULP
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx7ulp pinctrl driver
@@ -212,6 +226,7 @@ config PINCTRL_IMX93
 config PINCTRL_VF610
 	bool "Freescale Vybrid VF610 pinctrl driver"
 	depends on SOC_VF610
+	default SOC_VF610
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the Freescale Vybrid VF610 pinctrl driver
