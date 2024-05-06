@@ -451,6 +451,7 @@ struct trace_pid_list *trace_pid_list_alloc(void)
 
 /**
  * trace_pid_list_free - Frees an allocated pid_list.
+ * @pid_list: The pid list to free.
  *
  * Frees the memory for a pid_list that was allocated.
  */
