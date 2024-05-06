@@ -248,7 +248,15 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg)
 {
-	return -EINVAL;
+	if (dbg->control & ~KVM_GUESTDBG_VALID_MASK)
+		return -EINVAL;
+
+	if (dbg->control & KVM_GUESTDBG_ENABLE)
+		vcpu->guest_debug = dbg->control;
+	else
+		vcpu->guest_debug = 0;
+
+	return 0;
 }
 
 static inline int kvm_set_cpuid(struct kvm_vcpu *vcpu, u64 val)
@@ -498,6 +506,9 @@ static int kvm_get_one_reg(struct kvm_vcpu *vcpu,
 		switch (reg->id) {
 		case KVM_REG_LOONGARCH_COUNTER:
 			*v = drdtime() + vcpu->kvm->arch.time_offset;
+			break;
+		case KVM_REG_LOONGARCH_DEBUG_INST:
+			*v = INSN_HVCL | KVM_HCALL_SWDBG;
 			break;
 		default:
 			ret = -EINVAL;

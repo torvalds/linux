@@ -31,6 +31,11 @@
 
 #define KVM_HALT_POLL_NS_DEFAULT	500000
 
+#define KVM_GUESTDBG_SW_BP_MASK		\
+	(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)
+#define KVM_GUESTDBG_VALID_MASK		\
+	(KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP | KVM_GUESTDBG_SINGLESTEP)
+
 struct kvm_vm_stat {
 	struct kvm_vm_stat_generic generic;
 	u64 pages;

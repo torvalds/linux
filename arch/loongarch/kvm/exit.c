@@ -760,25 +760,37 @@ static void kvm_handle_service(struct kvm_vcpu *vcpu)
 
 static int kvm_handle_hypercall(struct kvm_vcpu *vcpu)
 {
+	int ret;
 	larch_inst inst;
 	unsigned int code;
 
 	inst.word = vcpu->arch.badi;
 	code = inst.reg0i15_format.immediate;
-	update_pc(&vcpu->arch);
+	ret = RESUME_GUEST;
 
 	switch (code) {
 	case KVM_HCALL_SERVICE:
 		vcpu->stat.hypercall_exits++;
 		kvm_handle_service(vcpu);
 		break;
+	case KVM_HCALL_SWDBG:
+		/* KVM_HCALL_SWDBG only in effective when SW_BP is enabled */
+		if (vcpu->guest_debug & KVM_GUESTDBG_SW_BP_MASK) {
+			vcpu->run->exit_reason = KVM_EXIT_DEBUG;
+			ret = RESUME_HOST;
+			break;
+		}
+		fallthrough;
 	default:
 		/* Treat it as noop intruction, only set return value */
 		kvm_write_reg(vcpu, LOONGARCH_GPR_A0, KVM_HCALL_INVALID_CODE);
 		break;
 	}
 
-	return RESUME_GUEST;
+	if (ret == RESUME_GUEST)
+		update_pc(&vcpu->arch);
+
+	return ret;
 }
 
 /*
