@@ -164,6 +164,17 @@ struct ishtp_device {
 	struct hbm_version version;
 	int transfer_path; /* Choice of transfer path: IPC or DMA */
 
+	/* work structure for scheduling firmware loading tasks */
+	struct work_struct work_fw_loader;
+	/* waitq for waiting for command response from the firmware loader */
+	wait_queue_head_t wait_loader_recvd_msg;
+	/* indicating whether a message from the firmware loader has been received */
+	bool fw_loader_received;
+	/* pointer to a buffer for receiving messages from the firmware loader */
+	void *fw_loader_rx_buf;
+	/* size of the buffer pointed to by fw_loader_rx_buf */
+	int fw_loader_rx_size;
+
 	/* ishtp device states */
 	enum ishtp_dev_state dev_state;
 	enum ishtp_hbm_state hbm_state;
