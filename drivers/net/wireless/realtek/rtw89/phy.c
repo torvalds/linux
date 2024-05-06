@@ -6403,10 +6403,8 @@ enum rtw89_rf_path_bit rtw89_phy_get_kpath(struct rtw89_dev *rtwdev,
 			return RF_D;
 	case MLO_0_PLUS_2_1RF:
 	case MLO_2_PLUS_0_1RF:
-		if (phy_idx == RTW89_PHY_0)
-			return RF_AB;
-		else
-			return RF_AB;
+		/* for both PHY 0/1 */
+		return RF_AB;
 	case MLO_0_PLUS_2_2RF:
 	case MLO_2_PLUS_0_2RF:
 	case MLO_2_PLUS_2_2RF:
