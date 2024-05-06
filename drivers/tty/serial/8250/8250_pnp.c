@@ -435,8 +435,9 @@ static int
 serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	struct uart_8250_port uart, *port;
-	int ret, line, flags = dev_id->driver_data;
+	int ret, flags = dev_id->driver_data;
 	unsigned char iotype;
+	long line;
 
 	if (flags & UNKNOWN_DEV) {
 		ret = serial_pnp_guess_board(dev);
@@ -494,7 +495,7 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	if (uart_console(&port->port))
 		dev->capabilities |= PNP_CONSOLE;
 
-	pnp_set_drvdata(dev, (void *)((long)line + 1));
+	pnp_set_drvdata(dev, (void *)line);
 	return 0;
 }
 
@@ -503,17 +504,14 @@ static void serial_pnp_remove(struct pnp_dev *dev)
 	long line = (long)pnp_get_drvdata(dev);
 
 	dev->capabilities &= ~PNP_CONSOLE;
-	if (line)
-		serial8250_unregister_port(line - 1);
+	serial8250_unregister_port(line);
 }
 
 static int serial_pnp_suspend(struct device *dev)
 {
 	long line = (long)dev_get_drvdata(dev);
 
-	if (!line)
-		return -ENODEV;
-	serial8250_suspend_port(line - 1);
+	serial8250_suspend_port(line);
 	return 0;
 }
 
@@ -521,9 +519,7 @@ static int serial_pnp_resume(struct device *dev)
 {
 	long line = (long)dev_get_drvdata(dev);
 
-	if (!line)
-		return -ENODEV;
-	serial8250_resume_port(line - 1);
+	serial8250_resume_port(line);
 	return 0;
 }
 
