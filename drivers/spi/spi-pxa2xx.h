@@ -7,15 +7,34 @@
 #ifndef SPI_PXA2XX_H
 #define SPI_PXA2XX_H
 
-#include <linux/interrupt.h>
-#include <linux/io.h>
+#include <linux/dmaengine.h>
+#include <linux/irqreturn.h>
 #include <linux/types.h>
 #include <linux/sizes.h>
 
 #include <linux/pxa2xx_ssp.h>
 
 struct gpio_desc;
-struct pxa2xx_spi_controller;
+
+/*
+ * The platform data for SSP controller devices
+ * (resides in device.platform_data).
+ */
+struct pxa2xx_spi_controller {
+	u8 num_chipselect;
+	u8 enable_dma;
+	u8 dma_burst_size;
+	bool is_target;
+
+	/* DMA engine specific config */
+	dma_filter_fn dma_filter;
+	void *tx_param;
+	void *rx_param;
+
+	/* For non-PXA arches */
+	struct ssp_device ssp;
+};
+
 struct spi_controller;
 struct spi_device;
 struct spi_transfer;
@@ -54,18 +73,6 @@ struct driver_data {
 
 	/* Optional slave FIFO ready signal */
 	struct gpio_desc *gpiod_ready;
-};
-
-struct chip_data {
-	u32 cr1;
-	u32 dds_rate;
-	u32 timeout;
-	u8 enable_dma;
-	u32 dma_burst_size;
-	u32 dma_threshold;
-	u32 threshold;
-	u16 lpss_rx_threshold;
-	u16 lpss_tx_threshold;
 };
 
 static inline u32 pxa2xx_spi_read(const struct driver_data *drv_data, u32 reg)
@@ -123,10 +130,5 @@ extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_stop(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
-extern int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
-						  struct spi_device *spi,
-						  u8 bits_per_word,
-						  u32 *burst_code,
-						  u32 *threshold);
 
 #endif /* SPI_PXA2XX_H */
