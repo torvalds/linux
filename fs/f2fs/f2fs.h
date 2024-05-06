@@ -813,7 +813,7 @@ struct f2fs_inode_info {
 	unsigned char i_dir_level;	/* use for dentry level for large dir */
 	union {
 		unsigned int i_current_depth;	/* only for directory depth */
-		unsigned int i_gc_failures;	/* for gc failure statistic */
+		unsigned short i_gc_failures;	/* for gc failure statistic */
 	};
 	unsigned int i_pino;		/* parent inode number */
 	umode_t i_acl_mode;		/* keep file acl mode temporarily */
@@ -1673,7 +1673,7 @@ struct f2fs_sb_info {
 	unsigned long long skipped_gc_rwsem;		/* FG_GC only */
 
 	/* threshold for gc trials on pinned files */
-	u64 gc_pin_file_threshold;
+	unsigned short gc_pin_file_threshold;
 	struct f2fs_rwsem pin_sem;
 
 	/* maximum # of trials to find a victim segment for SSR and GC */
