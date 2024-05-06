@@ -2517,8 +2517,13 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		goto drop_connection;
 	}
 
+	link->csa.chanreq = csa_ie.chanreq;
+	if (link->u.mgd.conn.mode < IEEE80211_CONN_MODE_EHT ||
+	    sdata->vif.driver_flags & IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW)
+		link->csa.chanreq.ap.chan = NULL;
+
 	if (chanctx) {
-		res = ieee80211_link_reserve_chanctx(link, &csa_ie.chanreq,
+		res = ieee80211_link_reserve_chanctx(link, &link->csa.chanreq,
 						     chanctx->mode, false);
 		if (res) {
 			link_info(link,
@@ -2529,7 +2534,6 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	}
 
 	link->conf->csa_active = true;
-	link->csa.chanreq = csa_ie.chanreq;
 	link->u.mgd.csa.ignored_same_chan = false;
 	link->u.mgd.beacon_crc_valid = false;
 	link->u.mgd.csa.blocked_tx = csa_ie.mode;
