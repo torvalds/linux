@@ -359,6 +359,43 @@ static void mmhub_v3_3_program_invalidation(struct amdgpu_device *adev)
 	}
 }
 
+static void mmhub_v3_3_init_saw_regs(struct amdgpu_device *adev)
+{
+	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+	uint32_t tmp;
+
+	/* Program page table base, gart start, gart end */
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32,
+			lower_32_bits(pt_base >> 12));
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
+			upper_32_bits(pt_base >> 12));
+
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
+		     (u32)(adev->gmc.gart_start >> 12));
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_START_ADDR_HI32,
+		     (u32)(adev->gmc.gart_start >> 44));
+
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
+		     (u32)(adev->gmc.gart_end >> 12));
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
+		     (u32)(adev->gmc.gart_end >> 44));
+
+	tmp = RREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_CNTL);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_SAW_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_SAW_CONTEXT0_CNTL, PAGE_TABLE_DEPTH, 0);
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXT0_CNTL, tmp);
+
+	/* Disable all contexts except context 0 */
+	tmp = 0xfffe;
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CONTEXTS_DISABLE, tmp);
+
+	/* Program saw cntl4 */
+	tmp = RREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CNTL4);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_SAW_CNTL4, VMC_TAP_CONTEXT0_PDE_REQUEST_SNOOP, 1);
+	tmp = REG_SET_FIELD(tmp, MMVM_L2_SAW_CNTL4, VMC_TAP_CONTEXT0_PTE_REQUEST_SNOOP, 1);
+	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CNTL4, tmp);
+}
+
 static int mmhub_v3_3_gart_enable(struct amdgpu_device *adev)
 {
 	/* GART Enable. */
@@ -371,6 +408,9 @@ static int mmhub_v3_3_gart_enable(struct amdgpu_device *adev)
 	mmhub_v3_3_disable_identity_aperture(adev);
 	mmhub_v3_3_setup_vmid_config(adev);
 	mmhub_v3_3_program_invalidation(adev);
+
+	/* standalone alone walker init */
+	mmhub_v3_3_init_saw_regs(adev);
 
 	return 0;
 }
