@@ -110,4 +110,14 @@ static inline int kvm_queue_exception(struct kvm_vcpu *vcpu,
 		return -1;
 }
 
+static inline unsigned long kvm_read_reg(struct kvm_vcpu *vcpu, int num)
+{
+	return vcpu->arch.gprs[num];
+}
+
+static inline void kvm_write_reg(struct kvm_vcpu *vcpu, int num, unsigned long val)
+{
+	vcpu->arch.gprs[num] = val;
+}
+
 #endif /* __ASM_LOONGARCH_KVM_VCPU_H__ */

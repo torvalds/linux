@@ -168,6 +168,7 @@
 #define CPUCFG_KVM_SIG			(CPUCFG_KVM_BASE + 0)
 #define  KVM_SIGNATURE			"KVM\0"
 #define CPUCFG_KVM_FEATURE		(CPUCFG_KVM_BASE + 4)
+#define  KVM_FEATURE_IPI		BIT(1)
 
 #ifndef __ASSEMBLY__
 
