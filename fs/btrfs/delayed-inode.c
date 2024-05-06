@@ -77,14 +77,14 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
 		return node;
 	}
 
-	spin_lock(&root->inode_lock);
+	xa_lock(&root->delayed_nodes);
 	node = xa_load(&root->delayed_nodes, ino);
 
 	if (node) {
 		if (btrfs_inode->delayed_node) {
 			refcount_inc(&node->refs);	/* can be accessed */
 			BUG_ON(btrfs_inode->delayed_node != node);
-			spin_unlock(&root->inode_lock);
+			xa_unlock(&root->delayed_nodes);
 			return node;
 		}
 
@@ -111,10 +111,10 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(
 			node = NULL;
 		}
 
-		spin_unlock(&root->inode_lock);
+		xa_unlock(&root->delayed_nodes);
 		return node;
 	}
-	spin_unlock(&root->inode_lock);
+	xa_unlock(&root->delayed_nodes);
 
 	return NULL;
 }
@@ -148,21 +148,21 @@ again:
 		kmem_cache_free(delayed_node_cache, node);
 		return ERR_PTR(-ENOMEM);
 	}
-	spin_lock(&root->inode_lock);
+	xa_lock(&root->delayed_nodes);
 	ptr = xa_load(&root->delayed_nodes, ino);
 	if (ptr) {
 		/* Somebody inserted it, go back and read it. */
-		spin_unlock(&root->inode_lock);
+		xa_unlock(&root->delayed_nodes);
 		kmem_cache_free(delayed_node_cache, node);
 		node = NULL;
 		goto again;
 	}
-	ptr = xa_store(&root->delayed_nodes, ino, node, GFP_ATOMIC);
+	ptr = __xa_store(&root->delayed_nodes, ino, node, GFP_ATOMIC);
 	ASSERT(xa_err(ptr) != -EINVAL);
 	ASSERT(xa_err(ptr) != -ENOMEM);
 	ASSERT(ptr == NULL);
 	btrfs_inode->delayed_node = node;
-	spin_unlock(&root->inode_lock);
+	xa_unlock(&root->delayed_nodes);
 
 	return node;
 }
@@ -275,14 +275,12 @@ static void __btrfs_release_delayed_node(
 	if (refcount_dec_and_test(&delayed_node->refs)) {
 		struct btrfs_root *root = delayed_node->root;
 
-		spin_lock(&root->inode_lock);
+		xa_erase(&root->delayed_nodes, delayed_node->inode_id);
 		/*
 		 * Once our refcount goes to zero, nobody is allowed to bump it
 		 * back up.  We can delete it now.
 		 */
 		ASSERT(refcount_read(&delayed_node->refs) == 0);
-		xa_erase(&root->delayed_nodes, delayed_node->inode_id);
-		spin_unlock(&root->inode_lock);
 		kmem_cache_free(delayed_node_cache, delayed_node);
 	}
 }
@@ -2057,9 +2055,9 @@ void btrfs_kill_all_delayed_nodes(struct btrfs_root *root)
 		struct btrfs_delayed_node *node;
 		int count;
 
-		spin_lock(&root->inode_lock);
+		xa_lock(&root->delayed_nodes);
 		if (xa_empty(&root->delayed_nodes)) {
-			spin_unlock(&root->inode_lock);
+			xa_unlock(&root->delayed_nodes);
 			return;
 		}
 
@@ -2076,7 +2074,7 @@ void btrfs_kill_all_delayed_nodes(struct btrfs_root *root)
 			if (count >= ARRAY_SIZE(delayed_nodes))
 				break;
 		}
-		spin_unlock(&root->inode_lock);
+		xa_unlock(&root->delayed_nodes);
 		index++;
 
 		for (int i = 0; i < count; i++) {

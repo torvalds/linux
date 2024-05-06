@@ -5509,9 +5509,7 @@ static int btrfs_add_inode_to_root(struct btrfs_inode *inode, bool prealloc)
 			return ret;
 	}
 
-	spin_lock(&root->inode_lock);
 	existing = xa_store(&root->inodes, ino, inode, GFP_ATOMIC);
-	spin_unlock(&root->inode_lock);
 
 	if (xa_is_err(existing)) {
 		ret = xa_err(existing);
@@ -5531,16 +5529,16 @@ static void btrfs_del_inode_from_root(struct btrfs_inode *inode)
 	struct btrfs_inode *entry;
 	bool empty = false;
 
-	spin_lock(&root->inode_lock);
-	entry = xa_erase(&root->inodes, btrfs_ino(inode));
+	xa_lock(&root->inodes);
+	entry = __xa_erase(&root->inodes, btrfs_ino(inode));
 	if (entry == inode)
 		empty = xa_empty(&root->inodes);
-	spin_unlock(&root->inode_lock);
+	xa_unlock(&root->inodes);
 
 	if (empty && btrfs_root_refs(&root->root_item) == 0) {
-		spin_lock(&root->inode_lock);
+		xa_lock(&root->inodes);
 		empty = xa_empty(&root->inodes);
-		spin_unlock(&root->inode_lock);
+		xa_unlock(&root->inodes);
 		if (empty)
 			btrfs_add_dead_root(root);
 	}
@@ -10874,7 +10872,7 @@ struct btrfs_inode *btrfs_find_first_inode(struct btrfs_root *root, u64 min_ino)
 	struct btrfs_inode *inode;
 	unsigned long from = min_ino;
 
-	spin_lock(&root->inode_lock);
+	xa_lock(&root->inodes);
 	while (true) {
 		inode = xa_find(&root->inodes, &from, ULONG_MAX, XA_PRESENT);
 		if (!inode)
@@ -10883,9 +10881,9 @@ struct btrfs_inode *btrfs_find_first_inode(struct btrfs_root *root, u64 min_ino)
 			break;
 
 		from = btrfs_ino(inode) + 1;
-		cond_resched_lock(&root->inode_lock);
+		cond_resched_lock(&root->inodes.xa_lock);
 	}
-	spin_unlock(&root->inode_lock);
+	xa_unlock(&root->inodes);
 
 	return inode;
 }

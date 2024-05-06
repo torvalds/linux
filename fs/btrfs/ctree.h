@@ -221,7 +221,6 @@ struct btrfs_root {
 
 	struct list_head root_list;
 
-	spinlock_t inode_lock;
 	/*
 	 * Xarray that keeps track of in-memory inodes, protected by the lock
 	 * @inode_lock.
