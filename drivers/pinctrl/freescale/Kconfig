@@ -204,7 +204,8 @@ config PINCTRL_IMX8ULP
 
 config PINCTRL_IMXRT1050
 	bool "IMXRT1050 pinctrl driver"
-	depends on ARCH_MXC
+	depends on SOC_IMXRT
+	default SOC_IMXRT
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imxrt1050 pinctrl driver
@@ -246,7 +247,7 @@ config PINCTRL_IMX28
 
 config PINCTRL_IMXRT1170
 	bool "IMXRT1170 pinctrl driver"
-	depends on ARCH_MXC
+	depends on SOC_IMXRT
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imxrt1170 pinctrl driver
