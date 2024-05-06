@@ -339,6 +339,71 @@ End to End HID transport Sequence Diagram
           |                        |                       |                               |
 
 
+ISH Firmware Loading from Host Flow
+-----------------------------------
+
+Starting from the Lunar Lake generation, the ISH firmware has been divided into two components for better space optimization and increased flexibility. These components include a bootloader that is integrated into the BIOS, and a main firmware that is stored within the operating system's file system.
+
+The process works as follows:
+
+- Initially, the ISHTP driver sends a command, HOST_START_REQ_CMD, to the ISH bootloader. In response, the bootloader sends back a HOST_START_RES_CMD. This response includes the ISHTP_SUPPORT_CAP_LOADER bit. Subsequently, the ISHTP driver checks if this bit is set. If it is, the firmware loading process from the host begins.
+
+- During this process, the ISHTP driver first invokes the request_firmware() function, followed by sending a LOADER_CMD_XFER_QUERY command. Upon receiving a response from the bootloader, the ISHTP driver sends a LOADER_CMD_XFER_FRAGMENT command. After receiving another response, the ISHTP driver sends a LOADER_CMD_START command. The bootloader responds and then proceeds to the Main Firmware.
+
+- After the process concludes, the ISHTP driver calls the release_firmware() function.
+
+For more detailed information, please refer to the flow descriptions provided below:
+
+::
+
+  +---------------+                                                    +-----------------+
+  | ISHTP Driver  |                                                    | ISH Bootloader  |
+  +---------------+                                                    +-----------------+
+          |                                                                     |
+          |~~~Send HOST_START_REQ_CMD~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>|
+          |                                                                     |
+          |<--Send HOST_START_RES_CMD(Includes ISHTP_SUPPORT_CAP_LOADER bit)----|
+          |                                                                     |
+  ****************************************************************************************
+  * if ISHTP_SUPPORT_CAP_LOADER bit is set                                               *
+  ****************************************************************************************
+          |                                                                     |
+          |~~~start loading firmware from host process~~~+                      |
+          |                                              |                      |
+          |<---------------------------------------------+                      |
+          |                                                                     |
+  ---------------------------                                                   |
+  | Call request_firmware() |                                                   |
+  ---------------------------                                                   |
+          |                                                                     |
+          |~~~Send LOADER_CMD_XFER_QUERY~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>|
+          |                                                                     |
+          |<--Send response-----------------------------------------------------|
+          |                                                                     |
+          |~~~Send LOADER_CMD_XFER_FRAGMENT~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>|
+          |                                                                     |
+          |<--Send response-----------------------------------------------------|
+          |                                                                     |
+          |~~~Send LOADER_CMD_START~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~>|
+          |                                                                     |
+          |<--Send response-----------------------------------------------------|
+          |                                                                     |
+          |                                                                     |~~~Jump to Main Firmware~~~+
+          |                                                                     |                           |
+          |                                                                     |<--------------------------+
+          |                                                                     |
+  ---------------------------                                                   |
+  | Call release_firmware() |                                                   |
+  ---------------------------                                                   |
+          |                                                                     |
+  ****************************************************************************************
+  * end if                                                                               *
+  ****************************************************************************************
+          |                                                                     |
+  +---------------+                                                    +-----------------+
+  | ISHTP Driver  |                                                    | ISH Bootloader  |
+  +---------------+                                                    +-----------------+
+
 ISH Debugging
 -------------
 
