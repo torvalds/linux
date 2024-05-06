@@ -2092,7 +2092,7 @@ static int extract_reg_offset(struct arch *arch, const char *str,
  *   mov  0x18, %r8      # src_reg1 = -1, src_mem = 0
  *                       # dst_reg1 = r8, dst_mem = 0
  *
- *   mov  %rsi, 8(%rbx,%rcx,4)  # src_reg1 = rsi, src_mem = 0, dst_multi_regs = 0
+ *   mov  %rsi, 8(%rbx,%rcx,4)  # src_reg1 = rsi, src_mem = 0, src_multi_regs = 0
  *                              # dst_reg1 = rbx, dst_reg2 = rcx, dst_mem = 1
  *                              # dst_multi_regs = 1, dst_offset = 8
  */
