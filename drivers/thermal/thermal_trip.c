@@ -138,6 +138,7 @@ int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 	 */
 	return trip_to_trip_desc(trip) - tz->trips;
 }
+
 void thermal_zone_trip_updated(struct thermal_zone_device *tz,
 			       const struct thermal_trip *trip)
 {
