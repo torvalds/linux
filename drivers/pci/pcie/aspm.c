@@ -177,8 +177,8 @@ void pci_restore_aspm_l1ss_state(struct pci_dev *pdev)
 	/* Restore L0s/L1 if they were enabled */
 	if (FIELD_GET(PCI_EXP_LNKCTL_ASPMC, clnkctl) ||
 	    FIELD_GET(PCI_EXP_LNKCTL_ASPMC, plnkctl)) {
-		pcie_capability_write_word(parent, PCI_EXP_LNKCTL, clnkctl);
-		pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, plnkctl);
+		pcie_capability_write_word(parent, PCI_EXP_LNKCTL, plnkctl);
+		pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, clnkctl);
 	}
 }
 
