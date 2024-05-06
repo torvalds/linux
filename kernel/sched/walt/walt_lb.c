@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <trace/hooks/sched.h>
@@ -290,7 +290,7 @@ static inline bool need_active_lb(struct task_struct *p, int dst_cpu,
 	return true;
 }
 
-static int walt_lb_pull_tasks(int dst_cpu, int src_cpu, struct task_struct *pulled_task)
+static int walt_lb_pull_tasks(int dst_cpu, int src_cpu, struct task_struct **pulled_task_struct)
 {
 	struct rq *dst_rq = cpu_rq(dst_cpu);
 	struct rq *src_rq = cpu_rq(src_cpu);
@@ -339,7 +339,6 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu, struct task_struct *pull
 	}
 	if (pull_me) {
 		walt_detach_task(pull_me, src_rq, dst_rq);
-		pulled_task = pull_me;
 		goto unlock;
 	}
 
@@ -373,7 +372,6 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu, struct task_struct *pull
 	}
 	if (pull_me) {
 		walt_detach_task(pull_me, src_rq, dst_rq);
-		pulled_task = pull_me;
 		goto unlock;
 	}
 
@@ -383,6 +381,7 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu, struct task_struct *pull
 			if (cpumask_test_cpu(dst_cpu, p->cpus_ptr)
 				&& need_active_lb(p, dst_cpu, src_cpu)) {
 				bool success;
+
 				active_balance = true;
 				src_rq->active_balance = 1;
 				src_rq->push_cpu = dst_cpu;
@@ -414,13 +413,14 @@ unlock:
 	/* lock must be dropped before waking the stopper */
 	raw_spin_unlock_irqrestore(&src_rq->__lock, flags);
 
-	if (!pulled_task)
+	if (!pull_me)
 		return 0;
 
 	raw_spin_lock_irqsave(&dst_rq->__lock, flags);
-	walt_attach_task(pulled_task, dst_rq);
+	walt_attach_task(pull_me, dst_rq);
 	raw_spin_unlock_irqrestore(&dst_rq->__lock, flags);
 
+	*pulled_task_struct = pull_me;
 	return 1; /* we pulled 1 task */
 }
 
@@ -945,7 +945,7 @@ found_busy_cpu:
 	if (this_rq->nr_running > 0 || (busy_cpu == this_cpu))
 		goto unlock;
 
-	*pulled_task = walt_lb_pull_tasks(this_cpu, busy_cpu, pulled_task_struct);
+	*pulled_task = walt_lb_pull_tasks(this_cpu, busy_cpu, &pulled_task_struct);
 
 unlock:
 	raw_spin_lock(&this_rq->__lock);
