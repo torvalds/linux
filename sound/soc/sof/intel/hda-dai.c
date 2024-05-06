@@ -54,6 +54,7 @@ int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dai_config, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 
@@ -542,6 +543,7 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 	return 0;
 }
+EXPORT_SYMBOL_NS(sdw_hda_dai_hw_params, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int sdw_hda_dai_hw_free(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *cpu_dai,
@@ -570,12 +572,14 @@ int sdw_hda_dai_hw_free(struct snd_pcm_substream *substream,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(sdw_hda_dai_hw_free, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int sdw_hda_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			struct snd_soc_dai *cpu_dai)
 {
 	return hda_dai_trigger(substream, cmd, cpu_dai);
 }
+EXPORT_SYMBOL_NS(sdw_hda_dai_trigger, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static int hda_dai_suspend(struct hdac_bus *bus)
 {
@@ -690,6 +694,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 		ipc4_data->nhlt = intel_nhlt_init(sdev->dev);
 	}
 }
+EXPORT_SYMBOL_NS(hda_set_dai_drv_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_ops_free(struct snd_sof_dev *sdev)
 {
@@ -855,6 +860,7 @@ struct snd_soc_dai_driver skl_dai[] = {
 },
 #endif
 };
+EXPORT_SYMBOL_NS(skl_dai, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_dais_suspend(struct snd_sof_dev *sdev)
 {

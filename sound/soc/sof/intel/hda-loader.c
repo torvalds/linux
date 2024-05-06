@@ -15,7 +15,6 @@
  * Hardware interface for HDA DSP code loader
  */
 
-#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
@@ -220,6 +219,7 @@ err:
 	kfree(dump_msg);
 	return ret;
 }
+EXPORT_SYMBOL_NS(cl_dsp_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_cl_trigger(struct device *dev, struct hdac_ext_stream *hext_stream, int cmd)
 {
@@ -394,6 +394,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_cl_boot_firmware_iccmax, SND_SOC_SOF_INTEL_CNL);
 
 static int hda_dsp_boot_imr(struct snd_sof_dev *sdev)
 {
@@ -547,6 +548,7 @@ cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_cl_boot_firmware, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 			      struct sof_ipc4_fw_library *fw_lib, bool reload)
@@ -650,45 +652,7 @@ cleanup:
 
 	return ret;
 }
-
-/* pre fw run operations */
-int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev)
-{
-	/* disable clock gating and power gating */
-	return hda_dsp_ctrl_clock_power_gating(sdev, false);
-}
-
-/* post fw run operations */
-int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
-{
-	int ret;
-
-	if (sdev->first_boot) {
-		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
-
-		ret = hda_sdw_startup(sdev);
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: could not startup SoundWire links\n");
-			return ret;
-		}
-
-		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
-		    (sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT ||
-		     sdev->pdata->ipc_type == SOF_IPC_TYPE_4)) {
-			hdev->imrboot_supported = true;
-			debugfs_create_bool("skip_imr_boot",
-					    0644, sdev->debugfs_root,
-					    &hdev->skip_imr_boot);
-		}
-	}
-
-	hda_sdw_int_enable(sdev, true);
-
-	/* re-enable clock gating and power gating */
-	return hda_dsp_ctrl_clock_power_gating(sdev, true);
-}
+EXPORT_SYMBOL_NS(hda_dsp_ipc4_load_library, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 					 const struct sof_ext_man_elem_header *hdr)
@@ -727,3 +691,4 @@ int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ext_man_get_cavs_config_data, SND_SOC_SOF_INTEL_HDA_COMMON);

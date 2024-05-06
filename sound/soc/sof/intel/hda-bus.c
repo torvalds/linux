@@ -94,6 +94,7 @@ void sof_hda_bus_init(struct snd_sof_dev *sdev, struct device *dev)
 	spin_lock_init(&bus->reg_lock);
 #endif /* CONFIG_SND_SOC_SOF_HDA_LINK */
 }
+EXPORT_SYMBOL_NS(sof_hda_bus_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void sof_hda_bus_exit(struct snd_sof_dev *sdev)
 {
@@ -103,3 +104,4 @@ void sof_hda_bus_exit(struct snd_sof_dev *sdev)
 	snd_hdac_ext_bus_exit(bus);
 #endif
 }
+EXPORT_SYMBOL_NS(sof_hda_bus_exit, SND_SOC_SOF_INTEL_HDA_COMMON);

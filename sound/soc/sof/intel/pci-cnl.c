@@ -143,5 +143,6 @@ static struct pci_driver snd_sof_pci_intel_cnl_driver = {
 module_pci_driver(snd_sof_pci_intel_cnl_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HDA_GENERIC);
 MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HDA_COMMON);
 MODULE_IMPORT_NS(SND_SOC_SOF_PCI_DEV);
