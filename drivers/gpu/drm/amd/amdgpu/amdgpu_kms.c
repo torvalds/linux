@@ -623,25 +623,32 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			switch (type) {
 			case AMD_IP_BLOCK_TYPE_GFX:
 				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &inst_mask);
+				if (ret)
+					return ret;
 				count = hweight32(inst_mask);
 				break;
 			case AMD_IP_BLOCK_TYPE_SDMA:
 				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_SDMA, &inst_mask);
+				if (ret)
+					return ret;
 				count = hweight32(inst_mask);
 				break;
 			case AMD_IP_BLOCK_TYPE_JPEG:
 				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+				if (ret)
+					return ret;
 				count = hweight32(inst_mask) * adev->jpeg.num_jpeg_rings;
 				break;
 			case AMD_IP_BLOCK_TYPE_VCN:
 				ret = amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+				if (ret)
+					return ret;
 				count = hweight32(inst_mask);
 				break;
 			default:
 				return -EINVAL;
 			}
-			if (ret)
-				return ret;
+
 			return copy_to_user(out, &count, min(size, 4u)) ? -EFAULT : 0;
 		}
 
