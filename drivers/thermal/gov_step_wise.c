@@ -32,7 +32,6 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 {
 	struct thermal_cooling_device *cdev = instance->cdev;
 	unsigned long cur_state;
-	unsigned long next_target;
 
 	/*
 	 * We keep this instance the way it is by default.
@@ -40,32 +39,26 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 	 * cdev in use to determine the next_target.
 	 */
 	cdev->ops->get_cur_state(cdev, &cur_state);
-	next_target = instance->target;
 	dev_dbg(&cdev->device, "cur_state=%ld\n", cur_state);
 
 	if (!instance->initialized) {
-		if (throttle) {
-			next_target = clamp((cur_state + 1), instance->lower, instance->upper);
-		} else {
-			next_target = THERMAL_NO_TARGET;
-		}
+		if (throttle)
+			return clamp(cur_state + 1, instance->lower, instance->upper);
 
-		return next_target;
+		return THERMAL_NO_TARGET;
 	}
 
 	if (throttle) {
 		if (trend == THERMAL_TREND_RAISING)
-			next_target = clamp((cur_state + 1), instance->lower, instance->upper);
-	} else {
-		if (trend == THERMAL_TREND_DROPPING) {
-			if (cur_state <= instance->lower)
-				next_target = THERMAL_NO_TARGET;
-			else
-				next_target = clamp((cur_state - 1), instance->lower, instance->upper);
-		}
+			return clamp(cur_state + 1, instance->lower, instance->upper);
+	} else if (trend == THERMAL_TREND_DROPPING) {
+		if (cur_state <= instance->lower)
+			return THERMAL_NO_TARGET;
+
+		return clamp(cur_state - 1, instance->lower, instance->upper);
 	}
 
-	return next_target;
+	return instance->target;
 }
 
 static void thermal_zone_trip_update(struct thermal_zone_device *tz,
@@ -99,15 +92,13 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 		if (instance->initialized && old_target == instance->target)
 			continue;
 
-		if (old_target == THERMAL_NO_TARGET &&
-		    instance->target != THERMAL_NO_TARGET) {
-			/* Activate a passive thermal instance */
-			if (trip->type == THERMAL_TRIP_PASSIVE)
+		if (trip->type == THERMAL_TRIP_PASSIVE) {
+			/* If needed, update the status of passive polling. */
+			if (old_target == THERMAL_NO_TARGET &&
+			    instance->target != THERMAL_NO_TARGET)
 				tz->passive++;
-		} else if (old_target != THERMAL_NO_TARGET &&
-			   instance->target == THERMAL_NO_TARGET) {
-			/* Deactivate a passive thermal instance */
-			if (trip->type == THERMAL_TRIP_PASSIVE)
+			else if (old_target != THERMAL_NO_TARGET &&
+				 instance->target == THERMAL_NO_TARGET)
 				tz->passive--;
 		}
 
