@@ -928,10 +928,6 @@ static inline void gtp1_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
 struct gtp_pktinfo {
 	struct sock		*sk;
 	union {
-		struct iphdr	*iph;
-		struct ipv6hdr	*ip6h;
-	};
-	union {
 		struct flowi4	fl4;
 		struct flowi6	fl6;
 	};
@@ -941,6 +937,7 @@ struct gtp_pktinfo {
 	};
 	struct pdp_ctx		*pctx;
 	struct net_device	*dev;
+	__u8			tos;
 	__be16			gtph_port;
 };
 
@@ -959,13 +956,13 @@ static void gtp_push_header(struct sk_buff *skb, struct gtp_pktinfo *pktinfo)
 }
 
 static inline void gtp_set_pktinfo_ipv4(struct gtp_pktinfo *pktinfo,
-					struct sock *sk, struct iphdr *iph,
+					struct sock *sk, __u8 tos,
 					struct pdp_ctx *pctx, struct rtable *rt,
 					struct flowi4 *fl4,
 					struct net_device *dev)
 {
 	pktinfo->sk	= sk;
-	pktinfo->iph	= iph;
+	pktinfo->tos	= tos;
 	pktinfo->pctx	= pctx;
 	pktinfo->rt	= rt;
 	pktinfo->fl4	= *fl4;
@@ -973,13 +970,13 @@ static inline void gtp_set_pktinfo_ipv4(struct gtp_pktinfo *pktinfo,
 }
 
 static void gtp_set_pktinfo_ipv6(struct gtp_pktinfo *pktinfo,
-				 struct sock *sk, struct ipv6hdr *ip6h,
+				 struct sock *sk, __u8 tos,
 				 struct pdp_ctx *pctx, struct rt6_info *rt6,
 				 struct flowi6 *fl6,
 				 struct net_device *dev)
 {
 	pktinfo->sk	= sk;
-	pktinfo->ip6h	= ip6h;
+	pktinfo->tos	= tos;
 	pktinfo->pctx	= pctx;
 	pktinfo->rt6	= rt6;
 	pktinfo->fl6	= *fl6;
@@ -1057,7 +1054,7 @@ static int gtp_build_skb_ip4(struct sk_buff *skb, struct net_device *dev,
 		goto err_rt;
 	}
 
-	gtp_set_pktinfo_ipv4(pktinfo, pctx->sk, iph, pctx, rt, &fl4, dev);
+	gtp_set_pktinfo_ipv4(pktinfo, pctx->sk, iph->tos, pctx, rt, &fl4, dev);
 	gtp_push_header(skb, pktinfo);
 
 	netdev_dbg(dev, "gtp -> IP src: %pI4 dst: %pI4\n",
@@ -1080,6 +1077,7 @@ static int gtp_build_skb_ip6(struct sk_buff *skb, struct net_device *dev,
 	struct ipv6hdr *ip6h;
 	struct rt6_info *rt;
 	struct flowi6 fl6;
+	__u8 tos;
 	int mtu;
 
 	/* Read the IP destination address and resolve the PDP context.
@@ -1135,7 +1133,8 @@ static int gtp_build_skb_ip6(struct sk_buff *skb, struct net_device *dev,
 		goto err_rt;
 	}
 
-	gtp_set_pktinfo_ipv6(pktinfo, pctx->sk, ip6h, pctx, rt, &fl6, dev);
+	tos = ipv6_get_dsfield(ip6h);
+	gtp_set_pktinfo_ipv6(pktinfo, pctx->sk, tos, pctx, rt, &fl6, dev);
 	gtp_push_header(skb, pktinfo);
 
 	netdev_dbg(dev, "gtp -> IP src: %pI6 dst: %pI6\n",
@@ -1182,7 +1181,7 @@ static netdev_tx_t gtp_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	case ETH_P_IP:
 		udp_tunnel_xmit_skb(pktinfo.rt, pktinfo.sk, skb,
 				    pktinfo.fl4.saddr, pktinfo.fl4.daddr,
-				    pktinfo.iph->tos,
+				    pktinfo.tos,
 				    ip4_dst_hoplimit(&pktinfo.rt->dst),
 				    0,
 				    pktinfo.gtph_port, pktinfo.gtph_port,
@@ -1194,7 +1193,7 @@ static netdev_tx_t gtp_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 #if IS_ENABLED(CONFIG_IPV6)
 		udp_tunnel6_xmit_skb(&pktinfo.rt6->dst, pktinfo.sk, skb, dev,
 				     &pktinfo.fl6.saddr, &pktinfo.fl6.daddr,
-				     ipv6_get_dsfield(pktinfo.ip6h),
+				     pktinfo.tos,
 				     ip6_dst_hoplimit(&pktinfo.rt->dst),
 				     0,
 				     pktinfo.gtph_port, pktinfo.gtph_port,
