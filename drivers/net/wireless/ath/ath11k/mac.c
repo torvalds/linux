@@ -7701,7 +7701,8 @@ void ath11k_mac_fill_reg_tpc_info(struct ath11k *ar,
 		is_tpe_present = true;
 		num_pwr_levels = arvif->reg_tpc_info.num_pwr_levels;
 	} else {
-		num_pwr_levels = ath11k_mac_get_num_pwr_levels(&ctx->def);
+		num_pwr_levels =
+			ath11k_mac_get_num_pwr_levels(&bss_conf->chanreq.oper);
 	}
 
 	for (pwr_lvl_idx = 0; pwr_lvl_idx < num_pwr_levels; pwr_lvl_idx++) {
