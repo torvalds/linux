@@ -106,7 +106,7 @@ DECLARE_EVENT_CLASS(async_inbound_template,
 		__field(u8, generation)
 		__field(u8, scode)
 		__field(u8, status)
-		__field(u8, timestamp)
+		__field(u16, timestamp)
 		__array(u32, header, ASYNC_HEADER_QUADLET_COUNT)
 		__dynamic_array(u32, data, data_count)
 	),
