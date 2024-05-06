@@ -167,7 +167,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	 *   - DisplayPort scrambling: used for EMI reduction
 	 */
 	if (need_stable_symbols) {
-		u32 tmp = intel_de_read(dev_priv, PORT_DFT2_G4X);
+		u32 tmp = intel_de_read(dev_priv, PORT_DFT2_G4X(dev_priv));
 
 		tmp |= DC_BALANCE_RESET_VLV;
 		switch (pipe) {
@@ -183,7 +183,7 @@ static int vlv_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		default:
 			return -EINVAL;
 		}
-		intel_de_write(dev_priv, PORT_DFT2_G4X, tmp);
+		intel_de_write(dev_priv, PORT_DFT2_G4X(dev_priv), tmp);
 	}
 
 	return 0;
@@ -229,7 +229,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 					 enum pipe pipe)
 {
-	u32 tmp = intel_de_read(dev_priv, PORT_DFT2_G4X);
+	u32 tmp = intel_de_read(dev_priv, PORT_DFT2_G4X(dev_priv));
 
 	switch (pipe) {
 	case PIPE_A:
@@ -246,7 +246,7 @@ static void vlv_undo_pipe_scramble_reset(struct drm_i915_private *dev_priv,
 	}
 	if (!(tmp & PIPE_SCRAMBLE_RESET_MASK))
 		tmp &= ~DC_BALANCE_RESET_VLV;
-	intel_de_write(dev_priv, PORT_DFT2_G4X, tmp);
+	intel_de_write(dev_priv, PORT_DFT2_G4X(dev_priv), tmp);
 }
 
 static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
