@@ -206,7 +206,7 @@ static int dvb_ca_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static __poll_t dvb_ca_poll (struct file *file, poll_table *wait)
+static __poll_t dvb_ca_poll(struct file *file, poll_table *wait)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
@@ -260,7 +260,7 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 
 	case CA_GET_SLOT_INFO:
 	{
-		struct ca_slot_info *info=(struct ca_slot_info *)parg;
+		struct ca_slot_info *info = (struct ca_slot_info *)parg;
 
 		if (info->num < 0 || info->num > 1) {
 			mutex_unlock(&av7110->ioctl_mutex);
@@ -285,7 +285,7 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 
 		info.num = 16;
 		info.type = CA_ECD;
-		memcpy(parg, &info, sizeof (info));
+		memcpy(parg, &info, sizeof(info));
 		break;
 	}
 

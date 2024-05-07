@@ -227,7 +227,7 @@ struct dvb_audio_info {
 	u32 bit_rate;
 	u32 frequency;
 	u32 mode;
-	u32 mode_extension ;
+	u32 mode_extension;
 	u32 emphasis;
 	u32 framesize;
 	u32 off;

@@ -26,10 +26,10 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 	u8 frame = 0;
 	int fr = 0;
 
-	while ( !found  && c < count){
+	while (!found  && c < count) {
 		u8 *b = mbuf+c;
 
-		if ( b[0] == 0x0b &&  b[1] == 0x77 )
+		if (b[0] == 0x0b &&  b[1] == 0x77)
 			found = 1;
 		else {
 			c++;
@@ -52,8 +52,8 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 	if (pr)
 		printk(KERN_CONT "  BRate: %d kb/s", (int) ai->bit_rate/1000);
 
-	ai->frequency = (headr[2] & 0xc0 ) >> 6;
-	fr = (headr[2] & 0xc0 ) >> 6;
+	ai->frequency = (headr[2] & 0xc0) >> 6;
+	fr = (headr[2] & 0xc0) >> 6;
 	ai->frequency = freq[fr]*100;
 	if (pr)
 		printk(KERN_CONT "  Freq: %d Hz\n", (int) ai->frequency);
@@ -70,46 +70,46 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 void dvb_filter_pes2ts_init(struct dvb_filter_pes2ts *p2ts, unsigned short pid,
 			    dvb_filter_pes2ts_cb_t *cb, void *priv)
 {
-	unsigned char *buf=p2ts->buf;
+	unsigned char *buf = p2ts->buf;
 
-	buf[0]=0x47;
-	buf[1]=(pid>>8);
-	buf[2]=pid&0xff;
-	p2ts->cc=0;
-	p2ts->cb=cb;
-	p2ts->priv=priv;
+	buf[0] = 0x47;
+	buf[1] = (pid >> 8);
+	buf[2] = pid & 0xff;
+	p2ts->cc = 0;
+	p2ts->cb = cb;
+	p2ts->priv = priv;
 }
 
 int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 		      int len, int payload_start)
 {
-	unsigned char *buf=p2ts->buf;
-	int ret=0, rest;
+	unsigned char *buf = p2ts->buf;
+	int ret = 0, rest;
 
 	//len=6+((pes[4]<<8)|pes[5]);
 
 	if (payload_start)
-		buf[1]|=0x40;
+		buf[1] |= 0x40;
 	else
-		buf[1]&=~0x40;
-	while (len>=184) {
-		buf[3]=0x10|((p2ts->cc++)&0x0f);
+		buf[1] &= ~0x40;
+	while (len >= 184) {
+		buf[3] = 0x10 | ((p2ts->cc++) & 0x0f);
 		memcpy(buf+4, pes, 184);
 		if ((ret=p2ts->cb(p2ts->priv, buf)))
 			return ret;
-		len-=184; pes+=184;
-		buf[1]&=~0x40;
+		len -= 184; pes += 184;
+		buf[1] &= ~0x40;
 	}
 	if (!len)
 		return 0;
-	buf[3]=0x30|((p2ts->cc++)&0x0f);
-	rest=183-len;
+	buf[3] = 0x30 | ((p2ts->cc++) & 0x0f);
+	rest = 183 - len;
 	if (rest) {
-		buf[5]=0x00;
+		buf[5] = 0x00;
 		if (rest-1)
 			memset(buf+6, 0xff, rest-1);
 	}
-	buf[4]=rest;
+	buf[4] = rest;
 	memcpy(buf+5+rest, pes, len);
 	return p2ts->cb(p2ts->priv, buf);
 }

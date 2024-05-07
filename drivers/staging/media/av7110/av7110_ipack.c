@@ -123,7 +123,7 @@ static void write_ipack(struct ipack *p, const u8 *data, int count)
 		p->count = 6;
 	}
 
-	if (p->count + count < p->size){
+	if (p->count + count < p->size) {
 		memcpy(p->buf+p->count, data, count);
 		p->count += count;
 	} else {
@@ -137,7 +137,7 @@ static void write_ipack(struct ipack *p, const u8 *data, int count)
 	}
 }
 
-int av7110_ipack_instant_repack (const u8 *buf, int count, struct ipack *p)
+int av7110_ipack_instant_repack(const u8 *buf, int count, struct ipack *p)
 {
 	int l;
 	int c = 0;
@@ -170,10 +170,10 @@ int av7110_ipack_instant_repack (const u8 *buf, int count, struct ipack *p)
 			case PROG_STREAM_MAP:
 			case PRIVATE_STREAM2:
 			case PROG_STREAM_DIR:
-			case ECM_STREAM     :
-			case EMM_STREAM     :
-			case PADDING_STREAM :
-			case DSM_CC_STREAM  :
+			case ECM_STREAM:
+			case EMM_STREAM:
+			case PADDING_STREAM:
+			case DSM_CC_STREAM:
 			case ISO13522_STREAM:
 				p->done = 1;
 				fallthrough;
@@ -334,7 +334,7 @@ int av7110_ipack_instant_repack (const u8 *buf, int count, struct ipack *p)
 
 				if (c == count)
 					return count;
-				if (p->which > 2){
+				if (p->which > 2) {
 					if ((p->flag2 & PTS_DTS_FLAGS) == PTS_ONLY) {
 						while (c < count && p->which < 7) {
 							p->pts[p->which - 2] = buf[c];

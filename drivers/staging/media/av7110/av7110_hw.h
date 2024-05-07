@@ -394,8 +394,8 @@ static inline u32 irdebi(struct av7110 *av7110, u32 config, int addr, u32 val, u
 {
 	u32 res;
 
-	res=av7110_debiread(av7110, config, addr, count);
-	if (count<=4)
+	res = av7110_debiread(av7110, config, addr, count);
+	if (count <= 4)
 		memcpy(av7110->debi_virt, (char *) &res, count);
 	return res;
 }
@@ -416,7 +416,7 @@ static inline u32 rdebi(struct av7110 *av7110, u32 config, int addr, u32 val, un
 	u32 res;
 
 	spin_lock_irqsave(&av7110->debilock, flags);
-	res=av7110_debiread(av7110, config, addr, count);
+	res = av7110_debiread(av7110, config, addr, count);
 	spin_unlock_irqrestore(&av7110->debilock, flags);
 	return res;
 }

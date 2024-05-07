@@ -238,8 +238,8 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 		sync |= DVB_RINGBUFFER_PEEK(buf, 2) << 8;
 		sync |= DVB_RINGBUFFER_PEEK(buf, 3);
 
-		if (((sync &~ 0x0f) == 0x000001e0) ||
-		    ((sync &~ 0x1f) == 0x000001c0) ||
+		if (((sync & ~0x0f) == 0x000001e0) ||
+		    ((sync & ~0x1f) == 0x000001c0) ||
 		    (sync == 0x000001bd))
 			break;
 		printk("resync\n");
@@ -296,7 +296,7 @@ int av7110_set_volume(struct av7110 *av7110, unsigned int volleft,
 		vol  = (volleft > volright) ? volleft : volright;
 		val	= (vol * 0x73 / 255) << 8;
 		if (vol > 0)
-		       balance = ((volright - volleft) * 127) / vol;
+			balance = ((volright - volleft) * 127) / vol;
 		msp_writereg(av7110, MSP_WR_DSP, 0x0001, balance << 8);
 		msp_writereg(av7110, MSP_WR_DSP, 0x0000, val); /* loudspeaker */
 		msp_writereg(av7110, MSP_WR_DSP, 0x0006, val); /* headphonesr */
@@ -362,8 +362,8 @@ static int get_video_format(struct av7110 *av7110, u8 *buf, int count)
 		if (p[0] || p[1] || p[2] != 0x01 || p[3] != 0xb3)
 			continue;
 		p += 4;
-		hsize = ((p[1] &0xF0) >> 4) | (p[0] << 4);
-		vsize = ((p[1] &0x0F) << 8) | (p[2]);
+		hsize = ((p[1] & 0xF0) >> 4) | (p[0] << 4);
+		vsize = ((p[1] & 0x0F) << 8) | (p[2]);
 		sw = (p[3] & 0x0F);
 		ret = av7110_set_vidmode(av7110, sw2mode[sw]);
 		if (!ret) {
@@ -590,7 +590,7 @@ static int find_pes_header(u8 const *buf, long int length, int *frags)
 	while (c < length - 3 && !found) {
 		if (buf[c] == 0x00 && buf[c + 1] == 0x00 &&
 		    buf[c + 2] == 0x01) {
-			switch ( buf[c + 3] ) {
+			switch (buf[c + 3]) {
 			case PROG_STREAM_MAP:
 			case PRIVATE_STREAM2:
 			case PROG_STREAM_DIR:
@@ -635,9 +635,9 @@ void av7110_p2t_write(u8 const *buf, long int length, u16 pid, struct av7110_p2t
 
 	c = 0;
 	c2 = 0;
-	if (p->frags){
+	if (p->frags) {
 		check = 0;
-		switch(p->frags) {
+		switch (p->frags) {
 		case 1:
 			if (buf[c] == 0x00 && buf[c + 1] == 0x01) {
 				check = 1;
@@ -703,7 +703,7 @@ void av7110_p2t_write(u8 const *buf, long int length, u16 pid, struct av7110_p2t
 		c2 = find_pes_header(buf + c + add, length - c - add, &p->frags);
 		if (c2 >= 0) {
 			c2 += c + add;
-			if (c2 > c){
+			if (c2 > c) {
 				p_to_t(buf + c, c2 - c, pid, &p->counter, p->feed);
 				c = c2;
 				clear_p2t(p);
@@ -787,7 +787,7 @@ static void p_to_t(u8 const *buf, long int length, u16 pid, u8 *counter,
 
 	while (c < length) {
 		memset(obuf, 0, TS_SIZE);
-		if (length - c >= (TS_SIZE - 4)){
+		if (length - c >= (TS_SIZE - 4)) {
 			l = write_ts_header2(pid, counter, pes_start,
 					     obuf, (TS_SIZE - 4));
 			memcpy(obuf + l, buf + c, TS_SIZE - l);
@@ -880,7 +880,7 @@ void dvb_video_add_event(struct av7110 *av7110, struct video_event *event)
 	wake_up_interruptible(&events->wait_queue);
 }
 
-static int dvb_video_get_event (struct av7110 *av7110, struct video_event *event, int flags)
+static int dvb_video_get_event(struct av7110 *av7110, struct video_event *event, int flags)
 {
 	struct dvb_video_events *events = &av7110->video_events;
 
@@ -1124,8 +1124,8 @@ static int dvb_video_ioctl(struct file *file,
 	dprintk(1, "av7110:%p, cmd=%04x\n", av7110,cmd);
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
-		if ( cmd != VIDEO_GET_STATUS && cmd != VIDEO_GET_EVENT &&
-		     cmd != VIDEO_GET_SIZE ) {
+		if (cmd != VIDEO_GET_STATUS && cmd != VIDEO_GET_EVENT &&
+		    cmd != VIDEO_GET_SIZE) {
 			return -EPERM;
 		}
 	}
@@ -1419,7 +1419,7 @@ static int dvb_audio_ioctl(struct file *file,
 
 	case AUDIO_CHANNEL_SELECT:
 		av7110->audiostate.channel_select = (audio_channel_select_t) arg;
-		switch(av7110->audiostate.channel_select) {
+		switch (av7110->audiostate.channel_select) {
 		case AUDIO_STEREO:
 			ret = audcom(av7110, AUDIO_CMD_STEREO);
 			if (!ret) {
@@ -1624,7 +1624,7 @@ int av7110_av_register(struct av7110 *av7110)
 	spin_lock_init(&av7110->video_events.lock);
 	av7110->video_events.eventw = av7110->video_events.eventr = 0;
 	av7110->video_events.overflow = 0;
-	memset(&av7110->video_size, 0, sizeof (video_size_t));
+	memset(&av7110->video_size, 0, sizeof(video_size_t));
 
 	dvb_register_device(&av7110->dvb_adapter, &av7110->video_dev,
 			    &dvbdev_video, av7110, DVB_DEVICE_VIDEO, 0);

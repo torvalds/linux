@@ -465,7 +465,7 @@ static int av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 
 	ret = __av7110_send_fw_cmd(av7110, buf, length);
 	mutex_unlock(&av7110->dcomlock);
-	if (ret && ret!=-ERESTARTSYS)
+	if (ret && ret != -ERESTARTSYS)
 		printk(KERN_ERR "dvb-ttpci: %s(): av7110_send_fw_cmd error %d\n",
 		       __func__, ret);
 	return ret;
@@ -511,9 +511,9 @@ int av7110_send_ci_cmd(struct av7110 *av7110, u8 subcom, u8 *buf, u8 len)
 
 	dprintk(4, "%p\n", av7110);
 
-	for(i = 0; i < len && i < 32; i++)
+	for (i = 0; i < len && i < 32; i++)
 	{
-		if(i % 2 == 0)
+		if (i % 2 == 0)
 			cmd[(i / 2) + 2] = (u16)(buf[i]) << 8;
 		else
 			cmd[(i / 2) + 2] |= buf[i];
@@ -675,7 +675,7 @@ int av7110_diseqc_send(struct av7110 *av7110, int len, u8 *msg, unsigned long bu
 		buf[i + 4] = msg[i];
 
 	ret = av7110_send_fw_cmd(av7110, buf, 18);
-	if (ret && ret!=-ERESTARTSYS)
+	if (ret && ret != -ERESTARTSYS)
 		printk(KERN_ERR "dvb-ttpci: av7110_diseqc_send error %d\n", ret);
 	return ret;
 }
@@ -777,7 +777,7 @@ static int WriteText(struct av7110 *av7110, u8 win, u16 x, u16 y, char *buf)
 		wdebi(av7110, DEBINOSWAP, BUFF1_BASE + i * 2, 0, 2);
 	ret = __av7110_send_fw_cmd(av7110, cbuf, 5);
 	mutex_unlock(&av7110->dcomlock);
-	if (ret && ret!=-ERESTARTSYS)
+	if (ret && ret != -ERESTARTSYS)
 		printk(KERN_ERR "dvb-ttpci: WriteText error %d\n", ret);
 	return ret;
 }
@@ -861,13 +861,13 @@ static inline int LoadBitmap(struct av7110 *av7110,
 
 	av7110->bmp_state = BMP_LOADING;
 	if	(format == OSD_BITMAP8) {
-		bpp=8; delta = 1;
+		bpp = 8; delta = 1;
 	} else if (format == OSD_BITMAP4) {
-		bpp=4; delta = 2;
+		bpp = 4; delta = 2;
 	} else if (format == OSD_BITMAP2) {
-		bpp=2; delta = 4;
+		bpp = 2; delta = 4;
 	} else if (format == OSD_BITMAP1) {
-		bpp=1; delta = 8;
+		bpp = 1; delta = 8;
 	} else {
 		av7110->bmp_state = BMP_NONE;
 		return -EINVAL;
@@ -927,8 +927,8 @@ static u32 RGB2YUV(u16 R, u16 G, u16 B)
 	u16 Y, Cr, Cb;
 
 	y = R * 77 + G * 150 + B * 29;	/* Luma=0.299R+0.587G+0.114B 0..65535 */
-	u = 2048 + B * 8 -(y >> 5);	/* Cr 0..4095 */
-	v = 2048 + R * 8 -(y >> 5);	/* Cb 0..4095 */
+	u = 2048 + B * 8 - (y >> 5);	/* Cr 0..4095 */
+	v = 2048 + R * 8 - (y >> 5);	/* Cb 0..4095 */
 
 	Y = y / 256;
 	Cb = u / 16;
@@ -944,7 +944,7 @@ static int OSDSetColor(struct av7110 *av7110, u8 color, u8 r, u8 g, u8 b, u8 ble
 	u16 ch, cl;
 	u32 yuv;
 
-	yuv = blend ? RGB2YUV(r,g,b) : 0;
+	yuv = blend ? RGB2YUV(r, g, b) : 0;
 	cl = (yuv & 0xffff);
 	ch = ((yuv >> 16) & 0xffff);
 	ret = SetColor_(av7110, av7110->osdwin, bpp2pal[av7110->osdbpp[av7110->osdwin]],
@@ -985,7 +985,7 @@ static int OSDSetBlock(struct av7110 *av7110, int x0, int y0,
 {
 	uint w, h, bpp, bpl, size, lpb, bnum, brest;
 	int i;
-	int rc,release_rc;
+	int rc, release_rc;
 
 	w = x1 - x0 + 1;
 	h = y1 - y0 + 1;
@@ -1084,14 +1084,14 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 			u8 r, g = 0, b = 0, blend = 0;
 
 			ret = 0;
-			for (i = 0; i<len; i++) {
+			for (i = 0; i < len; i++) {
 				if (get_user(r, colors + i * 4) ||
 				    get_user(g, colors + i * 4 + 1) ||
 				    get_user(b, colors + i * 4 + 2) ||
 				    get_user(blend, colors + i * 4 + 3)) {
 					ret = -EFAULT;
 					break;
-				    }
+				}
 				ret = OSDSetColor(av7110, dc->color + i, r, g, b, blend);
 				if (ret)
 					break;
@@ -1177,7 +1177,7 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 	}
 
 	mutex_unlock(&av7110->osd_mutex);
-	if (ret==-ERESTARTSYS)
+	if (ret == -ERESTARTSYS)
 		dprintk(1, "av7110_osd_cmd(%d) returns with -ERESTARTSYS\n",dc->cmd);
 	else if (ret)
 		dprintk(1, "av7110_osd_cmd(%d) returns with %d\n",dc->cmd,ret);

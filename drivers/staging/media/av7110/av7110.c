@@ -72,11 +72,11 @@ static int full_ts;
 module_param_named(debug, av7110_debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (bitmask, default 0)");
 module_param(vidmode, int, 0444);
-MODULE_PARM_DESC(vidmode,"analog video out: 0 off, 1 CVBS+RGB (default), 2 CVBS+YC, 3 YC");
+MODULE_PARM_DESC(vidmode, "analog video out: 0 off, 1 CVBS+RGB (default), 2 CVBS+YC, 3 YC");
 module_param(pids_off, int, 0444);
-MODULE_PARM_DESC(pids_off,"clear video/audio/PCR PID filters when demux is closed");
+MODULE_PARM_DESC(pids_off, "clear video/audio/PCR PID filters when demux is closed");
 module_param(adac, int, 0444);
-MODULE_PARM_DESC(adac,"audio DAC type: 0 TI, 1 CRYSTAL, 2 MSP (use if autodetection fails)");
+MODULE_PARM_DESC(adac, "audio DAC type: 0 TI, 1 CRYSTAL, 2 MSP (use if autodetection fails)");
 module_param(hw_sections, int, 0444);
 MODULE_PARM_DESC(hw_sections, "0 use software section filter, 1 use hardware");
 module_param(rgb_on, int, 0444);
@@ -951,14 +951,14 @@ static int av7110_start_feed(struct dvb_demux_feed *feed)
 			switch (demux->dmx.frontend->source) {
 			case DMX_MEMORY_FE:
 				if (feed->ts_type & TS_DECODER)
-				       if (feed->pes_type < 2 &&
-					   !(demux->pids[0] & 0x8000) &&
-					   !(demux->pids[1] & 0x8000)) {
-					       dvb_ringbuffer_flush_spinlock_wakeup(&av7110->avout);
-					       dvb_ringbuffer_flush_spinlock_wakeup(&av7110->aout);
-					       ret = av7110_av_start_play(av7110,RP_AV);
-					       if (!ret)
-						       demux->playing = 1;
+					if (feed->pes_type < 2 &&
+					    !(demux->pids[0] & 0x8000) &&
+					    !(demux->pids[1] & 0x8000)) {
+						dvb_ringbuffer_flush_spinlock_wakeup(&av7110->avout);
+						dvb_ringbuffer_flush_spinlock_wakeup(&av7110->aout);
+						ret = av7110_av_start_play(av7110, RP_AV);
+						if (!ret)
+							demux->playing = 1;
 					}
 				break;
 			default:
@@ -1029,7 +1029,7 @@ static int av7110_stop_feed(struct dvb_demux_feed *feed)
 	}
 
 	if (feed->type == DMX_TYPE_SEC) {
-		for (i = 0; i<demux->filternum; i++) {
+		for (i = 0; i < demux->filternum; i++) {
 			if (demux->filter[i].state == DMX_STATE_GO &&
 			    demux->filter[i].filter.parent == &feed->feed.sec) {
 				demux->filter[i].state = DMX_STATE_READY;
@@ -1466,7 +1466,7 @@ static int check_firmware(struct av7110 *av7110)
 		printk("dvb-ttpci: root file has strange size (%d). aborting.\n", len);
 		return -EINVAL;
 	}
-	if( crc != crc32_le(0, ptr, len)) {
+	if (crc != crc32_le(0, ptr, len)) {
 		printk("dvb-ttpci: crc32 of root file does not match.\n");
 		return -EINVAL;
 	}
@@ -1553,7 +1553,7 @@ static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer (&av7110->i2c_adap, &msg, 1) != 1)
+	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1)
 		return -EIO;
 	return 0;
 }
@@ -1819,7 +1819,7 @@ static int nexusca_stv0297_tuner_set_params(struct dvb_frontend *fe)
 	}
 
 	// wait for PLL lock
-	for(i = 0; i < 20; i++) {
+	for (i = 0; i < 20; i++) {
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 		if (i2c_transfer(&av7110->i2c_adap, &readmsg, 1) == 1)
@@ -2060,8 +2060,8 @@ static u8 read_pwm(struct av7110 *av7110)
 {
 	u8 b = 0xff;
 	u8 pwm;
-	struct i2c_msg msg[] = { { .addr = 0x50,.flags = 0,.buf = &b,.len = 1 },
-				 { .addr = 0x50,.flags = I2C_M_RD,.buf = &pwm,.len = 1} };
+	struct i2c_msg msg[] = { { .addr = 0x50, .flags = 0, .buf = &b, .len = 1 },
+				 { .addr = 0x50, .flags = I2C_M_RD, .buf = &pwm, .len = 1} };
 
 	if ((i2c_transfer(&av7110->i2c_adap, msg, 2) != 2) || (pwm == 0xff))
 		pwm = 0x48;
@@ -2074,7 +2074,7 @@ static int frontend_init(struct av7110 *av7110)
 	int ret;
 
 	if (av7110->dev->pci->subsystem_vendor == 0x110a) {
-		switch(av7110->dev->pci->subsystem_device) {
+		switch (av7110->dev->pci->subsystem_device) {
 		case 0x0000: // Fujitsu/Siemens DVB-Cable (ves1820/Philips CD1516(??))
 			av7110->fe = dvb_attach(ves1820_attach, &philips_cd1516_config,
 						    &av7110->i2c_adap, read_pwm(av7110));
@@ -2085,7 +2085,7 @@ static int frontend_init(struct av7110 *av7110)
 		}
 
 	} else if (av7110->dev->pci->subsystem_vendor == 0x13c2) {
-		switch(av7110->dev->pci->subsystem_device) {
+		switch (av7110->dev->pci->subsystem_device) {
 		case 0x0000: // Hauppauge/TT WinTV DVB-S rev1.X
 		case 0x0003: // Hauppauge/TT WinTV Nexus-S Rev 2.X
 		case 0x1002: // Hauppauge/TT WinTV DVB-S rev1.3SE
@@ -2126,7 +2126,7 @@ static int frontend_init(struct av7110 *av7110)
 			}
 
 			/* Try DVB-C cards */
-			switch(av7110->dev->pci->subsystem_device) {
+			switch (av7110->dev->pci->subsystem_device) {
 			case 0x0000:
 				/* Siemens DVB-C (full-length card) VES1820/Philips CD1516 */
 				av7110->fe = dvb_attach(ves1820_attach, &philips_cd1516_config, &av7110->i2c_adap,
@@ -2398,14 +2398,14 @@ static int av7110_attach(struct saa7146_dev *dev,
 		 * use 0x03 to track RPS1 interrupts - increase by 1 every gpio3 is toggled
 		 * use 0x15 to track VPE  interrupts - increase by 1 every vpeirq() is called
 		 */
-		saa7146_write(dev, EC1SSR, (0x03<<2) | 3 );
+		saa7146_write(dev, EC1SSR, (0x03 << 2) | 3);
 		/* set event counter 1 threshold to maximum allowed value        (rEC p55) */
-		saa7146_write(dev, ECT1R,  0x3fff );
+		saa7146_write(dev, ECT1R,  0x3fff);
 #endif
 		/* Set RPS1 Address register to point to RPS code               (r108 p42) */
 		saa7146_write(dev, RPS_ADDR1, dev->d_rps1.dma_handle);
 		/* Enable RPS1,                                                 (rFC p33) */
-		saa7146_write(dev, MC1, (MASK_13 | MASK_29 ));
+		saa7146_write(dev, MC1, (MASK_13 | MASK_29));
 
 		mdelay(10);
 		/* now send VSYNC_B to rps1 by rising GPIO3 */
@@ -2419,7 +2419,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 			printk("dvb-ttpci: BUDGET-PATCH DETECTED.\n");
 		}
 		/* Disable RPS1 */
-		saa7146_write(dev, MC1, ( MASK_29 ));
+		saa7146_write(dev, MC1, (MASK_29));
 #if RPS_IRQ
 		printk("dvb-ttpci: Event Counter 1 0x%04x\n", saa7146_read(dev, EC1R) & 0x3fff );
 #endif
@@ -2533,9 +2533,9 @@ static int av7110_attach(struct saa7146_dev *dev,
 		 * use 0x03 to track RPS1 interrupts - increase by 1 every gpio3 is toggled
 		 * use 0x15 to track VPE  interrupts - increase by 1 every vpeirq() is called
 		 */
-		saa7146_write(dev, EC1SSR, (0x03<<2) | 3 );
+		saa7146_write(dev, EC1SSR, (0x03 << 2) | 3);
 		/* set event counter 1 threshold to maximum allowed value        (rEC p55) */
-		saa7146_write(dev, ECT1R,  0x3fff );
+		saa7146_write(dev, ECT1R,  0x3fff);
 #endif
 		/* Setup BUDGETPATCH MAIN RPS1 "program" (p35) */
 		count = 0;
@@ -2576,7 +2576,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 		 * then RPS_THRESH1 should be set to trigger
 		 * every TS_HEIGHT (512) lines.
 		 */
-		saa7146_write(dev, RPS_THRESH1, (TS_HEIGHT*1) | MASK_12 );
+		saa7146_write(dev, RPS_THRESH1, (TS_HEIGHT * 1) | MASK_12);
 
 		/* Enable RPS1                                                  (rFC p33) */
 		saa7146_write(dev, MC1, (MASK_13 | MASK_29));
@@ -2650,7 +2650,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 	if (ret < 0)
 		goto err_stop_arm_9;
 
-	if (FW_VERSION(av7110->arm_app)<0x2501)
+	if (FW_VERSION(av7110->arm_app) < 0x2501)
 		printk(KERN_WARNING
 		       "dvb-ttpci: Warning, firmware version 0x%04x is too old. System might be unstable!\n",
 		       FW_VERSION(av7110->arm_app));
@@ -2769,7 +2769,7 @@ static int av7110_detach(struct saa7146_dev *saa)
 
 	i2c_del_adapter(&av7110->i2c_adap);
 
-	dvb_unregister_adapter (&av7110->dvb_adapter);
+	dvb_unregister_adapter(&av7110->dvb_adapter);
 
 	av7110_num--;
 
@@ -2825,12 +2825,12 @@ static void av7110_irq(struct saa7146_dev *dev, u32 *isr)
 
 static struct saa7146_extension av7110_extension_driver;
 
-#define MAKE_AV7110_INFO(x_var,x_name) \
+#define MAKE_AV7110_INFO(x_var, x_name) \
 static struct saa7146_pci_extension_data x_var = { \
 	.ext_priv = x_name, \
 	.ext = &av7110_extension_driver }
 
-MAKE_AV7110_INFO(tts_1_X_fsc,"Technotrend/Hauppauge WinTV DVB-S rev1.X or Fujitsu Siemens DVB-C");
+MAKE_AV7110_INFO(tts_1_X_fsc, "Technotrend/Hauppauge WinTV DVB-S rev1.X or Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(ttt_1_X,    "Technotrend/Hauppauge WinTV DVB-T rev1.X");
 MAKE_AV7110_INFO(ttc_1_X,    "Technotrend/Hauppauge WinTV Nexus-CA rev1.X");
 MAKE_AV7110_INFO(ttc_2_X,    "Technotrend/Hauppauge WinTV DVB-C rev2.X");

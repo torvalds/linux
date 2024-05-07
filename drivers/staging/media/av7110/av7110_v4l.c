@@ -26,7 +26,7 @@
 
 int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val)
 {
-	u8 msg[5] = { dev, reg >> 8, reg & 0xff, val >> 8 , val & 0xff };
+	u8 msg[5] = { dev, reg >> 8, reg & 0xff, val >> 8, val & 0xff };
 	struct i2c_msg msgs = { .flags = 0, .len = 5, .buf = msg };
 
 	switch (av7110->adac_type) {
@@ -53,7 +53,7 @@ static int msp_readreg(struct av7110 *av7110, u8 dev, u16 reg, u16 *val)
 	u8 msg1[3] = { dev, reg >> 8, reg & 0xff };
 	u8 msg2[2];
 	struct i2c_msg msgs[2] = {
-		{ .flags = 0	   , .len = 3, .buf = msg1 },
+		{ .flags = 0,        .len = 3, .buf = msg1 },
 		{ .flags = I2C_M_RD, .len = 2, .buf = msg2 }
 	};
 
@@ -132,7 +132,7 @@ static int ves1820_writereg(struct saa7146_dev *dev, u8 addr, u8 reg, u8 data)
 	return 0;
 }
 
-static int tuner_write(struct saa7146_dev *dev, u8 addr, u8 data [4])
+static int tuner_write(struct saa7146_dev *dev, u8 addr, u8 data[4])
 {
 	struct av7110 *av7110 = dev->ext_priv;
 	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = data, .len = 4 };
@@ -724,7 +724,7 @@ int av7110_init_analog_module(struct av7110 *av7110)
 	msp_writereg(av7110, MSP_WR_DSP, 0x0007, 0x7f00); // SCART 1 volume
 	msp_writereg(av7110, MSP_WR_DSP, 0x000d, 0x1900); // prescale SCART
 
-	if (i2c_writereg(av7110, 0x48, 0x01, 0x00)!=1) {
+	if (i2c_writereg(av7110, 0x48, 0x01, 0x00) != 1) {
 		pr_info("saa7113 not accessible\n");
 	} else {
 		u8 *i = saa7113_init_regs;
