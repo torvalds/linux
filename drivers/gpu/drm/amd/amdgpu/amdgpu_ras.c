@@ -3605,10 +3605,6 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	struct amdgpu_ras_block_object *obj;
 	int r;
 
-	/* Guest side doesn't need init ras feature */
-	if (amdgpu_sriov_vf(adev))
-		return 0;
-
 	amdgpu_ras_event_mgr_init(adev);
 
 	if (amdgpu_aca_is_enabled(adev)) {
@@ -3619,7 +3615,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 		if (r)
 			return r;
 
-		amdgpu_ras_set_aca_debug_mode(adev, false);
+		if (!amdgpu_sriov_vf(adev))
+			amdgpu_ras_set_aca_debug_mode(adev, false);
 	} else {
 		if (amdgpu_in_reset(adev))
 			r = amdgpu_mca_reset(adev);
@@ -3628,8 +3625,13 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 		if (r)
 			return r;
 
-		amdgpu_ras_set_mca_debug_mode(adev, false);
+		if (!amdgpu_sriov_vf(adev))
+			amdgpu_ras_set_mca_debug_mode(adev, false);
 	}
+
+	/* Guest side doesn't need init ras feature */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		obj = node->ras_obj;
