@@ -5227,6 +5227,79 @@ struct walk_control {
 #define DROP_REFERENCE	1
 #define UPDATE_BACKREF	2
 
+/*
+ * Decide if we need to walk down into this node to adjust the references.
+ *
+ * @root:	the root we are currently deleting
+ * @wc:		the walk control for this deletion
+ * @eb:		the parent eb that we're currently visiting
+ * @refs:	the number of refs for wc->level - 1
+ * @flags:	the flags for wc->level - 1
+ * @slot:	the slot in the eb that we're currently checking
+ *
+ * This is meant to be called when we're evaluating if a node we point to at
+ * wc->level should be read and walked into, or if we can simply delete our
+ * reference to it.  We return true if we should walk into the node, false if we
+ * can skip it.
+ *
+ * We have assertions in here to make sure this is called correctly.  We assume
+ * that sanity checking on the blocks read to this point has been done, so any
+ * corrupted file systems must have been caught before calling this function.
+ */
+static bool visit_node_for_delete(struct btrfs_root *root, struct walk_control *wc,
+				  struct extent_buffer *eb, u64 refs, u64 flags, int slot)
+{
+	struct btrfs_key key;
+	u64 generation;
+	int level = wc->level;
+
+	ASSERT(level > 0);
+	ASSERT(wc->refs[level - 1] > 0);
+
+	/*
+	 * The update backref stage we only want to skip if we already have
+	 * FULL_BACKREF set, otherwise we need to read.
+	 */
+	if (wc->stage == UPDATE_BACKREF) {
+		if (level == 1 && flags & BTRFS_BLOCK_FLAG_FULL_BACKREF)
+			return false;
+		return true;
+	}
+
+	/*
+	 * We're the last ref on this block, we must walk into it and process
+	 * any refs it's pointing at.
+	 */
+	if (wc->refs[level - 1] == 1)
+		return true;
+
+	/*
+	 * If we're already FULL_BACKREF then we know we can just drop our
+	 * current reference.
+	 */
+	if (level == 1 && flags & BTRFS_BLOCK_FLAG_FULL_BACKREF)
+		return false;
+
+	/*
+	 * This block is older than our creation generation, we can drop our
+	 * reference to it.
+	 */
+	generation = btrfs_node_ptr_generation(eb, slot);
+	if (!wc->update_ref || generation <= root->root_key.offset)
+		return false;
+
+	/*
+	 * This block was processed from a previous snapshot deletion run, we
+	 * can skip it.
+	 */
+	btrfs_node_key_to_cpu(eb, &key, slot);
+	if (btrfs_comp_cpu_keys(&key, &wc->update_progress) < 0)
+		return false;
+
+	/* All other cases we need to wander into the node. */
+	return true;
+}
+
 static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     struct walk_control *wc,
@@ -5238,7 +5311,6 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 	u64 refs;
 	u64 flags;
 	u32 nritems;
-	struct btrfs_key key;
 	struct extent_buffer *eb;
 	int ret;
 	int slot;
@@ -5280,26 +5352,9 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 			continue;
 		BUG_ON(refs == 0);
 
-		if (wc->stage == DROP_REFERENCE) {
-			if (refs == 1)
-				goto reada;
-
-			if (wc->level == 1 &&
-			    (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF))
-				continue;
-			if (!wc->update_ref ||
-			    generation <= root->root_key.offset)
-				continue;
-			btrfs_node_key_to_cpu(eb, &key, slot);
-			ret = btrfs_comp_cpu_keys(&key,
-						  &wc->update_progress);
-			if (ret < 0)
-				continue;
-		} else {
-			if (wc->level == 1 &&
-			    (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF))
-				continue;
-		}
+		/* If we don't need to visit this node don't reada. */
+		if (!visit_node_for_delete(root, wc, eb, refs, flags, slot))
+			continue;
 reada:
 		btrfs_readahead_node_child(eb, slot);
 		nread++;
@@ -5473,7 +5528,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 generation;
 	u64 owner_root = 0;
-	struct btrfs_key key;
 	struct extent_buffer *next;
 	int level = wc->level;
 	int ret = 0;
@@ -5514,29 +5568,20 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	}
 	wc->lookup_info = 0;
 
-	if (wc->stage == DROP_REFERENCE) {
-		if (wc->refs[level - 1] > 1) {
-			if (level == 1 &&
-			    (wc->flags[0] & BTRFS_BLOCK_FLAG_FULL_BACKREF))
-				goto skip;
+	/* If we don't have to walk into this node skip it. */
+	if (!visit_node_for_delete(root, wc, path->nodes[level],
+				   wc->refs[level - 1], wc->flags[level - 1],
+				   path->slots[level]))
+		goto skip;
 
-			if (!wc->update_ref ||
-			    generation <= root->root_key.offset)
-				goto skip;
-
-			btrfs_node_key_to_cpu(path->nodes[level], &key,
-					      path->slots[level]);
-			ret = btrfs_comp_cpu_keys(&key, &wc->update_progress);
-			if (ret < 0)
-				goto skip;
-
-			wc->stage = UPDATE_BACKREF;
-			wc->shared_level = level - 1;
-		}
-	} else {
-		if (level == 1 &&
-		    (wc->flags[0] & BTRFS_BLOCK_FLAG_FULL_BACKREF))
-			goto skip;
+	/*
+	 * We have to walk down into this node, and if we're currently at the
+	 * DROP_REFERNCE stage and this block is shared then we need to switch
+	 * to the UPDATE_BACKREF stage in order to convert to FULL_BACKREF.
+	 */
+	if (wc->stage == DROP_REFERENCE && wc->refs[level - 1] > 1) {
+		wc->stage = UPDATE_BACKREF;
+		wc->shared_level = level - 1;
 	}
 
 	ret = check_next_block_uptodate(trans, root, path, wc, next);
