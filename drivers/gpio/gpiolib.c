@@ -112,8 +112,8 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 	if (!test_bit(FLAG_REQUESTED, &flags))
 		return NULL;
 
-	label = srcu_dereference_check(desc->label, &desc->srcu,
-				       srcu_read_lock_held(&desc->srcu));
+	label = srcu_dereference_check(desc->label, &desc->gdev->desc_srcu,
+				srcu_read_lock_held(&desc->gdev->desc_srcu));
 
 	return label->str;
 }
@@ -138,7 +138,7 @@ static int desc_set_label(struct gpio_desc *desc, const char *label)
 
 	old = rcu_replace_pointer(desc->label, new, 1);
 	if (old)
-		call_srcu(&desc->srcu, &old->rh, desc_free_label);
+		call_srcu(&desc->gdev->desc_srcu, &old->rh, desc_free_label);
 
 	return 0;
 }
@@ -709,13 +709,10 @@ EXPORT_SYMBOL_GPL(gpiochip_line_is_valid);
 static void gpiodev_release(struct device *dev)
 {
 	struct gpio_device *gdev = to_gpio_device(dev);
-	unsigned int i;
 
-	for (i = 0; i < gdev->ngpio; i++) {
-		/* Free pending label. */
-		synchronize_srcu(&gdev->descs[i].srcu);
-		cleanup_srcu_struct(&gdev->descs[i].srcu);
-	}
+	/* Call pending kfree()s for descriptor labels. */
+	synchronize_srcu(&gdev->desc_srcu);
+	cleanup_srcu_struct(&gdev->desc_srcu);
 
 	ida_free(&gpio_ida, gdev->id);
 	kfree_const(gdev->label);
@@ -992,6 +989,10 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_remove_from_list;
 
+	ret = init_srcu_struct(&gdev->desc_srcu);
+	if (ret)
+		goto err_cleanup_gdev_srcu;
+
 #ifdef CONFIG_PINCTRL
 	INIT_LIST_HEAD(&gdev->pin_ranges);
 #endif
@@ -999,22 +1000,18 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (gc->names) {
 		ret = gpiochip_set_desc_names(gc);
 		if (ret)
-			goto err_cleanup_gdev_srcu;
+			goto err_cleanup_desc_srcu;
 	}
 	ret = gpiochip_set_names(gc);
 	if (ret)
-		goto err_cleanup_gdev_srcu;
+		goto err_cleanup_desc_srcu;
 
 	ret = gpiochip_init_valid_mask(gc);
 	if (ret)
-		goto err_cleanup_gdev_srcu;
+		goto err_cleanup_desc_srcu;
 
 	for (desc_index = 0; desc_index < gc->ngpio; desc_index++) {
 		struct gpio_desc *desc = &gdev->descs[desc_index];
-
-		ret = init_srcu_struct(&desc->srcu);
-		if (ret)
-			goto err_cleanup_desc_srcu;
 
 		if (gc->get_direction && gpiochip_line_is_valid(gc, desc_index)) {
 			assign_bit(FLAG_IS_OUT,
@@ -1027,7 +1024,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 
 	ret = of_gpiochip_add(gc);
 	if (ret)
-		goto err_cleanup_desc_srcu;
+		goto err_free_valid_mask;
 
 	ret = gpiochip_add_pin_ranges(gc);
 	if (ret)
@@ -1074,10 +1071,10 @@ err_free_hogs:
 	gpiochip_remove_pin_ranges(gc);
 err_remove_of_chip:
 	of_gpiochip_remove(gc);
-err_cleanup_desc_srcu:
-	while (desc_index--)
-		cleanup_srcu_struct(&gdev->descs[desc_index].srcu);
+err_free_valid_mask:
 	gpiochip_free_valid_mask(gc);
+err_cleanup_desc_srcu:
+	cleanup_srcu_struct(&gdev->desc_srcu);
 err_cleanup_gdev_srcu:
 	cleanup_srcu_struct(&gdev->srcu);
 err_remove_from_list:
@@ -2407,7 +2404,7 @@ char *gpiochip_dup_line_label(struct gpio_chip *gc, unsigned int offset)
 	if (!test_bit(FLAG_REQUESTED, &desc->flags))
 		return NULL;
 
-	guard(srcu)(&desc->srcu);
+	guard(srcu)(&desc->gdev->desc_srcu);
 
 	label = kstrdup(gpiod_get_label(desc), GFP_KERNEL);
 	if (!label)
@@ -4798,7 +4795,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 	}
 
 	for_each_gpio_desc(gc, desc) {
-		guard(srcu)(&desc->srcu);
+		guard(srcu)(&desc->gdev->desc_srcu);
 		if (test_bit(FLAG_REQUESTED, &desc->flags)) {
 			gpiod_get_direction(desc);
 			is_out = test_bit(FLAG_IS_OUT, &desc->flags);
