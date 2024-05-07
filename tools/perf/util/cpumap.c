@@ -180,8 +180,6 @@ struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr)
 		cpus->nr = nr;
 		for (i = 0; i < nr; i++)
 			cpus->map[i] = aggr_cpu_id__empty();
-
-		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
