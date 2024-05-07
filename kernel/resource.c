@@ -48,25 +48,6 @@ struct resource iomem_resource = {
 };
 EXPORT_SYMBOL(iomem_resource);
 
-/**
- * struct resource_constraint - constraints to be met while searching empty
- *				resource space
- * @min:		The minimum address for the memory range
- * @max:		The maximum address for the memory range
- * @align:		Alignment for the start address of the empty space
- * @alignf:		Additional alignment constraints callback
- * @alignf_data:	Data provided for @alignf callback
- *
- * Contains the range and alignment constraints that have to be met during
- * find_resource_space(). @alignf can be NULL indicating no alignment beyond
- * @align is necessary.
- */
-struct resource_constraint {
-	resource_size_t min, max, align;
-	resource_alignf alignf;
-	void *alignf_data;
-};
-
 static DEFINE_RWLOCK(resource_lock);
 
 static struct resource *next_resource(struct resource *p, bool skip_children)
@@ -708,12 +689,13 @@ next:		if (!this || this->end == root->end)
  * * %0		- if successful, @new members start, end, and flags are altered.
  * * %-EBUSY	- if no empty space was found.
  */
-static int find_resource_space(struct resource *root, struct resource *new,
-			       resource_size_t size,
-			       struct resource_constraint *constraint)
+int find_resource_space(struct resource *root, struct resource *new,
+			resource_size_t size,
+			struct resource_constraint *constraint)
 {
 	return  __find_resource_space(root, NULL, new, size, constraint);
 }
+EXPORT_SYMBOL_GPL(find_resource_space);
 
 /**
  * reallocate_resource - allocate a slot in the resource tree given range & alignment.
