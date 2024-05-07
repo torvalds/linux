@@ -232,6 +232,16 @@
 			clock-names = "core";
 		};
 
+		mdio: mdio@90000 {
+			compatible =  "qcom,ipq9574-mdio", "qcom,ipq4019-mdio";
+			reg = <0x00090000 0x64>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&gcc GCC_MDIO_AHB_CLK>;
+			clock-names = "gcc_mdio_ahb_clk";
+			status = "disabled";
+		};
+
 		qfprom: efuse@a4000 {
 			compatible = "qcom,ipq9574-qfprom", "qcom,qfprom";
 			reg = <0x000a4000 0x5a1>;
