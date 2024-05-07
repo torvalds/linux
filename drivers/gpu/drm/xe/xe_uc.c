@@ -5,6 +5,7 @@
 
 #include "xe_uc.h"
 
+#include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_gsc.h"
 #include "xe_gsc_proxy.h"

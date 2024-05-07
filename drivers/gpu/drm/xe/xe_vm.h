@@ -6,6 +6,7 @@
 #ifndef _XE_VM_H_
 #define _XE_VM_H_
 
+#include "xe_assert.h"
 #include "xe_bo_types.h"
 #include "xe_macros.h"
 #include "xe_map.h"
