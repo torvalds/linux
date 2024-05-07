@@ -2387,6 +2387,53 @@ static int memblock_trim_memory_checks(void)
 	return 0;
 }
 
+static int memblock_overlaps_region_check(void)
+{
+	struct region r = {
+		.base = SZ_1G,
+		.size = SZ_4M
+	};
+
+	PREFIX_PUSH();
+
+	reset_memblock_regions();
+	memblock_add(r.base, r.size);
+
+	/* Far Away */
+	ASSERT_FALSE(memblock_overlaps_region(&memblock.memory, SZ_1M, SZ_1M));
+	ASSERT_FALSE(memblock_overlaps_region(&memblock.memory, SZ_2G, SZ_1M));
+
+	/* Neighbor */
+	ASSERT_FALSE(memblock_overlaps_region(&memblock.memory, SZ_1G - SZ_1M, SZ_1M));
+	ASSERT_FALSE(memblock_overlaps_region(&memblock.memory, SZ_1G + SZ_4M, SZ_1M));
+
+	/* Partial Overlap */
+	ASSERT_TRUE(memblock_overlaps_region(&memblock.memory, SZ_1G - SZ_1M, SZ_2M));
+	ASSERT_TRUE(memblock_overlaps_region(&memblock.memory, SZ_1G + SZ_2M, SZ_2M));
+
+	/* Totally Overlap */
+	ASSERT_TRUE(memblock_overlaps_region(&memblock.memory, SZ_1G, SZ_4M));
+	ASSERT_TRUE(memblock_overlaps_region(&memblock.memory, SZ_1G - SZ_2M, SZ_8M));
+	ASSERT_TRUE(memblock_overlaps_region(&memblock.memory, SZ_1G + SZ_1M, SZ_1M));
+
+	test_pass_pop();
+
+	return 0;
+}
+
+static int memblock_overlaps_region_checks(void)
+{
+	prefix_reset();
+	prefix_push("memblock_overlaps_region");
+	test_print("Running memblock_overlaps_region tests...\n");
+
+	memblock_overlaps_region_check();
+
+	prefix_pop();
+
+	return 0;
+}
+
 int memblock_basic_checks(void)
 {
 	memblock_initialization_check();
@@ -2396,6 +2443,7 @@ int memblock_basic_checks(void)
 	memblock_free_checks();
 	memblock_bottom_up_checks();
 	memblock_trim_memory_checks();
+	memblock_overlaps_region_checks();
 
 	return 0;
 }

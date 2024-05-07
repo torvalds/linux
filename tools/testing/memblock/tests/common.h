@@ -40,6 +40,9 @@ enum test_flags {
 	assert((_expected) == (_seen)); \
 } while (0)
 
+#define ASSERT_TRUE(_seen) ASSERT_EQ(true, _seen)
+#define ASSERT_FALSE(_seen) ASSERT_EQ(false, _seen)
+
 /**
  * ASSERT_NE():
  * Check the condition
