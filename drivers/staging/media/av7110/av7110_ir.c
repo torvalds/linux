@@ -59,8 +59,7 @@ void av7110_ir_handler(struct av7110 *av7110, u32 ircom)
 			proto = RC_PROTO_RC5;
 			break;
 		default:
-			dprintk(2, "unknown ir config %d\n",
-				av7110->ir.ir_config);
+			dprintk(2, "unknown ir config %d\n", av7110->ir.ir_config);
 			return;
 		}
 

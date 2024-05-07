@@ -40,10 +40,14 @@
 
 extern int av7110_debug;
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define dprintk(level, fmt, arg...) do {				\
-	if (level & av7110_debug)					\
-		printk(KERN_DEBUG KBUILD_MODNAME ": %s(): " fmt,	\
-		       __func__, ##arg);				\
+	if ((level) & av7110_debug)					\
+		pr_info("%s(): " fmt, __func__, ##arg);			\
 } while (0)
 
 #define MAXFILT 32

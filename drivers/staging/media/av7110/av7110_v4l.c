@@ -42,8 +42,7 @@ int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val)
 	}
 
 	if (i2c_transfer(&av7110->i2c_adap, &msgs, 1) != 1) {
-		dprintk(1, "dvb-ttpci: failed @ card %d, %u = %u\n",
-		       av7110->dvb_adapter.num, reg, val);
+		dprintk(1, "failed @ card %d, %u = %u\n", av7110->dvb_adapter.num, reg, val);
 		return -EIO;
 	}
 	return 0;
@@ -72,8 +71,7 @@ static int msp_readreg(struct av7110 *av7110, u8 dev, u16 reg, u16 *val)
 	}
 
 	if (i2c_transfer(&av7110->i2c_adap, &msgs[0], 2) != 2) {
-		dprintk(1, "dvb-ttpci: failed @ card %d, %u\n",
-		       av7110->dvb_adapter.num, reg);
+		dprintk(1, "failed @ card %d, %u\n", av7110->dvb_adapter.num, reg);
 		return -EIO;
 	}
 	*val = (msg2[0] << 8) | msg2[1];
@@ -617,7 +615,7 @@ static ssize_t av7110_vbi_write(struct file *file, const char __user *data, size
 	struct v4l2_sliced_vbi_data d;
 	int rc;
 
-	dprintk(2, "%s\n", __func__);
+	dprintk(2, "\n");
 	if (FW_VERSION(av7110->arm_app) < 0x2623 || !av7110->wssMode || count != sizeof(d))
 		return -EINVAL;
 	if (copy_from_user(&d, data, count))
@@ -718,7 +716,7 @@ int av7110_init_analog_module(struct av7110 *av7110)
 	msleep(100); // the probing above resets the msp...
 	msp_readreg(av7110, MSP_RD_DSP, 0x001e, &version1);
 	msp_readreg(av7110, MSP_RD_DSP, 0x001f, &version2);
-	dprintk(1, "dvb-ttpci: @ card %d MSP34xx version 0x%04x 0x%04x\n",
+	dprintk(1, "@ card %d MSP34xx version 0x%04x 0x%04x\n",
 		av7110->dvb_adapter.num, version1, version2);
 	msp_writereg(av7110, MSP_WR_DSP, 0x0013, 0x0c00);
 	msp_writereg(av7110, MSP_WR_DSP, 0x0000, 0x7f00); // loudspeaker + headphone

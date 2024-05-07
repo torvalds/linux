@@ -26,7 +26,7 @@
 
 void CI_handle(struct av7110 *av7110, u8 *data, u16 len)
 {
-	dprintk(8, "av7110:%p\n",av7110);
+	dprintk(8, "av7110:%p\n", av7110);
 
 	if (len < 3)
 		return;
@@ -199,7 +199,7 @@ static int dvb_ca_open(struct inode *inode, struct file *file)
 	struct av7110 *av7110 = dvbdev->priv;
 	int err = dvb_generic_open(inode, file);
 
-	dprintk(8, "av7110:%p\n",av7110);
+	dprintk(8, "av7110:%p\n", av7110);
 
 	if (err < 0)
 		return err;
@@ -215,7 +215,7 @@ static __poll_t dvb_ca_poll(struct file *file, poll_table *wait)
 	struct dvb_ringbuffer *wbuf = &av7110->ci_wbuffer;
 	__poll_t mask = 0;
 
-	dprintk(8, "av7110:%p\n",av7110);
+	dprintk(8, "av7110:%p\n", av7110);
 
 	poll_wait(file, &rbuf->queue, wait);
 	poll_wait(file, &wbuf->queue, wait);
@@ -236,7 +236,7 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 	unsigned long arg = (unsigned long)parg;
 	int ret = 0;
 
-	dprintk(8, "av7110:%p\n",av7110);
+	dprintk(8, "av7110:%p\n", av7110);
 
 	if (mutex_lock_interruptible(&av7110->ioctl_mutex))
 		return -ERESTARTSYS;
@@ -322,7 +322,7 @@ static ssize_t dvb_ca_write(struct file *file, const char __user *buf,
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
 
-	dprintk(8, "av7110:%p\n",av7110);
+	dprintk(8, "av7110:%p\n", av7110);
 	return ci_ll_write(&av7110->ci_wbuffer, file, buf, count, ppos);
 }
 
@@ -332,7 +332,7 @@ static ssize_t dvb_ca_read(struct file *file, char __user *buf,
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
 
-	dprintk(8, "av7110:%p\n",av7110);
+	dprintk(8, "av7110:%p\n", av7110);
 	return ci_ll_read(&av7110->ci_rbuffer, file, buf, count, ppos);
 }
 

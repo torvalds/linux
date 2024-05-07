@@ -39,8 +39,6 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 
 	if (!found)
 		return -1;
-	if (pr)
-		printk(KERN_DEBUG "Audiostream: AC3");
 
 	ai->off = c;
 	if (c + 5 >= count)
@@ -52,21 +50,18 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 	frame = (headr[2] & 0x3f);
 	ai->bit_rate = ac3_bitrates[frame >> 1] * 1000;
 
-	if (pr)
-		printk(KERN_CONT "  BRate: %d kb/s", (int) ai->bit_rate/1000);
-
 	ai->frequency = (headr[2] & 0xc0) >> 6;
 	fr = (headr[2] & 0xc0) >> 6;
 	ai->frequency = freq[fr] * 100;
-	if (pr)
-		printk(KERN_CONT "  Freq: %d Hz\n", (int) ai->frequency);
 
 	ai->framesize = ac3_frames[fr][frame >> 1];
 	if ((frame & 1) && (fr == 1))
 		ai->framesize++;
 	ai->framesize = ai->framesize << 1;
+
 	if (pr)
-		printk(KERN_DEBUG "  Framesize %d\n", (int) ai->framesize);
+		pr_info("Audiostream: AC3, BRate: %d kb/s, Freq: %d Hz, Framesize %d\n",
+			(int)ai->bit_rate / 1000, (int)ai->frequency, (int)ai->framesize);
 
 	return 0;
 }
