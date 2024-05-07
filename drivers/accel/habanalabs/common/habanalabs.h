@@ -2729,11 +2729,16 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
  * updated directly by the device. If false, the host memory being polled will
  * be updated by host CPU. Required so host knows whether or not the memory
  * might need to be byte-swapped before returning value to caller.
+ *
+ * On the first 4 polling iterations the macro goes to sleep for short period of
+ * time that gradually increases and reaches sleep_us on the fifth iteration.
  */
 #define hl_poll_timeout_memory(hdev, addr, val, cond, sleep_us, timeout_us, \
 				mem_written_by_device) \
 ({ \
+	u64 __sleep_step_us; \
 	ktime_t __timeout; \
+	u8 __step = 8; \
 	\
 	__timeout = ktime_add_us(ktime_get(), timeout_us); \
 	might_sleep_if(sleep_us); \
@@ -2751,8 +2756,10 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				(val) = le32_to_cpu(*(__le32 *) &(val)); \
 			break; \
 		} \
-		if (sleep_us) \
-			usleep_range((sleep_us >> 2) + 1, sleep_us); \
+		__sleep_step_us = sleep_us >> __step; \
+		if (__sleep_step_us) \
+			usleep_range((__sleep_step_us >> 2) + 1, __sleep_step_us); \
+		__step >>= 1; \
 	} \
 	(cond) ? 0 : -ETIMEDOUT; \
 })
