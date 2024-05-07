@@ -284,8 +284,8 @@ struct av7110 {
 	int (*fe_set_frontend)(struct dvb_frontend *fe);
 };
 
-extern int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
-		      u16 subpid, u16 pcrpid);
+int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
+	       u16 subpid, u16 pcrpid);
 
 void av7110_ir_handler(struct av7110 *av7110, u32 ircom);
 int av7110_set_ir_config(struct av7110 *av7110);
@@ -298,12 +298,12 @@ void av7110_ir_exit(struct av7110 *av7110);
 #define MSP_WR_DSP 0x12
 #define MSP_RD_DSP 0x13
 
-extern int i2c_writereg(struct av7110 *av7110, u8 id, u8 reg, u8 val);
-extern u8 i2c_readreg(struct av7110 *av7110, u8 id, u8 reg);
-extern int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val);
+int i2c_writereg(struct av7110 *av7110, u8 id, u8 reg, u8 val);
+u8 i2c_readreg(struct av7110 *av7110, u8 id, u8 reg);
+int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val);
 
-extern int av7110_init_analog_module(struct av7110 *av7110);
-extern int av7110_init_v4l(struct av7110 *av7110);
-extern int av7110_exit_v4l(struct av7110 *av7110);
+int av7110_init_analog_module(struct av7110 *av7110);
+int av7110_init_v4l(struct av7110 *av7110);
+int av7110_exit_v4l(struct av7110 *av7110);
 
 #endif /* _AV7110_H_ */
