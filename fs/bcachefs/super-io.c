@@ -923,6 +923,7 @@ int bch2_write_super(struct bch_fs *c)
 	struct bch_devs_mask sb_written;
 	bool wrote, can_mount_without_written, can_mount_with_written;
 	unsigned degraded_flags = BCH_FORCE_IF_DEGRADED;
+	DARRAY(struct bch_dev *) online_devices = {};
 	int ret = 0;
 
 	trace_and_count(c, write_super, c, _RET_IP_);
@@ -935,6 +936,15 @@ int bch2_write_super(struct bch_fs *c)
 	closure_init_stack(cl);
 	memset(&sb_written, 0, sizeof(sb_written));
 
+	for_each_online_member(c, ca) {
+		ret = darray_push(&online_devices, ca);
+		if (bch2_fs_fatal_err_on(ret, c, "%s: error allocating online devices", __func__)) {
+			percpu_ref_put(&ca->io_ref);
+			goto out;
+		}
+		percpu_ref_get(&ca->io_ref);
+	}
+
 	/* Make sure we're using the new magic numbers: */
 	c->disk_sb.sb->magic = BCHFS_MAGIC;
 	c->disk_sb.sb->layout.magic = BCHFS_MAGIC;
@@ -942,8 +952,8 @@ int bch2_write_super(struct bch_fs *c)
 	le64_add_cpu(&c->disk_sb.sb->seq, 1);
 
 	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
-	for_each_online_member(c, ca)
-		__bch2_members_v2_get_mut(mi, ca->dev_idx)->seq = c->disk_sb.sb->seq;
+	darray_for_each(online_devices, ca)
+		__bch2_members_v2_get_mut(mi, (*ca)->dev_idx)->seq = c->disk_sb.sb->seq;
 	c->disk_sb.sb->write_time = cpu_to_le64(ktime_get_real_seconds());
 
 	if (test_bit(BCH_FS_error, &c->flags))
@@ -959,16 +969,15 @@ int bch2_write_super(struct bch_fs *c)
 	bch2_sb_errors_from_cpu(c);
 	bch2_sb_downgrade_update(c);
 
-	for_each_online_member(c, ca)
-		bch2_sb_from_fs(c, ca);
+	darray_for_each(online_devices, ca)
+		bch2_sb_from_fs(c, (*ca));
 
-	for_each_online_member(c, ca) {
+	darray_for_each(online_devices, ca) {
 		printbuf_reset(&err);
 
-		ret = bch2_sb_validate(&ca->disk_sb, &err, WRITE);
+		ret = bch2_sb_validate(&(*ca)->disk_sb, &err, WRITE);
 		if (ret) {
 			bch2_fs_inconsistent(c, "sb invalid before write: %s", err.buf);
-			percpu_ref_put(&ca->io_ref);
 			goto out;
 		}
 	}
@@ -995,16 +1004,18 @@ int bch2_write_super(struct bch_fs *c)
 		return -BCH_ERR_sb_not_downgraded;
 	}
 
-	for_each_online_member(c, ca) {
-		__set_bit(ca->dev_idx, sb_written.d);
-		ca->sb_write_error = 0;
+	darray_for_each(online_devices, ca) {
+		__set_bit((*ca)->dev_idx, sb_written.d);
+		(*ca)->sb_write_error = 0;
 	}
 
-	for_each_online_member(c, ca)
-		read_back_super(c, ca);
+	darray_for_each(online_devices, ca)
+		read_back_super(c, *ca);
 	closure_sync(cl);
 
-	for_each_online_member(c, ca) {
+	darray_for_each(online_devices, cap) {
+		struct bch_dev *ca = *cap;
+
 		if (ca->sb_write_error)
 			continue;
 
@@ -1031,17 +1042,20 @@ int bch2_write_super(struct bch_fs *c)
 
 	do {
 		wrote = false;
-		for_each_online_member(c, ca)
+		darray_for_each(online_devices, cap) {
+			struct bch_dev *ca = *cap;
 			if (!ca->sb_write_error &&
 			    sb < ca->disk_sb.sb->layout.nr_superblocks) {
 				write_one_super(c, ca, sb);
 				wrote = true;
 			}
+		}
 		closure_sync(cl);
 		sb++;
 	} while (wrote);
 
-	for_each_online_member(c, ca) {
+	darray_for_each(online_devices, cap) {
+		struct bch_dev *ca = *cap;
 		if (ca->sb_write_error)
 			__clear_bit(ca->dev_idx, sb_written.d);
 		else
@@ -1077,6 +1091,9 @@ int bch2_write_super(struct bch_fs *c)
 out:
 	/* Make new options visible after they're persistent: */
 	bch2_sb_update(c);
+	darray_for_each(online_devices, ca)
+		percpu_ref_put(&(*ca)->io_ref);
+	darray_exit(&online_devices);
 	printbuf_exit(&err);
 	return ret;
 }
