@@ -58,7 +58,7 @@ enum av7110_video_mode {
 struct av7110_p2t {
 	u8		  pes[TS_SIZE];
 	u8		  counter;
-	long int	  pos;
+	long		  pos;
 	int		  frags;
 	struct dvb_demux_feed *feed;
 };

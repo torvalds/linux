@@ -1094,7 +1094,7 @@ static void restart_feeds(struct av7110 *av7110)
 }
 
 static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
-		       uint64_t *stc, unsigned int *base)
+		       u64 *stc, unsigned int *base)
 {
 	int ret;
 	u16 fwstc[4];
@@ -1183,7 +1183,7 @@ static int stop_ts_capture(struct av7110 *budget)
 
 static int start_ts_capture(struct av7110 *budget)
 {
-	unsigned y;
+	unsigned int y;
 
 	dprintk(2, "budget: %p\n", budget);
 
