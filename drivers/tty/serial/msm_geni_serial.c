@@ -5661,11 +5661,15 @@ static int msm_geni_serial_sys_suspend(struct device *dev)
 					     __func__, port->uart_kpi);
 	if (port->is_console && !con_enabled) {
 		return 0;
-	} else if (uart_console(uport) || port->pm_auto_suspend_disable) {
+	} else if (uart_console(uport)) {
 		IPC_LOG_MSG(port->console_log, "%s start %d\n", __func__, true);
 		uart_suspend_port((struct uart_driver *)uport->private_data,
 					uport);
 		IPC_LOG_MSG(port->console_log, "%s end %d\n", __func__, true);
+	} else if (port->pm_auto_suspend_disable) {
+		UART_LOG_DBG(port->ipc_log_pwr, dev, "%s start %d\n", __func__, true);
+		uart_suspend_port((struct uart_driver *)uport->private_data, uport);
+		UART_LOG_DBG(port->ipc_log_pwr, dev, "%s end %d\n", __func__, true);
 	} else {
 		struct uart_state *state = uport->state;
 		struct tty_port *tty_port = &state->port;
@@ -5702,6 +5706,14 @@ static int msm_geni_serial_sys_hib_resume(struct device *dev)
 		 * Hence call port setup for console uart.
 		 */
 		msm_geni_serial_port_setup(uport);
+	} else if (port->pm_auto_suspend_disable) {
+		/*
+		 * Peripheral register settings are lost during hibernation
+		 * or deep sleep case so update setup flag such that port
+		 * setup happens again during next session.
+		 */
+		port->port_setup = false;
+		uart_resume_port((struct uart_driver *)uport->private_data, uport);
 	} else {
 		/*
 		 * Peripheral register settings are lost during hibernation.
