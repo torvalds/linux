@@ -448,7 +448,7 @@ static int exynos5_usbdrd_phy_init(struct phy *phy)
 
 	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
 
-	udelay(10);
+	fsleep(10);
 
 	reg &= ~PHYCLKRST_PORTRESET;
 	writel(reg, phy_drd->reg_phy + EXYNOS5_DRD_PHYCLKRST);
@@ -779,11 +779,11 @@ static void exynos850_usbdrd_utmi_init(struct exynos5_usbdrd_phy *phy_drd)
 	writel(reg, regs_base + EXYNOS850_DRD_HSP_TEST);
 
 	/* Finish PHY reset (POR=low) */
-	udelay(10); /* required before doing POR=low */
+	fsleep(10); /* required before doing POR=low */
 	reg = readl(regs_base + EXYNOS850_DRD_CLKRST);
 	reg &= ~(CLKRST_PHY_SW_RST | CLKRST_PORT_RST);
 	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
-	udelay(75); /* required after POR=low for guaranteed PHY clock */
+	fsleep(75); /* required after POR=low for guaranteed PHY clock */
 
 	/* Disable single ended signal out */
 	reg = readl(regs_base + EXYNOS850_DRD_HSP);
@@ -836,7 +836,7 @@ static int exynos850_usbdrd_phy_exit(struct phy *phy)
 	reg = readl(regs_base + EXYNOS850_DRD_CLKRST);
 	reg |= CLKRST_LINK_SW_RST;
 	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
-	udelay(10); /* required before doing POR=low */
+	fsleep(10); /* required before doing POR=low */
 	reg &= ~CLKRST_LINK_SW_RST;
 	writel(reg, regs_base + EXYNOS850_DRD_CLKRST);
 
