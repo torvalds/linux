@@ -628,13 +628,12 @@ static void resource_clip(struct resource *res, resource_size_t min,
 }
 
 /*
- * Find empty slot in the resource tree with the given range and
+ * Find empty space in the resource tree with the given range and
  * alignment constraints
  */
-static int __find_resource(struct resource *root, struct resource *old,
-			 struct resource *new,
-			 resource_size_t  size,
-			 struct resource_constraint *constraint)
+static int __find_resource_space(struct resource *root, struct resource *old,
+				 struct resource *new, resource_size_t size,
+				 struct resource_constraint *constraint)
 {
 	struct resource *this = root->child;
 	struct resource tmp = *new, avail, alloc;
@@ -688,13 +687,13 @@ next:		if (!this || this->end == root->end)
 }
 
 /*
- * Find empty slot in the resource tree given range and alignment.
+ * Find empty space in the resource tree given range and alignment.
  */
-static int find_resource(struct resource *root, struct resource *new,
-			resource_size_t size,
-			struct resource_constraint  *constraint)
+static int find_resource_space(struct resource *root, struct resource *new,
+			       resource_size_t size,
+			       struct resource_constraint *constraint)
 {
-	return  __find_resource(root, NULL, new, size, constraint);
+	return  __find_resource_space(root, NULL, new, size, constraint);
 }
 
 /**
@@ -717,7 +716,7 @@ static int reallocate_resource(struct resource *root, struct resource *old,
 
 	write_lock(&resource_lock);
 
-	if ((err = __find_resource(root, old, &new, newsize, constraint)))
+	if ((err = __find_resource_space(root, old, &new, newsize, constraint)))
 		goto out;
 
 	if (resource_contains(&new, old)) {
@@ -786,7 +785,7 @@ int allocate_resource(struct resource *root, struct resource *new,
 	}
 
 	write_lock(&resource_lock);
-	err = find_resource(root, new, size, &constraint);
+	err = find_resource_space(root, new, size, &constraint);
 	if (err >= 0 && __request_resource(root, new))
 		err = -EBUSY;
 	write_unlock(&resource_lock);
