@@ -5,6 +5,7 @@
 
 #include "struct_ops_module.skel.h"
 #include "struct_ops_nulled_out_cb.skel.h"
+#include "struct_ops_forgotten_cb.skel.h"
 
 static void check_map_info(struct bpf_map_info *info)
 {
@@ -199,6 +200,48 @@ cleanup:
 	struct_ops_nulled_out_cb__destroy(skel);
 }
 
+/* validate that libbpf generates reasonable error message if struct_ops is
+ * not referenced in any struct_ops map
+ */
+static void test_struct_ops_forgotten_cb(void)
+{
+	struct struct_ops_forgotten_cb *skel;
+	char *log;
+	int err;
+
+	skel = struct_ops_forgotten_cb__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	start_libbpf_log_capture();
+
+	err = struct_ops_forgotten_cb__load(skel);
+	if (!ASSERT_ERR(err, "skel_load"))
+		goto cleanup;
+
+	log = stop_libbpf_log_capture();
+	ASSERT_HAS_SUBSTR(log,
+			  "prog 'test_1_forgotten': SEC(\"struct_ops\") program isn't referenced anywhere, did you forget to use it?",
+			  "libbpf_log");
+	free(log);
+
+	struct_ops_forgotten_cb__destroy(skel);
+
+	/* now let's programmatically use it, we should be fine now */
+	skel = struct_ops_forgotten_cb__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	skel->struct_ops.ops->test_1 = skel->progs.test_1_forgotten; /* not anymore */
+
+	err = struct_ops_forgotten_cb__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto cleanup;
+
+cleanup:
+	struct_ops_forgotten_cb__destroy(skel);
+}
+
 void serial_test_struct_ops_module(void)
 {
 	if (test__start_subtest("test_struct_ops_load"))
@@ -209,5 +252,7 @@ void serial_test_struct_ops_module(void)
 		test_struct_ops_incompatible();
 	if (test__start_subtest("test_struct_ops_null_out_cb"))
 		test_struct_ops_nulled_out_cb();
+	if (test__start_subtest("struct_ops_forgotten_cb"))
+		test_struct_ops_forgotten_cb();
 }
 
