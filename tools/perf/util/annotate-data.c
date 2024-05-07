@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <linux/zalloc.h>
 
 #include "annotate.h"
 #include "annotate-data.h"
@@ -311,8 +312,8 @@ static void delete_members(struct annotated_member *member)
 	list_for_each_entry_safe(child, tmp, &member->children, node) {
 		list_del(&child->node);
 		delete_members(child);
-		free(child->type_name);
-		free(child->var_name);
+		zfree(&child->type_name);
+		zfree(&child->var_name);
 		free(child);
 	}
 }
@@ -582,7 +583,7 @@ void global_var_type__tree_delete(struct rb_root *root)
 
 		rb_erase(node, root);
 		gvar = rb_entry(node, struct global_var_entry, node);
-		free(gvar->name);
+		zfree(&gvar->name);
 		free(gvar);
 	}
 }
@@ -1817,16 +1818,16 @@ static int alloc_data_type_histograms(struct annotated_data_type *adt, int nr_en
 
 err:
 	while (--i >= 0)
-		free(adt->histograms[i]);
-	free(adt->histograms);
+		zfree(&(adt->histograms[i]));
+	zfree(&adt->histograms);
 	return -ENOMEM;
 }
 
 static void delete_data_type_histograms(struct annotated_data_type *adt)
 {
 	for (int i = 0; i < adt->nr_histograms; i++)
-		free(adt->histograms[i]);
-	free(adt->histograms);
+		zfree(&(adt->histograms[i]));
+	zfree(&adt->histograms);
 }
 
 void annotated_data_type__tree_delete(struct rb_root *root)
@@ -1840,7 +1841,7 @@ void annotated_data_type__tree_delete(struct rb_root *root)
 		pos = rb_entry(node, struct annotated_data_type, node);
 		delete_members(&pos->self);
 		delete_data_type_histograms(pos);
-		free(pos->self.type_name);
+		zfree(&pos->self.type_name);
 		free(pos);
 	}
 }

@@ -2618,13 +2618,13 @@ static void delete_basic_blocks(struct basic_block_data *bb_data)
 
 	list_for_each_entry_safe(link, tmp, &bb_data->queue, node) {
 		list_del(&link->node);
-		free(link->bb);
+		zfree(&link->bb);
 		free(link);
 	}
 
 	list_for_each_entry_safe(link, tmp, &bb_data->visited, node) {
 		list_del(&link->node);
-		free(link->bb);
+		zfree(&link->bb);
 		free(link);
 	}
 }

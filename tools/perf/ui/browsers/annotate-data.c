@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <inttypes.h>
 #include <string.h>
+#include <linux/zalloc.h>
 #include <sys/ttydefaults.h>
 
 #include "ui/browser.h"
@@ -130,7 +131,7 @@ static void annotated_data_browser__delete_entries(struct annotated_data_browser
 
 	list_for_each_entry_safe(pos, tmp, &browser->entries, node) {
 		list_del_init(&pos->node);
-		free(pos->hists);
+		zfree(&pos->hists);
 		free(pos);
 	}
 }
