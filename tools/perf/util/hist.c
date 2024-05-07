@@ -631,7 +631,7 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 			 */
 			mem_info__zput(entry->mem_info);
 
-			block_info__zput(entry->block_info);
+			block_info__delete(entry->block_info);
 
 			kvm_info__zput(entry->kvm_info);
 
@@ -1341,7 +1341,7 @@ void hist_entry__delete(struct hist_entry *he)
 	}
 
 	if (he->block_info)
-		block_info__zput(he->block_info);
+		block_info__delete(he->block_info);
 
 	if (he->kvm_info)
 		kvm_info__zput(he->kvm_info);
