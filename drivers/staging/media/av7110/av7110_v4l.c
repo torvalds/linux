@@ -175,7 +175,7 @@ static int ves1820_set_tv_freq(struct saa7146_dev *dev, u32 freq)
 
 static int stv0297_set_tv_freq(struct saa7146_dev *dev, u32 freq)
 {
-	struct av7110 *av7110 = (struct av7110*)dev->ext_priv;
+	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 	u32 div;
 	u8 data[4];
 
@@ -215,7 +215,7 @@ static const struct v4l2_audio msp3400_v4l2_audio = {
 
 static int av7110_dvb_c_switch(struct saa7146_dev *dev)
 {
-	struct av7110 *av7110 = (struct av7110*)dev->ext_priv;
+	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 	u16 adswitch;
 	int source, sync;
 
@@ -610,7 +610,7 @@ static int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh,
 static ssize_t av7110_vbi_write(struct file *file, const char __user *data, size_t count, loff_t *ppos)
 {
 	struct saa7146_dev *dev = video_drvdata(file);
-	struct av7110 *av7110 = (struct av7110*) dev->ext_priv;
+	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 	struct v4l2_sliced_vbi_data d;
 	int rc;
 
@@ -795,7 +795,7 @@ int av7110_init_analog_module(struct av7110 *av7110)
 
 int av7110_init_v4l(struct av7110 *av7110)
 {
-	struct saa7146_dev* dev = av7110->dev;
+	struct saa7146_dev *dev = av7110->dev;
 	struct saa7146_ext_vv *vv_data;
 	int ret;
 
@@ -853,7 +853,7 @@ int av7110_init_v4l(struct av7110 *av7110)
 
 int av7110_exit_v4l(struct av7110 *av7110)
 {
-	struct saa7146_dev* dev = av7110->dev;
+	struct saa7146_dev *dev = av7110->dev;
 
 	saa7146_unregister_device(&av7110->v4l_dev, av7110->dev);
 	saa7146_unregister_device(&av7110->vbi_dev, av7110->dev);
@@ -909,9 +909,9 @@ static struct saa7146_standard dvb_standard[] = {
 	}
 };
 
-static int std_callback(struct saa7146_dev* dev, struct saa7146_standard *std)
+static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *std)
 {
-	struct av7110 *av7110 = (struct av7110*) dev->ext_priv;
+	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	if (std->id & V4L2_STD_PAL) {
 		av7110->vidmode = AV7110_VIDEO_MODE_PAL;

@@ -260,19 +260,19 @@ struct av7110 {
 	unsigned char *bin_root;
 	unsigned long size_root;
 
-	struct dvb_frontend* fe;
+	struct dvb_frontend *fe;
 	enum fe_status fe_status;
 
 	struct mutex ioctl_mutex;
 
 	/* crash recovery */
-	void				(*recover)(struct av7110* av7110);
+	void				(*recover)(struct av7110 *av7110);
 	enum fe_sec_voltage		saved_voltage;
 	enum fe_sec_tone_mode		saved_tone;
 	struct dvb_diseqc_master_cmd	saved_master_cmd;
 	enum fe_sec_mini_cmd		saved_minicmd;
 
-	int (*fe_init)(struct dvb_frontend* fe);
+	int (*fe_init)(struct dvb_frontend *fe);
 	int (*fe_read_status)(struct dvb_frontend *fe, enum fe_status *status);
 	int (*fe_diseqc_reset_overload)(struct dvb_frontend *fe);
 	int (*fe_diseqc_send_master_cmd)(struct dvb_frontend *fe,

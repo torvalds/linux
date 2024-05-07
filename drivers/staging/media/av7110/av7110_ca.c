@@ -294,7 +294,7 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 
 	case CA_SET_DESCR:
 	{
-		struct ca_descr *descr = (struct ca_descr*) parg;
+		struct ca_descr *descr = (struct ca_descr *)parg;
 
 		if (descr->index >= 16 || descr->parity > 1) {
 			mutex_unlock(&av7110->ioctl_mutex);
@@ -369,12 +369,12 @@ void av7110_ca_unregister(struct av7110 *av7110)
 	dvb_unregister_device(av7110->ca_dev);
 }
 
-int av7110_ca_init(struct av7110* av7110)
+int av7110_ca_init(struct av7110 *av7110)
 {
 	return ci_ll_init(&av7110->ci_rbuffer, &av7110->ci_wbuffer, 8192);
 }
 
-void av7110_ca_exit(struct av7110* av7110)
+void av7110_ca_exit(struct av7110 *av7110)
 {
 	ci_ll_release(&av7110->ci_rbuffer, &av7110->ci_wbuffer);
 }

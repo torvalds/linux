@@ -318,7 +318,7 @@ int av7110_wait_msgstate(struct av7110 *av7110, u16 flags)
 	return 0;
 }
 
-static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
+static int __av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 {
 	int i;
 	unsigned long start;
@@ -453,7 +453,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 	return 0;
 }
 
-static int av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
+static int av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 {
 	int ret;
 
@@ -606,7 +606,7 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 	return 0;
 }
 
-static int av7110_fw_query(struct av7110 *av7110, u16 tag, u16* buf, s16 length)
+static int av7110_fw_query(struct av7110 *av7110, u16 tag, u16 *buf, s16 length)
 {
 	int ret;
 	ret = av7110_fw_request(av7110, &tag, 0, buf, length);
@@ -851,7 +851,7 @@ static inline int WaitUntilBmpLoaded(struct av7110 *av7110)
 }
 
 static inline int LoadBitmap(struct av7110 *av7110,
-			     u16 dx, u16 dy, int inc, u8 __user * data)
+			     u16 dx, u16 dy, int inc, u8 __user *data)
 {
 	u16 format;
 	int bpp;
@@ -960,7 +960,7 @@ static int OSDSetColor(struct av7110 *av7110, u8 color, u8 r, u8 g, u8 b, u8 ble
 	return ret;
 }
 
-static int OSDSetPalette(struct av7110 *av7110, u32 __user * colors, u8 first, u8 last)
+static int OSDSetPalette(struct av7110 *av7110, u32 __user *colors, u8 first, u8 last)
 {
 	int i;
 	int length = last - first + 1;
@@ -986,7 +986,7 @@ static int OSDSetPalette(struct av7110 *av7110, u32 __user * colors, u8 first, u
 }
 
 static int OSDSetBlock(struct av7110 *av7110, int x0, int y0,
-		       int x1, int y1, int inc, u8 __user * data)
+		       int x1, int y1, int inc, u8 __user *data)
 {
 	uint w, h, bpp, bpl, size, lpb, bnum, brest;
 	int i;
