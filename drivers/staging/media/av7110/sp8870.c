@@ -11,6 +11,12 @@
  * download/extract it, and then copy it to /usr/lib/hotplug/firmware
  * or /lib/firmware (depending on configuration of firmware hotplug).
  */
+
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define SP8870_DEFAULT_FIRMWARE "dvb-fe-sp8870.fw"
 
 #include <linux/init.h>
@@ -36,9 +42,10 @@ struct sp8870_state {
 };
 
 static int debug;
-#define dprintk(args...) \
+#define dprintk(fmt, arg...) \
 	do { \
-		if (debug) printk(KERN_DEBUG "sp8870: " args); \
+		if (debug) \
+			pr_info("%s(): " fmt, __func__, ##arg); \
 	} while (0)
 
 /* firmware size for sp8870 */
@@ -61,7 +68,7 @@ static int sp8870_writereg(struct sp8870_state *state, u16 reg, u16 data)
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		dprintk ("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n", __func__, err, reg, data);
+		dprintk("writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n", err, reg, data);
 		return -EREMOTEIO;
 	}
 
@@ -81,7 +88,7 @@ static int sp8870_readreg(struct sp8870_state *state, u16 reg)
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2) {
-		dprintk("%s: readreg error (ret == %i)\n", __func__, ret);
+		dprintk("readreg error (ret == %i)\n", ret);
 		return -1;
 	}
 
@@ -97,7 +104,7 @@ static int sp8870_firmware_upload(struct sp8870_state *state, const struct firmw
 	int tx_len;
 	int err = 0;
 
-	dprintk ("%s: ...\n", __func__);
+	dprintk("start firmware upload...\n");
 
 	if (fw->size < SP8870_FIRMWARE_SIZE + SP8870_FIRMWARE_OFFSET)
 		return -EINVAL;
@@ -126,14 +133,14 @@ static int sp8870_firmware_upload(struct sp8870_state *state, const struct firmw
 		msg.len = tx_len + 2;
 		err = i2c_transfer(state->i2c, &msg, 1);
 		if (err != 1) {
-			printk("%s: firmware upload failed!\n", __func__);
-			printk ("%s: i2c error (err == %i)\n", __func__, err);
+			pr_err("%s(): firmware upload failed!\n", __func__);
+			pr_err("%s(): i2c error (err == %i)\n", __func__, err);
 			return err;
 		}
 		fw_pos += tx_len;
 	}
 
-	dprintk ("%s: done!\n", __func__);
+	dprintk("firmware upload successful!\n");
 	return 0;
 };
 
@@ -310,22 +317,22 @@ static int sp8870_init(struct dvb_frontend *fe)
 		return 0;
 	state->initialised = 1;
 
-	dprintk ("%s\n", __func__);
+	dprintk("initialising frontend...\n");
 
 	/* request the firmware, this will block until someone uploads it */
-	printk("sp8870: waiting for firmware upload (%s)...\n", SP8870_DEFAULT_FIRMWARE);
+	pr_info("waiting for firmware upload (%s)...\n", SP8870_DEFAULT_FIRMWARE);
 	if (state->config->request_firmware(fe, &fw, SP8870_DEFAULT_FIRMWARE)) {
-		printk("sp8870: no firmware upload (timeout or file not found?)\n");
+		pr_err("no firmware upload (timeout or file not found?)\n");
 		return -EIO;
 	}
 
 	if (sp8870_firmware_upload(state, fw)) {
-		printk("sp8870: writing firmware to device failed\n");
+		pr_err("writing firmware to device failed\n");
 		release_firmware(fw);
 		return -EIO;
 	}
 	release_firmware(fw);
-	printk("sp8870: firmware upload complete\n");
+	pr_info("firmware upload complete\n");
 
 	/* enable TS output and interface pins */
 	sp8870_writereg(state, 0xc18, 0x00d);
@@ -475,7 +482,7 @@ static int sp8870_set_frontend(struct dvb_frontend *fe)
 	int trials = 0;
 	int check_count = 0;
 
-	dprintk("%s: frequency = %i\n", __func__, p->frequency);
+	dprintk("frequency = %i\n", p->frequency);
 
 	for (trials = 1; trials <= MAXTRIALS; trials++) {
 		err = sp8870_set_frontend_parameters(fe);
@@ -486,8 +493,7 @@ static int sp8870_set_frontend(struct dvb_frontend *fe)
 //			valid = ((sp8870_readreg(i2c, 0x0200) & 4) == 0);
 			valid = sp8870_read_data_valid_signal(state);
 			if (valid) {
-				dprintk("%s: delay = %i usec\n",
-					__func__, check_count * 10);
+				dprintk("delay = %i usec\n", check_count * 10);
 				break;
 			}
 			udelay(10);
@@ -497,20 +503,20 @@ static int sp8870_set_frontend(struct dvb_frontend *fe)
 	}
 
 	if (!valid) {
-		printk("%s: firmware crash!!!!!!\n", __func__);
+		pr_err("%s(): firmware crash!!!!!!\n", __func__);
 		return -EIO;
 	}
 
 	if (debug) {
 		if (valid) {
 			if (trials > 1) {
-				printk("%s: firmware lockup!!!\n", __func__);
-				printk("%s: recovered after %i trial(s))\n",  __func__, trials - 1);
+				pr_info("%s(): firmware lockup!!!\n", __func__);
+				pr_info("%s(): recovered after %i trial(s))\n",  __func__, trials - 1);
 				lockups++;
 			}
 		}
 		switches++;
-		printk("%s: switches = %i lockups = %i\n", __func__, switches, lockups);
+		pr_info("%s(): switches = %i lockups = %i\n", __func__, switches, lockups);
 	}
 
 	return 0;
