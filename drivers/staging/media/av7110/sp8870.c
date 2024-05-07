@@ -59,7 +59,8 @@ static int sp8870_writereg(struct sp8870_state *state, u16 reg, u16 data)
 
 	int err;
 
-	if ((err = i2c_transfer (state->i2c, &msg, 1)) != 1) {
+	err = i2c_transfer(state->i2c, &msg, 1);
+	if (err != 1) {
 		dprintk ("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n", __func__, err, reg, data);
 		return -EREMOTEIO;
 	}
@@ -123,7 +124,8 @@ static int sp8870_firmware_upload(struct sp8870_state *state, const struct firmw
 		msg.flags = 0;
 		msg.buf = tx_buf;
 		msg.len = tx_len + 2;
-		if ((err = i2c_transfer (state->i2c, &msg, 1)) != 1) {
+		err = i2c_transfer(state->i2c, &msg, 1);
+		if (err != 1) {
 			printk("%s: firmware upload failed!\n", __func__);
 			printk ("%s: i2c error (err == %i)\n", __func__, err);
 			return err;
@@ -245,7 +247,8 @@ static int sp8870_set_frontend_parameters(struct dvb_frontend *fe)
 	int  err;
 	u16 reg0xc05;
 
-	if ((err = configure_reg0xc05(p, &reg0xc05)))
+	err = configure_reg0xc05(p, &reg0xc05);
+	if (err)
 		return err;
 
 	// system controller stop
@@ -533,11 +536,10 @@ static int sp8870_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct sp8870_state *state = fe->demodulator_priv;
 
-	if (enable) {
+	if (enable)
 		return sp8870_writereg(state, 0x206, 0x001);
-	} else {
+	else
 		return sp8870_writereg(state, 0x206, 0x000);
-	}
 }
 
 static void sp8870_release(struct dvb_frontend *fe)
@@ -555,8 +557,9 @@ struct dvb_frontend *sp8870_attach(const struct sp8870_config *config,
 	struct sp8870_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct sp8870_state), GFP_KERNEL);
-	if (state == NULL) goto error;
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		goto error;
 
 	/* setup the state */
 	state->config = config;
@@ -568,7 +571,7 @@ struct dvb_frontend *sp8870_attach(const struct sp8870_config *config,
 		goto error;
 
 	/* create dvb_frontend */
-	memcpy(&state->frontend.ops, &sp8870_ops, sizeof(struct dvb_frontend_ops));
+	memcpy(&state->frontend.ops, &sp8870_ops, sizeof(sp8870_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
@@ -576,6 +579,7 @@ error:
 	kfree(state);
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(sp8870_attach);
 
 static const struct dvb_frontend_ops sp8870_ops = {
 	.delsys = { SYS_DVBT },
@@ -613,5 +617,3 @@ MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 MODULE_DESCRIPTION("Spase SP8870 DVB-T Demodulator driver");
 MODULE_AUTHOR("Juergen Peitz");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL_GPL(sp8870_attach);

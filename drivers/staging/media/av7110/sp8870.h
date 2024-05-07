@@ -20,8 +20,7 @@ struct sp8870_config {
 };
 
 #if IS_REACHABLE(CONFIG_DVB_SP8870)
-extern struct dvb_frontend* sp8870_attach(const struct sp8870_config* config,
-					  struct i2c_adapter* i2c);
+struct dvb_frontend *sp8870_attach(const struct sp8870_config *config, struct i2c_adapter *i2c);
 #else
 static inline struct dvb_frontend *sp8870_attach(const struct sp8870_config *config,
 						 struct i2c_adapter *i2c)
