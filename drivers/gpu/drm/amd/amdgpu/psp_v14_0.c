@@ -149,7 +149,7 @@ static int psp_v14_0_bootloader_load_kdb(struct psp_context *psp)
 
 static int psp_v14_0_bootloader_load_spl(struct psp_context *psp)
 {
-	return psp_v14_0_bootloader_load_component(psp, &psp->kdb, PSP_BL__LOAD_TOS_SPL_TABLE);
+	return psp_v14_0_bootloader_load_component(psp, &psp->spl, PSP_BL__LOAD_TOS_SPL_TABLE);
 }
 
 static int psp_v14_0_bootloader_load_sysdrv(struct psp_context *psp)
