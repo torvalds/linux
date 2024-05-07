@@ -1054,8 +1054,6 @@ static gchar **fill_row(struct menu *menu)
 		struct symbol *def_sym = sym_get_choice_value(sym);
 		struct menu *def_menu = NULL;
 
-		row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
-
 		for (child = menu->list; child; child = child->next) {
 			if (menu_is_visible(child)
 			    && child->sym == def_sym)
@@ -1065,6 +1063,11 @@ static gchar **fill_row(struct menu *menu)
 		if (def_menu)
 			row[COL_VALUE] =
 			    g_strdup(menu_get_prompt(def_menu));
+
+		if (sym_get_type(sym) == S_BOOLEAN) {
+			row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
+			return row;
+		}
 	}
 	if (sym->flags & SYMBOL_CHOICEVAL)
 		row[COL_BTNRAD] = GINT_TO_POINTER(TRUE);
@@ -1072,11 +1075,6 @@ static gchar **fill_row(struct menu *menu)
 	stype = sym_get_type(sym);
 	switch (stype) {
 	case S_BOOLEAN:
-		if (GPOINTER_TO_INT(row[COL_PIXVIS]) == FALSE)
-			row[COL_BTNVIS] = GINT_TO_POINTER(TRUE);
-		if (sym_is_choice(sym))
-			break;
-		/* fall through */
 	case S_TRISTATE:
 		val = sym_get_tristate_value(sym);
 		switch (val) {
