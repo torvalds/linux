@@ -28,7 +28,6 @@ struct delay_class {
 
 struct delay_c {
 	struct timer_list delay_timer;
-	struct mutex timer_lock;
 	struct mutex process_bios_lock; /* hold while removing bios to be processed from list */
 	spinlock_t delayed_bios_lock; /* hold on all accesses to delayed_bios list */
 	struct workqueue_struct *kdelayd_wq;
@@ -60,12 +59,7 @@ static void handle_delayed_timer(struct timer_list *t)
 
 static void queue_timeout(struct delay_c *dc, unsigned long expires)
 {
-	mutex_lock(&dc->timer_lock);
-
-	if (!timer_pending(&dc->delay_timer) || expires < dc->delay_timer.expires)
-		mod_timer(&dc->delay_timer, expires);
-
-	mutex_unlock(&dc->timer_lock);
+	timer_reduce(&dc->delay_timer, expires);
 }
 
 static inline bool delay_is_fast(struct delay_c *dc)
@@ -176,7 +170,6 @@ static void delay_dtr(struct dm_target *ti)
 		kthread_stop(dc->worker);
 
 	mutex_destroy(&dc->process_bios_lock);
-	mutex_destroy(&dc->timer_lock);
 
 	kfree(dc);
 }
@@ -234,7 +227,6 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->private = dc;
 	INIT_LIST_HEAD(&dc->delayed_bios);
-	mutex_init(&dc->timer_lock);
 	mutex_init(&dc->process_bios_lock);
 	spin_lock_init(&dc->delayed_bios_lock);
 	dc->may_delay = true;
