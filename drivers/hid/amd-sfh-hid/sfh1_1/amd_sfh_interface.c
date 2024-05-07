@@ -97,7 +97,7 @@ static int amd_sfh_hpd_info(u8 *user_present)
 	if (!emp2 || !emp2->dev_en.is_hpd_present)
 		return -ENODEV;
 
-	hpdstatus.val = readl(emp2->mmio + AMD_C2P_MSG(4));
+	hpdstatus.val = readl(emp2->mmio + amd_get_c2p_val(emp2, 4));
 	*user_present = hpdstatus.shpd.presence;
 
 	return 0;
