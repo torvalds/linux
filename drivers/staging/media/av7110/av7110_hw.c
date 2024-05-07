@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * av7110_hw.c: av7110 low level hardware access and firmware interface
+ * driver for the SAA7146 based AV110 cards
+ * - av7110 low level hardware access and firmware interface
  *
  * Copyright (C) 1999-2002 Ralph  Metzler
  *                       & Marcus Metzler for convergence integrated media GmbH
@@ -38,7 +39,8 @@
  ****************************************************************************/
 
 /* This DEBI code is based on the Stradis driver
-   by Nathan Laredo <laredo@gnu.org> */
+ * by Nathan Laredo <laredo@gnu.org>
+ */
 
 int av7110_debiwrite(struct av7110 *av7110, u32 config,
 		     int addr, u32 val, unsigned int count)
@@ -187,7 +189,8 @@ static int load_dram(struct av7110 *av7110, u32 *data, int len)
 }
 
 /* we cannot write av7110 DRAM directly, so load a bootloader into
- * the DPRAM which implements a simple boot protocol */
+ * the DPRAM which implements a simple boot protocol
+ */
 int av7110_bootarm(struct av7110 *av7110)
 {
 	const struct firmware *fw;

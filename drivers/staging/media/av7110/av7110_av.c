@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * av7110_av.c: audio and video MPEG decoder stuff
+ * driver for the SAA7146 based AV110 cards
+ * - audio and video MPEG decoder stuff
  *
  * Copyright (C) 1999-2002 Ralph  Metzler
  *                       & Marcus Metzler for convergence integrated media GmbH
@@ -1060,7 +1061,8 @@ static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len
 	}
 
 	/* setting n always > 1, fixes problems when playing stillframes
-	   consisting of I- and P-Frames */
+	 * consisting of I- and P-Frames
+	 */
 	n = MIN_IFRAME / len + 1;
 
 	/* FIXME: nonblock? */

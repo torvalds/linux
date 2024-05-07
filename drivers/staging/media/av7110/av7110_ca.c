@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * av7110_ca.c: CA and CI stuff
+ * driver for the SAA7146 based AV110 cards
+ * - CA and CI stuff
  *
  * Copyright (C) 1999-2002 Ralph  Metzler
  *                       & Marcus Metzler for convergence integrated media GmbH

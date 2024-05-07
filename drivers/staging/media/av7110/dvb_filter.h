@@ -1,6 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * dvb_filter.h
- *
  * Copyright (C) 2003 Convergence GmbH
  *
  * This program is free software; you can redistribute it and/or
@@ -184,10 +183,11 @@ struct mpg_picture {
 	s8        matrix_change_flag;
 
 	u8        picture_header_parameter;
-  /* bit 0 - 2: bwd f code
-     bit 3    : fpb vector
-     bit 4 - 6: fwd f code
-     bit 7    : fpf vector */
+	/* bit 0 - 2: bwd f code
+	 * bit 3    : fpb vector
+	 * bit 4 - 6: fwd f code
+	 * bit 7    : fpf vector
+	 */
 
 	int       mpeg1_flag;
 	int       progressive_sequence;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * driver for the SAA7146 based AV110 cards (like the Fujitsu-Siemens DVB)
- * av7110.c: initialization and demux stuff
+ * - initialization and demux stuff
  *
  * Copyright (C) 1999-2002 Ralph  Metzler
  *                       & Marcus Metzler for convergence integrated media GmbH
@@ -2444,7 +2444,8 @@ static int av7110_attach(struct saa7146_dev *dev,
 		goto err_put_firmware_1;
 
 	/* the Siemens DVB needs this if you want to have the i2c chips
-	   get recognized before the main driver is fully loaded */
+	 * get recognized before the main driver is fully loaded
+	 */
 	saa7146_write(dev, GPIO_CTRL, 0x500000);
 
 	strscpy(av7110->i2c_adap.name, pci_ext->ext_priv,
@@ -2671,8 +2672,9 @@ static int av7110_attach(struct saa7146_dev *dev,
 	init_av7110_av(av7110);
 
 	/* special case DVB-C: these cards have an analog tuner
-	   plus need some special handling, so we have separate
-	   saa7146_ext_vv data for these... */
+	 * plus need some special handling, so we have separate
+	 * saa7146_ext_vv data for these...
+	 */
 	ret = av7110_init_v4l(av7110);
 	if (ret < 0)
 		goto err_av7110_unregister_11;
@@ -2853,8 +2855,8 @@ static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(tts_2_3,     0x13c2, 0x000e),
 	MAKE_EXTENSION_PCI(tts_1_3se,   0x13c2, 0x1002),
 
-/*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0005), UNDEFINED CARD */ // Technisat SkyStar1
-/*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0009), UNDEFINED CARD */ // TT/Hauppauge WinTV Nexus-CA v????
+//	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0005), UNDEFINED CARD  // Technisat SkyStar1
+//	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0009), UNDEFINED CARD  // TT/Hauppauge WinTV Nexus-CA v???
 
 	{
 		.vendor    = 0,

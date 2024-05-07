@@ -250,7 +250,8 @@ enum av7110_command_type {
 #define DATA_TS_PLAY		 0x13
 
 /* ancient CI command codes, only two are actually still used
- * by the link level CI firmware */
+ * by the link level CI firmware
+ */
 #define CI_CMD_ERROR		 0x00
 #define CI_CMD_ACK		 0x01
 #define CI_CMD_SYSTEM_READY	 0x02
@@ -286,7 +287,8 @@ enum av7110_command_type {
 
 /* base address of the dual ported RAM which serves as communication
  * area between PCI bus and av7110,
- * as seen by the DEBI bus of the saa7146 */
+ * as seen by the DEBI bus of the saa7146
+ */
 #define	DPRAM_BASE 0x4000
 
 /* boot protocol area */

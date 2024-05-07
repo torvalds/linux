@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * av7110_v4l.c: av7110 video4linux interface for DVB and Siemens DVB-C analog module
+ * driver for the SAA7146 based AV110 cards
+ * - video4linux interface for DVB and Siemens DVB-C analog module
  *
  * Copyright (C) 1999-2002 Ralph  Metzler
  *                       & Marcus Metzler for convergence integrated media GmbH
@@ -153,7 +154,8 @@ static int ves1820_set_tv_freq(struct saa7146_dev *dev, u32 freq)
 	dprintk(4, "freq: 0x%08x\n", freq);
 
 	/* magic number: 614. tuning with the frequency given by v4l2
-	   is always off by 614*62.5 = 38375 kHz...*/
+	 * is always off by 614*62.5 = 38375 kHz...
+	 */
 	div = freq + 614;
 
 	buf[0] = (div >> 8) & 0x7f;
@@ -801,8 +803,9 @@ int av7110_init_v4l(struct av7110 *av7110)
 	int ret;
 
 	/* special case DVB-C: these cards have an analog tuner
-	   plus need some special handling, so we have separate
-	   saa7146_ext_vv data for these... */
+	 * plus need some special handling, so we have separate
+	 * saa7146_ext_vv data for these...
+	 */
 	if (av7110->analog_tuner_flags)
 		vv_data = &av7110_vv_data_c;
 	else
@@ -865,7 +868,8 @@ int av7110_exit_v4l(struct av7110 *av7110)
 }
 
 /* FIXME: these values are experimental values that look better than the
-   values from the latest "official" driver -- at least for me... (MiHu) */
+ * values from the latest "official" driver -- at least for me... (MiHu)
+ */
 static struct saa7146_standard standard[] = {
 	{
 		.name	= "PAL",	.id		= V4L2_STD_PAL_BG,
