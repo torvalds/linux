@@ -124,11 +124,6 @@ static void maps__set_maps_by_address(struct maps *maps, struct map **new)
 
 }
 
-static struct map ***maps__maps_by_name_addr(struct maps *maps)
-{
-	return &RC_CHK_ACCESS(maps)->maps_by_name;
-}
-
 static void maps__set_nr_maps_allocated(struct maps *maps, unsigned int nr_maps_allocated)
 {
 	RC_CHK_ACCESS(maps)->nr_maps_allocated = nr_maps_allocated;
@@ -284,6 +279,9 @@ void maps__put(struct maps *maps)
 
 static void __maps__free_maps_by_name(struct maps *maps)
 {
+	if (!maps__maps_by_name(maps))
+		return;
+
 	/*
 	 * Free everything to try to do it from the rbtree in the next search
 	 */
@@ -291,6 +289,9 @@ static void __maps__free_maps_by_name(struct maps *maps)
 		map__put(maps__maps_by_name(maps)[i]);
 
 	zfree(&RC_CHK_ACCESS(maps)->maps_by_name);
+
+	/* Consistent with maps__init(). When maps_by_name == NULL, maps_by_name_sorted == false */
+	maps__set_maps_by_name_sorted(maps, false);
 }
 
 static int map__start_cmp(const void *a, const void *b)
@@ -1167,8 +1168,7 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 	}
 	maps__set_maps_by_address(kmaps, merged_maps_by_address);
 	maps__set_maps_by_address_sorted(kmaps, true);
-	zfree(maps__maps_by_name_addr(kmaps));
-	maps__set_maps_by_name_sorted(kmaps, true);
+	__maps__free_maps_by_name(kmaps);
 	maps__set_nr_maps_allocated(kmaps, merged_nr_maps_allocated);
 
 	/* Copy entries before the new_map that can't overlap. */
