@@ -5507,22 +5507,15 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	if (!btrfs_buffer_uptodate(next, generation, 0)) {
 		btrfs_tree_unlock(next);
-		free_extent_buffer(next);
-		next = NULL;
-		*lookup_info = 1;
-	}
-
-	if (!next) {
 		if (level == 1)
 			reada_walk_down(trans, root, wc, path);
-		next = read_tree_block(fs_info, bytenr, &check);
-		if (IS_ERR(next)) {
-			return PTR_ERR(next);
-		} else if (!extent_buffer_uptodate(next)) {
+		ret = btrfs_read_extent_buffer(next, &check);
+		if (ret) {
 			free_extent_buffer(next);
-			return -EIO;
+			return ret;
 		}
 		btrfs_tree_lock(next);
+		*lookup_info = 1;
 	}
 
 	level--;
