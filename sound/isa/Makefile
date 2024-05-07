@@ -4,15 +4,15 @@
 # Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
-snd-adlib-objs := adlib.o
-snd-als100-objs := als100.o
-snd-azt2320-objs := azt2320.o
-snd-cmi8328-objs := cmi8328.o
-snd-cmi8330-objs := cmi8330.o
-snd-es18xx-objs := es18xx.o
-snd-opl3sa2-objs := opl3sa2.o
-snd-sc6000-objs := sc6000.o
-snd-sscape-objs := sscape.o
+snd-adlib-y := adlib.o
+snd-als100-y := als100.o
+snd-azt2320-y := azt2320.o
+snd-cmi8328-y := cmi8328.o
+snd-cmi8330-y := cmi8330.o
+snd-es18xx-y := es18xx.o
+snd-opl3sa2-y := opl3sa2.o
+snd-sc6000-y := sc6000.o
+snd-sscape-y := sscape.o
 
 # Toplevel Module Dependency
 obj-$(CONFIG_SND_ADLIB) += snd-adlib.o
