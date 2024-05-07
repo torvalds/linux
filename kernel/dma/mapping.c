@@ -329,6 +329,7 @@ void dma_unmap_resource(struct device *dev, dma_addr_t addr, size_t size,
 }
 EXPORT_SYMBOL(dma_unmap_resource);
 
+#ifdef CONFIG_DMA_NEED_SYNC
 void dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr, size_t size,
 		enum dma_data_direction dir)
 {
@@ -384,6 +385,17 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 	debug_dma_sync_sg_for_device(dev, sg, nelems, dir);
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
+
+bool dma_need_sync(struct device *dev, dma_addr_t dma_addr)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (dma_map_direct(dev, ops))
+		return dma_direct_need_sync(dev, dma_addr);
+	return ops->sync_single_for_cpu || ops->sync_single_for_device;
+}
+EXPORT_SYMBOL_GPL(dma_need_sync);
+#endif /* CONFIG_DMA_NEED_SYNC */
 
 /*
  * The whole dma_get_sgtable() idea is fundamentally unsafe - it seems
@@ -840,16 +852,6 @@ size_t dma_opt_mapping_size(struct device *dev)
 	return min(dma_max_mapping_size(dev), size);
 }
 EXPORT_SYMBOL_GPL(dma_opt_mapping_size);
-
-bool dma_need_sync(struct device *dev, dma_addr_t dma_addr)
-{
-	const struct dma_map_ops *ops = get_dma_ops(dev);
-
-	if (dma_map_direct(dev, ops))
-		return dma_direct_need_sync(dev, dma_addr);
-	return ops->sync_single_for_cpu || ops->sync_single_for_device;
-}
-EXPORT_SYMBOL_GPL(dma_need_sync);
 
 unsigned long dma_get_merge_boundary(struct device *dev)
 {
