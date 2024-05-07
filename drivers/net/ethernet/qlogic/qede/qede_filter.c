@@ -1725,6 +1725,7 @@ qede_flow_parse_v6_common(struct qede_dev *edev, struct flow_rule *rule,
 			  struct qede_arfs_tuple *t)
 {
 	struct in6_addr zero_addr, addr;
+	int err;
 
 	memset(&zero_addr, 0, sizeof(addr));
 	memset(&addr, 0xff, sizeof(addr));
@@ -1746,8 +1747,9 @@ qede_flow_parse_v6_common(struct qede_dev *edev, struct flow_rule *rule,
 		memcpy(&t->dst_ipv6, &match.key->dst, sizeof(addr));
 	}
 
-	if (qede_flow_parse_ports(edev, rule, t))
-		return -EINVAL;
+	err = qede_flow_parse_ports(edev, rule, t);
+	if (err)
+		return err;
 
 	return qede_set_v6_tuple_to_profile(edev, t, &zero_addr);
 }
@@ -1756,6 +1758,8 @@ static int
 qede_flow_parse_v4_common(struct qede_dev *edev, struct flow_rule *rule,
 			struct qede_arfs_tuple *t)
 {
+	int err;
+
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
 		struct flow_match_ipv4_addrs match;
 
@@ -1770,8 +1774,9 @@ qede_flow_parse_v4_common(struct qede_dev *edev, struct flow_rule *rule,
 		t->dst_ipv4 = match.key->dst;
 	}
 
-	if (qede_flow_parse_ports(edev, rule, t))
-		return -EINVAL;
+	err = qede_flow_parse_ports(edev, rule, t);
+	if (err)
+		return err;
 
 	return qede_set_v4_tuple_to_profile(edev, t);
 }
@@ -1943,6 +1948,8 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 				   struct qede_arfs_tuple *t,
 				   __u32 location)
 {
+	int err;
+
 	if (location >= QEDE_RFS_MAX_FLTR) {
 		DP_INFO(edev, "Location out-of-bounds\n");
 		return -EINVAL;
@@ -1963,8 +1970,9 @@ static int qede_flow_spec_validate(struct qede_dev *edev,
 		return -EINVAL;
 	}
 
-	if (qede_parse_actions(edev, flow_action, NULL))
-		return -EINVAL;
+	err = qede_parse_actions(edev, flow_action, NULL);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -1976,10 +1984,11 @@ static int qede_flow_spec_to_rule(struct qede_dev *edev,
 	struct ethtool_rx_flow_spec_input input = {};
 	struct ethtool_rx_flow_rule *flow;
 	__be16 proto;
-	int err = 0;
+	int err;
 
-	if (qede_flow_spec_validate_unused(edev, fs))
-		return -EOPNOTSUPP;
+	err = qede_flow_spec_validate_unused(edev, fs);
+	if (err)
+		return err;
 
 	switch ((fs->flow_type & ~FLOW_EXT)) {
 	case TCP_V4_FLOW:
