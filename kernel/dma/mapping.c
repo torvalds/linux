@@ -330,7 +330,7 @@ void dma_unmap_resource(struct device *dev, dma_addr_t addr, size_t size,
 EXPORT_SYMBOL(dma_unmap_resource);
 
 #ifdef CONFIG_DMA_NEED_SYNC
-void dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr, size_t size,
+void __dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr, size_t size,
 		enum dma_data_direction dir)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
@@ -342,9 +342,9 @@ void dma_sync_single_for_cpu(struct device *dev, dma_addr_t addr, size_t size,
 		ops->sync_single_for_cpu(dev, addr, size, dir);
 	debug_dma_sync_single_for_cpu(dev, addr, size, dir);
 }
-EXPORT_SYMBOL(dma_sync_single_for_cpu);
+EXPORT_SYMBOL(__dma_sync_single_for_cpu);
 
-void dma_sync_single_for_device(struct device *dev, dma_addr_t addr,
+void __dma_sync_single_for_device(struct device *dev, dma_addr_t addr,
 		size_t size, enum dma_data_direction dir)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
@@ -356,9 +356,9 @@ void dma_sync_single_for_device(struct device *dev, dma_addr_t addr,
 		ops->sync_single_for_device(dev, addr, size, dir);
 	debug_dma_sync_single_for_device(dev, addr, size, dir);
 }
-EXPORT_SYMBOL(dma_sync_single_for_device);
+EXPORT_SYMBOL(__dma_sync_single_for_device);
 
-void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
+void __dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 		    int nelems, enum dma_data_direction dir)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
@@ -370,9 +370,9 @@ void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 		ops->sync_sg_for_cpu(dev, sg, nelems, dir);
 	debug_dma_sync_sg_for_cpu(dev, sg, nelems, dir);
 }
-EXPORT_SYMBOL(dma_sync_sg_for_cpu);
+EXPORT_SYMBOL(__dma_sync_sg_for_cpu);
 
-void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
+void __dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 		       int nelems, enum dma_data_direction dir)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
@@ -384,18 +384,47 @@ void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 		ops->sync_sg_for_device(dev, sg, nelems, dir);
 	debug_dma_sync_sg_for_device(dev, sg, nelems, dir);
 }
-EXPORT_SYMBOL(dma_sync_sg_for_device);
+EXPORT_SYMBOL(__dma_sync_sg_for_device);
 
-bool dma_need_sync(struct device *dev, dma_addr_t dma_addr)
+bool __dma_need_sync(struct device *dev, dma_addr_t dma_addr)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	if (dma_map_direct(dev, ops))
+		/*
+		 * dma_need_sync could've been reset on first SWIOTLB buffer
+		 * mapping, but @dma_addr is not necessary an SWIOTLB buffer.
+		 * In this case, fall back to more granular check.
+		 */
 		return dma_direct_need_sync(dev, dma_addr);
-	return ops->sync_single_for_cpu || ops->sync_single_for_device;
+	return true;
 }
-EXPORT_SYMBOL_GPL(dma_need_sync);
-#endif /* CONFIG_DMA_NEED_SYNC */
+EXPORT_SYMBOL_GPL(__dma_need_sync);
+
+static void dma_setup_need_sync(struct device *dev)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (dma_map_direct(dev, ops) || (ops->flags & DMA_F_CAN_SKIP_SYNC))
+		/*
+		 * dma_need_sync will be reset to %true on first SWIOTLB buffer
+		 * mapping, if any. During the device initialization, it's
+		 * enough to check only for the DMA coherence.
+		 */
+		dev->dma_need_sync = !dev_is_dma_coherent(dev);
+	else if (!ops->sync_single_for_device && !ops->sync_single_for_cpu &&
+		 !ops->sync_sg_for_device && !ops->sync_sg_for_cpu)
+		/*
+		 * Synchronization is not possible when none of DMA sync ops
+		 * is set.
+		 */
+		dev->dma_need_sync = false;
+	else
+		dev->dma_need_sync = true;
+}
+#else /* !CONFIG_DMA_NEED_SYNC */
+static inline void dma_setup_need_sync(struct device *dev) { }
+#endif /* !CONFIG_DMA_NEED_SYNC */
 
 /*
  * The whole dma_get_sgtable() idea is fundamentally unsafe - it seems
@@ -785,6 +814,8 @@ int dma_set_mask(struct device *dev, u64 mask)
 
 	arch_dma_set_mask(dev, mask);
 	*dev->dma_mask = mask;
+	dma_setup_need_sync(dev);
+
 	return 0;
 }
 EXPORT_SYMBOL(dma_set_mask);
