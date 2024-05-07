@@ -1110,8 +1110,10 @@ int die_get_typename_from_type(Dwarf_Die *type_die, struct strbuf *buf)
 	const char *tmp = "";
 
 	tag = dwarf_tag(type_die);
-	if (tag == DW_TAG_array_type || tag == DW_TAG_pointer_type)
+	if (tag == DW_TAG_pointer_type)
 		tmp = "*";
+	else if (tag == DW_TAG_array_type)
+		tmp = "[]";
 	else if (tag == DW_TAG_subroutine_type) {
 		/* Function pointer */
 		return strbuf_add(buf, "(function_type)", 15);
