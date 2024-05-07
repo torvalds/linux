@@ -54,20 +54,17 @@ unevaluatedProperties: false
 
 examples:
   - |
-    bus {
-      #address-cells = <2>;
-      #size-cells = <2>;
+    #include <dt-bindings/spmi/spmi.h>
 
-      spmi: spmi@fff24000 {
+    spmi@fff24000 {
         compatible = "hisilicon,kirin970-spmi-controller";
+        reg = <0xfff24000 0x1000>;
         #address-cells = <2>;
         #size-cells = <0>;
-        reg = <0x0 0xfff24000 0x0 0x1000>;
         hisilicon,spmi-channel = <2>;
 
         pmic@0 {
-          reg = <0 0>;
-          /* pmic properties */
+            reg = <0 SPMI_USID>;
+            /* pmic properties */
         };
-      };
     };
