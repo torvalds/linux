@@ -104,7 +104,7 @@ static int av7110_num;
 
 #define FE_FUNC_OVERRIDE(fe_func, av7110_copy, av7110_func) \
 {\
-	if (fe_func != NULL) { \
+	if (fe_func) { \
 		av7110_copy = fe_func; \
 		fe_func = av7110_func; \
 	} \
@@ -159,7 +159,7 @@ static void init_av7110_av(struct av7110 *av7110)
 		/**
 		 * some special handling for the Siemens DVB-C cards...
 		 */
-	} else if (0 == av7110_init_analog_module(av7110)) {
+	} else if (av7110_init_analog_module(av7110) == 0) {
 		/* done. */
 	} else if (dev->pci->subsystem_vendor == 0x110a) {
 		printk("dvb-ttpci: DVB-C w/o analog module @ card %d detected\n",
@@ -1386,7 +1386,7 @@ static void dvb_unregister(struct av7110 *av7110)
 	dvb_dmxdev_release(&av7110->dmxdev);
 	dvb_dmx_release(&av7110->demux);
 
-	if (av7110->fe != NULL) {
+	if (av7110->fe) {
 		dvb_unregister_frontend(av7110->fe);
 		dvb_frontend_detach(av7110->fe);
 	}
@@ -1518,7 +1518,7 @@ static int get_firmware(struct av7110 *av7110)
 
 	/* check if the firmware is available */
 	av7110->bin_fw = vmalloc(fw->size);
-	if (NULL == av7110->bin_fw) {
+	if (!av7110->bin_fw) {
 		dprintk(1, "out of memory\n");
 		release_firmware(fw);
 		return -ENOMEM;
@@ -2233,7 +2233,7 @@ static int frontend_init(struct av7110 *av7110)
 				av7110->fe->ops.tuner_ops.set_params = alps_bsbe1_tuner_set_params;
 				av7110->fe->tuner_priv = &av7110->i2c_adap;
 
-				if (dvb_attach(lnbp21_attach, av7110->fe, &av7110->i2c_adap, 0, 0) == NULL) {
+				if (!dvb_attach(lnbp21_attach, av7110->fe, &av7110->i2c_adap, 0, 0)) {
 					printk("dvb-ttpci: LNBP21 not found!\n");
 					if (av7110->fe->ops.release)
 						av7110->fe->ops.release(av7110->fe);

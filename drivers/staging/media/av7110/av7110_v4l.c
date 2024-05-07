@@ -128,7 +128,7 @@ static int ves1820_writereg(struct saa7146_dev *dev, u8 addr, u8 reg, u8 data)
 
 	dprintk(4, "dev: %p\n", dev);
 
-	if (1 != i2c_transfer(&av7110->i2c_adap, &msg, 1))
+	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1)
 		return -1;
 	return 0;
 }
@@ -140,7 +140,7 @@ static int tuner_write(struct saa7146_dev *dev, u8 addr, u8 data[4])
 
 	dprintk(4, "dev: %p\n", dev);
 
-	if (1 != i2c_transfer(&av7110->i2c_adap, &msg, 1))
+	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1)
 		return -1;
 	return 0;
 }
@@ -221,7 +221,7 @@ static int av7110_dvb_c_switch(struct saa7146_dev *dev)
 
 	dprintk(4, "%p\n", av7110);
 
-	if (0 != av7110->current_input) {
+	if (av7110->current_input != 0) {
 		dprintk(1, "switching to analog TV:\n");
 		adswitch = 1;
 		source = SAA7146_HPS_SOURCE_PORT_B;
@@ -409,7 +409,7 @@ static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_fre
 	if (!av7110->analog_tuner_flags || av7110->current_input != 1)
 		return -EINVAL;
 
-	if (V4L2_TUNER_ANALOG_TV != f->type)
+	if (f->type != V4L2_TUNER_ANALOG_TV)
 		return -EINVAL;
 
 	msp_writereg(av7110, MSP_WR_DSP, 0x0000, 0xffe0); /* fast mute */

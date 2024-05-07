@@ -390,7 +390,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 		break;
 	}
 
-	if (type != NULL) {
+	if (type) {
 		/* non-immediate COMMAND type */
 		start = jiffies;
 		for (;;) {
