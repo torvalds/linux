@@ -51,7 +51,7 @@ struct md_rdev {
 
 	sector_t sectors;		/* Device size (in 512bytes sectors) */
 	struct mddev *mddev;		/* RAID array if running */
-	long long last_events;		/* IO event timestamp */
+	int last_events;		/* IO event timestamp */
 
 	/*
 	 * If meta_bdev is non-NULL, it means that a separate device is
@@ -622,7 +622,7 @@ extern void mddev_unlock(struct mddev *mddev);
 static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sectors)
 {
 	if (blk_queue_io_stat(bdev->bd_disk->queue))
-		atomic64_add(nr_sectors, &bdev->bd_disk->sync_io);
+		atomic_add(nr_sectors, &bdev->bd_disk->sync_io);
 }
 
 static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
