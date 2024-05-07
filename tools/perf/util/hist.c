@@ -9,6 +9,7 @@
 #include "map_symbol.h"
 #include "branch.h"
 #include "mem-events.h"
+#include "mem-info.h"
 #include "session.h"
 #include "namespaces.h"
 #include "cgroup.h"

@@ -38,6 +38,7 @@
 #include "ui/browsers/hists.h"
 #include "thread.h"
 #include "mem2node.h"
+#include "mem-info.h"
 #include "symbol.h"
 #include "ui/ui.h"
 #include "ui/progress.h"

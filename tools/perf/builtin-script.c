@@ -32,6 +32,7 @@
 #include "util/time-utils.h"
 #include "util/path.h"
 #include "util/event.h"
+#include "util/mem-info.h"
 #include "ui/ui.h"
 #include "print_binary.h"
 #include "print_insn.h"

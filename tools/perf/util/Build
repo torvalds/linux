@@ -141,6 +141,7 @@ perf-y += term.o
 perf-y += help-unknown-cmd.o
 perf-y += dlfilter.o
 perf-y += mem-events.o
+perf-y += mem-info.o
 perf-y += vsprintf.o
 perf-y += units.o
 perf-y += time-utils.o

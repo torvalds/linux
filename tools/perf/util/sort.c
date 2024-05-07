@@ -23,6 +23,7 @@
 #include "strlist.h"
 #include "strbuf.h"
 #include "mem-events.h"
+#include "mem-info.h"
 #include "annotate.h"
 #include "annotate-data.h"
 #include "event.h"

@@ -10,7 +10,9 @@
 #include <linux/kernel.h>
 #include "map_symbol.h"
 #include "mem-events.h"
+#include "mem-info.h"
 #include "debug.h"
+#include "evsel.h"
 #include "symbol.h"
 #include "pmu.h"
 #include "pmus.h"
@@ -281,7 +283,7 @@ static const char * const tlb_access[] = {
 	"Fault",
 };
 
-int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__tlb_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	size_t l = 0, i;
 	u64 m = PERF_MEM_TLB_NA;
@@ -359,7 +361,7 @@ static const char * const mem_hops[] = {
 	"board",
 };
 
-static int perf_mem__op_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+static int perf_mem__op_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	u64 op = PERF_MEM_LOCK_NA;
 	int l;
@@ -383,7 +385,7 @@ static int perf_mem__op_scnprintf(char *out, size_t sz, struct mem_info *mem_inf
 	return l;
 }
 
-int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__lvl_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	union perf_mem_data_src data_src;
 	int printed = 0;
@@ -465,7 +467,7 @@ static const char * const snoopx_access[] = {
 	"Peer",
 };
 
-int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__snp_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	size_t i, l = 0;
 	u64 m = PERF_MEM_SNOOP_NA;
@@ -507,7 +509,7 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
-int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__lck_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	u64 mask = PERF_MEM_LOCK_NA;
 	int l;
@@ -525,7 +527,7 @@ int perf_mem__lck_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
-int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_mem__blk_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	size_t l = 0;
 	u64 mask = PERF_MEM_BLK_NA;
@@ -548,7 +550,7 @@ int perf_mem__blk_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 	return l;
 }
 
-int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+int perf_script__meminfo_scnprintf(char *out, size_t sz, const struct mem_info *mem_info)
 {
 	int i = 0;
 

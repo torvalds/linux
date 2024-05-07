@@ -45,6 +45,7 @@
 #include "../thread.h"
 #include "../comm.h"
 #include "../machine.h"
+#include "../mem-info.h"
 #include "../db-export.h"
 #include "../thread-stack.h"
 #include "../trace-event.h"
