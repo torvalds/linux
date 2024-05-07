@@ -5417,11 +5417,20 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 	if (!(wc->flags[level] & flag)) {
 		BUG_ON(!path->locks[level]);
 		ret = btrfs_inc_ref(trans, root, eb, 1);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			return ret;
+		}
 		ret = btrfs_dec_ref(trans, root, eb, 0);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			return ret;
+		}
 		ret = btrfs_set_disk_extent_flags(trans, eb, flag);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			return ret;
+		}
 		wc->flags[level] |= flag;
 	}
 
