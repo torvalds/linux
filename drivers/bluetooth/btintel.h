@@ -234,6 +234,16 @@ void btintel_bootup(struct hci_dev *hdev, const void *ptr, unsigned int len);
 void btintel_secure_send_result(struct hci_dev *hdev,
 				const void *ptr, unsigned int len);
 int btintel_set_quality_report(struct hci_dev *hdev, bool enable);
+int btintel_version_info_tlv(struct hci_dev *hdev,
+			     struct intel_version_tlv *version);
+int btintel_parse_version_tlv(struct hci_dev *hdev,
+			      struct intel_version_tlv *version,
+			      struct sk_buff *skb);
+void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant);
+int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
+				 struct intel_version_tlv *ver);
+int btintel_shutdown_combined(struct hci_dev *hdev);
+void btintel_hw_error(struct hci_dev *hdev, u8 code);
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
@@ -329,5 +339,38 @@ static inline void btintel_secure_send_result(struct hci_dev *hdev,
 static inline int btintel_set_quality_report(struct hci_dev *hdev, bool enable)
 {
 	return -ENODEV;
+}
+
+static inline int btintel_version_info_tlv(struct hci_dev *hdev,
+					   struct intel_version_tlv *version)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_parse_version_tlv(struct hci_dev *hdev,
+					    struct intel_version_tlv *version,
+					    struct sk_buff *skb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
+
+{
+}
+
+static inline int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
+					       struct intel_version_tlv *ver)
+{
+	return -ENODEV;
+}
+
+static inline int btintel_shutdown_combined(struct hci_dev *hdev)
+{
+	return -ENODEV;
+}
+
+static void btintel_hw_error(struct hci_dev *hdev, u8 code)
+{
 }
 #endif
