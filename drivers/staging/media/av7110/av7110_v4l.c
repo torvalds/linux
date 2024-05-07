@@ -201,8 +201,6 @@ static int stv0297_set_tv_freq(struct saa7146_dev *dev, u32 freq)
 	return tuner_write(dev, 0x63, data);
 }
 
-
-
 static struct saa7146_standard analog_standard[];
 static struct saa7146_standard dvb_standard[];
 static struct saa7146_standard standard[];
@@ -341,6 +339,7 @@ static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 	u16 fm_matrix, src;
+
 	dprintk(2, "VIDIOC_S_TUNER: %d\n", t->index);
 
 	if (!av7110->analog_tuner_flags || av7110->current_input != 1)
@@ -691,7 +690,6 @@ static u8 saa7113_init_regs[] = {
 	0xff
 };
 
-
 static struct saa7146_ext_vv av7110_vv_data_st;
 static struct saa7146_ext_vv av7110_vv_data_c;
 
@@ -863,8 +861,6 @@ int av7110_exit_v4l(struct av7110 *av7110)
 	return 0;
 }
 
-
-
 /* FIXME: these values are experimental values that look better than the
    values from the latest "official" driver -- at least for me... (MiHu) */
 static struct saa7146_standard standard[] = {
@@ -926,7 +922,6 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *std)
 
 	return 0;
 }
-
 
 static struct saa7146_ext_vv av7110_vv_data_st = {
 	.inputs		= 1,

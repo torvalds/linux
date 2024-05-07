@@ -14,7 +14,6 @@
 #define ARM_WAIT_SHAKE (HZ/5)
 #define ARM_WAIT_OSD (HZ)
 
-
 enum av7110_bootstate
 {
 	BOOTSTATE_BUFFER_EMPTY	= 0,
@@ -89,7 +88,6 @@ enum av7110_video_output_mode
 #define	PBUFSIZE_8K   0x0600
 #define PBUFSIZE_16K  0x0700
 #define PBUFSIZE_32K  0x0800
-
 
 /* firmware command codes */
 enum av7110_osd_command {
@@ -289,7 +287,6 @@ enum av7110_command_type {
 #define CI_MSG_CA_PMT		 0xe0
 #define CI_MSG_ERROR		 0xf0
 
-
 /* base address of the dual ported RAM which serves as communication
  * area between PCI bus and av7110,
  * as seen by the DEBI bus of the saa7146 */
@@ -329,7 +326,6 @@ enum av7110_command_type {
 #define Reserved	(DPRAM_BASE + 0x1E00)
 #define Reserved_SIZE	0x1C0
 
-
 /* firmware status area */
 #define STATUS_BASE	(DPRAM_BASE + 0x1FC0)
 #define STATUS_LOOPS	(STATUS_BASE + 0x08)
@@ -362,8 +358,6 @@ enum av7110_command_type {
 #define DEBI_DONE_LINE		1
 #define ARM_IRQ_LINE		0
 
-
-
 extern int av7110_bootarm(struct av7110 *av7110);
 extern int av7110_firmversion(struct av7110 *av7110);
 #define FW_CI_LL_SUPPORT(arm_app) ((arm_app) & 0x80000000)
@@ -375,13 +369,11 @@ extern int av7110_fw_cmd(struct av7110 *av7110, int type, int com, int num, ...)
 extern int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 			     int request_buf_len, u16 *reply_buf, int reply_buf_len);
 
-
 /* DEBI (saa7146 data extension bus interface) access */
 extern int av7110_debiwrite(struct av7110 *av7110, u32 config,
 			    int addr, u32 val, unsigned int count);
 extern u32 av7110_debiread(struct av7110 *av7110, u32 config,
 			   int addr, unsigned int count);
-
 
 /* DEBI during interrupt */
 /* single word writes */
@@ -482,15 +474,11 @@ static inline int Set22K(struct av7110 *av7110, int state)
 	return av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, (state ? ON22K : OFF22K), 0);
 }
 
-
 extern int av7110_diseqc_send(struct av7110 *av7110, int len, u8 *msg, unsigned long burst);
-
 
 #ifdef CONFIG_DVB_AV7110_OSD
 extern int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc);
 extern int av7110_osd_capability(struct av7110 *av7110, osd_cap_t *cap);
 #endif /* CONFIG_DVB_AV7110_OSD */
-
-
 
 #endif /* _AV7110_HW_H_ */

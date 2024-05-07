@@ -12,7 +12,6 @@
  * the project's page is at https://linuxtv.org
  */
 
-
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/delay.h>
@@ -36,7 +35,6 @@
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
-
 #include <linux/dvb/frontend.h>
 
 #include <media/dvb_frontend.h>
@@ -56,7 +54,6 @@
 #define TS_HEIGHT 512
 #define TS_BUFLEN (TS_WIDTH*TS_HEIGHT)
 #define TS_MAX_PACKETS (TS_BUFLEN/TS_SIZE)
-
 
 int av7110_debug;
 
@@ -112,7 +109,6 @@ static int av7110_num;
 		fe_func = av7110_func; \
 	} \
 }
-
 
 static void init_av7110_av(struct av7110 *av7110)
 {
@@ -273,7 +269,6 @@ static int arm_thread(void *data)
 	return 0;
 }
 
-
 /****************************************************************************
  * IRQ handling
  ****************************************************************************/
@@ -325,12 +320,12 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 	}
 }
 
-
 //#define DEBUG_TIMING
 static inline void print_time(char *s)
 {
 #ifdef DEBUG_TIMING
 	struct timespec64 ts;
+
 	ktime_get_real_ts64(&ts);
 	printk("%s: %lld.%09ld\n", s, (s64)ts.tv_sec, ts.tv_nsec);
 #endif
@@ -376,7 +371,6 @@ static void debiirq(struct tasklet_struct *t)
 	av7110->debitype = -1;
 
 	switch (type & 0xff) {
-
 	case DATA_TS_RECORD:
 		dvb_dmx_swfilter_packets(&av7110->demux,
 					 (const u8 *) av7110->debi_virt,
@@ -410,6 +404,7 @@ static void debiirq(struct tasklet_struct *t)
 
 		if (data_0 < 2 && data[2] == 0xff) {
 			int flags = 0;
+
 			if (data[5] > 0)
 				flags |= CA_CI_MODULE_PRESENT;
 			if (data[5] > 5)
@@ -489,7 +484,6 @@ static void gpioirq(struct tasklet_struct *t)
 	dprintk(8, "GPIO0 irq 0x%04x %d\n", av7110->debitype, av7110->debilen);
 
 	switch (av7110->debitype & 0xff) {
-
 	case DATA_TS_PLAY:
 	case DATA_PES_PLAY:
 		break;
@@ -674,7 +668,6 @@ static void gpioirq(struct tasklet_struct *t)
 	spin_unlock(&av7110->debilock);
 }
 
-
 #ifdef CONFIG_DVB_AV7110_OSD
 static int dvb_osd_ioctl(struct file *file,
 			 unsigned int cmd, void *parg)
@@ -692,7 +685,6 @@ static int dvb_osd_ioctl(struct file *file,
 	return -EINVAL;
 }
 
-
 static const struct file_operations dvb_osd_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= dvb_generic_ioctl,
@@ -709,7 +701,6 @@ static struct dvb_device dvbdev_osd = {
 	.kernel_ioctl	= dvb_osd_ioctl,
 };
 #endif /* CONFIG_DVB_AV7110_OSD */
-
 
 static inline int SetPIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 			  u16 subpid, u16 pcrpid)
@@ -738,6 +729,7 @@ int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 		u16 subpid, u16 pcrpid)
 {
 	int ret = 0;
+
 	dprintk(4, "%p\n", av7110);
 
 	if (mutex_lock_interruptible(&av7110->pid_mutex))
@@ -762,7 +754,6 @@ int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 	mutex_unlock(&av7110->pid_mutex);
 	return ret;
 }
-
 
 /******************************************************************************
  * hardware filter functions
@@ -855,7 +846,6 @@ static int StopHWFilter(struct dvb_demux_filter *dvbdmxfilter)
 	}
 	return ret;
 }
-
 
 static int dvb_feed_start_pid(struct dvb_demux_feed *dvbdmxfeed)
 {
@@ -1008,12 +998,12 @@ static int av7110_start_feed(struct dvb_demux_feed *feed)
 	return ret;
 }
 
-
 static int av7110_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
 	struct av7110 *av7110 = demux->priv;
 	int i, rc, ret = 0;
+
 	dprintk(4, "%p\n", av7110);
 
 	if (feed->type == DMX_TYPE_TS) {
@@ -1055,7 +1045,6 @@ static int av7110_stop_feed(struct dvb_demux_feed *feed)
 
 	return ret;
 }
-
 
 static void restart_feeds(struct av7110 *av7110)
 {
@@ -1135,11 +1124,9 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
 	return 0;
 }
 
-
 /******************************************************************************
  * SEC device file operations
  ******************************************************************************/
-
 
 static int av7110_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
@@ -1365,7 +1352,6 @@ static int av7110_register(struct av7110 *av7110)
 	return 0;
 }
 
-
 static void dvb_unregister(struct av7110 *av7110)
 {
 	struct dvb_demux *dvbdemux = &av7110->demux;
@@ -1400,7 +1386,6 @@ static void dvb_unregister(struct av7110 *av7110)
 	av7110_av_unregister(av7110);
 	av7110_ca_unregister(av7110);
 }
-
 
 /****************************************************************************
  * I2C client commands
@@ -1438,7 +1423,6 @@ u8 i2c_readreg(struct av7110 *av7110, u8 id, u8 reg)
 /****************************************************************************
  * INITIALIZATION
  ****************************************************************************/
-
 
 static int check_firmware(struct av7110 *av7110)
 {
@@ -1609,9 +1593,6 @@ static struct ves1820_config alps_tdbe2_config = {
 	.selagc = VES1820_SELAGC_SIGNAMPERR,
 };
 
-
-
-
 static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
@@ -1636,8 +1617,6 @@ static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 static struct tda8083_config grundig_29504_451_config = {
 	.demod_address = 0x68,
 };
-
-
 
 static int philips_cd1516_tuner_set_params(struct dvb_frontend *fe)
 {
@@ -1668,8 +1647,6 @@ static struct ves1820_config philips_cd1516_config = {
 	.invert = 1,
 	.selagc = VES1820_SELAGC_SIGNAMPERR,
 };
-
-
 
 static int alps_tdlb7_tuner_set_params(struct dvb_frontend *fe)
 {
@@ -1710,11 +1687,9 @@ static int alps_tdlb7_request_firmware(struct dvb_frontend *fe, const struct fir
 }
 
 static const struct sp8870_config alps_tdlb7_config = {
-
 	.demod_address = 0x71,
 	.request_firmware = alps_tdlb7_request_firmware,
 };
-
 
 static u8 nexusca_stv0297_inittab[] = {
 	0x80, 0x01,
@@ -1856,14 +1831,11 @@ static int nexusca_stv0297_tuner_set_params(struct dvb_frontend *fe)
 }
 
 static struct stv0297_config nexusca_stv0297_config = {
-
 	.demod_address = 0x1C,
 	.inittab = nexusca_stv0297_inittab,
 	.invert = 1,
 	.stop_during_read = 1,
 };
-
-
 
 static int grundig_29504_401_tuner_set_params(struct dvb_frontend *fe)
 {
@@ -1911,8 +1883,6 @@ static struct l64781_config grundig_29504_401_config = {
 	.demod_address = 0x55,
 };
 
-
-
 static int av7110_fe_lock_fix(struct av7110 *av7110, enum fe_status status)
 {
 	int ret = 0;
@@ -1959,6 +1929,7 @@ static int av7110_fe_set_frontend(struct dvb_frontend *fe)
 	struct av7110 *av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
+
 	if (!ret)
 		ret = av7110->fe_set_frontend(fe);
 
@@ -1970,6 +1941,7 @@ static int av7110_fe_init(struct dvb_frontend *fe)
 	struct av7110 *av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
+
 	if (!ret)
 		ret = av7110->fe_init(fe);
 	return ret;
@@ -1982,6 +1954,7 @@ static int av7110_fe_read_status(struct dvb_frontend *fe,
 
 	/* call the real implementation */
 	int ret = av7110->fe_read_status(fe, status);
+
 	if (!ret)
 		if (((*status ^ av7110->fe_status) & FE_HAS_LOCK) && (*status & FE_HAS_LOCK))
 			ret = av7110_fe_lock_fix(av7110, *status);
@@ -1993,6 +1966,7 @@ static int av7110_fe_diseqc_reset_overload(struct dvb_frontend *fe)
 	struct av7110 *av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
+
 	if (!ret)
 		ret = av7110->fe_diseqc_reset_overload(fe);
 	return ret;
@@ -2004,6 +1978,7 @@ static int av7110_fe_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	struct av7110 *av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
+
 	if (!ret) {
 		av7110->saved_master_cmd = *cmd;
 		ret = av7110->fe_diseqc_send_master_cmd(fe, cmd);
@@ -2017,6 +1992,7 @@ static int av7110_fe_diseqc_send_burst(struct dvb_frontend *fe,
 	struct av7110 *av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
+
 	if (!ret) {
 		av7110->saved_minicmd = minicmd;
 		ret = av7110->fe_diseqc_send_burst(fe, minicmd);
@@ -2030,6 +2006,7 @@ static int av7110_fe_set_tone(struct dvb_frontend *fe,
 	struct av7110 *av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
+
 	if (!ret) {
 		av7110->saved_tone = tone;
 		ret = av7110->fe_set_tone(fe, tone);
@@ -2043,6 +2020,7 @@ static int av7110_fe_set_voltage(struct dvb_frontend *fe,
 	struct av7110 *av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
+
 	if (!ret) {
 		av7110->saved_voltage = voltage;
 		ret = av7110->fe_set_voltage(fe, voltage);
@@ -2055,6 +2033,7 @@ static int av7110_fe_dishnetwork_send_legacy_command(struct dvb_frontend *fe, un
 	struct av7110 *av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
+
 	if (!ret)
 		ret = av7110->fe_dishnetwork_send_legacy_command(fe, cmd);
 	return ret;
@@ -2490,6 +2469,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 	/* check for full-ts flag in eeprom */
 	if (i2c_readreg(av7110, 0xaa, 0) == 0x4f && i2c_readreg(av7110, 0xaa, 1) == 0x45) {
 		u8 flags = i2c_readreg(av7110, 0xaa, 2);
+
 		if (flags != 0xff && (flags & 0x01))
 			av7110->full_ts = true;
 	}
@@ -2645,7 +2625,6 @@ static int av7110_attach(struct saa7146_dev *dev,
 	if (!av7110->debi_virt)
 		goto err_saa71466_vfree_4;
 
-
 	av7110->iobuf = vmalloc(AVOUTLEN+AOUTLEN+BMPLEN+4*IPACKS);
 	if (!av7110->iobuf)
 		goto err_pci_free_5;
@@ -2749,6 +2728,7 @@ err_kfree_0:
 static int av7110_detach(struct saa7146_dev *saa)
 {
 	struct av7110 *av7110 = saa->ext_priv;
+
 	dprintk(4, "%p\n", av7110);
 
 #if IS_ENABLED(CONFIG_DVB_AV7110_IR)
@@ -2802,7 +2782,6 @@ static int av7110_detach(struct saa7146_dev *saa)
 	return 0;
 }
 
-
 static void av7110_irq(struct saa7146_dev *dev, u32 *isr)
 {
 	struct av7110 *av7110 = dev->ext_priv;
@@ -2843,7 +2822,6 @@ static void av7110_irq(struct saa7146_dev *dev, u32 *isr)
 	if (*isr & MASK_10)
 		tasklet_schedule(&av7110->vpe_tasklet);
 }
-
 
 static struct saa7146_extension av7110_extension_driver;
 
@@ -2887,7 +2865,6 @@ static const struct pci_device_id pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, pci_tbl);
 
-
 static struct saa7146_extension av7110_extension_driver = {
 	.name		= "av7110",
 	.flags		= SAA7146_USE_I2C_IRQ,
@@ -2901,12 +2878,10 @@ static struct saa7146_extension av7110_extension_driver = {
 	.irq_func	= av7110_irq,
 };
 
-
 static int __init av7110_init(void)
 {
 	return saa7146_register_extension(&av7110_extension_driver);
 }
-
 
 static void __exit av7110_exit(void)
 {
