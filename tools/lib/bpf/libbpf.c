@@ -7372,7 +7372,11 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 	__u32 log_level = prog->log_level;
 	int ret, err;
 
-	if (prog->type == BPF_PROG_TYPE_UNSPEC) {
+	/* Be more helpful by rejecting programs that can't be validated early
+	 * with more meaningful and actionable error message.
+	 */
+	switch (prog->type) {
+	case BPF_PROG_TYPE_UNSPEC:
 		/*
 		 * The program type must be set.  Most likely we couldn't find a proper
 		 * section definition at load time, and thus we didn't infer the type.
@@ -7380,6 +7384,15 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 		pr_warn("prog '%s': missing BPF prog type, check ELF section name '%s'\n",
 			prog->name, prog->sec_name);
 		return -EINVAL;
+	case BPF_PROG_TYPE_STRUCT_OPS:
+		if (prog->attach_btf_id == 0) {
+			pr_warn("prog '%s': SEC(\"struct_ops\") program isn't referenced anywhere, did you forget to use it?\n",
+				prog->name);
+			return -EINVAL;
+		}
+		break;
+	default:
+		break;
 	}
 
 	if (!insns || !insns_cnt)
