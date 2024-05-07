@@ -5433,7 +5433,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	struct extent_buffer *next;
 	int level = wc->level;
-	int reada = 0;
 	int ret = 0;
 	bool need_account = false;
 
@@ -5459,14 +5458,11 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	btrfs_node_key_to_cpu(path->nodes[level], &check.first_key,
 			      path->slots[level]);
 
-	next = find_extent_buffer(fs_info, bytenr);
-	if (!next) {
-		next = btrfs_find_create_tree_block(fs_info, bytenr,
-				btrfs_root_id(root), level - 1);
-		if (IS_ERR(next))
-			return PTR_ERR(next);
-		reada = 1;
-	}
+	next = btrfs_find_create_tree_block(fs_info, bytenr, btrfs_root_id(root),
+					    level - 1);
+	if (IS_ERR(next))
+		return PTR_ERR(next);
+
 	btrfs_tree_lock(next);
 
 	ret = btrfs_lookup_extent_info(trans, fs_info, bytenr, level - 1, 1,
@@ -5517,7 +5513,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	}
 
 	if (!next) {
-		if (reada && level == 1)
+		if (level == 1)
 			reada_walk_down(trans, root, wc, path);
 		next = read_tree_block(fs_info, bytenr, &check);
 		if (IS_ERR(next)) {
