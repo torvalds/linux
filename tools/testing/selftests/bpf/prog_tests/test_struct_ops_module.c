@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "struct_ops_module.skel.h"
+#include "struct_ops_nulled_out_cb.skel.h"
 
 static void check_map_info(struct bpf_map_info *info)
 {
@@ -174,6 +175,30 @@ cleanup:
 	struct_ops_module__destroy(skel);
 }
 
+/* validate that it's ok to "turn off" callback that kernel supports */
+static void test_struct_ops_nulled_out_cb(void)
+{
+	struct struct_ops_nulled_out_cb *skel;
+	int err;
+
+	skel = struct_ops_nulled_out_cb__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		return;
+
+	/* kernel knows about test_1, but we still null it out */
+	skel->struct_ops.ops->test_1 = NULL;
+
+	err = struct_ops_nulled_out_cb__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto cleanup;
+
+	ASSERT_FALSE(bpf_program__autoload(skel->progs.test_1_turn_off), "prog_autoload");
+	ASSERT_LT(bpf_program__fd(skel->progs.test_1_turn_off), 0, "prog_fd");
+
+cleanup:
+	struct_ops_nulled_out_cb__destroy(skel);
+}
+
 void serial_test_struct_ops_module(void)
 {
 	if (test__start_subtest("test_struct_ops_load"))
@@ -182,5 +207,7 @@ void serial_test_struct_ops_module(void)
 		test_struct_ops_not_zeroed();
 	if (test__start_subtest("test_struct_ops_incompatible"))
 		test_struct_ops_incompatible();
+	if (test__start_subtest("test_struct_ops_null_out_cb"))
+		test_struct_ops_nulled_out_cb();
 }
 
