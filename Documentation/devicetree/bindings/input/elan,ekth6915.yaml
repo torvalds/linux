@@ -36,6 +36,12 @@ properties:
   reset-gpios:
     description: Reset GPIO; not all touchscreens using eKTH6915 hook this up.
 
+  no-reset-on-power-off:
+    type: boolean
+    description:
+      Reset line is wired so that it can (and should) be left deasserted when
+      the power supply is off.
+
   vcc33-supply:
     description: The 3.3V supply to the touchscreen.
 
