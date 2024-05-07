@@ -2039,7 +2039,7 @@ static void __init free_memmap(unsigned long start_pfn, unsigned long end_pfn)
 	 * downwards.
 	 */
 	pg = PAGE_ALIGN(__pa(start_pg));
-	pgend = __pa(end_pg) & PAGE_MASK;
+	pgend = PAGE_ALIGN_DOWN(__pa(end_pg));
 
 	/*
 	 * If there are free pages between these, free the section of the
