@@ -130,12 +130,22 @@ struct page_pool {
 	struct page_pool_params_fast p;
 
 	int cpuid;
+	u32 pages_state_hold_cnt;
 	bool has_init_callback;
 
+	/* The following block must stay within one cacheline. On 32-bit
+	 * systems, sizeof(long) == sizeof(int), so that the block size is
+	 * ``3 * sizeof(long)``. On 64-bit systems, the actual size is
+	 * ``2 * sizeof(long) + sizeof(int)``. The closest pow-2 to both of
+	 * them is ``4 * sizeof(long)``, so just use that one for simplicity.
+	 * Having it aligned to a cacheline boundary may be excessive and
+	 * doesn't bring any good.
+	 */
+	__cacheline_group_begin(frag) __aligned(4 * sizeof(long));
 	long frag_users;
 	struct page *frag_page;
 	unsigned int frag_offset;
-	u32 pages_state_hold_cnt;
+	__cacheline_group_end(frag);
 
 	struct delayed_work release_dw;
 	void (*disconnect)(void *pool);
