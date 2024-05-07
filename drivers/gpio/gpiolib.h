@@ -137,6 +137,11 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory);
 
 void gpiod_line_state_notify(struct gpio_desc *desc, unsigned long action);
 
+struct gpio_desc_label {
+	struct rcu_head rh;
+	char str[];
+};
+
 /**
  * struct gpio_desc - Opaque descriptor for a GPIO
  *
@@ -177,7 +182,7 @@ struct gpio_desc {
 #define FLAG_EVENT_CLOCK_HTE		19 /* GPIO CDEV reports hardware timestamps in events */
 
 	/* Connection label */
-	const char __rcu	*label;
+	struct gpio_desc_label __rcu *label;
 	/* Name of the GPIO */
 	const char		*name;
 #ifdef CONFIG_OF_DYNAMIC

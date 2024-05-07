@@ -101,6 +101,7 @@ static bool gpiolib_initialized;
 
 const char *gpiod_get_label(struct gpio_desc *desc)
 {
+	struct gpio_desc_label *label;
 	unsigned long flags;
 
 	flags = READ_ONCE(desc->flags);
@@ -108,23 +109,36 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 	    !test_bit(FLAG_REQUESTED, &flags))
 		return "interrupt";
 
-	return test_bit(FLAG_REQUESTED, &flags) ?
-			srcu_dereference(desc->label, &desc->srcu) : NULL;
+	if (!test_bit(FLAG_REQUESTED, &flags))
+		return NULL;
+
+	label = srcu_dereference_check(desc->label, &desc->srcu,
+				       srcu_read_lock_held(&desc->srcu));
+
+	return label->str;
+}
+
+static void desc_free_label(struct rcu_head *rh)
+{
+	kfree(container_of(rh, struct gpio_desc_label, rh));
 }
 
 static int desc_set_label(struct gpio_desc *desc, const char *label)
 {
-	const char *new = NULL, *old;
+	struct gpio_desc_label *new = NULL, *old;
 
 	if (label) {
-		new = kstrdup_const(label, GFP_KERNEL);
+		new = kzalloc(struct_size(new, str, strlen(label) + 1),
+			      GFP_KERNEL);
 		if (!new)
 			return -ENOMEM;
+
+		strcpy(new->str, label);
 	}
 
 	old = rcu_replace_pointer(desc->label, new, 1);
-	synchronize_srcu(&desc->srcu);
-	kfree_const(old);
+	if (old)
+		call_srcu(&desc->srcu, &old->rh, desc_free_label);
 
 	return 0;
 }
@@ -697,8 +711,11 @@ static void gpiodev_release(struct device *dev)
 	struct gpio_device *gdev = to_gpio_device(dev);
 	unsigned int i;
 
-	for (i = 0; i < gdev->ngpio; i++)
+	for (i = 0; i < gdev->ngpio; i++) {
+		/* Free pending label. */
+		synchronize_srcu(&gdev->descs[i].srcu);
 		cleanup_srcu_struct(&gdev->descs[i].srcu);
+	}
 
 	ida_free(&gpio_ida, gdev->id);
 	kfree_const(gdev->label);
