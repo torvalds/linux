@@ -1152,22 +1152,15 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 				return -ENOTSUP;
 			}
 
-			prog = st_ops->progs[i];
-			if (prog) {
+			if (st_ops->progs[i]) {
 				/* If we had declaratively set struct_ops callback, we need to
-				 * first validate that it's actually a struct_ops program.
-				 * And then force its autoload to false, because it doesn't have
+				 * force its autoload to false, because it doesn't have
 				 * a chance of succeeding from POV of the current struct_ops map.
 				 * If this program is still referenced somewhere else, though,
 				 * then bpf_object_adjust_struct_ops_autoload() will update its
 				 * autoload accordingly.
 				 */
-				if (!is_valid_st_ops_program(obj, prog)) {
-					pr_warn("struct_ops init_kern %s: member %s is declaratively assigned a non-struct_ops program\n",
-						map->name, mname);
-					return -EINVAL;
-				}
-				prog->autoload = false;
+				st_ops->progs[i]->autoload = false;
 				st_ops->progs[i] = NULL;
 			}
 
