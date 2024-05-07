@@ -258,7 +258,7 @@ static int etherh_set_config(struct net_device *dev, struct ifmap *map)
 		 * media type, turn off automedia detection.
 		 */
 		dev->flags &= ~IFF_AUTOMEDIA;
-		dev->if_port = map->port;
+		WRITE_ONCE(dev->if_port, map->port);
 		break;
 
 	default:
