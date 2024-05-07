@@ -3,6 +3,7 @@
 #include <linux/fault-inject-usercopy.h>
 #include <linux/instrumented.h>
 #include <linux/uaccess.h>
+#include <linux/wordpart.h>
 #include <linux/nospec.h>
 
 /* out-of-line parts */
