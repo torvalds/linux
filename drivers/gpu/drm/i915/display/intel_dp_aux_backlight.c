@@ -156,7 +156,7 @@ intel_dp_aux_supports_hdr_backlight(struct intel_connector *connector)
 		return false;
 	}
 
-	panel->backlight.edp.intel.sdr_uses_aux =
+	panel->backlight.edp.intel_cap.sdr_uses_aux =
 		tcon_cap[2] & INTEL_EDP_SDR_TCON_BRIGHTNESS_AUX_CAP;
 
 	return true;
@@ -178,7 +178,7 @@ intel_dp_aux_hdr_get_backlight(struct intel_connector *connector, enum pipe pipe
 	}
 
 	if (!(tmp & INTEL_EDP_HDR_TCON_BRIGHTNESS_AUX_ENABLE)) {
-		if (!panel->backlight.edp.intel.sdr_uses_aux) {
+		if (!panel->backlight.edp.intel_cap.sdr_uses_aux) {
 			u32 pwm_level = panel->backlight.pwm_funcs->get(connector, pipe);
 
 			return intel_backlight_level_from_pwm(connector, pwm_level);
@@ -221,7 +221,7 @@ intel_dp_aux_hdr_set_backlight(const struct drm_connector_state *conn_state, u32
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
 
-	if (panel->backlight.edp.intel.sdr_uses_aux) {
+	if (panel->backlight.edp.intel_cap.sdr_uses_aux) {
 		intel_dp_aux_hdr_set_aux_backlight(conn_state, level);
 	} else {
 		const u32 pwm_level = intel_backlight_level_to_pwm(connector, level);
@@ -251,7 +251,7 @@ intel_dp_aux_hdr_enable_backlight(const struct intel_crtc_state *crtc_state,
 	}
 
 	ctrl = old_ctrl;
-	if (panel->backlight.edp.intel.sdr_uses_aux) {
+	if (panel->backlight.edp.intel_cap.sdr_uses_aux) {
 		ctrl |= INTEL_EDP_HDR_TCON_BRIGHTNESS_AUX_ENABLE;
 		intel_dp_aux_hdr_set_aux_backlight(conn_state, level);
 	} else {
@@ -275,7 +275,7 @@ intel_dp_aux_hdr_disable_backlight(const struct drm_connector_state *conn_state,
 	struct intel_panel *panel = &connector->panel;
 
 	/* Nothing to do for AUX based backlight controls */
-	if (panel->backlight.edp.intel.sdr_uses_aux)
+	if (panel->backlight.edp.intel_cap.sdr_uses_aux)
 		return;
 
 	/* Note we want the actual pwm_level to be 0, regardless of pwm_min */
@@ -298,9 +298,9 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] SDR backlight is controlled through %s\n",
 		    connector->base.base.id, connector->base.name,
-		    dpcd_vs_pwm_str(panel->backlight.edp.intel.sdr_uses_aux));
+		    dpcd_vs_pwm_str(panel->backlight.edp.intel_cap.sdr_uses_aux));
 
-	if (!panel->backlight.edp.intel.sdr_uses_aux) {
+	if (!panel->backlight.edp.intel_cap.sdr_uses_aux) {
 		ret = panel->backlight.pwm_funcs->setup(connector, pipe);
 		if (ret < 0) {
 			drm_err(&i915->drm,

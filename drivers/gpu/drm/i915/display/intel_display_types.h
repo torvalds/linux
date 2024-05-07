@@ -401,7 +401,7 @@ struct intel_panel {
 			} vesa;
 			struct {
 				bool sdr_uses_aux;
-			} intel;
+			} intel_cap;
 		} edp;
 
 		struct backlight_device *device;
