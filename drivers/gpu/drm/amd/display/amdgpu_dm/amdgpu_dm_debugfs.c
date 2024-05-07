@@ -2671,6 +2671,49 @@ unlock:
 }
 
 /*
+ * IPS status.  Read only.
+ *
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_ips_status
+ */
+static int ips_status_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = m->private;
+	struct dc *dc = adev->dm.dc;
+	struct dc_dmub_srv *dc_dmub_srv;
+
+	seq_printf(m, "IPS config: %d\n", dc->config.disable_ips);
+	seq_printf(m, "Idle optimization: %d\n", dc->idle_optimizations_allowed);
+
+	if (adev->dm.idle_workqueue) {
+		seq_printf(m, "Idle workqueue - enabled: %d\n", adev->dm.idle_workqueue->enable);
+		seq_printf(m, "Idle workqueue - running: %d\n", adev->dm.idle_workqueue->running);
+	}
+
+	dc_dmub_srv = dc->ctx->dmub_srv;
+	if (dc_dmub_srv && dc_dmub_srv->dmub) {
+		uint32_t rcg_count, ips1_count, ips2_count;
+		volatile const struct dmub_shared_state_ips_fw *ips_fw =
+			&dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_FW].data.ips_fw;
+		rcg_count = ips_fw->rcg_entry_count;
+		ips1_count = ips_fw->ips1_entry_count;
+		ips2_count = ips_fw->ips2_entry_count;
+		seq_printf(m, "entry counts: rcg=%u ips1=%u ips2=%u\n",
+			   rcg_count,
+			   ips1_count,
+			   ips2_count);
+		rcg_count = ips_fw->rcg_exit_count;
+		ips1_count = ips_fw->ips1_exit_count;
+		ips2_count = ips_fw->ips2_exit_count;
+		seq_printf(m, "exit counts: rcg=%u ips1=%u ips2=%u",
+			   rcg_count,
+			   ips1_count,
+			   ips2_count);
+		seq_puts(m, "\n");
+	}
+	return 0;
+}
+
+/*
  * Backlight at this moment.  Read only.
  * As written to display, taking ABM and backlight lut into account.
  * Ranges from 0x0 to 0x10000 (= 100% PWM)
@@ -3240,6 +3283,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(disallow_edp_enter_psr_fops,
 
 DEFINE_SHOW_ATTRIBUTE(current_backlight);
 DEFINE_SHOW_ATTRIBUTE(target_backlight);
+DEFINE_SHOW_ATTRIBUTE(ips_status);
 
 static const struct {
 	char *name;
@@ -4129,4 +4173,7 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 	debugfs_create_file_unsafe("amdgpu_dm_disable_hpd", 0644, root, adev,
 				   &disable_hpd_ops);
 
+	if (adev->dm.dc->caps.ips_support)
+		debugfs_create_file_unsafe("amdgpu_dm_ips_status", 0644, root, adev,
+					   &ips_status_fops);
 }
