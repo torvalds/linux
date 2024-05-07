@@ -209,7 +209,7 @@ struct btintel_data {
 #define btintel_wait_on_flag_timeout(hdev, nr, m, to)			\
 		wait_on_bit_timeout(btintel_get_flag(hdev), (nr), m, to)
 
-#if IS_ENABLED(CONFIG_BT_INTEL)
+#if IS_ENABLED(CONFIG_BT_INTEL) || IS_ENABLED(CONFIG_BT_INTEL_PCIE)
 
 int btintel_check_bdaddr(struct hci_dev *hdev);
 int btintel_enter_mfg(struct hci_dev *hdev);
