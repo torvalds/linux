@@ -39,7 +39,7 @@ MODULE_FIRMWARE("amdgpu/gc_12_0_1_imu.bin");
 static int imu_v12_0_init_microcode(struct amdgpu_device *adev)
 {
 	char fw_name[40];
-	char ucode_prefix[30];
+	char ucode_prefix[15];
 	int err;
 	const struct imu_firmware_header_v1_0 *imu_hdr;
 	struct amdgpu_firmware_info *info = NULL;
