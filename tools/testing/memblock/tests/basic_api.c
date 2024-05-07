@@ -982,6 +982,112 @@ static int memblock_reserve_many_check(void)
 	return 0;
 }
 
+
+/*
+ * A test that trying to reserve the 129th memory block at all locations.
+ * Expect to trigger memblock_double_array() to double the
+ * memblock.memory.max, find a new valid memory as reserved.regions.
+ *
+ *  0               1               2                 128
+ *  +-------+       +-------+       +-------+         +-------+
+ *  |  32K  |       |  32K  |       |  32K  |   ...   |  32K  |
+ *  +-------+-------+-------+-------+-------+         +-------+
+ *          |<-32K->|       |<-32K->|
+ *
+ */
+/* Keep the gap so these memory region will not be merged. */
+#define MEMORY_BASE(idx) (SZ_128K + (MEM_SIZE * 2) * (idx))
+static int memblock_reserve_all_locations_check(void)
+{
+	int i, skip;
+	void *orig_region;
+	struct region r = {
+		.base = SZ_16K,
+		.size = SZ_16K,
+	};
+	phys_addr_t new_reserved_regions_size;
+
+	PREFIX_PUSH();
+
+	/* Reserve the 129th memory block for all possible positions*/
+	for (skip = 0; skip < INIT_MEMBLOCK_REGIONS + 1; skip++) {
+		reset_memblock_regions();
+		memblock_allow_resize();
+
+		/* Add a valid memory region used by double_array(). */
+		dummy_physical_memory_init();
+		memblock_add(dummy_physical_memory_base(), MEM_SIZE);
+
+		for (i = 0; i < INIT_MEMBLOCK_REGIONS + 1; i++) {
+			if (i == skip)
+				continue;
+
+			/* Reserve some fakes memory region to fulfill the memblock. */
+			memblock_reserve(MEMORY_BASE(i), MEM_SIZE);
+
+			if (i < skip) {
+				ASSERT_EQ(memblock.reserved.cnt, i + 1);
+				ASSERT_EQ(memblock.reserved.total_size, (i + 1) * MEM_SIZE);
+			} else {
+				ASSERT_EQ(memblock.reserved.cnt, i);
+				ASSERT_EQ(memblock.reserved.total_size, i * MEM_SIZE);
+			}
+		}
+
+		orig_region = memblock.reserved.regions;
+
+		/* This reserve the 129 memory_region, and makes it double array. */
+		memblock_reserve(MEMORY_BASE(skip), MEM_SIZE);
+
+		/*
+		 * This is the memory region size used by the doubled reserved.regions,
+		 * and it has been reserved due to it has been used. The size is used to
+		 * calculate the total_size that the memblock.reserved have now.
+		 */
+		new_reserved_regions_size = PAGE_ALIGN((INIT_MEMBLOCK_REGIONS * 2) *
+						sizeof(struct memblock_region));
+		/*
+		 * The double_array() will find a free memory region as the new
+		 * reserved.regions, and the used memory region will be reserved, so
+		 * there will be one more region exist in the reserved memblock. And the
+		 * one more reserved region's size is new_reserved_regions_size.
+		 */
+		ASSERT_EQ(memblock.reserved.cnt, INIT_MEMBLOCK_REGIONS + 2);
+		ASSERT_EQ(memblock.reserved.total_size, (INIT_MEMBLOCK_REGIONS + 1) * MEM_SIZE +
+							new_reserved_regions_size);
+		ASSERT_EQ(memblock.reserved.max, INIT_MEMBLOCK_REGIONS * 2);
+
+		/*
+		 * Now memblock_double_array() works fine. Let's check after the
+		 * double_array(), the memblock_reserve() still works as normal.
+		 */
+		memblock_reserve(r.base, r.size);
+		ASSERT_EQ(memblock.reserved.regions[0].base, r.base);
+		ASSERT_EQ(memblock.reserved.regions[0].size, r.size);
+
+		ASSERT_EQ(memblock.reserved.cnt, INIT_MEMBLOCK_REGIONS + 3);
+		ASSERT_EQ(memblock.reserved.total_size, (INIT_MEMBLOCK_REGIONS + 1) * MEM_SIZE +
+							new_reserved_regions_size +
+							r.size);
+		ASSERT_EQ(memblock.reserved.max, INIT_MEMBLOCK_REGIONS * 2);
+
+		dummy_physical_memory_cleanup();
+
+		/*
+		 * The current reserved.regions is occupying a range of memory that
+		 * allocated from dummy_physical_memory_init(). After free the memory,
+		 * we must not use it. So restore the origin memory region to make sure
+		 * the tests can run as normal and not affected by the double array.
+		 */
+		memblock.reserved.regions = orig_region;
+		memblock.reserved.cnt = INIT_MEMBLOCK_RESERVED_REGIONS;
+	}
+
+	test_pass_pop();
+
+	return 0;
+}
+
 static int memblock_reserve_checks(void)
 {
 	prefix_reset();
@@ -997,6 +1103,7 @@ static int memblock_reserve_checks(void)
 	memblock_reserve_between_check();
 	memblock_reserve_near_max_check();
 	memblock_reserve_many_check();
+	memblock_reserve_all_locations_check();
 
 	prefix_pop();
 
