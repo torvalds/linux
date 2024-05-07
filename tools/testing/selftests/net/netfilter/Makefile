@@ -13,6 +13,7 @@ TEST_PROGS += conntrack_tcp_unreplied.sh
 TEST_PROGS += conntrack_sctp_collision.sh
 TEST_PROGS += conntrack_vrf.sh
 TEST_PROGS += ipvs.sh
+TEST_PROGS += nf_conntrack_packetdrill.sh
 TEST_PROGS += nf_nat_edemux.sh
 TEST_PROGS += nft_audit.sh
 TEST_PROGS += nft_concat_range.sh
@@ -45,6 +46,7 @@ $(OUTPUT)/conntrack_dump_flush: CFLAGS += $(MNL_CFLAGS)
 $(OUTPUT)/conntrack_dump_flush: LDLIBS += $(MNL_LDLIBS)
 
 TEST_FILES := lib.sh
+TEST_FILES += packetdrill
 
 TEST_INCLUDES := \
 	../lib.sh
