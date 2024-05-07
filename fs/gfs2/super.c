@@ -1262,7 +1262,6 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_holder *gh = &ip->i_iopen_gh;
-	long timeout = 5 * HZ;
 	int error;
 
 	gh->gh_flags |= GL_NOCACHE;
@@ -1293,10 +1292,10 @@ static bool gfs2_upgrade_iopen_glock(struct inode *inode)
 	if (error)
 		return false;
 
-	timeout = wait_event_interruptible_timeout(sdp->sd_async_glock_wait,
+	wait_event_interruptible_timeout(sdp->sd_async_glock_wait,
 		!test_bit(HIF_WAIT, &gh->gh_iflags) ||
 		test_bit(GLF_DEMOTE, &ip->i_gl->gl_flags),
-		timeout);
+		5 * HZ);
 	if (!test_bit(HIF_HOLDER, &gh->gh_iflags)) {
 		gfs2_glock_dq(gh);
 		return false;
