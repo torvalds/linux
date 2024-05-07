@@ -17,7 +17,7 @@
 
 /* Save CPU state to stack for suspend to RAM */
 .macro SUSPEND_SAVE_REGS
-	subu	sp, PT_SIZE
+	PTR_SUBU	sp, PT_SIZE
 	/* Call preserved GPRs */
 	LONG_S	$16, PT_R16(sp)
 	LONG_S	$17, PT_R17(sp)
@@ -56,13 +56,13 @@
 	LONG_L	$31, PT_R31(sp)
 	/* Pop and return */
 	jr	ra
-	 addiu	sp, PT_SIZE
+	 PTR_ADDIU	sp, PT_SIZE
 	.set	pop
 .endm
 
 /* Get address of static suspend state into t1 */
 .macro LA_STATIC_SUSPEND
-	la	t1, mips_static_suspend_state
+	PTR_LA	t1, mips_static_suspend_state
 .endm
 
 /* Save important CPU state for early restoration to global data */
@@ -72,11 +72,11 @@
 	 * Segment configuration is saved in global data where it can be easily
 	 * reloaded without depending on the segment configuration.
 	 */
-	mfc0	k0, CP0_PAGEMASK, 2	/* SegCtl0 */
+	mfc0	k0, CP0_SEGCTL0
 	LONG_S	k0, SSS_SEGCTL0(t1)
-	mfc0	k0, CP0_PAGEMASK, 3	/* SegCtl1 */
+	mfc0	k0, CP0_SEGCTL1
 	LONG_S	k0, SSS_SEGCTL1(t1)
-	mfc0	k0, CP0_PAGEMASK, 4	/* SegCtl2 */
+	mfc0	k0, CP0_SEGCTL2
 	LONG_S	k0, SSS_SEGCTL2(t1)
 #endif
 	/* save stack pointer (pointing to GPRs) */
@@ -92,11 +92,11 @@
 	 * segments.
 	 */
 	LONG_L	k0, SSS_SEGCTL0(t1)
-	mtc0	k0, CP0_PAGEMASK, 2	/* SegCtl0 */
+	mtc0	k0, CP0_SEGCTL0
 	LONG_L	k0, SSS_SEGCTL1(t1)
-	mtc0	k0, CP0_PAGEMASK, 3	/* SegCtl1 */
+	mtc0	k0, CP0_SEGCTL1
 	LONG_L	k0, SSS_SEGCTL2(t1)
-	mtc0	k0, CP0_PAGEMASK, 4	/* SegCtl2 */
+	mtc0	k0, CP0_SEGCTL2
 	tlbw_use_hazard
 #endif
 	/* restore stack pointer (pointing to GPRs) */
@@ -105,10 +105,10 @@
 
 /* flush caches to make sure context has reached memory */
 .macro SUSPEND_CACHE_FLUSH
-	.extern	__wback_cache_all
+	.extern	__flush_cache_all
 	.set	push
 	.set	noreorder
-	la	t1, __wback_cache_all
+	PTR_LA	t1, __flush_cache_all
 	LONG_L	t0, 0(t1)
 	jalr	t0
 	 nop
