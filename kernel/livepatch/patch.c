@@ -95,9 +95,9 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 
 		patch_state = current->patch_state;
 
-		WARN_ON_ONCE(patch_state == KLP_UNDEFINED);
+		WARN_ON_ONCE(patch_state == KLP_TRANSITION_IDLE);
 
-		if (patch_state == KLP_UNPATCHED) {
+		if (patch_state == KLP_TRANSITION_UNPATCHED) {
 			/*
 			 * Use the previously patched version of the function.
 			 * If no previous patches exist, continue with the

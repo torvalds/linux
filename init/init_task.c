@@ -202,7 +202,7 @@ struct task_struct init_task
 	.trace_recursion = 0,
 #endif
 #ifdef CONFIG_LIVEPATCH
-	.patch_state	= KLP_UNDEFINED,
+	.patch_state	= KLP_TRANSITION_IDLE,
 #endif
 #ifdef CONFIG_SECURITY
 	.security	= NULL,
