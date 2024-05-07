@@ -10,6 +10,8 @@
 
 #include <linux/kvm_host.h>
 
+#include "interrupt.h"
+
 #define IPI_BASE            0x3ff01000ULL
 
 #define CORE0_STATUS_OFF       0x000

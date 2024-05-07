@@ -37,3 +37,7 @@ u32 kvm_irq_to_priority(u32 irq);
 int kvm_mips_pending_timer(struct kvm_vcpu *vcpu);
 
 void kvm_mips_deliver_interrupts(struct kvm_vcpu *vcpu, u32 cause);
+
+#ifdef CONFIG_CPU_LOONGSON64
+extern void kvm_init_loongson_ipi(struct kvm *kvm);
+#endif
