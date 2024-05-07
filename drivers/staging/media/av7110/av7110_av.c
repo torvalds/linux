@@ -81,8 +81,10 @@ int av7110_record_cb(struct dvb_filter_pes2ts *p2t, u8 *buf, size_t len)
 
 	if (!(dvbdmxfeed->ts_type & TS_PACKET))
 		return 0;
-	if (buf[3] == 0xe0)	 // video PES do not have a length in TS
-		buf[4] = buf[5] = 0;
+	if (buf[3] == 0xe0) {	 // video PES do not have a length in TS
+		buf[4] = 0;
+		buf[5] = 0;
+	}
 	if (dvbdmxfeed->ts_type & TS_PAYLOAD_ONLY)
 		return dvbdmxfeed->cb.ts(buf, len, NULL, 0,
 					 &dvbdmxfeed->feed.ts, NULL);
@@ -282,7 +284,8 @@ int av7110_set_volume(struct av7110 *av7110, unsigned int volleft,
 			volleft = 0x3f;
 		if (volright > 0x3f)
 			volright = 0x3f;
-		if ((err = SendDAC(av7110, 3, 0x80 + volleft)))
+		err = SendDAC(av7110, 3, 0x80 + volleft);
+		if (err)
 			return err;
 		return SendDAC(av7110, 4, volright);
 
@@ -1513,7 +1516,8 @@ static int dvb_video_open(struct inode *inode, struct file *file)
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
-	if ((err = dvb_generic_open(inode, file)) < 0)
+	err = dvb_generic_open(inode, file);
+	if (err < 0)
 		return err;
 
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
@@ -1524,7 +1528,8 @@ static int dvb_video_open(struct inode *inode, struct file *file)
 		av7110->videostate.stream_source = VIDEO_SOURCE_DEMUX;
 
 		/*  empty event queue */
-		av7110->video_events.eventr = av7110->video_events.eventw = 0;
+		av7110->video_events.eventr = 0;
+		av7110->video_events.eventw = 0;
 	}
 
 	return 0;
@@ -1631,7 +1636,8 @@ int av7110_av_register(struct av7110 *av7110)
 
 	init_waitqueue_head(&av7110->video_events.wait_queue);
 	spin_lock_init(&av7110->video_events.lock);
-	av7110->video_events.eventw = av7110->video_events.eventr = 0;
+	av7110->video_events.eventw = 0;
+	av7110->video_events.eventr = 0;
 	av7110->video_events.overflow = 0;
 	memset(&av7110->video_size, 0, sizeof(video_size_t));
 

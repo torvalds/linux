@@ -709,7 +709,11 @@ static inline int SetPIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 
 	if (vpid == 0x1fff || apid == 0x1fff ||
 	    ttpid == 0x1fff || subpid == 0x1fff || pcrpid == 0x1fff) {
-		vpid = apid = ttpid = subpid = pcrpid = 0;
+		vpid = 0;
+		apid = 0;
+		ttpid = 0;
+		subpid = 0;
+		pcrpid = 0;
 		av7110->pids[DMX_PES_VIDEO] = 0;
 		av7110->pids[DMX_PES_AUDIO] = 0;
 		av7110->pids[DMX_PES_TELETEXT] = 0;
@@ -855,7 +859,11 @@ static int dvb_feed_start_pid(struct dvb_demux_feed *dvbdmxfeed)
 
 	dprintk(4, "%p\n", av7110);
 
-	npids[0] = npids[1] = npids[2] = npids[3] = npids[4] = 0xffff;
+	npids[0] = 0xffff;
+	npids[1] = 0xffff;
+	npids[2] = 0xffff;
+	npids[3] = 0xffff;
+	npids[4] = 0xffff;
 	i = dvbdmxfeed->pes_type;
 	npids[i] = (pid[i] & 0x8000) ? 0 : pid[i];
 	if ((i == 2) && npids[i] && (dvbdmxfeed->ts_type & TS_PACKET)) {
@@ -907,7 +915,11 @@ static int dvb_feed_stop_pid(struct dvb_demux_feed *dvbdmxfeed)
 		if (!av7110->playing)
 			dvbdmx->playing = 0;
 	}
-	npids[0] = npids[1] = npids[2] = npids[3] = npids[4] = 0xffff;
+	npids[0] = 0xffff;
+	npids[1] = 0xffff;
+	npids[2] = 0xffff;
+	npids[3] = 0xffff;
+	npids[4] = 0xffff;
 	i = dvbdmxfeed->pes_type;
 	switch (i) {
 	case 2: //teletext
@@ -1407,10 +1419,13 @@ u8 i2c_readreg(struct av7110 *av7110, u8 id, u8 reg)
 
 	msgs[0].flags = 0;
 	msgs[1].flags = I2C_M_RD;
-	msgs[0].addr = msgs[1].addr = id / 2;
+	msgs[0].addr = id / 2;
+	msgs[1].addr = id / 2;
 	mm1[0] = reg;
-	msgs[0].len = 1; msgs[1].len = 1;
-	msgs[0].buf = mm1; msgs[1].buf = mm2;
+	msgs[0].len = 1;
+	msgs[1].len = 1;
+	msgs[0].buf = mm1;
+	msgs[1].buf = mm2;
 	i2c_transfer(&av7110->i2c_adap, msgs, 2);
 
 	return mm2[0];
@@ -1511,7 +1526,8 @@ static int get_firmware(struct av7110 *av7110)
 
 	memcpy(av7110->bin_fw, fw->data, fw->size);
 	av7110->size_fw = fw->size;
-	if ((ret = check_firmware(av7110)))
+	ret = check_firmware(av7110);
+	if (ret)
 		vfree(av7110->bin_fw);
 
 	release_firmware(fw);

@@ -99,7 +99,8 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 	while (len >= 184) {
 		buf[3] = 0x10 | ((p2ts->cc++) & 0x0f);
 		memcpy(buf + 4, pes, 184);
-		if ((ret=p2ts->cb(p2ts->priv, buf)))
+		ret = p2ts->cb(p2ts->priv, buf);
+		if (ret)
 			return ret;
 		len -= 184; pes += 184;
 		buf[1] &= ~0x40;
