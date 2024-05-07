@@ -255,14 +255,15 @@ config GPIO_WATCHDOG_ARCH_INITCALL
 	  If in doubt, say N.
 
 config LENOVO_SE10_WDT
-        tristate "Lenovo SE10 Watchdog"
-        select WATCHDOG_CORE
-        help
-          If you say yes here you get support for the watchdog
-          functionality for the Lenovo SE10 platform.
+	tristate "Lenovo SE10 Watchdog"
+	depends on (X86 && DMI) || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  If you say yes here you get support for the watchdog
+	  functionality for the Lenovo SE10 platform.
 
-          This driver can also be built as a module. If so, the module
-          will be called lenovo-se10-wdt.
+	  This driver can also be built as a module. If so, the module
+	  will be called lenovo-se10-wdt.
 
 config MENF21BMC_WATCHDOG
 	tristate "MEN 14F021P00 BMC Watchdog"
