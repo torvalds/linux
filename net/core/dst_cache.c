@@ -112,7 +112,7 @@ void dst_cache_set_ip6(struct dst_cache *dst_cache, struct dst_entry *dst,
 		return;
 
 	idst = this_cpu_ptr(dst_cache->cache);
-	dst_cache_per_cpu_dst_set(this_cpu_ptr(dst_cache->cache), dst,
+	dst_cache_per_cpu_dst_set(idst, dst,
 				  rt6_get_cookie(dst_rt6_info(dst)));
 	idst->in6_saddr = *saddr;
 }
