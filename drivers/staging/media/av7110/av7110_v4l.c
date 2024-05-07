@@ -729,13 +729,16 @@ int av7110_init_analog_module(struct av7110 *av7110)
 	} else {
 		u8 *i = saa7113_init_regs;
 
-		if ((av7110->dev->pci->subsystem_vendor == 0x110a) && (av7110->dev->pci->subsystem_device == 0x0000)) {
+		if ((av7110->dev->pci->subsystem_vendor == 0x110a) &&
+		    (av7110->dev->pci->subsystem_device == 0x0000)) {
 			/* Fujitsu/Siemens DVB-Cable */
 			av7110->analog_tuner_flags |= ANALOG_TUNER_VES1820;
-		} else if ((av7110->dev->pci->subsystem_vendor == 0x13c2) && (av7110->dev->pci->subsystem_device == 0x0002)) {
+		} else if ((av7110->dev->pci->subsystem_vendor == 0x13c2) &&
+			   (av7110->dev->pci->subsystem_device == 0x0002)) {
 			/* Hauppauge/TT DVB-C premium */
 			av7110->analog_tuner_flags |= ANALOG_TUNER_VES1820;
-		} else if ((av7110->dev->pci->subsystem_vendor == 0x13c2) && (av7110->dev->pci->subsystem_device == 0x000A)) {
+		} else if ((av7110->dev->pci->subsystem_vendor == 0x13c2) &&
+			   (av7110->dev->pci->subsystem_device == 0x000A)) {
 			/* Hauppauge/TT DVB-C premium */
 			av7110->analog_tuner_flags |= ANALOG_TUNER_STV0297;
 		}
@@ -912,8 +915,7 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *std)
 	if (std->id & V4L2_STD_PAL) {
 		av7110->vidmode = AV7110_VIDEO_MODE_PAL;
 		av7110_set_vidmode(av7110, av7110->vidmode);
-	}
-	else if (std->id & V4L2_STD_NTSC) {
+	} else if (std->id & V4L2_STD_NTSC) {
 		av7110->vidmode = AV7110_VIDEO_MODE_NTSC;
 		av7110_set_vidmode(av7110, av7110->vidmode);
 	}

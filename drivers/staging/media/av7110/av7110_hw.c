@@ -440,8 +440,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 	if (stat & GPMQOver) {
 		printk(KERN_ERR "dvb-ttpci: %s(): GPMQOver\n", __func__);
 		return -ENOSPC;
-	}
-	else if (stat & OSDQOver) {
+	} else if (stat & OSDQOver) {
 		printk(KERN_ERR "dvb-ttpci: %s(): OSDQOver\n", __func__);
 		return -ENOSPC;
 	}
@@ -511,8 +510,7 @@ int av7110_send_ci_cmd(struct av7110 *av7110, u8 subcom, u8 *buf, u8 len)
 
 	dprintk(4, "%p\n", av7110);
 
-	for (i = 0; i < len && i < 32; i++)
-	{
+	for (i = 0; i < len && i < 32; i++) {
 		if (i % 2 == 0)
 			cmd[(i / 2) + 2] = (u16)(buf[i]) << 8;
 		else
@@ -588,8 +586,7 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 		printk(KERN_ERR "%s: GPMQOver\n", __func__);
 		mutex_unlock(&av7110->dcomlock);
 		return -1;
-	}
-	else if (stat & OSDQOver) {
+	} else if (stat & OSDQOver) {
 		printk(KERN_ERR "%s: OSDQOver\n", __func__);
 		mutex_unlock(&av7110->dcomlock);
 		return -1;

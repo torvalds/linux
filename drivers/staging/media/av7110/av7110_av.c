@@ -1043,13 +1043,16 @@ static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len
 			continue;
 		}
 		switch (match++) {
-		case 2: if (c == 0x01)
+		case 2:
+			if (c == 0x01)
 				continue;
 			break;
-		case 3: if (c == 0xb5)
+		case 3:
+			if (c == 0xb5)
 				continue;
 			break;
-		case 4: if ((c & 0xf0) == 0x10)
+		case 4:
+			if ((c & 0xf0) == 0x10)
 				continue;
 			break;
 		}

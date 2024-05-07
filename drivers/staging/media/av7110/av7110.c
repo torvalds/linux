@@ -161,13 +161,11 @@ static void init_av7110_av(struct av7110 *av7110)
 		 */
 	} else if (0 == av7110_init_analog_module(av7110)) {
 		/* done. */
-	}
-	else if (dev->pci->subsystem_vendor == 0x110a) {
+	} else if (dev->pci->subsystem_vendor == 0x110a) {
 		printk("dvb-ttpci: DVB-C w/o analog module @ card %d detected\n",
 			av7110->dvb_adapter.num);
 		av7110->adac_type = DVB_ADAC_NONE;
-	}
-	else {
+	} else {
 		av7110->adac_type = adac;
 		printk("dvb-ttpci: adac type set to %d @ card %d\n",
 			av7110->adac_type, av7110->dvb_adapter.num);
@@ -504,8 +502,7 @@ static void gpioirq(struct tasklet_struct *t)
 		event.type = VIDEO_EVENT_SIZE_CHANGED;
 		event.u.size.w = av7110->video_size.w;
 		event.u.size.h = av7110->video_size.h;
-		switch ((h_ar >> 12) & 0xf)
-		{
+		switch ((h_ar >> 12) & 0xf) {
 		case 3:
 			av7110->video_size.aspect_ratio = VIDEO_FORMAT_16_9;
 			event.u.size.aspect_ratio = VIDEO_FORMAT_16_9;
@@ -576,8 +573,8 @@ static void gpioirq(struct tasklet_struct *t)
 			len = av7110_pes_play(av7110->debi_virt, &av7110->aout, 2048);
 			spin_unlock(&av7110->aout.lock);
 		}
-		if (len <= 0 && (av7110->debitype & 0x200)
-		    &&av7110->videostate.play_state != VIDEO_FREEZED) {
+		if (len <= 0 && (av7110->debitype & 0x200) &&
+		    av7110->videostate.play_state != VIDEO_FREEZED) {
 			spin_lock(&av7110->avout.lock);
 			len = av7110_pes_play(av7110->debi_virt, &av7110->avout, 2048);
 			spin_unlock(&av7110->avout.lock);
@@ -874,8 +871,7 @@ static int dvb_feed_start_pid(struct dvb_demux_feed *dvbdmxfeed)
 	}
 
 	if (dvbdmxfeed->pes_type < 2 && npids[0])
-		if (av7110->fe_synced)
-		{
+		if (av7110->fe_synced) {
 			ret = av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, Scan, 0);
 			if (ret)
 				return ret;
@@ -1823,7 +1819,8 @@ static int nexusca_stv0297_tuner_set_params(struct dvb_frontend *fe)
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 		if (i2c_transfer(&av7110->i2c_adap, &readmsg, 1) == 1)
-			if (data[0] & 0x40) break;
+			if (data[0] & 0x40)
+				break;
 		msleep(10);
 	}
 
@@ -1875,7 +1872,8 @@ static int grundig_29504_401_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer (&av7110->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&av7110->i2c_adap, &msg, 1) != 1)
+		return -EIO;
 	return 0;
 }
 

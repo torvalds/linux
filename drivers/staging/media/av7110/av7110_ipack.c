@@ -80,8 +80,8 @@ static void send_ipack(struct ipack *p)
 		p->buf[7] = 0x00;
 		p->buf[8] = 0x00;
 		p->count = 9;
-		if (p->repack_subids && p->cid == PRIVATE_STREAM1
-		    && (streamid & 0xf8) == 0x80) {
+		if (p->repack_subids && p->cid == PRIVATE_STREAM1 &&
+		    (streamid & 0xf8) == 0x80) {
 			p->count += 4;
 			p->buf[9] = streamid;
 			p->buf[10] = (ac3_off >> 8) & 0xff;
@@ -144,8 +144,8 @@ int av7110_ipack_instant_repack(const u8 *buf, int count, struct ipack *p)
 
 	while (c < count && (p->mpeg == 0 ||
 			     (p->mpeg == 1 && p->found < 7) ||
-			     (p->mpeg == 2 && p->found < 9))
-	       &&  (p->found < 5 || !p->done)) {
+			     (p->mpeg == 2 && p->found < 9)) &&
+			     (p->found < 5 || !p->done)) {
 		switch (p->found) {
 		case 0:
 		case 1:

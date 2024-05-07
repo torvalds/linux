@@ -14,15 +14,14 @@
 #define ARM_WAIT_SHAKE (HZ/5)
 #define ARM_WAIT_OSD (HZ)
 
-enum av7110_bootstate
-{
+enum av7110_bootstate {
 	BOOTSTATE_BUFFER_EMPTY	= 0,
 	BOOTSTATE_BUFFER_FULL	= 1,
 	BOOTSTATE_AV7110_BOOT_COMPLETE	= 2
 };
 
-enum av7110_type_rec_play_format
-{	RP_None,
+enum av7110_type_rec_play_format {
+	RP_None,
 	AudioPES,
 	AudioMp2,
 	AudioPCM,
@@ -30,8 +29,7 @@ enum av7110_type_rec_play_format
 	AV_PES
 };
 
-enum av7110_osd_palette_type
-{
+enum av7110_osd_palette_type {
 	NoPalet =  0,	   /* No palette */
 	Pal1Bit =  2,	   /* 2 colors for 1 Bit Palette    */
 	Pal2Bit =  4,	   /* 4 colors for 2 bit palette    */
@@ -50,8 +48,7 @@ enum av7110_osd_palette_type
 #define FB_ON	SAA7146_GPIO_OUTHI  /* FastBlank on  (RGB-Mode) */
 #define FB_LOOP	SAA7146_GPIO_INPUT  /* FastBlank loop-through (PC graphics ???) */
 
-enum av7110_video_output_mode
-{
+enum av7110_video_output_mode {
 	NO_OUT	     = 0,		/* disable analog output */
 	CVBS_RGB_OUT = 1,
 	CVBS_YC_OUT  = 2,

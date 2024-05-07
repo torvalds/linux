@@ -6,17 +6,19 @@
 
 static u32 freq[4] = {480, 441, 320, 0};
 
-static unsigned int ac3_bitrates[32] =
-    {32,40,48,56,64,80,96,112,128,160,192,224,256,320,384,448,512,576,640,
-     0,0,0,0,0,0,0,0,0,0,0,0,0};
+static unsigned int ac3_bitrates[32] = {
+	32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 512, 576, 640,
+	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
-static u32 ac3_frames[3][32] =
-    {{64,80,96,112,128,160,192,224,256,320,384,448,512,640,768,896,1024,
-      1152,1280,0,0,0,0,0,0,0,0,0,0,0,0,0},
-     {69,87,104,121,139,174,208,243,278,348,417,487,557,696,835,975,1114,
-      1253,1393,0,0,0,0,0,0,0,0,0,0,0,0,0},
-     {96,120,144,168,192,240,288,336,384,480,576,672,768,960,1152,1344,
-      1536,1728,1920,0,0,0,0,0,0,0,0,0,0,0,0,0}};
+static u32 ac3_frames[3][32] = {
+	{64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 512, 640, 768, 896, 1024,
+	 1152, 1280, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{69, 87, 104, 121, 139, 174, 208, 243, 278, 348, 417, 487, 557, 696, 835, 975, 1114,
+	 1253, 1393, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{96, 120, 144, 168, 192, 240, 288, 336, 384, 480, 576, 672, 768, 960, 1152, 1344,
+	 1536, 1728, 1920, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+};
 
 int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int pr)
 {
@@ -36,12 +38,14 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 		}
 	}
 
-	if (!found) return -1;
+	if (!found)
+		return -1;
 	if (pr)
 		printk(KERN_DEBUG "Audiostream: AC3");
 
 	ai->off = c;
-	if (c+5 >= count) return -1;
+	if (c + 5 >= count)
+		return -1;
 
 	ai->layer = 0;  // 0 for AC3
 	headr = mbuf+c+2;
@@ -59,7 +63,8 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 		printk(KERN_CONT "  Freq: %d Hz\n", (int) ai->frequency);
 
 	ai->framesize = ac3_frames[fr][frame >> 1];
-	if ((frame & 1) &&  (fr == 1)) ai->framesize++;
+	if ((frame & 1) && (fr == 1))
+		ai->framesize++;
 	ai->framesize = ai->framesize << 1;
 	if (pr)
 		printk(KERN_DEBUG "  Framesize %d\n", (int) ai->framesize);
