@@ -22,6 +22,7 @@ def define_autoghgvm():
         "drivers/net/net_failover.ko",
         "drivers/net/virtio_net.ko",
         "drivers/pinctrl/qcom/pinctrl-lemans.ko",
+        "drivers/pinctrl/qcom/pinctrl-monaco_auto.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/remoteproc/rproc_qcom_common.ko",
         "drivers/soc/qcom/debug_symbol.ko",
