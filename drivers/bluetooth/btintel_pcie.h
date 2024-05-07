@@ -87,6 +87,11 @@ enum {
 /* DMA allocation alignment */
 #define BTINTEL_PCIE_DMA_POOL_ALIGNMENT	256
 
+#define TX_WAIT_TIMEOUT_MS	500
+
+/* Doorbell vector for TFD */
+#define BTINTEL_PCIE_TX_DB_VEC	0
+
 /* Number of pending RX requests for downlink */
 #define BTINTEL_PCIE_RX_MAX_QUEUE	6
 
