@@ -353,13 +353,8 @@ err_reset_bridge:
 	bridge->encoder = NULL;
 	list_del(&bridge->chain_node);
 
-#ifdef CONFIG_OF
 	DRM_ERROR("failed to attach bridge %pOF to encoder %s: %d\n",
 		  bridge->of_node, encoder->name, ret);
-#else
-	DRM_ERROR("failed to attach bridge to encoder %s: %d\n",
-		  encoder->name, ret);
-#endif
 
 	return ret;
 }
