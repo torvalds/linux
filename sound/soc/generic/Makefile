@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
-snd-soc-simple-card-utils-objs	:= simple-card-utils.o
-snd-soc-simple-card-objs	:= simple-card.o
-snd-soc-audio-graph-card-objs	:= audio-graph-card.o
-snd-soc-audio-graph-card2-objs	:= audio-graph-card2.o
-snd-soc-audio-graph-card2-custom-sample-objs := audio-graph-card2-custom-sample.o
-snd-soc-test-component-objs	:= test-component.o
+snd-soc-simple-card-utils-y	:= simple-card-utils.o
+snd-soc-simple-card-y		:= simple-card.o
+snd-soc-audio-graph-card-y	:= audio-graph-card.o
+snd-soc-audio-graph-card2-y	:= audio-graph-card2.o
+snd-soc-audio-graph-card2-custom-sample-y := audio-graph-card2-custom-sample.o
+snd-soc-test-component-y	:= test-component.o
 
 obj-$(CONFIG_SND_SIMPLE_CARD_UTILS)	+= snd-soc-simple-card-utils.o
 obj-$(CONFIG_SND_SIMPLE_CARD)		+= snd-soc-simple-card.o
