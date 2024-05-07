@@ -33,9 +33,8 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 
 		if (b[0] == 0x0b &&  b[1] == 0x77)
 			found = 1;
-		else {
+		else
 			c++;
-		}
 	}
 
 	if (!found)

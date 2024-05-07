@@ -330,8 +330,10 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 		/* bilingual */
 		t->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 		t->audmode = V4L2_TUNER_MODE_LANG1;
-	} else /* mono */
+	} else {
+		/* mono */
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
+	}
 
 	return 0;
 }
@@ -709,8 +711,9 @@ int av7110_init_analog_module(struct av7110 *av7110)
 		pr_info("DVB-C analog module @ card %d detected, initializing MSP3415\n",
 			av7110->dvb_adapter.num);
 		av7110->adac_type = DVB_ADAC_MSP34x5;
-	} else
+	} else {
 		return -ENODEV;
+	}
 
 	msleep(100); // the probing above resets the msp...
 	msp_readreg(av7110, MSP_RD_DSP, 0x001e, &version1);
@@ -922,9 +925,9 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *std)
 	} else if (std->id & V4L2_STD_NTSC) {
 		av7110->vidmode = AV7110_VIDEO_MODE_NTSC;
 		av7110_set_vidmode(av7110, av7110->vidmode);
-	}
-	else
+	} else {
 		return -1;
+	}
 
 	return 0;
 }

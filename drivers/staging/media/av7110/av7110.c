@@ -408,10 +408,11 @@ static void debiirq(struct tasklet_struct *t)
 			if (data[5] > 5)
 				flags |= CA_CI_MODULE_READY;
 			av7110->ci_slot[data_0].flags = flags;
-		} else
+		} else {
 			ci_get_data(&av7110->ci_rbuffer,
 				    av7110->debi_virt,
 				    av7110->debilen);
+		}
 		xfer = RX_BUFF;
 		break;
 	}
@@ -1010,10 +1011,9 @@ static int av7110_stop_feed(struct dvb_demux_feed *feed)
 			demux->pids[feed->pes_type] |= 0x8000;
 			demux->pesfilter[feed->pes_type] = NULL;
 		}
-		if (feed->ts_type & TS_DECODER &&
-		    feed->pes_type < DMX_PES_OTHER) {
+		if (feed->ts_type & TS_DECODER && feed->pes_type < DMX_PES_OTHER)
 			ret = dvb_feed_stop_pid(feed);
-		} else
+		else
 			if ((feed->ts_type & TS_PACKET) &&
 			    (demux->dmx.frontend->source != DMX_MEMORY_FE))
 				ret = StopHWFilter(feed->filter);
@@ -1245,10 +1245,10 @@ static void vpeirq(struct tasklet_struct *t)
 	       saa7146_read(budget->dev, EC1R) & 0x3fff);
 #endif
 
-	if (newdma > olddma)
+	if (newdma > olddma) {
 		/* no wraparound, dump olddma..newdma */
 		dvb_dmx_swfilter_packets(demux, mem + olddma, (newdma - olddma) / 188);
-	else {
+	} else {
 		/* wraparound, dump olddma..buflen and 0..newdma */
 		dvb_dmx_swfilter_packets(demux, mem + olddma, (TS_BUFLEN - olddma) / 188);
 		dvb_dmx_swfilter_packets(demux, mem, newdma / 188);
@@ -1488,9 +1488,10 @@ static int get_firmware(struct av7110 *av7110)
 			printk(KERN_ERR "dvb-ttpci: could not load firmware, file not found: dvb-ttpci-01.fw\n");
 			printk(KERN_ERR "dvb-ttpci: usually this should be in /usr/lib/hotplug/firmware or /lib/firmware\n");
 			printk(KERN_ERR "dvb-ttpci: and can be downloaded from https://linuxtv.org/download/dvb/firmware/\n");
-		} else
+		} else {
 			printk(KERN_ERR "dvb-ttpci: cannot request firmware (error %i)\n",
 			       ret);
+		}
 		return -EINVAL;
 	}
 
@@ -2076,9 +2077,8 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x0000: // Fujitsu/Siemens DVB-Cable (ves1820/Philips CD1516(??))
 			av7110->fe = dvb_attach(ves1820_attach, &philips_cd1516_config,
 						&av7110->i2c_adap, read_pwm(av7110));
-			if (av7110->fe) {
+			if (av7110->fe)
 				av7110->fe->ops.tuner_ops.set_params = philips_cd1516_tuner_set_params;
-			}
 			break;
 		}
 
@@ -2129,17 +2129,15 @@ static int frontend_init(struct av7110 *av7110)
 				/* Siemens DVB-C (full-length card) VES1820/Philips CD1516 */
 				av7110->fe = dvb_attach(ves1820_attach, &philips_cd1516_config, &av7110->i2c_adap,
 							read_pwm(av7110));
-				if (av7110->fe) {
+				if (av7110->fe)
 					av7110->fe->ops.tuner_ops.set_params = philips_cd1516_tuner_set_params;
-				}
 				break;
 			case 0x0003:
 				/* Hauppauge DVB-C 2.1 VES1820/ALPS TDBE2 */
 				av7110->fe = dvb_attach(ves1820_attach, &alps_tdbe2_config, &av7110->i2c_adap,
 							read_pwm(av7110));
-				if (av7110->fe) {
+				if (av7110->fe)
 					av7110->fe->ops.tuner_ops.set_params = alps_tdbe2_tuner_set_params;
-				}
 				break;
 			}
 			break;
@@ -2168,9 +2166,8 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x0002: // Hauppauge/TT DVB-C premium rev2.X
 
 			av7110->fe = dvb_attach(ves1820_attach, &alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
-			if (av7110->fe) {
+			if (av7110->fe)
 				av7110->fe->ops.tuner_ops.set_params = alps_tdbe2_tuner_set_params;
-			}
 			break;
 
 		case 0x0004: // Galaxis DVB-S rev1.3

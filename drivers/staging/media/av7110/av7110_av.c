@@ -412,8 +412,9 @@ static void play_video_cb(u8 *buf, int count, void *priv)
 	if ((buf[3] & 0xe0) == 0xe0) {
 		get_video_format(av7110, buf, count);
 		aux_ring_buffer_write(&av7110->avout, buf, count);
-	} else
+	} else {
 		aux_ring_buffer_write(&av7110->aout, buf, count);
+	}
 }
 
 static void play_audio_cb(u8 *buf, int count, void *priv)
@@ -610,8 +611,9 @@ static int find_pes_header(u8 const *buf, long int length, int *frags)
 				c++;
 				break;
 			}
-		} else
+		} else {
 			c++;
+		}
 	}
 	if (c == length - 3 && !found) {
 		if (buf[length - 1] == 0x00)
@@ -709,8 +711,9 @@ void av7110_p2t_write(u8 const *buf, long int length, u16 pid, struct av7110_p2t
 				c = c2;
 				clear_p2t(p);
 				add = 0;
-			} else
+			} else {
 				add = 1;
+			}
 		} else {
 			l = length - c;
 			rest = l % (TS_SIZE - 4);
@@ -981,8 +984,10 @@ static __poll_t dvb_audio_poll(struct file *file, poll_table *wait)
 	if (av7110->playing) {
 		if (dvb_ringbuffer_free(&av7110->aout) >= 20 * 1024)
 			mask |= (EPOLLOUT | EPOLLWRNORM);
-	} else /* if not playing: may play if asked for */
+	} else {
+		/* if not playing: may play if asked for */
 		mask = (EPOLLOUT | EPOLLWRNORM);
+	}
 
 	return mask;
 }
@@ -1532,9 +1537,8 @@ static int dvb_video_release(struct inode *inode, struct file *file)
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
-	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
 		av7110_av_stop(av7110, RP_VIDEO);
-	}
 
 	return dvb_generic_release(inode, file);
 }

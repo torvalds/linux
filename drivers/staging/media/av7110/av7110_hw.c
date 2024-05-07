@@ -1076,9 +1076,9 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		ret = OSDSetColor(av7110, dc->color, dc->x0, dc->y0, dc->x1, dc->y1);
 		break;
 	case OSD_SetPalette:
-		if (FW_VERSION(av7110->arm_app) >= 0x2618)
+		if (FW_VERSION(av7110->arm_app) >= 0x2618) {
 			ret = OSDSetPalette(av7110, dc->data, dc->color, dc->x0);
-		else {
+		} else {
 			int i, len = dc->x0 - dc->color + 1;
 			u8 __user *colors = (u8 __user *)dc->data;
 			u8 r, g = 0, b = 0, blend = 0;
@@ -1140,9 +1140,9 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		break;
 	}
 	case OSD_SetWindow:
-		if (dc->x0 < 1 || dc->x0 > 7)
+		if (dc->x0 < 1 || dc->x0 > 7) {
 			ret = -EINVAL;
-		else {
+		} else {
 			av7110->osdwin = dc->x0;
 			ret = 0;
 		}

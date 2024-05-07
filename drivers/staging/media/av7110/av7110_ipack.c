@@ -215,9 +215,9 @@ int av7110_ipack_instant_repack(const u8 *buf, int count, struct ipack *p)
 				p->flag1 = buf[c];
 				c++;
 				p->found++;
-				if ((p->flag1 & 0xc0) == 0x80)
+				if ((p->flag1 & 0xc0) == 0x80) {
 					p->mpeg = 2;
-				else {
+				} else {
 					p->hlength = 0;
 					p->which = 0;
 					p->mpeg = 1;
