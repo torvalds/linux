@@ -93,6 +93,8 @@
 #include <net/ip_fib.h>
 #include <net/l3mdev.h>
 #include <net/addrconf.h>
+#define CREATE_TRACE_POINTS
+#include <trace/events/icmp.h>
 
 /*
  *	Build xmit assembly blocks
@@ -769,6 +771,8 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 	 */
 	if (!fl4.saddr)
 		fl4.saddr = htonl(INADDR_DUMMY);
+
+	trace_icmp_send(skb_in, type, code);
 
 	icmp_push_reply(sk, &icmp_param, &fl4, &ipc, &rt);
 ende:
