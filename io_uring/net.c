@@ -28,6 +28,7 @@ struct io_accept {
 	struct sockaddr __user		*addr;
 	int __user			*addr_len;
 	int				flags;
+	int				iou_flags;
 	u32				file_slot;
 	unsigned long			nofile;
 };
@@ -1489,7 +1490,6 @@ void io_sendrecv_fail(struct io_kiocb *req)
 int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_accept *accept = io_kiocb_to_cmd(req, struct io_accept);
-	unsigned flags;
 
 	if (sqe->len || sqe->buf_index)
 		return -EINVAL;
@@ -1498,15 +1498,15 @@ int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	accept->addr_len = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	accept->flags = READ_ONCE(sqe->accept_flags);
 	accept->nofile = rlimit(RLIMIT_NOFILE);
-	flags = READ_ONCE(sqe->ioprio);
-	if (flags & ~IORING_ACCEPT_MULTISHOT)
+	accept->iou_flags = READ_ONCE(sqe->ioprio);
+	if (accept->iou_flags & ~(IORING_ACCEPT_MULTISHOT | IORING_ACCEPT_DONTWAIT))
 		return -EINVAL;
 
 	accept->file_slot = READ_ONCE(sqe->file_index);
 	if (accept->file_slot) {
 		if (accept->flags & SOCK_CLOEXEC)
 			return -EINVAL;
-		if (flags & IORING_ACCEPT_MULTISHOT &&
+		if (accept->iou_flags & IORING_ACCEPT_MULTISHOT &&
 		    accept->file_slot != IORING_FILE_INDEX_ALLOC)
 			return -EINVAL;
 	}
@@ -1514,8 +1514,10 @@ int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 	if (SOCK_NONBLOCK != O_NONBLOCK && (accept->flags & SOCK_NONBLOCK))
 		accept->flags = (accept->flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
-	if (flags & IORING_ACCEPT_MULTISHOT)
+	if (accept->iou_flags & IORING_ACCEPT_MULTISHOT)
 		req->flags |= REQ_F_APOLL_MULTISHOT;
+	if (accept->iou_flags & IORING_ACCEPT_DONTWAIT)
+		req->flags |= REQ_F_NOWAIT;
 	return 0;
 }
 
@@ -1540,7 +1542,8 @@ retry:
 		if (!fixed)
 			put_unused_fd(fd);
 		ret = PTR_ERR(file);
-		if (ret == -EAGAIN && force_nonblock) {
+		if (ret == -EAGAIN && force_nonblock &&
+		    !(accept->iou_flags & IORING_ACCEPT_DONTWAIT)) {
 			/*
 			 * if it's multishot and polled, we don't need to
 			 * return EAGAIN to arm the poll infra since it

@@ -379,6 +379,7 @@ enum io_uring_op {
  * accept flags stored in sqe->ioprio
  */
 #define IORING_ACCEPT_MULTISHOT	(1U << 0)
+#define IORING_ACCEPT_DONTWAIT	(1U << 1)
 
 /*
  * IORING_OP_MSG_RING command types, stored in sqe->addr
