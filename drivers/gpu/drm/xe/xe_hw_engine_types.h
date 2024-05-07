@@ -189,6 +189,8 @@ struct xe_hw_engine_snapshot {
 		u32 ring_hws_pga;
 		/** @reg.ring_start: RING_START */
 		u32 ring_start;
+		/** @reg.ring_start_udw: RING_START_UDW */
+		u32 ring_start_udw;
 		/** @reg.ring_head: RING_HEAD */
 		u32 ring_head;
 		/** @reg.ring_tail: RING_TAIL */
@@ -207,6 +209,8 @@ struct xe_hw_engine_snapshot {
 		u32 ring_emr;
 		/** @reg.ring_eir: RING_EIR */
 		u32 ring_eir;
+		/** @reg.indirect_ring_state: INDIRECT_RING_STATE */
+		u32 indirect_ring_state;
 		/** @reg.ipehr: IPEHR */
 		u32 ipehr;
 		/** @reg.rcu_mode: RCU_MODE */
