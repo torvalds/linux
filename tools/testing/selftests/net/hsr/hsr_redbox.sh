@@ -86,6 +86,8 @@ setup_hsr_interfaces()
 check_prerequisites
 setup_ns ns1 ns2 ns3
 
+trap cleanup_all_ns EXIT
+
 setup_hsr_interfaces 1
 do_complete_ping_test
 
