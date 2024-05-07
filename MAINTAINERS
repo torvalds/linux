@@ -19821,7 +19821,7 @@ T:	git https://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/lsm.git
 F:	include/linux/lsm_audit.h
 F:	include/linux/lsm_hook_defs.h
 F:	include/linux/lsm_hooks.h
-F:	include/security.h
+F:	include/linux/security.h
 F:	include/uapi/linux/lsm.h
 F:	security/
 F:	tools/testing/selftests/lsm/
