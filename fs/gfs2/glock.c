@@ -258,8 +258,8 @@ static bool __gfs2_glock_put_or_lock(struct gfs2_glock *gl)
 		return true;
 	GLOCK_BUG_ON(gl, gl->gl_lockref.count != 1);
 	if (gl->gl_state != LM_ST_UNLOCKED) {
-		gl->gl_lockref.count--;
-		gfs2_glock_add_to_lru(gl);
+		request_demote(gl, LM_ST_UNLOCKED, 0, false);
+		gfs2_glock_queue_work(gl, 0);
 		spin_unlock(&gl->gl_lockref.lock);
 		return true;
 	}
@@ -983,16 +983,19 @@ static void delete_work_func(struct work_struct *work)
 
 static void glock_work_func(struct work_struct *work)
 {
-	unsigned long delay = 0;
 	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_work.work);
-	unsigned int drop_refs = 1;
+	unsigned int drop_refs;
+	unsigned long delay;
 
 	spin_lock(&gl->gl_lockref.lock);
+again:
+	drop_refs = 1;
 	if (test_bit(GLF_HAVE_REPLY, &gl->gl_flags)) {
 		clear_bit(GLF_HAVE_REPLY, &gl->gl_flags);
 		finish_xmote(gl, gl->gl_reply);
 		drop_refs++;
 	}
+	delay = 0;
 	if (test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
 	    gl->gl_state != LM_ST_UNLOCKED &&
 	    gl->gl_demote_state != LM_ST_EXCLUSIVE) {
@@ -1020,11 +1023,13 @@ static void glock_work_func(struct work_struct *work)
 	GLOCK_BUG_ON(gl, gl->gl_lockref.count < drop_refs);
 	gl->gl_lockref.count -= drop_refs;
 	if (!gl->gl_lockref.count) {
-		if (gl->gl_state == LM_ST_UNLOCKED) {
-			__gfs2_glock_put(gl);
-			return;
+		if (gl->gl_state != LM_ST_UNLOCKED) {
+			gl->gl_lockref.count++;
+			request_demote(gl, LM_ST_UNLOCKED, 0, false);
+			goto again;
 		}
-		gfs2_glock_add_to_lru(gl);
+		__gfs2_glock_put(gl);
+		return;
 	}
 	spin_unlock(&gl->gl_lockref.lock);
 }
