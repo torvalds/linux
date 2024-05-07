@@ -20,10 +20,14 @@ struct xe_lrc {
 	 */
 	struct xe_bo *bo;
 
+	/** @size: size of lrc including any indirect ring state page */
+	u32 size;
+
 	/** @tile: tile which this LRC belongs to */
 	struct xe_tile *tile;
 
 	/** @flags: LRC flags */
+#define XE_LRC_FLAG_INDIRECT_RING_STATE		0x1
 	u32 flags;
 
 	/** @ring: submission ring state */

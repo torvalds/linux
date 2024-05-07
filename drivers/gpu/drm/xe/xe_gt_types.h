@@ -110,8 +110,6 @@ struct xe_gt {
 	struct {
 		/** @info.type: type of GT */
 		enum xe_gt_type type;
-		/** @info.id: Unique ID of this GT within the PCI Device */
-		u8 id;
 		/** @info.reference_clock: clock frequency */
 		u32 reference_clock;
 		/** @info.engine_mask: mask of engines present on GT */
@@ -124,6 +122,10 @@ struct xe_gt {
 		u64 __engine_mask;
 		/** @info.gmdid: raw GMD_ID value from hardware */
 		u32 gmdid;
+		/** @info.id: Unique ID of this GT within the PCI Device */
+		u8 id;
+		/** @info.has_indirect_ring_state: GT has indirect ring state support */
+		u8 has_indirect_ring_state:1;
 	} info;
 
 	/**

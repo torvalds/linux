@@ -677,7 +677,7 @@ static void submit_exec_queue(struct xe_exec_queue *q)
 	if (xe_exec_queue_is_parallel(q))
 		wq_item_append(q);
 	else
-		xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
+		xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
 
 	if (exec_queue_suspended(q) && !xe_exec_queue_is_parallel(q))
 		return;

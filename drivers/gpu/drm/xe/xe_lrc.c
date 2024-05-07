@@ -34,12 +34,15 @@
 #define LRC_ENGINE_CLASS			GENMASK_ULL(63, 61)
 #define LRC_ENGINE_INSTANCE			GENMASK_ULL(53, 48)
 
+#define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
+
 struct xe_lrc_snapshot {
 	struct xe_bo *lrc_bo;
 	void *lrc_snapshot;
 	unsigned long lrc_size, lrc_offset;
 
 	u32 context_desc;
+	u32 indirect_context_desc;
 	u32 head;
 	struct {
 		u32 internal;
@@ -55,20 +58,25 @@ lrc_to_xe(struct xe_lrc *lrc)
 	return gt_to_xe(lrc->fence_ctx.gt);
 }
 
-size_t xe_lrc_size(struct xe_device *xe, enum xe_engine_class class)
+size_t xe_gt_lrc_size(struct xe_gt *gt, enum xe_engine_class class)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+	size_t size;
+
 	switch (class) {
 	case XE_ENGINE_CLASS_RENDER:
 		if (GRAPHICS_VER(xe) >= 20)
-			return 4 * SZ_4K;
+			size = 4 * SZ_4K;
 		else
-			return 14 * SZ_4K;
+			size = 14 * SZ_4K;
+		break;
 	case XE_ENGINE_CLASS_COMPUTE:
 		/* 14 pages since graphics_ver == 11 */
 		if (GRAPHICS_VER(xe) >= 20)
-			return 3 * SZ_4K;
+			size = 3 * SZ_4K;
 		else
-			return 14 * SZ_4K;
+			size = 14 * SZ_4K;
+		break;
 	default:
 		WARN(1, "Unknown engine class: %d", class);
 		fallthrough;
@@ -76,8 +84,14 @@ size_t xe_lrc_size(struct xe_device *xe, enum xe_engine_class class)
 	case XE_ENGINE_CLASS_VIDEO_DECODE:
 	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
 	case XE_ENGINE_CLASS_OTHER:
-		return 2 * SZ_4K;
+		size = 2 * SZ_4K;
 	}
+
+	/* Add indirect ring state page */
+	if (xe_gt_has_indirect_ring_state(gt))
+		size += LRC_INDIRECT_RING_STATE_SIZE;
+
+	return size;
 }
 
 /*
@@ -508,6 +522,32 @@ static const u8 xe2_xcs_offsets[] = {
 	0
 };
 
+static const u8 xe2_indirect_ring_state_offsets[] = {
+	NOP(1),                 /* [0x00] */
+	LRI(5, POSTED),         /* [0x01] */
+	REG(0x034),             /* [0x02] RING_BUFFER_HEAD */
+	REG(0x030),             /* [0x04] RING_BUFFER_TAIL */
+	REG(0x038),             /* [0x06] RING_BUFFER_START */
+	REG(0x048),             /* [0x08] RING_BUFFER_START_UDW */
+	REG(0x03c),             /* [0x0a] RING_BUFFER_CONTROL */
+
+	NOP(5),                 /* [0x0c] */
+	LRI(9, POSTED),         /* [0x11] */
+	REG(0x168),             /* [0x12] BB_ADDR_UDW */
+	REG(0x140),             /* [0x14] BB_ADDR */
+	REG(0x110),             /* [0x16] BB_STATE */
+	REG16(0x588),           /* [0x18] BB_STACK_WRITE_PORT */
+	REG16(0x588),           /* [0x20] BB_STACK_WRITE_PORT */
+	REG16(0x588),           /* [0x22] BB_STACK_WRITE_PORT */
+	REG16(0x588),           /* [0x24] BB_STACK_WRITE_PORT */
+	REG16(0x588),           /* [0x26] BB_STACK_WRITE_PORT */
+	REG16(0x588),           /* [0x28] BB_STACK_WRITE_PORT */
+
+	NOP(12),                 /* [0x00] */
+
+	0
+};
+
 #undef REG16
 #undef REG
 #undef LRI
@@ -545,6 +585,10 @@ static void set_context_control(u32 *regs, struct xe_hw_engine *hwe)
 {
 	regs[CTX_CONTEXT_CONTROL] = _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
 						       CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+
+	if (xe_gt_has_indirect_ring_state(hwe->gt))
+		regs[CTX_CONTEXT_CONTROL] |=
+			_MASKED_BIT_ENABLE(CTX_CTRL_INDIRECT_RING_STATE_ENABLE);
 
 	/* TODO: Timestamp */
 }
@@ -587,6 +631,11 @@ static void reset_stop_ring(u32 *regs, struct xe_hw_engine *hwe)
 	x = lrc_ring_mi_mode(hwe);
 	regs[x + 1] &= ~STOP_RING;
 	regs[x + 1] |= STOP_RING << 16;
+}
+
+static inline bool xe_lrc_has_indirect_ring_state(struct xe_lrc *lrc)
+{
+	return lrc->flags & XE_LRC_FLAG_INDIRECT_RING_STATE;
 }
 
 static inline u32 __xe_lrc_ring_offset(struct xe_lrc *lrc)
@@ -643,6 +692,12 @@ static inline u32 __xe_lrc_regs_offset(struct xe_lrc *lrc)
 	return xe_lrc_pphwsp_offset(lrc) + LRC_PPHWSP_SIZE;
 }
 
+static inline u32 __xe_lrc_indirect_ring_offset(struct xe_lrc *lrc)
+{
+	/* Indirect ring state page is at the very end of LRC */
+	return lrc->size - LRC_INDIRECT_RING_STATE_SIZE;
+}
+
 #define DECL_MAP_ADDR_HELPERS(elem) \
 static inline struct iosys_map __xe_lrc_##elem##_map(struct xe_lrc *lrc) \
 { \
@@ -663,12 +718,42 @@ DECL_MAP_ADDR_HELPERS(seqno)
 DECL_MAP_ADDR_HELPERS(regs)
 DECL_MAP_ADDR_HELPERS(start_seqno)
 DECL_MAP_ADDR_HELPERS(parallel)
+DECL_MAP_ADDR_HELPERS(indirect_ring)
 
 #undef DECL_MAP_ADDR_HELPERS
 
 u32 xe_lrc_ggtt_addr(struct xe_lrc *lrc)
 {
 	return __xe_lrc_pphwsp_ggtt_addr(lrc);
+}
+
+u32 xe_lrc_indirect_ring_ggtt_addr(struct xe_lrc *lrc)
+{
+	if (!xe_lrc_has_indirect_ring_state(lrc))
+		return 0;
+
+	return __xe_lrc_indirect_ring_ggtt_addr(lrc);
+}
+
+static u32 xe_lrc_read_indirect_ctx_reg(struct xe_lrc *lrc, int reg_nr)
+{
+	struct xe_device *xe = lrc_to_xe(lrc);
+	struct iosys_map map;
+
+	map = __xe_lrc_indirect_ring_map(lrc);
+	iosys_map_incr(&map, reg_nr * sizeof(u32));
+	return xe_map_read32(xe, &map);
+}
+
+static void xe_lrc_write_indirect_ctx_reg(struct xe_lrc *lrc,
+					  int reg_nr, u32 val)
+{
+	struct xe_device *xe = lrc_to_xe(lrc);
+	struct iosys_map map;
+
+	map = __xe_lrc_indirect_ring_map(lrc);
+	iosys_map_incr(&map, reg_nr * sizeof(u32));
+	xe_map_write32(xe, &map, val);
 }
 
 u32 xe_lrc_read_ctx_reg(struct xe_lrc *lrc, int reg_nr)
@@ -693,20 +778,25 @@ void xe_lrc_write_ctx_reg(struct xe_lrc *lrc, int reg_nr, u32 val)
 
 static void *empty_lrc_data(struct xe_hw_engine *hwe)
 {
-	struct xe_device *xe = gt_to_xe(hwe->gt);
+	struct xe_gt *gt = hwe->gt;
 	void *data;
 	u32 *regs;
 
-	data = kzalloc(xe_lrc_size(xe, hwe->class), GFP_KERNEL);
+	data = kzalloc(xe_gt_lrc_size(gt, hwe->class), GFP_KERNEL);
 	if (!data)
 		return NULL;
 
 	/* 1st page: Per-Process of HW status Page */
 	regs = data + LRC_PPHWSP_SIZE;
-	set_offsets(regs, reg_offsets(xe, hwe->class), hwe);
+	set_offsets(regs, reg_offsets(gt_to_xe(gt), hwe->class), hwe);
 	set_context_control(regs, hwe);
 	set_memory_based_intr(regs, hwe);
 	reset_stop_ring(regs, hwe);
+	if (xe_gt_has_indirect_ring_state(gt)) {
+		regs = data + xe_gt_lrc_size(gt, hwe->class) -
+		       LRC_INDIRECT_RING_STATE_SIZE;
+		set_offsets(regs, xe2_indirect_ring_state_offsets, hwe);
+	}
 
 	return data;
 }
@@ -731,23 +821,27 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	struct iosys_map map;
 	void *init_data = NULL;
 	u32 arb_enable;
+	u32 lrc_size;
 	int err;
 
 	lrc->flags = 0;
+	lrc_size = ring_size + xe_gt_lrc_size(gt, hwe->class);
+	if (xe_gt_has_indirect_ring_state(gt))
+		lrc->flags |= XE_LRC_FLAG_INDIRECT_RING_STATE;
 
 	/*
 	 * FIXME: Perma-pinning LRC as we don't yet support moving GGTT address
 	 * via VM bind calls.
 	 */
-	lrc->bo = xe_bo_create_pin_map(xe, tile, vm,
-				      ring_size + xe_lrc_size(xe, hwe->class),
-				      ttm_bo_type_kernel,
-				      XE_BO_FLAG_VRAM_IF_DGFX(tile) |
-				      XE_BO_FLAG_GGTT |
-				      XE_BO_FLAG_GGTT_INVALIDATE);
+	lrc->bo = xe_bo_create_pin_map(xe, tile, vm, lrc_size,
+				       ttm_bo_type_kernel,
+				       XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+				       XE_BO_FLAG_GGTT |
+				       XE_BO_FLAG_GGTT_INVALIDATE);
 	if (IS_ERR(lrc->bo))
 		return PTR_ERR(lrc->bo);
 
+	lrc->size = lrc_size;
 	lrc->tile = gt_to_tile(hwe->gt);
 	lrc->ring.size = ring_size;
 	lrc->ring.tail = 0;
@@ -772,10 +866,10 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		xe_map_memset(xe, &map, 0, 0, LRC_PPHWSP_SIZE);	/* PPHWSP */
 		xe_map_memcpy_to(xe, &map, LRC_PPHWSP_SIZE,
 				 gt->default_lrc[hwe->class] + LRC_PPHWSP_SIZE,
-				 xe_lrc_size(xe, hwe->class) - LRC_PPHWSP_SIZE);
+				 xe_gt_lrc_size(gt, hwe->class) - LRC_PPHWSP_SIZE);
 	} else {
 		xe_map_memcpy_to(xe, &map, 0, init_data,
-				 xe_lrc_size(xe, hwe->class));
+				 xe_gt_lrc_size(gt, hwe->class));
 		kfree(init_data);
 	}
 
@@ -786,11 +880,25 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 			xe_drm_client_add_bo(vm->xef->client, lrc->bo);
 	}
 
-	xe_lrc_write_ctx_reg(lrc, CTX_RING_START, __xe_lrc_ring_ggtt_addr(lrc));
-	xe_lrc_write_ctx_reg(lrc, CTX_RING_HEAD, 0);
-	xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
-	xe_lrc_write_ctx_reg(lrc, CTX_RING_CTL,
-			     RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
+	if (xe_gt_has_indirect_ring_state(gt)) {
+		xe_lrc_write_ctx_reg(lrc, CTX_INDIRECT_RING_STATE,
+				     __xe_lrc_indirect_ring_ggtt_addr(lrc));
+
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_START,
+					      __xe_lrc_ring_ggtt_addr(lrc));
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_START_UDW, 0);
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_HEAD, 0);
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_TAIL, lrc->ring.tail);
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_CTL,
+					      RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
+	} else {
+		xe_lrc_write_ctx_reg(lrc, CTX_RING_START, __xe_lrc_ring_ggtt_addr(lrc));
+		xe_lrc_write_ctx_reg(lrc, CTX_RING_HEAD, 0);
+		xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
+		xe_lrc_write_ctx_reg(lrc, CTX_RING_CTL,
+				     RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
+	}
+
 	if (xe->info.has_asid && vm)
 		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ASID, vm->usm.asid);
 
@@ -834,14 +942,36 @@ void xe_lrc_finish(struct xe_lrc *lrc)
 	xe_bo_put(lrc->bo);
 }
 
+void xe_lrc_set_ring_tail(struct xe_lrc *lrc, u32 tail)
+{
+	if (xe_lrc_has_indirect_ring_state(lrc))
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_TAIL, tail);
+	else
+		xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, tail);
+}
+
+u32 xe_lrc_ring_tail(struct xe_lrc *lrc)
+{
+	if (xe_lrc_has_indirect_ring_state(lrc))
+		return xe_lrc_read_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_TAIL) & TAIL_ADDR;
+	else
+		return xe_lrc_read_ctx_reg(lrc, CTX_RING_TAIL) & TAIL_ADDR;
+}
+
 void xe_lrc_set_ring_head(struct xe_lrc *lrc, u32 head)
 {
-	xe_lrc_write_ctx_reg(lrc, CTX_RING_HEAD, head);
+	if (xe_lrc_has_indirect_ring_state(lrc))
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_HEAD, head);
+	else
+		xe_lrc_write_ctx_reg(lrc, CTX_RING_HEAD, head);
 }
 
 u32 xe_lrc_ring_head(struct xe_lrc *lrc)
 {
-	return xe_lrc_read_ctx_reg(lrc, CTX_RING_HEAD) & HEAD_ADDR;
+	if (xe_lrc_has_indirect_ring_state(lrc))
+		return xe_lrc_read_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_HEAD) & HEAD_ADDR;
+	else
+		return xe_lrc_read_ctx_reg(lrc, CTX_RING_HEAD) & HEAD_ADDR;
 }
 
 u32 xe_lrc_ring_space(struct xe_lrc *lrc)
@@ -1214,7 +1344,7 @@ void xe_lrc_dump_default(struct drm_printer *p,
 	 * hardware status page.
 	 */
 	dw = gt->default_lrc[hwe_class] + LRC_PPHWSP_SIZE;
-	remaining_dw = (xe_lrc_size(gt_to_xe(gt), hwe_class) - LRC_PPHWSP_SIZE) / 4;
+	remaining_dw = (xe_gt_lrc_size(gt, hwe_class) - LRC_PPHWSP_SIZE) / 4;
 
 	while (remaining_dw > 0) {
 		if ((*dw & XE_INSTR_CMD_TYPE) == XE_INSTR_MI) {
@@ -1355,9 +1485,10 @@ struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
 		return NULL;
 
 	snapshot->context_desc = xe_lrc_ggtt_addr(lrc);
+	snapshot->indirect_context_desc = xe_lrc_indirect_ring_ggtt_addr(lrc);
 	snapshot->head = xe_lrc_ring_head(lrc);
 	snapshot->tail.internal = lrc->ring.tail;
-	snapshot->tail.memory = xe_lrc_read_ctx_reg(lrc, CTX_RING_TAIL);
+	snapshot->tail.memory = xe_lrc_ring_tail(lrc);
 	snapshot->start_seqno = xe_lrc_start_seqno(lrc);
 	snapshot->seqno = xe_lrc_seqno(lrc);
 	snapshot->lrc_bo = xe_bo_get(lrc->bo);
@@ -1405,6 +1536,8 @@ void xe_lrc_snapshot_print(struct xe_lrc_snapshot *snapshot, struct drm_printer 
 		return;
 
 	drm_printf(p, "\tHW Context Desc: 0x%08x\n", snapshot->context_desc);
+	drm_printf(p, "\tHW Indirect Ring State: 0x%08x\n",
+		   snapshot->indirect_context_desc);
 	drm_printf(p, "\tLRC Head: (memory) %u\n", snapshot->head);
 	drm_printf(p, "\tLRC Tail: (internal) %u, (memory) %u\n",
 		   snapshot->tail.internal, snapshot->tail.memory);

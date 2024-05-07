@@ -160,7 +160,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 
 	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
 		/* Big enough to emit all of the context's 3DSTATE */
-		bb = xe_bb_new(gt, xe_lrc_size(gt_to_xe(gt), q->hwe->class), false);
+		bb = xe_bb_new(gt, xe_gt_lrc_size(gt, q->hwe->class), false);
 	else
 		/* Just pick a large BB size */
 		bb = xe_bb_new(gt, SZ_4K, false);
@@ -244,7 +244,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 		xe_tuning_process_lrc(hwe);
 
 		default_lrc = drmm_kzalloc(&xe->drm,
-					   xe_lrc_size(xe, hwe->class),
+					   xe_gt_lrc_size(gt, hwe->class),
 					   GFP_KERNEL);
 		if (!default_lrc)
 			return -ENOMEM;
@@ -294,7 +294,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 		xe_map_memcpy_from(xe, default_lrc,
 				   &q->lrc[0].bo->vmap,
 				   xe_lrc_pphwsp_offset(&q->lrc[0]),
-				   xe_lrc_size(xe, hwe->class));
+				   xe_gt_lrc_size(gt, hwe->class));
 
 		gt->default_lrc[hwe->class] = default_lrc;
 put_nop_q:

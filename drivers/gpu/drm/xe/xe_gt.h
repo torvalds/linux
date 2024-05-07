@@ -8,6 +8,7 @@
 
 #include <drm/drm_util.h>
 
+#include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_hw_engine.h"
 
@@ -57,6 +58,12 @@ struct xe_hw_engine *xe_gt_hw_engine(struct xe_gt *gt,
 				     enum xe_engine_class class,
 				     u16 instance,
 				     bool logical);
+
+static inline bool xe_gt_has_indirect_ring_state(struct xe_gt *gt)
+{
+	return gt->info.has_indirect_ring_state &&
+	       xe_device_uc_enabled(gt_to_xe(gt));
+}
 
 static inline bool xe_gt_is_media_type(struct xe_gt *gt)
 {
