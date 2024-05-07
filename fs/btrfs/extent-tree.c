@@ -5477,7 +5477,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	struct extent_buffer *next;
 	int level = wc->level;
 	int ret = 0;
-	bool need_account = false;
 
 	generation = btrfs_node_ptr_generation(path->nodes[level],
 					       path->slots[level]);
@@ -5517,7 +5516,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	if (wc->stage == DROP_REFERENCE) {
 		if (wc->refs[level - 1] > 1) {
-			need_account = true;
 			if (level == 1 &&
 			    (wc->flags[0] & BTRFS_BLOCK_FLAG_FULL_BACKREF))
 				goto skip;
@@ -5560,8 +5558,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 		wc->reada_slot = 0;
 	return 0;
 skip:
-	wc->refs[level - 1] = 0;
-	wc->flags[level - 1] = 0;
 	if (wc->stage == DROP_REFERENCE) {
 		struct btrfs_ref ref = {
 			.action = BTRFS_DROP_DELAYED_REF,
@@ -5606,7 +5602,8 @@ skip:
 		 * already accounted them at merge time (replace_path),
 		 * thus we could skip expensive subtree trace here.
 		 */
-		if (btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID && need_account) {
+		if (btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID &&
+		    wc->refs[level - 1] > 1) {
 			ret = btrfs_qgroup_trace_subtree(trans, next,
 							 generation, level - 1);
 			if (ret) {
@@ -5631,6 +5628,8 @@ skip:
 			goto out_unlock;
 	}
 no_delete:
+	wc->refs[level - 1] = 0;
+	wc->flags[level - 1] = 0;
 	wc->lookup_info = 1;
 	ret = 1;
 
