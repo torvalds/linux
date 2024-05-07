@@ -1036,8 +1036,8 @@ static size_t rtnl_proto_down_size(const struct net_device *dev)
 {
 	size_t size = nla_total_size(1);
 
-	if (dev->proto_down_reason)
-		size += nla_total_size(0) + nla_total_size(4);
+	/* Assume dev->proto_down_reason is not zero. */
+	size += nla_total_size(0) + nla_total_size(4);
 
 	return size;
 }
@@ -1477,13 +1477,15 @@ static int rtnl_fill_link_ifmap(struct sk_buff *skb,
 static u32 rtnl_xdp_prog_skb(struct net_device *dev)
 {
 	const struct bpf_prog *generic_xdp_prog;
+	u32 res = 0;
 
-	ASSERT_RTNL();
+	rcu_read_lock();
+	generic_xdp_prog = rcu_dereference(dev->xdp_prog);
+	if (generic_xdp_prog)
+		res = generic_xdp_prog->aux->id;
+	rcu_read_unlock();
 
-	generic_xdp_prog = rtnl_dereference(dev->xdp_prog);
-	if (!generic_xdp_prog)
-		return 0;
-	return generic_xdp_prog->aux->id;
+	return res;
 }
 
 static u32 rtnl_xdp_prog_drv(struct net_device *dev)
@@ -1603,7 +1605,8 @@ static int put_master_ifindex(struct sk_buff *skb, struct net_device *dev)
 
 	upper_dev = netdev_master_upper_dev_get_rcu(dev);
 	if (upper_dev)
-		ret = nla_put_u32(skb, IFLA_MASTER, upper_dev->ifindex);
+		ret = nla_put_u32(skb, IFLA_MASTER,
+				  READ_ONCE(upper_dev->ifindex));
 
 	rcu_read_unlock();
 	return ret;
@@ -1736,10 +1739,10 @@ static int rtnl_fill_proto_down(struct sk_buff *skb,
 	struct nlattr *pr;
 	u32 preason;
 
-	if (nla_put_u8(skb, IFLA_PROTO_DOWN, dev->proto_down))
+	if (nla_put_u8(skb, IFLA_PROTO_DOWN, READ_ONCE(dev->proto_down)))
 		goto nla_put_failure;
 
-	preason = dev->proto_down_reason;
+	preason = READ_ONCE(dev->proto_down_reason);
 	if (!preason)
 		return 0;
 
@@ -1812,6 +1815,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 			    u32 event, int *new_nsid, int new_ifindex,
 			    int tgt_netnsid, gfp_t gfp)
 {
+	char devname[IFNAMSIZ];
 	struct ifinfomsg *ifm;
 	struct nlmsghdr *nlh;
 	struct Qdisc *qdisc;
@@ -1824,41 +1828,51 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	ifm = nlmsg_data(nlh);
 	ifm->ifi_family = AF_UNSPEC;
 	ifm->__ifi_pad = 0;
-	ifm->ifi_type = dev->type;
-	ifm->ifi_index = dev->ifindex;
+	ifm->ifi_type = READ_ONCE(dev->type);
+	ifm->ifi_index = READ_ONCE(dev->ifindex);
 	ifm->ifi_flags = dev_get_flags(dev);
 	ifm->ifi_change = change;
 
 	if (tgt_netnsid >= 0 && nla_put_s32(skb, IFLA_TARGET_NETNSID, tgt_netnsid))
 		goto nla_put_failure;
 
-	qdisc = rtnl_dereference(dev->qdisc);
-	if (nla_put_string(skb, IFLA_IFNAME, dev->name) ||
-	    nla_put_u32(skb, IFLA_TXQLEN, dev->tx_queue_len) ||
+	netdev_copy_name(dev, devname);
+	if (nla_put_string(skb, IFLA_IFNAME, devname))
+		goto nla_put_failure;
+
+	if (nla_put_u32(skb, IFLA_TXQLEN, READ_ONCE(dev->tx_queue_len)) ||
 	    nla_put_u8(skb, IFLA_OPERSTATE,
-		       netif_running(dev) ? dev->operstate : IF_OPER_DOWN) ||
-	    nla_put_u8(skb, IFLA_LINKMODE, dev->link_mode) ||
-	    nla_put_u32(skb, IFLA_MTU, dev->mtu) ||
-	    nla_put_u32(skb, IFLA_MIN_MTU, dev->min_mtu) ||
-	    nla_put_u32(skb, IFLA_MAX_MTU, dev->max_mtu) ||
-	    nla_put_u32(skb, IFLA_GROUP, dev->group) ||
-	    nla_put_u32(skb, IFLA_PROMISCUITY, dev->promiscuity) ||
-	    nla_put_u32(skb, IFLA_ALLMULTI, dev->allmulti) ||
-	    nla_put_u32(skb, IFLA_NUM_TX_QUEUES, dev->num_tx_queues) ||
-	    nla_put_u32(skb, IFLA_GSO_MAX_SEGS, dev->gso_max_segs) ||
-	    nla_put_u32(skb, IFLA_GSO_MAX_SIZE, dev->gso_max_size) ||
-	    nla_put_u32(skb, IFLA_GRO_MAX_SIZE, dev->gro_max_size) ||
-	    nla_put_u32(skb, IFLA_GSO_IPV4_MAX_SIZE, dev->gso_ipv4_max_size) ||
-	    nla_put_u32(skb, IFLA_GRO_IPV4_MAX_SIZE, dev->gro_ipv4_max_size) ||
-	    nla_put_u32(skb, IFLA_TSO_MAX_SIZE, dev->tso_max_size) ||
-	    nla_put_u32(skb, IFLA_TSO_MAX_SEGS, dev->tso_max_segs) ||
+		       netif_running(dev) ? READ_ONCE(dev->operstate) :
+					    IF_OPER_DOWN) ||
+	    nla_put_u8(skb, IFLA_LINKMODE, READ_ONCE(dev->link_mode)) ||
+	    nla_put_u32(skb, IFLA_MTU, READ_ONCE(dev->mtu)) ||
+	    nla_put_u32(skb, IFLA_MIN_MTU, READ_ONCE(dev->min_mtu)) ||
+	    nla_put_u32(skb, IFLA_MAX_MTU, READ_ONCE(dev->max_mtu)) ||
+	    nla_put_u32(skb, IFLA_GROUP, READ_ONCE(dev->group)) ||
+	    nla_put_u32(skb, IFLA_PROMISCUITY, READ_ONCE(dev->promiscuity)) ||
+	    nla_put_u32(skb, IFLA_ALLMULTI, READ_ONCE(dev->allmulti)) ||
+	    nla_put_u32(skb, IFLA_NUM_TX_QUEUES,
+			READ_ONCE(dev->num_tx_queues)) ||
+	    nla_put_u32(skb, IFLA_GSO_MAX_SEGS,
+			READ_ONCE(dev->gso_max_segs)) ||
+	    nla_put_u32(skb, IFLA_GSO_MAX_SIZE,
+			READ_ONCE(dev->gso_max_size)) ||
+	    nla_put_u32(skb, IFLA_GRO_MAX_SIZE,
+			READ_ONCE(dev->gro_max_size)) ||
+	    nla_put_u32(skb, IFLA_GSO_IPV4_MAX_SIZE,
+			READ_ONCE(dev->gso_ipv4_max_size)) ||
+	    nla_put_u32(skb, IFLA_GRO_IPV4_MAX_SIZE,
+			READ_ONCE(dev->gro_ipv4_max_size)) ||
+	    nla_put_u32(skb, IFLA_TSO_MAX_SIZE,
+			READ_ONCE(dev->tso_max_size)) ||
+	    nla_put_u32(skb, IFLA_TSO_MAX_SEGS,
+			READ_ONCE(dev->tso_max_segs)) ||
 #ifdef CONFIG_RPS
-	    nla_put_u32(skb, IFLA_NUM_RX_QUEUES, dev->num_rx_queues) ||
+	    nla_put_u32(skb, IFLA_NUM_RX_QUEUES,
+			READ_ONCE(dev->num_rx_queues)) ||
 #endif
 	    put_master_ifindex(skb, dev) ||
 	    nla_put_u8(skb, IFLA_CARRIER, netif_carrier_ok(dev)) ||
-	    (qdisc &&
-	     nla_put_string(skb, IFLA_QDISC, qdisc->ops->id)) ||
 	    nla_put_ifalias(skb, dev) ||
 	    nla_put_u32(skb, IFLA_CARRIER_CHANGES,
 			atomic_read(&dev->carrier_up_count) +
@@ -1909,9 +1923,6 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 	}
 
-	if (rtnl_fill_link_netnsid(skb, dev, src_net, gfp))
-		goto nla_put_failure;
-
 	if (new_nsid &&
 	    nla_put_s32(skb, IFLA_NEW_NETNSID, *new_nsid) < 0)
 		goto nla_put_failure;
@@ -1924,6 +1935,11 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	rcu_read_lock();
+	if (rtnl_fill_link_netnsid(skb, dev, src_net, GFP_ATOMIC))
+		goto nla_put_failure_rcu;
+	qdisc = rcu_dereference(dev->qdisc);
+	if (qdisc && nla_put_string(skb, IFLA_QDISC, qdisc->ops->id))
+		goto nla_put_failure_rcu;
 	if (rtnl_fill_link_af(skb, dev, ext_filter_mask))
 		goto nla_put_failure_rcu;
 	if (rtnl_fill_link_ifmap(skb, dev))

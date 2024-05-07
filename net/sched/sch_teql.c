@@ -78,7 +78,7 @@ teql_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 	struct net_device *dev = qdisc_dev(sch);
 	struct teql_sched_data *q = qdisc_priv(sch);
 
-	if (q->q.qlen < dev->tx_queue_len) {
+	if (q->q.qlen < READ_ONCE(dev->tx_queue_len)) {
 		__skb_queue_tail(&q->q, skb);
 		return NET_XMIT_SUCCESS;
 	}
