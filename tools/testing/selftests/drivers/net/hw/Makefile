@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0+ OR MIT
 
 TEST_PROGS = \
+	csum.py \
 	devlink_port_split.py \
 	ethtool.sh \
 	ethtool_extended_state.sh \
