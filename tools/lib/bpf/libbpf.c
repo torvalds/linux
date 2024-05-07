@@ -1152,22 +1152,15 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 				return -ENOTSUP;
 			}
 
-			prog = st_ops->progs[i];
-			if (prog) {
+			if (st_ops->progs[i]) {
 				/* If we had declaratively set struct_ops callback, we need to
-				 * first validate that it's actually a struct_ops program.
-				 * And then force its autoload to false, because it doesn't have
+				 * force its autoload to false, because it doesn't have
 				 * a chance of succeeding from POV of the current struct_ops map.
 				 * If this program is still referenced somewhere else, though,
 				 * then bpf_object_adjust_struct_ops_autoload() will update its
 				 * autoload accordingly.
 				 */
-				if (!is_valid_st_ops_program(obj, prog)) {
-					pr_warn("struct_ops init_kern %s: member %s is declaratively assigned a non-struct_ops program\n",
-						map->name, mname);
-					return -EINVAL;
-				}
-				prog->autoload = false;
+				st_ops->progs[i]->autoload = false;
 				st_ops->progs[i] = NULL;
 			}
 
@@ -1200,11 +1193,19 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 		}
 
 		if (btf_is_ptr(mtype)) {
-			/* Update the value from the shadow type */
 			prog = *(void **)mdata;
+			/* just like for !kern_member case above, reset declaratively
+			 * set (at compile time) program's autload to false,
+			 * if user replaced it with another program or NULL
+			 */
+			if (st_ops->progs[i] && st_ops->progs[i] != prog)
+				st_ops->progs[i]->autoload = false;
+
+			/* Update the value from the shadow type */
 			st_ops->progs[i] = prog;
 			if (!prog)
 				continue;
+
 			if (!is_valid_st_ops_program(obj, prog)) {
 				pr_warn("struct_ops init_kern %s: member %s is not a struct_ops program\n",
 					map->name, mname);
@@ -7371,7 +7372,11 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 	__u32 log_level = prog->log_level;
 	int ret, err;
 
-	if (prog->type == BPF_PROG_TYPE_UNSPEC) {
+	/* Be more helpful by rejecting programs that can't be validated early
+	 * with more meaningful and actionable error message.
+	 */
+	switch (prog->type) {
+	case BPF_PROG_TYPE_UNSPEC:
 		/*
 		 * The program type must be set.  Most likely we couldn't find a proper
 		 * section definition at load time, and thus we didn't infer the type.
@@ -7379,6 +7384,15 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 		pr_warn("prog '%s': missing BPF prog type, check ELF section name '%s'\n",
 			prog->name, prog->sec_name);
 		return -EINVAL;
+	case BPF_PROG_TYPE_STRUCT_OPS:
+		if (prog->attach_btf_id == 0) {
+			pr_warn("prog '%s': SEC(\"struct_ops\") program isn't referenced anywhere, did you forget to use it?\n",
+				prog->name);
+			return -EINVAL;
+		}
+		break;
+	default:
+		break;
 	}
 
 	if (!insns || !insns_cnt)
