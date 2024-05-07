@@ -235,7 +235,7 @@ static inline bool kvm_apic_has_pending_init_or_sipi(struct kvm_vcpu *vcpu)
 static inline bool kvm_apic_init_sipi_allowed(struct kvm_vcpu *vcpu)
 {
 	return !is_smm(vcpu) &&
-	       !static_call(kvm_x86_apic_init_signal_blocked)(vcpu);
+	       !kvm_x86_call(apic_init_signal_blocked)(vcpu);
 }
 
 static inline bool kvm_lowest_prio_delivery(struct kvm_lapic_irq *irq)

@@ -400,7 +400,7 @@ static void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 						    vcpu->arch.cpuid_nent));
 
 	/* Invoke the vendor callback only after the above state is updated. */
-	static_call(kvm_x86_vcpu_after_set_cpuid)(vcpu);
+	kvm_x86_call(vcpu_after_set_cpuid)(vcpu);
 
 	/*
 	 * Except for the MMU, which needs to do its thing any vendor specific

@@ -1417,7 +1417,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		}
 
 		/* vmcall/vmmcall */
-		static_call(kvm_x86_patch_hypercall)(vcpu, instructions + i);
+		kvm_x86_call(patch_hypercall)(vcpu, instructions + i);
 		i += 3;
 
 		/* ret */
@@ -1986,7 +1986,7 @@ int kvm_hv_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
 		 */
 		gva = entries[i] & PAGE_MASK;
 		for (j = 0; j < (entries[i] & ~PAGE_MASK) + 1; j++)
-			static_call(kvm_x86_flush_tlb_gva)(vcpu, gva + j * PAGE_SIZE);
+			kvm_x86_call(flush_tlb_gva)(vcpu, gva + j * PAGE_SIZE);
 
 		++vcpu->stat.tlb_flush;
 	}
@@ -2527,7 +2527,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	 * hypercall generates UD from non zero cpl and real mode
 	 * per HYPER-V spec
 	 */
-	if (static_call(kvm_x86_get_cpl)(vcpu) != 0 || !is_protmode(vcpu)) {
+	if (kvm_x86_call(get_cpl)(vcpu) != 0 || !is_protmode(vcpu)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
 	}
