@@ -244,13 +244,13 @@ cleanup:
 
 void serial_test_struct_ops_module(void)
 {
-	if (test__start_subtest("test_struct_ops_load"))
+	if (test__start_subtest("struct_ops_load"))
 		test_struct_ops_load();
-	if (test__start_subtest("test_struct_ops_not_zeroed"))
+	if (test__start_subtest("struct_ops_not_zeroed"))
 		test_struct_ops_not_zeroed();
-	if (test__start_subtest("test_struct_ops_incompatible"))
+	if (test__start_subtest("struct_ops_incompatible"))
 		test_struct_ops_incompatible();
-	if (test__start_subtest("test_struct_ops_null_out_cb"))
+	if (test__start_subtest("struct_ops_null_out_cb"))
 		test_struct_ops_nulled_out_cb();
 	if (test__start_subtest("struct_ops_forgotten_cb"))
 		test_struct_ops_forgotten_cb();
