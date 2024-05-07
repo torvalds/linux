@@ -5224,7 +5224,20 @@ struct walk_control {
 	int lookup_info;
 };
 
+/*
+ * This is our normal stage.  We are traversing blocks the current snapshot owns
+ * and we are dropping any of our references to any children we are able to, and
+ * then freeing the block once we've processed all of the children.
+ */
 #define DROP_REFERENCE	1
+
+/*
+ * We enter this stage when we have to walk into a child block (meaning we can't
+ * simply drop our reference to it from our current parent node) and there are
+ * more than one reference on it.  If we are the owner of any of the children
+ * blocks from the current parent node then we have to do the FULL_BACKREF dance
+ * on them in order to drop our normal ref and add the shared ref.
+ */
 #define UPDATE_BACKREF	2
 
 /*
@@ -5849,6 +5862,27 @@ owner_mismatch:
 	return -EUCLEAN;
 }
 
+/*
+ * walk_down_tree consists of two steps.
+ *
+ * walk_down_proc().  Look up the reference count and reference of our current
+ * wc->level.  At this point path->nodes[wc->level] should be populated and
+ * uptodate, and in most cases should already be locked.  If we are in
+ * DROP_REFERENCE and our refcount is > 1 then we've entered a shared node and
+ * we can walk back up the tree.  If we are UPDATE_BACKREF we have to set
+ * FULL_BACKREF on this node if it's not already set, and then do the
+ * FULL_BACKREF conversion dance, which is to drop the root reference and add
+ * the shared reference to all of this nodes children.
+ *
+ * do_walk_down().  This is where we actually start iterating on the children of
+ * our current path->nodes[wc->level].  For DROP_REFERENCE that means dropping
+ * our reference to the children that return false from visit_node_for_delete(),
+ * which has various conditions where we know we can just drop our reference
+ * without visiting the node.  For UPDATE_BACKREF we will skip any children that
+ * visit_node_for_delete() returns false for, only walking down when necessary.
+ * The bulk of the work for UPDATE_BACKREF occurs in the walk_up_tree() part of
+ * snapshot deletion.
+ */
 static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct btrfs_path *path,
@@ -5881,6 +5915,23 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 	return (ret == 1) ? 0 : ret;
 }
 
+/*
+ * walk_up_tree() is responsible for making sure we visit every slot on our
+ * current node, and if we're at the end of that node then we call
+ * walk_up_proc() on our current node which will do one of a few things based on
+ * our stage.
+ *
+ * UPDATE_BACKREF.  If we wc->level is currently less than our wc->shared_level
+ * then we need to walk back up the tree, and then going back down into the
+ * other slots via walk_down_tree to update any other children from our original
+ * wc->shared_level.  Once we're at or above our wc->shared_level we can switch
+ * back to DROP_REFERENCE, lookup the current nodes refs and flags, and carry on.
+ *
+ * DROP_REFERENCE. If our refs == 1 then we're going to free this tree block.
+ * If we're level 0 then we need to btrfs_dec_ref() on all of the data extents
+ * in our current leaf.  After that we call btrfs_free_tree_block() on the
+ * current node and walk up to the next node to walk down the next slot.
+ */
 static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path,
