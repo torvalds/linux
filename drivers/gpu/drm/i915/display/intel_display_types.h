@@ -401,6 +401,11 @@ struct intel_panel {
 			} vesa;
 			struct {
 				bool sdr_uses_aux;
+				bool supports_2084_decode;
+				bool supports_2020_gamut;
+				bool supports_segmented_backlight;
+				bool supports_sdp_colorimetry;
+				bool supports_tone_mapping;
 			} intel_cap;
 		} edp;
 
