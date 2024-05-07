@@ -4,9 +4,10 @@
 
 #include <linux/refcount.h>
 #include <linux/perf_event.h>
+#include <internal/rc_check.h>
 #include "map_symbol.h"
 
-struct mem_info {
+DECLARE_RC_STRUCT(mem_info) {
 	struct addr_map_symbol	iaddr;
 	struct addr_map_symbol	daddr;
 	union perf_mem_data_src	data_src;
@@ -24,5 +25,30 @@ static inline void __mem_info__zput(struct mem_info **mi)
 }
 
 #define mem_info__zput(mi) __mem_info__zput(&mi)
+
+static inline struct addr_map_symbol *mem_info__iaddr(struct mem_info *mi)
+{
+	return &RC_CHK_ACCESS(mi)->iaddr;
+}
+
+static inline struct addr_map_symbol *mem_info__daddr(struct mem_info *mi)
+{
+	return &RC_CHK_ACCESS(mi)->daddr;
+}
+
+static inline union perf_mem_data_src *mem_info__data_src(struct mem_info *mi)
+{
+	return &RC_CHK_ACCESS(mi)->data_src;
+}
+
+static inline const union perf_mem_data_src *mem_info__const_data_src(const struct mem_info *mi)
+{
+	return &RC_CHK_ACCESS(mi)->data_src;
+}
+
+static inline refcount_t *mem_info__refcnt(struct mem_info *mi)
+{
+	return &RC_CHK_ACCESS(mi)->refcnt;
+}
 
 #endif /* __PERF_MEM_INFO_H */

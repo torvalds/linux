@@ -13,12 +13,14 @@ static int check(union perf_mem_data_src data_src,
 {
 	char out[100];
 	char failure[100];
-	struct mem_info mi = { .data_src = data_src };
-
+	struct mem_info *mi = mem_info__new();
 	int n;
 
-	n = perf_mem__snp_scnprintf(out, sizeof out, &mi);
-	n += perf_mem__lvl_scnprintf(out + n, sizeof out - n, &mi);
+	TEST_ASSERT_VAL("Memory allocation failed", mi);
+	*mem_info__data_src(mi) = data_src;
+	n = perf_mem__snp_scnprintf(out, sizeof out, mi);
+	n += perf_mem__lvl_scnprintf(out + n, sizeof out - n, mi);
+	mem_info__put(mi);
 	scnprintf(failure, sizeof failure, "unexpected %s", out);
 	TEST_ASSERT_VAL(failure, !strcmp(string, out));
 	return 0;

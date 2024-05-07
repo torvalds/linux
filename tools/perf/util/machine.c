@@ -2013,11 +2013,11 @@ struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 	if (!mi)
 		return NULL;
 
-	ip__resolve_ams(al->thread, &mi->iaddr, sample->ip);
-	ip__resolve_data(al->thread, al->cpumode, &mi->daddr,
+	ip__resolve_ams(al->thread, mem_info__iaddr(mi), sample->ip);
+	ip__resolve_data(al->thread, al->cpumode, mem_info__daddr(mi),
 			 sample->addr, sample->phys_addr,
 			 sample->data_page_size);
-	mi->data_src.val = sample->data_src;
+	mem_info__data_src(mi)->val = sample->data_src;
 
 	return mi;
 }

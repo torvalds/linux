@@ -721,15 +721,20 @@ static void set_sample_read_in_dict(PyObject *dict_sample,
 }
 
 static void set_sample_datasrc_in_dict(PyObject *dict,
-				       struct perf_sample *sample)
+				      struct perf_sample *sample)
 {
-	struct mem_info mi = { .data_src.val = sample->data_src };
+	struct mem_info *mi = mem_info__new();
 	char decode[100];
+
+	if (!mi)
+		Py_FatalError("couldn't create mem-info");
 
 	pydict_set_item_string_decref(dict, "datasrc",
 			PyLong_FromUnsignedLongLong(sample->data_src));
 
-	perf_script__meminfo_scnprintf(decode, 100, &mi);
+	mem_info__data_src(mi)->val = sample->data_src;
+	perf_script__meminfo_scnprintf(decode, 100, mi);
+	mem_info__put(mi);
 
 	pydict_set_item_string_decref(dict, "datasrc_decode",
 			_PyUnicode_FromString(decode));

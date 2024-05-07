@@ -154,8 +154,8 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	}
 
 	if (h->mem_info) {
-		if (h->mem_info->daddr.ms.sym) {
-			symlen = (int)h->mem_info->daddr.ms.sym->namelen + 4
+		if (mem_info__daddr(h->mem_info)->ms.sym) {
+			symlen = (int)mem_info__daddr(h->mem_info)->ms.sym->namelen + 4
 			       + unresolved_col_width + 2;
 			hists__new_col_len(hists, HISTC_MEM_DADDR_SYMBOL,
 					   symlen);
@@ -169,8 +169,8 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 					   symlen);
 		}
 
-		if (h->mem_info->iaddr.ms.sym) {
-			symlen = (int)h->mem_info->iaddr.ms.sym->namelen + 4
+		if (mem_info__iaddr(h->mem_info)->ms.sym) {
+			symlen = (int)mem_info__iaddr(h->mem_info)->ms.sym->namelen + 4
 			       + unresolved_col_width + 2;
 			hists__new_col_len(hists, HISTC_MEM_IADDR_SYMBOL,
 					   symlen);
@@ -180,8 +180,8 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 					   symlen);
 		}
 
-		if (h->mem_info->daddr.ms.map) {
-			symlen = dso__name_len(map__dso(h->mem_info->daddr.ms.map));
+		if (mem_info__daddr(h->mem_info)->ms.map) {
+			symlen = dso__name_len(map__dso(mem_info__daddr(h->mem_info)->ms.map));
 			hists__new_col_len(hists, HISTC_MEM_DADDR_DSO,
 					   symlen);
 		} else {
@@ -477,8 +477,10 @@ static int hist_entry__init(struct hist_entry *he,
 	}
 
 	if (he->mem_info) {
-		he->mem_info->iaddr.ms.map = map__get(he->mem_info->iaddr.ms.map);
-		he->mem_info->daddr.ms.map = map__get(he->mem_info->daddr.ms.map);
+		mem_info__iaddr(he->mem_info)->ms.map =
+			map__get(mem_info__iaddr(he->mem_info)->ms.map);
+		mem_info__daddr(he->mem_info)->ms.map =
+			map__get(mem_info__daddr(he->mem_info)->ms.map);
 	}
 
 	if (hist_entry__has_callchains(he) && symbol_conf.use_callchain)
@@ -526,8 +528,8 @@ err_infos:
 		zfree(&he->branch_info);
 	}
 	if (he->mem_info) {
-		map_symbol__exit(&he->mem_info->iaddr.ms);
-		map_symbol__exit(&he->mem_info->daddr.ms);
+		map_symbol__exit(&mem_info__iaddr(he->mem_info)->ms);
+		map_symbol__exit(&mem_info__daddr(he->mem_info)->ms);
 	}
 err:
 	map_symbol__exit(&he->ms);
@@ -1336,8 +1338,8 @@ void hist_entry__delete(struct hist_entry *he)
 	}
 
 	if (he->mem_info) {
-		map_symbol__exit(&he->mem_info->iaddr.ms);
-		map_symbol__exit(&he->mem_info->daddr.ms);
+		map_symbol__exit(&mem_info__iaddr(he->mem_info)->ms);
+		map_symbol__exit(&mem_info__daddr(he->mem_info)->ms);
 		mem_info__zput(he->mem_info);
 	}
 

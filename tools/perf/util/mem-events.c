@@ -293,7 +293,7 @@ int perf_mem__tlb_scnprintf(char *out, size_t sz, const struct mem_info *mem_inf
 	out[0] = '\0';
 
 	if (mem_info)
-		m = mem_info->data_src.mem_dtlb;
+		m = mem_info__const_data_src(mem_info)->mem_dtlb;
 
 	hit = m & PERF_MEM_TLB_HIT;
 	miss = m & PERF_MEM_TLB_MISS;
@@ -367,7 +367,7 @@ static int perf_mem__op_scnprintf(char *out, size_t sz, const struct mem_info *m
 	int l;
 
 	if (mem_info)
-		op = mem_info->data_src.mem_op;
+		op = mem_info__const_data_src(mem_info)->mem_op;
 
 	if (op & PERF_MEM_OP_NA)
 		l = scnprintf(out, sz, "N/A");
@@ -400,7 +400,7 @@ int perf_mem__lvl_scnprintf(char *out, size_t sz, const struct mem_info *mem_inf
 	if (!mem_info)
 		goto na;
 
-	data_src = mem_info->data_src;
+	data_src = *mem_info__const_data_src(mem_info);
 
 	if (data_src.mem_lvl & PERF_MEM_LVL_HIT)
 		memcpy(hit_miss, "hit", 3);
@@ -476,7 +476,7 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, const struct mem_info *mem_inf
 	out[0] = '\0';
 
 	if (mem_info)
-		m = mem_info->data_src.mem_snoop;
+		m = mem_info__const_data_src(mem_info)->mem_snoop;
 
 	for (i = 0; m && i < ARRAY_SIZE(snoop_access); i++, m >>= 1) {
 		if (!(m & 0x1))
@@ -490,7 +490,7 @@ int perf_mem__snp_scnprintf(char *out, size_t sz, const struct mem_info *mem_inf
 
 	m = 0;
 	if (mem_info)
-		m = mem_info->data_src.mem_snoopx;
+		m = mem_info__const_data_src(mem_info)->mem_snoopx;
 
 	for (i = 0; m && i < ARRAY_SIZE(snoopx_access); i++, m >>= 1) {
 		if (!(m & 0x1))
@@ -515,7 +515,7 @@ int perf_mem__lck_scnprintf(char *out, size_t sz, const struct mem_info *mem_inf
 	int l;
 
 	if (mem_info)
-		mask = mem_info->data_src.mem_lock;
+		mask = mem_info__const_data_src(mem_info)->mem_lock;
 
 	if (mask & PERF_MEM_LOCK_NA)
 		l = scnprintf(out, sz, "N/A");
@@ -536,7 +536,7 @@ int perf_mem__blk_scnprintf(char *out, size_t sz, const struct mem_info *mem_inf
 	out[0] = '\0';
 
 	if (mem_info)
-		mask = mem_info->data_src.mem_blk;
+		mask = mem_info__const_data_src(mem_info)->mem_blk;
 
 	if (!mask || (mask & PERF_MEM_BLK_NA)) {
 		l += scnprintf(out + l, sz - l, " N/A");
@@ -572,8 +572,8 @@ int perf_script__meminfo_scnprintf(char *out, size_t sz, const struct mem_info *
 
 int c2c_decode_stats(struct c2c_stats *stats, struct mem_info *mi)
 {
-	union perf_mem_data_src *data_src = &mi->data_src;
-	u64 daddr  = mi->daddr.addr;
+	union perf_mem_data_src *data_src = mem_info__data_src(mi);
+	u64 daddr  = mem_info__daddr(mi)->addr;
 	u64 op     = data_src->mem_op;
 	u64 lvl    = data_src->mem_lvl;
 	u64 snoop  = data_src->mem_snoop;
@@ -700,7 +700,7 @@ do {				\
 		return -1;
 	}
 
-	if (!mi->daddr.ms.map || !mi->iaddr.ms.map) {
+	if (!mem_info__daddr(mi)->ms.map || !mem_info__iaddr(mi)->ms.map) {
 		stats->nomap++;
 		return -1;
 	}

@@ -186,7 +186,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 
 	} else if (rep->mem_mode) {
 		mi = he->mem_info;
-		err = addr_map_symbol__inc_samples(&mi->daddr, sample, evsel);
+		err = addr_map_symbol__inc_samples(mem_info__daddr(mi), sample, evsel);
 		if (err)
 			goto out;
 

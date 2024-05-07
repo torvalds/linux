@@ -2051,13 +2051,18 @@ static int evlist__max_name_len(struct evlist *evlist)
 
 static int data_src__fprintf(u64 data_src, FILE *fp)
 {
-	struct mem_info mi = { .data_src.val = data_src };
+	struct mem_info *mi = mem_info__new();
 	char decode[100];
 	char out[100];
 	static int maxlen;
 	int len;
 
-	perf_script__meminfo_scnprintf(decode, 100, &mi);
+	if (!mi)
+		return -ENOMEM;
+
+	mem_info__data_src(mi)->val = data_src;
+	perf_script__meminfo_scnprintf(decode, 100, mi);
+	mem_info__put(mi);
 
 	len = scnprintf(out, 100, "%16" PRIx64 " %s", data_src, decode);
 	if (maxlen < len)
@@ -2498,7 +2503,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	evsel = evlist__last(*pevlist);
 
 	if (!evsel->priv) {
-		if (scr->per_event_dump) { 
+		if (scr->per_event_dump) {
 			evsel->priv = evsel_script__new(evsel, scr->session->data);
 			if (!evsel->priv)
 				return -ENOMEM;
