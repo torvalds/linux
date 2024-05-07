@@ -249,146 +249,146 @@ int av7110_ipack_instant_repack(const u8 *buf, int count, struct ipack *p)
 	if (!p->plength)
 		p->plength = MMAX_PLENGTH - 6;
 
-	if (p->done || ((p->mpeg == 2 && p->found >= 9) ||
-			(p->mpeg == 1 && p->found >= 7))) {
-		switch (p->cid) {
-		case AUDIO_STREAM_S ... AUDIO_STREAM_E:
-		case VIDEO_STREAM_S ... VIDEO_STREAM_E:
-		case PRIVATE_STREAM1:
-			if (p->mpeg == 2 && p->found == 9) {
-				write_ipack(p, &p->flag1, 1);
-				write_ipack(p, &p->flag2, 1);
-				write_ipack(p, &p->hlength, 1);
+	if (!(p->done || ((p->mpeg == 2 && p->found >= 9) ||
+			  (p->mpeg == 1 && p->found >= 7))))
+		return count;
+
+	switch (p->cid) {
+	case AUDIO_STREAM_S ... AUDIO_STREAM_E:
+	case VIDEO_STREAM_S ... VIDEO_STREAM_E:
+	case PRIVATE_STREAM1:
+		if (p->mpeg == 2 && p->found == 9) {
+			write_ipack(p, &p->flag1, 1);
+			write_ipack(p, &p->flag2, 1);
+			write_ipack(p, &p->hlength, 1);
+		}
+
+		if (p->mpeg == 1 && p->found == 7)
+			write_ipack(p, &p->flag1, 1);
+
+		if (p->mpeg == 2 && (p->flag2 & PTS_ONLY) && p->found < 14) {
+			while (c < count && p->found < 14) {
+				p->pts[p->found - 9] = buf[c];
+				write_ipack(p, buf + c, 1);
+				c++;
+				p->found++;
+			}
+			if (c == count)
+				return count;
+		}
+
+		if (p->mpeg == 1 && p->which < 2000) {
+			if (p->found == 7) {
+				p->check = p->flag1;
+				p->hlength = 1;
 			}
 
-			if (p->mpeg == 1 && p->found == 7)
-				write_ipack(p, &p->flag1, 1);
+			while (!p->which && c < count && p->check == 0xff) {
+				p->check = buf[c];
+				write_ipack(p, buf + c, 1);
+				c++;
+				p->found++;
+				p->hlength++;
+			}
 
-			if (p->mpeg == 2 && (p->flag2 & PTS_ONLY) &&
-			    p->found < 14) {
-				while (c < count && p->found < 14) {
-					p->pts[p->found - 9] = buf[c];
-					write_ipack(p, buf + c, 1);
-					c++;
-					p->found++;
-				}
+			if (c == count)
+				return count;
+
+			if ((p->check & 0xc0) == 0x40 && !p->which) {
+				p->check = buf[c];
+				write_ipack(p, buf + c, 1);
+				c++;
+				p->found++;
+				p->hlength++;
+
+				p->which = 1;
+				if (c == count)
+					return count;
+				p->check = buf[c];
+				write_ipack(p, buf + c, 1);
+				c++;
+				p->found++;
+				p->hlength++;
+				p->which = 2;
 				if (c == count)
 					return count;
 			}
 
-			if (p->mpeg == 1 && p->which < 2000) {
-				if (p->found == 7) {
-					p->check = p->flag1;
-					p->hlength = 1;
-				}
-
-				while (!p->which && c < count &&
-				       p->check == 0xff){
-					p->check = buf[c];
-					write_ipack(p, buf + c, 1);
-					c++;
-					p->found++;
-					p->hlength++;
-				}
-
+			if (p->which == 1) {
+				p->check = buf[c];
+				write_ipack(p, buf + c, 1);
+				c++;
+				p->found++;
+				p->hlength++;
+				p->which = 2;
 				if (c == count)
 					return count;
+			}
 
-				if ((p->check & 0xc0) == 0x40 && !p->which) {
-					p->check = buf[c];
-					write_ipack(p, buf + c, 1);
-					c++;
-					p->found++;
-					p->hlength++;
+			if ((p->check & 0x30) && p->check != 0xff) {
+				p->flag2 = (p->check & 0xf0) << 2;
+				p->pts[0] = p->check;
+				p->which = 3;
+			}
 
-					p->which = 1;
-					if (c == count)
-						return count;
-					p->check = buf[c];
-					write_ipack(p, buf + c, 1);
-					c++;
-					p->found++;
-					p->hlength++;
-					p->which = 2;
-					if (c == count)
-						return count;
-				}
-
-				if (p->which == 1) {
-					p->check = buf[c];
-					write_ipack(p, buf + c, 1);
-					c++;
-					p->found++;
-					p->hlength++;
-					p->which = 2;
-					if (c == count)
-						return count;
-				}
-
-				if ((p->check & 0x30) && p->check != 0xff) {
-					p->flag2 = (p->check & 0xf0) << 2;
-					p->pts[0] = p->check;
-					p->which = 3;
-				}
-
-				if (c == count)
-					return count;
-				if (p->which > 2) {
-					if ((p->flag2 & PTS_DTS_FLAGS) == PTS_ONLY) {
-						while (c < count && p->which < 7) {
-							p->pts[p->which - 2] = buf[c];
-							write_ipack(p, buf + c, 1);
-							c++;
-							p->found++;
-							p->which++;
-							p->hlength++;
-						}
-						if (c == count)
-							return count;
-					} else if ((p->flag2 & PTS_DTS_FLAGS) == PTS_DTS) {
-						while (c < count && p->which < 12) {
-							if (p->which < 7)
-								p->pts[p->which - 2] = buf[c];
-							write_ipack(p, buf + c, 1);
-							c++;
-							p->found++;
-							p->which++;
-							p->hlength++;
-						}
-						if (c == count)
-							return count;
+			if (c == count)
+				return count;
+			if (p->which > 2) {
+				if ((p->flag2 & PTS_DTS_FLAGS) == PTS_ONLY) {
+					while (c < count && p->which < 7) {
+						p->pts[p->which - 2] = buf[c];
+						write_ipack(p, buf + c, 1);
+						c++;
+						p->found++;
+						p->which++;
+						p->hlength++;
 					}
-					p->which = 2000;
+					if (c == count)
+						return count;
+				} else if ((p->flag2 & PTS_DTS_FLAGS) == PTS_DTS) {
+					while (c < count && p->which < 12) {
+						if (p->which < 7)
+							p->pts[p->which - 2] = buf[c];
+						write_ipack(p, buf + c, 1);
+						c++;
+						p->found++;
+						p->which++;
+						p->hlength++;
+					}
+					if (c == count)
+						return count;
 				}
-			}
-
-			while (c < count && p->found < p->plength + 6) {
-				l = count - c;
-				if (l + p->found > p->plength + 6)
-					l = p->plength + 6 - p->found;
-				write_ipack(p, buf + c, l);
-				p->found += l;
-				c += l;
-			}
-			break;
-		}
-
-		if (p->done) {
-			if (p->found + count - c < p->plength + 6) {
-				p->found += count - c;
-				c = count;
-			} else {
-				c += p->plength + 6 - p->found;
-				p->found = p->plength + 6;
+				p->which = 2000;
 			}
 		}
 
-		if (p->plength && p->found == p->plength + 6) {
-			send_ipack(p);
-			av7110_ipack_reset(p);
-			if (c < count)
-				av7110_ipack_instant_repack(buf + c, count - c, p);
+		while (c < count && p->found < p->plength + 6) {
+			l = count - c;
+			if (l + p->found > p->plength + 6)
+				l = p->plength + 6 - p->found;
+			write_ipack(p, buf + c, l);
+			p->found += l;
+			c += l;
+		}
+		break;
+	}
+
+	if (p->done) {
+		if (p->found + count - c < p->plength + 6) {
+			p->found += count - c;
+			c = count;
+		} else {
+			c += p->plength + 6 - p->found;
+			p->found = p->plength + 6;
 		}
 	}
+
+	if (p->plength && p->found == p->plength + 6) {
+		send_ipack(p);
+		av7110_ipack_reset(p);
+		if (c < count)
+			av7110_ipack_instant_repack(buf + c, count - c, p);
+	}
+
 	return count;
 }
