@@ -2692,7 +2692,7 @@ static int vma_lock_and_validate(struct drm_exec *exec, struct xe_vma *vma,
 
 	if (bo) {
 		if (!bo->vm)
-			err = drm_exec_prepare_obj(exec, &bo->ttm.base, 0);
+			err = drm_exec_lock_obj(exec, &bo->ttm.base);
 		if (!err && validate)
 			err = xe_bo_validate(bo, xe_vma_vm(vma), true);
 	}
@@ -2777,7 +2777,7 @@ static int vm_bind_ioctl_ops_lock_and_prep(struct drm_exec *exec,
 	struct xe_vma_op *op;
 	int err;
 
-	err = drm_exec_prepare_obj(exec, xe_vm_obj(vm), 0);
+	err = drm_exec_lock_obj(exec, xe_vm_obj(vm));
 	if (err)
 		return err;
 
