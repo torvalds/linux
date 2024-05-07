@@ -71,7 +71,7 @@ static void umc_v12_0_reset_error_count(struct amdgpu_device *adev)
 
 bool umc_v12_0_is_deferred_error(struct amdgpu_device *adev, uint64_t mc_umc_status)
 {
-	dev_info(adev->dev,
+	dev_dbg(adev->dev,
 		"MCA_UMC_STATUS(0x%llx): Val:%llu, Poison:%llu, Deferred:%llu, PCC:%llu, UC:%llu, TCC:%llu\n",
 		mc_umc_status,
 		REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val),
@@ -504,7 +504,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	err_addr = REG_GET_FIELD(addr,
 				MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
 
-	dev_info(adev->dev,
+	dev_dbg(adev->dev,
 		"UMC:IPID:0x%llx, socket:%llu, aid:%llu, inst:%llu, ch:%llu, err_addr:0x%llx\n",
 		ipid,
 		MCA_IPID_2_SOCKET_ID(ipid),

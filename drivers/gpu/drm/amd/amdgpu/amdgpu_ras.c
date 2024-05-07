@@ -2886,7 +2886,7 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 
 		ras_block = poison_msg.block;
 
-		dev_info(adev->dev, "Start processing ras block %s(%d)\n",
+		dev_dbg(adev->dev, "Start processing ras block %s(%d)\n",
 				ras_block_str(ras_block), ras_block);
 
 		if (ras_block == AMDGPU_RAS_BLOCK__UMC) {
