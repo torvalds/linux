@@ -706,6 +706,12 @@ recheck_need_open:
 
 		spin_unlock(&j->lock);
 
+		/*
+		 * We're called from bch2_journal_flush_seq() -> wait_event();
+		 * but this might block. We won't usually block, so we won't
+		 * livelock:
+		 */
+		sched_annotate_sleep();
 		ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0);
 		if (ret)
 			return ret;
