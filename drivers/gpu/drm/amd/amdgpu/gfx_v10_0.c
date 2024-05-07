@@ -4603,9 +4603,9 @@ static void gfx_v10_0_alloc_dump_mem(struct amdgpu_device *adev)
 	ptr = kcalloc(reg_count, sizeof(uint32_t), GFP_KERNEL);
 	if (ptr == NULL) {
 		DRM_ERROR("Failed to allocate memory for IP Dump\n");
-		adev->gfx.ip_dump = NULL;
+		adev->gfx.ip_dump_core = NULL;
 	} else {
-		adev->gfx.ip_dump = ptr;
+		adev->gfx.ip_dump_core = ptr;
 	}
 }
 
@@ -4815,7 +4815,7 @@ static int gfx_v10_0_sw_fini(void *handle)
 
 	gfx_v10_0_free_microcode(adev);
 
-	kfree(adev->gfx.ip_dump);
+	kfree(adev->gfx.ip_dump_core);
 
 	return 0;
 }
@@ -9292,13 +9292,13 @@ static void gfx_v10_ip_print(void *handle, struct drm_printer *p)
 	uint32_t i;
 	uint32_t reg_count = ARRAY_SIZE(gc_reg_list_10_1);
 
-	if (!adev->gfx.ip_dump)
+	if (!adev->gfx.ip_dump_core)
 		return;
 
 	for (i = 0; i < reg_count; i++)
 		drm_printf(p, "%-50s \t 0x%08x\n",
 			   gc_reg_list_10_1[i].reg_name,
-			   adev->gfx.ip_dump[i]);
+			   adev->gfx.ip_dump_core[i]);
 }
 
 static void gfx_v10_ip_dump(void *handle)
@@ -9307,12 +9307,12 @@ static void gfx_v10_ip_dump(void *handle)
 	uint32_t i;
 	uint32_t reg_count = ARRAY_SIZE(gc_reg_list_10_1);
 
-	if (!adev->gfx.ip_dump)
+	if (!adev->gfx.ip_dump_core)
 		return;
 
 	amdgpu_gfx_off_ctrl(adev, false);
 	for (i = 0; i < reg_count; i++)
-		adev->gfx.ip_dump[i] = RREG32(SOC15_REG_ENTRY_OFFSET(gc_reg_list_10_1[i]));
+		adev->gfx.ip_dump_core[i] = RREG32(SOC15_REG_ENTRY_OFFSET(gc_reg_list_10_1[i]));
 	amdgpu_gfx_off_ctrl(adev, true);
 }
 
