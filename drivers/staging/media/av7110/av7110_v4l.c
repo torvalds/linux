@@ -557,7 +557,7 @@ static int vidioc_g_fmt_sliced_vbi_out(struct file *file, void *fh,
 	dprintk(2, "VIDIOC_G_FMT:\n");
 	if (FW_VERSION(av7110->arm_app) < 0x2623)
 		return -EINVAL;
-	memset(&f->fmt.sliced, 0, sizeof f->fmt.sliced);
+	memset(&f->fmt.sliced, 0, sizeof(f->fmt.sliced));
 	if (av7110->wssMode) {
 		f->fmt.sliced.service_set = V4L2_SLICED_WSS_625;
 		f->fmt.sliced.service_lines[0][23] = V4L2_SLICED_WSS_625;
@@ -618,7 +618,7 @@ static ssize_t av7110_vbi_write(struct file *file, const char __user *data, size
 	int rc;
 
 	dprintk(2, "%s\n", __func__);
-	if (FW_VERSION(av7110->arm_app) < 0x2623 || !av7110->wssMode || count != sizeof d)
+	if (FW_VERSION(av7110->arm_app) < 0x2623 || !av7110->wssMode || count != sizeof(d))
 		return -EINVAL;
 	if (copy_from_user(&d, data, count))
 		return -EFAULT;
