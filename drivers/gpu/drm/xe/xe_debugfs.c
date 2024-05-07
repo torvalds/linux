@@ -12,6 +12,7 @@
 
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_force_wake.h"
 #include "xe_gt_debugfs.h"
 #include "xe_gt_printk.h"
 #include "xe_guc_ads.h"

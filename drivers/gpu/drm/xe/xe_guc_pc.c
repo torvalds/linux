@@ -15,6 +15,7 @@
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_idle.h"
 #include "xe_gt_sysfs.h"

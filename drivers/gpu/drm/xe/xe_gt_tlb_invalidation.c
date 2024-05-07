@@ -7,6 +7,7 @@
 
 #include "abi/guc_actions_abi.h"
 #include "xe_device.h"
+#include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
 #include "xe_guc.h"
