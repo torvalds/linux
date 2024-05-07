@@ -1378,13 +1378,15 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		if (RC_CHK_EQUAL(new_map, replacement_map)) {
 			struct map *map_ref;
 
-			map__set_start(map, map__start(new_map));
-			map__set_end(map, map__end(new_map));
-			map__set_pgoff(map, map__pgoff(new_map));
-			map__set_mapping_type(map, map__mapping_type(new_map));
 			/* Ensure maps are correctly ordered */
 			map_ref = map__get(map);
 			maps__remove(kmaps, map_ref);
+
+			map__set_start(map_ref, map__start(new_map));
+			map__set_end(map_ref, map__end(new_map));
+			map__set_pgoff(map_ref, map__pgoff(new_map));
+			map__set_mapping_type(map_ref, map__mapping_type(new_map));
+
 			err = maps__insert(kmaps, map_ref);
 			map__put(map_ref);
 			map__put(new_map);
