@@ -5410,6 +5410,48 @@ static int check_ref_exists(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * We may not have an uptodate block, so if we are going to walk down into this
+ * block we need to drop the lock, read it off of the disk, re-lock it and
+ * return to continue dropping the snapshot.
+ */
+static int check_next_block_uptodate(struct btrfs_trans_handle *trans,
+				     struct btrfs_root *root,
+				     struct btrfs_path *path,
+				     struct walk_control *wc,
+				     struct extent_buffer *next)
+{
+	struct btrfs_tree_parent_check check = { 0 };
+	u64 generation;
+	int level = wc->level;
+	int ret;
+
+	btrfs_assert_tree_write_locked(next);
+
+	generation = btrfs_node_ptr_generation(path->nodes[level], path->slots[level]);
+
+	if (btrfs_buffer_uptodate(next, generation, 0))
+		return 0;
+
+	check.level = level - 1;
+	check.transid = generation;
+	check.owner_root = btrfs_root_id(root);
+	check.has_first_key = true;
+	btrfs_node_key_to_cpu(path->nodes[level], &check.first_key, path->slots[level]);
+
+	btrfs_tree_unlock(next);
+	if (level == 1)
+		reada_walk_down(trans, root, wc, path);
+	ret = btrfs_read_extent_buffer(next, &check);
+	if (ret) {
+		free_extent_buffer(next);
+		return ret;
+	}
+	btrfs_tree_lock(next);
+	wc->lookup_info = 1;
+	return 0;
+}
+
+/*
  * helper to process tree block pointer.
  *
  * when wc->stage == DROP_REFERENCE, this function checks
@@ -5431,7 +5473,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 generation;
 	u64 owner_root = 0;
-	struct btrfs_tree_parent_check check = { 0 };
 	struct btrfs_key key;
 	struct extent_buffer *next;
 	int level = wc->level;
@@ -5452,13 +5493,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	}
 
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
-
-	check.level = level - 1;
-	check.transid = generation;
-	check.owner_root = btrfs_root_id(root);
-	check.has_first_key = true;
-	btrfs_node_key_to_cpu(path->nodes[level], &check.first_key,
-			      path->slots[level]);
 
 	next = btrfs_find_create_tree_block(fs_info, bytenr, btrfs_root_id(root),
 					    level - 1);
@@ -5507,18 +5541,9 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 			goto skip;
 	}
 
-	if (!btrfs_buffer_uptodate(next, generation, 0)) {
-		btrfs_tree_unlock(next);
-		if (level == 1)
-			reada_walk_down(trans, root, wc, path);
-		ret = btrfs_read_extent_buffer(next, &check);
-		if (ret) {
-			free_extent_buffer(next);
-			return ret;
-		}
-		btrfs_tree_lock(next);
-		wc->lookup_info = 1;
-	}
+	ret = check_next_block_uptodate(trans, root, path, wc, next);
+	if (ret)
+		return ret;
 
 	level--;
 	ASSERT(level == btrfs_header_level(next));
