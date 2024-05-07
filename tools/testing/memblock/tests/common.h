@@ -12,6 +12,7 @@
 #include <../selftests/kselftest.h>
 
 #define MEM_SIZE		SZ_32K
+#define PHYS_MEM_SIZE		SZ_16M
 #define NUMA_NODES		8
 
 #define INIT_MEMBLOCK_REGIONS			128

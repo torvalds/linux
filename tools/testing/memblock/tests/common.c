@@ -61,7 +61,7 @@ void reset_memblock_attributes(void)
 
 static inline void fill_memblock(void)
 {
-	memset(memory_block.base, 1, MEM_SIZE);
+	memset(memory_block.base, 1, PHYS_MEM_SIZE);
 }
 
 void setup_memblock(void)
@@ -103,7 +103,7 @@ void setup_numa_memblock(const unsigned int node_fracs[])
 
 void dummy_physical_memory_init(void)
 {
-	memory_block.base = malloc(MEM_SIZE);
+	memory_block.base = malloc(PHYS_MEM_SIZE);
 	assert(memory_block.base);
 	fill_memblock();
 }
