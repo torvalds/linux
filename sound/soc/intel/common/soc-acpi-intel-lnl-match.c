@@ -2,7 +2,7 @@
 /*
  * soc-acpi-intel-lnl-match.c - tables and support for LNL ACPI enumeration.
  *
- * Copyright (c) 2023, Intel Corporation. All rights reserved.
+ * Copyright (c) 2023, Intel Corporation
  *
  */
 
