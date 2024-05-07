@@ -5507,6 +5507,90 @@ static int check_next_block_uptodate(struct btrfs_trans_handle *trans,
 }
 
 /*
+ * If we determine that we don't have to visit wc->level - 1 then we need to
+ * determine if we can drop our reference.
+ *
+ * If we are UPDATE_BACKREF then we will not, we need to update our backrefs.
+ *
+ * If we are DROP_REFERENCE this will figure out if we need to drop our current
+ * reference, skipping it if we dropped it from a previous incompleted drop, or
+ * dropping it if we still have a reference to it.
+ */
+static int maybe_drop_reference(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+				struct btrfs_path *path, struct walk_control *wc,
+				struct extent_buffer *next, u64 owner_root)
+{
+	struct btrfs_ref ref = {
+		.action = BTRFS_DROP_DELAYED_REF,
+		.bytenr = next->start,
+		.num_bytes = root->fs_info->nodesize,
+		.owning_root = owner_root,
+		.ref_root = btrfs_root_id(root),
+	};
+	int level = wc->level;
+	int ret;
+
+	/* We are UPDATE_BACKREF, we're not dropping anything. */
+	if (wc->stage == UPDATE_BACKREF)
+		return 0;
+
+	if (wc->flags[level] & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
+		ref.parent = path->nodes[level]->start;
+	} else {
+		ASSERT(btrfs_root_id(root) == btrfs_header_owner(path->nodes[level]));
+		if (btrfs_root_id(root) != btrfs_header_owner(path->nodes[level])) {
+			btrfs_err(root->fs_info, "mismatched block owner");
+			return -EIO;
+		}
+	}
+
+	/*
+	 * If we had a drop_progress we need to verify the refs are set as
+	 * expected.  If we find our ref then we know that from here on out
+	 * everything should be correct, and we can clear the
+	 * ->restarted flag.
+	 */
+	if (wc->restarted) {
+		ret = check_ref_exists(trans, root, next->start, ref.parent,
+				       level - 1);
+		if (ret <= 0)
+			return ret;
+		ret = 0;
+		wc->restarted = 0;
+	}
+
+	/*
+	 * Reloc tree doesn't contribute to qgroup numbers, and we have already
+	 * accounted them at merge time (replace_path), thus we could skip
+	 * expensive subtree trace here.
+	 */
+	if (btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID &&
+	    wc->refs[level - 1] > 1) {
+		u64 generation = btrfs_node_ptr_generation(path->nodes[level],
+							   path->slots[level]);
+
+		ret = btrfs_qgroup_trace_subtree(trans, next, generation, level - 1);
+		if (ret) {
+			btrfs_err_rl(root->fs_info,
+"error %d accounting shared subtree, quota is out of sync, rescan required",
+				     ret);
+		}
+	}
+
+	/*
+	 * We need to update the next key in our walk control so we can update
+	 * the drop_progress key accordingly.  We don't care if find_next_key
+	 * doesn't find a key because that means we're at the end and are going
+	 * to clean up now.
+	 */
+	wc->drop_level = level;
+	find_next_key(path, level, &wc->drop_progress);
+
+	btrfs_init_tree_ref(&ref, level - 1, 0, false);
+	return btrfs_free_extent(trans, &ref);
+}
+
+/*
  * helper to process tree block pointer.
  *
  * when wc->stage == DROP_REFERENCE, this function checks
@@ -5603,76 +5687,9 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 		wc->reada_slot = 0;
 	return 0;
 skip:
-	if (wc->stage == DROP_REFERENCE) {
-		struct btrfs_ref ref = {
-			.action = BTRFS_DROP_DELAYED_REF,
-			.bytenr = bytenr,
-			.num_bytes = fs_info->nodesize,
-			.owning_root = owner_root,
-			.ref_root = btrfs_root_id(root),
-		};
-		if (wc->flags[level] & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
-			ref.parent = path->nodes[level]->start;
-		} else {
-			ASSERT(btrfs_root_id(root) ==
-			       btrfs_header_owner(path->nodes[level]));
-			if (btrfs_root_id(root) !=
-			    btrfs_header_owner(path->nodes[level])) {
-				btrfs_err(root->fs_info,
-						"mismatched block owner");
-				ret = -EIO;
-				goto out_unlock;
-			}
-		}
-
-		/*
-		 * If we had a drop_progress we need to verify the refs are set
-		 * as expected.  If we find our ref then we know that from here
-		 * on out everything should be correct, and we can clear the
-		 * ->restarted flag.
-		 */
-		if (wc->restarted) {
-			ret = check_ref_exists(trans, root, bytenr, ref.parent,
-					       level - 1);
-			if (ret < 0)
-				goto out_unlock;
-			if (ret == 0)
-				goto no_delete;
-			ret = 0;
-			wc->restarted = 0;
-		}
-
-		/*
-		 * Reloc tree doesn't contribute to qgroup numbers, and we have
-		 * already accounted them at merge time (replace_path),
-		 * thus we could skip expensive subtree trace here.
-		 */
-		if (btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID &&
-		    wc->refs[level - 1] > 1) {
-			ret = btrfs_qgroup_trace_subtree(trans, next,
-							 generation, level - 1);
-			if (ret) {
-				btrfs_err_rl(fs_info,
-					     "Error %d accounting shared subtree. Quota is out of sync, rescan required.",
-					     ret);
-			}
-		}
-
-		/*
-		 * We need to update the next key in our walk control so we can
-		 * update the drop_progress key accordingly.  We don't care if
-		 * find_next_key doesn't find a key because that means we're at
-		 * the end and are going to clean up now.
-		 */
-		wc->drop_level = level;
-		find_next_key(path, level, &wc->drop_progress);
-
-		btrfs_init_tree_ref(&ref, level - 1, 0, false);
-		ret = btrfs_free_extent(trans, &ref);
-		if (ret)
-			goto out_unlock;
-	}
-no_delete:
+	ret = maybe_drop_reference(trans, root, path, wc, next, owner_root);
+	if (ret)
+		goto out_unlock;
 	wc->refs[level - 1] = 0;
 	wc->flags[level - 1] = 0;
 	wc->lookup_info = 1;
