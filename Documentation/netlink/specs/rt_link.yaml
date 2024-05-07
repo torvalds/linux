@@ -770,6 +770,139 @@ definitions:
       -
         name: to
         type: u32
+  -
+    name: ifla-vf-mac
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: mac
+        type: binary
+        len: 32
+  -
+    name: ifla-vf-vlan
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: vlan
+        type: u32
+      -
+        name: qos
+        type: u32
+  -
+    name: ifla-vf-tx-rate
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: rate
+        type: u32
+  -
+    name: ifla-vf-spoofchk
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-link-state
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: link-state
+        type: u32
+        enum: ifla-vf-link-state-enum
+  -
+    name: ifla-vf-link-state-enum
+    type: enum
+    entries:
+      - auto
+      - enable
+      - disable
+  -
+    name: ifla-vf-rate
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: min-tx-rate
+        type: u32
+      -
+        name: max-tx-rate
+        type: u32
+  -
+    name: ifla-vf-rss-query-en
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-trust
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: setting
+        type: u32
+  -
+    name: ifla-vf-guid
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: guid
+        type: u64
+  -
+    name: ifla-vf-vlan-info
+    type: struct
+    members:
+      -
+        name: vf
+        type: u32
+      -
+        name: vlan
+        type: u32
+      -
+        name: qos
+        type: u32
+      -
+        name: vlan-proto
+        type: u32
+  -
+    name: rtext-filter
+    type: flags
+    entries:
+      - vf
+      - brvlan
+      - brvlan-compressed
+      - skip-stats
+      - mrp
+      - cfm-config
+      - cfm-status
+      - mst
 
 attribute-sets:
   -
@@ -847,7 +980,7 @@ attribute-sets:
       -
         name: vfinfo-list
         type: nest
-        nested-attributes: vfinfo-attrs
+        nested-attributes: vfinfo-list-attrs
       -
         name: stats64
         type: binary
@@ -873,6 +1006,8 @@ attribute-sets:
       -
         name: ext-mask
         type: u32
+        enum: rtext-filter
+        enum-as-flags: true
       -
         name: promiscuity
         type: u32
@@ -1005,8 +1140,106 @@ attribute-sets:
         value: 45
         nested-attributes: mctp-attrs
   -
+    name: vfinfo-list-attrs
+    attributes:
+      -
+        name: info
+        type: nest
+        nested-attributes: vfinfo-attrs
+        multi-attr: true
+  -
     name: vfinfo-attrs
-    attributes: []
+    attributes:
+      -
+        name: mac
+        type: binary
+        struct: ifla-vf-mac
+      -
+        name: vlan
+        type: binary
+        struct: ifla-vf-vlan
+      -
+        name: tx-rate
+        type: binary
+        struct: ifla-vf-tx-rate
+      -
+        name: spoofchk
+        type: binary
+        struct: ifla-vf-spoofchk
+      -
+        name: link-state
+        type: binary
+        struct: ifla-vf-link-state
+      -
+        name: rate
+        type: binary
+        struct: ifla-vf-rate
+      -
+        name: rss-query-en
+        type: binary
+        struct: ifla-vf-rss-query-en
+      -
+        name: stats
+        type: nest
+        nested-attributes: vf-stats-attrs
+      -
+        name: trust
+        type: binary
+        struct: ifla-vf-trust
+      -
+        name: ib-node-guid
+        type: binary
+        struct: ifla-vf-guid
+      -
+        name: ib-port-guid
+        type: binary
+        struct: ifla-vf-guid
+      -
+        name: vlan-list
+        type: nest
+        nested-attributes: vf-vlan-attrs
+      -
+        name: broadcast
+        type: binary
+  -
+    name: vf-stats-attrs
+    attributes:
+      -
+        name: rx-packets
+        type: u64
+        value: 0
+      -
+        name: tx-packets
+        type: u64
+      -
+        name: rx-bytes
+        type: u64
+      -
+        name: tx-bytes
+        type: u64
+      -
+        name: broadcast
+        type: u64
+      -
+        name: multicast
+        type: u64
+      -
+        name: pad
+        type: pad
+      -
+        name: rx-dropped
+        type: u64
+      -
+        name: tx-dropped
+        type: u64
+  -
+    name: vf-vlan-attrs
+    attributes:
+      -
+        name: info
+        type: binary
+        struct: ifla-vf-vlan-info
+        multi-attr: true
   -
     name: vf-ports-attrs
     attributes: []
