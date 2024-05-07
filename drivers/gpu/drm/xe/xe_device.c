@@ -16,6 +16,7 @@
 #include <drm/xe_drm.h>
 
 #include "display/xe_display.h"
+#include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
@@ -26,6 +27,7 @@
 #include "xe_drv.h"
 #include "xe_exec.h"
 #include "xe_exec_queue.h"
+#include "xe_force_wake.h"
 #include "xe_ggtt.h"
 #include "xe_gsc_proxy.h"
 #include "xe_gt.h"
