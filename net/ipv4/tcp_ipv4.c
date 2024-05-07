@@ -2437,7 +2437,6 @@ do_time_wait:
 
 static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
-	.twsk_unique	= tcp_twsk_unique,
 	.twsk_destructor= tcp_twsk_destructor,
 };
 

@@ -2049,7 +2049,6 @@ void tcp_v6_early_demux(struct sk_buff *skb)
 
 static struct timewait_sock_ops tcp6_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),
-	.twsk_unique	= tcp_twsk_unique,
 	.twsk_destructor = tcp_twsk_destructor,
 };
 
