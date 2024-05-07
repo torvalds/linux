@@ -194,8 +194,8 @@ bool __init_memblock memblock_overlaps_region(struct memblock_type *type,
 	for (i = 0; i < type->cnt; i++)
 		if (memblock_addrs_overlap(base, size, type->regions[i].base,
 					   type->regions[i].size))
-			break;
-	return i < type->cnt;
+			return true;
+	return false;
 }
 
 /**
