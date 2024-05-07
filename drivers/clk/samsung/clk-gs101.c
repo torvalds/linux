@@ -2601,21 +2601,6 @@ static const unsigned long cmu_hsi2_clk_regs[] __initconst = {
 	QUEUE_CTRL_REG_BLK_HSI2_CMU_HSI2,
 };
 
-PNAME(mout_hsi2_ufs_embd_p)	= { "oscclk", "dout_cmu_shared0_div4",
-				    "dout_cmu_shared2_div2", "fout_spare_pll" };
-
-PNAME(mout_hsi2_pcie_p)		= { "oscclk", "dout_cmu_shared2_div2" };
-
-PNAME(mout_hsi2_bus_p)		= { "dout_cmu_shared0_div4",
-				    "dout_cmu_shared1_div4",
-				    "dout_cmu_shared2_div2",
-				    "dout_cmu_shared3_div2",
-				    "fout_spare_pll", "oscclk", "oscclk",
-				    "oscclk" };
-
-PNAME(mout_hsi2_mmc_card_p)	= { "fout_shared2_pll", "fout_shared3_pll",
-				    "dout_cmu_shared0_div4", "fout_spare_pll" };
-
 PNAME(mout_hsi2_bus_user_p)	= { "oscclk", "dout_cmu_hsi2_bus" };
 PNAME(mout_hsi2_mmc_card_user_p) = { "oscclk", "dout_cmu_hsi2_mmc_card" };
 PNAME(mout_hsi2_pcie_user_p)	= { "oscclk", "dout_cmu_hsi2_pcie" };
