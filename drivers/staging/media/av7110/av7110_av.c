@@ -91,7 +91,7 @@ int av7110_record_cb(struct dvb_filter_pes2ts *p2t, u8 *buf, size_t len)
 
 static int dvb_filter_pes2ts_cb(void *priv, unsigned char *data)
 {
-	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *) priv;
+	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *)priv;
 
 	dvbdmxfeed->cb.ts(data, 188, NULL, 0,
 			  &dvbdmxfeed->feed.ts, NULL);
@@ -117,7 +117,7 @@ int av7110_av_start_record(struct av7110 *av7110, int av,
 		dvb_filter_pes2ts_init(&av7110->p2t[0],
 				       dvbdmx->pesfilter[0]->pid,
 				       dvb_filter_pes2ts_cb,
-				       (void *) dvbdmx->pesfilter[0]);
+				       (void *)dvbdmx->pesfilter[0]);
 		ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Record, 2, AudioPES, 0);
 		break;
 
@@ -125,7 +125,7 @@ int av7110_av_start_record(struct av7110 *av7110, int av,
 		dvb_filter_pes2ts_init(&av7110->p2t[1],
 				       dvbdmx->pesfilter[1]->pid,
 				       dvb_filter_pes2ts_cb,
-				       (void *) dvbdmx->pesfilter[1]);
+				       (void *)dvbdmx->pesfilter[1]);
 		ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Record, 2, VideoPES, 0);
 		break;
 
@@ -133,11 +133,11 @@ int av7110_av_start_record(struct av7110 *av7110, int av,
 		dvb_filter_pes2ts_init(&av7110->p2t[0],
 				       dvbdmx->pesfilter[0]->pid,
 				       dvb_filter_pes2ts_cb,
-				       (void *) dvbdmx->pesfilter[0]);
+				       (void *)dvbdmx->pesfilter[0]);
 		dvb_filter_pes2ts_init(&av7110->p2t[1],
 				       dvbdmx->pesfilter[1]->pid,
 				       dvb_filter_pes2ts_cb,
-				       (void *) dvbdmx->pesfilter[1]);
+				       (void *)dvbdmx->pesfilter[1]);
 		ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Record, 2, AV_PES, 0);
 		break;
 	}
@@ -254,10 +254,10 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 		return -1;
 	}
 
-	dvb_ringbuffer_read(buf, dest, (size_t) blen);
+	dvb_ringbuffer_read(buf, dest, (size_t)blen);
 
 	dprintk(2, "pread=0x%08lx, pwrite=0x%08lx\n",
-	       (unsigned long) buf->pread, (unsigned long) buf->pwrite);
+		(unsigned long)buf->pread, (unsigned long)buf->pwrite);
 	wake_up(&buf->queue);
 	return blen;
 }
@@ -325,7 +325,7 @@ int av7110_set_vidmode(struct av7110 *av7110, enum av7110_video_mode mode)
 
 	if (!ret && !av7110->playing) {
 		ret = ChangePIDs(av7110, av7110->pids[DMX_PES_VIDEO],
-			   av7110->pids[DMX_PES_AUDIO],
+				 av7110->pids[DMX_PES_AUDIO],
 			   av7110->pids[DMX_PES_TELETEXT],
 			   0, av7110->pids[DMX_PES_PCR]);
 		if (!ret)
@@ -404,7 +404,7 @@ static inline long aux_ring_buffer_write(struct dvb_ringbuffer *rbuf,
 
 static void play_video_cb(u8 *buf, int count, void *priv)
 {
-	struct av7110 *av7110 = (struct av7110 *) priv;
+	struct av7110 *av7110 = (struct av7110 *)priv;
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
@@ -417,7 +417,7 @@ static void play_video_cb(u8 *buf, int count, void *priv)
 
 static void play_audio_cb(u8 *buf, int count, void *priv)
 {
-	struct av7110 *av7110 = (struct av7110 *) priv;
+	struct av7110 *av7110 = (struct av7110 *)priv;
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
@@ -499,7 +499,7 @@ static ssize_t dvb_play(struct av7110 *av7110, const char __user *buf,
 }
 
 static ssize_t dvb_play_kernel(struct av7110 *av7110, const u8 *buf,
-			unsigned long count, int nonblock, int type)
+			       unsigned long count, int nonblock, int type)
 {
 	unsigned long todo = count, n;
 
@@ -546,8 +546,8 @@ static ssize_t dvb_aplay(struct av7110 *av7110, const char __user *buf,
 			if (nonblock)
 				return count - todo;
 			if (wait_event_interruptible(av7110->aout.queue,
-					(dvb_ringbuffer_free(&av7110->aout) >= 20 * 1024)))
-				return count-todo;
+						     (dvb_ringbuffer_free(&av7110->aout) >= 20 * 1024)))
+				return count - todo;
 		}
 		n = todo;
 		if (n > IPACKS * 2)
@@ -688,7 +688,7 @@ void av7110_p2t_write(u8 const *buf, long int length, u16 pid, struct av7110_p2t
 	if (p->pos) {
 		c2 = find_pes_header(buf + c, length - c, &p->frags);
 		if (c2 >= 0 && c2 < (TS_SIZE - 4) - p->pos)
-			l = c2+c;
+			l = c2 + c;
 		else
 			l = (TS_SIZE - 4) - p->pos;
 		memcpy(p->pes + p->pos, buf, l);
@@ -765,7 +765,7 @@ static void p_to_t(u8 const *buf, long int length, u16 pid, u8 *counter,
 
 	pes_start = 0;
 	if (length > 3 &&
-	     buf[0] == 0x00 && buf[1] == 0x00 && buf[2] == 0x01)
+	    buf[0] == 0x00 && buf[1] == 0x00 && buf[2] == 0x01)
 		switch (buf[3]) {
 		case PROG_STREAM_MAP:
 		case PRIVATE_STREAM2:
@@ -1121,7 +1121,7 @@ static int dvb_video_ioctl(struct file *file,
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
-	unsigned long arg = (unsigned long) parg;
+	unsigned long arg = (unsigned long)parg;
 	int ret = 0;
 
 	dprintk(1, "av7110:%p, cmd=%04x\n", av7110,cmd);
@@ -1143,7 +1143,7 @@ static int dvb_video_ioctl(struct file *file,
 			ret = av7110_av_stop(av7110, RP_VIDEO);
 		else
 			ret = vidcom(av7110, AV_VIDEO_CMD_STOP,
-			       av7110->videostate.video_blank ? 0 : 1);
+				     av7110->videostate.video_blank ? 0 : 1);
 		if (!ret)
 			av7110->trickmode = TRICK_NONE;
 		break;
@@ -1193,11 +1193,11 @@ static int dvb_video_ioctl(struct file *file,
 		break;
 
 	case VIDEO_SELECT_SOURCE:
-		av7110->videostate.stream_source = (video_stream_source_t) arg;
+		av7110->videostate.stream_source = (video_stream_source_t)arg;
 		break;
 
 	case VIDEO_SET_BLANK:
-		av7110->videostate.video_blank = (int) arg;
+		av7110->videostate.video_blank = (int)arg;
 		break;
 
 	case VIDEO_GET_STATUS:
@@ -1220,7 +1220,7 @@ static int dvb_video_ioctl(struct file *file,
 
 	case VIDEO_SET_DISPLAY_FORMAT:
 	{
-		video_displayformat_t format = (video_displayformat_t) arg;
+		video_displayformat_t format = (video_displayformat_t)arg;
 
 		switch (format) {
 		case VIDEO_PAN_SCAN:
@@ -1250,14 +1250,14 @@ static int dvb_video_ioctl(struct file *file,
 		}
 		av7110->display_ar = arg;
 		ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetMonitorType,
-				    1, (u16) arg);
+				    1, (u16)arg);
 		break;
 
 #ifdef CONFIG_COMPAT
 	case VIDEO_STILLPICTURE32:
 	{
 		struct compat_video_still_picture *pic =
-			(struct compat_video_still_picture *) parg;
+			(struct compat_video_still_picture *)parg;
 		av7110->videostate.stream_source = VIDEO_SOURCE_MEMORY;
 		dvb_ringbuffer_flush_spinlock_wakeup(&av7110->avout);
 		ret = play_iframe(av7110, compat_ptr(pic->iFrame),
@@ -1269,7 +1269,7 @@ static int dvb_video_ioctl(struct file *file,
 	case VIDEO_STILLPICTURE:
 	{
 		struct video_still_picture *pic =
-			(struct video_still_picture *) parg;
+			(struct video_still_picture *)parg;
 		av7110->videostate.stream_source = VIDEO_SOURCE_MEMORY;
 		dvb_ringbuffer_flush_spinlock_wakeup(&av7110->avout);
 		ret = play_iframe(av7110, pic->iFrame, pic->size,
@@ -1291,7 +1291,7 @@ static int dvb_video_ioctl(struct file *file,
 		break;
 
 	case VIDEO_SLOWMOTION:
-		if (av7110->playing&RP_VIDEO) {
+		if (av7110->playing & RP_VIDEO) {
 			if (av7110->trickmode != TRICK_SLOW)
 				ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Slow, 2, 0, 0);
 			if (!ret)
@@ -1353,7 +1353,7 @@ static int dvb_audio_ioctl(struct file *file,
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
-	unsigned long arg = (unsigned long) parg;
+	unsigned long arg = (unsigned long)parg;
 	int ret = 0;
 
 	dprintk(1, "av7110:%p, cmd=%04x\n", av7110,cmd);
@@ -1398,19 +1398,19 @@ static int dvb_audio_ioctl(struct file *file,
 		break;
 
 	case AUDIO_SELECT_SOURCE:
-		av7110->audiostate.stream_source = (audio_stream_source_t) arg;
+		av7110->audiostate.stream_source = (audio_stream_source_t)arg;
 		break;
 
 	case AUDIO_SET_MUTE:
 	{
 		ret = audcom(av7110, arg ? AUDIO_CMD_MUTE : AUDIO_CMD_UNMUTE);
 		if (!ret)
-			av7110->audiostate.mute_state = (int) arg;
+			av7110->audiostate.mute_state = (int)arg;
 		break;
 	}
 
 	case AUDIO_SET_AV_SYNC:
-		av7110->audiostate.AV_sync_state = (int) arg;
+		av7110->audiostate.AV_sync_state = (int)arg;
 		ret = audcom(av7110, arg ? AUDIO_CMD_SYNC_ON : AUDIO_CMD_SYNC_OFF);
 		break;
 
@@ -1421,7 +1421,7 @@ static int dvb_audio_ioctl(struct file *file,
 		break;
 
 	case AUDIO_CHANNEL_SELECT:
-		av7110->audiostate.channel_select = (audio_channel_select_t) arg;
+		av7110->audiostate.channel_select = (audio_channel_select_t)arg;
 		switch (av7110->audiostate.channel_select) {
 		case AUDIO_STEREO:
 			ret = audcom(av7110, AUDIO_CMD_STEREO);

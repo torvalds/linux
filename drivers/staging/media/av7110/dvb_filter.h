@@ -21,7 +21,7 @@
 
 #include <media/demux.h>
 
-typedef int (dvb_filter_pes2ts_cb_t) (void *, unsigned char *);
+typedef int (dvb_filter_pes2ts_cb_t)(void *, unsigned char *);
 
 struct dvb_filter_pes2ts {
 	unsigned char buf[188];
@@ -118,7 +118,7 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 #define SEAM_SPLICE    0x20
 
 #define MAX_PLENGTH 0xFFFF
-#define MMAX_PLENGTH (256*MAX_PLENGTH)
+#define MMAX_PLENGTH (256 * MAX_PLENGTH)
 
 #ifndef IPACKS
 #define IPACKS 2048

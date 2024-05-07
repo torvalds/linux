@@ -410,14 +410,14 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 	}
 
 	for (i = 2; i < length; i++)
-		wdebi(av7110, DEBINOSWAP, COMMAND + 2 * i, (u32) buf[i], 2);
+		wdebi(av7110, DEBINOSWAP, COMMAND + 2 * i, (u32)buf[i], 2);
 
 	if (length)
-		wdebi(av7110, DEBINOSWAP, COMMAND + 2, (u32) buf[1], 2);
+		wdebi(av7110, DEBINOSWAP, COMMAND + 2, (u32)buf[1], 2);
 	else
 		wdebi(av7110, DEBINOSWAP, COMMAND + 2, 0, 2);
 
-	wdebi(av7110, DEBINOSWAP, COMMAND, (u32) buf[0], 2);
+	wdebi(av7110, DEBINOSWAP, COMMAND, (u32)buf[0], 2);
 
 	if (FW_VERSION(av7110->arm_app) <= 0x261f)
 		wdebi(av7110, DEBINOSWAP, COM_IF_LOCK, 0x0000, 2);
@@ -685,14 +685,14 @@ static inline int SetColorBlend(struct av7110 *av7110, u8 windownr)
 }
 
 static inline int SetBlend_(struct av7110 *av7110, u8 windownr,
-		     enum av7110_osd_palette_type colordepth, u16 index, u8 blending)
+			    enum av7110_osd_palette_type colordepth, u16 index, u8 blending)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_OSD, SetBlend, 4,
 			     windownr, colordepth, index, blending);
 }
 
 static inline int SetColor_(struct av7110 *av7110, u8 windownr,
-		     enum av7110_osd_palette_type colordepth, u16 index, u16 colorhi, u16 colorlo)
+			    enum av7110_osd_palette_type colordepth, u16 index, u16 colorhi, u16 colorlo)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_OSD, SetColor, 5,
 			     windownr, colordepth, index, colorhi, colorlo);
@@ -832,7 +832,7 @@ static osd_raw_window_t bpp2bit[8] = {
 static inline int WaitUntilBmpLoaded(struct av7110 *av7110)
 {
 	int ret = wait_event_timeout(av7110->bmpq,
-				av7110->bmp_state != BMP_LOADING, 10*HZ);
+				av7110->bmp_state != BMP_LOADING, 10 * HZ);
 	if (ret == 0) {
 		printk("dvb-ttpci: warning: timeout waiting in LoadBitmap: %d, %d\n",
 		       ret, av7110->bmp_state);
@@ -1046,7 +1046,7 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 	case OSD_Open:
 		av7110->osdbpp[av7110->osdwin] = (dc->color - 1) & 7;
 		ret = CreateOSDWindow(av7110, av7110->osdwin,
-				bpp2bit[av7110->osdbpp[av7110->osdwin]],
+				      bpp2bit[av7110->osdbpp[av7110->osdwin]],
 				dc->x1 - dc->x0 + 1, dc->y1 - dc->y0 + 1);
 		if (ret)
 			break;
@@ -1076,7 +1076,7 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		if (FW_VERSION(av7110->arm_app) >= 0x2618)
 			ret = OSDSetPalette(av7110, dc->data, dc->color, dc->x0);
 		else {
-			int i, len = dc->x0-dc->color+1;
+			int i, len = dc->x0 - dc->color + 1;
 			u8 __user *colors = (u8 __user *)dc->data;
 			u8 r, g = 0, b = 0, blend = 0;
 
@@ -1097,7 +1097,7 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		break;
 	case OSD_SetPixel:
 		ret = DrawLine(av7110, av7110->osdwin,
-			 dc->x0, dc->y0, 0, 0, dc->color);
+			       dc->x0, dc->y0, 0, 0, dc->color);
 		break;
 	case OSD_SetRow:
 		dc->y1 = dc->y0;
@@ -1107,15 +1107,15 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		break;
 	case OSD_FillRow:
 		ret = DrawBlock(av7110, av7110->osdwin, dc->x0, dc->y0,
-			  dc->x1-dc->x0+1, dc->y1, dc->color);
+				dc->x1 - dc->x0 + 1, dc->y1, dc->color);
 		break;
 	case OSD_FillBlock:
 		ret = DrawBlock(av7110, av7110->osdwin, dc->x0, dc->y0,
-			  dc->x1 - dc->x0 + 1, dc->y1 - dc->y0 + 1, dc->color);
+				dc->x1 - dc->x0 + 1, dc->y1 - dc->y0 + 1, dc->color);
 		break;
 	case OSD_Line:
 		ret = DrawLine(av7110, av7110->osdwin,
-			 dc->x0, dc->y0, dc->x1 - dc->x0, dc->y1 - dc->y0, dc->color);
+			       dc->x0, dc->y0, dc->x1 - dc->x0, dc->y1 - dc->y0, dc->color);
 		break;
 	case OSD_Text:
 	{
@@ -1129,7 +1129,7 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		if (dc->x1 > 3)
 			dc->x1 = 3;
 		ret = SetFont(av7110, av7110->osdwin, dc->x1,
-			(u16) (dc->color & 0xffff), (u16) (dc->color >> 16));
+			      (u16)(dc->color & 0xffff), (u16)(dc->color >> 16));
 		if (!ret)
 			ret = FlushText(av7110);
 		if (!ret)
@@ -1159,7 +1159,7 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 		else
 			av7110->osdbpp[av7110->osdwin] = 0;
 		ret = CreateOSDWindow(av7110, av7110->osdwin, (osd_raw_window_t)dc->color,
-				dc->x1 - dc->x0 + 1, dc->y1 - dc->y0 + 1);
+				      dc->x1 - dc->x0 + 1, dc->y1 - dc->y0 + 1);
 		if (ret)
 			break;
 		if (!dc->data) {

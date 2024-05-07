@@ -11,7 +11,7 @@
 #define DEBISWAP   0x002e0000
 
 #define ARM_WAIT_FREE  (HZ)
-#define ARM_WAIT_SHAKE (HZ/5)
+#define ARM_WAIT_SHAKE (HZ / 5)
 #define ARM_WAIT_OSD (HZ)
 
 enum av7110_bootstate {
@@ -311,13 +311,13 @@ enum av7110_command_type {
 #define DATA_BUFF0_BASE	(DPRAM_BASE + 0x200)
 #define DATA_BUFF0_SIZE	0x0800
 
-#define DATA_BUFF1_BASE	(DATA_BUFF0_BASE+DATA_BUFF0_SIZE)
+#define DATA_BUFF1_BASE	(DATA_BUFF0_BASE + DATA_BUFF0_SIZE)
 #define DATA_BUFF1_SIZE	0x0800
 
-#define DATA_BUFF2_BASE	(DATA_BUFF1_BASE+DATA_BUFF1_SIZE)
+#define DATA_BUFF2_BASE	(DATA_BUFF1_BASE + DATA_BUFF1_SIZE)
 #define DATA_BUFF2_SIZE	0x0800
 
-#define DATA_BUFF3_BASE (DATA_BUFF2_BASE+DATA_BUFF2_SIZE)
+#define DATA_BUFF3_BASE (DATA_BUFF2_BASE + DATA_BUFF2_SIZE)
 #define DATA_BUFF3_SIZE 0x0400
 
 #define Reserved	(DPRAM_BASE + 0x1E00)
@@ -393,7 +393,7 @@ static inline u32 irdebi(struct av7110 *av7110, u32 config, int addr, u32 val, u
 
 	res = av7110_debiread(av7110, config, addr, count);
 	if (count <= 4)
-		memcpy(av7110->debi_virt, (char *) &res, count);
+		memcpy(av7110->debi_virt, (char *)&res, count);
 	return res;
 }
 
@@ -456,14 +456,14 @@ static inline int av7710_set_video_mode(struct av7110 *av7110, int mode)
 static inline int vidcom(struct av7110 *av7110, u32 com, u32 arg)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_MISC, AV7110_FW_VIDEO_COMMAND, 4,
-			     (com>>16), (com&0xffff),
-			     (arg>>16), (arg&0xffff));
+			     (com >> 16), (com & 0xffff),
+			     (arg >> 16), (arg & 0xffff));
 }
 
 static inline int audcom(struct av7110 *av7110, u32 com)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_MISC, AV7110_FW_AUDIO_COMMAND, 2,
-			     (com>>16), (com&0xffff));
+			     (com >> 16), (com & 0xffff));
 }
 
 static inline int Set22K(struct av7110 *av7110, int state)

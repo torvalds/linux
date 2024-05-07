@@ -119,11 +119,11 @@ struct av7110 {
 
 	void		       *iobuf;	 /* memory for all buffers */
 	struct dvb_ringbuffer	avout;   /* buffer for video or A/V mux */
-#define AVOUTLEN (128*1024)
+#define AVOUTLEN (128 * 1024)
 	struct dvb_ringbuffer	aout;    /* buffer for audio */
-#define AOUTLEN (64*1024)
+#define AOUTLEN (64 * 1024)
 	void		       *bmpbuf;
-#define BMPLEN (8*32768+1024)
+#define BMPLEN (8 * 32768 + 1024)
 
 	/* bitmap buffers and states */
 
@@ -281,7 +281,7 @@ struct av7110 {
 };
 
 extern int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
-		       u16 subpid, u16 pcrpid);
+		      u16 subpid, u16 pcrpid);
 
 void av7110_ir_handler(struct av7110 *av7110, u32 ircom);
 int av7110_set_ir_config(struct av7110 *av7110);

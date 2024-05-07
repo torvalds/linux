@@ -232,7 +232,7 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
-	unsigned long arg = (unsigned long) parg;
+	unsigned long arg = (unsigned long)parg;
 	int ret = 0;
 
 	dprintk(8, "av7110:%p\n",av7110);
@@ -298,11 +298,11 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 			return -EINVAL;
 		}
 		av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetDescr, 5,
-			      (descr->index<<8)|descr->parity,
-			      (descr->cw[0]<<8)|descr->cw[1],
-			      (descr->cw[2]<<8)|descr->cw[3],
-			      (descr->cw[4]<<8)|descr->cw[5],
-			      (descr->cw[6]<<8)|descr->cw[7]);
+			      (descr->index << 8) | descr->parity,
+			      (descr->cw[0] << 8) | descr->cw[1],
+			      (descr->cw[2] << 8) | descr->cw[3],
+			      (descr->cw[4] << 8) | descr->cw[5],
+			      (descr->cw[6] << 8) | descr->cw[7]);
 		break;
 	}
 

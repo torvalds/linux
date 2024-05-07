@@ -59,7 +59,7 @@ static void send_ipack(struct ipack *p)
 			streamid = p->buf[off];
 			if ((streamid & 0xf8) == 0x80) {
 				ai.off = 0;
-				ac3_off = ((p->buf[off + 2] << 8)|
+				ac3_off = ((p->buf[off + 2] << 8) |
 					   p->buf[off + 3]);
 				if (ac3_off < p->count)
 					f = dvb_filter_get_ac3info(p->buf + off + 3 + ac3_off,
@@ -124,12 +124,12 @@ static void write_ipack(struct ipack *p, const u8 *data, int count)
 	}
 
 	if (p->count + count < p->size) {
-		memcpy(p->buf+p->count, data, count);
+		memcpy(p->buf + p->count, data, count);
 		p->count += count;
 	} else {
 		int rest = p->size - p->count;
 
-		memcpy(p->buf+p->count, data, rest);
+		memcpy(p->buf + p->count, data, rest);
 		p->count += rest;
 		send_ipack(p);
 		if (count - rest > 0)
@@ -191,7 +191,7 @@ int av7110_ipack_instant_repack(const u8 *buf, int count, struct ipack *p)
 			break;
 
 		case 4:
-			if (count-c > 1) {
+			if (count - c > 1) {
 				p->plen[0] = buf[c];
 				c++;
 				p->plen[1] = buf[c];

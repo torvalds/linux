@@ -86,7 +86,7 @@ static struct v4l2_input inputs[4] = {
 		.type		= V4L2_INPUT_TYPE_CAMERA,
 		.audioset	= 1,
 		.tuner		= 0, /* ignored */
-		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
+		.std		= V4L2_STD_PAL_BG | V4L2_STD_NTSC_M,
 		.status		= 0,
 		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
@@ -95,7 +95,7 @@ static struct v4l2_input inputs[4] = {
 		.type		= V4L2_INPUT_TYPE_TUNER,
 		.audioset	= 1,
 		.tuner		= 0,
-		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
+		.std		= V4L2_STD_PAL_BG | V4L2_STD_NTSC_M,
 		.status		= 0,
 		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
@@ -104,7 +104,7 @@ static struct v4l2_input inputs[4] = {
 		.type		= V4L2_INPUT_TYPE_CAMERA,
 		.audioset	= 0,
 		.tuner		= 0,
-		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
+		.std		= V4L2_STD_PAL_BG | V4L2_STD_NTSC_M,
 		.status		= 0,
 		.capabilities	= V4L2_IN_CAP_STD,
 	}, {
@@ -113,7 +113,7 @@ static struct v4l2_input inputs[4] = {
 		.type		= V4L2_INPUT_TYPE_CAMERA,
 		.audioset	= 0,
 		.tuner		= 0,
-		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
+		.std		= V4L2_STD_PAL_BG | V4L2_STD_NTSC_M,
 		.status		= 0,
 		.capabilities	= V4L2_IN_CAP_STD,
 	}
@@ -529,7 +529,7 @@ static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *
 }
 
 static int vidioc_g_sliced_vbi_cap(struct file *file, void *fh,
-					struct v4l2_sliced_vbi_cap *cap)
+				   struct v4l2_sliced_vbi_cap *cap)
 {
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
@@ -545,7 +545,7 @@ static int vidioc_g_sliced_vbi_cap(struct file *file, void *fh,
 }
 
 static int vidioc_g_fmt_sliced_vbi_out(struct file *file, void *fh,
-					struct v4l2_format *f)
+				       struct v4l2_format *f)
 {
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
@@ -584,7 +584,7 @@ static int vidioc_try_fmt_sliced_vbi_out(struct file *file, void *fh,
 }
 
 static int vidioc_s_fmt_sliced_vbi_out(struct file *file, void *fh,
-					struct v4l2_format *f)
+				       struct v4l2_format *f)
 {
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;

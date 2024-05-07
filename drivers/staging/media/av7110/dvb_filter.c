@@ -29,7 +29,7 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 	int fr = 0;
 
 	while (!found  && c < count) {
-		u8 *b = mbuf+c;
+		u8 *b = mbuf + c;
 
 		if (b[0] == 0x0b &&  b[1] == 0x77)
 			found = 1;
@@ -48,17 +48,17 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 		return -1;
 
 	ai->layer = 0;  // 0 for AC3
-	headr = mbuf+c+2;
+	headr = mbuf + c + 2;
 
-	frame = (headr[2]&0x3f);
-	ai->bit_rate = ac3_bitrates[frame >> 1]*1000;
+	frame = (headr[2] & 0x3f);
+	ai->bit_rate = ac3_bitrates[frame >> 1] * 1000;
 
 	if (pr)
 		printk(KERN_CONT "  BRate: %d kb/s", (int) ai->bit_rate/1000);
 
 	ai->frequency = (headr[2] & 0xc0) >> 6;
 	fr = (headr[2] & 0xc0) >> 6;
-	ai->frequency = freq[fr]*100;
+	ai->frequency = freq[fr] * 100;
 	if (pr)
 		printk(KERN_CONT "  Freq: %d Hz\n", (int) ai->frequency);
 
@@ -99,7 +99,7 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 		buf[1] &= ~0x40;
 	while (len >= 184) {
 		buf[3] = 0x10 | ((p2ts->cc++) & 0x0f);
-		memcpy(buf+4, pes, 184);
+		memcpy(buf + 4, pes, 184);
 		if ((ret=p2ts->cb(p2ts->priv, buf)))
 			return ret;
 		len -= 184; pes += 184;
@@ -111,10 +111,10 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 	rest = 183 - len;
 	if (rest) {
 		buf[5] = 0x00;
-		if (rest-1)
-			memset(buf+6, 0xff, rest-1);
+		if (rest - 1)
+			memset(buf + 6, 0xff, rest - 1);
 	}
 	buf[4] = rest;
-	memcpy(buf+5+rest, pes, len);
+	memcpy(buf + 5 + rest, pes, len);
 	return p2ts->cb(p2ts->priv, buf);
 }

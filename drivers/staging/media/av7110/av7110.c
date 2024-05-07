@@ -52,8 +52,8 @@
 
 #define TS_WIDTH  376
 #define TS_HEIGHT 512
-#define TS_BUFLEN (TS_WIDTH*TS_HEIGHT)
-#define TS_MAX_PACKETS (TS_BUFLEN/TS_SIZE)
+#define TS_BUFLEN (TS_WIDTH * TS_HEIGHT)
+#define TS_MAX_PACKETS (TS_BUFLEN / TS_SIZE)
 
 int av7110_debug;
 
@@ -122,7 +122,7 @@ static void init_av7110_av(struct av7110 *av7110)
 		printk("dvb-ttpci:cannot set internal volume to maximum:%d\n",ret);
 
 	ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetMonitorType,
-			    1, (u16) av7110->display_ar);
+			    1, (u16)av7110->display_ar);
 	if (ret < 0)
 		printk("dvb-ttpci: unable to set aspect ratio\n");
 	ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetPanScanType,
@@ -234,7 +234,7 @@ static int arm_thread(void *data)
 
 	for (;;) {
 		timeout = wait_event_interruptible_timeout(av7110->arm_wait,
-			kthread_should_stop(), 5 * HZ);
+							   kthread_should_stop(), 5 * HZ);
 
 		if (-ERESTARTSYS == timeout || kthread_should_stop()) {
 			/* got signal or told to quit*/
@@ -371,7 +371,7 @@ static void debiirq(struct tasklet_struct *t)
 	switch (type & 0xff) {
 	case DATA_TS_RECORD:
 		dvb_dmx_swfilter_packets(&av7110->demux,
-					 (const u8 *) av7110->debi_virt,
+					 (const u8 *)av7110->debi_virt,
 					 av7110->debilen / 188);
 		xfer = RX_BUFF;
 		break;
@@ -379,7 +379,7 @@ static void debiirq(struct tasklet_struct *t)
 	case DATA_PES_RECORD:
 		if (av7110->demux.recording)
 			av7110_record_cb(&av7110->p2t[handle],
-					 (u8 *) av7110->debi_virt,
+					 (u8 *)av7110->debi_virt,
 					 av7110->debilen);
 		xfer = RX_BUFF;
 		break;
@@ -611,11 +611,11 @@ static void gpioirq(struct tasklet_struct *t)
 			len = 2 * 1024;
 		iwdebi(av7110, DEBINOSWAP, TX_LEN, len, 2);
 		iwdebi(av7110, DEBINOSWAP, IRQ_STATE_EXT, len, 2);
-		memcpy(av7110->debi_virt, av7110->bmpbuf+av7110->bmpp, len);
+		memcpy(av7110->debi_virt, av7110->bmpbuf + av7110->bmpp, len);
 		av7110->bmpp += len;
 		av7110->bmplen -= len;
 		dprintk(8, "gpio DATA_BMP_LOAD DMA len %d\n", len);
-		start_debi_dma(av7110, DEBI_WRITE, DPRAM_BASE+txbuf, len);
+		start_debi_dma(av7110, DEBI_WRITE, DPRAM_BASE + txbuf, len);
 		spin_unlock(&av7110->debilock);
 		return;
 
@@ -633,7 +633,7 @@ static void gpioirq(struct tasklet_struct *t)
 	case DATA_TS_RECORD:
 	case DATA_PES_RECORD:
 		dprintk(8, "DMA: TS_REC etc.\n");
-		start_debi_dma(av7110, DEBI_READ, DPRAM_BASE+rxbuf, len);
+		start_debi_dma(av7110, DEBI_READ, DPRAM_BASE + rxbuf, len);
 		spin_unlock(&av7110->debilock);
 		return;
 
@@ -675,9 +675,9 @@ static int dvb_osd_ioctl(struct file *file,
 	dprintk(4, "%p\n", av7110);
 
 	if (cmd == OSD_SEND_CMD)
-		return av7110_osd_cmd(av7110, (osd_cmd_t *) parg);
+		return av7110_osd_cmd(av7110, (osd_cmd_t *)parg);
 	if (cmd == OSD_GET_CAPABILITY)
-		return av7110_osd_capability(av7110, (osd_cap_t *) parg);
+		return av7110_osd_capability(av7110, (osd_cap_t *)parg);
 
 	return -EINVAL;
 }
@@ -723,7 +723,7 @@ static inline int SetPIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 }
 
 int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
-		u16 subpid, u16 pcrpid)
+	       u16 subpid, u16 pcrpid)
 {
 	int ret = 0;
 
@@ -856,7 +856,7 @@ static int dvb_feed_start_pid(struct dvb_demux_feed *dvbdmxfeed)
 
 	npids[0] = npids[1] = npids[2] = npids[3] = npids[4] = 0xffff;
 	i = dvbdmxfeed->pes_type;
-	npids[i] = (pid[i]&0x8000) ? 0 : pid[i];
+	npids[i] = (pid[i] & 0x8000) ? 0 : pid[i];
 	if ((i == 2) && npids[i] && (dvbdmxfeed->ts_type & TS_PACKET)) {
 		npids[i] = 0;
 		ret = ChangePIDs(av7110, npids[1], npids[0], npids[2], npids[3], npids[4]);
@@ -919,7 +919,7 @@ static int dvb_feed_stop_pid(struct dvb_demux_feed *dvbdmxfeed)
 	case 4:
 		if (!pids_off)
 			return 0;
-		npids[i] = (pid[i]&0x8000) ? 0 : pid[i];
+		npids[i] = (pid[i] & 0x8000) ? 0 : pid[i];
 		break;
 	}
 	if (!ret)
@@ -1111,8 +1111,8 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
 	dprintk(2, "fwstc = %04hx %04hx %04hx %04hx\n",
 		fwstc[0], fwstc[1], fwstc[2], fwstc[3]);
 
-	*stc =	(((uint64_t) ((fwstc[3] & 0x8000) >> 15)) << 32) |
-		(((uint64_t)  fwstc[1]) << 16) | ((uint64_t) fwstc[0]);
+	*stc =	(((uint64_t)((fwstc[3] & 0x8000) >> 15)) << 32) |
+		(((uint64_t)fwstc[1]) << 16) | ((uint64_t)fwstc[0]);
 	*base = 1;
 
 	dprintk(4, "stc = %lu\n", (unsigned long)*stc);
@@ -1218,7 +1218,7 @@ static int budget_stop_feed(struct dvb_demux_feed *feed)
 static void vpeirq(struct tasklet_struct *t)
 {
 	struct av7110 *budget = from_tasklet(budget, t, vpe_tasklet);
-	u8 *mem = (u8 *) (budget->grabbing);
+	u8 *mem = (u8 *)(budget->grabbing);
 	u32 olddma = budget->ttbp;
 	u32 newdma = saa7146_read(budget->dev, PCI_VDP3);
 	struct dvb_demux *demux = budget->full_ts ? &budget->demux : &budget->demux1;
@@ -1268,7 +1268,7 @@ static int av7110_register(struct av7110 *av7110)
 
 	av7110->registered = 1;
 
-	dvbdemux->priv = (void *) av7110;
+	dvbdemux->priv = (void *)av7110;
 
 	for (i = 0; i < 32; i++)
 		av7110->handle2filter[i] = NULL;
@@ -1323,7 +1323,7 @@ static int av7110_register(struct av7110 *av7110)
 		/* initialize software demux1 without its own frontend
 		 * demux1 hardware is connected to frontend0 of demux0
 		 */
-		dvbdemux1->priv = (void *) av7110;
+		dvbdemux1->priv = (void *)av7110;
 
 		dvbdemux1->filternum = 256;
 		dvbdemux1->feednum = 256;
@@ -1901,7 +1901,7 @@ static int av7110_fe_lock_fix(struct av7110 *av7110, enum fe_status status)
 
 	if (synced) {
 		ret = SetPIDs(av7110, av7110->pids[DMX_PES_VIDEO],
-			av7110->pids[DMX_PES_AUDIO],
+			      av7110->pids[DMX_PES_AUDIO],
 			av7110->pids[DMX_PES_TELETEXT], 0,
 			av7110->pids[DMX_PES_PCR]);
 		if (!ret)
@@ -2075,7 +2075,7 @@ static int frontend_init(struct av7110 *av7110)
 		switch (av7110->dev->pci->subsystem_device) {
 		case 0x0000: // Fujitsu/Siemens DVB-Cable (ves1820/Philips CD1516(??))
 			av7110->fe = dvb_attach(ves1820_attach, &philips_cd1516_config,
-						    &av7110->i2c_adap, read_pwm(av7110));
+						&av7110->i2c_adap, read_pwm(av7110));
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = philips_cd1516_tuner_set_params;
 			}
@@ -2379,9 +2379,9 @@ static int av7110_attach(struct saa7146_dev *dev,
 		/* RPS1 timeout disable */
 		saa7146_write(dev, RPS_TOV1, 0);
 		WRITE_RPS1(CMD_PAUSE | EVT_VBI_B);
-		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL >> 2));
 		WRITE_RPS1(GPIO3_MSK);
-		WRITE_RPS1(SAA7146_GPIO_OUTLO<<24);
+		WRITE_RPS1(SAA7146_GPIO_OUTLO << 24);
 #if RPS_IRQ
 		/* issue RPS1 interrupt to increment counter */
 		WRITE_RPS1(CMD_INTERRUPT);
@@ -2541,9 +2541,9 @@ static int av7110_attach(struct saa7146_dev *dev,
 		/* Wait Source Line Counter Threshold                           (p36) */
 		WRITE_RPS1(CMD_PAUSE | EVT_HS);
 		/* Set GPIO3=1                                                  (p42) */
-		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL >> 2));
 		WRITE_RPS1(GPIO3_MSK);
-		WRITE_RPS1(SAA7146_GPIO_OUTHI<<24);
+		WRITE_RPS1(SAA7146_GPIO_OUTHI << 24);
 #if RPS_IRQ
 		/* issue RPS1 interrupt */
 		WRITE_RPS1(CMD_INTERRUPT);
@@ -2551,9 +2551,9 @@ static int av7110_attach(struct saa7146_dev *dev,
 		/* Wait reset Source Line Counter Threshold                     (p36) */
 		WRITE_RPS1(CMD_PAUSE | RPS_INV | EVT_HS);
 		/* Set GPIO3=0                                                  (p42) */
-		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL>>2));
+		WRITE_RPS1(CMD_WR_REG_MASK | (GPIO_CTRL >> 2));
 		WRITE_RPS1(GPIO3_MSK);
-		WRITE_RPS1(SAA7146_GPIO_OUTLO<<24);
+		WRITE_RPS1(SAA7146_GPIO_OUTLO << 24);
 #if RPS_IRQ
 		/* issue RPS1 interrupt */
 		WRITE_RPS1(CMD_INTERRUPT);
@@ -2623,7 +2623,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 	if (!av7110->debi_virt)
 		goto err_saa71466_vfree_4;
 
-	av7110->iobuf = vmalloc(AVOUTLEN+AOUTLEN+BMPLEN+4*IPACKS);
+	av7110->iobuf = vmalloc(AVOUTLEN + AOUTLEN + BMPLEN + 4 * IPACKS);
 	if (!av7110->iobuf)
 		goto err_pci_free_5;
 
@@ -2632,7 +2632,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 		goto err_iobuf_vfree_6;
 
 	/* init BMP buffer */
-	av7110->bmpbuf = av7110->iobuf+AVOUTLEN+AOUTLEN;
+	av7110->bmpbuf = av7110->iobuf + AVOUTLEN + AOUTLEN;
 	init_waitqueue_head(&av7110->bmpq);
 
 	ret = av7110_ca_init(av7110);
@@ -2653,7 +2653,7 @@ static int av7110_attach(struct saa7146_dev *dev,
 		       "dvb-ttpci: Warning, firmware version 0x%04x is too old. System might be unstable!\n",
 		       FW_VERSION(av7110->arm_app));
 
-	thread = kthread_run(arm_thread, (void *) av7110, "arm_mon");
+	thread = kthread_run(arm_thread, (void *)av7110, "arm_mon");
 	if (IS_ERR(thread)) {
 		ret = PTR_ERR(thread);
 		goto err_stop_arm_9;

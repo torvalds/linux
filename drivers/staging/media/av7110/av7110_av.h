@@ -15,7 +15,7 @@ extern int av7110_set_volume(struct av7110 *av7110, unsigned int volleft,
 			     unsigned int volright);
 extern int av7110_av_stop(struct av7110 *av7110, int av);
 extern int av7110_av_start_record(struct av7110 *av7110, int av,
-			  struct dvb_demux_feed *dvbdmxfeed);
+				  struct dvb_demux_feed *dvbdmxfeed);
 extern int av7110_av_start_play(struct av7110 *av7110, int av);
 
 extern void dvb_video_add_event(struct av7110 *av7110, struct video_event *event);
