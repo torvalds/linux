@@ -173,7 +173,7 @@ struct exynos5_usbdrd_phy;
 
 struct exynos5_usbdrd_phy_config {
 	u32 id;
-	void (*phy_isol)(struct phy_usb_instance *inst, u32 on);
+	void (*phy_isol)(struct phy_usb_instance *inst, bool isolate);
 	void (*phy_init)(struct exynos5_usbdrd_phy *phy_drd);
 	unsigned int (*set_refclk)(struct phy_usb_instance *inst);
 };
@@ -273,14 +273,14 @@ static unsigned int exynos5_rate_to_clk(unsigned long rate, u32 *reg)
 }
 
 static void exynos5_usbdrd_phy_isol(struct phy_usb_instance *inst,
-						unsigned int on)
+				    bool isolate)
 {
 	unsigned int val;
 
 	if (!inst->reg_pmu)
 		return;
 
-	val = on ? 0 : EXYNOS4_PHY_ENABLE;
+	val = isolate ? 0 : EXYNOS4_PHY_ENABLE;
 
 	regmap_update_bits(inst->reg_pmu, inst->pmu_offset,
 			   EXYNOS4_PHY_ENABLE, val);
@@ -525,8 +525,8 @@ static int exynos5_usbdrd_phy_power_on(struct phy *phy)
 		}
 	}
 
-	/* Power-on PHY*/
-	inst->phy_cfg->phy_isol(inst, 0);
+	/* Power-on PHY */
+	inst->phy_cfg->phy_isol(inst, false);
 
 	return 0;
 
@@ -553,7 +553,7 @@ static int exynos5_usbdrd_phy_power_off(struct phy *phy)
 	dev_dbg(phy_drd->dev, "Request to power_off usbdrd_phy phy\n");
 
 	/* Power-off the PHY */
-	inst->phy_cfg->phy_isol(inst, 1);
+	inst->phy_cfg->phy_isol(inst, true);
 
 	/* Disable VBUS supply */
 	if (phy_drd->vbus)
