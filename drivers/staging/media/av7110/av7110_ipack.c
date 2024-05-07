@@ -23,10 +23,8 @@ int av7110_ipack_init(struct ipack *p, int size,
 		      void (*func)(u8 *buf, int size, void *priv))
 {
 	p->buf = vmalloc(size);
-	if (!p->buf) {
-		printk(KERN_WARNING "Couldn't allocate memory for ipack\n");
+	if (!p->buf)
 		return -ENOMEM;
-	}
 	p->size = size;
 	p->func = func;
 	p->repack_subids = 0;

@@ -108,7 +108,7 @@ static int av7110_num;
 		av7110_copy = fe_func; \
 		fe_func = av7110_func; \
 	} \
-}
+}    /* Macro argument reuse of 'fe_func' is intentional! */
 
 static void init_av7110_av(struct av7110 *av7110)
 {
