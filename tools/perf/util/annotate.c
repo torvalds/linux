@@ -107,8 +107,14 @@ static struct annotated_source *annotated_source__new(void)
 
 static __maybe_unused void annotated_source__delete(struct annotated_source *src)
 {
+	struct hashmap_entry *cur;
+	size_t bkt;
+
 	if (src == NULL)
 		return;
+
+	hashmap__for_each_entry(src->samples, cur, bkt)
+		zfree(&cur->pvalue);
 
 	hashmap__free(src->samples);
 	zfree(&src->histograms);
