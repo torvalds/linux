@@ -415,7 +415,7 @@ config ARM_SMMU_V3_SVA
 	  and PRI.
 
 config ARM_SMMU_V3_KUNIT_TEST
-	bool "KUnit tests for arm-smmu-v3 driver"  if !KUNIT_ALL_TESTS
+	tristate "KUnit tests for arm-smmu-v3 driver"  if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	depends on ARM_SMMU_V3_SVA
 	default KUNIT_ALL_TESTS

@@ -1007,6 +1007,7 @@ void arm_smmu_get_ste_used(const __le64 *ent, __le64 *used_bits)
 	if (cfg == STRTAB_STE_0_CFG_BYPASS)
 		used_bits[1] |= cpu_to_le64(STRTAB_STE_1_SHCFG);
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_get_ste_used);
 
 /*
  * Figure out if we can do a hitless update of entry to become target. Returns a
@@ -1141,6 +1142,7 @@ void arm_smmu_write_entry(struct arm_smmu_entry_writer *writer, __le64 *entry,
 			entry_set(writer, entry, target, 0, NUM_ENTRY_QWORDS));
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_write_entry);
 
 static void arm_smmu_sync_cd(struct arm_smmu_master *master,
 			     int ssid, bool leaf)
@@ -1268,6 +1270,7 @@ void arm_smmu_get_cd_used(const __le64 *ent, __le64 *used_bits)
 		used_bits[1] &= ~cpu_to_le64(CTXDESC_CD_1_TTB0_MASK);
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_get_cd_used);
 
 static void arm_smmu_cd_writer_sync_entry(struct arm_smmu_entry_writer *writer)
 {
@@ -1332,6 +1335,7 @@ void arm_smmu_make_s1_cd(struct arm_smmu_cd *target,
 				      CTXDESC_CD_1_TTB0_MASK);
 	target->data[3] = cpu_to_le64(pgtbl_cfg->arm_lpae_s1_cfg.mair);
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_make_s1_cd);
 
 void arm_smmu_clear_cd(struct arm_smmu_master *master, ioasid_t ssid)
 {
@@ -1515,6 +1519,7 @@ void arm_smmu_make_abort_ste(struct arm_smmu_ste *target)
 		STRTAB_STE_0_V |
 		FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_ABORT));
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_make_abort_ste);
 
 VISIBLE_IF_KUNIT
 void arm_smmu_make_bypass_ste(struct arm_smmu_device *smmu,
@@ -1529,6 +1534,7 @@ void arm_smmu_make_bypass_ste(struct arm_smmu_device *smmu,
 		target->data[1] = cpu_to_le64(FIELD_PREP(STRTAB_STE_1_SHCFG,
 							 STRTAB_STE_1_SHCFG_INCOMING));
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_make_bypass_ste);
 
 VISIBLE_IF_KUNIT
 void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
@@ -1580,6 +1586,7 @@ void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
 			cpu_to_le64(FIELD_PREP(STRTAB_STE_2_S2VMID, 0));
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_make_cdtable_ste);
 
 VISIBLE_IF_KUNIT
 void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
@@ -1627,6 +1634,7 @@ void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
 	target->data[3] = cpu_to_le64(pgtbl_cfg->arm_lpae_s2_cfg.vttbr &
 				      STRTAB_STE_3_S2TTB_MASK);
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_make_s2_domain_ste);
 
 /*
  * This can safely directly manipulate the STE memory without a sync sequence

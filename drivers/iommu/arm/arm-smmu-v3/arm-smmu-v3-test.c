@@ -463,3 +463,6 @@ static struct kunit_suite arm_smmu_v3_test_module = {
 	.test_cases = arm_smmu_v3_test_cases,
 };
 kunit_test_suites(&arm_smmu_v3_test_module);
+
+MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_LICENSE("GPL v2");

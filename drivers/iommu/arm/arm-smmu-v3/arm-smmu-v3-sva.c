@@ -185,6 +185,7 @@ void arm_smmu_make_sva_cd(struct arm_smmu_cd *target,
 	 */
 	target->data[3] = cpu_to_le64(read_sysreg(mair_el1));
 }
+EXPORT_SYMBOL_IF_KUNIT(arm_smmu_make_sva_cd);
 
 static struct arm_smmu_ctx_desc *arm_smmu_alloc_shared_cd(struct mm_struct *mm)
 {
