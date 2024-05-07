@@ -606,7 +606,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 					call->brtype_stat = zalloc(sizeof(*call->brtype_stat));
 					if (!call->brtype_stat) {
 						perror("not enough memory for the code path branch statistics");
-						free(call->brtype_stat);
+						zfree(&call->brtype_stat);
 						return -ENOMEM;
 					}
 				}
