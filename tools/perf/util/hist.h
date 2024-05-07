@@ -132,18 +132,20 @@ struct hist_entry_iter {
 	int total;
 	int curr;
 
-	bool hide_unresolved;
-
 	struct evsel *evsel;
 	struct perf_sample *sample;
 	struct hist_entry *he;
 	struct symbol *parent;
-	void *priv;
+
+	struct mem_info *mi;
+	struct branch_info *bi;
+	struct hist_entry **he_cache;
 
 	const struct hist_iter_ops *ops;
 	/* user-defined callback function (optional) */
 	int (*add_entry_cb)(struct hist_entry_iter *iter,
 			    struct addr_location *al, bool single, void *arg);
+	bool hide_unresolved;
 };
 
 extern const struct hist_iter_ops hist_iter_normal;
