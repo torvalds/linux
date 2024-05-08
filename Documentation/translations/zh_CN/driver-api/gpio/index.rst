@@ -18,8 +18,6 @@
    :caption: 目录
    :maxdepth: 2
 
-   legacy
-
 Todolist:
 
 *   intro
