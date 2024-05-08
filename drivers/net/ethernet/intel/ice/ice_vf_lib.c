@@ -259,20 +259,18 @@ static void ice_vf_pre_vsi_rebuild(struct ice_vf *vf)
 int ice_vf_reconfig_vsi(struct ice_vf *vf)
 {
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
-	struct ice_vsi_cfg_params params = {};
 	struct ice_pf *pf = vf->pf;
 	int err;
 
 	if (WARN_ON(!vsi))
 		return -EINVAL;
 
-	params = ice_vsi_to_params(vsi);
-	params.flags = ICE_VSI_FLAG_NO_INIT;
+	vsi->flags = ICE_VSI_FLAG_NO_INIT;
 
 	ice_vsi_decfg(vsi);
 	ice_fltr_remove_all(vsi);
 
-	err = ice_vsi_cfg(vsi, &params);
+	err = ice_vsi_cfg(vsi);
 	if (err) {
 		dev_err(ice_pf_to_dev(pf),
 			"Failed to reconfigure the VF%u's VSI, error %d\n",
@@ -1243,7 +1241,7 @@ struct ice_vsi *ice_vf_ctrl_vsi_setup(struct ice_vf *vf)
 	struct ice_vsi *vsi;
 
 	params.type = ICE_VSI_CTRL;
-	params.pi = ice_vf_get_port_info(vf);
+	params.port_info = ice_vf_get_port_info(vf);
 	params.vf = vf;
 	params.flags = ICE_VSI_FLAG_INIT;
 
