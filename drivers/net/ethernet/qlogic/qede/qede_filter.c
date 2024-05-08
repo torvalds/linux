@@ -1549,9 +1549,9 @@ static int qede_set_v4_tuple_to_profile(struct qede_dev *edev,
 	return 0;
 }
 
-static int qede_set_v6_tuple_to_profile(struct qede_dev *edev,
-					struct qede_arfs_tuple *t,
-					struct in6_addr *zaddr)
+static int qede_set_v6_tuple_to_profile(struct qede_arfs_tuple *t,
+					struct in6_addr *zaddr,
+					struct netlink_ext_ack *extack)
 {
 	/* We must have Only 4-tuples/l4 port/src ip/dst ip
 	 * as an input.
@@ -1573,7 +1573,7 @@ static int qede_set_v6_tuple_to_profile(struct qede_dev *edev,
 		   !memcmp(&t->src_ipv6, zaddr, sizeof(struct in6_addr))) {
 		t->mode = QED_FILTER_CONFIG_MODE_IP_DEST;
 	} else {
-		DP_INFO(edev, "Invalid N-tuple\n");
+		NL_SET_ERR_MSG_MOD(extack, "Invalid N-tuple");
 		return -EOPNOTSUPP;
 	}
 
@@ -1752,7 +1752,7 @@ qede_flow_parse_v6_common(struct qede_dev *edev, struct flow_rule *rule,
 	if (err)
 		return err;
 
-	return qede_set_v6_tuple_to_profile(edev, t, &zero_addr);
+	return qede_set_v6_tuple_to_profile(t, &zero_addr, NULL);
 }
 
 static int
