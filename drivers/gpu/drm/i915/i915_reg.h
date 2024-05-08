@@ -1247,7 +1247,7 @@
 #define _TRANS_VRR_VMAX_B		0x61424
 #define _TRANS_VRR_VMAX_C		0x62424
 #define _TRANS_VRR_VMAX_D		0x63424
-#define TRANS_VRR_VMAX(trans)		_MMIO_TRANS2(dev_priv, trans, _TRANS_VRR_VMAX_A)
+#define TRANS_VRR_VMAX(dev_priv, trans)		_MMIO_TRANS2(dev_priv, trans, _TRANS_VRR_VMAX_A)
 #define   VRR_VMAX_MASK			REG_GENMASK(19, 0)
 
 #define _TRANS_VRR_VMIN_A		0x60434
