@@ -362,9 +362,8 @@ static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 	return ret;
 }
 
-static ssize_t eeprom_93xx46_store_erase(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf, size_t count)
+static ssize_t erase_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct eeprom_93xx46_dev *edev = dev_get_drvdata(dev);
 	bool erase;
@@ -387,7 +386,7 @@ static ssize_t eeprom_93xx46_store_erase(struct device *dev,
 	}
 	return count;
 }
-static DEVICE_ATTR(erase, S_IWUSR, NULL, eeprom_93xx46_store_erase);
+static DEVICE_ATTR_WO(erase);
 
 static const struct of_device_id eeprom_93xx46_of_table[] = {
 	{ .compatible = "eeprom-93xx46", .data = &at93c46_data, },
