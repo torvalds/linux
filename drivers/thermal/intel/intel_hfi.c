@@ -166,7 +166,7 @@ static struct hfi_features hfi_features;
 static DEFINE_MUTEX(hfi_instance_lock);
 
 static struct workqueue_struct *hfi_updates_wq;
-#define HFI_UPDATE_DELAY		HZ
+#define HFI_UPDATE_DELAY_MS		100
 #define HFI_MAX_THERM_NOTIFY_COUNT	16
 
 static void get_hfi_caps(struct hfi_instance *hfi_instance,
@@ -322,7 +322,7 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 	raw_spin_unlock(&hfi_instance->event_lock);
 
 	queue_delayed_work(hfi_updates_wq, &hfi_instance->update_work,
-			   HFI_UPDATE_DELAY);
+			   msecs_to_jiffies(HFI_UPDATE_DELAY_MS));
 }
 
 static void init_hfi_cpu_index(struct hfi_cpu_info *info)
