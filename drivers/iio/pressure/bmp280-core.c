@@ -184,7 +184,7 @@ static int bmp280_read_calib(struct bmp280_data *data)
 	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_TEMP_START,
 			       data->bmp280_cal_buf,
 			       sizeof(data->bmp280_cal_buf));
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev,
 			"failed to read calibration parameters\n");
 		return ret;
@@ -222,7 +222,7 @@ static int bme280_read_calib(struct bmp280_data *data)
 
 	/* Load shared calibration params with bmp280 first */
 	ret = bmp280_read_calib(data);
-	if  (ret < 0)
+	if (ret)
 		return ret;
 
 	/*
@@ -234,7 +234,7 @@ static int bme280_read_calib(struct bmp280_data *data)
 	 */
 
 	ret = regmap_read(data->regmap, BME280_REG_COMP_H1, &tmp);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "failed to read H1 comp value\n");
 		return ret;
 	}
@@ -242,14 +242,14 @@ static int bme280_read_calib(struct bmp280_data *data)
 
 	ret = regmap_bulk_read(data->regmap, BME280_REG_COMP_H2,
 			       &data->le16, sizeof(data->le16));
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "failed to read H2 comp value\n");
 		return ret;
 	}
 	calib->H2 = sign_extend32(le16_to_cpu(data->le16), 15);
 
 	ret = regmap_read(data->regmap, BME280_REG_COMP_H3, &tmp);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "failed to read H3 comp value\n");
 		return ret;
 	}
@@ -257,7 +257,7 @@ static int bme280_read_calib(struct bmp280_data *data)
 
 	ret = regmap_bulk_read(data->regmap, BME280_REG_COMP_H4,
 			       &data->be16, sizeof(data->be16));
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "failed to read H4 comp value\n");
 		return ret;
 	}
@@ -266,14 +266,14 @@ static int bme280_read_calib(struct bmp280_data *data)
 
 	ret = regmap_bulk_read(data->regmap, BME280_REG_COMP_H5,
 			       &data->le16, sizeof(data->le16));
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "failed to read H5 comp value\n");
 		return ret;
 	}
 	calib->H5 = sign_extend32(FIELD_GET(BME280_COMP_H5_MASK, le16_to_cpu(data->le16)), 11);
 
 	ret = regmap_read(data->regmap, BME280_REG_COMP_H6, &tmp);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "failed to read H6 comp value\n");
 		return ret;
 	}
@@ -370,7 +370,7 @@ static int bmp280_read_temp(struct bmp280_data *data,
 
 	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB,
 			       data->buf, sizeof(data->buf));
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev, "failed to read temperature\n");
 		return ret;
 	}
@@ -404,12 +404,12 @@ static int bmp280_read_press(struct bmp280_data *data,
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
 	ret = bmp280_read_temp(data, NULL, NULL);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = regmap_bulk_read(data->regmap, BMP280_REG_PRESS_MSB,
 			       data->buf, sizeof(data->buf));
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev, "failed to read pressure\n");
 		return ret;
 	}
@@ -436,12 +436,12 @@ static int bme280_read_humid(struct bmp280_data *data, int *val, int *val2)
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
 	ret = bmp280_read_temp(data, NULL, NULL);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = regmap_bulk_read(data->regmap, BME280_REG_HUMIDITY_MSB,
 			       &data->be16, sizeof(data->be16));
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev, "failed to read humidity\n");
 		return ret;
 	}
@@ -775,7 +775,7 @@ static int bmp280_chip_config(struct bmp280_data *data)
 				BMP280_OSRS_PRESS_MASK |
 				BMP280_MODE_MASK,
 				osrs | BMP280_MODE_NORMAL);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev, "failed to write ctrl_meas register\n");
 		return ret;
 	}
@@ -783,7 +783,7 @@ static int bmp280_chip_config(struct bmp280_data *data)
 	ret = regmap_update_bits(data->regmap, BMP280_REG_CONFIG,
 				 BMP280_FILTER_MASK,
 				 BMP280_FILTER_4X);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev, "failed to write config register\n");
 		return ret;
 	}
@@ -839,7 +839,7 @@ static int bme280_chip_config(struct bmp280_data *data)
 	 */
 	ret = regmap_update_bits(data->regmap, BME280_REG_CTRL_HUMIDITY,
 				 BME280_OSRS_HUMIDITY_MASK, osrs);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev, "failed to set humidity oversampling");
 		return ret;
 	}
@@ -1856,7 +1856,7 @@ static int bmp180_read_calib(struct bmp280_data *data)
 
 	ret = regmap_bulk_read(data->regmap, BMP180_REG_CALIB_START,
 			       data->bmp180_cal_buf, sizeof(data->bmp180_cal_buf));
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev, "failed to read calibration parameters\n");
 		return ret;
 	}
@@ -2177,7 +2177,7 @@ int bmp280_common_probe(struct device *dev,
 	data->regmap = regmap;
 
 	ret = regmap_read(regmap, data->chip_info->id_reg, &chip_id);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(data->dev, "failed to read chip id\n");
 		return ret;
 	}
@@ -2200,7 +2200,7 @@ int bmp280_common_probe(struct device *dev,
 	}
 
 	ret = data->chip_info->chip_config(data);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	dev_set_drvdata(dev, indio_dev);
@@ -2213,7 +2213,7 @@ int bmp280_common_probe(struct device *dev,
 
 	if (data->chip_info->read_calib) {
 		ret = data->chip_info->read_calib(data);
-		if (ret < 0)
+		if (ret)
 			return dev_err_probe(data->dev, ret,
 					     "failed to read calibration coefficients\n");
 	}
