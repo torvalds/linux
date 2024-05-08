@@ -229,7 +229,6 @@ static bool should_compact_bset(struct btree *b, struct bset_tree *t,
 
 static bool bch2_drop_whiteouts(struct btree *b, enum compact_mode mode)
 {
-	struct bset_tree *t;
 	bool ret = false;
 
 	for_each_bset(b, t) {
@@ -451,8 +450,6 @@ static bool btree_node_compact(struct bch_fs *c, struct btree *b)
 
 void bch2_btree_build_aux_trees(struct btree *b)
 {
-	struct bset_tree *t;
-
 	for_each_bset(b, t)
 		bch2_bset_build_aux_tree(b, t,
 				!bset_written(b, bset(b, t)) &&
@@ -637,8 +634,6 @@ fsck_err:
 __cold
 void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 {
-	struct bset_tree *t;
-
 	for_each_bset(b, t) {
 		struct bset *i = bset(b, t);
 		struct bkey_packed *k;
@@ -1987,7 +1982,6 @@ static void btree_write_submit(struct work_struct *work)
 void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 {
 	struct btree_write_bio *wbio;
-	struct bset_tree *t;
 	struct bset *i;
 	struct btree_node *bn = NULL;
 	struct btree_node_entry *bne = NULL;
@@ -2244,7 +2238,6 @@ bool bch2_btree_post_write_cleanup(struct bch_fs *c, struct btree *b)
 {
 	bool invalidated_iter = false;
 	struct btree_node_entry *bne;
-	struct bset_tree *t;
 
 	if (!btree_node_just_written(b))
 		return false;

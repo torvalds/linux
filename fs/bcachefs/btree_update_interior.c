@@ -160,7 +160,6 @@ topology_repair:
 static void __bch2_btree_calc_format(struct bkey_format_state *s, struct btree *b)
 {
 	struct bkey_packed *k;
-	struct bset_tree *t;
 	struct bkey uk;
 
 	for_each_bset(b, t)
