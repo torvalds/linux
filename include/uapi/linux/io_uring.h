@@ -380,6 +380,7 @@ enum io_uring_op {
  */
 #define IORING_ACCEPT_MULTISHOT	(1U << 0)
 #define IORING_ACCEPT_DONTWAIT	(1U << 1)
+#define IORING_ACCEPT_POLL_FIRST	(1U << 2)
 
 /*
  * IORING_OP_MSG_RING command types, stored in sqe->addr
