@@ -483,7 +483,8 @@ static inline int is_prot_virt_host(void)
 int uv_pin_shared(unsigned long paddr);
 int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb);
 int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr);
-int uv_destroy_owned_page(unsigned long paddr);
+int uv_destroy_folio(struct folio *folio);
+int uv_destroy_pte(pte_t pte);
 int uv_convert_owned_from_secure(unsigned long paddr);
 int gmap_convert_to_secure(struct gmap *gmap, unsigned long gaddr);
 
@@ -497,7 +498,12 @@ static inline int uv_pin_shared(unsigned long paddr)
 	return 0;
 }
 
-static inline int uv_destroy_owned_page(unsigned long paddr)
+static inline int uv_destroy_folio(struct folio *folio)
+{
+	return 0;
+}
+
+static inline int uv_destroy_pte(pte_t pte)
 {
 	return 0;
 }
