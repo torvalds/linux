@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
-#include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/log2.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -366,9 +366,13 @@ static ssize_t eeprom_93xx46_store_erase(struct device *dev,
 					 const char *buf, size_t count)
 {
 	struct eeprom_93xx46_dev *edev = dev_get_drvdata(dev);
-	int erase = 0, ret;
+	bool erase;
+	int ret;
 
-	sscanf(buf, "%d", &erase);
+	ret = kstrtobool(buf, &erase);
+	if (ret)
+		return ret;
+
 	if (erase) {
 		ret = eeprom_93xx46_ew(edev, 1);
 		if (ret)
