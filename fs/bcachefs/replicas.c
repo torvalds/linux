@@ -860,7 +860,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 }
 
 static int bch2_sb_replicas_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				     struct printbuf *err)
+				     enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_replicas *sb_r = field_to_type(f, replicas);
 	struct bch_replicas_cpu cpu_r;
@@ -899,7 +899,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_replicas = {
 };
 
 static int bch2_sb_replicas_v0_validate(struct bch_sb *sb, struct bch_sb_field *f,
-					struct printbuf *err)
+					enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_replicas_v0 *sb_r = field_to_type(f, replicas_v0);
 	struct bch_replicas_cpu cpu_r;

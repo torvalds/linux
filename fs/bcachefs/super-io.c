@@ -76,7 +76,7 @@ const char * const bch2_sb_fields[] = {
 };
 
 static int bch2_sb_field_validate(struct bch_sb *, struct bch_sb_field *,
-				  struct printbuf *);
+				  enum bch_validate_flags, struct printbuf *);
 
 struct bch_sb_field *bch2_sb_field_get_id(struct bch_sb *sb,
 				      enum bch_sb_field_type type)
@@ -344,8 +344,8 @@ static int bch2_sb_compatible(struct bch_sb *sb, struct printbuf *out)
 	return 0;
 }
 
-static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
-			    int rw)
+static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
+			    enum bch_validate_flags flags, struct printbuf *out)
 {
 	struct bch_sb *sb = disk_sb->sb;
 	struct bch_sb_field_members_v1 *mi;
@@ -401,7 +401,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 		return -BCH_ERR_invalid_sb_time_precision;
 	}
 
-	if (rw == READ) {
+	if (!flags) {
 		/*
 		 * Been seeing a bug where these are getting inexplicably
 		 * zeroed, so we're now validating them, but we have to be
@@ -457,7 +457,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 		return -BCH_ERR_invalid_sb_members_missing;
 	}
 
-	ret = bch2_sb_field_validate(sb, &mi->field, out);
+	ret = bch2_sb_field_validate(sb, &mi->field, flags, out);
 	if (ret)
 		return ret;
 
@@ -465,12 +465,12 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 		if (le32_to_cpu(f->type) == BCH_SB_FIELD_members_v1)
 			continue;
 
-		ret = bch2_sb_field_validate(sb, f, out);
+		ret = bch2_sb_field_validate(sb, f, flags, out);
 		if (ret)
 			return ret;
 	}
 
-	if (rw == WRITE &&
+	if ((flags & BCH_VALIDATE_write) &&
 	    bch2_sb_member_get(sb, sb->dev_idx).seq != sb->seq) {
 		prt_printf(out, "Invalid superblock: member seq %llu != sb seq %llu",
 			   le64_to_cpu(bch2_sb_member_get(sb, sb->dev_idx).seq),
@@ -819,7 +819,7 @@ got_super:
 
 	sb->have_layout = true;
 
-	ret = bch2_sb_validate(sb, &err, READ);
+	ret = bch2_sb_validate(sb, 0, &err);
 	if (ret) {
 		bch2_print_opts(opts, KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
 				path, err.buf);
@@ -975,7 +975,7 @@ int bch2_write_super(struct bch_fs *c)
 	darray_for_each(online_devices, ca) {
 		printbuf_reset(&err);
 
-		ret = bch2_sb_validate(&(*ca)->disk_sb, &err, WRITE);
+		ret = bch2_sb_validate(&(*ca)->disk_sb, BCH_VALIDATE_write, &err);
 		if (ret) {
 			bch2_fs_inconsistent(c, "sb invalid before write: %s", err.buf);
 			goto out;
@@ -1161,7 +1161,7 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
 }
 
 static int bch2_sb_ext_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				struct printbuf *err)
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	if (vstruct_bytes(f) < 88) {
 		prt_printf(err, "field too small (%zu < %u)", vstruct_bytes(f), 88);
@@ -1219,14 +1219,14 @@ static const struct bch_sb_field_ops *bch2_sb_field_type_ops(unsigned type)
 }
 
 static int bch2_sb_field_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				  struct printbuf *err)
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	unsigned type = le32_to_cpu(f->type);
 	struct printbuf field_err = PRINTBUF;
 	const struct bch_sb_field_ops *ops = bch2_sb_field_type_ops(type);
 	int ret;
 
-	ret = ops->validate ? ops->validate(sb, f, &field_err) : 0;
+	ret = ops->validate ? ops->validate(sb, f, flags, &field_err) : 0;
 	if (ret) {
 		prt_printf(err, "Invalid superblock section %s: %s",
 			   bch2_sb_fields[type], field_err.buf);

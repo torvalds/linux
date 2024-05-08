@@ -261,9 +261,8 @@ static void member_to_text(struct printbuf *out,
 	printbuf_indent_sub(out, 2);
 }
 
-static int bch2_sb_members_v1_validate(struct bch_sb *sb,
-				    struct bch_sb_field *f,
-				    struct printbuf *err)
+static int bch2_sb_members_v1_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_members_v1 *mi = field_to_type(f, members_v1);
 	unsigned i;
@@ -311,9 +310,8 @@ static void bch2_sb_members_v2_to_text(struct printbuf *out, struct bch_sb *sb,
 		member_to_text(out, members_v2_get(mi, i), gi, sb, i);
 }
 
-static int bch2_sb_members_v2_validate(struct bch_sb *sb,
-				       struct bch_sb_field *f,
-				       struct printbuf *err)
+static int bch2_sb_members_v2_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_members_v2 *mi = field_to_type(f, members_v2);
 	size_t mi_bytes = (void *) __bch2_members_v2_get_mut(mi, sb->nr_devices) -

@@ -266,9 +266,8 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 	}
 }
 
-static int bch2_sb_clean_validate(struct bch_sb *sb,
-				  struct bch_sb_field *f,
-				  struct printbuf *err)
+static int bch2_sb_clean_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_clean *clean = field_to_type(f, clean);
 

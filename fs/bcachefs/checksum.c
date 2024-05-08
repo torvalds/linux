@@ -469,9 +469,8 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 
 /* BCH_SB_FIELD_crypt: */
 
-static int bch2_sb_crypt_validate(struct bch_sb *sb,
-				  struct bch_sb_field *f,
-				  struct printbuf *err)
+static int bch2_sb_crypt_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
 

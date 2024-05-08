@@ -20,9 +20,8 @@ static size_t bch2_sb_counter_nr_entries(struct bch_sb_field_counters *ctrs)
 	return (__le64 *) vstruct_end(&ctrs->field) - &ctrs->d[0];
 };
 
-static int bch2_sb_counters_validate(struct bch_sb *sb,
-				     struct bch_sb_field *f,
-				     struct printbuf *err)
+static int bch2_sb_counters_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	return 0;
 };

@@ -138,7 +138,7 @@ downgrade_entry_next_c(const struct bch_sb_field_downgrade_entry *e)
 	     _i = downgrade_entry_next_c(_i))
 
 static int bch2_sb_downgrade_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				      struct printbuf *err)
+				      enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_downgrade *e = field_to_type(f, downgrade);
 

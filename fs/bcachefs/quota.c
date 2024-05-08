@@ -20,7 +20,7 @@ static const char * const bch2_quota_counters[] = {
 };
 
 static int bch2_sb_quota_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				  struct printbuf *err)
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_quota *q = field_to_type(f, quota);
 
@@ -60,8 +60,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 };
 
 int bch2_quota_invalid(struct bch_fs *c, struct bkey_s_c k,
-		       enum bch_validate_flags flags,
-		       struct printbuf *err)
+		       enum bch_validate_flags flags, struct printbuf *err)
 {
 	int ret = 0;
 

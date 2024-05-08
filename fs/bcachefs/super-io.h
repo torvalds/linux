@@ -51,7 +51,8 @@ void bch2_sb_field_delete(struct bch_sb_handle *, enum bch_sb_field_type);
 extern const char * const bch2_sb_fields[];
 
 struct bch_sb_field_ops {
-	int	(*validate)(struct bch_sb *, struct bch_sb_field *, struct printbuf *);
+	int	(*validate)(struct bch_sb *, struct bch_sb_field *,
+			    enum bch_validate_flags, struct printbuf *);
 	void	(*to_text)(struct printbuf *, struct bch_sb *, struct bch_sb_field *);
 };
 

@@ -18,9 +18,8 @@ static int group_cmp(const void *_l, const void *_r)
 		strncmp(l->label, r->label, sizeof(l->label));
 }
 
-static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
-					struct bch_sb_field *f,
-					struct printbuf *err)
+static int bch2_sb_disk_groups_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_disk_groups *groups =
 		field_to_type(f, disk_groups);

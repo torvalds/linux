@@ -162,9 +162,8 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 	return 0;
 }
 
-static int bch2_sb_journal_seq_blacklist_validate(struct bch_sb *sb,
-						  struct bch_sb_field *f,
-						  struct printbuf *err)
+static int bch2_sb_journal_seq_blacklist_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_journal_seq_blacklist *bl =
 		field_to_type(f, journal_seq_blacklist);
