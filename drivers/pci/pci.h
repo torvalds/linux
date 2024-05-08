@@ -648,6 +648,7 @@ int of_pci_get_max_link_speed(struct device_node *node);
 u32 of_pci_get_slot_power_limit(struct device_node *node,
 				u8 *slot_power_limit_value,
 				u8 *slot_power_limit_scale);
+bool of_pci_preserve_config(struct device_node *node);
 int pci_set_of_node(struct pci_dev *dev);
 void pci_release_of_node(struct pci_dev *dev);
 void pci_set_bus_of_node(struct pci_bus *bus);
@@ -684,6 +685,11 @@ of_pci_get_slot_power_limit(struct device_node *node,
 	if (slot_power_limit_scale)
 		*slot_power_limit_scale = 0;
 	return 0;
+}
+
+static inline bool of_pci_preserve_config(struct device_node *node)
+{
+	return false;
 }
 
 static inline int pci_set_of_node(struct pci_dev *dev) { return 0; }
