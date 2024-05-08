@@ -638,7 +638,7 @@ restart:
 	gfs2_clear_rgrpd(sdp);
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
-	gfs2_gl_hash_clear(sdp);
+	gfs2_wait_glocks(sdp);
 	iput(sdp->sd_inode);
 	gfs2_delete_debugfs_file(sdp);
 
