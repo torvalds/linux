@@ -289,13 +289,13 @@ static int bme280_read_calib(struct bmp280_data *data)
  * Taken from BME280 datasheet, Section 4.2.3, "Compensation formula".
  */
 static u32 bme280_compensate_humidity(struct bmp280_data *data,
-				      s32 adc_humidity)
+				      u16 adc_humidity)
 {
 	struct bmp280_calib *calib = &data->calib.bmp280;
 	s32 var;
 
-	var = ((s32)data->t_fine) - (s32)76800;
-	var = ((((adc_humidity << 14) - (calib->H4 << 20) - (calib->H5 * var))
+	var = data->t_fine - (s32)76800;
+	var = (((((s32)adc_humidity << 14) - (calib->H4 << 20) - (calib->H5 * var))
 		+ (s32)16384) >> 15) * (((((((var * calib->H6) >> 10)
 		* (((var * (s32)calib->H3) >> 11) + (s32)32768)) >> 10)
 		+ (s32)2097152) * calib->H2 + 8192) >> 14);
@@ -314,16 +314,16 @@ static u32 bme280_compensate_humidity(struct bmp280_data *data,
  * Taken from datasheet, Section 3.11.3, "Compensation formula".
  */
 static s32 bmp280_compensate_temp(struct bmp280_data *data,
-				  s32 adc_temp)
+				  u32 adc_temp)
 {
 	struct bmp280_calib *calib = &data->calib.bmp280;
 	s32 var1, var2;
 
-	var1 = (((adc_temp >> 3) - ((s32)calib->T1 << 1)) *
+	var1 = (((((s32)adc_temp) >> 3) - ((s32)calib->T1 << 1)) *
 		((s32)calib->T2)) >> 11;
-	var2 = (((((adc_temp >> 4) - ((s32)calib->T1)) *
-		  ((adc_temp >> 4) - ((s32)calib->T1))) >> 12) *
-		((s32)calib->T3)) >> 14;
+	var2 = (((((((s32)adc_temp) >> 4) - ((s32)calib->T1)) *
+		  ((((s32)adc_temp >> 4) - ((s32)calib->T1))) >> 12) *
+		((s32)calib->T3))) >> 14;
 	data->t_fine = var1 + var2;
 
 	return (data->t_fine * 5 + 128) >> 8;
@@ -337,7 +337,7 @@ static s32 bmp280_compensate_temp(struct bmp280_data *data,
  * Taken from datasheet, Section 3.11.3, "Compensation formula".
  */
 static u32 bmp280_compensate_press(struct bmp280_data *data,
-				   s32 adc_press)
+				   u32 adc_press)
 {
 	struct bmp280_calib *calib = &data->calib.bmp280;
 	s64 var1, var2, p;
@@ -353,7 +353,7 @@ static u32 bmp280_compensate_press(struct bmp280_data *data,
 	if (var1 == 0)
 		return 0;
 
-	p = ((((s64)1048576 - adc_press) << 31) - var2) * 3125;
+	p = ((((s64)1048576 - (s32)adc_press) << 31) - var2) * 3125;
 	p = div64_s64(p, var1);
 	var1 = (((s64)calib->P9) * (p >> 13) * (p >> 13)) >> 25;
 	var2 = ((s64)(calib->P8) * p) >> 19;
@@ -365,7 +365,8 @@ static u32 bmp280_compensate_press(struct bmp280_data *data,
 static int bmp280_read_temp(struct bmp280_data *data,
 			    int *val, int *val2)
 {
-	s32 adc_temp, comp_temp;
+	s32 comp_temp;
+	u32 adc_temp;
 	int ret;
 
 	ret = regmap_bulk_read(data->regmap, BMP280_REG_TEMP_MSB,
@@ -398,8 +399,7 @@ static int bmp280_read_temp(struct bmp280_data *data,
 static int bmp280_read_press(struct bmp280_data *data,
 			     int *val, int *val2)
 {
-	u32 comp_press;
-	s32 adc_press;
+	u32 comp_press, adc_press;
 	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
@@ -431,7 +431,7 @@ static int bmp280_read_press(struct bmp280_data *data,
 static int bme280_read_humid(struct bmp280_data *data, int *val, int *val2)
 {
 	u32 comp_humidity;
-	s32 adc_humidity;
+	u16 adc_humidity;
 	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
@@ -1030,8 +1030,7 @@ static int bmp380_read_temp(struct bmp280_data *data, int *val, int *val2)
 
 static int bmp380_read_press(struct bmp280_data *data, int *val, int *val2)
 {
-	s32 comp_press;
-	u32 adc_press;
+	u32 adc_press, comp_press;
 	int ret;
 
 	/* Read and compensate for temperature so we get a reading of t_fine */
@@ -1893,12 +1892,12 @@ static int bmp180_read_calib(struct bmp280_data *data)
  *
  * Taken from datasheet, Section 3.5, "Calculating pressure and temperature".
  */
-static s32 bmp180_compensate_temp(struct bmp280_data *data, s32 adc_temp)
+static s32 bmp180_compensate_temp(struct bmp280_data *data, u32 adc_temp)
 {
 	struct bmp180_calib *calib = &data->calib.bmp180;
 	s32 x1, x2;
 
-	x1 = ((adc_temp - calib->AC6) * calib->AC5) >> 15;
+	x1 = ((((s32)adc_temp) - calib->AC6) * calib->AC5) >> 15;
 	x2 = (calib->MC << 11) / (x1 + calib->MD);
 	data->t_fine = x1 + x2;
 
@@ -1907,7 +1906,8 @@ static s32 bmp180_compensate_temp(struct bmp280_data *data, s32 adc_temp)
 
 static int bmp180_read_temp(struct bmp280_data *data, int *val, int *val2)
 {
-	s32 adc_temp, comp_temp;
+	s32 comp_temp;
+	u32 adc_temp;
 	int ret;
 
 	ret = bmp180_read_adc_temp(data, &adc_temp);
@@ -1957,7 +1957,7 @@ static int bmp180_read_adc_press(struct bmp280_data *data, int *val)
  *
  * Taken from datasheet, Section 3.5, "Calculating pressure and temperature".
  */
-static u32 bmp180_compensate_press(struct bmp280_data *data, s32 adc_press)
+static u32 bmp180_compensate_press(struct bmp280_data *data, u32 adc_press)
 {
 	struct bmp180_calib *calib = &data->calib.bmp180;
 	s32 oss = data->oversampling_press;
@@ -1974,7 +1974,7 @@ static u32 bmp180_compensate_press(struct bmp280_data *data, s32 adc_press)
 	x2 = (calib->B1 * ((b6 * b6) >> 12)) >> 16;
 	x3 = (x1 + x2 + 2) >> 2;
 	b4 = calib->AC4 * (u32)(x3 + 32768) >> 15;
-	b7 = ((u32)adc_press - b3) * (50000 >> oss);
+	b7 = (adc_press - b3) * (50000 >> oss);
 	if (b7 < 0x80000000)
 		p = (b7 * 2) / b4;
 	else
@@ -1989,8 +1989,7 @@ static u32 bmp180_compensate_press(struct bmp280_data *data, s32 adc_press)
 
 static int bmp180_read_press(struct bmp280_data *data, int *val, int *val2)
 {
-	u32 comp_press;
-	s32 adc_press;
+	u32 comp_press, adc_press;
 	int ret;
 
 	/* Read and compensate temperature so we get a reading of t_fine. */
