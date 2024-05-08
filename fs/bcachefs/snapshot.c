@@ -32,7 +32,7 @@ void bch2_snapshot_tree_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_snapshot_tree_invalid(struct bch_fs *c, struct bkey_s_c k,
-			       enum bkey_invalid_flags flags,
+			       enum bch_validate_flags flags,
 			       struct printbuf *err)
 {
 	int ret = 0;
@@ -223,7 +223,7 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_snapshot_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bkey_invalid_flags flags,
+			  enum bch_validate_flags flags,
 			  struct printbuf *err)
 {
 	struct bkey_s_c_snapshot s;

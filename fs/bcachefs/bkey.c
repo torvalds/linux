@@ -640,7 +640,7 @@ struct bkey_format bch2_bkey_format_done(struct bkey_format_state *s)
 
 int bch2_bkey_format_invalid(struct bch_fs *c,
 			     struct bkey_format *f,
-			     enum bkey_invalid_flags flags,
+			     enum bch_validate_flags flags,
 			     struct printbuf *err)
 {
 	unsigned i, bits = KEY_PACKED_BITS_START;

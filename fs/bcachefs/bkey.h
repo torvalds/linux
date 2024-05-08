@@ -9,10 +9,10 @@
 #include "util.h"
 #include "vstructs.h"
 
-enum bkey_invalid_flags {
-	BKEY_INVALID_WRITE		= (1U << 0),
-	BKEY_INVALID_COMMIT		= (1U << 1),
-	BKEY_INVALID_JOURNAL		= (1U << 2),
+enum bch_validate_flags {
+	BCH_VALIDATE_write		= (1U << 0),
+	BCH_VALIDATE_commit		= (1U << 1),
+	BCH_VALIDATE_journal		= (1U << 2),
 };
 
 #if 0
@@ -598,7 +598,7 @@ static inline bool bch2_bkey_format_field_overflows(struct bkey_format *f, unsig
 }
 
 int bch2_bkey_format_invalid(struct bch_fs *, struct bkey_format *,
-			     enum bkey_invalid_flags, struct printbuf *);
+			     enum bch_validate_flags, struct printbuf *);
 void bch2_bkey_format_to_text(struct printbuf *, const struct bkey_format *);
 
 #endif /* _BCACHEFS_BKEY_H */

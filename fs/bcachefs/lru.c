@@ -11,7 +11,7 @@
 
 /* KEY_TYPE_lru is obsolete: */
 int bch2_lru_invalid(struct bch_fs *c, struct bkey_s_c k,
-		     enum bkey_invalid_flags flags,
+		     enum bch_validate_flags flags,
 		     struct printbuf *err)
 {
 	int ret = 0;

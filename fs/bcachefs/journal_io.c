@@ -299,7 +299,7 @@ static void journal_entry_err_msg(struct printbuf *out,
 	journal_entry_err_msg(&_buf, version, jset, entry);		\
 	prt_printf(&_buf, msg, ##__VA_ARGS__);				\
 									\
-	switch (flags & BKEY_INVALID_WRITE) {				\
+	switch (flags & BCH_VALIDATE_write) {				\
 	case READ:							\
 		mustfix_fsck_err(c, _err, "%s", _buf.buf);		\
 		break;							\
@@ -328,9 +328,9 @@ static int journal_validate_key(struct bch_fs *c,
 				unsigned level, enum btree_id btree_id,
 				struct bkey_i *k,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
-	int write = flags & BKEY_INVALID_WRITE;
+	int write = flags & BCH_VALIDATE_write;
 	void *next = vstruct_next(entry);
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
@@ -403,7 +403,7 @@ static int journal_entry_btree_keys_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	struct bkey_i *k = entry->start;
 
@@ -412,7 +412,7 @@ static int journal_entry_btree_keys_validate(struct bch_fs *c,
 					       entry->level,
 					       entry->btree_id,
 					       k, version, big_endian,
-					       flags|BKEY_INVALID_JOURNAL);
+					       flags|BCH_VALIDATE_journal);
 		if (ret == FSCK_DELETED_KEY)
 			continue;
 
@@ -443,7 +443,7 @@ static int journal_entry_btree_root_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	struct bkey_i *k = entry->start;
 	int ret = 0;
@@ -482,7 +482,7 @@ static int journal_entry_prio_ptrs_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	/* obsolete, don't care: */
 	return 0;
@@ -497,7 +497,7 @@ static int journal_entry_blacklist_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	int ret = 0;
 
@@ -524,7 +524,7 @@ static int journal_entry_blacklist_v2_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	struct jset_entry_blacklist_v2 *bl_entry;
 	int ret = 0;
@@ -566,7 +566,7 @@ static int journal_entry_usage_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	struct jset_entry_usage *u =
 		container_of(entry, struct jset_entry_usage, entry);
@@ -600,7 +600,7 @@ static int journal_entry_data_usage_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	struct jset_entry_data_usage *u =
 		container_of(entry, struct jset_entry_data_usage, entry);
@@ -644,7 +644,7 @@ static int journal_entry_clock_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	struct jset_entry_clock *clock =
 		container_of(entry, struct jset_entry_clock, entry);
@@ -684,7 +684,7 @@ static int journal_entry_dev_usage_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	struct jset_entry_dev_usage *u =
 		container_of(entry, struct jset_entry_dev_usage, entry);
@@ -735,7 +735,7 @@ static int journal_entry_log_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	return 0;
 }
@@ -753,7 +753,7 @@ static int journal_entry_overwrite_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	return journal_entry_btree_keys_validate(c, jset, entry,
 				version, big_endian, READ);
@@ -769,7 +769,7 @@ static int journal_entry_write_buffer_keys_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	return journal_entry_btree_keys_validate(c, jset, entry,
 				version, big_endian, READ);
@@ -785,7 +785,7 @@ static int journal_entry_datetime_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	unsigned bytes = vstruct_bytes(entry);
 	unsigned expected = 16;
@@ -815,7 +815,7 @@ static void journal_entry_datetime_to_text(struct printbuf *out, struct bch_fs *
 struct jset_entry_ops {
 	int (*validate)(struct bch_fs *, struct jset *,
 			struct jset_entry *, unsigned, int,
-			enum bkey_invalid_flags);
+			enum bch_validate_flags);
 	void (*to_text)(struct printbuf *, struct bch_fs *, struct jset_entry *);
 };
 
@@ -833,7 +833,7 @@ int bch2_journal_entry_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bkey_invalid_flags flags)
+				enum bch_validate_flags flags)
 {
 	return entry->type < BCH_JSET_ENTRY_NR
 		? bch2_jset_entry_ops[entry->type].validate(c, jset, entry,
@@ -853,7 +853,7 @@ void bch2_journal_entry_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 static int jset_validate_entries(struct bch_fs *c, struct jset *jset,
-				 enum bkey_invalid_flags flags)
+				 enum bch_validate_flags flags)
 {
 	unsigned version = le32_to_cpu(jset->version);
 	int ret = 0;
@@ -879,7 +879,7 @@ fsck_err:
 static int jset_validate(struct bch_fs *c,
 			 struct bch_dev *ca,
 			 struct jset *jset, u64 sector,
-			 enum bkey_invalid_flags flags)
+			 enum bch_validate_flags flags)
 {
 	unsigned version;
 	int ret = 0;
@@ -934,7 +934,7 @@ static int jset_validate_early(struct bch_fs *c,
 {
 	size_t bytes = vstruct_bytes(jset);
 	unsigned version;
-	enum bkey_invalid_flags flags = BKEY_INVALID_JOURNAL;
+	enum bch_validate_flags flags = BCH_VALIDATE_journal;
 	int ret = 0;
 
 	if (le64_to_cpu(jset->magic) != jset_magic(c))
@@ -1235,7 +1235,7 @@ int bch2_journal_read(struct bch_fs *c,
 	 * those entries will be blacklisted:
 	 */
 	genradix_for_each_reverse(&c->journal_entries, radix_iter, _i) {
-		enum bkey_invalid_flags flags = BKEY_INVALID_JOURNAL;
+		enum bch_validate_flags flags = BCH_VALIDATE_journal;
 
 		i = *_i;
 

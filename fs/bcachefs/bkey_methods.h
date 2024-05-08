@@ -22,7 +22,7 @@ extern const struct bkey_ops bch2_bkey_null_ops;
  */
 struct bkey_ops {
 	int		(*key_invalid)(struct bch_fs *c, struct bkey_s_c k,
-				       enum bkey_invalid_flags flags, struct printbuf *err);
+				       enum bch_validate_flags flags, struct printbuf *err);
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
 	void		(*swab)(struct bkey_s);
@@ -49,11 +49,11 @@ static inline const struct bkey_ops *bch2_bkey_type_ops(enum bch_bkey_type type)
 }
 
 int bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+			  enum bch_validate_flags, struct printbuf *);
 int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
-			enum bkey_invalid_flags, struct printbuf *);
+			enum bch_validate_flags, struct printbuf *);
 int bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
-		      enum bkey_invalid_flags, struct printbuf *);
+		      enum bch_validate_flags, struct printbuf *);
 int bch2_bkey_in_btree_node(struct bch_fs *, struct btree *,
 			    struct bkey_s_c, struct printbuf *);
 

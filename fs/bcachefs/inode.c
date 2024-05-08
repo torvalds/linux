@@ -473,7 +473,7 @@ fsck_err:
 }
 
 int bch2_inode_invalid(struct bch_fs *c, struct bkey_s_c k,
-		       enum bkey_invalid_flags flags,
+		       enum bch_validate_flags flags,
 		       struct printbuf *err)
 {
 	struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
@@ -490,7 +490,7 @@ fsck_err:
 }
 
 int bch2_inode_v2_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bkey_invalid_flags flags,
+			  enum bch_validate_flags flags,
 			  struct printbuf *err)
 {
 	struct bkey_s_c_inode_v2 inode = bkey_s_c_to_inode_v2(k);
@@ -507,7 +507,7 @@ fsck_err:
 }
 
 int bch2_inode_v3_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bkey_invalid_flags flags,
+			  enum bch_validate_flags flags,
 			  struct printbuf *err)
 {
 	struct bkey_s_c_inode_v3 inode = bkey_s_c_to_inode_v3(k);
@@ -635,7 +635,7 @@ int bch2_trigger_inode(struct btree_trans *trans,
 }
 
 int bch2_inode_generation_invalid(struct bch_fs *c, struct bkey_s_c k,
-				  enum bkey_invalid_flags flags,
+				  enum bch_validate_flags flags,
 				  struct printbuf *err)
 {
 	int ret = 0;

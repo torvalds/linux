@@ -27,7 +27,7 @@ const char * const bch2_bkey_types[] = {
 };
 
 static int deleted_key_invalid(struct bch_fs *c, struct bkey_s_c k,
-			       enum bkey_invalid_flags flags, struct printbuf *err)
+			       enum bch_validate_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -41,7 +41,7 @@ static int deleted_key_invalid(struct bch_fs *c, struct bkey_s_c k,
 })
 
 static int empty_val_key_invalid(struct bch_fs *c, struct bkey_s_c k,
-				 enum bkey_invalid_flags flags, struct printbuf *err)
+				 enum bch_validate_flags flags, struct printbuf *err)
 {
 	int ret = 0;
 
@@ -58,7 +58,7 @@ fsck_err:
 })
 
 static int key_type_cookie_invalid(struct bch_fs *c, struct bkey_s_c k,
-				   enum bkey_invalid_flags flags, struct printbuf *err)
+				   enum bch_validate_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -82,7 +82,7 @@ static void key_type_cookie_to_text(struct printbuf *out, struct bch_fs *c,
 })
 
 static int key_type_inline_data_invalid(struct bch_fs *c, struct bkey_s_c k,
-					enum bkey_invalid_flags flags, struct printbuf *err)
+					enum bch_validate_flags flags, struct printbuf *err)
 {
 	return 0;
 }
@@ -123,7 +123,7 @@ const struct bkey_ops bch2_bkey_null_ops = {
 };
 
 int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bkey_invalid_flags flags,
+			  enum bch_validate_flags flags,
 			  struct printbuf *err)
 {
 	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
@@ -159,7 +159,7 @@ const char *bch2_btree_node_type_str(enum btree_node_type type)
 
 int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 			enum btree_node_type type,
-			enum bkey_invalid_flags flags,
+			enum bch_validate_flags flags,
 			struct printbuf *err)
 {
 	int ret = 0;
@@ -172,7 +172,7 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 		return 0;
 
 	bkey_fsck_err_on(k.k->type < KEY_TYPE_MAX &&
-			 (type == BKEY_TYPE_btree || (flags & BKEY_INVALID_COMMIT)) &&
+			 (type == BKEY_TYPE_btree || (flags & BCH_VALIDATE_commit)) &&
 			 !(bch2_key_types_allowed[type] & BIT_ULL(k.k->type)), c, err,
 			 bkey_invalid_type_for_btree,
 			 "invalid key type for btree %s (%s)",
@@ -224,7 +224,7 @@ fsck_err:
 
 int bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 		      enum btree_node_type type,
-		      enum bkey_invalid_flags flags,
+		      enum bch_validate_flags flags,
 		      struct printbuf *err)
 {
 	return __bch2_bkey_invalid(c, k, type, flags, err) ?:

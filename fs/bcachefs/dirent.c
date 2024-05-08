@@ -98,7 +98,7 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 };
 
 int bch2_dirent_invalid(struct bch_fs *c, struct bkey_s_c k,
-			enum bkey_invalid_flags flags,
+			enum bch_validate_flags flags,
 			struct printbuf *err)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
@@ -118,7 +118,7 @@ int bch2_dirent_invalid(struct bch_fs *c, struct bkey_s_c k,
 	 * Check new keys don't exceed the max length
 	 * (older keys may be larger.)
 	 */
-	bkey_fsck_err_on((flags & BKEY_INVALID_COMMIT) && d_name.len > BCH_NAME_MAX, c, err,
+	bkey_fsck_err_on((flags & BCH_VALIDATE_commit) && d_name.len > BCH_NAME_MAX, c, err,
 			 dirent_name_too_long,
 			 "dirent name too big (%u > %u)",
 			 d_name.len, BCH_NAME_MAX);

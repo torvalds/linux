@@ -48,7 +48,7 @@ static bool extent_matches_bp(struct bch_fs *c,
 }
 
 int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
-			     enum bkey_invalid_flags flags,
+			     enum bch_validate_flags flags,
 			     struct printbuf *err)
 {
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);

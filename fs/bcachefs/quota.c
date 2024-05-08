@@ -60,7 +60,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 };
 
 int bch2_quota_invalid(struct bch_fs *c, struct bkey_s_c k,
-		       enum bkey_invalid_flags flags,
+		       enum bch_validate_flags flags,
 		       struct printbuf *err)
 {
 	int ret = 0;

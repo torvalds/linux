@@ -71,7 +71,7 @@ const struct bch_hash_desc bch2_xattr_hash_desc = {
 };
 
 int bch2_xattr_invalid(struct bch_fs *c, struct bkey_s_c k,
-		       enum bkey_invalid_flags flags,
+		       enum bch_validate_flags flags,
 		       struct printbuf *err)
 {
 	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);

@@ -19,7 +19,7 @@ static inline u64 swab40(u64 x)
 }
 
 int bch2_backpointer_invalid(struct bch_fs *, struct bkey_s_c k,
-			     enum bkey_invalid_flags, struct printbuf *);
+			     enum bch_validate_flags, struct printbuf *);
 void bch2_backpointer_to_text(struct printbuf *, const struct bch_backpointer *);
 void bch2_backpointer_k_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_backpointer_swab(struct bkey_s);

@@ -208,7 +208,7 @@ int bch2_check_subvol_children(struct bch_fs *c)
 /* Subvolumes: */
 
 int bch2_subvolume_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bkey_invalid_flags flags, struct printbuf *err)
+			   enum bch_validate_flags flags, struct printbuf *err)
 {
 	int ret = 0;
 

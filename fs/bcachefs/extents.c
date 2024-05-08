@@ -172,7 +172,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 /* KEY_TYPE_btree_ptr: */
 
 int bch2_btree_ptr_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bkey_invalid_flags flags,
+			   enum bch_validate_flags flags,
 			   struct printbuf *err)
 {
 	int ret = 0;
@@ -193,7 +193,7 @@ void bch2_btree_ptr_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_btree_ptr_v2_invalid(struct bch_fs *c, struct bkey_s_c k,
-			      enum bkey_invalid_flags flags,
+			      enum bch_validate_flags flags,
 			      struct printbuf *err)
 {
 	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
@@ -208,7 +208,7 @@ int bch2_btree_ptr_v2_invalid(struct bch_fs *c, struct bkey_s_c k,
 			 c, err, btree_ptr_v2_min_key_bad,
 			 "min_key > key");
 
-	if (flags & BKEY_INVALID_WRITE)
+	if (flags & BCH_VALIDATE_write)
 		bkey_fsck_err_on(!bp.v->sectors_written,
 				 c, err, btree_ptr_v2_written_0,
 				 "sectors_written == 0");
@@ -400,7 +400,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 /* KEY_TYPE_reservation: */
 
 int bch2_reservation_invalid(struct bch_fs *c, struct bkey_s_c k,
-			     enum bkey_invalid_flags flags,
+			     enum bch_validate_flags flags,
 			     struct printbuf *err)
 {
 	struct bkey_s_c_reservation r = bkey_s_c_to_reservation(k);
@@ -1095,7 +1095,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 
 static int extent_ptr_invalid(struct bch_fs *c,
 			      struct bkey_s_c k,
-			      enum bkey_invalid_flags flags,
+			      enum bch_validate_flags flags,
 			      const struct bch_extent_ptr *ptr,
 			      unsigned size_ondisk,
 			      bool metadata,
@@ -1138,7 +1138,7 @@ fsck_err:
 }
 
 int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
-			   enum bkey_invalid_flags flags,
+			   enum bch_validate_flags flags,
 			   struct printbuf *err)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
@@ -1214,7 +1214,7 @@ int bch2_bkey_ptrs_invalid(struct bch_fs *c, struct bkey_s_c k,
 
 			bkey_fsck_err_on(crc_is_encoded(crc) &&
 					 (crc.uncompressed_size > c->opts.encoded_extent_max >> 9) &&
-					 (flags & (BKEY_INVALID_WRITE|BKEY_INVALID_COMMIT)), c, err,
+					 (flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)), c, err,
 					 ptr_crc_uncompressed_size_too_big,
 					 "too large encoded extent");
 
