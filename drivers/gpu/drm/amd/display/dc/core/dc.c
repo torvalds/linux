@@ -3741,24 +3741,6 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 				context->block_sequence_steps);
 	}
 
-	build_dmub_cmd_list(dc,
-			srf_updates,
-			surface_count,
-			stream,
-			context,
-			context->dc_dmub_cmd,
-			&(context->dmub_cmd_count));
-	hwss_build_fast_sequence(dc,
-			context->dc_dmub_cmd,
-			context->dmub_cmd_count,
-			context->block_sequence,
-			&(context->block_sequence_steps),
-			top_pipe_to_program,
-			stream_status,
-			context);
-	hwss_execute_sequence(dc,
-			context->block_sequence,
-			context->block_sequence_steps);
 	/* Clear update flags so next flip doesn't have redundant programming
 	 * (if there's no stream update, the update flags are not cleared).
 	 * Surface updates are cleared unconditionally at the beginning of each flip,
