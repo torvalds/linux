@@ -1671,7 +1671,7 @@ static int qede_parse_actions(struct qede_dev *edev,
 	int i;
 
 	if (!flow_action_has_entries(flow_action)) {
-		DP_NOTICE(edev, "No actions received\n");
+		NL_SET_ERR_MSG_MOD(extack, "No actions received");
 		return -EINVAL;
 	}
 
@@ -1687,7 +1687,8 @@ static int qede_parse_actions(struct qede_dev *edev,
 				break;
 
 			if (act->queue.index >= QEDE_RSS_COUNT(edev)) {
-				DP_INFO(edev, "Queue out-of-bounds\n");
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Queue out-of-bounds");
 				return -EINVAL;
 			}
 			break;
