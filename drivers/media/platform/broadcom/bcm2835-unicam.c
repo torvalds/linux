@@ -2433,9 +2433,9 @@ static int unicam_async_bound(struct v4l2_async_notifier *notifier,
 		return ret;
 
 	source = media_pad_remote_pad_unique(sink);
-	if (!source) {
+	if (IS_ERR(source)) {
 		dev_err(unicam->dev, "No connected sensor pad\n");
-		return -ENOTCONN;
+		return PTR_ERR(source);
 	}
 
 	unicam->sensor.subdev = subdev;
