@@ -1260,6 +1260,8 @@ void kprobes_inc_nmissed_count(struct kprobe *p, unsigned flags)
                 	}
 		}
 	}
+
+	printk("ss=%lu:objpool=%lu;rethook=%lu;callback=%lu;ftrace=%lu\n", p->nmissed_ss, p->nmissed_objpool, p->nmissed_rethook, p->nmissed_callback, p->nmissed_ftrace_callback);
 }
 NOKPROBE_SYMBOL(kprobes_inc_nmissed_count);
 
