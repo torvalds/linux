@@ -2767,6 +2767,9 @@ struct ath12k_wmi_vdev_up_params {
 	u32 vdev_id;
 	u32 aid;
 	const u8 *bssid;
+	const u8 *tx_bssid;
+	u32 nontx_profile_idx;
+	u32 nontx_profile_cnt;
 };
 
 struct wmi_vdev_up_cmd {
