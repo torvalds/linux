@@ -963,8 +963,6 @@ static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
 	err = amdgpu_ucode_request(adev, &adev->gfx.rlc_fw, fw_name);
-	if (err)
-		goto out;
 out:
 	if (err) {
 		pr_err("gfx7: Failed to load firmware \"%s\"\n", fw_name);
