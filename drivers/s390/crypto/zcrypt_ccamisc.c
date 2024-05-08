@@ -658,7 +658,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;
@@ -1263,7 +1263,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;
@@ -1426,7 +1426,7 @@ int cca_ecc2protkey(u16 cardnr, u16 domain, const u8 *key,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;

@@ -1292,8 +1292,15 @@ impl_zeroable! {
     i8, i16, i32, i64, i128, isize,
     f32, f64,
 
-    // SAFETY: These are ZSTs, there is nothing to zero.
-    {<T: ?Sized>} PhantomData<T>, core::marker::PhantomPinned, Infallible, (),
+    // Note: do not add uninhabited types (such as `!` or `core::convert::Infallible`) to this list;
+    // creating an instance of an uninhabited type is immediate undefined behavior. For more on
+    // uninhabited/empty types, consult The Rustonomicon:
+    // <https://doc.rust-lang.org/stable/nomicon/exotic-sizes.html#empty-types>. The Rust Reference
+    // also has information on undefined behavior:
+    // <https://doc.rust-lang.org/stable/reference/behavior-considered-undefined.html>.
+    //
+    // SAFETY: These are inhabited ZSTs; there is nothing to zero and a valid value exists.
+    {<T: ?Sized>} PhantomData<T>, core::marker::PhantomPinned, (),
 
     // SAFETY: Type is allowed to take any value, including all zeros.
     {<T>} MaybeUninit<T>,

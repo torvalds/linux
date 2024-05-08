@@ -164,26 +164,6 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 		*value = gpu->identity.eco_id;
 		break;
 
-	case ETNAVIV_PARAM_GPU_NN_CORE_COUNT:
-		*value = gpu->identity.nn_core_count;
-		break;
-
-	case ETNAVIV_PARAM_GPU_NN_MAD_PER_CORE:
-		*value = gpu->identity.nn_mad_per_core;
-		break;
-
-	case ETNAVIV_PARAM_GPU_TP_CORE_COUNT:
-		*value = gpu->identity.tp_core_count;
-		break;
-
-	case ETNAVIV_PARAM_GPU_ON_CHIP_SRAM_SIZE:
-		*value = gpu->identity.on_chip_sram_size;
-		break;
-
-	case ETNAVIV_PARAM_GPU_AXI_SRAM_SIZE:
-		*value = gpu->identity.axi_sram_size;
-		break;
-
 	default:
 		DBG("%s: invalid param: %u", dev_name(gpu->dev), param);
 		return -EINVAL;
@@ -663,8 +643,8 @@ static void etnaviv_gpu_enable_mlcg(struct etnaviv_gpu *gpu)
 	/* Disable TX clock gating on affected core revisions. */
 	if (etnaviv_is_model_rev(gpu, GC4000, 0x5222) ||
 	    etnaviv_is_model_rev(gpu, GC2000, 0x5108) ||
-	    etnaviv_is_model_rev(gpu, GC2000, 0x6202) ||
-	    etnaviv_is_model_rev(gpu, GC2000, 0x6203))
+	    etnaviv_is_model_rev(gpu, GC7000, 0x6202) ||
+	    etnaviv_is_model_rev(gpu, GC7000, 0x6203))
 		pmc |= VIVS_PM_MODULE_CONTROLS_DISABLE_MODULE_CLOCK_GATING_TX;
 
 	/* Disable SE and RA clock gating on affected core revisions. */
