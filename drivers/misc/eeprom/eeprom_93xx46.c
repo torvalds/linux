@@ -37,12 +37,6 @@ struct eeprom_93xx46_platform_data {
 /* Add extra cycle after address during a read */
 #define EEPROM_93XX46_QUIRK_EXTRA_READ_CYCLE		BIT(2)
 
-	/*
-	 * optional hooks to control additional logic
-	 * before and after spi transfer.
-	 */
-	void (*prepare)(void *);
-	void (*finish)(void *);
 	struct gpio_desc *select;
 };
 
@@ -123,8 +117,7 @@ static int eeprom_93xx46_read(void *priv, unsigned int off,
 
 	mutex_lock(&edev->lock);
 
-	if (edev->pdata->prepare)
-		edev->pdata->prepare(edev);
+	gpiod_set_value_cansleep(edev->pdata->select, 1);
 
 	/* The opcode in front of the address is three bits. */
 	bits = edev->addrlen + 3;
@@ -180,8 +173,7 @@ static int eeprom_93xx46_read(void *priv, unsigned int off,
 		count -= nbytes;
 	}
 
-	if (edev->pdata->finish)
-		edev->pdata->finish(edev);
+	gpiod_set_value_cansleep(edev->pdata->select, 0);
 
 	mutex_unlock(&edev->lock);
 
@@ -222,8 +214,7 @@ static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 
 	mutex_lock(&edev->lock);
 
-	if (edev->pdata->prepare)
-		edev->pdata->prepare(edev);
+	gpiod_set_value_cansleep(edev->pdata->select, 1);
 
 	ret = spi_sync(edev->spi, &m);
 	/* have to wait at least Tcsl ns */
@@ -232,8 +223,7 @@ static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 		dev_err(&edev->spi->dev, "erase/write %sable error %d\n",
 			is_on ? "en" : "dis", ret);
 
-	if (edev->pdata->finish)
-		edev->pdata->finish(edev);
+	gpiod_set_value_cansleep(edev->pdata->select, 0);
 
 	mutex_unlock(&edev->lock);
 	return ret;
@@ -312,8 +302,7 @@ static int eeprom_93xx46_write(void *priv, unsigned int off,
 
 	mutex_lock(&edev->lock);
 
-	if (edev->pdata->prepare)
-		edev->pdata->prepare(edev);
+	gpiod_set_value_cansleep(edev->pdata->select, 1);
 
 	for (i = 0; i < count; i += step) {
 		ret = eeprom_93xx46_write_word(edev, &buf[i], off + i);
@@ -324,8 +313,7 @@ static int eeprom_93xx46_write(void *priv, unsigned int off,
 		}
 	}
 
-	if (edev->pdata->finish)
-		edev->pdata->finish(edev);
+	gpiod_set_value_cansleep(edev->pdata->select, 0);
 
 	mutex_unlock(&edev->lock);
 
@@ -336,7 +324,6 @@ static int eeprom_93xx46_write(void *priv, unsigned int off,
 
 static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 {
-	struct eeprom_93xx46_platform_data *pd = edev->pdata;
 	struct spi_message m;
 	struct spi_transfer t;
 	int bits, ret;
@@ -368,8 +355,7 @@ static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 
 	mutex_lock(&edev->lock);
 
-	if (edev->pdata->prepare)
-		edev->pdata->prepare(edev);
+	gpiod_set_value_cansleep(edev->pdata->select, 1);
 
 	ret = spi_sync(edev->spi, &m);
 	if (ret)
@@ -377,8 +363,7 @@ static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 	/* have to wait erase cycle time Tec ms */
 	mdelay(6);
 
-	if (pd->finish)
-		pd->finish(edev);
+	gpiod_set_value_cansleep(edev->pdata->select, 0);
 
 	mutex_unlock(&edev->lock);
 	return ret;
@@ -406,20 +391,6 @@ static ssize_t eeprom_93xx46_store_erase(struct device *dev,
 	return count;
 }
 static DEVICE_ATTR(erase, S_IWUSR, NULL, eeprom_93xx46_store_erase);
-
-static void select_assert(void *context)
-{
-	struct eeprom_93xx46_dev *edev = context;
-
-	gpiod_set_value_cansleep(edev->pdata->select, 1);
-}
-
-static void select_deassert(void *context)
-{
-	struct eeprom_93xx46_dev *edev = context;
-
-	gpiod_set_value_cansleep(edev->pdata->select, 0);
-}
 
 static const struct of_device_id eeprom_93xx46_of_table[] = {
 	{ .compatible = "eeprom-93xx46", .data = &at93c46_data, },
@@ -482,9 +453,6 @@ static int eeprom_93xx46_probe_fw(struct device *dev)
 	if (IS_ERR(pd->select))
 		return PTR_ERR(pd->select);
 	gpiod_set_consumer_name(pd->select, "93xx46 EEPROMs OE");
-
-	pd->prepare = select_assert;
-	pd->finish = select_deassert;
 
 	data = spi_get_device_match_data(to_spi_device(dev));
 	if (data) {
