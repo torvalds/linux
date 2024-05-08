@@ -18,6 +18,7 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/string_choices.h>
 
 #include <linux/nvmem-provider.h>
 
@@ -200,8 +201,8 @@ static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 		bits += 2;
 	}
 
-	dev_dbg(&edev->spi->dev, "ew%s cmd 0x%04x, %d bits\n",
-			is_on ? "en" : "ds", cmd_addr, bits);
+	dev_dbg(&edev->spi->dev, "ew %s cmd 0x%04x, %d bits\n",
+		str_enable_disable(is_on), cmd_addr, bits);
 
 	t.tx_buf = &cmd_addr;
 	t.len = 2;
@@ -217,8 +218,8 @@ static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 	/* have to wait at least Tcsl ns */
 	ndelay(250);
 	if (ret)
-		dev_err(&edev->spi->dev, "erase/write %sable error %d\n",
-			is_on ? "en" : "dis", ret);
+		dev_err(&edev->spi->dev, "erase/write %s error %d\n",
+			str_enable_disable(is_on), ret);
 
 	gpiod_set_value_cansleep(edev->pdata->select, 0);
 
