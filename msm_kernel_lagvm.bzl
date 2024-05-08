@@ -25,6 +25,7 @@ load(
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines", "get_out_dir")
 load(":msm_dtc.bzl", "define_dtc_dist")
+load(":msm_abl.bzl", "define_abl_dist")
 load(":avb_boot_img.bzl", "avb_sign_boot_image")
 load(":image_opts.bzl", "boot_image_opts")
 load(":target_variants.bzl", "lxc_variants")
@@ -414,6 +415,8 @@ def define_msm_lagvm(
     )
 
     _define_uapi_library(target)
+
+    define_abl_dist(target, msm_target, variant)
 
     define_dtc_dist(target, msm_target, variant)
 
