@@ -64,8 +64,8 @@
 		};
 
 		pm6150_vbus: usb-vbus-regulator@1100 {
-			compatible = "qcom,pm6150-vbus-reg,
-				      qcom,pm8150b-vbus-reg";
+			compatible = "qcom,pm6150-vbus-reg",
+				     "qcom,pm8150b-vbus-reg";
 			reg = <0x1100>;
 			status = "disabled";
 		};
