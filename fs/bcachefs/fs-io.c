@@ -202,7 +202,10 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		goto out;
 	ret = bch2_flush_inode(c, inode);
 out:
-	return bch2_err_class(ret);
+	ret = bch2_err_class(ret);
+	if (ret == -EROFS)
+		ret = -EIO;
+	return ret;
 }
 
 /* truncate: */
