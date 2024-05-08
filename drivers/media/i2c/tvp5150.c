@@ -2265,7 +2265,7 @@ static const struct dev_pm_ops tvp5150_pm_ops = {
 };
 
 static const struct i2c_device_id tvp5150_id[] = {
-	{ "tvp5150", 0 },
+	{ "tvp5150" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tvp5150_id);

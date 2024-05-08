@@ -600,7 +600,7 @@ static void fc2580_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id fc2580_id_table[] = {
-	{"fc2580", 0},
+	{ "fc2580" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, fc2580_id_table);

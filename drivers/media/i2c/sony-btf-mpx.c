@@ -366,7 +366,7 @@ static void sony_btf_mpx_remove(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static const struct i2c_device_id sony_btf_mpx_id[] = {
-	{ "sony-btf-mpx", 0 },
+	{ "sony-btf-mpx" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sony_btf_mpx_id);

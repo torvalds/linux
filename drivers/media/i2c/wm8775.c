@@ -289,7 +289,7 @@ static void wm8775_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id wm8775_id[] = {
-	{ "wm8775", 0 },
+	{ "wm8775" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8775_id);

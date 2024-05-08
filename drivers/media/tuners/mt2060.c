@@ -514,7 +514,7 @@ static void mt2060_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mt2060_id_table[] = {
-	{"mt2060", 0},
+	{ "mt2060" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, mt2060_id_table);

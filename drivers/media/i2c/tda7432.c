@@ -400,7 +400,7 @@ static void tda7432_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tda7432_id[] = {
-	{ "tda7432", 0 },
+	{ "tda7432" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tda7432_id);
