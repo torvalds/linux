@@ -224,6 +224,28 @@ unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC
 #define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
 #define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
 
+/*
+ * MSR_PKG_CST_CONFIG_CONTROL decoding for pkg_cstate_limit:
+ * If you change the values, note they are used both in comparisons
+ * (>= PCL__7) and to index pkg_cstate_limit_strings[].
+ */
+#define PCLUKN 0		/* Unknown */
+#define PCLRSV 1		/* Reserved */
+#define PCL__0 2		/* PC0 */
+#define PCL__1 3		/* PC1 */
+#define PCL__2 4		/* PC2 */
+#define PCL__3 5		/* PC3 */
+#define PCL__4 6		/* PC4 */
+#define PCL__6 7		/* PC6 */
+#define PCL_6N 8		/* PC6 No Retention */
+#define PCL_6R 9		/* PC6 Retention */
+#define PCL__7 10		/* PC7 */
+#define PCL_7S 11		/* PC7 Shrink */
+#define PCL__8 12		/* PC8 */
+#define PCL__9 13		/* PC9 */
+#define PCL_10 14		/* PC10 */
+#define PCLUNL 15		/* Unlimited */
+
 struct amperf_group_fd;
 
 char *proc_stat = "/proc/stat";
@@ -1190,21 +1212,30 @@ enum ccstate_rci_index {
 	CCSTATE_RCI_INDEX_C3_RESIDENCY = 1,
 	CCSTATE_RCI_INDEX_C6_RESIDENCY = 2,
 	CCSTATE_RCI_INDEX_C7_RESIDENCY = 3,
-	NUM_CCSTATE_COUNTERS,
+	PCSTATE_RCI_INDEX_C2_RESIDENCY = 4,
+	PCSTATE_RCI_INDEX_C3_RESIDENCY = 5,
+	PCSTATE_RCI_INDEX_C6_RESIDENCY = 6,
+	PCSTATE_RCI_INDEX_C7_RESIDENCY = 7,
+	PCSTATE_RCI_INDEX_C8_RESIDENCY = 8,
+	PCSTATE_RCI_INDEX_C9_RESIDENCY = 9,
+	PCSTATE_RCI_INDEX_C10_RESIDENCY = 10,
+	NUM_CSTATE_COUNTERS,
 };
 
 struct cstate_counter_info_t {
-	unsigned long long data[NUM_CCSTATE_COUNTERS];
-	enum cstate_source source[NUM_CCSTATE_COUNTERS];
-	unsigned long long msr[NUM_CCSTATE_COUNTERS];
-	int fd_perf;
+	unsigned long long data[NUM_CSTATE_COUNTERS];
+	enum cstate_source source[NUM_CSTATE_COUNTERS];
+	unsigned long long msr[NUM_CSTATE_COUNTERS];
+	int fd_perf_core;
+	int fd_perf_pkg;
 };
 
 struct cstate_counter_info_t *ccstate_counter_info;
 unsigned int ccstate_counter_info_size;
 
-#define CSTATE_COUNTER_FLAG_COLLECT_PER_THREAD (1u << 0)
-#define CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY (1u << 1)
+#define CSTATE_COUNTER_FLAG_COLLECT_PER_CORE   (1u << 0)
+#define CSTATE_COUNTER_FLAG_COLLECT_PER_THREAD ((1u << 1) | CSTATE_COUNTER_FLAG_COLLECT_PER_CORE)
+#define CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY (1u << 2)
 
 struct cstate_counter_arch_info {
 	int feature_mask;	/* Mask for testing if the counter is supported on host */
@@ -1214,6 +1245,7 @@ struct cstate_counter_arch_info {
 	unsigned int rci_index;	/* Maps data from perf counters to global variables */
 	unsigned long long bic;
 	unsigned long long flags;
+	int pkg_cstate_limit;
 };
 
 static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
@@ -1225,6 +1257,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .rci_index = CCSTATE_RCI_INDEX_C1_RESIDENCY,
 	 .bic = BIC_CPU_c1,
 	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_THREAD,
+	 .pkg_cstate_limit = 0,
 	  },
 	{
 	 .feature_mask = CC3,
@@ -1233,7 +1266,8 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .msr = MSR_CORE_C3_RESIDENCY,
 	 .rci_index = CCSTATE_RCI_INDEX_C3_RESIDENCY,
 	 .bic = BIC_CPU_c3,
-	 .flags = CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .pkg_cstate_limit = 0,
 	  },
 	{
 	 .feature_mask = CC6,
@@ -1242,7 +1276,8 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .msr = MSR_CORE_C6_RESIDENCY,
 	 .rci_index = CCSTATE_RCI_INDEX_C6_RESIDENCY,
 	 .bic = BIC_CPU_c6,
-	 .flags = CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .pkg_cstate_limit = 0,
 	  },
 	{
 	 .feature_mask = CC7,
@@ -1251,7 +1286,78 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .msr = MSR_CORE_C7_RESIDENCY,
 	 .rci_index = CCSTATE_RCI_INDEX_C7_RESIDENCY,
 	 .bic = BIC_CPU_c7,
-	 .flags = CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
+	 .pkg_cstate_limit = 0,
+	  },
+	{
+	 .feature_mask = PC2,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c2-residency",
+	 .msr = MSR_PKG_C2_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C2_RESIDENCY,
+	 .bic = BIC_Pkgpc2,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__2,
+	  },
+	{
+	 .feature_mask = PC3,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c3-residency",
+	 .msr = MSR_PKG_C3_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C3_RESIDENCY,
+	 .bic = BIC_Pkgpc3,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__3,
+	  },
+	{
+	 .feature_mask = PC6,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c6-residency",
+	 .msr = MSR_PKG_C6_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C6_RESIDENCY,
+	 .bic = BIC_Pkgpc6,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__6,
+	  },
+	{
+	 .feature_mask = PC7,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c7-residency",
+	 .msr = MSR_PKG_C7_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C7_RESIDENCY,
+	 .bic = BIC_Pkgpc7,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__7,
+	  },
+	{
+	 .feature_mask = PC8,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c8-residency",
+	 .msr = MSR_PKG_C8_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C8_RESIDENCY,
+	 .bic = BIC_Pkgpc8,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__8,
+	  },
+	{
+	 .feature_mask = PC9,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c9-residency",
+	 .msr = MSR_PKG_C9_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C9_RESIDENCY,
+	 .bic = BIC_Pkgpc9,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL__9,
+	  },
+	{
+	 .feature_mask = PC10,
+	 .perf_subsys = "cstate_pkg",
+	 .perf_name = "c10-residency",
+	 .msr = MSR_PKG_C10_RESIDENCY,
+	 .rci_index = PCSTATE_RCI_INDEX_C10_RESIDENCY,
+	 .bic = BIC_Pkgpc10,
+	 .flags = 0,
+	 .pkg_cstate_limit = PCL_10,
 	  },
 };
 
@@ -1641,15 +1747,8 @@ int get_msr_fd(int cpu)
 
 static void bic_disable_msr_access(void)
 {
-	const unsigned long bic_msrs =
-	    BIC_SMI |
-	    BIC_Mod_c6 |
-	    BIC_CoreTmp |
-	    BIC_Totl_c0 |
-	    BIC_Any_c0 |
-	    BIC_GFX_c0 |
-	    BIC_CPUGFX |
-	    BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_PkgTmp;
+	const unsigned long bic_msrs = BIC_SMI | BIC_Mod_c6 | BIC_CoreTmp |
+	    BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_PkgTmp;
 
 	bic_enabled &= ~bic_msrs;
 
@@ -3493,7 +3592,7 @@ static size_t cstate_counter_info_count_perf(const struct cstate_counter_info_t 
 {
 	size_t ret = 0;
 
-	for (int i = 0; i < NUM_CCSTATE_COUNTERS; ++i)
+	for (int i = 0; i < NUM_CSTATE_COUNTERS; ++i)
 		if (cci->source[i] == CSTATE_SOURCE_PERF)
 			++ret;
 
@@ -3598,9 +3697,16 @@ char *find_sysfs_path_by_id(struct sysfs_path *sp, int id)
 	return NULL;
 }
 
-int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_data *c)
+int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
-	unsigned long long perf_data[NUM_CCSTATE_COUNTERS + 1];
+	/*
+	 * Overcommit memory a little bit here,
+	 * but skip calculating exact sizes for the buffers.
+	 */
+	unsigned long long perf_data[NUM_CSTATE_COUNTERS];
+	unsigned long long perf_data_core[NUM_CSTATE_COUNTERS + 1];
+	unsigned long long perf_data_pkg[NUM_CSTATE_COUNTERS + 1];
+
 	struct cstate_counter_info_t *cci;
 
 	if (debug)
@@ -3609,35 +3715,72 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 	assert(ccstate_counter_info);
 	assert(cpu <= ccstate_counter_info_size);
 
+	memset(perf_data, 0, sizeof(perf_data));
+	memset(perf_data_core, 0, sizeof(perf_data_core));
+	memset(perf_data_pkg, 0, sizeof(perf_data_pkg));
+
 	cci = &ccstate_counter_info[cpu];
 
 	/*
 	 * If we have any perf counters to read, read them all now, in bulk
 	 */
-	if (cci->fd_perf != -1) {
-		const size_t num_perf_counters = cstate_counter_info_count_perf(cci);
-		const ssize_t expected_read_size =
-			(num_perf_counters + 1) * sizeof(unsigned long long);
-		const ssize_t actual_read_size =
-			read(cci->fd_perf, &perf_data[0], sizeof(perf_data));
+	const size_t num_perf_counters = cstate_counter_info_count_perf(cci);
+	ssize_t expected_read_size = num_perf_counters * sizeof(unsigned long long);
+	ssize_t actual_read_size_core = 0, actual_read_size_pkg = 0;
 
-		if (actual_read_size != expected_read_size)
-			err(-1, "%s: failed to read perf_data (%zu %zu)",
-				__func__, expected_read_size, actual_read_size);
+	if (cci->fd_perf_core != -1) {
+		/* Each descriptor read begins with number of counters read. */
+		expected_read_size += sizeof(unsigned long long);
+
+		actual_read_size_core = read(cci->fd_perf_core, &perf_data_core[0], sizeof(perf_data_core));
+
+		if (actual_read_size_core <= 0)
+			err(-1, "%s: read perf %s: %ld", __func__, "core", actual_read_size_core);
 	}
 
-	for (unsigned int i = 0, pi = 1; i < NUM_CCSTATE_COUNTERS; ++i) {
+	if (cci->fd_perf_pkg != -1) {
+		/* Each descriptor read begins with number of counters read. */
+		expected_read_size += sizeof(unsigned long long);
+
+		actual_read_size_pkg = read(cci->fd_perf_pkg, &perf_data_pkg[0], sizeof(perf_data_pkg));
+
+		if (actual_read_size_pkg <= 0)
+			err(-1, "%s: read perf %s: %ld", __func__, "pkg", actual_read_size_pkg);
+	}
+
+	const ssize_t actual_read_size_total = actual_read_size_core + actual_read_size_pkg;
+
+	if (actual_read_size_total != expected_read_size)
+		err(-1, "%s: failed to read perf_data (%zu %zu)", __func__, expected_read_size, actual_read_size_total);
+
+	/*
+	 * Copy ccstate and pcstate data into unified buffer.
+	 *
+	 * Skip first element from core and pkg buffers.
+	 * Kernel puts there how many counters were read.
+	 */
+	const size_t num_core_counters = perf_data_core[0];
+	const size_t num_pkg_counters = perf_data_pkg[0];
+
+	assert(num_perf_counters == num_core_counters + num_pkg_counters);
+
+	/* Copy ccstate perf data */
+	memcpy(&perf_data[0], &perf_data_core[1], num_core_counters * sizeof(unsigned long long));
+
+	/* Copy pcstate perf data */
+	memcpy(&perf_data[num_core_counters], &perf_data_pkg[1], num_pkg_counters * sizeof(unsigned long long));
+
+	for (unsigned int i = 0, pi = 0; i < NUM_CSTATE_COUNTERS; ++i) {
 		switch (cci->source[i]) {
 		case CSTATE_SOURCE_NONE:
 			break;
 
 		case CSTATE_SOURCE_PERF:
 			assert(pi < ARRAY_SIZE(perf_data));
-			assert(cci->fd_perf != -1);
+			assert(cci->fd_perf_core != -1 || cci->fd_perf_pkg != -1);
 
 			if (debug) {
-				fprintf(stderr, "cstate via %s %u: %llu\n",
-					"perf", i, perf_data[pi]);
+				fprintf(stderr, "cstate via %s %u: %llu\n", "perf", i, perf_data[pi]);
 			}
 
 			cci->data[i] = perf_data[pi];
@@ -3651,8 +3794,7 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 				return -13 - i;
 
 			if (debug) {
-				fprintf(stderr, "cstate via %s0x%llx %u: %llu\n",
-					"msr", cci->msr[i], i, cci->data[i]);
+				fprintf(stderr, "cstate via %s0x%llx %u: %llu\n", "msr", cci->msr[i], i, cci->data[i]);
 			}
 
 			break;
@@ -3671,11 +3813,20 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 		out_counter = cci->data[index];			\
 } while (0)
 
-	BUILD_BUG_ON(NUM_CCSTATE_COUNTERS != 4);
+	BUILD_BUG_ON(NUM_CSTATE_COUNTERS != 11);
+
 	PERF_COUNTER_WRITE_DATA(t->c1, CCSTATE_RCI_INDEX_C1_RESIDENCY);
 	PERF_COUNTER_WRITE_DATA(c->c3, CCSTATE_RCI_INDEX_C3_RESIDENCY);
 	PERF_COUNTER_WRITE_DATA(c->c6, CCSTATE_RCI_INDEX_C6_RESIDENCY);
 	PERF_COUNTER_WRITE_DATA(c->c7, CCSTATE_RCI_INDEX_C7_RESIDENCY);
+
+	PERF_COUNTER_WRITE_DATA(p->pc2, PCSTATE_RCI_INDEX_C2_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc3, PCSTATE_RCI_INDEX_C3_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc6, PCSTATE_RCI_INDEX_C6_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc7, PCSTATE_RCI_INDEX_C7_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc8, PCSTATE_RCI_INDEX_C8_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc9, PCSTATE_RCI_INDEX_C9_RESIDENCY);
+	PERF_COUNTER_WRITE_DATA(p->pc10, PCSTATE_RCI_INDEX_C10_RESIDENCY);
 
 #undef PERF_COUNTER_WRITE_DATA
 
@@ -3738,7 +3889,7 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		t->smi_count = msr & 0xFFFFFFFF;
 	}
 
-	get_cstate_counters(cpu, t, c);
+	get_cstate_counters(cpu, t, c, p);
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (get_mp(cpu, mp, &t->counter[i], mp->sp->path))
@@ -3803,34 +3954,6 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		if (get_msr(cpu, MSR_PKG_BOTH_CORE_GFXE_C0_RES, &p->pkg_both_core_gfxe_c0))
 			return -13;
 	}
-	if (DO_BIC(BIC_Pkgpc3))
-		if (get_msr(cpu, MSR_PKG_C3_RESIDENCY, &p->pc3))
-			return -9;
-	if (DO_BIC(BIC_Pkgpc6)) {
-		if (platform->has_msr_atom_pkg_c6_residency) {
-			if (get_msr(cpu, MSR_ATOM_PKG_C6_RESIDENCY, &p->pc6))
-				return -10;
-		} else {
-			if (get_msr(cpu, MSR_PKG_C6_RESIDENCY, &p->pc6))
-				return -10;
-		}
-	}
-
-	if (DO_BIC(BIC_Pkgpc2))
-		if (get_msr(cpu, MSR_PKG_C2_RESIDENCY, &p->pc2))
-			return -11;
-	if (DO_BIC(BIC_Pkgpc7))
-		if (get_msr(cpu, MSR_PKG_C7_RESIDENCY, &p->pc7))
-			return -12;
-	if (DO_BIC(BIC_Pkgpc8))
-		if (get_msr(cpu, MSR_PKG_C8_RESIDENCY, &p->pc8))
-			return -13;
-	if (DO_BIC(BIC_Pkgpc9))
-		if (get_msr(cpu, MSR_PKG_C9_RESIDENCY, &p->pc9))
-			return -13;
-	if (DO_BIC(BIC_Pkgpc10))
-		if (get_msr(cpu, MSR_PKG_C10_RESIDENCY, &p->pc10))
-			return -13;
 
 	if (DO_BIC(BIC_CPU_LPI))
 		p->cpu_lpi = cpuidle_cur_cpu_lpi_us;
@@ -3888,29 +4011,6 @@ done:
 
 	return 0;
 }
-
-/*
- * MSR_PKG_CST_CONFIG_CONTROL decoding for pkg_cstate_limit:
- * If you change the values, note they are used both in comparisons
- * (>= PCL__7) and to index pkg_cstate_limit_strings[].
- */
-
-#define PCLUKN 0		/* Unknown */
-#define PCLRSV 1		/* Reserved */
-#define PCL__0 2		/* PC0 */
-#define PCL__1 3		/* PC1 */
-#define PCL__2 4		/* PC2 */
-#define PCL__3 5		/* PC3 */
-#define PCL__4 6		/* PC4 */
-#define PCL__6 7		/* PC6 */
-#define PCL_6N 8		/* PC6 No Retention */
-#define PCL_6R 9		/* PC6 Retention */
-#define PCL__7 10		/* PC7 */
-#define PCL_7S 11		/* PC7 Shrink */
-#define PCL__8 12		/* PC8 */
-#define PCL__9 13		/* PC9 */
-#define PCL_10 14		/* PC10 */
-#define PCLUNL 15		/* Unlimited */
 
 int pkg_cstate_limit = PCLUKN;
 char *pkg_cstate_limit_strings[] = { "reserved", "unknown", "pc0", "pc1", "pc2",
@@ -4410,8 +4510,11 @@ void free_fd_cstate(void)
 	const int counter_info_num = ccstate_counter_info_size;
 
 	for (int counter_id = 0; counter_id < counter_info_num; ++counter_id) {
-		if (ccstate_counter_info[counter_id].fd_perf != -1)
-			close(ccstate_counter_info[counter_id].fd_perf);
+		if (ccstate_counter_info[counter_id].fd_perf_core != -1)
+			close(ccstate_counter_info[counter_id].fd_perf_core);
+
+		if (ccstate_counter_info[counter_id].fd_perf_pkg != -1)
+			close(ccstate_counter_info[counter_id].fd_perf_pkg);
 	}
 
 	free(ccstate_counter_info);
@@ -6914,30 +7017,43 @@ static int has_amperf_access(void)
 	return 0;
 }
 
-int add_cstate_perf_counter_(int cpu, struct cstate_counter_info_t *cci,
-			     const struct cstate_counter_arch_info *cai)
+int *get_cstate_perf_group_fd(struct cstate_counter_info_t *cci, const char *group_name)
+{
+	if (strcmp(group_name, "cstate_core") == 0)
+		return &cci->fd_perf_core;
+
+	if (strcmp(group_name, "cstate_pkg") == 0)
+		return &cci->fd_perf_pkg;
+
+	return NULL;
+}
+
+int add_cstate_perf_counter_(int cpu, struct cstate_counter_info_t *cci, const struct cstate_counter_arch_info *cai)
 {
 	if (no_perf)
+		return -1;
+
+	int *pfd_group = get_cstate_perf_group_fd(cci, cai->perf_subsys);
+
+	if (pfd_group == NULL)
 		return -1;
 
 	const unsigned int type = read_perf_type(cai->perf_subsys);
 	const unsigned int config = read_rapl_config(cai->perf_subsys, cai->perf_name);
 
-	const int fd_counter =
-		open_perf_counter(cpu, type, config, cci->fd_perf, PERF_FORMAT_GROUP);
+	const int fd_counter = open_perf_counter(cpu, type, config, *pfd_group, PERF_FORMAT_GROUP);
 
 	if (fd_counter == -1)
 		return -1;
 
 	/* If it's the first counter opened, make it a group descriptor */
-	if (cci->fd_perf == -1)
-		cci->fd_perf = fd_counter;
+	if (*pfd_group == -1)
+		*pfd_group = fd_counter;
 
 	return fd_counter;
 }
 
-int add_cstate_perf_counter(int cpu, struct cstate_counter_info_t *cci,
-			    const struct cstate_counter_arch_info *cai)
+int add_cstate_perf_counter(int cpu, struct cstate_counter_info_t *cci, const struct cstate_counter_arch_info *cai)
 {
 	int ret = add_cstate_perf_counter_(cpu, cci, cai);
 
@@ -6950,8 +7066,9 @@ int add_cstate_perf_counter(int cpu, struct cstate_counter_info_t *cci,
 void cstate_perf_init_(bool soft_c1)
 {
 	bool has_counter;
-	bool *cores_visited;
+	bool *cores_visited = NULL, *pkg_visited = NULL;
 	const int cores_visited_elems = topo.max_core_id + 1;
+	const int pkg_visited_elems = topo.max_package_id + 1;
 	const int cci_num = topo.max_cpu_num + 1;
 
 	ccstate_counter_info = calloc(cci_num, sizeof(*ccstate_counter_info));
@@ -6963,13 +7080,20 @@ void cstate_perf_init_(bool soft_c1)
 	if (!cores_visited)
 		err(1, "calloc cores_visited");
 
-	/* Initialize cstate_counter_info_percpu */
-	for (int cpu = 0; cpu < cci_num; ++cpu)
-		ccstate_counter_info[cpu].fd_perf = -1;
+	pkg_visited = calloc(pkg_visited_elems, sizeof(*pkg_visited));
+	if (!pkg_visited)
+		err(1, "calloc pkg_visited");
 
-	for (int cidx = 0; cidx < NUM_CCSTATE_COUNTERS; ++cidx) {
+	/* Initialize cstate_counter_info_percpu */
+	for (int cpu = 0; cpu < cci_num; ++cpu) {
+		ccstate_counter_info[cpu].fd_perf_core = -1;
+		ccstate_counter_info[cpu].fd_perf_pkg = -1;
+	}
+
+	for (int cidx = 0; cidx < NUM_CSTATE_COUNTERS; ++cidx) {
 		has_counter = false;
 		memset(cores_visited, 0, cores_visited_elems * sizeof(*cores_visited));
+		memset(pkg_visited, 0, pkg_visited_elems * sizeof(*pkg_visited));
 
 		const struct cstate_counter_arch_info *cai = &ccstate_counter_arch_infos[cidx];
 
@@ -6981,23 +7105,29 @@ void cstate_perf_init_(bool soft_c1)
 				continue;
 
 			const int core_id = cpus[cpu].physical_core_id;
+			const int pkg_id = cpus[cpu].physical_package_id;
 
 			assert(core_id < cores_visited_elems);
+			assert(pkg_id < pkg_visited_elems);
 
 			const bool per_thread = cai->flags & CSTATE_COUNTER_FLAG_COLLECT_PER_THREAD;
+			const bool per_core = cai->flags & CSTATE_COUNTER_FLAG_COLLECT_PER_CORE;
 
 			if (!per_thread && cores_visited[core_id])
+				continue;
+
+			if (!per_core && pkg_visited[pkg_id])
 				continue;
 
 			const bool counter_needed = BIC_IS_ENABLED(cai->bic) ||
 			    (soft_c1 && (cai->flags & CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY));
 			const bool counter_supported =
-				platform->supported_cstates & cai->feature_mask;
+			    (platform->supported_cstates & cai->feature_mask) &&
+			    (pkg_cstate_limit >= cai->pkg_cstate_limit);
 
 			if (counter_needed && counter_supported) {
 				/* Use perf API for this counter */
-				if (!no_perf && cai->perf_name
-				    && add_cstate_perf_counter(cpu, cci, cai) != -1) {
+				if (!no_perf && cai->perf_name && add_cstate_perf_counter(cpu, cci, cai) != -1) {
 
 					cci->source[cai->rci_index] = CSTATE_SOURCE_PERF;
 
@@ -7011,6 +7141,7 @@ void cstate_perf_init_(bool soft_c1)
 			if (cci->source[cai->rci_index] != CSTATE_SOURCE_NONE) {
 				has_counter = true;
 				cores_visited[core_id] = true;
+				pkg_visited[pkg_id] = true;
 			}
 		}
 
@@ -7020,6 +7151,7 @@ void cstate_perf_init_(bool soft_c1)
 	}
 
 	free(cores_visited);
+	free(pkg_visited);
 }
 
 void cstate_perf_init(void)
@@ -7029,7 +7161,7 @@ void cstate_perf_init(void)
 	 * but we need APERF, MPERF too.
 	 */
 	const bool soft_c1 = !platform->has_msr_core_c1_res && has_amperf_access()
-			     && platform->supported_cstates & CC1;
+	    && platform->supported_cstates & CC1;
 
 	if (soft_c1)
 		BIC_PRESENT(BIC_CPU_c1);
@@ -7040,27 +7172,6 @@ void cstate_perf_init(void)
 void probe_cstates(void)
 {
 	probe_cst_limit();
-
-	if (platform->supported_cstates & PC2 && (pkg_cstate_limit >= PCL__2))
-		BIC_PRESENT(BIC_Pkgpc2);
-
-	if (platform->supported_cstates & PC3 && (pkg_cstate_limit >= PCL__3))
-		BIC_PRESENT(BIC_Pkgpc3);
-
-	if (platform->supported_cstates & PC6 && (pkg_cstate_limit >= PCL__6))
-		BIC_PRESENT(BIC_Pkgpc6);
-
-	if (platform->supported_cstates & PC7 && (pkg_cstate_limit >= PCL__7))
-		BIC_PRESENT(BIC_Pkgpc7);
-
-	if (platform->supported_cstates & PC8 && (pkg_cstate_limit >= PCL__8))
-		BIC_PRESENT(BIC_Pkgpc8);
-
-	if (platform->supported_cstates & PC9 && (pkg_cstate_limit >= PCL__9))
-		BIC_PRESENT(BIC_Pkgpc9);
-
-	if (platform->supported_cstates & PC10 && (pkg_cstate_limit >= PCL_10))
-		BIC_PRESENT(BIC_Pkgpc10);
 
 	if (platform->has_msr_module_c6_res_ms)
 		BIC_PRESENT(BIC_Mod_c6);
@@ -7320,7 +7431,7 @@ void process_cpuid()
 
 static void counter_info_init(void)
 {
-	for (int i = 0; i < NUM_CCSTATE_COUNTERS; ++i) {
+	for (int i = 0; i < NUM_CSTATE_COUNTERS; ++i) {
 		struct cstate_counter_arch_info *const cai = &ccstate_counter_arch_infos[i];
 
 		if (platform->has_msr_knl_core_c6_residency && cai->msr == MSR_CORE_C6_RESIDENCY)
@@ -7328,6 +7439,9 @@ static void counter_info_init(void)
 
 		if (!platform->has_msr_core_c1_res && cai->msr == MSR_CORE_C1_RES)
 			cai->msr = 0;
+
+		if (platform->has_msr_atom_pkg_c6_residency && cai->msr == MSR_PKG_C6_RESIDENCY)
+			cai->msr = MSR_ATOM_PKG_C6_RESIDENCY;
 	}
 }
 
