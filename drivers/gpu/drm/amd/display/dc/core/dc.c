@@ -5104,7 +5104,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	 * specially handle compatibility problems with transitions among those
 	 * features as they are now transparent to the new sequence.
 	 */
-	if (dc->ctx->dce_version > DCN_VERSION_4_01)
+	if (dc->ctx->dce_version >= DCN_VERSION_4_01)
 		return update_planes_and_stream_v3(dc, srf_updates,
 				surface_count, stream, stream_update);
 	return update_planes_and_stream_v2(dc, srf_updates,
@@ -5124,7 +5124,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	 * we get more confident about this change we'll need to enable
 	 * the new sequence for all ASICs.
 	 */
-	if (dc->ctx->dce_version > DCN_VERSION_4_01) {
+	if (dc->ctx->dce_version >= DCN_VERSION_4_01) {
 		update_planes_and_stream_v3(dc, srf_updates, surface_count,
 				stream, stream_update);
 		return;
