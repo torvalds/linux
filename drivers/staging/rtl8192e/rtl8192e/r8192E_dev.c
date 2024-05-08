@@ -1640,9 +1640,8 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	if (stats->Length < 24)
 		stats->bHwError |= 1;
 
-	if (stats->bHwError) {
+	if (stats->bHwError)
 		return false;
-	}
 
 	stats->RxDrvInfoSize = pdesc->RxDrvInfoSize;
 	stats->RxBufShift = (pdesc->Shift) & 0x03;
