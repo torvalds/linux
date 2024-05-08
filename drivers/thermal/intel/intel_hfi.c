@@ -167,7 +167,7 @@ static DEFINE_MUTEX(hfi_instance_lock);
 
 static struct workqueue_struct *hfi_updates_wq;
 #define HFI_UPDATE_DELAY_MS		100
-#define HFI_MAX_THERM_NOTIFY_COUNT	16
+#define HFI_THERMNL_CAPS_PER_EVENT	16
 
 static void get_hfi_caps(struct hfi_instance *hfi_instance,
 			 struct thermal_genl_cpu_caps *cpu_caps)
@@ -218,14 +218,14 @@ static void update_capabilities(struct hfi_instance *hfi_instance)
 
 	get_hfi_caps(hfi_instance, cpu_caps);
 
-	if (cpu_count < HFI_MAX_THERM_NOTIFY_COUNT)
+	if (cpu_count < HFI_THERMNL_CAPS_PER_EVENT)
 		goto last_cmd;
 
-	/* Process complete chunks of HFI_MAX_THERM_NOTIFY_COUNT capabilities. */
+	/* Process complete chunks of HFI_THERMNL_CAPS_PER_EVENT capabilities. */
 	for (i = 0;
-	     (i + HFI_MAX_THERM_NOTIFY_COUNT) <= cpu_count;
-	     i += HFI_MAX_THERM_NOTIFY_COUNT)
-		thermal_genl_cpu_capability_event(HFI_MAX_THERM_NOTIFY_COUNT,
+	     (i + HFI_THERMNL_CAPS_PER_EVENT) <= cpu_count;
+	     i += HFI_THERMNL_CAPS_PER_EVENT)
+		thermal_genl_cpu_capability_event(HFI_THERMNL_CAPS_PER_EVENT,
 						  &cpu_caps[i]);
 
 	cpu_count = cpu_count - i;
