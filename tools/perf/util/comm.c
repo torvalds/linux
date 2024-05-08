@@ -19,6 +19,8 @@ static struct comm_strs {
 	int capacity;
 } _comm_strs;
 
+static void comm_strs__remove_if_last(struct comm_str *cs);
+
 static void comm_strs__init(void)
 {
 	init_rwsem(&_comm_strs.lock);
@@ -58,22 +60,15 @@ static struct comm_str *comm_str__get(struct comm_str *cs)
 
 static void comm_str__put(struct comm_str *cs)
 {
-	if (cs && refcount_dec_and_test(comm_str__refcnt(cs))) {
-		struct comm_strs *comm_strs = comm_strs__get();
-		int i;
+	if (!cs)
+		return;
 
-		down_write(&comm_strs->lock);
-		for (i = 0; i < comm_strs->num_strs; i++) {
-			if (comm_strs->strs[i] == cs)
-				break;
-		}
-		for (; i < comm_strs->num_strs - 1; i++)
-			comm_strs->strs[i] = comm_strs->strs[i + 1];
-
-		comm_strs->num_strs--;
-		up_write(&comm_strs->lock);
+	if (refcount_dec_and_test(comm_str__refcnt(cs))) {
 		RC_CHK_FREE(cs);
 	} else {
+		if (refcount_read(comm_str__refcnt(cs)) == 1)
+			comm_strs__remove_if_last(cs);
+
 		RC_CHK_PUT(cs);
 	}
 }
@@ -105,6 +100,28 @@ static int comm_str__search(const void *_key, const void *_member)
 	const struct comm_str *member = *(const struct comm_str * const *)_member;
 
 	return strcmp(key, comm_str__str(member));
+}
+
+static void comm_strs__remove_if_last(struct comm_str *cs)
+{
+	struct comm_strs *comm_strs = comm_strs__get();
+
+	down_write(&comm_strs->lock);
+	/*
+	 * Are there only references from the array, if so remove the array
+	 * reference under the write lock so that we don't race with findnew.
+	 */
+	if (refcount_read(comm_str__refcnt(cs)) == 1) {
+		struct comm_str **entry;
+
+		entry = bsearch(comm_str__str(cs), comm_strs->strs, comm_strs->num_strs,
+				sizeof(struct comm_str *), comm_str__search);
+		comm_str__put(*entry);
+		for (int i = entry - comm_strs->strs; i < comm_strs->num_strs - 1; i++)
+			comm_strs->strs[i] = comm_strs->strs[i + 1];
+		comm_strs->num_strs--;
+	}
+	up_write(&comm_strs->lock);
 }
 
 static struct comm_str *__comm_strs__find(struct comm_strs *comm_strs, const char *str)
@@ -158,7 +175,7 @@ static struct comm_str *comm_strs__findnew(const char *str)
 		}
 	}
 	up_write(&comm_strs->lock);
-	return result;
+	return comm_str__get(result);
 }
 
 struct comm *comm__new(const char *str, u64 timestamp, bool exec)
