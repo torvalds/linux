@@ -5,6 +5,7 @@
  * (C) 2011 DENX Software Engineering, Anatolij Gustschin <agust@denx.de>
  */
 
+#include <linux/array_size.h>
 #include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -124,7 +125,7 @@ static int eeprom_93xx46_read(void *priv, unsigned int off,
 
 	while (count) {
 		struct spi_message m;
-		struct spi_transfer t[2] = { { 0 } };
+		struct spi_transfer t[2] = {};
 		u16 cmd_addr = OP_READ << edev->addrlen;
 		size_t nbytes = count;
 
@@ -146,17 +147,15 @@ static int eeprom_93xx46_read(void *priv, unsigned int off,
 			bits += 1;
 		}
 
-		spi_message_init(&m);
-
 		t[0].tx_buf = (char *)&cmd_addr;
 		t[0].len = 2;
 		t[0].bits_per_word = bits;
-		spi_message_add_tail(&t[0], &m);
 
 		t[1].rx_buf = buf;
 		t[1].len = count;
 		t[1].bits_per_word = 8;
-		spi_message_add_tail(&t[1], &m);
+
+		spi_message_init_with_transfers(&m, t, ARRAY_SIZE(t));
 
 		err = spi_sync(edev->spi, &m);
 		/* have to wait at least Tcsl ns */
@@ -183,7 +182,7 @@ static int eeprom_93xx46_read(void *priv, unsigned int off,
 static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 {
 	struct spi_message m;
-	struct spi_transfer t;
+	struct spi_transfer t = {};
 	int bits, ret;
 	u16 cmd_addr;
 
@@ -204,13 +203,11 @@ static int eeprom_93xx46_ew(struct eeprom_93xx46_dev *edev, int is_on)
 	dev_dbg(&edev->spi->dev, "ew%s cmd 0x%04x, %d bits\n",
 			is_on ? "en" : "ds", cmd_addr, bits);
 
-	spi_message_init(&m);
-	memset(&t, 0, sizeof(t));
-
 	t.tx_buf = &cmd_addr;
 	t.len = 2;
 	t.bits_per_word = bits;
-	spi_message_add_tail(&t, &m);
+
+	spi_message_init_with_transfers(&m, &t, 1);
 
 	mutex_lock(&edev->lock);
 
@@ -234,7 +231,7 @@ eeprom_93xx46_write_word(struct eeprom_93xx46_dev *edev,
 			 const char *buf, unsigned off)
 {
 	struct spi_message m;
-	struct spi_transfer t[2];
+	struct spi_transfer t[2] = {};
 	int bits, data_len, ret;
 	u16 cmd_addr;
 
@@ -256,18 +253,15 @@ eeprom_93xx46_write_word(struct eeprom_93xx46_dev *edev,
 
 	dev_dbg(&edev->spi->dev, "write cmd 0x%x\n", cmd_addr);
 
-	spi_message_init(&m);
-	memset(t, 0, sizeof(t));
-
 	t[0].tx_buf = (char *)&cmd_addr;
 	t[0].len = 2;
 	t[0].bits_per_word = bits;
-	spi_message_add_tail(&t[0], &m);
 
 	t[1].tx_buf = buf;
 	t[1].len = data_len;
 	t[1].bits_per_word = 8;
-	spi_message_add_tail(&t[1], &m);
+
+	spi_message_init_with_transfers(&m, t, ARRAY_SIZE(t));
 
 	ret = spi_sync(edev->spi, &m);
 	/* have to wait program cycle time Twc ms */
@@ -325,7 +319,7 @@ static int eeprom_93xx46_write(void *priv, unsigned int off,
 static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 {
 	struct spi_message m;
-	struct spi_transfer t;
+	struct spi_transfer t = {};
 	int bits, ret;
 	u16 cmd_addr;
 
@@ -345,13 +339,11 @@ static int eeprom_93xx46_eral(struct eeprom_93xx46_dev *edev)
 
 	dev_dbg(&edev->spi->dev, "eral cmd 0x%04x, %d bits\n", cmd_addr, bits);
 
-	spi_message_init(&m);
-	memset(&t, 0, sizeof(t));
-
 	t.tx_buf = &cmd_addr;
 	t.len = 2;
 	t.bits_per_word = bits;
-	spi_message_add_tail(&t, &m);
+
+	spi_message_init_with_transfers(&m, &t, 1);
 
 	mutex_lock(&edev->lock);
 
