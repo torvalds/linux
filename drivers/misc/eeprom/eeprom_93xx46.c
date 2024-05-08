@@ -162,8 +162,8 @@ static int eeprom_93xx46_read(void *priv, unsigned int off,
 		ndelay(250);
 
 		if (err) {
-			dev_err(&edev->spi->dev, "read %zu bytes at %d: err. %d\n",
-				nbytes, (int)off, err);
+			dev_err(&edev->spi->dev, "read %zu bytes at %u: err. %d\n",
+				nbytes, off, err);
 			break;
 		}
 
@@ -274,7 +274,8 @@ static int eeprom_93xx46_write(void *priv, unsigned int off,
 {
 	struct eeprom_93xx46_dev *edev = priv;
 	char *buf = val;
-	int i, ret, step = 1;
+	int ret, step = 1;
+	unsigned int i;
 
 	if (unlikely(off >= edev->size))
 		return -EFBIG;
@@ -301,8 +302,7 @@ static int eeprom_93xx46_write(void *priv, unsigned int off,
 	for (i = 0; i < count; i += step) {
 		ret = eeprom_93xx46_write_word(edev, &buf[i], off + i);
 		if (ret) {
-			dev_err(&edev->spi->dev, "write failed at %d: %d\n",
-				(int)off + i, ret);
+			dev_err(&edev->spi->dev, "write failed at %u: %d\n", off + i, ret);
 			break;
 		}
 	}
