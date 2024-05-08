@@ -28,7 +28,6 @@
 &fpioa {
 	pinctrl-0 = <&jtag_pins>;
 	pinctrl-names = "default";
-	status = "okay";
 
 	jtag_pins: jtag-pinmux {
 		pinmux = <K210_FPIOA(0, K210_PCF_JTAG_TCLK)>,
