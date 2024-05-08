@@ -859,6 +859,10 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto deflate_err;
 
+	err = z_erofs_zstd_init();
+	if (err)
+		goto zstd_err;
+
 	err = z_erofs_gbuf_init();
 	if (err)
 		goto gbuf_err;
@@ -884,6 +888,8 @@ sysfs_err:
 zip_err:
 	z_erofs_gbuf_exit();
 gbuf_err:
+	z_erofs_zstd_exit();
+zstd_err:
 	z_erofs_deflate_exit();
 deflate_err:
 	z_erofs_lzma_exit();
@@ -903,6 +909,7 @@ static void __exit erofs_module_exit(void)
 
 	erofs_exit_sysfs();
 	z_erofs_exit_zip_subsystem();
+	z_erofs_zstd_exit();
 	z_erofs_deflate_exit();
 	z_erofs_lzma_exit();
 	erofs_exit_shrinker();

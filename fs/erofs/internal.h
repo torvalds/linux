@@ -502,6 +502,14 @@ static inline int z_erofs_deflate_init(void) { return 0; }
 static inline int z_erofs_deflate_exit(void) { return 0; }
 #endif	/* !CONFIG_EROFS_FS_ZIP_DEFLATE */
 
+#ifdef CONFIG_EROFS_FS_ZIP_ZSTD
+int __init z_erofs_zstd_init(void);
+void z_erofs_zstd_exit(void);
+#else
+static inline int z_erofs_zstd_init(void) { return 0; }
+static inline int z_erofs_zstd_exit(void) { return 0; }
+#endif	/* !CONFIG_EROFS_FS_ZIP_ZSTD */
+
 #ifdef CONFIG_EROFS_FS_ONDEMAND
 int erofs_fscache_register_fs(struct super_block *sb);
 void erofs_fscache_unregister_fs(struct super_block *sb);

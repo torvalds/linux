@@ -399,6 +399,13 @@ const struct z_erofs_decompressor erofs_decompressors[] = {
 		.name = "deflate"
 	},
 #endif
+#ifdef CONFIG_EROFS_FS_ZIP_ZSTD
+	[Z_EROFS_COMPRESSION_ZSTD] = {
+		.config = z_erofs_load_zstd_config,
+		.decompress = z_erofs_zstd_decompress,
+		.name = "zstd"
+	},
+#endif
 };
 
 int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
