@@ -45,6 +45,15 @@ static inline struct bpos bp_pos_to_bucket(const struct bch_fs *c,
 	return POS(bp_pos.inode, sector_to_bucket(ca, bucket_sector));
 }
 
+static inline struct bpos bucket_pos_to_bp_noerror(const struct bch_dev *ca,
+						   struct bpos bucket,
+						   u64 bucket_offset)
+{
+	return POS(bucket.inode,
+		   (bucket_to_sector(ca, bucket.offset) <<
+		    MAX_EXTENT_COMPRESS_RATIO_SHIFT) + bucket_offset);
+}
+
 /*
  * Convert from pos in alloc btree + bucket offset to pos in backpointer btree:
  */
@@ -53,10 +62,7 @@ static inline struct bpos bucket_pos_to_bp(const struct bch_fs *c,
 					   u64 bucket_offset)
 {
 	struct bch_dev *ca = bch_dev_bkey_exists(c, bucket.inode);
-	struct bpos ret = POS(bucket.inode,
-			      (bucket_to_sector(ca, bucket.offset) <<
-			       MAX_EXTENT_COMPRESS_RATIO_SHIFT) + bucket_offset);
-
+	struct bpos ret = bucket_pos_to_bp_noerror(ca, bucket, bucket_offset);
 	EBUG_ON(!bkey_eq(bucket, bp_pos_to_bucket(c, ret)));
 	return ret;
 }

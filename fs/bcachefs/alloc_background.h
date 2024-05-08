@@ -126,13 +126,17 @@ static inline struct bpos alloc_freespace_pos(struct bpos pos, struct bch_alloc_
 	return pos;
 }
 
-static inline unsigned alloc_v4_u64s(const struct bch_alloc_v4 *a)
+static inline unsigned alloc_v4_u64s_noerror(const struct bch_alloc_v4 *a)
 {
-	unsigned ret = (BCH_ALLOC_V4_BACKPOINTERS_START(a) ?:
+	return (BCH_ALLOC_V4_BACKPOINTERS_START(a) ?:
 			BCH_ALLOC_V4_U64s_V0) +
 		BCH_ALLOC_V4_NR_BACKPOINTERS(a) *
 		(sizeof(struct bch_backpointer) / sizeof(u64));
+}
 
+static inline unsigned alloc_v4_u64s(const struct bch_alloc_v4 *a)
+{
+	unsigned ret = alloc_v4_u64s_noerror(a);
 	BUG_ON(ret > U8_MAX - BKEY_U64s);
 	return ret;
 }

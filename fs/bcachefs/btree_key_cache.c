@@ -956,13 +956,15 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	}
 
 #ifdef __KERNEL__
-	for_each_possible_cpu(cpu) {
-		struct btree_key_cache_freelist *f =
-			per_cpu_ptr(bc->pcpu_freed, cpu);
+	if (bc->pcpu_freed) {
+		for_each_possible_cpu(cpu) {
+			struct btree_key_cache_freelist *f =
+				per_cpu_ptr(bc->pcpu_freed, cpu);
 
-		for (i = 0; i < f->nr; i++) {
-			ck = f->objs[i];
-			list_add(&ck->list, &items);
+			for (i = 0; i < f->nr; i++) {
+				ck = f->objs[i];
+				list_add(&ck->list, &items);
+			}
 		}
 	}
 #endif

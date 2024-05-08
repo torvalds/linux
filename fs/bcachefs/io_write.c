@@ -199,9 +199,6 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 						    u64 new_i_size,
 						    s64 i_sectors_delta)
 {
-	struct btree_iter iter;
-	struct bkey_i *k;
-	struct bkey_i_inode_v3 *inode;
 	/*
 	 * Crazy performance optimization:
 	 * Every extent update needs to also update the inode: the inode trigger
@@ -214,25 +211,36 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 	 * lost, but that's fine.
 	 */
 	unsigned inode_update_flags = BTREE_UPDATE_NOJOURNAL;
-	int ret;
 
-	k = bch2_bkey_get_mut_noupdate(trans, &iter, BTREE_ID_inodes,
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
 			      SPOS(0,
 				   extent_iter->pos.inode,
 				   extent_iter->snapshot),
 			      BTREE_ITER_CACHED);
-	ret = PTR_ERR_OR_ZERO(k);
+	int ret = bkey_err(k);
 	if (unlikely(ret))
 		return ret;
 
-	if (unlikely(k->k.type != KEY_TYPE_inode_v3)) {
-		k = bch2_inode_to_v3(trans, k);
-		ret = PTR_ERR_OR_ZERO(k);
+	/*
+	 * varint_decode_fast(), in the inode .invalid method, reads up to 7
+	 * bytes past the end of the buffer:
+	 */
+	struct bkey_i *k_mut = bch2_trans_kmalloc_nomemzero(trans, bkey_bytes(k.k) + 8);
+	ret = PTR_ERR_OR_ZERO(k_mut);
+	if (unlikely(ret))
+		goto err;
+
+	bkey_reassemble(k_mut, k);
+
+	if (unlikely(k_mut->k.type != KEY_TYPE_inode_v3)) {
+		k_mut = bch2_inode_to_v3(trans, k_mut);
+		ret = PTR_ERR_OR_ZERO(k_mut);
 		if (unlikely(ret))
 			goto err;
 	}
 
-	inode = bkey_i_to_inode_v3(k);
+	struct bkey_i_inode_v3 *inode = bkey_i_to_inode_v3(k_mut);
 
 	if (!(le64_to_cpu(inode->v.bi_flags) & BCH_INODE_i_size_dirty) &&
 	    new_i_size > le64_to_cpu(inode->v.bi_size)) {
@@ -1504,6 +1512,8 @@ static void bch2_write_data_inline(struct bch_write_op *op, unsigned data_len)
 	struct bkey_i_inline_data *id;
 	unsigned sectors;
 	int ret;
+
+	memset(&op->failed, 0, sizeof(op->failed));
 
 	op->flags |= BCH_WRITE_WROTE_DATA_INLINE;
 	op->flags |= BCH_WRITE_DONE;
