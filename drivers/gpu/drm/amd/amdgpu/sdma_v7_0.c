@@ -1347,7 +1347,11 @@ static int sdma_v7_0_ring_preempt_ib(struct amdgpu_ring *ring)
 
 	/* emit the trailing fence */
 	ring->trail_seq += 1;
-	amdgpu_ring_alloc(ring, 10);
+	r = amdgpu_ring_alloc(ring, 10);
+	if (r) {
+		DRM_ERROR("ring %d failed to be allocated \n", ring->idx);
+		return r;
+	}
 	sdma_v7_0_ring_emit_fence(ring, ring->trail_fence_gpu_addr,
 				  ring->trail_seq, 0);
 	amdgpu_ring_commit(ring);
