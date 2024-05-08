@@ -65,6 +65,9 @@ atomic_set_release(X,V) { smp_store_release(X,V); }
 
 atomic_add(V,X) { __atomic_op(X,+,V); }
 atomic_sub(V,X) { __atomic_op(X,-,V); }
+atomic_and(V,X) { __atomic_op(X,&,V); }
+atomic_or(V,X)  { __atomic_op(X,|,V); }
+atomic_xor(V,X) { __atomic_op(X,^,V); }
 atomic_inc(X)   { __atomic_op(X,+,1); }
 atomic_dec(X)   { __atomic_op(X,-,1); }
 
@@ -76,6 +79,21 @@ atomic_fetch_add(V,X) __atomic_fetch_op{mb}(X,+,V)
 atomic_fetch_add_relaxed(V,X) __atomic_fetch_op{once}(X,+,V)
 atomic_fetch_add_acquire(V,X) __atomic_fetch_op{acquire}(X,+,V)
 atomic_fetch_add_release(V,X) __atomic_fetch_op{release}(X,+,V)
+
+atomic_fetch_and(V,X) __atomic_fetch_op{mb}(X,&,V)
+atomic_fetch_and_relaxed(V,X) __atomic_fetch_op{once}(X,&,V)
+atomic_fetch_and_acquire(V,X) __atomic_fetch_op{acquire}(X,&,V)
+atomic_fetch_and_release(V,X) __atomic_fetch_op{release}(X,&,V)
+
+atomic_fetch_or(V,X) __atomic_fetch_op{mb}(X,|,V)
+atomic_fetch_or_relaxed(V,X) __atomic_fetch_op{once}(X,|,V)
+atomic_fetch_or_acquire(V,X) __atomic_fetch_op{acquire}(X,|,V)
+atomic_fetch_or_release(V,X) __atomic_fetch_op{release}(X,|,V)
+
+atomic_fetch_xor(V,X) __atomic_fetch_op{mb}(X,^,V)
+atomic_fetch_xor_relaxed(V,X) __atomic_fetch_op{once}(X,^,V)
+atomic_fetch_xor_acquire(V,X) __atomic_fetch_op{acquire}(X,^,V)
+atomic_fetch_xor_release(V,X) __atomic_fetch_op{release}(X,^,V)
 
 atomic_inc_return(X) __atomic_op_return{mb}(X,+,1)
 atomic_inc_return_relaxed(X) __atomic_op_return{once}(X,+,1)
@@ -117,3 +135,6 @@ atomic_sub_and_test(V,X) __atomic_op_return{mb}(X,-,V) == 0
 atomic_dec_and_test(X)  __atomic_op_return{mb}(X,-,1) == 0
 atomic_inc_and_test(X)  __atomic_op_return{mb}(X,+,1) == 0
 atomic_add_negative(V,X) __atomic_op_return{mb}(X,+,V) < 0
+atomic_add_negative_relaxed(V,X) __atomic_op_return{once}(X,+,V) < 0
+atomic_add_negative_acquire(V,X) __atomic_op_return{acquire}(X,+,V) < 0
+atomic_add_negative_release(V,X) __atomic_op_return{release}(X,+,V) < 0
