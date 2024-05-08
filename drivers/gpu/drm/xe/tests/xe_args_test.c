@@ -21,10 +21,10 @@ static void call_args_example(struct kunit *test)
 #undef buz
 }
 
-static void drop_first_example(struct kunit *test)
+static void drop_first_arg_example(struct kunit *test)
 {
 #define foo	X, Y, Z, Q
-#define bar	CALL_ARGS(COUNT_ARGS, DROP_FIRST(foo))
+#define bar	CALL_ARGS(COUNT_ARGS, DROP_FIRST_ARG(foo))
 
 	KUNIT_EXPECT_EQ(test, bar, 3);
 
@@ -32,12 +32,12 @@ static void drop_first_example(struct kunit *test)
 #undef bar
 }
 
-static void pick_first_example(struct kunit *test)
+static void first_arg_example(struct kunit *test)
 {
 	int X = 1;
 
 #define foo	X, Y, Z, Q
-#define bar	PICK_FIRST(foo)
+#define bar	FIRST_ARG(foo)
 
 	KUNIT_EXPECT_EQ(test, bar, X);
 	KUNIT_EXPECT_STREQ(test, __stringify(bar), "X");
@@ -46,12 +46,12 @@ static void pick_first_example(struct kunit *test)
 #undef bar
 }
 
-static void pick_last_example(struct kunit *test)
+static void last_arg_example(struct kunit *test)
 {
 	int Q = 1;
 
 #define foo	X, Y, Z, Q
-#define bar	PICK_LAST(foo)
+#define bar	LAST_ARG(foo)
 
 	KUNIT_EXPECT_EQ(test, bar, Q);
 	KUNIT_EXPECT_STREQ(test, __stringify(bar), "Q");
@@ -60,11 +60,29 @@ static void pick_last_example(struct kunit *test)
 #undef bar
 }
 
+static void pick_arg_example(struct kunit *test)
+{
+	int Y = 1, Z = 2;
+
+#define foo	X, Y, Z, Q
+#define bar	PICK_ARG(2, foo)
+#define buz	PICK_ARG3(foo)
+
+	KUNIT_EXPECT_EQ(test, bar, Y);
+	KUNIT_EXPECT_STREQ(test, __stringify(bar), "Y");
+	KUNIT_EXPECT_EQ(test, buz, Z);
+	KUNIT_EXPECT_STREQ(test, __stringify(buz), "Z");
+
+#undef foo
+#undef bar
+#undef buz
+}
+
 static void sep_comma_example(struct kunit *test)
 {
 #define foo(f)	f(X) f(Y) f(Z) f(Q)
-#define bar	DROP_FIRST(foo(ARGS_SEP_COMMA __stringify))
-#define buz	CALL_ARGS(COUNT_ARGS, DROP_FIRST(foo(ARGS_SEP_COMMA)))
+#define bar	DROP_FIRST_ARG(foo(ARGS_SEP_COMMA __stringify))
+#define buz	CALL_ARGS(COUNT_ARGS, DROP_FIRST_ARG(foo(ARGS_SEP_COMMA)))
 
 	static const char * const a[] = { bar };
 
@@ -123,61 +141,74 @@ static void call_args_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, MAX_ARGS), 12);
 }
 
-static void drop_first_test(struct kunit *test)
+static void drop_first_arg_test(struct kunit *test)
 {
 	int Y = -2, Z = -3, Q = -4;
-	int a[] = { DROP_FIRST(FOO_ARGS) };
+	int a[] = { DROP_FIRST_ARG(FOO_ARGS) };
 
-	KUNIT_EXPECT_EQ(test, DROP_FIRST(0, -1), -1);
-	KUNIT_EXPECT_EQ(test, DROP_FIRST(DROP_FIRST(0, -1, -2)), -2);
+	KUNIT_EXPECT_EQ(test, DROP_FIRST_ARG(0, -1), -1);
+	KUNIT_EXPECT_EQ(test, DROP_FIRST_ARG(DROP_FIRST_ARG(0, -1, -2)), -2);
 
-	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, DROP_FIRST(FOO_ARGS)), 3);
-	KUNIT_EXPECT_EQ(test, DROP_FIRST(DROP_FIRST(DROP_FIRST(FOO_ARGS))), -4);
+	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, DROP_FIRST_ARG(FOO_ARGS)), 3);
+	KUNIT_EXPECT_EQ(test, DROP_FIRST_ARG(DROP_FIRST_ARG(DROP_FIRST_ARG(FOO_ARGS))), -4);
 	KUNIT_EXPECT_EQ(test, a[0], -2);
 	KUNIT_EXPECT_EQ(test, a[1], -3);
 	KUNIT_EXPECT_EQ(test, a[2], -4);
-	KUNIT_EXPECT_STREQ(test, __stringify(DROP_FIRST(DROP_FIRST(DROP_FIRST(FOO_ARGS)))), "Q");
+
+#define foo	DROP_FIRST_ARG(FOO_ARGS)
+#define bar	DROP_FIRST_ARG(DROP_FIRST_ARG(FOO_ARGS))
+#define buz	DROP_FIRST_ARG(DROP_FIRST_ARG(DROP_FIRST_ARG(FOO_ARGS)))
+
+	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, foo), 3);
+	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, bar), 2);
+	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, buz), 1);
+	KUNIT_EXPECT_STREQ(test, __stringify(buz), "Q");
+
+#undef foo
+#undef bar
+#undef buz
 }
 
-static void pick_first_test(struct kunit *test)
+static void first_arg_test(struct kunit *test)
 {
 	int X = -1;
-	int a[] = { PICK_FIRST(FOO_ARGS) };
+	int a[] = { FIRST_ARG(FOO_ARGS) };
 
-	KUNIT_EXPECT_EQ(test, PICK_FIRST(-1, -2), -1);
+	KUNIT_EXPECT_EQ(test, FIRST_ARG(-1, -2), -1);
 
-	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, PICK_FIRST(FOO_ARGS)), 1);
-	KUNIT_EXPECT_EQ(test, PICK_FIRST(FOO_ARGS), -1);
+	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, FIRST_ARG(FOO_ARGS)), 1);
+	KUNIT_EXPECT_EQ(test, FIRST_ARG(FOO_ARGS), -1);
 	KUNIT_EXPECT_EQ(test, a[0], -1);
-	KUNIT_EXPECT_STREQ(test, __stringify(PICK_FIRST(FOO_ARGS)), "X");
+	KUNIT_EXPECT_STREQ(test, __stringify(FIRST_ARG(FOO_ARGS)), "X");
 }
 
-static void pick_last_test(struct kunit *test)
+static void last_arg_test(struct kunit *test)
 {
 	int Q = -4;
-	int a[] = { PICK_LAST(FOO_ARGS) };
+	int a[] = { LAST_ARG(FOO_ARGS) };
 
-	KUNIT_EXPECT_EQ(test, PICK_LAST(-1, -2), -2);
+	KUNIT_EXPECT_EQ(test, LAST_ARG(-1, -2), -2);
 
-	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, PICK_LAST(FOO_ARGS)), 1);
-	KUNIT_EXPECT_EQ(test, PICK_LAST(FOO_ARGS), -4);
+	KUNIT_EXPECT_EQ(test, CALL_ARGS(COUNT_ARGS, LAST_ARG(FOO_ARGS)), 1);
+	KUNIT_EXPECT_EQ(test, LAST_ARG(FOO_ARGS), -4);
 	KUNIT_EXPECT_EQ(test, a[0], -4);
-	KUNIT_EXPECT_STREQ(test, __stringify(PICK_LAST(FOO_ARGS)), "Q");
+	KUNIT_EXPECT_STREQ(test, __stringify(LAST_ARG(FOO_ARGS)), "Q");
 
-	KUNIT_EXPECT_EQ(test, PICK_LAST(MAX_ARGS), -12);
-	KUNIT_EXPECT_STREQ(test, __stringify(PICK_LAST(MAX_ARGS)), "-12");
+	KUNIT_EXPECT_EQ(test, LAST_ARG(MAX_ARGS), -12);
+	KUNIT_EXPECT_STREQ(test, __stringify(LAST_ARG(MAX_ARGS)), "-12");
 }
 
 static struct kunit_case args_tests[] = {
 	KUNIT_CASE(count_args_test),
 	KUNIT_CASE(call_args_example),
 	KUNIT_CASE(call_args_test),
-	KUNIT_CASE(drop_first_example),
-	KUNIT_CASE(drop_first_test),
-	KUNIT_CASE(pick_first_example),
-	KUNIT_CASE(pick_first_test),
-	KUNIT_CASE(pick_last_example),
-	KUNIT_CASE(pick_last_test),
+	KUNIT_CASE(drop_first_arg_example),
+	KUNIT_CASE(drop_first_arg_test),
+	KUNIT_CASE(first_arg_example),
+	KUNIT_CASE(first_arg_test),
+	KUNIT_CASE(last_arg_example),
+	KUNIT_CASE(last_arg_test),
+	KUNIT_CASE(pick_arg_example),
 	KUNIT_CASE(sep_comma_example),
 	{}
 };

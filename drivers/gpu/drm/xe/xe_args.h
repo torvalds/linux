@@ -35,7 +35,7 @@
 #define __CALL_ARGS(f, args...)		f(args)
 
 /**
- * DROP_FIRST - Returns all arguments except the first one.
+ * DROP_FIRST_ARG - Returns all arguments except the first one.
  * @args: arguments
  *
  * This helper macro allows manipulation the argument list before passing it
@@ -44,15 +44,15 @@
  * Example:
  *
  *	#define foo	X,Y,Z,Q
- *	#define bar	CALL_ARGS(COUNT_ARGS, DROP_FIRST(foo))
+ *	#define bar	CALL_ARGS(COUNT_ARGS, DROP_FIRST_ARG(foo))
  *
  *	With above definitions bar expands to 3.
  */
-#define DROP_FIRST(args...)		__DROP_FIRST(args)
-#define __DROP_FIRST(a, b...)		b
+#define DROP_FIRST_ARG(args...)		__DROP_FIRST_ARG(args)
+#define __DROP_FIRST_ARG(a, b...)	b
 
 /**
- * PICK_FIRST - Returns the first argument.
+ * FIRST_ARG - Returns the first argument.
  * @args: arguments
  *
  * This helper macro allows manipulation the argument list before passing it
@@ -61,15 +61,15 @@
  * Example:
  *
  *	#define foo	X,Y,Z,Q
- *	#define bar	PICK_FIRST(foo)
+ *	#define bar	FIRST_ARG(foo)
  *
  *	With above definitions bar expands to X.
  */
-#define PICK_FIRST(args...)		__PICK_FIRST(args)
-#define __PICK_FIRST(a, b...)		a
+#define FIRST_ARG(args...)		__FIRST_ARG(args)
+#define __FIRST_ARG(a, b...)		a
 
 /**
- * PICK_LAST - Returns the last argument.
+ * LAST_ARG - Returns the last argument.
  * @args: arguments
  *
  * This helper macro allows manipulation the argument list before passing it
@@ -80,24 +80,46 @@
  * Example:
  *
  *	#define foo	X,Y,Z,Q
- *	#define bar	PICK_LAST(foo)
+ *	#define bar	LAST_ARG(foo)
  *
  *	With above definitions bar expands to Q.
  */
-#define PICK_LAST(args...)		__PICK_ARG(COUNT_ARGS(args), args)
+#define LAST_ARG(args...)		__LAST_ARG(args)
+#define __LAST_ARG(args...)		PICK_ARG(COUNT_ARGS(args), args)
+
+/**
+ * PICK_ARG - Returns the n-th argument.
+ * @n: argument number to be returned
+ * @args: arguments
+ *
+ * This helper macro allows manipulation the argument list before passing it
+ * to the next level macro.
+ *
+ * Like COUNT_ARGS() this macro supports n up to 12.
+ * Specialized macros PICK_ARG1() to PICK_ARG12() are also available.
+ *
+ * Example:
+ *
+ *	#define foo	X,Y,Z,Q
+ *	#define bar	PICK_ARG(2, foo)
+ *	#define buz	PICK_ARG3(foo)
+ *
+ *	With above definitions bar expands to Y and buz expands to Z.
+ */
+#define PICK_ARG(n, args...)		__PICK_ARG(n, args)
 #define __PICK_ARG(n, args...)		CALL_ARGS(CONCATENATE(PICK_ARG, n), args)
-#define PICK_ARG1(args...)		PICK_FIRST(args)
-#define PICK_ARG2(args...)		PICK_ARG1(DROP_FIRST(args))
-#define PICK_ARG3(args...)		PICK_ARG2(DROP_FIRST(args))
-#define PICK_ARG4(args...)		PICK_ARG3(DROP_FIRST(args))
-#define PICK_ARG5(args...)		PICK_ARG4(DROP_FIRST(args))
-#define PICK_ARG6(args...)		PICK_ARG5(DROP_FIRST(args))
-#define PICK_ARG7(args...)		PICK_ARG6(DROP_FIRST(args))
-#define PICK_ARG8(args...)		PICK_ARG7(DROP_FIRST(args))
-#define PICK_ARG9(args...)		PICK_ARG8(DROP_FIRST(args))
-#define PICK_ARG10(args...)		PICK_ARG9(DROP_FIRST(args))
-#define PICK_ARG11(args...)		PICK_ARG10(DROP_FIRST(args))
-#define PICK_ARG12(args...)		PICK_ARG11(DROP_FIRST(args))
+#define PICK_ARG1(args...)		FIRST_ARG(args)
+#define PICK_ARG2(args...)		PICK_ARG1(DROP_FIRST_ARG(args))
+#define PICK_ARG3(args...)		PICK_ARG2(DROP_FIRST_ARG(args))
+#define PICK_ARG4(args...)		PICK_ARG3(DROP_FIRST_ARG(args))
+#define PICK_ARG5(args...)		PICK_ARG4(DROP_FIRST_ARG(args))
+#define PICK_ARG6(args...)		PICK_ARG5(DROP_FIRST_ARG(args))
+#define PICK_ARG7(args...)		PICK_ARG6(DROP_FIRST_ARG(args))
+#define PICK_ARG8(args...)		PICK_ARG7(DROP_FIRST_ARG(args))
+#define PICK_ARG9(args...)		PICK_ARG8(DROP_FIRST_ARG(args))
+#define PICK_ARG10(args...)		PICK_ARG9(DROP_FIRST_ARG(args))
+#define PICK_ARG11(args...)		PICK_ARG10(DROP_FIRST_ARG(args))
+#define PICK_ARG12(args...)		PICK_ARG11(DROP_FIRST_ARG(args))
 
 /**
  * ARGS_SEP_COMMA - Definition of a comma character.
@@ -109,8 +131,8 @@
  * Example:
  *
  *	#define foo(f)	f(X) f(Y) f(Z) f(Q)
- *	#define bar	DROP_FIRST(foo(ARGS_SEP_COMMA __stringify))
- *	#define buz	CALL_ARGS(COUNT_ARGS, DROP_FIRST(foo(ARGS_SEP_COMMA)))
+ *	#define bar	DROP_FIRST_ARG(foo(ARGS_SEP_COMMA __stringify))
+ *	#define buz	CALL_ARGS(COUNT_ARGS, DROP_FIRST_ARG(foo(ARGS_SEP_COMMA)))
  *
  *	With above definitions bar expands to
  *		"X", "Y", "Z", "Q"
