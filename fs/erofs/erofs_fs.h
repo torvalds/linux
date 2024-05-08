@@ -396,8 +396,7 @@ enum {
 	Z_EROFS_LCLUSTER_TYPE_MAX
 };
 
-#define Z_EROFS_LI_LCLUSTER_TYPE_BITS        2
-#define Z_EROFS_LI_LCLUSTER_TYPE_BIT         0
+#define Z_EROFS_LI_LCLUSTER_TYPE_MASK	(Z_EROFS_LCLUSTER_TYPE_MAX - 1)
 
 /* (noncompact only, HEAD) This pcluster refers to partial decompressed data */
 #define Z_EROFS_LI_PARTIAL_REF		(1 << 15)
@@ -451,8 +450,6 @@ static inline void erofs_check_ondisk_layout_definitions(void)
 		     sizeof(struct z_erofs_lcluster_index));
 	BUILD_BUG_ON(sizeof(struct erofs_deviceslot) != 128);
 
-	BUILD_BUG_ON(BIT(Z_EROFS_LI_LCLUSTER_TYPE_BITS) <
-		     Z_EROFS_LCLUSTER_TYPE_MAX - 1);
 	/* exclude old compiler versions like gcc 7.5.0 */
 	BUILD_BUG_ON(__builtin_constant_p(fmh) ?
 		     fmh != cpu_to_le64(1ULL << 63) : 0);
