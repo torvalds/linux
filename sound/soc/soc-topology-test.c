@@ -819,4 +819,5 @@ static struct kunit_suite snd_soc_tplg_test_suite = {
 
 kunit_test_suites(&snd_soc_tplg_test_suite);
 
+MODULE_DESCRIPTION("ASoC Topology Kernel Unit Tests");
 MODULE_LICENSE("GPL");
