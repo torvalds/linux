@@ -316,7 +316,7 @@ static int armada_370_xp_msi_init(struct device_node *node,
 	return 0;
 }
 #else
-static void armada_370_xp_msi_reenable_percpu(void) {}
+static __maybe_unused void armada_370_xp_msi_reenable_percpu(void) {}
 
 static inline int armada_370_xp_msi_init(struct device_node *node,
 					 phys_addr_t main_int_phys_base)

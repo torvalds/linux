@@ -606,7 +606,7 @@ static int allocate_actors_buffer(struct power_allocator_params *params,
 
 	/* There might be no cooling devices yet. */
 	if (!num_actors) {
-		ret = -EINVAL;
+		ret = 0;
 		goto clean_state;
 	}
 
@@ -679,11 +679,6 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 		return -ENOMEM;
 
 	get_governor_trips(tz, params);
-	if (!params->trip_max) {
-		dev_warn(&tz->device, "power_allocator: missing trip_max\n");
-		kfree(params);
-		return -EINVAL;
-	}
 
 	ret = check_power_actors(tz, params);
 	if (ret < 0) {
@@ -714,9 +709,10 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 	else
 		params->sustainable_power = tz->tzp->sustainable_power;
 
-	estimate_pid_constants(tz, tz->tzp->sustainable_power,
-			       params->trip_switch_on,
-			       params->trip_max->temperature);
+	if (params->trip_max)
+		estimate_pid_constants(tz, tz->tzp->sustainable_power,
+				       params->trip_switch_on,
+				       params->trip_max->temperature);
 
 	reset_pid_controller(params);
 

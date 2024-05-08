@@ -186,8 +186,10 @@ MODULE_PARM_DESC(pm_blacklist, "Enable power-management denylist");
 static bool power_save_controller = 1;
 module_param(power_save_controller, bool, 0644);
 MODULE_PARM_DESC(power_save_controller, "Reset controller in power save mode.");
-#else
+#else /* CONFIG_PM */
 #define power_save	0
+#define pm_blacklist	false
+#define power_save_controller	false
 #endif /* CONFIG_PM */
 
 static int align_buffer_size = -1;
@@ -893,7 +895,6 @@ static void __azx_shutdown_chip(struct azx *chip, bool skip_link_reset)
 	display_power(chip, false);
 }
 
-#ifdef CONFIG_PM
 static DEFINE_MUTEX(card_list_lock);
 static LIST_HEAD(card_list);
 
@@ -919,7 +920,7 @@ static void azx_del_card_list(struct azx *chip)
 }
 
 /* trigger power-save check at writing parameter */
-static int param_set_xint(const char *val, const struct kernel_param *kp)
+static int __maybe_unused param_set_xint(const char *val, const struct kernel_param *kp)
 {
 	struct hda_intel *hda;
 	struct azx *chip;
@@ -990,7 +991,6 @@ static void __azx_runtime_resume(struct azx *chip)
 		display_power(chip, false);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int azx_prepare(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
@@ -1049,7 +1049,7 @@ static int azx_suspend(struct device *dev)
 	return 0;
 }
 
-static int azx_resume(struct device *dev)
+static int __maybe_unused azx_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
@@ -1100,9 +1100,8 @@ static int azx_thaw_noirq(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static int azx_runtime_suspend(struct device *dev)
+static int __maybe_unused azx_runtime_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
@@ -1119,7 +1118,7 @@ static int azx_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int azx_runtime_resume(struct device *dev)
+static int __maybe_unused azx_runtime_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
@@ -1136,7 +1135,7 @@ static int azx_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int azx_runtime_idle(struct device *dev)
+static int __maybe_unused azx_runtime_idle(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
@@ -1162,22 +1161,13 @@ static int azx_runtime_idle(struct device *dev)
 }
 
 static const struct dev_pm_ops azx_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(azx_suspend, azx_resume)
-#ifdef CONFIG_PM_SLEEP
-	.prepare = azx_prepare,
-	.complete = azx_complete,
-	.freeze_noirq = azx_freeze_noirq,
-	.thaw_noirq = azx_thaw_noirq,
-#endif
+	SYSTEM_SLEEP_PM_OPS(azx_suspend, azx_resume)
+	.prepare = pm_sleep_ptr(azx_prepare),
+	.complete = pm_sleep_ptr(azx_complete),
+	.freeze_noirq = pm_sleep_ptr(azx_freeze_noirq),
+	.thaw_noirq = pm_sleep_ptr(azx_thaw_noirq),
 	SET_RUNTIME_PM_OPS(azx_runtime_suspend, azx_runtime_resume, azx_runtime_idle)
 };
-
-#define AZX_PM_OPS	&azx_pm
-#else
-#define azx_add_card_list(chip) /* NOP */
-#define azx_del_card_list(chip) /* NOP */
-#define AZX_PM_OPS	NULL
-#endif /* CONFIG_PM */
 
 
 static int azx_probe_continue(struct azx *chip);
@@ -2209,7 +2199,6 @@ out_free:
 	return err;
 }
 
-#ifdef CONFIG_PM
 /* On some boards setting power_save to a non 0 value leads to clicking /
  * popping sounds when ever we enter/leave powersaving mode. Ideally we would
  * figure out how to avoid these sounds, but that is not always feasible.
@@ -2251,13 +2240,11 @@ static const struct snd_pci_quirk power_save_denylist[] = {
 	SND_PCI_QUIRK(0x1734, 0x1232, "KONTRON SinglePC", 0),
 	{}
 };
-#endif /* CONFIG_PM */
 
 static void set_default_power_save(struct azx *chip)
 {
 	int val = power_save;
 
-#ifdef CONFIG_PM
 	if (pm_blacklist) {
 		const struct snd_pci_quirk *q;
 
@@ -2268,7 +2255,6 @@ static void set_default_power_save(struct azx *chip)
 			val = 0;
 		}
 	}
-#endif /* CONFIG_PM */
 	snd_hda_set_power_save(&chip->bus, val * 1000);
 }
 
@@ -2324,10 +2310,6 @@ static int azx_probe_continue(struct azx *chip)
 					 chip->fw->data);
 		if (err < 0)
 			goto out_free;
-#ifndef CONFIG_PM
-		release_firmware(chip->fw); /* no longer needed */
-		chip->fw = NULL;
-#endif
 	}
 #endif
 
@@ -2770,7 +2752,7 @@ static struct pci_driver azx_driver = {
 	.remove = azx_remove,
 	.shutdown = azx_shutdown,
 	.driver = {
-		.pm = AZX_PM_OPS,
+		.pm = &azx_pm,
 	},
 };
 

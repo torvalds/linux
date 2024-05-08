@@ -797,7 +797,7 @@ static int at8031_parse_dt(struct phy_device *phydev)
 
 static int at8031_probe(struct phy_device *phydev)
 {
-	struct at803x_priv *priv = phydev->priv;
+	struct at803x_priv *priv;
 	int mode_cfg;
 	int ccr;
 	int ret;
@@ -805,6 +805,8 @@ static int at8031_probe(struct phy_device *phydev)
 	ret = at803x_probe(phydev);
 	if (ret)
 		return ret;
+
+	priv = phydev->priv;
 
 	/* Only supported on AR8031/AR8033, the AR8030/AR8035 use strapping
 	 * options.

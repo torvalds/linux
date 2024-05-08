@@ -15,6 +15,7 @@
 #include "btree_gc.h"
 #include "btree_journal_iter.h"
 #include "btree_key_cache.h"
+#include "btree_node_scan.h"
 #include "btree_update_interior.h"
 #include "btree_io.h"
 #include "btree_write_buffer.h"
@@ -365,7 +366,7 @@ void bch2_fs_read_only(struct bch_fs *c)
 	    !test_bit(BCH_FS_emergency_ro, &c->flags) &&
 	    test_bit(BCH_FS_started, &c->flags) &&
 	    test_bit(BCH_FS_clean_shutdown, &c->flags) &&
-	    !c->opts.norecovery) {
+	    c->recovery_pass_done >= BCH_RECOVERY_PASS_journal_replay) {
 		BUG_ON(c->journal.last_empty_seq != journal_cur_seq(&c->journal));
 		BUG_ON(atomic_read(&c->btree_cache.dirty));
 		BUG_ON(atomic_long_read(&c->btree_key_cache.nr_dirty));
@@ -510,7 +511,8 @@ err:
 
 int bch2_fs_read_write(struct bch_fs *c)
 {
-	if (c->opts.norecovery)
+	if (c->opts.recovery_pass_last &&
+	    c->opts.recovery_pass_last < BCH_RECOVERY_PASS_journal_replay)
 		return -BCH_ERR_erofs_norecovery;
 
 	if (c->opts.nochanges)
@@ -535,6 +537,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_exit(&c->times[i]);
 
+	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	bch2_free_pending_node_rewrites(c);
 	bch2_fs_sb_errors_exit(c);
 	bch2_fs_counters_exit(c);
@@ -559,6 +562,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_io_clock_exit(&c->io_clock[READ]);
 	bch2_fs_compress_exit(c);
 	bch2_journal_keys_put_initial(c);
+	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	BUG_ON(atomic_read(&c->journal_keys.ref));
 	bch2_fs_btree_write_buffer_exit(c);
 	percpu_free_rwsem(&c->mark_lock);
@@ -1015,7 +1019,15 @@ int bch2_fs_start(struct bch_fs *c)
 	for_each_online_member(c, ca)
 		bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx)->last_mount = cpu_to_le64(now);
 
+	struct bch_sb_field_ext *ext =
+		bch2_sb_field_get_minsize(&c->disk_sb, ext, sizeof(*ext) / sizeof(u64));
 	mutex_unlock(&c->sb_lock);
+
+	if (!ext) {
+		bch_err(c, "insufficient space in superblock for sb_field_ext");
+		ret = -BCH_ERR_ENOSPC_sb;
+		goto err;
+	}
 
 	for_each_rw_member(c, ca)
 		bch2_dev_allocator_add(c, ca);

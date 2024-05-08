@@ -1075,11 +1075,9 @@ irqreturn_t azx_interrupt(int irq, void *dev_id)
 	bool active, handled = false;
 	int repeat = 0; /* count for avoiding endless loop */
 
-#ifdef CONFIG_PM
 	if (azx_has_pm_runtime(chip))
 		if (!pm_runtime_active(chip->card->dev))
 			return IRQ_NONE;
-#endif
 
 	spin_lock(&bus->reg_lock);
 

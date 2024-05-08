@@ -102,7 +102,9 @@ do {									\
 
 #define MAX_RETRIES   1
 
-static struct class * ch_sysfs_class;
+static const struct class ch_sysfs_class = {
+	.name = "scsi_changer",
+};
 
 typedef struct {
 	struct kref         ref;
@@ -930,7 +932,7 @@ static int ch_probe(struct device *dev)
 	mutex_init(&ch->lock);
 	kref_init(&ch->ref);
 	ch->device = sd;
-	class_dev = device_create(ch_sysfs_class, dev,
+	class_dev = device_create(&ch_sysfs_class, dev,
 				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
 				  "s%s", ch->name);
 	if (IS_ERR(class_dev)) {
@@ -955,7 +957,7 @@ static int ch_probe(struct device *dev)
 
 	return 0;
 destroy_dev:
-	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->minor));
+	device_destroy(&ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->minor));
 put_device:
 	scsi_device_put(sd);
 remove_idr:
@@ -974,7 +976,7 @@ static int ch_remove(struct device *dev)
 	dev_set_drvdata(dev, NULL);
 	spin_unlock(&ch_index_lock);
 
-	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
+	device_destroy(&ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->minor));
 	scsi_device_put(ch->device);
 	kref_put(&ch->ref, ch_destroy);
 	return 0;
@@ -1003,11 +1005,9 @@ static int __init init_ch_module(void)
 	int rc;
 
 	printk(KERN_INFO "SCSI Media Changer driver v" VERSION " \n");
-        ch_sysfs_class = class_create("scsi_changer");
-        if (IS_ERR(ch_sysfs_class)) {
-		rc = PTR_ERR(ch_sysfs_class);
+	rc = class_register(&ch_sysfs_class);
+	if (rc)
 		return rc;
-        }
 	rc = register_chrdev(SCSI_CHANGER_MAJOR,"ch",&changer_fops);
 	if (rc < 0) {
 		printk("Unable to get major %d for SCSI-Changer\n",
@@ -1022,7 +1022,7 @@ static int __init init_ch_module(void)
  fail2:
 	unregister_chrdev(SCSI_CHANGER_MAJOR, "ch");
  fail1:
-	class_destroy(ch_sysfs_class);
+	class_unregister(&ch_sysfs_class);
 	return rc;
 }
 
@@ -1030,7 +1030,7 @@ static void __exit exit_ch_module(void)
 {
 	scsi_unregister_driver(&ch_template.gendrv);
 	unregister_chrdev(SCSI_CHANGER_MAJOR, "ch");
-	class_destroy(ch_sysfs_class);
+	class_unregister(&ch_sysfs_class);
 	idr_destroy(&ch_index_idr);
 }
 
