@@ -16,13 +16,6 @@
 	#size-cells = <1>;
 	compatible = "canaan,kendryte-k210";
 
-	aliases {
-		serial0 = &uarths0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-	};
-
 	/*
 	 * The K210 has an sv39 MMU following the privileged specification v1.9.
 	 * Since this is a non-ratified draft specification, the kernel does not

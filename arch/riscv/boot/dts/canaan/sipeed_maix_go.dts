@@ -16,6 +16,10 @@
 	model = "SiPeed MAIX GO";
 	compatible = "sipeed,maix-go", "canaan,kendryte-k210";
 
+	aliases {
+		serial0 = &uarths0;
+	};
+
 	chosen {
 		bootargs = "earlycon console=ttySIF0";
 		stdout-path = "serial0:115200n8";
