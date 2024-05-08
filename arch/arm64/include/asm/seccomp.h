@@ -8,13 +8,13 @@
 #ifndef _ASM_SECCOMP_H
 #define _ASM_SECCOMP_H
 
-#include <asm/unistd.h>
+#include <asm/unistd_compat_32.h>
 
 #ifdef CONFIG_COMPAT
-#define __NR_seccomp_read_32		__NR_compat_read
-#define __NR_seccomp_write_32		__NR_compat_write
-#define __NR_seccomp_exit_32		__NR_compat_exit
-#define __NR_seccomp_sigreturn_32	__NR_compat_rt_sigreturn
+#define __NR_seccomp_read_32		__NR_compat32_read
+#define __NR_seccomp_write_32		__NR_compat32_write
+#define __NR_seccomp_exit_32		__NR_compat32_exit
+#define __NR_seccomp_sigreturn_32	__NR_compat32_rt_sigreturn
 #endif /* CONFIG_COMPAT */
 
 #include <asm-generic/seccomp.h>
