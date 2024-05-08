@@ -86,6 +86,19 @@ progs/btf_dump_test_case_namespacing.c-bpf_gcc-CFLAGS := -Wno-error
 progs/btf_dump_test_case_packing.c-bpf_gcc-CFLAGS := -Wno-error
 progs/btf_dump_test_case_padding.c-bpf_gcc-CFLAGS := -Wno-error
 progs/btf_dump_test_case_syntax.c-bpf_gcc-CFLAGS := -Wno-error
+
+# The following tests do type-punning, via the __imm_insn macro, from
+# `struct bpf_insn' to long and then uses the value.  This triggers an
+# "is used uninitialized" warning in GCC due to strict-aliasing
+# rules.
+progs/verifier_ref_tracking.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
+progs/verifier_unpriv.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
+progs/verifier_cgroup_storage.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
+progs/verifier_ld_ind.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
+progs/verifier_map_ret_val.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
+progs/verifier_spill_fill.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
+progs/verifier_subprog_precision.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
+progs/verifier_uninit.c-bpf_gcc-CFLAGS := -fno-strict-aliasing
 endif
 
 ifneq ($(CLANG_CPUV4),)
