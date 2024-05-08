@@ -278,7 +278,7 @@ static int vl53l0x_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id vl53l0x_id[] = {
-	{ "vl53l0x", 0 },
+	{ "vl53l0x" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vl53l0x_id);

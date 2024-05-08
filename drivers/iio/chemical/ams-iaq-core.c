@@ -163,7 +163,7 @@ static int ams_iaqcore_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ams_iaqcore_id[] = {
-	{ "ams-iaq-core", 0 },
+	{ "ams-iaq-core" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ams_iaqcore_id);

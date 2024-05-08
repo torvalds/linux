@@ -1025,10 +1025,10 @@ static DEFINE_RUNTIME_DEV_PM_OPS(ak8974_dev_pm_ops, ak8974_runtime_suspend,
 				 ak8974_runtime_resume, NULL);
 
 static const struct i2c_device_id ak8974_id[] = {
-	{"ami305", 0 },
-	{"ami306", 0 },
-	{"ak8974", 0 },
-	{"hscdtd008a", 0 },
+	{ "ami305" },
+	{ "ami306" },
+	{ "ak8974" },
+	{ "hscdtd008a" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ak8974_id);

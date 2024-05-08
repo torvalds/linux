@@ -1043,8 +1043,8 @@ static const struct of_device_id sx9500_of_match[] = {
 MODULE_DEVICE_TABLE(of, sx9500_of_match);
 
 static const struct i2c_device_id sx9500_id[] = {
-	{"sx9500", 0},
-	{ },
+	{ "sx9500" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sx9500_id);
 

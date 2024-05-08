@@ -598,7 +598,7 @@ static int max44000_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max44000_id[] = {
-	{"max44000", 0},
+	{ "max44000" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max44000_id);
