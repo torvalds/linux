@@ -6,7 +6,7 @@ CFLAGS += -D_GNU_SOURCE
 ALIGNS := 0x1000 0x200000 0x1000000
 ALIGN_PIES        := $(patsubst %,load_address.%,$(ALIGNS))
 ALIGN_STATIC_PIES := $(patsubst %,load_address.static.%,$(ALIGNS))
-ALIGNMENT_TESTS   := $(ALIGN_PIES)
+ALIGNMENT_TESTS   := $(ALIGN_PIES) $(ALIGN_STATIC_PIES)
 
 TEST_PROGS := binfmt_script.py
 TEST_GEN_PROGS := execveat non-regular $(ALIGNMENT_TESTS)
