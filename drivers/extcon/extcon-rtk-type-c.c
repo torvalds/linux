@@ -13,7 +13,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/syscalls.h>
