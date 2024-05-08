@@ -251,7 +251,6 @@ static void btintel_pcie_reset_bt(struct btintel_pcie_data *data)
 static int btintel_pcie_enable_bt(struct btintel_pcie_data *data)
 {
 	int err;
-	u32 reg;
 
 	data->gp0_received = false;
 
@@ -259,7 +258,7 @@ static int btintel_pcie_enable_bt(struct btintel_pcie_data *data)
 	btintel_pcie_wr_reg32(data, BTINTEL_PCIE_CSR_CI_ADDR_LSB_REG,
 			      data->ci_p_addr & 0xffffffff);
 	btintel_pcie_wr_reg32(data, BTINTEL_PCIE_CSR_CI_ADDR_MSB_REG,
-			      data->ci_p_addr >> 32);
+			      (u64)data->ci_p_addr >> 32);
 
 	/* Reset the cached value of boot stage. it is updated by the MSI-X
 	 * gp0 interrupt handler.
@@ -267,7 +266,7 @@ static int btintel_pcie_enable_bt(struct btintel_pcie_data *data)
 	data->boot_stage_cache = 0x0;
 
 	/* Set MAC_INIT bit to start primary bootloader */
-	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG);
+	btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG);
 
 	btintel_pcie_set_reg_bits(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG,
 				  BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_INIT);
@@ -285,7 +284,7 @@ static int btintel_pcie_enable_bt(struct btintel_pcie_data *data)
 				  BTINTEL_PCIE_CSR_FUNC_CTRL_FUNC_ENA |
 				  BTINTEL_PCIE_CSR_FUNC_CTRL_FUNC_INIT);
 
-	reg = btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG);
+	btintel_pcie_rd_reg32(data, BTINTEL_PCIE_CSR_FUNC_CTRL_REG);
 
 	/* wait for interrupt from the device after booting up to primary
 	 * bootloader.
@@ -525,7 +524,6 @@ static void btintel_pcie_msix_rx_handle(struct btintel_pcie_data *data)
 	u16 cr_hia, cr_tia;
 	struct rxq *rxq;
 	struct urbd1 *urbd1;
-	struct frbd *frbd;
 	struct data_buf *buf;
 	int ret;
 	struct hci_dev *hdev = data->hdev;
@@ -549,8 +547,6 @@ static void btintel_pcie_msix_rx_handle(struct btintel_pcie_data *data)
 	while (cr_tia != cr_hia) {
 		urbd1 = &rxq->urbd1s[cr_tia];
 		ipc_print_urbd1(data->hdev, urbd1, cr_tia);
-
-		frbd = &rxq->frbds[urbd1->frbd_tag];
 
 		buf = &rxq->bufs[urbd1->frbd_tag];
 		if (!buf) {
