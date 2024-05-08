@@ -894,6 +894,9 @@ static bool pci_preserve_config(struct pci_host_bridge *host_bridge)
 	if (pci_acpi_preserve_config(host_bridge))
 		return true;
 
+	if (host_bridge->dev.parent && host_bridge->dev.parent->of_node)
+		return of_pci_preserve_config(host_bridge->dev.parent->of_node);
+
 	return false;
 }
 
