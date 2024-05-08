@@ -1351,12 +1351,12 @@ void v4l2_subdev_cleanup(struct v4l2_subdev *sd);
  */
 /*
  * Wrap v4l2_subdev_state_get_format(), allowing the function to be called with
- * two or three arguments. The purpose of the __v4l2_subdev_state_get_format()
+ * two or three arguments. The purpose of the __v4l2_subdev_state_gen_call()
  * macro below is to come up with the name of the function or macro to call,
  * using the last two arguments (_stream and _pad). The selected function or
  * macro is then called using the arguments specified by the caller. A similar
- * arrangement is used for v4l2_subdev_state_crop() and
- * v4l2_subdev_state_compose() below.
+ * arrangement is used for v4l2_subdev_state_crop(), v4l2_subdev_state_compose()
+ * and v4l2_subdev_state_get_interval() below.
  */
 #define v4l2_subdev_state_get_format(state, pad, ...)			\
 	__v4l2_subdev_state_gen_call(format, ##__VA_ARGS__, , _pad)	\
