@@ -10,13 +10,15 @@
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+
 #include <linux/nvmem-provider.h>
+
 #include <linux/eeprom_93xx46.h>
 
 #define OP_START	0x4
@@ -422,22 +424,20 @@ static const struct spi_device_id eeprom_93xx46_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, eeprom_93xx46_spi_ids);
 
-static int eeprom_93xx46_probe_dt(struct spi_device *spi)
+static int eeprom_93xx46_probe_fw(struct device *dev)
 {
-	const struct of_device_id *of_id =
-		of_match_device(eeprom_93xx46_of_table, &spi->dev);
-	struct device_node *np = spi->dev.of_node;
+	const struct eeprom_93xx46_devtype_data *data;
 	struct eeprom_93xx46_platform_data *pd;
 	u32 tmp;
 	int ret;
 
-	pd = devm_kzalloc(&spi->dev, sizeof(*pd), GFP_KERNEL);
+	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 
-	ret = of_property_read_u32(np, "data-size", &tmp);
+	ret = device_property_read_u32(dev, "data-size", &tmp);
 	if (ret < 0) {
-		dev_err(&spi->dev, "data-size property not found\n");
+		dev_err(dev, "data-size property not found\n");
 		return ret;
 	}
 
@@ -446,30 +446,28 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 	} else if (tmp == 16) {
 		pd->flags |= EE_ADDR16;
 	} else {
-		dev_err(&spi->dev, "invalid data-size (%d)\n", tmp);
+		dev_err(dev, "invalid data-size (%d)\n", tmp);
 		return -EINVAL;
 	}
 
-	if (of_property_read_bool(np, "read-only"))
+	if (device_property_read_bool(dev, "read-only"))
 		pd->flags |= EE_READONLY;
 
-	pd->select = devm_gpiod_get_optional(&spi->dev, "select",
-					     GPIOD_OUT_LOW);
+	pd->select = devm_gpiod_get_optional(dev, "select", GPIOD_OUT_LOW);
 	if (IS_ERR(pd->select))
 		return PTR_ERR(pd->select);
+	gpiod_set_consumer_name(pd->select, "93xx46 EEPROMs OE");
 
 	pd->prepare = select_assert;
 	pd->finish = select_deassert;
-	gpiod_direction_output(pd->select, 0);
 
-	if (of_id->data) {
-		const struct eeprom_93xx46_devtype_data *data = of_id->data;
-
+	data = spi_get_device_match_data(to_spi_device(dev));
+	if (data) {
 		pd->quirks = data->quirks;
 		pd->flags |= data->flags;
 	}
 
-	spi->dev.platform_data = pd;
+	dev->platform_data = pd;
 
 	return 0;
 }
@@ -478,10 +476,11 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 {
 	struct eeprom_93xx46_platform_data *pd;
 	struct eeprom_93xx46_dev *edev;
+	struct device *dev = &spi->dev;
 	int err;
 
-	if (spi->dev.of_node) {
-		err = eeprom_93xx46_probe_dt(spi);
+	if (dev_fwnode(dev)) {
+		err = eeprom_93xx46_probe_fw(dev);
 		if (err < 0)
 			return err;
 	}
@@ -565,7 +564,7 @@ static void eeprom_93xx46_remove(struct spi_device *spi)
 static struct spi_driver eeprom_93xx46_driver = {
 	.driver = {
 		.name	= "93xx46",
-		.of_match_table = of_match_ptr(eeprom_93xx46_of_table),
+		.of_match_table = eeprom_93xx46_of_table,
 	},
 	.probe		= eeprom_93xx46_probe,
 	.remove		= eeprom_93xx46_remove,
