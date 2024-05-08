@@ -2152,8 +2152,6 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 	unsigned long start = jiffies;
 	bool timed_out = false;
 
-	set_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags);
-	flush_workqueue(sdp->sd_glock_wq);
 	glock_hash_walk(clear_glock, sdp);
 	flush_workqueue(sdp->sd_glock_wq);
 

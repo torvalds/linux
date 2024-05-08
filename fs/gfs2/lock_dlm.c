@@ -347,7 +347,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	 * DLM_LOCK_PW mode, the lock value block (LVB) would be lost.
 	 */
 
-	if (test_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags) &&
+	if (test_bit(SDF_KILL, &sdp->sd_flags) &&
 	    (!gl->gl_lksb.sb_lvbptr || gl->gl_state != LM_ST_EXCLUSIVE)) {
 		gfs2_glock_free_later(gl);
 		return;

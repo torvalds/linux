@@ -1783,6 +1783,7 @@ static void gfs2_kill_sb(struct super_block *sb)
 	sdp->sd_master_dir = NULL;
 	shrink_dcache_sb(sb);
 
+	set_bit(SDF_KILL, &sdp->sd_flags);
 	gfs2_evict_inodes(sb);
 
 	/*
@@ -1790,7 +1791,6 @@ static void gfs2_kill_sb(struct super_block *sb)
 	 * destroy_workqueue()) to ensure that any delete work that
 	 * may be running will also see the SDF_KILL flag.
 	 */
-	set_bit(SDF_KILL, &sdp->sd_flags);
 	gfs2_flush_delete_work(sdp);
 	destroy_workqueue(sdp->sd_delete_wq);
 
