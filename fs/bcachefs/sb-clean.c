@@ -283,7 +283,7 @@ static int bch2_sb_clean_validate(struct bch_sb *sb,
 	     entry = vstruct_next(entry)) {
 		if ((void *) vstruct_next(entry) > vstruct_end(&clean->field)) {
 			prt_str(err, "entry type ");
-			bch2_prt_jset_entry_type(err, le16_to_cpu(entry->type));
+			bch2_prt_jset_entry_type(err, entry->type);
 			prt_str(err, " overruns end of section");
 			return -BCH_ERR_invalid_sb_clean;
 		}
