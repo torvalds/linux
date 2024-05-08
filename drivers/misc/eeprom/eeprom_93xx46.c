@@ -5,6 +5,7 @@
  * (C) 2011 DENX Software Engineering, Anatolij Gustschin <agust@denx.de>
  */
 
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
@@ -19,7 +20,31 @@
 
 #include <linux/nvmem-provider.h>
 
-#include <linux/eeprom_93xx46.h>
+struct eeprom_93xx46_platform_data {
+	unsigned char	flags;
+#define EE_ADDR8	0x01		/*  8 bit addr. cfg */
+#define EE_ADDR16	0x02		/* 16 bit addr. cfg */
+#define EE_READONLY	0x08		/* forbid writing */
+#define EE_SIZE1K	0x10		/* 1 kb of data, that is a 93xx46 */
+#define EE_SIZE2K	0x20		/* 2 kb of data, that is a 93xx56 */
+#define EE_SIZE4K	0x40		/* 4 kb of data, that is a 93xx66 */
+
+	unsigned int	quirks;
+/* Single word read transfers only; no sequential read. */
+#define EEPROM_93XX46_QUIRK_SINGLE_WORD_READ		(1 << 0)
+/* Instructions such as EWEN are (addrlen + 2) in length. */
+#define EEPROM_93XX46_QUIRK_INSTRUCTION_LENGTH		(1 << 1)
+/* Add extra cycle after address during a read */
+#define EEPROM_93XX46_QUIRK_EXTRA_READ_CYCLE		BIT(2)
+
+	/*
+	 * optional hooks to control additional logic
+	 * before and after spi transfer.
+	 */
+	void (*prepare)(void *);
+	void (*finish)(void *);
+	struct gpio_desc *select;
+};
 
 #define OP_START	0x4
 #define OP_WRITE	(OP_START | 0x1)
@@ -479,11 +504,9 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	int err;
 
-	if (dev_fwnode(dev)) {
-		err = eeprom_93xx46_probe_fw(dev);
-		if (err < 0)
-			return err;
-	}
+	err = eeprom_93xx46_probe_fw(dev);
+	if (err < 0)
+		return err;
 
 	pd = spi->dev.platform_data;
 	if (!pd) {
