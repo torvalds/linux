@@ -1,40 +1,40 @@
 # SPDX-License-Identifier: GPL-2.0-only
-snd-soc-hsw-rt5640-objs := hsw_rt5640.o
-snd-soc-sst-bdw-rt5650-mach-objs := bdw-rt5650.o
-snd-soc-sst-bdw-rt5677-mach-objs := bdw-rt5677.o
-snd-soc-bdw-rt286-objs := bdw_rt286.o
-snd-soc-sst-bxt-da7219_max98357a-objs := bxt_da7219_max98357a.o
-snd-soc-sst-bxt-rt298-objs := bxt_rt298.o
-snd-soc-sst-sof-pcm512x-objs := sof_pcm512x.o
-snd-soc-sst-sof-wm8804-objs := sof_wm8804.o
-snd-soc-sst-bytcr-rt5640-objs := bytcr_rt5640.o
-snd-soc-sst-bytcr-rt5651-objs := bytcr_rt5651.o
-snd-soc-sst-bytcr-wm5102-objs := bytcr_wm5102.o
-snd-soc-sst-cht-bsw-rt5672-objs := cht_bsw_rt5672.o
-snd-soc-sst-cht-bsw-rt5645-objs := cht_bsw_rt5645.o
-snd-soc-sst-cht-bsw-max98090_ti-objs := cht_bsw_max98090_ti.o
-snd-soc-sst-cht-bsw-nau8824-objs := cht_bsw_nau8824.o
-snd-soc-sst-byt-cht-cx2072x-objs := bytcht_cx2072x.o
-snd-soc-sst-byt-cht-da7213-objs := bytcht_da7213.o
-snd-soc-sst-byt-cht-es8316-objs := bytcht_es8316.o
-snd-soc-sst-byt-cht-nocodec-objs := bytcht_nocodec.o
-snd-soc-sof_rt5682-objs := sof_rt5682.o
-snd-soc-sof_cs42l42-objs := sof_cs42l42.o
-snd-soc-sof_es8336-objs := sof_es8336.o
-snd-soc-sof_nau8825-objs := sof_nau8825.o
-snd-soc-sof_da7219-objs := sof_da7219.o
-snd-soc-kbl_da7219_max98357a-objs := kbl_da7219_max98357a.o
-snd-soc-kbl_da7219_max98927-objs := kbl_da7219_max98927.o
-snd-soc-kbl_rt5663_max98927-objs := kbl_rt5663_max98927.o
-snd-soc-kbl_rt5663_rt5514_max98927-objs := kbl_rt5663_rt5514_max98927.o
-snd-soc-kbl_rt5660-objs := kbl_rt5660.o
-snd-soc-skl_rt286-objs := skl_rt286.o
-snd-soc-skl_hda_dsp-objs := skl_hda_dsp_generic.o skl_hda_dsp_common.o
-snd-skl_nau88l25_max98357a-objs := skl_nau88l25_max98357a.o
-snd-soc-skl_nau88l25_ssm4567-objs := skl_nau88l25_ssm4567.o
-snd-soc-ehl-rt5660-objs := ehl_rt5660.o
-snd-soc-sof-ssp-amp-objs := sof_ssp_amp.o
-snd-soc-sof-sdw-objs += sof_sdw.o				\
+snd-soc-hsw-rt5640-y := hsw_rt5640.o
+snd-soc-sst-bdw-rt5650-mach-y := bdw-rt5650.o
+snd-soc-sst-bdw-rt5677-mach-y := bdw-rt5677.o
+snd-soc-bdw-rt286-y := bdw_rt286.o
+snd-soc-sst-bxt-da7219_max98357a-y := bxt_da7219_max98357a.o
+snd-soc-sst-bxt-rt298-y := bxt_rt298.o
+snd-soc-sst-sof-pcm512x-y := sof_pcm512x.o
+snd-soc-sst-sof-wm8804-y := sof_wm8804.o
+snd-soc-sst-bytcr-rt5640-y := bytcr_rt5640.o
+snd-soc-sst-bytcr-rt5651-y := bytcr_rt5651.o
+snd-soc-sst-bytcr-wm5102-y := bytcr_wm5102.o
+snd-soc-sst-cht-bsw-rt5672-y := cht_bsw_rt5672.o
+snd-soc-sst-cht-bsw-rt5645-y := cht_bsw_rt5645.o
+snd-soc-sst-cht-bsw-max98090_ti-y := cht_bsw_max98090_ti.o
+snd-soc-sst-cht-bsw-nau8824-y := cht_bsw_nau8824.o
+snd-soc-sst-byt-cht-cx2072x-y := bytcht_cx2072x.o
+snd-soc-sst-byt-cht-da7213-y := bytcht_da7213.o
+snd-soc-sst-byt-cht-es8316-y := bytcht_es8316.o
+snd-soc-sst-byt-cht-nocodec-y := bytcht_nocodec.o
+snd-soc-sof_rt5682-y := sof_rt5682.o
+snd-soc-sof_cs42l42-y := sof_cs42l42.o
+snd-soc-sof_es8336-y := sof_es8336.o
+snd-soc-sof_nau8825-y := sof_nau8825.o
+snd-soc-sof_da7219-y := sof_da7219.o
+snd-soc-kbl_da7219_max98357a-y := kbl_da7219_max98357a.o
+snd-soc-kbl_da7219_max98927-y := kbl_da7219_max98927.o
+snd-soc-kbl_rt5663_max98927-y := kbl_rt5663_max98927.o
+snd-soc-kbl_rt5663_rt5514_max98927-y := kbl_rt5663_rt5514_max98927.o
+snd-soc-kbl_rt5660-y := kbl_rt5660.o
+snd-soc-skl_rt286-y := skl_rt286.o
+snd-soc-skl_hda_dsp-y := skl_hda_dsp_generic.o skl_hda_dsp_common.o
+snd-skl_nau88l25_max98357a-y := skl_nau88l25_max98357a.o
+snd-soc-skl_nau88l25_ssm4567-y := skl_nau88l25_ssm4567.o
+snd-soc-ehl-rt5660-y := ehl_rt5660.o
+snd-soc-sof-ssp-amp-y := sof_ssp_amp.o
+snd-soc-sof-sdw-y += sof_sdw.o				\
 			sof_sdw_maxim.o sof_sdw_rt_amp.o	\
 			bridge_cs35l56.o			\
 			sof_sdw_rt5682.o sof_sdw_rt700.o	\
@@ -83,20 +83,20 @@ obj-$(CONFIG_SND_SOC_INTEL_SOUNDWIRE_SOF_MACH) += snd-soc-sof-sdw.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_SSP_AMP_MACH) += snd-soc-sof-ssp-amp.o
 
 # common modules
-snd-soc-intel-hda-dsp-common-objs := hda_dsp_common.o
+snd-soc-intel-hda-dsp-common-y := hda_dsp_common.o
 obj-$(CONFIG_SND_SOC_INTEL_HDA_DSP_COMMON) += snd-soc-intel-hda-dsp-common.o
 
-snd-soc-intel-sof-maxim-common-objs += sof_maxim_common.o
+snd-soc-intel-sof-maxim-common-y += sof_maxim_common.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_MAXIM_COMMON) += snd-soc-intel-sof-maxim-common.o
 
-snd-soc-intel-sof-realtek-common-objs += sof_realtek_common.o
+snd-soc-intel-sof-realtek-common-y += sof_realtek_common.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_REALTEK_COMMON) += snd-soc-intel-sof-realtek-common.o
 
-snd-soc-intel-sof-cirrus-common-objs += sof_cirrus_common.o
+snd-soc-intel-sof-cirrus-common-y += sof_cirrus_common.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_CIRRUS_COMMON) += snd-soc-intel-sof-cirrus-common.o
 
-snd-soc-intel-sof-nuvoton-common-objs += sof_nuvoton_common.o
+snd-soc-intel-sof-nuvoton-common-y += sof_nuvoton_common.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_NUVOTON_COMMON) += snd-soc-intel-sof-nuvoton-common.o
 
-snd-soc-intel-sof-board-helpers-objs += sof_board_helpers.o
+snd-soc-intel-sof-board-helpers-y += sof_board_helpers.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_BOARD_HELPERS) += snd-soc-intel-sof-board-helpers.o
