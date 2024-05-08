@@ -308,5 +308,6 @@ static struct kunit_suite sound_utils_suite = {
 };
 
 kunit_test_suite(sound_utils_suite);
+MODULE_DESCRIPTION("Sound core KUnit test");
 MODULE_AUTHOR("Ivan Orlov");
 MODULE_LICENSE("GPL");
