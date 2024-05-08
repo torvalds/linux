@@ -1217,6 +1217,34 @@ static int offset_from_dwarf_op(Dwarf_Op *op)
 	}
 	return -1;
 }
+
+static bool check_allowed_ops(Dwarf_Op *ops, size_t nops)
+{
+	/* The first op is checked separately */
+	ops++;
+	nops--;
+
+	/*
+	 * It needs to make sure if the location expression matches to the given
+	 * register and offset exactly.  Thus it rejects any complex expressions
+	 * and only allows a few of selected operators that doesn't change the
+	 * location.
+	 */
+	while (nops) {
+		switch (ops->atom) {
+		case DW_OP_stack_value:
+		case DW_OP_deref_size:
+		case DW_OP_deref:
+		case DW_OP_piece:
+			break;
+		default:
+			return false;
+		}
+		ops++;
+		nops--;
+	}
+	return true;
+}
 #endif /* HAVE_DWARF_GETLOCATIONS_SUPPORT || HAVE_DWARF_CFI_SUPPORT */
 
 #ifdef HAVE_DWARF_GETLOCATIONS_SUPPORT
@@ -1394,34 +1422,6 @@ static bool match_var_offset(Dwarf_Die *die_mem, struct find_var_data *data,
 
 	/* Update offset relative to the start of the variable */
 	data->offset = addr_offset - addr_type;
-	return true;
-}
-
-static bool check_allowed_ops(Dwarf_Op *ops, size_t nops)
-{
-	/* The first op is checked separately */
-	ops++;
-	nops--;
-
-	/*
-	 * It needs to make sure if the location expression matches to the given
-	 * register and offset exactly.  Thus it rejects any complex expressions
-	 * and only allows a few of selected operators that doesn't change the
-	 * location.
-	 */
-	while (nops) {
-		switch (ops->atom) {
-		case DW_OP_stack_value:
-		case DW_OP_deref_size:
-		case DW_OP_deref:
-		case DW_OP_piece:
-			break;
-		default:
-			return false;
-		}
-		ops++;
-		nops--;
-	}
 	return true;
 }
 
