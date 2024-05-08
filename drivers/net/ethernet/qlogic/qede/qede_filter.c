@@ -1876,6 +1876,7 @@ qede_parse_flow_attr(struct qede_dev *edev, __be16 proto,
 int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 			    struct flow_cls_offload *f)
 {
+	struct netlink_ext_ack *extack = f->common.extack;
 	struct qede_arfs_fltr_node *n;
 	struct qede_arfs_tuple t;
 	int min_hlen, rc;
@@ -1903,7 +1904,7 @@ int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
 	}
 
 	/* parse tc actions and get the vf_id */
-	rc = qede_parse_actions(edev, &f->rule->action, f->common.extack);
+	rc = qede_parse_actions(edev, &f->rule->action, extack);
 	if (rc)
 		goto unlock;
 
