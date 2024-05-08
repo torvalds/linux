@@ -1806,13 +1806,13 @@ qede_flow_parse_tcp_v4(struct flow_rule *rule, struct qede_arfs_tuple *tuple,
 }
 
 static int
-qede_flow_parse_udp_v6(struct qede_dev *edev, struct flow_rule *rule,
-		     struct qede_arfs_tuple *tuple)
+qede_flow_parse_udp_v6(struct flow_rule *rule, struct qede_arfs_tuple *tuple,
+		       struct netlink_ext_ack *extack)
 {
 	tuple->ip_proto = IPPROTO_UDP;
 	tuple->eth_proto = htons(ETH_P_IPV6);
 
-	return qede_flow_parse_v6_common(rule, tuple, NULL);
+	return qede_flow_parse_v6_common(rule, tuple, extack);
 }
 
 static int
@@ -1866,7 +1866,7 @@ qede_parse_flow_attr(struct qede_dev *edev, __be16 proto,
 	else if (ip_proto == IPPROTO_UDP && proto == htons(ETH_P_IP))
 		rc = qede_flow_parse_udp_v4(edev, rule, tuple);
 	else if (ip_proto == IPPROTO_UDP && proto == htons(ETH_P_IPV6))
-		rc = qede_flow_parse_udp_v6(edev, rule, tuple);
+		rc = qede_flow_parse_udp_v6(rule, tuple, NULL);
 	else
 		DP_NOTICE(edev, "Invalid protocol request\n");
 
