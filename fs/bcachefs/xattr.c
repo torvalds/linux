@@ -118,11 +118,17 @@ void bch2_xattr_to_text(struct printbuf *out, struct bch_fs *c,
 	else
 		prt_printf(out, "(unknown type %u)", xattr.v->x_type);
 
+	unsigned name_len = xattr.v->x_name_len;
+	unsigned val_len  = le16_to_cpu(xattr.v->x_val_len);
+	unsigned max_name_val_bytes = bkey_val_bytes(xattr.k) -
+		offsetof(struct bch_xattr, x_name);
+
+	val_len  = min_t(int, val_len, max_name_val_bytes - name_len);
+	name_len = min(name_len, max_name_val_bytes);
+
 	prt_printf(out, "%.*s:%.*s",
-	       xattr.v->x_name_len,
-	       xattr.v->x_name,
-	       le16_to_cpu(xattr.v->x_val_len),
-	       (char *) xattr_val(xattr.v));
+		   name_len, xattr.v->x_name,
+		   val_len,  (char *) xattr_val(xattr.v));
 
 	if (xattr.v->x_type == KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS ||
 	    xattr.v->x_type == KEY_TYPE_XATTR_INDEX_POSIX_ACL_DEFAULT) {
