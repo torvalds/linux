@@ -3533,6 +3533,16 @@ struct ath12k_wmi_p2p_noa_info {
 
 #define WMI_BEACON_TX_BUFFER_SIZE	512
 
+#define WMI_EMA_BEACON_CNT      GENMASK(7, 0)
+#define WMI_EMA_BEACON_IDX      GENMASK(15, 8)
+#define WMI_EMA_BEACON_FIRST    GENMASK(23, 16)
+#define WMI_EMA_BEACON_LAST     GENMASK(31, 24)
+
+struct ath12k_wmi_bcn_tmpl_ema_arg {
+	u8 bcn_cnt;
+	u8 bcn_index;
+};
+
 struct wmi_bcn_tmpl_cmd {
 	__le32 tlv_header;
 	__le32 vdev_id;
@@ -3543,6 +3553,11 @@ struct wmi_bcn_tmpl_cmd {
 	__le32 csa_event_bitmap;
 	__le32 mbssid_ie_offset;
 	__le32 esp_ie_offset;
+	__le32 csc_switch_count_offset;
+	__le32 csc_event_bitmap;
+	__le32 mu_edca_ie_offset;
+	__le32 feature_enable_bitmap;
+	__le32 ema_params;
 } __packed;
 
 struct wmi_p2p_go_set_beacon_ie_cmd {
@@ -4900,7 +4915,8 @@ int ath12k_wmi_p2p_go_bcn_ie(struct ath12k *ar, u32 vdev_id,
 			     const u8 *p2p_ie);
 int ath12k_wmi_bcn_tmpl(struct ath12k *ar, u32 vdev_id,
 			struct ieee80211_mutable_offsets *offs,
-			struct sk_buff *bcn);
+			struct sk_buff *bcn,
+			struct ath12k_wmi_bcn_tmpl_ema_arg *ema_args);
 int ath12k_wmi_vdev_down(struct ath12k *ar, u8 vdev_id);
 int ath12k_wmi_vdev_up(struct ath12k *ar, struct ath12k_wmi_vdev_up_params *params);
 int ath12k_wmi_vdev_stop(struct ath12k *ar, u8 vdev_id);
