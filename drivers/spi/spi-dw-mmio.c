@@ -321,6 +321,11 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	struct dw_spi *dws;
 	int ret;
 
+	if (device_property_read_bool(&pdev->dev, "spi-slave")) {
+		dev_warn(&pdev->dev, "spi-slave is not yet supported\n");
+		return -ENODEV;
+	}
+
 	dwsmmio = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_mmio),
 			GFP_KERNEL);
 	if (!dwsmmio)
