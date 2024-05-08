@@ -221,20 +221,10 @@ struct kvm_mpidr_data {
 
 static inline u16 kvm_mpidr_index(struct kvm_mpidr_data *data, u64 mpidr)
 {
-	unsigned long mask = data->mpidr_mask;
-	u64 aff = mpidr & MPIDR_HWID_BITMASK;
-	int nbits, bit, bit_idx = 0;
-	u16 index = 0;
+	unsigned long index = 0, mask = data->mpidr_mask;
+	unsigned long aff = mpidr & MPIDR_HWID_BITMASK;
 
-	/*
-	 * If this looks like RISC-V's BEXT or x86's PEXT
-	 * instructions, it isn't by accident.
-	 */
-	nbits = fls(mask);
-	for_each_set_bit(bit, &mask, nbits) {
-		index |= (aff & BIT(bit)) >> (bit - bit_idx);
-		bit_idx++;
-	}
+	bitmap_gather(&index, &aff, &mask, fls(mask));
 
 	return index;
 }
