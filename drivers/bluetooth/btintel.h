@@ -370,7 +370,7 @@ static inline int btintel_shutdown_combined(struct hci_dev *hdev)
 	return -ENODEV;
 }
 
-static void btintel_hw_error(struct hci_dev *hdev, u8 code)
+static inline void btintel_hw_error(struct hci_dev *hdev, u8 code)
 {
 }
 #endif
