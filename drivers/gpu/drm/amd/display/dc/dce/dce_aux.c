@@ -770,7 +770,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 									aux_defer_retries,
 									AUX_MAX_RETRIES);
 						goto fail;
-					} else 
+					} else
 						udelay(300);
 				} else if (payload->write && ret > 0) {
 					/* sink requested more time to complete the write via AUX_ACKM */
@@ -790,7 +790,6 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 					payload->write_status_update = true;
 					payload->length = 0;
 					udelay(300);
-
 				} else
 					return true;
 			break;

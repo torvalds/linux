@@ -1539,7 +1539,6 @@ struct clk_mgr_internal *dcn401_clk_mgr_construct(
 	}
 
 	return &clk_mgr401->base;
-
 }
 
 void dcn401_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr)

@@ -282,7 +282,6 @@ struct mpll_cfg {
 	uint32_t tx_peaking_lvl;
 	uint32_t ctr_reqs_pll;
 
-
 };
 
 struct dpcssys_phy_seq_cfg {
