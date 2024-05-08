@@ -31,12 +31,25 @@
 #include "amdgpu.h"
 #include "amdgpu_isp.h"
 
+#include "ivsrcid/isp/irqsrcs_isp_4_1.h"
+
 #define mmDAGB0_WRCLI5_V4_1	0x6811C
 #define mmDAGB0_WRCLI9_V4_1	0x6812C
 #define mmDAGB0_WRCLI10_V4_1	0x68130
 #define mmDAGB0_WRCLI14_V4_1	0x68140
 #define mmDAGB0_WRCLI19_V4_1	0x68154
 #define mmDAGB0_WRCLI20_V4_1	0x68158
+
+static const unsigned int isp_int_srcid[MAX_ISP_INT_SRC] = {
+	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT9,
+	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT10,
+	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT11,
+	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT12,
+	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT13,
+	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT14,
+	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT15,
+	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT16
+};
 
 static int isp_sw_init(void *handle)
 {
@@ -69,11 +82,12 @@ static int isp_sw_fini(void *handle)
  */
 static int isp_hw_init(void *handle)
 {
-	int r;
-	u64 isp_base;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	const struct amdgpu_ip_block *ip_block =
 		amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_ISP);
+	u64 isp_base;
+	int int_idx;
+	int r;
 
 	if (!ip_block)
 		return -EINVAL;
@@ -90,7 +104,7 @@ static int isp_hw_init(void *handle)
 		goto failure;
 	}
 
-	adev->isp.isp_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
+	adev->isp.isp_res = kcalloc(9, sizeof(struct resource), GFP_KERNEL);
 	if (!adev->isp.isp_res) {
 		r = -ENOMEM;
 		DRM_ERROR("%s: isp mfd res alloc failed\n", __func__);
@@ -114,8 +128,17 @@ static int isp_hw_init(void *handle)
 	adev->isp.isp_res[0].start = isp_base;
 	adev->isp.isp_res[0].end = isp_base + ISP_REGS_OFFSET_END;
 
+	for (int_idx = 0; int_idx < MAX_ISP_INT_SRC; int_idx++) {
+		adev->isp.isp_res[int_idx + 1].name = "isp_irq";
+		adev->isp.isp_res[int_idx + 1].flags = IORESOURCE_IRQ;
+		adev->isp.isp_res[int_idx + 1].start =
+			amdgpu_irq_create_mapping(adev, isp_int_srcid[int_idx]);
+		adev->isp.isp_res[int_idx + 1].end =
+			adev->isp.isp_res[int_idx + 1].start;
+	}
+
 	adev->isp.isp_cell[0].name = "amd_isp_capture";
-	adev->isp.isp_cell[0].num_resources = 1;
+	adev->isp.isp_cell[0].num_resources = 9;
 	adev->isp.isp_cell[0].resources = &adev->isp.isp_res[0];
 	adev->isp.isp_cell[0].platform_data = adev->isp.isp_pdata;
 	adev->isp.isp_cell[0].pdata_size = sizeof(struct isp_platform_data);

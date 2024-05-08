@@ -30,6 +30,8 @@
 
 #define ISP_REGS_OFFSET_END 0x629A4
 
+#define MAX_ISP_INT_SRC 8
+
 struct isp_platform_data {
 	void *adev;
 	u32 asic_type;
