@@ -288,8 +288,7 @@ bool bch2_compact_whiteouts(struct bch_fs *c, struct btree *b,
 
 static void btree_node_sort(struct bch_fs *c, struct btree *b,
 			    unsigned start_idx,
-			    unsigned end_idx,
-			    bool filter_whiteouts)
+			    unsigned end_idx)
 {
 	struct btree_node *out;
 	struct sort_iter_stack sort_iter;
@@ -320,7 +319,7 @@ static void btree_node_sort(struct bch_fs *c, struct btree *b,
 
 	start_time = local_clock();
 
-	u64s = bch2_sort_keys(out->keys.start, &sort_iter.iter, filter_whiteouts);
+	u64s = bch2_sort_keys(out->keys.start, &sort_iter.iter);
 
 	out->keys.u64s = cpu_to_le16(u64s);
 
@@ -426,13 +425,12 @@ static bool btree_node_compact(struct bch_fs *c, struct btree *b)
 			break;
 
 	if (b->nsets - unwritten_idx > 1) {
-		btree_node_sort(c, b, unwritten_idx,
-				b->nsets, false);
+		btree_node_sort(c, b, unwritten_idx, b->nsets);
 		ret = true;
 	}
 
 	if (unwritten_idx > 1) {
-		btree_node_sort(c, b, 0, unwritten_idx, false);
+		btree_node_sort(c, b, 0, unwritten_idx);
 		ret = true;
 	}
 
@@ -2095,10 +2093,10 @@ do_write:
 		      unwritten_whiteouts_end(b));
 	SET_BSET_SEPARATE_WHITEOUTS(i, false);
 
-	b->whiteout_u64s = 0;
-
-	u64s = bch2_sort_keys(i->start, &sort_iter.iter, false);
+	u64s = bch2_sort_keys_keep_unwritten_whiteouts(i->start, &sort_iter.iter);
 	le16_add_cpu(&i->u64s, u64s);
+
+	b->whiteout_u64s = 0;
 
 	BUG_ON(!b->written && i->u64s != b->data->keys.u64s);
 
@@ -2249,7 +2247,7 @@ bool bch2_btree_post_write_cleanup(struct bch_fs *c, struct btree *b)
 	 * single bset:
 	 */
 	if (b->nsets > 1) {
-		btree_node_sort(c, b, 0, b->nsets, true);
+		btree_node_sort(c, b, 0, b->nsets);
 		invalidated_iter = true;
 	} else {
 		invalidated_iter = bch2_drop_whiteouts(b, COMPACT_ALL);
