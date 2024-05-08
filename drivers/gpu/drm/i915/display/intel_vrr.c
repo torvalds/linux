@@ -265,7 +265,8 @@ void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
 		       TRANS_PUSH_EN);
 
 	if (HAS_AS_SDP(dev_priv))
-		intel_de_write(dev_priv, TRANS_VRR_VSYNC(cpu_transcoder),
+		intel_de_write(dev_priv,
+			       TRANS_VRR_VSYNC(dev_priv, cpu_transcoder),
 			       VRR_VSYNC_END(crtc_state->vrr.vsync_end) |
 			       VRR_VSYNC_START(crtc_state->vrr.vsync_start));
 
@@ -290,7 +291,8 @@ void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
 	intel_de_write(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder), 0);
 
 	if (HAS_AS_SDP(dev_priv))
-		intel_de_write(dev_priv, TRANS_VRR_VSYNC(cpu_transcoder), 0);
+		intel_de_write(dev_priv,
+			       TRANS_VRR_VSYNC(dev_priv, cpu_transcoder), 0);
 }
 
 void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
@@ -326,7 +328,8 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 
 		if (HAS_AS_SDP(dev_priv)) {
 			trans_vrr_vsync =
-				intel_de_read(dev_priv, TRANS_VRR_VSYNC(cpu_transcoder));
+				intel_de_read(dev_priv,
+					      TRANS_VRR_VSYNC(dev_priv, cpu_transcoder));
 			crtc_state->vrr.vsync_start =
 				REG_FIELD_GET(VRR_VSYNC_START_MASK, trans_vrr_vsync);
 			crtc_state->vrr.vsync_end =
