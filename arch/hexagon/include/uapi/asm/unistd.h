@@ -38,4 +38,6 @@
 #define __ARCH_WANT_TIME32_SYSCALLS
 #define __ARCH_WANT_SYNC_FILE_RANGE2
 
+#define __ARCH_BROKEN_SYS_CLONE3
+
 #include <asm-generic/unistd.h>

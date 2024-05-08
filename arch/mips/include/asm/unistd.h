@@ -58,7 +58,6 @@
 # endif
 #define __ARCH_WANT_SYS_FORK
 #define __ARCH_WANT_SYS_CLONE
-#define __ARCH_WANT_SYS_CLONE3
 
 /* whitelists for checksyscalls */
 #define __IGNORE_fadvise64_64
