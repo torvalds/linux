@@ -975,25 +975,9 @@ static bool migrate_btree_pred(struct bch_fs *c, void *arg,
  */
 static bool bformat_needs_redo(struct bkey_format *f)
 {
-	for (unsigned i = 0; i < f->nr_fields; i++) {
-		unsigned f_bits = f->bits_per_field[i];
-		unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
-		u64 unpacked_mask = ~((~0ULL << 1) << (unpacked_bits - 1));
-		u64 field_offset = le64_to_cpu(f->field_offset[i]);
-
-		if (f_bits > unpacked_bits)
+	for (unsigned i = 0; i < f->nr_fields; i++)
+		if (bch2_bkey_format_field_overflows(f, i))
 			return true;
-
-		if ((f_bits == unpacked_bits) && field_offset)
-			return true;
-
-		u64 f_mask = f_bits
-			? ~((~0ULL << (f_bits - 1)) << 1)
-			: 0;
-
-		if (((field_offset + f_mask) & unpacked_mask) < field_offset)
-			return true;
-	}
 
 	return false;
 }
