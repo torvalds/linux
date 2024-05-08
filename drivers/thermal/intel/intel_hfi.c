@@ -167,7 +167,7 @@ static DEFINE_MUTEX(hfi_instance_lock);
 
 static struct workqueue_struct *hfi_updates_wq;
 #define HFI_UPDATE_DELAY_MS		100
-#define HFI_THERMNL_CAPS_PER_EVENT	16
+#define HFI_THERMNL_CAPS_PER_EVENT	64
 
 static void get_hfi_caps(struct hfi_instance *hfi_instance,
 			 struct thermal_genl_cpu_caps *cpu_caps)
