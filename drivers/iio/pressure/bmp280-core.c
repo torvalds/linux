@@ -1350,10 +1350,6 @@ static int bmp580_nvm_operation(struct bmp280_data *data, bool is_write)
 		poll = 50;
 		timeout = 400;
 	}
-	if (ret) {
-		dev_err(data->dev, "failed to write command sequence\n");
-		return -EIO;
-	}
 
 	/* Wait until NVM is ready again */
 	ret = regmap_read_poll_timeout(data->regmap, BMP580_REG_STATUS, reg,
