@@ -152,8 +152,10 @@ void ieee802154_configure_durations(struct wpan_phy *phy)
 	}
 
 	phy->symbol_duration = duration;
-	phy->lifs_period = (IEEE802154_LIFS_PERIOD * phy->symbol_duration) / NSEC_PER_SEC;
-	phy->sifs_period = (IEEE802154_SIFS_PERIOD * phy->symbol_duration) / NSEC_PER_SEC;
+	phy->lifs_period =
+		(IEEE802154_LIFS_PERIOD * phy->symbol_duration) / NSEC_PER_USEC;
+	phy->sifs_period =
+		(IEEE802154_SIFS_PERIOD * phy->symbol_duration) / NSEC_PER_USEC;
 }
 EXPORT_SYMBOL(ieee802154_configure_durations);
 
@@ -175,10 +177,10 @@ static void ieee802154_setup_wpan_phy_pib(struct wpan_phy *wpan_phy)
 	 * Should be done when all drivers sets this value.
 	 */
 
-	wpan_phy->lifs_period =
-		(IEEE802154_LIFS_PERIOD * wpan_phy->symbol_duration) / 1000;
-	wpan_phy->sifs_period =
-		(IEEE802154_SIFS_PERIOD * wpan_phy->symbol_duration) / 1000;
+	wpan_phy->lifs_period =	(IEEE802154_LIFS_PERIOD *
+				 wpan_phy->symbol_duration) / NSEC_PER_USEC;
+	wpan_phy->sifs_period =	(IEEE802154_SIFS_PERIOD *
+				 wpan_phy->symbol_duration) / NSEC_PER_USEC;
 }
 
 int ieee802154_register_hw(struct ieee802154_hw *hw)
