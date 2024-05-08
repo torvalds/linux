@@ -6,7 +6,6 @@
 #include "xe_bb.h"
 
 #include "instructions/xe_mi_commands.h"
-#include "regs/xe_gpu_commands.h"
 #include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_exec_queue_types.h"

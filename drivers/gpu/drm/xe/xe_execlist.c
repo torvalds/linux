@@ -9,7 +9,6 @@
 
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_engine_regs.h"
-#include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
 #include "xe_assert.h"

@@ -16,7 +16,7 @@
 #include <drm/xe_drm.h>
 
 #include "display/xe_display.h"
-#include "regs/xe_gpu_commands.h"
+#include "instructions/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
