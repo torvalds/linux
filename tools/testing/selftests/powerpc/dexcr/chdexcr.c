@@ -26,7 +26,7 @@ static void help(void)
 	       "\n"
 	       "The normal option sets the aspect in the DEXCR. The --no- variant\n"
 	       "clears that aspect. For example, --ibrtpd sets the IBRTPD aspect bit,\n"
-	       "so indirect branch predicition will be disabled in the provided program.\n"
+	       "so indirect branch prediction will be disabled in the provided program.\n"
 	       "Conversely, --no-ibrtpd clears the aspect bit, so indirect branch\n"
 	       "prediction may occur.\n"
 	       "\n"
