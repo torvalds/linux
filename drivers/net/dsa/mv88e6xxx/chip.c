@@ -637,12 +637,12 @@ static void mv88e6351_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 				   MAC_1000FD;
 }
 
-static int mv88e6352_get_port4_serdes_cmode(struct mv88e6xxx_chip *chip)
+static int mv88e63xx_get_port_serdes_cmode(struct mv88e6xxx_chip *chip, int port)
 {
 	u16 reg, val;
 	int err;
 
-	err = mv88e6xxx_port_read(chip, 4, MV88E6XXX_PORT_STS, &reg);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &reg);
 	if (err)
 		return err;
 
@@ -651,16 +651,16 @@ static int mv88e6352_get_port4_serdes_cmode(struct mv88e6xxx_chip *chip)
 		return 0xf;
 
 	val = reg & ~MV88E6XXX_PORT_STS_PHY_DETECT;
-	err = mv88e6xxx_port_write(chip, 4, MV88E6XXX_PORT_STS, val);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, val);
 	if (err)
 		return err;
 
-	err = mv88e6xxx_port_read(chip, 4, MV88E6XXX_PORT_STS, &val);
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &val);
 	if (err)
 		return err;
 
 	/* Restore PHY_DETECT value */
-	err = mv88e6xxx_port_write(chip, 4, MV88E6XXX_PORT_STS, reg);
+	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_STS, reg);
 	if (err)
 		return err;
 
@@ -688,7 +688,7 @@ static void mv88e6352_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 		if (err <= 0)
 			return;
 
-		cmode = mv88e6352_get_port4_serdes_cmode(chip);
+		cmode = mv88e63xx_get_port_serdes_cmode(chip, port);
 		if (cmode < 0)
 			dev_err(chip->dev, "p%d: failed to read serdes cmode\n",
 				port);
@@ -701,12 +701,23 @@ static void mv88e632x_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 				       struct phylink_config *config)
 {
 	unsigned long *supported = config->supported_interfaces;
+	int cmode;
 
 	/* Translate the default cmode */
 	mv88e6xxx_translate_cmode(chip->ports[port].cmode, supported);
 
 	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 |
 				   MAC_1000FD;
+
+	/* Port 0/1 are serdes only ports */
+	if (port == 0 || port == 1) {
+		cmode = mv88e63xx_get_port_serdes_cmode(chip, port);
+		if (cmode < 0)
+			dev_err(chip->dev, "p%d: failed to read serdes cmode\n",
+				port);
+		else
+			mv88e6xxx_translate_cmode(cmode, supported);
+	}
 }
 
 static void mv88e6341_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
