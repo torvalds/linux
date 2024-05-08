@@ -119,6 +119,28 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 	return (phys_addr_t)mcfg_addr;
 }
 
+bool pci_acpi_preserve_config(struct pci_host_bridge *host_bridge)
+{
+	if (ACPI_HANDLE(&host_bridge->dev)) {
+		union acpi_object *obj;
+
+		/*
+		 * Evaluate the "PCI Boot Configuration" _DSM Function.  If it
+		 * exists and returns 0, we must preserve any PCI resource
+		 * assignments made by firmware for this host bridge.
+		 */
+		obj = acpi_evaluate_dsm_typed(ACPI_HANDLE(&host_bridge->dev),
+					      &pci_acpi_dsm_guid,
+					      1, DSM_PCI_PRESERVE_BOOT_CONFIG,
+					      NULL, ACPI_TYPE_INTEGER);
+		if (obj && obj->integer.value == 0)
+			return true;
+		ACPI_FREE(obj);
+	}
+
+	return false;
+}
+
 /* _HPX PCI Setting Record (Type 0); same as _HPP */
 struct hpx_type0 {
 	u32 revision;		/* Not present in _HPP */
