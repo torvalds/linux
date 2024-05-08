@@ -1700,8 +1700,8 @@ static int qede_parse_actions(struct qede_dev *edev,
 }
 
 static int
-qede_flow_parse_ports(struct qede_dev *edev, struct flow_rule *rule,
-		      struct qede_arfs_tuple *t)
+qede_flow_parse_ports(struct flow_rule *rule, struct qede_arfs_tuple *t,
+		      struct netlink_ext_ack *extack)
 {
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_match_ports match;
@@ -1709,7 +1709,8 @@ qede_flow_parse_ports(struct qede_dev *edev, struct flow_rule *rule,
 		flow_rule_match_ports(rule, &match);
 		if ((match.key->src && match.mask->src != htons(U16_MAX)) ||
 		    (match.key->dst && match.mask->dst != htons(U16_MAX))) {
-			DP_NOTICE(edev, "Do not support ports masks\n");
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Do not support ports masks");
 			return -EINVAL;
 		}
 
@@ -1747,7 +1748,7 @@ qede_flow_parse_v6_common(struct qede_dev *edev, struct flow_rule *rule,
 		memcpy(&t->dst_ipv6, &match.key->dst, sizeof(addr));
 	}
 
-	err = qede_flow_parse_ports(edev, rule, t);
+	err = qede_flow_parse_ports(rule, t, NULL);
 	if (err)
 		return err;
 
@@ -1774,7 +1775,7 @@ qede_flow_parse_v4_common(struct qede_dev *edev, struct flow_rule *rule,
 		t->dst_ipv4 = match.key->dst;
 	}
 
-	err = qede_flow_parse_ports(edev, rule, t);
+	err = qede_flow_parse_ports(rule, t, NULL);
 	if (err)
 		return err;
 
