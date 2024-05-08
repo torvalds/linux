@@ -6419,6 +6419,9 @@ affect the device's behavior. Current defined flags::
   #define KVM_RUN_X86_SMM          (1 << 0)
   /* x86, set if bus lock detected in VM */
   #define KVM_RUN_X86_BUS_LOCK     (1 << 1)
+  /* x86, set if the VCPU is executing a nested (L2) guest */
+  #define KVM_RUN_X86_GUEST_MODE   (1 << 2)
+
   /* arm64, set for KVM_EXIT_DEBUG */
   #define KVM_DEBUG_ARCH_HSR_HIGH_VALID  (1 << 0)
 
@@ -8088,6 +8091,20 @@ by KVM_CHECK_EXTENSION.
 
 Note: Userspace is responsible for correctly configuring CPUID 0x15, a.k.a. the
 core crystal clock frequency, if a non-zero CPUID 0x15 is exposed to the guest.
+
+7.36 KVM_CAP_X86_GUEST_MODE
+------------------------------
+
+:Architectures: x86
+:Returns: Informational only, -EINVAL on direct KVM_ENABLE_CAP.
+
+The presence of this capability indicates that KVM_RUN will update the
+KVM_RUN_X86_GUEST_MODE bit in kvm_run.flags to indicate whether the
+vCPU was executing nested guest code when it exited.
+
+KVM exits with the register state of either the L1 or L2 guest
+depending on which executed at the time of an exit. Userspace must
+take care to differentiate between these cases.
 
 8. Other capabilities.
 ======================
