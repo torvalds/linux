@@ -367,6 +367,35 @@ static void amdgpu_discovery_harvest_config_quirk(struct amdgpu_device *adev)
 	}
 }
 
+static int amdgpu_discovery_verify_npsinfo(struct amdgpu_device *adev,
+					   struct binary_header *bhdr)
+{
+	struct table_info *info;
+	uint16_t checksum;
+	uint16_t offset;
+
+	info = &bhdr->table_list[NPS_INFO];
+	offset = le16_to_cpu(info->offset);
+	checksum = le16_to_cpu(info->checksum);
+
+	struct nps_info_header *nhdr =
+		(struct nps_info_header *)(adev->mman.discovery_bin + offset);
+
+	if (le32_to_cpu(nhdr->table_id) != NPS_INFO_TABLE_ID) {
+		dev_dbg(adev->dev, "invalid ip discovery nps info table id\n");
+		return -EINVAL;
+	}
+
+	if (!amdgpu_discovery_verify_checksum(adev->mman.discovery_bin + offset,
+					      le32_to_cpu(nhdr->size_bytes),
+					      checksum)) {
+		dev_dbg(adev->dev, "invalid nps info data table checksum\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int amdgpu_discovery_init(struct amdgpu_device *adev)
 {
 	struct table_info *info;
@@ -1664,6 +1693,69 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 			le16_to_cpu(vcn_info->v1.header.version_minor));
 		return -EINVAL;
 	}
+	return 0;
+}
+
+union nps_info {
+	struct nps_info_v1_0 v1;
+};
+
+int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
+				  uint32_t *nps_type,
+				  struct amdgpu_gmc_memrange **ranges,
+				  int *range_cnt)
+{
+	struct amdgpu_gmc_memrange *mem_ranges;
+	struct binary_header *bhdr;
+	union nps_info *nps_info;
+	u16 offset;
+	int i;
+
+	if (!nps_type || !range_cnt || !ranges)
+		return -EINVAL;
+
+	if (!adev->mman.discovery_bin) {
+		dev_err(adev->dev,
+			"fetch mem range failed, ip discovery uninitialized\n");
+		return -EINVAL;
+	}
+
+	bhdr = (struct binary_header *)adev->mman.discovery_bin;
+	offset = le16_to_cpu(bhdr->table_list[NPS_INFO].offset);
+
+	if (!offset)
+		return -ENOENT;
+
+	/* If verification fails, return as if NPS table doesn't exist */
+	if (amdgpu_discovery_verify_npsinfo(adev, bhdr))
+		return -ENOENT;
+
+	nps_info = (union nps_info *)(adev->mman.discovery_bin + offset);
+
+	switch (le16_to_cpu(nps_info->v1.header.version_major)) {
+	case 1:
+		*nps_type = nps_info->v1.nps_type;
+		*range_cnt = nps_info->v1.count;
+		mem_ranges = kvzalloc(
+			*range_cnt * sizeof(struct amdgpu_gmc_memrange),
+			GFP_KERNEL);
+		for (i = 0; i < *range_cnt; i++) {
+			mem_ranges[i].base_address =
+				nps_info->v1.instance_info[i].base_address;
+			mem_ranges[i].limit_address =
+				nps_info->v1.instance_info[i].limit_address;
+			mem_ranges[i].nid_mask = -1;
+			mem_ranges[i].flags = 0;
+		}
+		*ranges = mem_ranges;
+		break;
+	default:
+		dev_err(adev->dev, "Unhandled NPS info table %d.%d\n",
+			le16_to_cpu(nps_info->v1.header.version_major),
+			le16_to_cpu(nps_info->v1.header.version_minor));
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

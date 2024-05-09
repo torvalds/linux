@@ -1165,3 +1165,79 @@ void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev)
 {
 	device_remove_file(adev->dev, &dev_attr_current_memory_partition);
 }
+
+int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
+				 struct amdgpu_mem_partition_info *mem_ranges,
+				 int exp_ranges)
+{
+	struct amdgpu_gmc_memrange *ranges;
+	int range_cnt, ret, i, j;
+	uint32_t nps_type;
+
+	if (!mem_ranges)
+		return -EINVAL;
+
+	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, &ranges,
+					    &range_cnt);
+
+	if (ret)
+		return ret;
+
+	/* TODO: For now, expect ranges and partition count to be the same.
+	 * Adjust if there are holes expected in any NPS domain.
+	 */
+	if (range_cnt != exp_ranges) {
+		dev_warn(
+			adev->dev,
+			"NPS config mismatch - expected ranges: %d discovery - nps mode: %d, nps ranges: %d",
+			exp_ranges, nps_type, range_cnt);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = 0; i < exp_ranges; ++i) {
+		if (ranges[i].base_address >= ranges[i].limit_address) {
+			dev_warn(
+				adev->dev,
+				"Invalid NPS range - nps mode: %d, range[%d]: base: %llx limit: %llx",
+				nps_type, i, ranges[i].base_address,
+				ranges[i].limit_address);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		/* Check for overlaps, not expecting any now */
+		for (j = i - 1; j >= 0; j--) {
+			if (max(ranges[j].base_address,
+				ranges[i].base_address) <=
+			    min(ranges[j].limit_address,
+				ranges[i].limit_address)) {
+				dev_warn(
+					adev->dev,
+					"overlapping ranges detected [ %llx - %llx ] | [%llx - %llx]",
+					ranges[j].base_address,
+					ranges[j].limit_address,
+					ranges[i].base_address,
+					ranges[i].limit_address);
+				ret = -EINVAL;
+				goto err;
+			}
+		}
+
+		mem_ranges[i].range.fpfn =
+			(ranges[i].base_address -
+			 adev->vm_manager.vram_base_offset) >>
+			AMDGPU_GPU_PAGE_SHIFT;
+		mem_ranges[i].range.lpfn =
+			(ranges[i].limit_address -
+			 adev->vm_manager.vram_base_offset) >>
+			AMDGPU_GPU_PAGE_SHIFT;
+		mem_ranges[i].size =
+			ranges[i].limit_address - ranges[i].base_address + 1;
+	}
+
+err:
+	kfree(ranges);
+
+	return ret;
+}

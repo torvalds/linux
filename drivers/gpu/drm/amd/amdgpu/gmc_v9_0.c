@@ -1895,7 +1895,7 @@ gmc_v9_0_init_sw_mem_ranges(struct amdgpu_device *adev,
 {
 	enum amdgpu_memory_partition mode;
 	u32 start_addr = 0, size;
-	int i;
+	int i, r, l;
 
 	mode = gmc_v9_0_query_memory_partition(adev);
 
@@ -1918,23 +1918,39 @@ gmc_v9_0_init_sw_mem_ranges(struct amdgpu_device *adev,
 		break;
 	}
 
-	size = (adev->gmc.real_vram_size + SZ_16M) >> AMDGPU_GPU_PAGE_SHIFT;
-	size /= adev->gmc.num_mem_partitions;
+	/* Use NPS range info, if populated */
+	r = amdgpu_gmc_get_nps_memranges(adev, mem_ranges,
+					 adev->gmc.num_mem_partitions);
+	if (!r) {
+		l = 0;
+		for (i = 1; i < adev->gmc.num_mem_partitions; ++i) {
+			if (mem_ranges[i].range.lpfn >
+			    mem_ranges[i - 1].range.lpfn)
+				l = i;
+		}
 
-	for (i = 0; i < adev->gmc.num_mem_partitions; ++i) {
-		mem_ranges[i].range.fpfn = start_addr;
-		mem_ranges[i].size = ((u64)size << AMDGPU_GPU_PAGE_SHIFT);
-		mem_ranges[i].range.lpfn = start_addr + size - 1;
-		start_addr += size;
+	} else {
+		/* Fallback to sw based calculation */
+		size = (adev->gmc.real_vram_size + SZ_16M) >> AMDGPU_GPU_PAGE_SHIFT;
+		size /= adev->gmc.num_mem_partitions;
+
+		for (i = 0; i < adev->gmc.num_mem_partitions; ++i) {
+			mem_ranges[i].range.fpfn = start_addr;
+			mem_ranges[i].size =
+				((u64)size << AMDGPU_GPU_PAGE_SHIFT);
+			mem_ranges[i].range.lpfn = start_addr + size - 1;
+			start_addr += size;
+		}
+
+		l = adev->gmc.num_mem_partitions - 1;
 	}
 
 	/* Adjust the last one */
-	mem_ranges[adev->gmc.num_mem_partitions - 1].range.lpfn =
+	mem_ranges[l].range.lpfn =
 		(adev->gmc.real_vram_size >> AMDGPU_GPU_PAGE_SHIFT) - 1;
-	mem_ranges[adev->gmc.num_mem_partitions - 1].size =
+	mem_ranges[l].size =
 		adev->gmc.real_vram_size -
-		((u64)mem_ranges[adev->gmc.num_mem_partitions - 1].range.fpfn
-		 << AMDGPU_GPU_PAGE_SHIFT);
+		((u64)mem_ranges[l].range.fpfn << AMDGPU_GPU_PAGE_SHIFT);
 }
 
 static int gmc_v9_0_init_mem_ranges(struct amdgpu_device *adev)
