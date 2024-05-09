@@ -107,6 +107,7 @@ struct panfrost_device {
 	struct list_head scheduled_jobs;
 
 	struct panfrost_perfcnt *perfcnt;
+	atomic_t profile_mode;
 
 	struct mutex sched_lock;
 
@@ -118,9 +119,14 @@ struct panfrost_device {
 
 	struct mutex shrinker_lock;
 	struct list_head shrinker_list;
-	struct shrinker shrinker;
+	struct shrinker *shrinker;
 
 	struct panfrost_devfreq pfdevfreq;
+
+	struct {
+		atomic_t use_count;
+		spinlock_t lock;
+	} cycle_counter;
 };
 
 struct panfrost_mmu {
@@ -135,12 +141,19 @@ struct panfrost_mmu {
 	struct list_head list;
 };
 
+struct panfrost_engine_usage {
+	unsigned long long elapsed_ns[NUM_JOB_SLOTS];
+	unsigned long long cycles[NUM_JOB_SLOTS];
+};
+
 struct panfrost_file_priv {
 	struct panfrost_device *pfdev;
 
 	struct drm_sched_entity sched_entity[NUM_JOB_SLOTS];
 
 	struct panfrost_mmu *mmu;
+
+	struct panfrost_engine_usage engine_usage;
 };
 
 static inline struct panfrost_device *to_panfrost_device(struct drm_device *ddev)

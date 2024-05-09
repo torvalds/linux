@@ -43,7 +43,7 @@ properties:
   smd-edge: false
 
   memory-region:
-    minItems: 1
+    maxItems: 1
     description: Reference to the reserved-memory for the Hexagon core
 
   firmware-name:
@@ -53,6 +53,7 @@ properties:
 required:
   - compatible
   - reg
+  - memory-region
 
 allOf:
   - $ref: /schemas/remoteproc/qcom,pas-common.yaml#
@@ -139,7 +140,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/mailbox/qcom-ipcc.h>
-    #include <dt-bindings/power/qcom-rpmpd.h>
+    #include <dt-bindings/power/qcom,rpmhpd.h>
 
     remoteproc@30000000 {
         compatible = "qcom,sm8450-adsp-pas";
@@ -160,8 +161,8 @@ examples:
 
         memory-region = <&adsp_mem>;
 
-        power-domains = <&rpmhpd SM8450_LCX>,
-                        <&rpmhpd SM8450_LMX>;
+        power-domains = <&rpmhpd RPMHPD_LCX>,
+                        <&rpmhpd RPMHPD_LMX>;
         power-domain-names = "lcx", "lmx";
 
         qcom,qmp = <&aoss_qmp>;

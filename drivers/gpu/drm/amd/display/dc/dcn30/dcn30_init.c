@@ -23,16 +23,16 @@
  *
  */
 
-#include "dce110/dce110_hw_sequencer.h"
-#include "dcn10/dcn10_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
+#include "dcn10/dcn10_hwseq.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn21/dcn21_hwseq.h"
-#include "dcn30_hwseq.h"
+#include "dcn30/dcn30_hwseq.h"
 
 #include "dcn30_init.h"
 
 static const struct hw_sequencer_funcs dcn30_funcs = {
-	.program_gamut_remap = dcn10_program_gamut_remap,
+	.program_gamut_remap = dcn30_program_gamut_remap,
 	.init_hw = dcn30_init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = NULL,
@@ -64,7 +64,7 @@ static const struct hw_sequencer_funcs dcn30_funcs = {
 	.update_bandwidth = dcn20_update_bandwidth,
 	.set_drr = dcn10_set_drr,
 	.get_position = dcn10_get_position,
-	.set_static_screen_control = dcn10_set_static_screen_control,
+	.set_static_screen_control = dcn30_set_static_screen_control,
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dcn30_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,

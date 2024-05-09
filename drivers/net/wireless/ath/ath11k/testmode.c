@@ -350,7 +350,7 @@ static int ath11k_tm_cmd_wmi(struct ath11k *ar, struct nlattr *tb[],
 	if (ar->ab->fw_mode != ATH11K_FIRMWARE_MODE_FTM &&
 	    (tag == WMI_TAG_VDEV_SET_PARAM_CMD || tag == WMI_TAG_UNIT_TEST_CMD)) {
 		if (vif) {
-			arvif = (struct ath11k_vif *)vif->drv_priv;
+			arvif = ath11k_vif_to_arvif(vif);
 			*ptr = arvif->vdev_id;
 		} else {
 			ret = -EINVAL;

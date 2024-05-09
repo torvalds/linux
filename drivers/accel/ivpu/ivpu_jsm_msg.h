@@ -8,6 +8,8 @@
 
 #include "vpu_jsm_api.h"
 
+const char *ivpu_jsm_msg_type_to_str(enum vpu_ipc_msg_type type);
+
 int ivpu_jsm_register_db(struct ivpu_device *vdev, u32 ctx_id, u32 db_id,
 			 u64 jobq_base, u32 jobq_size);
 int ivpu_jsm_unregister_db(struct ivpu_device *vdev, u32 db_id);

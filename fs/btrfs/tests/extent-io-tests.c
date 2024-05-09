@@ -319,86 +319,139 @@ out:
 	return ret;
 }
 
-static int check_eb_bitmap(unsigned long *bitmap, struct extent_buffer *eb,
-			   unsigned long len)
+static int check_eb_bitmap(unsigned long *bitmap, struct extent_buffer *eb)
 {
 	unsigned long i;
 
-	for (i = 0; i < len * BITS_PER_BYTE; i++) {
+	for (i = 0; i < eb->len * BITS_PER_BYTE; i++) {
 		int bit, bit1;
 
 		bit = !!test_bit(i, bitmap);
 		bit1 = !!extent_buffer_test_bit(eb, 0, i);
 		if (bit1 != bit) {
-			test_err("bits do not match");
+			u8 has;
+			u8 expect;
+
+			read_extent_buffer(eb, &has, i / BITS_PER_BYTE, 1);
+			expect = bitmap_get_value8(bitmap, ALIGN(i, BITS_PER_BYTE));
+
+			test_err(
+		"bits do not match, start byte 0 bit %lu, byte %lu has 0x%02x expect 0x%02x",
+				 i, i / BITS_PER_BYTE, has, expect);
 			return -EINVAL;
 		}
 
 		bit1 = !!extent_buffer_test_bit(eb, i / BITS_PER_BYTE,
 						i % BITS_PER_BYTE);
 		if (bit1 != bit) {
-			test_err("offset bits do not match");
+			u8 has;
+			u8 expect;
+
+			read_extent_buffer(eb, &has, i / BITS_PER_BYTE, 1);
+			expect = bitmap_get_value8(bitmap, ALIGN(i, BITS_PER_BYTE));
+
+			test_err(
+		"bits do not match, start byte %lu bit %lu, byte %lu has 0x%02x expect 0x%02x",
+				 i / BITS_PER_BYTE, i % BITS_PER_BYTE,
+				 i / BITS_PER_BYTE, has, expect);
 			return -EINVAL;
 		}
 	}
 	return 0;
 }
 
-static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
-			     unsigned long len)
+static int test_bitmap_set(const char *name, unsigned long *bitmap,
+			   struct extent_buffer *eb,
+			   unsigned long byte_start, unsigned long bit_start,
+			   unsigned long bit_len)
+{
+	int ret;
+
+	bitmap_set(bitmap, byte_start * BITS_PER_BYTE + bit_start, bit_len);
+	extent_buffer_bitmap_set(eb, byte_start, bit_start, bit_len);
+	ret = check_eb_bitmap(bitmap, eb);
+	if (ret < 0)
+		test_err("%s test failed", name);
+	return ret;
+}
+
+static int test_bitmap_clear(const char *name, unsigned long *bitmap,
+			     struct extent_buffer *eb,
+			     unsigned long byte_start, unsigned long bit_start,
+			     unsigned long bit_len)
+{
+	int ret;
+
+	bitmap_clear(bitmap, byte_start * BITS_PER_BYTE + bit_start, bit_len);
+	extent_buffer_bitmap_clear(eb, byte_start, bit_start, bit_len);
+	ret = check_eb_bitmap(bitmap, eb);
+	if (ret < 0)
+		test_err("%s test failed", name);
+	return ret;
+}
+static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb)
 {
 	unsigned long i, j;
+	unsigned long byte_len = eb->len;
 	u32 x;
 	int ret;
 
-	memset(bitmap, 0, len);
-	memzero_extent_buffer(eb, 0, len);
-	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
-		test_err("bitmap was not zeroed");
-		return -EINVAL;
-	}
-
-	bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
-	ret = check_eb_bitmap(bitmap, eb, len);
-	if (ret) {
-		test_err("setting all bits failed");
+	ret = test_bitmap_clear("clear all run 1", bitmap, eb, 0, 0,
+				byte_len * BITS_PER_BYTE);
+	if (ret < 0)
 		return ret;
-	}
 
-	bitmap_clear(bitmap, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_clear(eb, 0, 0, len * BITS_PER_BYTE);
-	ret = check_eb_bitmap(bitmap, eb, len);
-	if (ret) {
-		test_err("clearing all bits failed");
+	ret = test_bitmap_set("set all", bitmap, eb, 0, 0, byte_len * BITS_PER_BYTE);
+	if (ret < 0)
 		return ret;
-	}
+
+	ret = test_bitmap_clear("clear all run 2", bitmap, eb, 0, 0,
+				byte_len * BITS_PER_BYTE);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_set("same byte set", bitmap, eb, 0, 2, 4);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_clear("same byte partial clear", bitmap, eb, 0, 4, 1);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_set("cross byte set", bitmap, eb, 2, 4, 8);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_set("cross multi byte set", bitmap, eb, 4, 4, 24);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_clear("cross byte clear", bitmap, eb, 2, 6, 4);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_clear("cross multi byte clear", bitmap, eb, 4, 6, 20);
+	if (ret < 0)
+		return ret;
 
 	/* Straddling pages test */
-	if (len > PAGE_SIZE) {
-		bitmap_set(bitmap,
-			(PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
-			sizeof(long) * BITS_PER_BYTE);
-		extent_buffer_bitmap_set(eb, PAGE_SIZE - sizeof(long) / 2, 0,
-					sizeof(long) * BITS_PER_BYTE);
-		ret = check_eb_bitmap(bitmap, eb, len);
-		if (ret) {
-			test_err("setting straddling pages failed");
+	if (byte_len > PAGE_SIZE) {
+		ret = test_bitmap_set("cross page set", bitmap, eb,
+				      PAGE_SIZE - sizeof(long) / 2, 0,
+				      sizeof(long) * BITS_PER_BYTE);
+		if (ret < 0)
 			return ret;
-		}
 
-		bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
-		bitmap_clear(bitmap,
-			(PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
-			sizeof(long) * BITS_PER_BYTE);
-		extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
-		extent_buffer_bitmap_clear(eb, PAGE_SIZE - sizeof(long) / 2, 0,
-					sizeof(long) * BITS_PER_BYTE);
-		ret = check_eb_bitmap(bitmap, eb, len);
-		if (ret) {
-			test_err("clearing straddling pages failed");
+		ret = test_bitmap_set("cross page set all", bitmap, eb, 0, 0,
+				      byte_len * BITS_PER_BYTE);
+		if (ret < 0)
 			return ret;
-		}
+
+		ret = test_bitmap_clear("cross page clear", bitmap, eb,
+					PAGE_SIZE - sizeof(long) / 2, 0,
+					sizeof(long) * BITS_PER_BYTE);
+		if (ret < 0)
+			return ret;
 	}
 
 	/*
@@ -406,9 +459,12 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	 * something repetitive that could miss some hypothetical off-by-n bug.
 	 */
 	x = 0;
-	bitmap_clear(bitmap, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_clear(eb, 0, 0, len * BITS_PER_BYTE);
-	for (i = 0; i < len * BITS_PER_BYTE / 32; i++) {
+	ret = test_bitmap_clear("clear all run 3", bitmap, eb, 0, 0,
+				byte_len * BITS_PER_BYTE);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < byte_len * BITS_PER_BYTE / 32; i++) {
 		x = (0x19660dULL * (u64)x + 0x3c6ef35fULL) & 0xffffffffU;
 		for (j = 0; j < 32; j++) {
 			if (x & (1U << j)) {
@@ -418,7 +474,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 		}
 	}
 
-	ret = check_eb_bitmap(bitmap, eb, len);
+	ret = check_eb_bitmap(bitmap, eb);
 	if (ret) {
 		test_err("random bit pattern failed");
 		return ret;
@@ -456,7 +512,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	ret = __test_eb_bitmaps(bitmap, eb, nodesize);
+	ret = __test_eb_bitmaps(bitmap, eb);
 	if (ret)
 		goto out;
 
@@ -473,7 +529,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	ret = __test_eb_bitmaps(bitmap, eb, nodesize);
+	ret = __test_eb_bitmaps(bitmap, eb);
 out:
 	free_extent_buffer(eb);
 	kfree(bitmap);
@@ -592,6 +648,146 @@ out:
 	return ret;
 }
 
+static void dump_eb_and_memory_contents(struct extent_buffer *eb, void *memory,
+					const char *test_name)
+{
+	for (int i = 0; i < eb->len; i++) {
+		struct page *page = eb->pages[i >> PAGE_SHIFT];
+		void *addr = page_address(page) + offset_in_page(i);
+
+		if (memcmp(addr, memory + i, 1) != 0) {
+			test_err("%s failed", test_name);
+			test_err("eb and memory diffs at byte %u, eb has 0x%02x memory has 0x%02x",
+				 i, *(u8 *)addr, *(u8 *)(memory + i));
+			return;
+		}
+	}
+}
+
+static int verify_eb_and_memory(struct extent_buffer *eb, void *memory,
+				const char *test_name)
+{
+	for (int i = 0; i < (eb->len >> PAGE_SHIFT); i++) {
+		void *eb_addr = page_address(eb->pages[i]);
+
+		if (memcmp(memory + (i << PAGE_SHIFT), eb_addr, PAGE_SIZE) != 0) {
+			dump_eb_and_memory_contents(eb, memory, test_name);
+			return -EUCLEAN;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Init both memory and extent buffer contents to the same randomly generated
+ * contents.
+ */
+static void init_eb_and_memory(struct extent_buffer *eb, void *memory)
+{
+	get_random_bytes(memory, eb->len);
+	write_extent_buffer(eb, memory, 0, eb->len);
+}
+
+static int test_eb_mem_ops(u32 sectorsize, u32 nodesize)
+{
+	struct btrfs_fs_info *fs_info;
+	struct extent_buffer *eb = NULL;
+	void *memory = NULL;
+	int ret;
+
+	test_msg("running extent buffer memory operation tests");
+
+	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
+	if (!fs_info) {
+		test_std_err(TEST_ALLOC_FS_INFO);
+		return -ENOMEM;
+	}
+
+	memory = kvzalloc(nodesize, GFP_KERNEL);
+	if (!memory) {
+		test_err("failed to allocate memory");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	eb = __alloc_dummy_extent_buffer(fs_info, SZ_1M, nodesize);
+	if (!eb) {
+		test_std_err(TEST_ALLOC_EXTENT_BUFFER);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	init_eb_and_memory(eb, memory);
+	ret = verify_eb_and_memory(eb, memory, "full eb write");
+	if (ret < 0)
+		goto out;
+
+	memcpy(memory, memory + 16, 16);
+	memcpy_extent_buffer(eb, 0, 16, 16);
+	ret = verify_eb_and_memory(eb, memory, "same page non-overlapping memcpy 1");
+	if (ret < 0)
+		goto out;
+
+	memcpy(memory, memory + 2048, 16);
+	memcpy_extent_buffer(eb, 0, 2048, 16);
+	ret = verify_eb_and_memory(eb, memory, "same page non-overlapping memcpy 2");
+	if (ret < 0)
+		goto out;
+	memcpy(memory, memory + 2048, 2048);
+	memcpy_extent_buffer(eb, 0, 2048, 2048);
+	ret = verify_eb_and_memory(eb, memory, "same page non-overlapping memcpy 3");
+	if (ret < 0)
+		goto out;
+
+	memmove(memory + 512, memory + 256, 512);
+	memmove_extent_buffer(eb, 512, 256, 512);
+	ret = verify_eb_and_memory(eb, memory, "same page overlapping memcpy 1");
+	if (ret < 0)
+		goto out;
+
+	memmove(memory + 2048, memory + 512, 2048);
+	memmove_extent_buffer(eb, 2048, 512, 2048);
+	ret = verify_eb_and_memory(eb, memory, "same page overlapping memcpy 2");
+	if (ret < 0)
+		goto out;
+	memmove(memory + 512, memory + 2048, 2048);
+	memmove_extent_buffer(eb, 512, 2048, 2048);
+	ret = verify_eb_and_memory(eb, memory, "same page overlapping memcpy 3");
+	if (ret < 0)
+		goto out;
+
+	if (nodesize > PAGE_SIZE) {
+		memcpy(memory, memory + 4096 - 128, 256);
+		memcpy_extent_buffer(eb, 0, 4096 - 128, 256);
+		ret = verify_eb_and_memory(eb, memory, "cross page non-overlapping memcpy 1");
+		if (ret < 0)
+			goto out;
+
+		memcpy(memory + 4096 - 128, memory + 4096 + 128, 256);
+		memcpy_extent_buffer(eb, 4096 - 128, 4096 + 128, 256);
+		ret = verify_eb_and_memory(eb, memory, "cross page non-overlapping memcpy 2");
+		if (ret < 0)
+			goto out;
+
+		memmove(memory + 4096 - 128, memory + 4096 - 64, 256);
+		memmove_extent_buffer(eb, 4096 - 128, 4096 - 64, 256);
+		ret = verify_eb_and_memory(eb, memory, "cross page overlapping memcpy 1");
+		if (ret < 0)
+			goto out;
+
+		memmove(memory + 4096 - 64, memory + 4096 - 128, 256);
+		memmove_extent_buffer(eb, 4096 - 64, 4096 - 128, 256);
+		ret = verify_eb_and_memory(eb, memory, "cross page overlapping memcpy 2");
+		if (ret < 0)
+			goto out;
+	}
+out:
+	free_extent_buffer(eb);
+	kvfree(memory);
+	btrfs_free_dummy_fs_info(fs_info);
+	return ret;
+}
+
 int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 {
 	int ret;
@@ -607,6 +803,10 @@ int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 		goto out;
 
 	ret = test_eb_bitmaps(sectorsize, nodesize);
+	if (ret)
+		goto out;
+
+	ret = test_eb_mem_ops(sectorsize, nodesize);
 out:
 	return ret;
 }

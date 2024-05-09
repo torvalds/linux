@@ -72,15 +72,6 @@ MODULE_PARM_DESC(mlo, "Support MLO");
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer
  *
- * These are the different values you can use for the regtest
- * module parameter. This is useful to help test world roaming
- * and the driver regulatory_hint() call and combinations of these.
- * If you want to do specific alpha2 regulatory domain tests simply
- * use the userspace regulatory request as that will be respected as
- * well without the need of this module parameter. This is designed
- * only for testing the driver regulatory request, world roaming
- * and all possible combinations.
- *
  * @HWSIM_REGTEST_DISABLED: No regulatory tests are performed,
  * 	this is the default value.
  * @HWSIM_REGTEST_DRIVER_REG_FOLLOW: Used for testing the driver regulatory
@@ -125,6 +116,15 @@ MODULE_PARM_DESC(mlo, "Support MLO");
  * 	    domain request
  * 	6 and on - should follow the intersection of the 3rd, 4rth and 5th radio
  * 	           regulatory requests.
+ *
+ * These are the different values you can use for the regtest
+ * module parameter. This is useful to help test world roaming
+ * and the driver regulatory_hint() call and combinations of these.
+ * If you want to do specific alpha2 regulatory domain tests simply
+ * use the userspace regulatory request as that will be respected as
+ * well without the need of this module parameter. This is designed
+ * only for testing the driver regulatory request, world roaming
+ * and all possible combinations.
  */
 enum hwsim_regtest {
 	HWSIM_REGTEST_DISABLED = 0,
@@ -582,9 +582,8 @@ static int mac80211_hwsim_vendor_cmd_test(struct wiphy *wiphy,
 		 */
 
 		/* Add vendor data */
-		err = nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_TEST, val + 1);
-		if (err)
-			return err;
+		nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_TEST, val + 1);
+
 		/* Send the event - this will call nla_nest_end() */
 		cfg80211_vendor_event(skb, GFP_KERNEL);
 	}
@@ -2446,6 +2445,14 @@ static void mac80211_hwsim_vif_info_changed(struct ieee80211_hw *hw,
 		vp->assoc = vif->cfg.assoc;
 		vp->aid = vif->cfg.aid;
 	}
+
+	if (vif->type == NL80211_IFTYPE_STATION &&
+	    changed & BSS_CHANGED_MLD_VALID_LINKS) {
+		u16 usable_links = ieee80211_vif_usable_links(vif);
+
+		if (vif->active_links != usable_links)
+			ieee80211_set_active_links_async(vif, usable_links);
+	}
 }
 
 static void mac80211_hwsim_link_info_changed(struct ieee80211_hw *hw,
@@ -3171,7 +3178,7 @@ static void mac80211_hwsim_get_et_strings(struct ieee80211_hw *hw,
 					  u32 sset, u8 *data)
 {
 	if (sset == ETH_SS_STATS)
-		memcpy(data, *mac80211_hwsim_gstrings_stats,
+		memcpy(data, mac80211_hwsim_gstrings_stats,
 		       sizeof(mac80211_hwsim_gstrings_stats));
 }
 
@@ -4900,25 +4907,19 @@ static const struct ieee80211_sband_iftype_data sband_capa_6ghz[] = {
 
 static void mac80211_hwsim_sband_capab(struct ieee80211_supported_band *sband)
 {
-	u16 n_iftype_data;
-
-	if (sband->band == NL80211_BAND_2GHZ) {
-		n_iftype_data = ARRAY_SIZE(sband_capa_2ghz);
-		sband->iftype_data =
-			(struct ieee80211_sband_iftype_data *)sband_capa_2ghz;
-	} else if (sband->band == NL80211_BAND_5GHZ) {
-		n_iftype_data = ARRAY_SIZE(sband_capa_5ghz);
-		sband->iftype_data =
-			(struct ieee80211_sband_iftype_data *)sband_capa_5ghz;
-	} else if (sband->band == NL80211_BAND_6GHZ) {
-		n_iftype_data = ARRAY_SIZE(sband_capa_6ghz);
-		sband->iftype_data =
-			(struct ieee80211_sband_iftype_data *)sband_capa_6ghz;
-	} else {
-		return;
+	switch (sband->band) {
+	case NL80211_BAND_2GHZ:
+		ieee80211_set_sband_iftype_data(sband, sband_capa_2ghz);
+		break;
+	case NL80211_BAND_5GHZ:
+		ieee80211_set_sband_iftype_data(sband, sband_capa_5ghz);
+		break;
+	case NL80211_BAND_6GHZ:
+		ieee80211_set_sband_iftype_data(sband, sband_capa_6ghz);
+		break;
+	default:
+		break;
 	}
-
-	sband->n_iftype_data = n_iftype_data;
 }
 
 #ifdef CONFIG_MAC80211_MESH
@@ -5626,12 +5627,13 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	frame_data_len = nla_len(info->attrs[HWSIM_ATTR_FRAME]);
 	frame_data = (void *)nla_data(info->attrs[HWSIM_ATTR_FRAME]);
 
+	if (frame_data_len < sizeof(struct ieee80211_hdr_3addr) ||
+	    frame_data_len > IEEE80211_MAX_DATA_LEN)
+		goto err;
+
 	/* Allocate new skb here */
 	skb = alloc_skb(frame_data_len, GFP_KERNEL);
 	if (skb == NULL)
-		goto err;
-
-	if (frame_data_len > IEEE80211_MAX_DATA_LEN)
 		goto err;
 
 	/* Copy the data */
@@ -6314,7 +6316,7 @@ static void hwsim_virtio_tx_done(struct virtqueue *vq)
 
 	spin_lock_irqsave(&hwsim_virtio_lock, flags);
 	while ((skb = virtqueue_get_buf(vq, &len)))
-		nlmsg_free(skb);
+		dev_kfree_skb_irq(skb);
 	spin_unlock_irqrestore(&hwsim_virtio_lock, flags);
 }
 
@@ -6383,14 +6385,14 @@ static void hwsim_virtio_rx_work(struct work_struct *work)
 
 	spin_lock_irqsave(&hwsim_virtio_lock, flags);
 	if (!hwsim_virtio_enabled) {
-		nlmsg_free(skb);
+		dev_kfree_skb_irq(skb);
 		goto out_unlock;
 	}
 	vq = hwsim_vqs[HWSIM_VQ_RX];
 	sg_init_one(sg, skb->head, skb_end_offset(skb));
 	err = virtqueue_add_inbuf(vq, sg, 1, skb, GFP_ATOMIC);
 	if (WARN(err, "virtqueue_add_inbuf returned %d\n", err))
-		nlmsg_free(skb);
+		dev_kfree_skb_irq(skb);
 	else
 		virtqueue_kick(vq);
 	schedule_work(&hwsim_virtio_rx);

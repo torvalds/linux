@@ -1687,6 +1687,9 @@ static const struct target_core_fabric_ops usbg_ops = {
 
 	.tfc_wwn_attrs			= usbg_wwn_attrs,
 	.tfc_tpg_base_attrs		= usbg_base_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 /* Start gadget.c code */

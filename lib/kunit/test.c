@@ -9,6 +9,7 @@
 #include <kunit/resource.h>
 #include <kunit/test.h>
 #include <kunit/test-bug.h>
+#include <kunit/attributes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -108,51 +109,17 @@ static void kunit_print_test_stats(struct kunit *test,
 		  stats.total);
 }
 
-/**
- * kunit_log_newline() - Add newline to the end of log if one is not
- * already present.
- * @log: The log to add the newline to.
- */
-static void kunit_log_newline(char *log)
-{
-	int log_len, len_left;
-
-	log_len = strlen(log);
-	len_left = KUNIT_LOG_SIZE - log_len - 1;
-
-	if (log_len > 0 && log[log_len - 1] != '\n')
-		strncat(log, "\n", len_left);
-}
-
-/*
- * Append formatted message to log, size of which is limited to
- * KUNIT_LOG_SIZE bytes (including null terminating byte).
- */
-void kunit_log_append(char *log, const char *fmt, ...)
+/* Append formatted message to log. */
+void kunit_log_append(struct string_stream *log, const char *fmt, ...)
 {
 	va_list args;
-	int len, log_len, len_left;
 
 	if (!log)
 		return;
 
-	log_len = strlen(log);
-	len_left = KUNIT_LOG_SIZE - log_len - 1;
-	if (len_left <= 0)
-		return;
-
-	/* Evaluate length of line to add to log */
 	va_start(args, fmt);
-	len = vsnprintf(NULL, 0, fmt, args) + 1;
+	string_stream_vadd(log, fmt, args);
 	va_end(args);
-
-	/* Print formatted line to the log */
-	va_start(args, fmt);
-	vsnprintf(log + log_len, min(len, len_left), fmt, args);
-	va_end(args);
-
-	/* Add newline to end of log if not already present. */
-	kunit_log_newline(log);
 }
 EXPORT_SYMBOL_GPL(kunit_log_append);
 
@@ -168,6 +135,13 @@ size_t kunit_suite_num_test_cases(struct kunit_suite *suite)
 }
 EXPORT_SYMBOL_GPL(kunit_suite_num_test_cases);
 
+/* Currently supported test levels */
+enum {
+	KUNIT_LEVEL_SUITE = 0,
+	KUNIT_LEVEL_CASE,
+	KUNIT_LEVEL_CASE_PARAM,
+};
+
 static void kunit_print_suite_start(struct kunit_suite *suite)
 {
 	/*
@@ -181,16 +155,10 @@ static void kunit_print_suite_start(struct kunit_suite *suite)
 	pr_info(KUNIT_SUBTEST_INDENT "KTAP version 1\n");
 	pr_info(KUNIT_SUBTEST_INDENT "# Subtest: %s\n",
 		  suite->name);
+	kunit_print_attr((void *)suite, false, KUNIT_LEVEL_CASE);
 	pr_info(KUNIT_SUBTEST_INDENT "1..%zd\n",
 		  kunit_suite_num_test_cases(suite));
 }
-
-/* Currently supported test levels */
-enum {
-	KUNIT_LEVEL_SUITE = 0,
-	KUNIT_LEVEL_CASE,
-	KUNIT_LEVEL_CASE_PARAM,
-};
 
 static void kunit_print_ok_not_ok(struct kunit *test,
 				  unsigned int test_level,
@@ -294,7 +262,7 @@ static void kunit_print_string_stream(struct kunit *test,
 		kunit_err(test, "\n");
 	} else {
 		kunit_err(test, "%s", buf);
-		kunit_kfree(test, buf);
+		kfree(buf);
 	}
 }
 
@@ -306,7 +274,7 @@ static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
 
 	kunit_set_failure(test);
 
-	stream = alloc_string_stream(test, GFP_KERNEL);
+	stream = kunit_alloc_string_stream(test, GFP_KERNEL);
 	if (IS_ERR(stream)) {
 		WARN(true,
 		     "Could not allocate stream to print failed assertion in %s:%d\n",
@@ -320,7 +288,7 @@ static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
 
 	kunit_print_string_stream(test, stream);
 
-	string_stream_destroy(stream);
+	kunit_free_string_stream(test, stream);
 }
 
 void __noreturn __kunit_abort(struct kunit *test)
@@ -357,14 +325,14 @@ void __kunit_do_failed_assertion(struct kunit *test,
 }
 EXPORT_SYMBOL_GPL(__kunit_do_failed_assertion);
 
-void kunit_init_test(struct kunit *test, const char *name, char *log)
+void kunit_init_test(struct kunit *test, const char *name, struct string_stream *log)
 {
 	spin_lock_init(&test->lock);
 	INIT_LIST_HEAD(&test->resources);
 	test->name = name;
 	test->log = log;
 	if (test->log)
-		test->log[0] = '\0';
+		string_stream_clear(log);
 	test->status = KUNIT_SUCCESS;
 	test->status_comment[0] = '\0';
 }
@@ -611,18 +579,22 @@ int kunit_run_tests(struct kunit_suite *suite)
 	kunit_suite_for_each_test_case(suite, test_case) {
 		struct kunit test = { .param_value = NULL, .param_index = 0 };
 		struct kunit_result_stats param_stats = { 0 };
-		test_case->status = KUNIT_SKIPPED;
 
 		kunit_init_test(&test, test_case->name, test_case->log);
-
-		if (!test_case->generate_params) {
+		if (test_case->status == KUNIT_SKIPPED) {
+			/* Test marked as skip */
+			test.status = KUNIT_SKIPPED;
+			kunit_update_stats(&param_stats, test.status);
+		} else if (!test_case->generate_params) {
 			/* Non-parameterised test. */
+			test_case->status = KUNIT_SKIPPED;
 			kunit_run_case_catch_errors(suite, test_case, &test);
 			kunit_update_stats(&param_stats, test.status);
 		} else {
 			/* Get initial param. */
 			param_desc[0] = '\0';
 			test.param_value = test_case->generate_params(NULL, param_desc);
+			test_case->status = KUNIT_SKIPPED;
 			kunit_log(KERN_INFO, &test, KUNIT_SUBTEST_INDENT KUNIT_SUBTEST_INDENT
 				  "KTAP version 1\n");
 			kunit_log(KERN_INFO, &test, KUNIT_SUBTEST_INDENT KUNIT_SUBTEST_INDENT
@@ -642,15 +614,18 @@ int kunit_run_tests(struct kunit_suite *suite)
 						      param_desc,
 						      test.status_comment);
 
+				kunit_update_stats(&param_stats, test.status);
+
 				/* Get next param. */
 				param_desc[0] = '\0';
 				test.param_value = test_case->generate_params(test.param_value, param_desc);
 				test.param_index++;
-
-				kunit_update_stats(&param_stats, test.status);
+				test.status = KUNIT_SUCCESS;
+				test.status_comment[0] = '\0';
 			}
 		}
 
+		kunit_print_attr((void *)test_case, true, KUNIT_LEVEL_CASE);
 
 		kunit_print_test_stats(&test, param_stats);
 
@@ -729,12 +704,45 @@ EXPORT_SYMBOL_GPL(__kunit_test_suites_exit);
 #ifdef CONFIG_MODULES
 static void kunit_module_init(struct module *mod)
 {
-	__kunit_test_suites_init(mod->kunit_suites, mod->num_kunit_suites);
+	struct kunit_suite_set suite_set = {
+		mod->kunit_suites, mod->kunit_suites + mod->num_kunit_suites,
+	};
+	const char *action = kunit_action();
+	int err = 0;
+
+	suite_set = kunit_filter_suites(&suite_set,
+					kunit_filter_glob() ?: "*.*",
+					kunit_filter(), kunit_filter_action(),
+					&err);
+	if (err)
+		pr_err("kunit module: error filtering suites: %d\n", err);
+
+	mod->kunit_suites = (struct kunit_suite **)suite_set.start;
+	mod->num_kunit_suites = suite_set.end - suite_set.start;
+
+	if (!action)
+		kunit_exec_run_tests(&suite_set, false);
+	else if (!strcmp(action, "list"))
+		kunit_exec_list_tests(&suite_set, false);
+	else if (!strcmp(action, "list_attr"))
+		kunit_exec_list_tests(&suite_set, true);
+	else
+		pr_err("kunit: unknown action '%s'\n", action);
 }
 
 static void kunit_module_exit(struct module *mod)
 {
-	__kunit_test_suites_exit(mod->kunit_suites, mod->num_kunit_suites);
+	struct kunit_suite_set suite_set = {
+		mod->kunit_suites, mod->kunit_suites + mod->num_kunit_suites,
+	};
+	const char *action = kunit_action();
+
+	if (!action)
+		__kunit_test_suites_exit(mod->kunit_suites,
+					 mod->num_kunit_suites);
+
+	if (suite_set.start)
+		kunit_free_suite_set(suite_set);
 }
 
 static int kunit_module_notify(struct notifier_block *nb, unsigned long val,
@@ -744,12 +752,13 @@ static int kunit_module_notify(struct notifier_block *nb, unsigned long val,
 
 	switch (val) {
 	case MODULE_STATE_LIVE:
-		kunit_module_init(mod);
 		break;
 	case MODULE_STATE_GOING:
 		kunit_module_exit(mod);
 		break;
 	case MODULE_STATE_COMING:
+		kunit_module_init(mod);
+		break;
 	case MODULE_STATE_UNFORMED:
 		break;
 	}

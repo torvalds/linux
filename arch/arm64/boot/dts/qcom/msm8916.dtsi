@@ -74,23 +74,43 @@
 		};
 
 		mpss_mem: mpss@86800000 {
-			reg = <0x0 0x86800000 0x0 0x2b00000>;
+			/*
+			 * The memory region for the mpss firmware is generally
+			 * relocatable and could be allocated dynamically.
+			 * However, many firmware versions tend to fail when
+			 * loaded to some special addresses, so it is hard to
+			 * define reliable alloc-ranges.
+			 *
+			 * alignment = <0x0 0x400000>;
+			 * alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
+			 */
+			reg = <0x0 0x86800000 0x0 0>; /* size is device-specific */
 			no-map;
+			status = "disabled";
 		};
 
-		wcnss_mem: wcnss@89300000 {
-			reg = <0x0 0x89300000 0x0 0x600000>;
+		wcnss_mem: wcnss {
+			size = <0x0 0x600000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
+			status = "disabled";
 		};
 
-		venus_mem: venus@89900000 {
-			reg = <0x0 0x89900000 0x0 0x600000>;
+		venus_mem: venus {
+			size = <0x0 0x500000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
+			status = "disabled";
 		};
 
-		mba_mem: mba@8ea00000 {
+		mba_mem: mba {
+			size = <0x0 0x100000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
 			no-map;
-			reg = <0 0x8ea00000 0 0x100000>;
+			status = "disabled";
 		};
 	};
 
@@ -282,10 +302,10 @@
 		};
 	};
 
-	smd {
-		compatible = "qcom,smd";
+	rpm: remoteproc {
+		compatible = "qcom,msm8916-rpm-proc", "qcom,rpm-proc";
 
-		rpm {
+		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
 			qcom,ipc = <&apcs 8 0>;
 			qcom,smd-edge = <15>;
@@ -1712,6 +1732,14 @@
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+				};
+
+				port@1 {
+					reg = <1>;
+				};
 			};
 		};
 
@@ -1742,7 +1770,7 @@
 			};
 		};
 
-		gpu@1c00000 {
+		gpu: gpu@1c00000 {
 			compatible = "qcom,adreno-306.0", "qcom,adreno";
 			reg = <0x01c00000 0x20000>;
 			reg-names = "kgsl_3d0_reg_memory";
@@ -1765,6 +1793,7 @@
 			power-domains = <&gcc OXILI_GDSC>;
 			operating-points-v2 = <&gpu_opp_table>;
 			iommus = <&gpu_iommu 1>, <&gpu_iommu 2>;
+			status = "disabled";
 
 			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
@@ -1789,7 +1818,7 @@
 			clock-names = "core", "iface", "bus";
 			iommus = <&apps_iommu 5>;
 			memory-region = <&venus_mem>;
-			status = "okay";
+			status = "disabled";
 
 			video-decoder {
 				compatible = "venus-decoder";
@@ -1805,7 +1834,7 @@
 			#size-cells = <1>;
 			#iommu-cells = <1>;
 			compatible = "qcom,msm8916-iommu", "qcom,msm-iommu-v1";
-			ranges = <0 0x01e20000 0x40000>;
+			ranges = <0 0x01e20000 0x20000>;
 			reg = <0x01ef0000 0x3000>;
 			clocks = <&gcc GCC_SMMU_CFG_CLK>,
 				 <&gcc GCC_APSS_TCU_CLK>;

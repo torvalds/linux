@@ -185,9 +185,10 @@ Performs an analysis of the battery and returns a status code:
 WMI method BatteryeRawAnalytics()
 ---------------------------------
 
-Returns a buffer usually containg 12 blocks of analytics data.
+Returns a buffer usually containing 12 blocks of analytics data.
 Those blocks contain:
-- block number starting with 0 (u8)
+
+- a block number starting with 0 (u8)
 - 31 bytes of unknown data
 
 .. note::
@@ -217,7 +218,7 @@ Returns the WMI interface version as an u32.
 WMI method FanSensorInformation()
 ---------------------------------
 
-Returns a buffer containg fan sensor entries, terminated
+Returns a buffer containing fan sensor entries, terminated
 with a single ``0xff``.
 Those entries contain:
 

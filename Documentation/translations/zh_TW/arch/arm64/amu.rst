@@ -5,7 +5,7 @@
 :Original: :ref:`Documentation/arch/arm64/amu.rst <amu_index>`
 
 Translator: Bailu Lin <bailu.lin@vivo.com>
-            Hu Haowen <src.res@email.cn>
+            Hu Haowen <src.res.211@gmail.com>
 
 ==================================
 AArch64 Linux 中擴展的活動監控單元
@@ -28,11 +28,11 @@ AArch64 Linux 中擴展的活動監控單元
 
 AMUv1 架構實現了一個由4個固定的64位事件計數器組成的計數器組。
 
-  - CPU 周期計數器：同 CPU 的頻率增長
+  - CPU 週期計數器：同 CPU 的頻率增長
   - 常量計數器：同固定的系統時鐘頻率增長
   - 淘汰指令計數器: 同每次架構指令執行增長
-  - 內存停頓周期計數器：計算由在時鐘域內的最後一級緩存中未命中而引起
-    的指令調度停頓周期數
+  - 內存停頓週期計數器：計算由在時鐘域內的最後一級緩存中未命中而引起
+    的指令調度停頓週期數
 
 當處於 WFI 或者 WFE 狀態時，計數器不會增長。
 

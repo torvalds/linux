@@ -339,8 +339,8 @@ static int __init imx_mu_of_init(struct device_node *dn,
 	msi_data->msiir_addr = res->start + msi_data->cfg->xTR;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return -ENODEV;
+	if (irq < 0)
+		return irq;
 
 	platform_set_drvdata(pdev, msi_data);
 

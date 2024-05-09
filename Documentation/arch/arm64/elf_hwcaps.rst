@@ -305,6 +305,18 @@ HWCAP2_SMEF16F16
 HWCAP2_MOPS
     Functionality implied by ID_AA64ISAR2_EL1.MOPS == 0b0001.
 
+HWCAP2_HBC
+    Functionality implied by ID_AA64ISAR2_EL1.BC == 0b0001.
+
+HWCAP2_SVE_B16B16
+    Functionality implied by ID_AA64ZFR0_EL1.B16B16 == 0b0001.
+
+HWCAP2_LRCPC3
+    Functionality implied by ID_AA64ISAR1_EL1.LRCPC == 0b0011.
+
+HWCAP2_LSE128
+    Functionality implied by ID_AA64ISAR0_EL1.Atomic == 0b0011.
+
 4. Unused AT_HWCAP bits
 -----------------------
 

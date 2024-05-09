@@ -16,8 +16,33 @@
 /* Hack to make assertions more readable */
 #define _IOMMU_TEST_CMD(x) IOMMU_TEST_CMD
 
+/* Imported from include/asm-generic/bitops/generic-non-atomic.h */
+#define BITS_PER_BYTE 8
+#define BITS_PER_LONG __BITS_PER_LONG
+#define BIT_MASK(nr) (1UL << ((nr) % __BITS_PER_LONG))
+#define BIT_WORD(nr) ((nr) / __BITS_PER_LONG)
+
+static inline void set_bit(unsigned int nr, unsigned long *addr)
+{
+	unsigned long mask = BIT_MASK(nr);
+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+
+	*p |= mask;
+}
+
+static inline bool test_bit(unsigned int nr, unsigned long *addr)
+{
+	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG - 1)));
+}
+
 static void *buffer;
 static unsigned long BUFFER_SIZE;
+
+static unsigned long PAGE_SIZE;
+
+#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
+#define offsetofend(TYPE, MEMBER) \
+	(offsetof(TYPE, MEMBER) + sizeof_field(TYPE, MEMBER))
 
 /*
  * Have the kernel check the refcount on pages. I don't know why a freshly
@@ -39,7 +64,7 @@ static unsigned long BUFFER_SIZE;
 	})
 
 static int _test_cmd_mock_domain(int fd, unsigned int ioas_id, __u32 *stdev_id,
-				 __u32 *hwpt_id)
+				 __u32 *hwpt_id, __u32 *idev_id)
 {
 	struct iommu_test_cmd cmd = {
 		.size = sizeof(cmd),
@@ -57,14 +82,257 @@ static int _test_cmd_mock_domain(int fd, unsigned int ioas_id, __u32 *stdev_id,
 	assert(cmd.id != 0);
 	if (hwpt_id)
 		*hwpt_id = cmd.mock_domain.out_hwpt_id;
+	if (idev_id)
+		*idev_id = cmd.mock_domain.out_idev_id;
 	return 0;
 }
-#define test_cmd_mock_domain(ioas_id, stdev_id, hwpt_id) \
-	ASSERT_EQ(0,                                     \
-		  _test_cmd_mock_domain(self->fd, ioas_id, stdev_id, hwpt_id))
+#define test_cmd_mock_domain(ioas_id, stdev_id, hwpt_id, idev_id)       \
+	ASSERT_EQ(0, _test_cmd_mock_domain(self->fd, ioas_id, stdev_id, \
+					   hwpt_id, idev_id))
 #define test_err_mock_domain(_errno, ioas_id, stdev_id, hwpt_id)      \
 	EXPECT_ERRNO(_errno, _test_cmd_mock_domain(self->fd, ioas_id, \
-						   stdev_id, hwpt_id))
+						   stdev_id, hwpt_id, NULL))
+
+static int _test_cmd_mock_domain_flags(int fd, unsigned int ioas_id,
+				       __u32 stdev_flags, __u32 *stdev_id,
+				       __u32 *hwpt_id, __u32 *idev_id)
+{
+	struct iommu_test_cmd cmd = {
+		.size = sizeof(cmd),
+		.op = IOMMU_TEST_OP_MOCK_DOMAIN_FLAGS,
+		.id = ioas_id,
+		.mock_domain_flags = { .dev_flags = stdev_flags },
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_TEST_CMD, &cmd);
+	if (ret)
+		return ret;
+	if (stdev_id)
+		*stdev_id = cmd.mock_domain_flags.out_stdev_id;
+	assert(cmd.id != 0);
+	if (hwpt_id)
+		*hwpt_id = cmd.mock_domain_flags.out_hwpt_id;
+	if (idev_id)
+		*idev_id = cmd.mock_domain_flags.out_idev_id;
+	return 0;
+}
+#define test_cmd_mock_domain_flags(ioas_id, flags, stdev_id, hwpt_id, idev_id) \
+	ASSERT_EQ(0, _test_cmd_mock_domain_flags(self->fd, ioas_id, flags,     \
+						 stdev_id, hwpt_id, idev_id))
+#define test_err_mock_domain_flags(_errno, ioas_id, flags, stdev_id, hwpt_id) \
+	EXPECT_ERRNO(_errno,                                                  \
+		     _test_cmd_mock_domain_flags(self->fd, ioas_id, flags,    \
+						 stdev_id, hwpt_id, NULL))
+
+static int _test_cmd_mock_domain_replace(int fd, __u32 stdev_id, __u32 pt_id,
+					 __u32 *hwpt_id)
+{
+	struct iommu_test_cmd cmd = {
+		.size = sizeof(cmd),
+		.op = IOMMU_TEST_OP_MOCK_DOMAIN_REPLACE,
+		.id = stdev_id,
+		.mock_domain_replace = {
+			.pt_id = pt_id,
+		},
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_TEST_CMD, &cmd);
+	if (ret)
+		return ret;
+	if (hwpt_id)
+		*hwpt_id = cmd.mock_domain_replace.pt_id;
+	return 0;
+}
+
+#define test_cmd_mock_domain_replace(stdev_id, pt_id)                         \
+	ASSERT_EQ(0, _test_cmd_mock_domain_replace(self->fd, stdev_id, pt_id, \
+						   NULL))
+#define test_err_mock_domain_replace(_errno, stdev_id, pt_id)                  \
+	EXPECT_ERRNO(_errno, _test_cmd_mock_domain_replace(self->fd, stdev_id, \
+							   pt_id, NULL))
+
+static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id,
+				__u32 flags, __u32 *hwpt_id, __u32 data_type,
+				void *data, size_t data_len)
+{
+	struct iommu_hwpt_alloc cmd = {
+		.size = sizeof(cmd),
+		.flags = flags,
+		.dev_id = device_id,
+		.pt_id = pt_id,
+		.data_type = data_type,
+		.data_len = data_len,
+		.data_uptr = (uint64_t)data,
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_HWPT_ALLOC, &cmd);
+	if (ret)
+		return ret;
+	if (hwpt_id)
+		*hwpt_id = cmd.out_hwpt_id;
+	return 0;
+}
+
+#define test_cmd_hwpt_alloc(device_id, pt_id, flags, hwpt_id)                  \
+	ASSERT_EQ(0, _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, flags,   \
+					  hwpt_id, IOMMU_HWPT_DATA_NONE, NULL, \
+					  0))
+#define test_err_hwpt_alloc(_errno, device_id, pt_id, flags, hwpt_id)   \
+	EXPECT_ERRNO(_errno, _test_cmd_hwpt_alloc(                      \
+				     self->fd, device_id, pt_id, flags, \
+				     hwpt_id, IOMMU_HWPT_DATA_NONE, NULL, 0))
+
+#define test_cmd_hwpt_alloc_nested(device_id, pt_id, flags, hwpt_id,         \
+				   data_type, data, data_len)                \
+	ASSERT_EQ(0, _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, flags, \
+					  hwpt_id, data_type, data, data_len))
+#define test_err_hwpt_alloc_nested(_errno, device_id, pt_id, flags, hwpt_id, \
+				   data_type, data, data_len)                \
+	EXPECT_ERRNO(_errno,                                                 \
+		     _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, flags, \
+					  hwpt_id, data_type, data, data_len))
+
+static int _test_cmd_access_replace_ioas(int fd, __u32 access_id,
+					 unsigned int ioas_id)
+{
+	struct iommu_test_cmd cmd = {
+		.size = sizeof(cmd),
+		.op = IOMMU_TEST_OP_ACCESS_REPLACE_IOAS,
+		.id = access_id,
+		.access_replace_ioas = { .ioas_id = ioas_id },
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_TEST_CMD, &cmd);
+	if (ret)
+		return ret;
+	return 0;
+}
+#define test_cmd_access_replace_ioas(access_id, ioas_id) \
+	ASSERT_EQ(0, _test_cmd_access_replace_ioas(self->fd, access_id, ioas_id))
+
+static int _test_cmd_set_dirty_tracking(int fd, __u32 hwpt_id, bool enabled)
+{
+	struct iommu_hwpt_set_dirty_tracking cmd = {
+		.size = sizeof(cmd),
+		.flags = enabled ? IOMMU_HWPT_DIRTY_TRACKING_ENABLE : 0,
+		.hwpt_id = hwpt_id,
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_HWPT_SET_DIRTY_TRACKING, &cmd);
+	if (ret)
+		return -errno;
+	return 0;
+}
+#define test_cmd_set_dirty_tracking(hwpt_id, enabled) \
+	ASSERT_EQ(0, _test_cmd_set_dirty_tracking(self->fd, hwpt_id, enabled))
+
+static int _test_cmd_get_dirty_bitmap(int fd, __u32 hwpt_id, size_t length,
+				      __u64 iova, size_t page_size,
+				      __u64 *bitmap, __u32 flags)
+{
+	struct iommu_hwpt_get_dirty_bitmap cmd = {
+		.size = sizeof(cmd),
+		.hwpt_id = hwpt_id,
+		.flags = flags,
+		.iova = iova,
+		.length = length,
+		.page_size = page_size,
+		.data = (uintptr_t)bitmap,
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_HWPT_GET_DIRTY_BITMAP, &cmd);
+	if (ret)
+		return ret;
+	return 0;
+}
+
+#define test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size,    \
+				  bitmap, flags)                           \
+	ASSERT_EQ(0, _test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, \
+						page_size, bitmap, flags))
+
+static int _test_cmd_mock_domain_set_dirty(int fd, __u32 hwpt_id, size_t length,
+					   __u64 iova, size_t page_size,
+					   __u64 *bitmap, __u64 *dirty)
+{
+	struct iommu_test_cmd cmd = {
+		.size = sizeof(cmd),
+		.op = IOMMU_TEST_OP_DIRTY,
+		.id = hwpt_id,
+		.dirty = {
+			.iova = iova,
+			.length = length,
+			.page_size = page_size,
+			.uptr = (uintptr_t)bitmap,
+		}
+	};
+	int ret;
+
+	ret = ioctl(fd, _IOMMU_TEST_CMD(IOMMU_TEST_OP_DIRTY), &cmd);
+	if (ret)
+		return -ret;
+	if (dirty)
+		*dirty = cmd.dirty.out_nr_dirty;
+	return 0;
+}
+
+#define test_cmd_mock_domain_set_dirty(fd, hwpt_id, length, iova, page_size, \
+				       bitmap, nr)                           \
+	ASSERT_EQ(0,                                                         \
+		  _test_cmd_mock_domain_set_dirty(fd, hwpt_id, length, iova, \
+						  page_size, bitmap, nr))
+
+static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
+				    __u64 iova, size_t page_size, __u64 *bitmap,
+				    __u64 bitmap_size, __u32 flags,
+				    struct __test_metadata *_metadata)
+{
+	unsigned long i, count, nbits = bitmap_size * BITS_PER_BYTE;
+	unsigned long nr = nbits / 2;
+	__u64 out_dirty = 0;
+
+	/* Mark all even bits as dirty in the mock domain */
+	for (count = 0, i = 0; i < nbits; count += !(i % 2), i++)
+		if (!(i % 2))
+			set_bit(i, (unsigned long *)bitmap);
+	ASSERT_EQ(nr, count);
+
+	test_cmd_mock_domain_set_dirty(fd, hwpt_id, length, iova, page_size,
+				       bitmap, &out_dirty);
+	ASSERT_EQ(nr, out_dirty);
+
+	/* Expect all even bits as dirty in the user bitmap */
+	memset(bitmap, 0, bitmap_size);
+	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap,
+				  flags);
+	for (count = 0, i = 0; i < nbits; count += !(i % 2), i++)
+		ASSERT_EQ(!(i % 2), test_bit(i, (unsigned long *)bitmap));
+	ASSERT_EQ(count, out_dirty);
+
+	memset(bitmap, 0, bitmap_size);
+	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap,
+				  flags);
+
+	/* It as read already -- expect all zeroes */
+	for (i = 0; i < nbits; i++) {
+		ASSERT_EQ(!(i % 2) && (flags &
+				       IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR),
+			  test_bit(i, (unsigned long *)bitmap));
+	}
+
+	return 0;
+}
+#define test_mock_dirty_bitmaps(hwpt_id, length, iova, page_size, bitmap,      \
+				bitmap_size, flags, _metadata)                 \
+	ASSERT_EQ(0, _test_mock_dirty_bitmaps(self->fd, hwpt_id, length, iova, \
+					      page_size, bitmap, bitmap_size,  \
+					      flags, _metadata))
 
 static int _test_cmd_create_access(int fd, unsigned int ioas_id,
 				   __u32 *access_id, unsigned int flags)
@@ -190,6 +458,17 @@ static int _test_ioctl_ioas_map(int fd, unsigned int ioas_id, void *buffer,
 					     IOMMU_IOAS_MAP_READABLE));       \
 	})
 
+#define test_ioctl_ioas_map_fixed_id(ioas_id, buffer, length, iova)           \
+	({                                                                    \
+		__u64 __iova = iova;                                          \
+		ASSERT_EQ(0,                                                  \
+			  _test_ioctl_ioas_map(                               \
+				  self->fd, ioas_id, buffer, length, &__iova, \
+				  IOMMU_IOAS_MAP_FIXED_IOVA |                 \
+					  IOMMU_IOAS_MAP_WRITEABLE |          \
+					  IOMMU_IOAS_MAP_READABLE));          \
+	})
+
 #define test_err_ioctl_ioas_map_fixed(_errno, buffer, length, iova)           \
 	({                                                                    \
 		__u64 __iova = iova;                                          \
@@ -276,3 +555,67 @@ static void teardown_iommufd(int fd, struct __test_metadata *_metadata)
 	})
 
 #endif
+
+/* @data can be NULL */
+static int _test_cmd_get_hw_info(int fd, __u32 device_id, void *data,
+				 size_t data_len, uint32_t *capabilities)
+{
+	struct iommu_test_hw_info *info = (struct iommu_test_hw_info *)data;
+	struct iommu_hw_info cmd = {
+		.size = sizeof(cmd),
+		.dev_id = device_id,
+		.data_len = data_len,
+		.data_uptr = (uint64_t)data,
+		.out_capabilities = 0,
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_GET_HW_INFO, &cmd);
+	if (ret)
+		return ret;
+
+	assert(cmd.out_data_type == IOMMU_HW_INFO_TYPE_SELFTEST);
+
+	/*
+	 * The struct iommu_test_hw_info should be the one defined
+	 * by the current kernel.
+	 */
+	assert(cmd.data_len == sizeof(struct iommu_test_hw_info));
+
+	/*
+	 * Trailing bytes should be 0 if user buffer is larger than
+	 * the data that kernel reports.
+	 */
+	if (data_len > cmd.data_len) {
+		char *ptr = (char *)(data + cmd.data_len);
+		int idx = 0;
+
+		while (idx < data_len - cmd.data_len) {
+			assert(!*(ptr + idx));
+			idx++;
+		}
+	}
+
+	if (info) {
+		if (data_len >= offsetofend(struct iommu_test_hw_info, test_reg))
+			assert(info->test_reg == IOMMU_HW_INFO_SELFTEST_REGVAL);
+		if (data_len >= offsetofend(struct iommu_test_hw_info, flags))
+			assert(!info->flags);
+	}
+
+	if (capabilities)
+		*capabilities = cmd.out_capabilities;
+
+	return 0;
+}
+
+#define test_cmd_get_hw_info(device_id, data, data_len)               \
+	ASSERT_EQ(0, _test_cmd_get_hw_info(self->fd, device_id, data, \
+					   data_len, NULL))
+
+#define test_err_get_hw_info(_errno, device_id, data, data_len)               \
+	EXPECT_ERRNO(_errno, _test_cmd_get_hw_info(self->fd, device_id, data, \
+						   data_len, NULL))
+
+#define test_cmd_get_hw_capabilities(device_id, caps, mask) \
+	ASSERT_EQ(0, _test_cmd_get_hw_info(self->fd, device_id, NULL, 0, &caps))

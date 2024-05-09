@@ -75,8 +75,20 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 	RCU_INIT_POINTER(entity->last_scheduled, NULL);
 	RB_CLEAR_NODE(&entity->rb_tree_node);
 
-	if(num_sched_list)
-		entity->rq = &sched_list[0]->sched_rq[entity->priority];
+	if (!sched_list[0]->sched_rq) {
+		/* Warn drivers not to do this and to fix their DRM
+		 * calling order.
+		 */
+		pr_warn("%s: called with uninitialized scheduler\n", __func__);
+	} else if (num_sched_list) {
+		/* The "priority" of an entity cannot exceed the number
+		 * of run-queues of a scheduler.
+		 */
+		if (entity->priority >= sched_list[0]->num_rqs)
+			entity->priority = max_t(u32, sched_list[0]->num_rqs,
+						 DRM_SCHED_PRIORITY_MIN);
+		entity->rq = sched_list[0]->sched_rq[entity->priority];
+	}
 
 	init_completion(&entity->entity_idle);
 
@@ -176,16 +188,32 @@ static void drm_sched_entity_kill_jobs_cb(struct dma_fence *f,
 {
 	struct drm_sched_job *job = container_of(cb, struct drm_sched_job,
 						 finish_cb);
-	int r;
+	unsigned long index;
 
 	dma_fence_put(f);
 
 	/* Wait for all dependencies to avoid data corruptions */
-	while (!xa_empty(&job->dependencies)) {
-		f = xa_erase(&job->dependencies, job->last_dependency++);
-		r = dma_fence_add_callback(f, &job->finish_cb,
-					   drm_sched_entity_kill_jobs_cb);
-		if (!r)
+	xa_for_each(&job->dependencies, index, f) {
+		struct drm_sched_fence *s_fence = to_drm_sched_fence(f);
+
+		if (s_fence && f == &s_fence->scheduled) {
+			/* The dependencies array had a reference on the scheduled
+			 * fence, and the finished fence refcount might have
+			 * dropped to zero. Use dma_fence_get_rcu() so we get
+			 * a NULL fence in that case.
+			 */
+			f = dma_fence_get_rcu(&s_fence->finished);
+
+			/* Now that we have a reference on the finished fence,
+			 * we can release the reference the dependencies array
+			 * had on the scheduled fence.
+			 */
+			dma_fence_put(&s_fence->scheduled);
+		}
+
+		xa_erase(&job->dependencies, index);
+		if (f && !dma_fence_add_callback(f, &job->finish_cb,
+						 drm_sched_entity_kill_jobs_cb))
 			return;
 
 		dma_fence_put(f);
@@ -415,8 +443,17 @@ static struct dma_fence *
 drm_sched_job_dependency(struct drm_sched_job *job,
 			 struct drm_sched_entity *entity)
 {
-	if (!xa_empty(&job->dependencies))
-		return xa_erase(&job->dependencies, job->last_dependency++);
+	struct dma_fence *f;
+
+	/* We keep the fence around, so we can iterate over all dependencies
+	 * in drm_sched_entity_kill_jobs_cb() to ensure all deps are signaled
+	 * before killing the job.
+	 */
+	f = xa_load(&job->dependencies, job->last_dependency);
+	if (f) {
+		job->last_dependency++;
+		return dma_fence_get(f);
+	}
 
 	if (job->sched->ops->prepare_job)
 		return job->sched->ops->prepare_job(job, entity);
@@ -508,7 +545,7 @@ void drm_sched_entity_select_rq(struct drm_sched_entity *entity)
 
 	spin_lock(&entity->rq_lock);
 	sched = drm_sched_pick_best(entity->sched_list, entity->num_sched_list);
-	rq = sched ? &sched->sched_rq[entity->priority] : NULL;
+	rq = sched ? sched->sched_rq[entity->priority] : NULL;
 	if (rq != entity->rq) {
 		drm_sched_rq_remove_entity(entity->rq, entity);
 		entity->rq = rq;

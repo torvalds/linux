@@ -621,6 +621,7 @@ static int sp7021_clk_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
+	clk_data->num = CLK_MAX;
 
 	hws = clk_data->hws;
 	pd_ext.index = 0;
@@ -687,8 +688,6 @@ static int sp7021_clk_probe(struct platform_device *pdev)
 		if (IS_ERR(hws[i]))
 			return PTR_ERR(hws[i]);
 	}
-
-	clk_data->num = CLK_MAX;
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
 }

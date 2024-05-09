@@ -11,7 +11,8 @@
 #include "intel_dpio_phy.h"
 
 struct drm_i915_private;
-struct i915_power_well;
+struct i915_power_well_ops;
+struct intel_encoder;
 
 #define for_each_power_well(__dev_priv, __power_well)				\
 	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells;	\
@@ -175,5 +176,6 @@ extern const struct i915_power_well_ops icl_aux_power_well_ops;
 extern const struct i915_power_well_ops icl_ddi_power_well_ops;
 extern const struct i915_power_well_ops tgl_tc_cold_off_ops;
 extern const struct i915_power_well_ops xelpdp_aux_power_well_ops;
+extern const struct i915_power_well_ops xe2lpd_pica_power_well_ops;
 
 #endif

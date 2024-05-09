@@ -51,11 +51,6 @@
 #define PALMTE_HDQ_GPIO		11
 #define PALMTE_HEADPHONES_GPIO	14
 #define PALMTE_SPEAKER_GPIO	15
-#define PALMTE_DC_GPIO		OMAP_MPUIO(2)
-#define PALMTE_MMC_SWITCH_GPIO	OMAP_MPUIO(4)
-#define PALMTE_MMC1_GPIO	OMAP_MPUIO(6)
-#define PALMTE_MMC2_GPIO	OMAP_MPUIO(7)
-#define PALMTE_MMC3_GPIO	OMAP_MPUIO(11)
 
 static const unsigned int palmte_keymap[] = {
 	KEY(0, 0, KEY_F1),		/* Calendar */

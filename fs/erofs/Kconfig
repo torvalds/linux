@@ -38,6 +38,7 @@ config EROFS_FS_DEBUG
 config EROFS_FS_XATTR
 	bool "EROFS extended attributes"
 	depends on EROFS_FS
+	select XXHASH
 	default y
 	help
 	  Extended attributes are name:value pairs associated with inodes by
@@ -90,12 +91,24 @@ config EROFS_FS_ZIP_LZMA
 	select XZ_DEC_MICROLZMA
 	help
 	  Saying Y here includes support for reading EROFS file systems
-	  containing LZMA compressed data, specifically called microLZMA. it
-	  gives better compression ratios than the LZ4 algorithm, at the
+	  containing LZMA compressed data, specifically called microLZMA. It
+	  gives better compression ratios than the default LZ4 format, at the
 	  expense of more CPU overhead.
 
-	  LZMA support is an experimental feature for now and so most file
-	  systems will be readable without selecting this option.
+	  If unsure, say N.
+
+config EROFS_FS_ZIP_DEFLATE
+	bool "EROFS DEFLATE compressed data support"
+	depends on EROFS_FS_ZIP
+	select ZLIB_INFLATE
+	help
+	  Saying Y here includes support for reading EROFS file systems
+	  containing DEFLATE compressed data.  It gives better compression
+	  ratios than the default LZ4 format, while it costs more CPU
+	  overhead.
+
+	  DEFLATE support is an experimental feature for now and so most
+	  file systems will be readable without selecting this option.
 
 	  If unsure, say N.
 

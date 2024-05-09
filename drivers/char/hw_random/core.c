@@ -15,14 +15,13 @@
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/hw_random.h>
-#include <linux/random.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/sched/signal.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
@@ -678,6 +677,12 @@ long hwrng_msleep(struct hwrng *rng, unsigned int msecs)
 	return wait_for_completion_interruptible_timeout(&rng->dying, timeout);
 }
 EXPORT_SYMBOL_GPL(hwrng_msleep);
+
+long hwrng_yield(struct hwrng *rng)
+{
+	return wait_for_completion_interruptible_timeout(&rng->dying, 1);
+}
+EXPORT_SYMBOL_GPL(hwrng_yield);
 
 static int __init hwrng_modinit(void)
 {

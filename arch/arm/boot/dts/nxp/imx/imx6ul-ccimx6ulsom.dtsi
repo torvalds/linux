@@ -114,7 +114,6 @@
 			};
 
 			vdda_adc_3v3: vldo1 {
-				compatible = "regulator-fixed";
 				regulator-name = "vref-adc-3v3";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;

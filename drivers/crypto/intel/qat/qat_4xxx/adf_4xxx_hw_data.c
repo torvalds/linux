@@ -2,14 +2,23 @@
 /* Copyright(c) 2020 - 2021 Intel Corporation */
 #include <linux/iopoll.h>
 #include <adf_accel_devices.h>
+#include <adf_admin.h>
 #include <adf_cfg.h>
+#include <adf_cfg_services.h>
+#include <adf_clock.h>
 #include <adf_common_drv.h>
 #include <adf_gen4_dc.h>
 #include <adf_gen4_hw_data.h>
 #include <adf_gen4_pfvf.h>
 #include <adf_gen4_pm.h>
+#include "adf_gen4_ras.h"
+#include <adf_gen4_timer.h>
 #include "adf_4xxx_hw_data.h"
 #include "icp_qat_hw.h"
+
+#define ADF_AE_GROUP_0		GENMASK(3, 0)
+#define ADF_AE_GROUP_1		GENMASK(7, 4)
+#define ADF_AE_GROUP_2		BIT(8)
 
 enum adf_fw_objs {
 	ADF_FW_SYM_OBJ,
@@ -38,39 +47,45 @@ struct adf_fw_config {
 };
 
 static const struct adf_fw_config adf_fw_cy_config[] = {
-	{0xF0, ADF_FW_SYM_OBJ},
-	{0xF, ADF_FW_ASYM_OBJ},
-	{0x100, ADF_FW_ADMIN_OBJ},
+	{ADF_AE_GROUP_1, ADF_FW_SYM_OBJ},
+	{ADF_AE_GROUP_0, ADF_FW_ASYM_OBJ},
+	{ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ},
 };
 
 static const struct adf_fw_config adf_fw_dc_config[] = {
-	{0xF0, ADF_FW_DC_OBJ},
-	{0xF, ADF_FW_DC_OBJ},
-	{0x100, ADF_FW_ADMIN_OBJ},
+	{ADF_AE_GROUP_1, ADF_FW_DC_OBJ},
+	{ADF_AE_GROUP_0, ADF_FW_DC_OBJ},
+	{ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ},
 };
 
 static const struct adf_fw_config adf_fw_sym_config[] = {
-	{0xF0, ADF_FW_SYM_OBJ},
-	{0xF, ADF_FW_SYM_OBJ},
-	{0x100, ADF_FW_ADMIN_OBJ},
+	{ADF_AE_GROUP_1, ADF_FW_SYM_OBJ},
+	{ADF_AE_GROUP_0, ADF_FW_SYM_OBJ},
+	{ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ},
 };
 
 static const struct adf_fw_config adf_fw_asym_config[] = {
-	{0xF0, ADF_FW_ASYM_OBJ},
-	{0xF, ADF_FW_ASYM_OBJ},
-	{0x100, ADF_FW_ADMIN_OBJ},
+	{ADF_AE_GROUP_1, ADF_FW_ASYM_OBJ},
+	{ADF_AE_GROUP_0, ADF_FW_ASYM_OBJ},
+	{ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ},
 };
 
 static const struct adf_fw_config adf_fw_asym_dc_config[] = {
-	{0xF0, ADF_FW_ASYM_OBJ},
-	{0xF, ADF_FW_DC_OBJ},
-	{0x100, ADF_FW_ADMIN_OBJ},
+	{ADF_AE_GROUP_1, ADF_FW_ASYM_OBJ},
+	{ADF_AE_GROUP_0, ADF_FW_DC_OBJ},
+	{ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ},
 };
 
 static const struct adf_fw_config adf_fw_sym_dc_config[] = {
-	{0xF0, ADF_FW_SYM_OBJ},
-	{0xF, ADF_FW_DC_OBJ},
-	{0x100, ADF_FW_ADMIN_OBJ},
+	{ADF_AE_GROUP_1, ADF_FW_SYM_OBJ},
+	{ADF_AE_GROUP_0, ADF_FW_DC_OBJ},
+	{ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ},
+};
+
+static const struct adf_fw_config adf_fw_dcc_config[] = {
+	{ADF_AE_GROUP_1, ADF_FW_DC_OBJ},
+	{ADF_AE_GROUP_0, ADF_FW_SYM_OBJ},
+	{ADF_AE_GROUP_2, ADF_FW_ADMIN_OBJ},
 };
 
 static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_dc_config));
@@ -78,6 +93,7 @@ static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_sym_config));
 static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_asym_config));
 static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_asym_dc_config));
 static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_sym_dc_config));
+static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_dcc_config));
 
 /* Worker thread to service arbiter mappings */
 static const u32 default_thrd_to_arb_map[ADF_4XXX_MAX_ACCELENGINES] = {
@@ -92,34 +108,16 @@ static const u32 thrd_to_arb_map_dc[ADF_4XXX_MAX_ACCELENGINES] = {
 	0x0
 };
 
+static const u32 thrd_to_arb_map_dcc[ADF_4XXX_MAX_ACCELENGINES] = {
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x0000FFFF, 0x0000FFFF, 0x0000FFFF, 0x0000FFFF,
+	0x0
+};
+
 static struct adf_hw_device_class adf_4xxx_class = {
 	.name = ADF_4XXX_DEVICE_NAME,
 	.type = DEV_4XXX,
 	.instances = 0,
-};
-
-enum dev_services {
-	SVC_CY = 0,
-	SVC_CY2,
-	SVC_DC,
-	SVC_SYM,
-	SVC_ASYM,
-	SVC_DC_ASYM,
-	SVC_ASYM_DC,
-	SVC_DC_SYM,
-	SVC_SYM_DC,
-};
-
-static const char *const dev_cfg_services[] = {
-	[SVC_CY] = ADF_CFG_CY,
-	[SVC_CY2] = ADF_CFG_ASYM_SYM,
-	[SVC_DC] = ADF_CFG_DC,
-	[SVC_SYM] = ADF_CFG_SYM,
-	[SVC_ASYM] = ADF_CFG_ASYM,
-	[SVC_DC_ASYM] = ADF_CFG_DC_ASYM,
-	[SVC_ASYM_DC] = ADF_CFG_ASYM_DC,
-	[SVC_DC_SYM] = ADF_CFG_DC_SYM,
-	[SVC_SYM_DC] = ADF_CFG_SYM_DC,
 };
 
 static int get_service_enabled(struct adf_accel_dev *accel_dev)
@@ -135,7 +133,7 @@ static int get_service_enabled(struct adf_accel_dev *accel_dev)
 		return ret;
 	}
 
-	ret = match_string(dev_cfg_services, ARRAY_SIZE(dev_cfg_services),
+	ret = match_string(adf_cfg_services, ARRAY_SIZE(adf_cfg_services),
 			   services);
 	if (ret < 0)
 		dev_err(&GET_DEV(accel_dev),
@@ -210,6 +208,7 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_dev->accel_pci_dev.pci_dev;
 	u32 capabilities_sym, capabilities_asym, capabilities_dc;
+	u32 capabilities_dcc;
 	u32 fusectl1;
 
 	/* Read accelerator capabilities mask */
@@ -223,6 +222,8 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 			  ICP_ACCEL_CAPABILITIES_HKDF |
 			  ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
 			  ICP_ACCEL_CAPABILITIES_AESGCM_SPC |
+			  ICP_ACCEL_CAPABILITIES_SM3 |
+			  ICP_ACCEL_CAPABILITIES_SM4 |
 			  ICP_ACCEL_CAPABILITIES_AES_V2;
 
 	/* A set bit in fusectl1 means the feature is OFF in this SKU */
@@ -246,12 +247,19 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_SMX_SLICE) {
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_SM3;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_SM4;
+	}
+
 	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
 			  ICP_ACCEL_CAPABILITIES_CIPHER |
+			  ICP_ACCEL_CAPABILITIES_SM2 |
 			  ICP_ACCEL_CAPABILITIES_ECEDMONT;
 
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE) {
 		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_SM2;
 		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
 	}
 
@@ -273,6 +281,14 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		return capabilities_sym | capabilities_asym;
 	case SVC_DC:
 		return capabilities_dc;
+	case SVC_DCC:
+		/*
+		 * Sym capabilities are available for chaining operations,
+		 * but sym crypto instances cannot be supported
+		 */
+		capabilities_dcc = capabilities_dc | capabilities_sym;
+		capabilities_dcc &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+		return capabilities_dcc;
 	case SVC_SYM:
 		return capabilities_sym;
 	case SVC_ASYM:
@@ -298,6 +314,8 @@ static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_DC:
 		return thrd_to_arb_map_dc;
+	case SVC_DCC:
+		return thrd_to_arb_map_dcc;
 	default:
 		return default_thrd_to_arb_map;
 	}
@@ -315,6 +333,32 @@ static void get_admin_info(struct admin_info *admin_csrs_info)
 	admin_csrs_info->mailbox_offset = ADF_4XXX_MAILBOX_BASE_OFFSET;
 	admin_csrs_info->admin_msg_ur = ADF_4XXX_ADMINMSGUR_OFFSET;
 	admin_csrs_info->admin_msg_lr = ADF_4XXX_ADMINMSGLR_OFFSET;
+}
+
+static u32 get_heartbeat_clock(struct adf_hw_device_data *self)
+{
+	/*
+	 * 4XXX uses KPT counter for HB
+	 */
+	return ADF_4XXX_KPT_COUNTER_FREQ;
+}
+
+static void adf_init_rl_data(struct adf_rl_hw_data *rl_data)
+{
+	rl_data->pciout_tb_offset = ADF_GEN4_RL_TOKEN_PCIEOUT_BUCKET_OFFSET;
+	rl_data->pciin_tb_offset = ADF_GEN4_RL_TOKEN_PCIEIN_BUCKET_OFFSET;
+	rl_data->r2l_offset = ADF_GEN4_RL_R2L_OFFSET;
+	rl_data->l2c_offset = ADF_GEN4_RL_L2C_OFFSET;
+	rl_data->c2s_offset = ADF_GEN4_RL_C2S_OFFSET;
+
+	rl_data->pcie_scale_div = ADF_4XXX_RL_PCIE_SCALE_FACTOR_DIV;
+	rl_data->pcie_scale_mul = ADF_4XXX_RL_PCIE_SCALE_FACTOR_MUL;
+	rl_data->dcpr_correction = ADF_4XXX_RL_DCPR_CORRECTION;
+	rl_data->max_tp[ADF_SVC_ASYM] = ADF_4XXX_RL_MAX_TP_ASYM;
+	rl_data->max_tp[ADF_SVC_SYM] = ADF_4XXX_RL_MAX_TP_SYM;
+	rl_data->max_tp[ADF_SVC_DC] = ADF_4XXX_RL_MAX_TP_DC;
+	rl_data->scan_interval = ADF_4XXX_RL_SCANS_PER_SEC;
+	rl_data->scale_ref = ADF_4XXX_RL_SLICE_REF;
 }
 
 static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
@@ -374,37 +418,95 @@ static u32 uof_get_num_objs(void)
 	return ARRAY_SIZE(adf_fw_cy_config);
 }
 
-static const char *uof_get_name(struct adf_accel_dev *accel_dev, u32 obj_num,
-				const char * const fw_objs[], int num_objs)
+static const struct adf_fw_config *get_fw_config(struct adf_accel_dev *accel_dev)
 {
-	int id;
-
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_CY:
 	case SVC_CY2:
-		id = adf_fw_cy_config[obj_num].obj;
-		break;
+		return adf_fw_cy_config;
 	case SVC_DC:
-		id = adf_fw_dc_config[obj_num].obj;
-		break;
+		return adf_fw_dc_config;
+	case SVC_DCC:
+		return adf_fw_dcc_config;
 	case SVC_SYM:
-		id = adf_fw_sym_config[obj_num].obj;
-		break;
+		return adf_fw_sym_config;
 	case SVC_ASYM:
-		id =  adf_fw_asym_config[obj_num].obj;
-		break;
+		return adf_fw_asym_config;
 	case SVC_ASYM_DC:
 	case SVC_DC_ASYM:
-		id = adf_fw_asym_dc_config[obj_num].obj;
-		break;
+		return adf_fw_asym_dc_config;
 	case SVC_SYM_DC:
 	case SVC_DC_SYM:
-		id = adf_fw_sym_dc_config[obj_num].obj;
-		break;
+		return adf_fw_sym_dc_config;
 	default:
-		id = -EINVAL;
-		break;
+		return NULL;
 	}
+}
+
+enum adf_rp_groups {
+	RP_GROUP_0 = 0,
+	RP_GROUP_1,
+	RP_GROUP_COUNT
+};
+
+static u16 get_ring_to_svc_map(struct adf_accel_dev *accel_dev)
+{
+	enum adf_cfg_service_type rps[RP_GROUP_COUNT];
+	const struct adf_fw_config *fw_config;
+	u16 ring_to_svc_map;
+	int i, j;
+
+	fw_config = get_fw_config(accel_dev);
+	if (!fw_config)
+		return 0;
+
+	for (i = 0; i < RP_GROUP_COUNT; i++) {
+		switch (fw_config[i].ae_mask) {
+		case ADF_AE_GROUP_0:
+			j = RP_GROUP_0;
+			break;
+		case ADF_AE_GROUP_1:
+			j = RP_GROUP_1;
+			break;
+		default:
+			return 0;
+		}
+
+		switch (fw_config[i].obj) {
+		case ADF_FW_SYM_OBJ:
+			rps[j] = SYM;
+			break;
+		case ADF_FW_ASYM_OBJ:
+			rps[j] = ASYM;
+			break;
+		case ADF_FW_DC_OBJ:
+			rps[j] = COMP;
+			break;
+		default:
+			rps[j] = 0;
+			break;
+		}
+	}
+
+	ring_to_svc_map = rps[RP_GROUP_0] << ADF_CFG_SERV_RING_PAIR_0_SHIFT |
+			  rps[RP_GROUP_1] << ADF_CFG_SERV_RING_PAIR_1_SHIFT |
+			  rps[RP_GROUP_0] << ADF_CFG_SERV_RING_PAIR_2_SHIFT |
+			  rps[RP_GROUP_1] << ADF_CFG_SERV_RING_PAIR_3_SHIFT;
+
+	return ring_to_svc_map;
+}
+
+static const char *uof_get_name(struct adf_accel_dev *accel_dev, u32 obj_num,
+				const char * const fw_objs[], int num_objs)
+{
+	const struct adf_fw_config *fw_config;
+	int id;
+
+	fw_config = get_fw_config(accel_dev);
+	if (fw_config)
+		id = fw_config[obj_num].obj;
+	else
+		id = -EINVAL;
 
 	if (id < 0 || id > num_objs)
 		return NULL;
@@ -428,26 +530,23 @@ static const char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_n
 
 static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
-	switch (get_service_enabled(accel_dev)) {
-	case SVC_CY:
-		return adf_fw_cy_config[obj_num].ae_mask;
-	case SVC_DC:
-		return adf_fw_dc_config[obj_num].ae_mask;
-	case SVC_CY2:
-		return adf_fw_cy_config[obj_num].ae_mask;
-	case SVC_SYM:
-		return adf_fw_sym_config[obj_num].ae_mask;
-	case SVC_ASYM:
-		return adf_fw_asym_config[obj_num].ae_mask;
-	case SVC_ASYM_DC:
-	case SVC_DC_ASYM:
-		return adf_fw_asym_dc_config[obj_num].ae_mask;
-	case SVC_SYM_DC:
-	case SVC_DC_SYM:
-		return adf_fw_sym_dc_config[obj_num].ae_mask;
-	default:
+	const struct adf_fw_config *fw_config;
+
+	fw_config = get_fw_config(accel_dev);
+	if (!fw_config)
 		return 0;
-	}
+
+	return fw_config[obj_num].ae_mask;
+}
+
+static void adf_gen4_set_err_mask(struct adf_dev_err_mask *dev_err_mask)
+{
+	dev_err_mask->cppagentcmdpar_mask = ADF_4XXX_HICPPAGENTCMDPARERRLOG_MASK;
+	dev_err_mask->parerr_ath_cph_mask = ADF_4XXX_PARITYERRORMASK_ATH_CPH_MASK;
+	dev_err_mask->parerr_cpr_xlt_mask = ADF_4XXX_PARITYERRORMASK_CPR_XLT_MASK;
+	dev_err_mask->parerr_dcpr_ucs_mask = ADF_4XXX_PARITYERRORMASK_DCPR_UCS_MASK;
+	dev_err_mask->parerr_pke_mask = ADF_4XXX_PARITYERRORMASK_PKE_MASK;
+	dev_err_mask->ssmfeatren_mask = ADF_4XXX_SSMFEATREN_MASK;
 }
 
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
@@ -503,15 +602,24 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->uof_get_ae_mask = uof_get_ae_mask;
 	hw_data->set_msix_rttable = set_msix_default_rttable;
 	hw_data->set_ssm_wdtimer = adf_gen4_set_ssm_wdtimer;
+	hw_data->get_ring_to_svc_map = get_ring_to_svc_map;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->ring_pair_reset = adf_gen4_ring_pair_reset;
 	hw_data->enable_pm = adf_gen4_enable_pm;
 	hw_data->handle_pm_interrupt = adf_gen4_handle_pm_interrupt;
 	hw_data->dev_config = adf_gen4_dev_config;
+	hw_data->start_timer = adf_gen4_timer_start;
+	hw_data->stop_timer = adf_gen4_timer_stop;
+	hw_data->get_hb_clock = get_heartbeat_clock;
+	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
+	hw_data->clock_frequency = ADF_4XXX_AE_FREQ;
 
+	adf_gen4_set_err_mask(&hw_data->dev_err_mask);
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen4_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen4_init_dc_ops(&hw_data->dc_ops);
+	adf_gen4_init_ras_ops(&hw_data->ras_ops);
+	adf_init_rl_data(&hw_data->rl_data);
 }
 
 void adf_clean_hw_data_4xxx(struct adf_hw_device_data *hw_data)

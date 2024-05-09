@@ -465,7 +465,8 @@ nouveau_display_hpd_work(struct work_struct *work)
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	u32 pending;
-	bool changed = false;
+	int changed = 0;
+	struct drm_connector *first_changed_connector = NULL;
 
 	pm_runtime_get_sync(dev->dev);
 
@@ -509,7 +510,12 @@ nouveau_display_hpd_work(struct work_struct *work)
 		if (old_epoch_counter == connector->epoch_counter)
 			continue;
 
-		changed = true;
+		changed++;
+		if (!first_changed_connector) {
+			drm_connector_get(connector);
+			first_changed_connector = connector;
+		}
+
 		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] status updated from %s to %s (epoch counter %llu->%llu)\n",
 			    connector->base.id, connector->name,
 			    drm_get_connector_status_name(old_status),
@@ -520,8 +526,13 @@ nouveau_display_hpd_work(struct work_struct *work)
 	drm_connector_list_iter_end(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	if (changed)
+	if (changed == 1)
+		drm_kms_helper_connector_hotplug_event(first_changed_connector);
+	else if (changed > 0)
 		drm_kms_helper_hotplug_event(dev);
+
+	if (first_changed_connector)
+		drm_connector_put(first_changed_connector);
 
 	pm_runtime_mark_last_busy(drm->dev->dev);
 noop:
@@ -713,10 +724,10 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
-	if (nouveau_modeset != 2 && drm->vbios.dcb.entries) {
-		ret = nvif_disp_ctor(&drm->client.device, "kmsDisp", 0,
-				     &disp->disp);
-		if (ret == 0) {
+	if (nouveau_modeset != 2) {
+		ret = nvif_disp_ctor(&drm->client.device, "kmsDisp", 0, &disp->disp);
+
+		if (!ret && (disp->disp.outp_mask || drm->vbios.dcb.entries)) {
 			nouveau_display_create_properties(dev);
 			if (disp->disp.object.oclass < NV50_DISP) {
 				dev->mode_config.fb_modifiers_not_supported = true;

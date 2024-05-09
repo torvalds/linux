@@ -77,7 +77,6 @@ struct btrfs_root *btrfs_extent_root(struct btrfs_fs_info *fs_info, u64 bytenr);
 struct btrfs_root *btrfs_block_group_root(struct btrfs_fs_info *fs_info);
 
 void btrfs_free_fs_info(struct btrfs_fs_info *fs_info);
-int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info);
 void btrfs_btree_balance_dirty(struct btrfs_fs_info *fs_info);
 void btrfs_btree_balance_dirty_nodelay(struct btrfs_fs_info *fs_info);
 void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
@@ -105,7 +104,8 @@ static inline struct btrfs_root *btrfs_grab_root(struct btrfs_root *root)
 }
 
 void btrfs_put_root(struct btrfs_root *root);
-void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
+void btrfs_mark_buffer_dirty(struct btrfs_trans_handle *trans,
+			     struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_extent_buffer(struct extent_buffer *buf,

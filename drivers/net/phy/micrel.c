@@ -1733,6 +1733,28 @@ static int ksz886x_config_aneg(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
+	if (phydev->autoneg != AUTONEG_ENABLE) {
+		/* When autonegotation is disabled, we need to manually force
+		 * the link state. If we don't do this, the PHY will keep
+		 * sending Fast Link Pulses (FLPs) which are part of the
+		 * autonegotiation process. This is not desired when
+		 * autonegotiation is off.
+		 */
+		ret = phy_set_bits(phydev, MII_KSZPHY_CTRL,
+				   KSZ886X_CTRL_FORCE_LINK);
+		if (ret)
+			return ret;
+	} else {
+		/* If we had previously forced the link state, we need to
+		 * clear KSZ886X_CTRL_FORCE_LINK bit now. Otherwise, the PHY
+		 * will not perform autonegotiation.
+		 */
+		ret = phy_clear_bits(phydev, MII_KSZPHY_CTRL,
+				     KSZ886X_CTRL_FORCE_LINK);
+		if (ret)
+			return ret;
+	}
+
 	/* The MDI-X configuration is automatically changed by the PHY after
 	 * switching from autoneg off to on. So, take MDI-X configuration under
 	 * own control and set it after autoneg configuration was done.
@@ -1800,9 +1822,6 @@ static const struct ksz9477_errata_write ksz9477_errata_writes[] = {
 	/* Transmit waveform amplitude can be improved (1000BASE-T, 100BASE-TX, 10BASE-Te) */
 	{0x1c, 0x04, 0x00d0},
 
-	/* Energy Efficient Ethernet (EEE) feature select must be manually disabled */
-	{0x07, 0x3c, 0x0000},
-
 	/* Register settings are required to meet data sheet supply current specifications */
 	{0x1c, 0x13, 0x6eff},
 	{0x1c, 0x14, 0xe6ff},
@@ -1846,6 +1865,12 @@ static int ksz9477_config_init(struct phy_device *phydev)
 		if (err)
 			return err;
 	}
+
+	/* According to KSZ9477 Errata DS80000754C (Module 4) all EEE modes
+	 * in this switch shall be regarded as broken.
+	 */
+	if (phydev->dev_flags & MICREL_NO_EEE)
+		phydev->eee_broken_modes = -1;
 
 	err = genphy_restart_aneg(phydev);
 	if (err)

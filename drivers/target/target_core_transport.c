@@ -264,6 +264,7 @@ void target_free_cmd_counter(struct target_cmd_counter *cmd_cnt)
 		percpu_ref_put(&cmd_cnt->refcnt);
 
 	percpu_ref_exit(&cmd_cnt->refcnt);
+	kfree(cmd_cnt);
 }
 EXPORT_SYMBOL_GPL(target_free_cmd_counter);
 
@@ -1575,16 +1576,38 @@ target_cmd_parse_cdb(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(target_cmd_parse_cdb);
 
-/*
- * Used by fabric module frontends to queue tasks directly.
- * May only be used from process context.
- */
-int transport_handle_cdb_direct(
-	struct se_cmd *cmd)
+static int __target_submit(struct se_cmd *cmd)
 {
 	sense_reason_t ret;
 
 	might_sleep();
+
+	/*
+	 * Check if we need to delay processing because of ALUA
+	 * Active/NonOptimized primary access state..
+	 */
+	core_alua_check_nonop_delay(cmd);
+
+	if (cmd->t_data_nents != 0) {
+		/*
+		 * This is primarily a hack for udev and tcm loop which sends
+		 * INQUIRYs with a single page and expects the data to be
+		 * cleared.
+		 */
+		if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) &&
+		    cmd->data_direction == DMA_FROM_DEVICE) {
+			struct scatterlist *sgl = cmd->t_data_sg;
+			unsigned char *buf = NULL;
+
+			BUG_ON(!sgl);
+
+			buf = kmap_local_page(sg_page(sgl));
+			if (buf) {
+				memset(buf + sgl->offset, 0, sgl->length);
+				kunmap_local(buf);
+			}
+		}
+	}
 
 	if (!cmd->se_lun) {
 		dump_stack();
@@ -1613,7 +1636,6 @@ int transport_handle_cdb_direct(
 		transport_generic_request_failure(cmd, ret);
 	return 0;
 }
-EXPORT_SYMBOL(transport_handle_cdb_direct);
 
 sense_reason_t
 transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
@@ -1781,53 +1803,6 @@ generic_fail:
 EXPORT_SYMBOL_GPL(target_submit_prep);
 
 /**
- * target_submit - perform final initialization and submit cmd to LIO core
- * @se_cmd: command descriptor to submit
- *
- * target_submit_prep must have been called on the cmd, and this must be
- * called from process context.
- */
-void target_submit(struct se_cmd *se_cmd)
-{
-	struct scatterlist *sgl = se_cmd->t_data_sg;
-	unsigned char *buf = NULL;
-
-	might_sleep();
-
-	if (se_cmd->t_data_nents != 0) {
-		BUG_ON(!sgl);
-		/*
-		 * A work-around for tcm_loop as some userspace code via
-		 * scsi-generic do not memset their associated read buffers,
-		 * so go ahead and do that here for type non-data CDBs.  Also
-		 * note that this is currently guaranteed to be a single SGL
-		 * for this case by target core in target_setup_cmd_from_cdb()
-		 * -> transport_generic_cmd_sequencer().
-		 */
-		if (!(se_cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) &&
-		     se_cmd->data_direction == DMA_FROM_DEVICE) {
-			if (sgl)
-				buf = kmap(sg_page(sgl)) + sgl->offset;
-
-			if (buf) {
-				memset(buf, 0, sgl->length);
-				kunmap(sg_page(sgl));
-			}
-		}
-
-	}
-
-	/*
-	 * Check if we need to delay processing because of ALUA
-	 * Active/NonOptimized primary access state..
-	 */
-	core_alua_check_nonop_delay(se_cmd);
-
-	transport_handle_cdb_direct(se_cmd);
-}
-EXPORT_SYMBOL_GPL(target_submit);
-
-/**
  * target_submit_cmd - lookup unpacked lun and submit uninitialized se_cmd
  *
  * @se_cmd: command descriptor to submit
@@ -1922,7 +1897,7 @@ void target_queued_submit_work(struct work_struct *work)
 			se_plug = target_plug_device(se_dev);
 		}
 
-		target_submit(se_cmd);
+		__target_submit(se_cmd);
 	}
 
 	if (se_plug)
@@ -1933,7 +1908,7 @@ void target_queued_submit_work(struct work_struct *work)
  * target_queue_submission - queue the cmd to run on the LIO workqueue
  * @se_cmd: command descriptor to submit
  */
-void target_queue_submission(struct se_cmd *se_cmd)
+static void target_queue_submission(struct se_cmd *se_cmd)
 {
 	struct se_device *se_dev = se_cmd->se_dev;
 	int cpu = se_cmd->cpuid;
@@ -1943,7 +1918,35 @@ void target_queue_submission(struct se_cmd *se_cmd)
 	llist_add(&se_cmd->se_cmd_list, &sq->cmd_list);
 	queue_work_on(cpu, target_submission_wq, &sq->work);
 }
-EXPORT_SYMBOL_GPL(target_queue_submission);
+
+/**
+ * target_submit - perform final initialization and submit cmd to LIO core
+ * @se_cmd: command descriptor to submit
+ *
+ * target_submit_prep or something similar must have been called on the cmd,
+ * and this must be called from process context.
+ */
+int target_submit(struct se_cmd *se_cmd)
+{
+	const struct target_core_fabric_ops *tfo = se_cmd->se_sess->se_tpg->se_tpg_tfo;
+	struct se_dev_attrib *da = &se_cmd->se_dev->dev_attrib;
+	u8 submit_type;
+
+	if (da->submit_type == TARGET_FABRIC_DEFAULT_SUBMIT)
+		submit_type = tfo->default_submit_type;
+	else if (da->submit_type == TARGET_DIRECT_SUBMIT &&
+		 tfo->direct_submit_supp)
+		submit_type = TARGET_DIRECT_SUBMIT;
+	else
+		submit_type = TARGET_QUEUE_SUBMIT;
+
+	if (submit_type == TARGET_DIRECT_SUBMIT)
+		return __target_submit(se_cmd);
+
+	target_queue_submission(se_cmd);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(target_submit);
 
 static void target_complete_tmr_failure(struct work_struct *work)
 {

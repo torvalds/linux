@@ -30,6 +30,7 @@
 #include <linux/device/bus.h>
 #include <linux/device/class.h>
 #include <linux/device/driver.h>
+#include <linux/cleanup.h>
 #include <asm/device.h>
 
 struct device;
@@ -96,7 +97,12 @@ struct device_type {
 	const struct dev_pm_ops *pm;
 };
 
-/* interface for exporting device attributes */
+/**
+ * struct device_attribute - Interface for exporting device attributes.
+ * @attr: sysfs attribute definition.
+ * @show: Show handler.
+ * @store: Store handler.
+ */
 struct device_attribute {
 	struct attribute	attr;
 	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
@@ -105,6 +111,11 @@ struct device_attribute {
 			 const char *buf, size_t count);
 };
 
+/**
+ * struct dev_ext_attribute - Exported device attribute with extra context.
+ * @attr: Exported device attribute.
+ * @var: Pointer to context.
+ */
 struct dev_ext_attribute {
 	struct device_attribute attr;
 	void *var;
@@ -123,30 +134,124 @@ ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
 ssize_t device_store_bool(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count);
 
+/**
+ * DEVICE_ATTR - Define a device attribute.
+ * @_name: Attribute name.
+ * @_mode: File mode.
+ * @_show: Show handler. Optional, but mandatory if attribute is readable.
+ * @_store: Store handler. Optional, but mandatory if attribute is writable.
+ *
+ * Convenience macro for defining a struct device_attribute.
+ *
+ * For example, ``DEVICE_ATTR(foo, 0644, foo_show, foo_store);`` expands to:
+ *
+ * .. code-block:: c
+ *
+ *	struct device_attribute dev_attr_foo = {
+ *		.attr	= { .name = "foo", .mode = 0644 },
+ *		.show	= foo_show,
+ *		.store	= foo_store,
+ *	};
+ */
 #define DEVICE_ATTR(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
+
+/**
+ * DEVICE_ATTR_PREALLOC - Define a preallocated device attribute.
+ * @_name: Attribute name.
+ * @_mode: File mode.
+ * @_show: Show handler. Optional, but mandatory if attribute is readable.
+ * @_store: Store handler. Optional, but mandatory if attribute is writable.
+ *
+ * Like DEVICE_ATTR(), but ``SYSFS_PREALLOC`` is set on @_mode.
+ */
 #define DEVICE_ATTR_PREALLOC(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name = \
 		__ATTR_PREALLOC(_name, _mode, _show, _store)
+
+/**
+ * DEVICE_ATTR_RW - Define a read-write device attribute.
+ * @_name: Attribute name.
+ *
+ * Like DEVICE_ATTR(), but @_mode is 0644, @_show is <_name>_show,
+ * and @_store is <_name>_store.
+ */
 #define DEVICE_ATTR_RW(_name) \
 	struct device_attribute dev_attr_##_name = __ATTR_RW(_name)
+
+/**
+ * DEVICE_ATTR_ADMIN_RW - Define an admin-only read-write device attribute.
+ * @_name: Attribute name.
+ *
+ * Like DEVICE_ATTR_RW(), but @_mode is 0600.
+ */
 #define DEVICE_ATTR_ADMIN_RW(_name) \
 	struct device_attribute dev_attr_##_name = __ATTR_RW_MODE(_name, 0600)
+
+/**
+ * DEVICE_ATTR_RO - Define a readable device attribute.
+ * @_name: Attribute name.
+ *
+ * Like DEVICE_ATTR(), but @_mode is 0444 and @_show is <_name>_show.
+ */
 #define DEVICE_ATTR_RO(_name) \
 	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
+
+/**
+ * DEVICE_ATTR_ADMIN_RO - Define an admin-only readable device attribute.
+ * @_name: Attribute name.
+ *
+ * Like DEVICE_ATTR_RO(), but @_mode is 0400.
+ */
 #define DEVICE_ATTR_ADMIN_RO(_name) \
 	struct device_attribute dev_attr_##_name = __ATTR_RO_MODE(_name, 0400)
+
+/**
+ * DEVICE_ATTR_WO - Define an admin-only writable device attribute.
+ * @_name: Attribute name.
+ *
+ * Like DEVICE_ATTR(), but @_mode is 0200 and @_store is <_name>_store.
+ */
 #define DEVICE_ATTR_WO(_name) \
 	struct device_attribute dev_attr_##_name = __ATTR_WO(_name)
+
+/**
+ * DEVICE_ULONG_ATTR - Define a device attribute backed by an unsigned long.
+ * @_name: Attribute name.
+ * @_mode: File mode.
+ * @_var: Identifier of unsigned long.
+ *
+ * Like DEVICE_ATTR(), but @_show and @_store are automatically provided
+ * such that reads and writes to the attribute from userspace affect @_var.
+ */
 #define DEVICE_ULONG_ATTR(_name, _mode, _var) \
 	struct dev_ext_attribute dev_attr_##_name = \
 		{ __ATTR(_name, _mode, device_show_ulong, device_store_ulong), &(_var) }
+
+/**
+ * DEVICE_INT_ATTR - Define a device attribute backed by an int.
+ * @_name: Attribute name.
+ * @_mode: File mode.
+ * @_var: Identifier of int.
+ *
+ * Like DEVICE_ULONG_ATTR(), but @_var is an int.
+ */
 #define DEVICE_INT_ATTR(_name, _mode, _var) \
 	struct dev_ext_attribute dev_attr_##_name = \
 		{ __ATTR(_name, _mode, device_show_int, device_store_int), &(_var) }
+
+/**
+ * DEVICE_BOOL_ATTR - Define a device attribute backed by a bool.
+ * @_name: Attribute name.
+ * @_mode: File mode.
+ * @_var: Identifier of bool.
+ *
+ * Like DEVICE_ULONG_ATTR(), but @_var is a bool.
+ */
 #define DEVICE_BOOL_ATTR(_name, _mode, _var) \
 	struct dev_ext_attribute dev_attr_##_name = \
 		{ __ATTR(_name, _mode, device_show_bool, device_store_bool), &(_var) }
+
 #define DEVICE_ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name =		\
 		__ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store)
@@ -223,6 +328,17 @@ static inline void *devm_kcalloc(struct device *dev,
 {
 	return devm_kmalloc_array(dev, n, size, flags | __GFP_ZERO);
 }
+static inline __realloc_size(3, 4) void * __must_check
+devm_krealloc_array(struct device *dev, void *p, size_t new_n, size_t new_size, gfp_t flags)
+{
+	size_t bytes;
+
+	if (unlikely(check_mul_overflow(new_n, new_size, &bytes)))
+		return NULL;
+
+	return devm_krealloc(dev, p, bytes, flags);
+}
+
 void devm_kfree(struct device *dev, const void *p);
 char *devm_kstrdup(struct device *dev, const char *s, gfp_t gfp) __malloc;
 const char *devm_kstrdup_const(struct device *dev, const char *s, gfp_t gfp);
@@ -233,6 +349,7 @@ unsigned long devm_get_free_pages(struct device *dev,
 				  gfp_t gfp_mask, unsigned int order);
 void devm_free_pages(struct device *dev, unsigned long addr);
 
+#ifdef CONFIG_HAS_IOMEM
 void __iomem *devm_ioremap_resource(struct device *dev,
 				    const struct resource *res);
 void __iomem *devm_ioremap_resource_wc(struct device *dev,
@@ -241,6 +358,31 @@ void __iomem *devm_ioremap_resource_wc(struct device *dev,
 void __iomem *devm_of_iomap(struct device *dev,
 			    struct device_node *node, int index,
 			    resource_size_t *size);
+#else
+
+static inline
+void __iomem *devm_ioremap_resource(struct device *dev,
+				    const struct resource *res)
+{
+	return ERR_PTR(-EINVAL);
+}
+
+static inline
+void __iomem *devm_ioremap_resource_wc(struct device *dev,
+				       const struct resource *res)
+{
+	return ERR_PTR(-EINVAL);
+}
+
+static inline
+void __iomem *devm_of_iomap(struct device *dev,
+			    struct device_node *node, int index,
+			    resource_size_t *size)
+{
+	return ERR_PTR(-EINVAL);
+}
+
+#endif
 
 /* allows to add/remove a custom action to devres stack */
 void devm_remove_action(struct device *dev, void (*action)(void *), void *data);
@@ -509,7 +651,10 @@ struct device_physical_location {
  * @dma_pools:	Dma pools (if dma'ble device).
  * @dma_mem:	Internal for coherent mem override.
  * @cma_area:	Contiguous memory area for dma allocations
- * @dma_io_tlb_mem: Pointer to the swiotlb pool used.  Not for driver use.
+ * @dma_io_tlb_mem: Software IO TLB allocator.  Not for driver use.
+ * @dma_io_tlb_pools:	List of transient swiotlb memory pools.
+ * @dma_io_tlb_lock:	Protects changes to the list of active pools.
+ * @dma_uses_io_tlb: %true if device has used the software IO TLB.
  * @archdata:	For arch-specific additions.
  * @of_node:	Associated device tree node.
  * @fwnode:	Associated device node supplied by platform firmware.
@@ -616,6 +761,11 @@ struct device {
 #ifdef CONFIG_SWIOTLB
 	struct io_tlb_mem *dma_io_tlb_mem;
 #endif
+#ifdef CONFIG_SWIOTLB_DYNAMIC
+	struct list_head dma_io_tlb_pools;
+	spinlock_t dma_io_tlb_lock;
+	bool dma_uses_io_tlb;
+#endif
 	/* arch specific additions */
 	struct dev_archdata	archdata;
 
@@ -700,6 +850,11 @@ static inline bool device_iommu_mapped(struct device *dev)
 /* Get the wakeup routines, which depend on struct device */
 #include <linux/pm_wakeup.h>
 
+/**
+ * dev_name - Return a device's name.
+ * @dev: Device with name to get.
+ * Return: The kobject name of the device, or its initial name if unavailable.
+ */
 static inline const char *dev_name(const struct device *dev)
 {
 	/* Use the init name until the kobject becomes available */
@@ -899,6 +1054,9 @@ void device_unregister(struct device *dev);
 void device_initialize(struct device *dev);
 int __must_check device_add(struct device *dev);
 void device_del(struct device *dev);
+
+DEFINE_FREE(device_del, struct device *, if (_T) device_del(_T))
+
 int device_for_each_child(struct device *dev, void *data,
 			  int (*fn)(struct device *dev, void *data));
 int device_for_each_child_reverse(struct device *dev, void *data,
@@ -1066,6 +1224,9 @@ extern int (*platform_notify_remove)(struct device *dev);
  */
 struct device *get_device(struct device *dev);
 void put_device(struct device *dev);
+
+DEFINE_FREE(put_device, struct device *, if (_T) put_device(_T))
+
 bool kill_device(struct device *dev);
 
 #ifdef CONFIG_DEVTMPFS
@@ -1087,8 +1248,6 @@ void device_link_del(struct device_link *link);
 void device_link_remove(void *consumer, struct device *supplier);
 void device_links_supplier_sync_state_pause(void);
 void device_links_supplier_sync_state_resume(void);
-
-__printf(3, 4) int dev_err_probe(const struct device *dev, int err, const char *fmt, ...);
 
 /* Create alias, so I can be autoloaded. */
 #define MODULE_ALIAS_CHARDEV(major,minor) \

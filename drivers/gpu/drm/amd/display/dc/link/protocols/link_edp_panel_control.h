@@ -30,6 +30,7 @@
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 bool set_default_brightness_aux(struct dc_link *link);
+bool set_cached_brightness_aux(struct dc_link *link);
 void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd);
 int edp_get_backlight_level(const struct dc_link *link);
 bool edp_get_backlight_level_nits(struct dc_link *link,
@@ -52,12 +53,23 @@ bool edp_setup_psr(struct dc_link *link,
 bool edp_set_sink_vtotal_in_psr_active(const struct dc_link *link,
        uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su);
 void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency);
+bool edp_set_replay_allow_active(struct dc_link *dc_link, const bool *enable,
+	bool wait, bool force_static, const unsigned int *power_opts);
+bool edp_setup_replay(struct dc_link *link,
+		const struct dc_stream_state *stream);
+bool edp_set_coasting_vtotal(struct dc_link *link, uint16_t coasting_vtotal);
+bool edp_replay_residency(const struct dc_link *link,
+	unsigned int *residency, const bool is_start, const bool is_alpm);
+bool edp_get_replay_state(const struct dc_link *link, uint64_t *state);
 bool edp_wait_for_t12(struct dc_link *link);
 bool edp_is_ilr_optimization_required(struct dc_link *link,
        struct dc_crtc_timing *crtc_timing);
+bool edp_is_ilr_optimization_enabled(struct dc_link *link);
+enum dc_link_rate get_max_link_rate_from_ilr_table(struct dc_link *link);
 bool edp_backlight_enable_aux(struct dc_link *link, bool enable);
 void edp_add_delay_for_T9(struct dc_link *link);
 bool edp_receiver_ready_T9(struct dc_link *link);
 bool edp_receiver_ready_T7(struct dc_link *link);
 bool edp_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
+void edp_set_panel_power(struct dc_link *link, bool powerOn);
 #endif /* __DC_LINK_EDP_POWER_CONTROL_H__ */

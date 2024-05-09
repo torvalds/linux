@@ -9,6 +9,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include "stm32mp135.dtsi"
 #include "stm32mp13xf.dtsi"
 #include "stm32mp13-pinctrl.dtsi"
@@ -65,45 +66,13 @@
 			default-state = "off";
 		};
 	};
-
-	v3v3_sw: v3v3-sw {
-		compatible = "regulator-fixed";
-		regulator-name = "v3v3_sw";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
-	vdd_adc: vdd-adc {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_adc";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
-	vdd_sd: vdd-sd {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_sd";
-		regulator-min-microvolt = <2900000>;
-		regulator-max-microvolt = <2900000>;
-		regulator-always-on;
-	};
-
-	vdd_usb: vdd-usb {
-		compatible = "regulator-fixed";
-		regulator-name = "vdd_usb";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
 };
 
 &adc_1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&adc1_usb_cc_pins_a>;
-	vdda-supply = <&vdd_adc>;
-	vref-supply = <&vdd_adc>;
+	vdda-supply = <&scmi_vdd_adc>;
+	vref-supply = <&scmi_vdd_adc>;
 	status = "okay";
 	adc1: adc@0 {
 		status = "okay";
@@ -195,6 +164,29 @@
 	status = "okay";
 };
 
+&scmi_regu {
+	scmi_vdd_adc: regulator@10 {
+		reg = <VOLTD_SCMI_STPMIC1_LDO1>;
+		regulator-name = "vdd_adc";
+	};
+	scmi_vdd_usb: regulator@13 {
+		reg = <VOLTD_SCMI_STPMIC1_LDO4>;
+		regulator-name = "vdd_usb";
+	};
+	scmi_vdd_sd: regulator@14 {
+		reg = <VOLTD_SCMI_STPMIC1_LDO5>;
+		regulator-name = "vdd_sd";
+	};
+	scmi_v1v8_periph: regulator@15 {
+		reg = <VOLTD_SCMI_STPMIC1_LDO6>;
+		regulator-name = "v1v8_periph";
+	};
+	scmi_v3v3_sw: regulator@19 {
+		reg = <VOLTD_SCMI_STPMIC1_PWR_SW2>;
+		regulator-name = "v3v3_sw";
+	};
+};
+
 &sdmmc1 {
 	pinctrl-names = "default", "opendrain", "sleep";
 	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_clk_pins_a>;
@@ -204,7 +196,7 @@
 	disable-wp;
 	st,neg-edge;
 	bus-width = <4>;
-	vmmc-supply = <&vdd_sd>;
+	vmmc-supply = <&scmi_vdd_sd>;
 	status = "okay";
 };
 
@@ -321,7 +313,7 @@
 	hub@1 {
 		compatible = "usb424,2514";
 		reg = <1>;
-		vdd-supply = <&v3v3_sw>;
+		vdd-supply = <&scmi_v3v3_sw>;
 	};
 };
 
@@ -342,7 +334,7 @@
 };
 
 &usbphyc_port0 {
-	phy-supply = <&vdd_usb>;
+	phy-supply = <&scmi_vdd_usb>;
 	st,current-boost-microamp = <1000>;
 	st,decrease-hs-slew-rate;
 	st,tune-hs-dc-level = <2>;
@@ -356,7 +348,7 @@
 };
 
 &usbphyc_port1 {
-	phy-supply = <&vdd_usb>;
+	phy-supply = <&scmi_vdd_usb>;
 	st,current-boost-microamp = <1000>;
 	st,decrease-hs-slew-rate;
 	st,tune-hs-dc-level = <2>;

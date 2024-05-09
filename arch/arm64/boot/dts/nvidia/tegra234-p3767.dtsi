@@ -28,7 +28,7 @@
 			flash@0 {
 				compatible = "jedec,spi-nor";
 				reg = <0>;
-				spi-max-frequency = <136000000>;
+				spi-max-frequency = <102000000>;
 				spi-tx-bus-width = <4>;
 				spi-rx-bus-width = <4>;
 			};
@@ -42,7 +42,7 @@
 		mmc@3400000 {
 			status = "okay";
 			bus-width = <4>;
-			cd-gpios = <&gpio TEGRA234_MAIN_GPIO(G, 7) GPIO_ACTIVE_HIGH>;
+			cd-gpios = <&gpio TEGRA234_MAIN_GPIO(G, 7) GPIO_ACTIVE_LOW>;
 			disable-wp;
 		};
 
@@ -53,6 +53,35 @@
 		padctl@3520000 {
 			vclamp-usb-supply = <&vdd_1v8_ao>;
 			avdd-usb-supply = <&vdd_3v3_ao>;
+		};
+
+		i2c@c240000 {
+			status = "okay";
+
+			power-sensor@40 {
+				compatible = "ti,ina3221";
+				reg = <0x40>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				input@0 {
+					reg = <0x0>;
+					label = "VDD_IN";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+
+				input@1 {
+					reg = <0x1>;
+					label = "VDD_CPU_GPU_CV";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+
+				input@2 {
+					reg = <0x2>;
+					label = "VDD_SOC";
+					shunt-resistor-micro-ohms = <5000>;
+				};
+			};
 		};
 
 		rtc@c2a0000 {
@@ -106,12 +135,18 @@
 
 			trips {
 				tj_trip_active0: active-0 {
-					temperature = <74000>;
+					temperature = <35000>;
 					hysteresis = <4000>;
 					type = "active";
 				};
 
 				tj_trip_active1: active-1 {
+					temperature = <74000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+
+				tj_trip_active2: active-2 {
 					temperature = <95000>;
 					hysteresis = <4000>;
 					type = "active";

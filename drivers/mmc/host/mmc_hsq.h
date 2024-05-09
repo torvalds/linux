@@ -5,6 +5,17 @@
 #define HSQ_NUM_SLOTS	64
 #define HSQ_INVALID_TAG	HSQ_NUM_SLOTS
 
+/*
+ * For MMC host software queue, we only allow 2 requests in
+ * flight to avoid a long latency.
+ */
+#define HSQ_NORMAL_DEPTH	2
+/*
+ * For 4k random writes, we allow hsq_depth to increase to 5
+ * for better performance.
+ */
+#define HSQ_PERFORMANCE_DEPTH	5
+
 struct hsq_slot {
 	struct mmc_request *mrq;
 };

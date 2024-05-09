@@ -336,7 +336,7 @@ static void umc_v8_10_ecc_info_query_correctable_error_count(struct amdgpu_devic
 				      uint32_t node_inst, uint32_t umc_inst, uint32_t ch_inst,
 				      unsigned long *error_count)
 {
-	uint64_t mc_umc_status;
+	uint16_t ecc_ce_cnt;
 	uint32_t eccinfo_table_idx;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
@@ -345,12 +345,10 @@ static void umc_v8_10_ecc_info_query_correctable_error_count(struct amdgpu_devic
 				  umc_inst * adev->umc.channel_inst_num +
 				  ch_inst;
 
-	/* check the MCUMC_STATUS */
-	mc_umc_status = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_status;
-	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1) {
-		*error_count += 1;
-	}
+	/* Retrieve CE count */
+	ecc_ce_cnt = ras->umc_ecc.ecc[eccinfo_table_idx].ce_count_lo_chip;
+	if (ecc_ce_cnt)
+		*error_count += ecc_ce_cnt;
 }
 
 static void umc_v8_10_ecc_info_query_uncorrectable_error_count(struct amdgpu_device *adev,

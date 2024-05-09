@@ -208,7 +208,7 @@
 	 *	Slot 3
 	 */
 
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9545";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -249,7 +249,7 @@
 	 *	Slot 2,
 	 *	Slot 3
 	 */
-	i2c-switch@76 {
+	i2c-mux@76 {
 		compatible = "nxp,pca9546";
 		reg = <0x76>;
 		#address-cells = <1>;

@@ -18,17 +18,19 @@
 #include <linux/ethtool.h>
 #include <linux/filter.h>
 #include <linux/if_ether.h>
+#include <linux/if_link.h>
 #include <linux/if_packet.h>
 #include <linux/if_xdp.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include <linux/sockios.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <linux/if_link.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -79,6 +81,12 @@ struct xsk_socket {
 	struct xsk_ctx *ctx;
 	struct xsk_socket_config config;
 	int fd;
+};
+
+struct nl_mtu_req {
+	struct nlmsghdr nh;
+	struct ifinfomsg msg;
+	char             buf[512];
 };
 
 int xsk_umem__fd(const struct xsk_umem *umem)
@@ -286,6 +294,132 @@ bool xsk_is_in_mode(u32 ifindex, int mode)
 	return false;
 }
 
+/* Lifted from netlink.c in tools/lib/bpf */
+static int netlink_recvmsg(int sock, struct msghdr *mhdr, int flags)
+{
+	int len;
+
+	do {
+		len = recvmsg(sock, mhdr, flags);
+	} while (len < 0 && (errno == EINTR || errno == EAGAIN));
+
+	if (len < 0)
+		return -errno;
+	return len;
+}
+
+/* Lifted from netlink.c in tools/lib/bpf */
+static int alloc_iov(struct iovec *iov, int len)
+{
+	void *nbuf;
+
+	nbuf = realloc(iov->iov_base, len);
+	if (!nbuf)
+		return -ENOMEM;
+
+	iov->iov_base = nbuf;
+	iov->iov_len = len;
+	return 0;
+}
+
+/* Original version lifted from netlink.c in tools/lib/bpf */
+static int netlink_recv(int sock)
+{
+	struct iovec iov = {};
+	struct msghdr mhdr = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+	};
+	bool multipart = true;
+	struct nlmsgerr *err;
+	struct nlmsghdr *nh;
+	int len, ret;
+
+	ret = alloc_iov(&iov, 4096);
+	if (ret)
+		goto done;
+
+	while (multipart) {
+		multipart = false;
+		len = netlink_recvmsg(sock, &mhdr, MSG_PEEK | MSG_TRUNC);
+		if (len < 0) {
+			ret = len;
+			goto done;
+		}
+
+		if (len > iov.iov_len) {
+			ret = alloc_iov(&iov, len);
+			if (ret)
+				goto done;
+		}
+
+		len = netlink_recvmsg(sock, &mhdr, 0);
+		if (len < 0) {
+			ret = len;
+			goto done;
+		}
+
+		if (len == 0)
+			break;
+
+		for (nh = (struct nlmsghdr *)iov.iov_base; NLMSG_OK(nh, len);
+		     nh = NLMSG_NEXT(nh, len)) {
+			if (nh->nlmsg_flags & NLM_F_MULTI)
+				multipart = true;
+			switch (nh->nlmsg_type) {
+			case NLMSG_ERROR:
+				err = (struct nlmsgerr *)NLMSG_DATA(nh);
+				if (!err->error)
+					continue;
+				ret = err->error;
+				goto done;
+			case NLMSG_DONE:
+				ret = 0;
+				goto done;
+			default:
+				break;
+			}
+		}
+	}
+	ret = 0;
+done:
+	free(iov.iov_base);
+	return ret;
+}
+
+int xsk_set_mtu(int ifindex, int mtu)
+{
+	struct nl_mtu_req req;
+	struct rtattr *rta;
+	int fd, ret;
+
+	fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE);
+	if (fd < 0)
+		return fd;
+
+	memset(&req, 0, sizeof(req));
+	req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.nh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	req.nh.nlmsg_type = RTM_NEWLINK;
+	req.msg.ifi_family = AF_UNSPEC;
+	req.msg.ifi_index = ifindex;
+	rta = (struct rtattr *)(((char *)&req) + NLMSG_ALIGN(req.nh.nlmsg_len));
+	rta->rta_type = IFLA_MTU;
+	rta->rta_len = RTA_LENGTH(sizeof(unsigned int));
+	req.nh.nlmsg_len = NLMSG_ALIGN(req.nh.nlmsg_len) + RTA_LENGTH(sizeof(mtu));
+	memcpy(RTA_DATA(rta), &mtu, sizeof(mtu));
+
+	ret = send(fd, &req, req.nh.nlmsg_len, 0);
+	if (ret < 0) {
+		close(fd);
+		return errno;
+	}
+
+	ret = netlink_recv(fd);
+	close(fd);
+	return ret;
+}
+
 int xsk_attach_xdp_program(struct bpf_program *prog, int ifindex, u32 xdp_flags)
 {
 	int prog_fd;
@@ -308,10 +442,9 @@ void xsk_clear_xskmap(struct bpf_map *map)
 	bpf_map_delete_elem(map_fd, &index);
 }
 
-int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk)
+int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk, u32 index)
 {
 	int map_fd, sock_fd;
-	u32 index = 0;
 
 	map_fd = bpf_map__fd(map);
 	sock_fd = xsk_socket__fd(xsk);

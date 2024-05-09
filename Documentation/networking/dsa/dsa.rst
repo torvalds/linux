@@ -25,7 +25,7 @@ presence of a management port connected to an Ethernet controller capable of
 receiving Ethernet frames from the switch. This is a very common setup for all
 kinds of Ethernet switches found in Small Home and Office products: routers,
 gateways, or even top-of-rack switches. This host Ethernet controller will
-be later referred to as "master" and "cpu" in DSA terminology and code.
+be later referred to as "conduit" and "cpu" in DSA terminology and code.
 
 The D in DSA stands for Distributed, because the subsystem has been designed
 with the ability to configure and manage cascaded switches on top of each other
@@ -35,7 +35,7 @@ of multiple switches connected to each other is called a "switch tree".
 
 For each front-panel port, DSA creates specialized network devices which are
 used as controlling and data-flowing endpoints for use by the Linux networking
-stack. These specialized network interfaces are referred to as "slave" network
+stack. These specialized network interfaces are referred to as "user" network
 interfaces in DSA terminology and code.
 
 The ideal case for using DSA is when an Ethernet switch supports a "switch tag"
@@ -56,11 +56,15 @@ Note that DSA does not currently create network interfaces for the "cpu" and
 
 - the "cpu" port is the Ethernet switch facing side of the management
   controller, and as such, would create a duplication of feature, since you
-  would get two interfaces for the same conduit: master netdev, and "cpu" netdev
+  would get two interfaces for the same conduit: conduit netdev, and "cpu" netdev
 
 - the "dsa" port(s) are just conduits between two or more switches, and as such
   cannot really be used as proper network interfaces either, only the
   downstream, or the top-most upstream interface makes sense with that model
+
+NB: for the past 15 years, the DSA subsystem had been making use of the terms
+"master" (rather than "conduit") and "slave" (rather than "user"). These terms
+have been removed from the DSA codebase and phased out of the uAPI.
 
 Switch tagging protocols
 ------------------------
@@ -80,14 +84,14 @@ methods of the ``struct dsa_device_ops`` structure, which are detailed below.
 Tagging protocols generally fall in one of three categories:
 
 1. The switch-specific frame header is located before the Ethernet header,
-   shifting to the right (from the perspective of the DSA master's frame
+   shifting to the right (from the perspective of the DSA conduit's frame
    parser) the MAC DA, MAC SA, EtherType and the entire L2 payload.
 2. The switch-specific frame header is located before the EtherType, keeping
-   the MAC DA and MAC SA in place from the DSA master's perspective, but
+   the MAC DA and MAC SA in place from the DSA conduit's perspective, but
    shifting the 'real' EtherType and L2 payload to the right.
 3. The switch-specific frame header is located at the tail of the packet,
    keeping all frame headers in place and not altering the view of the packet
-   that the DSA master's frame parser has.
+   that the DSA conduit's frame parser has.
 
 A tagging protocol may tag all packets with switch tags of the same length, or
 the tag length might vary (for example packets with PTP timestamps might
@@ -95,7 +99,7 @@ require an extended switch tag, or there might be one tag length on TX and a
 different one on RX). Either way, the tagging protocol driver must populate the
 ``struct dsa_device_ops::needed_headroom`` and/or ``struct dsa_device_ops::needed_tailroom``
 with the length in octets of the longest switch frame header/trailer. The DSA
-framework will automatically adjust the MTU of the master interface to
+framework will automatically adjust the MTU of the conduit interface to
 accommodate for this extra size in order for DSA user ports to support the
 standard MTU (L2 payload length) of 1500 octets. The ``needed_headroom`` and
 ``needed_tailroom`` properties are also used to request from the network stack,
@@ -140,18 +144,18 @@ adding or removing the ``ETH_P_EDSA`` EtherType and some padding octets).
 It is possible to construct cascaded setups of DSA switches even if their
 tagging protocols are not compatible with one another. In this case, there are
 no DSA links in this fabric, and each switch constitutes a disjoint DSA switch
-tree. The DSA links are viewed as simply a pair of a DSA master (the out-facing
+tree. The DSA links are viewed as simply a pair of a DSA conduit (the out-facing
 port of the upstream DSA switch) and a CPU port (the in-facing port of the
 downstream DSA switch).
 
 The tagging protocol of the attached DSA switch tree can be viewed through the
-``dsa/tagging`` sysfs attribute of the DSA master::
+``dsa/tagging`` sysfs attribute of the DSA conduit::
 
     cat /sys/class/net/eth0/dsa/tagging
 
 If the hardware and driver are capable, the tagging protocol of the DSA switch
 tree can be changed at runtime. This is done by writing the new tagging
-protocol name to the same sysfs device attribute as above (the DSA master and
+protocol name to the same sysfs device attribute as above (the DSA conduit and
 all attached switch ports must be down while doing this).
 
 It is desirable that all tagging protocols are testable with the ``dsa_loop``
@@ -159,7 +163,7 @@ mockup driver, which can be attached to any network interface. The goal is that
 any network interface should be capable of transmitting the same packet in the
 same way, and the tagger should decode the same received packet in the same way
 regardless of the driver used for the switch control path, and the driver used
-for the DSA master.
+for the DSA conduit.
 
 The transmission of a packet goes through the tagger's ``xmit`` function.
 The passed ``struct sk_buff *skb`` has ``skb->data`` pointing at
@@ -183,44 +187,44 @@ virtual DSA user network interface corresponding to the physical front-facing
 switch port that the packet was received on.
 
 Since tagging protocols in category 1 and 2 break software (and most often also
-hardware) packet dissection on the DSA master, features such as RPS (Receive
-Packet Steering) on the DSA master would be broken. The DSA framework deals
+hardware) packet dissection on the DSA conduit, features such as RPS (Receive
+Packet Steering) on the DSA conduit would be broken. The DSA framework deals
 with this by hooking into the flow dissector and shifting the offset at which
-the IP header is to be found in the tagged frame as seen by the DSA master.
+the IP header is to be found in the tagged frame as seen by the DSA conduit.
 This behavior is automatic based on the ``overhead`` value of the tagging
 protocol. If not all packets are of equal size, the tagger can implement the
 ``flow_dissect`` method of the ``struct dsa_device_ops`` and override this
 default behavior by specifying the correct offset incurred by each individual
 RX packet. Tail taggers do not cause issues to the flow dissector.
 
-Checksum offload should work with category 1 and 2 taggers when the DSA master
+Checksum offload should work with category 1 and 2 taggers when the DSA conduit
 driver declares NETIF_F_HW_CSUM in vlan_features and looks at csum_start and
 csum_offset. For those cases, DSA will shift the checksum start and offset by
-the tag size. If the DSA master driver still uses the legacy NETIF_F_IP_CSUM
+the tag size. If the DSA conduit driver still uses the legacy NETIF_F_IP_CSUM
 or NETIF_F_IPV6_CSUM in vlan_features, the offload might only work if the
 offload hardware already expects that specific tag (perhaps due to matching
-vendors). DSA slaves inherit those flags from the master port, and it is up to
+vendors). DSA user ports inherit those flags from the conduit, and it is up to
 the driver to correctly fall back to software checksum when the IP header is not
 where the hardware expects. If that check is ineffective, the packets might go
 to the network without a proper checksum (the checksum field will have the
 pseudo IP header sum). For category 3, when the offload hardware does not
 already expect the switch tag in use, the checksum must be calculated before any
-tag is inserted (i.e. inside the tagger). Otherwise, the DSA master would
+tag is inserted (i.e. inside the tagger). Otherwise, the DSA conduit would
 include the tail tag in the (software or hardware) checksum calculation. Then,
 when the tag gets stripped by the switch during transmission, it will leave an
 incorrect IP checksum in place.
 
 Due to various reasons (most common being category 1 taggers being associated
-with DSA-unaware masters, mangling what the master perceives as MAC DA), the
-tagging protocol may require the DSA master to operate in promiscuous mode, to
+with DSA-unaware conduits, mangling what the conduit perceives as MAC DA), the
+tagging protocol may require the DSA conduit to operate in promiscuous mode, to
 receive all frames regardless of the value of the MAC DA. This can be done by
-setting the ``promisc_on_master`` property of the ``struct dsa_device_ops``.
-Note that this assumes a DSA-unaware master driver, which is the norm.
+setting the ``promisc_on_conduit`` property of the ``struct dsa_device_ops``.
+Note that this assumes a DSA-unaware conduit driver, which is the norm.
 
-Master network devices
-----------------------
+Conduit network devices
+-----------------------
 
-Master network devices are regular, unmodified Linux network device drivers for
+Conduit network devices are regular, unmodified Linux network device drivers for
 the CPU/management Ethernet interface. Such a driver might occasionally need to
 know whether DSA is enabled (e.g.: to enable/disable specific offload features),
 but the DSA subsystem has been proven to work with industry standard drivers:
@@ -232,14 +236,14 @@ Ethernet switch.
 Networking stack hooks
 ----------------------
 
-When a master netdev is used with DSA, a small hook is placed in the
+When a conduit netdev is used with DSA, a small hook is placed in the
 networking stack is in order to have the DSA subsystem process the Ethernet
 switch specific tagging protocol. DSA accomplishes this by registering a
 specific (and fake) Ethernet type (later becoming ``skb->protocol``) with the
 networking stack, this is also known as a ``ptype`` or ``packet_type``. A typical
 Ethernet Frame receive sequence looks like this:
 
-Master network device (e.g.: e1000e):
+Conduit network device (e.g.: e1000e):
 
 1. Receive interrupt fires:
 
@@ -269,16 +273,16 @@ Master network device (e.g.: e1000e):
 
         - inspect and strip switch tag protocol to determine originating port
         - locate per-port network device
-        - invoke ``eth_type_trans()`` with the DSA slave network device
+        - invoke ``eth_type_trans()`` with the DSA user network device
         - invoked ``netif_receive_skb()``
 
-Past this point, the DSA slave network devices get delivered regular Ethernet
+Past this point, the DSA user network devices get delivered regular Ethernet
 frames that can be processed by the networking stack.
 
-Slave network devices
----------------------
+User network devices
+--------------------
 
-Slave network devices created by DSA are stacked on top of their master network
+User network devices created by DSA are stacked on top of their conduit network
 device, each of these network interfaces will be responsible for being a
 controlling and data-flowing end-point for each front-panel port of the switch.
 These interfaces are specialized in order to:
@@ -289,31 +293,31 @@ These interfaces are specialized in order to:
   Wake-on-LAN, register dumps...
 - manage external/internal PHY: link, auto-negotiation, etc.
 
-These slave network devices have custom net_device_ops and ethtool_ops function
+These user network devices have custom net_device_ops and ethtool_ops function
 pointers which allow DSA to introduce a level of layering between the networking
 stack/ethtool and the switch driver implementation.
 
-Upon frame transmission from these slave network devices, DSA will look up which
+Upon frame transmission from these user network devices, DSA will look up which
 switch tagging protocol is currently registered with these network devices and
 invoke a specific transmit routine which takes care of adding the relevant
 switch tag in the Ethernet frames.
 
-These frames are then queued for transmission using the master network device
+These frames are then queued for transmission using the conduit network device
 ``ndo_start_xmit()`` function. Since they contain the appropriate switch tag, the
 Ethernet switch will be able to process these incoming frames from the
 management interface and deliver them to the physical switch port.
 
 When using multiple CPU ports, it is possible to stack a LAG (bonding/team)
-device between the DSA slave devices and the physical DSA masters. The LAG
-device is thus also a DSA master, but the LAG slave devices continue to be DSA
-masters as well (just with no user port assigned to them; this is needed for
-recovery in case the LAG DSA master disappears). Thus, the data path of the LAG
-DSA master is used asymmetrically. On RX, the ``ETH_P_XDSA`` handler, which
-calls ``dsa_switch_rcv()``, is invoked early (on the physical DSA master;
-LAG slave). Therefore, the RX data path of the LAG DSA master is not used.
-On the other hand, TX takes place linearly: ``dsa_slave_xmit`` calls
-``dsa_enqueue_skb``, which calls ``dev_queue_xmit`` towards the LAG DSA master.
-The latter calls ``dev_queue_xmit`` towards one physical DSA master or the
+device between the DSA user devices and the physical DSA conduits. The LAG
+device is thus also a DSA conduit, but the LAG slave devices continue to be DSA
+conduits as well (just with no user port assigned to them; this is needed for
+recovery in case the LAG DSA conduit disappears). Thus, the data path of the LAG
+DSA conduit is used asymmetrically. On RX, the ``ETH_P_XDSA`` handler, which
+calls ``dsa_switch_rcv()``, is invoked early (on the physical DSA conduit;
+LAG slave). Therefore, the RX data path of the LAG DSA conduit is not used.
+On the other hand, TX takes place linearly: ``dsa_user_xmit`` calls
+``dsa_enqueue_skb``, which calls ``dev_queue_xmit`` towards the LAG DSA conduit.
+The latter calls ``dev_queue_xmit`` towards one physical DSA conduit or the
 other, and in both cases, the packet exits the system through a hardware path
 towards the switch.
 
@@ -352,11 +356,11 @@ perspective::
            || swp0 | | swp1 | | swp2 | | swp3 ||
            ++------+-+------+-+------+-+------++
 
-Slave MDIO bus
---------------
+User MDIO bus
+-------------
 
-In order to be able to read to/from a switch PHY built into it, DSA creates a
-slave MDIO bus which allows a specific switch driver to divert and intercept
+In order to be able to read to/from a switch PHY built into it, DSA creates an
+user MDIO bus which allows a specific switch driver to divert and intercept
 MDIO reads/writes towards specific PHY addresses. In most MDIO-connected
 switches, these functions would utilize direct or indirect PHY addressing mode
 to return standard MII registers from the switch builtin PHYs, allowing the PHY
@@ -364,7 +368,7 @@ library and/or to return link status, link partner pages, auto-negotiation
 results, etc.
 
 For Ethernet switches which have both external and internal MDIO buses, the
-slave MII bus can be utilized to mux/demux MDIO reads and writes towards either
+user MII bus can be utilized to mux/demux MDIO reads and writes towards either
 internal or external MDIO devices this switch might be connected to: internal
 PHYs, external PHYs, or even external switches.
 
@@ -381,10 +385,10 @@ DSA data structures are defined in ``include/net/dsa.h`` as well as
 
 - ``dsa_platform_data``: platform device configuration data which can reference
   a collection of dsa_chip_data structures if multiple switches are cascaded,
-  the master network device this switch tree is attached to needs to be
+  the conduit network device this switch tree is attached to needs to be
   referenced
 
-- ``dsa_switch_tree``: structure assigned to the master network device under
+- ``dsa_switch_tree``: structure assigned to the conduit network device under
   ``dsa_ptr``, this structure references a dsa_platform_data structure as well as
   the tagging protocol supported by the switch tree, and which receive/transmit
   function hooks should be invoked, information about the directly attached
@@ -392,7 +396,7 @@ DSA data structures are defined in ``include/net/dsa.h`` as well as
   referenced to address individual switches in the tree.
 
 - ``dsa_switch``: structure describing a switch device in the tree, referencing
-  a ``dsa_switch_tree`` as a backpointer, slave network devices, master network
+  a ``dsa_switch_tree`` as a backpointer, user network devices, conduit network
   device, and a reference to the backing``dsa_switch_ops``
 
 - ``dsa_switch_ops``: structure referencing function pointers, see below for a
@@ -404,7 +408,7 @@ Design limitations
 Lack of CPU/DSA network devices
 -------------------------------
 
-DSA does not currently create slave network devices for the CPU or DSA ports, as
+DSA does not currently create user network devices for the CPU or DSA ports, as
 described before. This might be an issue in the following cases:
 
 - inability to fetch switch CPU port statistics counters using ethtool, which
@@ -419,7 +423,7 @@ described before. This might be an issue in the following cases:
 Common pitfalls using DSA setups
 --------------------------------
 
-Once a master network device is configured to use DSA (dev->dsa_ptr becomes
+Once a conduit network device is configured to use DSA (dev->dsa_ptr becomes
 non-NULL), and the switch behind it expects a tagging protocol, this network
 interface can only exclusively be used as a conduit interface. Sending packets
 directly through this interface (e.g.: opening a socket using this interface)
@@ -440,7 +444,7 @@ DSA currently leverages the following subsystems:
 MDIO/PHY library
 ----------------
 
-Slave network devices exposed by DSA may or may not be interfacing with PHY
+User network devices exposed by DSA may or may not be interfacing with PHY
 devices (``struct phy_device`` as defined in ``include/linux/phy.h)``, but the DSA
 subsystem deals with all possible combinations:
 
@@ -450,7 +454,7 @@ subsystem deals with all possible combinations:
 - special, non-autonegotiated or non MDIO-managed PHY devices: SFPs, MoCA; a.k.a
   fixed PHYs
 
-The PHY configuration is done by the ``dsa_slave_phy_setup()`` function and the
+The PHY configuration is done by the ``dsa_user_phy_setup()`` function and the
 logic basically looks like this:
 
 - if Device Tree is used, the PHY device is looked up using the standard
@@ -463,7 +467,7 @@ logic basically looks like this:
   and connected transparently using the special fixed MDIO bus driver
 
 - finally, if the PHY is built into the switch, as is very common with
-  standalone switch packages, the PHY is probed using the slave MII bus created
+  standalone switch packages, the PHY is probed using the user MII bus created
   by DSA
 
 
@@ -472,7 +476,7 @@ SWITCHDEV
 
 DSA directly utilizes SWITCHDEV when interfacing with the bridge layer, and
 more specifically with its VLAN filtering portion when configuring VLANs on top
-of per-port slave network devices. As of today, the only SWITCHDEV objects
+of per-port user network devices. As of today, the only SWITCHDEV objects
 supported by DSA are the FDB and VLAN objects.
 
 Devlink
@@ -589,8 +593,8 @@ is torn down when the first switch unregisters.
 It is mandatory for DSA switch drivers to implement the ``shutdown()`` callback
 of their respective bus, and call ``dsa_switch_shutdown()`` from it (a minimal
 version of the full teardown performed by ``dsa_unregister_switch()``).
-The reason is that DSA keeps a reference on the master net device, and if the
-driver for the master device decides to unbind on shutdown, DSA's reference
+The reason is that DSA keeps a reference on the conduit net device, and if the
+driver for the conduit device decides to unbind on shutdown, DSA's reference
 will block that operation from finalizing.
 
 Either ``dsa_switch_shutdown()`` or ``dsa_unregister_switch()`` must be called,
@@ -615,7 +619,7 @@ Switch configuration
   tag formats.
 
 - ``change_tag_protocol``: when the default tagging protocol has compatibility
-  problems with the master or other issues, the driver may support changing it
+  problems with the conduit or other issues, the driver may support changing it
   at runtime, either through a device tree property or through sysfs. In that
   case, further calls to ``get_tag_protocol`` should report the protocol in
   current use.
@@ -643,22 +647,22 @@ Switch configuration
   PHY cannot be found. In this case, probing of the DSA switch continues
   without that particular port.
 
-- ``port_change_master``: method through which the affinity (association used
+- ``port_change_conduit``: method through which the affinity (association used
   for traffic termination purposes) between a user port and a CPU port can be
   changed. By default all user ports from a tree are assigned to the first
   available CPU port that makes sense for them (most of the times this means
   the user ports of a tree are all assigned to the same CPU port, except for H
   topologies as described in commit 2c0b03258b8b). The ``port`` argument
-  represents the index of the user port, and the ``master`` argument represents
-  the new DSA master ``net_device``. The CPU port associated with the new
-  master can be retrieved by looking at ``struct dsa_port *cpu_dp =
-  master->dsa_ptr``. Additionally, the master can also be a LAG device where
-  all the slave devices are physical DSA masters. LAG DSA masters also have a
-  valid ``master->dsa_ptr`` pointer, however this is not unique, but rather a
-  duplicate of the first physical DSA master's (LAG slave) ``dsa_ptr``. In case
-  of a LAG DSA master, a further call to ``port_lag_join`` will be emitted
+  represents the index of the user port, and the ``conduit`` argument represents
+  the new DSA conduit ``net_device``. The CPU port associated with the new
+  conduit can be retrieved by looking at ``struct dsa_port *cpu_dp =
+  conduit->dsa_ptr``. Additionally, the conduit can also be a LAG device where
+  all the slave devices are physical DSA conduits. LAG DSA  also have a
+  valid ``conduit->dsa_ptr`` pointer, however this is not unique, but rather a
+  duplicate of the first physical DSA conduit's (LAG slave) ``dsa_ptr``. In case
+  of a LAG DSA conduit, a further call to ``port_lag_join`` will be emitted
   separately for the physical CPU ports associated with the physical DSA
-  masters, requesting them to create a hardware LAG associated with the LAG
+  conduits, requesting them to create a hardware LAG associated with the LAG
   interface.
 
 PHY devices and link management
@@ -670,16 +674,16 @@ PHY devices and link management
   should return a 32-bit bitmask of "flags" that is private between the switch
   driver and the Ethernet PHY driver in ``drivers/net/phy/\*``.
 
-- ``phy_read``: Function invoked by the DSA slave MDIO bus when attempting to read
+- ``phy_read``: Function invoked by the DSA user MDIO bus when attempting to read
   the switch port MDIO registers. If unavailable, return 0xffff for each read.
   For builtin switch Ethernet PHYs, this function should allow reading the link
   status, auto-negotiation results, link partner pages, etc.
 
-- ``phy_write``: Function invoked by the DSA slave MDIO bus when attempting to write
+- ``phy_write``: Function invoked by the DSA user MDIO bus when attempting to write
   to the switch port MDIO registers. If unavailable return a negative error
   code.
 
-- ``adjust_link``: Function invoked by the PHY library when a slave network device
+- ``adjust_link``: Function invoked by the PHY library when a user network device
   is attached to a PHY device. This function is responsible for appropriately
   configuring the switch port link parameters: speed, duplex, pause based on
   what the ``phy_device`` is providing.
@@ -698,14 +702,14 @@ Ethtool operations
   typically return statistics strings, private flags strings, etc.
 
 - ``get_ethtool_stats``: ethtool function used to query per-port statistics and
-  return their values. DSA overlays slave network devices general statistics:
+  return their values. DSA overlays user network devices general statistics:
   RX/TX counters from the network device, with switch driver specific statistics
   per port
 
 - ``get_sset_count``: ethtool function used to query the number of statistics items
 
 - ``get_wol``: ethtool function used to obtain Wake-on-LAN settings per-port, this
-  function may for certain implementations also query the master network device
+  function may for certain implementations also query the conduit network device
   Wake-on-LAN settings if this interface needs to participate in Wake-on-LAN
 
 - ``set_wol``: ethtool function used to configure Wake-on-LAN settings per-port,
@@ -747,13 +751,13 @@ Power management
   should resume all Ethernet switch activities and re-configure the switch to be
   in a fully active state
 
-- ``port_enable``: function invoked by the DSA slave network device ndo_open
+- ``port_enable``: function invoked by the DSA user network device ndo_open
   function when a port is administratively brought up, this function should
   fully enable a given switch port. DSA takes care of marking the port with
   ``BR_STATE_BLOCKING`` if the port is a bridge member, or ``BR_STATE_FORWARDING`` if it
   was not, and propagating these changes down to the hardware
 
-- ``port_disable``: function invoked by the DSA slave network device ndo_close
+- ``port_disable``: function invoked by the DSA user network device ndo_close
   function when a port is administratively brought down, this function should
   fully disable a given switch port. DSA takes care of marking the port with
   ``BR_STATE_DISABLED`` and propagating changes to the hardware if this port is

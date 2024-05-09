@@ -17,6 +17,7 @@
 #include "event.h"
 #include "perf_regs.h"
 #include "callchain.h"
+#include "util/env.h"
 
 static char *debuginfo_path;
 
@@ -66,9 +67,13 @@ static int __report_module(struct addr_location *al, u64 ip,
 			mod = 0;
 	}
 
-	if (!mod)
-		mod = dwfl_report_elf(ui->dwfl, dso->short_name, dso->long_name, -1,
+	if (!mod) {
+		char filename[PATH_MAX];
+
+		__symbol__join_symfs(filename, sizeof(filename), dso->long_name);
+		mod = dwfl_report_elf(ui->dwfl, dso->short_name, filename, -1,
 				      map__start(al->map) - map__pgoff(al->map), false);
+	}
 	if (!mod) {
 		char filename[PATH_MAX];
 
@@ -166,12 +171,14 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 			void *arg)
 {
 	struct unwind_info *ui = arg;
+	const char *arch = perf_env__arch(ui->machine->env);
 	struct stack_dump *stack = &ui->sample->user_stack;
 	u64 start, end;
 	int offset;
 	int ret;
 
-	ret = perf_reg_value(&start, &ui->sample->user_regs, PERF_REG_SP);
+	ret = perf_reg_value(&start, &ui->sample->user_regs,
+			     perf_arch_reg_sp(arch));
 	if (ret)
 		return false;
 
@@ -249,6 +256,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 		.max_stack	= max_stack,
 		.best_effort    = best_effort
 	};
+	const char *arch = perf_env__arch(ui_buf.machine->env);
 	Dwarf_Word ip;
 	int err = -EINVAL, i;
 
@@ -265,7 +273,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (!ui->dwfl)
 		goto out;
 
-	err = perf_reg_value(&ip, &data->user_regs, PERF_REG_IP);
+	err = perf_reg_value(&ip, &data->user_regs, perf_arch_reg_ip(arch));
 	if (err)
 		goto out;
 

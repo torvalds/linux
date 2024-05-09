@@ -93,19 +93,6 @@ void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops)
 #undef __KVM_X86_PMU_OP
 }
 
-static inline bool pmc_is_globally_enabled(struct kvm_pmc *pmc)
-{
-	return static_call(kvm_x86_pmu_pmc_is_enabled)(pmc);
-}
-
-static void kvm_pmi_trigger_fn(struct irq_work *irq_work)
-{
-	struct kvm_pmu *pmu = container_of(irq_work, struct kvm_pmu, irq_work);
-	struct kvm_vcpu *vcpu = pmu_to_vcpu(pmu);
-
-	kvm_pmu_deliver_pmi(vcpu);
-}
-
 static inline void __kvm_perf_overflow(struct kvm_pmc *pmc, bool in_pmi)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
@@ -129,20 +116,7 @@ static inline void __kvm_perf_overflow(struct kvm_pmc *pmc, bool in_pmi)
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 	}
 
-	if (!pmc->intr || skip_pmi)
-		return;
-
-	/*
-	 * Inject PMI. If vcpu was in a guest mode during NMI PMI
-	 * can be ejected on a guest mode re-entry. Otherwise we can't
-	 * be sure that vcpu wasn't executing hlt instruction at the
-	 * time of vmexit and is not going to re-enter guest mode until
-	 * woken up. So we should wake it, but this is impossible from
-	 * NMI context. Do it from irq work instead.
-	 */
-	if (in_pmi && !kvm_handling_nmi_from_guest(pmc->vcpu))
-		irq_work_queue(&pmc_to_pmu(pmc)->irq_work);
-	else
+	if (pmc->intr && !skip_pmi)
 		kvm_make_request(KVM_REQ_PMI, pmc->vcpu);
 }
 
@@ -387,9 +361,6 @@ static bool check_pmu_event_filter(struct kvm_pmc *pmc)
 	struct kvm_x86_pmu_event_filter *filter;
 	struct kvm *kvm = pmc->vcpu->kvm;
 
-	if (!static_call(kvm_x86_pmu_hw_event_available)(pmc))
-		return false;
-
 	filter = srcu_dereference(kvm->arch.pmu_event_filter, &kvm->srcu);
 	if (!filter)
 		return true;
@@ -403,6 +374,7 @@ static bool check_pmu_event_filter(struct kvm_pmc *pmc)
 static bool pmc_event_is_allowed(struct kvm_pmc *pmc)
 {
 	return pmc_is_globally_enabled(pmc) && pmc_speculative_in_use(pmc) &&
+	       static_call(kvm_x86_pmu_hw_event_available)(pmc) &&
 	       check_pmu_event_filter(pmc);
 }
 
@@ -562,6 +534,14 @@ void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 
 bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
+	switch (msr) {
+	case MSR_CORE_PERF_GLOBAL_STATUS:
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+		return kvm_pmu_has_perf_global_ctrl(vcpu_to_pmu(vcpu));
+	default:
+		break;
+	}
 	return static_call(kvm_x86_pmu_msr_idx_to_pmc)(vcpu, msr) ||
 		static_call(kvm_x86_pmu_is_valid_msr)(vcpu, msr);
 }
@@ -577,13 +557,86 @@ static void kvm_pmu_mark_pmc_in_use(struct kvm_vcpu *vcpu, u32 msr)
 
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	return static_call(kvm_x86_pmu_get_msr)(vcpu, msr_info);
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	u32 msr = msr_info->index;
+
+	switch (msr) {
+	case MSR_CORE_PERF_GLOBAL_STATUS:
+	case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS:
+		msr_info->data = pmu->global_status;
+		break;
+	case MSR_AMD64_PERF_CNTR_GLOBAL_CTL:
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+		msr_info->data = pmu->global_ctrl;
+		break;
+	case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR:
+	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+		msr_info->data = 0;
+		break;
+	default:
+		return static_call(kvm_x86_pmu_get_msr)(vcpu, msr_info);
+	}
+
+	return 0;
 }
 
 int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	kvm_pmu_mark_pmc_in_use(vcpu, msr_info->index);
-	return static_call(kvm_x86_pmu_set_msr)(vcpu, msr_info);
+	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
+	u32 msr = msr_info->index;
+	u64 data = msr_info->data;
+	u64 diff;
+
+	/*
+	 * Note, AMD ignores writes to reserved bits and read-only PMU MSRs,
+	 * whereas Intel generates #GP on attempts to write reserved/RO MSRs.
+	 */
+	switch (msr) {
+	case MSR_CORE_PERF_GLOBAL_STATUS:
+		if (!msr_info->host_initiated)
+			return 1; /* RO MSR */
+		fallthrough;
+	case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS:
+		/* Per PPR, Read-only MSR. Writes are ignored. */
+		if (!msr_info->host_initiated)
+			break;
+
+		if (data & pmu->global_status_mask)
+			return 1;
+
+		pmu->global_status = data;
+		break;
+	case MSR_AMD64_PERF_CNTR_GLOBAL_CTL:
+		data &= ~pmu->global_ctrl_mask;
+		fallthrough;
+	case MSR_CORE_PERF_GLOBAL_CTRL:
+		if (!kvm_valid_perf_global_ctrl(pmu, data))
+			return 1;
+
+		if (pmu->global_ctrl != data) {
+			diff = pmu->global_ctrl ^ data;
+			pmu->global_ctrl = data;
+			reprogram_counters(pmu, diff);
+		}
+		break;
+	case MSR_CORE_PERF_GLOBAL_OVF_CTRL:
+		/*
+		 * GLOBAL_OVF_CTRL, a.k.a. GLOBAL STATUS_RESET, clears bits in
+		 * GLOBAL_STATUS, and so the set of reserved bits is the same.
+		 */
+		if (data & pmu->global_status_mask)
+			return 1;
+		fallthrough;
+	case MSR_AMD64_PERF_CNTR_GLOBAL_STATUS_CLR:
+		if (!msr_info->host_initiated)
+			pmu->global_status &= ~data;
+		break;
+	default:
+		kvm_pmu_mark_pmc_in_use(vcpu, msr_info->index);
+		return static_call(kvm_x86_pmu_set_msr)(vcpu, msr_info);
+	}
+
+	return 0;
 }
 
 /* refresh PMU settings. This function generally is called when underlying
@@ -601,9 +654,6 @@ void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 
 void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 {
-	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-
-	irq_work_sync(&pmu->irq_work);
 	static_call(kvm_x86_pmu_reset)(vcpu);
 }
 
@@ -613,7 +663,6 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu)
 
 	memset(pmu, 0, sizeof(*pmu));
 	static_call(kvm_x86_pmu_init)(vcpu);
-	init_irq_work(&pmu->irq_work, kvm_pmi_trigger_fn);
 	pmu->event_count = 0;
 	pmu->need_cleanup = false;
 	kvm_pmu_refresh(vcpu);

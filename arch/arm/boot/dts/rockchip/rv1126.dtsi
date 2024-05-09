@@ -83,6 +83,11 @@
 		clock-frequency = <24000000>;
 	};
 
+	display_subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+	};
+
 	xin24m: oscillator {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
@@ -123,6 +128,26 @@
 	qos_sdio: qos@fe86c000 {
 		compatible = "rockchip,rv1126-qos", "syscon";
 		reg = <0xfe86c000 0x20>;
+	};
+
+	qos_iep: qos@fe8a0000 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe8a0000 0x20>;
+	};
+
+	qos_rga_rd: qos@fe8a0080 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe8a0080 0x20>;
+	};
+
+	qos_rga_wr: qos@fe8a0100 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe8a0100 0x20>;
+	};
+
+	qos_vop: qos@fe8a0180 {
+		compatible = "rockchip,rv1126-qos", "syscon";
+		reg = <0xfe8a0180 0x20>;
 	};
 
 	gic: interrupt-controller@feff0000 {
@@ -170,6 +195,25 @@
 				pm_qos = <&qos_sdio>;
 				#power-domain-cells = <0>;
 			};
+
+			power-domain@RV1126_PD_VO {
+				reg = <RV1126_PD_VO>;
+				clocks = <&cru ACLK_RGA>,
+					 <&cru HCLK_RGA>,
+					 <&cru CLK_RGA_CORE>,
+					 <&cru ACLK_VOP>,
+					 <&cru HCLK_VOP>,
+					 <&cru DCLK_VOP>,
+					 <&cru PCLK_DSIHOST>,
+					 <&cru ACLK_IEP>,
+					 <&cru HCLK_IEP>,
+					 <&cru CLK_IEP_CORE>;
+				pm_qos = <&qos_rga_rd>,
+					 <&qos_rga_wr>,
+					 <&qos_vop>,
+					 <&qos_iep>;
+				#power-domain-cells = <0>;
+			};
 		};
 	};
 
@@ -203,6 +247,17 @@
 		status = "disabled";
 	};
 
+	pwm2: pwm@ff430020 {
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
+		reg = <0xff430020 0x10>;
+		clock-names = "pwm", "pclk";
+		clocks = <&pmucru CLK_PWM0>, <&pmucru PCLK_PWM0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm2m0_pins>;
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
 	pmucru: clock-controller@ff480000 {
 		compatible = "rockchip,rv1126-pmucru";
 		reg = <0xff480000 0x1000>;
@@ -230,6 +285,17 @@
 		arm,pl330-periph-burst;
 		clocks = <&cru ACLK_DMAC>;
 		clock-names = "apb_pclk";
+	};
+
+	pwm11: pwm@ff550030 {
+		compatible = "rockchip,rv1126-pwm", "rockchip,rk3328-pwm";
+		reg = <0xff550030 0x10>;
+		clock-names = "pwm", "pclk";
+		clocks = <&cru CLK_PWM2>, <&cru PCLK_PWM2>;
+		pinctrl-0 = <&pwm11m0_pins>;
+		pinctrl-names = "default";
+		#pwm-cells = <3>;
+		status = "disabled";
 	};
 
 	uart0: serial@ff560000 {
@@ -332,6 +398,43 @@
 		clock-names = "pclk", "timer";
 	};
 
+	vop: vop@ffb00000 {
+		compatible = "rockchip,rv1126-vop";
+		reg = <0xffb00000 0x200>, <0xffb00a00 0x400>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>, <&cru HCLK_VOP>;
+		reset-names = "axi", "ahb", "dclk";
+		resets = <&cru SRST_VOP_A>, <&cru SRST_VOP_H>, <&cru SRST_VOP_D>;
+		iommus = <&vop_mmu>;
+		power-domains = <&power RV1126_PD_VO>;
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vop_out_rgb: endpoint@0 {
+				reg = <0>;
+			};
+
+			vop_out_dsi: endpoint@1 {
+				reg = <1>;
+			};
+		};
+	};
+
+	vop_mmu: iommu@ffb00f00 {
+		compatible = "rockchip,iommu";
+		reg = <0xffb00f00 0x100>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		clock-names = "aclk", "iface";
+		clocks = <&cru ACLK_VOP>, <&cru HCLK_VOP>;
+		#iommu-cells = <0>;
+		power-domains = <&power RV1126_PD_VO>;
+		status = "disabled";
+	};
+
 	gmac: ethernet@ffc40000 {
 		compatible = "rockchip,rv1126-gmac", "snps,dwmac-4.20a";
 		reg = <0xffc40000 0x4000>;
@@ -416,6 +519,18 @@
 		fifo-depth = <0x100>;
 		max-frequency = <200000000>;
 		power-domains = <&power RV1126_PD_SDIO>;
+		status = "disabled";
+	};
+
+	sfc: spi@ffc90000  {
+		compatible = "rockchip,sfc";
+		reg = <0xffc90000 0x4000>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+		assigned-clocks = <&cru SCLK_SFC>;
+		assigned-clock-rates = <80000000>;
+		clock-names = "clk_sfc", "hclk_sfc";
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
+		power-domains = <&power RV1126_PD_NVM>;
 		status = "disabled";
 	};
 

@@ -16,6 +16,8 @@
 #include <linux/dmi.h>
 #include <linux/i8042.h>
 
+#include <acpi/video.h>
+
 #include "asus-wmi.h"
 
 #define	ASUS_NB_WMI_FILE	"asus-nb-wmi"
@@ -480,6 +482,15 @@ static const struct dmi_system_id asus_quirks[] = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "ASUS ROG FLOW X16",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "GV601V"),
+		},
+		.driver_data = &quirk_asus_tablet_mode,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "ASUS VivoBook E410MA",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
@@ -522,6 +533,9 @@ static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_KEY, ASUS_WMI_BRN_DOWN, { KEY_BRIGHTNESSDOWN } },
 	{ KE_KEY, ASUS_WMI_BRN_UP, { KEY_BRIGHTNESSUP } },
+	{ KE_KEY, 0x2a, { KEY_SELECTIVE_SCREENSHOT } },
+	{ KE_IGNORE, 0x2b, }, /* PrintScreen (also send via PS/2) on newer models */
+	{ KE_IGNORE, 0x2c, }, /* CapsLock (also send via PS/2) on newer models */
 	{ KE_KEY, 0x30, { KEY_VOLUMEUP } },
 	{ KE_KEY, 0x31, { KEY_VOLUMEDOWN } },
 	{ KE_KEY, 0x32, { KEY_MUTE } },
@@ -594,6 +608,19 @@ static const struct key_entry asus_nb_wmi_keymap[] = {
 	{ KE_END, 0},
 };
 
+static void asus_nb_wmi_key_filter(struct asus_wmi_driver *asus_wmi, int *code,
+				   unsigned int *value, bool *autorelease)
+{
+	switch (*code) {
+	case ASUS_WMI_BRN_DOWN:
+	case ASUS_WMI_BRN_UP:
+		if (acpi_video_handles_brightness_key_presses())
+			*code = ASUS_WMI_KEY_IGNORE;
+
+		break;
+	}
+}
+
 static struct asus_wmi_driver asus_nb_wmi_driver = {
 	.name = ASUS_NB_WMI_FILE,
 	.owner = THIS_MODULE,
@@ -602,6 +629,7 @@ static struct asus_wmi_driver asus_nb_wmi_driver = {
 	.input_name = "Asus WMI hotkeys",
 	.input_phys = ASUS_NB_WMI_FILE "/input0",
 	.detect_quirks = asus_nb_wmi_quirks,
+	.key_filter = asus_nb_wmi_key_filter,
 };
 
 

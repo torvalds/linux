@@ -83,7 +83,7 @@ int pkt_sys_set_resource(struct hfi_sys_set_resource_pkt *pkt, u32 id, u32 size,
 		res->size = size;
 		res->mem = addr;
 		pkt->resource_type = HFI_RESOURCE_OCMEM;
-		pkt->hdr.size += sizeof(*res) - sizeof(u32);
+		pkt->hdr.size += sizeof(*res);
 		break;
 	}
 	case VIDC_RESOURCE_NONE:
@@ -200,8 +200,8 @@ int pkt_session_set_buffers(struct hfi_session_set_buffers_pkt *pkt,
 		struct hfi_buffer_info *bi;
 
 		pkt->extradata_size = bd->extradata_size;
-		pkt->shdr.hdr.size = sizeof(*pkt) - sizeof(u32) +
-			(bd->num_buffers * sizeof(*bi));
+		pkt->shdr.hdr.size = sizeof(*pkt) +
+			bd->num_buffers * sizeof(*bi);
 		bi = (struct hfi_buffer_info *)pkt->buffer_info;
 		for (i = 0; i < pkt->num_buffers; i++) {
 			bi->buffer_addr = bd->device_addr;
@@ -209,8 +209,8 @@ int pkt_session_set_buffers(struct hfi_session_set_buffers_pkt *pkt,
 		}
 	} else {
 		pkt->extradata_size = 0;
-		pkt->shdr.hdr.size = sizeof(*pkt) +
-			((bd->num_buffers - 1) * sizeof(u32));
+		pkt->shdr.hdr.size = struct_size(pkt, buffer_info,
+						 bd->num_buffers);
 		for (i = 0; i < pkt->num_buffers; i++)
 			pkt->buffer_info[i] = bd->device_addr;
 	}
@@ -243,16 +243,16 @@ int pkt_session_unset_buffers(struct hfi_session_release_buffer_pkt *pkt,
 			bi->extradata_addr = bd->extradata_addr;
 		}
 		pkt->shdr.hdr.size =
-				sizeof(struct hfi_session_set_buffers_pkt) -
-				sizeof(u32) + (bd->num_buffers * sizeof(*bi));
+				sizeof(struct hfi_session_set_buffers_pkt) +
+				bd->num_buffers * sizeof(*bi);
 	} else {
 		for (i = 0; i < pkt->num_buffers; i++)
 			pkt->buffer_info[i] = bd->device_addr;
 
 		pkt->extradata_size = 0;
 		pkt->shdr.hdr.size =
-				sizeof(struct hfi_session_set_buffers_pkt) +
-				((bd->num_buffers - 1) * sizeof(u32));
+			struct_size_t(struct hfi_session_set_buffers_pkt,
+				      buffer_info, bd->num_buffers);
 	}
 
 	pkt->response_req = bd->response_required;
@@ -521,6 +521,7 @@ static int pkt_session_set_property_1x(struct hfi_session_set_property_pkt *pkt,
 		pkt->shdr.hdr.size += sizeof(u32) + sizeof(*en);
 		break;
 	}
+	case HFI_PROPERTY_PARAM_VDEC_ENABLE_SUFFICIENT_SEQCHANGE_EVENT:
 	case HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER: {
 		struct hfi_enable *in = pdata;
 		struct hfi_enable *en = prop_data;

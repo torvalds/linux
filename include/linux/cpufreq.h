@@ -19,6 +19,7 @@
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
+#include <linux/minmax.h>
 
 /*********************************************************************
  *                        CPUFREQ INTERFACE                          *
@@ -139,6 +140,9 @@ struct cpufreq_policy {
 	 * different cpufreq policies.
 	 */
 	bool			dvfs_possible_from_any_cpu;
+
+	/* Per policy boost enabled flag. */
+	bool			boost_enabled;
 
 	 /* Cached frequency lookup from cpufreq_driver_resolve_freq. */
 	unsigned int cached_target_freq;
@@ -370,7 +374,7 @@ struct cpufreq_driver {
 	int		(*target_intermediate)(struct cpufreq_policy *policy,
 					       unsigned int index);
 
-	/* should be defined, if possible */
+	/* should be defined, if possible, return 0 on error */
 	unsigned int	(*get)(unsigned int cpu);
 
 	/* Called to update policy limits on firmware notifications. */
@@ -467,17 +471,8 @@ static inline void cpufreq_verify_within_limits(struct cpufreq_policy_data *poli
 						unsigned int min,
 						unsigned int max)
 {
-	if (policy->min < min)
-		policy->min = min;
-	if (policy->max < min)
-		policy->max = min;
-	if (policy->min > max)
-		policy->min = max;
-	if (policy->max > max)
-		policy->max = max;
-	if (policy->min > policy->max)
-		policy->min = policy->max;
-	return;
+	policy->max = clamp(policy->max, min, max);
+	policy->min = clamp(policy->min, min, policy->max);
 }
 
 static inline void
@@ -1196,14 +1191,6 @@ static inline int of_perf_domain_get_sharing_cpumask(int pcpu, const char *list_
 {
 	return -EOPNOTSUPP;
 }
-#endif
-
-#if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
-void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
-			struct cpufreq_governor *old_gov);
-#else
-static inline void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
-			struct cpufreq_governor *old_gov) { }
 #endif
 
 extern unsigned int arch_freq_get_on_cpu(int cpu);

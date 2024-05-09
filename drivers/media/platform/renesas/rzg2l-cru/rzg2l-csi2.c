@@ -11,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -81,10 +80,10 @@
 #define CSIDPHYSKW0_UTIL_DL1_SKW_ADJ(x)	(((x) & 0x3) << 4)
 #define CSIDPHYSKW0_UTIL_DL2_SKW_ADJ(x)	(((x) & 0x3) << 8)
 #define CSIDPHYSKW0_UTIL_DL3_SKW_ADJ(x)	(((x) & 0x3) << 12)
-#define CSIDPHYSKW0_DEFAULT_SKW		CSIDPHYSKW0_UTIL_DL0_SKW_ADJ(1) | \
-					CSIDPHYSKW0_UTIL_DL1_SKW_ADJ(1) | \
-					CSIDPHYSKW0_UTIL_DL2_SKW_ADJ(1) | \
-					CSIDPHYSKW0_UTIL_DL3_SKW_ADJ(1)
+#define CSIDPHYSKW0_DEFAULT_SKW		(CSIDPHYSKW0_UTIL_DL0_SKW_ADJ(1) | \
+					 CSIDPHYSKW0_UTIL_DL1_SKW_ADJ(1) | \
+					 CSIDPHYSKW0_UTIL_DL2_SKW_ADJ(1) | \
+					 CSIDPHYSKW0_UTIL_DL3_SKW_ADJ(1))
 
 #define VSRSTS_RETRIES			20
 
@@ -600,7 +599,7 @@ static const struct v4l2_subdev_ops rzg2l_csi2_subdev_ops = {
 
 static int rzg2l_csi2_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asd)
 {
 	struct rzg2l_csi2 *csi2 = notifier_to_csi2(notifier);
 
@@ -616,7 +615,7 @@ static int rzg2l_csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void rzg2l_csi2_notify_unbind(struct v4l2_async_notifier *notifier,
 				     struct v4l2_subdev *subdev,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asd)
 {
 	struct rzg2l_csi2 *csi2 = notifier_to_csi2(notifier);
 
@@ -647,7 +646,7 @@ static int rzg2l_csi2_parse_dt(struct rzg2l_csi2 *csi2)
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *fwnode;
 	struct fwnode_handle *ep;
 	int ret;
@@ -674,16 +673,16 @@ static int rzg2l_csi2_parse_dt(struct rzg2l_csi2 *csi2)
 	fwnode = fwnode_graph_get_remote_endpoint(ep);
 	fwnode_handle_put(ep);
 
-	v4l2_async_nf_init(&csi2->notifier);
+	v4l2_async_subdev_nf_init(&csi2->notifier, &csi2->subdev);
 	csi2->notifier.ops = &rzg2l_csi2_notify_ops;
 
 	asd = v4l2_async_nf_add_fwnode(&csi2->notifier, fwnode,
-				       struct v4l2_async_subdev);
+				       struct v4l2_async_connection);
 	fwnode_handle_put(fwnode);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);
 
-	ret = v4l2_async_subdev_nf_register(&csi2->subdev, &csi2->notifier);
+	ret = v4l2_async_nf_register(&csi2->notifier);
 	if (ret)
 		v4l2_async_nf_cleanup(&csi2->notifier);
 

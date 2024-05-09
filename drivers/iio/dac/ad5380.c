@@ -589,7 +589,7 @@ static struct i2c_driver ad5380_i2c_driver = {
 	.driver = {
 		   .name = "ad5380",
 	},
-	.probe_new = ad5380_i2c_probe,
+	.probe = ad5380_i2c_probe,
 	.remove = ad5380_i2c_remove,
 	.id_table = ad5380_i2c_ids,
 };

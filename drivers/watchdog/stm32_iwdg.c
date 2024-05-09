@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
@@ -288,7 +287,7 @@ static struct platform_driver stm32_iwdg_driver = {
 	.probe		= stm32_iwdg_probe,
 	.driver = {
 		.name	= "iwdg",
-		.of_match_table = of_match_ptr(stm32_iwdg_of_match),
+		.of_match_table = stm32_iwdg_of_match,
 	},
 };
 module_platform_driver(stm32_iwdg_driver);

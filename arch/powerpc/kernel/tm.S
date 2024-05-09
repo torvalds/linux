@@ -6,13 +6,13 @@
  * Copyright 2012 Matt Evans & Michael Neuling, IBM Corporation.
  */
 
+#include <linux/export.h>
 #include <asm/asm-offsets.h>
 #include <asm/ppc_asm.h>
 #include <asm/ppc-opcode.h>
 #include <asm/ptrace.h>
 #include <asm/reg.h>
 #include <asm/bug.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 
 #ifdef CONFIG_VSX

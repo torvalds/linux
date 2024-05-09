@@ -15,9 +15,9 @@
 struct tty_audit_buf {
 	struct mutex mutex;	/* Protects all data below */
 	dev_t dev;		/* The TTY which the data is from */
-	unsigned icanon:1;
+	bool icanon;
 	size_t valid;
-	unsigned char *data;	/* Allocated size N_TTY_BUF_SIZE */
+	u8 *data;		/* Allocated size N_TTY_BUF_SIZE */
 };
 
 static struct tty_audit_buf *tty_audit_buf_ref(void)
@@ -33,16 +33,16 @@ static struct tty_audit_buf *tty_audit_buf_alloc(void)
 {
 	struct tty_audit_buf *buf;
 
-	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		goto err;
+
 	buf->data = kmalloc(N_TTY_BUF_SIZE, GFP_KERNEL);
 	if (!buf->data)
 		goto err_buf;
+
 	mutex_init(&buf->mutex);
-	buf->dev = MKDEV(0, 0);
-	buf->icanon = 0;
-	buf->valid = 0;
+
 	return buf;
 
 err_buf:
@@ -59,27 +59,27 @@ static void tty_audit_buf_free(struct tty_audit_buf *buf)
 }
 
 static void tty_audit_log(const char *description, dev_t dev,
-			  unsigned char *data, size_t size)
+			  const u8 *data, size_t size)
 {
 	struct audit_buffer *ab;
 	pid_t pid = task_pid_nr(current);
 	uid_t uid = from_kuid(&init_user_ns, task_uid(current));
 	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 	unsigned int sessionid = audit_get_sessionid(current);
+	char name[TASK_COMM_LEN];
 
 	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_TTY);
-	if (ab) {
-		char name[sizeof(current->comm)];
+	if (!ab)
+		return;
 
-		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d"
-				 " minor=%d comm=", description, pid, uid,
-				 loginuid, sessionid, MAJOR(dev), MINOR(dev));
-		get_task_comm(name, current);
-		audit_log_untrustedstring(ab, name);
-		audit_log_format(ab, " data=");
-		audit_log_n_hex(ab, data, size);
-		audit_log_end(ab);
-	}
+	audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d minor=%d comm=",
+			 description, pid, uid, loginuid, sessionid,
+			 MAJOR(dev), MINOR(dev));
+	get_task_comm(name, current);
+	audit_log_untrustedstring(ab, name);
+	audit_log_format(ab, " data=");
+	audit_log_n_hex(ab, data, size);
+	audit_log_end(ab);
 }
 
 /*
@@ -134,7 +134,7 @@ void tty_audit_fork(struct signal_struct *sig)
 /*
  *	tty_audit_tiocsti	-	Log TIOCSTI
  */
-void tty_audit_tiocsti(struct tty_struct *tty, char ch)
+void tty_audit_tiocsti(const struct tty_struct *tty, u8 ch)
 {
 	dev_t dev;
 
@@ -199,11 +199,12 @@ static struct tty_audit_buf *tty_audit_buf_get(void)
  *
  *	Audit @data of @size from @tty, if necessary.
  */
-void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size)
+void tty_audit_add_data(const struct tty_struct *tty, const void *data,
+			size_t size)
 {
 	struct tty_audit_buf *buf;
-	unsigned int icanon = !!L_ICANON(tty);
 	unsigned int audit_tty;
+	bool icanon = L_ICANON(tty);
 	dev_t dev;
 
 	audit_tty = READ_ONCE(current->signal->audit_tty);

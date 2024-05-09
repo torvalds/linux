@@ -74,7 +74,7 @@ struct snd_ctl_elem_info32 {
 		unsigned char reserved[128];
 	} value;
 	unsigned char reserved[64];
-} __attribute__((packed));
+} __packed;
 
 static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 				    struct snd_ctl_elem_info32 __user *data32)
@@ -173,7 +173,7 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 	int err;
 
 	down_read(&card->controls_rwsem);
-	kctl = snd_ctl_find_id(card, id);
+	kctl = snd_ctl_find_id_locked(card, id);
 	if (! kctl) {
 		up_read(&card->controls_rwsem);
 		return -ENOENT;

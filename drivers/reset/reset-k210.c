@@ -3,7 +3,6 @@
  * Copyright (c) 2020 Western Digital Corporation or its affiliates.
  */
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/delay.h>

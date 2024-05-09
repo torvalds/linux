@@ -4,6 +4,13 @@
 #ifndef _WX_HW_H_
 #define _WX_HW_H_
 
+#include <linux/phy.h>
+
+int wx_phy_read_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum);
+int wx_phy_write_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum, u16 value);
+int wx_phy_read_reg_mdi_c45(struct mii_bus *bus, int phy_addr, int devnum, int regnum);
+int wx_phy_write_reg_mdi_c45(struct mii_bus *bus, int phy_addr,
+			     int devnum, int regnum, u16 value);
 void wx_intr_enable(struct wx *wx, u64 qmask);
 void wx_irq_disable(struct wx *wx);
 int wx_check_flash_load(struct wx *wx, u32 check_bit);
@@ -14,7 +21,6 @@ int wx_host_interface_command(struct wx *wx, u32 *buffer,
 int wx_read_ee_hostif(struct wx *wx, u16 offset, u16 *data);
 int wx_read_ee_hostif_buffer(struct wx *wx,
 			     u16 offset, u16 words, u16 *data);
-int wx_reset_hostif(struct wx *wx);
 void wx_init_eeprom_params(struct wx *wx);
 void wx_get_mac_addr(struct wx *wx, u8 *mac_addr);
 void wx_init_rx_addrs(struct wx *wx);
@@ -25,6 +31,7 @@ void wx_disable_rx(struct wx *wx);
 void wx_set_rx_mode(struct net_device *netdev);
 int wx_change_mtu(struct net_device *netdev, int new_mtu);
 void wx_disable_rx_queue(struct wx *wx, struct wx_ring *ring);
+void wx_configure_rx(struct wx *wx);
 void wx_configure(struct wx *wx);
 void wx_start_hw(struct wx *wx);
 int wx_disable_pcie_master(struct wx *wx);
@@ -34,5 +41,7 @@ int wx_get_pcie_msix_counts(struct wx *wx, u16 *msix_count, u16 max_msix_count);
 int wx_sw_init(struct wx *wx);
 int wx_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid);
 int wx_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid);
+void wx_update_stats(struct wx *wx);
+void wx_clear_hw_cntrs(struct wx *wx);
 
 #endif /* _WX_HW_H_ */

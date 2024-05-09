@@ -1845,13 +1845,13 @@ static struct i2c_driver imx355_i2c_driver = {
 		.pm = &imx355_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx355_acpi_ids),
 	},
-	.probe_new = imx355_probe,
+	.probe = imx355_probe,
 	.remove = imx355_remove,
 };
 module_i2c_driver(imx355_i2c_driver);
 
 MODULE_AUTHOR("Qiu, Tianshu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Rapolu, Chiranjeevi <chiranjeevi.rapolu@intel.com>");
+MODULE_AUTHOR("Rapolu, Chiranjeevi");
 MODULE_AUTHOR("Bingbu Cao <bingbu.cao@intel.com>");
 MODULE_AUTHOR("Yang, Hyungwoo");
 MODULE_DESCRIPTION("Sony imx355 sensor driver");

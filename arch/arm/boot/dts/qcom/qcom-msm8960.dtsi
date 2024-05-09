@@ -364,7 +364,6 @@
 				#size-cells = <0>;
 				reg = <0x16080000 0x1000>;
 				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
-				spi-max-frequency = <24000000>;
 				cs-gpios = <&msmgpio 8 0>;
 
 				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;

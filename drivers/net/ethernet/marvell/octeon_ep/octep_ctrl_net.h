@@ -7,6 +7,8 @@
 #ifndef __OCTEP_CTRL_NET_H__
 #define __OCTEP_CTRL_NET_H__
 
+#include "octep_cp_version.h"
+
 #define OCTEP_CTRL_NET_INVALID_VFID	(-1)
 
 /* Supported commands */
@@ -39,12 +41,15 @@ enum octep_ctrl_net_h2f_cmd {
 	OCTEP_CTRL_NET_H2F_CMD_LINK_STATUS,
 	OCTEP_CTRL_NET_H2F_CMD_RX_STATE,
 	OCTEP_CTRL_NET_H2F_CMD_LINK_INFO,
+	OCTEP_CTRL_NET_H2F_CMD_GET_INFO,
+	OCTEP_CTRL_NET_H2F_CMD_MAX
 };
 
 /* Supported fw to host commands */
 enum octep_ctrl_net_f2h_cmd {
 	OCTEP_CTRL_NET_F2H_CMD_INVALID = 0,
 	OCTEP_CTRL_NET_F2H_CMD_LINK_STATUS,
+	OCTEP_CTRL_NET_F2H_CMD_MAX
 };
 
 union octep_ctrl_net_req_hdr {
@@ -157,6 +162,11 @@ struct octep_ctrl_net_h2f_resp_cmd_state {
 	u16 state;
 };
 
+/* get info request */
+struct octep_ctrl_net_h2f_resp_cmd_get_info {
+	struct octep_fw_info fw_info;
+};
+
 /* Host to fw response data */
 struct octep_ctrl_net_h2f_resp {
 	union octep_ctrl_net_resp_hdr hdr;
@@ -167,6 +177,7 @@ struct octep_ctrl_net_h2f_resp {
 		struct octep_ctrl_net_h2f_resp_cmd_state link;
 		struct octep_ctrl_net_h2f_resp_cmd_state rx;
 		struct octep_ctrl_net_link_info link_info;
+		struct octep_ctrl_net_h2f_resp_cmd_get_info info;
 	};
 } __packed;
 
@@ -325,6 +336,17 @@ int octep_ctrl_net_set_link_info(struct octep_device *oct,
  * @param oct: non-null pointer to struct octep_device.
  */
 void octep_ctrl_net_recv_fw_messages(struct octep_device *oct);
+
+/** Get info from firmware.
+ *
+ * @param oct: non-null pointer to struct octep_device.
+ * @param vfid: Index of virtual function.
+ * @param info: non-null pointer to struct octep_fw_info.
+ *
+ * return value: 0 on success, -errno on failure.
+ */
+int octep_ctrl_net_get_info(struct octep_device *oct, int vfid,
+			    struct octep_fw_info *info);
 
 /** Uninitialize data for ctrl net.
  *

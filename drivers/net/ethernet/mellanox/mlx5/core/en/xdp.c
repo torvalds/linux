@@ -35,6 +35,7 @@
 #include "en/xdp.h"
 #include "en/params.h"
 #include <linux/bitfield.h>
+#include <net/page_pool/helpers.h>
 
 int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk)
 {
@@ -662,8 +663,7 @@ static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 				/* No need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
 				 * as we know this is a page_pool page.
 				 */
-				page_pool_put_defragged_page(page->pp,
-							     page, -1, true);
+				page_pool_recycle_direct(page->pp, page);
 			} while (++n < num);
 
 			break;
@@ -874,11 +874,11 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	}
 
 out:
-	if (flags & XDP_XMIT_FLUSH) {
-		if (sq->mpwqe.wqe)
-			mlx5e_xdp_mpwqe_complete(sq);
+	if (sq->mpwqe.wqe)
+		mlx5e_xdp_mpwqe_complete(sq);
+
+	if (flags & XDP_XMIT_FLUSH)
 		mlx5e_xmit_xdp_doorbell(sq);
-	}
 
 	return nxmit;
 }
@@ -893,7 +893,7 @@ void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq)
 	mlx5e_xmit_xdp_doorbell(xdpsq);
 
 	if (test_bit(MLX5E_RQ_FLAG_XDP_REDIRECT, rq->flags)) {
-		xdp_do_flush_map();
+		xdp_do_flush();
 		__clear_bit(MLX5E_RQ_FLAG_XDP_REDIRECT, rq->flags);
 	}
 }

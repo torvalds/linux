@@ -6,6 +6,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -30,6 +33,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -54,6 +60,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -78,6 +87,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -102,6 +114,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -126,6 +141,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -150,6 +168,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -174,6 +195,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -198,6 +222,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -222,6 +249,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -244,6 +274,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -266,6 +299,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -288,6 +324,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -310,6 +349,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -332,6 +374,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -356,6 +401,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -380,6 +428,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -404,6 +455,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -426,6 +480,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -448,6 +505,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -470,6 +530,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -492,6 +555,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -514,6 +580,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -538,6 +607,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -562,6 +634,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -586,6 +661,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -610,6 +688,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -634,6 +715,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -656,6 +740,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -678,6 +765,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -700,6 +790,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -722,6 +815,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -744,6 +840,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -768,6 +867,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -792,6 +894,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -814,6 +919,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -836,6 +944,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -860,6 +971,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -884,6 +998,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -906,6 +1023,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -930,6 +1050,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -954,6 +1077,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -978,6 +1104,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1002,6 +1131,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1024,6 +1156,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1046,6 +1181,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1070,6 +1208,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1094,6 +1235,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1116,6 +1260,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1138,6 +1285,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1163,6 +1313,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1188,6 +1341,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",
@@ -1211,6 +1367,9 @@
             "actions",
             "mpls"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mpls",

@@ -427,8 +427,7 @@ static void gb_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(&gb_tty->port);
 }
 
-static int gb_tty_write(struct tty_struct *tty, const unsigned char *buf,
-			int count)
+static ssize_t gb_tty_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct gb_tty *gb_tty = tty->driver_data;
 

@@ -23,15 +23,9 @@ struct mnt_idmap;
  */
 #ifdef CONFIG_BLOCK
 extern void __init bdev_cache_init(void);
-
-void emergency_thaw_bdev(struct super_block *sb);
 #else
 static inline void bdev_cache_init(void)
 {
-}
-static inline int emergency_thaw_bdev(struct super_block *sb)
-{
-	return 0;
 }
 #endif /* CONFIG_BLOCK */
 
@@ -79,8 +73,8 @@ extern int sb_prepare_remount_readonly(struct super_block *);
 
 extern void __init mnt_init(void);
 
-extern int __mnt_want_write_file(struct file *);
-extern void __mnt_drop_write_file(struct file *);
+int mnt_get_write_access_file(struct file *file);
+void mnt_put_write_access_file(struct file *file);
 
 extern void dissolve_on_fput(struct vfsmount *);
 extern bool may_mount(void);
@@ -100,14 +94,22 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
 struct file *alloc_empty_file(int flags, const struct cred *cred);
 struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred);
 struct file *alloc_empty_backing_file(int flags, const struct cred *cred);
+void release_empty_file(struct file *f);
+
+static inline void file_put_write_access(struct file *file)
+{
+	put_write_access(file->f_inode);
+	mnt_put_write_access(file->f_path.mnt);
+	if (unlikely(file->f_mode & FMODE_BACKING))
+		mnt_put_write_access(backing_file_user_path(file)->mnt);
+}
 
 static inline void put_file_access(struct file *file)
 {
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
 		i_readcount_dec(file->f_inode);
 	} else if (file->f_mode & FMODE_WRITER) {
-		put_write_access(file->f_inode);
-		__mnt_drop_write(file->f_path.mnt);
+		file_put_write_access(file);
 	}
 }
 
@@ -115,7 +117,7 @@ static inline void put_file_access(struct file *file)
  * super.c
  */
 extern int reconfigure_super(struct fs_context *);
-extern bool trylock_super(struct super_block *sb);
+extern bool super_trylock_shared(struct super_block *sb);
 struct super_block *user_get_super(dev_t, bool excl);
 void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
@@ -136,9 +138,9 @@ static inline void sb_start_ro_state_change(struct super_block *sb)
 	 * mnt_is_readonly() making sure if mnt_is_readonly() sees SB_RDONLY
 	 * cleared, it will see s_readonly_remount set.
 	 * For RW->RO transition, the barrier pairs with the barrier in
-	 * __mnt_want_write() before the mnt_is_readonly() check. The barrier
-	 * makes sure if __mnt_want_write() sees MNT_WRITE_HOLD already
-	 * cleared, it will see s_readonly_remount set.
+	 * mnt_get_write_access() before the mnt_is_readonly() check.
+	 * The barrier makes sure if mnt_get_write_access() sees MNT_WRITE_HOLD
+	 * already cleared, it will see s_readonly_remount set.
 	 */
 	smp_wmb();
 }
@@ -201,7 +203,7 @@ void lock_two_inodes(struct inode *inode1, struct inode *inode2,
  * fs-writeback.c
  */
 extern long get_nr_dirty_inodes(void);
-extern int invalidate_inodes(struct super_block *, bool);
+void invalidate_inodes(struct super_block *sb);
 
 /*
  * dcache.c

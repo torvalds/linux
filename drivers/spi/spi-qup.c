@@ -6,13 +6,14 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/interconnect.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 #include <linux/dmaengine.h>
@@ -122,11 +123,14 @@
 #define SPI_DELAY_THRESHOLD		1
 #define SPI_DELAY_RETRY			10
 
+#define SPI_BUS_WIDTH			8
+
 struct spi_qup {
 	void __iomem		*base;
 	struct device		*dev;
 	struct clk		*cclk;	/* core clock */
 	struct clk		*iclk;	/* interface clock */
+	struct icc_path		*icc_path; /* interconnect to RAM */
 	int			irq;
 	spinlock_t		lock;
 
@@ -149,6 +153,8 @@ struct spi_qup {
 	int			mode;
 	struct dma_slave_config	rx_conf;
 	struct dma_slave_config	tx_conf;
+
+	u32			bw_speed_hz;
 };
 
 static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer);
@@ -179,6 +185,23 @@ static inline bool spi_qup_is_valid_state(struct spi_qup *controller)
 	u32 opstate = readl_relaxed(controller->base + QUP_STATE);
 
 	return opstate & QUP_STATE_VALID;
+}
+
+static int spi_qup_vote_bw(struct spi_qup *controller, u32 speed_hz)
+{
+	u32 needed_peak_bw;
+	int ret;
+
+	if (controller->bw_speed_hz == speed_hz)
+		return 0;
+
+	needed_peak_bw = Bps_to_icc(speed_hz * SPI_BUS_WIDTH);
+	ret = icc_set_bw(controller->icc_path, 0, needed_peak_bw);
+	if (ret)
+		return ret;
+
+	controller->bw_speed_hz = speed_hz;
+	return 0;
 }
 
 static int spi_qup_set_state(struct spi_qup *controller, u32 state)
@@ -386,20 +409,20 @@ static void spi_qup_write(struct spi_qup *controller)
 	} while (remainder);
 }
 
-static int spi_qup_prep_sg(struct spi_master *master, struct scatterlist *sgl,
+static int spi_qup_prep_sg(struct spi_controller *host, struct scatterlist *sgl,
 			   unsigned int nents, enum dma_transfer_direction dir,
 			   dma_async_tx_callback callback)
 {
-	struct spi_qup *qup = spi_master_get_devdata(master);
+	struct spi_qup *qup = spi_controller_get_devdata(host);
 	unsigned long flags = DMA_PREP_INTERRUPT | DMA_PREP_FENCE;
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *chan;
 	dma_cookie_t cookie;
 
 	if (dir == DMA_MEM_TO_DEV)
-		chan = master->dma_tx;
+		chan = host->dma_tx;
 	else
-		chan = master->dma_rx;
+		chan = host->dma_rx;
 
 	desc = dmaengine_prep_slave_sg(chan, sgl, nents, dir, flags);
 	if (IS_ERR_OR_NULL(desc))
@@ -413,13 +436,13 @@ static int spi_qup_prep_sg(struct spi_master *master, struct scatterlist *sgl,
 	return dma_submit_error(cookie);
 }
 
-static void spi_qup_dma_terminate(struct spi_master *master,
+static void spi_qup_dma_terminate(struct spi_controller *host,
 				  struct spi_transfer *xfer)
 {
 	if (xfer->tx_buf)
-		dmaengine_terminate_all(master->dma_tx);
+		dmaengine_terminate_all(host->dma_tx);
 	if (xfer->rx_buf)
-		dmaengine_terminate_all(master->dma_rx);
+		dmaengine_terminate_all(host->dma_rx);
 }
 
 static u32 spi_qup_sgl_get_nents_len(struct scatterlist *sgl, u32 max,
@@ -446,10 +469,16 @@ static int spi_qup_do_dma(struct spi_device *spi, struct spi_transfer *xfer,
 			  unsigned long timeout)
 {
 	dma_async_tx_callback rx_done = NULL, tx_done = NULL;
-	struct spi_master *master = spi->master;
-	struct spi_qup *qup = spi_master_get_devdata(master);
+	struct spi_controller *host = spi->controller;
+	struct spi_qup *qup = spi_controller_get_devdata(host);
 	struct scatterlist *tx_sgl, *rx_sgl;
 	int ret;
+
+	ret = spi_qup_vote_bw(qup, xfer->speed_hz);
+	if (ret) {
+		dev_err(qup->dev, "fail to vote for ICC bandwidth: %d\n", ret);
+		return -EIO;
+	}
 
 	if (xfer->rx_buf)
 		rx_done = spi_qup_dma_done;
@@ -482,20 +511,20 @@ static int spi_qup_do_dma(struct spi_device *spi, struct spi_transfer *xfer,
 			return ret;
 		}
 		if (rx_sgl) {
-			ret = spi_qup_prep_sg(master, rx_sgl, rx_nents,
+			ret = spi_qup_prep_sg(host, rx_sgl, rx_nents,
 					      DMA_DEV_TO_MEM, rx_done);
 			if (ret)
 				return ret;
-			dma_async_issue_pending(master->dma_rx);
+			dma_async_issue_pending(host->dma_rx);
 		}
 
 		if (tx_sgl) {
-			ret = spi_qup_prep_sg(master, tx_sgl, tx_nents,
+			ret = spi_qup_prep_sg(host, tx_sgl, tx_nents,
 					      DMA_MEM_TO_DEV, tx_done);
 			if (ret)
 				return ret;
 
-			dma_async_issue_pending(master->dma_tx);
+			dma_async_issue_pending(host->dma_tx);
 		}
 
 		if (!wait_for_completion_timeout(&qup->done, timeout))
@@ -514,8 +543,8 @@ static int spi_qup_do_dma(struct spi_device *spi, struct spi_transfer *xfer,
 static int spi_qup_do_pio(struct spi_device *spi, struct spi_transfer *xfer,
 			  unsigned long timeout)
 {
-	struct spi_master *master = spi->master;
-	struct spi_qup *qup = spi_master_get_devdata(master);
+	struct spi_controller *host = spi->controller;
+	struct spi_qup *qup = spi_controller_get_devdata(host);
 	int ret, n_words, iterations, offset = 0;
 
 	n_words = qup->n_words;
@@ -659,7 +688,7 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 /* set clock freq ... bits per word, determine mode */
 static int spi_qup_io_prep(struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct spi_qup *controller = spi_master_get_devdata(spi->master);
+	struct spi_qup *controller = spi_controller_get_devdata(spi->controller);
 	int ret;
 
 	if (spi->mode & SPI_LOOP && xfer->len > controller->in_fifo_sz) {
@@ -668,7 +697,7 @@ static int spi_qup_io_prep(struct spi_device *spi, struct spi_transfer *xfer)
 		return -EIO;
 	}
 
-	ret = clk_set_rate(controller->cclk, xfer->speed_hz);
+	ret = dev_pm_opp_set_rate(controller->dev, xfer->speed_hz);
 	if (ret) {
 		dev_err(controller->dev, "fail to set frequency %d",
 			xfer->speed_hz);
@@ -680,9 +709,9 @@ static int spi_qup_io_prep(struct spi_device *spi, struct spi_transfer *xfer)
 
 	if (controller->n_words <= (controller->in_fifo_sz / sizeof(u32)))
 		controller->mode = QUP_IO_M_MODE_FIFO;
-	else if (spi->master->can_dma &&
-		 spi->master->can_dma(spi->master, spi, xfer) &&
-		 spi->master->cur_msg_mapped)
+	else if (spi->controller->can_dma &&
+		 spi->controller->can_dma(spi->controller, spi, xfer) &&
+		 spi->controller->cur_msg_mapped)
 		controller->mode = QUP_IO_M_MODE_BAM;
 	else
 		controller->mode = QUP_IO_M_MODE_BLOCK;
@@ -693,7 +722,7 @@ static int spi_qup_io_prep(struct spi_device *spi, struct spi_transfer *xfer)
 /* prep qup for another spi transaction of specific type */
 static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct spi_qup *controller = spi_master_get_devdata(spi->master);
+	struct spi_qup *controller = spi_controller_get_devdata(spi->controller);
 	u32 config, iomode, control;
 	unsigned long flags;
 
@@ -841,11 +870,11 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 	return 0;
 }
 
-static int spi_qup_transfer_one(struct spi_master *master,
+static int spi_qup_transfer_one(struct spi_controller *host,
 			      struct spi_device *spi,
 			      struct spi_transfer *xfer)
 {
-	struct spi_qup *controller = spi_master_get_devdata(master);
+	struct spi_qup *controller = spi_controller_get_devdata(host);
 	unsigned long timeout, flags;
 	int ret;
 
@@ -879,21 +908,21 @@ static int spi_qup_transfer_one(struct spi_master *master,
 	spin_unlock_irqrestore(&controller->lock, flags);
 
 	if (ret && spi_qup_is_dma_xfer(controller->mode))
-		spi_qup_dma_terminate(master, xfer);
+		spi_qup_dma_terminate(host, xfer);
 
 	return ret;
 }
 
-static bool spi_qup_can_dma(struct spi_master *master, struct spi_device *spi,
+static bool spi_qup_can_dma(struct spi_controller *host, struct spi_device *spi,
 			    struct spi_transfer *xfer)
 {
-	struct spi_qup *qup = spi_master_get_devdata(master);
+	struct spi_qup *qup = spi_controller_get_devdata(host);
 	size_t dma_align = dma_get_cache_alignment();
 	int n_words;
 
 	if (xfer->rx_buf) {
 		if (!IS_ALIGNED((size_t)xfer->rx_buf, dma_align) ||
-		    IS_ERR_OR_NULL(master->dma_rx))
+		    IS_ERR_OR_NULL(host->dma_rx))
 			return false;
 		if (qup->qup_v1 && (xfer->len % qup->in_blk_sz))
 			return false;
@@ -901,7 +930,7 @@ static bool spi_qup_can_dma(struct spi_master *master, struct spi_device *spi,
 
 	if (xfer->tx_buf) {
 		if (!IS_ALIGNED((size_t)xfer->tx_buf, dma_align) ||
-		    IS_ERR_OR_NULL(master->dma_tx))
+		    IS_ERR_OR_NULL(host->dma_tx))
 			return false;
 		if (qup->qup_v1 && (xfer->len % qup->out_blk_sz))
 			return false;
@@ -914,30 +943,30 @@ static bool spi_qup_can_dma(struct spi_master *master, struct spi_device *spi,
 	return true;
 }
 
-static void spi_qup_release_dma(struct spi_master *master)
+static void spi_qup_release_dma(struct spi_controller *host)
 {
-	if (!IS_ERR_OR_NULL(master->dma_rx))
-		dma_release_channel(master->dma_rx);
-	if (!IS_ERR_OR_NULL(master->dma_tx))
-		dma_release_channel(master->dma_tx);
+	if (!IS_ERR_OR_NULL(host->dma_rx))
+		dma_release_channel(host->dma_rx);
+	if (!IS_ERR_OR_NULL(host->dma_tx))
+		dma_release_channel(host->dma_tx);
 }
 
-static int spi_qup_init_dma(struct spi_master *master, resource_size_t base)
+static int spi_qup_init_dma(struct spi_controller *host, resource_size_t base)
 {
-	struct spi_qup *spi = spi_master_get_devdata(master);
+	struct spi_qup *spi = spi_controller_get_devdata(host);
 	struct dma_slave_config *rx_conf = &spi->rx_conf,
 				*tx_conf = &spi->tx_conf;
 	struct device *dev = spi->dev;
 	int ret;
 
 	/* allocate dma resources, if available */
-	master->dma_rx = dma_request_chan(dev, "rx");
-	if (IS_ERR(master->dma_rx))
-		return PTR_ERR(master->dma_rx);
+	host->dma_rx = dma_request_chan(dev, "rx");
+	if (IS_ERR(host->dma_rx))
+		return PTR_ERR(host->dma_rx);
 
-	master->dma_tx = dma_request_chan(dev, "tx");
-	if (IS_ERR(master->dma_tx)) {
-		ret = PTR_ERR(master->dma_tx);
+	host->dma_tx = dma_request_chan(dev, "tx");
+	if (IS_ERR(host->dma_tx)) {
+		ret = PTR_ERR(host->dma_tx);
 		goto err_tx;
 	}
 
@@ -952,13 +981,13 @@ static int spi_qup_init_dma(struct spi_master *master, resource_size_t base)
 	tx_conf->dst_addr = base + QUP_OUTPUT_FIFO;
 	tx_conf->dst_maxburst = spi->out_blk_sz;
 
-	ret = dmaengine_slave_config(master->dma_rx, rx_conf);
+	ret = dmaengine_slave_config(host->dma_rx, rx_conf);
 	if (ret) {
 		dev_err(dev, "failed to configure RX channel\n");
 		goto err;
 	}
 
-	ret = dmaengine_slave_config(master->dma_tx, tx_conf);
+	ret = dmaengine_slave_config(host->dma_tx, tx_conf);
 	if (ret) {
 		dev_err(dev, "failed to configure TX channel\n");
 		goto err;
@@ -967,9 +996,9 @@ static int spi_qup_init_dma(struct spi_master *master, resource_size_t base)
 	return 0;
 
 err:
-	dma_release_channel(master->dma_tx);
+	dma_release_channel(host->dma_tx);
 err_tx:
-	dma_release_channel(master->dma_rx);
+	dma_release_channel(host->dma_rx);
 	return ret;
 }
 
@@ -979,7 +1008,7 @@ static void spi_qup_set_cs(struct spi_device *spi, bool val)
 	u32 spi_ioc;
 	u32 spi_ioc_orig;
 
-	controller = spi_master_get_devdata(spi->master);
+	controller = spi_controller_get_devdata(spi->controller);
 	spi_ioc = readl_relaxed(controller->base + SPI_IO_CONTROL);
 	spi_ioc_orig = spi_ioc;
 	if (!val)
@@ -993,7 +1022,8 @@ static void spi_qup_set_cs(struct spi_device *spi, bool val)
 
 static int spi_qup_probe(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *host;
+	struct icc_path *icc_path;
 	struct clk *iclk, *cclk;
 	struct spi_qup *controller;
 	struct resource *res;
@@ -1019,6 +1049,11 @@ static int spi_qup_probe(struct platform_device *pdev)
 	if (IS_ERR(iclk))
 		return PTR_ERR(iclk);
 
+	icc_path = devm_of_icc_get(dev, NULL);
+	if (IS_ERR(icc_path))
+		return dev_err_probe(dev, PTR_ERR(icc_path),
+				     "failed to get interconnect path\n");
+
 	/* This is optional parameter */
 	if (of_property_read_u32(dev->of_node, "spi-max-frequency", &max_freq))
 		max_freq = SPI_MAX_RATE;
@@ -1028,51 +1063,61 @@ static int spi_qup_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	master = spi_alloc_master(dev, sizeof(struct spi_qup));
-	if (!master) {
-		dev_err(dev, "cannot allocate master\n");
+	ret = devm_pm_opp_set_clkname(dev, "core");
+	if (ret)
+		return ret;
+
+	/* OPP table is optional */
+	ret = devm_pm_opp_of_add_table(dev);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(dev, ret, "invalid OPP table\n");
+
+	host = spi_alloc_host(dev, sizeof(struct spi_qup));
+	if (!host) {
+		dev_err(dev, "cannot allocate host\n");
 		return -ENOMEM;
 	}
 
 	/* use num-cs unless not present or out of range */
 	if (of_property_read_u32(dev->of_node, "num-cs", &num_cs) ||
 	    num_cs > SPI_NUM_CHIPSELECTS)
-		master->num_chipselect = SPI_NUM_CHIPSELECTS;
+		host->num_chipselect = SPI_NUM_CHIPSELECTS;
 	else
-		master->num_chipselect = num_cs;
+		host->num_chipselect = num_cs;
 
-	master->use_gpio_descriptors = true;
-	master->max_native_cs = SPI_NUM_CHIPSELECTS;
-	master->bus_num = pdev->id;
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
-	master->max_speed_hz = max_freq;
-	master->transfer_one = spi_qup_transfer_one;
-	master->dev.of_node = pdev->dev.of_node;
-	master->auto_runtime_pm = true;
-	master->dma_alignment = dma_get_cache_alignment();
-	master->max_dma_len = SPI_MAX_XFER;
+	host->use_gpio_descriptors = true;
+	host->max_native_cs = SPI_NUM_CHIPSELECTS;
+	host->bus_num = pdev->id;
+	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
+	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
+	host->max_speed_hz = max_freq;
+	host->transfer_one = spi_qup_transfer_one;
+	host->dev.of_node = pdev->dev.of_node;
+	host->auto_runtime_pm = true;
+	host->dma_alignment = dma_get_cache_alignment();
+	host->max_dma_len = SPI_MAX_XFER;
 
-	platform_set_drvdata(pdev, master);
+	platform_set_drvdata(pdev, host);
 
-	controller = spi_master_get_devdata(master);
+	controller = spi_controller_get_devdata(host);
 
 	controller->dev = dev;
 	controller->base = base;
 	controller->iclk = iclk;
 	controller->cclk = cclk;
+	controller->icc_path = icc_path;
 	controller->irq = irq;
 
-	ret = spi_qup_init_dma(master, res->start);
+	ret = spi_qup_init_dma(host, res->start);
 	if (ret == -EPROBE_DEFER)
 		goto error;
 	else if (!ret)
-		master->can_dma = spi_qup_can_dma;
+		host->can_dma = spi_qup_can_dma;
 
 	controller->qup_v1 = (uintptr_t)of_device_get_match_data(dev);
 
 	if (!controller->qup_v1)
-		master->set_cs = spi_qup_set_cs;
+		host->set_cs = spi_qup_set_cs;
 
 	spin_lock_init(&controller->lock);
 	init_completion(&controller->done);
@@ -1150,7 +1195,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
-	ret = devm_spi_register_master(dev, master);
+	ret = devm_spi_register_controller(dev, host);
 	if (ret)
 		goto disable_pm;
 
@@ -1162,17 +1207,17 @@ error_clk:
 	clk_disable_unprepare(cclk);
 	clk_disable_unprepare(iclk);
 error_dma:
-	spi_qup_release_dma(master);
+	spi_qup_release_dma(host);
 error:
-	spi_master_put(master);
+	spi_controller_put(host);
 	return ret;
 }
 
 #ifdef CONFIG_PM
 static int spi_qup_pm_suspend_runtime(struct device *device)
 {
-	struct spi_master *master = dev_get_drvdata(device);
-	struct spi_qup *controller = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(device);
+	struct spi_qup *controller = spi_controller_get_devdata(host);
 	u32 config;
 
 	/* Enable clocks auto gaiting */
@@ -1181,6 +1226,7 @@ static int spi_qup_pm_suspend_runtime(struct device *device)
 	writel_relaxed(config, controller->base + QUP_CONFIG);
 
 	clk_disable_unprepare(controller->cclk);
+	spi_qup_vote_bw(controller, 0);
 	clk_disable_unprepare(controller->iclk);
 
 	return 0;
@@ -1188,8 +1234,8 @@ static int spi_qup_pm_suspend_runtime(struct device *device)
 
 static int spi_qup_pm_resume_runtime(struct device *device)
 {
-	struct spi_master *master = dev_get_drvdata(device);
-	struct spi_qup *controller = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(device);
+	struct spi_qup *controller = spi_controller_get_devdata(host);
 	u32 config;
 	int ret;
 
@@ -1214,8 +1260,8 @@ static int spi_qup_pm_resume_runtime(struct device *device)
 #ifdef CONFIG_PM_SLEEP
 static int spi_qup_suspend(struct device *device)
 {
-	struct spi_master *master = dev_get_drvdata(device);
-	struct spi_qup *controller = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(device);
+	struct spi_qup *controller = spi_controller_get_devdata(host);
 	int ret;
 
 	if (pm_runtime_suspended(device)) {
@@ -1223,7 +1269,7 @@ static int spi_qup_suspend(struct device *device)
 		if (ret)
 			return ret;
 	}
-	ret = spi_master_suspend(master);
+	ret = spi_controller_suspend(host);
 	if (ret)
 		return ret;
 
@@ -1232,14 +1278,15 @@ static int spi_qup_suspend(struct device *device)
 		return ret;
 
 	clk_disable_unprepare(controller->cclk);
+	spi_qup_vote_bw(controller, 0);
 	clk_disable_unprepare(controller->iclk);
 	return 0;
 }
 
 static int spi_qup_resume(struct device *device)
 {
-	struct spi_master *master = dev_get_drvdata(device);
-	struct spi_qup *controller = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(device);
+	struct spi_qup *controller = spi_controller_get_devdata(host);
 	int ret;
 
 	ret = clk_prepare_enable(controller->iclk);
@@ -1256,7 +1303,7 @@ static int spi_qup_resume(struct device *device)
 	if (ret)
 		goto disable_clk;
 
-	ret = spi_master_resume(master);
+	ret = spi_controller_resume(host);
 	if (ret)
 		goto disable_clk;
 
@@ -1271,8 +1318,8 @@ disable_clk:
 
 static void spi_qup_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = dev_get_drvdata(&pdev->dev);
-	struct spi_qup *controller = spi_master_get_devdata(master);
+	struct spi_controller *host = dev_get_drvdata(&pdev->dev);
+	struct spi_qup *controller = spi_controller_get_devdata(host);
 	int ret;
 
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -1290,7 +1337,7 @@ static void spi_qup_remove(struct platform_device *pdev)
 			 ERR_PTR(ret));
 	}
 
-	spi_qup_release_dma(master);
+	spi_qup_release_dma(host);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

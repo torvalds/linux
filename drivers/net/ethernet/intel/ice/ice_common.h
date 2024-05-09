@@ -38,10 +38,9 @@ int
 ice_alloc_hw_res(struct ice_hw *hw, u16 type, u16 num, bool btm, u16 *res);
 int
 ice_free_hw_res(struct ice_hw *hw, u16 type, u16 num, u16 *res);
-int
-ice_aq_alloc_free_res(struct ice_hw *hw, u16 num_entries,
-		      struct ice_aqc_alloc_free_res_elem *buf, u16 buf_size,
-		      enum ice_adminq_opc opc, struct ice_sq_cd *cd);
+int ice_aq_alloc_free_res(struct ice_hw *hw,
+			  struct ice_aqc_alloc_free_res_elem *buf, u16 buf_size,
+			  enum ice_adminq_opc opc);
 bool ice_is_sbq_supported(struct ice_hw *hw);
 struct ice_ctl_q_info *ice_get_sbq(struct ice_hw *hw);
 int
@@ -93,6 +92,14 @@ int
 ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 		    struct ice_aqc_get_phy_caps_data *caps,
 		    struct ice_sq_cd *cd);
+bool ice_is_pf_c827(struct ice_hw *hw);
+bool ice_is_phy_rclk_in_netlist(struct ice_hw *hw);
+bool ice_is_clock_mux_in_netlist(struct ice_hw *hw);
+bool ice_is_cgu_in_netlist(struct ice_hw *hw);
+bool ice_is_gps_in_netlist(struct ice_hw *hw);
+int
+ice_aq_get_netlist_node(struct ice_hw *hw, struct ice_aqc_get_link_topo *cmd,
+			u8 *node_part_number, u16 *node_handle);
 int
 ice_aq_list_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 		 enum ice_adminq_opc opc, struct ice_sq_cd *cd);
@@ -186,12 +193,54 @@ int
 ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u16 q_handle,
 		u8 num_qgrps, struct ice_aqc_add_tx_qgrp *buf, u16 buf_size,
 		struct ice_sq_cd *cd);
+int
+ice_aq_cfg_lan_txq(struct ice_hw *hw, struct ice_aqc_cfg_txqs_buf *buf,
+		   u16 buf_size, u16 num_qs, u8 oldport, u8 newport,
+		   struct ice_sq_cd *cd);
 int ice_replay_vsi(struct ice_hw *hw, u16 vsi_handle);
 void ice_replay_post(struct ice_hw *hw);
 void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf);
 struct ice_q_ctx *
 ice_get_lan_q_ctx(struct ice_hw *hw, u16 vsi_handle, u8 tc, u16 q_handle);
 int ice_sbq_rw_reg(struct ice_hw *hw, struct ice_sbq_msg_input *in);
+int
+ice_aq_get_cgu_abilities(struct ice_hw *hw,
+			 struct ice_aqc_get_cgu_abilities *abilities);
+int
+ice_aq_set_input_pin_cfg(struct ice_hw *hw, u8 input_idx, u8 flags1, u8 flags2,
+			 u32 freq, s32 phase_delay);
+int
+ice_aq_get_input_pin_cfg(struct ice_hw *hw, u8 input_idx, u8 *status, u8 *type,
+			 u8 *flags1, u8 *flags2, u32 *freq, s32 *phase_delay);
+int
+ice_aq_set_output_pin_cfg(struct ice_hw *hw, u8 output_idx, u8 flags,
+			  u8 src_sel, u32 freq, s32 phase_delay);
+int
+ice_aq_get_output_pin_cfg(struct ice_hw *hw, u8 output_idx, u8 *flags,
+			  u8 *src_sel, u32 *freq, u32 *src_freq);
+int
+ice_aq_get_cgu_dpll_status(struct ice_hw *hw, u8 dpll_num, u8 *ref_state,
+			   u8 *dpll_state, u8 *config, s64 *phase_offset,
+			   u8 *eec_mode);
+int
+ice_aq_set_cgu_dpll_config(struct ice_hw *hw, u8 dpll_num, u8 ref_state,
+			   u8 config, u8 eec_mode);
+int
+ice_aq_set_cgu_ref_prio(struct ice_hw *hw, u8 dpll_num, u8 ref_idx,
+			u8 ref_priority);
+int
+ice_aq_get_cgu_ref_prio(struct ice_hw *hw, u8 dpll_num, u8 ref_idx,
+			u8 *ref_prio);
+int
+ice_aq_get_cgu_info(struct ice_hw *hw, u32 *cgu_id, u32 *cgu_cfg_ver,
+		    u32 *cgu_fw_ver);
+
+int
+ice_aq_set_phy_rec_clk_out(struct ice_hw *hw, u8 phy_output, bool enable,
+			   u32 *freq);
+int
+ice_aq_get_phy_rec_clk_out(struct ice_hw *hw, u8 *phy_output, u8 *port_num,
+			   u8 *flags, u16 *node_handle);
 void
 ice_stat_update40(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
 		  u64 *prev_stat, u64 *cur_stat);
@@ -203,12 +252,6 @@ bool ice_is_e823(struct ice_hw *hw);
 int
 ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
 		     struct ice_aqc_txsched_elem_data *buf);
-int
-ice_aq_set_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
-			u32 value, struct ice_sq_cd *cd);
-int
-ice_aq_get_driver_param(struct ice_hw *hw, enum ice_aqc_driver_params idx,
-			u32 *value, struct ice_sq_cd *cd);
 int
 ice_aq_set_gpio(struct ice_hw *hw, u16 gpio_ctrl_handle, u8 pin_idx, bool value,
 		struct ice_sq_cd *cd);

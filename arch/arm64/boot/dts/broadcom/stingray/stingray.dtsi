@@ -565,7 +565,7 @@
 			iommus = <&smmu 0x6000 0x0000>;
 		};
 
-		enet: ethernet@340000{
+		enet: ethernet@340000 {
 			compatible = "brcm,amac";
 			reg = <0x00340000 0x1000>;
 			reg-names = "amac_base";

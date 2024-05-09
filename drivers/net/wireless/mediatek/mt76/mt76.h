@@ -15,6 +15,7 @@
 #include <linux/average.h>
 #include <linux/soc/mediatek/mtk_wed.h>
 #include <net/mac80211.h>
+#include <net/page_pool/helpers.h>
 #include "util.h"
 #include "testmode.h"
 
@@ -277,7 +278,7 @@ struct mt76_sta_stats {
 	u64 tx_mcs[16];		/* mcs idx */
 	u64 tx_bytes;
 	/* WED TX */
-	u32 tx_packets;
+	u32 tx_packets;		/* unit: MSDU */
 	u32 tx_retries;
 	u32 tx_failed;
 	/* WED RX */
@@ -316,6 +317,7 @@ struct mt76_wcid {
 	int inactive_count;
 
 	struct rate_info rate;
+	unsigned long ampdu_state;
 
 	u16 idx;
 	u8 hw_key_idx;
@@ -332,10 +334,15 @@ struct mt76_wcid {
 	u32 tx_info;
 	bool sw_iv;
 
+	struct list_head tx_list;
+	struct sk_buff_head tx_pending;
+
 	struct list_head list;
 	struct idr pktid;
 
 	struct mt76_sta_stats stats;
+
+	struct list_head poll_list;
 };
 
 struct mt76_txq {
@@ -372,7 +379,7 @@ struct mt76_rx_tid {
 
 	u8 started:1, stopped:1, timer_pending:1;
 
-	struct sk_buff *reorder_buf[];
+	struct sk_buff *reorder_buf[] __counted_by(size);
 };
 
 #define MT_TX_CB_DMA_DONE		BIT(0)
@@ -702,6 +709,10 @@ struct mt76_vif {
 	u8 wmm_idx;
 	u8 scan_seq_num;
 	u8 cipher;
+	u8 basic_rates_idx;
+	u8 mcast_rates_idx;
+	u8 beacon_rates_idx;
+	struct ieee80211_chanctx_conf *ctx;
 };
 
 struct mt76_phy {
@@ -712,6 +723,8 @@ struct mt76_phy {
 	unsigned long state;
 	u8 band_idx;
 
+	spinlock_t tx_lock;
+	struct list_head tx_list;
 	struct mt76_queue *q_tx[__MT_TXQ_MAX];
 
 	struct cfg80211_chan_def chandef;
@@ -823,6 +836,9 @@ struct mt76_dev {
 	struct mt76_wcid __rcu *wcid[MT76_N_WCIDS];
 	struct list_head wcid_list;
 
+	struct list_head sta_poll_list;
+	spinlock_t sta_poll_lock;
+
 	u32 rev;
 
 	struct tasklet_struct pre_tbtt_tasklet;
@@ -857,11 +873,107 @@ struct mt76_dev {
 	};
 };
 
+/* per-phy stats.  */
+struct mt76_mib_stats {
+	u32 ack_fail_cnt;
+	u32 fcs_err_cnt;
+	u32 rts_cnt;
+	u32 rts_retries_cnt;
+	u32 ba_miss_cnt;
+	u32 tx_bf_cnt;
+	u32 tx_mu_bf_cnt;
+	u32 tx_mu_mpdu_cnt;
+	u32 tx_mu_acked_mpdu_cnt;
+	u32 tx_su_acked_mpdu_cnt;
+	u32 tx_bf_ibf_ppdu_cnt;
+	u32 tx_bf_ebf_ppdu_cnt;
+
+	u32 tx_bf_rx_fb_all_cnt;
+	u32 tx_bf_rx_fb_eht_cnt;
+	u32 tx_bf_rx_fb_he_cnt;
+	u32 tx_bf_rx_fb_vht_cnt;
+	u32 tx_bf_rx_fb_ht_cnt;
+
+	u32 tx_bf_rx_fb_bw; /* value of last sample, not cumulative */
+	u32 tx_bf_rx_fb_nc_cnt;
+	u32 tx_bf_rx_fb_nr_cnt;
+	u32 tx_bf_fb_cpl_cnt;
+	u32 tx_bf_fb_trig_cnt;
+
+	u32 tx_ampdu_cnt;
+	u32 tx_stop_q_empty_cnt;
+	u32 tx_mpdu_attempts_cnt;
+	u32 tx_mpdu_success_cnt;
+	u32 tx_pkt_ebf_cnt;
+	u32 tx_pkt_ibf_cnt;
+
+	u32 tx_rwp_fail_cnt;
+	u32 tx_rwp_need_cnt;
+
+	/* rx stats */
+	u32 rx_fifo_full_cnt;
+	u32 channel_idle_cnt;
+	u32 primary_cca_busy_time;
+	u32 secondary_cca_busy_time;
+	u32 primary_energy_detect_time;
+	u32 cck_mdrdy_time;
+	u32 ofdm_mdrdy_time;
+	u32 green_mdrdy_time;
+	u32 rx_vector_mismatch_cnt;
+	u32 rx_delimiter_fail_cnt;
+	u32 rx_mrdy_cnt;
+	u32 rx_len_mismatch_cnt;
+	u32 rx_mpdu_cnt;
+	u32 rx_ampdu_cnt;
+	u32 rx_ampdu_bytes_cnt;
+	u32 rx_ampdu_valid_subframe_cnt;
+	u32 rx_ampdu_valid_subframe_bytes_cnt;
+	u32 rx_pfdrop_cnt;
+	u32 rx_vec_queue_overflow_drop_cnt;
+	u32 rx_ba_cnt;
+
+	u32 tx_amsdu[8];
+	u32 tx_amsdu_cnt;
+
+	/* mcu_muru_stats */
+	u32 dl_cck_cnt;
+	u32 dl_ofdm_cnt;
+	u32 dl_htmix_cnt;
+	u32 dl_htgf_cnt;
+	u32 dl_vht_su_cnt;
+	u32 dl_vht_2mu_cnt;
+	u32 dl_vht_3mu_cnt;
+	u32 dl_vht_4mu_cnt;
+	u32 dl_he_su_cnt;
+	u32 dl_he_ext_su_cnt;
+	u32 dl_he_2ru_cnt;
+	u32 dl_he_2mu_cnt;
+	u32 dl_he_3ru_cnt;
+	u32 dl_he_3mu_cnt;
+	u32 dl_he_4ru_cnt;
+	u32 dl_he_4mu_cnt;
+	u32 dl_he_5to8ru_cnt;
+	u32 dl_he_9to16ru_cnt;
+	u32 dl_he_gtr16ru_cnt;
+
+	u32 ul_hetrig_su_cnt;
+	u32 ul_hetrig_2ru_cnt;
+	u32 ul_hetrig_3ru_cnt;
+	u32 ul_hetrig_4ru_cnt;
+	u32 ul_hetrig_5to8ru_cnt;
+	u32 ul_hetrig_9to16ru_cnt;
+	u32 ul_hetrig_gtr16ru_cnt;
+	u32 ul_hetrig_2mu_cnt;
+	u32 ul_hetrig_3mu_cnt;
+	u32 ul_hetrig_4mu_cnt;
+};
+
 struct mt76_power_limits {
 	s8 cck[4];
 	s8 ofdm[8];
 	s8 mcs[4][10];
 	s8 ru[7][12];
+	s8 eht[16][16];
 };
 
 struct mt76_ethtool_worker_info {
@@ -995,7 +1107,8 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *data, int offset, int len);
 struct mt76_queue *
 mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
 		int ring_base, u32 flags);
-u16 mt76_calculate_default_rate(struct mt76_phy *phy, int rateidx);
+u16 mt76_calculate_default_rate(struct mt76_phy *phy,
+				struct ieee80211_vif *vif, int rateidx);
 static inline int mt76_init_tx_queue(struct mt76_phy *phy, int qid, int idx,
 				     int n_desc, int ring_base, u32 flags)
 {
@@ -1424,6 +1537,11 @@ mt76_mcu_skb_send_msg(struct mt76_dev *dev, struct sk_buff *skb, int cmd,
 
 void mt76_set_irq_mask(struct mt76_dev *dev, u32 addr, u32 clear, u32 set);
 
+struct device_node *
+mt76_find_power_limits_node(struct mt76_dev *dev);
+struct device_node *
+mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan);
+
 s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 			      struct ieee80211_channel *chan,
 			      struct mt76_power_limits *dest,
@@ -1493,22 +1611,7 @@ mt76_token_put(struct mt76_dev *dev, int token)
 	return txwi;
 }
 
-static inline void mt76_packet_id_init(struct mt76_wcid *wcid)
-{
-	INIT_LIST_HEAD(&wcid->list);
-	idr_init(&wcid->pktid);
-}
-
-static inline void
-mt76_packet_id_flush(struct mt76_dev *dev, struct mt76_wcid *wcid)
-{
-	struct sk_buff_head list;
-
-	mt76_tx_status_lock(dev, &list);
-	mt76_tx_status_skb_get(dev, wcid, -1, &list);
-	mt76_tx_status_unlock(dev, &list);
-
-	idr_destroy(&wcid->pktid);
-}
+void mt76_wcid_init(struct mt76_wcid *wcid);
+void mt76_wcid_cleanup(struct mt76_dev *dev, struct mt76_wcid *wcid);
 
 #endif

@@ -16,14 +16,12 @@
 
 #include <linux/ti_wilink_st.h>
 
-extern void st_kim_recv(void *, const unsigned char *, long);
-void st_int_recv(void *, const unsigned char *, long);
 /*
  * function pointer pointing to either,
  * st_kim_recv during registration to receive fw download responses
  * st_int_recv after registration to receive proto stack responses
  */
-static void (*st_recv) (void *, const unsigned char *, long);
+static void (*st_recv)(void *disc_data, const u8 *ptr, size_t count);
 
 /********************************************************************/
 static void add_channel_to_table(struct st_data_s *st_gdata,
@@ -225,10 +223,8 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
  *	HCI-Events, ACL, SCO, 4 types of HCI-LL PM packets
  *	CH-8 packets from FM, CH-9 packets from GPS cores.
  */
-void st_int_recv(void *disc_data,
-	const unsigned char *data, long count)
+static void st_int_recv(void *disc_data, const u8 *ptr, size_t count)
 {
-	char *ptr;
 	struct st_proto_s *proto;
 	unsigned short payload_len = 0;
 	int len = 0;
@@ -237,14 +233,12 @@ void st_int_recv(void *disc_data,
 	struct st_data_s *st_gdata = (struct st_data_s *)disc_data;
 	unsigned long flags;
 
-	ptr = (char *)data;
-	/* tty_receive sent null ? */
-	if (unlikely(ptr == NULL) || (st_gdata == NULL)) {
+	if (st_gdata == NULL) {
 		pr_err(" received null from TTY ");
 		return;
 	}
 
-	pr_debug("count %ld rx_state %ld"
+	pr_debug("count %zu rx_state %ld"
 		   "rx_count %ld", count, st_gdata->rx_state,
 		   st_gdata->rx_count);
 
@@ -796,8 +790,8 @@ static void st_tty_close(struct tty_struct *tty)
 	pr_debug("%s: done ", __func__);
 }
 
-static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
-			   const char *tty_flags, int count)
+static void st_tty_receive(struct tty_struct *tty, const u8 *data,
+			   const u8 *tty_flags, size_t count)
 {
 #ifdef VERBOSE
 	print_hex_dump(KERN_DEBUG, ">in>", DUMP_PREFIX_NONE,

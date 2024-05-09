@@ -207,6 +207,8 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 
 	spin_lock_init(&pfdev->as_lock);
 
+	spin_lock_init(&pfdev->cycle_counter.lock);
+
 	err = panfrost_clk_init(pfdev);
 	if (err) {
 		dev_err(pfdev->dev, "clk init failed %d\n", err);

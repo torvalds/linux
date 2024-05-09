@@ -11,10 +11,12 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <signal.h>
 #include <unistd.h>
 #include <assert.h>
 #include <sys/epoll.h>
+#include <sys/mman.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -211,6 +213,111 @@ int vsock_seqpacket_accept(unsigned int cid, unsigned int port,
 	return vsock_accept(cid, port, clientaddrp, SOCK_SEQPACKET);
 }
 
+/* Transmit bytes from a buffer and check the return value.
+ *
+ * expected_ret:
+ *  <0 Negative errno (for testing errors)
+ *   0 End-of-file
+ *  >0 Success (bytes successfully written)
+ */
+void send_buf(int fd, const void *buf, size_t len, int flags,
+	      ssize_t expected_ret)
+{
+	ssize_t nwritten = 0;
+	ssize_t ret;
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = send(fd, buf + nwritten, len - nwritten, flags);
+		timeout_check("send");
+
+		if (ret == 0 || (ret < 0 && errno != EINTR))
+			break;
+
+		nwritten += ret;
+	} while (nwritten < len);
+	timeout_end();
+
+	if (expected_ret < 0) {
+		if (ret != -1) {
+			fprintf(stderr, "bogus send(2) return value %zd (expected %zd)\n",
+				ret, expected_ret);
+			exit(EXIT_FAILURE);
+		}
+		if (errno != -expected_ret) {
+			perror("send");
+			exit(EXIT_FAILURE);
+		}
+		return;
+	}
+
+	if (ret < 0) {
+		perror("send");
+		exit(EXIT_FAILURE);
+	}
+
+	if (nwritten != expected_ret) {
+		if (ret == 0)
+			fprintf(stderr, "unexpected EOF while sending bytes\n");
+
+		fprintf(stderr, "bogus send(2) bytes written %zd (expected %zd)\n",
+			nwritten, expected_ret);
+		exit(EXIT_FAILURE);
+	}
+}
+
+/* Receive bytes in a buffer and check the return value.
+ *
+ * expected_ret:
+ *  <0 Negative errno (for testing errors)
+ *   0 End-of-file
+ *  >0 Success (bytes successfully read)
+ */
+void recv_buf(int fd, void *buf, size_t len, int flags, ssize_t expected_ret)
+{
+	ssize_t nread = 0;
+	ssize_t ret;
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = recv(fd, buf + nread, len - nread, flags);
+		timeout_check("recv");
+
+		if (ret == 0 || (ret < 0 && errno != EINTR))
+			break;
+
+		nread += ret;
+	} while (nread < len);
+	timeout_end();
+
+	if (expected_ret < 0) {
+		if (ret != -1) {
+			fprintf(stderr, "bogus recv(2) return value %zd (expected %zd)\n",
+				ret, expected_ret);
+			exit(EXIT_FAILURE);
+		}
+		if (errno != -expected_ret) {
+			perror("recv");
+			exit(EXIT_FAILURE);
+		}
+		return;
+	}
+
+	if (ret < 0) {
+		perror("recv");
+		exit(EXIT_FAILURE);
+	}
+
+	if (nread != expected_ret) {
+		if (ret == 0)
+			fprintf(stderr, "unexpected EOF while receiving bytes\n");
+
+		fprintf(stderr, "bogus recv(2) bytes read %zd (expected %zd)\n",
+			nread, expected_ret);
+		exit(EXIT_FAILURE);
+	}
+}
+
 /* Transmit one byte and check the return value.
  *
  * expected_ret:
@@ -221,43 +328,8 @@ int vsock_seqpacket_accept(unsigned int cid, unsigned int port,
 void send_byte(int fd, int expected_ret, int flags)
 {
 	const uint8_t byte = 'A';
-	ssize_t nwritten;
 
-	timeout_begin(TIMEOUT);
-	do {
-		nwritten = send(fd, &byte, sizeof(byte), flags);
-		timeout_check("write");
-	} while (nwritten < 0 && errno == EINTR);
-	timeout_end();
-
-	if (expected_ret < 0) {
-		if (nwritten != -1) {
-			fprintf(stderr, "bogus send(2) return value %zd\n",
-				nwritten);
-			exit(EXIT_FAILURE);
-		}
-		if (errno != -expected_ret) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
-		return;
-	}
-
-	if (nwritten < 0) {
-		perror("write");
-		exit(EXIT_FAILURE);
-	}
-	if (nwritten == 0) {
-		if (expected_ret == 0)
-			return;
-
-		fprintf(stderr, "unexpected EOF while sending byte\n");
-		exit(EXIT_FAILURE);
-	}
-	if (nwritten != sizeof(byte)) {
-		fprintf(stderr, "bogus send(2) return value %zd\n", nwritten);
-		exit(EXIT_FAILURE);
-	}
+	send_buf(fd, &byte, sizeof(byte), flags, expected_ret);
 }
 
 /* Receive one byte and check the return value.
@@ -270,43 +342,9 @@ void send_byte(int fd, int expected_ret, int flags)
 void recv_byte(int fd, int expected_ret, int flags)
 {
 	uint8_t byte;
-	ssize_t nread;
 
-	timeout_begin(TIMEOUT);
-	do {
-		nread = recv(fd, &byte, sizeof(byte), flags);
-		timeout_check("read");
-	} while (nread < 0 && errno == EINTR);
-	timeout_end();
+	recv_buf(fd, &byte, sizeof(byte), flags, expected_ret);
 
-	if (expected_ret < 0) {
-		if (nread != -1) {
-			fprintf(stderr, "bogus recv(2) return value %zd\n",
-				nread);
-			exit(EXIT_FAILURE);
-		}
-		if (errno != -expected_ret) {
-			perror("read");
-			exit(EXIT_FAILURE);
-		}
-		return;
-	}
-
-	if (nread < 0) {
-		perror("read");
-		exit(EXIT_FAILURE);
-	}
-	if (nread == 0) {
-		if (expected_ret == 0)
-			return;
-
-		fprintf(stderr, "unexpected EOF while receiving byte\n");
-		exit(EXIT_FAILURE);
-	}
-	if (nread != sizeof(byte)) {
-		fprintf(stderr, "bogus recv(2) return value %zd\n", nread);
-		exit(EXIT_FAILURE);
-	}
 	if (byte != 'A') {
 		fprintf(stderr, "unexpected byte read %c\n", byte);
 		exit(EXIT_FAILURE);
@@ -407,4 +445,135 @@ unsigned long hash_djb2(const void *data, size_t len)
 	}
 
 	return hash;
+}
+
+size_t iovec_bytes(const struct iovec *iov, size_t iovnum)
+{
+	size_t bytes;
+	int i;
+
+	for (bytes = 0, i = 0; i < iovnum; i++)
+		bytes += iov[i].iov_len;
+
+	return bytes;
+}
+
+unsigned long iovec_hash_djb2(const struct iovec *iov, size_t iovnum)
+{
+	unsigned long hash;
+	size_t iov_bytes;
+	size_t offs;
+	void *tmp;
+	int i;
+
+	iov_bytes = iovec_bytes(iov, iovnum);
+
+	tmp = malloc(iov_bytes);
+	if (!tmp) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+
+	for (offs = 0, i = 0; i < iovnum; i++) {
+		memcpy(tmp + offs, iov[i].iov_base, iov[i].iov_len);
+		offs += iov[i].iov_len;
+	}
+
+	hash = hash_djb2(tmp, iov_bytes);
+	free(tmp);
+
+	return hash;
+}
+
+/* Allocates and returns new 'struct iovec *' according pattern
+ * in the 'test_iovec'. For each element in the 'test_iovec' it
+ * allocates new element in the resulting 'iovec'. 'iov_len'
+ * of the new element is copied from 'test_iovec'. 'iov_base' is
+ * allocated depending on the 'iov_base' of 'test_iovec':
+ *
+ * 'iov_base' == NULL -> valid buf: mmap('iov_len').
+ *
+ * 'iov_base' == MAP_FAILED -> invalid buf:
+ *               mmap('iov_len'), then munmap('iov_len').
+ *               'iov_base' still contains result of
+ *               mmap().
+ *
+ * 'iov_base' == number -> unaligned valid buf:
+ *               mmap('iov_len') + number.
+ *
+ * 'iovnum' is number of elements in 'test_iovec'.
+ *
+ * Returns new 'iovec' or calls 'exit()' on error.
+ */
+struct iovec *alloc_test_iovec(const struct iovec *test_iovec, int iovnum)
+{
+	struct iovec *iovec;
+	int i;
+
+	iovec = malloc(sizeof(*iovec) * iovnum);
+	if (!iovec) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < iovnum; i++) {
+		iovec[i].iov_len = test_iovec[i].iov_len;
+
+		iovec[i].iov_base = mmap(NULL, iovec[i].iov_len,
+					 PROT_READ | PROT_WRITE,
+					 MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE,
+					 -1, 0);
+		if (iovec[i].iov_base == MAP_FAILED) {
+			perror("mmap");
+			exit(EXIT_FAILURE);
+		}
+
+		if (test_iovec[i].iov_base != MAP_FAILED)
+			iovec[i].iov_base += (uintptr_t)test_iovec[i].iov_base;
+	}
+
+	/* Unmap "invalid" elements. */
+	for (i = 0; i < iovnum; i++) {
+		if (test_iovec[i].iov_base == MAP_FAILED) {
+			if (munmap(iovec[i].iov_base, iovec[i].iov_len)) {
+				perror("munmap");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	for (i = 0; i < iovnum; i++) {
+		int j;
+
+		if (test_iovec[i].iov_base == MAP_FAILED)
+			continue;
+
+		for (j = 0; j < iovec[i].iov_len; j++)
+			((uint8_t *)iovec[i].iov_base)[j] = rand() & 0xff;
+	}
+
+	return iovec;
+}
+
+/* Frees 'iovec *', previously allocated by 'alloc_test_iovec()'.
+ * On error calls 'exit()'.
+ */
+void free_test_iovec(const struct iovec *test_iovec,
+		     struct iovec *iovec, int iovnum)
+{
+	int i;
+
+	for (i = 0; i < iovnum; i++) {
+		if (test_iovec[i].iov_base != MAP_FAILED) {
+			if (test_iovec[i].iov_base)
+				iovec[i].iov_base -= (uintptr_t)test_iovec[i].iov_base;
+
+			if (munmap(iovec[i].iov_base, iovec[i].iov_len)) {
+				perror("munmap");
+				exit(EXIT_FAILURE);
+			}
+		}
+	}
+
+	free(iovec);
 }

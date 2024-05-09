@@ -26,7 +26,7 @@ struct regulator;
 /* Lock to allow exclusive modification to the device and opp lists */
 extern struct mutex opp_table_lock;
 
-extern struct list_head opp_tables, lazy_opp_tables;
+extern struct list_head opp_tables;
 
 /* OPP Config flags */
 #define OPP_CONFIG_CLK			BIT(0)
@@ -78,7 +78,6 @@ struct opp_config_data {
  * @turbo:	true if turbo (boost) OPP
  * @suspend:	true if suspend OPP
  * @removed:	flag indicating that OPP's reference is dropped by OPP core.
- * @pstate: Device's power domain's performance state.
  * @rates:	Frequencies in hertz
  * @level:	Performance level
  * @supplies:	Power supplies voltage/current values
@@ -101,7 +100,6 @@ struct dev_pm_opp {
 	bool turbo;
 	bool suspend;
 	bool removed;
-	unsigned int pstate;
 	unsigned long *rates;
 	unsigned int level;
 
@@ -162,7 +160,6 @@ enum opp_table_access {
  * @rate_clk_single: Currently configured frequency for single clk.
  * @current_opp: Currently configured OPP for the table.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
- * @genpd_virt_dev_lock: Mutex protecting the genpd virtual device pointers.
  * @genpd_virt_devs: List of virtual devices for multiple genpd support.
  * @required_opp_tables: List of device OPP tables that are required by OPPs in
  *		this table.
@@ -182,7 +179,6 @@ enum opp_table_access {
  * @paths: Interconnect path handles
  * @path_count: Number of interconnect paths
  * @enabled: Set to true if the device's resources are enabled/configured.
- * @genpd_performance_state: Device's power domain support performance state.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
  * @set_required_opps: Helper responsible to set required OPPs.
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
@@ -215,7 +211,6 @@ struct opp_table {
 	struct dev_pm_opp *current_opp;
 	struct dev_pm_opp *suspend_opp;
 
-	struct mutex genpd_virt_dev_lock;
 	struct device **genpd_virt_devs;
 	struct opp_table **required_opp_tables;
 	unsigned int required_opp_count;
@@ -233,7 +228,6 @@ struct opp_table {
 	struct icc_path **paths;
 	unsigned int path_count;
 	bool enabled;
-	bool genpd_performance_state;
 	bool is_genpd;
 	int (*set_required_opps)(struct device *dev,
 		struct opp_table *opp_table, struct dev_pm_opp *opp, bool scaling_down);
@@ -255,7 +249,7 @@ struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table);
 void _opp_free(struct dev_pm_opp *opp);
 int _opp_compare_key(struct opp_table *opp_table, struct dev_pm_opp *opp1, struct dev_pm_opp *opp2);
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table);
-int _opp_add_v1(struct opp_table *opp_table, struct device *dev, unsigned long freq, long u_volt, bool dynamic);
+int _opp_add_v1(struct opp_table *opp_table, struct device *dev, struct dev_pm_opp_data *data, bool dynamic);
 void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, int last_cpu);
 struct opp_table *_add_opp_table_indexed(struct device *dev, int index, bool getclk);
 void _put_opp_list_kref(struct opp_table *opp_table);

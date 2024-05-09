@@ -138,6 +138,23 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int devlink_nl_nested_fill(struct sk_buff *msg, struct devlink *devlink)
+{
+	unsigned long rel_index;
+	void *unused;
+	int err;
+
+	xa_for_each(&devlink->nested_rels, rel_index, unused) {
+		err = devlink_rel_devlink_handle_put(msg, devlink,
+						     rel_index,
+						     DEVLINK_ATTR_NESTED_DEVLINK,
+						     NULL);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int devlink_nl_fill(struct sk_buff *msg, struct devlink *devlink,
 			   enum devlink_command cmd, u32 portid,
 			   u32 seq, int flags)
@@ -164,6 +181,10 @@ static int devlink_nl_fill(struct sk_buff *msg, struct devlink *devlink,
 		goto dev_stats_nest_cancel;
 
 	nla_nest_end(msg, dev_stats);
+
+	if (devlink_nl_nested_fill(msg, devlink))
+		goto nla_put_failure;
+
 	genlmsg_end(msg, hdr);
 	return 0;
 
@@ -174,7 +195,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
+static void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
 {
 	struct sk_buff *msg;
 	int err;
@@ -196,7 +217,7 @@ void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
 				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
-int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct sk_buff *msg;
@@ -217,17 +238,72 @@ int devlink_nl_cmd_get_doit(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int
-devlink_nl_cmd_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
-			    struct netlink_callback *cb)
+devlink_nl_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
+			struct netlink_callback *cb, int flags)
 {
 	return devlink_nl_fill(msg, devlink, DEVLINK_CMD_NEW,
 			       NETLINK_CB(cb->skb).portid,
-			       cb->nlh->nlmsg_seq, NLM_F_MULTI);
+			       cb->nlh->nlmsg_seq, flags);
 }
 
-const struct devlink_cmd devl_cmd_get = {
-	.dump_one		= devlink_nl_cmd_get_dump_one,
-};
+int devlink_nl_get_dumpit(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(msg, cb, devlink_nl_get_dump_one);
+}
+
+static void devlink_rel_notify_cb(struct devlink *devlink, u32 obj_index)
+{
+	devlink_notify(devlink, DEVLINK_CMD_NEW);
+}
+
+static void devlink_rel_cleanup_cb(struct devlink *devlink, u32 obj_index,
+				   u32 rel_index)
+{
+	xa_erase(&devlink->nested_rels, rel_index);
+}
+
+int devl_nested_devlink_set(struct devlink *devlink,
+			    struct devlink *nested_devlink)
+{
+	u32 rel_index;
+	int err;
+
+	err = devlink_rel_nested_in_add(&rel_index, devlink->index, 0,
+					devlink_rel_notify_cb,
+					devlink_rel_cleanup_cb,
+					nested_devlink);
+	if (err)
+		return err;
+	return xa_insert(&devlink->nested_rels, rel_index,
+			 xa_mk_value(0), GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(devl_nested_devlink_set);
+
+void devlink_notify_register(struct devlink *devlink)
+{
+	devlink_notify(devlink, DEVLINK_CMD_NEW);
+	devlink_linecards_notify_register(devlink);
+	devlink_ports_notify_register(devlink);
+	devlink_trap_policers_notify_register(devlink);
+	devlink_trap_groups_notify_register(devlink);
+	devlink_traps_notify_register(devlink);
+	devlink_rates_notify_register(devlink);
+	devlink_regions_notify_register(devlink);
+	devlink_params_notify_register(devlink);
+}
+
+void devlink_notify_unregister(struct devlink *devlink)
+{
+	devlink_params_notify_unregister(devlink);
+	devlink_regions_notify_unregister(devlink);
+	devlink_rates_notify_unregister(devlink);
+	devlink_traps_notify_unregister(devlink);
+	devlink_trap_groups_notify_unregister(devlink);
+	devlink_trap_policers_notify_unregister(devlink);
+	devlink_ports_notify_unregister(devlink);
+	devlink_linecards_notify_unregister(devlink);
+	devlink_notify(devlink, DEVLINK_CMD_DEL);
+}
 
 static void devlink_reload_failed_set(struct devlink *devlink,
 				      bool reload_failed)
@@ -345,6 +421,7 @@ static void devlink_reload_netns_change(struct devlink *devlink,
 	devlink_notify_unregister(devlink);
 	write_pnet(&devlink->_net, dest_net);
 	devlink_notify_register(devlink);
+	devlink_rel_nested_in_notify(devlink);
 }
 
 int devlink_reload(struct devlink *devlink, struct net *dest_net,
@@ -415,7 +492,7 @@ free_msg:
 	return -EMSGSIZE;
 }
 
-int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_reload_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	enum devlink_reload_action action;
@@ -581,7 +658,7 @@ nla_put_failure:
 	return err;
 }
 
-int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct sk_buff *msg;
@@ -602,7 +679,7 @@ int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
-int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;
@@ -804,7 +881,7 @@ err_cancel_msg:
 	return err;
 }
 
-int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_info_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct sk_buff *msg;
@@ -826,23 +903,24 @@ int devlink_nl_cmd_info_get_doit(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int
-devlink_nl_cmd_info_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
-				 struct netlink_callback *cb)
+devlink_nl_info_get_dump_one(struct sk_buff *msg, struct devlink *devlink,
+			     struct netlink_callback *cb, int flags)
 {
 	int err;
 
 	err = devlink_nl_info_fill(msg, devlink, DEVLINK_CMD_INFO_GET,
 				   NETLINK_CB(cb->skb).portid,
-				   cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				   cb->nlh->nlmsg_seq, flags,
 				   cb->extack);
 	if (err == -EOPNOTSUPP)
 		err = 0;
 	return err;
 }
 
-const struct devlink_cmd devl_cmd_info_get = {
-	.dump_one		= devlink_nl_cmd_info_get_dump_one,
-};
+int devlink_nl_info_get_dumpit(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(msg, cb, devlink_nl_info_get_dump_one);
+}
 
 static int devlink_nl_flash_update_fill(struct sk_buff *msg,
 					struct devlink *devlink,
@@ -1030,7 +1108,7 @@ static int devlink_flash_component_get(struct devlink *devlink,
 	return 0;
 }
 
-int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_flash_update_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *nla_overwrite_mask, *nla_file_name;
 	struct devlink_flash_update_params params = {};
@@ -1204,8 +1282,7 @@ err_cancel_msg:
 	return err;
 }
 
-int devlink_nl_cmd_selftests_get_doit(struct sk_buff *skb,
-				      struct genl_info *info)
+int devlink_nl_selftests_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct sk_buff *msg;
@@ -1228,23 +1305,25 @@ int devlink_nl_cmd_selftests_get_doit(struct sk_buff *skb,
 	return genlmsg_reply(msg, info);
 }
 
-static int
-devlink_nl_cmd_selftests_get_dump_one(struct sk_buff *msg,
-				      struct devlink *devlink,
-				      struct netlink_callback *cb)
+static int devlink_nl_selftests_get_dump_one(struct sk_buff *msg,
+					     struct devlink *devlink,
+					     struct netlink_callback *cb,
+					     int flags)
 {
 	if (!devlink->ops->selftest_check)
 		return 0;
 
 	return devlink_nl_selftests_fill(msg, devlink,
 					 NETLINK_CB(cb->skb).portid,
-					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
+					 cb->nlh->nlmsg_seq, flags,
 					 cb->extack);
 }
 
-const struct devlink_cmd devl_cmd_selftests_get = {
-	.dump_one		= devlink_nl_cmd_selftests_get_dump_one,
-};
+int devlink_nl_selftests_get_dumpit(struct sk_buff *skb,
+				    struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(skb, cb, devlink_nl_selftests_get_dump_one);
+}
 
 static int devlink_selftest_result_put(struct sk_buff *skb, unsigned int id,
 				       enum devlink_selftest_status test_status)
@@ -1272,7 +1351,7 @@ static const struct nla_policy devlink_selftest_nl_policy[DEVLINK_ATTR_SELFTEST_
 	[DEVLINK_ATTR_SELFTEST_ID_FLASH] = { .type = NLA_FLAG },
 };
 
-int devlink_nl_cmd_selftests_run(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_selftests_run_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[DEVLINK_ATTR_SELFTEST_ID_MAX + 1];
 	struct devlink *devlink = info->user_ptr[0];

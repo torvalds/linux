@@ -18,6 +18,7 @@
 #include <net/sock.h>
 #include <net/handshake.h>
 #include <net/genetlink.h>
+#include <net/tls_prot.h>
 
 #include <uapi/linux/keyctl.h>
 #include <uapi/linux/handshake.h>
@@ -100,6 +101,9 @@ static void tls_handshake_done(struct handshake_req *req,
 	if (info)
 		tls_handshake_remote_peerids(treq, info);
 
+	if (!status)
+		set_bit(HANDSHAKE_F_REQ_SESSION, &req->hr_flags);
+
 	treq->th_consumer_done(treq->th_consumer_data, -status,
 			       treq->th_peerid[0]);
 }
@@ -169,9 +173,9 @@ static int tls_handshake_put_certificate(struct sk_buff *msg,
 	if (!entry_attr)
 		return -EMSGSIZE;
 
-	if (nla_put_u32(msg, HANDSHAKE_A_X509_CERT,
+	if (nla_put_s32(msg, HANDSHAKE_A_X509_CERT,
 			treq->th_certificate) ||
-	    nla_put_u32(msg, HANDSHAKE_A_X509_PRIVKEY,
+	    nla_put_s32(msg, HANDSHAKE_A_X509_PRIVKEY,
 			treq->th_privkey)) {
 		nla_nest_cancel(msg, entry_attr);
 		return -EMSGSIZE;
@@ -210,7 +214,7 @@ static int tls_handshake_accept(struct handshake_req *req,
 		goto out_cancel;
 
 	ret = -EMSGSIZE;
-	ret = nla_put_u32(msg, HANDSHAKE_A_ACCEPT_SOCKFD, fd);
+	ret = nla_put_s32(msg, HANDSHAKE_A_ACCEPT_SOCKFD, fd);
 	if (ret < 0)
 		goto out_cancel;
 	ret = nla_put_u32(msg, HANDSHAKE_A_ACCEPT_MESSAGE_TYPE, treq->th_type);
@@ -424,3 +428,22 @@ bool tls_handshake_cancel(struct sock *sk)
 	return handshake_req_cancel(sk);
 }
 EXPORT_SYMBOL(tls_handshake_cancel);
+
+/**
+ * tls_handshake_close - send a Closure alert
+ * @sock: an open socket
+ *
+ */
+void tls_handshake_close(struct socket *sock)
+{
+	struct handshake_req *req;
+
+	req = handshake_req_hash_lookup(sock->sk);
+	if (!req)
+		return;
+	if (!test_and_clear_bit(HANDSHAKE_F_REQ_SESSION, &req->hr_flags))
+		return;
+	tls_alert_send(sock, TLS_ALERT_LEVEL_WARNING,
+		       TLS_ALERT_DESC_CLOSE_NOTIFY);
+}
+EXPORT_SYMBOL(tls_handshake_close);

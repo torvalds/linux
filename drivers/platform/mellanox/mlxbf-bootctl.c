@@ -11,6 +11,7 @@
 #include <linux/acpi.h>
 #include <linux/arm-smccc.h>
 #include <linux/delay.h>
+#include <linux/if_ether.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -78,6 +79,52 @@ static void __iomem *mlxbf_rsh_scratch_buf_data;
 /* Rsh log levels. */
 static const char * const mlxbf_rsh_log_level[] = {
 	"INFO", "WARN", "ERR", "ASSERT"};
+
+static DEFINE_MUTEX(icm_ops_lock);
+static DEFINE_MUTEX(os_up_lock);
+static DEFINE_MUTEX(mfg_ops_lock);
+
+/*
+ * Objects are stored within the MFG partition per type.
+ * Type 0 is not supported.
+ */
+enum {
+	MLNX_MFG_TYPE_OOB_MAC = 1,
+	MLNX_MFG_TYPE_OPN_0,
+	MLNX_MFG_TYPE_OPN_1,
+	MLNX_MFG_TYPE_OPN_2,
+	MLNX_MFG_TYPE_SKU_0,
+	MLNX_MFG_TYPE_SKU_1,
+	MLNX_MFG_TYPE_SKU_2,
+	MLNX_MFG_TYPE_MODL_0,
+	MLNX_MFG_TYPE_MODL_1,
+	MLNX_MFG_TYPE_MODL_2,
+	MLNX_MFG_TYPE_SN_0,
+	MLNX_MFG_TYPE_SN_1,
+	MLNX_MFG_TYPE_SN_2,
+	MLNX_MFG_TYPE_UUID_0,
+	MLNX_MFG_TYPE_UUID_1,
+	MLNX_MFG_TYPE_UUID_2,
+	MLNX_MFG_TYPE_UUID_3,
+	MLNX_MFG_TYPE_UUID_4,
+	MLNX_MFG_TYPE_REV,
+};
+
+#define MLNX_MFG_OPN_VAL_LEN         24
+#define MLNX_MFG_SKU_VAL_LEN         24
+#define MLNX_MFG_MODL_VAL_LEN        24
+#define MLNX_MFG_SN_VAL_LEN          24
+#define MLNX_MFG_UUID_VAL_LEN        40
+#define MLNX_MFG_REV_VAL_LEN         8
+#define MLNX_MFG_VAL_QWORD_CNT(type) \
+	(MLNX_MFG_##type##_VAL_LEN / sizeof(u64))
+
+/*
+ * The MAC address consists of 6 bytes (2 digits each) separated by ':'.
+ * The expected format is: "XX:XX:XX:XX:XX:XX"
+ */
+#define MLNX_MFG_OOB_MAC_FORMAT_LEN \
+	((ETH_ALEN * 2) + (ETH_ALEN - 1))
 
 /* ARM SMC call which is atomic and no need for lock. */
 static int mlxbf_bootctl_smc(unsigned int smc_op, int smc_arg)
@@ -391,6 +438,444 @@ done:
 	return count;
 }
 
+static ssize_t large_icm_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct arm_smccc_res res;
+
+	mutex_lock(&icm_ops_lock);
+	arm_smccc_smc(MLNX_HANDLE_GET_ICM_INFO, 0, 0, 0, 0,
+		      0, 0, 0, &res);
+	mutex_unlock(&icm_ops_lock);
+	if (res.a0)
+		return -EPERM;
+
+	return snprintf(buf, PAGE_SIZE, "0x%lx", res.a1);
+}
+
+static ssize_t large_icm_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct arm_smccc_res res;
+	unsigned long icm_data;
+	int err;
+
+	err = kstrtoul(buf, MLXBF_LARGE_ICMC_MAX_STRING_SIZE, &icm_data);
+	if (err)
+		return err;
+
+	if ((icm_data != 0 && icm_data < MLXBF_LARGE_ICMC_SIZE_MIN) ||
+	    icm_data > MLXBF_LARGE_ICMC_SIZE_MAX || icm_data % MLXBF_LARGE_ICMC_GRANULARITY)
+		return -EPERM;
+
+	mutex_lock(&icm_ops_lock);
+	arm_smccc_smc(MLNX_HANDLE_SET_ICM_INFO, icm_data, 0, 0, 0, 0, 0, 0, &res);
+	mutex_unlock(&icm_ops_lock);
+
+	return res.a0 ? -EPERM : count;
+}
+
+static ssize_t os_up_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct arm_smccc_res res;
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	if (val != 1)
+		return -EINVAL;
+
+	mutex_lock(&os_up_lock);
+	arm_smccc_smc(MLNX_HANDLE_OS_UP, 0, 0, 0, 0, 0, 0, 0, &res);
+	mutex_unlock(&os_up_lock);
+
+	return count;
+}
+
+static ssize_t oob_mac_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct arm_smccc_res res;
+	u8 *mac_byte_ptr;
+
+	mutex_lock(&mfg_ops_lock);
+	arm_smccc_smc(MLXBF_BOOTCTL_GET_MFG_INFO, MLNX_MFG_TYPE_OOB_MAC, 0, 0, 0,
+		      0, 0, 0, &res);
+	mutex_unlock(&mfg_ops_lock);
+	if (res.a0)
+		return -EPERM;
+
+	mac_byte_ptr = (u8 *)&res.a1;
+
+	return sysfs_format_mac(buf, mac_byte_ptr, ETH_ALEN);
+}
+
+static ssize_t oob_mac_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned int byte[MLNX_MFG_OOB_MAC_FORMAT_LEN] = { 0 };
+	struct arm_smccc_res res;
+	int byte_idx, len;
+	u64 mac_addr = 0;
+	u8 *mac_byte_ptr;
+
+	if ((count - 1) != MLNX_MFG_OOB_MAC_FORMAT_LEN)
+		return -EINVAL;
+
+	len = sscanf(buf, "%02x:%02x:%02x:%02x:%02x:%02x",
+		     &byte[0], &byte[1], &byte[2],
+		     &byte[3], &byte[4], &byte[5]);
+	if (len != ETH_ALEN)
+		return -EINVAL;
+
+	mac_byte_ptr = (u8 *)&mac_addr;
+
+	for (byte_idx = 0; byte_idx < ETH_ALEN; byte_idx++)
+		mac_byte_ptr[byte_idx] = (u8)byte[byte_idx];
+
+	mutex_lock(&mfg_ops_lock);
+	arm_smccc_smc(MLXBF_BOOTCTL_SET_MFG_INFO, MLNX_MFG_TYPE_OOB_MAC,
+		      ETH_ALEN, mac_addr, 0, 0, 0, 0, &res);
+	mutex_unlock(&mfg_ops_lock);
+
+	return res.a0 ? -EPERM : count;
+}
+
+static ssize_t opn_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	u64 opn_data[MLNX_MFG_VAL_QWORD_CNT(OPN) + 1] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(OPN); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_GET_MFG_INFO,
+			      MLNX_MFG_TYPE_OPN_0 + word,
+			      0, 0, 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+		opn_data[word] = res.a1;
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%s", (char *)opn_data);
+}
+
+static ssize_t opn_store(struct device *dev,
+			 struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	u64 opn[MLNX_MFG_VAL_QWORD_CNT(OPN)] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	if (count > MLNX_MFG_OPN_VAL_LEN)
+		return -EINVAL;
+
+	memcpy(opn, buf, count);
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(OPN); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_SET_MFG_INFO,
+			      MLNX_MFG_TYPE_OPN_0 + word,
+			      sizeof(u64), opn[word], 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return count;
+}
+
+static ssize_t sku_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	u64 sku_data[MLNX_MFG_VAL_QWORD_CNT(SKU) + 1] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(SKU); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_GET_MFG_INFO,
+			      MLNX_MFG_TYPE_SKU_0 + word,
+			      0, 0, 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+		sku_data[word] = res.a1;
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%s", (char *)sku_data);
+}
+
+static ssize_t sku_store(struct device *dev,
+			 struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	u64 sku[MLNX_MFG_VAL_QWORD_CNT(SKU)] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	if (count > MLNX_MFG_SKU_VAL_LEN)
+		return -EINVAL;
+
+	memcpy(sku, buf, count);
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(SKU); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_SET_MFG_INFO,
+			      MLNX_MFG_TYPE_SKU_0 + word,
+			      sizeof(u64), sku[word], 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return count;
+}
+
+static ssize_t modl_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	u64 modl_data[MLNX_MFG_VAL_QWORD_CNT(MODL) + 1] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(MODL); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_GET_MFG_INFO,
+			      MLNX_MFG_TYPE_MODL_0 + word,
+			      0, 0, 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+		modl_data[word] = res.a1;
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%s", (char *)modl_data);
+}
+
+static ssize_t modl_store(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	u64 modl[MLNX_MFG_VAL_QWORD_CNT(MODL)] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	if (count > MLNX_MFG_MODL_VAL_LEN)
+		return -EINVAL;
+
+	memcpy(modl, buf, count);
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(MODL); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_SET_MFG_INFO,
+			      MLNX_MFG_TYPE_MODL_0 + word,
+			      sizeof(u64), modl[word], 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return count;
+}
+
+static ssize_t sn_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
+{
+	u64 sn_data[MLNX_MFG_VAL_QWORD_CNT(SN) + 1] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(SN); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_GET_MFG_INFO,
+			      MLNX_MFG_TYPE_SN_0 + word,
+			      0, 0, 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+		sn_data[word] = res.a1;
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%s", (char *)sn_data);
+}
+
+static ssize_t sn_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	u64 sn[MLNX_MFG_VAL_QWORD_CNT(SN)] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	if (count > MLNX_MFG_SN_VAL_LEN)
+		return -EINVAL;
+
+	memcpy(sn, buf, count);
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(SN); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_SET_MFG_INFO,
+			      MLNX_MFG_TYPE_SN_0 + word,
+			      sizeof(u64), sn[word], 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return count;
+}
+
+static ssize_t uuid_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	u64 uuid_data[MLNX_MFG_VAL_QWORD_CNT(UUID) + 1] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(UUID); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_GET_MFG_INFO,
+			      MLNX_MFG_TYPE_UUID_0 + word,
+			      0, 0, 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+		uuid_data[word] = res.a1;
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%s", (char *)uuid_data);
+}
+
+static ssize_t uuid_store(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	u64 uuid[MLNX_MFG_VAL_QWORD_CNT(UUID)] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	if (count > MLNX_MFG_UUID_VAL_LEN)
+		return -EINVAL;
+
+	memcpy(uuid, buf, count);
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(UUID); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_SET_MFG_INFO,
+			      MLNX_MFG_TYPE_UUID_0 + word,
+			      sizeof(u64), uuid[word], 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return count;
+}
+
+static ssize_t rev_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	u64 rev_data[MLNX_MFG_VAL_QWORD_CNT(REV) + 1] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(REV); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_GET_MFG_INFO,
+			      MLNX_MFG_TYPE_REV + word,
+			      0, 0, 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+		rev_data[word] = res.a1;
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%s", (char *)rev_data);
+}
+
+static ssize_t rev_store(struct device *dev,
+			 struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	u64 rev[MLNX_MFG_VAL_QWORD_CNT(REV)] = { 0 };
+	struct arm_smccc_res res;
+	int word;
+
+	if (count > MLNX_MFG_REV_VAL_LEN)
+		return -EINVAL;
+
+	memcpy(rev, buf, count);
+
+	mutex_lock(&mfg_ops_lock);
+	for (word = 0; word < MLNX_MFG_VAL_QWORD_CNT(REV); word++) {
+		arm_smccc_smc(MLXBF_BOOTCTL_SET_MFG_INFO,
+			      MLNX_MFG_TYPE_REV + word,
+			      sizeof(u64), rev[word], 0, 0, 0, 0, &res);
+		if (res.a0) {
+			mutex_unlock(&mfg_ops_lock);
+			return -EPERM;
+		}
+	}
+	mutex_unlock(&mfg_ops_lock);
+
+	return count;
+}
+
+static ssize_t mfg_lock_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct arm_smccc_res res;
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	if (val != 1)
+		return -EINVAL;
+
+	mutex_lock(&mfg_ops_lock);
+	arm_smccc_smc(MLXBF_BOOTCTL_LOCK_MFG_INFO, 0, 0, 0, 0, 0, 0, 0, &res);
+	mutex_unlock(&mfg_ops_lock);
+
+	return count;
+}
+
 static DEVICE_ATTR_RW(post_reset_wdog);
 static DEVICE_ATTR_RW(reset_action);
 static DEVICE_ATTR_RW(second_reset_action);
@@ -398,6 +883,16 @@ static DEVICE_ATTR_RO(lifecycle_state);
 static DEVICE_ATTR_RO(secure_boot_fuse_state);
 static DEVICE_ATTR_WO(fw_reset);
 static DEVICE_ATTR_WO(rsh_log);
+static DEVICE_ATTR_RW(large_icm);
+static DEVICE_ATTR_WO(os_up);
+static DEVICE_ATTR_RW(oob_mac);
+static DEVICE_ATTR_RW(opn);
+static DEVICE_ATTR_RW(sku);
+static DEVICE_ATTR_RW(modl);
+static DEVICE_ATTR_RW(sn);
+static DEVICE_ATTR_RW(uuid);
+static DEVICE_ATTR_RW(rev);
+static DEVICE_ATTR_WO(mfg_lock);
 
 static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_post_reset_wdog.attr,
@@ -407,6 +902,16 @@ static struct attribute *mlxbf_bootctl_attrs[] = {
 	&dev_attr_secure_boot_fuse_state.attr,
 	&dev_attr_fw_reset.attr,
 	&dev_attr_rsh_log.attr,
+	&dev_attr_large_icm.attr,
+	&dev_attr_os_up.attr,
+	&dev_attr_oob_mac.attr,
+	&dev_attr_opn.attr,
+	&dev_attr_sku.attr,
+	&dev_attr_modl.attr,
+	&dev_attr_sn.attr,
+	&dev_attr_uuid.attr,
+	&dev_attr_rev.attr,
+	&dev_attr_mfg_lock.attr,
 	NULL
 };
 
@@ -523,17 +1028,15 @@ static int mlxbf_bootctl_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mlxbf_bootctl_remove(struct platform_device *pdev)
+static void mlxbf_bootctl_remove(struct platform_device *pdev)
 {
 	sysfs_remove_bin_file(&pdev->dev.kobj,
 			      &mlxbf_bootctl_bootfifo_sysfs_attr);
-
-	return 0;
 }
 
 static struct platform_driver mlxbf_bootctl_driver = {
 	.probe = mlxbf_bootctl_probe,
-	.remove = mlxbf_bootctl_remove,
+	.remove_new = mlxbf_bootctl_remove,
 	.driver = {
 		.name = "mlxbf-bootctl",
 		.dev_groups = mlxbf_bootctl_groups,

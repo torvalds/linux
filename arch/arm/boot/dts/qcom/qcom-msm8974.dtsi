@@ -113,6 +113,40 @@
 		interrupts = <GIC_PPI 7 0xf04>;
 	};
 
+	rpm: remoteproc {
+		compatible = "qcom,msm8974-rpm-proc", "qcom,rpm-proc";
+
+		master-stats {
+			compatible = "qcom,rpm-master-stats";
+			qcom,rpm-msg-ram = <&apss_master_stats>,
+					   <&mpss_master_stats>,
+					   <&lpss_master_stats>,
+					   <&pronto_master_stats>;
+			qcom,master-names = "APSS",
+					    "MPSS",
+					    "LPSS",
+					    "PRONTO";
+		};
+
+		smd-edge {
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			qcom,ipc = <&apcs 8 0>;
+			qcom,smd-edge = <15>;
+
+			rpm_requests: rpm-requests {
+				compatible = "qcom,rpm-msm8974";
+				qcom,smd-channels = "rpm_requests";
+
+				rpmcc: clock-controller {
+					compatible = "qcom,rpmcc-msm8974", "qcom,rpmcc";
+					#clock-cells = <1>;
+					clocks = <&xo_board>;
+					clock-names = "xo";
+				};
+			};
+		};
+	};
+
 	reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -290,28 +324,6 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
-		};
-	};
-
-	smd {
-		compatible = "qcom,smd";
-
-		rpm {
-			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-			qcom,ipc = <&apcs 8 0>;
-			qcom,smd-edge = <15>;
-
-			rpm_requests: rpm-requests {
-				compatible = "qcom,rpm-msm8974";
-				qcom,smd-channels = "rpm_requests";
-
-				rpmcc: clock-controller {
-					compatible = "qcom,rpmcc-msm8974", "qcom,rpmcc";
-					#clock-cells = <1>;
-					clocks = <&xo_board>;
-					clock-names = "xo";
-				};
-			};
 		};
 	};
 
@@ -1067,6 +1079,26 @@
 		rpm_msg_ram: sram@fc428000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0xfc428000 0x4000>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xfc428000 0x4000>;
+
+			apss_master_stats: sram@150 {
+				reg = <0x150 0x14>;
+			};
+
+			mpss_master_stats: sram@b50 {
+				reg = <0xb50 0x14>;
+			};
+
+			lpss_master_stats: sram@1550 {
+				reg = <0x1550 0x14>;
+			};
+
+			pronto_master_stats: sram@1f50 {
+				reg = <0x1f50 0x14>;
+			};
 		};
 
 		bimc: interconnect@fc380000 {

@@ -658,7 +658,6 @@
 				interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 				#interrupt-cells = <3>;
 				interrupt-parent = <&intc>;
-				#power-domain-cells = <1>;
 
 				pgc {
 					#address-cells = <1>;
@@ -800,10 +799,8 @@
 				compatible = "fsl,imx7-csi";
 				reg = <0x30710000 0x10000>;
 				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clks IMX7D_CLK_DUMMY>,
-					 <&clks IMX7D_CSI_MCLK_ROOT_CLK>,
-					 <&clks IMX7D_CLK_DUMMY>;
-				clock-names = "axi", "mclk", "dcic";
+				clocks = <&clks IMX7D_CSI_MCLK_ROOT_CLK>;
+				clock-names = "mclk";
 				status = "disabled";
 
 				port {
@@ -1184,6 +1181,8 @@
 					<&clks IMX7D_USDHC1_ROOT_CLK>;
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
+				fsl,tuning-step = <2>;
+				fsl,tuning-start-tap = <20>;
 				status = "disabled";
 			};
 
@@ -1196,6 +1195,8 @@
 					<&clks IMX7D_USDHC2_ROOT_CLK>;
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
+				fsl,tuning-step = <2>;
+				fsl,tuning-start-tap = <20>;
 				status = "disabled";
 			};
 
@@ -1208,6 +1209,8 @@
 					<&clks IMX7D_USDHC3_ROOT_CLK>;
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
+				fsl,tuning-step = <2>;
+				fsl,tuning-start-tap = <20>;
 				status = "disabled";
 			};
 
@@ -1269,7 +1272,7 @@
 			clocks = <&clks IMX7D_NAND_USDHC_BUS_RAWNAND_CLK>;
 		};
 
-		gpmi: nand-controller@33002000{
+		gpmi: nand-controller@33002000 {
 			compatible = "fsl,imx7d-gpmi-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;

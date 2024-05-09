@@ -5091,13 +5091,10 @@ static void do_s2io_restore_unicast_mc(struct s2io_nic *sp)
 static int do_s2io_add_mc(struct s2io_nic *sp, u8 *addr)
 {
 	int i;
-	u64 mac_addr = 0;
+	u64 mac_addr;
 	struct config_param *config = &sp->config;
 
-	for (i = 0; i < ETH_ALEN; i++) {
-		mac_addr <<= 8;
-		mac_addr |= addr[i];
-	}
+	mac_addr = ether_addr_to_u64(addr);
 	if ((0ULL == mac_addr) || (mac_addr == S2IO_DISABLE_MAC_ENTRY))
 		return SUCCESS;
 
@@ -5220,7 +5217,7 @@ static int s2io_set_mac_addr(struct net_device *dev, void *p)
 static int do_s2io_prog_unicast(struct net_device *dev, const u8 *addr)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	register u64 mac_addr = 0, perm_addr = 0;
+	register u64 mac_addr, perm_addr;
 	int i;
 	u64 tmp64;
 	struct config_param *config = &sp->config;
@@ -5230,12 +5227,8 @@ static int do_s2io_prog_unicast(struct net_device *dev, const u8 *addr)
 	 * change on the device address registered with the OS. It will be
 	 * at offset 0.
 	 */
-	for (i = 0; i < ETH_ALEN; i++) {
-		mac_addr <<= 8;
-		mac_addr |= addr[i];
-		perm_addr <<= 8;
-		perm_addr |= sp->def_mac_addr[0].mac_addr[i];
-	}
+	mac_addr = ether_addr_to_u64(addr);
+	perm_addr = ether_addr_to_u64(sp->def_mac_addr[0].mac_addr);
 
 	/* check if the dev_addr is different than perm_addr */
 	if (mac_addr == perm_addr)

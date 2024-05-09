@@ -314,7 +314,6 @@
 			};
 
 			sw3a_reg: sw3a {
-				compatible = "regulator-fixed";
 				regulator-name = "DDR_1V5a";
 				regulator-boot-on;
 				regulator-always-on;
@@ -322,7 +321,6 @@
 			};
 
 			sw3b_reg: sw3b {
-				compatible = "regulator-fixed";
 				regulator-name = "DDR_1V5b";
 				regulator-boot-on;
 				regulator-always-on;

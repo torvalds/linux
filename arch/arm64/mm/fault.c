@@ -536,9 +536,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 	unsigned long vm_flags;
 	unsigned int mm_flags = FAULT_FLAG_DEFAULT;
 	unsigned long addr = untagged_addr(far);
-#ifdef CONFIG_PER_VMA_LOCK
 	struct vm_area_struct *vma;
-#endif
 
 	if (kprobe_page_fault(regs, esr))
 		return 0;
@@ -573,7 +571,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		/* Write implies read */
 		vm_flags |= VM_WRITE;
 		/* If EPAN is absent then exec implies read */
-		if (!cpus_have_const_cap(ARM64_HAS_EPAN))
+		if (!alternative_has_cap_unlikely(ARM64_HAS_EPAN))
 			vm_flags |= VM_EXEC;
 	}
 
@@ -589,7 +587,6 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 
-#ifdef CONFIG_PER_VMA_LOCK
 	if (!(mm_flags & FAULT_FLAG_USER))
 		goto lock_mmap;
 
@@ -602,7 +599,8 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		goto lock_mmap;
 	}
 	fault = handle_mm_fault(vma, addr, mm_flags | FAULT_FLAG_VMA_LOCK, regs);
-	vma_end_read(vma);
+	if (!(fault & (VM_FAULT_RETRY | VM_FAULT_COMPLETED)))
+		vma_end_read(vma);
 
 	if (!(fault & VM_FAULT_RETRY)) {
 		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
@@ -617,7 +615,6 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		return 0;
 	}
 lock_mmap:
-#endif /* CONFIG_PER_VMA_LOCK */
 
 retry:
 	vma = lock_mm_and_find_vma(mm, addr, regs);

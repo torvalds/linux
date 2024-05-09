@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB */
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2017 - 2021 Intel Corporation */
 #ifndef ICRDMA_HW_H
 #define ICRDMA_HW_H
@@ -64,6 +64,7 @@ enum icrdma_device_caps_const {
 
 	ICRDMA_MAX_IRD_SIZE			= 127,
 	ICRDMA_MAX_ORD_SIZE			= 255,
+	ICRDMA_MIN_WQ_SIZE                      = 8 /* WQEs */,
 
 };
 

@@ -115,7 +115,7 @@ static noinline void __nft_trace_verdict(const struct nft_pktinfo *pkt,
 {
 	enum nft_trace_types type;
 
-	switch (regs->verdict.code) {
+	switch (regs->verdict.code & NF_VERDICT_MASK) {
 	case NFT_CONTINUE:
 	case NFT_RETURN:
 		type = NFT_TRACETYPE_RETURN;
@@ -308,10 +308,11 @@ next_rule:
 
 	switch (regs.verdict.code & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
-	case NF_DROP:
 	case NF_QUEUE:
 	case NF_STOLEN:
 		return regs.verdict.code;
+	case NF_DROP:
+		return NF_DROP_REASON(pkt->skb, SKB_DROP_REASON_NETFILTER_DROP, EPERM);
 	}
 
 	switch (regs.verdict.code) {
@@ -341,6 +342,9 @@ next_rule:
 
 	if (static_branch_unlikely(&nft_counters_enabled))
 		nft_update_chain_stats(basechain, pkt);
+
+	if (nft_base_chain(basechain)->policy == NF_DROP)
+		return NF_DROP_REASON(pkt->skb, SKB_DROP_REASON_NETFILTER_DROP, EPERM);
 
 	return nft_base_chain(basechain)->policy;
 }

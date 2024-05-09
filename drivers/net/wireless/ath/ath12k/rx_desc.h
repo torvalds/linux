@@ -221,7 +221,7 @@ struct rx_mpdu_start_qcn9274 {
  *		PPE routing even if RXOLE CCE or flow search indicate 'Use_PPE'
  *		This is set by SW for peers which are being handled by a
  *		host SW/accelerator subsystem that also handles packet
- *		uffer management for WiFi-to-PPE routing.
+ *		buffer management for WiFi-to-PPE routing.
  *
  *		This is cleared by SW for peers which are being handled
  *		by a different subsystem, completely disabling WiFi-to-PPE
@@ -627,16 +627,17 @@ enum rx_msdu_start_reception_type {
 
 #define RX_MSDU_END_INFO5_SA_IDX_TIMEOUT	BIT(0)
 #define RX_MSDU_END_INFO5_DA_IDX_TIMEOUT	BIT(1)
-#define RX_MSDU_END_INFO5_TO_DS			BIT(2)
-#define RX_MSDU_END_INFO5_TID			GENMASK(6, 3)
 #define RX_MSDU_END_INFO5_SA_IS_VALID		BIT(7)
 #define RX_MSDU_END_INFO5_DA_IS_VALID		BIT(8)
 #define RX_MSDU_END_INFO5_DA_IS_MCBC		BIT(9)
 #define RX_MSDU_END_INFO5_L3_HDR_PADDING	GENMASK(11, 10)
 #define RX_MSDU_END_INFO5_FIRST_MSDU		BIT(12)
 #define RX_MSDU_END_INFO5_LAST_MSDU		BIT(13)
-#define RX_MSDU_END_INFO5_FROM_DS		BIT(14)
 #define RX_MSDU_END_INFO5_IP_CHKSUM_FAIL_COPY	BIT(15)
+
+#define RX_MSDU_END_QCN9274_INFO5_TO_DS         BIT(2)
+#define RX_MSDU_END_QCN9274_INFO5_TID           GENMASK(6, 3)
+#define RX_MSDU_END_QCN9274_INFO5_FROM_DS       BIT(14)
 
 #define RX_MSDU_END_INFO6_MSDU_DROP		BIT(0)
 #define RX_MSDU_END_INFO6_REO_DEST_IND		GENMASK(5, 1)
@@ -650,14 +651,15 @@ enum rx_msdu_start_reception_type {
 #define RX_MSDU_END_INFO7_AGGR_COUNT		GENMASK(7, 0)
 #define RX_MSDU_END_INFO7_FLOW_AGGR_CONTN	BIT(8)
 #define RX_MSDU_END_INFO7_FISA_TIMEOUT		BIT(9)
-#define RX_MSDU_END_INFO7_TCPUDP_CSUM_FAIL_CPY	BIT(10)
-#define RX_MSDU_END_INFO7_MSDU_LIMIT_ERROR	BIT(11)
-#define RX_MSDU_END_INFO7_FLOW_IDX_TIMEOUT	BIT(12)
-#define RX_MSDU_END_INFO7_FLOW_IDX_INVALID	BIT(13)
-#define RX_MSDU_END_INFO7_CCE_MATCH		BIT(14)
-#define RX_MSDU_END_INFO7_AMSDU_PARSER_ERR	BIT(15)
 
-#define RX_MSDU_END_INFO8_KEY_ID		GENMASK(7, 0)
+#define RX_MSDU_END_QCN9274_INFO7_TCPUDP_CSUM_FAIL_CPY	BIT(10)
+#define RX_MSDU_END_QCN9274_INFO7_MSDU_LIMIT_ERROR	BIT(11)
+#define RX_MSDU_END_QCN9274_INFO7_FLOW_IDX_TIMEOUT	BIT(12)
+#define RX_MSDU_END_QCN9274_INFO7_FLOW_IDX_INVALID	BIT(13)
+#define RX_MSDU_END_QCN9274_INFO7_CCE_MATCH		BIT(14)
+#define RX_MSDU_END_QCN9274_INFO7_AMSDU_PARSER_ERR	BIT(15)
+
+#define RX_MSDU_END_QCN9274_INFO8_KEY_ID		GENMASK(7, 0)
 
 #define RX_MSDU_END_INFO9_SERVICE_CODE		GENMASK(14, 6)
 #define RX_MSDU_END_INFO9_PRIORITY_VALID	BIT(15)
@@ -698,8 +700,9 @@ enum rx_msdu_start_reception_type {
 #define RX_MSDU_END_INFO12_RATE_MCS		GENMASK(17, 14)
 #define RX_MSDU_END_INFO12_RECV_BW		GENMASK(20, 18)
 #define RX_MSDU_END_INFO12_RECEPTION_TYPE	GENMASK(23, 21)
-#define RX_MSDU_END_INFO12_MIMO_SS_BITMAP	GENMASK(30, 24)
-#define RX_MSDU_END_INFO12_MIMO_DONE_COPY	BIT(31)
+
+#define RX_MSDU_END_QCN9274_INFO12_MIMO_SS_BITMAP	GENMASK(30, 24)
+#define RX_MSDU_END_QCN9274_INFO12_MIMO_DONE_COPY	BIT(31)
 
 #define RX_MSDU_END_INFO13_FIRST_MPDU		BIT(0)
 #define RX_MSDU_END_INFO13_MCAST_BCAST		BIT(2)
@@ -714,7 +717,6 @@ enum rx_msdu_start_reception_type {
 #define RX_MSDU_END_INFO13_EOSP			BIT(11)
 #define RX_MSDU_END_INFO13_A_MSDU_ERROR		BIT(12)
 #define RX_MSDU_END_INFO13_ORDER		BIT(14)
-#define RX_MSDU_END_INFO13_WIFI_PARSER_ERR	BIT(15)
 #define RX_MSDU_END_INFO13_OVERFLOW_ERR		BIT(16)
 #define RX_MSDU_END_INFO13_MSDU_LEN_ERR		BIT(17)
 #define RX_MSDU_END_INFO13_TCP_UDP_CKSUM_FAIL	BIT(18)
@@ -731,6 +733,8 @@ enum rx_msdu_start_reception_type {
 #define RX_MSDU_END_INFO13_DECRYPT_ERR		BIT(29)
 #define RX_MSDU_END_INFO13_UNDECRYPT_FRAME_ERR	BIT(30)
 #define RX_MSDU_END_INFO13_FCS_ERR		BIT(31)
+
+#define RX_MSDU_END_QCN9274_INFO13_WIFI_PARSER_ERR      BIT(15)
 
 #define RX_MSDU_END_INFO14_DECRYPT_STATUS_CODE	GENMASK(12, 10)
 #define RX_MSDU_END_INFO14_RX_BITMAP_NOT_UPDED	BIT(13)
@@ -778,6 +782,65 @@ struct rx_msdu_end_qcn9274 {
 	__le16 res0;
 	__le16 sa_15_0;
 	__le32 sa_47_16;
+	__le32 info13;
+	__le32 info14;
+} __packed;
+
+/* These macro definitions are only used for WCN7850 */
+#define RX_MSDU_END_WCN7850_INFO2_KEY_ID			BIT(7, 0)
+
+#define RX_MSDU_END_WCN7850_INFO5_MSDU_LIMIT_ERR		BIT(2)
+#define RX_MSDU_END_WCN7850_INFO5_IDX_TIMEOUT			BIT(3)
+#define RX_MSDU_END_WCN7850_INFO5_IDX_INVALID			BIT(4)
+#define RX_MSDU_END_WCN7850_INFO5_WIFI_PARSE_ERR		BIT(5)
+#define RX_MSDU_END_WCN7850_INFO5_AMSDU_PARSER_ERR		BIT(6)
+#define RX_MSDU_END_WCN7850_INFO5_TCPUDP_CSUM_FAIL_CPY		BIT(14)
+
+#define RX_MSDU_END_WCN7850_INFO12_MIMO_SS_BITMAP		GENMASK(31, 24)
+
+#define RX_MSDU_END_WCN7850_INFO13_FRAGMENT_FLAG		BIT(13)
+#define RX_MSDU_END_WCN7850_INFO13_CCE_MATCH			BIT(15)
+
+struct rx_msdu_end_wcn7850 {
+	__le16 info0;
+	__le16 phy_ppdu_id;
+	__le16 ip_hdr_cksum;
+	__le16 info1;
+	__le16 info2;
+	__le16 cumulative_l3_checksum;
+	__le32 rule_indication0;
+	__le32 rule_indication1;
+	__le16 info3;
+	__le16 l3_type;
+	__le32 ipv6_options_crc;
+	__le32 tcp_seq_num;
+	__le32 tcp_ack_num;
+	__le16 info4;
+	__le16 window_size;
+	__le16 tcp_udp_chksum;
+	__le16 info5;
+	__le16 sa_idx;
+	__le16 da_idx_or_sw_peer_id;
+	__le32 info6;
+	__le32 fse_metadata;
+	__le16 cce_metadata;
+	__le16 sa_sw_peer_id;
+	__le16 info7;
+	__le16 rsvd0;
+	__le16 cumulative_l4_checksum;
+	__le16 cumulative_ip_length;
+	__le32 info9;
+	__le32 info10;
+	__le32 info11;
+	__le32 toeplitz_hash_2_or_4;
+	__le32 flow_id_toeplitz;
+	__le32 info12;
+	__le32 ppdu_start_timestamp_31_0;
+	__le32 ppdu_start_timestamp_63_32;
+	__le32 phy_meta_data;
+	__le16 vlan_ctag_ci;
+	__le16 vlan_stag_ci;
+	__le32 rsvd[3];
 	__le32 info13;
 	__le32 info14;
 } __packed;
@@ -1410,7 +1473,7 @@ struct rx_pkt_hdr_tlv {
 
 struct hal_rx_desc_wcn7850 {
 	__le64 msdu_end_tag;
-	struct rx_msdu_end_qcn9274 msdu_end;
+	struct rx_msdu_end_wcn7850 msdu_end;
 	u8 rx_padding0[RX_BE_PADDING0_BYTES];
 	__le64 mpdu_start_tag;
 	struct rx_mpdu_start_qcn9274 mpdu_start;

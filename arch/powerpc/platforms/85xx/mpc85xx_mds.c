@@ -26,8 +26,8 @@
 #include <linux/seq_file.h>
 #include <linux/initrd.h>
 #include <linux/fsl_devices.h>
-#include <linux/of_platform.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/phy.h>
 #include <linux/memblock.h>
 #include <linux/fsl/guts.h>

@@ -6,7 +6,7 @@
 
 #define pr_fmt(fmt)	"[drm-dp] %s: " fmt, __func__
 
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_edid.h>

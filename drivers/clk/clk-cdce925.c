@@ -25,23 +25,9 @@
  * Model this as 2 PLL clocks which are parents to the outputs.
  */
 
-enum {
-	CDCE913,
-	CDCE925,
-	CDCE937,
-	CDCE949,
-};
-
 struct clk_cdce925_chip_info {
 	int num_plls;
 	int num_outputs;
-};
-
-static const struct clk_cdce925_chip_info clk_cdce925_chip_info_tbl[] = {
-	[CDCE913] = { .num_plls = 1, .num_outputs = 3 },
-	[CDCE925] = { .num_plls = 2, .num_outputs = 5 },
-	[CDCE937] = { .num_plls = 3, .num_outputs = 7 },
-	[CDCE949] = { .num_plls = 4, .num_outputs = 9 },
 };
 
 #define MAX_NUMBER_OF_PLLS	4
@@ -621,20 +607,10 @@ static struct regmap_bus regmap_cdce925_bus = {
 	.read = cdce925_regmap_i2c_read,
 };
 
-static const struct i2c_device_id cdce925_id[] = {
-	{ "cdce913", CDCE913 },
-	{ "cdce925", CDCE925 },
-	{ "cdce937", CDCE937 },
-	{ "cdce949", CDCE949 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, cdce925_id);
-
 static int cdce925_probe(struct i2c_client *client)
 {
 	struct clk_cdce925_chip *data;
 	struct device_node *node = client->dev.of_node;
-	const struct i2c_device_id *id = i2c_match_id(cdce925_id, client);
 	const char *parent_name;
 	const char *pll_clk_name[MAX_NUMBER_OF_PLLS] = {NULL,};
 	struct clk_init_data init;
@@ -647,7 +623,7 @@ static int cdce925_probe(struct i2c_client *client)
 		.name = "configuration0",
 		.reg_bits = 8,
 		.val_bits = 8,
-		.cache_type = REGCACHE_RBTREE,
+		.cache_type = REGCACHE_MAPLE,
 	};
 
 	dev_dbg(&client->dev, "%s\n", __func__);
@@ -665,7 +641,7 @@ static int cdce925_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->i2c_client = client;
-	data->chip_info = &clk_cdce925_chip_info_tbl[id->driver_data];
+	data->chip_info = i2c_get_match_data(client);
 	config.max_register = CDCE925_OFFSET_PLL +
 		data->chip_info->num_plls * 0x10 - 1;
 	data->regmap = devm_regmap_init(&client->dev, &regmap_cdce925_bus,
@@ -822,19 +798,48 @@ error:
 	return err;
 }
 
+static const struct clk_cdce925_chip_info clk_cdce913_info = {
+	.num_plls = 1,
+	.num_outputs = 3,
+};
+
+static const struct clk_cdce925_chip_info clk_cdce925_info = {
+	.num_plls = 2,
+	.num_outputs = 5,
+};
+
+static const struct clk_cdce925_chip_info clk_cdce937_info = {
+	.num_plls = 3,
+	.num_outputs = 7,
+};
+
+static const struct clk_cdce925_chip_info clk_cdce949_info = {
+	.num_plls = 4,
+	.num_outputs = 9,
+};
+
+static const struct i2c_device_id cdce925_id[] = {
+	{ "cdce913", (kernel_ulong_t)&clk_cdce913_info },
+	{ "cdce925", (kernel_ulong_t)&clk_cdce925_info },
+	{ "cdce937", (kernel_ulong_t)&clk_cdce937_info },
+	{ "cdce949", (kernel_ulong_t)&clk_cdce949_info },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, cdce925_id);
+
 static const struct of_device_id clk_cdce925_of_match[] = {
-	{ .compatible = "ti,cdce913" },
-	{ .compatible = "ti,cdce925" },
-	{ .compatible = "ti,cdce937" },
-	{ .compatible = "ti,cdce949" },
-	{ },
+	{ .compatible = "ti,cdce913", .data = &clk_cdce913_info },
+	{ .compatible = "ti,cdce925", .data = &clk_cdce925_info },
+	{ .compatible = "ti,cdce937", .data = &clk_cdce937_info },
+	{ .compatible = "ti,cdce949", .data = &clk_cdce949_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_cdce925_of_match);
 
 static struct i2c_driver cdce925_driver = {
 	.driver = {
 		.name = "cdce925",
-		.of_match_table = of_match_ptr(clk_cdce925_of_match),
+		.of_match_table = clk_cdce925_of_match,
 	},
 	.probe		= cdce925_probe,
 	.id_table	= cdce925_id,

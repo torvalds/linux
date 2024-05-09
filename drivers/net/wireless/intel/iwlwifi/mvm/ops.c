@@ -322,6 +322,19 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_NO_SIZE(STATISTICS_NOTIFICATION, iwl_mvm_rx_statistics,
 			   RX_HANDLER_ASYNC_LOCKED),
 
+	RX_HANDLER_GRP(STATISTICS_GROUP, STATISTICS_OPER_NOTIF,
+		       iwl_mvm_handle_rx_system_oper_stats,
+		       RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_system_statistics_notif_oper),
+	RX_HANDLER_GRP(STATISTICS_GROUP, STATISTICS_OPER_PART1_NOTIF,
+		       iwl_mvm_handle_rx_system_oper_part1_stats,
+		       RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_system_statistics_part1_notif_oper),
+	RX_HANDLER_GRP(SYSTEM_GROUP, SYSTEM_STATISTICS_END_NOTIF,
+		       iwl_mvm_handle_rx_system_end_stats_notif,
+		       RX_HANDLER_ASYNC_LOCKED,
+		       struct iwl_system_statistics_end_notif),
+
 	RX_HANDLER(BA_WINDOW_STATUS_NOTIFICATION_ID,
 		   iwl_mvm_window_status_notif, RX_HANDLER_SYNC,
 		   struct iwl_ba_window_status_notif),
@@ -426,6 +439,9 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION,
 		       iwl_mvm_time_sync_msmt_confirm_event, RX_HANDLER_SYNC,
 		       struct iwl_time_msmt_cfm_notify),
+	RX_HANDLER_GRP(MAC_CONF_GROUP, ROC_NOTIF,
+		       iwl_mvm_rx_roc_notif, RX_HANDLER_SYNC,
+		       struct iwl_roc_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -535,6 +551,8 @@ static const struct iwl_hcmd_names iwl_mvm_system_names[] = {
 	HCMD_NAME(RFI_GET_FREQ_TABLE_CMD),
 	HCMD_NAME(SYSTEM_FEATURES_CONTROL_CMD),
 	HCMD_NAME(RFI_DEACTIVATE_NOTIF),
+	HCMD_NAME(SYSTEM_STATISTICS_CMD),
+	HCMD_NAME(SYSTEM_STATISTICS_END_NOTIF),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -549,6 +567,8 @@ static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
 	HCMD_NAME(AUX_STA_CMD),
 	HCMD_NAME(STA_REMOVE_CMD),
 	HCMD_NAME(STA_DISABLE_TX_CMD),
+	HCMD_NAME(ROC_CMD),
+	HCMD_NAME(ROC_NOTIF),
 	HCMD_NAME(SESSION_PROTECTION_NOTIF),
 	HCMD_NAME(CHANNEL_SWITCH_START_NOTIF),
 };
@@ -584,6 +604,14 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),
+};
+
+/* Please keep this array *SORTED* by hex value.
+ * Access is done through binary search
+ */
+static const struct iwl_hcmd_names iwl_mvm_statistics_names[] = {
+	HCMD_NAME(STATISTICS_OPER_NOTIF),
+	HCMD_NAME(STATISTICS_OPER_PART1_NOTIF),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -640,6 +668,7 @@ static const struct iwl_hcmd_arr iwl_mvm_groups[] = {
 	[PROT_OFFLOAD_GROUP] = HCMD_ARR(iwl_mvm_prot_offload_names),
 	[REGULATORY_AND_NVM_GROUP] =
 		HCMD_ARR(iwl_mvm_regulatory_and_nvm_names),
+	[STATISTICS_GROUP] = HCMD_ARR(iwl_mvm_statistics_names),
 };
 
 /* this forward declaration can avoid to export the function */
@@ -751,7 +780,10 @@ static int iwl_mvm_start_get_nvm(struct iwl_mvm *mvm)
 			 */
 			mvm->nvm_data =
 				iwl_parse_mei_nvm_data(trans, trans->cfg,
-						       mvm->mei_nvm_data, mvm->fw);
+						       mvm->mei_nvm_data,
+						       mvm->fw,
+						       mvm->set_tx_ant,
+						       mvm->set_rx_ant);
 			return 0;
 		}
 
@@ -789,6 +821,9 @@ get_nvm_from_fw:
 
 	if (ret)
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+
+	/* no longer need this regardless of failure or not */
+	mvm->pldr_sync = false;
 
 	return ret;
 }
@@ -1136,7 +1171,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		return NULL;
 
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		max_agg = IEEE80211_MAX_AMPDU_BUF_EHT;
+		max_agg = 512;
 	else
 		max_agg = IEEE80211_MAX_AMPDU_BUF_HE;
 
@@ -1298,7 +1333,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	snprintf(mvm->hw->wiphy->fw_version,
 		 sizeof(mvm->hw->wiphy->fw_version),
-		 "%s", fw->fw_version);
+		 "%.31s", fw->fw_version);
 
 	trans_cfg.fw_reset_handshake = fw_has_capa(&mvm->fw->ucode_capa,
 						   IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE);
@@ -1943,9 +1978,6 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode, bool sync)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-
-	if (mvm->pldr_sync)
-		return;
 
 	if (!test_bit(STATUS_TRANS_DEAD, &mvm->trans->status) &&
 	    !test_and_clear_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,

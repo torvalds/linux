@@ -60,7 +60,7 @@ struct reset_control {
 struct reset_control_array {
 	struct reset_control base;
 	unsigned int num_rstcs;
-	struct reset_control *rstc[];
+	struct reset_control *rstc[] __counted_by(num_rstcs);
 };
 
 static const char *rcdev_name(struct reset_controller_dev *rcdev)
@@ -1185,6 +1185,7 @@ of_reset_control_array_get(struct device_node *np, bool shared, bool optional,
 	resets = kzalloc(struct_size(resets, rstc, num), GFP_KERNEL);
 	if (!resets)
 		return ERR_PTR(-ENOMEM);
+	resets->num_rstcs = num;
 
 	for (i = 0; i < num; i++) {
 		rstc = __of_reset_control_get(np, NULL, i, shared, optional,
@@ -1193,7 +1194,6 @@ of_reset_control_array_get(struct device_node *np, bool shared, bool optional,
 			goto err_rst;
 		resets->rstc[i] = rstc;
 	}
-	resets->num_rstcs = num;
 	resets->base.array = true;
 
 	return &resets->base;

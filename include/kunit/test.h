@@ -12,6 +12,7 @@
 #include <kunit/assert.h>
 #include <kunit/try-catch.h>
 
+#include <linux/args.h>
 #include <linux/compiler.h>
 #include <linux/container_of.h>
 #include <linux/err.h>
@@ -32,9 +33,7 @@
 DECLARE_STATIC_KEY_FALSE(kunit_running);
 
 struct kunit;
-
-/* Size of log associated with test. */
-#define KUNIT_LOG_SIZE 2048
+struct string_stream;
 
 /* Maximum size of parameter description string. */
 #define KUNIT_PARAM_DESC_SIZE 128
@@ -63,12 +62,35 @@ enum kunit_status {
 	KUNIT_SKIPPED,
 };
 
+/* Attribute struct/enum definitions */
+
+/*
+ * Speed Attribute is stored as an enum and separated into categories of
+ * speed: very_slowm, slow, and normal. These speeds are relative to
+ * other KUnit tests.
+ *
+ * Note: unset speed attribute acts as default of KUNIT_SPEED_NORMAL.
+ */
+enum kunit_speed {
+	KUNIT_SPEED_UNSET,
+	KUNIT_SPEED_VERY_SLOW,
+	KUNIT_SPEED_SLOW,
+	KUNIT_SPEED_NORMAL,
+	KUNIT_SPEED_MAX = KUNIT_SPEED_NORMAL,
+};
+
+/* Holds attributes for each test case and suite */
+struct kunit_attributes {
+	enum kunit_speed speed;
+};
+
 /**
  * struct kunit_case - represents an individual test case.
  *
  * @run_case: the function representing the actual test case.
  * @name:     the name of the test case.
  * @generate_params: the generator function for parameterized tests.
+ * @attr:     the attributes associated with the test
  *
  * A test case is a function with the signature,
  * ``void (*)(struct kunit *)``
@@ -104,10 +126,12 @@ struct kunit_case {
 	void (*run_case)(struct kunit *test);
 	const char *name;
 	const void* (*generate_params)(const void *prev, char *desc);
+	struct kunit_attributes attr;
 
 	/* private: internal use only. */
 	enum kunit_status status;
-	char *log;
+	char *module_name;
+	struct string_stream *log;
 };
 
 static inline char *kunit_status_to_ok_not_ok(enum kunit_status status)
@@ -131,7 +155,32 @@ static inline char *kunit_status_to_ok_not_ok(enum kunit_status status)
  * &struct kunit_case object from it. See the documentation for
  * &struct kunit_case for an example on how to use it.
  */
-#define KUNIT_CASE(test_name) { .run_case = test_name, .name = #test_name }
+#define KUNIT_CASE(test_name)			\
+		{ .run_case = test_name, .name = #test_name,	\
+		  .module_name = KBUILD_MODNAME}
+
+/**
+ * KUNIT_CASE_ATTR - A helper for creating a &struct kunit_case
+ * with attributes
+ *
+ * @test_name: a reference to a test case function.
+ * @attributes: a reference to a struct kunit_attributes object containing
+ * test attributes
+ */
+#define KUNIT_CASE_ATTR(test_name, attributes)			\
+		{ .run_case = test_name, .name = #test_name,	\
+		  .attr = attributes, .module_name = KBUILD_MODNAME}
+
+/**
+ * KUNIT_CASE_SLOW - A helper for creating a &struct kunit_case
+ * with the slow attribute
+ *
+ * @test_name: a reference to a test case function.
+ */
+
+#define KUNIT_CASE_SLOW(test_name)			\
+		{ .run_case = test_name, .name = #test_name,	\
+		  .attr.speed = KUNIT_SPEED_SLOW, .module_name = KBUILD_MODNAME}
 
 /**
  * KUNIT_CASE_PARAM - A helper for creation a parameterized &struct kunit_case
@@ -152,7 +201,21 @@ static inline char *kunit_status_to_ok_not_ok(enum kunit_status status)
  */
 #define KUNIT_CASE_PARAM(test_name, gen_params)			\
 		{ .run_case = test_name, .name = #test_name,	\
-		  .generate_params = gen_params }
+		  .generate_params = gen_params, .module_name = KBUILD_MODNAME}
+
+/**
+ * KUNIT_CASE_PARAM_ATTR - A helper for creating a parameterized &struct
+ * kunit_case with attributes
+ *
+ * @test_name: a reference to a test case function.
+ * @gen_params: a reference to a parameter generator function.
+ * @attributes: a reference to a struct kunit_attributes object containing
+ * test attributes
+ */
+#define KUNIT_CASE_PARAM_ATTR(test_name, gen_params, attributes)	\
+		{ .run_case = test_name, .name = #test_name,	\
+		  .generate_params = gen_params,				\
+		  .attr = attributes, .module_name = KBUILD_MODNAME}
 
 /**
  * struct kunit_suite - describes a related collection of &struct kunit_case
@@ -163,6 +226,7 @@ static inline char *kunit_status_to_ok_not_ok(enum kunit_status status)
  * @init:	called before every test case.
  * @exit:	called after every test case.
  * @test_cases:	a null terminated array of test cases.
+ * @attr:	the attributes associated with the test suite
  *
  * A kunit_suite is a collection of related &struct kunit_case s, such that
  * @init is called before every test case and @exit is called after every
@@ -182,12 +246,19 @@ struct kunit_suite {
 	int (*init)(struct kunit *test);
 	void (*exit)(struct kunit *test);
 	struct kunit_case *test_cases;
+	struct kunit_attributes attr;
 
 	/* private: internal use only */
 	char status_comment[KUNIT_STATUS_COMMENT_SIZE];
 	struct dentry *debugfs;
-	char *log;
+	struct string_stream *log;
 	int suite_init_err;
+};
+
+/* Stores an array of suites, end points one past the end */
+struct kunit_suite_set {
+	struct kunit_suite * const *start;
+	struct kunit_suite * const *end;
 };
 
 /**
@@ -206,7 +277,7 @@ struct kunit {
 
 	/* private: internal use only. */
 	const char *name; /* Read only after initialization! */
-	char *log; /* Points at case log after initialization */
+	struct string_stream *log; /* Points at case log after initialization */
 	struct kunit_try_catch try_catch;
 	/* param_value is the current parameter value for a test case. */
 	const void *param_value;
@@ -237,8 +308,12 @@ static inline void kunit_set_failure(struct kunit *test)
 }
 
 bool kunit_enabled(void);
+const char *kunit_action(void);
+const char *kunit_filter_glob(void);
+char *kunit_filter(void);
+char *kunit_filter_action(void);
 
-void kunit_init_test(struct kunit *test, const char *name, char *log);
+void kunit_init_test(struct kunit *test, const char *name, struct string_stream *log);
 
 int kunit_run_tests(struct kunit_suite *suite);
 
@@ -247,9 +322,20 @@ size_t kunit_suite_num_test_cases(struct kunit_suite *suite);
 unsigned int kunit_test_case_num(struct kunit_suite *suite,
 				 struct kunit_case *test_case);
 
+struct kunit_suite_set
+kunit_filter_suites(const struct kunit_suite_set *suite_set,
+		    const char *filter_glob,
+		    char *filters,
+		    char *filter_action,
+		    int *err);
+void kunit_free_suite_set(struct kunit_suite_set suite_set);
+
 int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites);
 
 void __kunit_test_suites_exit(struct kunit_suite **suites, int num_suites);
+
+void kunit_exec_run_tests(struct kunit_suite_set *suite_set, bool builtin);
+void kunit_exec_list_tests(struct kunit_suite_set *suite_set, bool include_attr);
 
 #if IS_BUILTIN(CONFIG_KUNIT)
 int kunit_run_all_tests(void);
@@ -385,7 +471,7 @@ static inline void *kunit_kcalloc(struct kunit *test, size_t n, size_t size, gfp
 
 void kunit_cleanup(struct kunit *test);
 
-void __printf(2, 3) kunit_log_append(char *log, const char *fmt, ...);
+void __printf(2, 3) kunit_log_append(struct string_stream *log, const char *fmt, ...);
 
 /**
  * kunit_mark_skipped() - Marks @test_or_suite as skipped

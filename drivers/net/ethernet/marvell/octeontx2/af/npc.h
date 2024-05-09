@@ -184,6 +184,7 @@ enum key_fields {
 	NPC_VLAN_ETYPE_CTAG, /* 0x8100 */
 	NPC_VLAN_ETYPE_STAG, /* 0x88A8 */
 	NPC_OUTER_VID,
+	NPC_INNER_VID,
 	NPC_TOS,
 	NPC_IPFRAG_IPV4,
 	NPC_SIP_IPV4,
@@ -204,6 +205,15 @@ enum key_fields {
 	NPC_DPORT_UDP,
 	NPC_SPORT_SCTP,
 	NPC_DPORT_SCTP,
+	NPC_IPSEC_SPI,
+	NPC_MPLS1_LBTCBOS,
+	NPC_MPLS1_TTL,
+	NPC_MPLS2_LBTCBOS,
+	NPC_MPLS2_TTL,
+	NPC_MPLS3_LBTCBOS,
+	NPC_MPLS3_TTL,
+	NPC_MPLS4_LBTCBOS,
+	NPC_MPLS4_TTL,
 	NPC_HEADER_FIELDS_MAX,
 	NPC_CHAN = NPC_HEADER_FIELDS_MAX, /* Valid when Rx */
 	NPC_PF_FUNC, /* Valid when Tx */
@@ -229,6 +239,8 @@ enum key_fields {
 	NPC_VLAN_TAG1,
 	/* outer vlan tci for double tagged frame */
 	NPC_VLAN_TAG2,
+	/* inner vlan tci for double tagged frame */
+	NPC_VLAN_TAG3,
 	/* other header fields programmed to extract but not of our interest */
 	NPC_UNKNOWN,
 	NPC_KEY_FIELDS_MAX,

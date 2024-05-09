@@ -516,17 +516,6 @@ static int kx022a_read_raw(struct iio_dev *idev,
 	return -EINVAL;
 };
 
-static int kx022a_validate_trigger(struct iio_dev *idev,
-				   struct iio_trigger *trig)
-{
-	struct kx022a_data *data = iio_priv(idev);
-
-	if (data->trig != trig)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int kx022a_set_watermark(struct iio_dev *idev, unsigned int val)
 {
 	struct kx022a_data *data = iio_priv(idev);
@@ -725,7 +714,7 @@ static const struct iio_info kx022a_info = {
 	.write_raw = &kx022a_write_raw,
 	.read_avail = &kx022a_read_avail,
 
-	.validate_trigger	= kx022a_validate_trigger,
+	.validate_trigger	= iio_validate_own_trigger,
 	.hwfifo_set_watermark	= kx022a_set_watermark,
 	.hwfifo_flush_to_buffer	= kx022a_fifo_flush,
 };

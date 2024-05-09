@@ -487,7 +487,7 @@ static struct sock *nr_make_new(struct sock *osk)
 	sock_init_data(NULL, sk);
 
 	sk->sk_type     = osk->sk_type;
-	sk->sk_priority = osk->sk_priority;
+	sk->sk_priority = READ_ONCE(osk->sk_priority);
 	sk->sk_protocol = osk->sk_protocol;
 	sk->sk_rcvbuf   = osk->sk_rcvbuf;
 	sk->sk_sndbuf   = osk->sk_sndbuf;
@@ -657,6 +657,11 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 
 	if (sk->sk_state == TCP_ESTABLISHED) {
 		err = -EISCONN;	/* No reconnect on a seqpacket socket */
+		goto out_release;
+	}
+
+	if (sock->state == SS_CONNECTING) {
+		err = -EALREADY;
 		goto out_release;
 	}
 

@@ -29,20 +29,20 @@ static const struct sof_dev_desc mtl_desc = {
 	.resindex_imr_base      = -1,
 	.irqindex_host_ipc      = -1,
 	.chip_info = &mtl_chip_info,
-	.ipc_supported_mask	= BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_INTEL_IPC4,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_4,
 	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
-		[SOF_INTEL_IPC4] = "intel/sof-ipc4/mtl",
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4/mtl",
 	},
 	.default_lib_path = {
-		[SOF_INTEL_IPC4] = "intel/sof-ipc4-lib/mtl",
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-lib/mtl",
 	},
 	.default_tplg_path = {
-		[SOF_INTEL_IPC4] = "intel/sof-ace-tplg",
+		[SOF_IPC_TYPE_4] = "intel/sof-ace-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_INTEL_IPC4] = "sof-mtl.ri",
+		[SOF_IPC_TYPE_4] = "sof-mtl.ri",
 	},
 	.nocodec_tplg_filename = "sof-mtl-nocodec.tplg",
 	.ops = &sof_mtl_ops,
@@ -50,10 +50,40 @@ static const struct sof_dev_desc mtl_desc = {
 	.ops_free = hda_ops_free,
 };
 
+static const struct sof_dev_desc arl_desc = {
+	.use_acpi_target_states = true,
+	.machines               = snd_soc_acpi_intel_arl_machines,
+	.alt_machines           = snd_soc_acpi_intel_arl_sdw_machines,
+	.resindex_lpe_base      = 0,
+	.resindex_pcicfg_base   = -1,
+	.resindex_imr_base      = -1,
+	.irqindex_host_ipc      = -1,
+	.chip_info = &mtl_chip_info,
+	.ipc_supported_mask     = BIT(SOF_IPC_TYPE_4),
+	.ipc_default            = SOF_IPC_TYPE_4,
+	.dspless_mode_supported = true,         /* Only supported for HDaudio */
+	.default_fw_path = {
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4/arl",
+	},
+	.default_lib_path = {
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-lib/arl",
+	},
+	.default_tplg_path = {
+		[SOF_IPC_TYPE_4] = "intel/sof-ace-tplg",
+	},
+	.default_fw_filename = {
+		[SOF_IPC_TYPE_4] = "sof-arl.ri",
+	},
+	.nocodec_tplg_filename = "sof-arl-nocodec.tplg",
+	.ops = &sof_mtl_ops,
+	.ops_init = sof_mtl_ops_init,
+	.ops_free = hda_ops_free,
+};
+
 /* PCI IDs */
 static const struct pci_device_id sof_pci_ids[] = {
-	{ PCI_DEVICE(0x8086, 0x7E28), /* MTL */
-		.driver_data = (unsigned long)&mtl_desc},
+	{ PCI_DEVICE_DATA(INTEL, HDA_MTL, &mtl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ARL_S, &arl_desc) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sof_pci_ids);

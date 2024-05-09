@@ -185,15 +185,22 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_SUPPORT_1G_BIT		BIT(0)
 #define HCLGE_SUPPORT_10G_BIT		BIT(1)
 #define HCLGE_SUPPORT_25G_BIT		BIT(2)
-#define HCLGE_SUPPORT_50G_BIT		BIT(3)
-#define HCLGE_SUPPORT_100G_BIT		BIT(4)
+#define HCLGE_SUPPORT_50G_R2_BIT	BIT(3)
+#define HCLGE_SUPPORT_100G_R4_BIT	BIT(4)
 /* to be compatible with exsit board */
 #define HCLGE_SUPPORT_40G_BIT		BIT(5)
 #define HCLGE_SUPPORT_100M_BIT		BIT(6)
 #define HCLGE_SUPPORT_10M_BIT		BIT(7)
 #define HCLGE_SUPPORT_200G_BIT		BIT(8)
+#define HCLGE_SUPPORT_50G_R1_BIT	BIT(9)
+#define HCLGE_SUPPORT_100G_R2_BIT	BIT(10)
+
 #define HCLGE_SUPPORT_GE \
 	(HCLGE_SUPPORT_1G_BIT | HCLGE_SUPPORT_100M_BIT | HCLGE_SUPPORT_10M_BIT)
+#define HCLGE_SUPPORT_50G_BITS \
+	(HCLGE_SUPPORT_50G_R2_BIT | HCLGE_SUPPORT_50G_R1_BIT)
+#define HCLGE_SUPPORT_100G_BITS \
+	(HCLGE_SUPPORT_100G_R4_BIT | HCLGE_SUPPORT_100G_R2_BIT)
 
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
@@ -919,8 +926,6 @@ struct hclge_dev {
 
 #define HCLGE_FLAG_MAIN			BIT(0)
 #define HCLGE_FLAG_DCB_CAPABLE		BIT(1)
-#define HCLGE_FLAG_DCB_ENABLE		BIT(2)
-#define HCLGE_FLAG_MQPRIO_ENABLE	BIT(3)
 	u32 flag;
 
 	u32 pkt_buf_size; /* Total pf buf size for tx/rx */
@@ -1078,6 +1083,11 @@ struct hclge_mac_speed_map {
 	u32 speed_fw; /* speed defined in firmware */
 };
 
+struct hclge_link_mode_bmap {
+	u16 support_bit;
+	enum ethtool_link_mode_bit_indices link_mode;
+};
+
 int hclge_set_vport_promisc_mode(struct hclge_vport *vport, bool en_uc_pmc,
 				 bool en_mc_pmc, bool en_bc_pmc);
 int hclge_add_uc_addr_common(struct hclge_vport *vport,
@@ -1142,13 +1152,12 @@ int hclge_push_vf_port_base_vlan_info(struct hclge_vport *vport, u8 vfid,
 				      u16 state,
 				      struct hclge_vlan_info *vlan_info);
 void hclge_task_schedule(struct hclge_dev *hdev, unsigned long delay_time);
-int hclge_query_bd_num_cmd_send(struct hclge_dev *hdev,
-				struct hclge_desc *desc);
 void hclge_report_hw_error(struct hclge_dev *hdev,
 			   enum hnae3_hw_error_type type);
-void hclge_inform_vf_promisc_info(struct hclge_vport *vport);
 int hclge_dbg_dump_rst_info(struct hclge_dev *hdev, char *buf, int len);
 int hclge_push_vf_link_status(struct hclge_vport *vport);
 int hclge_enable_vport_vlan_filter(struct hclge_vport *vport, bool request_en);
 int hclge_mac_update_stats(struct hclge_dev *hdev);
+struct hclge_vport *hclge_get_vf_vport(struct hclge_dev *hdev, int vf);
+int hclge_inform_vf_reset(struct hclge_vport *vport, u16 reset_type);
 #endif

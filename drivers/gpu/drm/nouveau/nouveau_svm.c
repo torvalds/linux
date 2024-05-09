@@ -67,7 +67,7 @@ struct nouveau_svm {
 			struct nouveau_svmm *svmm;
 		} **fault;
 		int fault_nr;
-	} buffer[1];
+	} buffer[];
 };
 
 #define FAULT_ACCESS_READ 0
@@ -350,7 +350,7 @@ nouveau_svmm_init(struct drm_device *dev, void *data,
 	 * VMM instead of the standard one.
 	 */
 	ret = nvif_vmm_ctor(&cli->mmu, "svmVmm",
-			    cli->vmm.vmm.object.oclass, true,
+			    cli->vmm.vmm.object.oclass, MANAGED,
 			    args->unmanaged_addr, args->unmanaged_size,
 			    &(struct gp100_vmm_v0) {
 				.fault_replay = true,
@@ -1063,7 +1063,8 @@ nouveau_svm_init(struct nouveau_drm *drm)
 	if (drm->client.device.info.family > NV_DEVICE_INFO_V0_PASCAL)
 		return;
 
-	if (!(drm->svm = svm = kzalloc(sizeof(*drm->svm), GFP_KERNEL)))
+	drm->svm = svm = kzalloc(struct_size(drm->svm, buffer, 1), GFP_KERNEL);
+	if (!drm->svm)
 		return;
 
 	drm->svm->drm = drm;

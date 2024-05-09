@@ -101,7 +101,8 @@
 		compatible = "operating-points-v2-ti-cpu";
 		syscon = <&scm_wkup>;
 
-		opp_nom-1000000000 {
+		opp-1000000000 {
+			/* OPP NOM */
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <1060000 850000 1150000>,
 					<1060000 850000 1150000>;
@@ -109,7 +110,8 @@
 			opp-suspend;
 		};
 
-		opp_od-1176000000 {
+		opp-1176000000 {
+			/* OPP OD */
 			opp-hz = /bits/ 64 <1176000000>;
 			opp-microvolt = <1160000 885000 1160000>,
 					<1160000 885000 1160000>;
@@ -117,7 +119,8 @@
 			opp-supported-hw = <0xFF 0x02>;
 		};
 
-		opp_high@1500000000 {
+		opp-1500000000 {
+			/* OPP High */
 			opp-hz = /bits/ 64 <1500000000>;
 			opp-microvolt = <1210000 950000 1250000>,
 					<1210000 950000 1250000>;

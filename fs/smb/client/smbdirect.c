@@ -1401,10 +1401,13 @@ create_conn:
 	server->smbd_conn = smbd_get_connection(
 		server, (struct sockaddr *) &server->dstaddr);
 
-	if (server->smbd_conn)
+	if (server->smbd_conn) {
 		cifs_dbg(VFS, "RDMA transport re-established\n");
-
-	return server->smbd_conn ? 0 : -ENOENT;
+		trace_smb3_smbd_connect_done(server->hostname, server->conn_id, &server->dstaddr);
+		return 0;
+	}
+	trace_smb3_smbd_connect_err(server->hostname, server->conn_id, &server->dstaddr);
+	return -ENOENT;
 }
 
 static void destroy_caches_and_workqueue(struct smbd_connection *info)
@@ -2500,7 +2503,7 @@ static ssize_t smb_extract_kvec_to_rdma(struct iov_iter *iter,
 			if (is_vmalloc_or_module_addr((void *)kaddr))
 				page = vmalloc_to_page((void *)kaddr);
 			else
-				page = virt_to_page(kaddr);
+				page = virt_to_page((void *)kaddr);
 
 			if (!smb_set_sge(rdma, page, off, seg))
 				return -EIO;

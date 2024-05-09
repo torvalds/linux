@@ -38,7 +38,11 @@ enum {
 
 static DEFINE_SPINLOCK(ndtest_lock);
 static struct ndtest_priv *instances[NUM_INSTANCES];
-static struct class *ndtest_dimm_class;
+
+static const struct class ndtest_dimm_class = {
+	.name = "nfit_test_dimm",
+};
+
 static struct gen_pool *ndtest_pool;
 
 static struct ndtest_dimm dimm_group1[] = {
@@ -737,7 +741,7 @@ static int ndtest_dimm_register(struct ndtest_priv *priv,
 		return -ENXIO;
 	}
 
-	dimm->dev = device_create_with_groups(ndtest_dimm_class,
+	dimm->dev = device_create_with_groups(&ndtest_dimm_class,
 					     &priv->pdev.dev,
 					     0, dimm, dimm_attribute_groups,
 					     "test_dimm%d", id);
@@ -906,8 +910,7 @@ static void cleanup_devices(void)
 		gen_pool_destroy(ndtest_pool);
 
 
-	if (ndtest_dimm_class)
-		class_destroy(ndtest_dimm_class);
+	class_unregister(&ndtest_dimm_class);
 }
 
 static __init int ndtest_init(void)
@@ -921,11 +924,9 @@ static __init int ndtest_init(void)
 
 	nfit_test_setup(ndtest_resource_lookup, NULL);
 
-	ndtest_dimm_class = class_create("nfit_test_dimm");
-	if (IS_ERR(ndtest_dimm_class)) {
-		rc = PTR_ERR(ndtest_dimm_class);
+	rc = class_regster(&ndtest_dimm_class);
+	if (rc)
 		goto err_register;
-	}
 
 	ndtest_pool = gen_pool_create(ilog2(SZ_4M), NUMA_NO_NODE);
 	if (!ndtest_pool) {

@@ -5,9 +5,14 @@
 
 /dts-v1/;
 
+/* PM7250B is configured to use SID2/3 */
+#define PM7250B_SID 2
+#define PM7250B_SID1 3
+
 /* PMK8350 (in reality a PMK8003) is configured to use SID6 instead of 0 */
 #define PMK8350_SID 6
 
+#include <dt-bindings/firmware/qcom,scm.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
 #include <dt-bindings/input/input.h>
@@ -75,7 +80,7 @@
 			no-map;
 
 			qcom,client-id = <1>;
-			qcom,vmid = <15>;
+			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
 		};
 	};
 
@@ -386,36 +391,10 @@
 };
 
 &i2c10 {
-	clock-frequency = <400000>;
-	status = "okay";
-
 	/* PM8008 PMIC @ 8 and 9 */
 	/* PX8618 @ 26 */
 	/* SMB1395 PMIC @ 34 */
-
-	haptics@5a {
-		compatible = "awinic,aw8695";
-		reg = <0x5a>;
-		interrupts-extended = <&tlmm 85 IRQ_TYPE_EDGE_FALLING>;
-		reset-gpios = <&tlmm 90 GPIO_ACTIVE_HIGH>;
-
-		awinic,f0-preset = <2350>;
-		awinic,f0-coefficient = <260>;
-		awinic,f0-calibration-percent = <7>;
-		awinic,drive-level = <125>;
-
-		awinic,f0-detection-play-time = <5>;
-		awinic,f0-detection-wait-time = <3>;
-		awinic,f0-detection-repeat = <2>;
-		awinic,f0-detection-trace = <15>;
-
-		awinic,boost-debug = /bits/ 8 <0x30 0xeb 0xd4>;
-		awinic,tset = /bits/ 8 <0x12>;
-		awinic,r-spare = /bits/ 8 <0x68>;
-
-		awinic,bemf-upper-threshold = <4104>;
-		awinic,bemf-lower-threshold = <1016>;
-	};
+	/* awinic,aw8695 @ 5a */
 };
 
 &ipa {
@@ -476,7 +455,7 @@
 };
 
 &pm7250b_adc {
-	adc-chan@4d {
+	channel@4d {
 		reg = <ADC5_AMUX_THM1_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
@@ -484,7 +463,7 @@
 		label = "charger_skin_therm";
 	};
 
-	adc-chan@4f {
+	channel@4f {
 		reg = <ADC5_AMUX_THM3_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
@@ -516,7 +495,7 @@
 };
 
 &pmk8350_vadc {
-	adc-chan@644 {
+	channel@644 {
 		reg = <PMK8350_ADC7_AMUX_THM1_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;

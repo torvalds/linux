@@ -9,6 +9,7 @@ ALL_TESTS="
 	locked_port_mab_roam
 	locked_port_mab_config
 	locked_port_mab_flush
+	locked_port_mab_redirect
 "
 
 NUM_NETIFS=4
@@ -317,6 +318,41 @@ locked_port_mab_flush()
 	bridge link set dev $swp1 learning off locked off mab off
 
 	log_test "Locked port MAB FDB flush"
+}
+
+# Check that traffic can be redirected from a locked bridge port and that it
+# does not create locked FDB entries.
+locked_port_mab_redirect()
+{
+	RET=0
+	check_port_mab_support || return 0
+
+	bridge link set dev $swp1 learning on locked on mab on
+	tc qdisc add dev $swp1 clsact
+	tc filter add dev $swp1 ingress protocol all pref 1 handle 101 flower \
+		action mirred egress redirect dev $swp2
+
+	ping_do $h1 192.0.2.2
+	check_err $? "Ping did not work with redirection"
+
+	bridge fdb get `mac_get $h1` br br0 vlan 1 2> /dev/null | \
+		grep "dev $swp1" | grep -q "locked"
+	check_fail $? "Locked entry created for redirected traffic"
+
+	tc filter del dev $swp1 ingress protocol all pref 1 handle 101 flower
+
+	ping_do $h1 192.0.2.2
+	check_fail $? "Ping worked without redirection"
+
+	bridge fdb get `mac_get $h1` br br0 vlan 1 2> /dev/null | \
+		grep "dev $swp1" | grep -q "locked"
+	check_err $? "Locked entry not created after deleting filter"
+
+	bridge fdb del `mac_get $h1` vlan 1 dev $swp1 master
+	tc qdisc del dev $swp1 clsact
+	bridge link set dev $swp1 learning off locked off mab off
+
+	log_test "Locked port MAB redirect"
 }
 
 trap cleanup EXIT

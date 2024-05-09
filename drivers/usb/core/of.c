@@ -8,7 +8,6 @@
  */
 
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/usb/of.h>
 
 /**

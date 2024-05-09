@@ -8,6 +8,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -15,9 +16,8 @@
 #include <linux/ethtool.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/phy.h>
@@ -1180,10 +1180,8 @@ error:
  * This function is called if a device is physically removed from the system or
  * if the driver module is being unloaded. It frees any resources allocated to
  * the device.
- *
- * Return:	0, always.
  */
-static int xemaclite_of_remove(struct platform_device *of_dev)
+static void xemaclite_of_remove(struct platform_device *of_dev)
 {
 	struct net_device *ndev = platform_get_drvdata(of_dev);
 
@@ -1202,8 +1200,6 @@ static int xemaclite_of_remove(struct platform_device *of_dev)
 	lp->phy_node = NULL;
 
 	free_netdev(ndev);
-
-	return 0;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1262,7 +1258,7 @@ static struct platform_driver xemaclite_of_driver = {
 		.of_match_table = xemaclite_of_match,
 	},
 	.probe		= xemaclite_of_probe,
-	.remove		= xemaclite_of_remove,
+	.remove_new	= xemaclite_of_remove,
 };
 
 module_platform_driver(xemaclite_of_driver);

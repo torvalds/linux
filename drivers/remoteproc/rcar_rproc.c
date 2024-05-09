@@ -5,8 +5,9 @@
 
 #include <linux/limits.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/remoteproc.h>
 #include <linux/reset.h>
@@ -197,13 +198,11 @@ pm_disable:
 	return ret;
 }
 
-static int rcar_rproc_remove(struct platform_device *pdev)
+static void rcar_rproc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static const struct of_device_id rcar_rproc_of_match[] = {
@@ -215,7 +214,7 @@ MODULE_DEVICE_TABLE(of, rcar_rproc_of_match);
 
 static struct platform_driver rcar_rproc_driver = {
 	.probe = rcar_rproc_probe,
-	.remove = rcar_rproc_remove,
+	.remove_new = rcar_rproc_remove,
 	.driver = {
 		.name = "rcar-rproc",
 		.of_match_table = rcar_rproc_of_match,

@@ -8,7 +8,6 @@
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/regulator/consumer.h>
@@ -138,6 +137,8 @@ static int mtk_ccifreq_target(struct device *dev, unsigned long *freq,
 	if (drv->pre_freq == *freq)
 		return 0;
 
+	mutex_lock(&drv->reg_lock);
+
 	inter_voltage = drv->inter_voltage;
 	cci_pll = clk_get_parent(drv->cci_clk);
 
@@ -145,10 +146,9 @@ static int mtk_ccifreq_target(struct device *dev, unsigned long *freq,
 	opp = devfreq_recommended_opp(dev, &opp_rate, 1);
 	if (IS_ERR(opp)) {
 		dev_err(dev, "failed to find opp for freq: %ld\n", opp_rate);
-		return PTR_ERR(opp);
+		ret = PTR_ERR(opp);
+		goto out_unlock;
 	}
-
-	mutex_lock(&drv->reg_lock);
 
 	voltage = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
@@ -228,9 +228,9 @@ static int mtk_ccifreq_opp_notifier(struct notifier_block *nb,
 	drv = container_of(nb, struct mtk_ccifreq_drv, opp_nb);
 
 	if (event == OPP_EVENT_ADJUST_VOLTAGE) {
+		mutex_lock(&drv->reg_lock);
 		freq = dev_pm_opp_get_freq(opp);
 
-		mutex_lock(&drv->reg_lock);
 		/* current opp item is changed */
 		if (freq == drv->pre_freq) {
 			volt = dev_pm_opp_get_voltage(opp);

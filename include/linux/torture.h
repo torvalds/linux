@@ -81,7 +81,8 @@ static inline void torture_random_init(struct torture_random_state *trsp)
 }
 
 /* Definitions for high-resolution-timer sleeps. */
-int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_state *trsp);
+int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, const enum hrtimer_mode mode,
+			 struct torture_random_state *trsp);
 int torture_hrtimeout_us(u32 baset_us, u32 fuzzt_ns, struct torture_random_state *trsp);
 int torture_hrtimeout_ms(u32 baset_ms, u32 fuzzt_us, struct torture_random_state *trsp);
 int torture_hrtimeout_jiffies(u32 baset_j, struct torture_random_state *trsp);
@@ -108,19 +109,27 @@ bool torture_must_stop(void);
 bool torture_must_stop_irq(void);
 void torture_kthread_stopping(char *title);
 int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
-			     char *f, struct task_struct **tp);
+			     char *f, struct task_struct **tp, void (*cbf)(struct task_struct *tp));
 void _torture_stop_kthread(char *m, struct task_struct **tp);
 
 #define torture_create_kthread(n, arg, tp) \
 	_torture_create_kthread(n, (arg), #n, "Creating " #n " task", \
-				"Failed to create " #n, &(tp))
+				"Failed to create " #n, &(tp), NULL)
+#define torture_create_kthread_cb(n, arg, tp, cbf) \
+	_torture_create_kthread(n, (arg), #n, "Creating " #n " task", \
+				"Failed to create " #n, &(tp), cbf)
 #define torture_stop_kthread(n, tp) \
 	_torture_stop_kthread("Stopping " #n " task", &(tp))
 
+/* Scheduler-related definitions. */
 #ifdef CONFIG_PREEMPTION
 #define torture_preempt_schedule() __preempt_schedule()
 #else
 #define torture_preempt_schedule()	do { } while (0)
+#endif
+
+#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
 #endif
 
 #endif /* __LINUX_TORTURE_H */

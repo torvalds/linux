@@ -192,7 +192,7 @@
 				#size-cells = <0>;
 				reg = <0x4b>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>;
-				vddio-supply = <&db8500_vsmps2_reg>;
+				vio-supply = <&db8500_vsmps2_reg>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&synaptics_tvk_mode>;
 				interrupt-parent = <&gpio2>;
@@ -200,7 +200,7 @@
 
 				rmi4-f01@1 {
 					reg = <0x1>;
-					syna,nosleep = <1>;
+					syna,nosleep-mode = <1>;
 				};
 				rmi4-f11@11 {
 					reg = <0x11>;

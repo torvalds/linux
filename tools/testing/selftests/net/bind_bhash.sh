@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 NR_FILES=32768
-SAVED_NR_FILES=$(ulimit -n)
+readonly NETNS="ns-$(mktemp -u XXXXXX)"
 
 # default values
 port=443
@@ -36,21 +36,21 @@ while getopts "ha:p:64" opt; do
 done
 
 setup() {
+    ip netns add "${NETNS}"
+    ip -netns "${NETNS}" link add veth0 type veth peer name veth1
+    ip -netns "${NETNS}" link set lo up
+    ip -netns "${NETNS}" link set veth0 up
+    ip -netns "${NETNS}" link set veth1 up
+
     if [[ "$use_v6" == true ]]; then
-	ip addr add $addr_v6 nodad dev eth0
+        ip -netns "${NETNS}" addr add $addr_v6 nodad dev veth0
     else
-	ip addr add $addr_v4 dev lo
+        ip -netns "${NETNS}" addr add $addr_v4 dev lo
     fi
-	ulimit -n $NR_FILES
 }
 
 cleanup() {
-    if [[ "$use_v6" == true ]]; then
-	ip addr del $addr_v6 dev eth0
-    else
-	ip addr del $addr_v4/32 dev lo
-    fi
-    ulimit -n $SAVED_NR_FILES
+    ip netns del "${NETNS}"
 }
 
 if [[ "$addr" != "" ]]; then
@@ -59,8 +59,10 @@ if [[ "$addr" != "" ]]; then
 fi
 setup
 if [[ "$use_v6" == true ]] ; then
-    ./bind_bhash $port "ipv6" $addr_v6
+    ip netns exec "${NETNS}" sh -c \
+        "ulimit -n ${NR_FILES};./bind_bhash ${port} ipv6 ${addr_v6}"
 else
-    ./bind_bhash $port "ipv4" $addr_v4
+    ip netns exec "${NETNS}" sh -c \
+        "ulimit -n ${NR_FILES};./bind_bhash ${port} ipv4 ${addr_v4}"
 fi
 cleanup

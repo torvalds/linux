@@ -2077,12 +2077,8 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock(&ring->lock);
 	if (ring->free_bds <= (nr_frags + 1)) {
-		if (!netif_tx_queue_stopped(txq)) {
+		if (!netif_tx_queue_stopped(txq))
 			netif_tx_stop_queue(txq);
-			netdev_err(dev,
-				   "%s: tx ring %d full when queue %d awake\n",
-				   __func__, index, ring->queue);
-		}
 		ret = NETDEV_TX_BUSY;
 		goto out;
 	}
@@ -3251,23 +3247,6 @@ static irqreturn_t bcmgenet_wol_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void bcmgenet_poll_controller(struct net_device *dev)
-{
-	struct bcmgenet_priv *priv = netdev_priv(dev);
-
-	/* Invoke the main RX/TX interrupt handler */
-	disable_irq(priv->irq0);
-	bcmgenet_isr0(priv->irq0, priv);
-	enable_irq(priv->irq0);
-
-	/* And the interrupt handler for RX/TX priority queues */
-	disable_irq(priv->irq1);
-	bcmgenet_isr1(priv->irq1, priv);
-	enable_irq(priv->irq1);
-}
-#endif
-
 static void bcmgenet_umac_reset(struct bcmgenet_priv *priv)
 {
 	u32 reg;
@@ -3724,9 +3703,6 @@ static const struct net_device_ops bcmgenet_netdev_ops = {
 	.ndo_set_mac_address	= bcmgenet_set_mac_addr,
 	.ndo_eth_ioctl		= phy_do_ioctl_running,
 	.ndo_set_features	= bcmgenet_set_features,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= bcmgenet_poll_controller,
-#endif
 	.ndo_get_stats		= bcmgenet_get_stats,
 	.ndo_change_carrier	= bcmgenet_change_carrier,
 };
@@ -4168,7 +4144,7 @@ err:
 	return err;
 }
 
-static int bcmgenet_remove(struct platform_device *pdev)
+static void bcmgenet_remove(struct platform_device *pdev)
 {
 	struct bcmgenet_priv *priv = dev_to_priv(&pdev->dev);
 
@@ -4176,8 +4152,6 @@ static int bcmgenet_remove(struct platform_device *pdev)
 	unregister_netdev(priv->dev);
 	bcmgenet_mii_exit(priv->dev);
 	free_netdev(priv->dev);
-
-	return 0;
 }
 
 static void bcmgenet_shutdown(struct platform_device *pdev)
@@ -4356,7 +4330,7 @@ MODULE_DEVICE_TABLE(acpi, genet_acpi_match);
 
 static struct platform_driver bcmgenet_driver = {
 	.probe	= bcmgenet_probe,
-	.remove	= bcmgenet_remove,
+	.remove_new = bcmgenet_remove,
 	.shutdown = bcmgenet_shutdown,
 	.driver	= {
 		.name	= "bcmgenet",

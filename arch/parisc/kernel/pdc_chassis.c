@@ -31,6 +31,7 @@
 #include <asm/processor.h>
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
+#include <asm/led.h>
 
 #define PDC_CHASSIS_VER	"0.05"
 
@@ -40,7 +41,7 @@ static unsigned int pdc_chassis_enabled __read_mostly = 1;
 
 /**
  * pdc_chassis_setup() - Enable/disable pdc_chassis code at boot time.
- * @str configuration param: 0 to disable chassis log
+ * @str: configuration param: 0 to disable chassis log
  * @return 1
  */
  
@@ -55,7 +56,6 @@ __setup("pdcchassis=", pdc_chassis_setup);
 
 /** 
  * pdc_chassis_checkold() - Checks for old PDC_CHASSIS compatibility
- * @pdc_chassis_old: 1 if old pdc chassis style
  * 
  * Currently, only E class and A180 are known to work with this.
  * Inspired by Christoph Plattner
@@ -80,6 +80,9 @@ static void __init pdc_chassis_checkold(void)
 
 /**
  * pdc_chassis_panic_event() - Called by the panic handler.
+ * @this: unused
+ * @event: unused
+ * @ptr: unused
  *
  * As soon as a panic occurs, we should inform the PDC.
  */
@@ -88,7 +91,7 @@ static int pdc_chassis_panic_event(struct notifier_block *this,
 		        unsigned long event, void *ptr)
 {
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
-		return NOTIFY_DONE;
+	return NOTIFY_DONE;
 }   
 
 
@@ -99,7 +102,10 @@ static struct notifier_block pdc_chassis_panic_block = {
 
 
 /**
- * parisc_reboot_event() - Called by the reboot handler.
+ * pdc_chassis_reboot_event() - Called by the reboot handler.
+ * @this: unused
+ * @event: unused
+ * @ptr: unused
  *
  * As soon as a reboot occurs, we should inform the PDC.
  */
@@ -108,7 +114,7 @@ static int pdc_chassis_reboot_event(struct notifier_block *this,
 		        unsigned long event, void *ptr)
 {
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_SHUTDOWN);
-		return NOTIFY_DONE;
+	return NOTIFY_DONE;
 }   
 
 
@@ -148,7 +154,7 @@ void __init parisc_pdc_chassis_init(void)
 /** 
  * pdc_chassis_send_status() - Sends a predefined message to the chassis,
  * and changes the front panel LEDs according to the new system state
- * @retval: PDC call return value.
+ * @message: Type of message, one of PDC_CHASSIS_DIRECT_* values.
  *
  * Only machines with 64 bits PDC PAT and those reported in
  * pdc_chassis_checkold() are supported atm.
@@ -229,6 +235,11 @@ int pdc_chassis_send_status(int message)
 		} else retval = -1;
 #endif /* CONFIG_64BIT */
 	}	/* if (pdc_chassis_enabled) */
+
+	/* if system has LCD display, update current string */
+	if (retval != -1 && IS_ENABLED(CONFIG_CHASSIS_LCD_LED))
+		lcd_print(NULL);
+
 #endif /* CONFIG_PDC_CHASSIS */
 	return retval;
 }

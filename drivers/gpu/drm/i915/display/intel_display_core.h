@@ -17,6 +17,7 @@
 #include <drm/drm_modeset_lock.h>
 
 #include "intel_cdclk.h"
+#include "intel_display_device.h"
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
@@ -33,7 +34,6 @@ struct i915_audio_component;
 struct i915_hdcp_arbiter;
 struct intel_atomic_state;
 struct intel_audio_funcs;
-struct intel_bios_encoder_data;
 struct intel_cdclk_funcs;
 struct intel_cdclk_vals;
 struct intel_color_funcs;
@@ -175,6 +175,9 @@ struct intel_hotplug {
 	/* Whether or not to count short HPD IRQs in HPD storms */
 	u8 hpd_short_storm_enabled;
 
+	/* Last state reported by oob_hotplug_event for each encoder */
+	unsigned long oob_hotplug_last_state;
+
 	/*
 	 * if we get a HPD irq from DP and a HPD irq from non-DP
 	 * the non-DP HPD could block the workqueue on a mode config
@@ -218,7 +221,6 @@ struct intel_vbt_data {
 	struct list_head display_devices;
 	struct list_head bdb_blocks;
 
-	struct intel_bios_encoder_data *ports[I915_MAX_PORTS]; /* Non-NULL if port present. */
 	struct sdvo_device_mapping {
 		u8 initialized;
 		u8 dvo_port;
@@ -428,6 +430,14 @@ struct intel_display {
 		 */
 		u32 state;
 	} hti;
+
+	struct {
+		/* Access with DISPLAY_INFO() */
+		const struct intel_display_device_info *__device_info;
+
+		/* Access with DISPLAY_RUNTIME_INFO() */
+		struct intel_display_runtime_info __runtime_info;
+	} info;
 
 	struct {
 		bool false_color;

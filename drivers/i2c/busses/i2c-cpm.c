@@ -26,10 +26,10 @@
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/cpm.h>
 
@@ -676,7 +676,7 @@ out_free:
 	return result;
 }
 
-static int cpm_i2c_remove(struct platform_device *ofdev)
+static void cpm_i2c_remove(struct platform_device *ofdev)
 {
 	struct cpm_i2c *cpm = platform_get_drvdata(ofdev);
 
@@ -685,8 +685,6 @@ static int cpm_i2c_remove(struct platform_device *ofdev)
 	cpm_i2c_shutdown(cpm);
 
 	kfree(cpm);
-
-	return 0;
 }
 
 static const struct of_device_id cpm_i2c_match[] = {
@@ -703,7 +701,7 @@ MODULE_DEVICE_TABLE(of, cpm_i2c_match);
 
 static struct platform_driver cpm_i2c_driver = {
 	.probe		= cpm_i2c_probe,
-	.remove		= cpm_i2c_remove,
+	.remove_new	= cpm_i2c_remove,
 	.driver = {
 		.name = "fsl-i2c-cpm",
 		.of_match_table = cpm_i2c_match,

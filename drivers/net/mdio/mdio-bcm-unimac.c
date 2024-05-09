@@ -296,15 +296,13 @@ out_clk_disable:
 	return ret;
 }
 
-static int unimac_mdio_remove(struct platform_device *pdev)
+static void unimac_mdio_remove(struct platform_device *pdev)
 {
 	struct unimac_mdio_priv *priv = platform_get_drvdata(pdev);
 
 	mdiobus_unregister(priv->mii_bus);
 	mdiobus_free(priv->mii_bus);
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static int __maybe_unused unimac_mdio_suspend(struct device *d)
@@ -334,6 +332,8 @@ static SIMPLE_DEV_PM_OPS(unimac_mdio_pm_ops,
 			 unimac_mdio_suspend, unimac_mdio_resume);
 
 static const struct of_device_id unimac_mdio_ids[] = {
+	{ .compatible = "brcm,asp-v2.1-mdio", },
+	{ .compatible = "brcm,asp-v2.0-mdio", },
 	{ .compatible = "brcm,genet-mdio-v5", },
 	{ .compatible = "brcm,genet-mdio-v4", },
 	{ .compatible = "brcm,genet-mdio-v3", },
@@ -351,7 +351,7 @@ static struct platform_driver unimac_mdio_driver = {
 		.pm = &unimac_mdio_pm_ops,
 	},
 	.probe	= unimac_mdio_probe,
-	.remove	= unimac_mdio_remove,
+	.remove_new = unimac_mdio_remove,
 };
 module_platform_driver(unimac_mdio_driver);
 

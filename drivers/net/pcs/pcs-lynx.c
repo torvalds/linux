@@ -216,7 +216,7 @@ static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs,
 	/* The PCS needs to be configured manually only
 	 * when not operating on in-band mode
 	 */
-	if (neg_mode != PHYLINK_PCS_NEG_INBAND_ENABLED)
+	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED)
 		return;
 
 	if (duplex == DUPLEX_HALF)

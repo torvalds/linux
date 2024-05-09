@@ -26,7 +26,6 @@
 #include <linux/platform_device.h>
 #include <linux/phylink.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
@@ -757,8 +756,6 @@ static void macb_mac_link_up(struct phylink_config *config,
 		if (rx_pause)
 			ctrl |= MACB_BIT(PAE);
 
-		macb_set_tx_clk(bp, speed);
-
 		/* Initialize rings & buffers as clearing MACB_BIT(TE) in link down
 		 * cleared the pipeline and control registers.
 		 */
@@ -777,6 +774,9 @@ static void macb_mac_link_up(struct phylink_config *config,
 							gem_readl(bp, HS_MAC_CONFIG)));
 
 	spin_unlock_irqrestore(&bp->lock, flags);
+
+	if (!(bp->caps & MACB_CAPS_MACB_IS_EMAC))
+		macb_set_tx_clk(bp, speed);
 
 	/* Enable Rx and Tx; Enable PTP unicast */
 	ctrl = macb_readl(bp, NCR);
@@ -5156,7 +5156,7 @@ err_disable_clocks:
 	return err;
 }
 
-static int macb_remove(struct platform_device *pdev)
+static void macb_remove(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct macb *bp;
@@ -5181,8 +5181,6 @@ static int macb_remove(struct platform_device *pdev)
 		phylink_destroy(bp->phylink);
 		free_netdev(dev);
 	}
-
-	return 0;
 }
 
 static int __maybe_unused macb_suspend(struct device *dev)
@@ -5193,6 +5191,9 @@ static int __maybe_unused macb_suspend(struct device *dev)
 	unsigned long flags;
 	unsigned int q;
 	int err;
+
+	if (!device_may_wakeup(&bp->dev->dev))
+		phy_exit(bp->sgmii_phy);
 
 	if (!netif_running(netdev))
 		return 0;
@@ -5254,7 +5255,6 @@ static int __maybe_unused macb_suspend(struct device *dev)
 	if (!(bp->wol & MACB_WOL_ENABLED)) {
 		rtnl_lock();
 		phylink_stop(bp->phylink);
-		phy_exit(bp->sgmii_phy);
 		rtnl_unlock();
 		spin_lock_irqsave(&bp->lock, flags);
 		macb_reset_hw(bp);
@@ -5283,6 +5283,9 @@ static int __maybe_unused macb_resume(struct device *dev)
 	unsigned long flags;
 	unsigned int q;
 	int err;
+
+	if (!device_may_wakeup(&bp->dev->dev))
+		phy_init(bp->sgmii_phy);
 
 	if (!netif_running(netdev))
 		return 0;
@@ -5344,8 +5347,6 @@ static int __maybe_unused macb_resume(struct device *dev)
 	macb_set_rx_mode(netdev);
 	macb_restore_features(bp);
 	rtnl_lock();
-	if (!device_may_wakeup(&bp->dev->dev))
-		phy_init(bp->sgmii_phy);
 
 	phylink_start(bp->phylink);
 	rtnl_unlock();
@@ -5395,7 +5396,7 @@ static const struct dev_pm_ops macb_pm_ops = {
 
 static struct platform_driver macb_driver = {
 	.probe		= macb_probe,
-	.remove		= macb_remove,
+	.remove_new	= macb_remove,
 	.driver		= {
 		.name		= "macb",
 		.of_match_table	= of_match_ptr(macb_dt_ids),

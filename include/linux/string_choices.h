@@ -30,6 +30,7 @@ static inline const char *str_read_write(bool v)
 {
 	return v ? "read" : "write";
 }
+#define str_write_read(v)		str_read_write(!(v))
 
 static inline const char *str_on_off(bool v)
 {

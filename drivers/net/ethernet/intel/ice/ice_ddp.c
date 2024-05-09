@@ -30,7 +30,7 @@ static const struct ice_tunnel_type_scan tnls[] = {
  * Verifies various attributes of the package file, including length, format
  * version, and the requirement of at least one segment.
  */
-enum ice_ddp_state ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
+static enum ice_ddp_state ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
 {
 	u32 seg_count;
 	u32 i;
@@ -118,7 +118,7 @@ static enum ice_ddp_state ice_chk_pkg_version(struct ice_pkg_ver *pkg_ver)
  *
  * This helper function validates a buffer's header.
  */
-struct ice_buf_hdr *ice_pkg_val_buf(struct ice_buf *buf)
+static struct ice_buf_hdr *ice_pkg_val_buf(struct ice_buf *buf)
 {
 	struct ice_buf_hdr *hdr;
 	u16 section_count;
@@ -1153,147 +1153,6 @@ static void ice_release_global_cfg_lock(struct ice_hw *hw)
 }
 
 /**
- * ice_dwnld_cfg_bufs
- * @hw: pointer to the hardware structure
- * @bufs: pointer to an array of buffers
- * @count: the number of buffers in the array
- *
- * Obtains global config lock and downloads the package configuration buffers
- * to the firmware. Metadata buffers are skipped, and the first metadata buffer
- * found indicates that the rest of the buffers are all metadata buffers.
- */
-static enum ice_ddp_state ice_dwnld_cfg_bufs(struct ice_hw *hw,
-					     struct ice_buf *bufs, u32 count)
-{
-	enum ice_ddp_state state = ICE_DDP_PKG_SUCCESS;
-	struct ice_buf_hdr *bh;
-	enum ice_aq_err err;
-	u32 offset, info, i;
-	int status;
-
-	if (!bufs || !count)
-		return ICE_DDP_PKG_ERR;
-
-	/* If the first buffer's first section has its metadata bit set
-	 * then there are no buffers to be downloaded, and the operation is
-	 * considered a success.
-	 */
-	bh = (struct ice_buf_hdr *)bufs;
-	if (le32_to_cpu(bh->section_entry[0].type) & ICE_METADATA_BUF)
-		return ICE_DDP_PKG_SUCCESS;
-
-	status = ice_acquire_global_cfg_lock(hw, ICE_RES_WRITE);
-	if (status) {
-		if (status == -EALREADY)
-			return ICE_DDP_PKG_ALREADY_LOADED;
-		return ice_map_aq_err_to_ddp_state(hw->adminq.sq_last_status);
-	}
-
-	for (i = 0; i < count; i++) {
-		bool last = ((i + 1) == count);
-
-		if (!last) {
-			/* check next buffer for metadata flag */
-			bh = (struct ice_buf_hdr *)(bufs + i + 1);
-
-			/* A set metadata flag in the next buffer will signal
-			 * that the current buffer will be the last buffer
-			 * downloaded
-			 */
-			if (le16_to_cpu(bh->section_count))
-				if (le32_to_cpu(bh->section_entry[0].type) &
-				    ICE_METADATA_BUF)
-					last = true;
-		}
-
-		bh = (struct ice_buf_hdr *)(bufs + i);
-
-		status = ice_aq_download_pkg(hw, bh, ICE_PKG_BUF_SIZE, last,
-					     &offset, &info, NULL);
-
-		/* Save AQ status from download package */
-		if (status) {
-			ice_debug(hw, ICE_DBG_PKG,
-				  "Pkg download failed: err %d off %d inf %d\n",
-				  status, offset, info);
-			err = hw->adminq.sq_last_status;
-			state = ice_map_aq_err_to_ddp_state(err);
-			break;
-		}
-
-		if (last)
-			break;
-	}
-
-	if (!status) {
-		status = ice_set_vlan_mode(hw);
-		if (status)
-			ice_debug(hw, ICE_DBG_PKG,
-				  "Failed to set VLAN mode: err %d\n", status);
-	}
-
-	ice_release_global_cfg_lock(hw);
-
-	return state;
-}
-
-/**
- * ice_aq_get_pkg_info_list
- * @hw: pointer to the hardware structure
- * @pkg_info: the buffer which will receive the information list
- * @buf_size: the size of the pkg_info information buffer
- * @cd: pointer to command details structure or NULL
- *
- * Get Package Info List (0x0C43)
- */
-static int ice_aq_get_pkg_info_list(struct ice_hw *hw,
-				    struct ice_aqc_get_pkg_info_resp *pkg_info,
-				    u16 buf_size, struct ice_sq_cd *cd)
-{
-	struct ice_aq_desc desc;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_pkg_info_list);
-
-	return ice_aq_send_cmd(hw, &desc, pkg_info, buf_size, cd);
-}
-
-/**
- * ice_download_pkg
- * @hw: pointer to the hardware structure
- * @ice_seg: pointer to the segment of the package to be downloaded
- *
- * Handles the download of a complete package.
- */
-static enum ice_ddp_state ice_download_pkg(struct ice_hw *hw,
-					   struct ice_seg *ice_seg)
-{
-	struct ice_buf_table *ice_buf_tbl;
-	int status;
-
-	ice_debug(hw, ICE_DBG_PKG, "Segment format version: %d.%d.%d.%d\n",
-		  ice_seg->hdr.seg_format_ver.major,
-		  ice_seg->hdr.seg_format_ver.minor,
-		  ice_seg->hdr.seg_format_ver.update,
-		  ice_seg->hdr.seg_format_ver.draft);
-
-	ice_debug(hw, ICE_DBG_PKG, "Seg: type 0x%X, size %d, name %s\n",
-		  le32_to_cpu(ice_seg->hdr.seg_type),
-		  le32_to_cpu(ice_seg->hdr.seg_size), ice_seg->hdr.seg_id);
-
-	ice_buf_tbl = ice_find_buf_table(ice_seg);
-
-	ice_debug(hw, ICE_DBG_PKG, "Seg buf count: %d\n",
-		  le32_to_cpu(ice_buf_tbl->buf_count));
-
-	status = ice_dwnld_cfg_bufs(hw, ice_buf_tbl->buf_array,
-				    le32_to_cpu(ice_buf_tbl->buf_count));
-
-	ice_post_pkg_dwnld_vlan_mode_cfg(hw);
-
-	return status;
-}
-
-/**
  * ice_aq_download_pkg
  * @hw: pointer to the hardware structure
  * @pkg_buf: the package buffer to transfer
@@ -1305,9 +1164,10 @@ static enum ice_ddp_state ice_download_pkg(struct ice_hw *hw,
  *
  * Download Package (0x0C40)
  */
-int ice_aq_download_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
-			u16 buf_size, bool last_buf, u32 *error_offset,
-			u32 *error_info, struct ice_sq_cd *cd)
+static int
+ice_aq_download_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
+		    u16 buf_size, bool last_buf, u32 *error_offset,
+		    u32 *error_info, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_download_pkg *cmd;
 	struct ice_aq_desc desc;
@@ -1341,23 +1201,347 @@ int ice_aq_download_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 }
 
 /**
- * ice_aq_upload_section
+ * ice_get_pkg_seg_by_idx
+ * @pkg_hdr: pointer to the package header to be searched
+ * @idx: index of segment
+ */
+static struct ice_generic_seg_hdr *
+ice_get_pkg_seg_by_idx(struct ice_pkg_hdr *pkg_hdr, u32 idx)
+{
+	if (idx < le32_to_cpu(pkg_hdr->seg_count))
+		return (struct ice_generic_seg_hdr *)
+			((u8 *)pkg_hdr +
+			 le32_to_cpu(pkg_hdr->seg_offset[idx]));
+
+	return NULL;
+}
+
+/**
+ * ice_is_signing_seg_at_idx - determine if segment is a signing segment
+ * @pkg_hdr: pointer to package header
+ * @idx: segment index
+ */
+static bool ice_is_signing_seg_at_idx(struct ice_pkg_hdr *pkg_hdr, u32 idx)
+{
+	struct ice_generic_seg_hdr *seg;
+
+	seg = ice_get_pkg_seg_by_idx(pkg_hdr, idx);
+	if (!seg)
+		return false;
+
+	return le32_to_cpu(seg->seg_type) == SEGMENT_TYPE_SIGNING;
+}
+
+/**
+ * ice_is_signing_seg_type_at_idx
+ * @pkg_hdr: pointer to package header
+ * @idx: segment index
+ * @seg_id: segment id that is expected
+ * @sign_type: signing type
+ *
+ * Determine if a segment is a signing segment of the correct type
+ */
+static bool
+ice_is_signing_seg_type_at_idx(struct ice_pkg_hdr *pkg_hdr, u32 idx,
+			       u32 seg_id, u32 sign_type)
+{
+	struct ice_sign_seg *seg;
+
+	if (!ice_is_signing_seg_at_idx(pkg_hdr, idx))
+		return false;
+
+	seg = (struct ice_sign_seg *)ice_get_pkg_seg_by_idx(pkg_hdr, idx);
+
+	if (seg && le32_to_cpu(seg->seg_id) == seg_id &&
+	    le32_to_cpu(seg->sign_type) == sign_type)
+		return true;
+
+	return false;
+}
+
+/**
+ * ice_is_buffer_metadata - determine if package buffer is a metadata buffer
+ * @buf: pointer to buffer header
+ */
+static bool ice_is_buffer_metadata(struct ice_buf_hdr *buf)
+{
+	if (le32_to_cpu(buf->section_entry[0].type) & ICE_METADATA_BUF)
+		return true;
+
+	return false;
+}
+
+/**
+ * ice_is_last_download_buffer
+ * @buf: pointer to current buffer header
+ * @idx: index of the buffer in the current sequence
+ * @count: the buffer count in the current sequence
+ *
+ * Note: this routine should only be called if the buffer is not the last buffer
+ */
+static bool
+ice_is_last_download_buffer(struct ice_buf_hdr *buf, u32 idx, u32 count)
+{
+	struct ice_buf *next_buf;
+
+	if ((idx + 1) == count)
+		return true;
+
+	/* A set metadata flag in the next buffer will signal that the current
+	 * buffer will be the last buffer downloaded
+	 */
+	next_buf = ((struct ice_buf *)buf) + 1;
+
+	return ice_is_buffer_metadata((struct ice_buf_hdr *)next_buf);
+}
+
+/**
+ * ice_dwnld_cfg_bufs_no_lock
  * @hw: pointer to the hardware structure
- * @pkg_buf: the package buffer which will receive the section
- * @buf_size: the size of the package buffer
+ * @bufs: pointer to an array of buffers
+ * @start: buffer index of first buffer to download
+ * @count: the number of buffers to download
+ * @indicate_last: if true, then set last buffer flag on last buffer download
+ *
+ * Downloads package configuration buffers to the firmware. Metadata buffers
+ * are skipped, and the first metadata buffer found indicates that the rest
+ * of the buffers are all metadata buffers.
+ */
+static enum ice_ddp_state
+ice_dwnld_cfg_bufs_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 start,
+			   u32 count, bool indicate_last)
+{
+	enum ice_ddp_state state = ICE_DDP_PKG_SUCCESS;
+	struct ice_buf_hdr *bh;
+	enum ice_aq_err err;
+	u32 offset, info, i;
+
+	if (!bufs || !count)
+		return ICE_DDP_PKG_ERR;
+
+	/* If the first buffer's first section has its metadata bit set
+	 * then there are no buffers to be downloaded, and the operation is
+	 * considered a success.
+	 */
+	bh = (struct ice_buf_hdr *)(bufs + start);
+	if (le32_to_cpu(bh->section_entry[0].type) & ICE_METADATA_BUF)
+		return ICE_DDP_PKG_SUCCESS;
+
+	for (i = 0; i < count; i++) {
+		bool last = false;
+		int status;
+
+		bh = (struct ice_buf_hdr *)(bufs + start + i);
+
+		if (indicate_last)
+			last = ice_is_last_download_buffer(bh, i, count);
+
+		status = ice_aq_download_pkg(hw, bh, ICE_PKG_BUF_SIZE, last,
+					     &offset, &info, NULL);
+
+		/* Save AQ status from download package */
+		if (status) {
+			ice_debug(hw, ICE_DBG_PKG, "Pkg download failed: err %d off %d inf %d\n",
+				  status, offset, info);
+			err = hw->adminq.sq_last_status;
+			state = ice_map_aq_err_to_ddp_state(err);
+			break;
+		}
+
+		if (last)
+			break;
+	}
+
+	return state;
+}
+
+/**
+ * ice_download_pkg_sig_seg - download a signature segment
+ * @hw: pointer to the hardware structure
+ * @seg: pointer to signature segment
+ */
+static enum ice_ddp_state
+ice_download_pkg_sig_seg(struct ice_hw *hw, struct ice_sign_seg *seg)
+{
+	return  ice_dwnld_cfg_bufs_no_lock(hw, seg->buf_tbl.buf_array, 0,
+					   le32_to_cpu(seg->buf_tbl.buf_count),
+					   false);
+}
+
+/**
+ * ice_download_pkg_config_seg - download a config segment
+ * @hw: pointer to the hardware structure
+ * @pkg_hdr: pointer to package header
+ * @idx: segment index
+ * @start: starting buffer
+ * @count: buffer count
+ *
+ * Note: idx must reference a ICE segment
+ */
+static enum ice_ddp_state
+ice_download_pkg_config_seg(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr,
+			    u32 idx, u32 start, u32 count)
+{
+	struct ice_buf_table *bufs;
+	struct ice_seg *seg;
+	u32 buf_count;
+
+	seg = (struct ice_seg *)ice_get_pkg_seg_by_idx(pkg_hdr, idx);
+	if (!seg)
+		return ICE_DDP_PKG_ERR;
+
+	bufs = ice_find_buf_table(seg);
+	buf_count = le32_to_cpu(bufs->buf_count);
+
+	if (start >= buf_count || start + count > buf_count)
+		return ICE_DDP_PKG_ERR;
+
+	return  ice_dwnld_cfg_bufs_no_lock(hw, bufs->buf_array, start, count,
+					   true);
+}
+
+/**
+ * ice_dwnld_sign_and_cfg_segs - download a signing segment and config segment
+ * @hw: pointer to the hardware structure
+ * @pkg_hdr: pointer to package header
+ * @idx: segment index (must be a signature segment)
+ *
+ * Note: idx must reference a signature segment
+ */
+static enum ice_ddp_state
+ice_dwnld_sign_and_cfg_segs(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr,
+			    u32 idx)
+{
+	enum ice_ddp_state state;
+	struct ice_sign_seg *seg;
+	u32 conf_idx;
+	u32 start;
+	u32 count;
+
+	seg = (struct ice_sign_seg *)ice_get_pkg_seg_by_idx(pkg_hdr, idx);
+	if (!seg) {
+		state = ICE_DDP_PKG_ERR;
+		goto exit;
+	}
+
+	conf_idx = le32_to_cpu(seg->signed_seg_idx);
+	start = le32_to_cpu(seg->signed_buf_start);
+	count = le32_to_cpu(seg->signed_buf_count);
+
+	state = ice_download_pkg_sig_seg(hw, seg);
+	if (state)
+		goto exit;
+
+	state = ice_download_pkg_config_seg(hw, pkg_hdr, conf_idx, start,
+					    count);
+
+exit:
+	return state;
+}
+
+/**
+ * ice_match_signing_seg - determine if a matching signing segment exists
+ * @pkg_hdr: pointer to package header
+ * @seg_id: segment id that is expected
+ * @sign_type: signing type
+ */
+static bool
+ice_match_signing_seg(struct ice_pkg_hdr *pkg_hdr, u32 seg_id, u32 sign_type)
+{
+	u32 i;
+
+	for (i = 0; i < le32_to_cpu(pkg_hdr->seg_count); i++) {
+		if (ice_is_signing_seg_type_at_idx(pkg_hdr, i, seg_id,
+						   sign_type))
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * ice_post_dwnld_pkg_actions - perform post download package actions
+ * @hw: pointer to the hardware structure
+ */
+static enum ice_ddp_state
+ice_post_dwnld_pkg_actions(struct ice_hw *hw)
+{
+	int status;
+
+	status = ice_set_vlan_mode(hw);
+	if (status) {
+		ice_debug(hw, ICE_DBG_PKG, "Failed to set VLAN mode: err %d\n",
+			  status);
+		return ICE_DDP_PKG_ERR;
+	}
+
+	return ICE_DDP_PKG_SUCCESS;
+}
+
+/**
+ * ice_download_pkg
+ * @hw: pointer to the hardware structure
+ * @pkg_hdr: pointer to package header
+ *
+ * Handles the download of a complete package.
+ */
+static enum ice_ddp_state
+ice_download_pkg(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
+{
+	enum ice_aq_err aq_err = hw->adminq.sq_last_status;
+	enum ice_ddp_state state = ICE_DDP_PKG_ERR;
+	int status;
+	u32 i;
+
+	ice_debug(hw, ICE_DBG_INIT, "Segment ID %d\n", hw->pkg_seg_id);
+	ice_debug(hw, ICE_DBG_INIT, "Signature type %d\n", hw->pkg_sign_type);
+
+	status = ice_acquire_global_cfg_lock(hw, ICE_RES_WRITE);
+	if (status) {
+		if (status == -EALREADY)
+			state = ICE_DDP_PKG_ALREADY_LOADED;
+		else
+			state = ice_map_aq_err_to_ddp_state(aq_err);
+		return state;
+	}
+
+	for (i = 0; i < le32_to_cpu(pkg_hdr->seg_count); i++) {
+		if (!ice_is_signing_seg_type_at_idx(pkg_hdr, i, hw->pkg_seg_id,
+						    hw->pkg_sign_type))
+			continue;
+
+		state = ice_dwnld_sign_and_cfg_segs(hw, pkg_hdr, i);
+		if (state)
+			break;
+	}
+
+	if (!state)
+		state = ice_post_dwnld_pkg_actions(hw);
+
+	ice_release_global_cfg_lock(hw);
+	ice_post_pkg_dwnld_vlan_mode_cfg(hw);
+
+	return state;
+}
+
+/**
+ * ice_aq_get_pkg_info_list
+ * @hw: pointer to the hardware structure
+ * @pkg_info: the buffer which will receive the information list
+ * @buf_size: the size of the pkg_info information buffer
  * @cd: pointer to command details structure or NULL
  *
- * Upload Section (0x0C41)
+ * Get Package Info List (0x0C43)
  */
-int ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
-			  u16 buf_size, struct ice_sq_cd *cd)
+static int ice_aq_get_pkg_info_list(struct ice_hw *hw,
+				    struct ice_aqc_get_pkg_info_resp *pkg_info,
+				    u16 buf_size, struct ice_sq_cd *cd)
 {
 	struct ice_aq_desc desc;
 
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_upload_section);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_pkg_info_list);
 
-	return ice_aq_send_cmd(hw, &desc, pkg_buf, buf_size, cd);
+	return ice_aq_send_cmd(hw, &desc, pkg_info, buf_size, cd);
 }
 
 /**
@@ -1405,6 +1589,26 @@ static int ice_aq_update_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 	}
 
 	return status;
+}
+
+/**
+ * ice_aq_upload_section
+ * @hw: pointer to the hardware structure
+ * @pkg_buf: the package buffer which will receive the section
+ * @buf_size: the size of the package buffer
+ * @cd: pointer to command details structure or NULL
+ *
+ * Upload Section (0x0C41)
+ */
+int ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
+			  u16 buf_size, struct ice_sq_cd *cd)
+{
+	struct ice_aq_desc desc;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_upload_section);
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	return ice_aq_send_cmd(hw, &desc, pkg_buf, buf_size, cd);
 }
 
 /**
@@ -1470,8 +1674,9 @@ int ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
  * success it returns a pointer to the segment header, otherwise it will
  * return NULL.
  */
-struct ice_generic_seg_hdr *ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
-						struct ice_pkg_hdr *pkg_hdr)
+static struct ice_generic_seg_hdr *
+ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
+		    struct ice_pkg_hdr *pkg_hdr)
 {
 	u32 i;
 
@@ -1496,6 +1701,73 @@ struct ice_generic_seg_hdr *ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
 }
 
 /**
+ * ice_has_signing_seg - determine if package has a signing segment
+ * @hw: pointer to the hardware structure
+ * @pkg_hdr: pointer to the driver's package hdr
+ */
+static bool ice_has_signing_seg(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
+{
+	struct ice_generic_seg_hdr *seg_hdr;
+
+	seg_hdr = (struct ice_generic_seg_hdr *)
+		ice_find_seg_in_pkg(hw, SEGMENT_TYPE_SIGNING, pkg_hdr);
+
+	return seg_hdr ? true : false;
+}
+
+/**
+ * ice_get_pkg_segment_id - get correct package segment id, based on device
+ * @mac_type: MAC type of the device
+ */
+static u32 ice_get_pkg_segment_id(enum ice_mac_type mac_type)
+{
+	u32 seg_id;
+
+	switch (mac_type) {
+	case ICE_MAC_E830:
+		seg_id = SEGMENT_TYPE_ICE_E830;
+		break;
+	case ICE_MAC_GENERIC:
+	default:
+		seg_id = SEGMENT_TYPE_ICE_E810;
+		break;
+	}
+
+	return seg_id;
+}
+
+/**
+ * ice_get_pkg_sign_type - get package segment sign type, based on device
+ * @mac_type: MAC type of the device
+ */
+static u32 ice_get_pkg_sign_type(enum ice_mac_type mac_type)
+{
+	u32 sign_type;
+
+	switch (mac_type) {
+	case ICE_MAC_E830:
+		sign_type = SEGMENT_SIGN_TYPE_RSA3K_SBB;
+		break;
+	case ICE_MAC_GENERIC:
+	default:
+		sign_type = SEGMENT_SIGN_TYPE_RSA2K;
+		break;
+	}
+
+	return sign_type;
+}
+
+/**
+ * ice_get_signing_req - get correct package requirements, based on device
+ * @hw: pointer to the hardware structure
+ */
+static void ice_get_signing_req(struct ice_hw *hw)
+{
+	hw->pkg_seg_id = ice_get_pkg_segment_id(hw->mac_type);
+	hw->pkg_sign_type = ice_get_pkg_sign_type(hw->mac_type);
+}
+
+/**
  * ice_init_pkg_info
  * @hw: pointer to the hardware structure
  * @pkg_hdr: pointer to the driver's package hdr
@@ -1510,7 +1782,14 @@ static enum ice_ddp_state ice_init_pkg_info(struct ice_hw *hw,
 	if (!pkg_hdr)
 		return ICE_DDP_PKG_ERR;
 
-	seg_hdr = ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE, pkg_hdr);
+	hw->pkg_has_signing_seg = ice_has_signing_seg(hw, pkg_hdr);
+	ice_get_signing_req(hw);
+
+	ice_debug(hw, ICE_DBG_INIT, "Pkg using segment id: 0x%08X\n",
+		  hw->pkg_seg_id);
+
+	seg_hdr = (struct ice_generic_seg_hdr *)
+		ice_find_seg_in_pkg(hw, hw->pkg_seg_id, pkg_hdr);
 	if (seg_hdr) {
 		struct ice_meta_sect *meta;
 		struct ice_pkg_enum state;
@@ -1558,20 +1837,13 @@ static enum ice_ddp_state ice_init_pkg_info(struct ice_hw *hw,
  */
 static enum ice_ddp_state ice_get_pkg_info(struct ice_hw *hw)
 {
-	enum ice_ddp_state state = ICE_DDP_PKG_SUCCESS;
-	struct ice_aqc_get_pkg_info_resp *pkg_info;
-	u16 size;
+	DEFINE_FLEX(struct ice_aqc_get_pkg_info_resp, pkg_info, pkg_info,
+		    ICE_PKG_CNT);
+	u16 size = __struct_size(pkg_info);
 	u32 i;
 
-	size = struct_size(pkg_info, pkg_info, ICE_PKG_CNT);
-	pkg_info = kzalloc(size, GFP_KERNEL);
-	if (!pkg_info)
+	if (ice_aq_get_pkg_info_list(hw, pkg_info, size, NULL))
 		return ICE_DDP_PKG_ERR;
-
-	if (ice_aq_get_pkg_info_list(hw, pkg_info, size, NULL)) {
-		state = ICE_DDP_PKG_ERR;
-		goto init_pkg_free_alloc;
-	}
 
 	for (i = 0; i < le32_to_cpu(pkg_info->count); i++) {
 #define ICE_PKG_FLAG_COUNT 4
@@ -1602,10 +1874,7 @@ static enum ice_ddp_state ice_get_pkg_info(struct ice_hw *hw)
 			  pkg_info->pkg_info[i].name, flags);
 	}
 
-init_pkg_free_alloc:
-	kfree(pkg_info);
-
-	return state;
+	return ICE_DDP_PKG_SUCCESS;
 }
 
 /**
@@ -1620,9 +1889,10 @@ static enum ice_ddp_state ice_chk_pkg_compat(struct ice_hw *hw,
 					     struct ice_pkg_hdr *ospkg,
 					     struct ice_seg **seg)
 {
-	struct ice_aqc_get_pkg_info_resp *pkg;
+	DEFINE_FLEX(struct ice_aqc_get_pkg_info_resp, pkg, pkg_info,
+		    ICE_PKG_CNT);
+	u16 size = __struct_size(pkg);
 	enum ice_ddp_state state;
-	u16 size;
 	u32 i;
 
 	/* Check package version compatibility */
@@ -1633,7 +1903,7 @@ static enum ice_ddp_state ice_chk_pkg_compat(struct ice_hw *hw,
 	}
 
 	/* find ICE segment in given package */
-	*seg = (struct ice_seg *)ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE,
+	*seg = (struct ice_seg *)ice_find_seg_in_pkg(hw, hw->pkg_seg_id,
 						     ospkg);
 	if (!*seg) {
 		ice_debug(hw, ICE_DBG_INIT, "no ice segment in package.\n");
@@ -1641,15 +1911,8 @@ static enum ice_ddp_state ice_chk_pkg_compat(struct ice_hw *hw,
 	}
 
 	/* Check if FW is compatible with the OS package */
-	size = struct_size(pkg, pkg_info, ICE_PKG_CNT);
-	pkg = kzalloc(size, GFP_KERNEL);
-	if (!pkg)
-		return ICE_DDP_PKG_ERR;
-
-	if (ice_aq_get_pkg_info_list(hw, pkg, size, NULL)) {
-		state = ICE_DDP_PKG_LOAD_ERROR;
-		goto fw_ddp_compat_free_alloc;
-	}
+	if (ice_aq_get_pkg_info_list(hw, pkg, size, NULL))
+		return ICE_DDP_PKG_LOAD_ERROR;
 
 	for (i = 0; i < le32_to_cpu(pkg->count); i++) {
 		/* loop till we find the NVM package */
@@ -1666,8 +1929,7 @@ static enum ice_ddp_state ice_chk_pkg_compat(struct ice_hw *hw,
 		/* done processing NVM package so break */
 		break;
 	}
-fw_ddp_compat_free_alloc:
-	kfree(pkg);
+
 	return state;
 }
 
@@ -1807,6 +2069,11 @@ enum ice_ddp_state ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 	if (state)
 		return state;
 
+	/* must be a matching segment */
+	if (hw->pkg_has_signing_seg &&
+	    !ice_match_signing_seg(pkg, hw->pkg_seg_id, hw->pkg_sign_type))
+		return ICE_DDP_PKG_ERR;
+
 	/* before downloading the package, check package version for
 	 * compatibility with driver
 	 */
@@ -1816,7 +2083,7 @@ enum ice_ddp_state ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 
 	/* initialize package hints and then download package */
 	ice_init_pkg_hints(hw, seg);
-	state = ice_download_pkg(hw, seg);
+	state = ice_download_pkg(hw, pkg);
 	if (state == ICE_DDP_PKG_ALREADY_LOADED) {
 		ice_debug(hw, ICE_DBG_INIT,
 			  "package previously loaded - no work.\n");

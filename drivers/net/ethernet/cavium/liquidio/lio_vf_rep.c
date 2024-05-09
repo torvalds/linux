@@ -638,7 +638,8 @@ lio_vf_rep_netdev_event(struct notifier_block *nb,
 	memset(&rep_cfg, 0, sizeof(rep_cfg));
 	rep_cfg.req_type = LIO_VF_REP_REQ_DEVNAME;
 	rep_cfg.ifidx = vf_rep->ifidx;
-	strncpy(rep_cfg.rep_name.name, ndev->name, LIO_IF_NAME_SIZE);
+	strscpy(rep_cfg.rep_name.name, ndev->name,
+		sizeof(rep_cfg.rep_name.name));
 
 	ret = lio_vf_rep_send_soft_command(oct, &rep_cfg,
 					   sizeof(rep_cfg), NULL, 0);

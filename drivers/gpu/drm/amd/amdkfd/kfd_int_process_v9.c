@@ -333,7 +333,7 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 			encoding = REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, ENCODING);
 			switch (encoding) {
 			case SQ_INTERRUPT_WORD_ENCODING_AUTO:
-				pr_debug(
+				pr_debug_ratelimited(
 					"sq_intr: auto, se %d, ttrace %d, wlt %d, ttrac_buf_full %d, reg_tms %d, cmd_tms %d, host_cmd_ovf %d, host_reg_ovf %d, immed_ovf %d, ttrace_utc_err %d\n",
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, SE_ID),
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, THREAD_TRACE),
@@ -347,7 +347,7 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, THREAD_TRACE_UTC_ERROR));
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_INST:
-				pr_debug("sq_intr: inst, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, intr_data 0x%x\n",
+				pr_debug_ratelimited("sq_intr: inst, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, intr_data 0x%x\n",
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SE_ID),
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, DATA),
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SH_ID),
@@ -366,7 +366,7 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_ERROR:
 				sq_intr_err = REG_GET_FIELD(sq_int_data, KFD_SQ_INT_DATA, ERR_TYPE);
-				pr_warn("sq_intr: error, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, err_type %d\n",
+				pr_warn_ratelimited("sq_intr: error, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, err_type %d\n",
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SE_ID),
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, DATA),
 					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SH_ID),
@@ -384,7 +384,7 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 			default:
 				break;
 			}
-			kfd_signal_event_interrupt(pasid, context_id0 & 0xffffff, 24);
+			kfd_signal_event_interrupt(pasid, sq_int_data, 24);
 		} else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE) {
 			kfd_set_dbg_ev_from_interrupt(dev, pasid,
 				KFD_DEBUG_DOORBELL_ID(context_id0),
@@ -446,7 +446,36 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 	}
 }
 
+static bool event_interrupt_isr_v9_4_3(struct kfd_node *node,
+				const uint32_t *ih_ring_entry,
+				uint32_t *patched_ihre,
+				bool *patched_flag)
+{
+	uint16_t node_id, vmid;
+
+	/*
+	 * For GFX 9.4.3, process the interrupt if:
+	 * - NodeID field in IH entry matches the corresponding bit
+	 *   set in interrupt_bitmap Bits 0-15.
+	 *   OR
+	 * - If partition mode is CPX and interrupt came from
+	 *   Node_id 0,4,8,12, then check if the Bit (16 + client id)
+	 *   is set in interrupt bitmap Bits 16-31.
+	 */
+	node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
+	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
+	if (kfd_irq_is_from_node(node, node_id, vmid))
+		return event_interrupt_isr_v9(node, ih_ring_entry,
+					patched_ihre, patched_flag);
+	return false;
+}
+
 const struct kfd_event_interrupt_class event_interrupt_class_v9 = {
 	.interrupt_isr = event_interrupt_isr_v9,
+	.interrupt_wq = event_interrupt_wq_v9,
+};
+
+const struct kfd_event_interrupt_class event_interrupt_class_v9_4_3 = {
+	.interrupt_isr = event_interrupt_isr_v9_4_3,
 	.interrupt_wq = event_interrupt_wq_v9,
 };

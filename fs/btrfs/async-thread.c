@@ -9,6 +9,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
+#include <trace/events/btrfs.h>
 #include "async-thread.h"
 #include "ctree.h"
 
@@ -242,7 +243,7 @@ static void run_ordered_work(struct btrfs_workqueue *wq,
 			break;
 		trace_btrfs_ordered_sched(work);
 		spin_unlock_irqrestore(lock, flags);
-		work->ordered_func(work);
+		work->ordered_func(work, false);
 
 		/* now take the lock again and drop our item from the list */
 		spin_lock_irqsave(lock, flags);
@@ -277,7 +278,7 @@ static void run_ordered_work(struct btrfs_workqueue *wq,
 			 * We don't want to call the ordered free functions with
 			 * the lock held.
 			 */
-			work->ordered_free(work);
+			work->ordered_func(work, true);
 			/* NB: work must not be dereferenced past this point. */
 			trace_btrfs_all_work_done(wq->fs_info, work);
 		}
@@ -285,7 +286,7 @@ static void run_ordered_work(struct btrfs_workqueue *wq,
 	spin_unlock_irqrestore(lock, flags);
 
 	if (free_self) {
-		self->ordered_free(self);
+		self->ordered_func(self, true);
 		/* NB: self must not be dereferenced past this point. */
 		trace_btrfs_all_work_done(wq->fs_info, self);
 	}
@@ -300,7 +301,7 @@ static void btrfs_work_helper(struct work_struct *normal_work)
 
 	/*
 	 * We should not touch things inside work in the following cases:
-	 * 1) after work->func() if it has no ordered_free
+	 * 1) after work->func() if it has no ordered_func(..., true) to free
 	 *    Since the struct is freed in work->func().
 	 * 2) after setting WORK_DONE_BIT
 	 *    The work may be freed in other threads almost instantly.
@@ -329,11 +330,10 @@ static void btrfs_work_helper(struct work_struct *normal_work)
 }
 
 void btrfs_init_work(struct btrfs_work *work, btrfs_func_t func,
-		     btrfs_func_t ordered_func, btrfs_func_t ordered_free)
+		     btrfs_ordered_func_t ordered_func)
 {
 	work->func = func;
 	work->ordered_func = ordered_func;
-	work->ordered_free = ordered_free;
 	INIT_WORK(&work->normal_work, btrfs_work_helper);
 	INIT_LIST_HEAD(&work->ordered_list);
 	work->flags = 0;

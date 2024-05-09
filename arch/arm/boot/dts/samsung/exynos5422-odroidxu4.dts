@@ -35,7 +35,7 @@
 		compatible = "samsung,odroid-xu3-audio";
 		model = "Odroid-XU4";
 
-		samsung,audio-routing = "I2S Playback", "Mixer DAI TX";
+		audio-routing = "I2S Playback", "Mixer DAI TX";
 
 		cpu {
 			sound-dai = <&i2s0 0>, <&i2s0 1>;

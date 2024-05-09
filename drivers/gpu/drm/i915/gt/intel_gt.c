@@ -33,6 +33,7 @@
 #include "intel_rps.h"
 #include "intel_sa_media.h"
 #include "intel_gt_sysfs.h"
+#include "intel_tlb.h"
 #include "intel_uncore.h"
 #include "shmem_utils.h"
 
@@ -50,8 +51,7 @@ void intel_gt_common_init_early(struct intel_gt *gt)
 	intel_gt_init_reset(gt);
 	intel_gt_init_requests(gt);
 	intel_gt_init_timelines(gt);
-	mutex_init(&gt->tlb.invalidate_lock);
-	seqcount_mutex_init(&gt->tlb.seqno, &gt->tlb.invalidate_lock);
+	intel_gt_init_tlb(gt);
 	intel_gt_pm_init_early(gt);
 
 	intel_wopcm_init_early(&gt->wopcm);
@@ -62,7 +62,13 @@ void intel_gt_common_init_early(struct intel_gt *gt)
 /* Preliminary initialization of Tile 0 */
 int intel_root_gt_init_early(struct drm_i915_private *i915)
 {
-	struct intel_gt *gt = to_gt(i915);
+	struct intel_gt *gt;
+
+	gt = drmm_kzalloc(&i915->drm, sizeof(*gt), GFP_KERNEL);
+	if (!gt)
+		return -ENOMEM;
+
+	i915->gt[0] = gt;
 
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
@@ -179,7 +185,7 @@ int intel_gt_init_hw(struct intel_gt *gt)
 	if (IS_HASWELL(i915))
 		intel_uncore_write(uncore,
 				   HSW_MI_PREDICATE_RESULT_2,
-				   IS_HSW_GT3(i915) ?
+				   IS_HASWELL_GT3(i915) ?
 				   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 
 	/* Apply the GT workarounds... */
@@ -262,10 +268,21 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 				   I915_MASTER_ERROR_INTERRUPT);
 	}
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+	/*
+	 * For the media GT, this ring fault register is not replicated,
+	 * so don't do multicast/replicated register read/write operation on it.
+	 */
+	if (MEDIA_VER(i915) >= 13 && gt->type == GT_MEDIA) {
+		intel_uncore_rmw(uncore, XELPMP_RING_FAULT_REG,
+				 RING_FAULT_VALID, 0);
+		intel_uncore_posting_read(uncore,
+					  XELPMP_RING_FAULT_REG);
+
+	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
 		intel_gt_mcr_multicast_rmw(gt, XEHP_RING_FAULT_REG,
 					   RING_FAULT_VALID, 0);
 		intel_gt_mcr_read_any(gt, XEHP_RING_FAULT_REG);
+
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		intel_uncore_rmw(uncore, GEN12_RING_FAULT_REG, RING_FAULT_VALID, 0);
 		intel_uncore_posting_read(uncore, GEN12_RING_FAULT_REG);
@@ -466,7 +483,7 @@ static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
 	obj = i915_gem_object_create_lmem(i915, size,
 					  I915_BO_ALLOC_VOLATILE |
 					  I915_BO_ALLOC_GPU_ONLY);
-	if (IS_ERR(obj))
+	if (IS_ERR(obj) && !IS_METEORLAKE(i915)) /* Wa_22018444074 */
 		obj = i915_gem_object_create_stolen(i915, size);
 	if (IS_ERR(obj))
 		obj = i915_gem_object_create_internal(i915, size);
@@ -846,7 +863,7 @@ void intel_gt_driver_late_release_all(struct drm_i915_private *i915)
 		intel_gt_fini_requests(gt);
 		intel_gt_fini_reset(gt);
 		intel_gt_fini_timelines(gt);
-		mutex_destroy(&gt->tlb.invalidate_lock);
+		intel_gt_fini_tlb(gt);
 		intel_engines_free(gt);
 	}
 }
@@ -887,7 +904,7 @@ static int intel_gt_tile_setup(struct intel_gt *gt, phys_addr_t phys_addr)
 int intel_gt_probe_all(struct drm_i915_private *i915)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
-	struct intel_gt *gt = &i915->gt0;
+	struct intel_gt *gt = to_gt(i915);
 	const struct intel_gt_definition *gtdef;
 	phys_addr_t phys_addr;
 	unsigned int mmio_bar;
@@ -904,14 +921,12 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 	 */
 	gt->i915 = i915;
 	gt->name = "Primary GT";
-	gt->info.engine_mask = RUNTIME_INFO(i915)->platform_engine_mask;
+	gt->info.engine_mask = INTEL_INFO(i915)->platform_engine_mask;
 
 	gt_dbg(gt, "Setting up %s\n", gt->name);
 	ret = intel_gt_tile_setup(gt, phys_addr);
 	if (ret)
 		return ret;
-
-	i915->gt[0] = gt;
 
 	if (!HAS_EXTRA_GT_LIST(i915))
 		return 0;
@@ -1004,136 +1019,72 @@ void intel_gt_info_print(const struct intel_gt_info *info,
 	intel_sseu_dump(&info->sseu, p);
 }
 
-/*
- * HW architecture suggest typical invalidation time at 40us,
- * with pessimistic cases up to 100us and a recommendation to
- * cap at 1ms. We go a bit higher just in case.
- */
-#define TLB_INVAL_TIMEOUT_US 100
-#define TLB_INVAL_TIMEOUT_MS 4
-
-/*
- * On Xe_HP the TLB invalidation registers are located at the same MMIO offsets
- * but are now considered MCR registers.  Since they exist within a GAM range,
- * the primary instance of the register rolls up the status from each unit.
- */
-static int wait_for_invalidate(struct intel_engine_cs *engine)
+enum i915_map_type intel_gt_coherent_map_type(struct intel_gt *gt,
+					      struct drm_i915_gem_object *obj,
+					      bool always_coherent)
 {
-	if (engine->tlb_inv.mcr)
-		return intel_gt_mcr_wait_for_reg(engine->gt,
-						 engine->tlb_inv.reg.mcr_reg,
-						 engine->tlb_inv.done,
-						 0,
-						 TLB_INVAL_TIMEOUT_US,
-						 TLB_INVAL_TIMEOUT_MS);
-	else
-		return __intel_wait_for_register_fw(engine->gt->uncore,
-						    engine->tlb_inv.reg.reg,
-						    engine->tlb_inv.done,
-						    0,
-						    TLB_INVAL_TIMEOUT_US,
-						    TLB_INVAL_TIMEOUT_MS,
-						    NULL);
-}
-
-static void mmio_invalidate_full(struct intel_gt *gt)
-{
-	struct drm_i915_private *i915 = gt->i915;
-	struct intel_uncore *uncore = gt->uncore;
-	struct intel_engine_cs *engine;
-	intel_engine_mask_t awake, tmp;
-	enum intel_engine_id id;
-	unsigned long flags;
-
-	if (GRAPHICS_VER(i915) < 8)
-		return;
-
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-
-	intel_gt_mcr_lock(gt, &flags);
-	spin_lock(&uncore->lock); /* serialise invalidate with GT reset */
-
-	awake = 0;
-	for_each_engine(engine, gt, id) {
-		if (!intel_engine_pm_is_awake(engine))
-			continue;
-
-		if (engine->tlb_inv.mcr)
-			intel_gt_mcr_multicast_write_fw(gt,
-							engine->tlb_inv.reg.mcr_reg,
-							engine->tlb_inv.request);
-		else
-			intel_uncore_write_fw(uncore,
-					      engine->tlb_inv.reg.reg,
-					      engine->tlb_inv.request);
-
-		awake |= engine->mask;
-	}
-
-	GT_TRACE(gt, "invalidated engines %08x\n", awake);
-
-	/* Wa_2207587034:tgl,dg1,rkl,adl-s,adl-p */
-	if (awake &&
-	    (IS_TIGERLAKE(i915) ||
-	     IS_DG1(i915) ||
-	     IS_ROCKETLAKE(i915) ||
-	     IS_ALDERLAKE_S(i915) ||
-	     IS_ALDERLAKE_P(i915)))
-		intel_uncore_write_fw(uncore, GEN12_OA_TLB_INV_CR, 1);
-
-	spin_unlock(&uncore->lock);
-	intel_gt_mcr_unlock(gt, flags);
-
-	for_each_engine_masked(engine, gt, awake, tmp) {
-		if (wait_for_invalidate(engine))
-			gt_err_ratelimited(gt,
-					   "%s TLB invalidation did not complete in %ums!\n",
-					   engine->name, TLB_INVAL_TIMEOUT_MS);
-	}
-
 	/*
-	 * Use delayed put since a) we mostly expect a flurry of TLB
-	 * invalidations so it is good to avoid paying the forcewake cost and
-	 * b) it works around a bug in Icelake which cannot cope with too rapid
-	 * transitions.
+	 * Wa_22016122933: always return I915_MAP_WC for Media
+	 * version 13.0 when the object is on the Media GT
 	 */
-	intel_uncore_forcewake_put_delayed(uncore, FORCEWAKE_ALL);
+	if (i915_gem_object_is_lmem(obj) || intel_gt_needs_wa_22016122933(gt))
+		return I915_MAP_WC;
+	if (HAS_LLC(gt->i915) || always_coherent)
+		return I915_MAP_WB;
+	else
+		return I915_MAP_WC;
 }
 
-static bool tlb_seqno_passed(const struct intel_gt *gt, u32 seqno)
+bool intel_gt_needs_wa_22016122933(struct intel_gt *gt)
 {
-	u32 cur = intel_gt_tlb_seqno(gt);
-
-	/* Only skip if a *full* TLB invalidate barrier has passed */
-	return (s32)(cur - ALIGN(seqno, 2)) > 0;
+	return MEDIA_VER_FULL(gt->i915) == IP_VER(13, 0) && gt->type == GT_MEDIA;
 }
 
-void intel_gt_invalidate_tlb(struct intel_gt *gt, u32 seqno)
+static void __intel_gt_bind_context_set_ready(struct intel_gt *gt, bool ready)
 {
-	intel_wakeref_t wakeref;
+	struct intel_engine_cs *engine = gt->engine[BCS0];
 
-	if (I915_SELFTEST_ONLY(gt->awake == -ENODEV))
-		return;
-
-	if (intel_gt_is_wedged(gt))
-		return;
-
-	if (tlb_seqno_passed(gt, seqno))
-		return;
-
-	with_intel_gt_pm_if_awake(gt, wakeref) {
-		mutex_lock(&gt->tlb.invalidate_lock);
-		if (tlb_seqno_passed(gt, seqno))
-			goto unlock;
-
-		mmio_invalidate_full(gt);
-
-		write_seqcount_invalidate(&gt->tlb.seqno);
-unlock:
-		mutex_unlock(&gt->tlb.invalidate_lock);
-	}
+	if (engine && engine->bind_context)
+		engine->bind_context_ready = ready;
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-#include "selftest_tlb.c"
-#endif
+/**
+ * intel_gt_bind_context_set_ready - Set the context binding as ready
+ *
+ * @gt: GT structure
+ *
+ * This function marks the binder context as ready.
+ */
+void intel_gt_bind_context_set_ready(struct intel_gt *gt)
+{
+	__intel_gt_bind_context_set_ready(gt, true);
+}
+
+/**
+ * intel_gt_bind_context_set_unready - Set the context binding as ready
+ * @gt: GT structure
+ *
+ * This function marks the binder context as not ready.
+ */
+
+void intel_gt_bind_context_set_unready(struct intel_gt *gt)
+{
+	__intel_gt_bind_context_set_ready(gt, false);
+}
+
+/**
+ * intel_gt_is_bind_context_ready - Check if context binding is ready
+ *
+ * @gt: GT structure
+ *
+ * This function returns binder context's ready status.
+ */
+bool intel_gt_is_bind_context_ready(struct intel_gt *gt)
+{
+	struct intel_engine_cs *engine = gt->engine[BCS0];
+
+	if (engine)
+		return engine->bind_context_ready;
+
+	return false;
+}

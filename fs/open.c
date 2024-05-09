@@ -671,11 +671,20 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 	return err;
 }
 
-static int do_fchmodat(int dfd, const char __user *filename, umode_t mode)
+static int do_fchmodat(int dfd, const char __user *filename, umode_t mode,
+		       unsigned int flags)
 {
 	struct path path;
 	int error;
-	unsigned int lookup_flags = LOOKUP_FOLLOW;
+	unsigned int lookup_flags;
+
+	if (unlikely(flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)))
+		return -EINVAL;
+
+	lookup_flags = (flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	if (flags & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+
 retry:
 	error = user_path_at(dfd, filename, lookup_flags, &path);
 	if (!error) {
@@ -689,15 +698,21 @@ retry:
 	return error;
 }
 
+SYSCALL_DEFINE4(fchmodat2, int, dfd, const char __user *, filename,
+		umode_t, mode, unsigned int, flags)
+{
+	return do_fchmodat(dfd, filename, mode, flags);
+}
+
 SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename,
 		umode_t, mode)
 {
-	return do_fchmodat(dfd, filename, mode);
+	return do_fchmodat(dfd, filename, mode, 0);
 }
 
 SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 {
-	return do_fchmodat(AT_FDCWD, filename, mode);
+	return do_fchmodat(AT_FDCWD, filename, mode, 0);
 }
 
 /*
@@ -855,6 +870,30 @@ SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 	return ksys_fchown(fd, user, group);
 }
 
+static inline int file_get_write_access(struct file *f)
+{
+	int error;
+
+	error = get_write_access(f->f_inode);
+	if (unlikely(error))
+		return error;
+	error = mnt_get_write_access(f->f_path.mnt);
+	if (unlikely(error))
+		goto cleanup_inode;
+	if (unlikely(f->f_mode & FMODE_BACKING)) {
+		error = mnt_get_write_access(backing_file_user_path(f)->mnt);
+		if (unlikely(error))
+			goto cleanup_mnt;
+	}
+	return 0;
+
+cleanup_mnt:
+	mnt_put_write_access(f->f_path.mnt);
+cleanup_inode:
+	put_write_access(f->f_inode);
+	return error;
+}
+
 static int do_dentry_open(struct file *f,
 			  struct inode *inode,
 			  int (*open)(struct inode *, struct file *))
@@ -877,14 +916,9 @@ static int do_dentry_open(struct file *f,
 	if ((f->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
 		i_readcount_inc(inode);
 	} else if (f->f_mode & FMODE_WRITE && !special_file(inode->i_mode)) {
-		error = get_write_access(inode);
+		error = file_get_write_access(f);
 		if (unlikely(error))
 			goto cleanup_file;
-		error = __mnt_want_write(f->f_path.mnt);
-		if (unlikely(error)) {
-			put_write_access(inode);
-			goto cleanup_file;
-		}
 		f->f_mode |= FMODE_WRITER;
 	}
 
@@ -1148,20 +1182,19 @@ EXPORT_SYMBOL_GPL(kernel_file_open);
 
 /**
  * backing_file_open - open a backing file for kernel internal use
- * @path:	path of the file to open
+ * @user_path:	path that the user reuqested to open
  * @flags:	open flags
- * @path:	path of the backing file
+ * @real_path:	path of the backing file
  * @cred:	credentials for open
  *
  * Open a backing file for a stackable filesystem (e.g., overlayfs).
- * @path may be on the stackable filesystem and backing inode on the
- * underlying filesystem. In this case, we want to be able to return
- * the @real_path of the backing inode. This is done by embedding the
- * returned file into a container structure that also stores the path of
- * the backing inode on the underlying filesystem, which can be
- * retrieved using backing_file_real_path().
+ * @user_path may be on the stackable filesystem and @real_path on the
+ * underlying filesystem.  In this case, we want to be able to return the
+ * @user_path of the stackable filesystem. This is done by embedding the
+ * returned file into a container structure that also stores the stacked
+ * file's path, which can be retrieved using backing_file_user_path().
  */
-struct file *backing_file_open(const struct path *path, int flags,
+struct file *backing_file_open(const struct path *user_path, int flags,
 			       const struct path *real_path,
 			       const struct cred *cred)
 {
@@ -1172,9 +1205,9 @@ struct file *backing_file_open(const struct path *path, int flags,
 	if (IS_ERR(f))
 		return f;
 
-	f->f_path = *path;
-	path_get(real_path);
-	*backing_file_real_path(f) = *real_path;
+	path_get(user_path);
+	*backing_file_user_path(f) = *user_path;
+	f->f_path = *real_path;
 	error = do_dentry_open(f, d_inode(real_path->dentry), NULL);
 	if (error) {
 		fput(f);
@@ -1322,7 +1355,7 @@ inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 		lookup_flags |= LOOKUP_IN_ROOT;
 	if (how->resolve & RESOLVE_CACHED) {
 		/* Don't bother even trying for create/truncate/tmpfile open */
-		if (flags & (O_TRUNC | O_CREAT | O_TMPFILE))
+		if (flags & (O_TRUNC | O_CREAT | __O_TMPFILE))
 			return -EAGAIN;
 		lookup_flags |= LOOKUP_CACHED;
 	}
@@ -1503,7 +1536,7 @@ SYSCALL_DEFINE2(creat, const char __user *, pathname, umode_t, mode)
  * "id" is the POSIX thread ID. We use the
  * files pointer for this..
  */
-int filp_close(struct file *filp, fl_owner_t id)
+static int filp_flush(struct file *filp, fl_owner_t id)
 {
 	int retval = 0;
 
@@ -1520,10 +1553,18 @@ int filp_close(struct file *filp, fl_owner_t id)
 		dnotify_flush(filp, id);
 		locks_remove_posix(filp, id);
 	}
-	fput(filp);
 	return retval;
 }
 
+int filp_close(struct file *filp, fl_owner_t id)
+{
+	int retval;
+
+	retval = filp_flush(filp, id);
+	fput(filp);
+
+	return retval;
+}
 EXPORT_SYMBOL(filp_close);
 
 /*
@@ -1533,7 +1574,20 @@ EXPORT_SYMBOL(filp_close);
  */
 SYSCALL_DEFINE1(close, unsigned int, fd)
 {
-	int retval = close_fd(fd);
+	int retval;
+	struct file *file;
+
+	file = close_fd_get_file(fd);
+	if (!file)
+		return -EBADF;
+
+	retval = filp_flush(file, current->files);
+
+	/*
+	 * We're returning to user space. Don't bother
+	 * with any delayed fput() cases.
+	 */
+	__fput_sync(file);
 
 	/* can't restart close syscall because file table entry was cleared */
 	if (unlikely(retval == -ERESTARTSYS ||
@@ -1546,7 +1600,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 }
 
 /**
- * close_range() - Close all file descriptors in a given range.
+ * sys_close_range() - Close all file descriptors in a given range.
  *
  * @fd:     starting file descriptor to close
  * @max_fd: last file descriptor to close

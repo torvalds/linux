@@ -128,7 +128,7 @@ static int jpeg_v2_5_sw_init(void *handle)
 
 		ring = adev->jpeg.inst[i].ring_dec;
 		ring->use_doorbell = true;
-		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) == IP_VERSION(2, 5, 0))
 			ring->vm_hub = AMDGPU_MMHUB1(0);
 		else
 			ring->vm_hub = AMDGPU_MMHUB0(0);
@@ -822,7 +822,7 @@ static struct amdgpu_jpeg_ras jpeg_v2_6_ras = {
 
 static void jpeg_v2_5_set_ras_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[JPEG_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, JPEG_HWIP, 0)) {
 	case IP_VERSION(2, 6, 0):
 		adev->jpeg.ras = &jpeg_v2_6_ras;
 		break;

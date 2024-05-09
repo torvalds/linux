@@ -153,7 +153,7 @@ static acpi_handle intel_dsm_pci_probe(struct pci_dev *pdev)
 static bool intel_dsm_detect(void)
 {
 	acpi_handle dhandle = NULL;
-	char acpi_method_name[255] = { 0 };
+	char acpi_method_name[255] = {};
 	struct acpi_buffer buffer = {sizeof(acpi_method_name), acpi_method_name};
 	struct pci_dev *pdev = NULL;
 	int vga_count = 0;

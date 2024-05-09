@@ -6,6 +6,171 @@ protocol: genetlink-legacy
 
 doc: Partial family for Devlink.
 
+definitions:
+  -
+    type: enum
+    name: sb-pool-type
+    entries:
+      -
+        name: ingress
+      -
+        name: egress
+  -
+    type: enum
+    name: port-type
+    entries:
+      -
+        name: notset
+      -
+        name: auto
+      -
+        name: eth
+      -
+        name: ib
+  -
+    type: enum
+    name: port-flavour
+    entries:
+      -
+        name: physical
+      -
+        name: cpu
+      -
+        name: dsa
+      -
+        name: pci_pf
+      -
+        name: pci_vf
+      -
+        name: virtual
+      -
+        name: unused
+      -
+        name: pci_sf
+  -
+    type: enum
+    name: port-fn-state
+    entries:
+      -
+        name: inactive
+      -
+        name: active
+  -
+    type: enum
+    name: port-fn-opstate
+    entries:
+      -
+        name: detached
+      -
+        name: attached
+  -
+    type: enum
+    name: port-fn-attr-cap
+    entries:
+      -
+        name: roce-bit
+      -
+        name: migratable-bit
+  -
+    type: enum
+    name: sb-threshold-type
+    entries:
+      -
+        name: static
+      -
+        name: dynamic
+  -
+    type: enum
+    name: eswitch-mode
+    entries:
+      -
+        name: legacy
+      -
+        name: switchdev
+  -
+    type: enum
+    name: eswitch-inline-mode
+    entries:
+      -
+        name: none
+      -
+        name: link
+      -
+        name: network
+      -
+        name: transport
+  -
+    type: enum
+    name: eswitch-encap-mode
+    entries:
+      -
+        name: none
+      -
+        name: basic
+  -
+    type: enum
+    name: dpipe-match-type
+    entries:
+      -
+        name: field-exact
+  -
+    type: enum
+    name: dpipe-action-type
+    entries:
+      -
+        name: field-modify
+  -
+    type: enum
+    name: dpipe-field-mapping-type
+    entries:
+      -
+        name: none
+      -
+        name: ifindex
+  -
+    type: enum
+    name: resource-unit
+    entries:
+      -
+        name: entry
+  -
+    type: enum
+    name: reload-action
+    entries:
+      -
+        name: driver-reinit
+        value: 1
+      -
+        name: fw-activate
+  -
+    type: enum
+    name: param-cmode
+    entries:
+      -
+        name: runtime
+      -
+        name: driverinit
+      -
+        name: permanent
+  -
+    type: enum
+    name: flash-overwrite
+    entries:
+      -
+        name: settings-bit
+      -
+        name: identifiers-bit
+  -
+    type: enum
+    name: trap-action
+    entries:
+      -
+        name: drop
+      -
+        name: trap
+      -
+        name: mirror
+
 attribute-sets:
   -
     name: devlink
@@ -21,13 +186,294 @@ attribute-sets:
       -
         name: port-index
         type: u32
+      -
+        name: port-type
+        type: u16
+        enum: port-type
 
       # TODO: fill in the attributes in between
 
       -
+        name: port-split-count
+        type: u32
+        value: 9
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: sb-index
+        type: u32
+        value: 11
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: sb-pool-index
+        type: u16
+        value: 17
+      -
+        name: sb-pool-type
+        type: u8
+        enum: sb-pool-type
+      -
+        name: sb-pool-size
+        type: u32
+      -
+        name: sb-pool-threshold-type
+        type: u8
+        enum: sb-threshold-type
+      -
+        name: sb-threshold
+        type: u32
+      -
+        name: sb-tc-index
+        type: u16
+        value: 22
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: eswitch-mode
+        type: u16
+        value: 25
+        enum: eswitch-mode
+
+      -
+        name: eswitch-inline-mode
+        type: u16
+        enum: eswitch-inline-mode
+      -
+        name: dpipe-tables
+        type: nest
+        nested-attributes: dl-dpipe-tables
+      -
+        name: dpipe-table
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-dpipe-table
+      -
+        name: dpipe-table-name
+        type: string
+      -
+        name: dpipe-table-size
+        type: u64
+      -
+        name: dpipe-table-matches
+        type: nest
+        nested-attributes: dl-dpipe-table-matches
+      -
+        name: dpipe-table-actions
+        type: nest
+        nested-attributes: dl-dpipe-table-actions
+      -
+        name: dpipe-table-counters-enabled
+        type: u8
+      -
+        name: dpipe-entries
+        type: nest
+        nested-attributes: dl-dpipe-entries
+      -
+        name: dpipe-entry
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-dpipe-entry
+      -
+        name: dpipe-entry-index
+        type: u64
+      -
+        name: dpipe-entry-match-values
+        type: nest
+        nested-attributes: dl-dpipe-entry-match-values
+      -
+        name: dpipe-entry-action-values
+        type: nest
+        nested-attributes: dl-dpipe-entry-action-values
+      -
+        name: dpipe-entry-counter
+        type: u64
+      -
+        name: dpipe-match
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-dpipe-match
+      -
+        name: dpipe-match-value
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-dpipe-match-value
+      -
+        name: dpipe-match-type
+        type: u32
+        enum: dpipe-match-type
+      -
+        name: dpipe-action
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-dpipe-action
+      -
+        name: dpipe-action-value
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-dpipe-action-value
+      -
+        name: dpipe-action-type
+        type: u32
+        enum: dpipe-action-type
+      -
+        name: dpipe-value
+        type: binary
+      -
+        name: dpipe-value-mask
+        type: binary
+      -
+        name: dpipe-value-mapping
+        type: u32
+      -
+        name: dpipe-headers
+        type: nest
+        nested-attributes: dl-dpipe-headers
+      -
+        name: dpipe-header
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-dpipe-header
+      -
+        name: dpipe-header-name
+        type: string
+      -
+        name: dpipe-header-id
+        type: u32
+      -
+        name: dpipe-header-fields
+        type: nest
+        nested-attributes: dl-dpipe-header-fields
+      -
+        name: dpipe-header-global
+        type: u8
+      -
+        name: dpipe-header-index
+        type: u32
+      -
+        name: dpipe-field
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-dpipe-field
+      -
+        name: dpipe-field-name
+        type: string
+      -
+        name: dpipe-field-id
+        type: u32
+      -
+        name: dpipe-field-bitwidth
+        type: u32
+      -
+        name: dpipe-field-mapping-type
+        type: u32
+        enum: dpipe-field-mapping-type
+      -
+        name: pad
+        type: pad
+      -
+        name: eswitch-encap-mode
+        type: u8
+        value: 62
+        enum: eswitch-encap-mode
+      -
+        name: resource-list
+        type: nest
+        nested-attributes: dl-resource-list
+      -
+        name: resource
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-resource
+      -
+        name: resource-name
+        type: string
+      -
+        name: resource-id
+        type: u64
+      -
+        name: resource-size
+        type: u64
+      -
+        name: resource-size-new
+        type: u64
+      -
+        name: resource-size-valid
+        type: u8
+      -
+        name: resource-size-min
+        type: u64
+      -
+        name: resource-size-max
+        type: u64
+      -
+        name: resource-size-gran
+        type: u64
+      -
+        name: resource-unit
+        type: u8
+        enum: resource-unit
+      -
+        name: resource-occ
+        type: u64
+      -
+        name: dpipe-table-resource-id
+        type: u64
+      -
+        name: dpipe-table-resource-units
+        type: u64
+      -
+        name: port-flavour
+        type: u16
+        enum: port-flavour
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: param-name
+        type: string
+        value: 81
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: param-type
+        type: u8
+        value: 83
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: param-value-cmode
+        type: u8
+        enum: param-cmode
+        value: 87
+      -
+        name: region-name
+        type: string
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: region-snapshot-id
+        type: u32
+        value: 92
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: region-chunk-addr
+        type: u64
+        value: 96
+      -
+        name: region-chunk-len
+        type: u64
+      -
         name: info-driver-name
         type: string
-        value: 98
       -
         name: info-serial-number
         type: string
@@ -56,23 +502,143 @@ attribute-sets:
       # TODO: fill in the attributes in between
 
       -
-        name: reload-failed
-        type: u8
-        value: 136
+        name: fmsg
+        type: nest
+        nested-attributes: dl-fmsg
+        value: 106
+      -
+        name: fmsg-obj-nest-start
+        type: flag
+      -
+        name: fmsg-pair-nest-start
+        type: flag
+      -
+        name: fmsg-arr-nest-start
+        type: flag
+      -
+        name: fmsg-nest-end
+        type: flag
+      -
+        name: fmsg-obj-name
+        type: string
 
       # TODO: fill in the attributes in between
 
+      -
+        name: health-reporter-name
+        type: string
+        value: 115
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: health-reporter-graceful-period
+        type: u64
+        value: 120
+      -
+        name: health-reporter-auto-recover
+        type: u8
+      -
+        name: flash-update-file-name
+        type: string
+      -
+        name: flash-update-component
+        type: string
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: port-pci-pf-number
+        type: u16
+        value: 127
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: trap-name
+        type: string
+        value: 130
+      -
+        name: trap-action
+        type: u8
+        enum: trap-action
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: trap-group-name
+        type: string
+        value: 135
+
+      -
+        name: reload-failed
+        type: u8
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: netns-fd
+        type: u32
+        value: 138
+      -
+        name: netns-pid
+        type: u32
+      -
+        name: netns-id
+        type: u32
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: health-reporter-auto-dump
+        type: u8
+        value: 141
+      -
+        name: trap-policer-id
+        type: u32
+      -
+        name: trap-policer-rate
+        type: u64
+      -
+        name: trap-policer-burst
+        type: u64
+      -
+        name: port-function
+        type: nest
+        nested-attributes: dl-port-function
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: port-controller-number
+        type: u32
+        value: 150
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: flash-update-overwrite-mask
+        type: bitfield32
+        enum: flash-overwrite
+        enum-as-flags: True
+        value: 152
       -
         name: reload-action
         type: u8
-        value: 153
-
-      # TODO: fill in the attributes in between
-
+        enum: reload-action
+      -
+        name: reload-actions-performed
+        type: bitfield32
+        enum: reload-action
+        enum-as-flags: True
+      -
+        name: reload-limits
+        type: bitfield32
+        enum: reload-action
+        enum-as-flags: True
       -
         name: dev-stats
         type: nest
-        value: 156
         nested-attributes: dl-dev-stats
       -
         name: reload-stats
@@ -103,60 +669,360 @@ attribute-sets:
         type: nest
         multi-attr: true
         nested-attributes: dl-reload-act-stats
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: port-pci-sf-number
+        type: u32
+        value: 164
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: rate-tx-share
+        type: u64
+        value: 166
+      -
+        name: rate-tx-max
+        type: u64
+      -
+        name: rate-node-name
+        type: string
+      -
+        name: rate-parent-node-name
+        type: string
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: linecard-index
+        type: u32
+        value: 171
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: linecard-type
+        type: string
+        value: 173
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: selftests
+        type: nest
+        value: 176
+        nested-attributes: dl-selftest-id
+      -
+        name: rate-tx-priority
+        type: u32
+      -
+        name: rate-tx-weight
+        type: u32
+      -
+        name: region-direct
+        type: flag
+
   -
     name: dl-dev-stats
     subset-of: devlink
     attributes:
       -
         name: reload-stats
-        type: nest
       -
         name: remote-reload-stats
-        type: nest
   -
     name: dl-reload-stats
     subset-of: devlink
     attributes:
       -
         name: reload-action-info
-        type: nest
   -
     name: dl-reload-act-info
     subset-of: devlink
     attributes:
       -
         name: reload-action
-        type: u8
       -
         name: reload-action-stats
-        type: nest
   -
     name: dl-reload-act-stats
     subset-of: devlink
     attributes:
       -
         name: reload-stats-entry
-        type: nest
   -
     name: dl-reload-stats-entry
     subset-of: devlink
     attributes:
       -
         name: reload-stats-limit
-        type: u8
       -
         name: reload-stats-value
-        type: u32
   -
     name: dl-info-version
     subset-of: devlink
     attributes:
       -
         name: info-version-name
-        type: string
       -
         name: info-version-value
-        type: string
+  -
+    name: dl-port-function
+    name-prefix: devlink-port-fn-attr-
+    attr-max-name: devlink-port-function-attr-max
+    attributes:
+      -
+        name-prefix: devlink-port-function-attr-
+        name: hw-addr
+        type: binary
+        value: 1
+      -
+        name: state
+        type: u8
+        enum: port-fn-state
+      -
+        name: opstate
+        type: u8
+        enum: port-fn-opstate
+      -
+        name: caps
+        type: bitfield32
+        enum: port-fn-attr-cap
+        enum-as-flags: True
+
+  -
+    name: dl-dpipe-tables
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-table
+
+  -
+    name: dl-dpipe-table
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-table-name
+      -
+        name: dpipe-table-size
+      -
+        name: dpipe-table-name
+      -
+        name: dpipe-table-size
+      -
+        name: dpipe-table-matches
+      -
+        name: dpipe-table-actions
+      -
+        name: dpipe-table-counters-enabled
+      -
+        name: dpipe-table-resource-id
+      -
+        name: dpipe-table-resource-units
+
+  -
+    name: dl-dpipe-table-matches
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-match
+
+  -
+    name: dl-dpipe-table-actions
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-action
+
+  -
+    name: dl-dpipe-entries
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-entry
+
+  -
+    name: dl-dpipe-entry
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-entry-index
+      -
+        name: dpipe-entry-match-values
+      -
+        name: dpipe-entry-action-values
+      -
+        name: dpipe-entry-counter
+
+  -
+    name: dl-dpipe-entry-match-values
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-match-value
+
+  -
+    name: dl-dpipe-entry-action-values
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-action-value
+
+  -
+    name: dl-dpipe-match
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-match-type
+      -
+        name: dpipe-header-id
+      -
+        name: dpipe-header-global
+      -
+        name: dpipe-header-index
+      -
+        name: dpipe-field-id
+
+  -
+    name: dl-dpipe-match-value
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-match
+      -
+        name: dpipe-value
+      -
+        name: dpipe-value-mask
+      -
+        name: dpipe-value-mapping
+
+  -
+    name: dl-dpipe-action
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-action-type
+      -
+        name: dpipe-header-id
+      -
+        name: dpipe-header-global
+      -
+        name: dpipe-header-index
+      -
+        name: dpipe-field-id
+
+  -
+    name: dl-dpipe-action-value
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-action
+      -
+        name: dpipe-value
+      -
+        name: dpipe-value-mask
+      -
+        name: dpipe-value-mapping
+
+  -
+    name: dl-dpipe-headers
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-header
+
+  -
+    name: dl-dpipe-header
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-header-name
+      -
+        name: dpipe-header-id
+      -
+        name: dpipe-header-global
+      -
+        name: dpipe-header-fields
+
+  -
+    name: dl-dpipe-header-fields
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-field
+
+  -
+    name: dl-dpipe-field
+    subset-of: devlink
+    attributes:
+      -
+        name: dpipe-field-name
+      -
+        name: dpipe-field-id
+      -
+        name: dpipe-field-bitwidth
+      -
+        name: dpipe-field-mapping-type
+
+  -
+    name: dl-resource
+    subset-of: devlink
+    attributes:
+      # -
+      # name: resource-list
+      # This is currently unsupported due to circular dependency
+      -
+        name: resource-name
+      -
+        name: resource-id
+      -
+        name: resource-size
+      -
+        name: resource-size-new
+      -
+        name: resource-size-valid
+      -
+        name: resource-size-min
+      -
+        name: resource-size-max
+      -
+        name: resource-size-gran
+      -
+        name: resource-unit
+      -
+        name: resource-occ
+
+  -
+    name: dl-resource-list
+    subset-of: devlink
+    attributes:
+      -
+        name: resource
+
+  -
+    name: dl-fmsg
+    subset-of: devlink
+    attributes:
+      -
+        name: fmsg-obj-nest-start
+      -
+        name: fmsg-pair-nest-start
+      -
+        name: fmsg-arr-nest-start
+      -
+        name: fmsg-nest-end
+      -
+        name: fmsg-obj-name
+
+  -
+    name: dl-selftest-id
+    name-prefix: devlink-attr-selftest-id-
+    attributes:
+      -
+        name: flash
+        type: flag
 
 operations:
   enum-model: directional
@@ -165,8 +1031,10 @@ operations:
       name: get
       doc: Get devlink instances.
       attribute-set: devlink
-
+      dont-validate: [ strict, dump ]
       do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
         request:
           value: 1
           attributes: &dev-id-attrs
@@ -178,23 +1046,616 @@ operations:
             - bus-name
             - dev-name
             - reload-failed
-            - reload-action
             - dev-stats
       dump:
         reply: *get-reply
 
-      # TODO: fill in the operations in between
+    -
+      name: port-get
+      doc: Get devlink port instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          value: 5
+          attributes: &port-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+        reply:
+          value: 7
+          attributes: *port-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply:
+          value: 3  # due to a bug, port dump returns DEVLINK_CMD_NEW
+          attributes: *port-id-attrs
+    -
+      name: port-set
+      doc: Set devlink port instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - port-index
+            - port-type
+            - port-function
+
+    -
+      name: port-new
+      doc: Create devlink port instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - port-index
+            - port-flavour
+            - port-pci-pf-number
+            - port-pci-sf-number
+            - port-controller-number
+        reply:
+          value: 7
+          attributes: *port-id-attrs
+
+    -
+      name: port-del
+      doc: Delete devlink port instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          attributes: *port-id-attrs
+
+    -
+      name: port-split
+      doc: Split devlink port instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - port-index
+            - port-split-count
+
+    -
+      name: port-unsplit
+      doc: Unplit devlink port instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          attributes: *port-id-attrs
+
+    -
+      name: sb-get
+      doc: Get shared buffer instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 11
+          attributes: &sb-id-attrs
+            - bus-name
+            - dev-name
+            - sb-index
+        reply: &sb-get-reply
+          value: 13
+          attributes: *sb-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *sb-get-reply
+
+    -
+      name: sb-pool-get
+      doc: Get shared buffer pool instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 15
+          attributes: &sb-pool-id-attrs
+            - bus-name
+            - dev-name
+            - sb-index
+            - sb-pool-index
+        reply: &sb-pool-get-reply
+          value: 17
+          attributes: *sb-pool-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *sb-pool-get-reply
+
+    -
+      name: sb-pool-set
+      doc: Set shared buffer pool instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - sb-index
+            - sb-pool-index
+            - sb-pool-threshold-type
+            - sb-pool-size
+
+    -
+      name: sb-port-pool-get
+      doc: Get shared buffer port-pool combinations and threshold.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          value: 19
+          attributes: &sb-port-pool-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - sb-index
+            - sb-pool-index
+        reply: &sb-port-pool-get-reply
+          value: 21
+          attributes: *sb-port-pool-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *sb-port-pool-get-reply
+
+    -
+      name: sb-port-pool-set
+      doc: Set shared buffer port-pool combinations and threshold.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - port-index
+            - sb-index
+            - sb-pool-index
+            - sb-threshold
+
+    -
+      name: sb-tc-pool-bind-get
+      doc: Get shared buffer port-TC to pool bindings and threshold.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          value: 23
+          attributes: &sb-tc-pool-bind-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - sb-index
+            - sb-pool-type
+            - sb-tc-index
+        reply: &sb-tc-pool-bind-get-reply
+          value: 25
+          attributes: *sb-tc-pool-bind-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *sb-tc-pool-bind-get-reply
+
+    -
+      name: sb-tc-pool-bind-set
+      doc: Set shared buffer port-TC to pool bindings and threshold.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - port-index
+            - sb-index
+            - sb-pool-index
+            - sb-pool-type
+            - sb-tc-index
+            - sb-threshold
+
+    -
+      name: sb-occ-snapshot
+      doc: Take occupancy snapshot of shared buffer.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 27
+          attributes:
+            - bus-name
+            - dev-name
+            - sb-index
+
+    -
+      name: sb-occ-max-clear
+      doc: Clear occupancy watermarks of shared buffer.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - sb-index
+
+    -
+      name: eswitch-get
+      doc: Get eswitch attributes.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes: *dev-id-attrs
+        reply:
+          value: 29
+          attributes: &eswitch-attrs
+            - bus-name
+            - dev-name
+            - eswitch-mode
+            - eswitch-inline-mode
+            - eswitch-encap-mode
+
+    -
+      name: eswitch-set
+      doc: Set eswitch attributes.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes: *eswitch-attrs
+
+    -
+      name: dpipe-table-get
+      doc: Get dpipe table attributes.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - dpipe-table-name
+        reply:
+          value: 31
+          attributes:
+            - bus-name
+            - dev-name
+            - dpipe-tables
+
+    -
+      name: dpipe-entries-get
+      doc: Get dpipe entries attributes.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - dpipe-table-name
+        reply:
+          attributes:
+            - bus-name
+            - dev-name
+            - dpipe-entries
+
+    -
+      name: dpipe-headers-get
+      doc: Get dpipe headers attributes.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+        reply:
+          attributes:
+            - bus-name
+            - dev-name
+            - dpipe-headers
+
+    -
+      name: dpipe-table-counters-set
+      doc: Set dpipe counter attributes.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - dpipe-table-name
+            - dpipe-table-counters-enabled
+
+    -
+      name: resource-set
+      doc: Set resource attributes.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - resource-id
+            - resource-size
+
+    -
+      name: resource-dump
+      doc: Get resource attributes.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+        reply:
+          value: 36
+          attributes:
+            - bus-name
+            - dev-name
+            - resource-list
+
+    -
+      name: reload
+      doc: Reload devlink.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - reload-action
+            - reload-limits
+            - netns-pid
+            - netns-fd
+            - netns-id
+        reply:
+          attributes:
+            - bus-name
+            - dev-name
+            - reload-actions-performed
+
+    -
+      name: param-get
+      doc: Get param instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes: &param-id-attrs
+            - bus-name
+            - dev-name
+            - param-name
+        reply: &param-get-reply
+          attributes: *param-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *param-get-reply
+
+    -
+      name: param-set
+      doc: Set param instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - param-name
+            - param-type
+            # param-value-data is missing here as the type is variable
+            - param-value-cmode
+
+    -
+      name: region-get
+      doc: Get region instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          value: 42
+          attributes: &region-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - region-name
+        reply: &region-get-reply
+          value: 42
+          attributes: *region-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *region-get-reply
+
+    -
+      name: region-new
+      doc: Create region snapshot.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          value: 44
+          attributes: &region-snapshot-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - region-name
+            - region-snapshot-id
+        reply:
+          value: 44
+          attributes: *region-snapshot-id-attrs
+
+    -
+      name: region-del
+      doc: Delete region snapshot.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          attributes: *region-snapshot-id-attrs
+
+    -
+      name: region-read
+      doc: Read region data.
+      attribute-set: devlink
+      dont-validate: [ dump-strict ]
+      flags: [ admin-perm ]
+      dump:
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - port-index
+            - region-name
+            - region-snapshot-id
+            - region-direct
+            - region-chunk-addr
+            - region-chunk-len
+        reply:
+          value: 46
+          attributes:
+            - bus-name
+            - dev-name
+            - port-index
+            - region-name
+
+    -
+      name: port-param-get
+      doc: Get port param instances.
+      attribute-set: devlink
+      dont-validate: [ strict, dump-strict ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          attributes: *port-id-attrs
+        reply:
+          attributes: *port-id-attrs
+      dump:
+        reply:
+          attributes: *port-id-attrs
+
+    -
+      name: port-param-set
+      doc: Set port param instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port
+        post: devlink-nl-post-doit
+        request:
+          attributes: *port-id-attrs
 
     -
       name: info-get
       doc: Get device information, like driver name, hardware and firmware versions etc.
       attribute-set: devlink
-
+      dont-validate: [ strict, dump ]
       do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
         request:
           value: 51
           attributes: *dev-id-attrs
-        reply:
+        reply: &info-get-reply
           value: 51
           attributes:
             - bus-name
@@ -204,3 +1665,389 @@ operations:
             - info-version-fixed
             - info-version-running
             - info-version-stored
+      dump:
+        reply: *info-get-reply
+
+    -
+      name: health-reporter-get
+      doc: Get health reporter instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          attributes: &health-reporter-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - health-reporter-name
+        reply: &health-reporter-get-reply
+          attributes: *health-reporter-id-attrs
+      dump:
+        request:
+          attributes: *port-id-attrs
+        reply: *health-reporter-get-reply
+
+    -
+      name: health-reporter-set
+      doc: Set health reporter instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - port-index
+            - health-reporter-name
+            - health-reporter-graceful-period
+            - health-reporter-auto-recover
+            - health-reporter-auto-dump
+
+    -
+      name: health-reporter-recover
+      doc: Recover health reporter instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          attributes: *health-reporter-id-attrs
+
+    -
+      name: health-reporter-diagnose
+      doc: Diagnose health reporter instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          attributes: *health-reporter-id-attrs
+
+    -
+      name: health-reporter-dump-get
+      doc: Dump health reporter instances.
+      attribute-set: devlink
+      dont-validate: [ dump-strict ]
+      flags: [ admin-perm ]
+      dump:
+        request:
+          attributes: *health-reporter-id-attrs
+        reply:
+          value: 56
+          attributes:
+            - fmsg
+
+    -
+      name: health-reporter-dump-clear
+      doc: Clear dump of health reporter instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          attributes: *health-reporter-id-attrs
+
+    -
+      name: flash-update
+      doc: Flash update devlink instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - flash-update-file-name
+            - flash-update-component
+            - flash-update-overwrite-mask
+
+    -
+      name: trap-get
+      doc: Get trap instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 61
+          attributes: &trap-id-attrs
+            - bus-name
+            - dev-name
+            - trap-name
+        reply: &trap-get-reply
+          value: 63
+          attributes: *trap-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *trap-get-reply
+
+    -
+      name: trap-set
+      doc: Set trap instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - trap-name
+            - trap-action
+
+    -
+      name: trap-group-get
+      doc: Get trap group instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 65
+          attributes: &trap-group-id-attrs
+            - bus-name
+            - dev-name
+            - trap-group-name
+        reply: &trap-group-get-reply
+          value: 67
+          attributes: *trap-group-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *trap-group-get-reply
+
+    -
+      name: trap-group-set
+      doc: Set trap group instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - trap-group-name
+            - trap-action
+            - trap-policer-id
+
+    -
+      name: trap-policer-get
+      doc: Get trap policer instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 69
+          attributes: &trap-policer-id-attrs
+            - bus-name
+            - dev-name
+            - trap-policer-id
+        reply: &trap-policer-get-reply
+          value: 71
+          attributes: *trap-policer-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *trap-policer-get-reply
+
+    -
+      name: trap-policer-set
+      doc: Get trap policer instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - trap-policer-id
+            - trap-policer-rate
+            - trap-policer-burst
+
+    -
+      name: health-reporter-test
+      doc: Test health reporter instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit-port-optional
+        post: devlink-nl-post-doit
+        request:
+          value: 73
+          attributes: *health-reporter-id-attrs
+
+    -
+      name: rate-get
+      doc: Get rate instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 74
+          attributes: &rate-id-attrs
+            - bus-name
+            - dev-name
+            - port-index
+            - rate-node-name
+        reply: &rate-get-reply
+          value: 76
+          attributes: *rate-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *rate-get-reply
+
+    -
+      name: rate-set
+      doc: Set rate instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - rate-node-name
+            - rate-tx-share
+            - rate-tx-max
+            - rate-tx-priority
+            - rate-tx-weight
+            - rate-parent-node-name
+
+    -
+      name: rate-new
+      doc: Create rate instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - rate-node-name
+            - rate-tx-share
+            - rate-tx-max
+            - rate-tx-priority
+            - rate-tx-weight
+            - rate-parent-node-name
+
+    -
+      name: rate-del
+      doc: Delete rate instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - rate-node-name
+
+    -
+      name: linecard-get
+      doc: Get line card instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 78
+          attributes: &linecard-id-attrs
+            - bus-name
+            - dev-name
+            - linecard-index
+        reply: &linecard-get-reply
+          value: 80
+          attributes: *linecard-id-attrs
+      dump:
+        request:
+          attributes: *dev-id-attrs
+        reply: *linecard-get-reply
+
+    -
+      name: linecard-set
+      doc: Set line card instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - linecard-index
+            - linecard-type
+
+    -
+      name: selftests-get
+      doc: Get device selftest instances.
+      attribute-set: devlink
+      dont-validate: [ strict, dump ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          value: 82
+          attributes: *dev-id-attrs
+        reply: &selftests-get-reply
+          value: 82
+          attributes: *dev-id-attrs
+      dump:
+        reply: *selftests-get-reply
+
+    -
+      name: selftests-run
+      doc: Run device selftest instances.
+      attribute-set: devlink
+      dont-validate: [ strict ]
+      flags: [ admin-perm ]
+      do:
+        pre: devlink-nl-pre-doit
+        post: devlink-nl-post-doit
+        request:
+          attributes:
+            - bus-name
+            - dev-name
+            - selftests

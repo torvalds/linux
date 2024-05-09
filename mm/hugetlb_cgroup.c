@@ -262,12 +262,6 @@ static int __hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
 
 	if (hugetlb_cgroup_disabled())
 		goto done;
-	/*
-	 * We don't charge any cgroup if the compound page have less
-	 * than 3 pages.
-	 */
-	if (huge_page_order(&hstates[idx]) < HUGETLB_CGROUP_MIN_ORDER)
-		goto done;
 again:
 	rcu_read_lock();
 	h_cg = hugetlb_cgroup_from_task(current);
@@ -395,9 +389,6 @@ static void __hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 					     bool rsvd)
 {
 	if (hugetlb_cgroup_disabled() || !h_cg)
-		return;
-
-	if (huge_page_order(&hstates[idx]) < HUGETLB_CGROUP_MIN_ORDER)
 		return;
 
 	page_counter_uncharge(__hugetlb_cgroup_counter_from_cgroup(h_cg, idx,
@@ -869,15 +860,8 @@ void __init hugetlb_cgroup_file_init(void)
 {
 	struct hstate *h;
 
-	for_each_hstate(h) {
-		/*
-		 * Add cgroup control files only if the huge page consists
-		 * of more than two normal pages. This is because we use
-		 * page[2].private for storing cgroup details.
-		 */
-		if (huge_page_order(h) >= HUGETLB_CGROUP_MIN_ORDER)
-			__hugetlb_cgroup_file_init(hstate_index(h));
-	}
+	for_each_hstate(h)
+		__hugetlb_cgroup_file_init(hstate_index(h));
 }
 
 /*

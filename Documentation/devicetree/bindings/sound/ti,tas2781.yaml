@@ -29,7 +29,7 @@ properties:
   reg:
     description:
       I2C address, in multiple tas2781s case, all the i2c address
-      aggreate as one Audio Device to support multiple audio slots.
+      aggregate as one Audio Device to support multiple audio slots.
     maxItems: 8
     minItems: 1
     items:

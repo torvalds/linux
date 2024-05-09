@@ -163,18 +163,6 @@ struct dc_edid {
 
 #define AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS 20
 
-union display_content_support {
-	unsigned int raw;
-	struct {
-		unsigned int valid_content_type :1;
-		unsigned int game_content :1;
-		unsigned int cinema_content :1;
-		unsigned int photo_content :1;
-		unsigned int graphics_content :1;
-		unsigned int reserved :27;
-	} bits;
-};
-
 struct dc_panel_patch {
 	unsigned int dppowerup_delay;
 	unsigned int extra_t12_ms;
@@ -189,7 +177,6 @@ struct dc_panel_patch {
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
-	unsigned int delay_disable_aux_intercept_ms;
 };
 
 struct dc_edid_caps {
@@ -207,8 +194,6 @@ struct dc_edid_caps {
 	struct dc_cea_audio_mode audio_modes[DC_MAX_AUDIO_DESC_COUNT];
 	uint32_t audio_latency;
 	uint32_t video_latency;
-
-	union display_content_support content_support;
 
 	uint8_t qs_bit;
 	uint8_t qy_bit;
@@ -788,6 +773,7 @@ struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
+	struct dal_logger *logger;
 	struct dc_perf_trace *perf_trace;
 	void *cgs_device;
 
@@ -809,6 +795,7 @@ struct dc_context {
 	struct cp_psp cp_psp;
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
 };
 
 /* DSC DPCD capabilities */
@@ -879,7 +866,7 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_overall_throughput_0_mps; /* In MPs */
 	uint32_t branch_overall_throughput_1_mps; /* In MPs */
 	uint32_t branch_max_line_width;
-	bool is_dp;
+	bool is_dp; /* Decoded format */
 };
 
 struct dc_golden_table {
@@ -900,6 +887,14 @@ enum dc_gpu_mem_alloc_type {
 	DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
 	DC_MEM_ALLOC_TYPE_INVISIBLE_FRAME_BUFFER,
 	DC_MEM_ALLOC_TYPE_AGP
+};
+
+enum dc_link_encoding_format {
+	DC_LINK_ENCODING_UNSPECIFIED = 0,
+	DC_LINK_ENCODING_DP_8b_10b,
+	DC_LINK_ENCODING_DP_128b_132b,
+	DC_LINK_ENCODING_HDMI_TMDS,
+	DC_LINK_ENCODING_HDMI_FRL
 };
 
 enum dc_psr_version {
@@ -995,6 +990,10 @@ struct link_mst_stream_allocation_table {
 	struct link_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
 };
 
+struct backlight_settings {
+	uint32_t backlight_millinits;
+};
+
 /* PSR feature flags */
 struct psr_settings {
 	bool psr_feature_enabled;		// PSR is supported by sink
@@ -1012,6 +1011,45 @@ struct psr_settings {
 	unsigned int psr_sdp_transmit_line_num_deadline;
 	uint8_t force_ffu_mode;
 	unsigned int psr_power_opt;
+};
+
+enum replay_coasting_vtotal_type {
+	PR_COASTING_TYPE_NOM = 0,
+	PR_COASTING_TYPE_STATIC,
+	PR_COASTING_TYPE_FULL_SCREEN_VIDEO,
+	PR_COASTING_TYPE_TEST_HARNESS,
+	PR_COASTING_TYPE_NUM,
+};
+
+union replay_error_status {
+	struct {
+		unsigned char STATE_TRANSITION_ERROR    :1;
+		unsigned char LINK_CRC_ERROR            :1;
+		unsigned char DESYNC_ERROR              :1;
+		unsigned char RESERVED                  :5;
+	} bits;
+	unsigned char raw;
+};
+
+struct replay_config {
+	bool replay_supported;                          // Replay feature is supported
+	unsigned int replay_power_opt_supported;        // Power opt flags that are supported
+	bool replay_smu_opt_supported;                  // SMU optimization is supported
+	unsigned int replay_enable_option;              // Replay enablement option
+	uint32_t debug_flags;                           // Replay debug flags
+	bool replay_timing_sync_supported;             // Replay desync is supported
+	union replay_error_status replay_error_status; // Replay error status
+};
+
+/* Replay feature flags */
+struct replay_settings {
+	struct replay_config config;            // Replay configuration
+	bool replay_feature_enabled;            // Replay feature is ready for activating
+	bool replay_allow_active;               // Replay is currently active
+	unsigned int replay_power_opt_active;   // Power opt flags that are activated currently
+	bool replay_smu_opt_enable;             // SMU optimization is enabled
+	uint16_t coasting_vtotal;               // Current Coasting vtotal
+	uint16_t coasting_vtotal_table[PR_COASTING_TYPE_NUM]; // Coasting vtotal table
 };
 
 /* To split out "global" and "per-panel" config settings.
@@ -1040,9 +1078,11 @@ struct dc_panel_config {
 	struct psr {
 		bool disable_psr;
 		bool disallow_psrsu;
+		bool disallow_replay;
 		bool rc_disable;
 		bool rc_allow_static_screen;
 		bool rc_allow_fullscreen_VPB;
+		unsigned int replay_enable_option;
 	} psr;
 	/* ABM */
 	struct varib {

@@ -1863,7 +1863,8 @@ static void __qed_get_vport_stats(struct qed_hwfn *p_hwfn,
 }
 
 static void _qed_get_vport_stats(struct qed_dev *cdev,
-				 struct qed_eth_stats *stats)
+				 struct qed_eth_stats *stats,
+				 bool is_atomic)
 {
 	u8 fw_vport = 0;
 	int i;
@@ -1872,10 +1873,11 @@ static void _qed_get_vport_stats(struct qed_dev *cdev,
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
-		struct qed_ptt *p_ptt = IS_PF(cdev) ? qed_ptt_acquire(p_hwfn)
-						    :  NULL;
+		struct qed_ptt *p_ptt;
 		bool b_get_port_stats;
 
+		p_ptt = IS_PF(cdev) ? qed_ptt_acquire_context(p_hwfn, is_atomic)
+				    : NULL;
 		if (IS_PF(cdev)) {
 			/* The main vport index is relative first */
 			if (qed_fw_vport(p_hwfn, 0, &fw_vport)) {
@@ -1901,6 +1903,13 @@ out:
 
 void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats)
 {
+	qed_get_vport_stats_context(cdev, stats, false);
+}
+
+void qed_get_vport_stats_context(struct qed_dev *cdev,
+				 struct qed_eth_stats *stats,
+				 bool is_atomic)
+{
 	u32 i;
 
 	if (!cdev || cdev->recov_in_prog) {
@@ -1908,7 +1917,7 @@ void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats)
 		return;
 	}
 
-	_qed_get_vport_stats(cdev, stats);
+	_qed_get_vport_stats(cdev, stats, is_atomic);
 
 	if (!cdev->reset_stats)
 		return;
@@ -1960,7 +1969,7 @@ void qed_reset_vport_stats(struct qed_dev *cdev)
 	if (!cdev->reset_stats) {
 		DP_INFO(cdev, "Reset stats not allocated\n");
 	} else {
-		_qed_get_vport_stats(cdev, cdev->reset_stats);
+		_qed_get_vport_stats(cdev, cdev->reset_stats, false);
 		cdev->reset_stats->common.link_change_count = 0;
 	}
 }

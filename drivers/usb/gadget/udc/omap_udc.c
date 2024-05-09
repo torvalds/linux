@@ -2927,7 +2927,7 @@ cleanup0:
 	return status;
 }
 
-static int omap_udc_remove(struct platform_device *pdev)
+static void omap_udc_remove(struct platform_device *pdev)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 
@@ -2939,8 +2939,6 @@ static int omap_udc_remove(struct platform_device *pdev)
 
 	release_mem_region(pdev->resource[0].start,
 			   resource_size(&pdev->resource[0]));
-
-	return 0;
 }
 
 /* suspend/resume/wakeup from sysfs (echo > power/state) or when the
@@ -2985,7 +2983,7 @@ static int omap_udc_resume(struct platform_device *dev)
 
 static struct platform_driver udc_driver = {
 	.probe		= omap_udc_probe,
-	.remove		= omap_udc_remove,
+	.remove_new	= omap_udc_remove,
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
 	.driver		= {

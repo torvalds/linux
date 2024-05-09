@@ -1776,7 +1776,7 @@ static ssize_t amdgpu_atombios_get_vbios_version(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct atom_context *ctx = adev->mode_info.atom_context;
 
-	return sysfs_emit(buf, "%s\n", ctx->vbios_version);
+	return sysfs_emit(buf, "%s\n", ctx->vbios_pn);
 }
 
 static DEVICE_ATTR(vbios_version, 0444, amdgpu_atombios_get_vbios_version,
@@ -1790,6 +1790,15 @@ static struct attribute *amdgpu_vbios_version_attrs[] = {
 const struct attribute_group amdgpu_vbios_version_attr_group = {
 	.attrs = amdgpu_vbios_version_attrs
 };
+
+int amdgpu_atombios_sysfs_init(struct amdgpu_device *adev)
+{
+	if (adev->mode_info.atom_context)
+		return devm_device_add_group(adev->dev,
+					     &amdgpu_vbios_version_attr_group);
+
+	return 0;
+}
 
 /**
  * amdgpu_atombios_fini - free the driver info and callbacks for atombios

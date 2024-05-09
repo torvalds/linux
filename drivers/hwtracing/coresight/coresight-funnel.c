@@ -74,8 +74,9 @@ done:
 	return rc;
 }
 
-static int funnel_enable(struct coresight_device *csdev, int inport,
-			 int outport)
+static int funnel_enable(struct coresight_device *csdev,
+			 struct coresight_connection *in,
+			 struct coresight_connection *out)
 {
 	int rc = 0;
 	struct funnel_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -83,18 +84,19 @@ static int funnel_enable(struct coresight_device *csdev, int inport,
 	bool first_enable = false;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (atomic_read(&csdev->refcnt[inport]) == 0) {
+	if (atomic_read(&in->dest_refcnt) == 0) {
 		if (drvdata->base)
-			rc = dynamic_funnel_enable_hw(drvdata, inport);
+			rc = dynamic_funnel_enable_hw(drvdata, in->dest_port);
 		if (!rc)
 			first_enable = true;
 	}
 	if (!rc)
-		atomic_inc(&csdev->refcnt[inport]);
+		atomic_inc(&in->dest_refcnt);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	if (first_enable)
-		dev_dbg(&csdev->dev, "FUNNEL inport %d enabled\n", inport);
+		dev_dbg(&csdev->dev, "FUNNEL inport %d enabled\n",
+			in->dest_port);
 	return rc;
 }
 
@@ -117,23 +119,25 @@ static void dynamic_funnel_disable_hw(struct funnel_drvdata *drvdata,
 	CS_LOCK(drvdata->base);
 }
 
-static void funnel_disable(struct coresight_device *csdev, int inport,
-			   int outport)
+static void funnel_disable(struct coresight_device *csdev,
+			   struct coresight_connection *in,
+			   struct coresight_connection *out)
 {
 	struct funnel_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	unsigned long flags;
 	bool last_disable = false;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (atomic_dec_return(&csdev->refcnt[inport]) == 0) {
+	if (atomic_dec_return(&in->dest_refcnt) == 0) {
 		if (drvdata->base)
-			dynamic_funnel_disable_hw(drvdata, inport);
+			dynamic_funnel_disable_hw(drvdata, in->dest_port);
 		last_disable = true;
 	}
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	if (last_disable)
-		dev_dbg(&csdev->dev, "FUNNEL inport %d disabled\n", inport);
+		dev_dbg(&csdev->dev, "FUNNEL inport %d disabled\n",
+			in->dest_port);
 }
 
 static const struct coresight_ops_link funnel_link_ops = {

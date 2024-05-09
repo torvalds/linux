@@ -62,8 +62,8 @@
 			dma_apbh: dma-controller@80004000 {
 				compatible = "fsl,imx23-dma-apbh";
 				reg = <0x80004000 0x2000>;
-				interrupts = <0 14 20 0
-					      13 13 13 13>;
+				interrupts = <0>, <14>, <20>, <0>,
+					     <13>, <13>, <13>, <13>;
 				#dma-cells = <1>;
 				dma-channels = <8>;
 				clocks = <&clks 15>;
@@ -415,10 +415,10 @@
 			dma_apbx: dma-apbx@80024000 {
 				compatible = "fsl,imx23-dma-apbx";
 				reg = <0x80024000 0x2000>;
-				interrupts = <7 5 9 26
-					      19 0 25 23
-					      60 58 9 0
-					      0 0 0 0>;
+				interrupts = <7>, <5>, <9>, <26>,
+					     <19>, <0>, <25>, <23>,
+					     <60>, <58>, <9>, <0>,
+					     <0>, <0>, <0>, <0>;
 				interrupt-names = "audio-adc", "audio-dac", "spdif-tx", "i2c",
 						  "saif0", "empty", "auart0-rx", "auart0-tx",
 						  "auart1-rx", "auart1-tx", "saif1", "empty",
@@ -431,7 +431,7 @@
 			dcp: crypto@80028000 {
 				compatible = "fsl,imx23-dcp";
 				reg = <0x80028000 0x2000>;
-				interrupts = <53 54>;
+				interrupts = <53>, <54>;
 				status = "okay";
 			};
 
@@ -456,7 +456,7 @@
 			lcdif@80030000 {
 				compatible = "fsl,imx23-lcdif";
 				reg = <0x80030000 2000>;
-				interrupts = <46 45>;
+				interrupts = <46>, <45>;
 				clocks = <&clks 38>;
 				status = "disabled";
 			};
@@ -525,7 +525,8 @@
 			lradc: lradc@80050000 {
 				compatible = "fsl,imx23-lradc";
 				reg = <0x80050000 0x2000>;
-				interrupts = <36 37 38 39 40 41 42 43 44>;
+				interrupts = <36>, <37>, <38>, <39>, <40>,
+					     <41>, <42>, <43>, <44>;
 				status = "disabled";
 				clocks = <&clks 26>;
 				#io-channel-cells = <1>;
@@ -560,7 +561,7 @@
 				compatible = "fsl,imx23-pwm";
 				reg = <0x80064000 0x2000>;
 				clocks = <&clks 30>;
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				fsl,pwm-number = <5>;
 				status = "disabled";
 			};
@@ -568,7 +569,7 @@
 			timrot@80068000 {
 				compatible = "fsl,imx23-timrot", "fsl,timrot";
 				reg = <0x80068000 0x2000>;
-				interrupts = <28 29 30 31>;
+				interrupts = <28>, <29>, <30>, <31>;
 				clocks = <&clks 28>;
 			};
 
@@ -597,7 +598,7 @@
 				reg = <0x80070000 0x2000>;
 				interrupts = <0>;
 				clocks = <&clks 32>, <&clks 16>;
-				clock-names = "uart", "apb_pclk";
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 

@@ -662,7 +662,7 @@ static struct i2c_driver vcnl3020_driver = {
 		.name   = "vcnl3020",
 		.of_match_table = vcnl3020_of_match,
 	},
-	.probe_new  = vcnl3020_probe,
+	.probe      = vcnl3020_probe,
 };
 module_i2c_driver(vcnl3020_driver);
 

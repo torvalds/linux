@@ -1459,7 +1459,7 @@ static void ath11k_reset_peer_ps_duration(void *data,
 					  struct ieee80211_sta *sta)
 {
 	struct ath11k *ar = data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 
 	spin_lock_bh(&ar->data_lock);
 	arsta->ps_total_duration = 0;
@@ -1510,7 +1510,7 @@ static void ath11k_peer_ps_state_disable(void *data,
 					 struct ieee80211_sta *sta)
 {
 	struct ath11k *ar = data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 
 	spin_lock_bh(&ar->data_lock);
 	arsta->peer_ps_state = WMI_PEER_PS_STATE_DISABLED;
@@ -1591,10 +1591,10 @@ static const struct file_operations fops_ps_state_enable = {
 int ath11k_debugfs_register(struct ath11k *ar)
 {
 	struct ath11k_base *ab = ar->ab;
-	char pdev_name[5];
+	char pdev_name[10];
 	char buf[100] = {0};
 
-	snprintf(pdev_name, sizeof(pdev_name), "%s%d", "mac", ar->pdev_idx);
+	snprintf(pdev_name, sizeof(pdev_name), "%s%u", "mac", ar->pdev_idx);
 
 	ar->debug.debugfs_pdev = debugfs_create_dir(pdev_name, ab->debugfs_soc);
 	if (IS_ERR(ar->debug.debugfs_pdev))

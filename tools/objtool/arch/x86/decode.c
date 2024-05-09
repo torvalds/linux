@@ -291,7 +291,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		switch (modrm_reg & 7) {
 		case 5:
 			imm = -imm;
-			/* fallthrough */
+			fallthrough;
 		case 0:
 			/* add/sub imm, %rsp */
 			ADD_OP(op) {
@@ -375,7 +375,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			break;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case 0x88:
 		if (!rex_w)
 			break;
@@ -656,7 +656,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			break;
 		}
 
-		/* fallthrough */
+		fallthrough;
 
 	case 0xca: /* retf */
 	case 0xcb: /* retf */
@@ -825,4 +825,10 @@ bool arch_is_retpoline(struct symbol *sym)
 bool arch_is_rethunk(struct symbol *sym)
 {
 	return !strcmp(sym->name, "__x86_return_thunk");
+}
+
+bool arch_is_embedded_insn(struct symbol *sym)
+{
+	return !strcmp(sym->name, "retbleed_return_thunk") ||
+	       !strcmp(sym->name, "srso_safe_ret");
 }

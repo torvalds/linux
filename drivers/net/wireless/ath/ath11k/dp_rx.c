@@ -1099,7 +1099,7 @@ int ath11k_dp_rx_ampdu_start(struct ath11k *ar,
 			     struct ieee80211_ampdu_params *params)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct ath11k_sta *arsta = (void *)params->sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(params->sta);
 	int vdev_id = arsta->arvif->vdev_id;
 	int ret;
 
@@ -1117,7 +1117,7 @@ int ath11k_dp_rx_ampdu_stop(struct ath11k *ar,
 {
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_peer *peer;
-	struct ath11k_sta *arsta = (void *)params->sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(params->sta);
 	int vdev_id = arsta->arvif->vdev_id;
 	dma_addr_t paddr;
 	bool active;
@@ -1256,7 +1256,7 @@ static int ath11k_htt_tlv_ppdu_stats_parse(struct ath11k_base *ab,
 	int cur_user;
 	u16 peer_id;
 
-	ppdu_info = (struct htt_ppdu_stats_info *)data;
+	ppdu_info = data;
 
 	switch (tag) {
 	case HTT_PPDU_STATS_TAG_COMMON:
@@ -1388,9 +1388,6 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	u8 tid = HTT_PPDU_STATS_NON_QOS_TID;
 	bool is_ampdu = false;
 
-	if (!usr_stats)
-		return;
-
 	if (!(usr_stats->tlv_flags & BIT(HTT_PPDU_STATS_TAG_USR_RATE)))
 		return;
 
@@ -1459,7 +1456,7 @@ ath11k_update_per_peer_tx_stats(struct ath11k *ar,
 	}
 
 	sta = peer->sta;
-	arsta = (struct ath11k_sta *)sta->drv_priv;
+	arsta = ath11k_sta_to_arsta(sta);
 
 	memset(&arsta->txrate, 0, sizeof(arsta->txrate));
 
@@ -1621,14 +1618,20 @@ static void ath11k_htt_pktlog(struct ath11k_base *ab, struct sk_buff *skb)
 	u8 pdev_id;
 
 	pdev_id = FIELD_GET(HTT_T2H_PPDU_STATS_INFO_PDEV_ID, data->hdr);
+
+	rcu_read_lock();
+
 	ar = ath11k_mac_get_ar_by_pdev_id(ab, pdev_id);
 	if (!ar) {
 		ath11k_warn(ab, "invalid pdev id %d on htt pktlog\n", pdev_id);
-		return;
+		goto out;
 	}
 
 	trace_ath11k_htt_pktlog(ar, data->payload, hdr->size,
 				ar->ab->pktlog_defs_checksum);
+
+out:
+	rcu_read_unlock();
 }
 
 static void ath11k_htt_backpressure_event_handler(struct ath11k_base *ab,
@@ -2408,7 +2411,7 @@ static void ath11k_dp_rx_h_ppdu(struct ath11k *ar, struct hal_rx_desc *rx_desc,
 		rx_status->freq = center_freq;
 	} else if (channel_num >= 1 && channel_num <= 14) {
 		rx_status->band = NL80211_BAND_2GHZ;
-	} else if (channel_num >= 36 && channel_num <= 173) {
+	} else if (channel_num >= 36 && channel_num <= 177) {
 		rx_status->band = NL80211_BAND_5GHZ;
 	} else {
 		spin_lock_bh(&ar->data_lock);
@@ -3423,7 +3426,7 @@ static int ath11k_dp_rx_h_defrag_reo_reinject(struct ath11k *ar, struct dp_rx_ti
 	ath11k_hal_rx_buf_addr_info_set(msdu0, paddr, cookie,
 					ab->hw_params.hal_params->rx_buf_rbm);
 
-	/* Fill mpdu details into reo entrace ring */
+	/* Fill mpdu details into reo entrance ring */
 	srng = &ab->hal.srng_list[ab->dp.reo_reinject_ring.ring_id];
 
 	spin_lock_bh(&srng->lock);
@@ -4489,8 +4492,7 @@ int ath11k_dp_rx_monitor_link_desc_return(struct ath11k *ar,
 	src_srng_desc = ath11k_hal_srng_src_get_next_entry(ar->ab, hal_srng);
 
 	if (src_srng_desc) {
-		struct ath11k_buffer_addr *src_desc =
-				(struct ath11k_buffer_addr *)src_srng_desc;
+		struct ath11k_buffer_addr *src_desc = src_srng_desc;
 
 		*src_desc = *((struct ath11k_buffer_addr *)p_last_buf_addr_info);
 	} else {
@@ -4509,8 +4511,7 @@ void ath11k_dp_rx_mon_next_link_desc_get(void *rx_msdu_link_desc,
 					 u8 *rbm,
 					 void **pp_buf_addr_info)
 {
-	struct hal_rx_msdu_link *msdu_link =
-			(struct hal_rx_msdu_link *)rx_msdu_link_desc;
+	struct hal_rx_msdu_link *msdu_link = rx_msdu_link_desc;
 	struct ath11k_buffer_addr *buf_addr_info;
 
 	buf_addr_info = (struct ath11k_buffer_addr *)&msdu_link->buf_addr_info;
@@ -4551,7 +4552,7 @@ static void ath11k_hal_rx_msdu_list_get(struct ath11k *ar,
 	u32 first = FIELD_PREP(RX_MSDU_DESC_INFO0_FIRST_MSDU_IN_MPDU, 1);
 	u8  tmp  = 0;
 
-	msdu_link = (struct hal_rx_msdu_link *)msdu_link_desc;
+	msdu_link = msdu_link_desc;
 	msdu_details = &msdu_link->msdu_link[0];
 
 	for (i = 0; i < HAL_RX_NUM_MSDU_DESC; i++) {
@@ -4648,8 +4649,7 @@ ath11k_dp_rx_mon_mpdu_pop(struct ath11k *ar, int mac_id,
 	bool is_frag, is_first_msdu;
 	bool drop_mpdu = false;
 	struct ath11k_skb_rxcb *rxcb;
-	struct hal_reo_entrance_ring *ent_desc =
-			(struct hal_reo_entrance_ring *)ring_entry;
+	struct hal_reo_entrance_ring *ent_desc = ring_entry;
 	int buf_id;
 	u32 rx_link_buf_info[2];
 	u8 rbm;
@@ -5097,13 +5097,6 @@ static void ath11k_dp_rx_mon_dest_process(struct ath11k *ar, int mac_id,
 
 	mon_dst_srng = &ar->ab->hal.srng_list[ring_id];
 
-	if (!mon_dst_srng) {
-		ath11k_warn(ar->ab,
-			    "HAL Monitor Destination Ring Init Failed -- %p",
-			    mon_dst_srng);
-		return;
-	}
-
 	spin_lock_bh(&pmon->mon_lock);
 
 	ath11k_hal_srng_access_begin(ar->ab, mon_dst_srng);
@@ -5255,7 +5248,7 @@ int ath11k_dp_rx_process_mon_status(struct ath11k_base *ab, int mac_id,
 			goto next_skb;
 		}
 
-		arsta = (struct ath11k_sta *)peer->sta->drv_priv;
+		arsta = ath11k_sta_to_arsta(peer->sta);
 		ath11k_dp_rx_update_peer_stats(arsta, ppdu_info);
 
 		if (ath11k_debugfs_is_pktlog_peer_valid(ar, peer->addr))

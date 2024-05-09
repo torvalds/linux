@@ -25,7 +25,7 @@ struct ovl_lookup_data {
 	bool stop;
 	bool last;
 	char *redirect;
-	bool metacopy;
+	int metacopy;
 	/* Referring to last redirect xattr */
 	bool absolute_redirect;
 };
@@ -171,8 +171,9 @@ struct dentry *ovl_decode_real_fh(struct ovl_fs *ofs, struct ovl_fh *fh,
 	 * layer where file handle will be decoded.
 	 * In case of uuid=off option just make sure that stored uuid is null.
 	 */
-	if (ofs->config.uuid ? !uuid_equal(&fh->fb.uuid, &mnt->mnt_sb->s_uuid) :
-			      !uuid_is_null(&fh->fb.uuid))
+	if (ovl_origin_uuid(ofs) ?
+	    !uuid_equal(&fh->fb.uuid, &mnt->mnt_sb->s_uuid) :
+	    !uuid_is_null(&fh->fb.uuid))
 		return NULL;
 
 	bytes = (fh->fb.len - offsetof(struct ovl_fb, fid));
@@ -270,7 +271,7 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 			d->stop = true;
 			goto put_and_out;
 		}
-		err = ovl_check_metacopy_xattr(OVL_FS(d->sb), &path);
+		err = ovl_check_metacopy_xattr(OVL_FS(d->sb), &path, NULL);
 		if (err < 0)
 			goto out_err;
 
@@ -889,8 +890,58 @@ static int ovl_fix_origin(struct ovl_fs *ofs, struct dentry *dentry,
 	return err;
 }
 
+static int ovl_maybe_validate_verity(struct dentry *dentry)
+{
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
+	struct inode *inode = d_inode(dentry);
+	struct path datapath, metapath;
+	int err;
+
+	if (!ofs->config.verity_mode ||
+	    !ovl_is_metacopy_dentry(dentry) ||
+	    ovl_test_flag(OVL_VERIFIED_DIGEST, inode))
+		return 0;
+
+	if (!ovl_test_flag(OVL_HAS_DIGEST, inode)) {
+		if (ofs->config.verity_mode == OVL_VERITY_REQUIRE) {
+			pr_warn_ratelimited("metacopy file '%pd' has no digest specified\n",
+					    dentry);
+			return -EIO;
+		}
+		return 0;
+	}
+
+	ovl_path_lowerdata(dentry, &datapath);
+	if (!datapath.dentry)
+		return -EIO;
+
+	ovl_path_real(dentry, &metapath);
+	if (!metapath.dentry)
+		return -EIO;
+
+	err = ovl_inode_lock_interruptible(inode);
+	if (err)
+		return err;
+
+	if (!ovl_test_flag(OVL_VERIFIED_DIGEST, inode)) {
+		const struct cred *old_cred;
+
+		old_cred = ovl_override_creds(dentry->d_sb);
+
+		err = ovl_validate_verity(ofs, &metapath, &datapath);
+		if (err == 0)
+			ovl_set_flag(OVL_VERIFIED_DIGEST, inode);
+
+		revert_creds(old_cred);
+	}
+
+	ovl_inode_unlock(inode);
+
+	return err;
+}
+
 /* Lazy lookup of lowerdata */
-int ovl_maybe_lookup_lowerdata(struct dentry *dentry)
+static int ovl_maybe_lookup_lowerdata(struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 	const char *redirect = ovl_lowerdata_redirect(inode);
@@ -935,12 +986,23 @@ out_err:
 	goto out;
 }
 
+int ovl_verify_lowerdata(struct dentry *dentry)
+{
+	int err;
+
+	err = ovl_maybe_lookup_lowerdata(dentry);
+	if (err)
+		return err;
+
+	return ovl_maybe_validate_verity(dentry);
+}
+
 struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags)
 {
 	struct ovl_entry *oe = NULL;
 	const struct cred *old_cred;
-	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct ovl_entry *poe = OVL_E(dentry->d_parent);
 	struct ovl_entry *roe = OVL_E(dentry->d_sb->s_root);
 	struct ovl_path *stack = NULL, *origin_path = NULL;
@@ -955,6 +1017,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	unsigned int i;
 	int err;
 	bool uppermetacopy = false;
+	int metacopy_size = 0;
 	struct ovl_lookup_data d = {
 		.sb = dentry->d_sb,
 		.name = dentry->d_name,
@@ -963,7 +1026,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		.stop = false,
 		.last = ovl_redirect_follow(ofs) ? false : !ovl_numlower(poe),
 		.redirect = NULL,
-		.metacopy = false,
+		.metacopy = 0,
 	};
 
 	if (dentry->d_name.len > ofs->namelen)
@@ -999,6 +1062,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 			if (d.metacopy)
 				uppermetacopy = true;
+			metacopy_size = d.metacopy;
 		}
 
 		if (d.redirect) {
@@ -1076,6 +1140,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			origin = this;
 		}
 
+		if (!upperdentry && !d.is_dir && !ctr && d.metacopy)
+			metacopy_size = d.metacopy;
+
 		if (d.metacopy && ctr) {
 			/*
 			 * Do not store intermediate metacopy dentries in
@@ -1120,7 +1187,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 	/* Defer lookup of lowerdata in data-only layers to first access */
 	if (d.metacopy && ctr && ofs->numdatalayer && d.absolute_redirect) {
-		d.metacopy = false;
+		d.metacopy = 0;
 		ctr++;
 	}
 
@@ -1211,10 +1278,11 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			upperredirect = NULL;
 			goto out_free_oe;
 		}
-		err = ovl_check_metacopy_xattr(ofs, &upperpath);
+		err = ovl_check_metacopy_xattr(ofs, &upperpath, NULL);
 		if (err < 0)
 			goto out_free_oe;
 		uppermetacopy = err;
+		metacopy_size = err;
 	}
 
 	if (upperdentry || ctr) {
@@ -1236,6 +1304,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			goto out_free_oe;
 		if (upperdentry && !uppermetacopy)
 			ovl_set_flag(OVL_UPPERDATA, inode);
+
+		if (metacopy_size > OVL_METACOPY_MIN_SIZE)
+			ovl_set_flag(OVL_HAS_DIGEST, inode);
 	}
 
 	ovl_dentry_init_reval(dentry, upperdentry, OVL_I_E(inode));

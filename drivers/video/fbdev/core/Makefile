@@ -1,9 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_FB_NOTIFY)           += fb_notify.o
-obj-$(CONFIG_FB)                  += fb.o
-fb-y                              := fbmem.o fbmon.o fbcmap.o fbsysfs.o \
-                                     modedb.o fbcvt.o fb_cmdline.o fb_io_fops.o
+obj-$(CONFIG_FB_CORE)             += fb.o
+fb-y                              := fb_info.o \
+                                     fbmem.o fbcmap.o \
+                                     modedb.o fbcvt.o fb_cmdline.o
+ifdef CONFIG_FB
+fb-y                              += fb_backlight.o fbmon.o
+endif
 fb-$(CONFIG_FB_DEFERRED_IO)       += fb_defio.o
+fb-$(CONFIG_FB_DEVICE)            += fb_chrdev.o \
+                                     fb_procfs.o \
+                                     fbsysfs.o
 
 ifeq ($(CONFIG_FRAMEBUFFER_CONSOLE),y)
 fb-y				  += fbcon.o bitblit.o softcursor.o
@@ -16,9 +23,12 @@ fb-y				  += fbcon_rotate.o fbcon_cw.o fbcon_ud.o \
 endif
 endif
 
+fb-$(CONFIG_LOGO)		  += fb_logo.o
+
 obj-$(CONFIG_FB_CFB_FILLRECT)  += cfbfillrect.o
 obj-$(CONFIG_FB_CFB_COPYAREA)  += cfbcopyarea.o
 obj-$(CONFIG_FB_CFB_IMAGEBLIT) += cfbimgblt.o
+obj-$(CONFIG_FB_IOMEM_FOPS)    += fb_io_fops.o
 obj-$(CONFIG_FB_SYS_FILLRECT)  += sysfillrect.o
 obj-$(CONFIG_FB_SYS_COPYAREA)  += syscopyarea.o
 obj-$(CONFIG_FB_SYS_IMAGEBLIT) += sysimgblt.o

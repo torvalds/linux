@@ -337,6 +337,8 @@ static int dwxgmac2_dma_interrupt(struct stmmac_priv *priv,
 				  struct stmmac_extra_stats *x, u32 chan,
 				  u32 dir)
 {
+	struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[chan];
+	struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[chan];
 	u32 intr_status = readl(ioaddr + XGMAC_DMA_CH_STATUS(chan));
 	u32 intr_en = readl(ioaddr + XGMAC_DMA_CH_INT_EN(chan));
 	int ret = 0;
@@ -364,16 +366,16 @@ static int dwxgmac2_dma_interrupt(struct stmmac_priv *priv,
 
 	/* TX/RX NORMAL interrupts */
 	if (likely(intr_status & XGMAC_NIS)) {
-		x->normal_irq_n++;
-
 		if (likely(intr_status & XGMAC_RI)) {
-			x->rx_normal_irq_n++;
-			x->rxq_stats[chan].rx_normal_irq_n++;
+			u64_stats_update_begin(&rxq_stats->syncp);
+			rxq_stats->rx_normal_irq_n++;
+			u64_stats_update_end(&rxq_stats->syncp);
 			ret |= handle_rx;
 		}
 		if (likely(intr_status & (XGMAC_TI | XGMAC_TBU))) {
-			x->tx_normal_irq_n++;
-			x->txq_stats[chan].tx_normal_irq_n++;
+			u64_stats_update_begin(&txq_stats->syncp);
+			txq_stats->tx_normal_irq_n++;
+			u64_stats_update_end(&txq_stats->syncp);
 			ret |= handle_tx;
 		}
 	}
@@ -389,9 +391,14 @@ static int dwxgmac2_get_hw_feature(void __iomem *ioaddr,
 {
 	u32 hw_cap;
 
-	/*  MAC HW feature 0 */
+	/* MAC HW feature 0 */
 	hw_cap = readl(ioaddr + XGMAC_HW_FEATURE0);
+	dma_cap->edma = (hw_cap & XGMAC_HWFEAT_EDMA) >> 31;
+	dma_cap->ediffc = (hw_cap & XGMAC_HWFEAT_EDIFFC) >> 30;
+	dma_cap->vxn = (hw_cap & XGMAC_HWFEAT_VXN) >> 29;
 	dma_cap->vlins = (hw_cap & XGMAC_HWFEAT_SAVLANINS) >> 27;
+	dma_cap->tssrc = (hw_cap & XGMAC_HWFEAT_TSSTSSEL) >> 25;
+	dma_cap->multi_addr = (hw_cap & XGMAC_HWFEAT_ADDMACADRSEL) >> 18;
 	dma_cap->rx_coe = (hw_cap & XGMAC_HWFEAT_RXCOESEL) >> 16;
 	dma_cap->tx_coe = (hw_cap & XGMAC_HWFEAT_TXCOESEL) >> 14;
 	dma_cap->eee = (hw_cap & XGMAC_HWFEAT_EEESEL) >> 13;
@@ -402,16 +409,31 @@ static int dwxgmac2_get_hw_feature(void __iomem *ioaddr,
 	dma_cap->rmon = (hw_cap & XGMAC_HWFEAT_MMCSEL) >> 8;
 	dma_cap->pmt_magic_frame = (hw_cap & XGMAC_HWFEAT_MGKSEL) >> 7;
 	dma_cap->pmt_remote_wake_up = (hw_cap & XGMAC_HWFEAT_RWKSEL) >> 6;
+	dma_cap->sma_mdio = (hw_cap & XGMAC_HWFEAT_SMASEL) >> 5;
 	dma_cap->vlhash = (hw_cap & XGMAC_HWFEAT_VLHASH) >> 4;
+	dma_cap->half_duplex = (hw_cap & XGMAC_HWFEAT_HDSEL) >> 3;
 	dma_cap->mbps_1000 = (hw_cap & XGMAC_HWFEAT_GMIISEL) >> 1;
 
 	/* MAC HW feature 1 */
 	hw_cap = readl(ioaddr + XGMAC_HW_FEATURE1);
 	dma_cap->l3l4fnum = (hw_cap & XGMAC_HWFEAT_L3L4FNUM) >> 27;
+	/* If L3L4FNUM < 8, then the number of L3L4 filters supported by
+	 * XGMAC is equal to L3L4FNUM. From L3L4FNUM >= 8 the number of
+	 * L3L4 filters goes on like 8, 16, 32, ... Current maximum of
+	 * L3L4FNUM = 10.
+	 */
+	if (dma_cap->l3l4fnum >= 8 && dma_cap->l3l4fnum <= 10)
+		dma_cap->l3l4fnum = 8 << (dma_cap->l3l4fnum - 8);
+	else if (dma_cap->l3l4fnum > 10)
+		dma_cap->l3l4fnum = 32;
+
 	dma_cap->hash_tb_sz = (hw_cap & XGMAC_HWFEAT_HASHTBLSZ) >> 24;
+	dma_cap->numtc = ((hw_cap & XGMAC_HWFEAT_NUMTC) >> 21) + 1;
 	dma_cap->rssen = (hw_cap & XGMAC_HWFEAT_RSSEN) >> 20;
+	dma_cap->dbgmem = (hw_cap & XGMAC_HWFEAT_DBGMEMA) >> 19;
 	dma_cap->tsoen = (hw_cap & XGMAC_HWFEAT_TSOEN) >> 18;
 	dma_cap->sphen = (hw_cap & XGMAC_HWFEAT_SPHEN) >> 17;
+	dma_cap->dcben = (hw_cap & XGMAC_HWFEAT_DCBEN) >> 16;
 
 	dma_cap->addr64 = (hw_cap & XGMAC_HWFEAT_ADDR64) >> 14;
 	switch (dma_cap->addr64) {
@@ -429,13 +451,18 @@ static int dwxgmac2_get_hw_feature(void __iomem *ioaddr,
 		break;
 	}
 
+	dma_cap->advthword = (hw_cap & XGMAC_HWFEAT_ADVTHWORD) >> 13;
+	dma_cap->ptoen = (hw_cap & XGMAC_HWFEAT_PTOEN) >> 12;
+	dma_cap->osten = (hw_cap & XGMAC_HWFEAT_OSTEN) >> 11;
 	dma_cap->tx_fifo_size =
 		128 << ((hw_cap & XGMAC_HWFEAT_TXFIFOSIZE) >> 6);
+	dma_cap->pfcen = (hw_cap & XGMAC_HWFEAT_PFCEN) >> 5;
 	dma_cap->rx_fifo_size =
 		128 << ((hw_cap & XGMAC_HWFEAT_RXFIFOSIZE) >> 0);
 
 	/* MAC HW feature 2 */
 	hw_cap = readl(ioaddr + XGMAC_HW_FEATURE2);
+	dma_cap->aux_snapshot_n = (hw_cap & XGMAC_HWFEAT_AUXSNAPNUM) >> 28;
 	dma_cap->pps_out_num = (hw_cap & XGMAC_HWFEAT_PPSOUTNUM) >> 24;
 	dma_cap->number_tx_channel =
 		((hw_cap & XGMAC_HWFEAT_TXCHCNT) >> 18) + 1;
@@ -448,16 +475,28 @@ static int dwxgmac2_get_hw_feature(void __iomem *ioaddr,
 
 	/* MAC HW feature 3 */
 	hw_cap = readl(ioaddr + XGMAC_HW_FEATURE3);
+	dma_cap->tbs_ch_num = ((hw_cap & XGMAC_HWFEAT_TBSCH) >> 28) + 1;
 	dma_cap->tbssel = (hw_cap & XGMAC_HWFEAT_TBSSEL) >> 27;
 	dma_cap->fpesel = (hw_cap & XGMAC_HWFEAT_FPESEL) >> 26;
+	dma_cap->sgfsel = (hw_cap & XGMAC_HWFEAT_SGFSEL) >> 25;
 	dma_cap->estwid = (hw_cap & XGMAC_HWFEAT_ESTWID) >> 23;
 	dma_cap->estdep = (hw_cap & XGMAC_HWFEAT_ESTDEP) >> 20;
 	dma_cap->estsel = (hw_cap & XGMAC_HWFEAT_ESTSEL) >> 19;
+	dma_cap->ttsfd = (hw_cap & XGMAC_HWFEAT_TTSFD) >> 16;
 	dma_cap->asp = (hw_cap & XGMAC_HWFEAT_ASP) >> 14;
 	dma_cap->dvlan = (hw_cap & XGMAC_HWFEAT_DVLAN) >> 13;
 	dma_cap->frpes = (hw_cap & XGMAC_HWFEAT_FRPES) >> 11;
 	dma_cap->frpbs = (hw_cap & XGMAC_HWFEAT_FRPPB) >> 9;
+	dma_cap->pou_ost_en = (hw_cap & XGMAC_HWFEAT_POUOST) >> 8;
+	dma_cap->frppipe_num = ((hw_cap & XGMAC_HWFEAT_FRPPIPE) >> 5) + 1;
+	dma_cap->cbtisel = (hw_cap & XGMAC_HWFEAT_CBTISEL) >> 4;
 	dma_cap->frpsel = (hw_cap & XGMAC_HWFEAT_FRPSEL) >> 3;
+	dma_cap->nrvf_num = (hw_cap & XGMAC_HWFEAT_NRVF) >> 0;
+
+	/* MAC HW feature 4 */
+	hw_cap = readl(ioaddr + XGMAC_HW_FEATURE4);
+	dma_cap->asp |= (hw_cap & XGMAC_HWFEAT_EASP) >> 2;
+	dma_cap->pcsel = (hw_cap & XGMAC_HWFEAT_PCSEL) >> 0;
 
 	return 0;
 }

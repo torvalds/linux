@@ -8,6 +8,7 @@
 #include <linux/mfd/stm32-timers.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 
 #define STM32_TIMERS_MAX_REGISTERS	0x3fc
@@ -214,6 +215,48 @@ static void stm32_timers_dma_remove(struct device *dev,
 			dma_release_channel(ddata->dma.chans[i]);
 }
 
+static const char * const stm32_timers_irq_name[STM32_TIMERS_MAX_IRQS] = {
+	"brk", "up", "trg-com", "cc"
+};
+
+static int stm32_timers_irq_probe(struct platform_device *pdev,
+				  struct stm32_timers *ddata)
+{
+	int i, ret;
+
+	/*
+	 * STM32 Timer may have either:
+	 * - a unique global interrupt line
+	 * - four dedicated interrupt lines that may be handled separately.
+	 * Optionally get them here, to be used by child devices.
+	 */
+	ret = platform_get_irq_byname_optional(pdev, "global");
+	if (ret < 0 && ret != -ENXIO) {
+		return ret;
+	} else if (ret != -ENXIO) {
+		ddata->irq[STM32_TIMERS_IRQ_GLOBAL_BRK] = ret;
+		ddata->nr_irqs = 1;
+		return 0;
+	}
+
+	for (i = 0; i < STM32_TIMERS_MAX_IRQS; i++) {
+		ret = platform_get_irq_byname_optional(pdev, stm32_timers_irq_name[i]);
+		if (ret < 0 && ret != -ENXIO) {
+			return ret;
+		} else if (ret != -ENXIO) {
+			ddata->irq[i] = ret;
+			ddata->nr_irqs++;
+		}
+	}
+
+	if (ddata->nr_irqs && ddata->nr_irqs != STM32_TIMERS_MAX_IRQS) {
+		dev_err(&pdev->dev, "Invalid number of IRQs %d\n", ddata->nr_irqs);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int stm32_timers_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -226,8 +269,7 @@ static int stm32_timers_probe(struct platform_device *pdev)
 	if (!ddata)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mmio = devm_ioremap_resource(dev, res);
+	mmio = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(mmio))
 		return PTR_ERR(mmio);
 
@@ -244,6 +286,10 @@ static int stm32_timers_probe(struct platform_device *pdev)
 		return PTR_ERR(ddata->clk);
 
 	stm32_timers_get_arr_size(ddata);
+
+	ret = stm32_timers_irq_probe(pdev, ddata);
+	if (ret)
+		return ret;
 
 	ret = stm32_timers_dma_probe(dev, ddata);
 	if (ret) {

@@ -114,7 +114,7 @@ enum adc5_cal_val {
  *	that is an average of multiple measurements.
  * @scale_fn_type: Represents the scaling function to convert voltage
  *	physical units desired by the client for the channel.
- * @datasheet_name: Channel name used in device tree.
+ * @channel_name: Channel name used in device tree.
  */
 struct adc5_channel_prop {
 	unsigned int		channel;
@@ -126,7 +126,7 @@ struct adc5_channel_prop {
 	unsigned int		hw_settle_time;
 	unsigned int		avg_samples;
 	enum vadc_scale_fn_type	scale_fn_type;
-	const char		*datasheet_name;
+	const char		*channel_name;
 };
 
 /**
@@ -555,6 +555,8 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_PM5_SMB_TEMP)
 	[ADC5_GPIO1_100K_PU]	= ADC5_CHAN_TEMP("gpio1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_GPIO2_100K_PU]	= ADC5_CHAN_TEMP("gpio2_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_GPIO3_100K_PU]	= ADC5_CHAN_TEMP("gpio3_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_GPIO4_100K_PU]	= ADC5_CHAN_TEMP("gpio4_100k_pu", 0,
@@ -657,8 +659,7 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 		chan = chan & ADC_CHANNEL_MASK;
 	}
 
-	if (chan > ADC5_PARALLEL_ISENSE_VBAT_IDATA ||
-	    !data->adc_chans[chan].datasheet_name) {
+	if (chan > ADC5_PARALLEL_ISENSE_VBAT_IDATA) {
 		dev_err(dev, "%s invalid channel number %d\n", name, chan);
 		return -EINVAL;
 	}
@@ -669,9 +670,9 @@ static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 
 	ret = fwnode_property_read_string(fwnode, "label", &channel_name);
 	if (ret)
-		channel_name = name;
+		channel_name = data->adc_chans[chan].datasheet_name;
 
-	prop->datasheet_name = channel_name;
+	prop->channel_name = channel_name;
 
 	ret = fwnode_property_read_u32(fwnode, "qcom,decimation", &value);
 	if (!ret) {
@@ -861,8 +862,8 @@ static int adc5_get_fw_data(struct adc5_chip *adc)
 		adc_chan = &adc->data->adc_chans[prop.channel];
 
 		iio_chan->channel = prop.channel;
-		iio_chan->datasheet_name = prop.datasheet_name;
-		iio_chan->extend_name = prop.datasheet_name;
+		iio_chan->datasheet_name = adc_chan->datasheet_name;
+		iio_chan->extend_name = prop.channel_name;
 		iio_chan->info_mask_separate = adc_chan->info_mask;
 		iio_chan->type = adc_chan->type;
 		iio_chan->address = index;

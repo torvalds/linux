@@ -32,6 +32,32 @@
 #define VFP_STATE_SIZE		((32 * 8) + 4)
 #endif
 
+static inline unsigned long cpacr_save_enable_kernel_sve(void)
+{
+	unsigned long old = read_sysreg(cpacr_el1);
+	unsigned long set = CPACR_EL1_FPEN_EL1EN | CPACR_EL1_ZEN_EL1EN;
+
+	write_sysreg(old | set, cpacr_el1);
+	isb();
+	return old;
+}
+
+static inline unsigned long cpacr_save_enable_kernel_sme(void)
+{
+	unsigned long old = read_sysreg(cpacr_el1);
+	unsigned long set = CPACR_EL1_FPEN_EL1EN | CPACR_EL1_SMEN_EL1EN;
+
+	write_sysreg(old | set, cpacr_el1);
+	isb();
+	return old;
+}
+
+static inline void cpacr_restore(unsigned long cpacr)
+{
+	write_sysreg(cpacr, cpacr_el1);
+	isb();
+}
+
 /*
  * When we defined the maximum SVE vector length we defined the ABI so
  * that the maximum vector length included all the reserved for future
@@ -123,12 +149,12 @@ extern void sme_save_state(void *state, int zt);
 extern void sme_load_state(void const *state, int zt);
 
 struct arm64_cpu_capabilities;
-extern void sve_kernel_enable(const struct arm64_cpu_capabilities *__unused);
-extern void sme_kernel_enable(const struct arm64_cpu_capabilities *__unused);
-extern void sme2_kernel_enable(const struct arm64_cpu_capabilities *__unused);
-extern void fa64_kernel_enable(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_fpsimd(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_sve(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_sme(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_sme2(const struct arm64_cpu_capabilities *__unused);
+extern void cpu_enable_fa64(const struct arm64_cpu_capabilities *__unused);
 
-extern u64 read_zcr_features(void);
 extern u64 read_smcr_features(void);
 
 /*
@@ -356,7 +382,7 @@ static inline int sme_max_virtualisable_vl(void)
 	return vec_max_virtualisable_vl(ARM64_VEC_SME);
 }
 
-extern void sme_alloc(struct task_struct *task);
+extern void sme_alloc(struct task_struct *task, bool flush);
 extern unsigned int sme_get_vl(void);
 extern int sme_set_current_vl(unsigned long arg);
 extern int sme_get_current_vl(void);
@@ -388,7 +414,7 @@ static inline void sme_smstart_sm(void) { }
 static inline void sme_smstop_sm(void) { }
 static inline void sme_smstop(void) { }
 
-static inline void sme_alloc(struct task_struct *task) { }
+static inline void sme_alloc(struct task_struct *task, bool flush) { }
 static inline void sme_setup(void) { }
 static inline unsigned int sme_get_vl(void) { return 0; }
 static inline int sme_max_vl(void) { return 0; }

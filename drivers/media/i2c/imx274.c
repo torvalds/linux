@@ -2168,7 +2168,7 @@ static struct i2c_driver imx274_i2c_driver = {
 		.pm = &imx274_pm_ops,
 		.of_match_table	= imx274_of_id_table,
 	},
-	.probe_new	= imx274_probe,
+	.probe		= imx274_probe,
 	.remove		= imx274_remove,
 	.id_table	= imx274_id,
 };

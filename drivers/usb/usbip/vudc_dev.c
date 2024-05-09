@@ -489,11 +489,11 @@ static void vudc_device_unusable(struct usbip_device *ud)
 
 struct vudc_device *alloc_vudc_device(int devid)
 {
-	struct vudc_device *udc_dev = NULL;
+	struct vudc_device *udc_dev;
 
 	udc_dev = kzalloc(sizeof(*udc_dev), GFP_KERNEL);
 	if (!udc_dev)
-		goto out;
+		return NULL;
 
 	INIT_LIST_HEAD(&udc_dev->dev_entry);
 
@@ -503,7 +503,6 @@ struct vudc_device *alloc_vudc_device(int devid)
 		udc_dev = NULL;
 	}
 
-out:
 	return udc_dev;
 }
 

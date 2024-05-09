@@ -151,7 +151,7 @@ struct dio {
 	};
 } ____cacheline_aligned_in_smp;
 
-static struct kmem_cache *dio_cache __read_mostly;
+static struct kmem_cache *dio_cache __ro_after_init;
 
 /*
  * How many pages are in the queue?

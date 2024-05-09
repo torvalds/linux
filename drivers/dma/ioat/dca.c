@@ -51,7 +51,7 @@
 /* pack PCI B/D/F into a u16 */
 static inline u16 dcaid_from_pcidev(struct pci_dev *pci)
 {
-	return (pci->bus->number << 8) | pci->devfn;
+	return pci_dev_id(pci);
 }
 
 static int dca_enabled_in_bios(struct pci_dev *pdev)

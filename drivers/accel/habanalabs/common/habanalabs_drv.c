@@ -14,6 +14,11 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/version.h>
+
+#include <drm/drm_accel.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_ioctl.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/habanalabs.h>
@@ -27,7 +32,6 @@ MODULE_DESCRIPTION(HL_DRIVER_DESC);
 MODULE_LICENSE("GPL v2");
 
 static int hl_major;
-static struct class *hl_class;
 static DEFINE_IDR(hl_devs_idr);
 static DEFINE_MUTEX(hl_devs_idr_lock);
 
@@ -69,6 +73,42 @@ static const struct pci_device_id ids[] = {
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ids);
+
+static const struct drm_ioctl_desc hl_drm_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(HL_INFO, hl_info_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(HL_CB, hl_cb_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(HL_CS, hl_cs_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(HL_WAIT_CS, hl_wait_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(HL_MEMORY, hl_mem_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(HL_DEBUG, hl_debug_ioctl, 0),
+};
+
+static const struct file_operations hl_fops = {
+	.owner = THIS_MODULE,
+	.open = accel_open,
+	.release = drm_release,
+	.unlocked_ioctl = drm_ioctl,
+	.compat_ioctl = drm_compat_ioctl,
+	.llseek = noop_llseek,
+	.mmap = hl_mmap
+};
+
+static const struct drm_driver hl_driver = {
+	.driver_features = DRIVER_COMPUTE_ACCEL,
+
+	.name = HL_NAME,
+	.desc = HL_DRIVER_DESC,
+	.major = LINUX_VERSION_MAJOR,
+	.minor = LINUX_VERSION_PATCHLEVEL,
+	.patchlevel = LINUX_VERSION_SUBLEVEL,
+	.date = "20190505",
+
+	.fops = &hl_fops,
+	.open = hl_device_open,
+	.postclose = hl_device_release,
+	.ioctls = hl_drm_ioctls,
+	.num_ioctls = ARRAY_SIZE(hl_drm_ioctls)
+};
 
 /*
  * get_asic_type - translate device id to asic type
@@ -123,43 +163,28 @@ static bool is_asic_secured(enum hl_asic_type asic_type)
 }
 
 /*
- * hl_device_open - open function for habanalabs device
- *
- * @inode: pointer to inode structure
- * @filp: pointer to file structure
+ * hl_device_open() - open function for habanalabs device.
+ * @ddev: pointer to DRM device structure.
+ * @file: pointer to DRM file private data structure.
  *
  * Called when process opens an habanalabs device.
  */
-int hl_device_open(struct inode *inode, struct file *filp)
+int hl_device_open(struct drm_device *ddev, struct drm_file *file_priv)
 {
+	struct hl_device *hdev = to_hl_device(ddev);
 	enum hl_device_status status;
-	struct hl_device *hdev;
 	struct hl_fpriv *hpriv;
 	int rc;
-
-	mutex_lock(&hl_devs_idr_lock);
-	hdev = idr_find(&hl_devs_idr, iminor(inode));
-	mutex_unlock(&hl_devs_idr_lock);
-
-	if (!hdev) {
-		pr_err("Couldn't find device %d:%d\n",
-			imajor(inode), iminor(inode));
-		return -ENXIO;
-	}
 
 	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
 		return -ENOMEM;
 
 	hpriv->hdev = hdev;
-	filp->private_data = hpriv;
-	hpriv->filp = filp;
-
 	mutex_init(&hpriv->notifier_event.lock);
 	mutex_init(&hpriv->restore_phase_mutex);
 	mutex_init(&hpriv->ctx_lock);
 	kref_init(&hpriv->refcount);
-	nonseekable_open(inode, filp);
 
 	hl_ctx_mgr_init(&hpriv->ctx_mgr);
 	hl_mem_mgr_init(hpriv->hdev->dev, &hpriv->mem_mgr);
@@ -225,6 +250,9 @@ int hl_device_open(struct inode *inode, struct file *filp)
 	hdev->last_successful_open_jif = jiffies;
 	hdev->last_successful_open_ktime = ktime_get();
 
+	file_priv->driver_priv = hpriv;
+	hpriv->file_priv = file_priv;
+
 	return 0;
 
 out_err:
@@ -232,7 +260,6 @@ out_err:
 	hl_mem_mgr_fini(&hpriv->mem_mgr);
 	hl_mem_mgr_idr_destroy(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
-	filp->private_data = NULL;
 	mutex_destroy(&hpriv->ctx_lock);
 	mutex_destroy(&hpriv->restore_phase_mutex);
 	mutex_destroy(&hpriv->notifier_event.lock);
@@ -268,9 +295,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 	 */
 	hpriv->hdev = hdev;
 	filp->private_data = hpriv;
-	hpriv->filp = filp;
 
-	mutex_init(&hpriv->notifier_event.lock);
 	nonseekable_open(inode, filp);
 
 	hpriv->taskpid = get_task_pid(current, PIDTYPE_PID);
@@ -317,7 +342,6 @@ static void copy_kernel_module_params_to_device(struct hl_device *hdev)
 	hdev->asic_prop.fw_security_enabled = is_asic_secured(hdev->asic_type);
 
 	hdev->major = hl_major;
-	hdev->hclass = hl_class;
 	hdev->memory_scrub = memory_scrub;
 	hdev->reset_on_lockup = reset_on_lockup;
 	hdev->boot_error_status_mask = boot_error_status_mask;
@@ -383,6 +407,31 @@ static int fixup_device_params(struct hl_device *hdev)
 	return 0;
 }
 
+static int allocate_device_id(struct hl_device *hdev)
+{
+	int id;
+
+	mutex_lock(&hl_devs_idr_lock);
+	id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS, GFP_KERNEL);
+	mutex_unlock(&hl_devs_idr_lock);
+
+	if (id < 0) {
+		if (id == -ENOSPC)
+			pr_err("too many devices in the system\n");
+		return -EBUSY;
+	}
+
+	hdev->id = id;
+
+	/*
+	 * Firstly initialized with the internal device ID.
+	 * Will be updated later after the DRM device registration to hold the minor ID.
+	 */
+	hdev->cdev_idx = hdev->id;
+
+	return 0;
+}
+
 /**
  * create_hdev - create habanalabs device instance
  *
@@ -395,27 +444,29 @@ static int fixup_device_params(struct hl_device *hdev)
  */
 static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 {
-	int main_id, ctrl_id = 0, rc = 0;
 	struct hl_device *hdev;
+	int rc;
 
 	*dev = NULL;
 
-	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
-	if (!hdev)
-		return -ENOMEM;
+	hdev = devm_drm_dev_alloc(&pdev->dev, &hl_driver, struct hl_device, drm);
+	if (IS_ERR(hdev))
+		return PTR_ERR(hdev);
+
+	hdev->dev = hdev->drm.dev;
 
 	/* Will be NULL in case of simulator device */
 	hdev->pdev = pdev;
 
 	/* Assign status description string */
-	strncpy(hdev->status[HL_DEVICE_STATUS_OPERATIONAL], "operational", HL_STR_MAX);
-	strncpy(hdev->status[HL_DEVICE_STATUS_IN_RESET], "in reset", HL_STR_MAX);
-	strncpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION], "disabled", HL_STR_MAX);
-	strncpy(hdev->status[HL_DEVICE_STATUS_NEEDS_RESET], "needs reset", HL_STR_MAX);
-	strncpy(hdev->status[HL_DEVICE_STATUS_IN_DEVICE_CREATION],
-					"in device creation", HL_STR_MAX);
-	strncpy(hdev->status[HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE],
-					"in reset after device release", HL_STR_MAX);
+	strscpy(hdev->status[HL_DEVICE_STATUS_OPERATIONAL], "operational", HL_STR_MAX);
+	strscpy(hdev->status[HL_DEVICE_STATUS_IN_RESET], "in reset", HL_STR_MAX);
+	strscpy(hdev->status[HL_DEVICE_STATUS_MALFUNCTION], "disabled", HL_STR_MAX);
+	strscpy(hdev->status[HL_DEVICE_STATUS_NEEDS_RESET], "needs reset", HL_STR_MAX);
+	strscpy(hdev->status[HL_DEVICE_STATUS_IN_DEVICE_CREATION],
+				"in device creation", HL_STR_MAX);
+	strscpy(hdev->status[HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE],
+				"in reset after device release", HL_STR_MAX);
 
 
 	/* First, we must find out which ASIC are we handling. This is needed
@@ -425,7 +476,7 @@ static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 	if (hdev->asic_type == ASIC_INVALID) {
 		dev_err(&pdev->dev, "Unsupported ASIC\n");
 		rc = -ENODEV;
-		goto free_hdev;
+		goto out_err;
 	}
 
 	copy_kernel_module_params_to_device(hdev);
@@ -434,42 +485,15 @@ static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 
 	fixup_device_params(hdev);
 
-	mutex_lock(&hl_devs_idr_lock);
-
-	/* Always save 2 numbers, 1 for main device and 1 for control.
-	 * They must be consecutive
-	 */
-	main_id = idr_alloc(&hl_devs_idr, hdev, 0, HL_MAX_MINORS, GFP_KERNEL);
-
-	if (main_id >= 0)
-		ctrl_id = idr_alloc(&hl_devs_idr, hdev, main_id + 1,
-					main_id + 2, GFP_KERNEL);
-
-	mutex_unlock(&hl_devs_idr_lock);
-
-	if ((main_id < 0) || (ctrl_id < 0)) {
-		if ((main_id == -ENOSPC) || (ctrl_id == -ENOSPC))
-			pr_err("too many devices in the system\n");
-
-		if (main_id >= 0) {
-			mutex_lock(&hl_devs_idr_lock);
-			idr_remove(&hl_devs_idr, main_id);
-			mutex_unlock(&hl_devs_idr_lock);
-		}
-
-		rc = -EBUSY;
-		goto free_hdev;
-	}
-
-	hdev->id = main_id;
-	hdev->id_control = ctrl_id;
+	rc = allocate_device_id(hdev);
+	if (rc)
+		goto out_err;
 
 	*dev = hdev;
 
 	return 0;
 
-free_hdev:
-	kfree(hdev);
+out_err:
 	return rc;
 }
 
@@ -484,10 +508,8 @@ static void destroy_hdev(struct hl_device *hdev)
 	/* Remove device from the device list */
 	mutex_lock(&hl_devs_idr_lock);
 	idr_remove(&hl_devs_idr, hdev->id);
-	idr_remove(&hl_devs_idr, hdev->id_control);
 	mutex_unlock(&hl_devs_idr_lock);
 
-	kfree(hdev);
 }
 
 static int hl_pmops_suspend(struct device *dev)
@@ -691,28 +713,16 @@ static int __init hl_init(void)
 
 	hl_major = MAJOR(dev);
 
-	hl_class = class_create(HL_NAME);
-	if (IS_ERR(hl_class)) {
-		pr_err("failed to allocate class\n");
-		rc = PTR_ERR(hl_class);
-		goto remove_major;
-	}
-
-	hl_debugfs_init();
-
 	rc = pci_register_driver(&hl_pci_driver);
 	if (rc) {
 		pr_err("failed to register pci device\n");
-		goto remove_debugfs;
+		goto remove_major;
 	}
 
 	pr_debug("driver loaded\n");
 
 	return 0;
 
-remove_debugfs:
-	hl_debugfs_fini();
-	class_destroy(hl_class);
 remove_major:
 	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MINORS);
 	return rc;
@@ -725,14 +735,6 @@ static void __exit hl_exit(void)
 {
 	pci_unregister_driver(&hl_pci_driver);
 
-	/*
-	 * Removing debugfs must be after all devices or simulator devices
-	 * have been removed because otherwise we get a bug in the
-	 * debugfs module for referencing NULL objects
-	 */
-	hl_debugfs_fini();
-
-	class_destroy(hl_class);
 	unregister_chrdev_region(MKDEV(hl_major, 0), HL_MAX_MINORS);
 
 	idr_destroy(&hl_devs_idr);

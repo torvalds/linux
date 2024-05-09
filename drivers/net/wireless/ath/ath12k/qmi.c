@@ -387,7 +387,7 @@ static struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 					   mlo_capable_valid),
 	},
 	{
-		.data_type	= QMI_OPT_FLAG,
+		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
 		.array_type	= NO_ARRAY,
@@ -2213,6 +2213,7 @@ static int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 	struct qmi_txn txn = {};
 	unsigned int board_id = ATH12K_BOARD_ID_DEFAULT;
 	int ret = 0;
+	int r;
 	int i;
 
 	memset(&req, 0, sizeof(req));
@@ -2296,6 +2297,10 @@ static int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 		    ab->qmi.target.fw_version,
 		    ab->qmi.target.fw_build_timestamp,
 		    ab->qmi.target.fw_build_id);
+
+	r = ath12k_core_check_smbios(ab);
+	if (r)
+		ath12k_dbg(ab, ATH12K_DBG_QMI, "SMBIOS bdf variant name not set.\n");
 
 out:
 	return ret;
@@ -2535,6 +2540,7 @@ static void ath12k_qmi_m3_free(struct ath12k_base *ab)
 	dma_free_coherent(ab->dev, m3_mem->size,
 			  m3_mem->vaddr, m3_mem->paddr);
 	m3_mem->vaddr = NULL;
+	m3_mem->size = 0;
 }
 
 static int ath12k_qmi_wlanfw_m3_info_send(struct ath12k_base *ab)
@@ -3087,4 +3093,10 @@ void ath12k_qmi_deinit_service(struct ath12k_base *ab)
 	destroy_workqueue(ab->qmi.event_wq);
 	ath12k_qmi_m3_free(ab);
 	ath12k_qmi_free_target_mem_chunk(ab);
+}
+
+void ath12k_qmi_free_resource(struct ath12k_base *ab)
+{
+	ath12k_qmi_free_target_mem_chunk(ab);
+	ath12k_qmi_m3_free(ab);
 }

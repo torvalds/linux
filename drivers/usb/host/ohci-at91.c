@@ -17,13 +17,13 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/atmel.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mfd/syscon.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -190,18 +190,15 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 	int irq;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_dbg(dev, "hcd probe: missing irq resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	hcd = usb_create_hcd(driver, dev, "at91");
 	if (!hcd)
 		return -ENOMEM;
 	ohci_at91 = hcd_to_ohci_at91_priv(hcd);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err;
@@ -599,7 +596,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	return usb_hcd_at91_probe(&ohci_at91_hc_driver, pdev);
 }
 
-static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
+static void ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 {
 	struct at91_usbh_data	*pdata = dev_get_platdata(&pdev->dev);
 	int			i;
@@ -611,7 +608,6 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 0);
 	usb_hcd_at91_remove(platform_get_drvdata(pdev), pdev);
-	return 0;
 }
 
 static int __maybe_unused
@@ -673,7 +669,13 @@ ohci_hcd_at91_drv_resume(struct device *dev)
 	else
 		at91_start_clock(ohci_at91);
 
-	ohci_resume(hcd, false);
+	/*
+	 * According to the comment in ohci_hcd_at91_drv_suspend()
+	 * we need to do a reset if the 48Mhz clock was stopped,
+	 * that is, if ohci_at91->wakeup is clear. Tell ohci_resume()
+	 * to reset in this case by setting its "hibernated" flag.
+	 */
+	ohci_resume(hcd, !ohci_at91->wakeup);
 
 	return 0;
 }
@@ -683,7 +685,7 @@ static SIMPLE_DEV_PM_OPS(ohci_hcd_at91_pm_ops, ohci_hcd_at91_drv_suspend,
 
 static struct platform_driver ohci_hcd_at91_driver = {
 	.probe		= ohci_hcd_at91_drv_probe,
-	.remove		= ohci_hcd_at91_drv_remove,
+	.remove_new	= ohci_hcd_at91_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "at91_ohci",

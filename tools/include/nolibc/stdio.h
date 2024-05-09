@@ -7,19 +7,23 @@
 #ifndef _NOLIBC_STDIO_H
 #define _NOLIBC_STDIO_H
 
-#include <stdarg.h>
-
 #include "std.h"
 #include "arch.h"
 #include "errno.h"
 #include "types.h"
 #include "sys.h"
+#include "stdarg.h"
 #include "stdlib.h"
 #include "string.h"
 
 #ifndef EOF
 #define EOF (-1)
 #endif
+
+/* Buffering mode used by setvbuf.  */
+#define _IOFBF 0	/* Fully buffered. */
+#define _IOLBF 1	/* Line buffered. */
+#define _IONBF 2	/* No buffering. */
 
 /* just define FILE as a non-empty type. The value of the pointer gives
  * the FD: FILE=~fd for fd>=0 or NULL for fd<0. This way positive FILE
@@ -348,6 +352,28 @@ static __attribute__((unused))
 void perror(const char *msg)
 {
 	fprintf(stderr, "%s%serrno=%d\n", (msg && *msg) ? msg : "", (msg && *msg) ? ": " : "", errno);
+}
+
+static __attribute__((unused))
+int setvbuf(FILE *stream __attribute__((unused)),
+	    char *buf __attribute__((unused)),
+	    int mode,
+	    size_t size __attribute__((unused)))
+{
+	/*
+	 * nolibc does not support buffering so this is a nop. Just check mode
+	 * is valid as required by the spec.
+	 */
+	switch (mode) {
+	case _IOFBF:
+	case _IOLBF:
+	case _IONBF:
+		break;
+	default:
+		return EOF;
+	}
+
+	return 0;
 }
 
 /* make sure to include all global symbols */

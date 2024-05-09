@@ -270,18 +270,6 @@ static inline u64 kvm_s390_pv_cpu_get_handle(struct kvm_vcpu *vcpu)
 	return vcpu->arch.pv.handle;
 }
 
-static inline bool kvm_s390_pv_is_protected(struct kvm *kvm)
-{
-	lockdep_assert_held(&kvm->lock);
-	return !!kvm_s390_pv_get_handle(kvm);
-}
-
-static inline bool kvm_s390_pv_cpu_is_protected(struct kvm_vcpu *vcpu)
-{
-	lockdep_assert_held(&vcpu->mutex);
-	return !!kvm_s390_pv_cpu_get_handle(vcpu);
-}
-
 /* implemented in interrupt.c */
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu);

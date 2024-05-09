@@ -575,12 +575,11 @@ static int ufs_hisi_probe(struct platform_device *pdev)
 	return ufshcd_pltfrm_init(pdev, of_id->data);
 }
 
-static int ufs_hisi_remove(struct platform_device *pdev)
+static void ufs_hisi_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
 
 	ufshcd_remove(hba);
-	return 0;
 }
 
 static const struct dev_pm_ops ufs_hisi_pm_ops = {
@@ -592,7 +591,7 @@ static const struct dev_pm_ops ufs_hisi_pm_ops = {
 
 static struct platform_driver ufs_hisi_pltform = {
 	.probe	= ufs_hisi_probe,
-	.remove	= ufs_hisi_remove,
+	.remove_new = ufs_hisi_remove,
 	.driver	= {
 		.name	= "ufshcd-hisi",
 		.pm	= &ufs_hisi_pm_ops,

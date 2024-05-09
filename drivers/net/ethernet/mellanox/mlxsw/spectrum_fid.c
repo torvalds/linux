@@ -137,16 +137,6 @@ static const int *mlxsw_sp_packet_type_sfgc_types[] = {
 	[MLXSW_SP_FLOOD_TYPE_MC]	= mlxsw_sp_sfgc_mc_packet_types,
 };
 
-bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index)
-{
-	enum mlxsw_sp_fid_type fid_type = MLXSW_SP_FID_TYPE_DUMMY;
-	struct mlxsw_sp_fid_family *fid_family;
-
-	fid_family = mlxsw_sp->fid_core->fid_family_arr[fid_type];
-
-	return fid_family->start_index == fid_index;
-}
-
 struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_index(struct mlxsw_sp *mlxsw_sp,
 						  u16 fid_index)
 {
@@ -328,6 +318,14 @@ static u16
 mlxsw_sp_fid_family_num_fids(const struct mlxsw_sp_fid_family *fid_family)
 {
 	return fid_family->end_index - fid_family->start_index + 1;
+}
+
+static u16
+mlxsw_sp_fid_family_pgt_size(const struct mlxsw_sp_fid_family *fid_family)
+{
+	u16 num_fids = mlxsw_sp_fid_family_num_fids(fid_family);
+
+	return num_fids * fid_family->nr_flood_tables;
 }
 
 static u16
@@ -1078,8 +1076,6 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops = {
 
 #define MLXSW_SP_FID_8021Q_MAX (VLAN_N_VID - 2)
 #define MLXSW_SP_FID_RFID_MAX (11 * 1024)
-#define MLXSW_SP_FID_8021Q_PGT_BASE 0
-#define MLXSW_SP_FID_8021D_PGT_BASE (3 * MLXSW_SP_FID_8021Q_MAX)
 
 static const struct mlxsw_sp_flood_table mlxsw_sp_fid_8021d_flood_tables[] = {
 	{
@@ -1444,7 +1440,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp1_fid_8021q_family = {
 	.ops			= &mlxsw_sp_fid_8021q_ops,
 	.flood_rsp              = false,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_0,
-	.pgt_base		= MLXSW_SP_FID_8021Q_PGT_BASE,
 	.smpe_index_valid	= false,
 };
 
@@ -1458,7 +1453,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp1_fid_8021d_family = {
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_1,
-	.pgt_base		= MLXSW_SP_FID_8021D_PGT_BASE,
 	.smpe_index_valid       = false,
 };
 
@@ -1500,7 +1494,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_8021q_family = {
 	.ops			= &mlxsw_sp_fid_8021q_ops,
 	.flood_rsp              = false,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_0,
-	.pgt_base		= MLXSW_SP_FID_8021Q_PGT_BASE,
 	.smpe_index_valid	= true,
 };
 
@@ -1514,7 +1507,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_8021d_family = {
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_1,
-	.pgt_base		= MLXSW_SP_FID_8021D_PGT_BASE,
 	.smpe_index_valid       = true,
 };
 
@@ -1664,14 +1656,10 @@ mlxsw_sp_fid_flood_table_init(struct mlxsw_sp_fid_family *fid_family,
 	enum mlxsw_sp_flood_type packet_type = flood_table->packet_type;
 	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
 	const int *sfgc_packet_types;
-	u16 num_fids, mid_base;
+	u16 mid_base;
 	int err, i;
 
 	mid_base = mlxsw_sp_fid_flood_table_mid(fid_family, flood_table, 0);
-	num_fids = mlxsw_sp_fid_family_num_fids(fid_family);
-	err = mlxsw_sp_pgt_mid_alloc_range(mlxsw_sp, mid_base, num_fids);
-	if (err)
-		return err;
 
 	sfgc_packet_types = mlxsw_sp_packet_type_sfgc_types[packet_type];
 	for (i = 0; i < MLXSW_REG_SFGC_TYPE_MAX; i++) {
@@ -1685,57 +1673,56 @@ mlxsw_sp_fid_flood_table_init(struct mlxsw_sp_fid_family *fid_family,
 
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfgc), sfgc_pl);
 		if (err)
-			goto err_reg_write;
-	}
-
-	return 0;
-
-err_reg_write:
-	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, mid_base, num_fids);
-	return err;
-}
-
-static void
-mlxsw_sp_fid_flood_table_fini(struct mlxsw_sp_fid_family *fid_family,
-			      const struct mlxsw_sp_flood_table *flood_table)
-{
-	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
-	u16 num_fids, mid_base;
-
-	mid_base = mlxsw_sp_fid_flood_table_mid(fid_family, flood_table, 0);
-	num_fids = mlxsw_sp_fid_family_num_fids(fid_family);
-	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, mid_base, num_fids);
-}
-
-static int
-mlxsw_sp_fid_flood_tables_init(struct mlxsw_sp_fid_family *fid_family)
-{
-	int i;
-
-	for (i = 0; i < fid_family->nr_flood_tables; i++) {
-		const struct mlxsw_sp_flood_table *flood_table;
-		int err;
-
-		flood_table = &fid_family->flood_tables[i];
-		err = mlxsw_sp_fid_flood_table_init(fid_family, flood_table);
-		if (err)
 			return err;
 	}
 
 	return 0;
 }
 
-static void
-mlxsw_sp_fid_flood_tables_fini(struct mlxsw_sp_fid_family *fid_family)
+static int
+mlxsw_sp_fid_flood_tables_init(struct mlxsw_sp_fid_family *fid_family)
 {
+	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
+	u16 pgt_size;
+	int err;
 	int i;
+
+	if (!fid_family->nr_flood_tables)
+		return 0;
+
+	pgt_size = mlxsw_sp_fid_family_pgt_size(fid_family);
+	err = mlxsw_sp_pgt_mid_alloc_range(mlxsw_sp, &fid_family->pgt_base,
+					   pgt_size);
+	if (err)
+		return err;
 
 	for (i = 0; i < fid_family->nr_flood_tables; i++) {
 		const struct mlxsw_sp_flood_table *flood_table;
 
 		flood_table = &fid_family->flood_tables[i];
-		mlxsw_sp_fid_flood_table_fini(fid_family, flood_table);
+		err = mlxsw_sp_fid_flood_table_init(fid_family, flood_table);
+		if (err)
+			goto err_flood_table_init;
 	}
+
+	return 0;
+
+err_flood_table_init:
+	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, fid_family->pgt_base, pgt_size);
+	return err;
+}
+
+static void
+mlxsw_sp_fid_flood_tables_fini(struct mlxsw_sp_fid_family *fid_family)
+{
+	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
+	u16 pgt_size;
+
+	if (!fid_family->nr_flood_tables)
+		return;
+
+	pgt_size = mlxsw_sp_fid_family_pgt_size(fid_family);
+	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, fid_family->pgt_base, pgt_size);
 }
 
 static int mlxsw_sp_fid_family_register(struct mlxsw_sp *mlxsw_sp,

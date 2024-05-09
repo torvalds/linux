@@ -312,13 +312,22 @@ static void swap_inode_data(struct inode *inode1, struct inode *inode2)
 	struct ext4_inode_info *ei1;
 	struct ext4_inode_info *ei2;
 	unsigned long tmp;
+	struct timespec64 ts1, ts2;
 
 	ei1 = EXT4_I(inode1);
 	ei2 = EXT4_I(inode2);
 
 	swap(inode1->i_version, inode2->i_version);
-	swap(inode1->i_atime, inode2->i_atime);
-	swap(inode1->i_mtime, inode2->i_mtime);
+
+	ts1 = inode_get_atime(inode1);
+	ts2 = inode_get_atime(inode2);
+	inode_set_atime_to_ts(inode1, ts2);
+	inode_set_atime_to_ts(inode2, ts1);
+
+	ts1 = inode_get_mtime(inode1);
+	ts2 = inode_get_mtime(inode2);
+	inode_set_mtime_to_ts(inode1, ts2);
+	inode_set_mtime_to_ts(inode2, ts1);
 
 	memswap(ei1->i_data, ei2->i_data, sizeof(ei1->i_data));
 	tmp = ei1->i_flags & EXT4_FL_SHOULD_SWAP;
@@ -449,7 +458,8 @@ static long swap_inode_boot_loader(struct super_block *sb,
 	diff = size - size_bl;
 	swap_inode_data(inode, inode_bl);
 
-	inode->i_ctime = inode_bl->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
+	inode_set_ctime_current(inode_bl);
 	inode_inc_iversion(inode);
 
 	inode->i_generation = get_random_u32();
@@ -663,7 +673,7 @@ static int ext4_ioctl_setflags(struct inode *inode,
 
 	ext4_set_inode_flags(inode, false);
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	inode_inc_iversion(inode);
 
 	err = ext4_mark_iloc_dirty(handle, inode, &iloc);
@@ -774,7 +784,7 @@ static int ext4_ioctl_setproject(struct inode *inode, __u32 projid)
 	}
 
 	EXT4_I(inode)->i_projid = kprojid;
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	inode_inc_iversion(inode);
 out_dirty:
 	rc = ext4_mark_iloc_dirty(handle, inode, &iloc);
@@ -801,7 +811,7 @@ int ext4_force_shutdown(struct super_block *sb, u32 flags)
 	if (flags > EXT4_GOING_FLAGS_NOLOGFLUSH)
 		return -EINVAL;
 
-	if (ext4_forced_shutdown(sbi))
+	if (ext4_forced_shutdown(sb))
 		return 0;
 
 	ext4_msg(sb, KERN_ALERT, "shut down requested (%d)", flags);
@@ -1266,7 +1276,7 @@ static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		err = ext4_reserve_inode_write(handle, inode, &iloc);
 		if (err == 0) {
-			inode->i_ctime = current_time(inode);
+			inode_set_ctime_current(inode);
 			inode_inc_iversion(inode);
 			inode->i_generation = generation;
 			err = ext4_mark_iloc_dirty(handle, inode, &iloc);

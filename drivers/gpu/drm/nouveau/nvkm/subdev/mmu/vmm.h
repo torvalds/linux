@@ -163,6 +163,7 @@ int nvkm_vmm_new_(const struct nvkm_vmm_func *, struct nvkm_mmu *,
 		  u32 pd_header, bool managed, u64 addr, u64 size,
 		  struct lock_class_key *, const char *name,
 		  struct nvkm_vmm **);
+struct nvkm_vma *nvkm_vma_new(u64 addr, u64 size);
 struct nvkm_vma *nvkm_vmm_node_search(struct nvkm_vmm *, u64 addr);
 struct nvkm_vma *nvkm_vmm_node_split(struct nvkm_vmm *, struct nvkm_vma *,
 				     u64 addr, u64 size);
@@ -172,6 +173,30 @@ int nvkm_vmm_get_locked(struct nvkm_vmm *, bool getref, bool mapref,
 void nvkm_vmm_put_locked(struct nvkm_vmm *, struct nvkm_vma *);
 void nvkm_vmm_unmap_locked(struct nvkm_vmm *, struct nvkm_vma *, bool pfn);
 void nvkm_vmm_unmap_region(struct nvkm_vmm *, struct nvkm_vma *);
+
+int nvkm_vmm_raw_get(struct nvkm_vmm *vmm, u64 addr, u64 size, u8 refd);
+void nvkm_vmm_raw_put(struct nvkm_vmm *vmm, u64 addr, u64 size, u8 refd);
+void nvkm_vmm_raw_unmap(struct nvkm_vmm *vmm, u64 addr, u64 size,
+			bool sparse, u8 refd);
+int nvkm_vmm_raw_sparse(struct nvkm_vmm *, u64 addr, u64 size, bool ref);
+
+static inline bool
+nvkm_vmm_in_managed_range(struct nvkm_vmm *vmm, u64 start, u64 size)
+{
+	u64 p_start = vmm->managed.p.addr;
+	u64 p_end = p_start + vmm->managed.p.size;
+	u64 n_start = vmm->managed.n.addr;
+	u64 n_end = n_start + vmm->managed.n.size;
+	u64 end = start + size;
+
+	if (start >= p_start && end <= p_end)
+		return true;
+
+	if (start >= n_start && end <= n_end)
+		return true;
+
+	return false;
+}
 
 #define NVKM_VMM_PFN_ADDR                                 0xfffffffffffff000ULL
 #define NVKM_VMM_PFN_ADDR_SHIFT                                              12

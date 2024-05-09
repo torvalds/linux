@@ -216,13 +216,14 @@ The flags are::
   t    Include thread ID, or <intr>
   m    Include module name
   f    Include the function name
+  s    Include the source file name
   l    Include line number
 
 For ``print_hex_dump_debug()`` and ``print_hex_dump_bytes()``, only
 the ``p`` flag has meaning, other flags are ignored.
 
-Note the regexp ``^[-+=][flmpt_]+$`` matches a flags specification.
-To clear all flags at once, use ``=_`` or ``-flmpt``.
+Note the regexp ``^[-+=][fslmpt_]+$`` matches a flags specification.
+To clear all flags at once, use ``=_`` or ``-fslmpt``.
 
 
 Debug messages during Boot Process
@@ -258,7 +259,7 @@ Debug Messages at Module Initialization Time
 
 When ``modprobe foo`` is called, modprobe scans ``/proc/cmdline`` for
 ``foo.params``, strips ``foo.``, and passes them to the kernel along with
-params given in modprobe args or ``/etc/modprob.d/*.conf`` files,
+params given in modprobe args or ``/etc/modprobe.d/*.conf`` files,
 in the following order:
 
 1. parameters given via ``/etc/modprobe.d/*.conf``::

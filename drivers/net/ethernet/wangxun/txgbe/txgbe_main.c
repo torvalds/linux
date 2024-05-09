@@ -286,6 +286,8 @@ static void txgbe_disable_device(struct wx *wx)
 
 	/* Disable the Tx DMA engine */
 	wr32m(wx, WX_TDM_CTL, WX_TDM_CTL_TE, 0);
+
+	wx_update_stats(wx);
 }
 
 static void txgbe_down(struct wx *wx)
@@ -298,6 +300,49 @@ static void txgbe_down(struct wx *wx)
 
 	wx_clean_all_tx_rings(wx);
 	wx_clean_all_rx_rings(wx);
+}
+
+/**
+ *  txgbe_init_type_code - Initialize the shared code
+ *  @wx: pointer to hardware structure
+ **/
+static void txgbe_init_type_code(struct wx *wx)
+{
+	u8 device_type = wx->subsystem_device_id & 0xF0;
+
+	switch (wx->device_id) {
+	case TXGBE_DEV_ID_SP1000:
+	case TXGBE_DEV_ID_WX1820:
+		wx->mac.type = wx_mac_sp;
+		break;
+	default:
+		wx->mac.type = wx_mac_unknown;
+		break;
+	}
+
+	switch (device_type) {
+	case TXGBE_ID_SFP:
+		wx->media_type = sp_media_fiber;
+		break;
+	case TXGBE_ID_XAUI:
+	case TXGBE_ID_SGMII:
+		wx->media_type = sp_media_copper;
+		break;
+	case TXGBE_ID_KR_KX_KX4:
+	case TXGBE_ID_MAC_XAUI:
+	case TXGBE_ID_MAC_SGMII:
+		wx->media_type = sp_media_backplane;
+		break;
+	case TXGBE_ID_SFI_XAUI:
+		if (wx->bus.func == 0)
+			wx->media_type = sp_media_fiber;
+		else
+			wx->media_type = sp_media_copper;
+		break;
+	default:
+		wx->media_type = sp_media_unknown;
+		break;
+	}
 }
 
 /**
@@ -324,15 +369,7 @@ static int txgbe_sw_init(struct wx *wx)
 		return err;
 	}
 
-	switch (wx->device_id) {
-	case TXGBE_DEV_ID_SP1000:
-	case TXGBE_DEV_ID_WX1820:
-		wx->mac.type = wx_mac_sp;
-		break;
-	default:
-		wx->mac.type = wx_mac_unknown;
-		break;
-	}
+	txgbe_init_type_code(wx);
 
 	/* Set common capability flags and settings */
 	wx->max_q_vectors = TXGBE_MAX_MSIX_VECTORS;
@@ -503,7 +540,6 @@ static int txgbe_probe(struct pci_dev *pdev,
 	u16 eeprom_verh = 0, eeprom_verl = 0, offset = 0;
 	u16 eeprom_cfg_blkh = 0, eeprom_cfg_blkl = 0;
 	u16 build = 0, major = 0, patch = 0;
-	u8 part_str[TXGBE_PBANUM_LENGTH];
 	u32 etrack_id = 0;
 
 	err = pci_enable_device_mem(pdev);
@@ -663,6 +699,9 @@ static int txgbe_probe(struct pci_dev *pdev,
 			 "0x%08x", etrack_id);
 	}
 
+	if (etrack_id < 0x20010)
+		dev_warn(&pdev->dev, "Please upgrade the firmware to 0x20010 or above.\n");
+
 	txgbe = devm_kzalloc(&pdev->dev, sizeof(*txgbe), GFP_KERNEL);
 	if (!txgbe) {
 		err = -ENOMEM;
@@ -697,13 +736,6 @@ static int txgbe_probe(struct pci_dev *pdev,
 		txgbe_check_minimum_link(wx);
 	else
 		dev_warn(&pdev->dev, "Failed to enumerate PF devices.\n");
-
-	/* First try to read PBA as a string */
-	err = txgbe_read_pba_string(wx, part_str, TXGBE_PBANUM_LENGTH);
-	if (err)
-		strncpy(part_str, "Unknown", TXGBE_PBANUM_LENGTH);
-
-	netif_info(wx, probe, netdev, "%pM\n", netdev->dev_addr);
 
 	return 0;
 

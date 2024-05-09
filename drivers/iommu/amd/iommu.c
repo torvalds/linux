@@ -37,6 +37,7 @@
 #include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/dma.h>
+#include <uapi/linux/iommufd.h>
 
 #include "amd_iommu.h"
 #include "../dma-iommu.h"
@@ -65,6 +66,7 @@ LIST_HEAD(hpet_map);
 LIST_HEAD(acpihid_map);
 
 const struct iommu_ops amd_iommu_ops;
+const struct iommu_dirty_ops amd_dirty_ops;
 
 static ATOMIC_NOTIFIER_HEAD(ppr_notifier);
 int amd_iommu_max_glx_val = -1;
@@ -841,50 +843,27 @@ static inline void
 amd_iommu_set_pci_msi_domain(struct device *dev, struct amd_iommu *iommu) { }
 #endif /* !CONFIG_IRQ_REMAP */
 
-#define AMD_IOMMU_INT_MASK	\
-	(MMIO_STATUS_EVT_OVERFLOW_INT_MASK | \
-	 MMIO_STATUS_EVT_INT_MASK | \
-	 MMIO_STATUS_PPR_INT_MASK | \
-	 MMIO_STATUS_GALOG_OVERFLOW_MASK | \
-	 MMIO_STATUS_GALOG_INT_MASK)
-
-irqreturn_t amd_iommu_int_thread(int irq, void *data)
+static void amd_iommu_handle_irq(void *data, const char *evt_type,
+				 u32 int_mask, u32 overflow_mask,
+				 void (*int_handler)(struct amd_iommu *),
+				 void (*overflow_handler)(struct amd_iommu *))
 {
 	struct amd_iommu *iommu = (struct amd_iommu *) data;
 	u32 status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
+	u32 mask = int_mask | overflow_mask;
 
-	while (status & AMD_IOMMU_INT_MASK) {
+	while (status & mask) {
 		/* Enable interrupt sources again */
-		writel(AMD_IOMMU_INT_MASK,
-			iommu->mmio_base + MMIO_STATUS_OFFSET);
+		writel(mask, iommu->mmio_base + MMIO_STATUS_OFFSET);
 
-		if (status & MMIO_STATUS_EVT_INT_MASK) {
-			pr_devel("Processing IOMMU Event Log\n");
-			iommu_poll_events(iommu);
+		if (int_handler) {
+			pr_devel("Processing IOMMU (ivhd%d) %s Log\n",
+				 iommu->index, evt_type);
+			int_handler(iommu);
 		}
 
-		if (status & MMIO_STATUS_PPR_INT_MASK) {
-			pr_devel("Processing IOMMU PPR Log\n");
-			iommu_poll_ppr_log(iommu);
-		}
-
-#ifdef CONFIG_IRQ_REMAP
-		if (status & (MMIO_STATUS_GALOG_INT_MASK |
-			      MMIO_STATUS_GALOG_OVERFLOW_MASK)) {
-			pr_devel("Processing IOMMU GA Log\n");
-			iommu_poll_ga_log(iommu);
-		}
-
-		if (status & MMIO_STATUS_GALOG_OVERFLOW_MASK) {
-			pr_info_ratelimited("IOMMU GA Log overflow\n");
-			amd_iommu_restart_ga_log(iommu);
-		}
-#endif
-
-		if (status & MMIO_STATUS_EVT_OVERFLOW_INT_MASK) {
-			pr_info_ratelimited("IOMMU event log overflow\n");
-			amd_iommu_restart_event_logging(iommu);
-		}
+		if ((status & overflow_mask) && overflow_handler)
+			overflow_handler(iommu);
 
 		/*
 		 * Hardware bug: ERBT1312
@@ -901,6 +880,43 @@ irqreturn_t amd_iommu_int_thread(int irq, void *data)
 		 */
 		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
 	}
+}
+
+irqreturn_t amd_iommu_int_thread_evtlog(int irq, void *data)
+{
+	amd_iommu_handle_irq(data, "Evt", MMIO_STATUS_EVT_INT_MASK,
+			     MMIO_STATUS_EVT_OVERFLOW_MASK,
+			     iommu_poll_events, amd_iommu_restart_event_logging);
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t amd_iommu_int_thread_pprlog(int irq, void *data)
+{
+	amd_iommu_handle_irq(data, "PPR", MMIO_STATUS_PPR_INT_MASK,
+			     MMIO_STATUS_PPR_OVERFLOW_MASK,
+			     iommu_poll_ppr_log, amd_iommu_restart_ppr_log);
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t amd_iommu_int_thread_galog(int irq, void *data)
+{
+#ifdef CONFIG_IRQ_REMAP
+	amd_iommu_handle_irq(data, "GA", MMIO_STATUS_GALOG_INT_MASK,
+			     MMIO_STATUS_GALOG_OVERFLOW_MASK,
+			     iommu_poll_ga_log, amd_iommu_restart_ga_log);
+#endif
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t amd_iommu_int_thread(int irq, void *data)
+{
+	amd_iommu_int_thread_evtlog(irq, data);
+	amd_iommu_int_thread_pprlog(irq, data);
+	amd_iommu_int_thread_galog(irq, data);
+
 	return IRQ_HANDLED;
 }
 
@@ -1596,6 +1612,9 @@ static void set_dte_entry(struct amd_iommu *iommu, u16 devid,
 			pte_root |= 1ULL << DEV_ENTRY_PPR;
 	}
 
+	if (domain->dirty_tracking)
+		pte_root |= DTE_FLAG_HAD;
+
 	if (domain->flags & PD_IOMMUV2_MASK) {
 		u64 gcr3 = iommu_virt_to_phys(domain->gcr3_tbl);
 		u64 glx  = domain->glx;
@@ -2141,26 +2160,77 @@ static inline u64 dma_max_address(void)
 	return ((1ULL << PM_LEVEL_SHIFT(amd_iommu_gpt_level)) - 1);
 }
 
-static struct iommu_domain *amd_iommu_domain_alloc(unsigned type)
+static bool amd_iommu_hd_support(struct amd_iommu *iommu)
 {
+	return iommu && (iommu->features & FEATURE_HDSUP);
+}
+
+static struct iommu_domain *do_iommu_domain_alloc(unsigned int type,
+						  struct device *dev, u32 flags)
+{
+	bool dirty_tracking = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
 	struct protection_domain *domain;
+	struct amd_iommu *iommu = NULL;
+
+	if (dev) {
+		iommu = rlookup_amd_iommu(dev);
+		if (!iommu)
+			return ERR_PTR(-ENODEV);
+	}
 
 	/*
 	 * Since DTE[Mode]=0 is prohibited on SNP-enabled system,
 	 * default to use IOMMU_DOMAIN_DMA[_FQ].
 	 */
 	if (amd_iommu_snp_en && (type == IOMMU_DOMAIN_IDENTITY))
-		return NULL;
+		return ERR_PTR(-EINVAL);
+
+	if (dirty_tracking && !amd_iommu_hd_support(iommu))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	domain = protection_domain_alloc(type);
 	if (!domain)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	domain->domain.geometry.aperture_start = 0;
 	domain->domain.geometry.aperture_end   = dma_max_address();
 	domain->domain.geometry.force_aperture = true;
 
+	if (iommu) {
+		domain->domain.type = type;
+		domain->domain.pgsize_bitmap = iommu->iommu.ops->pgsize_bitmap;
+		domain->domain.ops = iommu->iommu.ops->default_domain_ops;
+
+		if (dirty_tracking)
+			domain->domain.dirty_ops = &amd_dirty_ops;
+	}
+
 	return &domain->domain;
+}
+
+static struct iommu_domain *amd_iommu_domain_alloc(unsigned int type)
+{
+	struct iommu_domain *domain;
+
+	domain = do_iommu_domain_alloc(type, NULL, 0);
+	if (IS_ERR(domain))
+		return NULL;
+
+	return domain;
+}
+
+static struct iommu_domain *
+amd_iommu_domain_alloc_user(struct device *dev, u32 flags,
+			    struct iommu_domain *parent,
+			    const struct iommu_user_data *user_data)
+
+{
+	unsigned int type = IOMMU_DOMAIN_UNMANAGED;
+
+	if ((flags & ~IOMMU_HWPT_ALLOC_DIRTY_TRACKING) || parent || user_data)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return do_iommu_domain_alloc(type, dev, flags);
 }
 
 static void amd_iommu_domain_free(struct iommu_domain *dom)
@@ -2199,6 +2269,13 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 		return 0;
 
 	dev_data->defer_attach = false;
+
+	/*
+	 * Restrict to devices with compatible IOMMU hardware support
+	 * when enforcement of dirty tracking is enabled.
+	 */
+	if (dom->dirty_ops && !amd_iommu_hd_support(iommu))
+		return -EINVAL;
 
 	if (dev_data->domain)
 		detach_device(dev);
@@ -2318,11 +2395,83 @@ static bool amd_iommu_capable(struct device *dev, enum iommu_cap cap)
 		return true;
 	case IOMMU_CAP_DEFERRED_FLUSH:
 		return true;
+	case IOMMU_CAP_DIRTY_TRACKING: {
+		struct amd_iommu *iommu = rlookup_amd_iommu(dev);
+
+		return amd_iommu_hd_support(iommu);
+	}
 	default:
 		break;
 	}
 
 	return false;
+}
+
+static int amd_iommu_set_dirty_tracking(struct iommu_domain *domain,
+					bool enable)
+{
+	struct protection_domain *pdomain = to_pdomain(domain);
+	struct dev_table_entry *dev_table;
+	struct iommu_dev_data *dev_data;
+	bool domain_flush = false;
+	struct amd_iommu *iommu;
+	unsigned long flags;
+	u64 pte_root;
+
+	spin_lock_irqsave(&pdomain->lock, flags);
+	if (!(pdomain->dirty_tracking ^ enable)) {
+		spin_unlock_irqrestore(&pdomain->lock, flags);
+		return 0;
+	}
+
+	list_for_each_entry(dev_data, &pdomain->dev_list, list) {
+		iommu = rlookup_amd_iommu(dev_data->dev);
+		if (!iommu)
+			continue;
+
+		dev_table = get_dev_table(iommu);
+		pte_root = dev_table[dev_data->devid].data[0];
+
+		pte_root = (enable ? pte_root | DTE_FLAG_HAD :
+				     pte_root & ~DTE_FLAG_HAD);
+
+		/* Flush device DTE */
+		dev_table[dev_data->devid].data[0] = pte_root;
+		device_flush_dte(dev_data);
+		domain_flush = true;
+	}
+
+	/* Flush IOTLB to mark IOPTE dirty on the next translation(s) */
+	if (domain_flush) {
+		amd_iommu_domain_flush_tlb_pde(pdomain);
+		amd_iommu_domain_flush_complete(pdomain);
+	}
+	pdomain->dirty_tracking = enable;
+	spin_unlock_irqrestore(&pdomain->lock, flags);
+
+	return 0;
+}
+
+static int amd_iommu_read_and_clear_dirty(struct iommu_domain *domain,
+					  unsigned long iova, size_t size,
+					  unsigned long flags,
+					  struct iommu_dirty_bitmap *dirty)
+{
+	struct protection_domain *pdomain = to_pdomain(domain);
+	struct io_pgtable_ops *ops = &pdomain->iop.iop.ops;
+	unsigned long lflags;
+
+	if (!ops || !ops->read_and_clear_dirty)
+		return -EOPNOTSUPP;
+
+	spin_lock_irqsave(&pdomain->lock, lflags);
+	if (!pdomain->dirty_tracking && dirty->bitmap) {
+		spin_unlock_irqrestore(&pdomain->lock, lflags);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&pdomain->lock, lflags);
+
+	return ops->read_and_clear_dirty(ops, iova, size, flags, dirty);
 }
 
 static void amd_iommu_get_resv_regions(struct device *dev,
@@ -2447,9 +2596,15 @@ static bool amd_iommu_enforce_cache_coherency(struct iommu_domain *domain)
 	return true;
 }
 
+const struct iommu_dirty_ops amd_dirty_ops = {
+	.set_dirty_tracking = amd_iommu_set_dirty_tracking,
+	.read_and_clear_dirty = amd_iommu_read_and_clear_dirty,
+};
+
 const struct iommu_ops amd_iommu_ops = {
 	.capable = amd_iommu_capable,
 	.domain_alloc = amd_iommu_domain_alloc,
+	.domain_alloc_user = amd_iommu_domain_alloc_user,
 	.probe_device = amd_iommu_probe_device,
 	.release_device = amd_iommu_release_device,
 	.probe_finalize = amd_iommu_probe_finalize,
@@ -3681,7 +3836,7 @@ static int amd_ir_set_affinity(struct irq_data *data,
 	 * at the new destination. So, time to cleanup the previous
 	 * vector allocation.
 	 */
-	send_cleanup_vector(cfg);
+	vector_schedule_cleanup(cfg);
 
 	return IRQ_SET_MASK_OK_DONE;
 }

@@ -141,8 +141,8 @@ nodemask_t
 The size of a nodemask_t type. Used to compute the number of online
 nodes.
 
-(page, flags|_refcount|mapping|lru|_mapcount|private|compound_dtor|compound_order|compound_head)
--------------------------------------------------------------------------------------------------
+(page, flags|_refcount|mapping|lru|_mapcount|private|compound_order|compound_head)
+----------------------------------------------------------------------------------
 
 User-space tools compute their values based on the offset of these
 variables. The variables are used when excluding unnecessary pages.
@@ -325,8 +325,8 @@ NR_FREE_PAGES
 On linux-2.6.21 or later, the number of free pages is in
 vm_stat[NR_FREE_PAGES]. Used to get the number of free pages.
 
-PG_lru|PG_private|PG_swapcache|PG_swapbacked|PG_slab|PG_hwpoision|PG_head_mask
-------------------------------------------------------------------------------
+PG_lru|PG_private|PG_swapcache|PG_swapbacked|PG_slab|PG_hwpoision|PG_head_mask|PG_hugetlb
+-----------------------------------------------------------------------------------------
 
 Page attributes. These flags are used to filter various unnecessary for
 dumping pages.
@@ -337,12 +337,6 @@ PAGE_BUDDY_MAPCOUNT_VALUE(~PG_buddy)|PAGE_OFFLINE_MAPCOUNT_VALUE(~PG_offline)
 More page attributes. These flags are used to filter various unnecessary for
 dumping pages.
 
-
-HUGETLB_PAGE_DTOR
------------------
-
-The HUGETLB_PAGE_DTOR flag denotes hugetlbfs pages. Makedumpfile
-excludes these pages.
 
 x86_64
 ======
@@ -418,36 +412,6 @@ Denotes whether physical address extensions are enabled. It has the cost
 of a higher page table lookup overhead, and also consumes more page
 table space per process. Used to check whether PAE was enabled in the
 crash kernel when converting virtual addresses to physical addresses.
-
-ia64
-====
-
-pgdat_list|(pgdat_list, MAX_NUMNODES)
--------------------------------------
-
-pg_data_t array storing all NUMA nodes information. MAX_NUMNODES
-indicates the number of the nodes.
-
-node_memblk|(node_memblk, NR_NODE_MEMBLKS)
-------------------------------------------
-
-List of node memory chunks. Filled when parsing the SRAT table to obtain
-information about memory nodes. NR_NODE_MEMBLKS indicates the number of
-node memory chunks.
-
-These values are used to compute the number of nodes the crashed kernel used.
-
-node_memblk_s|(node_memblk_s, start_paddr)|(node_memblk_s, size)
-----------------------------------------------------------------
-
-The size of a struct node_memblk_s and the offsets of the
-node_memblk_s's members. Used to compute the number of nodes.
-
-PGTABLE_3|PGTABLE_4
--------------------
-
-User-space tools need to know whether the crash kernel was in 3-level or
-4-level paging mode. Used to distinguish the page table.
 
 ARM64
 =====
@@ -624,3 +588,9 @@ Used to get the correct ranges:
   * VMALLOC_START ~ VMALLOC_END : vmalloc() / ioremap() space.
   * VMEMMAP_START ~ VMEMMAP_END : vmemmap space, used for struct page array.
   * KERNEL_LINK_ADDR : start address of Kernel link and BPF
+
+va_kernel_pa_offset
+-------------------
+
+Indicates the offset between the kernel virtual and physical mappings.
+Used to translate virtual to physical addresses.

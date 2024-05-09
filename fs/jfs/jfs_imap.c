@@ -193,6 +193,7 @@ int diUnmount(struct inode *ipimap, int mounterror)
 	 * free in-memory control structure
 	 */
 	kfree(imap);
+	JFS_IP(ipimap)->i_imap = NULL;
 
 	return (0);
 }
@@ -669,7 +670,7 @@ int diWrite(tid_t tid, struct inode *ip)
 		 * This is the special xtree inside the directory for storing
 		 * the directory table
 		 */
-		xtpage_t *p, *xp;
+		xtroot_t *p, *xp;
 		xad_t *xad;
 
 		jfs_ip->xtlid = 0;
@@ -683,7 +684,7 @@ int diWrite(tid_t tid, struct inode *ip)
 		 * copy xtree root from inode to dinode:
 		 */
 		p = &jfs_ip->i_xtroot;
-		xp = (xtpage_t *) &dp->di_dirtable;
+		xp = (xtroot_t *) &dp->di_dirtable;
 		lv = ilinelock->lv;
 		for (n = 0; n < ilinelock->index; n++, lv++) {
 			memcpy(&xp->xad[lv->offset], &p->xad[lv->offset],
@@ -712,7 +713,7 @@ int diWrite(tid_t tid, struct inode *ip)
 	 *	regular file: 16 byte (XAD slot) granularity
 	 */
 	if (type & tlckXTREE) {
-		xtpage_t *p, *xp;
+		xtroot_t *p, *xp;
 		xad_t *xad;
 
 		/*
@@ -1319,7 +1320,7 @@ diInitInode(struct inode *ip, int iagno, int ino, int extno, struct iag * iagp)
 int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 {
 	int rc, ino, iagno, addext, extno, bitno, sword;
-	int nwords, rem, i, agno;
+	int nwords, rem, i, agno, dn_numag;
 	u32 mask, inosmap, extsmap;
 	struct inode *ipimap;
 	struct metapage *mp;
@@ -1355,6 +1356,9 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 
 	/* get the ag number of this iag */
 	agno = BLKTOAG(JFS_IP(pip)->agstart, JFS_SBI(pip->i_sb));
+	dn_numag = JFS_SBI(pip->i_sb)->bmap->db_numag;
+	if (agno < 0 || agno > dn_numag)
+		return -EIO;
 
 	if (atomic_read(&JFS_SBI(pip->i_sb)->bmap->db_active[agno])) {
 		/*
@@ -3060,12 +3064,12 @@ static int copy_from_dinode(struct dinode * dip, struct inode *ip)
 	}
 
 	ip->i_size = le64_to_cpu(dip->di_size);
-	ip->i_atime.tv_sec = le32_to_cpu(dip->di_atime.tv_sec);
-	ip->i_atime.tv_nsec = le32_to_cpu(dip->di_atime.tv_nsec);
-	ip->i_mtime.tv_sec = le32_to_cpu(dip->di_mtime.tv_sec);
-	ip->i_mtime.tv_nsec = le32_to_cpu(dip->di_mtime.tv_nsec);
-	ip->i_ctime.tv_sec = le32_to_cpu(dip->di_ctime.tv_sec);
-	ip->i_ctime.tv_nsec = le32_to_cpu(dip->di_ctime.tv_nsec);
+	inode_set_atime(ip, le32_to_cpu(dip->di_atime.tv_sec),
+			le32_to_cpu(dip->di_atime.tv_nsec));
+	inode_set_mtime(ip, le32_to_cpu(dip->di_mtime.tv_sec),
+			le32_to_cpu(dip->di_mtime.tv_nsec));
+	inode_set_ctime(ip, le32_to_cpu(dip->di_ctime.tv_sec),
+			le32_to_cpu(dip->di_ctime.tv_nsec));
 	ip->i_blocks = LBLK2PBLK(ip->i_sb, le64_to_cpu(dip->di_nblocks));
 	ip->i_generation = le32_to_cpu(dip->di_gen);
 
@@ -3137,12 +3141,12 @@ static void copy_to_dinode(struct dinode * dip, struct inode *ip)
 	else /* Leave the original permissions alone */
 		dip->di_mode = cpu_to_le32(jfs_ip->mode2);
 
-	dip->di_atime.tv_sec = cpu_to_le32(ip->i_atime.tv_sec);
-	dip->di_atime.tv_nsec = cpu_to_le32(ip->i_atime.tv_nsec);
-	dip->di_ctime.tv_sec = cpu_to_le32(ip->i_ctime.tv_sec);
-	dip->di_ctime.tv_nsec = cpu_to_le32(ip->i_ctime.tv_nsec);
-	dip->di_mtime.tv_sec = cpu_to_le32(ip->i_mtime.tv_sec);
-	dip->di_mtime.tv_nsec = cpu_to_le32(ip->i_mtime.tv_nsec);
+	dip->di_atime.tv_sec = cpu_to_le32(inode_get_atime_sec(ip));
+	dip->di_atime.tv_nsec = cpu_to_le32(inode_get_atime_nsec(ip));
+	dip->di_ctime.tv_sec = cpu_to_le32(inode_get_ctime_sec(ip));
+	dip->di_ctime.tv_nsec = cpu_to_le32(inode_get_ctime_nsec(ip));
+	dip->di_mtime.tv_sec = cpu_to_le32(inode_get_mtime_sec(ip));
+	dip->di_mtime.tv_nsec = cpu_to_le32(inode_get_mtime_nsec(ip));
 	dip->di_ixpxd = jfs_ip->ixpxd;	/* in-memory pxd's are little-endian */
 	dip->di_acl = jfs_ip->acl;	/* as are dxd's */
 	dip->di_ea = jfs_ip->ea;

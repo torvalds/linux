@@ -1,0 +1,11 @@
+config FPGA_KUNIT_TESTS
+	bool "KUnit test for the FPGA subsystem" if !KUNIT_ALL_TESTS
+	depends on FPGA=y && FPGA_REGION=y && FPGA_BRIDGE=y && KUNIT=y && MODULES=n
+	default KUNIT_ALL_TESTS
+        help
+          This builds unit tests for the FPGA subsystem
+
+          For more information on KUnit and unit tests in general,
+          please refer to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+          If unsure, say N.

@@ -59,4 +59,14 @@ struct lasx_context {
 	__u32	fcsr;
 };
 
+/* LBT context */
+#define LBT_CTX_MAGIC		0x42540001
+#define LBT_CTX_ALIGN		8
+struct lbt_context {
+	__u64	regs[4];
+	__u32	eflags;
+	__u32	ftop;
+};
+
+
 #endif /* _UAPI_ASM_SIGCONTEXT_H */

@@ -20,18 +20,18 @@ DAMON provides below interfaces for different users.
   you can write and use your personalized DAMON sysfs wrapper programs that
   reads/writes the sysfs files instead of you.  The `DAMON user space tool
   <https://github.com/awslabs/damo>`_ is one example of such programs.
-- *debugfs interface. (DEPRECATED!)*
-  :ref:`This <debugfs_interface>` is almost identical to :ref:`sysfs interface
-  <sysfs_interface>`.  This is deprecated, so users should move to the
-  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cannot
-  move, please report your usecase to damon@lists.linux.dev and
-  linux-mm@kvack.org.
 - *Kernel Space Programming Interface.*
   :doc:`This </mm/damon/api>` is for kernel space programmers.  Using this,
   users can utilize every feature of DAMON most flexibly and efficiently by
   writing kernel space DAMON application programs for you.  You can even extend
   DAMON for various address spaces.  For detail, please refer to the interface
   :doc:`document </mm/damon/api>`.
+- *debugfs interface. (DEPRECATED!)*
+  :ref:`This <debugfs_interface>` is almost identical to :ref:`sysfs interface
+  <sysfs_interface>`.  This is deprecated, so users should move to the
+  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cannot
+  move, please report your usecase to damon@lists.linux.dev and
+  linux-mm@kvack.org.
 
 .. _sysfs_interface:
 
@@ -76,7 +76,7 @@ comma (","). ::
     │ │ │ │ │ │ │ │ ...
     │ │ │ │ │ │ ...
     │ │ │ │ │ schemes/nr_schemes
-    │ │ │ │ │ │ 0/action
+    │ │ │ │ │ │ 0/action,apply_interval_us
     │ │ │ │ │ │ │ access_pattern/
     │ │ │ │ │ │ │ │ sz/min,max
     │ │ │ │ │ │ │ │ nr_accesses/min,max
@@ -87,7 +87,7 @@ comma (","). ::
     │ │ │ │ │ │ │ filters/nr_filters
     │ │ │ │ │ │ │ │ 0/type,matching,memcg_id
     │ │ │ │ │ │ │ stats/nr_tried,sz_tried,nr_applied,sz_applied,qt_exceeds
-    │ │ │ │ │ │ │ tried_regions/
+    │ │ │ │ │ │ │ tried_regions/total_bytes
     │ │ │ │ │ │ │ │ 0/start,end,nr_accesses,age
     │ │ │ │ │ │ │ │ ...
     │ │ │ │ │ │ ...
@@ -99,20 +99,18 @@ Root
 
 The root of the DAMON sysfs interface is ``<sysfs>/kernel/mm/damon/``, and it
 has one directory named ``admin``.  The directory contains the files for
-privileged user space programs' control of DAMON.  User space tools or deamons
+privileged user space programs' control of DAMON.  User space tools or daemons
 having the root permission could use this directory.
 
 kdamonds/
 ---------
 
-The monitoring-related information including request specifications and results
-are called DAMON context.  DAMON executes each context with a kernel thread
-called kdamond, and multiple kdamonds could run in parallel.
-
 Under the ``admin`` directory, one directory, ``kdamonds``, which has files for
-controlling the kdamonds exist.  In the beginning, this directory has only one
-file, ``nr_kdamonds``.  Writing a number (``N``) to the file creates the number
-of child directories named ``0`` to ``N-1``.  Each directory represents each
+controlling the kdamonds (refer to
+:ref:`design <damon_design_execution_model_and_data_structures>` for more
+details) exists.  In the beginning, this directory has only one file,
+``nr_kdamonds``.  Writing a number (``N``) to the file creates the number of
+child directories named ``0`` to ``N-1``.  Each directory represents each
 kdamond.
 
 kdamonds/<N>/
@@ -127,14 +125,18 @@ in the state.  Writing ``commit`` to the ``state`` file makes kdamond reads the
 user inputs in the sysfs files except ``state`` file again.  Writing
 ``update_schemes_stats`` to ``state`` file updates the contents of stats files
 for each DAMON-based operation scheme of the kdamond.  For details of the
-stats, please refer to :ref:`stats section <sysfs_schemes_stats>`.  Writing
-``update_schemes_tried_regions`` to ``state`` file updates the DAMON-based
-operation scheme action tried regions directory for each DAMON-based operation
-scheme of the kdamond.  Writing ``clear_schemes_tried_regions`` to ``state``
-file clears the DAMON-based operating scheme action tried regions directory for
-each DAMON-based operation scheme of the kdamond.  For details of the
-DAMON-based operation scheme action tried regions directory, please refer to
-:ref:`tried_regions section <sysfs_schemes_tried_regions>`.
+stats, please refer to :ref:`stats section <sysfs_schemes_stats>`.
+
+Writing ``update_schemes_tried_regions`` to ``state`` file updates the
+DAMON-based operation scheme action tried regions directory for each
+DAMON-based operation scheme of the kdamond.  Writing
+``update_schemes_tried_bytes`` to ``state`` file updates only
+``.../tried_regions/total_bytes`` files.  Writing
+``clear_schemes_tried_regions`` to ``state`` file clears the DAMON-based
+operating scheme action tried regions directory for each DAMON-based operation
+scheme of the kdamond.  For details of the DAMON-based operation scheme action
+tried regions directory, please refer to :ref:`tried_regions section
+<sysfs_schemes_tried_regions>`.
 
 If the state is ``on``, reading ``pid`` shows the pid of the kdamond thread.
 
@@ -146,9 +148,10 @@ kdamonds/<N>/contexts/
 
 In the beginning, this directory has only one file, ``nr_contexts``.  Writing a
 number (``N``) to the file creates the number of child directories named as
-``0`` to ``N-1``.  Each directory represents each monitoring context.  At the
-moment, only one context per kdamond is supported, so only ``0`` or ``1`` can
-be written to the file.
+``0`` to ``N-1``.  Each directory represents each monitoring context (refer to
+:ref:`design <damon_design_execution_model_and_data_structures>` for more
+details).  At the moment, only one context per kdamond is supported, so only
+``0`` or ``1`` can be written to the file.
 
 .. _sysfs_contexts:
 
@@ -266,8 +269,8 @@ schemes/<N>/
 ------------
 
 In each scheme directory, five directories (``access_pattern``, ``quotas``,
-``watermarks``, ``filters``, ``stats``, and ``tried_regions``) and one file
-(``action``) exist.
+``watermarks``, ``filters``, ``stats``, and ``tried_regions``) and two files
+(``action`` and ``apply_interval``) exist.
 
 The ``action`` file is for setting and getting the scheme's :ref:`action
 <damon_design_damos_action>`.  The keywords that can be written to and read
@@ -292,6 +295,9 @@ Note that support of each action depends on the running DAMON operations set
    Supported by ``paddr`` operations set.
  - ``stat``: Do nothing but count the statistics.
    Supported by all operations sets.
+
+The ``apply_interval_us`` file is for setting and getting the scheme's
+:ref:`apply_interval <damon_design_damos>` in microseconds.
 
 schemes/<N>/access_pattern/
 ---------------------------
@@ -359,15 +365,21 @@ number (``N``) to the file creates the number of child directories named ``0``
 to ``N-1``.  Each directory represents each filter.  The filters are evaluated
 in the numeric order.
 
-Each filter directory contains three files, namely ``type``, ``matcing``, and
-``memcg_path``.  You can write one of two special keywords, ``anon`` for
-anonymous pages, or ``memcg`` for specific memory cgroup filtering.  In case of
-the memory cgroup filtering, you can specify the memory cgroup of the interest
-by writing the path of the memory cgroup from the cgroups mount point to
-``memcg_path`` file.  You can write ``Y`` or ``N`` to ``matching`` file to
-filter out pages that does or does not match to the type, respectively.  Then,
-the scheme's action will not be applied to the pages that specified to be
-filtered out.
+Each filter directory contains six files, namely ``type``, ``matcing``,
+``memcg_path``, ``addr_start``, ``addr_end``, and ``target_idx``.  To ``type``
+file, you can write one of four special keywords: ``anon`` for anonymous pages,
+``memcg`` for specific memory cgroup, ``addr`` for specific address range (an
+open-ended interval), or ``target`` for specific DAMON monitoring target
+filtering.  In case of the memory cgroup filtering, you can specify the memory
+cgroup of the interest by writing the path of the memory cgroup from the
+cgroups mount point to ``memcg_path`` file.  In case of the address range
+filtering, you can specify the start and end address of the range to
+``addr_start`` and ``addr_end`` files, respectively.  For the DAMON monitoring
+target filtering, you can specify the index of the target between the list of
+the DAMON context's monitoring targets list to ``target_idx`` file.  You can
+write ``Y`` or ``N`` to ``matching`` file to filter out pages that does or does
+not match to the type, respectively.  Then, the scheme's action will not be
+applied to the pages that specified to be filtered out.
 
 For example, below restricts a DAMOS action to be applied to only non-anonymous
 pages of all memory cgroups except ``/having_care_already``.::
@@ -381,8 +393,14 @@ pages of all memory cgroups except ``/having_care_already``.::
     echo /having_care_already > 1/memcg_path
     echo N > 1/matching
 
-Note that filters are currently supported only when ``paddr``
-`implementation <sysfs_contexts>` is being used.
+Note that ``anon`` and ``memcg`` filters are currently supported only when
+``paddr`` :ref:`implementation <sysfs_contexts>` is being used.
+
+Also, memory regions that are filtered out by ``addr`` or ``target`` filters
+are not counted as the scheme has tried to those, while regions that filtered
+out by other type filters are counted as the scheme has tried to.  The
+difference is applied to :ref:`stats <damos_stats>` and
+:ref:`tried regions <sysfs_schemes_tried_regions>`.
 
 .. _sysfs_schemes_stats:
 
@@ -397,7 +415,7 @@ be used for online analysis or tuning of the schemes.
 The statistics can be retrieved by reading the files under ``stats`` directory
 (``nr_tried``, ``sz_tried``, ``nr_applied``, ``sz_applied``, and
 ``qt_exceeds``), respectively.  The files are not updated in real time, so you
-should ask DAMON sysfs interface to updte the content of the files for the
+should ask DAMON sysfs interface to update the content of the files for the
 stats by writing a special keyword, ``update_schemes_stats`` to the relevant
 ``kdamonds/<N>/state`` file.
 
@@ -406,13 +424,21 @@ stats by writing a special keyword, ``update_schemes_stats`` to the relevant
 schemes/<N>/tried_regions/
 --------------------------
 
+This directory initially has one file, ``total_bytes``.
+
 When a special keyword, ``update_schemes_tried_regions``, is written to the
-relevant ``kdamonds/<N>/state`` file, DAMON creates directories named integer
-starting from ``0`` under this directory.  Each directory contains files
-exposing detailed information about each of the memory region that the
-corresponding scheme's ``action`` has tried to be applied under this directory,
-during next :ref:`aggregation interval <sysfs_monitoring_attrs>`.  The
-information includes address range, ``nr_accesses``, and ``age`` of the region.
+relevant ``kdamonds/<N>/state`` file, DAMON updates the ``total_bytes`` file so
+that reading it returns the total size of the scheme tried regions, and creates
+directories named integer starting from ``0`` under this directory.  Each
+directory contains files exposing detailed information about each of the memory
+region that the corresponding scheme's ``action`` has tried to be applied under
+this directory, during next :ref:`apply interval <damon_design_damos>` of the
+corresponding scheme.  The information includes address range, ``nr_accesses``,
+and ``age`` of the region.
+
+Writing ``update_schemes_tried_bytes`` to the relevant ``kdamonds/<N>/state``
+file will only update the ``total_bytes`` file, and will not create the
+subdirectories.
 
 The directories will be removed when another special keyword,
 ``clear_schemes_tried_regions``, is written to the relevant
@@ -470,6 +496,62 @@ memory rate becomes larger than 60%, or lower than 30%". ::
 Please note that it's highly recommended to use user space tools like `damo
 <https://github.com/awslabs/damo>`_ rather than manually reading and writing
 the files as above.  Above is only for an example.
+
+.. _tracepoint:
+
+Tracepoints for Monitoring Results
+==================================
+
+Users can get the monitoring results via the :ref:`tried_regions
+<sysfs_schemes_tried_regions>`.  The interface is useful for getting a
+snapshot, but it could be inefficient for fully recording all the monitoring
+results.  For the purpose, two trace points, namely ``damon:damon_aggregated``
+and ``damon:damos_before_apply``, are provided.  ``damon:damon_aggregated``
+provides the whole monitoring results, while ``damon:damos_before_apply``
+provides the monitoring results for regions that each DAMON-based Operation
+Scheme (:ref:`DAMOS <damon_design_damos>`) is gonna be applied.  Hence,
+``damon:damos_before_apply`` is more useful for recording internal behavior of
+DAMOS, or DAMOS target access
+:ref:`pattern <damon_design_damos_access_pattern>` based query-like efficient
+monitoring results recording.
+
+While the monitoring is turned on, you could record the tracepoint events and
+show results using tracepoint supporting tools like ``perf``.  For example::
+
+    # echo on > monitor_on
+    # perf record -e damon:damon_aggregated &
+    # sleep 5
+    # kill 9 $(pidof perf)
+    # echo off > monitor_on
+    # perf script
+    kdamond.0 46568 [027] 79357.842179: damon:damon_aggregated: target_id=0 nr_regions=11 122509119488-135708762112: 0 864
+    [...]
+
+Each line of the perf script output represents each monitoring region.  The
+first five fields are as usual other tracepoint outputs.  The sixth field
+(``target_id=X``) shows the ide of the monitoring target of the region.  The
+seventh field (``nr_regions=X``) shows the total number of monitoring regions
+for the target.  The eighth field (``X-Y:``) shows the start (``X``) and end
+(``Y``) addresses of the region in bytes.  The ninth field (``X``) shows the
+``nr_accesses`` of the region (refer to
+:ref:`design <damon_design_region_based_sampling>` for more details of the
+counter).  Finally the tenth field (``X``) shows the ``age`` of the region
+(refer to :ref:`design <damon_design_age_tracking>` for more details of the
+counter).
+
+If the event was ``damon:damos_beofre_apply``, the ``perf script`` output would
+be somewhat like below::
+
+    kdamond.0 47293 [000] 80801.060214: damon:damos_before_apply: ctx_idx=0 scheme_idx=0 target_idx=0 nr_regions=11 121932607488-135128711168: 0 136
+    [...]
+
+Each line of the output represents each monitoring region that each DAMON-based
+Operation Scheme was about to be applied at the traced time.  The first five
+fields are as usual.  It shows the index of the DAMON context (``ctx_idx=X``)
+of the scheme in the list of the contexts of the context's kdamond, the index
+of the scheme (``scheme_idx=X``) in the list of the schemes of the context, in
+addition to the output of ``damon_aggregated`` tracepoint.
+
 
 .. _debugfs_interface:
 
@@ -766,23 +848,3 @@ directory by putting the name of the context to the ``rm_contexts`` file. ::
 
 Note that ``mk_contexts``, ``rm_contexts``, and ``monitor_on`` files are in the
 root directory only.
-
-
-.. _tracepoint:
-
-Tracepoint for Monitoring Results
-=================================
-
-Users can get the monitoring results via the :ref:`tried_regions
-<sysfs_schemes_tried_regions>` or a tracepoint, ``damon:damon_aggregated``.
-While the tried regions directory is useful for getting a snapshot, the
-tracepoint is useful for getting a full record of the results.  While the
-monitoring is turned on, you could record the tracepoint events and show
-results using tracepoint supporting tools like ``perf``.  For example::
-
-    # echo on > monitor_on
-    # perf record -e damon:damon_aggregated &
-    # sleep 5
-    # kill 9 $(pidof perf)
-    # echo off > monitor_on
-    # perf script

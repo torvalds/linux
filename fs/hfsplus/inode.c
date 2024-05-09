@@ -267,7 +267,7 @@ static int hfsplus_setattr(struct mnt_idmap *idmap,
 		}
 		truncate_setsize(inode, attr->ia_size);
 		hfsplus_file_truncate(inode);
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	}
 
 	setattr_copy(&nop_mnt_idmap, inode, attr);
@@ -298,7 +298,7 @@ int hfsplus_getattr(struct mnt_idmap *idmap, const struct path *path,
 	stat->attributes_mask |= STATX_ATTR_APPEND | STATX_ATTR_IMMUTABLE |
 				 STATX_ATTR_NODUMP;
 
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 	return 0;
 }
 
@@ -392,7 +392,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
 	inode->i_ino = sbi->next_cnid++;
 	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
 	set_nlink(inode, 1);
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 
 	hip = HFSPLUS_I(inode);
 	INIT_LIST_HEAD(&hip->open_dir_list);
@@ -521,9 +521,11 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		hfsplus_get_perms(inode, &folder->permissions, 1);
 		set_nlink(inode, 1);
 		inode->i_size = 2 + be32_to_cpu(folder->valence);
-		inode->i_atime = hfsp_mt2ut(folder->access_date);
-		inode->i_mtime = hfsp_mt2ut(folder->content_mod_date);
-		inode->i_ctime = hfsp_mt2ut(folder->attribute_mod_date);
+		inode_set_atime_to_ts(inode, hfsp_mt2ut(folder->access_date));
+		inode_set_mtime_to_ts(inode,
+				      hfsp_mt2ut(folder->content_mod_date));
+		inode_set_ctime_to_ts(inode,
+				      hfsp_mt2ut(folder->attribute_mod_date));
 		HFSPLUS_I(inode)->create_date = folder->create_date;
 		HFSPLUS_I(inode)->fs_blocks = 0;
 		if (folder->flags & cpu_to_be16(HFSPLUS_HAS_FOLDER_COUNT)) {
@@ -562,9 +564,11 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 			init_special_inode(inode, inode->i_mode,
 					   be32_to_cpu(file->permissions.dev));
 		}
-		inode->i_atime = hfsp_mt2ut(file->access_date);
-		inode->i_mtime = hfsp_mt2ut(file->content_mod_date);
-		inode->i_ctime = hfsp_mt2ut(file->attribute_mod_date);
+		inode_set_atime_to_ts(inode, hfsp_mt2ut(file->access_date));
+		inode_set_mtime_to_ts(inode,
+				      hfsp_mt2ut(file->content_mod_date));
+		inode_set_ctime_to_ts(inode,
+				      hfsp_mt2ut(file->attribute_mod_date));
 		HFSPLUS_I(inode)->create_date = file->create_date;
 	} else {
 		pr_err("bad catalog entry used to create inode\n");
@@ -607,9 +611,9 @@ int hfsplus_cat_write_inode(struct inode *inode)
 					sizeof(struct hfsplus_cat_folder));
 		/* simple node checks? */
 		hfsplus_cat_set_perms(inode, &folder->permissions);
-		folder->access_date = hfsp_ut2mt(inode->i_atime);
-		folder->content_mod_date = hfsp_ut2mt(inode->i_mtime);
-		folder->attribute_mod_date = hfsp_ut2mt(inode->i_ctime);
+		folder->access_date = hfsp_ut2mt(inode_get_atime(inode));
+		folder->content_mod_date = hfsp_ut2mt(inode_get_mtime(inode));
+		folder->attribute_mod_date = hfsp_ut2mt(inode_get_ctime(inode));
 		folder->valence = cpu_to_be32(inode->i_size - 2);
 		if (folder->flags & cpu_to_be16(HFSPLUS_HAS_FOLDER_COUNT)) {
 			folder->subfolders =
@@ -642,9 +646,9 @@ int hfsplus_cat_write_inode(struct inode *inode)
 			file->flags |= cpu_to_be16(HFSPLUS_FILE_LOCKED);
 		else
 			file->flags &= cpu_to_be16(~HFSPLUS_FILE_LOCKED);
-		file->access_date = hfsp_ut2mt(inode->i_atime);
-		file->content_mod_date = hfsp_ut2mt(inode->i_mtime);
-		file->attribute_mod_date = hfsp_ut2mt(inode->i_ctime);
+		file->access_date = hfsp_ut2mt(inode_get_atime(inode));
+		file->content_mod_date = hfsp_ut2mt(inode_get_mtime(inode));
+		file->attribute_mod_date = hfsp_ut2mt(inode_get_ctime(inode));
 		hfs_bnode_write(fd.bnode, &entry, fd.entryoffset,
 					 sizeof(struct hfsplus_cat_file));
 	}
@@ -700,7 +704,7 @@ int hfsplus_fileattr_set(struct mnt_idmap *idmap,
 	else
 		hip->userflags &= ~HFSPLUS_FLG_NODUMP;
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	mark_inode_dirty(inode);
 
 	return 0;

@@ -342,7 +342,7 @@ EXPORT_SYMBOL_GPL(disk_uevent);
 
 int disk_scan_partitions(struct gendisk *disk, blk_mode_t mode)
 {
-	struct block_device *bdev;
+	struct bdev_handle *handle;
 	int ret = 0;
 
 	if (disk->flags & (GENHD_FL_NO_PART | GENHD_FL_HIDDEN))
@@ -366,12 +366,12 @@ int disk_scan_partitions(struct gendisk *disk, blk_mode_t mode)
 	}
 
 	set_bit(GD_NEED_PART_SCAN, &disk->state);
-	bdev = blkdev_get_by_dev(disk_devt(disk), mode & ~BLK_OPEN_EXCL, NULL,
-				 NULL);
-	if (IS_ERR(bdev))
-		ret =  PTR_ERR(bdev);
+	handle = bdev_open_by_dev(disk_devt(disk), mode & ~BLK_OPEN_EXCL, NULL,
+				  NULL);
+	if (IS_ERR(handle))
+		ret = PTR_ERR(handle);
 	else
-		blkdev_put(bdev, NULL);
+		bdev_release(handle);
 
 	/*
 	 * If blkdev_get_by_dev() failed early, GD_NEED_PART_SCAN is still set,
@@ -554,10 +554,17 @@ out_exit_elevator:
 }
 EXPORT_SYMBOL(device_add_disk);
 
-static void blk_report_disk_dead(struct gendisk *disk)
+static void blk_report_disk_dead(struct gendisk *disk, bool surprise)
 {
 	struct block_device *bdev;
 	unsigned long idx;
+
+	/*
+	 * On surprise disk removal, bdev_mark_dead() may call into file
+	 * systems below. Make it clear that we're expecting to not hold
+	 * disk->open_mutex.
+	 */
+	lockdep_assert_not_held(&disk->open_mutex);
 
 	rcu_read_lock();
 	xa_for_each(&disk->part_tbl, idx, bdev) {
@@ -565,10 +572,7 @@ static void blk_report_disk_dead(struct gendisk *disk)
 			continue;
 		rcu_read_unlock();
 
-		mutex_lock(&bdev->bd_holder_lock);
-		if (bdev->bd_holder_ops && bdev->bd_holder_ops->mark_dead)
-			bdev->bd_holder_ops->mark_dead(bdev);
-		mutex_unlock(&bdev->bd_holder_lock);
+		bdev_mark_dead(bdev, surprise);
 
 		put_device(&bdev->bd_device);
 		rcu_read_lock();
@@ -576,14 +580,7 @@ static void blk_report_disk_dead(struct gendisk *disk)
 	rcu_read_unlock();
 }
 
-/**
- * blk_mark_disk_dead - mark a disk as dead
- * @disk: disk to mark as dead
- *
- * Mark as disk as dead (e.g. surprise removed) and don't accept any new I/O
- * to this disk.
- */
-void blk_mark_disk_dead(struct gendisk *disk)
+static void __blk_mark_disk_dead(struct gendisk *disk)
 {
 	/*
 	 * Fail any new I/O.
@@ -603,8 +600,19 @@ void blk_mark_disk_dead(struct gendisk *disk)
 	 * Prevent new I/O from crossing bio_queue_enter().
 	 */
 	blk_queue_start_drain(disk->queue);
+}
 
-	blk_report_disk_dead(disk);
+/**
+ * blk_mark_disk_dead - mark a disk as dead
+ * @disk: disk to mark as dead
+ *
+ * Mark as disk as dead (e.g. surprise removed) and don't accept any new I/O
+ * to this disk.
+ */
+void blk_mark_disk_dead(struct gendisk *disk)
+{
+	__blk_mark_disk_dead(disk);
+	blk_report_disk_dead(disk, true);
 }
 EXPORT_SYMBOL_GPL(blk_mark_disk_dead);
 
@@ -641,18 +649,20 @@ void del_gendisk(struct gendisk *disk)
 	disk_del_events(disk);
 
 	/*
-	 * Prevent new openers by unlinked the bdev inode, and write out
-	 * dirty data before marking the disk dead and stopping all I/O.
+	 * Prevent new openers by unlinked the bdev inode.
 	 */
 	mutex_lock(&disk->open_mutex);
-	xa_for_each(&disk->part_tbl, idx, part) {
+	xa_for_each(&disk->part_tbl, idx, part)
 		remove_inode_hash(part->bd_inode);
-		fsync_bdev(part);
-		__invalidate_device(part, true);
-	}
 	mutex_unlock(&disk->open_mutex);
 
-	blk_mark_disk_dead(disk);
+	/*
+	 * Tell the file system to write back all dirty data and shut down if
+	 * it hasn't been notified earlier.
+	 */
+	if (!test_bit(GD_DEAD, &disk->state))
+		blk_report_disk_dead(disk, false);
+	__blk_mark_disk_dead(disk);
 
 	/*
 	 * Drop all partitions now that the disk is marked dead.

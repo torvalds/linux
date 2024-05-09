@@ -1911,6 +1911,7 @@ static const struct fb_ops sisfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= sisfb_open,
 	.fb_release	= sisfb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= sisfb_check_var,
 	.fb_set_par	= sisfb_set_par,
 	.fb_setcolreg	= sisfb_setcolreg,
@@ -1923,7 +1924,8 @@ static const struct fb_ops sisfb_ops = {
 #ifdef SIS_NEW_CONFIG_COMPAT
 	.fb_compat_ioctl= sisfb_ioctl,
 #endif
-	.fb_ioctl	= sisfb_ioctl
+	.fb_ioctl	= sisfb_ioctl,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /* ---------------- Chip generation dependent routines ---------------- */
@@ -6472,14 +6474,11 @@ error_3:	vfree(ivideo->bios_abase);
 		sisfb_initaccel(ivideo);
 
 #if defined(FBINFO_HWACCEL_DISABLED) && defined(FBINFO_HWACCEL_XPAN)
-		sis_fb_info->flags = FBINFO_DEFAULT 		|
-				     FBINFO_HWACCEL_YPAN 	|
+		sis_fb_info->flags = FBINFO_HWACCEL_YPAN	|
 				     FBINFO_HWACCEL_XPAN 	|
 				     FBINFO_HWACCEL_COPYAREA 	|
 				     FBINFO_HWACCEL_FILLRECT 	|
 				     ((ivideo->accel) ? 0 : FBINFO_HWACCEL_DISABLED);
-#else
-		sis_fb_info->flags = FBINFO_FLAG_DEFAULT;
 #endif
 		sis_fb_info->var = ivideo->default_var;
 		sis_fb_info->fix = ivideo->sisfb_fix;

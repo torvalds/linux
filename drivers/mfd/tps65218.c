@@ -15,7 +15,6 @@
 #include <linux/regmap.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
@@ -128,7 +127,7 @@ static const struct regmap_access_table tps65218_volatile_table = {
 static const struct regmap_config tps65218_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &tps65218_volatile_table,
 };
 
@@ -347,7 +346,7 @@ static struct i2c_driver tps65218_driver = {
 		.name	= "tps65218",
 		.of_match_table = of_tps65218_match_table,
 	},
-	.probe_new	= tps65218_probe,
+	.probe		= tps65218_probe,
 	.id_table       = tps65218_id_table,
 };
 

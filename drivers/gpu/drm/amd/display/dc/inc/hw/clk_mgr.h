@@ -45,11 +45,12 @@
 
 struct dcn3_clk_internal {
 	int dummy;
-	/*TODO:
+//	TODO:
 	uint32_t CLK1_CLK0_CURRENT_CNT; //dispclk
 	uint32_t CLK1_CLK1_CURRENT_CNT; //dppclk
 	uint32_t CLK1_CLK2_CURRENT_CNT; //dprefclk
 	uint32_t CLK1_CLK3_CURRENT_CNT; //dcfclk
+	uint32_t CLK1_CLK4_CURRENT_CNT;
 	uint32_t CLK1_CLK3_DS_CNTL;	//dcf_deep_sleep_divider
 	uint32_t CLK1_CLK3_ALLOW_DS;	//dcf_deep_sleep_allow
 
@@ -57,7 +58,8 @@ struct dcn3_clk_internal {
 	uint32_t CLK1_CLK1_BYPASS_CNTL; //dppclk bypass
 	uint32_t CLK1_CLK2_BYPASS_CNTL; //dprefclk bypass
 	uint32_t CLK1_CLK3_BYPASS_CNTL; //dcfclk bypass
-	*/
+
+	uint32_t CLK4_CLK0_CURRENT_CNT; //fclk
 };
 
 struct dcn301_clk_internal {
@@ -230,6 +232,7 @@ struct clk_bw_params {
 	unsigned int dram_channel_width_bytes;
  	unsigned int dispclk_vco_khz;
 	unsigned int dc_mode_softmax_memclk;
+	unsigned int max_memclk_mhz;
 	struct clk_limit_table clk_table;
 	struct wm_table wm_table;
 	struct dummy_pstate_entry dummy_pstate_table[4];
@@ -257,6 +260,10 @@ struct clk_mgr_funcs {
 	int (*get_dtb_ref_clk_frequency)(struct clk_mgr *clk_mgr);
 
 	void (*set_low_power_state)(struct clk_mgr *clk_mgr);
+	void (*exit_low_power_state)(struct clk_mgr *clk_mgr);
+	bool (*is_ips_supported)(struct clk_mgr *clk_mgr);
+	void (*set_idle_state)(struct clk_mgr *clk_mgr, bool allow_idle);
+	uint32_t (*get_idle_state)(struct clk_mgr *clk_mgr);
 
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
 

@@ -16,8 +16,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_pci.h>
 #include <linux/phy/phy.h>
@@ -742,7 +741,7 @@ err:
 	return ret;
 }
 
-static int __exit kirin_pcie_remove(struct platform_device *pdev)
+static int kirin_pcie_remove(struct platform_device *pdev)
 {
 	struct kirin_pcie *kirin_pcie = platform_get_drvdata(pdev);
 
@@ -819,7 +818,7 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 
 static struct platform_driver kirin_pcie_driver = {
 	.probe			= kirin_pcie_probe,
-	.remove	        	= __exit_p(kirin_pcie_remove),
+	.remove	        	= kirin_pcie_remove,
 	.driver			= {
 		.name			= "kirin-pcie",
 		.of_match_table		= kirin_pcie_match,

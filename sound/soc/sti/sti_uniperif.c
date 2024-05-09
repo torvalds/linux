@@ -369,8 +369,12 @@ static int sti_uniperiph_dai_probe(struct snd_soc_dai *dai)
 	return sti_uniperiph_dai_create_ctrl(dai);
 }
 
-static const struct snd_soc_dai_driver sti_uniperiph_dai_template = {
+static const struct snd_soc_dai_ops sti_uniperiph_dai_ops = {
 	.probe = sti_uniperiph_dai_probe,
+};
+
+static const struct snd_soc_dai_driver sti_uniperiph_dai_template = {
+	.ops = &sti_uniperiph_dai_ops,
 };
 
 static const struct snd_soc_component_driver sti_uniperiph_dai_component = {

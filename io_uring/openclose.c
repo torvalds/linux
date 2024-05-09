@@ -35,9 +35,11 @@ static bool io_openat_force_async(struct io_open *open)
 {
 	/*
 	 * Don't bother trying for O_TRUNC, O_CREAT, or O_TMPFILE open,
-	 * it'll always -EAGAIN
+	 * it'll always -EAGAIN. Note that we test for __O_TMPFILE because
+	 * O_TMPFILE includes O_DIRECTORY, which isn't a flag we need to force
+	 * async for.
 	 */
-	return open->how.flags & (O_TRUNC | O_CREAT | O_TMPFILE);
+	return open->how.flags & (O_TRUNC | O_CREAT | __O_TMPFILE);
 }
 
 static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -218,7 +220,6 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct files_struct *files = current->files;
 	struct io_close *close = io_kiocb_to_cmd(req, struct io_close);
-	struct fdtable *fdt;
 	struct file *file;
 	int ret = -EBADF;
 
@@ -228,13 +229,7 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (close->fd >= fdt->max_fds) {
-		spin_unlock(&files->file_lock);
-		goto err;
-	}
-	file = rcu_dereference_protected(fdt->fd[close->fd],
-			lockdep_is_held(&files->file_lock));
+	file = files_lookup_fd_locked(files, close->fd);
 	if (!file || io_is_uring_fops(file)) {
 		spin_unlock(&files->file_lock);
 		goto err;

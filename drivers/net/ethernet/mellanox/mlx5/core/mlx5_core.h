@@ -41,6 +41,7 @@
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/fs.h>
 #include <linux/mlx5/driver.h>
+#include "lib/devcom.h"
 
 extern uint mlx5_core_debug_mask;
 
@@ -97,6 +98,22 @@ do {								\
 			     __func__, __LINE__, current->pid,	\
 			     ##__VA_ARGS__)
 
+#define ACCESS_KEY_LEN  32
+#define FT_ID_FT_TYPE_OFFSET 24
+
+struct mlx5_cmd_allow_other_vhca_access_attr {
+	u16 obj_type;
+	u32 obj_id;
+	u8 access_key[ACCESS_KEY_LEN];
+};
+
+struct mlx5_cmd_alias_obj_create_attr {
+	u32 obj_id;
+	u16 vhca_id;
+	u16 obj_type;
+	u8 access_key[ACCESS_KEY_LEN];
+};
+
 static inline void mlx5_printk(struct mlx5_core_dev *dev, int level, const char *format, ...)
 {
 	struct device *device = dev->device;
@@ -143,6 +160,8 @@ enum mlx5_semaphore_space_address {
 
 #define MLX5_DEFAULT_PROF       2
 #define MLX5_SF_PROF		3
+#define MLX5_NUM_FW_CMD_THREADS 8
+#define MLX5_DEV_MAX_WQS	MLX5_NUM_FW_CMD_THREADS
 
 static inline int mlx5_flexible_inlen(struct mlx5_core_dev *dev, size_t fixed,
 				      size_t item_size, size_t num_items,
@@ -174,10 +193,16 @@ static inline int mlx5_flexible_inlen(struct mlx5_core_dev *dev, size_t fixed,
 #define MLX5_FLEXIBLE_INLEN(dev, fixed, item_size, num_items) \
 	mlx5_flexible_inlen(dev, fixed, item_size, num_items, __func__, __LINE__)
 
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type);
+int mlx5_core_get_caps_mode(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
+			    enum mlx5_cap_mode cap_mode);
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
+int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num);
 int mlx5_cmd_init(struct mlx5_core_dev *dev);
 void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
+int mlx5_cmd_enable(struct mlx5_core_dev *dev);
+void mlx5_cmd_disable(struct mlx5_core_dev *dev);
 void mlx5_cmd_set_state(struct mlx5_core_dev *dev,
 			enum mlx5_cmdif_state cmdif_state);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id);
@@ -242,10 +267,6 @@ int mlx5_register_device(struct mlx5_core_dev *dev);
 void mlx5_unregister_device(struct mlx5_core_dev *dev);
 void mlx5_dev_set_lightweight(struct mlx5_core_dev *dev);
 bool mlx5_dev_is_lightweight(struct mlx5_core_dev *dev);
-struct mlx5_core_dev *mlx5_get_next_phys_dev_lag(struct mlx5_core_dev *dev);
-void mlx5_dev_list_lock(void);
-void mlx5_dev_list_unlock(void);
-int mlx5_dev_list_trylock(void);
 
 void mlx5_fw_reporters_create(struct mlx5_core_dev *dev);
 int mlx5_query_mtpps(struct mlx5_core_dev *dev, u32 *mtpps, u32 mtpps_size);
@@ -284,13 +305,11 @@ static inline int mlx5_rescan_drivers(struct mlx5_core_dev *dev)
 {
 	int ret;
 
-	mlx5_dev_list_lock();
+	mlx5_devcom_comp_lock(dev->priv.hca_devcom_comp);
 	ret = mlx5_rescan_drivers_locked(dev);
-	mlx5_dev_list_unlock();
+	mlx5_devcom_comp_unlock(dev->priv.hca_devcom_comp);
 	return ret;
 }
-
-void mlx5_lag_update(struct mlx5_core_dev *dev);
 
 enum {
 	MLX5_NIC_IFC_FULL		= 0,
@@ -325,7 +344,6 @@ int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap
 #define mlx5_vport_get_other_func_general_cap(dev, vport, out)		\
 	mlx5_vport_get_other_func_cap(dev, vport, out, MLX5_CAP_GENERAL)
 
-void mlx5_events_work_enqueue(struct mlx5_core_dev *dev, struct work_struct *work);
 static inline u32 mlx5_sriov_get_vf_total_msix(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
@@ -337,6 +355,12 @@ bool mlx5_eth_supported(struct mlx5_core_dev *dev);
 bool mlx5_rdma_supported(struct mlx5_core_dev *dev);
 bool mlx5_vnet_supported(struct mlx5_core_dev *dev);
 bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev);
+int mlx5_cmd_allow_other_vhca_access(struct mlx5_core_dev *dev,
+				     struct mlx5_cmd_allow_other_vhca_access_attr *attr);
+int mlx5_cmd_alias_obj_create(struct mlx5_core_dev *dev,
+			      struct mlx5_cmd_alias_obj_create_attr *alias_attr,
+			      u32 *obj_id);
+int mlx5_cmd_alias_obj_destroy(struct mlx5_core_dev *dev, u32 obj_id, u16 obj_type);
 
 static inline u16 mlx5_core_ec_vf_vport_base(const struct mlx5_core_dev *dev)
 {
@@ -361,7 +385,7 @@ static inline bool mlx5_core_is_ec_vf_vport(const struct mlx5_core_dev *dev, u16
 
 static inline int mlx5_vport_to_func_id(const struct mlx5_core_dev *dev, u16 vport, bool ec_vf_func)
 {
-	return ec_vf_func ? vport - mlx5_core_ec_vf_vport_base(dev)
+	return ec_vf_func ? vport - mlx5_core_ec_vf_vport_base(dev) + 1
 			  : vport;
 }
 

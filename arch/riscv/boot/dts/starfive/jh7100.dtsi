@@ -33,6 +33,9 @@
 			i-tlb-size = <32>;
 			mmu-type = "riscv,sv39";
 			riscv,isa = "rv64imafdc";
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "zicntr", "zicsr",
+					       "zifencei", "zihpm";
 			tlb-split;
 
 			cpu0_intc: interrupt-controller {
@@ -58,6 +61,9 @@
 			i-tlb-size = <32>;
 			mmu-type = "riscv,sv39";
 			riscv,isa = "rv64imafdc";
+			riscv,isa-base = "rv64i";
+			riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "zicntr", "zicsr",
+					       "zifencei", "zihpm";
 			tlb-split;
 
 			cpu1_intc: interrupt-controller {
@@ -75,6 +81,31 @@
 
 				core1 {
 					cpu = <&U74_1>;
+				};
+			};
+		};
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <15000>;
+
+			thermal-sensors = <&sfctemp>;
+
+			trips {
+				cpu_alert0 {
+					/* milliCelsius */
+					temperature = <75000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cpu_crit {
+					/* milliCelsius */
+					temperature = <90000>;
+					hysteresis = <2000>;
+					type = "critical";
 				};
 			};
 		};
@@ -247,6 +278,18 @@
 			clock-names = "apb", "core";
 			resets = <&rstgen JH7100_RSTN_WDTIMER_APB>,
 				 <&rstgen JH7100_RSTN_WDT>;
+		};
+
+		sfctemp: temperature-sensor@124a0000 {
+			compatible = "starfive,jh7100-temp";
+			reg = <0x0 0x124a0000 0x0 0x10000>;
+			clocks = <&clkgen JH7100_CLK_TEMP_SENSE>,
+				 <&clkgen JH7100_CLK_TEMP_APB>;
+			clock-names = "sense", "bus";
+			resets = <&rstgen JH7100_RSTN_TEMP_SENSE>,
+				 <&rstgen JH7100_RSTN_TEMP_APB>;
+			reset-names = "sense", "bus";
+			#thermal-sensor-cells = <0>;
 		};
 	};
 };

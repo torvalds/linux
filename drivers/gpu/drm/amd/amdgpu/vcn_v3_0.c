@@ -100,7 +100,8 @@ static int vcn_v3_0_early_init(void *handle)
 			/* both instances are harvested, disable the block */
 			return -ENOENT;
 
-		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 0, 33))
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) ==
+		    IP_VERSION(3, 0, 33))
 			adev->vcn.num_enc_rings = 0;
 		else
 			adev->vcn.num_enc_rings = 2;
@@ -227,9 +228,10 @@ static int vcn_v3_0_sw_init(void *handle)
 					     cpu_to_le32(AMDGPU_VCN_FW_SHARED_FLAG_0_RB);
 		fw_shared->sw_ring.is_enabled = cpu_to_le32(DEC_SW_RING_ENABLED);
 		fw_shared->present_flag_0 |= AMDGPU_VCN_SMU_VERSION_INFO_FLAG;
-		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 1, 2))
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) == IP_VERSION(3, 1, 2))
 			fw_shared->smu_interface_info.smu_interface_type = 2;
-		else if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(3, 1, 1))
+		else if (amdgpu_ip_version(adev, UVD_HWIP, 0) ==
+			 IP_VERSION(3, 1, 1))
 			fw_shared->smu_interface_info.smu_interface_type = 1;
 
 		if (amdgpu_vcnfw_log)
@@ -1037,9 +1039,7 @@ static int vcn_v3_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 		VCN, inst_idx, mmUVD_VCPU_CNTL), tmp, 0, indirect);
 
 	if (indirect)
-		psp_update_vcn_sram(adev, inst_idx, adev->vcn.inst[inst_idx].dpg_sram_gpu_addr,
-			(uint32_t)((uintptr_t)adev->vcn.inst[inst_idx].dpg_sram_curr_addr -
-				(uintptr_t)adev->vcn.inst[inst_idx].dpg_sram_cpu_addr));
+		amdgpu_vcn_psp_update_sram(adev, inst_idx, 0);
 
 	ring = &adev->vcn.inst[inst_idx].ring_dec;
 	/* force RBC into idle state */
@@ -1107,7 +1107,7 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG){
+		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
 			r = vcn_v3_0_start_dpg_mode(adev, i, adev->vcn.indirect_sram);
 			continue;
 		}
@@ -1257,7 +1257,8 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 		fw_shared->rb.wptr = lower_32_bits(ring->wptr);
 		fw_shared->multi_queue.decode_queue_mode &= cpu_to_le32(~FW_QUEUE_RING_RESET);
 
-		if (adev->ip_versions[UVD_HWIP][0] != IP_VERSION(3, 0, 33)) {
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) !=
+		    IP_VERSION(3, 0, 33)) {
 			fw_shared->multi_queue.encode_generalpurpose_queue_mode |= cpu_to_le32(FW_QUEUE_RING_RESET);
 			ring = &adev->vcn.inst[i].ring_enc[0];
 			WREG32_SOC15(VCN, i, mmUVD_RB_RPTR, lower_32_bits(ring->wptr));
@@ -1630,7 +1631,8 @@ static int vcn_v3_0_pause_dpg_mode(struct amdgpu_device *adev,
 					UVD_POWER_STATUS__STALL_DPG_POWER_UP_MASK,
 					~UVD_POWER_STATUS__STALL_DPG_POWER_UP_MASK);
 
-				if (adev->ip_versions[UVD_HWIP][0] != IP_VERSION(3, 0, 33)) {
+				if (amdgpu_ip_version(adev, UVD_HWIP, 0) !=
+				    IP_VERSION(3, 0, 33)) {
 					/* Restore */
 					fw_shared = adev->vcn.inst[inst_idx].fw_shared.cpu_addr;
 					fw_shared->multi_queue.encode_generalpurpose_queue_mode |= cpu_to_le32(FW_QUEUE_RING_RESET);
@@ -1791,7 +1793,7 @@ static int vcn_v3_0_dec_msg(struct amdgpu_cs_parser *p, struct amdgpu_job *job,
 	struct amdgpu_bo *bo;
 	uint64_t start, end;
 	unsigned int i;
-	void * ptr;
+	void *ptr;
 	int r;
 
 	addr &= AMDGPU_GMC_HOLE_MASK;
@@ -2097,7 +2099,7 @@ static int vcn_v3_0_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	bool enable = (state == AMD_CG_STATE_GATE) ? true : false;
+	bool enable = state == AMD_CG_STATE_GATE;
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
@@ -2131,7 +2133,7 @@ static int vcn_v3_0_set_powergating_state(void *handle,
 		return 0;
 	}
 
-	if(state == adev->vcn.cur_state)
+	if (state == adev->vcn.cur_state)
 		return 0;
 
 	if (state == AMD_PG_STATE_GATE)
@@ -2139,7 +2141,7 @@ static int vcn_v3_0_set_powergating_state(void *handle,
 	else
 		ret = vcn_v3_0_start(adev);
 
-	if(!ret)
+	if (!ret)
 		adev->vcn.cur_state = state;
 
 	return ret;
@@ -2230,8 +2232,7 @@ static const struct amd_ip_funcs vcn_v3_0_ip_funcs = {
 	.set_powergating_state = vcn_v3_0_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version vcn_v3_0_ip_block =
-{
+const struct amdgpu_ip_block_version vcn_v3_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_VCN,
 	.major = 3,
 	.minor = 0,

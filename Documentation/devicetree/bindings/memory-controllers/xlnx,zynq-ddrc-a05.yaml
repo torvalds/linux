@@ -12,7 +12,7 @@ maintainers:
 
 description:
   The Zynq DDR ECC controller has an optional ECC support in half-bus width
-  (16-bit) configuration. It is cappable of correcting single bit ECC errors
+  (16-bit) configuration. It is capable of correcting single bit ECC errors
   and detecting double bit ECC errors.
 
 properties:

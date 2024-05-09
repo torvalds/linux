@@ -43,13 +43,13 @@
 #include <linux/netdevice.h>
 #include <net/dst.h>
 
-#include <linux/io.h>		/* instead of <asm/io.h> ok ? */
-#include <asm/ccwdev.h>
-#include <asm/ccwgroup.h>
-#include <linux/bitops.h>	/* instead of <asm/bitops.h> ok ? */
-#include <linux/uaccess.h>	/* instead of <asm/uaccess.h> ok ? */
+#include <linux/io.h>
+#include <linux/bitops.h>
+#include <linux/uaccess.h>
 #include <linux/wait.h>
 #include <linux/moduleparam.h>
+#include <asm/ccwdev.h>
+#include <asm/ccwgroup.h>
 #include <asm/idals.h>
 
 #include "ctcm_main.h"

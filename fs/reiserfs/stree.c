@@ -2003,8 +2003,9 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 			pathrelse(&s_search_path);
 
 			if (update_timestamps) {
-				inode->i_mtime = current_time(inode);
-				inode->i_ctime = current_time(inode);
+				inode_set_mtime_to_ts(inode,
+						      current_time(inode));
+				inode_set_ctime_current(inode);
 			}
 			reiserfs_update_sd(th, inode);
 
@@ -2028,8 +2029,8 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 update_and_out:
 	if (update_timestamps) {
 		/* this is truncate, not file closing */
-		inode->i_mtime = current_time(inode);
-		inode->i_ctime = current_time(inode);
+		inode_set_mtime_to_ts(inode, current_time(inode));
+		inode_set_ctime_current(inode);
 	}
 	reiserfs_update_sd(th, inode);
 

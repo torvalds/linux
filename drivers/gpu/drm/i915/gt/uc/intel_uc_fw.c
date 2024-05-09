@@ -11,7 +11,10 @@
 #include <drm/drm_print.h>
 
 #include "gem/i915_gem_lmem.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_print.h"
+#include "intel_gsc_binary_headers.h"
+#include "intel_gsc_fw.h"
 #include "intel_uc_fw.h"
 #include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
@@ -85,12 +88,12 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * security fixes, etc. to be enabled.
  */
 #define INTEL_GUC_FIRMWARE_DEFS(fw_def, guc_maj, guc_mmp) \
-	fw_def(METEORLAKE,   0, guc_maj(mtl,  70, 6, 6)) \
-	fw_def(DG2,          0, guc_maj(dg2,  70, 5, 1)) \
-	fw_def(ALDERLAKE_P,  0, guc_maj(adlp, 70, 5, 1)) \
+	fw_def(METEORLAKE,   0, guc_maj(mtl,  70, 12, 1)) \
+	fw_def(DG2,          0, guc_maj(dg2,  70, 12, 1)) \
+	fw_def(ALDERLAKE_P,  0, guc_maj(adlp, 70, 12, 1)) \
 	fw_def(ALDERLAKE_P,  0, guc_mmp(adlp, 70, 1, 1)) \
 	fw_def(ALDERLAKE_P,  0, guc_mmp(adlp, 69, 0, 3)) \
-	fw_def(ALDERLAKE_S,  0, guc_maj(tgl,  70, 5, 1)) \
+	fw_def(ALDERLAKE_S,  0, guc_maj(tgl,  70, 12, 1)) \
 	fw_def(ALDERLAKE_S,  0, guc_mmp(tgl,  70, 1, 1)) \
 	fw_def(ALDERLAKE_S,  0, guc_mmp(tgl,  69, 0, 3)) \
 	fw_def(DG1,          0, guc_maj(dg1,  70, 5, 1)) \
@@ -129,6 +132,17 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 	fw_def(SKYLAKE,      0, huc_mmp(skl,  2, 0, 0))
 
 /*
+ * The GSC FW has multiple version (see intel_gsc_uc.h for details); since what
+ * we care about is the interface, we use the compatibility version in the
+ * binary names.
+ * Same as with the GuC, a major version bump indicate a
+ * backward-incompatible change, while a minor version bump indicates a
+ * backward-compatible one, so we use only the former in the file name.
+ */
+#define INTEL_GSC_FIRMWARE_DEFS(fw_def, gsc_def) \
+	fw_def(METEORLAKE,   0, gsc_def(mtl, 1, 0))
+
+/*
  * Set of macros for producing a list of filenames from the above table.
  */
 #define __MAKE_UC_FW_PATH_BLANK(prefix_, name_) \
@@ -163,6 +177,9 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 #define MAKE_HUC_FW_PATH_MMP(prefix_, major_, minor_, patch_) \
 	__MAKE_UC_FW_PATH_MMP(prefix_, "huc", major_, minor_, patch_)
 
+#define MAKE_GSC_FW_PATH(prefix_, major_, minor_) \
+	__MAKE_UC_FW_PATH_MAJOR(prefix_, "gsc", major_)
+
 /*
  * All blobs need to be declared via MODULE_FIRMWARE().
  * This first expansion of the table macros is solely to provide
@@ -173,6 +190,7 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 
 INTEL_GUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_GUC_FW_PATH_MAJOR, MAKE_GUC_FW_PATH_MMP)
 INTEL_HUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_HUC_FW_PATH_BLANK, MAKE_HUC_FW_PATH_MMP, MAKE_HUC_FW_PATH_GSC)
+INTEL_GSC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_GSC_FW_PATH)
 
 /*
  * The next expansion of the table macros (in __uc_fw_auto_select below) provides
@@ -222,6 +240,10 @@ struct __packed uc_fw_blob {
 #define HUC_FW_BLOB_GSC(prefix_) \
 	UC_FW_BLOB_NEW(0, 0, 0, true, MAKE_HUC_FW_PATH_GSC(prefix_))
 
+#define GSC_FW_BLOB(prefix_, major_, minor_) \
+	UC_FW_BLOB_NEW(major_, minor_, 0, true, \
+		       MAKE_GSC_FW_PATH(prefix_, major_, minor_))
+
 struct __packed uc_fw_platform_requirement {
 	enum intel_platform p;
 	u8 rev; /* first platform rev using this FW */
@@ -248,9 +270,14 @@ static const struct uc_fw_platform_requirement blobs_huc[] = {
 	INTEL_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB, HUC_FW_BLOB_MMP, HUC_FW_BLOB_GSC)
 };
 
+static const struct uc_fw_platform_requirement blobs_gsc[] = {
+	INTEL_GSC_FIRMWARE_DEFS(MAKE_FW_LIST, GSC_FW_BLOB)
+};
+
 static const struct fw_blobs_by_type blobs_all[INTEL_UC_FW_NUM_TYPES] = {
 	[INTEL_UC_FW_TYPE_GUC] = { blobs_guc, ARRAY_SIZE(blobs_guc) },
 	[INTEL_UC_FW_TYPE_HUC] = { blobs_huc, ARRAY_SIZE(blobs_huc) },
+	[INTEL_UC_FW_TYPE_GSC] = { blobs_gsc, ARRAY_SIZE(blobs_gsc) },
 };
 
 static void
@@ -264,20 +291,12 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 	bool found;
 
 	/*
-	 * GSC FW support is still not fully in place, so we're not defining
-	 * the FW blob yet because we don't want the driver to attempt to load
-	 * it until we're ready for it.
-	 */
-	if (uc_fw->type == INTEL_UC_FW_TYPE_GSC)
-		return;
-
-	/*
 	 * The only difference between the ADL GuC FWs is the HWConfig support.
 	 * ADL-N does not support HWConfig, so we should use the same binary as
 	 * ADL-S, otherwise the GuC might attempt to fetch a config table that
 	 * does not exist.
 	 */
-	if (IS_ADLP_N(i915))
+	if (IS_ALDERLAKE_P_N(i915))
 		p = INTEL_ALDERLAKE_S;
 
 	GEM_BUG_ON(uc_fw->type >= ARRAY_SIZE(blobs_all));
@@ -466,6 +485,17 @@ static void __uc_fw_user_override(struct drm_i915_private *i915, struct intel_uc
 		uc_fw->file_selected.path = path;
 		uc_fw->user_overridden = true;
 	}
+}
+
+void intel_uc_fw_version_from_gsc_manifest(struct intel_uc_fw_ver *ver,
+					   const void *data)
+{
+	const struct intel_gsc_manifest_header *manifest = data;
+
+	ver->major = manifest->fw_version.major;
+	ver->minor = manifest->fw_version.minor;
+	ver->patch = manifest->fw_version.hotfix;
+	ver->build = manifest->fw_version.build;
 }
 
 /**
@@ -668,12 +698,17 @@ static int check_gsc_manifest(struct intel_gt *gt,
 			      const struct firmware *fw,
 			      struct intel_uc_fw *uc_fw)
 {
-	if (uc_fw->type != INTEL_UC_FW_TYPE_HUC) {
-		gt_err(gt, "trying to GSC-parse a non-HuC binary");
+	switch (uc_fw->type) {
+	case INTEL_UC_FW_TYPE_HUC:
+		intel_huc_fw_get_binary_info(uc_fw, fw->data, fw->size);
+		break;
+	case INTEL_UC_FW_TYPE_GSC:
+		intel_gsc_fw_get_binary_info(uc_fw, fw->data, fw->size);
+		break;
+	default:
+		MISSING_CASE(uc_fw->type);
 		return -EINVAL;
 	}
-
-	intel_huc_fw_get_binary_info(uc_fw, fw->data, fw->size);
 
 	if (uc_fw->dma_start_offset) {
 		u32 delta = uc_fw->dma_start_offset;
@@ -734,10 +769,6 @@ static int check_fw_header(struct intel_gt *gt,
 {
 	int err = 0;
 
-	/* GSC FW version is queried after the FW is loaded */
-	if (uc_fw->type == INTEL_UC_FW_TYPE_GSC)
-		return 0;
-
 	if (uc_fw->has_gsc_headers)
 		err = check_gsc_manifest(gt, fw, uc_fw);
 	else
@@ -768,6 +799,80 @@ static int try_firmware_load(struct intel_uc_fw *uc_fw, const struct firmware **
 		release_firmware(*fw);
 		*fw = NULL;
 		return -ENOENT;
+	}
+
+	return 0;
+}
+
+static int check_mtl_huc_guc_compatibility(struct intel_gt *gt,
+					   struct intel_uc_fw_file *huc_selected)
+{
+	struct intel_uc_fw_file *guc_selected = &gt->uc.guc.fw.file_selected;
+	struct intel_uc_fw_ver *huc_ver = &huc_selected->ver;
+	struct intel_uc_fw_ver *guc_ver = &guc_selected->ver;
+	bool new_huc, new_guc;
+
+	/* we can only do this check after having fetched both GuC and HuC */
+	GEM_BUG_ON(!huc_selected->path || !guc_selected->path);
+
+	/*
+	 * Due to changes in the authentication flow for MTL, HuC 8.5.1 or newer
+	 * requires GuC 70.7.0 or newer. Older HuC binaries will instead require
+	 * GuC < 70.7.0.
+	 */
+	new_huc = huc_ver->major > 8 ||
+		  (huc_ver->major == 8 && huc_ver->minor > 5) ||
+		  (huc_ver->major == 8 && huc_ver->minor == 5 && huc_ver->patch >= 1);
+
+	new_guc = guc_ver->major > 70 ||
+		  (guc_ver->major == 70 && guc_ver->minor >= 7);
+
+	if (new_huc != new_guc) {
+		UNEXPECTED(gt, "HuC %u.%u.%u is incompatible with GuC %u.%u.%u\n",
+			   huc_ver->major, huc_ver->minor, huc_ver->patch,
+			   guc_ver->major, guc_ver->minor, guc_ver->patch);
+		gt_info(gt, "MTL GuC 70.7.0+ and HuC 8.5.1+ don't work with older releases\n");
+		return -ENOEXEC;
+	}
+
+	return 0;
+}
+
+int intel_uc_check_file_version(struct intel_uc_fw *uc_fw, bool *old_ver)
+{
+	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
+	struct intel_uc_fw_file *wanted = &uc_fw->file_wanted;
+	struct intel_uc_fw_file *selected = &uc_fw->file_selected;
+	int ret;
+
+	/*
+	 * MTL has some compatibility issues with early GuC/HuC binaries
+	 * not working with newer ones. This is specific to MTL and we
+	 * don't expect it to extend to other platforms.
+	 */
+	if (IS_METEORLAKE(gt->i915) && uc_fw->type == INTEL_UC_FW_TYPE_HUC) {
+		ret = check_mtl_huc_guc_compatibility(gt, selected);
+		if (ret)
+			return ret;
+	}
+
+	if (!wanted->ver.major || !selected->ver.major)
+		return 0;
+
+	/* Check the file's major version was as it claimed */
+	if (selected->ver.major != wanted->ver.major) {
+		UNEXPECTED(gt, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
+			   intel_uc_fw_type_repr(uc_fw->type), selected->path,
+			   selected->ver.major, selected->ver.minor,
+			   wanted->ver.major, wanted->ver.minor);
+		if (!intel_uc_fw_is_overridden(uc_fw))
+			return -ENOEXEC;
+	} else if (old_ver) {
+		if (selected->ver.minor < wanted->ver.minor)
+			*old_ver = true;
+		else if ((selected->ver.minor == wanted->ver.minor) &&
+			 (selected->ver.patch < wanted->ver.patch))
+			*old_ver = true;
 	}
 
 	return 0;
@@ -840,25 +945,9 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			goto fail;
 	}
 
-	if (uc_fw->file_wanted.ver.major && uc_fw->file_selected.ver.major) {
-		/* Check the file's major version was as it claimed */
-		if (uc_fw->file_selected.ver.major != uc_fw->file_wanted.ver.major) {
-			UNEXPECTED(gt, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
-				   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path,
-				   uc_fw->file_selected.ver.major, uc_fw->file_selected.ver.minor,
-				   uc_fw->file_wanted.ver.major, uc_fw->file_wanted.ver.minor);
-			if (!intel_uc_fw_is_overridden(uc_fw)) {
-				err = -ENOEXEC;
-				goto fail;
-			}
-		} else {
-			if (uc_fw->file_selected.ver.minor < uc_fw->file_wanted.ver.minor)
-				old_ver = true;
-			else if ((uc_fw->file_selected.ver.minor == uc_fw->file_wanted.ver.minor) &&
-				 (uc_fw->file_selected.ver.patch < uc_fw->file_wanted.ver.patch))
-				old_ver = true;
-		}
-	}
+	err = intel_uc_check_file_version(uc_fw, &old_ver);
+	if (err)
+		goto fail;
 
 	if (old_ver && uc_fw->file_selected.ver.major) {
 		/* Preserve the version that was really wanted */
@@ -1125,7 +1214,7 @@ static int uc_fw_rsa_data_create(struct intel_uc_fw *uc_fw)
 		return PTR_ERR(vma);
 
 	vaddr = i915_gem_object_pin_map_unlocked(vma->obj,
-						 i915_coherent_map_type(gt->i915, vma->obj, true));
+						 intel_gt_coherent_map_type(gt, vma->obj, true));
 	if (IS_ERR(vaddr)) {
 		i915_vma_unpin_and_release(&vma, 0);
 		err = PTR_ERR(vaddr);

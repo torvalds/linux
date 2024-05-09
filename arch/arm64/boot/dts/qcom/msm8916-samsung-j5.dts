@@ -10,6 +10,19 @@
 	chassis-type = "handset";
 };
 
+&accelerometer {
+	vdd-supply = <&pm8916_l5>;
+	vddio-supply = <&pm8916_l5>;
+};
+
+&blsp_i2c5 {
+	status = "disabled";
+};
+
+&touchscreen {
+	/* FIXME: Missing sm5703-mfd driver to power up vdd-supply */
+};
+
 &usb_hs_phy {
 	qcom,init-seq = /bits/ 8 <0x1 0x19 0x2 0x0b>;
 };

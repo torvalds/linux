@@ -131,8 +131,9 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		     struct extent_state **cached_state);
 
 void free_extent_state(struct extent_state *state);
-int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, int filled, struct extent_state *cached_state);
+bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
+		    struct extent_state *cached_state);
+bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
@@ -182,9 +183,9 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		       u32 bits, u32 clear_bits,
 		       struct extent_state **cached_state);
 
-int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
-			  u64 *start_ret, u64 *end_ret, u32 bits,
-			  struct extent_state **cached_state);
+bool find_first_extent_bit(struct extent_io_tree *tree, u64 start,
+			   u64 *start_ret, u64 *end_ret, u32 bits,
+			   struct extent_state **cached_state);
 void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 				 u64 *start_ret, u64 *end_ret, u32 bits);
 int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
@@ -192,7 +193,5 @@ int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state);
-void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
-		     struct extent_state **cached_state);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */

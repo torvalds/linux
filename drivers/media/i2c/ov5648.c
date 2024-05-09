@@ -2616,8 +2616,8 @@ static struct i2c_driver ov5648_driver = {
 		.of_match_table = ov5648_of_match,
 		.pm = &ov5648_pm_ops,
 	},
-	.probe_new = ov5648_probe,
-	.remove	 = ov5648_remove,
+	.probe = ov5648_probe,
+	.remove = ov5648_remove,
 };
 
 module_i2c_driver(ov5648_driver);

@@ -545,7 +545,7 @@ struct hv_pcidev_description {
 struct hv_dr_state {
 	struct list_head list_entry;
 	u32 device_count;
-	struct hv_pcidev_description func[];
+	struct hv_pcidev_description func[] __counted_by(device_count);
 };
 
 struct hv_pci_dev {
@@ -3982,6 +3982,9 @@ static int hv_pci_restore_msi_msg(struct pci_dev *pdev, void *arg)
 	struct irq_data *irq_data;
 	struct msi_desc *entry;
 	int ret = 0;
+
+	if (!pdev->msi_enabled && !pdev->msix_enabled)
+		return 0;
 
 	msi_lock_descs(&pdev->dev);
 	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {

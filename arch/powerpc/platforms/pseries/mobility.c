@@ -24,6 +24,7 @@
 #include <linux/stringify.h>
 
 #include <asm/machdep.h>
+#include <asm/nmi.h>
 #include <asm/rtas.h>
 #include "pseries.h"
 #include "vas.h"	/* vas_migration_handler() */
@@ -60,7 +61,6 @@ static struct ctl_table nmi_wd_lpm_factor_ctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_douintvec_minmax,
 	},
-	{}
 };
 
 static int __init register_nmi_wd_lpm_factor_sysctl(void)

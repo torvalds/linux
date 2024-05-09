@@ -145,7 +145,7 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 }
 
 /*
- * zstd_calc_ws_mem_sizes - calculate monotonic memory bounds
+ * Calculate monotonic memory bounds.
  *
  * It is possible based on the level configurations that a higher level
  * workspace uses less memory than a lower level workspace.  In order to reuse
@@ -218,7 +218,8 @@ void zstd_cleanup_workspace_manager(void)
 }
 
 /*
- * zstd_find_workspace - find workspace
+ * Find workspace for given level.
+ *
  * @level: compression level
  *
  * This iterates over the set bits in the active_map beginning at the requested
@@ -256,7 +257,8 @@ static struct list_head *zstd_find_workspace(unsigned int level)
 }
 
 /*
- * zstd_get_workspace - zstd's get_workspace
+ * Zstd get_workspace for level.
+ *
  * @level: compression level
  *
  * If @level is 0, then any compression level can be used.  Therefore, we begin
@@ -296,7 +298,8 @@ again:
 }
 
 /*
- * zstd_put_workspace - zstd put_workspace
+ * Zstd put_workspace.
+ *
  * @ws: list_head for the workspace
  *
  * When putting back a workspace, we only need to update the LRU if we are of

@@ -30,6 +30,7 @@ description: |
         apq8084
         apq8096
         ipq4018
+        ipq5018
         ipq5332
         ipq6018
         ipq8074
@@ -49,6 +50,7 @@ description: |
         msm8998
         qcs404
         qcm2290
+        qcm6490
         qdu1000
         qrb2210
         qrb4210
@@ -72,11 +74,13 @@ description: |
         sdx65
         sdx75
         sm4250
+        sm4450
         sm6115
         sm6115p
         sm6125
         sm6350
         sm6375
+        sm7125
         sm7225
         sm8150
         sm8250
@@ -104,6 +108,7 @@ description: |
         hk10-c2
         idp
         liquid
+        rdp432-c2
         mtp
         qrd
         rb2
@@ -186,6 +191,8 @@ properties:
 
       - items:
           - enum:
+              - longcheer,l9100
+              - samsung,a7
               - sony,kanuti-tulip
               - square,apq8039-t2
           - const: qcom,msm8939
@@ -341,6 +348,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,ipq5018-rdp432-c2
+          - const: qcom,ipq5018
+
+      - items:
+          - enum:
               - qcom,ipq5332-ap-mi01.2
               - qcom,ipq5332-ap-mi01.3
               - qcom,ipq5332-ap-mi01.6
@@ -381,6 +393,11 @@ properties:
               - qcom,qrb2210-rb1
           - const: qcom,qrb2210
           - const: qcom,qcm2290
+
+      - items:
+          - enum:
+              - fairphone,fp5
+          - const: qcom,qcm6490
 
       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
         items:
@@ -470,6 +487,11 @@ properties:
           - const: google,lazor-rev8
           - const: qcom,sc7180
 
+      - description: Acer Chromebook Spin 513 (rev9)
+        items:
+          - const: google,lazor-rev9
+          - const: qcom,sc7180
+
       - description: Acer Chromebook Spin 513 (newest rev)
         items:
           - const: google,lazor
@@ -489,6 +511,11 @@ properties:
           - const: google,lazor-rev6-sku2
           - const: google,lazor-rev7-sku2
           - const: google,lazor-rev8-sku2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with KB Backlight (rev9)
+        items:
+          - const: google,lazor-rev9-sku2
           - const: qcom,sc7180
 
       - description: Acer Chromebook Spin 513 with KB Backlight (newest rev)
@@ -512,9 +539,16 @@ properties:
           - const: google,lazor-rev8-sku0
           - const: qcom,sc7180
 
+      - description: Acer Chromebook Spin 513 with LTE (rev9)
+        items:
+          - const: google,lazor-rev9-sku0
+          - const: google,lazor-rev9-sku10
+          - const: qcom,sc7180
+
       - description: Acer Chromebook Spin 513 with LTE (newest rev)
         items:
           - const: google,lazor-sku0
+          - const: google,lazor-sku10
           - const: qcom,sc7180
 
       - description: Acer Chromebook 511 (rev4 - rev8)
@@ -526,9 +560,16 @@ properties:
           - const: google,lazor-rev8-sku4
           - const: qcom,sc7180
 
+      - description: Acer Chromebook 511 (rev9)
+        items:
+          - const: google,lazor-rev9-sku4
+          - const: google,lazor-rev9-sku15
+          - const: qcom,sc7180
+
       - description: Acer Chromebook 511 (newest rev)
         items:
           - const: google,lazor-sku4
+          - const: google,lazor-sku15
           - const: qcom,sc7180
 
       - description: Acer Chromebook 511 without Touchscreen (rev4)
@@ -545,9 +586,16 @@ properties:
           - const: google,lazor-rev8-sku6
           - const: qcom,sc7180
 
+      - description: Acer Chromebook 511 without Touchscreen (rev9)
+        items:
+          - const: google,lazor-rev9-sku6
+          - const: google,lazor-rev9-sku18
+          - const: qcom,sc7180
+
       - description: Acer Chromebook 511 without Touchscreen (newest rev)
         items:
           - const: google,lazor-sku6
+          - const: google,lazor-sku18
           - const: qcom,sc7180
 
       - description: Google Mrbland with AUO panel (rev0)
@@ -904,6 +952,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sm4450-qrd
+          - const: qcom,sm4450
+
+      - items:
+          - enum:
               - fxtec,pro1x
           - const: qcom,sm6115
 
@@ -928,6 +981,11 @@ properties:
           - enum:
               - sony,pdx225
           - const: qcom,sm6375
+
+      - items:
+          - enum:
+              - xiaomi,joyeuse
+          - const: qcom,sm7125
 
       - items:
           - enum:
@@ -1072,6 +1130,7 @@ allOf:
               - qcom,sm6115
               - qcom,sm6125
               - qcom,sm6350
+              - qcom,sm7125
               - qcom,sm7225
               - qcom,sm8150
               - qcom,sm8250

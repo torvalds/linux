@@ -169,7 +169,7 @@ static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 		priv->ps_force = false;
 		psc->bLeisurePs = true;
 	} else {
-		if (priv->rtllib->state == RTLLIB_LINKED)
+		if (priv->rtllib->link_state == MAC80211_LINKED)
 			rtl92e_leisure_ps_leave(dev);
 
 		priv->ps_force = true;
@@ -311,10 +311,6 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 	/* ~130 Mb/s real (802.11n) */
 	range->throughput = 130 * 1000 * 1000;
 
-	if (priv->rf_set_sens != NULL)
-		/* signal level threshold range */
-		range->sensitivity = priv->max_sens;
-
 	range->max_qual.qual = 100;
 	range->max_qual.level = 0;
 	range->max_qual.noise = 0;
@@ -346,9 +342,11 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 
 	for (i = 0, val = 0; i < 14; i++) {
 		if ((priv->rtllib->active_channel_map)[i + 1]) {
+			s32 freq_khz;
+
 			range->freq[val].i = i + 1;
-			range->freq[val].m = rtllib_wlan_frequencies[i] *
-					     100000;
+			freq_khz = ieee80211_channel_to_freq_khz(i + 1, NL80211_BAND_2GHZ);
+			range->freq[val].m = freq_khz * 100;
 			range->freq[val].e = 1;
 			val++;
 		}
@@ -377,10 +375,10 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 	int ret;
 
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)) {
-		if ((ieee->state >= RTLLIB_ASSOCIATING) &&
-		    (ieee->state <= RTLLIB_ASSOCIATING_AUTHENTICATED))
+		if ((ieee->link_state >= RTLLIB_ASSOCIATING) &&
+		    (ieee->link_state <= RTLLIB_ASSOCIATING_AUTHENTICATED))
 			return 0;
-		if ((priv->rtllib->state == RTLLIB_LINKED) &&
+		if ((priv->rtllib->link_state == MAC80211_LINKED) &&
 		    (priv->rtllib->CntAfterLink < 2))
 			return 0;
 	}
@@ -393,7 +391,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 	rt_state = priv->rtllib->rf_power_state;
 	if (!priv->up)
 		return -ENETDOWN;
-	if (priv->rtllib->link_detect_info.bBusyTraffic == true)
+	if (priv->rtllib->link_detect_info.bBusyTraffic)
 		return -EAGAIN;
 
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
@@ -411,7 +409,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 
 	priv->rtllib->FirstIe_InScan = true;
 
-	if (priv->rtllib->state != RTLLIB_LINKED) {
+	if (priv->rtllib->link_state != MAC80211_LINKED) {
 		if (rt_state == rf_off) {
 			if (priv->rtllib->rf_off_reason >
 			    RF_CHANGE_BY_IPS) {
@@ -425,16 +423,12 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 			mutex_unlock(&priv->rtllib->ips_mutex);
 		}
 		rtllib_stop_scan(priv->rtllib);
-		if (priv->rtllib->LedControlHandler)
-			priv->rtllib->LedControlHandler(dev,
-							 LED_CTL_SITE_SURVEY);
-
 		if (priv->rtllib->rf_power_state != rf_off) {
 			priv->rtllib->actscanning = true;
 
 			ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
 
-			rtllib_start_scan_syncro(priv->rtllib, 0);
+			rtllib_start_scan_syncro(priv->rtllib);
 
 			ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_RESTORE);
 		}
@@ -574,9 +568,9 @@ static int _rtl92e_wx_set_frag(struct net_device *dev,
 	if (priv->hw_radio_off)
 		return 0;
 
-	if (wrqu->frag.disabled)
+	if (wrqu->frag.disabled) {
 		priv->rtllib->fts = DEFAULT_FRAG_THRESHOLD;
-	else {
+	} else {
 		if (wrqu->frag.value < MIN_FRAG_THRESHOLD ||
 		    wrqu->frag.value > MAX_FRAG_THRESHOLD)
 			return -EINVAL;
@@ -718,7 +712,7 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 			rtl92e_set_key(dev, key_idx, key_idx, KEY_TYPE_WEP104,
 				       zero_addr[key_idx], 0, hwkey);
 			rtl92e_set_swcam(dev, key_idx, key_idx, KEY_TYPE_WEP104,
-					 zero_addr[key_idx], 0, hwkey, 0);
+					 zero_addr[key_idx], hwkey);
 		} else {
 			netdev_info(dev,
 				    "wrong type in WEP, not WEP40 and WEP104\n");
@@ -807,45 +801,6 @@ static int _rtl92e_wx_get_retry(struct net_device *dev,
 	return 0;
 }
 
-static int _rtl92e_wx_get_sens(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (priv->rf_set_sens == NULL)
-		return -1; /* we have not this support for this radio */
-	wrqu->sens.value = priv->sens;
-	return 0;
-}
-
-static int _rtl92e_wx_set_sens(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	short err = 0;
-
-	if (priv->hw_radio_off)
-		return 0;
-
-	mutex_lock(&priv->wx_mutex);
-	if (priv->rf_set_sens == NULL) {
-		err = -1; /* we have not this support for this radio */
-		goto exit;
-	}
-	if (priv->rf_set_sens(dev, wrqu->sens.value) == 0)
-		priv->sens = wrqu->sens.value;
-	else
-		err = -EINVAL;
-
-exit:
-	mutex_unlock(&priv->wx_mutex);
-
-	return err;
-}
-
 static int _rtl92e_wx_set_encode_ext(struct net_device *dev,
 				     struct iw_request_info *info,
 				     union iwreq_data *wrqu, char *extra)
@@ -902,21 +857,19 @@ static int _rtl92e_wx_set_encode_ext(struct net_device *dev,
 			if (ext->key_len == 13)
 				ieee->pairwise_key_type = alg = KEY_TYPE_WEP104;
 			rtl92e_set_key(dev, idx, idx, alg, zero, 0, key);
-			rtl92e_set_swcam(dev, idx, idx, alg, zero, 0, key, 0);
+			rtl92e_set_swcam(dev, idx, idx, alg, zero, key);
 		} else if (group) {
 			ieee->group_key_type = alg;
 			rtl92e_set_key(dev, idx, idx, alg, broadcast_addr, 0,
 				       key);
-			rtl92e_set_swcam(dev, idx, idx, alg, broadcast_addr, 0,
-					 key, 0);
+			rtl92e_set_swcam(dev, idx, idx, alg, broadcast_addr, key);
 		} else {
 			if ((ieee->pairwise_key_type == KEY_TYPE_CCMP) &&
 			     ieee->ht_info->bCurrentHTSupport)
 				rtl92e_writeb(dev, 0x173, 1);
 			rtl92e_set_key(dev, 4, idx, alg,
 				       (u8 *)ieee->ap_mac_addr, 0, key);
-			rtl92e_set_swcam(dev, 4, idx, alg,
-					 (u8 *)ieee->ap_mac_addr, 0, key, 0);
+			rtl92e_set_swcam(dev, 4, idx, alg, (u8 *)ieee->ap_mac_addr, key);
 		}
 	}
 
@@ -1066,8 +1019,6 @@ static iw_handler r8192_wx_handlers[] = {
 	[IW_IOCTL(SIOCGIWFREQ)] = _rtl92e_wx_get_freq,
 	[IW_IOCTL(SIOCSIWMODE)] = _rtl92e_wx_set_mode,
 	[IW_IOCTL(SIOCGIWMODE)] = _rtl92e_wx_get_mode,
-	[IW_IOCTL(SIOCSIWSENS)] = _rtl92e_wx_set_sens,
-	[IW_IOCTL(SIOCGIWSENS)] = _rtl92e_wx_get_sens,
 	[IW_IOCTL(SIOCGIWRANGE)] = _rtl92e_wx_get_range,
 	[IW_IOCTL(SIOCSIWAP)] = _rtl92e_wx_set_wap,
 	[IW_IOCTL(SIOCGIWAP)] = _rtl92e_wx_get_wap,
@@ -1171,7 +1122,7 @@ static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
 	int tmp_qual = 0;
 	int tmp_noise = 0;
 
-	if (ieee->state < RTLLIB_LINKED) {
+	if (ieee->link_state < MAC80211_LINKED) {
 		wstats->qual.qual = 10;
 		wstats->qual.level = 0;
 		wstats->qual.noise = 0x100 - 100;	/* -100 dBm */

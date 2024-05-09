@@ -20,6 +20,7 @@
 #include <linux/compiler.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/mm.h>
 
 #include "internal.h"
 #include "ram_internal.h"
@@ -268,7 +269,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 	/* ECC correction notice */
 	record->ecc_notice_size = persistent_ram_ecc_string(prz, NULL, 0);
 
-	record->buf = kmalloc(size + record->ecc_notice_size + 1, GFP_KERNEL);
+	record->buf = kvzalloc(size + record->ecc_notice_size + 1, GFP_KERNEL);
 	if (record->buf == NULL) {
 		size = -ENOMEM;
 		goto out;
@@ -282,7 +283,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 
 out:
 	if (free_prz) {
-		kfree(prz->old_log);
+		kvfree(prz->old_log);
 		kfree(prz);
 	}
 
@@ -833,7 +834,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	 */
 	if (cxt->pstore.flags & PSTORE_FLAGS_DMESG) {
 		cxt->pstore.bufsize = cxt->dprzs[0]->buffer_size;
-		cxt->pstore.buf = kzalloc(cxt->pstore.bufsize, GFP_KERNEL);
+		cxt->pstore.buf = kvzalloc(cxt->pstore.bufsize, GFP_KERNEL);
 		if (!cxt->pstore.buf) {
 			pr_err("cannot allocate pstore crash dump buffer\n");
 			err = -ENOMEM;
@@ -866,7 +867,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	return 0;
 
 fail_buf:
-	kfree(cxt->pstore.buf);
+	kvfree(cxt->pstore.buf);
 fail_clear:
 	cxt->pstore.bufsize = 0;
 fail_init:
@@ -881,7 +882,7 @@ static void ramoops_remove(struct platform_device *pdev)
 
 	pstore_unregister(&cxt->pstore);
 
-	kfree(cxt->pstore.buf);
+	kvfree(cxt->pstore.buf);
 	cxt->pstore.bufsize = 0;
 
 	ramoops_free_przs(cxt);

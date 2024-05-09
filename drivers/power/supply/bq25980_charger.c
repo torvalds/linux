@@ -1223,7 +1223,7 @@ static int bq25980_probe(struct i2c_client *client)
 
 	mutex_init(&bq->lock);
 
-	strncpy(bq->model_name, id->name, I2C_NAME_SIZE);
+	strscpy(bq->model_name, id->name, sizeof(bq->model_name));
 	bq->chip_info = &bq25980_chip_info_tbl[id->driver_data];
 
 	bq->regmap = devm_regmap_init_i2c(client,
@@ -1287,7 +1287,7 @@ static struct i2c_driver bq25980_driver = {
 		.name = "bq25980-charger",
 		.of_match_table = bq25980_of_match,
 	},
-	.probe_new = bq25980_probe,
+	.probe = bq25980_probe,
 	.id_table = bq25980_i2c_ids,
 };
 module_i2c_driver(bq25980_driver);

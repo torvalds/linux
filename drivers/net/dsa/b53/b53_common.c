@@ -757,7 +757,7 @@ int b53_configure_vlan(struct dsa_switch *ds)
 
 	/* Create an untagged VLAN entry for the default PVID in case
 	 * CONFIG_VLAN_8021Q is disabled and there are no calls to
-	 * dsa_slave_vlan_rx_add_vid() to create the default VLAN
+	 * dsa_user_vlan_rx_add_vid() to create the default VLAN
 	 * entry. Do this only when the tagging protocol is not
 	 * DSA_TAG_PROTO_NONE
 	 */
@@ -958,7 +958,7 @@ static struct phy_device *b53_get_phy_device(struct dsa_switch *ds, int port)
 		return NULL;
 	}
 
-	return mdiobus_get_phy(ds->slave_mii_bus, port);
+	return mdiobus_get_phy(ds->user_mii_bus, port);
 }
 
 void b53_get_strings(struct dsa_switch *ds, int port, u32 stringset,
@@ -1393,12 +1393,6 @@ static void b53_phylink_get_caps(struct dsa_switch *ds, int port,
 	/* Get the implementation specific capabilities */
 	if (dev->ops->phylink_get_caps)
 		dev->ops->phylink_get_caps(dev, port, config);
-
-	/* This driver does not make use of the speed, duplex, pause or the
-	 * advertisement in its mac_config, so it is safe to mark this driver
-	 * as non-legacy.
-	 */
-	config->legacy_pre_march2020 = false;
 }
 
 static struct phylink_pcs *b53_phylink_mac_select_pcs(struct dsa_switch *ds,

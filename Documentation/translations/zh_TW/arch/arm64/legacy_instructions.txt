@@ -11,7 +11,7 @@ or if there is a problem with the translation.
 Maintainer: Punit Agrawal <punit.agrawal@arm.com>
             Suzuki K. Poulose <suzuki.poulose@arm.com>
 Chinese maintainer: Fu Wei <wefu@redhat.com>
-Traditional Chinese maintainer: Hu Haowen <src.res@email.cn>
+Traditional Chinese maintainer: Hu Haowen <src.res.211@gmail.com>
 ---------------------------------------------------------------------
 Documentation/arch/arm64/legacy_instructions.rst 的中文翻譯
 
@@ -26,12 +26,12 @@ Documentation/arch/arm64/legacy_instructions.rst 的中文翻譯
 中文版維護者： 傅煒  Fu Wei <wefu@redhat.com>
 中文版翻譯者： 傅煒  Fu Wei <wefu@redhat.com>
 中文版校譯者： 傅煒  Fu Wei <wefu@redhat.com>
-繁體中文版校譯者：胡皓文  Hu Haowen <src.res@email.cn>
+繁體中文版校譯者：胡皓文  Hu Haowen <src.res.211@gmail.com>
 
 以下爲正文
 ---------------------------------------------------------------------
 Linux 內核在 arm64 上的移植提供了一個基礎框架，以支持構架中正在被淘汰或已廢棄指令的模擬執行。
-這個基礎框架的代碼使用未定義指令鉤子（hooks）來支持模擬。如果指令存在，它也允許在硬體中啓用該指令。
+這個基礎框架的代碼使用未定義指令鉤子（hooks）來支持模擬。如果指令存在，它也允許在硬件中啓用該指令。
 
 模擬模式可通過寫 sysctl 節點（/proc/sys/abi）來控制。
 不同的執行方式及 sysctl 節點的相應值，解釋如下：
@@ -42,18 +42,18 @@ Linux 內核在 arm64 上的移植提供了一個基礎框架，以支持構架�
 
 * Emulate（模擬）
   值： 1
-  使用軟體模擬方式。爲解決軟體遷移問題，這種模擬指令模式的使用是被跟蹤的，並會發出速率限制警告。
+  使用軟件模擬方式。爲解決軟件遷移問題，這種模擬指令模式的使用是被跟蹤的，並會發出速率限制警告。
   它是那些構架中正在被淘汰的指令，如 CP15 barriers（隔離指令），的默認處理方式。
 
-* Hardware Execution（硬體執行）
+* Hardware Execution（硬件執行）
   值： 2
-  雖然標記爲正在被淘汰，但一些實現可能提供硬體執行這些指令的使能/禁用操作。
-  使用硬體執行一般會有更好的性能，但將無法收集運行時對正被淘汰指令的使用統計數據。
+  雖然標記爲正在被淘汰，但一些實現可能提供硬件執行這些指令的使能/禁用操作。
+  使用硬件執行一般會有更好的性能，但將無法收集運行時對正被淘汰指令的使用統計數據。
 
 默認執行模式依賴於指令在構架中狀態。正在被淘汰的指令應該以模擬（Emulate）作爲默認模式，
 而已廢棄的指令必須默認使用未定義（Undef）模式
 
-注意：指令模擬可能無法應對所有情況。更多詳情請參考單獨的指令注釋。
+注意：指令模擬可能無法應對所有情況。更多詳情請參考單獨的指令註釋。
 
 受支持的遺留指令
 -------------
@@ -71,7 +71,7 @@ Linux 內核在 arm64 上的移植提供了一個基礎框架，以支持構架�
 節點: /proc/sys/abi/setend
 狀態: 正被淘汰，不推薦使用
 默認執行方式: Emulate (1)*
-註：爲了使能這個特性，系統中的所有 CPU 必須在 EL0 支持混合字節序。
+注：爲了使能這個特性，系統中的所有 CPU 必須在 EL0 支持混合字節序。
 如果一個新的 CPU （不支持混合字節序） 在使能這個特性後被熱插入系統，
 在應用中可能會出現不可預期的結果。
 

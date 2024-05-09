@@ -378,13 +378,13 @@ struct es58x_sw_version {
 
 /**
  * struct es58x_hw_revision - Hardware revision number.
- * @letter: Revision letter.
+ * @letter: Revision letter, an alphanumeric character.
  * @major: Version major number, represented on three digits.
  * @minor: Version minor number, represented on three digits.
  *
  * The hardware revision uses its own format: "axxx/xxx" where 'a' is
- * a letter and 'x' a digit. It can be retrieved from the product
- * information string.
+ * an alphanumeric character and 'x' a digit. It can be retrieved from
+ * the product information string.
  */
 struct es58x_hw_revision {
 	char letter;

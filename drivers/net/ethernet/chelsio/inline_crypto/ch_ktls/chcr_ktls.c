@@ -361,9 +361,7 @@ static void chcr_ktls_dev_del(struct net_device *netdev,
 			      struct tls_context *tls_ctx,
 			      enum tls_offload_ctx_dir direction)
 {
-	struct chcr_ktls_ofld_ctx_tx *tx_ctx =
-				chcr_get_ktls_tx_context(tls_ctx);
-	struct chcr_ktls_info *tx_info = tx_ctx->chcr_info;
+	struct chcr_ktls_info *tx_info = chcr_get_ktls_tx_info(tls_ctx);
 	struct ch_ktls_port_stats_debug *port_stats;
 	struct chcr_ktls_uld_ctx *u_ctx;
 
@@ -396,7 +394,7 @@ static void chcr_ktls_dev_del(struct net_device *netdev,
 	port_stats = &tx_info->adap->ch_ktls_stats.ktls_port[tx_info->port_id];
 	atomic64_inc(&port_stats->ktls_tx_connection_close);
 	kvfree(tx_info);
-	tx_ctx->chcr_info = NULL;
+	chcr_set_ktls_tx_info(tls_ctx, NULL);
 	/* release module refcount */
 	module_put(THIS_MODULE);
 }
@@ -417,7 +415,6 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct ch_ktls_port_stats_debug *port_stats;
-	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
 	struct chcr_ktls_uld_ctx *u_ctx;
 	struct chcr_ktls_info *tx_info;
 	struct dst_entry *dst;
@@ -426,8 +423,6 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	struct neighbour *n;
 	u8 daaddr[16];
 	int ret = -1;
-
-	tx_ctx = chcr_get_ktls_tx_context(tls_ctx);
 
 	pi = netdev_priv(netdev);
 	adap = pi->adapter;
@@ -440,7 +435,7 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 		goto out;
 	}
 
-	if (tx_ctx->chcr_info)
+	if (chcr_get_ktls_tx_info(tls_ctx))
 		goto out;
 
 	if (u_ctx && u_ctx->detach)
@@ -566,7 +561,7 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 		goto free_tid;
 
 	atomic64_inc(&port_stats->ktls_tx_ctx);
-	tx_ctx->chcr_info = tx_info;
+	chcr_set_ktls_tx_info(tls_ctx, tx_info);
 
 	return 0;
 
@@ -647,7 +642,7 @@ static int chcr_ktls_cpl_act_open_rpl(struct adapter *adap,
 {
 	const struct cpl_act_open_rpl *p = (void *)input;
 	struct chcr_ktls_info *tx_info = NULL;
-	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
+	struct tls_offload_context_tx *tx_ctx;
 	struct chcr_ktls_uld_ctx *u_ctx;
 	unsigned int atid, tid, status;
 	struct tls_context *tls_ctx;
@@ -686,7 +681,7 @@ static int chcr_ktls_cpl_act_open_rpl(struct adapter *adap,
 		cxgb4_insert_tid(t, tx_info, tx_info->tid, tx_info->ip_family);
 		/* Adding tid */
 		tls_ctx = tls_get_ctx(tx_info->sk);
-		tx_ctx = chcr_get_ktls_tx_context(tls_ctx);
+		tx_ctx = tls_offload_ctx_tx(tls_ctx);
 		u_ctx = adap->uld[CXGB4_ULD_KTLS].handle;
 		if (u_ctx) {
 			ret = xa_insert_bh(&u_ctx->tid_list, tid, tx_ctx,
@@ -1924,7 +1919,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	u32 tls_end_offset, tcp_seq, skb_data_len, skb_offset;
 	struct ch_ktls_port_stats_debug *port_stats;
-	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
+	struct tls_offload_context_tx *tx_ctx;
 	struct ch_ktls_stats_debug *stats;
 	struct tcphdr *th = tcp_hdr(skb);
 	int data_len, qidx, ret = 0, mss;
@@ -1944,6 +1939,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	mss = skb_is_gso(skb) ? skb_shinfo(skb)->gso_size : data_len;
 
 	tls_ctx = tls_get_ctx(skb->sk);
+	tx_ctx = tls_offload_ctx_tx(tls_ctx);
 	tls_netdev = rcu_dereference_bh(tls_ctx->netdev);
 	/* Don't quit on NULL: if tls_device_down is running in parallel,
 	 * netdev might become NULL, even if tls_is_skb_tx_device_offloaded was
@@ -1952,8 +1948,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(tls_netdev && tls_netdev != dev))
 		goto out;
 
-	tx_ctx = chcr_get_ktls_tx_context(tls_ctx);
-	tx_info = tx_ctx->chcr_info;
+	tx_info = chcr_get_ktls_tx_info(tls_ctx);
 
 	if (unlikely(!tx_info))
 		goto out;
@@ -1979,19 +1974,19 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * we will send the complete record again.
 	 */
 
-	spin_lock_irqsave(&tx_ctx->base.lock, flags);
+	spin_lock_irqsave(&tx_ctx->lock, flags);
 
 	do {
 
 		cxgb4_reclaim_completed_tx(adap, &q->q, true);
 		/* fetch the tls record */
-		record = tls_get_record(&tx_ctx->base, tcp_seq,
+		record = tls_get_record(tx_ctx, tcp_seq,
 					&tx_info->record_no);
 		/* By the time packet reached to us, ACK is received, and record
 		 * won't be found in that case, handle it gracefully.
 		 */
 		if (unlikely(!record)) {
-			spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
+			spin_unlock_irqrestore(&tx_ctx->lock, flags);
 			atomic64_inc(&port_stats->ktls_tx_drop_no_sync_data);
 			goto out;
 		}
@@ -2015,7 +2010,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 						      tls_end_offset !=
 						      record->len);
 			if (ret) {
-				spin_unlock_irqrestore(&tx_ctx->base.lock,
+				spin_unlock_irqrestore(&tx_ctx->lock,
 						       flags);
 				goto out;
 			}
@@ -2046,7 +2041,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 				/* free the refcount taken earlier */
 				if (tls_end_offset < data_len)
 					dev_kfree_skb_any(skb);
-				spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
+				spin_unlock_irqrestore(&tx_ctx->lock, flags);
 				goto out;
 			}
 
@@ -2082,7 +2077,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* if any failure, come out from the loop. */
 		if (ret) {
-			spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
+			spin_unlock_irqrestore(&tx_ctx->lock, flags);
 			if (th->fin)
 				dev_kfree_skb_any(skb);
 
@@ -2097,7 +2092,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	} while (data_len > 0);
 
-	spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
+	spin_unlock_irqrestore(&tx_ctx->lock, flags);
 	atomic64_inc(&port_stats->ktls_tx_encrypted_packets);
 	atomic64_add(skb_data_len, &port_stats->ktls_tx_encrypted_bytes);
 
@@ -2185,17 +2180,17 @@ static void clear_conn_resources(struct chcr_ktls_info *tx_info)
 static void ch_ktls_reset_all_conn(struct chcr_ktls_uld_ctx *u_ctx)
 {
 	struct ch_ktls_port_stats_debug *port_stats;
-	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
+	struct tls_offload_context_tx *tx_ctx;
 	struct chcr_ktls_info *tx_info;
 	unsigned long index;
 
 	xa_for_each(&u_ctx->tid_list, index, tx_ctx) {
-		tx_info = tx_ctx->chcr_info;
+		tx_info = __chcr_get_ktls_tx_info(tx_ctx);
 		clear_conn_resources(tx_info);
 		port_stats = &tx_info->adap->ch_ktls_stats.ktls_port[tx_info->port_id];
 		atomic64_inc(&port_stats->ktls_tx_connection_close);
 		kvfree(tx_info);
-		tx_ctx->chcr_info = NULL;
+		memset(tx_ctx->driver_state, 0, TLS_DRIVER_STATE_SIZE_TX);
 		/* release module refcount */
 		module_put(THIS_MODULE);
 	}

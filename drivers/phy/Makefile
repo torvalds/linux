@@ -26,11 +26,13 @@ obj-y					+= allwinner/	\
 					   mscc/	\
 					   qualcomm/	\
 					   ralink/	\
+					   realtek/	\
 					   renesas/	\
 					   rockchip/	\
 					   samsung/	\
 					   socionext/	\
 					   st/		\
+					   starfive/	\
 					   sunplus/	\
 					   tegra/	\
 					   ti/		\

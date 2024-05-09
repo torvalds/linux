@@ -499,6 +499,9 @@ void elv_unregister_queue(struct request_queue *q)
 
 int elv_register(struct elevator_type *e)
 {
+	/* finish request is mandatory */
+	if (WARN_ON_ONCE(!e->ops.finish_request))
+		return -EINVAL;
 	/* insert_requests and dispatch_request are mandatory */
 	if (WARN_ON_ONCE(!e->ops.insert_requests || !e->ops.dispatch_request))
 		return -EINVAL;

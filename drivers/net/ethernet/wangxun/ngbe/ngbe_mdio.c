@@ -29,117 +29,6 @@ static int ngbe_phy_write_reg_internal(struct mii_bus *bus, int phy_addr, int re
 	return 0;
 }
 
-static int ngbe_phy_read_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum)
-{
-	u32 command, val, device_type = 0;
-	struct wx *wx = bus->priv;
-	int ret;
-
-	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0xF);
-	/* setup and write the address cycle command */
-	command = NGBE_MSCA_RA(regnum) |
-		  NGBE_MSCA_PA(phy_addr) |
-		  NGBE_MSCA_DA(device_type);
-	wr32(wx, NGBE_MSCA, command);
-	command = NGBE_MSCC_CMD(NGBE_MSCA_CMD_READ) |
-		  NGBE_MSCC_BUSY |
-		  NGBE_MDIO_CLK(6);
-	wr32(wx, NGBE_MSCC, command);
-
-	/* wait to complete */
-	ret = read_poll_timeout(rd32, val, !(val & NGBE_MSCC_BUSY), 1000,
-				100000, false, wx, NGBE_MSCC);
-	if (ret) {
-		wx_err(wx, "Mdio read c22 command did not complete.\n");
-		return ret;
-	}
-
-	return (u16)rd32(wx, NGBE_MSCC);
-}
-
-static int ngbe_phy_write_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum, u16 value)
-{
-	u32 command, val, device_type = 0;
-	struct wx *wx = bus->priv;
-	int ret;
-
-	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0xF);
-	/* setup and write the address cycle command */
-	command = NGBE_MSCA_RA(regnum) |
-		  NGBE_MSCA_PA(phy_addr) |
-		  NGBE_MSCA_DA(device_type);
-	wr32(wx, NGBE_MSCA, command);
-	command = value |
-		  NGBE_MSCC_CMD(NGBE_MSCA_CMD_WRITE) |
-		  NGBE_MSCC_BUSY |
-		  NGBE_MDIO_CLK(6);
-	wr32(wx, NGBE_MSCC, command);
-
-	/* wait to complete */
-	ret = read_poll_timeout(rd32, val, !(val & NGBE_MSCC_BUSY), 1000,
-				100000, false, wx, NGBE_MSCC);
-	if (ret)
-		wx_err(wx, "Mdio write c22 command did not complete.\n");
-
-	return ret;
-}
-
-static int ngbe_phy_read_reg_mdi_c45(struct mii_bus *bus, int phy_addr, int devnum, int regnum)
-{
-	struct wx *wx = bus->priv;
-	u32 val, command;
-	int ret;
-
-	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0x0);
-	/* setup and write the address cycle command */
-	command = NGBE_MSCA_RA(regnum) |
-		  NGBE_MSCA_PA(phy_addr) |
-		  NGBE_MSCA_DA(devnum);
-	wr32(wx, NGBE_MSCA, command);
-	command = NGBE_MSCC_CMD(NGBE_MSCA_CMD_READ) |
-		  NGBE_MSCC_BUSY |
-		  NGBE_MDIO_CLK(6);
-	wr32(wx, NGBE_MSCC, command);
-
-	/* wait to complete */
-	ret = read_poll_timeout(rd32, val, !(val & NGBE_MSCC_BUSY), 1000,
-				100000, false, wx, NGBE_MSCC);
-	if (ret) {
-		wx_err(wx, "Mdio read c45 command did not complete.\n");
-		return ret;
-	}
-
-	return (u16)rd32(wx, NGBE_MSCC);
-}
-
-static int ngbe_phy_write_reg_mdi_c45(struct mii_bus *bus, int phy_addr,
-				      int devnum, int regnum, u16 value)
-{
-	struct wx *wx = bus->priv;
-	int ret, command;
-	u16 val;
-
-	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0x0);
-	/* setup and write the address cycle command */
-	command = NGBE_MSCA_RA(regnum) |
-		  NGBE_MSCA_PA(phy_addr) |
-		  NGBE_MSCA_DA(devnum);
-	wr32(wx, NGBE_MSCA, command);
-	command = value |
-		  NGBE_MSCC_CMD(NGBE_MSCA_CMD_WRITE) |
-		  NGBE_MSCC_BUSY |
-		  NGBE_MDIO_CLK(6);
-	wr32(wx, NGBE_MSCC, command);
-
-	/* wait to complete */
-	ret = read_poll_timeout(rd32, val, !(val & NGBE_MSCC_BUSY), 1000,
-				100000, false, wx, NGBE_MSCC);
-	if (ret)
-		wx_err(wx, "Mdio write c45 command did not complete.\n");
-
-	return ret;
-}
-
 static int ngbe_phy_read_reg_c22(struct mii_bus *bus, int phy_addr, int regnum)
 {
 	struct wx *wx = bus->priv;
@@ -148,7 +37,7 @@ static int ngbe_phy_read_reg_c22(struct mii_bus *bus, int phy_addr, int regnum)
 	if (wx->mac_type == em_mac_type_mdi)
 		phy_data = ngbe_phy_read_reg_internal(bus, phy_addr, regnum);
 	else
-		phy_data = ngbe_phy_read_reg_mdi_c22(bus, phy_addr, regnum);
+		phy_data = wx_phy_read_reg_mdi_c22(bus, phy_addr, regnum);
 
 	return phy_data;
 }
@@ -162,7 +51,7 @@ static int ngbe_phy_write_reg_c22(struct mii_bus *bus, int phy_addr,
 	if (wx->mac_type == em_mac_type_mdi)
 		ret = ngbe_phy_write_reg_internal(bus, phy_addr, regnum, value);
 	else
-		ret = ngbe_phy_write_reg_mdi_c22(bus, phy_addr, regnum, value);
+		ret = wx_phy_write_reg_mdi_c22(bus, phy_addr, regnum, value);
 
 	return ret;
 }
@@ -236,6 +125,7 @@ static void ngbe_phy_fixup(struct wx *wx)
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 
+	phydev->mac_managed_pm = true;
 	if (wx->mac_type != em_mac_type_mdi)
 		return;
 	/* disable EEE, internal phy does not support eee */
@@ -261,12 +151,11 @@ int ngbe_mdio_init(struct wx *wx)
 	mii_bus->priv = wx;
 
 	if (wx->mac_type == em_mac_type_rgmii) {
-		mii_bus->read_c45 = ngbe_phy_read_reg_mdi_c45;
-		mii_bus->write_c45 = ngbe_phy_write_reg_mdi_c45;
+		mii_bus->read_c45 = wx_phy_read_reg_mdi_c45;
+		mii_bus->write_c45 = wx_phy_write_reg_mdi_c45;
 	}
 
-	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "ngbe-%x",
-		 (pdev->bus->number << 8) | pdev->devfn);
+	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "ngbe-%x", pci_dev_id(pdev));
 	ret = devm_mdiobus_register(&pdev->dev, mii_bus);
 	if (ret)
 		return ret;

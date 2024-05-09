@@ -59,7 +59,7 @@ void tw686x_audio_irq(struct tw686x_dev *dev, unsigned long requests,
 		}
 		spin_unlock_irqrestore(&ac->lock, flags);
 
-		if (!done || !next)
+		if (!done)
 			continue;
 		/*
 		 * Checking for a non-nil dma_desc[pb]->virt buffer is

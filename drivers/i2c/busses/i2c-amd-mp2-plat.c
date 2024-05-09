@@ -322,7 +322,7 @@ static int i2c_amd_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int i2c_amd_remove(struct platform_device *pdev)
+static void i2c_amd_remove(struct platform_device *pdev)
 {
 	struct amd_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 	struct amd_i2c_common *i2c_common = &i2c_dev->common;
@@ -336,7 +336,6 @@ static int i2c_amd_remove(struct platform_device *pdev)
 	i2c_unlock_bus(&i2c_dev->adap, I2C_LOCK_ROOT_ADAPTER);
 
 	i2c_del_adapter(&i2c_dev->adap);
-	return 0;
 }
 
 static const struct acpi_device_id i2c_amd_acpi_match[] = {
@@ -347,7 +346,7 @@ MODULE_DEVICE_TABLE(acpi, i2c_amd_acpi_match);
 
 static struct platform_driver i2c_amd_plat_driver = {
 	.probe = i2c_amd_probe,
-	.remove = i2c_amd_remove,
+	.remove_new = i2c_amd_remove,
 	.driver = {
 		.name = "i2c_amd_mp2",
 		.acpi_match_table = ACPI_PTR(i2c_amd_acpi_match),

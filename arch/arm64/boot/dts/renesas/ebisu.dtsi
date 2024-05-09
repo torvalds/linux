@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the Ebisu board
+ * Device Tree Source for the Ebisu/Ebisu-4D board
  *
  * Copyright (C) 2018 Renesas Electronics Corp.
  */

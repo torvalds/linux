@@ -49,7 +49,7 @@
 #include "dcn20/dcn20_dpp.h"
 #include "dcn20/dcn20_optc.h"
 #include "dcn21/dcn21_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn20/dcn20_opp.h"
 #include "dcn20/dcn20_dsc.h"
 #include "dcn21/dcn21_link_encoder.h"
@@ -654,12 +654,14 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.dmub_command_table = true,
 		.use_max_lb = true,
 		.enable_legacy_fast_update = true,
+		.using_dml2 = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
 		.psr = {
 			.disable_psr = false,
 			.disallow_psrsu = false,
+			.disallow_replay = false,
 		},
 		.ilr = {
 			.optimize_edp_link_rate = true,
@@ -854,8 +856,8 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 		/* We only support full screen mpo with ODM */
 		if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
 				&& pipe->plane_state && mpo_pipe
-				&& memcmp(&mpo_pipe->plane_res.scl_data.recout,
-						&pipe->plane_res.scl_data.recout,
+				&& memcmp(&mpo_pipe->plane_state->clip_rect,
+						&pipe->stream->src,
 						sizeof(struct rect)) != 0) {
 			ASSERT(mpo_pipe->plane_state != pipe->plane_state);
 			goto validate_fail;
@@ -952,9 +954,17 @@ static bool dcn21_validate_bandwidth(struct dc *dc, struct dc_state *context,
 		bool fast_validate)
 {
 	bool voltage_supported;
+	display_e2e_pipe_params_st *pipes;
+
+	pipes = kcalloc(dc->res_pool->pipe_count, sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
+	if (!pipes)
+		return false;
+
 	DC_FP_START();
-	voltage_supported = dcn21_validate_bandwidth_fp(dc, context, fast_validate);
+	voltage_supported = dcn21_validate_bandwidth_fp(dc, context, fast_validate, pipes);
 	DC_FP_END();
+
+	kfree(pipes);
 	return voltage_supported;
 }
 
@@ -1387,7 +1397,8 @@ static const struct resource_funcs dcn21_res_pool_funcs = {
 	.add_stream_to_ctx = dcn20_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
-	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
+	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
+	.release_pipe = dcn20_release_pipe,
 	.populate_dml_writeback_from_context = dcn20_populate_dml_writeback_from_context,
 	.patch_unknown_plane_state = dcn21_patch_unknown_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,

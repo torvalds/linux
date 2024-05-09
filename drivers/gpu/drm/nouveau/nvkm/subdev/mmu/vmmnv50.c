@@ -296,19 +296,22 @@ nv50_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 			return -EINVAL;
 		}
 
-		ret = nvkm_memory_tags_get(memory, device, tags, NULL,
-					   &map->tags);
-		if (ret) {
-			VMM_DEBUG(vmm, "comp %d", ret);
-			return ret;
-		}
+		if (!map->no_comp) {
+			ret = nvkm_memory_tags_get(memory, device, tags, NULL,
+						   &map->tags);
+			if (ret) {
+				VMM_DEBUG(vmm, "comp %d", ret);
+				return ret;
+			}
 
-		if (map->tags->mn) {
-			u32 tags = map->tags->mn->offset + (map->offset >> 16);
-			map->ctag |= (u64)comp << 49;
-			map->type |= (u64)comp << 47;
-			map->type |= (u64)tags << 49;
-			map->next |= map->ctag;
+			if (map->tags->mn) {
+				u32 tags = map->tags->mn->offset +
+					   (map->offset >> 16);
+				map->ctag |= (u64)comp << 49;
+				map->type |= (u64)comp << 47;
+				map->type |= (u64)tags << 49;
+				map->next |= map->ctag;
+			}
 		}
 	}
 

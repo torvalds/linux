@@ -2,7 +2,7 @@
 
 .. include:: ../disclaimer-zh_TW.rst
 
-:Original: :doc:`../../../filesystems/debugfs`
+:Original: Documentation/filesystems/debugfs.rst
 
 =======
 Debugfs
@@ -11,20 +11,19 @@ Debugfs
 譯者
 ::
 
-	中文版維護者：羅楚成 Chucheng Luo <luochucheng@vivo.com>
-	中文版翻譯者：羅楚成 Chucheng Luo <luochucheng@vivo.com>
-	中文版校譯者: 羅楚成 Chucheng Luo <luochucheng@vivo.com>
-	繁體中文版校譯者: 胡皓文 Hu Haowen <src.res@email.cn>
+	中文版維護者： 羅楚成 Chucheng Luo <luochucheng@vivo.com>
+	中文版翻譯者： 羅楚成 Chucheng Luo <luochucheng@vivo.com>
+	中文版校譯者:  羅楚成 Chucheng Luo <luochucheng@vivo.com>
+	繁體中文版校譯者: 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 
 
 版權所有2020 羅楚成 <luochucheng@vivo.com>
-版權所有2021 胡皓文 Hu Haowen <src.res@email.cn>
 
 
 Debugfs是內核開發人員在用戶空間獲取信息的簡單方法。與/proc不同，proc只提供進程
-信息。也不像sysfs,具有嚴格的「每個文件一個值「的規則。debugfs根本沒有規則,開發
-人員可以在這裡放置他們想要的任何信息。debugfs文件系統也不能用作穩定的ABI接口。
+信息。也不像sysfs,具有嚴格的“每個文件一個值“的規則。debugfs根本沒有規則,開發
+人員可以在這裏放置他們想要的任何信息。debugfs文件系統也不能用作穩定的ABI接口。
 從理論上講，debugfs導出文件的時候沒有任何約束。但是[1]實際情況並不總是那麼
 簡單。即使是debugfs接口，也最好根據需要進行設計,並儘量保持接口不變。
 
@@ -34,8 +33,8 @@ Debugfs通常使用以下命令安裝::
     mount -t debugfs none /sys/kernel/debug
 
 （或等效的/etc/fstab行）。
-debugfs根目錄默認僅可由root用戶訪問。要更改對文件樹的訪問，請使用「 uid」，「 gid」
-和「 mode」掛載選項。請注意，debugfs API僅按照GPL協議導出到模塊。
+debugfs根目錄默認僅可由root用戶訪問。要更改對文件樹的訪問，請使用“ uid”，“ gid”
+和“ mode”掛載選項。請注意，debugfs API僅按照GPL協議導出到模塊。
 
 使用debugfs的代碼應包含<linux/debugfs.h>。然後，首先是創建至少一個目錄來保存
 一組debugfs文件::
@@ -54,8 +53,8 @@ debugfs根目錄默認僅可由root用戶訪問。要更改對文件樹的訪問
 				       struct dentry *parent, void *data,
 				       const struct file_operations *fops);
 
-在這裡，name是要創建的文件的名稱，mode描述了訪問文件應具有的權限，parent指向
-應該保存文件的目錄，data將存儲在產生的inode結構體的i_private欄位中，而fops是
+在這裏，name是要創建的文件的名稱，mode描述了訪問文件應具有的權限，parent指向
+應該保存文件的目錄，data將存儲在產生的inode結構體的i_private字段中，而fops是
 一組文件操作函數，這些函數中實現文件操作的具體行爲。至少，read（）和/或
 write（）操作應提供；其他可以根據需要包括在內。同樣的，返回值將是指向創建文件
 的dentry指針，錯誤時返回ERR_PTR（-ERROR），系統不支持debugfs時返回值爲ERR_PTR
@@ -81,7 +80,7 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
 			    struct dentry *parent, u64 *value);
 
 這些文件支持讀取和寫入給定值。如果某個文件不支持寫入，只需根據需要設置mode
-參數位。這些文件中的值以十進位表示；如果需要使用十六進位，可以使用以下函數
+參數位。這些文件中的值以十進制表示；如果需要使用十六進制，可以使用以下函數
 替代::
 
     void debugfs_create_x8(const char *name, umode_t mode,
@@ -93,7 +92,7 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
     void debugfs_create_x64(const char *name, umode_t mode,
 			    struct dentry *parent, u64 *value);
 
-這些功能只有在開發人員知道導出值的大小的時候才有用。某些數據類型在不同的架構上
+這些功能只有在開發人員知道導出值的大小的時候纔有用。某些數據類型在不同的架構上
 有不同的寬度，這樣會使情況變得有些複雜。在這種特殊情況下可以使用以下函數::
 
     void debugfs_create_size_t(const char *name, umode_t mode,
@@ -101,7 +100,7 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
 
 不出所料，此函數將創建一個debugfs文件來表示類型爲size_t的變量。
 
-同樣地，也有導出無符號長整型變量的函數，分別以十進位和十六進位表示如下::
+同樣地，也有導出無符號長整型變量的函數，分別以十進制和十六進制表示如下::
 
     struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
 					struct dentry *parent,
@@ -125,7 +124,7 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
 
 讀取此文件將獲得atomic_t值，寫入此文件將設置atomic_t值。
 
-另一個選擇是通過以下結構體和函數導出一個任意二進位數據塊::
+另一個選擇是通過以下結構體和函數導出一個任意二進制數據塊::
 
     struct debugfs_blob_wrapper {
 	void *data;
@@ -136,10 +135,10 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
 				       struct dentry *parent,
 				       struct debugfs_blob_wrapper *blob);
 
-讀取此文件將返回由指針指向debugfs_blob_wrapper結構體的數據。一些驅動使用「blobs」
-作爲一種返回幾行（靜態）格式化文本的簡單方法。這個函數可用於導出二進位信息，但
+讀取此文件將返回由指針指向debugfs_blob_wrapper結構體的數據。一些驅動使用“blobs”
+作爲一種返回幾行（靜態）格式化文本的簡單方法。這個函數可用於導出二進制信息，但
 似乎在主線中沒有任何代碼這樣做。請注意，使用debugfs_create_blob（）命令創建的
-所有文件是只讀的。
+所有文件是隻讀的。
 
 如果您要轉儲一個寄存器塊（在開發過程中經常會這麼做，但是這樣的調試代碼很少上傳
 到主線中。Debugfs提供兩個函數：一個用於創建僅寄存器文件，另一個把一個寄存器塊
@@ -163,7 +162,7 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
     void debugfs_print_regs32(struct seq_file *s, struct debugfs_reg32 *regs,
 			 int nregs, void __iomem *base, char *prefix);
 
-「base」參數可能爲0，但您可能需要使用__stringify構建reg32數組，實際上有許多寄存器
+“base”參數可能爲0，但您可能需要使用__stringify構建reg32數組，實際上有許多寄存器
 名稱（宏）是寄存器塊在基址上的字節偏移量。
 
 如果要在debugfs中轉儲u32數組，可以使用以下函數創建文件::
@@ -172,7 +171,7 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
 			struct dentry *parent,
 			u32 *array, u32 elements);
 
-「array」參數提供數據，而「elements」參數爲數組中元素的數量。注意：數組創建後，數組
+“array”參數提供數據，而“elements”參數爲數組中元素的數量。注意：數組創建後，數組
 大小無法更改。
 
 有一個函數來創建與設備相關的seq_file::
@@ -183,8 +182,8 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
 				int (*read_fn)(struct seq_file *s,
 					void *data));
 
-「dev」參數是與此debugfs文件相關的設備，並且「read_fn」是一個函數指針，這個函數在
-列印seq_file內容的時候被回調。
+“dev”參數是與此debugfs文件相關的設備，並且“read_fn”是一個函數指針，這個函數在
+打印seq_file內容的時候被回調。
 
 還有一些其他的面向目錄的函數::
 
@@ -199,7 +198,7 @@ file_size是初始文件大小。其他參數跟函數debugfs_create_file的相�
 
 調用debugfs_rename()將爲現有的debugfs文件重命名，可能同時切換目錄。 new_name
 函數調用之前不能存在；返回值爲old_dentry，其中包含更新的信息。可以使用
-debugfs_create_symlink（）創建符號連結。
+debugfs_create_symlink（）創建符號鏈接。
 
 所有debugfs用戶必須考慮的一件事是：
 
@@ -219,6 +218,6 @@ dentry值可以爲NULL或錯誤值，在這種情況下，不會有任何文件�
 
 如果將對應頂層目錄的dentry傳遞給以上函數，則該目錄下的整個層次結構將會被刪除。
 
-注釋：
+註釋：
 [1] http://lwn.net/Articles/309298/
 

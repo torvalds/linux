@@ -12,12 +12,13 @@ struct ivpu_device;
 struct ivpu_file_priv;
 struct ivpu_addr_range;
 
-#define IVPU_MMU_PGTABLE_ENTRIES	512
+#define IVPU_MMU_PGTABLE_ENTRIES	512ull
 
 struct ivpu_mmu_pgtable {
-	u64             **pgd_cpu_entries[IVPU_MMU_PGTABLE_ENTRIES];
-	u64		*pgd_entries[IVPU_MMU_PGTABLE_ENTRIES];
-	u64		*pgd;
+	u64		***pte_ptrs[IVPU_MMU_PGTABLE_ENTRIES];
+	u64		**pmd_ptrs[IVPU_MMU_PGTABLE_ENTRIES];
+	u64		*pud_ptrs[IVPU_MMU_PGTABLE_ENTRIES];
+	u64		*pgd_dma_ptr;
 	dma_addr_t	pgd_dma;
 };
 
@@ -31,6 +32,8 @@ struct ivpu_mmu_context {
 
 int ivpu_mmu_global_context_init(struct ivpu_device *vdev);
 void ivpu_mmu_global_context_fini(struct ivpu_device *vdev);
+int ivpu_mmu_reserved_context_init(struct ivpu_device *vdev);
+void ivpu_mmu_reserved_context_fini(struct ivpu_device *vdev);
 
 int ivpu_mmu_user_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u32 ctx_id);
 void ivpu_mmu_user_context_fini(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);

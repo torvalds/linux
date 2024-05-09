@@ -21,7 +21,7 @@
 #include <linux/errno.h>
 #include <linux/rational.h>
 #include <linux/i2c.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_data/si5351.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -206,7 +206,7 @@ static bool si5351_regmap_is_writeable(struct device *dev, unsigned int reg)
 static const struct regmap_config si5351_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = 187,
 	.writeable_reg = si5351_regmap_is_writeable,
 	.volatile_reg = si5351_regmap_is_volatile,
@@ -1385,8 +1385,7 @@ MODULE_DEVICE_TABLE(i2c, si5351_i2c_ids);
 
 static int si5351_i2c_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_match_id(si5351_i2c_ids, client);
-	enum si5351_variant variant = (enum si5351_variant)id->driver_data;
+	enum si5351_variant variant;
 	struct si5351_platform_data *pdata;
 	struct si5351_driver_data *drvdata;
 	struct clk_init_data init;
@@ -1394,6 +1393,7 @@ static int si5351_i2c_probe(struct i2c_client *client)
 	u8 num_parents, num_clocks;
 	int ret, n;
 
+	variant = (enum si5351_variant)(uintptr_t)i2c_get_match_data(client);
 	ret = si5351_dt_parse(client, variant);
 	if (ret)
 		return ret;

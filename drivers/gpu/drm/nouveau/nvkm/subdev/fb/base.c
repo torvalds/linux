@@ -174,6 +174,18 @@ nvkm_fb_mem_unlock(struct nvkm_fb *fb)
 	return 0;
 }
 
+u64
+nvkm_fb_vidmem_size(struct nvkm_device *device)
+{
+	struct nvkm_fb *fb = device->fb;
+
+	if (fb && fb->func->vidmem.size)
+		return fb->func->vidmem.size(fb);
+
+	WARN_ON(1);
+	return 0;
+}
+
 static int
 nvkm_fb_init(struct nvkm_subdev *subdev)
 {

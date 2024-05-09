@@ -1432,7 +1432,7 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
-	bool unplugged = (udev->state == USB_STATE_NOTATTACHED) ? true : false;
+	bool unplugged = udev->state == USB_STATE_NOTATTACHED;
 
 	if (!hif_dev)
 		return;
@@ -1481,30 +1481,30 @@ static int ath9k_hif_usb_resume(struct usb_interface *interface)
 {
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
 	struct htc_target *htc_handle = hif_dev->htc_handle;
-	int ret;
 	const struct firmware *fw;
+	int ret;
 
 	ret = ath9k_hif_usb_alloc_urbs(hif_dev);
 	if (ret)
 		return ret;
 
-	if (hif_dev->flags & HIF_USB_READY) {
-		/* request cached firmware during suspend/resume cycle */
-		ret = request_firmware(&fw, hif_dev->fw_name,
-				       &hif_dev->udev->dev);
-		if (ret)
-			goto fail_resume;
-
-		hif_dev->fw_data = fw->data;
-		hif_dev->fw_size = fw->size;
-		ret = ath9k_hif_usb_download_fw(hif_dev);
-		release_firmware(fw);
-		if (ret)
-			goto fail_resume;
-	} else {
-		ath9k_hif_usb_dealloc_urbs(hif_dev);
-		return -EIO;
+	if (!(hif_dev->flags & HIF_USB_READY)) {
+		ret = -EIO;
+		goto fail_resume;
 	}
+
+	/* request cached firmware during suspend/resume cycle */
+	ret = request_firmware(&fw, hif_dev->fw_name,
+			       &hif_dev->udev->dev);
+	if (ret)
+		goto fail_resume;
+
+	hif_dev->fw_data = fw->data;
+	hif_dev->fw_size = fw->size;
+	ret = ath9k_hif_usb_download_fw(hif_dev);
+	release_firmware(fw);
+	if (ret)
+		goto fail_resume;
 
 	mdelay(100);
 

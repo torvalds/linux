@@ -86,8 +86,8 @@ static int send_remove(struct dlm_rsb *r);
 static int _request_lock(struct dlm_rsb *r, struct dlm_lkb *lkb);
 static int _cancel_lock(struct dlm_rsb *r, struct dlm_lkb *lkb);
 static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
-				    struct dlm_message *ms, bool local);
-static int receive_extralen(struct dlm_message *ms);
+				    const struct dlm_message *ms, bool local);
+static int receive_extralen(const struct dlm_message *ms);
 static void do_purge(struct dlm_ls *ls, int nodeid, int pid);
 static void toss_rsb(struct kref *kref);
 
@@ -984,8 +984,8 @@ static void __dlm_master_lookup(struct dlm_ls *ls, struct dlm_rsb *r, int our_no
  * . dlm_master_lookup RECOVER_MASTER (fix_master 1, from_master 0)
  */
 
-int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, char *name, int len,
-		      unsigned int flags, int *r_nodeid, int *result)
+int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
+		      int len, unsigned int flags, int *r_nodeid, int *result)
 {
 	struct dlm_rsb *r = NULL;
 	uint32_t hash, b;
@@ -1106,7 +1106,7 @@ static void dlm_dump_rsb_hash(struct dlm_ls *ls, uint32_t hash)
 	}
 }
 
-void dlm_dump_rsb_name(struct dlm_ls *ls, char *name, int len)
+void dlm_dump_rsb_name(struct dlm_ls *ls, const char *name, int len)
 {
 	struct dlm_rsb *r = NULL;
 	uint32_t hash, b;
@@ -1459,7 +1459,7 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
    set RESEND and dlm_recover_waiters_post() */
 
 static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
-				struct dlm_message *ms)
+				const struct dlm_message *ms)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int overlap_done = 0;
@@ -1557,8 +1557,8 @@ static int remove_from_waiters(struct dlm_lkb *lkb, int mstype)
 /* Handles situations where we might be processing a "fake" or "local" reply in
    which we can't try to take waiters_mutex again. */
 
-static int remove_from_waiters_ms(struct dlm_lkb *lkb, struct dlm_message *ms,
-				  bool local)
+static int remove_from_waiters_ms(struct dlm_lkb *lkb,
+				  const struct dlm_message *ms, bool local)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int error;
@@ -1800,7 +1800,7 @@ static void set_lvb_unlock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 /* lkb is process copy (pc) */
 
 static void set_lvb_lock_pc(struct dlm_rsb *r, struct dlm_lkb *lkb,
-			    struct dlm_message *ms)
+			    const struct dlm_message *ms)
 {
 	int b;
 
@@ -1907,7 +1907,7 @@ static void grant_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 }
 
 static void grant_lock_pc(struct dlm_rsb *r, struct dlm_lkb *lkb,
-			  struct dlm_message *ms)
+			  const struct dlm_message *ms)
 {
 	set_lvb_lock_pc(r, lkb, ms);
 	_grant_lock(r, lkb);
@@ -1945,7 +1945,7 @@ static void munge_demoted(struct dlm_lkb *lkb)
 	lkb->lkb_grmode = DLM_LOCK_NL;
 }
 
-static void munge_altmode(struct dlm_lkb *lkb, struct dlm_message *ms)
+static void munge_altmode(struct dlm_lkb *lkb, const struct dlm_message *ms)
 {
 	if (ms->m_type != cpu_to_le32(DLM_MSG_REQUEST_REPLY) &&
 	    ms->m_type != cpu_to_le32(DLM_MSG_GRANT)) {
@@ -3641,8 +3641,9 @@ static int send_cancel_reply(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 	return send_common_reply(r, lkb, DLM_MSG_CANCEL_REPLY, rv);
 }
 
-static int send_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms_in,
-			     int ret_nodeid, int rv)
+static int send_lookup_reply(struct dlm_ls *ls,
+			     const struct dlm_message *ms_in, int ret_nodeid,
+			     int rv)
 {
 	struct dlm_rsb *r = &ls->ls_local_rsb;
 	struct dlm_message *ms;
@@ -3667,14 +3668,15 @@ static int send_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms_in,
    of message, unlike the send side where we can safely send everything about
    the lkb for any type of message */
 
-static void receive_flags(struct dlm_lkb *lkb, struct dlm_message *ms)
+static void receive_flags(struct dlm_lkb *lkb, const struct dlm_message *ms)
 {
 	lkb->lkb_exflags = le32_to_cpu(ms->m_exflags);
 	dlm_set_sbflags_val(lkb, le32_to_cpu(ms->m_sbflags));
 	dlm_set_dflags_val(lkb, le32_to_cpu(ms->m_flags));
 }
 
-static void receive_flags_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
+static void receive_flags_reply(struct dlm_lkb *lkb,
+				const struct dlm_message *ms,
 				bool local)
 {
 	if (local)
@@ -3684,14 +3686,14 @@ static void receive_flags_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
 	dlm_set_dflags_val(lkb, le32_to_cpu(ms->m_flags));
 }
 
-static int receive_extralen(struct dlm_message *ms)
+static int receive_extralen(const struct dlm_message *ms)
 {
 	return (le16_to_cpu(ms->m_header.h_length) -
 		sizeof(struct dlm_message));
 }
 
 static int receive_lvb(struct dlm_ls *ls, struct dlm_lkb *lkb,
-		       struct dlm_message *ms)
+		       const struct dlm_message *ms)
 {
 	int len;
 
@@ -3719,7 +3721,7 @@ static void fake_astfn(void *astparam)
 }
 
 static int receive_request_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
-				struct dlm_message *ms)
+				const struct dlm_message *ms)
 {
 	lkb->lkb_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
 	lkb->lkb_ownpid = le32_to_cpu(ms->m_pid);
@@ -3741,7 +3743,7 @@ static int receive_request_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 }
 
 static int receive_convert_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
-				struct dlm_message *ms)
+				const struct dlm_message *ms)
 {
 	if (lkb->lkb_status != DLM_LKSTS_GRANTED)
 		return -EBUSY;
@@ -3756,7 +3758,7 @@ static int receive_convert_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 }
 
 static int receive_unlock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
-			       struct dlm_message *ms)
+			       const struct dlm_message *ms)
 {
 	if (receive_lvb(ls, lkb, ms))
 		return -ENOMEM;
@@ -3766,7 +3768,7 @@ static int receive_unlock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 /* We fill in the local-lkb fields with the info that send_xxxx_reply()
    uses to send a reply and that the remote end uses to process the reply. */
 
-static void setup_local_lkb(struct dlm_ls *ls, struct dlm_message *ms)
+static void setup_local_lkb(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb = &ls->ls_local_lkb;
 	lkb->lkb_nodeid = le32_to_cpu(ms->m_header.h_nodeid);
@@ -3776,7 +3778,7 @@ static void setup_local_lkb(struct dlm_ls *ls, struct dlm_message *ms)
 /* This is called after the rsb is locked so that we can safely inspect
    fields in the lkb. */
 
-static int validate_message(struct dlm_lkb *lkb, struct dlm_message *ms)
+static int validate_message(struct dlm_lkb *lkb, const struct dlm_message *ms)
 {
 	int from = le32_to_cpu(ms->m_header.h_nodeid);
 	int error = 0;
@@ -3828,7 +3830,7 @@ out:
 	return error;
 }
 
-static int receive_request(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_request(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
@@ -3907,7 +3909,7 @@ static int receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 	return error;
 }
 
-static int receive_convert(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_convert(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
@@ -3963,7 +3965,7 @@ static int receive_convert(struct dlm_ls *ls, struct dlm_message *ms)
 	return error;
 }
 
-static int receive_unlock(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_unlock(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
@@ -4015,7 +4017,7 @@ static int receive_unlock(struct dlm_ls *ls, struct dlm_message *ms)
 	return error;
 }
 
-static int receive_cancel(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_cancel(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
@@ -4051,7 +4053,7 @@ static int receive_cancel(struct dlm_ls *ls, struct dlm_message *ms)
 	return error;
 }
 
-static int receive_grant(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_grant(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
@@ -4082,7 +4084,7 @@ static int receive_grant(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 }
 
-static int receive_bast(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_bast(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
@@ -4110,7 +4112,7 @@ static int receive_bast(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 }
 
-static void receive_lookup(struct dlm_ls *ls, struct dlm_message *ms)
+static void receive_lookup(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	int len, error, ret_nodeid, from_nodeid, our_nodeid;
 
@@ -4130,7 +4132,7 @@ static void receive_lookup(struct dlm_ls *ls, struct dlm_message *ms)
 	send_lookup_reply(ls, ms, ret_nodeid, error);
 }
 
-static void receive_remove(struct dlm_ls *ls, struct dlm_message *ms)
+static void receive_remove(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	char name[DLM_RESNAME_MAXLEN+1];
 	struct dlm_rsb *r;
@@ -4218,12 +4220,13 @@ static void receive_remove(struct dlm_ls *ls, struct dlm_message *ms)
 	}
 }
 
-static void receive_purge(struct dlm_ls *ls, struct dlm_message *ms)
+static void receive_purge(struct dlm_ls *ls, const struct dlm_message *ms)
 {
 	do_purge(ls, le32_to_cpu(ms->m_nodeid), le32_to_cpu(ms->m_pid));
 }
 
-static int receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_request_reply(struct dlm_ls *ls,
+				 const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
@@ -4345,7 +4348,7 @@ static int receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 }
 
 static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
-				    struct dlm_message *ms, bool local)
+				    const struct dlm_message *ms, bool local)
 {
 	/* this is the value returned from do_convert() on the master */
 	switch (from_dlm_errno(le32_to_cpu(ms->m_result))) {
@@ -4388,8 +4391,8 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	}
 }
 
-static void _receive_convert_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
-				   bool local)
+static void _receive_convert_reply(struct dlm_lkb *lkb,
+				   const struct dlm_message *ms, bool local)
 {
 	struct dlm_rsb *r = lkb->lkb_resource;
 	int error;
@@ -4412,7 +4415,8 @@ static void _receive_convert_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
 	put_rsb(r);
 }
 
-static int receive_convert_reply(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_convert_reply(struct dlm_ls *ls,
+				 const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	int error;
@@ -4426,8 +4430,8 @@ static int receive_convert_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 }
 
-static void _receive_unlock_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
-				  bool local)
+static void _receive_unlock_reply(struct dlm_lkb *lkb,
+				  const struct dlm_message *ms, bool local)
 {
 	struct dlm_rsb *r = lkb->lkb_resource;
 	int error;
@@ -4463,7 +4467,8 @@ static void _receive_unlock_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
 	put_rsb(r);
 }
 
-static int receive_unlock_reply(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_unlock_reply(struct dlm_ls *ls,
+				const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	int error;
@@ -4477,8 +4482,8 @@ static int receive_unlock_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 }
 
-static void _receive_cancel_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
-				  bool local)
+static void _receive_cancel_reply(struct dlm_lkb *lkb,
+				  const struct dlm_message *ms, bool local)
 {
 	struct dlm_rsb *r = lkb->lkb_resource;
 	int error;
@@ -4515,7 +4520,8 @@ static void _receive_cancel_reply(struct dlm_lkb *lkb, struct dlm_message *ms,
 	put_rsb(r);
 }
 
-static int receive_cancel_reply(struct dlm_ls *ls, struct dlm_message *ms)
+static int receive_cancel_reply(struct dlm_ls *ls,
+				const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	int error;
@@ -4529,7 +4535,8 @@ static int receive_cancel_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 }
 
-static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
+static void receive_lookup_reply(struct dlm_ls *ls,
+				 const struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
@@ -4608,7 +4615,7 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	dlm_put_lkb(lkb);
 }
 
-static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
+static void _receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
 			     uint32_t saved_seq)
 {
 	int error = 0, noent = 0;
@@ -4744,7 +4751,7 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
    requestqueue, to processing all the saved messages, to processing new
    messages as they arrive. */
 
-static void dlm_receive_message(struct dlm_ls *ls, struct dlm_message *ms,
+static void dlm_receive_message(struct dlm_ls *ls, const struct dlm_message *ms,
 				int nodeid)
 {
 	if (dlm_locking_stopped(ls)) {
@@ -4767,7 +4774,7 @@ static void dlm_receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 /* This is called by dlm_recoverd to process messages that were saved on
    the requestqueue. */
 
-void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms,
+void dlm_receive_message_saved(struct dlm_ls *ls, const struct dlm_message *ms,
 			       uint32_t saved_seq)
 {
 	_receive_message(ls, ms, saved_seq);
@@ -4778,9 +4785,9 @@ void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms,
    standard locking activity) or an RCOM (recovery message sent as part of
    lockspace recovery). */
 
-void dlm_receive_buffer(union dlm_packet *p, int nodeid)
+void dlm_receive_buffer(const union dlm_packet *p, int nodeid)
 {
-	struct dlm_header *hd = &p->header;
+	const struct dlm_header *hd = &p->header;
 	struct dlm_ls *ls;
 	int type = 0;
 
@@ -5334,7 +5341,7 @@ static struct dlm_lkb *search_remid(struct dlm_rsb *r, int nodeid,
 
 /* needs at least dlm_rcom + rcom_lock */
 static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
-				  struct dlm_rsb *r, struct dlm_rcom *rc)
+				  struct dlm_rsb *r, const struct dlm_rcom *rc)
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
 
@@ -5384,7 +5391,8 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
    back the rcom_lock struct we got but with the remid field filled in. */
 
 /* needs at least dlm_rcom + rcom_lock */
-int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
+int dlm_recover_master_copy(struct dlm_ls *ls, const struct dlm_rcom *rc,
+			    __le32 *rl_remid, __le32 *rl_result)
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
 	struct dlm_rsb *r;
@@ -5392,6 +5400,9 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	uint32_t remid = 0;
 	int from_nodeid = le32_to_cpu(rc->rc_header.h_nodeid);
 	int error;
+
+	/* init rl_remid with rcom lock rl_remid */
+	*rl_remid = rl->rl_remid;
 
 	if (rl->rl_parent_lkid) {
 		error = -EOPNOTSUPP;
@@ -5448,7 +5459,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
  out_remid:
 	/* this is the new value returned to the lock holder for
 	   saving in its process-copy lkb */
-	rl->rl_remid = cpu_to_le32(lkb->lkb_id);
+	*rl_remid = cpu_to_le32(lkb->lkb_id);
 
 	lkb->lkb_recover_seq = ls->ls_recover_seq;
 
@@ -5459,12 +5470,13 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	if (error && error != -EEXIST)
 		log_rinfo(ls, "dlm_recover_master_copy remote %d %x error %d",
 			  from_nodeid, remid, error);
-	rl->rl_result = cpu_to_le32(error);
+	*rl_result = cpu_to_le32(error);
 	return error;
 }
 
 /* needs at least dlm_rcom + rcom_lock */
-int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
+int dlm_recover_process_copy(struct dlm_ls *ls, const struct dlm_rcom *rc,
+			     uint64_t seq)
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
 	struct dlm_rsb *r;
@@ -5509,7 +5521,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 			  lkid, le32_to_cpu(rc->rc_header.h_nodeid), remid,
 			  result);
 	
-		dlm_send_rcom_lock(r, lkb);
+		dlm_send_rcom_lock(r, lkb, seq);
 		goto out;
 	case -EEXIST:
 	case 0:

@@ -130,7 +130,7 @@ static int __gfs2_jdata_write_folio(struct folio *folio,
 	if (folio_test_checked(folio)) {
 		folio_clear_checked(folio);
 		if (!folio_buffers(folio)) {
-			folio_create_empty_buffers(folio,
+			create_empty_buffers(folio,
 					inode->i_sb->s_blocksize,
 					BIT(BH_Dirty)|BIT(BH_Uptodate));
 		}
@@ -183,13 +183,13 @@ static int gfs2_writepages(struct address_space *mapping,
 	int ret;
 
 	/*
-	 * Even if we didn't write any pages here, we might still be holding
+	 * Even if we didn't write enough pages here, we might still be holding
 	 * dirty pages in the ail. We forcibly flush the ail because we don't
 	 * want balance_dirty_pages() to loop indefinitely trying to write out
 	 * pages held in the ail that it can't find.
 	 */
 	ret = iomap_writepages(mapping, wbc, &wpc, &gfs2_writeback_ops);
-	if (ret == 0)
+	if (ret == 0 && wbc->nr_to_write > 0)
 		set_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags);
 	return ret;
 }
@@ -272,8 +272,7 @@ continue_unlock:
 				 * not be suitable for data integrity
 				 * writeout).
 				 */
-				*done_index = folio->index +
-					folio_nr_pages(folio);
+				*done_index = folio_next_index(folio);
 				ret = 1;
 				break;
 			}
@@ -432,10 +431,10 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	if (error)
 		return error;
 
-	kaddr = kmap_atomic(page);
+	kaddr = kmap_local_page(page);
 	memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
 	memset(kaddr + dsize, 0, PAGE_SIZE - dsize);
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 	flush_dcache_page(page);
 	brelse(dibh);
 	SetPageUptodate(page);
@@ -489,18 +488,18 @@ int gfs2_internal_read(struct gfs2_inode *ip, char *buf, loff_t *pos,
 	unsigned copied = 0;
 	unsigned amt;
 	struct page *page;
-	void *p;
 
 	do {
+		page = read_cache_page(mapping, index, gfs2_read_folio, NULL);
+		if (IS_ERR(page)) {
+			if (PTR_ERR(page) == -EINTR)
+				continue;
+			return PTR_ERR(page);
+		}
 		amt = size - copied;
 		if (offset + size > PAGE_SIZE)
 			amt = PAGE_SIZE - offset;
-		page = read_cache_page(mapping, index, gfs2_read_folio, NULL);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
-		p = kmap_atomic(page);
-		memcpy(buf + copied, p + offset, amt);
-		kunmap_atomic(p);
+		memcpy_from_page(buf + copied, page, offset, amt);
 		put_page(page);
 		copied += amt;
 		index++;
@@ -747,11 +746,10 @@ static const struct address_space_operations gfs2_aops = {
 	.writepages = gfs2_writepages,
 	.read_folio = gfs2_read_folio,
 	.readahead = gfs2_readahead,
-	.dirty_folio = filemap_dirty_folio,
+	.dirty_folio = iomap_dirty_folio,
 	.release_folio = iomap_release_folio,
 	.invalidate_folio = iomap_invalidate_folio,
 	.bmap = gfs2_bmap,
-	.direct_IO = noop_direct_IO,
 	.migrate_folio = filemap_migrate_folio,
 	.is_partially_uptodate = iomap_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,

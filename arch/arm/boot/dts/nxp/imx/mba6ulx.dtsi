@@ -35,22 +35,25 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_buttons>;
 
-		button1 {
+		button-1 {
 			label = "s14";
 			linux,code = <KEY_1>;
 			gpios = <&expander_in0 0 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
-		button2 {
+		button-2 {
 			label = "s6";
 			linux,code = <KEY_2>;
 			gpios = <&expander_in0 1 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
-		button3 {
+		button-3 {
 			label = "s7";
 			linux,code = <KEY_3>;
 			gpios = <&expander_in0 2 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
 		power-button {
@@ -277,10 +280,9 @@
 		reg = <0x41>;
 		interrupts = <21 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-parent = <&gpio4>;
-		interrupt-controller;
 		status = "disabled";
 
-		stmpe_touchscreen {
+		touchscreen {
 			compatible = "st,stmpe-ts";
 			st,adc-freq = <1>;      /* 3.25 MHz ADC clock speed */
 			st,ave-ctrl = <3>;      /* 8 sample average control */

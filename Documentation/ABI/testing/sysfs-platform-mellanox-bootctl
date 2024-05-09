@@ -84,3 +84,69 @@ Description:
 		The file used to write BlueField boot log with the format
                 "[INFO|WARN|ERR|ASSERT ]<msg>". Log level 'INFO' is used by
                 default if not specified.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/oob_mac
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "oob_mac" sysfs attribute holds the MAC address for
+                the out-of-band 1Gbps Ethernet port.  This MAC address is
+                provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/opn
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "opn" sysfs attribute holds the board's part number.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/sku
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "sku" sysfs attribute holds the board's SKU number.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/modl
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "modl" sysfs attribute holds the board's model number.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/sn
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "sn" sysfs attribute holds the board's serial number.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/uuid
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "uuid" sysfs attribute holds the board's UUID.
+                This value is provided by the manufacturing team.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/rev
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "rev" sysfs attribute holds the board's revision.
+                This value is provided on a board-level label.
+
+What:		/sys/bus/platform/devices/MLNXBF04:00/mfg_lock
+Date:		August 2023
+KernelVersion:	6.5
+Contact:	"David Thompson <davthompson@nvidia.com>"
+Description:
+		The "mfg_lock" sysfs attribute is write-only.
+                A successful write to this attribute will latch the
+                board-level attributes into EEPROM, making them read-only.

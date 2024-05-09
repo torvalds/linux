@@ -1450,7 +1450,6 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id;
 	struct fimc_lite *fimc;
-	struct resource *res;
 	int ret;
 	int irq;
 
@@ -1479,8 +1478,7 @@ static int fimc_lite_probe(struct platform_device *pdev)
 	spin_lock_init(&fimc->slock);
 	mutex_init(&fimc->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fimc->regs = devm_ioremap_resource(dev, res);
+	fimc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(fimc->regs))
 		return PTR_ERR(fimc->regs);
 
@@ -1621,7 +1619,7 @@ static const struct dev_pm_ops fimc_lite_pm_ops = {
 			   NULL)
 };
 
-/* EXYNOS4412 */
+/* EXYNOS4212, EXYNOS4412 */
 static struct flite_drvdata fimc_lite_drvdata_exynos4 = {
 	.max_width		= 8192,
 	.max_height		= 8192,

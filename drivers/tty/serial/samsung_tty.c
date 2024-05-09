@@ -24,6 +24,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
@@ -758,9 +759,10 @@ finish:
 static void s3c24xx_serial_rx_drain_fifo(struct s3c24xx_uart_port *ourport)
 {
 	struct uart_port *port = &ourport->port;
-	unsigned int ufcon, ch, flag, ufstat, uerstat;
+	unsigned int ufcon, ufstat, uerstat;
 	unsigned int fifocnt = 0;
 	int max_count = port->fifosize;
+	u8 ch, flag;
 
 	while (max_count-- > 0) {
 		/*
@@ -1459,8 +1461,12 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 			continue;
 
 		rate = clk_get_rate(clk);
-		if (!rate)
+		if (!rate) {
+			dev_err(ourport->port.dev,
+				"Failed to get clock rate for %s.\n", clkname);
+			clk_put(clk);
 			continue;
+		}
 
 		if (ourport->info->has_divslot) {
 			unsigned long div = rate / req_baud;
@@ -1481,15 +1487,21 @@ static unsigned int s3c24xx_serial_getclk(struct s3c24xx_uart_port *ourport,
 		}
 		quot--;
 
-		calc_deviation = req_baud - baud;
-		if (calc_deviation < 0)
-			calc_deviation = -calc_deviation;
+		calc_deviation = abs(req_baud - baud);
 
 		if (calc_deviation < deviation) {
+			/*
+			 * If we find a better clk, release the previous one, if
+			 * any.
+			 */
+			if (!IS_ERR(*best_clk))
+				clk_put(*best_clk);
 			*best_clk = clk;
 			best_quot = quot;
 			*clk_num = cnt;
 			deviation = calc_deviation;
+		} else {
+			clk_put(clk);
 		}
 	}
 
@@ -2262,9 +2274,8 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops s3c24xx_serial_pm_ops = {
-	.suspend = s3c24xx_serial_suspend,
-	.resume = s3c24xx_serial_resume,
-	.resume_noirq = s3c24xx_serial_resume_noirq,
+	SET_SYSTEM_SLEEP_PM_OPS(s3c24xx_serial_suspend, s3c24xx_serial_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, s3c24xx_serial_resume_noirq)
 };
 #define SERIAL_SAMSUNG_PM_OPS	(&s3c24xx_serial_pm_ops)
 

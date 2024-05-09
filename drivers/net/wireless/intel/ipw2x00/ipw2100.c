@@ -317,8 +317,6 @@ static int ipw2100_get_firmware(struct ipw2100_priv *priv,
 				struct ipw2100_fw *fw);
 static int ipw2100_get_fwversion(struct ipw2100_priv *priv, char *buf,
 				 size_t max);
-static int ipw2100_get_ucodeversion(struct ipw2100_priv *priv, char *buf,
-				    size_t max);
 static void ipw2100_release_firmware(struct ipw2100_priv *priv,
 				     struct ipw2100_fw *fw);
 static int ipw2100_ucode_download(struct ipw2100_priv *priv,
@@ -5894,17 +5892,14 @@ static void ipw_ethtool_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
 	struct ipw2100_priv *priv = libipw_priv(dev);
-	char fw_ver[64], ucode_ver[64];
+	char fw_ver[64];
 
 	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strscpy(info->version, DRV_VERSION, sizeof(info->version));
 
 	ipw2100_get_fwversion(priv, fw_ver, sizeof(fw_ver));
-	ipw2100_get_ucodeversion(priv, ucode_ver, sizeof(ucode_ver));
 
-	snprintf(info->fw_version, sizeof(info->fw_version), "%s:%d:%s",
-		 fw_ver, priv->eeprom_version, ucode_ver);
-
+	strscpy(info->fw_version, fw_ver, sizeof(info->fw_version));
 	strscpy(info->bus_info, pci_name(priv->pci_dev),
 		sizeof(info->bus_info));
 }
@@ -8404,17 +8399,6 @@ static int ipw2100_get_fwversion(struct ipw2100_priv *priv, char *buf,
 		buf[i] = ver[i];
 	buf[i] = '\0';
 	return tmp;
-}
-
-static int ipw2100_get_ucodeversion(struct ipw2100_priv *priv, char *buf,
-				    size_t max)
-{
-	u32 ver;
-	u32 len = sizeof(ver);
-	/* microcode version is a 32 bit integer */
-	if (ipw2100_get_ordinal(priv, IPW_ORD_UCODE_VERSION, &ver, &len))
-		return -EIO;
-	return snprintf(buf, max, "%08X", ver);
 }
 
 /*

@@ -46,7 +46,7 @@
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
-#include "dce80/dce80_hw_sequencer.h"
+#include "dce80/dce80_hwseq.h"
 #include "dce100/dce100_resource.h"
 #include "dce/dce_panel_cntl.h"
 
@@ -58,12 +58,12 @@
 #include "dce/dce_i2c.h"
 /* TODO remove this include */
 
-#include "dce80_resource.h"
-
 #ifndef mmMC_HUB_RDREQ_DMIF_LIMIT
 #include "gmc/gmc_7_1_d.h"
 #include "gmc/gmc_7_1_sh_mask.h"
 #endif
+
+#include "dce80/dce80_resource.h"
 
 #ifndef mmDP_DPHY_INTERNAL_CTRL
 #define mmDP_DPHY_INTERNAL_CTRL                         0x1CDE

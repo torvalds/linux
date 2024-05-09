@@ -59,6 +59,7 @@ static void axp20x_i2c_remove(struct i2c_client *i2c)
 #ifdef CONFIG_OF
 static const struct of_device_id axp20x_i2c_of_match[] = {
 	{ .compatible = "x-powers,axp152", .data = (void *)AXP152_ID },
+	{ .compatible = "x-powers,axp192", .data = (void *)AXP192_ID },
 	{ .compatible = "x-powers,axp202", .data = (void *)AXP202_ID },
 	{ .compatible = "x-powers,axp209", .data = (void *)AXP209_ID },
 	{ .compatible = "x-powers,axp221", .data = (void *)AXP221_ID },
@@ -74,6 +75,7 @@ MODULE_DEVICE_TABLE(of, axp20x_i2c_of_match);
 
 static const struct i2c_device_id axp20x_i2c_id[] = {
 	{ "axp152", 0 },
+	{ "axp192", 0 },
 	{ "axp202", 0 },
 	{ "axp209", 0 },
 	{ "axp221", 0 },
@@ -103,7 +105,7 @@ static struct i2c_driver axp20x_i2c_driver = {
 		.of_match_table	= of_match_ptr(axp20x_i2c_of_match),
 		.acpi_match_table = ACPI_PTR(axp20x_i2c_acpi_match),
 	},
-	.probe_new	= axp20x_i2c_probe,
+	.probe		= axp20x_i2c_probe,
 	.remove		= axp20x_i2c_remove,
 	.id_table	= axp20x_i2c_id,
 };

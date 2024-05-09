@@ -58,6 +58,7 @@ struct i915_perf_group;
 
 typedef u32 intel_engine_mask_t;
 #define ALL_ENGINES ((intel_engine_mask_t)~0ul)
+#define VIRTUAL_ENGINES BIT(BITS_PER_TYPE(intel_engine_mask_t) - 1)
 
 struct intel_hw_status_page {
 	struct list_head timelines;
@@ -401,7 +402,15 @@ struct intel_engine_cs {
 
 	unsigned long context_tag;
 
-	struct rb_node uabi_node;
+	/*
+	 * The type evolves during initialization, see related comment for
+	 * struct drm_i915_private's uabi_engines member.
+	 */
+	union {
+		struct llist_node uabi_llist;
+		struct list_head uabi_list;
+		struct rb_node uabi_node;
+	};
 
 	struct intel_sseu sseu;
 
@@ -415,6 +424,9 @@ struct intel_engine_cs {
 	struct llist_head barrier_tasks;
 
 	struct intel_context *kernel_context; /* pinned */
+	struct intel_context *bind_context; /* pinned, only for BCS0 */
+	/* mark the bind context's availability status */
+	bool bind_context_ready;
 
 	/**
 	 * pinned_contexts_list: List of pinned contexts. This list is only

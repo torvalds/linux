@@ -68,6 +68,10 @@ The following sections describe the properties of the most modern ``genetlink``
 schema. See the documentation of :doc:`genetlink-c <c-code-gen>`
 for information on how C names are derived from name properties.
 
+See also :ref:`Documentation/core-api/netlink.rst <kernel_netlink>` for
+information on the Netlink specification properties that are only relevant to
+the kernel space and not part of the user space API.
+
 genetlink
 =========
 
@@ -81,11 +85,6 @@ name
 
 Name of the family. Name identifies the family in a unique way, since
 the Family IDs are allocated dynamically.
-
-version
-~~~~~~~
-
-Generic Netlink family version, default is 1.
 
 protocol
 ~~~~~~~~
@@ -180,6 +179,8 @@ attributes
 
 List of attributes in the set.
 
+.. _attribute_properties:
+
 Attribute properties
 --------------------
 
@@ -263,6 +264,13 @@ fully defined as attributes (in a bona fide attribute space). For instance
 a C array of u32 values can be specified with ``type: binary`` and
 ``sub-type: u32``. Binary types and legacy array formats are described in
 more detail in :doc:`genetlink-legacy`.
+
+display-hint
+~~~~~~~~~~~~
+
+Optional format indicator that is intended only for choosing the right
+formatting mechanism when displaying values of this type. Currently supported
+hints are ``hex``, ``mac``, ``fddi``, ``ipv4``, ``ipv6`` and ``uuid``.
 
 operations
 ----------
@@ -395,10 +403,21 @@ This section describes the attribute types supported by the ``genetlink``
 compatibility level. Refer to documentation of different levels for additional
 attribute types.
 
-Scalar integer types
+Common integer types
 --------------------
 
-Fixed-width integer types:
+``sint`` and ``uint`` represent signed and unsigned 64 bit integers.
+If the value can fit on 32 bits only 32 bits are carried in netlink
+messages, otherwise full 64 bits are carried. Note that the payload
+is only aligned to 4B, so the full 64 bit value may be unaligned!
+
+Common integer types should be preferred over fix-width types in majority
+of cases.
+
+Fix-width integer types
+-----------------------
+
+Fixed-width integer types include:
 ``u8``, ``u16``, ``u32``, ``u64``, ``s8``, ``s16``, ``s32``, ``s64``.
 
 Note that types smaller than 32 bit should be avoided as using them
@@ -407,6 +426,9 @@ See :ref:`pad_type` for padding of 64 bit attributes.
 
 The payload of the attribute is the integer in host order unless ``byte-order``
 specifies otherwise.
+
+64 bit values are usually aligned by the kernel but it is recommended
+that the user space is able to deal with unaligned values.
 
 .. _pad_type:
 

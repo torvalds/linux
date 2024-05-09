@@ -157,7 +157,7 @@ config I2C_I801
 	    Emmitsburg (PCH)
 	    Alder Lake (PCH)
 	    Raptor Lake (PCH)
-	    Meteor Lake (SOC)
+	    Meteor Lake (SOC and PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -1025,7 +1025,7 @@ config I2C_RZV2M
 	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for the
-	  Renesas RZ/V2M  I2C interface.
+	  Renesas RZ/V2M I2C interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-rzv2m.
@@ -1384,10 +1384,10 @@ config I2C_ICY
 
 config I2C_MLXCPLD
 	tristate "Mellanox I2C driver"
-	depends on X86_64 || COMPILE_TEST
+	depends on X86_64 || (ARM64 && ACPI) || COMPILE_TEST
 	help
 	  This exposes the Mellanox platform I2C busses to the linux I2C layer
-	  for X86 based systems.
+	  for X86 and ARM64/ACPI based systems.
 	  Controller is implemented as CPLD logic.
 
 	  This driver can also be built as a module. If so, the module will be

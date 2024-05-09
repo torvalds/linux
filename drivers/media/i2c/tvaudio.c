@@ -2095,7 +2095,7 @@ static struct i2c_driver tvaudio_driver = {
 	.driver = {
 		.name	= "tvaudio",
 	},
-	.probe_new	= tvaudio_probe,
+	.probe		= tvaudio_probe,
 	.remove		= tvaudio_remove,
 	.id_table	= tvaudio_id,
 };

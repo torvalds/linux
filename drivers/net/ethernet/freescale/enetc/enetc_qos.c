@@ -443,7 +443,7 @@ struct enetc_psfp_gate {
 	u32 num_entries;
 	refcount_t refcount;
 	struct hlist_node node;
-	struct action_gate_entry entries[];
+	struct action_gate_entry entries[] __counted_by(num_entries);
 };
 
 /* Only enable the green color frame now
@@ -483,13 +483,13 @@ struct enetc_psfp {
 static struct actions_fwd enetc_act_fwd[] = {
 	{
 		BIT(FLOW_ACTION_GATE),
-		BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS),
+		BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS),
 		FILTER_ACTION_TYPE_PSFP
 	},
 	{
 		BIT(FLOW_ACTION_POLICE) |
 		BIT(FLOW_ACTION_GATE),
-		BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS),
+		BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS),
 		FILTER_ACTION_TYPE_PSFP
 	},
 	/* example for ACL actions */
@@ -1069,8 +1069,8 @@ revert_sid:
 	return err;
 }
 
-static struct actions_fwd *enetc_check_flow_actions(u64 acts,
-						    unsigned int inputkeys)
+static struct actions_fwd *
+enetc_check_flow_actions(u64 acts, unsigned long long inputkeys)
 {
 	int i;
 

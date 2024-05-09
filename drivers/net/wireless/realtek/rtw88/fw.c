@@ -17,6 +17,79 @@
 #include "phy.h"
 #include "mac.h"
 
+static const struct rtw_hw_reg_desc fw_h2c_regs[] = {
+	{REG_FWIMR, MASKDWORD, "FWIMR"},
+	{REG_FWIMR, BIT_FS_H2CCMD_INT_EN, "FWIMR enable"},
+	{REG_FWISR, MASKDWORD, "FWISR"},
+	{REG_FWISR, BIT_FS_H2CCMD_INT, "FWISR enable"},
+	{REG_HMETFR, BIT_INT_BOX_ALL, "BoxBitMap"},
+	{REG_HMEBOX0, MASKDWORD, "MSG 0"},
+	{REG_HMEBOX0_EX, MASKDWORD, "MSG_EX 0"},
+	{REG_HMEBOX1, MASKDWORD, "MSG 1"},
+	{REG_HMEBOX1_EX, MASKDWORD, "MSG_EX 1"},
+	{REG_HMEBOX2, MASKDWORD, "MSG 2"},
+	{REG_HMEBOX2_EX, MASKDWORD, "MSG_EX 2"},
+	{REG_HMEBOX3, MASKDWORD, "MSG 3"},
+	{REG_HMEBOX3_EX, MASKDWORD, "MSG_EX 3"},
+	{REG_FT1IMR, MASKDWORD, "FT1IMR"},
+	{REG_FT1IMR, BIT_FS_H2C_CMD_OK_INT_EN, "FT1IMR enable"},
+	{REG_FT1ISR, MASKDWORD, "FT1ISR"},
+	{REG_FT1ISR, BIT_FS_H2C_CMD_OK_INT, "FT1ISR enable "},
+};
+
+static const struct rtw_hw_reg_desc fw_c2h_regs[] = {
+	{REG_FWIMR, MASKDWORD, "FWIMR"},
+	{REG_FWIMR, BIT_FS_H2CCMD_INT_EN, "CPWM"},
+	{REG_FWIMR, BIT_FS_HRCV_INT_EN, "HRECV"},
+	{REG_FWISR, MASKDWORD, "FWISR"},
+	{REG_FWISR, BIT_FS_H2CCMD_INT, "CPWM"},
+	{REG_FWISR, BIT_FS_HRCV_INT, "HRECV"},
+	{REG_CPWM, MASKDWORD, "REG_CPWM"},
+};
+
+static const struct rtw_hw_reg_desc fw_core_regs[] = {
+	{REG_ARFR2_V1, MASKDWORD, "EPC"},
+	{REG_ARFRH2_V1, MASKDWORD, "BADADDR"},
+	{REG_ARFR3_V1, MASKDWORD, "CAUSE"},
+	{REG_ARFR3_V1, BIT_EXC_CODE, "ExcCode"},
+	{REG_ARFRH3_V1, MASKDWORD, "Status"},
+	{REG_ARFR4, MASKDWORD, "SP"},
+	{REG_ARFRH4, MASKDWORD, "RA"},
+	{REG_FW_DBG6, MASKDWORD, "DBG 6"},
+	{REG_FW_DBG7, MASKDWORD, "DBG 7"},
+};
+
+static void _rtw_fw_dump_dbg_info(struct rtw_dev *rtwdev,
+				  const struct rtw_hw_reg_desc regs[], u32 size)
+{
+	const struct rtw_hw_reg_desc *reg;
+	u32 val;
+	int i;
+
+	for (i = 0;  i < size; i++) {
+		reg = &regs[i];
+		val = rtw_read32_mask(rtwdev, reg->addr, reg->mask);
+
+		rtw_dbg(rtwdev, RTW_DBG_FW, "[%s]addr:0x%x mask:0x%x value:0x%x\n",
+			reg->desc, reg->addr, reg->mask, val);
+	}
+}
+
+void rtw_fw_dump_dbg_info(struct rtw_dev *rtwdev)
+{
+	int i;
+
+	if (!rtw_dbg_is_enabled(rtwdev, RTW_DBG_FW))
+		return;
+
+	_rtw_fw_dump_dbg_info(rtwdev, fw_h2c_regs, ARRAY_SIZE(fw_h2c_regs));
+	_rtw_fw_dump_dbg_info(rtwdev, fw_c2h_regs, ARRAY_SIZE(fw_c2h_regs));
+	for (i = 0 ; i < RTW_DEBUG_DUMP_TIMES; i++) {
+		rtw_dbg(rtwdev, RTW_DBG_FW, "Firmware Coredump %dth\n", i + 1);
+		_rtw_fw_dump_dbg_info(rtwdev, fw_core_regs, ARRAY_SIZE(fw_core_regs));
+	}
+}
+
 static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 				      struct sk_buff *skb)
 {
@@ -140,7 +213,7 @@ struct rtw_beacon_filter_iter_data {
 	u8 *payload;
 };
 
-static void rtw_fw_bcn_filter_notify_vif_iter(void *data, u8 *mac,
+static void rtw_fw_bcn_filter_notify_vif_iter(void *data,
 					      struct ieee80211_vif *vif)
 {
 	struct rtw_beacon_filter_iter_data *iter_data = data;
@@ -349,6 +422,7 @@ static void rtw_fw_send_h2c_command_register(struct rtw_dev *rtwdev,
 
 	if (ret) {
 		rtw_err(rtwdev, "failed to send h2c command\n");
+		rtw_fw_dump_dbg_info(rtwdev);
 		return;
 	}
 

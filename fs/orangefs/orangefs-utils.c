@@ -155,14 +155,14 @@ static inline void copy_attributes_from_inode(struct inode *inode,
 	if (orangefs_inode->attr_valid & ATTR_ATIME) {
 		attrs->mask |= ORANGEFS_ATTR_SYS_ATIME;
 		if (orangefs_inode->attr_valid & ATTR_ATIME_SET) {
-			attrs->atime = (time64_t)inode->i_atime.tv_sec;
+			attrs->atime = (time64_t) inode_get_atime_sec(inode);
 			attrs->mask |= ORANGEFS_ATTR_SYS_ATIME_SET;
 		}
 	}
 	if (orangefs_inode->attr_valid & ATTR_MTIME) {
 		attrs->mask |= ORANGEFS_ATTR_SYS_MTIME;
 		if (orangefs_inode->attr_valid & ATTR_MTIME_SET) {
-			attrs->mtime = (time64_t)inode->i_mtime.tv_sec;
+			attrs->mtime = (time64_t) inode_get_mtime_sec(inode);
 			attrs->mask |= ORANGEFS_ATTR_SYS_MTIME_SET;
 		}
 	}
@@ -357,15 +357,15 @@ again2:
 	    downcall.resp.getattr.attributes.owner);
 	inode->i_gid = make_kgid(&init_user_ns, new_op->
 	    downcall.resp.getattr.attributes.group);
-	inode->i_atime.tv_sec = (time64_t)new_op->
-	    downcall.resp.getattr.attributes.atime;
-	inode->i_mtime.tv_sec = (time64_t)new_op->
-	    downcall.resp.getattr.attributes.mtime;
-	inode->i_ctime.tv_sec = (time64_t)new_op->
-	    downcall.resp.getattr.attributes.ctime;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
+	inode_set_atime(inode,
+			(time64_t)new_op->downcall.resp.getattr.attributes.atime,
+			0);
+	inode_set_mtime(inode,
+			(time64_t)new_op->downcall.resp.getattr.attributes.mtime,
+			0);
+	inode_set_ctime(inode,
+			(time64_t)new_op->downcall.resp.getattr.attributes.ctime,
+			0);
 
 	/* special case: mark the root inode as sticky */
 	inode->i_mode = type | (is_root_handle(inode) ? S_ISVTX : 0) |

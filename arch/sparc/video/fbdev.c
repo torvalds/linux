@@ -21,3 +21,6 @@ int fb_is_primary_device(struct fb_info *info)
 	return 0;
 }
 EXPORT_SYMBOL(fb_is_primary_device);
+
+MODULE_DESCRIPTION("Sparc fbdev helpers");
+MODULE_LICENSE("GPL");

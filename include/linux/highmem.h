@@ -439,6 +439,50 @@ static inline void memzero_page(struct page *page, size_t offset, size_t len)
 	kunmap_local(addr);
 }
 
+static inline void memcpy_from_folio(char *to, struct folio *folio,
+		size_t offset, size_t len)
+{
+	VM_BUG_ON(offset + len > folio_size(folio));
+
+	do {
+		const char *from = kmap_local_folio(folio, offset);
+		size_t chunk = len;
+
+		if (folio_test_highmem(folio) &&
+		    chunk > PAGE_SIZE - offset_in_page(offset))
+			chunk = PAGE_SIZE - offset_in_page(offset);
+		memcpy(to, from, chunk);
+		kunmap_local(from);
+
+		from += chunk;
+		offset += chunk;
+		len -= chunk;
+	} while (len > 0);
+}
+
+static inline void memcpy_to_folio(struct folio *folio, size_t offset,
+		const char *from, size_t len)
+{
+	VM_BUG_ON(offset + len > folio_size(folio));
+
+	do {
+		char *to = kmap_local_folio(folio, offset);
+		size_t chunk = len;
+
+		if (folio_test_highmem(folio) &&
+		    chunk > PAGE_SIZE - offset_in_page(offset))
+			chunk = PAGE_SIZE - offset_in_page(offset);
+		memcpy(to, from, chunk);
+		kunmap_local(to);
+
+		from += chunk;
+		offset += chunk;
+		len -= chunk;
+	} while (len > 0);
+
+	flush_dcache_folio(folio);
+}
+
 /**
  * memcpy_from_file_folio - Copy some bytes from a file folio.
  * @to: The destination buffer.
@@ -507,10 +551,24 @@ static inline void folio_zero_range(struct folio *folio,
 	zero_user_segments(&folio->page, start, start + length, 0, 0);
 }
 
-static inline void unmap_and_put_page(struct page *page, void *addr)
+/**
+ * folio_release_kmap - Unmap a folio and drop a refcount.
+ * @folio: The folio to release.
+ * @addr: The address previously returned by a call to kmap_local_folio().
+ *
+ * It is common, eg in directory handling to kmap a folio.  This function
+ * unmaps the folio and drops the refcount that was being held to keep the
+ * folio alive while we accessed it.
+ */
+static inline void folio_release_kmap(struct folio *folio, void *addr)
 {
 	kunmap_local(addr);
-	put_page(page);
+	folio_put(folio);
+}
+
+static inline void unmap_and_put_page(struct page *page, void *addr)
+{
+	folio_release_kmap(page_folio(page), addr);
 }
 
 #endif /* _LINUX_HIGHMEM_H */

@@ -113,16 +113,6 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENXIO;
-
-	if (res->start % 4 != 0 || resource_size(res) < 4) {
-		dev_err(&pdev->dev,
-			"address must be at least four bytes wide and 32-bit aligned\n");
-		return -EINVAL;
-	}
-
 	/* Allocate memory for the device structure (and zero it) */
 	priv = devm_kzalloc(&pdev->dev,
 			sizeof(struct timeriomem_rng_private), GFP_KERNEL);
@@ -130,6 +120,16 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, priv);
+
+	priv->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(priv->io_base))
+		return PTR_ERR(priv->io_base);
+
+	if (res->start % 4 != 0 || resource_size(res) < 4) {
+		dev_err(&pdev->dev,
+			"address must be at least four bytes wide and 32-bit aligned\n");
+		return -EINVAL;
+	}
 
 	if (pdev->dev.of_node) {
 		int i;
@@ -157,11 +157,6 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 
 	priv->rng_ops.name = dev_name(&pdev->dev);
 	priv->rng_ops.read = timeriomem_rng_read;
-
-	priv->io_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(priv->io_base)) {
-		return PTR_ERR(priv->io_base);
-	}
 
 	/* Assume random data is already available. */
 	priv->present = 1;

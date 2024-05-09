@@ -71,8 +71,7 @@ static bool dc_stream_construct(struct dc_stream_state *stream,
 
 	/* Copy audio modes */
 	/* TODO - Remove this translation */
-	for (i = 0; i < (dc_sink_data->edid_caps.audio_mode_count); i++)
-	{
+	for (i = 0; i < (dc_sink_data->edid_caps.audio_mode_count); i++) {
 		stream->audio_info.modes[i].channel_count = dc_sink_data->edid_caps.audio_modes[i].channel_count;
 		stream->audio_info.modes[i].format_code = dc_sink_data->edid_caps.audio_modes[i].format_code;
 		stream->audio_info.modes[i].sample_rates.all = dc_sink_data->edid_caps.audio_modes[i].sample_rate;
@@ -289,23 +288,6 @@ static void program_cursor_attributes(
 	}
 }
 
-#ifndef TRIM_FSFT
-/*
- * dc_optimize_timing_for_fsft() - dc to optimize timing
- */
-bool dc_optimize_timing_for_fsft(
-	struct dc_stream_state *pStream,
-	unsigned int max_input_rate_in_khz)
-{
-	struct dc  *dc;
-
-	dc = pStream->ctx->dc;
-
-	return (dc->hwss.optimize_timing_for_fsft &&
-		dc->hwss.optimize_timing_for_fsft(dc, &pStream->timing, max_input_rate_in_khz));
-}
-#endif
-
 /*
  * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
  */
@@ -334,17 +316,12 @@ bool dc_stream_set_cursor_attributes(
 
 	/* SubVP is not compatible with HW cursor larger than 64 x 64 x 4.
 	 * Therefore, if cursor is greater than 64 x 64 x 4, fallback to SW cursor in the following case:
-	 * 1. For single display cases, if resolution is >= 5K and refresh rate < 120hz
-	 * 2. For multi display cases, if resolution is >= 4K and refresh rate < 120hz
-	 *
-	 * [< 120hz is a requirement for SubVP configs]
+	 * 1. If the config is a candidate for SubVP high refresh (both single an dual display configs)
+	 * 2. If not subvp high refresh, for single display cases, if resolution is >= 5K and refresh rate < 120hz
+	 * 3. If not subvp high refresh, for multi display cases, if resolution is >= 4K and refresh rate < 120hz
 	 */
 	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384) {
-		if (dc->current_state->stream_count == 1 && stream->timing.v_addressable >= 2880 &&
-				((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
-			return false;
-		else if (dc->current_state->stream_count > 1 && stream->timing.v_addressable >= 2160 &&
-				((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
+		if (check_subvp_sw_cursor_fallback_req(dc, stream))
 			return false;
 	}
 

@@ -10,7 +10,7 @@ or if there is a problem with the translation.
 
 Maintainer: Catalin Marinas <catalin.marinas@arm.com>
 Chinese maintainer: Fu Wei <wefu@redhat.com>
-Traditional Chinese maintainer: Hu Haowen <src.res@email.cn>
+Traditional Chinese maintainer: Hu Haowen <src.res.211@gmail.com>
 ---------------------------------------------------------------------
 Documentation/arch/arm64/memory.rst 的中文翻譯
 
@@ -24,21 +24,21 @@ Documentation/arch/arm64/memory.rst 的中文翻譯
 中文版維護者： 傅煒  Fu Wei <wefu@redhat.com>
 中文版翻譯者： 傅煒  Fu Wei <wefu@redhat.com>
 中文版校譯者： 傅煒  Fu Wei <wefu@redhat.com>
-繁體中文版校譯者： 胡皓文  Hu Haowen <src.res@email.cn>
+繁體中文版校譯者： 胡皓文  Hu Haowen <src.res.211@gmail.com>
 
 以下爲正文
 ---------------------------------------------------------------------
-		     Linux 在 AArch64 中的內存布局
+		     Linux 在 AArch64 中的內存佈局
 		     ===========================
 
 作者: Catalin Marinas <catalin.marinas@arm.com>
 
-本文檔描述 AArch64 Linux 內核所使用的虛擬內存布局。此構架可以實現
+本文檔描述 AArch64 Linux 內核所使用的虛擬內存佈局。此構架可以實現
 頁大小爲 4KB 的 4 級轉換表和頁大小爲 64KB 的 3 級轉換表。
 
 AArch64 Linux 使用 3 級或 4 級轉換表，其頁大小配置爲 4KB，對於用戶和內核
 分別都有 39-bit (512GB) 或 48-bit (256TB) 的虛擬地址空間。
-對於頁大小爲 64KB的配置，僅使用 2 級轉換表，有 42-bit (4TB) 的虛擬地址空間，但內存布局相同。
+對於頁大小爲 64KB的配置，僅使用 2 級轉換表，有 42-bit (4TB) 的虛擬地址空間，但內存佈局相同。
 
 用戶地址空間的 63:48 位爲 0，而內核地址空間的相應位爲 1。TTBRx 的
 選擇由虛擬地址的 63 位給出。swapper_pg_dir 僅包含內核（全局）映射，
@@ -46,7 +46,7 @@ AArch64 Linux 使用 3 級或 4 級轉換表，其頁大小配置爲 4KB，對�
 TTBR1 中，且從不寫入 TTBR0。
 
 
-AArch64 Linux 在頁大小爲 4KB，並使用 3 級轉換表時的內存布局：
+AArch64 Linux 在頁大小爲 4KB，並使用 3 級轉換表時的內存佈局：
 
 起始地址			結束地址			大小		用途
 -----------------------------------------------------------------------
@@ -54,7 +54,7 @@ AArch64 Linux 在頁大小爲 4KB，並使用 3 級轉換表時的內存布局�
 ffffff8000000000	ffffffffffffffff	 512GB		內核空間
 
 
-AArch64 Linux 在頁大小爲 4KB，並使用 4 級轉換表時的內存布局：
+AArch64 Linux 在頁大小爲 4KB，並使用 4 級轉換表時的內存佈局：
 
 起始地址			結束地址			大小		用途
 -----------------------------------------------------------------------
@@ -62,7 +62,7 @@ AArch64 Linux 在頁大小爲 4KB，並使用 4 級轉換表時的內存布局�
 ffff000000000000	ffffffffffffffff	 256TB		內核空間
 
 
-AArch64 Linux 在頁大小爲 64KB，並使用 2 級轉換表時的內存布局：
+AArch64 Linux 在頁大小爲 64KB，並使用 2 級轉換表時的內存佈局：
 
 起始地址			結束地址			大小		用途
 -----------------------------------------------------------------------
@@ -70,7 +70,7 @@ AArch64 Linux 在頁大小爲 64KB，並使用 2 級轉換表時的內存布局�
 fffffc0000000000	ffffffffffffffff	   4TB		內核空間
 
 
-AArch64 Linux 在頁大小爲 64KB，並使用 3 級轉換表時的內存布局：
+AArch64 Linux 在頁大小爲 64KB，並使用 3 級轉換表時的內存佈局：
 
 起始地址			結束地址			大小		用途
 -----------------------------------------------------------------------
@@ -78,7 +78,7 @@ AArch64 Linux 在頁大小爲 64KB，並使用 3 級轉換表時的內存布局�
 ffff000000000000	ffffffffffffffff	 256TB		內核空間
 
 
-更詳細的內核虛擬內存布局，請參閱內核啓動信息。
+更詳細的內核虛擬內存佈局，請參閱內核啓動信息。
 
 
 4KB 頁大小的轉換表查找：

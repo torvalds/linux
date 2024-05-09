@@ -100,7 +100,7 @@ nf_ct_expect_find_get(struct net *net,
 struct nf_conntrack_expect *
 nf_ct_find_expectation(struct net *net,
 		       const struct nf_conntrack_zone *zone,
-		       const struct nf_conntrack_tuple *tuple);
+		       const struct nf_conntrack_tuple *tuple, bool unlink);
 
 void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
 				u32 portid, int report);

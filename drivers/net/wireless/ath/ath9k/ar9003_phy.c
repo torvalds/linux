@@ -766,10 +766,10 @@ static void ar9003_hw_prog_ini(struct ath_hw *ah,
 	}
 }
 
-static int ar9550_hw_get_modes_txgain_index(struct ath_hw *ah,
+static u32 ar9550_hw_get_modes_txgain_index(struct ath_hw *ah,
 					    struct ath9k_channel *chan)
 {
-	int ret;
+	u32 ret;
 
 	if (IS_CHAN_2GHZ(chan)) {
 		if (IS_CHAN_HT40(chan))
@@ -791,7 +791,7 @@ static int ar9550_hw_get_modes_txgain_index(struct ath_hw *ah,
 	return ret;
 }
 
-static int ar9561_hw_get_modes_txgain_index(struct ath_hw *ah,
+static u32 ar9561_hw_get_modes_txgain_index(struct ath_hw *ah,
 					    struct ath9k_channel *chan)
 {
 	if (IS_CHAN_2GHZ(chan)) {
@@ -916,7 +916,7 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	 * TXGAIN initvals.
 	 */
 	if (AR_SREV_9550(ah) || AR_SREV_9531(ah) || AR_SREV_9561(ah)) {
-		int modes_txgain_index = 1;
+		u32 modes_txgain_index = 1;
 
 		if (AR_SREV_9550(ah))
 			modes_txgain_index = ar9550_hw_get_modes_txgain_index(ah, chan);
@@ -924,9 +924,6 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 		if (AR_SREV_9561(ah))
 			modes_txgain_index =
 				ar9561_hw_get_modes_txgain_index(ah, chan);
-
-		if (modes_txgain_index < 0)
-			return -EINVAL;
 
 		REG_WRITE_ARRAY(&ah->iniModesTxGain, modes_txgain_index,
 				regWrites);

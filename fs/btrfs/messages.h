@@ -181,30 +181,28 @@ do {								\
 #define ASSERT(expr)	(void)(expr)
 #endif
 
-void __cold btrfs_print_v0_err(struct btrfs_fs_info *fs_info);
-
 __printf(5, 6)
 __cold
 void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function,
-		     unsigned int line, int errno, const char *fmt, ...);
+		     unsigned int line, int error, const char *fmt, ...);
 
-const char * __attribute_const__ btrfs_decode_error(int errno);
+const char * __attribute_const__ btrfs_decode_error(int error);
 
-#define btrfs_handle_fs_error(fs_info, errno, fmt, args...)		\
+#define btrfs_handle_fs_error(fs_info, error, fmt, args...)		\
 	__btrfs_handle_fs_error((fs_info), __func__, __LINE__,		\
-				(errno), fmt, ##args)
+				(error), fmt, ##args)
 
 __printf(5, 6)
 __cold
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
-		   unsigned int line, int errno, const char *fmt, ...);
+		   unsigned int line, int error, const char *fmt, ...);
 /*
  * If BTRFS_MOUNT_PANIC_ON_FATAL_ERROR is in mount_opt, __btrfs_panic
  * will panic().  Otherwise we BUG() here.
  */
-#define btrfs_panic(fs_info, errno, fmt, args...)			\
+#define btrfs_panic(fs_info, error, fmt, args...)			\
 do {									\
-	__btrfs_panic(fs_info, __func__, __LINE__, errno, fmt, ##args);	\
+	__btrfs_panic(fs_info, __func__, __LINE__, error, fmt, ##args);	\
 	BUG();								\
 } while (0)
 

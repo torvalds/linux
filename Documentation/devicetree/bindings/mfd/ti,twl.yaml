@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/ti,twl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TWL family
+
+maintainers:
+  - Andreas Kemnade <andreas@kemnade.info>
+
+description: |
+  The TWLs are Integrated Power Management Chips.
+  Some version might contain much more analog function like
+  USB transceiver or Audio amplifier.
+  These chips are connected to an i2c bus.
+
+properties:
+  compatible:
+    description:
+      TWL4030 for integrated power-management/audio CODEC device used in OMAP3
+      based boards
+      TWL6030/32 for integrated power-management used in OMAP4 based boards
+    enum:
+      - ti,twl4030
+      - ti,twl6030
+      - ti,twl6032
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 1
+
+  "#clock-cells":
+    const: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-controller
+  - "#interrupt-cells"
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      pmic@48 {
+        compatible = "ti,twl6030";
+        reg = <0x48>;
+        interrupts = <39>; /* IRQ_SYS_1N cascaded to gic */
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        interrupt-parent = <&gic>;
+      };
+    };
+

@@ -9,28 +9,36 @@
  */
 #include "thermal_core.h"
 
-int __for_each_thermal_trip(struct thermal_zone_device *tz,
-			    int (*cb)(struct thermal_trip *, void *),
-			    void *data)
+int for_each_thermal_trip(struct thermal_zone_device *tz,
+			  int (*cb)(struct thermal_trip *, void *),
+			  void *data)
 {
-	int i, ret;
-	struct thermal_trip trip;
+	struct thermal_trip *trip;
+	int ret;
 
-	lockdep_assert_held(&tz->lock);
-
-	for (i = 0; i < tz->num_trips; i++) {
-
-		ret = __thermal_zone_get_trip(tz, i, &trip);
-		if (ret)
-			return ret;
-
-		ret = cb(&trip, data);
+	for_each_trip(tz, trip) {
+		ret = cb(trip, data);
 		if (ret)
 			return ret;
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(for_each_thermal_trip);
+
+int thermal_zone_for_each_trip(struct thermal_zone_device *tz,
+			       int (*cb)(struct thermal_trip *, void *),
+			       void *data)
+{
+	int ret;
+
+	mutex_lock(&tz->lock);
+	ret = for_each_thermal_trip(tz, cb, data);
+	mutex_unlock(&tz->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(thermal_zone_for_each_trip);
 
 int thermal_zone_get_num_trips(struct thermal_zone_device *tz)
 {
@@ -57,6 +65,7 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 {
 	struct thermal_trip trip;
 	int low = -INT_MAX, high = INT_MAX;
+	bool same_trip = false;
 	int i, ret;
 
 	lockdep_assert_held(&tz->lock);
@@ -65,6 +74,7 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 		return;
 
 	for (i = 0; i < tz->num_trips; i++) {
+		bool low_set = false;
 		int trip_low;
 
 		ret = __thermal_zone_get_trip(tz, i , &trip);
@@ -73,16 +83,29 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 
 		trip_low = trip.temperature - trip.hysteresis;
 
-		if (trip_low < tz->temperature && trip_low > low)
+		if (trip_low < tz->temperature && trip_low > low) {
 			low = trip_low;
+			low_set = true;
+			same_trip = false;
+		}
 
 		if (trip.temperature > tz->temperature &&
-		    trip.temperature < high)
+		    trip.temperature < high) {
 			high = trip.temperature;
+			same_trip = low_set;
+		}
 	}
 
 	/* No need to change trip points */
 	if (tz->prev_low_trip == low && tz->prev_high_trip == high)
+		return;
+
+	/*
+	 * If "high" and "low" are the same, skip the change unless this is the
+	 * first time.
+	 */
+	if (same_trip && (tz->prev_low_trip != -INT_MAX ||
+	    tz->prev_high_trip != INT_MAX))
 		return;
 
 	tz->prev_low_trip = low;
@@ -103,29 +126,11 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			    struct thermal_trip *trip)
 {
-	int ret;
-
-	if (!tz || trip_id < 0 || trip_id >= tz->num_trips || !trip)
+	if (!tz || !tz->trips || trip_id < 0 || trip_id >= tz->num_trips || !trip)
 		return -EINVAL;
 
-	if (tz->trips) {
-		*trip = tz->trips[trip_id];
-		return 0;
-	}
-
-	if (tz->ops->get_trip_hyst) {
-		ret = tz->ops->get_trip_hyst(tz, trip_id, &trip->hysteresis);
-		if (ret)
-			return ret;
-	} else {
-		trip->hysteresis = 0;
-	}
-
-	ret = tz->ops->get_trip_temp(tz, trip_id, &trip->temperature);
-	if (ret)
-		return ret;
-
-	return tz->ops->get_trip_type(tz, trip_id, &trip->type);
+	*trip = tz->trips[trip_id];
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__thermal_zone_get_trip);
 
@@ -179,4 +184,14 @@ int thermal_zone_set_trip(struct thermal_zone_device *tz, int trip_id,
 	__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 
 	return 0;
+}
+
+int thermal_zone_trip_id(struct thermal_zone_device *tz,
+			 const struct thermal_trip *trip)
+{
+	/*
+	 * Assume the trip to be located within the bounds of the thermal
+	 * zone's trips[] table.
+	 */
+	return trip - tz->trips;
 }

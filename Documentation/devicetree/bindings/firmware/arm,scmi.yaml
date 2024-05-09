@@ -38,6 +38,9 @@ properties:
                      with shmem address(4KB-page, offset) as parameters
         items:
           - const: arm,scmi-smc-param
+      - description: SCMI compliant firmware with Qualcomm SMC/HVC transport
+        items:
+          - const: qcom,scmi-smc
       - description: SCMI compliant firmware with SCMI Virtio transport.
                      The virtio transport only supports a single device.
         items:
@@ -149,8 +152,15 @@ properties:
       '#clock-cells':
         const: 1
 
-    required:
-      - '#clock-cells'
+      '#power-domain-cells':
+        const: 1
+
+    oneOf:
+      - required:
+          - '#clock-cells'
+
+      - required:
+          - '#power-domain-cells'
 
   protocol@14:
     $ref: '#/$defs/protocol-node'
@@ -306,6 +316,7 @@ else:
           enum:
             - arm,scmi-smc
             - arm,scmi-smc-param
+            - qcom,scmi-smc
   then:
     required:
       - arm,smc-id

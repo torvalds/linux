@@ -99,7 +99,7 @@ struct f_midi {
 	unsigned int in_last_port;
 	unsigned char free_ref;
 
-	struct gmidi_in_port	in_ports_array[/* in_ports */];
+	struct gmidi_in_port	in_ports_array[] __counted_by(in_ports);
 };
 
 static inline struct f_midi *func_to_midi(struct usb_function *f)
@@ -1023,40 +1023,30 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!f->fs_descriptors)
 		goto fail_f_midi;
 
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		bulk_in_desc.wMaxPacketSize = cpu_to_le16(512);
-		bulk_out_desc.wMaxPacketSize = cpu_to_le16(512);
-		f->hs_descriptors = usb_copy_descriptors(midi_function);
-		if (!f->hs_descriptors)
-			goto fail_f_midi;
-	}
+	bulk_in_desc.wMaxPacketSize = cpu_to_le16(512);
+	bulk_out_desc.wMaxPacketSize = cpu_to_le16(512);
+	f->hs_descriptors = usb_copy_descriptors(midi_function);
+	if (!f->hs_descriptors)
+		goto fail_f_midi;
 
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		bulk_in_desc.wMaxPacketSize = cpu_to_le16(1024);
-		bulk_out_desc.wMaxPacketSize = cpu_to_le16(1024);
-		i = endpoint_descriptor_index;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &bulk_out_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &bulk_out_ss_comp_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &ms_out_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &bulk_in_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &bulk_in_ss_comp_desc;
-		midi_function[i++] = (struct usb_descriptor_header *)
-				     &ms_in_desc;
-		f->ss_descriptors = usb_copy_descriptors(midi_function);
-		if (!f->ss_descriptors)
-			goto fail_f_midi;
-
-		if (gadget_is_superspeed_plus(c->cdev->gadget)) {
-			f->ssp_descriptors = usb_copy_descriptors(midi_function);
-			if (!f->ssp_descriptors)
-				goto fail_f_midi;
-		}
-	}
+	bulk_in_desc.wMaxPacketSize = cpu_to_le16(1024);
+	bulk_out_desc.wMaxPacketSize = cpu_to_le16(1024);
+	i = endpoint_descriptor_index;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &bulk_out_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &bulk_out_ss_comp_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &ms_out_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &bulk_in_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &bulk_in_ss_comp_desc;
+	midi_function[i++] = (struct usb_descriptor_header *)
+			     &ms_in_desc;
+	f->ss_descriptors = usb_copy_descriptors(midi_function);
+	if (!f->ss_descriptors)
+		goto fail_f_midi;
 
 	kfree(midi_function);
 
@@ -1359,6 +1349,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 		status = -ENOMEM;
 		goto setup_fail;
 	}
+	midi->in_ports = opts->in_ports;
 
 	for (i = 0; i < opts->in_ports; i++)
 		midi->in_ports_array[i].cable = i;
@@ -1369,7 +1360,6 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 		status = -ENOMEM;
 		goto midi_free;
 	}
-	midi->in_ports = opts->in_ports;
 	midi->out_ports = opts->out_ports;
 	midi->index = opts->index;
 	midi->buflen = opts->buflen;

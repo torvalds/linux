@@ -37,6 +37,7 @@
 #include "link_hwss.h"
 #include "dc/dc_dmub_srv.h"
 #include "link/protocols/link_dp_capability.h"
+#include "inc/hw/dchubbub.h"
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 #include "amdgpu_dm_psr.h"
@@ -331,6 +332,153 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	mutex_lock(&adev->dm.dc_lock);
 	dc_link_set_preferred_training_settings(dc, &prefer_link_settings, NULL, link, false);
 	mutex_unlock(&adev->dm.dc_lock);
+
+	kfree(wr_buf);
+	return size;
+}
+
+static bool dp_mst_is_end_device(struct amdgpu_dm_connector *aconnector)
+{
+	bool is_end_device = false;
+	struct drm_dp_mst_topology_mgr *mgr = NULL;
+	struct drm_dp_mst_port *port = NULL;
+
+	if (aconnector->mst_root && aconnector->mst_root->mst_mgr.mst_state) {
+		mgr = &aconnector->mst_root->mst_mgr;
+		port = aconnector->mst_output_port;
+
+		drm_modeset_lock(&mgr->base.lock, NULL);
+		if (port->pdt == DP_PEER_DEVICE_SST_SINK ||
+			port->pdt == DP_PEER_DEVICE_DP_LEGACY_CONV)
+			is_end_device = true;
+		drm_modeset_unlock(&mgr->base.lock);
+	}
+
+	return is_end_device;
+}
+
+/* Change MST link setting
+ *
+ * valid lane count value: 1, 2, 4
+ * valid link rate value:
+ * 06h = 1.62Gbps per lane
+ * 0Ah = 2.7Gbps per lane
+ * 0Ch = 3.24Gbps per lane
+ * 14h = 5.4Gbps per lane
+ * 1Eh = 8.1Gbps per lane
+ * 3E8h = 10.0Gbps per lane
+ * 546h = 13.5Gbps per lane
+ * 7D0h = 20.0Gbps per lane
+ *
+ * debugfs is located at /sys/kernel/debug/dri/0/DP-x/mst_link_settings
+ *
+ * for example, to force to  2 lane, 10.0GHz,
+ * echo 2 0x3e8 > /sys/kernel/debug/dri/0/DP-x/mst_link_settings
+ *
+ * Valid input will trigger hotplug event to get new link setting applied
+ * Invalid input will trigger training setting reset
+ *
+ * The usage can be referred to link_settings entry
+ *
+ */
+static ssize_t dp_mst_link_setting(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	struct amdgpu_dm_connector *aconnector = file_inode(f)->i_private;
+	struct dc_link *link = aconnector->dc_link;
+	struct amdgpu_device *adev = drm_to_adev(aconnector->base.dev);
+	struct dc *dc = (struct dc *)link->dc;
+	struct dc_link_settings prefer_link_settings;
+	char *wr_buf = NULL;
+	const uint32_t wr_buf_size = 40;
+	/* 0: lane_count; 1: link_rate */
+	int max_param_num = 2;
+	uint8_t param_nums = 0;
+	long param[2];
+	bool valid_input = true;
+
+	if (!dp_mst_is_end_device(aconnector))
+		return -EINVAL;
+
+	if (size == 0)
+		return -EINVAL;
+
+	wr_buf = kcalloc(wr_buf_size, sizeof(char), GFP_KERNEL);
+	if (!wr_buf)
+		return -ENOSPC;
+
+	if (parse_write_buffer_into_params(wr_buf, wr_buf_size,
+					   (long *)param, buf,
+					   max_param_num,
+					   &param_nums)) {
+		kfree(wr_buf);
+		return -EINVAL;
+	}
+
+	if (param_nums <= 0) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("user data not be read\n");
+		return -EINVAL;
+	}
+
+	switch (param[0]) {
+	case LANE_COUNT_ONE:
+	case LANE_COUNT_TWO:
+	case LANE_COUNT_FOUR:
+		break;
+	default:
+		valid_input = false;
+		break;
+	}
+
+	switch (param[1]) {
+	case LINK_RATE_LOW:
+	case LINK_RATE_HIGH:
+	case LINK_RATE_RBR2:
+	case LINK_RATE_HIGH2:
+	case LINK_RATE_HIGH3:
+	case LINK_RATE_UHBR10:
+	case LINK_RATE_UHBR13_5:
+	case LINK_RATE_UHBR20:
+		break;
+	default:
+		valid_input = false;
+		break;
+	}
+
+	if (!valid_input) {
+		kfree(wr_buf);
+		DRM_DEBUG_DRIVER("Invalid Input value No HW will be programmed\n");
+		mutex_lock(&adev->dm.dc_lock);
+		dc_link_set_preferred_training_settings(dc, NULL, NULL, link, false);
+		mutex_unlock(&adev->dm.dc_lock);
+		return -EINVAL;
+	}
+
+	/* save user force lane_count, link_rate to preferred settings
+	 * spread spectrum will not be changed
+	 */
+	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
+	prefer_link_settings.use_link_rate_set = false;
+	prefer_link_settings.lane_count = param[0];
+	prefer_link_settings.link_rate = param[1];
+
+	/* skip immediate retrain, and train to new link setting after hotplug event triggered */
+	mutex_lock(&adev->dm.dc_lock);
+	dc_link_set_preferred_training_settings(dc, &prefer_link_settings, NULL, link, true);
+	mutex_unlock(&adev->dm.dc_lock);
+
+	mutex_lock(&aconnector->base.dev->mode_config.mutex);
+	aconnector->base.force = DRM_FORCE_OFF;
+	mutex_unlock(&aconnector->base.dev->mode_config.mutex);
+	drm_kms_helper_hotplug_event(aconnector->base.dev);
+
+	msleep(100);
+
+	mutex_lock(&aconnector->base.dev->mode_config.mutex);
+	aconnector->base.force = DRM_FORCE_UNSPECIFIED;
+	mutex_unlock(&aconnector->base.dev->mode_config.mutex);
+	drm_kms_helper_hotplug_event(aconnector->base.dev);
 
 	kfree(wr_buf);
 	return size;
@@ -928,24 +1076,24 @@ static int amdgpu_current_colorspace_show(struct seq_file *m, void *data)
 
 	switch (dm_crtc_state->stream->output_color_space) {
 	case COLOR_SPACE_SRGB:
-		seq_printf(m, "sRGB");
+		seq_puts(m, "sRGB");
 		break;
 	case COLOR_SPACE_YCBCR601:
 	case COLOR_SPACE_YCBCR601_LIMITED:
-		seq_printf(m, "BT601_YCC");
+		seq_puts(m, "BT601_YCC");
 		break;
 	case COLOR_SPACE_YCBCR709:
 	case COLOR_SPACE_YCBCR709_LIMITED:
-		seq_printf(m, "BT709_YCC");
+		seq_puts(m, "BT709_YCC");
 		break;
 	case COLOR_SPACE_ADOBERGB:
-		seq_printf(m, "opRGB");
+		seq_puts(m, "opRGB");
 		break;
 	case COLOR_SPACE_2020_RGB_FULLRANGE:
-		seq_printf(m, "BT2020_RGB");
+		seq_puts(m, "BT2020_RGB");
 		break;
 	case COLOR_SPACE_2020_YCBCR:
-		seq_printf(m, "BT2020_YCC");
+		seq_puts(m, "BT2020_YCC");
 		break;
 	default:
 		goto unlock;
@@ -1051,6 +1199,35 @@ static int internal_display_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "Internal: %u\n", link->is_internal_display);
 
+	return 0;
+}
+
+/*
+ * Returns the number of segments used if ODM Combine mode is enabled.
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/odm_combine_segments
+ */
+static int odm_combine_segments_show(struct seq_file *m, void *unused)
+{
+	struct drm_connector *connector = m->private;
+	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
+	struct dc_link *link = aconnector->dc_link;
+	struct pipe_ctx *pipe_ctx = NULL;
+	int i, segments = -EOPNOTSUPP;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx->stream &&
+		    pipe_ctx->stream->link == link)
+			break;
+	}
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
+	if (pipe_ctx != NULL && pipe_ctx->stream_res.tg->funcs->get_odm_combine_segments)
+		pipe_ctx->stream_res.tg->funcs->get_odm_combine_segments(pipe_ctx->stream_res.tg, &segments);
+
+	seq_printf(m, "%d\n", segments);
 	return 0;
 }
 
@@ -2566,6 +2743,7 @@ DEFINE_SHOW_ATTRIBUTE(dmub_tracebuffer);
 DEFINE_SHOW_ATTRIBUTE(dp_lttpr_status);
 DEFINE_SHOW_ATTRIBUTE(hdcp_sink_capability);
 DEFINE_SHOW_ATTRIBUTE(internal_display);
+DEFINE_SHOW_ATTRIBUTE(odm_combine_segments);
 DEFINE_SHOW_ATTRIBUTE(psr_capability);
 DEFINE_SHOW_ATTRIBUTE(dp_is_mst_connector);
 DEFINE_SHOW_ATTRIBUTE(dp_mst_progress_status);
@@ -2668,6 +2846,12 @@ static const struct file_operations dp_dsc_disable_passthrough_debugfs_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations dp_mst_link_settings_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_mst_link_setting,
+	.llseek = default_llseek
+};
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
@@ -2691,7 +2875,8 @@ static const struct {
 		{"dsc_disable_passthrough", &dp_dsc_disable_passthrough_debugfs_fops},
 		{"is_mst_connector", &dp_is_mst_connector_fops},
 		{"mst_progress_status", &dp_mst_progress_status_fops},
-		{"is_dpia_link", &is_dpia_link_fops}
+		{"is_dpia_link", &is_dpia_link_fops},
+		{"mst_link_settings", &dp_mst_link_settings_debugfs_fops}
 };
 
 static const struct {
@@ -2837,7 +3022,8 @@ static const struct {
 } connector_debugfs_entries[] = {
 		{"force_yuv420_output", &force_yuv420_output_fops},
 		{"trigger_hotplug", &trigger_hotplug_debugfs_fops},
-		{"internal_display", &internal_display_fops}
+		{"internal_display", &internal_display_fops},
+		{"odm_combine_segments", &odm_combine_segments_fops}
 };
 
 /*
@@ -2868,7 +3054,7 @@ static int edp_ilr_show(struct seq_file *m, void *unused)
 			seq_printf(m, "[%d] %d kHz\n", entry/2, link_rate_in_khz);
 		}
 	} else {
-		seq_printf(m, "ILR is not supported by this eDP panel.\n");
+		seq_puts(m, "ILR is not supported by this eDP panel.\n");
 	}
 
 	return 0;
@@ -3452,6 +3638,32 @@ DEFINE_DEBUGFS_ATTRIBUTE(disable_hpd_ops, disable_hpd_get,
 			 disable_hpd_set, "%llu\n");
 
 /*
+ * Prints hardware capabilities. These are used for IGT testing.
+ */
+static int capabilities_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct dc *dc = adev->dm.dc;
+	bool mall_supported = dc->caps.mall_size_total;
+	bool subvp_supported = dc->caps.subvp_fw_processing_delay_us;
+	unsigned int mall_in_use = false;
+	unsigned int subvp_in_use = dc->cap_funcs.get_subvp_en(dc, dc->current_state);
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
+	if (hubbub->funcs->get_mall_en)
+		hubbub->funcs->get_mall_en(hubbub, &mall_in_use);
+
+	seq_printf(m, "mall supported: %s, enabled: %s\n",
+			   mall_supported ? "yes" : "no", mall_in_use ? "yes" : "no");
+	seq_printf(m, "sub-viewport supported: %s, enabled: %s\n",
+			   subvp_supported ? "yes" : "no", subvp_in_use ? "yes" : "no");
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(capabilities);
+
+/*
  * Temporary w/a to force sst sequence in M42D DP2 mst receiver
  * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dp_set_mst_en_for_sst
  */
@@ -3644,6 +3856,8 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file("amdgpu_mst_topology", 0444, root,
 			    adev, &mst_topo_fops);
+	debugfs_create_file("amdgpu_dm_capabilities", 0444, root,
+			    adev, &capabilities_fops);
 	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
 			    &dtn_log_fops);
 	debugfs_create_file("amdgpu_dm_dp_set_mst_en_for_sst", 0644, root, adev,

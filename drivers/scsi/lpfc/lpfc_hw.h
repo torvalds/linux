@@ -365,7 +365,7 @@ struct lpfc_name {
 			uint8_t IEEE[6];	/* FC IEEE address */
 		} s;
 		uint8_t wwn[8];
-		uint64_t name;
+		uint64_t name __packed __aligned(4);
 	} u;
 };
 
@@ -764,6 +764,8 @@ typedef struct _PRLI {		/* Structure is in Big Endian format */
 #define PRLI_PREDEF_CONFIG    0x5
 #define PRLI_PARTIAL_SUCCESS  0x6
 #define PRLI_INVALID_PAGE_CNT 0x7
+#define PRLI_INV_SRV_PARM     0x8
+
 	uint8_t word0Reserved3;	/* FC Parm Word 0, bit 0:7 */
 
 	uint32_t origProcAssoc;	/* FC Parm Word 1, bit 0:31 */
@@ -850,7 +852,7 @@ typedef struct _ADISC {		/* Structure is in Big Endian format */
 	struct lpfc_name portName;
 	struct lpfc_name nodeName;
 	uint32_t DID;
-} __packed ADISC;
+} ADISC;
 
 typedef struct _FARP {		/* Structure is in Big Endian format */
 	uint32_t Mflags:8;
@@ -880,7 +882,7 @@ typedef struct _FAN {		/* Structure is in Big Endian format */
 	uint32_t Fdid;
 	struct lpfc_name FportName;
 	struct lpfc_name FnodeName;
-} __packed FAN;
+} FAN;
 
 typedef struct _SCR {		/* Structure is in Big Endian format */
 	uint8_t resvd1;
@@ -924,7 +926,7 @@ typedef struct _RNID {		/* Structure is in Big Endian format */
 	union {
 		RNID_TOP_DISC topologyDisc;	/* topology disc (0xdf) */
 	} un;
-} __packed RNID;
+} RNID;
 
 struct RLS {			/* Structure is in Big Endian format */
 	uint32_t rls;
@@ -1514,7 +1516,7 @@ struct lpfc_fdmi_hba_ident {
 struct lpfc_fdmi_reg_port_list {
 	__be32 EntryCnt;
 	struct lpfc_fdmi_port_entry pe;
-} __packed;
+};
 
 /*
  * Register HBA(RHBA)

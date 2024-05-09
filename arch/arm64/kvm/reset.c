@@ -73,11 +73,8 @@ int __init kvm_arm_init_sve(void)
 	return 0;
 }
 
-static int kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
 {
-	if (!system_supports_sve())
-		return -EINVAL;
-
 	vcpu->arch.sve_max_vl = kvm_sve_max_vl;
 
 	/*
@@ -86,8 +83,6 @@ static int kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
 	 * kvm_arm_vcpu_finalize(), which freezes the configuration.
 	 */
 	vcpu_set_flag(vcpu, GUEST_HAS_SVE);
-
-	return 0;
 }
 
 /*
@@ -170,71 +165,9 @@ static void kvm_vcpu_reset_sve(struct kvm_vcpu *vcpu)
 		memset(vcpu->arch.sve_state, 0, vcpu_sve_state_size(vcpu));
 }
 
-static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * For now make sure that both address/generic pointer authentication
-	 * features are requested by the userspace together and the system
-	 * supports these capabilities.
-	 */
-	if (!test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
-	    !test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, vcpu->arch.features) ||
-	    !system_has_full_ptr_auth())
-		return -EINVAL;
-
 	vcpu_set_flag(vcpu, GUEST_HAS_PTRAUTH);
-	return 0;
-}
-
-/**
- * kvm_set_vm_width() - set the register width for the guest
- * @vcpu: Pointer to the vcpu being configured
- *
- * Set both KVM_ARCH_FLAG_EL1_32BIT and KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED
- * in the VM flags based on the vcpu's requested register width, the HW
- * capabilities and other options (such as MTE).
- * When REG_WIDTH_CONFIGURED is already set, the vcpu settings must be
- * consistent with the value of the FLAG_EL1_32BIT bit in the flags.
- *
- * Return: 0 on success, negative error code on failure.
- */
-static int kvm_set_vm_width(struct kvm_vcpu *vcpu)
-{
-	struct kvm *kvm = vcpu->kvm;
-	bool is32bit;
-
-	is32bit = vcpu_has_feature(vcpu, KVM_ARM_VCPU_EL1_32BIT);
-
-	lockdep_assert_held(&kvm->arch.config_lock);
-
-	if (test_bit(KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED, &kvm->arch.flags)) {
-		/*
-		 * The guest's register width is already configured.
-		 * Make sure that the vcpu is consistent with it.
-		 */
-		if (is32bit == test_bit(KVM_ARCH_FLAG_EL1_32BIT, &kvm->arch.flags))
-			return 0;
-
-		return -EINVAL;
-	}
-
-	if (!cpus_have_const_cap(ARM64_HAS_32BIT_EL1) && is32bit)
-		return -EINVAL;
-
-	/* MTE is incompatible with AArch32 */
-	if (kvm_has_mte(kvm) && is32bit)
-		return -EINVAL;
-
-	/* NV is incompatible with AArch32 */
-	if (vcpu_has_nv(vcpu) && is32bit)
-		return -EINVAL;
-
-	if (is32bit)
-		set_bit(KVM_ARCH_FLAG_EL1_32BIT, &kvm->arch.flags);
-
-	set_bit(KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED, &kvm->arch.flags);
-
-	return 0;
 }
 
 /**
@@ -255,19 +188,11 @@ static int kvm_set_vm_width(struct kvm_vcpu *vcpu)
  * disable preemption around the vcpu reset as we would otherwise race with
  * preempt notifiers which also call put/load.
  */
-int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
+void kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_reset_state reset_state;
-	int ret;
 	bool loaded;
 	u32 pstate;
-
-	mutex_lock(&vcpu->kvm->arch.config_lock);
-	ret = kvm_set_vm_width(vcpu);
-	mutex_unlock(&vcpu->kvm->arch.config_lock);
-
-	if (ret)
-		return ret;
 
 	spin_lock(&vcpu->arch.mp_state_lock);
 	reset_state = vcpu->arch.reset_state;
@@ -282,46 +207,23 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	if (loaded)
 		kvm_arch_vcpu_put(vcpu);
 
-	/* Disallow NV+SVE for the time being */
-	if (vcpu_has_nv(vcpu) && vcpu_has_feature(vcpu, KVM_ARM_VCPU_SVE)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (!kvm_arm_vcpu_sve_finalized(vcpu)) {
-		if (test_bit(KVM_ARM_VCPU_SVE, vcpu->arch.features)) {
-			ret = kvm_vcpu_enable_sve(vcpu);
-			if (ret)
-				goto out;
-		}
+		if (vcpu_has_feature(vcpu, KVM_ARM_VCPU_SVE))
+			kvm_vcpu_enable_sve(vcpu);
 	} else {
 		kvm_vcpu_reset_sve(vcpu);
 	}
 
-	if (test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
-	    test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, vcpu->arch.features)) {
-		if (kvm_vcpu_enable_ptrauth(vcpu)) {
-			ret = -EINVAL;
-			goto out;
-		}
-	}
+	if (vcpu_has_feature(vcpu, KVM_ARM_VCPU_PTRAUTH_ADDRESS) ||
+	    vcpu_has_feature(vcpu, KVM_ARM_VCPU_PTRAUTH_GENERIC))
+		kvm_vcpu_enable_ptrauth(vcpu);
 
-	switch (vcpu->arch.target) {
-	default:
-		if (vcpu_el1_is_32bit(vcpu)) {
-			pstate = VCPU_RESET_PSTATE_SVC;
-		} else if (vcpu_has_nv(vcpu)) {
-			pstate = VCPU_RESET_PSTATE_EL2;
-		} else {
-			pstate = VCPU_RESET_PSTATE_EL1;
-		}
-
-		if (kvm_vcpu_has_pmu(vcpu) && !kvm_arm_support_pmu_v3()) {
-			ret = -EINVAL;
-			goto out;
-		}
-		break;
-	}
+	if (vcpu_el1_is_32bit(vcpu))
+		pstate = VCPU_RESET_PSTATE_SVC;
+	else if (vcpu_has_nv(vcpu))
+		pstate = VCPU_RESET_PSTATE_EL2;
+	else
+		pstate = VCPU_RESET_PSTATE_EL1;
 
 	/* Reset core registers */
 	memset(vcpu_gp_regs(vcpu), 0, sizeof(*vcpu_gp_regs(vcpu)));
@@ -357,12 +259,11 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	}
 
 	/* Reset timer */
-	ret = kvm_timer_vcpu_reset(vcpu);
-out:
+	kvm_timer_vcpu_reset(vcpu);
+
 	if (loaded)
 		kvm_arch_vcpu_load(vcpu, smp_processor_id());
 	preempt_enable();
-	return ret;
 }
 
 u32 get_kvm_ipa_limit(void)

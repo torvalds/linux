@@ -415,6 +415,7 @@ config REED_SOLOMON_DEC16
 #
 config BCH
 	tristate
+	select BITREVERSE
 
 config BCH_CONST_PARAMS
 	bool
@@ -504,6 +505,9 @@ config ASSOCIATIVE_ARRAY
 		Documentation/core-api/assoc_array.rst
 
 	  for more information.
+
+config CLOSURES
+	bool
 
 config HAS_IOMEM
 	bool
@@ -727,6 +731,11 @@ config PARMAN
 
 config OBJAGG
 	tristate "objagg" if COMPILE_TEST
+
+config LWQ_TEST
+	bool "Boot-time test for lwq queuing"
+	help
+          Run boot-time test of light-weight queuing.
 
 endmenu
 

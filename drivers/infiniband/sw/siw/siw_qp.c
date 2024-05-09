@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
@@ -204,7 +204,7 @@ static int siw_qp_readq_init(struct siw_qp *qp, int irq_size, int orq_size)
 {
 	if (irq_size) {
 		irq_size = roundup_pow_of_two(irq_size);
-		qp->irq = vzalloc(irq_size * sizeof(struct siw_sqe));
+		qp->irq = vcalloc(irq_size, sizeof(struct siw_sqe));
 		if (!qp->irq) {
 			qp->attrs.irq_size = 0;
 			return -ENOMEM;
@@ -212,7 +212,7 @@ static int siw_qp_readq_init(struct siw_qp *qp, int irq_size, int orq_size)
 	}
 	if (orq_size) {
 		orq_size = roundup_pow_of_two(orq_size);
-		qp->orq = vzalloc(orq_size * sizeof(struct siw_sqe));
+		qp->orq = vcalloc(orq_size, sizeof(struct siw_sqe));
 		if (!qp->orq) {
 			qp->attrs.orq_size = 0;
 			qp->attrs.irq_size = 0;

@@ -28,7 +28,7 @@ static int amdgpu_umc_convert_error_address(struct amdgpu_device *adev,
 				    struct ras_err_data *err_data, uint64_t err_addr,
 				    uint32_t ch_inst, uint32_t umc_inst)
 {
-	switch (adev->ip_versions[UMC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, UMC_HWIP, 0)) {
 	case IP_VERSION(6, 7, 0):
 		umc_v6_7_convert_error_address(adev,
 				err_data, err_addr, ch_inst, umc_inst);
@@ -45,8 +45,12 @@ static int amdgpu_umc_convert_error_address(struct amdgpu_device *adev,
 int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 			uint64_t err_addr, uint32_t ch_inst, uint32_t umc_inst)
 {
-	struct ras_err_data err_data = {0, 0, 0, NULL};
-	int ret = AMDGPU_RAS_FAIL;
+	struct ras_err_data err_data;
+	int ret;
+
+	ret = amdgpu_ras_error_data_init(&err_data);
+	if (ret)
+		return ret;
 
 	err_data.err_addr =
 		kcalloc(adev->umc.max_ras_err_cnt_per_query,
@@ -54,7 +58,8 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 	if (!err_data.err_addr) {
 		dev_warn(adev->dev,
 			"Failed to alloc memory for umc error record in MCA notifier!\n");
-		return AMDGPU_RAS_FAIL;
+		ret = AMDGPU_RAS_FAIL;
+		goto out_fini_err_data;
 	}
 
 	/*
@@ -63,7 +68,7 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 	ret = amdgpu_umc_convert_error_address(adev, &err_data, err_addr,
 					ch_inst, umc_inst);
 	if (ret)
-		goto out;
+		goto out_free_err_addr;
 
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
@@ -71,8 +76,12 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 		amdgpu_ras_save_bad_pages(adev, NULL);
 	}
 
-out:
+out_free_err_addr:
 	kfree(err_data.err_addr);
+
+out_fini_err_data:
+	amdgpu_ras_error_data_fini(&err_data);
+
 	return ret;
 }
 
@@ -182,11 +191,15 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
 	}
 
 	if (!amdgpu_sriov_vf(adev)) {
-		struct ras_err_data err_data = {0, 0, 0, NULL};
+		struct ras_err_data err_data;
 		struct ras_common_if head = {
 			.block = AMDGPU_RAS_BLOCK__UMC,
 		};
 		struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head);
+
+		ret = amdgpu_ras_error_data_init(&err_data);
+		if (ret)
+			return ret;
 
 		ret = amdgpu_umc_do_page_retirement(adev, &err_data, NULL, reset);
 
@@ -194,6 +207,8 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
 			obj->err_data.ue_count += err_data.ue_count;
 			obj->err_data.ce_count += err_data.ce_count;
 		}
+
+		amdgpu_ras_error_data_fini(&err_data);
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
 			adev->virt.ops->ras_poison_handler(adev);

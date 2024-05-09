@@ -14,6 +14,7 @@
  *  hash table, so this file is not used on them.)
  */
 
+#include <linux/export.h>
 #include <linux/pgtable.h>
 #include <linux/init.h>
 #include <asm/reg.h>
@@ -22,7 +23,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #include <asm/code-patching-asm.h>
 

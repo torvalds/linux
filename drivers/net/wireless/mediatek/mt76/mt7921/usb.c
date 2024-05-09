@@ -24,88 +24,11 @@ static const struct usb_device_id mt7921u_device_table[] = {
 	{ },
 };
 
-static u32 mt7921u_rr(struct mt76_dev *dev, u32 addr)
-{
-	u32 ret;
-
-	mutex_lock(&dev->usb.usb_ctrl_mtx);
-	ret = ___mt76u_rr(dev, MT_VEND_READ_EXT,
-			  USB_DIR_IN | MT_USB_TYPE_VENDOR, addr);
-	mutex_unlock(&dev->usb.usb_ctrl_mtx);
-
-	return ret;
-}
-
-static void mt7921u_wr(struct mt76_dev *dev, u32 addr, u32 val)
-{
-	mutex_lock(&dev->usb.usb_ctrl_mtx);
-	___mt76u_wr(dev, MT_VEND_WRITE_EXT,
-		    USB_DIR_OUT | MT_USB_TYPE_VENDOR, addr, val);
-	mutex_unlock(&dev->usb.usb_ctrl_mtx);
-}
-
-static u32 mt7921u_rmw(struct mt76_dev *dev, u32 addr,
-		       u32 mask, u32 val)
-{
-	mutex_lock(&dev->usb.usb_ctrl_mtx);
-	val |= ___mt76u_rr(dev, MT_VEND_READ_EXT,
-			   USB_DIR_IN | MT_USB_TYPE_VENDOR, addr) & ~mask;
-	___mt76u_wr(dev, MT_VEND_WRITE_EXT,
-		    USB_DIR_OUT | MT_USB_TYPE_VENDOR, addr, val);
-	mutex_unlock(&dev->usb.usb_ctrl_mtx);
-
-	return val;
-}
-
-static void mt7921u_copy(struct mt76_dev *dev, u32 offset,
-			 const void *data, int len)
-{
-	struct mt76_usb *usb = &dev->usb;
-	int ret, i = 0, batch_len;
-	const u8 *val = data;
-
-	len = round_up(len, 4);
-
-	mutex_lock(&usb->usb_ctrl_mtx);
-	while (i < len) {
-		batch_len = min_t(int, usb->data_len, len - i);
-		memcpy(usb->data, val + i, batch_len);
-		ret = __mt76u_vendor_request(dev, MT_VEND_WRITE_EXT,
-					     USB_DIR_OUT | MT_USB_TYPE_VENDOR,
-					     (offset + i) >> 16, offset + i,
-					     usb->data, batch_len);
-		if (ret < 0)
-			break;
-
-		i += batch_len;
-	}
-	mutex_unlock(&usb->usb_ctrl_mtx);
-}
-
-int mt7921u_mcu_power_on(struct mt7921_dev *dev)
-{
-	int ret;
-
-	ret = mt76u_vendor_request(&dev->mt76, MT_VEND_POWER_ON,
-				   USB_DIR_OUT | MT_USB_TYPE_VENDOR,
-				   0x0, 0x1, NULL, 0);
-	if (ret)
-		return ret;
-
-	if (!mt76_poll_msec(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_PWR_ON,
-			    MT_TOP_MISC2_FW_PWR_ON, 500)) {
-		dev_err(dev->mt76.dev, "Timeout for power on\n");
-		ret = -EIO;
-	}
-
-	return ret;
-}
-
 static int
 mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			 int cmd, int *seq)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	u32 pad, ep;
 	int ret;
 
@@ -120,7 +43,7 @@ mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	else
 		ep = MT_EP_OUT_AC_BE;
 
-	mt7921_skb_add_usb_sdio_hdr(dev, skb, 0);
+	mt792x_skb_add_usb_sdio_hdr(dev, skb, 0);
 	pad = round_up(skb->len, 4) + 4 - skb->len;
 	__skb_put_zero(skb, pad);
 
@@ -131,7 +54,7 @@ mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	return ret;
 }
 
-static int mt7921u_mcu_init(struct mt7921_dev *dev)
+static int mt7921u_mcu_init(struct mt792x_dev *dev)
 {
 	static const struct mt76_mcu_ops mcu_ops = {
 		.headroom = MT_SDIO_HDR_SIZE +
@@ -155,20 +78,61 @@ static int mt7921u_mcu_init(struct mt7921_dev *dev)
 	return 0;
 }
 
-static void mt7921u_stop(struct ieee80211_hw *hw)
+static int mt7921u_mac_reset(struct mt792x_dev *dev)
 {
-	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+	int err;
 
-	mt76u_stop_tx(&dev->mt76);
-	mt7921_stop(hw);
-}
+	mt76_txq_schedule_all(&dev->mphy);
+	mt76_worker_disable(&dev->mt76.tx_worker);
 
-static void mt7921u_cleanup(struct mt7921_dev *dev)
-{
-	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
-	mt7921u_wfsys_reset(dev);
+	set_bit(MT76_RESET, &dev->mphy.state);
+	set_bit(MT76_MCU_RESET, &dev->mphy.state);
+
+	wake_up(&dev->mt76.mcu.wait);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
-	mt76u_queues_deinit(&dev->mt76);
+
+	mt76u_stop_rx(&dev->mt76);
+	mt76u_stop_tx(&dev->mt76);
+
+	mt792xu_wfsys_reset(dev);
+
+	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
+	err = mt76u_resume_rx(&dev->mt76);
+	if (err)
+		goto out;
+
+	err = mt792xu_mcu_power_on(dev);
+	if (err)
+		goto out;
+
+	err = mt792xu_dma_init(dev, false);
+	if (err)
+		goto out;
+
+	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+	mt76_set(dev, MT_UDMA_TX_QSEL, MT_FW_DL_EN);
+
+	err = mt7921_run_firmware(dev);
+	if (err)
+		goto out;
+
+	mt76_clear(dev, MT_UDMA_TX_QSEL, MT_FW_DL_EN);
+
+	err = mt7921_mcu_set_eeprom(dev);
+	if (err)
+		goto out;
+
+	err = mt7921_mac_init(dev);
+	if (err)
+		goto out;
+
+	err = __mt7921_start(&dev->phy);
+out:
+	clear_bit(MT76_RESET, &dev->mphy.state);
+
+	mt76_worker_enable(&dev->mt76.tx_worker);
+
+	return err;
 }
 
 static int mt7921u_probe(struct usb_interface *usb_intf,
@@ -189,40 +153,40 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
 		.sta_remove = mt7921_mac_sta_remove,
-		.update_survey = mt7921_update_channel,
+		.update_survey = mt792x_update_channel,
 	};
-	static const struct mt7921_hif_ops hif_ops = {
+	static const struct mt792x_hif_ops hif_ops = {
 		.mcu_init = mt7921u_mcu_init,
-		.init_reset = mt7921u_init_reset,
+		.init_reset = mt792xu_init_reset,
 		.reset = mt7921u_mac_reset,
 	};
 	static struct mt76_bus_ops bus_ops = {
-		.rr = mt7921u_rr,
-		.wr = mt7921u_wr,
-		.rmw = mt7921u_rmw,
+		.rr = mt792xu_rr,
+		.wr = mt792xu_wr,
+		.rmw = mt792xu_rmw,
 		.read_copy = mt76u_read_copy,
-		.write_copy = mt7921u_copy,
+		.write_copy = mt792xu_copy,
 		.type = MT76_BUS_USB,
 	};
 	struct usb_device *udev = interface_to_usbdev(usb_intf);
 	struct ieee80211_ops *ops;
 	struct ieee80211_hw *hw;
-	struct mt7921_dev *dev;
+	struct mt792x_dev *dev;
 	struct mt76_dev *mdev;
 	u8 features;
 	int ret;
 
-	ops = mt7921_get_mac80211_ops(&usb_intf->dev, (void *)id->driver_info,
-				      &features);
+	ops = mt792x_get_mac80211_ops(&usb_intf->dev, &mt7921_ops,
+				      (void *)id->driver_info, &features);
 	if (!ops)
 		return -ENOMEM;
 
-	ops->stop = mt7921u_stop;
+	ops->stop = mt792xu_stop;
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
 
-	dev = container_of(mdev, struct mt7921_dev, mt76);
+	dev = container_of(mdev, struct mt792x_dev, mt76);
 	dev->fw_features = features;
 	dev->hif_ops = &hif_ops;
 
@@ -240,12 +204,12 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	dev_dbg(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
 	if (mt76_get_field(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY)) {
-		ret = mt7921u_wfsys_reset(dev);
+		ret = mt792xu_wfsys_reset(dev);
 		if (ret)
 			goto error;
 	}
 
-	ret = mt7921u_mcu_power_on(dev);
+	ret = mt792xu_mcu_power_on(dev);
 	if (ret)
 		goto error;
 
@@ -257,7 +221,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	if (ret)
 		goto error;
 
-	ret = mt7921u_dma_init(dev, false);
+	ret = mt792xu_dma_init(dev, false);
 	if (ret)
 		goto error;
 
@@ -282,27 +246,10 @@ error:
 	return ret;
 }
 
-static void mt7921u_disconnect(struct usb_interface *usb_intf)
-{
-	struct mt7921_dev *dev = usb_get_intfdata(usb_intf);
-
-	cancel_work_sync(&dev->init_work);
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
-		return;
-
-	mt76_unregister_device(&dev->mt76);
-	mt7921u_cleanup(dev);
-
-	usb_set_intfdata(usb_intf, NULL);
-	usb_put_dev(interface_to_usbdev(usb_intf));
-
-	mt76_free_device(&dev->mt76);
-}
-
 #ifdef CONFIG_PM
 static int mt7921u_suspend(struct usb_interface *intf, pm_message_t state)
 {
-	struct mt7921_dev *dev = usb_get_intfdata(intf);
+	struct mt792x_dev *dev = usb_get_intfdata(intf);
 	struct mt76_connac_pm *pm = &dev->pm;
 	int err;
 
@@ -322,14 +269,14 @@ failed:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }
 
 static int mt7921u_resume(struct usb_interface *intf)
 {
-	struct mt7921_dev *dev = usb_get_intfdata(intf);
+	struct mt792x_dev *dev = usb_get_intfdata(intf);
 	struct mt76_connac_pm *pm = &dev->pm;
 	bool reinit = true;
 	int err, i;
@@ -349,8 +296,8 @@ static int mt7921u_resume(struct usb_interface *intf)
 		msleep(20);
 	}
 
-	if (reinit || mt7921_dma_need_reinit(dev)) {
-		err = mt7921u_dma_init(dev, true);
+	if (reinit || mt792x_dma_need_reinit(dev)) {
+		err = mt792xu_dma_init(dev, true);
 		if (err)
 			goto failed;
 	}
@@ -364,7 +311,7 @@ failed:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }
@@ -378,7 +325,7 @@ static struct usb_driver mt7921u_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= mt7921u_device_table,
 	.probe		= mt7921u_probe,
-	.disconnect	= mt7921u_disconnect,
+	.disconnect	= mt792xu_disconnect,
 #ifdef CONFIG_PM
 	.suspend	= mt7921u_suspend,
 	.resume		= mt7921u_resume,

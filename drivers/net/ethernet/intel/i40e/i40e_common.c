@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2021 Intel Corporation. */
 
-#include "i40e.h"
-#include "i40e_type.h"
-#include "i40e_adminq.h"
-#include "i40e_prototype.h"
 #include <linux/avf/virtchnl.h>
+#include <linux/delay.h>
+#include <linux/etherdevice.h>
+#include <linux/pci.h>
+#include "i40e_adminq_cmd.h"
+#include "i40e_devids.h"
+#include "i40e_prototype.h"
+#include "i40e_register.h"
 
 /**
  * i40e_set_mac_type - Sets MAC type
@@ -56,7 +59,7 @@ int i40e_set_mac_type(struct i40e_hw *hw)
 			break;
 		}
 	} else {
-		status = I40E_ERR_DEVICE_NOT_SUPPORTED;
+		status = -ENODEV;
 	}
 
 	hw_dbg(hw, "i40e_set_mac_type found mac: %d, returns: %d\n",
@@ -660,7 +663,7 @@ int i40e_init_shared_code(struct i40e_hw *hw)
 	case I40E_MAC_X722:
 		break;
 	default:
-		return I40E_ERR_DEVICE_NOT_SUPPORTED;
+		return -ENODEV;
 	}
 
 	hw->phy.get_link_info = true;
@@ -780,7 +783,7 @@ int i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr)
 	if (flags & I40E_AQC_PORT_ADDR_VALID)
 		ether_addr_copy(mac_addr, addrs.port_mac);
 	else
-		status = I40E_ERR_INVALID_MAC_ADDR;
+		status = -EINVAL;
 
 	return status;
 }
@@ -818,62 +821,72 @@ void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable)
 }
 
 /**
- *  i40e_read_pba_string - Reads part number string from EEPROM
+ *  i40e_get_pba_string - Reads part number string from EEPROM
  *  @hw: pointer to hardware structure
- *  @pba_num: stores the part number string from the EEPROM
- *  @pba_num_size: part number string buffer length
  *
- *  Reads the part number string from the EEPROM.
+ *  Reads the part number string from the EEPROM and stores it
+ *  into newly allocated buffer and saves resulting pointer
+ *  to i40e_hw->pba_id field.
  **/
-int i40e_read_pba_string(struct i40e_hw *hw, u8 *pba_num,
-			 u32 pba_num_size)
+void i40e_get_pba_string(struct i40e_hw *hw)
 {
+#define I40E_NVM_PBA_FLAGS_BLK_PRESENT	0xFAFA
 	u16 pba_word = 0;
 	u16 pba_size = 0;
 	u16 pba_ptr = 0;
-	int status = 0;
-	u16 i = 0;
+	int status;
+	char *ptr;
+	u16 i;
 
 	status = i40e_read_nvm_word(hw, I40E_SR_PBA_FLAGS, &pba_word);
-	if (status || (pba_word != 0xFAFA)) {
-		hw_dbg(hw, "Failed to read PBA flags or flag is invalid.\n");
-		return status;
+	if (status) {
+		hw_dbg(hw, "Failed to read PBA flags.\n");
+		return;
+	}
+	if (pba_word != I40E_NVM_PBA_FLAGS_BLK_PRESENT) {
+		hw_dbg(hw, "PBA block is not present.\n");
+		return;
 	}
 
 	status = i40e_read_nvm_word(hw, I40E_SR_PBA_BLOCK_PTR, &pba_ptr);
 	if (status) {
 		hw_dbg(hw, "Failed to read PBA Block pointer.\n");
-		return status;
+		return;
 	}
 
 	status = i40e_read_nvm_word(hw, pba_ptr, &pba_size);
 	if (status) {
 		hw_dbg(hw, "Failed to read PBA Block size.\n");
-		return status;
+		return;
 	}
 
 	/* Subtract one to get PBA word count (PBA Size word is included in
-	 * total size)
+	 * total size) and advance pointer to first PBA word.
 	 */
 	pba_size--;
-	if (pba_num_size < (((u32)pba_size * 2) + 1)) {
-		hw_dbg(hw, "Buffer too small for PBA data.\n");
-		return I40E_ERR_PARAM;
+	pba_ptr++;
+	if (!pba_size) {
+		hw_dbg(hw, "PBA ID is empty.\n");
+		return;
 	}
+
+	ptr = devm_kzalloc(i40e_hw_to_dev(hw), pba_size * 2 + 1, GFP_KERNEL);
+	if (!ptr)
+		return;
+	hw->pba_id = ptr;
 
 	for (i = 0; i < pba_size; i++) {
-		status = i40e_read_nvm_word(hw, (pba_ptr + 1) + i, &pba_word);
+		status = i40e_read_nvm_word(hw, pba_ptr + i, &pba_word);
 		if (status) {
 			hw_dbg(hw, "Failed to read PBA Block word %d.\n", i);
-			return status;
+			devm_kfree(i40e_hw_to_dev(hw), hw->pba_id);
+			hw->pba_id = NULL;
+			return;
 		}
 
-		pba_num[(i * 2)] = (pba_word >> 8) & 0xFF;
-		pba_num[(i * 2) + 1] = pba_word & 0xFF;
+		*ptr++ = (pba_word >> 8) & 0xFF;
+		*ptr++ = pba_word & 0xFF;
 	}
-	pba_num[(pba_size * 2)] = '\0';
-
-	return status;
 }
 
 /**
@@ -955,7 +968,7 @@ static int i40e_poll_globr(struct i40e_hw *hw,
 	hw_dbg(hw, "Global reset failed.\n");
 	hw_dbg(hw, "I40E_GLGEN_RSTAT = 0x%x\n", reg);
 
-	return I40E_ERR_RESET_FAILED;
+	return -EIO;
 }
 
 #define I40E_PF_RESET_WAIT_COUNT_A0	200
@@ -995,7 +1008,7 @@ int i40e_pf_reset(struct i40e_hw *hw)
 	}
 	if (reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK) {
 		hw_dbg(hw, "Global reset polling failed to complete.\n");
-		return I40E_ERR_RESET_FAILED;
+		return -EIO;
 	}
 
 	/* Now Wait for the FW to be ready */
@@ -1014,7 +1027,7 @@ int i40e_pf_reset(struct i40e_hw *hw)
 		     I40E_GLNVM_ULD_CONF_GLOBAL_DONE_MASK))) {
 		hw_dbg(hw, "wait for FW Reset complete timedout\n");
 		hw_dbg(hw, "I40E_GLNVM_ULD = 0x%x\n", reg);
-		return I40E_ERR_RESET_FAILED;
+		return -EIO;
 	}
 
 	/* If there was a Global Reset in progress when we got here,
@@ -1040,10 +1053,10 @@ int i40e_pf_reset(struct i40e_hw *hw)
 		}
 		if (reg2 & I40E_GLGEN_RSTAT_DEVSTATE_MASK) {
 			if (i40e_poll_globr(hw, grst_del))
-				return I40E_ERR_RESET_FAILED;
+				return -EIO;
 		} else if (reg & I40E_PFGEN_CTRL_PFSWR_MASK) {
 			hw_dbg(hw, "PF reset polling failed to complete.\n");
-			return I40E_ERR_RESET_FAILED;
+			return -EIO;
 		}
 	}
 
@@ -1082,7 +1095,7 @@ void i40e_clear_hw(struct i40e_hw *hw)
 		     I40E_PFLAN_QALLOC_FIRSTQ_SHIFT;
 	j = (val & I40E_PFLAN_QALLOC_LASTQ_MASK) >>
 	    I40E_PFLAN_QALLOC_LASTQ_SHIFT;
-	if (val & I40E_PFLAN_QALLOC_VALID_MASK)
+	if (val & I40E_PFLAN_QALLOC_VALID_MASK && j >= base_queue)
 		num_queues = (j - base_queue) + 1;
 	else
 		num_queues = 0;
@@ -1092,7 +1105,7 @@ void i40e_clear_hw(struct i40e_hw *hw)
 	    I40E_PF_VT_PFALLOC_FIRSTVF_SHIFT;
 	j = (val & I40E_PF_VT_PFALLOC_LASTVF_MASK) >>
 	    I40E_PF_VT_PFALLOC_LASTVF_SHIFT;
-	if (val & I40E_PF_VT_PFALLOC_VALID_MASK)
+	if (val & I40E_PF_VT_PFALLOC_VALID_MASK && j >= i)
 		num_vfs = (j - i) + 1;
 	else
 		num_vfs = 0;
@@ -1318,7 +1331,7 @@ i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
 	int status;
 
 	if (!abilities)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	do {
 		i40e_fill_default_direct_cmd_desc(&desc,
@@ -1341,12 +1354,12 @@ i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
 
 		switch (hw->aq.asq_last_status) {
 		case I40E_AQ_RC_EIO:
-			status = I40E_ERR_UNKNOWN_PHY;
+			status = -EIO;
 			break;
 		case I40E_AQ_RC_EAGAIN:
 			usleep_range(1000, 2000);
 			total_delay++;
-			status = I40E_ERR_TIMEOUT;
+			status = -EIO;
 			break;
 		/* also covers I40E_AQ_RC_OK */
 		default:
@@ -1396,7 +1409,7 @@ int i40e_aq_set_phy_config(struct i40e_hw *hw,
 	int status;
 
 	if (!config)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_set_phy_config);
@@ -2312,7 +2325,7 @@ int i40e_aq_send_driver_version(struct i40e_hw *hw,
 	u16 len;
 
 	if (dv == NULL)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_driver_version);
 
@@ -2430,7 +2443,7 @@ int i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
 
 	/* SEIDs need to either both be set or both be 0 for floating VEB */
 	if (!!uplink_seid != !!downlink_seid)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_add_veb);
 
@@ -2485,7 +2498,7 @@ int i40e_aq_get_veb_parameters(struct i40e_hw *hw,
 	int status;
 
 	if (veb_seid == 0)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_get_veb_parameters);
@@ -2575,7 +2588,7 @@ i40e_aq_add_macvlan(struct i40e_hw *hw, u16 seid,
 	u16 buf_size;
 
 	if (count == 0 || !mv_list || !hw)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	buf_size = i40e_prepare_add_macvlan(mv_list, &desc, count, seid);
 
@@ -2608,7 +2621,7 @@ i40e_aq_add_macvlan_v2(struct i40e_hw *hw, u16 seid,
 	u16 buf_size;
 
 	if (count == 0 || !mv_list || !hw)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	buf_size = i40e_prepare_add_macvlan(mv_list, &desc, count, seid);
 
@@ -2638,7 +2651,7 @@ i40e_aq_remove_macvlan(struct i40e_hw *hw, u16 seid,
 	int status;
 
 	if (count == 0 || !mv_list || !hw)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	buf_size = count * sizeof(*mv_list);
 
@@ -2685,7 +2698,7 @@ i40e_aq_remove_macvlan_v2(struct i40e_hw *hw, u16 seid,
 	u16 buf_size;
 
 	if (count == 0 || !mv_list || !hw)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	buf_size = count * sizeof(*mv_list);
 
@@ -2791,7 +2804,7 @@ int i40e_aq_add_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
 	if (!(rule_type == I40E_AQC_MIRROR_RULE_TYPE_ALL_INGRESS ||
 	    rule_type == I40E_AQC_MIRROR_RULE_TYPE_ALL_EGRESS)) {
 		if (count == 0 || !mr_list)
-			return I40E_ERR_PARAM;
+			return -EINVAL;
 	}
 
 	return i40e_mirrorrule_op(hw, i40e_aqc_opc_add_mirror_rule, sw_seid,
@@ -2827,7 +2840,7 @@ int i40e_aq_delete_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
 		 * not matter.
 		 */
 		if (count == 0 || !mr_list)
-			return I40E_ERR_PARAM;
+			return -EINVAL;
 	}
 
 	return i40e_mirrorrule_op(hw, i40e_aqc_opc_delete_mirror_rule, sw_seid,
@@ -2892,7 +2905,7 @@ int i40e_aq_debug_read_register(struct i40e_hw *hw,
 	int status;
 
 	if (reg_val == NULL)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_debug_read_reg);
 
@@ -3031,7 +3044,7 @@ int i40e_aq_read_nvm(struct i40e_hw *hw, u8 module_pointer,
 
 	/* In offset the highest byte must be zeroed. */
 	if (offset & 0xFF000000) {
-		status = I40E_ERR_PARAM;
+		status = -EINVAL;
 		goto i40e_aq_read_nvm_exit;
 	}
 
@@ -3076,7 +3089,7 @@ int i40e_aq_erase_nvm(struct i40e_hw *hw, u8 module_pointer,
 
 	/* In offset the highest byte must be zeroed. */
 	if (offset & 0xFF000000) {
-		status = I40E_ERR_PARAM;
+		status = -EINVAL;
 		goto i40e_aq_erase_nvm_exit;
 	}
 
@@ -3368,7 +3381,7 @@ int i40e_aq_discover_capabilities(struct i40e_hw *hw,
 
 	if (list_type_opc != i40e_aqc_opc_list_func_capabilities &&
 		list_type_opc != i40e_aqc_opc_list_dev_capabilities) {
-		status = I40E_ERR_PARAM;
+		status = -EINVAL;
 		goto exit;
 	}
 
@@ -3416,7 +3429,7 @@ int i40e_aq_update_nvm(struct i40e_hw *hw, u8 module_pointer,
 
 	/* In offset the highest byte must be zeroed. */
 	if (offset & 0xFF000000) {
-		status = I40E_ERR_PARAM;
+		status = -EINVAL;
 		goto i40e_aq_update_nvm_exit;
 	}
 
@@ -3473,7 +3486,7 @@ int i40e_aq_rearrange_nvm(struct i40e_hw *hw,
 			 I40E_AQ_NVM_REARRANGE_TO_STRUCT);
 
 	if (!rearrange_nvm) {
-		status = I40E_ERR_PARAM;
+		status = -EINVAL;
 		goto i40e_aq_rearrange_nvm_exit;
 	}
 
@@ -3510,7 +3523,7 @@ int i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 	int status;
 
 	if (buff_size == 0 || !buff)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_lldp_get_mib);
 	/* Indirect Command */
@@ -3558,7 +3571,7 @@ i40e_aq_set_lldp_mib(struct i40e_hw *hw,
 
 	cmd = (struct i40e_aqc_lldp_set_local_mib *)&desc.params.raw;
 	if (buff_size == 0 || !buff)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_lldp_set_local_mib);
@@ -3627,7 +3640,7 @@ i40e_aq_restore_lldp(struct i40e_hw *hw, u8 *setting, bool restore,
 	if (!(hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT)) {
 		i40e_debug(hw, I40E_DEBUG_ALL,
 			   "Restore LLDP not supported by current FW version.\n");
-		return I40E_ERR_DEVICE_NOT_SUPPORTED;
+		return -ENODEV;
 	}
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_lldp_restore);
@@ -3729,7 +3742,7 @@ i40e_aq_set_dcb_parameters(struct i40e_hw *hw, bool dcb_enable,
 	int status;
 
 	if (!(hw->flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE))
-		return I40E_ERR_DEVICE_NOT_SUPPORTED;
+		return -ENODEV;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_set_dcb_parameters);
@@ -3760,7 +3773,7 @@ int i40e_aq_get_cee_dcb_config(struct i40e_hw *hw,
 	int status;
 
 	if (buff_size == 0 || !buff)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_get_cee_dcb_cfg);
 
@@ -3848,7 +3861,7 @@ int i40e_aq_delete_element(struct i40e_hw *hw, u16 seid,
 	int status;
 
 	if (seid == 0)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_delete_element);
 
@@ -3922,7 +3935,7 @@ static int i40e_aq_tx_sched_cmd(struct i40e_hw *hw, u16 seid,
 		cmd_param_flag = false;
 		break;
 	default:
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	i40e_fill_default_direct_cmd_desc(&desc, opcode);
@@ -4148,7 +4161,7 @@ i40e_validate_filter_settings(struct i40e_hw *hw,
 		fcoe_filt_size <<= (u32)settings->fcoe_filt_num;
 		break;
 	default:
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	switch (settings->fcoe_cntx_num) {
@@ -4160,7 +4173,7 @@ i40e_validate_filter_settings(struct i40e_hw *hw,
 		fcoe_cntx_size <<= (u32)settings->fcoe_cntx_num;
 		break;
 	default:
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	/* Validate PE settings passed */
@@ -4178,7 +4191,7 @@ i40e_validate_filter_settings(struct i40e_hw *hw,
 	case I40E_HASH_FILTER_SIZE_1M:
 		break;
 	default:
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	switch (settings->pe_cntx_num) {
@@ -4194,7 +4207,7 @@ i40e_validate_filter_settings(struct i40e_hw *hw,
 	case I40E_DMA_CNTX_SIZE_256K:
 		break;
 	default:
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 	}
 
 	/* FCHSIZE + FCDSIZE should not be greater than PMFCOEFMAX */
@@ -4202,7 +4215,7 @@ i40e_validate_filter_settings(struct i40e_hw *hw,
 	fcoe_fmax = (val & I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_MASK)
 		     >> I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_SHIFT;
 	if (fcoe_filt_size + fcoe_cntx_size >  fcoe_fmax)
-		return I40E_ERR_INVALID_SIZE;
+		return -EINVAL;
 
 	return 0;
 }
@@ -4224,7 +4237,7 @@ int i40e_set_filter_control(struct i40e_hw *hw,
 	u32 val;
 
 	if (!settings)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	/* Validate the input settings */
 	ret = i40e_validate_filter_settings(hw, settings);
@@ -4306,7 +4319,7 @@ int i40e_aq_add_rem_control_packet_filter(struct i40e_hw *hw,
 	int status;
 
 	if (vsi_seid == 0)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	if (is_add) {
 		i40e_fill_default_direct_cmd_desc(&desc,
@@ -4381,7 +4394,7 @@ static int i40e_aq_alternate_read(struct i40e_hw *hw,
 	int status;
 
 	if (!reg_val0)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_alternate_read);
 	cmd_resp->address0 = cpu_to_le32(reg_addr0);
@@ -4517,7 +4530,7 @@ int i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
 	int status;
 
 	if (buff_size == 0 || !buff)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
 					  i40e_aqc_opc_debug_dump_internals);
@@ -4635,7 +4648,7 @@ int i40e_read_phy_register_clause22(struct i40e_hw *hw,
 				    u16 reg, u8 phy_addr, u16 *value)
 {
 	u8 port_num = (u8)hw->func_caps.mdio_port_num;
-	int status = I40E_ERR_TIMEOUT;
+	int status = -EIO;
 	u32 command = 0;
 	u16 retry = 1000;
 
@@ -4680,7 +4693,7 @@ int i40e_write_phy_register_clause22(struct i40e_hw *hw,
 				     u16 reg, u8 phy_addr, u16 value)
 {
 	u8 port_num = (u8)hw->func_caps.mdio_port_num;
-	int status = I40E_ERR_TIMEOUT;
+	int status = -EIO;
 	u32 command  = 0;
 	u16 retry = 1000;
 
@@ -4721,7 +4734,7 @@ int i40e_read_phy_register_clause45(struct i40e_hw *hw,
 				    u8 page, u16 reg, u8 phy_addr, u16 *value)
 {
 	u8 port_num = hw->func_caps.mdio_port_num;
-	int status = I40E_ERR_TIMEOUT;
+	int status = -EIO;
 	u32 command = 0;
 	u16 retry = 1000;
 
@@ -4755,7 +4768,7 @@ int i40e_read_phy_register_clause45(struct i40e_hw *hw,
 		  (I40E_MDIO_CLAUSE45_STCODE_MASK) |
 		  (I40E_GLGEN_MSCA_MDICMD_MASK) |
 		  (I40E_GLGEN_MSCA_MDIINPROGEN_MASK);
-	status = I40E_ERR_TIMEOUT;
+	status = -EIO;
 	retry = 1000;
 	wr32(hw, I40E_GLGEN_MSCA(port_num), command);
 	do {
@@ -4795,7 +4808,7 @@ int i40e_write_phy_register_clause45(struct i40e_hw *hw,
 				     u8 page, u16 reg, u8 phy_addr, u16 value)
 {
 	u8 port_num = hw->func_caps.mdio_port_num;
-	int status = I40E_ERR_TIMEOUT;
+	int status = -EIO;
 	u16 retry = 1000;
 	u32 command = 0;
 
@@ -4831,7 +4844,7 @@ int i40e_write_phy_register_clause45(struct i40e_hw *hw,
 		  (I40E_MDIO_CLAUSE45_STCODE_MASK) |
 		  (I40E_GLGEN_MSCA_MDICMD_MASK) |
 		  (I40E_GLGEN_MSCA_MDIINPROGEN_MASK);
-	status = I40E_ERR_TIMEOUT;
+	status = -EIO;
 	retry = 1000;
 	wr32(hw, I40E_GLGEN_MSCA(port_num), command);
 	do {
@@ -4880,7 +4893,7 @@ int i40e_write_phy_register(struct i40e_hw *hw,
 							  phy_addr, value);
 		break;
 	default:
-		status = I40E_ERR_UNKNOWN_PHY;
+		status = -EIO;
 		break;
 	}
 
@@ -4919,7 +4932,7 @@ int i40e_read_phy_register(struct i40e_hw *hw,
 							 phy_addr, value);
 		break;
 	default:
-		status = I40E_ERR_UNKNOWN_PHY;
+		status = -EIO;
 		break;
 	}
 
@@ -5109,7 +5122,7 @@ int i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
 					       I40E_PHY_COM_REG_PAGE, true,
 					       I40E_PHY_LED_PROV_REG_1,
 					       &reg_val_aq, NULL);
-		if (status == I40E_SUCCESS)
+		if (status == 0)
 			*val = (u16)reg_val_aq;
 		return status;
 	}
@@ -5204,7 +5217,7 @@ int i40e_aq_rx_ctl_read_register(struct i40e_hw *hw,
 	int status;
 
 	if (!reg_val)
-		return I40E_ERR_PARAM;
+		return -EINVAL;
 
 	i40e_fill_default_direct_cmd_desc(&desc, i40e_aqc_opc_rx_ctl_reg_read);
 
@@ -5644,7 +5657,7 @@ i40e_validate_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 
 	if (track_id == I40E_DDP_TRACKID_INVALID) {
 		i40e_debug(hw, I40E_DEBUG_PACKAGE, "Invalid track_id\n");
-		return I40E_NOT_SUPPORTED;
+		return -EOPNOTSUPP;
 	}
 
 	dev_cnt = profile->device_table_count;
@@ -5657,7 +5670,7 @@ i40e_validate_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 	if (dev_cnt && i == dev_cnt) {
 		i40e_debug(hw, I40E_DEBUG_PACKAGE,
 			   "Device doesn't support DDP\n");
-		return I40E_ERR_DEVICE_NOT_SUPPORTED;
+		return -ENODEV;
 	}
 
 	I40E_SECTION_TABLE(profile, sec_tbl);
@@ -5672,14 +5685,14 @@ i40e_validate_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 			    sec->section.type == SECTION_TYPE_RB_AQ) {
 				i40e_debug(hw, I40E_DEBUG_PACKAGE,
 					   "Not a roll-back package\n");
-				return I40E_NOT_SUPPORTED;
+				return -EOPNOTSUPP;
 			}
 		} else {
 			if (sec->section.type == SECTION_TYPE_RB_AQ ||
 			    sec->section.type == SECTION_TYPE_RB_MMIO) {
 				i40e_debug(hw, I40E_DEBUG_PACKAGE,
 					   "Not an original package\n");
-				return I40E_NOT_SUPPORTED;
+				return -EOPNOTSUPP;
 			}
 		}
 	}

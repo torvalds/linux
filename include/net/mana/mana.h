@@ -4,6 +4,8 @@
 #ifndef _MANA_H
 #define _MANA_H
 
+#include <net/xdp.h>
+
 #include "gdma.h"
 #include "hw_channel.h"
 
@@ -101,9 +103,10 @@ struct mana_txq {
 
 /* skb data and frags dma mappings */
 struct mana_skb_head {
-	dma_addr_t dma_handle[MAX_SKB_FRAGS + 1];
+	/* GSO pkts may have 2 SGEs for the linear part*/
+	dma_addr_t dma_handle[MAX_SKB_FRAGS + 2];
 
-	u32 size[MAX_SKB_FRAGS + 1];
+	u32 size[MAX_SKB_FRAGS + 2];
 };
 
 #define MANA_HEADROOM sizeof(struct mana_skb_head)
@@ -280,6 +283,7 @@ struct mana_recv_buf_oob {
 	struct gdma_wqe_request wqe_req;
 
 	void *buf_va;
+	bool from_pool; /* allocated from a page pool */
 
 	/* SGL of the buffer going to be sent has part of the work request. */
 	u32 num_sge;
@@ -330,10 +334,12 @@ struct mana_rxq {
 	bool xdp_flush;
 	int xdp_rc; /* XDP redirect return code */
 
+	struct page_pool *page_pool;
+
 	/* MUST BE THE LAST MEMBER:
 	 * Each receive buffer has an associated mana_recv_buf_oob.
 	 */
-	struct mana_recv_buf_oob rx_oobs[];
+	struct mana_recv_buf_oob rx_oobs[] __counted_by(num_rx_buf);
 };
 
 struct mana_tx_qp {
@@ -347,6 +353,13 @@ struct mana_tx_qp {
 struct mana_ethtool_stats {
 	u64 stop_queue;
 	u64 wake_queue;
+	u64 hc_tx_bytes;
+	u64 hc_tx_ucast_pkts;
+	u64 hc_tx_ucast_bytes;
+	u64 hc_tx_bcast_pkts;
+	u64 hc_tx_bcast_bytes;
+	u64 hc_tx_mcast_pkts;
+	u64 hc_tx_mcast_bytes;
 	u64 tx_cqe_err;
 	u64 tx_cqe_unknown_type;
 	u64 rx_coalesced_err;
@@ -437,6 +450,7 @@ u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
 struct bpf_prog *mana_xdp_get(struct mana_port_context *apc);
 void mana_chn_setxdp(struct mana_port_context *apc, struct bpf_prog *prog);
 int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
+void mana_query_gf_stats(struct mana_port_context *apc);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 
@@ -578,6 +592,49 @@ struct mana_fence_rq_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW DATA */
 
+/* Query stats RQ */
+struct mana_query_gf_stat_req {
+	struct gdma_req_hdr hdr;
+	u64 req_stats;
+}; /* HW DATA */
+
+struct mana_query_gf_stat_resp {
+	struct gdma_resp_hdr hdr;
+	u64 reported_stats;
+	/* rx errors/discards */
+	u64 discard_rx_nowqe;
+	u64 err_rx_vport_disabled;
+	/* rx bytes/packets */
+	u64 hc_rx_bytes;
+	u64 hc_rx_ucast_pkts;
+	u64 hc_rx_ucast_bytes;
+	u64 hc_rx_bcast_pkts;
+	u64 hc_rx_bcast_bytes;
+	u64 hc_rx_mcast_pkts;
+	u64 hc_rx_mcast_bytes;
+	/* tx errors */
+	u64 err_tx_gf_disabled;
+	u64 err_tx_vport_disabled;
+	u64 err_tx_inval_vport_offset_pkt;
+	u64 err_tx_vlan_enforcement;
+	u64 err_tx_ethtype_enforcement;
+	u64 err_tx_SA_enforecement;
+	u64 err_tx_SQPDID_enforcement;
+	u64 err_tx_CQPDID_enforcement;
+	u64 err_tx_mtu_violation;
+	u64 err_tx_inval_oob;
+	/* tx bytes/packets */
+	u64 hc_tx_bytes;
+	u64 hc_tx_ucast_pkts;
+	u64 hc_tx_ucast_bytes;
+	u64 hc_tx_bcast_pkts;
+	u64 hc_tx_bcast_bytes;
+	u64 hc_tx_mcast_pkts;
+	u64 hc_tx_mcast_bytes;
+	/* tx error */
+	u64 err_tx_gdma;
+}; /* HW DATA */
+
 /* Configure vPort Rx Steering */
 struct mana_cfg_rx_steer_req_v2 {
 	struct gdma_req_hdr hdr;
@@ -656,6 +713,42 @@ struct mana_deregister_filter_req {
 struct mana_deregister_filter_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW DATA */
+
+/* Requested GF stats Flags */
+/* Rx discards/Errors */
+#define STATISTICS_FLAGS_RX_DISCARDS_NO_WQE		0x0000000000000001
+#define STATISTICS_FLAGS_RX_ERRORS_VPORT_DISABLED	0x0000000000000002
+/* Rx bytes/pkts */
+#define STATISTICS_FLAGS_HC_RX_BYTES			0x0000000000000004
+#define STATISTICS_FLAGS_HC_RX_UCAST_PACKETS		0x0000000000000008
+#define STATISTICS_FLAGS_HC_RX_UCAST_BYTES		0x0000000000000010
+#define STATISTICS_FLAGS_HC_RX_MCAST_PACKETS		0x0000000000000020
+#define STATISTICS_FLAGS_HC_RX_MCAST_BYTES		0x0000000000000040
+#define STATISTICS_FLAGS_HC_RX_BCAST_PACKETS		0x0000000000000080
+#define STATISTICS_FLAGS_HC_RX_BCAST_BYTES		0x0000000000000100
+/* Tx errors */
+#define STATISTICS_FLAGS_TX_ERRORS_GF_DISABLED		0x0000000000000200
+#define STATISTICS_FLAGS_TX_ERRORS_VPORT_DISABLED	0x0000000000000400
+#define STATISTICS_FLAGS_TX_ERRORS_INVAL_VPORT_OFFSET_PACKETS		\
+							0x0000000000000800
+#define STATISTICS_FLAGS_TX_ERRORS_VLAN_ENFORCEMENT	0x0000000000001000
+#define STATISTICS_FLAGS_TX_ERRORS_ETH_TYPE_ENFORCEMENT			\
+							0x0000000000002000
+#define STATISTICS_FLAGS_TX_ERRORS_SA_ENFORCEMENT	0x0000000000004000
+#define STATISTICS_FLAGS_TX_ERRORS_SQPDID_ENFORCEMENT	0x0000000000008000
+#define STATISTICS_FLAGS_TX_ERRORS_CQPDID_ENFORCEMENT	0x0000000000010000
+#define STATISTICS_FLAGS_TX_ERRORS_MTU_VIOLATION	0x0000000000020000
+#define STATISTICS_FLAGS_TX_ERRORS_INVALID_OOB		0x0000000000040000
+/* Tx bytes/pkts */
+#define STATISTICS_FLAGS_HC_TX_BYTES			0x0000000000080000
+#define STATISTICS_FLAGS_HC_TX_UCAST_PACKETS		0x0000000000100000
+#define STATISTICS_FLAGS_HC_TX_UCAST_BYTES		0x0000000000200000
+#define STATISTICS_FLAGS_HC_TX_MCAST_PACKETS		0x0000000000400000
+#define STATISTICS_FLAGS_HC_TX_MCAST_BYTES		0x0000000000800000
+#define STATISTICS_FLAGS_HC_TX_BCAST_PACKETS		0x0000000001000000
+#define STATISTICS_FLAGS_HC_TX_BCAST_BYTES		0x0000000002000000
+/* Tx error */
+#define STATISTICS_FLAGS_TX_ERRORS_GDMA_ERROR		0x0000000004000000
 
 #define MANA_MAX_NUM_QUEUES 64
 

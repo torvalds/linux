@@ -104,7 +104,7 @@
 enum qm_stop_reason {
 	QM_NORMAL,
 	QM_SOFT_RESET,
-	QM_FLR,
+	QM_DOWN,
 };
 
 enum qm_state {
@@ -142,6 +142,13 @@ enum qm_debug_file {
 enum qm_vf_state {
 	QM_READY = 0,
 	QM_NOT_READY,
+};
+
+enum qm_misc_ctl_bits {
+	QM_DRIVER_REMOVING = 0x0,
+	QM_RST_SCHED,
+	QM_RESETTING,
+	QM_MODULE_PARAM,
 };
 
 enum qm_cap_bits {
@@ -269,6 +276,7 @@ struct hisi_qm_poll_data {
 	struct hisi_qm *qm;
 	struct work_struct work;
 	u16 *qp_finish_id;
+	u16 eqe_num;
 };
 
 /**
@@ -283,6 +291,18 @@ struct qm_err_isolate {
 	u32 err_threshold;
 	bool is_isolate;
 	struct list_head qm_hw_errs;
+};
+
+struct qm_rsv_buf {
+	struct qm_sqc *sqc;
+	struct qm_cqc *cqc;
+	struct qm_eqc *eqc;
+	struct qm_aeqc *aeqc;
+	dma_addr_t sqc_dma;
+	dma_addr_t cqc_dma;
+	dma_addr_t eqc_dma;
+	dma_addr_t aeqc_dma;
+	struct qm_dma qcdma;
 };
 
 struct hisi_qm {
@@ -317,6 +337,7 @@ struct hisi_qm {
 	dma_addr_t cqc_dma;
 	dma_addr_t eqe_dma;
 	dma_addr_t aeqe_dma;
+	struct qm_rsv_buf xqc_buf;
 
 	struct hisi_qm_status status;
 	const struct hisi_qm_err_ini *err_ini;
@@ -471,6 +492,20 @@ static inline void hisi_qm_init_list(struct hisi_qm_list *qm_list)
 	mutex_init(&qm_list->lock);
 }
 
+static inline void hisi_qm_add_list(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
+{
+	mutex_lock(&qm_list->lock);
+	list_add_tail(&qm->list, &qm_list->list);
+	mutex_unlock(&qm_list->lock);
+}
+
+static inline void hisi_qm_del_list(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
+{
+	mutex_lock(&qm_list->lock);
+	list_del(&qm->list);
+	mutex_unlock(&qm_list->lock);
+}
+
 int hisi_qm_init(struct hisi_qm *qm);
 void hisi_qm_uninit(struct hisi_qm *qm);
 int hisi_qm_start(struct hisi_qm *qm);
@@ -516,8 +551,8 @@ int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
 void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num);
 void hisi_qm_dev_shutdown(struct pci_dev *pdev);
 void hisi_qm_wait_task_finish(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
-int hisi_qm_alg_register(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
-void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list);
+int hisi_qm_alg_register(struct hisi_qm *qm, struct hisi_qm_list *qm_list, int guard);
+void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list, int guard);
 int hisi_qm_resume(struct device *dev);
 int hisi_qm_suspend(struct device *dev);
 void hisi_qm_pm_uninit(struct hisi_qm *qm);

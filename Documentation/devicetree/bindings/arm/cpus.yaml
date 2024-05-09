@@ -143,8 +143,10 @@ properties:
       - arm,cortex-a78ae
       - arm,cortex-a78c
       - arm,cortex-a510
+      - arm,cortex-a520
       - arm,cortex-a710
       - arm,cortex-a715
+      - arm,cortex-a720
       - arm,cortex-m0
       - arm,cortex-m0+
       - arm,cortex-m1
@@ -158,6 +160,7 @@ properties:
       - arm,cortex-x1c
       - arm,cortex-x2
       - arm,cortex-x3
+      - arm,cortex-x4
       - arm,neoverse-e1
       - arm,neoverse-n1
       - arm,neoverse-n2
@@ -187,6 +190,7 @@ properties:
       - qcom,kryo280
       - qcom,kryo360
       - qcom,kryo385
+      - qcom,kryo465
       - qcom,kryo468
       - qcom,kryo485
       - qcom,kryo560
@@ -305,7 +309,9 @@ properties:
       power-domains property.
 
       For PSCI based platforms, the name corresponding to the index of the PSCI
-      PM domain provider, must be "psci".
+      PM domain provider, must be "psci". For SCMI based platforms, the name
+      corresponding to the index of an SCMI performance domain provider, must be
+      "perf".
 
   qcom,saw:
     $ref: /schemas/types.yaml#/definitions/phandle

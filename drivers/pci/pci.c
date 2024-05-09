@@ -534,7 +534,7 @@ u8 pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap)
 
 	pci_bus_read_config_byte(bus, devfn, PCI_HEADER_TYPE, &hdr_type);
 
-	pos = __pci_bus_find_cap_start(bus, devfn, hdr_type & 0x7f);
+	pos = __pci_bus_find_cap_start(bus, devfn, hdr_type & PCI_HEADER_TYPE_MASK);
 	if (pos)
 		pos = __pci_find_next_cap(bus, devfn, pos, cap);
 
@@ -732,15 +732,18 @@ u16 pci_find_vsec_capability(struct pci_dev *dev, u16 vendor, int cap)
 {
 	u16 vsec = 0;
 	u32 header;
+	int ret;
 
 	if (vendor != dev->vendor)
 		return 0;
 
 	while ((vsec = pci_find_next_ext_capability(dev, vsec,
 						     PCI_EXT_CAP_ID_VNDR))) {
-		if (pci_read_config_dword(dev, vsec + PCI_VNDR_HEADER,
-					  &header) == PCIBIOS_SUCCESSFUL &&
-		    PCI_VNDR_HEADER_ID(header) == cap)
+		ret = pci_read_config_dword(dev, vsec + PCI_VNDR_HEADER, &header);
+		if (ret != PCIBIOS_SUCCESSFUL)
+			continue;
+
+		if (PCI_VNDR_HEADER_ID(header) == cap)
 			return vsec;
 	}
 
@@ -1226,6 +1229,10 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
  *
  * On success, return 0 or 1, depending on whether or not it is necessary to
  * restore the device's BARs subsequently (1 is returned in that case).
+ *
+ * On failure, return a negative error code.  Always return failure if @dev
+ * lacks a Power Management Capability, even if the platform was able to
+ * put the device in D0 via non-PCI means.
  */
 int pci_power_up(struct pci_dev *dev)
 {
@@ -1241,9 +1248,6 @@ int pci_power_up(struct pci_dev *dev)
 			dev->current_state = PCI_D0;
 		else
 			dev->current_state = state;
-
-		if (state == PCI_D0)
-			return 0;
 
 		return -EIO;
 	}
@@ -1290,7 +1294,7 @@ end:
  *
  * Call pci_power_up() to put @dev into D0, read from its PCI_PM_CTRL register
  * to confirm the state change, restore its BARs if they might be lost and
- * reconfigure ASPM in acordance with the new power state.
+ * reconfigure ASPM in accordance with the new power state.
  *
  * If pci_restore_state() is going to be called right after a power state change
  * to D0, it is more efficient to use pci_power_up() directly instead of this
@@ -1302,8 +1306,12 @@ static int pci_set_full_power_state(struct pci_dev *dev)
 	int ret;
 
 	ret = pci_power_up(dev);
-	if (ret < 0)
+	if (ret < 0) {
+		if (dev->current_state == PCI_D0)
+			return 0;
+
 		return ret;
+	}
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
 	dev->current_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
@@ -1681,7 +1689,7 @@ int pci_save_state(struct pci_dev *dev)
 	/* XXX: 100% dword access ok here? */
 	for (i = 0; i < 16; i++) {
 		pci_read_config_dword(dev, i * 4, &dev->saved_config_space[i]);
-		pci_dbg(dev, "saving config space at offset %#x (reading %#x)\n",
+		pci_dbg(dev, "save config %#04x: %#010x\n",
 			i * 4, dev->saved_config_space[i]);
 	}
 	dev->state_saved = true;
@@ -1712,7 +1720,7 @@ static void pci_restore_config_dword(struct pci_dev *pdev, int offset,
 		return;
 
 	for (;;) {
-		pci_dbg(pdev, "restoring config space at offset %#x (was %#x, writing %#x)\n",
+		pci_dbg(pdev, "restore config %#04x: %#010x -> %#010x\n",
 			offset, val, saved_val);
 		pci_write_config_dword(pdev, offset, saved_val);
 		if (retry-- <= 0)
@@ -1770,8 +1778,7 @@ static void pci_restore_rebar_state(struct pci_dev *pdev)
 		return;
 
 	pci_read_config_dword(pdev, pos + PCI_REBAR_CTRL, &ctrl);
-	nbars = (ctrl & PCI_REBAR_CTRL_NBAR_MASK) >>
-		    PCI_REBAR_CTRL_NBAR_SHIFT;
+	nbars = FIELD_GET(PCI_REBAR_CTRL_NBAR_MASK, ctrl);
 
 	for (i = 0; i < nbars; i++, pos += 8) {
 		struct resource *res;
@@ -1782,7 +1789,7 @@ static void pci_restore_rebar_state(struct pci_dev *pdev)
 		res = pdev->resource + bar_idx;
 		size = pci_rebar_bytes_to_size(resource_size(res));
 		ctrl &= ~PCI_REBAR_CTRL_BAR_SIZE;
-		ctrl |= size << PCI_REBAR_CTRL_BAR_SHIFT;
+		ctrl |= FIELD_PREP(PCI_REBAR_CTRL_BAR_SIZE, size);
 		pci_write_config_dword(pdev, pos + PCI_REBAR_CTRL, ctrl);
 	}
 }
@@ -2415,10 +2422,13 @@ static void pci_pme_list_scan(struct work_struct *work)
 
 	mutex_lock(&pci_pme_list_mutex);
 	list_for_each_entry_safe(pme_dev, n, &pci_pme_list, list) {
-		if (pme_dev->dev->pme_poll) {
-			struct pci_dev *bridge;
+		struct pci_dev *pdev = pme_dev->dev;
 
-			bridge = pme_dev->dev->bus->self;
+		if (pdev->pme_poll) {
+			struct pci_dev *bridge = pdev->bus->self;
+			struct device *dev = &pdev->dev;
+			int pm_status;
+
 			/*
 			 * If bridge is in low power state, the
 			 * configuration space of subordinate devices
@@ -2426,14 +2436,20 @@ static void pci_pme_list_scan(struct work_struct *work)
 			 */
 			if (bridge && bridge->current_state != PCI_D0)
 				continue;
+
 			/*
-			 * If the device is in D3cold it should not be
-			 * polled either.
+			 * If the device is in a low power state it
+			 * should not be polled either.
 			 */
-			if (pme_dev->dev->current_state == PCI_D3cold)
+			pm_status = pm_runtime_get_if_active(dev, true);
+			if (!pm_status)
 				continue;
 
-			pci_pme_wakeup(pme_dev->dev, NULL);
+			if (pdev->current_state != PCI_D3cold)
+				pci_pme_wakeup(pdev, NULL);
+
+			if (pm_status > 0)
+				pm_runtime_put(dev);
 		} else {
 			list_del(&pme_dev->list);
 			kfree(pme_dev);
@@ -3214,7 +3230,7 @@ void pci_pm_init(struct pci_dev *dev)
 			 (pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
 			 (pmc & PCI_PM_CAP_PME_D3hot) ? " D3hot" : "",
 			 (pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
-		dev->pme_support = pmc >> PCI_PM_CAP_PME_SHIFT;
+		dev->pme_support = FIELD_GET(PCI_PM_CAP_PME_MASK, pmc);
 		dev->pme_poll = true;
 		/*
 		 * Make device's PM flags reflect the wake-up capability, but
@@ -3285,20 +3301,20 @@ static int pci_ea_read(struct pci_dev *dev, int offset)
 	ent_offset += 4;
 
 	/* Entry size field indicates DWORDs after 1st */
-	ent_size = ((dw0 & PCI_EA_ES) + 1) << 2;
+	ent_size = (FIELD_GET(PCI_EA_ES, dw0) + 1) << 2;
 
 	if (!(dw0 & PCI_EA_ENABLE)) /* Entry not enabled */
 		goto out;
 
-	bei = (dw0 & PCI_EA_BEI) >> 4;
-	prop = (dw0 & PCI_EA_PP) >> 8;
+	bei = FIELD_GET(PCI_EA_BEI, dw0);
+	prop = FIELD_GET(PCI_EA_PP, dw0);
 
 	/*
 	 * If the Property is in the reserved range, try the Secondary
 	 * Property instead.
 	 */
 	if (prop > PCI_EA_P_BRIDGE_IO && prop < PCI_EA_P_MEM_RESERVED)
-		prop = (dw0 & PCI_EA_SP) >> 16;
+		prop = FIELD_GET(PCI_EA_SP, dw0);
 	if (prop > PCI_EA_P_BRIDGE_IO)
 		goto out;
 
@@ -3705,14 +3721,13 @@ static int pci_rebar_find_pos(struct pci_dev *pdev, int bar)
 		return -ENOTSUPP;
 
 	pci_read_config_dword(pdev, pos + PCI_REBAR_CTRL, &ctrl);
-	nbars = (ctrl & PCI_REBAR_CTRL_NBAR_MASK) >>
-		    PCI_REBAR_CTRL_NBAR_SHIFT;
+	nbars = FIELD_GET(PCI_REBAR_CTRL_NBAR_MASK, ctrl);
 
 	for (i = 0; i < nbars; i++, pos += 8) {
 		int bar_idx;
 
 		pci_read_config_dword(pdev, pos + PCI_REBAR_CTRL, &ctrl);
-		bar_idx = ctrl & PCI_REBAR_CTRL_BAR_IDX;
+		bar_idx = FIELD_GET(PCI_REBAR_CTRL_BAR_IDX, ctrl);
 		if (bar_idx == bar)
 			return pos;
 	}
@@ -3738,14 +3753,14 @@ u32 pci_rebar_get_possible_sizes(struct pci_dev *pdev, int bar)
 		return 0;
 
 	pci_read_config_dword(pdev, pos + PCI_REBAR_CAP, &cap);
-	cap &= PCI_REBAR_CAP_SIZES;
+	cap = FIELD_GET(PCI_REBAR_CAP_SIZES, cap);
 
 	/* Sapphire RX 5600 XT Pulse has an invalid cap dword for BAR 0 */
 	if (pdev->vendor == PCI_VENDOR_ID_ATI && pdev->device == 0x731f &&
-	    bar == 0 && cap == 0x7000)
-		cap = 0x3f000;
+	    bar == 0 && cap == 0x700)
+		return 0x3f00;
 
-	return cap >> 4;
+	return cap;
 }
 EXPORT_SYMBOL(pci_rebar_get_possible_sizes);
 
@@ -3767,7 +3782,7 @@ int pci_rebar_get_current_size(struct pci_dev *pdev, int bar)
 		return pos;
 
 	pci_read_config_dword(pdev, pos + PCI_REBAR_CTRL, &ctrl);
-	return (ctrl & PCI_REBAR_CTRL_BAR_SIZE) >> PCI_REBAR_CTRL_BAR_SHIFT;
+	return FIELD_GET(PCI_REBAR_CTRL_BAR_SIZE, ctrl);
 }
 
 /**
@@ -3790,7 +3805,7 @@ int pci_rebar_set_size(struct pci_dev *pdev, int bar, int size)
 
 	pci_read_config_dword(pdev, pos + PCI_REBAR_CTRL, &ctrl);
 	ctrl &= ~PCI_REBAR_CTRL_BAR_SIZE;
-	ctrl |= size << PCI_REBAR_CTRL_BAR_SHIFT;
+	ctrl |= FIELD_PREP(PCI_REBAR_CTRL_BAR_SIZE, size);
 	pci_write_config_dword(pdev, pos + PCI_REBAR_CTRL, ctrl);
 	return 0;
 }
@@ -4191,16 +4206,12 @@ int pci_register_io_range(struct fwnode_handle *fwnode, phys_addr_t addr,
 
 phys_addr_t pci_pio_to_address(unsigned long pio)
 {
-	phys_addr_t address = (phys_addr_t)OF_BAD_ADDR;
-
 #ifdef PCI_IOBASE
-	if (pio >= MMIO_UPPER_LIMIT)
-		return address;
-
-	address = logic_pio_to_hwaddr(pio);
+	if (pio < MMIO_UPPER_LIMIT)
+		return logic_pio_to_hwaddr(pio);
 #endif
 
-	return address;
+	return (phys_addr_t) OF_BAD_ADDR;
 }
 EXPORT_SYMBOL_GPL(pci_pio_to_address);
 
@@ -4927,7 +4938,6 @@ static int pcie_wait_for_link_status(struct pci_dev *pdev,
 int pcie_retrain_link(struct pci_dev *pdev, bool use_lt)
 {
 	int rc;
-	u16 lnkctl;
 
 	/*
 	 * Ensure the updated LNKCTL parameters are used during link
@@ -4939,17 +4949,14 @@ int pcie_retrain_link(struct pci_dev *pdev, bool use_lt)
 	if (rc)
 		return rc;
 
-	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &lnkctl);
-	lnkctl |= PCI_EXP_LNKCTL_RL;
-	pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, lnkctl);
+	pcie_capability_set_word(pdev, PCI_EXP_LNKCTL, PCI_EXP_LNKCTL_RL);
 	if (pdev->clear_retrain_link) {
 		/*
 		 * Due to an erratum in some devices the Retrain Link bit
 		 * needs to be cleared again manually to allow the link
 		 * training to succeed.
 		 */
-		lnkctl &= ~PCI_EXP_LNKCTL_RL;
-		pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, lnkctl);
+		pcie_capability_clear_word(pdev, PCI_EXP_LNKCTL, PCI_EXP_LNKCTL_RL);
 	}
 
 	return pcie_wait_for_link_status(pdev, use_lt, !use_lt);
@@ -5631,7 +5638,7 @@ int pci_try_reset_function(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(pci_try_reset_function);
 
 /* Do any devices on or below this bus prevent a bus reset? */
-static bool pci_bus_resetable(struct pci_bus *bus)
+static bool pci_bus_resettable(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
@@ -5641,7 +5648,7 @@ static bool pci_bus_resetable(struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->dev_flags & PCI_DEV_FLAGS_NO_BUS_RESET ||
-		    (dev->subordinate && !pci_bus_resetable(dev->subordinate)))
+		    (dev->subordinate && !pci_bus_resettable(dev->subordinate)))
 			return false;
 	}
 
@@ -5699,7 +5706,7 @@ unlock:
 }
 
 /* Do any devices on or below this slot prevent a bus reset? */
-static bool pci_slot_resetable(struct pci_slot *slot)
+static bool pci_slot_resettable(struct pci_slot *slot)
 {
 	struct pci_dev *dev;
 
@@ -5711,7 +5718,7 @@ static bool pci_slot_resetable(struct pci_slot *slot)
 		if (!dev->slot || dev->slot != slot)
 			continue;
 		if (dev->dev_flags & PCI_DEV_FLAGS_NO_BUS_RESET ||
-		    (dev->subordinate && !pci_bus_resetable(dev->subordinate)))
+		    (dev->subordinate && !pci_bus_resettable(dev->subordinate)))
 			return false;
 	}
 
@@ -5847,7 +5854,7 @@ static int pci_slot_reset(struct pci_slot *slot, bool probe)
 {
 	int rc;
 
-	if (!slot || !pci_slot_resetable(slot))
+	if (!slot || !pci_slot_resettable(slot))
 		return -ENOTTY;
 
 	if (!probe)
@@ -5914,7 +5921,7 @@ static int pci_bus_reset(struct pci_bus *bus, bool probe)
 {
 	int ret;
 
-	if (!bus->self || !pci_bus_resetable(bus))
+	if (!bus->self || !pci_bus_resettable(bus))
 		return -ENOTTY;
 
 	if (probe)
@@ -6036,7 +6043,7 @@ int pcix_get_max_mmrbc(struct pci_dev *dev)
 	if (pci_read_config_dword(dev, cap + PCI_X_STATUS, &stat))
 		return -EINVAL;
 
-	return 512 << ((stat & PCI_X_STATUS_MAX_READ) >> 21);
+	return 512 << FIELD_GET(PCI_X_STATUS_MAX_READ, stat);
 }
 EXPORT_SYMBOL(pcix_get_max_mmrbc);
 
@@ -6059,7 +6066,7 @@ int pcix_get_mmrbc(struct pci_dev *dev)
 	if (pci_read_config_word(dev, cap + PCI_X_CMD, &cmd))
 		return -EINVAL;
 
-	return 512 << ((cmd & PCI_X_CMD_MAX_READ) >> 2);
+	return 512 << FIELD_GET(PCI_X_CMD_MAX_READ, cmd);
 }
 EXPORT_SYMBOL(pcix_get_mmrbc);
 
@@ -6090,19 +6097,19 @@ int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 	if (pci_read_config_dword(dev, cap + PCI_X_STATUS, &stat))
 		return -EINVAL;
 
-	if (v > (stat & PCI_X_STATUS_MAX_READ) >> 21)
+	if (v > FIELD_GET(PCI_X_STATUS_MAX_READ, stat))
 		return -E2BIG;
 
 	if (pci_read_config_word(dev, cap + PCI_X_CMD, &cmd))
 		return -EINVAL;
 
-	o = (cmd & PCI_X_CMD_MAX_READ) >> 2;
+	o = FIELD_GET(PCI_X_CMD_MAX_READ, cmd);
 	if (o != v) {
 		if (v > o && (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_MMRBC))
 			return -EIO;
 
 		cmd &= ~PCI_X_CMD_MAX_READ;
-		cmd |= v << 2;
+		cmd |= FIELD_PREP(PCI_X_CMD_MAX_READ, v);
 		if (pci_write_config_word(dev, cap + PCI_X_CMD, cmd))
 			return -EIO;
 	}
@@ -6122,7 +6129,7 @@ int pcie_get_readrq(struct pci_dev *dev)
 
 	pcie_capability_read_word(dev, PCI_EXP_DEVCTL, &ctl);
 
-	return 128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12);
+	return 128 << FIELD_GET(PCI_EXP_DEVCTL_READRQ, ctl);
 }
 EXPORT_SYMBOL(pcie_get_readrq);
 
@@ -6155,7 +6162,7 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 			rq = mps;
 	}
 
-	v = (ffs(rq) - 8) << 12;
+	v = FIELD_PREP(PCI_EXP_DEVCTL_READRQ, ffs(rq) - 8);
 
 	if (bridge->no_inc_mrrs) {
 		int max_mrrs = pcie_get_readrq(dev);
@@ -6185,7 +6192,7 @@ int pcie_get_mps(struct pci_dev *dev)
 
 	pcie_capability_read_word(dev, PCI_EXP_DEVCTL, &ctl);
 
-	return 128 << ((ctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
+	return 128 << FIELD_GET(PCI_EXP_DEVCTL_PAYLOAD, ctl);
 }
 EXPORT_SYMBOL(pcie_get_mps);
 
@@ -6208,7 +6215,7 @@ int pcie_set_mps(struct pci_dev *dev, int mps)
 	v = ffs(mps) - 8;
 	if (v > dev->pcie_mpss)
 		return -EINVAL;
-	v <<= 5;
+	v = FIELD_PREP(PCI_EXP_DEVCTL_PAYLOAD, v);
 
 	ret = pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
 						  PCI_EXP_DEVCTL_PAYLOAD, v);
@@ -6250,9 +6257,9 @@ u32 pcie_bandwidth_available(struct pci_dev *dev, struct pci_dev **limiting_dev,
 	while (dev) {
 		pcie_capability_read_word(dev, PCI_EXP_LNKSTA, &lnksta);
 
-		next_speed = pcie_link_speed[lnksta & PCI_EXP_LNKSTA_CLS];
-		next_width = (lnksta & PCI_EXP_LNKSTA_NLW) >>
-			PCI_EXP_LNKSTA_NLW_SHIFT;
+		next_speed = pcie_link_speed[FIELD_GET(PCI_EXP_LNKSTA_CLS,
+						       lnksta)];
+		next_width = FIELD_GET(PCI_EXP_LNKSTA_NLW, lnksta);
 
 		next_bw = next_width * PCIE_SPEED2MBS_ENC(next_speed);
 
@@ -6324,7 +6331,7 @@ enum pcie_link_width pcie_get_width_cap(struct pci_dev *dev)
 
 	pcie_capability_read_dword(dev, PCI_EXP_LNKCAP, &lnkcap);
 	if (lnkcap)
-		return (lnkcap & PCI_EXP_LNKCAP_MLW) >> 4;
+		return FIELD_GET(PCI_EXP_LNKCAP_MLW, lnkcap);
 
 	return PCIE_LNK_WIDTH_UNKNOWN;
 }

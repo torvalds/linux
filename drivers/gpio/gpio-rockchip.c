@@ -17,10 +17,10 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include "../pinctrl/core.h"
@@ -778,14 +778,12 @@ static int rockchip_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rockchip_gpio_remove(struct platform_device *pdev)
+static void rockchip_gpio_remove(struct platform_device *pdev)
 {
 	struct rockchip_pin_bank *bank = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(bank->clk);
 	gpiochip_remove(&bank->gpio_chip);
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_gpio_match[] = {
@@ -796,7 +794,7 @@ static const struct of_device_id rockchip_gpio_match[] = {
 
 static struct platform_driver rockchip_gpio_driver = {
 	.probe		= rockchip_gpio_probe,
-	.remove		= rockchip_gpio_remove,
+	.remove_new	= rockchip_gpio_remove,
 	.driver		= {
 		.name	= "rockchip-gpio",
 		.of_match_table = rockchip_gpio_match,

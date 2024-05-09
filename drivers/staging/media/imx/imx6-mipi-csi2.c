@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
+#include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
@@ -564,6 +565,49 @@ static int csi2_registered(struct v4l2_subdev *sd)
 				      V4L2_FIELD_NONE, NULL);
 }
 
+/* --------------- CORE OPS --------------- */
+
+static int csi2_log_status(struct v4l2_subdev *sd)
+{
+	struct csi2_dev *csi2 = sd_to_dev(sd);
+
+	v4l2_info(sd, "-----MIPI CSI status-----\n");
+	v4l2_info(sd, "VERSION: 0x%x\n",
+		  readl(csi2->base + CSI2_VERSION));
+	v4l2_info(sd, "N_LANES: 0x%x\n",
+		  readl(csi2->base + CSI2_N_LANES));
+	v4l2_info(sd, "PHY_SHUTDOWNZ: 0x%x\n",
+		  readl(csi2->base + CSI2_PHY_SHUTDOWNZ));
+	v4l2_info(sd, "DPHY_RSTZ: 0x%x\n",
+		  readl(csi2->base + CSI2_DPHY_RSTZ));
+	v4l2_info(sd, "RESETN: 0x%x\n",
+		  readl(csi2->base + CSI2_RESETN));
+	v4l2_info(sd, "PHY_STATE: 0x%x\n",
+		  readl(csi2->base + CSI2_PHY_STATE));
+	v4l2_info(sd, "DATA_IDS_1: 0x%x\n",
+		  readl(csi2->base + CSI2_DATA_IDS_1));
+	v4l2_info(sd, "DATA_IDS_2: 0x%x\n",
+		  readl(csi2->base + CSI2_DATA_IDS_2));
+	v4l2_info(sd, "ERR1: 0x%x\n",
+		  readl(csi2->base + CSI2_ERR1));
+	v4l2_info(sd, "ERR2: 0x%x\n",
+		  readl(csi2->base + CSI2_ERR2));
+	v4l2_info(sd, "MSK1: 0x%x\n",
+		  readl(csi2->base + CSI2_MSK1));
+	v4l2_info(sd, "MSK2: 0x%x\n",
+		  readl(csi2->base + CSI2_MSK2));
+	v4l2_info(sd, "PHY_TST_CTRL0: 0x%x\n",
+		  readl(csi2->base + CSI2_PHY_TST_CTRL0));
+	v4l2_info(sd, "PHY_TST_CTRL1: 0x%x\n",
+		  readl(csi2->base + CSI2_PHY_TST_CTRL1));
+
+	return 0;
+}
+
+static const struct v4l2_subdev_core_ops csi2_core_ops = {
+	.log_status = csi2_log_status,
+};
+
 static const struct media_entity_operations csi2_entity_ops = {
 	.link_setup = csi2_link_setup,
 	.link_validate = v4l2_subdev_link_validate,
@@ -581,6 +625,7 @@ static const struct v4l2_subdev_pad_ops csi2_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops csi2_subdev_ops = {
+	.core = &csi2_core_ops,
 	.video = &csi2_video_ops,
 	.pad = &csi2_pad_ops,
 };
@@ -591,7 +636,7 @@ static const struct v4l2_subdev_internal_ops csi2_internal_ops = {
 
 static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 			     struct v4l2_subdev *sd,
-			     struct v4l2_async_subdev *asd)
+			     struct v4l2_async_connection *asd)
 {
 	struct csi2_dev *csi2 = notifier_to_dev(notifier);
 	struct media_pad *sink = &csi2->sd.entity.pads[CSI2_SINK_PAD];
@@ -614,7 +659,7 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void csi2_notify_unbind(struct v4l2_async_notifier *notifier,
 			       struct v4l2_subdev *sd,
-			       struct v4l2_async_subdev *asd)
+			       struct v4l2_async_connection *asd)
 {
 	struct csi2_dev *csi2 = notifier_to_dev(notifier);
 
@@ -631,11 +676,11 @@ static int csi2_async_register(struct csi2_dev *csi2)
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *ep;
 	int ret;
 
-	v4l2_async_nf_init(&csi2->notifier);
+	v4l2_async_subdev_nf_init(&csi2->notifier, &csi2->sd);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi2->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
@@ -652,7 +697,7 @@ static int csi2_async_register(struct csi2_dev *csi2)
 	dev_dbg(csi2->dev, "flags: 0x%08x\n", vep.bus.mipi_csi2.flags);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi2->notifier, ep,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	fwnode_handle_put(ep);
 
 	if (IS_ERR(asd))
@@ -660,7 +705,7 @@ static int csi2_async_register(struct csi2_dev *csi2)
 
 	csi2->notifier.ops = &csi2_notify_ops;
 
-	ret = v4l2_async_subdev_nf_register(&csi2->sd, &csi2->notifier);
+	ret = v4l2_async_nf_register(&csi2->notifier);
 	if (ret)
 		return ret;
 

@@ -24,9 +24,10 @@
 #include <linux/range.h>
 #include <linux/reboot.h>
 #include <linux/uuid.h>
-#include <linux/screen_info.h>
 
 #include <asm/page.h>
+
+struct screen_info;
 
 #define EFI_SUCCESS		0
 #define EFI_LOAD_ERROR		( 1 | (1UL << (BITS_PER_LONG-1)))
@@ -357,13 +358,10 @@ void efi_native_runtime_setup(void);
  * where the UEFI SPEC breaks the line.
  */
 #define NULL_GUID				EFI_GUID(0x00000000, 0x0000, 0x0000,  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
-#define MPS_TABLE_GUID				EFI_GUID(0xeb9d2d2f, 0x2d88, 0x11d3,  0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d)
 #define ACPI_TABLE_GUID				EFI_GUID(0xeb9d2d30, 0x2d88, 0x11d3,  0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d)
 #define ACPI_20_TABLE_GUID			EFI_GUID(0x8868e871, 0xe4f1, 0x11d3,  0xbc, 0x22, 0x00, 0x80, 0xc7, 0x3c, 0x88, 0x81)
 #define SMBIOS_TABLE_GUID			EFI_GUID(0xeb9d2d31, 0x2d88, 0x11d3,  0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d)
 #define SMBIOS3_TABLE_GUID			EFI_GUID(0xf2fd1544, 0x9794, 0x4a2c,  0x99, 0x2e, 0xe5, 0xbb, 0xcf, 0x20, 0xe3, 0x94)
-#define SAL_SYSTEM_TABLE_GUID			EFI_GUID(0xeb9d2d32, 0x2d88, 0x11d3,  0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d)
-#define HCDP_TABLE_GUID				EFI_GUID(0xf951938d, 0x620b, 0x42ef,  0x82, 0x79, 0xa8, 0x4b, 0x79, 0x61, 0x78, 0x98)
 #define UGA_IO_PROTOCOL_GUID			EFI_GUID(0x61a4d49e, 0x6f68, 0x4f1b,  0xb9, 0x22, 0xa8, 0x6e, 0xed, 0x0b, 0x07, 0xa2)
 #define EFI_GLOBAL_VARIABLE_GUID		EFI_GUID(0x8be4df61, 0x93ca, 0x11d2,  0xaa, 0x0d, 0x00, 0xe0, 0x98, 0x03, 0x2b, 0x8c)
 #define UV_SYSTEM_TABLE_GUID			EFI_GUID(0x3b13a7d4, 0x633e, 0x11dd,  0x93, 0xec, 0xda, 0x25, 0x56, 0xd8, 0x95, 0x93)
@@ -726,7 +724,6 @@ static inline efi_status_t efi_query_variable_store(u32 attributes,
 	return EFI_SUCCESS;
 }
 #endif
-extern void __iomem *efi_lookup_mapped_addr(u64 phys_addr);
 
 extern int __init __efi_memmap_init(struct efi_memory_map_data *data);
 extern int __init efi_memmap_init_early(struct efi_memory_map_data *data);
@@ -850,10 +847,6 @@ static inline int efi_range_is_wc(unsigned long start, unsigned long len)
 	/* The range checked out */
 	return 1;
 }
-
-#ifdef CONFIG_EFI_PCDP
-extern int __init efi_setup_pcdp_console(char *);
-#endif
 
 /*
  * We play games with efi_enabled so that the compiler will, if
@@ -1130,7 +1123,7 @@ extern bool efi_runtime_disabled(void);
 static inline bool efi_runtime_disabled(void) { return true; }
 #endif
 
-extern void efi_call_virt_check_flags(unsigned long flags, const char *call);
+extern void efi_call_virt_check_flags(unsigned long flags, const void *caller);
 extern unsigned long efi_call_virt_save_flags(void);
 
 enum efi_secureboot_mode {
@@ -1171,8 +1164,7 @@ static inline void efi_check_for_embedded_firmwares(void) { }
 #define arch_efi_call_virt(p, f, args...)	((p)->f(args))
 
 /*
- * Arch code can implement the following three template macros, avoiding
- * reptition for the void/non-void return cases of {__,}efi_call_virt():
+ * Arch code must implement the following three routines:
  *
  *  * arch_efi_call_virt_setup()
  *
@@ -1181,9 +1173,8 @@ static inline void efi_check_for_embedded_firmwares(void) { }
  *
  *  * arch_efi_call_virt()
  *
- *    Performs the call. The last expression in the macro must be the call
- *    itself, allowing the logic to be shared by the void and non-void
- *    cases.
+ *    Performs the call. This routine takes a variable number of arguments so
+ *    it must be implemented as a variadic preprocessor macro.
  *
  *  * arch_efi_call_virt_teardown()
  *
@@ -1192,31 +1183,18 @@ static inline void efi_check_for_embedded_firmwares(void) { }
 
 #define efi_call_virt_pointer(p, f, args...)				\
 ({									\
-	efi_status_t __s;						\
+	typeof((p)->f(args)) __s;					\
 	unsigned long __flags;						\
 									\
 	arch_efi_call_virt_setup();					\
 									\
 	__flags = efi_call_virt_save_flags();				\
 	__s = arch_efi_call_virt(p, f, args);				\
-	efi_call_virt_check_flags(__flags, __stringify(f));		\
+	efi_call_virt_check_flags(__flags, NULL);			\
 									\
 	arch_efi_call_virt_teardown();					\
 									\
 	__s;								\
-})
-
-#define __efi_call_virt_pointer(p, f, args...)				\
-({									\
-	unsigned long __flags;						\
-									\
-	arch_efi_call_virt_setup();					\
-									\
-	__flags = efi_call_virt_save_flags();				\
-	arch_efi_call_virt(p, f, args);					\
-	efi_call_virt_check_flags(__flags, __stringify(f));		\
-									\
-	arch_efi_call_virt_teardown();					\
 })
 
 #define EFI_RANDOM_SEED_SIZE		32U // BLAKE2S_HASH_SIZE
@@ -1244,6 +1222,10 @@ extern int efi_tpm_final_log_size;
 
 extern unsigned long rci2_table_phys;
 
+efi_status_t
+efi_call_acpi_prm_handler(efi_status_t (__efiapi *handler_addr)(u64, void *),
+			  u64 param_buffer_addr, void *context);
+
 /*
  * efi_runtime_service() function identifiers.
  * "NONE" is used by efi_recover_from_page_fault() to check if the page
@@ -1263,25 +1245,26 @@ enum efi_rts_ids {
 	EFI_RESET_SYSTEM,
 	EFI_UPDATE_CAPSULE,
 	EFI_QUERY_CAPSULE_CAPS,
+	EFI_ACPI_PRM_HANDLER,
 };
+
+union efi_rts_args;
 
 /*
  * efi_runtime_work:	Details of EFI Runtime Service work
- * @arg<1-5>:		EFI Runtime Service function arguments
+ * @args:		Pointer to union describing the arguments
  * @status:		Status of executing EFI Runtime Service
  * @efi_rts_id:		EFI Runtime Service function identifier
  * @efi_rts_comp:	Struct used for handling completions
+ * @caller:		The caller of the runtime service
  */
 struct efi_runtime_work {
-	void *arg1;
-	void *arg2;
-	void *arg3;
-	void *arg4;
-	void *arg5;
-	efi_status_t status;
-	struct work_struct work;
-	enum efi_rts_ids efi_rts_id;
-	struct completion efi_rts_comp;
+	union efi_rts_args	*args;
+	efi_status_t		status;
+	struct work_struct	work;
+	enum efi_rts_ids	efi_rts_id;
+	struct completion	efi_rts_comp;
+	const void		*caller;
 };
 
 extern struct efi_runtime_work efi_rts_work;

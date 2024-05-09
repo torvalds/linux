@@ -54,19 +54,12 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_max5821: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "max5821-reg";
-			regulator-min-microvolt = <2500000>;
-			regulator-max-microvolt = <2500000>;
-			regulator-always-on;
-		};
+	reg_max5821: regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "max5821-reg";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-always-on;
 	};
 };
 

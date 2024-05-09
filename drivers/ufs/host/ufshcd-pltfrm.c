@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 
@@ -121,7 +122,7 @@ static bool phandle_exists(const struct device_node *np,
 
 #define MAX_PROP_SIZE 32
 int ufshcd_populate_vreg(struct device *dev, const char *name,
-			 struct ufs_vreg **out_vreg)
+			 struct ufs_vreg **out_vreg, bool skip_current)
 {
 	char prop_name[MAX_PROP_SIZE];
 	struct ufs_vreg *vreg = NULL;
@@ -147,6 +148,11 @@ int ufshcd_populate_vreg(struct device *dev, const char *name,
 	if (!vreg->name)
 		return -ENOMEM;
 
+	if (skip_current) {
+		vreg->max_uA = 0;
+		goto out;
+	}
+
 	snprintf(prop_name, MAX_PROP_SIZE, "%s-max-microamp", name);
 	if (of_property_read_u32(np, prop_name, &vreg->max_uA)) {
 		dev_info(dev, "%s: unable to find %s\n", __func__, prop_name);
@@ -166,6 +172,8 @@ EXPORT_SYMBOL_GPL(ufshcd_populate_vreg);
  * If any of the supplies are not defined it is assumed that they are always-on
  * and hence return zero. If the property is defined but parsing is failed
  * then return corresponding error.
+ *
+ * Return: 0 upon success; < 0 upon failure.
  */
 static int ufshcd_parse_regulator_info(struct ufs_hba *hba)
 {
@@ -173,19 +181,19 @@ static int ufshcd_parse_regulator_info(struct ufs_hba *hba)
 	struct device *dev = hba->dev;
 	struct ufs_vreg_info *info = &hba->vreg_info;
 
-	err = ufshcd_populate_vreg(dev, "vdd-hba", &info->vdd_hba);
+	err = ufshcd_populate_vreg(dev, "vdd-hba", &info->vdd_hba, true);
 	if (err)
 		goto out;
 
-	err = ufshcd_populate_vreg(dev, "vcc", &info->vcc);
+	err = ufshcd_populate_vreg(dev, "vcc", &info->vcc, false);
 	if (err)
 		goto out;
 
-	err = ufshcd_populate_vreg(dev, "vccq", &info->vccq);
+	err = ufshcd_populate_vreg(dev, "vccq", &info->vccq, false);
 	if (err)
 		goto out;
 
-	err = ufshcd_populate_vreg(dev, "vccq2", &info->vccq2);
+	err = ufshcd_populate_vreg(dev, "vccq2", &info->vccq2, false);
 out:
 	return err;
 }
@@ -205,6 +213,77 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
 	}
 }
 
+static int ufshcd_parse_operating_points(struct ufs_hba *hba)
+{
+	struct device *dev = hba->dev;
+	struct device_node *np = dev->of_node;
+	struct dev_pm_opp_config config = {};
+	struct ufs_clk_info *clki;
+	const char **clk_names;
+	int cnt, i, ret;
+
+	if (!of_find_property(np, "operating-points-v2", NULL))
+		return 0;
+
+	if (of_find_property(np, "freq-table-hz", NULL)) {
+		dev_err(dev, "%s: operating-points and freq-table-hz are incompatible\n",
+			 __func__);
+		return -EINVAL;
+	}
+
+	cnt = of_property_count_strings(np, "clock-names");
+	if (cnt <= 0) {
+		dev_err(dev, "%s: Missing clock-names\n",  __func__);
+		return -ENODEV;
+	}
+
+	/* OPP expects clk_names to be NULL terminated */
+	clk_names = devm_kcalloc(dev, cnt + 1, sizeof(*clk_names), GFP_KERNEL);
+	if (!clk_names)
+		return -ENOMEM;
+
+	/*
+	 * We still need to get reference to all clocks as the UFS core uses
+	 * them separately.
+	 */
+	for (i = 0; i < cnt; i++) {
+		ret = of_property_read_string_index(np, "clock-names", i,
+						    &clk_names[i]);
+		if (ret)
+			return ret;
+
+		clki = devm_kzalloc(dev, sizeof(*clki), GFP_KERNEL);
+		if (!clki)
+			return -ENOMEM;
+
+		clki->name = devm_kstrdup(dev, clk_names[i], GFP_KERNEL);
+		if (!clki->name)
+			return -ENOMEM;
+
+		if (!strcmp(clk_names[i], "ref_clk"))
+			clki->keep_link_active = true;
+
+		list_add_tail(&clki->list, &hba->clk_list_head);
+	}
+
+	config.clk_names = clk_names,
+	config.config_clks = ufshcd_opp_config_clks;
+
+	ret = devm_pm_opp_set_config(dev, &config);
+	if (ret)
+		return ret;
+
+	ret = devm_pm_opp_of_add_table(dev);
+	if (ret) {
+		dev_err(dev, "Failed to add OPP table: %d\n", ret);
+		return ret;
+	}
+
+	hba->use_pm_opp = true;
+
+	return 0;
+}
+
 /**
  * ufshcd_get_pwr_dev_param - get finally agreed attributes for
  *                            power mode change
@@ -212,7 +291,7 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
  * @dev_max: pointer to device attributes
  * @agreed_pwr: returned agreed attributes
  *
- * Returns 0 on success, non-zero value on failure
+ * Return: 0 on success, non-zero value on failure.
  */
 int ufshcd_get_pwr_dev_param(const struct ufs_dev_params *pltfrm_param,
 			     const struct ufs_pa_layer_attr *dev_max,
@@ -305,8 +384,8 @@ EXPORT_SYMBOL_GPL(ufshcd_get_pwr_dev_param);
 void ufshcd_init_pwr_dev_param(struct ufs_dev_params *dev_param)
 {
 	*dev_param = (struct ufs_dev_params){
-		.tx_lanes = 2,
-		.rx_lanes = 2,
+		.tx_lanes = UFS_LANE_2,
+		.rx_lanes = UFS_LANE_2,
 		.hs_rx_gear = UFS_HS_G3,
 		.hs_tx_gear = UFS_HS_G3,
 		.pwm_rx_gear = UFS_PWM_G4,
@@ -326,7 +405,7 @@ EXPORT_SYMBOL_GPL(ufshcd_init_pwr_dev_param);
  * @pdev: pointer to Platform device handle
  * @vops: pointer to variant ops
  *
- * Returns 0 on success, non-zero value on failure
+ * Return: 0 on success, non-zero value on failure.
  */
 int ufshcd_pltfrm_init(struct platform_device *pdev,
 		       const struct ufs_hba_variant_ops *vops)
@@ -371,9 +450,16 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	ufshcd_init_lanes_per_dir(hba);
 
+	err = ufshcd_parse_operating_points(hba);
+	if (err) {
+		dev_err(dev, "%s: OPP parse failed %d\n", __func__, err);
+		goto dealloc_host;
+	}
+
 	err = ufshcd_init(hba, mmio_base, irq);
 	if (err) {
-		dev_err(dev, "Initialization failed\n");
+		dev_err_probe(dev, err, "Initialization failed with error %d\n",
+			      err);
 		goto dealloc_host;
 	}
 

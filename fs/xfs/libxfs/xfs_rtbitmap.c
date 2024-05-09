@@ -970,6 +970,7 @@ xfs_rtfree_extent(
 	xfs_mount_t	*mp;		/* file system mount structure */
 	xfs_fsblock_t	sb;		/* summary file block number */
 	struct xfs_buf	*sumbp = NULL;	/* summary file block buffer */
+	struct timespec64 atime;
 
 	mp = tp->t_mountp;
 
@@ -999,7 +1000,10 @@ xfs_rtfree_extent(
 	    mp->m_sb.sb_rextents) {
 		if (!(mp->m_rbmip->i_diflags & XFS_DIFLAG_NEWRTBM))
 			mp->m_rbmip->i_diflags |= XFS_DIFLAG_NEWRTBM;
-		*(uint64_t *)&VFS_I(mp->m_rbmip)->i_atime = 0;
+
+		atime = inode_get_atime(VFS_I(mp->m_rbmip));
+		*((uint64_t *)&atime) = 0;
+		inode_set_atime_to_ts(VFS_I(mp->m_rbmip), atime);
 		xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
 	}
 	return 0;

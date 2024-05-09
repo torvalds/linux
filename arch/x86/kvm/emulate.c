@@ -1799,13 +1799,11 @@ static int writeback(struct x86_emulate_ctxt *ctxt, struct operand *op)
 					       op->addr.mem,
 					       &op->val,
 					       op->bytes);
-		break;
 	case OP_MEM_STR:
 		return segmented_write(ctxt,
 				       op->addr.mem,
 				       op->data,
 				       op->bytes * op->count);
-		break;
 	case OP_XMM:
 		kvm_write_sse_reg(op->addr.xmm, &op->vec_val);
 		break;

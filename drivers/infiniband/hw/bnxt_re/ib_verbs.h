@@ -146,6 +146,8 @@ enum bnxt_re_mmap_flag {
 	BNXT_RE_MMAP_SH_PAGE,
 	BNXT_RE_MMAP_UC_DB,
 	BNXT_RE_MMAP_WC_DB,
+	BNXT_RE_MMAP_DBR_PAGE,
+	BNXT_RE_MMAP_DBR_BAR,
 };
 
 struct bnxt_re_user_mmap_entry {
@@ -227,6 +229,10 @@ int bnxt_re_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
 				  struct ib_udata *udata);
+struct ib_mr *bnxt_re_reg_user_mr_dmabuf(struct ib_pd *ib_pd, u64 start,
+					 u64 length, u64 virt_addr,
+					 int fd, int mr_access_flags,
+					 struct ib_udata *udata);
 int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata);
 void bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
 int bnxt_re_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);

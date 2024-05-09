@@ -737,7 +737,7 @@ free_child:
 	return ret;
 }
 
-static int imx_ldb_remove(struct platform_device *pdev)
+static void imx_ldb_remove(struct platform_device *pdev)
 {
 	struct imx_ldb *imx_ldb = platform_get_drvdata(pdev);
 	int i;
@@ -750,12 +750,11 @@ static int imx_ldb_remove(struct platform_device *pdev)
 	}
 
 	component_del(&pdev->dev, &imx_ldb_ops);
-	return 0;
 }
 
 static struct platform_driver imx_ldb_driver = {
 	.probe		= imx_ldb_probe,
-	.remove		= imx_ldb_remove,
+	.remove_new	= imx_ldb_remove,
 	.driver		= {
 		.of_match_table = imx_ldb_dt_ids,
 		.name	= DRIVER_NAME,

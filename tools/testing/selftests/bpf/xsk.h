@@ -204,7 +204,7 @@ struct xsk_umem_config {
 
 int xsk_attach_xdp_program(struct bpf_program *prog, int ifindex, u32 xdp_flags);
 void xsk_detach_xdp_program(int ifindex, u32 xdp_flags);
-int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk);
+int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk, u32 index);
 void xsk_clear_xskmap(struct bpf_map *map);
 bool xsk_is_in_mode(u32 ifindex, int mode);
 
@@ -238,6 +238,8 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 /* Returns 0 for success and -EBUSY if the umem is still in use. */
 int xsk_umem__delete(struct xsk_umem *umem);
 void xsk_socket__delete(struct xsk_socket *xsk);
+
+int xsk_set_mtu(int ifindex, int mtu);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -918,7 +918,7 @@ static int snd_intel8x0m_ich_chip_init(struct intel8x0m *chip, int probing)
 	}
 
 	if (chip->device_type == DEVICE_SIS) {
-		/* unmute the output on SIS7012 */
+		/* unmute the output on SIS7013 */
 		iputword(chip, 0x4c, igetword(chip, 0x4c) | 1);
 	}
 

@@ -1582,15 +1582,13 @@ static int owl_emac_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int owl_emac_remove(struct platform_device *pdev)
+static void owl_emac_remove(struct platform_device *pdev)
 {
 	struct owl_emac_priv *priv = platform_get_drvdata(pdev);
 
 	netif_napi_del(&priv->napi);
 	phy_disconnect(priv->netdev->phydev);
 	cancel_work_sync(&priv->mac_reset_task);
-
-	return 0;
 }
 
 static const struct of_device_id owl_emac_of_match[] = {
@@ -1609,7 +1607,7 @@ static struct platform_driver owl_emac_driver = {
 		.pm = &owl_emac_pm_ops,
 	},
 	.probe = owl_emac_probe,
-	.remove = owl_emac_remove,
+	.remove_new = owl_emac_remove,
 };
 module_platform_driver(owl_emac_driver);
 

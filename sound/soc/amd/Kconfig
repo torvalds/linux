@@ -79,14 +79,15 @@ config SND_SOC_AMD_ACP5x
 	 ACP DMA driver, CPU DAI driver.
 
 config SND_SOC_AMD_VANGOGH_MACH
-	tristate "AMD Vangogh support for NAU8821 CS35L41"
+	tristate "AMD Vangogh support for NAU8821/CS35L41/MAX98388"
 	select SND_SOC_NAU8821
 	select SND_SOC_CS35L41_SPI
+	select SND_SOC_MAX98388
 	select SND_AMD_ACP_CONFIG
 	depends on SND_SOC_AMD_ACP5x && I2C && SPI_MASTER
 	help
 	  This option enables machine driver for Vangogh platform
-	  using NAU8821 and CS35L41 codecs.
+	  using NAU8821 and either CS35L41 or MAX98388 codecs.
 	  Say m if you have such a device.
 	  If unsure select "N".
 

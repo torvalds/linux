@@ -566,8 +566,9 @@ next_match:
 			goto out;
 
 		if (last) {
-			if (nft_set_elem_expired(&f->mt[b].e->ext) ||
-			    (genmask &&
+			if (nft_set_elem_expired(&f->mt[b].e->ext))
+				goto next_match;
+			if ((genmask &&
 			     !nft_set_elem_active(&f->mt[b].e->ext, genmask)))
 				goto next_match;
 
@@ -598,11 +599,18 @@ out:
  * @elem:	nftables API element representation containing key data
  * @flags:	Unused
  */
-static void *nft_pipapo_get(const struct net *net, const struct nft_set *set,
-			    const struct nft_set_elem *elem, unsigned int flags)
+static struct nft_elem_priv *
+nft_pipapo_get(const struct net *net, const struct nft_set *set,
+	       const struct nft_set_elem *elem, unsigned int flags)
 {
-	return pipapo_get(net, set, (const u8 *)elem->key.val.data,
-			  nft_genmask_cur(net));
+	static struct nft_pipapo_elem *e;
+
+	e = pipapo_get(net, set, (const u8 *)elem->key.val.data,
+		       nft_genmask_cur(net));
+	if (IS_ERR(e))
+		return ERR_CAST(e);
+
+	return &e->priv;
 }
 
 /**
@@ -901,11 +909,13 @@ static void pipapo_lt_bits_adjust(struct nft_pipapo_field *f)
 static int pipapo_insert(struct nft_pipapo_field *f, const uint8_t *k,
 			 int mask_bits)
 {
-	int rule = f->rules++, group, ret, bit_offset = 0;
+	int rule = f->rules, group, ret, bit_offset = 0;
 
-	ret = pipapo_resize(f, f->rules - 1, f->rules);
+	ret = pipapo_resize(f, f->rules, f->rules + 1);
 	if (ret)
 		return ret;
+
+	f->rules++;
 
 	for (group = 0; group < f->groups; group++) {
 		int i, v;
@@ -1051,7 +1061,9 @@ static int pipapo_expand(struct nft_pipapo_field *f,
 			step++;
 			if (step >= len) {
 				if (!masks) {
-					pipapo_insert(f, base, 0);
+					err = pipapo_insert(f, base, 0);
+					if (err < 0)
+						return err;
 					masks = 1;
 				}
 				goto out;
@@ -1146,21 +1158,21 @@ static int pipapo_realloc_scratch(struct nft_pipapo_match *clone,
  * @net:	Network namespace
  * @set:	nftables API set representation
  * @elem:	nftables API element representation containing key data
- * @ext2:	Filled with pointer to &struct nft_set_ext in inserted element
+ * @elem_priv:	Filled with pointer to &struct nft_set_ext in inserted element
  *
  * Return: 0 on success, error pointer on failure.
  */
 static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 			     const struct nft_set_elem *elem,
-			     struct nft_set_ext **ext2)
+			     struct nft_elem_priv **elem_priv)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 	union nft_pipapo_map_bucket rulemap[NFT_PIPAPO_MAX_FIELDS];
 	const u8 *start = (const u8 *)elem->key.val.data, *end;
-	struct nft_pipapo_elem *e = elem->priv, *dup;
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_match *m = priv->clone;
 	u8 genmask = nft_genmask_next(net);
+	struct nft_pipapo_elem *e, *dup;
 	struct nft_pipapo_field *f;
 	const u8 *start_p, *end_p;
 	int i, bsize_max, err = 0;
@@ -1183,7 +1195,7 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 
 		if (!memcmp(start, dup_key->data, sizeof(*dup_key->data)) &&
 		    !memcmp(end, dup_end->data, sizeof(*dup_end->data))) {
-			*ext2 = &dup->ext;
+			*elem_priv = &dup->priv;
 			return -EEXIST;
 		}
 
@@ -1198,7 +1210,7 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 	if (PTR_ERR(dup) != -ENOENT) {
 		if (IS_ERR(dup))
 			return PTR_ERR(dup);
-		*ext2 = &dup->ext;
+		*elem_priv = &dup->priv;
 		return -ENOTEMPTY;
 	}
 
@@ -1234,6 +1246,9 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 		else
 			ret = pipapo_expand(f, start, end, f->groups * f->bb);
 
+		if (ret < 0)
+			return ret;
+
 		if (f->bsize > bsize_max)
 			bsize_max = f->bsize;
 
@@ -1255,7 +1270,8 @@ static int nft_pipapo_insert(const struct net *net, const struct nft_set *set,
 		put_cpu_ptr(m->scratch);
 	}
 
-	*ext2 = &e->ext;
+	e = nft_elem_priv_cast(elem->priv);
+	*elem_priv = &e->priv;
 
 	pipapo_map(m, rulemap, e);
 
@@ -1528,16 +1544,29 @@ static void pipapo_drop(struct nft_pipapo_match *m,
 	}
 }
 
+static void nft_pipapo_gc_deactivate(struct net *net, struct nft_set *set,
+				     struct nft_pipapo_elem *e)
+
+{
+	nft_setelem_data_deactivate(net, set, &e->priv);
+}
+
 /**
  * pipapo_gc() - Drop expired entries from set, destroy start and end elements
  * @set:	nftables API set representation
  * @m:		Matching data
  */
-static void pipapo_gc(const struct nft_set *set, struct nft_pipapo_match *m)
+static void pipapo_gc(struct nft_set *set, struct nft_pipapo_match *m)
 {
 	struct nft_pipapo *priv = nft_set_priv(set);
+	struct net *net = read_pnet(&set->net);
 	int rules_f0, first_rule = 0;
 	struct nft_pipapo_elem *e;
+	struct nft_trans_gc *gc;
+
+	gc = nft_trans_gc_alloc(set, 0, GFP_KERNEL);
+	if (!gc)
+		return;
 
 	while ((rules_f0 = pipapo_rules_same_key(m->f, first_rule))) {
 		union nft_pipapo_map_bucket rulemap[NFT_PIPAPO_MAX_FIELDS];
@@ -1561,13 +1590,20 @@ static void pipapo_gc(const struct nft_set *set, struct nft_pipapo_match *m)
 		f--;
 		i--;
 		e = f->mt[rulemap[i].to].e;
-		if (nft_set_elem_expired(&e->ext) &&
-		    !nft_set_elem_mark_busy(&e->ext)) {
-			priv->dirty = true;
-			pipapo_drop(m, rulemap);
 
-			rcu_barrier();
-			nft_set_elem_destroy(set, e, true);
+		/* synchronous gc never fails, there is no need to set on
+		 * NFT_SET_ELEM_DEAD_BIT.
+		 */
+		if (nft_set_elem_expired(&e->ext)) {
+			priv->dirty = true;
+
+			gc = nft_trans_gc_queue_sync(gc, GFP_ATOMIC);
+			if (!gc)
+				return;
+
+			nft_pipapo_gc_deactivate(net, set, e);
+			pipapo_drop(m, rulemap);
+			nft_trans_gc_elem_add(gc, e);
 
 			/* And check again current first rule, which is now the
 			 * first we haven't checked.
@@ -1577,11 +1613,11 @@ static void pipapo_gc(const struct nft_set *set, struct nft_pipapo_match *m)
 		}
 	}
 
-	e = nft_set_catchall_gc(set);
-	if (e)
-		nft_set_elem_destroy(set, e, true);
-
-	priv->last_gc = jiffies;
+	gc = nft_trans_gc_catchall_sync(gc);
+	if (gc) {
+		nft_trans_gc_queue_sync_done(gc);
+		priv->last_gc = jiffies;
+	}
 }
 
 /**
@@ -1639,7 +1675,7 @@ static void pipapo_reclaim_match(struct rcu_head *rcu)
  * We also need to create a new working copy for subsequent insertions and
  * deletions.
  */
-static void nft_pipapo_commit(const struct nft_set *set)
+static void nft_pipapo_commit(struct nft_set *set)
 {
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_match *new_clone, *old;
@@ -1664,6 +1700,17 @@ static void nft_pipapo_commit(const struct nft_set *set)
 	priv->clone = new_clone;
 }
 
+static bool nft_pipapo_transaction_mutex_held(const struct nft_set *set)
+{
+#ifdef CONFIG_PROVE_LOCKING
+	const struct net *net = read_pnet(&set->net);
+
+	return lockdep_is_held(&nft_pernet(net)->commit_mutex);
+#else
+	return true;
+#endif
+}
+
 static void nft_pipapo_abort(const struct nft_set *set)
 {
 	struct nft_pipapo *priv = nft_set_priv(set);
@@ -1672,7 +1719,7 @@ static void nft_pipapo_abort(const struct nft_set *set)
 	if (!priv->dirty)
 		return;
 
-	m = rcu_dereference(priv->match);
+	m = rcu_dereference_protected(priv->match, nft_pipapo_transaction_mutex_held(set));
 
 	new_clone = pipapo_clone(m);
 	if (IS_ERR(new_clone))
@@ -1688,7 +1735,7 @@ static void nft_pipapo_abort(const struct nft_set *set)
  * nft_pipapo_activate() - Mark element reference as active given key, commit
  * @net:	Network namespace
  * @set:	nftables API set representation
- * @elem:	nftables API element representation containing key data
+ * @elem_priv:	nftables API element representation containing key data
  *
  * On insertion, elements are added to a copy of the matching data currently
  * in use for lookups, and not directly inserted into current lookup data. Both
@@ -1697,16 +1744,11 @@ static void nft_pipapo_abort(const struct nft_set *set)
  */
 static void nft_pipapo_activate(const struct net *net,
 				const struct nft_set *set,
-				const struct nft_set_elem *elem)
+				struct nft_elem_priv *elem_priv)
 {
-	struct nft_pipapo_elem *e;
-
-	e = pipapo_get(net, set, (const u8 *)elem->key.val.data, 0);
-	if (IS_ERR(e))
-		return;
+	struct nft_pipapo_elem *e = nft_elem_priv_cast(elem_priv);
 
 	nft_set_elem_change_active(net, set, &e->ext);
-	nft_set_elem_clear_busy(&e->ext);
 }
 
 /**
@@ -1744,9 +1786,9 @@ static void *pipapo_deactivate(const struct net *net, const struct nft_set *set,
  *
  * Return: deactivated element if found, NULL otherwise.
  */
-static void *nft_pipapo_deactivate(const struct net *net,
-				   const struct nft_set *set,
-				   const struct nft_set_elem *elem)
+static struct nft_elem_priv *
+nft_pipapo_deactivate(const struct net *net, const struct nft_set *set,
+		      const struct nft_set_elem *elem)
 {
 	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
 
@@ -1757,7 +1799,7 @@ static void *nft_pipapo_deactivate(const struct net *net,
  * nft_pipapo_flush() - Call pipapo_deactivate() to make element inactive
  * @net:	Network namespace
  * @set:	nftables API set representation
- * @elem:	nftables API element representation containing key data
+ * @elem_priv:	nftables API element representation containing key data
  *
  * This is functionally the same as nft_pipapo_deactivate(), with a slightly
  * different interface, and it's also called once for each element in a set
@@ -1771,13 +1813,12 @@ static void *nft_pipapo_deactivate(const struct net *net,
  *
  * Return: true if element was found and deactivated.
  */
-static bool nft_pipapo_flush(const struct net *net, const struct nft_set *set,
-			     void *elem)
+static void nft_pipapo_flush(const struct net *net, const struct nft_set *set,
+			     struct nft_elem_priv *elem_priv)
 {
-	struct nft_pipapo_elem *e = elem;
+	struct nft_pipapo_elem *e = nft_elem_priv_cast(elem_priv);
 
-	return pipapo_deactivate(net, set, (const u8 *)nft_set_ext_key(&e->ext),
-				 &e->ext);
+	nft_set_elem_change_active(net, set, &e->ext);
 }
 
 /**
@@ -1900,7 +1941,7 @@ static bool pipapo_match_field(struct nft_pipapo_field *f,
  * nft_pipapo_remove() - Remove element given key, commit
  * @net:	Network namespace
  * @set:	nftables API set representation
- * @elem:	nftables API element representation containing key data
+ * @elem_priv:	nftables API element representation containing key data
  *
  * Similarly to nft_pipapo_activate(), this is used as commit operation by the
  * API, but it's called once per element in the pending transaction, so we can't
@@ -1908,19 +1949,16 @@ static bool pipapo_match_field(struct nft_pipapo_field *f,
  * the matched element here, if any, and commit the updated matching data.
  */
 static void nft_pipapo_remove(const struct net *net, const struct nft_set *set,
-			      const struct nft_set_elem *elem)
+			      struct nft_elem_priv *elem_priv)
 {
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_match *m = priv->clone;
-	struct nft_pipapo_elem *e = elem->priv;
 	int rules_f0, first_rule = 0;
+	struct nft_pipapo_elem *e;
 	const u8 *data;
 
+	e = nft_elem_priv_cast(elem_priv);
 	data = (const u8 *)nft_set_ext_key(&e->ext);
-
-	e = pipapo_get(net, set, data, 0);
-	if (IS_ERR(e))
-		return;
 
 	while ((rules_f0 = pipapo_rules_same_key(m->f, first_rule))) {
 		union nft_pipapo_map_bucket rulemap[NFT_PIPAPO_MAX_FIELDS];
@@ -1929,7 +1967,11 @@ static void nft_pipapo_remove(const struct net *net, const struct nft_set *set,
 		int i, start, rules_fx;
 
 		match_start = data;
-		match_end = (const u8 *)nft_set_ext_key_end(&e->ext)->data;
+
+		if (nft_set_ext_exists(&e->ext, NFT_SET_EXT_KEY_END))
+			match_end = (const u8 *)nft_set_ext_key_end(&e->ext)->data;
+		else
+			match_end = data;
 
 		start = first_rule;
 		rules_fx = rules_f0;
@@ -1992,7 +2034,6 @@ static void nft_pipapo_walk(const struct nft_ctx *ctx, struct nft_set *set,
 
 	for (r = 0; r < f->rules; r++) {
 		struct nft_pipapo_elem *e;
-		struct nft_set_elem elem;
 
 		if (r < f->rules - 1 && f->mt[r + 1].e == f->mt[r].e)
 			continue;
@@ -2001,12 +2042,8 @@ static void nft_pipapo_walk(const struct nft_ctx *ctx, struct nft_set *set,
 			goto cont;
 
 		e = f->mt[r].e;
-		if (nft_set_elem_expired(&e->ext))
-			goto cont;
 
-		elem.priv = e;
-
-		iter->err = iter->fn(ctx, set, iter, &elem);
+		iter->err = iter->fn(ctx, set, iter, &e->priv);
 		if (iter->err < 0)
 			goto out;
 
@@ -2077,6 +2114,8 @@ static int nft_pipapo_init(const struct nft_set *set,
 	struct nft_pipapo_match *m;
 	struct nft_pipapo_field *f;
 	int err, i, field_count;
+
+	BUILD_BUG_ON(offsetof(struct nft_pipapo_elem, priv) != 0);
 
 	field_count = desc->field_count ? : 1;
 
@@ -2172,7 +2211,7 @@ static void nft_set_pipapo_match_destroy(const struct nft_ctx *ctx,
 
 		e = f->mt[r].e;
 
-		nf_tables_set_elem_destroy(ctx, set, e);
+		nf_tables_set_elem_destroy(ctx, set, &e->priv);
 	}
 }
 

@@ -131,3 +131,6 @@ ssize_t fb_io_write(struct fb_info *info, const char __user *buf, size_t count, 
 	return (cnt) ? cnt : err;
 }
 EXPORT_SYMBOL(fb_io_write);
+
+MODULE_DESCRIPTION("Fbdev helpers for framebuffers in I/O memory");
+MODULE_LICENSE("GPL");

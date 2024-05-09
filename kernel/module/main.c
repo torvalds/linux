@@ -1295,12 +1295,20 @@ void *__symbol_get(const char *symbol)
 	};
 
 	preempt_disable();
-	if (!find_symbol(&fsa) || strong_try_module_get(fsa.owner)) {
-		preempt_enable();
-		return NULL;
+	if (!find_symbol(&fsa))
+		goto fail;
+	if (fsa.license != GPL_ONLY) {
+		pr_warn("failing symbol_get of non-GPLONLY symbol %s.\n",
+			symbol);
+		goto fail;
 	}
+	if (strong_try_module_get(fsa.owner))
+		goto fail;
 	preempt_enable();
 	return (void *)kernel_symbol_value(fsa.sym);
+fail:
+	preempt_enable();
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(__symbol_get);
 
@@ -1484,7 +1492,7 @@ long module_get_offset_and_type(struct module *mod, enum mod_mem_type type,
 	return offset | mask;
 }
 
-static bool module_init_layout_section(const char *sname)
+bool module_init_layout_section(const char *sname)
 {
 #ifndef CONFIG_MODULE_UNLOAD
 	if (module_exit_section(sname))
@@ -3092,7 +3100,7 @@ static bool idempotent(struct idempotent *u, const void *cookie)
  * remove everybody - which includes ourselves - fill in the return
  * value, and then complete the operation.
  */
-static void idempotent_complete(struct idempotent *u, int ret)
+static int idempotent_complete(struct idempotent *u, int ret)
 {
 	const void *cookie = u->cookie;
 	int hash = hash_ptr(cookie, IDEM_HASH_BITS);
@@ -3109,27 +3117,18 @@ static void idempotent_complete(struct idempotent *u, int ret)
 		complete(&pos->complete);
 	}
 	spin_unlock(&idem_lock);
+	return ret;
 }
 
 static int init_module_from_file(struct file *f, const char __user * uargs, int flags)
 {
-	struct idempotent idem;
 	struct load_info info = { };
 	void *buf = NULL;
-	int len, ret;
-
-	if (!f || !(f->f_mode & FMODE_READ))
-		return -EBADF;
-
-	if (idempotent(&idem, file_inode(f))) {
-		wait_for_completion(&idem.complete);
-		return idem.ret;
-	}
+	int len;
 
 	len = kernel_read_file(f, 0, &buf, INT_MAX, NULL, READING_MODULE);
 	if (len < 0) {
 		mod_stat_inc(&failed_kreads);
-		mod_stat_add_long(len, &invalid_kread_bytes);
 		return len;
 	}
 
@@ -3146,9 +3145,25 @@ static int init_module_from_file(struct file *f, const char __user * uargs, int 
 		info.len = len;
 	}
 
-	ret = load_module(&info, uargs, flags);
-	idempotent_complete(&idem, ret);
-	return ret;
+	return load_module(&info, uargs, flags);
+}
+
+static int idempotent_init_module(struct file *f, const char __user * uargs, int flags)
+{
+	struct idempotent idem;
+
+	if (!f || !(f->f_mode & FMODE_READ))
+		return -EBADF;
+
+	/* See if somebody else is doing the operation? */
+	if (idempotent(&idem, file_inode(f))) {
+		wait_for_completion(&idem.complete);
+		return idem.ret;
+	}
+
+	/* Otherwise, we'll do it and complete others */
+	return idempotent_complete(&idem,
+		init_module_from_file(f, uargs, flags));
 }
 
 SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
@@ -3168,7 +3183,7 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 		return -EINVAL;
 
 	f = fdget(fd);
-	err = init_module_from_file(f.file, uargs, flags);
+	err = idempotent_init_module(f.file, uargs, flags);
 	fdput(f);
 	return err;
 }

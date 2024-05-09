@@ -10,6 +10,7 @@
 
 #define MTK_WED_TX_QUEUES		2
 #define MTK_WED_RX_QUEUES		2
+#define MTK_WED_RX_PAGE_QUEUES		3
 
 #define WED_WO_STA_REC			0x6
 
@@ -45,7 +46,7 @@ enum mtk_wed_wo_cmd {
 	MTK_WED_WO_CMD_WED_END
 };
 
-struct mtk_rxbm_desc {
+struct mtk_wed_bm_desc {
 	__le32 buf0;
 	__le32 token;
 } __packed __aligned(4);
@@ -76,6 +77,11 @@ struct mtk_wed_wo_rx_stats {
 	__le32 rx_drop_cnt;
 };
 
+struct mtk_wed_buf {
+	void *p;
+	dma_addr_t phy_addr;
+};
+
 struct mtk_wed_device {
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	const struct mtk_wed_ops *ops;
@@ -94,17 +100,20 @@ struct mtk_wed_device {
 	struct mtk_wed_ring txfree_ring;
 	struct mtk_wed_ring tx_wdma[MTK_WED_TX_QUEUES];
 	struct mtk_wed_ring rx_wdma[MTK_WED_RX_QUEUES];
+	struct mtk_wed_ring rx_rro_ring[MTK_WED_RX_QUEUES];
+	struct mtk_wed_ring rx_page_ring[MTK_WED_RX_PAGE_QUEUES];
+	struct mtk_wed_ring ind_cmd_ring;
 
 	struct {
 		int size;
-		void **pages;
+		struct mtk_wed_buf *pages;
 		struct mtk_wdma_desc *desc;
 		dma_addr_t desc_phys;
 	} tx_buf_ring;
 
 	struct {
 		int size;
-		struct mtk_rxbm_desc *desc;
+		struct mtk_wed_bm_desc *desc;
 		dma_addr_t desc_phys;
 	} rx_buf_ring;
 
@@ -113,6 +122,13 @@ struct mtk_wed_device {
 		dma_addr_t miod_phys;
 		dma_addr_t fdbk_phys;
 	} rro;
+
+	struct {
+		int size;
+		struct mtk_wed_buf *pages;
+		struct mtk_wed_bm_desc *desc;
+		dma_addr_t desc_phys;
+	} hw_rro;
 
 	/* filled by driver: */
 	struct {
@@ -123,6 +139,7 @@ struct mtk_wed_device {
 		enum mtk_wed_bus_tye bus_type;
 		void __iomem *base;
 		u32 phy_base;
+		u32 id;
 
 		u32 wpdma_phys;
 		u32 wpdma_int;
@@ -131,18 +148,35 @@ struct mtk_wed_device {
 		u32 wpdma_txfree;
 		u32 wpdma_rx_glo;
 		u32 wpdma_rx;
+		u32 wpdma_rx_rro[MTK_WED_RX_QUEUES];
+		u32 wpdma_rx_pg;
 
 		bool wcid_512;
+		bool hw_rro;
+		bool msi;
 
 		u16 token_start;
 		unsigned int nbuf;
 		unsigned int rx_nbuf;
 		unsigned int rx_npkt;
 		unsigned int rx_size;
+		unsigned int amsdu_max_len;
 
 		u8 tx_tbit[MTK_WED_TX_QUEUES];
 		u8 rx_tbit[MTK_WED_RX_QUEUES];
+		u8 rro_rx_tbit[MTK_WED_RX_QUEUES];
+		u8 rx_pg_tbit[MTK_WED_RX_PAGE_QUEUES];
 		u8 txfree_tbit;
+		u8 amsdu_max_subframes;
+
+		struct {
+			u8 se_group_nums;
+			u16 win_size;
+			u16 particular_sid;
+			u32 ack_sn_addr;
+			dma_addr_t particular_se_phys;
+			dma_addr_t addr_elem_phys[1024];
+		} ind_cmd;
 
 		u32 (*init_buf)(void *ptr, dma_addr_t phys, int token_id);
 		int (*offload_enable)(struct mtk_wed_device *wed);
@@ -182,6 +216,14 @@ struct mtk_wed_ops {
 	void (*irq_set_mask)(struct mtk_wed_device *dev, u32 mask);
 	int (*setup_tc)(struct mtk_wed_device *wed, struct net_device *dev,
 			enum tc_setup_type type, void *type_data);
+	void (*start_hw_rro)(struct mtk_wed_device *dev, u32 irq_mask,
+			     bool reset);
+	void (*rro_rx_ring_setup)(struct mtk_wed_device *dev, int ring,
+				  void __iomem *regs);
+	void (*msdu_pg_rx_ring_setup)(struct mtk_wed_device *dev, int ring,
+				      void __iomem *regs);
+	int (*ind_rx_ring_setup)(struct mtk_wed_device *dev,
+				 void __iomem *regs);
 };
 
 extern const struct mtk_wed_ops __rcu *mtk_soc_wed_ops;
@@ -206,11 +248,22 @@ mtk_wed_device_attach(struct mtk_wed_device *dev)
 	return ret;
 }
 
-static inline bool
-mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
+static inline bool mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
 {
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	if (dev->version == 3)
+		return dev->wlan.hw_rro;
+
 	return dev->version != 1;
+#else
+	return false;
+#endif
+}
+
+static inline bool mtk_wed_is_amsdu_supported(struct mtk_wed_device *dev)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	return dev->version == 3;
 #else
 	return false;
 #endif
@@ -242,6 +295,15 @@ mtk_wed_get_rx_capa(struct mtk_wed_device *dev)
 #define mtk_wed_device_dma_reset(_dev) (_dev)->ops->reset_dma(_dev)
 #define mtk_wed_device_setup_tc(_dev, _netdev, _type, _type_data) \
 	(_dev)->ops->setup_tc(_dev, _netdev, _type, _type_data)
+#define mtk_wed_device_start_hw_rro(_dev, _mask, _reset) \
+	(_dev)->ops->start_hw_rro(_dev, _mask, _reset)
+#define mtk_wed_device_rro_rx_ring_setup(_dev, _ring, _regs) \
+	(_dev)->ops->rro_rx_ring_setup(_dev, _ring, _regs)
+#define mtk_wed_device_msdu_pg_rx_ring_setup(_dev, _ring, _regs) \
+	(_dev)->ops->msdu_pg_rx_ring_setup(_dev, _ring, _regs)
+#define mtk_wed_device_ind_rx_ring_setup(_dev, _regs) \
+	(_dev)->ops->ind_rx_ring_setup(_dev, _regs)
+
 #else
 static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
 {
@@ -261,6 +323,10 @@ static inline bool mtk_wed_device_active(struct mtk_wed_device *dev)
 #define mtk_wed_device_stop(_dev) do {} while (0)
 #define mtk_wed_device_dma_reset(_dev) do {} while (0)
 #define mtk_wed_device_setup_tc(_dev, _netdev, _type, _type_data) -EOPNOTSUPP
+#define mtk_wed_device_start_hw_rro(_dev, _mask, _reset) do {} while (0)
+#define mtk_wed_device_rro_rx_ring_setup(_dev, _ring, _regs) -ENODEV
+#define mtk_wed_device_msdu_pg_rx_ring_setup(_dev, _ring, _regs) -ENODEV
+#define mtk_wed_device_ind_rx_ring_setup(_dev, _regs) -ENODEV
 #endif
 
 #endif

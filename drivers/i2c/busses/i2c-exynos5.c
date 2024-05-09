@@ -18,9 +18,7 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/spinlock.h>
 
 /*
@@ -882,7 +880,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int exynos5_i2c_remove(struct platform_device *pdev)
+static void exynos5_i2c_remove(struct platform_device *pdev)
 {
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 
@@ -890,11 +888,8 @@ static int exynos5_i2c_remove(struct platform_device *pdev)
 
 	clk_unprepare(i2c->clk);
 	clk_unprepare(i2c->pclk);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int exynos5_i2c_suspend_noirq(struct device *dev)
 {
 	struct exynos5_i2c *i2c = dev_get_drvdata(dev);
@@ -936,19 +931,18 @@ err_pclk:
 	clk_disable_unprepare(i2c->pclk);
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops exynos5_i2c_dev_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(exynos5_i2c_suspend_noirq,
-				      exynos5_i2c_resume_noirq)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(exynos5_i2c_suspend_noirq,
+				  exynos5_i2c_resume_noirq)
 };
 
 static struct platform_driver exynos5_i2c_driver = {
 	.probe		= exynos5_i2c_probe,
-	.remove		= exynos5_i2c_remove,
+	.remove_new	= exynos5_i2c_remove,
 	.driver		= {
 		.name	= "exynos5-hsi2c",
-		.pm	= &exynos5_i2c_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&exynos5_i2c_dev_pm_ops),
 		.of_match_table = exynos5_i2c_match,
 	},
 };

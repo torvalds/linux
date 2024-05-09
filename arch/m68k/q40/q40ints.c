@@ -24,6 +24,8 @@
 #include <asm/q40_master.h>
 #include <asm/q40ints.h>
 
+#include "q40.h"
+
 /*
  * Q40 IRQs are defined as follows:
  *            3,4,5,6,7,10,11,14,15 : ISA dev IRQs

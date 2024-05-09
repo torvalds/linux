@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>

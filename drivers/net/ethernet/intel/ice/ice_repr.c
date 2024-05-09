@@ -254,7 +254,7 @@ static const struct net_device_ops ice_repr_netdev_ops = {
  * ice_is_port_repr_netdev - Check if a given netdevice is a port representor netdev
  * @netdev: pointer to netdev
  */
-bool ice_is_port_repr_netdev(struct net_device *netdev)
+bool ice_is_port_repr_netdev(const struct net_device *netdev)
 {
 	return netdev && (netdev->netdev_ops == &ice_repr_netdev_ops);
 }

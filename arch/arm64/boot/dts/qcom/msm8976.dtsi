@@ -232,124 +232,10 @@
 		method = "smc";
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
+	rpm: remoteproc {
+		compatible = "qcom,msm8976-rpm-proc", "qcom,rpm-proc";
 
-		ext-region@85b00000 {
-			reg = <0x0 0x85b00000 0x0 0x500000>;
-			no-map;
-		};
-
-		smem@86300000 {
-			compatible = "qcom,smem";
-			reg = <0x0 0x86300000 0x0 0x100000>;
-			no-map;
-
-			hwlocks = <&tcsr_mutex 3>;
-			qcom,rpm-msg-ram = <&rpm_msg_ram>;
-		};
-
-		reserved@86400000 {
-			reg = <0x0 0x86400000 0x0 0x800000>;
-			no-map;
-		};
-
-		mpss_mem: mpss@86c00000 {
-			reg = <0x0 0x86c00000 0x0 0x5600000>;
-			no-map;
-		};
-
-		lpass_mem: lpass@8c200000 {
-			reg = <0x0 0x8c200000 0x0 0x1800000>;
-			no-map;
-		};
-
-		venus_mem: memory@8da00000 {
-			reg = <0x0 0x8da00000 0x0 0x2600000>;
-			no-map;
-		};
-
-		tz-apps@8dd00000 {
-			reg = <0x0 0x8dd00000 0x0 0x1400000>;
-			no-map;
-		};
-	};
-
-	smp2p-hexagon {
-		compatible = "qcom,smp2p";
-		interrupts = <GIC_SPI 291 IRQ_TYPE_EDGE_RISING>;
-		qcom,ipc = <&apcs 8 10>;
-
-		qcom,local-pid = <0>;
-		qcom,remote-pid = <2>;
-		qcom,smem = <443>, <429>;
-
-		adsp_smp2p_out: master-kernel {
-			qcom,entry-name = "master-kernel";
-
-			#qcom,smem-state-cells = <1>;
-		};
-
-		adsp_smp2p_in: slave-kernel {
-			qcom,entry-name = "slave-kernel";
-
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-	};
-
-	smp2p-modem {
-		compatible = "qcom,smp2p";
-		interrupts = <GIC_SPI 27 IRQ_TYPE_EDGE_RISING>;
-		qcom,ipc = <&apcs 8 13>;
-
-		qcom,local-pid = <0>;
-		qcom,remote-pid = <1>;
-		qcom,smem = <435>, <428>;
-
-		modem_smp2p_out: master-kernel {
-			qcom,entry-name = "master-kernel";
-
-			#qcom,smem-state-cells = <1>;
-		};
-
-		modem_smp2p_in: slave-kernel {
-			qcom,entry-name = "slave-kernel";
-
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-	};
-
-	smp2p-wcnss {
-		compatible = "qcom,smp2p";
-		interrupts = <GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
-		qcom,ipc = <&apcs 8 17>;
-
-		qcom,local-pid = <0>;
-		qcom,remote-pid = <4>;
-		qcom,smem = <451>, <431>;
-
-		wcnss_smp2p_out: master-kernel {
-			qcom,entry-name = "master-kernel";
-
-			#qcom,smem-state-cells = <1>;
-		};
-
-		wcnss_smp2p_in: slave-kernel {
-			qcom,entry-name = "slave-kernel";
-
-			interrupt-controller;
-			#interrupt-cells = <2>;
-		};
-	};
-
-	smd {
-		compatible = "qcom,smd";
-
-		rpm {
+		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
 			qcom,ipc = <&apcs 8 0>;
 			qcom,smd-edge = <15>;
@@ -422,15 +308,134 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ext-region@85b00000 {
+			reg = <0x0 0x85b00000 0x0 0x500000>;
+			no-map;
+		};
+
+		smem@86300000 {
+			compatible = "qcom,smem";
+			reg = <0x0 0x86300000 0x0 0x100000>;
+			no-map;
+
+			hwlocks = <&tcsr_mutex 3>;
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+		};
+
+		reserved@86400000 {
+			reg = <0x0 0x86400000 0x0 0x800000>;
+			no-map;
+		};
+
+		mpss_mem: mpss@86c00000 {
+			reg = <0x0 0x86c00000 0x0 0x5600000>;
+			no-map;
+		};
+
+		lpass_mem: lpass@8c200000 {
+			reg = <0x0 0x8c200000 0x0 0x1000000>;
+			no-map;
+		};
+
+		wcnss_fw_mem: wcnss@8d200000 {
+			reg = <0x0 0x8d200000 0x0 0x800000>;
+			no-map;
+		};
+
+		venus_mem: memory@8da00000 {
+			reg = <0x0 0x8da00000 0x0 0x2600000>;
+			no-map;
+		};
+
+		tz-apps@8dd00000 {
+			reg = <0x0 0x8dd00000 0x0 0x1400000>;
+			no-map;
+		};
+	};
+
+	smp2p-hexagon {
+		compatible = "qcom,smp2p";
+		interrupts = <GIC_SPI 291 IRQ_TYPE_EDGE_RISING>;
+		qcom,ipc = <&apcs 8 10>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <2>;
+		qcom,smem = <443>, <429>;
+
+		adsp_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+
+			#qcom,smem-state-cells = <1>;
+		};
+
+		adsp_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	smp2p-modem {
+		compatible = "qcom,smp2p";
+		interrupts = <GIC_SPI 27 IRQ_TYPE_EDGE_RISING>;
+		qcom,ipc = <&apcs 8 14>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <1>;
+		qcom,smem = <435>, <428>;
+
+		modem_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+
+			#qcom,smem-state-cells = <1>;
+		};
+
+		modem_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	smp2p-wcnss {
+		compatible = "qcom,smp2p";
+		interrupts = <GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
+		qcom,ipc = <&apcs 8 18>;
+
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <4>;
+		qcom,smem = <451>, <431>;
+
+		wcnss_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+
+			#qcom,smem-state-cells = <1>;
+		};
+
+		wcnss_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
 	smsm {
 		compatible = "qcom,smsm";
 
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		qcom,ipc-1 = <&apcs 8 12>;
+		qcom,ipc-1 = <&apcs 8 13>;
 		qcom,ipc-2 = <&apcs 8 9>;
-		qcom,ipc-3 = <&apcs 8 18>;
+		qcom,ipc-3 = <&apcs 8 19>;
 
 		apps_smsm: apps@0 {
 			reg = <0>;
@@ -439,7 +444,7 @@
 
 		hexagon_smsm: hexagon@1 {
 			reg = <1>;
-			interrupts = <0 290 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 290 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;

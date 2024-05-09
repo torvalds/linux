@@ -14,12 +14,27 @@
 #include "octep_main.h"
 #include "octep_ctrl_net.h"
 
+/* Control plane version */
+#define OCTEP_CP_VERSION_CURRENT	OCTEP_CP_VERSION(1, 0, 0)
+
 static const u32 req_hdr_sz = sizeof(union octep_ctrl_net_req_hdr);
 static const u32 mtu_sz = sizeof(struct octep_ctrl_net_h2f_req_cmd_mtu);
 static const u32 mac_sz = sizeof(struct octep_ctrl_net_h2f_req_cmd_mac);
 static const u32 state_sz = sizeof(struct octep_ctrl_net_h2f_req_cmd_state);
 static const u32 link_info_sz = sizeof(struct octep_ctrl_net_link_info);
 static atomic_t ctrl_net_msg_id;
+
+/* Control plane version in which OCTEP_CTRL_NET_H2F_CMD was added */
+static const u32 octep_ctrl_net_h2f_cmd_versions[OCTEP_CTRL_NET_H2F_CMD_MAX] = {
+	[OCTEP_CTRL_NET_H2F_CMD_INVALID ... OCTEP_CTRL_NET_H2F_CMD_GET_INFO] =
+	 OCTEP_CP_VERSION(1, 0, 0)
+};
+
+/* Control plane version in which OCTEP_CTRL_NET_F2H_CMD was added */
+static const u32 octep_ctrl_net_f2h_cmd_versions[OCTEP_CTRL_NET_F2H_CMD_MAX] = {
+	[OCTEP_CTRL_NET_F2H_CMD_INVALID ... OCTEP_CTRL_NET_F2H_CMD_LINK_STATUS] =
+	 OCTEP_CP_VERSION(1, 0, 0)
+};
 
 static void init_send_req(struct octep_ctrl_mbox_msg *msg, void *buf,
 			  u16 sz, int vfid)
@@ -41,7 +56,13 @@ static int octep_send_mbox_req(struct octep_device *oct,
 			       struct octep_ctrl_net_wait_data *d,
 			       bool wait_for_response)
 {
-	int err, ret;
+	int err, ret, cmd;
+
+	/* check if firmware is compatible for this request */
+	cmd = d->data.req.hdr.s.cmd;
+	if (octep_ctrl_net_h2f_cmd_versions[cmd] > oct->ctrl_mbox.max_fw_version ||
+	    octep_ctrl_net_h2f_cmd_versions[cmd] < oct->ctrl_mbox.min_fw_version)
+		return -EOPNOTSUPP;
 
 	err = octep_ctrl_mbox_send(&oct->ctrl_mbox, &d->msg);
 	if (err < 0)
@@ -55,7 +76,7 @@ static int octep_send_mbox_req(struct octep_device *oct,
 	list_add_tail(&d->list, &oct->ctrl_req_wait_list);
 	ret = wait_event_interruptible_timeout(oct->ctrl_req_wait_q,
 					       (d->done != 0),
-					       jiffies + msecs_to_jiffies(500));
+					       msecs_to_jiffies(500));
 	list_del(&d->list);
 	if (ret == 0 || ret == 1)
 		return -EAGAIN;
@@ -84,12 +105,16 @@ int octep_ctrl_net_init(struct octep_device *oct)
 
 	/* Initialize control mbox */
 	ctrl_mbox = &oct->ctrl_mbox;
+	ctrl_mbox->version = OCTEP_CP_VERSION_CURRENT;
 	ctrl_mbox->barmem = CFG_GET_CTRL_MBOX_MEM_ADDR(oct->conf);
 	ret = octep_ctrl_mbox_init(ctrl_mbox);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize control mbox\n");
 		return ret;
 	}
+	dev_info(&pdev->dev, "Control plane versions host: %llx, firmware: %x:%x\n",
+		 ctrl_mbox->version, ctrl_mbox->min_fw_version,
+		 ctrl_mbox->max_fw_version);
 	oct->ctrl_mbox_ifstats_offset = ctrl_mbox->barmem_sz;
 
 	return 0;
@@ -273,9 +298,17 @@ static int process_mbox_notify(struct octep_device *oct,
 {
 	struct net_device *netdev = oct->netdev;
 	struct octep_ctrl_net_f2h_req *req;
+	int cmd;
 
 	req = (struct octep_ctrl_net_f2h_req *)msg->sg_list[0].msg;
-	switch (req->hdr.s.cmd) {
+	cmd = req->hdr.s.cmd;
+
+	/* check if we support this command */
+	if (octep_ctrl_net_f2h_cmd_versions[cmd] > OCTEP_CP_VERSION_CURRENT ||
+	    octep_ctrl_net_f2h_cmd_versions[cmd] < OCTEP_CP_VERSION_CURRENT)
+		return -EOPNOTSUPP;
+
+	switch (cmd) {
 	case OCTEP_CTRL_NET_F2H_CMD_LINK_STATUS:
 		if (netif_running(netdev)) {
 			if (req->link.state) {
@@ -318,6 +351,28 @@ void octep_ctrl_net_recv_fw_messages(struct octep_device *oct)
 		else if (msg.hdr.s.flags & OCTEP_CTRL_MBOX_MSG_HDR_FLAG_NOTIFY)
 			process_mbox_notify(oct, &msg);
 	}
+}
+
+int octep_ctrl_net_get_info(struct octep_device *oct, int vfid,
+			    struct octep_fw_info *info)
+{
+	struct octep_ctrl_net_wait_data d = {0};
+	struct octep_ctrl_net_h2f_resp *resp;
+	struct octep_ctrl_net_h2f_req *req;
+	int err;
+
+	req = &d.data.req;
+	init_send_req(&d.msg, req, 0, vfid);
+	req->hdr.s.cmd = OCTEP_CTRL_NET_H2F_CMD_GET_INFO;
+	req->link_info.cmd = OCTEP_CTRL_NET_CMD_GET;
+	err = octep_send_mbox_req(oct, &d, true);
+	if (err < 0)
+		return err;
+
+	resp = &d.data.resp;
+	memcpy(info, &resp->info.fw_info, sizeof(struct octep_fw_info));
+
+	return 0;
 }
 
 int octep_ctrl_net_uninit(struct octep_device *oct)

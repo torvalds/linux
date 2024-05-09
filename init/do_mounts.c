@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/ramfs.h>
 #include <linux/shmem_fs.h>
+#include <linux/ktime.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
@@ -71,11 +72,36 @@ static int __init rootwait_setup(char *str)
 {
 	if (*str)
 		return 0;
-	root_wait = 1;
+	root_wait = -1;
 	return 1;
 }
 
 __setup("rootwait", rootwait_setup);
+
+static int __init rootwait_timeout_setup(char *str)
+{
+	int sec;
+
+	if (kstrtoint(str, 0, &sec) || sec < 0) {
+		pr_warn("ignoring invalid rootwait value\n");
+		goto ignore;
+	}
+
+	if (check_mul_overflow(sec, MSEC_PER_SEC, &root_wait)) {
+		pr_warn("ignoring excessive rootwait value\n");
+		goto ignore;
+	}
+
+	return 1;
+
+ignore:
+	/* Fallback to indefinite wait */
+	root_wait = -1;
+
+	return 1;
+}
+
+__setup("rootwait=", rootwait_timeout_setup);
 
 static char * __initdata root_mount_data;
 static int __init root_data_setup(char *str)
@@ -218,7 +244,7 @@ retry:
 	for (i = 0, p = fs_names; i < num_fs; i++, p += strlen(p)+1)
 		printk(" %s", p);
 	printk("\n");
-	panic("VFS: Unable to mount root fs on %s", b);
+	panic("VFS: Unable to mount root fs on \"%s\" or %s", pretty_name, b);
 out:
 	put_page(page);
 }
@@ -384,14 +410,22 @@ void __init mount_root(char *root_device_name)
 /* wait for any asynchronous scanning to complete */
 static void __init wait_for_root(char *root_device_name)
 {
+	ktime_t end;
+
 	if (ROOT_DEV != 0)
 		return;
 
 	pr_info("Waiting for root device %s...\n", root_device_name);
 
+	end = ktime_add_ms(ktime_get_raw(), root_wait);
+
 	while (!driver_probe_done() ||
-	       early_lookup_bdev(root_device_name, &ROOT_DEV) < 0)
+	       early_lookup_bdev(root_device_name, &ROOT_DEV) < 0) {
 		msleep(5);
+		if (root_wait > 0 && ktime_after(ktime_get_raw(), end))
+			break;
+	}
+
 	async_synchronize_full();
 
 }

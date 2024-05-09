@@ -51,7 +51,7 @@ static void tc_dwc_g210_pci_remove(struct pci_dev *pdev)
  * @pdev: pointer to PCI device handle
  * @id: PCI device id
  *
- * Returns 0 on success, non-zero value on failure
+ * Return: 0 on success, non-zero value on failure.
  */
 static int
 tc_dwc_g210_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)

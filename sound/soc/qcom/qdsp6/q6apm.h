@@ -13,7 +13,6 @@
 #include <linux/of_platform.h>
 #include <linux/jiffies.h>
 #include <linux/soc/qcom/apr.h>
-#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 #include "audioreach.h"
 
 #define APM_PORT_MAX		127
@@ -126,7 +125,6 @@ int q6apm_graph_media_format_shmem(struct q6apm_graph *graph,
 				   struct audioreach_module_config *cfg);
 
 /* read/write related */
-int q6apm_send_eos_nowait(struct q6apm_graph *graph);
 int q6apm_read(struct q6apm_graph *graph);
 int q6apm_write_async(struct q6apm_graph *graph, uint32_t len, uint32_t msw_ts,
 		      uint32_t lsw_ts, uint32_t wflags);
@@ -144,7 +142,6 @@ int q6apm_send_cmd_sync(struct q6apm *apm, struct gpr_pkt *pkt,
 /* Callback for graph specific */
 struct audioreach_module *q6apm_find_module_by_mid(struct q6apm_graph *graph,
 						    uint32_t mid);
-void q6apm_set_fe_dai_ops(struct snd_soc_dai_driver *dai_drv);
 int q6apm_graph_get_rx_shmem_module_iid(struct q6apm_graph *graph);
 
 bool q6apm_is_adsp_ready(void);

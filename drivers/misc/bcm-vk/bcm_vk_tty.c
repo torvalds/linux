@@ -186,9 +186,8 @@ static void bcm_vk_tty_doorbell(struct bcm_vk *vk, u32 db_val)
 		  VK_BAR0_REGSEG_DB_BASE + VK_BAR0_REGSEG_TTY_DB_OFFSET);
 }
 
-static int bcm_vk_tty_write(struct tty_struct *tty,
-			    const unsigned char *buffer,
-			    int count)
+static ssize_t bcm_vk_tty_write(struct tty_struct *tty, const u8 *buffer,
+				size_t count)
 {
 	int index;
 	struct bcm_vk *vk;

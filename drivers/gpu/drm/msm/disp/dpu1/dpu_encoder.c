@@ -152,7 +152,6 @@ enum dpu_enc_rc_states {
  * @crtc_frame_event_cb_data:	callback handler private data
  * @frame_done_timeout_ms:	frame done timeout in ms
  * @frame_done_timer:		watchdog timer for frame done event
- * @vsync_event_timer:		vsync timer
  * @disp_info:			local copy of msm_display_info struct
  * @idle_pc_supported:		indicate if idle power collaps is supported
  * @rc_lock:			resource control mutex lock to protect
@@ -160,7 +159,6 @@ enum dpu_enc_rc_states {
  * @rc_state:			resource controller state
  * @delayed_off_work:		delayed worker to schedule disabling of
  *				clks and resources after IDLE_TIMEOUT time.
- * @vsync_event_work:		worker to handle vsync event for autorefresh
  * @topology:                   topology of the display
  * @idle_timeout:		idle timeout duration in milliseconds
  * @wide_bus_en:		wide bus is enabled on this interface
@@ -194,7 +192,6 @@ struct dpu_encoder_virt {
 
 	atomic_t frame_done_timeout_ms;
 	struct timer_list frame_done_timer;
-	struct timer_list vsync_event_timer;
 
 	struct msm_display_info disp_info;
 
@@ -202,7 +199,6 @@ struct dpu_encoder_virt {
 	struct mutex rc_lock;
 	enum dpu_enc_rc_states rc_state;
 	struct delayed_work delayed_off_work;
-	struct kthread_work vsync_event_work;
 	struct msm_display_topology topology;
 
 	u32 idle_timeout;
@@ -351,8 +347,8 @@ static int dpu_encoder_helper_wait_event_timeout(int32_t drm_id,
 		u32 irq_idx, struct dpu_encoder_wait_info *info);
 
 int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
-		int irq,
-		void (*func)(void *arg, int irq_idx),
+		unsigned int irq_idx,
+		void (*func)(void *arg),
 		struct dpu_encoder_wait_info *wait_info)
 {
 	u32 irq_status;
@@ -366,54 +362,54 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 
 	/* return EWOULDBLOCK since we know the wait isn't necessary */
 	if (phys_enc->enable_state == DPU_ENC_DISABLED) {
-		DRM_ERROR("encoder is disabled id=%u, callback=%ps, irq=%d\n",
+		DRM_ERROR("encoder is disabled id=%u, callback=%ps, IRQ=[%d, %d]\n",
 			  DRMID(phys_enc->parent), func,
-			  irq);
+			  DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx));
 		return -EWOULDBLOCK;
 	}
 
-	if (irq < 0) {
+	if (irq_idx < 0) {
 		DRM_DEBUG_KMS("skip irq wait id=%u, callback=%ps\n",
 			      DRMID(phys_enc->parent), func);
 		return 0;
 	}
 
-	DRM_DEBUG_KMS("id=%u, callback=%ps, irq=%d, pp=%d, pending_cnt=%d\n",
+	DRM_DEBUG_KMS("id=%u, callback=%ps, IRQ=[%d, %d], pp=%d, pending_cnt=%d\n",
 		      DRMID(phys_enc->parent), func,
-		      irq, phys_enc->hw_pp->idx - PINGPONG_0,
+		      DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx), phys_enc->hw_pp->idx - PINGPONG_0,
 		      atomic_read(wait_info->atomic_cnt));
 
 	ret = dpu_encoder_helper_wait_event_timeout(
 			DRMID(phys_enc->parent),
-			irq,
+			irq_idx,
 			wait_info);
 
 	if (ret <= 0) {
-		irq_status = dpu_core_irq_read(phys_enc->dpu_kms, irq);
+		irq_status = dpu_core_irq_read(phys_enc->dpu_kms, irq_idx);
 		if (irq_status) {
 			unsigned long flags;
 
-			DRM_DEBUG_KMS("irq not triggered id=%u, callback=%ps, irq=%d, pp=%d, atomic_cnt=%d\n",
+			DRM_DEBUG_KMS("IRQ=[%d, %d] not triggered id=%u, callback=%ps, pp=%d, atomic_cnt=%d\n",
+				      DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx),
 				      DRMID(phys_enc->parent), func,
-				      irq,
 				      phys_enc->hw_pp->idx - PINGPONG_0,
 				      atomic_read(wait_info->atomic_cnt));
 			local_irq_save(flags);
-			func(phys_enc, irq);
+			func(phys_enc);
 			local_irq_restore(flags);
 			ret = 0;
 		} else {
 			ret = -ETIMEDOUT;
-			DRM_DEBUG_KMS("irq timeout id=%u, callback=%ps, irq=%d, pp=%d, atomic_cnt=%d\n",
+			DRM_DEBUG_KMS("IRQ=[%d, %d] timeout id=%u, callback=%ps, pp=%d, atomic_cnt=%d\n",
+				      DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx),
 				      DRMID(phys_enc->parent), func,
-				      irq,
 				      phys_enc->hw_pp->idx - PINGPONG_0,
 				      atomic_read(wait_info->atomic_cnt));
 		}
 	} else {
 		ret = 0;
 		trace_dpu_enc_irq_wait_success(DRMID(phys_enc->parent),
-			func, irq,
+			func, DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx),
 			phys_enc->hw_pp->idx - PINGPONG_0,
 			atomic_read(wait_info->atomic_cnt));
 	}
@@ -543,11 +539,24 @@ bool dpu_encoder_use_dsc_merge(struct drm_encoder *drm_enc)
 	return (num_dsc > 0) && (num_dsc > intf_count);
 }
 
+static struct drm_dsc_config *dpu_encoder_get_dsc_config(struct drm_encoder *drm_enc)
+{
+	struct msm_drm_private *priv = drm_enc->dev->dev_private;
+	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
+	int index = dpu_enc->disp_info.h_tile_instance[0];
+
+	if (dpu_enc->disp_info.intf_type == INTF_DSI)
+		return msm_dsi_get_dsc_config(priv->dsi[index]);
+
+	return NULL;
+}
+
 static struct msm_display_topology dpu_encoder_get_topology(
 			struct dpu_encoder_virt *dpu_enc,
 			struct dpu_kms *dpu_kms,
 			struct drm_display_mode *mode,
-			struct drm_crtc_state *crtc_state)
+			struct drm_crtc_state *crtc_state,
+			struct drm_dsc_config *dsc)
 {
 	struct msm_display_topology topology = {0};
 	int i, intf_count = 0;
@@ -579,7 +588,7 @@ static struct msm_display_topology dpu_encoder_get_topology(
 
 	topology.num_intf = intf_count;
 
-	if (dpu_enc->dsc) {
+	if (dsc) {
 		/*
 		 * In case of Display Stream Compression (DSC), we would use
 		 * 2 DSC encoders, 2 layer mixers and 1 interface
@@ -605,6 +614,7 @@ static int dpu_encoder_virt_atomic_check(
 	struct drm_display_mode *adj_mode;
 	struct msm_display_topology topology;
 	struct dpu_global_state *global_state;
+	struct drm_dsc_config *dsc;
 	int i = 0;
 	int ret = 0;
 
@@ -640,7 +650,9 @@ static int dpu_encoder_virt_atomic_check(
 		}
 	}
 
-	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode, crtc_state);
+	dsc = dpu_encoder_get_dsc_config(drm_enc);
+
+	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode, crtc_state, dsc);
 
 	/*
 	 * Release and Allocate resources on every modeset
@@ -1072,14 +1084,12 @@ static void dpu_encoder_virt_atomic_mode_set(struct drm_encoder *drm_enc,
 		dpu_enc->hw_pp[i] = i < num_pp ? to_dpu_hw_pingpong(hw_pp[i])
 						: NULL;
 
-	if (dpu_enc->dsc) {
-		num_dsc = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
-							drm_enc->base.id, DPU_HW_BLK_DSC,
-							hw_dsc, ARRAY_SIZE(hw_dsc));
-		for (i = 0; i < num_dsc; i++) {
-			dpu_enc->hw_dsc[i] = to_dpu_hw_dsc(hw_dsc[i]);
-			dsc_mask |= BIT(dpu_enc->hw_dsc[i]->idx - DSC_0);
-		}
+	num_dsc = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
+						drm_enc->base.id, DPU_HW_BLK_DSC,
+						hw_dsc, ARRAY_SIZE(hw_dsc));
+	for (i = 0; i < num_dsc; i++) {
+		dpu_enc->hw_dsc[i] = to_dpu_hw_dsc(hw_dsc[i]);
+		dsc_mask |= BIT(dpu_enc->hw_dsc[i]->idx - DSC_0);
 	}
 
 	dpu_enc->dsc_mask = dsc_mask;
@@ -1184,8 +1194,20 @@ static void dpu_encoder_virt_atomic_enable(struct drm_encoder *drm_enc,
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	int ret = 0;
 	struct drm_display_mode *cur_mode = NULL;
+	struct msm_drm_private *priv = drm_enc->dev->dev_private;
+	struct msm_display_info *disp_info;
+	int index;
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
+	disp_info = &dpu_enc->disp_info;
+	index = disp_info->h_tile_instance[0];
+
+	dpu_enc->dsc = dpu_encoder_get_dsc_config(drm_enc);
+
+	if (disp_info->intf_type == INTF_DP)
+		dpu_enc->wide_bus_en = msm_dp_wide_bus_available(priv->dp[index]);
+	else if (disp_info->intf_type == INTF_DSI)
+		dpu_enc->wide_bus_en = msm_dsi_wide_bus_enabled(priv->dsi[index]);
 
 	mutex_lock(&dpu_enc->enc_lock);
 	cur_mode = &dpu_enc->base.crtc->state->adjusted_mode;
@@ -1525,7 +1547,7 @@ void dpu_encoder_helper_trigger_start(struct dpu_encoder_phys *phys_enc)
 
 static int dpu_encoder_helper_wait_event_timeout(
 		int32_t drm_id,
-		u32 irq_idx,
+		unsigned int irq_idx,
 		struct dpu_encoder_wait_info *info)
 {
 	int rc = 0;
@@ -1538,7 +1560,9 @@ static int dpu_encoder_helper_wait_event_timeout(
 				atomic_read(info->atomic_cnt) == 0, jiffies);
 		time = ktime_to_ms(ktime_get());
 
-		trace_dpu_enc_wait_event_timeout(drm_id, irq_idx, rc, time,
+		trace_dpu_enc_wait_event_timeout(drm_id,
+						 DPU_IRQ_REG(irq_idx), DPU_IRQ_BIT(irq_idx),
+						 rc, time,
 						 expected_time,
 						 atomic_read(info->atomic_cnt));
 	/* If we timed out, counter is valid and time is less, wait again */
@@ -1754,49 +1778,6 @@ int dpu_encoder_vsync_time(struct drm_encoder *drm_enc, ktime_t *wakeup_time)
 	return 0;
 }
 
-static void dpu_encoder_vsync_event_handler(struct timer_list *t)
-{
-	struct dpu_encoder_virt *dpu_enc = from_timer(dpu_enc, t,
-			vsync_event_timer);
-	struct drm_encoder *drm_enc = &dpu_enc->base;
-	struct msm_drm_private *priv;
-	struct msm_drm_thread *event_thread;
-
-	if (!drm_enc->dev || !drm_enc->crtc) {
-		DPU_ERROR("invalid parameters\n");
-		return;
-	}
-
-	priv = drm_enc->dev->dev_private;
-
-	if (drm_enc->crtc->index >= ARRAY_SIZE(priv->event_thread)) {
-		DPU_ERROR("invalid crtc index\n");
-		return;
-	}
-	event_thread = &priv->event_thread[drm_enc->crtc->index];
-	if (!event_thread) {
-		DPU_ERROR("event_thread not found for crtc:%d\n",
-				drm_enc->crtc->index);
-		return;
-	}
-
-	del_timer(&dpu_enc->vsync_event_timer);
-}
-
-static void dpu_encoder_vsync_event_work_handler(struct kthread_work *work)
-{
-	struct dpu_encoder_virt *dpu_enc = container_of(work,
-			struct dpu_encoder_virt, vsync_event_work);
-	ktime_t wakeup_time;
-
-	if (dpu_encoder_vsync_time(&dpu_enc->base, &wakeup_time))
-		return;
-
-	trace_dpu_enc_vsync_event_work(DRMID(&dpu_enc->base), wakeup_time);
-	mod_timer(&dpu_enc->vsync_event_timer,
-			nsecs_to_jiffies(ktime_to_ns(wakeup_time)));
-}
-
 static u32
 dpu_encoder_dsc_initial_line_calc(struct drm_dsc_config *dsc,
 				  u32 enc_ip_width)
@@ -1956,7 +1937,6 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc;
 	struct dpu_encoder_phys *phys;
-	ktime_t wakeup_time;
 	unsigned long timeout_ms;
 	unsigned int i;
 
@@ -1980,14 +1960,6 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc)
 		phys = dpu_enc->phys_encs[i];
 		if (phys->ops.handle_post_kickoff)
 			phys->ops.handle_post_kickoff(phys);
-	}
-
-	if (dpu_enc->disp_info.intf_type == INTF_DSI &&
-			!dpu_encoder_vsync_time(drm_enc, &wakeup_time)) {
-		trace_dpu_enc_early_kickoff(DRMID(drm_enc),
-					    ktime_to_ms(wakeup_time));
-		mod_timer(&dpu_enc->vsync_event_timer,
-				nsecs_to_jiffies(ktime_to_ns(wakeup_time)));
 	}
 
 	DPU_ATRACE_END("encoder_kickoff");
@@ -2108,8 +2080,10 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 					phys_enc->hw_pp->merge_3d->idx);
 	}
 
-	if (dpu_enc->dsc)
+	if (dpu_enc->dsc) {
 		dpu_encoder_unprep_dsc(dpu_enc);
+		dpu_enc->dsc = NULL;
+	}
 
 	intf_cfg.stream_sel = 0; /* Don't care value for video mode */
 	intf_cfg.mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
@@ -2290,8 +2264,6 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 		dpu_enc->idle_pc_supported =
 				dpu_kms->catalog->caps->has_idle_pc;
 
-	dpu_enc->dsc = disp_info->dsc;
-
 	mutex_lock(&dpu_enc->enc_lock);
 	for (i = 0; i < disp_info->num_of_h_tiles && !ret; i++) {
 		/*
@@ -2423,20 +2395,9 @@ struct drm_encoder *dpu_encoder_init(struct drm_device *dev,
 	timer_setup(&dpu_enc->frame_done_timer,
 			dpu_encoder_frame_done_timeout, 0);
 
-	if (disp_info->intf_type == INTF_DSI)
-		timer_setup(&dpu_enc->vsync_event_timer,
-				dpu_encoder_vsync_event_handler,
-				0);
-	else if (disp_info->intf_type == INTF_DP)
-		dpu_enc->wide_bus_en = msm_dp_wide_bus_available(
-				priv->dp[disp_info->h_tile_instance[0]]);
-
 	INIT_DELAYED_WORK(&dpu_enc->delayed_off_work,
 			dpu_encoder_off_work);
 	dpu_enc->idle_timeout = IDLE_TIMEOUT;
-
-	kthread_init_work(&dpu_enc->vsync_event_work,
-			dpu_encoder_vsync_event_work_handler);
 
 	memcpy(&dpu_enc->disp_info, disp_info, sizeof(*disp_info));
 
@@ -2527,8 +2488,6 @@ unsigned int dpu_encoder_helper_get_dsc(struct dpu_encoder_phys *phys_enc)
 void dpu_encoder_phys_init(struct dpu_encoder_phys *phys_enc,
 			  struct dpu_enc_phys_init_params *p)
 {
-	int i;
-
 	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
 	phys_enc->hw_intf = p->hw_intf;
 	phys_enc->hw_wb = p->hw_wb;
@@ -2537,9 +2496,6 @@ void dpu_encoder_phys_init(struct dpu_encoder_phys *phys_enc,
 	phys_enc->split_role = p->split_role;
 	phys_enc->enc_spinlock = p->enc_spinlock;
 	phys_enc->enable_state = DPU_ENC_DISABLED;
-
-	for (i = 0; i < ARRAY_SIZE(phys_enc->irq); i++)
-		phys_enc->irq[i] = -EINVAL;
 
 	atomic_set(&phys_enc->vblank_refcount, 0);
 	atomic_set(&phys_enc->pending_kickoff_cnt, 0);

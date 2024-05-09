@@ -249,6 +249,7 @@ static struct variant_data variant_stm32 = {
 	.f_max			= 48000000,
 	.pwrreg_clkgate		= true,
 	.pwrreg_nopower		= true,
+	.dma_flow_controller	= true,
 	.init			= mmci_variant_init,
 };
 
@@ -764,7 +765,8 @@ static bool ux500_busy_complete(struct mmci_host *host, struct mmc_command *cmd,
 			}
 			retries--;
 		}
-		dev_dbg(mmc_dev(host->mmc), "no busy signalling in time\n");
+		dev_dbg(mmc_dev(host->mmc),
+			"no busy signalling in time CMD%02x\n", cmd->opcode);
 		ux500_busy_clear_mask_done(host);
 		break;
 
@@ -786,7 +788,8 @@ static bool ux500_busy_complete(struct mmci_host *host, struct mmc_command *cmd,
 			host->busy_state = MMCI_BUSY_WAITING_FOR_END_IRQ;
 		} else {
 			dev_dbg(mmc_dev(host->mmc),
-				"lost busy status when waiting for busy start IRQ\n");
+				"lost busy status when waiting for busy start IRQ CMD%02x\n",
+				cmd->opcode);
 			cancel_delayed_work(&host->ux500_busy_timeout_work);
 			ux500_busy_clear_mask_done(host);
 		}
@@ -800,13 +803,14 @@ static bool ux500_busy_complete(struct mmci_host *host, struct mmc_command *cmd,
 			ux500_busy_clear_mask_done(host);
 		} else {
 			dev_dbg(mmc_dev(host->mmc),
-				"busy status still asserted when handling busy end IRQ - will keep waiting\n");
+				"busy status still asserted when handling busy end IRQ - will keep waiting CMD%02x\n",
+				cmd->opcode);
 		}
 		break;
 
 	default:
-		dev_dbg(mmc_dev(host->mmc), "fell through on state %d\n",
-			host->busy_state);
+		dev_dbg(mmc_dev(host->mmc), "fell through on state %d, CMD%02x\n",
+			host->busy_state, cmd->opcode);
 		break;
 	}
 
@@ -1012,7 +1016,7 @@ static int _mmci_dmae_prep_data(struct mmci_host *host, struct mmc_data *data,
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
 		.src_maxburst = variant->fifohalfsize >> 2, /* # of words */
 		.dst_maxburst = variant->fifohalfsize >> 2, /* # of words */
-		.device_fc = false,
+		.device_fc = variant->dma_flow_controller,
 	};
 	struct dma_chan *chan;
 	struct dma_device *device;
@@ -1533,6 +1537,20 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 	}
 }
 
+static char *ux500_state_str(struct mmci_host *host)
+{
+	switch (host->busy_state) {
+	case MMCI_BUSY_WAITING_FOR_START_IRQ:
+		return "waiting for start IRQ";
+	case MMCI_BUSY_WAITING_FOR_END_IRQ:
+		return "waiting for end IRQ";
+	case MMCI_BUSY_DONE:
+		return "not waiting for IRQs";
+	default:
+		return "unknown";
+	}
+}
+
 /*
  * This busy timeout worker is used to "kick" the command IRQ if a
  * busy detect IRQ fails to appear in reasonable time. Only used on
@@ -1548,12 +1566,18 @@ static void ux500_busy_timeout_work(struct work_struct *work)
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->cmd) {
-		dev_dbg(mmc_dev(host->mmc), "timeout waiting for busy IRQ\n");
-
 		/* If we are still busy let's tag on a cmd-timeout error. */
 		status = readl(host->base + MMCISTATUS);
-		if (status & host->variant->busy_detect_flag)
+		if (status & host->variant->busy_detect_flag) {
 			status |= MCI_CMDTIMEOUT;
+			dev_err(mmc_dev(host->mmc),
+				"timeout in state %s still busy with CMD%02x\n",
+				ux500_state_str(host), host->cmd->opcode);
+		} else {
+			dev_err(mmc_dev(host->mmc),
+				"timeout in state %s waiting for busy CMD%02x\n",
+				ux500_state_str(host), host->cmd->opcode);
+		}
 
 		mmci_cmd_irq(host, host->cmd, status);
 	}

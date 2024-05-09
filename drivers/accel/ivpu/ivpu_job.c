@@ -48,10 +48,10 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 e
 		goto cmdq_free;
 
 	cmdq->db_id = file_priv->ctx.id + engine * ivpu_get_context_count(vdev);
-	cmdq->entry_count = (u32)((cmdq->mem->base.size - sizeof(struct vpu_job_queue_header)) /
+	cmdq->entry_count = (u32)((ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header)) /
 				  sizeof(struct vpu_job_queue_entry));
 
-	cmdq->jobq = (struct vpu_job_queue *)cmdq->mem->kvaddr;
+	cmdq->jobq = (struct vpu_job_queue *)ivpu_bo_vaddr(cmdq->mem);
 	jobq_header = &cmdq->jobq->header;
 	jobq_header->engine_idx = engine;
 	jobq_header->head = 0;
@@ -93,7 +93,7 @@ static struct ivpu_cmdq *ivpu_cmdq_acquire(struct ivpu_file_priv *file_priv, u16
 		return cmdq;
 
 	ret = ivpu_jsm_register_db(vdev, file_priv->ctx.id, cmdq->db_id,
-				   cmdq->mem->vpu_addr, cmdq->mem->base.size);
+				   cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
 	if (ret)
 		return NULL;
 
@@ -289,15 +289,13 @@ ivpu_create_job(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_job *job;
-	size_t buf_size;
 	int ret;
 
 	ret = ivpu_rpm_get(vdev);
 	if (ret < 0)
 		return NULL;
 
-	buf_size = sizeof(*job) + bo_count * sizeof(struct ivpu_bo *);
-	job = kzalloc(buf_size, GFP_KERNEL);
+	job = kzalloc(struct_size(job, bos, bo_count), GFP_KERNEL);
 	if (!job)
 		goto err_rpm_put;
 
@@ -455,7 +453,7 @@ ivpu_job_prepare_bos_for_submit(struct drm_file *file, struct ivpu_job *job, u32
 		return -EBUSY;
 	}
 
-	if (commands_offset >= bo->base.size) {
+	if (commands_offset >= ivpu_bo_size(bo)) {
 		ivpu_warn(vdev, "Invalid command buffer offset %u\n", commands_offset);
 		return -EINVAL;
 	}
@@ -620,6 +618,5 @@ int ivpu_job_done_thread_init(struct ivpu_device *vdev)
 
 void ivpu_job_done_thread_fini(struct ivpu_device *vdev)
 {
-	kthread_stop(vdev->job_done_thread);
-	put_task_struct(vdev->job_done_thread);
+	kthread_stop_put(vdev->job_done_thread);
 }

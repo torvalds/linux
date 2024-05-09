@@ -68,6 +68,8 @@ properties:
 
   interrupt-controller:
     type: object
+    additionalProperties: false
+
     description: |
       This defines an interrupt controller with an IRQ line (typically
       a GPIO) that will demultiplex and handle the interrupt from the single

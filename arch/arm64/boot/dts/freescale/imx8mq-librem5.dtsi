@@ -91,6 +91,7 @@
 		regulator-max-microvolt = <1800000>;
 		gpio = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		regulator-always-on;
 	};
 
 	reg_mic_2v4: regulator-mic-2v4 {
@@ -380,7 +381,7 @@
 		gpio-hog;
 		gpios = <1 GPIO_ACTIVE_HIGH>;
 		input;
-		lane-mapping = "pmic-5v";
+		line-name = "pmic-5v";
 	};
 };
 
@@ -795,6 +796,8 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-names = "irq";
+		extcon = <&usb3_phy0>;
+		wakeup-source;
 
 		connector {
 			compatible = "usb-c-connector";
@@ -998,7 +1001,7 @@
 	};
 
 	regulator@3e {
-		compatible = "tps65132";
+		compatible = "ti,tps65132";
 		reg = <0x3e>;
 
 		reg_lcd_avdd: outp {
@@ -1151,15 +1154,12 @@
 		pinctrl-0 = <&pinctrl_charger_in>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
-		phys = <&usb3_phy0>;
 		ti,battery-regulation-voltage = <4208000>; /* uV */
 		ti,termination-current = <128000>;  /* uA */
 		ti,precharge-current = <128000>; /* uA */
 		ti,minimum-sys-voltage = <3700000>; /* uV */
 		ti,boost-voltage = <5000000>; /* uV */
 		ti,boost-max-current = <1500000>; /* uA */
-		ti,use-vinmin-threshold = <1>; /* enable VINDPM */
-		ti,vinmin-threshold = <3900000>; /* uV */
 		monitored-battery = <&bat>;
 		power-supplies = <&typec_pd>;
 	};
@@ -1376,7 +1376,7 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
 	vmmc-supply = <&reg_vdd_3v3>;
-	power-supply = <&reg_vdd_1v8>;
+	vqmmc-supply = <&reg_vdd_1v8>;
 	non-removable;
 	status = "okay";
 };
@@ -1391,7 +1391,7 @@
 	bus-width = <4>;
 	vmmc-supply = <&reg_wifi_3v3>;
 	mmc-pwrseq = <&usdhc2_pwrseq>;
-	post-power-on-delay-ms = <1000>;
+	post-power-on-delay-ms = <20>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
 	max-frequency = <100000000>;
 	disable-wp;

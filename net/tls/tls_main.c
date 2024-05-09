@@ -58,22 +58,66 @@ enum {
 	TLS_NUM_PROTS,
 };
 
-#define CIPHER_SIZE_DESC(cipher) [cipher] = { \
+#define CHECK_CIPHER_DESC(cipher,ci)				\
+	static_assert(cipher ## _IV_SIZE <= TLS_MAX_IV_SIZE);		\
+	static_assert(cipher ## _SALT_SIZE <= TLS_MAX_SALT_SIZE);		\
+	static_assert(cipher ## _REC_SEQ_SIZE <= TLS_MAX_REC_SEQ_SIZE);	\
+	static_assert(cipher ## _TAG_SIZE == TLS_TAG_SIZE);		\
+	static_assert(sizeof_field(struct ci, iv) == cipher ## _IV_SIZE);	\
+	static_assert(sizeof_field(struct ci, key) == cipher ## _KEY_SIZE);	\
+	static_assert(sizeof_field(struct ci, salt) == cipher ## _SALT_SIZE);	\
+	static_assert(sizeof_field(struct ci, rec_seq) == cipher ## _REC_SEQ_SIZE);
+
+#define __CIPHER_DESC(ci) \
+	.iv_offset = offsetof(struct ci, iv), \
+	.key_offset = offsetof(struct ci, key), \
+	.salt_offset = offsetof(struct ci, salt), \
+	.rec_seq_offset = offsetof(struct ci, rec_seq), \
+	.crypto_info = sizeof(struct ci)
+
+#define CIPHER_DESC(cipher,ci,algname,_offloadable) [cipher - TLS_CIPHER_MIN] = {	\
+	.nonce = cipher ## _IV_SIZE, \
 	.iv = cipher ## _IV_SIZE, \
 	.key = cipher ## _KEY_SIZE, \
 	.salt = cipher ## _SALT_SIZE, \
 	.tag = cipher ## _TAG_SIZE, \
 	.rec_seq = cipher ## _REC_SEQ_SIZE, \
+	.cipher_name = algname,	\
+	.offloadable = _offloadable, \
+	__CIPHER_DESC(ci), \
 }
 
-const struct tls_cipher_size_desc tls_cipher_size_desc[] = {
-	CIPHER_SIZE_DESC(TLS_CIPHER_AES_GCM_128),
-	CIPHER_SIZE_DESC(TLS_CIPHER_AES_GCM_256),
-	CIPHER_SIZE_DESC(TLS_CIPHER_AES_CCM_128),
-	CIPHER_SIZE_DESC(TLS_CIPHER_CHACHA20_POLY1305),
-	CIPHER_SIZE_DESC(TLS_CIPHER_SM4_GCM),
-	CIPHER_SIZE_DESC(TLS_CIPHER_SM4_CCM),
+#define CIPHER_DESC_NONCE0(cipher,ci,algname,_offloadable) [cipher - TLS_CIPHER_MIN] = { \
+	.nonce = 0, \
+	.iv = cipher ## _IV_SIZE, \
+	.key = cipher ## _KEY_SIZE, \
+	.salt = cipher ## _SALT_SIZE, \
+	.tag = cipher ## _TAG_SIZE, \
+	.rec_seq = cipher ## _REC_SEQ_SIZE, \
+	.cipher_name = algname,	\
+	.offloadable = _offloadable, \
+	__CIPHER_DESC(ci), \
+}
+
+const struct tls_cipher_desc tls_cipher_desc[TLS_CIPHER_MAX + 1 - TLS_CIPHER_MIN] = {
+	CIPHER_DESC(TLS_CIPHER_AES_GCM_128, tls12_crypto_info_aes_gcm_128, "gcm(aes)", true),
+	CIPHER_DESC(TLS_CIPHER_AES_GCM_256, tls12_crypto_info_aes_gcm_256, "gcm(aes)", true),
+	CIPHER_DESC(TLS_CIPHER_AES_CCM_128, tls12_crypto_info_aes_ccm_128, "ccm(aes)", false),
+	CIPHER_DESC_NONCE0(TLS_CIPHER_CHACHA20_POLY1305, tls12_crypto_info_chacha20_poly1305, "rfc7539(chacha20,poly1305)", false),
+	CIPHER_DESC(TLS_CIPHER_SM4_GCM, tls12_crypto_info_sm4_gcm, "gcm(sm4)", false),
+	CIPHER_DESC(TLS_CIPHER_SM4_CCM, tls12_crypto_info_sm4_ccm, "ccm(sm4)", false),
+	CIPHER_DESC(TLS_CIPHER_ARIA_GCM_128, tls12_crypto_info_aria_gcm_128, "gcm(aria)", false),
+	CIPHER_DESC(TLS_CIPHER_ARIA_GCM_256, tls12_crypto_info_aria_gcm_256, "gcm(aria)", false),
 };
+
+CHECK_CIPHER_DESC(TLS_CIPHER_AES_GCM_128, tls12_crypto_info_aes_gcm_128);
+CHECK_CIPHER_DESC(TLS_CIPHER_AES_GCM_256, tls12_crypto_info_aes_gcm_256);
+CHECK_CIPHER_DESC(TLS_CIPHER_AES_CCM_128, tls12_crypto_info_aes_ccm_128);
+CHECK_CIPHER_DESC(TLS_CIPHER_CHACHA20_POLY1305, tls12_crypto_info_chacha20_poly1305);
+CHECK_CIPHER_DESC(TLS_CIPHER_SM4_GCM, tls12_crypto_info_sm4_gcm);
+CHECK_CIPHER_DESC(TLS_CIPHER_SM4_CCM, tls12_crypto_info_sm4_ccm);
+CHECK_CIPHER_DESC(TLS_CIPHER_ARIA_GCM_128, tls12_crypto_info_aria_gcm_128);
+CHECK_CIPHER_DESC(TLS_CIPHER_ARIA_GCM_256, tls12_crypto_info_aria_gcm_256);
 
 static const struct proto *saved_tcpv6_prot;
 static DEFINE_MUTEX(tcpv6_prot_mutex);
@@ -96,8 +140,8 @@ void update_sk_prot(struct sock *sk, struct tls_context *ctx)
 
 int wait_on_pending_writer(struct sock *sk, long *timeo)
 {
-	int rc = 0;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+	int ret, rc = 0;
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
@@ -111,9 +155,13 @@ int wait_on_pending_writer(struct sock *sk, long *timeo)
 			break;
 		}
 
-		if (sk_wait_event(sk, timeo,
-				  !READ_ONCE(sk->sk_write_pending), &wait))
+		ret = sk_wait_event(sk, timeo,
+				    !READ_ONCE(sk->sk_write_pending), &wait);
+		if (ret) {
+			if (ret < 0)
+				rc = ret;
 			break;
+		}
 	}
 	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
@@ -139,9 +187,6 @@ int tls_push_sg(struct sock *sk,
 
 	ctx->splicing_pages = true;
 	while (1) {
-		if (sg_is_last(sg))
-			msg.msg_flags = flags;
-
 		/* is sending application-limited? */
 		tcp_rate_check_app_limited(sk);
 		p = sg_page(sg);
@@ -304,8 +349,6 @@ static void tls_sk_proto_cleanup(struct sock *sk,
 
 	/* We need these for tls_sw_fallback handling of other packets */
 	if (ctx->tx_conf == TLS_SW) {
-		kfree(ctx->tx.rec_seq);
-		kfree(ctx->tx.iv);
 		tls_sw_release_resources_tx(sk);
 		TLS_DEC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXSW);
 	} else if (ctx->tx_conf == TLS_HW) {
@@ -395,6 +438,7 @@ static int do_tls_getsockopt_conf(struct sock *sk, char __user *optval,
 				  int __user *optlen, int tx)
 {
 	int rc = 0;
+	const struct tls_cipher_desc *cipher_desc;
 	struct tls_context *ctx = tls_get_ctx(sk);
 	struct tls_crypto_info *crypto_info;
 	struct cipher_context *cctx;
@@ -433,172 +477,19 @@ static int do_tls_getsockopt_conf(struct sock *sk, char __user *optval,
 		goto out;
 	}
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128: {
-		struct tls12_crypto_info_aes_gcm_128 *
-		  crypto_info_aes_gcm_128 =
-		  container_of(crypto_info,
-			       struct tls12_crypto_info_aes_gcm_128,
-			       info);
-
-		if (len != sizeof(*crypto_info_aes_gcm_128)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(crypto_info_aes_gcm_128->iv,
-		       cctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
-		       TLS_CIPHER_AES_GCM_128_IV_SIZE);
-		memcpy(crypto_info_aes_gcm_128->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE);
-		if (copy_to_user(optval,
-				 crypto_info_aes_gcm_128,
-				 sizeof(*crypto_info_aes_gcm_128)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_AES_GCM_256: {
-		struct tls12_crypto_info_aes_gcm_256 *
-		  crypto_info_aes_gcm_256 =
-		  container_of(crypto_info,
-			       struct tls12_crypto_info_aes_gcm_256,
-			       info);
-
-		if (len != sizeof(*crypto_info_aes_gcm_256)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(crypto_info_aes_gcm_256->iv,
-		       cctx->iv + TLS_CIPHER_AES_GCM_256_SALT_SIZE,
-		       TLS_CIPHER_AES_GCM_256_IV_SIZE);
-		memcpy(crypto_info_aes_gcm_256->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_AES_GCM_256_REC_SEQ_SIZE);
-		if (copy_to_user(optval,
-				 crypto_info_aes_gcm_256,
-				 sizeof(*crypto_info_aes_gcm_256)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_AES_CCM_128: {
-		struct tls12_crypto_info_aes_ccm_128 *aes_ccm_128 =
-			container_of(crypto_info,
-				struct tls12_crypto_info_aes_ccm_128, info);
-
-		if (len != sizeof(*aes_ccm_128)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(aes_ccm_128->iv,
-		       cctx->iv + TLS_CIPHER_AES_CCM_128_SALT_SIZE,
-		       TLS_CIPHER_AES_CCM_128_IV_SIZE);
-		memcpy(aes_ccm_128->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_AES_CCM_128_REC_SEQ_SIZE);
-		if (copy_to_user(optval, aes_ccm_128, sizeof(*aes_ccm_128)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_CHACHA20_POLY1305: {
-		struct tls12_crypto_info_chacha20_poly1305 *chacha20_poly1305 =
-			container_of(crypto_info,
-				struct tls12_crypto_info_chacha20_poly1305,
-				info);
-
-		if (len != sizeof(*chacha20_poly1305)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(chacha20_poly1305->iv,
-		       cctx->iv + TLS_CIPHER_CHACHA20_POLY1305_SALT_SIZE,
-		       TLS_CIPHER_CHACHA20_POLY1305_IV_SIZE);
-		memcpy(chacha20_poly1305->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE);
-		if (copy_to_user(optval, chacha20_poly1305,
-				sizeof(*chacha20_poly1305)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_SM4_GCM: {
-		struct tls12_crypto_info_sm4_gcm *sm4_gcm_info =
-			container_of(crypto_info,
-				struct tls12_crypto_info_sm4_gcm, info);
-
-		if (len != sizeof(*sm4_gcm_info)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(sm4_gcm_info->iv,
-		       cctx->iv + TLS_CIPHER_SM4_GCM_SALT_SIZE,
-		       TLS_CIPHER_SM4_GCM_IV_SIZE);
-		memcpy(sm4_gcm_info->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_SM4_GCM_REC_SEQ_SIZE);
-		if (copy_to_user(optval, sm4_gcm_info, sizeof(*sm4_gcm_info)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_SM4_CCM: {
-		struct tls12_crypto_info_sm4_ccm *sm4_ccm_info =
-			container_of(crypto_info,
-				struct tls12_crypto_info_sm4_ccm, info);
-
-		if (len != sizeof(*sm4_ccm_info)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(sm4_ccm_info->iv,
-		       cctx->iv + TLS_CIPHER_SM4_CCM_SALT_SIZE,
-		       TLS_CIPHER_SM4_CCM_IV_SIZE);
-		memcpy(sm4_ccm_info->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE);
-		if (copy_to_user(optval, sm4_ccm_info, sizeof(*sm4_ccm_info)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_ARIA_GCM_128: {
-		struct tls12_crypto_info_aria_gcm_128 *
-		  crypto_info_aria_gcm_128 =
-		  container_of(crypto_info,
-			       struct tls12_crypto_info_aria_gcm_128,
-			       info);
-
-		if (len != sizeof(*crypto_info_aria_gcm_128)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(crypto_info_aria_gcm_128->iv,
-		       cctx->iv + TLS_CIPHER_ARIA_GCM_128_SALT_SIZE,
-		       TLS_CIPHER_ARIA_GCM_128_IV_SIZE);
-		memcpy(crypto_info_aria_gcm_128->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_ARIA_GCM_128_REC_SEQ_SIZE);
-		if (copy_to_user(optval,
-				 crypto_info_aria_gcm_128,
-				 sizeof(*crypto_info_aria_gcm_128)))
-			rc = -EFAULT;
-		break;
-	}
-	case TLS_CIPHER_ARIA_GCM_256: {
-		struct tls12_crypto_info_aria_gcm_256 *
-		  crypto_info_aria_gcm_256 =
-		  container_of(crypto_info,
-			       struct tls12_crypto_info_aria_gcm_256,
-			       info);
-
-		if (len != sizeof(*crypto_info_aria_gcm_256)) {
-			rc = -EINVAL;
-			goto out;
-		}
-		memcpy(crypto_info_aria_gcm_256->iv,
-		       cctx->iv + TLS_CIPHER_ARIA_GCM_256_SALT_SIZE,
-		       TLS_CIPHER_ARIA_GCM_256_IV_SIZE);
-		memcpy(crypto_info_aria_gcm_256->rec_seq, cctx->rec_seq,
-		       TLS_CIPHER_ARIA_GCM_256_REC_SEQ_SIZE);
-		if (copy_to_user(optval,
-				 crypto_info_aria_gcm_256,
-				 sizeof(*crypto_info_aria_gcm_256)))
-			rc = -EFAULT;
-		break;
-	}
-	default:
+	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
+	if (!cipher_desc || len != cipher_desc->crypto_info) {
 		rc = -EINVAL;
+		goto out;
 	}
+
+	memcpy(crypto_info_iv(crypto_info, cipher_desc),
+	       cctx->iv + cipher_desc->salt, cipher_desc->iv);
+	memcpy(crypto_info_rec_seq(crypto_info, cipher_desc),
+	       cctx->rec_seq, cipher_desc->rec_seq);
+
+	if (copy_to_user(optval, crypto_info, cipher_desc->crypto_info))
+		rc = -EFAULT;
 
 out:
 	return rc;
@@ -693,13 +584,38 @@ static int tls_getsockopt(struct sock *sk, int level, int optname,
 	return do_tls_getsockopt(sk, optname, optval, optlen);
 }
 
+static int validate_crypto_info(const struct tls_crypto_info *crypto_info,
+				const struct tls_crypto_info *alt_crypto_info)
+{
+	if (crypto_info->version != TLS_1_2_VERSION &&
+	    crypto_info->version != TLS_1_3_VERSION)
+		return -EINVAL;
+
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_ARIA_GCM_128:
+	case TLS_CIPHER_ARIA_GCM_256:
+		if (crypto_info->version != TLS_1_2_VERSION)
+			return -EINVAL;
+		break;
+	}
+
+	/* Ensure that TLS version and ciphers are same in both directions */
+	if (TLS_CRYPTO_INFO_READY(alt_crypto_info)) {
+		if (alt_crypto_info->version != crypto_info->version ||
+		    alt_crypto_info->cipher_type != crypto_info->cipher_type)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 				  unsigned int optlen, int tx)
 {
 	struct tls_crypto_info *crypto_info;
 	struct tls_crypto_info *alt_crypto_info;
 	struct tls_context *ctx = tls_get_ctx(sk);
-	size_t optsize;
+	const struct tls_cipher_desc *cipher_desc;
 	int rc = 0;
 	int conf;
 
@@ -724,62 +640,17 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 		goto err_crypto_info;
 	}
 
-	/* check version */
-	if (crypto_info->version != TLS_1_2_VERSION &&
-	    crypto_info->version != TLS_1_3_VERSION) {
+	rc = validate_crypto_info(crypto_info, alt_crypto_info);
+	if (rc)
+		goto err_crypto_info;
+
+	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
+	if (!cipher_desc) {
 		rc = -EINVAL;
 		goto err_crypto_info;
 	}
 
-	/* Ensure that TLS version and ciphers are same in both directions */
-	if (TLS_CRYPTO_INFO_READY(alt_crypto_info)) {
-		if (alt_crypto_info->version != crypto_info->version ||
-		    alt_crypto_info->cipher_type != crypto_info->cipher_type) {
-			rc = -EINVAL;
-			goto err_crypto_info;
-		}
-	}
-
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-		optsize = sizeof(struct tls12_crypto_info_aes_gcm_128);
-		break;
-	case TLS_CIPHER_AES_GCM_256: {
-		optsize = sizeof(struct tls12_crypto_info_aes_gcm_256);
-		break;
-	}
-	case TLS_CIPHER_AES_CCM_128:
-		optsize = sizeof(struct tls12_crypto_info_aes_ccm_128);
-		break;
-	case TLS_CIPHER_CHACHA20_POLY1305:
-		optsize = sizeof(struct tls12_crypto_info_chacha20_poly1305);
-		break;
-	case TLS_CIPHER_SM4_GCM:
-		optsize = sizeof(struct tls12_crypto_info_sm4_gcm);
-		break;
-	case TLS_CIPHER_SM4_CCM:
-		optsize = sizeof(struct tls12_crypto_info_sm4_ccm);
-		break;
-	case TLS_CIPHER_ARIA_GCM_128:
-		if (crypto_info->version != TLS_1_2_VERSION) {
-			rc = -EINVAL;
-			goto err_crypto_info;
-		}
-		optsize = sizeof(struct tls12_crypto_info_aria_gcm_128);
-		break;
-	case TLS_CIPHER_ARIA_GCM_256:
-		if (crypto_info->version != TLS_1_2_VERSION) {
-			rc = -EINVAL;
-			goto err_crypto_info;
-		}
-		optsize = sizeof(struct tls12_crypto_info_aria_gcm_256);
-		break;
-	default:
-		rc = -EINVAL;
-		goto err_crypto_info;
-	}
-
-	if (optlen != optsize) {
+	if (optlen != cipher_desc->crypto_info) {
 		rc = -EINVAL;
 		goto err_crypto_info;
 	}
@@ -793,13 +664,13 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	}
 
 	if (tx) {
-		rc = tls_set_device_offload(sk, ctx);
+		rc = tls_set_device_offload(sk);
 		conf = TLS_HW;
 		if (!rc) {
 			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSTXDEVICE);
 			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRTXDEVICE);
 		} else {
-			rc = tls_set_sw_offload(sk, ctx, 1);
+			rc = tls_set_sw_offload(sk, 1);
 			if (rc)
 				goto err_crypto_info;
 			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSTXSW);
@@ -813,7 +684,7 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXDEVICE);
 			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSCURRRXDEVICE);
 		} else {
-			rc = tls_set_sw_offload(sk, ctx, 0);
+			rc = tls_set_sw_offload(sk, 0);
 			if (rc)
 				goto err_crypto_info;
 			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXSW);
@@ -962,10 +833,12 @@ static void build_proto_ops(struct proto_ops ops[TLS_NUM_CONFIG][TLS_NUM_CONFIG]
 	ops[TLS_BASE][TLS_SW  ] = ops[TLS_BASE][TLS_BASE];
 	ops[TLS_BASE][TLS_SW  ].splice_read	= tls_sw_splice_read;
 	ops[TLS_BASE][TLS_SW  ].poll		= tls_sk_poll;
+	ops[TLS_BASE][TLS_SW  ].read_sock	= tls_sw_read_sock;
 
 	ops[TLS_SW  ][TLS_SW  ] = ops[TLS_SW  ][TLS_BASE];
 	ops[TLS_SW  ][TLS_SW  ].splice_read	= tls_sw_splice_read;
 	ops[TLS_SW  ][TLS_SW  ].poll		= tls_sk_poll;
+	ops[TLS_SW  ][TLS_SW  ].read_sock	= tls_sw_read_sock;
 
 #ifdef CONFIG_TLS_DEVICE
 	ops[TLS_HW  ][TLS_BASE] = ops[TLS_BASE][TLS_BASE];

@@ -66,6 +66,7 @@ static int dcss_drv_platform_probe(struct platform_device *pdev)
 	mdrv->kms = dcss_kms_attach(mdrv->dcss);
 	if (IS_ERR(mdrv->kms)) {
 		err = PTR_ERR(mdrv->kms);
+		dev_err_probe(dev, err, "Failed to initialize KMS\n");
 		goto dcss_shutoff;
 	}
 
@@ -91,6 +92,13 @@ static int dcss_drv_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void dcss_drv_platform_shutdown(struct platform_device *pdev)
+{
+	struct dcss_drv *mdrv = dev_get_drvdata(&pdev->dev);
+
+	dcss_kms_shutdown(mdrv->kms);
+}
+
 static struct dcss_type_data dcss_types[] = {
 	[DCSS_IMX8MQ] = {
 		.name = "DCSS_IMX8MQ",
@@ -113,6 +121,7 @@ MODULE_DEVICE_TABLE(of, dcss_of_match);
 static struct platform_driver dcss_platform_driver = {
 	.probe	= dcss_drv_platform_probe,
 	.remove	= dcss_drv_platform_remove,
+	.shutdown = dcss_drv_platform_shutdown,
 	.driver	= {
 		.name = "imx-dcss",
 		.of_match_table	= dcss_of_match,

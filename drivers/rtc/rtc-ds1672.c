@@ -149,7 +149,7 @@ static struct i2c_driver ds1672_driver = {
 		   .name = "rtc-ds1672",
 		   .of_match_table = of_match_ptr(ds1672_of_match),
 	},
-	.probe_new = ds1672_probe,
+	.probe = ds1672_probe,
 	.id_table = ds1672_id,
 };
 

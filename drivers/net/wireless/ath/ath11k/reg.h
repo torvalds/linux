@@ -24,6 +24,9 @@ enum ath11k_dfs_region {
 	ATH11K_DFS_REG_UNDEF,
 };
 
+/* Phy bitmaps */
+#define ATH11K_REG_PHY_BITMAP_NO11AX	BIT(5)
+
 /* ATH11K Regulatory API's */
 void ath11k_reg_init(struct ath11k *ar);
 void ath11k_reg_free(struct ath11k_base *ab);

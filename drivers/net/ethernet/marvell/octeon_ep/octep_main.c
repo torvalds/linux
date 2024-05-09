@@ -155,18 +155,153 @@ static void octep_disable_msix(struct octep_device *oct)
 }
 
 /**
- * octep_non_ioq_intr_handler() - common handler for all generic interrupts.
+ * octep_oei_intr_handler() - common handler for output endpoint interrupts.
  *
  * @irq: Interrupt number.
  * @data: interrupt data.
  *
- * this is common handler for all non-queue (generic) interrupts.
+ * this is common handler for all output endpoint interrupts.
  */
-static irqreturn_t octep_non_ioq_intr_handler(int irq, void *data)
+static irqreturn_t octep_oei_intr_handler(int irq, void *data)
 {
 	struct octep_device *oct = data;
 
-	return oct->hw_ops.non_ioq_intr_handler(oct);
+	return oct->hw_ops.oei_intr_handler(oct);
+}
+
+/**
+ * octep_ire_intr_handler() - common handler for input ring error interrupts.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for input ring error interrupts.
+ */
+static irqreturn_t octep_ire_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.ire_intr_handler(oct);
+}
+
+/**
+ * octep_ore_intr_handler() - common handler for output ring error interrupts.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for output ring error interrupts.
+ */
+static irqreturn_t octep_ore_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.ore_intr_handler(oct);
+}
+
+/**
+ * octep_vfire_intr_handler() - common handler for vf input ring error interrupts.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for vf input ring error interrupts.
+ */
+static irqreturn_t octep_vfire_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.vfire_intr_handler(oct);
+}
+
+/**
+ * octep_vfore_intr_handler() - common handler for vf output ring error interrupts.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for vf output ring error interrupts.
+ */
+static irqreturn_t octep_vfore_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.vfore_intr_handler(oct);
+}
+
+/**
+ * octep_dma_intr_handler() - common handler for dpi dma related interrupts.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for dpi dma related interrupts.
+ */
+static irqreturn_t octep_dma_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.dma_intr_handler(oct);
+}
+
+/**
+ * octep_dma_vf_intr_handler() - common handler for dpi dma transaction error interrupts for VFs.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for dpi dma transaction error interrupts for VFs.
+ */
+static irqreturn_t octep_dma_vf_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.dma_vf_intr_handler(oct);
+}
+
+/**
+ * octep_pp_vf_intr_handler() - common handler for pp transaction error interrupts for VFs.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for pp transaction error interrupts for VFs.
+ */
+static irqreturn_t octep_pp_vf_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.pp_vf_intr_handler(oct);
+}
+
+/**
+ * octep_misc_intr_handler() - common handler for mac related interrupts.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for mac related interrupts.
+ */
+static irqreturn_t octep_misc_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.misc_intr_handler(oct);
+}
+
+/**
+ * octep_rsvd_intr_handler() - common handler for reserved interrupts (future use).
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for all reserved interrupts.
+ */
+static irqreturn_t octep_rsvd_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.rsvd_intr_handler(oct);
 }
 
 /**
@@ -222,9 +357,57 @@ static int octep_request_irqs(struct octep_device *oct)
 
 		snprintf(irq_name, OCTEP_MSIX_NAME_SIZE,
 			 "%s-%s", netdev->name, non_ioq_msix_names[i]);
-		ret = request_irq(msix_entry->vector,
-				  octep_non_ioq_intr_handler, 0,
-				  irq_name, oct);
+		if (!strncmp(non_ioq_msix_names[i], "epf_oei_rint",
+			     strlen("epf_oei_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_oei_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_ire_rint",
+			   strlen("epf_ire_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_ire_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_ore_rint",
+			   strlen("epf_ore_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_ore_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_vfire_rint",
+			   strlen("epf_vfire_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_vfire_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_vfore_rint",
+			   strlen("epf_vfore_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_vfore_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_dma_rint",
+			   strlen("epf_dma_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_dma_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_dma_vf_rint",
+			   strlen("epf_dma_vf_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_dma_vf_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_pp_vf_rint",
+			   strlen("epf_pp_vf_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_pp_vf_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_misc_rint",
+			   strlen("epf_misc_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_misc_intr_handler, 0,
+					  irq_name, oct);
+		} else {
+			ret = request_irq(msix_entry->vector,
+					  octep_rsvd_intr_handler, 0,
+					  irq_name, oct);
+		}
+
 		if (ret) {
 			netdev_err(netdev,
 				   "request_irq failed for %s; err=%d",
@@ -715,32 +898,31 @@ static netdev_tx_t octep_start_xmit(struct sk_buff *skb,
 		hw_desc->dptr = tx_buffer->sglist_dma;
 	}
 
-	/* Flush the hw descriptor before writing to doorbell */
-	wmb();
-
-	/* Ring Doorbell to notify the NIC there is a new packet */
-	writel(1, iq->doorbell_reg);
+	netdev_tx_sent_queue(iq->netdev_q, skb->len);
+	skb_tx_timestamp(skb);
 	atomic_inc(&iq->instr_pending);
 	wi++;
 	if (wi == iq->max_count)
 		wi = 0;
 	iq->host_write_index = wi;
+	/* Flush the hw descriptor before writing to doorbell */
+	wmb();
 
-	netdev_tx_sent_queue(iq->netdev_q, skb->len);
+	/* Ring Doorbell to notify the NIC there is a new packet */
+	writel(1, iq->doorbell_reg);
 	iq->stats.instr_posted++;
-	skb_tx_timestamp(skb);
 	return NETDEV_TX_OK;
 
 dma_map_sg_err:
 	if (si > 0) {
 		dma_unmap_single(iq->dev, sglist[0].dma_ptr[0],
-				 sglist[0].len[0], DMA_TO_DEVICE);
-		sglist[0].len[0] = 0;
+				 sglist[0].len[3], DMA_TO_DEVICE);
+		sglist[0].len[3] = 0;
 	}
 	while (si > 1) {
 		dma_unmap_page(iq->dev, sglist[si >> 2].dma_ptr[si & 3],
-			       sglist[si >> 2].len[si & 3], DMA_TO_DEVICE);
-		sglist[si >> 2].len[si & 3] = 0;
+			       sglist[si >> 2].len[3 - (si & 3)], DMA_TO_DEVICE);
+		sglist[si >> 2].len[3 - (si & 3)] = 0;
 		si--;
 	}
 	tx_buffer->gather = 0;
@@ -918,9 +1100,9 @@ static void octep_hb_timeout_task(struct work_struct *work)
 	int miss_cnt;
 
 	miss_cnt = atomic_inc_return(&oct->hb_miss_cnt);
-	if (miss_cnt < oct->conf->max_hb_miss_cnt) {
+	if (miss_cnt < oct->conf->fw_info.hb_miss_count) {
 		queue_delayed_work(octep_wq, &oct->hb_task,
-				   msecs_to_jiffies(oct->conf->hb_interval * 1000));
+				   msecs_to_jiffies(oct->conf->fw_info.hb_interval));
 		return;
 	}
 
@@ -1013,8 +1195,7 @@ int octep_device_setup(struct octep_device *oct)
 
 	atomic_set(&oct->hb_miss_cnt, 0);
 	INIT_DELAYED_WORK(&oct->hb_task, octep_hb_timeout_task);
-	queue_delayed_work(octep_wq, &oct->hb_task,
-			   msecs_to_jiffies(oct->conf->hb_interval * 1000));
+
 	return 0;
 
 unsupported_dev:
@@ -1037,6 +1218,10 @@ unmap_prev:
 static void octep_device_cleanup(struct octep_device *oct)
 {
 	int i;
+
+	oct->poll_non_ioq_intr = false;
+	cancel_delayed_work_sync(&oct->intr_poll_task);
+	cancel_work_sync(&oct->ctrl_mbox_task);
 
 	dev_info(&oct->pdev->dev, "Cleaning up Octeon Device ...\n");
 
@@ -1139,6 +1324,15 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Device setup failed\n");
 		goto err_octep_config;
 	}
+
+	octep_ctrl_net_get_info(octep_dev, OCTEP_CTRL_NET_INVALID_VFID,
+				&octep_dev->conf->fw_info);
+	dev_info(&octep_dev->pdev->dev, "Heartbeat interval %u msecs Heartbeat miss count %u\n",
+		 octep_dev->conf->fw_info.hb_interval,
+		 octep_dev->conf->fw_info.hb_miss_count);
+	queue_delayed_work(octep_wq, &octep_dev->hb_task,
+			   msecs_to_jiffies(octep_dev->conf->fw_info.hb_interval));
+
 	INIT_WORK(&octep_dev->tx_timeout_task, octep_tx_timeout_task);
 	INIT_WORK(&octep_dev->ctrl_mbox_task, octep_ctrl_mbox_task);
 	INIT_DELAYED_WORK(&octep_dev->intr_poll_task, octep_intr_poll_task);
@@ -1200,14 +1394,11 @@ static void octep_remove(struct pci_dev *pdev)
 	if (!oct)
 		return;
 
-	cancel_work_sync(&oct->tx_timeout_task);
-	cancel_work_sync(&oct->ctrl_mbox_task);
 	netdev = oct->netdev;
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
-	oct->poll_non_ioq_intr = false;
-	cancel_delayed_work_sync(&oct->intr_poll_task);
+	cancel_work_sync(&oct->tx_timeout_task);
 	octep_device_cleanup(oct);
 	pci_release_mem_regions(pdev);
 	free_netdev(netdev);

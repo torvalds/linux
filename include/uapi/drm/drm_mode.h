@@ -488,6 +488,9 @@ struct drm_mode_get_connector {
 	 * This is not an object ID. This is a per-type connector number. Each
 	 * (type, type_id) combination is unique across all connectors of a DRM
 	 * device.
+	 *
+	 * The (type, type_id) combination is not a stable identifier: the
+	 * type_id can change depending on the driver probe order.
 	 */
 	__u32 connector_type_id;
 
@@ -883,7 +886,7 @@ struct hdr_metadata_infoframe {
 	 */
 	struct {
 		__u16 x, y;
-		} display_primaries[3];
+	} display_primaries[3];
 	/**
 	 * @white_point: White Point of Colorspace Data.
 	 * These are coded as unsigned 16-bit values in units of
@@ -894,7 +897,7 @@ struct hdr_metadata_infoframe {
 	 */
 	struct {
 		__u16 x, y;
-		} white_point;
+	} white_point;
 	/**
 	 * @max_display_mastering_luminance: Max Mastering Display Luminance.
 	 * This value is coded as an unsigned 16-bit value in units of 1 cd/m2,
@@ -1029,13 +1032,25 @@ struct drm_mode_crtc_page_flip_target {
 	__u64 user_data;
 };
 
-/* create a dumb scanout buffer */
+/**
+ * struct drm_mode_create_dumb - Create a KMS dumb buffer for scanout.
+ * @height: buffer height in pixels
+ * @width: buffer width in pixels
+ * @bpp: bits per pixel
+ * @flags: must be zero
+ * @handle: buffer object handle
+ * @pitch: number of bytes between two consecutive lines
+ * @size: size of the whole buffer in bytes
+ *
+ * User-space fills @height, @width, @bpp and @flags. If the IOCTL succeeds,
+ * the kernel fills @handle, @pitch and @size.
+ */
 struct drm_mode_create_dumb {
 	__u32 height;
 	__u32 width;
 	__u32 bpp;
 	__u32 flags;
-	/* handle, pitch, size will be returned */
+
 	__u32 handle;
 	__u32 pitch;
 	__u64 size;

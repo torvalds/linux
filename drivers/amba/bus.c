@@ -18,6 +18,7 @@
 #include <linux/limits.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
@@ -528,6 +529,7 @@ static void amba_device_release(struct device *dev)
 {
 	struct amba_device *d = to_amba_device(dev);
 
+	fwnode_handle_put(dev_fwnode(&d->dev));
 	if (d->res.parent)
 		release_resource(&d->res);
 	mutex_destroy(&d->periphid_lock);
@@ -546,6 +548,8 @@ static void amba_device_release(struct device *dev)
 int amba_device_add(struct amba_device *dev, struct resource *parent)
 {
 	int ret;
+
+	fwnode_handle_get(dev_fwnode(&dev->dev));
 
 	ret = request_resource(parent, &dev->res);
 	if (ret)

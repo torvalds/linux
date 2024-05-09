@@ -28,6 +28,7 @@
 #include "vmxnet3_int.h"
 #include <net/vxlan.h>
 #include <net/geneve.h>
+#include "vmxnet3_xdp.h"
 
 #define VXLAN_UDP_PORT 8472
 
@@ -76,6 +77,10 @@ vmxnet3_tq_driver_stats[] = {
 					 copy_skb_header) },
 	{ "  giant hdr",	offsetof(struct vmxnet3_tq_driver_stats,
 					 oversized_hdr) },
+	{ "  xdp xmit",		offsetof(struct vmxnet3_tq_driver_stats,
+					 xdp_xmit) },
+	{ "  xdp xmit err",	offsetof(struct vmxnet3_tq_driver_stats,
+					 xdp_xmit_err) },
 };
 
 /* per rq stats maintained by the device */
@@ -106,6 +111,16 @@ vmxnet3_rq_driver_stats[] = {
 					 drop_fcs) },
 	{ "  rx buf alloc fail", offsetof(struct vmxnet3_rq_driver_stats,
 					  rx_buf_alloc_failure) },
+	{ "     xdp packets", offsetof(struct vmxnet3_rq_driver_stats,
+				       xdp_packets) },
+	{ "     xdp tx", offsetof(struct vmxnet3_rq_driver_stats,
+				  xdp_tx) },
+	{ "     xdp redirects", offsetof(struct vmxnet3_rq_driver_stats,
+					 xdp_redirects) },
+	{ "     xdp drops", offsetof(struct vmxnet3_rq_driver_stats,
+				     xdp_drops) },
+	{ "     xdp aborted", offsetof(struct vmxnet3_rq_driver_stats,
+				       xdp_aborted) },
 };
 
 /* global stats maintained by the driver */
@@ -249,9 +264,17 @@ vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 netdev_features_t vmxnet3_fix_features(struct net_device *netdev,
 				       netdev_features_t features)
 {
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+
 	/* If Rx checksum is disabled, then LRO should also be disabled */
 	if (!(features & NETIF_F_RXCSUM))
 		features &= ~NETIF_F_LRO;
+
+	/* If XDP is enabled, then LRO should not be enabled */
+	if (vmxnet3_xdp_enabled(adapter) && (features & NETIF_F_LRO)) {
+		netdev_err(netdev, "LRO is not supported with XDP");
+		features &= ~NETIF_F_LRO;
+	}
 
 	return features;
 }

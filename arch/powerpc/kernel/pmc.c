@@ -74,7 +74,7 @@ void release_pmc_hardware(void)
 }
 EXPORT_SYMBOL_GPL(release_pmc_hardware);
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 void power4_enable_pmcs(void)
 {
 	unsigned long hid0;

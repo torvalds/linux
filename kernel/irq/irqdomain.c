@@ -182,9 +182,7 @@ static struct irq_domain *__irq_domain_create(struct fwnode_handle *fwnode,
 			return NULL;
 		}
 
-		strreplace(name, '/', ':');
-
-		domain->name = name;
+		domain->name = strreplace(name, '/', ':');
 		domain->fwnode = fwnode;
 		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
 	}

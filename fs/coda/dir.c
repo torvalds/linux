@@ -111,7 +111,7 @@ static inline void coda_dir_update_mtime(struct inode *dir)
 	/* optimistically we can also act as if our nose bleeds. The
 	 * granularity of the mtime is coarse anyways so we might actually be
 	 * right most of the time. Note: we only do this for directories. */
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 #endif
 }
 
@@ -429,21 +429,14 @@ static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 	cfi = coda_ftoc(coda_file);
 	host_file = cfi->cfi_container;
 
-	if (host_file->f_op->iterate || host_file->f_op->iterate_shared) {
+	if (host_file->f_op->iterate_shared) {
 		struct inode *host_inode = file_inode(host_file);
 		ret = -ENOENT;
 		if (!IS_DEADDIR(host_inode)) {
-			if (host_file->f_op->iterate_shared) {
-				inode_lock_shared(host_inode);
-				ret = host_file->f_op->iterate_shared(host_file, ctx);
-				file_accessed(host_file);
-				inode_unlock_shared(host_inode);
-			} else {
-				inode_lock(host_inode);
-				ret = host_file->f_op->iterate(host_file, ctx);
-				file_accessed(host_file);
-				inode_unlock(host_inode);
-			}
+			inode_lock_shared(host_inode);
+			ret = host_file->f_op->iterate_shared(host_file, ctx);
+			file_accessed(host_file);
+			inode_unlock_shared(host_inode);
 		}
 		return ret;
 	}
@@ -585,10 +578,11 @@ const struct inode_operations coda_dir_inode_operations = {
 	.setattr	= coda_setattr,
 };
 
+WRAP_DIR_ITER(coda_readdir) // FIXME!
 const struct file_operations coda_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.iterate	= coda_readdir,
+	.iterate_shared	= shared_coda_readdir,
 	.open		= coda_open,
 	.release	= coda_release,
 	.fsync		= coda_fsync,

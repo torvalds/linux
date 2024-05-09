@@ -2,8 +2,8 @@
 # Copyright 2019 Linaro Ltd.
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/firmware/intel,ixp4xx-network-processing-engine.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/firmware/intel,ixp4xx-network-processing-engine.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Intel IXP4xx Network Processing Engine
 

@@ -31,6 +31,13 @@
 .Lskip_hcrx_\@:
 .endm
 
+/* Check if running in host at EL2 mode, i.e., (h)VHE. Jump to fail if not. */
+.macro __check_hvhe fail, tmp
+	mrs	\tmp, hcr_el2
+	and	\tmp, \tmp, #HCR_E2H
+	cbz	\tmp, \fail
+.endm
+
 /*
  * Allow Non-secure EL1 and EL0 to access physical timer and counter.
  * This is not necessary for VHE, since the host kernel runs in EL2,
@@ -43,6 +50,9 @@
  */
 .macro __init_el2_timers
 	mov	x0, #3				// Enable EL1 physical timers
+	__check_hvhe .LnVHE_\@, x1
+	lsl	x0, x0, #10
+.LnVHE_\@:
 	msr	cnthctl_el2, x0
 	msr	cntvoff_el2, xzr		// Clear virtual offset
 .endm
@@ -133,9 +143,15 @@
 .endm
 
 /* Coprocessor traps */
-.macro __init_el2_nvhe_cptr
+.macro __init_el2_cptr
+	__check_hvhe .LnVHE_\@, x1
+	mov	x0, #(CPACR_EL1_FPEN_EL1EN | CPACR_EL1_FPEN_EL0EN)
+	msr	cpacr_el1, x0
+	b	.Lskip_set_cptr_\@
+.LnVHE_\@:
 	mov	x0, #0x33ff
 	msr	cptr_el2, x0			// Disable copro. traps to EL2
+.Lskip_set_cptr_\@:
 .endm
 
 /* Disable any fine grained traps */
@@ -210,9 +226,8 @@
 	__init_el2_gicv3
 	__init_el2_hstr
 	__init_el2_nvhe_idregs
-	__init_el2_nvhe_cptr
+	__init_el2_cptr
 	__init_el2_fgt
-	__init_el2_nvhe_prepare_eret
 .endm
 
 #ifndef __KVM_NVHE_HYPERVISOR__
@@ -257,9 +272,19 @@
 	check_override id_aa64pfr0, ID_AA64PFR0_EL1_SVE_SHIFT, .Linit_sve_\@, .Lskip_sve_\@, x1, x2
 
 .Linit_sve_\@:	/* SVE register access */
+	__check_hvhe .Lcptr_nvhe_\@, x1
+
+	// (h)VHE case
+	mrs	x0, cpacr_el1			// Disable SVE traps
+	orr	x0, x0, #(CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN)
+	msr	cpacr_el1, x0
+	b	.Lskip_set_cptr_\@
+
+.Lcptr_nvhe_\@: // nVHE case
 	mrs	x0, cptr_el2			// Disable SVE traps
 	bic	x0, x0, #CPTR_EL2_TZ
 	msr	cptr_el2, x0
+.Lskip_set_cptr_\@:
 	isb
 	mov	x1, #ZCR_ELx_LEN_MASK		// SVE: Enable full vector
 	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
@@ -268,9 +293,19 @@
 	check_override id_aa64pfr1, ID_AA64PFR1_EL1_SME_SHIFT, .Linit_sme_\@, .Lskip_sme_\@, x1, x2
 
 .Linit_sme_\@:	/* SME register access and priority mapping */
+	__check_hvhe .Lcptr_nvhe_sme_\@, x1
+
+	// (h)VHE case
+	mrs	x0, cpacr_el1			// Disable SME traps
+	orr	x0, x0, #(CPACR_EL1_SMEN_EL0EN | CPACR_EL1_SMEN_EL1EN)
+	msr	cpacr_el1, x0
+	b	.Lskip_set_cptr_sme_\@
+
+.Lcptr_nvhe_sme_\@: // nVHE case
 	mrs	x0, cptr_el2			// Disable SME traps
 	bic	x0, x0, #CPTR_EL2_TSM
 	msr	cptr_el2, x0
+.Lskip_set_cptr_sme_\@:
 	isb
 
 	mrs	x1, sctlr_el2

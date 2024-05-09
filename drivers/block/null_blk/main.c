@@ -1643,9 +1643,12 @@ static int null_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)
 	struct nullb_queue *nq = hctx->driver_data;
 	LIST_HEAD(list);
 	int nr = 0;
+	struct request *rq;
 
 	spin_lock(&nq->poll_lock);
 	list_splice_init(&nq->poll_list, &list);
+	list_for_each_entry(rq, &list, queuelist)
+		blk_mq_set_request_complete(rq);
 	spin_unlock(&nq->poll_lock);
 
 	while (!list_empty(&list)) {
@@ -1671,15 +1674,20 @@ static enum blk_eh_timer_return null_timeout_rq(struct request *rq)
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
-	pr_info("rq %p timed out\n", rq);
-
 	if (hctx->type == HCTX_TYPE_POLL) {
 		struct nullb_queue *nq = hctx->driver_data;
 
 		spin_lock(&nq->poll_lock);
+		/* The request may have completed meanwhile. */
+		if (blk_mq_request_completed(rq)) {
+			spin_unlock(&nq->poll_lock);
+			return BLK_EH_DONE;
+		}
 		list_del_init(&rq->queuelist);
 		spin_unlock(&nq->poll_lock);
 	}
+
+	pr_info("rq %p timed out\n", rq);
 
 	/*
 	 * If the device is marked as blocking (i.e. memory backed or zoned
@@ -1742,6 +1750,25 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return null_handle_cmd(cmd, sector, nr_sectors, req_op(rq));
 }
 
+static void null_queue_rqs(struct request **rqlist)
+{
+	struct request *requeue_list = NULL;
+	struct request **requeue_lastp = &requeue_list;
+	struct blk_mq_queue_data bd = { };
+	blk_status_t ret;
+
+	do {
+		struct request *rq = rq_list_pop(rqlist);
+
+		bd.rq = rq;
+		ret = null_queue_rq(rq->mq_hctx, &bd);
+		if (ret != BLK_STS_OK)
+			rq_list_add_tail(&requeue_lastp, rq);
+	} while (!rq_list_empty(*rqlist));
+
+	*rqlist = requeue_list;
+}
+
 static void cleanup_queue(struct nullb_queue *nq)
 {
 	bitmap_free(nq->tag_map);
@@ -1794,6 +1821,7 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
+	.queue_rqs	= null_queue_rqs,
 	.complete	= null_complete_rq,
 	.timeout	= null_timeout_rq,
 	.poll		= null_poll,
@@ -1938,7 +1966,7 @@ static int null_gendisk_register(struct nullb *nullb)
 	else
 		disk->fops		= &null_bio_ops;
 	disk->private_data	= nullb;
-	strncpy(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
+	strscpy_pad(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
 
 	if (nullb->dev->zoned) {
 		int ret = null_register_zoned_dev(nullb);

@@ -421,28 +421,24 @@ repeat:
 			/* Rock ridge never appears on a High Sierra disk */
 			cnt = 0;
 			if (rr->u.TF.flags & TF_CREATE) {
-				inode->i_ctime.tv_sec =
-				    iso_date(rr->u.TF.times[cnt++].time,
-					     0);
-				inode->i_ctime.tv_nsec = 0;
+				inode_set_ctime(inode,
+						iso_date(rr->u.TF.times[cnt++].time, 0),
+						0);
 			}
 			if (rr->u.TF.flags & TF_MODIFY) {
-				inode->i_mtime.tv_sec =
-				    iso_date(rr->u.TF.times[cnt++].time,
-					     0);
-				inode->i_mtime.tv_nsec = 0;
+				inode_set_mtime(inode,
+						iso_date(rr->u.TF.times[cnt++].time, 0),
+						0);
 			}
 			if (rr->u.TF.flags & TF_ACCESS) {
-				inode->i_atime.tv_sec =
-				    iso_date(rr->u.TF.times[cnt++].time,
-					     0);
-				inode->i_atime.tv_nsec = 0;
+				inode_set_atime(inode,
+						iso_date(rr->u.TF.times[cnt++].time, 0),
+						0);
 			}
 			if (rr->u.TF.flags & TF_ATTRIBUTES) {
-				inode->i_ctime.tv_sec =
-				    iso_date(rr->u.TF.times[cnt++].time,
-					     0);
-				inode->i_ctime.tv_nsec = 0;
+				inode_set_ctime(inode,
+						iso_date(rr->u.TF.times[cnt++].time, 0),
+						0);
 			}
 			break;
 		case SIG('S', 'L'):
@@ -533,9 +529,9 @@ repeat:
 			inode->i_rdev = reloc->i_rdev;
 			inode->i_size = reloc->i_size;
 			inode->i_blocks = reloc->i_blocks;
-			inode->i_atime = reloc->i_atime;
-			inode->i_ctime = reloc->i_ctime;
-			inode->i_mtime = reloc->i_mtime;
+			inode_set_atime_to_ts(inode, inode_get_atime(reloc));
+			inode_set_ctime_to_ts(inode, inode_get_ctime(reloc));
+			inode_set_mtime_to_ts(inode, inode_get_mtime(reloc));
 			iput(reloc);
 			break;
 #ifdef CONFIG_ZISOFS

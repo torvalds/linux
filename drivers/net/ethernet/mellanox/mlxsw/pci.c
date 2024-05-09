@@ -105,6 +105,8 @@ struct mlxsw_pci {
 	u64 free_running_clock_offset;
 	u64 utc_sec_offset;
 	u64 utc_nsec_offset;
+	bool lag_mode_support;
+	enum mlxsw_cmd_mbox_config_profile_lag_mode lag_mode;
 	struct mlxsw_pci_queue_type_group queues[MLXSW_PCI_QUEUE_TYPE_COUNT];
 	u32 doorbell_offset;
 	struct mlxsw_core *core;
@@ -352,14 +354,15 @@ static void mlxsw_pci_wqe_frag_unmap(struct mlxsw_pci *mlxsw_pci, char *wqe,
 }
 
 static int mlxsw_pci_rdq_skb_alloc(struct mlxsw_pci *mlxsw_pci,
-				   struct mlxsw_pci_queue_elem_info *elem_info)
+				   struct mlxsw_pci_queue_elem_info *elem_info,
+				   gfp_t gfp)
 {
 	size_t buf_len = MLXSW_PORT_MAX_MTU;
 	char *wqe = elem_info->elem;
 	struct sk_buff *skb;
 	int err;
 
-	skb = netdev_alloc_skb_ip_align(NULL, buf_len);
+	skb = __netdev_alloc_skb_ip_align(NULL, buf_len, gfp);
 	if (!skb)
 		return -ENOMEM;
 
@@ -420,7 +423,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	for (i = 0; i < q->count; i++) {
 		elem_info = mlxsw_pci_queue_elem_info_producer_get(q);
 		BUG_ON(!elem_info);
-		err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
+		err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info, GFP_KERNEL);
 		if (err)
 			goto rollback;
 		/* Everything is set up, ring doorbell to pass elem to HW */
@@ -517,11 +520,15 @@ static void mlxsw_pci_skb_cb_ts_set(struct mlxsw_pci *mlxsw_pci,
 				    struct sk_buff *skb,
 				    enum mlxsw_pci_cqe_v cqe_v, char *cqe)
 {
+	u8 ts_type;
+
 	if (cqe_v != MLXSW_PCI_CQE_V2)
 		return;
 
-	if (mlxsw_pci_cqe2_time_stamp_type_get(cqe) !=
-	    MLXSW_PCI_CQE_TIME_STAMP_TYPE_UTC)
+	ts_type = mlxsw_pci_cqe2_time_stamp_type_get(cqe);
+
+	if (ts_type != MLXSW_PCI_CQE_TIME_STAMP_TYPE_UTC &&
+	    ts_type != MLXSW_PCI_CQE_TIME_STAMP_TYPE_MIRROR_UTC)
 		return;
 
 	mlxsw_skb_cb(skb)->cqe_ts.sec = mlxsw_pci_cqe2_time_stamp_sec_get(cqe);
@@ -636,7 +643,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (q->consumer_counter++ != consumer_counter_limit)
 		dev_dbg_ratelimited(&pdev->dev, "Consumer counter does not match limit in RDQ\n");
 
-	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info);
+	err = mlxsw_pci_rdq_skb_alloc(mlxsw_pci, elem_info, GFP_ATOMIC);
 	if (err) {
 		dev_err_ratelimited(&pdev->dev, "Failed to alloc skb for RDQ\n");
 		goto out;
@@ -1307,6 +1314,16 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 					profile->cqe_time_stamp_type);
 	}
 
+	if (profile->lag_mode_prefer_sw && mlxsw_pci->lag_mode_support) {
+		enum mlxsw_cmd_mbox_config_profile_lag_mode lag_mode =
+			MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW;
+
+		mlxsw_cmd_mbox_config_profile_set_lag_mode_set(mbox, 1);
+		mlxsw_cmd_mbox_config_profile_lag_mode_set(mbox, lag_mode);
+		mlxsw_pci->lag_mode = lag_mode;
+	} else {
+		mlxsw_pci->lag_mode = MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_FW;
+	}
 	return mlxsw_cmd_config_profile_set(mlxsw_pci->core, mbox);
 }
 
@@ -1582,6 +1599,8 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	mlxsw_pci->utc_nsec_offset =
 		mlxsw_cmd_mbox_query_fw_utc_nsec_offset_get(mbox);
 
+	mlxsw_pci->lag_mode_support =
+		mlxsw_cmd_mbox_query_fw_lag_mode_support_get(mbox);
 	num_pages = mlxsw_cmd_mbox_query_fw_fw_pages_get(mbox);
 	err = mlxsw_pci_fw_area_init(mlxsw_pci, mbox, num_pages);
 	if (err)
@@ -1614,9 +1633,8 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (err)
 		goto err_config_profile;
 
-	/* Some resources depend on unified bridge model, which is configured
-	 * as part of config_profile. Query the resources again to get correct
-	 * values.
+	/* Some resources depend on details of config_profile, such as unified
+	 * bridge model. Query the resources again to get correct values.
 	 */
 	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
 	if (err)
@@ -1891,6 +1909,14 @@ static u32 mlxsw_pci_read_utc_nsec(void *bus_priv)
 	return mlxsw_pci_read32_off(mlxsw_pci, mlxsw_pci->utc_nsec_offset);
 }
 
+static enum mlxsw_cmd_mbox_config_profile_lag_mode
+mlxsw_pci_lag_mode(void *bus_priv)
+{
+	struct mlxsw_pci *mlxsw_pci = bus_priv;
+
+	return mlxsw_pci->lag_mode;
+}
+
 static const struct mlxsw_bus mlxsw_pci_bus = {
 	.kind			= "pci",
 	.init			= mlxsw_pci_init,
@@ -1902,6 +1928,7 @@ static const struct mlxsw_bus mlxsw_pci_bus = {
 	.read_frc_l		= mlxsw_pci_read_frc_l,
 	.read_utc_sec		= mlxsw_pci_read_utc_sec,
 	.read_utc_nsec		= mlxsw_pci_read_utc_nsec,
+	.lag_mode		= mlxsw_pci_lag_mode,
 	.features		= MLXSW_BUS_F_TXRX | MLXSW_BUS_F_RESET,
 };
 

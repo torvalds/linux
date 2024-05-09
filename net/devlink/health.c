@@ -19,6 +19,7 @@ struct devlink_fmsg_item {
 
 struct devlink_fmsg {
 	struct list_head item_list;
+	int err; /* first error encountered on some devlink_fmsg_XXX() call */
 	bool putting_binary; /* This flag forces enclosing of binary data
 			      * in an array brackets. It forces using
 			      * of designated API:
@@ -58,7 +59,6 @@ struct devlink_health_reporter {
 	struct devlink *devlink;
 	struct devlink_port *devlink_port;
 	struct devlink_fmsg *dump_fmsg;
-	struct mutex dump_lock; /* lock parallel read/write from dump buffers */
 	u64 graceful_period;
 	bool auto_recover;
 	bool auto_dump;
@@ -125,7 +125,6 @@ __devlink_health_reporter_create(struct devlink *devlink,
 	reporter->graceful_period = graceful_period;
 	reporter->auto_recover = !!ops->recover;
 	reporter->auto_dump = !!ops->dump;
-	mutex_init(&reporter->dump_lock);
 	return reporter;
 }
 
@@ -226,7 +225,6 @@ EXPORT_SYMBOL_GPL(devlink_health_reporter_create);
 static void
 devlink_health_reporter_free(struct devlink_health_reporter *reporter)
 {
-	mutex_destroy(&reporter->dump_lock);
 	if (reporter->dump_fmsg)
 		devlink_fmsg_free(reporter->dump_fmsg);
 	kfree(reporter);
@@ -356,8 +354,8 @@ devlink_health_reporter_get_from_info(struct devlink *devlink,
 	return devlink_health_reporter_get_from_attrs(devlink, info->attrs);
 }
 
-int devlink_nl_cmd_health_reporter_get_doit(struct sk_buff *skb,
-					    struct genl_info *info)
+int devlink_nl_health_reporter_get_doit(struct sk_buff *skb,
+					struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_health_reporter *reporter;
@@ -384,17 +382,28 @@ int devlink_nl_cmd_health_reporter_get_doit(struct sk_buff *skb,
 	return genlmsg_reply(msg, info);
 }
 
-static int
-devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
-					    struct devlink *devlink,
-					    struct netlink_callback *cb)
+static int devlink_nl_health_reporter_get_dump_one(struct sk_buff *msg,
+						   struct devlink *devlink,
+						   struct netlink_callback *cb,
+						   int flags)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
+	const struct genl_info *info = genl_info_dump(cb);
 	struct devlink_health_reporter *reporter;
+	unsigned long port_index_end = ULONG_MAX;
+	struct nlattr **attrs = info->attrs;
+	unsigned long port_index_start = 0;
 	struct devlink_port *port;
 	unsigned long port_index;
 	int idx = 0;
 	int err;
+
+	if (attrs && attrs[DEVLINK_ATTR_PORT_INDEX]) {
+		port_index_start = nla_get_u32(attrs[DEVLINK_ATTR_PORT_INDEX]);
+		port_index_end = port_index_start;
+		flags |= NLM_F_DUMP_FILTERED;
+		goto per_port_dump;
+	}
 
 	list_for_each_entry(reporter, &devlink->reporter_list, list) {
 		if (idx < state->idx) {
@@ -405,14 +414,16 @@ devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
 						      DEVLINK_CMD_HEALTH_REPORTER_GET,
 						      NETLINK_CB(cb->skb).portid,
 						      cb->nlh->nlmsg_seq,
-						      NLM_F_MULTI);
+						      flags);
 		if (err) {
 			state->idx = idx;
 			return err;
 		}
 		idx++;
 	}
-	xa_for_each(&devlink->ports, port_index, port) {
+per_port_dump:
+	xa_for_each_range(&devlink->ports, port_index, port,
+			  port_index_start, port_index_end) {
 		list_for_each_entry(reporter, &port->reporter_list, list) {
 			if (idx < state->idx) {
 				idx++;
@@ -422,7 +433,7 @@ devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
 							      DEVLINK_CMD_HEALTH_REPORTER_GET,
 							      NETLINK_CB(cb->skb).portid,
 							      cb->nlh->nlmsg_seq,
-							      NLM_F_MULTI);
+							      flags);
 			if (err) {
 				state->idx = idx;
 				return err;
@@ -434,12 +445,15 @@ devlink_nl_cmd_health_reporter_get_dump_one(struct sk_buff *msg,
 	return 0;
 }
 
-const struct devlink_cmd devl_cmd_health_reporter_get = {
-	.dump_one		= devlink_nl_cmd_health_reporter_get_dump_one,
-};
+int devlink_nl_health_reporter_get_dumpit(struct sk_buff *skb,
+					  struct netlink_callback *cb)
+{
+	return devlink_nl_dumpit(skb, cb,
+				 devlink_nl_health_reporter_get_dump_one);
+}
 
-int devlink_nl_cmd_health_reporter_set_doit(struct sk_buff *skb,
-					    struct genl_info *info)
+int devlink_nl_health_reporter_set_doit(struct sk_buff *skb,
+					struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_health_reporter *reporter;
@@ -549,21 +563,18 @@ static int devlink_health_do_dump(struct devlink_health_reporter *reporter,
 		return 0;
 
 	reporter->dump_fmsg = devlink_fmsg_alloc();
-	if (!reporter->dump_fmsg) {
-		err = -ENOMEM;
-		return err;
-	}
+	if (!reporter->dump_fmsg)
+		return -ENOMEM;
 
-	err = devlink_fmsg_obj_nest_start(reporter->dump_fmsg);
-	if (err)
-		goto dump_err;
+	devlink_fmsg_obj_nest_start(reporter->dump_fmsg);
 
 	err = reporter->ops->dump(reporter, reporter->dump_fmsg,
 				  priv_ctx, extack);
 	if (err)
 		goto dump_err;
 
-	err = devlink_fmsg_obj_nest_end(reporter->dump_fmsg);
+	devlink_fmsg_obj_nest_end(reporter->dump_fmsg);
+	err = reporter->dump_fmsg->err;
 	if (err)
 		goto dump_err;
 
@@ -609,10 +620,10 @@ int devlink_health_report(struct devlink_health_reporter *reporter,
 	}
 
 	if (reporter->auto_dump) {
-		mutex_lock(&reporter->dump_lock);
+		devl_lock(devlink);
 		/* store current dump of current error, for later analysis */
 		devlink_health_do_dump(reporter, priv_ctx, NULL);
-		mutex_unlock(&reporter->dump_lock);
+		devl_unlock(devlink);
 	}
 
 	if (!reporter->auto_recover)
@@ -644,8 +655,8 @@ devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 }
 EXPORT_SYMBOL_GPL(devlink_health_reporter_state_update);
 
-int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
-						struct genl_info *info)
+int devlink_nl_health_reporter_recover_doit(struct sk_buff *skb,
+					    struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_health_reporter *reporter;
@@ -657,373 +668,258 @@ int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
 	return devlink_health_reporter_recover(reporter, NULL, info->extack);
 }
 
-static int devlink_fmsg_nest_common(struct devlink_fmsg *fmsg,
-				    int attrtype)
+static void devlink_fmsg_err_if_binary(struct devlink_fmsg *fmsg)
+{
+	if (!fmsg->err && fmsg->putting_binary)
+		fmsg->err = -EINVAL;
+}
+
+static void devlink_fmsg_nest_common(struct devlink_fmsg *fmsg, int attrtype)
 {
 	struct devlink_fmsg_item *item;
 
+	if (fmsg->err)
+		return;
+
 	item = kzalloc(sizeof(*item), GFP_KERNEL);
-	if (!item)
-		return -ENOMEM;
+	if (!item) {
+		fmsg->err = -ENOMEM;
+		return;
+	}
 
 	item->attrtype = attrtype;
 	list_add_tail(&item->list, &fmsg->item_list);
-
-	return 0;
 }
 
-int devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg)
+void devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_OBJ_NEST_START);
+	devlink_fmsg_err_if_binary(fmsg);
+	devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_OBJ_NEST_START);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_obj_nest_start);
 
-static int devlink_fmsg_nest_end(struct devlink_fmsg *fmsg)
+static void devlink_fmsg_nest_end(struct devlink_fmsg *fmsg)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_NEST_END);
+	devlink_fmsg_err_if_binary(fmsg);
+	devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_NEST_END);
 }
 
-int devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg)
+void devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_nest_end(fmsg);
+	devlink_fmsg_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_obj_nest_end);
 
 #define DEVLINK_FMSG_MAX_SIZE (GENLMSG_DEFAULT_SIZE - GENL_HDRLEN - NLA_HDRLEN)
 
-static int devlink_fmsg_put_name(struct devlink_fmsg *fmsg, const char *name)
+static void devlink_fmsg_put_name(struct devlink_fmsg *fmsg, const char *name)
 {
 	struct devlink_fmsg_item *item;
 
-	if (fmsg->putting_binary)
-		return -EINVAL;
+	devlink_fmsg_err_if_binary(fmsg);
+	if (fmsg->err)
+		return;
 
-	if (strlen(name) + 1 > DEVLINK_FMSG_MAX_SIZE)
-		return -EMSGSIZE;
+	if (strlen(name) + 1 > DEVLINK_FMSG_MAX_SIZE) {
+		fmsg->err = -EMSGSIZE;
+		return;
+	}
 
 	item = kzalloc(sizeof(*item) + strlen(name) + 1, GFP_KERNEL);
-	if (!item)
-		return -ENOMEM;
+	if (!item) {
+		fmsg->err = -ENOMEM;
+		return;
+	}
 
 	item->nla_type = NLA_NUL_STRING;
 	item->len = strlen(name) + 1;
 	item->attrtype = DEVLINK_ATTR_FMSG_OBJ_NAME;
 	memcpy(&item->value, name, item->len);
 	list_add_tail(&item->list, &fmsg->item_list);
-
-	return 0;
 }
 
-int devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name)
+void devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name)
 {
-	int err;
-
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	err = devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_PAIR_NEST_START);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_put_name(fmsg, name);
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_err_if_binary(fmsg);
+	devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_PAIR_NEST_START);
+	devlink_fmsg_put_name(fmsg, name);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_pair_nest_start);
 
-int devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg)
+void devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_nest_end(fmsg);
+	devlink_fmsg_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_pair_nest_end);
 
-int devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
-				     const char *name)
+void devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				      const char *name)
 {
-	int err;
-
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	err = devlink_fmsg_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_ARR_NEST_START);
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_pair_nest_start(fmsg, name);
+	devlink_fmsg_nest_common(fmsg, DEVLINK_ATTR_FMSG_ARR_NEST_START);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_arr_pair_nest_start);
 
-int devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg)
+void devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg)
 {
-	int err;
-
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	err = devlink_fmsg_nest_end(fmsg);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_nest_end(fmsg);
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_nest_end(fmsg);
+	devlink_fmsg_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_arr_pair_nest_end);
 
-int devlink_fmsg_binary_pair_nest_start(struct devlink_fmsg *fmsg,
-					const char *name)
+void devlink_fmsg_binary_pair_nest_start(struct devlink_fmsg *fmsg,
+					 const char *name)
 {
-	int err;
-
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
-
+	devlink_fmsg_arr_pair_nest_start(fmsg, name);
 	fmsg->putting_binary = true;
-	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_binary_pair_nest_start);
 
-int devlink_fmsg_binary_pair_nest_end(struct devlink_fmsg *fmsg)
+void devlink_fmsg_binary_pair_nest_end(struct devlink_fmsg *fmsg)
 {
+	if (fmsg->err)
+		return;
+
 	if (!fmsg->putting_binary)
-		return -EINVAL;
+		fmsg->err = -EINVAL;
 
 	fmsg->putting_binary = false;
-	return devlink_fmsg_arr_pair_nest_end(fmsg);
+	devlink_fmsg_arr_pair_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_binary_pair_nest_end);
 
-static int devlink_fmsg_put_value(struct devlink_fmsg *fmsg,
-				  const void *value, u16 value_len,
-				  u8 value_nla_type)
+static void devlink_fmsg_put_value(struct devlink_fmsg *fmsg,
+				   const void *value, u16 value_len,
+				   u8 value_nla_type)
 {
 	struct devlink_fmsg_item *item;
 
-	if (value_len > DEVLINK_FMSG_MAX_SIZE)
-		return -EMSGSIZE;
+	if (fmsg->err)
+		return;
+
+	if (value_len > DEVLINK_FMSG_MAX_SIZE) {
+		fmsg->err = -EMSGSIZE;
+		return;
+	}
 
 	item = kzalloc(sizeof(*item) + value_len, GFP_KERNEL);
-	if (!item)
-		return -ENOMEM;
+	if (!item) {
+		fmsg->err = -ENOMEM;
+		return;
+	}
 
 	item->nla_type = value_nla_type;
 	item->len = value_len;
 	item->attrtype = DEVLINK_ATTR_FMSG_OBJ_VALUE_DATA;
 	memcpy(&item->value, value, item->len);
 	list_add_tail(&item->list, &fmsg->item_list);
-
-	return 0;
 }
 
-static int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
+static void devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_FLAG);
+	devlink_fmsg_err_if_binary(fmsg);
+	devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_FLAG);
 }
 
-static int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
+static void devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U8);
+	devlink_fmsg_err_if_binary(fmsg);
+	devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U8);
 }
 
-int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
+void devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U32);
+	devlink_fmsg_err_if_binary(fmsg);
+	devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U32);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_u32_put);
 
-static int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
+static void devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U64);
+	devlink_fmsg_err_if_binary(fmsg);
+	devlink_fmsg_put_value(fmsg, &value, sizeof(value), NLA_U64);
 }
 
-int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
+void devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value)
 {
-	if (fmsg->putting_binary)
-		return -EINVAL;
-
-	return devlink_fmsg_put_value(fmsg, value, strlen(value) + 1,
-				      NLA_NUL_STRING);
+	devlink_fmsg_err_if_binary(fmsg);
+	devlink_fmsg_put_value(fmsg, value, strlen(value) + 1, NLA_NUL_STRING);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_string_put);
 
-int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
-			    u16 value_len)
+void devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			     u16 value_len)
 {
-	if (!fmsg->putting_binary)
-		return -EINVAL;
+	if (!fmsg->err && !fmsg->putting_binary)
+		fmsg->err = -EINVAL;
 
-	return devlink_fmsg_put_value(fmsg, value, value_len, NLA_BINARY);
+	devlink_fmsg_put_value(fmsg, value, value_len, NLA_BINARY);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_binary_put);
 
-int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			       bool value)
+void devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				bool value)
 {
-	int err;
-
-	err = devlink_fmsg_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_bool_put(fmsg, value);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_pair_nest_end(fmsg);
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_pair_nest_start(fmsg, name);
+	devlink_fmsg_bool_put(fmsg, value);
+	devlink_fmsg_pair_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_bool_pair_put);
 
-int devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			     u8 value)
+void devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u8 value)
 {
-	int err;
-
-	err = devlink_fmsg_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u8_put(fmsg, value);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_pair_nest_end(fmsg);
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_pair_nest_start(fmsg, name);
+	devlink_fmsg_u8_put(fmsg, value);
+	devlink_fmsg_pair_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_u8_pair_put);
 
-int devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			      u32 value)
+void devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       u32 value)
 {
-	int err;
-
-	err = devlink_fmsg_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_put(fmsg, value);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_pair_nest_end(fmsg);
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_pair_nest_start(fmsg, name);
+	devlink_fmsg_u32_put(fmsg, value);
+	devlink_fmsg_pair_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_u32_pair_put);
 
-int devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			      u64 value)
+void devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       u64 value)
 {
-	int err;
-
-	err = devlink_fmsg_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u64_put(fmsg, value);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_pair_nest_end(fmsg);
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_pair_nest_start(fmsg, name);
+	devlink_fmsg_u64_put(fmsg, value);
+	devlink_fmsg_pair_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_u64_pair_put);
 
-int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
-				 const char *value)
+void devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				  const char *value)
 {
-	int err;
-
-	err = devlink_fmsg_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_string_put(fmsg, value);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_pair_nest_end(fmsg);
-	if (err)
-		return err;
-
-	return 0;
+	devlink_fmsg_pair_nest_start(fmsg, name);
+	devlink_fmsg_string_put(fmsg, value);
+	devlink_fmsg_pair_nest_end(fmsg);
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_string_pair_put);
 
-int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
-				 const void *value, u32 value_len)
+void devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				  const void *value, u32 value_len)
 {
 	u32 data_size;
-	int end_err;
 	u32 offset;
-	int err;
 
-	err = devlink_fmsg_binary_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
+	devlink_fmsg_binary_pair_nest_start(fmsg, name);
 
 	for (offset = 0; offset < value_len; offset += data_size) {
 		data_size = value_len - offset;
 		if (data_size > DEVLINK_FMSG_MAX_SIZE)
 			data_size = DEVLINK_FMSG_MAX_SIZE;
-		err = devlink_fmsg_binary_put(fmsg, value + offset, data_size);
-		if (err)
-			break;
-		/* Exit from loop with a break (instead of
-		 * return) to make sure putting_binary is turned off in
-		 * devlink_fmsg_binary_pair_nest_end
-		 */
+
+		devlink_fmsg_binary_put(fmsg, value + offset, data_size);
 	}
 
-	end_err = devlink_fmsg_binary_pair_nest_end(fmsg);
-	if (end_err)
-		err = end_err;
-
-	return err;
+	devlink_fmsg_binary_pair_nest_end(fmsg);
+	fmsg->putting_binary = false;
 }
 EXPORT_SYMBOL_GPL(devlink_fmsg_binary_pair_put);
 
@@ -1133,6 +1029,9 @@ static int devlink_fmsg_snd(struct devlink_fmsg *fmsg,
 	void *hdr;
 	int err;
 
+	if (fmsg->err)
+		return fmsg->err;
+
 	while (!last) {
 		int tmp_index = index;
 
@@ -1186,6 +1085,9 @@ static int devlink_fmsg_dumpit(struct devlink_fmsg *fmsg, struct sk_buff *skb,
 	void *hdr;
 	int err;
 
+	if (fmsg->err)
+		return fmsg->err;
+
 	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			  &devlink_nl_family, NLM_F_ACK | NLM_F_MULTI, cmd);
 	if (!hdr) {
@@ -1206,8 +1108,8 @@ nla_put_failure:
 	return err;
 }
 
-int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,
-						 struct genl_info *info)
+int devlink_nl_health_reporter_diagnose_doit(struct sk_buff *skb,
+					     struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_health_reporter *reporter;
@@ -1225,17 +1127,13 @@ int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,
 	if (!fmsg)
 		return -ENOMEM;
 
-	err = devlink_fmsg_obj_nest_start(fmsg);
-	if (err)
-		goto out;
+	devlink_fmsg_obj_nest_start(fmsg);
 
 	err = reporter->ops->diagnose(reporter, fmsg, info->extack);
 	if (err)
 		goto out;
 
-	err = devlink_fmsg_obj_nest_end(fmsg);
-	if (err)
-		goto out;
+	devlink_fmsg_obj_nest_end(fmsg);
 
 	err = devlink_fmsg_snd(fmsg, info,
 			       DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE, 0);
@@ -1246,9 +1144,9 @@ out:
 }
 
 static struct devlink_health_reporter *
-devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
+devlink_health_reporter_get_from_cb_lock(struct netlink_callback *cb)
 {
-	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
+	const struct genl_info *info = genl_info_dump(cb);
 	struct devlink_health_reporter *reporter;
 	struct nlattr **attrs = info->attrs;
 	struct devlink *devlink;
@@ -1256,28 +1154,34 @@ devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
 	devlink = devlink_get_from_attrs_lock(sock_net(cb->skb->sk), attrs);
 	if (IS_ERR(devlink))
 		return NULL;
-	devl_unlock(devlink);
 
 	reporter = devlink_health_reporter_get_from_attrs(devlink, attrs);
-	devlink_put(devlink);
+	if (!reporter) {
+		devl_unlock(devlink);
+		devlink_put(devlink);
+	}
 	return reporter;
 }
 
-int devlink_nl_cmd_health_reporter_dump_get_dumpit(struct sk_buff *skb,
-						   struct netlink_callback *cb)
+int devlink_nl_health_reporter_dump_get_dumpit(struct sk_buff *skb,
+					       struct netlink_callback *cb)
 {
 	struct devlink_nl_dump_state *state = devlink_dump_state(cb);
 	struct devlink_health_reporter *reporter;
+	struct devlink *devlink;
 	int err;
 
-	reporter = devlink_health_reporter_get_from_cb(cb);
+	reporter = devlink_health_reporter_get_from_cb_lock(cb);
 	if (!reporter)
 		return -EINVAL;
 
-	if (!reporter->ops->dump)
+	devlink = reporter->devlink;
+	if (!reporter->ops->dump) {
+		devl_unlock(devlink);
+		devlink_put(devlink);
 		return -EOPNOTSUPP;
+	}
 
-	mutex_lock(&reporter->dump_lock);
 	if (!state->idx) {
 		err = devlink_health_do_dump(reporter, NULL, cb->extack);
 		if (err)
@@ -1293,12 +1197,13 @@ int devlink_nl_cmd_health_reporter_dump_get_dumpit(struct sk_buff *skb,
 	err = devlink_fmsg_dumpit(reporter->dump_fmsg, skb, cb,
 				  DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET);
 unlock:
-	mutex_unlock(&reporter->dump_lock);
+	devl_unlock(devlink);
+	devlink_put(devlink);
 	return err;
 }
 
-int devlink_nl_cmd_health_reporter_dump_clear_doit(struct sk_buff *skb,
-						   struct genl_info *info)
+int devlink_nl_health_reporter_dump_clear_doit(struct sk_buff *skb,
+					       struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_health_reporter *reporter;
@@ -1310,14 +1215,12 @@ int devlink_nl_cmd_health_reporter_dump_clear_doit(struct sk_buff *skb,
 	if (!reporter->ops->dump)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&reporter->dump_lock);
 	devlink_health_dump_clear(reporter);
-	mutex_unlock(&reporter->dump_lock);
 	return 0;
 }
 
-int devlink_nl_cmd_health_reporter_test_doit(struct sk_buff *skb,
-					     struct genl_info *info)
+int devlink_nl_health_reporter_test_doit(struct sk_buff *skb,
+					 struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_health_reporter *reporter;

@@ -9,11 +9,11 @@
 #include "qmi.h"
 #include "core.h"
 #include "debug.h"
+#include "hif.h"
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/ioport.h>
 #include <linux/firmware.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 
 #define SLEEP_CLOCK_SELECT_INTERNAL_BIT	0x02
@@ -2079,7 +2079,7 @@ static int ath11k_qmi_assign_target_mem_chunk(struct ath11k_base *ab)
 				return -EINVAL;
 			}
 
-			if (ath11k_cold_boot_cal && ab->hw_params.cold_boot_calib) {
+			if (ath11k_core_coldboot_cal_support(ab)) {
 				if (hremote_node) {
 					ab->qmi.target_mem[idx].paddr =
 							res.start + host_ddr_sz;
@@ -2502,38 +2502,56 @@ out:
 static int ath11k_qmi_m3_load(struct ath11k_base *ab)
 {
 	struct m3_mem_region *m3_mem = &ab->qmi.m3_mem;
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
+	const void *m3_data;
 	char path[100];
+	size_t m3_len;
 	int ret;
 
-	fw = ath11k_core_firmware_request(ab, ATH11K_M3_FILE);
-	if (IS_ERR(fw)) {
-		ret = PTR_ERR(fw);
-		ath11k_core_create_firmware_path(ab, ATH11K_M3_FILE,
-						 path, sizeof(path));
-		ath11k_err(ab, "failed to load %s: %d\n", path, ret);
-		return ret;
+	if (m3_mem->vaddr)
+		/* m3 firmware buffer is already available in the DMA buffer */
+		return 0;
+
+	if (ab->fw.m3_data && ab->fw.m3_len > 0) {
+		/* firmware-N.bin had a m3 firmware file so use that */
+		m3_data = ab->fw.m3_data;
+		m3_len = ab->fw.m3_len;
+	} else {
+		/* No m3 file in firmware-N.bin so try to request old
+		 * separate m3.bin.
+		 */
+		fw = ath11k_core_firmware_request(ab, ATH11K_M3_FILE);
+		if (IS_ERR(fw)) {
+			ret = PTR_ERR(fw);
+			ath11k_core_create_firmware_path(ab, ATH11K_M3_FILE,
+							 path, sizeof(path));
+			ath11k_err(ab, "failed to load %s: %d\n", path, ret);
+			return ret;
+		}
+
+		m3_data = fw->data;
+		m3_len = fw->size;
 	}
 
-	if (m3_mem->vaddr || m3_mem->size)
-		goto skip_m3_alloc;
-
 	m3_mem->vaddr = dma_alloc_coherent(ab->dev,
-					   fw->size, &m3_mem->paddr,
+					   m3_len, &m3_mem->paddr,
 					   GFP_KERNEL);
 	if (!m3_mem->vaddr) {
 		ath11k_err(ab, "failed to allocate memory for M3 with size %zu\n",
 			   fw->size);
-		release_firmware(fw);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
-skip_m3_alloc:
-	memcpy(m3_mem->vaddr, fw->data, fw->size);
-	m3_mem->size = fw->size;
+	memcpy(m3_mem->vaddr, m3_data, m3_len);
+	m3_mem->size = m3_len;
+
+	ret = 0;
+
+out:
 	release_firmware(fw);
 
-	return 0;
+	return ret;
 }
 
 static void ath11k_qmi_m3_free(struct ath11k_base *ab)
@@ -2838,6 +2856,33 @@ int ath11k_qmi_firmware_start(struct ath11k_base *ab,
 
 	return 0;
 }
+
+int ath11k_qmi_fwreset_from_cold_boot(struct ath11k_base *ab)
+{
+	int timeout;
+
+	if (!ath11k_core_coldboot_cal_support(ab) ||
+	    ab->hw_params.cbcal_restart_fw == 0)
+		return 0;
+
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "wait for cold boot done\n");
+
+	timeout = wait_event_timeout(ab->qmi.cold_boot_waitq,
+				     (ab->qmi.cal_done == 1),
+				     ATH11K_COLD_BOOT_FW_RESET_DELAY);
+
+	if (timeout <= 0) {
+		ath11k_warn(ab, "Coldboot Calibration timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	/* reset the firmware */
+	ath11k_hif_power_down(ab);
+	ath11k_hif_power_up(ab);
+	ath11k_dbg(ab, ATH11K_DBG_QMI, "exit wait for cold boot done\n");
+	return 0;
+}
+EXPORT_SYMBOL(ath11k_qmi_fwreset_from_cold_boot);
 
 static int ath11k_qmi_process_coldboot_calibration(struct ath11k_base *ab)
 {
@@ -3209,8 +3254,8 @@ static void ath11k_qmi_driver_event_work(struct work_struct *work)
 				break;
 			}
 
-			if (ath11k_cold_boot_cal && ab->qmi.cal_done == 0 &&
-			    ab->hw_params.cold_boot_calib) {
+			if (ab->qmi.cal_done == 0 &&
+			    ath11k_core_coldboot_cal_support(ab)) {
 				ath11k_qmi_process_coldboot_calibration(ab);
 			} else {
 				clear_bit(ATH11K_FLAG_CRASH_FLUSH,

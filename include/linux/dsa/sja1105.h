@@ -28,7 +28,7 @@
 /* Source and Destination MAC of follow-up meta frames.
  * Whereas the choice of SMAC only affects the unique identification of the
  * switch as sender of meta frames, the DMAC must be an address that is present
- * in the DSA master port's multicast MAC filter.
+ * in the DSA conduit port's multicast MAC filter.
  * 01-80-C2-00-00-0E is a good choice for this, as all profiles of IEEE 1588
  * over L2 use this address for some purpose already.
  */
@@ -48,13 +48,9 @@ struct sja1105_deferred_xmit_work {
 
 /* Global tagger data */
 struct sja1105_tagger_data {
-	/* Tagger to switch */
 	void (*xmit_work_fn)(struct kthread_work *work);
 	void (*meta_tstamp_handler)(struct dsa_switch *ds, int port, u8 ts_id,
 				    enum sja1110_meta_tstamp dir, u64 tstamp);
-	/* Switch to tagger */
-	bool (*rxtstamp_get_state)(struct dsa_switch *ds);
-	void (*rxtstamp_set_state)(struct dsa_switch *ds, bool on);
 };
 
 struct sja1105_skb_cb {

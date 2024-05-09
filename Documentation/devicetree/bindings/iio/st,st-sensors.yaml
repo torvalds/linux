@@ -84,6 +84,7 @@ properties:
           - st,lps35hw
       - description: IMUs
         enum:
+          - st,lsm303d-imu
           - st,lsm9ds0-imu
       - description: Deprecated bindings
         enum:
@@ -96,7 +97,7 @@ properties:
 
   interrupts:
     description: interrupt line(s) connected to the DRDY line(s) and/or the
-      Intertial interrupt lines INT1 and INT2 if these exist. This means up to
+      Inertial interrupt lines INT1 and INT2 if these exist. This means up to
       three interrupts, and the DRDY must be the first one if it exists on
       the package. The trigger edge of the interrupts is sometimes software
       configurable in the hardware so the operating system should parse this

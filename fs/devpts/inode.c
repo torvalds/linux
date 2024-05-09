@@ -338,7 +338,7 @@ static int mknod_ptmx(struct super_block *sb)
 	}
 
 	inode->i_ino = 2;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 
 	mode = S_IFCHR|opts->ptmxmode;
 	init_special_inode(inode, mode, MKDEV(TTYAUX_MAJOR, 2));
@@ -451,7 +451,7 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	if (!inode)
 		goto fail;
 	inode->i_ino = 1;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
@@ -534,12 +534,12 @@ void devpts_kill_index(struct pts_fs_info *fsi, int idx)
 
 /**
  * devpts_pty_new -- create a new inode in /dev/pts/
- * @ptmx_inode: inode of the master
- * @device: major+minor of the node to be created
+ * @fsi: Filesystem info for this instance.
  * @index: used as a name of the node
  * @priv: what's given back by devpts_get_priv
  *
- * The created inode is returned. Remove it from /dev/pts/ by devpts_pty_kill.
+ * The dentry for the created inode is returned.
+ * Remove it from /dev/pts/ with devpts_pty_kill().
  */
 struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
 {
@@ -560,7 +560,7 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
 	inode->i_ino = index + 3;
 	inode->i_uid = opts->setuid ? opts->uid : current_fsuid();
 	inode->i_gid = opts->setgid ? opts->gid : current_fsgid();
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	init_special_inode(inode, S_IFCHR|opts->mode, MKDEV(UNIX98_PTY_SLAVE_MAJOR, index));
 
 	sprintf(s, "%d", index);
@@ -580,7 +580,7 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
 
 /**
  * devpts_get_priv -- get private data for a slave
- * @pts_inode: inode of the slave
+ * @dentry: dentry of the slave
  *
  * Returns whatever was passed as priv in devpts_pty_new for a given inode.
  */
@@ -593,7 +593,7 @@ void *devpts_get_priv(struct dentry *dentry)
 
 /**
  * devpts_pty_kill -- remove inode form /dev/pts/
- * @inode: inode of the slave to be removed
+ * @dentry: dentry of the slave to be removed
  *
  * This is an inverse operation of devpts_pty_new.
  */

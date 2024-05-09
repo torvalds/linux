@@ -55,8 +55,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.4.1.0.0"
-#define MPI3MR_DRIVER_RELDATE	"16-March-2023"
+#define MPI3MR_DRIVER_VERSION	"8.5.0.0.0"
+#define MPI3MR_DRIVER_RELDATE	"24-July-2023"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -66,11 +66,12 @@ extern atomic64_t event_counter;
 #define MPI3MR_NAME_LENGTH	32
 #define IOCNAME			"%s: "
 
-#define MPI3MR_MAX_SECTORS	2048
+#define MPI3MR_DEFAULT_MAX_IO_SIZE	(1 * 1024 * 1024)
 
 /* Definitions for internal SGL and Chain SGL buffers */
 #define MPI3MR_PAGE_SIZE_4K		4096
-#define MPI3MR_SG_DEPTH		(MPI3MR_PAGE_SIZE_4K / sizeof(struct mpi3_sge_common))
+#define MPI3MR_DEFAULT_SGL_ENTRIES	256
+#define MPI3MR_MAX_SGL_ENTRIES		2048
 
 /* Definitions for MAX values for shost */
 #define MPI3MR_MAX_CMDS_LUN	128
@@ -206,6 +207,9 @@ extern atomic64_t event_counter;
  */
 #define MPI3MR_MAX_APP_XFER_SECTORS	(2048 + 512)
 
+#define MPI3MR_WRITE_SAME_MAX_LEN_256_BLKS 256
+#define MPI3MR_WRITE_SAME_MAX_LEN_2048_BLKS 2048
+
 /**
  * struct mpi3mr_nvme_pt_sge -  Structure to store SGEs for NVMe
  * Encapsulated commands.
@@ -323,6 +327,7 @@ struct mpi3mr_ioc_facts {
 	u16 max_perids;
 	u16 max_pds;
 	u16 max_sasexpanders;
+	u32 max_data_length;
 	u16 max_sasinitiators;
 	u16 max_enclosures;
 	u16 max_pcie_switches;
@@ -676,6 +681,7 @@ enum mpi3mr_dev_state {
  * @io_unit_port: IO Unit port ID
  * @non_stl: Is this device not to be attached with SAS TL
  * @io_throttle_enabled: I/O throttling needed or not
+ * @wslen: Write same max length
  * @q_depth: Device specific Queue Depth
  * @wwid: World wide ID
  * @enclosure_logical_id: Enclosure logical identifier
@@ -698,6 +704,7 @@ struct mpi3mr_tgt_dev {
 	u8 io_unit_port;
 	u8 non_stl;
 	u8 io_throttle_enabled;
+	u16 wslen;
 	u16 q_depth;
 	u64 wwid;
 	u64 enclosure_logical_id;
@@ -751,6 +758,8 @@ static inline void mpi3mr_tgtdev_put(struct mpi3mr_tgt_dev *s)
  * @dev_removed: Device removed in the Firmware
  * @dev_removedelay: Device is waiting to be removed in FW
  * @dev_type: Device type
+ * @dev_nvme_dif: Device is NVMe DIF enabled
+ * @wslen: Write same max length
  * @io_throttle_enabled: I/O throttling needed or not
  * @io_divert: Flag indicates io divert is on or off for the dev
  * @throttle_group: Pointer to throttle group info
@@ -767,6 +776,8 @@ struct mpi3mr_stgt_priv_data {
 	u8 dev_removed;
 	u8 dev_removedelay;
 	u8 dev_type;
+	u8 dev_nvme_dif;
+	u16 wslen;
 	u8 io_throttle_enabled;
 	u8 io_divert;
 	struct mpi3mr_throttle_group_info *throttle_group;
@@ -782,12 +793,14 @@ struct mpi3mr_stgt_priv_data {
  * @ncq_prio_enable: NCQ priority enable for SATA device
  * @pend_count: Counter to track pending I/Os during error
  *		handling
+ * @wslen: Write same max length
  */
 struct mpi3mr_sdev_priv_data {
 	struct mpi3mr_stgt_priv_data *tgt_priv_data;
 	u32 lun_id;
 	u8 ncq_prio_enable;
 	u32 pend_count;
+	u16 wslen;
 };
 
 /**
@@ -959,6 +972,7 @@ struct scmd_priv {
  * @stop_drv_processing: Stop all command processing
  * @device_refresh_on: Don't process the events until devices are refreshed
  * @max_host_ios: Maximum host I/O count
+ * @max_sgl_entries: Max SGL entries per I/O
  * @chain_buf_count: Chain buffer count
  * @chain_buf_pool: Chain buffer pool
  * @chain_sgl_list: Chain SGL list
@@ -1129,6 +1143,7 @@ struct mpi3mr_ioc {
 	u16 max_host_ios;
 	spinlock_t tgtdev_lock;
 	struct list_head tgtdev_list;
+	u16 max_sgl_entries;
 
 	u32 chain_buf_count;
 	struct dma_pool *chain_buf_pool;

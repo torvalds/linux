@@ -1951,7 +1951,7 @@ static struct i2c_driver vgxy61_i2c_driver = {
 		.of_match_table = vgxy61_dt_ids,
 		.pm = &vgxy61_pm_ops,
 	},
-	.probe_new = vgxy61_probe,
+	.probe = vgxy61_probe,
 	.remove = vgxy61_remove,
 };
 

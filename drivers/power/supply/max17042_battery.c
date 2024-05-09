@@ -36,7 +36,7 @@
 #define STATUS_BR_BIT          (1 << 15)
 
 /* Interrupt mask bits */
-#define CONFIG_ALRT_BIT_ENBL	(1 << 2)
+#define CFG_ALRT_BIT_ENBL	(1 << 2)
 
 #define VFSOC0_LOCK		0x0000
 #define VFSOC0_UNLOCK		0x0080
@@ -497,11 +497,6 @@ static int max17042_property_is_writeable(struct power_supply *psy,
 	}
 
 	return ret;
-}
-
-static void max17042_external_power_changed(struct power_supply *psy)
-{
-	power_supply_changed(psy);
 }
 
 static int max17042_write_verify_reg(struct regmap *map, u8 reg, u32 value)
@@ -1016,7 +1011,7 @@ static const struct power_supply_desc max17042_psy_desc = {
 	.get_property	= max17042_get_property,
 	.set_property	= max17042_set_property,
 	.property_is_writeable	= max17042_property_is_writeable,
-	.external_power_changed	= max17042_external_power_changed,
+	.external_power_changed	= power_supply_changed,
 	.properties	= max17042_battery_props,
 	.num_properties	= ARRAY_SIZE(max17042_battery_props),
 };
@@ -1121,8 +1116,8 @@ static int max17042_probe(struct i2c_client *client)
 						chip);
 		if (!ret) {
 			regmap_update_bits(chip->regmap, MAX17042_CONFIG,
-					CONFIG_ALRT_BIT_ENBL,
-					CONFIG_ALRT_BIT_ENBL);
+					CFG_ALRT_BIT_ENBL,
+					CFG_ALRT_BIT_ENBL);
 			max17042_set_soc_threshold(chip, 1);
 		} else {
 			client->irq = 0;
@@ -1220,7 +1215,7 @@ static struct i2c_driver max17042_i2c_driver = {
 		.of_match_table = of_match_ptr(max17042_dt_match),
 		.pm	= &max17042_pm_ops,
 	},
-	.probe_new	= max17042_probe,
+	.probe		= max17042_probe,
 	.id_table	= max17042_id,
 };
 module_i2c_driver(max17042_i2c_driver);

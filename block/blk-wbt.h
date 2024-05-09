@@ -18,10 +18,6 @@ u64 wbt_default_latency_nsec(struct request_queue *);
 
 #else
 
-static inline int wbt_init(struct gendisk *disk)
-{
-	return -EINVAL;
-}
 static inline void wbt_disable_default(struct gendisk *disk)
 {
 }
@@ -30,21 +26,6 @@ static inline void wbt_enable_default(struct gendisk *disk)
 }
 static inline void wbt_set_write_cache(struct request_queue *q, bool wc)
 {
-}
-static inline u64 wbt_get_min_lat(struct request_queue *q)
-{
-	return 0;
-}
-static inline void wbt_set_min_lat(struct request_queue *q, u64 val)
-{
-}
-static inline u64 wbt_default_latency_nsec(struct request_queue *q)
-{
-	return 0;
-}
-static inline bool wbt_disabled(struct request_queue *q)
-{
-	return true;
 }
 
 #endif /* CONFIG_BLK_WBT */

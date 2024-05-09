@@ -23,7 +23,7 @@ balance_stop(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 #endif /* CONFIG_SMP */
 
 static void
-check_preempt_curr_stop(struct rq *rq, struct task_struct *p, int flags)
+wakeup_preempt_stop(struct rq *rq, struct task_struct *p, int flags)
 {
 	/* we're never preempted */
 }
@@ -120,7 +120,7 @@ DEFINE_SCHED_CLASS(stop) = {
 	.dequeue_task		= dequeue_task_stop,
 	.yield_task		= yield_task_stop,
 
-	.check_preempt_curr	= check_preempt_curr_stop,
+	.wakeup_preempt		= wakeup_preempt_stop,
 
 	.pick_next_task		= pick_next_task_stop,
 	.put_prev_task		= put_prev_task_stop,

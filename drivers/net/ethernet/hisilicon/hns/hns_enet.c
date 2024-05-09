@@ -2384,7 +2384,7 @@ out_read_prop_fail:
 	return ret;
 }
 
-static int hns_nic_dev_remove(struct platform_device *pdev)
+static void hns_nic_dev_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct hns_nic_priv *priv = netdev_priv(ndev);
@@ -2413,7 +2413,6 @@ static int hns_nic_dev_remove(struct platform_device *pdev)
 	of_node_put(to_of_node(priv->fwnode));
 
 	free_netdev(ndev);
-	return 0;
 }
 
 static const struct of_device_id hns_enet_of_match[] = {
@@ -2431,7 +2430,7 @@ static struct platform_driver hns_nic_dev_driver = {
 		.acpi_match_table = ACPI_PTR(hns_enet_acpi_match),
 	},
 	.probe = hns_nic_dev_probe,
-	.remove = hns_nic_dev_remove,
+	.remove_new = hns_nic_dev_remove,
 };
 
 module_platform_driver(hns_nic_dev_driver);

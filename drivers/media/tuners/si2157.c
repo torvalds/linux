@@ -990,7 +990,7 @@ static struct i2c_driver si2157_driver = {
 		.name		     = "si2157",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= si2157_probe,
+	.probe		= si2157_probe,
 	.remove		= si2157_remove,
 	.id_table	= si2157_id_table,
 };

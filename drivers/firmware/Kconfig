@@ -77,30 +77,6 @@ config FIRMWARE_MEMMAP
 
       See also Documentation/ABI/testing/sysfs-firmware-memmap.
 
-config EFI_PCDP
-	bool "Console device selection via EFI PCDP or HCDP table"
-	depends on ACPI && EFI && IA64
-	default y if IA64
-	help
-	  If your firmware supplies the PCDP table, and you want to
-	  automatically use the primary console device it describes
-	  as the Linux console, say Y here.
-
-	  If your firmware supplies the HCDP table, and you want to
-	  use the first serial port it describes as the Linux console,
-	  say Y here.  If your EFI ConOut path contains only a UART
-	  device, it will become the console automatically.  Otherwise,
-	  you must specify the "console=hcdp" kernel boot argument.
-
-	  Neither the PCDP nor the HCDP affects naming of serial devices,
-	  so a serial console may be /dev/ttyS0, /dev/ttyS1, etc, depending
-	  on how the driver discovers devices.
-
-	  You must also enable the appropriate drivers (serial, VGA, etc.)
-
-	  See DIG64_HCDPv20_042804.pdf available from
-	  <http://www.dig64.org/specifications/> 
-
 config DMIID
     bool "Export DMI identification via sysfs to userspace"
     depends on DMI
@@ -212,20 +188,6 @@ config MTK_ADSP_IPC
 	  ADSP exists on some mtk processors.
 	  Client might use shared memory to exchange information with ADSP.
 
-config QCOM_SCM
-	tristate
-
-config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
-	bool "Qualcomm download mode enabled by default"
-	depends on QCOM_SCM
-	help
-	  A device with "download mode" enabled will upon an unexpected
-	  warm-restart enter a special debug mode that allows the user to
-	  "download" memory content over USB for offline postmortem analysis.
-	  The feature can be enabled/disabled on the kernel command line.
-
-	  Say Y here to enable "download mode" by default.
-
 config SYSFB
 	bool
 	select BOOT_VESA_SUPPORT
@@ -311,6 +273,7 @@ source "drivers/firmware/efi/Kconfig"
 source "drivers/firmware/imx/Kconfig"
 source "drivers/firmware/meson/Kconfig"
 source "drivers/firmware/psci/Kconfig"
+source "drivers/firmware/qcom/Kconfig"
 source "drivers/firmware/smccc/Kconfig"
 source "drivers/firmware/tegra/Kconfig"
 source "drivers/firmware/xilinx/Kconfig"

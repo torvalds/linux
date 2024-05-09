@@ -51,7 +51,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	} else {
 		inode_lock(inode);
 		i_size_write(inode, datasize + sizeof(attributes));
-		inode->i_mtime = current_time(inode);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 		inode_unlock(inode);
 	}
 

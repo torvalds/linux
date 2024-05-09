@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/omap-mailbox.h>
 #include <linux/platform_device.h>

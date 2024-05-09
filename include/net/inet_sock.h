@@ -107,11 +107,12 @@ static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
 
 static inline u32 inet_request_mark(const struct sock *sk, struct sk_buff *skb)
 {
-	if (!sk->sk_mark &&
-	    READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_fwmark_accept))
+	u32 mark = READ_ONCE(sk->sk_mark);
+
+	if (!mark && READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_fwmark_accept))
 		return skb->mark;
 
-	return sk->sk_mark;
+	return mark;
 }
 
 static inline int inet_request_bound_dev_if(const struct sock *sk,
@@ -193,13 +194,13 @@ struct rtable;
  * @inet_rcv_saddr - Bound local IPv4 addr
  * @inet_dport - Destination port
  * @inet_num - Local port
+ * @inet_flags - various atomic flags
  * @inet_saddr - Sending source
  * @uc_ttl - Unicast TTL
  * @inet_sport - Source port
  * @inet_id - ID counter for DF pkts
  * @tos - TOS
  * @mc_ttl - Multicasting TTL
- * @is_icsk - is this an inet_connection_sock?
  * @uc_index - Unicast outgoing device index
  * @mc_index - Multicast device index
  * @mc_list - Group array
@@ -217,57 +218,97 @@ struct inet_sock {
 #define inet_dport		sk.__sk_common.skc_dport
 #define inet_num		sk.__sk_common.skc_num
 
+	unsigned long		inet_flags;
 	__be32			inet_saddr;
 	__s16			uc_ttl;
-	__u16			cmsg_flags;
-	struct ip_options_rcu __rcu	*inet_opt;
 	__be16			inet_sport;
-	__u16			inet_id;
+	struct ip_options_rcu __rcu	*inet_opt;
+	atomic_t		inet_id;
 
 	__u8			tos;
 	__u8			min_ttl;
 	__u8			mc_ttl;
 	__u8			pmtudisc;
-	__u8			recverr:1,
-				is_icsk:1,
-				freebind:1,
-				hdrincl:1,
-				mc_loop:1,
-				transparent:1,
-				mc_all:1,
-				nodefrag:1;
-	__u8			bind_address_no_port:1,
-				recverr_rfc4884:1,
-				defer_connect:1; /* Indicates that fastopen_connect is set
-						  * and cookie exists so we defer connect
-						  * until first data frame is written
-						  */
 	__u8			rcv_tos;
 	__u8			convert_csum;
 	int			uc_index;
 	int			mc_index;
 	__be32			mc_addr;
-	struct ip_mc_socklist __rcu	*mc_list;
-	struct inet_cork_full	cork;
 	struct {
 		__u16 lo;
 		__u16 hi;
 	}			local_port_range;
+
+	struct ip_mc_socklist __rcu	*mc_list;
+	struct inet_cork_full	cork;
 };
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
-#define IPCORK_ALLFRAG	2	/* always fragment (for ipv6 for now) */
+
+enum {
+	INET_FLAGS_PKTINFO	= 0,
+	INET_FLAGS_TTL		= 1,
+	INET_FLAGS_TOS		= 2,
+	INET_FLAGS_RECVOPTS	= 3,
+	INET_FLAGS_RETOPTS	= 4,
+	INET_FLAGS_PASSSEC	= 5,
+	INET_FLAGS_ORIGDSTADDR	= 6,
+	INET_FLAGS_CHECKSUM	= 7,
+	INET_FLAGS_RECVFRAGSIZE	= 8,
+
+	INET_FLAGS_RECVERR	= 9,
+	INET_FLAGS_RECVERR_RFC4884 = 10,
+	INET_FLAGS_FREEBIND	= 11,
+	INET_FLAGS_HDRINCL	= 12,
+	INET_FLAGS_MC_LOOP	= 13,
+	INET_FLAGS_MC_ALL	= 14,
+	INET_FLAGS_TRANSPARENT	= 15,
+	INET_FLAGS_IS_ICSK	= 16,
+	INET_FLAGS_NODEFRAG	= 17,
+	INET_FLAGS_BIND_ADDRESS_NO_PORT = 18,
+	INET_FLAGS_DEFER_CONNECT = 19,
+	INET_FLAGS_MC6_LOOP	= 20,
+	INET_FLAGS_RECVERR6_RFC4884 = 21,
+	INET_FLAGS_MC6_ALL	= 22,
+	INET_FLAGS_AUTOFLOWLABEL_SET = 23,
+	INET_FLAGS_AUTOFLOWLABEL = 24,
+	INET_FLAGS_DONTFRAG	= 25,
+	INET_FLAGS_RECVERR6	= 26,
+	INET_FLAGS_REPFLOW	= 27,
+	INET_FLAGS_RTALERT_ISOLATE = 28,
+	INET_FLAGS_SNDFLOW	= 29,
+};
 
 /* cmsg flags for inet */
-#define IP_CMSG_PKTINFO		BIT(0)
-#define IP_CMSG_TTL		BIT(1)
-#define IP_CMSG_TOS		BIT(2)
-#define IP_CMSG_RECVOPTS	BIT(3)
-#define IP_CMSG_RETOPTS		BIT(4)
-#define IP_CMSG_PASSSEC		BIT(5)
-#define IP_CMSG_ORIGDSTADDR	BIT(6)
-#define IP_CMSG_CHECKSUM	BIT(7)
-#define IP_CMSG_RECVFRAGSIZE	BIT(8)
+#define IP_CMSG_PKTINFO		BIT(INET_FLAGS_PKTINFO)
+#define IP_CMSG_TTL		BIT(INET_FLAGS_TTL)
+#define IP_CMSG_TOS		BIT(INET_FLAGS_TOS)
+#define IP_CMSG_RECVOPTS	BIT(INET_FLAGS_RECVOPTS)
+#define IP_CMSG_RETOPTS		BIT(INET_FLAGS_RETOPTS)
+#define IP_CMSG_PASSSEC		BIT(INET_FLAGS_PASSSEC)
+#define IP_CMSG_ORIGDSTADDR	BIT(INET_FLAGS_ORIGDSTADDR)
+#define IP_CMSG_CHECKSUM	BIT(INET_FLAGS_CHECKSUM)
+#define IP_CMSG_RECVFRAGSIZE	BIT(INET_FLAGS_RECVFRAGSIZE)
+
+#define IP_CMSG_ALL	(IP_CMSG_PKTINFO | IP_CMSG_TTL |		\
+			 IP_CMSG_TOS | IP_CMSG_RECVOPTS |		\
+			 IP_CMSG_RETOPTS | IP_CMSG_PASSSEC |		\
+			 IP_CMSG_ORIGDSTADDR | IP_CMSG_CHECKSUM |	\
+			 IP_CMSG_RECVFRAGSIZE)
+
+static inline unsigned long inet_cmsg_flags(const struct inet_sock *inet)
+{
+	return READ_ONCE(inet->inet_flags) & IP_CMSG_ALL;
+}
+
+#define inet_test_bit(nr, sk)			\
+	test_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet_set_bit(nr, sk)			\
+	set_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet_clear_bit(nr, sk)			\
+	clear_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet_assign_bit(nr, sk, val)		\
+	assign_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags, val)
 
 static inline bool sk_is_inet(struct sock *sk)
 {
@@ -362,7 +403,7 @@ static inline __u8 inet_sk_flowi_flags(const struct sock *sk)
 {
 	__u8 flags = 0;
 
-	if (inet_sk(sk)->transparent || inet_sk(sk)->hdrincl)
+	if (inet_test_bit(TRANSPARENT, sk) || inet_test_bit(HDRINCL, sk))
 		flags |= FLOWI_FLAG_ANYSRC;
 	return flags;
 }
@@ -388,7 +429,8 @@ static inline bool inet_can_nonlocal_bind(struct net *net,
 					  struct inet_sock *inet)
 {
 	return READ_ONCE(net->ipv4.sysctl_ip_nonlocal_bind) ||
-		inet->freebind || inet->transparent;
+		test_bit(INET_FLAGS_FREEBIND, &inet->inet_flags) ||
+		test_bit(INET_FLAGS_TRANSPARENT, &inet->inet_flags);
 }
 
 static inline bool inet_addr_valid_or_nonlocal(struct net *net,

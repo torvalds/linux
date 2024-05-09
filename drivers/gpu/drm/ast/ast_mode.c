@@ -55,14 +55,14 @@ static inline void ast_load_palette_index(struct ast_device *ast,
 				     u8 index, u8 red, u8 green,
 				     u8 blue)
 {
-	ast_io_write8(ast, AST_IO_DAC_INDEX_WRITE, index);
-	ast_io_read8(ast, AST_IO_SEQ_PORT);
-	ast_io_write8(ast, AST_IO_DAC_DATA, red);
-	ast_io_read8(ast, AST_IO_SEQ_PORT);
-	ast_io_write8(ast, AST_IO_DAC_DATA, green);
-	ast_io_read8(ast, AST_IO_SEQ_PORT);
-	ast_io_write8(ast, AST_IO_DAC_DATA, blue);
-	ast_io_read8(ast, AST_IO_SEQ_PORT);
+	ast_io_write8(ast, AST_IO_VGADWR, index);
+	ast_io_read8(ast, AST_IO_VGASRI);
+	ast_io_write8(ast, AST_IO_VGAPDR, red);
+	ast_io_read8(ast, AST_IO_VGASRI);
+	ast_io_write8(ast, AST_IO_VGAPDR, green);
+	ast_io_read8(ast, AST_IO_VGASRI);
+	ast_io_write8(ast, AST_IO_VGAPDR, blue);
+	ast_io_read8(ast, AST_IO_VGASRI);
 }
 
 static void ast_crtc_set_gamma_linear(struct ast_device *ast,
@@ -253,13 +253,13 @@ static void ast_set_vbios_color_reg(struct ast_device *ast,
 		return;
 	}
 
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8c, (u8)((color_index & 0x0f) << 4));
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x8c, (u8)((color_index & 0x0f) << 4));
 
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0x00);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x91, 0x00);
 
 	if (vbios_mode->enh_table->flags & NewModeInfo) {
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x92, format->cpp[0] * 8);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x91, 0xa8);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x92, format->cpp[0] * 8);
 	}
 }
 
@@ -272,18 +272,18 @@ static void ast_set_vbios_mode_reg(struct ast_device *ast,
 	refresh_rate_index = vbios_mode->enh_table->refresh_rate_index;
 	mode_id = vbios_mode->enh_table->mode_id;
 
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8d, refresh_rate_index & 0xff);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8e, mode_id & 0xff);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x8d, refresh_rate_index & 0xff);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x8e, mode_id & 0xff);
 
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0x00);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x91, 0x00);
 
 	if (vbios_mode->enh_table->flags & NewModeInfo) {
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x93, adjusted_mode->clock / 1000);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x94, adjusted_mode->crtc_hdisplay);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x95, adjusted_mode->crtc_hdisplay >> 8);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x96, adjusted_mode->crtc_vdisplay);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x97, adjusted_mode->crtc_vdisplay >> 8);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x91, 0xa8);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x93, adjusted_mode->clock / 1000);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x94, adjusted_mode->crtc_hdisplay);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x95, adjusted_mode->crtc_hdisplay >> 8);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x96, adjusted_mode->crtc_vdisplay);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x97, adjusted_mode->crtc_vdisplay >> 8);
 	}
 }
 
@@ -298,41 +298,41 @@ static void ast_set_std_reg(struct ast_device *ast,
 	stdtable = vbios_mode->std_table;
 
 	jreg = stdtable->misc;
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, jreg);
+	ast_io_write8(ast, AST_IO_VGAMR_W, jreg);
 
 	/* Set SEQ; except Screen Disable field */
-	ast_set_index_reg(ast, AST_IO_SEQ_PORT, 0x00, 0x03);
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x01, 0xdf, stdtable->seq[0]);
+	ast_set_index_reg(ast, AST_IO_VGASRI, 0x00, 0x03);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, stdtable->seq[0]);
 	for (i = 1; i < 4; i++) {
 		jreg = stdtable->seq[i];
-		ast_set_index_reg(ast, AST_IO_SEQ_PORT, (i + 1), jreg);
+		ast_set_index_reg(ast, AST_IO_VGASRI, (i + 1), jreg);
 	}
 
 	/* Set CRTC; except base address and offset */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x11, 0x7f, 0x00);
 	for (i = 0; i < 12; i++)
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, stdtable->crtc[i]);
+		ast_set_index_reg(ast, AST_IO_VGACRI, i, stdtable->crtc[i]);
 	for (i = 14; i < 19; i++)
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, stdtable->crtc[i]);
+		ast_set_index_reg(ast, AST_IO_VGACRI, i, stdtable->crtc[i]);
 	for (i = 20; i < 25; i++)
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, stdtable->crtc[i]);
+		ast_set_index_reg(ast, AST_IO_VGACRI, i, stdtable->crtc[i]);
 
 	/* set AR */
-	jreg = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
+	jreg = ast_io_read8(ast, AST_IO_VGAIR1_R);
 	for (i = 0; i < 20; i++) {
 		jreg = stdtable->ar[i];
-		ast_io_write8(ast, AST_IO_AR_PORT_WRITE, (u8)i);
-		ast_io_write8(ast, AST_IO_AR_PORT_WRITE, jreg);
+		ast_io_write8(ast, AST_IO_VGAARI_W, (u8)i);
+		ast_io_write8(ast, AST_IO_VGAARI_W, jreg);
 	}
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x14);
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x00);
+	ast_io_write8(ast, AST_IO_VGAARI_W, 0x14);
+	ast_io_write8(ast, AST_IO_VGAARI_W, 0x00);
 
-	jreg = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
-	ast_io_write8(ast, AST_IO_AR_PORT_WRITE, 0x20);
+	jreg = ast_io_read8(ast, AST_IO_VGAIR1_R);
+	ast_io_write8(ast, AST_IO_VGAARI_W, 0x20);
 
 	/* Set GR */
 	for (i = 0; i < 9; i++)
-		ast_set_index_reg(ast, AST_IO_GR_PORT, i, stdtable->gr[i]);
+		ast_set_index_reg(ast, AST_IO_VGAGRI, i, stdtable->gr[i]);
 }
 
 static void ast_set_crtc_reg(struct ast_device *ast,
@@ -342,52 +342,52 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
 	u16 temp, precache = 0;
 
-	if ((ast->chip == AST2500 || ast->chip == AST2600) &&
+	if ((IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) &&
 	    (vbios_mode->enh_table->flags & AST2500PreCatchCRT))
 		precache = 40;
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x11, 0x7f, 0x00);
 
 	temp = (mode->crtc_htotal >> 3) - 5;
 	if (temp & 0x100)
 		jregAC |= 0x01; /* HT D[8] */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x00, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x00, 0x00, temp);
 
 	temp = (mode->crtc_hdisplay >> 3) - 1;
 	if (temp & 0x100)
 		jregAC |= 0x04; /* HDE D[8] */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x01, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x01, 0x00, temp);
 
 	temp = (mode->crtc_hblank_start >> 3) - 1;
 	if (temp & 0x100)
 		jregAC |= 0x10; /* HBS D[8] */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x02, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x02, 0x00, temp);
 
 	temp = ((mode->crtc_hblank_end >> 3) - 1) & 0x7f;
 	if (temp & 0x20)
 		jreg05 |= 0x80;  /* HBE D[5] */
 	if (temp & 0x40)
 		jregAD |= 0x01;  /* HBE D[5] */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x03, 0xE0, (temp & 0x1f));
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x03, 0xE0, (temp & 0x1f));
 
 	temp = ((mode->crtc_hsync_start-precache) >> 3) - 1;
 	if (temp & 0x100)
 		jregAC |= 0x40; /* HRS D[5] */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x04, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x04, 0x00, temp);
 
 	temp = (((mode->crtc_hsync_end-precache) >> 3) - 1) & 0x3f;
 	if (temp & 0x20)
 		jregAD |= 0x04; /* HRE D[5] */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x05, 0x60, (u8)((temp & 0x1f) | jreg05));
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x05, 0x60, (u8)((temp & 0x1f) | jreg05));
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAC, 0x00, jregAC);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAD, 0x00, jregAD);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAC, 0x00, jregAC);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAD, 0x00, jregAD);
 
 	// Workaround for HSync Time non octave pixels (1920x1080@60Hz HSync 44 pixels);
-	if ((ast->chip == AST2600) && (mode->crtc_vdisplay == 1080))
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x02);
+	if (IS_AST_GEN7(ast) && (mode->crtc_vdisplay == 1080))
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xFC, 0xFD, 0x02);
 	else
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x00);
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xFC, 0xFD, 0x00);
 
 	/* vert timings */
 	temp = (mode->crtc_vtotal) - 2;
@@ -397,7 +397,7 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 		jreg07 |= 0x20;
 	if (temp & 0x400)
 		jregAE |= 0x01;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x06, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x06, 0x00, temp);
 
 	temp = (mode->crtc_vsync_start) - 1;
 	if (temp & 0x100)
@@ -406,14 +406,14 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 		jreg07 |= 0x80;
 	if (temp & 0x400)
 		jregAE |= 0x08;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x10, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x10, 0x00, temp);
 
 	temp = (mode->crtc_vsync_end - 1) & 0x3f;
 	if (temp & 0x10)
 		jregAE |= 0x20;
 	if (temp & 0x20)
 		jregAE |= 0x40;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x70, temp & 0xf);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x11, 0x70, temp & 0xf);
 
 	temp = mode->crtc_vdisplay - 1;
 	if (temp & 0x100)
@@ -422,7 +422,7 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 		jreg07 |= 0x40;
 	if (temp & 0x400)
 		jregAE |= 0x02;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x12, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x12, 0x00, temp);
 
 	temp = mode->crtc_vblank_start - 1;
 	if (temp & 0x100)
@@ -431,23 +431,23 @@ static void ast_set_crtc_reg(struct ast_device *ast,
 		jreg09 |= 0x20;
 	if (temp & 0x400)
 		jregAE |= 0x04;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x15, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x15, 0x00, temp);
 
 	temp = mode->crtc_vblank_end - 1;
 	if (temp & 0x100)
 		jregAE |= 0x10;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x16, 0x00, temp);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x16, 0x00, temp);
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x07, 0x00, jreg07);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x09, 0xdf, jreg09);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAE, 0x00, (jregAE | 0x80));
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x07, 0x00, jreg07);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x09, 0xdf, jreg09);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xAE, 0x00, (jregAE | 0x80));
 
 	if (precache)
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0x3f, 0x80);
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0x3f, 0x80);
 	else
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0x3f, 0x00);
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0x3f, 0x00);
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x11, 0x7f, 0x80);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x11, 0x7f, 0x80);
 }
 
 static void ast_set_offset_reg(struct ast_device *ast,
@@ -456,8 +456,8 @@ static void ast_set_offset_reg(struct ast_device *ast,
 	u16 offset;
 
 	offset = fb->pitches[0] >> 3;
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x13, (offset & 0xff));
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xb0, (offset >> 8) & 0x3f);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x13, (offset & 0xff));
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xb0, (offset >> 8) & 0x3f);
 }
 
 static void ast_set_dclk_reg(struct ast_device *ast,
@@ -466,14 +466,14 @@ static void ast_set_dclk_reg(struct ast_device *ast,
 {
 	const struct ast_vbios_dclk_info *clk_info;
 
-	if ((ast->chip == AST2500) || (ast->chip == AST2600))
+	if (IS_AST_GEN6(ast) || IS_AST_GEN7(ast))
 		clk_info = &dclk_table_ast2500[vbios_mode->enh_table->dclk_index];
 	else
 		clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xc0, 0x00, clk_info->param1);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xc1, 0x00, clk_info->param2);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xbb, 0x0f,
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xc0, 0x00, clk_info->param1);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xc1, 0x00, clk_info->param2);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xbb, 0x0f,
 			       (clk_info->param3 & 0xc0) |
 			       ((clk_info->param3 & 0x3) << 4));
 }
@@ -502,30 +502,26 @@ static void ast_set_color_reg(struct ast_device *ast,
 		break;
 	}
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa0, 0x8f, jregA0);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xf0, jregA3);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa8, 0xfd, jregA8);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa0, 0x8f, jregA0);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xf0, jregA3);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa8, 0xfd, jregA8);
 }
 
 static void ast_set_crtthd_reg(struct ast_device *ast)
 {
 	/* Set Threshold */
-	if (ast->chip == AST2600) {
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0xe0);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0xa0);
-	} else if (ast->chip == AST2300 || ast->chip == AST2400 ||
-	    ast->chip == AST2500) {
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x78);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x60);
-	} else if (ast->chip == AST2100 ||
-		   ast->chip == AST1100 ||
-		   ast->chip == AST2200 ||
-		   ast->chip == AST2150) {
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x3f);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x2f);
+	if (IS_AST_GEN7(ast)) {
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0xe0);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0xa0);
+	} else if (IS_AST_GEN6(ast) || IS_AST_GEN5(ast) || IS_AST_GEN4(ast)) {
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x78);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x60);
+	} else if (IS_AST_GEN3(ast) || IS_AST_GEN2(ast)) {
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x3f);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x2f);
 	} else {
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa7, 0x2f);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa6, 0x1f);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa7, 0x2f);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xa6, 0x1f);
 	}
 }
 
@@ -535,13 +531,13 @@ static void ast_set_sync_reg(struct ast_device *ast,
 {
 	u8 jreg;
 
-	jreg  = ast_io_read8(ast, AST_IO_MISC_PORT_READ);
+	jreg  = ast_io_read8(ast, AST_IO_VGAMR_R);
 	jreg &= ~0xC0;
 	if (vbios_mode->enh_table->flags & NVSync)
 		jreg |= 0x80;
 	if (vbios_mode->enh_table->flags & NHSync)
 		jreg |= 0x40;
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, jreg);
+	ast_io_write8(ast, AST_IO_VGAMR_W, jreg);
 }
 
 static void ast_set_start_address_crt1(struct ast_device *ast,
@@ -550,9 +546,9 @@ static void ast_set_start_address_crt1(struct ast_device *ast,
 	u32 addr;
 
 	addr = offset >> 2;
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x0d, (u8)(addr & 0xff));
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x0c, (u8)((addr >> 8) & 0xff));
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xaf, (u8)((addr >> 16) & 0xff));
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x0d, (u8)(addr & 0xff));
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x0c, (u8)((addr >> 8) & 0xff));
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xaf, (u8)((addr >> 16) & 0xff));
 
 }
 
@@ -562,7 +558,7 @@ static void ast_wait_for_vretrace(struct ast_device *ast)
 	u8 vgair1;
 
 	do {
-		vgair1 = ast_io_read8(ast, AST_IO_INPUT_STATUS1_READ);
+		vgair1 = ast_io_read8(ast, AST_IO_VGAIR1_R);
 	} while (!(vgair1 & AST_IO_VGAIR1_VREFRESH) && time_before(jiffies, timeout));
 }
 
@@ -693,7 +689,7 @@ static void ast_primary_plane_helper_atomic_enable(struct drm_plane *plane,
 	 * Therefore only reprogram the address after enabling the plane.
 	 */
 	ast_set_start_address_crt1(ast, (u32)ast_plane->offset);
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x00);
 }
 
 static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
@@ -701,7 +697,7 @@ static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 {
 	struct ast_device *ast = to_ast_device(plane->dev);
 
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x20);
 }
 
 static const struct drm_plane_helper_funcs ast_primary_plane_helper_funcs = {
@@ -818,9 +814,9 @@ static void ast_set_cursor_base(struct ast_device *ast, u64 address)
 	u8 addr1 = (address >> 11) & 0xff;
 	u8 addr2 = (address >> 19) & 0xff;
 
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc8, addr0);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc9, addr1);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xca, addr2);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc8, addr0);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc9, addr1);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xca, addr2);
 }
 
 static void ast_set_cursor_location(struct ast_device *ast, u16 x, u16 y,
@@ -831,12 +827,12 @@ static void ast_set_cursor_location(struct ast_device *ast, u16 x, u16 y,
 	u8 y0 = (y & 0x00ff);
 	u8 y1 = (y & 0x0700) >> 8;
 
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc2, x_offset);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc3, y_offset);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc4, x0);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc5, x1);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc6, y0);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xc7, y1);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc2, x_offset);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc3, y_offset);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc4, x0);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc5, x1);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc6, y0);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc7, y1);
 }
 
 static void ast_set_cursor_enabled(struct ast_device *ast, bool enabled)
@@ -849,7 +845,7 @@ static void ast_set_cursor_enabled(struct ast_device *ast, bool enabled)
 	if (enabled)
 		vgacrcb |= AST_IO_VGACRCB_HWC_ENABLED;
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, mask, vgacrcb);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xcb, mask, vgacrcb);
 }
 
 static const uint32_t ast_cursor_plane_formats[] = {
@@ -1018,8 +1014,8 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	 */
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0);
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, 0);
+		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0);
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, 0);
 		if (ast->tx_chip_types & AST_TX_DP501_BIT)
 			ast_set_dp501_video_output(crtc->dev, 1);
 
@@ -1055,8 +1051,8 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_OFF);
 		}
 
-		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0x20);
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, ch);
+		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0x20);
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, ch);
 		break;
 	}
 }
@@ -1082,14 +1078,15 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 		if ((mode->hdisplay == 1152) && (mode->vdisplay == 864))
 			return MODE_OK;
 
-		if ((ast->chip == AST2100) || (ast->chip == AST2200) ||
-		    (ast->chip == AST2300) || (ast->chip == AST2400) ||
-		    (ast->chip == AST2500) || (ast->chip == AST2600)) {
+		if ((ast->chip == AST2100) || // GEN2, but not AST1100 (?)
+		    (ast->chip == AST2200) || // GEN3, but not AST2150 (?)
+		    IS_AST_GEN4(ast) || IS_AST_GEN5(ast) ||
+		    IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) {
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
 				return MODE_OK;
 
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1200)) {
-				jtemp = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+				jtemp = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
 				if (jtemp & 0x01)
 					return MODE_NOMODE;
 				else
@@ -1222,7 +1219,7 @@ static void ast_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atom
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 
 	ast_set_vbios_mode_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x06);
 	ast_set_std_reg(ast, adjusted_mode, vbios_mode_info);
 	ast_set_crtc_reg(ast, adjusted_mode, vbios_mode_info);
 	ast_set_dclk_reg(ast, adjusted_mode, vbios_mode_info);
@@ -1585,8 +1582,20 @@ err_drm_connector_update_edid_property:
 	return 0;
 }
 
+static int ast_dp501_connector_helper_detect_ctx(struct drm_connector *connector,
+						 struct drm_modeset_acquire_ctx *ctx,
+						 bool force)
+{
+	struct ast_device *ast = to_ast_device(connector->dev);
+
+	if (ast_dp501_is_connected(ast))
+		return connector_status_connected;
+	return connector_status_disconnected;
+}
+
 static const struct drm_connector_helper_funcs ast_dp501_connector_helper_funcs = {
 	.get_modes = ast_dp501_connector_helper_get_modes,
+	.detect_ctx = ast_dp501_connector_helper_detect_ctx,
 };
 
 static const struct drm_connector_funcs ast_dp501_connector_funcs = {
@@ -1611,7 +1620,7 @@ static int ast_dp501_connector_init(struct drm_device *dev, struct drm_connector
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
 	return 0;
 }
@@ -1683,8 +1692,20 @@ err_drm_connector_update_edid_property:
 	return 0;
 }
 
+static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector,
+						 struct drm_modeset_acquire_ctx *ctx,
+						 bool force)
+{
+	struct ast_device *ast = to_ast_device(connector->dev);
+
+	if (ast_astdp_is_connected(ast))
+		return connector_status_connected;
+	return connector_status_disconnected;
+}
+
 static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs = {
 	.get_modes = ast_astdp_connector_helper_get_modes,
+	.detect_ctx = ast_astdp_connector_helper_detect_ctx,
 };
 
 static const struct drm_connector_funcs ast_astdp_connector_funcs = {
@@ -1709,7 +1730,7 @@ static int ast_astdp_connector_init(struct drm_device *dev, struct drm_connector
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
 	return 0;
 }
@@ -1730,6 +1751,60 @@ static int ast_astdp_output_init(struct ast_device *ast)
 	ret = ast_astdp_connector_init(dev, connector);
 	if (ret)
 		return ret;
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/*
+ * BMC virtual Connector
+ */
+
+static const struct drm_encoder_funcs ast_bmc_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static int ast_bmc_connector_helper_get_modes(struct drm_connector *connector)
+{
+	return drm_add_modes_noedid(connector, 4096, 4096);
+}
+
+static const struct drm_connector_helper_funcs ast_bmc_connector_helper_funcs = {
+	.get_modes = ast_bmc_connector_helper_get_modes,
+};
+
+static const struct drm_connector_funcs ast_bmc_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static int ast_bmc_output_init(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct drm_crtc *crtc = &ast->crtc;
+	struct drm_encoder *encoder = &ast->output.bmc.encoder;
+	struct drm_connector *connector = &ast->output.bmc.connector;
+	int ret;
+
+	ret = drm_encoder_init(dev, encoder,
+			       &ast_bmc_encoder_funcs,
+			       DRM_MODE_ENCODER_VIRTUAL, "ast_bmc");
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	ret = drm_connector_init(dev, connector, &ast_bmc_connector_funcs,
+				 DRM_MODE_CONNECTOR_VIRTUAL);
+	if (ret)
+		return ret;
+
+	drm_connector_helper_add(connector, &ast_bmc_connector_helper_funcs);
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
@@ -1800,12 +1875,12 @@ int ast_mode_config_init(struct ast_device *ast)
 	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
 
-	if (ast->chip == AST2100 ||
-	    ast->chip == AST2200 ||
-	    ast->chip == AST2300 ||
-	    ast->chip == AST2400 ||
-	    ast->chip == AST2500 ||
-	    ast->chip == AST2600) {
+	if (ast->chip == AST2100 || // GEN2, but not AST1100 (?)
+	    ast->chip == AST2200 || // GEN3, but not AST2150 (?)
+	    IS_AST_GEN7(ast) ||
+	    IS_AST_GEN6(ast) ||
+	    IS_AST_GEN5(ast) ||
+	    IS_AST_GEN4(ast)) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
 	} else {
@@ -1845,8 +1920,13 @@ int ast_mode_config_init(struct ast_device *ast)
 		if (ret)
 			return ret;
 	}
+	ret = ast_bmc_output_init(ast);
+	if (ret)
+		return ret;
 
 	drm_mode_config_reset(dev);
+
+	drm_kms_helper_poll_init(dev);
 
 	return 0;
 }

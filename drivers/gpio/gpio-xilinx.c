@@ -15,8 +15,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
@@ -332,7 +332,7 @@ static int __maybe_unused xgpio_suspend(struct device *dev)
  *
  * Return: 0 always
  */
-static int xgpio_remove(struct platform_device *pdev)
+static void xgpio_remove(struct platform_device *pdev)
 {
 	struct xgpio_instance *gpio = platform_get_drvdata(pdev);
 
@@ -340,8 +340,6 @@ static int xgpio_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(gpio->clk);
-
-	return 0;
 }
 
 /**
@@ -715,7 +713,7 @@ MODULE_DEVICE_TABLE(of, xgpio_of_match);
 
 static struct platform_driver xgpio_plat_driver = {
 	.probe		= xgpio_probe,
-	.remove		= xgpio_remove,
+	.remove_new	= xgpio_remove,
 	.driver		= {
 			.name = "gpio-xilinx",
 			.of_match_table	= xgpio_of_match,

@@ -257,7 +257,7 @@ static int sdw_amd_scan_controller(struct device *dev)
 					     &sdw_manager_bitmap, 1);
 
 	if (ret) {
-		dev_err(dev, "Failed to read mipi-sdw-manager-list: %d\n", ret);
+		dev_dbg(dev, "Failed to read mipi-sdw-manager-list: %d\n", ret);
 		return -EINVAL;
 	}
 	count = hweight32(sdw_manager_bitmap);
@@ -274,7 +274,7 @@ static int sdw_amd_scan_controller(struct device *dev)
 	dev_dbg(dev, "ACPI reports %d SoundWire Manager devices\n", count);
 	acp_data->sdw_manager_count = count;
 	for (index = 0; index < count; index++) {
-		snprintf(name, sizeof(name), "mipi-sdw-link-%d-subproperties", index);
+		scnprintf(name, sizeof(name), "mipi-sdw-link-%d-subproperties", index);
 		link = fwnode_get_named_child_node(acp_data->sdw_fw_node, name);
 		if (!link) {
 			dev_err(dev, "Manager node %s not found\n", name);
@@ -641,7 +641,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	ret = get_acp63_device_config(val, pci, adata);
 	/* ACP PCI driver probe should be continued even PDM or SoundWire Devices are not found */
 	if (ret) {
-		dev_err(&pci->dev, "get acp device config failed:%d\n", ret);
+		dev_dbg(&pci->dev, "get acp device config failed:%d\n", ret);
 		goto skip_pdev_creation;
 	}
 	ret = create_acp63_platform_devs(pci, adata, addr);
@@ -650,6 +650,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		goto de_init;
 	}
 skip_pdev_creation:
+	device_set_wakeup_enable(&pci->dev, true);
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pci->dev);
 	pm_runtime_put_noidle(&pci->dev);

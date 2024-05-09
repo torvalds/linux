@@ -25,6 +25,8 @@
 #define ADF_STATUS_AE_STARTED 6
 #define ADF_STATUS_PF_RUNNING 7
 #define ADF_STATUS_IRQ_ALLOCATED 8
+#define ADF_STATUS_CRYPTO_ALGS_REGISTERED 9
+#define ADF_STATUS_COMP_ALGS_REGISTERED 10
 
 enum adf_dev_reset_mode {
 	ADF_DEV_RESET_ASYNC = 0,
@@ -58,12 +60,6 @@ int adf_dev_restart(struct adf_accel_dev *accel_dev);
 
 void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
 void adf_clean_vf_map(bool);
-
-int adf_ctl_dev_register(void);
-void adf_ctl_dev_unregister(void);
-int adf_processes_dev_register(void);
-void adf_processes_dev_unregister(void);
-
 int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 		       struct adf_accel_dev *pf);
 void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev,
@@ -91,10 +87,6 @@ void adf_reset_flr(struct adf_accel_dev *accel_dev);
 void adf_dev_restore(struct adf_accel_dev *accel_dev);
 int adf_init_aer(void);
 void adf_exit_aer(void);
-int adf_init_admin_comms(struct adf_accel_dev *accel_dev);
-void adf_exit_admin_comms(struct adf_accel_dev *accel_dev);
-int adf_send_admin_init(struct adf_accel_dev *accel_dev);
-int adf_init_admin_pm(struct adf_accel_dev *accel_dev, u32 idle_delay);
 int adf_init_arb(struct adf_accel_dev *accel_dev);
 void adf_exit_arb(struct adf_accel_dev *accel_dev);
 void adf_update_ring_arb(struct adf_etr_ring_data *ring);
@@ -178,8 +170,6 @@ int qat_hal_init_rd_xfer(struct icp_qat_fw_loader_handle *handle,
 int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
 		    unsigned char ae, unsigned long ctx_mask,
 		    unsigned short reg_num, unsigned int regdata);
-int qat_hal_wr_lm(struct icp_qat_fw_loader_handle *handle,
-		  unsigned char ae, unsigned short lm_addr, unsigned int value);
 void qat_hal_set_ae_tindex_mode(struct icp_qat_fw_loader_handle *handle,
 				unsigned char ae, unsigned char mode);
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle);
@@ -193,6 +183,8 @@ int qat_uclo_set_cfg_ae_mask(struct icp_qat_fw_loader_handle *handle,
 int adf_init_misc_wq(void);
 void adf_exit_misc_wq(void);
 bool adf_misc_wq_queue_work(struct work_struct *work);
+bool adf_misc_wq_queue_delayed_work(struct delayed_work *work,
+				    unsigned long delay);
 #if defined(CONFIG_PCI_IOV)
 int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
 void adf_disable_sriov(struct adf_accel_dev *accel_dev);
@@ -244,6 +236,16 @@ static inline void __iomem *adf_get_pmisc_base(struct adf_accel_dev *accel_dev)
 	pmisc = &GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
 
 	return pmisc->virt_addr;
+}
+
+static inline void __iomem *adf_get_aram_base(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct adf_bar *param;
+
+	param = &GET_BARS(accel_dev)[hw_data->get_sram_bar_id(hw_data)];
+
+	return param->virt_addr;
 }
 
 #endif

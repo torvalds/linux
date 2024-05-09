@@ -112,6 +112,13 @@
 	(AMD64_PERFMON_V2_EVENTSEL_EVENT_NB	|	\
 	 AMD64_PERFMON_V2_EVENTSEL_UMASK_NB)
 
+#define AMD64_PERFMON_V2_ENABLE_UMC			BIT_ULL(31)
+#define AMD64_PERFMON_V2_EVENTSEL_EVENT_UMC		GENMASK_ULL(7, 0)
+#define AMD64_PERFMON_V2_EVENTSEL_RDWRMASK_UMC		GENMASK_ULL(9, 8)
+#define AMD64_PERFMON_V2_RAW_EVENT_MASK_UMC		\
+	(AMD64_PERFMON_V2_EVENTSEL_EVENT_UMC	|	\
+	 AMD64_PERFMON_V2_EVENTSEL_RDWRMASK_UMC)
+
 #define AMD64_NUM_COUNTERS				4
 #define AMD64_NUM_COUNTERS_CORE				6
 #define AMD64_NUM_COUNTERS_NB				4
@@ -232,6 +239,8 @@ union cpuid_0x80000022_ebx {
 		unsigned int	lbr_v2_stack_sz:6;
 		/* Number of Data Fabric Counters */
 		unsigned int	num_df_pmc:6;
+		/* Number of Unified Memory Controller Counters */
+		unsigned int	num_umc_pmc:6;
 	} split;
 	unsigned int		full;
 };

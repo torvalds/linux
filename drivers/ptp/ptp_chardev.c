@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/timekeeping.h>
+#include <linux/debugfs.h>
 
 #include <linux/nospec.h>
 
@@ -101,19 +102,67 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 	return 0;
 }
 
-int ptp_open(struct posix_clock *pc, fmode_t fmode)
+int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 {
+	struct ptp_clock *ptp =
+		container_of(pccontext->clk, struct ptp_clock, clock);
+	struct timestamp_event_queue *queue;
+	char debugfsname[32];
+
+	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	if (!queue)
+		return -EINVAL;
+	queue->mask = bitmap_alloc(PTP_MAX_CHANNELS, GFP_KERNEL);
+	if (!queue->mask) {
+		kfree(queue);
+		return -EINVAL;
+	}
+	bitmap_set(queue->mask, 0, PTP_MAX_CHANNELS);
+	spin_lock_init(&queue->lock);
+	list_add_tail(&queue->qlist, &ptp->tsevqs);
+	pccontext->private_clkdata = queue;
+
+	/* Debugfs contents */
+	sprintf(debugfsname, "0x%p", queue);
+	queue->debugfs_instance =
+		debugfs_create_dir(debugfsname, ptp->debugfs_root);
+	queue->dfs_bitmap.array = (u32 *)queue->mask;
+	queue->dfs_bitmap.n_elements =
+		DIV_ROUND_UP(PTP_MAX_CHANNELS, BITS_PER_BYTE * sizeof(u32));
+	debugfs_create_u32_array("mask", 0444, queue->debugfs_instance,
+				 &queue->dfs_bitmap);
+
 	return 0;
 }
 
-long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
+int ptp_release(struct posix_clock_context *pccontext)
 {
-	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
+	struct timestamp_event_queue *queue = pccontext->private_clkdata;
+	unsigned long flags;
+
+	if (queue) {
+		debugfs_remove(queue->debugfs_instance);
+		pccontext->private_clkdata = NULL;
+		spin_lock_irqsave(&queue->lock, flags);
+		list_del(&queue->qlist);
+		spin_unlock_irqrestore(&queue->lock, flags);
+		bitmap_free(queue->mask);
+		kfree(queue);
+	}
+	return 0;
+}
+
+long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
+	       unsigned long arg)
+{
+	struct ptp_clock *ptp =
+		container_of(pccontext->clk, struct ptp_clock, clock);
 	struct ptp_sys_offset_extended *extoff = NULL;
 	struct ptp_sys_offset_precise precise_offset;
 	struct system_device_crosststamp xtstamp;
 	struct ptp_clock_info *ops = ptp->info;
 	struct ptp_sys_offset *sysoff = NULL;
+	struct timestamp_event_queue *tsevq;
 	struct ptp_system_timestamp sts;
 	struct ptp_clock_request req;
 	struct ptp_clock_caps caps;
@@ -122,6 +171,8 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 	struct ptp_pin_desc pd;
 	struct timespec64 ts;
 	int enable, err = 0;
+
+	tsevq = pccontext->private_clkdata;
 
 	switch (cmd) {
 
@@ -421,6 +472,22 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&ptp->pincfg_mux);
 		break;
 
+	case PTP_MASK_CLEAR_ALL:
+		bitmap_clear(tsevq->mask, 0, PTP_MAX_CHANNELS);
+		break;
+
+	case PTP_MASK_EN_SINGLE:
+		if (copy_from_user(&i, (void __user *)arg, sizeof(i))) {
+			err = -EFAULT;
+			break;
+		}
+		if (i >= PTP_MAX_CHANNELS) {
+			err = -EFAULT;
+			break;
+		}
+		set_bit(i, tsevq->mask);
+		break;
+
 	default:
 		err = -ENOTTY;
 		break;
@@ -432,53 +499,65 @@ out:
 	return err;
 }
 
-__poll_t ptp_poll(struct posix_clock *pc, struct file *fp, poll_table *wait)
+__poll_t ptp_poll(struct posix_clock_context *pccontext, struct file *fp,
+		  poll_table *wait)
 {
-	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
+	struct ptp_clock *ptp =
+		container_of(pccontext->clk, struct ptp_clock, clock);
+	struct timestamp_event_queue *queue;
+
+	queue = pccontext->private_clkdata;
+	if (!queue)
+		return EPOLLERR;
 
 	poll_wait(fp, &ptp->tsev_wq, wait);
 
-	return queue_cnt(&ptp->tsevq) ? EPOLLIN : 0;
+	return queue_cnt(queue) ? EPOLLIN : 0;
 }
 
 #define EXTTS_BUFSIZE (PTP_BUF_TIMESTAMPS * sizeof(struct ptp_extts_event))
 
-ssize_t ptp_read(struct posix_clock *pc,
-		 uint rdflags, char __user *buf, size_t cnt)
+ssize_t ptp_read(struct posix_clock_context *pccontext, uint rdflags,
+		 char __user *buf, size_t cnt)
 {
-	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
-	struct timestamp_event_queue *queue = &ptp->tsevq;
+	struct ptp_clock *ptp =
+		container_of(pccontext->clk, struct ptp_clock, clock);
+	struct timestamp_event_queue *queue;
 	struct ptp_extts_event *event;
 	unsigned long flags;
 	size_t qcnt, i;
 	int result;
 
-	if (cnt % sizeof(struct ptp_extts_event) != 0)
-		return -EINVAL;
+	queue = pccontext->private_clkdata;
+	if (!queue) {
+		result = -EINVAL;
+		goto exit;
+	}
+
+	if (cnt % sizeof(struct ptp_extts_event) != 0) {
+		result = -EINVAL;
+		goto exit;
+	}
 
 	if (cnt > EXTTS_BUFSIZE)
 		cnt = EXTTS_BUFSIZE;
 
 	cnt = cnt / sizeof(struct ptp_extts_event);
 
-	if (mutex_lock_interruptible(&ptp->tsevq_mux))
-		return -ERESTARTSYS;
-
 	if (wait_event_interruptible(ptp->tsev_wq,
 				     ptp->defunct || queue_cnt(queue))) {
-		mutex_unlock(&ptp->tsevq_mux);
 		return -ERESTARTSYS;
 	}
 
 	if (ptp->defunct) {
-		mutex_unlock(&ptp->tsevq_mux);
-		return -ENODEV;
+		result = -ENODEV;
+		goto exit;
 	}
 
 	event = kmalloc(EXTTS_BUFSIZE, GFP_KERNEL);
 	if (!event) {
-		mutex_unlock(&ptp->tsevq_mux);
-		return -ENOMEM;
+		result = -ENOMEM;
+		goto exit;
 	}
 
 	spin_lock_irqsave(&queue->lock, flags);
@@ -497,12 +576,16 @@ ssize_t ptp_read(struct posix_clock *pc,
 
 	cnt = cnt * sizeof(struct ptp_extts_event);
 
-	mutex_unlock(&ptp->tsevq_mux);
-
 	result = cnt;
-	if (copy_to_user(buf, event, cnt))
+	if (copy_to_user(buf, event, cnt)) {
 		result = -EFAULT;
+		goto free_event;
+	}
 
+free_event:
 	kfree(event);
+exit:
+	if (result < 0)
+		ptp_release(pccontext);
 	return result;
 }

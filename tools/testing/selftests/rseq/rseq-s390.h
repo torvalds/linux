@@ -15,7 +15,7 @@
 
 #define rseq_smp_load_acquire(p)					\
 __extension__ ({							\
-	__typeof(*p) ____p1 = RSEQ_READ_ONCE(*p);			\
+	rseq_unqual_scalar_typeof(*(p)) ____p1 = RSEQ_READ_ONCE(*(p));	\
 	rseq_barrier();							\
 	____p1;								\
 })
@@ -25,7 +25,7 @@ __extension__ ({							\
 #define rseq_smp_store_release(p, v)					\
 do {									\
 	rseq_barrier();							\
-	RSEQ_WRITE_ONCE(*p, v);						\
+	RSEQ_WRITE_ONCE(*(p), v);					\
 } while (0)
 
 #ifdef __s390x__

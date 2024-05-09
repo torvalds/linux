@@ -12,16 +12,20 @@
 	model = "NVIDIA Jetson Orin NX Engineering Reference Developer Kit";
 
 	aliases {
-		serial0 = &tcu;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
+		serial1 = &uarta;
+		serial2 = &uarte;
 	};
 
 	bus@0 {
-		serial@31d0000 {
-			current-speed = <115200>;
+		serial@3100000 {
+			compatible = "nvidia,tegra194-hsuart";
+			reset-names = "serial";
+			status = "okay";
+		};
+
+		serial@3140000 {
+			compatible = "nvidia,tegra194-hsuart";
+			reset-names = "serial";
 			status = "okay";
 		};
 
@@ -38,50 +42,6 @@
 
 		padctl@3520000 {
 			status = "okay";
-		};
-
-		/* C1 - M.2 Key-E */
-		pcie@14100000 {
-			status = "okay";
-
-			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-
-			phys = <&p2u_hsio_3>;
-			phy-names = "p2u-0";
-		};
-
-		/* C4 - M.2 Key-M */
-		pcie@14160000 {
-			status = "okay";
-
-			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-
-			phys = <&p2u_hsio_4>, <&p2u_hsio_5>, <&p2u_hsio_6>,
-			       <&p2u_hsio_7>;
-			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
-		};
-
-		/* C8 - Ethernet */
-		pcie@140a0000 {
-			status = "okay";
-
-			num-lanes = <2>;
-
-			phys = <&p2u_gbe_2>, <&p2u_gbe_3>;
-			phy-names = "p2u-0", "p2u-1";
-
-			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-			vpcie3v3-supply = <&vdd_3v3_pcie>;
-		};
-
-		/* C7 - M.2 Key-M */
-		pcie@141e0000 {
-			status = "okay";
-
-			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-
-			phys = <&p2u_gbe_0>, <&p2u_gbe_1>;
-			phy-names = "p2u-0", "p2u-1";
 		};
 	};
 
@@ -113,7 +73,7 @@
 	};
 
 	pwm-fan {
-		cooling-levels = <0 187 255>;
+		cooling-levels = <0 88 187 255>;
 	};
 
 	vdd_3v3_pcie: regulator-vdd-3v3-pcie {
@@ -123,10 +83,6 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio_aon TEGRA234_AON_GPIO(AA, 5) GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};
-
-	serial {
-		status = "okay";
 	};
 
 	thermal-zones {
@@ -140,6 +96,11 @@
 				map-active-1 {
 					cooling-device = <&fan 1 2>;
 					trip = <&tj_trip_active1>;
+				};
+
+				map-active-2 {
+					cooling-device = <&fan 2 3>;
+					trip = <&tj_trip_active2>;
 				};
 			};
 		};

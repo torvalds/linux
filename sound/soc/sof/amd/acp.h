@@ -3,13 +3,15 @@
  * This file is provided under a dual BSD/GPLv2 license. When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright(c) 2021, 2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Author: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
  */
 
 #ifndef __SOF_AMD_ACP_H
 #define __SOF_AMD_ACP_H
+
+#include <linux/dmi.h>
 
 #include "../sof-priv.h"
 #include "../sof-audio.h"
@@ -32,6 +34,7 @@
 
 #define ACP_DSP_INTR_EN_MASK			0x00000001
 #define ACP3X_SRAM_PTE_OFFSET			0x02050000
+#define ACP5X_SRAM_PTE_OFFSET			0x02050000
 #define ACP6X_SRAM_PTE_OFFSET			0x03800000
 #define PAGE_SIZE_4K_ENABLE			0x2
 #define ACP_PAGE_SIZE				0x1000
@@ -40,6 +43,7 @@
 #define DSP_FW_RUN_ENABLE			0x01
 #define ACP_SHA_RUN				0x01
 #define ACP_SHA_RESET				0x02
+#define ACP_SHA_HEADER				0x01
 #define ACP_DMA_CH_RST				0x01
 #define ACP_DMA_CH_GRACEFUL_RST_EN		0x10
 #define ACP_ATU_CACHE_INVALID			0x01
@@ -50,23 +54,27 @@
 #define ACP3X_SCRATCH_MEMORY_ADDRESS		0x02050000
 #define ACP_SYSTEM_MEMORY_WINDOW		0x4000000
 #define ACP_IRAM_BASE_ADDRESS			0x000000
-#define ACP_DATA_RAM_BASE_ADDRESS		0x01000000
+#define ACP_DRAM_BASE_ADDRESS			0x01000000
 #define ACP_DRAM_PAGE_COUNT			128
-
+#define ACP_SRAM_BASE_ADDRESS			0x3806000
 #define ACP_DSP_TO_HOST_IRQ			0x04
 
 #define ACP_RN_PCI_ID				0x01
+#define ACP_VANGOGH_PCI_ID			0x50
 #define ACP_RMB_PCI_ID				0x6F
+#define ACP63_PCI_ID				0x63
 
 #define HOST_BRIDGE_CZN				0x1630
+#define HOST_BRIDGE_VGH				0x1645
 #define HOST_BRIDGE_RMB				0x14B5
+#define HOST_BRIDGE_ACP63			0x14E8
 #define ACP_SHA_STAT				0x8000
-#define ACP_PSP_TIMEOUT_COUNTER			5
+#define ACP_PSP_TIMEOUT_US			1000000
 #define ACP_EXT_INTR_ERROR_STAT			0x20000000
 #define MP0_C2PMSG_114_REG			0x3810AC8
 #define MP0_C2PMSG_73_REG			0x3810A24
 #define MBOX_ACP_SHA_DMA_COMMAND		0x70000
-#define MBOX_DELAY				1000
+#define MBOX_DELAY_US				1000
 #define MBOX_READY_MASK				0x80000000
 #define MBOX_STATUS_MASK			0xFFFF
 
@@ -76,7 +84,12 @@
 #define EXCEPT_MAX_HDR_SIZE			0x400
 #define AMD_STACK_DUMP_SIZE			32
 
-#define SRAM1_SIZE				0x13A000
+#define SRAM1_SIZE				0x280000
+#define PROBE_STATUS_BIT			BIT(31)
+
+#define ACP_FIRMWARE_SIGNATURE			0x100
+#define ACP_DEFAULT_SRAM_LENGTH			0x00080000
+#define ACP_SRAM_PAGE_COUNT			128
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -156,36 +169,54 @@ struct acp_dsp_stream {
 	int active;
 	unsigned int reg_offset;
 	size_t posn_offset;
+	struct snd_compr_stream *cstream;
+	u64 cstream_posn;
 };
 
 struct sof_amd_acp_desc {
 	unsigned int rev;
+	const char *name;
 	unsigned int host_bridge_id;
 	u32 pgfsm_base;
+	u32 ext_intr_enb;
 	u32 ext_intr_stat;
 	u32 dsp_intr_base;
 	u32 sram_pte_offset;
 	u32 hw_semaphore_offset;
 	u32 acp_clkmux_sel;
 	u32 fusion_dsp_offset;
+	u32 probe_reg_offset;
 };
 
 /* Common device data struct for ACP devices */
 struct acp_dev_data {
 	struct snd_sof_dev  *dev;
+	const struct firmware *fw_dbin;
 	/* DMIC device */
 	struct platform_device *dmic_dev;
 	unsigned int fw_bin_size;
 	unsigned int fw_data_bin_size;
+	unsigned int fw_sram_data_bin_size;
+	const char *fw_code_bin;
+	const char *fw_data_bin;
+	const char *fw_sram_data_bin;
 	u32 fw_bin_page_count;
+	u32 fw_data_bin_page_count;
 	dma_addr_t sha_dma_addr;
 	u8 *bin_buf;
 	dma_addr_t dma_addr;
 	u8 *data_buf;
+	dma_addr_t sram_dma_addr;
+	u8 *sram_data_buf;
+	bool signed_fw_image;
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 	struct acp_dsp_stream *dtrace_stream;
 	struct pci_dev *smn_dev;
+	struct acp_dsp_stream *probe_stream;
+	bool enable_fw_debug;
+	bool is_dram_in_use;
+	bool is_sram_in_use;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -200,11 +231,12 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 
 /* ACP device probe/remove */
 int amd_sof_acp_probe(struct snd_sof_dev *sdev);
-int amd_sof_acp_remove(struct snd_sof_dev *sdev);
+void amd_sof_acp_remove(struct snd_sof_dev *sdev);
 
 /* DSP Loader callbacks */
 int acp_sof_dsp_run(struct snd_sof_dev *sdev);
 int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev);
+int acp_sof_load_signed_firmware(struct snd_sof_dev *sdev);
 int acp_get_bar_index(struct snd_sof_dev *sdev, u32 type);
 
 /* Block IO callbacks */
@@ -248,8 +280,12 @@ extern struct snd_sof_dsp_ops sof_acp_common_ops;
 
 extern struct snd_sof_dsp_ops sof_renoir_ops;
 int sof_renoir_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_vangogh_ops;
+int sof_vangogh_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_rembrandt_ops;
 int sof_rembrandt_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_acp63_ops;
+int sof_acp63_ops_init(struct snd_sof_dev *sdev);
 
 struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev);
 /* Machine configuration */
@@ -273,4 +309,10 @@ static inline const struct sof_amd_acp_desc *get_chip_info(struct snd_sof_pdata 
 
 	return desc->chip_info;
 }
+
+int acp_probes_register(struct snd_sof_dev *sdev);
+void acp_probes_unregister(struct snd_sof_dev *sdev);
+
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_vangogh_sof_machines[];
+extern const struct dmi_system_id acp_sof_quirk_table[];
 #endif

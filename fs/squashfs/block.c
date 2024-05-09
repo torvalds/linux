@@ -166,6 +166,26 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 	return 0;
 }
 
+static struct page *squashfs_get_cache_page(struct address_space *mapping,
+					    pgoff_t index)
+{
+	struct page *page;
+
+	if (!mapping)
+		return NULL;
+
+	page = find_get_page(mapping, index);
+	if (!page)
+		return NULL;
+
+	if (!PageUptodate(page)) {
+		put_page(page);
+		return NULL;
+	}
+
+	return page;
+}
+
 static int squashfs_bio_read(struct super_block *sb, u64 index, int length,
 			     struct bio **biop, int *block_offset)
 {
@@ -190,11 +210,10 @@ static int squashfs_bio_read(struct super_block *sb, u64 index, int length,
 	for (i = 0; i < page_count; ++i) {
 		unsigned int len =
 			min_t(unsigned int, PAGE_SIZE - offset, total_len);
-		struct page *page = NULL;
+		pgoff_t index = (read_start >> PAGE_SHIFT) + i;
+		struct page *page;
 
-		if (cache_mapping)
-			page = find_get_page(cache_mapping,
-					     (read_start >> PAGE_SHIFT) + i);
+		page = squashfs_get_cache_page(cache_mapping, index);
 		if (!page)
 			page = alloc_page(GFP_NOIO);
 

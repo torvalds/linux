@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -430,10 +430,9 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 
 	i2c_dev->bus_clk = bcm2835_i2c_register_div(&pdev->dev, mclk, i2c_dev);
 
-	if (IS_ERR(i2c_dev->bus_clk)) {
-		dev_err(&pdev->dev, "Could not register clock\n");
-		return PTR_ERR(i2c_dev->bus_clk);
-	}
+	if (IS_ERR(i2c_dev->bus_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2c_dev->bus_clk),
+				     "Could not register clock\n");
 
 	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				   &bus_clk_rate);
@@ -444,10 +443,9 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	}
 
 	ret = clk_set_rate_exclusive(i2c_dev->bus_clk, bus_clk_rate);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not set clock frequency\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Could not set clock frequency\n");
 
 	ret = clk_prepare_enable(i2c_dev->bus_clk);
 	if (ret) {
@@ -503,7 +501,7 @@ err_put_exclusive_rate:
 	return ret;
 }
 
-static int bcm2835_i2c_remove(struct platform_device *pdev)
+static void bcm2835_i2c_remove(struct platform_device *pdev)
 {
 	struct bcm2835_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
@@ -512,8 +510,6 @@ static int bcm2835_i2c_remove(struct platform_device *pdev)
 
 	free_irq(i2c_dev->irq, i2c_dev);
 	i2c_del_adapter(&i2c_dev->adapter);
-
-	return 0;
 }
 
 static const struct of_device_id bcm2835_i2c_of_match[] = {
@@ -525,7 +521,7 @@ MODULE_DEVICE_TABLE(of, bcm2835_i2c_of_match);
 
 static struct platform_driver bcm2835_i2c_driver = {
 	.probe		= bcm2835_i2c_probe,
-	.remove		= bcm2835_i2c_remove,
+	.remove_new	= bcm2835_i2c_remove,
 	.driver		= {
 		.name	= "i2c-bcm2835",
 		.of_match_table = bcm2835_i2c_of_match,

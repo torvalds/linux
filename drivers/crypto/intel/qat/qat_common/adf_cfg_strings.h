@@ -32,6 +32,7 @@
 #define ADF_CFG_DC_ASYM "dc;asym"
 #define ADF_CFG_SYM_DC "sym;dc"
 #define ADF_CFG_DC_SYM "dc;sym"
+#define ADF_CFG_DCC "dcc"
 #define ADF_SERVICES_ENABLED "ServicesEnabled"
 #define ADF_PM_IDLE_SUPPORT "PmIdleSupport"
 #define ADF_ETRMGR_COALESCING_ENABLED "InterruptCoalescingEnabled"
@@ -47,4 +48,6 @@
 #define ADF_ETRMGR_CORE_AFFINITY_FORMAT \
 	ADF_ETRMGR_BANK "%d" ADF_ETRMGR_CORE_AFFINITY
 #define ADF_ACCEL_STR "Accelerator%d"
+#define ADF_HEARTBEAT_TIMER  "HeartbeatTimer"
+
 #endif

@@ -38,18 +38,18 @@ static const struct mlxsw_reg_info mlxsw_reg_##_name = {		\
 
 MLXSW_REG_DEFINE(sgcr, MLXSW_REG_SGCR_ID, MLXSW_REG_SGCR_LEN);
 
-/* reg_sgcr_llb
- * Link Local Broadcast (Default=0)
- * When set, all Link Local packets (224.0.0.X) will be treated as broadcast
- * packets and ignore the IGMP snooping entries.
+/* reg_sgcr_lag_lookup_pgt_base
+ * Base address used for lookup in PGT table
+ * Supported when CONFIG_PROFILE.lag_mode = 1
+ * Note: when IGCR.ddd_lag_mode=0, the address shall be aligned to 8 entries.
  * Access: RW
  */
-MLXSW_ITEM32(reg, sgcr, llb, 0x04, 0, 1);
+MLXSW_ITEM32(reg, sgcr, lag_lookup_pgt_base, 0x0C, 0, 16);
 
-static inline void mlxsw_reg_sgcr_pack(char *payload, bool llb)
+static inline void mlxsw_reg_sgcr_pack(char *payload, u16 lag_lookup_pgt_base)
 {
 	MLXSW_REG_ZERO(sgcr, payload);
-	mlxsw_reg_sgcr_llb_set(payload, !!llb);
+	mlxsw_reg_sgcr_lag_lookup_pgt_base_set(payload, lag_lookup_pgt_base);
 }
 
 /* SPAD - Switch Physical Address Register
@@ -97,14 +97,6 @@ MLXSW_ITEM32(reg, sspr, m, 0x00, 31, 1);
  */
 MLXSW_ITEM32_LP(reg, sspr, 0x00, 16, 0x00, 12);
 
-/* reg_sspr_sub_port
- * Virtual port within the physical port.
- * Should be set to 0 when virtual ports are not enabled on the port.
- *
- * Access: RW
- */
-MLXSW_ITEM32(reg, sspr, sub_port, 0x00, 8, 8);
-
 /* reg_sspr_system_port
  * Unique identifier within the stacking domain that represents all the ports
  * that are available in the system (external ports).
@@ -120,7 +112,6 @@ static inline void mlxsw_reg_sspr_pack(char *payload, u16 local_port)
 	MLXSW_REG_ZERO(sspr, payload);
 	mlxsw_reg_sspr_m_set(payload, 1);
 	mlxsw_reg_sspr_local_port_set(payload, local_port);
-	mlxsw_reg_sspr_sub_port_set(payload, 0);
 	mlxsw_reg_sspr_system_port_set(payload, local_port);
 }
 
@@ -2797,6 +2788,78 @@ static inline void mlxsw_reg_ptar_key_id_pack(char *payload, int index,
 static inline void mlxsw_reg_ptar_unpack(char *payload, char *tcam_region_info)
 {
 	mlxsw_reg_ptar_tcam_region_info_memcpy_from(payload, tcam_region_info);
+}
+
+/* PPRR - Policy-Engine Port Range Register
+ * ----------------------------------------
+ * This register is used for configuring port range identification.
+ */
+#define MLXSW_REG_PPRR_ID 0x3008
+#define MLXSW_REG_PPRR_LEN 0x14
+
+MLXSW_REG_DEFINE(pprr, MLXSW_REG_PPRR_ID, MLXSW_REG_PPRR_LEN);
+
+/* reg_pprr_ipv4
+ * Apply port range register to IPv4 packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, ipv4, 0x00, 31, 1);
+
+/* reg_pprr_ipv6
+ * Apply port range register to IPv6 packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, ipv6, 0x00, 30, 1);
+
+/* reg_pprr_src
+ * Apply port range register to source L4 ports.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, src, 0x00, 29, 1);
+
+/* reg_pprr_dst
+ * Apply port range register to destination L4 ports.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, dst, 0x00, 28, 1);
+
+/* reg_pprr_tcp
+ * Apply port range register to TCP packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, tcp, 0x00, 27, 1);
+
+/* reg_pprr_udp
+ * Apply port range register to UDP packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, udp, 0x00, 26, 1);
+
+/* reg_pprr_register_index
+ * Index of Port Range Register being accessed.
+ * Range is 0..cap_max_acl_l4_port_range-1.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pprr, register_index, 0x00, 0, 8);
+
+/* reg_prrr_port_range_min
+ * Minimum port range for comparison.
+ * Match is defined as:
+ * port_range_min <= packet_port <= port_range_max.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, port_range_min, 0x04, 16, 16);
+
+/* reg_prrr_port_range_max
+ * Maximum port range for comparison.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, port_range_max, 0x04, 0, 16);
+
+static inline void mlxsw_reg_pprr_pack(char *payload, u8 register_index)
+{
+	MLXSW_REG_ZERO(pprr, payload);
+	mlxsw_reg_pprr_register_index_set(payload, register_index);
 }
 
 /* PPBS - Policy-Engine Policy Based Switching Register
@@ -9488,7 +9551,7 @@ MLXSW_ITEM_BIT_ARRAY(reg, mtwe, sensor_warning, 0x0, 0x10, 1);
 #define MLXSW_REG_MTBR_ID 0x900F
 #define MLXSW_REG_MTBR_BASE_LEN 0x10 /* base length, without records */
 #define MLXSW_REG_MTBR_REC_LEN 0x04 /* record length */
-#define MLXSW_REG_MTBR_REC_MAX_COUNT 47 /* firmware limitation */
+#define MLXSW_REG_MTBR_REC_MAX_COUNT 1
 #define MLXSW_REG_MTBR_LEN (MLXSW_REG_MTBR_BASE_LEN +	\
 			    MLXSW_REG_MTBR_REC_LEN *	\
 			    MLXSW_REG_MTBR_REC_MAX_COUNT)
@@ -9534,12 +9597,12 @@ MLXSW_ITEM32_INDEXED(reg, mtbr, rec_temp, MLXSW_REG_MTBR_BASE_LEN, 0, 16,
 		     MLXSW_REG_MTBR_REC_LEN, 0x00, false);
 
 static inline void mlxsw_reg_mtbr_pack(char *payload, u8 slot_index,
-				       u16 base_sensor_index, u8 num_rec)
+				       u16 base_sensor_index)
 {
 	MLXSW_REG_ZERO(mtbr, payload);
 	mlxsw_reg_mtbr_slot_index_set(payload, slot_index);
 	mlxsw_reg_mtbr_base_sensor_index_set(payload, base_sensor_index);
-	mlxsw_reg_mtbr_num_rec_set(payload, num_rec);
+	mlxsw_reg_mtbr_num_rec_set(payload, 1);
 }
 
 /* Error codes from temperatute reading */
@@ -9568,17 +9631,9 @@ static inline void mlxsw_reg_mtbr_temp_unpack(char *payload, int rec_ind,
  */
 
 #define MLXSW_REG_MCIA_ID 0x9014
-#define MLXSW_REG_MCIA_LEN 0x40
+#define MLXSW_REG_MCIA_LEN 0x94
 
 MLXSW_REG_DEFINE(mcia, MLXSW_REG_MCIA_ID, MLXSW_REG_MCIA_LEN);
-
-/* reg_mcia_l
- * Lock bit. Setting this bit will lock the access to the specific
- * cable. Used for updating a full page in a cable EPROM. Any access
- * other then subsequence writes will fail while the port is locked.
- * Access: RW
- */
-MLXSW_ITEM32(reg, mcia, l, 0x00, 31, 1);
 
 /* reg_mcia_module
  * Module number.
@@ -9644,7 +9699,6 @@ MLXSW_ITEM32(reg, mcia, size, 0x08, 0, 16);
 
 #define MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH	256
 #define MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH	128
-#define MLXSW_REG_MCIA_EEPROM_SIZE		48
 #define MLXSW_REG_MCIA_I2C_ADDR_LOW		0x50
 #define MLXSW_REG_MCIA_I2C_ADDR_HIGH		0x51
 #define MLXSW_REG_MCIA_PAGE0_LO_OFF		0xa0
@@ -9681,7 +9735,7 @@ enum mlxsw_reg_mcia_eeprom_module_info {
  * Bytes to read/write.
  * Access: RW
  */
-MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, MLXSW_REG_MCIA_EEPROM_SIZE);
+MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, 128);
 
 /* This is used to access the optional upper pages (1-3) in the QSFP+
  * memory map. Page 1 is available on offset 256 through 383, page 2 -
@@ -9692,14 +9746,12 @@ MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, MLXSW_REG_MCIA_EEPROM_SIZE);
 				MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH + 1)
 
 static inline void mlxsw_reg_mcia_pack(char *payload, u8 slot_index, u8 module,
-				       u8 lock, u8 page_number,
-				       u16 device_addr, u8 size,
+				       u8 page_number, u16 device_addr, u8 size,
 				       u8 i2c_device_addr)
 {
 	MLXSW_REG_ZERO(mcia, payload);
 	mlxsw_reg_mcia_slot_set(payload, slot_index);
 	mlxsw_reg_mcia_module_set(payload, module);
-	mlxsw_reg_mcia_l_set(payload, lock);
 	mlxsw_reg_mcia_page_number_set(payload, page_number);
 	mlxsw_reg_mcia_device_address_set(payload, device_addr);
 	mlxsw_reg_mcia_size_set(payload, size);
@@ -10507,6 +10559,79 @@ static inline void mlxsw_reg_mcda_pack(char *payload, u32 update_handle,
 
 	for (i = 0; i < size / 4; i++)
 		mlxsw_reg_mcda_data_set(payload, i, *(u32 *) &data[i * 4]);
+}
+
+/* MCAM - Management Capabilities Mask Register
+ * --------------------------------------------
+ * Reports the device supported management features.
+ */
+#define MLXSW_REG_MCAM_ID 0x907F
+#define MLXSW_REG_MCAM_LEN 0x48
+
+MLXSW_REG_DEFINE(mcam, MLXSW_REG_MCAM_ID, MLXSW_REG_MCAM_LEN);
+
+enum mlxsw_reg_mcam_feature_group {
+	/* Enhanced features. */
+	MLXSW_REG_MCAM_FEATURE_GROUP_ENHANCED_FEATURES,
+};
+
+/* reg_mcam_feature_group
+ * Feature list mask index.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mcam, feature_group, 0x00, 16, 8);
+
+enum mlxsw_reg_mcam_mng_feature_cap_mask_bits {
+	/* If set, MCIA supports 128 bytes payloads. Otherwise, 48 bytes. */
+	MLXSW_REG_MCAM_MCIA_128B = 34,
+};
+
+#define MLXSW_REG_BYTES_PER_DWORD 0x4
+
+/* reg_mcam_mng_feature_cap_mask
+ * Supported port's enhanced features.
+ * Based on feature_group index.
+ * When bit is set, the feature is supported in the device.
+ * Access: RO
+ */
+#define MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(_dw_num, _offset)	 \
+	MLXSW_ITEM_BIT_ARRAY(reg, mcam, mng_feature_cap_mask_dw##_dw_num, \
+			     _offset, MLXSW_REG_BYTES_PER_DWORD, 1)
+
+/* The access to the bits in the field 'mng_feature_cap_mask' is not same to
+ * other mask fields in other registers. In most of the cases bit #0 is the
+ * first one in the last dword. In MCAM register, the first dword contains bits
+ * #0-#31 and so on, so the access to the bits is simpler using bit array per
+ * dword. Declare each dword of 'mng_feature_cap_mask' field separately.
+ */
+MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(0, 0x28);
+MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(1, 0x2C);
+MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(2, 0x30);
+MLXSW_REG_MCAM_MNG_FEATURE_CAP_MASK_DWORD(3, 0x34);
+
+static inline void
+mlxsw_reg_mcam_pack(char *payload, enum mlxsw_reg_mcam_feature_group feat_group)
+{
+	MLXSW_REG_ZERO(mcam, payload);
+	mlxsw_reg_mcam_feature_group_set(payload, feat_group);
+}
+
+static inline void
+mlxsw_reg_mcam_unpack(char *payload,
+		      enum mlxsw_reg_mcam_mng_feature_cap_mask_bits bit,
+		      bool *p_mng_feature_cap_val)
+{
+	int offset = bit % (MLXSW_REG_BYTES_PER_DWORD * BITS_PER_BYTE);
+	int dword = bit / (MLXSW_REG_BYTES_PER_DWORD * BITS_PER_BYTE);
+	u8 (*getters[])(const char *, u16) = {
+		mlxsw_reg_mcam_mng_feature_cap_mask_dw0_get,
+		mlxsw_reg_mcam_mng_feature_cap_mask_dw1_get,
+		mlxsw_reg_mcam_mng_feature_cap_mask_dw2_get,
+		mlxsw_reg_mcam_mng_feature_cap_mask_dw3_get,
+	};
+
+	if (!WARN_ON_ONCE(dword >= ARRAY_SIZE(getters)))
+		*p_mng_feature_cap_val = getters[dword](payload, offset);
 }
 
 /* MPSC - Monitoring Packet Sampling Configuration Register
@@ -12819,6 +12944,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pacl),
 	MLXSW_REG(pagt),
 	MLXSW_REG(ptar),
+	MLXSW_REG(pprr),
 	MLXSW_REG(ppbs),
 	MLXSW_REG(prcr),
 	MLXSW_REG(pefa),
@@ -12901,10 +13027,11 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcion),
 	MLXSW_REG(mtpps),
 	MLXSW_REG(mtutc),
-	MLXSW_REG(mpsc),
 	MLXSW_REG(mcqi),
 	MLXSW_REG(mcc),
 	MLXSW_REG(mcda),
+	MLXSW_REG(mcam),
+	MLXSW_REG(mpsc),
 	MLXSW_REG(mgpc),
 	MLXSW_REG(mprs),
 	MLXSW_REG(mogcr),

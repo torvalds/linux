@@ -702,7 +702,7 @@ static void stp_work_fn(struct work_struct *work)
 
 	if (!check_sync_clock())
 		/*
-		 * There is a usable clock but the synchonization failed.
+		 * There is a usable clock but the synchronization failed.
 		 * Retry after a second.
 		 */
 		mod_timer(&stp_timer, jiffies + msecs_to_jiffies(MSEC_PER_SEC));

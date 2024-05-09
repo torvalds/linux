@@ -34,6 +34,7 @@ properties:
               - fsl,imx23-usb
               - fsl,imx25-usb
               - fsl,imx28-usb
+              - fsl,imx35-usb
               - fsl,imx50-usb
               - fsl,imx51-usb
               - fsl,imx53-usb
@@ -45,7 +46,9 @@ properties:
               - fsl,vf610-usb
           - const: fsl,imx27-usb
       - items:
-          - const: fsl,imx8dxl-usb
+          - enum:
+              - fsl,imx8dxl-usb
+              - fsl,imx8ulp-usb
           - const: fsl,imx7ulp-usb
           - const: fsl,imx6ul-usb
       - items:
@@ -74,11 +77,11 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   clock-names:
     minItems: 1
-    maxItems: 2
+    maxItems: 3
 
   dr_mode: true
 
@@ -165,7 +168,7 @@ properties:
       at RTL is 0, so this property only affects siTD.
 
       If this property is not set, the max packet size is 1023 bytes, and
-      if the total of packet size for pervious transactions are more than
+      if the total of packet size for previous transactions are more than
       256 bytes, it can't accept any transactions within this frame. The
       use case is single transaction, but higher frame rate.
 
@@ -289,6 +292,18 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0x0
     maximum: 0xf
+
+  fsl,picophy-rise-fall-time-adjust:
+    description:
+      HS Transmitter Rise/Fall Time Adjustment. Adjust the rise/fall times
+      of the high-speed transmitter waveform. It has no unit. The rise/fall
+      time will be increased or decreased by a certain percentage relative
+      to design default time. (0:-10%; 1:design default; 2:+15%; 3:+20%)
+      Details can refer to TXRISETUNE0 bit of USBNC_n_PHY_CFG1.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 3
+    default: 1
 
   usb-phy:
     description: phandle for the PHY device. Use "phys" instead.

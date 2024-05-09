@@ -255,19 +255,17 @@ static int dw_hdmi_imx_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int dw_hdmi_imx_remove(struct platform_device *pdev)
+static void dw_hdmi_imx_remove(struct platform_device *pdev)
 {
 	struct imx_hdmi *hdmi = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &dw_hdmi_imx_ops);
 	dw_hdmi_remove(hdmi->hdmi);
-
-	return 0;
 }
 
 static struct platform_driver dw_hdmi_imx_platform_driver = {
 	.probe  = dw_hdmi_imx_probe,
-	.remove = dw_hdmi_imx_remove,
+	.remove_new = dw_hdmi_imx_remove,
 	.driver = {
 		.name = "dwhdmi-imx",
 		.of_match_table = dw_hdmi_imx_dt_ids,

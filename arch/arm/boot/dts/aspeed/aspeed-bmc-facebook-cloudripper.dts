@@ -132,7 +132,7 @@
 	 * PCA9548 (1-0070) provides 8 channels connecting to SMB (Switch
 	 * Main Board).
 	 */
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -194,7 +194,7 @@
 	 * PCA9548 (2-0070) provides 8 channels connecting to SCM (System
 	 * Controller Module).
 	 */
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -256,7 +256,7 @@
 	 * PCA9548 (3-0070) provides 8 channels connecting to SMB (Switch
 	 * Main Board).
 	 */
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -423,7 +423,7 @@
 	 * PCA9548 (8-0070) provides 8 channels connecting to PDB (Power
 	 * Delivery Board).
 	 */
-	i2c-switch@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -486,7 +486,7 @@
 	 * PCA9548 (15-0076) provides 8 channels connecting to FCM (Fan
 	 * Controller Module).
 	 */
-	i2c-switch@76 {
+	i2c-mux@76 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;

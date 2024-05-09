@@ -69,9 +69,9 @@ config SFP
 comment "MII PHY device drivers"
 
 config AMD_PHY
-	tristate "AMD PHYs"
+	tristate "AMD and Altima PHYs"
 	help
-	  Currently supports the am79c874
+	  Currently supports the AMD am79c874 and Altima AC101L.
 
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"
@@ -217,6 +217,12 @@ config MARVELL_10G_PHY
 	help
 	  Support for the Marvell Alaska MV88X3310 and compatible PHYs.
 
+config MARVELL_88Q2XXX_PHY
+	tristate "Marvell 88Q2XXX PHY"
+	help
+	  Support for the Marvell 88Q2XXX 100/1000BASE-T1 Automotive Ethernet
+	  PHYs.
+
 config MARVELL_88X2222_PHY
 	tristate "Marvell 88X2222 PHY"
 	help
@@ -300,7 +306,7 @@ config NXP_C45_TJA11XX_PHY
 	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  Enable support for NXP C45 TJA11XX PHYs.
-	  Currently supports only the TJA1103 PHY.
+	  Currently supports the TJA1103 and TJA1120 PHYs.
 
 config NXP_TJA11XX_PHY
 	tristate "NXP TJA11xx PHYs support"
@@ -344,6 +350,7 @@ config ROCKCHIP_PHY
 
 config SMSC_PHY
 	tristate "SMSC PHYs"
+	select CRC16
 	help
 	  Currently supports the LAN83C185, LAN8187 and LAN8700 PHYs
 

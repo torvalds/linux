@@ -5,7 +5,7 @@
 :Original: :ref:`Documentation/arch/arm64/elf_hwcaps.rst <elf_hwcaps_index>`
 
 Translator: Bailu Lin <bailu.lin@vivo.com>
-            Hu Haowen <src.res@email.cn>
+            Hu Haowen <src.res.211@gmail.com>
 
 ================
 ARM64 ELF hwcaps
@@ -17,11 +17,11 @@ ARM64 ELF hwcaps
 1. 簡介
 -------
 
-有些硬體或軟體功能僅在某些 CPU 實現上和/或在具體某個內核配置上可用，但
+有些硬件或軟件功能僅在某些 CPU 實現上和/或在具體某個內核配置上可用，但
 對於處於 EL0 的用戶空間代碼沒有可用的架構發現機制。內核通過在輔助向量表
 公開一組稱爲 hwcaps 的標誌而把這些功能暴露給用戶空間。
 
-用戶空間軟體可以通過獲取輔助向量的 AT_HWCAP 或 AT_HWCAP2 條目來測試功能，
+用戶空間軟件可以通過獲取輔助向量的 AT_HWCAP 或 AT_HWCAP2 條目來測試功能，
 並測試是否設置了相關標誌，例如::
 
 	bool floating_point_is_present(void)
@@ -33,7 +33,7 @@ ARM64 ELF hwcaps
 		return false;
 	}
 
-如果軟體依賴於 hwcap 描述的功能，在嘗試使用該功能前則應檢查相關的 hwcap
+如果軟件依賴於 hwcap 描述的功能，在嘗試使用該功能前則應檢查相關的 hwcap
 標誌以驗證該功能是否存在。
 
 不能通過其他方式探查這些功能。當一個功能不可用時，嘗試使用它可能導致不可
@@ -44,8 +44,8 @@ ARM64 ELF hwcaps
 ----------------
 
 大多數 hwcaps 旨在說明通過架構 ID 寄存器(處於 EL0 的用戶空間代碼無法訪問)
-描述的功能的存在。這些 hwcap 通過 ID 寄存器欄位定義，並且應根據 ARM 體系
-結構參考手冊（ARM ARM）中定義的欄位來解釋說明。
+描述的功能的存在。這些 hwcap 通過 ID 寄存器字段定義，並且應根據 ARM 體系
+結構參考手冊（ARM ARM）中定義的字段來解釋說明。
 
 這些 hwcaps 以下面的形式描述::
 

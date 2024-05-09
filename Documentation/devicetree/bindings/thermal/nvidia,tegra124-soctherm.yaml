@@ -1,0 +1,385 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/nvidia,tegra124-soctherm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra124 SOCTHERM Thermal Management System
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: The SOCTHERM IP block contains thermal sensors, support for
+  polled or interrupt-based thermal monitoring, CPU and GPU throttling based
+  on temperature trip points, and handling external overcurrent notifications.
+  It is also used to manage emergency shutdown in an overheating situation.
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra124-soctherm
+      - nvidia,tegra132-soctherm
+      - nvidia,tegra210-soctherm
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    maxItems: 2
+
+  interrupts:
+    items:
+      - description: module interrupt
+      - description: EDP interrupt
+
+  interrupt-names:
+    items:
+      - const: thermal
+      - const: edp
+
+  clocks:
+    items:
+      - description: thermal sensor clock
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: tsensor
+      - const: soctherm
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: soctherm
+
+  "#thermal-sensor-cells":
+    const: 1
+
+  throttle-cfgs:
+    $ref: thermal-cooling-devices.yaml
+    description: A sub-node which is a container of configuration for each
+      hardware throttle events. These events can be set as cooling devices.
+      Throttle event sub-nodes must be named as "light" or "heavy".
+    unevaluatedProperties: false
+    patternProperties:
+      "^(light|heavy|oc1)$":
+        type: object
+        additionalProperties: false
+
+        properties:
+          "#cooling-cells":
+            const: 2
+
+          nvidia,priority:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 1
+            maximum: 100
+            description: Each throttles has its own throttle settings, so the
+              SW need to set priorities for various throttle, the HW arbiter
+              can select the final throttle settings. Bigger value indicates
+              higher priority, In general, higher priority translates to lower
+              target frequency. SW needs to ensure that critical thermal
+              alarms are given higher priority, and ensure that there is no
+              race if priority of two vectors is set to the same value.
+
+          nvidia,cpu-throt-percent:
+            description: This property is for Tegra124 and Tegra210. It is the
+              throttling depth of pulse skippers, it's the percentage
+              throttling.
+            minimum: 0
+            maximum: 100
+
+          nvidia,cpu-throt-level:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: This property is only for Tegra132, it is the level
+              of pulse skippers, which used to throttle clock frequencies. It
+              indicates cpu clock throttling depth, and the depth can be
+              programmed.
+            enum:
+              # none (TEGRA_SOCTHERM_THROT_LEVEL_NONE)
+              - 0
+              # low (TEGRA_SOCTHERM_THROT_LEVEL_LOW)
+              - 1
+              # medium (TEGRA_SOCTHERM_THROT_LEVEL_MED)
+              - 2
+              # high (TEGRA_SOCTHERM_THROT_LEVEL_HIGH)
+              - 3
+
+          nvidia,gpu-throt-level:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: This property is for Tegra124 and Tegra210. It is the
+              level of pulse skippers, which used to throttle clock
+              frequencies. It indicates gpu clock throttling depth and can be
+              programmed to any of the following values which represent a
+              throttling percentage.
+            enum:
+              # none (0%, TEGRA_SOCTHERM_THROT_LEVEL_NONE)
+              - 0
+              # low (50%, TEGRA_SOCTHERM_THROT_LEVEL_LOW)
+              - 1
+              # medium (75%, TEGRA_SOCTHERM_THROT_LEVEL_MED)
+              - 2
+              # high (85%, TEGRA_SOCTHERM_THROT_LEVEL_HIGH)
+              - 3
+
+          # optional
+          # Tegra210 specific and valid only for OCx throttle events
+          nvidia,count-threshold:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: Specifies the number of OC events that are required
+              for triggering an interrupt. Interrupts are not triggered if the
+              property is missing. A value of 0 will interrupt on every OC
+              alarm.
+
+          nvidia,polarity-active-low:
+            $ref: /schemas/types.yaml#/definitions/flag
+            description: Configures the polarity of the OC alaram signal. If
+              present, this means assert low, otherwise assert high.
+
+          nvidia,alarm-filter:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: Number of clocks to filter event. When the filter
+              expires (which means the OC event has not occurred for a long
+              time), the counter is cleared and filter is rearmed.
+            default: 0
+
+          nvidia,throttle-period-us:
+            description: Specifies the number of microseconds for which
+              throttling is engaged after the OC event is deasserted.
+            default: 0
+
+  # optional
+  nvidia,thermtrips:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    description: |
+      When present, this property specifies the temperature at which the
+      SOCTHERM hardware will assert the thermal trigger signal to the Power
+      Management IC, which can be configured to reset or shutdown the device.
+      It is an array of pairs where each pair represents a tsensor ID followed
+      by a temperature in milli Celcius. In the absence of this property the
+      critical trip point will be used for thermtrip temperature.
+
+      Note:
+      - the "critical" type trip points will be used to set the temperature at
+        which the SOCTHERM hardware will assert a thermal trigger if the
+        "nvidia,thermtrips" property is missing.  When the thermtrips property
+        is present, the breach of a critical trip point is reported back to
+        the thermal framework to implement software shutdown.
+
+      - the "hot" type trip points will be set to SOCTHERM hardware as the
+        throttle temperature.  Once the temperature of this thermal zone is
+        higher than it, it will trigger the HW throttle event.
+    items:
+      items:
+        - description: sensor ID
+          oneOf:
+            - description: CPU sensor
+              const: 0
+            - description: MEM sensor
+              const: 1
+            - description: GPU sensor
+              const: 2
+            - description: PLLX sensor
+              const: 3
+        - description: temperature threshold (in millidegree Celsius)
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - "#thermal-sensor-cells"
+
+allOf:
+  - $ref: thermal-sensor.yaml
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra124-soctherm
+              - nvidia,tegra210-soctherm
+    then:
+      properties:
+        reg:
+          items:
+            - description: SOCTHERM register set
+            - description: clock and reset controller registers
+
+        reg-names:
+          items:
+            - const: soctherm-reg
+            - const: car-reg
+
+    else:
+      properties:
+        reg:
+          items:
+            - description: SOCTHERM register set
+            - description: CCROC registers
+
+        reg-names:
+          items:
+            - const: soctherm-reg
+            - const: ccroc-reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra124-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/thermal/tegra124-soctherm.h>
+
+    soctherm@700e2000 {
+        compatible = "nvidia,tegra124-soctherm";
+        reg = <0x700e2000 0x600>, /* SOC_THERM reg_base */
+              <0x60006000 0x400>; /* CAR reg_base */
+        reg-names = "soctherm-reg", "car-reg";
+        interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "thermal", "edp";
+        clocks = <&tegra_car TEGRA124_CLK_TSENSOR>,
+                 <&tegra_car TEGRA124_CLK_SOC_THERM>;
+        clock-names = "tsensor", "soctherm";
+        resets = <&tegra_car 78>;
+        reset-names = "soctherm";
+
+        #thermal-sensor-cells = <1>;
+
+        nvidia,thermtrips = <TEGRA124_SOCTHERM_SENSOR_CPU 102500>,
+                            <TEGRA124_SOCTHERM_SENSOR_GPU 103000>;
+
+        throttle-cfgs {
+            /*
+             * When the "heavy" cooling device triggered,
+             * the HW will skip cpu clock's pulse in 85% depth,
+             * skip gpu clock's pulse in 85% level
+             */
+            heavy {
+                nvidia,priority = <100>;
+                nvidia,cpu-throt-percent = <85>;
+                nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
+
+                #cooling-cells = <2>;
+            };
+
+            /*
+             * When the "light" cooling device triggered,
+             * the HW will skip cpu clock's pulse in 50% depth,
+             * skip gpu clock's pulse in 50% level
+             */
+            light {
+                nvidia,priority = <80>;
+                nvidia,cpu-throt-percent = <50>;
+                nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_LOW>;
+
+                #cooling-cells = <2>;
+            };
+
+            /*
+             * If these two devices are triggered in same time, the HW throttle
+             * arbiter will select the highest priority as the final throttle
+             * settings to skip cpu pulse.
+             */
+
+            oc1 {
+                nvidia,priority = <50>;
+                nvidia,polarity-active-low;
+                nvidia,count-threshold = <100>;
+                nvidia,alarm-filter = <5100000>;
+                nvidia,throttle-period-us = <0>;
+                nvidia,cpu-throt-percent = <75>;
+                nvidia,gpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_MED>;
+            };
+        };
+    };
+
+  # referring to Tegra132's "reg", "reg-names" and "throttle-cfgs"
+  - |
+    thermal-sensor@700e2000 {
+        compatible = "nvidia,tegra132-soctherm";
+        reg = <0x700e2000 0x600>, /* SOC_THERM reg_base */
+              <0x70040000 0x200>; /* CCROC reg_base */
+        reg-names = "soctherm-reg", "ccroc-reg";
+        interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "thermal", "edp";
+        clocks = <&tegra_car TEGRA124_CLK_TSENSOR>,
+                 <&tegra_car TEGRA124_CLK_SOC_THERM>;
+        clock-names = "tsensor", "soctherm";
+        resets = <&tegra_car 78>;
+        reset-names = "soctherm";
+        #thermal-sensor-cells = <1>;
+
+        throttle-cfgs {
+            /*
+             * When the "heavy" cooling device triggered,
+             * the HW will skip cpu clock's pulse in HIGH level
+             */
+            heavy {
+                nvidia,priority = <100>;
+                nvidia,cpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_HIGH>;
+
+                #cooling-cells = <2>;
+            };
+
+            /*
+             * When the "light" cooling device triggered,
+             * the HW will skip cpu clock's pulse in MED level
+             */
+            light {
+                nvidia,priority = <80>;
+                nvidia,cpu-throt-level = <TEGRA_SOCTHERM_THROT_LEVEL_MED>;
+
+                #cooling-cells = <2>;
+            };
+
+            /*
+             * If these two devices are triggered in same time, the HW throttle
+             * arbiter will select the highest priority as the final throttle
+             * settings to skip cpu pulse.
+             */
+        };
+    };
+
+  # referring to thermal sensors
+  - |
+    thermal-zones {
+        cpu-thermal {
+            polling-delay-passive = <1000>;
+            polling-delay = <1000>;
+
+            thermal-sensors = <&soctherm TEGRA124_SOCTHERM_SENSOR_CPU>;
+
+            trips {
+                cpu_shutdown_trip: shutdown-trip {
+                    temperature = <102500>;
+                    hysteresis = <1000>;
+                    type = "critical";
+                };
+
+                cpu_throttle_trip: throttle-trip {
+                    temperature = <100000>;
+                    hysteresis = <1000>;
+                    type = "hot";
+                };
+            };
+
+            cooling-maps {
+                map0 {
+                    trip = <&cpu_throttle_trip>;
+                    cooling-device = <&throttle_heavy 1 1>;
+                };
+            };
+        };
+    };

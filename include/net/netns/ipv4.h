@@ -132,6 +132,9 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_syncookies;
 	u8 sysctl_tcp_migrate_req;
 	u8 sysctl_tcp_comp_sack_nr;
+	u8 sysctl_tcp_backlog_ack_defer;
+	u8 sysctl_tcp_pingpong_thresh;
+
 	int sysctl_tcp_reordering;
 	u8 sysctl_tcp_retries1;
 	u8 sysctl_tcp_retries2;
@@ -152,7 +155,7 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_abort_on_overflow;
 	u8 sysctl_tcp_fack; /* obsolete */
 	int sysctl_tcp_max_reordering;
-	int sysctl_tcp_adv_win_scale;
+	int sysctl_tcp_adv_win_scale; /* obsolete */
 	u8 sysctl_tcp_dsack;
 	u8 sysctl_tcp_app_win;
 	u8 sysctl_tcp_frto;

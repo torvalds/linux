@@ -59,6 +59,25 @@
 #define WX_TS_ALARM_ST_DALARM        BIT(1)
 #define WX_TS_ALARM_ST_ALARM         BIT(0)
 
+/* statistic */
+#define WX_TX_FRAME_CNT_GOOD_BAD_L   0x1181C
+#define WX_TX_BC_FRAMES_GOOD_L       0x11824
+#define WX_TX_MC_FRAMES_GOOD_L       0x1182C
+#define WX_RX_FRAME_CNT_GOOD_BAD_L   0x11900
+#define WX_RX_BC_FRAMES_GOOD_L       0x11918
+#define WX_RX_MC_FRAMES_GOOD_L       0x11920
+#define WX_RX_CRC_ERROR_FRAMES_L     0x11928
+#define WX_RX_LEN_ERROR_FRAMES_L     0x11978
+#define WX_RX_UNDERSIZE_FRAMES_GOOD  0x11938
+#define WX_RX_OVERSIZE_FRAMES_GOOD   0x1193C
+#define WX_MAC_LXONOFFRXC            0x11E0C
+
+/*********************** Receive DMA registers **************************/
+#define WX_RDM_DRP_PKT               0x12500
+#define WX_RDM_PKT_CNT               0x12504
+#define WX_RDM_BYTE_CNT_LSB          0x12508
+#define WX_RDM_BMC2OS_CNT            0x12510
+
 /************************* Port Registers ************************************/
 /* port cfg Registers */
 #define WX_CFG_PORT_CTL              0x14400
@@ -94,6 +113,9 @@
 #define WX_TDM_CTL_TE                BIT(0) /* Transmit Enable */
 #define WX_TDM_PB_THRE(_i)           (0x18020 + ((_i) * 4))
 #define WX_TDM_RP_IDX                0x1820C
+#define WX_TDM_PKT_CNT               0x18308
+#define WX_TDM_BYTE_CNT_LSB          0x1830C
+#define WX_TDM_OS2BMC_CNT            0x18314
 #define WX_TDM_RP_RATE               0x18404
 
 /***************************** RDB registers *********************************/
@@ -106,6 +128,8 @@
 /* statistic */
 #define WX_RDB_PFCMACDAL             0x19210
 #define WX_RDB_PFCMACDAH             0x19214
+#define WX_RDB_LXOFFTXC              0x19218
+#define WX_RDB_LXONTXC               0x1921C
 /* ring assignment */
 #define WX_RDB_PL_CFG(_i)            (0x19300 + ((_i) * 4))
 #define WX_RDB_PL_CFG_L4HDR          BIT(1)
@@ -160,6 +184,10 @@
 #define WX_PSR_LAN_FLEX_DW_H(_i)     (0x15C04 + ((_i) * 16))
 #define WX_PSR_LAN_FLEX_MSK(_i)      (0x15C08 + ((_i) * 16))
 
+#define WX_PSR_WKUP_CTL              0x15B80
+/* Wake Up Filter Control Bit */
+#define WX_PSR_WKUP_CTL_MAG          BIT(1) /* Magic Packet Wakeup Enable */
+
 /* vlan tbl */
 #define WX_PSR_VLAN_TBL(_i)          (0x16000 + ((_i) * 4))
 
@@ -201,6 +229,8 @@
 #define WX_TSC_CTL                   0x1D000
 #define WX_TSC_CTL_TX_DIS            BIT(1)
 #define WX_TSC_CTL_TSEC_DIS          BIT(0)
+#define WX_TSC_ST                    0x1D004
+#define WX_TSC_ST_SECTX_RDY          BIT(0)
 #define WX_TSC_BUF_AE                0x1D00C
 #define WX_TSC_BUF_AE_THR            GENMASK(9, 0)
 
@@ -212,6 +242,8 @@
 #define WX_MNG_MBOX_CTL              0x1E044
 #define WX_MNG_MBOX_CTL_SWRDY        BIT(0)
 #define WX_MNG_MBOX_CTL_FWRDY        BIT(2)
+#define WX_MNG_BMC2OS_CNT            0x1E090
+#define WX_MNG_OS2BMC_CNT            0x1E094
 
 /************************************* ETH MAC *****************************/
 #define WX_MAC_TX_CFG                0x11000
@@ -227,6 +259,25 @@
 #define WX_MAC_WDG_TIMEOUT           0x1100C
 #define WX_MAC_RX_FLOW_CTRL          0x11090
 #define WX_MAC_RX_FLOW_CTRL_RFE      BIT(0) /* receive fc enable */
+/* MDIO Registers */
+#define WX_MSCA                      0x11200
+#define WX_MSCA_RA(v)                FIELD_PREP(U16_MAX, v)
+#define WX_MSCA_PA(v)                FIELD_PREP(GENMASK(20, 16), v)
+#define WX_MSCA_DA(v)                FIELD_PREP(GENMASK(25, 21), v)
+#define WX_MSCC                      0x11204
+#define WX_MSCC_CMD(v)               FIELD_PREP(GENMASK(17, 16), v)
+
+enum WX_MSCA_CMD_value {
+	WX_MSCA_CMD_RSV = 0,
+	WX_MSCA_CMD_WRITE,
+	WX_MSCA_CMD_POST_READ,
+	WX_MSCA_CMD_READ,
+};
+
+#define WX_MSCC_SADDR                BIT(18)
+#define WX_MSCC_BUSY                 BIT(22)
+#define WX_MDIO_CLK(v)               FIELD_PREP(GENMASK(21, 19), v)
+#define WX_MDIO_CLAUSE_SELECT        0x11220
 #define WX_MMC_CONTROL               0x11800
 #define WX_MMC_CONTROL_RSTONRD       BIT(2) /* reset on read */
 
@@ -276,6 +327,7 @@
 #define WX_PX_RR_WP(_i)              (0x01008 + ((_i) * 0x40))
 #define WX_PX_RR_RP(_i)              (0x0100C + ((_i) * 0x40))
 #define WX_PX_RR_CFG(_i)             (0x01010 + ((_i) * 0x40))
+#define WX_PX_MPRC(_i)               (0x01020 + ((_i) * 0x40))
 /* PX_RR_CFG bit definitions */
 #define WX_PX_RR_CFG_VLAN            BIT(31)
 #define WX_PX_RR_CFG_SPLIT_MODE      BIT(26)
@@ -576,6 +628,13 @@ enum wx_mac_type {
 	wx_mac_em
 };
 
+enum sp_media_type {
+	sp_media_unknown = 0,
+	sp_media_fiber,
+	sp_media_copper,
+	sp_media_backplane
+};
+
 enum em_mac_type {
 	em_mac_type_unknown = 0,
 	em_mac_type_mdi,
@@ -736,9 +795,16 @@ struct wx_queue_stats {
 	u64 bytes;
 };
 
+struct wx_tx_queue_stats {
+	u64 restart_queue;
+	u64 tx_busy;
+};
+
 struct wx_rx_queue_stats {
+	u64 non_eop_descs;
 	u64 csum_good_cnt;
 	u64 csum_err;
+	u64 alloc_rx_buff_failed;
 };
 
 /* iterator for handling rings in ring container */
@@ -782,6 +848,7 @@ struct wx_ring {
 	struct wx_queue_stats stats;
 	struct u64_stats_sync syncp;
 	union {
+		struct wx_tx_queue_stats tx_stats;
 		struct wx_rx_queue_stats rx_stats;
 	};
 } ____cacheline_internodealigned_in_smp;
@@ -813,6 +880,33 @@ enum wx_isb_idx {
 	WX_ISB_MAX
 };
 
+/* Statistics counters collected by the MAC */
+struct wx_hw_stats {
+	u64 gprc;
+	u64 gptc;
+	u64 gorc;
+	u64 gotc;
+	u64 tpr;
+	u64 tpt;
+	u64 bprc;
+	u64 bptc;
+	u64 mprc;
+	u64 mptc;
+	u64 roc;
+	u64 ruc;
+	u64 lxonoffrxc;
+	u64 lxontxc;
+	u64 lxofftxc;
+	u64 o2bgptc;
+	u64 b2ospc;
+	u64 o2bspc;
+	u64 b2ogprc;
+	u64 rdmdrop;
+	u64 crcerrs;
+	u64 rlec;
+	u64 qmprc;
+};
+
 struct wx {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
@@ -823,6 +917,7 @@ struct wx {
 	struct wx_bus_info bus;
 	struct wx_mac_info mac;
 	enum em_mac_type mac_type;
+	enum sp_media_type media_type;
 	struct wx_eeprom_info eeprom;
 	struct wx_addr_filter_info addr_ctrl;
 	struct wx_mac_addr *mac_table;
@@ -846,7 +941,7 @@ struct wx {
 	int duplex;
 	struct phy_device *phydev;
 
-	bool wol_enabled;
+	bool wol_hw_supported;
 	bool ncsi_enabled;
 	bool gpio_ctrl;
 	raw_spinlock_t gpio_lock;
@@ -887,6 +982,14 @@ struct wx {
 	u32 wol;
 
 	u16 bd_number;
+
+	struct wx_hw_stats stats;
+	u64 tx_busy;
+	u64 non_eop_descs;
+	u64 restart_queue;
+	u64 hw_csum_rx_good;
+	u64 hw_csum_rx_error;
+	u64 alloc_rx_buff_failed;
 };
 
 #define WX_INTR_ALL (~0ULL)
@@ -918,6 +1021,17 @@ wr32m(struct wx *wx, u32 reg, u32 mask, u32 field)
 	val = ((val & ~mask) | (field & mask));
 
 	wr32(wx, reg, val);
+}
+
+static inline u64
+rd64(struct wx *wx, u32 reg)
+{
+	u64 lsb, msb;
+
+	lsb = rd32(wx, reg);
+	msb = rd32(wx, reg + 4);
+
+	return (lsb | msb << 32);
 }
 
 /* On some domestic CPU platforms, sometimes IO is not synchronized with

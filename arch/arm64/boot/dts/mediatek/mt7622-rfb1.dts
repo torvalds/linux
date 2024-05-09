@@ -311,9 +311,9 @@
 	i2s1_pins: i2s1-pins {
 		mux {
 			function = "i2s";
-			groups =  "i2s_out_mclk_bclk_ws",
-				  "i2s1_in_data",
-				  "i2s1_out_data";
+			groups = "i2s_out_mclk_bclk_ws",
+				 "i2s1_in_data",
+				 "i2s1_out_data";
 		};
 
 		conf {

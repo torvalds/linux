@@ -41,6 +41,7 @@
 #define PHY_PORT_CS1_LINK_STATE_SHIFT	26
 
 #define ICM_TIMEOUT			5000	/* ms */
+#define ICM_RETRIES			3
 #define ICM_APPROVE_TIMEOUT		10000	/* ms */
 #define ICM_MAX_LINK			4
 
@@ -296,10 +297,9 @@ static bool icm_copy(struct tb_cfg_request *req, const struct ctl_pkg *pkg)
 
 static int icm_request(struct tb *tb, const void *request, size_t request_size,
 		       void *response, size_t response_size, size_t npackets,
-		       unsigned int timeout_msec)
+		       int retries, unsigned int timeout_msec)
 {
 	struct icm *icm = tb_priv(tb);
-	int retries = 3;
 
 	do {
 		struct tb_cfg_request *req;
@@ -410,7 +410,7 @@ static int icm_fr_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 		return -ENOMEM;
 
 	ret = icm_request(tb, &request, sizeof(request), switches,
-			  sizeof(*switches), npackets, ICM_TIMEOUT);
+			  sizeof(*switches), npackets, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		goto err_free;
 
@@ -463,7 +463,7 @@ icm_fr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -488,7 +488,7 @@ static int icm_fr_approve_switch(struct tb *tb, struct tb_switch *sw)
 	memset(&reply, 0, sizeof(reply));
 	/* Use larger timeout as establishing tunnels can take some time */
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_APPROVE_TIMEOUT);
+			  1, ICM_RETRIES, ICM_APPROVE_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -515,7 +515,7 @@ static int icm_fr_add_switch_key(struct tb *tb, struct tb_switch *sw)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -543,7 +543,7 @@ static int icm_fr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -577,7 +577,7 @@ static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -644,13 +644,14 @@ static int add_switch(struct tb_switch *parent_sw, struct tb_switch *sw)
 	return ret;
 }
 
-static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
-			  u64 route, u8 connection_id, u8 connection_key,
-			  u8 link, u8 depth, bool boot)
+static void update_switch(struct tb_switch *sw, u64 route, u8 connection_id,
+			  u8 connection_key, u8 link, u8 depth, bool boot)
 {
+	struct tb_switch *parent_sw = tb_switch_parent(sw);
+
 	/* Disconnect from parent */
-	tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
-	/* Re-connect via updated port*/
+	tb_switch_downstream_port(sw)->remote = NULL;
+	/* Re-connect via updated port */
 	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
 
 	/* Update with the new addressing information */
@@ -671,10 +672,7 @@ static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
 
 static void remove_switch(struct tb_switch *sw)
 {
-	struct tb_switch *parent_sw;
-
-	parent_sw = tb_to_switch(sw->dev.parent);
-	tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
+	tb_switch_downstream_port(sw)->remote = NULL;
 	tb_switch_remove(sw);
 }
 
@@ -755,7 +753,6 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	if (sw) {
 		u8 phy_port, sw_phy_port;
 
-		parent_sw = tb_to_switch(sw->dev.parent);
 		sw_phy_port = tb_phy_port_from_link(sw->link);
 		phy_port = tb_phy_port_from_link(link);
 
@@ -785,7 +782,7 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 				route = tb_route(sw);
 			}
 
-			update_switch(parent_sw, sw, route, pkg->connection_id,
+			update_switch(sw, route, pkg->connection_id,
 				      pkg->connection_key, link, depth, boot);
 			tb_switch_put(sw);
 			return;
@@ -853,7 +850,8 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		sw->security_level = security_level;
 		sw->boot = boot;
 		sw->link_speed = speed_gen3 ? 20 : 10;
-		sw->link_width = dual_lane ? 2 : 1;
+		sw->link_width = dual_lane ? TB_LINK_WIDTH_DUAL :
+					     TB_LINK_WIDTH_SINGLE;
 		sw->rpm = intel_vss_is_rtd3(pkg->ep_name, sizeof(pkg->ep_name));
 
 		if (add_switch(parent_sw, sw))
@@ -1022,7 +1020,7 @@ icm_tr_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, 20000);
+			  1, 10, 2000);
 	if (ret)
 		return ret;
 
@@ -1055,7 +1053,7 @@ static int icm_tr_approve_switch(struct tb *tb, struct tb_switch *sw)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_APPROVE_TIMEOUT);
+			  1, ICM_RETRIES, ICM_APPROVE_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1083,7 +1081,7 @@ static int icm_tr_add_switch_key(struct tb *tb, struct tb_switch *sw)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1112,7 +1110,7 @@ static int icm_tr_challenge_switch_key(struct tb *tb, struct tb_switch *sw,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1146,7 +1144,7 @@ static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1172,7 +1170,7 @@ static int icm_tr_xdomain_tear_down(struct tb *tb, struct tb_xdomain *xd,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1236,9 +1234,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 	if (sw) {
 		/* Update the switch if it is still in the same place */
 		if (tb_route(sw) == route && !!sw->authorized == authorized) {
-			parent_sw = tb_to_switch(sw->dev.parent);
-			update_switch(parent_sw, sw, route, pkg->connection_id,
-				      0, 0, 0, boot);
+			update_switch(sw, route, pkg->connection_id, 0, 0, 0,
+				      boot);
 			tb_switch_put(sw);
 			return;
 		}
@@ -1276,7 +1273,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 		sw->security_level = security_level;
 		sw->boot = boot;
 		sw->link_speed = speed_gen3 ? 20 : 10;
-		sw->link_width = dual_lane ? 2 : 1;
+		sw->link_width = dual_lane ? TB_LINK_WIDTH_DUAL :
+					     TB_LINK_WIDTH_SINGLE;
 		sw->rpm = force_rtd3;
 		if (!sw->rpm)
 			sw->rpm = intel_vss_is_rtd3(pkg->ep_name,
@@ -1498,7 +1496,7 @@ icm_ar_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1524,7 +1522,7 @@ static int icm_ar_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1545,7 +1543,7 @@ static int icm_ar_get_boot_acl(struct tb *tb, uuid_t *uuids, size_t nuuids)
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1606,7 +1604,7 @@ static int icm_ar_set_boot_acl(struct tb *tb, const uuid_t *uuids,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 
@@ -1628,7 +1626,7 @@ icm_icl_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, 20000);
+			  1, ICM_RETRIES, 20000);
 	if (ret)
 		return ret;
 
@@ -2300,7 +2298,7 @@ static int icm_usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
 
 	memset(&reply, 0, sizeof(reply));
 	ret = icm_request(tb, &request, sizeof(request), &reply, sizeof(reply),
-			  1, ICM_TIMEOUT);
+			  1, ICM_RETRIES, ICM_TIMEOUT);
 	if (ret)
 		return ret;
 

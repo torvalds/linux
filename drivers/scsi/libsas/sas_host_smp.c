@@ -114,7 +114,7 @@ static int sas_host_smp_write_gpio(struct sas_ha_struct *sas_ha, u8 *resp_data,
 				   u8 reg_type, u8 reg_index, u8 reg_count,
 				   u8 *req_data)
 {
-	struct sas_internal *i = to_sas_internal(sas_ha->core.shost->transportt);
+	struct sas_internal *i = to_sas_internal(sas_ha->shost->transportt);
 	int written;
 
 	if (i->dft->lldd_write_gpio == NULL) {
@@ -182,7 +182,7 @@ static void sas_phy_control(struct sas_ha_struct *sas_ha, u8 phy_id,
 			    enum sas_linkrate max, u8 *resp_data)
 {
 	struct sas_internal *i =
-		to_sas_internal(sas_ha->core.shost->transportt);
+		to_sas_internal(sas_ha->shost->transportt);
 	struct sas_phy_linkrates rates;
 	struct asd_sas_phy *asd_phy;
 

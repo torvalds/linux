@@ -713,8 +713,6 @@ void ath12k_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,
 {
 	struct hal_rx_reo_queue_ext *ext_desc;
 
-	memset(qdesc, 0, sizeof(*qdesc));
-
 	ath12k_hal_reo_set_desc_hdr(&qdesc->desc_hdr, HAL_DESC_REO_OWNED,
 				    HAL_DESC_REO_QUEUE_DESC,
 				    REO_QUEUE_DESC_MAGIC_DEBUG_PATTERN_0);

@@ -38,6 +38,7 @@
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
 #include <asm/fpu.h>
+#include <asm/lbt.h>
 #include <asm/loongarch.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -146,6 +147,8 @@ static int fpr_get(struct task_struct *target,
 		   struct membuf to)
 {
 	int r;
+
+	save_fpu_regs(target);
 
 	if (sizeof(target->thread.fpu.fpr[0]) == sizeof(elf_fpreg_t))
 		r = gfpr_get(target, &to);
@@ -278,6 +281,8 @@ static int simd_get(struct task_struct *target,
 {
 	const unsigned int wr_size = NUM_FPU_REGS * regset->size;
 
+	save_fpu_regs(target);
+
 	if (!tsk_used_math(target)) {
 		/* The task hasn't used FP or LSX, fill with 0xff */
 		copy_pad_fprs(target, regset, &to, 0);
@@ -333,6 +338,46 @@ static int simd_set(struct task_struct *target,
 }
 
 #endif /* CONFIG_CPU_HAS_LSX */
+
+#ifdef CONFIG_CPU_HAS_LBT
+static int lbt_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   struct membuf to)
+{
+	int r;
+
+	r = membuf_write(&to, &target->thread.lbt.scr0, sizeof(target->thread.lbt.scr0));
+	r = membuf_write(&to, &target->thread.lbt.scr1, sizeof(target->thread.lbt.scr1));
+	r = membuf_write(&to, &target->thread.lbt.scr2, sizeof(target->thread.lbt.scr2));
+	r = membuf_write(&to, &target->thread.lbt.scr3, sizeof(target->thread.lbt.scr3));
+	r = membuf_write(&to, &target->thread.lbt.eflags, sizeof(u32));
+	r = membuf_write(&to, &target->thread.fpu.ftop, sizeof(u32));
+
+	return r;
+}
+
+static int lbt_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int err = 0;
+	const int eflags_start = 4 * sizeof(target->thread.lbt.scr0);
+	const int ftop_start = eflags_start + sizeof(u32);
+
+	err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.lbt.scr0,
+				  0, 4 * sizeof(target->thread.lbt.scr0));
+	err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.lbt.eflags,
+				  eflags_start, ftop_start);
+	err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpu.ftop,
+				  ftop_start, ftop_start + sizeof(u32));
+
+	return err;
+}
+#endif /* CONFIG_CPU_HAS_LBT */
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
@@ -798,6 +843,9 @@ enum loongarch_regset {
 #ifdef CONFIG_CPU_HAS_LASX
 	REGSET_LASX,
 #endif
+#ifdef CONFIG_CPU_HAS_LBT
+	REGSET_LBT,
+#endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	REGSET_HW_BREAK,
 	REGSET_HW_WATCH,
@@ -847,6 +895,16 @@ static const struct user_regset loongarch64_regsets[] = {
 		.align		= 32,
 		.regset_get	= simd_get,
 		.set		= simd_set,
+	},
+#endif
+#ifdef CONFIG_CPU_HAS_LBT
+	[REGSET_LBT] = {
+		.core_note_type	= NT_LOONGARCH_LBT,
+		.n		= 5,
+		.size		= sizeof(u64),
+		.align		= sizeof(u64),
+		.regset_get	= lbt_get,
+		.set		= lbt_set,
 	},
 #endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT

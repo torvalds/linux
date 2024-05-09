@@ -55,6 +55,7 @@
 			L2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 			};
 		};
 
@@ -111,6 +112,7 @@
 			L2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 			};
 		};
 
@@ -155,7 +157,7 @@
 
 		idle-states {
 			CPU_SLEEP_0: cpu-sleep-0 {
-				compatible ="qcom,idle-state-spc", "arm,idle-state";
+				compatible = "arm,idle-state";
 				entry-latency-us = <130>;
 				exit-latency-us = <150>;
 				min-residency-us = <2000>;
@@ -240,78 +242,10 @@
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
+	rpm: remoteproc {
+		compatible = "qcom,msm8936-rpm-proc", "qcom,rpm-proc";
 
-		tz-apps@86000000 {
-			reg = <0x0 0x86000000 0x0 0x300000>;
-			no-map;
-		};
-
-		smem@86300000 {
-			compatible = "qcom,smem";
-			reg = <0x0 0x86300000 0x0 0x100000>;
-			no-map;
-
-			hwlocks = <&tcsr_mutex 3>;
-			qcom,rpm-msg-ram = <&rpm_msg_ram>;
-		};
-
-		hypervisor@86400000 {
-			reg = <0x0 0x86400000 0x0 0x100000>;
-			no-map;
-		};
-
-		tz@86500000 {
-			reg = <0x0 0x86500000 0x0 0x180000>;
-			no-map;
-		};
-
-		reserved@86680000 {
-			reg = <0x0 0x86680000 0x0 0x80000>;
-			no-map;
-		};
-
-		rmtfs@86700000 {
-			compatible = "qcom,rmtfs-mem";
-			reg = <0x0 0x86700000 0x0 0xe0000>;
-			no-map;
-
-			qcom,client-id = <1>;
-		};
-
-		rfsa@867e0000 {
-			reg = <0x0 0x867e0000 0x0 0x20000>;
-			no-map;
-		};
-
-		mpss_mem: mpss@86800000 {
-			reg = <0x0 0x86800000 0x0 0x5500000>;
-			no-map;
-		};
-
-		wcnss_mem: wcnss@8bd00000 {
-			reg = <0x0 0x8bd00000 0x0 0x600000>;
-			no-map;
-		};
-
-		venus_mem: venus@8c300000 {
-			reg = <0x0 0x8c300000 0x0 0x800000>;
-			no-map;
-		};
-
-		mba_mem: mba@8cb00000 {
-			reg = <0x0 0x8cb00000 0x0 0x100000>;
-			no-map;
-		};
-	};
-
-	smd {
-		compatible = "qcom,smd";
-
-		rpm {
+		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
 			qcom,ipc = <&apcs1_mbox 8 0>;
 			qcom,smd-edge = <15>;
@@ -364,6 +298,94 @@
 		};
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		tz-apps@86000000 {
+			reg = <0x0 0x86000000 0x0 0x300000>;
+			no-map;
+		};
+
+		smem@86300000 {
+			compatible = "qcom,smem";
+			reg = <0x0 0x86300000 0x0 0x100000>;
+			no-map;
+
+			hwlocks = <&tcsr_mutex 3>;
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+		};
+
+		hypervisor@86400000 {
+			reg = <0x0 0x86400000 0x0 0x100000>;
+			no-map;
+		};
+
+		tz@86500000 {
+			reg = <0x0 0x86500000 0x0 0x180000>;
+			no-map;
+		};
+
+		reserved@86680000 {
+			reg = <0x0 0x86680000 0x0 0x80000>;
+			no-map;
+		};
+
+		rmtfs@86700000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0 0x86700000 0x0 0xe0000>;
+			no-map;
+
+			qcom,client-id = <1>;
+		};
+
+		rfsa@867e0000 {
+			reg = <0x0 0x867e0000 0x0 0x20000>;
+			no-map;
+		};
+
+		mpss_mem: mpss@86800000 {
+			/*
+			 * The memory region for the mpss firmware is generally
+			 * relocatable and could be allocated dynamically.
+			 * However, many firmware versions tend to fail when
+			 * loaded to some special addresses, so it is hard to
+			 * define reliable alloc-ranges.
+			 *
+			 * alignment = <0x0 0x400000>;
+			 * alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
+			 */
+			reg = <0x0 0x86800000 0x0 0>; /* size is device-specific */
+			no-map;
+			status = "disabled";
+		};
+
+		wcnss_mem: wcnss {
+			size = <0x0 0x600000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
+			no-map;
+			status = "disabled";
+		};
+
+		venus_mem: venus {
+			size = <0x0 0x500000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
+			no-map;
+			status = "disabled";
+		};
+
+		mba_mem: mba {
+			size = <0x0 0x100000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x86800000 0x0 0x8000000>;
+			no-map;
+			status = "disabled";
+		};
+	};
+
 	smp2p-hexagon {
 		compatible = "qcom,smp2p";
 		qcom,smem = <435>, <428>;
@@ -386,8 +408,6 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			#address-cells = <0>;
-			#size-cells = <0>;
 		};
 	};
 
@@ -1395,7 +1415,7 @@
 			};
 		};
 
-		gpu@1c00000 {
+		gpu: gpu@1c00000 {
 			compatible = "qcom,adreno-405.0", "qcom,adreno";
 			reg = <0x01c00000 0x10000>;
 			reg-names = "kgsl_3d0_reg_memory";
@@ -1418,6 +1438,7 @@
 			power-domains = <&gcc OXILI_GDSC>;
 			operating-points-v2 = <&opp_table>;
 			iommus = <&gpu_iommu 1>, <&gpu_iommu 2>;
+			status = "disabled";
 
 			opp_table: opp-table {
 				compatible = "operating-points-v2";
@@ -1447,7 +1468,7 @@
 		apps_iommu: iommu@1ef0000 {
 			compatible = "qcom,msm8916-iommu", "qcom,msm-iommu-v1";
 			reg = <0x01ef0000 0x3000>;
-			ranges = <0 0x01e20000 0x40000>;
+			ranges = <0 0x01e20000 0x20000>;
 			clocks = <&gcc GCC_SMMU_CFG_CLK>,
 				 <&gcc GCC_APSS_TCU_CLK>;
 			clock-names = "iface", "bus";
@@ -1644,7 +1665,7 @@
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
 				 <&gcc GCC_SDCC2_APPS_CLK>,
 				 <&rpmcc RPM_SMD_XO_CLK_SRC>;
-			clock-names =  "iface", "core", "xo";
+			clock-names = "iface", "core", "xo";
 			resets = <&gcc GCC_SDCC2_BCR>;
 			pinctrl-0 = <&sdc2_default>;
 			pinctrl-1 = <&sdc2_sleep>;
@@ -1731,7 +1752,7 @@
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 6>, <&blsp_dma 7>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c2_default>;
@@ -1765,7 +1786,7 @@
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 8>, <&blsp_dma 9>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c3_default>;
@@ -1799,7 +1820,7 @@
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP4_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 10>, <&blsp_dma 11>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c4_default>;
@@ -1833,7 +1854,7 @@
 			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP5_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c5_default>;
@@ -1867,7 +1888,7 @@
 			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
-			clock-names =  "core", "iface";
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 14>, <&blsp_dma 15>;
 			dma-names = "tx", "rx";
 			pinctrl-0 = <&blsp_i2c6_default>;
@@ -1975,7 +1996,7 @@
 			};
 
 			smd-edge {
-				interrupts = <GIC_SPI 142 1>;
+				interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
 				qcom,ipc = <&apcs1_mbox 8 17>;
 				qcom,smd-edge = <6>;
 				qcom,remote-pid = <4>;

@@ -1280,10 +1280,9 @@ static const struct fb_ops omapfb_ops = {
 	.owner          = THIS_MODULE,
 	.fb_open        = omapfb_open,
 	.fb_release     = omapfb_release,
-	.fb_fillrect    = cfb_fillrect,
-	.fb_copyarea    = cfb_copyarea,
-	.fb_imageblit   = cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_blank       = omapfb_blank,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_ioctl       = omapfb_ioctl,
 	.fb_check_var   = omapfb_check_var,
 	.fb_set_par     = omapfb_set_par,
@@ -1732,7 +1731,6 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi)
 	int r = 0;
 
 	fbi->fbops = &omapfb_ops;
-	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->pseudo_palette = fbdev->pseudo_palette;
 
 	if (ofbi->region->size == 0) {

@@ -44,6 +44,9 @@ struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
 /* Number of pages released from the initial allocation. */
 unsigned long xen_released_pages;
 
+/* Memory map would allow PCI passthrough. */
+bool xen_pv_pci_possible;
+
 /* E820 map used during setting up memory. */
 static struct e820_table xen_e820_table __initdata;
 
@@ -340,7 +343,7 @@ static void __init xen_do_set_identity_and_remap_chunk(
 
 	WARN_ON(size == 0);
 
-	mfn_save = virt_to_mfn(buf);
+	mfn_save = virt_to_mfn((void *)buf);
 
 	for (ident_pfn_iter = start_pfn, remap_pfn_iter = remap_pfn;
 	     ident_pfn_iter < ident_end_pfn;
@@ -503,7 +506,7 @@ void __init xen_remap_memory(void)
 	unsigned long pfn_s = ~0UL;
 	unsigned long len = 0;
 
-	mfn_save = virt_to_mfn(buf);
+	mfn_save = virt_to_mfn((void *)buf);
 
 	while (xen_remap_mfn != INVALID_P2M_ENTRY) {
 		/* Map the remap information */
@@ -813,6 +816,9 @@ char * __init xen_memory_setup(void)
 
 		chunk_size = size;
 		type = xen_e820_table.entries[i].type;
+
+		if (type == E820_TYPE_RESERVED)
+			xen_pv_pci_possible = true;
 
 		if (type == E820_TYPE_RAM) {
 			if (addr < mem_end) {

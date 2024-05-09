@@ -26,6 +26,8 @@
 /* Lowest bit numbers and widths */
 #define EFX_DUMMY_FIELD_LBN 0
 #define EFX_DUMMY_FIELD_WIDTH 0
+#define EFX_BYTE_0_LBN 0
+#define EFX_BYTE_0_WIDTH 8
 #define EFX_WORD_0_LBN 0
 #define EFX_WORD_0_WIDTH 16
 #define EFX_WORD_1_LBN 16

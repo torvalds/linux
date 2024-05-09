@@ -459,12 +459,6 @@ struct masterid {
 	u32 liodn_ls;	/* LIODN for non-sequence and seq access */
 };
 
-/* Partition ID for DMA configuration */
-struct partid {
-	u32 rsvd1;
-	u32 pidr;	/* partition ID, DECO */
-};
-
 /* RNGB test mode (replicated twice in some configurations) */
 /* Padded out to 0x100 */
 struct rngtst {
@@ -590,8 +584,7 @@ struct caam_ctrl {
 	u32 deco_rsr;			/* DECORSR - Deco Request Source */
 	u32 rsvd11;
 	u32 deco_rq;			/* DECORR - DECO Request */
-	struct partid deco_mid[5];	/* DECOxLIODNR - 1 per DECO */
-	u32 rsvd5[22];
+	struct masterid deco_mid[16];	/* DECOxLIODNR - 1 per DECO */
 
 	/* DECO Availability/Reset Section			120-3ff */
 	u32 deco_avail;		/* DAR - DECO availability */

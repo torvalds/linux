@@ -33,41 +33,47 @@ endif
 MAKEFLAGS += --no-builtin-rules
 
 CFLAGS = -Wall -I $(top_srcdir) $(EXTRA_CFLAGS) $(KHDR_INCLUDES)
-LDLIBS = -lrt -lpthread
+LDLIBS = -lrt -lpthread -lm
 
-TEST_GEN_PROGS = cow
-TEST_GEN_PROGS += compaction_test
-TEST_GEN_PROGS += gup_longterm
-TEST_GEN_PROGS += gup_test
-TEST_GEN_PROGS += hmm-tests
-TEST_GEN_PROGS += hugetlb-madvise
-TEST_GEN_PROGS += hugepage-mmap
-TEST_GEN_PROGS += hugepage-mremap
-TEST_GEN_PROGS += hugepage-shm
-TEST_GEN_PROGS += hugepage-vmemmap
-TEST_GEN_PROGS += khugepaged
-TEST_GEN_PROGS += madv_populate
-TEST_GEN_PROGS += map_fixed_noreplace
-TEST_GEN_PROGS += map_hugetlb
-TEST_GEN_PROGS += map_populate
-TEST_GEN_PROGS += memfd_secret
-TEST_GEN_PROGS += migration
-TEST_GEN_PROGS += mkdirty
-TEST_GEN_PROGS += mlock-random-test
-TEST_GEN_PROGS += mlock2-tests
-TEST_GEN_PROGS += mrelease_test
-TEST_GEN_PROGS += mremap_dontunmap
-TEST_GEN_PROGS += mremap_test
-TEST_GEN_PROGS += on-fault-limit
-TEST_GEN_PROGS += thuge-gen
-TEST_GEN_PROGS += transhuge-stress
-TEST_GEN_PROGS += uffd-stress
-TEST_GEN_PROGS += uffd-unit-tests
+TEST_GEN_FILES = cow
+TEST_GEN_FILES += compaction_test
+TEST_GEN_FILES += gup_longterm
+TEST_GEN_FILES += gup_test
+TEST_GEN_FILES += hmm-tests
+TEST_GEN_FILES += hugetlb-madvise
+TEST_GEN_FILES += hugetlb-read-hwpoison
+TEST_GEN_FILES += hugepage-mmap
+TEST_GEN_FILES += hugepage-mremap
+TEST_GEN_FILES += hugepage-shm
+TEST_GEN_FILES += hugepage-vmemmap
+TEST_GEN_FILES += khugepaged
+TEST_GEN_FILES += madv_populate
+TEST_GEN_FILES += map_fixed_noreplace
+TEST_GEN_FILES += map_hugetlb
+TEST_GEN_FILES += map_populate
+TEST_GEN_FILES += memfd_secret
+TEST_GEN_FILES += migration
+TEST_GEN_FILES += mkdirty
+TEST_GEN_FILES += mlock-random-test
+TEST_GEN_FILES += mlock2-tests
+TEST_GEN_FILES += mrelease_test
+TEST_GEN_FILES += mremap_dontunmap
+TEST_GEN_FILES += mremap_test
+TEST_GEN_FILES += on-fault-limit
+TEST_GEN_PROGS += pagemap_ioctl
+TEST_GEN_FILES += thuge-gen
+TEST_GEN_FILES += transhuge-stress
+TEST_GEN_FILES += uffd-stress
+TEST_GEN_FILES += uffd-unit-tests
+TEST_GEN_FILES += split_huge_page_test
+TEST_GEN_FILES += ksm_tests
+TEST_GEN_FILES += ksm_functional_tests
+TEST_GEN_FILES += mdwe_test
+TEST_GEN_FILES += hugetlb_fault_after_madv
+
+ifneq ($(ARCH),arm64)
 TEST_GEN_PROGS += soft-dirty
-TEST_GEN_PROGS += split_huge_page_test
-TEST_GEN_PROGS += ksm_tests
-TEST_GEN_PROGS += ksm_functional_tests
-TEST_GEN_PROGS += mdwe_test
+endif
 
 ifeq ($(ARCH),x86_64)
 CAN_BUILD_I386 := $(shell ./../x86/check_cc.sh "$(CC)" ../x86/trivial_32bit_program.c -m32)
@@ -83,24 +89,24 @@ CFLAGS += -no-pie
 endif
 
 ifeq ($(CAN_BUILD_I386),1)
-TEST_GEN_PROGS += $(BINARIES_32)
+TEST_GEN_FILES += $(BINARIES_32)
 endif
 
 ifeq ($(CAN_BUILD_X86_64),1)
-TEST_GEN_PROGS += $(BINARIES_64)
+TEST_GEN_FILES += $(BINARIES_64)
 endif
 else
 
 ifneq (,$(findstring $(ARCH),ppc64))
-TEST_GEN_PROGS += protection_keys
+TEST_GEN_FILES += protection_keys
 endif
 
 endif
 
 ifneq (,$(filter $(ARCH),arm64 ia64 mips64 parisc64 ppc64 riscv64 s390x sparc64 x86_64))
-TEST_GEN_PROGS += va_high_addr_switch
-TEST_GEN_PROGS += virtual_address_range
-TEST_GEN_PROGS += write_to_hugetlbfs
+TEST_GEN_FILES += va_high_addr_switch
+TEST_GEN_FILES += virtual_address_range
+TEST_GEN_FILES += write_to_hugetlbfs
 endif
 
 TEST_PROGS := run_vmtests.sh
@@ -112,6 +118,7 @@ TEST_FILES += va_high_addr_switch.sh
 include ../lib.mk
 
 $(TEST_GEN_PROGS): vm_util.c
+$(TEST_GEN_FILES): vm_util.c
 
 $(OUTPUT)/uffd-stress: uffd-common.c
 $(OUTPUT)/uffd-unit-tests: uffd-common.c

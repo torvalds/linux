@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2019-2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2019-2021, 2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -76,7 +76,7 @@ enum iwl_tx_queue_cfg_actions {
 	TX_QUEUE_CFG_TFD_SHORT_FORMAT		= BIT(1),
 };
 
-#define IWL_DEFAULT_QUEUE_SIZE_EHT (1024 * 4)
+#define IWL_DEFAULT_QUEUE_SIZE_EHT (512 * 4)
 #define IWL_DEFAULT_QUEUE_SIZE_HE 1024
 #define IWL_DEFAULT_QUEUE_SIZE 256
 #define IWL_MGMT_QUEUE_SIZE 16

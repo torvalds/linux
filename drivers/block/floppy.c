@@ -3215,8 +3215,10 @@ static int invalidate_drive(struct gendisk *disk)
 	/* invalidate the buffer track to force a reread */
 	set_bit((long)disk->private_data, &fake_change);
 	process_fd_request();
-	if (disk_check_media_change(disk))
+	if (disk_check_media_change(disk)) {
+		bdev_mark_dead(disk->part0, true);
 		floppy_revalidate(disk);
+	}
 	return 0;
 }
 
@@ -3255,7 +3257,7 @@ static int set_geometry(unsigned int cmd, struct floppy_struct *g,
 
 			if (!disk || ITYPE(drive_state[cnt].fd_device) != type)
 				continue;
-			__invalidate_device(disk->part0, true);
+			disk_force_media_change(disk);
 		}
 		mutex_unlock(&open_lock);
 	} else {

@@ -84,6 +84,51 @@
 			pinctrl-0 = <&muic_int_default>;
 		};
 	};
+
+	i2c_sensors: i2c-sensors {
+		compatible = "i2c-gpio";
+
+		sda-gpios = <&tlmm 31 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 32 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-0 = <&sensors_i2c_default>;
+		pinctrl-names = "default";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		accelerometer: accelerometer@1d {
+			compatible = "st,lis2hh12";
+			reg = <0x1d>;
+
+			interrupts-extended = <&tlmm 115 IRQ_TYPE_LEVEL_HIGH>;
+
+			pinctrl-0 = <&accel_int_default>;
+			pinctrl-names = "default";
+
+			st,drdy-int-pin = <1>;
+		};
+	};
+};
+
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen: touchscreen@50 {
+		compatible = "imagis,ist3038c";
+		reg = <0x50>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
+
+		vddio-supply = <&pm8916_l6>;
+
+		pinctrl-0 = <&tsp_int_default>;
+		pinctrl-names = "default";
+	};
 };
 
 &blsp_uart2 {
@@ -118,6 +163,14 @@
 	extcon = <&muic>;
 };
 
+&venus {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 };
@@ -126,7 +179,18 @@
 	compatible = "qcom,wcn3620";
 };
 
+&wcnss_mem {
+	status = "okay";
+};
+
 &tlmm {
+	accel_int_default: accel-int-default-state {
+		pins = "gpio115";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	gpio_hall_sensor_default: gpio-hall-sensor-default-state {
 		pins = "gpio52";
 		function = "gpio";
@@ -162,6 +226,22 @@
 	sdc2_cd_default: sdc2-cd-default-state {
 		pins = "gpio38";
 		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	sensors_i2c_default: sensors-i2c-default-state {
+		pins = "gpio31", "gpio32";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tsp_int_default: tsp-int-default-state {
+		pins = "gpio13";
+		function = "gpio";
+
 		drive-strength = <2>;
 		bias-disable;
 	};

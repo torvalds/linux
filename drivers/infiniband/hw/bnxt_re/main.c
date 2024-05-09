@@ -360,7 +360,7 @@ static struct bnxt_ulp_ops bnxt_re_ulp_ops = {
 static int bnxt_re_register_netdev(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_en_dev *en_dev;
-	int rc = 0;
+	int rc;
 
 	en_dev = rdev->en_dev;
 
@@ -395,10 +395,9 @@ static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
 	struct hwrm_func_qcfg_output resp = {0};
 	struct hwrm_func_qcfg_input req = {0};
-	struct bnxt_fw_msg fw_msg;
+	struct bnxt_fw_msg fw_msg = {};
 	int rc;
 
-	memset(&fw_msg, 0, sizeof(fw_msg));
 	bnxt_re_init_hwrm_hdr((void *)&req, HWRM_FUNC_QCFG);
 	req.fid = cpu_to_le16(0xffff);
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
@@ -432,7 +431,217 @@ int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev)
 		return rc;
 	cctx->modes.db_push = le32_to_cpu(resp.flags) & FUNC_QCAPS_RESP_FLAGS_WCB_PUSH_MODE;
 
+	cctx->modes.dbr_pacing =
+		le32_to_cpu(resp.flags_ext2) &
+		FUNC_QCAPS_RESP_FLAGS_EXT2_DBR_PACING_EXT_SUPPORTED;
 	return 0;
+}
+
+static int bnxt_re_hwrm_dbr_pacing_qcfg(struct bnxt_re_dev *rdev)
+{
+	struct hwrm_func_dbr_pacing_qcfg_output resp = {};
+	struct hwrm_func_dbr_pacing_qcfg_input req = {};
+	struct bnxt_en_dev *en_dev = rdev->en_dev;
+	struct bnxt_qplib_chip_ctx *cctx;
+	struct bnxt_fw_msg fw_msg = {};
+	int rc;
+
+	cctx = rdev->chip_ctx;
+	bnxt_re_init_hwrm_hdr((void *)&req, HWRM_FUNC_DBR_PACING_QCFG);
+	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
+			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
+	rc = bnxt_send_msg(en_dev, &fw_msg);
+	if (rc)
+		return rc;
+
+	if ((le32_to_cpu(resp.dbr_stat_db_fifo_reg) &
+	    FUNC_DBR_PACING_QCFG_RESP_DBR_STAT_DB_FIFO_REG_ADDR_SPACE_MASK) ==
+		FUNC_DBR_PACING_QCFG_RESP_DBR_STAT_DB_FIFO_REG_ADDR_SPACE_GRC)
+		cctx->dbr_stat_db_fifo =
+			le32_to_cpu(resp.dbr_stat_db_fifo_reg) &
+			~FUNC_DBR_PACING_QCFG_RESP_DBR_STAT_DB_FIFO_REG_ADDR_SPACE_MASK;
+	return 0;
+}
+
+/* Update the pacing tunable parameters to the default values */
+static void bnxt_re_set_default_pacing_data(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_qplib_db_pacing_data *pacing_data = rdev->qplib_res.pacing_data;
+
+	pacing_data->do_pacing = rdev->pacing.dbr_def_do_pacing;
+	pacing_data->pacing_th = rdev->pacing.pacing_algo_th;
+	pacing_data->alarm_th =
+		pacing_data->pacing_th * BNXT_RE_PACING_ALARM_TH_MULTIPLE;
+}
+
+static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
+{
+	u32 read_val, fifo_occup;
+
+	/* loop shouldn't run infintely as the occupancy usually goes
+	 * below pacing algo threshold as soon as pacing kicks in.
+	 */
+	while (1) {
+		read_val = readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
+		fifo_occup = BNXT_RE_MAX_FIFO_DEPTH -
+			((read_val & BNXT_RE_DB_FIFO_ROOM_MASK) >>
+			 BNXT_RE_DB_FIFO_ROOM_SHIFT);
+		/* Fifo occupancy cannot be greater the MAX FIFO depth */
+		if (fifo_occup > BNXT_RE_MAX_FIFO_DEPTH)
+			break;
+
+		if (fifo_occup < rdev->qplib_res.pacing_data->pacing_th)
+			break;
+	}
+}
+
+static void bnxt_re_db_fifo_check(struct work_struct *work)
+{
+	struct bnxt_re_dev *rdev = container_of(work, struct bnxt_re_dev,
+			dbq_fifo_check_work);
+	struct bnxt_qplib_db_pacing_data *pacing_data;
+	u32 pacing_save;
+
+	if (!mutex_trylock(&rdev->pacing.dbq_lock))
+		return;
+	pacing_data = rdev->qplib_res.pacing_data;
+	pacing_save = rdev->pacing.do_pacing_save;
+	__wait_for_fifo_occupancy_below_th(rdev);
+	cancel_delayed_work_sync(&rdev->dbq_pacing_work);
+	if (pacing_save > rdev->pacing.dbr_def_do_pacing) {
+		/* Double the do_pacing value during the congestion */
+		pacing_save = pacing_save << 1;
+	} else {
+		/*
+		 * when a new congestion is detected increase the do_pacing
+		 * by 8 times. And also increase the pacing_th by 4 times. The
+		 * reason to increase pacing_th is to give more space for the
+		 * queue to oscillate down without getting empty, but also more
+		 * room for the queue to increase without causing another alarm.
+		 */
+		pacing_save = pacing_save << 3;
+		pacing_data->pacing_th = rdev->pacing.pacing_algo_th * 4;
+	}
+
+	if (pacing_save > BNXT_RE_MAX_DBR_DO_PACING)
+		pacing_save = BNXT_RE_MAX_DBR_DO_PACING;
+
+	pacing_data->do_pacing = pacing_save;
+	rdev->pacing.do_pacing_save = pacing_data->do_pacing;
+	pacing_data->alarm_th =
+		pacing_data->pacing_th * BNXT_RE_PACING_ALARM_TH_MULTIPLE;
+	schedule_delayed_work(&rdev->dbq_pacing_work,
+			      msecs_to_jiffies(rdev->pacing.dbq_pacing_time));
+	rdev->stats.pacing.alerts++;
+	mutex_unlock(&rdev->pacing.dbq_lock);
+}
+
+static void bnxt_re_pacing_timer_exp(struct work_struct *work)
+{
+	struct bnxt_re_dev *rdev = container_of(work, struct bnxt_re_dev,
+			dbq_pacing_work.work);
+	struct bnxt_qplib_db_pacing_data *pacing_data;
+	u32 read_val, fifo_occup;
+
+	if (!mutex_trylock(&rdev->pacing.dbq_lock))
+		return;
+
+	pacing_data = rdev->qplib_res.pacing_data;
+	read_val = readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
+	fifo_occup = BNXT_RE_MAX_FIFO_DEPTH -
+		((read_val & BNXT_RE_DB_FIFO_ROOM_MASK) >>
+		 BNXT_RE_DB_FIFO_ROOM_SHIFT);
+
+	if (fifo_occup > pacing_data->pacing_th)
+		goto restart_timer;
+
+	/*
+	 * Instead of immediately going back to the default do_pacing
+	 * reduce it by 1/8 times and restart the timer.
+	 */
+	pacing_data->do_pacing = pacing_data->do_pacing - (pacing_data->do_pacing >> 3);
+	pacing_data->do_pacing = max_t(u32, rdev->pacing.dbr_def_do_pacing, pacing_data->do_pacing);
+	if (pacing_data->do_pacing <= rdev->pacing.dbr_def_do_pacing) {
+		bnxt_re_set_default_pacing_data(rdev);
+		rdev->stats.pacing.complete++;
+		goto dbq_unlock;
+	}
+
+restart_timer:
+	schedule_delayed_work(&rdev->dbq_pacing_work,
+			      msecs_to_jiffies(rdev->pacing.dbq_pacing_time));
+	rdev->stats.pacing.resched++;
+dbq_unlock:
+	rdev->pacing.do_pacing_save = pacing_data->do_pacing;
+	mutex_unlock(&rdev->pacing.dbq_lock);
+}
+
+void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_qplib_db_pacing_data *pacing_data;
+
+	if (!rdev->pacing.dbr_pacing)
+		return;
+	mutex_lock(&rdev->pacing.dbq_lock);
+	pacing_data = rdev->qplib_res.pacing_data;
+
+	/*
+	 * Increase the alarm_th to max so that other user lib instances do not
+	 * keep alerting the driver.
+	 */
+	pacing_data->alarm_th = BNXT_RE_MAX_FIFO_DEPTH;
+	pacing_data->do_pacing = BNXT_RE_MAX_DBR_DO_PACING;
+	cancel_work_sync(&rdev->dbq_fifo_check_work);
+	schedule_work(&rdev->dbq_fifo_check_work);
+	mutex_unlock(&rdev->pacing.dbq_lock);
+}
+
+static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
+{
+	if (bnxt_re_hwrm_dbr_pacing_qcfg(rdev))
+		return -EIO;
+
+	/* Allocate a page for app use */
+	rdev->pacing.dbr_page = (void *)__get_free_page(GFP_KERNEL);
+	if (!rdev->pacing.dbr_page)
+		return -ENOMEM;
+
+	memset((u8 *)rdev->pacing.dbr_page, 0, PAGE_SIZE);
+	rdev->qplib_res.pacing_data = (struct bnxt_qplib_db_pacing_data *)rdev->pacing.dbr_page;
+
+	/* MAP HW window 2 for reading db fifo depth */
+	writel(rdev->chip_ctx->dbr_stat_db_fifo & BNXT_GRC_BASE_MASK,
+	       rdev->en_dev->bar0 + BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4);
+	rdev->pacing.dbr_db_fifo_reg_off =
+		(rdev->chip_ctx->dbr_stat_db_fifo & BNXT_GRC_OFFSET_MASK) +
+		 BNXT_RE_GRC_FIFO_REG_BASE;
+	rdev->pacing.dbr_bar_addr =
+		pci_resource_start(rdev->qplib_res.pdev, 0) + rdev->pacing.dbr_db_fifo_reg_off;
+
+	rdev->pacing.pacing_algo_th = BNXT_RE_PACING_ALGO_THRESHOLD;
+	rdev->pacing.dbq_pacing_time = BNXT_RE_DBR_PACING_TIME;
+	rdev->pacing.dbr_def_do_pacing = BNXT_RE_DBR_DO_PACING_NO_CONGESTION;
+	rdev->pacing.do_pacing_save = rdev->pacing.dbr_def_do_pacing;
+	rdev->qplib_res.pacing_data->fifo_max_depth = BNXT_RE_MAX_FIFO_DEPTH;
+	rdev->qplib_res.pacing_data->fifo_room_mask = BNXT_RE_DB_FIFO_ROOM_MASK;
+	rdev->qplib_res.pacing_data->fifo_room_shift = BNXT_RE_DB_FIFO_ROOM_SHIFT;
+	rdev->qplib_res.pacing_data->grc_reg_offset = rdev->pacing.dbr_db_fifo_reg_off;
+	bnxt_re_set_default_pacing_data(rdev);
+	/* Initialize worker for DBR Pacing */
+	INIT_WORK(&rdev->dbq_fifo_check_work, bnxt_re_db_fifo_check);
+	INIT_DELAYED_WORK(&rdev->dbq_pacing_work, bnxt_re_pacing_timer_exp);
+	return 0;
+}
+
+static void bnxt_re_deinitialize_dbr_pacing(struct bnxt_re_dev *rdev)
+{
+	cancel_work_sync(&rdev->dbq_fifo_check_work);
+	cancel_delayed_work_sync(&rdev->dbq_pacing_work);
+	if (rdev->pacing.dbr_page)
+		free_page((u64)rdev->pacing.dbr_page);
+
+	rdev->pacing.dbr_page = NULL;
+	rdev->pacing.dbr_pacing = false;
 }
 
 static int bnxt_re_net_ring_free(struct bnxt_re_dev *rdev,
@@ -652,6 +861,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.query_qp = bnxt_re_query_qp,
 	.query_srq = bnxt_re_query_srq,
 	.reg_user_mr = bnxt_re_reg_user_mr,
+	.reg_user_mr_dmabuf = bnxt_re_reg_user_mr_dmabuf,
 	.req_notify_cq = bnxt_re_req_notify_cq,
 	.resize_cq = bnxt_re_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
@@ -711,13 +921,14 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct bnxt_aux_priv *aux_priv,
 	rdev->id = rdev->en_dev->pdev->devfn;
 	INIT_LIST_HEAD(&rdev->qp_list);
 	mutex_init(&rdev->qp_lock);
-	atomic_set(&rdev->qp_count, 0);
-	atomic_set(&rdev->cq_count, 0);
-	atomic_set(&rdev->srq_count, 0);
-	atomic_set(&rdev->mr_count, 0);
-	atomic_set(&rdev->mw_count, 0);
-	atomic_set(&rdev->ah_count, 0);
-	atomic_set(&rdev->pd_count, 0);
+	mutex_init(&rdev->pacing.dbq_lock);
+	atomic_set(&rdev->stats.res.qp_count, 0);
+	atomic_set(&rdev->stats.res.cq_count, 0);
+	atomic_set(&rdev->stats.res.srq_count, 0);
+	atomic_set(&rdev->stats.res.mr_count, 0);
+	atomic_set(&rdev->stats.res.mw_count, 0);
+	atomic_set(&rdev->stats.res.ah_count, 0);
+	atomic_set(&rdev->stats.res.pd_count, 0);
 	rdev->cosq[0] = 0xFFFF;
 	rdev->cosq[1] = 0xFFFF;
 
@@ -759,7 +970,10 @@ static int bnxt_re_handle_unaffi_async_event(struct creq_func_event
 static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 					 struct bnxt_re_qp *qp)
 {
-	struct ib_event event;
+	struct bnxt_re_srq *srq = container_of(qp->qplib_qp.srq, struct bnxt_re_srq,
+					       qplib_srq);
+	struct creq_qp_error_notification *err_event;
+	struct ib_event event = {};
 	unsigned int flags;
 
 	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR &&
@@ -769,15 +983,147 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 		bnxt_re_unlock_cqs(qp, flags);
 	}
 
-	memset(&event, 0, sizeof(event));
-	if (qp->qplib_qp.srq) {
-		event.device = &qp->rdev->ibdev;
-		event.element.qp = &qp->ib_qp;
-		event.event = IB_EVENT_QP_LAST_WQE_REACHED;
+	event.device = &qp->rdev->ibdev;
+	event.element.qp = &qp->ib_qp;
+	event.event = IB_EVENT_QP_FATAL;
+
+	err_event = (struct creq_qp_error_notification *)qp_event;
+
+	switch (err_event->req_err_state_reason) {
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_OPCODE_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TIMEOUT_RETRY_LIMIT:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RNR_TIMEOUT_RETRY_LIMIT:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_2:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_3:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_READ_RESP:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_BIND:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_FAST_REG:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_INVALIDATE:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RETRAN_LOCAL_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_AV_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_PROD_WQE_MSMTCH_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_PSN_RANGE_CHECK_ERROR:
+		event.event = IB_EVENT_QP_ACCESS_ERR;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_1:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_4:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_READ_RESP_LENGTH:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_WQE_FORMAT_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ORRQ_FORMAT_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_AVID_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_SERV_TYPE_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_OP_ERROR:
+		event.event = IB_EVENT_QP_REQ_ERR;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RX_MEMORY_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TX_MEMORY_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_CMP_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_CQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TX_PCI_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RX_PCI_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RETX_SETUP_ERROR:
+		event.event = IB_EVENT_QP_FATAL;
+		break;
+
+	default:
+		break;
 	}
 
-	if (event.device && qp->ib_qp.event_handler)
+	switch (err_event->res_err_state_reason) {
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_EXCEED_MAX:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PAYLOAD_LENGTH_MISMATCH:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PSN_SEQ_ERROR_RETRY_LIMIT:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_INVALID_R_KEY:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_NO_PERMISSION:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_RANGE_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_INVALID_R_KEY:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_NO_PERMISSION:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_RANGE_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_UNALIGN_ATOMIC:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PSN_NOT_FOUND:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_INVALID_DUP_RKEY:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_IRRQ_FORMAT_ERROR:
+		event.event = IB_EVENT_QP_ACCESS_ERR;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_EXCEEDS_WQE:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_WQE_FORMAT_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_UNSUPPORTED_OPCODE:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_REM_INVALIDATE:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_OPCODE_ERROR:
+		event.event = IB_EVENT_QP_REQ_ERR;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_IRRQ_OFLOW:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_CMP_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_CQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_PCI_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_PCI_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_MEMORY_ERROR:
+		event.event = IB_EVENT_QP_FATAL;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_SRQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_SRQ_ERROR:
+		if (srq)
+			event.event = IB_EVENT_SRQ_ERR;
+		break;
+	default:
+		break;
+	}
+
+	if (err_event->res_err_state_reason || err_event->req_err_state_reason) {
+		ibdev_dbg(&qp->rdev->ibdev,
+			  "%s %s qp_id: %d cons (%d %d) req (%d %d) res (%d %d)\n",
+			   __func__, rdma_is_kernel_res(&qp->ib_qp.res) ? "kernel" : "user",
+			   qp->qplib_qp.id,
+			   err_event->sq_cons_idx,
+			   err_event->rq_cons_idx,
+			   err_event->req_slow_path_state,
+			   err_event->req_err_state_reason,
+			   err_event->res_slow_path_state,
+			   err_event->res_err_state_reason);
+	} else {
+		if (srq)
+			event.event = IB_EVENT_QP_LAST_WQE_REACHED;
+	}
+
+	if (event.event == IB_EVENT_SRQ_ERR && srq->ib_srq.event_handler)  {
+		(*srq->ib_srq.event_handler)(&event,
+				srq->ib_srq.srq_context);
+	} else if (event.device && qp->ib_qp.event_handler) {
 		qp->ib_qp.event_handler(&event, qp->ib_qp.qp_context);
+	}
+
+	return 0;
+}
+
+static int bnxt_re_handle_cq_async_error(void *event, struct bnxt_re_cq *cq)
+{
+	struct creq_cq_error_notification *cqerr;
+	struct ib_event ibevent = {};
+
+	cqerr = event;
+	switch (cqerr->cq_err_reason) {
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_INVALID_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_OVERFLOW_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_LOAD_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_INVALID_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_OVERFLOW_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_LOAD_ERROR:
+		ibevent.event = IB_EVENT_CQ_ERR;
+		break;
+	default:
+		break;
+	}
+
+	if (ibevent.event == IB_EVENT_CQ_ERR && cq->ib_cq.event_handler) {
+		ibevent.element.cq = &cq->ib_cq;
+		ibevent.device = &cq->rdev->ibdev;
+
+		ibdev_dbg(&cq->rdev->ibdev,
+			  "%s err reason %d\n", __func__, cqerr->cq_err_reason);
+		cq->ib_cq.event_handler(&ibevent, cq->ib_cq.cq_context);
+	}
 
 	return 0;
 }
@@ -785,6 +1131,10 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 static int bnxt_re_handle_affi_async_event(struct creq_qp_event *affi_async,
 					   void *obj)
 {
+	struct bnxt_qplib_qp *lib_qp;
+	struct bnxt_qplib_cq *lib_cq;
+	struct bnxt_re_qp *qp;
+	struct bnxt_re_cq *cq;
 	int rc = 0;
 	u8 event;
 
@@ -792,11 +1142,19 @@ static int bnxt_re_handle_affi_async_event(struct creq_qp_event *affi_async,
 		return rc; /* QP was already dead, still return success */
 
 	event = affi_async->event;
-	if (event == CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION) {
-		struct bnxt_qplib_qp *lib_qp = obj;
-		struct bnxt_re_qp *qp = container_of(lib_qp, struct bnxt_re_qp,
-						     qplib_qp);
+	switch (event) {
+	case CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION:
+		lib_qp = obj;
+		qp = container_of(lib_qp, struct bnxt_re_qp, qplib_qp);
 		rc = bnxt_re_handle_qp_async_event(affi_async, qp);
+		break;
+	case CREQ_QP_EVENT_EVENT_CQ_ERROR_NOTIFICATION:
+		lib_cq = obj;
+		cq = container_of(lib_cq, struct bnxt_re_cq, qplib_cq);
+		rc = bnxt_re_handle_cq_async_error(affi_async, cq);
+		break;
+	default:
+		rc = -EINVAL;
 	}
 	return rc;
 }
@@ -830,13 +1188,10 @@ static int bnxt_re_srqn_handler(struct bnxt_qplib_nq *nq,
 
 	ib_event.device = &srq->rdev->ibdev;
 	ib_event.element.srq = &srq->ib_srq;
-	if (event == NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT)
-		ib_event.event = IB_EVENT_SRQ_LIMIT_REACHED;
-	else
-		ib_event.event = IB_EVENT_SRQ_ERR;
 
 	if (srq->ib_srq.event_handler) {
-		/* Lock event_handler? */
+		if (event == NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT)
+			ib_event.event = IB_EVENT_SRQ_LIMIT_REACHED;
 		(*srq->ib_srq.event_handler)(&ib_event,
 					     srq->ib_srq.srq_context);
 	}
@@ -937,13 +1292,12 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_re_ring_attr rattr = {};
 	int num_vec_created = 0;
-	int rc = 0, i;
+	int rc, i;
 	u8 type;
 
 	/* Configure and allocate resources for qplib */
 	rdev->qplib_res.rcfw = &rdev->rcfw;
-	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr,
-				     rdev->is_virtfn);
+	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr);
 	if (rc)
 		goto fail;
 
@@ -1090,11 +1444,10 @@ static u32 bnxt_re_get_priority_mask(struct bnxt_re_dev *rdev)
 {
 	u32 prio_map = 0, tmp_map = 0;
 	struct net_device *netdev;
-	struct dcb_app app;
+	struct dcb_app app = {};
 
 	netdev = rdev->netdev;
 
-	memset(&app, 0, sizeof(app));
 	app.selector = IEEE_8021QAZ_APP_SEL_ETHERTYPE;
 	app.protocol = ETH_P_IBOE;
 	tmp_map = dcb_ieee_getapp_mask(netdev, &app);
@@ -1123,8 +1476,7 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	 */
 	if ((prio_map == 0 && rdev->qplib_res.prio) ||
 	    (prio_map != 0 && !rdev->qplib_res.prio)) {
-		rdev->qplib_res.prio = prio_map ? true : false;
-
+		rdev->qplib_res.prio = prio_map;
 		bnxt_re_update_gid(rdev);
 	}
 
@@ -1138,7 +1490,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 	struct hwrm_ver_get_input req = {};
 	struct bnxt_qplib_chip_ctx *cctx;
 	struct bnxt_fw_msg fw_msg = {};
-	int rc = 0;
+	int rc;
 
 	bnxt_re_init_hwrm_hdr((void *)&req, HWRM_VER_GET);
 	req.hwrm_intf_maj = HWRM_VERSION_MAJOR;
@@ -1168,7 +1520,7 @@ static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_ib_init(struct bnxt_re_dev *rdev)
 {
-	int rc = 0;
+	int rc;
 	u32 event;
 
 	/* Register ib dev */
@@ -1214,8 +1566,11 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev)
 		bnxt_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id, type);
 		bnxt_qplib_free_rcfw_channel(&rdev->rcfw);
 	}
-	if (test_and_clear_bit(BNXT_RE_FLAG_GOT_MSIX, &rdev->flags))
-		rdev->num_msix = 0;
+
+	rdev->num_msix = 0;
+
+	if (rdev->pacing.dbr_pacing)
+		bnxt_re_deinitialize_dbr_pacing(rdev);
 
 	bnxt_re_destroy_chip_ctx(rdev);
 	if (test_and_clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags))
@@ -1234,15 +1589,14 @@ static void bnxt_re_worker(struct work_struct *work)
 
 static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 {
+	struct bnxt_re_ring_attr rattr = {};
 	struct bnxt_qplib_creq_ctx *creq;
-	struct bnxt_re_ring_attr rattr;
 	u32 db_offt;
 	int vid;
 	u8 type;
 	int rc;
 
 	/* Registered a new RoCE device instance to netdev */
-	memset(&rattr, 0, sizeof(rattr));
 	rc = bnxt_re_register_netdev(rdev);
 	if (rc) {
 		ibdev_err(&rdev->ibdev,
@@ -1253,6 +1607,8 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 
 	rc = bnxt_re_setup_chip_ctx(rdev, wqe_mode);
 	if (rc) {
+		bnxt_unregister_dev(rdev->en_dev);
+		clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
 		ibdev_err(&rdev->ibdev, "Failed to get chip context\n");
 		return -EINVAL;
 	}
@@ -1269,7 +1625,6 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 	ibdev_dbg(&rdev->ibdev, "Got %d MSI-X vectors\n",
 		  rdev->en_dev->ulp_tbl->msix_requested);
 	rdev->num_msix = rdev->en_dev->ulp_tbl->msix_requested;
-	set_bit(BNXT_RE_FLAG_GOT_MSIX, &rdev->flags);
 
 	bnxt_re_query_hwrm_intf_version(rdev);
 
@@ -1309,8 +1664,17 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 		goto free_ring;
 	}
 
-	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr,
-				     rdev->is_virtfn);
+	if (bnxt_qplib_dbr_pacing_en(rdev->chip_ctx)) {
+		rc = bnxt_re_initialize_dbr_pacing(rdev);
+		if (!rc) {
+			rdev->pacing.dbr_pacing = true;
+		} else {
+			ibdev_err(&rdev->ibdev,
+				  "DBR pacing disabled with error : %d\n", rc);
+			rdev->pacing.dbr_pacing = false;
+		}
+	}
+	rc = bnxt_qplib_get_dev_attr(&rdev->rcfw, &rdev->dev_attr);
 	if (rc)
 		goto disable_rcfw;
 
@@ -1398,7 +1762,7 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 wqe_mode)
 		container_of(adev, struct bnxt_aux_priv, aux_dev);
 	struct bnxt_en_dev *en_dev;
 	struct bnxt_re_dev *rdev;
-	int rc = 0;
+	int rc;
 
 	/* en_dev should never be NULL as long as adev and aux_dev are valid. */
 	en_dev = aux_priv->edev;
@@ -1526,8 +1890,8 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 	}
 	bnxt_re_setup_cc(rdev, false);
 	ib_unregister_device(&rdev->ibdev);
-	ib_dealloc_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev);
+	ib_dealloc_device(&rdev->ibdev);
 skip_remove:
 	mutex_unlock(&bnxt_re_mutex);
 }
@@ -1644,7 +2008,7 @@ static struct auxiliary_driver bnxt_re_driver = {
 
 static int __init bnxt_re_mod_init(void)
 {
-	int rc = 0;
+	int rc;
 
 	pr_info("%s: %s", ROCE_DRV_MODULE_NAME, version);
 	rc = auxiliary_driver_register(&bnxt_re_driver);

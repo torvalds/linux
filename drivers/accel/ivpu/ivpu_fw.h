@@ -12,6 +12,7 @@ struct vpu_boot_params;
 
 struct ivpu_fw_info {
 	const struct firmware *file;
+	const char *name;
 	struct ivpu_bo *mem;
 	struct ivpu_bo *mem_shave_nn;
 	struct ivpu_bo *mem_log_crit;
@@ -23,11 +24,14 @@ struct ivpu_fw_info {
 	u32 shave_nn_size;
 	u64 entry_point; /* Cold or warm boot entry point for next boot */
 	u64 cold_boot_entry_point;
+	u32 trace_level;
+	u32 trace_destination_mask;
+	u64 trace_hw_component_mask;
 };
 
 int ivpu_fw_init(struct ivpu_device *vdev);
 void ivpu_fw_fini(struct ivpu_device *vdev);
-int ivpu_fw_load(struct ivpu_device *vdev);
+void ivpu_fw_load(struct ivpu_device *vdev);
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *bp);
 
 static inline bool ivpu_fw_is_cold_boot(struct ivpu_device *vdev)

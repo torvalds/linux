@@ -75,7 +75,7 @@ static int sof_register_ipc_flood_test(struct snd_sof_dev *sdev)
 	int ret = 0;
 	int i;
 
-	if (sdev->pdata->ipc_type != SOF_IPC)
+	if (sdev->pdata->ipc_type != SOF_IPC_TYPE_3)
 		return 0;
 
 	for (i = 0; i < CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST_NUM; i++) {
@@ -131,7 +131,7 @@ static inline void sof_unregister_ipc_msg_injector(struct snd_sof_dev *sdev) {}
 static int sof_register_ipc_kernel_injector(struct snd_sof_dev *sdev)
 {
 	/* Only IPC3 supported right now */
-	if (sdev->pdata->ipc_type != SOF_IPC)
+	if (sdev->pdata->ipc_type != SOF_IPC_TYPE_3)
 		return 0;
 
 	return sof_client_dev_register(sdev, "kernel_injector", 0, NULL, 0);
@@ -287,12 +287,12 @@ EXPORT_SYMBOL_NS_GPL(sof_client_dev_unregister, SND_SOC_SOF_CLIENT);
 int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 			      void *reply_data, size_t reply_bytes)
 {
-	if (cdev->sdev->pdata->ipc_type == SOF_IPC) {
+	if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
 
 		return sof_ipc_tx_message(cdev->sdev->ipc, ipc_msg, hdr->size,
 					  reply_data, reply_bytes);
-	} else if (cdev->sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+	} else if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_msg *msg = ipc_msg;
 
 		return sof_ipc_tx_message(cdev->sdev->ipc, ipc_msg, msg->data_size,
@@ -305,7 +305,8 @@ EXPORT_SYMBOL_NS_GPL(sof_client_ipc_tx_message, SND_SOC_SOF_CLIENT);
 
 int sof_client_ipc_rx_message(struct sof_client_dev *cdev, void *ipc_msg, void *msg_buf)
 {
-	if (cdev->sdev->pdata->ipc_type == SOF_IPC) {
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_IPC3) &&
+	    cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
 
 		if (hdr->size < sizeof(hdr)) {
@@ -324,12 +325,12 @@ EXPORT_SYMBOL_NS_GPL(sof_client_ipc_rx_message, SND_SOC_SOF_CLIENT);
 int sof_client_ipc_set_get_data(struct sof_client_dev *cdev, void *ipc_msg,
 				bool set)
 {
-	if (cdev->sdev->pdata->ipc_type == SOF_IPC) {
+	if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
 
 		return sof_ipc_set_get_data(cdev->sdev->ipc, ipc_msg, hdr->size,
 					    set);
-	} else if (cdev->sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+	} else if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_msg *msg = ipc_msg;
 
 		return sof_ipc_set_get_data(cdev->sdev->ipc, ipc_msg,
@@ -340,12 +341,12 @@ int sof_client_ipc_set_get_data(struct sof_client_dev *cdev, void *ipc_msg,
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc_set_get_data, SND_SOC_SOF_CLIENT);
 
-#ifdef CONFIG_SND_SOC_SOF_INTEL_IPC4
+#ifdef CONFIG_SND_SOC_SOF_IPC4
 struct sof_ipc4_fw_module *sof_client_ipc4_find_module(struct sof_client_dev *c, const guid_t *uuid)
 {
 	struct snd_sof_dev *sdev = c->sdev;
 
-	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4)
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4)
 		return sof_ipc4_find_module_by_uuid(sdev, uuid);
 	dev_err(sdev->dev, "Only supported with IPC4\n");
 
@@ -463,11 +464,11 @@ void sof_client_ipc_rx_dispatcher(struct snd_sof_dev *sdev, void *msg_buf)
 	struct sof_ipc_event_entry *event;
 	u32 msg_type;
 
-	if (sdev->pdata->ipc_type == SOF_IPC) {
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		struct sof_ipc_cmd_hdr *hdr = msg_buf;
 
 		msg_type = hdr->cmd & SOF_GLB_TYPE_MASK;
-	} else if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+	} else if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_msg *msg = msg_buf;
 
 		msg_type = SOF_IPC4_NOTIFICATION_TYPE_GET(msg->primary);
@@ -497,10 +498,10 @@ int sof_client_register_ipc_rx_handler(struct sof_client_dev *cdev,
 	if (!callback)
 		return -EINVAL;
 
-	if (cdev->sdev->pdata->ipc_type == SOF_IPC) {
+	if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_3) {
 		if (!(ipc_msg_type & SOF_GLB_TYPE_MASK))
 			return -EINVAL;
-	} else if (cdev->sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+	} else if (cdev->sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		if (!(ipc_msg_type & SOF_IPC4_NOTIFICATION_TYPE_MASK))
 			return -EINVAL;
 	} else {

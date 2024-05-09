@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -47,6 +46,12 @@
 
 #define CQSPI_OP_WIDTH(part) ((part).nbytes ? ilog2((part).buswidth) : 0)
 
+enum {
+	CLK_QSPI_APB = 0,
+	CLK_QSPI_AHB,
+	CLK_QSPI_NUM,
+};
+
 struct cqspi_st;
 
 struct cqspi_flash_pdata {
@@ -62,8 +67,9 @@ struct cqspi_flash_pdata {
 
 struct cqspi_st {
 	struct platform_device	*pdev;
-	struct spi_master	*master;
+	struct spi_controller	*host;
 	struct clk		*clk;
+	struct clk		*clks[CLK_QSPI_NUM];
 	unsigned int		sclk;
 
 	void __iomem		*iobase;
@@ -92,6 +98,8 @@ struct cqspi_st {
 	bool			wr_completion;
 	bool			slow_sram;
 	bool			apb_ahb_hazard;
+
+	bool			is_jh7110; /* Flag for StarFive JH7110 SoC */
 };
 
 struct cqspi_driver_platdata {
@@ -100,11 +108,16 @@ struct cqspi_driver_platdata {
 	int (*indirect_read_dma)(struct cqspi_flash_pdata *f_pdata,
 				 u_char *rxbuf, loff_t from_addr, size_t n_rx);
 	u32 (*get_dma_status)(struct cqspi_st *cqspi);
+	int (*jh7110_clk_init)(struct platform_device *pdev,
+			       struct cqspi_st *cqspi);
 };
 
 /* Operation timeout value */
 #define CQSPI_TIMEOUT_MS			500
 #define CQSPI_READ_TIMEOUT_MS			10
+
+/* Runtime_pm autosuspend delay */
+#define CQSPI_AUTOSUSPEND_TIMEOUT		2000
 
 #define CQSPI_DUMMY_CLKS_PER_BYTE		8
 #define CQSPI_DUMMY_BYTES_MAX			4
@@ -1369,7 +1382,7 @@ static ssize_t cqspi_read(struct cqspi_flash_pdata *f_pdata,
 
 static int cqspi_mem_process(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
+	struct cqspi_st *cqspi = spi_controller_get_devdata(mem->spi->controller);
 	struct cqspi_flash_pdata *f_pdata;
 
 	f_pdata = &cqspi->f_pdata[spi_get_chipselect(mem->spi, 0)];
@@ -1397,8 +1410,20 @@ static int cqspi_mem_process(struct spi_mem *mem, const struct spi_mem_op *op)
 static int cqspi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	int ret;
+	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
+	struct device *dev = &cqspi->pdev->dev;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret) {
+		dev_err(&mem->spi->dev, "resume failed with %d\n", ret);
+		return ret;
+	}
 
 	ret = cqspi_mem_process(mem, op);
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
+
 	if (ret)
 		dev_err(&mem->spi->dev, "operation failed with %d\n", ret);
 
@@ -1575,7 +1600,7 @@ static int cqspi_request_mmap_dma(struct cqspi_st *cqspi)
 
 static const char *cqspi_get_name(struct spi_mem *mem)
 {
-	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
+	struct cqspi_st *cqspi = spi_controller_get_devdata(mem->spi->controller);
 	struct device *dev = &cqspi->pdev->dev;
 
 	return devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev),
@@ -1630,31 +1655,77 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 	return 0;
 }
 
+static int cqspi_jh7110_clk_init(struct platform_device *pdev, struct cqspi_st *cqspi)
+{
+	static struct clk_bulk_data qspiclk[] = {
+		{ .id = "apb" },
+		{ .id = "ahb" },
+	};
+
+	int ret = 0;
+
+	ret = devm_clk_bulk_get(&pdev->dev, ARRAY_SIZE(qspiclk), qspiclk);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: failed to get qspi clocks\n", __func__);
+		return ret;
+	}
+
+	cqspi->clks[CLK_QSPI_APB] = qspiclk[0].clk;
+	cqspi->clks[CLK_QSPI_AHB] = qspiclk[1].clk;
+
+	ret = clk_prepare_enable(cqspi->clks[CLK_QSPI_APB]);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: failed to enable CLK_QSPI_APB\n", __func__);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(cqspi->clks[CLK_QSPI_AHB]);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: failed to enable CLK_QSPI_AHB\n", __func__);
+		goto disable_apb_clk;
+	}
+
+	cqspi->is_jh7110 = true;
+
+	return 0;
+
+disable_apb_clk:
+	clk_disable_unprepare(cqspi->clks[CLK_QSPI_APB]);
+
+	return ret;
+}
+
+static void cqspi_jh7110_disable_clk(struct platform_device *pdev, struct cqspi_st *cqspi)
+{
+	clk_disable_unprepare(cqspi->clks[CLK_QSPI_AHB]);
+	clk_disable_unprepare(cqspi->clks[CLK_QSPI_APB]);
+}
 static int cqspi_probe(struct platform_device *pdev)
 {
 	const struct cqspi_driver_platdata *ddata;
 	struct reset_control *rstc, *rstc_ocp, *rstc_ref;
 	struct device *dev = &pdev->dev;
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct resource *res_ahb;
 	struct cqspi_st *cqspi;
 	int ret;
 	int irq;
 
-	master = devm_spi_alloc_master(&pdev->dev, sizeof(*cqspi));
-	if (!master) {
-		dev_err(&pdev->dev, "spi_alloc_master failed\n");
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*cqspi));
+	if (!host) {
+		dev_err(&pdev->dev, "devm_spi_alloc_host failed\n");
 		return -ENOMEM;
 	}
-	master->mode_bits = SPI_RX_QUAD | SPI_RX_DUAL;
-	master->mem_ops = &cqspi_mem_ops;
-	master->mem_caps = &cqspi_mem_caps;
-	master->dev.of_node = pdev->dev.of_node;
+	host->mode_bits = SPI_RX_QUAD | SPI_RX_DUAL;
+	host->mem_ops = &cqspi_mem_ops;
+	host->mem_caps = &cqspi_mem_caps;
+	host->dev.of_node = pdev->dev.of_node;
 
-	cqspi = spi_master_get_devdata(master);
+	cqspi = spi_controller_get_devdata(host);
 
 	cqspi->pdev = pdev;
-	cqspi->master = master;
+	cqspi->host = host;
+	cqspi->is_jh7110 = false;
 	platform_set_drvdata(pdev, cqspi);
 
 	/* Obtain configuration from OF. */
@@ -1697,10 +1768,10 @@ static int cqspi_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENXIO;
 
-	pm_runtime_enable(dev);
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0)
-		goto probe_pm_failed;
+	ret = pm_runtime_set_active(dev);
+	if (ret)
+		return ret;
+
 
 	ret = clk_prepare_enable(cqspi->clk);
 	if (ret) {
@@ -1741,7 +1812,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	reset_control_deassert(rstc_ocp);
 
 	cqspi->master_ref_clk_hz = clk_get_rate(cqspi->clk);
-	master->max_speed_hz = cqspi->master_ref_clk_hz;
+	host->max_speed_hz = cqspi->master_ref_clk_hz;
 
 	/* write completion is supported by default */
 	cqspi->wr_completion = true;
@@ -1752,7 +1823,7 @@ static int cqspi_probe(struct platform_device *pdev)
 			cqspi->wr_delay = 50 * DIV_ROUND_UP(NSEC_PER_SEC,
 						cqspi->master_ref_clk_hz);
 		if (ddata->hwcaps_mask & CQSPI_SUPPORTS_OCTAL)
-			master->mode_bits |= SPI_RX_OCTAL | SPI_TX_OCTAL;
+			host->mode_bits |= SPI_RX_OCTAL | SPI_TX_OCTAL;
 		if (!(ddata->quirks & CQSPI_DISABLE_DAC_MODE)) {
 			cqspi->use_direct_mode = true;
 			cqspi->use_direct_mode_wr = true;
@@ -1765,6 +1836,12 @@ static int cqspi_probe(struct platform_device *pdev)
 			cqspi->slow_sram = true;
 		if (ddata->quirks & CQSPI_NEEDS_APB_AHB_HAZARD_WAR)
 			cqspi->apb_ahb_hazard = true;
+
+		if (ddata->jh7110_clk_init) {
+			ret = cqspi_jh7110_clk_init(pdev, cqspi);
+			if (ret)
+				goto probe_clk_failed;
+		}
 
 		if (of_device_is_compatible(pdev->dev.of_node,
 					    "xlnx,versal-ospi-1.0")) {
@@ -1786,7 +1863,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	cqspi->current_cs = -1;
 	cqspi->sclk = 0;
 
-	master->num_chipselect = cqspi->num_chipselect;
+	host->num_chipselect = cqspi->num_chipselect;
 
 	ret = cqspi_setup_flash(cqspi);
 	if (ret) {
@@ -1800,11 +1877,25 @@ static int cqspi_probe(struct platform_device *pdev)
 			goto probe_setup_failed;
 	}
 
-	ret = spi_register_master(master);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret) {
+		if (cqspi->rx_chan)
+			dma_release_channel(cqspi->rx_chan);
+		goto probe_setup_failed;
+	}
+
+	pm_runtime_set_autosuspend_delay(dev, CQSPI_AUTOSUSPEND_TIMEOUT);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_get_noresume(dev);
+
+	ret = spi_register_controller(host);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register SPI ctlr %d\n", ret);
 		goto probe_setup_failed;
 	}
+
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 probe_setup_failed:
@@ -1812,9 +1903,6 @@ probe_setup_failed:
 probe_reset_failed:
 	clk_disable_unprepare(cqspi->clk);
 probe_clk_failed:
-	pm_runtime_put_sync(dev);
-probe_pm_failed:
-	pm_runtime_disable(dev);
 	return ret;
 }
 
@@ -1822,13 +1910,16 @@ static void cqspi_remove(struct platform_device *pdev)
 {
 	struct cqspi_st *cqspi = platform_get_drvdata(pdev);
 
-	spi_unregister_master(cqspi->master);
+	spi_unregister_controller(cqspi->host);
 	cqspi_controller_enable(cqspi, 0);
 
 	if (cqspi->rx_chan)
 		dma_release_channel(cqspi->rx_chan);
 
 	clk_disable_unprepare(cqspi->clk);
+
+	if (cqspi->is_jh7110)
+		cqspi_jh7110_disable_clk(pdev, cqspi);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1837,10 +1928,10 @@ static void cqspi_remove(struct platform_device *pdev)
 static int cqspi_suspend(struct device *dev)
 {
 	struct cqspi_st *cqspi = dev_get_drvdata(dev);
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
 
-	ret = spi_master_suspend(master);
+	ret = spi_controller_suspend(host);
 	cqspi_controller_enable(cqspi, 0);
 
 	clk_disable_unprepare(cqspi->clk);
@@ -1851,7 +1942,7 @@ static int cqspi_suspend(struct device *dev)
 static int cqspi_resume(struct device *dev)
 {
 	struct cqspi_st *cqspi = dev_get_drvdata(dev);
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_controller *host = dev_get_drvdata(dev);
 
 	clk_prepare_enable(cqspi->clk);
 	cqspi_wait_idle(cqspi);
@@ -1860,10 +1951,11 @@ static int cqspi_resume(struct device *dev)
 	cqspi->current_cs = -1;
 	cqspi->sclk = 0;
 
-	return spi_master_resume(master);
+	return spi_controller_resume(host);
 }
 
-static DEFINE_SIMPLE_DEV_PM_OPS(cqspi_dev_pm_ops, cqspi_suspend, cqspi_resume);
+static DEFINE_RUNTIME_DEV_PM_OPS(cqspi_dev_pm_ops, cqspi_suspend,
+				 cqspi_resume, NULL);
 
 static const struct cqspi_driver_platdata cdns_qspi = {
 	.quirks = CQSPI_DISABLE_DAC_MODE,
@@ -1897,6 +1989,7 @@ static const struct cqspi_driver_platdata versal_ospi = {
 
 static const struct cqspi_driver_platdata jh7110_qspi = {
 	.quirks = CQSPI_DISABLE_DAC_MODE,
+	.jh7110_clk_init = cqspi_jh7110_clk_init,
 };
 
 static const struct cqspi_driver_platdata pensando_cdns_qspi = {
@@ -1946,7 +2039,7 @@ static struct platform_driver cqspi_platform_driver = {
 	.remove_new = cqspi_remove,
 	.driver = {
 		.name = CQSPI_NAME,
-		.pm = &cqspi_dev_pm_ops,
+		.pm = pm_ptr(&cqspi_dev_pm_ops),
 		.of_match_table = cqspi_dt_ids,
 	},
 };

@@ -22,7 +22,7 @@
 #include <linux/iopoll.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <linux/platform_data/elm.h>
 
@@ -2219,8 +2219,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 		}
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	vaddr = devm_ioremap_resource(&pdev->dev, res);
+	vaddr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 

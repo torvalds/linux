@@ -420,6 +420,12 @@ USBDEVFS_CONNECTINFO
     know the devnum value already, it's the DDD value of the device file
     name.
 
+USBDEVFS_GET_SPEED
+    Returns the speed of the device. The speed is returned as a
+    nummerical value in accordance with enum usb_device_speed
+
+    File modification time is not updated by this request.
+
 USBDEVFS_GETDRIVER
     Returns the name of the kernel driver bound to a given interface (a
     string). Parameter is a pointer to this structure, which is
@@ -771,8 +777,7 @@ Speed may be:
 	======= ======================================================
 	1.5	Mbit/s for low speed USB
 	12	Mbit/s for full speed USB
-	480	Mbit/s for high speed USB (added for USB 2.0);
-		also used for Wireless USB, which has no fixed speed
+	480	Mbit/s for high speed USB (added for USB 2.0)
 	5000	Mbit/s for SuperSpeed USB (added for USB 3.0)
 	======= ======================================================
 

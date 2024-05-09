@@ -617,26 +617,25 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	dn = of_find_compatible_node(NULL, NULL, "brcm,unimac-mdio");
 	priv->master_mii_bus = of_mdio_find_bus(dn);
 	if (!priv->master_mii_bus) {
-		of_node_put(dn);
-		return -EPROBE_DEFER;
+		err = -EPROBE_DEFER;
+		goto err_of_node_put;
 	}
 
-	get_device(&priv->master_mii_bus->dev);
 	priv->master_mii_dn = dn;
 
-	priv->slave_mii_bus = mdiobus_alloc();
-	if (!priv->slave_mii_bus) {
-		of_node_put(dn);
-		return -ENOMEM;
+	priv->user_mii_bus = mdiobus_alloc();
+	if (!priv->user_mii_bus) {
+		err = -ENOMEM;
+		goto err_put_master_mii_bus_dev;
 	}
 
-	priv->slave_mii_bus->priv = priv;
-	priv->slave_mii_bus->name = "sf2 slave mii";
-	priv->slave_mii_bus->read = bcm_sf2_sw_mdio_read;
-	priv->slave_mii_bus->write = bcm_sf2_sw_mdio_write;
-	snprintf(priv->slave_mii_bus->id, MII_BUS_ID_SIZE, "sf2-%d",
+	priv->user_mii_bus->priv = priv;
+	priv->user_mii_bus->name = "sf2 user mii";
+	priv->user_mii_bus->read = bcm_sf2_sw_mdio_read;
+	priv->user_mii_bus->write = bcm_sf2_sw_mdio_write;
+	snprintf(priv->user_mii_bus->id, MII_BUS_ID_SIZE, "sf2-%d",
 		 index++);
-	priv->slave_mii_bus->dev.of_node = dn;
+	priv->user_mii_bus->dev.of_node = dn;
 
 	/* Include the pseudo-PHY address to divert reads towards our
 	 * workaround. This is only required for 7445D0, since 7445E0
@@ -654,9 +653,9 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 		priv->indir_phy_mask = 0;
 
 	ds->phys_mii_mask = priv->indir_phy_mask;
-	ds->slave_mii_bus = priv->slave_mii_bus;
-	priv->slave_mii_bus->parent = ds->dev->parent;
-	priv->slave_mii_bus->phy_mask = ~priv->indir_phy_mask;
+	ds->user_mii_bus = priv->user_mii_bus;
+	priv->user_mii_bus->parent = ds->dev->parent;
+	priv->user_mii_bus->phy_mask = ~priv->indir_phy_mask;
 
 	/* We need to make sure that of_phy_connect() will not work by
 	 * removing the 'phandle' and 'linux,phandle' properties and
@@ -683,20 +682,26 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 			phy_device_remove(phydev);
 	}
 
-	err = mdiobus_register(priv->slave_mii_bus);
-	if (err && dn) {
-		mdiobus_free(priv->slave_mii_bus);
-		of_node_put(dn);
-	}
+	err = mdiobus_register(priv->user_mii_bus);
+	if (err && dn)
+		goto err_free_user_mii_bus;
 
+	return 0;
+
+err_free_user_mii_bus:
+	mdiobus_free(priv->user_mii_bus);
+err_put_master_mii_bus_dev:
+	put_device(&priv->master_mii_bus->dev);
+err_of_node_put:
+	of_node_put(dn);
 	return err;
 }
 
 static void bcm_sf2_mdio_unregister(struct bcm_sf2_priv *priv)
 {
-	mdiobus_unregister(priv->slave_mii_bus);
-	mdiobus_free(priv->slave_mii_bus);
-	of_node_put(priv->master_mii_dn);
+	mdiobus_unregister(priv->user_mii_bus);
+	mdiobus_free(priv->user_mii_bus);
+	put_device(&priv->master_mii_bus->dev);
 }
 
 static u32 bcm_sf2_sw_get_phy_flags(struct dsa_switch *ds, int port)
@@ -909,7 +914,7 @@ static void bcm_sf2_sw_fixed_state(struct dsa_switch *ds, int port,
 		 * state machine and make it go in PHY_FORCING state instead.
 		 */
 		if (!status->link)
-			netif_carrier_off(dsa_to_port(ds, port)->slave);
+			netif_carrier_off(dsa_to_port(ds, port)->user);
 		status->duplex = DUPLEX_FULL;
 	} else {
 		status->link = true;
@@ -983,7 +988,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = dsa_port_to_master(dsa_to_port(ds, port));
+	struct net_device *p = dsa_port_to_conduit(dsa_to_port(ds, port));
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol = { };
 
@@ -1007,7 +1012,7 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = dsa_port_to_master(dsa_to_port(ds, port));
+	struct net_device *p = dsa_port_to_conduit(dsa_to_port(ds, port));
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	struct ethtool_wolinfo pwol =  { };
@@ -1436,7 +1441,9 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 
-	clk_prepare_enable(priv->clk);
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
 
 	priv->clk_mdiv = devm_clk_get_optional(&pdev->dev, "sw_switch_mdiv");
 	if (IS_ERR(priv->clk_mdiv)) {
@@ -1444,7 +1451,9 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 		goto out_clk;
 	}
 
-	clk_prepare_enable(priv->clk_mdiv);
+	ret = clk_prepare_enable(priv->clk_mdiv);
+	if (ret)
+		goto out_clk;
 
 	ret = bcm_sf2_sw_rst(priv);
 	if (ret) {
@@ -1533,12 +1542,12 @@ out_clk:
 	return ret;
 }
 
-static int bcm_sf2_sw_remove(struct platform_device *pdev)
+static void bcm_sf2_sw_remove(struct platform_device *pdev)
 {
 	struct bcm_sf2_priv *priv = platform_get_drvdata(pdev);
 
 	if (!priv)
-		return 0;
+		return;
 
 	priv->wol_ports_mask = 0;
 	/* Disable interrupts */
@@ -1550,8 +1559,6 @@ static int bcm_sf2_sw_remove(struct platform_device *pdev)
 	clk_disable_unprepare(priv->clk);
 	if (priv->type == BCM7278_DEVICE_ID)
 		reset_control_assert(priv->rcdev);
-
-	return 0;
 }
 
 static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
@@ -1597,7 +1604,7 @@ static SIMPLE_DEV_PM_OPS(bcm_sf2_pm_ops,
 
 static struct platform_driver bcm_sf2_driver = {
 	.probe	= bcm_sf2_sw_probe,
-	.remove	= bcm_sf2_sw_remove,
+	.remove_new = bcm_sf2_sw_remove,
 	.shutdown = bcm_sf2_sw_shutdown,
 	.driver = {
 		.name = "brcm-sf2",

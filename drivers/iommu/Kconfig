@@ -7,6 +7,10 @@ config IOMMU_IOVA
 config IOMMU_API
 	bool
 
+config IOMMUFD_DRIVER
+	bool
+	default n
+
 menuconfig IOMMU_SUPPORT
 	bool "IOMMU Hardware Support"
 	depends on MMU
@@ -91,7 +95,7 @@ config IOMMU_DEBUGFS
 choice
 	prompt "IOMMU default domain type"
 	depends on IOMMU_API
-	default IOMMU_DEFAULT_DMA_LAZY if X86 || IA64
+	default IOMMU_DEFAULT_DMA_LAZY if X86
 	default IOMMU_DEFAULT_DMA_STRICT
 	help
 	  Choose the type of IOMMU domain used to manage DMA API usage by
@@ -146,7 +150,7 @@ config OF_IOMMU
 
 # IOMMU-agnostic DMA-mapping layer
 config IOMMU_DMA
-	def_bool ARM64 || IA64 || X86
+	def_bool ARM64 || X86
 	select DMA_OPS
 	select IOMMU_API
 	select IOMMU_IOVA

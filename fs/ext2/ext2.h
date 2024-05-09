@@ -399,6 +399,12 @@ struct ext2_inode {
 #define EXT2_ERRORS_DEFAULT		EXT2_ERRORS_CONTINUE
 
 /*
+ * Allocation flags
+ */
+#define EXT2_ALLOC_NORESERVE            0x1	/* Do not use reservation
+						 * window for allocation */
+
+/*
  * Structure of the super block
  */
 struct ext2_super_block {
@@ -695,13 +701,11 @@ static inline struct ext2_inode_info *EXT2_I(struct inode *inode)
 /* balloc.c */
 extern int ext2_bg_has_super(struct super_block *sb, int group);
 extern unsigned long ext2_bg_num_gdb(struct super_block *sb, int group);
-extern ext2_fsblk_t ext2_new_block(struct inode *, unsigned long, int *);
-extern ext2_fsblk_t ext2_new_blocks(struct inode *, unsigned long,
-				unsigned long *, int *);
+extern ext2_fsblk_t ext2_new_blocks(struct inode *, ext2_fsblk_t,
+				unsigned long *, int *, unsigned int);
 extern int ext2_data_block_valid(struct ext2_sb_info *sbi, ext2_fsblk_t start_blk,
 				 unsigned int count);
-extern void ext2_free_blocks (struct inode *, unsigned long,
-			      unsigned long);
+extern void ext2_free_blocks(struct inode *, ext2_fsblk_t, unsigned long);
 extern unsigned long ext2_count_free_blocks (struct super_block *);
 extern unsigned long ext2_count_dirs (struct super_block *);
 extern struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
@@ -713,22 +717,17 @@ extern void ext2_init_block_alloc_info(struct inode *);
 extern void ext2_rsv_window_add(struct super_block *sb, struct ext2_reserve_window_node *rsv);
 
 /* dir.c */
-extern int ext2_add_link (struct dentry *, struct inode *);
-extern int ext2_inode_by_name(struct inode *dir,
+int ext2_add_link(struct dentry *, struct inode *);
+int ext2_inode_by_name(struct inode *dir,
 			      const struct qstr *child, ino_t *ino);
-extern int ext2_make_empty(struct inode *, struct inode *);
-extern struct ext2_dir_entry_2 *ext2_find_entry(struct inode *, const struct qstr *,
-						struct page **);
-extern int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct page *page);
-extern int ext2_empty_dir (struct inode *);
-extern struct ext2_dir_entry_2 *ext2_dotdot(struct inode *dir, struct page **p);
+int ext2_make_empty(struct inode *, struct inode *);
+struct ext2_dir_entry_2 *ext2_find_entry(struct inode *, const struct qstr *,
+		struct folio **foliop);
+int ext2_delete_entry(struct ext2_dir_entry_2 *dir, struct folio *folio);
+int ext2_empty_dir(struct inode *);
+struct ext2_dir_entry_2 *ext2_dotdot(struct inode *dir, struct folio **foliop);
 int ext2_set_link(struct inode *dir, struct ext2_dir_entry_2 *de,
-		struct page *page, struct inode *inode, bool update_times);
-static inline void ext2_put_page(struct page *page, void *page_addr)
-{
-	kunmap_local(page_addr);
-	put_page(page);
-}
+		struct folio *folio, struct inode *inode, bool update_times);
 
 /* ialloc.c */
 extern struct inode * ext2_new_inode (struct inode *, umode_t, const struct qstr *);

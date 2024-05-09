@@ -707,8 +707,7 @@ bool edp_decide_link_settings(struct dc_link *link,
 	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
 	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
 	 */
-	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_13 ||
-			link->dpcd_caps.edp_supported_link_rates_count == 0) {
+	if (!edp_is_ilr_optimization_enabled(link)) {
 		*link_setting = link->verified_link_cap;
 		return true;
 	}
@@ -772,8 +771,7 @@ bool decide_edp_link_settings_with_dsc(struct dc_link *link,
 	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
 	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
 	 */
-	if ((link->dpcd_caps.dpcd_rev.raw < DPCD_REV_13 ||
-			link->dpcd_caps.edp_supported_link_rates_count == 0)) {
+	if (!edp_is_ilr_optimization_enabled(link)) {
 		/* for DSC enabled case, we search for minimum lane count */
 		memset(&initial_link_setting, 0, sizeof(initial_link_setting));
 		initial_link_setting.lane_count = LANE_COUNT_ONE;
@@ -906,7 +904,7 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting)
 {
 	struct dc_link *link = stream->link;
-	uint32_t req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
+	uint32_t req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing, dc_link_get_highest_encoding_format(link));
 
 	memset(link_setting, 0, sizeof(*link_setting));
 
@@ -939,7 +937,8 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 
 				tmp_link_setting.link_rate = LINK_RATE_UNKNOWN;
 				tmp_timing.flags.DSC = 0;
-				orig_req_bw = dc_bandwidth_in_kbps_from_timing(&tmp_timing);
+				orig_req_bw = dc_bandwidth_in_kbps_from_timing(&tmp_timing,
+						dc_link_get_highest_encoding_format(link));
 				edp_decide_link_settings(link, &tmp_link_setting, orig_req_bw);
 				max_link_rate = tmp_link_setting.link_rate;
 			}
@@ -1937,9 +1936,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	 * edp_supported_link_rates_count is only valid for eDP v1.4 or higher.
 	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
 	 */
-	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_13 &&
-			(link->panel_config.ilr.optimize_edp_link_rate ||
-			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_13) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
 		core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
 							supported_link_rates, sizeof(supported_link_rates));
@@ -1957,12 +1954,10 @@ void detect_edp_sink_caps(struct dc_link *link)
 				link_rate = linkRateInKHzToLinkRateMultiplier(link_rate_in_khz);
 				link->dpcd_caps.edp_supported_link_rates[link->dpcd_caps.edp_supported_link_rates_count] = link_rate;
 				link->dpcd_caps.edp_supported_link_rates_count++;
-
-				if (link->reported_link_cap.link_rate < link_rate)
-					link->reported_link_cap.link_rate = link_rate;
 			}
 		}
 	}
+
 	core_link_read_dpcd(link, DP_EDP_BACKLIGHT_ADJUSTMENT_CAP,
 						&backlight_adj_cap, sizeof(backlight_adj_cap));
 
@@ -2008,6 +2003,16 @@ void detect_edp_sink_caps(struct dc_link *link)
 		core_link_read_dpcd(link, DP_RECEIVER_ALPM_CAP,
 			&link->dpcd_caps.alpm_caps.raw,
 			sizeof(link->dpcd_caps.alpm_caps.raw));
+
+	/*
+	 * Read REPLAY info
+	 */
+	core_link_read_dpcd(link, DP_SINK_PR_PIXEL_DEVIATION_PER_LINE,
+			&link->dpcd_caps.pr_info.pixel_deviation_per_line,
+			sizeof(link->dpcd_caps.pr_info.pixel_deviation_per_line));
+	core_link_read_dpcd(link, DP_SINK_PR_MAX_NUMBER_OF_DEVIATION_LINE,
+			&link->dpcd_caps.pr_info.max_deviation_line,
+			sizeof(link->dpcd_caps.pr_info.max_deviation_line));
 }
 
 bool dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
@@ -2165,7 +2170,9 @@ static bool dp_verify_link_cap(
 							link,
 							&irq_data))
 				(*fail_count)++;
-
+		} else if (status == LINK_TRAINING_LINK_LOSS) {
+			success = true;
+			(*fail_count)++;
 		} else {
 			(*fail_count)++;
 		}
@@ -2188,6 +2195,7 @@ bool dp_verify_link_cap_with_retries(
 	int i = 0;
 	bool success = false;
 	int fail_count = 0;
+	struct dc_link_settings last_verified_link_cap = fail_safe_link_settings;
 
 	dp_trace_detect_lt_init(link);
 
@@ -2204,10 +2212,14 @@ bool dp_verify_link_cap_with_retries(
 		if (!link_detect_connection_type(link, &type) || type == dc_connection_none) {
 			link->verified_link_cap = fail_safe_link_settings;
 			break;
-		} else if (dp_verify_link_cap(link, known_limit_link_setting,
-				&fail_count) && fail_count == 0) {
-			success = true;
-			break;
+		} else if (dp_verify_link_cap(link, known_limit_link_setting, &fail_count)) {
+			last_verified_link_cap = link->verified_link_cap;
+			if (fail_count == 0) {
+				success = true;
+				break;
+			}
+		} else {
+			link->verified_link_cap = last_verified_link_cap;
 		}
 		fsleep(10 * 1000);
 	}

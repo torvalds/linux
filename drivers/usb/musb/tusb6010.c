@@ -21,6 +21,7 @@
 #include <linux/usb.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -1029,7 +1030,7 @@ static int tusb_musb_start(struct musb *musb)
 	void __iomem	*tbase = musb->ctrl_base;
 	unsigned long	flags;
 	u32		reg;
-	int		i;
+	int		ret;
 
 	/*
 	 * Enable or disable power to TUSB6010. When enabling, turn on 3.3 V and
@@ -1037,17 +1038,13 @@ static int tusb_musb_start(struct musb *musb)
 	 * provide then PGOOD signal to TUSB6010 which will release it from reset.
 	 */
 	gpiod_set_value(glue->enable, 1);
-	msleep(1);
 
 	/* Wait for 100ms until TUSB6010 pulls INT pin down */
-	i = 100;
-	while (i && gpiod_get_value(glue->intpin)) {
-		msleep(1);
-		i--;
-	}
-	if (!i) {
-		pr_err("tusb: Powerup respones failed\n");
-		return -ENODEV;
+	ret = read_poll_timeout(gpiod_get_value, reg, !reg, 5000, 100000, true,
+				glue->intpin);
+	if (ret) {
+		pr_err("tusb: Powerup response failed\n");
+		return ret;
 	}
 
 	spin_lock_irqsave(&musb->lock, flags);

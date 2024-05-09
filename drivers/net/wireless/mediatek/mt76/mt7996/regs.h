@@ -243,6 +243,13 @@ enum base_rev {
 						 FIELD_PREP(MT_WTBL_LMAC_ID, _id) | \
 						 FIELD_PREP(MT_WTBL_LMAC_DW, _dw))
 
+/* AGG: band 0(0x820e2000), band 1(0x820f2000), band 2(0x830e2000) */
+#define MT_WF_AGG_BASE(_band)			__BASE(WF_AGG_BASE, (_band))
+#define MT_WF_AGG(_band, ofs)			(MT_WF_AGG_BASE(_band) + (ofs))
+
+#define MT_AGG_ACR4(_band)			MT_WF_AGG(_band, 0x3c)
+#define MT_AGG_ACR_PPDU_TXS2H			BIT(1)
+
 /* ARB: band 0(0x820e3000), band 1(0x820f3000), band 2(0x830e3000) */
 #define MT_WF_ARB_BASE(_band)			__BASE(WF_ARB_BASE, (_band))
 #define MT_WF_ARB(_band, ofs)			(MT_WF_ARB_BASE(_band) + (ofs))
@@ -509,6 +516,7 @@ enum base_rev {
 
 #define MT_LED_CTRL(_n)				MT_LED_PHYS(0x00 + ((_n) * 4))
 #define MT_LED_CTRL_KICK			BIT(7)
+#define MT_LED_CTRL_BLINK_BAND_SEL		BIT(4)
 #define MT_LED_CTRL_BLINK_MODE			BIT(2)
 #define MT_LED_CTRL_POLARITY			BIT(1)
 
@@ -557,21 +565,28 @@ enum base_rev {
 
 #define MT_PCIE1_MAC_INT_ENABLE			MT_PCIE1_MAC(0x188)
 
-/* PHYRX CTRL */
-#define MT_WF_PHYRX_BAND_BASE			0x83080000
-#define MT_WF_PHYRX_BAND(_band, ofs)		(MT_WF_PHYRX_BAND_BASE + \
-						 ((_band) << 20) + (ofs))
-
-#define MT_WF_PHYRX_BAND_RX_CTRL1(_band)	MT_WF_PHYRX_BAND(_band, 0x2004)
-#define MT_WF_PHYRX_BAND_RX_CTRL1_IPI_EN	GENMASK(2, 0)
-#define MT_WF_PHYRX_BAND_RX_CTRL1_STSCNT_EN	GENMASK(11, 9)
-
 /* PHYRX CSD */
 #define MT_WF_PHYRX_CSD_BASE			0x83000000
 #define MT_WF_PHYRX_CSD(_band, _wf, ofs)	(MT_WF_PHYRX_CSD_BASE + \
 						 ((_band) << 20) + \
 						 ((_wf) << 16) + (ofs))
 #define MT_WF_PHYRX_CSD_IRPI(_band, _wf)	MT_WF_PHYRX_CSD(_band, _wf, 0x1000)
+
+/* PHYRX CTRL */
+#define MT_WF_PHYRX_BAND_BASE			0x83080000
+#define MT_WF_PHYRX_BAND(_band, ofs)		(MT_WF_PHYRX_BAND_BASE + \
+						 ((_band) << 20) + (ofs))
+
+#define MT_WF_PHYRX_BAND_GID_TAB_VLD0(_band)	MT_WF_PHYRX_BAND(_band, 0x1054)
+#define MT_WF_PHYRX_BAND_GID_TAB_VLD1(_band)	MT_WF_PHYRX_BAND(_band, 0x1058)
+#define MT_WF_PHYRX_BAND_GID_TAB_POS0(_band)	MT_WF_PHYRX_BAND(_band, 0x105c)
+#define MT_WF_PHYRX_BAND_GID_TAB_POS1(_band)	MT_WF_PHYRX_BAND(_band, 0x1060)
+#define MT_WF_PHYRX_BAND_GID_TAB_POS2(_band)	MT_WF_PHYRX_BAND(_band, 0x1064)
+#define MT_WF_PHYRX_BAND_GID_TAB_POS3(_band)	MT_WF_PHYRX_BAND(_band, 0x1068)
+
+#define MT_WF_PHYRX_BAND_RX_CTRL1(_band)	MT_WF_PHYRX_BAND(_band, 0x2004)
+#define MT_WF_PHYRX_BAND_RX_CTRL1_IPI_EN	GENMASK(2, 0)
+#define MT_WF_PHYRX_BAND_RX_CTRL1_STSCNT_EN	GENMASK(11, 9)
 
 /* PHYRX CSD BAND */
 #define MT_WF_PHYRX_CSD_BAND_RXTD12(_band)		MT_WF_PHYRX_BAND(_band, 0x8230)

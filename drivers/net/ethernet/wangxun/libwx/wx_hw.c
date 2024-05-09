@@ -12,6 +12,98 @@
 #include "wx_lib.h"
 #include "wx_hw.h"
 
+static int wx_phy_read_reg_mdi(struct mii_bus *bus, int phy_addr, int devnum, int regnum)
+{
+	struct wx *wx = bus->priv;
+	u32 command, val;
+	int ret;
+
+	/* setup and write the address cycle command */
+	command = WX_MSCA_RA(regnum) |
+		  WX_MSCA_PA(phy_addr) |
+		  WX_MSCA_DA(devnum);
+	wr32(wx, WX_MSCA, command);
+
+	command = WX_MSCC_CMD(WX_MSCA_CMD_READ) | WX_MSCC_BUSY;
+	if (wx->mac.type == wx_mac_em)
+		command |= WX_MDIO_CLK(6);
+	wr32(wx, WX_MSCC, command);
+
+	/* wait to complete */
+	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
+				100000, false, wx, WX_MSCC);
+	if (ret) {
+		wx_err(wx, "Mdio read c22 command did not complete.\n");
+		return ret;
+	}
+
+	return (u16)rd32(wx, WX_MSCC);
+}
+
+static int wx_phy_write_reg_mdi(struct mii_bus *bus, int phy_addr,
+				int devnum, int regnum, u16 value)
+{
+	struct wx *wx = bus->priv;
+	u32 command, val;
+	int ret;
+
+	/* setup and write the address cycle command */
+	command = WX_MSCA_RA(regnum) |
+		  WX_MSCA_PA(phy_addr) |
+		  WX_MSCA_DA(devnum);
+	wr32(wx, WX_MSCA, command);
+
+	command = value | WX_MSCC_CMD(WX_MSCA_CMD_WRITE) | WX_MSCC_BUSY;
+	if (wx->mac.type == wx_mac_em)
+		command |= WX_MDIO_CLK(6);
+	wr32(wx, WX_MSCC, command);
+
+	/* wait to complete */
+	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
+				100000, false, wx, WX_MSCC);
+	if (ret)
+		wx_err(wx, "Mdio write c22 command did not complete.\n");
+
+	return ret;
+}
+
+int wx_phy_read_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum)
+{
+	struct wx *wx = bus->priv;
+
+	wr32(wx, WX_MDIO_CLAUSE_SELECT, 0xF);
+	return wx_phy_read_reg_mdi(bus, phy_addr, 0, regnum);
+}
+EXPORT_SYMBOL(wx_phy_read_reg_mdi_c22);
+
+int wx_phy_write_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum, u16 value)
+{
+	struct wx *wx = bus->priv;
+
+	wr32(wx, WX_MDIO_CLAUSE_SELECT, 0xF);
+	return wx_phy_write_reg_mdi(bus, phy_addr, 0, regnum, value);
+}
+EXPORT_SYMBOL(wx_phy_write_reg_mdi_c22);
+
+int wx_phy_read_reg_mdi_c45(struct mii_bus *bus, int phy_addr, int devnum, int regnum)
+{
+	struct wx *wx = bus->priv;
+
+	wr32(wx, WX_MDIO_CLAUSE_SELECT, 0);
+	return wx_phy_read_reg_mdi(bus, phy_addr, devnum, regnum);
+}
+EXPORT_SYMBOL(wx_phy_read_reg_mdi_c45);
+
+int wx_phy_write_reg_mdi_c45(struct mii_bus *bus, int phy_addr,
+			     int devnum, int regnum, u16 value)
+{
+	struct wx *wx = bus->priv;
+
+	wr32(wx, WX_MDIO_CLAUSE_SELECT, 0);
+	return wx_phy_write_reg_mdi(bus, phy_addr, devnum, regnum, value);
+}
+EXPORT_SYMBOL(wx_phy_write_reg_mdi_c45);
+
 static void wx_intr_disable(struct wx *wx, u64 qmask)
 {
 	u32 mask;
@@ -430,71 +522,6 @@ out:
 	return status;
 }
 EXPORT_SYMBOL(wx_read_ee_hostif_buffer);
-
-/**
- *  wx_calculate_checksum - Calculate checksum for buffer
- *  @buffer: pointer to EEPROM
- *  @length: size of EEPROM to calculate a checksum for
- *  Calculates the checksum for some buffer on a specified length.  The
- *  checksum calculated is returned.
- **/
-static u8 wx_calculate_checksum(u8 *buffer, u32 length)
-{
-	u8 sum = 0;
-	u32 i;
-
-	if (!buffer)
-		return 0;
-
-	for (i = 0; i < length; i++)
-		sum += buffer[i];
-
-	return (u8)(0 - sum);
-}
-
-/**
- *  wx_reset_hostif - send reset cmd to fw
- *  @wx: pointer to hardware structure
- *
- *  Sends reset cmd to firmware through the manageability
- *  block.
- **/
-int wx_reset_hostif(struct wx *wx)
-{
-	struct wx_hic_reset reset_cmd;
-	int ret_val = 0;
-	int i;
-
-	reset_cmd.hdr.cmd = FW_RESET_CMD;
-	reset_cmd.hdr.buf_len = FW_RESET_LEN;
-	reset_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
-	reset_cmd.lan_id = wx->bus.func;
-	reset_cmd.reset_type = (u16)wx->reset_type;
-	reset_cmd.hdr.checksum = 0;
-	reset_cmd.hdr.checksum = wx_calculate_checksum((u8 *)&reset_cmd,
-						       (FW_CEM_HDR_LEN +
-							reset_cmd.hdr.buf_len));
-
-	for (i = 0; i <= FW_CEM_MAX_RETRIES; i++) {
-		ret_val = wx_host_interface_command(wx, (u32 *)&reset_cmd,
-						    sizeof(reset_cmd),
-						    WX_HI_COMMAND_TIMEOUT,
-						    true);
-		if (ret_val != 0)
-			continue;
-
-		if (reset_cmd.hdr.cmd_or_resp.ret_status ==
-		    FW_CEM_RESP_STATUS_SUCCESS)
-			ret_val = 0;
-		else
-			ret_val = -EFAULT;
-
-		break;
-	}
-
-	return ret_val;
-}
-EXPORT_SYMBOL(wx_reset_hostif);
 
 /**
  *  wx_init_eeprom_params - Initialize EEPROM params
@@ -1501,7 +1528,7 @@ static void wx_restore_vlan(struct wx *wx)
  *
  * Configure the Rx unit of the MAC after a reset.
  **/
-static void wx_configure_rx(struct wx *wx)
+void wx_configure_rx(struct wx *wx)
 {
 	u32 psrtype, i;
 	int ret;
@@ -1511,7 +1538,6 @@ static void wx_configure_rx(struct wx *wx)
 	psrtype = WX_RDB_PL_CFG_L4HDR |
 		  WX_RDB_PL_CFG_L3HDR |
 		  WX_RDB_PL_CFG_L2HDR |
-		  WX_RDB_PL_CFG_TUN_TUNHDR |
 		  WX_RDB_PL_CFG_TUN_TUNHDR;
 	wr32(wx, WX_RDB_PL_CFG(0), psrtype);
 
@@ -1545,6 +1571,7 @@ static void wx_configure_rx(struct wx *wx)
 	wx_enable_rx(wx);
 	wx_enable_sec_rx_path(wx);
 }
+EXPORT_SYMBOL(wx_configure_rx);
 
 static void wx_configure_isb(struct wx *wx)
 {
@@ -1973,6 +2000,105 @@ int wx_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return 0;
 }
 EXPORT_SYMBOL(wx_vlan_rx_kill_vid);
+
+/**
+ * wx_update_stats - Update the board statistics counters.
+ * @wx: board private structure
+ **/
+void wx_update_stats(struct wx *wx)
+{
+	struct wx_hw_stats *hwstats = &wx->stats;
+
+	u64 non_eop_descs = 0, alloc_rx_buff_failed = 0;
+	u64 hw_csum_rx_good = 0, hw_csum_rx_error = 0;
+	u64 restart_queue = 0, tx_busy = 0;
+	u32 i;
+
+	/* gather some stats to the wx struct that are per queue */
+	for (i = 0; i < wx->num_rx_queues; i++) {
+		struct wx_ring *rx_ring = wx->rx_ring[i];
+
+		non_eop_descs += rx_ring->rx_stats.non_eop_descs;
+		alloc_rx_buff_failed += rx_ring->rx_stats.alloc_rx_buff_failed;
+		hw_csum_rx_good += rx_ring->rx_stats.csum_good_cnt;
+		hw_csum_rx_error += rx_ring->rx_stats.csum_err;
+	}
+	wx->non_eop_descs = non_eop_descs;
+	wx->alloc_rx_buff_failed = alloc_rx_buff_failed;
+	wx->hw_csum_rx_error = hw_csum_rx_error;
+	wx->hw_csum_rx_good = hw_csum_rx_good;
+
+	for (i = 0; i < wx->num_tx_queues; i++) {
+		struct wx_ring *tx_ring = wx->tx_ring[i];
+
+		restart_queue += tx_ring->tx_stats.restart_queue;
+		tx_busy += tx_ring->tx_stats.tx_busy;
+	}
+	wx->restart_queue = restart_queue;
+	wx->tx_busy = tx_busy;
+
+	hwstats->gprc += rd32(wx, WX_RDM_PKT_CNT);
+	hwstats->gptc += rd32(wx, WX_TDM_PKT_CNT);
+	hwstats->gorc += rd64(wx, WX_RDM_BYTE_CNT_LSB);
+	hwstats->gotc += rd64(wx, WX_TDM_BYTE_CNT_LSB);
+	hwstats->tpr += rd64(wx, WX_RX_FRAME_CNT_GOOD_BAD_L);
+	hwstats->tpt += rd64(wx, WX_TX_FRAME_CNT_GOOD_BAD_L);
+	hwstats->crcerrs += rd64(wx, WX_RX_CRC_ERROR_FRAMES_L);
+	hwstats->rlec += rd64(wx, WX_RX_LEN_ERROR_FRAMES_L);
+	hwstats->bprc += rd64(wx, WX_RX_BC_FRAMES_GOOD_L);
+	hwstats->bptc += rd64(wx, WX_TX_BC_FRAMES_GOOD_L);
+	hwstats->mprc += rd64(wx, WX_RX_MC_FRAMES_GOOD_L);
+	hwstats->mptc += rd64(wx, WX_TX_MC_FRAMES_GOOD_L);
+	hwstats->roc += rd32(wx, WX_RX_OVERSIZE_FRAMES_GOOD);
+	hwstats->ruc += rd32(wx, WX_RX_UNDERSIZE_FRAMES_GOOD);
+	hwstats->lxonoffrxc += rd32(wx, WX_MAC_LXONOFFRXC);
+	hwstats->lxontxc += rd32(wx, WX_RDB_LXONTXC);
+	hwstats->lxofftxc += rd32(wx, WX_RDB_LXOFFTXC);
+	hwstats->o2bgptc += rd32(wx, WX_TDM_OS2BMC_CNT);
+	hwstats->b2ospc += rd32(wx, WX_MNG_BMC2OS_CNT);
+	hwstats->o2bspc += rd32(wx, WX_MNG_OS2BMC_CNT);
+	hwstats->b2ogprc += rd32(wx, WX_RDM_BMC2OS_CNT);
+	hwstats->rdmdrop += rd32(wx, WX_RDM_DRP_PKT);
+
+	for (i = 0; i < wx->mac.max_rx_queues; i++)
+		hwstats->qmprc += rd32(wx, WX_PX_MPRC(i));
+}
+EXPORT_SYMBOL(wx_update_stats);
+
+/**
+ *  wx_clear_hw_cntrs - Generic clear hardware counters
+ *  @wx: board private structure
+ *
+ *  Clears all hardware statistics counters by reading them from the hardware
+ *  Statistics counters are clear on read.
+ **/
+void wx_clear_hw_cntrs(struct wx *wx)
+{
+	u16 i = 0;
+
+	for (i = 0; i < wx->mac.max_rx_queues; i++)
+		wr32(wx, WX_PX_MPRC(i), 0);
+
+	rd32(wx, WX_RDM_PKT_CNT);
+	rd32(wx, WX_TDM_PKT_CNT);
+	rd64(wx, WX_RDM_BYTE_CNT_LSB);
+	rd32(wx, WX_TDM_BYTE_CNT_LSB);
+	rd32(wx, WX_RDM_DRP_PKT);
+	rd32(wx, WX_RX_UNDERSIZE_FRAMES_GOOD);
+	rd32(wx, WX_RX_OVERSIZE_FRAMES_GOOD);
+	rd64(wx, WX_RX_FRAME_CNT_GOOD_BAD_L);
+	rd64(wx, WX_TX_FRAME_CNT_GOOD_BAD_L);
+	rd64(wx, WX_RX_MC_FRAMES_GOOD_L);
+	rd64(wx, WX_TX_MC_FRAMES_GOOD_L);
+	rd64(wx, WX_RX_BC_FRAMES_GOOD_L);
+	rd64(wx, WX_TX_BC_FRAMES_GOOD_L);
+	rd64(wx, WX_RX_CRC_ERROR_FRAMES_L);
+	rd64(wx, WX_RX_LEN_ERROR_FRAMES_L);
+	rd32(wx, WX_RDB_LXONTXC);
+	rd32(wx, WX_RDB_LXOFFTXC);
+	rd32(wx, WX_MAC_LXONOFFRXC);
+}
+EXPORT_SYMBOL(wx_clear_hw_cntrs);
 
 /**
  *  wx_start_hw - Prepare hardware for Tx/Rx

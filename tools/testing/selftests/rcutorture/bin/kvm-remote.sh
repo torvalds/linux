@@ -137,14 +137,20 @@ chmod +x $T/bin/kvm-remote-*.sh
 # Check first to avoid the need for cleanup for system-name typos
 for i in $systems
 do
-	ncpus="`ssh -o BatchMode=yes $i getconf _NPROCESSORS_ONLN 2> /dev/null`"
+	ssh -o BatchMode=yes $i getconf _NPROCESSORS_ONLN > $T/ssh.stdout 2> $T/ssh.stderr
 	ret=$?
 	if test "$ret" -ne 0
 	then
-		echo System $i unreachable, giving up. | tee -a "$oldrun/remote-log"
+		echo "System $i unreachable ($ret), giving up." | tee -a "$oldrun/remote-log"
+		echo ' --- ssh stdout: vvv' | tee -a "$oldrun/remote-log"
+		cat $T/ssh.stdout | tee -a "$oldrun/remote-log"
+		echo ' --- ssh stdout: ^^^' | tee -a "$oldrun/remote-log"
+		echo ' --- ssh stderr: vvv' | tee -a "$oldrun/remote-log"
+		cat $T/ssh.stderr | tee -a "$oldrun/remote-log"
+		echo ' --- ssh stderr: ^^^' | tee -a "$oldrun/remote-log"
 		exit 4
 	fi
-	echo $i: $ncpus CPUs " " `date` | tee -a "$oldrun/remote-log"
+	echo $i: `cat $T/ssh.stdout` CPUs " " `date` | tee -a "$oldrun/remote-log"
 done
 
 # Download and expand the tarball on all systems.

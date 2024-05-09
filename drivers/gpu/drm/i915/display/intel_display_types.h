@@ -500,15 +500,15 @@ struct intel_hdcp_shim {
 	enum hdcp_wired_protocol protocol;
 
 	/* Detects whether sink is HDCP2.2 capable */
-	int (*hdcp_2_2_capable)(struct intel_digital_port *dig_port,
+	int (*hdcp_2_2_capable)(struct intel_connector *connector,
 				bool *capable);
 
 	/* Write HDCP2.2 messages */
-	int (*write_2_2_msg)(struct intel_digital_port *dig_port,
+	int (*write_2_2_msg)(struct intel_connector *connector,
 			     void *buf, size_t size);
 
 	/* Read HDCP2.2 messages */
-	int (*read_2_2_msg)(struct intel_digital_port *dig_port,
+	int (*read_2_2_msg)(struct intel_connector *connector,
 			    u8 msg_id, void *buf, size_t size);
 
 	/*
@@ -516,7 +516,7 @@ struct intel_hdcp_shim {
 	 * type to Receivers. In DP HDCP2.2 Stream type is one of the input to
 	 * the HDCP2.2 Cipher for En/De-Cryption. Not applicable for HDMI.
 	 */
-	int (*config_stream_type)(struct intel_digital_port *dig_port,
+	int (*config_stream_type)(struct intel_connector *connector,
 				  bool is_repeater, u8 type);
 
 	/* Enable/Disable HDCP 2.2 stream encryption on DP MST Transport Link */
@@ -619,6 +619,12 @@ struct intel_connector {
 	struct drm_dp_mst_port *port;
 
 	struct intel_dp *mst_port;
+
+	struct {
+		struct drm_dp_aux *dsc_decompression_aux;
+		u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE];
+		u8 fec_capability;
+	} dp;
 
 	/* Work struct to schedule a uevent on link train failure */
 	struct work_struct modeset_retry_work;
@@ -1083,6 +1089,8 @@ struct intel_crtc_state {
 
 	unsigned fb_bits; /* framebuffers to flip */
 	bool update_pipe; /* can a fast modeset be performed? */
+	bool update_m_n; /* update M/N seamlessly during fastset? */
+	bool update_lrr; /* update TRANS_VTOTAL/etc. during fastset? */
 	bool disable_cxsr;
 	bool update_wm_pre, update_wm_post; /* watermarks are updated */
 	bool fifo_changed; /* FIFO split is changed */
@@ -1189,13 +1197,13 @@ struct intel_crtc_state {
 		u32 ctrl, div;
 	} dsi_pll;
 
-	int pipe_bpp;
+	int max_link_bpp_x16;	/* in 1/16 bpp units */
+	int pipe_bpp;		/* in 1 bpp units */
 	struct intel_link_m_n dp_m_n;
 
 	/* m2_n2 for eDP downclock */
 	struct intel_link_m_n dp_m2_n2;
 	bool has_drrs;
-	bool seamless_m_n;
 
 	/* PSR is supported but might not be enabled due the lack of enabled planes */
 	bool has_psr;
@@ -1362,7 +1370,14 @@ struct intel_crtc_state {
 	u16 linetime;
 	u16 ips_linetime;
 
-	/* Forward Error correction State */
+	bool enhanced_framing;
+
+	/*
+	 * Forward Error Correction.
+	 *
+	 * Note: This will be false for 128b/132b, which will always have FEC
+	 * enabled automatically.
+	 */
 	bool fec_enable;
 
 	bool sdp_split_enable;
@@ -1383,7 +1398,7 @@ struct intel_crtc_state {
 
 	/* Variable Refresh Rate state */
 	struct {
-		bool enable;
+		bool enable, in_range;
 		u8 pipeline_full;
 		u16 flipline, vmin, vmax, guardband;
 	} vrr;
@@ -1581,7 +1596,6 @@ struct intel_watermark_params {
 
 struct intel_hdmi {
 	i915_reg_t hdmi_reg;
-	int ddc_bus;
 	struct {
 		enum drm_dp_dual_mode_type type;
 		int max_tmds_clock;
@@ -1711,10 +1725,8 @@ struct intel_dp {
 	u8 psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
-	u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE];
 	u8 lttpr_common_caps[DP_LTTPR_COMMON_CAP_SIZE];
 	u8 lttpr_phy_caps[DP_MAX_LTTPR_COUNT][DP_LTTPR_PHY_CAP_SIZE];
-	u8 fec_capable;
 	u8 pcon_dsc_dpcd[DP_PCON_DSC_ENCODER_CAP_SIZE];
 	/* source rates */
 	int num_source_rates;
@@ -2106,6 +2118,29 @@ static inline struct intel_frontbuffer *
 to_intel_frontbuffer(struct drm_framebuffer *fb)
 {
 	return fb ? to_intel_framebuffer(fb)->frontbuffer : NULL;
+}
+
+static inline int to_bpp_int(int bpp_x16)
+{
+	return bpp_x16 >> 4;
+}
+
+static inline int to_bpp_frac(int bpp_x16)
+{
+	return bpp_x16 & 0xf;
+}
+
+#define BPP_X16_FMT		"%d.%04d"
+#define BPP_X16_ARGS(bpp_x16)	to_bpp_int(bpp_x16), (to_bpp_frac(bpp_x16) * 625)
+
+static inline int to_bpp_int_roundup(int bpp_x16)
+{
+	return (bpp_x16 + 0xf) >> 4;
+}
+
+static inline int to_bpp_x16(int bpp)
+{
+	return bpp << 4;
 }
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

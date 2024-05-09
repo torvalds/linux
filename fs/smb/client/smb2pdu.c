@@ -88,10 +88,27 @@ smb2_hdr_assemble(struct smb2_hdr *shdr, __le16 smb2_cmd,
 		  const struct cifs_tcon *tcon,
 		  struct TCP_Server_Info *server)
 {
+	struct smb3_hdr_req *smb3_hdr;
+
 	shdr->ProtocolId = SMB2_PROTO_NUMBER;
 	shdr->StructureSize = cpu_to_le16(64);
 	shdr->Command = smb2_cmd;
+
 	if (server) {
+		/* After reconnect SMB3 must set ChannelSequence on subsequent reqs */
+		if (server->dialect >= SMB30_PROT_ID) {
+			smb3_hdr = (struct smb3_hdr_req *)shdr;
+			/*
+			 * if primary channel is not set yet, use default
+			 * channel for chan sequence num
+			 */
+			if (SERVER_IS_CHAN(server))
+				smb3_hdr->ChannelSequence =
+					cpu_to_le16(server->primary_server->channel_sequence_num);
+			else
+				smb3_hdr->ChannelSequence =
+					cpu_to_le16(server->channel_sequence_num);
+		}
 		spin_lock(&server->req_lock);
 		/* Request up to 10 credits but don't go over the limit. */
 		if (server->credits >= server->max_credits)
@@ -242,7 +259,7 @@ again:
 	}
 	spin_unlock(&server->srv_lock);
 
-	nls_codepage = load_nls_default();
+	nls_codepage = ses->local_nls;
 
 	/*
 	 * need to prevent multiple threads trying to simultaneously
@@ -324,7 +341,6 @@ out:
 		rc = -EAGAIN;
 	}
 failed:
-	unload_nls(nls_codepage);
 	return rc;
 }
 
@@ -554,7 +570,7 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	 * secondary channels don't have the hostname field populated
 	 * use the hostname field in the primary channel instead
 	 */
-	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+	pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
 	cifs_server_lock(pserver);
 	hostname = pserver->hostname;
 	if (hostname && (hostname[0] != 0)) {
@@ -832,7 +848,7 @@ add_posix_context(struct kvec *iov, unsigned int *num_iovec, umode_t mode)
 
 	iov[num].iov_base = create_posix_buf(mode);
 	if (mode == ACL_NO_MODE)
-		cifs_dbg(FYI, "Invalid mode\n");
+		cifs_dbg(FYI, "%s: no mode\n", __func__);
 	if (iov[num].iov_base == NULL)
 		return -ENOMEM;
 	iov[num].iov_len = sizeof(struct create_posix);
@@ -2224,7 +2240,7 @@ create_durable_v2_buf(struct cifs_open_parms *oparms)
 	 * (most servers default to 120 seconds) and most clients default to 0.
 	 * This can be overridden at mount ("handletimeout=") if the user wants
 	 * a different persistent (or resilient) handle timeout for all opens
-	 * opens on a particular SMB3 mount.
+	 * on a particular SMB3 mount.
 	 */
 	buf->dcontext.Timeout = cpu_to_le32(oparms->tcon->handle_timeout);
 	buf->dcontext.Flags = cpu_to_le32(SMB2_DHANDLE_FLAG_PERSISTENT);
@@ -2369,7 +2385,7 @@ add_twarp_context(struct kvec *iov, unsigned int *num_iovec, __u64 timewarp)
 	return 0;
 }
 
-/* See See http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx */
+/* See http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx */
 static void setup_owner_group_sids(char *buf)
 {
 	struct owner_group_sids *sids = (struct owner_group_sids *)buf;
@@ -2571,8 +2587,8 @@ alloc_path_with_tree_prefix(__le16 **out_path, int *out_size, int *out_len,
 
 	/* Do not append the separator if the path is empty */
 	if (path[0] != cpu_to_le16(0x0000)) {
-		UniStrcat(*out_path, sep);
-		UniStrcat(*out_path, path);
+		UniStrcat((wchar_t *)*out_path, (wchar_t *)sep);
+		UniStrcat((wchar_t *)*out_path, (wchar_t *)path);
 	}
 
 	unload_nls(cp);
@@ -3114,6 +3130,7 @@ void
 SMB2_ioctl_free(struct smb_rqst *rqst)
 {
 	int i;
+
 	if (rqst && rqst->rq_iov) {
 		cifs_small_buf_release(rqst->rq_iov[0].iov_base); /* request */
 		for (i = 1; i < rqst->rq_nvec; i++)
@@ -3786,7 +3803,7 @@ void smb2_reconnect_server(struct work_struct *work)
 	bool resched = false;
 
 	/* If server is a channel, select the primary channel */
-	pserver = CIFS_SERVER_IS_CHAN(server) ? server->primary_server : server;
+	pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
 
 	/* Prevent simultaneous reconnects that can corrupt tcon->rlist list */
 	mutex_lock(&pserver->reconnect_mutex);
@@ -3797,6 +3814,12 @@ void smb2_reconnect_server(struct work_struct *work)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+		spin_lock(&ses->ses_lock);
+		if (ses->ses_status == SES_EXITING) {
+			spin_unlock(&ses->ses_lock);
+			continue;
+		}
+		spin_unlock(&ses->ses_lock);
 
 		tcon_selected = false;
 
@@ -3855,7 +3878,7 @@ void smb2_reconnect_server(struct work_struct *work)
 		goto done;
 
 	/* allocate a dummy tcon struct used for reconnect */
-	tcon = tconInfoAlloc();
+	tcon = tcon_info_alloc(false);
 	if (!tcon) {
 		resched = true;
 		list_for_each_entry_safe(ses, ses2, &tmp_ses_list, rlist) {

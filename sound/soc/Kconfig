@@ -38,6 +38,17 @@ config SND_SOC_TOPOLOGY
 	bool
 	select SND_DYNAMIC_MINORS
 
+config SND_SOC_TOPOLOGY_BUILD
+	bool "Build topology core"
+	select SND_SOC_TOPOLOGY
+	depends on KUNIT
+	help
+	  This option exists to facilitate running the KUnit tests for
+	  the topology core, KUnit is frequently tested in virtual
+	  environments with minimal drivers enabled but the topology
+	  core is usually selected by drivers.  There is little reason
+	  to enable it if not doing a KUnit build.
+
 config SND_SOC_TOPOLOGY_KUNIT_TEST
 	tristate "KUnit tests for SoC topology"
 	depends on KUNIT

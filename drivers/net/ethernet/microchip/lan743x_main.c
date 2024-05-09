@@ -144,6 +144,18 @@ static int lan743x_csr_light_reset(struct lan743x_adapter *adapter)
 				  !(data & HW_CFG_LRST_), 100000, 10000000);
 }
 
+static int lan743x_csr_wait_for_bit_atomic(struct lan743x_adapter *adapter,
+					   int offset, u32 bit_mask,
+					   int target_value, int udelay_min,
+					   int udelay_max, int count)
+{
+	u32 data;
+
+	return readx_poll_timeout_atomic(LAN743X_CSR_READ_OP, offset, data,
+					 target_value == !!(data & bit_mask),
+					 udelay_max, udelay_min * count);
+}
+
 static int lan743x_csr_wait_for_bit(struct lan743x_adapter *adapter,
 				    int offset, u32 bit_mask,
 				    int target_value, int usleep_min,
@@ -736,8 +748,8 @@ static int lan743x_dp_write(struct lan743x_adapter *adapter,
 	u32 dp_sel;
 	int i;
 
-	if (lan743x_csr_wait_for_bit(adapter, DP_SEL, DP_SEL_DPRDY_,
-				     1, 40, 100, 100))
+	if (lan743x_csr_wait_for_bit_atomic(adapter, DP_SEL, DP_SEL_DPRDY_,
+					    1, 40, 100, 100))
 		return -EIO;
 	dp_sel = lan743x_csr_read(adapter, DP_SEL);
 	dp_sel &= ~DP_SEL_MASK_;
@@ -748,8 +760,9 @@ static int lan743x_dp_write(struct lan743x_adapter *adapter,
 		lan743x_csr_write(adapter, DP_ADDR, addr + i);
 		lan743x_csr_write(adapter, DP_DATA_0, buf[i]);
 		lan743x_csr_write(adapter, DP_CMD, DP_CMD_WRITE_);
-		if (lan743x_csr_wait_for_bit(adapter, DP_SEL, DP_SEL_DPRDY_,
-					     1, 40, 100, 100))
+		if (lan743x_csr_wait_for_bit_atomic(adapter, DP_SEL,
+						    DP_SEL_DPRDY_,
+						    1, 40, 100, 100))
 			return -EIO;
 	}
 
@@ -1453,9 +1466,15 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 static void lan743x_phy_close(struct lan743x_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct phy_device *phydev = netdev->phydev;
 
 	phy_stop(netdev->phydev);
 	phy_disconnect(netdev->phydev);
+
+	/* using phydev here as phy_disconnect NULLs netdev->phydev */
+	if (phy_is_pseudo_fixed_link(phydev))
+		fixed_phy_unregister(phydev);
+
 }
 
 static void lan743x_phy_interface_select(struct lan743x_adapter *adapter)
@@ -1502,7 +1521,7 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 							    &fphy_status, NULL);
 				if (IS_ERR(phydev)) {
 					netdev_err(netdev, "No PHY/fixed_PHY found\n");
-					return -EIO;
+					return PTR_ERR(phydev);
 				}
 			} else {
 				goto return_error;
@@ -1849,6 +1868,50 @@ static int lan743x_tx_get_avail_desc(struct lan743x_tx *tx)
 		return tx->ring_size - last_tail + last_head - 1;
 	else
 		return last_head - last_tail - 1;
+}
+
+static void lan743x_rx_cfg_b_tstamp_config(struct lan743x_adapter *adapter,
+					   int rx_ts_config)
+{
+	int channel_number;
+	int index;
+	u32 data;
+
+	for (index = 0; index < LAN743X_USED_RX_CHANNELS; index++) {
+		channel_number = adapter->rx[index].channel_number;
+		data = lan743x_csr_read(adapter, RX_CFG_B(channel_number));
+		data &= RX_CFG_B_TS_MASK_;
+		data |= rx_ts_config;
+		lan743x_csr_write(adapter, RX_CFG_B(channel_number),
+				  data);
+	}
+}
+
+int lan743x_rx_set_tstamp_mode(struct lan743x_adapter *adapter,
+			       int rx_filter)
+{
+	u32 data;
+
+	switch (rx_filter) {
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+			lan743x_rx_cfg_b_tstamp_config(adapter,
+						       RX_CFG_B_TS_DESCR_EN_);
+			data = lan743x_csr_read(adapter, PTP_RX_TS_CFG);
+			data |= PTP_RX_TS_CFG_EVENT_MSGS_;
+			lan743x_csr_write(adapter, PTP_RX_TS_CFG, data);
+			break;
+	case HWTSTAMP_FILTER_NONE:
+			lan743x_rx_cfg_b_tstamp_config(adapter,
+						       RX_CFG_B_TS_NONE_);
+			break;
+	case HWTSTAMP_FILTER_ALL:
+			lan743x_rx_cfg_b_tstamp_config(adapter,
+						       RX_CFG_B_TS_ALL_RX_);
+			break;
+	default:
+			return -ERANGE;
+	}
+	return 0;
 }
 
 void lan743x_tx_set_timestamping_mode(struct lan743x_tx *tx,
@@ -2925,7 +2988,6 @@ static int lan743x_rx_open(struct lan743x_rx *rx)
 		data |= RX_CFG_B_RX_PAD_2_;
 	data &= ~RX_CFG_B_RX_RING_LEN_MASK_;
 	data |= ((rx->ring_size) & RX_CFG_B_RX_RING_LEN_MASK_);
-	data |= RX_CFG_B_TS_ALL_RX_;
 	if (!(adapter->csr.flags & LAN743X_CSR_FLAG_IS_A0))
 		data |= RX_CFG_B_RDMABL_512_;
 

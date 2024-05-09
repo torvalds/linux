@@ -27,6 +27,7 @@
 #include <linux/preempt.h>
 #include <linux/bottom_half.h>
 #include <linux/lockdep.h>
+#include <linux/cleanup.h>
 #include <asm/processor.h>
 #include <linux/cpumask.h>
 #include <linux/context_tracking_irq.h>
@@ -121,8 +122,6 @@ static inline void call_rcu_hurry(struct rcu_head *head, rcu_callback_t func)
 void rcu_init(void);
 extern int rcu_scheduler_active;
 void rcu_sched_clock_irq(int user);
-void rcu_report_dead(unsigned int cpu);
-void rcutree_migrate_callbacks(int cpu);
 
 #ifdef CONFIG_TASKS_RCU_GENERIC
 void rcu_init_tasks_generic(void);
@@ -1056,5 +1055,7 @@ rcu_head_after_call_rcu(struct rcu_head *rhp, rcu_callback_t f)
 /* kernel/ksysfs.c definitions */
 extern int rcu_expedited;
 extern int rcu_normal;
+
+DEFINE_LOCK_GUARD_0(rcu, rcu_read_lock(), rcu_read_unlock())
 
 #endif /* __LINUX_RCUPDATE_H */

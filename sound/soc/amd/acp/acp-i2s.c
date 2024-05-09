@@ -20,10 +20,55 @@
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 #include <linux/dma-mapping.h>
+#include <linux/bitfield.h>
 
 #include "amd.h"
 
 #define DRV_NAME "acp_i2s_playcap"
+#define	I2S_MASTER_MODE_ENABLE		1
+#define	I2S_MODE_ENABLE			0
+#define	LRCLK_DIV_FIELD			GENMASK(10, 2)
+#define	BCLK_DIV_FIELD			GENMASK(23, 11)
+#define	ACP63_LRCLK_DIV_FIELD		GENMASK(12, 2)
+#define	ACP63_BCLK_DIV_FIELD		GENMASK(23, 13)
+
+static inline void acp_set_i2s_clk(struct acp_dev_data *adata, int dai_id)
+{
+	u32 i2s_clk_reg, val;
+	struct acp_chip_info *chip;
+	struct device *dev;
+
+	dev = adata->dev;
+	chip = dev_get_platdata(dev);
+	switch (dai_id) {
+	case I2S_SP_INSTANCE:
+		i2s_clk_reg = ACP_I2STDM0_MSTRCLKGEN;
+		break;
+	case I2S_BT_INSTANCE:
+		i2s_clk_reg = ACP_I2STDM1_MSTRCLKGEN;
+		break;
+	case I2S_HS_INSTANCE:
+		i2s_clk_reg = ACP_I2STDM2_MSTRCLKGEN;
+		break;
+	default:
+		i2s_clk_reg = ACP_I2STDM0_MSTRCLKGEN;
+		break;
+	}
+
+	val  = I2S_MASTER_MODE_ENABLE;
+	val |= I2S_MODE_ENABLE & BIT(1);
+
+	switch (chip->acp_rev) {
+	case ACP63_DEV:
+		val |= FIELD_PREP(ACP63_LRCLK_DIV_FIELD, adata->lrclk_div);
+		val |= FIELD_PREP(ACP63_BCLK_DIV_FIELD, adata->bclk_div);
+		break;
+	default:
+		val |= FIELD_PREP(LRCLK_DIV_FIELD, adata->lrclk_div);
+		val |= FIELD_PREP(BCLK_DIV_FIELD, adata->bclk_div);
+	}
+	writel(val, adata->acp_base + i2s_clk_reg);
+}
 
 static int acp_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 			   unsigned int fmt)
@@ -149,6 +194,7 @@ static int acp_i2s_hwparams(struct snd_pcm_substream *substream, struct snd_pcm_
 			dev_err(dev, "Invalid dai id %x\n", dai->driver->id);
 			return -EINVAL;
 		}
+		adata->xfer_tx_resolution[dai->driver->id - 1] = xfer_resolution;
 	} else {
 		switch (dai->driver->id) {
 		case I2S_BT_INSTANCE:
@@ -167,6 +213,7 @@ static int acp_i2s_hwparams(struct snd_pcm_substream *substream, struct snd_pcm_
 			dev_err(dev, "Invalid dai id %x\n", dai->driver->id);
 			return -EINVAL;
 		}
+		adata->xfer_rx_resolution[dai->driver->id - 1] = xfer_resolution;
 	}
 
 	val = readl(adata->acp_base + reg_val);
@@ -537,17 +584,7 @@ static int acp_i2s_startup(struct snd_pcm_substream *substream, struct snd_soc_d
 	return 0;
 }
 
-const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops = {
-	.startup = acp_i2s_startup,
-	.hw_params = acp_i2s_hwparams,
-	.prepare = acp_i2s_prepare,
-	.trigger = acp_i2s_trigger,
-	.set_fmt = acp_i2s_set_fmt,
-	.set_tdm_slot = acp_i2s_set_tdm_slot,
-};
-EXPORT_SYMBOL_NS_GPL(asoc_acp_cpu_dai_ops, SND_SOC_ACP_COMMON);
-
-int asoc_acp_i2s_probe(struct snd_soc_dai *dai)
+static int acp_i2s_probe(struct snd_soc_dai *dai)
 {
 	struct device *dev = dai->component->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
@@ -567,7 +604,17 @@ int asoc_acp_i2s_probe(struct snd_soc_dai *dai)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(asoc_acp_i2s_probe, SND_SOC_ACP_COMMON);
+
+const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops = {
+	.probe		= acp_i2s_probe,
+	.startup	= acp_i2s_startup,
+	.hw_params	= acp_i2s_hwparams,
+	.prepare	= acp_i2s_prepare,
+	.trigger	= acp_i2s_trigger,
+	.set_fmt	= acp_i2s_set_fmt,
+	.set_tdm_slot	= acp_i2s_set_tdm_slot,
+};
+EXPORT_SYMBOL_NS_GPL(asoc_acp_cpu_dai_ops, SND_SOC_ACP_COMMON);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS(DRV_NAME);

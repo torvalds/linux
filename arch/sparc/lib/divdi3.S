@@ -5,7 +5,7 @@ This file is part of GNU CC.
 
  */
 
-#include <asm/export.h>
+#include <linux/export.h>
 	.text
 	.align 4
 	.globl __divdi3

@@ -133,7 +133,7 @@
 
 &i2c13 {
 	/* SMB_PCIE2_STBY_LVC3 */
-	mux-expa@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9548";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -144,7 +144,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
-			rsra-mux@72 {
+			i2c-mux@72 {
 				compatible = "nxp,pca9548";
 				reg = <0x72>;
 				#address-cells = <1>;
@@ -165,7 +165,7 @@
 			};
 		};
 	};
-	mux-sata@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9543";
 		reg = <0x71>;
 		#address-cells = <1>;
@@ -176,7 +176,7 @@
 
 &i2c2 {
 	/* SMB_PCIE_STBY_LVC3 */
-	mux-expb@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		reg = <0x71>;
 		#address-cells = <1>;
@@ -187,7 +187,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
-			rsrb-mux@72 {
+			i2c-mux@72 {
 				compatible = "nxp,pca9548";
 				reg = <0x72>;
 				#address-cells = <1>;

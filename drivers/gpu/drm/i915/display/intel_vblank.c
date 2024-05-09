@@ -251,6 +251,20 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + crtc->scanline_offset) % vtotal;
 }
 
+int intel_crtc_scanline_to_hw(struct intel_crtc *crtc, int scanline)
+{
+	const struct drm_vblank_crtc *vblank =
+		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
+	const struct drm_display_mode *mode = &vblank->hwmode;
+	int vtotal;
+
+	vtotal = mode->crtc_vtotal;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vtotal /= 2;
+
+	return (scanline + vtotal - crtc->scanline_offset) % vtotal;
+}
+
 static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 				     bool in_vblank_irq,
 				     int *vpos, int *hpos,

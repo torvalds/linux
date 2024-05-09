@@ -2,6 +2,7 @@
 config ALTERA_TSE
 	tristate "Altera Triple-Speed Ethernet MAC support"
 	depends on HAS_DMA
+	depends on HAS_IOMEM
 	select PHYLIB
 	select PHYLINK
 	select PCS_LYNX

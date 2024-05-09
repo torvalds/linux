@@ -255,7 +255,7 @@ err_put:
 
 static int iommufd_vfio_cc_iommu(struct iommufd_ctx *ictx)
 {
-	struct iommufd_hw_pagetable *hwpt;
+	struct iommufd_hwpt_paging *hwpt_paging;
 	struct iommufd_ioas *ioas;
 	int rc = 1;
 
@@ -264,8 +264,8 @@ static int iommufd_vfio_cc_iommu(struct iommufd_ctx *ictx)
 		return PTR_ERR(ioas);
 
 	mutex_lock(&ioas->mutex);
-	list_for_each_entry(hwpt, &ioas->hwpt_list, hwpt_item) {
-		if (!hwpt->enforce_cache_coherency) {
+	list_for_each_entry(hwpt_paging, &ioas->hwpt_list, hwpt_item) {
+		if (!hwpt_paging->enforce_cache_coherency) {
 			rc = 0;
 			break;
 		}
@@ -483,6 +483,8 @@ static int iommufd_vfio_iommu_get_info(struct iommufd_ctx *ictx,
 			rc = cap_size;
 			goto out_put;
 		}
+		cap_size = ALIGN(cap_size, sizeof(u64));
+
 		if (last_cap && info.argsz >= total_cap_size &&
 		    put_user(total_cap_size, &last_cap->next)) {
 			rc = -EFAULT;

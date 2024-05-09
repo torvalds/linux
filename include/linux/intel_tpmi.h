@@ -6,6 +6,12 @@
 #ifndef _INTEL_TPMI_H_
 #define _INTEL_TPMI_H_
 
+#include <linux/bitfield.h>
+
+#define TPMI_VERSION_INVALID	0xff
+#define TPMI_MINOR_VERSION(val)	FIELD_GET(GENMASK(4, 0), val)
+#define TPMI_MAJOR_VERSION(val)	FIELD_GET(GENMASK(7, 5), val)
+
 /**
  * struct intel_tpmi_plat_info - Platform information for a TPMI device instance
  * @package_id:	CPU Package id
@@ -27,4 +33,6 @@ struct intel_tpmi_plat_info *tpmi_get_platform_data(struct auxiliary_device *aux
 struct resource *tpmi_get_resource_at_index(struct auxiliary_device *auxdev, int index);
 int tpmi_get_resource_count(struct auxiliary_device *auxdev);
 
+int tpmi_get_feature_status(struct auxiliary_device *auxdev, int feature_id, int *locked,
+			    int *disabled);
 #endif

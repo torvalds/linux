@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 
@@ -38,8 +38,6 @@ struct panel_info {
 	struct gpio_desc *reset_gpio;
 	struct backlight_device *backlight;
 	struct regulator *vddio;
-
-	bool prepared;
 };
 
 struct panel_desc {
@@ -1046,9 +1044,6 @@ static int nt36523_prepare(struct drm_panel *panel)
 	struct panel_info *pinfo = to_panel_info(panel);
 	int ret;
 
-	if (pinfo->prepared)
-		return 0;
-
 	ret = regulator_enable(pinfo->vddio);
 	if (ret) {
 		dev_err(panel->dev, "failed to enable vddio regulator: %d\n", ret);
@@ -1063,8 +1058,6 @@ static int nt36523_prepare(struct drm_panel *panel)
 		dev_err(panel->dev, "failed to initialize panel: %d\n", ret);
 		return ret;
 	}
-
-	pinfo->prepared = true;
 
 	return 0;
 }
@@ -1095,13 +1088,8 @@ static int nt36523_unprepare(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
 
-	if (!pinfo->prepared)
-		return 0;
-
 	gpiod_set_value_cansleep(pinfo->reset_gpio, 1);
 	regulator_disable(pinfo->vddio);
-
-	pinfo->prepared = false;
 
 	return 0;
 }

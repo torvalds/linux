@@ -5,9 +5,8 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/i2c.h>
-#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -291,7 +290,7 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_card *card = rtd->card;
 	struct imx_card_data *data = snd_soc_card_get_drvdata(card);
 	struct dai_link_data *link_data = &data->link_data[rtd->num];
@@ -607,7 +606,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 				plat_data->type = CODEC_AK5552;
 
 		} else {
-			link->codecs	 = &asoc_dummy_dlc;
+			link->codecs	 = &snd_soc_dummy_dlc;
 			link->num_codecs = 1;
 		}
 
@@ -655,7 +654,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 			snd_soc_dai_link_set_capabilities(link);
 
 		/* Get dai fmt */
-		ret = asoc_simple_parse_daifmt(dev, np, codec,
+		ret = simple_util_parse_daifmt(dev, np, codec,
 					       NULL, &link->dai_fmt);
 		if (ret)
 			link->dai_fmt = SND_SOC_DAIFMT_NB_NF |

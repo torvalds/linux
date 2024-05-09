@@ -556,16 +556,6 @@ static inline void prcmu_clear(unsigned int reg, u32 bits)
 #define PRCMU_QOS_ARM_OPP 3
 #define PRCMU_QOS_DEFAULT_VALUE -1
 
-static inline unsigned long prcmu_qos_get_cpufreq_opp_delay(void)
-{
-	return 0;
-}
-
-static inline int prcmu_qos_requirement(int prcmu_qos_class)
-{
-	return 0;
-}
-
 static inline int prcmu_qos_add_requirement(int prcmu_qos_class,
 					    char *name, s32 value)
 {
@@ -580,17 +570,6 @@ static inline int prcmu_qos_update_requirement(int prcmu_qos_class,
 
 static inline void prcmu_qos_remove_requirement(int prcmu_qos_class, char *name)
 {
-}
-
-static inline int prcmu_qos_add_notifier(int prcmu_qos_class,
-					 struct notifier_block *notifier)
-{
-	return 0;
-}
-static inline int prcmu_qos_remove_notifier(int prcmu_qos_class,
-					    struct notifier_block *notifier)
-{
-	return 0;
 }
 
 #endif /* __MACH_PRCMU_H */

@@ -27,7 +27,6 @@
 
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
-#include <asm/ide.h>
 #include <asm/setup.h>
 
 #define DRV_NAME "pata_buddha"

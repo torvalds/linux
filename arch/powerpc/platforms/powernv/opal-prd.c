@@ -24,13 +24,20 @@
 #include <linux/uaccess.h>
 
 
+struct opal_prd_msg {
+	union {
+		struct opal_prd_msg_header header;
+		DECLARE_FLEX_ARRAY(u8, data);
+	};
+};
+
 /*
  * The msg member must be at the end of the struct, as it's followed by the
  * message data.
  */
 struct opal_prd_msg_queue_item {
-	struct list_head		list;
-	struct opal_prd_msg_header	msg;
+	struct list_head	list;
+	struct opal_prd_msg	msg;
 };
 
 static struct device_node *prd_node;
@@ -156,7 +163,7 @@ static ssize_t opal_prd_read(struct file *file, char __user *buf,
 	int rc;
 
 	/* we need at least a header's worth of data */
-	if (count < sizeof(item->msg))
+	if (count < sizeof(item->msg.header))
 		return -EINVAL;
 
 	if (*ppos)
@@ -186,7 +193,7 @@ static ssize_t opal_prd_read(struct file *file, char __user *buf,
 			return -EINTR;
 	}
 
-	size = be16_to_cpu(item->msg.size);
+	size = be16_to_cpu(item->msg.header.size);
 	if (size > count) {
 		err = -EINVAL;
 		goto err_requeue;
@@ -214,8 +221,8 @@ static ssize_t opal_prd_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	struct opal_prd_msg_header hdr;
+	struct opal_prd_msg *msg;
 	ssize_t size;
-	void *msg;
 	int rc;
 
 	size = sizeof(hdr);
@@ -247,12 +254,12 @@ static ssize_t opal_prd_write(struct file *file, const char __user *buf,
 
 static int opal_prd_release(struct inode *inode, struct file *file)
 {
-	struct opal_prd_msg_header msg;
+	struct opal_prd_msg msg;
 
-	msg.size = cpu_to_be16(sizeof(msg));
-	msg.type = OPAL_PRD_MSG_TYPE_FINI;
+	msg.header.size = cpu_to_be16(sizeof(msg));
+	msg.header.type = OPAL_PRD_MSG_TYPE_FINI;
 
-	opal_prd_msg((struct opal_prd_msg *)&msg);
+	opal_prd_msg(&msg);
 
 	atomic_xchg(&prd_usage, 0);
 
@@ -352,7 +359,7 @@ static int opal_prd_msg_notifier(struct notifier_block *nb,
 	if (!item)
 		return -ENOMEM;
 
-	memcpy(&item->msg, msg->params, msg_size);
+	memcpy(&item->msg.data, msg->params, msg_size);
 
 	spin_lock_irqsave(&opal_prd_msg_queue_lock, flags);
 	list_add_tail(&item->list, &opal_prd_msg_queue);

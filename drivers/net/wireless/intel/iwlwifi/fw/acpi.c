@@ -69,6 +69,11 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
 		},
 	},
+	{ .ident = "RAZER",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Razer"),
+		},
+	},
 	{}
 };
 
@@ -1006,18 +1011,29 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	int ret;
 	u8 value;
+	u32 val;
 	__le32 config_bitmap = 0;
 
 	/*
-	 ** Evaluate func 'DSM_FUNC_ENABLE_INDONESIA_5G2'
+	 * Evaluate func 'DSM_FUNC_ENABLE_INDONESIA_5G2'.
+	 * Setting config_bitmap Indonesia bit is valid only for HR/JF.
 	 */
-	ret = iwl_acpi_get_dsm_u8(fwrt->dev, 0,
-				  DSM_FUNC_ENABLE_INDONESIA_5G2,
-				  &iwl_guid, &value);
+	switch (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id)) {
+	case IWL_CFG_RF_TYPE_HR1:
+	case IWL_CFG_RF_TYPE_HR2:
+	case IWL_CFG_RF_TYPE_JF1:
+	case IWL_CFG_RF_TYPE_JF2:
+		ret = iwl_acpi_get_dsm_u8(fwrt->dev, 0,
+					  DSM_FUNC_ENABLE_INDONESIA_5G2,
+					  &iwl_guid, &value);
 
-	if (!ret && value == DSM_VALUE_INDONESIA_ENABLE)
-		config_bitmap |=
-			cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
+		if (!ret && value == DSM_VALUE_INDONESIA_ENABLE)
+			config_bitmap |=
+			    cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
+		break;
+	default:
+		break;
+	}
 
 	/*
 	 ** Evaluate func 'DSM_FUNC_DISABLE_SRD'
@@ -1032,6 +1048,23 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 		else if (value == DSM_VALUE_SRD_DISABLE)
 			config_bitmap |=
 				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
+	}
+
+	if (fw_has_capa(&fwrt->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT)) {
+		/*
+		 ** Evaluate func 'DSM_FUNC_REGULATORY_CONFIG'
+		 */
+		ret = iwl_acpi_get_dsm_u32(fwrt->dev, 0,
+					   DSM_FUNC_REGULATORY_CONFIG,
+					   &iwl_guid, &val);
+		/*
+		 * China 2022 enable if the BIOS object does not exist or
+		 * if it is enabled in BIOS.
+		 */
+		if (ret < 0 || val & DSM_MASK_CHINA_22_REG)
+			config_bitmap |=
+				cpu_to_le32(LARI_CONFIG_ENABLE_CHINA_22_REG_SUPPORT_MSK);
 	}
 
 	return config_bitmap;

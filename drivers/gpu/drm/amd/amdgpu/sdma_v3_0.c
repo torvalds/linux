@@ -513,8 +513,6 @@ static void sdma_v3_0_gfx_stop(struct amdgpu_device *adev)
 	u32 rb_cntl, ib_cntl;
 	int i;
 
-	amdgpu_sdma_unset_buffer_funcs_helper(adev);
-
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i]);
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_GFX_RB_CNTL, RB_ENABLE, 0);
@@ -746,9 +744,6 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
 			return r;
-
-		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 	}
 
 	return 0;
@@ -1087,6 +1082,7 @@ static void sdma_v3_0_ring_emit_wreg(struct amdgpu_ring *ring,
 static int sdma_v3_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
 
 	switch (adev->asic_type) {
 	case CHIP_STONEY:
@@ -1096,6 +1092,10 @@ static int sdma_v3_0_early_init(void *handle)
 		adev->sdma.num_instances = SDMA_MAX_INSTANCE;
 		break;
 	}
+
+	r = sdma_v3_0_init_microcode(adev);
+	if (r)
+		return r;
 
 	sdma_v3_0_set_ring_funcs(adev);
 	sdma_v3_0_set_buffer_funcs(adev);
@@ -1128,12 +1128,6 @@ static int sdma_v3_0_sw_init(void *handle)
 			      &adev->sdma.illegal_inst_irq);
 	if (r)
 		return r;
-
-	r = sdma_v3_0_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
-		return r;
-	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;

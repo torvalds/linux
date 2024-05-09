@@ -636,7 +636,7 @@ void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
 	const gchar *intro_text =
-	    "Welcome to gkc, the GTK+ graphical configuration tool\n"
+	    "Welcome to gconfig, the GTK+ graphical configuration tool.\n"
 	    "For each option, a blank box indicates the feature is disabled, a\n"
 	    "check indicates it is enabled, and a dot indicates that it is to\n"
 	    "be compiled as a module.  Clicking on the box will cycle through the three states.\n"
@@ -647,10 +647,7 @@ void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	    "Although there is no cross reference yet to help you figure out\n"
 	    "what other options must be enabled to support the option you\n"
 	    "are interested in, you can still view the help of a grayed-out\n"
-	    "option.\n"
-	    "\n"
-	    "Toggling Show Debug Info under the Options menu will show \n"
-	    "the dependencies, which you can then match by examining other options.";
+	    "option.";
 
 	dialog = gtk_message_dialog_new(GTK_WINDOW(main_wnd),
 					GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -667,7 +664,7 @@ void on_about1_activate(GtkMenuItem * menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
 	const gchar *about_text =
-	    "gkc is copyright (c) 2002 Romain Lievin <roms@lpg.ticalc.org>.\n"
+	    "gconfig is copyright (c) 2002 Romain Lievin <roms@lpg.ticalc.org>.\n"
 	      "Based on the source code from Roman Zippel.\n";
 
 	dialog = gtk_message_dialog_new(GTK_WINDOW(main_wnd),
@@ -685,7 +682,7 @@ void on_license1_activate(GtkMenuItem * menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
 	const gchar *license_text =
-	    "gkc is released under the terms of the GNU GPL v2.\n"
+	    "gconfig is released under the terms of the GNU GPL v2.\n"
 	      "For more information, please see the source code or\n"
 	      "visit http://www.fsf.org/licenses/licenses.html\n";
 

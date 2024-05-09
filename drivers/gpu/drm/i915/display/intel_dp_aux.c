@@ -14,7 +14,22 @@
 #include "intel_pps.h"
 #include "intel_tc.h"
 
-static u32 intel_dp_aux_pack(const u8 *src, int src_bytes)
+#define AUX_CH_NAME_BUFSIZE	6
+
+static const char *aux_ch_name(struct drm_i915_private *i915,
+			       char *buf, int size, enum aux_ch aux_ch)
+{
+	if (DISPLAY_VER(i915) >= 13 && aux_ch >= AUX_CH_D_XELPD)
+		snprintf(buf, size, "%c", 'A' + aux_ch - AUX_CH_D_XELPD + AUX_CH_D);
+	else if (DISPLAY_VER(i915) >= 12 && aux_ch >= AUX_CH_USBC1)
+		snprintf(buf, size, "USBC%c", '1' + aux_ch - AUX_CH_USBC1);
+	else
+		snprintf(buf, size, "%c", 'A' + aux_ch);
+
+	return buf;
+}
+
+u32 intel_dp_aux_pack(const u8 *src, int src_bytes)
 {
 	int i;
 	u32 v = 0;
@@ -687,10 +702,10 @@ static i915_reg_t xelpdp_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-		return XELPDP_DP_AUX_CH_CTL(aux_ch);
+		return XELPDP_DP_AUX_CH_CTL(dev_priv, aux_ch);
 	default:
 		MISSING_CASE(aux_ch);
-		return XELPDP_DP_AUX_CH_CTL(AUX_CH_A);
+		return XELPDP_DP_AUX_CH_CTL(dev_priv, AUX_CH_A);
 	}
 }
 
@@ -707,10 +722,10 @@ static i915_reg_t xelpdp_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-		return XELPDP_DP_AUX_CH_DATA(aux_ch, index);
+		return XELPDP_DP_AUX_CH_DATA(dev_priv, aux_ch, index);
 	default:
 		MISSING_CASE(aux_ch);
-		return XELPDP_DP_AUX_CH_DATA(AUX_CH_A, index);
+		return XELPDP_DP_AUX_CH_DATA(dev_priv, AUX_CH_A, index);
 	}
 }
 
@@ -728,6 +743,7 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	enum aux_ch aux_ch = dig_port->aux_ch;
+	char buf[AUX_CH_NAME_BUFSIZE];
 
 	if (DISPLAY_VER(dev_priv) >= 14) {
 		intel_dp->aux_ch_ctl_reg = xelpdp_aux_ctl_reg;
@@ -764,18 +780,9 @@ void intel_dp_aux_init(struct intel_dp *intel_dp)
 	drm_dp_aux_init(&intel_dp->aux);
 
 	/* Failure to allocate our preferred name is not critical */
-	if (DISPLAY_VER(dev_priv) >= 13 && aux_ch >= AUX_CH_D_XELPD)
-		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/%s",
-					       aux_ch_name(aux_ch - AUX_CH_D_XELPD + AUX_CH_D),
-					       encoder->base.name);
-	else if (DISPLAY_VER(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
-		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX USBC%c/%s",
-					       aux_ch - AUX_CH_USBC1 + '1',
-					       encoder->base.name);
-	else
-		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/%s",
-					       aux_ch_name(aux_ch),
-					       encoder->base.name);
+	intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %s/%s",
+				       aux_ch_name(dev_priv, buf, sizeof(buf), aux_ch),
+				       encoder->base.name);
 
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 	cpu_latency_qos_add_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
@@ -792,25 +799,62 @@ static enum aux_ch default_aux_ch(struct intel_encoder *encoder)
 	return (enum aux_ch)encoder->port;
 }
 
+static struct intel_encoder *
+get_encoder_by_aux_ch(struct intel_encoder *encoder,
+		      enum aux_ch aux_ch)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_encoder *other;
+
+	for_each_intel_encoder(&i915->drm, other) {
+		if (other == encoder)
+			continue;
+
+		if (!intel_encoder_is_dig_port(other))
+			continue;
+
+		if (enc_to_dig_port(other)->aux_ch == aux_ch)
+			return other;
+	}
+
+	return NULL;
+}
+
 enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_encoder *other;
+	const char *source;
 	enum aux_ch aux_ch;
+	char buf[AUX_CH_NAME_BUFSIZE];
 
 	aux_ch = intel_bios_dp_aux_ch(encoder->devdata);
-	if (aux_ch != AUX_CH_NONE) {
-		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] using AUX %c (VBT)\n",
-			    encoder->base.base.id, encoder->base.name,
-			    aux_ch_name(aux_ch));
-		return aux_ch;
+	source = "VBT";
+
+	if (aux_ch == AUX_CH_NONE) {
+		aux_ch = default_aux_ch(encoder);
+		source = "platform default";
 	}
 
-	aux_ch = default_aux_ch(encoder);
+	if (aux_ch == AUX_CH_NONE)
+		return AUX_CH_NONE;
+
+	/* FIXME validate aux_ch against platform caps */
+
+	other = get_encoder_by_aux_ch(encoder, aux_ch);
+	if (other) {
+		drm_dbg_kms(&i915->drm,
+			    "[ENCODER:%d:%s] AUX CH %s already claimed by [ENCODER:%d:%s]\n",
+			    encoder->base.base.id, encoder->base.name,
+			    aux_ch_name(i915, buf, sizeof(buf), aux_ch),
+			    other->base.base.id, other->base.name);
+		return AUX_CH_NONE;
+	}
 
 	drm_dbg_kms(&i915->drm,
-		    "[ENCODER:%d:%s] using AUX %c (platform default)\n",
+		    "[ENCODER:%d:%s] Using AUX CH %s (%s)\n",
 		    encoder->base.base.id, encoder->base.name,
-		    aux_ch_name(aux_ch));
+		    aux_ch_name(i915, buf, sizeof(buf), aux_ch), source);
 
 	return aux_ch;
 }

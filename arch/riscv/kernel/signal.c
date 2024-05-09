@@ -311,13 +311,6 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
 	/* Align the stack frame. */
 	sp &= ~0xfUL;
 
-	/*
-	 * Fail if the size of the altstack is not large enough for the
-	 * sigframe construction.
-	 */
-	if (current->sas_ss_size && sp < current->sas_ss_sp)
-		return (void __user __force *)-1UL;
-
 	return (void __user *)sp;
 }
 

@@ -73,7 +73,7 @@ static void test_insert_bound(struct test_sockmap_listen *skel __always_unused,
 			      int family, int sotype, int mapfd)
 {
 	struct sockaddr_storage addr;
-	socklen_t len;
+	socklen_t len = 0;
 	u32 key = 0;
 	u64 value;
 	int err, s;
@@ -869,6 +869,77 @@ static void test_msg_redir_to_listening(struct test_sockmap_listen *skel,
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_MSG_VERDICT);
 }
 
+static void redir_partial(int family, int sotype, int sock_map, int parser_map)
+{
+	int s, c0 = -1, c1 = -1, p0 = -1, p1 = -1;
+	int err, n, key, value;
+	char buf[] = "abc";
+
+	key = 0;
+	value = sizeof(buf) - 1;
+	err = xbpf_map_update_elem(parser_map, &key, &value, 0);
+	if (err)
+		return;
+
+	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
+	if (s < 0)
+		goto clean_parser_map;
+
+	err = create_socket_pairs(s, family, sotype, &c0, &c1, &p0, &p1);
+	if (err)
+		goto close_srv;
+
+	err = add_to_sockmap(sock_map, p0, p1);
+	if (err)
+		goto close;
+
+	n = xsend(c1, buf, sizeof(buf), 0);
+	if (n < sizeof(buf))
+		FAIL("incomplete write");
+
+	n = xrecv_nonblock(c0, buf, sizeof(buf), 0);
+	if (n != sizeof(buf) - 1)
+		FAIL("expect %zu, received %d", sizeof(buf) - 1, n);
+
+close:
+	xclose(c0);
+	xclose(p0);
+	xclose(c1);
+	xclose(p1);
+close_srv:
+	xclose(s);
+
+clean_parser_map:
+	key = 0;
+	value = 0;
+	xbpf_map_update_elem(parser_map, &key, &value, 0);
+}
+
+static void test_skb_redir_partial(struct test_sockmap_listen *skel,
+				   struct bpf_map *inner_map, int family,
+				   int sotype)
+{
+	int verdict = bpf_program__fd(skel->progs.prog_stream_verdict);
+	int parser = bpf_program__fd(skel->progs.prog_stream_parser);
+	int parser_map = bpf_map__fd(skel->maps.parser_map);
+	int sock_map = bpf_map__fd(inner_map);
+	int err;
+
+	err = xbpf_prog_attach(parser, sock_map, BPF_SK_SKB_STREAM_PARSER, 0);
+	if (err)
+		return;
+
+	err = xbpf_prog_attach(verdict, sock_map, BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (err)
+		goto detach;
+
+	redir_partial(family, sotype, sock_map, parser_map);
+
+	xbpf_prog_detach2(verdict, sock_map, BPF_SK_SKB_STREAM_VERDICT);
+detach:
+	xbpf_prog_detach2(parser, sock_map, BPF_SK_SKB_STREAM_PARSER);
+}
+
 static void test_reuseport_select_listening(int family, int sotype,
 					    int sock_map, int verd_map,
 					    int reuseport_prog)
@@ -1243,6 +1314,7 @@ static void test_redir(struct test_sockmap_listen *skel, struct bpf_map *map,
 	} tests[] = {
 		TEST(test_skb_redir_to_connected),
 		TEST(test_skb_redir_to_listening),
+		TEST(test_skb_redir_partial),
 		TEST(test_msg_redir_to_connected),
 		TEST(test_msg_redir_to_listening),
 	};
@@ -1264,18 +1336,48 @@ static void test_redir(struct test_sockmap_listen *skel, struct bpf_map *map,
 	}
 }
 
-static void unix_redir_to_connected(int sotype, int sock_mapfd,
-			       int verd_mapfd, enum redir_mode mode)
+static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
+				     int sock_mapfd, int verd_mapfd, enum redir_mode mode)
 {
 	const char *log_prefix = redir_mode_str(mode);
-	int c0, c1, p0, p1;
 	unsigned int pass;
 	int err, n;
-	int sfd[2];
 	u32 key;
 	char b;
 
 	zero_verdict_count(verd_mapfd);
+
+	err = add_to_sockmap(sock_mapfd, peer0, peer1);
+	if (err)
+		return;
+
+	n = write(cli1, "a", 1);
+	if (n < 0)
+		FAIL_ERRNO("%s: write", log_prefix);
+	if (n == 0)
+		FAIL("%s: incomplete write", log_prefix);
+	if (n < 1)
+		return;
+
+	key = SK_PASS;
+	err = xbpf_map_lookup_elem(verd_mapfd, &key, &pass);
+	if (err)
+		return;
+	if (pass != 1)
+		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
+
+	n = recv_timeout(mode == REDIR_INGRESS ? peer0 : cli0, &b, 1, 0, IO_TIMEOUT_SEC);
+	if (n < 0)
+		FAIL_ERRNO("%s: recv_timeout", log_prefix);
+	if (n == 0)
+		FAIL("%s: incomplete recv", log_prefix);
+}
+
+static void unix_redir_to_connected(int sotype, int sock_mapfd,
+			       int verd_mapfd, enum redir_mode mode)
+{
+	int c0, c1, p0, p1;
+	int sfd[2];
 
 	if (socketpair(AF_UNIX, sotype | SOCK_NONBLOCK, 0, sfd))
 		return;
@@ -1285,32 +1387,8 @@ static void unix_redir_to_connected(int sotype, int sock_mapfd,
 		goto close0;
 	c1 = sfd[0], p1 = sfd[1];
 
-	err = add_to_sockmap(sock_mapfd, p0, p1);
-	if (err)
-		goto close;
+	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, verd_mapfd, mode);
 
-	n = write(c1, "a", 1);
-	if (n < 0)
-		FAIL_ERRNO("%s: write", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete write", log_prefix);
-	if (n < 1)
-		goto close;
-
-	key = SK_PASS;
-	err = xbpf_map_lookup_elem(verd_mapfd, &key, &pass);
-	if (err)
-		goto close;
-	if (pass != 1)
-		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
-
-	n = recv_timeout(mode == REDIR_INGRESS ? p0 : c0, &b, 1, 0, IO_TIMEOUT_SEC);
-	if (n < 0)
-		FAIL_ERRNO("%s: recv_timeout", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete recv", log_prefix);
-
-close:
 	xclose(c1);
 	xclose(p1);
 close0:
@@ -1380,11 +1458,18 @@ static int vsock_socketpair_connectible(int sotype, int *v0, int *v1)
 	if (p < 0)
 		goto close_cli;
 
+	if (poll_connect(c, IO_TIMEOUT_SEC) < 0) {
+		FAIL_ERRNO("poll_connect");
+		goto close_acc;
+	}
+
 	*v0 = p;
 	*v1 = c;
 
 	return 0;
 
+close_acc:
+	close(p);
 close_cli:
 	close(c);
 close_srv:
@@ -1432,7 +1517,7 @@ static void vsock_unix_redir_connectible(int sock_mapfd, int verd_mapfd,
 	if (n < 1)
 		goto out;
 
-	n = recv(mode == REDIR_INGRESS ? u0 : u1, &b, sizeof(b), MSG_DONTWAIT);
+	n = xrecv_nonblock(mode == REDIR_INGRESS ? u0 : u1, &b, sizeof(b), 0);
 	if (n < 0)
 		FAIL("%s: recv() err, errno=%d", log_prefix, errno);
 	if (n == 0)
@@ -1582,14 +1667,8 @@ close_peer0:
 static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
 				   enum redir_mode mode)
 {
-	const char *log_prefix = redir_mode_str(mode);
 	int c0, c1, p0, p1;
-	unsigned int pass;
-	int err, n;
-	u32 key;
-	char b;
-
-	zero_verdict_count(verd_mapfd);
+	int err;
 
 	err = inet_socketpair(family, SOCK_DGRAM, &p0, &c0);
 	if (err)
@@ -1598,32 +1677,8 @@ static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
 	if (err)
 		goto close_cli0;
 
-	err = add_to_sockmap(sock_mapfd, p0, p1);
-	if (err)
-		goto close_cli1;
+	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, verd_mapfd, mode);
 
-	n = write(c1, "a", 1);
-	if (n < 0)
-		FAIL_ERRNO("%s: write", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete write", log_prefix);
-	if (n < 1)
-		goto close_cli1;
-
-	key = SK_PASS;
-	err = xbpf_map_lookup_elem(verd_mapfd, &key, &pass);
-	if (err)
-		goto close_cli1;
-	if (pass != 1)
-		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
-
-	n = recv_timeout(mode == REDIR_INGRESS ? p0 : c0, &b, 1, 0, IO_TIMEOUT_SEC);
-	if (n < 0)
-		FAIL_ERRNO("%s: recv_timeout", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete recv", log_prefix);
-
-close_cli1:
 	xclose(c1);
 	xclose(p1);
 close_cli0:
@@ -1668,15 +1723,9 @@ static void test_udp_redir(struct test_sockmap_listen *skel, struct bpf_map *map
 static void inet_unix_redir_to_connected(int family, int type, int sock_mapfd,
 					int verd_mapfd, enum redir_mode mode)
 {
-	const char *log_prefix = redir_mode_str(mode);
 	int c0, c1, p0, p1;
-	unsigned int pass;
-	int err, n;
 	int sfd[2];
-	u32 key;
-	char b;
-
-	zero_verdict_count(verd_mapfd);
+	int err;
 
 	if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0, sfd))
 		return;
@@ -1686,32 +1735,8 @@ static void inet_unix_redir_to_connected(int family, int type, int sock_mapfd,
 	if (err)
 		goto close;
 
-	err = add_to_sockmap(sock_mapfd, p0, p1);
-	if (err)
-		goto close_cli1;
+	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, verd_mapfd, mode);
 
-	n = write(c1, "a", 1);
-	if (n < 0)
-		FAIL_ERRNO("%s: write", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete write", log_prefix);
-	if (n < 1)
-		goto close_cli1;
-
-	key = SK_PASS;
-	err = xbpf_map_lookup_elem(verd_mapfd, &key, &pass);
-	if (err)
-		goto close_cli1;
-	if (pass != 1)
-		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
-
-	n = recv_timeout(mode == REDIR_INGRESS ? p0 : c0, &b, 1, 0, IO_TIMEOUT_SEC);
-	if (n < 0)
-		FAIL_ERRNO("%s: recv_timeout", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete recv", log_prefix);
-
-close_cli1:
 	xclose(c1);
 	xclose(p1);
 close:
@@ -1748,15 +1773,9 @@ static void inet_unix_skb_redir_to_connected(struct test_sockmap_listen *skel,
 static void unix_inet_redir_to_connected(int family, int type, int sock_mapfd,
 					int verd_mapfd, enum redir_mode mode)
 {
-	const char *log_prefix = redir_mode_str(mode);
 	int c0, c1, p0, p1;
-	unsigned int pass;
-	int err, n;
 	int sfd[2];
-	u32 key;
-	char b;
-
-	zero_verdict_count(verd_mapfd);
+	int err;
 
 	err = inet_socketpair(family, SOCK_DGRAM, &p0, &c0);
 	if (err)
@@ -1766,32 +1785,8 @@ static void unix_inet_redir_to_connected(int family, int type, int sock_mapfd,
 		goto close_cli0;
 	c1 = sfd[0], p1 = sfd[1];
 
-	err = add_to_sockmap(sock_mapfd, p0, p1);
-	if (err)
-		goto close;
+	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, verd_mapfd, mode);
 
-	n = write(c1, "a", 1);
-	if (n < 0)
-		FAIL_ERRNO("%s: write", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete write", log_prefix);
-	if (n < 1)
-		goto close;
-
-	key = SK_PASS;
-	err = xbpf_map_lookup_elem(verd_mapfd, &key, &pass);
-	if (err)
-		goto close;
-	if (pass != 1)
-		FAIL("%s: want pass count 1, have %d", log_prefix, pass);
-
-	n = recv_timeout(mode == REDIR_INGRESS ? p0 : c0, &b, 1, 0, IO_TIMEOUT_SEC);
-	if (n < 0)
-		FAIL_ERRNO("%s: recv_timeout", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete recv", log_prefix);
-
-close:
 	xclose(c1);
 	xclose(p1);
 close_cli0:

@@ -315,7 +315,7 @@ extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct inode *,
 						    struct nfs_fh *,
 						    struct nfs_fattr *);
 extern int nfs4_proc_secinfo(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);
-extern const struct xattr_handler *nfs4_xattr_handlers[];
+extern const struct xattr_handler * const nfs4_xattr_handlers[];
 extern int nfs4_set_rw_stateid(nfs4_stateid *stateid,
 		const struct nfs_open_context *ctx,
 		const struct nfs_lock_context *l_ctx,
@@ -328,7 +328,7 @@ extern int update_open_stateid(struct nfs4_state *state,
 				const nfs4_stateid *open_stateid,
 				const nfs4_stateid *deleg_stateid,
 				fmode_t fmode);
-extern int nfs4_proc_setlease(struct file *file, long arg,
+extern int nfs4_proc_setlease(struct file *file, int arg,
 			      struct file_lock **lease, void **priv);
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);

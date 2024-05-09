@@ -135,6 +135,7 @@ int dm_table_create(struct dm_table **result, blk_mode_t mode,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&t->devices);
+	init_rwsem(&t->devices_lock);
 
 	if (!num_targets)
 		num_targets = KEYS_PER_NODE;
@@ -359,16 +360,20 @@ int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 	if (dev == disk_devt(t->md->disk))
 		return -EINVAL;
 
+	down_write(&t->devices_lock);
+
 	dd = find_device(&t->devices, dev);
 	if (!dd) {
 		dd = kmalloc(sizeof(*dd), GFP_KERNEL);
-		if (!dd)
-			return -ENOMEM;
+		if (!dd) {
+			r = -ENOMEM;
+			goto unlock_ret_r;
+		}
 
 		r = dm_get_table_device(t->md, dev, mode, &dd->dm_dev);
 		if (r) {
 			kfree(dd);
-			return r;
+			goto unlock_ret_r;
 		}
 
 		refcount_set(&dd->count, 1);
@@ -378,12 +383,17 @@ int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 	} else if (dd->dm_dev->mode != (mode | dd->dm_dev->mode)) {
 		r = upgrade_mode(dd, mode, t->md);
 		if (r)
-			return r;
+			goto unlock_ret_r;
 	}
 	refcount_inc(&dd->count);
 out:
+	up_write(&t->devices_lock);
 	*result = dd->dm_dev;
 	return 0;
+
+unlock_ret_r:
+	up_write(&t->devices_lock);
+	return r;
 }
 EXPORT_SYMBOL(dm_get_device);
 
@@ -419,8 +429,11 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 void dm_put_device(struct dm_target *ti, struct dm_dev *d)
 {
 	int found = 0;
-	struct list_head *devices = &ti->table->devices;
+	struct dm_table *t = ti->table;
+	struct list_head *devices = &t->devices;
 	struct dm_dev_internal *dd;
+
+	down_write(&t->devices_lock);
 
 	list_for_each_entry(dd, devices, list) {
 		if (dd->dm_dev == d) {
@@ -430,14 +443,17 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d)
 	}
 	if (!found) {
 		DMERR("%s: device %s not in table devices list",
-		      dm_device_name(ti->table->md), d->name);
-		return;
+		      dm_device_name(t->md), d->name);
+		goto unlock_ret;
 	}
 	if (refcount_dec_and_test(&dd->count)) {
-		dm_put_table_device(ti->table->md, d);
+		dm_put_table_device(t->md, d);
 		list_del(&dd->list);
 		kfree(dd);
 	}
+
+unlock_ret:
+	up_write(&t->devices_lock);
 }
 EXPORT_SYMBOL(dm_put_device);
 
@@ -828,7 +844,8 @@ static bool dm_table_supports_dax(struct dm_table *t,
 		if (!ti->type->direct_access)
 			return false;
 
-		if (!ti->type->iterate_devices ||
+		if (dm_target_is_wildcard(ti->type) ||
+		    !ti->type->iterate_devices ||
 		    ti->type->iterate_devices(ti, iterate_fn, NULL))
 			return false;
 	}
@@ -1571,6 +1588,14 @@ static int device_not_zoned_model(struct dm_target *ti, struct dm_dev *dev,
 	return blk_queue_zoned_model(q) != *zoned_model;
 }
 
+static int device_is_zoned_model(struct dm_target *ti, struct dm_dev *dev,
+				 sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return blk_queue_zoned_model(q) != BLK_ZONED_NONE;
+}
+
 /*
  * Check the device zoned model based on the target feature flag. If the target
  * has the DM_TARGET_ZONED_HM feature flag set, host-managed zoned devices are
@@ -1583,6 +1608,18 @@ static bool dm_table_supports_zoned_model(struct dm_table *t,
 {
 	for (unsigned int i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(t, i);
+
+		/*
+		 * For the wildcard target (dm-error), if we do not have a
+		 * backing device, we must always return false. If we have a
+		 * backing device, the result must depend on checking zoned
+		 * model, like for any other target. So for this, check directly
+		 * if the target backing device is zoned as we get "false" when
+		 * dm-error was set without a backing device.
+		 */
+		if (dm_target_is_wildcard(ti->type) &&
+		    !ti->type->iterate_devices(ti, device_is_zoned_model, NULL))
+			return false;
 
 		if (dm_target_supports_zoned_hm(ti->type)) {
 			if (!ti->type->iterate_devices ||

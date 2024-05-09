@@ -69,7 +69,7 @@ struct htt_ver_req {
  * The HTT tx descriptor is defined in two manners: by a struct with
  * bitfields, and by a series of [dword offset, bit mask, bit shift]
  * definitions.
- * The target should use the struct def, for simplicitly and clarity,
+ * The target should use the struct def, for simplicity and clarity,
  * but the host shall use the bit-mast + bit-shift defs, to be endian-
  * neutral.  Specifically, the host shall use the get/set macros built
  * around the mask + shift defs.
@@ -880,8 +880,7 @@ enum htt_data_tx_status {
 	HTT_DATA_TX_STATUS_OK            = 0,
 	HTT_DATA_TX_STATUS_DISCARD       = 1,
 	HTT_DATA_TX_STATUS_NO_ACK        = 2,
-	HTT_DATA_TX_STATUS_POSTPONE      = 3, /* HL only */
-	HTT_DATA_TX_STATUS_DOWNLOAD_FAIL = 128
+	HTT_DATA_TX_STATUS_POSTPONE      = 3 /* HL only */
 };
 
 enum htt_data_tx_flags {
@@ -2086,7 +2085,7 @@ static inline bool ath10k_htt_rx_proc_rx_frag_ind(struct ath10k_htt *htt,
  * for correctly accessing rx descriptor data.
  */
 
-/* base struct used for abstracting the rx descritor representation */
+/* base struct used for abstracting the rx descriptor representation */
 struct htt_rx_desc {
 	union {
 		/* This field is filled on the host using the msdu buffer

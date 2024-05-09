@@ -69,8 +69,8 @@ struct io_uring_task {
 };
 
 struct io_uring {
-	u32 head ____cacheline_aligned_in_smp;
-	u32 tail ____cacheline_aligned_in_smp;
+	u32 head;
+	u32 tail;
 };
 
 /*
@@ -176,7 +176,6 @@ struct io_submit_state {
 	unsigned short		submit_nr;
 	unsigned int		cqes_count;
 	struct blk_plug		plug;
-	struct io_uring_cqe	cqes[16];
 };
 
 struct io_ev_fd {
@@ -205,25 +204,17 @@ struct io_ring_ctx {
 		unsigned int		has_evfd: 1;
 		/* all CQEs should be posted only by the submitter task */
 		unsigned int		task_complete: 1;
+		unsigned int		lockless_cq: 1;
 		unsigned int		syscall_iopoll: 1;
 		unsigned int		poll_activated: 1;
 		unsigned int		drain_disabled: 1;
 		unsigned int		compat: 1;
 
+		struct task_struct	*submitter_task;
+		struct io_rings		*rings;
+		struct percpu_ref	refs;
+
 		enum task_work_notify_mode	notify_method;
-
-		/*
-		 * If IORING_SETUP_NO_MMAP is used, then the below holds
-		 * the gup'ed pages for the two rings, and the sqes.
-		 */
-		unsigned short		n_ring_pages;
-		unsigned short		n_sqe_pages;
-		struct page		**ring_pages;
-		struct page		**sqe_pages;
-
-		struct io_rings			*rings;
-		struct task_struct		*submitter_task;
-		struct percpu_ref		refs;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -261,31 +252,26 @@ struct io_ring_ctx {
 
 		struct io_buffer_list	*io_bl;
 		struct xarray		io_bl_xa;
-		struct list_head	io_buffers_cache;
 
 		struct io_hash_table	cancel_table_locked;
-		struct list_head	cq_overflow_list;
 		struct io_alloc_cache	apoll_cache;
 		struct io_alloc_cache	netmsg_cache;
+
+		/*
+		 * ->iopoll_list is protected by the ctx->uring_lock for
+		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
+		 * For SQPOLL, only the single threaded io_sq_thread() will
+		 * manipulate the list, hence no extra locking is needed there.
+		 */
+		struct io_wq_work_list	iopoll_list;
+		bool			poll_multi_queue;
+
+		/*
+		 * Any cancelable uring_cmd is added to this list in
+		 * ->uring_cmd() by io_uring_cmd_insert_cancelable()
+		 */
+		struct hlist_head	cancelable_uring_cmd;
 	} ____cacheline_aligned_in_smp;
-
-	/* IRQ completion list, under ->completion_lock */
-	struct io_wq_work_list	locked_free_list;
-	unsigned int		locked_free_nr;
-
-	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
-	struct io_sq_data	*sq_data;	/* if using sq thread polling */
-
-	struct wait_queue_head	sqo_sq_wait;
-	struct list_head	sqd_list;
-
-	unsigned long		check_cq;
-
-	unsigned int		file_alloc_start;
-	unsigned int		file_alloc_end;
-
-	struct xarray		personalities;
-	u32			pers_next;
 
 	struct {
 		/*
@@ -298,38 +284,61 @@ struct io_ring_ctx {
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
 		struct io_ev_fd	__rcu	*io_ev_fd;
-		struct wait_queue_head	cq_wait;
 		unsigned		cq_extra;
 	} ____cacheline_aligned_in_smp;
 
+	/*
+	 * task_work and async notification delivery cacheline. Expected to
+	 * regularly bounce b/w CPUs.
+	 */
 	struct {
-		spinlock_t		completion_lock;
-
-		bool			poll_multi_queue;
-		atomic_t		cq_wait_nr;
-
-		/*
-		 * ->iopoll_list is protected by the ctx->uring_lock for
-		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
-		 * For SQPOLL, only the single threaded io_sq_thread() will
-		 * manipulate the list, hence no extra locking is needed there.
-		 */
-		struct io_wq_work_list	iopoll_list;
-		struct io_hash_table	cancel_table;
-
 		struct llist_head	work_llist;
-
-		struct list_head	io_buffers_comp;
+		unsigned long		check_cq;
+		atomic_t		cq_wait_nr;
+		atomic_t		cq_timeouts;
+		struct wait_queue_head	cq_wait;
 	} ____cacheline_aligned_in_smp;
 
 	/* timeouts */
 	struct {
 		spinlock_t		timeout_lock;
-		atomic_t		cq_timeouts;
 		struct list_head	timeout_list;
 		struct list_head	ltimeout_list;
 		unsigned		cq_last_tm_flush;
 	} ____cacheline_aligned_in_smp;
+
+	struct io_uring_cqe	completion_cqes[16];
+
+	spinlock_t		completion_lock;
+
+	/* IRQ completion list, under ->completion_lock */
+	struct io_wq_work_list	locked_free_list;
+	unsigned int		locked_free_nr;
+
+	struct list_head	io_buffers_comp;
+	struct list_head	cq_overflow_list;
+	struct io_hash_table	cancel_table;
+
+	struct hlist_head	waitid_list;
+
+#ifdef CONFIG_FUTEX
+	struct hlist_head	futex_list;
+	struct io_alloc_cache	futex_cache;
+#endif
+
+	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
+	struct io_sq_data	*sq_data;	/* if using sq thread polling */
+
+	struct wait_queue_head	sqo_sq_wait;
+	struct list_head	sqd_list;
+
+	unsigned int		file_alloc_start;
+	unsigned int		file_alloc_end;
+
+	struct xarray		personalities;
+	u32			pers_next;
+
+	struct list_head	io_buffers_cache;
 
 	/* Keep this last, we don't need it for the fast path */
 	struct wait_queue_head		poll_wq;
@@ -345,8 +354,6 @@ struct io_ring_ctx {
 	struct io_alloc_cache		rsrc_node_cache;
 	struct wait_queue_head		rsrc_quiesce_wq;
 	unsigned			rsrc_quiesce;
-
-	struct list_head		io_buffers_pages;
 
 	#if defined(CONFIG_UNIX)
 		struct socket		*ring_sock;
@@ -374,6 +381,15 @@ struct io_ring_ctx {
 	unsigned			sq_thread_idle;
 	/* protected by ->completion_lock */
 	unsigned			evfd_last_cq_tail;
+
+	/*
+	 * If IORING_SETUP_NO_MMAP is used, then the below holds
+	 * the gup'ed pages for the two rings, and the sqes.
+	 */
+	unsigned short			n_ring_pages;
+	unsigned short			n_sqe_pages;
+	struct page			**ring_pages;
+	struct page			**sqe_pages;
 };
 
 struct io_tw_state {
@@ -409,7 +425,6 @@ enum {
 	REQ_F_SINGLE_POLL_BIT,
 	REQ_F_DOUBLE_POLL_BIT,
 	REQ_F_PARTIAL_IO_BIT,
-	REQ_F_CQE32_INIT_BIT,
 	REQ_F_APOLL_MULTISHOT_BIT,
 	REQ_F_CLEAR_POLLIN_BIT,
 	REQ_F_HASH_LOCKED_BIT,
@@ -479,8 +494,6 @@ enum {
 	REQ_F_PARTIAL_IO	= BIT(REQ_F_PARTIAL_IO_BIT),
 	/* fast poll multishot mode */
 	REQ_F_APOLL_MULTISHOT	= BIT(REQ_F_APOLL_MULTISHOT_BIT),
-	/* ->extra1 and ->extra2 are initialised */
-	REQ_F_CQE32_INIT	= BIT(REQ_F_CQE32_INIT_BIT),
 	/* recvmsg special flag, clear EPOLLIN */
 	REQ_F_CLEAR_POLLIN	= BIT(REQ_F_CLEAR_POLLIN_BIT),
 	/* hashed into ->cancel_hash_locked, protected by ->uring_lock */
@@ -579,13 +592,7 @@ struct io_kiocb {
 	struct io_task_work		io_task_work;
 	unsigned			nr_tw;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
-	union {
-		struct hlist_node	hash_node;
-		struct {
-			u64		extra1;
-			u64		extra2;
-		};
-	};
+	struct hlist_node		hash_node;
 	/* internal polling, see IORING_FEAT_FAST_POLL */
 	struct async_poll		*apoll;
 	/* opcode allocated if it needs to store data for async defer */
@@ -595,6 +602,11 @@ struct io_kiocb {
 	/* custom credentials, valid IFF REQ_F_CREDS is set */
 	const struct cred		*creds;
 	struct io_wq_work		work;
+
+	struct {
+		u64			extra1;
+		u64			extra2;
+	} big_cqe;
 };
 
 struct io_overflow_cqe {

@@ -9,13 +9,6 @@ struct paravirt_patch_site {
 	u8 type;		/* type of this instruction */
 	u8 len;			/* length of original instruction */
 };
-
-/* Lazy mode for batching updates / context switch */
-enum paravirt_lazy_mode {
-	PARAVIRT_LAZY_NONE,
-	PARAVIRT_LAZY_MMU,
-	PARAVIRT_LAZY_CPU,
-};
 #endif
 
 #ifdef CONFIG_PARAVIRT
@@ -548,14 +541,6 @@ int paravirt_disable_iospace(void);
 #define PVOP_VCALL4(op, arg1, arg2, arg3, arg4)				\
 	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2),	\
 		     PVOP_CALL_ARG3(arg3), PVOP_CALL_ARG4(arg4))
-
-enum paravirt_lazy_mode paravirt_get_lazy_mode(void);
-void paravirt_start_context_switch(struct task_struct *prev);
-void paravirt_end_context_switch(struct task_struct *next);
-
-void paravirt_enter_lazy_mmu(void);
-void paravirt_leave_lazy_mmu(void);
-void paravirt_flush_lazy_mmu(void);
 
 void _paravirt_nop(void);
 void paravirt_BUG(void);

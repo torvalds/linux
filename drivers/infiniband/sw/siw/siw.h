@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
@@ -74,6 +74,7 @@ struct siw_device {
 
 	u32 vendor_part_id;
 	int numa_node;
+	char raw_gid[ETH_ALEN];
 
 	/* physical port state (only one port per device) */
 	enum ib_port_state state;
@@ -136,7 +137,7 @@ struct siw_pble {
 struct siw_pbl {
 	unsigned int num_buf;
 	unsigned int max_buf;
-	struct siw_pble pbe[];
+	struct siw_pble pbe[] __counted_by(max_buf);
 };
 
 /*
@@ -530,11 +531,12 @@ void siw_qp_llp_data_ready(struct sock *sk);
 void siw_qp_llp_write_space(struct sock *sk);
 
 /* QP TX path functions */
+int siw_create_tx_threads(void);
+void siw_stop_tx_threads(void);
 int siw_run_sq(void *arg);
 int siw_qp_sq_process(struct siw_qp *qp);
 int siw_sq_start(struct siw_qp *qp);
 int siw_activate_tx(struct siw_qp *qp);
-void siw_stop_tx_thread(int nr_cpu);
 int siw_get_tx_cpu(struct siw_device *sdev);
 void siw_put_tx_cpu(int cpu);
 

@@ -73,6 +73,9 @@
 /* Holds the block group items for extent tree v2. */
 #define BTRFS_BLOCK_GROUP_TREE_OBJECTID 11ULL
 
+/* Tracks RAID stripes in block groups. */
+#define BTRFS_RAID_STRIPE_TREE_OBJECTID 12ULL
+
 /* device stats in the device tree */
 #define BTRFS_DEV_STATS_OBJECTID 0ULL
 
@@ -220,11 +223,23 @@
 
 #define BTRFS_EXTENT_DATA_REF_KEY	178
 
-#define BTRFS_EXTENT_REF_V0_KEY		180
+/*
+ * Obsolete key. Defintion removed in 6.6, value may be reused in the future.
+ *
+ * #define BTRFS_EXTENT_REF_V0_KEY	180
+ */
 
 #define BTRFS_SHARED_BLOCK_REF_KEY	182
 
 #define BTRFS_SHARED_DATA_REF_KEY	184
+
+/*
+ * Special inline ref key which stores the id of the subvolume which originally
+ * created the extent. This subvolume owns the extent permanently from the
+ * perspective of simple quotas. Needed to know which subvolume to free quota
+ * usage from when the extent is deleted.
+ */
+#define BTRFS_EXTENT_OWNER_REF_KEY	188
 
 /*
  * block groups give us hints into the extent allocation trees.  Which
@@ -256,6 +271,8 @@
 #define BTRFS_DEV_EXTENT_KEY	204
 #define BTRFS_DEV_ITEM_KEY	216
 #define BTRFS_CHUNK_ITEM_KEY	228
+
+#define BTRFS_RAID_STRIPE_KEY	230
 
 /*
  * Records the overall state of the qgroups.
@@ -715,6 +732,30 @@ struct btrfs_free_space_header {
 	__le64 num_bitmaps;
 } __attribute__ ((__packed__));
 
+struct btrfs_raid_stride {
+	/* The id of device this raid extent lives on. */
+	__le64 devid;
+	/* The physical location on disk. */
+	__le64 physical;
+} __attribute__ ((__packed__));
+
+/* The stripe_extent::encoding, 1:1 mapping of enum btrfs_raid_types. */
+#define BTRFS_STRIPE_RAID0	1
+#define BTRFS_STRIPE_RAID1	2
+#define BTRFS_STRIPE_DUP	3
+#define BTRFS_STRIPE_RAID10	4
+#define BTRFS_STRIPE_RAID5	5
+#define BTRFS_STRIPE_RAID6	6
+#define BTRFS_STRIPE_RAID1C3	7
+#define BTRFS_STRIPE_RAID1C4	8
+
+struct btrfs_stripe_extent {
+	__u8 encoding;
+	__u8 reserved[7];
+	/* An array of raid strides this stripe is composed of. */
+	struct btrfs_raid_stride strides[];
+} __attribute__ ((__packed__));
+
 #define BTRFS_HEADER_FLAG_WRITTEN	(1ULL << 0)
 #define BTRFS_HEADER_FLAG_RELOC		(1ULL << 1)
 
@@ -781,6 +822,10 @@ struct btrfs_extent_data_ref {
 
 struct btrfs_shared_data_ref {
 	__le32 count;
+} __attribute__ ((__packed__));
+
+struct btrfs_extent_owner_ref {
+	__le64 root_id;
 } __attribute__ ((__packed__));
 
 struct btrfs_extent_inline_ref {
@@ -1200,9 +1245,17 @@ static inline __u16 btrfs_qgroup_level(__u64 qgroupid)
  */
 #define BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT	(1ULL << 2)
 
+/*
+ * Whether or not this filesystem is using simple quotas.  Not exactly the
+ * incompat bit, because we support using simple quotas, disabling it, then
+ * going back to full qgroup quotas.
+ */
+#define BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE	(1ULL << 3)
+
 #define BTRFS_QGROUP_STATUS_FLAGS_MASK	(BTRFS_QGROUP_STATUS_FLAG_ON |		\
 					 BTRFS_QGROUP_STATUS_FLAG_RESCAN |	\
-					 BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT)
+					 BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT | \
+					 BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE)
 
 #define BTRFS_QGROUP_STATUS_VERSION        1
 
@@ -1224,6 +1277,15 @@ struct btrfs_qgroup_status_item {
 	 * of the scan. It contains a logical address
 	 */
 	__le64 rescan;
+
+	/*
+	 * The generation when quotas were last enabled. Used by simple quotas to
+	 * avoid decrementing when freeing an extent that was written before
+	 * enable.
+	 *
+	 * Set only if flags contain BTRFS_QGROUP_STATUS_FLAG_SIMPLE_MODE.
+	 */
+	__le64 enable_gen;
 } __attribute__ ((__packed__));
 
 struct btrfs_qgroup_info_item {

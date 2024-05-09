@@ -8,6 +8,7 @@
  *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
  */
 
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/asm-extable.h>
@@ -26,7 +27,6 @@
 #include <asm/vx-insn.h>
 #include <asm/setup.h>
 #include <asm/nmi.h>
-#include <asm/export.h>
 #include <asm/nospec-insn.h>
 
 _LPP_OFFSET	= __LC_LPP
@@ -136,7 +136,7 @@ _LPP_OFFSET	= __LC_LPP
 	clgfrl	%r14,.Lrange_size\@
 	jhe	\outside_label
 	.section .rodata, "a"
-	.align 4
+	.balign 4
 .Lrange_size\@:
 	.long	\end - \start
 	.previous
@@ -488,7 +488,6 @@ SYM_FUNC_END(psw_idle)
  * Machine check handler routines
  */
 SYM_CODE_START(mcck_int_handler)
-	stckf	__LC_MCCK_CLOCK
 	BPOFF
 	la	%r1,4095		# validate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# validate cpu timer
@@ -598,8 +597,9 @@ SYM_CODE_START(restart_int_handler)
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f
 	lctlg	%c0,%c15,__LC_CREGS_SAVE_AREA
-0:	larl	%r15,stosm_tmp
-	stosm	0(%r15),0x04			# turn dat on, keep irqs off
+0:	larl	%r15,daton_psw
+	lpswe	0(%r15)				# turn dat on, keep irqs off
+.Ldaton:
 	lg	%r15,__LC_RESTART_STACK
 	xc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r15),STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r14,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
@@ -646,7 +646,11 @@ SYM_CODE_END(stack_overflow)
 	.balign	4
 SYM_DATA_LOCAL(stop_lock,	.long 0)
 SYM_DATA_LOCAL(this_cpu,	.short 0)
-SYM_DATA_LOCAL(stosm_tmp,	.byte 0)
+	.balign	8
+SYM_DATA_START_LOCAL(daton_psw)
+	.quad	PSW_KERNEL_BITS
+	.quad	.Ldaton
+SYM_DATA_END(daton_psw)
 
 	.section .rodata, "a"
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame

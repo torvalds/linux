@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -29,6 +29,11 @@ enum iwl_debug_cmds {
 	 * &struct iwl_dbg_host_event_cfg_cmd
 	 */
 	HOST_EVENT_CFG = 0x3,
+	/**
+	 * @INVALID_WR_PTR_CMD: invalid write pointer, set in the TFD
+	 *	when it's not in use
+	 */
+	INVALID_WR_PTR_CMD = 0x6,
 	/**
 	 * @DBGC_SUSPEND_RESUME:
 	 * DBGC suspend/resume commad. Uses a single dword as data:
@@ -377,7 +382,7 @@ struct iwl_buf_alloc_cmd {
 #define DRAM_INFO_SECOND_MAGIC_WORD 0x89ABCDEF
 
 /**
- * struct iwL_dram_info - DRAM fragments allocation struct
+ * struct iwl_dram_info - DRAM fragments allocation struct
  *
  * Driver will fill in the first 1K(+) of the pointed DRAM fragment
  *
@@ -516,5 +521,27 @@ enum iwl_mvm_tas_statically_disabled_reason {
 
 	TAS_DISABLED_REASON_MAX,
 }; /*_TAS_STATICALLY_DISABLED_REASON_E*/
+
+/**
+ * enum iwl_fw_dbg_config_cmd_type - types of FW debug config command
+ * @DEBUG_TOKEN_CONFIG_TYPE: token config type
+ */
+enum iwl_fw_dbg_config_cmd_type {
+	DEBUG_TOKEN_CONFIG_TYPE = 0x2B,
+}; /* LDBG_CFG_CMD_TYPE_API_E_VER_1 */
+
+/* this token disables debug asserts in the firmware */
+#define IWL_FW_DBG_CONFIG_TOKEN 0x00011301
+
+/**
+ * struct iwl_fw_dbg_config_cmd - configure FW debug
+ *
+ * @type: according to &enum iwl_fw_dbg_config_cmd_type
+ * @conf: FW configuration
+ */
+struct iwl_fw_dbg_config_cmd {
+	__le32 type;
+	__le32 conf;
+} __packed; /* LDBG_CFG_CMD_API_S_VER_7 */
 
 #endif /* __iwl_fw_api_debug_h__ */

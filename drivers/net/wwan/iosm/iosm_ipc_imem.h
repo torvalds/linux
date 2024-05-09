@@ -103,8 +103,6 @@ struct ipc_chnl_cfg;
 #define FULLY_FUNCTIONAL 0
 #define IOSM_DEVLINK_INIT 1
 
-#define IPC_MEM_AUTO_SUSPEND_DELAY_MS 5000
-
 /* List of the supported UL/DL pipes. */
 enum ipc_mem_pipes {
 	IPC_MEM_PIPE_0 = 0,

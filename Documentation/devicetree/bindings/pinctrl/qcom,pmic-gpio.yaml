@@ -26,6 +26,7 @@ properties:
           - qcom,pm6350-gpio
           - qcom,pm7250b-gpio
           - qcom,pm7325-gpio
+          - qcom,pm7550ba-gpio
           - qcom,pm8005-gpio
           - qcom,pm8008-gpio
           - qcom,pm8018-gpio
@@ -53,6 +54,8 @@ properties:
           - qcom,pm8994-gpio
           - qcom,pm8998-gpio
           - qcom,pma8084-gpio
+          - qcom,pmc8180-gpio
+          - qcom,pmc8180c-gpio
           - qcom,pmi632-gpio
           - qcom,pmi8950-gpio
           - qcom,pmi8994-gpio
@@ -68,6 +71,7 @@ properties:
           - qcom,pms405-gpio
           - qcom,pmx55-gpio
           - qcom,pmx65-gpio
+          - qcom,pmx75-gpio
 
       - enum:
           - qcom,spmi-gpio
@@ -172,6 +176,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pm7550ba-gpio
               - qcom,pm8226-gpio
               - qcom,pm8350b-gpio
               - qcom,pm8550ve-gpio
@@ -301,6 +306,7 @@ allOf:
           contains:
             enum:
               - qcom,pmx65-gpio
+              - qcom,pmx75-gpio
     then:
       properties:
         gpio-line-names:
@@ -413,6 +419,7 @@ $defs:
                  - gpio1-gpio9 for pm6350
                  - gpio1-gpio12 for pm7250b
                  - gpio1-gpio10 for pm7325
+                 - gpio1-gpio8 for pm7550ba
                  - gpio1-gpio4 for pm8005
                  - gpio1-gpio2 for pm8008
                  - gpio1-gpio6 for pm8018
@@ -456,6 +463,7 @@ $defs:
                  - gpio1-gpio11 for pmx55 (holes on gpio3, gpio7, gpio10
                                             and gpio11)
                  - gpio1-gpio16 for pmx65
+                 - gpio1-gpio16 for pmx75
 
         items:
           pattern: "^gpio([0-9]+)$"

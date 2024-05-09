@@ -497,8 +497,8 @@ static int dapm_kcontrol_add_widget(struct snd_kcontrol *kcontrol,
 	if (!new_wlist)
 		return -ENOMEM;
 
-	new_wlist->widgets[n - 1] = widget;
 	new_wlist->num_widgets = n;
+	new_wlist->widgets[n - 1] = widget;
 
 	data->wlist = new_wlist;
 
@@ -916,6 +916,8 @@ static int dapm_create_or_share_kcontrol(struct snd_soc_dapm_widget *w,
 				return -EINVAL;
 			}
 		}
+		if (w->no_wname_in_kcontrol_name)
+			wname_in_long_name = false;
 
 		if (wname_in_long_name && kcname_in_long_name) {
 			/*
@@ -2715,7 +2717,7 @@ int snd_soc_dapm_update_dai(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	int ret;
 
 	snd_soc_dapm_mutex_lock(rtd->card);
@@ -2725,6 +2727,18 @@ int snd_soc_dapm_update_dai(struct snd_pcm_substream *substream,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_update_dai);
+
+int snd_soc_dapm_widget_name_cmp(struct snd_soc_dapm_widget *widget, const char *s)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
+	const char *wname = widget->name;
+
+	if (component->name_prefix)
+		wname += strlen(component->name_prefix) + 1; /* plus space */
+
+	return strcmp(wname, s);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_widget_name_cmp);
 
 /*
  * dapm_update_widget_flags() - Re-compute widget sink and source flags
@@ -3820,7 +3834,7 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_dapm_path *path;
 	struct snd_soc_dai *source, *sink;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_pcm_hw_params *params = NULL;
 	const struct snd_soc_pcm_stream *config = NULL;
 	struct snd_pcm_runtime *runtime = NULL;
@@ -4140,7 +4154,7 @@ snd_soc_dapm_new_dai(struct snd_soc_card *card,
 		     struct snd_pcm_substream *substream,
 		     char *id)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dapm_widget template;
 	struct snd_soc_dapm_widget *w;
 	const struct snd_kcontrol_new *kcontrol_news;
@@ -4439,11 +4453,11 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 		if (rtd->dai_link->num_cpus == 1) {
 			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				dapm_connect_dai_pair(card, rtd, codec_dai,
-						      asoc_rtd_to_cpu(rtd, 0));
+						      snd_soc_rtd_to_cpu(rtd, 0));
 		} else if (rtd->dai_link->num_codecs == rtd->dai_link->num_cpus) {
 			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				dapm_connect_dai_pair(card, rtd, codec_dai,
-						      asoc_rtd_to_cpu(rtd, i));
+						      snd_soc_rtd_to_cpu(rtd, i));
 		} else if (rtd->dai_link->num_codecs > rtd->dai_link->num_cpus) {
 			int cpu_id;
 
@@ -4463,7 +4477,7 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 					continue;
 				}
 				dapm_connect_dai_pair(card, rtd, codec_dai,
-						      asoc_rtd_to_cpu(rtd, cpu_id));
+						      snd_soc_rtd_to_cpu(rtd, cpu_id));
 			}
 		} else {
 			dev_err(card->dev,

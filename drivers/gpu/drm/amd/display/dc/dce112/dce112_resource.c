@@ -44,7 +44,7 @@
 #include "dce/dce_clock_source.h"
 
 #include "dce/dce_hwseq.h"
-#include "dce112/dce112_hw_sequencer.h"
+#include "dce112/dce112_hwseq.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 #include "dce/dce_aux.h"
@@ -873,7 +873,7 @@ static enum dc_status build_mapped_resource(
 		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
-	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
+	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
@@ -964,7 +964,7 @@ enum dc_status resource_map_phy_clock_resources(
 {
 
 	/* acquire new resources */
-	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(
+	struct pipe_ctx *pipe_ctx = resource_get_otg_master_for_stream(
 			&context->res_ctx, stream);
 
 	if (!pipe_ctx)
@@ -974,10 +974,12 @@ enum dc_status resource_map_phy_clock_resources(
 		|| dc_is_virtual_signal(pipe_ctx->stream->signal))
 		pipe_ctx->clock_source =
 				dc->res_pool->dp_clock_source;
-	else
-		pipe_ctx->clock_source = find_matching_pll(
-			&context->res_ctx, dc->res_pool,
-			stream);
+	else {
+		if (stream && stream->link && stream->link->link_enc)
+			pipe_ctx->clock_source = find_matching_pll(
+				&context->res_ctx, dc->res_pool,
+				stream);
+	}
 
 	if (pipe_ctx->clock_source == NULL)
 		return DC_NO_CLOCK_SOURCE_RESOURCE;

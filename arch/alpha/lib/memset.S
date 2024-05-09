@@ -14,7 +14,7 @@
  * The scheduling comments are according to the EV5 documentation (and done by 
  * hand, so they might well be incorrect, please do tell me about it..)
  */
-#include <asm/export.h>
+#include <linux/export.h>
 	.set noat
 	.set noreorder
 .text

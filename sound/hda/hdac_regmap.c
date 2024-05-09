@@ -556,17 +556,14 @@ EXPORT_SYMBOL_GPL(snd_hdac_regmap_update_raw);
 static int reg_raw_update_once(struct hdac_device *codec, unsigned int reg,
 			       unsigned int mask, unsigned int val)
 {
-	unsigned int orig;
-	int err;
+	int err = 0;
 
 	if (!codec->regmap)
 		return reg_raw_update(codec, reg, mask, val);
 
 	mutex_lock(&codec->regmap_lock);
-	regcache_cache_only(codec->regmap, true);
-	err = regmap_read(codec->regmap, reg, &orig);
-	regcache_cache_only(codec->regmap, false);
-	if (err < 0)
+	/* Discard any updates to already initialised registers. */
+	if (!regcache_reg_cached(codec->regmap, reg))
 		err = regmap_update_bits(codec->regmap, reg, mask, val);
 	mutex_unlock(&codec->regmap_lock);
 	return err;
@@ -596,10 +593,9 @@ EXPORT_SYMBOL_GPL(snd_hdac_regmap_update_raw_once);
  */
 void snd_hdac_regmap_sync(struct hdac_device *codec)
 {
-	if (codec->regmap) {
-		mutex_lock(&codec->regmap_lock);
+	mutex_lock(&codec->regmap_lock);
+	if (codec->regmap)
 		regcache_sync(codec->regmap);
-		mutex_unlock(&codec->regmap_lock);
-	}
+	mutex_unlock(&codec->regmap_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_regmap_sync);

@@ -261,9 +261,9 @@ DIRECT_KEY policies
 
 The Adiantum encryption mode (see `Encryption modes and usage`_) is
 suitable for both contents and filenames encryption, and it accepts
-long IVs --- long enough to hold both an 8-byte logical block number
-and a 16-byte per-file nonce.  Also, the overhead of each Adiantum key
-is greater than that of an AES-256-XTS key.
+long IVs --- long enough to hold both an 8-byte data unit index and a
+16-byte per-file nonce.  Also, the overhead of each Adiantum key is
+greater than that of an AES-256-XTS key.
 
 Therefore, to improve performance and save memory, for Adiantum a
 "direct key" configuration is supported.  When the user has enabled
@@ -300,8 +300,8 @@ IV_INO_LBLK_32 policies
 
 IV_INO_LBLK_32 policies work like IV_INO_LBLK_64, except that for
 IV_INO_LBLK_32, the inode number is hashed with SipHash-2-4 (where the
-SipHash key is derived from the master key) and added to the file
-logical block number mod 2^32 to produce a 32-bit IV.
+SipHash key is derived from the master key) and added to the file data
+unit index mod 2^32 to produce a 32-bit IV.
 
 This format is optimized for use with inline encryption hardware
 compliant with the eMMC v5.2 standard, which supports only 32 IV bits
@@ -332,83 +332,181 @@ Encryption modes and usage
 fscrypt allows one encryption mode to be specified for file contents
 and one encryption mode to be specified for filenames.  Different
 directory trees are permitted to use different encryption modes.
+
+Supported modes
+---------------
+
 Currently, the following pairs of encryption modes are supported:
 
 - AES-256-XTS for contents and AES-256-CTS-CBC for filenames
-- AES-128-CBC for contents and AES-128-CTS-CBC for filenames
+- AES-256-XTS for contents and AES-256-HCTR2 for filenames
 - Adiantum for both contents and filenames
-- AES-256-XTS for contents and AES-256-HCTR2 for filenames (v2 policies only)
-- SM4-XTS for contents and SM4-CTS-CBC for filenames (v2 policies only)
+- AES-128-CBC-ESSIV for contents and AES-128-CTS-CBC for filenames
+- SM4-XTS for contents and SM4-CTS-CBC for filenames
 
-If unsure, you should use the (AES-256-XTS, AES-256-CTS-CBC) pair.
+Authenticated encryption modes are not currently supported because of
+the difficulty of dealing with ciphertext expansion.  Therefore,
+contents encryption uses a block cipher in `XTS mode
+<https://en.wikipedia.org/wiki/Disk_encryption_theory#XTS>`_ or
+`CBC-ESSIV mode
+<https://en.wikipedia.org/wiki/Disk_encryption_theory#Encrypted_salt-sector_initialization_vector_(ESSIV)>`_,
+or a wide-block cipher.  Filenames encryption uses a
+block cipher in `CTS-CBC mode
+<https://en.wikipedia.org/wiki/Ciphertext_stealing>`_ or a wide-block
+cipher.
 
-AES-128-CBC was added only for low-powered embedded devices with
-crypto accelerators such as CAAM or CESA that do not support XTS.  To
-use AES-128-CBC, CONFIG_CRYPTO_ESSIV and CONFIG_CRYPTO_SHA256 (or
-another SHA-256 implementation) must be enabled so that ESSIV can be
-used.
+The (AES-256-XTS, AES-256-CTS-CBC) pair is the recommended default.
+It is also the only option that is *guaranteed* to always be supported
+if the kernel supports fscrypt at all; see `Kernel config options`_.
 
-Adiantum is a (primarily) stream cipher-based mode that is fast even
-on CPUs without dedicated crypto instructions.  It's also a true
-wide-block mode, unlike XTS.  It can also eliminate the need to derive
-per-file encryption keys.  However, it depends on the security of two
-primitives, XChaCha12 and AES-256, rather than just one.  See the
-paper "Adiantum: length-preserving encryption for entry-level
-processors" (https://eprint.iacr.org/2018/720.pdf) for more details.
-To use Adiantum, CONFIG_CRYPTO_ADIANTUM must be enabled.  Also, fast
-implementations of ChaCha and NHPoly1305 should be enabled, e.g.
-CONFIG_CRYPTO_CHACHA20_NEON and CONFIG_CRYPTO_NHPOLY1305_NEON for ARM.
+The (AES-256-XTS, AES-256-HCTR2) pair is also a good choice that
+upgrades the filenames encryption to use a wide-block cipher.  (A
+*wide-block cipher*, also called a tweakable super-pseudorandom
+permutation, has the property that changing one bit scrambles the
+entire result.)  As described in `Filenames encryption`_, a wide-block
+cipher is the ideal mode for the problem domain, though CTS-CBC is the
+"least bad" choice among the alternatives.  For more information about
+HCTR2, see `the HCTR2 paper <https://eprint.iacr.org/2021/1441.pdf>`_.
 
-AES-256-HCTR2 is another true wide-block encryption mode that is intended for
-use on CPUs with dedicated crypto instructions.  AES-256-HCTR2 has the property
-that a bitflip in the plaintext changes the entire ciphertext.  This property
-makes it desirable for filename encryption since initialization vectors are
-reused within a directory.  For more details on AES-256-HCTR2, see the paper
-"Length-preserving encryption with HCTR2"
-(https://eprint.iacr.org/2021/1441.pdf).  To use AES-256-HCTR2,
-CONFIG_CRYPTO_HCTR2 must be enabled.  Also, fast implementations of XCTR and
-POLYVAL should be enabled, e.g. CRYPTO_POLYVAL_ARM64_CE and
-CRYPTO_AES_ARM64_CE_BLK for ARM64.
+Adiantum is recommended on systems where AES is too slow due to lack
+of hardware acceleration for AES.  Adiantum is a wide-block cipher
+that uses XChaCha12 and AES-256 as its underlying components.  Most of
+the work is done by XChaCha12, which is much faster than AES when AES
+acceleration is unavailable.  For more information about Adiantum, see
+`the Adiantum paper <https://eprint.iacr.org/2018/720.pdf>`_.
 
-SM4 is a Chinese block cipher that is an alternative to AES.  It has
-not seen as much security review as AES, and it only has a 128-bit key
-size.  It may be useful in cases where its use is mandated.
-Otherwise, it should not be used.  For SM4 support to be available, it
-also needs to be enabled in the kernel crypto API.
+The (AES-128-CBC-ESSIV, AES-128-CTS-CBC) pair exists only to support
+systems whose only form of AES acceleration is an off-CPU crypto
+accelerator such as CAAM or CESA that does not support XTS.
 
-New encryption modes can be added relatively easily, without changes
-to individual filesystems.  However, authenticated encryption (AE)
-modes are not currently supported because of the difficulty of dealing
-with ciphertext expansion.
+The remaining mode pairs are the "national pride ciphers":
+
+- (SM4-XTS, SM4-CTS-CBC)
+
+Generally speaking, these ciphers aren't "bad" per se, but they
+receive limited security review compared to the usual choices such as
+AES and ChaCha.  They also don't bring much new to the table.  It is
+suggested to only use these ciphers where their use is mandated.
+
+Kernel config options
+---------------------
+
+Enabling fscrypt support (CONFIG_FS_ENCRYPTION) automatically pulls in
+only the basic support from the crypto API needed to use AES-256-XTS
+and AES-256-CTS-CBC encryption.  For optimal performance, it is
+strongly recommended to also enable any available platform-specific
+kconfig options that provide acceleration for the algorithm(s) you
+wish to use.  Support for any "non-default" encryption modes typically
+requires extra kconfig options as well.
+
+Below, some relevant options are listed by encryption mode.  Note,
+acceleration options not listed below may be available for your
+platform; refer to the kconfig menus.  File contents encryption can
+also be configured to use inline encryption hardware instead of the
+kernel crypto API (see `Inline encryption support`_); in that case,
+the file contents mode doesn't need to supported in the kernel crypto
+API, but the filenames mode still does.
+
+- AES-256-XTS and AES-256-CTS-CBC
+    - Recommended:
+        - arm64: CONFIG_CRYPTO_AES_ARM64_CE_BLK
+        - x86: CONFIG_CRYPTO_AES_NI_INTEL
+
+- AES-256-HCTR2
+    - Mandatory:
+        - CONFIG_CRYPTO_HCTR2
+    - Recommended:
+        - arm64: CONFIG_CRYPTO_AES_ARM64_CE_BLK
+        - arm64: CONFIG_CRYPTO_POLYVAL_ARM64_CE
+        - x86: CONFIG_CRYPTO_AES_NI_INTEL
+        - x86: CONFIG_CRYPTO_POLYVAL_CLMUL_NI
+
+- Adiantum
+    - Mandatory:
+        - CONFIG_CRYPTO_ADIANTUM
+    - Recommended:
+        - arm32: CONFIG_CRYPTO_CHACHA20_NEON
+        - arm32: CONFIG_CRYPTO_NHPOLY1305_NEON
+        - arm64: CONFIG_CRYPTO_CHACHA20_NEON
+        - arm64: CONFIG_CRYPTO_NHPOLY1305_NEON
+        - x86: CONFIG_CRYPTO_CHACHA20_X86_64
+        - x86: CONFIG_CRYPTO_NHPOLY1305_SSE2
+        - x86: CONFIG_CRYPTO_NHPOLY1305_AVX2
+
+- AES-128-CBC-ESSIV and AES-128-CTS-CBC:
+    - Mandatory:
+        - CONFIG_CRYPTO_ESSIV
+        - CONFIG_CRYPTO_SHA256 or another SHA-256 implementation
+    - Recommended:
+        - AES-CBC acceleration
+
+fscrypt also uses HMAC-SHA512 for key derivation, so enabling SHA-512
+acceleration is recommended:
+
+- SHA-512
+    - Recommended:
+        - arm64: CONFIG_CRYPTO_SHA512_ARM64_CE
+        - x86: CONFIG_CRYPTO_SHA512_SSSE3
 
 Contents encryption
 -------------------
 
-For file contents, each filesystem block is encrypted independently.
-Starting from Linux kernel 5.5, encryption of filesystems with block
-size less than system's page size is supported.
+For contents encryption, each file's contents is divided into "data
+units".  Each data unit is encrypted independently.  The IV for each
+data unit incorporates the zero-based index of the data unit within
+the file.  This ensures that each data unit within a file is encrypted
+differently, which is essential to prevent leaking information.
 
-Each block's IV is set to the logical block number within the file as
-a little endian number, except that:
+Note: the encryption depending on the offset into the file means that
+operations like "collapse range" and "insert range" that rearrange the
+extent mapping of files are not supported on encrypted files.
 
-- With CBC mode encryption, ESSIV is also used.  Specifically, each IV
-  is encrypted with AES-256 where the AES-256 key is the SHA-256 hash
-  of the file's data encryption key.
+There are two cases for the sizes of the data units:
 
-- With `DIRECT_KEY policies`_, the file's nonce is appended to the IV.
-  Currently this is only allowed with the Adiantum encryption mode.
+* Fixed-size data units.  This is how all filesystems other than UBIFS
+  work.  A file's data units are all the same size; the last data unit
+  is zero-padded if needed.  By default, the data unit size is equal
+  to the filesystem block size.  On some filesystems, users can select
+  a sub-block data unit size via the ``log2_data_unit_size`` field of
+  the encryption policy; see `FS_IOC_SET_ENCRYPTION_POLICY`_.
 
-- With `IV_INO_LBLK_64 policies`_, the logical block number is limited
-  to 32 bits and is placed in bits 0-31 of the IV.  The inode number
-  (which is also limited to 32 bits) is placed in bits 32-63.
+* Variable-size data units.  This is what UBIFS does.  Each "UBIFS
+  data node" is treated as a crypto data unit.  Each contains variable
+  length, possibly compressed data, zero-padded to the next 16-byte
+  boundary.  Users cannot select a sub-block data unit size on UBIFS.
 
-- With `IV_INO_LBLK_32 policies`_, the logical block number is limited
-  to 32 bits and is placed in bits 0-31 of the IV.  The inode number
-  is then hashed and added mod 2^32.
+In the case of compression + encryption, the compressed data is
+encrypted.  UBIFS compression works as described above.  f2fs
+compression works a bit differently; it compresses a number of
+filesystem blocks into a smaller number of filesystem blocks.
+Therefore a f2fs-compressed file still uses fixed-size data units, and
+it is encrypted in a similar way to a file containing holes.
 
-Note that because file logical block numbers are included in the IVs,
-filesystems must enforce that blocks are never shifted around within
-encrypted files, e.g. via "collapse range" or "insert range".
+As mentioned in `Key hierarchy`_, the default encryption setting uses
+per-file keys.  In this case, the IV for each data unit is simply the
+index of the data unit in the file.  However, users can select an
+encryption setting that does not use per-file keys.  For these, some
+kind of file identifier is incorporated into the IVs as follows:
+
+- With `DIRECT_KEY policies`_, the data unit index is placed in bits
+  0-63 of the IV, and the file's nonce is placed in bits 64-191.
+
+- With `IV_INO_LBLK_64 policies`_, the data unit index is placed in
+  bits 0-31 of the IV, and the file's inode number is placed in bits
+  32-63.  This setting is only allowed when data unit indices and
+  inode numbers fit in 32 bits.
+
+- With `IV_INO_LBLK_32 policies`_, the file's inode number is hashed
+  and added to the data unit index.  The resulting value is truncated
+  to 32 bits and placed in bits 0-31 of the IV.  This setting is only
+  allowed when data unit indices and inode numbers fit in 32 bits.
+
+The byte order of the IV is always little endian.
+
+If the user selects FSCRYPT_MODE_AES_128_CBC for the contents mode, an
+ESSIV layer is automatically included.  In this case, before the IV is
+passed to AES-128-CBC, it is encrypted with AES-256 where the AES-256
+key is the SHA-256 hash of the file's contents encryption key.
 
 Filenames encryption
 --------------------
@@ -477,7 +575,8 @@ follows::
             __u8 contents_encryption_mode;
             __u8 filenames_encryption_mode;
             __u8 flags;
-            __u8 __reserved[4];
+            __u8 log2_data_unit_size;
+            __u8 __reserved[3];
             __u8 master_key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE];
     };
 
@@ -493,7 +592,14 @@ This structure must be initialized as follows:
   be set to constants from ``<linux/fscrypt.h>`` which identify the
   encryption modes to use.  If unsure, use FSCRYPT_MODE_AES_256_XTS
   (1) for ``contents_encryption_mode`` and FSCRYPT_MODE_AES_256_CTS
-  (4) for ``filenames_encryption_mode``.
+  (4) for ``filenames_encryption_mode``.  For details, see `Encryption
+  modes and usage`_.
+
+  v1 encryption policies only support three combinations of modes:
+  (FSCRYPT_MODE_AES_256_XTS, FSCRYPT_MODE_AES_256_CTS),
+  (FSCRYPT_MODE_AES_128_CBC, FSCRYPT_MODE_AES_128_CTS), and
+  (FSCRYPT_MODE_ADIANTUM, FSCRYPT_MODE_ADIANTUM).  v2 policies support
+  all combinations documented in `Supported modes`_.
 
 - ``flags`` contains optional flags from ``<linux/fscrypt.h>``:
 
@@ -511,6 +617,29 @@ This structure must be initialized as follows:
 
   The DIRECT_KEY, IV_INO_LBLK_64, and IV_INO_LBLK_32 flags are
   mutually exclusive.
+
+- ``log2_data_unit_size`` is the log2 of the data unit size in bytes,
+  or 0 to select the default data unit size.  The data unit size is
+  the granularity of file contents encryption.  For example, setting
+  ``log2_data_unit_size`` to 12 causes file contents be passed to the
+  underlying encryption algorithm (such as AES-256-XTS) in 4096-byte
+  data units, each with its own IV.
+
+  Not all filesystems support setting ``log2_data_unit_size``.  ext4
+  and f2fs support it since Linux v6.7.  On filesystems that support
+  it, the supported nonzero values are 9 through the log2 of the
+  filesystem block size, inclusively.  The default value of 0 selects
+  the filesystem block size.
+
+  The main use case for ``log2_data_unit_size`` is for selecting a
+  data unit size smaller than the filesystem block size for
+  compatibility with inline encryption hardware that only supports
+  smaller data unit sizes.  ``/sys/block/$disk/queue/crypto/`` may be
+  useful for checking which data unit sizes are supported by a
+  particular system's inline encryption hardware.
+
+  Leave this field zeroed unless you are certain you need it.  Using
+  an unnecessarily small data unit size reduces performance.
 
 - For v2 encryption policies, ``__reserved`` must be zeroed.
 
@@ -1005,8 +1134,8 @@ The caller must zero all input fields, then fill in ``key_spec``:
 On success, 0 is returned and the kernel fills in the output fields:
 
 - ``status`` indicates whether the key is absent, present, or
-  incompletely removed.  Incompletely removed means that the master
-  secret has been removed, but some files are still in use; i.e.,
+  incompletely removed.  Incompletely removed means that removal has
+  been initiated, but some files are still in use; i.e.,
   `FS_IOC_REMOVE_ENCRYPTION_KEY`_ returned 0 but set the informational
   status flag FSCRYPT_KEY_REMOVAL_STATUS_FLAG_FILES_BUSY.
 

@@ -251,9 +251,11 @@ static int guc_wait_ucode(struct intel_guc *guc)
 		if (ret == 0)
 			ret = -ENXIO;
 	} else if (delta_ms > 200) {
-		guc_warn(guc, "excessive init time: %lldms! [freq = %dMHz, before = %dMHz, status = 0x%08X, count = %d, ret = %d]\n",
-			 delta_ms, intel_rps_read_actual_frequency(&uncore->gt->rps),
-			 before_freq, status, count, ret);
+		guc_warn(guc, "excessive init time: %lldms! [status = 0x%08X, count = %d, ret = %d]\n",
+			 delta_ms, status, count, ret);
+		guc_warn(guc, "excessive init time: [freq = %dMHz, before = %dMHz, perf_limit_reasons = 0x%08X]\n",
+			 intel_rps_read_actual_frequency(&uncore->gt->rps), before_freq,
+			 intel_uncore_read(uncore, intel_gt_perf_limit_reasons_reg(gt)));
 	} else {
 		guc_dbg(guc, "init took %lldms, freq = %dMHz, before = %dMHz, status = 0x%08X, count = %d, ret = %d\n",
 			delta_ms, intel_rps_read_actual_frequency(&uncore->gt->rps),

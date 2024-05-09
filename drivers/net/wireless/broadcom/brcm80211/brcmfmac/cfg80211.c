@@ -1456,6 +1456,10 @@ brcmf_run_escan(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 		params_size -= BRCMF_SCAN_PARAMS_V2_FIXED_SIZE;
 		params_size += BRCMF_SCAN_PARAMS_FIXED_SIZE;
 		params_v1 = kzalloc(params_size, GFP_KERNEL);
+		if (!params_v1) {
+			err = -ENOMEM;
+			goto exit_params;
+		}
 		params_v1->version = cpu_to_le32(BRCMF_ESCAN_REQ_VERSION);
 		brcmf_scan_params_v2_to_v1(&params->params_v2_le, &params_v1->params_le);
 		kfree(params);
@@ -1473,6 +1477,7 @@ brcmf_run_escan(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 			bphy_err(drvr, "error (%d)\n", err);
 	}
 
+exit_params:
 	kfree(params);
 exit:
 	return err;
@@ -3362,7 +3367,6 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 
 	freq = ieee80211_channel_to_frequency(channel, band);
 	bss_data.chan = ieee80211_get_channel(wiphy, freq);
-	bss_data.scan_width = NL80211_BSS_CHAN_WIDTH_20;
 	bss_data.boottime_ns = ktime_to_ns(ktime_get_boottime());
 
 	notify_capability = le16_to_cpu(bi->capability);
@@ -5411,13 +5415,13 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 static s32
 brcmf_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
-			     struct cfg80211_beacon_data *info)
+			     struct cfg80211_ap_update *info)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	return brcmf_config_ap_mgmt_ie(ifp->vif, info);
+	return brcmf_config_ap_mgmt_ie(ifp->vif, &info->beacon);
 }
 
 static int

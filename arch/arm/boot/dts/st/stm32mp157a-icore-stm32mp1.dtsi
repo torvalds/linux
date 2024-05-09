@@ -165,12 +165,12 @@
 	status = "okay";
 };
 
-&iwdg2{
+&iwdg2 {
 	timeout-sec = <32>;
 	status = "okay";
 };
 
-&m4_rproc{
+&m4_rproc {
 	memory-region = <&retram>, <&mcuram>, <&mcuram2>, <&vdev0vring0>,
 			<&vdev0vring1>, <&vdev0buffer>;
 	mboxes = <&ipcc 0>, <&ipcc 1>, <&ipcc 2>;
@@ -184,7 +184,7 @@
 	status = "okay";
 };
 
-&rtc{
+&rtc {
 	status = "okay";
 };
 

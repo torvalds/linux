@@ -51,7 +51,6 @@ static struct snd_soc_dai_driver ipq806x_lpass_cpu_dai_driver = {
 		.channels_min	= 1,
 		.channels_max	= 8,
 	},
-	.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 	.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 };
 
@@ -109,7 +108,7 @@ static int ipq806x_lpass_free_dma_channel(struct lpass_data *drvdata, int chan, 
 	return 0;
 }
 
-static struct lpass_variant ipq806x_data = {
+static const struct lpass_variant ipq806x_data = {
 	.i2sctrl_reg_base	= 0x0010,
 	.i2sctrl_reg_stride	= 0x04,
 	.i2s_ports		= 5,
@@ -173,7 +172,7 @@ static struct platform_driver ipq806x_lpass_cpu_platform_driver = {
 		.of_match_table	= of_match_ptr(ipq806x_lpass_cpu_device_id),
 	},
 	.probe	= asoc_qcom_lpass_cpu_platform_probe,
-	.remove	= asoc_qcom_lpass_cpu_platform_remove,
+	.remove_new = asoc_qcom_lpass_cpu_platform_remove,
 };
 module_platform_driver(ipq806x_lpass_cpu_platform_driver);
 

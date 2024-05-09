@@ -47,6 +47,7 @@
 	};
 
 	cbass_main: bus@f0000 {
+		bootph-all;
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -86,6 +87,7 @@
 			 <0x00 0x43000000 0x00 0x43000000 0x00 0x00020000>;
 
 		cbass_mcu: bus@4000000 {
+			bootph-all;
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -93,6 +95,7 @@
 		};
 
 		cbass_wakeup: bus@b00000 {
+			bootph-all;
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -100,6 +103,14 @@
 				 <0x00 0x2b000000 0x00 0x2b000000 0x00 0x00300400>, /* Peripheral Window */
 				 <0x00 0x43000000 0x00 0x43000000 0x00 0x00020000>;
 		};
+	};
+
+	dss_vp1_clk: clock-divider-oldi {
+		compatible = "fixed-factor-clock";
+		clocks = <&k3_clks 186 0>;
+		#clock-cells = <0>;
+		clock-div = <7>;
+		clock-mult = <1>;
 	};
 
 	#include "k3-am62-thermal.dtsi"

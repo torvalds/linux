@@ -1799,7 +1799,7 @@ static void remove_dev_resources(struct pci_dev *dev, struct resource *io,
 			 * Make sure prefetchable memory is reduced from
 			 * the correct resource. Specifically we put 32-bit
 			 * prefetchable memory in non-prefetchable window
-			 * if there is an 64-bit pretchable window.
+			 * if there is an 64-bit prefetchable window.
 			 *
 			 * See comments in __pci_bus_size_bridges() for
 			 * more information.
@@ -2129,7 +2129,7 @@ dump:
 	pci_bus_dump_resources(bus);
 }
 
-void __init pci_assign_unassigned_resources(void)
+void pci_assign_unassigned_resources(void)
 {
 	struct pci_bus *root_bus;
 

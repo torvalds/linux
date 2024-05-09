@@ -42,7 +42,7 @@ KASAN有三种模式:
 体系架构
 ~~~~~~~~
 
-在x86_64、arm、arm64、powerpc、riscv、s390和xtensa上支持通用KASAN，
+在x86_64、arm、arm64、powerpc、riscv、s390、xtensa和loongarch上支持通用KASAN，
 而基于标签的KASAN模式只在arm64上支持。
 
 编译器

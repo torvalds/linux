@@ -902,6 +902,11 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define A_TTDA			0x7a		/* Tank Table DMA Address			*/
 #define A_TTDD			0x7b		/* Tank Table DMA Data				*/
 
+// In A_FXRT1 & A_FXRT2, the 0x80 bit of each byte completely disables the
+// filter (CVCF_CURRENTFILTER) for the corresponding channel. There is no
+// effect on the volume (CVCF_CURRENTVOLUME) or the interpolator's filter
+// (CCCA_INTERPROM_MASK).
+
 #define A_FXRT2			0x7c
 #define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
 #define A_FXRT_CHANNELF		0x00003f00	/* Effects send bus number for channel's effects send F	*/
@@ -914,8 +919,6 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define A_FXSENDAMOUNT_G_MASK	0x0000FF00
 #define A_FXSENDAMOUNT_H_MASK	0x000000FF
 
-/* 0x7c, 0x7e "high bit is used for filtering" */
- 
 /* The send amounts for this one are the same as used with the emu10k1 */
 #define A_FXRT1			0x7e
 #define A_FXRT_CHANNELA		0x0000003f
@@ -992,6 +995,9 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define EMU_HANA_WCLOCK_4X		0x10
 #define EMU_HANA_WCLOCK_MULT_RESERVED	0x18
 
+// If the selected external clock source is/becomes invalid or incompatible
+// with the clock multiplier, the clock source is reset to this value, and
+// a WCLK_CHANGED interrupt is raised.
 #define EMU_HANA_DEFCLOCK	0x06	/* 000000x  1 bits Default Word Clock  */
 #define EMU_HANA_DEFCLOCK_48K		0x00
 #define EMU_HANA_DEFCLOCK_44_1K		0x01
@@ -1523,10 +1529,10 @@ struct snd_emu10k1_pcm_mixer {
 ((route[0] | (route[1] << 4) | (route[2] << 8) | (route[3] << 12)) << 16)
 
 #define snd_emu10k1_compose_audigy_fxrt1(route) \
-((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24))
+((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24) | 0x80808080)
 
 #define snd_emu10k1_compose_audigy_fxrt2(route) \
-((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24))
+((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24) | 0x80808080)
 
 #define snd_emu10k1_compose_audigy_sendamounts(vol) \
 (((unsigned int)vol[4] << 24) | ((unsigned int)vol[5] << 16) | ((unsigned int)vol[6] << 8) | (unsigned int)vol[7])
@@ -1678,8 +1684,8 @@ struct snd_emu1010 {
 	unsigned int clock_fallback;
 	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
 	unsigned int optical_out; /* 0:SPDIF, 1:ADAT */
-	struct delayed_work firmware_work;
-	u32 last_reg;
+	struct work_struct firmware_work;
+	struct work_struct clock_work;
 };
 
 struct snd_emu10k1 {
@@ -1754,6 +1760,7 @@ struct snd_emu10k1 {
 	struct snd_kcontrol *ctl_efx_send_routing;
 	struct snd_kcontrol *ctl_efx_send_volume;
 	struct snd_kcontrol *ctl_efx_attn;
+	struct snd_kcontrol *ctl_clock_source;
 
 	void (*hwvol_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*capture_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
@@ -1761,6 +1768,7 @@ struct snd_emu10k1 {
 	void (*capture_efx_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*spdif_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*dsp_interrupt)(struct snd_emu10k1 *emu);
+	void (*gpio_interrupt)(struct snd_emu10k1 *emu);
 	void (*p16v_interrupt)(struct snd_emu10k1 *emu);
 
 	struct snd_pcm_substream *pcm_capture_substream;

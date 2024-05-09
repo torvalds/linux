@@ -16,7 +16,7 @@ MODULE_LICENSE("GPL");
 static void name_card(struct snd_ff *ff)
 {
 	struct fw_device *fw_dev = fw_parent_device(ff->unit);
-	const char *const names[] = {
+	static const char *const names[] = {
 		[SND_FF_UNIT_VERSION_FF800]	= "Fireface800",
 		[SND_FF_UNIT_VERSION_FF400]	= "Fireface400",
 		[SND_FF_UNIT_VERSION_UFX]	= "FirefaceUFX",

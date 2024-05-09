@@ -140,7 +140,7 @@ static void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 }
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-		     pte_t *ptep, pte_t entry)
+		     pte_t *ptep, pte_t entry, unsigned long sz)
 {
 	__set_huge_pte_at(mm, addr, ptep, entry);
 }

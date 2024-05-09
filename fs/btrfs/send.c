@@ -796,7 +796,7 @@ static int send_cmd(struct send_ctx *sctx)
 	put_unaligned_le32(sctx->send_size - sizeof(*hdr), &hdr->len);
 	put_unaligned_le32(0, &hdr->crc);
 
-	crc = btrfs_crc32c(0, (unsigned char *)sctx->send_buf, sctx->send_size);
+	crc = crc32c(0, (unsigned char *)sctx->send_buf, sctx->send_size);
 	put_unaligned_le32(crc, &hdr->crc);
 
 	ret = write_buf(sctx->send_filp, sctx->send_buf, sctx->send_size,
@@ -3685,7 +3685,7 @@ static void tail_append_pending_moves(struct send_ctx *sctx,
 static int apply_children_dir_moves(struct send_ctx *sctx)
 {
 	struct pending_dir_move *pm;
-	struct list_head stack;
+	LIST_HEAD(stack);
 	u64 parent_ino = sctx->cur_ino;
 	int ret = 0;
 
@@ -3693,7 +3693,6 @@ static int apply_children_dir_moves(struct send_ctx *sctx)
 	if (!pm)
 		return 0;
 
-	INIT_LIST_HEAD(&stack);
 	tail_append_pending_moves(sctx, pm, &stack);
 
 	while (!list_empty(&stack)) {
@@ -4165,7 +4164,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	int ret = 0;
 	struct recorded_ref *cur;
 	struct recorded_ref *cur2;
-	struct list_head check_dirs;
+	LIST_HEAD(check_dirs);
 	struct fs_path *valid_path = NULL;
 	u64 ow_inode = 0;
 	u64 ow_gen;
@@ -4184,7 +4183,6 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	 * which is always '..'
 	 */
 	BUG_ON(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID);
-	INIT_LIST_HEAD(&check_dirs);
 
 	valid_path = fs_path_alloc();
 	if (!valid_path) {
@@ -5671,8 +5669,8 @@ static int send_encoded_extent(struct send_ctx *sctx, struct btrfs_path *path,
 	hdr = (struct btrfs_cmd_header *)sctx->send_buf;
 	hdr->len = cpu_to_le32(sctx->send_size + disk_num_bytes - sizeof(*hdr));
 	hdr->crc = 0;
-	crc = btrfs_crc32c(0, sctx->send_buf, sctx->send_size);
-	crc = btrfs_crc32c(crc, sctx->send_buf + data_offset, disk_num_bytes);
+	crc = crc32c(0, sctx->send_buf, sctx->send_size);
+	crc = crc32c(crc, sctx->send_buf + data_offset, disk_num_bytes);
 	hdr->crc = cpu_to_le32(crc);
 
 	ret = write_buf(sctx->send_filp, sctx->send_buf, sctx->send_size,

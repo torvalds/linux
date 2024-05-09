@@ -143,7 +143,6 @@ static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	xhci_link_segments(ring->enq_seg, first, ring->type, chain_links);
 	xhci_link_segments(last, next, ring->type, chain_links);
 	ring->num_segs += num_segs;
-	ring->num_trbs_free += (TRBS_PER_SEGMENT - 1) * num_segs;
 
 	if (ring->type != TYPE_EVENT && ring->enq_seg == ring->last_seg) {
 		ring->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
@@ -422,22 +421,14 @@ void xhci_free_endpoint_ring(struct xhci_hcd *xhci,
  * Allocate a new ring which has same segment numbers and link the two rings.
  */
 int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
-				unsigned int num_trbs, gfp_t flags)
+				unsigned int num_new_segs, gfp_t flags)
 {
 	struct xhci_segment	*first;
 	struct xhci_segment	*last;
-	unsigned int		num_segs;
-	unsigned int		num_segs_needed;
 	int			ret;
 
-	num_segs_needed = (num_trbs + (TRBS_PER_SEGMENT - 1) - 1) /
-				(TRBS_PER_SEGMENT - 1);
-
-	/* Allocate number of segments we needed, or double the ring size */
-	num_segs = max(ring->num_segs, num_segs_needed);
-
 	ret = xhci_alloc_segments_for_ring(xhci, &first, &last,
-			num_segs, ring->cycle_state, ring->type,
+			num_new_segs, ring->cycle_state, ring->type,
 			ring->bounce_buf_len, flags);
 	if (ret)
 		return -ENOMEM;
@@ -457,7 +448,7 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		return ret;
 	}
 
-	xhci_link_rings(xhci, ring, first, last, num_segs);
+	xhci_link_rings(xhci, ring, first, last, num_new_segs);
 	trace_xhci_ring_expansion(ring);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_ring_expansion,
 			"ring expansion succeed, now has %d segments",
@@ -1117,9 +1108,6 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_LS);
 		max_packets = MAX_PACKET(8);
 		break;
-	case USB_SPEED_WIRELESS:
-		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
-		return -EINVAL;
 	default:
 		/* Speed was set earlier, this shouldn't happen. */
 		return -EINVAL;
@@ -1831,13 +1819,15 @@ xhci_free_interrupter(struct xhci_hcd *xhci, struct xhci_interrupter *ir)
 	 * low or high 32 bits of ERSTBA immediately causes the controller to
 	 * dereference the partially cleared 64 bit address, causing IOMMU error.
 	 */
-	tmp = readl(&ir->ir_set->erst_size);
-	tmp &= ERST_SIZE_MASK;
-	writel(tmp, &ir->ir_set->erst_size);
+	if (ir->ir_set) {
+		tmp = readl(&ir->ir_set->erst_size);
+		tmp &= ERST_SIZE_MASK;
+		writel(tmp, &ir->ir_set->erst_size);
 
-	tmp64 = xhci_read_64(xhci, &ir->ir_set->erst_dequeue);
-	tmp64 &= (u64) ERST_PTR_MASK;
-	xhci_write_64(xhci, tmp64, &ir->ir_set->erst_dequeue);
+		tmp64 = xhci_read_64(xhci, &ir->ir_set->erst_dequeue);
+		tmp64 &= (u64) ERST_PTR_MASK;
+		xhci_write_64(xhci, tmp64, &ir->ir_set->erst_dequeue);
+	}
 
 	/* free interrrupter event ring */
 	if (ir->event_ring)
@@ -1968,7 +1958,7 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 {
 	u32 temp, port_offset, port_count;
 	int i;
-	u8 major_revision, minor_revision;
+	u8 major_revision, minor_revision, tmp_minor_revision;
 	struct xhci_hub *rhub;
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 	struct xhci_port_cap *port_cap;
@@ -1988,6 +1978,15 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		 */
 		if (minor_revision > 0x00 && minor_revision < 0x10)
 			minor_revision <<= 4;
+		/*
+		 * Some zhaoxin's xHCI controller that follow usb3.1 spec
+		 * but only support Gen1.
+		 */
+		if (xhci->quirks & XHCI_ZHAOXIN_HOST) {
+			tmp_minor_revision = minor_revision;
+			minor_revision = 0;
+		}
+
 	} else if (major_revision <= 0x02) {
 		rhub = &xhci->usb2_rhub;
 	} else {
@@ -1996,10 +1995,6 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		/* Ignoring port protocol we can't understand. FIXME */
 		return;
 	}
-	rhub->maj_rev = XHCI_EXT_PORT_MAJOR(temp);
-
-	if (rhub->min_rev < minor_revision)
-		rhub->min_rev = minor_revision;
 
 	/* Port offset and count in the third dword, see section 7.2 */
 	temp = readl(addr + 2);
@@ -2017,8 +2012,6 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	if (xhci->num_port_caps > max_caps)
 		return;
 
-	port_cap->maj_rev = major_revision;
-	port_cap->min_rev = minor_revision;
 	port_cap->psi_count = XHCI_EXT_PORT_PSIC(temp);
 
 	if (port_cap->psi_count) {
@@ -2039,6 +2032,11 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 				  XHCI_EXT_PORT_PSIV(port_cap->psi[i - 1])))
 				port_cap->psi_uid_count++;
 
+			if (xhci->quirks & XHCI_ZHAOXIN_HOST &&
+			    major_revision == 0x03 &&
+			    XHCI_EXT_PORT_PSIV(port_cap->psi[i]) >= 5)
+				minor_revision = tmp_minor_revision;
+
 			xhci_dbg(xhci, "PSIV:%d PSIE:%d PLT:%d PFD:%d LP:%d PSIM:%d\n",
 				  XHCI_EXT_PORT_PSIV(port_cap->psi[i]),
 				  XHCI_EXT_PORT_PSIE(port_cap->psi[i]),
@@ -2048,6 +2046,15 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 				  XHCI_EXT_PORT_PSIM(port_cap->psi[i]));
 		}
 	}
+
+	rhub->maj_rev = major_revision;
+
+	if (rhub->min_rev < minor_revision)
+		rhub->min_rev = minor_revision;
+
+	port_cap->maj_rev = major_revision;
+	port_cap->min_rev = minor_revision;
+
 	/* cache usb2 port capabilities */
 	if (major_revision < 0x03 && xhci->num_ext_caps < max_caps)
 		xhci->ext_caps[xhci->num_ext_caps++] = temp;
@@ -2227,43 +2234,50 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 }
 
 static struct xhci_interrupter *
-xhci_alloc_interrupter(struct xhci_hcd *xhci, unsigned int intr_num, gfp_t flags)
+xhci_alloc_interrupter(struct xhci_hcd *xhci, gfp_t flags)
 {
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 	struct xhci_interrupter *ir;
-	u64 erst_base;
-	u32 erst_size;
 	int ret;
-
-	if (intr_num > xhci->max_interrupters) {
-		xhci_warn(xhci, "Can't allocate interrupter %d, max interrupters %d\n",
-			  intr_num, xhci->max_interrupters);
-		return NULL;
-	}
-
-	if (xhci->interrupter) {
-		xhci_warn(xhci, "Can't allocate already set up interrupter %d\n", intr_num);
-		return NULL;
-	}
 
 	ir = kzalloc_node(sizeof(*ir), flags, dev_to_node(dev));
 	if (!ir)
 		return NULL;
 
-	ir->ir_set = &xhci->run_regs->ir_set[intr_num];
 	ir->event_ring = xhci_ring_alloc(xhci, ERST_NUM_SEGS, 1, TYPE_EVENT,
 					0, flags);
 	if (!ir->event_ring) {
-		xhci_warn(xhci, "Failed to allocate interrupter %d event ring\n", intr_num);
-		goto fail_ir;
+		xhci_warn(xhci, "Failed to allocate interrupter event ring\n");
+		kfree(ir);
+		return NULL;
 	}
 
 	ret = xhci_alloc_erst(xhci, ir->event_ring, &ir->erst, flags);
 	if (ret) {
-		xhci_warn(xhci, "Failed to allocate interrupter %d erst\n", intr_num);
-		goto fail_ev;
-
+		xhci_warn(xhci, "Failed to allocate interrupter erst\n");
+		xhci_ring_free(xhci, ir->event_ring);
+		kfree(ir);
+		return NULL;
 	}
+
+	return ir;
+}
+
+static int
+xhci_add_interrupter(struct xhci_hcd *xhci, struct xhci_interrupter *ir,
+		     unsigned int intr_num)
+{
+	u64 erst_base;
+	u32 erst_size;
+
+	if (intr_num > xhci->max_interrupters) {
+		xhci_warn(xhci, "Can't add interrupter %d, max interrupters %d\n",
+			  intr_num, xhci->max_interrupters);
+		return -EINVAL;
+	}
+
+	ir->ir_set = &xhci->run_regs->ir_set[intr_num];
+
 	/* set ERST count with the number of entries in the segment table */
 	erst_size = readl(&ir->ir_set->erst_size);
 	erst_size &= ERST_SIZE_MASK;
@@ -2271,21 +2285,14 @@ xhci_alloc_interrupter(struct xhci_hcd *xhci, unsigned int intr_num, gfp_t flags
 	writel(erst_size, &ir->ir_set->erst_size);
 
 	erst_base = xhci_read_64(xhci, &ir->ir_set->erst_base);
-	erst_base &= ERST_PTR_MASK;
-	erst_base |= (ir->erst.erst_dma_addr & (u64) ~ERST_PTR_MASK);
+	erst_base &= ERST_BASE_RSVDP;
+	erst_base |= ir->erst.erst_dma_addr & ~ERST_BASE_RSVDP;
 	xhci_write_64(xhci, erst_base, &ir->ir_set->erst_base);
 
 	/* Set the event ring dequeue address of this interrupter */
 	xhci_set_hc_event_deq(xhci, ir);
 
-	return ir;
-
-fail_ev:
-	xhci_ring_free(xhci, ir->event_ring);
-fail_ir:
-	kfree(ir);
-
-	return NULL;
+	return 0;
 }
 
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
@@ -2352,8 +2359,12 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * and our use of dma addresses in the trb_address_map radix tree needs
 	 * TRB_SEGMENT_SIZE alignment, so we pick the greater alignment need.
 	 */
-	xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
-			TRB_SEGMENT_SIZE, TRB_SEGMENT_SIZE, xhci->page_size);
+	if (xhci->quirks & XHCI_ZHAOXIN_TRB_FETCH)
+		xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
+				TRB_SEGMENT_SIZE * 2, TRB_SEGMENT_SIZE * 2, xhci->page_size * 2);
+	else
+		xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
+				TRB_SEGMENT_SIZE, TRB_SEGMENT_SIZE, xhci->page_size);
 
 	/* See Table 46 and Note on Figure 55 */
 	xhci->device_pool = dma_pool_create("xHCI input/output contexts", dev,
@@ -2407,13 +2418,15 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		       "// Doorbell array is located at offset 0x%x from cap regs base addr",
 		       val);
 	xhci->dba = (void __iomem *) xhci->cap_regs + val;
-	/* Set ir_set to interrupt register set 0 */
 
-	/* allocate and set up primary interrupter with an event ring. */
+	/* Allocate and set up primary interrupter 0 with an event ring. */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 		       "Allocating primary event ring");
-	xhci->interrupter = xhci_alloc_interrupter(xhci, 0, flags);
+	xhci->interrupter = xhci_alloc_interrupter(xhci, flags);
 	if (!xhci->interrupter)
+		goto fail;
+
+	if (xhci_add_interrupter(xhci, xhci->interrupter, 0))
 		goto fail;
 
 	xhci->isoc_bei_interval = AVOID_BEI_INTERVAL_MAX;

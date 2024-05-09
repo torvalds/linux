@@ -43,6 +43,8 @@ enum {
 	NVMEM_REMOVE,
 	NVMEM_CELL_ADD,
 	NVMEM_CELL_REMOVE,
+	NVMEM_LAYOUT_ADD,
+	NVMEM_LAYOUT_REMOVE,
 };
 
 #if IS_ENABLED(CONFIG_NVMEM)
@@ -121,6 +123,12 @@ static inline void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
 
 static inline int nvmem_cell_write(struct nvmem_cell *cell,
 				   void *buf, size_t len)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int nvmem_cell_read_u8(struct device *dev,
+				     const char *cell_id, u8 *val)
 {
 	return -EOPNOTSUPP;
 }
@@ -256,7 +264,7 @@ static inline struct nvmem_device *of_nvmem_device_get(struct device_node *np,
 static inline struct device_node *
 of_nvmem_layout_get_container(struct nvmem_device *nvmem)
 {
-	return ERR_PTR(-EOPNOTSUPP);
+	return NULL;
 }
 #endif /* CONFIG_NVMEM && CONFIG_OF */
 

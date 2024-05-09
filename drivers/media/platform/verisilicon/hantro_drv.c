@@ -275,7 +275,13 @@ static int hantro_try_ctrl(struct v4l2_ctrl *ctrl)
 		/* We only support profile 0 */
 		if (dec_params->profile != 0)
 			return -EINVAL;
+	} else if (ctrl->id == V4L2_CID_STATELESS_AV1_SEQUENCE) {
+		const struct v4l2_ctrl_av1_sequence *sequence = ctrl->p_new.p_av1_sequence;
+
+		if (sequence->bit_depth != 8 && sequence->bit_depth != 10)
+			return -EINVAL;
 	}
+
 	return 0;
 }
 
@@ -313,7 +319,7 @@ static int hantro_vp9_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctx->bit_depth == bit_depth)
 			return 0;
 
-		return hantro_reset_raw_fmt(ctx, bit_depth);
+		return hantro_reset_raw_fmt(ctx, bit_depth, HANTRO_AUTO_POSTPROC);
 	}
 	default:
 		return -EINVAL;
@@ -337,7 +343,37 @@ static int hantro_hevc_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctx->bit_depth == bit_depth)
 			return 0;
 
-		return hantro_reset_raw_fmt(ctx, bit_depth);
+		return hantro_reset_raw_fmt(ctx, bit_depth, HANTRO_AUTO_POSTPROC);
+	}
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hantro_av1_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct hantro_ctx *ctx;
+
+	ctx = container_of(ctrl->handler,
+			   struct hantro_ctx, ctrl_handler);
+
+	switch (ctrl->id) {
+	case V4L2_CID_STATELESS_AV1_SEQUENCE:
+	{
+		int bit_depth = ctrl->p_new.p_av1_sequence->bit_depth;
+		bool need_postproc = HANTRO_AUTO_POSTPROC;
+
+		if (ctrl->p_new.p_av1_sequence->flags
+		    & V4L2_AV1_SEQUENCE_FLAG_FILM_GRAIN_PARAMS_PRESENT)
+			need_postproc = HANTRO_FORCE_POSTPROC;
+
+		if (ctx->bit_depth == bit_depth &&
+		    ctx->need_postproc == need_postproc)
+			return 0;
+
+		return hantro_reset_raw_fmt(ctx, bit_depth, need_postproc);
 	}
 	default:
 		return -EINVAL;
@@ -361,6 +397,11 @@ static const struct v4l2_ctrl_ops hantro_vp9_ctrl_ops = {
 static const struct v4l2_ctrl_ops hantro_hevc_ctrl_ops = {
 	.try_ctrl = hantro_try_ctrl,
 	.s_ctrl = hantro_hevc_s_ctrl,
+};
+
+static const struct v4l2_ctrl_ops hantro_av1_ctrl_ops = {
+	.try_ctrl = hantro_try_ctrl,
+	.s_ctrl = hantro_av1_s_ctrl,
 };
 
 #define HANTRO_JPEG_ACTIVE_MARKERS	(V4L2_JPEG_ACTIVE_MARKER_APP0 | \
@@ -525,6 +566,28 @@ static const struct hantro_ctrl controls[] = {
 		.cfg = {
 			.id = V4L2_CID_STATELESS_VP9_COMPRESSED_HDR,
 		},
+	}, {
+		.codec = HANTRO_AV1_DECODER,
+		.cfg = {
+			.id = V4L2_CID_STATELESS_AV1_FRAME,
+		},
+	}, {
+		.codec = HANTRO_AV1_DECODER,
+		.cfg = {
+			.id = V4L2_CID_STATELESS_AV1_TILE_GROUP_ENTRY,
+			.dims = { V4L2_AV1_MAX_TILE_COUNT },
+		},
+	}, {
+		.codec = HANTRO_AV1_DECODER,
+		.cfg = {
+			.id = V4L2_CID_STATELESS_AV1_SEQUENCE,
+			.ops = &hantro_av1_ctrl_ops,
+		},
+	}, {
+		.codec = HANTRO_AV1_DECODER,
+		.cfg = {
+			.id = V4L2_CID_STATELESS_AV1_FILM_GRAIN,
+		},
 	},
 };
 
@@ -656,6 +719,7 @@ static const struct of_device_id of_hantro_match[] = {
 	{ .compatible = "rockchip,rk3399-vpu", .data = &rk3399_vpu_variant, },
 	{ .compatible = "rockchip,rk3568-vepu", .data = &rk3568_vepu_variant, },
 	{ .compatible = "rockchip,rk3568-vpu", .data = &rk3568_vpu_variant, },
+	{ .compatible = "rockchip,rk3588-av1-vpu", .data = &rk3588_vpu981_variant, },
 #endif
 #ifdef CONFIG_VIDEO_HANTRO_IMX8M
 	{ .compatible = "nxp,imx8mm-vpu-g1", .data = &imx8mm_vpu_g1_variant, },
@@ -922,7 +986,6 @@ static int hantro_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct hantro_dev *vpu;
-	struct resource *res;
 	int num_bases;
 	int i, ret;
 
@@ -983,11 +1046,9 @@ static int hantro_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < num_bases; i++) {
-		res = vpu->variant->reg_names ?
-		      platform_get_resource_byname(vpu->pdev, IORESOURCE_MEM,
-						   vpu->variant->reg_names[i]) :
-		      platform_get_resource(vpu->pdev, IORESOURCE_MEM, 0);
-		vpu->reg_bases[i] = devm_ioremap_resource(vpu->dev, res);
+		vpu->reg_bases[i] = vpu->variant->reg_names ?
+		      devm_platform_ioremap_resource_byname(pdev, vpu->variant->reg_names[i]) :
+		      devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(vpu->reg_bases[i]))
 			return PTR_ERR(vpu->reg_bases[i]);
 	}
@@ -1024,8 +1085,8 @@ static int hantro_probe(struct platform_device *pdev)
 			irq_name = "default";
 			irq = platform_get_irq(vpu->pdev, 0);
 		}
-		if (irq <= 0)
-			return -ENXIO;
+		if (irq < 0)
+			return irq;
 
 		ret = devm_request_irq(vpu->dev, irq,
 				       vpu->variant->irqs[i].handler, 0,
@@ -1161,7 +1222,7 @@ static struct platform_driver hantro_driver = {
 	.remove_new = hantro_remove,
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .of_match_table = of_match_ptr(of_hantro_match),
+		   .of_match_table = of_hantro_match,
 		   .pm = &hantro_pm_ops,
 	},
 };

@@ -32,8 +32,6 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_FLUSH_SEQ		((__force req_flags_t)(1 << 4))
 /* merge of different types, fail separately */
 #define RQF_MIXED_MERGE		((__force req_flags_t)(1 << 5))
-/* track inflight for MQ */
-#define RQF_MQ_INFLIGHT		((__force req_flags_t)(1 << 6))
 /* don't call prep for this one */
 #define RQF_DONTPREP		((__force req_flags_t)(1 << 7))
 /* use hctx->sched_tags */
@@ -158,13 +156,13 @@ struct request {
 
 	/*
 	 * The rb_node is only used inside the io scheduler, requests
-	 * are pruned when moved to the dispatch queue. So let the
-	 * completion_data share space with the rb_node.
+	 * are pruned when moved to the dispatch queue. special_vec must
+	 * only be used if RQF_SPECIAL_PAYLOAD is set, and those cannot be
+	 * insert into an IO scheduler.
 	 */
 	union {
 		struct rb_node rb_node;	/* sort/lookup */
 		struct bio_vec special_vec;
-		void *completion_data;
 	};
 
 	/*
@@ -178,14 +176,10 @@ struct request {
 
 	struct {
 		unsigned int		seq;
-		struct list_head	list;
 		rq_end_io_fn		*saved_end_io;
 	} flush;
 
-	union {
-		struct __call_single_data csd;
-		u64 fifo_time;
-	};
+	u64 fifo_time;
 
 	/*
 	 * completion callback.
@@ -397,8 +391,6 @@ struct blk_mq_hw_ctx {
 	 */
 	struct blk_mq_tags	*sched_tags;
 
-	/** @queued: Number of queued requests. */
-	unsigned long		queued;
 	/** @run: Number of dispatched requests. */
 	unsigned long		run;
 
@@ -715,6 +707,8 @@ int blk_mq_alloc_sq_tag_set(struct blk_mq_tag_set *set,
 void blk_mq_free_tag_set(struct blk_mq_tag_set *set);
 
 void blk_mq_free_request(struct request *rq);
+int blk_rq_poll(struct request *rq, struct io_comp_batch *iob,
+		unsigned int poll_flags);
 
 bool blk_mq_queue_inflight(struct request_queue *q);
 
@@ -852,7 +846,11 @@ static inline bool blk_mq_add_to_batch(struct request *req,
 				       struct io_comp_batch *iob, int ioerror,
 				       void (*complete)(struct io_comp_batch *))
 {
-	if (!iob || (req->rq_flags & RQF_USE_SCHED) || ioerror ||
+	/*
+	 * blk_mq_end_request_batch() can't end request allocated from
+	 * sched tags
+	 */
+	if (!iob || (req->rq_flags & RQF_SCHED_TAGS) || ioerror ||
 			(req->end_io && !blk_rq_is_passthrough(req)))
 		return false;
 

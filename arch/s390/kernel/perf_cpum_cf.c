@@ -172,9 +172,9 @@ static void cpum_cf_free_root(void)
 	cpu_cf_root.cfptr = NULL;
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 	on_each_cpu(cpum_cf_reset_cpu, NULL, 1);
-	debug_sprintf_event(cf_dbg, 4, "%s2 root.refcnt %u cfptr %px\n",
+	debug_sprintf_event(cf_dbg, 4, "%s root.refcnt %u cfptr %d\n",
 			    __func__, refcount_read(&cpu_cf_root.refcnt),
-			    cpu_cf_root.cfptr);
+			    !cpu_cf_root.cfptr);
 }
 
 /*
@@ -975,10 +975,6 @@ static int cfdiag_push_sample(struct perf_event *event,
 	}
 
 	overflow = perf_event_overflow(event, &data, &regs);
-	debug_sprintf_event(cf_dbg, 3,
-			    "%s event %#llx sample_type %#llx raw %d ov %d\n",
-			    __func__, event->hw.config,
-			    event->attr.sample_type, raw.size, overflow);
 	if (overflow)
 		event->pmu->stop(event, 0);
 
@@ -1105,10 +1101,6 @@ static int cpum_cf_online_cpu(unsigned int cpu)
 {
 	int rc = 0;
 
-	debug_sprintf_event(cf_dbg, 4, "%s cpu %d root.refcnt %d "
-			    "opencnt %d\n", __func__, cpu,
-			    refcount_read(&cpu_cf_root.refcnt),
-			    refcount_read(&cfset_opencnt));
 	/*
 	 * Ignore notification for perf_event_open().
 	 * Handle only /dev/hwctr device sessions.
@@ -1127,9 +1119,6 @@ static int cfset_offline_cpu(unsigned int cpu);
 
 static int cpum_cf_offline_cpu(unsigned int cpu)
 {
-	debug_sprintf_event(cf_dbg, 4, "%s cpu %d root.refcnt %d opencnt %d\n",
-			    __func__, cpu, refcount_read(&cpu_cf_root.refcnt),
-			    refcount_read(&cfset_opencnt));
 	/*
 	 * During task exit processing of grouped perf events triggered by CPU
 	 * hotplug processing, pmu_disable() is called as part of perf context
@@ -1337,8 +1326,6 @@ static void cfset_ioctl_off(void *parm)
 		       cpuhw->state, S390_HWCTR_DEVICE, rc);
 	if (!cpuhw->dev_state)
 		cpuhw->flags &= ~PMU_F_IN_USE;
-	debug_sprintf_event(cf_dbg, 4, "%s rc %d state %#llx dev_state %#llx\n",
-			    __func__, rc, cpuhw->state, cpuhw->dev_state);
 }
 
 /* Start counter sets on particular CPU */
@@ -1360,8 +1347,6 @@ static void cfset_ioctl_on(void *parm)
 	else
 		pr_err("Counter set start %#llx of /dev/%s failed rc=%i\n",
 		       cpuhw->dev_state | cpuhw->state, S390_HWCTR_DEVICE, rc);
-	debug_sprintf_event(cf_dbg, 4, "%s rc %d state %#llx dev_state %#llx\n",
-			    __func__, rc, cpuhw->state, cpuhw->dev_state);
 }
 
 static void cfset_release_cpu(void *p)
@@ -1369,8 +1354,6 @@ static void cfset_release_cpu(void *p)
 	struct cpu_cf_events *cpuhw = this_cpu_cfhw();
 	int rc;
 
-	debug_sprintf_event(cf_dbg, 4, "%s state %#llx dev_state %#llx\n",
-			    __func__, cpuhw->state, cpuhw->dev_state);
 	cpuhw->dev_state = 0;
 	rc = lcctl(cpuhw->state);	/* Keep perf_event_open counter sets */
 	if (rc)
@@ -1459,7 +1442,6 @@ static int cfset_all_start(struct cfset_request *req)
 	if (atomic_read(&p.cpus_ack) != cpumask_weight(mask)) {
 		on_each_cpu_mask(mask, cfset_ioctl_off, &p, 1);
 		rc = -EIO;
-		debug_sprintf_event(cf_dbg, 4, "%s CPUs missing", __func__);
 	}
 	free_cpumask_var(mask);
 	return rc;
@@ -1516,8 +1498,6 @@ static int cfset_all_copy(unsigned long arg, cpumask_t *mask)
 	if (put_user(cpus, &ctrset_read->no_cpus))
 		rc = -EFAULT;
 out:
-	debug_sprintf_event(cf_dbg, 4, "%s rc %d copied %ld\n", __func__, rc,
-			    uptr - (void __user *)ctrset_read->data);
 	return rc;
 }
 
@@ -1565,8 +1545,6 @@ static void cfset_cpu_read(void *parm)
 			cpuhw->used += space;
 			cpuhw->sets += 1;
 		}
-		debug_sprintf_event(cf_dbg, 4, "%s sets %d used %zd\n", __func__,
-				    cpuhw->sets, cpuhw->used);
 	}
 }
 
@@ -1661,8 +1639,6 @@ static long cfset_ioctl_start(unsigned long arg, struct file *file)
 	if (!ret) {
 		cfset_session_add(preq);
 		file->private_data = preq;
-		debug_sprintf_event(cf_dbg, 4, "%s set %#lx need %ld ret %d\n",
-				    __func__, preq->ctrset, need, ret);
 	} else {
 		kfree(preq);
 	}
@@ -1761,8 +1737,6 @@ static int cfset_offline_cpu(unsigned int cpu)
 
 static void cfdiag_read(struct perf_event *event)
 {
-	debug_sprintf_event(cf_dbg, 3, "%s event %#llx count %ld\n", __func__,
-			    event->attr.config, local64_read(&event->count));
 }
 
 static int get_authctrsets(void)
@@ -1807,8 +1781,6 @@ static int cfdiag_event_init2(struct perf_event *event)
 	if (!event->hw.config_base)
 		err = -EINVAL;
 
-	debug_sprintf_event(cf_dbg, 5, "%s err %d config_base %#lx\n",
-			    __func__, err, event->hw.config_base);
 	return err;
 }
 

@@ -242,6 +242,7 @@ struct inode *
 adfs_iget(struct super_block *sb, struct object_info *obj)
 {
 	struct inode *inode;
+	struct timespec64 ts;
 
 	inode = new_inode(sb);
 	if (!inode)
@@ -268,9 +269,10 @@ adfs_iget(struct super_block *sb, struct object_info *obj)
 	ADFS_I(inode)->attr      = obj->attr;
 
 	inode->i_mode	 = adfs_atts2mode(sb, inode);
-	adfs_adfs2unix_time(&inode->i_mtime, inode);
-	inode->i_atime = inode->i_mtime;
-	inode->i_ctime = inode->i_mtime;
+	adfs_adfs2unix_time(&ts, inode);
+	inode_set_atime_to_ts(inode, ts);
+	inode_set_mtime_to_ts(inode, ts);
+	inode_set_ctime_to_ts(inode, ts);
 
 	if (S_ISDIR(inode->i_mode)) {
 		inode->i_op	= &adfs_dir_inode_operations;
@@ -321,7 +323,8 @@ adfs_notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	if (ia_valid & ATTR_MTIME && adfs_inode_is_stamped(inode)) {
 		adfs_unix2adfs_time(inode, &attr->ia_mtime);
-		adfs_adfs2unix_time(&inode->i_mtime, inode);
+		adfs_adfs2unix_time(&attr->ia_mtime, inode);
+		inode_set_mtime_to_ts(inode, attr->ia_mtime);
 	}
 
 	/*
@@ -329,9 +332,9 @@ adfs_notify_change(struct mnt_idmap *idmap, struct dentry *dentry,
 	 * have the ability to represent them in our filesystem?
 	 */
 	if (ia_valid & ATTR_ATIME)
-		inode->i_atime = attr->ia_atime;
+		inode_set_atime_to_ts(inode, attr->ia_atime);
 	if (ia_valid & ATTR_CTIME)
-		inode->i_ctime = attr->ia_ctime;
+		inode_set_ctime_to_ts(inode, attr->ia_ctime);
 	if (ia_valid & ATTR_MODE) {
 		ADFS_I(inode)->attr = adfs_mode2atts(sb, inode, attr->ia_mode);
 		inode->i_mode = adfs_atts2mode(sb, inode);

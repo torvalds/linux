@@ -21,7 +21,7 @@ extern int bpf_xdp_metadata_rx_timestamp(const struct xdp_md *ctx,
 extern int bpf_xdp_metadata_rx_hash(const struct xdp_md *ctx, __u32 *hash,
 				    enum xdp_rss_hash_type *rss_type) __ksym;
 
-SEC("xdp")
+SEC("xdp.frags")
 int rx(struct xdp_md *ctx)
 {
 	void *data, *data_meta, *data_end;

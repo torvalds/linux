@@ -33,6 +33,7 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_exec.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/ttm/ttm_tt.h>
 
@@ -181,11 +182,10 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 		return r;
 
 	bo_va = amdgpu_vm_bo_find(vm, abo);
-	if (!bo_va) {
+	if (!bo_va)
 		bo_va = amdgpu_vm_bo_add(adev, vm, abo);
-	} else {
+	else
 		++bo_va->ref_count;
-	}
 	amdgpu_bo_unreserve(abo);
 	return 0;
 }
@@ -198,29 +198,24 @@ static void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 
-	struct amdgpu_bo_list_entry vm_pd;
-	struct list_head list, duplicates;
 	struct dma_fence *fence = NULL;
-	struct ttm_validate_buffer tv;
-	struct ww_acquire_ctx ticket;
 	struct amdgpu_bo_va *bo_va;
+	struct drm_exec exec;
 	long r;
 
-	INIT_LIST_HEAD(&list);
-	INIT_LIST_HEAD(&duplicates);
+	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES);
+	drm_exec_until_all_locked(&exec) {
+		r = drm_exec_prepare_obj(&exec, &bo->tbo.base, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (unlikely(r))
+			goto out_unlock;
 
-	tv.bo = &bo->tbo;
-	tv.num_shared = 2;
-	list_add(&tv.head, &list);
-
-	amdgpu_vm_get_pd_bo(vm, &list, &vm_pd);
-
-	r = ttm_eu_reserve_buffers(&ticket, &list, false, &duplicates);
-	if (r) {
-		dev_err(adev->dev, "leaking bo va because "
-			"we fail to reserve bo (%ld)\n", r);
-		return;
+		r = amdgpu_vm_lock_pd(vm, &exec, 0);
+		drm_exec_retry_on_contention(&exec);
+		if (unlikely(r))
+			goto out_unlock;
 	}
+
 	bo_va = amdgpu_vm_bo_find(vm, bo);
 	if (!bo_va || --bo_va->ref_count)
 		goto out_unlock;
@@ -230,6 +225,9 @@ static void amdgpu_gem_object_close(struct drm_gem_object *obj,
 		goto out_unlock;
 
 	r = amdgpu_vm_clear_freed(adev, vm, &fence);
+	if (unlikely(r < 0))
+		dev_err(adev->dev, "failed to clear page "
+			"tables on GEM object close (%ld)\n", r);
 	if (r || !fence)
 		goto out_unlock;
 
@@ -237,10 +235,9 @@ static void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	dma_fence_put(fence);
 
 out_unlock:
-	if (unlikely(r < 0))
-		dev_err(adev->dev, "failed to clear page "
-			"tables on GEM object close (%ld)\n", r);
-	ttm_eu_backoff_reservation(&ticket, &list);
+	if (r)
+		dev_err(adev->dev, "leaking bo va (%ld)\n", r);
+	drm_exec_fini(&exec);
 }
 
 static int amdgpu_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
@@ -291,6 +288,10 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gobj;
 	uint32_t handle, initial_domain;
 	int r;
+
+	/* reject DOORBELLs until userspace code to use it is available */
+	if (args->in.domains & AMDGPU_GEM_DOMAIN_DOORBELL)
+		return -EINVAL;
 
 	/* reject invalid gem flags */
 	if (flags & ~(AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
@@ -463,9 +464,9 @@ int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 	struct amdgpu_bo *robj;
 
 	gobj = drm_gem_object_lookup(filp, handle);
-	if (gobj == NULL) {
+	if (!gobj)
 		return -ENOENT;
-	}
+
 	robj = gem_to_amdgpu_bo(gobj);
 	if (amdgpu_ttm_tt_get_usermm(robj->tbo.ttm) ||
 	    (robj->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)) {
@@ -482,6 +483,7 @@ int amdgpu_gem_mmap_ioctl(struct drm_device *dev, void *data,
 {
 	union drm_amdgpu_gem_mmap *args = data;
 	uint32_t handle = args->in.handle;
+
 	memset(args, 0, sizeof(*args));
 	return amdgpu_mode_dumb_mmap(filp, dev, handle, &args->out.addr_ptr);
 }
@@ -508,7 +510,7 @@ unsigned long amdgpu_gem_timeout(uint64_t timeout_ns)
 
 	timeout_jiffies = nsecs_to_jiffies(ktime_to_ns(timeout));
 	/*  clamp timeout to avoid unsigned-> signed overflow */
-	if (timeout_jiffies > MAX_SCHEDULE_TIMEOUT )
+	if (timeout_jiffies > MAX_SCHEDULE_TIMEOUT)
 		return MAX_SCHEDULE_TIMEOUT - 1;
 
 	return timeout_jiffies;
@@ -526,9 +528,9 @@ int amdgpu_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	long ret;
 
 	gobj = drm_gem_object_lookup(filp, handle);
-	if (gobj == NULL) {
+	if (!gobj)
 		return -ENOENT;
-	}
+
 	robj = gem_to_amdgpu_bo(gobj);
 	ret = dma_resv_wait_timeout(robj->tbo.base.resv, DMA_RESV_USAGE_READ,
 				    true, timeout);
@@ -555,7 +557,7 @@ int amdgpu_gem_metadata_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_bo *robj;
 	int r = -1;
 
-	DRM_DEBUG("%d \n", args->handle);
+	DRM_DEBUG("%d\n", args->handle);
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (gobj == NULL)
 		return -ENOENT;
@@ -675,17 +677,14 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_bo *abo;
 	struct amdgpu_bo_va *bo_va;
-	struct amdgpu_bo_list_entry vm_pd;
-	struct ttm_validate_buffer tv;
-	struct ww_acquire_ctx ticket;
-	struct list_head list, duplicates;
+	struct drm_exec exec;
 	uint64_t va_flags;
 	uint64_t vm_size;
 	int r = 0;
 
 	if (args->va_address < AMDGPU_VA_RESERVED_SIZE) {
 		dev_dbg(dev->dev,
-			"va_address 0x%LX is in reserved area 0x%LX\n",
+			"va_address 0x%llx is in reserved area 0x%llx\n",
 			args->va_address, AMDGPU_VA_RESERVED_SIZE);
 		return -EINVAL;
 	}
@@ -693,7 +692,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	if (args->va_address >= AMDGPU_GMC_HOLE_START &&
 	    args->va_address < AMDGPU_GMC_HOLE_END) {
 		dev_dbg(dev->dev,
-			"va_address 0x%LX is in VA hole 0x%LX-0x%LX\n",
+			"va_address 0x%llx is in VA hole 0x%llx-0x%llx\n",
 			args->va_address, AMDGPU_GMC_HOLE_START,
 			AMDGPU_GMC_HOLE_END);
 		return -EINVAL;
@@ -728,36 +727,38 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	INIT_LIST_HEAD(&list);
-	INIT_LIST_HEAD(&duplicates);
 	if ((args->operation != AMDGPU_VA_OP_CLEAR) &&
 	    !(args->flags & AMDGPU_VM_PAGE_PRT)) {
 		gobj = drm_gem_object_lookup(filp, args->handle);
 		if (gobj == NULL)
 			return -ENOENT;
 		abo = gem_to_amdgpu_bo(gobj);
-		tv.bo = &abo->tbo;
-		if (abo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
-			tv.num_shared = 1;
-		else
-			tv.num_shared = 0;
-		list_add(&tv.head, &list);
 	} else {
 		gobj = NULL;
 		abo = NULL;
 	}
 
-	amdgpu_vm_get_pd_bo(&fpriv->vm, &list, &vm_pd);
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT |
+		      DRM_EXEC_IGNORE_DUPLICATES);
+	drm_exec_until_all_locked(&exec) {
+		if (gobj) {
+			r = drm_exec_lock_obj(&exec, gobj);
+			drm_exec_retry_on_contention(&exec);
+			if (unlikely(r))
+				goto error;
+		}
 
-	r = ttm_eu_reserve_buffers(&ticket, &list, true, &duplicates);
-	if (r)
-		goto error_unref;
+		r = amdgpu_vm_lock_pd(&fpriv->vm, &exec, 2);
+		drm_exec_retry_on_contention(&exec);
+		if (unlikely(r))
+			goto error;
+	}
 
 	if (abo) {
 		bo_va = amdgpu_vm_bo_find(&fpriv->vm, abo);
 		if (!bo_va) {
 			r = -ENOENT;
-			goto error_backoff;
+			goto error;
 		}
 	} else if (args->operation != AMDGPU_VA_OP_CLEAR) {
 		bo_va = fpriv->prt_va;
@@ -790,14 +791,12 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	default:
 		break;
 	}
-	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !amdgpu_vm_debug)
+	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !adev->debug_vm)
 		amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va,
 					args->operation);
 
-error_backoff:
-	ttm_eu_backoff_reservation(&ticket, &list);
-
-error_unref:
+error:
+	drm_exec_fini(&exec);
 	drm_gem_object_put(gobj);
 	return r;
 }
@@ -813,9 +812,9 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 	int r;
 
 	gobj = drm_gem_object_lookup(filp, args->handle);
-	if (gobj == NULL) {
+	if (!gobj)
 		return -ENOENT;
-	}
+
 	robj = gem_to_amdgpu_bo(gobj);
 
 	r = amdgpu_bo_reserve(robj, false);
@@ -941,9 +940,9 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
 	r = drm_gem_handle_create(file_priv, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_put(gobj);
-	if (r) {
+	if (r)
 		return r;
-	}
+
 	args->handle = handle;
 	return 0;
 }
@@ -963,6 +962,7 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
 	list_for_each_entry(file, &dev->filelist, lhead) {
 		struct task_struct *task;
 		struct drm_gem_object *gobj;
+		struct pid *pid;
 		int id;
 
 		/*
@@ -972,8 +972,9 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
 		rcu_read_lock();
-		task = pid_task(file->pid, PIDTYPE_TGID);
-		seq_printf(m, "pid %8d command %s:\n", pid_nr(file->pid),
+		pid = rcu_dereference(file->pid);
+		task = pid_task(pid, PIDTYPE_TGID);
+		seq_printf(m, "pid %8d command %s:\n", pid_nr(pid),
 			   task ? task->comm : "<unknown>");
 		rcu_read_unlock();
 

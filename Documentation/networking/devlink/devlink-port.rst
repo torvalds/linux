@@ -128,6 +128,12 @@ Users may also set the RoCE capability of the function using
 Users may also set the function as migratable using
 'devlink port function set migratable' command.
 
+Users may also set the IPsec crypto capability of the function using
+`devlink port function set ipsec_crypto` command.
+
+Users may also set the IPsec packet capability of the function using
+`devlink port function set ipsec_packet` command.
+
 Function attributes
 ===================
 
@@ -240,6 +246,55 @@ Attach VF to the VM.
 Start the VM.
 Perform live migration.
 
+IPsec crypto capability setup
+-----------------------------
+When user enables IPsec crypto capability for a VF, user application can offload
+XFRM state crypto operation (Encrypt/Decrypt) to this VF.
+
+When IPsec crypto capability is disabled (default) for a VF, the XFRM state is
+processed in software by the kernel.
+
+- Get IPsec crypto capability of the VF device::
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 ipsec_crypto disabled
+
+- Set IPsec crypto capability of the VF device::
+
+    $ devlink port function set pci/0000:06:00.0/2 ipsec_crypto enable
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 ipsec_crypto enabled
+
+IPsec packet capability setup
+-----------------------------
+When user enables IPsec packet capability for a VF, user application can offload
+XFRM state and policy crypto operation (Encrypt/Decrypt) to this VF, as well as
+IPsec encapsulation.
+
+When IPsec packet capability is disabled (default) for a VF, the XFRM state and
+policy is processed in software by the kernel.
+
+- Get IPsec packet capability of the VF device::
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 ipsec_packet disabled
+
+- Set IPsec packet capability of the VF device::
+
+    $ devlink port function set pci/0000:06:00.0/2 ipsec_packet enable
+
+    $ devlink port show pci/0000:06:00.0/2
+    pci/0000:06:00.0/2: type eth netdev enp6s0pf0vf1 flavour pcivf pfnum 0 vfnum 1
+        function:
+            hw_addr 00:00:00:00:00:00 ipsec_packet enabled
+
 Subfunction
 ============
 
@@ -321,9 +376,9 @@ API allows to configure following rate object's parameters:
   Allows for usage of Weighted Fair Queuing arbitration scheme among
   siblings. This arbitration scheme can be used simultaneously with the
   strict priority. As a node is configured with a higher rate it gets more
-  BW relative to it's siblings. Values are relative like a percentage
+  BW relative to its siblings. Values are relative like a percentage
   points, they basically tell how much BW should node take relative to
-  it's siblings.
+  its siblings.
 
 ``parent``
   Parent node name. Parent node rate limits are considered as additional limits
@@ -343,7 +398,7 @@ Arbitration flow from the high level:
 #. If group of nodes have the same priority perform WFQ arbitration on
    that subgroup. Use ``tx_weight`` as a parameter for this arbitration.
 
-#. Select the winner node, and continue arbitration flow among it's children,
+#. Select the winner node, and continue arbitration flow among its children,
    until leaf node is reached, and the winner is established.
 
 #. If all the nodes from the highest priority sub-group are satisfied, or

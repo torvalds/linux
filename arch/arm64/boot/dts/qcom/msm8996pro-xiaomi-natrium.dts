@@ -106,7 +106,7 @@
 &sound {
 	compatible = "qcom,apq8096-sndcard";
 	model = "natrium";
-	audio-routing =	"RX_BIAS", "MCLK";
+	audio-routing = "RX_BIAS", "MCLK";
 
 	mm1-dai-link {
 		link-name = "MultiMedia1";

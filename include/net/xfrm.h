@@ -1207,20 +1207,20 @@ static inline int xfrm6_policy_check_reverse(struct sock *sk, int dir,
 	return __xfrm_policy_check2(sk, dir, skb, AF_INET6, 1);
 }
 
-int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
+int __xfrm_decode_session(struct net *net, struct sk_buff *skb, struct flowi *fl,
 			  unsigned int family, int reverse);
 
-static inline int xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
+static inline int xfrm_decode_session(struct net *net, struct sk_buff *skb, struct flowi *fl,
 				      unsigned int family)
 {
-	return __xfrm_decode_session(skb, fl, family, 0);
+	return __xfrm_decode_session(net, skb, fl, family, 0);
 }
 
-static inline int xfrm_decode_session_reverse(struct sk_buff *skb,
+static inline int xfrm_decode_session_reverse(struct net *net, struct sk_buff *skb,
 					      struct flowi *fl,
 					      unsigned int family)
 {
-	return __xfrm_decode_session(skb, fl, family, 1);
+	return __xfrm_decode_session(net, skb, fl, family, 1);
 }
 
 int __xfrm_route_forward(struct sk_buff *skb, unsigned short family);
@@ -1296,7 +1296,7 @@ static inline int xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *sk
 {
 	return 1;
 }
-static inline int xfrm_decode_session_reverse(struct sk_buff *skb,
+static inline int xfrm_decode_session_reverse(struct net *net, struct sk_buff *skb,
 					      struct flowi *fl,
 					      unsigned int family)
 {
@@ -1669,7 +1669,6 @@ int pktgen_xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb);
 #endif
 
 void xfrm_local_error(struct sk_buff *skb, int mtu);
-int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
 		    int encap_type);
 int xfrm4_transport_finish(struct sk_buff *skb, int async);
@@ -1689,7 +1688,6 @@ int xfrm4_protocol_deregister(struct xfrm4_protocol *handler, unsigned char prot
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 void xfrm4_local_error(struct sk_buff *skb, u32 mtu);
-int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi,
 		  struct ip6_tnl *t);
 int xfrm6_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
@@ -1712,6 +1710,10 @@ int xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 void xfrm6_local_rxpmtu(struct sk_buff *skb, u32 mtu);
 int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb);
 int xfrm6_udp_encap_rcv(struct sock *sk, struct sk_buff *skb);
+struct sk_buff *xfrm4_gro_udp_encap_rcv(struct sock *sk, struct list_head *head,
+					struct sk_buff *skb);
+struct sk_buff *xfrm6_gro_udp_encap_rcv(struct sock *sk, struct list_head *head,
+					struct sk_buff *skb);
 int xfrm_user_policy(struct sock *sk, int optname, sockptr_t optval,
 		     int optlen);
 #else
@@ -1984,6 +1986,7 @@ static inline void xfrm_dev_state_free(struct xfrm_state *x)
 		if (dev->xfrmdev_ops->xdo_dev_state_free)
 			dev->xfrmdev_ops->xdo_dev_state_free(x);
 		xso->dev = NULL;
+		xso->type = XFRM_DEV_OFFLOAD_UNSPECIFIED;
 		netdev_put(dev, &xso->dev_tracker);
 	}
 }
@@ -2165,7 +2168,7 @@ static inline bool xfrm6_local_dontfrag(const struct sock *sk)
 
 	proto = sk->sk_protocol;
 	if (proto == IPPROTO_UDP || proto == IPPROTO_RAW)
-		return inet6_sk(sk)->dontfrag;
+		return inet6_test_bit(DONTFRAG, sk);
 
 	return false;
 }

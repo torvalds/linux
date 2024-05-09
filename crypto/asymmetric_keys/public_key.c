@@ -42,7 +42,7 @@ static void public_key_describe(const struct key *asymmetric_key,
 void public_key_free(struct public_key *key)
 {
 	if (key) {
-		kfree(key->key);
+		kfree_sensitive(key->key);
 		kfree(key->params);
 		kfree(key);
 	}
@@ -81,14 +81,13 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 * RSA signatures usually use EMSA-PKCS1-1_5 [RFC3447 sec 8.2].
 		 */
 		if (strcmp(encoding, "pkcs1") == 0) {
+			*sig = op == kernel_pkey_sign ||
+			       op == kernel_pkey_verify;
 			if (!hash_algo) {
-				*sig = false;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s)",
 					     pkey->pkey_algo);
 			} else {
-				*sig = op == kernel_pkey_sign ||
-				       op == kernel_pkey_verify;
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s,%s)",
 					     pkey->pkey_algo, hash_algo);
@@ -116,11 +115,13 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		 */
 		if (!hash_algo)
 			return -EINVAL;
-		if (strcmp(hash_algo, "sha1") != 0 &&
-		    strcmp(hash_algo, "sha224") != 0 &&
+		if (strcmp(hash_algo, "sha224") != 0 &&
 		    strcmp(hash_algo, "sha256") != 0 &&
 		    strcmp(hash_algo, "sha384") != 0 &&
-		    strcmp(hash_algo, "sha512") != 0)
+		    strcmp(hash_algo, "sha512") != 0 &&
+		    strcmp(hash_algo, "sha3-256") != 0 &&
+		    strcmp(hash_algo, "sha3-384") != 0 &&
+		    strcmp(hash_algo, "sha3-512") != 0)
 			return -EINVAL;
 	} else if (strcmp(pkey->pkey_algo, "sm2") == 0) {
 		if (strcmp(encoding, "raw") != 0)
@@ -185,8 +186,10 @@ static int software_key_query(const struct kernel_pkey_params *params,
 
 	if (issig) {
 		sig = crypto_alloc_sig(alg_name, 0, 0);
-		if (IS_ERR(sig))
+		if (IS_ERR(sig)) {
+			ret = PTR_ERR(sig);
 			goto error_free_key;
+		}
 
 		if (pkey->key_is_private)
 			ret = crypto_sig_set_privkey(sig, key, pkey->keylen);
@@ -208,8 +211,10 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		}
 	} else {
 		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
-		if (IS_ERR(tfm))
+		if (IS_ERR(tfm)) {
+			ret = PTR_ERR(tfm);
 			goto error_free_key;
+		}
 
 		if (pkey->key_is_private)
 			ret = crypto_akcipher_set_priv_key(tfm, key, pkey->keylen);
@@ -259,7 +264,7 @@ error_free_tfm:
 	else
 		crypto_free_akcipher(tfm);
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -300,8 +305,10 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 
 	if (issig) {
 		sig = crypto_alloc_sig(alg_name, 0, 0);
-		if (IS_ERR(sig))
+		if (IS_ERR(sig)) {
+			ret = PTR_ERR(sig);
 			goto error_free_key;
+		}
 
 		if (pkey->key_is_private)
 			ret = crypto_sig_set_privkey(sig, key, pkey->keylen);
@@ -313,8 +320,10 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 		ksz = crypto_sig_maxsize(sig);
 	} else {
 		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
-		if (IS_ERR(tfm))
+		if (IS_ERR(tfm)) {
+			ret = PTR_ERR(tfm);
 			goto error_free_key;
+		}
 
 		if (pkey->key_is_private)
 			ret = crypto_akcipher_set_priv_key(tfm, key, pkey->keylen);
@@ -361,7 +370,7 @@ error_free_tfm:
 	else
 		crypto_free_akcipher(tfm);
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
@@ -411,8 +420,10 @@ int public_key_verify_signature(const struct public_key *pkey,
 
 	key = kmalloc(pkey->keylen + sizeof(u32) * 2 + pkey->paramlen,
 		      GFP_KERNEL);
-	if (!key)
+	if (!key) {
+		ret = -ENOMEM;
 		goto error_free_tfm;
+	}
 
 	memcpy(key, pkey->key, pkey->keylen);
 	ptr = key + pkey->keylen;
@@ -431,7 +442,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 				sig->digest, sig->digest_size);
 
 error_free_key:
-	kfree(key);
+	kfree_sensitive(key);
 error_free_tfm:
 	crypto_free_sig(tfm);
 	pr_devel("<==%s() = %d\n", __func__, ret);

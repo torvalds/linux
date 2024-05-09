@@ -97,7 +97,9 @@
 #define FEATURE_GATS_MASK	(3ULL)
 #define FEATURE_GAM_VAPIC	BIT_ULL(21)
 #define FEATURE_GIOSUP		BIT_ULL(48)
+#define FEATURE_HASUP		BIT_ULL(49)
 #define FEATURE_EPHSUP		BIT_ULL(50)
+#define FEATURE_HDSUP		BIT_ULL(52)
 #define FEATURE_SNP		BIT_ULL(63)
 
 #define FEATURE_PASID_SHIFT	32
@@ -120,10 +122,13 @@
 #define PASID_MASK		0x0000ffff
 
 /* MMIO status bits */
-#define MMIO_STATUS_EVT_OVERFLOW_INT_MASK	BIT(0)
+#define MMIO_STATUS_EVT_OVERFLOW_MASK		BIT(0)
 #define MMIO_STATUS_EVT_INT_MASK		BIT(1)
 #define MMIO_STATUS_COM_WAIT_INT_MASK		BIT(2)
+#define MMIO_STATUS_EVT_RUN_MASK		BIT(3)
+#define MMIO_STATUS_PPR_OVERFLOW_MASK		BIT(5)
 #define MMIO_STATUS_PPR_INT_MASK		BIT(6)
+#define MMIO_STATUS_PPR_RUN_MASK		BIT(7)
 #define MMIO_STATUS_GALOG_RUN_MASK		BIT(8)
 #define MMIO_STATUS_GALOG_OVERFLOW_MASK		BIT(9)
 #define MMIO_STATUS_GALOG_INT_MASK		BIT(10)
@@ -209,6 +214,7 @@
 /* macros and definitions for device table entries */
 #define DEV_ENTRY_VALID         0x00
 #define DEV_ENTRY_TRANSLATION   0x01
+#define DEV_ENTRY_HAD           0x07
 #define DEV_ENTRY_PPR           0x34
 #define DEV_ENTRY_IR            0x3d
 #define DEV_ENTRY_IW            0x3e
@@ -368,9 +374,15 @@
 	(1ULL << (12 + (9 * (level))))
 
 /*
+ * The IOPTE dirty bit
+ */
+#define IOMMU_PTE_HD_BIT (6)
+
+/*
  * Bit value definition for I/O PTE fields
  */
 #define IOMMU_PTE_PR	BIT_ULL(0)
+#define IOMMU_PTE_HD	BIT_ULL(IOMMU_PTE_HD_BIT)
 #define IOMMU_PTE_U	BIT_ULL(59)
 #define IOMMU_PTE_FC	BIT_ULL(60)
 #define IOMMU_PTE_IR	BIT_ULL(61)
@@ -381,15 +393,16 @@
  */
 #define DTE_FLAG_V	BIT_ULL(0)
 #define DTE_FLAG_TV	BIT_ULL(1)
+#define DTE_FLAG_HAD	(3ULL << 7)
+#define DTE_FLAG_GIOV	BIT_ULL(54)
+#define DTE_FLAG_GV	BIT_ULL(55)
+#define DTE_GLX_SHIFT	(56)
+#define DTE_GLX_MASK	(3)
 #define DTE_FLAG_IR	BIT_ULL(61)
 #define DTE_FLAG_IW	BIT_ULL(62)
 
 #define DTE_FLAG_IOTLB	BIT_ULL(32)
-#define DTE_FLAG_GIOV	BIT_ULL(54)
-#define DTE_FLAG_GV	BIT_ULL(55)
 #define DTE_FLAG_MASK	(0x3ffULL << 32)
-#define DTE_GLX_SHIFT	(56)
-#define DTE_GLX_MASK	(3)
 #define DEV_DOMID_MASK	0xffffULL
 
 #define DTE_GCR3_VAL_A(x)	(((x) >> 12) & 0x00007ULL)
@@ -410,6 +423,7 @@
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
 #define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_PR)
+#define IOMMU_PTE_DIRTY(pte) ((pte) & IOMMU_PTE_HD)
 #define IOMMU_PTE_PAGE(pte) (iommu_phys_to_virt((pte) & IOMMU_PAGE_MASK))
 #define IOMMU_PTE_MODE(pte) (((pte) >> 9) & 0x07)
 
@@ -560,6 +574,7 @@ struct protection_domain {
 	int nid;		/* Node ID */
 	u64 *gcr3_tbl;		/* Guest CR3 table */
 	unsigned long flags;	/* flags to find out type of domain */
+	bool dirty_tracking;	/* dirty tracking is enabled in the domain */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
 };
@@ -702,11 +717,20 @@ struct amd_iommu {
 	/* event buffer virtual address */
 	u8 *evt_buf;
 
+	/* Name for event log interrupt */
+	unsigned char evt_irq_name[16];
+
 	/* Base of the PPR log, if present */
 	u8 *ppr_log;
 
+	/* Name for PPR log interrupt */
+	unsigned char ppr_irq_name[16];
+
 	/* Base of the GA log, if present */
 	u8 *ga_log;
+
+	/* Name for GA log interrupt */
+	unsigned char ga_irq_name[16];
 
 	/* Tail of the GA log, if present */
 	u8 *ga_log_tail;

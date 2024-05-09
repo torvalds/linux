@@ -13,7 +13,7 @@
 		compatible = "google,sc7280-herobrine";
 		model = "sc7280-rt5682-max98360a-3mic";
 
-		audio-routing =	"VA DMIC0", "vdd-micb",
+		audio-routing = "VA DMIC0", "vdd-micb",
 				"VA DMIC1", "vdd-micb",
 				"VA DMIC2", "vdd-micb",
 				"VA DMIC3", "vdd-micb",

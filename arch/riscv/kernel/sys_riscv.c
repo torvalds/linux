@@ -79,7 +79,7 @@ SYSCALL_DEFINE3(riscv_flush_icache, uintptr_t, start, uintptr_t, end,
 
 /*
  * The hwprobe interface, for allowing userspace to probe to see which features
- * are supported by the hardware.  See Documentation/riscv/hwprobe.rst for more
+ * are supported by the hardware.  See Documentation/arch/riscv/hwprobe.rst for more
  * details.
  */
 static void hwprobe_arch_id(struct riscv_hwprobe *pair,
@@ -334,4 +334,10 @@ SYSCALL_DEFINE5(riscv_hwprobe, struct riscv_hwprobe __user *, pairs,
 {
 	return do_riscv_hwprobe(pairs, pair_count, cpu_count,
 				cpus, flags);
+}
+
+/* Not defined using SYSCALL_DEFINE0 to avoid error injection */
+asmlinkage long __riscv_sys_ni_syscall(const struct pt_regs *__unused)
+{
+	return -ENOSYS;
 }

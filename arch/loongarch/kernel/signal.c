@@ -13,6 +13,7 @@
 #include <linux/audit.h>
 #include <linux/cache.h>
 #include <linux/context_tracking.h>
+#include <linux/entry-common.h>
 #include <linux/irqflags.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -32,6 +33,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cpu-features.h>
 #include <asm/fpu.h>
+#include <asm/lbt.h>
 #include <asm/ucontext.h>
 #include <asm/vdso.h>
 
@@ -44,6 +46,9 @@
 /* Make sure we will not lose FPU ownership */
 #define lock_fpu_owner()	({ preempt_disable(); pagefault_disable(); })
 #define unlock_fpu_owner()	({ pagefault_enable(); preempt_enable(); })
+/* Make sure we will not lose LBT ownership */
+#define lock_lbt_owner()	({ preempt_disable(); pagefault_disable(); })
+#define unlock_lbt_owner()	({ pagefault_enable(); preempt_enable(); })
 
 /* Assembly functions to move context to/from the FPU */
 extern asmlinkage int
@@ -58,6 +63,13 @@ extern asmlinkage int
 _save_lasx_context(void __user *fpregs, void __user *fcc, void __user *fcsr);
 extern asmlinkage int
 _restore_lasx_context(void __user *fpregs, void __user *fcc, void __user *fcsr);
+
+#ifdef CONFIG_CPU_HAS_LBT
+extern asmlinkage int _save_lbt_context(void __user *regs, void __user *eflags);
+extern asmlinkage int _restore_lbt_context(void __user *regs, void __user *eflags);
+extern asmlinkage int _save_ftop_context(void __user *ftop);
+extern asmlinkage int _restore_ftop_context(void __user *ftop);
+#endif
 
 struct rt_sigframe {
 	struct siginfo rs_info;
@@ -75,6 +87,7 @@ struct extctx_layout {
 	struct _ctx_layout fpu;
 	struct _ctx_layout lsx;
 	struct _ctx_layout lasx;
+	struct _ctx_layout lbt;
 	struct _ctx_layout end;
 };
 
@@ -215,6 +228,52 @@ static int copy_lasx_from_sigcontext(struct lasx_context __user *ctx)
 	return err;
 }
 
+#ifdef CONFIG_CPU_HAS_LBT
+static int copy_lbt_to_sigcontext(struct lbt_context __user *ctx)
+{
+	int err = 0;
+	uint64_t __user *regs	= (uint64_t *)&ctx->regs;
+	uint32_t __user *eflags	= (uint32_t *)&ctx->eflags;
+
+	err |= __put_user(current->thread.lbt.scr0, &regs[0]);
+	err |= __put_user(current->thread.lbt.scr1, &regs[1]);
+	err |= __put_user(current->thread.lbt.scr2, &regs[2]);
+	err |= __put_user(current->thread.lbt.scr3, &regs[3]);
+	err |= __put_user(current->thread.lbt.eflags, eflags);
+
+	return err;
+}
+
+static int copy_lbt_from_sigcontext(struct lbt_context __user *ctx)
+{
+	int err = 0;
+	uint64_t __user *regs	= (uint64_t *)&ctx->regs;
+	uint32_t __user *eflags	= (uint32_t *)&ctx->eflags;
+
+	err |= __get_user(current->thread.lbt.scr0, &regs[0]);
+	err |= __get_user(current->thread.lbt.scr1, &regs[1]);
+	err |= __get_user(current->thread.lbt.scr2, &regs[2]);
+	err |= __get_user(current->thread.lbt.scr3, &regs[3]);
+	err |= __get_user(current->thread.lbt.eflags, eflags);
+
+	return err;
+}
+
+static int copy_ftop_to_sigcontext(struct lbt_context __user *ctx)
+{
+	uint32_t  __user *ftop	= &ctx->ftop;
+
+	return __put_user(current->thread.fpu.ftop, ftop);
+}
+
+static int copy_ftop_from_sigcontext(struct lbt_context __user *ctx)
+{
+	uint32_t  __user *ftop	= &ctx->ftop;
+
+	return __get_user(current->thread.fpu.ftop, ftop);
+}
+#endif
+
 /*
  * Wrappers for the assembly _{save,restore}_fp_context functions.
  */
@@ -271,6 +330,41 @@ static int restore_hw_lasx_context(struct lasx_context __user *ctx)
 
 	return _restore_lasx_context(regs, fcc, fcsr);
 }
+
+/*
+ * Wrappers for the assembly _{save,restore}_lbt_context functions.
+ */
+#ifdef CONFIG_CPU_HAS_LBT
+static int save_hw_lbt_context(struct lbt_context __user *ctx)
+{
+	uint64_t __user *regs	= (uint64_t *)&ctx->regs;
+	uint32_t __user *eflags	= (uint32_t *)&ctx->eflags;
+
+	return _save_lbt_context(regs, eflags);
+}
+
+static int restore_hw_lbt_context(struct lbt_context __user *ctx)
+{
+	uint64_t __user *regs	= (uint64_t *)&ctx->regs;
+	uint32_t __user *eflags	= (uint32_t *)&ctx->eflags;
+
+	return _restore_lbt_context(regs, eflags);
+}
+
+static int save_hw_ftop_context(struct lbt_context __user *ctx)
+{
+	uint32_t __user *ftop	= &ctx->ftop;
+
+	return _save_ftop_context(ftop);
+}
+
+static int restore_hw_ftop_context(struct lbt_context __user *ctx)
+{
+	uint32_t __user *ftop	= &ctx->ftop;
+
+	return _restore_ftop_context(ftop);
+}
+#endif
 
 static int fcsr_pending(unsigned int __user *fcsr)
 {
@@ -519,6 +613,77 @@ static int protected_restore_lasx_context(struct extctx_layout *extctx)
 	return err ?: sig;
 }
 
+#ifdef CONFIG_CPU_HAS_LBT
+static int protected_save_lbt_context(struct extctx_layout *extctx)
+{
+	int err = 0;
+	struct sctx_info __user *info = extctx->lbt.addr;
+	struct lbt_context __user *lbt_ctx =
+		(struct lbt_context *)get_ctx_through_ctxinfo(info);
+	uint64_t __user *regs	= (uint64_t *)&lbt_ctx->regs;
+	uint32_t __user *eflags	= (uint32_t *)&lbt_ctx->eflags;
+
+	while (1) {
+		lock_lbt_owner();
+		if (is_lbt_owner())
+			err |= save_hw_lbt_context(lbt_ctx);
+		else
+			err |= copy_lbt_to_sigcontext(lbt_ctx);
+		if (is_fpu_owner())
+			err |= save_hw_ftop_context(lbt_ctx);
+		else
+			err |= copy_ftop_to_sigcontext(lbt_ctx);
+		unlock_lbt_owner();
+
+		err |= __put_user(LBT_CTX_MAGIC, &info->magic);
+		err |= __put_user(extctx->lbt.size, &info->size);
+
+		if (likely(!err))
+			break;
+		/* Touch the LBT context and try again */
+		err = __put_user(0, &regs[0]) | __put_user(0, eflags);
+
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+
+static int protected_restore_lbt_context(struct extctx_layout *extctx)
+{
+	int err = 0, tmp __maybe_unused;
+	struct sctx_info __user *info = extctx->lbt.addr;
+	struct lbt_context __user *lbt_ctx =
+		(struct lbt_context *)get_ctx_through_ctxinfo(info);
+	uint64_t __user *regs	= (uint64_t *)&lbt_ctx->regs;
+	uint32_t __user *eflags	= (uint32_t *)&lbt_ctx->eflags;
+
+	while (1) {
+		lock_lbt_owner();
+		if (is_lbt_owner())
+			err |= restore_hw_lbt_context(lbt_ctx);
+		else
+			err |= copy_lbt_from_sigcontext(lbt_ctx);
+		if (is_fpu_owner())
+			err |= restore_hw_ftop_context(lbt_ctx);
+		else
+			err |= copy_ftop_from_sigcontext(lbt_ctx);
+		unlock_lbt_owner();
+
+		if (likely(!err))
+			break;
+		/* Touch the LBT context and try again */
+		err = __get_user(tmp, &regs[0]) | __get_user(tmp, eflags);
+
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+#endif
+
 static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 			    struct extctx_layout *extctx)
 {
@@ -538,6 +703,11 @@ static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 		err |= protected_save_lsx_context(extctx);
 	else if (extctx->fpu.addr)
 		err |= protected_save_fpu_context(extctx);
+
+#ifdef CONFIG_CPU_HAS_LBT
+	if (extctx->lbt.addr)
+		err |= protected_save_lbt_context(extctx);
+#endif
 
 	/* Set the "end" magic */
 	info = (struct sctx_info *)extctx->end.addr;
@@ -582,6 +752,13 @@ static int parse_extcontext(struct sigcontext __user *sc, struct extctx_layout *
 				    sizeof(struct lasx_context)))
 				goto invalid;
 			extctx->lasx.addr = info;
+			break;
+
+		case LBT_CTX_MAGIC:
+			if (size < (sizeof(struct sctx_info) +
+				    sizeof(struct lbt_context)))
+				goto invalid;
+			extctx->lbt.addr = info;
 			break;
 
 		default:
@@ -635,6 +812,11 @@ static int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc
 		err |= protected_restore_lsx_context(&extctx);
 	else if (extctx.fpu.addr)
 		err |= protected_restore_fpu_context(&extctx);
+
+#ifdef CONFIG_CPU_HAS_LBT
+	if (extctx.lbt.addr)
+		err |= protected_restore_lbt_context(&extctx);
+#endif
 
 bad:
 	return err;
@@ -700,11 +882,18 @@ static unsigned long setup_extcontext(struct extctx_layout *extctx, unsigned lon
 			  sizeof(struct fpu_context), FPU_CTX_ALIGN, new_sp);
 	}
 
+#ifdef CONFIG_CPU_HAS_LBT
+	if (cpu_has_lbt && thread_lbt_context_live()) {
+		new_sp = extframe_alloc(extctx, &extctx->lbt,
+			  sizeof(struct lbt_context), LBT_CTX_ALIGN, new_sp);
+	}
+#endif
+
 	return new_sp;
 }
 
-void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
-			  struct extctx_layout *extctx)
+static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
+				 struct extctx_layout *extctx)
 {
 	unsigned long sp;
 
@@ -734,7 +923,7 @@ void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 
-asmlinkage long sys_rt_sigreturn(void)
+SYSCALL_DEFINE0(rt_sigreturn)
 {
 	int sig;
 	sigset_t set;

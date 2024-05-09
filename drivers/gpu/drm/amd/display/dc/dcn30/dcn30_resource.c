@@ -44,7 +44,7 @@
 #include "dcn30/dcn30_optc.h"
 #include "dcn20/dcn20_hwseq.h"
 #include "dcn30/dcn30_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn30/dcn30_opp.h"
 #include "dcn20/dcn20_dsc.h"
 #include "dcn30/dcn30_vpg.h"
@@ -91,6 +91,8 @@
 #include "amdgpu_socbb.h"
 #include "dc_dmub_srv.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 enum dcn30_clk_src_array_id {
@@ -725,13 +727,16 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dwb_fi_phase = -1, // -1 = disable,
 	.dmub_command_table = true,
 	.use_max_lb = true,
-	.exit_idle_opt_for_cursor_updates = true
+	.exit_idle_opt_for_cursor_updates = true,
+	.enable_legacy_fast_update = false,
+	.using_dml2 = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
 	.psr = {
 		.disable_psr = false,
 		.disallow_psrsu = false,
+		.disallow_replay = false,
 	},
 };
 
@@ -1704,8 +1709,8 @@ noinline bool dcn30_internal_validate_bw(
 			/* We only support full screen mpo with ODM */
 			if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
 					&& pipe->plane_state && mpo_pipe
-					&& memcmp(&mpo_pipe->plane_res.scl_data.recout,
-							&pipe->plane_res.scl_data.recout,
+					&& memcmp(&mpo_pipe->plane_state->clip_rect,
+							&pipe->stream->src,
 							sizeof(struct rect)) != 0) {
 				ASSERT(mpo_pipe->plane_state != pipe->plane_state);
 				goto validate_fail;
@@ -1986,11 +1991,10 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(context))
 		return false;
 
-	// check if freesync enabled
 	if (!context->streams[0]->allow_freesync)
 		return false;
 
-	if (context->streams[0]->vrr_active_variable)
+	if (context->streams[0]->vrr_active_variable && dc->debug.disable_fams_gaming)
 		return false;
 
 	context->streams[0]->fpo_in_use = true;
@@ -2062,7 +2066,8 @@ bool dcn30_validate_bandwidth(struct dc *dc,
 	}
 
 	DC_FP_START();
-	dc->res_pool->funcs->calculate_wm_and_dlg(dc, context, pipes, pipe_cnt, vlevel);
+	if (dc->res_pool->funcs->calculate_wm_and_dlg)
+		dc->res_pool->funcs->calculate_wm_and_dlg(dc, context, pipes, pipe_cnt, vlevel);
 	DC_FP_END();
 
 	BW_VAL_TRACE_END_WATERMARKS();
@@ -2214,7 +2219,8 @@ static const struct resource_funcs dcn30_res_pool_funcs = {
 	.calculate_wm_and_dlg = dcn30_calculate_wm_and_dlg,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.populate_dml_pipes = dcn30_populate_dml_pipes_from_context,
-	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
+	.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
+	.release_pipe = dcn20_release_pipe,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,

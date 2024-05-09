@@ -31,8 +31,8 @@
 
 // Minimum amount of time between queue kicks in msec (10 seconds)
 #define MIN_TX_TIMEOUT_GAP (1000 * 10)
-#define DQO_TX_MAX	0x3FFFF
 
+char gve_driver_name[] = "gve";
 const char gve_version_str[] = GVE_VERSION;
 static const char gve_version_prefix[] = GVE_VERSION_PREFIX;
 
@@ -190,7 +190,7 @@ static int gve_alloc_stats_report(struct gve_priv *priv)
 	rx_stats_num = (GVE_RX_STATS_REPORT_NUM + NIC_RX_STATS_REPORT_NUM) *
 		       priv->rx_cfg.num_queues;
 	priv->stats_report_len = struct_size(priv->stats_report, stats,
-					     tx_stats_num + rx_stats_num);
+					     size_add(tx_stats_num, rx_stats_num));
 	priv->stats_report =
 		dma_alloc_coherent(&priv->pdev->dev, priv->stats_report_len,
 				   &priv->stats_report_bus, GFP_KERNEL);
@@ -281,7 +281,7 @@ static int gve_napi_poll(struct napi_struct *napi, int budget)
 		if (block->rx)
 			reschedule |= gve_rx_work_pending(block->rx);
 
-		if (reschedule && napi_reschedule(napi))
+		if (reschedule && napi_schedule(napi))
 			iowrite32be(GVE_IRQ_MASK, irq_doorbell);
 	}
 	return work_done;
@@ -493,7 +493,7 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 		goto abort_with_stats_report;
 	}
 
-	if (priv->queue_format == GVE_DQO_RDA_FORMAT) {
+	if (!gve_is_gqi(priv)) {
 		priv->ptype_lut_dqo = kvzalloc(sizeof(*priv->ptype_lut_dqo),
 					       GFP_KERNEL);
 		if (!priv->ptype_lut_dqo) {
@@ -1082,11 +1082,12 @@ free_qpls:
 static int gve_alloc_qpls(struct gve_priv *priv)
 {
 	int max_queues = priv->tx_cfg.max_queues + priv->rx_cfg.max_queues;
+	int page_count;
 	int start_id;
 	int i, j;
 	int err;
 
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
+	if (!gve_is_qpl(priv))
 		return 0;
 
 	priv->qpls = kvcalloc(max_queues, sizeof(*priv->qpls), GFP_KERNEL);
@@ -1094,17 +1095,25 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 		return -ENOMEM;
 
 	start_id = gve_tx_start_qpl_id(priv);
+	page_count = priv->tx_pages_per_qpl;
 	for (i = start_id; i < start_id + gve_num_tx_qpls(priv); i++) {
 		err = gve_alloc_queue_page_list(priv, i,
-						priv->tx_pages_per_qpl);
+						page_count);
 		if (err)
 			goto free_qpls;
 	}
 
 	start_id = gve_rx_start_qpl_id(priv);
+
+	/* For GQI_QPL number of pages allocated have 1:1 relationship with
+	 * number of descriptors. For DQO, number of pages required are
+	 * more than descriptors (because of out of order completions).
+	 */
+	page_count = priv->queue_format == GVE_GQI_QPL_FORMAT ?
+		priv->rx_data_slot_cnt : priv->rx_pages_per_qpl;
 	for (i = start_id; i < start_id + gve_num_rx_qpls(priv); i++) {
 		err = gve_alloc_queue_page_list(priv, i,
-						priv->rx_data_slot_cnt);
+						page_count);
 		if (err)
 			goto free_qpls;
 	}
@@ -2050,7 +2059,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 
 	/* Big TCP is only supported on DQ*/
 	if (!gve_is_gqi(priv))
-		netif_set_tso_max_size(priv->dev, DQO_TX_MAX);
+		netif_set_tso_max_size(priv->dev, GVE_DQO_TX_MAX);
 
 	priv->num_registered_pages = 0;
 	priv->rx_copybreak = GVE_DEFAULT_RX_COPYBREAK;
@@ -2200,7 +2209,7 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	err = pci_request_regions(pdev, "gvnic-cfg");
+	err = pci_request_regions(pdev, gve_driver_name);
 	if (err)
 		goto abort_with_enabled;
 
@@ -2393,8 +2402,8 @@ static const struct pci_device_id gve_id_table[] = {
 	{ }
 };
 
-static struct pci_driver gvnic_driver = {
-	.name		= "gvnic",
+static struct pci_driver gve_driver = {
+	.name		= gve_driver_name,
 	.id_table	= gve_id_table,
 	.probe		= gve_probe,
 	.remove		= gve_remove,
@@ -2405,10 +2414,10 @@ static struct pci_driver gvnic_driver = {
 #endif
 };
 
-module_pci_driver(gvnic_driver);
+module_pci_driver(gve_driver);
 
 MODULE_DEVICE_TABLE(pci, gve_id_table);
 MODULE_AUTHOR("Google, Inc.");
-MODULE_DESCRIPTION("gVNIC Driver");
+MODULE_DESCRIPTION("Google Virtual NIC Driver");
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_VERSION(GVE_VERSION);

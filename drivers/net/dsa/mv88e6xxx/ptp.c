@@ -182,6 +182,10 @@ static void mv88e6352_tai_event_work(struct work_struct *ugly)
 	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_tai_write(chip, MV88E6XXX_TAI_EVENT_STATUS, status[0]);
 	mv88e6xxx_reg_unlock(chip);
+	if (err) {
+		dev_err(chip->dev, "failed to write TAI status register\n");
+		return;
+	}
 
 	/* This is an external timestamp */
 	ev.type = PTP_CLOCK_EXTTS;

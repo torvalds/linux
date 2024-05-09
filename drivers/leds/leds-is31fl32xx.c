@@ -15,7 +15,6 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 /* Used to indicate a device has no such register */
 #define IS31FL32XX_REG_NONE 0xFF
@@ -488,7 +487,7 @@ static struct i2c_driver is31fl32xx_driver = {
 		.name	= "is31fl32xx",
 		.of_match_table = of_is31fl32xx_match,
 	},
-	.probe_new	= is31fl32xx_probe,
+	.probe		= is31fl32xx_probe,
 	.remove		= is31fl32xx_remove,
 	.id_table	= is31fl32xx_id,
 };

@@ -12,7 +12,7 @@ maintainers:
 description: |-
   The Toshiba TC358746 converts a parallel video stream into a MIPI CSI-2
   stream. The direction can be either parallel-in -> csi-out or csi-in ->
-  parallel-out The chip is programmable trough I2C and SPI but the SPI
+  parallel-out The chip is programmable through I2C and SPI but the SPI
   interface is only supported in parallel-in -> csi-out mode.
 
   Note that the current device tree bindings only support the
@@ -69,6 +69,7 @@ properties:
     properties:
       port@0:
         $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description: Input port
 
         properties:
@@ -89,6 +90,7 @@ properties:
 
       port@1:
         $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description: Output port
 
         properties:

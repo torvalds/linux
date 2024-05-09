@@ -35,7 +35,7 @@
 #include "dce112/dce112_resource.h"
 
 #include "dce110/dce110_resource.h"
-#include "../virtual/virtual_stream_encoder.h"
+#include "virtual/virtual_stream_encoder.h"
 #include "dce120_timing_generator.h"
 #include "irq/dce120/irq_service_dce120.h"
 #include "dce/dce_opp.h"
@@ -44,8 +44,8 @@
 #include "dce/dce_mem_input.h"
 #include "dce/dce_panel_cntl.h"
 
-#include "dce110/dce110_hw_sequencer.h"
-#include "dce120/dce120_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
+#include "dce120/dce120_hwseq.h"
 #include "dce/dce_transform.h"
 #include "clk_mgr.h"
 #include "dce/dce_audio.h"

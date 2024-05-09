@@ -100,6 +100,7 @@ class IocStat:
         self.period_at = ioc.period_at.value_() / 1_000_000
         self.vperiod_at = ioc.period_at_vtime.value_() / VTIME_PER_SEC
         self.vrate_pct = ioc.vtime_base_rate.value_() * 100 / VTIME_PER_USEC
+        self.ivrate_pct = ioc.vtime_rate.counter.value_() * 100 / VTIME_PER_USEC
         self.busy_level = ioc.busy_level.value_()
         self.autop_idx = ioc.autop_idx.value_()
         self.user_cost_model = ioc.user_cost_model.value_()
@@ -119,7 +120,9 @@ class IocStat:
                  'period_at'            : self.period_at,
                  'period_vtime_at'      : self.vperiod_at,
                  'busy_level'           : self.busy_level,
-                 'vrate_pct'            : self.vrate_pct, }
+                 'vrate_pct'            : self.vrate_pct,
+                 'ivrate_pct'           : self.ivrate_pct,
+                }
 
     def table_preamble_str(self):
         state = ('RUN' if self.running else 'IDLE') if self.enabled else 'OFF'
@@ -127,7 +130,7 @@ class IocStat:
                  f'per={self.period_ms}ms ' \
                  f'cur_per={self.period_at:.3f}:v{self.vperiod_at:.3f} ' \
                  f'busy={self.busy_level:+3} ' \
-                 f'vrate={self.vrate_pct:6.2f}% ' \
+                 f'vrate={self.vrate_pct:6.2f}%:{self.ivrate_pct:6.2f}% ' \
                  f'params={self.autop_name}'
         if self.user_cost_model or self.user_qos_params:
             output += f'({"C" if self.user_cost_model else ""}{"Q" if self.user_qos_params else ""})'
@@ -135,7 +138,7 @@ class IocStat:
 
     def table_header_str(self):
         return f'{"":25} active {"weight":>9} {"hweight%":>13} {"inflt%":>6} ' \
-               f'{"debt":>7} {"delay":>7} {"usage%"}'
+               f'{"usage%":>6} {"wait":>7} {"debt":>7} {"delay":>7}'
 
 class IocgStat:
     def __init__(self, iocg):
@@ -161,6 +164,8 @@ class IocgStat:
 
         self.usage = (100 * iocg.usage_delta_us.value_() /
                       ioc.period_us.value_()) if self.active else 0
+        self.wait_ms = (iocg.stat.wait_us.value_() -
+                        iocg.last_stat.wait_us.value_()) / 1000
         self.debt_ms = iocg.abs_vdebt.value_() / VTIME_PER_USEC / 1000
         if blkg.use_delay.counter.value_() != 0:
             self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
@@ -177,9 +182,10 @@ class IocgStat:
                 'hweight_active_pct'    : self.hwa_pct,
                 'hweight_inuse_pct'     : self.hwi_pct,
                 'inflight_pct'          : self.inflight_pct,
+                'usage_pct'             : self.usage,
+                'wait_ms'               : self.wait_ms,
                 'debt_ms'               : self.debt_ms,
                 'delay_ms'              : self.delay_ms,
-                'usage_pct'             : self.usage,
                 'address'               : self.address }
         return out
 
@@ -189,9 +195,10 @@ class IocgStat:
               f'{round(self.inuse):5}/{round(self.active):5} ' \
               f'{self.hwi_pct:6.2f}/{self.hwa_pct:6.2f} ' \
               f'{self.inflight_pct:6.2f} ' \
+              f'{min(self.usage, 999):6.2f} ' \
+              f'{self.wait_ms:7.2f} ' \
               f'{self.debt_ms:7.2f} ' \
-              f'{self.delay_ms:7.2f} '\
-              f'{min(self.usage, 999):6.2f}'
+              f'{self.delay_ms:7.2f}'
         out = out.rstrip(':')
         return out
 
@@ -221,7 +228,7 @@ ioc = None
 for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree.address_of_()):
     blkg = drgn.Object(prog, 'struct blkcg_gq', address=ptr)
     try:
-        if devname == blkg.q.kobj.parent.name.string_().decode('utf-8'):
+        if devname == blkg.q.mq_kobj.parent.name.string_().decode('utf-8'):
             q_id = blkg.q.id.value_()
             if blkg.pd[plid]:
                 root_iocg = container_of(blkg.pd[plid], 'struct ioc_gq', 'pd')

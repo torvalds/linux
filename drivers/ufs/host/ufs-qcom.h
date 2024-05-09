@@ -129,8 +129,21 @@ enum {
 #define PA_VS_CONFIG_REG1	0x9000
 #define DME_VS_CORE_CLK_CTRL	0xD002
 /* bit and mask definitions for DME_VS_CORE_CLK_CTRL attribute */
-#define DME_VS_CORE_CLK_CTRL_CORE_CLK_DIV_EN_BIT		BIT(8)
-#define DME_VS_CORE_CLK_CTRL_MAX_CORE_CLK_1US_CYCLES_MASK	0xFF
+#define CLK_1US_CYCLES_MASK_V4				GENMASK(27, 16)
+#define CLK_1US_CYCLES_MASK				GENMASK(7, 0)
+#define DME_VS_CORE_CLK_CTRL_CORE_CLK_DIV_EN_BIT	BIT(8)
+#define PA_VS_CORE_CLK_40NS_CYCLES			0x9007
+#define PA_VS_CORE_CLK_40NS_CYCLES_MASK			GENMASK(6, 0)
+
+
+/* QCOM UFS host controller core clk frequencies */
+#define UNIPRO_CORE_CLK_FREQ_37_5_MHZ          38
+#define UNIPRO_CORE_CLK_FREQ_75_MHZ            75
+#define UNIPRO_CORE_CLK_FREQ_100_MHZ           100
+#define UNIPRO_CORE_CLK_FREQ_150_MHZ           150
+#define UNIPRO_CORE_CLK_FREQ_300_MHZ           300
+#define UNIPRO_CORE_CLK_FREQ_201_5_MHZ         202
+#define UNIPRO_CORE_CLK_FREQ_403_MHZ           403
 
 static inline void
 ufs_qcom_get_controller_revision(struct ufs_hba *hba,
@@ -206,6 +219,9 @@ struct ufs_qcom_host {
 	struct clk *tx_l1_sync_clk;
 	bool is_lane_clks_enabled;
 
+	struct icc_path *icc_ddr;
+	struct icc_path *icc_cpu;
+
 #ifdef CONFIG_SCSI_UFS_CRYPTO
 	struct qcom_ice *ice;
 #endif
@@ -224,9 +240,8 @@ struct ufs_qcom_host {
 
 	struct gpio_desc *device_reset;
 
-	u32 hs_gear;
+	u32 phy_gear;
 
-	int esi_base;
 	bool esi_enabled;
 };
 
@@ -242,6 +257,7 @@ ufs_qcom_get_debug_reg_offset(struct ufs_qcom_host *host, u32 reg)
 #define ufs_qcom_is_link_off(hba) ufshcd_is_link_off(hba)
 #define ufs_qcom_is_link_active(hba) ufshcd_is_link_active(hba)
 #define ufs_qcom_is_link_hibern8(hba) ufshcd_is_link_hibern8(hba)
+#define ceil(freq, div) ((freq) % (div) == 0 ? ((freq)/(div)) : ((freq)/(div) + 1))
 
 int ufs_qcom_testbus_config(struct ufs_qcom_host *host);
 

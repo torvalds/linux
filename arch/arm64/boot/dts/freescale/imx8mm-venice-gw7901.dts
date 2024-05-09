@@ -242,6 +242,22 @@
 	};
 };
 
+&A53_0 {
+	cpu-supply = <&buck2>;
+};
+
+&A53_1 {
+	cpu-supply = <&buck2>;
+};
+
+&A53_2 {
+	cpu-supply = <&buck2>;
+};
+
+&A53_3 {
+	cpu-supply = <&buck2>;
+};
+
 &ddrc {
 	operating-points-v2 = <&ddrc_opp_table>;
 
@@ -341,6 +357,8 @@
 		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		adc {
 			compatible = "gw,gsc-adc";
@@ -496,7 +514,7 @@
 		interrupts = <20 IRQ_TYPE_LEVEL_LOW>;
 		rohm,reset-snvs-powered;
 		#clock-cells = <0>;
-		clocks = <&osc_32k 0>;
+		clocks = <&osc_32k>;
 		clock-output-names = "clk-32k-out";
 
 		regulators {
@@ -511,7 +529,7 @@
 			};
 
 			/* vdd_arm: 0.805-1.0V (typ=0.9V) */
-			BUCK2 {
+			buck2: BUCK2 {
 				regulator-name = "buck2";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1300000>;
@@ -626,7 +644,6 @@
 		pinctrl-0 = <&pinctrl_ksz>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
-		phy-mode = "rgmii-id";
 
 		ports {
 			#address-cells = <1>;
@@ -662,7 +679,6 @@
 
 			port@5 {
 				reg = <5>;
-				label = "cpu";
 				ethernet = <&fec1>;
 				phy-mode = "rgmii-id";
 
@@ -773,12 +789,21 @@
 
 /* SDIO WiFi */
 &usdhc1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc1>;
+	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <4>;
 	non-removable;
 	vmmc-supply = <&reg_wifi>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
+
+	wifi@0 {
+		compatible = "brcm,bcm43455-fmac", "brcm,bcm4329-fmac";
+		reg = <0>;
+	};
 };
 
 /* microSD */
@@ -1035,6 +1060,28 @@
 			MX8MM_IOMUXC_SD1_DATA1_USDHC1_DATA1	0x1d0
 			MX8MM_IOMUXC_SD1_DATA2_USDHC1_DATA2	0x1d0
 			MX8MM_IOMUXC_SD1_DATA3_USDHC1_DATA3	0x1d0
+		>;
+	};
+
+	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SD1_CLK_USDHC1_CLK		0x194
+			MX8MM_IOMUXC_SD1_CMD_USDHC1_CMD		0x1d4
+			MX8MM_IOMUXC_SD1_DATA0_USDHC1_DATA0	0x1d4
+			MX8MM_IOMUXC_SD1_DATA1_USDHC1_DATA1	0x1d4
+			MX8MM_IOMUXC_SD1_DATA2_USDHC1_DATA2	0x1d4
+			MX8MM_IOMUXC_SD1_DATA3_USDHC1_DATA3	0x1d4
+		>;
+	};
+
+	pinctrl_usdhc1_200mhz: usdhc1-200mhzgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SD1_CLK_USDHC1_CLK		0x196
+			MX8MM_IOMUXC_SD1_CMD_USDHC1_CMD		0x1d6
+			MX8MM_IOMUXC_SD1_DATA0_USDHC1_DATA0	0x1d6
+			MX8MM_IOMUXC_SD1_DATA1_USDHC1_DATA1	0x1d6
+			MX8MM_IOMUXC_SD1_DATA2_USDHC1_DATA2	0x1d6
+			MX8MM_IOMUXC_SD1_DATA3_USDHC1_DATA3	0x1d6
 		>;
 	};
 

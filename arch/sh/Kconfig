@@ -29,6 +29,7 @@ config SUPERH
 	select GENERIC_SMP_IDLE_THREAD
 	select GUP_GET_PXX_LOW_HIGH if X2TLB
 	select HAS_IOPORT if HAS_IOPORT_MAP
+	select GENERIC_IOREMAP if MMU
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_SECCOMP_FILTER
@@ -123,8 +124,7 @@ config ARCH_HAS_ILOG2_U64
 
 config NO_IOPORT_MAP
 	def_bool !PCI
-	depends on !SH_SH4202_MICRODEV && !SH_SHMIN && !SH_HP6XX && \
-		   !SH_SOLUTION_ENGINE
+	depends on !SH_SHMIN && !SH_HP6XX && !SH_SOLUTION_ENGINE
 
 config IO_TRAPPED
 	bool
@@ -383,10 +383,6 @@ config CPU_SUBTYPE_SH7760
 	bool "Support SH7760 processor"
 	select CPU_SH4
 
-config CPU_SUBTYPE_SH4_202
-	bool "Support SH4-202 processor"
-	select CPU_SH4
-
 # SH-4A Processor Support
 
 config CPU_SUBTYPE_SH7723
@@ -517,7 +513,6 @@ config SH_PCLK_FREQ
 			      CPU_SUBTYPE_SH7263 || \
 			      CPU_SUBTYPE_MXG
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
-	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
 	help
 	  This option is used to specify the peripheral clock frequency.
@@ -548,44 +543,14 @@ menu "Kernel features"
 
 source "kernel/Kconfig.hz"
 
-config KEXEC
-	bool "kexec system call (EXPERIMENTAL)"
-	depends on MMU
-	select KEXEC_CORE
-	help
-	  kexec is a system call that implements the ability to shutdown your
-	  current kernel, and to start another kernel.  It is like a reboot
-	  but it is independent of the system firmware.  And like a reboot
-	  you can start any kernel with it, not just Linux.
+config ARCH_SUPPORTS_KEXEC
+	def_bool MMU
 
-	  The name comes from the similarity to the exec system call.
+config ARCH_SUPPORTS_CRASH_DUMP
+	def_bool BROKEN_ON_SMP
 
-	  It is an ongoing process to be certain the hardware in a machine
-	  is properly shutdown, so do not be surprised if this code does not
-	  initially work for you.  As of this writing the exact hardware
-	  interface is strongly in flux, so no good recommendation can be
-	  made.
-
-config CRASH_DUMP
-	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on BROKEN_ON_SMP
-	help
-	  Generate crash dump after being started by kexec.
-	  This should be normally only set in special crash dump kernels
-	  which are loaded in the main kernel with kexec-tools into
-	  a specially reserved region and then later executed after
-	  a crash by kdump/kexec. The crash dump kernel must be compiled
-	  to a memory address not used by the main kernel using
-	  PHYSICAL_START.
-
-	  For more details see Documentation/admin-guide/kdump/kdump.rst
-
-config KEXEC_JUMP
-	bool "kexec jump (EXPERIMENTAL)"
-	depends on KEXEC && HIBERNATION
-	help
-	  Jump between original kernel and kexeced kernel and invoke
-	  code via KEXEC
+config ARCH_SUPPORTS_KEXEC_JUMP
+	def_bool y
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EXPERT || CRASH_DUMP)
@@ -771,10 +736,6 @@ config CMDLINE
 endmenu
 
 menu "Bus options"
-
-config SUPERHYWAY
-	tristate "SuperHyway Bus support"
-	depends on CPU_SUBTYPE_SH4_202
 
 config MAPLE
 	bool "Maple Bus support"

@@ -479,7 +479,7 @@ void slab_kmem_cache_release(struct kmem_cache *s)
 
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	int refcnt;
+	int err = -EBUSY;
 	bool rcu_set;
 
 	if (unlikely(!s) || !kasan_check_byte(s))
@@ -490,17 +490,17 @@ void kmem_cache_destroy(struct kmem_cache *s)
 
 	rcu_set = s->flags & SLAB_TYPESAFE_BY_RCU;
 
-	refcnt = --s->refcount;
-	if (refcnt)
+	s->refcount--;
+	if (s->refcount)
 		goto out_unlock;
 
-	WARN(shutdown_cache(s),
-	     "%s %s: Slab cache still has objects when called from %pS",
+	err = shutdown_cache(s);
+	WARN(err, "%s %s: Slab cache still has objects when called from %pS",
 	     __func__, s->name, (void *)_RET_IP_);
 out_unlock:
 	mutex_unlock(&slab_mutex);
 	cpus_read_unlock();
-	if (!refcnt && !rcu_set)
+	if (!err && !rcu_set)
 		kmem_cache_release(s);
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
@@ -528,26 +528,6 @@ bool slab_is_available(void)
 }
 
 #ifdef CONFIG_PRINTK
-/**
- * kmem_valid_obj - does the pointer reference a valid slab object?
- * @object: pointer to query.
- *
- * Return: %true if the pointer is to a not-yet-freed object from
- * kmalloc() or kmem_cache_alloc(), either %true or %false if the pointer
- * is to an already-freed object, and %false otherwise.
- */
-bool kmem_valid_obj(void *object)
-{
-	struct folio *folio;
-
-	/* Some arches consider ZERO_SIZE_PTR to be a valid address. */
-	if (object < (void *)PAGE_SIZE || !virt_addr_valid(object))
-		return false;
-	folio = virt_to_folio(object);
-	return folio_test_slab(folio);
-}
-EXPORT_SYMBOL_GPL(kmem_valid_obj);
-
 static void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 {
 	if (__kfence_obj_info(kpp, object, slab))
@@ -566,11 +546,11 @@ static void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *
  * and, if available, the slab name, return address, and stack trace from
  * the allocation and last free path of that object.
  *
- * This function will splat if passed a pointer to a non-slab object.
- * If you are not sure what type of object you have, you should instead
- * use mem_dump_obj().
+ * Return: %true if the pointer is to a not-yet-freed object from
+ * kmalloc() or kmem_cache_alloc(), either %true or %false if the pointer
+ * is to an already-freed object, and %false otherwise.
  */
-void kmem_dump_obj(void *object)
+bool kmem_dump_obj(void *object)
 {
 	char *cp = IS_ENABLED(CONFIG_MMU) ? "" : "/vmalloc";
 	int i;
@@ -578,13 +558,13 @@ void kmem_dump_obj(void *object)
 	unsigned long ptroffset;
 	struct kmem_obj_info kp = { };
 
-	if (WARN_ON_ONCE(!virt_addr_valid(object)))
-		return;
+	/* Some arches consider ZERO_SIZE_PTR to be a valid address. */
+	if (object < (void *)PAGE_SIZE || !virt_addr_valid(object))
+		return false;
 	slab = virt_to_slab(object);
-	if (WARN_ON_ONCE(!slab)) {
-		pr_cont(" non-slab memory.\n");
-		return;
-	}
+	if (!slab)
+		return false;
+
 	kmem_obj_info(&kp, object, slab);
 	if (kp.kp_slab_cache)
 		pr_cont(" slab%s %s", cp, kp.kp_slab_cache->name);
@@ -621,6 +601,7 @@ void kmem_dump_obj(void *object)
 		pr_info("    %pS\n", kp.kp_free_stack[i]);
 	}
 
+	return true;
 }
 EXPORT_SYMBOL_GPL(kmem_dump_obj);
 #endif
@@ -678,6 +659,11 @@ kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1] __ro_after_init =
 { /* initialization for https://bugs.llvm.org/show_bug.cgi?id=42570 */ };
 EXPORT_SYMBOL(kmalloc_caches);
 
+#ifdef CONFIG_RANDOM_KMALLOC_CACHES
+unsigned long random_kmalloc_seed __ro_after_init;
+EXPORT_SYMBOL(random_kmalloc_seed);
+#endif
+
 /*
  * Conversion table for small slabs sizes / 8 to the index in the
  * kmalloc array. This is necessary for slabs < 192 since we have non power
@@ -720,7 +706,7 @@ static inline unsigned int size_index_elem(unsigned int bytes)
  * Find the kmem_cache structure that serves a given size of
  * allocation
  */
-struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
+struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags, unsigned long caller)
 {
 	unsigned int index;
 
@@ -735,26 +721,29 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
 		index = fls(size - 1);
 	}
 
-	return kmalloc_caches[kmalloc_type(flags)][index];
+	return kmalloc_caches[kmalloc_type(flags, caller)][index];
 }
 
 size_t kmalloc_size_roundup(size_t size)
 {
-	struct kmem_cache *c;
+	if (size && size <= KMALLOC_MAX_CACHE_SIZE) {
+		/*
+		 * The flags don't matter since size_index is common to all.
+		 * Neither does the caller for just getting ->object_size.
+		 */
+		return kmalloc_slab(size, GFP_KERNEL, 0)->object_size;
+	}
 
-	/* Short-circuit the 0 size case. */
-	if (unlikely(size == 0))
-		return 0;
-	/* Short-circuit saturated "too-large" case. */
-	if (unlikely(size == SIZE_MAX))
-		return SIZE_MAX;
 	/* Above the smaller buckets, size is a multiple of page size. */
-	if (size > KMALLOC_MAX_CACHE_SIZE)
+	if (size && size <= KMALLOC_MAX_SIZE)
 		return PAGE_SIZE << get_order(size);
 
-	/* The flags don't matter since size_index is common to all. */
-	c = kmalloc_slab(size, GFP_KERNEL);
-	return c ? c->object_size : 0;
+	/*
+	 * Return 'size' for 0 - kmalloc() returns ZERO_SIZE_PTR
+	 * and very large size - kmalloc() may fail.
+	 */
+	return size;
+
 }
 EXPORT_SYMBOL(kmalloc_size_roundup);
 
@@ -776,12 +765,35 @@ EXPORT_SYMBOL(kmalloc_size_roundup);
 #define KMALLOC_RCL_NAME(sz)
 #endif
 
+#ifdef CONFIG_RANDOM_KMALLOC_CACHES
+#define __KMALLOC_RANDOM_CONCAT(a, b) a ## b
+#define KMALLOC_RANDOM_NAME(N, sz) __KMALLOC_RANDOM_CONCAT(KMA_RAND_, N)(sz)
+#define KMA_RAND_1(sz)                  .name[KMALLOC_RANDOM_START +  1] = "kmalloc-rnd-01-" #sz,
+#define KMA_RAND_2(sz)  KMA_RAND_1(sz)  .name[KMALLOC_RANDOM_START +  2] = "kmalloc-rnd-02-" #sz,
+#define KMA_RAND_3(sz)  KMA_RAND_2(sz)  .name[KMALLOC_RANDOM_START +  3] = "kmalloc-rnd-03-" #sz,
+#define KMA_RAND_4(sz)  KMA_RAND_3(sz)  .name[KMALLOC_RANDOM_START +  4] = "kmalloc-rnd-04-" #sz,
+#define KMA_RAND_5(sz)  KMA_RAND_4(sz)  .name[KMALLOC_RANDOM_START +  5] = "kmalloc-rnd-05-" #sz,
+#define KMA_RAND_6(sz)  KMA_RAND_5(sz)  .name[KMALLOC_RANDOM_START +  6] = "kmalloc-rnd-06-" #sz,
+#define KMA_RAND_7(sz)  KMA_RAND_6(sz)  .name[KMALLOC_RANDOM_START +  7] = "kmalloc-rnd-07-" #sz,
+#define KMA_RAND_8(sz)  KMA_RAND_7(sz)  .name[KMALLOC_RANDOM_START +  8] = "kmalloc-rnd-08-" #sz,
+#define KMA_RAND_9(sz)  KMA_RAND_8(sz)  .name[KMALLOC_RANDOM_START +  9] = "kmalloc-rnd-09-" #sz,
+#define KMA_RAND_10(sz) KMA_RAND_9(sz)  .name[KMALLOC_RANDOM_START + 10] = "kmalloc-rnd-10-" #sz,
+#define KMA_RAND_11(sz) KMA_RAND_10(sz) .name[KMALLOC_RANDOM_START + 11] = "kmalloc-rnd-11-" #sz,
+#define KMA_RAND_12(sz) KMA_RAND_11(sz) .name[KMALLOC_RANDOM_START + 12] = "kmalloc-rnd-12-" #sz,
+#define KMA_RAND_13(sz) KMA_RAND_12(sz) .name[KMALLOC_RANDOM_START + 13] = "kmalloc-rnd-13-" #sz,
+#define KMA_RAND_14(sz) KMA_RAND_13(sz) .name[KMALLOC_RANDOM_START + 14] = "kmalloc-rnd-14-" #sz,
+#define KMA_RAND_15(sz) KMA_RAND_14(sz) .name[KMALLOC_RANDOM_START + 15] = "kmalloc-rnd-15-" #sz,
+#else // CONFIG_RANDOM_KMALLOC_CACHES
+#define KMALLOC_RANDOM_NAME(N, sz)
+#endif
+
 #define INIT_KMALLOC_INFO(__size, __short_size)			\
 {								\
 	.name[KMALLOC_NORMAL]  = "kmalloc-" #__short_size,	\
 	KMALLOC_RCL_NAME(__short_size)				\
 	KMALLOC_CGROUP_NAME(__short_size)			\
 	KMALLOC_DMA_NAME(__short_size)				\
+	KMALLOC_RANDOM_NAME(RANDOM_KMALLOC_CACHES_NR, __short_size)	\
 	.size = __size,						\
 }
 
@@ -864,11 +876,13 @@ void __init setup_kmalloc_cache_index_table(void)
 
 static unsigned int __kmalloc_minalign(void)
 {
-#ifdef CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC
-	if (io_tlb_default_mem.nslabs)
-		return ARCH_KMALLOC_MINALIGN;
-#endif
-	return dma_get_cache_alignment();
+	unsigned int minalign = dma_get_cache_alignment();
+
+	if (IS_ENABLED(CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC) &&
+	    is_swiotlb_allocated())
+		minalign = ARCH_KMALLOC_MINALIGN;
+
+	return max(minalign, arch_slab_minalign());
 }
 
 void __init
@@ -889,6 +903,11 @@ new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
 	} else if (IS_ENABLED(CONFIG_ZONE_DMA) && (type == KMALLOC_DMA)) {
 		flags |= SLAB_CACHE_DMA;
 	}
+
+#ifdef CONFIG_RANDOM_KMALLOC_CACHES
+	if (type >= KMALLOC_RANDOM_START && type <= KMALLOC_RANDOM_END)
+		flags |= SLAB_NO_MERGE;
+#endif
 
 	/*
 	 * If CONFIG_MEMCG_KMEM is enabled, disable cache merging for
@@ -941,6 +960,9 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 				new_kmalloc_cache(2, type, flags);
 		}
 	}
+#ifdef CONFIG_RANDOM_KMALLOC_CACHES
+	random_kmalloc_seed = get_random_u64();
+#endif
 
 	/* Kmalloc array is now usable */
 	slab_state = UP;
@@ -976,7 +998,7 @@ void *__do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller
 		return ret;
 	}
 
-	s = kmalloc_slab(size, flags);
+	s = kmalloc_slab(size, flags, caller);
 
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;

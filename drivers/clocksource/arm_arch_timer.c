@@ -792,6 +792,13 @@ static __always_inline void set_next_event_mem(const int access, unsigned long e
 	u64 cnt;
 
 	ctrl = arch_timer_reg_read(access, ARCH_TIMER_REG_CTRL, clk);
+
+	/* Timer must be disabled before programming CVAL */
+	if (ctrl & ARCH_TIMER_CTRL_ENABLE) {
+		ctrl &= ~ARCH_TIMER_CTRL_ENABLE;
+		arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
+	}
+
 	ctrl |= ARCH_TIMER_CTRL_ENABLE;
 	ctrl &= ~ARCH_TIMER_CTRL_IT_MASK;
 
@@ -829,8 +836,9 @@ static u64 __arch_timer_check_delta(void)
 		 * Note that TVAL is signed, thus has only 31 of its
 		 * 32 bits to express magnitude.
 		 */
-		MIDR_ALL_VERSIONS(MIDR_CPU_MODEL(ARM_CPU_IMP_APM,
-						 APM_CPU_PART_POTENZA)),
+		MIDR_REV_RANGE(MIDR_CPU_MODEL(ARM_CPU_IMP_APM,
+					      APM_CPU_PART_XGENE),
+			       APM_CPU_VAR_POTENZA, 0x0, 0xf),
 		{},
 	};
 
@@ -910,7 +918,7 @@ static void arch_timer_evtstrm_enable(unsigned int divider)
 
 #ifdef CONFIG_ARM64
 	/* ECV is likely to require a large divider. Use the EVNTIS flag. */
-	if (cpus_have_const_cap(ARM64_HAS_ECV) && divider > 15) {
+	if (cpus_have_final_cap(ARM64_HAS_ECV) && divider > 15) {
 		cntkctl |= ARCH_TIMER_EVT_INTERVAL_SCALE;
 		divider -= 8;
 	}
@@ -947,6 +955,30 @@ static void arch_timer_configure_evtstream(void)
 	/* enable event stream */
 	arch_timer_evtstrm_enable(max(0, lsb));
 }
+
+static int arch_timer_evtstrm_starting_cpu(unsigned int cpu)
+{
+	arch_timer_configure_evtstream();
+	return 0;
+}
+
+static int arch_timer_evtstrm_dying_cpu(unsigned int cpu)
+{
+	cpumask_clear_cpu(smp_processor_id(), &evtstrm_available);
+	return 0;
+}
+
+static int __init arch_timer_evtstrm_register(void)
+{
+	if (!arch_timer_evt || !evtstrm_enable)
+		return 0;
+
+	return cpuhp_setup_state(CPUHP_AP_ARM_ARCH_TIMER_EVTSTRM_STARTING,
+				 "clockevents/arm/arch_timer_evtstrm:starting",
+				 arch_timer_evtstrm_starting_cpu,
+				 arch_timer_evtstrm_dying_cpu);
+}
+core_initcall(arch_timer_evtstrm_register);
 
 static void arch_counter_set_user_access(void)
 {
@@ -1009,8 +1041,6 @@ static int arch_timer_starting_cpu(unsigned int cpu)
 	}
 
 	arch_counter_set_user_access();
-	if (evtstrm_enable)
-		arch_timer_configure_evtstream();
 
 	return 0;
 }
@@ -1157,8 +1187,6 @@ static int arch_timer_dying_cpu(unsigned int cpu)
 {
 	struct clock_event_device *clk = this_cpu_ptr(arch_timer_evt);
 
-	cpumask_clear_cpu(smp_processor_id(), &evtstrm_available);
-
 	arch_timer_stop(clk);
 	return 0;
 }
@@ -1272,6 +1300,7 @@ out_unreg_notify:
 
 out_free:
 	free_percpu(arch_timer_evt);
+	arch_timer_evt = NULL;
 out:
 	return err;
 }

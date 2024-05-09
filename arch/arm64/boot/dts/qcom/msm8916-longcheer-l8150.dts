@@ -23,9 +23,14 @@
 		stdout-path = "serial0";
 	};
 
+	/*
+	 * For some reason, the signed wcnss firmware is not relocatable.
+	 * It must be loaded at 0x8b600000. All other firmware is relocatable,
+	 * so place wcnss at the fixed address and then all other firmware
+	 * regions will be automatically allocated at a fitting place.
+	 */
 	reserved-memory {
-		/* wcnss.mdt is not relocatable, so it must be loaded at 0x8b600000 */
-		/delete-node/ wcnss@89300000;
+		/delete-node/ wcnss;
 
 		wcnss_mem: wcnss@8b600000 {
 			reg = <0x0 0x8b600000 0x0 0x600000>;
@@ -165,7 +170,7 @@
 		pinctrl-0 = <&light_int_default>;
 
 		vdd-supply = <&pm8916_l17>;
-		vio-supply = <&pm8916_l6>;
+		vddio-supply = <&pm8916_l6>;
 	};
 
 	gyroscope@68 {
@@ -259,12 +264,24 @@
 	extcon = <&pm8916_usbin>;
 };
 
+&venus {
+	status = "okay";
+};
+
+&venus_mem {
+	status = "okay";
+};
+
 &wcnss {
 	status = "okay";
 };
 
 &wcnss_iris {
 	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
 };
 
 &tlmm {

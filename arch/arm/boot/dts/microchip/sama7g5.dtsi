@@ -366,8 +366,8 @@
 			compatible = "bosch,m_can";
 			reg = <0xe0828000 0x100>, <0x100000 0x7800>;
 			reg-names = "m_can", "message_ram";
-			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 61>, <&pmc PMC_TYPE_GCK 61>;
 			clock-names = "hclk", "cclk";
@@ -382,8 +382,8 @@
 			compatible = "bosch,m_can";
 			reg = <0xe082c000 0x100>, <0x100000 0xbc00>;
 			reg-names = "m_can", "message_ram";
-			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 62>, <&pmc PMC_TYPE_GCK 62>;
 			clock-names = "hclk", "cclk";
@@ -398,8 +398,8 @@
 			compatible = "bosch,m_can";
 			reg = <0xe0830000 0x100>, <0x100000 0x10000>;
 			reg-names = "m_can", "message_ram";
-			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 63>, <&pmc PMC_TYPE_GCK 63>;
 			clock-names = "hclk", "cclk";
@@ -414,8 +414,8 @@
 			compatible = "bosch,m_can";
 			reg = <0xe0834000 0x100>, <0x110000 0x4400>;
 			reg-names = "m_can", "message_ram";
-			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 64>, <&pmc PMC_TYPE_GCK 64>;
 			clock-names = "hclk", "cclk";
@@ -430,8 +430,8 @@
 			compatible = "bosch,m_can";
 			reg = <0xe0838000 0x100>, <0x110000 0x8800>;
 			reg-names = "m_can", "message_ram";
-			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 65>, <&pmc PMC_TYPE_GCK 65>;
 			clock-names = "hclk", "cclk";
@@ -446,8 +446,8 @@
 			compatible = "bosch,m_can";
 			reg = <0xe083c000 0x100>, <0x110000 0xcc00>;
 			reg-names = "m_can", "message_ram";
-			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 66>, <&pmc PMC_TYPE_GCK 66>;
 			clock-names = "hclk", "cclk";
@@ -845,12 +845,12 @@
 		gmac0: ethernet@e2800000 {
 			compatible = "microchip,sama7g5-gem";
 			reg = <0xe2800000 0x1000>;
-			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 51>, <&pmc PMC_TYPE_PERIPHERAL 51>, <&pmc PMC_TYPE_GCK 51>, <&pmc PMC_TYPE_GCK 53>;
 			clock-names = "pclk", "hclk", "tx_clk", "tsu_clk";
 			assigned-clocks = <&pmc PMC_TYPE_GCK 51>;
@@ -861,8 +861,8 @@
 		gmac1: ethernet@e2804000 {
 			compatible = "microchip,sama7g5-emac";
 			reg = <0xe2804000 0x1000>;
-			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 52>, <&pmc PMC_TYPE_PERIPHERAL 52>;
 			clock-names = "pclk", "hclk";
 			status = "disabled";

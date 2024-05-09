@@ -197,7 +197,7 @@ out:
  * This function retrieves the capabilities of the nominated task and returns
  * them to the caller.
  */
-int cap_capget(struct task_struct *target, kernel_cap_t *effective,
+int cap_capget(const struct task_struct *target, kernel_cap_t *effective,
 	       kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
 	const struct cred *cred;
@@ -720,7 +720,7 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
  * its xattrs and, if present, apply them to the proposed credentials being
  * constructed by execve().
  */
-static int get_file_caps(struct linux_binprm *bprm, struct file *file,
+static int get_file_caps(struct linux_binprm *bprm, const struct file *file,
 			 bool *effective, bool *has_fcap)
 {
 	int rc = 0;
@@ -882,7 +882,7 @@ static inline bool nonroot_raised_pE(struct cred *new, const struct cred *old,
  *
  * Return: 0 if successful, -ve on error.
  */
-int cap_bprm_creds_from_file(struct linux_binprm *bprm, struct file *file)
+int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file)
 {
 	/* Process setpcap binaries and capabilities for uid 0 */
 	const struct cred *old = current_cred();

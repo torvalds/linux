@@ -207,24 +207,20 @@ static float calculate_net_bw_in_kbytes_sec(struct _vcs_dpi_voltage_scaling_st *
 	return limiting_bw_kbytes_sec;
 }
 
-void dcn321_insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
+static void dcn321_insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
 					   unsigned int *num_entries,
 					   struct _vcs_dpi_voltage_scaling_st *entry)
 {
 	int i = 0;
 	int index = 0;
-	float net_bw_of_new_state = 0;
 
 	dc_assert_fp_enabled();
-
-	get_optimal_ntuple(entry);
 
 	if (*num_entries == 0) {
 		table[0] = *entry;
 		(*num_entries)++;
 	} else {
-		net_bw_of_new_state = calculate_net_bw_in_kbytes_sec(entry);
-		while (net_bw_of_new_state > calculate_net_bw_in_kbytes_sec(&table[index])) {
+		while (entry->net_bw_in_kbytes_sec > table[index].net_bw_in_kbytes_sec) {
 			index++;
 			if (index >= *num_entries)
 				break;
@@ -250,6 +246,63 @@ static void remove_entry_from_table_at_index(struct _vcs_dpi_voltage_scaling_st 
 		table[i] = table[i + 1];
 	}
 	memset(&table[--(*num_entries)], 0, sizeof(struct _vcs_dpi_voltage_scaling_st));
+}
+
+static void swap_table_entries(struct _vcs_dpi_voltage_scaling_st *first_entry,
+		struct _vcs_dpi_voltage_scaling_st *second_entry)
+{
+	struct _vcs_dpi_voltage_scaling_st temp_entry = *first_entry;
+	*first_entry = *second_entry;
+	*second_entry = temp_entry;
+}
+
+/*
+ * sort_entries_with_same_bw - Sort entries sharing the same bandwidth by DCFCLK
+ */
+static void sort_entries_with_same_bw(struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries)
+{
+	unsigned int start_index = 0;
+	unsigned int end_index = 0;
+	unsigned int current_bw = 0;
+
+	for (int i = 0; i < (*num_entries - 1); i++) {
+		if (table[i].net_bw_in_kbytes_sec == table[i+1].net_bw_in_kbytes_sec) {
+			current_bw = table[i].net_bw_in_kbytes_sec;
+			start_index = i;
+			end_index = ++i;
+
+			while ((i < (*num_entries - 1)) && (table[i+1].net_bw_in_kbytes_sec == current_bw))
+				end_index = ++i;
+		}
+
+		if (start_index != end_index) {
+			for (int j = start_index; j < end_index; j++) {
+				for (int k = start_index; k < end_index; k++) {
+					if (table[k].dcfclk_mhz > table[k+1].dcfclk_mhz)
+						swap_table_entries(&table[k], &table[k+1]);
+				}
+			}
+		}
+
+		start_index = 0;
+		end_index = 0;
+
+	}
+}
+
+/*
+ * remove_inconsistent_entries - Ensure entries with the same bandwidth have MEMCLK and FCLK monotonically increasing
+ *                               and remove entries that do not follow this order
+ */
+static void remove_inconsistent_entries(struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries)
+{
+	for (int i = 0; i < (*num_entries - 1); i++) {
+		if (table[i].net_bw_in_kbytes_sec == table[i+1].net_bw_in_kbytes_sec) {
+			if ((table[i].dram_speed_mts > table[i+1].dram_speed_mts) ||
+				(table[i].fabricclk_mhz > table[i+1].fabricclk_mhz))
+				remove_entry_from_table_at_index(table, num_entries, i);
+		}
+	}
 }
 
 /*
@@ -362,11 +415,11 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 
 	if (max_clk_data.fclk_mhz == 0)
 		max_clk_data.fclk_mhz = max_clk_data.dcfclk_mhz *
-				dcn3_2_soc.pct_ideal_sdp_bw_after_urgent /
-				dcn3_2_soc.pct_ideal_fabric_bw_after_urgent;
+				dcn3_21_soc.pct_ideal_sdp_bw_after_urgent /
+				dcn3_21_soc.pct_ideal_fabric_bw_after_urgent;
 
 	if (max_clk_data.phyclk_mhz == 0)
-		max_clk_data.phyclk_mhz = dcn3_2_soc.clock_limits[0].phyclk_mhz;
+		max_clk_data.phyclk_mhz = dcn3_21_soc.clock_limits[0].phyclk_mhz;
 
 	*num_entries = 0;
 	entry.dispclk_mhz = max_clk_data.dispclk_mhz;
@@ -374,8 +427,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 	entry.dppclk_mhz = max_clk_data.dppclk_mhz;
 	entry.dtbclk_mhz = max_clk_data.dtbclk_mhz;
 	entry.phyclk_mhz = max_clk_data.phyclk_mhz;
-	entry.phyclk_d18_mhz = dcn3_2_soc.clock_limits[0].phyclk_d18_mhz;
-	entry.phyclk_d32_mhz = dcn3_2_soc.clock_limits[0].phyclk_d32_mhz;
+	entry.phyclk_d18_mhz = dcn3_21_soc.clock_limits[0].phyclk_d18_mhz;
+	entry.phyclk_d32_mhz = dcn3_21_soc.clock_limits[0].phyclk_d32_mhz;
 
 	// Insert all the DCFCLK STAs
 	for (i = 0; i < num_dcfclk_stas; i++) {
@@ -383,6 +436,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 		entry.fabricclk_mhz = 0;
 		entry.dram_speed_mts = 0;
 
+		get_optimal_ntuple(&entry);
+		entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 		dcn321_insert_entry_into_table_sorted(table, num_entries, &entry);
 	}
 
@@ -391,6 +446,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 	entry.fabricclk_mhz = 0;
 	entry.dram_speed_mts = 0;
 
+	get_optimal_ntuple(&entry);
+	entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 	dcn321_insert_entry_into_table_sorted(table, num_entries, &entry);
 
 	// Insert the UCLK DPMS
@@ -399,6 +456,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 		entry.fabricclk_mhz = 0;
 		entry.dram_speed_mts = bw_params->clk_table.entries[i].memclk_mhz * 16;
 
+		get_optimal_ntuple(&entry);
+		entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 		dcn321_insert_entry_into_table_sorted(table, num_entries, &entry);
 	}
 
@@ -409,6 +468,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 			entry.fabricclk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
 			entry.dram_speed_mts = 0;
 
+			get_optimal_ntuple(&entry);
+			entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 			dcn321_insert_entry_into_table_sorted(table, num_entries, &entry);
 		}
 	}
@@ -418,6 +479,8 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 		entry.fabricclk_mhz = max_clk_data.fclk_mhz;
 		entry.dram_speed_mts = 0;
 
+		get_optimal_ntuple(&entry);
+		entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&entry);
 		dcn321_insert_entry_into_table_sorted(table, num_entries, &entry);
 	}
 
@@ -432,6 +495,23 @@ static int build_synthetic_soc_states(bool disable_dc_mode_overwrite, struct clk
 				table[i].dram_speed_mts > max_clk_data.memclk_mhz * 16)
 			remove_entry_from_table_at_index(table, num_entries, i);
 	}
+
+	// Insert entry with all max dc limits without bandwitch matching
+	if (!disable_dc_mode_overwrite) {
+		struct _vcs_dpi_voltage_scaling_st max_dc_limits_entry = entry;
+
+		max_dc_limits_entry.dcfclk_mhz = max_clk_data.dcfclk_mhz;
+		max_dc_limits_entry.fabricclk_mhz = max_clk_data.fclk_mhz;
+		max_dc_limits_entry.dram_speed_mts = max_clk_data.memclk_mhz * 16;
+
+		max_dc_limits_entry.net_bw_in_kbytes_sec = calculate_net_bw_in_kbytes_sec(&max_dc_limits_entry);
+		dcn321_insert_entry_into_table_sorted(table, num_entries, &max_dc_limits_entry);
+
+		sort_entries_with_same_bw(table, num_entries);
+		remove_inconsistent_entries(table, num_entries);
+	}
+
+
 
 	// At this point, the table only contains supported points of interest
 	// it could be used as is, but some states may be redundant due to
@@ -536,12 +616,14 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	/* Override from passed dc->bb_overrides if available*/
 	if ((int)(dcn3_21_soc.sr_exit_time_us * 1000) != dc->bb_overrides.sr_exit_time_ns
 			&& dc->bb_overrides.sr_exit_time_ns) {
+		dc->dml2_options.bbox_overrides.sr_exit_latency_us =
 		dcn3_21_soc.sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
 	}
 
 	if ((int)(dcn3_21_soc.sr_enter_plus_exit_time_us * 1000)
 			!= dc->bb_overrides.sr_enter_plus_exit_time_ns
 			&& dc->bb_overrides.sr_enter_plus_exit_time_ns) {
+		dc->dml2_options.bbox_overrides.sr_enter_plus_exit_latency_us =
 		dcn3_21_soc.sr_enter_plus_exit_time_us =
 			dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
 	}
@@ -549,12 +631,14 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	if ((int)(dcn3_21_soc.urgent_latency_us * 1000) != dc->bb_overrides.urgent_latency_ns
 		&& dc->bb_overrides.urgent_latency_ns) {
 		dcn3_21_soc.urgent_latency_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
+		dc->dml2_options.bbox_overrides.urgent_latency_us =
 		dcn3_21_soc.urgent_latency_pixel_data_only_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
 	}
 
 	if ((int)(dcn3_21_soc.dram_clock_change_latency_us * 1000)
 			!= dc->bb_overrides.dram_clock_change_latency_ns
 			&& dc->bb_overrides.dram_clock_change_latency_ns) {
+		dc->dml2_options.bbox_overrides.dram_clock_change_latency_us =
 		dcn3_21_soc.dram_clock_change_latency_us =
 			dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
 	}
@@ -562,6 +646,7 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	if ((int)(dcn3_21_soc.fclk_change_latency_us * 1000)
 			!= dc->bb_overrides.fclk_clock_change_latency_ns
 			&& dc->bb_overrides.fclk_clock_change_latency_ns) {
+		dc->dml2_options.bbox_overrides.fclk_change_latency_us =
 		dcn3_21_soc.fclk_change_latency_us =
 			dc->bb_overrides.fclk_clock_change_latency_ns / 1000;
 	}
@@ -579,14 +664,17 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 
 		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
 			if (bb_info.dram_clock_change_latency_100ns > 0)
+				dc->dml2_options.bbox_overrides.dram_clock_change_latency_us =
 				dcn3_21_soc.dram_clock_change_latency_us =
 					bb_info.dram_clock_change_latency_100ns * 10;
 
 			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
+				dc->dml2_options.bbox_overrides.sr_enter_plus_exit_latency_us =
 				dcn3_21_soc.sr_enter_plus_exit_time_us =
 					bb_info.dram_sr_enter_exit_latency_100ns * 10;
 
 			if (bb_info.dram_sr_exit_latency_100ns > 0)
+				dc->dml2_options.bbox_overrides.sr_exit_latency_us =
 				dcn3_21_soc.sr_exit_time_us =
 					bb_info.dram_sr_exit_latency_100ns * 10;
 		}
@@ -594,12 +682,14 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 
 	/* Override from VBIOS for num_chan */
 	if (dc->ctx->dc_bios->vram_info.num_chans) {
+		dc->dml2_options.bbox_overrides.dram_num_chan =
 		dcn3_21_soc.num_chans = dc->ctx->dc_bios->vram_info.num_chans;
 		dcn3_21_soc.mall_allocated_for_dcn_mbytes = (double)(dcn32_calc_num_avail_chans_for_mall(dc,
 			dc->ctx->dc_bios->vram_info.num_chans) * dc->caps.mall_size_per_mem_channel);
 	}
 
 	if (dc->ctx->dc_bios->vram_info.dram_channel_width_bytes)
+		dc->dml2_options.bbox_overrides.dram_chanel_width_bytes =
 		dcn3_21_soc.dram_channel_width_bytes = dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;
 
 	/* DML DSC delay factor workaround */
@@ -610,6 +700,10 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	/* Override dispclk_dppclk_vco_speed_mhz from Clk Mgr */
 	dcn3_21_soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
+	dc->dml2_options.bbox_overrides.disp_pll_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
+	dc->dml2_options.bbox_overrides.xtalclk_mhz = dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency / 1000.0;
+	dc->dml2_options.bbox_overrides.dchub_refclk_mhz = dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000.0;
+	dc->dml2_options.bbox_overrides.dprefclk_mhz = dc->clk_mgr->dprefclk_khz / 1000.0;
 
 	/* Overrides Clock levelsfrom CLK Mgr table entries as reported by PM FW */
 	if (dc->debug.use_legacy_soc_bb_mechanism) {
@@ -756,5 +850,72 @@ void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	dml_init_instance(&dc->dml, &dcn3_21_soc, &dcn3_21_ip, DML_PROJECT_DCN32);
 	if (dc->current_state)
 		dml_init_instance(&dc->current_state->bw_ctx.dml, &dcn3_21_soc, &dcn3_21_ip, DML_PROJECT_DCN32);
+
+	if (dc->clk_mgr->bw_params->clk_table.num_entries > 1) {
+		unsigned int i = 0;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_states = dc->clk_mgr->bw_params->clk_table.num_entries;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dcfclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_fclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_fclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_memclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_memclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_socclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_socclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dtbclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dispclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dispclk_levels;
+
+		dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dppclk_levels =
+			dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dppclk_levels;
+
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dcfclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].dcfclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dcfclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].dcfclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_fclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].fclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].fclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].fclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_memclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].memclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_socclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].socclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].socclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].socclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dtbclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].dtbclk_mhz)
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].dtbclk_mhz;
+		}
+
+		for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_dispclk_levels; i++) {
+			if (dc->clk_mgr->bw_params->clk_table.entries[i].dispclk_mhz) {
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dispclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].dispclk_mhz;
+				dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dppclk_mhz =
+					dc->clk_mgr->bw_params->clk_table.entries[i].dispclk_mhz;
+			}
+		}
+	}
 }
 

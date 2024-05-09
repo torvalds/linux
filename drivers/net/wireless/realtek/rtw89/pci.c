@@ -1196,7 +1196,6 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
-	struct rtw89_txwd_info *txwd_info;
 	struct rtw89_pci_tx_wp_info *txwp_info;
 	void *txaddr_info_addr;
 	struct pci_dev *pdev = rtwpci->pdev;
@@ -1222,7 +1221,7 @@ static int rtw89_pci_txwd_submit(struct rtw89_dev *rtwdev,
 
 	txwp_len = sizeof(*txwp_info);
 	txwd_len = chip->txwd_body_size;
-	txwd_len += en_wd_info ? sizeof(*txwd_info) : 0;
+	txwd_len += en_wd_info ? chip->txwd_info_size : 0;
 
 	txwp_info = txwd->vaddr + txwd_len;
 	txwp_info->seq0 = cpu_to_le16(txwd->seq | RTW89_PCI_TXWP_VALID);
@@ -3939,5 +3938,5 @@ void rtw89_pci_remove(struct pci_dev *pdev)
 EXPORT_SYMBOL(rtw89_pci_remove);
 
 MODULE_AUTHOR("Realtek Corporation");
-MODULE_DESCRIPTION("Realtek 802.11ax wireless PCI driver");
+MODULE_DESCRIPTION("Realtek PCI 802.11ax wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");

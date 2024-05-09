@@ -45,7 +45,9 @@ static struct rtrs_rdma_dev_pd dev_pd = {
 };
 
 static struct workqueue_struct *rtrs_wq;
-static struct class *rtrs_clt_dev_class;
+static const struct class rtrs_clt_dev_class = {
+	.name = "rtrs-client",
+};
 
 static inline bool rtrs_clt_is_connected(const struct rtrs_clt_sess *clt)
 {
@@ -773,13 +775,18 @@ rtrs_clt_get_next_path_or_null(struct list_head *head, struct rtrs_clt_path *clt
  * Related to @MP_POLICY_RR
  *
  * Locks:
- *    rcu_read_lock() must be hold.
+ *    rcu_read_lock() must be held.
  */
 static struct rtrs_clt_path *get_next_path_rr(struct path_it *it)
 {
 	struct rtrs_clt_path __rcu **ppcpu_path;
 	struct rtrs_clt_path *path;
 	struct rtrs_clt_sess *clt;
+
+	/*
+	 * Assert that rcu lock must be held
+	 */
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(), "no rcu read lock held");
 
 	clt = it->clt;
 
@@ -2698,7 +2705,7 @@ static struct rtrs_clt_sess *alloc_clt(const char *sessname, size_t paths_num,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	clt->dev.class = rtrs_clt_dev_class;
+	clt->dev.class = &rtrs_clt_dev_class;
 	clt->dev.release = rtrs_clt_dev_release;
 	uuid_gen(&clt->paths_uuid);
 	INIT_LIST_HEAD_RCU(&clt->paths_list);
@@ -3151,16 +3158,17 @@ static const struct rtrs_rdma_dev_pd_ops dev_pd_ops = {
 
 static int __init rtrs_client_init(void)
 {
-	rtrs_rdma_dev_pd_init(0, &dev_pd);
+	int ret = 0;
 
-	rtrs_clt_dev_class = class_create("rtrs-client");
-	if (IS_ERR(rtrs_clt_dev_class)) {
+	rtrs_rdma_dev_pd_init(0, &dev_pd);
+	ret = class_register(&rtrs_clt_dev_class);
+	if (ret) {
 		pr_err("Failed to create rtrs-client dev class\n");
-		return PTR_ERR(rtrs_clt_dev_class);
+		return ret;
 	}
 	rtrs_wq = alloc_workqueue("rtrs_client_wq", 0, 0);
 	if (!rtrs_wq) {
-		class_destroy(rtrs_clt_dev_class);
+		class_unregister(&rtrs_clt_dev_class);
 		return -ENOMEM;
 	}
 
@@ -3170,7 +3178,7 @@ static int __init rtrs_client_init(void)
 static void __exit rtrs_client_exit(void)
 {
 	destroy_workqueue(rtrs_wq);
-	class_destroy(rtrs_clt_dev_class);
+	class_unregister(&rtrs_clt_dev_class);
 	rtrs_rdma_dev_pd_deinit(&dev_pd);
 }
 

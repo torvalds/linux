@@ -6,7 +6,7 @@
 config NET_VENDOR_TI
 	bool "Texas Instruments (TI) devices"
 	default y
-	depends on PCI || EISA || AR7 || ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE || ARCH_K3
+	depends on PCI || EISA || ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE || ARCH_K3
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -90,12 +90,16 @@ config TI_CPTS
 	  The unit can time stamp PTP UDP/IPv4 and Layer 2 packets, and the
 	  driver offers a PTP Hardware Clock.
 
+config TI_K3_CPPI_DESC_POOL
+	tristate
+
 config TI_K3_AM65_CPSW_NUSS
 	tristate "TI K3 AM654x/J721E CPSW Ethernet driver"
 	depends on ARCH_K3 && OF && TI_K3_UDMA_GLUE_LAYER
 	select NET_DEVLINK
 	select TI_DAVINCI_MDIO
 	select PHYLINK
+	select TI_K3_CPPI_DESC_POOL
 	imply PHY_TI_GMII_SEL
 	depends on TI_K3_AM65_CPTS || !TI_K3_AM65_CPTS
 	help
@@ -176,11 +180,31 @@ config TLAN
 
 	  Please email feedback to <torben.mathiasen@compaq.com>.
 
-config CPMAC
-	tristate "TI AR7 CPMAC Ethernet support"
-	depends on AR7
+config TI_ICSSG_PRUETH
+	tristate "TI Gigabit PRU Ethernet driver"
 	select PHYLIB
+	select TI_ICSS_IEP
+	select TI_K3_CPPI_DESC_POOL
+	depends on PRU_REMOTEPROC
+	depends on ARCH_K3 && OF && TI_K3_UDMA_GLUE_LAYER
 	help
-	  TI AR7 CPMAC Ethernet support
+	  Support dual Gigabit Ethernet ports over the ICSSG PRU Subsystem.
+	  This subsystem is available starting with the AM65 platform.
+
+	  This driver requires firmware binaries which will run on the PRUs
+	  to support the Ethernet operation. Currently, it supports Ethernet
+	  with 1G and 100M link speed.
+
+config TI_ICSS_IEP
+	tristate "TI PRU ICSS IEP driver"
+	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on TI_PRUSS
+	default TI_PRUSS
+	help
+	  This driver enables support for the PRU-ICSS Industrial Ethernet
+	  Peripheral within a PRU-ICSS subsystem present on various TI SoCs.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called icss_iep.
 
 endif # NET_VENDOR_TI

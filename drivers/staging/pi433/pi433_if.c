@@ -31,7 +31,6 @@
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/gpio/consumer.h>
@@ -1019,7 +1018,6 @@ static int setup_gpio(struct pi433_device *device)
 		}
 
 		/* configure the pin */
-		gpiod_unexport(device->gpiod[i]);
 		retval = gpiod_direction_input(device->gpiod[i]);
 		if (retval)
 			return retval;

@@ -183,9 +183,9 @@ extern int pfn_valid(unsigned long);
 #define pfn_valid pfn_valid
 #endif
 
-#include <asm/memory.h>
-
 #endif /* !__ASSEMBLY__ */
+
+#include <asm/memory.h>
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
 

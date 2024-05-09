@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
+#include <io_uring/mini_liburing.h>
 #include "cgroup_helpers.h"
 
 static char bpf_log_buf[4096];
@@ -38,6 +39,7 @@ static struct sockopt_test {
 	socklen_t			get_optlen_ret;
 
 	enum sockopt_test_error		error;
+	bool				io_uring_support;
 } tests[] = {
 
 	/* ==================== getsockopt ====================  */
@@ -251,7 +253,9 @@ static struct sockopt_test {
 		.attach_type = BPF_CGROUP_GETSOCKOPT,
 		.expected_attach_type = BPF_CGROUP_GETSOCKOPT,
 
+		.get_level = SOL_SOCKET,
 		.get_optlen = 64,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "getsockopt: deny bigger ctx->optlen",
@@ -276,6 +280,7 @@ static struct sockopt_test {
 		.get_optlen = 64,
 
 		.error = EFAULT_GETSOCKOPT,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "getsockopt: ignore >PAGE_SIZE optlen",
@@ -318,6 +323,7 @@ static struct sockopt_test {
 		.get_optval = {}, /* the changes are ignored */
 		.get_optlen = PAGE_SIZE + 1,
 		.error = EOPNOTSUPP_GETSOCKOPT,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "getsockopt: support smaller ctx->optlen",
@@ -337,8 +343,10 @@ static struct sockopt_test {
 		.attach_type = BPF_CGROUP_GETSOCKOPT,
 		.expected_attach_type = BPF_CGROUP_GETSOCKOPT,
 
+		.get_level = SOL_SOCKET,
 		.get_optlen = 64,
 		.get_optlen_ret = 32,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "getsockopt: deny writing to ctx->optval",
@@ -518,6 +526,7 @@ static struct sockopt_test {
 		.set_level = 123,
 
 		.set_optlen = 1,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "setsockopt: allow changing ctx->level",
@@ -572,6 +581,7 @@ static struct sockopt_test {
 		.set_optname = 123,
 
 		.set_optlen = 1,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "setsockopt: allow changing ctx->optname",
@@ -624,6 +634,7 @@ static struct sockopt_test {
 		.expected_attach_type = BPF_CGROUP_SETSOCKOPT,
 
 		.set_optlen = 64,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "setsockopt: ctx->optlen == -1 is ok",
@@ -640,6 +651,7 @@ static struct sockopt_test {
 		.expected_attach_type = BPF_CGROUP_SETSOCKOPT,
 
 		.set_optlen = 64,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "setsockopt: deny ctx->optlen < 0 (except -1)",
@@ -658,6 +670,7 @@ static struct sockopt_test {
 		.set_optlen = 4,
 
 		.error = EFAULT_SETSOCKOPT,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "setsockopt: deny ctx->optlen > input optlen",
@@ -675,6 +688,7 @@ static struct sockopt_test {
 		.set_optlen = 64,
 
 		.error = EFAULT_SETSOCKOPT,
+		.io_uring_support = true,
 	},
 	{
 		.descr = "setsockopt: ignore >PAGE_SIZE optlen",
@@ -940,7 +954,89 @@ static int load_prog(const struct bpf_insn *insns,
 	return fd;
 }
 
-static int run_test(int cgroup_fd, struct sockopt_test *test)
+/* Core function that handles io_uring ring initialization,
+ * sending SQE with sockopt command and waiting for the CQE.
+ */
+static int uring_sockopt(int op, int fd, int level, int optname,
+			 const void *optval, socklen_t optlen)
+{
+	struct io_uring_cqe *cqe;
+	struct io_uring_sqe *sqe;
+	struct io_uring ring;
+	int err;
+
+	err = io_uring_queue_init(1, &ring, 0);
+	if (!ASSERT_OK(err, "io_uring initialization"))
+		return err;
+
+	sqe = io_uring_get_sqe(&ring);
+	if (!ASSERT_NEQ(sqe, NULL, "Get an SQE")) {
+		err = -1;
+		goto fail;
+	}
+
+	io_uring_prep_cmd(sqe, op, fd, level, optname, optval, optlen);
+
+	err = io_uring_submit(&ring);
+	if (!ASSERT_EQ(err, 1, "Submit SQE"))
+		goto fail;
+
+	err = io_uring_wait_cqe(&ring, &cqe);
+	if (!ASSERT_OK(err, "Wait for CQE"))
+		goto fail;
+
+	err = cqe->res;
+
+fail:
+	io_uring_queue_exit(&ring);
+
+	return err;
+}
+
+static int uring_setsockopt(int fd, int level, int optname, const void *optval,
+			    socklen_t optlen)
+{
+	return uring_sockopt(SOCKET_URING_OP_SETSOCKOPT, fd, level, optname,
+			     optval, optlen);
+}
+
+static int uring_getsockopt(int fd, int level, int optname, void *optval,
+			    socklen_t *optlen)
+{
+	int ret = uring_sockopt(SOCKET_URING_OP_GETSOCKOPT, fd, level, optname,
+				optval, *optlen);
+	if (ret < 0)
+		return ret;
+
+	/* Populate optlen back to be compatible with systemcall interface,
+	 * and simplify the test.
+	 */
+	*optlen = ret;
+
+	return 0;
+}
+
+/* Execute the setsocktopt operation */
+static int call_setsockopt(bool use_io_uring, int fd, int level, int optname,
+			   const void *optval, socklen_t optlen)
+{
+	if (use_io_uring)
+		return uring_setsockopt(fd, level, optname, optval, optlen);
+
+	return setsockopt(fd, level, optname, optval, optlen);
+}
+
+/* Execute the getsocktopt operation */
+static int call_getsockopt(bool use_io_uring, int fd, int level, int optname,
+			   void *optval, socklen_t *optlen)
+{
+	if (use_io_uring)
+		return uring_getsockopt(fd, level, optname, optval, optlen);
+
+	return getsockopt(fd, level, optname, optval, optlen);
+}
+
+static int run_test(int cgroup_fd, struct sockopt_test *test, bool use_io_uring)
 {
 	int sock_fd, err, prog_fd;
 	void *optval = NULL;
@@ -980,8 +1076,9 @@ static int run_test(int cgroup_fd, struct sockopt_test *test)
 			test->set_optlen = num_pages * sysconf(_SC_PAGESIZE) + remainder;
 		}
 
-		err = setsockopt(sock_fd, test->set_level, test->set_optname,
-				 test->set_optval, test->set_optlen);
+		err = call_setsockopt(use_io_uring, sock_fd, test->set_level,
+				      test->set_optname, test->set_optval,
+				      test->set_optlen);
 		if (err) {
 			if (errno == EPERM && test->error == EPERM_SETSOCKOPT)
 				goto close_sock_fd;
@@ -1008,8 +1105,8 @@ static int run_test(int cgroup_fd, struct sockopt_test *test)
 		socklen_t expected_get_optlen = test->get_optlen_ret ?:
 			test->get_optlen;
 
-		err = getsockopt(sock_fd, test->get_level, test->get_optname,
-				 optval, &optlen);
+		err = call_getsockopt(use_io_uring, sock_fd, test->get_level,
+				      test->get_optname, optval, &optlen);
 		if (err) {
 			if (errno == EOPNOTSUPP && test->error == EOPNOTSUPP_GETSOCKOPT)
 				goto free_optval;
@@ -1063,7 +1160,11 @@ void test_sockopt(void)
 		if (!test__start_subtest(tests[i].descr))
 			continue;
 
-		ASSERT_OK(run_test(cgroup_fd, &tests[i]), tests[i].descr);
+		ASSERT_OK(run_test(cgroup_fd, &tests[i], false),
+			  tests[i].descr);
+		if (tests[i].io_uring_support)
+			ASSERT_OK(run_test(cgroup_fd, &tests[i], true),
+				  tests[i].descr);
 	}
 
 	close(cgroup_fd);

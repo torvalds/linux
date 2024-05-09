@@ -371,6 +371,7 @@
 						      "pll8k", "pll11k", "clkext3";
 					dmas = <&sdma2 24 25 0x80000000>;
 					dma-names = "rx";
+					#sound-dai-cells = <0>;
 					status = "disabled";
 				};
 
@@ -1175,10 +1176,8 @@
 				compatible = "fsl,imx8mm-mipi-csi2";
 				reg = <0x32e30000 0x1000>;
 				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
-				assigned-clocks = <&clk IMX8MN_CLK_CAMERA_PIXEL>,
-						  <&clk IMX8MN_CLK_CSI1_PHY_REF>;
-				assigned-clock-parents = <&clk IMX8MN_SYS_PLL2_1000M>,
-							  <&clk IMX8MN_SYS_PLL2_1000M>;
+				assigned-clocks = <&clk IMX8MN_CLK_CAMERA_PIXEL>;
+				assigned-clock-parents = <&clk IMX8MN_SYS_PLL2_1000M>;
 				assigned-clock-rates = <333000000>;
 				clock-frequency = <333000000>;
 				clocks = <&clk IMX8MN_CLK_DISP_APB_ROOT>,

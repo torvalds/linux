@@ -2506,94 +2506,29 @@ static void fs_reclaim_tests(void)
 	pr_cont("\n");
 }
 
-#define __guard(cleanup) __maybe_unused __attribute__((__cleanup__(cleanup)))
+/* Defines guard classes to create contexts */
+DEFINE_LOCK_GUARD_0(HARDIRQ, HARDIRQ_ENTER(), HARDIRQ_EXIT())
+DEFINE_LOCK_GUARD_0(NOTTHREADED_HARDIRQ,
+	do {
+		local_irq_disable();
+		__irq_enter();
+		WARN_ON(!in_irq());
+	} while(0), HARDIRQ_EXIT())
+DEFINE_LOCK_GUARD_0(SOFTIRQ, SOFTIRQ_ENTER(), SOFTIRQ_EXIT())
 
-static void hardirq_exit(int *_)
-{
-	HARDIRQ_EXIT();
-}
+/* Define RCU guards, should go away when RCU has its own guard definitions */
+DEFINE_LOCK_GUARD_0(RCU, rcu_read_lock(), rcu_read_unlock())
+DEFINE_LOCK_GUARD_0(RCU_BH, rcu_read_lock_bh(), rcu_read_unlock_bh())
+DEFINE_LOCK_GUARD_0(RCU_SCHED, rcu_read_lock_sched(), rcu_read_unlock_sched())
 
-#define HARDIRQ_CONTEXT(name, ...)					\
-	int hardirq_guard_##name __guard(hardirq_exit);			\
-	HARDIRQ_ENTER();
-
-#define NOTTHREADED_HARDIRQ_CONTEXT(name, ...)				\
-	int notthreaded_hardirq_guard_##name __guard(hardirq_exit);	\
-	local_irq_disable();						\
-	__irq_enter();							\
-	WARN_ON(!in_irq());
-
-static void softirq_exit(int *_)
-{
-	SOFTIRQ_EXIT();
-}
-
-#define SOFTIRQ_CONTEXT(name, ...)				\
-	int softirq_guard_##name __guard(softirq_exit);		\
-	SOFTIRQ_ENTER();
-
-static void rcu_exit(int *_)
-{
-	rcu_read_unlock();
-}
-
-#define RCU_CONTEXT(name, ...)					\
-	int rcu_guard_##name __guard(rcu_exit);			\
-	rcu_read_lock();
-
-static void rcu_bh_exit(int *_)
-{
-	rcu_read_unlock_bh();
-}
-
-#define RCU_BH_CONTEXT(name, ...)				\
-	int rcu_bh_guard_##name __guard(rcu_bh_exit);		\
-	rcu_read_lock_bh();
-
-static void rcu_sched_exit(int *_)
-{
-	rcu_read_unlock_sched();
-}
-
-#define RCU_SCHED_CONTEXT(name, ...)				\
-	int rcu_sched_guard_##name __guard(rcu_sched_exit);	\
-	rcu_read_lock_sched();
-
-static void raw_spinlock_exit(raw_spinlock_t **lock)
-{
-	raw_spin_unlock(*lock);
-}
-
-#define RAW_SPINLOCK_CONTEXT(name, lock)						\
-	raw_spinlock_t *raw_spinlock_guard_##name __guard(raw_spinlock_exit) = &(lock);	\
-	raw_spin_lock(&(lock));
-
-static void spinlock_exit(spinlock_t **lock)
-{
-	spin_unlock(*lock);
-}
-
-#define SPINLOCK_CONTEXT(name, lock)						\
-	spinlock_t *spinlock_guard_##name __guard(spinlock_exit) = &(lock);	\
-	spin_lock(&(lock));
-
-static void mutex_exit(struct mutex **lock)
-{
-	mutex_unlock(*lock);
-}
-
-#define MUTEX_CONTEXT(name, lock)					\
-	struct mutex *mutex_guard_##name __guard(mutex_exit) = &(lock);	\
-	mutex_lock(&(lock));
 
 #define GENERATE_2_CONTEXT_TESTCASE(outer, outer_lock, inner, inner_lock)	\
 										\
 static void __maybe_unused inner##_in_##outer(void)				\
 {										\
-	outer##_CONTEXT(_, outer_lock);						\
-	{									\
-		inner##_CONTEXT(_, inner_lock);					\
-	}									\
+	/* Relies the reversed clean-up ordering: inner first */		\
+	guard(outer)(outer_lock);						\
+	guard(inner)(inner_lock);						\
 }
 
 /*
@@ -2632,21 +2567,21 @@ GENERATE_2_CONTEXT_TESTCASE(SOFTIRQ, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RCU, , inner, inner_lock)				\
 GENERATE_2_CONTEXT_TESTCASE(RCU_BH, , inner, inner_lock)			\
 GENERATE_2_CONTEXT_TESTCASE(RCU_SCHED, , inner, inner_lock)			\
-GENERATE_2_CONTEXT_TESTCASE(RAW_SPINLOCK, raw_lock_A, inner, inner_lock)	\
-GENERATE_2_CONTEXT_TESTCASE(SPINLOCK, lock_A, inner, inner_lock)		\
-GENERATE_2_CONTEXT_TESTCASE(MUTEX, mutex_A, inner, inner_lock)
+GENERATE_2_CONTEXT_TESTCASE(raw_spinlock, &raw_lock_A, inner, inner_lock)	\
+GENERATE_2_CONTEXT_TESTCASE(spinlock, &lock_A, inner, inner_lock)		\
+GENERATE_2_CONTEXT_TESTCASE(mutex, &mutex_A, inner, inner_lock)
 
 GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(RCU, )
-GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(RAW_SPINLOCK, raw_lock_B)
-GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(SPINLOCK, lock_B)
-GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(MUTEX, mutex_B)
+GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(raw_spinlock, &raw_lock_B)
+GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(spinlock, &lock_B)
+GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(mutex, &mutex_B)
 
 /* the outer context allows all kinds of preemption */
 #define DO_CONTEXT_TESTCASE_OUTER_PREEMPTIBLE(outer)			\
 	dotest(RCU_in_##outer, SUCCESS, LOCKTYPE_RWLOCK);		\
-	dotest(RAW_SPINLOCK_in_##outer, SUCCESS, LOCKTYPE_SPIN);	\
-	dotest(SPINLOCK_in_##outer, SUCCESS, LOCKTYPE_SPIN);		\
-	dotest(MUTEX_in_##outer, SUCCESS, LOCKTYPE_MUTEX);		\
+	dotest(raw_spinlock_in_##outer, SUCCESS, LOCKTYPE_SPIN);	\
+	dotest(spinlock_in_##outer, SUCCESS, LOCKTYPE_SPIN);		\
+	dotest(mutex_in_##outer, SUCCESS, LOCKTYPE_MUTEX);		\
 
 /*
  * the outer context only allows the preemption introduced by spinlock_t (which
@@ -2654,16 +2589,16 @@ GENERATE_2_CONTEXT_TESTCASE_FOR_ALL_OUTER(MUTEX, mutex_B)
  */
 #define DO_CONTEXT_TESTCASE_OUTER_LIMITED_PREEMPTIBLE(outer)		\
 	dotest(RCU_in_##outer, SUCCESS, LOCKTYPE_RWLOCK);		\
-	dotest(RAW_SPINLOCK_in_##outer, SUCCESS, LOCKTYPE_SPIN);	\
-	dotest(SPINLOCK_in_##outer, SUCCESS, LOCKTYPE_SPIN);		\
-	dotest(MUTEX_in_##outer, FAILURE, LOCKTYPE_MUTEX);		\
+	dotest(raw_spinlock_in_##outer, SUCCESS, LOCKTYPE_SPIN);	\
+	dotest(spinlock_in_##outer, SUCCESS, LOCKTYPE_SPIN);		\
+	dotest(mutex_in_##outer, FAILURE, LOCKTYPE_MUTEX);		\
 
 /* the outer doesn't allows any kind of preemption */
 #define DO_CONTEXT_TESTCASE_OUTER_NOT_PREEMPTIBLE(outer)			\
 	dotest(RCU_in_##outer, SUCCESS, LOCKTYPE_RWLOCK);		\
-	dotest(RAW_SPINLOCK_in_##outer, SUCCESS, LOCKTYPE_SPIN);	\
-	dotest(SPINLOCK_in_##outer, FAILURE, LOCKTYPE_SPIN);		\
-	dotest(MUTEX_in_##outer, FAILURE, LOCKTYPE_MUTEX);		\
+	dotest(raw_spinlock_in_##outer, SUCCESS, LOCKTYPE_SPIN);	\
+	dotest(spinlock_in_##outer, FAILURE, LOCKTYPE_SPIN);		\
+	dotest(mutex_in_##outer, FAILURE, LOCKTYPE_MUTEX);		\
 
 static void wait_context_tests(void)
 {
@@ -2697,15 +2632,15 @@ static void wait_context_tests(void)
 	pr_cont("\n");
 
 	print_testname("in RAW_SPINLOCK context");
-	DO_CONTEXT_TESTCASE_OUTER_NOT_PREEMPTIBLE(RAW_SPINLOCK);
+	DO_CONTEXT_TESTCASE_OUTER_NOT_PREEMPTIBLE(raw_spinlock);
 	pr_cont("\n");
 
 	print_testname("in SPINLOCK context");
-	DO_CONTEXT_TESTCASE_OUTER_LIMITED_PREEMPTIBLE(SPINLOCK);
+	DO_CONTEXT_TESTCASE_OUTER_LIMITED_PREEMPTIBLE(spinlock);
 	pr_cont("\n");
 
 	print_testname("in MUTEX context");
-	DO_CONTEXT_TESTCASE_OUTER_PREEMPTIBLE(MUTEX);
+	DO_CONTEXT_TESTCASE_OUTER_PREEMPTIBLE(mutex);
 	pr_cont("\n");
 }
 

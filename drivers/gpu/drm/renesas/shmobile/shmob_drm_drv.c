@@ -172,7 +172,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(shmob_drm_pm_ops,
  * Platform driver
  */
 
-static int shmob_drm_remove(struct platform_device *pdev)
+static void shmob_drm_remove(struct platform_device *pdev)
 {
 	struct shmob_drm_device *sdev = platform_get_drvdata(pdev);
 	struct drm_device *ddev = sdev->ddev;
@@ -181,8 +181,6 @@ static int shmob_drm_remove(struct platform_device *pdev)
 	drm_kms_helper_poll_fini(ddev);
 	free_irq(sdev->irq, ddev);
 	drm_dev_put(ddev);
-
-	return 0;
 }
 
 static int shmob_drm_probe(struct platform_device *pdev)
@@ -288,7 +286,7 @@ err_free_drm_dev:
 
 static struct platform_driver shmob_drm_platform_driver = {
 	.probe		= shmob_drm_probe,
-	.remove		= shmob_drm_remove,
+	.remove_new	= shmob_drm_remove,
 	.driver		= {
 		.name	= "shmob-drm",
 		.pm	= pm_sleep_ptr(&shmob_drm_pm_ops),

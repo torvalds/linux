@@ -32,11 +32,19 @@ static void netdev_print_device(struct netdev_dev_get_rsp *d, unsigned int op)
 	if (!d->_present.xdp_features)
 		return;
 
-	printf("%llx:", d->xdp_features);
+	printf("xdp-features (%llx):", d->xdp_features);
 	for (int i = 0; d->xdp_features > 1U << i; i++) {
 		if (d->xdp_features & (1U << i))
 			printf(" %s", netdev_xdp_act_str(1 << i));
 	}
+
+	printf(" xdp-rx-metadata-features (%llx):", d->xdp_rx_metadata_features);
+	for (int i = 0; d->xdp_rx_metadata_features > 1U << i; i++) {
+		if (d->xdp_rx_metadata_features & (1U << i))
+			printf(" %s", netdev_xdp_rx_metadata_str(1 << i));
+	}
+
+	printf(" xdp-zc-max-segs=%u", d->xdp_zc_max_segs);
 
 	name = netdev_op_str(op);
 	if (name)

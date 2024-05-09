@@ -17,8 +17,8 @@ binutils)
 	echo 2.25.0
 	;;
 gcc)
-	if [ "$SRCARCH" = parisc ]; then
-		echo 11.0.0
+	if [ "$ARCH" = parisc64 ]; then
+		echo 12.0.0
 	else
 		echo 5.1.0
 	fi
@@ -31,10 +31,10 @@ llvm)
 	fi
 	;;
 rustc)
-	echo 1.68.2
+	echo 1.73.0
 	;;
 bindgen)
-	echo 0.56.0
+	echo 0.65.1
 	;;
 *)
 	echo "$1: unknown tool" >&2

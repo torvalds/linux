@@ -1,5 +1,8 @@
-The Kernel Address Sanitizer (KASAN)
-====================================
+.. SPDX-License-Identifier: GPL-2.0
+.. Copyright (C) 2023, Google LLC.
+
+Kernel Address Sanitizer (KASAN)
+================================
 
 Overview
 --------
@@ -41,8 +44,8 @@ Support
 Architectures
 ~~~~~~~~~~~~~
 
-Generic KASAN is supported on x86_64, arm, arm64, powerpc, riscv, s390, and
-xtensa, and the tag-based KASAN modes are supported only on arm64.
+Generic KASAN is supported on x86_64, arm, arm64, powerpc, riscv, s390, xtensa,
+and loongarch, and the tag-based KASAN modes are supported only on arm64.
 
 Compilers
 ~~~~~~~~~

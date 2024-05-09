@@ -8,6 +8,7 @@
 #include "sc7180-trogdor.dtsi"
 /* Must come after sc7180-trogdor.dtsi to modify cros_ec */
 #include <arm/cros-ec-keyboard.dtsi>
+#include "sc7180-trogdor-rt5682i-sku.dtsi"
 #include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 
 / {
@@ -102,6 +103,7 @@ ap_ts_pen_1v8: &i2c4 {
 		interrupt-parent = <&tlmm>;
 		interrupts = <9 IRQ_TYPE_LEVEL_LOW>;
 
+		panel = <&panel>;
 		post-power-on-delay-ms = <20>;
 		hid-descr-addr = <0x0001>;
 
@@ -148,10 +150,11 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &pm6150_adc {
-	5v-choke-thermistor@4e {
+	channel@4e {
 		reg = <ADC5_AMUX_THM2_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
+		label = "5v_choke_therm";
 	};
 };
 

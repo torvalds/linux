@@ -5,6 +5,8 @@
 
 #include "icp_qat_fw.h"
 
+#define RL_MAX_RP_IDS 16
+
 enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_INIT_AE = 0,
 	ICP_QAT_FW_TRNG_ENABLE = 1,
@@ -16,12 +18,46 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_HEARTBEAT_SYNC = 7,
 	ICP_QAT_FW_HEARTBEAT_GET = 8,
 	ICP_QAT_FW_COMP_CAPABILITY_GET = 9,
+	ICP_QAT_FW_CRYPTO_CAPABILITY_GET = 10,
+	ICP_QAT_FW_DC_CHAIN_INIT = 11,
+	ICP_QAT_FW_HEARTBEAT_TIMER_SET = 13,
+	ICP_QAT_FW_RL_INIT = 15,
+	ICP_QAT_FW_TIMER_GET = 19,
+	ICP_QAT_FW_CNV_STATS_GET = 20,
 	ICP_QAT_FW_PM_STATE_CONFIG = 128,
+	ICP_QAT_FW_PM_INFO = 129,
+	ICP_QAT_FW_RL_ADD = 134,
+	ICP_QAT_FW_RL_UPDATE = 135,
+	ICP_QAT_FW_RL_REMOVE = 136,
 };
 
 enum icp_qat_fw_init_admin_resp_status {
 	ICP_QAT_FW_INIT_RESP_STATUS_SUCCESS = 0,
 	ICP_QAT_FW_INIT_RESP_STATUS_FAIL
+};
+
+struct icp_qat_fw_init_admin_slice_cnt {
+	__u8 cpr_cnt;
+	__u8 xlt_cnt;
+	__u8 dcpr_cnt;
+	__u8 pke_cnt;
+	__u8 wat_cnt;
+	__u8 wcp_cnt;
+	__u8 ucs_cnt;
+	__u8 cph_cnt;
+	__u8 ath_cnt;
+};
+
+struct icp_qat_fw_init_admin_sla_config_params {
+	__u32 pcie_in_cir;
+	__u32 pcie_in_pir;
+	__u32 pcie_out_cir;
+	__u32 pcie_out_pir;
+	__u32 slice_util_cir;
+	__u32 slice_util_pir;
+	__u32 ae_util_cir;
+	__u32 ae_util_pir;
+	__u16 rp_ids[RL_MAX_RP_IDS];
 };
 
 struct icp_qat_fw_init_admin_req {
@@ -36,6 +72,19 @@ struct icp_qat_fw_init_admin_req {
 		struct {
 			__u16 ibuf_size_in_kb;
 			__u16 resrvd3;
+		};
+		struct {
+			__u32 int_timer_ticks;
+		};
+		struct {
+			__u32 heartbeat_ticks;
+		};
+		struct {
+			__u16 node_id;
+			__u8 node_type;
+			__u8 svc_type;
+			__u8 resrvd5[3];
+			__u8 rp_count;
 		};
 		__u32 idle_filter;
 	};
@@ -55,6 +104,10 @@ struct icp_qat_fw_init_admin_resp {
 			__u16 version_major_num;
 		};
 		__u32 extended_features;
+		struct {
+			__u16 error_count;
+			__u16 latest_error;
+		};
 	};
 	__u64 opaque_data;
 	union {
@@ -94,22 +147,46 @@ struct icp_qat_fw_init_admin_resp {
 			__u32 unsuccessful_count;
 			__u64 resrvd8;
 		};
+		struct icp_qat_fw_init_admin_slice_cnt slices;
+		__u16 fw_capabilities;
 	};
 } __packed;
 
-#define ICP_QAT_FW_COMN_HEARTBEAT_OK 0
-#define ICP_QAT_FW_COMN_HEARTBEAT_BLOCKED 1
-#define ICP_QAT_FW_COMN_HEARTBEAT_FLAG_BITPOS 0
-#define ICP_QAT_FW_COMN_HEARTBEAT_FLAG_MASK 0x1
-#define ICP_QAT_FW_COMN_STATUS_RESRVD_FLD_MASK 0xFE
-#define ICP_QAT_FW_COMN_HEARTBEAT_HDR_FLAG_GET(hdr_t) \
-	ICP_QAT_FW_COMN_HEARTBEAT_FLAG_GET(hdr_t.flags)
+#define ICP_QAT_FW_SYNC ICP_QAT_FW_HEARTBEAT_SYNC
+#define ICP_QAT_FW_CAPABILITIES_GET ICP_QAT_FW_CRYPTO_CAPABILITY_GET
 
-#define ICP_QAT_FW_COMN_HEARTBEAT_HDR_FLAG_SET(hdr_t, val) \
-	ICP_QAT_FW_COMN_HEARTBEAT_FLAG_SET(hdr_t, val)
+#define ICP_QAT_NUMBER_OF_PM_EVENTS 8
 
-#define ICP_QAT_FW_COMN_HEARTBEAT_FLAG_GET(flags) \
-	QAT_FIELD_GET(flags, \
-		 ICP_QAT_FW_COMN_HEARTBEAT_FLAG_BITPOS, \
-		 ICP_QAT_FW_COMN_HEARTBEAT_FLAG_MASK)
+struct icp_qat_fw_init_admin_pm_info {
+	__u16 max_pwrreq;
+	__u16 min_pwrreq;
+	__u16 resvrd1;
+	__u8 pwr_state;
+	__u8 resvrd2;
+	__u32 fusectl0;
+	struct_group(event_counters,
+		__u32 sys_pm;
+		__u32 host_msg;
+		__u32 unknown;
+		__u32 local_ssm;
+		__u32 timer;
+	);
+	__u32 event_log[ICP_QAT_NUMBER_OF_PM_EVENTS];
+	struct_group(pm,
+		__u32 fw_init;
+		__u32 pwrreq;
+		__u32 status;
+		__u32 main;
+		__u32 thread;
+	);
+	struct_group(ssm,
+		__u32 pm_enable;
+		__u32 pm_active_status;
+		__u32 pm_managed_status;
+		__u32 pm_domain_status;
+		__u32 active_constraint;
+	);
+	__u32 resvrd3[6];
+};
+
 #endif

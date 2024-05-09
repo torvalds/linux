@@ -1,4 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config PINCTRL_CS42L43
+	tristate "Cirrus Logic CS42L43 Pinctrl Driver"
+	depends on MFD_CS42L43
+	select GPIOLIB
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Select this to support the GPIO/Pinctrl functions of the Cirrus
+	  Logic CS42L43 PC CODEC.
+
 config PINCTRL_LOCHNAGAR
 	tristate "Cirrus Logic Lochnagar pinctrl driver"
 	depends on MFD_LOCHNAGAR

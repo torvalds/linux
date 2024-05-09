@@ -103,7 +103,7 @@
 static void rtl8_4_write_tag(struct sk_buff *skb, struct net_device *dev,
 			     void *tag)
 {
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	__be16 tag16[RTL8_4_TAG_LEN / 2];
 
 	/* Set Realtek EtherType */
@@ -180,10 +180,10 @@ static int rtl8_4_read_tag(struct sk_buff *skb, struct net_device *dev,
 
 	/* Parse TX (switch->CPU) */
 	port = FIELD_GET(RTL8_4_TX, ntohs(tag16[3]));
-	skb->dev = dsa_master_find_slave(dev, 0, port);
+	skb->dev = dsa_conduit_find_user(dev, 0, port);
 	if (!skb->dev) {
 		dev_warn_ratelimited(&dev->dev,
-				     "could not find slave for port %d\n",
+				     "could not find user for port %d\n",
 				     port);
 		return -ENOENT;
 	}

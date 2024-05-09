@@ -18,6 +18,7 @@ GPU Driver Documentation
    xen-front
    afbc
    komeda-kms
+   panfrost
 
 .. only::  subproject and html
 

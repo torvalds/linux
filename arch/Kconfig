@@ -11,19 +11,6 @@ source "arch/$(SRCARCH)/Kconfig"
 
 menu "General architecture-dependent options"
 
-config CRASH_CORE
-	bool
-
-config KEXEC_CORE
-	select CRASH_CORE
-	bool
-
-config KEXEC_ELF
-	bool
-
-config HAVE_IMA_KEXEC
-	bool
-
 config ARCH_HAS_SUBPAGE_FAULTS
 	bool
 	help
@@ -32,6 +19,9 @@ config ARCH_HAS_SUBPAGE_FAULTS
 	  must be implemented.
 
 config HOTPLUG_SMT
+	bool
+
+config SMT_NUM_THREADS_DYNAMIC
 	bool
 
 # Selected by HOTPLUG_CORE_SYNC_DEAD or HOTPLUG_CORE_SYNC_FULL
@@ -745,7 +735,9 @@ config HAS_LTO_CLANG
 	depends on $(success,$(AR) --help | head -n 1 | grep -qi llvm)
 	depends on ARCH_SUPPORTS_LTO_CLANG
 	depends on !FTRACE_MCOUNT_USE_RECORDMCOUNT
-	depends on !KASAN || KASAN_HW_TAGS
+	# https://github.com/ClangBuiltLinux/linux/issues/1721
+	depends on (!KASAN || KASAN_HW_TAGS || CLANG_VERSION >= 170000) || !DEBUG_INFO
+	depends on (!KCOV || CLANG_VERSION >= 170000) || !DEBUG_INFO
 	depends on !GCOV_KERNEL
 	help
 	  The compiler and Kconfig options support building with Clang's
@@ -939,6 +931,14 @@ config HAVE_ARCH_HUGE_VMALLOC
 config ARCH_WANT_HUGE_PMD_SHARE
 	bool
 
+# Archs that want to use pmd_mkwrite on kernel memory need it defined even
+# if there are no userspace memory management features that use it
+config ARCH_WANT_KERNEL_PMD_MKWRITE
+	bool
+
+config ARCH_WANT_PMD_MKWRITE
+	def_bool TRANSPARENT_HUGEPAGE || ARCH_WANT_KERNEL_PMD_MKWRITE
+
 config HAVE_ARCH_SOFT_DIRTY
 	bool
 
@@ -1088,7 +1088,6 @@ config HAVE_ARCH_COMPAT_MMAP_BASES
 config PAGE_SIZE_LESS_THAN_64KB
 	def_bool y
 	depends on !ARM64_64K_PAGES
-	depends on !IA64_PAGE_SIZE_64KB
 	depends on !PAGE_SIZE_64KB
 	depends on !PARISC_PAGE_SIZE_64KB
 	depends on PAGE_SIZE_LESS_THAN_256KB

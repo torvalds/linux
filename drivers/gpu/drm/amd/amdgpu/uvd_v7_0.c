@@ -612,6 +612,13 @@ static int uvd_v7_0_hw_fini(void *handle)
 	return 0;
 }
 
+static int uvd_v7_0_prepare_suspend(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return amdgpu_uvd_prepare_suspend(adev);
+}
+
 static int uvd_v7_0_suspend(void *handle)
 {
 	int r;
@@ -679,11 +686,11 @@ static void uvd_v7_0_mc_resume(struct amdgpu_device *adev)
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 			WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_LOW,
 				i == 0 ?
-				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].tmr_mc_addr_lo:
+				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].tmr_mc_addr_lo :
 				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD1].tmr_mc_addr_lo);
 			WREG32_SOC15(UVD, i, mmUVD_LMI_VCPU_CACHE_64BIT_BAR_HIGH,
 				i == 0 ?
-				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].tmr_mc_addr_hi:
+				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD].tmr_mc_addr_hi :
 				adev->firmware.ucode[AMDGPU_UCODE_ID_UVD1].tmr_mc_addr_hi);
 			WREG32_SOC15(UVD, i, mmUVD_VCPU_CACHE_OFFSET0, 0);
 			offset = 0;
@@ -1787,6 +1794,7 @@ const struct amd_ip_funcs uvd_v7_0_ip_funcs = {
 	.sw_fini = uvd_v7_0_sw_fini,
 	.hw_init = uvd_v7_0_hw_init,
 	.hw_fini = uvd_v7_0_hw_fini,
+	.prepare_suspend = uvd_v7_0_prepare_suspend,
 	.suspend = uvd_v7_0_suspend,
 	.resume = uvd_v7_0_resume,
 	.is_idle = NULL /* uvd_v7_0_is_idle */,
@@ -1908,8 +1916,7 @@ static void uvd_v7_0_set_irq_funcs(struct amdgpu_device *adev)
 	}
 }
 
-const struct amdgpu_ip_block_version uvd_v7_0_ip_block =
-{
+const struct amdgpu_ip_block_version uvd_v7_0_ip_block = {
 		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 7,
 		.minor = 0,

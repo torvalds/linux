@@ -442,14 +442,14 @@
 		>;
 	};
 
-	pinctrl_flexcan1: flexcan1grp{
+	pinctrl_flexcan1: flexcan1grp {
 		fsl,pins = <
 			MX6UL_PAD_UART3_RTS_B__FLEXCAN1_RX	0x1b020
 			MX6UL_PAD_UART3_CTS_B__FLEXCAN1_TX	0x1b020
 		>;
 	};
 
-	pinctrl_flexcan2: flexcan2grp{
+	pinctrl_flexcan2: flexcan2grp {
 		fsl,pins = <
 			MX6UL_PAD_UART2_RTS_B__FLEXCAN2_RX	0x1b020
 			MX6UL_PAD_UART2_CTS_B__FLEXCAN2_TX	0x1b020

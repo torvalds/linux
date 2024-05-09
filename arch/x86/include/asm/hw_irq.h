@@ -28,7 +28,7 @@
 #include <asm/irq.h>
 #include <asm/sections.h>
 
-#ifdef	CONFIG_X86_LOCAL_APIC
+#ifdef	CONFIG_IRQ_DOMAIN_HIERARCHY
 struct irq_data;
 struct pci_dev;
 struct msi_desc;
@@ -97,18 +97,18 @@ extern struct irq_cfg *irqd_cfg(struct irq_data *irq_data);
 extern void lock_vector_lock(void);
 extern void unlock_vector_lock(void);
 #ifdef CONFIG_SMP
-extern void send_cleanup_vector(struct irq_cfg *);
+extern void vector_schedule_cleanup(struct irq_cfg *);
 extern void irq_complete_move(struct irq_cfg *cfg);
 #else
-static inline void send_cleanup_vector(struct irq_cfg *c) { }
+static inline void vector_schedule_cleanup(struct irq_cfg *c) { }
 static inline void irq_complete_move(struct irq_cfg *c) { }
 #endif
 
 extern void apic_ack_edge(struct irq_data *data);
-#else	/*  CONFIG_X86_LOCAL_APIC */
+#else	/*  CONFIG_IRQ_DOMAIN_HIERARCHY */
 static inline void lock_vector_lock(void) {}
 static inline void unlock_vector_lock(void) {}
-#endif	/* CONFIG_X86_LOCAL_APIC */
+#endif	/* CONFIG_IRQ_DOMAIN_HIERARCHY */
 
 /* Statistics */
 extern atomic_t irq_err_count;

@@ -834,21 +834,6 @@ config SCSI_IMM
 	  To compile this driver as a module, choose M here: the
 	  module will be called imm.
 
-config SCSI_IZIP_EPP16
-	bool "ppa/imm option - Use slow (but safe) EPP-16"
-	depends on SCSI_PPA || SCSI_IMM
-	help
-	  EPP (Enhanced Parallel Port) is a standard for parallel ports which
-	  allows them to act as expansion buses that can handle up to 64
-	  peripheral devices.
-
-	  Some parallel port chipsets are slower than their motherboard, and
-	  so we have to control the state of the chipset's FIFO queue every
-	  now and then to avoid data loss. This will be done if you say Y
-	  here.
-
-	  Generally, saying Y is the safe option and slows things down a bit.
-
 config SCSI_IZIP_SLOW_CTR
 	bool "ppa/imm option - Assume slow parport control register"
 	depends on SCSI_PPA || SCSI_IMM

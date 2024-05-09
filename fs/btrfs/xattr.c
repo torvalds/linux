@@ -188,15 +188,15 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 		if (old_data_len + name_len + sizeof(*di) == item_size) {
 			/* No other xattrs packed in the same leaf item. */
 			if (size > old_data_len)
-				btrfs_extend_item(path, size - old_data_len);
+				btrfs_extend_item(trans, path, size - old_data_len);
 			else if (size < old_data_len)
-				btrfs_truncate_item(path, data_size, 1);
+				btrfs_truncate_item(trans, path, data_size, 1);
 		} else {
 			/* There are other xattrs packed in the same item. */
 			ret = btrfs_delete_one_dir_name(trans, root, path, di);
 			if (ret)
 				goto out;
-			btrfs_extend_item(path, data_size);
+			btrfs_extend_item(trans, path, data_size);
 		}
 
 		ptr = btrfs_item_ptr(leaf, slot, char);
@@ -205,7 +205,7 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 		btrfs_set_dir_data_len(leaf, di, size);
 		data_ptr = ((unsigned long)(di + 1)) + name_len;
 		write_extent_buffer(leaf, value, data_ptr, size);
-		btrfs_mark_buffer_dirty(leaf);
+		btrfs_mark_buffer_dirty(trans, leaf);
 	} else {
 		/*
 		 * Insert, and we had space for the xattr, so path->slots[0] is
@@ -264,8 +264,8 @@ int btrfs_setxattr_trans(struct inode *inode, const char *name,
 		goto out;
 
 	inode_inc_iversion(inode);
-	inode->i_ctime = current_time(inode);
-	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+	inode_set_ctime_current(inode);
+	ret = btrfs_update_inode(trans, BTRFS_I(inode));
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
 out:
@@ -407,8 +407,8 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 	ret = btrfs_set_prop(trans, inode, name, value, size, flags);
 	if (!ret) {
 		inode_inc_iversion(inode);
-		inode->i_ctime = current_time(inode);
-		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+		inode_set_ctime_current(inode);
+		ret = btrfs_update_inode(trans, BTRFS_I(inode));
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
 	}
@@ -442,7 +442,7 @@ static const struct xattr_handler btrfs_btrfs_xattr_handler = {
 	.set = btrfs_xattr_handler_set_prop,
 };
 
-const struct xattr_handler *btrfs_xattr_handlers[] = {
+const struct xattr_handler * const btrfs_xattr_handlers[] = {
 	&btrfs_security_xattr_handler,
 	&btrfs_trusted_xattr_handler,
 	&btrfs_user_xattr_handler,

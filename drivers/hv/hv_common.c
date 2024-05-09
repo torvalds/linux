@@ -24,6 +24,7 @@
 #include <linux/kmsg_dump.h>
 #include <linux/slab.h>
 #include <linux/dma-map-ops.h>
+#include <linux/set_memory.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
 
@@ -115,12 +116,12 @@ void *hv_alloc_hyperv_zeroed_page(void)
 }
 EXPORT_SYMBOL_GPL(hv_alloc_hyperv_zeroed_page);
 
-void hv_free_hyperv_page(unsigned long addr)
+void hv_free_hyperv_page(void *addr)
 {
 	if (PAGE_SIZE == HV_HYP_PAGE_SIZE)
-		free_page(addr);
+		free_page((unsigned long)addr);
 	else
-		kfree((void *)addr);
+		kfree(addr);
 }
 EXPORT_SYMBOL_GPL(hv_free_hyperv_page);
 
@@ -147,7 +148,6 @@ static struct ctl_table hv_ctl_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE
 	},
-	{}
 };
 
 static int hv_die_panic_notify_crash(struct notifier_block *self,
@@ -253,7 +253,7 @@ static void hv_kmsg_dump_unregister(void)
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &hyperv_panic_report_block);
 
-	hv_free_hyperv_page((unsigned long)hv_panic_page);
+	hv_free_hyperv_page(hv_panic_page);
 	hv_panic_page = NULL;
 }
 
@@ -270,7 +270,7 @@ static void hv_kmsg_dump_register(void)
 	ret = kmsg_dump_register(&hv_kmsg_dumper);
 	if (ret) {
 		pr_err("Hyper-V: kmsg dump register error 0x%x\n", ret);
-		hv_free_hyperv_page((unsigned long)hv_panic_page);
+		hv_free_hyperv_page(hv_panic_page);
 		hv_panic_page = NULL;
 	}
 }
@@ -359,6 +359,8 @@ int hv_common_cpu_init(unsigned int cpu)
 	u64 msr_vp_index;
 	gfp_t flags;
 	int pgcount = hv_root_partition ? 2 : 1;
+	void *mem;
+	int ret;
 
 	/* hv_cpu_init() can be called with IRQs disabled from hv_resume() */
 	flags = irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL;
@@ -370,14 +372,41 @@ int hv_common_cpu_init(unsigned int cpu)
 	 * allocated if this CPU was previously online and then taken offline
 	 */
 	if (!*inputarg) {
-		*inputarg = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
-		if (!(*inputarg))
+		mem = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
+		if (!mem)
 			return -ENOMEM;
 
 		if (hv_root_partition) {
 			outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
-			*outputarg = (char *)(*inputarg) + HV_HYP_PAGE_SIZE;
+			*outputarg = (char *)mem + HV_HYP_PAGE_SIZE;
 		}
+
+		if (!ms_hyperv.paravisor_present &&
+		    (hv_isolation_type_snp() || hv_isolation_type_tdx())) {
+			ret = set_memory_decrypted((unsigned long)mem, pgcount);
+			if (ret) {
+				/* It may be unsafe to free 'mem' */
+				return ret;
+			}
+
+			memset(mem, 0x00, pgcount * HV_HYP_PAGE_SIZE);
+		}
+
+		/*
+		 * In a fully enlightened TDX/SNP VM with more than 64 VPs, if
+		 * hyperv_pcpu_input_arg is not NULL, set_memory_decrypted() ->
+		 * ... -> cpa_flush()-> ... -> __send_ipi_mask_ex() tries to
+		 * use hyperv_pcpu_input_arg as the hypercall input page, which
+		 * must be a decrypted page in such a VM, but the page is still
+		 * encrypted before set_memory_decrypted() returns. Fix this by
+		 * setting *inputarg after the above set_memory_decrypted(): if
+		 * hyperv_pcpu_input_arg is NULL, __send_ipi_mask_ex() returns
+		 * HV_STATUS_INVALID_PARAMETER immediately, and the function
+		 * hv_send_ipi_mask() falls back to orig_apic.send_IPI_mask(),
+		 * which may be slightly slower than the hypercall, but still
+		 * works correctly in such a VM.
+		 */
+		*inputarg = mem;
 	}
 
 	msr_vp_index = hv_get_register(HV_REGISTER_VP_INDEX);
@@ -502,6 +531,12 @@ bool __weak hv_isolation_type_snp(void)
 }
 EXPORT_SYMBOL_GPL(hv_isolation_type_snp);
 
+bool __weak hv_isolation_type_tdx(void)
+{
+	return false;
+}
+EXPORT_SYMBOL_GPL(hv_isolation_type_tdx);
+
 void __weak hv_setup_vmbus_handler(void (*handler)(void))
 {
 }
@@ -542,3 +577,9 @@ u64 __weak hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_s
 	return HV_STATUS_INVALID_PARAMETER;
 }
 EXPORT_SYMBOL_GPL(hv_ghcb_hypercall);
+
+u64 __weak hv_tdx_hypercall(u64 control, u64 param1, u64 param2)
+{
+	return HV_STATUS_INVALID_PARAMETER;
+}
+EXPORT_SYMBOL_GPL(hv_tdx_hypercall);

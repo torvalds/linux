@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/mailbox_client.h>
 #include <linux/platform_device.h>
 #include <soc/microchip/mpfs.h>
@@ -149,13 +149,11 @@ static int mpfs_sys_controller_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mpfs_sys_controller_remove(struct platform_device *pdev)
+static void mpfs_sys_controller_remove(struct platform_device *pdev)
 {
 	struct mpfs_sys_controller *sys_controller = platform_get_drvdata(pdev);
 
 	mpfs_sys_controller_put(sys_controller);
-
-	return 0;
 }
 
 static const struct of_device_id mpfs_sys_controller_of_match[] = {
@@ -207,7 +205,7 @@ static struct platform_driver mpfs_sys_controller_driver = {
 		.of_match_table = mpfs_sys_controller_of_match,
 	},
 	.probe = mpfs_sys_controller_probe,
-	.remove = mpfs_sys_controller_remove,
+	.remove_new = mpfs_sys_controller_remove,
 };
 module_platform_driver(mpfs_sys_controller_driver);
 

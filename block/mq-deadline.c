@@ -176,7 +176,7 @@ static inline struct request *deadline_from_pos(struct dd_per_prio *per_prio,
 	 * zoned writes, start searching from the start of a zone.
 	 */
 	if (blk_rq_is_seq_zoned_write(rq))
-		pos -= round_down(pos, rq->q->limits.chunk_sectors);
+		pos = round_down(pos, rq->q->limits.chunk_sectors);
 
 	while (node) {
 		rq = rb_entry_rq(node);
@@ -646,8 +646,9 @@ static void dd_depth_updated(struct blk_mq_hw_ctx *hctx)
 	struct request_queue *q = hctx->queue;
 	struct deadline_data *dd = q->elevator->elevator_data;
 	struct blk_mq_tags *tags = hctx->sched_tags;
+	unsigned int shift = tags->bitmap_tags.sb.shift;
 
-	dd->async_depth = max(1UL, 3 * q->nr_requests / 4);
+	dd->async_depth = max(1U, 3 * (1U << shift)  / 4);
 
 	sbitmap_queue_min_shallow_depth(&tags->bitmap_tags, dd->async_depth);
 }

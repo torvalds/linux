@@ -54,10 +54,6 @@ int for_each_thermal_cooling_device(int (*cb)(struct thermal_cooling_device *,
 int for_each_thermal_governor(int (*cb)(struct thermal_governor *, void *),
 			      void *thermal_governor);
 
-int __for_each_thermal_trip(struct thermal_zone_device *,
-			    int (*cb)(struct thermal_trip *, void *),
-			    void *);
-
 struct thermal_zone_device *thermal_zone_get_by_id(int id);
 
 struct thermal_attr {
@@ -74,7 +70,7 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 void thermal_cdev_update(struct thermal_cooling_device *);
 void __thermal_cdev_update(struct thermal_cooling_device *cdev);
 
-int get_tz_trend(struct thermal_zone_device *tz, int trip);
+int get_tz_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip);
 
 struct thermal_instance *
 get_thermal_instance(struct thermal_zone_device *tz,
@@ -91,7 +87,7 @@ struct thermal_instance {
 	char name[THERMAL_NAME_LENGTH];
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *cdev;
-	int trip;
+	const struct thermal_trip *trip;
 	bool initialized;
 	unsigned long upper;	/* Highest cooling state for this trip point */
 	unsigned long lower;	/* Lowest cooling state for this trip point */
@@ -120,9 +116,14 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 				  enum thermal_notify_event event);
 
 /* Helpers */
+#define for_each_trip(__tz, __trip)	\
+	for (__trip = __tz->trips; __trip - __tz->trips < __tz->num_trips; __trip++)
+
 void __thermal_zone_set_trips(struct thermal_zone_device *tz);
 int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			    struct thermal_trip *trip);
+int thermal_zone_trip_id(struct thermal_zone_device *tz,
+			 const struct thermal_trip *trip);
 int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
 
 /* sysfs I/F */

@@ -67,7 +67,7 @@ static int lv5207lp_backlight_check_fb(struct backlight_device *backlight,
 {
 	struct lv5207lp *lv = bl_get_data(backlight);
 
-	return lv->pdata->fbdev == NULL || lv->pdata->fbdev == info->dev;
+	return !lv->pdata->dev || lv->pdata->dev == info->device;
 }
 
 static const struct backlight_ops lv5207lp_backlight_ops = {
@@ -141,7 +141,7 @@ static struct i2c_driver lv5207lp_driver = {
 	.driver = {
 		.name = "lv5207lp",
 	},
-	.probe_new = lv5207lp_probe,
+	.probe = lv5207lp_probe,
 	.remove = lv5207lp_remove,
 	.id_table = lv5207lp_ids,
 };

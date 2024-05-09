@@ -15,7 +15,8 @@
 #include <linux/dmapool.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -2467,7 +2468,7 @@ destroy_dma_pool:
 	return ret;
 }
 
-static int sa_ul_remove(struct platform_device *pdev)
+static void sa_ul_remove(struct platform_device *pdev)
 {
 	struct sa_crypto_data *dev_data = platform_get_drvdata(pdev);
 
@@ -2485,13 +2486,11 @@ static int sa_ul_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver sa_ul_driver = {
 	.probe = sa_ul_probe,
-	.remove = sa_ul_remove,
+	.remove_new = sa_ul_remove,
 	.driver = {
 		   .name = "saul-crypto",
 		   .of_match_table = of_match,

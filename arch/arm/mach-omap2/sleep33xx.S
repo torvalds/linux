@@ -10,7 +10,7 @@
 #include <linux/platform_data/pm33xx.h>
 #include <linux/ti-emif-sram.h>
 #include <asm/assembler.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 
 #include "iomap.h"
 #include "cm33xx.h"

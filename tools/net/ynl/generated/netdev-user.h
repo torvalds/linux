@@ -18,6 +18,7 @@ extern const struct ynl_family ynl_netdev_family;
 /* Enums */
 const char *netdev_op_str(int op);
 const char *netdev_xdp_act_str(enum netdev_xdp_act value);
+const char *netdev_xdp_rx_metadata_str(enum netdev_xdp_rx_metadata value);
 
 /* Common nested types */
 /* ============== NETDEV_CMD_DEV_GET ============== */
@@ -47,10 +48,14 @@ struct netdev_dev_get_rsp {
 	struct {
 		__u32 ifindex:1;
 		__u32 xdp_features:1;
+		__u32 xdp_zc_max_segs:1;
+		__u32 xdp_rx_metadata_features:1;
 	} _present;
 
 	__u32 ifindex;
 	__u64 xdp_features;
+	__u32 xdp_zc_max_segs;
+	__u64 xdp_rx_metadata_features;
 };
 
 void netdev_dev_get_rsp_free(struct netdev_dev_get_rsp *rsp);
@@ -64,7 +69,7 @@ netdev_dev_get(struct ynl_sock *ys, struct netdev_dev_get_req *req);
 /* NETDEV_CMD_DEV_GET - dump */
 struct netdev_dev_get_list {
 	struct netdev_dev_get_list *next;
-	struct netdev_dev_get_rsp obj __attribute__ ((aligned (8)));
+	struct netdev_dev_get_rsp obj __attribute__((aligned(8)));
 };
 
 void netdev_dev_get_list_free(struct netdev_dev_get_list *rsp);
@@ -77,7 +82,7 @@ struct netdev_dev_get_ntf {
 	__u8 cmd;
 	struct ynl_ntf_base_type *next;
 	void (*free)(struct netdev_dev_get_ntf *ntf);
-	struct netdev_dev_get_rsp obj __attribute__ ((aligned (8)));
+	struct netdev_dev_get_rsp obj __attribute__((aligned(8)));
 };
 
 void netdev_dev_get_ntf_free(struct netdev_dev_get_ntf *rsp);

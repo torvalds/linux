@@ -33,6 +33,12 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 #define IORING_MAX_FIXED_FILES	(1U << 20)
 #define IORING_MAX_REG_BUFFERS	(1U << 14)
 
+static const struct io_mapped_ubuf dummy_ubuf = {
+	/* set invalid range, so io_import_fixed() fails meeting it */
+	.ubuf = -1UL,
+	.ubuf_end = 0,
+};
+
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
 	unsigned long page_limit, cur_pages, new_pages;
@@ -132,7 +138,7 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf **slo
 	struct io_mapped_ubuf *imu = *slot;
 	unsigned int i;
 
-	if (imu != ctx->dummy_ubuf) {
+	if (imu != &dummy_ubuf) {
 		for (i = 0; i < imu->nr_bvecs; i++)
 			unpin_user_page(imu->bvec[i].bv_page);
 		if (imu->acct_pages)
@@ -459,14 +465,14 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 			break;
 
 		i = array_index_nospec(up->offset + done, ctx->nr_user_bufs);
-		if (ctx->user_bufs[i] != ctx->dummy_ubuf) {
+		if (ctx->user_bufs[i] != &dummy_ubuf) {
 			err = io_queue_rsrc_removal(ctx->buf_data, i,
 						    ctx->user_bufs[i]);
 			if (unlikely(err)) {
 				io_buffer_unmap(ctx, &imu);
 				break;
 			}
-			ctx->user_bufs[i] = ctx->dummy_ubuf;
+			ctx->user_bufs[i] = (struct io_mapped_ubuf *)&dummy_ubuf;
 		}
 
 		ctx->user_bufs[i] = imu;
@@ -1031,39 +1037,36 @@ struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages)
 {
 	unsigned long start, end, nr_pages;
 	struct page **pages = NULL;
-	int pret, ret = -ENOMEM;
+	int ret;
 
 	end = (ubuf + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	start = ubuf >> PAGE_SHIFT;
 	nr_pages = end - start;
+	WARN_ON(!nr_pages);
 
 	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
-		goto done;
+		return ERR_PTR(-ENOMEM);
 
-	ret = 0;
 	mmap_read_lock(current->mm);
-	pret = pin_user_pages(ubuf, nr_pages, FOLL_WRITE | FOLL_LONGTERM,
-			      pages);
-	if (pret == nr_pages)
-		*npages = nr_pages;
-	else
-		ret = pret < 0 ? pret : -EFAULT;
-
+	ret = pin_user_pages(ubuf, nr_pages, FOLL_WRITE | FOLL_LONGTERM, pages);
 	mmap_read_unlock(current->mm);
-	if (ret) {
+
+	/* success, mapped all pages */
+	if (ret == nr_pages) {
+		*npages = nr_pages;
+		return pages;
+	}
+
+	/* partial map, or didn't map anything */
+	if (ret >= 0) {
 		/* if we did partial map, release any pages we did get */
-		if (pret > 0)
-			unpin_user_pages(pages, pret);
-		goto done;
+		if (ret)
+			unpin_user_pages(pages, ret);
+		ret = -EFAULT;
 	}
-	ret = 0;
-done:
-	if (ret < 0) {
-		kvfree(pages);
-		pages = ERR_PTR(ret);
-	}
-	return pages;
+	kvfree(pages);
+	return ERR_PTR(ret);
 }
 
 static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
@@ -1077,7 +1080,7 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	int ret, nr_pages, i;
 	struct folio *folio = NULL;
 
-	*pimu = ctx->dummy_ubuf;
+	*pimu = (struct io_mapped_ubuf *)&dummy_ubuf;
 	if (!iov->iov_base)
 		return 0;
 

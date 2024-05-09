@@ -38,6 +38,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -3252,7 +3253,7 @@ static int emac_probe(struct platform_device *ofdev)
 	return err;
 }
 
-static int emac_remove(struct platform_device *ofdev)
+static void emac_remove(struct platform_device *ofdev)
 {
 	struct emac_instance *dev = platform_get_drvdata(ofdev);
 
@@ -3289,8 +3290,6 @@ static int emac_remove(struct platform_device *ofdev)
 		irq_dispose_mapping(dev->emac_irq);
 
 	free_netdev(dev->ndev);
-
-	return 0;
 }
 
 /* XXX Features in here should be replaced by properties... */
@@ -3318,7 +3317,7 @@ static struct platform_driver emac_driver = {
 		.of_match_table = emac_match,
 	},
 	.probe = emac_probe,
-	.remove = emac_remove,
+	.remove_new = emac_remove,
 };
 
 static void __init emac_make_bootlist(void)

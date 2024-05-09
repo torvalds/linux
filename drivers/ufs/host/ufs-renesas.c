@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <ufs/ufshcd.h>
 
@@ -359,7 +359,7 @@ static int ufs_renesas_init(struct ufs_hba *hba)
 {
 	struct ufs_renesas_priv *priv;
 
-	priv = devm_kmalloc(hba->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(hba->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	ufshcd_set_variant(hba, priv);
@@ -388,18 +388,16 @@ static int ufs_renesas_probe(struct platform_device *pdev)
 	return ufshcd_pltfrm_init(pdev, &ufs_renesas_vops);
 }
 
-static int ufs_renesas_remove(struct platform_device *pdev)
+static void ufs_renesas_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba = platform_get_drvdata(pdev);
 
 	ufshcd_remove(hba);
-
-	return 0;
 }
 
 static struct platform_driver ufs_renesas_platform = {
 	.probe	= ufs_renesas_probe,
-	.remove	= ufs_renesas_remove,
+	.remove_new = ufs_renesas_remove,
 	.driver	= {
 		.name	= "ufshcd-renesas",
 		.of_match_table	= of_match_ptr(ufs_renesas_of_match),

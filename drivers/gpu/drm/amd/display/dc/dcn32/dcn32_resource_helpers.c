@@ -255,6 +255,51 @@ bool dcn32_is_psr_capable(struct pipe_ctx *pipe)
 	return psr_capable;
 }
 
+static void override_det_for_subvp(struct dc *dc, struct dc_state *context, uint8_t pipe_segments[])
+{
+	uint32_t i;
+	uint8_t fhd_count = 0;
+	uint8_t subvp_high_refresh_count = 0;
+	uint8_t stream_count = 0;
+
+	// Do not override if a stream has multiple planes
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->stream_status[i].plane_count > 1) {
+			return;
+		}
+		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM) {
+			stream_count++;
+		}
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream && pipe_ctx->plane_state && pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			if (dcn32_allow_subvp_high_refresh_rate(dc, context, pipe_ctx)) {
+
+				if (pipe_ctx->stream->timing.v_addressable == 1080 && pipe_ctx->stream->timing.h_addressable == 1920) {
+					fhd_count++;
+				}
+				subvp_high_refresh_count++;
+			}
+		}
+	}
+
+	if (stream_count == 2 && subvp_high_refresh_count == 2 && fhd_count == 1) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe_ctx->stream && pipe_ctx->plane_state && pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+				if (pipe_ctx->stream->timing.v_addressable == 1080 && pipe_ctx->stream->timing.h_addressable == 1920) {
+					if (pipe_segments[i] > 4)
+						pipe_segments[i] = 4;
+				}
+			}
+		}
+	}
+}
+
 /**
  * dcn32_determine_det_override(): Determine DET allocation for each pipe
  *
@@ -336,6 +381,7 @@ void dcn32_determine_det_override(struct dc *dc,
 			}
 		}
 
+		override_det_for_subvp(dc, context, pipe_segments);
 		for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 			if (!context->res_ctx.pipe_ctx[i].stream)
 				continue;
@@ -595,11 +641,10 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(fpo_candidate_stream, fpo_vactive_margin_us))
 		return NULL;
 
-	// check if freesync enabled
 	if (!fpo_candidate_stream->allow_freesync)
 		return NULL;
 
-	if (fpo_candidate_stream->vrr_active_variable)
+	if (fpo_candidate_stream->vrr_active_variable && dc->debug.disable_fams_gaming)
 		return NULL;
 
 	return fpo_candidate_stream;
@@ -642,28 +687,34 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 	uint8_t non_subvp_pipes = 0;
 	bool drr_pipe_found = false;
 	bool drr_psr_capable = false;
+	uint64_t refresh_rate = 0;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->plane_state && !pipe->top_pipe) {
-			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
+				resource_is_pipe_type(pipe, DPP_PIPE)) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				subvp_count++;
+
+				refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
+					pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
+				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
+			}
 			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 				non_subvp_pipes++;
 				drr_psr_capable = (drr_psr_capable || dcn32_is_psr_capable(pipe));
 				if (pipe->stream->ignore_msa_timing_param &&
-						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable)) {
+						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed)) {
 					drr_pipe_found = true;
 				}
 			}
 		}
 	}
 
-	if (subvp_count == 1 && non_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable)
+	if (subvp_count == 1 && non_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable &&
+		((uint32_t)refresh_rate < 120))
 		result = true;
 
 	return result;
@@ -694,21 +745,26 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 	bool drr_pipe_found = false;
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 	bool vblank_psr_capable = false;
+	uint64_t refresh_rate = 0;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->plane_state && !pipe->top_pipe) {
-			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
+				resource_is_pipe_type(pipe, DPP_PIPE)) {
+			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				subvp_count++;
+
+				refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
+					pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
+				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
+			}
 			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 				non_subvp_pipes++;
 				vblank_psr_capable = (vblank_psr_capable || dcn32_is_psr_capable(pipe));
 				if (pipe->stream->ignore_msa_timing_param &&
-						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable)) {
+						(pipe->stream->allow_freesync || pipe->stream->vrr_active_variable || pipe->stream->vrr_active_fixed)) {
 					drr_pipe_found = true;
 				}
 			}
@@ -716,7 +772,8 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 	}
 
 	if (subvp_count == 1 && non_subvp_pipes == 1 && !drr_pipe_found && !vblank_psr_capable &&
-			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp)
+		((uint32_t)refresh_rate < 120) &&
+		vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp)
 		result = true;
 
 	return result;

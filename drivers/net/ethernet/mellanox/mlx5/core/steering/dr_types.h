@@ -436,10 +436,6 @@ void mlx5dr_ste_build_mpls(struct mlx5dr_ste_ctx *ste_ctx,
 			   struct mlx5dr_ste_build *sb,
 			   struct mlx5dr_match_param *mask,
 			   bool inner, bool rx);
-void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_ctx *ste_ctx,
-			       struct mlx5dr_ste_build *sb,
-			       struct mlx5dr_match_param *mask,
-			       bool inner, bool rx);
 void mlx5dr_ste_build_tnl_mpls_over_gre(struct mlx5dr_ste_ctx *ste_ctx,
 					struct mlx5dr_ste_build *sb,
 					struct mlx5dr_match_param *mask,
@@ -935,7 +931,6 @@ struct mlx5dr_domain_info {
 };
 
 struct mlx5dr_domain {
-	struct mlx5dr_domain *peer_dmn[MLX5_MAX_PORTS];
 	struct mlx5_core_dev *mdev;
 	u32 pdn;
 	struct mlx5_uars_page *uar;
@@ -956,6 +951,7 @@ struct mlx5dr_domain {
 	struct list_head dbg_tbl_list;
 	struct mlx5dr_dbg_dump_info dump_info;
 	struct xarray definers_xa;
+	struct xarray peer_dmn_xa;
 	/* memory management statistics */
 	u32 num_buddies[DR_ICM_TYPE_MAX];
 };
@@ -1064,6 +1060,7 @@ struct mlx5dr_action_sampler {
 
 struct mlx5dr_action_dest_tbl {
 	u8 is_fw_tbl:1;
+	u8 is_wire_ft:1;
 	union {
 		struct mlx5dr_table *tbl;
 		struct {

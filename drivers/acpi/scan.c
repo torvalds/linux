@@ -23,8 +23,7 @@
 #include <linux/dma-direct.h>
 
 #include "internal.h"
-
-extern struct acpi_device *acpi_root;
+#include "sleep.h"
 
 #define ACPI_BUS_CLASS			"system_bus"
 #define ACPI_BUS_HID			"LNXSYBUS"
@@ -290,10 +289,10 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	return 0;
 }
 
-static int acpi_scan_device_not_present(struct acpi_device *adev)
+static int acpi_scan_device_not_enumerated(struct acpi_device *adev)
 {
 	if (!acpi_device_enumerated(adev)) {
-		dev_warn(&adev->dev, "Still not present\n");
+		dev_warn(&adev->dev, "Still not enumerated\n");
 		return -EALREADY;
 	}
 	acpi_bus_trim(adev);
@@ -305,7 +304,7 @@ static int acpi_scan_device_check(struct acpi_device *adev)
 	int error;
 
 	acpi_bus_get_status(adev);
-	if (adev->status.present || adev->status.functional) {
+	if (acpi_device_is_present(adev)) {
 		/*
 		 * This function is only called for device objects for which
 		 * matching scan handlers exist.  The only situation in which
@@ -328,7 +327,7 @@ static int acpi_scan_device_check(struct acpi_device *adev)
 			error = -ENODEV;
 		}
 	} else {
-		error = acpi_scan_device_not_present(adev);
+		error = acpi_scan_device_not_enumerated(adev);
 	}
 	return error;
 }
@@ -339,8 +338,8 @@ static int acpi_scan_bus_check(struct acpi_device *adev, void *not_used)
 	int error;
 
 	acpi_bus_get_status(adev);
-	if (!(adev->status.present || adev->status.functional)) {
-		acpi_scan_device_not_present(adev);
+	if (!acpi_device_is_present(adev)) {
+		acpi_scan_device_not_enumerated(adev);
 		return 0;
 	}
 	if (handler && handler->hotplug.scan_dependent)
@@ -796,6 +795,9 @@ static const char * const acpi_ignore_dep_ids[] = {
 /* List of HIDs for which we honor deps of matching ACPI devs, when checking _DEP lists. */
 static const char * const acpi_honor_dep_ids[] = {
 	"INT3472", /* Camera sensor PMIC / clk and regulator info */
+	"INTC1059", /* IVSC (TGL) driver must be loaded to allow i2c access to camera sensors */
+	"INTC1095", /* IVSC (ADL) driver must be loaded to allow i2c access to camera sensors */
+	"INTC100A", /* IVSC (RPL) driver must be loaded to allow i2c access to camera sensors */
 	NULL
 };
 
@@ -930,26 +932,29 @@ static int acpi_bus_extract_wakeup_device_power_package(struct acpi_device *dev)
 	return err;
 }
 
+/* Do not use a button for S5 wakeup */
+#define ACPI_AVOID_WAKE_FROM_S5		BIT(0)
+
 static bool acpi_wakeup_gpe_init(struct acpi_device *device)
 {
 	static const struct acpi_device_id button_device_ids[] = {
-		{"PNP0C0C", 0},		/* Power button */
-		{"PNP0C0D", 0},		/* Lid */
-		{"PNP0C0E", 0},		/* Sleep button */
+		{"PNP0C0C", 0},				/* Power button */
+		{"PNP0C0D", ACPI_AVOID_WAKE_FROM_S5},	/* Lid */
+		{"PNP0C0E", ACPI_AVOID_WAKE_FROM_S5},	/* Sleep button */
 		{"", 0},
 	};
 	struct acpi_device_wakeup *wakeup = &device->wakeup;
+	const struct acpi_device_id *match;
 	acpi_status status;
 
 	wakeup->flags.notifier_present = 0;
 
 	/* Power button, Lid switch always enable wakeup */
-	if (!acpi_match_device_ids(device, button_device_ids)) {
-		if (!acpi_match_device_ids(device, &button_device_ids[1])) {
-			/* Do not use Lid/sleep button for S5 wakeup */
-			if (wakeup->sleep_state == ACPI_STATE_S5)
-				wakeup->sleep_state = ACPI_STATE_S4;
-		}
+	match = acpi_match_acpi_device(button_device_ids, device);
+	if (match) {
+		if ((match->driver_data & ACPI_AVOID_WAKE_FROM_S5) &&
+		    wakeup->sleep_state == ACPI_STATE_S5)
+			wakeup->sleep_state = ACPI_STATE_S4;
 		acpi_mark_gpe_for_wake(wakeup->gpe_device, wakeup->gpe_number);
 		device_set_wakeup_capable(&device->dev, true);
 		return true;
@@ -1579,7 +1584,7 @@ static const struct iommu_ops *acpi_iommu_configure_id(struct device *dev,
 	 * If we have reason to believe the IOMMU driver missed the initial
 	 * iommu_probe_device() call for dev, replay it to get things in order.
 	 */
-	if (!err && dev->bus && !device_iommu_mapped(dev))
+	if (!err && dev->bus)
 		err = iommu_probe_device(dev);
 
 	/* Ignore all other errors apart from EPROBE_DEFER */
@@ -1712,6 +1717,7 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 		{"BSG1160", },
 		{"BSG2150", },
 		{"CSC3551", },
+		{"CSC3556", },
 		{"INT33FE", },
 		{"INT3515", },
 		/* Non-conforming _HID for Cirrus Logic already released */
@@ -2026,6 +2032,7 @@ static u32 acpi_scan_check_dep(acpi_handle handle, bool check_dep)
 		mutex_unlock(&acpi_dep_list_lock);
 	}
 
+	acpi_handle_list_free(&dep_devices);
 	return count;
 }
 
@@ -2613,7 +2620,6 @@ void __init acpi_scan_init(void)
 	acpi_watchdog_init();
 	acpi_pnp_init();
 	acpi_int340x_thermal_init();
-	acpi_amba_init();
 	acpi_init_lpit();
 
 	acpi_scan_add_handler(&generic_device_handler);

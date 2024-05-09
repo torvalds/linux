@@ -311,7 +311,7 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 		ea->ea_num_ptrs = 0;
 	}
 
-	ip->i_inode.i_ctime = current_time(&ip->i_inode);
+	inode_set_ctime_current(&ip->i_inode);
 	__mark_inode_dirty(&ip->i_inode, I_DIRTY_DATASYNC);
 
 	gfs2_trans_end(sdp);
@@ -763,7 +763,7 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (error)
 		goto out_end_trans;
 
-	ip->i_inode.i_ctime = current_time(&ip->i_inode);
+	inode_set_ctime_current(&ip->i_inode);
 	__mark_inode_dirty(&ip->i_inode, I_DIRTY_DATASYNC);
 
 out_end_trans:
@@ -888,7 +888,7 @@ static int ea_set_simple_noalloc(struct gfs2_inode *ip, struct buffer_head *bh,
 	if (es->es_el)
 		ea_set_remove_stuffed(ip, es->es_el);
 
-	ip->i_inode.i_ctime = current_time(&ip->i_inode);
+	inode_set_ctime_current(&ip->i_inode);
 	__mark_inode_dirty(&ip->i_inode, I_DIRTY_DATASYNC);
 
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
@@ -1106,7 +1106,7 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
 		ea->ea_type = GFS2_EATYPE_UNUSED;
 	}
 
-	ip->i_inode.i_ctime = current_time(&ip->i_inode);
+	inode_set_ctime_current(&ip->i_inode);
 	__mark_inode_dirty(&ip->i_inode, I_DIRTY_DATASYNC);
 
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
@@ -1494,7 +1494,7 @@ static const struct xattr_handler gfs2_xattr_trusted_handler = {
 	.set    = gfs2_xattr_set,
 };
 
-const struct xattr_handler *gfs2_xattr_handlers_max[] = {
+const struct xattr_handler * const gfs2_xattr_handlers_max[] = {
 	/* GFS2_FS_FORMAT_MAX */
 	&gfs2_xattr_trusted_handler,
 
@@ -1504,4 +1504,4 @@ const struct xattr_handler *gfs2_xattr_handlers_max[] = {
 	NULL,
 };
 
-const struct xattr_handler **gfs2_xattr_handlers_min = gfs2_xattr_handlers_max + 1;
+const struct xattr_handler * const *gfs2_xattr_handlers_min = gfs2_xattr_handlers_max + 1;

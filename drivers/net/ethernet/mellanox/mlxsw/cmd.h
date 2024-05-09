@@ -276,6 +276,12 @@ MLXSW_ITEM32(cmd_mbox, query_fw, fw_month, 0x14, 8, 8);
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, fw_day, 0x14, 0, 8);
 
+/* cmd_mbox_query_fw_lag_mode_support
+ * 0: CONFIG_PROFILE.lag_mode is not supported by FW
+ * 1: CONFIG_PROFILE.lag_mode is supported by FW
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, lag_mode_support, 0x18, 1, 1);
+
 /* cmd_mbox_query_fw_clr_int_base_offset
  * Clear Interrupt register's offset from clr_int_bar register
  * in PCI address space.
@@ -659,41 +665,47 @@ MLXSW_ITEM32(cmd_mbox, config_profile,
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_ar_sec, 0x0C, 15, 1);
 
-/* cmd_mbox_config_set_ubridge
+/* cmd_mbox_config_profile_set_ubridge
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_ubridge, 0x0C, 22, 1);
 
-/* cmd_mbox_config_set_kvd_linear_size
+/* cmd_mbox_config_profile_set_kvd_linear_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_linear_size, 0x0C, 24, 1);
 
-/* cmd_mbox_config_set_kvd_hash_single_size
+/* cmd_mbox_config_profile_set_kvd_hash_single_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_single_size, 0x0C, 25, 1);
 
-/* cmd_mbox_config_set_kvd_hash_double_size
+/* cmd_mbox_config_profile_set_kvd_hash_double_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
 
-/* cmd_mbox_config_set_cqe_version
+/* cmd_mbox_config_profile_set_cqe_version
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
 
-/* cmd_mbox_config_set_cqe_time_stamp_type
+/* cmd_mbox_config_profile_set_cqe_time_stamp_type
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_time_stamp_type, 0x08, 2, 1);
+
+/* cmd_mbox_config_profile_set_lag_mode
+ * Capability bit. Setting a bit to 1 configures the lag_mode
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_lag_mode, 0x08, 7, 1);
 
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
@@ -840,6 +852,21 @@ MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, ubridge, 0x50, 4, 1);
 
+enum mlxsw_cmd_mbox_config_profile_lag_mode {
+	/* FW manages PGT LAG table */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_FW,
+	/* SW manages PGT LAG table */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW,
+};
+
+/* cmd_mbox_config_profile_lag_mode
+ * LAG mode
+ * Configured if set_lag_mode is set
+ * Supported from Spectrum-2 and above.
+ * Supported only when ubridge = 1
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, lag_mode, 0x50, 3, 1);
+
 /* cmd_mbox_config_kvd_linear_size
  * KVD Linear Size
  * Valid for Spectrum only
@@ -847,7 +874,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, ubridge, 0x50, 4, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, kvd_linear_size, 0x54, 0, 24);
 
-/* cmd_mbox_config_kvd_hash_single_size
+/* cmd_mbox_config_profile_kvd_hash_single_size
  * KVD Hash single-entries size
  * Valid for Spectrum only
  * Allowed values are 128*N where N=0 or higher
@@ -856,7 +883,7 @@ MLXSW_ITEM32(cmd_mbox, config_profile, kvd_linear_size, 0x54, 0, 24);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, kvd_hash_single_size, 0x58, 0, 24);
 
-/* cmd_mbox_config_kvd_hash_double_size
+/* cmd_mbox_config_profile_kvd_hash_double_size
  * KVD Hash double-entries size (units of single-size entries)
  * Valid for Spectrum only
  * Allowed values are 128*N where N=0 or higher

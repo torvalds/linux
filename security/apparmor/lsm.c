@@ -46,7 +46,7 @@ int apparmor_initialized;
 
 union aa_buffer {
 	struct list_head list;
-	char buffer[1];
+	DECLARE_FLEX_ARRAY(char, buffer);
 };
 
 #define RESERVE_COUNT 2
@@ -144,7 +144,7 @@ static int apparmor_ptrace_traceme(struct task_struct *parent)
 }
 
 /* Derived from security/commoncap.c:cap_capget */
-static int apparmor_capget(struct task_struct *target, kernel_cap_t *effective,
+static int apparmor_capget(const struct task_struct *target, kernel_cap_t *effective,
 			   kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
 	struct aa_label *label;
@@ -734,7 +734,7 @@ fail:
  * apparmor_bprm_committing_creds - do task cleanup on committing new creds
  * @bprm: binprm for the exec  (NOT NULL)
  */
-static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
+static void apparmor_bprm_committing_creds(const struct linux_binprm *bprm)
 {
 	struct aa_label *label = aa_current_raw_label();
 	struct aa_label *new_label = cred_label(bprm->cred);
@@ -756,7 +756,7 @@ static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
  * apparmor_bprm_committed_creds() - do cleanup after new creds committed
  * @bprm: binprm for the exec  (NOT NULL)
  */
-static void apparmor_bprm_committed_creds(struct linux_binprm *bprm)
+static void apparmor_bprm_committed_creds(const struct linux_binprm *bprm)
 {
 	/* clear out temporary/transitional state from the context */
 	aa_clear_task_ctx_trans(task_ctx(current));
@@ -1647,7 +1647,7 @@ retry:
 		list_del(&aa_buf->list);
 		buffer_count--;
 		spin_unlock(&aa_buffers_lock);
-		return &aa_buf->buffer[0];
+		return aa_buf->buffer;
 	}
 	if (in_atomic) {
 		/*
@@ -1670,7 +1670,7 @@ retry:
 		pr_warn_once("AppArmor: Failed to allocate a memory buffer.\n");
 		return NULL;
 	}
-	return &aa_buf->buffer[0];
+	return aa_buf->buffer;
 }
 
 void aa_put_buffer(char *buf)
@@ -1747,7 +1747,7 @@ static int __init alloc_buffers(void)
 			destroy_buffers();
 			return -ENOMEM;
 		}
-		aa_put_buffer(&aa_buf->buffer[0]);
+		aa_put_buffer(aa_buf->buffer);
 	}
 	return 0;
 }

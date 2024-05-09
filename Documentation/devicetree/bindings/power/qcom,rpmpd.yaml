@@ -15,41 +15,52 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,mdm9607-rpmpd
-      - qcom,msm8226-rpmpd
-      - qcom,msm8909-rpmpd
-      - qcom,msm8916-rpmpd
-      - qcom,msm8939-rpmpd
-      - qcom,msm8953-rpmpd
-      - qcom,msm8976-rpmpd
-      - qcom,msm8994-rpmpd
-      - qcom,msm8996-rpmpd
-      - qcom,msm8998-rpmpd
-      - qcom,qcm2290-rpmpd
-      - qcom,qcs404-rpmpd
-      - qcom,qdu1000-rpmhpd
-      - qcom,sa8155p-rpmhpd
-      - qcom,sa8540p-rpmhpd
-      - qcom,sa8775p-rpmhpd
-      - qcom,sdm660-rpmpd
-      - qcom,sc7180-rpmhpd
-      - qcom,sc7280-rpmhpd
-      - qcom,sc8180x-rpmhpd
-      - qcom,sc8280xp-rpmhpd
-      - qcom,sdm670-rpmhpd
-      - qcom,sdm845-rpmhpd
-      - qcom,sdx55-rpmhpd
-      - qcom,sdx65-rpmhpd
-      - qcom,sm6115-rpmpd
-      - qcom,sm6125-rpmpd
-      - qcom,sm6350-rpmhpd
-      - qcom,sm6375-rpmpd
-      - qcom,sm8150-rpmhpd
-      - qcom,sm8250-rpmhpd
-      - qcom,sm8350-rpmhpd
-      - qcom,sm8450-rpmhpd
-      - qcom,sm8550-rpmhpd
+    oneOf:
+      - enum:
+          - qcom,mdm9607-rpmpd
+          - qcom,msm8226-rpmpd
+          - qcom,msm8909-rpmpd
+          - qcom,msm8916-rpmpd
+          - qcom,msm8917-rpmpd
+          - qcom,msm8939-rpmpd
+          - qcom,msm8953-rpmpd
+          - qcom,msm8976-rpmpd
+          - qcom,msm8994-rpmpd
+          - qcom,msm8996-rpmpd
+          - qcom,msm8998-rpmpd
+          - qcom,qcm2290-rpmpd
+          - qcom,qcs404-rpmpd
+          - qcom,qdu1000-rpmhpd
+          - qcom,qm215-rpmpd
+          - qcom,sa8155p-rpmhpd
+          - qcom,sa8540p-rpmhpd
+          - qcom,sa8775p-rpmhpd
+          - qcom,sc7180-rpmhpd
+          - qcom,sc7280-rpmhpd
+          - qcom,sc8180x-rpmhpd
+          - qcom,sc8280xp-rpmhpd
+          - qcom,sc8380xp-rpmhpd
+          - qcom,sdm660-rpmpd
+          - qcom,sdm670-rpmhpd
+          - qcom,sdm845-rpmhpd
+          - qcom,sdx55-rpmhpd
+          - qcom,sdx65-rpmhpd
+          - qcom,sdx75-rpmhpd
+          - qcom,sm6115-rpmpd
+          - qcom,sm6125-rpmpd
+          - qcom,sm6350-rpmhpd
+          - qcom,sm6375-rpmpd
+          - qcom,sm7150-rpmhpd
+          - qcom,sm8150-rpmhpd
+          - qcom,sm8250-rpmhpd
+          - qcom,sm8350-rpmhpd
+          - qcom,sm8450-rpmhpd
+          - qcom,sm8550-rpmhpd
+          - qcom,sm8650-rpmhpd
+      - items:
+          - enum:
+              - qcom,msm8937-rpmpd
+          - const: qcom,msm8917-rpmpd
 
   '#power-domain-cells':
     const: 1

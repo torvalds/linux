@@ -125,9 +125,6 @@ Given a $HOME/.perfconfig like this:
 		group = true
 		skip-empty = true
 
-	[llvm]
-		dump-obj = true
-		clang-opt = -g
 
 You can hide source code of annotate feature setting the config to false with
 
@@ -656,36 +653,6 @@ ftrace.*::
 		Can be used to select the default tracer when neither -G nor
 		-F option is not specified. Possible values are 'function' and
 		'function_graph'.
-
-llvm.*::
-	llvm.clang-path::
-		Path to clang. If omit, search it from $PATH.
-
-	llvm.clang-bpf-cmd-template::
-		Cmdline template. Below lines show its default value. Environment
-		variable is used to pass options.
-		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
-		"-DLINUX_VERSION_CODE=$LINUX_VERSION_CODE "	\
-		"$CLANG_OPTIONS $PERF_BPF_INC_OPTIONS $KERNEL_INC_OPTIONS " \
-		"-Wno-unused-value -Wno-pointer-sign "		\
-		"-working-directory $WORKING_DIR "		\
-		"-c \"$CLANG_SOURCE\" -target bpf $CLANG_EMIT_LLVM -O2 -o - $LLVM_OPTIONS_PIPE"
-
-	llvm.clang-opt::
-		Options passed to clang.
-
-	llvm.kbuild-dir::
-		kbuild directory. If not set, use /lib/modules/`uname -r`/build.
-		If set to "" deliberately, skip kernel header auto-detector.
-
-	llvm.kbuild-opts::
-		Options passed to 'make' when detecting kernel header options.
-
-	llvm.dump-obj::
-		Enable perf dump BPF object files compiled by LLVM.
-
-	llvm.opts::
-		Options passed to llc.
 
 samples.*::
 

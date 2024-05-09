@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+source "drivers/media/pci/intel/ipu3/Kconfig"
+source "drivers/media/pci/intel/ivsc/Kconfig"
+
+config IPU_BRIDGE
+	tristate "Intel IPU Bridge"
+	depends on I2C && ACPI
+	help
+	  The IPU bridge is a helper library for Intel IPU drivers to
+	  function on systems shipped with Windows.
+
+	  Currently used by the ipu3-cio2 and atomisp drivers.
+
+	  Supported systems include:
+
+	  - Microsoft Surface models (except Surface Pro 3)
+	  - The Lenovo Miix line (for example the 510, 520, 710 and 720)
+	  - Dell 7285

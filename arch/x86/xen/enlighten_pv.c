@@ -79,7 +79,7 @@
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
 #include <asm/acpi.h>
-#include <acpi/pdc_intel.h>
+#include <acpi/proc_cap_intel.h>
 #include <acpi/processor.h>
 #include <xen/interface/platform.h>
 #endif
@@ -100,6 +100,17 @@ static int xen_cpu_dead_pv(unsigned int cpu);
 struct tls_descs {
 	struct desc_struct desc[3];
 };
+
+DEFINE_PER_CPU(enum xen_lazy_mode, xen_lazy_mode) = XEN_LAZY_NONE;
+DEFINE_PER_CPU(unsigned int, xen_lazy_nesting);
+
+enum xen_lazy_mode xen_get_lazy_mode(void)
+{
+	if (in_interrupt())
+		return XEN_LAZY_NONE;
+
+	return this_cpu_read(xen_lazy_mode);
+}
 
 /*
  * Updating the 3 TLS descriptors in the GDT on every task switch is
@@ -288,17 +299,17 @@ static bool __init xen_check_mwait(void)
 
 	native_cpuid(&ax, &bx, &cx, &dx);
 
-	/* Ask the Hypervisor whether to clear ACPI_PDC_C_C2C3_FFH. If so,
+	/* Ask the Hypervisor whether to clear ACPI_PROC_CAP_C_C2C3_FFH. If so,
 	 * don't expose MWAIT_LEAF and let ACPI pick the IOPORT version of C3.
 	 */
 	buf[0] = ACPI_PDC_REVISION_ID;
 	buf[1] = 1;
-	buf[2] = (ACPI_PDC_C_CAPABILITY_SMP | ACPI_PDC_EST_CAPABILITY_SWSMP);
+	buf[2] = (ACPI_PROC_CAP_C_CAPABILITY_SMP | ACPI_PROC_CAP_EST_CAPABILITY_SWSMP);
 
 	set_xen_guest_handle(op.u.set_pminfo.pdc, buf);
 
 	if ((HYPERVISOR_platform_op(&op) == 0) &&
-	    (buf[2] & (ACPI_PDC_C_C1_FFH | ACPI_PDC_C_C2C3_FFH))) {
+	    (buf[2] & (ACPI_PROC_CAP_C_C1_FFH | ACPI_PROC_CAP_C_C2C3_FFH))) {
 		cpuid_leaf5_ecx_val = cx;
 		cpuid_leaf5_edx_val = dx;
 	}
@@ -362,10 +373,25 @@ static noinstr unsigned long xen_get_debugreg(int reg)
 	return HYPERVISOR_get_debugreg(reg);
 }
 
+static void xen_start_context_switch(struct task_struct *prev)
+{
+	BUG_ON(preemptible());
+
+	if (this_cpu_read(xen_lazy_mode) == XEN_LAZY_MMU) {
+		arch_leave_lazy_mmu_mode();
+		set_ti_thread_flag(task_thread_info(prev), TIF_LAZY_MMU_UPDATES);
+	}
+	enter_lazy(XEN_LAZY_CPU);
+}
+
 static void xen_end_context_switch(struct task_struct *next)
 {
+	BUG_ON(preemptible());
+
 	xen_mc_flush();
-	paravirt_end_context_switch(next);
+	leave_lazy(XEN_LAZY_CPU);
+	if (test_and_clear_ti_thread_flag(task_thread_info(next), TIF_LAZY_MMU_UPDATES))
+		arch_enter_lazy_mmu_mode();
 }
 
 static unsigned long xen_store_tr(void)
@@ -472,7 +498,7 @@ static void xen_set_ldt(const void *addr, unsigned entries)
 
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
+	xen_mc_issue(XEN_LAZY_CPU);
 }
 
 static void xen_load_gdt(const struct desc_ptr *dtr)
@@ -523,7 +549,7 @@ static void __init xen_load_gdt_boot(const struct desc_ptr *dtr)
 	BUG_ON(size > PAGE_SIZE);
 	BUG_ON(va & ~PAGE_MASK);
 
-	pfn = virt_to_pfn(va);
+	pfn = virt_to_pfn((void *)va);
 	mfn = pfn_to_mfn(pfn);
 
 	pte = pfn_pte(pfn, PAGE_KERNEL_RO);
@@ -568,7 +594,7 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 	 * exception between the new %fs descriptor being loaded and
 	 * %fs being effectively cleared at __switch_to().
 	 */
-	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_CPU)
+	if (xen_get_lazy_mode() == XEN_LAZY_CPU)
 		loadsegment(fs, 0);
 
 	xen_mc_batch();
@@ -577,7 +603,7 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 	load_TLS_descriptor(t, cpu, 1);
 	load_TLS_descriptor(t, cpu, 2);
 
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
+	xen_mc_issue(XEN_LAZY_CPU);
 }
 
 static void xen_load_gs_index(unsigned int idx)
@@ -694,7 +720,7 @@ static struct trap_array_entry trap_array[] = {
 	TRAP_ENTRY(exc_coprocessor_error,		false ),
 	TRAP_ENTRY(exc_alignment_check,			false ),
 	TRAP_ENTRY(exc_simd_coprocessor_error,		false ),
-#ifdef CONFIG_X86_KERNEL_IBT
+#ifdef CONFIG_X86_CET
 	TRAP_ENTRY(exc_control_protection,		false ),
 #endif
 };
@@ -909,7 +935,7 @@ static void xen_load_sp0(unsigned long sp0)
 
 	mcs = xen_mc_entry(0);
 	MULTI_stack_switch(mcs.mc, __KERNEL_DS, sp0);
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
+	xen_mc_issue(XEN_LAZY_CPU);
 	this_cpu_write(cpu_tss_rw.x86_tss.sp0, sp0);
 }
 
@@ -973,7 +999,7 @@ static void xen_write_cr0(unsigned long cr0)
 
 	MULTI_fpu_taskswitch(mcs.mc, (cr0 & X86_CR0_TS) != 0);
 
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
+	xen_mc_issue(XEN_LAZY_CPU);
 }
 
 static void xen_write_cr4(unsigned long cr4)
@@ -1156,7 +1182,7 @@ static const typeof(pv_ops) xen_cpu_ops __initconst = {
 #endif
 		.io_delay = xen_io_delay,
 
-		.start_context_switch = paravirt_start_context_switch,
+		.start_context_switch = xen_start_context_switch,
 		.end_context_switch = xen_end_context_switch,
 	},
 };
@@ -1326,7 +1352,7 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 
 	x86_init.resources.memory_setup = xen_memory_setup;
 	x86_init.irqs.intr_mode_select	= x86_init_noop;
-	x86_init.irqs.intr_mode_init	= x86_init_noop;
+	x86_init.irqs.intr_mode_init	= x86_64_probe_apic;
 	x86_init.oem.arch_setup = xen_arch_setup;
 	x86_init.oem.banner = xen_banner;
 	x86_init.hyper.init_platform = xen_pv_init_platform;
@@ -1366,12 +1392,10 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 
 	xen_init_capabilities();
 
-#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * set up the basic apic ops.
 	 */
 	xen_init_apic();
-#endif
 
 	machine_ops = xen_machine_ops;
 

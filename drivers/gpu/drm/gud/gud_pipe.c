@@ -390,7 +390,7 @@ static int gud_fb_queue_damage(struct gud_device *gdrm, struct drm_framebuffer *
 	mutex_lock(&gdrm->damage_lock);
 
 	if (!gdrm->shadow_buf) {
-		gdrm->shadow_buf = vzalloc(fb->pitches[0] * fb->height);
+		gdrm->shadow_buf = vcalloc(fb->pitches[0], fb->height);
 		if (!gdrm->shadow_buf) {
 			mutex_unlock(&gdrm->damage_lock);
 			return -ENOMEM;
@@ -503,7 +503,7 @@ int gud_pipe_check(struct drm_simple_display_pipe *pipe,
 		return -ENOENT;
 
 	len = struct_size(req, properties,
-			  GUD_PROPERTIES_MAX_NUM + GUD_CONNECTOR_PROPERTIES_MAX_NUM);
+			  size_add(GUD_PROPERTIES_MAX_NUM, GUD_CONNECTOR_PROPERTIES_MAX_NUM));
 	req = kzalloc(len, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;

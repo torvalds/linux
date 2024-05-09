@@ -316,10 +316,9 @@ u32 intel_engine_context_size(struct intel_gt *gt, u8 class)
 			 * out in the wash.
 			 */
 			cxt_size = intel_uncore_read(uncore, CXT_SIZE) + 1;
-			drm_dbg(&gt->i915->drm,
-				"graphics_ver = %d CXT_SIZE = %d bytes [0x%08x]\n",
-				GRAPHICS_VER(gt->i915), cxt_size * 64,
-				cxt_size - 1);
+			gt_dbg(gt, "graphics_ver = %d CXT_SIZE = %d bytes [0x%08x]\n",
+			       GRAPHICS_VER(gt->i915), cxt_size * 64,
+			       cxt_size - 1);
 			return round_up(cxt_size * 64, PAGE_SIZE);
 		case 3:
 		case 2:
@@ -558,7 +557,6 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id,
 		DRIVER_CAPS(i915)->has_logical_contexts = true;
 
 	ewma__engine_latency_init(&engine->latency);
-	seqcount_init(&engine->stats.execlists.lock);
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
 
@@ -789,7 +787,7 @@ static void engine_mask_apply_media_fuses(struct intel_gt *gt)
 
 		if (!(BIT(i) & vdbox_mask)) {
 			gt->info.engine_mask &= ~BIT(_VCS(i));
-			drm_dbg(&i915->drm, "vcs%u fused off\n", i);
+			gt_dbg(gt, "vcs%u fused off\n", i);
 			continue;
 		}
 
@@ -797,8 +795,7 @@ static void engine_mask_apply_media_fuses(struct intel_gt *gt)
 			gt->info.vdbox_sfc_access |= BIT(i);
 		logical_vdbox++;
 	}
-	drm_dbg(&i915->drm, "vdbox enable: %04x, instances: %04lx\n",
-		vdbox_mask, VDBOX_MASK(gt));
+	gt_dbg(gt, "vdbox enable: %04x, instances: %04lx\n", vdbox_mask, VDBOX_MASK(gt));
 	GEM_BUG_ON(vdbox_mask != VDBOX_MASK(gt));
 
 	for (i = 0; i < I915_MAX_VECS; i++) {
@@ -809,11 +806,10 @@ static void engine_mask_apply_media_fuses(struct intel_gt *gt)
 
 		if (!(BIT(i) & vebox_mask)) {
 			gt->info.engine_mask &= ~BIT(_VECS(i));
-			drm_dbg(&i915->drm, "vecs%u fused off\n", i);
+			gt_dbg(gt, "vecs%u fused off\n", i);
 		}
 	}
-	drm_dbg(&i915->drm, "vebox enable: %04x, instances: %04lx\n",
-		vebox_mask, VEBOX_MASK(gt));
+	gt_dbg(gt, "vebox enable: %04x, instances: %04lx\n", vebox_mask, VEBOX_MASK(gt));
 	GEM_BUG_ON(vebox_mask != VEBOX_MASK(gt));
 }
 
@@ -839,7 +835,7 @@ static void engine_mask_apply_compute_fuses(struct intel_gt *gt)
 	 */
 	for_each_clear_bit(i, &ccs_mask, I915_MAX_CCS) {
 		info->engine_mask &= ~BIT(_CCS(i));
-		drm_dbg(&i915->drm, "ccs%u fused off\n", i);
+		gt_dbg(gt, "ccs%u fused off\n", i);
 	}
 }
 
@@ -867,8 +863,8 @@ static void engine_mask_apply_copy_fuses(struct intel_gt *gt)
 						   _BCS(instance));
 
 		if (mask & info->engine_mask) {
-			drm_dbg(&i915->drm, "bcs%u fused off\n", instance);
-			drm_dbg(&i915->drm, "bcs%u fused off\n", instance + 1);
+			gt_dbg(gt, "bcs%u fused off\n", instance);
+			gt_dbg(gt, "bcs%u fused off\n", instance + 1);
 
 			info->engine_mask &= ~mask;
 		}
@@ -908,8 +904,7 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	 *    submission, which will wake up the GSC power well.
 	 */
 	if (__HAS_ENGINE(info->engine_mask, GSC0) && !intel_uc_wants_gsc_uc(&gt->uc)) {
-		drm_notice(&gt->i915->drm,
-			   "No GSC FW selected, disabling GSC CS and media C6\n");
+		gt_notice(gt, "No GSC FW selected, disabling GSC CS and media C6\n");
 		info->engine_mask &= ~BIT(GSC0);
 	}
 
@@ -1098,8 +1093,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 	 */
 	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
-		drm_err(&engine->i915->drm,
-			"Failed to allocate status page\n");
+		gt_err(engine->gt, "Failed to allocate status page\n");
 		return PTR_ERR(obj);
 	}
 
@@ -1333,6 +1327,7 @@ static int measure_breadcrumb_dw(struct intel_context *ce)
 	if (!frame)
 		return -ENOMEM;
 
+	frame->rq.i915 = engine->i915;
 	frame->rq.engine = engine;
 	frame->rq.context = ce;
 	rcu_assign_pointer(frame->rq.timeline, ce->timeline);
@@ -1419,6 +1414,20 @@ void intel_engine_destroy_pinned_context(struct intel_context *ce)
 }
 
 static struct intel_context *
+create_ggtt_bind_context(struct intel_engine_cs *engine)
+{
+	static struct lock_class_key kernel;
+
+	/*
+	 * MI_UPDATE_GTT can insert up to 511 PTE entries and there could be multiple
+	 * bind requets at a time so get a bigger ring.
+	 */
+	return intel_engine_create_pinned_context(engine, engine->gt->vm, SZ_512K,
+						  I915_GEM_HWS_GGTT_BIND_ADDR,
+						  &kernel, "ggtt_bind_context");
+}
+
+static struct intel_context *
 create_kernel_context(struct intel_engine_cs *engine)
 {
 	static struct lock_class_key kernel;
@@ -1441,7 +1450,7 @@ create_kernel_context(struct intel_engine_cs *engine)
  */
 static int engine_init_common(struct intel_engine_cs *engine)
 {
-	struct intel_context *ce;
+	struct intel_context *ce, *bce = NULL;
 	int ret;
 
 	engine->set_default_submission(engine);
@@ -1457,17 +1466,34 @@ static int engine_init_common(struct intel_engine_cs *engine)
 	ce = create_kernel_context(engine);
 	if (IS_ERR(ce))
 		return PTR_ERR(ce);
+	/*
+	 * Create a separate pinned context for GGTT update with blitter engine
+	 * if a platform require such service. MI_UPDATE_GTT works on other
+	 * engines as well but BCS should be less busy engine so pick that for
+	 * GGTT updates.
+	 */
+	if (i915_ggtt_require_binder(engine->i915) && engine->id == BCS0) {
+		bce = create_ggtt_bind_context(engine);
+		if (IS_ERR(bce)) {
+			ret = PTR_ERR(bce);
+			goto err_ce_context;
+		}
+	}
 
 	ret = measure_breadcrumb_dw(ce);
 	if (ret < 0)
-		goto err_context;
+		goto err_bce_context;
 
 	engine->emit_fini_breadcrumb_dw = ret;
 	engine->kernel_context = ce;
+	engine->bind_context = bce;
 
 	return 0;
 
-err_context:
+err_bce_context:
+	if (bce)
+		intel_engine_destroy_pinned_context(bce);
+err_ce_context:
 	intel_engine_destroy_pinned_context(ce);
 	return ret;
 }
@@ -1536,6 +1562,10 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 
 	if (engine->kernel_context)
 		intel_engine_destroy_pinned_context(engine->kernel_context);
+
+	if (engine->bind_context)
+		intel_engine_destroy_pinned_context(engine->bind_context);
+
 
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
 	cleanup_status_page(engine);
@@ -1616,9 +1646,7 @@ static int __intel_engine_stop_cs(struct intel_engine_cs *engine,
 	 * Wa_22011802037: Prior to doing a reset, ensure CS is
 	 * stopped, set ring stop bit and prefetch disable bit to halt CS
 	 */
-	if (IS_MTL_GRAPHICS_STEP(engine->i915, M, STEP_A0, STEP_B0) ||
-	    (GRAPHICS_VER(engine->i915) >= 11 &&
-	    GRAPHICS_VER_FULL(engine->i915) < IP_VER(12, 70)))
+	if (intel_engine_reset_needs_wa_22011802037(engine->gt))
 		intel_uncore_write_fw(uncore, RING_MODE_GEN7(engine->mmio_base),
 				      _MASKED_BIT_ENABLE(GEN12_GFX_PREFETCH_DISABLE));
 

@@ -22,8 +22,6 @@
 #include "lkc.h"
 #include "lxdialog/dialog.h"
 
-#define JUMP_NB			9
-
 static const char mconf_readme[] =
 "Overview\n"
 "--------\n"
@@ -288,6 +286,7 @@ static int single_menu_mode;
 static int show_all_options;
 static int save_and_exit;
 static int silent;
+static int jump_key_char;
 
 static void conf(struct menu *menu, struct menu *active_menu);
 
@@ -348,19 +347,19 @@ static void reset_subtitle(void)
 	set_dialog_subtitles(subtitles);
 }
 
-static int show_textbox_ext(const char *title, char *text, int r, int c, int
-			    *keys, int *vscroll, int *hscroll, update_text_fn
-			    update_text, void *data)
+static int show_textbox_ext(const char *title, const char *text, int r, int c,
+			    int *vscroll, int *hscroll,
+			    int (*extra_key_cb)(int, size_t, size_t, void *),
+			    void *data)
 {
 	dialog_clear();
-	return dialog_textbox(title, text, r, c, keys, vscroll, hscroll,
-			      update_text, data);
+	return dialog_textbox(title, text, r, c, vscroll, hscroll,
+			      extra_key_cb, data);
 }
 
 static void show_textbox(const char *title, const char *text, int r, int c)
 {
-	show_textbox_ext(title, (char *) text, r, c, (int []) {0}, NULL, NULL,
-			 NULL, NULL);
+	show_textbox_ext(title, text, r, c, NULL, NULL, NULL, NULL);
 }
 
 static void show_helptext(const char *title, const char *text)
@@ -381,35 +380,54 @@ static void show_help(struct menu *menu)
 
 struct search_data {
 	struct list_head *head;
-	struct menu **targets;
-	int *keys;
+	struct menu *target;
 };
 
-static void update_text(char *buf, size_t start, size_t end, void *_data)
+static int next_jump_key(int key)
+{
+	if (key < '1' || key > '9')
+		return '1';
+
+	key++;
+
+	if (key > '9')
+		key = '1';
+
+	return key;
+}
+
+static int handle_search_keys(int key, size_t start, size_t end, void *_data)
 {
 	struct search_data *data = _data;
 	struct jump_key *pos;
-	int k = 0;
+	int index = 0;
+
+	if (key < '1' || key > '9')
+		return 0;
 
 	list_for_each_entry(pos, data->head, entries) {
-		if (pos->offset >= start && pos->offset < end) {
-			char header[4];
+		index = next_jump_key(index);
 
-			if (k < JUMP_NB) {
-				int key = '0' + (pos->index % JUMP_NB) + 1;
+		if (pos->offset < start)
+			continue;
 
-				sprintf(header, "(%c)", key);
-				data->keys[k] = key;
-				data->targets[k] = pos->target;
-				k++;
-			} else {
-				sprintf(header, "   ");
-			}
+		if (pos->offset >= end)
+			break;
 
-			memcpy(buf + pos->offset, header, sizeof(header) - 1);
+		if (key == index) {
+			data->target = pos->target;
+			return 1;
 		}
 	}
-	data->keys[k] = 0;
+
+	return 0;
+}
+
+int get_jump_key_char(void)
+{
+	jump_key_char = next_jump_key(jump_key_char);
+
+	return jump_key_char;
 }
 
 static void search_conf(void)
@@ -456,26 +474,23 @@ again:
 	sym_arr = sym_re_search(dialog_input);
 	do {
 		LIST_HEAD(head);
-		struct menu *targets[JUMP_NB];
-		int keys[JUMP_NB + 1], i;
 		struct search_data data = {
 			.head = &head,
-			.targets = targets,
-			.keys = keys,
 		};
 		struct jump_key *pos, *tmp;
 
+		jump_key_char = 0;
 		res = get_relations_str(sym_arr, &head);
 		set_subtitle();
 		dres = show_textbox_ext("Search Results", str_get(&res), 0, 0,
-					keys, &vscroll, &hscroll, &update_text,
-					&data);
+					&vscroll, &hscroll,
+					handle_search_keys, &data);
 		again = false;
-		for (i = 0; i < JUMP_NB && keys[i]; i++)
-			if (dres == keys[i]) {
-				conf(targets[i]->parent, targets[i]);
-				again = true;
-			}
+		if (dres >= '1' && dres <= '9') {
+			assert(data.target != NULL);
+			conf(data.target->parent, data.target);
+			again = true;
+		}
 		str_free(&res);
 		list_for_each_entry_safe(pos, tmp, &head, entries)
 			free(pos);

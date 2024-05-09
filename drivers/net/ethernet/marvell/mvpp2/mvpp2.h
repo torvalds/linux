@@ -16,7 +16,7 @@
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <net/flow_offload.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
 #include <linux/bpf.h>
 #include <net/xdp.h>
 

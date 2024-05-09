@@ -17,6 +17,7 @@ properties:
       - analogix,anx7808
       - analogix,anx7812
       - analogix,anx7814
+      - analogix,anx7816
       - analogix,anx7818
 
   reg:

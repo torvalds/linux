@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
-#include "i40e.h"
 #include <linux/ptp_classify.h>
 #include <linux/posix-clock.h>
+#include "i40e.h"
+#include "i40e_devids.h"
 
 /* The XL710 timesync is very much like Intel's 82599 design when it comes to
  * the fundamental clock design. However, the clock operations are much simpler
@@ -1132,7 +1133,7 @@ int i40e_ptp_alloc_pins(struct i40e_pf *pf)
 
 	if (!pf->ptp_pins) {
 		dev_warn(&pf->pdev->dev, "Cannot allocate memory for PTP pins structure.\n");
-		return -I40E_ERR_NO_MEMORY;
+		return -ENOMEM;
 	}
 
 	pf->ptp_pins->sdp3_2 = off;

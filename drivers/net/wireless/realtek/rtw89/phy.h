@@ -7,7 +7,6 @@
 
 #include "core.h"
 
-#define RTW89_PHY_ADDR_OFFSET	0x10000
 #define RTW89_RF_ADDR_ADSEL_MASK  BIT(16)
 
 #define get_phy_headline(addr)		FIELD_GET(GENMASK(31, 28), addr)
@@ -47,6 +46,11 @@
 #define RA_MASK_HE_3SS_RATES	GENMASK_ULL(47, 36)
 #define RA_MASK_HE_4SS_RATES	GENMASK_ULL(59, 48)
 #define RA_MASK_HE_RATES	GENMASK_ULL(59, 12)
+#define RA_MASK_EHT_1SS_RATES	GENMASK_ULL(27, 12)
+#define RA_MASK_EHT_2SS_RATES	GENMASK_ULL(43, 28)
+#define RA_MASK_EHT_3SS_RATES	GENMASK_ULL(59, 44)
+#define RA_MASK_EHT_4SS_RATES	GENMASK_ULL(62, 60)
+#define RA_MASK_EHT_RATES	GENMASK_ULL(62, 12)
 
 #define CFO_TRK_ENABLE_TH (2 << 2)
 #define CFO_TRK_STOP_TH_4 (30 << 2)
@@ -337,61 +341,241 @@ struct rtw89_nbi_reg_def {
 	struct rtw89_reg_def notch2_en;
 };
 
+struct rtw89_ccx_regs {
+	u32 setting_addr;
+	u32 edcca_opt_mask;
+	u32 measurement_trig_mask;
+	u32 trig_opt_mask;
+	u32 en_mask;
+	u32 ifs_cnt_addr;
+	u32 ifs_clm_period_mask;
+	u32 ifs_clm_cnt_unit_mask;
+	u32 ifs_clm_cnt_clear_mask;
+	u32 ifs_collect_en_mask;
+	u32 ifs_t1_addr;
+	u32 ifs_t1_th_h_mask;
+	u32 ifs_t1_en_mask;
+	u32 ifs_t1_th_l_mask;
+	u32 ifs_t2_addr;
+	u32 ifs_t2_th_h_mask;
+	u32 ifs_t2_en_mask;
+	u32 ifs_t2_th_l_mask;
+	u32 ifs_t3_addr;
+	u32 ifs_t3_th_h_mask;
+	u32 ifs_t3_en_mask;
+	u32 ifs_t3_th_l_mask;
+	u32 ifs_t4_addr;
+	u32 ifs_t4_th_h_mask;
+	u32 ifs_t4_en_mask;
+	u32 ifs_t4_th_l_mask;
+	u32 ifs_clm_tx_cnt_addr;
+	u32 ifs_clm_edcca_excl_cca_fa_mask;
+	u32 ifs_clm_tx_cnt_msk;
+	u32 ifs_clm_cca_addr;
+	u32 ifs_clm_ofdmcca_excl_fa_mask;
+	u32 ifs_clm_cckcca_excl_fa_mask;
+	u32 ifs_clm_fa_addr;
+	u32 ifs_clm_ofdm_fa_mask;
+	u32 ifs_clm_cck_fa_mask;
+	u32 ifs_his_addr;
+	u32 ifs_t4_his_mask;
+	u32 ifs_t3_his_mask;
+	u32 ifs_t2_his_mask;
+	u32 ifs_t1_his_mask;
+	u32 ifs_avg_l_addr;
+	u32 ifs_t2_avg_mask;
+	u32 ifs_t1_avg_mask;
+	u32 ifs_avg_h_addr;
+	u32 ifs_t4_avg_mask;
+	u32 ifs_t3_avg_mask;
+	u32 ifs_cca_l_addr;
+	u32 ifs_t2_cca_mask;
+	u32 ifs_t1_cca_mask;
+	u32 ifs_cca_h_addr;
+	u32 ifs_t4_cca_mask;
+	u32 ifs_t3_cca_mask;
+	u32 ifs_total_addr;
+	u32 ifs_cnt_done_mask;
+	u32 ifs_total_mask;
+};
+
+struct rtw89_physts_regs {
+	u32 setting_addr;
+	u32 dis_trigger_fail_mask;
+	u32 dis_trigger_brk_mask;
+};
+
+struct rtw89_cfo_regs {
+	u32 comp;
+	u32 weighting_mask;
+	u32 comp_seg0;
+	u32 valid_0_mask;
+};
+
+enum rtw89_bandwidth_section_num_ax {
+	RTW89_BW20_SEC_NUM_AX = 8,
+	RTW89_BW40_SEC_NUM_AX = 4,
+	RTW89_BW80_SEC_NUM_AX = 2,
+};
+
+enum rtw89_bandwidth_section_num_be {
+	RTW89_BW20_SEC_NUM_BE = 16,
+	RTW89_BW40_SEC_NUM_BE = 8,
+	RTW89_BW80_SEC_NUM_BE = 4,
+	RTW89_BW160_SEC_NUM_BE = 2,
+};
+
+#define RTW89_TXPWR_LMT_PAGE_SIZE_AX 40
+
+struct rtw89_txpwr_limit_ax {
+	s8 cck_20m[RTW89_BF_NUM];
+	s8 cck_40m[RTW89_BF_NUM];
+	s8 ofdm[RTW89_BF_NUM];
+	s8 mcs_20m[RTW89_BW20_SEC_NUM_AX][RTW89_BF_NUM];
+	s8 mcs_40m[RTW89_BW40_SEC_NUM_AX][RTW89_BF_NUM];
+	s8 mcs_80m[RTW89_BW80_SEC_NUM_AX][RTW89_BF_NUM];
+	s8 mcs_160m[RTW89_BF_NUM];
+	s8 mcs_40m_0p5[RTW89_BF_NUM];
+	s8 mcs_40m_2p5[RTW89_BF_NUM];
+};
+
+#define RTW89_TXPWR_LMT_PAGE_SIZE_BE 76
+
+struct rtw89_txpwr_limit_be {
+	s8 cck_20m[RTW89_BF_NUM];
+	s8 cck_40m[RTW89_BF_NUM];
+	s8 ofdm[RTW89_BF_NUM];
+	s8 mcs_20m[RTW89_BW20_SEC_NUM_BE][RTW89_BF_NUM];
+	s8 mcs_40m[RTW89_BW40_SEC_NUM_BE][RTW89_BF_NUM];
+	s8 mcs_80m[RTW89_BW80_SEC_NUM_BE][RTW89_BF_NUM];
+	s8 mcs_160m[RTW89_BW160_SEC_NUM_BE][RTW89_BF_NUM];
+	s8 mcs_320m[RTW89_BF_NUM];
+	s8 mcs_40m_0p5[RTW89_BF_NUM];
+	s8 mcs_40m_2p5[RTW89_BF_NUM];
+	s8 mcs_40m_4p5[RTW89_BF_NUM];
+	s8 mcs_40m_6p5[RTW89_BF_NUM];
+};
+
+#define RTW89_RU_SEC_NUM_AX 8
+
+#define RTW89_TXPWR_LMT_RU_PAGE_SIZE_AX 24
+
+struct rtw89_txpwr_limit_ru_ax {
+	s8 ru26[RTW89_RU_SEC_NUM_AX];
+	s8 ru52[RTW89_RU_SEC_NUM_AX];
+	s8 ru106[RTW89_RU_SEC_NUM_AX];
+};
+
+#define RTW89_RU_SEC_NUM_BE 16
+
+#define RTW89_TXPWR_LMT_RU_PAGE_SIZE_BE 80
+
+struct rtw89_txpwr_limit_ru_be {
+	s8 ru26[RTW89_RU_SEC_NUM_BE];
+	s8 ru52[RTW89_RU_SEC_NUM_BE];
+	s8 ru106[RTW89_RU_SEC_NUM_BE];
+	s8 ru52_26[RTW89_RU_SEC_NUM_BE];
+	s8 ru106_26[RTW89_RU_SEC_NUM_BE];
+};
+
+struct rtw89_phy_gen_def {
+	u32 cr_base;
+	const struct rtw89_ccx_regs *ccx;
+	const struct rtw89_physts_regs *physts;
+	const struct rtw89_cfo_regs *cfo;
+
+	void (*set_txpwr_byrate)(struct rtw89_dev *rtwdev,
+				 const struct rtw89_chan *chan,
+				 enum rtw89_phy_idx phy_idx);
+	void (*set_txpwr_offset)(struct rtw89_dev *rtwdev,
+				 const struct rtw89_chan *chan,
+				 enum rtw89_phy_idx phy_idx);
+	void (*set_txpwr_limit)(struct rtw89_dev *rtwdev,
+				const struct rtw89_chan *chan,
+				enum rtw89_phy_idx phy_idx);
+	void (*set_txpwr_limit_ru)(struct rtw89_dev *rtwdev,
+				   const struct rtw89_chan *chan,
+				   enum rtw89_phy_idx phy_idx);
+};
+
+extern const struct rtw89_phy_gen_def rtw89_phy_gen_ax;
+extern const struct rtw89_phy_gen_def rtw89_phy_gen_be;
+
 static inline void rtw89_phy_write8(struct rtw89_dev *rtwdev,
 				    u32 addr, u8 data)
 {
-	rtw89_write8(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, data);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write8(rtwdev, addr + phy->cr_base, data);
 }
 
 static inline void rtw89_phy_write16(struct rtw89_dev *rtwdev,
 				     u32 addr, u16 data)
 {
-	rtw89_write16(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, data);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write16(rtwdev, addr + phy->cr_base, data);
 }
 
 static inline void rtw89_phy_write32(struct rtw89_dev *rtwdev,
 				     u32 addr, u32 data)
 {
-	rtw89_write32(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, data);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write32(rtwdev, addr + phy->cr_base, data);
 }
 
 static inline void rtw89_phy_write32_set(struct rtw89_dev *rtwdev,
 					 u32 addr, u32 bits)
 {
-	rtw89_write32_set(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, bits);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write32_set(rtwdev, addr + phy->cr_base, bits);
 }
 
 static inline void rtw89_phy_write32_clr(struct rtw89_dev *rtwdev,
 					 u32 addr, u32 bits)
 {
-	rtw89_write32_clr(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, bits);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write32_clr(rtwdev, addr + phy->cr_base, bits);
 }
 
 static inline void rtw89_phy_write32_mask(struct rtw89_dev *rtwdev,
 					  u32 addr, u32 mask, u32 data)
 {
-	rtw89_write32_mask(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, mask, data);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	rtw89_write32_mask(rtwdev, addr + phy->cr_base, mask, data);
 }
 
 static inline u8 rtw89_phy_read8(struct rtw89_dev *rtwdev, u32 addr)
 {
-	return rtw89_read8(rtwdev, addr | RTW89_PHY_ADDR_OFFSET);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	return rtw89_read8(rtwdev, addr + phy->cr_base);
 }
 
 static inline u16 rtw89_phy_read16(struct rtw89_dev *rtwdev, u32 addr)
 {
-	return rtw89_read16(rtwdev, addr | RTW89_PHY_ADDR_OFFSET);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	return rtw89_read16(rtwdev, addr + phy->cr_base);
 }
 
 static inline u32 rtw89_phy_read32(struct rtw89_dev *rtwdev, u32 addr)
 {
-	return rtw89_read32(rtwdev, addr | RTW89_PHY_ADDR_OFFSET);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	return rtw89_read32(rtwdev, addr + phy->cr_base);
 }
 
 static inline u32 rtw89_phy_read32_mask(struct rtw89_dev *rtwdev,
 					u32 addr, u32 mask)
 {
-	return rtw89_read32_mask(rtwdev, addr | RTW89_PHY_ADDR_OFFSET, mask);
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	return rtw89_read32_mask(rtwdev, addr + phy->cr_base, mask);
 }
 
 static inline
@@ -521,22 +705,58 @@ void rtw89_phy_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			   u32 data, enum rtw89_phy_idx phy_idx);
 u32 rtw89_phy_read32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			 enum rtw89_phy_idx phy_idx);
+s8 *rtw89_phy_raw_byr_seek(struct rtw89_dev *rtwdev,
+			   struct rtw89_txpwr_byrate *head,
+			   const struct rtw89_rate_desc *desc);
+s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band, u8 bw,
+			       const struct rtw89_rate_desc *rate_desc);
 void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 				 const struct rtw89_txpwr_table *tbl);
 s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch);
+s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
+				 u8 ru, u8 ntx, u8 ch);
+
+static inline
 void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
-				enum rtw89_phy_idx phy_idx);
+				enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->set_txpwr_byrate(rtwdev, chan, phy_idx);
+}
+
+static inline
 void rtw89_phy_set_txpwr_offset(struct rtw89_dev *rtwdev,
 				const struct rtw89_chan *chan,
-				enum rtw89_phy_idx phy_idx);
+				enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->set_txpwr_offset(rtwdev, chan, phy_idx);
+}
+
+static inline
 void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
 			       const struct rtw89_chan *chan,
-			       enum rtw89_phy_idx phy_idx);
+			       enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->set_txpwr_limit(rtwdev, chan, phy_idx);
+}
+
+static inline
 void rtw89_phy_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
-				  enum rtw89_phy_idx phy_idx);
+				  enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->set_txpwr_limit_ru(rtwdev, chan, phy_idx);
+}
+
 void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta);
 void rtw89_phy_ra_update(struct rtw89_dev *rtwdev);
 void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,

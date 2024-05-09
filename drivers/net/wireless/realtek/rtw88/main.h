@@ -342,8 +342,10 @@ enum rtw_regulatory_domains {
 	RTW_REGD_UKRAINE	= 7,
 	RTW_REGD_MEXICO		= 8,
 	RTW_REGD_CN		= 9,
-	RTW_REGD_WW,
+	RTW_REGD_QATAR		= 10,
+	RTW_REGD_UK		= 11,
 
+	RTW_REGD_WW,
 	RTW_REGD_MAX
 };
 
@@ -511,12 +513,6 @@ struct rtw_txpwr_idx {
 	struct rtw_5g_txpwr_idx pwr_idx_5g;
 };
 
-struct rtw_timer_list {
-	struct timer_list timer;
-	void (*function)(void *data);
-	void *args;
-};
-
 struct rtw_channel_params {
 	u8 center_chan;
 	u8 primary_chan;
@@ -526,6 +522,12 @@ struct rtw_channel_params {
 struct rtw_hw_reg {
 	u32 addr;
 	u32 mask;
+};
+
+struct rtw_hw_reg_desc {
+	u32 addr;
+	u32 mask;
+	const char *desc;
 };
 
 struct rtw_ltecoex_addr {
@@ -734,9 +736,7 @@ struct rtw_ra_report {
 
 struct rtw_txq {
 	struct list_head list;
-
 	unsigned long flags;
-	unsigned long last_push;
 };
 
 #define RTW_BC_MC_MACID 1
@@ -754,7 +754,6 @@ struct rtw_sta_info {
 	u8 rate_id;
 	enum rtw_bandwidth bw_mode;
 	enum rtw_rf_type rf_type;
-	enum rtw_wireless_set wireless_set;
 	u8 stbc_en:2;
 	u8 ldpc_en:2;
 	bool sgi_enable;

@@ -949,7 +949,7 @@ static struct i2c_driver rt1719_driver = {
 		.name = "rt1719",
 		.of_match_table = rt1719_device_table,
 	},
-	.probe_new = rt1719_probe,
+	.probe = rt1719_probe,
 	.remove = rt1719_remove,
 };
 module_i2c_driver(rt1719_driver);

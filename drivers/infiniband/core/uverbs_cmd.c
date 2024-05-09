@@ -1851,7 +1851,8 @@ static int modify_qp(struct uverbs_attr_bundle *attrs,
 	if (cmd->base.attr_mask & IB_QP_PATH_MIG_STATE)
 		attr->path_mig_state = cmd->base.path_mig_state;
 	if (cmd->base.attr_mask & IB_QP_QKEY) {
-		if (cmd->base.qkey & IB_QP_SET_QKEY && !capable(CAP_NET_RAW)) {
+		if (cmd->base.qkey & IB_QP_SET_QKEY &&
+		    !rdma_nl_get_privileged_qkey()) {
 			ret = -EPERM;
 			goto release_qp;
 		}

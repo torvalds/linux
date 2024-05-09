@@ -7,6 +7,70 @@
 #include "ivpu_ipc.h"
 #include "ivpu_jsm_msg.h"
 
+const char *ivpu_jsm_msg_type_to_str(enum vpu_ipc_msg_type type)
+{
+	#define IVPU_CASE_TO_STR(x) case x: return #x
+	switch (type) {
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_UNKNOWN);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_ENGINE_RESET);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_ENGINE_PREEMPT);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_REGISTER_DB);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_UNREGISTER_DB);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_QUERY_ENGINE_HB);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_GET_POWER_LEVEL_COUNT);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_GET_POWER_LEVEL);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_SET_POWER_LEVEL);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_OPEN);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_CLOSE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_TRACE_SET_CONFIG);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_TRACE_GET_CONFIG);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_TRACE_GET_CAPABILITY);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_TRACE_GET_NAME);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_SSID_RELEASE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_START);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_STOP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_UPDATE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_INFO);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_SET_PRIORITY_BAND_SETUP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_CREATE_CMD_QUEUE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_DESTROY_CMD_QUEUE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_SET_CONTEXT_SCHED_PROPERTIES);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_HWS_REGISTER_DB);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_BLOB_DEINIT);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_DYNDBG_CONTROL);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_JOB_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_ENGINE_RESET_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_ENGINE_PREEMPT_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_REGISTER_DB_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_UNREGISTER_DB_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_QUERY_ENGINE_HB_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_GET_POWER_LEVEL_COUNT_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_GET_POWER_LEVEL_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_SET_POWER_LEVEL_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_OPEN_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_CLOSE_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_TRACE_SET_CONFIG_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_TRACE_GET_CONFIG_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_TRACE_GET_CAPABILITY_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_TRACE_GET_NAME_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_SSID_RELEASE_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_START_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_STOP_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_UPDATE_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_INFO_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_METRIC_STREAMER_NOTIFICATION);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_SET_PRIORITY_BAND_SETUP_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_CREATE_CMD_QUEUE_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_DESTROY_CMD_QUEUE_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_SET_CONTEXT_SCHED_PROPERTIES_RSP);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_BLOB_DEINIT_DONE);
+	IVPU_CASE_TO_STR(VPU_JSM_MSG_DYNDBG_CONTROL_RSP);
+	}
+	#undef IVPU_CASE_TO_STR
+
+	return "Unknown JSM message type";
+}
+
 int ivpu_jsm_register_db(struct ivpu_device *vdev, u32 ctx_id, u32 db_id,
 			 u64 jobq_base, u32 jobq_size)
 {
@@ -22,7 +86,7 @@ int ivpu_jsm_register_db(struct ivpu_device *vdev, u32 ctx_id, u32 db_id,
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_REGISTER_DB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret) {
-		ivpu_err(vdev, "Failed to register doorbell %d: %d\n", db_id, ret);
+		ivpu_err_ratelimited(vdev, "Failed to register doorbell %d: %d\n", db_id, ret);
 		return ret;
 	}
 
@@ -42,7 +106,7 @@ int ivpu_jsm_unregister_db(struct ivpu_device *vdev, u32 db_id)
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_UNREGISTER_DB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret) {
-		ivpu_warn(vdev, "Failed to unregister doorbell %d: %d\n", db_id, ret);
+		ivpu_warn_ratelimited(vdev, "Failed to unregister doorbell %d: %d\n", db_id, ret);
 		return ret;
 	}
 
@@ -65,7 +129,8 @@ int ivpu_jsm_get_heartbeat(struct ivpu_device *vdev, u32 engine, u64 *heartbeat)
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_QUERY_ENGINE_HB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret) {
-		ivpu_err(vdev, "Failed to get heartbeat from engine %d: %d\n", engine, ret);
+		ivpu_err_ratelimited(vdev, "Failed to get heartbeat from engine %d: %d\n",
+				     engine, ret);
 		return ret;
 	}
 
@@ -87,7 +152,7 @@ int ivpu_jsm_reset_engine(struct ivpu_device *vdev, u32 engine)
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_ENGINE_RESET_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
-		ivpu_err(vdev, "Failed to reset engine %d: %d\n", engine, ret);
+		ivpu_err_ratelimited(vdev, "Failed to reset engine %d: %d\n", engine, ret);
 
 	return ret;
 }
@@ -107,7 +172,7 @@ int ivpu_jsm_preempt_engine(struct ivpu_device *vdev, u32 engine, u32 preempt_id
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_ENGINE_PREEMPT_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
-		ivpu_err(vdev, "Failed to preempt engine %d: %d\n", engine, ret);
+		ivpu_err_ratelimited(vdev, "Failed to preempt engine %d: %d\n", engine, ret);
 
 	return ret;
 }
@@ -118,13 +183,13 @@ int ivpu_jsm_dyndbg_control(struct ivpu_device *vdev, char *command, size_t size
 	struct vpu_jsm_msg resp;
 	int ret;
 
-	if (!strncpy(req.payload.dyndbg_control.dyndbg_cmd, command, VPU_DYNDBG_CMD_MAX_LEN - 1))
-		return -ENOMEM;
+	strscpy(req.payload.dyndbg_control.dyndbg_cmd, command, VPU_DYNDBG_CMD_MAX_LEN);
 
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_DYNDBG_CONTROL_RSP, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
-		ivpu_warn(vdev, "Failed to send command \"%s\": ret %d\n", command, ret);
+		ivpu_warn_ratelimited(vdev, "Failed to send command \"%s\": ret %d\n",
+				      command, ret);
 
 	return ret;
 }
@@ -139,7 +204,7 @@ int ivpu_jsm_trace_get_capability(struct ivpu_device *vdev, u32 *trace_destinati
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_TRACE_GET_CAPABILITY_RSP, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret) {
-		ivpu_warn(vdev, "Failed to get trace capability: %d\n", ret);
+		ivpu_warn_ratelimited(vdev, "Failed to get trace capability: %d\n", ret);
 		return ret;
 	}
 
@@ -163,7 +228,7 @@ int ivpu_jsm_trace_set_config(struct ivpu_device *vdev, u32 trace_level, u32 tra
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_TRACE_SET_CONFIG_RSP, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
 	if (ret)
-		ivpu_warn(vdev, "Failed to set config: %d\n", ret);
+		ivpu_warn_ratelimited(vdev, "Failed to set config: %d\n", ret);
 
 	return ret;
 }

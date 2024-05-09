@@ -21,7 +21,7 @@ properties:
   compatible:
     oneOf:
       - items:
-          - pattern: '^qcom,adreno-gmu-6[0-9][0-9]\.[0-9]$'
+          - pattern: '^qcom,adreno-gmu-[67][0-9][0-9]\.[0-9]$'
           - const: qcom,adreno-gmu
       - const: qcom,adreno-gmu-wrapper
 
@@ -63,6 +63,10 @@ properties:
 
   iommus:
     maxItems: 1
+
+  qcom,qmp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Reference to the AOSS side-channel message RAM
 
   operating-points-v2: true
 
@@ -217,6 +221,47 @@ allOf:
       properties:
         compatible:
           contains:
+            enum:
+              - qcom,adreno-gmu-730.1
+              - qcom,adreno-gmu-740.1
+    then:
+      properties:
+        reg:
+          items:
+            - description: Core GMU registers
+            - description: Resource controller registers
+            - description: GMU PDC registers
+        reg-names:
+          items:
+            - const: gmu
+            - const: rscc
+            - const: gmu_pdc
+        clocks:
+          items:
+            - description: GPU AHB clock
+            - description: GMU clock
+            - description: GPU CX clock
+            - description: GPU AXI clock
+            - description: GPU MEMNOC clock
+            - description: GMU HUB clock
+            - description: GPUSS DEMET clock
+        clock-names:
+          items:
+            - const: ahb
+            - const: gmu
+            - const: cxo
+            - const: axi
+            - const: memnoc
+            - const: hub
+            - const: demet
+
+      required:
+        - qcom,qmp
+
+  - if:
+      properties:
+        compatible:
+          contains:
             const: qcom,adreno-gmu-wrapper
     then:
       properties:
@@ -243,7 +288,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     gmu: gmu@506a000 {
-        compatible="qcom,adreno-gmu-630.2", "qcom,adreno-gmu";
+        compatible = "qcom,adreno-gmu-630.2", "qcom,adreno-gmu";
 
         reg = <0x506a000 0x30000>,
               <0xb280000 0x10000>,

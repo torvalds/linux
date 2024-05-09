@@ -297,7 +297,7 @@ static void batch_clear_carry(struct pfn_batch *batch, unsigned int keep_pfns)
 	batch->pfns[0] = batch->pfns[batch->end - 1] +
 			 (batch->npfns[batch->end - 1] - keep_pfns);
 	batch->npfns[0] = keep_pfns;
-	batch->end = 0;
+	batch->end = 1;
 }
 
 static void batch_skip_carry(struct pfn_batch *batch, unsigned int skip_pfns)
@@ -1507,6 +1507,8 @@ void iopt_area_unfill_domains(struct iopt_area *area, struct iopt_pages *pages)
 				area, domain, iopt_area_index(area),
 				iopt_area_last_index(area));
 
+	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
+		WARN_ON(RB_EMPTY_NODE(&area->pages_node.rb));
 	interval_tree_remove(&area->pages_node, &pages->domains_itree);
 	iopt_area_unfill_domain(area, pages, area->storage_domain);
 	area->storage_domain = NULL;

@@ -154,7 +154,7 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 		} else {
 			r = get_user(value, (uint32_t *)buf);
 			if (!r)
-				amdgpu_mm_wreg_mmio_rlc(adev, *pos >> 2, value);
+				amdgpu_mm_wreg_mmio_rlc(adev, *pos >> 2, value, 0);
 		}
 		if (r) {
 			result = r;
@@ -283,7 +283,7 @@ static ssize_t amdgpu_debugfs_regs2_op(struct file *f, char __user *buf, u32 off
 		} else {
 			r = get_user(value, (uint32_t *)buf);
 			if (!r)
-				amdgpu_mm_wreg_mmio_rlc(adev, offset >> 2, value);
+				amdgpu_mm_wreg_mmio_rlc(adev, offset >> 2, value, rd->id.xcc_id);
 		}
 		if (r) {
 			result = r;
@@ -375,7 +375,7 @@ static int amdgpu_debugfs_gprwave_open(struct inode *inode, struct file *file)
 {
 	struct amdgpu_debugfs_gprwave_data *rd;
 
-	rd = kzalloc(sizeof *rd, GFP_KERNEL);
+	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
 		return -ENOMEM;
 	rd->adev = file_inode(file)->i_private;
@@ -388,6 +388,7 @@ static int amdgpu_debugfs_gprwave_open(struct inode *inode, struct file *file)
 static int amdgpu_debugfs_gprwave_release(struct inode *inode, struct file *file)
 {
 	struct amdgpu_debugfs_gprwave_data *rd = file->private_data;
+
 	mutex_destroy(&rd->lock);
 	kfree(file->private_data);
 	return 0;
@@ -747,6 +748,9 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 	ssize_t result = 0;
 	int r;
 
+	if (!adev->smc_rreg)
+		return -EPERM;
+
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
 
@@ -802,6 +806,9 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
+
+	if (!adev->smc_wreg)
+		return -EPERM;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
@@ -2015,8 +2022,8 @@ static ssize_t amdgpu_reset_dump_register_list_read(struct file *f,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < adev->num_regs; i++) {
-		sprintf(reg_offset, "0x%x\n", adev->reset_dump_reg_list[i]);
+	for (i = 0; i < adev->reset_info.num_regs; i++) {
+		sprintf(reg_offset, "0x%x\n", adev->reset_info.reset_dump_reg_list[i]);
 		up_read(&adev->reset_domain->sem);
 		if (copy_to_user(buf + len, reg_offset, strlen(reg_offset)))
 			return -EFAULT;
@@ -2073,9 +2080,9 @@ static ssize_t amdgpu_reset_dump_register_list_write(struct file *f,
 	if (ret)
 		goto error_free;
 
-	swap(adev->reset_dump_reg_list, tmp);
-	swap(adev->reset_dump_reg_value, new);
-	adev->num_regs = i;
+	swap(adev->reset_info.reset_dump_reg_list, tmp);
+	swap(adev->reset_info.reset_dump_reg_value, new);
+	adev->reset_info.num_regs = i;
 	up_write(&adev->reset_domain->sem);
 	ret = size;
 

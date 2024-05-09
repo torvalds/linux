@@ -20,7 +20,7 @@
  *  31-28 VARIANT	Device variant
  *  27-12 PARTNO	Part number
  *  11-1  MFG		Indicates TI as manufacturer (0x17)
- *  1			Always 1
+ *  0			Always 1
  */
 #define CTRLMMR_WKUP_JTAGID_VARIANT_SHIFT	(28)
 #define CTRLMMR_WKUP_JTAGID_VARIANT_MASK	GENMASK(31, 28)
@@ -45,6 +45,7 @@ static const struct k3_soc_id {
 	{ 0xBB7E, "AM62X" },
 	{ 0xBB80, "J784S4" },
 	{ 0xBB8D, "AM62AX" },
+	{ 0xBB9D, "AM62PX" },
 };
 
 static int
@@ -59,7 +60,7 @@ k3_chipinfo_partno_to_names(unsigned int partno,
 			return 0;
 		}
 
-	return -EINVAL;
+	return -ENODEV;
 }
 
 static int k3_chipinfo_probe(struct platform_device *pdev)
@@ -110,8 +111,7 @@ static int k3_chipinfo_probe(struct platform_device *pdev)
 
 	ret = k3_chipinfo_partno_to_names(partno_id, soc_dev_attr);
 	if (ret) {
-		dev_err(dev, "Unknown SoC JTAGID[0x%08X]\n", jtag_id);
-		ret = -ENODEV;
+		dev_err(dev, "Unknown SoC JTAGID[0x%08X]: %d\n", jtag_id, ret);
 		goto err_free_rev;
 	}
 

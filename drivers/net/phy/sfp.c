@@ -257,6 +257,7 @@ struct sfp {
 	unsigned int state_hw_drive;
 	unsigned int state_hw_mask;
 	unsigned int state_soft_mask;
+	unsigned int state_ignore_mask;
 	unsigned int state;
 
 	struct delayed_work poll;
@@ -280,7 +281,6 @@ struct sfp {
 	unsigned int rs_state_mask;
 
 	bool have_a2;
-	bool tx_fault_ignore;
 
 	const struct sfp_quirk *quirk;
 
@@ -345,9 +345,24 @@ static void sfp_fixup_long_startup(struct sfp *sfp)
 	sfp->module_t_start_up = T_START_UP_BAD_GPON;
 }
 
+static void sfp_fixup_ignore_los(struct sfp *sfp)
+{
+	/* This forces LOS to zero, so we ignore transitions */
+	sfp->state_ignore_mask |= SFP_F_LOS;
+	/* Make sure that LOS options are clear */
+	sfp->id.ext.options &= ~cpu_to_be16(SFP_OPTIONS_LOS_INVERTED |
+					    SFP_OPTIONS_LOS_NORMAL);
+}
+
 static void sfp_fixup_ignore_tx_fault(struct sfp *sfp)
 {
-	sfp->tx_fault_ignore = true;
+	sfp->state_ignore_mask |= SFP_F_TX_FAULT;
+}
+
+static void sfp_fixup_nokia(struct sfp *sfp)
+{
+	sfp_fixup_long_startup(sfp);
+	sfp_fixup_ignore_los(sfp);
 }
 
 // For 10GBASE-T short-reach modules
@@ -446,11 +461,16 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// Alcatel Lucent G-010S-A can operate at 2500base-X, but report 3.2GBd
 	// NRZ in their EEPROM
 	SFP_QUIRK("ALCATELLUCENT", "3FE46541AA", sfp_quirk_2500basex,
-		  sfp_fixup_long_startup),
+		  sfp_fixup_nokia),
 
 	// Fiberstore SFP-10G-T doesn't identify as copper, and uses the
 	// Rollball protocol to talk to the PHY.
 	SFP_QUIRK_F("FS", "SFP-10G-T", sfp_fixup_fs_10gt),
+
+	// Fiberstore GPON-ONU-34-20BI can operate at 2500base-X, but report 1.2GBd
+	// NRZ in their EEPROM
+	SFP_QUIRK("FS", "GPON-ONU-34-20BI", sfp_quirk_2500basex,
+		  sfp_fixup_ignore_tx_fault),
 
 	SFP_QUIRK_F("HALNy", "HL-GSFP", sfp_fixup_halny_gsfp),
 
@@ -462,6 +482,9 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// their EEPROM
 	SFP_QUIRK("HUAWEI", "MA5671A", sfp_quirk_2500basex,
 		  sfp_fixup_ignore_tx_fault),
+
+	// FS 2.5G Base-T
+	SFP_QUIRK_M("FS", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
 
 	// Lantech 8330-262D-E can operate at 2500base-X, but incorrectly report
 	// 2500MBd NRZ in their EEPROM
@@ -784,7 +807,8 @@ static void sfp_soft_start_poll(struct sfp *sfp)
 
 	mutex_lock(&sfp->st_mutex);
 	// Poll the soft state for hardware pins we want to ignore
-	sfp->state_soft_mask = ~sfp->state_hw_mask & mask;
+	sfp->state_soft_mask = ~sfp->state_hw_mask & ~sfp->state_ignore_mask &
+			       mask;
 
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
 	    !sfp->need_poll)
@@ -1763,6 +1787,9 @@ static int sfp_sm_probe_phy(struct sfp *sfp, int addr, bool is_c45)
 		return PTR_ERR(phy);
 	}
 
+	/* Mark this PHY as being on a SFP module */
+	phy->is_on_sfp_module = true;
+
 	err = phy_device_register(phy);
 	if (err) {
 		phy_device_free(phy);
@@ -2306,7 +2333,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	sfp->module_t_start_up = T_START_UP;
 	sfp->module_t_wait = T_WAIT;
 
-	sfp->tx_fault_ignore = false;
+	sfp->state_ignore_mask = 0;
 
 	if (sfp->id.base.extended_cc == SFF8024_ECC_10GBASE_T_SFI ||
 	    sfp->id.base.extended_cc == SFF8024_ECC_10GBASE_T_SR ||
@@ -2329,6 +2356,8 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 
 	if (sfp->quirk && sfp->quirk->fixup)
 		sfp->quirk->fixup(sfp);
+
+	sfp->state_hw_mask &= ~sfp->state_ignore_mask;
 	mutex_unlock(&sfp->st_mutex);
 
 	return 0;
@@ -2830,10 +2859,7 @@ static void sfp_check_state(struct sfp *sfp)
 	mutex_lock(&sfp->st_mutex);
 	state = sfp_get_state(sfp);
 	changed = state ^ sfp->state;
-	if (sfp->tx_fault_ignore)
-		changed &= SFP_F_PRESENT | SFP_F_LOS;
-	else
-		changed &= SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT;
+	changed &= SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT;
 
 	for (i = 0; i < GPIO_MAX; i++)
 		if (changed & BIT(i))

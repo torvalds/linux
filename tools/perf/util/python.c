@@ -113,6 +113,11 @@ bool evsel__is_aux_event(const struct evsel *evsel __maybe_unused)
 	return false;
 }
 
+bool perf_pmus__supports_extended_type(void)
+{
+	return false;
+}
+
 /*
  * Add this one here not to drag util/metricgroup.c
  */
@@ -121,6 +126,14 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 				    struct rblist *old_metric_events)
 {
 	return 0;
+}
+
+/*
+ * Add this one here not to drag util/trace-event-info.c
+ */
+char *tracepoint_id_to_name(u64 config)
+{
+	return NULL;
 }
 
 /*

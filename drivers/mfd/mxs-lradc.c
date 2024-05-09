@@ -16,8 +16,8 @@
 #include <linux/mfd/mxs-lradc.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 #define ADC_CELL		0
@@ -125,7 +125,6 @@ MODULE_DEVICE_TABLE(of, mxs_lradc_dt_ids);
 
 static int mxs_lradc_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct mxs_lradc *lradc;
@@ -138,11 +137,7 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	if (!lradc)
 		return -ENOMEM;
 
-	of_id = of_match_device(mxs_lradc_dt_ids, &pdev->dev);
-	if (!of_id)
-		return -EINVAL;
-
-	lradc->soc = (enum mxs_lradc_id)of_id->data;
+	lradc->soc = (enum mxs_lradc_id)device_get_match_data(&pdev->dev);
 
 	lradc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(lradc->clk)) {

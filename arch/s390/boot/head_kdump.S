@@ -82,12 +82,12 @@ SYM_CODE_START_LOCAL(startup_kdump)
 #
 # Startup of kdump (relocated new kernel)
 #
-.align 2
+	.balign	2
 startup_kdump_relocated:
 	basr	%r13,0
 0:	lpswe	.Lrestart_psw-0b(%r13)		# Start new kernel...
 SYM_CODE_END(startup_kdump)
-.align	8
+	.balign	8
 .Lrestart_psw:
 	.quad	0x0000000080000000,0x0000000000000000 + startup
 #else
@@ -95,7 +95,7 @@ SYM_CODE_START_LOCAL(startup_kdump)
 	larl	%r13,startup_kdump_crash
 	lpswe	0(%r13)
 SYM_CODE_END(startup_kdump)
-.align 8
+	.balign	8
 startup_kdump_crash:
 	.quad	0x0002000080000000,0x0000000000000000 + startup_kdump_crash
 #endif /* CONFIG_CRASH_DUMP */

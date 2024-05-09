@@ -47,6 +47,9 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_3_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_mes.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_mes_2.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_mes1.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_0_mes_2.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_0_mes1.bin");
+
 
 static int mes_v11_0_hw_fini(void *handle);
 static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev);
@@ -210,9 +213,7 @@ static int mes_v11_0_add_hw_queue(struct amdgpu_mes *mes,
 	mes_add_queue_pkt.is_aql_queue = input->is_aql_queue;
 	mes_add_queue_pkt.gds_size = input->queue_size;
 
-	/* For KFD, gds_size is re-used for queue size (needed in MES for AQL queues) */
-	mes_add_queue_pkt.is_aql_queue = input->is_aql_queue;
-	mes_add_queue_pkt.gds_size = input->queue_size;
+	mes_add_queue_pkt.exclusively_scheduled = input->exclusively_scheduled;
 
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_add_queue_pkt, sizeof(mes_add_queue_pkt),
@@ -405,65 +406,12 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.disable_mes_log = 1;
 	mes_set_hw_res_pkt.use_different_vmid_compute = 1;
 	mes_set_hw_res_pkt.enable_reg_active_poll = 1;
+	mes_set_hw_res_pkt.enable_level_process_quantum_check = 1;
 	mes_set_hw_res_pkt.oversubscription_timer = 50;
 
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt),
 			offsetof(union MESAPI_SET_HW_RESOURCES, api_status));
-}
-
-static void mes_v11_0_init_aggregated_doorbell(struct amdgpu_mes *mes)
-{
-	struct amdgpu_device *adev = mes->adev;
-	uint32_t data;
-
-	data = RREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL1);
-	data &= ~(CP_MES_DOORBELL_CONTROL1__DOORBELL_OFFSET_MASK |
-		  CP_MES_DOORBELL_CONTROL1__DOORBELL_EN_MASK |
-		  CP_MES_DOORBELL_CONTROL1__DOORBELL_HIT_MASK);
-	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_LOW] <<
-		CP_MES_DOORBELL_CONTROL1__DOORBELL_OFFSET__SHIFT;
-	data |= 1 << CP_MES_DOORBELL_CONTROL1__DOORBELL_EN__SHIFT;
-	WREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL1, data);
-
-	data = RREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL2);
-	data &= ~(CP_MES_DOORBELL_CONTROL2__DOORBELL_OFFSET_MASK |
-		  CP_MES_DOORBELL_CONTROL2__DOORBELL_EN_MASK |
-		  CP_MES_DOORBELL_CONTROL2__DOORBELL_HIT_MASK);
-	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_NORMAL] <<
-		CP_MES_DOORBELL_CONTROL2__DOORBELL_OFFSET__SHIFT;
-	data |= 1 << CP_MES_DOORBELL_CONTROL2__DOORBELL_EN__SHIFT;
-	WREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL2, data);
-
-	data = RREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL3);
-	data &= ~(CP_MES_DOORBELL_CONTROL3__DOORBELL_OFFSET_MASK |
-		  CP_MES_DOORBELL_CONTROL3__DOORBELL_EN_MASK |
-		  CP_MES_DOORBELL_CONTROL3__DOORBELL_HIT_MASK);
-	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_MEDIUM] <<
-		CP_MES_DOORBELL_CONTROL3__DOORBELL_OFFSET__SHIFT;
-	data |= 1 << CP_MES_DOORBELL_CONTROL3__DOORBELL_EN__SHIFT;
-	WREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL3, data);
-
-	data = RREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL4);
-	data &= ~(CP_MES_DOORBELL_CONTROL4__DOORBELL_OFFSET_MASK |
-		  CP_MES_DOORBELL_CONTROL4__DOORBELL_EN_MASK |
-		  CP_MES_DOORBELL_CONTROL4__DOORBELL_HIT_MASK);
-	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_HIGH] <<
-		CP_MES_DOORBELL_CONTROL4__DOORBELL_OFFSET__SHIFT;
-	data |= 1 << CP_MES_DOORBELL_CONTROL4__DOORBELL_EN__SHIFT;
-	WREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL4, data);
-
-	data = RREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL5);
-	data &= ~(CP_MES_DOORBELL_CONTROL5__DOORBELL_OFFSET_MASK |
-		  CP_MES_DOORBELL_CONTROL5__DOORBELL_EN_MASK |
-		  CP_MES_DOORBELL_CONTROL5__DOORBELL_HIT_MASK);
-	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_REALTIME] <<
-		CP_MES_DOORBELL_CONTROL5__DOORBELL_OFFSET__SHIFT;
-	data |= 1 << CP_MES_DOORBELL_CONTROL5__DOORBELL_EN__SHIFT;
-	WREG32_SOC15(GC, 0, regCP_MES_DOORBELL_CONTROL5, data);
-
-	data = 1 << CP_HQD_GFX_CONTROL__DB_UPDATED_MSG_EN__SHIFT;
-	WREG32_SOC15(GC, 0, regCP_HQD_GFX_CONTROL, data);
 }
 
 static const struct amdgpu_mes_funcs mes_v11_0_funcs = {
@@ -790,8 +738,7 @@ static int mes_v11_0_mqd_init(struct amdgpu_ring *ring)
 				    DOORBELL_SOURCE, 0);
 		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
 				    DOORBELL_HIT, 0);
-	}
-	else
+	} else
 		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
 				    DOORBELL_EN, 0);
 	mqd->cp_hqd_pq_doorbell_control = tmp;
@@ -1019,10 +966,12 @@ static int mes_v11_0_mqd_sw_init(struct amdgpu_device *adev,
 
 	/* prepare MQD backup */
 	adev->mes.mqd_backup[pipe] = kmalloc(mqd_size, GFP_KERNEL);
-	if (!adev->mes.mqd_backup[pipe])
+	if (!adev->mes.mqd_backup[pipe]) {
 		dev_warn(adev->dev,
 			 "no memory to create MQD backup for ring %s\n",
 			 ring->name);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -1240,8 +1189,6 @@ static int mes_v11_0_hw_init(void *handle)
 	if (r)
 		goto failure;
 
-	mes_v11_0_init_aggregated_doorbell(&adev->mes);
-
 	r = mes_v11_0_query_sched_status(&adev->mes);
 	if (r) {
 		DRM_ERROR("MES is busy\n");
@@ -1314,7 +1261,7 @@ static int mes_v11_0_late_init(void *handle)
 
 	/* it's only intended for use in mes_self_test case, not for s0ix and reset */
 	if (!amdgpu_in_reset(adev) && !adev->in_s0ix && !adev->in_suspend &&
-	    (adev->ip_versions[GC_HWIP][0] != IP_VERSION(11, 0, 3)))
+	    (amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(11, 0, 3)))
 		amdgpu_mes_self_test(adev);
 
 	return 0;

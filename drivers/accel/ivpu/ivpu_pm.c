@@ -37,7 +37,7 @@ static void ivpu_pm_prepare_cold_boot(struct ivpu_device *vdev)
 static void ivpu_pm_prepare_warm_boot(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
-	struct vpu_boot_params *bp = fw->mem->kvaddr;
+	struct vpu_boot_params *bp = ivpu_bo_vaddr(fw->mem);
 
 	if (!bp->save_restore_ret_address) {
 		ivpu_pm_prepare_cold_boot(vdev);
@@ -246,6 +246,19 @@ int ivpu_rpm_get(struct ivpu_device *vdev)
 	return ret;
 }
 
+int ivpu_rpm_get_if_active(struct ivpu_device *vdev)
+{
+	int ret;
+
+	ivpu_dbg(vdev, RPM, "rpm_get_if_active count %d\n",
+		 atomic_read(&vdev->drm.dev->power.usage_count));
+
+	ret = pm_runtime_get_if_active(vdev->drm.dev, false);
+	drm_WARN_ON(&vdev->drm, ret < 0);
+
+	return ret;
+}
+
 void ivpu_rpm_put(struct ivpu_device *vdev)
 {
 	pm_runtime_mark_last_busy(vdev->drm.dev);
@@ -259,8 +272,10 @@ void ivpu_pm_reset_prepare_cb(struct pci_dev *pdev)
 	pm_runtime_get_sync(vdev->drm.dev);
 
 	ivpu_dbg(vdev, PM, "Pre-reset..\n");
+	atomic_inc(&vdev->pm->reset_counter);
 	atomic_set(&vdev->pm->in_reset, 1);
-	ivpu_shutdown(vdev);
+	ivpu_prepare_for_reset(vdev);
+	ivpu_hw_reset(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);
 	ivpu_jobs_abort_all(vdev);
 	ivpu_dbg(vdev, PM, "Pre-reset done.\n");
@@ -281,10 +296,11 @@ void ivpu_pm_reset_done_cb(struct pci_dev *pdev)
 	pm_runtime_put_autosuspend(vdev->drm.dev);
 }
 
-int ivpu_pm_init(struct ivpu_device *vdev)
+void ivpu_pm_init(struct ivpu_device *vdev)
 {
 	struct device *dev = vdev->drm.dev;
 	struct ivpu_pm_info *pm = vdev->pm;
+	int delay;
 
 	pm->vdev = vdev;
 	pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
@@ -292,16 +308,15 @@ int ivpu_pm_init(struct ivpu_device *vdev)
 	atomic_set(&pm->in_reset, 0);
 	INIT_WORK(&pm->recovery_work, ivpu_pm_recovery_work);
 
-	pm_runtime_use_autosuspend(dev);
-
 	if (ivpu_disable_recovery)
-		pm_runtime_set_autosuspend_delay(dev, -1);
-	else if (ivpu_is_silicon(vdev))
-		pm_runtime_set_autosuspend_delay(dev, 100);
+		delay = -1;
 	else
-		pm_runtime_set_autosuspend_delay(dev, 60000);
+		delay = vdev->timeout.autosuspend;
 
-	return 0;
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_set_autosuspend_delay(dev, delay);
+
+	ivpu_dbg(vdev, PM, "Autosuspend delay = %d\n", delay);
 }
 
 void ivpu_pm_cancel_recovery(struct ivpu_device *vdev)

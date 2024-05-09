@@ -553,7 +553,7 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 			 void *value, u64 map_flags, gfp_t gfp_flags)
 {
 	struct bpf_local_storage_data *old_sdata = NULL;
-	struct bpf_local_storage_elem *selem = NULL;
+	struct bpf_local_storage_elem *alloc_selem, *selem = NULL;
 	struct bpf_local_storage *local_storage;
 	unsigned long flags;
 	int err;
@@ -607,11 +607,12 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 		}
 	}
 
-	if (gfp_flags == GFP_KERNEL) {
-		selem = bpf_selem_alloc(smap, owner, value, true, gfp_flags);
-		if (!selem)
-			return ERR_PTR(-ENOMEM);
-	}
+	/* A lookup has just been done before and concluded a new selem is
+	 * needed. The chance of an unnecessary alloc is unlikely.
+	 */
+	alloc_selem = selem = bpf_selem_alloc(smap, owner, value, true, gfp_flags);
+	if (!alloc_selem)
+		return ERR_PTR(-ENOMEM);
 
 	raw_spin_lock_irqsave(&local_storage->lock, flags);
 
@@ -623,13 +624,13 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 		 * simple.
 		 */
 		err = -EAGAIN;
-		goto unlock_err;
+		goto unlock;
 	}
 
 	old_sdata = bpf_local_storage_lookup(local_storage, smap, false);
 	err = check_flags(old_sdata, map_flags);
 	if (err)
-		goto unlock_err;
+		goto unlock;
 
 	if (old_sdata && (map_flags & BPF_F_LOCK)) {
 		copy_map_value_locked(&smap->map, old_sdata->data, value,
@@ -638,23 +639,7 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 		goto unlock;
 	}
 
-	if (gfp_flags != GFP_KERNEL) {
-		/* local_storage->lock is held.  Hence, we are sure
-		 * we can unlink and uncharge the old_sdata successfully
-		 * later.  Hence, instead of charging the new selem now
-		 * and then uncharge the old selem later (which may cause
-		 * a potential but unnecessary charge failure),  avoid taking
-		 * a charge at all here (the "!old_sdata" check) and the
-		 * old_sdata will not be uncharged later during
-		 * bpf_selem_unlink_storage_nolock().
-		 */
-		selem = bpf_selem_alloc(smap, owner, value, !old_sdata, gfp_flags);
-		if (!selem) {
-			err = -ENOMEM;
-			goto unlock_err;
-		}
-	}
-
+	alloc_selem = NULL;
 	/* First, link the new selem to the map */
 	bpf_selem_link_map(smap, selem);
 
@@ -665,20 +650,16 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 	if (old_sdata) {
 		bpf_selem_unlink_map(SELEM(old_sdata));
 		bpf_selem_unlink_storage_nolock(local_storage, SELEM(old_sdata),
-						false, false);
+						true, false);
 	}
 
 unlock:
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
-	return SDATA(selem);
-
-unlock_err:
-	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
-	if (selem) {
+	if (alloc_selem) {
 		mem_uncharge(smap, owner, smap->elem_size);
-		bpf_selem_free(selem, smap, true);
+		bpf_selem_free(alloc_selem, smap, true);
 	}
-	return ERR_PTR(err);
+	return err ? ERR_PTR(err) : SDATA(selem);
 }
 
 static u16 bpf_local_storage_cache_idx_get(struct bpf_local_storage_cache *cache)
@@ -779,7 +760,7 @@ void bpf_local_storage_destroy(struct bpf_local_storage *local_storage)
 		 * of the loop will set the free_cgroup_storage to true.
 		 */
 		free_storage = bpf_selem_unlink_storage_nolock(
-			local_storage, selem, false, true);
+			local_storage, selem, true, true);
 	}
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 

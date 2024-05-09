@@ -92,7 +92,7 @@ config ARM_PMU_ACPI
 
 config ARM_SMMU_V3_PMU
 	 tristate "ARM SMMUv3 Performance Monitors Extension"
-	 depends on (ARM64 && ACPI) || (COMPILE_TEST && 64BIT)
+	 depends on ARM64 || (COMPILE_TEST && 64BIT)
 	 depends on GENERIC_MSI_IRQ
 	   help
 	   Provides support for the ARM SMMUv3 Performance Monitor Counter
@@ -220,5 +220,18 @@ config MARVELL_CN10K_DDR_PMU
 source "drivers/perf/arm_cspmu/Kconfig"
 
 source "drivers/perf/amlogic/Kconfig"
+
+config CXL_PMU
+	tristate "CXL Performance Monitoring Unit"
+	depends on CXL_BUS
+	help
+	  Support performance monitoring as defined in CXL rev 3.0
+	  section 13.2: Performance Monitoring. CXL components may have
+	  one or more CXL Performance Monitoring Units (CPMUs).
+
+	  Say 'y/m' to enable a driver that will attach to performance
+	  monitoring units and provide standard perf based interfaces.
+
+	  If unsure say 'm'.
 
 endmenu

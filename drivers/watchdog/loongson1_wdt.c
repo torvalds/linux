@@ -4,7 +4,9 @@
  */
 
 #include <linux/clk.h>
+#include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 
@@ -112,7 +114,7 @@ static int ls1x_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(drvdata->base))
 		return PTR_ERR(drvdata->base);
 
-	drvdata->clk = devm_clk_get_enabled(dev, pdev->name);
+	drvdata->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(drvdata->clk))
 		return PTR_ERR(drvdata->clk);
 
@@ -144,10 +146,20 @@ static int ls1x_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id ls1x_wdt_dt_ids[] = {
+	{ .compatible = "loongson,ls1b-wdt", },
+	{ .compatible = "loongson,ls1c-wdt", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, ls1x_wdt_dt_ids);
+#endif
+
 static struct platform_driver ls1x_wdt_driver = {
 	.probe = ls1x_wdt_probe,
 	.driver = {
 		.name = "ls1x-wdt",
+		.of_match_table = of_match_ptr(ls1x_wdt_dt_ids),
 	},
 };
 

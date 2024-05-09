@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2014-2021 Xilinx
  *
- *  Michal Simek <michal.simek@xilinx.com>
+ *  Michal Simek <michal.simek@amd.com>
  *  Davorin Mista <davorin.mista@aggios.com>
  *  Jolly Shah <jollys@xilinx.com>
  *  Rajan Vaja <rajanv@xilinx.com>
@@ -33,6 +33,19 @@
 
 /* PM API versions */
 #define PM_API_VERSION_2	2
+
+#define PM_PINCTRL_PARAM_SET_VERSION	2
+
+#define ZYNQMP_FAMILY_CODE 0x23
+#define VERSAL_FAMILY_CODE 0x26
+
+/* When all subfamily of platform need to support */
+#define ALL_SUB_FAMILY_CODE		0x00
+#define VERSAL_SUB_FAMILY_CODE		0x01
+#define VERSALNET_SUB_FAMILY_CODE	0x03
+
+#define FAMILY_CODE_MASK	GENMASK(27, 21)
+#define SUB_FAMILY_CODE_MASK	GENMASK(20, 19)
 
 /* ATF only commands */
 #define TF_A_PM_REGISTER_SGI		0xa04
@@ -86,6 +99,18 @@
 /* ZynqMP SD tap delay tuning */
 #define SD_ITAPDLY	0xFF180314
 #define SD_OTAPDLYSEL	0xFF180318
+
+/**
+ * XPM_EVENT_ERROR_MASK_DDRMC_CR: Error event mask for DDRMC MC Correctable ECC Error.
+ */
+#define XPM_EVENT_ERROR_MASK_DDRMC_CR		BIT(18)
+
+/**
+ * XPM_EVENT_ERROR_MASK_DDRMC_NCR: Error event mask for DDRMC MC Non-Correctable ECC Error.
+ */
+#define XPM_EVENT_ERROR_MASK_DDRMC_NCR		BIT(19)
+#define XPM_EVENT_ERROR_MASK_NOC_NCR		BIT(13)
+#define XPM_EVENT_ERROR_MASK_NOC_CR		BIT(12)
 
 enum pm_api_cb_id {
 	PM_INIT_SUSPEND_CB = 30,

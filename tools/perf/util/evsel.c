@@ -845,6 +845,7 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 {
 	bool function = evsel__is_function_event(evsel);
 	struct perf_event_attr *attr = &evsel->core.attr;
+	const char *arch = perf_env__arch(evsel__env(evsel));
 
 	evsel__set_sample_bit(evsel, CALLCHAIN);
 
@@ -877,8 +878,9 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 		if (!function) {
 			evsel__set_sample_bit(evsel, REGS_USER);
 			evsel__set_sample_bit(evsel, STACK_USER);
-			if (opts->sample_user_regs && DWARF_MINIMAL_REGS != PERF_REGS_MASK) {
-				attr->sample_regs_user |= DWARF_MINIMAL_REGS;
+			if (opts->sample_user_regs &&
+			    DWARF_MINIMAL_REGS(arch) != arch__user_reg_mask()) {
+				attr->sample_regs_user |= DWARF_MINIMAL_REGS(arch);
 				pr_warning("WARNING: The use of --call-graph=dwarf may require all the user registers, "
 					   "specifying a subset with --user-regs may render DWARF unwinding unreliable, "
 					   "so the minimal registers set (IP, SP) is explicitly forced.\n");
@@ -1474,6 +1476,7 @@ void evsel__exit(struct evsel *evsel)
 	perf_thread_map__put(evsel->core.threads);
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);
+	zfree(&evsel->filter);
 	zfree(&evsel->pmu_name);
 	zfree(&evsel->group_pmu_name);
 	zfree(&evsel->unit);
@@ -2826,9 +2829,6 @@ u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *n
 {
 	struct tep_format_field *field = evsel__field(evsel, name);
 
-	if (!field)
-		return 0;
-
 	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
 }
 #endif
@@ -2924,25 +2924,19 @@ static bool find_process(const char *name)
 	return ret ? false : true;
 }
 
-static bool is_amd(const char *arch, const char *cpuid)
+int __weak arch_evsel__open_strerror(struct evsel *evsel __maybe_unused,
+				     char *msg __maybe_unused,
+				     size_t size __maybe_unused)
 {
-	return arch && !strcmp("x86", arch) && cpuid && strstarts(cpuid, "AuthenticAMD");
-}
-
-static bool is_amd_ibs(struct evsel *evsel)
-{
-	return evsel->core.attr.precise_ip
-	    || (evsel->pmu_name && !strncmp(evsel->pmu_name, "ibs", 3));
+	return 0;
 }
 
 int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			 int err, char *msg, size_t size)
 {
-	struct perf_env *env = evsel__env(evsel);
-	const char *arch = perf_env__arch(env);
-	const char *cpuid = perf_env__cpuid(env);
 	char sbuf[STRERR_BUFSIZE];
 	int printed = 0, enforced = 0;
+	int ret;
 
 	switch (err) {
 	case EPERM:
@@ -3044,16 +3038,6 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			return scnprintf(msg, size,
 	"Invalid event (%s) in per-thread mode, enable system wide with '-a'.",
 					evsel__name(evsel));
-		if (is_amd(arch, cpuid)) {
-			if (is_amd_ibs(evsel)) {
-				if (evsel->core.attr.exclude_kernel)
-					return scnprintf(msg, size,
-	"AMD IBS can't exclude kernel events.  Try running at a higher privilege level.");
-				if (!evsel->core.system_wide)
-					return scnprintf(msg, size,
-	"AMD IBS may only be available in system-wide/per-cpu mode.  Try using -a, or -C and workload affinity");
-			}
-		}
 
 		break;
 	case ENODATA:
@@ -3062,6 +3046,10 @@ int evsel__open_strerror(struct evsel *evsel, struct target *target,
 	default:
 		break;
 	}
+
+	ret = arch_evsel__open_strerror(evsel, msg, size);
+	if (ret)
+		return ret;
 
 	return scnprintf(msg, size,
 	"The sys_perf_event_open() syscall returned with %d (%s) for event (%s).\n"

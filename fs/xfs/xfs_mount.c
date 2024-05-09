@@ -34,6 +34,7 @@
 #include "xfs_health.h"
 #include "xfs_trace.h"
 #include "xfs_ag.h"
+#include "scrub/stats.h"
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
 static int xfs_uuid_table_size;
@@ -716,9 +717,11 @@ xfs_mountfs(
 	if (error)
 		goto out_remove_sysfs;
 
+	xchk_stats_register(mp->m_scrub_stats, mp->m_debugfs);
+
 	error = xfs_error_sysfs_init(mp);
 	if (error)
-		goto out_del_stats;
+		goto out_remove_scrub_stats;
 
 	error = xfs_errortag_init(mp);
 	if (error)
@@ -1018,7 +1021,7 @@ xfs_mountfs(
  out_log_dealloc:
 	xfs_log_mount_cancel(mp);
  out_inodegc_shrinker:
-	unregister_shrinker(&mp->m_inodegc_shrinker);
+	shrinker_free(mp->m_inodegc_shrinker);
  out_fail_wait:
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_buftarg_drain(mp->m_logdev_targp);
@@ -1033,7 +1036,8 @@ xfs_mountfs(
 	xfs_errortag_del(mp);
  out_remove_error_sysfs:
 	xfs_error_sysfs_del(mp);
- out_del_stats:
+ out_remove_scrub_stats:
+	xchk_stats_unregister(mp->m_scrub_stats);
 	xfs_sysfs_del(&mp->m_stats.xs_kobj);
  out_remove_sysfs:
 	xfs_sysfs_del(&mp->m_kobj);
@@ -1100,11 +1104,12 @@ xfs_unmountfs(
 #if defined(DEBUG)
 	xfs_errortag_clearall(mp);
 #endif
-	unregister_shrinker(&mp->m_inodegc_shrinker);
+	shrinker_free(mp->m_inodegc_shrinker);
 	xfs_free_perag(mp);
 
 	xfs_errortag_del(mp);
 	xfs_error_sysfs_del(mp);
+	xchk_stats_unregister(mp->m_scrub_stats);
 	xfs_sysfs_del(&mp->m_stats.xs_kobj);
 	xfs_sysfs_del(&mp->m_kobj);
 }

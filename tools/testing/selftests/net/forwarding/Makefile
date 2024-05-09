@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0+ OR MIT
 
-TEST_PROGS = bridge_igmp.sh \
+TEST_PROGS = bridge_fdb_learning_limit.sh \
+	bridge_igmp.sh \
 	bridge_locked_port.sh \
 	bridge_mdb.sh \
 	bridge_mdb_host.sh \
@@ -64,7 +65,13 @@ TEST_PROGS = bridge_igmp.sh \
 	q_in_vni_ipv6.sh \
 	q_in_vni.sh \
 	router_bridge.sh \
+	router_bridge_1d.sh \
+	router_bridge_1d_lag.sh \
+	router_bridge_lag.sh \
 	router_bridge_vlan.sh \
+	router_bridge_vlan_upper.sh \
+	router_bridge_pvid_vlan_upper.sh \
+	router_bridge_vlan_upper_pvid.sh \
 	router_broadcast.sh \
 	router_mpath_nh_res.sh \
 	router_mpath_nh.sh \
@@ -85,6 +92,7 @@ TEST_PROGS = bridge_igmp.sh \
 	tc_flower.sh \
 	tc_flower_l2_miss.sh \
 	tc_flower_cfm.sh \
+	tc_flower_port_range.sh \
 	tc_mpls_l2vpn.sh \
 	tc_police.sh \
 	tc_shblocks.sh \

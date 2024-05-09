@@ -12,7 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -326,7 +326,7 @@ static const struct v4l2_subdev_ops rcar_isp_subdev_ops = {
 
 static int risp_notify_bound(struct v4l2_async_notifier *notifier,
 			     struct v4l2_subdev *subdev,
-			     struct v4l2_async_subdev *asd)
+			     struct v4l2_async_connection *asd)
 {
 	struct rcar_isp *isp = notifier_to_isp(notifier);
 	int pad;
@@ -350,7 +350,7 @@ static int risp_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void risp_notify_unbind(struct v4l2_async_notifier *notifier,
 			       struct v4l2_subdev *subdev,
-			       struct v4l2_async_subdev *asd)
+			       struct v4l2_async_connection *asd)
 {
 	struct rcar_isp *isp = notifier_to_isp(notifier);
 
@@ -366,7 +366,7 @@ static const struct v4l2_async_notifier_operations risp_notify_ops = {
 
 static int risp_parse_dt(struct rcar_isp *isp)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *fwnode;
 	struct fwnode_handle *ep;
 	unsigned int id;
@@ -392,16 +392,16 @@ static int risp_parse_dt(struct rcar_isp *isp)
 
 	dev_dbg(isp->dev, "Found '%pOF'\n", to_of_node(fwnode));
 
-	v4l2_async_nf_init(&isp->notifier);
+	v4l2_async_subdev_nf_init(&isp->notifier, &isp->subdev);
 	isp->notifier.ops = &risp_notify_ops;
 
 	asd = v4l2_async_nf_add_fwnode(&isp->notifier, fwnode,
-				       struct v4l2_async_subdev);
+				       struct v4l2_async_connection);
 	fwnode_handle_put(fwnode);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);
 
-	ret = v4l2_async_subdev_nf_register(&isp->subdev, &isp->notifier);
+	ret = v4l2_async_nf_register(&isp->notifier);
 	if (ret)
 		v4l2_async_nf_cleanup(&isp->notifier);
 
@@ -430,6 +430,7 @@ static int risp_probe_resources(struct rcar_isp *isp,
 
 static const struct of_device_id risp_of_id_table[] = {
 	{ .compatible = "renesas,r8a779a0-isp" },
+	{ .compatible = "renesas,r8a779g0-isp" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, risp_of_id_table);

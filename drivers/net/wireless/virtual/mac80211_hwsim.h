@@ -3,7 +3,7 @@
  * mac80211_hwsim - software simulator of 802.11 radio(s) for mac80211
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
- * Copyright (C) 2020, 2022 Intel Corporation
+ * Copyright (C) 2020, 2022-2023 Intel Corporation
  */
 
 #ifndef __MAC80211_HWSIM_H
@@ -86,7 +86,7 @@ enum hwsim_tx_control_flags {
  *	with %HWSIM_CMD_REPORT_PMSR.
  * @__HWSIM_CMD_MAX: enum limit
  */
-enum {
+enum hwsim_commands {
 	HWSIM_CMD_UNSPEC,
 	HWSIM_CMD_REGISTER,
 	HWSIM_CMD_FRAME,
@@ -117,11 +117,11 @@ enum {
  *	the frame was broadcasted from
  * @HWSIM_ATTR_FRAME: Data array
  * @HWSIM_ATTR_FLAGS: mac80211 transmission flags, used to process
-	properly the frame at user space
+ *	properly the frame at user space
  * @HWSIM_ATTR_RX_RATE: estimated rx rate index for this frame at user
-	space
+ *	space
  * @HWSIM_ATTR_SIGNAL: estimated RX signal for this frame at user
-	space
+ *	space
  * @HWSIM_ATTR_TX_INFO: ieee80211_tx_rate array
  * @HWSIM_ATTR_COOKIE: sk_buff cookie to identify the frame
  * @HWSIM_ATTR_CHANNELS: u32 attribute used with the %HWSIM_CMD_CREATE_RADIO
@@ -140,6 +140,7 @@ enum {
  *	command to force radio removal when process that created the radio dies
  * @HWSIM_ATTR_RADIO_NAME: Name of radio, e.g. phy666
  * @HWSIM_ATTR_NO_VIF:  Do not create vif (wlanX) when creating radio.
+ * @HWSIM_ATTR_PAD: padding attribute for 64-bit values, ignore
  * @HWSIM_ATTR_FREQ: Frequency at which packet is transmitted or received.
  * @HWSIM_ATTR_TX_INFO_FLAGS: additional flags for corresponding
  *	rates of %HWSIM_ATTR_TX_INFO
@@ -156,9 +157,7 @@ enum {
  *	to provide peer measurement result (nl80211_peer_measurement_attrs)
  * @__HWSIM_ATTR_MAX: enum limit
  */
-
-
-enum {
+enum hwsim_attrs {
 	HWSIM_ATTR_UNSPEC,
 	HWSIM_ATTR_ADDR_RECEIVER,
 	HWSIM_ATTR_ADDR_TRANSMITTER,
@@ -259,7 +258,7 @@ enum hwsim_tx_rate_flags {
  * struct hwsim_tx_rate - rate selection/status
  *
  * @idx: rate index to attempt to send with
- * @count: number of tries in this rate before going to the next rate
+ * @flags: the rate flags according to &enum hwsim_tx_rate_flags
  *
  * A value of -1 for @idx indicates an invalid rate and, if used
  * in an array of retry rates, that no more rates should be tried.
@@ -287,7 +286,7 @@ struct hwsim_tx_rate_flag {
  * @HWSIM_VQ_RX: receive frames and transmission info reports
  * @HWSIM_NUM_VQS: enum limit
  */
-enum {
+enum hwsim_vqs {
 	HWSIM_VQ_TX,
 	HWSIM_VQ_RX,
 	HWSIM_NUM_VQS,

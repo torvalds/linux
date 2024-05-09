@@ -5,6 +5,8 @@
 struct perf_pmu;
 struct print_callbacks;
 
+int pmu_name_len_no_suffix(const char *str, unsigned long *num);
+
 void perf_pmus__destroy(void);
 
 struct perf_pmu *perf_pmus__find(const char *name);

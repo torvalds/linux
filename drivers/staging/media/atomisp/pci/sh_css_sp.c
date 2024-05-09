@@ -51,6 +51,7 @@
 #include "ia_css_event.h"
 #include "mmu_device.h"
 #include "ia_css_spctrl.h"
+#include "atomisp_internal.h"
 
 #ifndef offsetof
 #define offsetof(T, x) ((unsigned int)&(((T *)0)->x))
@@ -952,12 +953,10 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 		return 0;
 	}
 
-#if defined(ISP2401)
-	(void)continuous;
-	sh_css_sp_stage.deinterleaved = 0;
-#else
-	sh_css_sp_stage.deinterleaved = ((stage == 0) && continuous);
-#endif
+	if (IS_ISP2401)
+		sh_css_sp_stage.deinterleaved = 0;
+	else
+		sh_css_sp_stage.deinterleaved = ((stage == 0) && continuous);
 
 	initialize_stage_frames(&sh_css_sp_stage.frames);
 	/*
@@ -1214,14 +1213,15 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	struct ia_css_binary	     *first_binary = NULL;
 	struct ia_css_pipe *pipe = NULL;
 	unsigned int num;
-
 	enum ia_css_pipe_id pipe_id = id;
 	unsigned int thread_id;
 	u8 if_config_index, tmp_if_config_index;
 
-	assert(me);
-
-	assert(me->stages);
+	if (!me->stages) {
+		dev_err(atomisp_dev, "%s called on a pipeline without stages\n",
+			__func__);
+		return; /* FIXME should be able to return an error */
+	}
 
 	first_binary = me->stages->binary;
 
@@ -1254,8 +1254,8 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	} /* if (first_binary != NULL) */
 
 	/* Signal the host immediately after start for SP_ISYS_COPY only */
-	if ((me->num_stages == 1) && me->stages &&
-	    (me->stages->sp_func == IA_CSS_PIPELINE_ISYS_COPY))
+	if (me->num_stages == 1 &&
+	    me->stages->sp_func == IA_CSS_PIPELINE_ISYS_COPY)
 		sh_css_sp_group.config.no_isp_sync = true;
 
 	/* Init stage data */

@@ -98,4 +98,5 @@ void stp_proto_unregister(const struct stp_proto *proto)
 }
 EXPORT_SYMBOL_GPL(stp_proto_unregister);
 
+MODULE_DESCRIPTION("SAP demux for IEEE 802.1D Spanning Tree Protocol (STP)");
 MODULE_LICENSE("GPL");

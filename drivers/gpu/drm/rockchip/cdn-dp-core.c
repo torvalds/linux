@@ -1177,6 +1177,7 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	struct cdn_dp_device *dp;
 	struct extcon_dev *extcon;
 	struct phy *phy;
+	int ret;
 	int i;
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
@@ -1217,20 +1218,28 @@ static int cdn_dp_probe(struct platform_device *pdev)
 	mutex_init(&dp->lock);
 	dev_set_drvdata(dev, dp);
 
-	cdn_dp_audio_codec_init(dp, dev);
+	ret = cdn_dp_audio_codec_init(dp, dev);
+	if (ret)
+		return ret;
 
-	return component_add(dev, &cdn_dp_component_ops);
+	ret = component_add(dev, &cdn_dp_component_ops);
+	if (ret)
+		goto err_audio_deinit;
+
+	return 0;
+
+err_audio_deinit:
+	platform_device_unregister(dp->audio_pdev);
+	return ret;
 }
 
-static int cdn_dp_remove(struct platform_device *pdev)
+static void cdn_dp_remove(struct platform_device *pdev)
 {
 	struct cdn_dp_device *dp = platform_get_drvdata(pdev);
 
 	platform_device_unregister(dp->audio_pdev);
 	cdn_dp_suspend(dp->dev);
 	component_del(&pdev->dev, &cdn_dp_component_ops);
-
-	return 0;
 }
 
 static void cdn_dp_shutdown(struct platform_device *pdev)
@@ -1247,12 +1256,12 @@ static const struct dev_pm_ops cdn_dp_pm_ops = {
 
 struct platform_driver cdn_dp_driver = {
 	.probe = cdn_dp_probe,
-	.remove = cdn_dp_remove,
+	.remove_new = cdn_dp_remove,
 	.shutdown = cdn_dp_shutdown,
 	.driver = {
 		   .name = "cdn-dp",
 		   .owner = THIS_MODULE,
-		   .of_match_table = of_match_ptr(cdn_dp_dt_ids),
+		   .of_match_table = cdn_dp_dt_ids,
 		   .pm = &cdn_dp_pm_ops,
 	},
 };

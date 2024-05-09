@@ -136,6 +136,16 @@ do { \
 
 #define ADF_GEN4_VFLNOTIFY	BIT(7)
 
+/* Number of heartbeat counter pairs */
+#define ADF_NUM_HB_CNT_PER_AE ADF_NUM_THREADS_PER_AE
+
+/* Rate Limiting */
+#define ADF_GEN4_RL_R2L_OFFSET			0x508000
+#define ADF_GEN4_RL_L2C_OFFSET			0x509000
+#define ADF_GEN4_RL_C2S_OFFSET			0x508818
+#define ADF_GEN4_RL_TOKEN_PCIEIN_BUCKET_OFFSET	0x508800
+#define ADF_GEN4_RL_TOKEN_PCIEOUT_BUCKET_OFFSET	0x508804
+
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
 int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number);

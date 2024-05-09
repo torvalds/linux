@@ -78,6 +78,8 @@ mlx5_esw_bridge_mdb_flow_create(u16 esw_owner_vhca_id, struct mlx5_esw_bridge_md
 	xa_for_each(&entry->ports, idx, port) {
 		dests[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 		dests[i].ft = port->mcast.ft;
+		if (port->vport_num == MLX5_VPORT_UPLINK)
+			dests[i].ft->flags |= MLX5_FLOW_TABLE_UPLINK_VPORT;
 		i++;
 	}
 
@@ -539,30 +541,29 @@ mlx5_esw_bridge_mcast_filter_flow_create(struct mlx5_esw_bridge_port *port)
 static struct mlx5_flow_handle *
 mlx5_esw_bridge_mcast_filter_flow_peer_create(struct mlx5_esw_bridge_port *port)
 {
-	struct mlx5_devcom *devcom = port->bridge->br_offloads->esw->dev->priv.devcom;
+	struct mlx5_devcom_comp_dev *devcom = port->bridge->br_offloads->esw->devcom, *pos;
 	struct mlx5_eswitch *tmp, *peer_esw = NULL;
 	static struct mlx5_flow_handle *handle;
-	int i;
 
-	if (!mlx5_devcom_for_each_peer_begin(devcom, MLX5_DEVCOM_ESW_OFFLOADS))
+	if (!mlx5_devcom_for_each_peer_begin(devcom))
 		return ERR_PTR(-ENODEV);
 
-	mlx5_devcom_for_each_peer_entry(devcom,
-					MLX5_DEVCOM_ESW_OFFLOADS,
-					tmp, i) {
+	mlx5_devcom_for_each_peer_entry(devcom, tmp, pos) {
 		if (mlx5_esw_is_owner(tmp, port->vport_num, port->esw_owner_vhca_id)) {
 			peer_esw = tmp;
 			break;
 		}
 	}
+
 	if (!peer_esw) {
-		mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-		return ERR_PTR(-ENODEV);
+		handle = ERR_PTR(-ENODEV);
+		goto out;
 	}
 
 	handle = mlx5_esw_bridge_mcast_flow_with_esw_create(port, peer_esw);
 
-	mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+out:
+	mlx5_devcom_for_each_peer_end(devcom);
 	return handle;
 }
 
@@ -586,10 +587,6 @@ mlx5_esw_bridge_mcast_vlan_flow_create(u16 vlan_proto, struct mlx5_esw_bridge_po
 	if (!rule_spec)
 		return ERR_PTR(-ENOMEM);
 
-	if (MLX5_CAP_ESW_FLOWTABLE(bridge->br_offloads->esw->dev, flow_source) &&
-	    port->vport_num == MLX5_VPORT_UPLINK)
-		rule_spec->flow_context.flow_source =
-			MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
 	rule_spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 
 	flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
@@ -660,11 +657,6 @@ mlx5_esw_bridge_mcast_fwd_flow_create(struct mlx5_esw_bridge_port *port)
 	rule_spec = kvzalloc(sizeof(*rule_spec), GFP_KERNEL);
 	if (!rule_spec)
 		return ERR_PTR(-ENOMEM);
-
-	if (MLX5_CAP_ESW_FLOWTABLE(bridge->br_offloads->esw->dev, flow_source) &&
-	    port->vport_num == MLX5_VPORT_UPLINK)
-		rule_spec->flow_context.flow_source =
-			MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT;
 
 	if (MLX5_CAP_ESW(bridge->br_offloads->esw->dev, merged_eswitch)) {
 		dest.vport.flags = MLX5_FLOW_DEST_VPORT_VHCA_ID;

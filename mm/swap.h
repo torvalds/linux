@@ -2,6 +2,8 @@
 #ifndef _MM_SWAP_H
 #define _MM_SWAP_H
 
+struct mempolicy;
+
 #ifdef CONFIG_SWAP
 #include <linux/blk_types.h> /* for bio_end_io_t */
 
@@ -46,14 +48,12 @@ struct folio *filemap_get_incore_folio(struct address_space *mapping,
 struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 				   struct vm_area_struct *vma,
 				   unsigned long addr,
-				   bool do_poll,
 				   struct swap_iocb **plug);
 struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-				     struct vm_area_struct *vma,
-				     unsigned long addr,
+				     struct mempolicy *mpol, pgoff_t ilx,
 				     bool *new_page_allocated);
 struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t flag,
-				    struct vm_fault *vmf);
+				    struct mempolicy *mpol, pgoff_t ilx);
 struct page *swapin_readahead(swp_entry_t entry, gfp_t flag,
 			      struct vm_fault *vmf);
 
@@ -81,7 +81,7 @@ static inline void show_swap_cache_info(void)
 }
 
 static inline struct page *swap_cluster_readahead(swp_entry_t entry,
-				gfp_t gfp_mask, struct vm_fault *vmf)
+			gfp_t gfp_mask, struct mempolicy *mpol, pgoff_t ilx)
 {
 	return NULL;
 }

@@ -500,8 +500,8 @@ static int tc_pllupdate(struct tc_data *tc, unsigned int pllctrl)
 	if (ret)
 		return ret;
 
-	/* Wait for PLL to lock: up to 2.09 ms, depending on refclk */
-	usleep_range(3000, 6000);
+	/* Wait for PLL to lock: up to 7.5 ms, depending on refclk */
+	usleep_range(15000, 20000);
 
 	return 0;
 }
@@ -817,7 +817,7 @@ static int tc_set_common_video_mode(struct tc_data *tc,
 	 * sync signals
 	 */
 	ret = regmap_write(tc->regmap, VPCTRL0,
-			   FIELD_PREP(VSDELAY, 0) |
+			   FIELD_PREP(VSDELAY, right_margin + 10) |
 			   OPXLFMT_RGB888 | FRMSYNC_DISABLED | MSF_DISABLED);
 	if (ret)
 		return ret;
@@ -2005,7 +2005,7 @@ static const struct regmap_config tc_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = PLL_DBG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.readable_reg = tc_readable_reg,
 	.volatile_table = &tc_volatile_table,
 	.writeable_reg = tc_writeable_reg,
@@ -2215,13 +2215,6 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 	return -EINVAL;
 }
 
-static void tc_clk_disable(void *data)
-{
-	struct clk *refclk = data;
-
-	clk_disable_unprepare(refclk);
-}
-
 static int tc_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -2238,20 +2231,10 @@ static int tc_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	tc->refclk = devm_clk_get(dev, "ref");
-	if (IS_ERR(tc->refclk)) {
-		ret = PTR_ERR(tc->refclk);
-		dev_err(dev, "Failed to get refclk: %d\n", ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(tc->refclk);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, tc_clk_disable, tc->refclk);
-	if (ret)
-		return ret;
+	tc->refclk = devm_clk_get_enabled(dev, "ref");
+	if (IS_ERR(tc->refclk))
+		return dev_err_probe(dev, PTR_ERR(tc->refclk),
+				     "Failed to get and enable the ref clk\n");
 
 	/* tRSTW = 100 cycles , at 13 MHz that is ~7.69 us */
 	usleep_range(10, 15);

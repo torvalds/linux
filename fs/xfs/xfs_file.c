@@ -1287,11 +1287,11 @@ xfs_file_llseek(
 static inline vm_fault_t
 xfs_dax_fault(
 	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size,
+	unsigned int		order,
 	bool			write_fault,
 	pfn_t			*pfn)
 {
-	return dax_iomap_fault(vmf, pe_size, pfn, NULL,
+	return dax_iomap_fault(vmf, order, pfn, NULL,
 			(write_fault && !vmf->cow_page) ?
 				&xfs_dax_write_iomap_ops :
 				&xfs_read_iomap_ops);
@@ -1300,7 +1300,7 @@ xfs_dax_fault(
 static inline vm_fault_t
 xfs_dax_fault(
 	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size,
+	unsigned int		order,
 	bool			write_fault,
 	pfn_t			*pfn)
 {
@@ -1322,14 +1322,14 @@ xfs_dax_fault(
 static vm_fault_t
 __xfs_filemap_fault(
 	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size,
+	unsigned int		order,
 	bool			write_fault)
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
 	struct xfs_inode	*ip = XFS_I(inode);
 	vm_fault_t		ret;
 
-	trace_xfs_filemap_fault(ip, pe_size, write_fault);
+	trace_xfs_filemap_fault(ip, order, write_fault);
 
 	if (write_fault) {
 		sb_start_pagefault(inode->i_sb);
@@ -1340,9 +1340,9 @@ __xfs_filemap_fault(
 		pfn_t pfn;
 
 		xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-		ret = xfs_dax_fault(vmf, pe_size, write_fault, &pfn);
+		ret = xfs_dax_fault(vmf, order, write_fault, &pfn);
 		if (ret & VM_FAULT_NEEDDSYNC)
-			ret = dax_finish_sync_fault(vmf, pe_size, pfn);
+			ret = dax_finish_sync_fault(vmf, order, pfn);
 		xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 	} else {
 		if (write_fault) {
@@ -1373,7 +1373,7 @@ xfs_filemap_fault(
 	struct vm_fault		*vmf)
 {
 	/* DAX can shortcut the normal fault path on write faults! */
-	return __xfs_filemap_fault(vmf, PE_SIZE_PTE,
+	return __xfs_filemap_fault(vmf, 0,
 			IS_DAX(file_inode(vmf->vma->vm_file)) &&
 			xfs_is_write_fault(vmf));
 }
@@ -1381,13 +1381,13 @@ xfs_filemap_fault(
 static vm_fault_t
 xfs_filemap_huge_fault(
 	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size)
+	unsigned int		order)
 {
 	if (!IS_DAX(file_inode(vmf->vma->vm_file)))
 		return VM_FAULT_FALLBACK;
 
 	/* DAX can shortcut the normal fault path on write faults! */
-	return __xfs_filemap_fault(vmf, pe_size,
+	return __xfs_filemap_fault(vmf, order,
 			xfs_is_write_fault(vmf));
 }
 
@@ -1395,7 +1395,7 @@ static vm_fault_t
 xfs_filemap_page_mkwrite(
 	struct vm_fault		*vmf)
 {
-	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
+	return __xfs_filemap_fault(vmf, 0, true);
 }
 
 /*
@@ -1408,7 +1408,7 @@ xfs_filemap_pfn_mkwrite(
 	struct vm_fault		*vmf)
 {
 
-	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
+	return __xfs_filemap_fault(vmf, 0, true);
 }
 
 static const struct vm_operations_struct xfs_file_vm_ops = {

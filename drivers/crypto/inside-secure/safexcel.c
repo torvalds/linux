@@ -1801,7 +1801,7 @@ err_core_clk:
 	return ret;
 }
 
-static int safexcel_remove(struct platform_device *pdev)
+static void safexcel_remove(struct platform_device *pdev)
 {
 	struct safexcel_crypto_priv *priv = platform_get_drvdata(pdev);
 	int i;
@@ -1816,8 +1816,6 @@ static int safexcel_remove(struct platform_device *pdev)
 		irq_set_affinity_hint(priv->ring[i].irq, NULL);
 		destroy_workqueue(priv->ring[i].workqueue);
 	}
-
-	return 0;
 }
 
 static const struct safexcel_priv_data eip97ies_mrvl_data = {
@@ -1874,7 +1872,7 @@ MODULE_DEVICE_TABLE(of, safexcel_of_match_table);
 
 static struct platform_driver  crypto_safexcel = {
 	.probe		= safexcel_probe,
-	.remove		= safexcel_remove,
+	.remove_new	= safexcel_remove,
 	.driver		= {
 		.name	= "crypto-safexcel",
 		.of_match_table = safexcel_of_match_table,

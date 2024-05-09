@@ -1438,14 +1438,33 @@ static void atom_get_vbios_pn(struct atom_context *ctx)
 
 		ctx->vbios_pn[count] = 0;
 	}
+
+	pr_info("ATOM BIOS: %s\n", ctx->vbios_pn);
 }
 
 static void atom_get_vbios_version(struct atom_context *ctx)
 {
+	unsigned short start = 3, end;
 	unsigned char *vbios_ver;
+	unsigned char *p_rom;
+
+	p_rom = ctx->bios;
+	/* Search from strings offset if it's present */
+	start = *(unsigned short *)(p_rom +
+				    OFFSET_TO_GET_ATOMBIOS_STRING_START);
+
+	/* Search till atom rom header start point */
+	end = *(unsigned short *)(p_rom + OFFSET_TO_ATOM_ROM_HEADER_POINTER);
+
+	/* Use hardcoded offsets, if the offsets are not populated */
+	if (end <= start) {
+		start = 3;
+		end = 1024;
+	}
 
 	/* find anchor ATOMBIOSBK-AMD */
-	vbios_ver = atom_find_str_in_rom(ctx, BIOS_VERSION_PREFIX, 3, 1024, 64);
+	vbios_ver =
+		atom_find_str_in_rom(ctx, BIOS_VERSION_PREFIX, start, end, 64);
 	if (vbios_ver != NULL) {
 		/* skip ATOMBIOSBK-AMD VER */
 		vbios_ver += 18;
@@ -1460,11 +1479,9 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 	int base;
 	struct atom_context *ctx =
 	    kzalloc(sizeof(struct atom_context), GFP_KERNEL);
-	char *str;
 	struct _ATOM_ROM_HEADER *atom_rom_header;
 	struct _ATOM_MASTER_DATA_TABLE *master_table;
 	struct _ATOM_FIRMWARE_INFO *atom_fw_info;
-	u16 idx;
 
 	if (!ctx)
 		return NULL;
@@ -1500,16 +1517,6 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 	if (!ctx->iio) {
 		amdgpu_atom_destroy(ctx);
 		return NULL;
-	}
-
-	idx = CU16(ATOM_ROM_PART_NUMBER_PTR);
-	if (idx == 0)
-		idx = 0x80;
-
-	str = CSTR(idx);
-	if (*str != '\0') {
-		pr_info("ATOM BIOS: %s\n", str);
-		strscpy(ctx->vbios_version, str, sizeof(ctx->vbios_version));
 	}
 
 	atom_rom_header = (struct _ATOM_ROM_HEADER *)CSTR(base);

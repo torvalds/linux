@@ -563,6 +563,7 @@
 
 &main_sdhci0 {
 	/* eMMC */
+	status = "okay";
 	non-removable;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
@@ -570,27 +571,13 @@
 
 &main_sdhci1 {
 	/* SD Card */
+	status = "okay";
 	vmmc-supply = <&vdd_mmc1>;
 	vqmmc-supply = <&vdd_sd_dv_alt>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
-};
-
-&main_sdhci2 {
-	/* Unused */
-	status = "disabled";
-};
-
-&ospi0 {
-	/* Unused */
-	status = "disabled";
-};
-
-&ospi1 {
-	/* Unused */
-	status = "disabled";
 };
 
 &main_i2c0 {
@@ -660,50 +647,21 @@
 	};
 };
 
-&main_gpio2 {
-	/* Unused */
-	status = "disabled";
-};
-
-&main_gpio3 {
-	/* Unused */
-	status = "disabled";
-};
-
-&main_gpio4 {
-	/* Unused */
-	status = "disabled";
-};
-
-&main_gpio5 {
-	/* Unused */
-	status = "disabled";
-};
-
-&main_gpio6 {
-	/* Unused */
-	status = "disabled";
-};
-
-&main_gpio7 {
-	/* Unused */
-	status = "disabled";
-};
-
 &wkup_gpio0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_adc0_pins_default>, <&mcu_adc1_pins_default>,
 		    <&mikro_bus_pins_default>;
 };
 
-&wkup_gpio1 {
-	/* Unused */
-	status = "disabled";
-};
-
 &main_gpio0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&csi1_gpio_pins_default>, <&csi0_gpio_pins_default>;
+};
+
+&main_gpio1 {
+	status = "okay";
 };
 
 &usb_serdes_mux {
@@ -789,6 +747,7 @@
 };
 
 &tscadc0 {
+	status = "okay";
 	/* BBB Header: P9.39, P9.40, P9.37, P9.38, P9.33, P9.36, P9.35 */
 	adc {
 		ti,adc-channels = <0 1 2 3 4 5 6>;
@@ -796,6 +755,7 @@
 };
 
 &tscadc1 {
+	status = "okay";
 	/* MCU mikroBUS Header J10.1 - MCU_ADC1_AIN0 */
 	adc {
 		ti,adc-channels = <0>;
@@ -1012,18 +972,21 @@
 };
 
 &c66_0 {
+	status = "okay";
 	mboxes = <&mailbox0_cluster3>, <&mbox_c66_0>;
 	memory-region = <&c66_0_dma_memory_region>,
 			<&c66_0_memory_region>;
 };
 
 &c66_1 {
+	status = "okay";
 	mboxes = <&mailbox0_cluster3>, <&mbox_c66_1>;
 	memory-region = <&c66_1_dma_memory_region>,
 			<&c66_1_memory_region>;
 };
 
 &c71_0 {
+	status = "okay";
 	mboxes = <&mailbox0_cluster4>, <&mbox_c71_0>;
 	memory-region = <&c71_0_dma_memory_region>,
 			<&c71_0_memory_region>;

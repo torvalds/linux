@@ -127,10 +127,10 @@ static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 				chip->of_xlate(chip, gpiospec, NULL) >= 0;
 }
 
-static struct gpio_chip *of_find_gpiochip_by_xlate(
-					struct of_phandle_args *gpiospec)
+static struct gpio_device *
+of_find_gpio_device_by_xlate(struct of_phandle_args *gpiospec)
 {
-	return gpiochip_find(gpiospec, of_gpiochip_match_node_and_xlate);
+	return gpio_device_find(gpiospec, of_gpiochip_match_node_and_xlate);
 }
 
 static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
@@ -192,6 +192,15 @@ static void of_gpio_try_fixup_polarity(const struct device_node *np,
 		 */
 		{ "himax,hx8357",	"gpios-reset",	false },
 		{ "himax,hx8369",	"gpios-reset",	false },
+		/*
+		 * The rb-gpios semantics was undocumented and qi,lb60 (along with
+		 * the ingenic driver) got it wrong. The active state encodes the
+		 * NAND ready state, which is high level. Since there's no signal
+		 * inverter on this board, it should be active-high. Let's fix that
+		 * here for older DTs so we can re-use the generic nand_gpio_waitrdy()
+		 * helper, and be consistent with what other drivers do.
+		 */
+		{ "qi,lb60",		"rb-gpios",	true },
 #endif
 	};
 	unsigned int i;
@@ -209,6 +218,8 @@ static void of_gpio_set_polarity_by_property(const struct device_node *np,
 					     const char *propname,
 					     enum of_gpio_flags *flags)
 {
+	const struct device_node *np_compat = np;
+	const struct device_node *np_propname = np;
 	static const struct {
 		const char *compatible;
 		const char *gpio_propname;
@@ -253,14 +264,28 @@ static void of_gpio_set_polarity_by_property(const struct device_node *np,
 		{ "regulator-gpio",    "enable-gpio",  "enable-active-high" },
 		{ "regulator-gpio",    "enable-gpios", "enable-active-high" },
 #endif
+#if IS_ENABLED(CONFIG_MMC_ATMELMCI)
+		{ "atmel,hsmci",       "cd-gpios",     "cd-inverted" },
+#endif
 	};
 	unsigned int i;
 	bool active_high;
 
+#if IS_ENABLED(CONFIG_MMC_ATMELMCI)
+	/*
+	 * The Atmel HSMCI has compatible property in the parent node and
+	 * gpio property in a child node
+	 */
+	if (of_device_is_compatible(np->parent, "atmel,hsmci")) {
+		np_compat = np->parent;
+		np_propname = np;
+	}
+#endif
+
 	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
-		if (of_device_is_compatible(np, gpios[i].compatible) &&
+		if (of_device_is_compatible(np_compat, gpios[i].compatible) &&
 		    !strcmp(propname, gpios[i].gpio_propname)) {
-			active_high = of_property_read_bool(np,
+			active_high = of_property_read_bool(np_propname,
 						gpios[i].polarity_propname);
 			of_gpio_quirk_polarity(np, active_high, flags);
 			break;
@@ -347,7 +372,6 @@ static struct gpio_desc *of_get_named_gpiod_flags(const struct device_node *np,
 		     const char *propname, int index, enum of_gpio_flags *flags)
 {
 	struct of_phandle_args gpiospec;
-	struct gpio_chip *chip;
 	struct gpio_desc *desc;
 	int ret;
 
@@ -359,13 +383,15 @@ static struct gpio_desc *of_get_named_gpiod_flags(const struct device_node *np,
 		return ERR_PTR(ret);
 	}
 
-	chip = of_find_gpiochip_by_xlate(&gpiospec);
-	if (!chip) {
+	struct gpio_device *gdev __free(gpio_device_put) =
+				of_find_gpio_device_by_xlate(&gpiospec);
+	if (!gdev) {
 		desc = ERR_PTR(-EPROBE_DEFER);
 		goto out;
 	}
 
-	desc = of_xlate_and_get_gpiod_flags(chip, &gpiospec, flags);
+	desc = of_xlate_and_get_gpiod_flags(gpio_device_get_chip(gdev),
+					    &gpiospec, flags);
 	if (IS_ERR(desc))
 		goto out;
 
@@ -496,6 +522,10 @@ static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 #if IS_ENABLED(CONFIG_SND_SOC_CS42L56)
 		{ "reset",	"cirrus,gpio-nreset",	"cirrus,cs42l56" },
 #endif
+#if IS_ENABLED(CONFIG_SND_SOC_MT2701_CS42448)
+		{ "i2s1-in-sel-gpio1",	NULL,	"mediatek,mt2701-cs42448-machine" },
+		{ "i2s1-in-sel-gpio2",	NULL,	"mediatek,mt2701-cs42448-machine" },
+#endif
 #if IS_ENABLED(CONFIG_SND_SOC_TLV320AIC3X)
 		{ "reset",	"gpio-reset",	"ti,tlv320aic3x" },
 		{ "reset",	"gpio-reset",	"ti,tlv320aic33" },
@@ -595,6 +625,33 @@ static struct gpio_desc *of_find_mt2701_gpio(struct device_node *np,
 	return desc;
 }
 
+/*
+ * Trigger sources are special, they allow us to use any GPIO as a LED trigger
+ * and have the name "trigger-sources" no matter which kind of phandle it is
+ * pointing to, whether to a GPIO, a USB host, a network PHY etc. So in this case
+ * we allow looking something up that is not named "foo-gpios".
+ */
+static struct gpio_desc *of_find_trigger_gpio(struct device_node *np,
+					      const char *con_id,
+					      unsigned int idx,
+					      enum of_gpio_flags *of_flags)
+{
+	struct gpio_desc *desc;
+
+	if (!IS_ENABLED(CONFIG_LEDS_TRIGGER_GPIO))
+		return ERR_PTR(-ENOENT);
+
+	if (!con_id || strcmp(con_id, "trigger-sources"))
+		return ERR_PTR(-ENOENT);
+
+	desc = of_get_named_gpiod_flags(np, con_id, idx, of_flags);
+	if (!gpiod_not_found(desc))
+		pr_debug("%s is used as a trigger\n", of_node_full_name(np));
+
+	return desc;
+}
+
+
 typedef struct gpio_desc *(*of_find_gpio_quirk)(struct device_node *np,
 						const char *con_id,
 						unsigned int idx,
@@ -602,6 +659,7 @@ typedef struct gpio_desc *(*of_find_gpio_quirk)(struct device_node *np,
 static const of_find_gpio_quirk of_find_gpio_quirks[] = {
 	of_find_gpio_rename,
 	of_find_mt2701_gpio,
+	of_find_trigger_gpio,
 	NULL
 };
 
@@ -797,16 +855,16 @@ static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
 	return device_match_of_node(&chip->gpiodev->dev, data);
 }
 
-static struct gpio_chip *of_find_gpiochip_by_node(struct device_node *np)
+static struct gpio_device *of_find_gpio_device_by_node(struct device_node *np)
 {
-	return gpiochip_find(np, of_gpiochip_match_node);
+	return gpio_device_find(np, of_gpiochip_match_node);
 }
 
 static int of_gpio_notify(struct notifier_block *nb, unsigned long action,
 			  void *arg)
 {
+	struct gpio_device *gdev __free(gpio_device_put) = NULL;
 	struct of_reconfig_data *rd = arg;
-	struct gpio_chip *chip;
 	int ret;
 
 	/*
@@ -818,38 +876,38 @@ static int of_gpio_notify(struct notifier_block *nb, unsigned long action,
 	switch (of_reconfig_get_state_change(action, arg)) {
 	case OF_RECONFIG_CHANGE_ADD:
 		if (!of_property_read_bool(rd->dn, "gpio-hog"))
-			return NOTIFY_OK;	/* not for us */
+			return NOTIFY_DONE;	/* not for us */
 
 		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED))
-			return NOTIFY_OK;
+			return NOTIFY_DONE;
 
-		chip = of_find_gpiochip_by_node(rd->dn->parent);
-		if (chip == NULL)
-			return NOTIFY_OK;	/* not for us */
+		gdev = of_find_gpio_device_by_node(rd->dn->parent);
+		if (!gdev)
+			return NOTIFY_DONE;	/* not for us */
 
-		ret = of_gpiochip_add_hog(chip, rd->dn);
+		ret = of_gpiochip_add_hog(gpio_device_get_chip(gdev), rd->dn);
 		if (ret < 0) {
 			pr_err("%s: failed to add hogs for %pOF\n", __func__,
 			       rd->dn);
 			of_node_clear_flag(rd->dn, OF_POPULATED);
 			return notifier_from_errno(ret);
 		}
-		break;
+		return NOTIFY_OK;
 
 	case OF_RECONFIG_CHANGE_REMOVE:
 		if (!of_node_check_flag(rd->dn, OF_POPULATED))
-			return NOTIFY_OK;	/* already depopulated */
+			return NOTIFY_DONE;	/* already depopulated */
 
-		chip = of_find_gpiochip_by_node(rd->dn->parent);
-		if (chip == NULL)
-			return NOTIFY_OK;	/* not for us */
+		gdev = of_find_gpio_device_by_node(rd->dn->parent);
+		if (!gdev)
+			return NOTIFY_DONE;	/* not for us */
 
-		of_gpiochip_remove_hog(chip, rd->dn);
+		of_gpiochip_remove_hog(gpio_device_get_chip(gdev), rd->dn);
 		of_node_clear_flag(rd->dn, OF_POPULATED);
-		break;
+		return NOTIFY_OK;
 	}
 
-	return NOTIFY_OK;
+	return NOTIFY_DONE;
 }
 
 struct notifier_block gpio_of_notifier = {
@@ -1078,16 +1136,16 @@ int of_gpiochip_add(struct gpio_chip *chip)
 	if (ret)
 		return ret;
 
-	fwnode_handle_get(chip->fwnode);
+	of_node_get(np);
 
 	ret = of_gpiochip_scan_gpios(chip);
 	if (ret)
-		fwnode_handle_put(chip->fwnode);
+		of_node_put(np);
 
 	return ret;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
-	fwnode_handle_put(chip->fwnode);
+	of_node_put(dev_of_node(&chip->gpiodev->dev));
 }

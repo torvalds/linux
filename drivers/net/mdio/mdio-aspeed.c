@@ -177,15 +177,13 @@ static int aspeed_mdio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aspeed_mdio_remove(struct platform_device *pdev)
+static void aspeed_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = (struct mii_bus *)platform_get_drvdata(pdev);
 	struct aspeed_mdio *ctx = bus->priv;
 
 	reset_control_assert(ctx->reset);
 	mdiobus_unregister(bus);
-
-	return 0;
 }
 
 static const struct of_device_id aspeed_mdio_of_match[] = {
@@ -200,7 +198,7 @@ static struct platform_driver aspeed_mdio_driver = {
 		.of_match_table = aspeed_mdio_of_match,
 	},
 	.probe = aspeed_mdio_probe,
-	.remove = aspeed_mdio_remove,
+	.remove_new = aspeed_mdio_remove,
 };
 
 module_platform_driver(aspeed_mdio_driver);

@@ -523,18 +523,15 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 						     NULL, GPIOD_IN, desc);
 		if (IS_ERR(bdata->gpiod)) {
 			error = PTR_ERR(bdata->gpiod);
-			if (error == -ENOENT) {
-				/*
-				 * GPIO is optional, we may be dealing with
-				 * purely interrupt-driven setup.
-				 */
-				bdata->gpiod = NULL;
-			} else {
-				if (error != -EPROBE_DEFER)
-					dev_err(dev, "failed to get gpio: %d\n",
-						error);
-				return error;
-			}
+			if (error != -ENOENT)
+				return dev_err_probe(dev, error,
+						     "failed to get gpio\n");
+
+			/*
+			 * GPIO is optional, we may be dealing with
+			 * purely interrupt-driven setup.
+			 */
+			bdata->gpiod = NULL;
 		}
 	} else if (gpio_is_valid(button->gpio)) {
 		/*

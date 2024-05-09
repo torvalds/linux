@@ -262,8 +262,42 @@ static u32 iwl_mvm_get_tx_ant(struct iwl_mvm *mvm,
 	return BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
 }
 
+static u32 iwl_mvm_convert_rate_idx(struct iwl_mvm *mvm,
+				    struct ieee80211_tx_info *info,
+				    int rate_idx)
+{
+	u32 rate_flags = 0;
+	u8 rate_plcp;
+	bool is_cck;
+
+	/* if the rate isn't a well known legacy rate, take the lowest one */
+	if (rate_idx < 0 || rate_idx >= IWL_RATE_COUNT_LEGACY)
+		rate_idx = iwl_mvm_mac_ctxt_get_lowest_rate(mvm,
+							    info,
+							    info->control.vif);
+
+	/* Get PLCP rate for tx_cmd->rate_n_flags */
+	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate_idx);
+	is_cck = (rate_idx >= IWL_FIRST_CCK_RATE) &&
+		 (rate_idx <= IWL_LAST_CCK_RATE);
+
+	/* Set CCK or OFDM flag */
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, TX_CMD, 0) > 8) {
+		if (!is_cck)
+			rate_flags |= RATE_MCS_LEGACY_OFDM_MSK;
+		else
+			rate_flags |= RATE_MCS_CCK_MSK;
+	} else if (is_cck) {
+		rate_flags |= RATE_MCS_CCK_MSK_V1;
+	}
+
+	return (u32)rate_plcp | rate_flags;
+}
+
 static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,
-				      struct ieee80211_tx_info *info)
+				      struct ieee80211_tx_info *info,
+				      struct ieee80211_sta *sta,
+				      __le16 fc)
 {
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	u32 result;
@@ -288,6 +322,9 @@ static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,
 			result |= u32_encode_bits(2, RATE_MCS_CHAN_WIDTH_MSK_V1);
 		else if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
 			result |= u32_encode_bits(3, RATE_MCS_CHAN_WIDTH_MSK_V1);
+
+		if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
+			result = iwl_new_rate_from_v1(result);
 	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
 		result = RATE_MCS_HT_MSK_V1;
 		result |= u32_encode_bits(rate->idx,
@@ -301,12 +338,21 @@ static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,
 			result |= RATE_MCS_LDPC_MSK_V1;
 		if (u32_get_bits(info->flags, IEEE80211_TX_CTL_STBC))
 			result |= RATE_MCS_STBC_MSK;
+
+		if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
+			result = iwl_new_rate_from_v1(result);
 	} else {
-		return 0;
+		int rate_idx = info->control.rates[0].idx;
+
+		result = iwl_mvm_convert_rate_idx(mvm, info, rate_idx);
 	}
 
-	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TX_CMD, 0) > 6)
-		return iwl_new_rate_from_v1(result);
+	if (info->control.antennas)
+		result |= u32_encode_bits(info->control.antennas,
+					  RATE_MCS_ANT_AB_MSK);
+	else
+		result |= iwl_mvm_get_tx_ant(mvm, info, sta, fc);
+
 	return result;
 }
 
@@ -315,17 +361,8 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 			       struct ieee80211_sta *sta, __le16 fc)
 {
 	int rate_idx = -1;
-	u8 rate_plcp;
-	u32 rate_flags = 0;
-	bool is_cck;
 
-	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT)) {
-		u32 result = iwl_mvm_get_inject_tx_rate(mvm, info);
-
-		if (result)
-			return result;
-		rate_idx = info->control.rates[0].idx;
-	} else if (!ieee80211_hw_check(mvm->hw, HAS_RATE_CONTROL)) {
+	if (!ieee80211_hw_check(mvm->hw, HAS_RATE_CONTROL)) {
 		/* info->control is only relevant for non HW rate control */
 
 		/* HT rate doesn't make sense for a non data frame */
@@ -350,33 +387,16 @@ static u32 iwl_mvm_get_tx_rate(struct iwl_mvm *mvm,
 		BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
 	}
 
-	/* if the rate isn't a well known legacy rate, take the lowest one */
-	if (rate_idx < 0 || rate_idx >= IWL_RATE_COUNT_LEGACY)
-		rate_idx = iwl_mvm_mac_ctxt_get_lowest_rate(mvm,
-							    info,
-							    info->control.vif);
-
-	/* Get PLCP rate for tx_cmd->rate_n_flags */
-	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate_idx);
-	is_cck = (rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE);
-
-	/* Set CCK or OFDM flag */
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, TX_CMD, 0) > 8) {
-		if (!is_cck)
-			rate_flags |= RATE_MCS_LEGACY_OFDM_MSK;
-		else
-			rate_flags |= RATE_MCS_CCK_MSK;
-	} else if (is_cck) {
-		rate_flags |= RATE_MCS_CCK_MSK_V1;
-	}
-
-	return (u32)rate_plcp | rate_flags;
+	return iwl_mvm_convert_rate_idx(mvm, info, rate_idx);
 }
 
 static u32 iwl_mvm_get_tx_rate_n_flags(struct iwl_mvm *mvm,
 				       struct ieee80211_tx_info *info,
 				       struct ieee80211_sta *sta, __le16 fc)
 {
+	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))
+		return iwl_mvm_get_inject_tx_rate(mvm, info, sta, fc);
+
 	return iwl_mvm_get_tx_rate(mvm, info, sta, fc) |
 		iwl_mvm_get_tx_ant(mvm, info, sta, fc);
 }
@@ -536,16 +556,20 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			flags |= IWL_TX_FLAGS_ENCRYPT_DIS;
 
 		/*
-		 * For data packets rate info comes from the fw. Only
-		 * set rate/antenna during connection establishment or in case
-		 * no station is given.
+		 * For data and mgmt packets rate info comes from the fw. Only
+		 * set rate/antenna for injected frames with fixed rate, or
+		 * when no sta is given.
 		 */
-		if (!sta || !ieee80211_is_data(hdr->frame_control) ||
-		    mvmsta->sta_state < IEEE80211_STA_AUTHORIZED) {
+		if (unlikely(!sta ||
+			     info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT)) {
 			flags |= IWL_TX_FLAGS_CMD_RATE;
 			rate_n_flags =
 				iwl_mvm_get_tx_rate_n_flags(mvm, info, sta,
 							    hdr->frame_control);
+		} else if (!ieee80211_is_data(hdr->frame_control) ||
+			   mvmsta->sta_state < IEEE80211_STA_AUTHORIZED) {
+			/* These are important frames */
+			flags |= IWL_TX_FLAGS_HIGH_PRI;
 		}
 
 		if (mvm->trans->trans_cfg->device_family >=
@@ -1599,7 +1623,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	seq_ctl = le16_to_cpu(tx_resp->seq_ctl);
 
 	/* we can free until ssn % q.n_bd not inclusive */
-	iwl_trans_reclaim(mvm->trans, txq_id, ssn, &skbs);
+	iwl_trans_reclaim(mvm->trans, txq_id, ssn, &skbs, false);
 
 	while (!skb_queue_empty(&skbs)) {
 		struct sk_buff *skb = __skb_dequeue(&skbs);
@@ -1612,6 +1636,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		iwl_trans_free_tx_cmd(mvm->trans, info->driver_data[1]);
 
 		memset(&info->status, 0, sizeof(info->status));
+		info->flags &= ~(IEEE80211_TX_STAT_ACK | IEEE80211_TX_STAT_TX_FILTERED);
 
 		/* inform mac80211 about what happened with the frame */
 		switch (status & TX_STATUS_MSK) {
@@ -1699,7 +1724,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			RS_DRV_DATA_PACK(lq_color, tx_resp->reduced_tpc);
 
 		if (likely(!iwl_mvm_time_sync_frame(mvm, skb, hdr->addr1)))
-			ieee80211_tx_status(mvm->hw, skb);
+			ieee80211_tx_status_skb(mvm->hw, skb);
 	}
 
 	/* This is an aggregation queue or might become one, so we use
@@ -1950,7 +1975,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 	 * block-ack window (we assume that they've been successfully
 	 * transmitted ... if not, it's too late anyway).
 	 */
-	iwl_trans_reclaim(mvm->trans, txq, index, &reclaimed_skbs);
+	iwl_trans_reclaim(mvm->trans, txq, index, &reclaimed_skbs, is_flush);
 
 	skb_queue_walk(&reclaimed_skbs, skb) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1964,6 +1989,8 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 		 */
 		if (!is_flush)
 			info->flags |= IEEE80211_TX_STAT_ACK;
+		else
+			info->flags &= ~IEEE80211_TX_STAT_ACK;
 	}
 
 	/*
@@ -2053,7 +2080,7 @@ out:
 
 	while (!skb_queue_empty(&reclaimed_skbs)) {
 		skb = __skb_dequeue(&reclaimed_skbs);
-		ieee80211_tx_status(mvm->hw, skb);
+		ieee80211_tx_status_skb(mvm->hw, skb);
 	}
 }
 
@@ -2290,24 +2317,10 @@ free_rsp:
 	return ret;
 }
 
-int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal)
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, u32 sta_id, u32 tfd_queue_mask)
 {
-	u32 sta_id, tfd_queue_msk;
-
-	if (internal) {
-		struct iwl_mvm_int_sta *int_sta = sta;
-
-		sta_id = int_sta->sta_id;
-		tfd_queue_msk = int_sta->tfd_queue_msk;
-	} else {
-		struct iwl_mvm_sta *mvm_sta = sta;
-
-		sta_id = mvm_sta->deflink.sta_id;
-		tfd_queue_msk = mvm_sta->tfd_queue_msk;
-	}
-
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return iwl_mvm_flush_sta_tids(mvm, sta_id, 0xffff);
 
-	return iwl_mvm_flush_tx_path(mvm, tfd_queue_msk);
+	return iwl_mvm_flush_tx_path(mvm, tfd_queue_mask);
 }

@@ -78,6 +78,7 @@ Hardware Monitoring Kernel Drivers
    gxp-fan-ctrl
    hih6130
    hp-wmi-sensors
+   hs3001
    ibmaem
    ibm-cffps
    ibmpowernv
@@ -120,6 +121,7 @@ Hardware Monitoring Kernel Drivers
    ltc2947
    ltc2978
    ltc2990
+   ltc2991
    ltc3815
    ltc4151
    ltc4215
@@ -177,6 +179,7 @@ Hardware Monitoring Kernel Drivers
    peci-cputemp
    peci-dimmtemp
    pmbus
+   powerz
    powr1220
    pxe1610
    pwm-fan
@@ -195,7 +198,6 @@ Hardware Monitoring Kernel Drivers
    shtc1
    sis5595
    sl28cpld
-   smm665
    smpro-hwmon
    smsc47b397
    smsc47m192

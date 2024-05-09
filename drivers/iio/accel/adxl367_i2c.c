@@ -77,7 +77,7 @@ static struct i2c_driver adxl367_i2c_driver = {
 		.name = "adxl367_i2c",
 		.of_match_table = adxl367_of_match,
 	},
-	.probe_new = adxl367_i2c_probe,
+	.probe = adxl367_i2c_probe,
 	.id_table = adxl367_i2c_id,
 };
 

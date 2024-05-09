@@ -255,7 +255,8 @@ int amdgpu_jpeg_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *
 
 	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
 		for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-			if (adev->jpeg.harvest_config & (1 << i))
+			if (adev->jpeg.harvest_config & (1 << i) ||
+			    !adev->jpeg.inst[i].ras_poison_irq.funcs)
 				continue;
 
 			r = amdgpu_irq_get(adev, &adev->jpeg.inst[i].ras_poison_irq, 0);

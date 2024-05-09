@@ -33,7 +33,7 @@ int simple_getattr(struct mnt_idmap *idmap, const struct path *path,
 		   unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 	stat->blocks = inode->i_mapping->nrpages << (PAGE_SHIFT - 9);
 	return 0;
 }
@@ -239,6 +239,254 @@ const struct inode_operations simple_dir_inode_operations = {
 };
 EXPORT_SYMBOL(simple_dir_inode_operations);
 
+static void offset_set(struct dentry *dentry, u32 offset)
+{
+	dentry->d_fsdata = (void *)((uintptr_t)(offset));
+}
+
+static u32 dentry2offset(struct dentry *dentry)
+{
+	return (u32)((uintptr_t)(dentry->d_fsdata));
+}
+
+static struct lock_class_key simple_offset_xa_lock;
+
+/**
+ * simple_offset_init - initialize an offset_ctx
+ * @octx: directory offset map to be initialized
+ *
+ */
+void simple_offset_init(struct offset_ctx *octx)
+{
+	xa_init_flags(&octx->xa, XA_FLAGS_ALLOC1);
+	lockdep_set_class(&octx->xa.xa_lock, &simple_offset_xa_lock);
+
+	/* 0 is '.', 1 is '..', so always start with offset 2 */
+	octx->next_offset = 2;
+}
+
+/**
+ * simple_offset_add - Add an entry to a directory's offset map
+ * @octx: directory offset ctx to be updated
+ * @dentry: new dentry being added
+ *
+ * Returns zero on success. @so_ctx and the dentry offset are updated.
+ * Otherwise, a negative errno value is returned.
+ */
+int simple_offset_add(struct offset_ctx *octx, struct dentry *dentry)
+{
+	static const struct xa_limit limit = XA_LIMIT(2, U32_MAX);
+	u32 offset;
+	int ret;
+
+	if (dentry2offset(dentry) != 0)
+		return -EBUSY;
+
+	ret = xa_alloc_cyclic(&octx->xa, &offset, dentry, limit,
+			      &octx->next_offset, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+
+	offset_set(dentry, offset);
+	return 0;
+}
+
+/**
+ * simple_offset_remove - Remove an entry to a directory's offset map
+ * @octx: directory offset ctx to be updated
+ * @dentry: dentry being removed
+ *
+ */
+void simple_offset_remove(struct offset_ctx *octx, struct dentry *dentry)
+{
+	u32 offset;
+
+	offset = dentry2offset(dentry);
+	if (offset == 0)
+		return;
+
+	xa_erase(&octx->xa, offset);
+	offset_set(dentry, 0);
+}
+
+/**
+ * simple_offset_rename_exchange - exchange rename with directory offsets
+ * @old_dir: parent of dentry being moved
+ * @old_dentry: dentry being moved
+ * @new_dir: destination parent
+ * @new_dentry: destination dentry
+ *
+ * Returns zero on success. Otherwise a negative errno is returned and the
+ * rename is rolled back.
+ */
+int simple_offset_rename_exchange(struct inode *old_dir,
+				  struct dentry *old_dentry,
+				  struct inode *new_dir,
+				  struct dentry *new_dentry)
+{
+	struct offset_ctx *old_ctx = old_dir->i_op->get_offset_ctx(old_dir);
+	struct offset_ctx *new_ctx = new_dir->i_op->get_offset_ctx(new_dir);
+	u32 old_index = dentry2offset(old_dentry);
+	u32 new_index = dentry2offset(new_dentry);
+	int ret;
+
+	simple_offset_remove(old_ctx, old_dentry);
+	simple_offset_remove(new_ctx, new_dentry);
+
+	ret = simple_offset_add(new_ctx, old_dentry);
+	if (ret)
+		goto out_restore;
+
+	ret = simple_offset_add(old_ctx, new_dentry);
+	if (ret) {
+		simple_offset_remove(new_ctx, old_dentry);
+		goto out_restore;
+	}
+
+	ret = simple_rename_exchange(old_dir, old_dentry, new_dir, new_dentry);
+	if (ret) {
+		simple_offset_remove(new_ctx, old_dentry);
+		simple_offset_remove(old_ctx, new_dentry);
+		goto out_restore;
+	}
+	return 0;
+
+out_restore:
+	offset_set(old_dentry, old_index);
+	xa_store(&old_ctx->xa, old_index, old_dentry, GFP_KERNEL);
+	offset_set(new_dentry, new_index);
+	xa_store(&new_ctx->xa, new_index, new_dentry, GFP_KERNEL);
+	return ret;
+}
+
+/**
+ * simple_offset_destroy - Release offset map
+ * @octx: directory offset ctx that is about to be destroyed
+ *
+ * During fs teardown (eg. umount), a directory's offset map might still
+ * contain entries. xa_destroy() cleans out anything that remains.
+ */
+void simple_offset_destroy(struct offset_ctx *octx)
+{
+	xa_destroy(&octx->xa);
+}
+
+/**
+ * offset_dir_llseek - Advance the read position of a directory descriptor
+ * @file: an open directory whose position is to be updated
+ * @offset: a byte offset
+ * @whence: enumerator describing the starting position for this update
+ *
+ * SEEK_END, SEEK_DATA, and SEEK_HOLE are not supported for directories.
+ *
+ * Returns the updated read position if successful; otherwise a
+ * negative errno is returned and the read position remains unchanged.
+ */
+static loff_t offset_dir_llseek(struct file *file, loff_t offset, int whence)
+{
+	switch (whence) {
+	case SEEK_CUR:
+		offset += file->f_pos;
+		fallthrough;
+	case SEEK_SET:
+		if (offset >= 0)
+			break;
+		fallthrough;
+	default:
+		return -EINVAL;
+	}
+
+	return vfs_setpos(file, offset, U32_MAX);
+}
+
+static struct dentry *offset_find_next(struct xa_state *xas)
+{
+	struct dentry *child, *found = NULL;
+
+	rcu_read_lock();
+	child = xas_next_entry(xas, U32_MAX);
+	if (!child)
+		goto out;
+	spin_lock(&child->d_lock);
+	if (simple_positive(child))
+		found = dget_dlock(child);
+	spin_unlock(&child->d_lock);
+out:
+	rcu_read_unlock();
+	return found;
+}
+
+static bool offset_dir_emit(struct dir_context *ctx, struct dentry *dentry)
+{
+	u32 offset = dentry2offset(dentry);
+	struct inode *inode = d_inode(dentry);
+
+	return ctx->actor(ctx, dentry->d_name.name, dentry->d_name.len, offset,
+			  inode->i_ino, fs_umode_to_dtype(inode->i_mode));
+}
+
+static void offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
+{
+	struct offset_ctx *so_ctx = inode->i_op->get_offset_ctx(inode);
+	XA_STATE(xas, &so_ctx->xa, ctx->pos);
+	struct dentry *dentry;
+
+	while (true) {
+		dentry = offset_find_next(&xas);
+		if (!dentry)
+			break;
+
+		if (!offset_dir_emit(ctx, dentry)) {
+			dput(dentry);
+			break;
+		}
+
+		dput(dentry);
+		ctx->pos = xas.xa_index + 1;
+	}
+}
+
+/**
+ * offset_readdir - Emit entries starting at offset @ctx->pos
+ * @file: an open directory to iterate over
+ * @ctx: directory iteration context
+ *
+ * Caller must hold @file's i_rwsem to prevent insertion or removal of
+ * entries during this call.
+ *
+ * On entry, @ctx->pos contains an offset that represents the first entry
+ * to be read from the directory.
+ *
+ * The operation continues until there are no more entries to read, or
+ * until the ctx->actor indicates there is no more space in the caller's
+ * output buffer.
+ *
+ * On return, @ctx->pos contains an offset that will read the next entry
+ * in this directory when offset_readdir() is called again with @ctx.
+ *
+ * Return values:
+ *   %0 - Complete
+ */
+static int offset_readdir(struct file *file, struct dir_context *ctx)
+{
+	struct dentry *dir = file->f_path.dentry;
+
+	lockdep_assert_held(&d_inode(dir)->i_rwsem);
+
+	if (!dir_emit_dots(file, ctx))
+		return 0;
+
+	offset_iterate_dir(d_inode(dir), ctx);
+	return 0;
+}
+
+const struct file_operations simple_offset_dir_operations = {
+	.llseek		= offset_dir_llseek,
+	.iterate_shared	= offset_readdir,
+	.read		= generic_read_dir,
+	.fsync		= noop_fsync,
+};
+
 static struct dentry *find_next_child(struct dentry *parent, struct dentry *prev)
 {
 	struct dentry *child = NULL;
@@ -275,7 +523,7 @@ void simple_recursive_removal(struct dentry *dentry,
 		while ((child = find_next_child(this, victim)) == NULL) {
 			// kill and ascend
 			// update metadata while it's still locked
-			inode->i_ctime = current_time(inode);
+			inode_set_ctime_current(inode);
 			clear_nlink(inode);
 			inode_unlock(inode);
 			victim = this;
@@ -293,8 +541,8 @@ void simple_recursive_removal(struct dentry *dentry,
 				dput(victim);		// unpin it
 			}
 			if (victim == dentry) {
-				inode->i_ctime = inode->i_mtime =
-					current_time(inode);
+				inode_set_mtime_to_ts(inode,
+						      inode_set_ctime_current(inode));
 				if (d_is_dir(dentry))
 					drop_nlink(inode);
 				inode_unlock(inode);
@@ -335,7 +583,7 @@ static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 	 */
 	root->i_ino = 1;
 	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
-	root->i_atime = root->i_mtime = root->i_ctime = current_time(root);
+	simple_inode_init_ts(root);
 	s->s_root = d_make_root(root);
 	if (!s->s_root)
 		return -ENOMEM;
@@ -391,7 +639,8 @@ int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *den
 {
 	struct inode *inode = d_inode(old_dentry);
 
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
+	inode_set_mtime_to_ts(dir,
+			      inode_set_ctime_to_ts(dir, inode_set_ctime_current(inode)));
 	inc_nlink(inode);
 	ihold(inode);
 	dget(dentry);
@@ -425,7 +674,8 @@ int simple_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 
-	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
+	inode_set_mtime_to_ts(dir,
+			      inode_set_ctime_to_ts(dir, inode_set_ctime_current(inode)));
 	drop_nlink(inode);
 	dput(dentry);
 	return 0;
@@ -444,6 +694,32 @@ int simple_rmdir(struct inode *dir, struct dentry *dentry)
 }
 EXPORT_SYMBOL(simple_rmdir);
 
+/**
+ * simple_rename_timestamp - update the various inode timestamps for rename
+ * @old_dir: old parent directory
+ * @old_dentry: dentry that is being renamed
+ * @new_dir: new parent directory
+ * @new_dentry: target for rename
+ *
+ * POSIX mandates that the old and new parent directories have their ctime and
+ * mtime updated, and that inodes of @old_dentry and @new_dentry (if any), have
+ * their ctime updated.
+ */
+void simple_rename_timestamp(struct inode *old_dir, struct dentry *old_dentry,
+			     struct inode *new_dir, struct dentry *new_dentry)
+{
+	struct inode *newino = d_inode(new_dentry);
+
+	inode_set_mtime_to_ts(old_dir, inode_set_ctime_current(old_dir));
+	if (new_dir != old_dir)
+		inode_set_mtime_to_ts(new_dir,
+				      inode_set_ctime_current(new_dir));
+	inode_set_ctime_current(d_inode(old_dentry));
+	if (newino)
+		inode_set_ctime_current(newino);
+}
+EXPORT_SYMBOL_GPL(simple_rename_timestamp);
+
 int simple_rename_exchange(struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry)
 {
@@ -459,11 +735,7 @@ int simple_rename_exchange(struct inode *old_dir, struct dentry *old_dentry,
 			inc_nlink(old_dir);
 		}
 	}
-	old_dir->i_ctime = old_dir->i_mtime =
-	new_dir->i_ctime = new_dir->i_mtime =
-	d_inode(old_dentry)->i_ctime =
-	d_inode(new_dentry)->i_ctime = current_time(old_dir);
-
+	simple_rename_timestamp(old_dir, old_dentry, new_dir, new_dentry);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(simple_rename_exchange);
@@ -472,7 +744,6 @@ int simple_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		  struct dentry *old_dentry, struct inode *new_dir,
 		  struct dentry *new_dentry, unsigned int flags)
 {
-	struct inode *inode = d_inode(old_dentry);
 	int they_are_dirs = d_is_dir(old_dentry);
 
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
@@ -495,9 +766,7 @@ int simple_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		inc_nlink(new_dir);
 	}
 
-	old_dir->i_ctime = old_dir->i_mtime = new_dir->i_ctime =
-		new_dir->i_mtime = inode->i_ctime = current_time(old_dir);
-
+	simple_rename_timestamp(old_dir, old_dentry, new_dir, new_dentry);
 	return 0;
 }
 EXPORT_SYMBOL(simple_rename);
@@ -548,21 +817,20 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
-	struct page *page;
-	pgoff_t index;
+	struct folio *folio;
 
-	index = pos >> PAGE_SHIFT;
+	folio = __filemap_get_folio(mapping, pos / PAGE_SIZE, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
+	*pagep = &folio->page;
 
-	*pagep = page;
+	if (!folio_test_uptodate(folio) && (len != folio_size(folio))) {
+		size_t from = offset_in_folio(folio, pos);
 
-	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
-		unsigned from = pos & (PAGE_SIZE - 1);
-
-		zero_user_segments(page, 0, from, from + len, PAGE_SIZE);
+		folio_zero_segments(folio, 0, from,
+				from + len, folio_size(folio));
 	}
 	return 0;
 }
@@ -594,17 +862,18 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct folio *folio = page_folio(page);
+	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;
 
-	/* zero the stale part of the page if we did a short copy */
-	if (!PageUptodate(page)) {
+	/* zero the stale part of the folio if we did a short copy */
+	if (!folio_test_uptodate(folio)) {
 		if (copied < len) {
-			unsigned from = pos & (PAGE_SIZE - 1);
+			size_t from = offset_in_folio(folio, pos);
 
-			zero_user(page, from + copied, len - copied);
+			folio_zero_range(folio, from + copied, len - copied);
 		}
-		SetPageUptodate(page);
+		folio_mark_uptodate(folio);
 	}
 	/*
 	 * No need to use i_size_read() here, the i_size
@@ -613,9 +882,9 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 	if (last_pos > inode->i_size)
 		i_size_write(inode, last_pos);
 
-	set_page_dirty(page);
-	unlock_page(page);
-	put_page(page);
+	folio_mark_dirty(folio);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return copied;
 }
@@ -659,7 +928,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	 */
 	inode->i_ino = 1;
 	inode->i_mode = S_IFDIR | 0755;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	set_nlink(inode, 2);
@@ -685,7 +954,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 			goto out;
 		}
 		inode->i_mode = S_IFREG | files->mode;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+		simple_inode_init_ts(inode);
 		inode->i_fop = files->ops;
 		inode->i_ino = i;
 		d_add(dentry, inode);
@@ -1253,7 +1522,7 @@ struct inode *alloc_anon_inode(struct super_block *s)
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 	inode->i_flags |= S_PRIVATE;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	return inode;
 }
 EXPORT_SYMBOL(alloc_anon_inode);
@@ -1269,7 +1538,7 @@ EXPORT_SYMBOL(alloc_anon_inode);
  * All arguments are ignored and it just returns -EINVAL.
  */
 int
-simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
+simple_nosetlease(struct file *filp, int arg, struct file_lock **flp,
 		  void **priv)
 {
 	return -EINVAL;
@@ -1315,7 +1584,7 @@ static int empty_dir_getattr(struct mnt_idmap *idmap,
 			     u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
-	generic_fillattr(&nop_mnt_idmap, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 	return 0;
 }
 
@@ -1381,16 +1650,6 @@ bool is_empty_dir_inode(struct inode *inode)
 }
 
 #if IS_ENABLED(CONFIG_UNICODE)
-/*
- * Determine if the name of a dentry should be casefolded.
- *
- * Return: if names will need casefolding
- */
-static bool needs_casefold(const struct inode *dir)
-{
-	return IS_CASEFOLDED(dir) && dir->i_sb->s_encoding;
-}
-
 /**
  * generic_ci_d_compare - generic d_compare implementation for casefolding filesystems
  * @dentry:	dentry whose name we are checking against
@@ -1411,7 +1670,7 @@ static int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
 	char strbuf[DNAME_INLINE_LEN];
 	int ret;
 
-	if (!dir || !needs_casefold(dir))
+	if (!dir || !IS_CASEFOLDED(dir))
 		goto fallback;
 	/*
 	 * If the dentry name is stored in-line, then it may be concurrently
@@ -1453,7 +1712,7 @@ static int generic_ci_d_hash(const struct dentry *dentry, struct qstr *str)
 	const struct unicode_map *um = sb->s_encoding;
 	int ret = 0;
 
-	if (!dir || !needs_casefold(dir))
+	if (!dir || !IS_CASEFOLDED(dir))
 		return 0;
 
 	ret = utf8_casefold_hash(um, dentry, str);
@@ -1646,6 +1905,7 @@ ssize_t direct_write_fallback(struct kiocb *iocb, struct iov_iter *iter,
 		 * We don't know how much we wrote, so just return the number of
 		 * bytes which were direct-written
 		 */
+		iocb->ki_pos -= buffered_written;
 		if (direct_written)
 			return direct_written;
 		return err;
@@ -1654,3 +1914,20 @@ ssize_t direct_write_fallback(struct kiocb *iocb, struct iov_iter *iter,
 	return direct_written + buffered_written;
 }
 EXPORT_SYMBOL_GPL(direct_write_fallback);
+
+/**
+ * simple_inode_init_ts - initialize the timestamps for a new inode
+ * @inode: inode to be initialized
+ *
+ * When a new inode is created, most filesystems set the timestamps to the
+ * current time. Add a helper to do this.
+ */
+struct timespec64 simple_inode_init_ts(struct inode *inode)
+{
+	struct timespec64 ts = inode_set_ctime_current(inode);
+
+	inode_set_atime_to_ts(inode, ts);
+	inode_set_mtime_to_ts(inode, ts);
+	return ts;
+}
+EXPORT_SYMBOL(simple_inode_init_ts);

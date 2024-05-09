@@ -631,6 +631,10 @@ int drm_connector_register(struct drm_connector *connector)
 			goto err_debugfs;
 	}
 
+	ret = drm_sysfs_connector_add_late(connector);
+	if (ret)
+		goto err_late_register;
+
 	drm_mode_object_register(connector->dev, &connector->base);
 
 	connector->registration_state = DRM_CONNECTOR_REGISTERED;
@@ -647,6 +651,9 @@ int drm_connector_register(struct drm_connector *connector)
 	mutex_unlock(&connector_list_lock);
 	goto unlock;
 
+err_late_register:
+	if (connector->funcs->early_unregister)
+		connector->funcs->early_unregister(connector);
 err_debugfs:
 	drm_debugfs_connector_remove(connector);
 	drm_sysfs_connector_remove(connector);
@@ -681,11 +688,13 @@ void drm_connector_unregister(struct drm_connector *connector)
 					connector->privacy_screen,
 					&connector->privacy_screen_notifier);
 
+	drm_sysfs_connector_remove_early(connector);
+
 	if (connector->funcs->early_unregister)
 		connector->funcs->early_unregister(connector);
 
-	drm_sysfs_connector_remove(connector);
 	drm_debugfs_connector_remove(connector);
+	drm_sysfs_connector_remove(connector);
 
 	connector->registration_state = DRM_CONNECTOR_UNREGISTERED;
 	mutex_unlock(&connector->mutex);
@@ -2203,6 +2212,7 @@ static int drm_mode_create_colorspace_property(struct drm_connector *connector,
 /**
  * drm_mode_create_hdmi_colorspace_property - create hdmi colorspace property
  * @connector: connector to create the Colorspace property on.
+ * @supported_colorspaces: bitmap of supported color spaces
  *
  * Called by a driver the first time it's needed, must be attached to desired
  * HDMI connectors.
@@ -2227,6 +2237,7 @@ EXPORT_SYMBOL(drm_mode_create_hdmi_colorspace_property);
 /**
  * drm_mode_create_dp_colorspace_property - create dp colorspace property
  * @connector: connector to create the Colorspace property on.
+ * @supported_colorspaces: bitmap of supported color spaces
  *
  * Called by a driver the first time it's needed, must be attached to desired
  * DP connectors.
@@ -2730,10 +2741,10 @@ static int drm_connector_privacy_screen_notifier(
 	drm_connector_update_privacy_screen_properties(connector, true);
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 
-	drm_sysfs_connector_status_event(connector,
-				connector->privacy_screen_sw_state_property);
-	drm_sysfs_connector_status_event(connector,
-				connector->privacy_screen_hw_state_property);
+	drm_sysfs_connector_property_event(connector,
+					   connector->privacy_screen_sw_state_property);
+	drm_sysfs_connector_property_event(connector,
+					   connector->privacy_screen_hw_state_property);
 
 	return NOTIFY_DONE;
 }
@@ -3049,6 +3060,7 @@ struct drm_connector *drm_connector_find_by_fwnode(struct fwnode_handle *fwnode)
 /**
  * drm_connector_oob_hotplug_event - Report out-of-band hotplug event to connector
  * @connector_fwnode: fwnode_handle to report the event on
+ * @status: hot plug detect logical state
  *
  * On some hardware a hotplug event notification may come from outside the display
  * driver / device. An example of this is some USB Type-C setups where the hardware
@@ -3058,7 +3070,8 @@ struct drm_connector *drm_connector_find_by_fwnode(struct fwnode_handle *fwnode)
  * This function can be used to report these out-of-band events after obtaining
  * a drm_connector reference through calling drm_connector_find_by_fwnode().
  */
-void drm_connector_oob_hotplug_event(struct fwnode_handle *connector_fwnode)
+void drm_connector_oob_hotplug_event(struct fwnode_handle *connector_fwnode,
+				     enum drm_connector_status status)
 {
 	struct drm_connector *connector;
 
@@ -3067,7 +3080,7 @@ void drm_connector_oob_hotplug_event(struct fwnode_handle *connector_fwnode)
 		return;
 
 	if (connector->funcs->oob_hotplug_event)
-		connector->funcs->oob_hotplug_event(connector);
+		connector->funcs->oob_hotplug_event(connector, status);
 
 	drm_connector_put(connector);
 }

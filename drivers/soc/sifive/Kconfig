@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-if SOC_SIFIVE || SOC_STARFIVE
+if ARCH_SIFIVE || ARCH_STARFIVE
 
 config SIFIVE_CCACHE
 	bool "Sifive Composable Cache controller"

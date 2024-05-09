@@ -52,7 +52,7 @@ static int tomoyo_cred_prepare(struct cred *new, const struct cred *old,
  *
  * @bprm: Pointer to "struct linux_binprm".
  */
-static void tomoyo_bprm_committed_creds(struct linux_binprm *bprm)
+static void tomoyo_bprm_committed_creds(const struct linux_binprm *bprm)
 {
 	/* Clear old_domain_info saved by execve() request. */
 	struct tomoyo_task *s = tomoyo_task(current);

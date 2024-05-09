@@ -460,8 +460,7 @@ svm_migrate_vma_to_vram(struct kfd_node *node, struct svm_range *prange,
 				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
 				    0, node->id, trigger);
 
-	svm_range_dma_unmap(adev->dev, scratch, 0, npages);
-	svm_range_free_dma_mappings(prange);
+	svm_range_dma_unmap_dev(adev->dev, scratch, 0, npages);
 
 out_free:
 	kvfree(buf);
@@ -543,10 +542,12 @@ svm_migrate_ram_to_vram(struct svm_range *prange, uint32_t best_loc,
 		addr = next;
 	}
 
-	if (cpages)
+	if (cpages) {
 		prange->actual_loc = best_loc;
-	else
+		svm_range_dma_unmap(prange);
+	} else {
 		svm_range_vram_node_free(prange);
+	}
 
 	return r < 0 ? r : 0;
 }
@@ -744,7 +745,7 @@ svm_migrate_vma_to_ram(struct kfd_node *node, struct svm_range *prange,
 				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
 				    node->id, 0, trigger);
 
-	svm_range_dma_unmap(adev->dev, scratch, 0, npages);
+	svm_range_dma_unmap_dev(adev->dev, scratch, 0, npages);
 
 out_free:
 	kvfree(buf);
@@ -1000,7 +1001,7 @@ int kgd2kfd_init_zone_device(struct amdgpu_device *adev)
 	void *r;
 
 	/* Page migration works on gfx9 or newer */
-	if (adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 0, 1))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(9, 0, 1))
 		return -EINVAL;
 
 	if (adev->gmc.is_app_apu)

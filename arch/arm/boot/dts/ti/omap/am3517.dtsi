@@ -15,6 +15,7 @@
 	aliases {
 		serial3 = &uart4;
 		can = &hecc;
+		ethernet = &davinci_emac;
 	};
 
 	cpus {
@@ -34,14 +35,16 @@
 		 * appear to operate at 300MHz as well. Since AM3517 only
 		 * lists one operating voltage, it will remain fixed at 1.2V
 		 */
-		opp50-300000000 {
+		opp-50-300000000 {
+			/* OPP50 */
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <1200000>;
 			opp-supported-hw = <0xffffffff 0xffffffff>;
 			opp-suspend;
 		};
 
-		opp100-600000000 {
+		opp-100-600000000 {
+			/* OPP100 */
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1200000>;
 			opp-supported-hw = <0xffffffff 0xffffffff>;

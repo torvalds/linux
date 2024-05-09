@@ -55,8 +55,9 @@ static enum drm_gpu_sched_stat etnaviv_sched_timedout_job(struct drm_sched_job
 	 */
 	dma_addr = gpu_read(gpu, VIVS_FE_DMA_ADDRESS);
 	change = dma_addr - gpu->hangcheck_dma_addr;
-	if (gpu->completed_fence != gpu->hangcheck_fence ||
-	    change < 0 || change > 16) {
+	if (gpu->state == ETNA_GPU_STATE_RUNNING &&
+	    (gpu->completed_fence != gpu->hangcheck_fence ||
+	     change < 0 || change > 16)) {
 		gpu->hangcheck_dma_addr = dma_addr;
 		gpu->hangcheck_fence = gpu->completed_fence;
 		goto out_no_timeout;
@@ -134,6 +135,7 @@ int etnaviv_sched_init(struct etnaviv_gpu *gpu)
 	int ret;
 
 	ret = drm_sched_init(&gpu->sched, &etnaviv_sched_ops,
+			     DRM_SCHED_PRIORITY_COUNT,
 			     etnaviv_hw_jobs_limit, etnaviv_job_hang_limit,
 			     msecs_to_jiffies(500), NULL, NULL,
 			     dev_name(gpu->dev), gpu->dev);

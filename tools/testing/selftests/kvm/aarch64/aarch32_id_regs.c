@@ -98,7 +98,7 @@ static void test_user_raz_wi(struct kvm_vcpu *vcpu)
 		uint64_t val;
 
 		vcpu_get_reg(vcpu, reg_id, &val);
-		ASSERT_EQ(val, 0);
+		TEST_ASSERT_EQ(val, 0);
 
 		/*
 		 * Expect the ioctl to succeed with no effect on the register
@@ -107,7 +107,7 @@ static void test_user_raz_wi(struct kvm_vcpu *vcpu)
 		vcpu_set_reg(vcpu, reg_id, BAD_ID_REG_VAL);
 
 		vcpu_get_reg(vcpu, reg_id, &val);
-		ASSERT_EQ(val, 0);
+		TEST_ASSERT_EQ(val, 0);
 	}
 }
 
@@ -127,14 +127,14 @@ static void test_user_raz_invariant(struct kvm_vcpu *vcpu)
 		uint64_t val;
 
 		vcpu_get_reg(vcpu, reg_id, &val);
-		ASSERT_EQ(val, 0);
+		TEST_ASSERT_EQ(val, 0);
 
 		r = __vcpu_set_reg(vcpu, reg_id, BAD_ID_REG_VAL);
 		TEST_ASSERT(r < 0 && errno == EINVAL,
 			    "unexpected KVM_SET_ONE_REG error: r=%d, errno=%d", r, errno);
 
 		vcpu_get_reg(vcpu, reg_id, &val);
-		ASSERT_EQ(val, 0);
+		TEST_ASSERT_EQ(val, 0);
 	}
 }
 
@@ -146,8 +146,8 @@ static bool vcpu_aarch64_only(struct kvm_vcpu *vcpu)
 
 	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1), &val);
 
-	el0 = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL0), val);
-	return el0 == ID_AA64PFR0_ELx_64BIT_ONLY;
+	el0 = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_EL0), val);
+	return el0 == ID_AA64PFR0_EL1_ELx_64BIT_ONLY;
 }
 
 int main(void)

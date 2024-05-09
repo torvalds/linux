@@ -22,7 +22,7 @@
 #include "thermal_core.h"
 #include "thermal_trace.h"
 
-int get_tz_trend(struct thermal_zone_device *tz, int trip)
+int get_tz_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip)
 {
 	enum thermal_trend trend;
 
@@ -41,13 +41,16 @@ int get_tz_trend(struct thermal_zone_device *tz, int trip)
 
 struct thermal_instance *
 get_thermal_instance(struct thermal_zone_device *tz,
-		     struct thermal_cooling_device *cdev, int trip)
+		     struct thermal_cooling_device *cdev, int trip_index)
 {
 	struct thermal_instance *pos = NULL;
 	struct thermal_instance *target_instance = NULL;
+	const struct thermal_trip *trip;
 
 	mutex_lock(&tz->lock);
 	mutex_lock(&cdev->lock);
+
+	trip = &tz->trips[trip_index];
 
 	list_for_each_entry(pos, &tz->thermal_instances, tz_node) {
 		if (pos->tz == tz && pos->trip == trip && pos->cdev == cdev) {

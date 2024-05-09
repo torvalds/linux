@@ -42,10 +42,27 @@
 
 &blsp_i2c2 {
 	/* lis2hh12 accelerometer instead of BMC150 */
-	status = "disabled";
-
 	/delete-node/ accelerometer@10;
 	/delete-node/ magnetometer@12;
+
+	accelerometer@1d {
+		compatible = "st,lis2hh12";
+		reg = <0x1d>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <115 IRQ_TYPE_LEVEL_HIGH>;
+
+		vdd-supply = <&pm8916_l5>;
+		vddio-supply = <&pm8916_l5>;
+
+		st,drdy-int-pin = <1>;
+		mount-matrix = "1", "0", "0",
+			       "0", "-1", "0",
+			       "0", "0", "1";
+
+		pinctrl-0 = <&accel_int_default>;
+		pinctrl-names = "default";
+	};
 };
 
 &reg_motor_vdd {
@@ -64,6 +81,10 @@
 
 &wcnss_iris {
 	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
 };
 
 &tlmm {

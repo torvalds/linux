@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Pin controller and GPIO driver for Amlogic Meson G12A SoC.
  *
@@ -8,6 +8,7 @@
  */
 
 #include <dt-bindings/gpio/meson-g12a-gpio.h>
+#include <dt-bindings/interrupt-controller/amlogic,meson-g12a-gpio-intc.h>
 #include "pinctrl-meson.h"
 #include "pinctrl-meson-axg-pmx.h"
 
@@ -1318,31 +1319,31 @@ static struct meson_pmx_func meson_g12a_aobus_functions[] = {
 
 static struct meson_bank meson_g12a_periphs_banks[] = {
 	/* name  first  last  irq  pullen  pull  dir  out  in  ds */
-	BANK_DS("Z",    GPIOZ_0,    GPIOZ_15, 12, 27,
-		4,  0,  4,  0,  12,  0,  13, 0,  14, 0, 5, 0),
-	BANK_DS("H",    GPIOH_0,    GPIOH_8, 28, 36,
-		3,  0,  3,  0,  9,  0,  10,  0,  11,  0, 4, 0),
-	BANK_DS("BOOT", BOOT_0,     BOOT_15,  37, 52,
-		0,  0,  0,  0,  0, 0,  1, 0,  2, 0, 0, 0),
-	BANK_DS("C",    GPIOC_0,    GPIOC_7,  53, 60,
-		1,  0,  1,  0,  3, 0,  4, 0,  5, 0, 1, 0),
-	BANK_DS("A",    GPIOA_0,    GPIOA_15,  61, 76,
-		5,  0,  5,  0,  16,  0,  17,  0,  18,  0, 6, 0),
-	BANK_DS("X",    GPIOX_0,    GPIOX_19,   77, 96,
-		2,  0,  2,  0,  6,  0,  7,  0,  8,  0, 2, 0),
+	BANK_DS("Z",    GPIOZ_0,  GPIOZ_15,  IRQID_GPIOZ_0,  IRQID_GPIOZ_15,
+		4,  0,  4,  0,  12,  0, 13,  0,  14,  0,  5, 0),
+	BANK_DS("H",    GPIOH_0,  GPIOH_8,   IRQID_GPIOH_0,  IRQID_GPIOH_8,
+		3,  0,  3,  0,   9,  0, 10,  0,  11,  0,  4, 0),
+	BANK_DS("BOOT", BOOT_0,   BOOT_15,   IRQID_BOOT_0,   IRQID_BOOT_15,
+		0,  0,  0,  0,   0,  0,  1,  0,   2,  0,  0, 0),
+	BANK_DS("C",    GPIOC_0,  GPIOC_7,   IRQID_GPIOC_0,  IRQID_GPIOC_7,
+		1,  0,  1,  0,   3,  0,  4,  0,   5,  0,  1, 0),
+	BANK_DS("A",    GPIOA_0,  GPIOA_15,  IRQID_GPIOA_0,  IRQID_GPIOA_15,
+		5,  0,  5,  0,  16,  0, 17,  0,  18,  0,  6, 0),
+	BANK_DS("X",    GPIOX_0,  GPIOX_19,  IRQID_GPIOX_0,  IRQID_GPIOX_19,
+		2,  0,  2,  0,   6,  0,  7,  0,   8,  0,  2, 0),
 };
 
 static struct meson_bank meson_g12a_aobus_banks[] = {
 	/* name  first  last  irq  pullen  pull  dir  out  in  ds */
-	BANK_DS("AO", GPIOAO_0, GPIOAO_11, 0, 11, 3, 0, 2, 0, 0, 0, 4, 0, 1, 0,
-		0, 0),
+	BANK_DS("AO",   GPIOAO_0, GPIOAO_11, IRQID_GPIOAO_0, IRQID_GPIOAO_11,
+		3,  0,  2,  0,   0,  0,  4,  0,   1,  0,  0, 0),
 	/* GPIOE actually located in the AO bank */
-	BANK_DS("E", GPIOE_0, GPIOE_2, 97, 99, 3, 16, 2, 16, 0, 16, 4, 16, 1,
-		16, 1, 0),
+	BANK_DS("E",    GPIOE_0,  GPIOE_2,   IRQID_GPIOE_0,  IRQID_GPIOE_2,
+		3, 16,  2, 16,   0, 16,  4, 16,   1, 16,  1, 0),
 };
 
 static struct meson_pmx_bank meson_g12a_periphs_pmx_banks[] = {
-	/*	 name	 first		lask	   reg	offset  */
+	/*	 name	 first	  last	    reg	 offset  */
 	BANK_PMX("Z",    GPIOZ_0, GPIOZ_15, 0x6, 0),
 	BANK_PMX("H",    GPIOH_0, GPIOH_8,  0xb, 0),
 	BANK_PMX("BOOT", BOOT_0,  BOOT_15,  0x0, 0),

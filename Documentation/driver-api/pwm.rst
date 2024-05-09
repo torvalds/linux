@@ -111,13 +111,13 @@ channel that was exported. The following properties will then be available:
 
   duty_cycle
     The active time of the PWM signal (read/write).
-    Value is in nanoseconds and must be less than the period.
+    Value is in nanoseconds and must be less than or equal to the period.
 
   polarity
     Changes the polarity of the PWM signal (read/write).
     Writes to this property only work if the PWM chip supports changing
-    the polarity. The polarity can only be changed if the PWM is not
-    enabled. Value is the string "normal" or "inversed".
+    the polarity.
+    Value is the string "normal" or "inversed".
 
   enable
     Enable/disable the PWM signal (read/write).

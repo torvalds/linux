@@ -14,9 +14,9 @@
 
 #include "dsa.h"
 #include "port.h"
-#include "slave.h"
 #include "switch.h"
 #include "tag_8021q.h"
+#include "user.h"
 
 /**
  * dsa_port_notify - Notify the switching fabric of changes to a port
@@ -289,7 +289,7 @@ static void dsa_port_reset_vlan_filtering(struct dsa_port *dp,
 	}
 
 	/* If the bridge was vlan_filtering, the bridge core doesn't trigger an
-	 * event for changing vlan_filtering setting upon slave ports leaving
+	 * event for changing vlan_filtering setting upon user ports leaving
 	 * it. That is a good thing, because that lets us handle it and also
 	 * handle the case where the switch's vlan_filtering setting is global
 	 * (not per port). When that happens, the correct moment to trigger the
@@ -489,7 +489,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 		.dp = dp,
 		.extack = extack,
 	};
-	struct net_device *dev = dp->slave;
+	struct net_device *dev = dp->user;
 	struct net_device *brport_dev;
 	int err;
 
@@ -514,8 +514,8 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 	dp->bridge->tx_fwd_offload = info.tx_fwd_offload;
 
 	err = switchdev_bridge_port_offload(brport_dev, dev, dp,
-					    &dsa_slave_switchdev_notifier,
-					    &dsa_slave_switchdev_blocking_notifier,
+					    &dsa_user_switchdev_notifier,
+					    &dsa_user_switchdev_blocking_notifier,
 					    dp->bridge->tx_fwd_offload, extack);
 	if (err)
 		goto out_rollback_unbridge;
@@ -528,8 +528,8 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br,
 
 out_rollback_unoffload:
 	switchdev_bridge_port_unoffload(brport_dev, dp,
-					&dsa_slave_switchdev_notifier,
-					&dsa_slave_switchdev_blocking_notifier);
+					&dsa_user_switchdev_notifier,
+					&dsa_user_switchdev_blocking_notifier);
 	dsa_flush_workqueue();
 out_rollback_unbridge:
 	dsa_broadcast(DSA_NOTIFIER_BRIDGE_LEAVE, &info);
@@ -547,8 +547,8 @@ void dsa_port_pre_bridge_leave(struct dsa_port *dp, struct net_device *br)
 		return;
 
 	switchdev_bridge_port_unoffload(brport_dev, dp,
-					&dsa_slave_switchdev_notifier,
-					&dsa_slave_switchdev_blocking_notifier);
+					&dsa_user_switchdev_notifier,
+					&dsa_user_switchdev_blocking_notifier);
 
 	dsa_flush_workqueue();
 }
@@ -741,10 +741,10 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 	 */
 	if (vlan_filtering && dsa_port_is_user(dp)) {
 		struct net_device *br = dsa_port_bridge_dev_get(dp);
-		struct net_device *upper_dev, *slave = dp->slave;
+		struct net_device *upper_dev, *user = dp->user;
 		struct list_head *iter;
 
-		netdev_for_each_upper_dev_rcu(slave, upper_dev, iter) {
+		netdev_for_each_upper_dev_rcu(user, upper_dev, iter) {
 			struct bridge_vlan_info br_info;
 			u16 vid;
 
@@ -803,9 +803,9 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 	if (!ds->ops->port_vlan_filtering)
 		return -EOPNOTSUPP;
 
-	/* We are called from dsa_slave_switchdev_blocking_event(),
+	/* We are called from dsa_user_switchdev_blocking_event(),
 	 * which is not under rcu_read_lock(), unlike
-	 * dsa_slave_switchdev_event().
+	 * dsa_user_switchdev_event().
 	 */
 	rcu_read_lock();
 	apply = dsa_port_can_apply_vlan_filtering(dp, vlan_filtering, extack);
@@ -827,24 +827,24 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 		ds->vlan_filtering = vlan_filtering;
 
 		dsa_switch_for_each_user_port(other_dp, ds) {
-			struct net_device *slave = other_dp->slave;
+			struct net_device *user = other_dp->user;
 
 			/* We might be called in the unbind path, so not
-			 * all slave devices might still be registered.
+			 * all user devices might still be registered.
 			 */
-			if (!slave)
+			if (!user)
 				continue;
 
-			err = dsa_slave_manage_vlan_filtering(slave,
-							      vlan_filtering);
+			err = dsa_user_manage_vlan_filtering(user,
+							     vlan_filtering);
 			if (err)
 				goto restore;
 		}
 	} else {
 		dp->vlan_filtering = vlan_filtering;
 
-		err = dsa_slave_manage_vlan_filtering(dp->slave,
-						      vlan_filtering);
+		err = dsa_user_manage_vlan_filtering(dp->user,
+						     vlan_filtering);
 		if (err)
 			goto restore;
 	}
@@ -863,7 +863,7 @@ restore:
 }
 
 /* This enforces legacy behavior for switch drivers which assume they can't
- * receive VLAN configuration when enslaved to a bridge with vlan_filtering=0
+ * receive VLAN configuration when joining a bridge with vlan_filtering=0
  */
 bool dsa_port_skip_vlan_configuration(struct dsa_port *dp)
 {
@@ -1047,7 +1047,7 @@ int dsa_port_standalone_host_fdb_add(struct dsa_port *dp,
 int dsa_port_bridge_host_fdb_add(struct dsa_port *dp,
 				 const unsigned char *addr, u16 vid)
 {
-	struct net_device *master = dsa_port_to_master(dp);
+	struct net_device *conduit = dsa_port_to_conduit(dp);
 	struct dsa_db db = {
 		.type = DSA_DB_BRIDGE,
 		.bridge = *dp->bridge,
@@ -1057,12 +1057,12 @@ int dsa_port_bridge_host_fdb_add(struct dsa_port *dp,
 	if (!dp->ds->fdb_isolation)
 		db.bridge.num = 0;
 
-	/* Avoid a call to __dev_set_promiscuity() on the master, which
+	/* Avoid a call to __dev_set_promiscuity() on the conduit, which
 	 * requires rtnl_lock(), since we can't guarantee that is held here,
 	 * and we can't take it either.
 	 */
-	if (master->priv_flags & IFF_UNICAST_FLT) {
-		err = dev_uc_add(master, addr);
+	if (conduit->priv_flags & IFF_UNICAST_FLT) {
+		err = dev_uc_add(conduit, addr);
 		if (err)
 			return err;
 	}
@@ -1098,7 +1098,7 @@ int dsa_port_standalone_host_fdb_del(struct dsa_port *dp,
 int dsa_port_bridge_host_fdb_del(struct dsa_port *dp,
 				 const unsigned char *addr, u16 vid)
 {
-	struct net_device *master = dsa_port_to_master(dp);
+	struct net_device *conduit = dsa_port_to_conduit(dp);
 	struct dsa_db db = {
 		.type = DSA_DB_BRIDGE,
 		.bridge = *dp->bridge,
@@ -1108,8 +1108,8 @@ int dsa_port_bridge_host_fdb_del(struct dsa_port *dp,
 	if (!dp->ds->fdb_isolation)
 		db.bridge.num = 0;
 
-	if (master->priv_flags & IFF_UNICAST_FLT) {
-		err = dev_uc_del(master, addr);
+	if (conduit->priv_flags & IFF_UNICAST_FLT) {
+		err = dev_uc_del(conduit, addr);
 		if (err)
 			return err;
 	}
@@ -1229,7 +1229,7 @@ int dsa_port_standalone_host_mdb_add(const struct dsa_port *dp,
 int dsa_port_bridge_host_mdb_add(const struct dsa_port *dp,
 				 const struct switchdev_obj_port_mdb *mdb)
 {
-	struct net_device *master = dsa_port_to_master(dp);
+	struct net_device *conduit = dsa_port_to_conduit(dp);
 	struct dsa_db db = {
 		.type = DSA_DB_BRIDGE,
 		.bridge = *dp->bridge,
@@ -1239,7 +1239,7 @@ int dsa_port_bridge_host_mdb_add(const struct dsa_port *dp,
 	if (!dp->ds->fdb_isolation)
 		db.bridge.num = 0;
 
-	err = dev_mc_add(master, mdb->addr);
+	err = dev_mc_add(conduit, mdb->addr);
 	if (err)
 		return err;
 
@@ -1273,7 +1273,7 @@ int dsa_port_standalone_host_mdb_del(const struct dsa_port *dp,
 int dsa_port_bridge_host_mdb_del(const struct dsa_port *dp,
 				 const struct switchdev_obj_port_mdb *mdb)
 {
-	struct net_device *master = dsa_port_to_master(dp);
+	struct net_device *conduit = dsa_port_to_conduit(dp);
 	struct dsa_db db = {
 		.type = DSA_DB_BRIDGE,
 		.bridge = *dp->bridge,
@@ -1283,7 +1283,7 @@ int dsa_port_bridge_host_mdb_del(const struct dsa_port *dp,
 	if (!dp->ds->fdb_isolation)
 		db.bridge.num = 0;
 
-	err = dev_mc_del(master, mdb->addr);
+	err = dev_mc_del(conduit, mdb->addr);
 	if (err)
 		return err;
 
@@ -1318,7 +1318,7 @@ int dsa_port_host_vlan_add(struct dsa_port *dp,
 			   const struct switchdev_obj_port_vlan *vlan,
 			   struct netlink_ext_ack *extack)
 {
-	struct net_device *master = dsa_port_to_master(dp);
+	struct net_device *conduit = dsa_port_to_conduit(dp);
 	struct dsa_notifier_vlan_info info = {
 		.dp = dp,
 		.vlan = vlan,
@@ -1330,7 +1330,7 @@ int dsa_port_host_vlan_add(struct dsa_port *dp,
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	vlan_vid_add(master, htons(ETH_P_8021Q), vlan->vid);
+	vlan_vid_add(conduit, htons(ETH_P_8021Q), vlan->vid);
 
 	return err;
 }
@@ -1338,7 +1338,7 @@ int dsa_port_host_vlan_add(struct dsa_port *dp,
 int dsa_port_host_vlan_del(struct dsa_port *dp,
 			   const struct switchdev_obj_port_vlan *vlan)
 {
-	struct net_device *master = dsa_port_to_master(dp);
+	struct net_device *conduit = dsa_port_to_conduit(dp);
 	struct dsa_notifier_vlan_info info = {
 		.dp = dp,
 		.vlan = vlan,
@@ -1349,7 +1349,7 @@ int dsa_port_host_vlan_del(struct dsa_port *dp,
 	if (err && err != -EOPNOTSUPP)
 		return err;
 
-	vlan_vid_del(master, htons(ETH_P_8021Q), vlan->vid);
+	vlan_vid_del(conduit, htons(ETH_P_8021Q), vlan->vid);
 
 	return err;
 }
@@ -1398,24 +1398,24 @@ int dsa_port_mrp_del_ring_role(const struct dsa_port *dp,
 	return ds->ops->port_mrp_del_ring_role(ds, dp->index, mrp);
 }
 
-static int dsa_port_assign_master(struct dsa_port *dp,
-				  struct net_device *master,
-				  struct netlink_ext_ack *extack,
-				  bool fail_on_err)
+static int dsa_port_assign_conduit(struct dsa_port *dp,
+				   struct net_device *conduit,
+				   struct netlink_ext_ack *extack,
+				   bool fail_on_err)
 {
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index, err;
 
-	err = ds->ops->port_change_master(ds, port, master, extack);
+	err = ds->ops->port_change_conduit(ds, port, conduit, extack);
 	if (err && !fail_on_err)
-		dev_err(ds->dev, "port %d failed to assign master %s: %pe\n",
-			port, master->name, ERR_PTR(err));
+		dev_err(ds->dev, "port %d failed to assign conduit %s: %pe\n",
+			port, conduit->name, ERR_PTR(err));
 
 	if (err && fail_on_err)
 		return err;
 
-	dp->cpu_dp = master->dsa_ptr;
-	dp->cpu_port_in_lag = netif_is_lag_master(master);
+	dp->cpu_dp = conduit->dsa_ptr;
+	dp->cpu_port_in_lag = netif_is_lag_master(conduit);
 
 	return 0;
 }
@@ -1428,12 +1428,12 @@ static int dsa_port_assign_master(struct dsa_port *dp,
  * the old CPU port before changing it, and restore it on errors during the
  * bringup of the new one.
  */
-int dsa_port_change_master(struct dsa_port *dp, struct net_device *master,
-			   struct netlink_ext_ack *extack)
+int dsa_port_change_conduit(struct dsa_port *dp, struct net_device *conduit,
+			    struct netlink_ext_ack *extack)
 {
 	struct net_device *bridge_dev = dsa_port_bridge_dev_get(dp);
-	struct net_device *old_master = dsa_port_to_master(dp);
-	struct net_device *dev = dp->slave;
+	struct net_device *old_conduit = dsa_port_to_conduit(dp);
+	struct net_device *dev = dp->user;
 	struct dsa_switch *ds = dp->ds;
 	bool vlan_filtering;
 	int err, tmp;
@@ -1454,7 +1454,7 @@ int dsa_port_change_master(struct dsa_port *dp, struct net_device *master,
 	 */
 	vlan_filtering = dsa_port_is_vlan_filtering(dp);
 	if (vlan_filtering) {
-		err = dsa_slave_manage_vlan_filtering(dev, false);
+		err = dsa_user_manage_vlan_filtering(dev, false);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed to remove standalone VLANs");
@@ -1465,16 +1465,16 @@ int dsa_port_change_master(struct dsa_port *dp, struct net_device *master,
 	/* Standalone addresses, and addresses of upper interfaces like
 	 * VLAN, LAG, HSR need to be migrated.
 	 */
-	dsa_slave_unsync_ha(dev);
+	dsa_user_unsync_ha(dev);
 
-	err = dsa_port_assign_master(dp, master, extack, true);
+	err = dsa_port_assign_conduit(dp, conduit, extack, true);
 	if (err)
 		goto rewind_old_addrs;
 
-	dsa_slave_sync_ha(dev);
+	dsa_user_sync_ha(dev);
 
 	if (vlan_filtering) {
-		err = dsa_slave_manage_vlan_filtering(dev, true);
+		err = dsa_user_manage_vlan_filtering(dev, true);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed to restore standalone VLANs");
@@ -1495,19 +1495,19 @@ int dsa_port_change_master(struct dsa_port *dp, struct net_device *master,
 
 rewind_new_vlan:
 	if (vlan_filtering)
-		dsa_slave_manage_vlan_filtering(dev, false);
+		dsa_user_manage_vlan_filtering(dev, false);
 
 rewind_new_addrs:
-	dsa_slave_unsync_ha(dev);
+	dsa_user_unsync_ha(dev);
 
-	dsa_port_assign_master(dp, old_master, NULL, false);
+	dsa_port_assign_conduit(dp, old_conduit, NULL, false);
 
 /* Restore the objects on the old CPU port */
 rewind_old_addrs:
-	dsa_slave_sync_ha(dev);
+	dsa_user_sync_ha(dev);
 
 	if (vlan_filtering) {
-		tmp = dsa_slave_manage_vlan_filtering(dev, true);
+		tmp = dsa_user_manage_vlan_filtering(dev, true);
 		if (tmp) {
 			dev_err(ds->dev,
 				"port %d failed to restore standalone VLANs: %pe\n",
@@ -1552,41 +1552,6 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 
 	of_node_put(phy_dn);
 	return phydev;
-}
-
-static void dsa_port_phylink_validate(struct phylink_config *config,
-				      unsigned long *supported,
-				      struct phylink_link_state *state)
-{
-	/* Skip call for drivers which don't yet set mac_capabilities,
-	 * since validating in that case would mean their PHY will advertise
-	 * nothing. In turn, skipping validation makes them advertise
-	 * everything that the PHY supports, so those drivers should be
-	 * converted ASAP.
-	 */
-	if (config->mac_capabilities)
-		phylink_generic_validate(config, supported, state);
-}
-
-static void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
-					       struct phylink_link_state *state)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct dsa_switch *ds = dp->ds;
-	int err;
-
-	/* Only called for inband modes */
-	if (!ds->ops->phylink_mac_link_state) {
-		state->link = 0;
-		return;
-	}
-
-	err = ds->ops->phylink_mac_link_state(ds, dp->index, state);
-	if (err < 0) {
-		dev_err(ds->dev, "p%d: phylink_mac_link_state() failed: %d\n",
-			dp->index, err);
-		state->link = 0;
-	}
 }
 
 static struct phylink_pcs *
@@ -1646,17 +1611,6 @@ static int dsa_port_phylink_mac_finish(struct phylink_config *config,
 	return err;
 }
 
-static void dsa_port_phylink_mac_an_restart(struct phylink_config *config)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_mac_an_restart)
-		return;
-
-	ds->ops->phylink_mac_an_restart(ds, dp->index);
-}
-
 static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 					   unsigned int mode,
 					   phy_interface_t interface)
@@ -1666,7 +1620,7 @@ static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 	struct dsa_switch *ds = dp->ds;
 
 	if (dsa_port_is_user(dp))
-		phydev = dp->slave->phydev;
+		phydev = dp->user->phydev;
 
 	if (!ds->ops->phylink_mac_link_down) {
 		if (ds->ops->adjust_link && phydev)
@@ -1698,13 +1652,10 @@ static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
-	.validate = dsa_port_phylink_validate,
 	.mac_select_pcs = dsa_port_phylink_mac_select_pcs,
-	.mac_pcs_get_state = dsa_port_phylink_mac_pcs_get_state,
 	.mac_prepare = dsa_port_phylink_mac_prepare,
 	.mac_config = dsa_port_phylink_mac_config,
 	.mac_finish = dsa_port_phylink_mac_finish,
-	.mac_an_restart = dsa_port_phylink_mac_an_restart,
 	.mac_link_down = dsa_port_phylink_mac_link_down,
 	.mac_link_up = dsa_port_phylink_mac_link_up,
 };
@@ -1720,15 +1671,19 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 	if (err)
 		mode = PHY_INTERFACE_MODE_NA;
 
-	/* Presence of phylink_mac_link_state or phylink_mac_an_restart is
-	 * an indicator of a legacy phylink driver.
-	 */
-	if (ds->ops->phylink_mac_link_state ||
-	    ds->ops->phylink_mac_an_restart)
-		dp->pl_config.legacy_pre_march2020 = true;
-
-	if (ds->ops->phylink_get_caps)
+	if (ds->ops->phylink_get_caps) {
 		ds->ops->phylink_get_caps(ds, dp->index, &dp->pl_config);
+	} else {
+		/* For legacy drivers */
+		if (mode != PHY_INTERFACE_MODE_NA) {
+			__set_bit(mode, dp->pl_config.supported_interfaces);
+		} else {
+			__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+				  dp->pl_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_GMII,
+				  dp->pl_config.supported_interfaces);
+		}
+	}
 
 	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
 			    mode, &dsa_port_phylink_mac_ops);
@@ -1853,7 +1808,7 @@ err_phy_connect:
  * their type.
  *
  * User ports with no phy-handle or fixed-link are expected to connect to an
- * internal PHY located on the ds->slave_mii_bus at an MDIO address equal to
+ * internal PHY located on the ds->user_mii_bus at an MDIO address equal to
  * the port number. This description is still actively supported.
  *
  * Shared (CPU and DSA) ports with no phy-handle or fixed-link are expected to
@@ -1874,7 +1829,7 @@ err_phy_connect:
  * a fixed-link, a phy-handle, or a managed = "in-band-status" property.
  * It becomes the responsibility of the driver to ensure that these ports
  * operate at the maximum speed (whatever this means) and will interoperate
- * with the DSA master or other cascade port, since phylink methods will not be
+ * with the DSA conduit or other cascade port, since phylink methods will not be
  * invoked for them.
  *
  * If you are considering expanding this table for newly introduced switches,
@@ -2054,7 +2009,8 @@ void dsa_shared_port_link_unregister_of(struct dsa_port *dp)
 		dsa_shared_port_setup_phy_of(dp, false);
 }
 
-int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr)
+int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr,
+		      struct netlink_ext_ack *extack)
 {
 	struct dsa_switch *ds = dp->ds;
 	int err;
@@ -2064,7 +2020,7 @@ int dsa_port_hsr_join(struct dsa_port *dp, struct net_device *hsr)
 
 	dp->hsr_dev = hsr;
 
-	err = ds->ops->port_hsr_join(ds, dp->index, hsr);
+	err = ds->ops->port_hsr_join(ds, dp->index, hsr, extack);
 	if (err)
 		dp->hsr_dev = NULL;
 

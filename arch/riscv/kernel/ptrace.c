@@ -90,6 +90,7 @@ static int riscv_vr_get(struct task_struct *target,
 			struct membuf to)
 {
 	struct __riscv_v_ext_state *vstate = &target->thread.vstate;
+	struct __riscv_v_regset_state ptrace_vstate;
 
 	if (!riscv_v_vstate_query(task_pt_regs(target)))
 		return -EINVAL;
@@ -101,9 +102,14 @@ static int riscv_vr_get(struct task_struct *target,
 	if (target == current)
 		riscv_v_vstate_save(current, task_pt_regs(current));
 
+	ptrace_vstate.vstart = vstate->vstart;
+	ptrace_vstate.vl = vstate->vl;
+	ptrace_vstate.vtype = vstate->vtype;
+	ptrace_vstate.vcsr = vstate->vcsr;
+	ptrace_vstate.vlenb = vstate->vlenb;
+
 	/* Copy vector header from vstate. */
-	membuf_write(&to, vstate, offsetof(struct __riscv_v_ext_state, datap));
-	membuf_zero(&to, sizeof(vstate->datap));
+	membuf_write(&to, &ptrace_vstate, sizeof(struct __riscv_v_regset_state));
 
 	/* Copy all the vector registers from vstate. */
 	return membuf_write(&to, vstate->datap, riscv_v_vsize);
@@ -114,22 +120,26 @@ static int riscv_vr_set(struct task_struct *target,
 			unsigned int pos, unsigned int count,
 			const void *kbuf, const void __user *ubuf)
 {
-	int ret, size;
+	int ret;
 	struct __riscv_v_ext_state *vstate = &target->thread.vstate;
+	struct __riscv_v_regset_state ptrace_vstate;
 
 	if (!riscv_v_vstate_query(task_pt_regs(target)))
 		return -EINVAL;
 
 	/* Copy rest of the vstate except datap */
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, vstate, 0,
-				 offsetof(struct __riscv_v_ext_state, datap));
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ptrace_vstate, 0,
+				 sizeof(struct __riscv_v_regset_state));
 	if (unlikely(ret))
 		return ret;
 
-	/* Skip copy datap. */
-	size = sizeof(vstate->datap);
-	count -= size;
-	ubuf += size;
+	if (vstate->vlenb != ptrace_vstate.vlenb)
+		return -EINVAL;
+
+	vstate->vstart = ptrace_vstate.vstart;
+	vstate->vl = ptrace_vstate.vl;
+	vstate->vtype = ptrace_vstate.vtype;
+	vstate->vcsr = ptrace_vstate.vcsr;
 
 	/* Copy all the vector registers. */
 	pos = 0;
@@ -163,7 +173,7 @@ static const struct user_regset riscv_user_regset[] = {
 		.core_note_type = NT_RISCV_VECTOR,
 		.align = 16,
 		.n = ((32 * RISCV_MAX_VLENB) +
-		      sizeof(struct __riscv_v_ext_state)) / sizeof(__u32),
+		      sizeof(struct __riscv_v_regset_state)) / sizeof(__u32),
 		.size = sizeof(__u32),
 		.regset_get = riscv_vr_get,
 		.set = riscv_vr_set,

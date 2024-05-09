@@ -237,6 +237,30 @@ config MFD_CROS_EC_DEV
 	  To compile this driver as a module, choose M here: the module will be
 	  called cros-ec-dev.
 
+config MFD_CS42L43
+	tristate
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_IRQ
+
+config MFD_CS42L43_I2C
+	tristate "Cirrus Logic CS42L43 (I2C)"
+	depends on I2C
+	select REGMAP_I2C
+	select MFD_CS42L43
+	help
+	  Select this to support the Cirrus Logic CS42L43 PC CODEC with
+	  headphone and class D speaker drivers over I2C.
+
+config MFD_CS42L43_SDW
+	tristate "Cirrus Logic CS42L43 (SoundWire)"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select MFD_CS42L43
+	help
+	  Select this to support the Cirrus Logic CS42L43 PC CODEC with
+	  headphone and class D speaker drivers over SoundWire.
+
 config MFD_MADERA
 	tristate "Cirrus Logic Madera codecs"
 	select MFD_CORE
@@ -266,8 +290,8 @@ config MFD_MADERA_SPI
 	  Support for the Cirrus Logic Madera platform audio SoC
 	  core functionality controlled via SPI.
 
-config MFD_MAX597X
-	tristate "Maxim 597x power switch and monitor"
+config MFD_MAX5970
+	tristate "Maxim 5970/5978 power switch and monitor"
 	depends on (I2C && OF)
 	select MFD_SIMPLE_MFD_I2C
 	help
@@ -784,6 +808,19 @@ config MFD_MAX14577
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_MAX77541
+	tristate "Analog Devices MAX77541/77540 PMIC Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  Say yes here to add support for Analog Devices MAX77541 and
+	  MAX77540 Power Management ICs. This driver provides
+	  common support for accessing the device; additional drivers
+	  must be enabled in order to use the functionality of the device.
+	  There are regulators and adc.
+
 config MFD_MAX77620
 	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"
 	depends on I2C=y
@@ -1184,7 +1221,7 @@ config MFD_RC5T583
 	  different functionality of the device.
 
 config MFD_RK8XX
-	bool
+	tristate
 	select MFD_CORE
 
 config MFD_RK8XX_I2C
@@ -1335,8 +1372,9 @@ config MFD_SC27XX_PMIC
 	  and it also adds the irq_chip parts for handling the PMIC chip events.
 
 config RZ_MTU3
-	bool "Renesas RZ/G2L MTU3a core driver"
+	tristate "Renesas RZ/G2L MTU3a core driver"
 	depends on (ARCH_RZG2L && OF) || COMPILE_TEST
+	select MFD_CORE
 	help
 	  Select this option to enable Renesas RZ/G2L MTU3a core driver for
 	  the Multi-Function Timer Pulse Unit 3 (MTU3a) hardware available

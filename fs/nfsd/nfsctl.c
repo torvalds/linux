@@ -26,6 +26,7 @@
 #include "pnfs.h"
 #include "filecache.h"
 #include "trace.h"
+#include "netlink.h"
 
 /*
  *	We have a single directory with several nodes in it.
@@ -1105,6 +1106,7 @@ static ssize_t write_v4_end_grace(struct file *file, char *buf, size_t size)
 			if (!nn->nfsd_serv)
 				return -EBUSY;
 			trace_nfsd_end_grace(netns(file));
+			nfsd4_end_grace(nn);
 			break;
 		default:
 			return -EINVAL;
@@ -1131,7 +1133,7 @@ static struct inode *nfsd_get_inode(struct super_block *sb, umode_t mode)
 	/* Following advice from simple_fill_super documentation: */
 	inode->i_ino = iunique(sb, NFSD_MaxReserved);
 	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
 		inode->i_fop = &simple_dir_operations;
@@ -1495,6 +1497,203 @@ static int create_proc_exports_entry(void)
 unsigned int nfsd_net_id;
 
 /**
+ * nfsd_nl_rpc_status_get_start - Prepare rpc_status_get dumpit
+ * @cb: netlink metadata and command arguments
+ *
+ * Return values:
+ *   %0: The rpc_status_get command may proceed
+ *   %-ENODEV: There is no NFSD running in this namespace
+ */
+int nfsd_nl_rpc_status_get_start(struct netlink_callback *cb)
+{
+	struct nfsd_net *nn = net_generic(sock_net(cb->skb->sk), nfsd_net_id);
+	int ret = -ENODEV;
+
+	mutex_lock(&nfsd_mutex);
+	if (nn->nfsd_serv) {
+		svc_get(nn->nfsd_serv);
+		ret = 0;
+	}
+	mutex_unlock(&nfsd_mutex);
+
+	return ret;
+}
+
+static int nfsd_genl_rpc_status_compose_msg(struct sk_buff *skb,
+					    struct netlink_callback *cb,
+					    struct nfsd_genl_rqstp *rqstp)
+{
+	void *hdr;
+	u32 i;
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &nfsd_nl_family, 0, NFSD_CMD_RPC_STATUS_GET);
+	if (!hdr)
+		return -ENOBUFS;
+
+	if (nla_put_be32(skb, NFSD_A_RPC_STATUS_XID, rqstp->rq_xid) ||
+	    nla_put_u32(skb, NFSD_A_RPC_STATUS_FLAGS, rqstp->rq_flags) ||
+	    nla_put_u32(skb, NFSD_A_RPC_STATUS_PROG, rqstp->rq_prog) ||
+	    nla_put_u32(skb, NFSD_A_RPC_STATUS_PROC, rqstp->rq_proc) ||
+	    nla_put_u8(skb, NFSD_A_RPC_STATUS_VERSION, rqstp->rq_vers) ||
+	    nla_put_s64(skb, NFSD_A_RPC_STATUS_SERVICE_TIME,
+			ktime_to_us(rqstp->rq_stime),
+			NFSD_A_RPC_STATUS_PAD))
+		return -ENOBUFS;
+
+	switch (rqstp->rq_saddr.sa_family) {
+	case AF_INET: {
+		const struct sockaddr_in *s_in, *d_in;
+
+		s_in = (const struct sockaddr_in *)&rqstp->rq_saddr;
+		d_in = (const struct sockaddr_in *)&rqstp->rq_daddr;
+		if (nla_put_in_addr(skb, NFSD_A_RPC_STATUS_SADDR4,
+				    s_in->sin_addr.s_addr) ||
+		    nla_put_in_addr(skb, NFSD_A_RPC_STATUS_DADDR4,
+				    d_in->sin_addr.s_addr) ||
+		    nla_put_be16(skb, NFSD_A_RPC_STATUS_SPORT,
+				 s_in->sin_port) ||
+		    nla_put_be16(skb, NFSD_A_RPC_STATUS_DPORT,
+				 d_in->sin_port))
+			return -ENOBUFS;
+		break;
+	}
+	case AF_INET6: {
+		const struct sockaddr_in6 *s_in, *d_in;
+
+		s_in = (const struct sockaddr_in6 *)&rqstp->rq_saddr;
+		d_in = (const struct sockaddr_in6 *)&rqstp->rq_daddr;
+		if (nla_put_in6_addr(skb, NFSD_A_RPC_STATUS_SADDR6,
+				     &s_in->sin6_addr) ||
+		    nla_put_in6_addr(skb, NFSD_A_RPC_STATUS_DADDR6,
+				     &d_in->sin6_addr) ||
+		    nla_put_be16(skb, NFSD_A_RPC_STATUS_SPORT,
+				 s_in->sin6_port) ||
+		    nla_put_be16(skb, NFSD_A_RPC_STATUS_DPORT,
+				 d_in->sin6_port))
+			return -ENOBUFS;
+		break;
+	}
+	}
+
+	for (i = 0; i < rqstp->rq_opcnt; i++)
+		if (nla_put_u32(skb, NFSD_A_RPC_STATUS_COMPOUND_OPS,
+				rqstp->rq_opnum[i]))
+			return -ENOBUFS;
+
+	genlmsg_end(skb, hdr);
+	return 0;
+}
+
+/**
+ * nfsd_nl_rpc_status_get_dumpit - Handle rpc_status_get dumpit
+ * @skb: reply buffer
+ * @cb: netlink metadata and command arguments
+ *
+ * Returns the size of the reply or a negative errno.
+ */
+int nfsd_nl_rpc_status_get_dumpit(struct sk_buff *skb,
+				  struct netlink_callback *cb)
+{
+	struct nfsd_net *nn = net_generic(sock_net(skb->sk), nfsd_net_id);
+	int i, ret, rqstp_index = 0;
+
+	rcu_read_lock();
+
+	for (i = 0; i < nn->nfsd_serv->sv_nrpools; i++) {
+		struct svc_rqst *rqstp;
+
+		if (i < cb->args[0]) /* already consumed */
+			continue;
+
+		rqstp_index = 0;
+		list_for_each_entry_rcu(rqstp,
+				&nn->nfsd_serv->sv_pools[i].sp_all_threads,
+				rq_all) {
+			struct nfsd_genl_rqstp genl_rqstp;
+			unsigned int status_counter;
+
+			if (rqstp_index++ < cb->args[1]) /* already consumed */
+				continue;
+			/*
+			 * Acquire rq_status_counter before parsing the rqst
+			 * fields. rq_status_counter is set to an odd value in
+			 * order to notify the consumers the rqstp fields are
+			 * meaningful.
+			 */
+			status_counter =
+				smp_load_acquire(&rqstp->rq_status_counter);
+			if (!(status_counter & 1))
+				continue;
+
+			genl_rqstp.rq_xid = rqstp->rq_xid;
+			genl_rqstp.rq_flags = rqstp->rq_flags;
+			genl_rqstp.rq_vers = rqstp->rq_vers;
+			genl_rqstp.rq_prog = rqstp->rq_prog;
+			genl_rqstp.rq_proc = rqstp->rq_proc;
+			genl_rqstp.rq_stime = rqstp->rq_stime;
+			genl_rqstp.rq_opcnt = 0;
+			memcpy(&genl_rqstp.rq_daddr, svc_daddr(rqstp),
+			       sizeof(struct sockaddr));
+			memcpy(&genl_rqstp.rq_saddr, svc_addr(rqstp),
+			       sizeof(struct sockaddr));
+
+#ifdef CONFIG_NFSD_V4
+			if (rqstp->rq_vers == NFS4_VERSION &&
+			    rqstp->rq_proc == NFSPROC4_COMPOUND) {
+				/* NFSv4 compound */
+				struct nfsd4_compoundargs *args;
+				int j;
+
+				args = rqstp->rq_argp;
+				genl_rqstp.rq_opcnt = args->opcnt;
+				for (j = 0; j < genl_rqstp.rq_opcnt; j++)
+					genl_rqstp.rq_opnum[j] =
+						args->ops[j].opnum;
+			}
+#endif /* CONFIG_NFSD_V4 */
+
+			/*
+			 * Acquire rq_status_counter before reporting the rqst
+			 * fields to the user.
+			 */
+			if (smp_load_acquire(&rqstp->rq_status_counter) !=
+			    status_counter)
+				continue;
+
+			ret = nfsd_genl_rpc_status_compose_msg(skb, cb,
+							       &genl_rqstp);
+			if (ret)
+				goto out;
+		}
+	}
+
+	cb->args[0] = i;
+	cb->args[1] = rqstp_index;
+	ret = skb->len;
+out:
+	rcu_read_unlock();
+
+	return ret;
+}
+
+/**
+ * nfsd_nl_rpc_status_get_done - rpc_status_get dumpit post-processing
+ * @cb: netlink metadata and command arguments
+ *
+ * Return values:
+ *   %0: Success
+ */
+int nfsd_nl_rpc_status_get_done(struct netlink_callback *cb)
+{
+	mutex_lock(&nfsd_mutex);
+	nfsd_put(sock_net(cb->skb->sk));
+	mutex_unlock(&nfsd_mutex);
+
+	return 0;
+}
+
+/**
  * nfsd_net_init - Prepare the nfsd_net portion of a new net namespace
  * @net: a freshly-created network namespace
  *
@@ -1588,6 +1787,10 @@ static int __init init_nfsd(void)
 	retval = register_filesystem(&nfsd_fs_type);
 	if (retval)
 		goto out_free_all;
+	retval = genl_register_family(&nfsd_nl_family);
+	if (retval)
+		goto out_free_all;
+
 	return 0;
 out_free_all:
 	nfsd4_destroy_laundry_wq();
@@ -1612,6 +1815,7 @@ out_free_slabs:
 
 static void __exit exit_nfsd(void)
 {
+	genl_unregister_family(&nfsd_nl_family);
 	unregister_filesystem(&nfsd_fs_type);
 	nfsd4_destroy_laundry_wq();
 	unregister_cld_notifier();
@@ -1626,6 +1830,7 @@ static void __exit exit_nfsd(void)
 }
 
 MODULE_AUTHOR("Olaf Kirch <okir@monad.swb.de>");
+MODULE_DESCRIPTION("In-kernel NFS server");
 MODULE_LICENSE("GPL");
 module_init(init_nfsd)
 module_exit(exit_nfsd)

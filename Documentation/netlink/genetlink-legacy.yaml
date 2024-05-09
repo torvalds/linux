@@ -13,6 +13,11 @@ $defs:
     type: [ string, integer ]
     pattern: ^[0-9A-Za-z_]+( - 1)?$
     minimum: 0
+  len-or-limit:
+    # literal int or limit based on fixed-width type e.g. u8-min, u16-max, etc.
+    type: [ string, integer ]
+    pattern: ^[su](8|16|32|64)-(min|max)$
+    minimum: 0
 
 # Schema for specs
 title: Protocol
@@ -26,10 +31,6 @@ properties:
     type: string
   doc:
     type: string
-  version:
-    description: Generic Netlink family version. Default is 1.
-    type: integer
-    minimum: 1
   protocol:
     description: Schema compatibility level. Default is "genetlink".
     enum: [ genetlink, genetlink-c, genetlink-legacy ] # Trim
@@ -41,11 +42,17 @@ properties:
     description: Name of the define for the family name.
     type: string
   c-version-name:
-    description: Name of the define for the verion of the family.
+    description: Name of the define for the version of the family.
     type: string
   max-by-define:
     description: Makes the number of attributes and commands be specified by a define, not an enum value.
     type: boolean
+  cmd-max-name:
+    description: Name of the define for the last operation in the list.
+    type: string
+  cmd-cnt-name:
+    description: The explicit name for constant holding the count of operations (last operation + 1).
+    type: string
   # End genetlink-c
   # Start genetlink-legacy
   kernel-policy:
@@ -53,6 +60,10 @@ properties:
       Defines if the input policy in the kernel is global, per-operation, or split per operation type.
       Default is split.
     enum: [ split, per-op, global ]
+  version:
+    description: Generic Netlink family version. Default is 1.
+    type: integer
+    minimum: 1
   # End genetlink-legacy
 
   definitions:
@@ -180,14 +191,15 @@ properties:
           type: array
           items:
             type: object
-            required: [ name, type ]
+            required: [ name ]
             additionalProperties: False
             properties:
               name:
                 type: string
               type: &attr-type
                 description: The netlink attribute type
-                enum: [ unused, pad, flag, binary, u8, u16, u32, u64, s32, s64,
+                enum: [ unused, pad, flag, binary, bitfield32,
+                        uint, sint, u8, u16, u32, u64, s32, s64,
                         string, nest, array-nest, nest-type-value ]
               doc:
                 description: Documentation of the attribute.
@@ -226,12 +238,18 @@ properties:
                     type: string
                   min:
                     description: Min value for an integer attribute.
-                    type: integer
+                    $ref: '#/$defs/len-or-limit'
+                  max:
+                    description: Max value for an integer attribute.
+                    $ref: '#/$defs/len-or-limit'
                   min-len:
                     description: Min length for a binary attribute.
                     $ref: '#/$defs/len-or-define'
                   max-len:
                     description: Max length for a string or a binary attribute.
+                    $ref: '#/$defs/len-or-define'
+                  exact-len:
+                    description: Exact length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
               sub-type: *attr-type
               display-hint: *display-hint
@@ -253,6 +271,18 @@ properties:
         subset-of:
           not:
             required: [ name-prefix ]
+
+      # type property is only required if not in subset definition
+      if:
+        properties:
+          subset-of:
+            not:
+              type: string
+      then:
+        properties:
+          attributes:
+            items:
+              required: [ type ]
 
   operations:
     description: Operations supported by the protocol.
@@ -316,12 +346,17 @@ properties:
               description: Command flags.
               type: array
               items:
-                enum: [ admin-perm ]
+                enum: [ admin-perm, uns-admin-perm ]
             dont-validate:
               description: Kernel attribute validation flags.
               type: array
               items:
-                enum: [ strict, dump ]
+                enum: [ strict, dump, dump-strict ]
+            config-cond:
+              description: |
+                Name of the kernel config option gating the presence of
+                the operation, without the 'CONFIG_' prefix.
+              type: string
             # Start genetlink-legacy
             fixed-header: *fixed-header
             # End genetlink-legacy

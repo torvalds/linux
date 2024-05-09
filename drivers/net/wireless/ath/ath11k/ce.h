@@ -203,9 +203,6 @@ int ath11k_ce_alloc_pipes(struct ath11k_base *ab);
 void ath11k_ce_free_pipes(struct ath11k_base *ab);
 int ath11k_ce_get_attr_flags(struct ath11k_base *ab, int ce_id);
 void ath11k_ce_poll_send_completed(struct ath11k_base *ab, u8 pipe_id);
-int ath11k_ce_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
-				  u8 *ul_pipe, u8 *dl_pipe);
-int ath11k_ce_attr_attach(struct ath11k_base *ab);
 void ath11k_ce_get_shadow_config(struct ath11k_base *ab,
 				 u32 **shadow_cfg, u32 *shadow_cfg_len);
 void ath11k_ce_stop_shadow_timers(struct ath11k_base *ab);

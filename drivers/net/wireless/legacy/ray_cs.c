@@ -348,7 +348,7 @@ static int ray_config(struct pcmcia_device *link)
 {
 	int ret = 0;
 	int i;
-	struct net_device *dev = (struct net_device *)link->priv;
+	struct net_device *dev = link->priv;
 	ray_dev_t *local = netdev_priv(dev);
 
 	dev_dbg(&link->dev, "ray_config\n");
@@ -1830,7 +1830,7 @@ static void set_multicast_list(struct net_device *dev)
 =============================================================================*/
 static irqreturn_t ray_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *)dev_id;
+	struct net_device *dev = dev_id;
 	struct pcmcia_device *link;
 	ray_dev_t *local;
 	struct ccs __iomem *pccs;
@@ -2567,7 +2567,7 @@ static int ray_cs_proc_show(struct seq_file *m, void *v)
 	link = this_device;
 	if (!link)
 		return 0;
-	dev = (struct net_device *)link->priv;
+	dev = link->priv;
 	if (!dev)
 		return 0;
 	local = netdev_priv(dev);

@@ -9,7 +9,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/notifier.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
@@ -91,11 +92,19 @@ enum sprd_eic_type {
 
 struct sprd_eic {
 	struct gpio_chip chip;
+	struct notifier_block irq_nb;
 	void __iomem *base[SPRD_EIC_MAX_BANK];
 	enum sprd_eic_type type;
 	spinlock_t lock;
 	int irq;
 };
+
+static ATOMIC_NOTIFIER_HEAD(sprd_eic_irq_notifier);
+
+static struct sprd_eic *to_sprd_eic(struct notifier_block *nb)
+{
+	return container_of(nb, struct sprd_eic, irq_nb);
+}
 
 struct sprd_eic_variant_data {
 	enum sprd_eic_type type;
@@ -494,13 +503,6 @@ retry:
 	sprd_eic_irq_unmask(data);
 }
 
-static int sprd_eic_match_chip_by_type(struct gpio_chip *chip, void *data)
-{
-	enum sprd_eic_type type = *(enum sprd_eic_type *)data;
-
-	return !strcmp(chip->label, sprd_eic_label_name[type]);
-}
-
 static void sprd_eic_handle_one_type(struct gpio_chip *chip)
 {
 	struct sprd_eic *sprd_eic = gpiochip_get_data(chip);
@@ -546,25 +548,27 @@ static void sprd_eic_handle_one_type(struct gpio_chip *chip)
 static void sprd_eic_irq_handler(struct irq_desc *desc)
 {
 	struct irq_chip *ic = irq_desc_get_chip(desc);
-	struct gpio_chip *chip;
-	enum sprd_eic_type type;
 
 	chained_irq_enter(ic, desc);
 
 	/*
 	 * Since the digital-chip EIC 4 sub-modules (debounce, latch, async
-	 * and sync) share one same interrupt line, we should iterate each
-	 * EIC module to check if there are EIC interrupts were triggered.
+	 * and sync) share one same interrupt line, we should notify all of
+	 * them to let them check if there are EIC interrupts were triggered.
 	 */
-	for (type = SPRD_EIC_DEBOUNCE; type < SPRD_EIC_MAX; type++) {
-		chip = gpiochip_find(&type, sprd_eic_match_chip_by_type);
-		if (!chip)
-			continue;
-
-		sprd_eic_handle_one_type(chip);
-	}
+	atomic_notifier_call_chain(&sprd_eic_irq_notifier, 0, NULL);
 
 	chained_irq_exit(ic, desc);
+}
+
+static int sprd_eic_irq_notify(struct notifier_block *nb, unsigned long action,
+			       void *data)
+{
+	struct sprd_eic *sprd_eic = to_sprd_eic(nb);
+
+	sprd_eic_handle_one_type(&sprd_eic->chip);
+
+	return NOTIFY_OK;
 }
 
 static const struct irq_chip sprd_eic_irq = {
@@ -576,21 +580,30 @@ static const struct irq_chip sprd_eic_irq = {
 	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_IMMUTABLE,
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
+
+static void sprd_eic_unregister_notifier(void *data)
+{
+	struct notifier_block *nb = data;
+
+	atomic_notifier_chain_unregister(&sprd_eic_irq_notifier, nb);
+}
+
 static int sprd_eic_probe(struct platform_device *pdev)
 {
 	const struct sprd_eic_variant_data *pdata;
+	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *irq;
 	struct sprd_eic *sprd_eic;
 	struct resource *res;
 	int ret, i;
 
-	pdata = of_device_get_match_data(&pdev->dev);
+	pdata = of_device_get_match_data(dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "No matching driver data found.\n");
+		dev_err(dev, "No matching driver data found.\n");
 		return -EINVAL;
 	}
 
-	sprd_eic = devm_kzalloc(&pdev->dev, sizeof(*sprd_eic), GFP_KERNEL);
+	sprd_eic = devm_kzalloc(dev, sizeof(*sprd_eic), GFP_KERNEL);
 	if (!sprd_eic)
 		return -ENOMEM;
 
@@ -612,7 +625,7 @@ static int sprd_eic_probe(struct platform_device *pdev)
 		if (!res)
 			break;
 
-		sprd_eic->base[i] = devm_ioremap_resource(&pdev->dev, res);
+		sprd_eic->base[i] = devm_ioremap_resource(dev, res);
 		if (IS_ERR(sprd_eic->base[i]))
 			return PTR_ERR(sprd_eic->base[i]);
 	}
@@ -620,7 +633,7 @@ static int sprd_eic_probe(struct platform_device *pdev)
 	sprd_eic->chip.label = sprd_eic_label_name[sprd_eic->type];
 	sprd_eic->chip.ngpio = pdata->num_eics;
 	sprd_eic->chip.base = -1;
-	sprd_eic->chip.parent = &pdev->dev;
+	sprd_eic->chip.parent = dev;
 	sprd_eic->chip.direction_input = sprd_eic_direction_input;
 	switch (sprd_eic->type) {
 	case SPRD_EIC_DEBOUNCE:
@@ -647,14 +660,21 @@ static int sprd_eic_probe(struct platform_device *pdev)
 	irq->num_parents = 1;
 	irq->parents = &sprd_eic->irq;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &sprd_eic->chip, sprd_eic);
+	ret = devm_gpiochip_add_data(dev, &sprd_eic->chip, sprd_eic);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip %d.\n", ret);
+		dev_err(dev, "Could not register gpiochip %d.\n", ret);
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, sprd_eic);
-	return 0;
+	sprd_eic->irq_nb.notifier_call = sprd_eic_irq_notify;
+	ret = atomic_notifier_chain_register(&sprd_eic_irq_notifier,
+					     &sprd_eic->irq_nb);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to register with the interrupt notifier");
+
+	return devm_add_action_or_reset(dev, sprd_eic_unregister_notifier,
+					&sprd_eic->irq_nb);
 }
 
 static const struct of_device_id sprd_eic_of_match[] = {

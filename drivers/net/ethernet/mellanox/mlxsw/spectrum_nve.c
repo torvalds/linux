@@ -989,6 +989,9 @@ void mlxsw_sp_nve_fid_disable(struct mlxsw_sp *mlxsw_sp,
 	int nve_ifindex;
 	__be32 vni;
 
+	/* Necessary for __dev_get_by_index() below. */
+	ASSERT_RTNL();
+
 	mlxsw_sp_nve_flood_ip_flush(mlxsw_sp, fid);
 	mlxsw_sp_nve_fdb_flush_by_fid(mlxsw_sp, fid_index);
 	mlxsw_sp_nve_ipv6_addr_flush_by_fid(mlxsw_sp, fid_index);
@@ -997,14 +1000,12 @@ void mlxsw_sp_nve_fid_disable(struct mlxsw_sp *mlxsw_sp,
 		    mlxsw_sp_fid_vni(fid, &vni)))
 		goto out;
 
-	nve_dev = dev_get_by_index(mlxsw_sp_net(mlxsw_sp), nve_ifindex);
+	nve_dev = __dev_get_by_index(mlxsw_sp_net(mlxsw_sp), nve_ifindex);
 	if (!nve_dev)
 		goto out;
 
 	mlxsw_sp_nve_fdb_clear_offload(mlxsw_sp, fid, nve_dev, vni);
 	mlxsw_sp_fid_fdb_clear_offload(fid, nve_dev);
-
-	dev_put(nve_dev);
 
 out:
 	mlxsw_sp_fid_vni_clear(fid);

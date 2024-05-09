@@ -52,13 +52,12 @@ struct smc_llc_msg_confirm_link {	/* type 0x01 */
 	u8 link_num;
 	u8 link_uid[SMC_LGR_ID_SIZE];
 	u8 max_links;
-	u8 reserved[9];
+	u8 max_conns;
+	u8 reserved[8];
 };
 
 #define SMC_LLC_FLAG_ADD_LNK_REJ	0x40
 #define SMC_LLC_REJ_RSN_NO_ALT_PATH	1
-
-#define SMC_LLC_ADD_LNK_MAX_LINKS	2
 
 struct smc_llc_msg_add_link {		/* type 0x02 */
 	struct smc_llc_hdr hd;
@@ -471,7 +470,12 @@ int smc_llc_send_confirm_link(struct smc_link *link,
 	hton24(confllc->sender_qp_num, link->roce_qp->qp_num);
 	confllc->link_num = link->link_id;
 	memcpy(confllc->link_uid, link->link_uid, SMC_LGR_ID_SIZE);
-	confllc->max_links = SMC_LLC_ADD_LNK_MAX_LINKS;
+	confllc->max_links = SMC_LINKS_ADD_LNK_MAX;
+	if (link->lgr->smc_version == SMC_V2 &&
+	    link->lgr->peer_smc_release >= SMC_RELEASE_1) {
+		confllc->max_conns = link->lgr->max_conns;
+		confllc->max_links = link->lgr->max_links;
+	}
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
 put_out:
@@ -1041,6 +1045,11 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 		goto out_reject;
 	}
 
+	if (lgr->type == SMC_LGR_SINGLE && lgr->max_links <= 1) {
+		rc = 0;
+		goto out_reject;
+	}
+
 	ini->vlan_id = lgr->vlan_id;
 	if (lgr->smc_version == SMC_V2) {
 		ini->check_smcrv2 = true;
@@ -1163,6 +1172,9 @@ static void smc_llc_cli_add_link_invite(struct smc_link *link,
 
 	if (lgr->type == SMC_LGR_SYMMETRIC ||
 	    lgr->type == SMC_LGR_ASYMMETRIC_PEER)
+		goto out;
+
+	if (lgr->type == SMC_LGR_SINGLE && lgr->max_links <= 1)
 		goto out;
 
 	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
@@ -1407,6 +1419,11 @@ int smc_llc_srv_add_link(struct smc_link *link,
 	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
 	if (!ini) {
 		rc = -ENOMEM;
+		goto out;
+	}
+
+	if (lgr->type == SMC_LGR_SINGLE && lgr->max_links <= 1) {
+		rc = 0;
 		goto out;
 	}
 

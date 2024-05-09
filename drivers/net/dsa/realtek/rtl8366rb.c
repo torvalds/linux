@@ -95,12 +95,6 @@
 #define RTL8366RB_PAACR_RX_PAUSE	BIT(6)
 #define RTL8366RB_PAACR_AN		BIT(7)
 
-#define RTL8366RB_PAACR_CPU_PORT	(RTL8366RB_PAACR_SPEED_1000M | \
-					 RTL8366RB_PAACR_FULL_DUPLEX | \
-					 RTL8366RB_PAACR_LINK_UP | \
-					 RTL8366RB_PAACR_TX_PAUSE | \
-					 RTL8366RB_PAACR_RX_PAUSE)
-
 /* bits 0..7 = port 0, bits 8..15 = port 1 */
 #define RTL8366RB_PSTAT0		0x0014
 /* bits 0..7 = port 2, bits 8..15 = port 3 */
@@ -1049,34 +1043,92 @@ static enum dsa_tag_protocol rtl8366_get_tag_protocol(struct dsa_switch *ds,
 	return DSA_TAG_PROTO_RTL4_A;
 }
 
+static void rtl8366rb_phylink_get_caps(struct dsa_switch *ds, int port,
+				       struct phylink_config *config)
+{
+	unsigned long *interfaces = config->supported_interfaces;
+	struct realtek_priv *priv = ds->priv;
+
+	if (port == priv->cpu_port) {
+		__set_bit(PHY_INTERFACE_MODE_MII, interfaces);
+		__set_bit(PHY_INTERFACE_MODE_GMII, interfaces);
+		/* REVMII only supports 100M FD */
+		__set_bit(PHY_INTERFACE_MODE_REVMII, interfaces);
+		/* RGMII only supports 1G FD */
+		phy_interface_set_rgmii(interfaces);
+
+		config->mac_capabilities = MAC_1000 | MAC_100 |
+					   MAC_SYM_PAUSE;
+	} else {
+		/* RSGMII port, but we don't have that, and we don't
+		 * specify in DT, so phylib uses the default of GMII
+		 */
+		__set_bit(PHY_INTERFACE_MODE_GMII, interfaces);
+		config->mac_capabilities = MAC_1000 | MAC_100 | MAC_10 |
+					   MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
+	}
+}
+
 static void
 rtl8366rb_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 		      phy_interface_t interface, struct phy_device *phydev,
 		      int speed, int duplex, bool tx_pause, bool rx_pause)
 {
 	struct realtek_priv *priv = ds->priv;
+	unsigned int val;
 	int ret;
 
+	/* Allow forcing the mode on the fixed CPU port, no autonegotiation.
+	 * We assume autonegotiation works on the PHY-facing ports.
+	 */
 	if (port != priv->cpu_port)
 		return;
 
 	dev_dbg(priv->dev, "MAC link up on CPU port (%d)\n", port);
 
-	/* Force the fixed CPU port into 1Gbit mode, no autonegotiation */
 	ret = regmap_update_bits(priv->map, RTL8366RB_MAC_FORCE_CTRL_REG,
 				 BIT(port), BIT(port));
 	if (ret) {
-		dev_err(priv->dev, "failed to force 1Gbit on CPU port\n");
+		dev_err(priv->dev, "failed to force CPU port\n");
 		return;
 	}
 
+	/* Conjure port config */
+	switch (speed) {
+	case SPEED_10:
+		val = RTL8366RB_PAACR_SPEED_10M;
+		break;
+	case SPEED_100:
+		val = RTL8366RB_PAACR_SPEED_100M;
+		break;
+	case SPEED_1000:
+		val = RTL8366RB_PAACR_SPEED_1000M;
+		break;
+	default:
+		val = RTL8366RB_PAACR_SPEED_1000M;
+		break;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		val |= RTL8366RB_PAACR_FULL_DUPLEX;
+
+	if (tx_pause)
+		val |=  RTL8366RB_PAACR_TX_PAUSE;
+
+	if (rx_pause)
+		val |= RTL8366RB_PAACR_RX_PAUSE;
+
+	val |= RTL8366RB_PAACR_LINK_UP;
+
 	ret = regmap_update_bits(priv->map, RTL8366RB_PAACR2,
 				 0xFF00U,
-				 RTL8366RB_PAACR_CPU_PORT << 8);
+				 val << 8);
 	if (ret) {
 		dev_err(priv->dev, "failed to set PAACR on CPU port\n");
 		return;
 	}
+
+	dev_dbg(priv->dev, "set PAACR to %04x\n", val);
 
 	/* Enable the CPU port */
 	ret = regmap_update_bits(priv->map, RTL8366RB_PECR, BIT(port),
@@ -1796,6 +1848,7 @@ static int rtl8366rb_detect(struct realtek_priv *priv)
 static const struct dsa_switch_ops rtl8366rb_switch_ops_smi = {
 	.get_tag_protocol = rtl8366_get_tag_protocol,
 	.setup = rtl8366rb_setup,
+	.phylink_get_caps = rtl8366rb_phylink_get_caps,
 	.phylink_mac_link_up = rtl8366rb_mac_link_up,
 	.phylink_mac_link_down = rtl8366rb_mac_link_down,
 	.get_strings = rtl8366_get_strings,
@@ -1821,6 +1874,7 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops_mdio = {
 	.setup = rtl8366rb_setup,
 	.phy_read = rtl8366rb_dsa_phy_read,
 	.phy_write = rtl8366rb_dsa_phy_write,
+	.phylink_get_caps = rtl8366rb_phylink_get_caps,
 	.phylink_mac_link_up = rtl8366rb_mac_link_up,
 	.phylink_mac_link_down = rtl8366rb_mac_link_down,
 	.get_strings = rtl8366_get_strings,

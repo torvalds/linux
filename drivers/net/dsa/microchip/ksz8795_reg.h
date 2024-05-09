@@ -323,13 +323,6 @@
 	((addr) + REG_PORT_1_CTRL_0 + (port) *	\
 		(REG_PORT_2_CTRL_0 - REG_PORT_1_CTRL_0))
 
-#define REG_SW_MAC_ADDR_0		0x68
-#define REG_SW_MAC_ADDR_1		0x69
-#define REG_SW_MAC_ADDR_2		0x6A
-#define REG_SW_MAC_ADDR_3		0x6B
-#define REG_SW_MAC_ADDR_4		0x6C
-#define REG_SW_MAC_ADDR_5		0x6D
-
 #define TABLE_EXT_SELECT_S		5
 #define TABLE_EEE_V			1
 #define TABLE_ACL_V			2
@@ -441,20 +434,6 @@
 
 #define TOS_PRIO_M			KS_PRIO_M
 #define TOS_PRIO_S			KS_PRIO_S
-
-#define REG_SW_CTRL_20			0xA3
-
-#define SW_GMII_DRIVE_STRENGTH_S	4
-#define SW_DRIVE_STRENGTH_M		0x7
-#define SW_DRIVE_STRENGTH_2MA		0
-#define SW_DRIVE_STRENGTH_4MA		1
-#define SW_DRIVE_STRENGTH_8MA		2
-#define SW_DRIVE_STRENGTH_12MA		3
-#define SW_DRIVE_STRENGTH_16MA		4
-#define SW_DRIVE_STRENGTH_20MA		5
-#define SW_DRIVE_STRENGTH_24MA		6
-#define SW_DRIVE_STRENGTH_28MA		7
-#define SW_MII_DRIVE_STRENGTH_S		0
 
 #define REG_SW_CTRL_21			0xA4
 

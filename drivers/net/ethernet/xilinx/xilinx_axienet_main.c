@@ -27,11 +27,12 @@
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/of_platform.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/skbuff.h>
 #include <linux/math64.h>
 #include <linux/phy.h>
@@ -2182,7 +2183,7 @@ free_netdev:
 	return ret;
 }
 
-static int axienet_remove(struct platform_device *pdev)
+static void axienet_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct axienet_local *lp = netdev_priv(ndev);
@@ -2201,8 +2202,6 @@ static int axienet_remove(struct platform_device *pdev)
 	clk_disable_unprepare(lp->axi_clk);
 
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static void axienet_shutdown(struct platform_device *pdev)
@@ -2255,7 +2254,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(axienet_pm_ops,
 
 static struct platform_driver axienet_driver = {
 	.probe = axienet_probe,
-	.remove = axienet_remove,
+	.remove_new = axienet_remove,
 	.shutdown = axienet_shutdown,
 	.driver = {
 		 .name = "xilinx_axienet",

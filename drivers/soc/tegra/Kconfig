@@ -152,11 +152,6 @@ config SOC_TEGRA_PMC
 	select PM_GENERIC_DOMAINS
 	select REGMAP
 
-config SOC_TEGRA_POWERGATE_BPMP
-	def_bool y
-	depends on PM_GENERIC_DOMAINS
-	depends on TEGRA_BPMP
-
 config SOC_TEGRA20_VOLTAGE_COUPLER
 	bool "Voltage scaling support for Tegra20 SoCs"
 	depends on ARCH_TEGRA_2x_SOC || COMPILE_TEST

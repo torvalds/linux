@@ -68,7 +68,6 @@ int ufshcd_mcq_decide_queue_depth(struct ufs_hba *hba);
 int ufshcd_mcq_memory_alloc(struct ufs_hba *hba);
 void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba);
 void ufshcd_mcq_config_mac(struct ufs_hba *hba, u32 max_active_cmds);
-void ufshcd_mcq_select_mcq_mode(struct ufs_hba *hba);
 u32 ufshcd_mcq_read_cqis(struct ufs_hba *hba, int i);
 void ufshcd_mcq_write_cqis(struct ufs_hba *hba, u32 val, int i);
 struct ufs_hw_queue *ufshcd_mcq_req_to_hwq(struct ufs_hba *hba,
@@ -94,7 +93,7 @@ int ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd);
 int ufshcd_exec_raw_upiu_cmd(struct ufs_hba *hba,
 			     struct utp_upiu_req *req_upiu,
 			     struct utp_upiu_req *rsp_upiu,
-			     int msgcode,
+			     enum upiu_request_transaction msgcode,
 			     u8 *desc_buff, int *buff_len,
 			     enum query_opcode desc_op);
 
@@ -295,7 +294,7 @@ extern const struct ufs_pm_lvl_states ufs_pm_lvl_states[];
  * ufshcd_scsi_to_upiu_lun - maps scsi LUN to UPIU LUN
  * @scsi_lun: scsi LUN id
  *
- * Returns UPIU LUN id
+ * Return: UPIU LUN id
  */
 static inline u8 ufshcd_scsi_to_upiu_lun(unsigned int scsi_lun)
 {

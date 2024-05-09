@@ -494,7 +494,8 @@ static int ih_v6_0_self_irq(struct amdgpu_device *adev,
 		*adev->irq.ih1.wptr_cpu = wptr;
 		schedule_work(&adev->irq.ih1_work);
 		break;
-	default: break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -535,7 +536,7 @@ static int ih_v6_0_sw_init(void *handle)
 	 * use bus address for ih ring by psp bl */
 	use_bus_addr =
 		(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) ? false : true;
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 256 * 1024, use_bus_addr);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, IH_RING_SIZE, use_bus_addr);
 	if (r)
 		return r;
 
@@ -548,7 +549,7 @@ static int ih_v6_0_sw_init(void *handle)
 	/* initialize ih control register offset */
 	ih_v6_0_init_register_offset(adev);
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, IH_SW_RING_SIZE, true);
 	if (r)
 		return r;
 
@@ -640,8 +641,6 @@ static void ih_v6_0_update_clockgating_state(struct amdgpu_device *adev,
 		if (def != data)
 			WREG32_SOC15(OSSSYS, 0, regIH_CLK_CTRL, data);
 	}
-
-	return;
 }
 
 static int ih_v6_0_set_clockgating_state(void *handle,
@@ -725,8 +724,6 @@ static void ih_v6_0_get_clockgating_state(void *handle, u64 *flags)
 
 	if (!RREG32_SOC15(OSSSYS, 0, regIH_CLK_CTRL))
 		*flags |= AMD_CG_SUPPORT_IH_CG;
-
-	return;
 }
 
 static const struct amd_ip_funcs ih_v6_0_ip_funcs = {
@@ -759,8 +756,7 @@ static void ih_v6_0_set_interrupt_funcs(struct amdgpu_device *adev)
 	adev->irq.ih_funcs = &ih_v6_0_funcs;
 }
 
-const struct amdgpu_ip_block_version ih_v6_0_ip_block =
-{
+const struct amdgpu_ip_block_version ih_v6_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 6,
 	.minor = 0,

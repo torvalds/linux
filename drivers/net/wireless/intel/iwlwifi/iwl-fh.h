@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021, 2023 Intel Corporation
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fh_h__
@@ -71,7 +71,7 @@
 static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 					     unsigned int chnl)
 {
-	if (trans->trans_cfg->use_tfh) {
+	if (trans->trans_cfg->gen2) {
 		WARN_ON_ONCE(chnl >= 64);
 		return TFH_TFDQ_CBB_TABLE + 8 * chnl;
 	}
@@ -565,6 +565,8 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define RX_QUEUE_MASK                         255
 #define RX_QUEUE_SIZE_LOG                     8
 
+#define IWL_DEFAULT_RX_QUEUE			0
+
 /**
  * struct iwl_rb_status - reserve buffer status
  * 	host memory mapped FH registers
@@ -679,12 +681,13 @@ struct iwl_tfh_tb {
 
 /**
  * struct iwl_tfd - Transmit Frame Descriptor (TFD)
- * @ __reserved1[3] reserved
- * @ num_tbs 0-4 number of active tbs
- *	     5   reserved
- *	     6-7 padding (not used)
- * @ tbs[20]	transmit frame buffer descriptors
- * @ __pad	padding
+ * @__reserved1: reserved
+ * @num_tbs:
+ *  0-4 number of active tbs
+ *  5   reserved
+ *  6-7 padding (not used)
+ * @tbs: transmit frame buffer descriptors
+ * @__pad: padding
  */
 struct iwl_tfd {
 	u8 __reserved1[3];

@@ -19,30 +19,19 @@
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 #include <linux/dma-mapping.h>
+#include <linux/pci.h>
+#include <linux/pm_runtime.h>
 
 #include "amd.h"
+#include "../mach-config.h"
+#include "acp-mach.h"
 
 #define DRV_NAME "acp_asoc_rembrandt"
 
-#define ACP6X_PGFSM_CONTROL			0x1024
-#define ACP6X_PGFSM_STATUS			0x1028
-
-#define ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK	0x00010001
-
-#define ACP_PGFSM_CNTL_POWER_ON_MASK		0x01
-#define ACP_PGFSM_CNTL_POWER_OFF_MASK		0x00
-#define ACP_PGFSM_STATUS_MASK			0x03
-#define ACP_POWERED_ON				0x00
-#define ACP_POWER_ON_IN_PROGRESS		0x01
-#define ACP_POWERED_OFF				0x02
-#define ACP_POWER_OFF_IN_PROGRESS		0x03
-
-#define ACP_ERROR_MASK				0x20000000
-#define ACP_EXT_INTR_STAT_CLEAR_MASK		0xFFFFFFFF
-
-
-static int rmb_acp_init(void __iomem *base);
-static int rmb_acp_deinit(void __iomem *base);
+#define MP1_C2PMSG_69 0x3B10A14
+#define MP1_C2PMSG_85 0x3B10A54
+#define MP1_C2PMSG_93 0x3B10A74
+#define HOST_BRIDGE_ID 0x14B5
 
 static struct acp_resource rsrc = {
 	.offset = 0,
@@ -111,7 +100,6 @@ static struct snd_soc_dai_driver acp_rmb_dai[] = {
 		.rate_max = 48000,
 	},
 	.ops = &asoc_acp_cpu_dai_ops,
-	.probe = &asoc_acp_i2s_probe,
 },
 {
 	.name = "acp-i2s-bt",
@@ -137,7 +125,6 @@ static struct snd_soc_dai_driver acp_rmb_dai[] = {
 		.rate_max = 48000,
 	},
 	.ops = &asoc_acp_cpu_dai_ops,
-	.probe = &asoc_acp_i2s_probe,
 },
 {
 	.name = "acp-i2s-hs",
@@ -163,7 +150,6 @@ static struct snd_soc_dai_driver acp_rmb_dai[] = {
 		.rate_max = 48000,
 	},
 	.ops = &asoc_acp_cpu_dai_ops,
-	.probe = &asoc_acp_i2s_probe,
 },
 {
 	.name = "acp-pdm-dmic",
@@ -180,108 +166,22 @@ static struct snd_soc_dai_driver acp_rmb_dai[] = {
 },
 };
 
-static int acp6x_power_on(void __iomem *base)
+static int acp6x_master_clock_generate(struct device *dev)
 {
-	u32 val;
-	int timeout;
+	int data = 0;
+	struct pci_dev *smn_dev;
 
-	val = readl(base + ACP6X_PGFSM_STATUS);
-
-	if (val == ACP_POWERED_ON)
-		return 0;
-
-	if ((val & ACP_PGFSM_STATUS_MASK) !=
-				ACP_POWER_ON_IN_PROGRESS)
-		writel(ACP_PGFSM_CNTL_POWER_ON_MASK,
-		       base + ACP6X_PGFSM_CONTROL);
-	timeout = 0;
-	while (++timeout < 500) {
-		val = readl(base + ACP6X_PGFSM_STATUS);
-		if (!val)
-			return 0;
-		udelay(1);
-	}
-	return -ETIMEDOUT;
-}
-
-static int acp6x_reset(void __iomem *base)
-{
-	u32 val;
-	int timeout;
-
-	writel(1, base + ACP_SOFT_RESET);
-	timeout = 0;
-	while (++timeout < 500) {
-		val = readl(base + ACP_SOFT_RESET);
-		if (val & ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK)
-			break;
-		cpu_relax();
-	}
-	writel(0, base + ACP_SOFT_RESET);
-	timeout = 0;
-	while (++timeout < 500) {
-		val = readl(base + ACP_SOFT_RESET);
-		if (!val)
-			return 0;
-		cpu_relax();
-	}
-	return -ETIMEDOUT;
-}
-
-static void acp6x_enable_interrupts(struct acp_dev_data *adata)
-{
-	struct acp_resource *rsrc = adata->rsrc;
-	u32 ext_intr_ctrl;
-
-	writel(0x01, ACP_EXTERNAL_INTR_ENB(adata));
-	ext_intr_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
-	ext_intr_ctrl |= ACP_ERROR_MASK;
-	writel(ext_intr_ctrl, ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
-}
-
-static void acp6x_disable_interrupts(struct acp_dev_data *adata)
-{
-	struct acp_resource *rsrc = adata->rsrc;
-
-	writel(ACP_EXT_INTR_STAT_CLEAR_MASK,
-	       ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
-	writel(0x00, ACP_EXTERNAL_INTR_ENB(adata));
-}
-
-static int rmb_acp_init(void __iomem *base)
-{
-	int ret;
-
-	/* power on */
-	ret = acp6x_power_on(base);
-	if (ret) {
-		pr_err("ACP power on failed\n");
-		return ret;
-	}
-	writel(0x01, base + ACP_CONTROL);
-
-	/* Reset */
-	ret = acp6x_reset(base);
-	if (ret) {
-		pr_err("ACP reset failed\n");
-		return ret;
+	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, HOST_BRIDGE_ID, NULL);
+	if (!smn_dev) {
+		dev_err(dev, "Failed to get host bridge device\n");
+		return -ENODEV;
 	}
 
-	return 0;
-}
-
-static int rmb_acp_deinit(void __iomem *base)
-{
-	int ret = 0;
-
-	/* Reset */
-	ret = acp6x_reset(base);
-	if (ret) {
-		pr_err("ACP reset failed\n");
-		return ret;
-	}
-
-	writel(0x00, base + ACP_CONTROL);
+	smn_write(smn_dev, MP1_C2PMSG_93, 0);
+	smn_write(smn_dev, MP1_C2PMSG_85, 0xC4);
+	smn_write(smn_dev, MP1_C2PMSG_69, 0x4);
+	read_poll_timeout(smn_read, data, data, DELAY_US,
+			  ACP_TIMEOUT, false, smn_dev, MP1_C2PMSG_93);
 	return 0;
 }
 
@@ -291,6 +191,7 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 	struct acp_chip_info *chip;
 	struct acp_dev_data *adata;
 	struct resource *res;
+	u32 ret;
 
 	chip = dev_get_platdata(&pdev->dev);
 	if (!chip || !chip->base) {
@@ -302,8 +203,6 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
 		return -ENODEV;
 	}
-
-	rmb_acp_init(chip->base);
 
 	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
 	if (!adata)
@@ -330,14 +229,25 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 	adata->dai_driver = acp_rmb_dai;
 	adata->num_dai = ARRAY_SIZE(acp_rmb_dai);
 	adata->rsrc = &rsrc;
-
+	adata->platform = REMBRANDT;
+	adata->flag = chip->flag;
 	adata->machines = snd_soc_acpi_amd_rmb_acp_machines;
 	acp_machine_select(adata);
 
 	dev_set_drvdata(dev, adata);
-	acp6x_enable_interrupts(adata);
-	acp_platform_register(dev);
 
+	if (chip->flag != FLAG_AMD_LEGACY_ONLY_DMIC) {
+		ret = acp6x_master_clock_generate(dev);
+		if (ret)
+			return ret;
+	}
+	acp_enable_interrupts(adata);
+	acp_platform_register(dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 	return 0;
 }
 
@@ -345,19 +255,51 @@ static void rembrandt_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
-	struct acp_chip_info *chip = dev_get_platdata(dev);
 
-	rmb_acp_deinit(chip->base);
-
-	acp6x_disable_interrupts(adata);
+	acp_disable_interrupts(adata);
 	acp_platform_unregister(dev);
+	pm_runtime_disable(&pdev->dev);
 }
+
+static int __maybe_unused rmb_pcm_resume(struct device *dev)
+{
+	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_stream *stream;
+	struct snd_pcm_substream *substream;
+	snd_pcm_uframes_t buf_in_frames;
+	u64 buf_size;
+
+	if (adata->flag != FLAG_AMD_LEGACY_ONLY_DMIC)
+		acp6x_master_clock_generate(dev);
+
+	spin_lock(&adata->acp_lock);
+	list_for_each_entry(stream, &adata->stream_list, list) {
+		substream = stream->substream;
+		if (substream && substream->runtime) {
+			buf_in_frames = (substream->runtime->buffer_size);
+			buf_size = frames_to_bytes(substream->runtime, buf_in_frames);
+			config_pte_for_stream(adata, stream);
+			config_acp_dma(adata, stream, buf_size);
+			if (stream->dai_id)
+				restore_acp_i2s_params(substream, adata, stream);
+			else
+				restore_acp_pdm_params(substream, adata);
+		}
+	}
+	spin_unlock(&adata->acp_lock);
+	return 0;
+}
+
+static const struct dev_pm_ops rmb_dma_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(NULL, rmb_pcm_resume)
+};
 
 static struct platform_driver rembrandt_driver = {
 	.probe = rembrandt_audio_probe,
 	.remove_new = rembrandt_audio_remove,
 	.driver = {
 		.name = "acp_asoc_rembrandt",
+		.pm = &rmb_dma_pm_ops,
 	},
 };
 

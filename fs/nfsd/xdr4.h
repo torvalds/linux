@@ -50,6 +50,134 @@
 #define HAS_CSTATE_FLAG(c, f) ((c)->sid_flags & (f))
 #define CLEAR_CSTATE_FLAG(c, f) ((c)->sid_flags &= ~(f))
 
+/**
+ * nfsd4_encode_bool - Encode an XDR bool type result
+ * @xdr: target XDR stream
+ * @val: boolean value to encode
+ *
+ * Return values:
+ *    %nfs_ok: @val encoded; @xdr advanced to next position
+ *    %nfserr_resource: stream buffer space exhausted
+ */
+static __always_inline __be32
+nfsd4_encode_bool(struct xdr_stream *xdr, bool val)
+{
+	__be32 *p = xdr_reserve_space(xdr, XDR_UNIT);
+
+	if (unlikely(p == NULL))
+		return nfserr_resource;
+	*p = val ? xdr_one : xdr_zero;
+	return nfs_ok;
+}
+
+/**
+ * nfsd4_encode_uint32_t - Encode an XDR uint32_t type result
+ * @xdr: target XDR stream
+ * @val: integer value to encode
+ *
+ * Return values:
+ *    %nfs_ok: @val encoded; @xdr advanced to next position
+ *    %nfserr_resource: stream buffer space exhausted
+ */
+static __always_inline __be32
+nfsd4_encode_uint32_t(struct xdr_stream *xdr, u32 val)
+{
+	__be32 *p = xdr_reserve_space(xdr, XDR_UNIT);
+
+	if (unlikely(p == NULL))
+		return nfserr_resource;
+	*p = cpu_to_be32(val);
+	return nfs_ok;
+}
+
+#define nfsd4_encode_aceflag4(x, v)	nfsd4_encode_uint32_t(x, v)
+#define nfsd4_encode_acemask4(x, v)	nfsd4_encode_uint32_t(x, v)
+#define nfsd4_encode_acetype4(x, v)	nfsd4_encode_uint32_t(x, v)
+#define nfsd4_encode_count4(x, v)	nfsd4_encode_uint32_t(x, v)
+#define nfsd4_encode_mode4(x, v)	nfsd4_encode_uint32_t(x, v)
+#define nfsd4_encode_nfs_lease4(x, v)	nfsd4_encode_uint32_t(x, v)
+#define nfsd4_encode_qop4(x, v)		nfsd4_encode_uint32_t(x, v)
+#define nfsd4_encode_sequenceid4(x, v)	nfsd4_encode_uint32_t(x, v)
+#define nfsd4_encode_slotid4(x, v)	nfsd4_encode_uint32_t(x, v)
+
+/**
+ * nfsd4_encode_uint64_t - Encode an XDR uint64_t type result
+ * @xdr: target XDR stream
+ * @val: integer value to encode
+ *
+ * Return values:
+ *    %nfs_ok: @val encoded; @xdr advanced to next position
+ *    %nfserr_resource: stream buffer space exhausted
+ */
+static __always_inline __be32
+nfsd4_encode_uint64_t(struct xdr_stream *xdr, u64 val)
+{
+	__be32 *p = xdr_reserve_space(xdr, XDR_UNIT * 2);
+
+	if (unlikely(p == NULL))
+		return nfserr_resource;
+	put_unaligned_be64(val, p);
+	return nfs_ok;
+}
+
+#define nfsd4_encode_changeid4(x, v)	nfsd4_encode_uint64_t(x, v)
+#define nfsd4_encode_nfs_cookie4(x, v)	nfsd4_encode_uint64_t(x, v)
+#define nfsd4_encode_length4(x, v)	nfsd4_encode_uint64_t(x, v)
+#define nfsd4_encode_offset4(x, v)	nfsd4_encode_uint64_t(x, v)
+
+/**
+ * nfsd4_encode_opaque_fixed - Encode a fixed-length XDR opaque type result
+ * @xdr: target XDR stream
+ * @data: pointer to data
+ * @size: length of data in bytes
+ *
+ * Return values:
+ *    %nfs_ok: @data encoded; @xdr advanced to next position
+ *    %nfserr_resource: stream buffer space exhausted
+ */
+static __always_inline __be32
+nfsd4_encode_opaque_fixed(struct xdr_stream *xdr, const void *data,
+			  size_t size)
+{
+	__be32 *p = xdr_reserve_space(xdr, xdr_align_size(size));
+	size_t pad = xdr_pad_size(size);
+
+	if (unlikely(p == NULL))
+		return nfserr_resource;
+	memcpy(p, data, size);
+	if (pad)
+		memset((char *)p + size, 0, pad);
+	return nfs_ok;
+}
+
+/**
+ * nfsd4_encode_opaque - Encode a variable-length XDR opaque type result
+ * @xdr: target XDR stream
+ * @data: pointer to data
+ * @size: length of data in bytes
+ *
+ * Return values:
+ *    %nfs_ok: @data encoded; @xdr advanced to next position
+ *    %nfserr_resource: stream buffer space exhausted
+ */
+static __always_inline __be32
+nfsd4_encode_opaque(struct xdr_stream *xdr, const void *data, size_t size)
+{
+	size_t pad = xdr_pad_size(size);
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT + xdr_align_size(size));
+	if (unlikely(p == NULL))
+		return nfserr_resource;
+	*p++ = cpu_to_be32(size);
+	memcpy(p, data, size);
+	if (pad)
+		memset((char *)p + size, 0, pad);
+	return nfs_ok;
+}
+
+#define nfsd4_encode_component4(x, d, s)	nfsd4_encode_opaque(x, d, s)
+
 struct nfsd4_compound_state {
 	struct svc_fh		current_fh;
 	struct svc_fh		save_fh;
@@ -170,12 +298,8 @@ struct nfsd4_lock {
 	} v;
 
 	/* response */
-	union {
-		struct {
-			stateid_t               stateid;
-		} ok;
-		struct nfsd4_lock_denied        denied;
-	} u;
+	stateid_t			lk_resp_stateid;
+	struct nfsd4_lock_denied        lk_denied;
 };
 #define lk_new_open_seqid       v.new.open_seqid
 #define lk_new_open_stateid     v.new.open_stateid
@@ -185,20 +309,15 @@ struct nfsd4_lock {
 #define lk_old_lock_stateid     v.old.lock_stateid
 #define lk_old_lock_seqid       v.old.lock_seqid
 
-#define lk_resp_stateid u.ok.stateid
-#define lk_denied       u.denied
-
-
 struct nfsd4_lockt {
 	u32				lt_type;
 	clientid_t			lt_clientid;
 	struct xdr_netobj		lt_owner;
 	u64				lt_offset;
 	u64				lt_length;
-	struct nfsd4_lock_denied  	lt_denied;
+	struct nfsd4_lock_denied	lt_denied;
 };
 
- 
 struct nfsd4_locku {
 	u32             lu_type;
 	u32             lu_seqid;
@@ -267,9 +386,9 @@ struct nfsd4_open {
 	u32		op_deleg_want;      /* request */
 	stateid_t	op_stateid;         /* response */
 	__be32		op_xdr_error;       /* see nfsd4_open_omfg() */
-	u32		op_recall;          /* recall */
 	struct nfsd4_change_info  op_cinfo; /* response */
 	u32		op_rflags;          /* response */
+	bool		op_recall;          /* response */
 	bool		op_truncate;        /* used during processing */
 	bool		op_created;         /* used during processing */
 	struct nfs4_openowner *op_openowner; /* used during processing */
@@ -496,7 +615,7 @@ struct nfsd4_layoutcommit {
 	u32			lc_layout_type;	/* request */
 	u32			lc_up_len;	/* layout length */
 	void			*lc_up_layout;	/* decoded by callback */
-	u32			lc_size_chg;	/* boolean for response */
+	bool			lc_size_chg;	/* response */
 	u64			lc_newsize;	/* response */
 };
 
@@ -508,7 +627,7 @@ struct nfsd4_layoutreturn {
 	u32			lrf_body_len;	/* request */
 	void			*lrf_body;	/* request */
 	stateid_t		lr_sid;		/* request/response */
-	u32			lrs_present;	/* response */
+	bool			lrs_present;	/* response */
 };
 
 struct nfsd4_fallocate {
@@ -626,8 +745,7 @@ struct nfsd4_copy_notify {
 
 	/* response */
 	stateid_t		cpn_cnr_stateid;
-	u64			cpn_sec;
-	u32			cpn_nsec;
+	struct timespec64	cpn_lease_time;
 	struct nl4_server	*cpn_src;
 };
 
@@ -774,17 +892,6 @@ void warn_on_nonidempotent_op(struct nfsd4_op *op);
 
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)
 
-static inline void
-set_change_info(struct nfsd4_change_info *cinfo, struct svc_fh *fhp)
-{
-	BUG_ON(!fhp->fh_pre_saved);
-	cinfo->atomic = (u32)(fhp->fh_post_saved && !fhp->fh_no_atomic_attr);
-
-	cinfo->before_change = fhp->fh_pre_change;
-	cinfo->after_change = fhp->fh_post_change;
-}
-
-
 bool nfsd4_mach_creds_match(struct nfs4_client *cl, struct svc_rqst *rqstp);
 bool nfs4svc_decode_compoundargs(struct svc_rqst *rqstp, struct xdr_stream *xdr);
 bool nfs4svc_encode_compoundres(struct svc_rqst *rqstp, struct xdr_stream *xdr);
@@ -831,8 +938,10 @@ extern __be32 nfsd4_open_downgrade(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
 extern __be32 nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *,
 		union nfsd4_op_u *u);
+extern void nfsd4_lock_release(union nfsd4_op_u *u);
 extern __be32 nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *,
 		union nfsd4_op_u *u);
+extern void nfsd4_lockt_release(union nfsd4_op_u *u);
 extern __be32 nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *,
 		union nfsd4_op_u *u);
 extern __be32

@@ -9,7 +9,6 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
@@ -39,7 +38,7 @@ static int devm_pci_epc_match(struct device *dev, void *res, void *match_data)
  */
 void pci_epc_put(struct pci_epc *epc)
 {
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	module_put(epc->ops->owner);
@@ -661,7 +660,7 @@ void pci_epc_remove_epf(struct pci_epc *epc, struct pci_epf *epf,
 	struct list_head *list;
 	u32 func_no = 0;
 
-	if (!epc || IS_ERR(epc) || !epf)
+	if (IS_ERR_OR_NULL(epc) || !epf)
 		return;
 
 	if (type == PRIMARY_INTERFACE) {
@@ -692,7 +691,7 @@ void pci_epc_linkup(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -718,7 +717,7 @@ void pci_epc_linkdown(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -744,7 +743,7 @@ void pci_epc_init_notify(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -770,7 +769,7 @@ void pci_epc_bme_notify(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -870,7 +869,6 @@ __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 
 put_dev:
 	put_device(&epc->dev);
-	kfree(epc);
 
 err_ret:
 	return ERR_PTR(ret);

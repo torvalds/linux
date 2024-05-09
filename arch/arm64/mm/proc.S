@@ -405,8 +405,7 @@ SYM_FUNC_START(__cpu_setup)
 	tlbi	vmalle1				// Invalidate local TLB
 	dsb	nsh
 
-	mov	x1, #3 << 20
-	msr	cpacr_el1, x1			// Enable FP/ASIMD
+	msr	cpacr_el1, xzr			// Reset cpacr_el1
 	mov	x1, #1 << 12			// Reset mdscr_el1 and disable
 	msr	mdscr_el1, x1			// access to the DCC from EL0
 	isb					// Unmask debug exceptions now,
@@ -447,7 +446,7 @@ SYM_FUNC_START(__cpu_setup)
 	 * via capabilities.
 	 */
 	mrs	x9, ID_AA64MMFR1_EL1
-	and	x9, x9, #0xf
+	and	x9, x9, ID_AA64MMFR1_EL1_HAFDBS_MASK
 	cbz	x9, 1f
 	orr	tcr, tcr, #TCR_HA		// hardware Access flag update
 1:

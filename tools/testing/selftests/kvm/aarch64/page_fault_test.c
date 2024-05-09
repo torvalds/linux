@@ -7,7 +7,6 @@
  * hugetlbfs with a hole). It checks that the expected handling method is
  * called (e.g., uffd faults with the right address and write/read flag).
  */
-
 #define _GNU_SOURCE
 #include <linux/bitmap.h>
 #include <fcntl.h>
@@ -97,14 +96,14 @@ static bool guest_check_lse(void)
 	uint64_t isar0 = read_sysreg(id_aa64isar0_el1);
 	uint64_t atomic;
 
-	atomic = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64ISAR0_ATOMICS), isar0);
+	atomic = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64ISAR0_EL1_ATOMIC), isar0);
 	return atomic >= 2;
 }
 
 static bool guest_check_dc_zva(void)
 {
 	uint64_t dczid = read_sysreg(dczid_el0);
-	uint64_t dzp = FIELD_GET(ARM64_FEATURE_MASK(DCZID_DZP), dczid);
+	uint64_t dzp = FIELD_GET(ARM64_FEATURE_MASK(DCZID_EL0_DZP), dczid);
 
 	return dzp == 0;
 }
@@ -136,8 +135,8 @@ static void guest_at(void)
 	uint64_t par;
 
 	asm volatile("at s1e1r, %0" :: "r" (guest_test_memory));
-	par = read_sysreg(par_el1);
 	isb();
+	par = read_sysreg(par_el1);
 
 	/* Bit 1 indicates whether the AT was successful */
 	GUEST_ASSERT_EQ(par & 1, 0);
@@ -197,7 +196,7 @@ static bool guest_set_ha(void)
 	uint64_t hadbs, tcr;
 
 	/* Skip if HA is not supported. */
-	hadbs = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR1_HADBS), mmfr1);
+	hadbs = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_HAFDBS), mmfr1);
 	if (hadbs == 0)
 		return false;
 
@@ -293,12 +292,12 @@ static void guest_code(struct test_desc *test)
 
 static void no_dabt_handler(struct ex_regs *regs)
 {
-	GUEST_ASSERT_1(false, read_sysreg(far_el1));
+	GUEST_FAIL("Unexpected dabt, far_el1 = 0x%llx", read_sysreg(far_el1));
 }
 
 static void no_iabt_handler(struct ex_regs *regs)
 {
-	GUEST_ASSERT_1(false, regs->pc);
+	GUEST_FAIL("Unexpected iabt, pc = 0x%lx", regs->pc);
 }
 
 static struct uffd_args {
@@ -318,7 +317,7 @@ static int uffd_generic_handler(int uffd_mode, int uffd, struct uffd_msg *msg,
 
 	TEST_ASSERT(uffd_mode == UFFDIO_REGISTER_MODE_MISSING,
 		    "The only expected UFFD mode is MISSING");
-	ASSERT_EQ(addr, (uint64_t)args->hva);
+	TEST_ASSERT_EQ(addr, (uint64_t)args->hva);
 
 	pr_debug("uffd fault: addr=%p write=%d\n",
 		 (void *)addr, !!(flags & UFFD_PAGEFAULT_FLAG_WRITE));
@@ -432,7 +431,7 @@ static void mmio_on_test_gpa_handler(struct kvm_vm *vm, struct kvm_run *run)
 	region = vm_get_mem_region(vm, MEM_REGION_TEST_DATA);
 	hva = (void *)region->region.userspace_addr;
 
-	ASSERT_EQ(run->mmio.phys_addr, region->region.guest_phys_addr);
+	TEST_ASSERT_EQ(run->mmio.phys_addr, region->region.guest_phys_addr);
 
 	memcpy(hva, run->mmio.data, run->mmio.len);
 	events.mmio_exits += 1;
@@ -631,9 +630,9 @@ static void setup_default_handlers(struct test_desc *test)
 
 static void check_event_counts(struct test_desc *test)
 {
-	ASSERT_EQ(test->expected_events.uffd_faults, events.uffd_faults);
-	ASSERT_EQ(test->expected_events.mmio_exits, events.mmio_exits);
-	ASSERT_EQ(test->expected_events.fail_vcpu_runs, events.fail_vcpu_runs);
+	TEST_ASSERT_EQ(test->expected_events.uffd_faults, events.uffd_faults);
+	TEST_ASSERT_EQ(test->expected_events.mmio_exits, events.mmio_exits);
+	TEST_ASSERT_EQ(test->expected_events.fail_vcpu_runs, events.fail_vcpu_runs);
 }
 
 static void print_test_banner(enum vm_guest_mode mode, struct test_params *p)
@@ -679,7 +678,7 @@ static void vcpu_run_loop(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 			}
 			break;
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+			REPORT_GUEST_ASSERT(uc);
 			break;
 		case UCALL_DONE:
 			goto done;
@@ -843,6 +842,7 @@ static void help(char *name)
 	.name			= SCAT2(ro_memslot_no_syndrome, _access),	\
 	.data_memslot_flags	= KVM_MEM_READONLY,				\
 	.pt_memslot_flags	= KVM_MEM_READONLY,				\
+	.guest_prepare		= { _PREPARE(_access) },			\
 	.guest_test		= _access,					\
 	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_no_syndrome_handler,	\
 	.expected_events	= { .fail_vcpu_runs = 1 },			\
@@ -866,6 +866,7 @@ static void help(char *name)
 	.name			= SCAT2(ro_memslot_no_syn_and_dlog, _access),	\
 	.data_memslot_flags	= KVM_MEM_READONLY | KVM_MEM_LOG_DIRTY_PAGES,	\
 	.pt_memslot_flags	= KVM_MEM_READONLY | KVM_MEM_LOG_DIRTY_PAGES,	\
+	.guest_prepare		= { _PREPARE(_access) },			\
 	.guest_test		= _access,					\
 	.guest_test_check	= { _test_check },				\
 	.fail_vcpu_run_handler	= fail_vcpu_run_mmio_no_syndrome_handler,	\
@@ -895,6 +896,7 @@ static void help(char *name)
 	.data_memslot_flags	= KVM_MEM_READONLY,				\
 	.pt_memslot_flags	= KVM_MEM_READONLY,				\
 	.mem_mark_cmd		= CMD_HOLE_DATA | CMD_HOLE_PT,			\
+	.guest_prepare		= { _PREPARE(_access) },			\
 	.guest_test		= _access,					\
 	.uffd_data_handler	= _uffd_data_handler,				\
 	.uffd_pt_handler	= uffd_pt_handler,			\

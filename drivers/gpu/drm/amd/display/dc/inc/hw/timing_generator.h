@@ -309,6 +309,7 @@ struct timing_generator_funcs {
 	 */
 	void (*set_odm_combine)(struct timing_generator *optc, int *opp_id, int opp_cnt,
 			struct dc_crtc_timing *timing);
+	void (*get_odm_combine_segments)(struct timing_generator *tg, int *odm_segments);
 	void (*set_h_timing_div_manual_mode)(struct timing_generator *optc, bool manual_mode);
 	void (*set_gsl)(struct timing_generator *optc, const struct gsl_params *params);
 	void (*set_gsl_source_select)(struct timing_generator *optc,

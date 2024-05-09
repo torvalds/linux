@@ -448,7 +448,7 @@ static void f81534a_process_read_urb(struct urb *urb)
 	tty_flip_buffer_push(&port->port);
 }
 
-static void f81232_break_ctl(struct tty_struct *tty, int break_state)
+static int f81232_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct f81232_private *priv = usb_get_serial_port_data(port);
@@ -467,6 +467,8 @@ static void f81232_break_ctl(struct tty_struct *tty, int break_state)
 		dev_err(&port->dev, "set break failed: %d\n", status);
 
 	mutex_unlock(&priv->lock);
+
+	return status;
 }
 
 static int f81232_find_clk(speed_t baudrate)

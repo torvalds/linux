@@ -30,8 +30,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/of_gpio.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
 
 #include "cs35l33.h"
 #include "cirrus_legacy.h"

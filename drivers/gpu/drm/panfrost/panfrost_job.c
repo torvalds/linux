@@ -159,6 +159,16 @@ panfrost_dequeue_job(struct panfrost_device *pfdev, int slot)
 	struct panfrost_job *job = pfdev->jobs[slot][0];
 
 	WARN_ON(!job);
+	if (job->is_profiled) {
+		if (job->engine_usage) {
+			job->engine_usage->elapsed_ns[slot] +=
+				ktime_to_ns(ktime_sub(ktime_get(), job->start_time));
+			job->engine_usage->cycles[slot] +=
+				panfrost_cycle_counter_read(pfdev) - job->start_cycles;
+		}
+		panfrost_cycle_counter_put(job->pfdev);
+	}
+
 	pfdev->jobs[slot][0] = pfdev->jobs[slot][1];
 	pfdev->jobs[slot][1] = NULL;
 
@@ -233,6 +243,13 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 	subslot = panfrost_enqueue_job(pfdev, js, job);
 	/* Don't queue the job if a reset is in progress */
 	if (!atomic_read(&pfdev->reset.pending)) {
+		if (atomic_read(&pfdev->profile_mode)) {
+			panfrost_cycle_counter_get(pfdev);
+			job->is_profiled = true;
+			job->start_time = ktime_get();
+			job->start_cycles = panfrost_cycle_counter_read(pfdev);
+		}
+
 		job_write(pfdev, JS_COMMAND_NEXT(js), JS_COMMAND_START);
 		dev_dbg(pfdev->dev,
 			"JS: Submitting atom %p to js[%d][%d] with head=0x%llx AS %d",
@@ -660,10 +677,14 @@ panfrost_reset(struct panfrost_device *pfdev,
 	 * stuck jobs. Let's make sure the PM counters stay balanced by
 	 * manually calling pm_runtime_put_noidle() and
 	 * panfrost_devfreq_record_idle() for each stuck job.
+	 * Let's also make sure the cycle counting register's refcnt is
+	 * kept balanced to prevent it from running forever
 	 */
 	spin_lock(&pfdev->js->job_lock);
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
 		for (j = 0; j < ARRAY_SIZE(pfdev->jobs[0]) && pfdev->jobs[i][j]; j++) {
+			if (pfdev->jobs[i][j]->is_profiled)
+				panfrost_cycle_counter_put(pfdev->jobs[i][j]->pfdev);
 			pm_runtime_put_noidle(pfdev->dev);
 			panfrost_devfreq_record_idle(&pfdev->pfdevfreq);
 		}
@@ -719,6 +740,22 @@ static enum drm_gpu_sched_stat panfrost_job_timedout(struct drm_sched_job
 	 */
 	if (dma_fence_is_signaled(job->done_fence))
 		return DRM_GPU_SCHED_STAT_NOMINAL;
+
+	/*
+	 * Panfrost IRQ handler may take a long time to process an interrupt
+	 * if there is another IRQ handler hogging the processing.
+	 * For example, the HDMI encoder driver might be stuck in the IRQ
+	 * handler for a significant time in a case of bad cable connection.
+	 * In order to catch such cases and not report spurious Panfrost
+	 * job timeouts, synchronize the IRQ handler and re-check the fence
+	 * status.
+	 */
+	synchronize_irq(pfdev->js->irq);
+
+	if (dma_fence_is_signaled(job->done_fence)) {
+		dev_warn(pfdev->dev, "unexpectedly high interrupt latency\n");
+		return DRM_GPU_SCHED_STAT_NOMINAL;
+	}
 
 	dev_err(pfdev->dev, "gpu sched timeout, js=%d, config=0x%x, status=0x%x, head=0x%x, tail=0x%x, sched_job=%p",
 		js,
@@ -794,8 +831,8 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 	spin_lock_init(&js->job_lock);
 
 	js->irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "job");
-	if (js->irq <= 0)
-		return -ENODEV;
+	if (js->irq < 0)
+		return js->irq;
 
 	ret = devm_request_threaded_irq(pfdev->dev, js->irq,
 					panfrost_job_irq_handler,
@@ -816,6 +853,7 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 
 		ret = drm_sched_init(&js->queue[j].sched,
 				     &panfrost_sched_ops,
+				     DRM_SCHED_PRIORITY_COUNT,
 				     nentries, 0,
 				     msecs_to_jiffies(JOB_TIMEOUT_MS),
 				     pfdev->reset.wq,
@@ -910,6 +948,9 @@ void panfrost_job_close(struct panfrost_file_priv *panfrost_priv)
 			}
 
 			job_write(pfdev, JS_COMMAND(i), cmd);
+
+			/* Jobs can outlive their file context */
+			job->engine_usage = NULL;
 		}
 	}
 	spin_unlock(&pfdev->js->job_lock);

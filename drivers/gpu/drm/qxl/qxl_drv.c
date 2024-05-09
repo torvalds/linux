@@ -68,11 +68,6 @@ module_param_named(num_heads, qxl_num_crtc, int, 0400);
 static struct drm_driver qxl_driver;
 static struct pci_driver qxl_pci_driver;
 
-static bool is_vga(struct pci_dev *pdev)
-{
-	return pdev->class == PCI_CLASS_DISPLAY_VGA << 8;
-}
-
 static int
 qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -100,7 +95,7 @@ qxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto disable_pci;
 
-	if (is_vga(pdev) && pdev->revision < 5) {
+	if (pci_is_vga(pdev) && pdev->revision < 5) {
 		ret = vga_get_interruptible(pdev, VGA_RSRC_LEGACY_IO);
 		if (ret) {
 			DRM_ERROR("can't get legacy vga ioports\n");
@@ -131,7 +126,7 @@ modeset_cleanup:
 unload:
 	qxl_device_fini(qdev);
 put_vga:
-	if (is_vga(pdev) && pdev->revision < 5)
+	if (pci_is_vga(pdev) && pdev->revision < 5)
 		vga_put(pdev, VGA_RSRC_LEGACY_IO);
 disable_pci:
 	pci_disable_device(pdev);
@@ -159,8 +154,14 @@ qxl_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unregister(dev);
 	drm_atomic_helper_shutdown(dev);
-	if (is_vga(pdev) && pdev->revision < 5)
+	if (pci_is_vga(pdev) && pdev->revision < 5)
 		vga_put(pdev, VGA_RSRC_LEGACY_IO);
+}
+
+static void
+qxl_pci_shutdown(struct pci_dev *pdev)
+{
+	drm_atomic_helper_shutdown(pci_get_drvdata(pdev));
 }
 
 DEFINE_DRM_GEM_FOPS(qxl_fops);
@@ -269,6 +270,7 @@ static struct pci_driver qxl_pci_driver = {
 	 .id_table = pciidlist,
 	 .probe = qxl_pci_probe,
 	 .remove = qxl_pci_remove,
+	 .shutdown = qxl_pci_shutdown,
 	 .driver.pm = &qxl_pm_ops,
 };
 
@@ -290,8 +292,6 @@ static struct drm_driver qxl_driver = {
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = qxl_debugfs_init,
 #endif
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = qxl_gem_prime_import_sg_table,
 	.fops = &qxl_fops,
 	.ioctls = qxl_ioctls,

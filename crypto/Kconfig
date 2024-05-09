@@ -85,6 +85,7 @@ config CRYPTO_SKCIPHER
 	tristate
 	select CRYPTO_SKCIPHER2
 	select CRYPTO_ALGAPI
+	select CRYPTO_ECB
 
 config CRYPTO_SKCIPHER2
 	tristate
@@ -689,7 +690,7 @@ config CRYPTO_CTS
 
 config CRYPTO_ECB
 	tristate "ECB (Electronic Codebook)"
-	select CRYPTO_SKCIPHER
+	select CRYPTO_SKCIPHER2
 	select CRYPTO_MANAGER
 	help
 	  ECB (Electronic Codebook) mode (NIST SP800-38A)
@@ -1295,6 +1296,66 @@ config CRYPTO_JITTERENTROPY
 	  This RNG does not perform any cryptographic whitening of the generated
 
 	  See https://www.chronox.de/jent.html
+
+choice
+	prompt "CPU Jitter RNG Memory Size"
+	default CRYPTO_JITTERENTROPY_MEMSIZE_2
+	depends on CRYPTO_JITTERENTROPY
+	help
+	  The Jitter RNG measures the execution time of memory accesses.
+	  Multiple consecutive memory accesses are performed. If the memory
+	  size fits into a cache (e.g. L1), only the memory access timing
+	  to that cache is measured. The closer the cache is to the CPU
+	  the less variations are measured and thus the less entropy is
+	  obtained. Thus, if the memory size fits into the L1 cache, the
+	  obtained entropy is less than if the memory size fits within
+	  L1 + L2, which in turn is less if the memory fits into
+	  L1 + L2 + L3. Thus, by selecting a different memory size,
+	  the entropy rate produced by the Jitter RNG can be modified.
+
+	config CRYPTO_JITTERENTROPY_MEMSIZE_2
+		bool "2048 Bytes (default)"
+
+	config CRYPTO_JITTERENTROPY_MEMSIZE_128
+		bool "128 kBytes"
+
+	config CRYPTO_JITTERENTROPY_MEMSIZE_1024
+		bool "1024 kBytes"
+
+	config CRYPTO_JITTERENTROPY_MEMSIZE_8192
+		bool "8192 kBytes"
+endchoice
+
+config CRYPTO_JITTERENTROPY_MEMORY_BLOCKS
+	int
+	default 64 if CRYPTO_JITTERENTROPY_MEMSIZE_2
+	default 512 if CRYPTO_JITTERENTROPY_MEMSIZE_128
+	default 1024 if CRYPTO_JITTERENTROPY_MEMSIZE_1024
+	default 4096 if CRYPTO_JITTERENTROPY_MEMSIZE_8192
+
+config CRYPTO_JITTERENTROPY_MEMORY_BLOCKSIZE
+	int
+	default 32 if CRYPTO_JITTERENTROPY_MEMSIZE_2
+	default 256 if CRYPTO_JITTERENTROPY_MEMSIZE_128
+	default 1024 if CRYPTO_JITTERENTROPY_MEMSIZE_1024
+	default 2048 if CRYPTO_JITTERENTROPY_MEMSIZE_8192
+
+config CRYPTO_JITTERENTROPY_OSR
+	int "CPU Jitter RNG Oversampling Rate"
+	range 1 15
+	default 1
+	depends on CRYPTO_JITTERENTROPY
+	help
+	  The Jitter RNG allows the specification of an oversampling rate (OSR).
+	  The Jitter RNG operation requires a fixed amount of timing
+	  measurements to produce one output block of random numbers. The
+	  OSR value is multiplied with the amount of timing measurements to
+	  generate one output block. Thus, the timing measurement is oversampled
+	  by the OSR factor. The oversampling allows the Jitter RNG to operate
+	  on hardware whose timers deliver limited amount of entropy (e.g.
+	  the timer is coarse) by setting the OSR to a higher value. The
+	  trade-off, however, is that the Jitter RNG now requires more time
+	  to generate random numbers.
 
 config CRYPTO_JITTERENTROPY_TESTINTERFACE
 	bool "CPU Jitter RNG Test Interface"

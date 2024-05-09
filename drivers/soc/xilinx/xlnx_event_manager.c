@@ -666,7 +666,7 @@ static int xlnx_event_manager_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int xlnx_event_manager_remove(struct platform_device *pdev)
+static void xlnx_event_manager_remove(struct platform_device *pdev)
 {
 	int i;
 	struct registered_event_data *eve_data;
@@ -691,13 +691,11 @@ static int xlnx_event_manager_remove(struct platform_device *pdev)
 	xlnx_event_cleanup_sgi(pdev);
 
 	event_manager_availability = -EACCES;
-
-	return ret;
 }
 
 static struct platform_driver xlnx_event_manager_driver = {
 	.probe = xlnx_event_manager_probe,
-	.remove = xlnx_event_manager_remove,
+	.remove_new = xlnx_event_manager_remove,
 	.driver = {
 		.name = "xlnx_event_manager",
 	},

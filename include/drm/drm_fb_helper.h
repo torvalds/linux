@@ -368,11 +368,6 @@ static inline void drm_fb_helper_deferred_io(struct fb_info *info,
 {
 }
 
-static inline int drm_fb_helper_defio_init(struct drm_fb_helper *fb_helper)
-{
-	return -ENODEV;
-}
-
 static inline void drm_fb_helper_set_suspend(struct drm_fb_helper *fb_helper,
 					     bool suspend)
 {

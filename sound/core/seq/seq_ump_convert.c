@@ -714,7 +714,7 @@ static int system_2p_ev_to_ump_midi1(const struct snd_seq_event *event,
 {
 	data->system.status = status;
 	data->system.parm1 = (event->data.control.value >> 7) & 0x7f;
-	data->system.parm1 = event->data.control.value & 0x7f;
+	data->system.parm2 = event->data.control.value & 0x7f;
 	return 1;
 }
 
@@ -1197,6 +1197,8 @@ int snd_seq_deliver_to_ump(struct snd_seq_client *source,
 			   struct snd_seq_event *event,
 			   int atomic, int hop)
 {
+	if (dest->group_filter & (1U << dest_port->ump_group))
+		return 0; /* group filtered - skip the event */
 	if (event->type == SNDRV_SEQ_EVENT_SYSEX)
 		return cvt_sysex_to_ump(dest, dest_port, event, atomic, hop);
 	else if (snd_seq_client_is_midi2(dest))
