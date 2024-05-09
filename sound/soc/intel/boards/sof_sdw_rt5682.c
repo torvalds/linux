@@ -17,21 +17,11 @@
 #include <sound/jack.h>
 #include "sof_sdw_common.h"
 
-static const struct snd_soc_dapm_widget generic_jack_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone", NULL),
-	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-};
-
 static const struct snd_soc_dapm_route rt5682_map[] = {
 	/*Headphones*/
 	{ "Headphone", NULL, "rt5682 HPOL" },
 	{ "Headphone", NULL, "rt5682 HPOR" },
 	{ "rt5682 IN1P", NULL, "Headset Mic" },
-};
-
-static const struct snd_kcontrol_new generic_jack_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Headphone"),
-	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 };
 
 static struct snd_soc_jack_pin rt5682_jack_pins[] = {
@@ -68,20 +58,6 @@ int rt5682_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  card->components);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_add_card_controls(card, generic_jack_controls,
-					ARRAY_SIZE(generic_jack_controls));
-	if (ret) {
-		dev_err(card->dev, "rt5682 control addition failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, generic_jack_widgets,
-					ARRAY_SIZE(generic_jack_widgets));
-	if (ret) {
-		dev_err(card->dev, "rt5682 widgets addition failed: %d\n", ret);
-		return ret;
-	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, rt5682_map,
 				      ARRAY_SIZE(rt5682_map));

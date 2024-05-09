@@ -14,10 +14,6 @@
 
 #define CODEC_NAME_SIZE	8
 
-static const struct snd_soc_dapm_widget generic_spk_widgets[] = {
-	SND_SOC_DAPM_SPK("Speaker", NULL),
-};
-
 int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	const char *dai_name = rtd->dai_link->codecs->dai_name;
@@ -34,13 +30,6 @@ int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  card->components, codec_name);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, generic_spk_widgets,
-					ARRAY_SIZE(generic_spk_widgets));
-	if (ret) {
-		dev_err(card->dev, "widgets addition failed: %d\n", ret);
-		return ret;
-	}
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		if (!strstr(codec_dai->name, "cs35l56"))

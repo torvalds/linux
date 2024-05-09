@@ -131,14 +131,6 @@ static int rt_amp_add_device_props(struct device *sdw_dev)
 	return ret;
 }
 
-static const struct snd_soc_dapm_widget generic_spk_widgets[] = {
-	SND_SOC_DAPM_SPK("Speaker", NULL),
-};
-
-static const struct snd_kcontrol_new generic_spk_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Speaker"),
-};
-
 /*
  * dapm routes for rt1308/rt1316/rt1318 will be registered dynamically
  * according to the number of rt1308/rt1316/rt1318 used. The first two
@@ -201,20 +193,6 @@ int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  card->components, codec_name);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_add_card_controls(card, generic_spk_controls,
-					ARRAY_SIZE(generic_spk_controls));
-	if (ret) {
-		dev_err(card->dev, "%s controls addition failed: %d\n", codec_name, ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, generic_spk_widgets,
-					ARRAY_SIZE(generic_spk_widgets));
-	if (ret) {
-		dev_err(card->dev, "%s widgets addition failed: %d\n", codec_name, ret);
-		return ret;
-	}
 
 	for_each_rtd_codec_dais(rtd, i, dai) {
 		if (strstr(dai->component->name_prefix, "-1"))

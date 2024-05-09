@@ -17,22 +17,12 @@
 #include <sound/jack.h>
 #include "sof_sdw_common.h"
 
-static const struct snd_soc_dapm_widget generic_jack_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone", NULL),
-	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-};
-
 static const struct snd_soc_dapm_route cs42l42_map[] = {
 	/* HP jack connectors - unknown if we have jack detection */
 	{"Headphone", NULL, "cs42l42 HP"},
 
 	/* other jacks */
 	{"cs42l42 HS", NULL, "Headset Mic"},
-};
-
-static const struct snd_kcontrol_new generic_jack_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Headphone"),
-	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 };
 
 static struct snd_soc_jack_pin cs42l42_jack_pins[] = {
@@ -69,20 +59,6 @@ int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  card->components);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_add_card_controls(card, generic_jack_controls,
-					ARRAY_SIZE(generic_jack_controls));
-	if (ret) {
-		dev_err(card->dev, "cs42l42 control addition failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, generic_jack_widgets,
-					ARRAY_SIZE(generic_jack_widgets));
-	if (ret) {
-		dev_err(card->dev, "cs42l42 widgets addition failed: %d\n", ret);
-		return ret;
-	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, cs42l42_map,
 				      ARRAY_SIZE(cs42l42_map));
