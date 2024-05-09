@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,hfpll.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm High-Frequency PLL
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+
+description:
+  The HFPLL is used as CPU PLL on various Qualcomm SoCs.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - qcom,msm8974-hfpll
+          - qcom,msm8976-hfpll-a53
+          - qcom,msm8976-hfpll-a72
+          - qcom,msm8976-hfpll-cci
+          - qcom,qcs404-hfpll
+      - const: qcom,hfpll
+        deprecated: true
+
+  reg:
+    items:
+      - description: HFPLL registers
+      - description: Alias register region
+    minItems: 1
+
+  '#clock-cells':
+    const: 0
+
+  clocks:
+    items:
+      - description: board XO clock
+
+  clock-names:
+    items:
+      - const: xo
+
+  clock-output-names:
+    description:
+      Name of the PLL. Typically hfpllX where X is a CPU number starting at 0.
+      Otherwise hfpll_Y where Y is more specific such as "l2".
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+  - clocks
+  - clock-names
+  - clock-output-names
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@f908a000 {
+        compatible = "qcom,msm8974-hfpll";
+        reg = <0xf908a000 0x30>, <0xf900a000 0x30>;
+        #clock-cells = <0>;
+        clock-output-names = "hfpll0";
+        clocks = <&xo_board>;
+        clock-names = "xo";
+    };
