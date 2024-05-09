@@ -665,8 +665,10 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 		}
 	}
 
-	fadump_conf->ops		= &opal_fadump_ops;
-	fadump_conf->fadump_supported	= 1;
+	fadump_conf->ops			= &opal_fadump_ops;
+	fadump_conf->fadump_supported		= 1;
+	/* TODO: Add support to pass additional parameters */
+	fadump_conf->param_area_supported	= 0;
 
 	/*
 	 * Firmware supports 32-bit field for size. Align it to PAGE_SIZE

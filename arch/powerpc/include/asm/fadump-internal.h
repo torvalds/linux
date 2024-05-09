@@ -124,6 +124,8 @@ struct fw_dump {
 	unsigned long	cpu_notes_buf_vaddr;
 	unsigned long	cpu_notes_buf_size;
 
+	unsigned long	param_area;
+
 	/*
 	 * Maximum size supported by firmware to copy from source to
 	 * destination address per entry.
@@ -138,6 +140,7 @@ struct fw_dump {
 	unsigned long	dump_active:1;
 	unsigned long	dump_registered:1;
 	unsigned long	nocma:1;
+	unsigned long	param_area_supported:1;
 
 	struct fadump_ops	*ops;
 };

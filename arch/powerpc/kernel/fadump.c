@@ -1431,6 +1431,43 @@ static ssize_t registered_show(struct kobject *kobj,
 	return sprintf(buf, "%d\n", fw_dump.dump_registered);
 }
 
+static ssize_t bootargs_append_show(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   char *buf)
+{
+	return sprintf(buf, "%s\n", (char *)__va(fw_dump.param_area));
+}
+
+static ssize_t bootargs_append_store(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t count)
+{
+	char *params;
+
+	if (!fw_dump.fadump_enabled || fw_dump.dump_active)
+		return -EPERM;
+
+	if (count >= COMMAND_LINE_SIZE)
+		return -EINVAL;
+
+	/*
+	 * Fail here instead of handling this scenario with
+	 * some silly workaround in capture kernel.
+	 */
+	if (saved_command_line_len + count >= COMMAND_LINE_SIZE) {
+		pr_err("Appending parameters exceeds cmdline size!\n");
+		return -ENOSPC;
+	}
+
+	params = __va(fw_dump.param_area);
+	strscpy_pad(params, buf, COMMAND_LINE_SIZE);
+	/* Remove newline character at the end. */
+	if (params[count-1] == '\n')
+		params[count-1] = '\0';
+
+	return count;
+}
+
 static ssize_t registered_store(struct kobject *kobj,
 				struct kobj_attribute *attr,
 				const char *buf, size_t count)
@@ -1490,6 +1527,7 @@ static struct kobj_attribute enable_attr = __ATTR_RO(enabled);
 static struct kobj_attribute register_attr = __ATTR_RW(registered);
 static struct kobj_attribute mem_reserved_attr = __ATTR_RO(mem_reserved);
 static struct kobj_attribute hotplug_ready_attr = __ATTR_RO(hotplug_ready);
+static struct kobj_attribute bootargs_append_attr = __ATTR_RW(bootargs_append);
 
 static struct attribute *fadump_attrs[] = {
 	&enable_attr.attr,
@@ -1664,6 +1702,54 @@ err_out:
 }
 
 /*
+ * Reserve memory to store additional parameters to be passed
+ * for fadump/capture kernel.
+ */
+static void fadump_setup_param_area(void)
+{
+	phys_addr_t range_start, range_end;
+
+	if (!fw_dump.param_area_supported || fw_dump.dump_active)
+		return;
+
+	/* This memory can't be used by PFW or bootloader as it is shared across kernels */
+	if (radix_enabled()) {
+		/*
+		 * Anywhere in the upper half should be good enough as all memory
+		 * is accessible in real mode.
+		 */
+		range_start = memblock_end_of_DRAM() / 2;
+		range_end = memblock_end_of_DRAM();
+	} else {
+		/*
+		 * Passing additional parameters is supported for hash MMU only
+		 * if the first memory block size is 768MB or higher.
+		 */
+		if (ppc64_rma_size < 0x30000000)
+			return;
+
+		/*
+		 * 640 MB to 768 MB is not used by PFW/bootloader. So, try reserving
+		 * memory for passing additional parameters in this range to avoid
+		 * being stomped on by PFW/bootloader.
+		 */
+		range_start = 0x2A000000;
+		range_end = range_start + 0x4000000;
+	}
+
+	fw_dump.param_area = memblock_phys_alloc_range(COMMAND_LINE_SIZE,
+						       COMMAND_LINE_SIZE,
+						       range_start,
+						       range_end);
+	if (!fw_dump.param_area || sysfs_create_file(fadump_kobj, &bootargs_append_attr.attr)) {
+		pr_warn("WARNING: Could not setup area to pass additional parameters!\n");
+		return;
+	}
+
+	memset(phys_to_virt(fw_dump.param_area), 0, COMMAND_LINE_SIZE);
+}
+
+/*
  * Prepare for firmware-assisted dump.
  */
 int __init setup_fadump(void)
@@ -1686,6 +1772,7 @@ int __init setup_fadump(void)
 	}
 	/* Initialize the kernel dump memory structure and register with f/w */
 	else if (fw_dump.reserve_dump_area_size) {
+		fadump_setup_param_area();
 		fw_dump.ops->fadump_init_mem_struct(&fw_dump);
 		register_fadump();
 	}
