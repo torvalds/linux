@@ -15,7 +15,7 @@
 #define CODEC_NAME_SIZE	8
 
 static const struct snd_soc_dapm_widget sof_widgets[] = {
-	SND_SOC_DAPM_SPK("Speakers", NULL),
+	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
 int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
@@ -24,7 +24,7 @@ int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_card *card = rtd->card;
 	char codec_name[CODEC_NAME_SIZE];
 	char widget_name[16];
-	struct snd_soc_dapm_route route = { "Speakers", NULL, widget_name };
+	struct snd_soc_dapm_route route = { "Speaker", NULL, widget_name };
 	struct snd_soc_dai *codec_dai;
 	int i, ret;
 
