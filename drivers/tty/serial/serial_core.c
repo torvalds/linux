@@ -3207,6 +3207,9 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 	if (uport->attr_group)
 		uport->tty_groups[1] = uport->attr_group;
 
+	/* Ensure serdev drivers can call serdev_device_open() right away */
+	uport->flags &= ~UPF_DEAD;
+
 	/*
 	 * Register the port whether it's detected or not.  This allows
 	 * setserial to be used to alter this port's parameters.
@@ -3217,6 +3220,7 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 	if (!IS_ERR(tty_dev)) {
 		device_set_wakeup_capable(tty_dev, 1);
 	} else {
+		uport->flags |= UPF_DEAD;
 		dev_err(uport->dev, "Cannot register tty device on line %d\n",
 		       uport->line);
 	}
@@ -3425,8 +3429,6 @@ int serial_core_register_port(struct uart_driver *drv, struct uart_port *port)
 	ret = serial_core_add_one_port(drv, port);
 	if (ret)
 		goto err_unregister_port_dev;
-
-	port->flags &= ~UPF_DEAD;
 
 	mutex_unlock(&port_mutex);
 
