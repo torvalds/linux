@@ -216,6 +216,8 @@
 					 <&cru ACLK_LCDC0>,
 					 <&cru HCLK_LCDC0>,
 					 <&cru PCLK_MIPI>,
+					 <&cru PCLK_MIPIPHY>,
+					 <&cru SCLK_MIPI_24M>,
 					 <&cru ACLK_RGA>,
 					 <&cru HCLK_RGA>,
 					 <&cru ACLK_VIO0>,
@@ -494,6 +496,18 @@
 				reg = <1>;
 			};
 		};
+	};
+
+	dphy: phy@20038000 {
+		compatible = "rockchip,rk3128-dsi-dphy";
+		reg = <0x20038000 0x4000>;
+		clocks = <&cru SCLK_MIPI_24M>, <&cru PCLK_MIPIPHY>;
+		clock-names = "ref", "pclk";
+		#phy-cells = <0>;
+		power-domains = <&power RK3128_PD_VIO>;
+		resets = <&cru SRST_MIPIPHY_P>;
+		reset-names = "apb";
+		status = "disabled";
 	};
 
 	timer0: timer@20044000 {
