@@ -20,7 +20,8 @@ properties:
   compatible:
     const: sony,td4353-jdi-tama
 
-  reg: true
+  reg:
+    maxItems: 1
 
   backlight: true
 

@@ -23,9 +23,11 @@ properties:
           - wanchanglong,w552946aba
       - const: ilitek,ili9881c
 
+  reg:
+    maxItems: 1
+
   backlight: true
   power-supply: true
-  reg: true
   reset-gpios: true
   rotation: true
 

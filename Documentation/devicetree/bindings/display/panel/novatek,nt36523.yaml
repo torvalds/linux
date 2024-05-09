@@ -30,6 +30,9 @@ properties:
               - lenovo,j606f-boe-nt36523w
           - const: novatek,nt36523w
 
+  reg:
+    maxItems: 1
+
   reset-gpios:
     maxItems: 1
     description: phandle of gpio for reset line - This should be 8mA
@@ -37,7 +40,6 @@ properties:
   vddio-supply:
     description: regulator that supplies the I/O voltage
 
-  reg: true
   ports: true
   rotation: true
   backlight: true
