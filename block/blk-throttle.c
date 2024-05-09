@@ -1211,6 +1211,53 @@ static void tg_conf_updated(struct throtl_grp *tg, bool global)
 	}
 }
 
+static int blk_throtl_init(struct gendisk *disk)
+{
+	struct request_queue *q = disk->queue;
+	struct throtl_data *td;
+	int ret;
+
+	td = kzalloc_node(sizeof(*td), GFP_KERNEL, q->node);
+	if (!td)
+		return -ENOMEM;
+
+	INIT_WORK(&td->dispatch_work, blk_throtl_dispatch_work_fn);
+	throtl_service_queue_init(&td->service_queue);
+
+	/*
+	 * Freeze queue before activating policy, to synchronize with IO path,
+	 * which is protected by 'q_usage_counter'.
+	 */
+	blk_mq_freeze_queue(disk->queue);
+	blk_mq_quiesce_queue(disk->queue);
+
+	q->td = td;
+	td->queue = q;
+
+	/* activate policy */
+	ret = blkcg_activate_policy(disk, &blkcg_policy_throtl);
+	if (ret) {
+		q->td = NULL;
+		kfree(td);
+		goto out;
+	}
+
+	if (blk_queue_nonrot(q))
+		td->throtl_slice = DFL_THROTL_SLICE_SSD;
+	else
+		td->throtl_slice = DFL_THROTL_SLICE_HD;
+	td->track_bio_latency = !queue_is_mq(q);
+	if (!td->track_bio_latency)
+		blk_stat_enable_accounting(q);
+
+out:
+	blk_mq_unquiesce_queue(disk->queue);
+	blk_mq_unfreeze_queue(disk->queue);
+
+	return ret;
+}
+
+
 static ssize_t tg_set_conf(struct kernfs_open_file *of,
 			   char *buf, size_t nbytes, loff_t off, bool is_u64)
 {
@@ -1221,6 +1268,16 @@ static ssize_t tg_set_conf(struct kernfs_open_file *of,
 	u64 v;
 
 	blkg_conf_init(&ctx, buf);
+
+	ret = blkg_conf_open_bdev(&ctx);
+	if (ret)
+		goto out_finish;
+
+	if (!blk_throtl_activated(ctx.bdev->bd_queue)) {
+		ret = blk_throtl_init(ctx.bdev->bd_disk);
+		if (ret)
+			goto out_finish;
+	}
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, &ctx);
 	if (ret)
@@ -1396,6 +1453,16 @@ static ssize_t tg_set_limit(struct kernfs_open_file *of,
 
 	blkg_conf_init(&ctx, buf);
 
+	ret = blkg_conf_open_bdev(&ctx);
+	if (ret)
+		goto out_finish;
+
+	if (!blk_throtl_activated(ctx.bdev->bd_queue)) {
+		ret = blk_throtl_init(ctx.bdev->bd_disk);
+		if (ret)
+			goto out_finish;
+	}
+
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, &ctx);
 	if (ret)
 		goto out_finish;
@@ -1487,6 +1554,9 @@ void blk_throtl_cancel_bios(struct gendisk *disk)
 	struct request_queue *q = disk->queue;
 	struct cgroup_subsys_state *pos_css;
 	struct blkcg_gq *blkg;
+
+	if (!blk_throtl_activated(q))
+		return;
 
 	spin_lock_irq(&q->queue_lock);
 	/*
@@ -1617,55 +1687,17 @@ out_unlock:
 	return throttled;
 }
 
-int blk_throtl_init(struct gendisk *disk)
-{
-	struct request_queue *q = disk->queue;
-	struct throtl_data *td;
-	int ret;
-
-	td = kzalloc_node(sizeof(*td), GFP_KERNEL, q->node);
-	if (!td)
-		return -ENOMEM;
-
-	INIT_WORK(&td->dispatch_work, blk_throtl_dispatch_work_fn);
-	throtl_service_queue_init(&td->service_queue);
-
-	q->td = td;
-	td->queue = q;
-
-	/* activate policy */
-	ret = blkcg_activate_policy(disk, &blkcg_policy_throtl);
-	if (ret)
-		kfree(td);
-	return ret;
-}
-
 void blk_throtl_exit(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 
-	BUG_ON(!q->td);
+	if (!blk_throtl_activated(q))
+		return;
+
 	del_timer_sync(&q->td->service_queue.pending_timer);
 	throtl_shutdown_wq(q);
 	blkcg_deactivate_policy(disk, &blkcg_policy_throtl);
 	kfree(q->td);
-}
-
-void blk_throtl_register(struct gendisk *disk)
-{
-	struct request_queue *q = disk->queue;
-	struct throtl_data *td;
-
-	td = q->td;
-	BUG_ON(!td);
-
-	if (blk_queue_nonrot(q))
-		td->throtl_slice = DFL_THROTL_SLICE_SSD;
-	else
-		td->throtl_slice = DFL_THROTL_SLICE_HD;
-	td->track_bio_latency = !queue_is_mq(q);
-	if (!td->track_bio_latency)
-		blk_stat_enable_accounting(q);
 }
 
 static int __init throtl_init(void)
