@@ -468,6 +468,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 		}
 		if (!qgroup) {
 			struct btrfs_qgroup *prealloc;
+			struct btrfs_root *tree_root = fs_info->tree_root;
 
 			prealloc = kzalloc(sizeof(*prealloc), GFP_KERNEL);
 			if (!prealloc) {
@@ -475,6 +476,25 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 				goto out;
 			}
 			qgroup = add_qgroup_rb(fs_info, prealloc, found_key.offset);
+			/*
+			 * If a qgroup exists for a subvolume ID, it is possible
+			 * that subvolume has been deleted, in which case
+			 * re-using that ID would lead to incorrect accounting.
+			 *
+			 * Ensure that we skip any such subvol ids.
+			 *
+			 * We don't need to lock because this is only called
+			 * during mount before we start doing things like creating
+			 * subvolumes.
+			 */
+			if (is_fstree(qgroup->qgroupid) &&
+			    qgroup->qgroupid > tree_root->free_objectid)
+				/*
+				 * Don't need to check against BTRFS_LAST_FREE_OBJECTID,
+				 * as it will get checked on the next call to
+				 * btrfs_get_free_objectid.
+				 */
+				tree_root->free_objectid = qgroup->qgroupid + 1;
 		}
 		ret = btrfs_sysfs_add_one_qgroup(fs_info, qgroup);
 		if (ret < 0)
