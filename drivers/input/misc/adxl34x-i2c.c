@@ -106,7 +106,7 @@ static void adxl34x_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adxl34x_id[] = {
-	{ "adxl34x", 0 },
+	{ "adxl34x" },
 	{ }
 };
 

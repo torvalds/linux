@@ -1459,8 +1459,8 @@ static const struct dev_pm_ops cyapa_pm_ops = {
 };
 
 static const struct i2c_device_id cyapa_id_table[] = {
-	{ "cyapa", 0 },
-	{ },
+	{ "cyapa" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cyapa_id_table);
 

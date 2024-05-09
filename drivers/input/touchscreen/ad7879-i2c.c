@@ -42,8 +42,8 @@ static int ad7879_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ad7879_id[] = {
-	{ "ad7879", 0 },
-	{ "ad7889", 0 },
+	{ "ad7879" },
+	{ "ad7889" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad7879_id);
