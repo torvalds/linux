@@ -118,11 +118,11 @@ static int zero_clientid(clientid_t *clid)
  * operation described in @argp finishes.
  */
 static void *
-svcxdr_tmpalloc(struct nfsd4_compoundargs *argp, u32 len)
+svcxdr_tmpalloc(struct nfsd4_compoundargs *argp, size_t len)
 {
 	struct svcxdr_tmpbuf *tb;
 
-	tb = kmalloc(sizeof(*tb) + len, GFP_KERNEL);
+	tb = kmalloc(struct_size(tb, buf, len), GFP_KERNEL);
 	if (!tb)
 		return NULL;
 	tb->next = argp->to_free;
@@ -138,9 +138,9 @@ svcxdr_tmpalloc(struct nfsd4_compoundargs *argp, u32 len)
  * buffer might end on a page boundary.
  */
 static char *
-svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, u32 len)
+svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, size_t len)
 {
-	char *p = svcxdr_tmpalloc(argp, len + 1);
+	char *p = svcxdr_tmpalloc(argp, size_add(len, 1));
 
 	if (!p)
 		return NULL;
@@ -150,7 +150,7 @@ svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, u32 len)
 }
 
 static void *
-svcxdr_savemem(struct nfsd4_compoundargs *argp, __be32 *p, u32 len)
+svcxdr_savemem(struct nfsd4_compoundargs *argp, __be32 *p, size_t len)
 {
 	__be32 *tmp;
 
@@ -2146,7 +2146,7 @@ nfsd4_decode_clone(struct nfsd4_compoundargs *argp, union nfsd4_op_u *u)
  */
 static __be32
 nfsd4_vbuf_from_vector(struct nfsd4_compoundargs *argp, struct xdr_buf *xdr,
-		       char **bufp, u32 buflen)
+		       char **bufp, size_t buflen)
 {
 	struct page **pages = xdr->pages;
 	struct kvec *head = xdr->head;
