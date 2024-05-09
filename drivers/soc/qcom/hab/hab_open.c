@@ -151,17 +151,17 @@ int hab_open_listen(struct uhab_context *ctx,
 
 	unsigned int uninterruptible = 0;
 
-	/* This flag is for HAB clients in kernel space only, to avoid calling any
-	 * unexpected uninterruptible habmm_socket_open() since it is not killable.
-	 */
-	if (ctx->kernel)
-		uninterruptible = (flags & HABMM_SOCKET_OPEN_FLAGS_UNINTERRUPTIBLE);
-
 	if (!ctx || !listen || !recv_request) {
 		pr_err("listen failed ctx %pK listen %pK request %pK\n",
 			ctx, listen, recv_request);
 		return -EINVAL;
 	}
+
+	/* This flag is for HAB clients in kernel space only, to avoid calling any
+	 * unexpected uninterruptible habmm_socket_open() since it is not killable.
+	 */
+	if (ctx->kernel)
+		uninterruptible = (flags & HABMM_SOCKET_OPEN_FLAGS_UNINTERRUPTIBLE);
 
 	*recv_request = NULL;
 	if (ms_timeout > 0) { /* be case */
