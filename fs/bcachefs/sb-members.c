@@ -124,9 +124,9 @@ static int validate_member(struct printbuf *err,
 			   struct bch_sb *sb,
 			   int i)
 {
-	if (le64_to_cpu(m.nbuckets) > LONG_MAX) {
-		prt_printf(err, "device %u: too many buckets (got %llu, max %lu)",
-			   i, le64_to_cpu(m.nbuckets), LONG_MAX);
+	if (le64_to_cpu(m.nbuckets) > BCH_MEMBER_NBUCKETS_MAX) {
+		prt_printf(err, "device %u: too many buckets (got %llu, max %u)",
+			   i, le64_to_cpu(m.nbuckets), BCH_MEMBER_NBUCKETS_MAX);
 		return -BCH_ERR_invalid_sb_members;
 	}
 

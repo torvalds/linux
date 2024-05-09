@@ -3598,6 +3598,8 @@ xfrm_policy *xfrm_in_fwd_icmp(struct sk_buff *skb,
 			return pol;
 
 		pol = xfrm_policy_lookup(net, &fl1, family, XFRM_POLICY_FWD, if_id);
+		if (IS_ERR(pol))
+			pol = NULL;
 	}
 
 	return pol;

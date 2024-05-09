@@ -425,7 +425,7 @@ static void handle_error(struct mem_ctl_info *mci, struct ecc_status *stat)
 			 convert_to_physical(priv, pinf), pinf.burstpos);
 
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
-				     priv->ce_cnt, 0, 0, 0, 0, 0, -1,
+				     1, 0, 0, 0, 0, 0, -1,
 				     priv->message, "");
 	}
 
@@ -438,7 +438,7 @@ static void handle_error(struct mem_ctl_info *mci, struct ecc_status *stat)
 			 convert_to_physical(priv, pinf), pinf.burstpos);
 
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
-				     priv->ue_cnt, 0, 0, 0, 0, 0, -1,
+				     1, 0, 0, 0, 0, 0, -1,
 				     priv->message, "");
 	}
 
@@ -865,6 +865,9 @@ static ssize_t inject_data_ue_store(struct file *file, const char __user *data,
 	for (i = 0; i < NUM_UE_BITPOS; i++)
 		token[i] = strsep(&pbuf, ",");
 
+	if (!token[0] || !token[1])
+		return -EFAULT;
+
 	ret = kstrtou8(token[0], 0, &ue0);
 	if (ret)
 		return ret;
@@ -1135,8 +1138,7 @@ static int mc_probe(struct platform_device *pdev)
 	}
 
 	rc = xlnx_register_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
-				 XPM_EVENT_ERROR_MASK_DDRMC_CR | XPM_EVENT_ERROR_MASK_DDRMC_NCR |
-				 XPM_EVENT_ERROR_MASK_NOC_CR | XPM_EVENT_ERROR_MASK_NOC_NCR,
+				 XPM_EVENT_ERROR_MASK_DDRMC_CR | XPM_EVENT_ERROR_MASK_DDRMC_NCR,
 				 false, err_callback, mci);
 	if (rc) {
 		if (rc == -EACCES)
@@ -1173,8 +1175,6 @@ static void mc_remove(struct platform_device *pdev)
 
 	xlnx_unregister_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
 			      XPM_EVENT_ERROR_MASK_DDRMC_CR |
-			      XPM_EVENT_ERROR_MASK_NOC_CR |
-			      XPM_EVENT_ERROR_MASK_NOC_NCR |
 			      XPM_EVENT_ERROR_MASK_DDRMC_NCR, err_callback, mci);
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);

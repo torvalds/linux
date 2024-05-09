@@ -2184,6 +2184,7 @@ static bool parent_port_is_cxl_root(struct cxl_port *port)
 int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 				      struct access_coordinate *coord)
 {
+	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
 	struct access_coordinate c[] = {
 		{
 			.read_bandwidth = UINT_MAX,
@@ -2197,11 +2198,19 @@ int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 	struct cxl_port *iter = port;
 	struct cxl_dport *dport;
 	struct pci_dev *pdev;
+	struct device *dev;
 	unsigned int bw;
 	bool is_cxl_root;
 
 	if (!is_cxl_endpoint(port))
 		return -EINVAL;
+
+	/*
+	 * Skip calculation for RCD. Expectation is HMAT already covers RCD case
+	 * since RCH does not support hotplug.
+	 */
+	if (cxlmd->cxlds->rcd)
+		return 0;
 
 	/*
 	 * Exit the loop when the parent port of the current iter port is cxl
@@ -2232,8 +2241,12 @@ int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 		return -EINVAL;
 	cxl_coordinates_combine(c, c, dport->coord);
 
+	dev = port->uport_dev->parent;
+	if (!dev_is_pci(dev))
+		return -ENODEV;
+
 	/* Get the calculated PCI paths bandwidth */
-	pdev = to_pci_dev(port->uport_dev->parent);
+	pdev = to_pci_dev(dev);
 	bw = pcie_bandwidth_available(pdev, NULL, NULL, NULL);
 	if (bw == 0)
 		return -ENXIO;

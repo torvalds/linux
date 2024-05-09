@@ -968,24 +968,30 @@ static bool migrate_btree_pred(struct bch_fs *c, void *arg,
 	return migrate_pred(c, arg, bkey_i_to_s_c(&b->key), io_opts, data_opts);
 }
 
+/*
+ * Ancient versions of bcachefs produced packed formats which could represent
+ * keys that the in memory format cannot represent; this checks for those
+ * formats so we can get rid of them.
+ */
 static bool bformat_needs_redo(struct bkey_format *f)
 {
-	unsigned i;
-
-	for (i = 0; i < f->nr_fields; i++) {
+	for (unsigned i = 0; i < f->nr_fields; i++) {
+		unsigned f_bits = f->bits_per_field[i];
 		unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
 		u64 unpacked_mask = ~((~0ULL << 1) << (unpacked_bits - 1));
 		u64 field_offset = le64_to_cpu(f->field_offset[i]);
 
-		if (f->bits_per_field[i] > unpacked_bits)
+		if (f_bits > unpacked_bits)
 			return true;
 
-		if ((f->bits_per_field[i] == unpacked_bits) && field_offset)
+		if ((f_bits == unpacked_bits) && field_offset)
 			return true;
 
-		if (((field_offset + ((1ULL << f->bits_per_field[i]) - 1)) &
-		     unpacked_mask) <
-		    field_offset)
+		u64 f_mask = f_bits
+			? ~((~0ULL << (f_bits - 1)) << 1)
+			: 0;
+
+		if (((field_offset + f_mask) & unpacked_mask) < field_offset)
 			return true;
 	}
 

@@ -560,13 +560,11 @@ static int bch2_fs_quota_read_inode(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_inode_unpacked u;
 	struct bch_snapshot_tree s_t;
-	int ret;
+	u32 tree = bch2_snapshot_tree(c, k.k->p.snapshot);
 
-	ret = bch2_snapshot_tree_lookup(trans,
-			bch2_snapshot_tree(c, k.k->p.snapshot), &s_t);
+	int ret = bch2_snapshot_tree_lookup(trans, tree, &s_t);
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
-			"%s: snapshot tree %u not found", __func__,
-			snapshot_t(c, k.k->p.snapshot)->tree);
+			"%s: snapshot tree %u not found", __func__, tree);
 	if (ret)
 		return ret;
 
