@@ -31,7 +31,6 @@ void sof_rt1011_codec_conf(struct device *dev, struct snd_soc_card *card);
  */
 #define RT1015P_CODEC_DAI	"HiFi"
 #define RT1015P_DEV0_NAME	RT1015P_ACPI_HID ":00"
-#define RT1015P_DEV1_NAME	RT1015P_ACPI_HID ":01"
 
 void sof_rt1015p_dai_link(struct snd_soc_dai_link *link);
 void sof_rt1015p_codec_conf(struct snd_soc_card *card);
