@@ -2387,8 +2387,14 @@ static struct inet_protosw tcpv6_protosw = {
 
 static int __net_init tcpv6_net_init(struct net *net)
 {
-	return inet_ctl_sock_create(&net->ipv6.tcp_sk, PF_INET6,
-				    SOCK_RAW, IPPROTO_TCP, net);
+	int res;
+
+	res = inet_ctl_sock_create(&net->ipv6.tcp_sk, PF_INET6,
+				   SOCK_RAW, IPPROTO_TCP, net);
+	if (!res)
+		net->ipv6.tcp_sk->sk_clockid = CLOCK_MONOTONIC;
+
+	return res;
 }
 
 static void __net_exit tcpv6_net_exit(struct net *net)
