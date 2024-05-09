@@ -3708,6 +3708,19 @@ cell_put:
 	nvmem_cell_put(nvmem_cell);
 }
 
+static int ufs_qcom_get_host_id(struct ufs_hba *hba)
+{
+	int host_id;
+
+	host_id = of_alias_get_id(hba->dev->of_node, "ufshc");
+	if ((host_id < 0) || (host_id > MAX_UFS_QCOM_HOSTS)) {
+		dev_err(hba->dev, "Failed to get host index %d\n", host_id);
+		host_id = 1;
+	}
+
+	return host_id;
+}
+
 /**
  * ufs_qcom_init - bind phy with controller
  * @hba: host controller instance
@@ -3720,7 +3733,8 @@ cell_put:
  */
 static int ufs_qcom_init(struct ufs_hba *hba)
 {
-	int err;
+	char type[5];
+	int err, host_id;
 	struct device *dev = hba->dev;
 	struct ufs_qcom_host *host;
 	struct ufs_qcom_thermal *ut;
@@ -3890,9 +3904,16 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 
 	ufs_qcom_init_sysfs(hba);
 
+	/*
+	 * Based on host_id, pass the appropriate device type
+	 * to register thermal cooling device.
+	 */
+	host_id = ufs_qcom_get_host_id(hba);
+	snprintf(type, sizeof(type), "ufs%d", host_id);
+
 	ut->tcd = devm_thermal_of_cooling_device_register(dev,
 							  dev->of_node,
-							  "ufs",
+							  type,
 							  dev,
 							  &ufs_thermal_ops);
 	if (IS_ERR(ut->tcd))
