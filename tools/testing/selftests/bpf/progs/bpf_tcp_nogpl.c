@@ -8,7 +8,8 @@
 
 char _license[] SEC("license") = "X";
 
-void BPF_STRUCT_OPS(nogpltcp_init, struct sock *sk)
+SEC("struct_ops")
+void BPF_PROG(nogpltcp_init, struct sock *sk)
 {
 }
 

@@ -6,13 +6,13 @@
 
 char _license[] SEC("license") = "GPL";
 
-SEC("struct_ops/incompl_cong_ops_ssthresh")
+SEC("struct_ops")
 __u32 BPF_PROG(incompl_cong_ops_ssthresh, struct sock *sk)
 {
 	return tcp_sk(sk)->snd_ssthresh;
 }
 
-SEC("struct_ops/incompl_cong_ops_undo_cwnd")
+SEC("struct_ops")
 __u32 BPF_PROG(incompl_cong_ops_undo_cwnd, struct sock *sk)
 {
 	return tcp_sk(sk)->snd_cwnd;

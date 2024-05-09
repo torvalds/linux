@@ -17,10 +17,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
-#define BPF_STRUCT_OPS(name, args...) \
-SEC("struct_ops/"#name) \
-BPF_PROG(name, args)
-
 #define USEC_PER_SEC 1000000UL
 #define TCP_PACING_SS_RATIO (200)
 #define TCP_PACING_CA_RATIO (120)
@@ -114,18 +110,21 @@ static bool tcp_may_raise_cwnd(const struct sock *sk, const int flag)
 	return flag & FLAG_DATA_ACKED;
 }
 
-void BPF_STRUCT_OPS(bpf_cubic_init, struct sock *sk)
+SEC("struct_ops")
+void BPF_PROG(bpf_cubic_init, struct sock *sk)
 {
 	cubictcp_init(sk);
 }
 
-void BPF_STRUCT_OPS(bpf_cubic_cwnd_event, struct sock *sk, enum tcp_ca_event event)
+SEC("struct_ops")
+void BPF_PROG(bpf_cubic_cwnd_event, struct sock *sk, enum tcp_ca_event event)
 {
 	cubictcp_cwnd_event(sk, event);
 }
 
-void BPF_STRUCT_OPS(bpf_cubic_cong_control, struct sock *sk, __u32 ack, int flag,
-		    const struct rate_sample *rs)
+SEC("struct_ops")
+void BPF_PROG(bpf_cubic_cong_control, struct sock *sk, __u32 ack, int flag,
+	      const struct rate_sample *rs)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -151,23 +150,26 @@ void BPF_STRUCT_OPS(bpf_cubic_cong_control, struct sock *sk, __u32 ack, int flag
 	tcp_update_pacing_rate(sk);
 }
 
-__u32 BPF_STRUCT_OPS(bpf_cubic_recalc_ssthresh, struct sock *sk)
+SEC("struct_ops")
+__u32 BPF_PROG(bpf_cubic_recalc_ssthresh, struct sock *sk)
 {
 	return cubictcp_recalc_ssthresh(sk);
 }
 
-void BPF_STRUCT_OPS(bpf_cubic_state, struct sock *sk, __u8 new_state)
+SEC("struct_ops")
+void BPF_PROG(bpf_cubic_state, struct sock *sk, __u8 new_state)
 {
 	cubictcp_state(sk, new_state);
 }
 
-void BPF_STRUCT_OPS(bpf_cubic_acked, struct sock *sk,
-		const struct ack_sample *sample)
+SEC("struct_ops")
+void BPF_PROG(bpf_cubic_acked, struct sock *sk, const struct ack_sample *sample)
 {
 	cubictcp_acked(sk, sample);
 }
 
-__u32 BPF_STRUCT_OPS(bpf_cubic_undo_cwnd, struct sock *sk)
+SEC("struct_ops")
+__u32 BPF_PROG(bpf_cubic_undo_cwnd, struct sock *sk)
 {
 	return tcp_reno_undo_cwnd(sk);
 }

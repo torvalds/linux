@@ -13,7 +13,8 @@
 char _license[] SEC("license") = "GPL";
 const char cubic[] = "cubic";
 
-void BPF_STRUCT_OPS(dctcp_nouse_release, struct sock *sk)
+SEC("struct_ops")
+void BPF_PROG(dctcp_nouse_release, struct sock *sk)
 {
 	bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
 		       (void *)cubic, sizeof(cubic));

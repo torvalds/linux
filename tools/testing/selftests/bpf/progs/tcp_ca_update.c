@@ -9,31 +9,31 @@ char _license[] SEC("license") = "GPL";
 int ca1_cnt = 0;
 int ca2_cnt = 0;
 
-SEC("struct_ops/ca_update_1_init")
+SEC("struct_ops")
 void BPF_PROG(ca_update_1_init, struct sock *sk)
 {
 	ca1_cnt++;
 }
 
-SEC("struct_ops/ca_update_2_init")
+SEC("struct_ops")
 void BPF_PROG(ca_update_2_init, struct sock *sk)
 {
 	ca2_cnt++;
 }
 
-SEC("struct_ops/ca_update_cong_control")
+SEC("struct_ops")
 void BPF_PROG(ca_update_cong_control, struct sock *sk,
 	      const struct rate_sample *rs)
 {
 }
 
-SEC("struct_ops/ca_update_ssthresh")
+SEC("struct_ops")
 __u32 BPF_PROG(ca_update_ssthresh, struct sock *sk)
 {
 	return tcp_sk(sk)->snd_ssthresh;
 }
 
-SEC("struct_ops/ca_update_undo_cwnd")
+SEC("struct_ops")
 __u32 BPF_PROG(ca_update_undo_cwnd, struct sock *sk)
 {
 	return tcp_sk(sk)->snd_cwnd;
