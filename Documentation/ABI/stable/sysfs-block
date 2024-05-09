@@ -594,18 +594,6 @@ Description:
 		the data.  If no such restriction exists, this file will contain
 		'0'.  This file is writable for testing purposes.
 
-
-What:		/sys/block/<disk>/queue/throttle_sample_time
-Date:		March 2017
-Contact:	linux-block@vger.kernel.org
-Description:
-		[RW] This is the time window that blk-throttle samples data, in
-		millisecond.  blk-throttle makes decision based on the
-		samplings. Lower time means cgroups have more smooth throughput,
-		but higher CPU overhead. This exists only when
-		CONFIG_BLK_DEV_THROTTLING_LOW is enabled.
-
-
 What:		/sys/block/<disk>/queue/virt_boundary_mask
 Date:		April 2021
 Contact:	linux-block@vger.kernel.org

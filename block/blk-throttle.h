@@ -58,12 +58,6 @@ enum tg_state_flags {
 	THROTL_TG_CANCELING	= 1 << 2,	/* starts to cancel bio */
 };
 
-enum {
-	LIMIT_LOW,
-	LIMIT_MAX,
-	LIMIT_CNT,
-};
-
 struct throtl_grp {
 	/* must be the first member */
 	struct blkg_policy_data pd;
@@ -102,14 +96,14 @@ struct throtl_grp {
 	bool has_rules_iops[2];
 
 	/* internally used bytes per second rate limits */
-	uint64_t bps[2][LIMIT_CNT];
+	uint64_t bps[2];
 	/* user configured bps limits */
-	uint64_t bps_conf[2][LIMIT_CNT];
+	uint64_t bps_conf[2];
 
 	/* internally used IOPS limits */
-	unsigned int iops[2][LIMIT_CNT];
+	unsigned int iops[2];
 	/* user configured IOPS limits */
-	unsigned int iops_conf[2][LIMIT_CNT];
+	unsigned int iops_conf[2];
 
 	/* Number of bytes dispatched in current slice */
 	uint64_t bytes_disp[2];
@@ -132,21 +126,9 @@ struct throtl_grp {
 
 	unsigned long last_check_time;
 
-	unsigned long latency_target; /* us */
-	unsigned long latency_target_conf; /* us */
 	/* When did we start a new slice */
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];
-
-	unsigned long last_finish_time; /* ns / 1024 */
-	unsigned long checked_last_finish_time; /* ns / 1024 */
-	unsigned long avg_idletime; /* ns / 1024 */
-	unsigned long idletime_threshold; /* us */
-	unsigned long idletime_threshold_conf; /* us */
-
-	unsigned int bio_cnt; /* total bios */
-	unsigned int bad_bio_cnt; /* bios exceeding latency threshold */
-	unsigned long bio_cnt_reset_time;
 
 	struct blkg_rwstat stat_bytes;
 	struct blkg_rwstat stat_ios;
