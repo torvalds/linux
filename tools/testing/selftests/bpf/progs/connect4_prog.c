@@ -14,8 +14,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-#include "bpf_tcp_helpers.h"
-
 #define SRC_REWRITE_IP4		0x7f000004U
 #define DST_REWRITE_IP4		0x7f000001U
 #define DST_REWRITE_PORT4	4444
@@ -30,6 +28,10 @@
 
 #ifndef IFNAMSIZ
 #define IFNAMSIZ 16
+#endif
+
+#ifndef SOL_TCP
+#define SOL_TCP 6
 #endif
 
 __attribute__ ((noinline)) __weak

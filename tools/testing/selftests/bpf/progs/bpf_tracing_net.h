@@ -25,6 +25,7 @@
 
 #define IP_TOS			1
 
+#define SOL_IPV6		41
 #define IPV6_TCLASS		67
 #define IPV6_AUTOFLOWLABEL	70
 
