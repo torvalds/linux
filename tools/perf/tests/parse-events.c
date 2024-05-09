@@ -2269,6 +2269,13 @@ static const struct evlist_test test__events[] = {
 		.check = test__checkevent_breakpoint_2_events,
 		/* 3 */
 	},
+#ifdef HAVE_LIBTRACEEVENT
+	{
+		.name = "9p:9p_client_req",
+		.check = test__checkevent_tracepoint,
+		/* 4 */
+	},
+#endif
 };
 
 static const struct evlist_test test__events_pmu[] = {
