@@ -1436,6 +1436,33 @@ config SXR_VIDEOCC_ANORAK
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 
+config SXR_GPUCC_ANORAK
+	tristate "ANORAK Graphics Clock Controller"
+	select SXR_GCC_ANORAK
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies, Inc.
+	  ANORAK devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config SXR_CAMCC_ANORAK
+	tristate "ANORAK Camera Clock Controller"
+	select SXR_GCC_ANORAK
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc.
+	  ANORAK devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
+config SXR_DEBUGCC_ANORAK
+	tristate "ANORAK Debug Clock Controller"
+	depends on SXR_GCC_ANORAK
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc.
+	  ANORAK devices.
+	  Say Y if you want to support the debug clocks such as clock measurement
+	  functionality.
+
 config SXR_DISPCC_ANORAK
         tristate "ANORAK Display Clock Controller"
         select SXR_GCC_ANORAK

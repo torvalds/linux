@@ -27,6 +27,14 @@ mdt_loader.ko
 pinctrl-msm.ko
 pinctrl-anorak.ko
 secure_buffer.ko
+clk-qcom.ko
+clk-dummy.ko
+clk-rpmh.ko
+gcc-anorak.ko
+qcom-cpufreq-hw.ko
+dispcc0-anorak.ko
+dispcc1-anorak.ko
+gdsc-regulator.ko
 msm-geni-se.ko
 qcom_llcc_pmu.ko
 qcom-pmu-lib.ko
