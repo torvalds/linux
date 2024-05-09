@@ -618,7 +618,7 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return -EINVAL;
 
 		if (adev->xcp_mgr && adev->xcp_mgr->num_xcps > 0 &&
-		    fpriv->xcp_id >= 0 && fpriv->xcp_id < adev->xcp_mgr->num_xcps) {
+		    fpriv->xcp_id < adev->xcp_mgr->num_xcps) {
 			xcp = &adev->xcp_mgr->xcp[fpriv->xcp_id];
 			switch (type) {
 			case AMD_IP_BLOCK_TYPE_GFX:
