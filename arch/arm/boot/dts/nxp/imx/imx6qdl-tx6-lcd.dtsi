@@ -110,7 +110,7 @@
 		};
 
 		display-timings {
-			VGA {
+			timing-vga {
 				clock-frequency = <25200000>;
 				hactive = <640>;
 				vactive = <480>;
@@ -126,7 +126,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ETV570 {
+			timing-etv570 {
 				u-boot,panel-name = "edt,et057090dhu";
 				clock-frequency = <25200000>;
 				hactive = <640>;
@@ -143,7 +143,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ET0350 {
+			timing-et0350 {
 				u-boot,panel-name = "edt,et0350g0dh6";
 				clock-frequency = <6413760>;
 				hactive = <320>;
@@ -160,7 +160,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ET0430 {
+			timing-et0430 {
 				u-boot,panel-name = "edt,et0430g0dh6";
 				clock-frequency = <9009000>;
 				hactive = <480>;
@@ -177,7 +177,7 @@
 				pixelclk-active = <1>;
 			};
 
-			ET0500 {
+			timing-et0500 {
 				clock-frequency = <33264000>;
 				hactive = <800>;
 				vactive = <480>;
@@ -193,7 +193,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ET0700 { /* same as ET0500 */
+			timing-et0700 { /* same as ET0500 */
 				u-boot,panel-name = "edt,etm0700g0dh6";
 				clock-frequency = <33264000>;
 				hactive = <800>;
@@ -210,7 +210,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ETQ570 {
+			timing-etq570 {
 				clock-frequency = <6596040>;
 				hactive = <320>;
 				vactive = <240>;
@@ -226,7 +226,7 @@
 				pixelclk-active = <0>;
 			};
 
-			CoMTFT { /* same as ET0700 but with inverted pixel clock */
+			timing-comtft { /* same as ET0700 but with inverted pixel clock */
 				u-boot,panel-name = "edt,etm0700g0edh6";
 				clock-frequency = <33264000>;
 				hactive = <800>;

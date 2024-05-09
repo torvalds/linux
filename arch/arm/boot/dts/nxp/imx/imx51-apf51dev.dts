@@ -25,7 +25,7 @@
 		pinctrl-0 = <&pinctrl_ipu_disp1>;
 
 		display-timings {
-			lw700 {
+			timing0: timing-lw700 {
 				native-mode;
 				clock-frequency = <33000033>;
 				hactive = <800>;

@@ -85,7 +85,7 @@
 		power-on-delay = <10>;
 
 		display-timings {
-			480x800p57 {
+			timing0: timing-480x800p57 {
 				native-mode;
 				clock-frequency = <27000027>;
 				hactive = <480>;

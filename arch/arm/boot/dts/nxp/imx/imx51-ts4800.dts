@@ -58,7 +58,7 @@
 		pinctrl-0 = <&pinctrl_lcd>;
 
 		display-timings {
-			800x480p60 {
+			timing0: timing-800x480p60 {
 				native-mode;
 				clock-frequency = <30066000>;
 				hactive = <800>;
