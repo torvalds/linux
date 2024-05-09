@@ -126,6 +126,9 @@ int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
 			  enum bch_validate_flags flags,
 			  struct printbuf *err)
 {
+	if (test_bit(BCH_FS_no_invalid_checks, &c->flags))
+		return 0;
+
 	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
 	int ret = 0;
 
@@ -162,6 +165,9 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 			enum bch_validate_flags flags,
 			struct printbuf *err)
 {
+	if (test_bit(BCH_FS_no_invalid_checks, &c->flags))
+		return 0;
+
 	int ret = 0;
 
 	bkey_fsck_err_on(k.k->u64s < BKEY_U64s, c, err,
