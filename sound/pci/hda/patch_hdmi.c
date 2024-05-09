@@ -3,7 +3,7 @@
  *
  *  patch_hdmi.c - routines for HDMI/DisplayPort codecs
  *
- *  Copyright(c) 2008-2010 Intel Corporation. All rights reserved.
+ *  Copyright(c) 2008-2010 Intel Corporation
  *  Copyright (c) 2006 ATI Technologies Inc.
  *  Copyright (c) 2008 NVIDIA Corp.  All rights reserved.
  *  Copyright (c) 2008 Wei Ni <wni@nvidia.com>
