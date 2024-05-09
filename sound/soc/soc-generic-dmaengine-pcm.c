@@ -494,4 +494,5 @@ void snd_dmaengine_pcm_unregister(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_unregister);
 
+MODULE_DESCRIPTION("ASoC helpers for generic PCM dmaengine API");
 MODULE_LICENSE("GPL");
