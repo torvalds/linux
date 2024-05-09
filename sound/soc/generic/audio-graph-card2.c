@@ -1203,8 +1203,6 @@ static int graph_count_c2c(struct simple_util_priv *priv,
 	struct device_node *codec0 = of_graph_get_remote_port(ep0);
 	struct device_node *codec1 = of_graph_get_remote_port(ep1);
 
-	of_node_get(lnk);
-
 	/*
 	 * codec2codec {
 	 *	ports {
