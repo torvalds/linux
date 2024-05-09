@@ -93,6 +93,16 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_init_delay);
 	if (gp_cleanup_delay)
 		pr_info("\tRCU debug GP cleanup slowdown %d jiffies.\n", gp_cleanup_delay);
+	if (nohz_full_patience_delay < 0) {
+		pr_info("\tRCU NOCB CPU patience negative (%d), resetting to zero.\n", nohz_full_patience_delay);
+		nohz_full_patience_delay = 0;
+	} else if (nohz_full_patience_delay > 5 * MSEC_PER_SEC) {
+		pr_info("\tRCU NOCB CPU patience too large (%d), resetting to %ld.\n", nohz_full_patience_delay, 5 * MSEC_PER_SEC);
+		nohz_full_patience_delay = 5 * MSEC_PER_SEC;
+	} else if (nohz_full_patience_delay) {
+		pr_info("\tRCU NOCB CPU patience set to %d milliseconds.\n", nohz_full_patience_delay);
+	}
+	nohz_full_patience_delay_jiffies = msecs_to_jiffies(nohz_full_patience_delay);
 	if (!use_softirq)
 		pr_info("\tRCU_SOFTIRQ processing moved to rcuc kthreads.\n");
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG))

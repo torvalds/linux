@@ -5018,6 +5018,14 @@
 			the ->nocb_bypass queue.  The definition of "too
 			many" is supplied by this kernel boot parameter.
 
+	rcutree.nohz_full_patience_delay= [KNL]
+			On callback-offloaded (rcu_nocbs) CPUs, avoid
+			disturbing RCU unless the grace period has
+			reached the specified age in milliseconds.
+			Defaults to zero.  Large values will be capped
+			at five seconds.  All values will be rounded down
+			to the nearest value representable by jiffies.
+
 	rcutree.qhimark= [KNL]
 			Set threshold of queued RCU callbacks beyond which
 			batch limiting is disabled.
