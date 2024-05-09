@@ -35,7 +35,7 @@ struct {
 
 #define DCTCP_MAX_ALPHA	1024U
 
-struct dctcp {
+struct bpf_dctcp {
 	__u32 old_delivered;
 	__u32 old_delivered_ce;
 	__u32 prior_rcv_nxt;
@@ -48,7 +48,7 @@ struct dctcp {
 static unsigned int dctcp_shift_g = 4; /* g = 1/2^4 */
 static unsigned int dctcp_alpha_on_init = DCTCP_MAX_ALPHA;
 
-static void dctcp_reset(const struct tcp_sock *tp, struct dctcp *ca)
+static void dctcp_reset(const struct tcp_sock *tp, struct bpf_dctcp *ca)
 {
 	ca->next_seq = tp->snd_nxt;
 
@@ -60,7 +60,7 @@ SEC("struct_ops")
 void BPF_PROG(dctcp_init, struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	struct dctcp *ca = inet_csk_ca(sk);
+	struct bpf_dctcp *ca = inet_csk_ca(sk);
 	int *stg;
 
 	if (!(tp->ecn_flags & TCP_ECN_OK) && fallback[0]) {
@@ -106,7 +106,7 @@ void BPF_PROG(dctcp_init, struct sock *sk)
 SEC("struct_ops")
 __u32 BPF_PROG(dctcp_ssthresh, struct sock *sk)
 {
-	struct dctcp *ca = inet_csk_ca(sk);
+	struct bpf_dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	ca->loss_cwnd = tp->snd_cwnd;
@@ -117,7 +117,7 @@ SEC("struct_ops")
 void BPF_PROG(dctcp_update_alpha, struct sock *sk, __u32 flags)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	struct dctcp *ca = inet_csk_ca(sk);
+	struct bpf_dctcp *ca = inet_csk_ca(sk);
 
 	/* Expired RTT */
 	if (!before(tp->snd_una, ca->next_seq)) {
@@ -145,7 +145,7 @@ void BPF_PROG(dctcp_update_alpha, struct sock *sk, __u32 flags)
 
 static void dctcp_react_to_loss(struct sock *sk)
 {
-	struct dctcp *ca = inet_csk_ca(sk);
+	struct bpf_dctcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	ca->loss_cwnd = tp->snd_cwnd;
@@ -202,7 +202,7 @@ static void dctcp_ece_ack_update(struct sock *sk, enum tcp_ca_event evt,
 SEC("struct_ops")
 void BPF_PROG(dctcp_cwnd_event, struct sock *sk, enum tcp_ca_event ev)
 {
-	struct dctcp *ca = inet_csk_ca(sk);
+	struct bpf_dctcp *ca = inet_csk_ca(sk);
 
 	switch (ev) {
 	case CA_EVENT_ECN_IS_CE:
@@ -221,7 +221,7 @@ void BPF_PROG(dctcp_cwnd_event, struct sock *sk, enum tcp_ca_event ev)
 SEC("struct_ops")
 __u32 BPF_PROG(dctcp_cwnd_undo, struct sock *sk)
 {
-	const struct dctcp *ca = inet_csk_ca(sk);
+	const struct bpf_dctcp *ca = inet_csk_ca(sk);
 
 	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }

@@ -70,7 +70,7 @@ static const __u64 cube_factor = (__u64)(1ull << (10+3*BICTCP_HZ))
 				/ (bic_scale * 10);
 
 /* BIC TCP Parameters */
-struct bictcp {
+struct bpf_bictcp {
 	__u32	cnt;		/* increase cwnd by 1 after ACKs */
 	__u32	last_max_cwnd;	/* last maximum snd_cwnd */
 	__u32	last_cwnd;	/* the last snd_cwnd */
@@ -91,7 +91,7 @@ struct bictcp {
 	__u32	curr_rtt;	/* the minimum rtt of current round */
 };
 
-static void bictcp_reset(struct bictcp *ca)
+static void bictcp_reset(struct bpf_bictcp *ca)
 {
 	ca->cnt = 0;
 	ca->last_max_cwnd = 0;
@@ -161,7 +161,7 @@ static __u32 bictcp_clock_us(const struct sock *sk)
 static void bictcp_hystart_reset(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
+	struct bpf_bictcp *ca = inet_csk_ca(sk);
 
 	ca->round_start = ca->last_ack = bictcp_clock_us(sk);
 	ca->end_seq = tp->snd_nxt;
@@ -172,7 +172,7 @@ static void bictcp_hystart_reset(struct sock *sk)
 SEC("struct_ops")
 void BPF_PROG(bpf_cubic_init, struct sock *sk)
 {
-	struct bictcp *ca = inet_csk_ca(sk);
+	struct bpf_bictcp *ca = inet_csk_ca(sk);
 
 	bictcp_reset(ca);
 
@@ -187,7 +187,7 @@ SEC("struct_ops")
 void BPF_PROG(bpf_cubic_cwnd_event, struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_TX_START) {
-		struct bictcp *ca = inet_csk_ca(sk);
+		struct bpf_bictcp *ca = inet_csk_ca(sk);
 		__u32 now = tcp_jiffies32;
 		__s32 delta;
 
@@ -261,7 +261,7 @@ static __u32 cubic_root(__u64 a)
 /*
  * Compute congestion window to use.
  */
-static void bictcp_update(struct bictcp *ca, __u32 cwnd, __u32 acked)
+static void bictcp_update(struct bpf_bictcp *ca, __u32 cwnd, __u32 acked)
 {
 	__u32 delta, bic_target, max_cnt;
 	__u64 offs, t;
@@ -378,7 +378,7 @@ SEC("struct_ops")
 void BPF_PROG(bpf_cubic_cong_avoid, struct sock *sk, __u32 ack, __u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
+	struct bpf_bictcp *ca = inet_csk_ca(sk);
 
 	if (!tcp_is_cwnd_limited(sk))
 		return;
@@ -398,7 +398,7 @@ SEC("struct_ops")
 __u32 BPF_PROG(bpf_cubic_recalc_ssthresh, struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
+	struct bpf_bictcp *ca = inet_csk_ca(sk);
 
 	ca->epoch_start = 0;	/* end of epoch */
 
@@ -446,7 +446,7 @@ static __u32 hystart_ack_delay(struct sock *sk)
 static void hystart_update(struct sock *sk, __u32 delay)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
+	struct bpf_bictcp *ca = inet_csk_ca(sk);
 	__u32 threshold;
 
 	if (hystart_detect & HYSTART_ACK_TRAIN) {
@@ -495,7 +495,7 @@ SEC("struct_ops")
 void BPF_PROG(bpf_cubic_acked, struct sock *sk, const struct ack_sample *sample)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	struct bictcp *ca = inet_csk_ca(sk);
+	struct bpf_bictcp *ca = inet_csk_ca(sk);
 	__u32 delay;
 
 	bpf_cubic_acked_called = 1;
