@@ -42,6 +42,7 @@ config SND_INTEL_NHLT
 
 config SND_INTEL_DSP_CONFIG
 	tristate
+	select ACPI_NHLT if ACPI
 	select SND_INTEL_NHLT if ACPI
 	select SND_INTEL_SOUNDWIRE_ACPI if ACPI
 	# this config should be selected only for Intel DSP platforms.
