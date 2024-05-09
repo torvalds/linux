@@ -268,6 +268,29 @@ static int mes_v11_0_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 	userq_props->use_doorbell = true;
 	userq_props->doorbell_index = queue->doorbell_index;
 
+	if (queue->queue_type == AMDGPU_HW_IP_COMPUTE) {
+		struct drm_amdgpu_userq_mqd_compute_gfx11 *compute_mqd;
+
+		if (mqd_user->mqd_size != sizeof(*compute_mqd)) {
+			DRM_ERROR("Invalid compute IP MQD size\n");
+			r = -EINVAL;
+			goto free_mqd;
+		}
+
+		compute_mqd = memdup_user(u64_to_user_ptr(mqd_user->mqd), mqd_user->mqd_size);
+		if (IS_ERR(compute_mqd)) {
+			DRM_ERROR("Failed to read user MQD\n");
+			r = -ENOMEM;
+			goto free_mqd;
+		}
+
+		userq_props->eop_gpu_addr = compute_mqd->eop_va;
+		userq_props->hqd_pipe_priority = AMDGPU_GFX_PIPE_PRIO_NORMAL;
+		userq_props->hqd_queue_priority = AMDGPU_GFX_QUEUE_PRIORITY_MINIMUM;
+		userq_props->hqd_active = false;
+		kfree(compute_mqd);
+	}
+
 	queue->userq_prop = userq_props;
 
 	r = mqd_hw_default->init_mqd(adev, (void *)queue->mqd.cpu_ptr, userq_props);

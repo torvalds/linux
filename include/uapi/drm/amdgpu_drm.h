@@ -438,6 +438,16 @@ struct drm_amdgpu_userq_mqd_sdma_gfx11 {
 	__u64   csa_va;
 };
 
+/* GFX V11 Compute IP specific MQD parameters */
+struct drm_amdgpu_userq_mqd_compute_gfx11 {
+	/**
+	 * @eop_va: Virtual address of the GPU memory to hold the EOP buffer.
+	 * This must be a from a separate GPU object, and must be at least 1 page
+	 * sized.
+	 */
+	__u64   eop_va;
+};
+
 /* vm ioctl */
 #define AMDGPU_VM_OP_RESERVE_VMID	1
 #define AMDGPU_VM_OP_UNRESERVE_VMID	2
