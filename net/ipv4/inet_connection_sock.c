@@ -692,6 +692,7 @@ struct sock *inet_csk_accept(struct sock *sk, struct proto_accept_arg *arg)
 			goto out_err;
 	}
 	req = reqsk_queue_remove(queue, sk);
+	arg->is_empty = reqsk_queue_empty(queue);
 	newsk = req->sk;
 
 	if (sk->sk_protocol == IPPROTO_TCP &&

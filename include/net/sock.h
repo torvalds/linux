@@ -1197,6 +1197,7 @@ static inline void sk_prot_clear_nulls(struct sock *sk, int size)
 struct proto_accept_arg {
 	int flags;
 	int err;
+	int is_empty;
 	bool kern;
 };
 
