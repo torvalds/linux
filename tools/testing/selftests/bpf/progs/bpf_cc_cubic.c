@@ -13,11 +13,9 @@
  *    kernel functions.
  */
 
-#include "vmlinux.h"
-
+#include "bpf_tracing_net.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "bpf_tracing_net.h"
 
 #define BPF_STRUCT_OPS(name, args...) \
 SEC("struct_ops/"#name) \
@@ -39,16 +37,6 @@ extern void cubictcp_state(struct sock *sk, __u8 new_state) __ksym;
 extern __u32 tcp_reno_undo_cwnd(struct sock *sk) __ksym;
 extern void cubictcp_acked(struct sock *sk, const struct ack_sample *sample) __ksym;
 extern void cubictcp_cong_avoid(struct sock *sk, __u32 ack, __u32 acked) __ksym;
-
-static struct inet_connection_sock *inet_csk(const struct sock *sk)
-{
-	return (struct inet_connection_sock *)sk;
-}
-
-static struct tcp_sock *tcp_sk(const struct sock *sk)
-{
-	return (struct tcp_sock *)sk;
-}
 
 static bool before(__u32 seq1, __u32 seq2)
 {
