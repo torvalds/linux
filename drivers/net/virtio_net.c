@@ -2862,7 +2862,6 @@ static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 
 static int virtnet_close(struct net_device *dev)
 {
-	u8 *promisc_allmulti  __free(kfree) = NULL;
 	struct virtnet_info *vi = netdev_priv(dev);
 	int i;
 
@@ -2883,11 +2882,11 @@ static void virtnet_rx_mode_work(struct work_struct *work)
 {
 	struct virtnet_info *vi =
 		container_of(work, struct virtnet_info, rx_mode_work);
+	u8 *promisc_allmulti  __free(kfree) = NULL;
 	struct net_device *dev = vi->dev;
 	struct scatterlist sg[2];
 	struct virtio_net_ctrl_mac *mac_data;
 	struct netdev_hw_addr *ha;
-	u8 *promisc_allmulti;
 	int uc_count;
 	int mc_count;
 	void *buf;
