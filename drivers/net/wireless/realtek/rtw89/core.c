@@ -3343,14 +3343,13 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 					 BTC_ROLE_MSTS_STA_CONN_START);
 		rtw89_chip_rfk_channel(rtwdev);
 	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
-		rtwsta->mac_id = rtw89_core_acquire_bit_map(rtwdev->mac_id_map,
-							    RTW89_MAX_MAC_ID_NUM);
+		rtwsta->mac_id = rtw89_acquire_mac_id(rtwdev);
 		if (rtwsta->mac_id == RTW89_MAX_MAC_ID_NUM)
 			return -ENOSPC;
 
 		ret = rtw89_mac_set_macid_pause(rtwdev, rtwsta->mac_id, false);
 		if (ret) {
-			rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
+			rtw89_release_mac_id(rtwdev, rtwsta->mac_id);
 			rtw89_warn(rtwdev, "failed to send h2c macid pause\n");
 			return ret;
 		}
@@ -3358,7 +3357,7 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 		ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif, rtwsta,
 						 RTW89_ROLE_CREATE);
 		if (ret) {
-			rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
+			rtw89_release_mac_id(rtwdev, rtwsta->mac_id);
 			rtw89_warn(rtwdev, "failed to send h2c role info\n");
 			return ret;
 		}
@@ -3531,7 +3530,7 @@ int rtw89_core_sta_remove(struct rtw89_dev *rtwdev,
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_DIS_CONN);
 	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
-		rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
+		rtw89_release_mac_id(rtwdev, rtwsta->mac_id);
 
 		ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif, rtwsta,
 						 RTW89_ROLE_REMOVE);
@@ -4179,6 +4178,25 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 	rtw89_hci_deinit(rtwdev);
 	rtw89_mac_pwr_off(rtwdev);
 	rtw89_hci_reset(rtwdev);
+}
+
+u8 rtw89_acquire_mac_id(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 mac_id_num = chip->support_macid_num;
+	u8 mac_id;
+
+	mac_id = find_first_zero_bit(rtwdev->mac_id_map, mac_id_num);
+	if (mac_id == mac_id_num)
+		return RTW89_MAX_MAC_ID_NUM;
+
+	set_bit(mac_id, rtwdev->mac_id_map);
+	return mac_id;
+}
+
+void rtw89_release_mac_id(struct rtw89_dev *rtwdev, u8 mac_id)
+{
+	clear_bit(mac_id, rtwdev->mac_id_map);
 }
 
 int rtw89_core_init(struct rtw89_dev *rtwdev)
