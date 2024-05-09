@@ -26,6 +26,9 @@ properties:
           - dlink,dir-685-panel
       - const: ilitek,ili9322
 
+  reg:
+    maxItems: 1
+
   reset-gpios: true
   port: true
 
