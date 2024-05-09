@@ -94,6 +94,53 @@ void amdgpu_userqueue_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
 	amdgpu_bo_unref(&userq_obj->obj);
 }
 
+static uint64_t
+amdgpu_userqueue_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
+				     struct amdgpu_usermode_queue *queue,
+				     struct drm_file *filp,
+				     uint32_t doorbell_offset)
+{
+	uint64_t index;
+	struct drm_gem_object *gobj;
+	struct amdgpu_userq_obj *db_obj = &queue->db_obj;
+	int r;
+
+	gobj = drm_gem_object_lookup(filp, queue->doorbell_handle);
+	if (gobj == NULL) {
+		DRM_ERROR("Can't find GEM object for doorbell\n");
+		return -EINVAL;
+	}
+
+	db_obj->obj = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
+	drm_gem_object_put(gobj);
+
+	/* Pin the BO before generating the index, unpin in queue destroy */
+	r = amdgpu_bo_pin(db_obj->obj, AMDGPU_GEM_DOMAIN_DOORBELL);
+	if (r) {
+		DRM_ERROR("[Usermode queues] Failed to pin doorbell object\n");
+		goto unref_bo;
+	}
+
+	r = amdgpu_bo_reserve(db_obj->obj, true);
+	if (r) {
+		DRM_ERROR("[Usermode queues] Failed to pin doorbell object\n");
+		goto unpin_bo;
+	}
+
+	index = amdgpu_doorbell_index_on_bar(uq_mgr->adev, db_obj->obj,
+					     doorbell_offset, sizeof(u64));
+	DRM_DEBUG_DRIVER("[Usermode queues] doorbell index=%lld\n", index);
+	amdgpu_bo_unreserve(db_obj->obj);
+	return index;
+
+unpin_bo:
+	amdgpu_bo_unpin(db_obj->obj);
+
+unref_bo:
+	amdgpu_bo_unref(&db_obj->obj);
+	return r;
+}
+
 static int
 amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 {
@@ -114,6 +161,8 @@ amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 
 	uq_funcs = adev->userq_funcs[queue->queue_type];
 	uq_funcs->mqd_destroy(uq_mgr, queue);
+	amdgpu_bo_unpin(queue->db_obj.obj);
+	amdgpu_bo_unref(&queue->db_obj.obj);
 	idr_remove(&uq_mgr->userq_idr, queue_id);
 	kfree(queue);
 
@@ -129,6 +178,7 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	struct amdgpu_device *adev = uq_mgr->adev;
 	const struct amdgpu_userq_funcs *uq_funcs;
 	struct amdgpu_usermode_queue *queue;
+	uint64_t index;
 	int qid, r = 0;
 
 	if (args->in.flags) {
@@ -156,6 +206,15 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	queue->queue_type = args->in.ip_type;
 	queue->flags = args->in.flags;
 	queue->vm = &fpriv->vm;
+
+	/* Convert relative doorbell offset into absolute doorbell index */
+	index = amdgpu_userqueue_get_doorbell_index(uq_mgr, queue, filp, args->in.doorbell_offset);
+	if (index == (uint64_t)-EINVAL) {
+		DRM_ERROR("Failed to get doorbell for queue\n");
+		kfree(queue);
+		goto unlock;
+	}
+	queue->doorbell_index = index;
 
 	r = uq_funcs->mqd_create(uq_mgr, &args->in, queue);
 	if (r) {

@@ -220,6 +220,7 @@ static int mes_v11_0_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 	userq_props->hqd_base_gpu_addr = mqd_user->queue_va;
 	userq_props->mqd_gpu_addr = queue->mqd.gpu_addr;
 	userq_props->use_doorbell = true;
+	userq_props->doorbell_index = queue->doorbell_index;
 
 	queue->userq_prop = userq_props;
 
