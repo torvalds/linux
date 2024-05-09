@@ -88,6 +88,15 @@ static const char * const jack_codecs[] = {
 	"rt711", "rt712", "rt713", "rt722"
 };
 
+/*
+ * The sdca suffix is required for rt711 since there are two generations of the same chip.
+ * RT713 is an SDCA device but the sdca suffix is required for backwards-compatibility with
+ * previous UCM definitions.
+ */
+static const char * const need_sdca_suffix[] = {
+	"rt711", "rt713"
+};
+
 int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
@@ -96,6 +105,7 @@ int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_component *component;
 	struct snd_soc_jack *jack;
 	int ret;
+	int i;
 
 	codec_dai = get_codec_dai_by_name(rtd, jack_codecs, ARRAY_SIZE(jack_codecs));
 	if (!codec_dai)
@@ -103,10 +113,21 @@ int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 
 	component = codec_dai->component;
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "%s hs:%s-sdca",
+					  "%s hs:%s",
 					  card->components, component->name_prefix);
 	if (!card->components)
 		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(need_sdca_suffix); i++) {
+		if (strstr(codec_dai->name, need_sdca_suffix[i])) {
+			/* Add -sdca suffix for existing UCMs */
+			card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+							  "%s-sdca", card->components);
+			if (!card->components)
+				return -ENOMEM;
+			break;
+		}
+	}
 
 	ret = snd_soc_add_card_controls(card, rt_sdca_jack_controls,
 					ARRAY_SIZE(rt_sdca_jack_controls));
