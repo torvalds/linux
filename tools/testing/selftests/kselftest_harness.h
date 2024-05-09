@@ -56,7 +56,6 @@ static_assert(0, "kselftest harness requires _GNU_SOURCE to be defined");
 #include <asm/types.h>
 #include <ctype.h>
 #include <errno.h>
-#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -1217,7 +1216,7 @@ void __run_test(struct __fixture_metadata *f,
 		struct __test_metadata *t)
 {
 	struct __test_xfail *xfail;
-	char test_name[LINE_MAX];
+	char test_name[1024];
 	const char *diagnostic;
 
 	/* reset test struct */
