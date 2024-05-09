@@ -56,7 +56,7 @@ static const char * const __smu_message_names[] = {
 static const char *smu_get_message_name(struct smu_context *smu,
 					enum smu_message_type type)
 {
-	if (type < 0 || type >= SMU_MSG_MAX_COUNT)
+	if (type >= SMU_MSG_MAX_COUNT)
 		return "unknown smu message";
 
 	return __smu_message_names[type];
