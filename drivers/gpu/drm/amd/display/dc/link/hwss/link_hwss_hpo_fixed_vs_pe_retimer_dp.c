@@ -168,9 +168,9 @@ static void set_hpo_fixed_vs_pe_retimer_dp_link_test_pattern(struct dc_link *lin
 
 	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
 
-	// Give retimer extra time to lock before updating DP_TRAINING_PATTERN_SET to TPS1
-	if (tp_params->dp_phy_pattern == DP_TEST_PATTERN_128b_132b_TPS1_TRAINING_MODE)
-		msleep(30);
+	// Give retimer extra time to lock before updating DP_TRAINING_PATTERN_SET to TPS1 or phy pattern
+	if (tp_params->dp_phy_pattern != DP_TEST_PATTERN_128b_132b_TPS2_TRAINING_MODE)
+		msleep(50);
 }
 
 static void set_hpo_fixed_vs_pe_retimer_dp_lane_settings(struct dc_link *link,
