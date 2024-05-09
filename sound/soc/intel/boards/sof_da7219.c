@@ -275,9 +275,8 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 		max_98360a_dai_link(ctx->amp_link);
 		break;
 	case CODEC_MAX98373:
-		ctx->amp_link->codecs = max_98373_components;
-		ctx->amp_link->num_codecs = ARRAY_SIZE(max_98373_components);
-		ctx->amp_link->init = max_98373_spk_codec_init;
+		max_98373_dai_link(dev, ctx->amp_link);
+
 		if (ctx->da7219.is_jsl_board) {
 			ctx->amp_link->ops = &max98373_ops; /* use local ops */
 		} else {
