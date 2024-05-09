@@ -36,7 +36,7 @@ class NetDrvEnv:
     """
     Class for a single NIC / host env, with no remote end
     """
-    def __init__(self, src_path):
+    def __init__(self, src_path, **kwargs):
         self._ns = None
 
         self.env = _load_env_file(src_path)
@@ -44,11 +44,13 @@ class NetDrvEnv:
         if 'NETIF' in self.env:
             self.dev = ip("link show dev " + self.env['NETIF'], json=True)[0]
         else:
-            self._ns = NetdevSimDev()
+            self._ns = NetdevSimDev(**kwargs)
             self.dev = self._ns.nsims[0].dev
         self.ifindex = self.dev['ifindex']
 
     def __enter__(self):
+        ip(f"link set dev {self.dev['ifname']} up")
+
         return self
 
     def __exit__(self, ex_type, ex_value, ex_tb):

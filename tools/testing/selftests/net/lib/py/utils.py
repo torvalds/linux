@@ -8,7 +8,7 @@ import time
 
 
 class cmd:
-    def __init__(self, comm, shell=True, fail=True, ns=None, background=False, host=None):
+    def __init__(self, comm, shell=True, fail=True, ns=None, background=False, host=None, timeout=5):
         if ns:
             comm = f'ip netns exec {ns} ' + comm
 
@@ -23,15 +23,15 @@ class cmd:
             self.proc = subprocess.Popen(comm, shell=shell, stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE)
         if not background:
-            self.process(terminate=False, fail=fail)
+            self.process(terminate=False, fail=fail, timeout=timeout)
 
-    def process(self, terminate=True, fail=None):
+    def process(self, terminate=True, fail=None, timeout=5):
         if fail is None:
             fail = not terminate
 
         if terminate:
             self.proc.terminate()
-        stdout, stderr = self.proc.communicate(timeout=5)
+        stdout, stderr = self.proc.communicate(timeout)
         self.stdout = stdout.decode("utf-8")
         self.stderr = stderr.decode("utf-8")
         self.proc.stdout.close()
