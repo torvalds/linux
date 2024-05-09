@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/mailbox_client.h>
+#include <linux/ipc_logging.h>
 
 #include "rpmsg_internal.h"
 #include "qcom_glink_native.h"
@@ -28,6 +29,13 @@
 
 #define RPM_TX_FIFO_ID		0x61703272 /* ap2r */
 #define RPM_RX_FIFO_ID		0x72326170 /* r2ap */
+
+/* Define IPC Logging Macros */
+#define GLINK_RPM_IPC_LOG_PAGE_CNT 8
+static void *glink_ilctxt;
+
+#define GLINK_RPM_INFO(x, ...)					\
+ipc_log_string(glink_ilctxt, "[%s]: "x, __func__, ##__VA_ARGS__)
 
 #define to_rpm_pipe(p) container_of(p, struct glink_rpm_pipe, native)
 
@@ -62,6 +70,7 @@ static size_t glink_rpm_rx_avail(struct qcom_glink_pipe *glink_pipe)
 	head = readl(pipe->head);
 	tail = readl(pipe->tail);
 
+	GLINK_RPM_INFO("RX: head:0X%X tail:0X%X\n", head, tail);
 	if (head < tail)
 		return pipe->native.length - tail + head;
 	else
@@ -100,6 +109,7 @@ static void glink_rpm_rx_advance(struct qcom_glink_pipe *glink_pipe,
 
 	tail = readl(pipe->tail);
 
+	GLINK_RPM_INFO("RX: tail:0X%X tail+Count:0X%X\n", tail, tail+count);
 	tail += count;
 	if (tail >= pipe->native.length)
 		tail -= pipe->native.length;
@@ -332,6 +342,10 @@ struct qcom_glink *glink_rpm_register(struct device *parent,
 		ret = PTR_ERR(glink);
 		goto err_put_dev;
 	}
+
+	if (!glink_ilctxt)
+		glink_ilctxt = ipc_log_context_create(GLINK_RPM_IPC_LOG_PAGE_CNT,
+							   "glink_rpm", 0);
 
 	return glink;
 
