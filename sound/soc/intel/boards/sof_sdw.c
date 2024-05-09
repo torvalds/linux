@@ -1248,6 +1248,7 @@ static const char *get_codec_name(struct device *dev,
 
 static int sof_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_card *card = rtd->card;
 	struct sof_sdw_codec_info *codec_info;
 	struct snd_soc_dai *dai;
 	int dai_index;
@@ -1267,6 +1268,36 @@ static int sof_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 		 */
 		if (codec_info->dais[dai_index].rtd_init_done)
 			continue;
+
+		/*
+		 * Add card controls and dapm widgets for the first codec dai.
+		 * The controls and widgets will be used for all codec dais.
+		 */
+
+		if (i > 0)
+			goto skip_add_controls_widgets;
+
+		if (codec_info->dais[dai_index].controls) {
+			ret = snd_soc_add_card_controls(card, codec_info->dais[dai_index].controls,
+							codec_info->dais[dai_index].num_controls);
+			if (ret) {
+				dev_err(card->dev, "%#x controls addition failed: %d\n",
+					codec_info->part_id, ret);
+				return ret;
+			}
+		}
+		if (codec_info->dais[dai_index].widgets) {
+			ret = snd_soc_dapm_new_controls(&card->dapm,
+							codec_info->dais[dai_index].widgets,
+							codec_info->dais[dai_index].num_widgets);
+			if (ret) {
+				dev_err(card->dev, "%#x widgets addition failed: %d\n",
+					codec_info->part_id, ret);
+				return ret;
+			}
+		}
+
+skip_add_controls_widgets:
 		if (codec_info->dais[dai_index].rtd_init) {
 			ret = codec_info->dais[dai_index].rtd_init(rtd);
 			if (ret)

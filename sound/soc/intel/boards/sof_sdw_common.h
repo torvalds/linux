@@ -86,6 +86,10 @@ struct sof_sdw_dai_info {
 	const char *dai_name;
 	const int dai_type;
 	const int dailink[2]; /* dailink id for each direction */
+	const struct snd_kcontrol_new *controls;
+	const int num_controls;
+	const struct snd_soc_dapm_widget *widgets;
+	const int num_widgets;
 	int  (*init)(struct snd_soc_card *card,
 		     struct snd_soc_dai_link *dai_links,
 		     struct sof_sdw_codec_info *info,
