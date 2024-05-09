@@ -1409,7 +1409,7 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 	}
 
 	/*
-	 * If dma_need_sync wasn't set, reset it on first SWIOTLB buffer
+	 * If dma_skip_sync was set, reset it on first SWIOTLB buffer
 	 * mapping to always sync SWIOTLB buffers.
 	 */
 	dma_reset_need_sync(dev);
