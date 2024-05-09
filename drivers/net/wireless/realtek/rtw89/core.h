@@ -3249,7 +3249,6 @@ struct rtw89_addr_cam_entry {
 	DECLARE_BITMAP(sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM);
 	u8 sec_ent_keyid[RTW89_SEC_CAM_IN_ADDR_CAM];
 	u8 sec_ent[RTW89_SEC_CAM_IN_ADDR_CAM];
-	struct rtw89_sec_cam_entry *sec_entries[RTW89_SEC_CAM_IN_ADDR_CAM];
 };
 
 struct rtw89_bssid_cam_entry {
@@ -4436,6 +4435,7 @@ struct rtw89_cam_info {
 	DECLARE_BITMAP(sec_cam_map, RTW89_MAX_SEC_CAM_NUM);
 	DECLARE_BITMAP(ba_cam_map, RTW89_MAX_BA_CAM_NUM);
 	struct rtw89_ba_cam_entry ba_cam_entry[RTW89_MAX_BA_CAM_NUM];
+	const struct rtw89_sec_cam_entry *sec_entries[RTW89_MAX_SEC_CAM_NUM];
 };
 
 enum rtw89_sar_sources {

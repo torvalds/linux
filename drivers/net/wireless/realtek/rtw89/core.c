@@ -499,31 +499,21 @@ static void
 rtw89_core_tx_update_sec_key(struct rtw89_dev *rtwdev,
 			     struct rtw89_core_tx_request *tx_req)
 {
+	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct ieee80211_vif *vif = tx_req->vif;
-	struct ieee80211_sta *sta = tx_req->sta;
+	const struct rtw89_sec_cam_entry *sec_cam;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_key_conf *key;
-	struct rtw89_vif *rtwvif;
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
-	struct rtw89_addr_cam_entry *addr_cam;
-	struct rtw89_sec_cam_entry *sec_cam;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
 	struct sk_buff *skb = tx_req->skb;
 	u8 sec_type = RTW89_SEC_KEY_TYPE_NONE;
+	u8 sec_cam_idx;
 	u64 pn64;
-
-	if (!vif) {
-		rtw89_warn(rtwdev, "cannot set sec key without vif\n");
-		return;
-	}
-
-	rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
 
 	info = IEEE80211_SKB_CB(skb);
 	key = info->control.hw_key;
-	sec_cam = addr_cam->sec_entries[key->hw_key_idx];
+	sec_cam_idx = key->hw_key_idx;
+	sec_cam = cam_info->sec_entries[sec_cam_idx];
 	if (!sec_cam) {
 		rtw89_warn(rtwdev, "sec cam entry is empty\n");
 		return;
