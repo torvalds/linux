@@ -239,7 +239,8 @@ union MESAPI_SET_HW_RESOURCES {
 				uint32_t send_write_data : 1;
 				uint32_t os_tdr_timeout_override : 1;
 				uint32_t use_rs64mem_for_proc_gang_ctx : 1;
-				uint32_t reserved : 17;
+				uint32_t unmapped_doorbell_handling: 2;
+				uint32_t reserved : 15;
 			};
 			uint32_t uint32_all;
 		};
