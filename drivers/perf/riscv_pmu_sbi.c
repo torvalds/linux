@@ -1043,7 +1043,6 @@ static struct ctl_table sbi_pmu_sysctl_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
-	{ }
 };
 
 static int pmu_sbi_device_probe(struct platform_device *pdev)
@@ -1081,6 +1080,7 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 	}
 
 	pmu->pmu.attr_groups = riscv_pmu_attr_groups;
+	pmu->pmu.parent = &pdev->dev;
 	pmu->cmask = cmask;
 	pmu->ctr_start = pmu_sbi_ctr_start;
 	pmu->ctr_stop = pmu_sbi_ctr_stop;
