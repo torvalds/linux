@@ -158,15 +158,11 @@ static const struct snd_soc_dapm_route rt1318_map[] = {
 	{ "Speaker", NULL, "rt1318-2 SPOR" },
 };
 
-static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_pcm_runtime *rtd,
+static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_dai *dai,
 								 char *codec_name)
 {
-	const char *dai_name;
-
-	dai_name = rtd->dai_link->codecs->dai_name;
-
 	/* get the codec name */
-	snprintf(codec_name, CODEC_NAME_SIZE, "%s", dai_name);
+	snprintf(codec_name, CODEC_NAME_SIZE, "%s", dai->name);
 
 	/* choose the right codec's map  */
 	if (strcmp(codec_name, "rt1308") == 0)
@@ -186,7 +182,7 @@ int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai
 	int ret;
 	int i;
 
-	rt_amp_map = get_codec_name_and_route(rtd, codec_name);
+	rt_amp_map = get_codec_name_and_route(dai, codec_name);
 
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 					  "%s spk:%s",
