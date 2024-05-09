@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include "vmlinux.h"
-
+#include "bpf_tracing_net.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
@@ -9,11 +8,6 @@ char _license[] SEC("license") = "GPL";
 
 int ca1_cnt = 0;
 int ca2_cnt = 0;
-
-static inline struct tcp_sock *tcp_sk(const struct sock *sk)
-{
-	return (struct tcp_sock *)sk;
-}
 
 SEC("struct_ops/ca_update_1_init")
 void BPF_PROG(ca_update_1_init, struct sock *sk)
