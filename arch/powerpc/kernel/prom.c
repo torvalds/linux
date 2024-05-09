@@ -813,6 +813,9 @@ void __init early_init_devtree(void *params)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_chosen_ppc, boot_command_line);
 
+	/* Append additional parameters passed for fadump capture kernel */
+	fadump_append_bootargs();
+
 	/* Scan memory nodes and rebuild MEMBLOCKs */
 	early_init_dt_scan_root();
 	early_init_dt_scan_memory_ppc();

@@ -131,6 +131,41 @@ static int __init fadump_cma_init(void)
 static int __init fadump_cma_init(void) { return 1; }
 #endif /* CONFIG_CMA */
 
+/*
+ * Additional parameters meant for capture kernel are placed in a dedicated area.
+ * If this is capture kernel boot, append these parameters to bootargs.
+ */
+void __init fadump_append_bootargs(void)
+{
+	char *append_args;
+	size_t len;
+
+	if (!fw_dump.dump_active || !fw_dump.param_area_supported || !fw_dump.param_area)
+		return;
+
+	if (fw_dump.param_area >= fw_dump.boot_mem_top) {
+		if (memblock_reserve(fw_dump.param_area, COMMAND_LINE_SIZE)) {
+			pr_warn("WARNING: Can't use additional parameters area!\n");
+			fw_dump.param_area = 0;
+			return;
+		}
+	}
+
+	append_args = (char *)fw_dump.param_area;
+	len = strlen(boot_command_line);
+
+	/*
+	 * Too late to fail even if cmdline size exceeds. Truncate additional parameters
+	 * to cmdline size and proceed anyway.
+	 */
+	if (len + strlen(append_args) >= COMMAND_LINE_SIZE - 1)
+		pr_warn("WARNING: Appending parameters exceeds cmdline size. Truncating!\n");
+
+	pr_debug("Cmdline: %s\n", boot_command_line);
+	snprintf(boot_command_line + len, COMMAND_LINE_SIZE - len, " %s", append_args);
+	pr_info("Updated cmdline: %s\n", boot_command_line);
+}
+
 /* Scan the Firmware Assisted dump configuration details. */
 int __init early_init_dt_scan_fw_dump(unsigned long node, const char *uname,
 				      int depth, void *data)
