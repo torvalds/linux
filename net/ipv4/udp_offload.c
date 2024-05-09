@@ -478,14 +478,7 @@ static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 			return p;
 		}
 
-		flush = NAPI_GRO_CB(p)->flush;
-
-		if (NAPI_GRO_CB(p)->flush_id != 1 ||
-		    NAPI_GRO_CB(p)->count != 1 ||
-		    !NAPI_GRO_CB(p)->is_atomic)
-			flush |= NAPI_GRO_CB(p)->flush_id;
-		else
-			NAPI_GRO_CB(p)->is_atomic = false;
+		flush = gro_receive_network_flush(uh, uh2, p);
 
 		/* Terminate the flow on len mismatch or if it grow "too much".
 		 * Under small packet flood GRO count could elsewhere grow a lot
