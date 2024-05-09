@@ -14,7 +14,7 @@
 
 #define CODEC_NAME_SIZE	8
 
-int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	const char *dai_name = rtd->dai_link->codecs->dai_name;
 	struct snd_soc_card *card = rtd->card;

@@ -48,7 +48,7 @@ static struct snd_soc_jack_pin sof_jack_pins[] = {
 	},
 };
 
-int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
@@ -99,7 +99,7 @@ int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
@@ -135,7 +135,7 @@ int sof_sdw_cs42l43_spk_init(struct snd_soc_card *card,
 	return bridge_cs35l56_spk_init(card, dai_links, info, playback);
 }
 
-int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;

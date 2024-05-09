@@ -177,12 +177,12 @@ static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_
 		return rt1318_map;
 }
 
-int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	const struct snd_soc_dapm_route *rt_amp_map;
 	char codec_name[CODEC_NAME_SIZE];
-	struct snd_soc_dai *dai;
+	struct snd_soc_dai *codec_dai;
 	int ret;
 	int i;
 
@@ -194,10 +194,10 @@ int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	for_each_rtd_codec_dais(rtd, i, dai) {
-		if (strstr(dai->component->name_prefix, "-1"))
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
+		if (strstr(codec_dai->component->name_prefix, "-1"))
 			ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map, 2);
-		else if (strstr(dai->component->name_prefix, "-2"))
+		else if (strstr(codec_dai->component->name_prefix, "-2"))
 			ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map + 2, 2);
 	}
 

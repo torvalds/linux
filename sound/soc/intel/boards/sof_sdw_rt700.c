@@ -37,7 +37,7 @@ static const char * const jack_codecs[] = {
 	"rt700"
 };
 
-int rt700_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt700_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);

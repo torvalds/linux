@@ -1411,7 +1411,7 @@ static int sof_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 
 skip_add_controls_widgets:
 		if (codec_info->dais[dai_index].rtd_init) {
-			ret = codec_info->dais[dai_index].rtd_init(rtd);
+			ret = codec_info->dais[dai_index].rtd_init(rtd, dai);
 			if (ret)
 				return ret;
 		}

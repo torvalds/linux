@@ -87,7 +87,7 @@ static const char * const need_sdca_suffix[] = {
 	"rt711", "rt713"
 };
 
-int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
