@@ -56,6 +56,7 @@ static_assert(0, "kselftest harness requires _GNU_SOURCE to be defined");
 #include <asm/types.h>
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -1216,7 +1217,7 @@ void __run_test(struct __fixture_metadata *f,
 		struct __test_metadata *t)
 {
 	struct __test_xfail *xfail;
-	char *test_name;
+	char test_name[LINE_MAX];
 	const char *diagnostic;
 
 	/* reset test struct */
@@ -1227,12 +1228,8 @@ void __run_test(struct __fixture_metadata *f,
 	memset(t->env, 0, sizeof(t->env));
 	memset(t->results->reason, 0, sizeof(t->results->reason));
 
-	if (asprintf(&test_name, "%s%s%s.%s", f->name,
-		variant->name[0] ? "." : "", variant->name, t->name) == -1) {
-		ksft_print_msg("ERROR ALLOCATING MEMORY\n");
-		t->exit_code = KSFT_FAIL;
-		_exit(t->exit_code);
-	}
+	snprintf(test_name, sizeof(test_name), "%s%s%s.%s",
+		 f->name, variant->name[0] ? "." : "", variant->name, t->name);
 
 	ksft_print_msg(" RUN           %s ...\n", test_name);
 
@@ -1270,7 +1267,6 @@ void __run_test(struct __fixture_metadata *f,
 
 	ksft_test_result_code(t->exit_code, test_name,
 			      diagnostic ? "%s" : NULL, diagnostic);
-	free(test_name);
 }
 
 static int test_harness_run(int argc, char **argv)
