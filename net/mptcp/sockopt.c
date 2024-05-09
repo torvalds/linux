@@ -1348,6 +1348,8 @@ static int mptcp_getsockopt_sol_tcp(struct mptcp_sock *msk, int optname,
 		return mptcp_put_int_option(msk, optval, optlen, msk->nodelay);
 	case TCP_NOTSENT_LOWAT:
 		return mptcp_put_int_option(msk, optval, optlen, msk->notsent_lowat);
+	case TCP_IS_MPTCP:
+		return mptcp_put_int_option(msk, optval, optlen, 1);
 	}
 	return -EOPNOTSUPP;
 }

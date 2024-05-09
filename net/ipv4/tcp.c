@@ -4363,6 +4363,9 @@ zerocopy_rcv_out:
 
 		return err;
 	}
+	case TCP_IS_MPTCP:
+		val = 0;
+		break;
 	default:
 		return -ENOPROTOOPT;
 	}
