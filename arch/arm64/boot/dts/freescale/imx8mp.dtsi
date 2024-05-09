@@ -1579,6 +1579,9 @@
 					      "sai1", "sai2", "sai3",
 					      "sai5", "sai6", "sai7";
 				power-domains = <&pgc_audio>;
+				assigned-clocks = <&clk IMX8MP_AUDIO_PLL1>,
+						  <&clk IMX8MP_AUDIO_PLL2>;
+				assigned-clock-rates = <393216000>, <361267200>;
 			};
 		};
 
