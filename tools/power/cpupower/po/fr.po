@@ -20,11 +20,11 @@ msgstr ""
 
 #: utils/idle_monitor/nhm_idle.c:36
 msgid "Processor Core C3"
-msgstr "Processeur Core C3"
+msgstr "Processeur Cœur C3"
 
 #: utils/idle_monitor/nhm_idle.c:43
 msgid "Processor Core C6"
-msgstr "Processeur Core C6"
+msgstr "Processeur Cœur C6"
 
 #: utils/idle_monitor/nhm_idle.c:51
 msgid "Processor Package C3"
@@ -36,7 +36,7 @@ msgstr "Pack Processeur C6"
 
 #: utils/idle_monitor/snb_idle.c:33
 msgid "Processor Core C7"
-msgstr "Processeur Core C7"
+msgstr "Processeur Cœur C7"
 
 #: utils/idle_monitor/snb_idle.c:40
 msgid "Processor Package C2"
@@ -64,7 +64,7 @@ msgstr "Le cœur du processeur n'est pas au repos"
 
 #: utils/idle_monitor/mperf_monitor.c:42
 msgid "Processor Core in an idle state"
-msgstr "Processeur Core en état d'inactivité"
+msgstr "Processeur Cœur en état d'inactivité"
 
 #: utils/idle_monitor/mperf_monitor.c:50
 msgid "Average Frequency (including boost) in MHz"
