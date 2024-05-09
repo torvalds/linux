@@ -416,3 +416,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_hibernated_do_mem_alloc);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_hibernate_save_cmp_len);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_read_lazy_flag);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_tsk_need_resched_lazy);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_do_read_fault);

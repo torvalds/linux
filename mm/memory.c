@@ -4647,6 +4647,8 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
 	vm_fault_t ret = 0;
 
 	trace_android_vh_tune_fault_around_bytes(&fault_around_bytes);
+	trace_android_rvh_do_read_fault(vmf->vma->vm_file, vmf->pgoff,
+					&fault_around_bytes);
 
 	/*
 	 * Let's call ->map_pages() first and use ->fault() as fallback
