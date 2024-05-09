@@ -814,6 +814,7 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 
 #else
 
+#define pud_valid(pud)		false
 #define pud_page_paddr(pud)	({ BUILD_BUG(); 0; })
 #define pud_user_exec(pud)	pud_user(pud) /* Always 0 with folding */
 
