@@ -11,7 +11,9 @@
 #include <linux/acpi.h>
 #include <linux/gpio/machine.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
+#include <linux/pwm.h>
 
 #include <dt-bindings/leds/common.h>
 
@@ -662,8 +664,53 @@ static const struct software_node *ktd2026_node_group[] = {
 	NULL
 };
 
+/*
+ * For the LEDs which backlight the menu / home / back capacitive buttons on
+ * the bottom bezel. These are attached to a TPS61158 LED controller which
+ * is controlled by the "pwm_soc_lpss_2" PWM output.
+ */
+#define XIAOMI_MIPAD2_LED_PERIOD_NS		19200
+#define XIAOMI_MIPAD2_LED_DEFAULT_DUTY		 6000 /* From Android kernel */
+
+static struct pwm_device *xiaomi_mipad2_led_pwm;
+
+static int xiaomi_mipad2_brightness_set(struct led_classdev *led_cdev,
+					enum led_brightness val)
+{
+	struct pwm_state state = {
+		.period = XIAOMI_MIPAD2_LED_PERIOD_NS,
+		.duty_cycle = val,
+		/* Always set PWM enabled to avoid the pin floating */
+		.enabled = true,
+	};
+
+	return pwm_apply_might_sleep(xiaomi_mipad2_led_pwm, &state);
+}
+
 static int __init xiaomi_mipad2_init(struct device *dev)
 {
+	struct led_classdev *led_cdev;
+	int ret;
+
+	xiaomi_mipad2_led_pwm = devm_pwm_get(dev, "pwm_soc_lpss_2");
+	if (IS_ERR(xiaomi_mipad2_led_pwm))
+		return dev_err_probe(dev, PTR_ERR(xiaomi_mipad2_led_pwm), "getting pwm\n");
+
+	led_cdev = devm_kzalloc(dev, sizeof(*led_cdev), GFP_KERNEL);
+	if (!led_cdev)
+		return -ENOMEM;
+
+	led_cdev->name = "mipad2:white:touch-buttons-backlight";
+	led_cdev->max_brightness = XIAOMI_MIPAD2_LED_PERIOD_NS;
+	/* "input-events" trigger uses blink_brightness */
+	led_cdev->blink_brightness = XIAOMI_MIPAD2_LED_DEFAULT_DUTY;
+	led_cdev->default_trigger = "input-events";
+	led_cdev->brightness_set_blocking = xiaomi_mipad2_brightness_set;
+
+	ret = devm_led_classdev_register(dev, led_cdev);
+	if (ret)
+		return dev_err_probe(dev, ret, "registering LED\n");
+
 	return software_node_register_node_group(ktd2026_node_group);
 }
 
