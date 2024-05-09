@@ -678,17 +678,6 @@ next:
 	}
 }
 
-static void rpc_depopulate(struct dentry *parent,
-			   const struct rpc_filelist *files,
-			   int start, int eof)
-{
-	struct inode *dir = d_inode(parent);
-
-	inode_lock_nested(dir, I_MUTEX_CHILD);
-	__rpc_depopulate(parent, files, start, eof);
-	inode_unlock(dir);
-}
-
 static int rpc_populate(struct dentry *parent,
 			const struct rpc_filelist *files,
 			int start, int eof,
@@ -760,24 +749,6 @@ err_rmdir:
 out_err:
 	dentry = ERR_PTR(error);
 	goto out;
-}
-
-static int rpc_rmdir_depopulate(struct dentry *dentry,
-		void (*depopulate)(struct dentry *))
-{
-	struct dentry *parent;
-	struct inode *dir;
-	int error;
-
-	parent = dget_parent(dentry);
-	dir = d_inode(parent);
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	if (depopulate != NULL)
-		depopulate(dentry);
-	error = __rpc_rmdir(dir, dentry);
-	inode_unlock(dir);
-	dput(parent);
-	return error;
 }
 
 /**
@@ -1030,11 +1001,6 @@ static int rpc_clntdir_populate(struct dentry *dentry, void *private)
 			    private);
 }
 
-static void rpc_clntdir_depopulate(struct dentry *dentry)
-{
-	rpc_depopulate(dentry, authfiles, RPCAUTH_info, RPCAUTH_EOF);
-}
-
 /**
  * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
  * @dentry: the parent of new directory
@@ -1073,7 +1039,8 @@ int rpc_remove_client_dir(struct rpc_clnt *rpc_client)
 		return 0;
 	rpc_destroy_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
 	rpc_client->cl_pipedir_objects.pdh_dentry = NULL;
-	return rpc_rmdir_depopulate(dentry, rpc_clntdir_depopulate);
+	simple_recursive_removal(dentry, NULL);
+	return 0;
 }
 
 static const struct rpc_filelist cache_pipefs_files[3] = {
@@ -1101,11 +1068,6 @@ static int rpc_cachedir_populate(struct dentry *dentry, void *private)
 			    private);
 }
 
-static void rpc_cachedir_depopulate(struct dentry *dentry)
-{
-	rpc_depopulate(dentry, cache_pipefs_files, 0, 3);
-}
-
 struct dentry *rpc_create_cache_dir(struct dentry *parent, const char *name,
 				    umode_t umode, struct cache_detail *cd)
 {
@@ -1115,7 +1077,7 @@ struct dentry *rpc_create_cache_dir(struct dentry *parent, const char *name,
 
 void rpc_remove_cache_dir(struct dentry *dentry)
 {
-	rpc_rmdir_depopulate(dentry, rpc_cachedir_depopulate);
+	simple_recursive_removal(dentry, NULL);
 }
 
 /*
