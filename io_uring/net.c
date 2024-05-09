@@ -1528,8 +1528,10 @@ int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_accept *accept = io_kiocb_to_cmd(req, struct io_accept);
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
-	unsigned int file_flags = force_nonblock ? O_NONBLOCK : 0;
 	bool fixed = !!accept->file_slot;
+	struct proto_accept_arg arg = {
+		.flags = force_nonblock ? O_NONBLOCK : 0,
+	};
 	struct file *file;
 	int ret, fd;
 
@@ -1543,7 +1545,7 @@ retry:
 		if (unlikely(fd < 0))
 			return fd;
 	}
-	file = do_accept(req->file, file_flags, accept->addr, accept->addr_len,
+	file = do_accept(req->file, &arg, accept->addr, accept->addr_len,
 			 accept->flags);
 	if (IS_ERR(file)) {
 		if (!fixed)
