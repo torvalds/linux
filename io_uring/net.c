@@ -1533,6 +1533,7 @@ int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 		.flags = force_nonblock ? O_NONBLOCK : 0,
 	};
 	struct file *file;
+	unsigned cflags;
 	int ret, fd;
 
 	if (!(req->flags & REQ_F_POLLED) &&
@@ -1545,6 +1546,8 @@ retry:
 		if (unlikely(fd < 0))
 			return fd;
 	}
+	arg.err = 0;
+	arg.is_empty = -1;
 	file = do_accept(req->file, &arg, accept->addr, accept->addr_len,
 			 accept->flags);
 	if (IS_ERR(file)) {
@@ -1573,17 +1576,26 @@ retry:
 						accept->file_slot);
 	}
 
+	cflags = 0;
+	if (!arg.is_empty)
+		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
+
 	if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
-		io_req_set_res(req, ret, 0);
+		io_req_set_res(req, ret, cflags);
 		return IOU_OK;
 	}
 
 	if (ret < 0)
 		return ret;
-	if (io_req_post_cqe(req, ret, IORING_CQE_F_MORE))
-		goto retry;
+	if (io_req_post_cqe(req, ret, cflags | IORING_CQE_F_MORE)) {
+		if (cflags & IORING_CQE_F_SOCK_NONEMPTY || arg.is_empty == -1)
+			goto retry;
+		if (issue_flags & IO_URING_F_MULTISHOT)
+			return IOU_ISSUE_SKIP_COMPLETE;
+		return -EAGAIN;
+	}
 
-	io_req_set_res(req, ret, 0);
+	io_req_set_res(req, ret, cflags);
 	return IOU_STOP_MULTISHOT;
 }
 
