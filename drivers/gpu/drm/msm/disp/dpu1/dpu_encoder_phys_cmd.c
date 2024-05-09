@@ -307,7 +307,7 @@ static void dpu_encoder_phys_cmd_irq_enable(struct dpu_encoder_phys *phys_enc)
 				       phys_enc);
 	dpu_encoder_phys_cmd_control_vblank_irq(phys_enc, true);
 
-	if (dpu_encoder_phys_cmd_is_master(phys_enc))
+	if (dpu_encoder_phys_cmd_is_master(phys_enc) && phys_enc->irq[INTR_IDX_CTL_START])
 		dpu_core_irq_register_callback(phys_enc->dpu_kms,
 					       phys_enc->irq[INTR_IDX_CTL_START],
 					       dpu_encoder_phys_cmd_ctl_start_irq,
@@ -320,7 +320,7 @@ static void dpu_encoder_phys_cmd_irq_disable(struct dpu_encoder_phys *phys_enc)
 					   phys_enc->hw_pp->idx - PINGPONG_0,
 					   phys_enc->vblank_refcount);
 
-	if (dpu_encoder_phys_cmd_is_master(phys_enc))
+	if (dpu_encoder_phys_cmd_is_master(phys_enc) && phys_enc->irq[INTR_IDX_CTL_START])
 		dpu_core_irq_unregister_callback(phys_enc->dpu_kms,
 						 phys_enc->irq[INTR_IDX_CTL_START]);
 
