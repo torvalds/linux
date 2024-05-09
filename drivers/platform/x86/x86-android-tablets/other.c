@@ -183,7 +183,7 @@ static const struct x86_i2c_client_info chuwi_hi8_i2c_clients[] __initconst = {
 	},
 };
 
-static int __init chuwi_hi8_init(void)
+static int __init chuwi_hi8_init(struct device *dev)
 {
 	/*
 	 * Avoid the acpi_unregister_gsi() call in x86_acpi_irq_helper_get()
@@ -244,7 +244,7 @@ const struct x86_dev_info cyberbook_t116_info __initconst = {
 #define CZC_EC_EXTRA_PORT	0x68
 #define CZC_EC_ANDROID_KEYS	0x63
 
-static int __init czc_p10t_init(void)
+static int __init czc_p10t_init(struct device *dev)
 {
 	/*
 	 * The device boots up in "Windows 7" mode, when the home button sends a
@@ -662,7 +662,7 @@ static const struct software_node *ktd2026_node_group[] = {
 	NULL
 };
 
-static int __init xiaomi_mipad2_init(void)
+static int __init xiaomi_mipad2_init(struct device *dev)
 {
 	return software_node_register_node_group(ktd2026_node_group);
 }

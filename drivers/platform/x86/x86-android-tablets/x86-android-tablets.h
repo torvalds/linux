@@ -89,7 +89,7 @@ struct x86_dev_info {
 	int pdev_count;
 	int serdev_count;
 	int gpio_button_count;
-	int (*init)(void);
+	int (*init)(struct device *dev);
 	void (*exit)(void);
 };
 

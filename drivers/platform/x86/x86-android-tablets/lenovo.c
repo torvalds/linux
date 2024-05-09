@@ -230,7 +230,7 @@ static struct gpiod_lookup_table * const lenovo_yb1_x90_gpios[] = {
 	NULL
 };
 
-static int __init lenovo_yb1_x90_init(void)
+static int __init lenovo_yb1_x90_init(struct device *dev)
 {
 	/* Enable the regulators used by the touchscreens */
 
@@ -412,7 +412,7 @@ static struct gpiod_lookup_table * const lenovo_yoga_tab2_830_1050_gpios[] = {
 	NULL
 };
 
-static int __init lenovo_yoga_tab2_830_1050_init(void);
+static int __init lenovo_yoga_tab2_830_1050_init(struct device *dev);
 static void lenovo_yoga_tab2_830_1050_exit(void);
 
 const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
@@ -534,7 +534,7 @@ static int lenovo_yoga_tab2_830_1050_power_off(struct sys_off_data *data)
 	return NOTIFY_DONE;
 }
 
-static int __init lenovo_yoga_tab2_830_1050_init(void)
+static int __init lenovo_yoga_tab2_830_1050_init(struct device *dev)
 {
 	int ret;
 
@@ -731,7 +731,7 @@ const char * const lenovo_yoga_tab2_1380_modules[] __initconst = {
 	NULL
 };
 
-static int __init lenovo_yoga_tab2_1380_init(void)
+static int __init lenovo_yoga_tab2_1380_init(struct device *dev)
 {
 	int ret;
 
@@ -978,7 +978,7 @@ static const struct x86_spi_dev_info lenovo_yt3_spi_devs[] __initconst = {
 	}
 };
 
-static int __init lenovo_yt3_init(void)
+static int __init lenovo_yt3_init(struct device *dev)
 {
 	int ret;
 
