@@ -7121,9 +7121,7 @@ void cstate_perf_init_(bool soft_c1)
 
 			const bool counter_needed = BIC_IS_ENABLED(cai->bic) ||
 			    (soft_c1 && (cai->flags & CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY));
-			const bool counter_supported =
-			    (platform->supported_cstates & cai->feature_mask) &&
-			    (pkg_cstate_limit >= cai->pkg_cstate_limit);
+			const bool counter_supported = (platform->supported_cstates & cai->feature_mask);
 
 			if (counter_needed && counter_supported) {
 				/* Use perf API for this counter */
@@ -7132,7 +7130,8 @@ void cstate_perf_init_(bool soft_c1)
 					cci->source[cai->rci_index] = CSTATE_SOURCE_PERF;
 
 					/* User MSR for this counter */
-				} else if (!no_msr && cai->msr && probe_msr(cpu, cai->msr) == 0) {
+				} else if (!no_msr && cai->msr && pkg_cstate_limit >= cai->pkg_cstate_limit
+					   && probe_msr(cpu, cai->msr) == 0) {
 					cci->source[cai->rci_index] = CSTATE_SOURCE_MSR;
 					cci->msr[cai->rci_index] = cai->msr;
 				}
