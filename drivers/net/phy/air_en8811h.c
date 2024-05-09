@@ -544,6 +544,10 @@ static int air_hw_led_on_set(struct phy_device *phydev, u8 index, bool on)
 
 	changed |= (priv->led[index].rules != 0);
 
+	/* clear netdev trigger rules in case LED_OFF has been set */
+	if (!on)
+		priv->led[index].rules = 0;
+
 	if (changed)
 		return phy_modify_mmd(phydev, MDIO_MMD_VEND2,
 				      AIR_PHY_LED_ON(index),
