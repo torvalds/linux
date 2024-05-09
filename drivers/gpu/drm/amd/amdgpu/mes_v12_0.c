@@ -1357,6 +1357,10 @@ static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev)
 	if (r)
 		goto failure;
 
+	r = mes_v12_0_hw_init(adev);
+	if (r)
+		goto failure;
+
 	return r;
 
 failure:
@@ -1381,7 +1385,7 @@ static int mes_v12_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->mes.ring.sched.ready)
-		return 0;
+		goto out;
 
 	if (!adev->enable_mes_kiq || adev->enable_uni_mes) {
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
@@ -1425,6 +1429,7 @@ static int mes_v12_0_hw_init(void *handle)
 		goto failure;
 	}
 
+out:
 	/*
 	 * Disable KIQ ring usage from the driver once MES is enabled.
 	 * MES uses KIQ ring exclusively so driver cannot access KIQ ring
@@ -1498,8 +1503,7 @@ static int mes_v12_0_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* it's only intended for use in mes_self_test case, not for s0ix and reset */
-	if (!amdgpu_in_reset(adev) && !adev->in_s0ix && !adev->in_suspend &&
-	    !adev->enable_uni_mes)
+	if (!amdgpu_in_reset(adev) && !adev->in_s0ix && !adev->in_suspend)
 		amdgpu_mes_self_test(adev);
 
 	return 0;
