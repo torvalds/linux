@@ -188,6 +188,15 @@ int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd)
 }
 EXPORT_SYMBOL_NS(max_98373_spk_codec_init, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
+void max_98373_dai_link(struct device *dev, struct snd_soc_dai_link *link)
+{
+	link->codecs = max_98373_components;
+	link->num_codecs = ARRAY_SIZE(max_98373_components);
+	link->init = max_98373_spk_codec_init;
+	link->ops = &max_98373_ops;
+}
+EXPORT_SYMBOL_NS(max_98373_dai_link, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+
 void max_98373_set_codec_conf(struct snd_soc_card *card)
 {
 	card->codec_conf = max_98373_codec_conf;
