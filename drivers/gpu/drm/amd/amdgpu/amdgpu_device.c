@@ -5373,11 +5373,13 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	if (!test_bit(AMDGPU_SKIP_COREDUMP, &reset_context->flags)) {
 		amdgpu_reset_reg_dumps(tmp_adev);
 
+		dev_info(tmp_adev->dev, "Dumping IP State\n");
 		/* Trigger ip dump before we reset the asic */
 		for (i = 0; i < tmp_adev->num_ip_blocks; i++)
 			if (tmp_adev->ip_blocks[i].version->funcs->dump_ip_state)
 				tmp_adev->ip_blocks[i].version->funcs
 				->dump_ip_state((void *)tmp_adev);
+		dev_info(tmp_adev->dev, "Dumping IP State Completed\n");
 	}
 
 	reset_context->reset_device_list = device_list_handle;
