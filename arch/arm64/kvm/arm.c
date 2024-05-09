@@ -698,11 +698,6 @@ unsigned long kvm_arch_vcpu_get_ip(struct kvm_vcpu *vcpu)
 }
 #endif
 
-static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
-{
-	return vcpu_get_flag(vcpu, VCPU_INITIALIZED);
-}
-
 static void kvm_init_mpidr_data(struct kvm *kvm)
 {
 	struct kvm_mpidr_data *data = NULL;
