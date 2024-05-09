@@ -202,6 +202,12 @@ static inline struct f_mbim *port_to_mbim(struct grmnet *r)
 struct f_mbim_opts {
 	struct usb_function_instance func_inst;
 	struct f_mbim *usb_mbim;
+
+	/* os desc support */
+	struct config_group *interf_group;
+	char ext_compat_id[16];
+	struct usb_os_desc os_desc;
+
 	char *channel_name;
 	int	refcnt;
 };
@@ -520,50 +526,7 @@ static struct usb_gadget_strings *mbim_strings[] = {
 	NULL,
 };
 
-/* Microsoft OS Descriptors */
 
-/*
- * We specify our own bMS_VendorCode byte which Windows will use
- * as the bRequest value in subsequent device get requests.
- */
-#define MBIM_VENDOR_CODE	0xA5
-
-/* Microsoft Extended Configuration Descriptor Header Section */
-struct mbim_ext_config_desc_header {
-	__le32	dwLength;
-	__u16	bcdVersion;
-	__le16	wIndex;
-	__u8	bCount;
-	__u8	reserved[7];
-};
-
-/* Microsoft Extended Configuration Descriptor Function Section */
-struct mbim_ext_config_desc_function {
-	__u8	bFirstInterfaceNumber;
-	__u8	bInterfaceCount;
-	__u8	compatibleID[8];
-	__u8	subCompatibleID[8];
-	__u8	reserved[6];
-};
-
-/* Microsoft Extended Configuration Descriptor */
-static struct {
-	struct mbim_ext_config_desc_header	header;
-	struct mbim_ext_config_desc_function    function;
-} mbim_ext_config_desc = {
-	.header = {
-		.dwLength = cpu_to_le32(sizeof(mbim_ext_config_desc)),
-		.bcdVersion = cpu_to_le16(0x0100),
-		.wIndex = cpu_to_le16(4),
-		.bCount = 1,
-	},
-	.function = {
-		.bFirstInterfaceNumber = 0,
-		.bInterfaceCount = 1,
-		.compatibleID = { 'A', 'L', 'T', 'R', 'C', 'F', 'G' },
-		/* .subCompatibleID = DYNAMIC */
-	},
-};
 
 static inline int mbim_lock(atomic_t *excl)
 {
@@ -1483,6 +1446,8 @@ mbim_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_ep			*ep;
 	struct usb_cdc_notification	*event;
 
+	struct f_mbim_opts *opts;
+
 	mbim->cdev = cdev;
 
 	/* maybe allocate device-global string IDs */
@@ -1613,15 +1578,15 @@ mbim_bind(struct usb_configuration *c, struct usb_function *f)
 			goto fail;
 	}
 
-	/*
-	 * If MBIM is bound in a config other than the first, tell Windows
-	 * about it by returning the num as a string in the OS descriptor's
-	 * subCompatibleID field. Windows only supports up to config #4.
-	 */
-	if (c->bConfigurationValue >= 2 && c->bConfigurationValue <= 4) {
-		pr_debug("MBIM in configuration %d\n", c->bConfigurationValue);
-		mbim_ext_config_desc.function.subCompatibleID[0] =
-			c->bConfigurationValue + '0';
+	if (cdev->use_os_string) {
+		f->os_desc_table = kzalloc(sizeof(*f->os_desc_table),
+						GFP_KERNEL);
+		if (!f->os_desc_table)
+			return -ENOMEM;
+		opts = container_of(f->fi, struct f_mbim_opts, func_inst);
+		f->os_desc_n = 1;
+		f->os_desc_table[0].os_desc = &opts->os_desc;
+		f->os_desc_table[0].if_id = mbim->data_id;
 	}
 
 	pr_debug("mbim(%d): %s speed IN/%s OUT/%s NOTIFY/%s\n",
@@ -1656,6 +1621,8 @@ fail:
 	if (mbim->bam_port.in)
 		mbim->bam_port.in->driver_data = NULL;
 
+	kfree(f->os_desc_table);
+
 	return status;
 }
 
@@ -1675,7 +1642,9 @@ static void mbim_unbind(struct usb_configuration *c, struct usb_function *f)
 	kfree(mbim->not_port.notify_req->buf);
 	usb_ep_free_request(mbim->not_port.notify, mbim->not_port.notify_req);
 
-	mbim_ext_config_desc.function.subCompatibleID[0] = 0;
+	kfree(f->os_desc_table);
+	f->os_desc_table = NULL;
+	f->os_desc_n = 0;
 
 	if (mbim->xport == USB_GADGET_XPORT_BAM_DMUX)
 		gbam_cleanup(mbim->bam_dmux_func_type);
@@ -2195,6 +2164,9 @@ static void mbim_free_inst(struct usb_function_instance *f)
 	struct f_mbim_opts *opts = container_of(f, struct f_mbim_opts,
 						func_inst);
 
+	if (opts && opts->interf_group)
+		kfree(opts->interf_group);
+
 	kfree(opts->usb_mbim);
 	kfree(opts);
 }
@@ -2233,6 +2205,9 @@ static int mbim_set_inst_name(struct usb_function_instance *fi,
 	struct f_mbim_opts *opts = container_of(fi,
 					struct f_mbim_opts, func_inst);
 
+	struct usb_os_desc *descs[1];
+	char *names[1];
+
 	name_len = strlen(name) + 1;
 	if (name_len > MAX_INST_NAME_LEN)
 		return -ENAMETOOLONG;
@@ -2245,6 +2220,14 @@ static int mbim_set_inst_name(struct usb_function_instance *fi,
 		__func__, name);
 		goto fail;
 	}
+
+	opts->os_desc.ext_compat_id = opts->ext_compat_id;
+	INIT_LIST_HEAD(&opts->os_desc.ext_prop);
+	descs[0] = &opts->os_desc;
+	names[0] = "MBIM";
+	opts->interf_group = usb_os_desc_prepare_interf_dir(
+					&opts->func_inst.group, 1,
+					descs, names, THIS_MODULE);
 
 	opts->usb_mbim = dev;
 	return 0;
