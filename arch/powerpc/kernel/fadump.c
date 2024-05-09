@@ -221,28 +221,6 @@ static bool is_fadump_mem_area_contiguous(u64 d_start, u64 d_end)
 }
 
 /*
- * Returns true, if there are no holes in boot memory area,
- * false otherwise.
- */
-bool is_fadump_boot_mem_contiguous(void)
-{
-	unsigned long d_start, d_end;
-	bool ret = false;
-	int i;
-
-	for (i = 0; i < fw_dump.boot_mem_regs_cnt; i++) {
-		d_start = fw_dump.boot_mem_addr[i];
-		d_end   = d_start + fw_dump.boot_mem_sz[i];
-
-		ret = is_fadump_mem_area_contiguous(d_start, d_end);
-		if (!ret)
-			break;
-	}
-
-	return ret;
-}
-
-/*
  * Returns true, if there are no holes in reserved memory area,
  * false otherwise.
  */
@@ -381,10 +359,11 @@ static unsigned long __init get_fadump_area_size(void)
 static int __init add_boot_mem_region(unsigned long rstart,
 				      unsigned long rsize)
 {
+	int max_boot_mem_rgns = fw_dump.ops->fadump_max_boot_mem_rgns();
 	int i = fw_dump.boot_mem_regs_cnt++;
 
-	if (fw_dump.boot_mem_regs_cnt > FADUMP_MAX_MEM_REGS) {
-		fw_dump.boot_mem_regs_cnt = FADUMP_MAX_MEM_REGS;
+	if (fw_dump.boot_mem_regs_cnt > max_boot_mem_rgns) {
+		fw_dump.boot_mem_regs_cnt = max_boot_mem_rgns;
 		return 0;
 	}
 
