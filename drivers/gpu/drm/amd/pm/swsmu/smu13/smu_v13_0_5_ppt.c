@@ -643,7 +643,7 @@ static int smu_v13_0_5_get_dpm_level_count(struct smu_context *smu,
 		*count = clk_table->NumDfPstatesEnabled;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	return 0;
