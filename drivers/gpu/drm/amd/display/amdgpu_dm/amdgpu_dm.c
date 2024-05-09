@@ -6678,12 +6678,34 @@ static const struct attribute_group amdgpu_group = {
 	.attrs = amdgpu_attrs
 };
 
+static bool
+amdgpu_dm_should_create_sysfs(struct amdgpu_dm_connector *amdgpu_dm_connector)
+{
+	if (amdgpu_dm_abm_level >= 0)
+		return false;
+
+	if (amdgpu_dm_connector->base.connector_type != DRM_MODE_CONNECTOR_eDP)
+		return false;
+
+	/* check for OLED panels */
+	if (amdgpu_dm_connector->bl_idx >= 0) {
+		struct drm_device *drm = amdgpu_dm_connector->base.dev;
+		struct amdgpu_display_manager *dm = &drm_to_adev(drm)->dm;
+		struct amdgpu_dm_backlight_caps *caps;
+
+		caps = &dm->backlight_caps[amdgpu_dm_connector->bl_idx];
+		if (caps->aux_support)
+			return false;
+	}
+
+	return true;
+}
+
 static void amdgpu_dm_connector_unregister(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
-	    amdgpu_dm_abm_level < 0)
+	if (amdgpu_dm_should_create_sysfs(amdgpu_dm_connector))
 		sysfs_remove_group(&connector->kdev->kobj, &amdgpu_group);
 
 	drm_dp_aux_unregister(&amdgpu_dm_connector->dm_dp_aux.aux);
@@ -6790,8 +6812,7 @@ amdgpu_dm_connector_late_register(struct drm_connector *connector)
 		to_amdgpu_dm_connector(connector);
 	int r;
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP &&
-	    amdgpu_dm_abm_level < 0) {
+	if (amdgpu_dm_should_create_sysfs(amdgpu_dm_connector)) {
 		r = sysfs_create_group(&connector->kdev->kobj,
 				       &amdgpu_group);
 		if (r)
