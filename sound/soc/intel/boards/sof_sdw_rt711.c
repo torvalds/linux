@@ -42,7 +42,7 @@ static int rt711_add_codec_device_props(struct device *sdw_dev)
 	return ret;
 }
 
-static const struct snd_soc_dapm_widget rt711_widgets[] = {
+static const struct snd_soc_dapm_widget generic_jack_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 };
@@ -53,7 +53,7 @@ static const struct snd_soc_dapm_route rt711_map[] = {
 	{ "rt711 MIC2", NULL, "Headset Mic" },
 };
 
-static const struct snd_kcontrol_new rt711_controls[] = {
+static const struct snd_kcontrol_new generic_jack_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 };
@@ -93,15 +93,15 @@ int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_add_card_controls(card, rt711_controls,
-					ARRAY_SIZE(rt711_controls));
+	ret = snd_soc_add_card_controls(card, generic_jack_controls,
+					ARRAY_SIZE(generic_jack_controls));
 	if (ret) {
 		dev_err(card->dev, "rt711 controls addition failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt711_widgets,
-					ARRAY_SIZE(rt711_widgets));
+	ret = snd_soc_dapm_new_controls(&card->dapm, generic_jack_widgets,
+					ARRAY_SIZE(generic_jack_widgets));
 	if (ret) {
 		dev_err(card->dev, "rt711 widgets addition failed: %d\n", ret);
 		return ret;

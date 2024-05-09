@@ -14,7 +14,7 @@
 
 #define CODEC_NAME_SIZE	8
 
-static const struct snd_soc_dapm_widget sof_widgets[] = {
+static const struct snd_soc_dapm_widget generic_spk_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
@@ -35,8 +35,8 @@ int cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, sof_widgets,
-					ARRAY_SIZE(sof_widgets));
+	ret = snd_soc_dapm_new_controls(&card->dapm, generic_spk_widgets,
+					ARRAY_SIZE(generic_spk_widgets));
 	if (ret) {
 		dev_err(card->dev, "widgets addition failed: %d\n", ret);
 		return ret;

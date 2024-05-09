@@ -15,7 +15,7 @@
 #include <sound/soc-dapm.h>
 #include "sof_sdw_common.h"
 
-static const struct snd_soc_dapm_widget rt712_spk_widgets[] = {
+static const struct snd_soc_dapm_widget generic_spk_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
@@ -30,7 +30,7 @@ static const struct snd_soc_dapm_route rt712_spk_map[] = {
 	{ "Speaker", NULL, "rt712 SPOR" },
 };
 
-static const struct snd_kcontrol_new rt712_spk_controls[] = {
+static const struct snd_kcontrol_new generic_spk_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
 
@@ -45,15 +45,15 @@ int rt712_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_add_card_controls(card, rt712_spk_controls,
-					ARRAY_SIZE(rt712_spk_controls));
+	ret = snd_soc_add_card_controls(card, generic_spk_controls,
+					ARRAY_SIZE(generic_spk_controls));
 	if (ret) {
 		dev_err(card->dev, "rt712 spk controls addition failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt712_spk_widgets,
-					ARRAY_SIZE(rt712_spk_widgets));
+	ret = snd_soc_dapm_new_controls(&card->dapm, generic_spk_widgets,
+					ARRAY_SIZE(generic_spk_widgets));
 	if (ret) {
 		dev_err(card->dev, "rt712 spk widgets addition failed: %d\n", ret);
 		return ret;

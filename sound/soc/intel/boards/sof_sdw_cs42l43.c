@@ -18,7 +18,7 @@
 #include <sound/soc-dapm.h>
 #include "sof_sdw_common.h"
 
-static const struct snd_soc_dapm_widget cs42l43_hs_widgets[] = {
+static const struct snd_soc_dapm_widget generic_jack_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 };
@@ -30,7 +30,7 @@ static const struct snd_soc_dapm_route cs42l43_hs_map[] = {
 	{ "cs42l43 ADC1_IN1_N", NULL, "Headset Mic" },
 };
 
-static const struct snd_soc_dapm_widget cs42l43_spk_widgets[] = {
+static const struct snd_soc_dapm_widget generic_spk_widgets[] = {
 	SND_SOC_DAPM_SPK("Speaker", NULL),
 };
 
@@ -41,7 +41,7 @@ static const struct snd_soc_dapm_route cs42l43_spk_map[] = {
 	{ "Speaker", NULL, "cs42l43 AMP2_OUT_N", },
 };
 
-static const struct snd_soc_dapm_widget cs42l43_dmic_widgets[] = {
+static const struct snd_soc_dapm_widget generic_dmic_widgets[] = {
 	SND_SOC_DAPM_MIC("DMIC", NULL),
 };
 
@@ -74,8 +74,8 @@ int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l43_hs_widgets,
-					ARRAY_SIZE(cs42l43_hs_widgets));
+	ret = snd_soc_dapm_new_controls(&card->dapm, generic_jack_widgets,
+					ARRAY_SIZE(generic_jack_widgets));
 	if (ret) {
 		dev_err(card->dev, "cs42l43 hs widgets addition failed: %d\n", ret);
 		return ret;
@@ -133,8 +133,8 @@ int cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 			return -ENOMEM;
 	}
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l43_spk_widgets,
-					ARRAY_SIZE(cs42l43_spk_widgets));
+	ret = snd_soc_dapm_new_controls(&card->dapm, generic_spk_widgets,
+					ARRAY_SIZE(generic_spk_widgets));
 	if (ret) {
 		dev_err(card->dev, "cs42l43 speaker widgets addition failed: %d\n", ret);
 		return ret;
@@ -172,8 +172,8 @@ int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l43_dmic_widgets,
-					ARRAY_SIZE(cs42l43_dmic_widgets));
+	ret = snd_soc_dapm_new_controls(&card->dapm, generic_dmic_widgets,
+					ARRAY_SIZE(generic_dmic_widgets));
 	if (ret) {
 		dev_err(card->dev, "cs42l43 dmic widgets addition failed: %d\n", ret);
 		return ret;
