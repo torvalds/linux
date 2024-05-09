@@ -207,6 +207,30 @@ static unsigned int iwl_mvm_mld_count_active_links(struct iwl_mvm_vif *mvmvif)
 	return n_active;
 }
 
+static void iwl_mvm_restart_mpdu_count(struct iwl_mvm *mvm,
+				       struct iwl_mvm_vif *mvmvif)
+{
+	struct ieee80211_sta *ap_sta = mvmvif->ap_sta;
+	struct iwl_mvm_sta *mvmsta;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!ap_sta)
+		return;
+
+	mvmsta = iwl_mvm_sta_from_mac80211(ap_sta);
+	if (!mvmsta->mpdu_counters)
+		return;
+
+	for (int q = 0; q < mvm->trans->num_rx_queues; q++) {
+		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
+		memset(mvmsta->mpdu_counters[q].per_link, 0,
+		       sizeof(mvmsta->mpdu_counters[q].per_link));
+		mvmsta->mpdu_counters[q].window_start = jiffies;
+		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
+	}
+}
+
 static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif)
 {
@@ -242,6 +266,13 @@ static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 
 	/* Needed for tracking RSSI */
 	iwl_mvm_request_periodic_system_statistics(mvm, true);
+
+	/*
+	 * Restart the MPDU counters and the counting window, so when the
+	 * statistics arrive (which is where we look at the counters) we
+	 * will be at the end of the window.
+	 */
+	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
 
 	return ret;
 }
@@ -360,6 +391,18 @@ static int iwl_mvm_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
+	/* update EMLSR mode */
+	if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_STATION) {
+		ret = iwl_mvm_esr_non_bss_link(mvm, vif, link_conf->link_id,
+					       true);
+		/*
+		 * Don't activate this link if failed to exit EMLSR in
+		 * the BSS interface
+		 */
+		if (ret)
+			return ret;
+	}
+
 	mutex_lock(&mvm->mutex);
 	ret = __iwl_mvm_mld_assign_vif_chanctx(mvm, vif, link_conf, ctx, false);
 	mutex_unlock(&mvm->mutex);
@@ -411,6 +454,9 @@ static int iwl_mvm_esr_mode_inactive(struct iwl_mvm *mvm,
 	}
 
 	iwl_mvm_request_periodic_system_statistics(mvm, false);
+
+	/* Start a new counting window */
+	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
 
 	return ret;
 }
@@ -480,6 +526,10 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 		iwl_mvm_add_link(mvm, vif, link_conf);
 	}
 	mutex_unlock(&mvm->mutex);
+
+	/* update EMLSR mode */
+	if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_STATION)
+		iwl_mvm_esr_non_bss_link(mvm, vif, link_conf->link_id, false);
 }
 
 static void
@@ -659,6 +709,25 @@ static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
 					    &callbacks);
 }
 
+static bool iwl_mvm_esr_bw_criteria(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_bss_conf *link_conf)
+{
+	struct ieee80211_bss_conf *other_link;
+	int link_id;
+
+	/* Exit EMLSR if links don't have equal bandwidths */
+	for_each_vif_active_link(vif, other_link, link_id) {
+		if (link_id == link_conf->link_id)
+			continue;
+		if (link_conf->chanreq.oper.width ==
+		    other_link->chanreq.oper.width)
+			return true;
+	}
+
+	return false;
+}
+
 static void
 iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
@@ -687,6 +756,14 @@ iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 		IWL_DEBUG_MAC80211(mvm, "Associated in HE mode\n");
 		link_changes |= LINK_CONTEXT_MODIFY_HE_PARAMS;
 	}
+
+	if ((changes & BSS_CHANGED_BANDWIDTH) &&
+	    ieee80211_vif_link_active(vif, link_conf->link_id) &&
+	    mvmvif->esr_active &&
+	    !iwl_mvm_esr_bw_criteria(mvm, vif, link_conf))
+		iwl_mvm_exit_esr(mvm, vif,
+				 IWL_MVM_ESR_EXIT_BANDWIDTH,
+				 iwl_mvm_get_primary_link(vif));
 
 	/* if associated, maybe puncturing changed - we'll check later */
 	if (vif->cfg.assoc)
@@ -845,6 +922,11 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 		if (ret)
 			IWL_ERR(mvm, "failed to update power mode\n");
 	}
+
+	if (changes & (BSS_CHANGED_MLD_VALID_LINKS | BSS_CHANGED_MLD_TTLM) &&
+	    ieee80211_vif_is_mld(vif) && mvmvif->authorized)
+		wiphy_delayed_work_queue(mvm->hw->wiphy,
+					 &mvmvif->mlo_int_scan_wk, 0);
 }
 
 static void
@@ -1130,7 +1212,7 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 		 * Ensure we always have a valid primary_link, the real
 		 * decision happens later when PHY is activated.
 		 */
-		mvmvif->primary_link = BIT(__ffs(new_links));
+		mvmvif->primary_link = __ffs(new_links);
 	}
 
 out_err:
@@ -1159,10 +1241,8 @@ iwl_mvm_mld_change_sta_links(struct ieee80211_hw *hw,
 	return ret;
 }
 
-bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif)
+bool iwl_mvm_vif_has_esr_cap(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	const struct wiphy_iftype_ext_capab *ext_capa;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1176,11 +1256,8 @@ bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
 
 	ext_capa = cfg80211_get_iftype_ext_capa(mvm->hw->wiphy,
 						ieee80211_vif_type_p2p(vif));
-	if (!ext_capa ||
-	    !(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP))
-		return false;
-
-	return !(mvmvif->esr_disable_reason & ~IWL_MVM_ESR_BLOCKED_COEX);
+	return (ext_capa &&
+		(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP));
 }
 
 static bool iwl_mvm_mld_can_activate_links(struct ieee80211_hw *hw,
@@ -1204,7 +1281,7 @@ static bool iwl_mvm_mld_can_activate_links(struct ieee80211_hw *hw,
 
 	/* If it is an eSR device, check that we can enter eSR */
 	ret = iwl_mvm_is_esr_supported(mvm->fwrt.trans) &&
-	      iwl_mvm_esr_allowed_on_vif(mvm, vif);
+	      iwl_mvm_vif_has_esr_cap(mvm, vif);
 
 unlock:
 	mutex_unlock(&mvm->mutex);
@@ -1227,6 +1304,45 @@ iwl_mvm_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	return NEG_TTLM_RES_ACCEPT;
+}
+
+static int
+iwl_mvm_mld_mac_pre_channel_switch(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_channel_switch *chsw)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	if (mvmvif->esr_active) {
+		u8 primary = iwl_mvm_get_primary_link(vif);
+		int selected;
+
+		/* prefer primary unless quiet CSA on it */
+		if (chsw->link_id == primary && chsw->block_tx)
+			selected = iwl_mvm_get_other_link(vif, primary);
+		else
+			selected = primary;
+
+		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_CSA, selected);
+		mutex_unlock(&mvm->mutex);
+
+		/*
+		 * If we've not kept the link active that's doing the CSA
+		 * then we don't need to do anything else, just return.
+		 */
+		if (selected != chsw->link_id)
+			return 0;
+
+		mutex_lock(&mvm->mutex);
+	}
+
+	ret = iwl_mvm_pre_channel_switch(mvm, vif, chsw);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
 }
 
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
@@ -1282,7 +1398,7 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.tx_last_beacon = iwl_mvm_tx_last_beacon,
 
 	.channel_switch = iwl_mvm_channel_switch,
-	.pre_channel_switch = iwl_mvm_pre_channel_switch,
+	.pre_channel_switch = iwl_mvm_mld_mac_pre_channel_switch,
 	.post_channel_switch = iwl_mvm_post_channel_switch,
 	.abort_channel_switch = iwl_mvm_abort_channel_switch,
 	.channel_switch_rx_beacon = iwl_mvm_channel_switch_rx_beacon,

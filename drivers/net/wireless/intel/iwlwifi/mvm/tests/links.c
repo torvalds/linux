@@ -10,6 +10,14 @@
 
 MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
 
+static struct wiphy wiphy = {
+	.mtx = __MUTEX_INITIALIZER(wiphy.mtx),
+};
+
+static struct ieee80211_hw hw = {
+	.wiphy = &wiphy,
+};
+
 static struct ieee80211_channel chan_5ghz = {
 	.band = NL80211_BAND_5GHZ,
 };
@@ -37,7 +45,23 @@ static struct cfg80211_bss bss = {};
 
 static struct ieee80211_bss_conf link_conf = {.bss = &bss};
 
-static struct iwl_mvm mvm = {};
+static const struct iwl_fw_cmd_version entry = {
+	.group = LEGACY_GROUP,
+	.cmd = BT_PROFILE_NOTIFICATION,
+	.notif_ver = 4
+};
+
+static struct iwl_fw fw = {
+	.ucode_capa = {
+		.n_cmd_versions = 1,
+		.cmd_versions = &entry,
+	},
+};
+
+static struct iwl_mvm mvm = {
+	.hw = &hw,
+	.fw = &fw,
+};
 
 static const struct link_grading_case {
 	const char *desc;
@@ -217,30 +241,31 @@ kunit_test_suite(link_grading);
 
 static const struct valid_link_pair_case {
 	const char *desc;
-	u32 esr_disable_reason;
+	bool bt;
 	struct ieee80211_channel *chan_a;
 	struct ieee80211_channel *chan_b;
 	enum nl80211_chan_width cw_a;
 	enum nl80211_chan_width cw_b;
 	s32 sig_a;
 	s32 sig_b;
+	bool csa_a;
 	bool valid;
 } valid_link_pair_cases[] = {
 	{
 		.desc = "HB + UHB, valid.",
-		.chan_a = &chan_5ghz,
-		.chan_b = &chan_6ghz,
+		.chan_a = &chan_6ghz,
+		.chan_b = &chan_5ghz,
 		.valid = true,
 	},
 	{
 		.desc = "LB + HB, no BT.",
 		.chan_a = &chan_2ghz,
 		.chan_b = &chan_5ghz,
-		.valid = true,
+		.valid = false,
 	},
 	{
 		.desc = "LB + HB, with BT.",
-		.esr_disable_reason = 0x1,
+		.bt = true,
 		.chan_a = &chan_2ghz,
 		.chan_b = &chan_5ghz,
 		.valid = false,
@@ -260,76 +285,78 @@ static const struct valid_link_pair_case {
 		.valid = false,
 	},
 	{
-		.desc = "RSSI: LB, 20 MHz, high",
-		.chan_a = &chan_2ghz,
+		.desc = "RSSI: UHB, 20 MHz, high",
+		.chan_a = &chan_6ghz,
 		.cw_a = NL80211_CHAN_WIDTH_20,
 		.sig_a = -66,
 		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_20,
 		.valid = true,
 	},
 	{
-		.desc = "RSSI: LB, 40 MHz, low",
-		.chan_a = &chan_2ghz,
+		.desc = "RSSI: UHB, 40 MHz, low",
+		.chan_a = &chan_6ghz,
 		.cw_a = NL80211_CHAN_WIDTH_40,
 		.sig_a = -65,
 		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_40,
 		.valid = false,
 	},
 	{
-		.desc = "RSSI: LB, 40 MHz, high",
-		.chan_a = &chan_2ghz,
+		.desc = "RSSI: UHB, 40 MHz, high",
+		.chan_a = &chan_6ghz,
 		.cw_a = NL80211_CHAN_WIDTH_40,
 		.sig_a = -63,
 		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_40,
 		.valid = true,
 	},
 	{
-		.desc = "RSSI: HB, 80 MHz, low",
-		.chan_a = &chan_5ghz,
+		.desc = "RSSI: UHB, 80 MHz, low",
+		.chan_a = &chan_6ghz,
 		.cw_a = NL80211_CHAN_WIDTH_80,
 		.sig_a = -62,
-		.chan_b = &chan_2ghz,
+		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_80,
 		.valid = false,
 	},
 	{
-		.desc = "RSSI: HB, 80 MHz, high",
-		.chan_a = &chan_5ghz,
+		.desc = "RSSI: UHB, 80 MHz, high",
+		.chan_a = &chan_6ghz,
 		.cw_a = NL80211_CHAN_WIDTH_80,
 		.sig_a = -60,
-		.chan_b = &chan_2ghz,
+		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_80,
 		.valid = true,
 	},
 	{
-		.desc = "RSSI: HB, 160 MHz, low",
-		.chan_a = &chan_5ghz,
+		.desc = "RSSI: UHB, 160 MHz, low",
+		.chan_a = &chan_6ghz,
 		.cw_a = NL80211_CHAN_WIDTH_160,
 		.sig_a = -59,
-		.chan_b = &chan_2ghz,
+		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_160,
 		.valid = false,
 	},
 	{
 		.desc = "RSSI: HB, 160 MHz, high",
-		.chan_a = &chan_5ghz,
+		.chan_a = &chan_6ghz,
 		.cw_a = NL80211_CHAN_WIDTH_160,
 		.sig_a = -5,
-		.chan_b = &chan_2ghz,
-		.valid = true,
-	},
-	{
-		.desc = "RSSI: UHB, 320 MHz, low",
-		.chan_a = &chan_6ghz,
-		.cw_a = NL80211_CHAN_WIDTH_320,
-		.sig_a = -68,
-		.chan_b = &chan_6ghz,
-		.valid = false,
-	},
-	{
-		.desc = "RSSI: UHB, 320 MHz, high",
-		.chan_a = &chan_6ghz,
-		.cw_a = NL80211_CHAN_WIDTH_320,
-		.sig_a = -66,
 		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_160,
 		.valid = true,
+	},
+	{
+		.desc = "CSA active",
+		.chan_a = &chan_6ghz,
+		.cw_a = NL80211_CHAN_WIDTH_160,
+		.sig_a = -5,
+		.chan_b = &chan_5ghz,
+		.cw_b = NL80211_CHAN_WIDTH_160,
+		.valid = false,
+		/* same as previous entry with valid=true except for CSA */
+		.csa_a = true,
 	},
 };
 
@@ -354,6 +381,7 @@ static void test_valid_link_pair(struct kunit *test)
 		.link_id = 5,
 		.signal = params->sig_b,
 	};
+	struct ieee80211_bss_conf *conf;
 	bool result;
 
 	KUNIT_ASSERT_NOT_NULL(test, vif);
@@ -370,10 +398,23 @@ static void test_valid_link_pair(struct kunit *test)
 #endif
 	mvm.trans = trans;
 
-	mvmvif->esr_disable_reason = params->esr_disable_reason;
+	mvm.last_bt_notif.wifi_loss_low_rssi = params->bt;
 	mvmvif->mvm = &mvm;
 
+	conf = kunit_kzalloc(test, sizeof(*vif->link_conf[0]), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conf);
+	conf->chanreq.oper = chandef_a;
+	conf->csa_active = params->csa_a;
+	vif->link_conf[link_a.link_id] = (void __rcu *)conf;
+
+	conf = kunit_kzalloc(test, sizeof(*vif->link_conf[0]), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, conf);
+	conf->chanreq.oper = chandef_b;
+	vif->link_conf[link_b.link_id] = (void __rcu *)conf;
+
+	wiphy_lock(&wiphy);
 	result = iwl_mvm_mld_valid_link_pair(vif, &link_a, &link_b);
+	wiphy_unlock(&wiphy);
 
 	KUNIT_EXPECT_EQ(test, result, params->valid);
 

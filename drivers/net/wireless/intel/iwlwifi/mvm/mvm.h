@@ -353,23 +353,41 @@ struct iwl_mvm_vif_link_info {
  * For the blocking reasons - use iwl_mvm_(un)block_esr(), and for the exit
  * reasons - use iwl_mvm_exit_esr().
  *
- * @IWL_MVM_ESR_BLOCKED_COEX: COEX is preventing the enablement of EMLSR
+ * Note: new reasons shall be added to HANDLE_ESR_REASONS as well (for logs)
+ *
  * @IWL_MVM_ESR_BLOCKED_PREVENTION: Prevent EMLSR to avoid entering and exiting
  *	in a loop.
  * @IWL_MVM_ESR_BLOCKED_WOWLAN: WOWLAN is preventing the enablement of EMLSR
+ * @IWL_MVM_ESR_BLOCKED_TPT: block EMLSR when there is not enough traffic
+ * @IWL_MVM_ESR_BLOCKED_FW: FW didn't recommended/forced exit from EMLSR
+ * @IWL_MVM_ESR_BLOCKED_NON_BSS: An active non-bssid link's preventing EMLSR
  * @IWL_MVM_ESR_EXIT_MISSED_BEACON: exited EMLSR due to missed beacons
  * @IWL_MVM_ESR_EXIT_LOW_RSSI: link is deactivated/not allowed for EMLSR
  *	due to low RSSI.
+ * @IWL_MVM_ESR_EXIT_COEX: link is deactivated/not allowed for EMLSR
+ *	due to BT Coex.
+ * @IWL_MVM_ESR_EXIT_BANDWIDTH: Bandwidths of primary and secondry links
+ *	preventing the enablement of EMLSR
+ * @IWL_MVM_ESR_EXIT_CSA: CSA happened, so exit EMLSR
+ * @IWL_MVM_ESR_EXIT_LINK_USAGE: Exit EMLSR due to low tpt on secondary link
  */
 enum iwl_mvm_esr_state {
-	IWL_MVM_ESR_BLOCKED_COEX	= 0x1,
-	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x2,
-	IWL_MVM_ESR_BLOCKED_WOWLAN	= 0x4,
+	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x1,
+	IWL_MVM_ESR_BLOCKED_WOWLAN	= 0x2,
+	IWL_MVM_ESR_BLOCKED_TPT		= 0x4,
+	IWL_MVM_ESR_BLOCKED_FW		= 0x8,
+	IWL_MVM_ESR_BLOCKED_NON_BSS	= 0x10,
 	IWL_MVM_ESR_EXIT_MISSED_BEACON	= 0x10000,
 	IWL_MVM_ESR_EXIT_LOW_RSSI	= 0x20000,
+	IWL_MVM_ESR_EXIT_COEX		= 0x40000,
+	IWL_MVM_ESR_EXIT_BANDWIDTH	= 0x80000,
+	IWL_MVM_ESR_EXIT_CSA		= 0x100000,
+	IWL_MVM_ESR_EXIT_LINK_USAGE	= 0x200000,
 };
 
 #define IWL_MVM_BLOCK_ESR_REASONS 0xffff
+
+const char *iwl_get_esr_state_string(enum iwl_mvm_esr_state state);
 
 /**
  * struct iwl_mvm_esr_exit - details of the last exit from EMLSR mode.
@@ -428,6 +446,8 @@ struct iwl_mvm_esr_exit {
  *	@last_esr_exit::reason, only counting exits due to
  *	&IWL_MVM_ESR_PREVENT_REASONS.
  * @prevent_esr_done_wk: work that should be done when esr prevention ends.
+ * @mlo_int_scan_wk: work for the internal MLO scan.
+ * @unblock_esr_tpt_wk: work for unblocking EMLSR when tpt is high enough.
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -524,6 +544,8 @@ struct iwl_mvm_vif {
 	struct iwl_mvm_esr_exit last_esr_exit;
 	u8 exit_same_reason_count;
 	struct wiphy_delayed_work prevent_esr_done_wk;
+	struct wiphy_delayed_work mlo_int_scan_wk;
+	struct wiphy_work unblock_esr_tpt_wk;
 
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -898,6 +920,35 @@ struct iwl_mei_scan_filter {
 	struct work_struct scan_work;
 };
 
+/**
+ * struct iwl_mvm_acs_survey_channel - per-channel survey information
+ *
+ * Stripped down version of &struct survey_info.
+ *
+ * @time: time in ms the radio was on the channel
+ * @time_busy: time in ms the channel was sensed busy
+ * @time_tx: time in ms spent transmitting data
+ * @time_rx: time in ms spent receiving data
+ * @noise: channel noise in dBm
+ */
+struct iwl_mvm_acs_survey_channel {
+	u32 time;
+	u32 time_busy;
+	u32 time_tx;
+	u32 time_rx;
+	s8 noise;
+};
+
+struct iwl_mvm_acs_survey {
+	struct iwl_mvm_acs_survey_channel *bands[NUM_NL80211_BANDS];
+
+	/* Overall number of channels */
+	int n_channels;
+
+	/* Storage space for per-channel information follows */
+	struct iwl_mvm_acs_survey_channel channels[] __counted_by(n_channels);
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -916,6 +967,8 @@ struct iwl_mvm {
 
 	/* For async rx handlers that require the wiphy lock */
 	struct wiphy_work async_handlers_wiphy_wk;
+
+	struct wiphy_work trig_link_selection_wk;
 
 	struct work_struct roc_done_wk;
 
@@ -1264,6 +1317,8 @@ struct iwl_mvm {
 	struct iwl_time_sync_data time_sync;
 
 	struct iwl_mei_scan_filter mei_scan_filter;
+
+	struct iwl_mvm_acs_survey *acs_survey;
 
 	bool statistics_clear;
 };
@@ -2011,6 +2066,8 @@ unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf);
 bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 				 const struct iwl_mvm_link_sel_data *a,
 				 const struct iwl_mvm_link_sel_data *b);
+
+s8 iwl_mvm_average_dbm_values(const struct iwl_umac_scan_channel_survey_notif *notif);
 #endif
 
 /* AP and IBSS */
@@ -2088,13 +2145,13 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct ieee80211_scan_ies *ies);
 size_t iwl_mvm_scan_size(struct iwl_mvm *mvm);
 int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify);
-int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       struct ieee80211_channel **channels,
-			       size_t n_channels);
 
 int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm);
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm);
 void iwl_mvm_scan_timeout_wk(struct work_struct *work);
+int iwl_mvm_int_mlo_scan(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_rx_channel_survey_notif(struct iwl_mvm *mvm,
+				     struct iwl_rx_cmd_buffer *rxb);
 
 /* Scheduled scan */
 void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
@@ -2221,9 +2278,6 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 u8 iwl_mvm_bt_coex_get_single_ant_msk(struct iwl_mvm *mvm, u8 enabled_ants);
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac);
-void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     int link_id);
 
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -2811,7 +2865,7 @@ void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 int iwl_mvm_tx_last_beacon(struct ieee80211_hw *hw);
 void iwl_mvm_channel_switch(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_channel_switch *chsw);
-int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
+int iwl_mvm_pre_channel_switch(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_channel_switch *chsw);
 void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
@@ -2875,11 +2929,12 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 			int duration, u32 activity);
 
 /* EMLSR */
-bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif);
+bool iwl_mvm_vif_has_esr_cap(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		       enum iwl_mvm_esr_state reason,
 		       u8 link_to_keep);
+int iwl_mvm_block_esr_sync(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   enum iwl_mvm_esr_state reason);
 void iwl_mvm_unblock_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 enum iwl_mvm_esr_state reason);
 void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -2888,5 +2943,14 @@ void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 s8 iwl_mvm_get_esr_rssi_thresh(struct iwl_mvm *mvm,
 			       const struct cfg80211_chan_def *chandef,
 			       bool low);
-
+void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     int link_id);
+bool
+iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif,
+				   s32 link_rssi,
+				   bool primary);
+int iwl_mvm_esr_non_bss_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     unsigned int link_id, bool active);
 #endif /* __IWL_MVM_H__ */

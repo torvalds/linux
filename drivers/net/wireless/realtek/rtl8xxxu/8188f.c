@@ -11,24 +11,8 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
-#include <linux/usb.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/ethtool.h>
-#include <linux/wireless.h>
-#include <linux/firmware.h>
-#include <linux/moduleparam.h>
-#include <net/mac80211.h>
+#include "regs.h"
 #include "rtl8xxxu.h"
-#include "rtl8xxxu_regs.h"
 
 static const struct rtl8xxxu_reg8val rtl8188f_mac_init_table[] = {
 	{0x024, 0xDF}, {0x025, 0x07}, {0x02B, 0x1C}, {0x283, 0x20},

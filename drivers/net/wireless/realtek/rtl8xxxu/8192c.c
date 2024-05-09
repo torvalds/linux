@@ -13,24 +13,8 @@
  * additional 8xxx chips like the 8192cu, 8188cus, etc.
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/errno.h>
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/spinlock.h>
-#include <linux/list.h>
-#include <linux/usb.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/ethtool.h>
-#include <linux/wireless.h>
-#include <linux/firmware.h>
-#include <linux/moduleparam.h>
-#include <net/mac80211.h>
+#include "regs.h"
 #include "rtl8xxxu.h"
-#include "rtl8xxxu_regs.h"
 
 #ifdef CONFIG_RTL8XXXU_UNTESTED
 static struct rtl8xxxu_power_base rtl8192c_power_base = {
@@ -75,6 +59,32 @@ static struct rtl8xxxu_power_base rtl8188r_power_base = {
 	.reg_0848 = 0x00020204,
 	.reg_084c = 0x04060608,
 	.reg_0868 = 0x00020204,
+};
+
+static const struct rtl8xxxu_reg8val rtl8192cu_mac_init_table[] = {
+	{0x420, 0x80}, {0x423, 0x00}, {0x430, 0x00}, {0x431, 0x00},
+	{0x432, 0x00}, {0x433, 0x01}, {0x434, 0x04}, {0x435, 0x05},
+	{0x436, 0x06}, {0x437, 0x07}, {0x438, 0x00}, {0x439, 0x00},
+	{0x43a, 0x00}, {0x43b, 0x01}, {0x43c, 0x04}, {0x43d, 0x05},
+	{0x43e, 0x06}, {0x43f, 0x07}, {0x440, 0x5d}, {0x441, 0x01},
+	{0x442, 0x00}, {0x444, 0x15}, {0x445, 0xf0}, {0x446, 0x0f},
+	{0x447, 0x00}, {0x458, 0x41}, {0x459, 0xa8}, {0x45a, 0x72},
+	{0x45b, 0xb9}, {0x460, 0x66}, {0x461, 0x66}, {0x462, 0x08},
+	{0x463, 0x03}, {0x4c8, 0xff}, {0x4c9, 0x08}, {0x4cc, 0xff},
+	{0x4cd, 0xff}, {0x4ce, 0x01}, {0x500, 0x26}, {0x501, 0xa2},
+	{0x502, 0x2f}, {0x503, 0x00}, {0x504, 0x28}, {0x505, 0xa3},
+	{0x506, 0x5e}, {0x507, 0x00}, {0x508, 0x2b}, {0x509, 0xa4},
+	{0x50a, 0x5e}, {0x50b, 0x00}, {0x50c, 0x4f}, {0x50d, 0xa4},
+	{0x50e, 0x00}, {0x50f, 0x00}, {0x512, 0x1c}, {0x514, 0x0a},
+	{0x515, 0x10}, {0x516, 0x0a}, {0x517, 0x10}, {0x51a, 0x16},
+	{0x524, 0x0f}, {0x525, 0x4f}, {0x546, 0x40}, {0x547, 0x00},
+	{0x550, 0x10}, {0x551, 0x10}, {0x559, 0x02}, {0x55a, 0x02},
+	{0x55d, 0xff}, {0x605, 0x30}, {0x608, 0x0e}, {0x609, 0x2a},
+	{0x652, 0x20}, {0x652, 0x20}, {0x63c, 0x08}, {0x63d, 0x08},
+	{0x63e, 0x0c}, {0x63f, 0x0c}, {0x66e, 0x05}, {0x700, 0x21},
+	{0x701, 0x43}, {0x702, 0x65}, {0x703, 0x87}, {0x708, 0x21},
+	{0x709, 0x43}, {0x70a, 0x65}, {0x70b, 0x87},
+	{0xffff, 0xff},
 };
 
 static const struct rtl8xxxu_rfregval rtl8192cu_radioa_2t_init_table[] = {
@@ -583,6 +593,26 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 	return 0;
 }
 
+static int rtl8192cu_led_brightness_set(struct led_classdev *led_cdev,
+					enum led_brightness brightness)
+{
+	struct rtl8xxxu_priv *priv = container_of(led_cdev,
+						  struct rtl8xxxu_priv,
+						  led_cdev);
+	u8 ledcfg = rtl8xxxu_read8(priv, REG_LEDCFG0);
+
+	if (brightness == LED_OFF)
+		ledcfg = LEDCFG2_SW_LED_CONTROL | LEDCFG2_SW_LED_DISABLE;
+	else if (brightness == LED_ON)
+		ledcfg = LEDCFG2_SW_LED_CONTROL;
+	else if (brightness == RTL8XXXU_HW_LED_CONTROL)
+		ledcfg = LEDCFG2_HW_LED_CONTROL | LEDCFG2_HW_LED_ENABLE;
+
+	rtl8xxxu_write8(priv, REG_LEDCFG0, ledcfg);
+
+	return 0;
+}
+
 struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.identify_chip = rtl8192cu_identify_chip,
 	.parse_efuse = rtl8192cu_parse_efuse,
@@ -609,6 +639,7 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.report_rssi = rtl8xxxu_gen1_report_rssi,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v1,
 	.cck_rssi = rtl8723a_cck_rssi,
+	.led_classdev_brightness_set = rtl8192cu_led_brightness_set,
 	.writeN_block_size = 128,
 	.rx_agg_buf_size = 16000,
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc32),
@@ -621,7 +652,7 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.trxff_boundary = 0x27ff,
 	.pbp_rx = PBP_PAGE_SIZE_128,
 	.pbp_tx = PBP_PAGE_SIZE_128,
-	.mactable = rtl8xxxu_gen1_mac_init_table,
+	.mactable = rtl8192cu_mac_init_table,
 	.total_page_num = TX_TOTAL_PAGE_NUM,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ,

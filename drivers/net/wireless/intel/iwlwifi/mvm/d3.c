@@ -1243,7 +1243,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 		.data[0] = &d3_cfg_cmd_data,
 		.len[0] = sizeof(d3_cfg_cmd_data),
 	};
-	int ret, primary_link;
+	int ret;
 	int len __maybe_unused;
 	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
@@ -1261,18 +1261,11 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (IS_ERR_OR_NULL(vif))
 		return 1;
 
-	primary_link = iwl_mvm_get_primary_link(vif);
-
-	/* leave ESR immediately, not only async with iwl_mvm_block_esr() */
-	if (ieee80211_vif_is_mld(vif)) {
-		ret = ieee80211_set_active_links(vif, BIT(primary_link));
-		if (ret)
-			return ret;
-	}
+	ret = iwl_mvm_block_esr_sync(mvm, vif, IWL_MVM_ESR_BLOCKED_WOWLAN);
+	if (ret)
+		return ret;
 
 	mutex_lock(&mvm->mutex);
-	/* only additionally block for consistency and to avoid concurrency */
-	iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_WOWLAN, primary_link);
 
 	set_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 
@@ -1280,7 +1273,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	mvm_link = mvmvif->link[primary_link];
+	mvm_link = mvmvif->link[iwl_mvm_get_primary_link(vif)];
 	if (WARN_ON_ONCE(!mvm_link)) {
 		ret = -EINVAL;
 		goto out_noreset;

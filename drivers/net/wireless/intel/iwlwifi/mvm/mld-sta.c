@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022-2023 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  */
 #include "mvm.h"
 #include "time-sync.h"
@@ -723,7 +723,6 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			iwl_mvm_mld_set_ap_sta_id(sta, mvm_vif->link[link_id],
 						  mvm_link_sta);
 	}
-
 	return 0;
 
 err:
@@ -849,6 +848,8 @@ int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		iwl_mvm_mld_free_sta_link(mvm, mvm_sta, mvm_link_sta,
 					  link_id, stay_in_fw);
 	}
+	kfree(mvm_sta->mpdu_counters);
+	mvm_sta->mpdu_counters = NULL;
 
 	return ret;
 }

@@ -1350,6 +1350,7 @@ void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_INT_MLO, false);
 	mutex_unlock(&mvm->mutex);
 
+	wiphy_work_cancel(mvm->hw->wiphy, &mvm->trig_link_selection_wk);
 	wiphy_work_flush(mvm->hw->wiphy, &mvm->async_handlers_wiphy_wk);
 	flush_work(&mvm->async_handlers_wk);
 	flush_work(&mvm->add_stream_wk);
@@ -1625,6 +1626,32 @@ static void iwl_mvm_prevent_esr_done_wk(struct wiphy *wiphy,
 	mutex_unlock(&mvm->mutex);
 }
 
+static void iwl_mvm_mlo_int_scan_wk(struct wiphy *wiphy, struct wiphy_work *wk)
+{
+	struct iwl_mvm_vif *mvmvif = container_of(wk, struct iwl_mvm_vif,
+						  mlo_int_scan_wk.work);
+	struct ieee80211_vif *vif =
+		container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
+
+	mutex_lock(&mvmvif->mvm->mutex);
+
+	iwl_mvm_int_mlo_scan(mvmvif->mvm, vif);
+
+	mutex_unlock(&mvmvif->mvm->mutex);
+}
+
+static void iwl_mvm_unblock_esr_tpt(struct wiphy *wiphy, struct wiphy_work *wk)
+{
+	struct iwl_mvm_vif *mvmvif =
+		container_of(wk, struct iwl_mvm_vif, unblock_esr_tpt_wk);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TPT);
+	mutex_unlock(&mvm->mutex);
+}
+
 void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 {
 	lockdep_assert_held(&mvm->mutex);
@@ -1637,6 +1664,12 @@ void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 
 	wiphy_delayed_work_init(&mvmvif->prevent_esr_done_wk,
 				iwl_mvm_prevent_esr_done_wk);
+
+	wiphy_delayed_work_init(&mvmvif->mlo_int_scan_wk,
+				iwl_mvm_mlo_int_scan_wk);
+
+	wiphy_work_init(&mvmvif->unblock_esr_tpt_wk,
+			iwl_mvm_unblock_esr_tpt);
 }
 
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
@@ -1782,6 +1815,11 @@ void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 
 	wiphy_delayed_work_cancel(mvm->hw->wiphy,
 				  &mvmvif->prevent_esr_done_wk);
+
+	wiphy_delayed_work_cancel(mvm->hw->wiphy,
+				  &mvmvif->mlo_int_scan_wk);
+
+	wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
 
 	cancel_delayed_work_sync(&mvmvif->csa_work);
 }
@@ -3877,24 +3915,6 @@ out:
 	return callbacks->update_sta(mvm, vif, sta);
 }
 
-static void iwl_mvm_bt_coex_update_vif_esr(struct iwl_mvm *mvm,
-					   struct ieee80211_vif *vif)
-{
-	unsigned long usable_links = ieee80211_vif_usable_links(vif);
-	u8 link_id;
-
-	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
-		struct ieee80211_bss_conf *link_conf =
-			link_conf_dereference_protected(vif, link_id);
-
-		if (WARN_ON_ONCE(!link_conf))
-			return;
-
-		if (link_conf->chanreq.oper.chan->band == NL80211_BAND_2GHZ)
-			iwl_mvm_bt_coex_update_link_esr(mvm, vif, link_id);
-	}
-}
-
 static int
 iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
@@ -3918,9 +3938,12 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif));
 
 		mvmvif->authorized = 1;
-		mvmvif->link_selection_res = 0;
-		mvmvif->link_selection_primary =
-			vif->active_links ? __ffs(vif->active_links) : 0;
+
+		if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+			mvmvif->link_selection_res = vif->active_links;
+			mvmvif->link_selection_primary =
+				vif->active_links ? __ffs(vif->active_links) : 0;
+		}
 
 		callbacks->mac_ctxt_changed(mvm, vif, false);
 		iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
@@ -3928,8 +3951,10 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 		memset(&mvmvif->last_esr_exit, 0,
 		       sizeof(mvmvif->last_esr_exit));
 
-		/* Calculate eSR mode due to BT coex */
-		iwl_mvm_bt_coex_update_vif_esr(mvm, vif);
+		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_TPT, 0);
+
+		/* Block until FW notif will arrive */
+		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_FW, 0);
 
 		/* when client is authorized (AP station marked as such),
 		 * try to enable the best link(s).
@@ -3987,6 +4012,11 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 
 		wiphy_delayed_work_cancel(mvm->hw->wiphy,
 					  &mvmvif->prevent_esr_done_wk);
+
+		wiphy_delayed_work_cancel(mvm->hw->wiphy,
+					  &mvmvif->mlo_int_scan_wk);
+
+		wiphy_work_cancel(mvm->hw->wiphy, &mvmvif->unblock_esr_tpt_wk);
 
 		/* No need for the periodic statistics anymore */
 		if (ieee80211_vif_is_mld(vif) && mvmvif->esr_active)
@@ -4804,6 +4834,10 @@ int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	 */
 	flush_work(&mvm->roc_done_wk);
 
+	ret = iwl_mvm_esr_non_bss_link(mvm, vif, 0, true);
+	if (ret)
+		return ret;
+
 	mutex_lock(&mvm->mutex);
 
 	switch (vif->type) {
@@ -4847,9 +4881,7 @@ int iwl_mvm_cancel_roc(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(mvm, "enter\n");
 
-	mutex_lock(&mvm->mutex);
 	iwl_mvm_stop_roc(mvm, vif);
-	mutex_unlock(&mvm->mutex);
 
 	IWL_DEBUG_MAC80211(mvm, "leave\n");
 	return 0;
@@ -5544,17 +5576,16 @@ static void iwl_mvm_csa_block_txqs(void *data, struct ieee80211_sta *sta)
 }
 
 #define IWL_MAX_CSA_BLOCK_TX 1500
-int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
+int iwl_mvm_pre_channel_switch(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_channel_switch *chsw)
 {
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct ieee80211_vif *csa_vif;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_txq *mvmtxq;
 	int ret;
 
-	mutex_lock(&mvm->mutex);
+	lockdep_assert_held(&mvm->mutex);
 
 	mvmvif->csa_failed = false;
 	mvmvif->csa_blocks_tx = false;
@@ -5572,25 +5603,19 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 			rcu_dereference_protected(mvm->csa_vif,
 						  lockdep_is_held(&mvm->mutex));
 		if (WARN_ONCE(csa_vif && csa_vif->bss_conf.csa_active,
-			      "Another CSA is already in progress")) {
-			ret = -EBUSY;
-			goto out_unlock;
-		}
+			      "Another CSA is already in progress"))
+			return -EBUSY;
 
 		/* we still didn't unblock tx. prevent new CS meanwhile */
 		if (rcu_dereference_protected(mvm->csa_tx_blocked_vif,
-					      lockdep_is_held(&mvm->mutex))) {
-			ret = -EBUSY;
-			goto out_unlock;
-		}
+					      lockdep_is_held(&mvm->mutex)))
+			return -EBUSY;
 
 		rcu_assign_pointer(mvm->csa_vif, vif);
 
 		if (WARN_ONCE(mvmvif->csa_countdown,
-			      "Previous CSA countdown didn't complete")) {
-			ret = -EBUSY;
-			goto out_unlock;
-		}
+			      "Previous CSA countdown didn't complete"))
+			return -EBUSY;
 
 		mvmvif->csa_target_freq = chsw->chandef.chan->center_freq;
 
@@ -5624,10 +5649,8 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 		 * we don't know the dtim period. In this case, the firmware can't
 		 * track the beacons.
 		 */
-		if (!vif->cfg.assoc || !vif->bss_conf.dtim_period) {
-			ret = -EBUSY;
-			goto out_unlock;
-		}
+		if (!vif->cfg.assoc || !vif->bss_conf.dtim_period)
+			return -EBUSY;
 
 		if (chsw->delay > IWL_MAX_CSA_BLOCK_TX &&
 		    hweight16(vif->valid_links) <= 1)
@@ -5649,7 +5672,7 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD)) {
 			ret = iwl_mvm_old_pre_chan_sw_sta(mvm, vif, chsw);
 			if (ret)
-				goto out_unlock;
+				return ret;
 		} else {
 			iwl_mvm_schedule_client_csa(mvm, vif, chsw);
 		}
@@ -5665,12 +5688,23 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 
 	ret = iwl_mvm_power_update_ps(mvm);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	/* we won't be on this channel any longer */
 	iwl_mvm_teardown_tdls_peers(mvm);
 
-out_unlock:
+	return ret;
+}
+
+static int iwl_mvm_mac_pre_channel_switch(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_channel_switch *chsw)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_pre_channel_switch(mvm, vif, chsw);
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -5865,6 +5899,65 @@ void iwl_mvm_mac_flush_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_unlock(&mvm->mutex);
 }
 
+static int iwl_mvm_mac_get_acs_survey(struct iwl_mvm *mvm, int idx,
+				      struct survey_info *survey)
+{
+	int chan_idx;
+	enum nl80211_band band;
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+
+	if (!mvm->acs_survey) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	/* Find and return the next entry that has a non-zero active time */
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *sband =
+			mvm->hw->wiphy->bands[band];
+
+		if (!sband)
+			continue;
+
+		for (chan_idx = 0; chan_idx < sband->n_channels; chan_idx++) {
+			struct iwl_mvm_acs_survey_channel *info =
+				&mvm->acs_survey->bands[band][chan_idx];
+
+			if (!info->time)
+				continue;
+
+			/* Found (the next) channel to report */
+			survey->channel = &sband->channels[chan_idx];
+			survey->filled = SURVEY_INFO_TIME |
+					 SURVEY_INFO_TIME_BUSY |
+					 SURVEY_INFO_TIME_RX |
+					 SURVEY_INFO_TIME_TX;
+			survey->time = info->time;
+			survey->time_busy = info->time_busy;
+			survey->time_rx = info->time_rx;
+			survey->time_tx = info->time_tx;
+			survey->noise = info->noise;
+			if (survey->noise < 0)
+				survey->filled |= SURVEY_INFO_NOISE_DBM;
+
+			/* Clear time so that channel is only reported once */
+			info->time = 0;
+
+			ret = 0;
+			goto out;
+		}
+	}
+
+	ret = -ENOENT;
+
+out:
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
 int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 			   struct survey_info *survey)
 {
@@ -5877,13 +5970,17 @@ int iwl_mvm_mac_get_survey(struct ieee80211_hw *hw, int idx,
 
 	memset(survey, 0, sizeof(*survey));
 
-	/* only support global statistics right now */
-	if (idx != 0)
-		return -ENOENT;
-
 	if (!fw_has_capa(&mvm->fw->ucode_capa,
 			 IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS))
 		return -ENOENT;
+
+	/*
+	 * Return the beacon stats at index zero and pass on following indices
+	 * to the function returning the full survey, most likely for ACS
+	 * (Automatic Channel Selection).
+	 */
+	if (idx > 0)
+		return iwl_mvm_mac_get_acs_survey(mvm, idx - 1, survey);
 
 	mutex_lock(&mvm->mutex);
 
@@ -6456,7 +6553,7 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.set_tim = iwl_mvm_set_tim,
 
 	.channel_switch = iwl_mvm_channel_switch,
-	.pre_channel_switch = iwl_mvm_pre_channel_switch,
+	.pre_channel_switch = iwl_mvm_mac_pre_channel_switch,
 	.post_channel_switch = iwl_mvm_post_channel_switch,
 	.abort_channel_switch = iwl_mvm_abort_channel_switch,
 	.channel_switch_rx_beacon = iwl_mvm_channel_switch_rx_beacon,

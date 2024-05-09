@@ -50,6 +50,9 @@
 #define REG_HMEBOX_EXT_1		0x008A
 #define REG_HMEBOX_EXT_2		0x008C
 #define REG_HMEBOX_EXT_3		0x008E
+#define SIZE_OF_REG_HMEBOX_EXT		2
+
+#define REG_EFUSE_ACCESS		0x00CF
 
 #define REG_BIST_SCAN			0x00D0
 #define REG_BIST_RPT			0x00D4
@@ -86,6 +89,7 @@
 #define REG_CPWM			0x012F
 #define REG_FWIMR			0x0130
 #define REG_FWISR			0x0134
+#define REG_FTIMR			0x0138
 #define REG_PKTBUF_DBG_CTRL		0x0140
 #define REG_PKTBUF_DBG_DATA_L		0x0144
 #define REG_PKTBUF_DBG_DATA_H		0x0148
@@ -109,6 +113,7 @@
 #define REG_HMEBOX_1			0x01D4
 #define REG_HMEBOX_2			0x01D8
 #define REG_HMEBOX_3			0x01DC
+#define SIZE_OF_REG_HMEBOX		4
 
 #define REG_LLT_INIT			0x01E0
 #define REG_BB_ACCEESS_CTRL		0x01E8
@@ -197,6 +202,8 @@
 #define REG_POWER_STAGE1		0x04B4
 #define REG_POWER_STAGE2		0x04B8
 #define REG_PKT_LIFE_TIME		0x04C0
+#define REG_PKT_VO_VI_LIFE_TIME		0x04C0
+#define REG_PKT_BE_BK_LIFE_TIME		0x04C2
 #define REG_STBC_SETTING		0x04C4
 #define REG_PROT_MODE_CTRL		0x04C8
 #define REG_MAX_AGGR_NUM		0x04CA
@@ -233,6 +240,7 @@
 #define REG_RD_NAV_NXT			0x0544
 #define REG_NAV_PROT_LEN		0x0546
 #define REG_BCN_CTRL			0x0550
+#define REG_BCN_CTRL_1			0x0551
 #define REG_MBID_NUM			0x0552
 #define REG_DUAL_TSF_RST		0x0553
 #define REG_BCN_INTERVAL		0x0554
@@ -319,6 +327,8 @@
 #define REG_BT_COEX_TABLE		0x06C0
 #define REG_WMAC_RESP_TXINFO		0x06D8
 
+#define REG_USB_Queue_Select_MAC0	0xFE44
+#define REG_USB_Queue_Select_MAC1	0xFE47
 
 /* ----------------------------------------------------- */
 /*	Redifine 8192C register definition for compatibility */
@@ -355,27 +365,27 @@
 #define	RRSR_RSC_UPSUBCHNL		0x400000
 #define	RRSR_RSC_LOWSUBCHNL		0x200000
 #define	RRSR_SHORT			0x800000
-#define	RRSR_1M				BIT0
-#define	RRSR_2M				BIT1
-#define	RRSR_5_5M			BIT2
-#define	RRSR_11M			BIT3
-#define	RRSR_6M				BIT4
-#define	RRSR_9M				BIT5
-#define	RRSR_12M			BIT6
-#define	RRSR_18M			BIT7
-#define	RRSR_24M			BIT8
-#define	RRSR_36M			BIT9
-#define	RRSR_48M			BIT10
-#define	RRSR_54M			BIT11
-#define	RRSR_MCS0			BIT12
-#define	RRSR_MCS1			BIT13
-#define	RRSR_MCS2			BIT14
-#define	RRSR_MCS3			BIT15
-#define	RRSR_MCS4			BIT16
-#define	RRSR_MCS5			BIT17
-#define	RRSR_MCS6			BIT18
-#define	RRSR_MCS7			BIT19
-#define	BRSR_ACKSHORTPMB		BIT23
+#define	RRSR_1M				BIT(0)
+#define	RRSR_2M				BIT(1)
+#define	RRSR_5_5M			BIT(2)
+#define	RRSR_11M			BIT(3)
+#define	RRSR_6M				BIT(4)
+#define	RRSR_9M				BIT(5)
+#define	RRSR_12M			BIT(6)
+#define	RRSR_18M			BIT(7)
+#define	RRSR_24M			BIT(8)
+#define	RRSR_36M			BIT(9)
+#define	RRSR_48M			BIT(10)
+#define	RRSR_54M			BIT(11)
+#define	RRSR_MCS0			BIT(12)
+#define	RRSR_MCS1			BIT(13)
+#define	RRSR_MCS2			BIT(14)
+#define	RRSR_MCS3			BIT(15)
+#define	RRSR_MCS4			BIT(16)
+#define	RRSR_MCS5			BIT(17)
+#define	RRSR_MCS6			BIT(18)
+#define	RRSR_MCS7			BIT(19)
+#define	BRSR_ACKSHORTPMB		BIT(23)
 
 /* ----------------------------------------------------- */
 /*       8192C Rate Definition  */
@@ -600,7 +610,11 @@
 #define EEPROM_SVID			0x2C /* SE Vendor ID.E-F */
 #define EEPROM_SMID			0x2E /* SE PCI Subsystem ID. 10-11 */
 
+#define EEPROM_VID_USB				0xC
+#define EEPROM_PID_USB				0xE
+#define EEPROM_ENDPOINT_SETTING			0x10
 #define EEPROM_MAC_ADDR			0x16 /* SEMAC Address. 12-17 */
+#define EEPROM_MAC_ADDR_MAC0_92DU		0x19
 #define EEPROM_MAC_ADDR_MAC0_92D	0x55
 #define EEPROM_MAC_ADDR_MAC1_92D	0x5B
 
@@ -915,6 +929,42 @@
 #define BD_HCI_SEL				BIT(26)
 #define TYPE_ID					BIT(27)
 
+#define HCI_TXDMA_EN				BIT(0)
+#define HCI_RXDMA_EN				BIT(1)
+#define TXDMA_EN				BIT(2)
+#define RXDMA_EN				BIT(3)
+#define PROTOCOL_EN				BIT(4)
+#define SCHEDULE_EN				BIT(5)
+#define MACTXEN					BIT(6)
+#define MACRXEN					BIT(7)
+#define ENSWBCN					BIT(8)
+#define ENSEC					BIT(9)
+
+#define HQSEL_VOQ				BIT(0)
+#define HQSEL_VIQ				BIT(1)
+#define HQSEL_BEQ				BIT(2)
+#define HQSEL_BKQ				BIT(3)
+#define HQSEL_MGTQ				BIT(4)
+#define HQSEL_HIQ				BIT(5)
+
+#define TXDMA_HIQ_MAP				GENMASK(15, 14)
+#define TXDMA_MGQ_MAP				GENMASK(13, 12)
+#define TXDMA_BKQ_MAP				GENMASK(11, 10)
+#define TXDMA_BEQ_MAP				GENMASK(9, 8)
+#define TXDMA_VIQ_MAP				GENMASK(7, 6)
+#define TXDMA_VOQ_MAP				GENMASK(5, 4)
+
+#define QUEUE_LOW				1
+#define QUEUE_NORMAL				2
+#define QUEUE_HIGH				3
+
+#define HPQ_MASK				GENMASK(7, 0)
+#define LPQ_MASK				GENMASK(15, 8)
+#define PUBQ_MASK				GENMASK(23, 16)
+#define LD_RQPN					BIT(31)
+
+#define DROP_DATA_EN				BIT(9)
+
 /* LLT_INIT */
 #define _LLT_NO_ACTIVE				0x0
 #define _LLT_WRITE_ACCESS			0x1
@@ -929,6 +979,10 @@
 /* ----------------------------------------------------- */
 /*	0x0400h ~ 0x047Fh	Protocol Configuration	 */
 /* ----------------------------------------------------- */
+/* FWHW_TXQ_CTRL */
+#define EN_AMPDU_RTY_NEW			BIT(7)
+#define EN_BCNQ_DL				BIT(22)
+
 #define	RETRY_LIMIT_SHORT_SHIFT			8
 #define	RETRY_LIMIT_LONG_SHIFT			0
 
@@ -941,6 +995,13 @@
 #define AC_PARAM_ECW_MAX_OFFSET			12
 #define AC_PARAM_ECW_MIN_OFFSET			8
 #define AC_PARAM_AIFS_OFFSET			0
+
+/* REG_RD_CTRL */
+#define DIS_EDCA_CNT_DWN			BIT(11)
+
+/* REG_BCN_CTRL */
+#define EN_BCN_FUNCTION				BIT(3)
+#define DIS_TSF_UDT				BIT(4)
 
 /* ACMHWCTRL */
 #define	ACMHW_HWEN				BIT(0)
@@ -1073,6 +1134,11 @@
 #define	RCCK0_FACOUNTERLOWER			0xa5c
 #define	RCCK0_FACOUNTERUPPER			0xa58
 
+#define	RPDP_ANTA				0xb00
+#define	RCONFIG_ANTA				0xb68
+#define	RCONFIG_ANTB				0xb6c
+#define	RPDP_ANTB				0xb70
+
 /* 6. PageC(0xC00) */
 #define	ROFDM0_LSTF				0xc00
 
@@ -1126,6 +1192,7 @@
 #define	ROFDM0_TXPSEUDONOISEWGT			0xce4
 #define	ROFDM0_FRAMESYNC			0xcf0
 #define	ROFDM0_DFSREPORT			0xcf4
+#define	ROFDM0_RXIQEXTANTA			0xca0
 #define	ROFDM0_TXCOEFF1				0xca4
 #define	ROFDM0_TXCOEFF2				0xca8
 #define	ROFDM0_TXCOEFF3				0xcac
@@ -1184,17 +1251,70 @@
 #define	RTXAGC_B_MCS15_MCS12			0x868
 #define	RTXAGC_B_CCK11_A_CCK2_11		0x86c
 
+#define	RFPGA0_IQK				0xe28
+#define	RTX_IQK_TONE_A				0xe30
+#define	RRX_IQK_TONE_A				0xe34
+#define	RTX_IQK_PI_A				0xe38
+#define	RRX_IQK_PI_A				0xe3c
+
+#define	RTX_IQK					0xe40
+#define	RRX_IQK					0xe44
+#define	RIQK_AGC_PTS				0xe48
+#define	RIQK_AGC_RSP				0xe4c
+#define	RTX_IQK_TONE_B				0xe50
+#define	RRX_IQK_TONE_B				0xe54
+#define	RTX_IQK_PI_B				0xe58
+#define	RRX_IQK_PI_B				0xe5c
+#define	RIQK_AGC_CONT				0xe60
+
+#define	RBLUE_TOOTH				0xe6c
+#define	RRX_WAIT_CCA				0xe70
+#define	RTX_CCK_RFON				0xe74
+#define	RTX_CCK_BBON				0xe78
+#define	RTX_OFDM_RFON				0xe7c
+#define	RTX_OFDM_BBON				0xe80
+#define	RTX_TO_RX				0xe84
+#define	RTX_TO_TX				0xe88
+#define	RRX_CCK					0xe8c
+
+#define	RTX_POWER_BEFORE_IQK_A			0xe94
+#define	RTX_POWER_AFTER_IQK_A			0xe9c
+
+#define	RRX_POWER_BEFORE_IQK_A			0xea0
+#define	RRX_POWER_BEFORE_IQK_A_2		0xea4
+#define	RRX_POWER_AFTER_IQK_A			0xea8
+#define	RRX_POWER_AFTER_IQK_A_2			0xeac
+
+#define	RTX_POWER_BEFORE_IQK_B			0xeb4
+#define	RTX_POWER_AFTER_IQK_B			0xebc
+
+#define	RRX_POWER_BEFORE_IQK_B			0xec0
+#define	RRX_POWER_BEFORE_IQK_B_2		0xec4
+#define	RRX_POWER_AFTER_IQK_B			0xec8
+#define	RRX_POWER_AFTER_IQK_B_2			0xecc
+
+#define	MASK_IQK_RESULT				0x03ff0000
+
+#define	RRX_OFDM				0xed0
+#define	RRX_WAIT_RIFS				0xed4
+#define	RRX_TO_RX				0xed8
+#define	RSTANDBY				0xedc
+#define	RSLEEP					0xee0
+#define	RPMPD_ANAEN				0xeec
+
 /* RL6052 Register definition */
 #define	RF_AC					0x00
 
 #define	RF_IQADJ_G1				0x01
 #define	RF_IQADJ_G2				0x02
+#define	RF_BS_PA_APSET_G1_G4			0x03
 #define	RF_POW_TRSW				0x05
 
 #define	RF_GAIN_RX				0x06
 #define	RF_GAIN_TX				0x07
 
 #define	RF_TXM_IDAC				0x08
+#define	RF_TXPA_AG				0x0B
 #define	RF_BS_IQGEN				0x0F
 
 #define	RF_MODE1				0x10
