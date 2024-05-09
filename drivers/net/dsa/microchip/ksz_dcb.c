@@ -220,7 +220,7 @@ static int ksz88x3_port_set_default_prio_quirks(struct ksz_device *dev, int port
 			return ret;
 
 		if (!(port2_data & KSZ8_PORT_802_1P_ENABLE)) {
-			dev_err(dev->dev, "Not possible to configur port priority on Port 1 if PCP apptrust on Port 2 is disabled\n");
+			dev_err(dev->dev, "Not possible to configure port priority on Port 1 if PCP apptrust on Port 2 is disabled\n");
 			return -EINVAL;
 		}
 	}
