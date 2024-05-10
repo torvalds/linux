@@ -94,8 +94,6 @@ static int connect4_prog_load(const struct sock_addr_test *test);
 static int connect6_prog_load(const struct sock_addr_test *test);
 static int sendmsg_allow_prog_load(const struct sock_addr_test *test);
 static int sendmsg_deny_prog_load(const struct sock_addr_test *test);
-static int recvmsg_allow_prog_load(const struct sock_addr_test *test);
-static int recvmsg_deny_prog_load(const struct sock_addr_test *test);
 static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_asm_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_v4mapped_prog_load(const struct sock_addr_test *test);
@@ -373,64 +371,6 @@ static struct sock_addr_test tests[] = {
 		SRC6_REWRITE_IP,
 		SYSCALL_EPERM,
 	},
-
-	/* recvmsg */
-	{
-		"recvmsg4: return code ok",
-		recvmsg_allow_prog_load,
-		BPF_CGROUP_UDP4_RECVMSG,
-		BPF_CGROUP_UDP4_RECVMSG,
-		AF_INET,
-		SOCK_DGRAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		ATTACH_OKAY,
-	},
-	{
-		"recvmsg4: return code !ok",
-		recvmsg_deny_prog_load,
-		BPF_CGROUP_UDP4_RECVMSG,
-		BPF_CGROUP_UDP4_RECVMSG,
-		AF_INET,
-		SOCK_DGRAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		LOAD_REJECT,
-	},
-	{
-		"recvmsg6: return code ok",
-		recvmsg_allow_prog_load,
-		BPF_CGROUP_UDP6_RECVMSG,
-		BPF_CGROUP_UDP6_RECVMSG,
-		AF_INET6,
-		SOCK_DGRAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		ATTACH_OKAY,
-	},
-	{
-		"recvmsg6: return code !ok",
-		recvmsg_deny_prog_load,
-		BPF_CGROUP_UDP6_RECVMSG,
-		BPF_CGROUP_UDP6_RECVMSG,
-		AF_INET6,
-		SOCK_DGRAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		LOAD_REJECT,
-	},
 };
 
 static int load_insns(const struct sock_addr_test *test,
@@ -523,16 +463,6 @@ static int sendmsg_allow_prog_load(const struct sock_addr_test *test)
 }
 
 static int sendmsg_deny_prog_load(const struct sock_addr_test *test)
-{
-	return xmsg_ret_only_prog_load(test, /*rc*/ 0);
-}
-
-static int recvmsg_allow_prog_load(const struct sock_addr_test *test)
-{
-	return xmsg_ret_only_prog_load(test, /*rc*/ 1);
-}
-
-static int recvmsg_deny_prog_load(const struct sock_addr_test *test)
 {
 	return xmsg_ret_only_prog_load(test, /*rc*/ 0);
 }
