@@ -98,12 +98,6 @@ struct cfg_reset_pkg {
 	struct tb_cfg_header header;
 } __packed;
 
-/* TB_CFG_PKG_PREPARE_TO_SLEEP */
-struct cfg_pts_pkg {
-	struct tb_cfg_header header;
-	u32 data;
-} __packed;
-
 /* ICM messages */
 
 enum icm_pkg_code {
