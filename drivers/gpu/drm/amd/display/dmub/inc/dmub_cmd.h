@@ -3250,6 +3250,18 @@ struct dmub_rb_cmd_psr_set_power_opt {
 };
 
 /**
+ * Different PSR residency modes.
+ * Different modes change the definition of PSR residency.
+ */
+enum psr_residency_mode {
+	PSR_RESIDENCY_MODE_PHY = 0,
+	PSR_RESIDENCY_MODE_ALPM,
+	PSR_RESIDENCY_MODE_ENABLEMENT_PERIOD,
+	/* Do not add below. */
+	PSR_RESIDENCY_MODE_LAST_ELEMENT,
+};
+
+/**
  * Definition of Replay Residency GPINT command.
  * Bit[0] - Residency mode for Revision 0
  * Bit[1] - Enable/Disable state

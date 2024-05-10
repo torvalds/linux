@@ -445,9 +445,12 @@ static void dmub_psr_force_static(struct dmub_psr *dmub, uint8_t panel_inst)
 /*
  * Get PSR residency from firmware.
  */
-static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency, uint8_t panel_inst)
+static void dmub_psr_get_residency(struct dmub_psr *dmub, uint32_t *residency,
+	uint8_t panel_inst, enum psr_residency_mode mode)
 {
 	uint16_t param = (uint16_t)(panel_inst << 8);
+
+	param |= mode;
 
 	/* Send gpint command and wait for ack */
 	dc_wake_and_execute_gpint(dmub->ctx, DMUB_GPINT__PSR_RESIDENCY, param, residency,

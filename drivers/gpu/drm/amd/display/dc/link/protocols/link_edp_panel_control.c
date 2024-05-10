@@ -853,7 +853,7 @@ bool edp_setup_psr(struct dc_link *link,
 
 }
 
-void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency)
+void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency, enum psr_residency_mode mode)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmub_psr *psr = dc->res_pool->psr;
@@ -864,7 +864,7 @@ void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency)
 
 	// PSR residency measurements only supported on DMCUB
 	if (psr != NULL && link->psr_settings.psr_feature_enabled)
-		psr->funcs->psr_get_residency(psr, residency, panel_inst);
+		psr->funcs->psr_get_residency(psr, residency, panel_inst, mode);
 	else
 		*residency = 0;
 }
