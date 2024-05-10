@@ -739,6 +739,7 @@ static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *
 	out->DSCEnable[location] = (enum dml_dsc_enable)in->timing.flags.DSC;
 	out->OutputLinkDPLanes[location] = 4; // As per code in dcn20_resource.c
 	out->DSCInputBitPerComponent[location] = 12; // As per code in dcn20_resource.c
+	out->DSCSlices[location] = in->timing.dsc_cfg.num_slices_h;
 
 	switch (in->signal) {
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:

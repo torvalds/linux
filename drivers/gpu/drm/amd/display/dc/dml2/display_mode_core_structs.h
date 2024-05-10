@@ -575,6 +575,7 @@ struct dml_output_cfg_st {
 	dml_uint_t AudioSampleRate[__DML_NUM_PLANES__];
 	dml_uint_t AudioSampleLayout[__DML_NUM_PLANES__];
 	dml_bool_t OutputDisabled[__DML_NUM_PLANES__];
+	dml_uint_t DSCSlices[__DML_NUM_PLANES__];
 }; // dml_timing_cfg_st;
 
 /// @brief Writeback Setting

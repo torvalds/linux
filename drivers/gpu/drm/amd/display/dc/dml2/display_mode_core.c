@@ -115,6 +115,7 @@ static void CalculateODMMode(
 	dml_float_t DISPCLKDPPCLKDSCCLKDownSpreading,
 	dml_float_t DISPCLKRampingMargin,
 	dml_float_t DISPCLKDPPCLKVCOSpeed,
+	dml_uint_t NumberOfDSCSlices,
 
 	// Output
 	dml_bool_t *TotalAvailablePipesSupport,
@@ -5516,6 +5517,7 @@ static void CalculateODMMode(
 		dml_float_t DISPCLKDPPCLKDSCCLKDownSpreading,
 		dml_float_t DISPCLKRampingMargin,
 		dml_float_t DISPCLKDPPCLKVCOSpeed,
+		dml_uint_t NumberOfDSCSlices,
 
 		// Output
 		dml_bool_t *TotalAvailablePipesSupport,
@@ -5563,7 +5565,7 @@ static void CalculateODMMode(
 	*NumberOfDPP = 0;
 
 	if (!(Output == dml_hdmi || Output == dml_dp || Output == dml_edp) && (ODMUse == dml_odm_use_policy_combine_4to1 || (ODMUse == dml_odm_use_policy_combine_as_needed &&
-		(SurfaceRequiredDISPCLKWithODMCombineTwoToOne > StateDispclk || (DSCEnable && (HActive > 2 * MaximumPixelsPerLinePerDSCUnit)))))) {
+		(SurfaceRequiredDISPCLKWithODMCombineTwoToOne > StateDispclk || (DSCEnable && (HActive > 2 * MaximumPixelsPerLinePerDSCUnit)) || NumberOfDSCSlices > 8)))) {
 		if (TotalNumberOfActiveDPP + 4 <= MaxNumDPP) {
 			*ODMMode = dml_odm_mode_combine_4to1;
 			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineFourToOne;
@@ -5573,7 +5575,7 @@ static void CalculateODMMode(
 		}
 	} else if (Output != dml_hdmi && (ODMUse == dml_odm_use_policy_combine_2to1 || (ODMUse == dml_odm_use_policy_combine_as_needed &&
 				((SurfaceRequiredDISPCLKWithoutODMCombine > StateDispclk && SurfaceRequiredDISPCLKWithODMCombineTwoToOne <= StateDispclk) ||
-				(DSCEnable && (HActive > MaximumPixelsPerLinePerDSCUnit)))))) {
+				(DSCEnable && (HActive > MaximumPixelsPerLinePerDSCUnit)) || (NumberOfDSCSlices <= 8 && NumberOfDSCSlices > 4))))) {
 		if (TotalNumberOfActiveDPP + 2 <= MaxNumDPP) {
 			*ODMMode = dml_odm_mode_combine_2to1;
 			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineTwoToOne;
@@ -5880,11 +5882,11 @@ static dml_uint_t DSCDelayRequirement(
 
 	if (DSCEnabled == true && OutputBpp != 0) {
 		if (ODMMode == dml_odm_mode_combine_4to1) {
-			DSCDelayRequirement_val = 4 * (dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)(dml_ceil((dml_float_t) HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
-												(dml_uint_t) (NumberOfDSCSlices / 4.0), OutputFormat, Output) + dscComputeDelay(OutputFormat, Output));
+			DSCDelayRequirement_val = dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)(dml_ceil((dml_float_t) HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
+												(dml_uint_t) (NumberOfDSCSlices / 4.0), OutputFormat, Output) + dscComputeDelay(OutputFormat, Output);
 		} else if (ODMMode == dml_odm_mode_combine_2to1) {
-			DSCDelayRequirement_val = 2 * (dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)(dml_ceil((dml_float_t) HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
-												(dml_uint_t) (NumberOfDSCSlices / 2.0), OutputFormat, Output) + dscComputeDelay(OutputFormat, Output));
+			DSCDelayRequirement_val = dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)(dml_ceil((dml_float_t) HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
+												(dml_uint_t) (NumberOfDSCSlices / 2.0), OutputFormat, Output) + dscComputeDelay(OutputFormat, Output);
 		} else {
 			DSCDelayRequirement_val = dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)((dml_float_t) dml_ceil(HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
 										NumberOfDSCSlices, OutputFormat, Output) + dscComputeDelay(OutputFormat, Output);
@@ -6938,20 +6940,25 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 
 	/*Number Of DSC Slices*/
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-		if (mode_lib->ms.cache_display_cfg.plane.BlendingAndTiming[k] == k) {
-			if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 4800) {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = (dml_uint_t)(dml_ceil(mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] / 600, 4));
-			} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 2400) {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = 8;
-			} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 1200) {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = 4;
-			} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 340) {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = 2;
-			} else {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = 1;
+		if (mode_lib->ms.cache_display_cfg.plane.BlendingAndTiming[k] == k &&
+			mode_lib->ms.cache_display_cfg.output.DSCEnable[k] != dml_dsc_disable) {
+			mode_lib->ms.support.NumberOfDSCSlices[k] = mode_lib->ms.cache_display_cfg.output.DSCSlices[k];
+
+			if (mode_lib->ms.support.NumberOfDSCSlices[k] == 0) {
+				if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 4800) {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = (dml_uint_t)(dml_ceil(mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] / 600, 4));
+				} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 2400) {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = 8;
+				} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 1200) {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = 4;
+				} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 340) {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = 2;
+				} else {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = 1;
+				}
 			}
 		} else {
-			mode_lib->ms.support.NumberOfDSCSlices[k] = 0;
+			mode_lib->ms.support.NumberOfDSCSlices[k] = 1;
 		}
 	}
 
@@ -7050,6 +7057,7 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 					mode_lib->ms.soc.dcn_downspread_percent,
 					mode_lib->ms.ip.dispclk_ramp_margin_percent,
 					mode_lib->ms.soc.dispclk_dppclk_vco_speed_mhz,
+					mode_lib->ms.support.NumberOfDSCSlices[k],
 
 					/* Output */
 					&s->TotalAvailablePipesSupportNoDSC,
@@ -7072,6 +7080,7 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 					mode_lib->ms.soc.dcn_downspread_percent,
 					mode_lib->ms.ip.dispclk_ramp_margin_percent,
 					mode_lib->ms.soc.dispclk_dppclk_vco_speed_mhz,
+					mode_lib->ms.support.NumberOfDSCSlices[k],
 
 					/* Output */
 					&s->TotalAvailablePipesSupportDSC,
