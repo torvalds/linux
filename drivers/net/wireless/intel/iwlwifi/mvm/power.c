@@ -211,19 +211,29 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		IWL_MVM_PS_HEAVY_RX_THLD_PERCENT;
 }
 
-static void iwl_mvm_p2p_standalone_iterator(void *_data, u8 *mac,
-					    struct ieee80211_vif *vif)
-{
-	bool *is_p2p_standalone = _data;
+struct iwl_allow_uapsd_iface_iterator_data {
+	struct ieee80211_vif *exclude_vif;
+	bool allow_uapsd;
+};
 
-	switch (ieee80211_vif_type_p2p(vif)) {
-	case NL80211_IFTYPE_P2P_GO:
+static void iwl_mvm_allow_uapsd_iterator(void *_data, u8 *mac,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_allow_uapsd_iface_iterator_data *data = _data;
+
+	/* exclude the given vif */
+	if (vif == data->exclude_vif)
+		return;
+
+	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
-		*is_p2p_standalone = false;
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_NAN:
+		data->allow_uapsd = false;
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (vif->cfg.assoc)
-			*is_p2p_standalone = false;
+			data->allow_uapsd = false;
 		break;
 
 	default:
@@ -235,6 +245,10 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_allow_uapsd_iface_iterator_data data = {
+		.exclude_vif = vif,
+		.allow_uapsd = true,
+	};
 
 	if (ether_addr_equal(mvmvif->uapsd_misbehaving_ap_addr,
 			     vif->cfg.ap_addr))
@@ -249,30 +263,15 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	    IEEE80211_P2P_OPPPS_ENABLE_BIT))
 		return false;
 
-	/*
-	 * Avoid using uAPSD if client is in DCM -
-	 * low latency issue in Miracast
-	 */
-	if (iwl_mvm_phy_ctx_count(mvm) >= 2)
+	if (vif->p2p && !iwl_mvm_is_p2p_scm_uapsd_supported(mvm))
 		return false;
 
-	if (vif->p2p) {
-		/* Allow U-APSD only if p2p is stand alone */
-		bool is_p2p_standalone = true;
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+				IEEE80211_IFACE_ITER_NORMAL,
+				iwl_mvm_allow_uapsd_iterator,
+				&data);
 
-		if (!iwl_mvm_is_p2p_scm_uapsd_supported(mvm))
-			return false;
-
-		ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					IEEE80211_IFACE_ITER_NORMAL,
-					iwl_mvm_p2p_standalone_iterator,
-					&is_p2p_standalone);
-
-		if (!is_p2p_standalone)
-			return false;
-	}
-
-	return true;
+	return data.allow_uapsd;
 }
 
 static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
