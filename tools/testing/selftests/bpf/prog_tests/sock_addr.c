@@ -52,7 +52,9 @@ enum sock_addr_test_type {
 	SOCK_ADDR_TEST_GETPEERNAME,
 };
 
-typedef void *(*load_fn)(int cgroup_fd);
+typedef void *(*load_fn)(int cgroup_fd,
+			 enum bpf_attach_type attach_type,
+			 bool expect_reject);
 typedef void (*destroy_fn)(void *skel);
 
 static int cmp_addr(const struct sockaddr_storage *addr1, socklen_t addr1_len,
@@ -343,6 +345,7 @@ struct sock_addr_test {
 	/* BPF prog properties */
 	load_fn loadfn;
 	destroy_fn destroyfn;
+	enum bpf_attach_type attach_type;
 	/* Socket operations */
 	struct sock_ops *ops;
 	/* Socket properties */
@@ -354,14 +357,33 @@ struct sock_addr_test {
 	const char *expected_addr;
 	unsigned short expected_port;
 	const char *expected_src_addr;
+	/* Expected test result */
+	enum {
+		LOAD_REJECT,
+		ATTACH_REJECT,
+		SYSCALL_EPERM,
+		SYSCALL_ENOTSUPP,
+		SUCCESS,
+	} expected_result;
 };
 
 #define BPF_SKEL_FUNCS(skel_name, prog_name) \
-static void *prog_name##_load(int cgroup_fd) \
+static void *prog_name##_load(int cgroup_fd, \
+			      enum bpf_attach_type attach_type, \
+			      bool expect_reject) \
 { \
-	struct skel_name *skel; \
-	skel = skel_name##__open_and_load(); \
+	struct skel_name *skel = skel_name##__open(); \
 	if (!ASSERT_OK_PTR(skel, "skel_open")) \
+		goto cleanup; \
+	if (!ASSERT_OK(bpf_program__set_expected_attach_type(skel->progs.prog_name, \
+							     attach_type), \
+		       "set_expected_attach_type")) \
+		goto cleanup; \
+	if (skel_name##__load(skel)) { \
+		ASSERT_TRUE(expect_reject, "unexpected rejection"); \
+		goto cleanup; \
+	} \
+	if (!ASSERT_FALSE(expect_reject, "expected rejection")) \
 		goto cleanup; \
 	skel->links.prog_name = bpf_program__attach_cgroup( \
 		skel->progs.prog_name, cgroup_fd); \
@@ -398,6 +420,7 @@ static struct sock_addr_test tests[] = {
 		"bind4: bind (stream)",
 		bind_v4_prog_load,
 		bind_v4_prog_destroy,
+		BPF_CGROUP_INET4_BIND,
 		&user_ops,
 		AF_INET,
 		SOCK_STREAM,
@@ -406,12 +429,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		NULL,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind4: bind (dgram)",
 		bind_v4_prog_load,
 		bind_v4_prog_destroy,
+		BPF_CGROUP_INET4_BIND,
 		&user_ops,
 		AF_INET,
 		SOCK_DGRAM,
@@ -420,12 +445,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		NULL,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind6: bind (stream)",
 		bind_v6_prog_load,
 		bind_v6_prog_destroy,
+		BPF_CGROUP_INET6_BIND,
 		&user_ops,
 		AF_INET6,
 		SOCK_STREAM,
@@ -434,12 +461,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		NULL,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind6: bind (dgram)",
 		bind_v6_prog_load,
 		bind_v6_prog_destroy,
+		BPF_CGROUP_INET6_BIND,
 		&user_ops,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -448,6 +477,7 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		NULL,
+		SUCCESS,
 	},
 
 	/* bind - kernel calls */
@@ -456,6 +486,7 @@ static struct sock_addr_test tests[] = {
 		"bind4: kernel_bind (stream)",
 		bind_v4_prog_load,
 		bind_v4_prog_destroy,
+		BPF_CGROUP_INET4_BIND,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_STREAM,
@@ -463,12 +494,15 @@ static struct sock_addr_test tests[] = {
 		SERV4_PORT,
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
+		NULL,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind4: kernel_bind (dgram)",
 		bind_v4_prog_load,
 		bind_v4_prog_destroy,
+		BPF_CGROUP_INET4_BIND,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_DGRAM,
@@ -476,12 +510,15 @@ static struct sock_addr_test tests[] = {
 		SERV4_PORT,
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
+		NULL,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind6: kernel_bind (stream)",
 		bind_v6_prog_load,
 		bind_v6_prog_destroy,
+		BPF_CGROUP_INET6_BIND,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_STREAM,
@@ -489,12 +526,15 @@ static struct sock_addr_test tests[] = {
 		SERV6_PORT,
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
+		NULL,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind6: kernel_bind (dgram)",
 		bind_v6_prog_load,
 		bind_v6_prog_destroy,
+		BPF_CGROUP_INET6_BIND,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -502,6 +542,8 @@ static struct sock_addr_test tests[] = {
 		SERV6_PORT,
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
+		NULL,
+		SUCCESS,
 	},
 
 	/* connect - system calls */
@@ -510,6 +552,7 @@ static struct sock_addr_test tests[] = {
 		"connect4: connect (stream)",
 		connect_v4_prog_load,
 		connect_v4_prog_destroy,
+		BPF_CGROUP_INET4_CONNECT,
 		&user_ops,
 		AF_INET,
 		SOCK_STREAM,
@@ -518,12 +561,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		SRC4_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect4: connect (dgram)",
 		connect_v4_prog_load,
 		connect_v4_prog_destroy,
+		BPF_CGROUP_INET4_CONNECT,
 		&user_ops,
 		AF_INET,
 		SOCK_DGRAM,
@@ -532,12 +577,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		SRC4_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect6: connect (stream)",
 		connect_v6_prog_load,
 		connect_v6_prog_destroy,
+		BPF_CGROUP_INET6_CONNECT,
 		&user_ops,
 		AF_INET6,
 		SOCK_STREAM,
@@ -546,12 +593,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SRC6_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect6: connect (dgram)",
 		connect_v6_prog_load,
 		connect_v6_prog_destroy,
+		BPF_CGROUP_INET6_CONNECT,
 		&user_ops,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -560,12 +609,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SRC6_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect_unix: connect (stream)",
 		connect_unix_prog_load,
 		connect_unix_prog_destroy,
+		BPF_CGROUP_UNIX_CONNECT,
 		&user_ops,
 		AF_UNIX,
 		SOCK_STREAM,
@@ -574,6 +625,7 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		NULL,
+		SUCCESS,
 	},
 
 	/* connect - kernel calls */
@@ -582,6 +634,7 @@ static struct sock_addr_test tests[] = {
 		"connect4: kernel_connect (stream)",
 		connect_v4_prog_load,
 		connect_v4_prog_destroy,
+		BPF_CGROUP_INET4_CONNECT,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_STREAM,
@@ -590,12 +643,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		SRC4_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect4: kernel_connect (dgram)",
 		connect_v4_prog_load,
 		connect_v4_prog_destroy,
+		BPF_CGROUP_INET4_CONNECT,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_DGRAM,
@@ -604,12 +659,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		SRC4_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect6: kernel_connect (stream)",
 		connect_v6_prog_load,
 		connect_v6_prog_destroy,
+		BPF_CGROUP_INET6_CONNECT,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_STREAM,
@@ -618,12 +675,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SRC6_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect6: kernel_connect (dgram)",
 		connect_v6_prog_load,
 		connect_v6_prog_destroy,
+		BPF_CGROUP_INET6_CONNECT,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -632,12 +691,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SRC6_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect_unix: kernel_connect (dgram)",
 		connect_unix_prog_load,
 		connect_unix_prog_destroy,
+		BPF_CGROUP_UNIX_CONNECT,
 		&kern_ops_sock_sendmsg,
 		AF_UNIX,
 		SOCK_STREAM,
@@ -646,6 +707,7 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		NULL,
+		SUCCESS,
 	},
 
 	/* sendmsg - system calls */
@@ -654,6 +716,7 @@ static struct sock_addr_test tests[] = {
 		"sendmsg4: sendmsg (dgram)",
 		sendmsg_v4_prog_load,
 		sendmsg_v4_prog_destroy,
+		BPF_CGROUP_UDP4_SENDMSG,
 		&user_ops,
 		AF_INET,
 		SOCK_DGRAM,
@@ -662,12 +725,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		SRC4_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg6: sendmsg (dgram)",
 		sendmsg_v6_prog_load,
 		sendmsg_v6_prog_destroy,
+		BPF_CGROUP_UDP6_SENDMSG,
 		&user_ops,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -676,12 +741,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SRC6_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg_unix: sendmsg (dgram)",
 		sendmsg_unix_prog_load,
 		sendmsg_unix_prog_destroy,
+		BPF_CGROUP_UNIX_SENDMSG,
 		&user_ops,
 		AF_UNIX,
 		SOCK_DGRAM,
@@ -690,6 +757,7 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		NULL,
+		SUCCESS,
 	},
 
 	/* sendmsg - kernel calls (sock_sendmsg) */
@@ -698,6 +766,7 @@ static struct sock_addr_test tests[] = {
 		"sendmsg4: sock_sendmsg (dgram)",
 		sendmsg_v4_prog_load,
 		sendmsg_v4_prog_destroy,
+		BPF_CGROUP_UDP4_SENDMSG,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_DGRAM,
@@ -706,12 +775,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		SRC4_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg6: sock_sendmsg (dgram)",
 		sendmsg_v6_prog_load,
 		sendmsg_v6_prog_destroy,
+		BPF_CGROUP_UDP6_SENDMSG,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -720,12 +791,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SRC6_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg_unix: sock_sendmsg (dgram)",
 		sendmsg_unix_prog_load,
 		sendmsg_unix_prog_destroy,
+		BPF_CGROUP_UNIX_SENDMSG,
 		&kern_ops_sock_sendmsg,
 		AF_UNIX,
 		SOCK_DGRAM,
@@ -734,6 +807,7 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		NULL,
+		SUCCESS,
 	},
 
 	/* sendmsg - kernel calls (kernel_sendmsg) */
@@ -742,6 +816,7 @@ static struct sock_addr_test tests[] = {
 		"sendmsg4: kernel_sendmsg (dgram)",
 		sendmsg_v4_prog_load,
 		sendmsg_v4_prog_destroy,
+		BPF_CGROUP_UDP4_SENDMSG,
 		&kern_ops_kernel_sendmsg,
 		AF_INET,
 		SOCK_DGRAM,
@@ -750,12 +825,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		SRC4_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg6: kernel_sendmsg (dgram)",
 		sendmsg_v6_prog_load,
 		sendmsg_v6_prog_destroy,
+		BPF_CGROUP_UDP6_SENDMSG,
 		&kern_ops_kernel_sendmsg,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -764,12 +841,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SRC6_REWRITE_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg_unix: sock_sendmsg (dgram)",
 		sendmsg_unix_prog_load,
 		sendmsg_unix_prog_destroy,
+		BPF_CGROUP_UNIX_SENDMSG,
 		&kern_ops_kernel_sendmsg,
 		AF_UNIX,
 		SOCK_DGRAM,
@@ -778,6 +857,7 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		NULL,
+		SUCCESS,
 	},
 
 	/* recvmsg - system calls */
@@ -786,6 +866,7 @@ static struct sock_addr_test tests[] = {
 		"recvmsg4: recvfrom (dgram)",
 		recvmsg4_prog_load,
 		recvmsg4_prog_destroy,
+		BPF_CGROUP_UDP4_RECVMSG,
 		&user_ops,
 		AF_INET,
 		SOCK_DGRAM,
@@ -794,12 +875,14 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
 		SERV4_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_RECVMSG,
 		"recvmsg6: recvfrom (dgram)",
 		recvmsg6_prog_load,
 		recvmsg6_prog_destroy,
+		BPF_CGROUP_UDP6_RECVMSG,
 		&user_ops,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -808,12 +891,14 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
 		SERV6_IP,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_RECVMSG,
 		"recvmsg_unix: recvfrom (dgram)",
 		recvmsg_unix_prog_load,
 		recvmsg_unix_prog_destroy,
+		BPF_CGROUP_UNIX_RECVMSG,
 		&user_ops,
 		AF_UNIX,
 		SOCK_DGRAM,
@@ -822,12 +907,14 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		SERVUN_ADDRESS,
+		SUCCESS,
 	},
 	{
 		SOCK_ADDR_TEST_RECVMSG,
 		"recvmsg_unix: recvfrom (stream)",
 		recvmsg_unix_prog_load,
 		recvmsg_unix_prog_destroy,
+		BPF_CGROUP_UNIX_RECVMSG,
 		&user_ops,
 		AF_UNIX,
 		SOCK_STREAM,
@@ -836,6 +923,7 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		SERVUN_ADDRESS,
+		SUCCESS,
 	},
 
 	/* getsockname - system calls */
@@ -844,6 +932,7 @@ static struct sock_addr_test tests[] = {
 		"getsockname_unix",
 		getsockname_unix_prog_load,
 		getsockname_unix_prog_destroy,
+		BPF_CGROUP_UNIX_GETSOCKNAME,
 		&user_ops,
 		AF_UNIX,
 		SOCK_STREAM,
@@ -852,6 +941,7 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		NULL,
+		SUCCESS,
 	},
 
 	/* getpeername - system calls */
@@ -860,6 +950,7 @@ static struct sock_addr_test tests[] = {
 		"getpeername_unix",
 		getpeername_unix_prog_load,
 		getpeername_unix_prog_destroy,
+		BPF_CGROUP_UNIX_GETPEERNAME,
 		&user_ops,
 		AF_UNIX,
 		SOCK_STREAM,
@@ -868,6 +959,7 @@ static struct sock_addr_test tests[] = {
 		SERVUN_REWRITE_ADDRESS,
 		0,
 		NULL,
+		SUCCESS,
 	},
 };
 
@@ -1249,7 +1341,8 @@ void test_sock_addr(void)
 		if (!test__start_subtest(test->name))
 			continue;
 
-		skel = test->loadfn(cgroup_fd);
+		skel = test->loadfn(cgroup_fd, test->attach_type,
+				    test->expected_result == LOAD_REJECT);
 		if (!skel)
 			continue;
 
