@@ -428,7 +428,7 @@ static int cvt_ump_midi2_to_midi1(struct snd_seq_client *dest,
 	midi1->note.group = midi2->note.group;
 	midi1->note.status = midi2->note.status;
 	midi1->note.channel = midi2->note.channel;
-	switch (midi2->note.status << 4) {
+	switch (midi2->note.status) {
 	case UMP_MSG_STATUS_NOTE_ON:
 	case UMP_MSG_STATUS_NOTE_OFF:
 		midi1->note.note = midi2->note.note;

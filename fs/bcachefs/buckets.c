@@ -525,7 +525,6 @@ int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 			"different types of data in same bucket: %s, %s",
 			bch2_data_type_str(g->data_type),
 			bch2_data_type_str(data_type))) {
-		BUG();
 		ret = -EIO;
 		goto err;
 	}
@@ -629,7 +628,6 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			bch2_data_type_str(ptr_data_type),
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		BUG();
 		ret = -EIO;
 		goto err;
 	}

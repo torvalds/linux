@@ -51,6 +51,13 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 
+		isa@18400000 {
+			compatible = "isa";
+			#size-cells = <1>;
+			#address-cells = <2>;
+			ranges = <1 0x0 0x0 0x18400000 0x4000>;
+		};
+
 		pmc: power-management@100d0000 {
 			compatible = "loongson,ls2k2000-pmc", "loongson,ls2k0500-pmc", "syscon";
 			reg = <0x0 0x100d0000 0x0 0x58>;
@@ -109,6 +116,8 @@
 		msi: msi-controller@1fe01140 {
 			compatible = "loongson,pch-msi-1.0";
 			reg = <0x0 0x1fe01140 0x0 0x8>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
 			msi-controller;
 			loongson,msi-base-vec = <64>;
 			loongson,msi-num-vecs = <192>;
@@ -140,27 +149,34 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			msi-parent = <&msi>;
 			bus-range = <0x0 0xff>;
-			ranges = <0x01000000 0x0 0x00008000 0x0 0x18400000 0x0 0x00008000>,
+			ranges = <0x01000000 0x0 0x00008000 0x0 0x18408000 0x0 0x00008000>,
 				 <0x02000000 0x0 0x60000000 0x0 0x60000000 0x0 0x20000000>;
 
 			gmac0: ethernet@3,0 {
 				reg = <0x1800 0x0 0x0 0x0 0x0>;
-				interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <12 IRQ_TYPE_LEVEL_HIGH>,
+					     <13 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_lpi";
 				interrupt-parent = <&pic>;
 				status = "disabled";
 			};
 
 			gmac1: ethernet@3,1 {
 				reg = <0x1900 0x0 0x0 0x0 0x0>;
-				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>,
+					     <15 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_lpi";
 				interrupt-parent = <&pic>;
 				status = "disabled";
 			};
 
 			gmac2: ethernet@3,2 {
 				reg = <0x1a00 0x0 0x0 0x0 0x0>;
-				interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <17 IRQ_TYPE_LEVEL_HIGH>,
+					     <18 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq", "eth_lpi";
 				interrupt-parent = <&pic>;
 				status = "disabled";
 			};

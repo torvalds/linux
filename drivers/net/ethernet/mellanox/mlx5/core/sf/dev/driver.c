@@ -75,7 +75,6 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 		goto peer_devlink_set_err;
 	}
 
-	devlink_register(devlink);
 	return 0;
 
 peer_devlink_set_err:
@@ -101,7 +100,6 @@ static void mlx5_sf_dev_remove(struct auxiliary_device *adev)
 	devlink = priv_to_devlink(mdev);
 	set_bit(MLX5_BREAK_FW_WAIT, &mdev->intf_state);
 	mlx5_drain_health_wq(mdev);
-	devlink_unregister(devlink);
 	if (mlx5_dev_is_lightweight(mdev))
 		mlx5_uninit_one_light(mdev);
 	else

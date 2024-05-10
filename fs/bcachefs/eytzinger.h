@@ -242,8 +242,8 @@ static inline unsigned inorder_to_eytzinger0(unsigned i, unsigned size)
 	     (_i) = eytzinger0_next((_i), (_size)))
 
 /* return greatest node <= @search, or -1 if not found */
-static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
-					 cmp_func_t cmp, const void *search)
+static inline int eytzinger0_find_le(void *base, size_t nr, size_t size,
+				     cmp_func_t cmp, const void *search)
 {
 	unsigned i, n = 0;
 
@@ -256,18 +256,32 @@ static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
 	} while (n < nr);
 
 	if (n & 1) {
-		/* @i was greater than @search, return previous node: */
+		/*
+		 * @i was greater than @search, return previous node:
+		 *
+		 * if @i was leftmost/smallest element,
+		 * eytzinger0_prev(eytzinger0_first())) returns -1, as expected
+		 */
 		return eytzinger0_prev(i, nr);
 	} else {
 		return i;
 	}
 }
 
-static inline ssize_t eytzinger0_find_gt(void *base, size_t nr, size_t size,
-					 cmp_func_t cmp, const void *search)
+static inline int eytzinger0_find_gt(void *base, size_t nr, size_t size,
+				     cmp_func_t cmp, const void *search)
 {
 	ssize_t idx = eytzinger0_find_le(base, nr, size, cmp, search);
-	return eytzinger0_next(idx, size);
+
+	/*
+	 * if eytitzinger0_find_le() returned -1 - no element was <= search - we
+	 * want to return the first element; next/prev identities mean this work
+	 * as expected
+	 *
+	 * similarly if find_le() returns last element, we should return -1;
+	 * identities mean this all works out:
+	 */
+	return eytzinger0_next(idx, nr);
 }
 
 #define eytzinger0_find(base, nr, size, _cmp, search)			\

@@ -798,8 +798,7 @@ static int kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
 	 * mn_active_invalidate_count (see above) instead of
 	 * mmu_invalidate_in_progress.
 	 */
-	gfn_to_pfn_cache_invalidate_start(kvm, range->start, range->end,
-					  hva_range.may_block);
+	gfn_to_pfn_cache_invalidate_start(kvm, range->start, range->end);
 
 	/*
 	 * If one or more memslots were found and thus zapped, notify arch code

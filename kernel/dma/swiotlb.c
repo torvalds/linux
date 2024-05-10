@@ -69,11 +69,14 @@
  * @alloc_size:	Size of the allocated buffer.
  * @list:	The free list describing the number of free entries available
  *		from each index.
+ * @pad_slots:	Number of preceding padding slots. Valid only in the first
+ *		allocated non-padding slot.
  */
 struct io_tlb_slot {
 	phys_addr_t orig_addr;
 	size_t alloc_size;
-	unsigned int list;
+	unsigned short list;
+	unsigned short pad_slots;
 };
 
 static bool swiotlb_force_bounce;
@@ -287,6 +290,7 @@ static void swiotlb_init_io_tlb_pool(struct io_tlb_pool *mem, phys_addr_t start,
 					 mem->nslabs - i);
 		mem->slots[i].orig_addr = INVALID_PHYS_ADDR;
 		mem->slots[i].alloc_size = 0;
+		mem->slots[i].pad_slots = 0;
 	}
 
 	memset(vaddr, 0, bytes);
@@ -821,12 +825,30 @@ void swiotlb_dev_init(struct device *dev)
 #endif
 }
 
-/*
- * Return the offset into a iotlb slot required to keep the device happy.
+/**
+ * swiotlb_align_offset() - Get required offset into an IO TLB allocation.
+ * @dev:         Owning device.
+ * @align_mask:  Allocation alignment mask.
+ * @addr:        DMA address.
+ *
+ * Return the minimum offset from the start of an IO TLB allocation which is
+ * required for a given buffer address and allocation alignment to keep the
+ * device happy.
+ *
+ * First, the address bits covered by min_align_mask must be identical in the
+ * original address and the bounce buffer address. High bits are preserved by
+ * choosing a suitable IO TLB slot, but bits below IO_TLB_SHIFT require extra
+ * padding bytes before the bounce buffer.
+ *
+ * Second, @align_mask specifies which bits of the first allocated slot must
+ * be zero. This may require allocating additional padding slots, and then the
+ * offset (in bytes) from the first such padding slot is returned.
  */
-static unsigned int swiotlb_align_offset(struct device *dev, u64 addr)
+static unsigned int swiotlb_align_offset(struct device *dev,
+					 unsigned int align_mask, u64 addr)
 {
-	return addr & dma_get_min_align_mask(dev) & (IO_TLB_SIZE - 1);
+	return addr & dma_get_min_align_mask(dev) &
+		(align_mask | (IO_TLB_SIZE - 1));
 }
 
 /*
@@ -841,27 +863,23 @@ static void swiotlb_bounce(struct device *dev, phys_addr_t tlb_addr, size_t size
 	size_t alloc_size = mem->slots[index].alloc_size;
 	unsigned long pfn = PFN_DOWN(orig_addr);
 	unsigned char *vaddr = mem->vaddr + tlb_addr - mem->start;
-	unsigned int tlb_offset, orig_addr_offset;
+	int tlb_offset;
 
 	if (orig_addr == INVALID_PHYS_ADDR)
 		return;
 
-	tlb_offset = tlb_addr & (IO_TLB_SIZE - 1);
-	orig_addr_offset = swiotlb_align_offset(dev, orig_addr);
-	if (tlb_offset < orig_addr_offset) {
-		dev_WARN_ONCE(dev, 1,
-			"Access before mapping start detected. orig offset %u, requested offset %u.\n",
-			orig_addr_offset, tlb_offset);
-		return;
-	}
-
-	tlb_offset -= orig_addr_offset;
-	if (tlb_offset > alloc_size) {
-		dev_WARN_ONCE(dev, 1,
-			"Buffer overflow detected. Allocation size: %zu. Mapping size: %zu+%u.\n",
-			alloc_size, size, tlb_offset);
-		return;
-	}
+	/*
+	 * It's valid for tlb_offset to be negative. This can happen when the
+	 * "offset" returned by swiotlb_align_offset() is non-zero, and the
+	 * tlb_addr is pointing within the first "offset" bytes of the second
+	 * or subsequent slots of the allocated swiotlb area. While it's not
+	 * valid for tlb_addr to be pointing within the first "offset" bytes
+	 * of the first slot, there's no way to check for such an error since
+	 * this function can't distinguish the first slot from the second and
+	 * subsequent slots.
+	 */
+	tlb_offset = (tlb_addr & (IO_TLB_SIZE - 1)) -
+		     swiotlb_align_offset(dev, 0, orig_addr);
 
 	orig_addr += tlb_offset;
 	alloc_size -= tlb_offset;
@@ -1005,7 +1023,7 @@ static int swiotlb_search_pool_area(struct device *dev, struct io_tlb_pool *pool
 	unsigned long max_slots = get_max_slots(boundary_mask);
 	unsigned int iotlb_align_mask = dma_get_min_align_mask(dev);
 	unsigned int nslots = nr_slots(alloc_size), stride;
-	unsigned int offset = swiotlb_align_offset(dev, orig_addr);
+	unsigned int offset = swiotlb_align_offset(dev, 0, orig_addr);
 	unsigned int index, slots_checked, count = 0, i;
 	unsigned long flags;
 	unsigned int slot_base;
@@ -1328,11 +1346,12 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 		unsigned long attrs)
 {
 	struct io_tlb_mem *mem = dev->dma_io_tlb_mem;
-	unsigned int offset = swiotlb_align_offset(dev, orig_addr);
+	unsigned int offset;
 	struct io_tlb_pool *pool;
 	unsigned int i;
 	int index;
 	phys_addr_t tlb_addr;
+	unsigned short pad_slots;
 
 	if (!mem || !mem->nslabs) {
 		dev_warn_ratelimited(dev,
@@ -1349,6 +1368,7 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 		return (phys_addr_t)DMA_MAPPING_ERROR;
 	}
 
+	offset = swiotlb_align_offset(dev, alloc_align_mask, orig_addr);
 	index = swiotlb_find_slots(dev, orig_addr,
 				   alloc_size + offset, alloc_align_mask, &pool);
 	if (index == -1) {
@@ -1364,6 +1384,10 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 	 * This is needed when we sync the memory.  Then we sync the buffer if
 	 * needed.
 	 */
+	pad_slots = offset >> IO_TLB_SHIFT;
+	offset &= (IO_TLB_SIZE - 1);
+	index += pad_slots;
+	pool->slots[index].pad_slots = pad_slots;
 	for (i = 0; i < nr_slots(alloc_size + offset); i++)
 		pool->slots[index + i].orig_addr = slot_addr(orig_addr, i);
 	tlb_addr = slot_addr(pool->start, index) + offset;
@@ -1384,12 +1408,16 @@ static void swiotlb_release_slots(struct device *dev, phys_addr_t tlb_addr)
 {
 	struct io_tlb_pool *mem = swiotlb_find_pool(dev, tlb_addr);
 	unsigned long flags;
-	unsigned int offset = swiotlb_align_offset(dev, tlb_addr);
-	int index = (tlb_addr - offset - mem->start) >> IO_TLB_SHIFT;
-	int nslots = nr_slots(mem->slots[index].alloc_size + offset);
-	int aindex = index / mem->area_nslabs;
-	struct io_tlb_area *area = &mem->areas[aindex];
+	unsigned int offset = swiotlb_align_offset(dev, 0, tlb_addr);
+	int index, nslots, aindex;
+	struct io_tlb_area *area;
 	int count, i;
+
+	index = (tlb_addr - offset - mem->start) >> IO_TLB_SHIFT;
+	index -= mem->slots[index].pad_slots;
+	nslots = nr_slots(mem->slots[index].alloc_size + offset);
+	aindex = index / mem->area_nslabs;
+	area = &mem->areas[aindex];
 
 	/*
 	 * Return the buffer to the free list by setting the corresponding
@@ -1413,6 +1441,7 @@ static void swiotlb_release_slots(struct device *dev, phys_addr_t tlb_addr)
 		mem->slots[i].list = ++count;
 		mem->slots[i].orig_addr = INVALID_PHYS_ADDR;
 		mem->slots[i].alloc_size = 0;
+		mem->slots[i].pad_slots = 0;
 	}
 
 	/*
@@ -1647,9 +1676,6 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_io_tlb_hiwater, io_tlb_hiwater_get,
 static void swiotlb_create_debugfs_files(struct io_tlb_mem *mem,
 					 const char *dirname)
 {
-	atomic_long_set(&mem->total_used, 0);
-	atomic_long_set(&mem->used_hiwater, 0);
-
 	mem->debugfs = debugfs_create_dir(dirname, io_tlb_default_mem.debugfs);
 	if (!mem->nslabs)
 		return;
@@ -1660,7 +1686,6 @@ static void swiotlb_create_debugfs_files(struct io_tlb_mem *mem,
 	debugfs_create_file("io_tlb_used_hiwater", 0600, mem->debugfs, mem,
 			&fops_io_tlb_hiwater);
 #ifdef CONFIG_SWIOTLB_DYNAMIC
-	atomic_long_set(&mem->transient_nslabs, 0);
 	debugfs_create_file("io_tlb_transient_nslabs", 0400, mem->debugfs,
 			    mem, &fops_io_tlb_transient_used);
 #endif
@@ -1773,6 +1798,7 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 		mem->for_alloc = true;
 #ifdef CONFIG_SWIOTLB_DYNAMIC
 		spin_lock_init(&mem->lock);
+		INIT_LIST_HEAD_RCU(&mem->pools);
 #endif
 		add_mem_pool(mem, pool);
 

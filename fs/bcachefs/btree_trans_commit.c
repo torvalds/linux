@@ -397,12 +397,13 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 	struct bkey_cached *ck = (void *) path->l[0].b;
 	unsigned new_u64s;
 	struct bkey_i *new_k;
+	unsigned watermark = flags & BCH_WATERMARK_MASK;
 
 	EBUG_ON(path->level);
 
-	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
-	    bch2_btree_key_cache_must_wait(c) &&
-	    !(flags & BCH_TRANS_COMMIT_journal_reclaim))
+	if (watermark < BCH_WATERMARK_reclaim &&
+	    !test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
+	    bch2_btree_key_cache_must_wait(c))
 		return -BCH_ERR_btree_insert_need_journal_reclaim;
 
 	/*
@@ -499,9 +500,8 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 }
 
 static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
-			      struct btree_insert_entry *btree_id_start)
+			      unsigned btree_id_start)
 {
-	struct btree_insert_entry *i;
 	bool trans_trigger_run;
 	int ret, overwrite;
 
@@ -514,13 +514,13 @@ static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
 		do {
 			trans_trigger_run = false;
 
-			for (i = btree_id_start;
-			     i < trans->updates + trans->nr_updates && i->btree_id <= btree_id;
+			for (unsigned i = btree_id_start;
+			     i < trans->nr_updates && trans->updates[i].btree_id <= btree_id;
 			     i++) {
-				if (i->btree_id != btree_id)
+				if (trans->updates[i].btree_id != btree_id)
 					continue;
 
-				ret = run_one_trans_trigger(trans, i, overwrite);
+				ret = run_one_trans_trigger(trans, trans->updates + i, overwrite);
 				if (ret < 0)
 					return ret;
 				if (ret)
@@ -534,8 +534,7 @@ static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
 
 static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 {
-	struct btree_insert_entry *btree_id_start = trans->updates;
-	unsigned btree_id = 0;
+	unsigned btree_id = 0, btree_id_start = 0;
 	int ret = 0;
 
 	/*
@@ -549,8 +548,8 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 		if (btree_id == BTREE_ID_alloc)
 			continue;
 
-		while (btree_id_start < trans->updates + trans->nr_updates &&
-		       btree_id_start->btree_id < btree_id)
+		while (btree_id_start < trans->nr_updates &&
+		       trans->updates[btree_id_start].btree_id < btree_id)
 			btree_id_start++;
 
 		ret = run_btree_triggers(trans, btree_id, btree_id_start);
@@ -558,11 +557,13 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 			return ret;
 	}
 
-	trans_for_each_update(trans, i) {
+	for (unsigned idx = 0; idx < trans->nr_updates; idx++) {
+		struct btree_insert_entry *i = trans->updates + idx;
+
 		if (i->btree_id > BTREE_ID_alloc)
 			break;
 		if (i->btree_id == BTREE_ID_alloc) {
-			ret = run_btree_triggers(trans, BTREE_ID_alloc, i);
+			ret = run_btree_triggers(trans, BTREE_ID_alloc, idx);
 			if (ret)
 				return ret;
 			break;
@@ -826,7 +827,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	struct bch_fs *c = trans->c;
 	int ret = 0, u64s_delta = 0;
 
-	trans_for_each_update(trans, i) {
+	for (unsigned idx = 0; idx < trans->nr_updates; idx++) {
+		struct btree_insert_entry *i = trans->updates + idx;
 		if (i->cached)
 			continue;
 

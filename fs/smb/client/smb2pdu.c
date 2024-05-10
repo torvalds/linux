@@ -367,6 +367,17 @@ again:
 		}
 
 		rc = cifs_setup_session(0, ses, server, nls_codepage);
+		if ((rc == -EACCES) || (rc == -EKEYEXPIRED) || (rc == -EKEYREVOKED)) {
+			/*
+			 * Try alternate password for next reconnect (key rotation
+			 * could be enabled on the server e.g.) if an alternate
+			 * password is available and the current password is expired,
+			 * but do not swap on non pwd related errors like host down
+			 */
+			if (ses->password2)
+				swap(ses->password2, ses->password);
+		}
+
 		if ((rc == -EACCES) && !tcon->retry) {
 			mutex_unlock(&ses->session_mutex);
 			rc = -EHOSTDOWN;
@@ -4127,6 +4138,8 @@ void smb2_reconnect_server(struct work_struct *work)
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			if (tcon->need_reconnect || tcon->need_reopen_files) {
 				tcon->tc_count++;
+				trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+						    netfs_trace_tcon_ref_get_reconnect_server);
 				list_add_tail(&tcon->rlist, &tmp_list);
 				tcon_selected = true;
 			}
@@ -4165,14 +4178,14 @@ void smb2_reconnect_server(struct work_struct *work)
 		if (tcon->ipc)
 			cifs_put_smb_ses(tcon->ses);
 		else
-			cifs_put_tcon(tcon);
+			cifs_put_tcon(tcon, netfs_trace_tcon_ref_put_reconnect_server);
 	}
 
 	if (!ses_exist)
 		goto done;
 
 	/* allocate a dummy tcon struct used for reconnect */
-	tcon = tcon_info_alloc(false);
+	tcon = tcon_info_alloc(false, netfs_trace_tcon_ref_new_reconnect_server);
 	if (!tcon) {
 		resched = true;
 		list_for_each_entry_safe(ses, ses2, &tmp_ses_list, rlist) {
@@ -4195,7 +4208,7 @@ void smb2_reconnect_server(struct work_struct *work)
 		list_del_init(&ses->rlist);
 		cifs_put_smb_ses(ses);
 	}
-	tconInfoFree(tcon);
+	tconInfoFree(tcon, netfs_trace_tcon_ref_free_reconnect_server);
 
 done:
 	cifs_dbg(FYI, "Reconnecting tcons and channels finished\n");

@@ -21,20 +21,20 @@ struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_
 {
 	struct rxrpc_wire_header *whdr;
 	struct rxrpc_txbuf *txb;
-	size_t total, hoff = 0;
+	size_t total, hoff;
 	void *buf;
 
 	txb = kmalloc(sizeof(*txb), gfp);
 	if (!txb)
 		return NULL;
 
-	if (data_align)
-		hoff = round_up(sizeof(*whdr), data_align) - sizeof(*whdr);
+	hoff = round_up(sizeof(*whdr), data_align) - sizeof(*whdr);
 	total = hoff + sizeof(*whdr) + data_size;
 
+	data_align = umax(data_align, L1_CACHE_BYTES);
 	mutex_lock(&call->conn->tx_data_alloc_lock);
-	buf = __page_frag_alloc_align(&call->conn->tx_data_alloc, total, gfp,
-				      ~(data_align - 1) & ~(L1_CACHE_BYTES - 1));
+	buf = page_frag_alloc_align(&call->conn->tx_data_alloc, total, gfp,
+				    data_align);
 	mutex_unlock(&call->conn->tx_data_alloc_lock);
 	if (!buf) {
 		kfree(txb);

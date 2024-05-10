@@ -149,6 +149,38 @@ out_no_bo:
 	return ret;
 }
 
+struct drm_gem_object *vmw_prime_import_sg_table(struct drm_device *dev,
+						 struct dma_buf_attachment *attach,
+						 struct sg_table *table)
+{
+	int ret;
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct drm_gem_object *gem = NULL;
+	struct vmw_bo *vbo;
+	struct vmw_bo_params params = {
+		.domain = (dev_priv->has_mob) ? VMW_BO_DOMAIN_SYS : VMW_BO_DOMAIN_VRAM,
+		.busy_domain = VMW_BO_DOMAIN_SYS,
+		.bo_type = ttm_bo_type_sg,
+		.size = attach->dmabuf->size,
+		.pin = false,
+		.resv = attach->dmabuf->resv,
+		.sg = table,
+
+	};
+
+	dma_resv_lock(params.resv, NULL);
+
+	ret = vmw_bo_create(dev_priv, &params, &vbo);
+	if (ret != 0)
+		goto out_no_bo;
+
+	vbo->tbo.base.funcs = &vmw_gem_object_funcs;
+
+	gem = &vbo->tbo.base;
+out_no_bo:
+	dma_resv_unlock(params.resv);
+	return gem;
+}
 
 int vmw_gem_object_create_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp)
