@@ -48,7 +48,7 @@
 
 /* Value */
 #define RTQ2208_RAMP_VALUE_MIN_uV		500
-#define RTQ2208_RAMP_VALUE_MAX_uV		64000
+#define RTQ2208_RAMP_VALUE_MAX_uV		16000
 
 #define RTQ2208_BUCK_MASK(uv_irq, ov_irq)	(1 << ((uv_irq) % 8) | 1 << ((ov_irq) % 8))
 
@@ -142,12 +142,11 @@ static int rtq2208_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	 * Because the relation of seleltion and value is like that
 	 *
 	 * seletion: value
-	 * 000: 64mv
-	 * 001: 32mv
+	 * 010: 16mv
 	 * ...
 	 * 111: 0.5mv
 	 *
-	 * For example, if I would like to select 64mv, the fls(ramp_delay) - 1 will be 0b111,
+	 * For example, if I would like to select 16mv, the fls(ramp_delay) - 1 will be 0b010,
 	 * and I need to use 0b111 - sel to do the shifting
 	 */
 
