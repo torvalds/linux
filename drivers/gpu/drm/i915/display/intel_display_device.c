@@ -829,6 +829,8 @@ static const struct {
 	INTEL_GLK_IDS(&glk_display),
 	INTEL_KBL_IDS(&skl_display),
 	INTEL_CFL_IDS(&skl_display),
+	INTEL_WHL_IDS(&skl_display),
+	INTEL_CML_IDS(&skl_display),
 	INTEL_ICL_11_IDS(&icl_display),
 	INTEL_EHL_IDS(&jsl_ehl_display),
 	INTEL_JSL_IDS(&jsl_ehl_display),
