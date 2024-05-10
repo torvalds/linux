@@ -2504,8 +2504,7 @@ int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 EXPORT_SYMBOL(v4l2_ctrl_handler_setup);
 
 /* Log the control name and value */
-static void log_ctrl(const struct v4l2_ctrl_handler *hdl,
-		     struct v4l2_ctrl *ctrl,
+static void log_ctrl(const struct v4l2_ctrl *ctrl,
 		     const char *prefix, const char *colon)
 {
 	if (ctrl->flags & (V4L2_CTRL_FLAG_DISABLED | V4L2_CTRL_FLAG_WRITE_ONLY))
@@ -2515,11 +2514,7 @@ static void log_ctrl(const struct v4l2_ctrl_handler *hdl,
 
 	pr_info("%s%s%s: ", prefix, colon, ctrl->name);
 
-	if (ctrl->handler != hdl)
-		v4l2_ctrl_lock(ctrl);
 	ctrl->type_ops->log(ctrl);
-	if (ctrl->handler != hdl)
-		v4l2_ctrl_unlock(ctrl);
 
 	if (ctrl->flags & (V4L2_CTRL_FLAG_INACTIVE |
 			   V4L2_CTRL_FLAG_GRABBED |
@@ -2538,7 +2533,7 @@ static void log_ctrl(const struct v4l2_ctrl_handler *hdl,
 void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
 				  const char *prefix)
 {
-	struct v4l2_ctrl_ref *ref;
+	struct v4l2_ctrl *ctrl;
 	const char *colon = "";
 	int len;
 
@@ -2550,12 +2545,9 @@ void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
 	if (len && prefix[len - 1] != ' ')
 		colon = ": ";
 	mutex_lock(hdl->lock);
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
-		if (ref->from_other_dev ||
-		    (ref->ctrl->flags & V4L2_CTRL_FLAG_DISABLED))
-			continue;
-		log_ctrl(hdl, ref->ctrl, prefix, colon);
-	}
+	list_for_each_entry(ctrl, &hdl->ctrls, node)
+		if (!(ctrl->flags & V4L2_CTRL_FLAG_DISABLED))
+			log_ctrl(ctrl, prefix, colon);
 	mutex_unlock(hdl->lock);
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_log_status);
