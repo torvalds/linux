@@ -1717,7 +1717,7 @@ ext4_mb_load_buddy_gfp(struct super_block *sb, ext4_group_t group,
 	return 0;
 
 err:
-	if (folio)
+	if (!IS_ERR_OR_NULL(folio))
 		folio_put(folio);
 	if (e4b->bd_bitmap_folio)
 		folio_put(e4b->bd_bitmap_folio);
