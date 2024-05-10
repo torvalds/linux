@@ -48,7 +48,7 @@
 	thermal-zones {
 		pm8350c_thermal: pm8350c-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pm8350c_temp_alarm>;
 
 			trips {
