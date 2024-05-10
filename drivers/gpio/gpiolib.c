@@ -101,6 +101,7 @@ static bool gpiolib_initialized;
 
 const char *gpiod_get_label(struct gpio_desc *desc)
 {
+	struct gpio_desc_label *label;
 	unsigned long flags;
 
 	flags = READ_ONCE(desc->flags);
@@ -108,23 +109,36 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 	    !test_bit(FLAG_REQUESTED, &flags))
 		return "interrupt";
 
-	return test_bit(FLAG_REQUESTED, &flags) ?
-			srcu_dereference(desc->label, &desc->srcu) : NULL;
+	if (!test_bit(FLAG_REQUESTED, &flags))
+		return NULL;
+
+	label = srcu_dereference_check(desc->label, &desc->gdev->desc_srcu,
+				srcu_read_lock_held(&desc->gdev->desc_srcu));
+
+	return label->str;
+}
+
+static void desc_free_label(struct rcu_head *rh)
+{
+	kfree(container_of(rh, struct gpio_desc_label, rh));
 }
 
 static int desc_set_label(struct gpio_desc *desc, const char *label)
 {
-	const char *new = NULL, *old;
+	struct gpio_desc_label *new = NULL, *old;
 
 	if (label) {
-		new = kstrdup_const(label, GFP_KERNEL);
+		new = kzalloc(struct_size(new, str, strlen(label) + 1),
+			      GFP_KERNEL);
 		if (!new)
 			return -ENOMEM;
+
+		strcpy(new->str, label);
 	}
 
 	old = rcu_replace_pointer(desc->label, new, 1);
-	synchronize_srcu(&desc->srcu);
-	kfree_const(old);
+	if (old)
+		call_srcu(&desc->gdev->desc_srcu, &old->rh, desc_free_label);
 
 	return 0;
 }
@@ -695,10 +709,10 @@ EXPORT_SYMBOL_GPL(gpiochip_line_is_valid);
 static void gpiodev_release(struct device *dev)
 {
 	struct gpio_device *gdev = to_gpio_device(dev);
-	unsigned int i;
 
-	for (i = 0; i < gdev->ngpio; i++)
-		cleanup_srcu_struct(&gdev->descs[i].srcu);
+	/* Call pending kfree()s for descriptor labels. */
+	synchronize_srcu(&gdev->desc_srcu);
+	cleanup_srcu_struct(&gdev->desc_srcu);
 
 	ida_free(&gpio_ida, gdev->id);
 	kfree_const(gdev->label);
@@ -975,6 +989,10 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_remove_from_list;
 
+	ret = init_srcu_struct(&gdev->desc_srcu);
+	if (ret)
+		goto err_cleanup_gdev_srcu;
+
 #ifdef CONFIG_PINCTRL
 	INIT_LIST_HEAD(&gdev->pin_ranges);
 #endif
@@ -982,22 +1000,18 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (gc->names) {
 		ret = gpiochip_set_desc_names(gc);
 		if (ret)
-			goto err_cleanup_gdev_srcu;
+			goto err_cleanup_desc_srcu;
 	}
 	ret = gpiochip_set_names(gc);
 	if (ret)
-		goto err_cleanup_gdev_srcu;
+		goto err_cleanup_desc_srcu;
 
 	ret = gpiochip_init_valid_mask(gc);
 	if (ret)
-		goto err_cleanup_gdev_srcu;
+		goto err_cleanup_desc_srcu;
 
 	for (desc_index = 0; desc_index < gc->ngpio; desc_index++) {
 		struct gpio_desc *desc = &gdev->descs[desc_index];
-
-		ret = init_srcu_struct(&desc->srcu);
-		if (ret)
-			goto err_cleanup_desc_srcu;
 
 		if (gc->get_direction && gpiochip_line_is_valid(gc, desc_index)) {
 			assign_bit(FLAG_IS_OUT,
@@ -1010,7 +1024,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 
 	ret = of_gpiochip_add(gc);
 	if (ret)
-		goto err_cleanup_desc_srcu;
+		goto err_free_valid_mask;
 
 	ret = gpiochip_add_pin_ranges(gc);
 	if (ret)
@@ -1057,10 +1071,10 @@ err_free_hogs:
 	gpiochip_remove_pin_ranges(gc);
 err_remove_of_chip:
 	of_gpiochip_remove(gc);
-err_cleanup_desc_srcu:
-	while (desc_index--)
-		cleanup_srcu_struct(&gdev->descs[desc_index].srcu);
+err_free_valid_mask:
 	gpiochip_free_valid_mask(gc);
+err_cleanup_desc_srcu:
+	cleanup_srcu_struct(&gdev->desc_srcu);
 err_cleanup_gdev_srcu:
 	cleanup_srcu_struct(&gdev->srcu);
 err_remove_from_list:
@@ -2390,7 +2404,7 @@ char *gpiochip_dup_line_label(struct gpio_chip *gc, unsigned int offset)
 	if (!test_bit(FLAG_REQUESTED, &desc->flags))
 		return NULL;
 
-	guard(srcu)(&desc->srcu);
+	guard(srcu)(&desc->gdev->desc_srcu);
 
 	label = kstrdup(gpiod_get_label(desc), GFP_KERNEL);
 	if (!label)
@@ -4781,7 +4795,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 	}
 
 	for_each_gpio_desc(gc, desc) {
-		guard(srcu)(&desc->srcu);
+		guard(srcu)(&desc->gdev->desc_srcu);
 		if (test_bit(FLAG_REQUESTED, &desc->flags)) {
 			gpiod_get_direction(desc);
 			is_out = test_bit(FLAG_IS_OUT, &desc->flags);
