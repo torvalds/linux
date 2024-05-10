@@ -344,14 +344,14 @@ void *dpu_hw_util_get_dir(void);
 void dpu_hw_setup_scaler3(struct dpu_hw_blk_reg_map *c,
 		struct dpu_hw_scaler3_cfg *scaler3_cfg,
 		u32 scaler_offset, u32 scaler_version,
-		const struct dpu_format *format);
+		const struct msm_format *format);
 
 void dpu_hw_csc_setup(struct dpu_hw_blk_reg_map  *c,
 		u32 csc_reg_off,
 		const struct dpu_csc_cfg *data, bool csc10);
 
 void dpu_setup_cdp(struct dpu_hw_blk_reg_map *c, u32 offset,
-		   const struct dpu_format *fmt, bool enable);
+		   const struct msm_format *fmt, bool enable);
 
 u64 _dpu_hw_get_qos_lut(const struct dpu_qos_lut_tbl *tbl,
 		u32 total_fl);

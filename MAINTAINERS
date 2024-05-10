@@ -6816,7 +6816,25 @@ T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/panel/panel-mipi-dbi-spi.yaml
 F:	drivers/gpu/drm/tiny/panel-mipi-dbi.c
 
-DRM DRIVER FOR MSM ADRENO GPU
+DRM DRIVER for Qualcomm Adreno GPUs
+M:	Rob Clark <robdclark@gmail.com>
+R:	Sean Paul <sean@poorly.run>
+R:	Konrad Dybcio <konrad.dybcio@linaro.org>
+L:	linux-arm-msm@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+L:	freedreno@lists.freedesktop.org
+S:	Maintained
+B:	https://gitlab.freedesktop.org/drm/msm/-/issues
+T:	git https://gitlab.freedesktop.org/drm/msm.git
+F:	Documentation/devicetree/bindings/display/msm/gpu.yaml
+F:	drivers/gpu/drm/msm/adreno/
+F:	drivers/gpu/drm/msm/msm_gpu.*
+F:	drivers/gpu/drm/msm/msm_gpu_devfreq.*
+F:	drivers/gpu/drm/msm/msm_ringbuffer.*
+F:	drivers/gpu/drm/msm/registers/adreno/
+F:	include/uapi/drm/msm_drm.h
+
+DRM DRIVER for Qualcomm display hardware
 M:	Rob Clark <robdclark@gmail.com>
 M:	Abhinav Kumar <quic_abhinavk@quicinc.com>
 M:	Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
