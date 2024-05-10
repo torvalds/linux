@@ -653,7 +653,7 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 	 * since TLC offload works with one mode we can assume
 	 * that only vht/ht is used and also set it as station max amsdu
 	 */
-	sta->deflink.agg.max_amsdu_len = max_amsdu_len;
+	link_sta->agg.max_amsdu_len = max_amsdu_len;
 
 	cfg_cmd.max_tx_op = cpu_to_le16(mvmvif->max_tx_op);
 
