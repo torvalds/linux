@@ -309,6 +309,21 @@ require_command()
 	fi
 }
 
+# IPv6 support was added in v3.0
+check_mtools_version()
+{
+	local version="$(msend -v)"
+	local major
+
+	version=${version##msend version }
+	major=$(echo $version | cut -d. -f1)
+
+	if [ $major -lt 3 ]; then
+		echo "SKIP: expected mtools version 3.0, got $version"
+		exit $ksft_skip
+	fi
+}
+
 if [[ "$REQUIRE_JQ" = "yes" ]]; then
 	require_command jq
 fi
@@ -316,10 +331,10 @@ if [[ "$REQUIRE_MZ" = "yes" ]]; then
 	require_command $MZ
 fi
 if [[ "$REQUIRE_MTOOLS" = "yes" ]]; then
-	# https://github.com/vladimiroltean/mtools/
-	# patched for IPv6 support
+	# https://github.com/troglobit/mtools
 	require_command msend
 	require_command mreceive
+	check_mtools_version
 fi
 
 ##############################################################################
