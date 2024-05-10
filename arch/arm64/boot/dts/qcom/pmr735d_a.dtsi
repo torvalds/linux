@@ -10,7 +10,6 @@
 	thermal-zones {
 		pmr735d-k-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
 
 			thermal-sensors = <&pmr735d_k_temp_alarm>;
 
