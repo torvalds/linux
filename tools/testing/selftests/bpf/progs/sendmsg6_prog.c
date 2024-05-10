@@ -20,6 +20,11 @@
 #define DST_REWRITE_IP6_2	0
 #define DST_REWRITE_IP6_3	1
 
+#define DST_REWRITE_IP6_V4_MAPPED_0	0
+#define DST_REWRITE_IP6_V4_MAPPED_1	0
+#define DST_REWRITE_IP6_V4_MAPPED_2	0x0000FFFF
+#define DST_REWRITE_IP6_V4_MAPPED_3	0xc0a80004 // 192.168.0.4
+
 #define DST_REWRITE_PORT6	6666
 
 SEC("cgroup/sendmsg6")
@@ -55,6 +60,26 @@ int sendmsg_v6_prog(struct bpf_sock_addr *ctx)
 		/* Unexpected destination. Reject sendmsg. */
 		return 0;
 	}
+
+	return 1;
+}
+
+SEC("cgroup/sendmsg6")
+int sendmsg_v6_v4mapped_prog(struct bpf_sock_addr *ctx)
+{
+	/* Rewrite source. */
+	ctx->msg_src_ip6[0] = bpf_htonl(SRC_REWRITE_IP6_0);
+	ctx->msg_src_ip6[1] = bpf_htonl(SRC_REWRITE_IP6_1);
+	ctx->msg_src_ip6[2] = bpf_htonl(SRC_REWRITE_IP6_2);
+	ctx->msg_src_ip6[3] = bpf_htonl(SRC_REWRITE_IP6_3);
+
+	/* Rewrite destination. */
+	ctx->user_ip6[0] = bpf_htonl(DST_REWRITE_IP6_V4_MAPPED_0);
+	ctx->user_ip6[1] = bpf_htonl(DST_REWRITE_IP6_V4_MAPPED_1);
+	ctx->user_ip6[2] = bpf_htonl(DST_REWRITE_IP6_V4_MAPPED_2);
+	ctx->user_ip6[3] = bpf_htonl(DST_REWRITE_IP6_V4_MAPPED_3);
+
+	ctx->user_port = bpf_htons(DST_REWRITE_PORT6);
 
 	return 1;
 }
