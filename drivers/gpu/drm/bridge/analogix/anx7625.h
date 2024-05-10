@@ -286,8 +286,7 @@
 
 #define  MIPI_LANE_CTRL_10               0x0F
 #define  MIPI_DIGITAL_ADJ_1     0x1B
-#define  IVO_MID0               0x26
-#define  IVO_MID1               0xCF
+#define  IVO_MID                0x26CF
 
 #define  MIPI_PLL_M_NUM_23_16   0x1E
 #define  MIPI_PLL_M_NUM_15_8    0x1F
@@ -417,11 +416,6 @@ enum audio_wd_len {
 #define EDID_TRY_CNT	3
 #define SUPPORT_PIXEL_CLOCK	300000
 
-struct s_edid_data {
-	int edid_block_num;
-	u8 edid_raw_data[FOUR_BLOCK_SIZE];
-};
-
 /***************** Display End *****************/
 
 #define MAX_LANES_SUPPORT	4
@@ -466,7 +460,7 @@ struct anx7625_data {
 	struct anx7625_i2c_client i2c;
 	struct i2c_client *last_client;
 	struct timer_list hdcp_timer;
-	struct s_edid_data slimport_edid_p;
+	const struct drm_edid *cached_drm_edid;
 	struct device *codec_dev;
 	hdmi_codec_plugged_cb plugged_cb;
 	struct work_struct work;
