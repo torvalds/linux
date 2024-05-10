@@ -426,6 +426,7 @@ struct iwl_mvm_esr_exit {
  * @csa_bcn_pending: indicates that we are waiting for a beacon on a new channel
  * @csa_blocks_tx: CSA is blocking TX
  * @features: hw features active for this vif
+ * @max_tx_op: max TXOP in usecs for all ACs, zero for no limit.
  * @ap_beacon_time: AP beacon time for synchronisation (on older FW)
  * @bf_enabled: indicates if beacon filtering is enabled
  * @ba_enabled: indicated if beacon abort is enabled
@@ -537,6 +538,8 @@ struct iwl_mvm_vif {
 	struct {
 		struct ieee80211_key_conf __rcu *keys[2];
 	} bcn_prot;
+
+	u16 max_tx_op;
 
 	u16 link_selection_res;
 	u8 link_selection_primary;
