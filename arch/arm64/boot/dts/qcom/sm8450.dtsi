@@ -5031,28 +5031,22 @@
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
-					hysteresis = <1000>;
-					type = "passive";
-				};
-
-				thermal-hal-config {
-					temperature = <125000>;
-					hysteresis = <1000>;
-					type = "passive";
-				};
-
-				reset-mon-cfg {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
 				gpu_top_alert0: trip-point0 {
-					temperature = <95000>;
-					hysteresis = <5000>;
+					temperature = <85000>;
+					hysteresis = <1000>;
 					type = "passive";
+				};
+
+				trip-point1 {
+					temperature = <90000>;
+					hysteresis = <1000>;
+					type = "hot";
+				};
+
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
@@ -5070,28 +5064,22 @@
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
-					hysteresis = <1000>;
-					type = "passive";
-				};
-
-				thermal-hal-config {
-					temperature = <125000>;
-					hysteresis = <1000>;
-					type = "passive";
-				};
-
-				reset-mon-cfg {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
 				gpu_bottom_alert0: trip-point0 {
-					temperature = <95000>;
-					hysteresis = <5000>;
+					temperature = <85000>;
+					hysteresis = <1000>;
 					type = "passive";
+				};
+
+				trip-point1 {
+					temperature = <90000>;
+					hysteresis = <1000>;
+					type = "hot";
+				};
+
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
