@@ -207,13 +207,12 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		intel_fb = ifbdev->fb = NULL;
 	}
 	if (!intel_fb || drm_WARN_ON(dev, !intel_fb_obj(&intel_fb->base))) {
-		struct drm_framebuffer *fb;
 		drm_dbg_kms(&dev_priv->drm,
 			    "no BIOS fb, allocating a new one\n");
-		fb = intel_fbdev_fb_alloc(helper, sizes);
-		if (IS_ERR(fb))
-			return PTR_ERR(fb);
-		intel_fb = ifbdev->fb = to_intel_framebuffer(fb);
+		intel_fb = intel_fbdev_fb_alloc(helper, sizes);
+		if (IS_ERR(intel_fb))
+			return PTR_ERR(intel_fb);
+		ifbdev->fb = intel_fb;
 	} else {
 		drm_dbg_kms(&dev_priv->drm, "re-using BIOS fb\n");
 		prealloc = true;

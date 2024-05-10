@@ -13,8 +13,8 @@
 #include "i915_drv.h"
 #include "intel_display_types.h"
 
-struct drm_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
-			 struct drm_fb_helper_surface_size *sizes)
+struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
+					       struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_framebuffer *fb;
 	struct drm_device *dev = helper->dev;
@@ -70,10 +70,11 @@ struct drm_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 	}
 
 	drm_gem_object_put(intel_bo_to_drm_bo(obj));
-	return fb;
+
+	return to_intel_framebuffer(fb);
 
 err:
-	return fb;
+	return ERR_CAST(fb);
 }
 
 int intel_fbdev_fb_fill_info(struct drm_i915_private *i915, struct fb_info *info,
