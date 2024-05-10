@@ -182,6 +182,7 @@ static const u16 subplatform_n_ids[] = {
 
 static const u16 subplatform_rpl_ids[] = {
 	INTEL_RPLS_IDS(0),
+	INTEL_RPLU_IDS(0),
 	INTEL_RPLP_IDS(0),
 };
 

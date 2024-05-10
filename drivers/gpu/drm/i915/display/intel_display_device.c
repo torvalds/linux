@@ -841,6 +841,7 @@ static const struct {
 	INTEL_RPLS_IDS(&adl_s_display),
 	INTEL_ADLP_IDS(&xe_lpd_display),
 	INTEL_ADLN_IDS(&xe_lpd_display),
+	INTEL_RPLU_IDS(&xe_lpd_display),
 	INTEL_RPLP_IDS(&xe_lpd_display),
 	INTEL_DG2_IDS(&xe_hpd_display),
 
