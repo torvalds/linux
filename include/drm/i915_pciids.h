@@ -108,11 +108,15 @@
 	INTEL_VGA_DEVICE(0x2e42, info), /* B43_G */ \
 	INTEL_VGA_DEVICE(0x2e92, info)	/* B43_G.1 */
 
-#define INTEL_PINEVIEW_G_IDS(info) \
+#define INTEL_PNV_G_IDS(info) \
 	INTEL_VGA_DEVICE(0xa001, info)
 
-#define INTEL_PINEVIEW_M_IDS(info) \
+#define INTEL_PNV_M_IDS(info) \
 	INTEL_VGA_DEVICE(0xa011, info)
+
+#define INTEL_PNV_IDS(info) \
+	INTEL_PNV_G_IDS(info), \
+	INTEL_PNV_M_IDS(info)
 
 #define INTEL_IRONLAKE_D_IDS(info) \
 	INTEL_VGA_DEVICE(0x0042, info)
