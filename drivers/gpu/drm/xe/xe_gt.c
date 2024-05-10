@@ -430,6 +430,10 @@ static int all_fw_domain_init(struct xe_gt *gt)
 	if (err)
 		goto err_force_wake;
 
+	err = xe_uc_init_post_hwconfig(&gt->uc);
+	if (err)
+		goto err_force_wake;
+
 	if (!xe_gt_is_media_type(gt)) {
 		/*
 		 * USM has its only SA pool to non-block behind user operations
@@ -455,10 +459,6 @@ static int all_fw_domain_init(struct xe_gt *gt)
 			goto err_force_wake;
 		}
 	}
-
-	err = xe_uc_init_post_hwconfig(&gt->uc);
-	if (err)
-		goto err_force_wake;
 
 	err = xe_uc_init_hw(&gt->uc);
 	if (err)
