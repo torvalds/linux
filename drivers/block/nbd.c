@@ -588,7 +588,6 @@ static inline int was_interrupted(int result)
 	return result == -ERESTARTSYS || result == -EINTR;
 }
 
-/* always call with the tx_lock held */
 static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 {
 	struct request *req = blk_mq_rq_from_pdu(cmd);
@@ -604,6 +603,9 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	u32 type;
 	u32 nbd_cmd_flags = 0;
 	int sent = nsock->sent, skip = 0;
+
+	lockdep_assert_held(&cmd->lock);
+	lockdep_assert_held(&nsock->tx_lock);
 
 	iov_iter_kvec(&from, ITER_SOURCE, &iov, 1, sizeof(request));
 
@@ -1014,6 +1016,8 @@ static int nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 	struct nbd_config *config;
 	struct nbd_sock *nsock;
 	int ret;
+
+	lockdep_assert_held(&cmd->lock);
 
 	config = nbd_get_config_unlocked(nbd);
 	if (!config) {
