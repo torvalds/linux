@@ -49,3 +49,10 @@ Description:	read only
 		memory add/remove events because elfcorehdr is now prepared in
 		the second/fadump kernel.
 User:		kexec-tools
+
+What:		/sys/kernel/fadump/bootargs_append
+Date:		May 2024
+Contact:	linuxppc-dev@lists.ozlabs.org
+Description:	read/write
+		This is a special sysfs file available to setup additional
+		parameters to be passed to capture kernel.
