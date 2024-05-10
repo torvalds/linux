@@ -118,11 +118,15 @@
 	INTEL_PNV_G_IDS(info), \
 	INTEL_PNV_M_IDS(info)
 
-#define INTEL_IRONLAKE_D_IDS(info) \
+#define INTEL_ILK_D_IDS(info) \
 	INTEL_VGA_DEVICE(0x0042, info)
 
-#define INTEL_IRONLAKE_M_IDS(info) \
+#define INTEL_ILK_M_IDS(info) \
 	INTEL_VGA_DEVICE(0x0046, info)
+
+#define INTEL_ILK_IDS(info) \
+	INTEL_ILK_D_IDS(info), \
+	INTEL_ILK_M_IDS(info)
 
 #define INTEL_SNB_D_GT1_IDS(info) \
 	INTEL_VGA_DEVICE(0x0102, info), \
