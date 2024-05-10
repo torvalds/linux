@@ -771,8 +771,10 @@ static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 			block_t valid_blocks =
 				get_valid_blocks(sbi, segno, true);
 
-			f2fs_bug_on(sbi, unlikely(!valid_blocks ||
-					valid_blocks == CAP_BLKS_PER_SEC(sbi)));
+			f2fs_bug_on(sbi,
+				(!is_sbi_flag_set(sbi, SBI_CP_DISABLED) &&
+				!valid_blocks) ||
+				valid_blocks == CAP_BLKS_PER_SEC(sbi));
 
 			if (!IS_CURSEC(sbi, secno))
 				set_bit(secno, dirty_i->dirty_secmap);
