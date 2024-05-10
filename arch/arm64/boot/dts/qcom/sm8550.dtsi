@@ -5386,34 +5386,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&gpu0_junction_config>;
+					trip = <&gpu0_alert0>;
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
+				gpu0_alert0: trip-point0 {
+					temperature = <85000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
-				thermal-hal-config {
-					temperature = <125000>;
+				trip-point1 {
+					temperature = <90000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "hot";
 				};
 
-				reset-mon-config {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
-				gpu0_junction_config: junction-config {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
@@ -5425,34 +5419,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&gpu1_junction_config>;
+					trip = <&gpu1_alert0>;
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
+				gpu1_alert0: trip-point0 {
+					temperature = <85000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
-				thermal-hal-config {
-					temperature = <125000>;
+				trip-point1 {
+					temperature = <90000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "hot";
 				};
 
-				reset-mon-config {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
-				gpu1_junction_config: junction-config {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
@@ -5464,34 +5452,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&gpu2_junction_config>;
+					trip = <&gpu2_alert0>;
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
+				gpu2_alert0: trip-point0 {
+					temperature = <85000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
-				thermal-hal-config {
-					temperature = <125000>;
+				trip-point1 {
+					temperature = <90000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "hot";
 				};
 
-				reset-mon-config {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
-				gpu2_junction_config: junction-config {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
@@ -5503,34 +5485,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&gpu3_junction_config>;
+					trip = <&gpu3_alert0>;
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
+				gpu3_alert0: trip-point0 {
+					temperature = <85000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
-				thermal-hal-config {
-					temperature = <125000>;
+				trip-point1 {
+					temperature = <90000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "hot";
 				};
 
-				reset-mon-config {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
-				gpu3_junction_config: junction-config {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
@@ -5542,34 +5518,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&gpu4_junction_config>;
+					trip = <&gpu4_alert0>;
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
+				gpu4_alert0: trip-point0 {
+					temperature = <85000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
-				thermal-hal-config {
-					temperature = <125000>;
+				trip-point1 {
+					temperature = <90000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "hot";
 				};
 
-				reset-mon-config {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
-				gpu4_junction_config: junction-config {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
@@ -5581,34 +5551,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&gpu5_junction_config>;
+					trip = <&gpu5_alert0>;
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
+				gpu5_alert0: trip-point0 {
+					temperature = <85000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
-				thermal-hal-config {
-					temperature = <125000>;
+				trip-point1 {
+					temperature = <90000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "hot";
 				};
 
-				reset-mon-config {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
-				gpu5_junction_config: junction-config {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
@@ -5620,34 +5584,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&gpu6_junction_config>;
+					trip = <&gpu6_alert0>;
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
+				gpu6_alert0: trip-point0 {
+					temperature = <85000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
-				thermal-hal-config {
-					temperature = <125000>;
+				trip-point1 {
+					temperature = <90000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "hot";
 				};
 
-				reset-mon-config {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
-				gpu6_junction_config: junction-config {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
@@ -5659,34 +5617,28 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&gpu7_junction_config>;
+					trip = <&gpu7_alert0>;
 					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 
 			trips {
-				thermal-engine-config {
-					temperature = <125000>;
+				gpu7_alert0: trip-point0 {
+					temperature = <85000>;
 					hysteresis = <1000>;
 					type = "passive";
 				};
 
-				thermal-hal-config {
-					temperature = <125000>;
+				trip-point1 {
+					temperature = <90000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "hot";
 				};
 
-				reset-mon-config {
-					temperature = <115000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-
-				gpu7_junction_config: junction-config {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
+				trip-point2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
 				};
 			};
 		};
