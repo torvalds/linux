@@ -443,6 +443,7 @@ struct q2spi_dma_transfer {
  * @kworker: kthread worker to process the q2spi requests
  * @send_messages: work function to process the q2spi requests
  * @gsi_lock: lock to protect gsi operations
+ * @port_lock: lock to protect q2spi open, release and transfer operations
  * @txn_lock: lock to protect transfer id allocation and free
  * @queue_lock: lock to protect HC operations
  * @send_msgs_lock: lock to protect q2spi_send_messages
@@ -526,6 +527,8 @@ struct q2spi_geni {
 	struct kthread_work send_messages;
 	/* lock to protect gsi operations one at a time */
 	struct mutex gsi_lock;
+	/* lock to protect port open, close and transfer operations  */
+	struct mutex port_lock;
 	/* lock to protect transfer id allocation and free */
 	spinlock_t txn_lock;
 	/* lock to protect HC operations one at a time*/
