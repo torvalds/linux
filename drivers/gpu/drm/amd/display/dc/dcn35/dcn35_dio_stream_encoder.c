@@ -254,6 +254,7 @@ static void enc35_stream_encoder_enable(
 			break;
 		case SIGNAL_TYPE_EDP:
 		case SIGNAL_TYPE_DISPLAY_PORT:
+		case SIGNAL_TYPE_VIRTUAL:
 			/* DP SST */
 			REG_UPDATE(DIG_FE_CLK_CNTL, DIG_FE_MODE, 0);
 			break;
@@ -459,7 +460,7 @@ static const struct stream_encoder_funcs dcn35_str_enc_funcs = {
 	.dp_set_dsc_pps_info_packet = enc3_dp_set_dsc_pps_info_packet,
 	.set_dynamic_metadata = enc2_set_dynamic_metadata,
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
-	.dig_stream_enable = enc35_stream_encoder_enable,
+	.enable_stream = enc35_stream_encoder_enable,
 
 	.set_input_mode = enc314_set_dig_input_mode,
 	.enable_fifo = enc35_enable_fifo,

@@ -1907,7 +1907,9 @@ static void disable_link(struct dc_link *link,
 {
 	if (dc_is_dp_signal(signal)) {
 		disable_link_dp(link, link_res, signal);
-	} else if (signal != SIGNAL_TYPE_VIRTUAL) {
+	} else if (signal == SIGNAL_TYPE_VIRTUAL) {
+		link->dc->hwss.disable_link_output(link, link_res, SIGNAL_TYPE_DISPLAY_PORT);
+	} else {
 		link->dc->hwss.disable_link_output(link, link_res, signal);
 	}
 
@@ -2154,6 +2156,18 @@ static enum dc_status enable_link_dp_mst(
 	return enable_link_dp(state, pipe_ctx);
 }
 
+static enum dc_status enable_link_virtual(struct pipe_ctx *pipe_ctx)
+{
+	struct dc_link *link = pipe_ctx->stream->link;
+
+	link->dc->hwss.enable_dp_link_output(link,
+			&pipe_ctx->link_res,
+			SIGNAL_TYPE_DISPLAY_PORT,
+			pipe_ctx->clock_source->id,
+			&pipe_ctx->link_config.dp_link_settings);
+	return DC_OK;
+}
+
 static enum dc_status enable_link(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx)
@@ -2193,7 +2207,7 @@ static enum dc_status enable_link(
 		status = DC_OK;
 		break;
 	case SIGNAL_TYPE_VIRTUAL:
-		status = DC_OK;
+		status = enable_link_virtual(pipe_ctx);
 		break;
 	default:
 		break;
@@ -2437,17 +2451,10 @@ void link_set_dpms_on(
 
 	if (!dc_is_virtual_signal(pipe_ctx->stream->signal)
 			&& !dp_is_128b_132b_signal(pipe_ctx)) {
-		struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
-
 		if (link_enc)
 			link_enc->funcs->setup(
 				link_enc,
 				pipe_ctx->stream->signal);
-
-		if (stream_enc && stream_enc->funcs->dig_stream_enable)
-			stream_enc->funcs->dig_stream_enable(
-				stream_enc,
-				pipe_ctx->stream->signal, 1);
 	}
 
 	pipe_ctx->stream->link->link_state_valid = true;
@@ -2547,17 +2554,11 @@ void link_set_dpms_on(
 	 */
 	if (!(dc_is_virtual_signal(pipe_ctx->stream->signal) ||
 			dp_is_128b_132b_signal(pipe_ctx))) {
-			struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
 
 			if (link_enc)
 				link_enc->funcs->setup(
 					link_enc,
 					pipe_ctx->stream->signal);
-
-			if (stream_enc && stream_enc->funcs->dig_stream_enable)
-				stream_enc->funcs->dig_stream_enable(
-					stream_enc,
-					pipe_ctx->stream->signal, 1);
 
 		}
 
