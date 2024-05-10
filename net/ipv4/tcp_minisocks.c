@@ -879,7 +879,7 @@ embryonic_reset:
 		 * avoid becoming vulnerable to outside attack aiming at
 		 * resetting legit local connections.
 		 */
-		req->rsk_ops->send_reset(sk, skb, SK_RST_REASON_NOT_SPECIFIED);
+		req->rsk_ops->send_reset(sk, skb, SK_RST_REASON_INVALID_SYN);
 	} else if (fastopen) { /* received a valid RST pkt */
 		reqsk_fastopen_remove(sk, req, true);
 		tcp_reset(sk, skb);

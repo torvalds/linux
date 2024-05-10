@@ -16,6 +16,7 @@
 	FN(TCP_OLD_ACK)			\
 	FN(TCP_ABORT_ON_DATA)		\
 	FN(TCP_TIMEWAIT_SOCKET)		\
+	FN(INVALID_SYN)			\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -76,6 +77,13 @@ enum sk_rst_reason {
 	/* Here start with the independent reasons */
 	/** @SK_RST_REASON_TCP_TIMEWAIT_SOCKET: happen on the timewait socket */
 	SK_RST_REASON_TCP_TIMEWAIT_SOCKET,
+	/**
+	 * @SK_RST_REASON_INVALID_SYN: receive bad syn packet
+	 * RFC 793 says if the state is not CLOSED/LISTEN/SYN-SENT then
+	 * "fourth, check the SYN bit,...If the SYN is in the window it is
+	 * an error, send a reset"
+	 */
+	SK_RST_REASON_INVALID_SYN,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to
