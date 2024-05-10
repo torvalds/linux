@@ -826,26 +826,18 @@ static void build_conf(struct menu *menu)
 
 		val = sym_get_tristate_value(sym);
 		if (sym_is_changeable(sym)) {
-			switch (type) {
-			case S_BOOLEAN:
-				item_make(menu, 't', "[%c]",
-						val == no ? ' ' : '*');
+			switch (val) {
+			case yes:
+				ch = '*';
 				break;
-			case S_TRISTATE:
-				switch (val) {
-				case yes:
-					ch = '*';
-					break;
-				case mod:
-					ch = 'M';
-					break;
-				default:
-					ch = ' ';
-					break;
-				}
-				item_make(menu, 't', "<%c>", ch);
+			case mod:
+				ch = 'M';
+				break;
+			default:
+				ch = ' ';
 				break;
 			}
+			item_make(menu, 't', "<%c>", ch);
 		} else {
 			item_make(menu, def_menu ? 't' : ':', "   ");
 		}
