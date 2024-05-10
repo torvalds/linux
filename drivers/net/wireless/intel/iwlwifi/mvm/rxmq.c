@@ -2032,7 +2032,6 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	u32 len;
 	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	struct ieee80211_sta *sta = NULL;
-	struct ieee80211_link_sta *link_sta = NULL;
 	struct sk_buff *skb;
 	u8 crypt_len = 0;
 	u8 sta_id = le32_get_bits(desc->status, IWL_RX_MPDU_STATUS_STA_ID);
@@ -2185,6 +2184,8 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	if (desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_SRC_STA_FOUND)) {
 		if (!WARN_ON_ONCE(sta_id >= mvm->fw->ucode_capa.num_stations)) {
+			struct ieee80211_link_sta *link_sta;
+
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
 			if (IS_ERR(sta))
 				sta = NULL;
