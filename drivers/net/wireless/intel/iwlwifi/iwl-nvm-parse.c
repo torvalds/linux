@@ -1625,11 +1625,15 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 			flags &= ~NL80211_RRF_NO_HT40PLUS;
 		if (nvm_chan[ch_idx] >= FIRST_2GHZ_HT_MINUS)
 			flags &= ~NL80211_RRF_NO_HT40MINUS;
-	} else if (nvm_flags & NVM_CHANNEL_40MHZ) {
+	} else if (ch_idx < NUM_2GHZ_CHANNELS + NUM_5GHZ_CHANNELS &&
+		   nvm_flags & NVM_CHANNEL_40MHZ) {
 		if ((ch_idx - NUM_2GHZ_CHANNELS) % 2 == 0)
 			flags &= ~NL80211_RRF_NO_HT40PLUS;
 		else
 			flags &= ~NL80211_RRF_NO_HT40MINUS;
+	} else if (nvm_flags & NVM_CHANNEL_40MHZ) {
+		flags &= ~NL80211_RRF_NO_HT40PLUS;
+		flags &= ~NL80211_RRF_NO_HT40MINUS;
 	}
 
 	if (!(nvm_flags & NVM_CHANNEL_80MHZ))
