@@ -854,7 +854,7 @@ enum dc_status dcn20_enable_stream_timing(
 
 	opp_cnt = resource_get_opp_heads_for_otg_master(pipe_ctx, &context->res_ctx, opp_heads);
 	for (i = 0; i < opp_cnt; i++)
-		opp_inst[opp_cnt] = opp_heads[i]->stream_res.opp->inst;
+		opp_inst[i] = opp_heads[i]->stream_res.opp->inst;
 
 	odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, false);
 	last_odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, true);
