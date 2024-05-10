@@ -12,6 +12,9 @@
 	FN(TCP_RFC7323_PAWS)		\
 	FN(TCP_TOO_OLD_ACK)		\
 	FN(TCP_ACK_UNSENT_DATA)		\
+	FN(TCP_FLAGS)			\
+	FN(TCP_OLD_ACK)			\
+	FN(TCP_ABORT_ON_DATA)		\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -59,6 +62,15 @@ enum sk_rst_reason {
 	 * sent yet
 	 */
 	SK_RST_REASON_TCP_ACK_UNSENT_DATA,
+	/** @SK_RST_REASON_TCP_FLAGS: TCP flags invalid */
+	SK_RST_REASON_TCP_FLAGS,
+	/** @SK_RST_REASON_TCP_OLD_ACK: TCP ACK is old, but in window */
+	SK_RST_REASON_TCP_OLD_ACK,
+	/**
+	 * @SK_RST_REASON_TCP_ABORT_ON_DATA: abort on data
+	 * corresponding to LINUX_MIB_TCPABORTONDATA
+	 */
+	SK_RST_REASON_TCP_ABORT_ON_DATA,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to
@@ -143,6 +155,12 @@ sk_rst_convert_drop_reason(enum skb_drop_reason reason)
 		return SK_RST_REASON_TCP_TOO_OLD_ACK;
 	case SKB_DROP_REASON_TCP_ACK_UNSENT_DATA:
 		return SK_RST_REASON_TCP_ACK_UNSENT_DATA;
+	case SKB_DROP_REASON_TCP_FLAGS:
+		return SK_RST_REASON_TCP_FLAGS;
+	case SKB_DROP_REASON_TCP_OLD_ACK:
+		return SK_RST_REASON_TCP_OLD_ACK;
+	case SKB_DROP_REASON_TCP_ABORT_ON_DATA:
+		return SK_RST_REASON_TCP_ABORT_ON_DATA;
 	default:
 		/* If we don't have our own corresponding reason */
 		return SK_RST_REASON_NOT_SPECIFIED;
