@@ -12,7 +12,7 @@ snd-sof-amd-vangogh-objs := pci-vangogh.o vangogh.o
 snd-sof-amd-acp63-objs := pci-acp63.o acp63.o
 
 obj-$(CONFIG_SND_SOC_SOF_AMD_COMMON) += snd-sof-amd-acp.o
-obj-$(CONFIG_SND_SOC_SOF_AMD_RENOIR) +=snd-sof-amd-renoir.o
-obj-$(CONFIG_SND_SOC_SOF_AMD_REMBRANDT) +=snd-sof-amd-rembrandt.o
-obj-$(CONFIG_SND_SOC_SOF_AMD_VANGOGH) +=snd-sof-amd-vangogh.o
-obj-$(CONFIG_SND_SOC_SOF_AMD_ACP63) +=snd-sof-amd-acp63.o
+obj-$(CONFIG_SND_SOC_SOF_AMD_RENOIR) += snd-sof-amd-renoir.o
+obj-$(CONFIG_SND_SOC_SOF_AMD_REMBRANDT) += snd-sof-amd-rembrandt.o
+obj-$(CONFIG_SND_SOC_SOF_AMD_VANGOGH) += snd-sof-amd-vangogh.o
+obj-$(CONFIG_SND_SOC_SOF_AMD_ACP63) += snd-sof-amd-acp63.o
