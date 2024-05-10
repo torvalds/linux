@@ -210,9 +210,6 @@ DMC wakelock support
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc_wl.c
    :doc: DMC wakelock support
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc_wl.c
-   :internal:
-
 Video BIOS Table (VBT)
 ----------------------
 
