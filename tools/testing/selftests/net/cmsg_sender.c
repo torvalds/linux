@@ -260,14 +260,7 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 			  SOL_IPV6, IPV6_HOPLIMIT, &opt.v6.hlimit);
 
 	if (opt.txtime.ena) {
-		struct sock_txtime so_txtime = {
-			.clockid = CLOCK_MONOTONIC,
-		};
 		__u64 txtime;
-
-		if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
-			       &so_txtime, sizeof(so_txtime)))
-			error(ERN_SOCKOPT, errno, "setsockopt TXTIME");
 
 		txtime = time_start_mono.tv_sec * (1000ULL * 1000 * 1000) +
 			 time_start_mono.tv_nsec +
@@ -284,13 +277,6 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 		memcpy(CMSG_DATA(cmsg), &txtime, sizeof(txtime));
 	}
 	if (opt.ts.ena) {
-		__u32 val = SOF_TIMESTAMPING_SOFTWARE |
-			    SOF_TIMESTAMPING_OPT_TSONLY;
-
-		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
-			       &val, sizeof(val)))
-			error(ERN_SOCKOPT, errno, "setsockopt TIMESTAMPING");
-
 		cmsg = (struct cmsghdr *)(cbuf + cmsg_len);
 		cmsg_len += CMSG_SPACE(sizeof(__u32));
 		if (cbuf_sz < cmsg_len)
@@ -426,6 +412,24 @@ static void ca_set_sockopts(int fd)
 	    setsockopt(fd, SOL_SOCKET, SO_PRIORITY,
 		       &opt.sockopt.priority, sizeof(opt.sockopt.priority)))
 		error(ERN_SOCKOPT, errno, "setsockopt SO_PRIORITY");
+
+	if (opt.txtime.ena) {
+		struct sock_txtime so_txtime = {
+			.clockid = CLOCK_MONOTONIC,
+		};
+
+		if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
+			       &so_txtime, sizeof(so_txtime)))
+			error(ERN_SOCKOPT, errno, "setsockopt TXTIME");
+	}
+	if (opt.ts.ena) {
+		__u32 val = SOF_TIMESTAMPING_SOFTWARE |
+			SOF_TIMESTAMPING_OPT_TSONLY;
+
+		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
+			       &val, sizeof(val)))
+			error(ERN_SOCKOPT, errno, "setsockopt TIMESTAMPING");
+	}
 }
 
 int main(int argc, char *argv[])
