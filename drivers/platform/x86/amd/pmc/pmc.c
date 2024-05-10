@@ -1136,6 +1136,7 @@ static const struct acpi_device_id amd_pmc_acpi_ids[] = {
 	{"AMDI0008", 0},
 	{"AMDI0009", 0},
 	{"AMDI000A", 0},
+	{"AMDI000B", 0},
 	{"AMD0004", 0},
 	{"AMD0005", 0},
 	{ }
