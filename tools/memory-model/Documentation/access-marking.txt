@@ -24,6 +24,11 @@ The Linux kernel provides the following access-marking options:
 4.	WRITE_ONCE(), for example, "WRITE_ONCE(a, b);"
 	The various forms of atomic_set() also fit in here.
 
+5.	__data_racy, for example "int __data_racy a;"
+
+6.	KCSAN's negative-marking assertions, ASSERT_EXCLUSIVE_ACCESS()
+	and ASSERT_EXCLUSIVE_WRITER(), are described in the
+	"ACCESS-DOCUMENTATION OPTIONS" section below.
 
 These may be used in combination, as shown in this admittedly improbable
 example:
@@ -205,6 +210,23 @@ because doing otherwise prevents KCSAN from detecting violations of your
 code's synchronization rules.
 
 
+Use of __data_racy
+------------------
+
+Adding the __data_racy type qualifier to the declaration of a variable
+causes KCSAN to treat all accesses to that variable as if they were
+enclosed by data_race().  However, __data_racy does not affect the
+compiler, though one could imagine hardened kernel builds treating the
+__data_racy type qualifier as if it was the volatile keyword.
+
+Note well that __data_racy is subject to the same pointer-declaration
+rules as are other type qualifiers such as const and volatile.
+For example:
+
+	int __data_racy *p; // Pointer to data-racy data.
+	int *__data_racy p; // Data-racy pointer to non-data-racy data.
+
+
 ACCESS-DOCUMENTATION OPTIONS
 ============================
 
@@ -342,7 +364,7 @@ as follows:
 
 Because foo is read locklessly, all accesses are marked.  The purpose
 of the ASSERT_EXCLUSIVE_WRITER() is to allow KCSAN to check for a buggy
-concurrent lockless write.
+concurrent write, whether marked or not.
 
 
 Lock-Protected Writes With Heuristic Lockless Reads
