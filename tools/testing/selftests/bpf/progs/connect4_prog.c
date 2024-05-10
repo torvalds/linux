@@ -199,4 +199,10 @@ int connect_v4_prog(struct bpf_sock_addr *ctx)
 	return do_bind(ctx) ? 1 : 0;
 }
 
+SEC("cgroup/connect4")
+int connect_v4_deny_prog(struct bpf_sock_addr *ctx)
+{
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
