@@ -199,13 +199,6 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			uint32_t stream_enc_inst,
 			uint32_t link_enc_inst);
-
-	void (*set_symclk_root_clock_gating)(
-			struct dccg *dccg,
-			uint32_t stream_enc_inst,
-			uint32_t link_enc_inst,
-			bool enable);
-
 	void (*set_dp_dto)(
 			struct dccg *dccg,
 			const struct dp_dto_params *params);
