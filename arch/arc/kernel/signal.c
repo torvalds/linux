@@ -8,15 +8,16 @@
  *
  * vineetg: Nov 2009 (Everything needed for TIF_RESTORE_SIGMASK)
  *  -do_signal() supports TIF_RESTORE_SIGMASK
- *  -do_signal() no loner needs oldset, required by OLD sys_sigsuspend
- *  -sys_rt_sigsuspend() now comes from generic code, so discard arch implemen
+ *  -do_signal() no longer needs oldset, required by OLD sys_sigsuspend
+ *  -sys_rt_sigsuspend() now comes from generic code, so discard arch
+ *   implementation
  *  -sys_sigsuspend() no longer needs to fudge ptregs, hence that arg removed
  *  -sys_sigsuspend() no longer loops for do_signal(), sets TIF_xxx and leaves
  *   the job to do_signal()
  *
  * vineetg: July 2009
  *  -Modified Code to support the uClibc provided userland sigreturn stub
- *   to avoid kernel synthesing it on user stack at runtime, costing TLB
+ *   to avoid kernel synthesizing it on user stack at runtime, costing TLB
  *   probes and Cache line flushes.
  *
  * vineetg: July 2009

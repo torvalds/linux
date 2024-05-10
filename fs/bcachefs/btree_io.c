@@ -888,7 +888,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				 -BCH_ERR_btree_node_read_err_fixable,
 				 c, NULL, b, i,
 				 btree_node_bkey_bad_u64s,
-				 "bad k->u64s %u (min %u max %lu)", k->u64s,
+				 "bad k->u64s %u (min %u max %zu)", k->u64s,
 				 bkeyp_key_u64s(&b->format, k),
 				 U8_MAX - BKEY_U64s + bkeyp_key_u64s(&b->format, k)))
 			goto drop_this_key;

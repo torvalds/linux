@@ -722,15 +722,15 @@ static int invoke_bpf_prog(struct bpf_tramp_link *l, int args_off, int retval_of
 	if (ret)
 		return ret;
 
+	/* store prog start time */
+	emit_mv(RV_REG_S1, RV_REG_A0, ctx);
+
 	/* if (__bpf_prog_enter(prog) == 0)
 	 *	goto skip_exec_of_prog;
 	 */
 	branch_off = ctx->ninsns;
 	/* nop reserved for conditional jump */
 	emit(rv_nop(), ctx);
-
-	/* store prog start time */
-	emit_mv(RV_REG_S1, RV_REG_A0, ctx);
 
 	/* arg1: &args_off */
 	emit_addi(RV_REG_A0, RV_REG_FP, -args_off, ctx);
