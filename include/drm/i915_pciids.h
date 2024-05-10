@@ -177,6 +177,10 @@
 	INTEL_IVB_D_GT1_IDS(info), \
 	INTEL_IVB_D_GT2_IDS(info)
 
+#define INTEL_IVB_IDS(info) \
+	INTEL_IVB_M_IDS(info), \
+	INTEL_IVB_D_IDS(info)
+
 #define INTEL_IVB_Q_IDS(info) \
 	INTEL_QUANTA_VGA_DEVICE(info) /* Quanta transcode */
 
