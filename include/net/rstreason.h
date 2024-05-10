@@ -8,6 +8,8 @@
 #define DEFINE_RST_REASON(FN, FNe)	\
 	FN(NOT_SPECIFIED)		\
 	FN(NO_SOCKET)			\
+	FN(TCP_INVALID_ACK_SEQUENCE)	\
+	FN(TCP_RFC7323_PAWS)		\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -37,6 +39,17 @@ enum sk_rst_reason {
 	SK_RST_REASON_NOT_SPECIFIED,
 	/** @SK_RST_REASON_NO_SOCKET: no valid socket that can be used */
 	SK_RST_REASON_NO_SOCKET,
+	/**
+	 * @SK_RST_REASON_TCP_INVALID_ACK_SEQUENCE: Not acceptable ACK SEQ
+	 * field because ack sequence is not in the window between snd_una
+	 * and snd_nxt
+	 */
+	SK_RST_REASON_TCP_INVALID_ACK_SEQUENCE,
+	/**
+	 * @SK_RST_REASON_TCP_RFC7323_PAWS: PAWS check, corresponding to
+	 * LINUX_MIB_PAWSESTABREJECTED, LINUX_MIB_PAWSACTIVEREJECTED
+	 */
+	SK_RST_REASON_TCP_RFC7323_PAWS,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to
@@ -113,6 +126,10 @@ sk_rst_convert_drop_reason(enum skb_drop_reason reason)
 		return SK_RST_REASON_NOT_SPECIFIED;
 	case SKB_DROP_REASON_NO_SOCKET:
 		return SK_RST_REASON_NO_SOCKET;
+	case SKB_DROP_REASON_TCP_INVALID_ACK_SEQUENCE:
+		return SK_RST_REASON_TCP_INVALID_ACK_SEQUENCE;
+	case SKB_DROP_REASON_TCP_RFC7323_PAWS:
+		return SK_RST_REASON_TCP_RFC7323_PAWS;
 	default:
 		/* If we don't have our own corresponding reason */
 		return SK_RST_REASON_NOT_SPECIFIED;
