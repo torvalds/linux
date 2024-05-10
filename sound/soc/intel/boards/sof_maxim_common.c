@@ -39,14 +39,16 @@ static unsigned int get_num_codecs(const char *hid)
 	return dev_num;
 }
 
+/*
+ * Maxim MAX98373
+ */
 #define MAX_98373_PIN_NAME 16
 
-const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
+static const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
 	/* speaker */
 	{ "Left Spk", NULL, "Left BE_OUT" },
 	{ "Right Spk", NULL, "Right BE_OUT" },
 };
-EXPORT_SYMBOL_NS(max_98373_dapm_routes, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
 static struct snd_soc_codec_conf max_98373_codec_conf[] = {
 	{
@@ -59,7 +61,7 @@ static struct snd_soc_codec_conf max_98373_codec_conf[] = {
 	},
 };
 
-struct snd_soc_dai_link_component max_98373_components[] = {
+static struct snd_soc_dai_link_component max_98373_components[] = {
 	{  /* For Right */
 		.name = MAX_98373_DEV0_NAME,
 		.dai_name = MAX_98373_CODEC_DAI,
@@ -69,7 +71,6 @@ struct snd_soc_dai_link_component max_98373_components[] = {
 		.dai_name = MAX_98373_CODEC_DAI,
 	},
 };
-EXPORT_SYMBOL_NS(max_98373_components, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
 static int max_98373_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
@@ -96,7 +97,7 @@ static int max_98373_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int max_98373_trigger(struct snd_pcm_substream *substream, int cmd)
+static int max_98373_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
@@ -139,15 +140,13 @@ int max_98373_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(max_98373_trigger, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
-struct snd_soc_ops max_98373_ops = {
+static const struct snd_soc_ops max_98373_ops = {
 	.hw_params = max_98373_hw_params,
 	.trigger = max_98373_trigger,
 };
-EXPORT_SYMBOL_NS(max_98373_ops, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
-int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd)
+static int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	unsigned int num_codecs = get_num_codecs(MAX_98373_ACPI_HID);
@@ -186,7 +185,15 @@ int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(max_98373_spk_codec_init, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+
+void max_98373_dai_link(struct device *dev, struct snd_soc_dai_link *link)
+{
+	link->codecs = max_98373_components;
+	link->num_codecs = ARRAY_SIZE(max_98373_components);
+	link->init = max_98373_spk_codec_init;
+	link->ops = &max_98373_ops;
+}
+EXPORT_SYMBOL_NS(max_98373_dai_link, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
 void max_98373_set_codec_conf(struct snd_soc_card *card)
 {
