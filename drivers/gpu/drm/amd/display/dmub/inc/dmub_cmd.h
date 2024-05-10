@@ -3911,6 +3911,11 @@ enum dmub_cmd_abm_type {
 	 * Query ABM caps.
 	 */
 	DMUB_CMD__ABM_QUERY_CAPS	= 8,
+
+	/**
+	 * Set ABM Events
+	 */
+	DMUB_CMD__ABM_SET_EVENT	= 9,
 };
 
 struct abm_ace_curve {
@@ -4470,6 +4475,51 @@ struct dmub_rb_cmd_abm_save_restore {
 };
 
 /**
+ * Data passed from driver to FW in a DMUB_CMD__ABM_SET_EVENT command.
+ */
+struct dmub_cmd_abm_set_event_data {
+
+	/**
+	 * VB Scaling Init. Strength Mapping
+	 * Byte 0: 0~255 for VB level 0
+	 * Byte 1: 0~255 for VB level 1
+	 * Byte 2: 0~255 for VB level 2
+	 * Byte 3: 0~255 for VB level 3
+	 */
+	uint32_t vb_scaling_strength_mapping;
+	/**
+	 * VariBright Scaling Enable
+	 */
+	uint8_t vb_scaling_enable;
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_SET_EVENT command.
+ */
+struct dmub_rb_cmd_abm_set_event {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__ABM_SET_EVENT command.
+	 */
+	struct dmub_cmd_abm_set_event_data abm_set_event_data;
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__QUERY_FEATURE_CAPS command.
  */
 struct dmub_cmd_query_feature_caps_data {
@@ -5007,6 +5057,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__ABM_QUERY_CAPS command.
 	 */
 	struct dmub_rb_cmd_abm_query_caps abm_query_caps;
+
+	/**
+	 * Definition of a DMUB_CMD__ABM_SET_EVENT command.
+	 */
+	struct dmub_rb_cmd_abm_set_event abm_set_event;
 
 	/**
 	 * Definition of a DMUB_CMD__DP_AUX_ACCESS command.
