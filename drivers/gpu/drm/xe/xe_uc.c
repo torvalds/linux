@@ -10,10 +10,9 @@
 #include "xe_gsc.h"
 #include "xe_gsc_proxy.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_guc.h"
-#include "xe_guc_db_mgr.h"
 #include "xe_guc_pc.h"
-#include "xe_guc_submit.h"
 #include "xe_huc.h"
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
@@ -58,13 +57,10 @@ int xe_uc_init(struct xe_uc *uc)
 	if (ret)
 		goto err;
 
-	ret = xe_guc_submit_init(&uc->guc);
-	if (ret)
-		goto err;
-
-	ret = xe_guc_db_mgr_init(&uc->guc.dbm, ~0);
+	return 0;
 
 err:
+	xe_gt_err(uc_to_gt(uc), "Failed to initialize uC (%pe)\n", ERR_PTR(ret));
 	return ret;
 }
 

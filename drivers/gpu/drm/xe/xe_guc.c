@@ -21,6 +21,7 @@
 #include "xe_gt_printk.h"
 #include "xe_guc_ads.h"
 #include "xe_guc_ct.h"
+#include "xe_guc_db_mgr.h"
 #include "xe_guc_hwconfig.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
@@ -355,6 +356,14 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 		return ret;
 
 	guc_init_params_post_hwconfig(guc);
+
+	ret = xe_guc_submit_init(guc);
+	if (ret)
+		return ret;
+
+	ret = xe_guc_db_mgr_init(&guc->dbm, ~0);
+	if (ret)
+		return ret;
 
 	ret = xe_guc_pc_init(&guc->pc);
 	if (ret)
