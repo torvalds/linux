@@ -59,4 +59,10 @@ int sendmsg_v6_prog(struct bpf_sock_addr *ctx)
 	return 1;
 }
 
+SEC("cgroup/sendmsg6")
+int sendmsg_v6_preserve_dst_prog(struct bpf_sock_addr *ctx)
+{
+	return 1;
+}
+
 char _license[] SEC("license") = "GPL";

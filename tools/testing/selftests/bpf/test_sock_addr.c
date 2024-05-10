@@ -92,7 +92,6 @@ static int bind4_prog_load(const struct sock_addr_test *test);
 static int bind6_prog_load(const struct sock_addr_test *test);
 static int connect4_prog_load(const struct sock_addr_test *test);
 static int connect6_prog_load(const struct sock_addr_test *test);
-static int sendmsg_allow_prog_load(const struct sock_addr_test *test);
 static int sendmsg_deny_prog_load(const struct sock_addr_test *test);
 static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_asm_prog_load(const struct sock_addr_test *test);
@@ -344,20 +343,6 @@ static struct sock_addr_test tests[] = {
 		SUCCESS,
 	},
 	{
-		"sendmsg6: preserve dst IP = [::] (BSD'ism)",
-		sendmsg_allow_prog_load,
-		BPF_CGROUP_UDP6_SENDMSG,
-		BPF_CGROUP_UDP6_SENDMSG,
-		AF_INET6,
-		SOCK_DGRAM,
-		WILDCARD6_IP,
-		SERV6_PORT,
-		SERV6_REWRITE_IP,
-		SERV6_PORT,
-		SRC6_IP,
-		SUCCESS,
-	},
-	{
 		"sendmsg6: deny call",
 		sendmsg_deny_prog_load,
 		BPF_CGROUP_UDP6_SENDMSG,
@@ -455,11 +440,6 @@ static int xmsg_ret_only_prog_load(const struct sock_addr_test *test,
 		BPF_EXIT_INSN(),
 	};
 	return load_insns(test, insns, ARRAY_SIZE(insns));
-}
-
-static int sendmsg_allow_prog_load(const struct sock_addr_test *test)
-{
-	return xmsg_ret_only_prog_load(test, /*rc*/ 1);
 }
 
 static int sendmsg_deny_prog_load(const struct sock_addr_test *test)
