@@ -367,6 +367,38 @@ struct sock_addr_test {
 	} expected_result;
 };
 
+#define BPF_SKEL_FUNCS_RAW(skel_name, prog_name) \
+static void *prog_name##_load_raw(int cgroup_fd, \
+				  enum bpf_attach_type attach_type, \
+				  bool expect_reject) \
+{ \
+	struct skel_name *skel = skel_name##__open(); \
+	int prog_fd = -1; \
+	if (!ASSERT_OK_PTR(skel, "skel_open")) \
+		goto cleanup; \
+	if (!ASSERT_OK(skel_name##__load(skel), "load")) \
+		goto cleanup; \
+	prog_fd = bpf_program__fd(skel->progs.prog_name); \
+	if (!ASSERT_GT(prog_fd, 0, "prog_fd")) \
+		goto cleanup; \
+	if (bpf_prog_attach(prog_fd, cgroup_fd, attach_type, \
+			      BPF_F_ALLOW_OVERRIDE), "bpf_prog_attach") { \
+		ASSERT_TRUE(expect_reject, "unexpected rejection"); \
+		goto cleanup; \
+	} \
+	if (!ASSERT_FALSE(expect_reject, "expected rejection")) \
+		goto cleanup; \
+cleanup: \
+	if (prog_fd > 0) \
+		bpf_prog_detach(cgroup_fd, attach_type); \
+	skel_name##__destroy(skel); \
+	return NULL; \
+} \
+static void prog_name##_destroy_raw(void *progfd) \
+{ \
+	/* No-op. *_load_raw does all cleanup. */ \
+} \
+
 #define BPF_SKEL_FUNCS(skel_name, prog_name) \
 static void *prog_name##_load(int cgroup_fd, \
 			      enum bpf_attach_type attach_type, \
@@ -1342,7 +1374,8 @@ void test_sock_addr(void)
 			continue;
 
 		skel = test->loadfn(cgroup_fd, test->attach_type,
-				    test->expected_result == LOAD_REJECT);
+				    test->expected_result == LOAD_REJECT ||
+					test->expected_result == ATTACH_REJECT);
 		if (!skel)
 			continue;
 
