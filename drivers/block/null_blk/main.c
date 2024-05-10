@@ -1218,7 +1218,7 @@ static int null_transfer(struct nullb *nullb, struct page *page,
 	return err;
 }
 
-static int null_handle_rq(struct nullb_cmd *cmd)
+static blk_status_t null_handle_rq(struct nullb_cmd *cmd)
 {
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
 	struct nullb *nullb = cmd->nq->dev->nullb;
