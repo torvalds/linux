@@ -357,7 +357,7 @@ struct sock_addr_test {
 };
 
 #define BPF_SKEL_FUNCS(skel_name, prog_name) \
-static void *skel_name##_load(int cgroup_fd) \
+static void *prog_name##_load(int cgroup_fd) \
 { \
 	struct skel_name *skel; \
 	skel = skel_name##__open_and_load(); \
@@ -372,7 +372,7 @@ cleanup: \
 	skel_name##__destroy(skel); \
 	return NULL; \
 } \
-static void skel_name##_destroy(void *skel) \
+static void prog_name##_destroy(void *skel) \
 { \
 	skel_name##__destroy(skel); \
 }
@@ -396,8 +396,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind4: bind (stream)",
-		bind4_prog_load,
-		bind4_prog_destroy,
+		bind_v4_prog_load,
+		bind_v4_prog_destroy,
 		&user_ops,
 		AF_INET,
 		SOCK_STREAM,
@@ -405,12 +405,13 @@ static struct sock_addr_test tests[] = {
 		SERV4_PORT,
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
+		NULL,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind4: bind (dgram)",
-		bind4_prog_load,
-		bind4_prog_destroy,
+		bind_v4_prog_load,
+		bind_v4_prog_destroy,
 		&user_ops,
 		AF_INET,
 		SOCK_DGRAM,
@@ -418,12 +419,13 @@ static struct sock_addr_test tests[] = {
 		SERV4_PORT,
 		SERV4_REWRITE_IP,
 		SERV4_REWRITE_PORT,
+		NULL,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind6: bind (stream)",
-		bind6_prog_load,
-		bind6_prog_destroy,
+		bind_v6_prog_load,
+		bind_v6_prog_destroy,
 		&user_ops,
 		AF_INET6,
 		SOCK_STREAM,
@@ -431,12 +433,13 @@ static struct sock_addr_test tests[] = {
 		SERV6_PORT,
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
+		NULL,
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind6: bind (dgram)",
-		bind6_prog_load,
-		bind6_prog_destroy,
+		bind_v6_prog_load,
+		bind_v6_prog_destroy,
 		&user_ops,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -444,14 +447,15 @@ static struct sock_addr_test tests[] = {
 		SERV6_PORT,
 		SERV6_REWRITE_IP,
 		SERV6_REWRITE_PORT,
+		NULL,
 	},
 
 	/* bind - kernel calls */
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind4: kernel_bind (stream)",
-		bind4_prog_load,
-		bind4_prog_destroy,
+		bind_v4_prog_load,
+		bind_v4_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_STREAM,
@@ -463,8 +467,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind4: kernel_bind (dgram)",
-		bind4_prog_load,
-		bind4_prog_destroy,
+		bind_v4_prog_load,
+		bind_v4_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_DGRAM,
@@ -476,8 +480,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind6: kernel_bind (stream)",
-		bind6_prog_load,
-		bind6_prog_destroy,
+		bind_v6_prog_load,
+		bind_v6_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_STREAM,
@@ -489,8 +493,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_BIND,
 		"bind6: kernel_bind (dgram)",
-		bind6_prog_load,
-		bind6_prog_destroy,
+		bind_v6_prog_load,
+		bind_v6_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -504,8 +508,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect4: connect (stream)",
-		connect4_prog_load,
-		connect4_prog_destroy,
+		connect_v4_prog_load,
+		connect_v4_prog_destroy,
 		&user_ops,
 		AF_INET,
 		SOCK_STREAM,
@@ -518,8 +522,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect4: connect (dgram)",
-		connect4_prog_load,
-		connect4_prog_destroy,
+		connect_v4_prog_load,
+		connect_v4_prog_destroy,
 		&user_ops,
 		AF_INET,
 		SOCK_DGRAM,
@@ -532,8 +536,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect6: connect (stream)",
-		connect6_prog_load,
-		connect6_prog_destroy,
+		connect_v6_prog_load,
+		connect_v6_prog_destroy,
 		&user_ops,
 		AF_INET6,
 		SOCK_STREAM,
@@ -546,8 +550,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect6: connect (dgram)",
-		connect6_prog_load,
-		connect6_prog_destroy,
+		connect_v6_prog_load,
+		connect_v6_prog_destroy,
 		&user_ops,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -576,8 +580,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect4: kernel_connect (stream)",
-		connect4_prog_load,
-		connect4_prog_destroy,
+		connect_v4_prog_load,
+		connect_v4_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_STREAM,
@@ -590,8 +594,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect4: kernel_connect (dgram)",
-		connect4_prog_load,
-		connect4_prog_destroy,
+		connect_v4_prog_load,
+		connect_v4_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_DGRAM,
@@ -604,8 +608,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect6: kernel_connect (stream)",
-		connect6_prog_load,
-		connect6_prog_destroy,
+		connect_v6_prog_load,
+		connect_v6_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_STREAM,
@@ -618,8 +622,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_CONNECT,
 		"connect6: kernel_connect (dgram)",
-		connect6_prog_load,
-		connect6_prog_destroy,
+		connect_v6_prog_load,
+		connect_v6_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -648,8 +652,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg4: sendmsg (dgram)",
-		sendmsg4_prog_load,
-		sendmsg4_prog_destroy,
+		sendmsg_v4_prog_load,
+		sendmsg_v4_prog_destroy,
 		&user_ops,
 		AF_INET,
 		SOCK_DGRAM,
@@ -662,8 +666,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg6: sendmsg (dgram)",
-		sendmsg6_prog_load,
-		sendmsg6_prog_destroy,
+		sendmsg_v6_prog_load,
+		sendmsg_v6_prog_destroy,
 		&user_ops,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -692,8 +696,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg4: sock_sendmsg (dgram)",
-		sendmsg4_prog_load,
-		sendmsg4_prog_destroy,
+		sendmsg_v4_prog_load,
+		sendmsg_v4_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET,
 		SOCK_DGRAM,
@@ -706,8 +710,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg6: sock_sendmsg (dgram)",
-		sendmsg6_prog_load,
-		sendmsg6_prog_destroy,
+		sendmsg_v6_prog_load,
+		sendmsg_v6_prog_destroy,
 		&kern_ops_sock_sendmsg,
 		AF_INET6,
 		SOCK_DGRAM,
@@ -736,8 +740,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg4: kernel_sendmsg (dgram)",
-		sendmsg4_prog_load,
-		sendmsg4_prog_destroy,
+		sendmsg_v4_prog_load,
+		sendmsg_v4_prog_destroy,
 		&kern_ops_kernel_sendmsg,
 		AF_INET,
 		SOCK_DGRAM,
@@ -750,8 +754,8 @@ static struct sock_addr_test tests[] = {
 	{
 		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg6: kernel_sendmsg (dgram)",
-		sendmsg6_prog_load,
-		sendmsg6_prog_destroy,
+		sendmsg_v6_prog_load,
+		sendmsg_v6_prog_destroy,
 		&kern_ops_kernel_sendmsg,
 		AF_INET6,
 		SOCK_DGRAM,
