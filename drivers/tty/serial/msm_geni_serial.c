@@ -3402,6 +3402,11 @@ static int msm_geni_serial_handle_dma_rx(struct uart_port *uport, bool drop_rx)
 	 */
 	memset(msm_port->rx_buf, 0, rx_bytes_copied);
 
+	if (msm_port->uart_error == UART_ERROR_RX_PARITY_ERROR ||
+		msm_port->uart_error == UART_ERROR_RX_BREAK_ERROR ||
+		msm_port->uart_error == UART_ERROR_RX_FRAMING_ERR)
+		msm_geni_update_uart_error_code(msm_port, UART_ERROR_DEFAULT);
+
 	geni_capture_stop_time(&msm_port->se, msm_port->ipc_log_kpi, __func__,
 			       msm_port->uart_kpi, start_time, rx_bytes, msm_port->cur_baud);
 	return rx_bytes_copied;
