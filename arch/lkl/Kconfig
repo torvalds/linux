@@ -41,6 +41,7 @@ config LKL
        select GENERIC_STRNCPY_FROM_USER
        select GENERIC_STRNLEN_USER
        select HAVE_ARCH_KASAN
+       select TRACING
 
 config LKL_FUZZING
        bool "LLVM fuzzing instrumentation"
