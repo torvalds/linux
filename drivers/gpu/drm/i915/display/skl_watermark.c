@@ -2374,13 +2374,6 @@ static u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry)
 		PLANE_BUF_START(entry->start);
 }
 
-static void skl_ddb_entry_write(struct drm_i915_private *i915,
-				i915_reg_t reg,
-				const struct skl_ddb_entry *entry)
-{
-	intel_de_write_fw(i915, reg, skl_plane_ddb_reg_val(entry));
-}
-
 static u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
 {
 	u32 val = 0;
@@ -2393,13 +2386,6 @@ static u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
 	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
 
 	return val;
-}
-
-static void skl_write_wm_level(struct drm_i915_private *i915,
-			       i915_reg_t reg,
-			       const struct skl_wm_level *level)
-{
-	intel_de_write_fw(i915, reg, skl_plane_wm_reg_val(level));
 }
 
 void skl_write_plane_wm(struct intel_plane *plane,
@@ -2416,27 +2402,27 @@ void skl_write_plane_wm(struct intel_plane *plane,
 	int level;
 
 	for (level = 0; level < i915->display.wm.num_levels; level++)
-		skl_write_wm_level(i915, PLANE_WM(pipe, plane_id, level),
-				   skl_plane_wm_level(pipe_wm, plane_id, level));
+		intel_de_write_fw(i915, PLANE_WM(pipe, plane_id, level),
+				  skl_plane_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
 
-	skl_write_wm_level(i915, PLANE_WM_TRANS(pipe, plane_id),
-			   skl_plane_trans_wm(pipe_wm, plane_id));
+	intel_de_write_fw(i915, PLANE_WM_TRANS(pipe, plane_id),
+			  skl_plane_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
 
 	if (HAS_HW_SAGV_WM(i915)) {
 		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 
-		skl_write_wm_level(i915, PLANE_WM_SAGV(pipe, plane_id),
-				   &wm->sagv.wm0);
-		skl_write_wm_level(i915, PLANE_WM_SAGV_TRANS(pipe, plane_id),
-				   &wm->sagv.trans_wm);
+		intel_de_write_fw(i915, PLANE_WM_SAGV(pipe, plane_id),
+				  skl_plane_wm_reg_val(&wm->sagv.wm0));
+		intel_de_write_fw(i915, PLANE_WM_SAGV_TRANS(pipe, plane_id),
+				  skl_plane_wm_reg_val(&wm->sagv.trans_wm));
 	}
 
-	skl_ddb_entry_write(i915,
-			    PLANE_BUF_CFG(pipe, plane_id), ddb);
+	intel_de_write_fw(i915, PLANE_BUF_CFG(pipe, plane_id),
+			  skl_plane_ddb_reg_val(ddb));
 
 	if (DISPLAY_VER(i915) < 11)
-		skl_ddb_entry_write(i915,
-				    PLANE_NV12_BUF_CFG(pipe, plane_id), ddb_y);
+		intel_de_write_fw(i915, PLANE_NV12_BUF_CFG(pipe, plane_id),
+				  skl_plane_ddb_reg_val(ddb_y));
 }
 
 void skl_write_cursor_wm(struct intel_plane *plane,
@@ -2451,22 +2437,23 @@ void skl_write_cursor_wm(struct intel_plane *plane,
 	int level;
 
 	for (level = 0; level < i915->display.wm.num_levels; level++)
-		skl_write_wm_level(i915, CUR_WM(pipe, level),
-				   skl_plane_wm_level(pipe_wm, plane_id, level));
+		intel_de_write_fw(i915, CUR_WM(pipe, level),
+				  skl_plane_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
 
-	skl_write_wm_level(i915, CUR_WM_TRANS(pipe),
-			   skl_plane_trans_wm(pipe_wm, plane_id));
+	intel_de_write_fw(i915, CUR_WM_TRANS(pipe),
+			  skl_plane_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
 
 	if (HAS_HW_SAGV_WM(i915)) {
 		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 
-		skl_write_wm_level(i915, CUR_WM_SAGV(pipe),
-				   &wm->sagv.wm0);
-		skl_write_wm_level(i915, CUR_WM_SAGV_TRANS(pipe),
-				   &wm->sagv.trans_wm);
+		intel_de_write_fw(i915, CUR_WM_SAGV(pipe),
+				  skl_plane_wm_reg_val(&wm->sagv.wm0));
+		intel_de_write_fw(i915, CUR_WM_SAGV_TRANS(pipe),
+				  skl_plane_wm_reg_val(&wm->sagv.trans_wm));
 	}
 
-	skl_ddb_entry_write(i915, CUR_BUF_CFG(pipe), ddb);
+	intel_de_write_fw(i915, CUR_BUF_CFG(pipe),
+			  skl_plane_ddb_reg_val(ddb));
 }
 
 static bool skl_wm_level_equals(const struct skl_wm_level *l1,
