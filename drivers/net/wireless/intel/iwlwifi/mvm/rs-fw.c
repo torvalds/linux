@@ -514,6 +514,8 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 				link_sta->agg.max_tid_amsdu_len[i] = 1;
 		}
 
+		ieee80211_sta_recalc_aggregates(sta);
+
 		IWL_DEBUG_RATE(mvm,
 			       "AMSDU update. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",
 			       le32_to_cpu(notif->amsdu_size), size,
@@ -654,6 +656,7 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 	 * that only vht/ht is used and also set it as station max amsdu
 	 */
 	link_sta->agg.max_amsdu_len = max_amsdu_len;
+	ieee80211_sta_recalc_aggregates(sta);
 
 	cfg_cmd.max_tx_op = cpu_to_le16(mvmvif->max_tx_op);
 
