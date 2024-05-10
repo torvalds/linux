@@ -454,6 +454,7 @@ BPF_SKEL_FUNCS(connect6_prog, connect_v6_prog);
 BPF_SKEL_FUNCS_RAW(connect6_prog, connect_v6_prog);
 BPF_SKEL_FUNCS(connect6_prog, connect_v6_deny_prog);
 BPF_SKEL_FUNCS(connect_unix_prog, connect_unix_prog);
+BPF_SKEL_FUNCS_RAW(connect_unix_prog, connect_unix_prog);
 BPF_SKEL_FUNCS(connect_unix_prog, connect_unix_deny_prog);
 BPF_SKEL_FUNCS(sendmsg4_prog, sendmsg_v4_prog);
 BPF_SKEL_FUNCS_RAW(sendmsg4_prog, sendmsg_v4_prog);
@@ -465,16 +466,26 @@ BPF_SKEL_FUNCS(sendmsg6_prog, sendmsg_v6_preserve_dst_prog);
 BPF_SKEL_FUNCS(sendmsg6_prog, sendmsg_v6_v4mapped_prog);
 BPF_SKEL_FUNCS(sendmsg6_prog, sendmsg_v6_wildcard_prog);
 BPF_SKEL_FUNCS(sendmsg_unix_prog, sendmsg_unix_prog);
+BPF_SKEL_FUNCS_RAW(sendmsg_unix_prog, sendmsg_unix_prog);
 BPF_SKEL_FUNCS(sendmsg_unix_prog, sendmsg_unix_deny_prog);
 BPF_SKEL_FUNCS(recvmsg4_prog, recvmsg4_prog);
+BPF_SKEL_FUNCS_RAW(recvmsg4_prog, recvmsg4_prog);
 BPF_SKEL_FUNCS(recvmsg6_prog, recvmsg6_prog);
+BPF_SKEL_FUNCS_RAW(recvmsg6_prog, recvmsg6_prog);
 BPF_SKEL_FUNCS(recvmsg_unix_prog, recvmsg_unix_prog);
+BPF_SKEL_FUNCS_RAW(recvmsg_unix_prog, recvmsg_unix_prog);
 BPF_SKEL_FUNCS(getsockname_unix_prog, getsockname_unix_prog);
+BPF_SKEL_FUNCS_RAW(getsockname_unix_prog, getsockname_unix_prog);
 BPF_SKEL_FUNCS(getsockname4_prog, getsockname_v4_prog);
+BPF_SKEL_FUNCS_RAW(getsockname4_prog, getsockname_v4_prog);
 BPF_SKEL_FUNCS(getsockname6_prog, getsockname_v6_prog);
+BPF_SKEL_FUNCS_RAW(getsockname6_prog, getsockname_v6_prog);
 BPF_SKEL_FUNCS(getpeername_unix_prog, getpeername_unix_prog);
+BPF_SKEL_FUNCS_RAW(getpeername_unix_prog, getpeername_unix_prog);
 BPF_SKEL_FUNCS(getpeername4_prog, getpeername_v4_prog);
+BPF_SKEL_FUNCS_RAW(getpeername4_prog, getpeername_v4_prog);
 BPF_SKEL_FUNCS(getpeername6_prog, getpeername_v6_prog);
+BPF_SKEL_FUNCS_RAW(getpeername6_prog, getpeername_v6_prog);
 
 static struct sock_addr_test tests[] = {
 	/* bind - system calls */
@@ -1026,6 +1037,22 @@ static struct sock_addr_test tests[] = {
 		NULL,
 		SYSCALL_EPERM,
 	},
+	{
+		SOCK_ADDR_TEST_CONNECT,
+		"connect_unix: attach prog with wrong attach type",
+		connect_unix_prog_load_raw,
+		connect_unix_prog_destroy_raw,
+		BPF_CGROUP_INET4_CONNECT,
+		&user_ops,
+		AF_UNIX,
+		SOCK_STREAM,
+		SERVUN_ADDRESS,
+		0,
+		SERVUN_REWRITE_ADDRESS,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
 
 	/* connect - kernel calls */
 	{
@@ -1398,6 +1425,22 @@ static struct sock_addr_test tests[] = {
 		NULL,
 		SYSCALL_EPERM,
 	},
+	{
+		SOCK_ADDR_TEST_SENDMSG,
+		"sendmsg_unix: attach prog with wrong attach type",
+		sendmsg_unix_prog_load_raw,
+		sendmsg_unix_prog_destroy_raw,
+		BPF_CGROUP_UDP4_SENDMSG,
+		&user_ops,
+		AF_UNIX,
+		SOCK_DGRAM,
+		SERVUN_ADDRESS,
+		0,
+		SERVUN_REWRITE_ADDRESS,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
 
 	/* sendmsg - kernel calls (sock_sendmsg) */
 	{
@@ -1646,6 +1689,22 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_RECVMSG,
+		"recvmsg4: attach prog with wrong attach type",
+		recvmsg4_prog_load_raw,
+		recvmsg4_prog_destroy_raw,
+		BPF_CGROUP_UDP6_RECVMSG,
+		&user_ops,
+		AF_INET,
+		SOCK_DGRAM,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SERV4_IP,
+		ATTACH_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_RECVMSG,
 		"recvmsg6: recvfrom (dgram)",
 		recvmsg6_prog_load,
 		recvmsg6_prog_destroy,
@@ -1659,6 +1718,22 @@ static struct sock_addr_test tests[] = {
 		SERV6_REWRITE_PORT,
 		SERV6_IP,
 		SUCCESS,
+	},
+	{
+		SOCK_ADDR_TEST_RECVMSG,
+		"recvmsg6: attach prog with wrong attach type",
+		recvmsg6_prog_load_raw,
+		recvmsg6_prog_destroy_raw,
+		BPF_CGROUP_UDP4_RECVMSG,
+		&user_ops,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SERV6_IP,
+		ATTACH_REJECT,
 	},
 	{
 		SOCK_ADDR_TEST_RECVMSG,
@@ -1691,6 +1766,22 @@ static struct sock_addr_test tests[] = {
 		0,
 		SERVUN_ADDRESS,
 		SUCCESS,
+	},
+	{
+		SOCK_ADDR_TEST_RECVMSG,
+		"recvmsg_unix: attach prog with wrong attach type",
+		recvmsg_unix_prog_load_raw,
+		recvmsg_unix_prog_destroy_raw,
+		BPF_CGROUP_UDP4_RECVMSG,
+		&user_ops,
+		AF_INET6,
+		SOCK_STREAM,
+		SERVUN_REWRITE_ADDRESS,
+		0,
+		SERVUN_REWRITE_ADDRESS,
+		0,
+		SERVUN_ADDRESS,
+		ATTACH_REJECT,
 	},
 
 	/* getsockname - system calls */
@@ -1728,6 +1819,22 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_GETSOCKNAME,
+		"getsockname4: attach prog with wrong attach type",
+		getsockname_v4_prog_load_raw,
+		getsockname_v4_prog_destroy_raw,
+		BPF_CGROUP_INET6_GETSOCKNAME,
+		&user_ops,
+		AF_INET,
+		SOCK_DGRAM,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SERV4_IP,
+		SERV4_PORT,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_GETSOCKNAME,
 		"getsockname6: getsockname (stream)",
 		getsockname_v6_prog_load,
 		getsockname_v6_prog_destroy,
@@ -1760,6 +1867,22 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_GETSOCKNAME,
+		"getsockname6: attach prog with wrong attach type",
+		getsockname_v6_prog_load_raw,
+		getsockname_v6_prog_destroy_raw,
+		BPF_CGROUP_INET4_GETSOCKNAME,
+		&user_ops,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SERV6_IP,
+		SERV6_PORT,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_GETSOCKNAME,
 		"getsockname_unix: getsockname",
 		getsockname_unix_prog_load,
 		getsockname_unix_prog_destroy,
@@ -1773,6 +1896,22 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 		SUCCESS,
+	},
+	{
+		SOCK_ADDR_TEST_GETSOCKNAME,
+		"getsockname_unix: attach prog with wrong attach type",
+		getsockname_unix_prog_load_raw,
+		getsockname_unix_prog_destroy_raw,
+		BPF_CGROUP_INET4_GETSOCKNAME,
+		&user_ops,
+		AF_UNIX,
+		SOCK_STREAM,
+		SERVUN_ADDRESS,
+		0,
+		SERVUN_REWRITE_ADDRESS,
+		0,
+		NULL,
+		ATTACH_REJECT,
 	},
 
 	/* getsockname - kernel calls */
@@ -1892,6 +2031,22 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_GETPEERNAME,
+		"getpeername4: attach prog with wrong attach type",
+		getpeername_v4_prog_load_raw,
+		getpeername_v4_prog_destroy_raw,
+		BPF_CGROUP_INET6_GETSOCKNAME,
+		&user_ops,
+		AF_UNIX,
+		SOCK_DGRAM,
+		SERV4_REWRITE_IP,
+		SERV4_REWRITE_PORT,
+		SERV4_IP,
+		SERV4_PORT,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_GETPEERNAME,
 		"getpeername6: getpeername (stream)",
 		getpeername_v6_prog_load,
 		getpeername_v6_prog_destroy,
@@ -1924,6 +2079,22 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_GETPEERNAME,
+		"getpeername6: attach prog with wrong attach type",
+		getpeername_v6_prog_load_raw,
+		getpeername_v6_prog_destroy_raw,
+		BPF_CGROUP_INET4_GETSOCKNAME,
+		&user_ops,
+		AF_INET6,
+		SOCK_DGRAM,
+		SERV6_REWRITE_IP,
+		SERV6_REWRITE_PORT,
+		SERV6_IP,
+		SERV6_PORT,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_GETPEERNAME,
 		"getpeername_unix: getpeername",
 		getpeername_unix_prog_load,
 		getpeername_unix_prog_destroy,
@@ -1937,6 +2108,22 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 		SUCCESS,
+	},
+	{
+		SOCK_ADDR_TEST_GETPEERNAME,
+		"getpeername_unix: attach prog with wrong attach type",
+		getpeername_unix_prog_load_raw,
+		getpeername_unix_prog_destroy_raw,
+		BPF_CGROUP_INET4_GETSOCKNAME,
+		&user_ops,
+		AF_UNIX,
+		SOCK_STREAM,
+		SERVUN_ADDRESS,
+		0,
+		SERVUN_REWRITE_ADDRESS,
+		0,
+		NULL,
+		ATTACH_REJECT,
 	},
 
 	/* getpeername - kernel calls */
