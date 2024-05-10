@@ -25,7 +25,7 @@
 #define THERMAL_SMSC_ID_REG	0xfe
 #define THERMAL_REVISION_REG	0xff
 
-enum emc1403_chip { emc1402, emc1403, emc1404 };
+enum emc1403_chip { emc1402, emc1403, emc1404, emc1428 };
 
 struct thermal_data {
 	enum emc1403_chip chip;
@@ -100,6 +100,12 @@ static int emc1403_detect(struct i2c_client *client,
 	case 0x27:
 		strscpy(info->type, "emc1424", I2C_NAME_SIZE);
 		break;
+	case 0x29:
+		strscpy(info->type, "emc1428", I2C_NAME_SIZE);
+		break;
+	case 0x59:
+		strscpy(info->type, "emc1438", I2C_NAME_SIZE);
+		break;
 	case 0x60:
 		strscpy(info->type, "emc1442", I2C_NAME_SIZE);
 		break;
@@ -130,6 +136,14 @@ static bool emc1403_regmap_is_volatile(struct device *dev, unsigned int reg)
 	case 0x35:	/* high limit status */
 	case 0x36:	/* low limit status */
 	case 0x37:	/* therm limit status */
+	case 0x41:	/* external diode 4 high byte */
+	case 0x42:	/* external diode 4 low byte */
+	case 0x43:	/* external diode 5 high byte */
+	case 0x44:	/* external diode 5 low byte */
+	case 0x45:	/* external diode 6 high byte */
+	case 0x46:	/* external diode 6 low byte */
+	case 0x47:	/* external diode 7 high byte */
+	case 0x48:	/* external diode 7 low byte */
 		return true;
 	default:
 		return false;
@@ -177,6 +191,30 @@ static u8 emc1403_temp_regs[][4] = {
 		[temp_crit] = 0x30,
 		[temp_input] = 0x2a,
 	},
+	[4] = {
+		[temp_min] = 0x51,
+		[temp_max] = 0x50,
+		[temp_crit] = 0x64,
+		[temp_input] = 0x41,
+	},
+	[5] = {
+		[temp_min] = 0x55,
+		[temp_max] = 0x54,
+		[temp_crit] = 0x65,
+		[temp_input] = 0x43
+	},
+	[6] = {
+		[temp_min] = 0x59,
+		[temp_max] = 0x58,
+		[temp_crit] = 0x66,
+		[temp_input] = 0x45,
+	},
+	[7] = {
+		[temp_min] = 0x5d,
+		[temp_max] = 0x5c,
+		[temp_crit] = 0x67,
+		[temp_input] = 0x47,
+	},
 };
 
 static s8 emc1403_temp_regs_low[][4] = {
@@ -204,27 +242,56 @@ static s8 emc1403_temp_regs_low[][4] = {
 		[temp_crit] = -1,
 		[temp_input] = 0x2b,
 	},
+	[4] = {
+		[temp_min] = 0x53,
+		[temp_max] = 0x52,
+		[temp_crit] = -1,
+		[temp_input] = 0x42,
+	},
+	[5] = {
+		[temp_min] = 0x57,
+		[temp_max] = 0x56,
+		[temp_crit] = -1,
+		[temp_input] = 0x44,
+	},
+	[6] = {
+		[temp_min] = 0x5b,
+		[temp_max] = 0x5a,
+		[temp_crit] = -1,
+		[temp_input] = 0x46,
+	},
+	[7] = {
+		[temp_min] = 0x5f,
+		[temp_max] = 0x5e,
+		[temp_crit] = -1,
+		[temp_input] = 0x48,
+	},
 };
 
 static int __emc1403_get_temp(struct thermal_data *data, int channel,
 			      enum emc1403_reg_map map, long *val)
 {
-	unsigned int regval;
+	unsigned int regvalh;
+	unsigned int regvall = 0;
 	int ret;
 	s8 reg;
 
-	ret = regmap_read(data->regmap, emc1403_temp_regs[channel][map], &regval);
+	ret = regmap_read(data->regmap, emc1403_temp_regs[channel][map], &regvalh);
 	if (ret < 0)
 		return ret;
-	*val = regval * 1000;
 
 	reg = emc1403_temp_regs_low[channel][map];
 	if (reg >= 0) {
-		ret = regmap_read(data->regmap, reg, &regval);
+		ret = regmap_read(data->regmap, reg, &regvall);
 		if (ret < 0)
 			return ret;
-		*val += (regval >> 5) * 125;
 	}
+
+	if (data->chip == emc1428)
+		*val = sign_extend32((regvalh << 3) | (regvall >> 5), 10) * 125;
+	else
+		*val = ((regvalh << 3) | (regvall >> 5)) * 125;
+
 	return 0;
 }
 
@@ -379,7 +446,10 @@ static int emc1403_set_hyst(struct thermal_data *data, long val)
 	int hyst, ret;
 	long limit;
 
-	val = clamp_val(val, 0, 255000);
+	if (data->chip == emc1428)
+		val = clamp_val(val, -128000, 127000);
+	else
+		val = clamp_val(val, 0, 255000);
 
 	mutex_lock(&data->mutex);
 	ret = __emc1403_get_temp(data, 0, temp_crit, &limit);
@@ -387,7 +457,10 @@ static int emc1403_set_hyst(struct thermal_data *data, long val)
 		goto unlock;
 
 	hyst = limit - val;
-	hyst = clamp_val(DIV_ROUND_CLOSEST(hyst, 1000), 0, 255);
+	if (data->chip == emc1428)
+		hyst = clamp_val(DIV_ROUND_CLOSEST(hyst, 1000), 0, 127);
+	else
+		hyst = clamp_val(DIV_ROUND_CLOSEST(hyst, 1000), 0, 255);
 	ret = regmap_write(data->regmap, 0x21, hyst);
 unlock:
 	mutex_unlock(&data->mutex);
@@ -407,14 +480,20 @@ static int emc1403_set_temp(struct thermal_data *data, int channel,
 
 	mutex_lock(&data->mutex);
 	if (regl >= 0) {
-		val = clamp_val(val, 0, 255875);
+		if (data->chip == emc1428)
+			val = clamp_val(val, -128000, 127875);
+		else
+			val = clamp_val(val, 0, 255875);
 		regval = DIV_ROUND_CLOSEST(val, 125);
-		ret = regmap_write(data->regmap, regh, regval >> 3);
+		ret = regmap_write(data->regmap, regh, (regval >> 3) & 0xff);
 		if (ret < 0)
 			goto unlock;
 		ret = regmap_write(data->regmap, regl, (regval & 0x07) << 5);
 	} else {
-		val = clamp_val(val, 0, 255000);
+		if (data->chip == emc1428)
+			val = clamp_val(val, -128000, 127000);
+		else
+			val = clamp_val(val, 0, 255000);
 		regval = DIV_ROUND_CLOSEST(val, 1000);
 		ret = regmap_write(data->regmap, regh, regval);
 	}
@@ -484,6 +563,8 @@ static umode_t emc1403_temp_is_visible(const void *_data, u32 attr, int channel)
 		return 0;
 	if (data->chip == emc1403 && channel > 2)
 		return 0;
+	if (data->chip != emc1428 && channel > 3)
+		return 0;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -548,6 +629,22 @@ static const struct hwmon_channel_info * const emc1403_info[] = {
 			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
 			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
 			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM | HWMON_T_FAULT
 			   ),
 	NULL
@@ -575,6 +672,8 @@ static const struct i2c_device_id emc1403_idtable[] = {
 	{ "emc1422", emc1402 },
 	{ "emc1423", emc1403 },
 	{ "emc1424", emc1404 },
+	{ "emc1428", emc1428 },
+	{ "emc1438", emc1428 },
 	{ "emc1442", emc1402 },
 	{ }
 };
