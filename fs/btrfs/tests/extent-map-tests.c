@@ -19,8 +19,8 @@ static int free_extent_map_tree(struct btrfs_inode *inode)
 	int ret = 0;
 
 	write_lock(&em_tree->lock);
-	while (!RB_EMPTY_ROOT(&em_tree->root.rb_root)) {
-		node = rb_first_cached(&em_tree->root);
+	while (!RB_EMPTY_ROOT(&em_tree->root)) {
+		node = rb_first(&em_tree->root);
 		em = rb_entry(node, struct extent_map, rb_node);
 		remove_extent_mapping(inode, em);
 
@@ -551,7 +551,7 @@ static int validate_range(struct extent_map_tree *em_tree, int index)
 	struct rb_node *n;
 	int i;
 
-	for (i = 0, n = rb_first_cached(&em_tree->root);
+	for (i = 0, n = rb_first(&em_tree->root);
 	     valid_ranges[index][i].len && n;
 	     i++, n = rb_next(n)) {
 		struct extent_map *entry = rb_entry(n, struct extent_map, rb_node);

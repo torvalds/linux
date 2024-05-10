@@ -115,7 +115,7 @@ struct extent_map {
 };
 
 struct extent_map_tree {
-	struct rb_root_cached root;
+	struct rb_root root;
 	struct list_head modified_extents;
 	rwlock_t lock;
 };
