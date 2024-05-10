@@ -100,7 +100,7 @@ struct __guc_ads_blob {
 	struct guc_engine_usage engine_usage;
 	struct guc_um_init_params um_init_params;
 	/* From here on, location is dynamic! Refer to above diagram. */
-	struct guc_mmio_reg regset[0];
+	struct guc_mmio_reg regset[];
 } __packed;
 
 #define ads_blob_read(ads_, field_) \
