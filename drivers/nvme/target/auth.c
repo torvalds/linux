@@ -480,7 +480,7 @@ out_free_response:
 	nvme_auth_free_key(transformed_key);
 out_free_tfm:
 	crypto_free_shash(shash_tfm);
-	return 0;
+	return ret;
 }
 
 int nvmet_auth_ctrl_exponential(struct nvmet_req *req,
