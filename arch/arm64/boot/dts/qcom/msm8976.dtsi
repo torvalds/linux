@@ -1659,7 +1659,6 @@
 	thermal-zones {
 		aoss0-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 0>;
 
@@ -1674,7 +1673,6 @@
 
 		modem-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 1>;
 			trips {
@@ -1688,7 +1686,6 @@
 
 		qdsp-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 2>;
 			trips {
@@ -1702,7 +1699,6 @@
 
 		cam-isp-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 3>;
 			trips {
@@ -1716,7 +1712,7 @@
 
 		cpu4-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
+
 			thermal-sensors = <&tsens 4>;
 
 			trips {
@@ -1740,7 +1736,7 @@
 
 		cpu5-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
+
 			thermal-sensors = <&tsens 5>;
 
 			trips {
@@ -1764,7 +1760,7 @@
 
 		cpu6-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
+
 			thermal-sensors = <&tsens 6>;
 
 			trips {
@@ -1788,7 +1784,7 @@
 
 		cpu7-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
+
 			thermal-sensors = <&tsens 7>;
 
 			trips {
@@ -1812,7 +1808,7 @@
 
 		big-l2-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
+
 			thermal-sensors = <&tsens 8>;
 
 			trips {
@@ -1836,7 +1832,7 @@
 
 		cpu0-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
+
 			thermal-sensors = <&tsens 9>;
 
 			trips {
@@ -1860,7 +1856,7 @@
 
 		gpu-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
+
 			thermal-sensors = <&tsens 10>;
 
 			trips {
