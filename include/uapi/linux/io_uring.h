@@ -72,6 +72,7 @@ struct io_uring_sqe {
 		__u32		waitid_flags;
 		__u32		futex_flags;
 		__u32		install_fd_flags;
+		__u32		nop_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	/* pack this to avoid bogus arm OABI complaints */
@@ -406,6 +407,13 @@ enum io_uring_msg_ring_flags {
  * IORING_FIXED_FD_NO_CLOEXEC	Don't mark the fd as O_CLOEXEC
  */
 #define IORING_FIXED_FD_NO_CLOEXEC	(1U << 0)
+
+/*
+ * IORING_OP_NOP flags (sqe->nop_flags)
+ *
+ * IORING_NOP_INJECT_RESULT	Inject result from sqe->result
+ */
+#define IORING_NOP_INJECT_RESULT	(1U << 0)
 
 /*
  * IO completion data structure (Completion Queue Entry)
