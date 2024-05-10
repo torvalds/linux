@@ -173,7 +173,7 @@ static const u16 subplatform_portf_ids[] = {
 };
 
 static const u16 subplatform_uy_ids[] = {
-	INTEL_TGL_12_GT2_IDS(0),
+	INTEL_TGL_GT2_IDS(0),
 };
 
 static const u16 subplatform_n_ids[] = {

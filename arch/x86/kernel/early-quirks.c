@@ -550,7 +550,7 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_ICL_IDS(&gen11_early_ops),
 	INTEL_EHL_IDS(&gen11_early_ops),
 	INTEL_JSL_IDS(&gen11_early_ops),
-	INTEL_TGL_12_IDS(&gen11_early_ops),
+	INTEL_TGL_IDS(&gen11_early_ops),
 	INTEL_RKL_IDS(&gen11_early_ops),
 	INTEL_ADLS_IDS(&gen11_early_ops),
 	INTEL_ADLP_IDS(&gen11_early_ops),
