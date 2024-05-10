@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Description: CoreSight TMC USB driver
  */
@@ -144,8 +144,17 @@ static int usb_transfer_small_packet(struct byte_cntr *drvdata, size_t *small_si
 
 	req_size = ((w_offset < drvdata->offset) ? etr_buf->size : 0) +
 				w_offset - drvdata->offset;
-	req_size = ((req_size + *small_size) < USB_BLK_SIZE) ? req_size :
-		(USB_BLK_SIZE - *small_size);
+
+	/*
+	 * Byte-cntr irq number may mismatch with the data size in ETR sink.
+	 * When irq_cnt is 0 and pending data size is more than block size,
+	 * calculate the irq_cnt by SW.
+	 */
+	if (req_size + *small_size >= USB_BLK_SIZE
+			&& atomic_read(&drvdata->irq_cnt) == 0) {
+		atomic_set(&drvdata->irq_cnt, (req_size + *small_size)/USB_BLK_SIZE);
+		goto out;
+	}
 
 	while (req_size > 0) {
 
