@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+MODULE_DESCRIPTION("Mouse button 2+3 emulation");
 MODULE_LICENSE("GPL");
 
 static int mouse_emulate_buttons;
