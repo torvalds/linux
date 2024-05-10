@@ -32,7 +32,7 @@ enum {
 	P_CAMCC_PLL3_OUT_MAIN,
 };
 
-static struct pll_vco fabia_vco[] = {
+static const struct pll_vco fabia_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 

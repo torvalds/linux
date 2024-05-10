@@ -31,7 +31,7 @@ enum {
 	P_GCC_DISP_GPLL0_CLK,
 };
 
-static struct pll_vco fabia_vco[] = {
+static const struct pll_vco fabia_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 

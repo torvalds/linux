@@ -35,7 +35,7 @@ enum {
 	P_GCC_DISP_GPLL0_CLK,
 };
 
-static struct pll_vco lucid_vco[] = {
+static const struct pll_vco lucid_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 

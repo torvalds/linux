@@ -84,14 +84,14 @@ static const struct clk_parent_data mmcc_xo_dsibyte[] = {
 	{ .fw_name = "dsi1pllbyte" },
 };
 
-static struct pll_vco mmpll_p_vco[] = {
+static const struct pll_vco mmpll_p_vco[] = {
 	{ 250000000, 500000000, 3 },
 	{ 500000000, 1000000000, 2 },
 	{ 1000000000, 1500000000, 1 },
 	{ 1500000000, 2000000000, 0 },
 };
 
-static struct pll_vco mmpll_t_vco[] = {
+static const struct pll_vco mmpll_t_vco[] = {
 	{ 500000000, 1500000000, 0 },
 };
 

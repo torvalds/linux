@@ -28,7 +28,7 @@ enum {
 	P_GPLL0_OUT_MAIN,
 };
 
-static struct pll_vco disp_cc_pll_vco[] = {
+static const struct pll_vco disp_cc_pll_vco[] = {
 	{ 500000000, 1000000000, 2 },
 };
 

@@ -38,11 +38,11 @@ enum {
 	P_GPU_CC_PLL1_OUT_MAIN,
 };
 
-static struct pll_vco default_vco[] = {
+static const struct pll_vco default_vco[] = {
 	{ 1000000000, 2000000000, 0 },
 };
 
-static struct pll_vco pll1_vco[] = {
+static const struct pll_vco pll1_vco[] = {
 	{ 500000000, 1000000000, 2 },
 };
 

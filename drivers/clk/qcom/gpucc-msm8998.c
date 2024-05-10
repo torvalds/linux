@@ -48,7 +48,7 @@ static struct clk_branch gpucc_cxo_clk = {
 	},
 };
 
-static struct pll_vco fabia_vco[] = {
+static const struct pll_vco fabia_vco[] = {
 	{ 249600000, 2000000000, 0 },
 	{ 125000000, 1000000000, 1 },
 };

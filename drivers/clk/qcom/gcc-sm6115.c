@@ -42,15 +42,15 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static struct pll_vco default_vco[] = {
+static const struct pll_vco default_vco[] = {
 	{ 500000000, 1000000000, 2 },
 };
 
-static struct pll_vco gpll9_vco[] = {
+static const struct pll_vco gpll9_vco[] = {
 	{ 500000000, 1250000000, 0 },
 };
 
-static struct pll_vco gpll10_vco[] = {
+static const struct pll_vco gpll10_vco[] = {
 	{ 750000000, 1500000000, 1 },
 };
 

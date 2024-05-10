@@ -32,11 +32,11 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static struct pll_vco lucid_vco[] = {
+static const struct pll_vco lucid_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 
-static struct pll_vco zonda_vco[] = {
+static const struct pll_vco zonda_vco[] = {
 	{ 595200000UL, 3600000000UL, 0 },
 };
 

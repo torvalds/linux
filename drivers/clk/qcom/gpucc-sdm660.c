@@ -51,7 +51,7 @@ static struct clk_branch gpucc_cxo_clk = {
 	},
 };
 
-static struct pll_vco gpu_vco[] = {
+static const struct pll_vco gpu_vco[] = {
 	{ 1000000000, 2000000000, 0 },
 	{ 500000000,  1000000000, 2 },
 	{ 250000000,   500000000, 3 },

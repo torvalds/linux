@@ -71,7 +71,7 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static struct pll_vco lucid_ole_vco[] = {
+static const struct pll_vco lucid_ole_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 

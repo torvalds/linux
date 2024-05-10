@@ -27,7 +27,7 @@ enum {
 	P_SLEEP_CLK,
 };
 
-static struct pll_vco fabia_vco[] = {
+static const struct pll_vco fabia_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 

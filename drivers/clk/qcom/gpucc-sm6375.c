@@ -42,7 +42,7 @@ enum {
 	P_GPU_CC_PLL1_OUT_ODD,
 };
 
-static struct pll_vco lucid_vco[] = {
+static const struct pll_vco lucid_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 

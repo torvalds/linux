@@ -36,7 +36,7 @@ enum {
 	P_GPU_CC_PLL1_OUT_AUX2,
 };
 
-static struct pll_vco gpu_cc_pll_vco[] = {
+static const struct pll_vco gpu_cc_pll_vco[] = {
 	{ 1000000000, 2000000000, 0 },
 	{ 500000000,  1000000000, 2 },
 };

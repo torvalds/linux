@@ -26,7 +26,7 @@ enum {
 	P_VIDEO_PLL1_OUT_MAIN,
 };
 
-static struct pll_vco lucid_vco[] = {
+static const struct pll_vco lucid_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 
