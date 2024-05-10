@@ -1800,7 +1800,6 @@ static int alloc_data_type_histograms(struct annotated_data_type *adt, int nr_en
 	sz += sizeof(struct type_hist_entry) * adt->self.size;
 
 	/* Allocate a table of pointers for each event */
-	adt->nr_histograms = nr_entries;
 	adt->histograms = calloc(nr_entries, sizeof(*adt->histograms));
 	if (adt->histograms == NULL)
 		return -ENOMEM;
@@ -1814,6 +1813,8 @@ static int alloc_data_type_histograms(struct annotated_data_type *adt, int nr_en
 		if (adt->histograms[i] == NULL)
 			goto err;
 	}
+
+	adt->nr_histograms = nr_entries;
 	return 0;
 
 err:
@@ -1827,7 +1828,9 @@ static void delete_data_type_histograms(struct annotated_data_type *adt)
 {
 	for (int i = 0; i < adt->nr_histograms; i++)
 		zfree(&(adt->histograms[i]));
+
 	zfree(&adt->histograms);
+	adt->nr_histograms = 0;
 }
 
 void annotated_data_type__tree_delete(struct rb_root *root)
