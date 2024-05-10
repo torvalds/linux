@@ -1089,7 +1089,9 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	bool odm_combine_on = (pipe_ctx->next_odm_pipe != NULL) ||
 		(pipe_ctx->prev_odm_pipe != NULL);
 	int prev_odm_width = 0;
+	int prev_odm_offset = 0;
 	int next_odm_width = 0;
+	int next_odm_offset = 0;
 
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
@@ -1152,22 +1154,26 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		y_pos += pipe_ctx->plane_state->src_rect.y;
 	}
 
-	/* Adjust for ODM Combine */
+	/* Adjust for ODM Combine
+	 * next/prev_odm_offset is to account for scaled modes that have underscan
+	 */
 	if (odm_combine_on) {
 		struct pipe_ctx *next_odm_pipe = pipe_ctx->next_odm_pipe;
 		struct pipe_ctx *prev_odm_pipe = pipe_ctx->prev_odm_pipe;
 
 		while (next_odm_pipe != NULL) {
 			next_odm_width += next_odm_pipe->plane_res.scl_data.recout.width;
+			next_odm_offset += next_odm_pipe->plane_res.scl_data.recout.x;
 			next_odm_pipe = next_odm_pipe->next_odm_pipe;
 		}
 		while (prev_odm_pipe != NULL) {
 			prev_odm_width += prev_odm_pipe->plane_res.scl_data.recout.width;
+			prev_odm_offset += prev_odm_pipe->plane_res.scl_data.recout.x;
 			prev_odm_pipe = prev_odm_pipe->prev_odm_pipe;
 		}
 
 		if (param.rotation == ROTATION_ANGLE_0) {
-			x_pos -= prev_odm_width;
+			x_pos -= (prev_odm_width + prev_odm_offset);
 		}
 	}
 
@@ -1269,7 +1275,7 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 				pos_cpy.y += pos_cpy_x_offset;
 
 			} else {
-				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width + next_odm_width - pos_cpy.y;
+				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width + next_odm_width + next_odm_offset - pos_cpy.y;
 				pos_cpy.y = temp_x;
 			}
 		} else {
