@@ -505,8 +505,6 @@ struct xe_device {
 	/* only to allow build, not used functionally */
 	u32 irq_mask;
 
-	u32 enabled_irq_mask;
-
 	struct intel_uncore {
 		spinlock_t lock;
 	} uncore;
