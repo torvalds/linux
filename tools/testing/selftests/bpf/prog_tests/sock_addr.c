@@ -19,6 +19,10 @@
 #include "getpeername_unix_prog.skel.h"
 #include "network_helpers.h"
 
+#ifndef ENOTSUPP
+# define ENOTSUPP 524
+#endif
+
 #define TEST_NS                 "sock_addr"
 #define TEST_IF_PREFIX          "test_sock_addr"
 #define TEST_IPV4               "127.0.0.4"
@@ -42,6 +46,8 @@
 #define SERVUN_ADDRESS         "bpf_cgroup_unix_test"
 #define SERVUN_REWRITE_ADDRESS "bpf_cgroup_unix_test_rewrite"
 #define SRCUN_ADDRESS          "bpf_cgroup_unix_test_src"
+
+#define save_errno_do(op) ({ int __save = errno; op; errno = __save; })
 
 enum sock_addr_test_type {
 	SOCK_ADDR_TEST_BIND,
@@ -98,6 +104,7 @@ static int run_bpf_prog(const char *prog_name, void *ctx, int ctx_size)
 		goto err;
 
 	err = topts.retval;
+	errno = -topts.retval;
 	goto out;
 err:
 	err = -1;
@@ -221,8 +228,7 @@ int kernel_connect_to_addr(int type, const struct sockaddr_storage *addr, sockle
 		       "kernel_init_sock"))
 		goto err;
 
-	if (!ASSERT_OK(kernel_connect((struct sockaddr *)addr, addrlen),
-		       "kernel_connect"))
+	if (kernel_connect((struct sockaddr *)addr, addrlen) < 0)
 		goto err;
 
 	/* Test code expects a "file descriptor" on success. */
@@ -230,7 +236,7 @@ int kernel_connect_to_addr(int type, const struct sockaddr_storage *addr, sockle
 	goto out;
 err:
 	err = -1;
-	ASSERT_OK(kernel_close_sock(0), "kernel_close_sock");
+	save_errno_do(ASSERT_OK(kernel_close_sock(0), "kernel_close_sock"));
 out:
 	return err;
 }
@@ -248,8 +254,7 @@ int kernel_start_server(int family, int type, const char *addr_str, __u16 port,
 	if (make_sockaddr(family, addr_str, port, &addr, &addrlen))
 		goto err;
 
-	if (!ASSERT_OK(kernel_bind(0, (struct sockaddr *)&addr, addrlen),
-		       "kernel_bind"))
+	if (kernel_bind(0, (struct sockaddr *)&addr, addrlen) < 0)
 		goto err;
 
 	if (type == SOCK_STREAM) {
@@ -262,7 +267,7 @@ int kernel_start_server(int family, int type, const char *addr_str, __u16 port,
 	goto out;
 err:
 	err = -1;
-	ASSERT_OK(kernel_close_sock(0), "kernel_close_sock");
+	save_errno_do(ASSERT_OK(kernel_close_sock(0), "kernel_close_sock"));
 out:
 	return err;
 }
@@ -1066,7 +1071,7 @@ static void unload_sock_addr_kern(void)
 	sock_addr_kern__destroy(skel);
 }
 
-static void test_bind(struct sock_addr_test *test)
+static int test_bind(struct sock_addr_test *test)
 {
 	struct sockaddr_storage expected_addr;
 	socklen_t expected_addr_len = sizeof(struct sockaddr_storage);
@@ -1075,8 +1080,10 @@ static void test_bind(struct sock_addr_test *test)
 	serv = test->ops->start_server(test->socket_family, test->socket_type,
 				       test->requested_addr,
 				       test->requested_port, 0);
-	if (!ASSERT_GE(serv, 0, "start_server"))
-		goto cleanup;
+	if (serv < 0) {
+		err = errno;
+		goto err;
+	}
 
 	err = make_sockaddr(test->socket_family,
 			    test->expected_addr, test->expected_port,
@@ -1095,13 +1102,17 @@ static void test_bind(struct sock_addr_test *test)
 		goto cleanup;
 
 cleanup:
+	err = 0;
+err:
 	if (client != -1)
 		close(client);
 	if (serv != -1)
 		test->ops->close(serv);
+
+	return err;
 }
 
-static void test_connect(struct sock_addr_test *test)
+static int test_connect(struct sock_addr_test *test)
 {
 	struct sockaddr_storage addr, expected_addr, expected_src_addr;
 	socklen_t addr_len = sizeof(struct sockaddr_storage),
@@ -1121,8 +1132,10 @@ static void test_connect(struct sock_addr_test *test)
 
 	client = test->ops->connect_to_addr(test->socket_type, &addr, addr_len,
 					    NULL);
-	if (!ASSERT_GE(client, 0, "connect_to_addr"))
-		goto cleanup;
+	if (client < 0) {
+		err = errno;
+		goto err;
+	}
 
 	err = make_sockaddr(test->socket_family, test->expected_addr, test->expected_port,
 			    &expected_addr, &expected_addr_len);
@@ -1149,13 +1162,17 @@ static void test_connect(struct sock_addr_test *test)
 			goto cleanup;
 	}
 cleanup:
+	err = 0;
+err:
 	if (client != -1)
 		test->ops->close(client);
 	if (serv != -1)
 		close(serv);
+
+	return err;
 }
 
-static void test_xmsg(struct sock_addr_test *test)
+static int test_xmsg(struct sock_addr_test *test)
 {
 	struct sockaddr_storage addr, src_addr;
 	socklen_t addr_len = sizeof(struct sockaddr_storage),
@@ -1196,6 +1213,11 @@ static void test_xmsg(struct sock_addr_test *test)
 	if (test->socket_type == SOCK_DGRAM) {
 		err = test->ops->sendmsg(client, (struct sockaddr *)&addr,
 					 addr_len, &data, sizeof(data));
+		if (err < 0) {
+			err = errno;
+			goto err;
+		}
+
 		if (!ASSERT_EQ(err, sizeof(data), "sendmsg"))
 			goto cleanup;
 	} else {
@@ -1245,13 +1267,17 @@ static void test_xmsg(struct sock_addr_test *test)
 	}
 
 cleanup:
+	err = 0;
+err:
 	if (client != -1)
 		test->ops->close(client);
 	if (serv != -1)
 		close(serv);
+
+	return err;
 }
 
-static void test_getsockname(struct sock_addr_test *test)
+static int test_getsockname(struct sock_addr_test *test)
 {
 	struct sockaddr_storage expected_addr;
 	socklen_t expected_addr_len = sizeof(struct sockaddr_storage);
@@ -1275,9 +1301,11 @@ static void test_getsockname(struct sock_addr_test *test)
 cleanup:
 	if (serv != -1)
 		test->ops->close(serv);
+
+	return 0;
 }
 
-static void test_getpeername(struct sock_addr_test *test)
+static int test_getpeername(struct sock_addr_test *test)
 {
 	struct sockaddr_storage addr, expected_addr;
 	socklen_t addr_len = sizeof(struct sockaddr_storage),
@@ -1314,6 +1342,8 @@ cleanup:
 		test->ops->close(client);
 	if (serv != -1)
 		close(serv);
+
+	return 0;
 }
 
 static int setup_test_env(struct nstoken **tok)
@@ -1369,6 +1399,7 @@ void test_sock_addr(void)
 
 	for (size_t i = 0; i < ARRAY_SIZE(tests); ++i) {
 		struct sock_addr_test *test = &tests[i];
+		int err;
 
 		if (!test__start_subtest(test->name))
 			continue;
@@ -1385,25 +1416,32 @@ void test_sock_addr(void)
 		 * the future.
 		 */
 		case SOCK_ADDR_TEST_BIND:
-			test_bind(test);
+			err = test_bind(test);
 			break;
 		case SOCK_ADDR_TEST_CONNECT:
-			test_connect(test);
+			err = test_connect(test);
 			break;
 		case SOCK_ADDR_TEST_SENDMSG:
 		case SOCK_ADDR_TEST_RECVMSG:
-			test_xmsg(test);
+			err = test_xmsg(test);
 			break;
 		case SOCK_ADDR_TEST_GETSOCKNAME:
-			test_getsockname(test);
+			err = test_getsockname(test);
 			break;
 		case SOCK_ADDR_TEST_GETPEERNAME:
-			test_getpeername(test);
+			err = test_getpeername(test);
 			break;
 		default:
 			ASSERT_TRUE(false, "Unknown sock addr test type");
 			break;
 		}
+
+		if (test->expected_result == SYSCALL_EPERM)
+			ASSERT_EQ(err, EPERM, "socket operation returns EPERM");
+		else if (test->expected_result == SYSCALL_ENOTSUPP)
+			ASSERT_EQ(err, ENOTSUPP, "socket operation returns ENOTSUPP");
+		else if (test->expected_result == SUCCESS)
+			ASSERT_OK(err, "socket operation succeeds");
 
 		test->destroyfn(skel);
 	}
