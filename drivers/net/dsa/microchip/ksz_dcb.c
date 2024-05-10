@@ -82,10 +82,6 @@ static const u8 ksz_supported_apptrust[] = {
 	IEEE_8021QAZ_APP_SEL_DSCP,
 };
 
-static const u8 ksz8_port2_supported_apptrust[] = {
-	DCB_APP_SEL_PCP,
-};
-
 static const char * const ksz_supported_apptrust_variants[] = {
 	"empty", "dscp", "pcp", "dscp pcp"
 };
@@ -771,9 +767,8 @@ int ksz_port_get_apptrust(struct dsa_switch *ds, int port, u8 *sel, int *nsel)
  */
 int ksz_dcb_init_port(struct ksz_device *dev, int port)
 {
-	const u8 *sel;
+	const u8 ksz_default_apptrust[] = { DCB_APP_SEL_PCP };
 	int ret, ipm;
-	int sel_len;
 
 	if (is_ksz8(dev)) {
 		ipm = ieee8021q_tt_to_tc(IEEE8021Q_TT_BE,
@@ -789,18 +784,8 @@ int ksz_dcb_init_port(struct ksz_device *dev, int port)
 	if (ret)
 		return ret;
 
-	if (ksz_is_ksz88x3(dev) && port == KSZ_PORT_2) {
-		/* KSZ88x3 devices do not support DSCP classification on
-		 * "Port 2.
-		 */
-		sel = ksz8_port2_supported_apptrust;
-		sel_len = ARRAY_SIZE(ksz8_port2_supported_apptrust);
-	} else {
-		sel = ksz_supported_apptrust;
-		sel_len = ARRAY_SIZE(ksz_supported_apptrust);
-	}
-
-	return ksz_port_set_apptrust(dev->ds, port, sel, sel_len);
+	return ksz_port_set_apptrust(dev->ds, port, ksz_default_apptrust,
+				     ARRAY_SIZE(ksz_default_apptrust));
 }
 
 /**
