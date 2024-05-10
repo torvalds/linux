@@ -689,6 +689,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			 int write, bool have_retry, bool *saw_error)
 {
 	unsigned version = le16_to_cpu(i->version);
+	unsigned ptr_written = btree_ptr_sectors_written(&b->key);
 	struct printbuf buf1 = PRINTBUF;
 	struct printbuf buf2 = PRINTBUF;
 	int ret = 0;
@@ -732,11 +733,13 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 		     btree_node_unsupported_version,
 		     "BSET_SEPARATE_WHITEOUTS no longer supported");
 
-	if (btree_err_on(offset + sectors > btree_sectors(c),
+	if (!write &&
+	    btree_err_on(offset + sectors > (ptr_written ?: btree_sectors(c)),
 			 -BCH_ERR_btree_node_read_err_fixable,
 			 c, ca, b, i, NULL,
 			 bset_past_end_of_btree_node,
-			 "bset past end of btree node")) {
+			 "bset past end of btree node (offset %u len %u but written %zu)",
+			 offset, sectors, ptr_written ?: btree_sectors(c))) {
 		i->u64s = 0;
 		ret = 0;
 		goto out;
