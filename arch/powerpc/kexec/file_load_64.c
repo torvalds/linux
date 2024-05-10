@@ -803,10 +803,9 @@ static unsigned int cpu_node_size(void)
 	return size;
 }
 
-static unsigned int kdump_extra_fdt_size_ppc64(struct kimage *image)
+static unsigned int kdump_extra_fdt_size_ppc64(struct kimage *image, unsigned int cpu_nodes)
 {
-	unsigned int cpu_nodes, extra_size = 0;
-	struct device_node *dn;
+	unsigned int extra_size = 0;
 	u64 usm_entries;
 #ifdef CONFIG_CRASH_HOTPLUG
 	unsigned int possible_cpu_nodes;
@@ -825,18 +824,6 @@ static unsigned int kdump_extra_fdt_size_ppc64(struct kimage *image)
 			       (2 * (resource_size(&crashk_res) / drmem_lmb_size())));
 		extra_size += (unsigned int)(usm_entries * sizeof(u64));
 	}
-
-	/*
-	 * Get the number of CPU nodes in the current DT. This allows to
-	 * reserve places for CPU nodes added since the boot time.
-	 */
-	cpu_nodes = 0;
-	for_each_node_by_type(dn, "cpu") {
-		cpu_nodes++;
-	}
-
-	if (cpu_nodes > boot_cpu_node_count)
-		extra_size += (cpu_nodes - boot_cpu_node_count) * cpu_node_size();
 
 #ifdef CONFIG_CRASH_HOTPLUG
 	/*
@@ -861,16 +848,30 @@ static unsigned int kdump_extra_fdt_size_ppc64(struct kimage *image)
  *
  * Returns the estimated extra size needed for kexec/kdump kernel FDT.
  */
-unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
+unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image, struct crash_mem *rmem)
 {
-	unsigned int extra_size = 0;
+	struct device_node *dn;
+	unsigned int cpu_nodes = 0, extra_size = 0;
 
 	// Budget some space for the password blob. There's already extra space
 	// for the key name
 	if (plpks_is_available())
 		extra_size += (unsigned int)plpks_get_passwordlen();
 
-	return extra_size + kdump_extra_fdt_size_ppc64(image);
+	/* Get the number of CPU nodes in the current device tree */
+	for_each_node_by_type(dn, "cpu") {
+		cpu_nodes++;
+	}
+
+	/* Consider extra space for CPU nodes added since the boot time */
+	if (cpu_nodes > boot_cpu_node_count)
+		extra_size += (cpu_nodes - boot_cpu_node_count) * cpu_node_size();
+
+	/* Consider extra space for reserved memory ranges if any */
+	if (rmem->nr_ranges > 0)
+		extra_size += sizeof(struct fdt_reserve_entry) * rmem->nr_ranges;
+
+	return extra_size + kdump_extra_fdt_size_ppc64(image, cpu_nodes);
 }
 
 static int copy_property(void *fdt, int node_offset, const struct device_node *dn,
@@ -924,18 +925,13 @@ static int update_pci_dma_nodes(void *fdt, const char *dmapropname)
  *                       being loaded.
  * @image:               kexec image being loaded.
  * @fdt:                 Flattened device tree for the next kernel.
- * @initrd_load_addr:    Address where the next initrd will be loaded.
- * @initrd_len:          Size of the next initrd, or 0 if there will be none.
- * @cmdline:             Command line for the next kernel, or NULL if there will
- *                       be none.
+ * @rmem:                Reserved memory ranges.
  *
  * Returns 0 on success, negative errno on error.
  */
-int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
-			unsigned long initrd_load_addr,
-			unsigned long initrd_len, const char *cmdline)
+int setup_new_fdt_ppc64(const struct kimage *image, void *fdt, struct crash_mem *rmem)
 {
-	struct crash_mem *umem = NULL, *rmem = NULL;
+	struct crash_mem *umem = NULL;
 	int i, nr_ranges, ret;
 
 #ifdef CONFIG_CRASH_DUMP
@@ -991,10 +987,6 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 		goto out;
 
 	/* Update memory reserve map */
-	ret = get_reserved_memory_ranges(&rmem);
-	if (ret)
-		goto out;
-
 	nr_ranges = rmem ? rmem->nr_ranges : 0;
 	for (i = 0; i < nr_ranges; i++) {
 		u64 base, size;
@@ -1014,7 +1006,6 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 		ret = plpks_populate_fdt(fdt);
 
 out:
-	kfree(rmem);
 	kfree(umem);
 	return ret;
 }
