@@ -4623,6 +4623,8 @@
 		restart@c264000 {
 			compatible = "qcom,pshold";
 			reg = <0 0x0c264000 0 0x4>;
+			/* TZ seems to block access */
+			status = "reserved";
 		};
 
 		tsens1: thermal-sensor@c265000 {
