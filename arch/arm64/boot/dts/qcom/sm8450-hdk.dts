@@ -138,7 +138,7 @@
 	thermal-zones {
 		camera-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmk8350_adc_tm 2>;
 
 			trips {
@@ -152,7 +152,7 @@
 
 		rear-tof-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmk8350_adc_tm 5>;
 
 			trips {
@@ -166,7 +166,7 @@
 
 		skin-msm-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmk8350_adc_tm 1>;
 
 			trips {
@@ -180,7 +180,7 @@
 
 		therm1-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmk8350_adc_tm 3>;
 
 			trips {
@@ -194,7 +194,7 @@
 
 		therm2-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmk8350_adc_tm 6>;
 
 			trips {
@@ -208,7 +208,7 @@
 
 		usb-conn-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmk8350_adc_tm 7>;
 
 			trips {
@@ -222,7 +222,7 @@
 
 		wide-rfc-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmk8350_adc_tm 4>;
 
 			trips {
@@ -235,8 +235,6 @@
 		};
 
 		xo-thermal {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
 			thermal-sensors = <&pmk8350_adc_tm 0>;
 
 			trips {
