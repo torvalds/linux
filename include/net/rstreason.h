@@ -15,6 +15,7 @@
 	FN(TCP_FLAGS)			\
 	FN(TCP_OLD_ACK)			\
 	FN(TCP_ABORT_ON_DATA)		\
+	FN(TCP_TIMEWAIT_SOCKET)		\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -71,6 +72,10 @@ enum sk_rst_reason {
 	 * corresponding to LINUX_MIB_TCPABORTONDATA
 	 */
 	SK_RST_REASON_TCP_ABORT_ON_DATA,
+
+	/* Here start with the independent reasons */
+	/** @SK_RST_REASON_TCP_TIMEWAIT_SOCKET: happen on the timewait socket */
+	SK_RST_REASON_TCP_TIMEWAIT_SOCKET,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to
