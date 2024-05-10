@@ -151,6 +151,10 @@
 	INTEL_SNB_M_GT1_IDS(info), \
 	INTEL_SNB_M_GT2_IDS(info)
 
+#define INTEL_SNB_IDS(info) \
+	INTEL_SNB_D_IDS(info), \
+	INTEL_SNB_M_IDS(info)
+
 #define INTEL_IVB_M_GT1_IDS(info) \
 	INTEL_VGA_DEVICE(0x0156, info) /* GT1 mobile */
 
