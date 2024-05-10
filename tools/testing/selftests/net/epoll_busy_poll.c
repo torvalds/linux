@@ -232,7 +232,7 @@ TEST_F(epoll_busy_poll, test_set_invalid)
 
 	ret = cap_set_flag(self->caps, CAP_EFFECTIVE, 1, net_admin, CAP_CLEAR);
 	EXPECT_EQ(0, ret)
-		TH_LOG("couldnt clear CAP_NET_ADMIN");
+		TH_LOG("couldn't clear CAP_NET_ADMIN");
 
 	ret = cap_set_proc(self->caps);
 	EXPECT_EQ(0, ret)
