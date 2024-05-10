@@ -2,6 +2,7 @@
 
 udl-y := \
 	udl_drv.o \
+	udl_edid.o \
 	udl_main.o \
 	udl_modeset.o \
 	udl_transfer.o

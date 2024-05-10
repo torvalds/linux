@@ -51,8 +51,6 @@ struct urb_list {
 
 struct udl_connector {
 	struct drm_connector connector;
-	/* last udl_detect edid */
-	struct edid *edid;
 };
 
 static inline struct udl_connector *to_udl_connector(struct drm_connector *connector)
