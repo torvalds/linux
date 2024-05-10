@@ -2219,11 +2219,8 @@ static int spi_start_queue(struct spi_controller *ctlr)
 
 static int spi_stop_queue(struct spi_controller *ctlr)
 {
+	unsigned int limit = 500;
 	unsigned long flags;
-	unsigned limit = 500;
-	int ret = 0;
-
-	spin_lock_irqsave(&ctlr->queue_lock, flags);
 
 	/*
 	 * This is a bit lame, but is optimized for the common execution path.
@@ -2231,20 +2228,18 @@ static int spi_stop_queue(struct spi_controller *ctlr)
 	 * execution path (pump_messages) would be required to call wake_up or
 	 * friends on every SPI message. Do this instead.
 	 */
-	while ((!list_empty(&ctlr->queue) || ctlr->busy) && limit--) {
+	do {
+		spin_lock_irqsave(&ctlr->queue_lock, flags);
+		if (list_empty(&ctlr->queue) && !ctlr->busy) {
+			ctlr->running = false;
+			spin_unlock_irqrestore(&ctlr->queue_lock, flags);
+			return 0;
+		}
 		spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 		usleep_range(10000, 11000);
-		spin_lock_irqsave(&ctlr->queue_lock, flags);
-	}
+	} while (--limit);
 
-	if (!list_empty(&ctlr->queue) || ctlr->busy)
-		ret = -EBUSY;
-	else
-		ctlr->running = false;
-
-	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
-
-	return ret;
+	return -EBUSY;
 }
 
 static int spi_destroy_queue(struct spi_controller *ctlr)
