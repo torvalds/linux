@@ -2365,21 +2365,23 @@ static int skl_build_pipe_wm(struct intel_atomic_state *state,
 	return skl_wm_check_vblank(crtc_state);
 }
 
+static u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry)
+{
+	if (!entry->end)
+		return 0;
+
+	return PLANE_BUF_END(entry->end - 1) |
+		PLANE_BUF_START(entry->start);
+}
+
 static void skl_ddb_entry_write(struct drm_i915_private *i915,
 				i915_reg_t reg,
 				const struct skl_ddb_entry *entry)
 {
-	if (entry->end)
-		intel_de_write_fw(i915, reg,
-				  PLANE_BUF_END(entry->end - 1) |
-				  PLANE_BUF_START(entry->start));
-	else
-		intel_de_write_fw(i915, reg, 0);
+	intel_de_write_fw(i915, reg, skl_plane_ddb_reg_val(entry));
 }
 
-static void skl_write_wm_level(struct drm_i915_private *i915,
-			       i915_reg_t reg,
-			       const struct skl_wm_level *level)
+static u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
 {
 	u32 val = 0;
 
@@ -2390,7 +2392,14 @@ static void skl_write_wm_level(struct drm_i915_private *i915,
 	val |= REG_FIELD_PREP(PLANE_WM_BLOCKS_MASK, level->blocks);
 	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
 
-	intel_de_write_fw(i915, reg, val);
+	return val;
+}
+
+static void skl_write_wm_level(struct drm_i915_private *i915,
+			       i915_reg_t reg,
+			       const struct skl_wm_level *level)
+{
+	intel_de_write_fw(i915, reg, skl_plane_wm_reg_val(level));
 }
 
 void skl_write_plane_wm(struct intel_plane *plane,
