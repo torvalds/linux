@@ -444,48 +444,13 @@ static const struct drm_connector_helper_funcs udl_connector_helper_funcs = {
 	.detect_ctx = udl_connector_helper_detect_ctx,
 };
 
-static void udl_connector_destroy(struct drm_connector *connector)
-{
-	struct udl_connector *udl_connector = to_udl_connector(connector);
-
-	drm_connector_cleanup(connector);
-	kfree(udl_connector);
-}
-
 static const struct drm_connector_funcs udl_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = udl_connector_destroy,
+	.destroy = drm_connector_cleanup,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
-
-struct drm_connector *udl_connector_init(struct drm_device *dev)
-{
-	struct udl_connector *udl_connector;
-	struct drm_connector *connector;
-	int ret;
-
-	udl_connector = kzalloc(sizeof(*udl_connector), GFP_KERNEL);
-	if (!udl_connector)
-		return ERR_PTR(-ENOMEM);
-
-	connector = &udl_connector->connector;
-	ret = drm_connector_init(dev, connector, &udl_connector_funcs, DRM_MODE_CONNECTOR_VGA);
-	if (ret)
-		goto err_kfree;
-
-	drm_connector_helper_add(connector, &udl_connector_helper_funcs);
-
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-			    DRM_CONNECTOR_POLL_DISCONNECT;
-
-	return connector;
-
-err_kfree:
-	kfree(udl_connector);
-	return ERR_PTR(ret);
-}
 
 /*
  * Modesetting
@@ -556,9 +521,15 @@ int udl_modeset_init(struct drm_device *dev)
 		return ret;
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
-	connector = udl_connector_init(dev);
-	if (IS_ERR(connector))
-		return PTR_ERR(connector);
+	connector = &udl->connector;
+	ret = drm_connector_init(dev, connector, &udl_connector_funcs, DRM_MODE_CONNECTOR_VGA);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &udl_connector_helper_funcs);
+
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+			    DRM_CONNECTOR_POLL_DISCONNECT;
+
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
