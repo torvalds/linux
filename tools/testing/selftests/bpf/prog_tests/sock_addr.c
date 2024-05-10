@@ -438,13 +438,19 @@ static void prog_name##_destroy(void *skel) \
 }
 
 BPF_SKEL_FUNCS(bind4_prog, bind_v4_prog);
+BPF_SKEL_FUNCS_RAW(bind4_prog, bind_v4_prog);
 BPF_SKEL_FUNCS(bind6_prog, bind_v6_prog);
+BPF_SKEL_FUNCS_RAW(bind6_prog, bind_v6_prog);
 BPF_SKEL_FUNCS(connect4_prog, connect_v4_prog);
+BPF_SKEL_FUNCS_RAW(connect4_prog, connect_v4_prog);
 BPF_SKEL_FUNCS(connect6_prog, connect_v6_prog);
+BPF_SKEL_FUNCS_RAW(connect6_prog, connect_v6_prog);
 BPF_SKEL_FUNCS(connect_unix_prog, connect_unix_prog);
 BPF_SKEL_FUNCS(sendmsg4_prog, sendmsg_v4_prog);
+BPF_SKEL_FUNCS_RAW(sendmsg4_prog, sendmsg_v4_prog);
 BPF_SKEL_FUNCS(sendmsg4_prog, sendmsg_v4_deny_prog);
 BPF_SKEL_FUNCS(sendmsg6_prog, sendmsg_v6_prog);
+BPF_SKEL_FUNCS_RAW(sendmsg6_prog, sendmsg_v6_prog);
 BPF_SKEL_FUNCS(sendmsg6_prog, sendmsg_v6_deny_prog);
 BPF_SKEL_FUNCS(sendmsg6_prog, sendmsg_v6_preserve_dst_prog);
 BPF_SKEL_FUNCS(sendmsg6_prog, sendmsg_v6_v4mapped_prog);
@@ -508,6 +514,22 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_BIND,
+		"bind4: attach prog with wrong attach type",
+		bind_v4_prog_load_raw,
+		bind_v4_prog_destroy_raw,
+		BPF_CGROUP_INET6_BIND,
+		&user_ops,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_BIND,
 		"bind6: bind (stream)",
 		bind_v6_prog_load,
 		bind_v6_prog_destroy,
@@ -553,6 +575,22 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 		LOAD_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_BIND,
+		"bind6: attach prog with wrong attach type",
+		bind_v6_prog_load_raw,
+		bind_v6_prog_destroy_raw,
+		BPF_CGROUP_INET4_BIND,
+		&user_ops,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
 	},
 
 	/* bind - kernel calls */
@@ -672,6 +710,22 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
+		"connect4: attach prog with wrong attach type",
+		connect_v4_prog_load_raw,
+		connect_v4_prog_destroy_raw,
+		BPF_CGROUP_INET6_CONNECT,
+		&user_ops,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_CONNECT,
 		"connect6: connect (stream)",
 		connect_v6_prog_load,
 		connect_v6_prog_destroy,
@@ -717,6 +771,22 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 		LOAD_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_CONNECT,
+		"connect6: attach prog with wrong attach type",
+		connect_v6_prog_load_raw,
+		connect_v6_prog_destroy_raw,
+		BPF_CGROUP_INET4_CONNECT,
+		&user_ops,
+		AF_INET,
+		SOCK_STREAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
 	},
 	{
 		SOCK_ADDR_TEST_CONNECT,
@@ -868,6 +938,22 @@ static struct sock_addr_test tests[] = {
 	},
 	{
 		SOCK_ADDR_TEST_SENDMSG,
+		"sendmsg4: attach prog with wrong attach type",
+		sendmsg_v4_prog_load_raw,
+		sendmsg_v4_prog_destroy_raw,
+		BPF_CGROUP_UDP6_SENDMSG,
+		&user_ops,
+		AF_INET,
+		SOCK_DGRAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_SENDMSG,
 		"sendmsg6: sendmsg (dgram)",
 		sendmsg_v6_prog_load,
 		sendmsg_v6_prog_destroy,
@@ -961,6 +1047,22 @@ static struct sock_addr_test tests[] = {
 		0,
 		NULL,
 		LOAD_REJECT,
+	},
+	{
+		SOCK_ADDR_TEST_SENDMSG,
+		"sendmsg6: attach prog with wrong attach type",
+		sendmsg_v6_prog_load_raw,
+		sendmsg_v6_prog_destroy_raw,
+		BPF_CGROUP_UDP4_SENDMSG,
+		&user_ops,
+		AF_INET6,
+		SOCK_DGRAM,
+		NULL,
+		0,
+		NULL,
+		0,
+		NULL,
+		ATTACH_REJECT,
 	},
 	{
 		SOCK_ADDR_TEST_SENDMSG,

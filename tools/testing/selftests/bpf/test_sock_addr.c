@@ -88,89 +88,11 @@ struct sock_addr_test {
 	} expected_result;
 };
 
-static int bind4_prog_load(const struct sock_addr_test *test);
-static int bind6_prog_load(const struct sock_addr_test *test);
-static int connect4_prog_load(const struct sock_addr_test *test);
-static int connect6_prog_load(const struct sock_addr_test *test);
 static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test);
 static int sendmsg6_rw_asm_prog_load(const struct sock_addr_test *test);
 
 static struct sock_addr_test tests[] = {
-	/* bind */
-	{
-		"bind4: attach prog with wrong attach type",
-		bind4_prog_load,
-		BPF_CGROUP_INET4_BIND,
-		BPF_CGROUP_INET6_BIND,
-		AF_INET,
-		SOCK_STREAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		ATTACH_REJECT,
-	},
-	{
-		"bind6: attach prog with wrong attach type",
-		bind6_prog_load,
-		BPF_CGROUP_INET6_BIND,
-		BPF_CGROUP_INET4_BIND,
-		AF_INET,
-		SOCK_STREAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		ATTACH_REJECT,
-	},
-
-	/* connect */
-	{
-		"connect4: attach prog with wrong attach type",
-		connect4_prog_load,
-		BPF_CGROUP_INET4_CONNECT,
-		BPF_CGROUP_INET6_CONNECT,
-		AF_INET,
-		SOCK_STREAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		ATTACH_REJECT,
-	},
-	{
-		"connect6: attach prog with wrong attach type",
-		connect6_prog_load,
-		BPF_CGROUP_INET6_CONNECT,
-		BPF_CGROUP_INET4_CONNECT,
-		AF_INET,
-		SOCK_STREAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		ATTACH_REJECT,
-	},
-
 	/* sendmsg */
-	{
-		"sendmsg4: attach prog with wrong attach type",
-		sendmsg4_rw_asm_prog_load,
-		BPF_CGROUP_UDP4_SENDMSG,
-		BPF_CGROUP_UDP6_SENDMSG,
-		AF_INET,
-		SOCK_DGRAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		ATTACH_REJECT,
-	},
 	{
 		"sendmsg4: rewrite IP & port (asm)",
 		sendmsg4_rw_asm_prog_load,
@@ -184,20 +106,6 @@ static struct sock_addr_test tests[] = {
 		SERV4_REWRITE_PORT,
 		SRC4_REWRITE_IP,
 		SUCCESS,
-	},
-	{
-		"sendmsg6: attach prog with wrong attach type",
-		sendmsg6_rw_asm_prog_load,
-		BPF_CGROUP_UDP6_SENDMSG,
-		BPF_CGROUP_UDP4_SENDMSG,
-		AF_INET6,
-		SOCK_DGRAM,
-		NULL,
-		0,
-		NULL,
-		0,
-		NULL,
-		ATTACH_REJECT,
 	},
 	{
 		"sendmsg6: rewrite IP & port (asm)",
@@ -232,60 +140,6 @@ static int load_insns(const struct sock_addr_test *test,
 	}
 
 	return ret;
-}
-
-static int load_path(const struct sock_addr_test *test, const char *path)
-{
-	struct bpf_object *obj;
-	struct bpf_program *prog;
-	int err;
-
-	obj = bpf_object__open_file(path, NULL);
-	err = libbpf_get_error(obj);
-	if (err) {
-		log_err(">>> Opening BPF object (%s) error.\n", path);
-		return -1;
-	}
-
-	prog = bpf_object__next_program(obj, NULL);
-	if (!prog)
-		goto err_out;
-
-	bpf_program__set_type(prog, BPF_PROG_TYPE_CGROUP_SOCK_ADDR);
-	bpf_program__set_expected_attach_type(prog, test->expected_attach_type);
-	bpf_program__set_flags(prog, testing_prog_flags());
-
-	err = bpf_object__load(obj);
-	if (err) {
-		if (test->expected_result != LOAD_REJECT)
-			log_err(">>> Loading program (%s) error.\n", path);
-		goto err_out;
-	}
-
-	return bpf_program__fd(prog);
-err_out:
-	bpf_object__close(obj);
-	return -1;
-}
-
-static int bind4_prog_load(const struct sock_addr_test *test)
-{
-	return load_path(test, BIND4_PROG_PATH);
-}
-
-static int bind6_prog_load(const struct sock_addr_test *test)
-{
-	return load_path(test, BIND6_PROG_PATH);
-}
-
-static int connect4_prog_load(const struct sock_addr_test *test)
-{
-	return load_path(test, CONNECT4_PROG_PATH);
-}
-
-static int connect6_prog_load(const struct sock_addr_test *test)
-{
-	return load_path(test, CONNECT6_PROG_PATH);
 }
 
 static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test)
