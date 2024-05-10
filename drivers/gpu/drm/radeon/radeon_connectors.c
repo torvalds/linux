@@ -255,21 +255,6 @@ static struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, 
 	return NULL;
 }
 
-struct edid *radeon_connector_edid(struct drm_connector *connector)
-{
-	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
-	struct drm_property_blob *edid_blob = connector->edid_blob_ptr;
-
-	if (radeon_connector->edid) {
-		return radeon_connector->edid;
-	} else if (edid_blob) {
-		struct edid *edid = kmemdup(edid_blob->data, edid_blob->length, GFP_KERNEL);
-		if (edid)
-			radeon_connector->edid = edid;
-	}
-	return radeon_connector->edid;
-}
-
 static void radeon_connector_get_edid(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;

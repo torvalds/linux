@@ -303,6 +303,7 @@ void radeon_audio_endpoint_wreg(struct radeon_device *rdev, u32 offset,
 static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct cea_sad *sads;
 	int sad_count;
@@ -310,7 +311,7 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 	if (!connector)
 		return;
 
-	sad_count = drm_edid_to_sad(radeon_connector_edid(connector), &sads);
+	sad_count = drm_edid_to_sad(radeon_connector->edid, &sads);
 	if (sad_count < 0)
 		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
 	if (sad_count <= 0)
@@ -326,6 +327,7 @@ static void radeon_audio_write_sad_regs(struct drm_encoder *encoder)
 static void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	u8 *sadb = NULL;
 	int sad_count;
@@ -333,8 +335,7 @@ static void radeon_audio_write_speaker_allocation(struct drm_encoder *encoder)
 	if (!connector)
 		return;
 
-	sad_count = drm_edid_to_speaker_allocation(radeon_connector_edid(connector),
-						   &sadb);
+	sad_count = drm_edid_to_speaker_allocation(radeon_connector->edid, &sadb);
 	if (sad_count < 0) {
 		DRM_DEBUG("Couldn't read Speaker Allocation Data Block: %d\n",
 			  sad_count);
