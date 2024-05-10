@@ -1250,6 +1250,7 @@ svm_range_get_pte_flags(struct kfd_node *node,
 		}
 		break;
 	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
 		if (domain == SVM_RANGE_VRAM_DOMAIN) {
 			if (bo_node != node)
 				mapping_flags |= AMDGPU_VM_MTYPE_NC;
