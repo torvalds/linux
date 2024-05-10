@@ -113,10 +113,11 @@ static __maybe_unused void annotated_source__delete(struct annotated_source *src
 	if (src == NULL)
 		return;
 
-	hashmap__for_each_entry(src->samples, cur, bkt)
-		zfree(&cur->pvalue);
-
-	hashmap__free(src->samples);
+	if (src->samples) {
+		hashmap__for_each_entry(src->samples, cur, bkt)
+			zfree(&cur->pvalue);
+		hashmap__free(src->samples);
+	}
 	zfree(&src->histograms);
 	free(src);
 }
