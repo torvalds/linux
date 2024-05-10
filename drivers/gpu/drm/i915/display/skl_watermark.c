@@ -1396,7 +1396,7 @@ skl_total_relative_data_rate(const struct intel_crtc_state *crtc_state)
 	return data_rate;
 }
 
-static const struct skl_wm_level *
+const struct skl_wm_level *
 skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 		   enum plane_id plane_id,
 		   int level)
@@ -1409,7 +1409,7 @@ skl_plane_wm_level(const struct skl_pipe_wm *pipe_wm,
 	return &wm->wm[level];
 }
 
-static const struct skl_wm_level *
+const struct skl_wm_level *
 skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
 		   enum plane_id plane_id)
 {
@@ -2363,97 +2363,6 @@ static int skl_build_pipe_wm(struct intel_atomic_state *state,
 	crtc_state->wm.skl.optimal = crtc_state->wm.skl.raw;
 
 	return skl_wm_check_vblank(crtc_state);
-}
-
-static u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry)
-{
-	if (!entry->end)
-		return 0;
-
-	return PLANE_BUF_END(entry->end - 1) |
-		PLANE_BUF_START(entry->start);
-}
-
-static u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
-{
-	u32 val = 0;
-
-	if (level->enable)
-		val |= PLANE_WM_EN;
-	if (level->ignore_lines)
-		val |= PLANE_WM_IGNORE_LINES;
-	val |= REG_FIELD_PREP(PLANE_WM_BLOCKS_MASK, level->blocks);
-	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
-
-	return val;
-}
-
-void skl_write_plane_wm(struct intel_plane *plane,
-			const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	const struct skl_ddb_entry *ddb =
-		&crtc_state->wm.skl.plane_ddb[plane_id];
-	const struct skl_ddb_entry *ddb_y =
-		&crtc_state->wm.skl.plane_ddb_y[plane_id];
-	int level;
-
-	for (level = 0; level < i915->display.wm.num_levels; level++)
-		intel_de_write_fw(i915, PLANE_WM(pipe, plane_id, level),
-				  skl_plane_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
-
-	intel_de_write_fw(i915, PLANE_WM_TRANS(pipe, plane_id),
-			  skl_plane_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
-
-	if (HAS_HW_SAGV_WM(i915)) {
-		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
-
-		intel_de_write_fw(i915, PLANE_WM_SAGV(pipe, plane_id),
-				  skl_plane_wm_reg_val(&wm->sagv.wm0));
-		intel_de_write_fw(i915, PLANE_WM_SAGV_TRANS(pipe, plane_id),
-				  skl_plane_wm_reg_val(&wm->sagv.trans_wm));
-	}
-
-	intel_de_write_fw(i915, PLANE_BUF_CFG(pipe, plane_id),
-			  skl_plane_ddb_reg_val(ddb));
-
-	if (DISPLAY_VER(i915) < 11)
-		intel_de_write_fw(i915, PLANE_NV12_BUF_CFG(pipe, plane_id),
-				  skl_plane_ddb_reg_val(ddb_y));
-}
-
-void skl_write_cursor_wm(struct intel_plane *plane,
-			 const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
-	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	const struct skl_ddb_entry *ddb =
-		&crtc_state->wm.skl.plane_ddb[plane_id];
-	int level;
-
-	for (level = 0; level < i915->display.wm.num_levels; level++)
-		intel_de_write_fw(i915, CUR_WM(pipe, level),
-				  skl_plane_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
-
-	intel_de_write_fw(i915, CUR_WM_TRANS(pipe),
-			  skl_plane_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
-
-	if (HAS_HW_SAGV_WM(i915)) {
-		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
-
-		intel_de_write_fw(i915, CUR_WM_SAGV(pipe),
-				  skl_plane_wm_reg_val(&wm->sagv.wm0));
-		intel_de_write_fw(i915, CUR_WM_SAGV_TRANS(pipe),
-				  skl_plane_wm_reg_val(&wm->sagv.trans_wm));
-	}
-
-	intel_de_write_fw(i915, CUR_BUF_CFG(pipe),
-			  skl_plane_ddb_reg_val(ddb));
 }
 
 static bool skl_wm_level_equals(const struct skl_wm_level *l1,

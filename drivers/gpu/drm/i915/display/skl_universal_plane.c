@@ -622,6 +622,66 @@ static u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 	return stride / skl_plane_stride_mult(fb, color_plane, rotation);
 }
 
+u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry)
+{
+	if (!entry->end)
+		return 0;
+
+	return PLANE_BUF_END(entry->end - 1) |
+		PLANE_BUF_START(entry->start);
+}
+
+u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
+{
+	u32 val = 0;
+
+	if (level->enable)
+		val |= PLANE_WM_EN;
+	if (level->ignore_lines)
+		val |= PLANE_WM_IGNORE_LINES;
+	val |= REG_FIELD_PREP(PLANE_WM_BLOCKS_MASK, level->blocks);
+	val |= REG_FIELD_PREP(PLANE_WM_LINES_MASK, level->lines);
+
+	return val;
+}
+
+static void skl_write_plane_wm(struct intel_plane *plane,
+			       const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = plane->pipe;
+	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
+	const struct skl_ddb_entry *ddb =
+		&crtc_state->wm.skl.plane_ddb[plane_id];
+	const struct skl_ddb_entry *ddb_y =
+		&crtc_state->wm.skl.plane_ddb_y[plane_id];
+	int level;
+
+	for (level = 0; level < i915->display.wm.num_levels; level++)
+		intel_de_write_fw(i915, PLANE_WM(pipe, plane_id, level),
+				  skl_plane_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
+
+	intel_de_write_fw(i915, PLANE_WM_TRANS(pipe, plane_id),
+			  skl_plane_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
+
+	if (HAS_HW_SAGV_WM(i915)) {
+		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
+
+		intel_de_write_fw(i915, PLANE_WM_SAGV(pipe, plane_id),
+				  skl_plane_wm_reg_val(&wm->sagv.wm0));
+		intel_de_write_fw(i915, PLANE_WM_SAGV_TRANS(pipe, plane_id),
+				  skl_plane_wm_reg_val(&wm->sagv.trans_wm));
+	}
+
+	intel_de_write_fw(i915, PLANE_BUF_CFG(pipe, plane_id),
+			  skl_plane_ddb_reg_val(ddb));
+
+	if (DISPLAY_VER(i915) < 11)
+		intel_de_write_fw(i915, PLANE_NV12_BUF_CFG(pipe, plane_id),
+				  skl_plane_ddb_reg_val(ddb_y));
+}
+
 static void
 skl_plane_disable_arm(struct intel_plane *plane,
 		      const struct intel_crtc_state *crtc_state)

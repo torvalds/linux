@@ -12,6 +12,8 @@ struct drm_i915_private;
 struct intel_crtc;
 struct intel_initial_plane_config;
 struct intel_plane_state;
+struct skl_ddb_entry;
+struct skl_wm_level;
 
 enum pipe;
 enum plane_id;
@@ -34,5 +36,8 @@ bool icl_is_nv12_y_plane(struct drm_i915_private *dev_priv,
 			 enum plane_id plane_id);
 u8 icl_hdr_plane_mask(void);
 bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id);
+
+u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry);
+u32 skl_plane_wm_reg_val(const struct skl_wm_level *level);
 
 #endif
