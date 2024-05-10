@@ -35,7 +35,7 @@
 &thermal_zones {
 	pm7325_thermal: pm7325-thermal {
 		polling-delay-passive = <100>;
-		polling-delay = <0>;
+
 		thermal-sensors = <&pm7325_temp_alarm>;
 
 		trips {
