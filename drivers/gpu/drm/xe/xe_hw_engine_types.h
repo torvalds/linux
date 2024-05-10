@@ -188,9 +188,7 @@ struct xe_hw_engine_snapshot {
 		/** @reg.ring_hws_pga: RING_HWS_PGA */
 		u32 ring_hws_pga;
 		/** @reg.ring_start: RING_START */
-		u32 ring_start;
-		/** @reg.ring_start_udw: RING_START_UDW */
-		u32 ring_start_udw;
+		u64 ring_start;
 		/** @reg.ring_head: RING_HEAD */
 		u32 ring_head;
 		/** @reg.ring_tail: RING_TAIL */

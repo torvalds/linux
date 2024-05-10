@@ -908,11 +908,13 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 	snapshot->reg.ring_hwstam = hw_engine_mmio_read32(hwe, RING_HWSTAM(0));
 	snapshot->reg.ring_hws_pga = hw_engine_mmio_read32(hwe, RING_HWS_PGA(0));
 	snapshot->reg.ring_start = hw_engine_mmio_read32(hwe, RING_START(0));
+	if (GRAPHICS_VERx100(hwe->gt->tile->xe) >= 2000) {
+		val = hw_engine_mmio_read32(hwe, RING_START_UDW(0));
+		snapshot->reg.ring_start |= val << 32;
+	}
 	if (xe_gt_has_indirect_ring_state(hwe->gt)) {
 		snapshot->reg.indirect_ring_state =
 			hw_engine_mmio_read32(hwe, INDIRECT_RING_STATE(0));
-		snapshot->reg.ring_start_udw =
-			hw_engine_mmio_read32(hwe, RING_START_UDW(0));
 	}
 
 	snapshot->reg.ring_head =
@@ -1003,9 +1005,7 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 		   snapshot->reg.ring_execlist_status);
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS: 0x%016llx\n",
 		   snapshot->reg.ring_execlist_sq_contents);
-	drm_printf(p, "\tRING_START: 0x%08x\n", snapshot->reg.ring_start);
-	drm_printf(p, "\tRING_START_UDW: 0x%08x\n",
-		   snapshot->reg.ring_start_udw);
+	drm_printf(p, "\tRING_START: 0x%016llx\n", snapshot->reg.ring_start);
 	drm_printf(p, "\tRING_HEAD: 0x%08x\n", snapshot->reg.ring_head);
 	drm_printf(p, "\tRING_TAIL: 0x%08x\n", snapshot->reg.ring_tail);
 	drm_printf(p, "\tRING_CTL: 0x%08x\n", snapshot->reg.ring_ctl);
