@@ -138,6 +138,7 @@ int hci_suspend_sync(struct hci_dev *hdev);
 int hci_resume_sync(struct hci_dev *hdev);
 
 struct hci_conn;
+struct hci_conn_params;
 
 int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn, u8 reason);
 
@@ -156,3 +157,5 @@ int hci_connect_acl_sync(struct hci_dev *hdev, struct hci_conn *conn);
 int hci_connect_le_sync(struct hci_dev *hdev, struct hci_conn *conn);
 
 int hci_cancel_connect_sync(struct hci_dev *hdev, struct hci_conn *conn);
+int hci_le_conn_update_sync(struct hci_dev *hdev, struct hci_conn *conn,
+			    struct hci_conn_params *params);
