@@ -614,8 +614,8 @@ static void lm3533_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id lm3533_i2c_ids[] = {
-	{ "lm3533", 0 },
-	{ },
+	{ "lm3533" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm3533_i2c_ids);
 
