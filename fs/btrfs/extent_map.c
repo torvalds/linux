@@ -33,7 +33,7 @@ void __cold extent_map_exit(void)
  */
 void extent_map_tree_init(struct extent_map_tree *tree)
 {
-	tree->map = RB_ROOT_CACHED;
+	tree->root = RB_ROOT_CACHED;
 	INIT_LIST_HEAD(&tree->modified_extents);
 	rwlock_init(&tree->lock);
 }
@@ -265,7 +265,7 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 			em->generation = max(em->generation, merge->generation);
 			em->flags |= EXTENT_FLAG_MERGED;
 
-			rb_erase_cached(&merge->rb_node, &tree->map);
+			rb_erase_cached(&merge->rb_node, &tree->root);
 			RB_CLEAR_NODE(&merge->rb_node);
 			free_extent_map(merge);
 			dec_evictable_extent_maps(inode);
@@ -278,7 +278,7 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 	if (rb && can_merge_extent_map(merge) && mergeable_maps(em, merge)) {
 		em->len += merge->len;
 		em->block_len += merge->block_len;
-		rb_erase_cached(&merge->rb_node, &tree->map);
+		rb_erase_cached(&merge->rb_node, &tree->root);
 		RB_CLEAR_NODE(&merge->rb_node);
 		em->generation = max(em->generation, merge->generation);
 		em->flags |= EXTENT_FLAG_MERGED;
@@ -389,7 +389,7 @@ static int add_extent_mapping(struct btrfs_inode *inode,
 
 	lockdep_assert_held_write(&tree->lock);
 
-	ret = tree_insert(&tree->map, em);
+	ret = tree_insert(&tree->root, em);
 	if (ret)
 		return ret;
 
@@ -410,7 +410,7 @@ __lookup_extent_mapping(struct extent_map_tree *tree,
 	struct rb_node *prev_or_next = NULL;
 	u64 end = range_end(start, len);
 
-	rb_node = __tree_search(&tree->map.rb_root, start, &prev_or_next);
+	rb_node = __tree_search(&tree->root.rb_root, start, &prev_or_next);
 	if (!rb_node) {
 		if (prev_or_next)
 			rb_node = prev_or_next;
@@ -479,7 +479,7 @@ void remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em)
 	lockdep_assert_held_write(&tree->lock);
 
 	WARN_ON(em->flags & EXTENT_FLAG_PINNED);
-	rb_erase_cached(&em->rb_node, &tree->map);
+	rb_erase_cached(&em->rb_node, &tree->root);
 	if (!(em->flags & EXTENT_FLAG_LOGGING))
 		list_del_init(&em->list);
 	RB_CLEAR_NODE(&em->rb_node);
@@ -500,7 +500,7 @@ static void replace_extent_mapping(struct btrfs_inode *inode,
 	ASSERT(extent_map_in_tree(cur));
 	if (!(cur->flags & EXTENT_FLAG_LOGGING))
 		list_del_init(&cur->list);
-	rb_replace_node_cached(&cur->rb_node, &new->rb_node, &tree->map);
+	rb_replace_node_cached(&cur->rb_node, &new->rb_node, &tree->root);
 	RB_CLEAR_NODE(&cur->rb_node);
 
 	setup_extent_mapping(inode, new, modified);
@@ -659,11 +659,11 @@ static void drop_all_extent_maps_fast(struct btrfs_inode *inode)
 	struct extent_map_tree *tree = &inode->extent_tree;
 
 	write_lock(&tree->lock);
-	while (!RB_EMPTY_ROOT(&tree->map.rb_root)) {
+	while (!RB_EMPTY_ROOT(&tree->root.rb_root)) {
 		struct extent_map *em;
 		struct rb_node *node;
 
-		node = rb_first_cached(&tree->map);
+		node = rb_first_cached(&tree->root);
 		em = rb_entry(node, struct extent_map, rb_node);
 		em->flags &= ~(EXTENT_FLAG_PINNED | EXTENT_FLAG_LOGGING);
 		remove_extent_mapping(inode, em);
@@ -1058,7 +1058,7 @@ static long btrfs_scan_inode(struct btrfs_inode *inode, long *scanned, long nr_t
 		return 0;
 
 	write_lock(&tree->lock);
-	node = rb_first_cached(&tree->map);
+	node = rb_first_cached(&tree->root);
 	while (node) {
 		struct extent_map *em;
 
@@ -1094,7 +1094,7 @@ next:
 		 * lock and took it again.
 		 */
 		if (cond_resched_rwlock_write(&tree->lock))
-			node = rb_first_cached(&tree->map);
+			node = rb_first_cached(&tree->root);
 	}
 	write_unlock(&tree->lock);
 	up_read(&inode->i_mmap_lock);
