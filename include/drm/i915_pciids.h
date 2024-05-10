@@ -597,7 +597,7 @@
 	INTEL_VGA_DEVICE(0x8A70, info), \
 	INTEL_VGA_DEVICE(0x8A71, info)
 
-#define INTEL_ICL_11_IDS(info) \
+#define INTEL_ICL_IDS(info) \
 	INTEL_ICL_PORT_F_IDS(info), \
 	INTEL_VGA_DEVICE(0x8A51, info), \
 	INTEL_VGA_DEVICE(0x8A5D, info)
