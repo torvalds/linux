@@ -1572,6 +1572,11 @@ DEFINE_IPL_ATTR_RW(dump_fcp, br_lba, "%lld\n", "%lld\n",
 DEFINE_IPL_ATTR_RW(dump_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
 		   dump_block_fcp->fcp.devno);
 
+DEFINE_IPL_ATTR_SCP_DATA_RW(dump_fcp, dump_block_fcp->hdr,
+			    dump_block_fcp->fcp,
+			    IPL_BP_FCP_LEN, IPL_BP0_FCP_LEN,
+			    DIAG308_SCPDATA_SIZE);
+
 static struct attribute *dump_fcp_attrs[] = {
 	&sys_dump_fcp_device_attr.attr,
 	&sys_dump_fcp_wwpn_attr.attr,
@@ -1581,9 +1586,15 @@ static struct attribute *dump_fcp_attrs[] = {
 	NULL,
 };
 
+static struct bin_attribute *dump_fcp_bin_attrs[] = {
+	&sys_dump_fcp_scp_data_attr,
+	NULL,
+};
+
 static struct attribute_group dump_fcp_attr_group = {
 	.name  = IPL_FCP_STR,
 	.attrs = dump_fcp_attrs,
+	.bin_attrs = dump_fcp_bin_attrs,
 };
 
 /* NVME dump device attributes */
@@ -1596,6 +1607,11 @@ DEFINE_IPL_ATTR_RW(dump_nvme, bootprog, "%lld\n", "%llx\n",
 DEFINE_IPL_ATTR_RW(dump_nvme, br_lba, "%lld\n", "%llx\n",
 		   dump_block_nvme->nvme.br_lba);
 
+DEFINE_IPL_ATTR_SCP_DATA_RW(dump_nvme, dump_block_nvme->hdr,
+			    dump_block_nvme->nvme,
+			    IPL_BP_NVME_LEN, IPL_BP0_NVME_LEN,
+			    DIAG308_SCPDATA_SIZE);
+
 static struct attribute *dump_nvme_attrs[] = {
 	&sys_dump_nvme_fid_attr.attr,
 	&sys_dump_nvme_nsid_attr.attr,
@@ -1604,9 +1620,15 @@ static struct attribute *dump_nvme_attrs[] = {
 	NULL,
 };
 
+static struct bin_attribute *dump_nvme_bin_attrs[] = {
+	&sys_dump_nvme_scp_data_attr,
+	NULL,
+};
+
 static struct attribute_group dump_nvme_attr_group = {
 	.name  = IPL_NVME_STR,
 	.attrs = dump_nvme_attrs,
+	.bin_attrs = dump_nvme_bin_attrs,
 };
 
 /* ECKD dump device attributes */
@@ -1620,6 +1642,11 @@ IPL_ATTR_BR_CHR_STORE_FN(dump, dump_block_eckd->eckd);
 static struct kobj_attribute sys_dump_eckd_br_chr_attr =
 	__ATTR(br_chr, 0644, eckd_dump_br_chr_show, eckd_dump_br_chr_store);
 
+DEFINE_IPL_ATTR_SCP_DATA_RW(dump_eckd, dump_block_eckd->hdr,
+			    dump_block_eckd->eckd,
+			    IPL_BP_ECKD_LEN, IPL_BP0_ECKD_LEN,
+			    DIAG308_SCPDATA_SIZE);
+
 static struct attribute *dump_eckd_attrs[] = {
 	&sys_dump_eckd_device_attr.attr,
 	&sys_dump_eckd_bootprog_attr.attr,
@@ -1627,9 +1654,15 @@ static struct attribute *dump_eckd_attrs[] = {
 	NULL,
 };
 
+static struct bin_attribute *dump_eckd_bin_attrs[] = {
+	&sys_dump_eckd_scp_data_attr,
+	NULL,
+};
+
 static struct attribute_group dump_eckd_attr_group = {
 	.name  = IPL_ECKD_STR,
 	.attrs = dump_eckd_attrs,
+	.bin_attrs = dump_eckd_bin_attrs,
 };
 
 /* CCW dump device attributes */
