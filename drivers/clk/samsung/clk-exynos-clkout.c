@@ -17,6 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 
+#define DRV_NAME			"exynos-clkout"
+
 #define EXYNOS_CLKOUT_NR_CLKS		1
 #define EXYNOS_CLKOUT_PARENTS		32
 
@@ -75,7 +77,6 @@ static const struct of_device_id exynos_clkout_ids[] = {
 		.data = &exynos_clkout_exynos5,
 	}, { }
 };
-MODULE_DEVICE_TABLE(of, exynos_clkout_ids);
 
 /*
  * Device will be instantiated as child of PMU device without its own
@@ -236,8 +237,7 @@ static SIMPLE_DEV_PM_OPS(exynos_clkout_pm_ops, exynos_clkout_suspend,
 
 static struct platform_driver exynos_clkout_driver = {
 	.driver = {
-		.name = "exynos-clkout",
-		.of_match_table = exynos_clkout_ids,
+		.name = DRV_NAME,
 		.pm = &exynos_clkout_pm_ops,
 	},
 	.probe = exynos_clkout_probe,
@@ -248,4 +248,5 @@ module_platform_driver(exynos_clkout_driver);
 MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_AUTHOR("Tomasz Figa <tomasz.figa@gmail.com>");
 MODULE_DESCRIPTION("Samsung Exynos clock output driver");
+MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_LICENSE("GPL");
