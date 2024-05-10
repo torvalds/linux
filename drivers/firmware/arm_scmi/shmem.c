@@ -128,3 +128,8 @@ bool shmem_channel_free(struct scmi_shared_mem __iomem *shmem)
 	return (ioread32(&shmem->channel_status) &
 			SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE);
 }
+
+bool shmem_channel_intr_enabled(struct scmi_shared_mem __iomem *shmem)
+{
+	return ioread32(&shmem->flags) & SCMI_SHMEM_FLAG_INTR_ENABLED;
+}
