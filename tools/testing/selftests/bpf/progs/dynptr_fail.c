@@ -80,7 +80,7 @@ SEC("?raw_tp")
 __failure __msg("Unreleased reference id=2")
 int ringbuf_missing_release1(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	bpf_ringbuf_reserve_dynptr(&ringbuf, val, 0, &ptr);
 
@@ -1385,7 +1385,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int dynptr_adjust_invalid(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	/* this should fail */
 	bpf_dynptr_adjust(&ptr, 1, 2);
@@ -1398,7 +1398,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int dynptr_is_null_invalid(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	/* this should fail */
 	bpf_dynptr_is_null(&ptr);
@@ -1411,7 +1411,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int dynptr_is_rdonly_invalid(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	/* this should fail */
 	bpf_dynptr_is_rdonly(&ptr);
@@ -1424,7 +1424,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int dynptr_size_invalid(void *ctx)
 {
-	struct bpf_dynptr ptr;
+	struct bpf_dynptr ptr = {};
 
 	/* this should fail */
 	bpf_dynptr_size(&ptr);
@@ -1437,7 +1437,7 @@ SEC("?raw_tp")
 __failure __msg("Expected an initialized dynptr as arg #1")
 int clone_invalid1(void *ctx)
 {
-	struct bpf_dynptr ptr1;
+	struct bpf_dynptr ptr1 = {};
 	struct bpf_dynptr ptr2;
 
 	/* this should fail */
