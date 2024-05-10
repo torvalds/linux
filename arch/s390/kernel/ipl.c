@@ -1958,11 +1958,13 @@ static struct shutdown_action __refdata dump_reipl_action = {
  * vmcmd shutdown action: Trigger vm command on shutdown.
  */
 
-static char vmcmd_on_reboot[128];
-static char vmcmd_on_panic[128];
-static char vmcmd_on_halt[128];
-static char vmcmd_on_poff[128];
-static char vmcmd_on_restart[128];
+#define VMCMD_MAX_SIZE	240
+
+static char vmcmd_on_reboot[VMCMD_MAX_SIZE + 1];
+static char vmcmd_on_panic[VMCMD_MAX_SIZE + 1];
+static char vmcmd_on_halt[VMCMD_MAX_SIZE + 1];
+static char vmcmd_on_poff[VMCMD_MAX_SIZE + 1];
+static char vmcmd_on_restart[VMCMD_MAX_SIZE + 1];
 
 DEFINE_IPL_ATTR_STR_RW(vmcmd, on_reboot, "%s\n", "%s\n", vmcmd_on_reboot);
 DEFINE_IPL_ATTR_STR_RW(vmcmd, on_panic, "%s\n", "%s\n", vmcmd_on_panic);
@@ -2288,8 +2290,8 @@ static int __init vmcmd_on_reboot_setup(char *str)
 {
 	if (!MACHINE_IS_VM)
 		return 1;
-	strncpy_skip_quote(vmcmd_on_reboot, str, 127);
-	vmcmd_on_reboot[127] = 0;
+	strncpy_skip_quote(vmcmd_on_reboot, str, VMCMD_MAX_SIZE);
+	vmcmd_on_reboot[VMCMD_MAX_SIZE] = 0;
 	on_reboot_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2299,8 +2301,8 @@ static int __init vmcmd_on_panic_setup(char *str)
 {
 	if (!MACHINE_IS_VM)
 		return 1;
-	strncpy_skip_quote(vmcmd_on_panic, str, 127);
-	vmcmd_on_panic[127] = 0;
+	strncpy_skip_quote(vmcmd_on_panic, str, VMCMD_MAX_SIZE);
+	vmcmd_on_panic[VMCMD_MAX_SIZE] = 0;
 	on_panic_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2310,8 +2312,8 @@ static int __init vmcmd_on_halt_setup(char *str)
 {
 	if (!MACHINE_IS_VM)
 		return 1;
-	strncpy_skip_quote(vmcmd_on_halt, str, 127);
-	vmcmd_on_halt[127] = 0;
+	strncpy_skip_quote(vmcmd_on_halt, str, VMCMD_MAX_SIZE);
+	vmcmd_on_halt[VMCMD_MAX_SIZE] = 0;
 	on_halt_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2321,8 +2323,8 @@ static int __init vmcmd_on_poff_setup(char *str)
 {
 	if (!MACHINE_IS_VM)
 		return 1;
-	strncpy_skip_quote(vmcmd_on_poff, str, 127);
-	vmcmd_on_poff[127] = 0;
+	strncpy_skip_quote(vmcmd_on_poff, str, VMCMD_MAX_SIZE);
+	vmcmd_on_poff[VMCMD_MAX_SIZE] = 0;
 	on_poff_trigger.action = &vmcmd_action;
 	return 1;
 }
