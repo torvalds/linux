@@ -222,7 +222,7 @@ static ssize_t pid_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct gendisk *disk = dev_to_disk(dev);
-	struct nbd_device *nbd = (struct nbd_device *)disk->private_data;
+	struct nbd_device *nbd = disk->private_data;
 
 	return sprintf(buf, "%d\n", nbd->pid);
 }
@@ -236,7 +236,7 @@ static ssize_t backend_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct gendisk *disk = dev_to_disk(dev);
-	struct nbd_device *nbd = (struct nbd_device *)disk->private_data;
+	struct nbd_device *nbd = disk->private_data;
 
 	return sprintf(buf, "%s\n", nbd->backend ?: "");
 }
