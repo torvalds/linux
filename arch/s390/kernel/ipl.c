@@ -266,7 +266,11 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		const char *buf, size_t len)				\
 {									\
-	strscpy(_value, buf, sizeof(_value));				\
+	if (len >= sizeof(_value))					\
+		return -E2BIG;						\
+	len = strscpy(_value, buf, sizeof(_value));			\
+	if (len < 0)							\
+		return len;						\
 	strim(_value);							\
 	return len;							\
 }									\
