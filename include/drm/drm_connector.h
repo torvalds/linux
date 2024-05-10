@@ -1636,8 +1636,12 @@ struct drm_connector {
 
 	/**
 	 * @edid_blob_ptr: DRM property containing EDID if present. Protected by
-	 * &drm_mode_config.mutex. This should be updated only by calling
+	 * &drm_mode_config.mutex.
+	 *
+	 * This must be updated only by calling drm_edid_connector_update() or
 	 * drm_connector_update_edid_property().
+	 *
+	 * This must not be used by drivers directly.
 	 */
 	struct drm_property_blob *edid_blob_ptr;
 
