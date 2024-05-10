@@ -116,7 +116,7 @@ struct intel_v4l2_subdev_table {
 };
 
 /*
- *  Sensor of external ISP can send multiple steams with different mipi data
+ *  Sensor of external ISP can send multiple streams with different mipi data
  * type in the same virtual channel. This information needs to come from the
  * sensor or external ISP
  */
@@ -138,7 +138,7 @@ struct atomisp_input_stream_info {
 	/*
 	 * if more isys_configs is more than 0, sensor needs to configure the
 	 * input format differently. width and height can be 0. If width and
-	 * height is not zero, then the corresponsing data needs to be set
+	 * height is not zero, then the corresponding data needs to be set
 	 */
 	struct atomisp_isys_config_info isys_info[MAX_STREAMS_PER_CHANNEL];
 };
