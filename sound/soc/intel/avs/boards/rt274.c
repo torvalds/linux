@@ -102,7 +102,8 @@ static int avs_rt274_codec_init(struct snd_soc_pcm_runtime *runtime)
 	if (!pins)
 		return -ENOMEM;
 
-	ret = snd_soc_card_jack_new_pins(card, "Headset", SND_JACK_HEADSET, jack, pins, num_pins);
+	ret = snd_soc_card_jack_new_pins(card, "Headset Jack", SND_JACK_HEADSET, jack, pins,
+					 num_pins);
 	if (ret)
 		return ret;
 
