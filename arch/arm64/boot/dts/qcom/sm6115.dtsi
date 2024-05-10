@@ -3325,6 +3325,8 @@
 		};
 
 		gpu-thermal {
+			polling-delay-passive = <250>;
+
 			thermal-sensors = <&tsens0 15>;
 
 			cooling-maps {
@@ -3336,13 +3338,13 @@
 
 			trips {
 				gpu_alert0: trip-point0 {
-					temperature = <115000>;
-					hysteresis = <5000>;
+					temperature = <85000>;
+					hysteresis = <1000>;
 					type = "passive";
 				};
 
 				trip-point1 {
-					temperature = <125000>;
+					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
