@@ -2433,9 +2433,9 @@ static int unicam_async_bound(struct v4l2_async_notifier *notifier,
 		return ret;
 
 	source = media_pad_remote_pad_unique(sink);
-	if (!source) {
+	if (IS_ERR(source)) {
 		dev_err(unicam->dev, "No connected sensor pad\n");
-		return -ENOTCONN;
+		return PTR_ERR(source);
 	}
 
 	unicam->sensor.subdev = subdev;
@@ -2661,17 +2661,13 @@ static int unicam_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret <= 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
-		ret = -EINVAL;
+	if (ret < 0)
 		goto err_unicam_put;
-	}
 
 	ret = devm_request_irq(&pdev->dev, ret, unicam_isr, 0,
 			       "unicam_capture0", unicam);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to request interrupt\n");
-		ret = -EINVAL;
 		goto err_unicam_put;
 	}
 
@@ -2704,7 +2700,7 @@ err_unicam_put:
 	return ret;
 }
 
-static int unicam_remove(struct platform_device *pdev)
+static void unicam_remove(struct platform_device *pdev)
 {
 	struct unicam_device *unicam = platform_get_drvdata(pdev);
 
@@ -2718,8 +2714,6 @@ static int unicam_remove(struct platform_device *pdev)
 	unicam_put(unicam);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id unicam_of_match[] = {
@@ -2730,7 +2724,7 @@ MODULE_DEVICE_TABLE(of, unicam_of_match);
 
 static struct platform_driver unicam_driver = {
 	.probe		= unicam_probe,
-	.remove		= unicam_remove,
+	.remove_new	= unicam_remove,
 	.driver = {
 		.name	= UNICAM_MODULE_NAME,
 		.pm	= pm_ptr(&unicam_pm_ops),
