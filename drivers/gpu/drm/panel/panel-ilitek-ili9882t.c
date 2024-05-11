@@ -402,19 +402,15 @@ static int starry_ili9882t_init(struct ili9882t *ili)
 	mipi_dsi_dcs_write_seq_multi(&ctx, 0x92, 0x22);
 
 	ili9882t_switch_page(&ctx, 0x00);
-	mipi_dsi_dcs_write_seq_multi(&ctx, MIPI_DCS_EXIT_SLEEP_MODE);
-	if (ctx.accum_err)
-		return ctx.accum_err;
+	mipi_dsi_dcs_exit_sleep_mode_multi(&ctx);
 
-	msleep(120);
+	mipi_dsi_msleep(&ctx, 120);
 
-	mipi_dsi_dcs_write_seq_multi(&ctx, MIPI_DCS_SET_DISPLAY_ON);
-	if (ctx.accum_err)
-		return ctx.accum_err;
+	mipi_dsi_dcs_set_display_on_multi(&ctx);
 
-	msleep(20);
+	mipi_dsi_msleep(&ctx, 20);
 
-	return 0;
+	return ctx.accum_err;
 };
 
 static inline struct ili9882t *to_ili9882t(struct drm_panel *panel)
@@ -422,43 +418,21 @@ static inline struct ili9882t *to_ili9882t(struct drm_panel *panel)
 	return container_of(panel, struct ili9882t, base);
 }
 
-static int ili9882t_enter_sleep_mode(struct ili9882t *ili)
-{
-	struct mipi_dsi_device *dsi = ili->dsi;
-	int ret;
-
-	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
-
-	ret = mipi_dsi_dcs_set_display_off(dsi);
-	if (ret < 0)
-		return ret;
-
-	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int ili9882t_disable(struct drm_panel *panel)
 {
 	struct ili9882t *ili = to_ili9882t(panel);
 	struct mipi_dsi_multi_context ctx = { .dsi = ili->dsi };
-	int ret;
 
 	ili9882t_switch_page(&ctx, 0x00);
-	if (ctx.accum_err)
-		return ctx.accum_err;
 
-	ret = ili9882t_enter_sleep_mode(ili);
-	if (ret < 0) {
-		dev_err(panel->dev, "failed to set panel off: %d\n", ret);
-		return ret;
-	}
+	ili->dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
-	msleep(150);
+	mipi_dsi_dcs_set_display_off_multi(&ctx);
+	mipi_dsi_dcs_enter_sleep_mode_multi(&ctx);
 
-	return 0;
+	mipi_dsi_msleep(&ctx, 150);
+
+	return ctx.accum_err;
 }
 
 static int ili9882t_unprepare(struct drm_panel *panel)
