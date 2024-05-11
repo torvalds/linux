@@ -1036,6 +1036,8 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_14_0_dpm_context *dpm_context = smu_dpm->dpm_context;
 	struct smu_14_0_dpm_table *single_dpm_table;
+	struct smu_14_0_pcie_table *pcie_table;
+	uint32_t gen_speed, lane_width;
 	int i, curr_freq, size = 0;
 	int ret = 0;
 
@@ -1126,7 +1128,35 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 		}
 		break;
 	case SMU_PCIE:
-		// TODO
+		ret = smu_v14_0_2_get_smu_metrics_data(smu,
+						       METRICS_PCIE_RATE,
+						       &gen_speed);
+		if (ret)
+			return ret;
+
+		ret = smu_v14_0_2_get_smu_metrics_data(smu,
+						       METRICS_PCIE_WIDTH,
+						       &lane_width);
+		if (ret)
+			return ret;
+
+		pcie_table = &(dpm_context->dpm_tables.pcie_table);
+		for (i = 0; i < pcie_table->num_of_link_levels; i++)
+			size += sysfs_emit_at(buf, size, "%d: %s %s %dMhz %s\n", i,
+					(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
+					(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
+					(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
+					(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," : "",
+					(pcie_table->pcie_lane[i] == 1) ? "x1" :
+					(pcie_table->pcie_lane[i] == 2) ? "x2" :
+					(pcie_table->pcie_lane[i] == 3) ? "x4" :
+					(pcie_table->pcie_lane[i] == 4) ? "x8" :
+					(pcie_table->pcie_lane[i] == 5) ? "x12" :
+					(pcie_table->pcie_lane[i] == 6) ? "x16" : "",
+					pcie_table->clk_freq[i],
+					(gen_speed == DECODE_GEN_SPEED(pcie_table->pcie_gen[i])) &&
+					(lane_width == DECODE_LANE_WIDTH(pcie_table->pcie_lane[i])) ?
+					"*" : "");
 		break;
 
 	default:

@@ -48,6 +48,12 @@
 
 #define SMU14_TOOL_SIZE			0x19000
 
+extern const int decoded_link_speed[5];
+extern const int decoded_link_width[7];
+
+#define DECODE_GEN_SPEED(gen_speed_idx)		(decoded_link_speed[gen_speed_idx])
+#define DECODE_LANE_WIDTH(lane_width_idx)	(decoded_link_width[lane_width_idx])
+
 struct smu_14_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;
