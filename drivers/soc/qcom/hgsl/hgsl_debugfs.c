@@ -102,10 +102,11 @@ int hgsl_debugfs_client_init(struct hgsl_priv *priv)
 				hgsl->clients_debugfs);
 	if (IS_ERR(ret)) {
 		pr_warn("Create debugfs proc node failed.\n");
+		priv->debugfs_client = NULL;
 		return PTR_ERR(ret);
-	}
+	} else
+		priv->debugfs_client = ret;
 
-	priv->debugfs_client = ret;
 	priv->debugfs_mem = debugfs_create_file("mem", 0444,
 			priv->debugfs_client,
 			priv,
@@ -126,13 +127,13 @@ void hgsl_debugfs_client_release(struct hgsl_priv *priv)
 
 void hgsl_debugfs_init(struct platform_device *pdev)
 {
-	struct qcom_hgsl *hgsl_dev = platform_get_drvdata(pdev);
+	struct qcom_hgsl *hgsl = platform_get_drvdata(pdev);
 	struct dentry *root;
 
 	root = debugfs_create_dir("hgsl", NULL);
 
-	hgsl_dev->debugfs = root;
-	hgsl_dev->clients_debugfs = debugfs_create_dir("clients", root);
+	hgsl->debugfs = root;
+	hgsl->clients_debugfs = debugfs_create_dir("clients", root);
 }
 
 void hgsl_debugfs_release(struct platform_device *pdev)
