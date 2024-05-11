@@ -497,9 +497,8 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 				 uint64_t *flags)
 {
 	struct amdgpu_bo *bo = mapping->bo_va->base.bo;
-	struct amdgpu_device *bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	bool coherent = bo->flags & AMDGPU_GEM_CREATE_COHERENT;
-	bool is_system = bo->tbo.resource->mem_type == TTM_PL_SYSTEM;
+	struct amdgpu_device *bo_adev;
+	bool coherent, is_system;
 
 
 	*flags &= ~AMDGPU_PTE_EXECUTABLE;
@@ -515,13 +514,20 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 		*flags &= ~AMDGPU_PTE_VALID;
 	}
 
-	if (bo && bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
+	if (!bo)
+		return;
+
+	if (bo->flags & (AMDGPU_GEM_CREATE_COHERENT |
 			       AMDGPU_GEM_CREATE_UNCACHED))
 		*flags = (*flags & ~AMDGPU_PTE_MTYPE_GFX12_MASK) |
 			 AMDGPU_PTE_MTYPE_GFX12(MTYPE_UC);
 
+	bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	coherent = bo->flags & AMDGPU_GEM_CREATE_COHERENT;
+	is_system = bo->tbo.resource->mem_type == TTM_PL_SYSTEM;
+
 	/* WA for HW bug */
-	if ((bo && is_system) || ((bo_adev != adev) && coherent))
+	if (is_system || ((bo_adev != adev) && coherent))
 		*flags |= AMDGPU_PTE_MTYPE_GFX12(MTYPE_NC);
 
 }
