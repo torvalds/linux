@@ -224,21 +224,14 @@ static const struct drm_display_mode innolux_p097pfg_mode = {
 static void innolux_panel_write_multi(struct mipi_dsi_multi_context *ctx,
 				      const void *payload, size_t size)
 {
-	struct mipi_dsi_device *dsi = ctx->dsi;
-	struct device *dev = &dsi->dev;
-
 	mipi_dsi_generic_write_multi(ctx, payload, size);
-	if (ctx->accum_err)
-		return;
 
 	/*
 	 * Included by random guessing, because without this
 	 * (or at least, some delay), the panel sometimes
 	 * didn't appear to pick up the command sequence.
 	 */
-	ctx->accum_err = mipi_dsi_dcs_nop(ctx->dsi);
-	if (ctx->accum_err)
-		dev_err(dev, "failed to send DCS nop: %d\n", ctx->accum_err);
+	mipi_dsi_dcs_nop_multi(ctx);
 }
 
 #define innolux_panel_init_cmd_multi(ctx, seq...)                 \
