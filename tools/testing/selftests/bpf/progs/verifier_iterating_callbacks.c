@@ -318,7 +318,7 @@ int cond_break1(const void *ctx)
 	unsigned long i;
 	unsigned int sum = 0;
 
-	for (i = zero; i < ARR_SZ; cond_break, i++)
+	for (i = zero; i < ARR_SZ && can_loop; i++)
 		sum += i;
 	for (i = zero; i < ARR_SZ; i++) {
 		barrier_var(i);
@@ -336,12 +336,11 @@ int cond_break2(const void *ctx)
 	int i, j;
 	int sum = 0;
 
-	for (i = zero; i < 1000; cond_break, i++)
+	for (i = zero; i < 1000 && can_loop; i++)
 		for (j = zero; j < 1000; j++) {
 			sum += i + j;
 			cond_break;
-		}
-
+	}
 	return sum;
 }
 
@@ -349,7 +348,7 @@ static __noinline int loop(void)
 {
 	int i, sum = 0;
 
-	for (i = zero; i <= 1000000; i++, cond_break)
+	for (i = zero; i <= 1000000 && can_loop; i++)
 		sum += i;
 
 	return sum;
