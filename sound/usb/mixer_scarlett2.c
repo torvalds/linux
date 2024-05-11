@@ -184,16 +184,16 @@
 /* maximum Bluetooth volume value */
 #define SCARLETT2_MAX_BLUETOOTH_VOLUME 30
 
-/* mixer range from -80dB to +6dB in 0.5dB steps */
+/* mixer range from -80dB to +12dB in 0.5dB steps */
 #define SCARLETT2_MIXER_MIN_DB -80
 #define SCARLETT2_MIXER_BIAS (-SCARLETT2_MIXER_MIN_DB * 2)
-#define SCARLETT2_MIXER_MAX_DB 6
+#define SCARLETT2_MIXER_MAX_DB 12
 #define SCARLETT2_MIXER_MAX_VALUE \
 	((SCARLETT2_MIXER_MAX_DB - SCARLETT2_MIXER_MIN_DB) * 2)
 #define SCARLETT2_MIXER_VALUE_COUNT (SCARLETT2_MIXER_MAX_VALUE + 1)
 
 /* map from (dB + 80) * 2 to mixer value
- * for dB in 0 .. 172: int(8192 * pow(10, ((dB - 160) / 2 / 20)))
+ * for dB in 0 .. 184: int(8192 * pow(10, ((dB - 160) / 2 / 20)))
  */
 static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 	0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
@@ -209,7 +209,8 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 	3078, 3261, 3454, 3659, 3876, 4105, 4349, 4606, 4879, 5168,
 	5475, 5799, 6143, 6507, 6892, 7301, 7733, 8192, 8677, 9191,
 	9736, 10313, 10924, 11571, 12257, 12983, 13752, 14567, 15430,
-	16345
+	16345, 17313, 18339, 19426, 20577, 21796, 23088, 24456, 25905,
+	27440, 29066, 30788, 32612
 };
 
 /* Maximum number of analogue outputs */
