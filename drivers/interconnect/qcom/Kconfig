@@ -140,6 +140,19 @@ config INTERCONNECT_QCOM_SDM845
 	  This is a driver for the Qualcomm Network-on-Chip on sdm845-based
 	  platforms.
 
+config INTERCONNECT_QCOM_ANORAK
+        tristate "ANORAK interconnect driver"
+        depends on INTERCONNECT_QCOM
+        depends on QCOM_RPMH && QCOM_COMMAND_DB && OF
+        select INTERCONNECT_QCOM_BCM_VOTER
+        select INTERCONNECT_QCOM_RPMH
+        select INTERCONNECT_QCOM_QOS
+        help
+          This is a driver for the Qualcomm Technologies, Inc. Network-on-Chip
+          on Anorak-based platforms. Interconnect driver provides interfaces
+          for setting bandwidth between two endpoints (path). It also used to
+          configure NOC QoS settings (Quality of Service).
+
 config INTERCONNECT_QCOM_SDX55
 	tristate "Qualcomm SDX55 interconnect driver"
 	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE

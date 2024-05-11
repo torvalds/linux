@@ -27,6 +27,7 @@ mdt_loader.ko
 pinctrl-msm.ko
 pinctrl-anorak.ko
 secure_buffer.ko
+qcom_rpmh.ko
 clk-qcom.ko
 clk-dummy.ko
 clk-rpmh.ko
@@ -45,3 +46,12 @@ smem.ko
 socinfo.ko
 kryo_arm64_edac.ko
 llcc-qcom.ko
+icc-rpmh.ko
+icc-bcm-voter.ko
+icc-debug.ko
+qnoc-anorak.ko
+qnoc-qos.ko
+proxy-consumer.ko
+rpmh-regulator.ko
+qti-fixed-regulator.ko
+debug-regulator.ko
