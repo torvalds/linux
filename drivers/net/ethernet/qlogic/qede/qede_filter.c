@@ -1848,6 +1848,9 @@ qede_parse_flow_attr(__be16 proto, struct flow_rule *rule,
 		return -EOPNOTSUPP;
 	}
 
+	if (flow_rule_match_has_control_flags(rule, extack))
+		return -EOPNOTSUPP;
+
 	if (proto != htons(ETH_P_IP) &&
 	    proto != htons(ETH_P_IPV6)) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported proto=0x%x",
