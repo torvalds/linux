@@ -102,10 +102,10 @@ resources.  For Windows Server 2019 and later, this limit is
 approximately 1280 Mbytes.  For versions prior to Windows Server
 2019, the limit is approximately 384 Mbytes.
 
-VMBus messages
---------------
-All VMBus messages have a standard header that includes the message
-length, the offset of the message payload, some flags, and a
+VMBus channel messages
+----------------------
+All messages sent in a VMBus channel have a standard header that includes
+the message length, the offset of the message payload, some flags, and a
 transactionID.  The portion of the message after the header is
 unique to each VSP/VSC pair.
 
@@ -137,7 +137,7 @@ control message contains a list of GPAs that describe the data
 buffer.  For example, the storvsc driver uses this approach to
 specify the data buffers to/from which disk I/O is done.
 
-Three functions exist to send VMBus messages:
+Three functions exist to send VMBus channel messages:
 
 1. vmbus_sendpacket():  Control-only messages and messages with
    embedded data -- no GPAs
@@ -165,6 +165,37 @@ performed in this temporary buffer without the risk of Hyper-V
 maliciously modifying the message after it is validated but before
 it is used.
 
+Synthetic Interrupt Controller (synic)
+--------------------------------------
+Hyper-V provides each guest CPU with a synthetic interrupt controller
+that is used by VMBus for host-guest communication. While each synic
+defines 16 synthetic interrupts (SINT), Linux uses only one of the 16
+(VMBUS_MESSAGE_SINT). All interrupts related to communication between
+the Hyper-V host and a guest CPU use that SINT.
+
+The SINT is mapped to a single per-CPU architectural interrupt (i.e,
+an 8-bit x86/x64 interrupt vector, or an arm64 PPI INTID). Because
+each CPU in the guest has a synic and may receive VMBus interrupts,
+they are best modeled in Linux as per-CPU interrupts. This model works
+well on arm64 where a single per-CPU Linux IRQ is allocated for
+VMBUS_MESSAGE_SINT. This IRQ appears in /proc/interrupts as an IRQ labelled
+"Hyper-V VMbus". Since x86/x64 lacks support for per-CPU IRQs, an x86
+interrupt vector is statically allocated (HYPERVISOR_CALLBACK_VECTOR)
+across all CPUs and explicitly coded to call vmbus_isr(). In this case,
+there's no Linux IRQ, and the interrupts are visible in aggregate in
+/proc/interrupts on the "HYP" line.
+
+The synic provides the means to demultiplex the architectural interrupt into
+one or more logical interrupts and route the logical interrupt to the proper
+VMBus handler in Linux. This demultiplexing is done by vmbus_isr() and
+related functions that access synic data structures.
+
+The synic is not modeled in Linux as an irq chip or irq domain,
+and the demultiplexed logical interrupts are not Linux IRQs. As such,
+they don't appear in /proc/interrupts or /proc/irq. The CPU
+affinity for one of these logical interrupts is controlled via an
+entry under /sys/bus/vmbus as described below.
+
 VMBus interrupts
 ----------------
 VMBus provides a mechanism for the guest to interrupt the host when
@@ -176,16 +207,18 @@ unnecessary.  If a guest sends an excessive number of unnecessary
 interrupts, the host may throttle that guest by suspending its
 execution for a few seconds to prevent a denial-of-service attack.
 
-Similarly, the host will interrupt the guest when it sends a new
-message on the VMBus control path, or when a VMBus channel "in" ring
-buffer transitions from empty to non-empty.  Each CPU in the guest
-may receive VMBus interrupts, so they are best modeled as per-CPU
-interrupts in Linux.  This model works well on arm64 where a single
-per-CPU IRQ is allocated for VMBus.  Since x86/x64 lacks support for
-per-CPU IRQs, an x86 interrupt vector is statically allocated (see
-HYPERVISOR_CALLBACK_VECTOR) across all CPUs and explicitly coded to
-call the VMBus interrupt service routine.  These interrupts are
-visible in /proc/interrupts on the "HYP" line.
+Similarly, the host will interrupt the guest via the synic when
+it sends a new message on the VMBus control path, or when a VMBus
+channel "in" ring buffer transitions from empty to non-empty due to
+the host inserting a new VMBus channel message. The control message stream
+and each VMBus channel "in" ring buffer are separate logical interrupts
+that are demultiplexed by vmbus_isr(). It demultiplexes by first checking
+for channel interrupts by calling vmbus_chan_sched(), which looks at a synic
+bitmap to determine which channels have pending interrupts on this CPU.
+If multiple channels have pending interrupts for this CPU, they are
+processed sequentially.  When all channel interrupts have been processed,
+vmbus_isr() checks for and processes any messages received on the VMBus
+control path.
 
 The guest CPU that a VMBus channel will interrupt is selected by the
 guest when the channel is created, and the host is informed of that
@@ -212,25 +245,15 @@ neither "unmanaged" nor "managed" interrupts.
 The CPU that a VMBus channel will interrupt can be seen in
 /sys/bus/vmbus/devices/<deviceGUID>/ channels/<channelRelID>/cpu.
 When running on later versions of Hyper-V, the CPU can be changed
-by writing a new value to this sysfs entry.  Because the interrupt
-assignment is done outside of the normal Linux affinity mechanism,
-there are no entries in /proc/irq corresponding to individual
-VMBus channel interrupts.
+by writing a new value to this sysfs entry. Because VMBus channel
+interrupts are not Linux IRQs, there are no entries in /proc/interrupts
+or /proc/irq corresponding to individual VMBus channel interrupts.
 
 An online CPU in a Linux guest may not be taken offline if it has
 VMBus channel interrupts assigned to it.  Any such channel
 interrupts must first be manually reassigned to another CPU as
 described above.  When no channel interrupts are assigned to the
 CPU, it can be taken offline.
-
-When a guest CPU receives a VMBus interrupt from the host, the
-function vmbus_isr() handles the interrupt.  It first checks for
-channel interrupts by calling vmbus_chan_sched(), which looks at a
-bitmap setup by the host to determine which channels have pending
-interrupts on this CPU.  If multiple channels have pending
-interrupts for this CPU, they are processed sequentially.  When all
-channel interrupts have been processed, vmbus_isr() checks for and
-processes any message received on the VMBus control path.
 
 The VMBus channel interrupt handling code is designed to work
 correctly even if an interrupt is received on a CPU other than the
