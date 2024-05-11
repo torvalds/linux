@@ -176,7 +176,6 @@ config RISCV
 	select LOCK_MM_AND_FIND_VMA
 	select MMU_GATHER_RCU_TABLE_FREE if SMP && MMU
 	select MODULES_USE_ELF_RELA if MODULES
-	select MODULE_SECTIONS if MODULES
 	select OF
 	select OF_EARLY_FLATTREE
 	select OF_IRQ
@@ -867,6 +866,7 @@ config PARAVIRT_TIME_ACCOUNTING
 config RELOCATABLE
 	bool "Build a relocatable kernel"
 	depends on MMU && 64BIT && !XIP_KERNEL
+	select MODULE_SECTIONS if MODULES
 	help
           This builds a kernel as a Position Independent Executable (PIE),
           which retains all relocation metadata required to relocate the
