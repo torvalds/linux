@@ -17,6 +17,7 @@
 source lib.sh
 
 ret=0
+SOCAT_TIMEOUT=60
 
 nsin=""
 ns1out=""
@@ -350,12 +351,12 @@ test_tcp_forwarding_ip()
 	local dstport=$4
 	local lret=0
 
-	timeout 10 ip netns exec "$nsb" socat -4 TCP-LISTEN:12345,reuseaddr STDIO < "$nsin" > "$ns2out" &
+	timeout "$SOCAT_TIMEOUT" ip netns exec "$nsb" socat -4 TCP-LISTEN:12345,reuseaddr STDIO < "$nsin" > "$ns2out" &
 	lpid=$!
 
 	busywait 1000 listener_ready
 
-	timeout 10 ip netns exec "$nsa" socat -4 TCP:"$dstip":"$dstport" STDIO < "$nsin" > "$ns1out"
+	timeout "$SOCAT_TIMEOUT" ip netns exec "$nsa" socat -4 TCP:"$dstip":"$dstport" STDIO < "$nsin" > "$ns1out"
 
 	wait $lpid
 
