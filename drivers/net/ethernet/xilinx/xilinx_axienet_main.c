@@ -1641,7 +1641,7 @@ static int axienet_change_mtu(struct net_device *ndev, int new_mtu)
 		XAE_TRL_SIZE) > lp->rxmem)
 		return -EINVAL;
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	return 0;
 }

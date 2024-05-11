@@ -429,7 +429,7 @@ int create_and_get_cgroup(const char *relative_path)
  * which is an invalid cgroup id.
  * If there is a failure, it prints the error to stderr.
  */
-unsigned long long get_cgroup_id_from_path(const char *cgroup_workdir)
+static unsigned long long get_cgroup_id_from_path(const char *cgroup_workdir)
 {
 	int dirfd, err, flags, mount_id, fhsize;
 	union {

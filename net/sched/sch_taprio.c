@@ -1752,10 +1752,7 @@ static int taprio_parse_tc_entries(struct Qdisc *sch,
 		fp[tc] = q->fp[tc];
 	}
 
-	nla_for_each_nested(n, opt, rem) {
-		if (nla_type(n) != TCA_TAPRIO_ATTR_TC_ENTRY)
-			continue;
-
+	nla_for_each_nested_type(n, TCA_TAPRIO_ATTR_TC_ENTRY, opt, rem) {
 		err = taprio_parse_tc_entry(sch, n, max_sdu, fp, &seen_tcs,
 					    extack);
 		if (err)

@@ -341,51 +341,60 @@ do { \
 static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 				   struct wiphy *wiphy)
 {
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	bool regd_allow_unii_4 = chip->support_unii4;
 	struct ieee80211_supported_band *sband;
 	struct rtw89_acpi_dsm_result res = {};
+	bool enable_by_fcc;
+	bool enable_by_ic;
 	int ret;
 	u8 val;
-
-	if (!chip->support_unii4)
-		goto bottom;
-
-	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_59G_EN, &res);
-	if (ret) {
-		rtw89_debug(rtwdev, RTW89_DBG_REGD,
-			    "acpi: cannot eval unii 4: %d\n", ret);
-		goto bottom;
-	}
-
-	val = res.u.value;
-
-	rtw89_debug(rtwdev, RTW89_DBG_REGD,
-		    "acpi: eval if allow unii 4: %d\n", val);
-
-	switch (val) {
-	case 0:
-		regd_allow_unii_4 = false;
-		break;
-	case 1:
-		regd_allow_unii_4 = true;
-		break;
-	default:
-		break;
-	}
-
-bottom:
-	rtw89_debug(rtwdev, RTW89_DBG_REGD, "regd: allow unii 4: %d\n",
-		    regd_allow_unii_4);
-
-	if (regd_allow_unii_4)
-		return;
+	int i;
 
 	sband = wiphy->bands[NL80211_BAND_5GHZ];
 	if (!sband)
 		return;
 
-	sband->n_channels -= 3;
+	if (!chip->support_unii4) {
+		sband->n_channels -= RTW89_5GHZ_UNII4_CHANNEL_NUM;
+		return;
+	}
+
+	bitmap_fill(regulatory->block_unii4, RTW89_REGD_MAX_COUNTRY_NUM);
+
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_UNII4_SUP, &res);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "acpi: cannot eval unii 4: %d\n", ret);
+		enable_by_fcc = true;
+		enable_by_ic = false;
+		goto bottom;
+	}
+
+	val = res.u.value;
+	enable_by_fcc = u8_get_bits(val, RTW89_ACPI_CONF_UNII4_FCC);
+	enable_by_ic = u8_get_bits(val, RTW89_ACPI_CONF_UNII4_IC);
+
+	rtw89_debug(rtwdev, RTW89_DBG_REGD,
+		    "acpi: eval if allow unii-4: 0x%x\n", val);
+
+bottom:
+	for (i = 0; i < ARRAY_SIZE(rtw89_regd_map); i++) {
+		const struct rtw89_regd *regd = &rtw89_regd_map[i];
+
+		switch (regd->txpwr_regd[RTW89_BAND_5G]) {
+		case RTW89_FCC:
+			if (enable_by_fcc)
+				clear_bit(i, regulatory->block_unii4);
+			break;
+		case RTW89_IC:
+			if (enable_by_ic)
+				clear_bit(i, regulatory->block_unii4);
+			break;
+		default:
+			break;
+		}
+	}
 }
 
 static void __rtw89_regd_setup_policy_6ghz(struct rtw89_dev *rtwdev, bool block,
@@ -459,6 +468,51 @@ out:
 	kfree(ptr);
 }
 
+static void rtw89_regd_setup_policy_6ghz_sp(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_acpi_policy_6ghz_sp *ptr;
+	struct rtw89_acpi_dsm_result res = {};
+	bool enable_by_us;
+	int ret;
+	int i;
+
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_6GHZ_SP_SUP, &res);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "acpi: cannot eval policy 6ghz-sp: %d\n", ret);
+		return;
+	}
+
+	ptr = res.u.policy_6ghz_sp;
+
+	switch (ptr->override) {
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "%s: unknown override case: %d\n", __func__,
+			    ptr->override);
+		fallthrough;
+	case 0:
+		goto out;
+	case 1:
+		break;
+	}
+
+	bitmap_fill(regulatory->block_6ghz_sp, RTW89_REGD_MAX_COUNTRY_NUM);
+
+	enable_by_us = u8_get_bits(ptr->conf, RTW89_ACPI_CONF_6GHZ_SP_US);
+
+	for (i = 0; i < ARRAY_SIZE(rtw89_regd_map); i++) {
+		const struct rtw89_regd *tmp = &rtw89_regd_map[i];
+
+		if (enable_by_us && memcmp(tmp->alpha2, "US", 2) == 0)
+			clear_bit(i, regulatory->block_6ghz_sp);
+	}
+
+out:
+	kfree(ptr);
+}
+
 static void rtw89_regd_setup_6ghz(struct rtw89_dev *rtwdev, struct wiphy *wiphy)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -501,6 +555,7 @@ bottom:
 
 	if (regd_allow_6ghz) {
 		rtw89_regd_setup_policy_6ghz(rtwdev);
+		rtw89_regd_setup_policy_6ghz_sp(rtwdev);
 		return;
 	}
 
@@ -562,6 +617,35 @@ int rtw89_regd_init(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static void rtw89_regd_apply_policy_unii4(struct rtw89_dev *rtwdev,
+					  struct wiphy *wiphy)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_regd *regd = regulatory->regd;
+	struct ieee80211_supported_band *sband;
+	u8 index;
+	int i;
+
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
+	if (!sband)
+		return;
+
+	if (!chip->support_unii4)
+		return;
+
+	index = rtw89_regd_get_index(regd);
+	if (index != RTW89_REGD_MAX_COUNTRY_NUM &&
+	    !test_bit(index, regulatory->block_unii4))
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_REGD, "%c%c unii-4 is blocked by policy\n",
+		    regd->alpha2[0], regd->alpha2[1]);
+
+	for (i = RTW89_5GHZ_UNII4_START_INDEX; i < sband->n_channels; i++)
+		sband->channels[i].flags |= IEEE80211_CHAN_DISABLED;
+}
+
 static void rtw89_regd_apply_policy_6ghz(struct rtw89_dev *rtwdev,
 					 struct wiphy *wiphy)
 {
@@ -572,10 +656,8 @@ static void rtw89_regd_apply_policy_6ghz(struct rtw89_dev *rtwdev,
 	int i;
 
 	index = rtw89_regd_get_index(regd);
-	if (index == RTW89_REGD_MAX_COUNTRY_NUM)
-		return;
-
-	if (!test_bit(index, regulatory->block_6ghz))
+	if (index != RTW89_REGD_MAX_COUNTRY_NUM &&
+	    !test_bit(index, regulatory->block_6ghz))
 		return;
 
 	rtw89_debug(rtwdev, RTW89_DBG_REGD, "%c%c 6 GHz is blocked by policy\n",
@@ -604,6 +686,7 @@ static void rtw89_regd_notifier_apply(struct rtw89_dev *rtwdev,
 	else
 		wiphy->regulatory_flags &= ~REGULATORY_COUNTRY_IE_IGNORE;
 
+	rtw89_regd_apply_policy_unii4(rtwdev, wiphy);
 	rtw89_regd_apply_policy_6ghz(rtwdev, wiphy);
 }
 
@@ -634,10 +717,12 @@ exit:
 static void __rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd *regd = regulatory->regd;
 	enum rtw89_reg_6ghz_power sel;
 	const struct rtw89_chan *chan;
 	struct rtw89_vif *rtwvif;
 	int count = 0;
+	u8 index;
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		chan = rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
@@ -653,6 +738,17 @@ static void __rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev)
 
 	if (count != 1)
 		sel = RTW89_REG_6GHZ_POWER_DFLT;
+
+	if (sel == RTW89_REG_6GHZ_POWER_STD) {
+		index = rtw89_regd_get_index(regd);
+		if (index == RTW89_REGD_MAX_COUNTRY_NUM ||
+		    test_bit(index, regulatory->block_6ghz_sp)) {
+			rtw89_debug(rtwdev, RTW89_DBG_REGD,
+				    "%c%c 6 GHz SP is blocked by policy\n",
+				    regd->alpha2[0], regd->alpha2[1]);
+			sel = RTW89_REG_6GHZ_POWER_DFLT;
+		}
+	}
 
 	if (regulatory->reg_6ghz_power == sel)
 		return;

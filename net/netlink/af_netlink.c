@@ -59,7 +59,6 @@
 #include <linux/rhashtable.h>
 #include <asm/cacheflush.h>
 #include <linux/hash.h>
-#include <linux/genetlink.h>
 #include <linux/net_namespace.h>
 #include <linux/nospec.h>
 #include <linux/btf_ids.h>
@@ -73,6 +72,7 @@
 #include <trace/events/netlink.h>
 
 #include "af_netlink.h"
+#include "genetlink.h"
 
 struct listeners {
 	struct rcu_head		rcu;
@@ -2165,6 +2165,69 @@ __nlmsg_put(struct sk_buff *skb, u32 portid, u32 seq, int type, int len, int fla
 }
 EXPORT_SYMBOL(__nlmsg_put);
 
+static size_t
+netlink_ack_tlv_len(struct netlink_sock *nlk, int err,
+		    const struct netlink_ext_ack *extack)
+{
+	size_t tlvlen;
+
+	if (!extack || !test_bit(NETLINK_F_EXT_ACK, &nlk->flags))
+		return 0;
+
+	tlvlen = 0;
+	if (extack->_msg)
+		tlvlen += nla_total_size(strlen(extack->_msg) + 1);
+	if (extack->cookie_len)
+		tlvlen += nla_total_size(extack->cookie_len);
+
+	/* Following attributes are only reported as error (not warning) */
+	if (!err)
+		return tlvlen;
+
+	if (extack->bad_attr)
+		tlvlen += nla_total_size(sizeof(u32));
+	if (extack->policy)
+		tlvlen += netlink_policy_dump_attr_size_estimate(extack->policy);
+	if (extack->miss_type)
+		tlvlen += nla_total_size(sizeof(u32));
+	if (extack->miss_nest)
+		tlvlen += nla_total_size(sizeof(u32));
+
+	return tlvlen;
+}
+
+static void
+netlink_ack_tlv_fill(struct sk_buff *in_skb, struct sk_buff *skb,
+		     const struct nlmsghdr *nlh, int err,
+		     const struct netlink_ext_ack *extack)
+{
+	if (extack->_msg)
+		WARN_ON(nla_put_string(skb, NLMSGERR_ATTR_MSG, extack->_msg));
+	if (extack->cookie_len)
+		WARN_ON(nla_put(skb, NLMSGERR_ATTR_COOKIE,
+				extack->cookie_len, extack->cookie));
+
+	if (!err)
+		return;
+
+	if (extack->bad_attr &&
+	    !WARN_ON((u8 *)extack->bad_attr < in_skb->data ||
+		     (u8 *)extack->bad_attr >= in_skb->data + in_skb->len))
+		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_OFFS,
+				    (u8 *)extack->bad_attr - (const u8 *)nlh));
+	if (extack->policy)
+		netlink_policy_dump_write_attr(skb, extack->policy,
+					       NLMSGERR_ATTR_POLICY);
+	if (extack->miss_type)
+		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_MISS_TYPE,
+				    extack->miss_type));
+	if (extack->miss_nest &&
+	    !WARN_ON((u8 *)extack->miss_nest < in_skb->data ||
+		     (u8 *)extack->miss_nest > in_skb->data + in_skb->len))
+		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_MISS_NEST,
+				    (u8 *)extack->miss_nest - (const u8 *)nlh));
+}
+
 /*
  * It looks a bit ugly.
  * It would be better to create kernel thread.
@@ -2175,6 +2238,7 @@ static int netlink_dump_done(struct netlink_sock *nlk, struct sk_buff *skb,
 			     struct netlink_ext_ack *extack)
 {
 	struct nlmsghdr *nlh;
+	size_t extack_len;
 
 	nlh = nlmsg_put_answer(skb, cb, NLMSG_DONE, sizeof(nlk->dump_done_errno),
 			       NLM_F_MULTI | cb->answer_flags);
@@ -2184,10 +2248,14 @@ static int netlink_dump_done(struct netlink_sock *nlk, struct sk_buff *skb,
 	nl_dump_check_consistent(cb, nlh);
 	memcpy(nlmsg_data(nlh), &nlk->dump_done_errno, sizeof(nlk->dump_done_errno));
 
-	if (extack->_msg && test_bit(NETLINK_F_EXT_ACK, &nlk->flags)) {
+	extack_len = netlink_ack_tlv_len(nlk, nlk->dump_done_errno, extack);
+	if (extack_len) {
 		nlh->nlmsg_flags |= NLM_F_ACK_TLVS;
-		if (!nla_put_string(skb, NLMSGERR_ATTR_MSG, extack->_msg))
+		if (skb_tailroom(skb) >= extack_len) {
+			netlink_ack_tlv_fill(cb->skb, skb, cb->nlh,
+					     nlk->dump_done_errno, extack);
 			nlmsg_end(skb, nlh);
+		}
 	}
 
 	return 0;
@@ -2405,69 +2473,6 @@ error_free:
 	return ret;
 }
 EXPORT_SYMBOL(__netlink_dump_start);
-
-static size_t
-netlink_ack_tlv_len(struct netlink_sock *nlk, int err,
-		    const struct netlink_ext_ack *extack)
-{
-	size_t tlvlen;
-
-	if (!extack || !test_bit(NETLINK_F_EXT_ACK, &nlk->flags))
-		return 0;
-
-	tlvlen = 0;
-	if (extack->_msg)
-		tlvlen += nla_total_size(strlen(extack->_msg) + 1);
-	if (extack->cookie_len)
-		tlvlen += nla_total_size(extack->cookie_len);
-
-	/* Following attributes are only reported as error (not warning) */
-	if (!err)
-		return tlvlen;
-
-	if (extack->bad_attr)
-		tlvlen += nla_total_size(sizeof(u32));
-	if (extack->policy)
-		tlvlen += netlink_policy_dump_attr_size_estimate(extack->policy);
-	if (extack->miss_type)
-		tlvlen += nla_total_size(sizeof(u32));
-	if (extack->miss_nest)
-		tlvlen += nla_total_size(sizeof(u32));
-
-	return tlvlen;
-}
-
-static void
-netlink_ack_tlv_fill(struct sk_buff *in_skb, struct sk_buff *skb,
-		     struct nlmsghdr *nlh, int err,
-		     const struct netlink_ext_ack *extack)
-{
-	if (extack->_msg)
-		WARN_ON(nla_put_string(skb, NLMSGERR_ATTR_MSG, extack->_msg));
-	if (extack->cookie_len)
-		WARN_ON(nla_put(skb, NLMSGERR_ATTR_COOKIE,
-				extack->cookie_len, extack->cookie));
-
-	if (!err)
-		return;
-
-	if (extack->bad_attr &&
-	    !WARN_ON((u8 *)extack->bad_attr < in_skb->data ||
-		     (u8 *)extack->bad_attr >= in_skb->data + in_skb->len))
-		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_OFFS,
-				    (u8 *)extack->bad_attr - (u8 *)nlh));
-	if (extack->policy)
-		netlink_policy_dump_write_attr(skb, extack->policy,
-					       NLMSGERR_ATTR_POLICY);
-	if (extack->miss_type)
-		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_MISS_TYPE,
-				    extack->miss_type));
-	if (extack->miss_nest &&
-	    !WARN_ON((u8 *)extack->miss_nest < in_skb->data ||
-		     (u8 *)extack->miss_nest > in_skb->data + in_skb->len))
-		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_MISS_NEST,
-				    (u8 *)extack->miss_nest - (u8 *)nlh));
-}
 
 void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 		 const struct netlink_ext_ack *extack)

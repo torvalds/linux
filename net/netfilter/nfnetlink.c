@@ -427,6 +427,9 @@ replay_abort:
 
 	nfnl_unlock(subsys_id);
 
+	if (nlh->nlmsg_flags & NLM_F_ACK)
+		nfnl_err_add(&err_list, nlh, 0, &extack);
+
 	while (skb->len >= nlmsg_total_size(0)) {
 		int msglen, type;
 
@@ -573,6 +576,8 @@ done:
 		} else if (err) {
 			ss->abort(net, oskb, NFNL_ABORT_NONE);
 			netlink_ack(oskb, nlmsg_hdr(oskb), err, NULL);
+		} else if (nlh->nlmsg_flags & NLM_F_ACK) {
+			nfnl_err_add(&err_list, nlh, 0, &extack);
 		}
 	} else {
 		enum nfnl_abort_action abort_action;

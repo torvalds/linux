@@ -3,6 +3,7 @@
 
 #include "channels.h"
 #include "en.h"
+#include "en/dim.h"
 #include "en/ptp.h"
 
 unsigned int mlx5e_channels_get_num(struct mlx5e_channels *chs)
@@ -54,4 +55,86 @@ bool mlx5e_channels_get_ptp_rqn(struct mlx5e_channels *chs, u32 *rqn)
 
 	*rqn = c->rq.rqn;
 	return true;
+}
+
+int mlx5e_channels_rx_change_dim(struct mlx5e_channels *chs, bool enable)
+{
+	int i;
+
+	for (i = 0; i < chs->num; i++) {
+		int err = mlx5e_dim_rx_change(&chs->c[i]->rq, enable);
+
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+int mlx5e_channels_tx_change_dim(struct mlx5e_channels *chs, bool enable)
+{
+	int i, tc;
+
+	for (i = 0; i < chs->num; i++) {
+		for (tc = 0; tc < mlx5e_get_dcb_num_tc(&chs->params); tc++) {
+			int err = mlx5e_dim_tx_change(&chs->c[i]->sq[tc], enable);
+
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
+int mlx5e_channels_rx_toggle_dim(struct mlx5e_channels *chs)
+{
+	int i;
+
+	for (i = 0; i < chs->num; i++) {
+		/* If dim is enabled for the channel, reset the dim state so the
+		 * collected statistics will be reset. This is useful for
+		 * supporting legacy interfaces that allow things like changing
+		 * the CQ period mode for all channels without disturbing
+		 * individual channel configurations.
+		 */
+		if (chs->c[i]->rq.dim) {
+			int err;
+
+			mlx5e_dim_rx_change(&chs->c[i]->rq, false);
+			err = mlx5e_dim_rx_change(&chs->c[i]->rq, true);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
+int mlx5e_channels_tx_toggle_dim(struct mlx5e_channels *chs)
+{
+	int i, tc;
+
+	for (i = 0; i < chs->num; i++) {
+		for (tc = 0; tc < mlx5e_get_dcb_num_tc(&chs->params); tc++) {
+			int err;
+
+			/* If dim is enabled for the channel, reset the dim
+			 * state so the collected statistics will be reset. This
+			 * is useful for supporting legacy interfaces that allow
+			 * things like changing the CQ period mode for all
+			 * channels without disturbing individual channel
+			 * configurations.
+			 */
+			if (!chs->c[i]->sq[tc].dim)
+				continue;
+
+			mlx5e_dim_tx_change(&chs->c[i]->sq[tc], false);
+			err = mlx5e_dim_tx_change(&chs->c[i]->sq[tc], true);
+			if (err)
+				return err;
+		}
+	}
+
+	return 0;
 }

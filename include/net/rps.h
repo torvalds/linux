@@ -122,4 +122,32 @@ static inline void sock_rps_record_flow(const struct sock *sk)
 #endif
 }
 
+static inline u32 rps_input_queue_tail_incr(struct softnet_data *sd)
+{
+#ifdef CONFIG_RPS
+	return ++sd->input_queue_tail;
+#else
+	return 0;
+#endif
+}
+
+static inline void rps_input_queue_tail_save(u32 *dest, u32 tail)
+{
+#ifdef CONFIG_RPS
+	WRITE_ONCE(*dest, tail);
+#endif
+}
+
+static inline void rps_input_queue_head_add(struct softnet_data *sd, int val)
+{
+#ifdef CONFIG_RPS
+	WRITE_ONCE(sd->input_queue_head, sd->input_queue_head + val);
+#endif
+}
+
+static inline void rps_input_queue_head_incr(struct softnet_data *sd)
+{
+	rps_input_queue_head_add(sd, 1);
+}
+
 #endif /* _NET_RPS_H */

@@ -193,7 +193,6 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.mode = 0644,
 		.proc_handler = proc_dointvec_jiffies,
 	},
-	{}
 };
 
 static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
@@ -235,7 +234,7 @@ err_alloc:
 
 static void mptcp_pernet_del_table(struct mptcp_pernet *pernet)
 {
-	struct ctl_table *table = pernet->ctl_table_hdr->ctl_table_arg;
+	const struct ctl_table *table = pernet->ctl_table_hdr->ctl_table_arg;
 
 	unregister_net_sysctl_table(pernet->ctl_table_hdr);
 

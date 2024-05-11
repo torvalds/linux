@@ -76,7 +76,7 @@ struct dst_entry *dst_cache_get_ip6(struct dst_cache *dst_cache,
  */
 static inline void dst_cache_reset(struct dst_cache *dst_cache)
 {
-	dst_cache->reset_ts = jiffies;
+	WRITE_ONCE(dst_cache->reset_ts, jiffies);
 }
 
 /**

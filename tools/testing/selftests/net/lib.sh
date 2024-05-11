@@ -4,19 +4,64 @@
 ##############################################################################
 # Defines
 
-WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
+: "${WAIT_TIMEOUT:=20}"
+
 BUSYWAIT_TIMEOUT=$((WAIT_TIMEOUT * 1000)) # ms
 
-# Kselftest framework requirement - SKIP code is 4.
+# Kselftest framework constants.
+ksft_pass=0
+ksft_fail=1
+ksft_xfail=2
 ksft_skip=4
+
 # namespace list created by setup_ns
 NS_LIST=""
 
 ##############################################################################
 # Helpers
-busywait()
+
+__ksft_status_merge()
 {
-	local timeout=$1; shift
+	local a=$1; shift
+	local b=$1; shift
+	local -A weights
+	local weight=0
+
+	for i in "$@"; do
+		weights[$i]=$((weight++))
+	done
+
+	if [[ ${weights[$a]} > ${weights[$b]} ]]; then
+		echo "$a"
+		return 0
+	else
+		echo "$b"
+		return 1
+	fi
+}
+
+ksft_status_merge()
+{
+	local a=$1; shift
+	local b=$1; shift
+
+	__ksft_status_merge "$a" "$b" \
+		$ksft_pass $ksft_xfail $ksft_skip $ksft_fail
+}
+
+ksft_exit_status_merge()
+{
+	local a=$1; shift
+	local b=$1; shift
+
+	__ksft_status_merge "$a" "$b" \
+		$ksft_xfail $ksft_pass $ksft_skip $ksft_fail
+}
+
+loopy_wait()
+{
+	local sleep_cmd=$1; shift
+	local timeout_ms=$1; shift
 
 	local start_time="$(date -u +%s%3N)"
 	while true
@@ -30,11 +75,20 @@ busywait()
 		fi
 
 		local current_time="$(date -u +%s%3N)"
-		if ((current_time - start_time > timeout)); then
+		if ((current_time - start_time > timeout_ms)); then
 			echo -n "$out"
 			return 1
 		fi
+
+		$sleep_cmd
 	done
+}
+
+busywait()
+{
+	local timeout_ms=$1; shift
+
+	loopy_wait : "$timeout_ms" "$@"
 }
 
 cleanup_ns()

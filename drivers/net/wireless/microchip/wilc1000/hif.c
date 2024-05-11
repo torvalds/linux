@@ -1570,12 +1570,11 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	struct host_if_drv *hif_drv;
 	struct host_if_msg *msg;
 	struct wilc_vif *vif;
-	int srcu_idx;
 	int result;
 	int id;
 
 	id = get_unaligned_le32(&buffer[length - 4]);
-	srcu_idx = srcu_read_lock(&wilc->srcu);
+	rcu_read_lock();
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif)
 		goto out;
@@ -1594,7 +1593,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	msg->body.net_info.rssi = buffer[8];
 	msg->body.net_info.mgmt = kmemdup(&buffer[9],
 					  msg->body.net_info.frame_len,
-					  GFP_KERNEL);
+					  GFP_ATOMIC);
 	if (!msg->body.net_info.mgmt) {
 		kfree(msg);
 		goto out;
@@ -1607,7 +1606,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 		kfree(msg);
 	}
 out:
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
+	rcu_read_unlock();
 }
 
 void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
@@ -1615,14 +1614,13 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	struct host_if_drv *hif_drv;
 	struct host_if_msg *msg;
 	struct wilc_vif *vif;
-	int srcu_idx;
 	int result;
 	int id;
 
 	mutex_lock(&wilc->deinit_lock);
 
 	id = get_unaligned_le32(&buffer[length - 4]);
-	srcu_idx = srcu_read_lock(&wilc->srcu);
+	rcu_read_lock();
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif)
 		goto out;
@@ -1649,7 +1647,7 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 		kfree(msg);
 	}
 out:
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
+	rcu_read_unlock();
 	mutex_unlock(&wilc->deinit_lock);
 }
 
@@ -1657,12 +1655,11 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 {
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif;
-	int srcu_idx;
 	int result;
 	int id;
 
 	id = get_unaligned_le32(&buffer[length - 4]);
-	srcu_idx = srcu_read_lock(&wilc->srcu);
+	rcu_read_lock();
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif)
 		goto out;
@@ -1687,7 +1684,7 @@ void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length)
 		}
 	}
 out:
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
+	rcu_read_unlock();
 }
 
 int wilc_remain_on_channel(struct wilc_vif *vif, u64 cookie, u16 chan,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 
 #ifndef __fw_regulatory_h__
@@ -11,6 +11,7 @@
 #include "fw/api/power.h"
 #include "fw/api/phy.h"
 #include "fw/api/config.h"
+#include "fw/api/nvm-reg.h"
 #include "fw/img.h"
 #include "iwl-trans.h"
 
@@ -39,7 +40,6 @@
 #define IWL_PPAG_ETSI_CHINA_MASK	3
 #define IWL_PPAG_REV3_MASK		0x7FF
 
-#define IWL_WTAS_BLACK_LIST_MAX	16
 #define IWL_WTAS_ENABLED_MSK		0x1
 #define IWL_WTAS_OVERRIDE_IEC_MSK	0x2
 #define IWL_WTAS_ENABLE_IEC_MSK	0x4
@@ -132,6 +132,23 @@ enum iwl_dsm_values_indonesia {
 	DSM_VALUE_INDONESIA_MAX
 };
 
+enum iwl_dsm_unii4_bitmap {
+	DSM_VALUE_UNII4_US_OVERRIDE_MSK		= BIT(0),
+	DSM_VALUE_UNII4_US_EN_MSK		= BIT(1),
+	DSM_VALUE_UNII4_ETSI_OVERRIDE_MSK	= BIT(2),
+	DSM_VALUE_UNII4_ETSI_EN_MSK		= BIT(3),
+	DSM_VALUE_UNII4_CANADA_OVERRIDE_MSK	= BIT(4),
+	DSM_VALUE_UNII4_CANADA_EN_MSK		= BIT(5),
+};
+
+#define DSM_UNII4_ALLOW_BITMAP_CMD_V8 (DSM_VALUE_UNII4_US_OVERRIDE_MSK | \
+				       DSM_VALUE_UNII4_US_EN_MSK | \
+				       DSM_VALUE_UNII4_ETSI_OVERRIDE_MSK | \
+				       DSM_VALUE_UNII4_ETSI_EN_MSK)
+#define DSM_UNII4_ALLOW_BITMAP (DSM_UNII4_ALLOW_BITMAP_CMD_V8 | \
+				DSM_VALUE_UNII4_CANADA_OVERRIDE_MSK | \
+				DSM_VALUE_UNII4_CANADA_EN_MSK)
+
 enum iwl_dsm_values_rfi {
 	DSM_VALUE_RFI_DLVR_DISABLE	= BIT(0),
 	DSM_VALUE_RFI_DDR_DISABLE	= BIT(1),
@@ -184,8 +201,11 @@ int iwl_bios_get_pwr_limit(struct iwl_fw_runtime *fwrt,
 
 int iwl_bios_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 int iwl_bios_get_eckv(struct iwl_fw_runtime *fwrt, u32 *ext_clk);
+int iwl_bios_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value);
 
-__le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
+int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
+			 struct iwl_lari_config_change_cmd *cmd,
+			 size_t *cmd_size);
 
 int iwl_bios_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 		     u32 *value);

@@ -11,10 +11,10 @@
 #include <linux/crc8.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/gpio/consumer.h>
 #include <linux/if_bridge.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
-#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/mii.h>
 #include <linux/module.h>

@@ -78,7 +78,7 @@
 /* Classified internal priority for queuing */
 #define IFH_POS_QOS_CLASS            100
 
-/* Bit mask with eight cpu copy classses */
+/* Bit mask with eight cpu copy classes */
 #define IFH_POS_CPUQ                 92
 
 /* Relearn + learn flags (*) */

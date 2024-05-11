@@ -117,17 +117,15 @@ static int vlan_changelink(struct net_device *dev, struct nlattr *tb[],
 			return err;
 	}
 	if (data[IFLA_VLAN_INGRESS_QOS]) {
-		nla_for_each_nested(attr, data[IFLA_VLAN_INGRESS_QOS], rem) {
-			if (nla_type(attr) != IFLA_VLAN_QOS_MAPPING)
-				continue;
+		nla_for_each_nested_type(attr, IFLA_VLAN_QOS_MAPPING,
+					 data[IFLA_VLAN_INGRESS_QOS], rem) {
 			m = nla_data(attr);
 			vlan_dev_set_ingress_priority(dev, m->to, m->from);
 		}
 	}
 	if (data[IFLA_VLAN_EGRESS_QOS]) {
-		nla_for_each_nested(attr, data[IFLA_VLAN_EGRESS_QOS], rem) {
-			if (nla_type(attr) != IFLA_VLAN_QOS_MAPPING)
-				continue;
+		nla_for_each_nested_type(attr, IFLA_VLAN_QOS_MAPPING,
+					 data[IFLA_VLAN_EGRESS_QOS], rem) {
 			m = nla_data(attr);
 			err = vlan_dev_set_egress_priority(dev, m->from, m->to);
 			if (err)
