@@ -581,6 +581,8 @@ static void cleanup(void)
 
 	if (bpf_obj)
 		xdp_hw_metadata__destroy(bpf_obj);
+
+	free((void *)saved_hwtstamp_ifname);
 }
 
 static void handle_signal(int sig)
