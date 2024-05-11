@@ -151,7 +151,7 @@ static int btintel_pcie_send_sync(struct btintel_pcie_data *data,
 
 	/* Wait for the complete interrupt - URBD0 */
 	ret = wait_event_timeout(data->tx_wait_q, data->tx_wait_done,
-				 msecs_to_jiffies(TX_WAIT_TIMEOUT_MS));
+				 msecs_to_jiffies(BTINTEL_PCIE_TX_WAIT_TIMEOUT_MS));
 	if (!ret)
 		return -ETIME;
 
@@ -1096,10 +1096,9 @@ static int btintel_pcie_send_frame(struct hci_dev *hdev,
 		hdev->stat.err_tx++;
 		bt_dev_err(hdev, "Failed to send frame (%d)", ret);
 		goto exit_error;
-	} else {
-		hdev->stat.byte_tx += skb->len;
-		kfree_skb(skb);
 	}
+	hdev->stat.byte_tx += skb->len;
+	kfree_skb(skb);
 
 exit_error:
 	return ret;
