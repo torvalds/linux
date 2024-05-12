@@ -99,7 +99,7 @@ TRACE_EVENT(iwlwifi_dev_tx,
 			__entry->framelen += skb->len - hdr_len;
 		memcpy(__get_dynamic_array(tfd), tfd, tfdlen);
 		memcpy(__get_dynamic_array(buf0), buf0, buf0_len);
-		if (hdr_len > 0 && !iwl_trace_data(skb))
+		if (__get_dynamic_array_len(buf1))
 			skb_copy_bits(skb, hdr_len,
 				      __get_dynamic_array(buf1),
 				      skb->len - hdr_len);

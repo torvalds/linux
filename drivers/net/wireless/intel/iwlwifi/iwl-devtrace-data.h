@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019, 2023 Intel Corporation
+ * Copyright(c) 2018 - 2019, 2023-2024 Intel Corporation
  *****************************************************************************/
 
 #if !defined(__IWLWIFI_DEVICE_TRACE_DATA) || defined(TRACE_HEADER_MULTI_READ)
@@ -28,7 +28,7 @@ TRACE_EVENT(iwlwifi_dev_tx_tb,
 	TP_fast_assign(
 		DEV_ASSIGN;
 		__entry->phys = phys;
-		if (iwl_trace_data(skb))
+		if (__get_dynamic_array_len(data))
 			memcpy(__get_dynamic_array(data), data_src, data_len);
 	),
 	TP_printk("[%s] TX frame data", __get_str(dev))
