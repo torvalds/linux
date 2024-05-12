@@ -351,8 +351,11 @@ struct v3d_timestamp_query {
 	struct drm_syncobj *syncobj;
 };
 
+/* Maximum number of performance counters supported by any version of V3D */
+#define V3D_MAX_COUNTERS ARRAY_SIZE(v3d_v71_performance_counters)
+
 /* Number of perfmons required to handle all supported performance counters */
-#define V3D_MAX_PERFMONS DIV_ROUND_UP(V3D_PERFCNT_NUM, \
+#define V3D_MAX_PERFMONS DIV_ROUND_UP(V3D_MAX_COUNTERS, \
 				      DRM_V3D_MAX_PERF_COUNTERS)
 
 struct v3d_performance_query {
