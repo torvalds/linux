@@ -25,8 +25,6 @@
 struct zet6223_ts {
 	struct i2c_client *client;
 	struct input_dev *input;
-	struct regulator *vcc;
-	struct regulator *vio;
 	struct touchscreen_properties prop;
 	struct regulator_bulk_data supplies[2];
 	u16 max_x;
