@@ -603,6 +603,16 @@ struct drm_v3d_submit_cpu {
 	__u64 extensions;
 };
 
+/* The performance counters index represented by this enum are deprecated and
+ * must no longer be used. These counters are only valid for V3D 4.2.
+ *
+ * In order to check for performance counter information,
+ * use DRM_IOCTL_V3D_PERFMON_GET_COUNTER.
+ *
+ * Don't use V3D_PERFCNT_NUM to retrieve the maximum number of performance
+ * counters. You should use DRM_IOCTL_V3D_GET_PARAM with the following
+ * parameter: DRM_V3D_PARAM_MAX_PERF_COUNTERS.
+ */
 enum {
 	V3D_PERFCNT_FEP_VALID_PRIMTS_NO_PIXELS,
 	V3D_PERFCNT_FEP_VALID_PRIMS,
