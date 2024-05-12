@@ -184,16 +184,16 @@
 /* maximum Bluetooth volume value */
 #define SCARLETT2_MAX_BLUETOOTH_VOLUME 30
 
-/* mixer range from -80dB to +6dB in 0.5dB steps */
+/* mixer range from -80dB to +12dB in 0.5dB steps */
 #define SCARLETT2_MIXER_MIN_DB -80
 #define SCARLETT2_MIXER_BIAS (-SCARLETT2_MIXER_MIN_DB * 2)
-#define SCARLETT2_MIXER_MAX_DB 6
+#define SCARLETT2_MIXER_MAX_DB 12
 #define SCARLETT2_MIXER_MAX_VALUE \
 	((SCARLETT2_MIXER_MAX_DB - SCARLETT2_MIXER_MIN_DB) * 2)
 #define SCARLETT2_MIXER_VALUE_COUNT (SCARLETT2_MIXER_MAX_VALUE + 1)
 
 /* map from (dB + 80) * 2 to mixer value
- * for dB in 0 .. 172: int(8192 * pow(10, ((dB - 160) / 2 / 20)))
+ * for dB in 0 .. 184: int(8192 * pow(10, ((dB - 160) / 2 / 20)))
  */
 static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 	0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2,
@@ -209,7 +209,8 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 	3078, 3261, 3454, 3659, 3876, 4105, 4349, 4606, 4879, 5168,
 	5475, 5799, 6143, 6507, 6892, 7301, 7733, 8192, 8677, 9191,
 	9736, 10313, 10924, 11571, 12257, 12983, 13752, 14567, 15430,
-	16345
+	16345, 17313, 18339, 19426, 20577, 21796, 23088, 24456, 25905,
+	27440, 29066, 30788, 32612
 };
 
 /* Maximum number of analogue outputs */
@@ -541,6 +542,7 @@ enum {
 	SCARLETT2_CONFIG_PCM_INPUT_SWITCH,
 	SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
 	SCARLETT2_CONFIG_BLUETOOTH_VOLUME,
+	SCARLETT2_CONFIG_SPDIF_MODE,
 	SCARLETT2_CONFIG_COUNT
 };
 
@@ -754,6 +756,9 @@ static const struct scarlett2_config_set scarlett2_config_set_gen3c = {
 
 		[SCARLETT2_CONFIG_TALKBACK_MAP] = {
 			.offset = 0xb0, .size = 16, .activate = 10 },
+
+		[SCARLETT2_CONFIG_SPDIF_MODE] = {
+			.offset = 0x94, .size = 8, .activate = 6 },
 	}
 };
 
@@ -977,6 +982,9 @@ static const struct scarlett2_config_set scarlett2_config_set_clarett = {
 
 		[SCARLETT2_CONFIG_STANDALONE_SWITCH] = {
 			.offset = 0x8d, .size = 8, .activate = 6 },
+
+		[SCARLETT2_CONFIG_SPDIF_MODE] = {
+			.offset = 0x9e, .size = 8, .activate = 4 },
 	}
 };
 
@@ -1147,6 +1155,11 @@ struct scarlett2_device_info {
 	/* has a Bluetooth module with volume control */
 	u8 has_bluetooth;
 
+	/* S/PDIF Source/Digital I/O mode control */
+	const char * const spdif_mode_control_name;
+	const u8 *spdif_mode_values;
+	const char * const *spdif_mode_texts;
+
 	/* remap analogue outputs; 18i8 Gen 3 has "line 3/4" connected
 	 * internally to the analogue 7/8 outputs
 	 */
@@ -1255,6 +1268,7 @@ struct scarlett2_data {
 	u8 standalone_switch;
 	u8 power_status;
 	u8 bluetooth_volume;
+	u8 spdif_mode;
 	u8 meter_level_map[SCARLETT2_MAX_METERS];
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
@@ -1582,6 +1596,14 @@ static const struct scarlett2_device_info s8i6_gen3_info = {
 	}
 };
 
+static const u8 scarlett2_spdif_s18i8_gen3_values[] = { 0, 2, 0xff };
+
+static const char * const scarlett2_spdif_s18i8_gen3_texts[] = {
+	"RCA",
+	"Optical",
+	NULL
+};
+
 static const struct scarlett2_device_info s18i8_gen3_info = {
 	.config_set = &scarlett2_config_set_gen3c,
 	.has_speaker_switching = 1,
@@ -1590,6 +1612,10 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 	.air_input_count = 4,
 	.phantom_count = 2,
 	.inputs_per_phantom = 2,
+
+	.spdif_mode_control_name = "S/PDIF Mode Capture Enum",
+	.spdif_mode_values = scarlett2_spdif_s18i8_gen3_values,
+	.spdif_mode_texts = scarlett2_spdif_s18i8_gen3_texts,
 
 	.line_out_remap_enable = 1,
 	.line_out_remap = { 0, 1, 6, 7, 2, 3, 4, 5 },
@@ -1661,6 +1687,15 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 	}
 };
 
+static const u8 scarlett2_spdif_s18i20_gen3_values[] = { 0, 6, 1, 0xff };
+
+static const char * const scarlett2_spdif_s18i20_gen3_texts[] = {
+	"S/PDIF RCA",
+	"S/PDIF Optical",
+	"Dual ADAT",
+	NULL
+};
+
 static const struct scarlett2_device_info s18i20_gen3_info = {
 	.config_set = &scarlett2_config_set_gen3c,
 	.has_speaker_switching = 1,
@@ -1670,6 +1705,10 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 	.air_input_count = 8,
 	.phantom_count = 2,
 	.inputs_per_phantom = 4,
+
+	.spdif_mode_control_name = "Digital I/O Mode Capture Enum",
+	.spdif_mode_values = scarlett2_spdif_s18i20_gen3_values,
+	.spdif_mode_texts = scarlett2_spdif_s18i20_gen3_texts,
 
 	.line_out_descrs = {
 		"Monitor 1 L",
@@ -2019,10 +2058,23 @@ static const struct scarlett2_device_info clarett_2pre_info = {
 	}
 };
 
+static const u8 scarlett2_spdif_clarett_values[] = { 0, 1, 2, 0xff };
+
+static const char * const scarlett2_spdif_clarett_texts[] = {
+	"None",
+	"Optical",
+	"RCA",
+	NULL
+};
+
 static const struct scarlett2_device_info clarett_4pre_info = {
 	.config_set = &scarlett2_config_set_clarett,
 	.level_input_count = 2,
 	.air_input_count = 4,
+
+	.spdif_mode_control_name = "S/PDIF Source Capture Enum",
+	.spdif_mode_values = scarlett2_spdif_clarett_values,
+	.spdif_mode_texts = scarlett2_spdif_clarett_texts,
 
 	.line_out_descrs = {
 		"Monitor L",
@@ -2075,6 +2127,10 @@ static const struct scarlett2_device_info clarett_8pre_info = {
 	.config_set = &scarlett2_config_set_clarett,
 	.level_input_count = 2,
 	.air_input_count = 8,
+
+	.spdif_mode_control_name = "S/PDIF Source Capture Enum",
+	.spdif_mode_values = scarlett2_spdif_clarett_values,
+	.spdif_mode_texts = scarlett2_spdif_clarett_texts,
 
 	.line_out_descrs = {
 		"Monitor L",
@@ -7885,6 +7941,121 @@ static int scarlett2_add_bluetooth_volume_ctl(
 				     &private->bluetooth_volume_ctl);
 }
 
+/*** S/PDIF Mode Controls ***/
+
+static int scarlett2_update_spdif_mode(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int err, i;
+	u8 mode;
+	const u8 *mode_values = private->info->spdif_mode_values;
+
+	if (!private->info->spdif_mode_control_name)
+		return 0;
+
+	err = scarlett2_usb_get_config(mixer, SCARLETT2_CONFIG_SPDIF_MODE,
+				       1, &mode);
+	if (err < 0)
+		return err;
+
+	private->spdif_mode = 0;
+
+	for (i = 0; *mode_values != 0xff; i++, mode_values++)
+		if (*mode_values == mode) {
+			private->spdif_mode = i;
+			break;
+		}
+
+	return 0;
+}
+
+static int scarlett2_spdif_mode_ctl_info(struct snd_kcontrol *kctl,
+					   struct snd_ctl_elem_info *uinfo)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+	const char * const *mode_texts = private->info->spdif_mode_texts;
+	int count = 0;
+
+	while (*mode_texts++)
+		count++;
+
+	return snd_ctl_enum_info(uinfo, 1, count,
+				 private->info->spdif_mode_texts);
+}
+
+static int scarlett2_spdif_mode_ctl_get(struct snd_kcontrol *kctl,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+
+	ucontrol->value.enumerated.item[0] = private->spdif_mode;
+	return 0;
+}
+
+static int scarlett2_spdif_mode_ctl_put(struct snd_kcontrol *kctl,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int oval, val, err = 0;
+	int i;
+
+	mutex_lock(&private->data_mutex);
+
+	oval = private->spdif_mode;
+	val = ucontrol->value.enumerated.item[0];
+
+	if (val < 0) {
+		err = -EINVAL;
+		goto unlock;
+	}
+
+	for (i = 0; i <= val; i++)
+		if (private->info->spdif_mode_values[i] == 0xff) {
+			err = -EINVAL;
+			goto unlock;
+		}
+
+	if (oval == val)
+		goto unlock;
+
+	private->spdif_mode = val;
+
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_SPDIF_MODE, 0,
+		private->info->spdif_mode_values[val]);
+	if (!err)
+		err = 1;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static const struct snd_kcontrol_new scarlett2_spdif_mode_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "",
+	.info = scarlett2_spdif_mode_ctl_info,
+	.get  = scarlett2_spdif_mode_ctl_get,
+	.put  = scarlett2_spdif_mode_ctl_put,
+};
+
+static int scarlett2_add_spdif_mode_ctl(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	if (!private->info->spdif_mode_control_name)
+		return 0;
+
+	return scarlett2_add_new_ctl(mixer, &scarlett2_spdif_mode_ctl,
+				     0, 1,
+				     private->info->spdif_mode_control_name,
+				     NULL);
+}
+
 /*** Notification Handlers ***/
 
 /* Notify on sync change */
@@ -8797,6 +8968,10 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	if (err < 0)
 		return err;
 
+	err = scarlett2_update_spdif_mode(mixer);
+	if (err < 0)
+		return err;
+
 	err = scarlett2_update_mix(mixer);
 	if (err < 0)
 		return err;
@@ -8926,6 +9101,11 @@ static int snd_scarlett2_controls_create(
 
 	/* Create the Bluetooth volume control */
 	err = scarlett2_add_bluetooth_volume_ctl(mixer);
+	if (err < 0)
+		return err;
+
+	/* Create the S/PDIF mode control */
+	err = scarlett2_add_spdif_mode_ctl(mixer);
 	if (err < 0)
 		return err;
 
