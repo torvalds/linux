@@ -27,6 +27,7 @@
 
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -505,6 +506,58 @@ static int bme280_read_humid(struct bmp280_data *data, int *val, int *val2)
 	return IIO_VAL_INT;
 }
 
+static int bmp280_read_raw_impl(struct iio_dev *indio_dev,
+				struct iio_chan_spec const *chan,
+				int *val, int *val2, long mask)
+{
+	struct bmp280_data *data = iio_priv(indio_dev);
+
+	guard(mutex)(&data->lock);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_PROCESSED:
+		switch (chan->type) {
+		case IIO_HUMIDITYRELATIVE:
+			return data->chip_info->read_humid(data, val, val2);
+		case IIO_PRESSURE:
+			return data->chip_info->read_press(data, val, val2);
+		case IIO_TEMP:
+			return data->chip_info->read_temp(data, val, val2);
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		switch (chan->type) {
+		case IIO_HUMIDITYRELATIVE:
+			*val = 1 << data->oversampling_humid;
+			return IIO_VAL_INT;
+		case IIO_PRESSURE:
+			*val = 1 << data->oversampling_press;
+			return IIO_VAL_INT;
+		case IIO_TEMP:
+			*val = 1 << data->oversampling_temp;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (!data->chip_info->sampling_freq_avail)
+			return -EINVAL;
+
+		*val = data->chip_info->sampling_freq_avail[data->sampling_freq][0];
+		*val2 = data->chip_info->sampling_freq_avail[data->sampling_freq][1];
+		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		if (!data->chip_info->iir_filter_coeffs_avail)
+			return -EINVAL;
+
+		*val = (1 << data->iir_filter_coeff) - 1;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int bmp280_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long mask)
@@ -513,69 +566,7 @@ static int bmp280_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	pm_runtime_get_sync(data->dev);
-	mutex_lock(&data->lock);
-
-	switch (mask) {
-	case IIO_CHAN_INFO_PROCESSED:
-		switch (chan->type) {
-		case IIO_HUMIDITYRELATIVE:
-			ret = data->chip_info->read_humid(data, val, val2);
-			break;
-		case IIO_PRESSURE:
-			ret = data->chip_info->read_press(data, val, val2);
-			break;
-		case IIO_TEMP:
-			ret = data->chip_info->read_temp(data, val, val2);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-		break;
-	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		switch (chan->type) {
-		case IIO_HUMIDITYRELATIVE:
-			*val = 1 << data->oversampling_humid;
-			ret = IIO_VAL_INT;
-			break;
-		case IIO_PRESSURE:
-			*val = 1 << data->oversampling_press;
-			ret = IIO_VAL_INT;
-			break;
-		case IIO_TEMP:
-			*val = 1 << data->oversampling_temp;
-			ret = IIO_VAL_INT;
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-		break;
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (!data->chip_info->sampling_freq_avail) {
-			ret = -EINVAL;
-			break;
-		}
-
-		*val = data->chip_info->sampling_freq_avail[data->sampling_freq][0];
-		*val2 = data->chip_info->sampling_freq_avail[data->sampling_freq][1];
-		ret = IIO_VAL_INT_PLUS_MICRO;
-		break;
-	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
-		if (!data->chip_info->iir_filter_coeffs_avail) {
-			ret = -EINVAL;
-			break;
-		}
-
-		*val = (1 << data->iir_filter_coeff) - 1;
-		ret = IIO_VAL_INT;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	mutex_unlock(&data->lock);
+	ret = bmp280_read_raw_impl(indio_dev, chan, val, val2, mask);
 	pm_runtime_mark_last_busy(data->dev);
 	pm_runtime_put_autosuspend(data->dev);
 
@@ -707,12 +698,13 @@ static int bmp280_write_iir_filter_coeffs(struct bmp280_data *data, int val)
 	return -EINVAL;
 }
 
-static int bmp280_write_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int val, int val2, long mask)
+static int bmp280_write_raw_impl(struct iio_dev *indio_dev,
+				 struct iio_chan_spec const *chan,
+				 int val, int val2, long mask)
 {
 	struct bmp280_data *data = iio_priv(indio_dev);
-	int ret = 0;
+
+	guard(mutex)(&data->lock);
 
 	/*
 	 * Helper functions to update sensor running configuration.
@@ -722,45 +714,36 @@ static int bmp280_write_raw(struct iio_dev *indio_dev,
 	 */
 	switch (mask) {
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		pm_runtime_get_sync(data->dev);
-		mutex_lock(&data->lock);
 		switch (chan->type) {
 		case IIO_HUMIDITYRELATIVE:
-			ret = bme280_write_oversampling_ratio_humid(data, val);
-			break;
+			return bme280_write_oversampling_ratio_humid(data, val);
 		case IIO_PRESSURE:
-			ret = bmp280_write_oversampling_ratio_press(data, val);
-			break;
+			return bmp280_write_oversampling_ratio_press(data, val);
 		case IIO_TEMP:
-			ret = bmp280_write_oversampling_ratio_temp(data, val);
-			break;
+			return bmp280_write_oversampling_ratio_temp(data, val);
 		default:
-			ret = -EINVAL;
-			break;
+			return -EINVAL;
 		}
-		mutex_unlock(&data->lock);
-		pm_runtime_mark_last_busy(data->dev);
-		pm_runtime_put_autosuspend(data->dev);
-		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		pm_runtime_get_sync(data->dev);
-		mutex_lock(&data->lock);
-		ret = bmp280_write_sampling_frequency(data, val, val2);
-		mutex_unlock(&data->lock);
-		pm_runtime_mark_last_busy(data->dev);
-		pm_runtime_put_autosuspend(data->dev);
-		break;
+		return bmp280_write_sampling_frequency(data, val, val2);
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
-		pm_runtime_get_sync(data->dev);
-		mutex_lock(&data->lock);
-		ret = bmp280_write_iir_filter_coeffs(data, val);
-		mutex_unlock(&data->lock);
-		pm_runtime_mark_last_busy(data->dev);
-		pm_runtime_put_autosuspend(data->dev);
-		break;
+		return bmp280_write_iir_filter_coeffs(data, val);
 	default:
 		return -EINVAL;
 	}
+}
+
+static int bmp280_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
+{
+	struct bmp280_data *data = iio_priv(indio_dev);
+	int ret;
+
+	pm_runtime_get_sync(data->dev);
+	ret = bmp280_write_raw_impl(indio_dev, chan, val, val2, mask);
+	pm_runtime_mark_last_busy(data->dev);
+	pm_runtime_put_autosuspend(data->dev);
 
 	return ret;
 }
@@ -1551,15 +1534,14 @@ static const int bmp580_odr_table[][2] = {
 
 static const int bmp580_nvmem_addrs[] = { 0x20, 0x21, 0x22 };
 
-static int bmp580_nvmem_read(void *priv, unsigned int offset, void *val,
-			     size_t bytes)
+static int bmp580_nvmem_read_impl(void *priv, unsigned int offset, void *val,
+				  size_t bytes)
 {
 	struct bmp280_data *data = priv;
 	u16 *dst = val;
 	int ret, addr;
 
-	pm_runtime_get_sync(data->dev);
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
 
 	/* Set sensor in standby mode */
 	ret = regmap_update_bits(data->regmap, BMP580_REG_ODR_CONFIG,
@@ -1601,21 +1583,31 @@ static int bmp580_nvmem_read(void *priv, unsigned int offset, void *val,
 exit:
 	/* Restore chip config */
 	data->chip_info->chip_config(data);
-	mutex_unlock(&data->lock);
-	pm_runtime_mark_last_busy(data->dev);
-	pm_runtime_put_autosuspend(data->dev);
 	return ret;
 }
 
-static int bmp580_nvmem_write(void *priv, unsigned int offset, void *val,
-			      size_t bytes)
+static int bmp580_nvmem_read(void *priv, unsigned int offset, void *val,
+			     size_t bytes)
+{
+	struct bmp280_data *data = priv;
+	int ret;
+
+	pm_runtime_get_sync(data->dev);
+	ret = bmp580_nvmem_read_impl(priv, offset, val, bytes);
+	pm_runtime_mark_last_busy(data->dev);
+	pm_runtime_put_autosuspend(data->dev);
+
+	return ret;
+}
+
+static int bmp580_nvmem_write_impl(void *priv, unsigned int offset, void *val,
+				   size_t bytes)
 {
 	struct bmp280_data *data = priv;
 	u16 *buf = val;
 	int ret, addr;
 
-	pm_runtime_get_sync(data->dev);
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
 
 	/* Set sensor in standby mode */
 	ret = regmap_update_bits(data->regmap, BMP580_REG_ODR_CONFIG,
@@ -1666,9 +1658,20 @@ static int bmp580_nvmem_write(void *priv, unsigned int offset, void *val,
 exit:
 	/* Restore chip config */
 	data->chip_info->chip_config(data);
-	mutex_unlock(&data->lock);
+	return ret;
+}
+
+static int bmp580_nvmem_write(void *priv, unsigned int offset, void *val,
+			      size_t bytes)
+{
+	struct bmp280_data *data = priv;
+	int ret;
+
+	pm_runtime_get_sync(data->dev);
+	ret = bmp580_nvmem_write_impl(priv, offset, val, bytes);
 	pm_runtime_mark_last_busy(data->dev);
 	pm_runtime_put_autosuspend(data->dev);
+
 	return ret;
 }
 
