@@ -11,6 +11,8 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/gpu_scheduler.h>
 
+#include "v3d_performance_counters.h"
+
 #include "uapi/drm/v3d_drm.h"
 
 struct clk;
