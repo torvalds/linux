@@ -1,18 +1,18 @@
 //!Scull module in Rust
 
-use kernel::prelude::*
+use kernel::prelude::*;
 
 module! {
     type: Scull,
-    name: b"scull",
-    license b"GPL"
-};
+    name: "scull",
+    author: "Guilherme Giacomo Simoes <trintaeoitogc@gmail.com>",
+    description: "aaa, ze da manga",
+    license: "GPL",
+}
 
 struct Scull;
-
 impl kernel::Module for Scull {
-    fn init(_name: &'static CStr, _module: &'static ThisModule) -> Result<Self> {
-        pr_info!("Hello world");
-        Ok(Scull) 
+    fn init(_module: &'static ThisModule) -> Result<Self> {
+        Ok(Scull)
     }
 }
