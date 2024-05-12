@@ -208,7 +208,7 @@ static void iwl_mvm_scan_iterator(void *_data, u8 *mac,
 
 	curr_mvmvif = iwl_mvm_vif_from_mac80211(data->current_vif);
 
-	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
+	if (ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_P2P_GO &&
 	    mvmvif->deflink.phy_ctxt && curr_mvmvif->deflink.phy_ctxt &&
 	    mvmvif->deflink.phy_ctxt->id != curr_mvmvif->deflink.phy_ctxt->id)
 		data->is_dcm_with_p2p_go = true;
@@ -2875,7 +2875,7 @@ static void iwl_mvm_scan_respect_p2p_go_iter(void *_data, u8 *mac,
 	if (vif == data->current_vif)
 		return;
 
-	if (vif->type == NL80211_IFTYPE_AP && vif->p2p) {
+	if (ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_P2P_GO) {
 		u32 link_id;
 
 		for (link_id = 0;
