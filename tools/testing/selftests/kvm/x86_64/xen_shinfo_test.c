@@ -125,7 +125,7 @@ struct compat_vcpu_runstate_info {
 	uint32_t state;
 	uint64_t state_entry_time;
 	uint64_t time[5];
-} __attribute__((__packed__));;
+} __attribute__((__packed__));
 
 struct arch_vcpu_info {
 	unsigned long cr2;
@@ -380,20 +380,6 @@ wait_for_timer:
 	GUEST_SYNC(TEST_DONE);
 }
 
-static int cmp_timespec(struct timespec *a, struct timespec *b)
-{
-	if (a->tv_sec > b->tv_sec)
-		return 1;
-	else if (a->tv_sec < b->tv_sec)
-		return -1;
-	else if (a->tv_nsec > b->tv_nsec)
-		return 1;
-	else if (a->tv_nsec < b->tv_nsec)
-		return -1;
-	else
-		return 0;
-}
-
 static struct shared_info *shinfo;
 static struct vcpu_info *vinfo;
 static struct kvm_vcpu *vcpu;
@@ -449,7 +435,6 @@ static void *juggle_shinfo_state(void *arg)
 
 int main(int argc, char *argv[])
 {
-	struct timespec min_ts, max_ts, vm_ts;
 	struct kvm_xen_hvm_attr evt_reset;
 	struct kvm_vm *vm;
 	pthread_t thread;
@@ -467,8 +452,6 @@ int main(int argc, char *argv[])
 	bool do_eventfd_tests = !!(xen_caps & KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL);
 	bool do_evtchn_tests = do_eventfd_tests && !!(xen_caps & KVM_XEN_HVM_CONFIG_EVTCHN_SEND);
 	bool has_shinfo_hva = !!(xen_caps & KVM_XEN_HVM_CONFIG_SHARED_INFO_HVA);
-
-	clock_gettime(CLOCK_REALTIME, &min_ts);
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
@@ -1010,7 +993,6 @@ int main(int argc, char *argv[])
 	vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &evt_reset);
 
 	alarm(0);
-	clock_gettime(CLOCK_REALTIME, &max_ts);
 
 	/*
 	 * Just a *really* basic check that things are being put in the
@@ -1019,6 +1001,8 @@ int main(int argc, char *argv[])
 	 */
 	struct pvclock_wall_clock *wc;
 	struct pvclock_vcpu_time_info *ti, *ti2;
+	struct kvm_clock_data kcdata;
+	long long delta;
 
 	wc = addr_gpa2hva(vm, SHINFO_REGION_GPA + 0xc00);
 	ti = addr_gpa2hva(vm, SHINFO_REGION_GPA + 0x40 + 0x20);
@@ -1034,12 +1018,34 @@ int main(int argc, char *argv[])
 		       ti2->tsc_shift, ti2->flags);
 	}
 
-	vm_ts.tv_sec = wc->sec;
-	vm_ts.tv_nsec = wc->nsec;
 	TEST_ASSERT(wc->version && !(wc->version & 1),
 		    "Bad wallclock version %x", wc->version);
-	TEST_ASSERT(cmp_timespec(&min_ts, &vm_ts) <= 0, "VM time too old");
-	TEST_ASSERT(cmp_timespec(&max_ts, &vm_ts) >= 0, "VM time too new");
+
+	vm_ioctl(vm, KVM_GET_CLOCK, &kcdata);
+
+	if (kcdata.flags & KVM_CLOCK_REALTIME) {
+		if (verbose) {
+			printf("KVM_GET_CLOCK clock: %lld.%09lld\n",
+			       kcdata.clock / NSEC_PER_SEC, kcdata.clock % NSEC_PER_SEC);
+			printf("KVM_GET_CLOCK realtime: %lld.%09lld\n",
+			       kcdata.realtime / NSEC_PER_SEC, kcdata.realtime % NSEC_PER_SEC);
+		}
+
+		delta = (wc->sec * NSEC_PER_SEC + wc->nsec) - (kcdata.realtime - kcdata.clock);
+
+		/*
+		 * KVM_GET_CLOCK gives CLOCK_REALTIME which jumps on leap seconds updates but
+		 * unfortunately KVM doesn't currently offer a CLOCK_TAI alternative. Accept 1s
+		 * delta as testing clock accuracy is not the goal here. The test just needs to
+		 * check that the value in shinfo is somewhat sane.
+		 */
+		TEST_ASSERT(llabs(delta) < NSEC_PER_SEC,
+			    "Guest's epoch from shinfo %d.%09d differs from KVM_GET_CLOCK %lld.%lld",
+			    wc->sec, wc->nsec, (kcdata.realtime - kcdata.clock) / NSEC_PER_SEC,
+			    (kcdata.realtime - kcdata.clock) % NSEC_PER_SEC);
+	} else {
+		pr_info("Missing KVM_CLOCK_REALTIME, skipping shinfo epoch sanity check\n");
+	}
 
 	TEST_ASSERT(ti->version && !(ti->version & 1),
 		    "Bad time_info version %x", ti->version);

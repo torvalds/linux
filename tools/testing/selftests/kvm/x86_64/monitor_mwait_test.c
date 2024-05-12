@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 	int testcase;
 
+	TEST_REQUIRE(this_cpu_has(X86_FEATURE_MWAIT));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_DISABLE_QUIRKS2));
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
