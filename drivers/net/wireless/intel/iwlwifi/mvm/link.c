@@ -50,26 +50,15 @@ static void iwl_mvm_print_esr_state(struct iwl_mvm *mvm, u32 mask)
 static u32 iwl_mvm_get_free_fw_link_id(struct iwl_mvm *mvm,
 				       struct iwl_mvm_vif *mvm_vif)
 {
-	u32 link_id;
+	u32 i;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	link_id = ffz(mvm->fw_link_ids_map);
+	for (i = 0; i < ARRAY_SIZE(mvm->link_id_to_link_conf); i++)
+		if (!rcu_access_pointer(mvm->link_id_to_link_conf[i]))
+			return i;
 
-	/* this case can happen if there're deactivated but not removed links */
-	if (link_id > IWL_MVM_FW_MAX_LINK_ID)
-		return IWL_MVM_FW_LINK_ID_INVALID;
-
-	mvm->fw_link_ids_map |= BIT(link_id);
-	return link_id;
-}
-
-static void iwl_mvm_release_fw_link_id(struct iwl_mvm *mvm, u32 link_id)
-{
-	lockdep_assert_held(&mvm->mutex);
-
-	if (!WARN_ON(link_id > IWL_MVM_FW_MAX_LINK_ID))
-		mvm->fw_link_ids_map &= ~BIT(link_id);
+	return IWL_MVM_FW_LINK_ID_INVALID;
 }
 
 static int iwl_mvm_link_cmd_send(struct iwl_mvm *mvm,
@@ -380,7 +369,6 @@ int iwl_mvm_unset_link_mapping(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	RCU_INIT_POINTER(mvm->link_id_to_link_conf[link_info->fw_link_id],
 			 NULL);
-	iwl_mvm_release_fw_link_id(mvm, link_info->fw_link_id);
 	return 0;
 }
 
