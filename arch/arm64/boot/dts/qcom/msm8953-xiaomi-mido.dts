@@ -73,6 +73,16 @@
 					"1", "0", "0",
 					"0", "0", "1";
 		};
+
+		imu@6a {
+			compatible = "st,lsm6ds3";
+			reg = <0x6a>;
+			vdd-supply = <&pm8953_l10>;
+			vddio-supply = <&pm8953_l6>;
+			mount-matrix = "-1", "0", "0",
+					"0", "1", "0",
+					"0", "0", "1";
+		};
 	};
 
 	irled {
