@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2021, 2024 Intel Corporation
  */
 #ifndef __iwl_agn_h__
 #define __iwl_agn_h__
@@ -384,6 +384,8 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 		clear_bit(STATUS_POWER_PMI, &priv->status);
 	iwl_trans_set_pmi(priv->trans, state);
 }
+
+int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir);

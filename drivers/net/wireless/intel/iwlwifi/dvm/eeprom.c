@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2019, 2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2019, 2021, 2024 Intel Corporation
  */
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -8,10 +8,10 @@
 
 #include "iwl-drv.h"
 #include "iwl-debug.h"
-#include "iwl-eeprom-read.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "iwl-csr.h"
+#include "agn.h"
 
 /*
  * EEPROM access time values:
@@ -391,4 +391,3 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_read_eeprom);
