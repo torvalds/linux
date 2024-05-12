@@ -119,7 +119,7 @@ static bool parse_8000_001e(struct topo_scan *tscan, bool has_0xb)
 	return true;
 }
 
-static bool parse_fam10h_node_id(struct topo_scan *tscan)
+static void parse_fam10h_node_id(struct topo_scan *tscan)
 {
 	union {
 		struct {
@@ -131,20 +131,20 @@ static bool parse_fam10h_node_id(struct topo_scan *tscan)
 	} nid;
 
 	if (!boot_cpu_has(X86_FEATURE_NODEID_MSR))
-		return false;
+		return;
 
 	rdmsrl(MSR_FAM10H_NODE_ID, nid.msr);
 	store_node(tscan, nid.nodes_per_pkg + 1, nid.node_id);
 	tscan->c->topo.llc_id = nid.node_id;
-	return true;
 }
 
 static void legacy_set_llc(struct topo_scan *tscan)
 {
 	unsigned int apicid = tscan->c->topo.initial_apicid;
 
-	/* parse_8000_0008() set everything up except llc_id */
-	tscan->c->topo.llc_id = apicid >> tscan->dom_shifts[TOPO_CORE_DOMAIN];
+	/* If none of the parsers set LLC ID then use the die ID for it. */
+	if (tscan->c->topo.llc_id == BAD_APICID)
+		tscan->c->topo.llc_id = apicid >> tscan->dom_shifts[TOPO_CORE_DOMAIN];
 }
 
 static void topoext_fixup(struct topo_scan *tscan)
@@ -187,10 +187,7 @@ static void parse_topology_amd(struct topo_scan *tscan)
 		return;
 
 	/* Try the NODEID MSR */
-	if (parse_fam10h_node_id(tscan))
-		return;
-
-	legacy_set_llc(tscan);
+	parse_fam10h_node_id(tscan);
 }
 
 void cpu_parse_topology_amd(struct topo_scan *tscan)
@@ -198,6 +195,7 @@ void cpu_parse_topology_amd(struct topo_scan *tscan)
 	tscan->amd_nodes_per_pkg = 1;
 	topoext_fixup(tscan);
 	parse_topology_amd(tscan);
+	legacy_set_llc(tscan);
 
 	if (tscan->amd_nodes_per_pkg > 1)
 		set_cpu_cap(tscan->c, X86_FEATURE_AMD_DCM);
