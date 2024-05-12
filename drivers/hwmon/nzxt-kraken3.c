@@ -928,7 +928,8 @@ static int kraken3_probe(struct hid_device *hdev, const struct hid_device_id *id
 		device_name = "kraken2023elite";
 		break;
 	default:
-		break;
+		ret = -ENODEV;
+		goto fail_and_close;
 	}
 
 	priv->buffer = devm_kzalloc(&hdev->dev, MAX_REPORT_LENGTH, GFP_KERNEL);
