@@ -530,6 +530,31 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 		kvm_set_pfn_accessed(spte_to_pfn(old_spte));
 }
 
+static inline int __tdp_mmu_set_spte_atomic(struct tdp_iter *iter, u64 new_spte)
+{
+	u64 *sptep = rcu_dereference(iter->sptep);
+
+	/*
+	 * The caller is responsible for ensuring the old SPTE is not a REMOVED
+	 * SPTE.  KVM should never attempt to zap or manipulate a REMOVED SPTE,
+	 * and pre-checking before inserting a new SPTE is advantageous as it
+	 * avoids unnecessary work.
+	 */
+	WARN_ON_ONCE(iter->yielded || is_removed_spte(iter->old_spte));
+
+	/*
+	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
+	 * does not hold the mmu_lock.  On failure, i.e. if a different logical
+	 * CPU modified the SPTE, try_cmpxchg64() updates iter->old_spte with
+	 * the current value, so the caller operates on fresh data, e.g. if it
+	 * retries tdp_mmu_set_spte_atomic()
+	 */
+	if (!try_cmpxchg64(sptep, &iter->old_spte, new_spte))
+		return -EBUSY;
+
+	return 0;
+}
+
 /*
  * tdp_mmu_set_spte_atomic - Set a TDP MMU SPTE atomically
  * and handle the associated bookkeeping.  Do not mark the page dirty
@@ -551,27 +576,13 @@ static inline int tdp_mmu_set_spte_atomic(struct kvm *kvm,
 					  struct tdp_iter *iter,
 					  u64 new_spte)
 {
-	u64 *sptep = rcu_dereference(iter->sptep);
-
-	/*
-	 * The caller is responsible for ensuring the old SPTE is not a REMOVED
-	 * SPTE.  KVM should never attempt to zap or manipulate a REMOVED SPTE,
-	 * and pre-checking before inserting a new SPTE is advantageous as it
-	 * avoids unnecessary work.
-	 */
-	WARN_ON_ONCE(iter->yielded || is_removed_spte(iter->old_spte));
+	int ret;
 
 	lockdep_assert_held_read(&kvm->mmu_lock);
 
-	/*
-	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
-	 * does not hold the mmu_lock.  On failure, i.e. if a different logical
-	 * CPU modified the SPTE, try_cmpxchg64() updates iter->old_spte with
-	 * the current value, so the caller operates on fresh data, e.g. if it
-	 * retries tdp_mmu_set_spte_atomic()
-	 */
-	if (!try_cmpxchg64(sptep, &iter->old_spte, new_spte))
-		return -EBUSY;
+	ret = __tdp_mmu_set_spte_atomic(iter, new_spte);
+	if (ret)
+		return ret;
 
 	handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
 			    new_spte, iter->level, true);
@@ -584,13 +595,17 @@ static inline int tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 {
 	int ret;
 
+	lockdep_assert_held_read(&kvm->mmu_lock);
+
 	/*
-	 * Freeze the SPTE by setting it to a special,
-	 * non-present value. This will stop other threads from
-	 * immediately installing a present entry in its place
-	 * before the TLBs are flushed.
+	 * Freeze the SPTE by setting it to a special, non-present value. This
+	 * will stop other threads from immediately installing a present entry
+	 * in its place before the TLBs are flushed.
+	 *
+	 * Delay processing of the zapped SPTE until after TLBs are flushed and
+	 * the REMOVED_SPTE is replaced (see below).
 	 */
-	ret = tdp_mmu_set_spte_atomic(kvm, iter, REMOVED_SPTE);
+	ret = __tdp_mmu_set_spte_atomic(iter, REMOVED_SPTE);
 	if (ret)
 		return ret;
 
@@ -599,11 +614,19 @@ static inline int tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 	/*
 	 * No other thread can overwrite the removed SPTE as they must either
 	 * wait on the MMU lock or use tdp_mmu_set_spte_atomic() which will not
-	 * overwrite the special removed SPTE value. No bookkeeping is needed
-	 * here since the SPTE is going from non-present to non-present.  Use
-	 * the raw write helper to avoid an unnecessary check on volatile bits.
+	 * overwrite the special removed SPTE value. Use the raw write helper to
+	 * avoid an unnecessary check on volatile bits.
 	 */
 	__kvm_tdp_mmu_write_spte(iter->sptep, SHADOW_NONPRESENT_VALUE);
+
+	/*
+	 * Process the zapped SPTE after flushing TLBs, and after replacing
+	 * REMOVED_SPTE with 0. This minimizes the amount of time vCPUs are
+	 * blocked by the REMOVED_SPTE and reduces contention on the child
+	 * SPTEs.
+	 */
+	handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
+			    0, iter->level, true);
 
 	return 0;
 }
