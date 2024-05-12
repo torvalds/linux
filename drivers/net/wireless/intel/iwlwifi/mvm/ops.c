@@ -765,20 +765,18 @@ static void iwl_mvm_tx_unblock_dwork(struct work_struct *work)
 	struct ieee80211_vif *tx_blocked_vif;
 	struct iwl_mvm_vif *mvmvif;
 
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
 
 	tx_blocked_vif =
 		rcu_dereference_protected(mvm->csa_tx_blocked_vif,
 					  lockdep_is_held(&mvm->mutex));
 
 	if (!tx_blocked_vif)
-		goto unlock;
+		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(tx_blocked_vif);
 	iwl_mvm_modify_all_sta_disable_tx(mvm, mvmvif, false);
 	RCU_INIT_POINTER(mvm->csa_tx_blocked_vif, NULL);
-unlock:
-	mutex_unlock(&mvm->mutex);
 }
 
 static void iwl_mvm_fwrt_dump_start(void *ctx)
@@ -798,13 +796,9 @@ static void iwl_mvm_fwrt_dump_end(void *ctx)
 static int iwl_mvm_fwrt_send_hcmd(void *ctx, struct iwl_host_cmd *host_cmd)
 {
 	struct iwl_mvm *mvm = (struct iwl_mvm *)ctx;
-	int ret;
 
-	mutex_lock(&mvm->mutex);
-	ret = iwl_mvm_send_cmd(mvm, host_cmd);
-	mutex_unlock(&mvm->mutex);
-
-	return ret;
+	guard(mvm)(mvm);
+	return iwl_mvm_send_cmd(mvm, host_cmd);
 }
 
 static bool iwl_mvm_d3_debug_enable(void *ctx)

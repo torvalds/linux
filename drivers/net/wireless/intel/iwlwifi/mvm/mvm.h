@@ -9,6 +9,7 @@
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/cleanup.h>
 #include <linux/leds.h>
 #include <linux/in6.h>
 
@@ -1331,6 +1332,8 @@ struct iwl_mvm {
 
 #define IWL_MAC80211_GET_MVM(_hw)			\
 	IWL_OP_MODE_GET_MVM((struct iwl_op_mode *)((_hw)->priv))
+
+DEFINE_GUARD(mvm, struct iwl_mvm *, mutex_lock(&_T->mutex), mutex_unlock(&_T->mutex))
 
 /**
  * enum iwl_mvm_status - MVM status bits
