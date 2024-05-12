@@ -257,7 +257,7 @@
 #define IMG_I2C_TIMEOUT			(msecs_to_jiffies(1000))
 
 /*
- * Worst incs are 1 (innacurate) and 16*256 (irregular).
+ * Worst incs are 1 (inaccurate) and 16*256 (irregular).
  * So a sensible inc is the logarithmic mean: 64 (2^6), which is
  * in the middle of the valid range (0-127).
  */

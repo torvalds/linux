@@ -784,7 +784,7 @@ fbrel:
 	return ret;
 }
 
-static int of_platform_mb862xx_remove(struct platform_device *ofdev)
+static void of_platform_mb862xx_remove(struct platform_device *ofdev)
 {
 	struct fb_info *fbi = dev_get_drvdata(&ofdev->dev);
 	struct mb862xxfb_par *par = fbi->par;
@@ -814,7 +814,6 @@ static int of_platform_mb862xx_remove(struct platform_device *ofdev)
 
 	release_mem_region(par->res->start, res_size);
 	framebuffer_release(fbi);
-	return 0;
 }
 
 /*
@@ -838,7 +837,7 @@ static struct platform_driver of_platform_mb862xxfb_driver = {
 		.of_match_table = of_platform_mb862xx_tbl,
 	},
 	.probe		= of_platform_mb862xx_probe,
-	.remove		= of_platform_mb862xx_remove,
+	.remove_new	= of_platform_mb862xx_remove,
 };
 #endif
 
@@ -1180,6 +1179,9 @@ static struct pci_driver mb862xxfb_pci_driver = {
 static int mb862xxfb_init(void)
 {
 	int ret = -ENODEV;
+
+	if (fb_modesetting_disabled(DRV_NAME))
+		return -ENODEV;
 
 #if defined(CONFIG_FB_MB862XX_LIME)
 	ret = platform_driver_register(&of_platform_mb862xxfb_driver);

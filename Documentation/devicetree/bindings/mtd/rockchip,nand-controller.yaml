@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Rockchip SoCs NAND FLASH Controller (NFC)
 
 allOf:
-  - $ref: "nand-controller.yaml#"
+  - $ref: nand-controller.yaml#
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>
@@ -19,7 +19,9 @@ properties:
       - const: rockchip,rk2928-nfc
       - const: rockchip,rv1108-nfc
       - items:
-          - const: rockchip,rk3036-nfc
+          - enum:
+              - rockchip,rk3036-nfc
+              - rockchip,rk3128-nfc
           - const: rockchip,rk2928-nfc
       - items:
           - const: rockchip,rk3308-nfc

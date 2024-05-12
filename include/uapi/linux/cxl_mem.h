@@ -11,14 +11,19 @@
 /**
  * DOC: UAPI
  *
- * Not all of all commands that the driver supports are always available for use
- * by userspace. Userspace must check the results from the QUERY command in
- * order to determine the live set of commands.
+ * Not all of the commands that the driver supports are available for use by
+ * userspace at all times.  Userspace can check the result of the QUERY command
+ * to determine the live set of commands.  Alternatively, it can issue the
+ * command and check for failure.
  */
 
 #define CXL_MEM_QUERY_COMMANDS _IOR(0xCE, 1, struct cxl_mem_query_commands)
 #define CXL_MEM_SEND_COMMAND _IOWR(0xCE, 2, struct cxl_send_command)
 
+/*
+ * NOTE: New defines must be added to the end of the list to preserve
+ * compatibility because this enum is exported to user space.
+ */
 #define CXL_CMDS                                                          \
 	___C(INVALID, "Invalid Command"),                                 \
 	___C(IDENTIFY, "Identify Command"),                               \
@@ -35,19 +40,22 @@
 	___C(SET_ALERT_CONFIG, "Set Alert Configuration"),                \
 	___C(GET_SHUTDOWN_STATE, "Get Shutdown State"),                   \
 	___C(SET_SHUTDOWN_STATE, "Set Shutdown State"),                   \
-	___C(GET_POISON, "Get Poison List"),                              \
-	___C(INJECT_POISON, "Inject Poison"),                             \
-	___C(CLEAR_POISON, "Clear Poison"),                               \
+	___DEPRECATED(GET_POISON, "Get Poison List"),                     \
+	___DEPRECATED(INJECT_POISON, "Inject Poison"),                    \
+	___DEPRECATED(CLEAR_POISON, "Clear Poison"),                      \
 	___C(GET_SCAN_MEDIA_CAPS, "Get Scan Media Capabilities"),         \
-	___C(SCAN_MEDIA, "Scan Media"),                                   \
-	___C(GET_SCAN_MEDIA, "Get Scan Media Results"),                   \
+	___DEPRECATED(SCAN_MEDIA, "Scan Media"),                          \
+	___DEPRECATED(GET_SCAN_MEDIA, "Get Scan Media Results"),          \
 	___C(MAX, "invalid / last command")
 
 #define ___C(a, b) CXL_MEM_COMMAND_ID_##a
+#define ___DEPRECATED(a, b) CXL_MEM_DEPRECATED_ID_##a
 enum { CXL_CMDS };
 
 #undef ___C
+#undef ___DEPRECATED
 #define ___C(a, b) { b }
+#define ___DEPRECATED(a, b) { "Deprecated " b }
 static const struct {
 	const char *name;
 } cxl_command_names[] __attribute__((__unused__)) = { CXL_CMDS };
@@ -63,11 +71,46 @@ static const struct {
  */
 
 #undef ___C
+#undef ___DEPRECATED
+#define ___C(a, b) (0)
+#define ___DEPRECATED(a, b) (1)
+
+static const __u8 cxl_deprecated_commands[]
+	__attribute__((__unused__)) = { CXL_CMDS };
+
+/*
+ * Here's how this actually breaks out:
+ * cxl_deprecated_commands[] = {
+ *	[CXL_MEM_COMMAND_ID_INVALID] = 0,
+ *	[CXL_MEM_COMMAND_ID_IDENTIFY] = 0,
+ *	...
+ *	[CXL_MEM_DEPRECATED_ID_GET_POISON] = 1,
+ *	[CXL_MEM_DEPRECATED_ID_INJECT_POISON] = 1,
+ *	[CXL_MEM_DEPRECATED_ID_CLEAR_POISON] = 1,
+ *	...
+ * };
+ */
+
+#undef ___C
+#undef ___DEPRECATED
 
 /**
  * struct cxl_command_info - Command information returned from a query.
  * @id: ID number for the command.
  * @flags: Flags that specify command behavior.
+ *
+ *         CXL_MEM_COMMAND_FLAG_USER_ENABLED
+ *
+ *         The given command id is supported by the driver and is supported by
+ *         a related opcode on the device.
+ *
+ *         CXL_MEM_COMMAND_FLAG_EXCLUSIVE
+ *
+ *         Requests with the given command id will terminate with EBUSY as the
+ *         kernel actively owns management of the given resource. For example,
+ *         the label-storage-area can not be written while the kernel is
+ *         actively managing that space.
+ *
  * @size_in: Expected input size, or ~0 if variable length.
  * @size_out: Expected output size, or ~0 if variable length.
  *
@@ -77,7 +120,7 @@ static const struct {
  * bytes of output.
  *
  *  - @id = 10
- *  - @flags = 0
+ *  - @flags = CXL_MEM_COMMAND_FLAG_ENABLED
  *  - @size_in = ~0
  *  - @size_out = 0
  *
@@ -87,7 +130,9 @@ struct cxl_command_info {
 	__u32 id;
 
 	__u32 flags;
-#define CXL_MEM_COMMAND_FLAG_MASK GENMASK(0, 0)
+#define CXL_MEM_COMMAND_FLAG_MASK		GENMASK(1, 0)
+#define CXL_MEM_COMMAND_FLAG_ENABLED		BIT(0)
+#define CXL_MEM_COMMAND_FLAG_EXCLUSIVE		BIT(1)
 
 	__u32 size_in;
 	__u32 size_out;

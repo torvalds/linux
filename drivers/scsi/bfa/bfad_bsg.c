@@ -2540,6 +2540,35 @@ out:
 	return 0;
 }
 
+/*
+ * Set the SCSI device sdev_bflags - sdev_bflags are used by the
+ * SCSI mid-layer to choose LUN Scanning mode REPORT_LUNS vs. Sequential Scan
+ *
+ * Internally iterates over all the ITNIM's part of the im_port & sets the
+ * sdev_bflags for the scsi_device associated with LUN #0.
+ */
+static void bfad_reset_sdev_bflags(struct bfad_im_port_s *im_port,
+				   int lunmask_cfg)
+{
+	const u32 scan_flags = BLIST_NOREPORTLUN | BLIST_SPARSELUN;
+	struct bfad_itnim_s *itnim;
+	struct scsi_device *sdev;
+	unsigned long flags;
+
+	spin_lock_irqsave(im_port->shost->host_lock, flags);
+	list_for_each_entry(itnim, &im_port->itnim_mapped_list, list_entry) {
+		sdev = __scsi_device_lookup(im_port->shost, itnim->channel,
+					    itnim->scsi_tgt_id, 0);
+		if (sdev) {
+			if (lunmask_cfg == BFA_TRUE)
+				sdev->sdev_bflags |= scan_flags;
+			else
+				sdev->sdev_bflags &= ~scan_flags;
+		}
+	}
+	spin_unlock_irqrestore(im_port->shost->host_lock, flags);
+}
+
 /* Function to reset the LUN SCAN mode */
 static void
 bfad_iocmd_lunmask_reset_lunscan_mode(struct bfad_s *bfad, int lunmask_cfg)

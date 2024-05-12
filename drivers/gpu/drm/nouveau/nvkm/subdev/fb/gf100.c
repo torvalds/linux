@@ -61,14 +61,6 @@ gf100_fb_oneinit(struct nvkm_fb *base)
 	if (ret)
 		return ret;
 
-	fb->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (fb->r100c10_page) {
-		fb->r100c10 = dma_map_page(device->dev, fb->r100c10_page, 0,
-					   PAGE_SIZE, DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(device->dev, fb->r100c10))
-			return -EFAULT;
-	}
-
 	return 0;
 }
 
@@ -86,13 +78,16 @@ gf100_fb_init_page(struct nvkm_fb *fb)
 }
 
 void
+gf100_fb_sysmem_flush_page_init(struct nvkm_fb *fb)
+{
+	nvkm_wr32(fb->subdev.device, 0x100c10, fb->sysmem.flush_page_addr >> 8);
+}
+
+void
 gf100_fb_init(struct nvkm_fb *base)
 {
 	struct gf100_fb *fb = gf100_fb(base);
 	struct nvkm_device *device = fb->base.subdev.device;
-
-	if (fb->r100c10_page)
-		nvkm_wr32(device, 0x100c10, fb->r100c10 >> 8);
 
 	if (base->func->clkgate_pack) {
 		nvkm_therm_clkgate_init(device->therm,
@@ -104,13 +99,6 @@ void *
 gf100_fb_dtor(struct nvkm_fb *base)
 {
 	struct gf100_fb *fb = gf100_fb(base);
-	struct nvkm_device *device = fb->base.subdev.device;
-
-	if (fb->r100c10_page) {
-		dma_unmap_page(device->dev, fb->r100c10, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
-		__free_page(fb->r100c10_page);
-	}
 
 	return fb;
 }
@@ -136,6 +124,7 @@ gf100_fb = {
 	.init = gf100_fb_init,
 	.init_page = gf100_fb_init_page,
 	.intr = gf100_fb_intr,
+	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.ram_new = gf100_ram_new,
 	.default_bigpage = 17,
 };

@@ -153,18 +153,11 @@ static int wm8350_wdt_probe(struct platform_device *pdev)
 	/* Default to 4s timeout */
 	wm8350_wdt_set_timeout(&wm8350_wdt, 4);
 
-	return watchdog_register_device(&wm8350_wdt);
-}
-
-static int wm8350_wdt_remove(struct platform_device *pdev)
-{
-	watchdog_unregister_device(&wm8350_wdt);
-	return 0;
+	return devm_watchdog_register_device(&pdev->dev, &wm8350_wdt);
 }
 
 static struct platform_driver wm8350_wdt_driver = {
 	.probe = wm8350_wdt_probe,
-	.remove = wm8350_wdt_remove,
 	.driver = {
 		.name = "wm8350-wdt",
 	},

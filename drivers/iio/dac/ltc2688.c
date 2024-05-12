@@ -84,7 +84,6 @@ struct ltc2688_chan {
 struct ltc2688_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
-	struct regulator_bulk_data regulators[2];
 	struct ltc2688_chan channels[LTC2688_DAC_CHANNELS];
 	struct iio_chan_spec *iio_chan;
 	/* lock to protect against multiple access to the device and shared data */
@@ -902,13 +901,6 @@ static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
 			       LTC2688_CONFIG_EXT_REF);
 }
 
-static void ltc2688_disable_regulators(void *data)
-{
-	struct ltc2688_state *st = data;
-
-	regulator_bulk_disable(ARRAY_SIZE(st->regulators), st->regulators);
-}
-
 static void ltc2688_disable_regulator(void *regulator)
 {
 	regulator_disable(regulator);
@@ -965,6 +957,7 @@ static const struct iio_info ltc2688_info = {
 
 static int ltc2688_probe(struct spi_device *spi)
 {
+	static const char * const regulators[] = { "vcc", "iovcc" };
 	struct ltc2688_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *vref_reg;
@@ -988,20 +981,10 @@ static int ltc2688_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(st->regmap),
 				     "Failed to init regmap");
 
-	st->regulators[0].supply = "vcc";
-	st->regulators[1].supply = "iovcc";
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(st->regulators),
-				      st->regulators);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get regulators\n");
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(st->regulators), st->regulators);
+	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(regulators),
+					     regulators);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable regulators\n");
-
-	ret = devm_add_action_or_reset(dev, ltc2688_disable_regulators, st);
-	if (ret)
-		return ret;
 
 	vref_reg = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(vref_reg)) {

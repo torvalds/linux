@@ -34,9 +34,11 @@ properties:
   clock-names:
     const: fck
 
-  power-domains: true
+  power-domains:
+    maxItems: 1
 
-  resets: true
+  resets:
+    maxItems: 1
 
   "#address-cells":
     const: 1
@@ -51,6 +53,8 @@ required:
   - reg
   - clocks
   - clock-names
+  - power-domains
+  - resets
   - "#address-cells"
   - "#size-cells"
 
@@ -86,7 +90,7 @@ patternProperties:
             of the MAX chips to the GyroADC, while MISO line of each Maxim
             ADC connects to a shared input pin of the GyroADC.
         enum:
-          - adi,7476
+          - adi,ad7476
           - fujitsu,mb88101a
           - maxim,max1162
           - maxim,max11100
@@ -108,36 +112,30 @@ patternProperties:
 
 examples:
   - |
-    #include <dt-bindings/clock/r8a7791-clock.h>
+    #include <dt-bindings/clock/r8a7791-cpg-mssr.h>
     #include <dt-bindings/power/r8a7791-sysc.h>
-    soc {
-        #address-cells = <2>;
-        #size-cells = <2>;
 
-        adc@e6e54000 {
-            compatible = "renesas,r8a7791-gyroadc", "renesas,rcar-gyroadc";
-            reg = <0 0xe6e54000 0 64>;
-            clocks = <&mstp9_clks R8A7791_CLK_GYROADC>;
-            clock-names = "fck";
-            power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
+    adc@e6e54000 {
+        compatible = "renesas,r8a7791-gyroadc", "renesas,rcar-gyroadc";
+        reg = <0xe6e54000 64>;
+        clocks = <&cpg CPG_MOD 901>;
+        clock-names = "fck";
+        power-domains = <&sysc R8A7791_PD_ALWAYS_ON>;
+        resets = <&cpg 901>;
 
-            pinctrl-0 = <&adc_pins>;
-            pinctrl-names = "default";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-            #address-cells = <1>;
-            #size-cells = <0>;
+        adc@0 {
+            reg = <0>;
+            compatible = "maxim,max1162";
+            vref-supply = <&vref_max1162>;
+        };
 
-            adc@0 {
-                reg = <0>;
-                compatible = "maxim,max1162";
-                vref-supply = <&vref_max1162>;
-            };
-
-            adc@1 {
-                reg = <1>;
-                compatible = "maxim,max1162";
-                vref-supply = <&vref_max1162>;
-            };
+        adc@1 {
+            reg = <1>;
+            compatible = "maxim,max1162";
+            vref-supply = <&vref_max1162>;
         };
     };
 ...

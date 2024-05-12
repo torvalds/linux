@@ -18,7 +18,7 @@ properties:
     maxItems: 1
 
   edid-emulation:
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The EDID emulation entry to use
       Value  Resolution  Description
@@ -71,7 +71,7 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
 
-    i2c1 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 

@@ -23,7 +23,7 @@
 #include <linux/thermal.h>
 #include <linux/units.h>
 
-#include <trace/events/thermal.h>
+#include "thermal_trace.h"
 
 /*
  * Cooling state <-> CPUFreq frequency
@@ -633,7 +633,7 @@ of_cpufreq_cooling_register(struct cpufreq_policy *policy)
 		return NULL;
 	}
 
-	if (of_find_property(np, "#cooling-cells", NULL)) {
+	if (of_property_present(np, "#cooling-cells")) {
 		struct em_perf_domain *em = em_cpu_get(policy->cpu);
 
 		cdev = __cpufreq_cooling_register(np, policy, em);

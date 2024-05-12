@@ -323,7 +323,7 @@ done:
 	return IRQ_HANDLED;
 }
 
-static struct scsi_host_template ps3rom_host_template = {
+static const struct scsi_host_template ps3rom_host_template = {
 	.name =			DEVICE_NAME,
 	.slave_configure =	ps3rom_slave_configure,
 	.queuecommand =		ps3rom_queuecommand,

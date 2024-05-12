@@ -22,8 +22,8 @@ description: |
 properties:
   compatible:
     oneOf:
-      - items:
-          - const: mediatek,mt8173-disp-ufoe
+      - enum:
+          - mediatek,mt8173-disp-ufoe
 
   reg:
     maxItems: 1

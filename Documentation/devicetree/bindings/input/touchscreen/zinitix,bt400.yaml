@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/zinitix,bt400.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Zinitix BT4xx and BT5xx series touchscreen controller bindings
+title: Zinitix BT4xx and BT5xx series touchscreen controller
 
 description: The Zinitix BT4xx and BT5xx series of touchscreen controllers
   are Korea-produced touchscreens with embedded microcontrollers. The

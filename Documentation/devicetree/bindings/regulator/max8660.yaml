@@ -24,8 +24,9 @@ properties:
     type: object
 
     patternProperties:
-      "regulator-.+":
-        $ref: "regulator.yaml#"
+      "^regulator-.+$":
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
 
     additionalProperties: false
 
@@ -43,31 +44,26 @@ examples:
 
         regulators {
           regulator-V3 {
-            regulator-compatible= "V3(DCDC)";
             regulator-min-microvolt = <725000>;
             regulator-max-microvolt = <1800000>;
           };
 
           regulator-V4 {
-            regulator-compatible= "V4(DCDC)";
             regulator-min-microvolt = <725000>;
             regulator-max-microvolt = <1800000>;
           };
 
           regulator-V5 {
-            regulator-compatible= "V5(LDO)";
             regulator-min-microvolt = <1700000>;
             regulator-max-microvolt = <2000000>;
           };
 
           regulator-V6 {
-            regulator-compatible= "V6(LDO)";
             regulator-min-microvolt = <1800000>;
             regulator-max-microvolt = <3300000>;
           };
 
           regulator-V7 {
-            regulator-compatible= "V7(LDO)";
             regulator-min-microvolt = <1800000>;
             regulator-max-microvolt = <3300000>;
           };

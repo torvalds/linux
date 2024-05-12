@@ -11,6 +11,7 @@
 #include <linux/bcd.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/kstrtox.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -1218,8 +1219,7 @@ static ssize_t frequency_test_show(struct device *dev,
 
 	regmap_read(ds1307->regmap, M41TXX_REG_CONTROL, &ctrl_reg);
 
-	return scnprintf(buf, PAGE_SIZE, (ctrl_reg & M41TXX_BIT_FT) ? "on\n" :
-			"off\n");
+	return sysfs_emit(buf, (ctrl_reg & M41TXX_BIT_FT) ? "on\n" : "off\n");
 }
 
 static DEVICE_ATTR_RW(frequency_test);
@@ -1712,9 +1712,9 @@ static const struct regmap_config regmap_config = {
 	.val_bits = 8,
 };
 
-static int ds1307_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ds1307_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ds1307		*ds1307;
 	const void		*match;
 	int			err = -ENODEV;
@@ -2011,7 +2011,7 @@ static struct i2c_driver ds1307_driver = {
 		.name	= "rtc-ds1307",
 		.of_match_table = ds1307_of_match,
 	},
-	.probe		= ds1307_probe,
+	.probe_new	= ds1307_probe,
 	.id_table	= ds1307_id,
 };
 

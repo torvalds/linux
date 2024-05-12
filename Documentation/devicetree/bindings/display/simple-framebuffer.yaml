@@ -26,6 +26,11 @@ description: |+
   over control to a driver for the real hardware. The bindings for the
   hw nodes must specify which node is considered the primary node.
 
+  If a panel node is given, then the driver uses this to configure the
+  physical width and height of the display. If no panel node is given,
+  then the driver uses the width and height properties of the simplefb
+  node to estimate it.
+
   It is advised to add display# aliases to help the OS determine how
   to number things. If display# aliases are used, then if the simplefb
   node contains a display property then the /aliases/display# path
@@ -63,6 +68,11 @@ properties:
   reg:
     description: Location and size of the framebuffer memory
 
+  memory-region:
+    maxItems: 1
+    description: Phandle to a node describing the memory to be used for the
+      framebuffer. If present, overrides the "reg" property (if one exists).
+
   clocks:
     description: List of clocks used by the framebuffer.
 
@@ -94,6 +104,7 @@ properties:
         * `x1r5g5b5` - 16-bit pixels, d[14:10]=r, d[9:5]=g, d[4:0]=b
         * `x2r10g10b10` - 32-bit pixels, d[29:20]=r, d[19:10]=g, d[9:0]=b
         * `x8r8g8b8` - 32-bit pixels, d[23:16]=r, d[15:8]=g, d[7:0]=b
+        * `x8b8g8r8` - 32-bit pixels, d[23:16]=b, d[15:8]=g, d[7:0]=r
     enum:
       - a1r5g5b5
       - a2r10g10b10
@@ -105,10 +116,15 @@ properties:
       - x1r5g5b5
       - x2r10g10b10
       - x8r8g8b8
+      - x8b8g8r8
 
   display:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: Primary display hardware node
+
+  panel:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Display panel node
 
   allwinner,pipeline:
     description: Pipeline used by the framebuffer on Allwinner SoCs

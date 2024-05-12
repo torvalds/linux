@@ -319,24 +319,23 @@ static int enetc_vlan_rx_del_vid(struct net_device *ndev, __be16 prot, u16 vid)
 static void enetc_set_loopback(struct net_device *ndev, bool en)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	struct enetc_hw *hw = &priv->si->hw;
+	struct enetc_si *si = priv->si;
 	u32 reg;
 
-	reg = enetc_port_rd(hw, ENETC_PM0_IF_MODE);
+	reg = enetc_port_mac_rd(si, ENETC_PM0_IF_MODE);
 	if (reg & ENETC_PM0_IFM_RG) {
 		/* RGMII mode */
 		reg = (reg & ~ENETC_PM0_IFM_RLP) |
 		      (en ? ENETC_PM0_IFM_RLP : 0);
-		enetc_port_wr(hw, ENETC_PM0_IF_MODE, reg);
+		enetc_port_mac_wr(si, ENETC_PM0_IF_MODE, reg);
 	} else {
 		/* assume SGMII mode */
-		reg = enetc_port_rd(hw, ENETC_PM0_CMD_CFG);
+		reg = enetc_port_mac_rd(si, ENETC_PM0_CMD_CFG);
 		reg = (reg & ~ENETC_PM0_CMD_XGLP) |
 		      (en ? ENETC_PM0_CMD_XGLP : 0);
 		reg = (reg & ~ENETC_PM0_CMD_PHY_TX_EN) |
 		      (en ? ENETC_PM0_CMD_PHY_TX_EN : 0);
-		enetc_port_wr(hw, ENETC_PM0_CMD_CFG, reg);
-		enetc_port_wr(hw, ENETC_PM1_CMD_CFG, reg);
+		enetc_port_mac_wr(si, ENETC_PM0_CMD_CFG, reg);
 	}
 }
 
@@ -538,65 +537,50 @@ void enetc_reset_ptcmsdur(struct enetc_hw *hw)
 		enetc_port_wr(hw, ENETC_PTCMSDUR(tc), ENETC_MAC_MAXFRM_SIZE);
 }
 
-static void enetc_configure_port_mac(struct enetc_hw *hw)
+static void enetc_configure_port_mac(struct enetc_si *si)
 {
-	enetc_port_wr(hw, ENETC_PM0_MAXFRM,
-		      ENETC_SET_MAXFRM(ENETC_RX_MAXFRM_SIZE));
+	struct enetc_hw *hw = &si->hw;
+
+	enetc_port_mac_wr(si, ENETC_PM0_MAXFRM,
+			  ENETC_SET_MAXFRM(ENETC_RX_MAXFRM_SIZE));
 
 	enetc_reset_ptcmsdur(hw);
 
-	enetc_port_wr(hw, ENETC_PM0_CMD_CFG, ENETC_PM0_CMD_PHY_TX_EN |
-		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC);
-
-	enetc_port_wr(hw, ENETC_PM1_CMD_CFG, ENETC_PM0_CMD_PHY_TX_EN |
-		      ENETC_PM0_CMD_TXP	| ENETC_PM0_PROMISC);
+	enetc_port_mac_wr(si, ENETC_PM0_CMD_CFG, ENETC_PM0_CMD_PHY_TX_EN |
+			  ENETC_PM0_CMD_TXP | ENETC_PM0_PROMISC);
 
 	/* On LS1028A, the MAC RX FIFO defaults to 2, which is too high
 	 * and may lead to RX lock-up under traffic. Set it to 1 instead,
 	 * as recommended by the hardware team.
 	 */
-	enetc_port_wr(hw, ENETC_PM0_RX_FIFO, ENETC_PM0_RX_FIFO_VAL);
+	enetc_port_mac_wr(si, ENETC_PM0_RX_FIFO, ENETC_PM0_RX_FIFO_VAL);
 }
 
-static void enetc_mac_config(struct enetc_hw *hw, phy_interface_t phy_mode)
+static void enetc_mac_config(struct enetc_si *si, phy_interface_t phy_mode)
 {
 	u32 val;
 
 	if (phy_interface_mode_is_rgmii(phy_mode)) {
-		val = enetc_port_rd(hw, ENETC_PM0_IF_MODE);
+		val = enetc_port_mac_rd(si, ENETC_PM0_IF_MODE);
 		val &= ~(ENETC_PM0_IFM_EN_AUTO | ENETC_PM0_IFM_IFMODE_MASK);
 		val |= ENETC_PM0_IFM_IFMODE_GMII | ENETC_PM0_IFM_RG;
-		enetc_port_wr(hw, ENETC_PM0_IF_MODE, val);
+		enetc_port_mac_wr(si, ENETC_PM0_IF_MODE, val);
 	}
 
 	if (phy_mode == PHY_INTERFACE_MODE_USXGMII) {
 		val = ENETC_PM0_IFM_FULL_DPX | ENETC_PM0_IFM_IFMODE_XGMII;
-		enetc_port_wr(hw, ENETC_PM0_IF_MODE, val);
+		enetc_port_mac_wr(si, ENETC_PM0_IF_MODE, val);
 	}
 }
 
-static void enetc_mac_enable(struct enetc_hw *hw, bool en)
+static void enetc_mac_enable(struct enetc_si *si, bool en)
 {
-	u32 val = enetc_port_rd(hw, ENETC_PM0_CMD_CFG);
+	u32 val = enetc_port_mac_rd(si, ENETC_PM0_CMD_CFG);
 
 	val &= ~(ENETC_PM0_TX_EN | ENETC_PM0_RX_EN);
 	val |= en ? (ENETC_PM0_TX_EN | ENETC_PM0_RX_EN) : 0;
 
-	enetc_port_wr(hw, ENETC_PM0_CMD_CFG, val);
-	enetc_port_wr(hw, ENETC_PM1_CMD_CFG, val);
-}
-
-static void enetc_configure_port_pmac(struct enetc_hw *hw)
-{
-	u32 temp;
-
-	/* Set pMAC step lock */
-	temp = enetc_port_rd(hw, ENETC_PFPMR);
-	enetc_port_wr(hw, ENETC_PFPMR,
-		      temp | ENETC_PFPMR_PMACE | ENETC_PFPMR_MWLM);
-
-	temp = enetc_port_rd(hw, ENETC_MMCSR);
-	enetc_port_wr(hw, ENETC_MMCSR, temp | ENETC_MMCSR_ME);
+	enetc_port_mac_wr(si, ENETC_PM0_CMD_CFG, val);
 }
 
 static void enetc_configure_port(struct enetc_pf *pf)
@@ -604,9 +588,7 @@ static void enetc_configure_port(struct enetc_pf *pf)
 	u8 hash_key[ENETC_RSSHASH_KEY_SIZE];
 	struct enetc_hw *hw = &pf->si->hw;
 
-	enetc_configure_port_pmac(hw);
-
-	enetc_configure_port_mac(hw);
+	enetc_configure_port_mac(pf->si);
 
 	enetc_port_si_configure(pf->si);
 
@@ -825,6 +807,9 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 		ndev->hw_features |= NETIF_F_RXHASH;
 
 	ndev->priv_flags |= IFF_UNICAST_FLT;
+	ndev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+			     NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_RX_SG |
+			     NETDEV_XDP_ACT_NDO_XMIT_SG;
 
 	if (si->hw_features & ENETC_SI_F_PSFP && !enetc_psfp_enable(priv)) {
 		priv->active_offloads |= ENETC_F_QCI;
@@ -848,8 +833,10 @@ static int enetc_mdio_probe(struct enetc_pf *pf, struct device_node *np)
 		return -ENOMEM;
 
 	bus->name = "Freescale ENETC MDIO Bus";
-	bus->read = enetc_mdio_read;
-	bus->write = enetc_mdio_write;
+	bus->read = enetc_mdio_read_c22;
+	bus->write = enetc_mdio_write_c22;
+	bus->read_c45 = enetc_mdio_read_c45;
+	bus->write_c45 = enetc_mdio_write_c45;
 	bus->parent = dev;
 	mdio_priv = bus->priv;
 	mdio_priv->hw = &pf->si->hw;
@@ -885,8 +872,10 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 		return -ENOMEM;
 
 	bus->name = "Freescale ENETC internal MDIO Bus";
-	bus->read = enetc_mdio_read;
-	bus->write = enetc_mdio_write;
+	bus->read = enetc_mdio_read_c22;
+	bus->write = enetc_mdio_write_c22;
+	bus->read_c45 = enetc_mdio_read_c45;
+	bus->write_c45 = enetc_mdio_write_c45;
 	bus->parent = dev;
 	bus->phy_mask = ~0;
 	mdio_priv = bus->priv;
@@ -994,14 +983,14 @@ static void enetc_pl_mac_config(struct phylink_config *config,
 {
 	struct enetc_pf *pf = phylink_to_enetc_pf(config);
 
-	enetc_mac_config(&pf->si->hw, state->interface);
+	enetc_mac_config(pf->si, state->interface);
 }
 
-static void enetc_force_rgmii_mac(struct enetc_hw *hw, int speed, int duplex)
+static void enetc_force_rgmii_mac(struct enetc_si *si, int speed, int duplex)
 {
 	u32 old_val, val;
 
-	old_val = val = enetc_port_rd(hw, ENETC_PM0_IF_MODE);
+	old_val = val = enetc_port_mac_rd(si, ENETC_PM0_IF_MODE);
 
 	if (speed == SPEED_1000) {
 		val &= ~ENETC_PM0_IFM_SSP_MASK;
@@ -1022,7 +1011,7 @@ static void enetc_force_rgmii_mac(struct enetc_hw *hw, int speed, int duplex)
 	if (val == old_val)
 		return;
 
-	enetc_port_wr(hw, ENETC_PM0_IF_MODE, val);
+	enetc_port_mac_wr(si, ENETC_PM0_IF_MODE, val);
 }
 
 static void enetc_pl_mac_link_up(struct phylink_config *config,
@@ -1034,6 +1023,7 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 	u32 pause_off_thresh = 0, pause_on_thresh = 0;
 	u32 init_quanta = 0, refresh_quanta = 0;
 	struct enetc_hw *hw = &pf->si->hw;
+	struct enetc_si *si = pf->si;
 	struct enetc_ndev_priv *priv;
 	u32 rbmr, cmd_cfg;
 	int idx;
@@ -1045,7 +1035,7 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 
 	if (!phylink_autoneg_inband(mode) &&
 	    phy_interface_mode_is_rgmii(interface))
-		enetc_force_rgmii_mac(hw, speed, duplex);
+		enetc_force_rgmii_mac(si, speed, duplex);
 
 	/* Flow control */
 	for (idx = 0; idx < priv->num_rx_rings; idx++) {
@@ -1081,24 +1071,24 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 		pause_off_thresh = 1 * ENETC_MAC_MAXFRM_SIZE;
 	}
 
-	enetc_port_wr(hw, ENETC_PM0_PAUSE_QUANTA, init_quanta);
-	enetc_port_wr(hw, ENETC_PM1_PAUSE_QUANTA, init_quanta);
-	enetc_port_wr(hw, ENETC_PM0_PAUSE_THRESH, refresh_quanta);
-	enetc_port_wr(hw, ENETC_PM1_PAUSE_THRESH, refresh_quanta);
+	enetc_port_mac_wr(si, ENETC_PM0_PAUSE_QUANTA, init_quanta);
+	enetc_port_mac_wr(si, ENETC_PM0_PAUSE_THRESH, refresh_quanta);
 	enetc_port_wr(hw, ENETC_PPAUONTR, pause_on_thresh);
 	enetc_port_wr(hw, ENETC_PPAUOFFTR, pause_off_thresh);
 
-	cmd_cfg = enetc_port_rd(hw, ENETC_PM0_CMD_CFG);
+	cmd_cfg = enetc_port_mac_rd(si, ENETC_PM0_CMD_CFG);
 
 	if (rx_pause)
 		cmd_cfg &= ~ENETC_PM0_PAUSE_IGN;
 	else
 		cmd_cfg |= ENETC_PM0_PAUSE_IGN;
 
-	enetc_port_wr(hw, ENETC_PM0_CMD_CFG, cmd_cfg);
-	enetc_port_wr(hw, ENETC_PM1_CMD_CFG, cmd_cfg);
+	enetc_port_mac_wr(si, ENETC_PM0_CMD_CFG, cmd_cfg);
 
-	enetc_mac_enable(hw, true);
+	enetc_mac_enable(si, true);
+
+	if (si->hw_features & ENETC_SI_F_QBU)
+		enetc_mm_link_state_update(priv, true);
 }
 
 static void enetc_pl_mac_link_down(struct phylink_config *config,
@@ -1106,12 +1096,18 @@ static void enetc_pl_mac_link_down(struct phylink_config *config,
 				   phy_interface_t interface)
 {
 	struct enetc_pf *pf = phylink_to_enetc_pf(config);
+	struct enetc_si *si = pf->si;
+	struct enetc_ndev_priv *priv;
 
-	enetc_mac_enable(&pf->si->hw, false);
+	priv = netdev_priv(si->ndev);
+
+	if (si->hw_features & ENETC_SI_F_QBU)
+		enetc_mm_link_state_update(priv, false);
+
+	enetc_mac_enable(si, false);
 }
 
 static const struct phylink_mac_ops enetc_mac_phylink_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = enetc_pl_mac_select_pcs,
 	.mac_config = enetc_pl_mac_config,
 	.mac_link_up = enetc_pl_mac_link_up,
@@ -1300,6 +1296,8 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	enetc_pf_netdev_setup(si, ndev, &enetc_ndev_ops);
 
 	priv = netdev_priv(ndev);
+
+	mutex_init(&priv->mm_lock);
 
 	enetc_init_si_rings_params(priv);
 

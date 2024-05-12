@@ -19,7 +19,6 @@
 		ethernet0 = &ethmac;
 		i2c0 = &i2c_AO;
 		serial0 = &uart_AO;
-		serial1 = &uart_A;
 		mmc0 = &sd_card_slot;
 	};
 
@@ -45,11 +44,31 @@
 		};
 	};
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+
+		pinctrl-0 = <&xtal_32k_out_pins>;
+		pinctrl-names = "default";
+
+		reset-gpios = <&gpio GPIOX_11 GPIO_ACTIVE_LOW>,
+			      <&gpio_ao GPIOAO_6 GPIO_ACTIVE_LOW>;
+
+		clocks = <&xtal_32k_out>;
+		clock-names = "ext_clock";
+	};
+
 	vcc_3v3: regulator-vcc3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	xtal_32k_out: xtal-32k-out-clk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "xtal_32k_out";
 	};
 };
 
@@ -192,6 +211,27 @@
 	vref-supply = <&vddio_ao1v8>;
 };
 
+/* SDIO wifi */
+&sdhc {
+	status = "okay";
+
+	pinctrl-0 = <&sdxc_a_pins>;
+	pinctrl-names = "default";
+
+	bus-width = <4>;
+	max-frequency = <50000000>;
+
+	disable-wp;
+	non-removable;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+
+	mmc-pwrseq = <&sdio_pwrseq>;
+
+	vmmc-supply = <&vcc_3v3>;
+	vqmmc-supply = <&vcc_3v3>;
+};
+
 &sdio {
 	status = "okay";
 
@@ -222,6 +262,12 @@
 	pinctrl-0 = <&uart_a1_pins>, <&uart_a1_cts_rts_pins>;
 	pinctrl-names = "default";
 	uart-has-rtscts;
+
+	bluetooth {
+		compatible = "brcm,bcm20702a1";
+		shutdown-gpios = <&gpio GPIOX_20 GPIO_ACTIVE_HIGH>;
+		max-speed = <2000000>;
+	};
 };
 
 &uart_AO {

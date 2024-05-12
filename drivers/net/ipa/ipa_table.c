@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -32,8 +32,8 @@
  * endian 64-bit "slot" that holds the address of a rule definition.  (The
  * size of these slots is 64 bits regardless of the host DMA address size.)
  *
- * Separate tables (both filter and route) used for IPv4 and IPv6.  There
- * are normally another set of "hashed" filter and route tables, which are
+ * Separate tables (both filter and route) are used for IPv4 and IPv6.  There
+ * is normally another set of "hashed" filter and route tables, which are
  * used with a hash of message metadata.  Hashed operation is not supported
  * by all IPA hardware (IPA v4.2 doesn't support hashed tables).
  *
@@ -51,19 +51,32 @@
  * Each filter rule is associated with an AP or modem TX endpoint, though
  * not all TX endpoints support filtering.  The first 64-bit slot in a
  * filter table is a bitmap indicating which endpoints have entries in
- * the table.  The low-order bit (bit 0) in this bitmap represents a
- * special global filter, which applies to all traffic.  This is not
- * used in the current code.  Bit 1, if set, indicates that there is an
- * entry (i.e. slot containing a system address referring to a rule) for
- * endpoint 0 in the table.  Bit 3, if set, indicates there is an entry
- * for endpoint 2, and so on.  Space is set aside in IPA local memory to
- * hold as many filter table entries as might be required, but typically
- * they are not all used.
+ * the table.  Each set bit in this bitmap indicates the presence of the
+ * address of a filter rule in the memory following the bitmap.  Until IPA
+ * v5.0,  the low-order bit (bit 0) in this bitmap represents a special
+ * global filter, which applies to all traffic.  Otherwise the position of
+ * each set bit represents an endpoint for which a filter rule is defined.
+ *
+ * The global rule is not used in current code, and support for it is
+ * removed starting at IPA v5.0.  For IPA v5.0+, the endpoint bitmap
+ * position defines the endpoint ID--i.e. if bit 1 is set in the endpoint
+ * bitmap, endpoint 1 has a filter rule.  Older versions of IPA represent
+ * the presence of a filter rule for endpoint X by bit (X + 1) being set.
+ * I.e., bit 1 set indicates the presence of a filter rule for endpoint 0,
+ * and bit 3 set means there is a filter rule present for endpoint 2.
+ *
+ * Each filter table entry has the address of a set of equations that
+ * implement a filter rule.  So following the endpoint bitmap there
+ * will be such an address/entry for each endpoint with a set bit in
+ * the bitmap.
  *
  * The AP initializes all entries in a filter table to refer to a "zero"
- * entry.  Once initialized the modem and AP update the entries for
- * endpoints they "own" directly.  Currently the AP does not use the
- * IPA filtering functionality.
+ * rule.  Once initialized, the modem and AP update the entries for
+ * endpoints they "own" directly.  Currently the AP does not use the IPA
+ * filtering functionality.
+ *
+ * This diagram shows an example of a filter table with an endpoint
+ * bitmap as defined prior to IPA v5.0.
  *
  *                    IPA Filter Table
  *                 ----------------------
@@ -106,12 +119,6 @@
  *                 ----------------------
  */
 
-/* Assignment of route table entries to the modem and AP */
-#define IPA_ROUTE_MODEM_MIN		0
-#define IPA_ROUTE_AP_MIN		IPA_ROUTE_MODEM_COUNT
-#define IPA_ROUTE_AP_COUNT \
-		(IPA_ROUTE_COUNT_MAX - IPA_ROUTE_MODEM_COUNT)
-
 /* Filter or route rules consist of a set of 32-bit values followed by a
  * 32-bit all-zero rule list terminator.  The "zero rule" is simply an
  * all-zero rule followed by the list terminator.
@@ -135,85 +142,40 @@ static void ipa_table_validate_build(void)
 	 * assumes that it can be written using a pointer to __le64.
 	 */
 	BUILD_BUG_ON(IPA_ZERO_RULE_SIZE != sizeof(__le64));
-
-	/* Impose a practical limit on the number of routes */
-	BUILD_BUG_ON(IPA_ROUTE_COUNT_MAX > 32);
-	/* The modem must be allotted at least one route table entry */
-	BUILD_BUG_ON(!IPA_ROUTE_MODEM_COUNT);
-	/* But it can't have more than what is available */
-	BUILD_BUG_ON(IPA_ROUTE_MODEM_COUNT > IPA_ROUTE_COUNT_MAX);
-
 }
 
-static bool
-ipa_table_valid_one(struct ipa *ipa, enum ipa_mem_id mem_id, bool route)
+static const struct ipa_mem *
+ipa_table_mem(struct ipa *ipa, bool filter, bool hashed, bool ipv6)
 {
-	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
-	struct device *dev = &ipa->pdev->dev;
-	u32 size;
+	enum ipa_mem_id mem_id;
 
-	if (route)
-		size = IPA_ROUTE_COUNT_MAX * sizeof(__le64);
-	else
-		size = (1 + IPA_FILTER_COUNT_MAX) * sizeof(__le64);
+	mem_id = filter ? hashed ? ipv6 ? IPA_MEM_V6_FILTER_HASHED
+					: IPA_MEM_V4_FILTER_HASHED
+				 : ipv6 ? IPA_MEM_V6_FILTER
+					: IPA_MEM_V4_FILTER
+			: hashed ? ipv6 ? IPA_MEM_V6_ROUTE_HASHED
+					: IPA_MEM_V4_ROUTE_HASHED
+				 : ipv6 ? IPA_MEM_V6_ROUTE
+					: IPA_MEM_V4_ROUTE;
 
-	if (!ipa_cmd_table_valid(ipa, mem, route))
-		return false;
-
-	/* mem->size >= size is sufficient, but we'll demand more */
-	if (mem->size == size)
-		return true;
-
-	/* Hashed table regions can be zero size if hashing is not supported */
-	if (ipa_table_hash_support(ipa) && !mem->size)
-		return true;
-
-	dev_err(dev, "%s table region %u size 0x%02x, expected 0x%02x\n",
-		route ? "route" : "filter", mem_id, mem->size, size);
-
-	return false;
+	return ipa_mem_find(ipa, mem_id);
 }
 
-/* Verify the filter and route table memory regions are the expected size */
-bool ipa_table_valid(struct ipa *ipa)
-{
-	bool valid;
-
-	valid = ipa_table_valid_one(ipa, IPA_MEM_V4_FILTER, false);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_FILTER, false);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_ROUTE, true);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_ROUTE, true);
-
-	if (!ipa_table_hash_support(ipa))
-		return valid;
-
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_FILTER_HASHED,
-					     false);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_FILTER_HASHED,
-					     false);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_ROUTE_HASHED,
-					     true);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_ROUTE_HASHED,
-					     true);
-
-	return valid;
-}
-
-bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_map)
+bool ipa_filtered_valid(struct ipa *ipa, u64 filtered)
 {
 	struct device *dev = &ipa->pdev->dev;
 	u32 count;
 
-	if (!filter_map) {
+	if (!filtered) {
 		dev_err(dev, "at least one filtering endpoint is required\n");
 
 		return false;
 	}
 
-	count = hweight32(filter_map);
-	if (count > IPA_FILTER_COUNT_MAX) {
-		dev_err(dev, "too many filtering endpoints (%u, max %u)\n",
-			count, IPA_FILTER_COUNT_MAX);
+	count = hweight64(filtered);
+	if (count > ipa->filter_count) {
+		dev_err(dev, "too many filtering endpoints (%u > %u)\n",
+			count, ipa->filter_count);
 
 		return false;
 	}
@@ -229,7 +191,7 @@ static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 	if (!count)
 		return 0;
 
-	WARN_ON(count > max_t(u32, IPA_FILTER_COUNT_MAX, IPA_ROUTE_COUNT_MAX));
+	WARN_ON(count > max_t(u32, ipa->filter_count, ipa->route_count));
 
 	/* Skip over the zero rule and possibly the filter mask */
 	skip = filter_mask ? 1 : 2;
@@ -238,16 +200,17 @@ static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 }
 
 static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
-				u16 first, u16 count, enum ipa_mem_id mem_id)
+				bool hashed, bool ipv6, u16 first, u16 count)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
-	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
+	const struct ipa_mem *mem;
 	dma_addr_t addr;
 	u32 offset;
 	u16 size;
 
-	/* Nothing to do if the table memory region is empty */
-	if (!mem->size)
+	/* Nothing to do if the memory region is doesn't exist or is empty */
+	mem = ipa_table_mem(ipa, filter, hashed, ipv6);
+	if (!mem || !mem->size)
 		return;
 
 	if (filter)
@@ -265,14 +228,13 @@ static void ipa_table_reset_add(struct gsi_trans *trans, bool filter,
  * for the IPv4 and IPv6 non-hashed and hashed filter tables.
  */
 static int
-ipa_filter_reset_table(struct ipa *ipa, enum ipa_mem_id mem_id, bool modem)
+ipa_filter_reset_table(struct ipa *ipa, bool hashed, bool ipv6, bool modem)
 {
-	u32 ep_mask = ipa->filter_map;
-	u32 count = hweight32(ep_mask);
+	u64 ep_mask = ipa->filtered;
 	struct gsi_trans *trans;
 	enum gsi_ee_id ee_id;
 
-	trans = ipa_cmd_trans_alloc(ipa, count);
+	trans = ipa_cmd_trans_alloc(ipa, hweight64(ep_mask));
 	if (!trans) {
 		dev_err(&ipa->pdev->dev,
 			"no transaction for %s filter reset\n",
@@ -291,7 +253,7 @@ ipa_filter_reset_table(struct ipa *ipa, enum ipa_mem_id mem_id, bool modem)
 		if (endpoint->ee_id != ee_id)
 			continue;
 
-		ipa_table_reset_add(trans, true, endpoint_id, 1, mem_id);
+		ipa_table_reset_add(trans, true, hashed, ipv6, endpoint_id, 1);
 	}
 
 	gsi_trans_commit_wait(trans);
@@ -307,18 +269,18 @@ static int ipa_filter_reset(struct ipa *ipa, bool modem)
 {
 	int ret;
 
-	ret = ipa_filter_reset_table(ipa, IPA_MEM_V4_FILTER, modem);
+	ret = ipa_filter_reset_table(ipa, false, false, modem);
 	if (ret)
 		return ret;
 
-	ret = ipa_filter_reset_table(ipa, IPA_MEM_V4_FILTER_HASHED, modem);
+	ret = ipa_filter_reset_table(ipa, true, false, modem);
 	if (ret)
 		return ret;
 
-	ret = ipa_filter_reset_table(ipa, IPA_MEM_V6_FILTER, modem);
+	ret = ipa_filter_reset_table(ipa, false, true, modem);
 	if (ret)
 		return ret;
-	ret = ipa_filter_reset_table(ipa, IPA_MEM_V6_FILTER_HASHED, modem);
+	ret = ipa_filter_reset_table(ipa, true, true, modem);
 
 	return ret;
 }
@@ -329,6 +291,7 @@ static int ipa_filter_reset(struct ipa *ipa, bool modem)
  * */
 static int ipa_route_reset(struct ipa *ipa, bool modem)
 {
+	u32 modem_route_count = ipa->modem_route_count;
 	struct gsi_trans *trans;
 	u16 first;
 	u16 count;
@@ -342,20 +305,18 @@ static int ipa_route_reset(struct ipa *ipa, bool modem)
 	}
 
 	if (modem) {
-		first = IPA_ROUTE_MODEM_MIN;
-		count = IPA_ROUTE_MODEM_COUNT;
+		first = 0;
+		count = modem_route_count;
 	} else {
-		first = IPA_ROUTE_AP_MIN;
-		count = IPA_ROUTE_AP_COUNT;
+		first = modem_route_count;
+		count = ipa->route_count - modem_route_count;
 	}
 
-	ipa_table_reset_add(trans, false, first, count, IPA_MEM_V4_ROUTE);
-	ipa_table_reset_add(trans, false, first, count,
-			    IPA_MEM_V4_ROUTE_HASHED);
+	ipa_table_reset_add(trans, false, false, false, first, count);
+	ipa_table_reset_add(trans, false, true, false, first, count);
 
-	ipa_table_reset_add(trans, false, first, count, IPA_MEM_V6_ROUTE);
-	ipa_table_reset_add(trans, false, first, count,
-			    IPA_MEM_V6_ROUTE_HASHED);
+	ipa_table_reset_add(trans, false, false, true, first, count);
+	ipa_table_reset_add(trans, false, true, true, first, count);
 
 	gsi_trans_commit_wait(trans);
 
@@ -384,9 +345,8 @@ void ipa_table_reset(struct ipa *ipa, bool modem)
 
 int ipa_table_hash_flush(struct ipa *ipa)
 {
-	const struct ipa_reg *reg;
 	struct gsi_trans *trans;
-	u32 offset;
+	const struct reg *reg;
 	u32 val;
 
 	if (!ipa_table_hash_support(ipa))
@@ -398,37 +358,53 @@ int ipa_table_hash_flush(struct ipa *ipa)
 		return -EBUSY;
 	}
 
-	reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
-	offset = ipa_reg_offset(reg);
+	if (ipa->version < IPA_VERSION_5_0) {
+		reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
 
-	val = ipa_reg_bit(reg, IPV6_ROUTER_HASH);
-	val |= ipa_reg_bit(reg, IPV6_FILTER_HASH);
-	val |= ipa_reg_bit(reg, IPV4_ROUTER_HASH);
-	val |= ipa_reg_bit(reg, IPV4_FILTER_HASH);
+		val = reg_bit(reg, IPV6_ROUTER_HASH);
+		val |= reg_bit(reg, IPV6_FILTER_HASH);
+		val |= reg_bit(reg, IPV4_ROUTER_HASH);
+		val |= reg_bit(reg, IPV4_FILTER_HASH);
+	} else {
+		reg = ipa_reg(ipa, FILT_ROUT_CACHE_FLUSH);
 
-	ipa_cmd_register_write_add(trans, offset, val, val, false);
+		/* IPA v5.0+ uses a unified cache (both IPv4 and IPv6) */
+		val = reg_bit(reg, ROUTER_CACHE);
+		val |= reg_bit(reg, FILTER_CACHE);
+	}
+
+	ipa_cmd_register_write_add(trans, reg_offset(reg), val, val, false);
 
 	gsi_trans_commit_wait(trans);
 
 	return 0;
 }
 
-static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
-			       enum ipa_cmd_opcode opcode,
-			       enum ipa_mem_id mem_id,
-			       enum ipa_mem_id hash_mem_id)
+static void ipa_table_init_add(struct gsi_trans *trans, bool filter, bool ipv6)
 {
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
-	const struct ipa_mem *hash_mem = ipa_mem_find(ipa, hash_mem_id);
-	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
+	const struct ipa_mem *hash_mem;
+	enum ipa_cmd_opcode opcode;
+	const struct ipa_mem *mem;
 	dma_addr_t hash_addr;
 	dma_addr_t addr;
+	u32 hash_offset;
 	u32 zero_offset;
 	u16 hash_count;
 	u32 zero_size;
 	u16 hash_size;
 	u16 count;
 	u16 size;
+
+	opcode = filter ? ipv6 ? IPA_CMD_IP_V6_FILTER_INIT
+			       : IPA_CMD_IP_V4_FILTER_INIT
+			: ipv6 ? IPA_CMD_IP_V6_ROUTING_INIT
+			       : IPA_CMD_IP_V4_ROUTING_INIT;
+
+	/* The non-hashed region will exist (see ipa_table_mem_valid()) */
+	mem = ipa_table_mem(ipa, filter, false, ipv6);
+	hash_mem = ipa_table_mem(ipa, filter, true, ipv6);
+	hash_offset = hash_mem ? hash_mem->offset : 0;
 
 	/* Compute the number of table entries to initialize */
 	if (filter) {
@@ -437,14 +413,14 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
 		 * to hold the bitmap itself.  The size of the hashed filter
 		 * table is either the same as the non-hashed one, or zero.
 		 */
-		count = 1 + hweight32(ipa->filter_map);
-		hash_count = hash_mem->size ? count : 0;
+		count = 1 + hweight64(ipa->filtered);
+		hash_count = hash_mem && hash_mem->size ? count : 0;
 	} else {
 		/* The size of a route table region determines the number
 		 * of entries it has.
 		 */
 		count = mem->size / sizeof(__le64);
-		hash_count = hash_mem->size / sizeof(__le64);
+		hash_count = hash_mem ? hash_mem->size / sizeof(__le64) : 0;
 	}
 	size = count * sizeof(__le64);
 	hash_size = hash_count * sizeof(__le64);
@@ -453,7 +429,7 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
 	hash_addr = ipa_table_addr(ipa, filter, hash_count);
 
 	ipa_cmd_table_init_add(trans, opcode, size, mem->offset, addr,
-			       hash_size, hash_mem->offset, hash_addr);
+			       hash_size, hash_offset, hash_addr);
 	if (!filter)
 		return;
 
@@ -466,7 +442,7 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter,
 		return;
 
 	/* Zero the unused space in the hashed filter table */
-	zero_offset = hash_mem->offset + hash_size;
+	zero_offset = hash_offset + hash_size;
 	zero_size = hash_mem->size - hash_size;
 	ipa_cmd_dma_shared_mem_add(trans, zero_offset, zero_size,
 				   ipa->zero_addr, true);
@@ -495,17 +471,10 @@ int ipa_table_setup(struct ipa *ipa)
 		return -EBUSY;
 	}
 
-	ipa_table_init_add(trans, false, IPA_CMD_IP_V4_ROUTING_INIT,
-			   IPA_MEM_V4_ROUTE, IPA_MEM_V4_ROUTE_HASHED);
-
-	ipa_table_init_add(trans, false, IPA_CMD_IP_V6_ROUTING_INIT,
-			   IPA_MEM_V6_ROUTE, IPA_MEM_V6_ROUTE_HASHED);
-
-	ipa_table_init_add(trans, true, IPA_CMD_IP_V4_FILTER_INIT,
-			   IPA_MEM_V4_FILTER, IPA_MEM_V4_FILTER_HASHED);
-
-	ipa_table_init_add(trans, true, IPA_CMD_IP_V6_FILTER_INIT,
-			   IPA_MEM_V6_FILTER, IPA_MEM_V6_FILTER_HASHED);
+	ipa_table_init_add(trans, false, false);
+	ipa_table_init_add(trans, false, true);
+	ipa_table_init_add(trans, true, false);
+	ipa_table_init_add(trans, true, true);
 
 	gsi_trans_commit_wait(trans);
 
@@ -523,17 +492,26 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 offset;
 	u32 val;
 
-	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
+	if (ipa->version < IPA_VERSION_5_0) {
+		reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
 
-	offset = ipa_reg_n_offset(reg, endpoint_id);
-	val = ioread32(endpoint->ipa->reg_virt + offset);
+		offset = reg_n_offset(reg, endpoint_id);
+		val = ioread32(endpoint->ipa->reg_virt + offset);
 
-	/* Zero all filter-related fields, preserving the rest */
-	val &= ~ipa_reg_fmask(reg, FILTER_HASH_MSK_ALL);
+		/* Zero all filter-related fields, preserving the rest */
+		val &= ~reg_fmask(reg, FILTER_HASH_MSK_ALL);
+	} else {
+		/* IPA v5.0 separates filter and router cache configuration */
+		reg = ipa_reg(ipa, ENDP_FILTER_CACHE_CFG);
+		offset = reg_n_offset(reg, endpoint_id);
+
+		/* Zero all filter-related fields */
+		val = 0;
+	}
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -542,7 +520,7 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 static void ipa_filter_config(struct ipa *ipa, bool modem)
 {
 	enum gsi_ee_id ee_id = modem ? GSI_EE_MODEM : GSI_EE_AP;
-	u32 ep_mask = ipa->filter_map;
+	u64 ep_mask = ipa->filtered;
 
 	if (!ipa_table_hash_support(ipa))
 		return;
@@ -559,10 +537,9 @@ static void ipa_filter_config(struct ipa *ipa, bool modem)
 	}
 }
 
-static bool ipa_route_id_modem(u32 route_id)
+static bool ipa_route_id_modem(struct ipa *ipa, u32 route_id)
 {
-	return route_id >= IPA_ROUTE_MODEM_MIN &&
-		route_id <= IPA_ROUTE_MODEM_MIN + IPA_ROUTE_MODEM_COUNT - 1;
+	return route_id < ipa->modem_route_count;
 }
 
 /**
@@ -574,17 +551,26 @@ static bool ipa_route_id_modem(u32 route_id)
  */
 static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 {
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 	u32 offset;
 	u32 val;
 
-	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
-	offset = ipa_reg_n_offset(reg, route_id);
+	if (ipa->version < IPA_VERSION_5_0) {
+		reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
+		offset = reg_n_offset(reg, route_id);
 
-	val = ioread32(ipa->reg_virt + offset);
+		val = ioread32(ipa->reg_virt + offset);
 
-	/* Zero all route-related fields, preserving the rest */
-	val &= ~ipa_reg_fmask(reg, ROUTER_HASH_MSK_ALL);
+		/* Zero all route-related fields, preserving the rest */
+		val &= ~reg_fmask(reg, ROUTER_HASH_MSK_ALL);
+	} else {
+		/* IPA v5.0 separates filter and router cache configuration */
+		reg = ipa_reg(ipa, ENDP_ROUTER_CACHE_CFG);
+		offset = reg_n_offset(reg, route_id);
+
+		/* Zero all route-related fields */
+		val = 0;
+	}
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
@@ -597,8 +583,8 @@ static void ipa_route_config(struct ipa *ipa, bool modem)
 	if (!ipa_table_hash_support(ipa))
 		return;
 
-	for (route_id = 0; route_id < IPA_ROUTE_COUNT_MAX; route_id++)
-		if (ipa_route_id_modem(route_id) == modem)
+	for (route_id = 0; route_id < ipa->route_count; route_id++)
+		if (ipa_route_id_modem(ipa, route_id) == modem)
 			ipa_route_tuple_zero(ipa, route_id);
 }
 
@@ -611,14 +597,94 @@ void ipa_table_config(struct ipa *ipa)
 	ipa_route_config(ipa, true);
 }
 
-/*
- * Initialize a coherent DMA allocation containing initialized filter and
+/* Verify the sizes of all IPA table filter or routing table memory regions
+ * are valid.  If valid, this records the size of the routing table.
+ */
+bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
+{
+	bool hash_support = ipa_table_hash_support(ipa);
+	const struct ipa_mem *mem_hashed;
+	const struct ipa_mem *mem_ipv4;
+	const struct ipa_mem *mem_ipv6;
+	u32 count;
+
+	/* IPv4 and IPv6 non-hashed tables are expected to be defined and
+	 * have the same size.  Both must have at least two entries (and
+	 * would normally have more than that).
+	 */
+	mem_ipv4 = ipa_table_mem(ipa, filter, false, false);
+	if (!mem_ipv4)
+		return false;
+
+	mem_ipv6 = ipa_table_mem(ipa, filter, false, true);
+	if (!mem_ipv6)
+		return false;
+
+	if (mem_ipv4->size != mem_ipv6->size)
+		return false;
+
+	/* Compute and record the number of entries for each table type */
+	count = mem_ipv4->size / sizeof(__le64);
+	if (count < 2)
+		return false;
+	if (filter)
+		ipa->filter_count = count - 1;	/* Filter map in first entry */
+	else
+		ipa->route_count = count;
+
+	/* Table offset and size must fit in TABLE_INIT command fields */
+	if (!ipa_cmd_table_init_valid(ipa, mem_ipv4, !filter))
+		return false;
+
+	/* Make sure the regions are big enough */
+	if (filter) {
+		/* Filter tables must able to hold the endpoint bitmap plus
+		 * an entry for each endpoint that supports filtering
+		 */
+		if (count < 1 + hweight64(ipa->filtered))
+			return false;
+	} else {
+		/* Routing tables must be able to hold all modem entries,
+		 * plus at least one entry for the AP.
+		 */
+		if (count < ipa->modem_route_count + 1)
+			return false;
+	}
+
+	/* If hashing is supported, hashed tables are expected to be defined,
+	 * and have the same size as non-hashed tables.  If hashing is not
+	 * supported, hashed tables are expected to have zero size (or not
+	 * be defined).
+	 */
+	mem_hashed = ipa_table_mem(ipa, filter, true, false);
+	if (hash_support) {
+		if (!mem_hashed || mem_hashed->size != mem_ipv4->size)
+			return false;
+	} else {
+		if (mem_hashed && mem_hashed->size)
+			return false;
+	}
+
+	/* Same check for IPv6 tables */
+	mem_hashed = ipa_table_mem(ipa, filter, true, true);
+	if (hash_support) {
+		if (!mem_hashed || mem_hashed->size != mem_ipv6->size)
+			return false;
+	} else {
+		if (mem_hashed && mem_hashed->size)
+			return false;
+	}
+
+	return true;
+}
+
+/* Initialize a coherent DMA allocation containing initialized filter and
  * route table data.  This is used when initializing or resetting the IPA
  * filter or route table.
  *
  * The first entry in a filter table contains a bitmap indicating which
  * endpoints contain entries in the table.  In addition to that first entry,
- * there are at most IPA_FILTER_COUNT_MAX entries that follow.  Filter table
+ * there is a fixed maximum number of entries that follow.  Filter table
  * entries are 64 bits wide, and (other than the bitmap) contain the DMA
  * address of a filter rule.  A "zero rule" indicates no filtering, and
  * consists of 64 bits of zeroes.  When a filter table is initialized (or
@@ -629,12 +695,6 @@ void ipa_table_config(struct ipa *ipa)
  * when a route table is initialized or reset, its entries are made to refer
  * to the zero rule.  The zero rule is shared for route and filter tables.
  *
- * Note that the IPA hardware requires a filter or route rule address to be
- * aligned on a 128 byte boundary.  The coherent DMA buffer we allocate here
- * has a minimum alignment, and we place the zero rule at the base of that
- * allocated space.  In ipa_table_init() we verify the minimum DMA allocation
- * meets our requirement.
- *
  *	     +-------------------+
  *	 --> |     zero rule     |
  *	/    |-------------------|
@@ -642,8 +702,8 @@ void ipa_table_config(struct ipa *ipa)
  *	|\   |-------------------|
  *	| ---- zero rule address | \
  *	|\   |-------------------|  |
- *	| ---- zero rule address |  |	IPA_FILTER_COUNT_MAX
- *	|    |-------------------|   >	or IPA_ROUTE_COUNT_MAX,
+ *	| ---- zero rule address |  |	Max IPA filter count
+ *	|    |-------------------|   >	or IPA route count,
  *	|	      ...	    |	whichever is greater
  *	 \   |-------------------|  |
  *	  ---- zero rule address | /
@@ -651,14 +711,16 @@ void ipa_table_config(struct ipa *ipa)
  */
 int ipa_table_init(struct ipa *ipa)
 {
-	u32 count = max_t(u32, IPA_FILTER_COUNT_MAX, IPA_ROUTE_COUNT_MAX);
 	struct device *dev = &ipa->pdev->dev;
 	dma_addr_t addr;
 	__le64 le_addr;
 	__le64 *virt;
 	size_t size;
+	u32 count;
 
 	ipa_table_validate_build();
+
+	count = max_t(u32, ipa->filter_count, ipa->route_count);
 
 	/* The IPA hardware requires route and filter table rules to be
 	 * aligned on a 128-byte boundary.  We put the "zero rule" at the
@@ -677,12 +739,16 @@ int ipa_table_init(struct ipa *ipa)
 	/* First slot is the zero rule */
 	*virt++ = 0;
 
-	/* Next is the filter table bitmap.  The "soft" bitmap value
-	 * must be converted to the hardware representation by shifting
-	 * it left one position.  (Bit 0 repesents global filtering,
-	 * which is possible but not used.)
+	/* Next is the filter table bitmap.  The "soft" bitmap value might
+	 * need to be converted to the hardware representation by shifting
+	 * it left one position.  Prior to IPA v5.0, bit 0 repesents global
+	 * filtering, which is possible but not used.  IPA v5.0+ eliminated
+	 * that option, so there's no shifting required.
 	 */
-	*virt++ = cpu_to_le64((u64)ipa->filter_map << 1);
+	if (ipa->version < IPA_VERSION_5_0)
+		*virt++ = cpu_to_le64(ipa->filtered << 1);
+	else
+		*virt++ = cpu_to_le64(ipa->filtered);
 
 	/* All the rest contain the DMA address of the zero rule */
 	le_addr = cpu_to_le64(addr);
@@ -694,7 +760,7 @@ int ipa_table_init(struct ipa *ipa)
 
 void ipa_table_exit(struct ipa *ipa)
 {
-	u32 count = max_t(u32, 1 + IPA_FILTER_COUNT_MAX, IPA_ROUTE_COUNT_MAX);
+	u32 count = max_t(u32, 1 + ipa->filter_count, ipa->route_count);
 	struct device *dev = &ipa->pdev->dev;
 	size_t size;
 

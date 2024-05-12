@@ -17,6 +17,7 @@ properties:
     const: xinpeng,xpp055c272
   reg: true
   backlight: true
+  port: true
   reset-gpios: true
   iovcc-supply:
     description: regulator that supplies the iovcc voltage
@@ -27,6 +28,7 @@ required:
   - compatible
   - reg
   - backlight
+  - port
   - iovcc-supply
   - vci-supply
 
@@ -44,6 +46,12 @@ examples:
             backlight = <&backlight>;
             iovcc-supply = <&vcc_1v8>;
             vci-supply = <&vcc3v3_lcd>;
+
+            port {
+                mipi_in_panel: endpoint {
+                    remote-endpoint = <&mipi_out_panel>;
+                };
+            };
         };
     };
 

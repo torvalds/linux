@@ -28,8 +28,6 @@ struct sctp_sched_ops {
 	int (*init_sid)(struct sctp_stream *stream, __u16 sid, gfp_t gfp);
 	/* free a stream */
 	void (*free_sid)(struct sctp_stream *stream, __u16 sid);
-	/* Frees the entire thing */
-	void (*free)(struct sctp_stream *stream);
 
 	/* Enqueue a chunk */
 	void (*enqueue)(struct sctp_outq *q, struct sctp_datamsg *msg);
@@ -60,5 +58,7 @@ void sctp_sched_ops_register(enum sctp_sched_type sched,
 			     struct sctp_sched_ops *sched_ops);
 void sctp_sched_ops_prio_init(void);
 void sctp_sched_ops_rr_init(void);
+void sctp_sched_ops_fc_init(void);
+void sctp_sched_ops_wfq_init(void);
 
 #endif /* __sctp_stream_sched_h__ */

@@ -21,7 +21,6 @@
 #include <drm/drm.h>
 #include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_pciids.h>
@@ -387,7 +386,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
 	psb_modeset_init(dev);
-	psb_fbdev_init(dev);
 	drm_kms_helper_poll_init(dev);
 
 	/* Only add backlight support if we have LVDS or MIPI output */
@@ -452,6 +450,8 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
+	psb_fbdev_setup(dev_priv);
+
 	return 0;
 }
 
@@ -477,7 +477,6 @@ static const struct file_operations psb_gem_fops = {
 
 static const struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
-	.lastclose = drm_fb_helper_lastclose,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 

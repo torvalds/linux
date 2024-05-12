@@ -156,8 +156,12 @@ kallsyms()
 		kallsymopt="${kallsymopt} --base-relative"
 	fi
 
-	if [ -n "${CONFIG_KALLSYMS_USE_DATA_SECTION}" ]; then
+	if is_enabled CONFIG_KALLSYMS_USE_DATA_SECTION; then
 		kallsymopt="${kallsymopt} --use-data-section"
+	fi
+
+	if is_enabled CONFIG_LTO_CLANG; then
+		kallsymopt="${kallsymopt} --lto-clang"
 	fi
 
 	info KSYMS ${2}
@@ -174,7 +178,7 @@ kallsyms_step()
 	kallsyms_S=${kallsyms_vmlinux}.S
 
 	vmlinux_link ${kallsyms_vmlinux} "${kallsymso_prev}" ${btf_vmlinux_bin_o}
-	mksysmap ${kallsyms_vmlinux} ${kallsyms_vmlinux}.syms
+	mksysmap ${kallsyms_vmlinux} ${kallsyms_vmlinux}.syms ${kallsymso_prev}
 	kallsyms ${kallsyms_vmlinux}.syms ${kallsyms_S}
 
 	info AS ${kallsyms_S}
@@ -188,7 +192,7 @@ kallsyms_step()
 mksysmap()
 {
 	info NM ${2}
-	${CONFIG_SHELL} "${srctree}/scripts/mksysmap" ${1} ${2}
+	${CONFIG_SHELL} "${srctree}/scripts/mksysmap" ${1} ${2} ${3}
 }
 
 sorttable()
@@ -277,7 +281,7 @@ if is_enabled CONFIG_DEBUG_INFO_BTF && is_enabled CONFIG_BPF; then
 	${RESOLVE_BTFIDS} vmlinux
 fi
 
-mksysmap vmlinux System.map
+mksysmap vmlinux System.map ${kallsymso}
 
 if is_enabled CONFIG_BUILDTIME_TABLE_SORT; then
 	info SORTTAB vmlinux
@@ -291,7 +295,7 @@ fi
 if is_enabled CONFIG_KALLSYMS; then
 	if ! cmp -s System.map ${kallsyms_vmlinux}.syms; then
 		echo >&2 Inconsistent kallsyms data
-		echo >&2 Try "make KALLSYMS_EXTRA_PASS=1" as a workaround
+		echo >&2 'Try "make KALLSYMS_EXTRA_PASS=1" as a workaround'
 		exit 1
 	fi
 fi

@@ -715,7 +715,7 @@ static void rkisp1_aec_config_v12(struct rkisp1_params *params,
 	u32 exp_ctrl;
 	u32 block_hsize, block_vsize;
 	u32 wnd_num_idx = 1;
-	const u32 ae_wnd_num[] = { 5, 9, 15, 15 };
+	static const u32 ae_wnd_num[] = { 5, 9, 15, 15 };
 
 	/* avoid to override the old enable value */
 	exp_ctrl = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_EXP_CTRL);
@@ -822,7 +822,7 @@ static void rkisp1_hst_config_v12(struct rkisp1_params *params,
 	u32 block_hsize, block_vsize;
 	u32 wnd_num_idx, hist_weight_num, hist_ctrl, value;
 	u8 weight15x15[RKISP1_CIF_ISP_HIST_WEIGHT_REG_SIZE_V12];
-	const u32 hist_wnd_num[] = { 5, 9, 15, 15 };
+	static const u32 hist_wnd_num[] = { 5, 9, 15, 15 };
 
 	/* now we just support 9x9 window */
 	wnd_num_idx = 1;

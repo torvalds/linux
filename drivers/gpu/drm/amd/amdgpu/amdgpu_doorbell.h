@@ -21,6 +21,9 @@
  *
  */
 
+#ifndef AMDGPU_DOORBELL_H
+#define AMDGPU_DOORBELL_H
+
 /*
  * GPU doorbell structures, functions & helpers
  */
@@ -29,7 +32,9 @@ struct amdgpu_doorbell {
 	resource_size_t		base;
 	resource_size_t		size;
 	u32 __iomem		*ptr;
-	u32			num_doorbells;	/* Number of doorbells actually reserved for amdgpu. */
+
+	/* Number of doorbells reserved for amdgpu kernel driver */
+	u32 num_kernel_doorbells;
 };
 
 /* Reserved doorbells for amdgpu (including multimedia).
@@ -306,3 +311,4 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
 #define RDOORBELL64(index) amdgpu_mm_rdoorbell64(adev, (index))
 #define WDOORBELL64(index, v) amdgpu_mm_wdoorbell64(adev, (index), (v))
 
+#endif

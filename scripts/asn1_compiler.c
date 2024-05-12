@@ -567,8 +567,8 @@ int main(int argc, char **argv)
 	int fd;
 
 	kbuild_verbose = getenv("KBUILD_VERBOSE");
-	if (kbuild_verbose)
-		verbose_opt = atoi(kbuild_verbose);
+	if (kbuild_verbose && strchr(kbuild_verbose, '1'))
+		verbose_opt = true;
 
 	while (argc > 4) {
 		if (strcmp(argv[1], "-v") == 0)
@@ -625,7 +625,7 @@ int main(int argc, char **argv)
 	p = strrchr(argv[1], '/');
 	p = p ? p + 1 : argv[1];
 	grammar_name = strdup(p);
-	if (!p) {
+	if (!grammar_name) {
 		perror(NULL);
 		exit(1);
 	}

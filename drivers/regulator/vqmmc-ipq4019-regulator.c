@@ -89,6 +89,7 @@ static struct platform_driver ipq4019_regulator_driver = {
 	.probe = ipq4019_regulator_probe,
 	.driver = {
 		.name = "vqmmc-ipq4019-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(regulator_ipq4019_of_match),
 	},
 };

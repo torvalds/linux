@@ -119,9 +119,9 @@ concorrenza siano stati opportunamente considerati.
 Riferimenti
 ===========
 
-[1] http://lwn.net/Articles/233481/
+[1] https://lwn.net/Articles/233481/
 
-[2] http://lwn.net/Articles/233482/
+[2] https://lwn.net/Articles/233482/
 
 Crediti
 =======

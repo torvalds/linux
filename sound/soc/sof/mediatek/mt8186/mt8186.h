@@ -52,7 +52,15 @@ struct snd_sof_dev;
 #define ADSP_PRID			0x0
 #define ADSP_ALTVEC_C0			0x04
 #define ADSP_ALTVECSEL			0x0C
-#define ADSP_ALTVECSEL_C0		BIT(1)
+#define MT8188_ADSP_ALTVECSEL_C0	BIT(0)
+#define MT8186_ADSP_ALTVECSEL_C0	BIT(1)
+
+/*
+ * On MT8188, BIT(1) is not evaluated and on MT8186 BIT(0) is not evaluated:
+ * We can simplify the driver by safely setting both bits regardless of the SoC.
+ */
+#define ADSP_ALTVECSEL_C0		(MT8188_ADSP_ALTVECSEL_C0 | \
+					 MT8186_ADSP_ALTVECSEL_C0)
 
 /* dsp bus */
 #define ADSP_SRAM_POOL_CON		0x190

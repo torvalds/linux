@@ -39,6 +39,9 @@ properties:
       - const: pcie
       - const: pcie-phy
 
+  '#clock-cells':
+    const: 0
+
   clocks:
     minItems: 2
     maxItems: 2
@@ -73,7 +76,7 @@ examples:
     #include <dt-bindings/clock/imx8mp-clock.h>
     #include <dt-bindings/power/imx8mp-power.h>
 
-    hsio_blk_ctrl: blk-ctrl@32f10000 {
+    blk-ctrl@32f10000 {
         compatible = "fsl,imx8mp-hsio-blk-ctrl", "syscon";
         reg = <0x32f10000 0x24>;
         clocks = <&clk IMX8MP_CLK_USB_ROOT>,
@@ -85,4 +88,5 @@ examples:
         power-domain-names = "bus", "usb", "usb-phy1",
                              "usb-phy2", "pcie", "pcie-phy";
         #power-domain-cells = <1>;
+        #clock-cells = <0>;
     };

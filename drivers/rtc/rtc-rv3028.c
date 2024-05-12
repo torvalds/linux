@@ -902,9 +902,20 @@ static int rv3028_probe(struct i2c_client *client)
 		return PTR_ERR(rv3028->rtc);
 
 	if (client->irq > 0) {
+		unsigned long flags;
+
+		/*
+		 * If flags = 0, devm_request_threaded_irq() will use IRQ flags
+		 * obtained from device tree.
+		 */
+		if (dev_fwnode(&client->dev))
+			flags = 0;
+		else
+			flags = IRQF_TRIGGER_LOW;
+
 		ret = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, rv3028_handle_irq,
-						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						flags | IRQF_ONESHOT,
 						"rv3028", rv3028);
 		if (ret) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
@@ -971,6 +982,12 @@ static int rv3028_probe(struct i2c_client *client)
 	return 0;
 }
 
+static const struct acpi_device_id rv3028_i2c_acpi_match[] = {
+	{ "MCRY3028" },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, rv3028_i2c_acpi_match);
+
 static const __maybe_unused struct of_device_id rv3028_of_match[] = {
 	{ .compatible = "microcrystal,rv3028", },
 	{ }
@@ -980,6 +997,7 @@ MODULE_DEVICE_TABLE(of, rv3028_of_match);
 static struct i2c_driver rv3028_driver = {
 	.driver = {
 		.name = "rtc-rv3028",
+		.acpi_match_table = rv3028_i2c_acpi_match,
 		.of_match_table = of_match_ptr(rv3028_of_match),
 	},
 	.probe_new	= rv3028_probe,

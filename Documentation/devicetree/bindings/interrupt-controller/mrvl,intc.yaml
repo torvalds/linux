@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/interrupt-controller/mrvl,intc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Marvell MMP/Orion Interrupt controller bindings
+title: Marvell MMP/Orion Interrupt controller
 
 maintainers:
   - Andrew Lunn <andrew@lunn.ch>
@@ -53,8 +53,8 @@ allOf:
           maxItems: 1
         reg-names:
           items:
-            - const: 'mux status'
-            - const: 'mux mask'
+            - const: mux status
+            - const: mux mask
       required:
         - interrupts
     else:

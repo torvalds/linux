@@ -3,7 +3,7 @@
  *
  * Name: acconfig.h - Global configuration constants
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -189,6 +189,8 @@
 #define ACPI_MAX_GSBUS_BUFFER_SIZE      ACPI_SERIAL_HEADER_SIZE + ACPI_MAX_GSBUS_DATA_SIZE
 
 #define ACPI_PRM_INPUT_BUFFER_SIZE      26
+
+#define ACPI_FFH_INPUT_BUFFER_SIZE      256
 
 /* _sx_d and _sx_w control methods */
 

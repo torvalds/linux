@@ -163,7 +163,7 @@
  * mainline Linux.
  */
 &cont_splash_mem {
-	reg = <0 0x3401000 0 0x2200000>;
+	reg = <0 0x03401000 0 0x2200000>;
 };
 
 &pmi8994_spmi_regulators {
@@ -173,8 +173,7 @@
 	 * power domain.. which still isn't enough and forces us to bind
 	 * OXILI_CX and OXILI_GX together!
 	 */
-	vdd_gfx: s2@1700 {
-		reg = <0x1700 0x100>;
+	vdd_gfx: s2 {
 		regulator-name = "VDD_GFX";
 		regulator-min-microvolt = <980000>;
 		regulator-max-microvolt = <980000>;
@@ -186,7 +185,7 @@
 
 &rpm_requests {
 	/* PMI8994 should probe first, because pmi8994_bby supplies some of PM8994's regulators */
-	pmi8994_regulators: pmi8994-regulators {
+	pmi8994_regulators: regulators-0 {
 		compatible = "qcom,rpm-pmi8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -205,7 +204,7 @@
 		};
 	};
 
-	pm8994_regulators: pm8994-regulators {
+	pm8994_regulators: regulators-1 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_s3-supply = <&vph_pwr>;
@@ -477,15 +476,16 @@
 };
 
 &tlmm {
-	ts_int_active: ts-int-active {
+	ts_int_active: ts-int-active-state {
 		pins = "gpio42";
+		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
-	ts_reset_active: ts-reset-active {
+	ts_reset_active: ts-reset-active-state {
 		pins = "gpio109";
+		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 		output-low;

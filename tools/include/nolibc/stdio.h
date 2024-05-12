@@ -273,6 +273,12 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 	return written;
 }
 
+static __attribute__((unused))
+int vprintf(const char *fmt, va_list args)
+{
+	return vfprintf(stdout, fmt, args);
+}
+
 static __attribute__((unused, format(printf, 2, 3)))
 int fprintf(FILE *stream, const char *fmt, ...)
 {
@@ -302,5 +308,8 @@ void perror(const char *msg)
 {
 	fprintf(stderr, "%s%serrno=%d\n", (msg && *msg) ? msg : "", (msg && *msg) ? ": " : "", errno);
 }
+
+/* make sure to include all global symbols */
+#include "nolibc.h"
 
 #endif /* _NOLIBC_STDIO_H */

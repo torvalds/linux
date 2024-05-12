@@ -12,9 +12,8 @@
 scriptname=$0
 args="$*"
 
-T=${TMPDIR-/tmp}/kvm-again.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/kvm-again.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 if ! test -d tools/testing/selftests/rcutorture/bin
 then
@@ -51,27 +50,56 @@ RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
 PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 
+bootargs=
 dryrun=
 dur=
 default_link="cp -R"
-rundir="`pwd`/tools/testing/selftests/rcutorture/res/`date +%Y.%m.%d-%H.%M.%S-again`"
+resdir="`pwd`/tools/testing/selftests/rcutorture/res"
+rundir="$resdir/`date +%Y.%m.%d-%H.%M.%S-again`"
+got_datestamp=
+got_rundir=
 
 startdate="`date`"
 starttime="`get_starttime`"
 
 usage () {
 	echo "Usage: $scriptname $oldrun [ arguments ]:"
+	echo "       --bootargs kernel-boot-arguments"
+	echo "       --datestamp string"
 	echo "       --dryrun"
 	echo "       --duration minutes | <seconds>s | <hours>h | <days>d"
 	echo "       --link hard|soft|copy"
 	echo "       --remote"
 	echo "       --rundir /new/res/path"
+	echo "Command line: $scriptname $args"
 	exit 1
 }
 
 while test $# -gt 0
 do
 	case "$1" in
+	--bootargs|--bootarg)
+		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
+		bootargs="$bootargs $2"
+		shift
+		;;
+	--datestamp)
+		checkarg --datestamp "(relative pathname)" "$#" "$2" '^[a-zA-Z0-9._/-]*$' '^--'
+		if test -n "$got_rundir" || test -n "$got_datestamp"
+		then
+			echo Only one of --datestamp or --rundir may be specified
+			usage
+		fi
+		got_datestamp=y
+		ds=$2
+		rundir="$resdir/$ds"
+		if test -e "$rundir"
+		then
+			echo "--datestamp $2: Already exists."
+			usage
+		fi
+		shift
+		;;
 	--dryrun)
 		dryrun=1
 		;;
@@ -113,6 +141,12 @@ do
 		;;
 	--rundir)
 		checkarg --rundir "(absolute pathname)" "$#" "$2" '^/' '^error'
+		if test -n "$got_rundir" || test -n "$got_datestamp"
+		then
+			echo Only one of --datestamp or --rundir may be specified
+			usage
+		fi
+		got_rundir=y
 		rundir=$2
 		if test -e "$rundir"
 		then
@@ -122,8 +156,11 @@ do
 		shift
 		;;
 	*)
-		echo Unknown argument $1
-		usage
+		if test -n "$1"
+		then
+			echo Unknown argument $1
+			usage
+		fi
 		;;
 	esac
 	shift
@@ -156,7 +193,7 @@ do
 	qemu_cmd_dir="`dirname "$i"`"
 	kernel_dir="`echo $qemu_cmd_dir | sed -e 's/\.[0-9]\+$//'`"
 	jitter_dir="`dirname "$kernel_dir"`"
-	kvm-transform.sh "$kernel_dir/bzImage" "$qemu_cmd_dir/console.log" "$jitter_dir" $dur < $T/qemu-cmd > $i
+	kvm-transform.sh "$kernel_dir/bzImage" "$qemu_cmd_dir/console.log" "$jitter_dir" "$dur" "$bootargs" < $T/qemu-cmd > $i
 	if test -n "$arg_remote"
 	then
 		echo "# TORTURE_KCONFIG_GDB_ARG=''" >> $i

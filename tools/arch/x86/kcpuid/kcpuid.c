@@ -33,12 +33,16 @@ struct reg_desc {
 	struct bits_desc descs[32];
 };
 
-enum {
+enum cpuid_reg {
 	R_EAX = 0,
 	R_EBX,
 	R_ECX,
 	R_EDX,
 	NR_REGS
+};
+
+static const char * const reg_names[] = {
+	"EAX", "EBX", "ECX", "EDX",
 };
 
 struct subleaf {
@@ -428,11 +432,17 @@ static void parse_text(void)
 
 
 /* Decode every eax/ebx/ecx/edx */
-static void decode_bits(u32 value, struct reg_desc *rdesc)
+static void decode_bits(u32 value, struct reg_desc *rdesc, enum cpuid_reg reg)
 {
 	struct bits_desc *bdesc;
 	int start, end, i;
 	u32 mask;
+
+	if (!rdesc->nr) {
+		if (show_details)
+			printf("\t %s: 0x%08x\n", reg_names[reg], value);
+		return;
+	}
 
 	for (i = 0; i < rdesc->nr; i++) {
 		bdesc = &rdesc->descs[i];
@@ -468,13 +478,21 @@ static void show_leaf(struct subleaf *leaf)
 	if (!leaf)
 		return;
 
-	if (show_raw)
+	if (show_raw) {
 		leaf_print_raw(leaf);
+	} else {
+		if (show_details)
+			printf("CPUID_0x%x_ECX[0x%x]:\n",
+				leaf->index, leaf->sub);
+	}
 
-	decode_bits(leaf->eax, &leaf->info[R_EAX]);
-	decode_bits(leaf->ebx, &leaf->info[R_EBX]);
-	decode_bits(leaf->ecx, &leaf->info[R_ECX]);
-	decode_bits(leaf->edx, &leaf->info[R_EDX]);
+	decode_bits(leaf->eax, &leaf->info[R_EAX], R_EAX);
+	decode_bits(leaf->ebx, &leaf->info[R_EBX], R_EBX);
+	decode_bits(leaf->ecx, &leaf->info[R_ECX], R_ECX);
+	decode_bits(leaf->edx, &leaf->info[R_EDX], R_EDX);
+
+	if (!show_raw && show_details)
+		printf("\n");
 }
 
 static void show_func(struct cpuid_func *func)

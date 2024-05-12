@@ -54,6 +54,7 @@ patternProperties:
   "^timer@[0-2]$":
     description: The timer block channels that are used as timers or counters.
     type: object
+    additionalProperties: false
     properties:
       compatible:
         items:

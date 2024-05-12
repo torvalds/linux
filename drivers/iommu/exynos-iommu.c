@@ -185,38 +185,43 @@ static sysmmu_pte_t *page_entry(sysmmu_pte_t *sent, sysmmu_iova_t iova)
 				lv2table_base(sent)) + lv2ent_offset(iova);
 }
 
-/*
- * IOMMU fault information register
- */
-struct sysmmu_fault_info {
-	unsigned int bit;	/* bit number in STATUS register */
-	unsigned short addr_reg; /* register to read VA fault address */
+struct sysmmu_fault {
+	sysmmu_iova_t addr;	/* IOVA address that caused fault */
+	const char *name;	/* human readable fault name */
+	unsigned int type;	/* fault type for report_iommu_fault() */
+};
+
+struct sysmmu_v1_fault_info {
+	unsigned short addr_reg; /* register to read IOVA fault address */
 	const char *name;	/* human readable fault name */
 	unsigned int type;	/* fault type for report_iommu_fault */
 };
 
-static const struct sysmmu_fault_info sysmmu_faults[] = {
-	{ 0, REG_PAGE_FAULT_ADDR, "PAGE", IOMMU_FAULT_READ },
-	{ 1, REG_AR_FAULT_ADDR, "AR MULTI-HIT", IOMMU_FAULT_READ },
-	{ 2, REG_AW_FAULT_ADDR, "AW MULTI-HIT", IOMMU_FAULT_WRITE },
-	{ 3, REG_DEFAULT_SLAVE_ADDR, "BUS ERROR", IOMMU_FAULT_READ },
-	{ 4, REG_AR_FAULT_ADDR, "AR SECURITY PROTECTION", IOMMU_FAULT_READ },
-	{ 5, REG_AR_FAULT_ADDR, "AR ACCESS PROTECTION", IOMMU_FAULT_READ },
-	{ 6, REG_AW_FAULT_ADDR, "AW SECURITY PROTECTION", IOMMU_FAULT_WRITE },
-	{ 7, REG_AW_FAULT_ADDR, "AW ACCESS PROTECTION", IOMMU_FAULT_WRITE },
+static const struct sysmmu_v1_fault_info sysmmu_v1_faults[] = {
+	{ REG_PAGE_FAULT_ADDR, "PAGE", IOMMU_FAULT_READ },
+	{ REG_AR_FAULT_ADDR, "MULTI-HIT", IOMMU_FAULT_READ },
+	{ REG_AW_FAULT_ADDR, "MULTI-HIT", IOMMU_FAULT_WRITE },
+	{ REG_DEFAULT_SLAVE_ADDR, "BUS ERROR", IOMMU_FAULT_READ },
+	{ REG_AR_FAULT_ADDR, "SECURITY PROTECTION", IOMMU_FAULT_READ },
+	{ REG_AR_FAULT_ADDR, "ACCESS PROTECTION", IOMMU_FAULT_READ },
+	{ REG_AW_FAULT_ADDR, "SECURITY PROTECTION", IOMMU_FAULT_WRITE },
+	{ REG_AW_FAULT_ADDR, "ACCESS PROTECTION", IOMMU_FAULT_WRITE },
 };
 
-static const struct sysmmu_fault_info sysmmu_v5_faults[] = {
-	{ 0, REG_V5_FAULT_AR_VA, "AR PTW", IOMMU_FAULT_READ },
-	{ 1, REG_V5_FAULT_AR_VA, "AR PAGE", IOMMU_FAULT_READ },
-	{ 2, REG_V5_FAULT_AR_VA, "AR MULTI-HIT", IOMMU_FAULT_READ },
-	{ 3, REG_V5_FAULT_AR_VA, "AR ACCESS PROTECTION", IOMMU_FAULT_READ },
-	{ 4, REG_V5_FAULT_AR_VA, "AR SECURITY PROTECTION", IOMMU_FAULT_READ },
-	{ 16, REG_V5_FAULT_AW_VA, "AW PTW", IOMMU_FAULT_WRITE },
-	{ 17, REG_V5_FAULT_AW_VA, "AW PAGE", IOMMU_FAULT_WRITE },
-	{ 18, REG_V5_FAULT_AW_VA, "AW MULTI-HIT", IOMMU_FAULT_WRITE },
-	{ 19, REG_V5_FAULT_AW_VA, "AW ACCESS PROTECTION", IOMMU_FAULT_WRITE },
-	{ 20, REG_V5_FAULT_AW_VA, "AW SECURITY PROTECTION", IOMMU_FAULT_WRITE },
+/* SysMMU v5 has the same faults for AR (0..4 bits) and AW (16..20 bits) */
+static const char * const sysmmu_v5_fault_names[] = {
+	"PTW",
+	"PAGE",
+	"MULTI-HIT",
+	"ACCESS PROTECTION",
+	"SECURITY PROTECTION"
+};
+
+static const char * const sysmmu_v7_fault_names[] = {
+	"PTW",
+	"PAGE",
+	"ACCESS PROTECTION",
+	"RESERVED"
 };
 
 /*
@@ -246,9 +251,12 @@ struct exynos_iommu_domain {
 	struct iommu_domain domain; /* generic domain data structure */
 };
 
+struct sysmmu_drvdata;
+
 /*
  * SysMMU version specific data. Contains offsets for the registers which can
  * be found in different SysMMU variants, but have different offset values.
+ * Also contains version specific callbacks to abstract the hardware.
  */
 struct sysmmu_variant {
 	u32 pt_base;		/* page table base address (physical) */
@@ -259,6 +267,11 @@ struct sysmmu_variant {
 	u32 flush_end;		/* end address of range invalidation */
 	u32 int_status;		/* interrupt status information */
 	u32 int_clear;		/* clear the interrupt */
+	u32 fault_va;		/* IOVA address that caused fault */
+	u32 fault_info;		/* fault transaction info */
+
+	int (*get_fault_info)(struct sysmmu_drvdata *data, unsigned int itype,
+			      struct sysmmu_fault *fault);
 };
 
 /*
@@ -293,6 +306,59 @@ struct sysmmu_drvdata {
 
 #define SYSMMU_REG(data, reg) ((data)->sfrbase + (data)->variant->reg)
 
+static int exynos_sysmmu_v1_get_fault_info(struct sysmmu_drvdata *data,
+					   unsigned int itype,
+					   struct sysmmu_fault *fault)
+{
+	const struct sysmmu_v1_fault_info *finfo;
+
+	if (itype >= ARRAY_SIZE(sysmmu_v1_faults))
+		return -ENXIO;
+
+	finfo = &sysmmu_v1_faults[itype];
+	fault->addr = readl(data->sfrbase + finfo->addr_reg);
+	fault->name = finfo->name;
+	fault->type = finfo->type;
+
+	return 0;
+}
+
+static int exynos_sysmmu_v5_get_fault_info(struct sysmmu_drvdata *data,
+					   unsigned int itype,
+					   struct sysmmu_fault *fault)
+{
+	unsigned int addr_reg;
+
+	if (itype < ARRAY_SIZE(sysmmu_v5_fault_names)) {
+		fault->type = IOMMU_FAULT_READ;
+		addr_reg = REG_V5_FAULT_AR_VA;
+	} else if (itype >= 16 && itype <= 20) {
+		fault->type = IOMMU_FAULT_WRITE;
+		addr_reg = REG_V5_FAULT_AW_VA;
+		itype -= 16;
+	} else {
+		return -ENXIO;
+	}
+
+	fault->name = sysmmu_v5_fault_names[itype];
+	fault->addr = readl(data->sfrbase + addr_reg);
+
+	return 0;
+}
+
+static int exynos_sysmmu_v7_get_fault_info(struct sysmmu_drvdata *data,
+					   unsigned int itype,
+					   struct sysmmu_fault *fault)
+{
+	u32 info = readl(SYSMMU_REG(data, fault_info));
+
+	fault->addr = readl(SYSMMU_REG(data, fault_va));
+	fault->name = sysmmu_v7_fault_names[itype % 4];
+	fault->type = (info & BIT(20)) ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
+
+	return 0;
+}
+
 /* SysMMU v1..v3 */
 static const struct sysmmu_variant sysmmu_v1_variant = {
 	.flush_all	= 0x0c,
@@ -300,9 +366,11 @@ static const struct sysmmu_variant sysmmu_v1_variant = {
 	.pt_base	= 0x14,
 	.int_status	= 0x18,
 	.int_clear	= 0x1c,
+
+	.get_fault_info	= exynos_sysmmu_v1_get_fault_info,
 };
 
-/* SysMMU v5 and v7 (non-VM capable) */
+/* SysMMU v5 */
 static const struct sysmmu_variant sysmmu_v5_variant = {
 	.pt_base	= 0x0c,
 	.flush_all	= 0x10,
@@ -312,9 +380,27 @@ static const struct sysmmu_variant sysmmu_v5_variant = {
 	.flush_end	= 0x24,
 	.int_status	= 0x60,
 	.int_clear	= 0x64,
+
+	.get_fault_info	= exynos_sysmmu_v5_get_fault_info,
 };
 
-/* SysMMU v7: VM capable register set */
+/* SysMMU v7: non-VM capable register layout */
+static const struct sysmmu_variant sysmmu_v7_variant = {
+	.pt_base	= 0x0c,
+	.flush_all	= 0x10,
+	.flush_entry	= 0x14,
+	.flush_range	= 0x18,
+	.flush_start	= 0x20,
+	.flush_end	= 0x24,
+	.int_status	= 0x60,
+	.int_clear	= 0x64,
+	.fault_va	= 0x70,
+	.fault_info	= 0x78,
+
+	.get_fault_info	= exynos_sysmmu_v7_get_fault_info,
+};
+
+/* SysMMU v7: VM capable register layout */
 static const struct sysmmu_variant sysmmu_v7_vm_variant = {
 	.pt_base	= 0x800c,
 	.flush_all	= 0x8010,
@@ -324,6 +410,10 @@ static const struct sysmmu_variant sysmmu_v7_vm_variant = {
 	.flush_end	= 0x8024,
 	.int_status	= 0x60,
 	.int_clear	= 0x64,
+	.fault_va	= 0x1000,
+	.fault_info	= 0x1004,
+
+	.get_fault_info	= exynos_sysmmu_v7_get_fault_info,
 };
 
 static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
@@ -446,75 +536,63 @@ static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 		if (data->has_vcr)
 			data->variant = &sysmmu_v7_vm_variant;
 		else
-			data->variant = &sysmmu_v5_variant;
+			data->variant = &sysmmu_v7_variant;
 	}
 
 	__sysmmu_disable_clocks(data);
 }
 
 static void show_fault_information(struct sysmmu_drvdata *data,
-				   const struct sysmmu_fault_info *finfo,
-				   sysmmu_iova_t fault_addr)
+				   const struct sysmmu_fault *fault)
 {
 	sysmmu_pte_t *ent;
 
-	dev_err(data->sysmmu, "%s: %s FAULT occurred at %#x\n",
-		dev_name(data->master), finfo->name, fault_addr);
+	dev_err(data->sysmmu, "%s: [%s] %s FAULT occurred at %#x\n",
+		dev_name(data->master),
+		fault->type == IOMMU_FAULT_READ ? "READ" : "WRITE",
+		fault->name, fault->addr);
 	dev_dbg(data->sysmmu, "Page table base: %pa\n", &data->pgtable);
-	ent = section_entry(phys_to_virt(data->pgtable), fault_addr);
+	ent = section_entry(phys_to_virt(data->pgtable), fault->addr);
 	dev_dbg(data->sysmmu, "\tLv1 entry: %#x\n", *ent);
 	if (lv1ent_page(ent)) {
-		ent = page_entry(ent, fault_addr);
+		ent = page_entry(ent, fault->addr);
 		dev_dbg(data->sysmmu, "\t Lv2 entry: %#x\n", *ent);
 	}
 }
 
 static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 {
-	/* SYSMMU is in blocked state when interrupt occurred. */
 	struct sysmmu_drvdata *data = dev_id;
-	const struct sysmmu_fault_info *finfo;
-	unsigned int i, n, itype;
-	sysmmu_iova_t fault_addr;
+	unsigned int itype;
+	struct sysmmu_fault fault;
 	int ret = -ENOSYS;
 
 	WARN_ON(!data->active);
 
-	if (MMU_MAJ_VER(data->version) < 5) {
-		finfo = sysmmu_faults;
-		n = ARRAY_SIZE(sysmmu_faults);
-	} else {
-		finfo = sysmmu_v5_faults;
-		n = ARRAY_SIZE(sysmmu_v5_faults);
-	}
-
 	spin_lock(&data->lock);
-
 	clk_enable(data->clk_master);
 
 	itype = __ffs(readl(SYSMMU_REG(data, int_status)));
-	for (i = 0; i < n; i++, finfo++)
-		if (finfo->bit == itype)
-			break;
-	/* unknown/unsupported fault */
-	BUG_ON(i == n);
+	ret = data->variant->get_fault_info(data, itype, &fault);
+	if (ret) {
+		dev_err(data->sysmmu, "Unhandled interrupt bit %u\n", itype);
+		goto out;
+	}
+	show_fault_information(data, &fault);
 
-	/* print debug message */
-	fault_addr = readl(data->sfrbase + finfo->addr_reg);
-	show_fault_information(data, finfo, fault_addr);
+	if (data->domain) {
+		ret = report_iommu_fault(&data->domain->domain, data->master,
+					 fault.addr, fault.type);
+	}
+	if (ret)
+		panic("Unrecoverable System MMU Fault!");
 
-	if (data->domain)
-		ret = report_iommu_fault(&data->domain->domain,
-					data->master, fault_addr, finfo->type);
-	/* fault is not recovered by fault handler */
-	BUG_ON(ret != 0);
-
+out:
 	writel(1 << itype, SYSMMU_REG(data, int_clear));
 
+	/* SysMMU is in blocked state when interrupt occurred */
 	sysmmu_unblock(data);
-
 	clk_disable(data->clk_master);
-
 	spin_unlock(&data->lock);
 
 	return IRQ_HANDLED;
@@ -669,22 +747,16 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->clk = devm_clk_get(dev, "sysmmu");
-	if (PTR_ERR(data->clk) == -ENOENT)
-		data->clk = NULL;
-	else if (IS_ERR(data->clk))
+	data->clk = devm_clk_get_optional(dev, "sysmmu");
+	if (IS_ERR(data->clk))
 		return PTR_ERR(data->clk);
 
-	data->aclk = devm_clk_get(dev, "aclk");
-	if (PTR_ERR(data->aclk) == -ENOENT)
-		data->aclk = NULL;
-	else if (IS_ERR(data->aclk))
+	data->aclk = devm_clk_get_optional(dev, "aclk");
+	if (IS_ERR(data->aclk))
 		return PTR_ERR(data->aclk);
 
-	data->pclk = devm_clk_get(dev, "pclk");
-	if (PTR_ERR(data->pclk) == -ENOENT)
-		data->pclk = NULL;
-	else if (IS_ERR(data->pclk))
+	data->pclk = devm_clk_get_optional(dev, "pclk");
+	if (IS_ERR(data->pclk))
 		return PTR_ERR(data->pclk);
 
 	if (!data->clk && (!data->aclk || !data->pclk)) {
@@ -692,10 +764,8 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 		return -ENOSYS;
 	}
 
-	data->clk_master = devm_clk_get(dev, "master");
-	if (PTR_ERR(data->clk_master) == -ENOENT)
-		data->clk_master = NULL;
-	else if (IS_ERR(data->clk_master))
+	data->clk_master = devm_clk_get_optional(dev, "master");
+	if (IS_ERR(data->clk_master))
 		return PTR_ERR(data->clk_master);
 
 	data->sysmmu = dev;
@@ -707,10 +777,6 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 				     dev_name(data->sysmmu));
 	if (ret)
 		return ret;
-
-	ret = iommu_device_register(&data->iommu, &exynos_iommu_ops, dev);
-	if (ret)
-		goto err_iommu_register;
 
 	platform_set_drvdata(pdev, data);
 
@@ -743,11 +809,13 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
+	ret = iommu_device_register(&data->iommu, &exynos_iommu_ops, dev);
+	if (ret)
+		goto err_dma_set_mask;
+
 	return 0;
 
 err_dma_set_mask:
-	iommu_device_unregister(&data->iommu);
-err_iommu_register:
 	iommu_device_sysfs_remove(&data->iommu);
 	return ret;
 }
@@ -1339,21 +1407,26 @@ static struct iommu_device *exynos_iommu_probe_device(struct device *dev)
 	return &data->iommu;
 }
 
-static void exynos_iommu_release_device(struct device *dev)
+static void exynos_iommu_set_platform_dma(struct device *dev)
 {
 	struct exynos_iommu_owner *owner = dev_iommu_priv_get(dev);
-	struct sysmmu_drvdata *data;
 
 	if (owner->domain) {
 		struct iommu_group *group = iommu_group_get(dev);
 
 		if (group) {
-			WARN_ON(owner->domain !=
-				iommu_group_default_domain(group));
 			exynos_iommu_detach_device(owner->domain, dev);
 			iommu_group_put(group);
 		}
 	}
+}
+
+static void exynos_iommu_release_device(struct device *dev)
+{
+	struct exynos_iommu_owner *owner = dev_iommu_priv_get(dev);
+	struct sysmmu_drvdata *data;
+
+	exynos_iommu_set_platform_dma(dev);
 
 	list_for_each_entry(data, &owner->controllers, owner_node)
 		device_link_del(data->link);
@@ -1400,13 +1473,15 @@ static int exynos_iommu_of_xlate(struct device *dev,
 static const struct iommu_ops exynos_iommu_ops = {
 	.domain_alloc = exynos_iommu_domain_alloc,
 	.device_group = generic_device_group,
+#ifdef CONFIG_ARM
+	.set_platform_dma_ops = exynos_iommu_set_platform_dma,
+#endif
 	.probe_device = exynos_iommu_probe_device,
 	.release_device = exynos_iommu_release_device,
 	.pgsize_bitmap = SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
 	.of_xlate = exynos_iommu_of_xlate,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= exynos_iommu_attach_device,
-		.detach_dev	= exynos_iommu_detach_device,
 		.map		= exynos_iommu_map,
 		.unmap		= exynos_iommu_unmap,
 		.iova_to_phys	= exynos_iommu_iova_to_phys,
@@ -1432,12 +1507,6 @@ static int __init exynos_iommu_init(void)
 		return -ENOMEM;
 	}
 
-	ret = platform_driver_register(&exynos_sysmmu_driver);
-	if (ret) {
-		pr_err("%s: Failed to register driver\n", __func__);
-		goto err_reg_driver;
-	}
-
 	zero_lv2_table = kmem_cache_zalloc(lv2table_kmem_cache, GFP_KERNEL);
 	if (zero_lv2_table == NULL) {
 		pr_err("%s: Failed to allocate zero level2 page table\n",
@@ -1446,10 +1515,16 @@ static int __init exynos_iommu_init(void)
 		goto err_zero_lv2;
 	}
 
+	ret = platform_driver_register(&exynos_sysmmu_driver);
+	if (ret) {
+		pr_err("%s: Failed to register driver\n", __func__);
+		goto err_reg_driver;
+	}
+
 	return 0;
-err_zero_lv2:
-	platform_driver_unregister(&exynos_sysmmu_driver);
 err_reg_driver:
+	kmem_cache_free(lv2table_kmem_cache, zero_lv2_table);
+err_zero_lv2:
 	kmem_cache_destroy(lv2table_kmem_cache);
 	return ret;
 }

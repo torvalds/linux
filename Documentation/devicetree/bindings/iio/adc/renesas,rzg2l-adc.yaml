@@ -19,7 +19,7 @@ properties:
   compatible:
     items:
       - enum:
-          - renesas,r9a07g043-adc   # RZ/G2UL
+          - renesas,r9a07g043-adc   # RZ/G2UL and RZ/Five
           - renesas,r9a07g044-adc   # RZ/G2L
           - renesas,r9a07g054-adc   # RZ/V2L
       - const: renesas,rzg2l-adc
@@ -69,7 +69,7 @@ required:
 
 patternProperties:
   "^channel@[0-7]$":
-    $ref: "adc.yaml"
+    $ref: adc.yaml
     type: object
     description: |
       Represents the external channels which are connected to the ADC.

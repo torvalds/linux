@@ -35,6 +35,7 @@ static const struct of_device_id of_match_clk_mt6795_mfg[] = {
 	{ .compatible = "mediatek,mt6795-mfgcfg", .data = &mfg_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt6795_mfg);
 
 static struct platform_driver clk_mt6795_mfg_drv = {
 	.driver = {

@@ -2,8 +2,8 @@
 
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/media/microchip,sama5d4-vdec.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/media/microchip,sama5d4-vdec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Hantro G1 VPU codec implemented on Microchip SAMA5D4 SoCs
 

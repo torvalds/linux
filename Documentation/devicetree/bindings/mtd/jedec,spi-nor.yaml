@@ -10,7 +10,7 @@ maintainers:
   - Rob Herring <robh@kernel.org>
 
 allOf:
-  - $ref: "mtd.yaml#"
+  - $ref: mtd.yaml#
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
@@ -70,24 +70,24 @@ properties:
       be used on such systems, to denote the absence of a reliable reset
       mechanism.
 
-  partitions:
-    type: object
+  reset-gpios:
+    description:
+      A GPIO line connected to the RESET (active low) signal of the device.
+      If "broken-flash-reset" is present then having this property does not
+      make any difference.
 
-  '#address-cells': true
-  '#size-cells': true
+  spi-cpol: true
+  spi-cpha: true
 
-patternProperties:
-  # Note: use 'partitions' node for new users
-  '^partition@':
-    type: object
-
-  "^otp(-[0-9]+)?$":
-    type: object
+dependencies:
+  spi-cpol: [ spi-cpha ]
+  spi-cpha: [ spi-cpol ]
 
 unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     spi {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -97,6 +97,7 @@ examples:
             reg = <0>;
             spi-max-frequency = <40000000>;
             m25p,fast-read;
+            reset-gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
         };
     };
 ...

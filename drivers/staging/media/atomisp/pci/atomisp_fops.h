@@ -22,12 +22,6 @@
 #define	__ATOMISP_FOPS_H__
 #include "atomisp_subdev.h"
 
-int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
-				   struct atomisp_video_pipe *pipe,
-				   enum atomisp_input_stream_id stream_id,
-				   enum ia_css_buffer_type css_buf_type,
-				   enum ia_css_pipe_id css_pipe_id);
-
 unsigned int atomisp_dev_users(struct atomisp_device *isp);
 unsigned int atomisp_sub_dev_users(struct atomisp_sub_device *asd);
 
@@ -35,17 +29,9 @@ unsigned int atomisp_sub_dev_users(struct atomisp_sub_device *asd);
  * Memory help functions for image frame and private parameters
  */
 
-int atomisp_videobuf_mmap_mapper(struct videobuf_queue *q,
-				 struct vm_area_struct *vma);
-
-int atomisp_qbuf_to_css(struct atomisp_device *isp,
-			struct atomisp_video_pipe *pipe,
-			struct videobuf_buffer *vb);
-
 int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd);
 
+extern const struct vb2_ops atomisp_vb2_ops;
 extern const struct v4l2_file_operations atomisp_fops;
-
-extern bool defer_fw_load;
 
 #endif /* __ATOMISP_FOPS_H__ */

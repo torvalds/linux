@@ -14,7 +14,7 @@ Some hardware or software features are only available on some CPU
 implementations, and/or with certain kernel configurations, but have no
 architected discovery mechanism available to userspace code at EL0. The
 kernel exposes the presence of these features to userspace through a set
-of flags called hwcaps, exposed in the auxilliary vector.
+of flags called hwcaps, exposed in the auxiliary vector.
 
 Userspace software can test for features by acquiring the AT_HWCAP or
 AT_HWCAP2 entry of the auxiliary vector, and testing whether the relevant
@@ -274,6 +274,33 @@ HWCAP2_EBF16
 
 HWCAP2_SVE_EBF16
     Functionality implied by ID_AA64ZFR0_EL1.BF16 == 0b0010.
+
+HWCAP2_CSSC
+    Functionality implied by ID_AA64ISAR2_EL1.CSSC == 0b0001.
+
+HWCAP2_RPRFM
+    Functionality implied by ID_AA64ISAR2_EL1.RPRFM == 0b0001.
+
+HWCAP2_SVE2P1
+    Functionality implied by ID_AA64ZFR0_EL1.SVEver == 0b0010.
+
+HWCAP2_SME2
+    Functionality implied by ID_AA64SMFR0_EL1.SMEver == 0b0001.
+
+HWCAP2_SME2P1
+    Functionality implied by ID_AA64SMFR0_EL1.SMEver == 0b0010.
+
+HWCAP2_SMEI16I32
+    Functionality implied by ID_AA64SMFR0_EL1.I16I32 == 0b0101
+
+HWCAP2_SMEBI32I32
+    Functionality implied by ID_AA64SMFR0_EL1.BI32I32 == 0b1
+
+HWCAP2_SMEB16B16
+    Functionality implied by ID_AA64SMFR0_EL1.B16B16 == 0b1
+
+HWCAP2_SMEF16F16
+    Functionality implied by ID_AA64SMFR0_EL1.F16F16 == 0b1
 
 4. Unused AT_HWCAP bits
 -----------------------

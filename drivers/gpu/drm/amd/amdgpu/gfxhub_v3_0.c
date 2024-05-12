@@ -151,19 +151,20 @@ static void gfxhub_v3_0_init_system_aperture_regs(struct amdgpu_device *adev)
 {
 	uint64_t value;
 
-	/* Disable AGP. */
+	/* Program the AGP BAR */
 	WREG32_SOC15(GC, 0, regGCMC_VM_AGP_BASE, 0);
-	WREG32_SOC15(GC, 0, regGCMC_VM_AGP_TOP, 0);
-	WREG32_SOC15(GC, 0, regGCMC_VM_AGP_BOT, 0x00FFFFFF);
+	WREG32_SOC15(GC, 0, regGCMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
+	WREG32_SOC15(GC, 0, regGCMC_VM_AGP_TOP, adev->gmc.agp_end >> 24);
+
 
 	/* Program the system aperture low logical page number. */
 	WREG32_SOC15(GC, 0, regGCMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-		     adev->gmc.vram_start >> 18);
+		     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 	WREG32_SOC15(GC, 0, regGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-		     adev->gmc.vram_end >> 18);
+		     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 	/* Set default page address. */
-	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start
+	value = adev->mem_scratch.gpu_addr - adev->gmc.vram_start
 		+ adev->vm_manager.vram_base_offset;
 	WREG32_SOC15(GC, 0, regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
 		     (u32)(value >> 12));
@@ -416,33 +417,11 @@ static void gfxhub_v3_0_set_fault_enable_default(struct amdgpu_device *adev,
 	tmp = REG_SET_FIELD(tmp, CP_DEBUG, CPG_UTCL1_ERROR_HALT_DISABLE, 1);
 	WREG32_SOC15(GC, 0, regCP_DEBUG, tmp);
 
-	/**
-	 * Set GRBM_GFX_INDEX in broad cast mode
-	 * before programming GL1C_UTCL0_CNTL1 and SQG_CONFIG
-	 */
-	WREG32_SOC15(GC, 0, regGRBM_GFX_INDEX, regGRBM_GFX_INDEX_DEFAULT);
-
-	/**
-	 * Retry respond mode: RETRY
-	 * Error (no retry) respond mode: SUCCESS
-	 */
-	tmp = RREG32_SOC15(GC, 0, regGL1C_UTCL0_CNTL1);
-	tmp = REG_SET_FIELD(tmp, GL1C_UTCL0_CNTL1, RESP_MODE, 0);
-	tmp = REG_SET_FIELD(tmp, GL1C_UTCL0_CNTL1, RESP_FAULT_MODE, 0x2);
-	WREG32_SOC15(GC, 0, regGL1C_UTCL0_CNTL1, tmp);
-
 	/* These registers are not accessible to VF-SRIOV.
 	 * The PF will program them instead.
 	 */
 	if (amdgpu_sriov_vf(adev))
 		return;
-
-	/* Disable SQ XNACK interrupt for all VMIDs */
-	tmp = RREG32_SOC15(GC, 0, regSQG_CONFIG);
-	tmp = REG_SET_FIELD(tmp, SQG_CONFIG, XNACK_INTR_MASK,
-			    SQG_CONFIG__XNACK_INTR_MASK_MASK >>
-			    SQG_CONFIG__XNACK_INTR_MASK__SHIFT);
-	WREG32_SOC15(GC, 0, regSQG_CONFIG, tmp);
 
 	tmp = RREG32_SOC15(GC, 0, regGCVM_L2_PROTECTION_FAULT_CNTL);
 	tmp = REG_SET_FIELD(tmp, GCVM_L2_PROTECTION_FAULT_CNTL,

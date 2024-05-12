@@ -58,7 +58,7 @@ struct io_uring_task {
 
 	struct xarray			xa;
 	struct wait_queue_head		wait;
-	atomic_t			in_idle;
+	atomic_t			in_cancel;
 	atomic_t			inflight_tracked;
 	struct percpu_counter		inflight;
 
@@ -174,7 +174,9 @@ struct io_submit_state {
 	bool			plug_started;
 	bool			need_plug;
 	unsigned short		submit_nr;
+	unsigned int		cqes_count;
 	struct blk_plug		plug;
+	struct io_uring_cqe	cqes[16];
 };
 
 struct io_ev_fd {
@@ -186,26 +188,32 @@ struct io_ev_fd {
 };
 
 struct io_alloc_cache {
-	struct hlist_head	list;
+	struct io_wq_work_node	list;
 	unsigned int		nr_cached;
+	unsigned int		max_cached;
+	size_t			elem_size;
 };
 
 struct io_ring_ctx {
 	/* const or read-mostly hot data */
 	struct {
-		struct percpu_ref	refs;
-
-		struct io_rings		*rings;
 		unsigned int		flags;
-		enum task_work_notify_mode	notify_method;
-		unsigned int		compat: 1;
 		unsigned int		drain_next: 1;
 		unsigned int		restricted: 1;
 		unsigned int		off_timeout_used: 1;
 		unsigned int		drain_active: 1;
-		unsigned int		drain_disabled: 1;
 		unsigned int		has_evfd: 1;
+		/* all CQEs should be posted only by the submitter task */
+		unsigned int		task_complete: 1;
 		unsigned int		syscall_iopoll: 1;
+		unsigned int		poll_activated: 1;
+		unsigned int		drain_disabled: 1;
+		unsigned int		compat: 1;
+
+		enum task_work_notify_mode	notify_method;
+		struct io_rings			*rings;
+		struct task_struct		*submitter_task;
+		struct percpu_ref		refs;
 	} ____cacheline_aligned_in_smp;
 
 	/* submission data */
@@ -233,7 +241,6 @@ struct io_ring_ctx {
 		 * uring_lock, and updated through io_uring_register(2)
 		 */
 		struct io_rsrc_node	*rsrc_node;
-		int			rsrc_cached_refs;
 		atomic_t		cancel_seq;
 		struct io_file_table	file_table;
 		unsigned		nr_user_files;
@@ -288,6 +295,9 @@ struct io_ring_ctx {
 	struct {
 		spinlock_t		completion_lock;
 
+		bool			poll_multi_queue;
+		atomic_t		cq_wait_nr;
+
 		/*
 		 * ->iopoll_list is protected by the ctx->uring_lock for
 		 * io_uring instances that don't use IORING_SETUP_SQPOLL.
@@ -296,7 +306,6 @@ struct io_ring_ctx {
 		 */
 		struct io_wq_work_list	iopoll_list;
 		struct io_hash_table	cancel_table;
-		bool			poll_multi_queue;
 
 		struct llist_head	work_llist;
 
@@ -313,20 +322,19 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	/* Keep this last, we don't need it for the fast path */
-
+	struct wait_queue_head		poll_wq;
 	struct io_restriction		restrictions;
-	struct task_struct		*submitter_task;
 
 	/* slow path rsrc auxilary data, used by update/register */
-	struct io_rsrc_node		*rsrc_backup_node;
 	struct io_mapped_ubuf		*dummy_ubuf;
 	struct io_rsrc_data		*file_data;
 	struct io_rsrc_data		*buf_data;
 
-	struct delayed_work		rsrc_put_work;
-	struct llist_head		rsrc_put_llist;
+	/* protected by ->uring_lock */
 	struct list_head		rsrc_ref_list;
-	spinlock_t			rsrc_ref_lock;
+	struct io_alloc_cache		rsrc_node_cache;
+	struct wait_queue_head		rsrc_quiesce_wq;
+	unsigned			rsrc_quiesce;
 
 	struct list_head		io_buffers_pages;
 
@@ -351,10 +359,16 @@ struct io_ring_ctx {
 	u32				iowq_limits[2];
 	bool				iowq_limits_set;
 
+	struct callback_head		poll_wq_task_work;
 	struct list_head		defer_list;
 	unsigned			sq_thread_idle;
 	/* protected by ->completion_lock */
 	unsigned			evfd_last_cq_tail;
+};
+
+struct io_tw_state {
+	/* ->uring_lock is taken, callbacks can use io_tw_lock to lock it */
+	bool locked;
 };
 
 enum {
@@ -463,7 +477,7 @@ enum {
 	REQ_F_HASH_LOCKED	= BIT(REQ_F_HASH_LOCKED_BIT),
 };
 
-typedef void (*io_req_tw_func_t)(struct io_kiocb *req, bool *locked);
+typedef void (*io_req_tw_func_t)(struct io_kiocb *req, struct io_tw_state *ts);
 
 struct io_task_work {
 	struct llist_node		node;
@@ -553,6 +567,7 @@ struct io_kiocb {
 	atomic_t			refs;
 	atomic_t			poll_refs;
 	struct io_task_work		io_task_work;
+	unsigned			nr_tw;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
 	union {
 		struct hlist_node	hash_node;

@@ -198,7 +198,6 @@ static void *vcpu_thread(void *arg)
 	struct ucall uc;
 	int old;
 	int r;
-	unsigned int exit_reason;
 
 	r = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &old);
 	TEST_ASSERT(r == 0,
@@ -207,11 +206,8 @@ static void *vcpu_thread(void *arg)
 
 	fprintf(stderr, "vCPU thread running vCPU %u\n", vcpu->id);
 	vcpu_run(vcpu);
-	exit_reason = vcpu->run->exit_reason;
 
-	TEST_ASSERT(exit_reason == KVM_EXIT_IO,
-		    "vCPU %u exited with unexpected exit reason %u-%s, expected KVM_EXIT_IO",
-		    vcpu->id, exit_reason, exit_reason_str(exit_reason));
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 	if (get_ucall(vcpu, &uc) == UCALL_ABORT) {
 		TEST_ASSERT(false,

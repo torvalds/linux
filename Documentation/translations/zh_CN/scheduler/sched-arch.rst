@@ -70,7 +70,5 @@ arch/x86/kernel/process.c有轮询和睡眠空闲函数的例子。
 
 ia64 - safe_halt的调用与中断相比，是否很荒谬？ (它睡眠了吗) (参考 #4a)
 
-sh64 - 睡眠与中断相比，是否很荒谬？ (参考 #4a)
-
 sparc - 在这一点上，IRQ是开着的（？），把local_irq_save改为_disable。
       - 待办事项: 需要第二个CPU来禁用抢占 (参考 #1)

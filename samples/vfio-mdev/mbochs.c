@@ -594,7 +594,6 @@ static void mbochs_release_dev(struct vfio_device *vdev)
 	atomic_add(mdev_state->type->mbytes, &mbochs_avail_mbytes);
 	kfree(mdev_state->pages);
 	kfree(mdev_state->vconfig);
-	vfio_free_device(vdev);
 }
 
 static void mbochs_remove(struct mdev_device *mdev)
@@ -1375,6 +1374,9 @@ static const struct vfio_device_ops mbochs_dev_ops = {
 	.write = mbochs_write,
 	.ioctl = mbochs_ioctl,
 	.mmap = mbochs_mmap,
+	.bind_iommufd	= vfio_iommufd_emulated_bind,
+	.unbind_iommufd	= vfio_iommufd_emulated_unbind,
+	.attach_ioas	= vfio_iommufd_emulated_attach_ioas,
 };
 
 static struct mdev_driver mbochs_driver = {
@@ -1419,7 +1421,7 @@ static int __init mbochs_dev_init(void)
 	if (ret)
 		goto err_cdev;
 
-	mbochs_class = class_create(THIS_MODULE, MBOCHS_CLASS_NAME);
+	mbochs_class = class_create(MBOCHS_CLASS_NAME);
 	if (IS_ERR(mbochs_class)) {
 		pr_err("Error: failed to register mbochs_dev class\n");
 		ret = PTR_ERR(mbochs_class);
@@ -1431,7 +1433,7 @@ static int __init mbochs_dev_init(void)
 
 	ret = device_register(&mbochs_dev);
 	if (ret)
-		goto err_class;
+		goto err_put;
 
 	ret = mdev_register_parent(&mbochs_parent, &mbochs_dev, &mbochs_driver,
 				   mbochs_mdev_types,
@@ -1442,8 +1444,9 @@ static int __init mbochs_dev_init(void)
 	return 0;
 
 err_device:
-	device_unregister(&mbochs_dev);
-err_class:
+	device_del(&mbochs_dev);
+err_put:
+	put_device(&mbochs_dev);
 	class_destroy(mbochs_class);
 err_driver:
 	mdev_unregister_driver(&mbochs_driver);

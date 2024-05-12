@@ -68,14 +68,6 @@ static inline __u8 info_blk_hdr__flags(enum diag204_format type, void *hdr)
 		return ((struct diag204_x_info_blk_hdr *)hdr)->flags;
 }
 
-static inline __u16 info_blk_hdr__pcpus(enum diag204_format type, void *hdr)
-{
-	if (type == DIAG204_INFO_SIMPLE)
-		return ((struct diag204_info_blk_hdr *)hdr)->phys_cpus;
-	else /* DIAG204_INFO_EXT */
-		return ((struct diag204_x_info_blk_hdr *)hdr)->phys_cpus;
-}
-
 /* Partition header */
 
 static inline int part_hdr__size(enum diag204_format type)

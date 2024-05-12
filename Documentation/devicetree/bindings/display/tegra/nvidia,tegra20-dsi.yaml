@@ -47,8 +47,7 @@ properties:
     items:
       - const: dsi
 
-  operating-points-v2:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+  operating-points-v2: true
 
   power-domains:
     maxItems: 1
@@ -60,12 +59,12 @@ properties:
     description: Should contain a phandle and a specifier specifying
       which pads are used by this DSI output and need to be
       calibrated. See nvidia,tegra114-mipi.yaml for details.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
 
   nvidia,ddc-i2c-bus:
     description: phandle of an I2C controller used for DDC EDID
       probing
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   nvidia,hpd-gpio:
     description: specifies a GPIO used for hotplug detection
@@ -73,19 +72,19 @@ properties:
 
   nvidia,edid:
     description: supplies a binary EDID blob
-    $ref: "/schemas/types.yaml#/definitions/uint8-array"
+    $ref: /schemas/types.yaml#/definitions/uint8-array
 
   nvidia,panel:
     description: phandle of a display panel
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   nvidia,ganged-mode:
     description: contains a phandle to a second DSI controller to
       gang up with in order to support up to 8 data lanes
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:
-  - $ref: "../dsi-controller.yaml#"
+  - $ref: ../dsi-controller.yaml#
   - if:
       properties:
         compatible:

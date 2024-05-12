@@ -137,8 +137,12 @@
 
 			port@3 {
 				reg = <3>;
-				label = "cpu";
 				ethernet = <&ethport>;
+				phy-mode = "rgmii-id";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
 			};
 
 			port@5 {
@@ -208,6 +212,7 @@
 		/* Hardwired to DSA switch */
 		speed = <1000>;
 		duplex = <1>;
+		phy-mode = "rgmii";
 	};
 };
 

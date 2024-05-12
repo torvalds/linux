@@ -9,6 +9,9 @@ title: Renesas RZ/{G2L,V2L} ASoC Sound Serial Interface (SSIF-2)
 maintainers:
   - Biju Das <biju.das.jz@bp.renesas.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     items:
@@ -22,14 +25,18 @@ properties:
     maxItems: 1
 
   interrupts:
-    maxItems: 4
+    minItems: 2
+    maxItems: 3
 
   interrupt-names:
-    items:
-      - const: int_req
-      - const: dma_rx
-      - const: dma_tx
-      - const: dma_rt
+    oneOf:
+      - items:
+          - const: int_req
+          - const: dma_rx
+          - const: dma_tx
+      - items:
+          - const: int_req
+          - const: dma_rt
 
   clocks:
     maxItems: 4
@@ -90,7 +97,7 @@ required:
   - resets
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
@@ -103,9 +110,8 @@ examples:
             reg = <0x10049c00 0x400>;
             interrupts = <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 327 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 328 IRQ_TYPE_EDGE_RISING>,
-                         <GIC_SPI 329 IRQ_TYPE_EDGE_RISING>;
-            interrupt-names = "int_req", "dma_rx", "dma_tx", "dma_rt";
+                         <GIC_SPI 328 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "int_req", "dma_rx", "dma_tx";
             clocks = <&cpg CPG_MOD R9A07G044_SSI0_PCLK2>,
                      <&cpg CPG_MOD R9A07G044_SSI0_PCLK_SFR>,
                      <&audio_clk1>,

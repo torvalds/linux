@@ -29,7 +29,7 @@
 #include "dcn20_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "inc/link_dpcd.h"
+#include "link.h"
 #include "dpcd_defs.h"
 
 #define DC_LOGGER \
@@ -423,6 +423,22 @@ void enc2_set_dynamic_metadata(struct stream_encoder *enc,
 	}
 }
 
+static void enc2_stream_encoder_update_dp_info_packets_sdp_line_num(
+		struct stream_encoder *enc,
+		struct encoder_info_frame *info_frame)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	if (info_frame->adaptive_sync.valid == true &&
+		info_frame->sdp_line_num.adaptive_sync_line_num_valid == true) {
+		//00: REFER_TO_DP_SOF, 01: REFER_TO_OTG_SOF
+		REG_UPDATE(DP_SEC_CNTL1, DP_SEC_GSP5_LINE_REFERENCE, 1);
+
+		REG_UPDATE(DP_SEC_CNTL5, DP_SEC_GSP5_LINE_NUM,
+					info_frame->sdp_line_num.adaptive_sync_line_num);
+	}
+}
+
 static void enc2_stream_encoder_update_dp_info_packets(
 	struct stream_encoder *enc,
 	const struct encoder_info_frame *info_frame)
@@ -530,7 +546,8 @@ void enc2_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
 
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
+	link->dc->link_srv->dp_trace_source_sequence(link,
+			DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
 static void enc2_dp_set_odm_combine(
@@ -587,6 +604,8 @@ static const struct stream_encoder_funcs dcn20_str_enc_funcs = {
 		enc2_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =
 		enc2_stream_encoder_stop_hdmi_info_packets,
+	.update_dp_info_packets_sdp_line_num =
+		enc2_stream_encoder_update_dp_info_packets_sdp_line_num,
 	.update_dp_info_packets =
 		enc2_stream_encoder_update_dp_info_packets,
 	.send_immediate_sdp_message =

@@ -29,7 +29,7 @@ static int of_bus_pci_match(struct device_node *np)
 		 * parent as-is, not with the PCI translate
 		 * method which chops off the top address cell.
 		 */
-		if (!of_find_property(np, "ranges", NULL))
+		if (!of_property_present(np, "ranges"))
 			return 0;
 
 		return 1;
@@ -223,7 +223,7 @@ static int __init build_one_resource(struct device_node *parent,
 static int __init use_1to1_mapping(struct device_node *pp)
 {
 	/* If we have a ranges property in the parent, use it.  */
-	if (of_find_property(pp, "ranges", NULL) != NULL)
+	if (of_property_present(pp, "ranges"))
 		return 0;
 
 	/* Some SBUS devices use intermediate nodes to express

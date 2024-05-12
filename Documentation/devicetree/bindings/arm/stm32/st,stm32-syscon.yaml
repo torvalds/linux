@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/arm/stm32/st,stm32-syscon.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: STMicroelectronics STM32 Platforms System Controller bindings
+title: STMicroelectronics STM32 Platforms System Controller
 
 maintainers:
   - Alexandre Torgue <alexandre.torgue@foss.st.com>
@@ -20,6 +20,7 @@ properties:
               - st,stm32-syscfg
               - st,stm32-power-config
               - st,stm32-tamp
+              - st,stm32f4-gcan
           - const: syscon
       - items:
           - const: st,stm32-tamp
@@ -42,6 +43,7 @@ if:
       contains:
         enum:
           - st,stm32mp157-syscfg
+          - st,stm32f4-gcan
 then:
   required:
     - clocks

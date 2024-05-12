@@ -284,4 +284,15 @@ const char *acpi_gbl_ptyp_decode[] = {
 	"Input Schmitt Trigger",
 };
 
+const char *acpi_gbl_clock_input_mode[] = {
+	"Fixed",
+	"Variable",
+};
+
+const char *acpi_gbl_clock_input_scale[] = {
+	"Hz",
+	"KHz",
+	"MHz",
+};
+
 #endif

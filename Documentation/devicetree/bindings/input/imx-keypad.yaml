@@ -10,7 +10,7 @@ maintainers:
   - Liu Ying <gnuiyl@gmail.com>
 
 allOf:
-  - $ref: "/schemas/input/matrix-keymap.yaml#"
+  - $ref: /schemas/input/matrix-keymap.yaml#
 
 description: |
   The KPP is designed to interface with a keypad matrix with 2-point contact

@@ -114,7 +114,7 @@ void irdma_free_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 		     struct irdma_pble_alloc *palloc);
 int irdma_get_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 		   struct irdma_pble_alloc *palloc, u32 pble_cnt,
-		   bool level1_only);
+		   u8 lvl);
 int irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
 			   struct irdma_chunk *pchunk);
 int irdma_prm_get_pbles(struct irdma_pble_prm *pprm,

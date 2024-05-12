@@ -8,10 +8,12 @@
 // Authors: Rander Wang <rander.wang@linux.intel.com>
 //	    Peter Ujfalusi <peter.ujfalusi@linux.intel.com>
 //
+#include <linux/firmware.h>
 #include <sound/sof/header.h>
 #include <sound/sof/ipc4/header.h>
 #include "sof-priv.h"
 #include "sof-audio.h"
+#include "ipc4-fw-reg.h"
 #include "ipc4-priv.h"
 #include "ops.h"
 
@@ -342,6 +344,8 @@ static int ipc4_tx_msg_unlocked(struct snd_sof_ipc *ipc,
 	if (msg_bytes > ipc->max_payload_size || reply_bytes > ipc->max_payload_size)
 		return -EINVAL;
 
+	sof_ipc4_log_header(sdev->dev, "ipc tx      ", msg_data, true);
+
 	ret = sof_ipc_send_msg(sdev, msg_data, msg_bytes, reply_bytes);
 	if (ret) {
 		dev_err_ratelimited(sdev->dev,
@@ -349,8 +353,6 @@ static int ipc4_tx_msg_unlocked(struct snd_sof_ipc *ipc,
 				    __func__, ipc4_msg->primary, ipc4_msg->extension, ret);
 		return ret;
 	}
-
-	sof_ipc4_log_header(sdev->dev, "ipc tx      ", msg_data, true);
 
 	/* now wait for completion */
 	return ipc4_wait_tx_done(ipc, reply_data);
@@ -367,6 +369,17 @@ static int sof_ipc4_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 
 	if (!msg_data)
 		return -EINVAL;
+
+	if (!no_pm) {
+		const struct sof_dsp_power_state target_state = {
+			.state = SOF_DSP_PM_D0,
+		};
+
+		/* ensure the DSP is in D0i0 before sending a new IPC */
+		ret = snd_sof_dsp_set_power_state(sdev, &target_state);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Serialise IPC TX */
 	mutex_lock(&ipc->tx_mutex);
@@ -392,6 +405,9 @@ static int sof_ipc4_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 static int sof_ipc4_set_get_data(struct snd_sof_dev *sdev, void *data,
 				 size_t payload_bytes, bool set)
 {
+	const struct sof_dsp_power_state target_state = {
+			.state = SOF_DSP_PM_D0,
+	};
 	size_t payload_limit = sdev->ipc->max_payload_size;
 	struct sof_ipc4_msg *ipc4_msg = data;
 	struct sof_ipc4_msg tx = {{ 0 }};
@@ -421,6 +437,11 @@ static int sof_ipc4_set_get_data(struct snd_sof_dev *sdev, void *data,
 	tx.extension |= SOF_IPC4_MOD_EXT_MSG_SIZE(payload_bytes);
 
 	tx.extension |= SOF_IPC4_MOD_EXT_MSG_FIRST_BLOCK(1);
+
+	/* ensure the DSP is in D0i0 before sending IPC */
+	ret = snd_sof_dsp_set_power_state(sdev, &target_state);
+	if (ret < 0)
+		return ret;
 
 	/* Serialise IPC TX */
 	mutex_lock(&sdev->ipc->tx_mutex);
@@ -541,6 +562,8 @@ static int ipc4_fw_ready(struct snd_sof_dev *sdev, struct sof_ipc4_msg *ipc4_msg
 	outbox_offset = snd_sof_dsp_get_window_offset(sdev, SOF_IPC4_OUTBOX_WINDOW_IDX);
 	outbox_size = SOF_IPC4_MSG_MAX_SIZE;
 
+	sdev->fw_info_box.offset = snd_sof_dsp_get_window_offset(sdev, SOF_IPC4_INBOX_WINDOW_IDX);
+	sdev->fw_info_box.size = sizeof(struct sof_ipc4_fw_registers);
 	sdev->dsp_box.offset = inbox_offset;
 	sdev->dsp_box.size = inbox_size;
 	sdev->host_box.offset = outbox_offset;
@@ -652,12 +675,67 @@ static int sof_ipc4_ctx_save(struct snd_sof_dev *sdev)
 	return sof_ipc4_set_core_state(sdev, SOF_DSP_PRIMARY_CORE, false);
 }
 
+static int sof_ipc4_set_pm_gate(struct snd_sof_dev *sdev, u32 flags)
+{
+	struct sof_ipc4_msg msg = {{0}};
+
+	msg.primary = SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_SET_D0IX);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+	msg.extension = flags;
+
+	return sof_ipc4_tx_msg(sdev, &msg, 0, NULL, 0, true);
+}
+
 static const struct sof_ipc_pm_ops ipc4_pm_ops = {
 	.ctx_save = sof_ipc4_ctx_save,
 	.set_core_state = sof_ipc4_set_core_state,
+	.set_pm_gate = sof_ipc4_set_pm_gate,
 };
 
+static int sof_ipc4_init(struct snd_sof_dev *sdev)
+{
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+
+	mutex_init(&ipc4_data->pipeline_state_mutex);
+
+	xa_init_flags(&ipc4_data->fw_lib_xa, XA_FLAGS_ALLOC);
+
+	return 0;
+}
+
+static void sof_ipc4_exit(struct snd_sof_dev *sdev)
+{
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	struct sof_ipc4_fw_library *fw_lib;
+	unsigned long lib_id;
+
+	xa_for_each(&ipc4_data->fw_lib_xa, lib_id, fw_lib) {
+		/*
+		 * The basefw (ID == 0) is handled by generic code, it is not
+		 * loaded by IPC4 code.
+		 */
+		if (lib_id != 0)
+			release_firmware(fw_lib->sof_fw.fw);
+
+		fw_lib->sof_fw.fw = NULL;
+	}
+
+	xa_destroy(&ipc4_data->fw_lib_xa);
+}
+
+static int sof_ipc4_post_boot(struct snd_sof_dev *sdev)
+{
+	if (sdev->first_boot)
+		return sof_ipc4_query_fw_configuration(sdev);
+
+	return sof_ipc4_reload_fw_libraries(sdev);
+}
+
 const struct sof_ipc_ops ipc4_ops = {
+	.init = sof_ipc4_init,
+	.exit = sof_ipc4_exit,
+	.post_fw_boot = sof_ipc4_post_boot,
 	.tx_msg = sof_ipc4_tx_msg,
 	.rx_msg = sof_ipc4_rx_msg,
 	.set_get_data = sof_ipc4_set_get_data,

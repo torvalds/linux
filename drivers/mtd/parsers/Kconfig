@@ -22,7 +22,7 @@ config MTD_BCM63XX_PARTS
 
 config MTD_BRCM_U_BOOT
 	tristate "Broadcom's U-Boot partition parser"
-	depends on ARCH_BCM4908 || COMPILE_TEST
+	depends on ARCH_BCMBCA || COMPILE_TEST
 	help
 	  Broadcom uses a custom way of storing U-Boot environment variables.
 	  They are placed inside U-Boot partition itself at unspecified offset.
@@ -75,7 +75,7 @@ config MTD_OF_PARTS
 	  This provides a open firmware device tree partition parser
 	  which derives the partition map from the children of the
 	  flash memory node, as described in
-	  Documentation/devicetree/bindings/mtd/partition.txt.
+	  Documentation/devicetree/bindings/mtd/mtd.yaml.
 
 config MTD_OF_PARTS_BCM4908
 	bool "BCM4908 partitioning support"
@@ -123,6 +123,21 @@ config MTD_AFS_PARTS
 	  for your particular device. It won't happen automatically. The
 	  'physmap' map driver (CONFIG_MTD_PHYSMAP) does this, for example.
 
+config MTD_PARSER_TPLINK_SAFELOADER
+	tristate "TP-Link Safeloader partitions parser"
+	depends on MTD && (ARCH_BCM_5301X || ATH79 || SOC_MT7620 || SOC_MT7621 || COMPILE_TEST)
+	help
+	  TP-Link home routers use flash partitions to store various data. Info
+	  about flash space layout is stored in a partitions table using a
+	  custom ASCII-based format.
+
+	  That format was first found in devices with SafeLoader bootloader and
+	  was named after it. Later it was adapted to CFE and U-Boot
+	  bootloaders.
+
+	  This driver reads partitions table, parses it and creates MTD
+	  partitions.
+
 config MTD_PARSER_TRX
 	tristate "Parser for TRX format partitions"
 	depends on MTD && (BCM47XX || ARCH_BCM_5301X || ARCH_MEDIATEK || RALINK || COMPILE_TEST)
@@ -134,7 +149,7 @@ config MTD_PARSER_TRX
 
 config MTD_SHARPSL_PARTS
 	tristate "Sharp SL Series NAND flash partition parser"
-	depends on MTD_NAND_SHARPSL || MTD_NAND_TMIO || COMPILE_TEST
+	depends on MTD_NAND_SHARPSL || COMPILE_TEST
 	help
 	  This provides the read-only FTL logic necessary to read the partition
 	  table from the NAND flash of Sharp SL Series (Zaurus) and the MTD

@@ -499,7 +499,7 @@ static inline void pch_spi_select_chip(struct pch_spi_data *data,
 				       struct spi_device *pspi)
 {
 	if (data->current_chip != NULL) {
-		if (pspi->chip_select != data->n_curnt_chip) {
+		if (spi_get_chipselect(pspi, 0) != data->n_curnt_chip) {
 			dev_dbg(&pspi->dev, "%s : different slave\n", __func__);
 			data->current_chip = NULL;
 		}
@@ -507,7 +507,7 @@ static inline void pch_spi_select_chip(struct pch_spi_data *data,
 
 	data->current_chip = pspi;
 
-	data->n_curnt_chip = data->current_chip->chip_select;
+	data->n_curnt_chip = spi_get_chipselect(data->current_chip, 0);
 
 	dev_dbg(&pspi->dev, "%s :Invoking pch_spi_setup_transfer\n", __func__);
 	pch_spi_setup_transfer(pspi);
@@ -1396,7 +1396,7 @@ err_pci_iomap:
 	return ret;
 }
 
-static int pch_spi_pd_remove(struct platform_device *plat_dev)
+static void pch_spi_pd_remove(struct platform_device *plat_dev)
 {
 	struct pch_spi_board_data *board_dat = dev_get_platdata(&plat_dev->dev);
 	struct pch_spi_data *data = platform_get_drvdata(plat_dev);
@@ -1434,8 +1434,6 @@ static int pch_spi_pd_remove(struct platform_device *plat_dev)
 
 	pci_iounmap(board_dat->pdev, data->io_remap_addr);
 	spi_unregister_master(data->master);
-
-	return 0;
 }
 #ifdef CONFIG_PM
 static int pch_spi_pd_suspend(struct platform_device *pd_dev,
@@ -1516,7 +1514,7 @@ static struct platform_driver pch_spi_pd_driver = {
 		.name = "pch-spi",
 	},
 	.probe = pch_spi_pd_probe,
-	.remove = pch_spi_pd_remove,
+	.remove_new = pch_spi_pd_remove,
 	.suspend = pch_spi_pd_suspend,
 	.resume = pch_spi_pd_resume
 };

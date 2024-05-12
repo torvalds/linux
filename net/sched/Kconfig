@@ -45,23 +45,6 @@ if NET_SCHED
 
 comment "Queueing/Scheduling"
 
-config NET_SCH_CBQ
-	tristate "Class Based Queueing (CBQ)"
-	help
-	  Say Y here if you want to use the Class-Based Queueing (CBQ) packet
-	  scheduling algorithm. This algorithm classifies the waiting packets
-	  into a tree-like hierarchy of classes; the leaves of this tree are
-	  in turn scheduled by separate algorithms.
-
-	  See the top of <file:net/sched/sch_cbq.c> for more details.
-
-	  CBQ is a commonly used scheduler, so if you're unsure, you should
-	  say Y here. Then say Y to all the queueing algorithms below that you
-	  want to use as leaf disciplines.
-
-	  To compile this code as a module, choose M here: the
-	  module will be called sch_cbq.
-
 config NET_SCH_HTB
 	tristate "Hierarchical Token Bucket (HTB)"
 	help
@@ -84,20 +67,6 @@ config NET_SCH_HFSC
 
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_hfsc.
-
-config NET_SCH_ATM
-	tristate "ATM Virtual Circuits (ATM)"
-	depends on ATM
-	help
-	  Say Y here if you want to use the ATM pseudo-scheduler.  This
-	  provides a framework for invoking classifiers, which in turn
-	  select classes of this queuing discipline.  Each class maps
-	  the flow(s) it is handling to a given virtual circuit.
-
-	  See the top of <file:net/sched/sch_atm.c> for more details.
-
-	  To compile this code as a module, choose M here: the
-	  module will be called sch_atm.
 
 config NET_SCH_PRIO
 	tristate "Multi Band Priority Queueing (PRIO)"
@@ -195,8 +164,14 @@ config NET_SCH_ETF
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_etf.
 
+config NET_SCH_MQPRIO_LIB
+	tristate
+	help
+	  Common library for manipulating mqprio queue configurations.
+
 config NET_SCH_TAPRIO
 	tristate "Time Aware Priority (taprio) Scheduler"
+	select NET_SCH_MQPRIO_LIB
 	help
 	  Say Y here if you want to use the Time Aware Priority (taprio) packet
 	  scheduling algorithm.
@@ -216,17 +191,6 @@ config NET_SCH_GRED
 
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_gred.
-
-config NET_SCH_DSMARK
-	tristate "Differentiated Services marker (DSMARK)"
-	help
-	  Say Y if you want to schedule packets according to the
-	  Differentiated Services architecture proposed in RFC 2475.
-	  Technical information on this method, with pointers to associated
-	  RFCs, is available at <http://www.gta.ufrj.br/diffserv/>.
-
-	  To compile this code as a module, choose M here: the
-	  module will be called sch_dsmark.
 
 config NET_SCH_NETEM
 	tristate "Network emulator (NETEM)"
@@ -253,6 +217,7 @@ config NET_SCH_DRR
 
 config NET_SCH_MQPRIO
 	tristate "Multi-queue priority scheduler (MQPRIO)"
+	select NET_SCH_MQPRIO_LIB
 	help
 	  Say Y here if you want to use the Multi-queue Priority scheduler.
 	  This scheduler allows QOS to be offloaded on NICs that have support
@@ -337,7 +302,7 @@ config NET_SCH_FQ
 	  Say Y here if you want to use the FQ packet scheduling algorithm.
 
 	  FQ does flow separation, and is able to respect pacing requirements
-	  set by TCP stack into sk->sk_pacing_rate (for localy generated
+	  set by TCP stack into sk->sk_pacing_rate (for locally generated
 	  traffic)
 
 	  To compile this driver as a module, choose M here: the module
@@ -503,17 +468,6 @@ config NET_CLS_BASIC
 	  To compile this code as a module, choose M here: the
 	  module will be called cls_basic.
 
-config NET_CLS_TCINDEX
-	tristate "Traffic-Control Index (TCINDEX)"
-	select NET_CLS
-	help
-	  Say Y here if you want to be able to classify packets based on
-	  traffic control indices. You will want this feature if you want
-	  to implement Differentiated Services together with DSMARK.
-
-	  To compile this code as a module, choose M here: the
-	  module will be called cls_tcindex.
-
 config NET_CLS_ROUTE4
 	tristate "Routing decision (ROUTE)"
 	depends on INET
@@ -558,34 +512,6 @@ config CLS_U32_MARK
 	depends on NET_CLS_U32
 	help
 	  Say Y here to be able to use netfilter marks as u32 key.
-
-config NET_CLS_RSVP
-	tristate "IPv4 Resource Reservation Protocol (RSVP)"
-	select NET_CLS
-	help
-	  The Resource Reservation Protocol (RSVP) permits end systems to
-	  request a minimum and maximum data flow rate for a connection; this
-	  is important for real time data such as streaming sound or video.
-
-	  Say Y here if you want to be able to classify outgoing packets based
-	  on their RSVP requests.
-
-	  To compile this code as a module, choose M here: the
-	  module will be called cls_rsvp.
-
-config NET_CLS_RSVP6
-	tristate "IPv6 Resource Reservation Protocol (RSVP6)"
-	select NET_CLS
-	help
-	  The Resource Reservation Protocol (RSVP) permits end systems to
-	  request a minimum and maximum data flow rate for a connection; this
-	  is important for real time data such as streaming sound or video.
-
-	  Say Y here if you want to be able to classify outgoing packets based
-	  on their RSVP requests and you are using the IPv6 protocol.
-
-	  To compile this code as a module, choose M here: the
-	  module will be called cls_rsvp6.
 
 config NET_CLS_FLOW
 	tristate "Flow classifier"
@@ -977,6 +903,8 @@ config NET_ACT_TUNNEL_KEY
 config NET_ACT_CT
 	tristate "connection tracking tc action"
 	depends on NET_CLS_ACT && NF_CONNTRACK && (!NF_NAT || NF_NAT) && NF_FLOW_TABLE
+	select NF_CONNTRACK_OVS
+	select NF_NAT_OVS if NF_NAT
 	help
 	  Say Y here to allow sending the packets to conntrack module.
 

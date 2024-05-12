@@ -15,4 +15,10 @@ extern void mpc85xx_qe_par_io_init(void);
 static inline void __init mpc85xx_qe_par_io_init(void) {}
 #endif
 
+#ifdef CONFIG_PPC_I8259
+void __init mpc85xx_8259_init(void);
+#else
+static inline void __init mpc85xx_8259_init(void) {}
+#endif
+
 #endif

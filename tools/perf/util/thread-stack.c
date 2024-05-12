@@ -155,8 +155,8 @@ static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
 		ts->br_stack_sz = br_stack_sz;
 	}
 
-	if (thread->maps && thread->maps->machine) {
-		struct machine *machine = thread->maps->machine;
+	if (thread->maps && maps__machine(thread->maps)) {
+		struct machine *machine = maps__machine(thread->maps);
 		const char *arch = perf_env__arch(machine->env);
 
 		ts->kernel_start = machine__kernel_start(machine);

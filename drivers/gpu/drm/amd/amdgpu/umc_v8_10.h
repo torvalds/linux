@@ -31,9 +31,9 @@
 /* number of umc instance with memory map register access */
 #define UMC_V8_10_UMC_INSTANCE_NUM		2
 
-/* Total channel instances for all umc nodes */
+/* Total channel instances for all available umc nodes */
 #define UMC_V8_10_TOTAL_CHANNEL_NUM(adev) \
-	(UMC_V8_10_CHANNEL_INSTANCE_NUM * UMC_V8_10_UMC_INSTANCE_NUM * (adev)->umc.node_inst_num)
+	(UMC_V8_10_CHANNEL_INSTANCE_NUM * UMC_V8_10_UMC_INSTANCE_NUM * (adev)->gmc.num_umc)
 
 /* UMC regiser per channel offset */
 #define UMC_V8_10_PER_CHANNEL_OFFSET	0x400
@@ -66,5 +66,9 @@ extern const uint32_t
 				[UMC_V8_10_UMC_INSTANCE_NUM]
 				[UMC_V8_10_CHANNEL_INSTANCE_NUM];
 
+extern const uint32_t
+	umc_v8_10_channel_idx_tbl_ext0[]
+				[UMC_V8_10_UMC_INSTANCE_NUM]
+				[UMC_V8_10_CHANNEL_INSTANCE_NUM];
 #endif
 

@@ -73,16 +73,15 @@ void fscrypt_put_master_key(struct fscrypt_master_key *mk)
 	 * fscrypt_master_key struct itself after an RCU grace period ensures
 	 * that concurrent keyring lookups can no longer find it.
 	 */
-	WARN_ON(refcount_read(&mk->mk_active_refs) != 0);
+	WARN_ON_ONCE(refcount_read(&mk->mk_active_refs) != 0);
 	key_put(mk->mk_users);
 	mk->mk_users = NULL;
 	call_rcu(&mk->mk_rcu_head, fscrypt_free_master_key);
 }
 
-void fscrypt_put_master_key_activeref(struct fscrypt_master_key *mk)
+void fscrypt_put_master_key_activeref(struct super_block *sb,
+				      struct fscrypt_master_key *mk)
 {
-	struct super_block *sb = mk->mk_sb;
-	struct fscrypt_keyring *keyring = sb->s_master_keys;
 	size_t i;
 
 	if (!refcount_dec_and_test(&mk->mk_active_refs))
@@ -93,16 +92,18 @@ void fscrypt_put_master_key_activeref(struct fscrypt_master_key *mk)
 	 * destroying any subkeys embedded in it.
 	 */
 
-	spin_lock(&keyring->lock);
+	if (WARN_ON_ONCE(!sb->s_master_keys))
+		return;
+	spin_lock(&sb->s_master_keys->lock);
 	hlist_del_rcu(&mk->mk_node);
-	spin_unlock(&keyring->lock);
+	spin_unlock(&sb->s_master_keys->lock);
 
 	/*
 	 * ->mk_active_refs == 0 implies that ->mk_secret is not present and
 	 * that ->mk_decrypted_inodes is empty.
 	 */
-	WARN_ON(is_master_key_secret_present(&mk->mk_secret));
-	WARN_ON(!list_empty(&mk->mk_decrypted_inodes));
+	WARN_ON_ONCE(is_master_key_secret_present(&mk->mk_secret));
+	WARN_ON_ONCE(!list_empty(&mk->mk_decrypted_inodes));
 
 	for (i = 0; i <= FSCRYPT_MODE_MAX; i++) {
 		fscrypt_destroy_prepared_key(
@@ -208,14 +209,11 @@ static int allocate_filesystem_keyring(struct super_block *sb)
  * Release all encryption keys that have been added to the filesystem, along
  * with the keyring that contains them.
  *
- * This is called at unmount time.  The filesystem's underlying block device(s)
- * are still available at this time; this is important because after user file
- * accesses have been allowed, this function may need to evict keys from the
- * keyslots of an inline crypto engine, which requires the block device(s).
- *
- * This is also called when the super_block is being freed.  This is needed to
- * avoid a memory leak if mounting fails after the "test_dummy_encryption"
- * option was processed, as in that case the unmount-time call isn't made.
+ * This is called at unmount time, after all potentially-encrypted inodes have
+ * been evicted.  The filesystem's underlying block device(s) are still
+ * available at this time; this is important because after user file accesses
+ * have been allowed, this function may need to evict keys from the keyslots of
+ * an inline crypto engine, which requires the block device(s).
  */
 void fscrypt_destroy_keyring(struct super_block *sb)
 {
@@ -232,18 +230,18 @@ void fscrypt_destroy_keyring(struct super_block *sb)
 
 		hlist_for_each_entry_safe(mk, tmp, bucket, mk_node) {
 			/*
-			 * Since all inodes were already evicted, every key
-			 * remaining in the keyring should have an empty inode
-			 * list, and should only still be in the keyring due to
-			 * the single active ref associated with ->mk_secret.
-			 * There should be no structural refs beyond the one
-			 * associated with the active ref.
+			 * Since all potentially-encrypted inodes were already
+			 * evicted, every key remaining in the keyring should
+			 * have an empty inode list, and should only still be in
+			 * the keyring due to the single active ref associated
+			 * with ->mk_secret.  There should be no structural refs
+			 * beyond the one associated with the active ref.
 			 */
-			WARN_ON(refcount_read(&mk->mk_active_refs) != 1);
-			WARN_ON(refcount_read(&mk->mk_struct_refs) != 1);
-			WARN_ON(!is_master_key_secret_present(&mk->mk_secret));
+			WARN_ON_ONCE(refcount_read(&mk->mk_active_refs) != 1);
+			WARN_ON_ONCE(refcount_read(&mk->mk_struct_refs) != 1);
+			WARN_ON_ONCE(!is_master_key_secret_present(&mk->mk_secret));
 			wipe_master_key_secret(&mk->mk_secret);
-			fscrypt_put_master_key_activeref(mk);
+			fscrypt_put_master_key_activeref(sb, mk);
 		}
 	}
 	kfree_sensitive(keyring);
@@ -424,7 +422,6 @@ static int add_new_master_key(struct super_block *sb,
 	if (!mk)
 		return -ENOMEM;
 
-	mk->mk_sb = sb;
 	init_rwsem(&mk->mk_sem);
 	refcount_set(&mk->mk_struct_refs, 1);
 	mk->mk_spec = *mk_spec;
@@ -780,34 +777,26 @@ out:
 /**
  * fscrypt_add_test_dummy_key() - add the test dummy encryption key
  * @sb: the filesystem instance to add the key to
- * @dummy_policy: the encryption policy for test_dummy_encryption
+ * @key_spec: the key specifier of the test dummy encryption key
  *
- * If needed, add the key for the test_dummy_encryption mount option to the
- * filesystem.  To prevent misuse of this mount option, a per-boot random key is
- * used instead of a hardcoded one.  This makes it so that any encrypted files
- * created using this option won't be accessible after a reboot.
+ * Add the key for the test_dummy_encryption mount option to the filesystem.  To
+ * prevent misuse of this mount option, a per-boot random key is used instead of
+ * a hardcoded one.  This makes it so that any encrypted files created using
+ * this option won't be accessible after a reboot.
  *
  * Return: 0 on success, -errno on failure
  */
 int fscrypt_add_test_dummy_key(struct super_block *sb,
-			       const struct fscrypt_dummy_policy *dummy_policy)
+			       struct fscrypt_key_specifier *key_spec)
 {
-	const union fscrypt_policy *policy = dummy_policy->policy;
-	struct fscrypt_key_specifier key_spec;
 	struct fscrypt_master_key_secret secret;
 	int err;
 
-	if (!policy)
-		return 0;
-	err = fscrypt_policy_to_key_spec(policy, &key_spec);
-	if (err)
-		return err;
 	fscrypt_get_test_dummy_secret(&secret);
-	err = add_master_key(sb, &secret, &key_spec);
+	err = add_master_key(sb, &secret, key_spec);
 	wipe_master_key_secret(&secret);
 	return err;
 }
-EXPORT_SYMBOL_GPL(fscrypt_add_test_dummy_key);
 
 /*
  * Verify that the current user has added a master key with the given identifier
@@ -1068,7 +1057,7 @@ static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 	err = -ENOKEY;
 	if (is_master_key_secret_present(&mk->mk_secret)) {
 		wipe_master_key_secret(&mk->mk_secret);
-		fscrypt_put_master_key_activeref(mk);
+		fscrypt_put_master_key_activeref(sb, mk);
 		err = 0;
 	}
 	inodes_remain = refcount_read(&mk->mk_active_refs) > 0;

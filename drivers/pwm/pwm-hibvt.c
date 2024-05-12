@@ -128,8 +128,8 @@ static void hibvt_pwm_set_polarity(struct pwm_chip *chip,
 				PWM_POLARITY_MASK, (0x0 << PWM_POLARITY_SHIFT));
 }
 
-static void hibvt_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-				struct pwm_state *state)
+static int hibvt_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+			       struct pwm_state *state)
 {
 	struct hibvt_pwm_chip *hi_pwm_chip = to_hibvt_pwm_chip(chip);
 	void __iomem *base;
@@ -146,6 +146,9 @@ static void hibvt_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	value = readl(base + PWM_CTRL_ADDR(pwm->hwpwm));
 	state->enabled = (PWM_ENABLE_MASK & value);
+	state->polarity = (PWM_POLARITY_MASK & value) ? PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
+
+	return 0;
 }
 
 static int hibvt_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -242,7 +245,7 @@ static int hibvt_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hibvt_pwm_remove(struct platform_device *pdev)
+static void hibvt_pwm_remove(struct platform_device *pdev)
 {
 	struct hibvt_pwm_chip *pwm_chip;
 
@@ -255,8 +258,6 @@ static int hibvt_pwm_remove(struct platform_device *pdev)
 	reset_control_deassert(pwm_chip->rstc);
 
 	clk_disable_unprepare(pwm_chip->clk);
-
-	return 0;
 }
 
 static const struct of_device_id hibvt_pwm_of_match[] = {
@@ -278,7 +279,7 @@ static struct platform_driver hibvt_pwm_driver = {
 		.of_match_table = hibvt_pwm_of_match,
 	},
 	.probe = hibvt_pwm_probe,
-	.remove	= hibvt_pwm_remove,
+	.remove_new = hibvt_pwm_remove,
 };
 module_platform_driver(hibvt_pwm_driver);
 

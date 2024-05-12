@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2018 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2018-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -60,8 +60,10 @@ xrep_attempt(
 		sc->sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
 		sc->flags |= XREP_ALREADY_FIXED;
 		return -EAGAIN;
+	case -ECHRNG:
+		sc->flags |= XCHK_NEED_DRAIN;
+		return -EAGAIN;
 	case -EDEADLOCK:
-	case -EAGAIN:
 		/* Tell the caller to try again having grabbed all the locks. */
 		if (!(sc->flags & XCHK_TRY_HARDER)) {
 			sc->flags |= XCHK_TRY_HARDER;
@@ -70,10 +72,15 @@ xrep_attempt(
 		/*
 		 * We tried harder but still couldn't grab all the resources
 		 * we needed to fix it.  The corruption has not been fixed,
-		 * so report back to userspace.
+		 * so exit to userspace with the scan's output flags unchanged.
 		 */
-		return -EFSCORRUPTED;
+		return 0;
 	default:
+		/*
+		 * EAGAIN tells the caller to re-scrub, so we cannot return
+		 * that here.
+		 */
+		ASSERT(error != -EAGAIN);
 		return error;
 	}
 }
@@ -121,32 +128,40 @@ xrep_roll_ag_trans(
 {
 	int			error;
 
-	/* Keep the AG header buffers locked so we can keep going. */
-	if (sc->sa.agi_bp)
+	/*
+	 * Keep the AG header buffers locked while we roll the transaction.
+	 * Ensure that both AG buffers are dirty and held when we roll the
+	 * transaction so that they move forward in the log without losing the
+	 * bli (and hence the bli type) when the transaction commits.
+	 *
+	 * Normal code would never hold clean buffers across a roll, but repair
+	 * needs both buffers to maintain a total lock on the AG.
+	 */
+	if (sc->sa.agi_bp) {
+		xfs_ialloc_log_agi(sc->tp, sc->sa.agi_bp, XFS_AGI_MAGICNUM);
 		xfs_trans_bhold(sc->tp, sc->sa.agi_bp);
-	if (sc->sa.agf_bp)
+	}
+
+	if (sc->sa.agf_bp) {
+		xfs_alloc_log_agf(sc->tp, sc->sa.agf_bp, XFS_AGF_MAGICNUM);
 		xfs_trans_bhold(sc->tp, sc->sa.agf_bp);
-	if (sc->sa.agfl_bp)
-		xfs_trans_bhold(sc->tp, sc->sa.agfl_bp);
+	}
 
 	/*
-	 * Roll the transaction.  We still own the buffer and the buffer lock
-	 * regardless of whether or not the roll succeeds.  If the roll fails,
-	 * the buffers will be released during teardown on our way out of the
-	 * kernel.  If it succeeds, we join them to the new transaction and
-	 * move on.
+	 * Roll the transaction.  We still hold the AG header buffers locked
+	 * regardless of whether or not that succeeds.  On failure, the buffers
+	 * will be released during teardown on our way out of the kernel.  If
+	 * successful, join the buffers to the new transaction and move on.
 	 */
 	error = xfs_trans_roll(&sc->tp);
 	if (error)
 		return error;
 
-	/* Join AG headers to the new transaction. */
+	/* Join the AG headers to the new transaction. */
 	if (sc->sa.agi_bp)
 		xfs_trans_bjoin(sc->tp, sc->sa.agi_bp);
 	if (sc->sa.agf_bp)
 		xfs_trans_bjoin(sc->tp, sc->sa.agf_bp);
-	if (sc->sa.agfl_bp)
-		xfs_trans_bjoin(sc->tp, sc->sa.agfl_bp);
 
 	return 0;
 }
@@ -194,7 +209,7 @@ xrep_calc_ag_resblks(
 		return 0;
 
 	pag = xfs_perag_get(mp, sm->sm_agno);
-	if (pag->pagi_init) {
+	if (xfs_perag_initialised_agi(pag)) {
 		/* Use in-core icount if possible. */
 		icount = pag->pagi_count;
 	} else {
@@ -314,15 +329,14 @@ xrep_alloc_ag_block(
 
 	args.tp = sc->tp;
 	args.mp = sc->mp;
+	args.pag = sc->sa.pag;
 	args.oinfo = *oinfo;
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, sc->sa.pag->pag_agno, 0);
 	args.minlen = 1;
 	args.maxlen = 1;
 	args.prod = 1;
-	args.type = XFS_ALLOCTYPE_THIS_AG;
 	args.resv = resv;
 
-	error = xfs_alloc_vextent(&args);
+	error = xfs_alloc_vextent_this_ag(&args, sc->sa.pag->pag_agno);
 	if (error)
 		return error;
 	if (args.fsbno == NULLFSBLOCK)
@@ -431,6 +445,30 @@ xrep_init_btblock(
  * buffers associated with @bitmap.
  */
 
+static int
+xrep_invalidate_block(
+	uint64_t		fsbno,
+	void			*priv)
+{
+	struct xfs_scrub	*sc = priv;
+	struct xfs_buf		*bp;
+	int			error;
+
+	/* Skip AG headers and post-EOFS blocks */
+	if (!xfs_verify_fsbno(sc->mp, fsbno))
+		return 0;
+
+	error = xfs_buf_incore(sc->mp->m_ddev_targp,
+			XFS_FSB_TO_DADDR(sc->mp, fsbno),
+			XFS_FSB_TO_BB(sc->mp, 1), XBF_TRYLOCK, &bp);
+	if (error)
+		return 0;
+
+	xfs_trans_bjoin(sc->tp, bp);
+	xfs_trans_binval(sc->tp, bp);
+	return 0;
+}
+
 /*
  * Invalidate buffers for per-AG btree blocks we're dumping.  This function
  * is not intended for use with file data repairs; we have bunmapi for that.
@@ -440,11 +478,6 @@ xrep_invalidate_blocks(
 	struct xfs_scrub	*sc,
 	struct xbitmap		*bitmap)
 {
-	struct xbitmap_range	*bmr;
-	struct xbitmap_range	*n;
-	struct xfs_buf		*bp;
-	xfs_fsblock_t		fsbno;
-
 	/*
 	 * For each block in each extent, see if there's an incore buffer for
 	 * exactly that block; if so, invalidate it.  The buffer cache only
@@ -453,23 +486,7 @@ xrep_invalidate_blocks(
 	 * because we never own those; and if we can't TRYLOCK the buffer we
 	 * assume it's owned by someone else.
 	 */
-	for_each_xbitmap_block(fsbno, bmr, n, bitmap) {
-		int		error;
-
-		/* Skip AG headers and post-EOFS blocks */
-		if (!xfs_verify_fsbno(sc->mp, fsbno))
-			continue;
-		error = xfs_buf_incore(sc->mp->m_ddev_targp,
-				XFS_FSB_TO_DADDR(sc->mp, fsbno),
-				XFS_FSB_TO_BB(sc->mp, 1), XBF_TRYLOCK, &bp);
-		if (error)
-			continue;
-
-		xfs_trans_bjoin(sc->tp, bp);
-		xfs_trans_binval(sc->tp, bp);
-	}
-
-	return 0;
+	return xbitmap_walk_bits(bitmap, xrep_invalidate_block, sc);
 }
 
 /* Ensure the freelist is the correct size. */
@@ -490,6 +507,15 @@ xrep_fix_freelist(
 			can_shrink ? 0 : XFS_ALLOC_FLAG_NOSHRINK);
 }
 
+/* Information about reaping extents after a repair. */
+struct xrep_reap_state {
+	struct xfs_scrub		*sc;
+
+	/* Reverse mapping owner and metadata reservation type. */
+	const struct xfs_owner_info	*oinfo;
+	enum xfs_ag_resv_type		resv;
+};
+
 /*
  * Put a block back on the AGFL.
  */
@@ -498,6 +524,7 @@ xrep_put_freelist(
 	struct xfs_scrub	*sc,
 	xfs_agblock_t		agbno)
 {
+	struct xfs_buf		*agfl_bp;
 	int			error;
 
 	/* Make sure there's space on the freelist. */
@@ -516,8 +543,12 @@ xrep_put_freelist(
 		return error;
 
 	/* Put the block on the AGFL. */
+	error = xfs_alloc_read_agfl(sc->sa.pag, sc->tp, &agfl_bp);
+	if (error)
+		return error;
+
 	error = xfs_alloc_put_freelist(sc->sa.pag, sc->tp, sc->sa.agf_bp,
-			sc->sa.agfl_bp, agbno, 0);
+			agfl_bp, agbno, 0);
 	if (error)
 		return error;
 	xfs_extent_busy_insert(sc->tp, sc->sa.pag, agbno, 1,
@@ -529,16 +560,22 @@ xrep_put_freelist(
 /* Dispose of a single block. */
 STATIC int
 xrep_reap_block(
-	struct xfs_scrub		*sc,
-	xfs_fsblock_t			fsbno,
-	const struct xfs_owner_info	*oinfo,
-	enum xfs_ag_resv_type		resv)
+	uint64_t			fsbno,
+	void				*priv)
 {
+	struct xrep_reap_state		*rs = priv;
+	struct xfs_scrub		*sc = rs->sc;
 	struct xfs_btree_cur		*cur;
 	struct xfs_buf			*agf_bp = NULL;
 	xfs_agblock_t			agbno;
 	bool				has_other_rmap;
 	int				error;
+
+	ASSERT(sc->ip != NULL ||
+	       XFS_FSB_TO_AGNO(sc->mp, fsbno) == sc->sa.pag->pag_agno);
+	trace_xrep_dispose_btree_extent(sc->mp,
+			XFS_FSB_TO_AGNO(sc->mp, fsbno),
+			XFS_FSB_TO_AGBNO(sc->mp, fsbno), 1);
 
 	agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
 	ASSERT(XFS_FSB_TO_AGNO(sc->mp, fsbno) == sc->sa.pag->pag_agno);
@@ -558,7 +595,8 @@ xrep_reap_block(
 	cur = xfs_rmapbt_init_cursor(sc->mp, sc->tp, agf_bp, sc->sa.pag);
 
 	/* Can we find any other rmappings? */
-	error = xfs_rmap_has_other_keys(cur, agbno, 1, oinfo, &has_other_rmap);
+	error = xfs_rmap_has_other_keys(cur, agbno, 1, rs->oinfo,
+			&has_other_rmap);
 	xfs_btree_del_cursor(cur, error);
 	if (error)
 		goto out_free;
@@ -578,11 +616,12 @@ xrep_reap_block(
 	 */
 	if (has_other_rmap)
 		error = xfs_rmap_free(sc->tp, agf_bp, sc->sa.pag, agbno,
-					1, oinfo);
-	else if (resv == XFS_AG_RESV_AGFL)
+					1, rs->oinfo);
+	else if (rs->resv == XFS_AG_RESV_AGFL)
 		error = xrep_put_freelist(sc, agbno);
 	else
-		error = xfs_free_extent(sc->tp, fsbno, 1, oinfo, resv);
+		error = xfs_free_extent(sc->tp, sc->sa.pag, agbno, 1, rs->oinfo,
+				rs->resv);
 	if (agf_bp != sc->sa.agf_bp)
 		xfs_trans_brelse(sc->tp, agf_bp);
 	if (error)
@@ -606,26 +645,15 @@ xrep_reap_extents(
 	const struct xfs_owner_info	*oinfo,
 	enum xfs_ag_resv_type		type)
 {
-	struct xbitmap_range		*bmr;
-	struct xbitmap_range		*n;
-	xfs_fsblock_t			fsbno;
-	int				error = 0;
+	struct xrep_reap_state		rs = {
+		.sc			= sc,
+		.oinfo			= oinfo,
+		.resv			= type,
+	};
 
 	ASSERT(xfs_has_rmapbt(sc->mp));
 
-	for_each_xbitmap_block(fsbno, bmr, n, bitmap) {
-		ASSERT(sc->ip != NULL ||
-		       XFS_FSB_TO_AGNO(sc->mp, fsbno) == sc->sa.pag->pag_agno);
-		trace_xrep_dispose_btree_extent(sc->mp,
-				XFS_FSB_TO_AGNO(sc->mp, fsbno),
-				XFS_FSB_TO_AGBNO(sc->mp, fsbno), 1);
-
-		error = xrep_reap_block(sc, fsbno, oinfo, type);
-		if (error)
-			break;
-	}
-
-	return error;
+	return xbitmap_walk_bits(bitmap, xrep_reap_block, &rs);
 }
 
 /*

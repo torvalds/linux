@@ -210,12 +210,6 @@
 					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					contribution = <4096>;
 				};
-
-				map1 {
-					trip = <&target>;
-					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-					contribution = <4096>;
-				};
 			};
 		};
 
@@ -223,6 +217,33 @@
 			polling-delay-passive = <100>; /* milliseconds */
 			polling-delay = <1000>; /* milliseconds */
 			thermal-sensors = <&tsadc 1>;
+
+			trips {
+				gpu_threshold: gpu-threshold {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				gpu_target: gpu-target {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				gpu_crit: gpu-crit {
+					temperature = <115000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&gpu_target>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 	};
 
@@ -453,7 +474,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				port@0 {
+				lvds_in: port@0 {
 					reg = <0>;
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -467,6 +488,10 @@
 						reg = <1>;
 						remote-endpoint = <&vopl_out_lvds>;
 					};
+				};
+
+				lvds_out: port@1 {
+					reg = <1>;
 				};
 			};
 		};
@@ -1113,7 +1138,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			port@0 {
+			dsi_in: port@0 {
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1127,6 +1152,10 @@
 					reg = <1>;
 					remote-endpoint = <&vopl_out_dsi>;
 				};
+			};
+
+			dsi_out: port@1 {
+				reg = <1>;
 			};
 		};
 	};

@@ -25,10 +25,15 @@
 #define MSM_DSI_6G_VER_MINOR_V2_4_0	0x20040000
 #define MSM_DSI_6G_VER_MINOR_V2_4_1	0x20040001
 #define MSM_DSI_6G_VER_MINOR_V2_5_0	0x20050000
+#define MSM_DSI_6G_VER_MINOR_V2_6_0	0x20060000
+#define MSM_DSI_6G_VER_MINOR_V2_7_0	0x20070000
 
 #define MSM_DSI_V2_VER_MINOR_8064	0x0
 
 #define DSI_6G_REG_SHIFT	4
+
+/* Maximum number of configurations matched against the same hw revision */
+#define VARIANTS_MAX			2
 
 struct msm_dsi_config {
 	u32 io_offset;
@@ -36,8 +41,7 @@ struct msm_dsi_config {
 	int num_regulators;
 	const char * const *bus_clk_names;
 	const int num_bus_clks;
-	const resource_size_t io_start[DSI_MAX];
-	const int num_dsi;
+	const resource_size_t io_start[VARIANTS_MAX][DSI_MAX];
 };
 
 struct msm_dsi_host_cfg_ops {
@@ -60,9 +64,6 @@ struct msm_dsi_cfg_handler {
 };
 
 const struct msm_dsi_cfg_handler *msm_dsi_cfg_get(u32 major, u32 minor);
-
-/* Non autodetect configs */
-extern const struct msm_dsi_cfg_handler qcm2290_dsi_cfg_handler;
 
 #endif /* __MSM_DSI_CFG_H__ */
 

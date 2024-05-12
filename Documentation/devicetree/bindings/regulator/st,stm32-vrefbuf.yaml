@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/regulator/st,stm32-vrefbuf.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 Voltage reference buffer bindings
+title: STMicroelectronics STM32 Voltage reference buffer
 
 description: |
   Some STM32 devices embed a voltage reference buffer which can be used as
@@ -15,7 +15,7 @@ maintainers:
   - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
 
 properties:
   compatible:

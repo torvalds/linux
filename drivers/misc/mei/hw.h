@@ -7,7 +7,7 @@
 #ifndef _MEI_HW_TYPES_H_
 #define _MEI_HW_TYPES_H_
 
-#include <linux/uuid.h>
+#include <linux/mei.h>
 
 /*
  * Timeouts in Seconds
@@ -91,6 +91,12 @@
  */
 #define HBM_MINOR_VERSION_VT               2
 #define HBM_MAJOR_VERSION_VT               2
+
+/*
+ * MEI version with GSC support
+ */
+#define HBM_MINOR_VERSION_GSC              2
+#define HBM_MAJOR_VERSION_GSC              2
 
 /*
  * MEI version with capabilities message support
@@ -229,18 +235,19 @@ enum mei_cl_disconnect_status {
  *
  * @MEI_EXT_HDR_NONE: sentinel
  * @MEI_EXT_HDR_VTAG: vtag header
+ * @MEI_EXT_HDR_GSC: gsc header
  */
 enum mei_ext_hdr_type {
 	MEI_EXT_HDR_NONE = 0,
 	MEI_EXT_HDR_VTAG = 1,
+	MEI_EXT_HDR_GSC = 2,
 };
 
 /**
  * struct mei_ext_hdr - extend header descriptor (TLV)
  * @type: enum mei_ext_hdr_type
  * @length: length excluding descriptor
- * @ext_payload: payload of the specific extended header
- * @hdr: place holder for actual header
+ * @data: the extended header payload
  */
 struct mei_ext_hdr {
 	u8 type;
@@ -279,12 +286,11 @@ struct mei_ext_hdr_vtag {
  * Extended header iterator functions
  */
 /**
- * mei_ext_hdr - extended header iterator begin
+ * mei_ext_begin - extended header iterator begin
  *
  * @meta: meta header of the extended header list
  *
- * Return:
- *     The first extended header
+ * Return: The first extended header
  */
 static inline struct mei_ext_hdr *mei_ext_begin(struct mei_ext_meta_hdr *meta)
 {
@@ -305,6 +311,60 @@ static inline bool mei_ext_last(struct mei_ext_meta_hdr *meta,
 	return (u8 *)ext >= (u8 *)meta + sizeof(*meta) + (meta->size * 4);
 }
 
+struct mei_gsc_sgl {
+	u32 low;
+	u32 high;
+	u32 length;
+} __packed;
+
+#define GSC_HECI_MSG_KERNEL 0
+#define GSC_HECI_MSG_USER   1
+
+#define GSC_ADDRESS_TYPE_GTT   0
+#define GSC_ADDRESS_TYPE_PPGTT 1
+#define GSC_ADDRESS_TYPE_PHYSICAL_CONTINUOUS 2 /* max of 64K */
+#define GSC_ADDRESS_TYPE_PHYSICAL_SGL 3
+
+/**
+ * struct mei_ext_hdr_gsc_h2f - extended header: gsc host to firmware interface
+ *
+ * @hdr: extended header
+ * @client_id: GSC_HECI_MSG_KERNEL or GSC_HECI_MSG_USER
+ * @addr_type: GSC_ADDRESS_TYPE_{GTT, PPGTT, PHYSICAL_CONTINUOUS, PHYSICAL_SGL}
+ * @fence_id: synchronization marker
+ * @input_address_count: number of input sgl buffers
+ * @output_address_count: number of output sgl buffers
+ * @reserved: reserved
+ * @sgl: sg list
+ */
+struct mei_ext_hdr_gsc_h2f {
+	struct mei_ext_hdr hdr;
+	u8                 client_id;
+	u8                 addr_type;
+	u32                fence_id;
+	u8                 input_address_count;
+	u8                 output_address_count;
+	u8                 reserved[2];
+	struct mei_gsc_sgl sgl[];
+} __packed;
+
+/**
+ * struct mei_ext_hdr_gsc_f2h - gsc firmware to host interface
+ *
+ * @hdr: extended header
+ * @client_id: GSC_HECI_MSG_KERNEL or GSC_HECI_MSG_USER
+ * @reserved: reserved
+ * @fence_id: synchronization marker
+ * @written: number of bytes written to firmware
+ */
+struct mei_ext_hdr_gsc_f2h {
+	struct mei_ext_hdr hdr;
+	u8                 client_id;
+	u8                 reserved;
+	u32                fence_id;
+	u32                written;
+} __packed;
+
 /**
  * mei_ext_next - following extended header on the TLV list
  *
@@ -318,6 +378,21 @@ static inline bool mei_ext_last(struct mei_ext_meta_hdr *meta,
 static inline struct mei_ext_hdr *mei_ext_next(struct mei_ext_hdr *ext)
 {
 	return (struct mei_ext_hdr *)((u8 *)ext + (ext->length * 4));
+}
+
+/**
+ * mei_ext_hdr_len - get ext header length in bytes
+ *
+ * @ext: extend header
+ *
+ * Return: extend header length in bytes
+ */
+static inline u32 mei_ext_hdr_len(const struct mei_ext_hdr *ext)
+{
+	if (!ext)
+		return 0;
+
+	return ext->length * sizeof(u32);
 }
 
 /**
@@ -682,6 +757,10 @@ struct hbm_dma_ring_ctrl {
 
 /* virtual tag supported */
 #define HBM_CAP_VT BIT(0)
+
+/* gsc extended header support */
+#define HBM_CAP_GSC BIT(1)
+
 /* client dma supported */
 #define HBM_CAP_CD BIT(2)
 

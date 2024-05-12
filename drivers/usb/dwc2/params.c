@@ -113,6 +113,10 @@ static void dwc2_set_rk_params(struct dwc2_hsotg *hsotg)
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 <<
 		GAHBCFG_HBSTLEN_SHIFT;
 	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+	p->lpm = false;
+	p->lpm_clock_gating = false;
+	p->besl = false;
+	p->hird_threshold_en = false;
 }
 
 static void dwc2_set_ltq_params(struct dwc2_hsotg *hsotg)
@@ -504,8 +508,7 @@ static void dwc2_get_device_properties(struct dwc2_hsotg *hsotg)
 		of_usb_update_otg_caps(hsotg->dev->of_node, &p->otg_caps);
 	}
 
-	if (of_find_property(hsotg->dev->of_node, "disable-over-current", NULL))
-		p->oc_disable = true;
+	p->oc_disable = of_property_read_bool(hsotg->dev->of_node, "disable-over-current");
 }
 
 static void dwc2_check_param_otg_cap(struct dwc2_hsotg *hsotg)

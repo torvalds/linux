@@ -202,11 +202,9 @@ static int simple_bridge_probe(struct platform_device *pdev)
 
 	sbridge->enable = devm_gpiod_get_optional(&pdev->dev, "enable",
 						  GPIOD_OUT_LOW);
-	if (IS_ERR(sbridge->enable)) {
-		if (PTR_ERR(sbridge->enable) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Unable to retrieve enable GPIO\n");
-		return PTR_ERR(sbridge->enable);
-	}
+	if (IS_ERR(sbridge->enable))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sbridge->enable),
+				     "Unable to retrieve enable GPIO\n");
 
 	/* Register the bridge. */
 	sbridge->bridge.funcs = &simple_bridge_bridge_funcs;
@@ -218,13 +216,11 @@ static int simple_bridge_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int simple_bridge_remove(struct platform_device *pdev)
+static void simple_bridge_remove(struct platform_device *pdev)
 {
 	struct simple_bridge *sbridge = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&sbridge->bridge);
-
-	return 0;
 }
 
 /*
@@ -301,7 +297,7 @@ MODULE_DEVICE_TABLE(of, simple_bridge_match);
 
 static struct platform_driver simple_bridge_driver = {
 	.probe	= simple_bridge_probe,
-	.remove	= simple_bridge_remove,
+	.remove_new = simple_bridge_remove,
 	.driver		= {
 		.name		= "simple-bridge",
 		.of_match_table	= simple_bridge_match,

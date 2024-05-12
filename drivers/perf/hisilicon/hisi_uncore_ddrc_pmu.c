@@ -499,13 +499,6 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
-				       &ddrc_pmu->node);
-	if (ret) {
-		dev_err(&pdev->dev, "Error %d registering hotplug;\n", ret);
-		return ret;
-	}
-
 	if (ddrc_pmu->identifier >= HISI_PMU_V2)
 		name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 				      "hisi_sccl%u_ddrc%u_%u",
@@ -516,7 +509,17 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 				      "hisi_sccl%u_ddrc%u", ddrc_pmu->sccl_id,
 				      ddrc_pmu->index_id);
 
-	hisi_pmu_init(&ddrc_pmu->pmu, name, ddrc_pmu->pmu_events.attr_groups, THIS_MODULE);
+	if (!name)
+		return -ENOMEM;
+
+	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE,
+				       &ddrc_pmu->node);
+	if (ret) {
+		dev_err(&pdev->dev, "Error %d registering hotplug;\n", ret);
+		return ret;
+	}
+
+	hisi_pmu_init(ddrc_pmu, THIS_MODULE);
 
 	ret = perf_pmu_register(&ddrc_pmu->pmu, name, -1);
 	if (ret) {

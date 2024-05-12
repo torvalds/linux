@@ -233,11 +233,6 @@ next_srgn:
 	rgn = hpb->rgn_tbl + rgn_idx;
 	srgn = rgn->srgn_tbl + srgn_idx;
 
-	if (likely(!srgn->is_last))
-		bitmap_len = hpb->entries_per_srgn;
-	else
-		bitmap_len = hpb->last_srgn_entries;
-
 	if (!ufshpb_is_valid_srgn(rgn, srgn))
 		return true;
 
@@ -252,6 +247,11 @@ next_srgn:
 			srgn->rgn_idx, srgn->srgn_idx);
 		return true;
 	}
+
+	if (likely(!srgn->is_last))
+		bitmap_len = hpb->entries_per_srgn;
+	else
+		bitmap_len = hpb->last_srgn_entries;
 
 	if ((srgn_offset + cnt) > bitmap_len)
 		bit_len = bitmap_len - srgn_offset;
@@ -2289,7 +2289,7 @@ static bool ufshpb_check_hpb_reset_query(struct ufs_hba *hba)
 	/* wait for the device to complete HPB reset query */
 	for (try = 0; try < HPB_RESET_REQ_RETRIES; try++) {
 		dev_dbg(hba->dev,
-			"%s start flag reset polling %d times\n",
+			"%s: start flag reset polling %d times\n",
 			__func__, try);
 
 		/* Poll fHpbReset flag to be cleared */
@@ -2298,7 +2298,7 @@ static bool ufshpb_check_hpb_reset_query(struct ufs_hba *hba)
 
 		if (err) {
 			dev_err(hba->dev,
-				"%s reading fHpbReset flag failed with error %d\n",
+				"%s: reading fHpbReset flag failed with error %d\n",
 				__func__, err);
 			return flag_res;
 		}
@@ -2310,7 +2310,7 @@ static bool ufshpb_check_hpb_reset_query(struct ufs_hba *hba)
 	}
 	if (flag_res) {
 		dev_err(hba->dev,
-			"%s fHpbReset was not cleared by the device\n",
+			"%s: fHpbReset was not cleared by the device\n",
 			__func__);
 	}
 out:
@@ -2382,11 +2382,9 @@ static int ufshpb_get_lu_info(struct ufs_hba *hba, int lun,
 {
 	u16 max_active_rgns;
 	u8 lu_enable;
-	int size;
+	int size = QUERY_DESC_MAX_SIZE;
 	int ret;
 	char desc_buf[QUERY_DESC_MAX_SIZE];
-
-	ufshcd_map_desc_id_to_length(hba, QUERY_DESC_IDN_UNIT, &size);
 
 	ufshcd_rpm_get_sync(hba);
 	ret = ufshcd_query_descriptor_retry(hba, UPIU_QUERY_OPCODE_READ_DESC,

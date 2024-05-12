@@ -37,8 +37,8 @@ static int create_perf_events(void)
 
 	/* create perf event */
 	attr.size = sizeof(attr);
-	attr.type = PERF_TYPE_RAW;
-	attr.config = 0x1b00;
+	attr.type = PERF_TYPE_HARDWARE;
+	attr.config = PERF_COUNT_HW_CPU_CYCLES;
 	attr.sample_type = PERF_SAMPLE_BRANCH_STACK;
 	attr.branch_sample_type = PERF_SAMPLE_BRANCH_KERNEL |
 		PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_ANY;

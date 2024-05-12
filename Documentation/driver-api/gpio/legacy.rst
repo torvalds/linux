@@ -238,8 +238,6 @@ setup or driver probe/teardown code, so this is an easy constraint.)::
         ## 	gpio_free_array()
 
                 gpio_free()
-                gpio_set_debounce()
-
 
 
 Claiming and Releasing GPIOs
@@ -387,9 +385,6 @@ map between them using calls like::
 	/* map GPIO numbers to IRQ numbers */
 	int gpio_to_irq(unsigned gpio);
 
-	/* map IRQ numbers to GPIO numbers (avoid using this) */
-	int irq_to_gpio(unsigned irq);
-
 Those return either the corresponding number in the other namespace, or
 else a negative errno code if the mapping can't be done.  (For example,
 some GPIOs can't be used as IRQs.)  It is an unchecked error to use a GPIO
@@ -404,11 +399,6 @@ or free_irq().  They will often be stored into IRQ resources for platform
 devices, by the board-specific initialization code.  Note that IRQ trigger
 options are part of the IRQ interface, e.g. IRQF_TRIGGER_FALLING, as are
 system wakeup capabilities.
-
-Non-error values returned from irq_to_gpio() would most commonly be used
-with gpio_get_value(), for example to initialize or update driver state
-when the IRQ is edge-triggered.  Note that some platforms don't support
-this reverse mapping, so you should avoid using it.
 
 
 Emulating Open Drain Signals
@@ -557,11 +547,6 @@ Platform Support
 ----------------
 To force-enable this framework, a platform's Kconfig will "select" GPIOLIB,
 else it is up to the user to configure support for GPIO.
-
-It may also provide a custom value for ARCH_NR_GPIOS, so that it better
-reflects the number of GPIOs in actual use on that platform, without
-wasting static table space.  (It should count both built-in/SoC GPIOs and
-also ones on GPIO expanders.
 
 If neither of these options are selected, the platform does not support
 GPIOs through GPIO-lib and the code cannot be enabled by the user.
@@ -727,36 +712,6 @@ a daughtercard might be different depending on the base board being used,
 or other cards in the stack.  In such cases, you may need to use the
 gpiochip nodes (possibly in conjunction with schematics) to determine
 the correct GPIO number to use for a given signal.
-
-
-Exporting from Kernel code
---------------------------
-Kernel code can explicitly manage exports of GPIOs which have already been
-requested using gpio_request()::
-
-	/* export the GPIO to userspace */
-	int gpio_export(unsigned gpio, bool direction_may_change);
-
-	/* reverse gpio_export() */
-	void gpio_unexport();
-
-	/* create a sysfs link to an exported GPIO node */
-	int gpio_export_link(struct device *dev, const char *name,
-		unsigned gpio)
-
-After a kernel driver requests a GPIO, it may only be made available in
-the sysfs interface by gpio_export().  The driver can control whether the
-signal direction may change.  This helps drivers prevent userspace code
-from accidentally clobbering important system state.
-
-This explicit exporting can help with debugging (by making some kinds
-of experiments easier), or can provide an always-there interface that's
-suitable for documenting as part of a board support package.
-
-After the GPIO has been exported, gpio_export_link() allows creating
-symlinks from elsewhere in sysfs to the GPIO sysfs node.  Drivers can
-use this to provide the interface under their own device in sysfs with
-a descriptive name.
 
 
 API Reference

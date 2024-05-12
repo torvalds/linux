@@ -19,12 +19,20 @@ description: |
   - MacBook Air (M1, 2020)
   - iMac (24-inch, M1, 2021)
 
-  And devices based on the "M1 Pro" and "M1 Max" SoCs:
+  Devices based on the "M2" SoC:
+
+  - MacBook Air (M2, 2022)
+  - MacBook Pro (13-inch, M2, 2022)
+  - Mac mini (M2, 2023)
+
+  And devices based on the "M1 Pro", "M1 Max" and "M1 Ultra" SoCs:
 
   - MacBook Pro (14-inch, M1 Pro, 2021)
   - MacBook Pro (14-inch, M1 Max, 2021)
   - MacBook Pro (16-inch, M1 Pro, 2021)
   - MacBook Pro (16-inch, M1 Max, 2021)
+  - Mac Studio (M1 Max, 2022)
+  - Mac Studio (M1 Ultra, 2022)
 
   The compatible property should follow this format:
 
@@ -67,6 +75,16 @@ properties:
               - apple,j457 # iMac (24-inch, 2x USB-C, M1, 2021)
           - const: apple,t8103
           - const: apple,arm-platform
+
+      - description: Apple M2 SoC based platforms
+        items:
+          - enum:
+              - apple,j413 # MacBook Air (M2, 2022)
+              - apple,j473 # Mac mini (M2, 2023)
+              - apple,j493 # MacBook Pro (13-inch, M2, 2022)
+          - const: apple,t8112
+          - const: apple,arm-platform
+
       - description: Apple M1 Pro SoC based platforms
         items:
           - enum:
@@ -74,12 +92,21 @@ properties:
               - apple,j316s # MacBook Pro (16-inch, M1 Pro, 2021)
           - const: apple,t6000
           - const: apple,arm-platform
+
       - description: Apple M1 Max SoC based platforms
         items:
           - enum:
               - apple,j314c # MacBook Pro (14-inch, M1 Max, 2021)
               - apple,j316c # MacBook Pro (16-inch, M1 Max, 2021)
+              - apple,j375c # Mac Studio (M1 Max, 2022)
           - const: apple,t6001
+          - const: apple,arm-platform
+
+      - description: Apple M1 Ultra SoC based platforms
+        items:
+          - enum:
+              - apple,j375d # Mac Studio (M1 Ultra, 2022)
+          - const: apple,t6002
           - const: apple,arm-platform
 
 additionalProperties: true

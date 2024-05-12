@@ -45,7 +45,7 @@ properties:
       when the keyboard has a custom design for the top row keys.
 
 dependencies:
-  function-row-phsymap: [ 'linux,keymap' ]
+  function-row-physmap: [ 'linux,keymap' ]
   google,needs-ghost-filter: [ 'linux,keymap' ]
 
 required:
@@ -57,7 +57,7 @@ if:
       contains:
         const: google,cros-ec-keyb
 then:
-  $ref: "/schemas/input/matrix-keymap.yaml#"
+  $ref: /schemas/input/matrix-keymap.yaml#
   required:
     - keypad,num-rows
     - keypad,num-columns

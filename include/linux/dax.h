@@ -205,6 +205,8 @@ static inline void dax_unlock_mapping_entry(struct address_space *mapping,
 }
 #endif
 
+int dax_file_unshare(struct inode *inode, loff_t pos, loff_t len,
+		const struct iomap_ops *ops);
 int dax_zero_range(struct inode *inode, loff_t pos, loff_t len, bool *did_zero,
 		const struct iomap_ops *ops);
 int dax_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
@@ -260,11 +262,14 @@ static inline bool dax_mapping(struct address_space *mapping)
 }
 
 #ifdef CONFIG_DEV_DAX_HMEM_DEVICES
-void hmem_register_device(int target_nid, struct resource *r);
+void hmem_register_resource(int target_nid, struct resource *r);
 #else
-static inline void hmem_register_device(int target_nid, struct resource *r)
+static inline void hmem_register_resource(int target_nid, struct resource *r)
 {
 }
 #endif
 
+typedef int (*walk_hmem_fn)(struct device *dev, int target_nid,
+			    const struct resource *res);
+int walk_hmem_resources(struct device *dev, walk_hmem_fn fn);
 #endif

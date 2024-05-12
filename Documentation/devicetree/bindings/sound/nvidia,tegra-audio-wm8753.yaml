@@ -31,8 +31,8 @@ properties:
     items:
       enum:
         # Board Connectors
-        - "Headphone Jack"
-        - "Mic Jack"
+        - Headphone Jack
+        - Mic Jack
 
         # CODEC Pins
         - LOUT1
@@ -53,7 +53,7 @@ properties:
         - MIC1
         - MIC2N
         - MIC2
-        - "Mic Bias"
+        - Mic Bias
 
 required:
   - nvidia,i2s-controller

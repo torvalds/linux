@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/bridge/ps8640.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MIPI DSI to eDP Video Format Converter Device Tree Bindings
+title: MIPI DSI to eDP Video Format Converter
 
 maintainers:
   - Nicolas Boichat <drinkcat@chromium.org>
@@ -73,7 +73,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 

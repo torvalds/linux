@@ -23,7 +23,7 @@ static u32 thermal_mmio_readb(void __iomem *mmio_base)
 static int thermal_mmio_get_temperature(struct thermal_zone_device *tz, int *temp)
 {
 	int t;
-	struct thermal_mmio *sensor = tz->devdata;
+	struct thermal_mmio *sensor = thermal_zone_device_priv(tz);
 
 	t = sensor->read_mmio(sensor->mmio_base) & sensor->mask;
 	t *= sensor->factor;
@@ -39,7 +39,6 @@ static const struct thermal_zone_device_ops thermal_mmio_ops = {
 
 static int thermal_mmio_probe(struct platform_device *pdev)
 {
-	struct resource *resource;
 	struct thermal_mmio *sensor;
 	int (*sensor_init_func)(struct platform_device *pdev,
 				struct thermal_mmio *sensor);
@@ -51,8 +50,7 @@ static int thermal_mmio_probe(struct platform_device *pdev)
 	if (!sensor)
 		return -ENOMEM;
 
-	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sensor->mmio_base = devm_ioremap_resource(&pdev->dev, resource);
+	sensor->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(sensor->mmio_base))
 		return PTR_ERR(sensor->mmio_base);
 

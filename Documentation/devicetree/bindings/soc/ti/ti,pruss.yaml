@@ -130,6 +130,7 @@ patternProperties:
       PRU-ICSS configuration space. CFG sub-module represented as a SysCon.
 
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -313,7 +314,7 @@ additionalProperties: false
 # Due to inability of correctly verifying sub-nodes with an @address through
 # the "required" list, the required sub-nodes below are commented out for now.
 
-#required:
+# required:
 # - memories
 # - interrupt-controller
 # - pru

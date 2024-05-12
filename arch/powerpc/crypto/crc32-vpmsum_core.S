@@ -113,9 +113,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 #endif
 
 #ifdef BYTESWAP_DATA
-	addis	r3,r2,.byteswap_constant@toc@ha
-	addi	r3,r3,.byteswap_constant@toc@l
-
+	LOAD_REG_ADDR(r3, .byteswap_constant)
 	lvx	byteswap,0,r3
 	addi	r3,r3,16
 #endif
@@ -150,8 +148,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	addi	r7,r7,-1
 	mtctr	r7
 
-	addis	r3,r2,.constants@toc@ha
-	addi	r3,r3,.constants@toc@l
+	LOAD_REG_ADDR(r3, .constants)
 
 	/* Find the start of our constants */
 	add	r3,r3,r8
@@ -506,8 +503,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 
 .Lbarrett_reduction:
 	/* Barrett constants */
-	addis	r3,r2,.barrett_constants@toc@ha
-	addi	r3,r3,.barrett_constants@toc@l
+	LOAD_REG_ADDR(r3, .barrett_constants)
 
 	lvx	const1,0,r3
 	lvx	const2,off16,r3
@@ -610,8 +606,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	cmpdi	r5,0
 	beq	.Lzero
 
-	addis	r3,r2,.short_constants@toc@ha
-	addi	r3,r3,.short_constants@toc@l
+	LOAD_REG_ADDR(r3, .short_constants)
 
 	/* Calculate where in the constant table we need to start */
 	subfic	r6,r5,256

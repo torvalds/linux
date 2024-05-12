@@ -291,7 +291,6 @@ static void __put_super(struct super_block *s)
 		WARN_ON(s->s_inode_lru.node);
 		WARN_ON(!list_empty(&s->s_mounts));
 		security_sb_free(s);
-		fscrypt_destroy_keyring(s);
 		put_user_ns(s->s_user_ns);
 		kfree(s->s_subtype);
 		call_rcu(&s->rcu, destroy_super_rcu);
@@ -476,12 +475,21 @@ void generic_shutdown_super(struct super_block *sb)
 
 		cgroup_writeback_umount();
 
-		/* evict all inodes with zero refcount */
+		/* Evict all inodes with zero refcount. */
 		evict_inodes(sb);
-		/* only nonzero refcount inodes can have marks */
+
+		/*
+		 * Clean up and evict any inodes that still have references due
+		 * to fsnotify or the security policy.
+		 */
 		fsnotify_sb_delete(sb);
-		fscrypt_destroy_keyring(sb);
 		security_sb_delete(sb);
+
+		/*
+		 * Now that all potentially-encrypted inodes have been evicted,
+		 * the fscrypt keyring can be destroyed.
+		 */
+		fscrypt_destroy_keyring(sb);
 
 		if (sb->s_dio_done_wq) {
 			destroy_workqueue(sb->s_dio_done_wq);
@@ -491,10 +499,23 @@ void generic_shutdown_super(struct super_block *sb)
 		if (sop->put_super)
 			sop->put_super(sb);
 
-		if (!list_empty(&sb->s_inodes)) {
-			printk("VFS: Busy inodes after unmount of %s. "
-			   "Self-destruct in 5 seconds.  Have a nice day...\n",
-			   sb->s_id);
+		if (CHECK_DATA_CORRUPTION(!list_empty(&sb->s_inodes),
+				"VFS: Busy inodes after unmount of %s (%s)",
+				sb->s_id, sb->s_type->name)) {
+			/*
+			 * Adding a proper bailout path here would be hard, but
+			 * we can at least make it more likely that a later
+			 * iput_final() or such crashes cleanly.
+			 */
+			struct inode *inode;
+
+			spin_lock(&sb->s_inode_list_lock);
+			list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
+				inode->i_op = VFS_PTR_POISON;
+				inode->i_sb = VFS_PTR_POISON;
+				inode->i_mapping = VFS_PTR_POISON;
+			}
+			spin_unlock(&sb->s_inode_list_lock);
 		}
 	}
 	spin_lock(&sb_lock);
@@ -1112,54 +1133,13 @@ static int test_single_super(struct super_block *s, struct fs_context *fc)
 	return 1;
 }
 
-/**
- * vfs_get_super - Get a superblock with a search key set in s_fs_info.
- * @fc: The filesystem context holding the parameters
- * @keying: How to distinguish superblocks
- * @fill_super: Helper to initialise a new superblock
- *
- * Search for a superblock and create a new one if not found.  The search
- * criterion is controlled by @keying.  If the search fails, a new superblock
- * is created and @fill_super() is called to initialise it.
- *
- * @keying can take one of a number of values:
- *
- * (1) vfs_get_single_super - Only one superblock of this type may exist on the
- *     system.  This is typically used for special system filesystems.
- *
- * (2) vfs_get_keyed_super - Multiple superblocks may exist, but they must have
- *     distinct keys (where the key is in s_fs_info).  Searching for the same
- *     key again will turn up the superblock for that key.
- *
- * (3) vfs_get_independent_super - Multiple superblocks may exist and are
- *     unkeyed.  Each call will get a new superblock.
- *
- * A permissions check is made by sget_fc() unless we're getting a superblock
- * for a kernel-internal mount or a submount.
- */
-int vfs_get_super(struct fs_context *fc,
-		  enum vfs_get_super_keying keying,
-		  int (*fill_super)(struct super_block *sb,
-				    struct fs_context *fc))
+static int vfs_get_super(struct fs_context *fc, bool reconf,
+		int (*test)(struct super_block *, struct fs_context *),
+		int (*fill_super)(struct super_block *sb,
+				  struct fs_context *fc))
 {
-	int (*test)(struct super_block *, struct fs_context *);
 	struct super_block *sb;
 	int err;
-
-	switch (keying) {
-	case vfs_get_single_super:
-	case vfs_get_single_reconf_super:
-		test = test_single_super;
-		break;
-	case vfs_get_keyed_super:
-		test = test_keyed_super;
-		break;
-	case vfs_get_independent_super:
-		test = NULL;
-		break;
-	default:
-		BUG();
-	}
 
 	sb = sget_fc(fc, test, set_anon_super_fc);
 	if (IS_ERR(sb))
@@ -1174,7 +1154,7 @@ int vfs_get_super(struct fs_context *fc,
 		fc->root = dget(sb->s_root);
 	} else {
 		fc->root = dget(sb->s_root);
-		if (keying == vfs_get_single_reconf_super) {
+		if (reconf) {
 			err = reconfigure_super(fc);
 			if (err < 0) {
 				dput(fc->root);
@@ -1190,13 +1170,12 @@ error:
 	deactivate_locked_super(sb);
 	return err;
 }
-EXPORT_SYMBOL(vfs_get_super);
 
 int get_tree_nodev(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
 				    struct fs_context *fc))
 {
-	return vfs_get_super(fc, vfs_get_independent_super, fill_super);
+	return vfs_get_super(fc, false, NULL, fill_super);
 }
 EXPORT_SYMBOL(get_tree_nodev);
 
@@ -1204,7 +1183,7 @@ int get_tree_single(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
 				    struct fs_context *fc))
 {
-	return vfs_get_super(fc, vfs_get_single_super, fill_super);
+	return vfs_get_super(fc, false, test_single_super, fill_super);
 }
 EXPORT_SYMBOL(get_tree_single);
 
@@ -1212,7 +1191,7 @@ int get_tree_single_reconf(struct fs_context *fc,
 		  int (*fill_super)(struct super_block *sb,
 				    struct fs_context *fc))
 {
-	return vfs_get_super(fc, vfs_get_single_reconf_super, fill_super);
+	return vfs_get_super(fc, true, test_single_super, fill_super);
 }
 EXPORT_SYMBOL(get_tree_single_reconf);
 
@@ -1222,7 +1201,7 @@ int get_tree_keyed(struct fs_context *fc,
 		void *key)
 {
 	fc->s_fs_info = key;
-	return vfs_get_super(fc, vfs_get_keyed_super, fill_super);
+	return vfs_get_super(fc, false, test_keyed_super, fill_super);
 }
 EXPORT_SYMBOL(get_tree_keyed);
 
@@ -1806,3 +1785,27 @@ int thaw_super(struct super_block *sb)
 	return thaw_super_locked(sb);
 }
 EXPORT_SYMBOL(thaw_super);
+
+/*
+ * Create workqueue for deferred direct IO completions. We allocate the
+ * workqueue when it's first needed. This avoids creating workqueue for
+ * filesystems that don't need it and also allows us to create the workqueue
+ * late enough so the we can include s_id in the name of the workqueue.
+ */
+int sb_init_dio_done_wq(struct super_block *sb)
+{
+	struct workqueue_struct *old;
+	struct workqueue_struct *wq = alloc_workqueue("dio/%s",
+						      WQ_MEM_RECLAIM, 0,
+						      sb->s_id);
+	if (!wq)
+		return -ENOMEM;
+	/*
+	 * This has to be atomic as more DIOs can race to create the workqueue
+	 */
+	old = cmpxchg(&sb->s_dio_done_wq, NULL, wq);
+	/* Someone created workqueue before us? Free ours... */
+	if (old)
+		destroy_workqueue(wq);
+	return 0;
+}

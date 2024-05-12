@@ -299,26 +299,6 @@ struct atomisp_3a_statistics {
 	u32 isp_config_id; /* isp config ID */
 };
 
-/**
- * struct atomisp_cont_capture_conf - continuous capture parameters
- * @num_captures: number of still images to capture
- * @skip_frames: number of frames to skip between 2 captures
- * @offset: offset in ring buffer to start capture
- *
- * For example, to capture 1 frame from past, current, and 1 from future
- * and skip one frame between each capture, parameters would be:
- * num_captures:3
- * skip_frames:1
- * offset:-2
- */
-
-struct atomisp_cont_capture_conf {
-	int num_captures;
-	unsigned int skip_frames;
-	int offset;
-	__u32 reserved[5];
-};
-
 struct atomisp_ae_window {
 	int x_left;
 	int x_right;
@@ -586,20 +566,6 @@ struct atomisp_shading_table {
 	__u16 *data[ATOMISP_NUM_SC_COLORS];
 };
 
-struct atomisp_makernote_info {
-	/* bits 31-16: numerator, bits 15-0: denominator */
-	unsigned int focal_length;
-	/* bits 31-16: numerator, bits 15-0: denominator*/
-	unsigned int f_number_curr;
-	/*
-	* bits 31-24: max f-number numerator
-	* bits 23-16: max f-number denominator
-	* bits 15-8: min f-number numerator
-	* bits 7-0: min f-number denominator
-	*/
-	unsigned int f_number_range;
-};
-
 /* parameter for MACC */
 #define ATOMISP_NUM_MACC_AXES           16
 struct atomisp_macc_table {
@@ -648,28 +614,6 @@ struct atomisp_overlay {
 	/* the overlay start y pixel position on output frame It should be the
 	   multiples of 2. */
 	unsigned int overlay_start_y;
-};
-
-/* Sensor resolution specific data for AE calculation.*/
-struct atomisp_sensor_mode_data {
-	unsigned int coarse_integration_time_min;
-	unsigned int coarse_integration_time_max_margin;
-	unsigned int fine_integration_time_min;
-	unsigned int fine_integration_time_max_margin;
-	unsigned int fine_integration_time_def;
-	unsigned int frame_length_lines;
-	unsigned int line_length_pck;
-	unsigned int read_mode;
-	unsigned int vt_pix_clk_freq_mhz;
-	unsigned int crop_horizontal_start; /* Sensor crop start cord. (x0,y0)*/
-	unsigned int crop_vertical_start;
-	unsigned int crop_horizontal_end; /* Sensor crop end cord. (x1,y1)*/
-	unsigned int crop_vertical_end;
-	unsigned int output_width; /* input size to ISP after binning/scaling */
-	unsigned int output_height;
-	u8 binning_factor_x; /* horizontal binning factor used */
-	u8 binning_factor_y; /* vertical binning factor used */
-	u16 hts;
 };
 
 struct atomisp_exposure {
@@ -914,8 +858,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 	_IOR('v', BASE_VIDIOC_PRIVATE + 10, struct atomisp_morph_table)
 #define ATOMISP_IOC_S_ISP_GDC_TAB \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 10, struct atomisp_morph_table)
-#define ATOMISP_IOC_ISP_MAKERNOTE \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 11, struct atomisp_makernote_info)
 
 /* macc parameter control*/
 #define ATOMISP_IOC_G_ISP_MACC \
@@ -961,10 +903,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define ATOMISP_IOC_CAMERA_BRIDGE \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 19, struct atomisp_bc_video_package)
 
-/* Sensor resolution specific info for AE */
-#define ATOMISP_IOC_G_SENSOR_MODE_DATA \
-	_IOR('v', BASE_VIDIOC_PRIVATE + 20, struct atomisp_sensor_mode_data)
-
 #define ATOMISP_IOC_S_EXPOSURE \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 21, struct atomisp_exposure)
 
@@ -999,9 +937,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 
 #define ATOMISP_IOC_S_PARAMETERS \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 32, struct atomisp_parameters)
-
-#define ATOMISP_IOC_S_CONT_CAPTURE_CONFIG \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 33, struct atomisp_cont_capture_conf)
 
 #define ATOMISP_IOC_G_METADATA \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 34, struct atomisp_metadata)
@@ -1093,10 +1028,6 @@ struct atomisp_sensor_ae_bracketing_lut {
  * Exposure, Flash and privacy (indicator) light controls, to be upstreamed */
 #define V4L2_CID_CAMERA_LASTP1             (V4L2_CID_CAMERA_CLASS_BASE + 1024)
 
-#define V4L2_CID_FOCAL_ABSOLUTE            (V4L2_CID_CAMERA_LASTP1 + 0)
-#define V4L2_CID_FNUMBER_ABSOLUTE          (V4L2_CID_CAMERA_LASTP1 + 1)
-#define V4L2_CID_FNUMBER_RANGE             (V4L2_CID_CAMERA_LASTP1 + 2)
-
 /* Flash related CIDs, see also:
  * http://linuxtv.org/downloads/v4l-dvb-apis/extended-controls.html\
  * #flash-controls */
@@ -1117,10 +1048,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 /* Query Focus Status */
 #define V4L2_CID_FOCUS_STATUS              (V4L2_CID_CAMERA_LASTP1 + 14)
 
-/* Query sensor's binning factor */
-#define V4L2_CID_BIN_FACTOR_HORZ	   (V4L2_CID_CAMERA_LASTP1 + 15)
-#define V4L2_CID_BIN_FACTOR_VERT	   (V4L2_CID_CAMERA_LASTP1 + 16)
-
 /* number of frames to skip at stream start */
 #define V4L2_CID_G_SKIP_FRAMES		   (V4L2_CID_CAMERA_LASTP1 + 17)
 
@@ -1128,8 +1055,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define V4L2_CID_2A_STATUS                 (V4L2_CID_CAMERA_LASTP1 + 18)
 #define V4L2_2A_STATUS_AE_READY            BIT(0)
 #define V4L2_2A_STATUS_AWB_READY           BIT(1)
-
-#define V4L2_CID_FMT_AUTO			(V4L2_CID_CAMERA_LASTP1 + 19)
 
 #define V4L2_CID_RUN_MODE			(V4L2_CID_CAMERA_LASTP1 + 20)
 #define ATOMISP_RUN_MODE_VIDEO			1
@@ -1157,8 +1082,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 /* Lock and unlock raw buffer */
 #define V4L2_CID_ENABLE_RAW_BUFFER_LOCK (V4L2_CID_CAMERA_LASTP1 + 29)
 
-#define V4L2_CID_DEPTH_MODE		(V4L2_CID_CAMERA_LASTP1 + 30)
-
 #define V4L2_CID_EXPOSURE_ZONE_NUM	(V4L2_CID_CAMERA_LASTP1 + 31)
 /* Disable digital zoom */
 #define V4L2_CID_DISABLE_DZ		(V4L2_CID_CAMERA_LASTP1 + 32)
@@ -1177,7 +1100,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 
 #define V4L2_EVENT_ATOMISP_3A_STATS_READY   (V4L2_EVENT_PRIVATE_START + 1)
 #define V4L2_EVENT_ATOMISP_METADATA_READY   (V4L2_EVENT_PRIVATE_START + 2)
-#define V4L2_EVENT_ATOMISP_RAW_BUFFERS_ALLOC_DONE   (V4L2_EVENT_PRIVATE_START + 3)
 #define V4L2_EVENT_ATOMISP_ACC_COMPLETE     (V4L2_EVENT_PRIVATE_START + 4)
 #define V4L2_EVENT_ATOMISP_PAUSE_BUFFER	    (V4L2_EVENT_PRIVATE_START + 5)
 #define V4L2_EVENT_ATOMISP_CSS_RESET	    (V4L2_EVENT_PRIVATE_START + 6)

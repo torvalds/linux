@@ -13,7 +13,6 @@ const char *get_system_type(void);
 extern void init_environ(void);
 extern void memblock_init(void);
 extern void platform_init(void);
-extern void plat_swiotlb_setup(void);
 extern int __init init_numa_memory(void);
 
 struct loongson_board_info {
@@ -32,6 +31,7 @@ struct loongson_system_configuration {
 	int cores_per_node;
 	int cores_per_package;
 	unsigned long cores_io_master;
+	unsigned long suspend_addr;
 	const char *cpuname;
 };
 

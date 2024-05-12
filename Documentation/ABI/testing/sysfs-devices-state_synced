@@ -21,4 +21,9 @@ Description:
 		at the time the kernel starts are not affected or limited in
 		any way by sync_state() callbacks.
 
+		Writing "1" to this file will force a call to the device's
+		sync_state() function if it hasn't been called already. The
+		sync_state() call happens independent of the state of the
+		consumer devices.
+
 

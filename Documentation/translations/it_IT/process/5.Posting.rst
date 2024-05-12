@@ -265,15 +265,18 @@ Le etichette in uso più comuni sono:
    :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`
 
  - Reported-by: menziona l'utente che ha riportato il problema corretto da
-   questa patch; quest'etichetta viene usata per dare credito alle persone
-   che hanno verificato il codice e ci hanno fatto sapere quando le cose non
-   funzionavano correttamente.
+   questa patch; quest'etichetta viene usata per dare credito alle persone che
+   hanno verificato il codice e ci hanno fatto sapere quando le cose non
+   funzionavano correttamente. Se esiste un rapporto disponibile sul web, allora
+   L'etichetta dovrebbe essere seguita da un collegamento al suddetto rapporto.
 
  - Cc: la persona menzionata ha ricevuto una copia della patch ed ha avuto
    l'opportunità di commentarla.
 
-State attenti ad aggiungere queste etichette alla vostra patch: solo
-"Cc:" può essere aggiunta senza il permesso esplicito della persona menzionata.
+State attenti ad aggiungere queste etichette alla vostra patch: solo "Cc:" può
+essere aggiunta senza il permesso esplicito della persona menzionata. Il più
+delle volte anche Reported-by: va bene, ma è sempre meglio chiedere specialmente
+se il baco è stato riportato in una comunicazione privata.
 
 Inviare la modifica
 -------------------

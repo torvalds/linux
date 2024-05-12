@@ -99,7 +99,7 @@ properties:
 
           microchip,bandwidth:
             description: Specifies bandwidth in Mbit/s allocated to the port.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             maximum: 25000
 
           microchip,sd-sgpio:
@@ -107,7 +107,7 @@ properties:
               Index of the ports Signal Detect SGPIO in the set of 384 SGPIOs
               This is optional, and only needed if the default used index is
               is not correct.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+            $ref: /schemas/types.yaml#/definitions/uint32
             minimum: 0
             maximum: 383
 

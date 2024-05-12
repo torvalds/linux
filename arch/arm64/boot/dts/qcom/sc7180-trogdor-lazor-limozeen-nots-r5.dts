@@ -23,7 +23,7 @@
 /delete-node/&ap_ts;
 
 &panel {
-	compatible = "innolux,n116bca-ea1", "innolux,n116bge";
+	compatible = "innolux,n116bca-ea1";
 };
 
 &sdhc_2 {

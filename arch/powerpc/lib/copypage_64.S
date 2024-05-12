@@ -18,8 +18,18 @@ FTR_SECTION_ELSE
 #endif
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 	ori	r5,r5,PAGE_SIZE@l
+#ifdef CONFIG_PPC_KERNEL_PCREL
+	/*
+	 * Hack for toolchain - prefixed instructions cause label difference to
+	 * be non-constant even if 8 byte alignment is known, so they can not
+	 * be put in FTR sections.
+	 */
+	LOAD_REG_ADDR(r10, ppc64_caches)
+BEGIN_FTR_SECTION
+#else
 BEGIN_FTR_SECTION
 	LOAD_REG_ADDR(r10, ppc64_caches)
+#endif
 	lwz	r11,DCACHEL1LOGBLOCKSIZE(r10)	/* log2 of cache block size */
 	lwz     r12,DCACHEL1BLOCKSIZE(r10)	/* get cache block size */
 	li	r9,0

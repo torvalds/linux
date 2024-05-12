@@ -477,7 +477,7 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 
 	if (iio_buffer_enabled(indio_dev)) {
 		gpiod_set_value(st->gpio_convst, 0);
-		iio_trigger_poll_chained(st->trig);
+		iio_trigger_poll_nested(st->trig);
 	} else {
 		complete(&st->completion);
 	}
@@ -557,13 +557,6 @@ static const struct iio_trigger_ops ad7606_trigger_ops = {
 	.validate_device = iio_trigger_validate_own_device,
 };
 
-static void ad7606_regulator_disable(void *data)
-{
-	struct ad7606_state *st = data;
-
-	regulator_disable(st->reg);
-}
-
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 const char *name, unsigned int id,
 		 const struct ad7606_bus_ops *bops)
@@ -589,19 +582,10 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->scale_avail = ad7606_scale_avail;
 	st->num_scales = ARRAY_SIZE(ad7606_scale_avail);
 
-	st->reg = devm_regulator_get(dev, "avcc");
-	if (IS_ERR(st->reg))
-		return PTR_ERR(st->reg);
-
-	ret = regulator_enable(st->reg);
-	if (ret) {
-		dev_err(dev, "Failed to enable specified AVcc supply\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(dev, ad7606_regulator_disable, st);
+	ret = devm_regulator_get_enable(dev, "avcc");
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "Failed to enable specified AVcc supply\n");
 
 	st->chip_info = &ad7606_chip_info_tbl[id];
 

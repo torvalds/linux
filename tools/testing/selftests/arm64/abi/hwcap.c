@@ -33,6 +33,12 @@
  */
 typedef void (*sigill_fn)(void);
 
+static void cssc_sigill(void)
+{
+	/* CNT x0, x0 */
+	asm volatile(".inst 0xdac01c00" : : : "x0");
+}
+
 static void rng_sigill(void)
 {
 	asm volatile("mrs x0, S3_3_C2_C4_0" : : : "x0");
@@ -42,6 +48,78 @@ static void sme_sigill(void)
 {
 	/* RDSVL x0, #0 */
 	asm volatile(".inst 0x04bf5800" : : : "x0");
+}
+
+static void sme2_sigill(void)
+{
+	/* SMSTART ZA */
+	asm volatile("msr S0_3_C4_C5_3, xzr" : : : );
+
+	/* ZERO ZT0 */
+	asm volatile(".inst 0xc0480001" : : : );
+
+	/* SMSTOP */
+	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
+}
+
+static void sme2p1_sigill(void)
+{
+	/* SMSTART SM */
+	asm volatile("msr S0_3_C4_C3_3, xzr" : : : );
+
+	/* BFCLAMP { Z0.H - Z1.H }, Z0.H, Z0.H */
+	asm volatile(".inst 0xc120C000" : : : );
+
+	/* SMSTOP */
+	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
+}
+
+static void smei16i32_sigill(void)
+{
+	/* SMSTART */
+	asm volatile("msr S0_3_C4_C7_3, xzr" : : : );
+
+	/* SMOPA ZA0.S, P0/M, P0/M, Z0.B, Z0.B */
+	asm volatile(".inst 0xa0800000" : : : );
+
+	/* SMSTOP */
+	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
+}
+
+static void smebi32i32_sigill(void)
+{
+	/* SMSTART */
+	asm volatile("msr S0_3_C4_C7_3, xzr" : : : );
+
+	/* BMOPA ZA0.S, P0/M, P0/M, Z0.B, Z0.B */
+	asm volatile(".inst 0x80800008" : : : );
+
+	/* SMSTOP */
+	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
+}
+
+static void smeb16b16_sigill(void)
+{
+	/* SMSTART */
+	asm volatile("msr S0_3_C4_C7_3, xzr" : : : );
+
+	/* BFADD ZA.H[W0, 0], {Z0.H-Z1.H} */
+	asm volatile(".inst 0xC1E41C00" : : : );
+
+	/* SMSTOP */
+	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
+}
+
+static void smef16f16_sigill(void)
+{
+	/* SMSTART */
+	asm volatile("msr S0_3_C4_C7_3, xzr" : : : );
+
+	/* FADD ZA.H[W0, 0], { Z0.H-Z1.H } */
+	asm volatile(".inst 0xc1a41C00" : : : );
+
+	/* SMSTOP */
+	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
 }
 
 static void sve_sigill(void)
@@ -54,6 +132,12 @@ static void sve2_sigill(void)
 {
 	/* SQABS Z0.b, P0/M, Z0.B */
 	asm volatile(".inst 0x4408A000" : : : "z0");
+}
+
+static void sve2p1_sigill(void)
+{
+	/* BFADD Z0.H, Z0.H, Z0.H */
+	asm volatile(".inst 0x65000000" : : : "z0");
 }
 
 static void sveaes_sigill(void)
@@ -119,11 +203,24 @@ static const struct hwcap_data {
 	bool sigill_reliable;
 } hwcaps[] = {
 	{
+		.name = "CSSC",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_CSSC,
+		.cpuinfo = "cssc",
+		.sigill_fn = cssc_sigill,
+	},
+	{
 		.name = "RNG",
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_RNG,
 		.cpuinfo = "rng",
 		.sigill_fn = rng_sigill,
+	},
+	{
+		.name = "RPRFM",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_RPRFM,
+		.cpuinfo = "rprfm",
 	},
 	{
 		.name = "SME",
@@ -132,6 +229,49 @@ static const struct hwcap_data {
 		.cpuinfo = "sme",
 		.sigill_fn = sme_sigill,
 		.sigill_reliable = true,
+	},
+	{
+		.name = "SME2",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SME2,
+		.cpuinfo = "sme2",
+		.sigill_fn = sme2_sigill,
+		.sigill_reliable = true,
+	},
+	{
+		.name = "SME 2.1",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SME2P1,
+		.cpuinfo = "sme2p1",
+		.sigill_fn = sme2p1_sigill,
+	},
+	{
+		.name = "SME I16I32",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SME_I16I32,
+		.cpuinfo = "smei16i32",
+		.sigill_fn = smei16i32_sigill,
+	},
+	{
+		.name = "SME BI32I32",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SME_BI32I32,
+		.cpuinfo = "smebi32i32",
+		.sigill_fn = smebi32i32_sigill,
+	},
+	{
+		.name = "SME B16B16",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SME_B16B16,
+		.cpuinfo = "smeb16b16",
+		.sigill_fn = smeb16b16_sigill,
+	},
+	{
+		.name = "SME F16F16",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SME_F16F16,
+		.cpuinfo = "smef16f16",
+		.sigill_fn = smef16f16_sigill,
 	},
 	{
 		.name = "SVE",
@@ -147,6 +287,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_SVE2,
 		.cpuinfo = "sve2",
 		.sigill_fn = sve2_sigill,
+	},
+	{
+		.name = "SVE 2.1",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVE2P1,
+		.cpuinfo = "sve2p1",
+		.sigill_fn = sve2p1_sigill,
 	},
 	{
 		.name = "SVE AES",

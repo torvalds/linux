@@ -46,10 +46,8 @@ struct rt1316_sdw_priv {
 	struct sdw_bus_params params;
 	bool hw_init;
 	bool first_hw_init;
-};
-
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
+	unsigned char *bq_params;
+	unsigned int bq_params_cnt;
 };
 
 #endif /* __RT1316_SDW_H__ */

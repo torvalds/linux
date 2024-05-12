@@ -3,6 +3,7 @@
 #include "pmu.h"
 #include "tests.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
@@ -149,10 +150,16 @@ static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe
 
 	do {
 		struct perf_event_attr attr;
+		int fd;
 
 		memset(&attr, 0, sizeof(attr));
 
-		ret = perf_pmu__format_parse(format, &formats);
+		fd = open(format, O_DIRECTORY);
+		if (fd < 0) {
+			ret = fd;
+			break;
+		}
+		ret = perf_pmu__format_parse(fd, &formats);
 		if (ret)
 			break;
 

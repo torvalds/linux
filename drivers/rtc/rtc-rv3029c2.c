@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/kstrtox.h>
 #include <linux/regmap.h>
 
 /* Register map */
@@ -734,9 +735,14 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 		return PTR_ERR(rv3029->rtc);
 
 	if (rv3029->irq > 0) {
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(dev))
+			irqflags = 0;
+
 		rc = devm_request_threaded_irq(dev, rv3029->irq,
 					       NULL, rv3029_handle_irq,
-					       IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					       irqflags | IRQF_ONESHOT,
 					       "rv3029", dev);
 		if (rc) {
 			dev_warn(dev, "unable to request IRQ, alarms disabled\n");

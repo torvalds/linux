@@ -204,7 +204,7 @@ static unsigned int fuse_req_hash(u64 unique)
 	return hash_long(unique & ~FUSE_INT_REQ_BIT, FUSE_PQ_HASH_BITS);
 }
 
-/**
+/*
  * A new request is available, wake fiq->waitq
  */
 static void fuse_dev_wake_and_unlock(struct fuse_iqueue *fiq)
@@ -476,6 +476,8 @@ static void fuse_args_to_req(struct fuse_req *req, struct fuse_args *args)
 	req->in.h.opcode = args->opcode;
 	req->in.h.nodeid = args->nodeid;
 	req->args = args;
+	if (args->is_ext)
+		req->in.h.total_extlen = args->in_args[args->ext_idx].size / 8;
 	if (args->end)
 		__set_bit(FR_ASYNC, &req->flags);
 }
@@ -764,11 +766,11 @@ static int fuse_copy_do(struct fuse_copy_state *cs, void **val, unsigned *size)
 	return ncpy;
 }
 
-static int fuse_check_page(struct page *page)
+static int fuse_check_folio(struct folio *folio)
 {
-	if (page_mapcount(page) ||
-	    page->mapping != NULL ||
-	    (page->flags & PAGE_FLAGS_CHECK_AT_PREP &
+	if (folio_mapped(folio) ||
+	    folio->mapping != NULL ||
+	    (folio->flags & PAGE_FLAGS_CHECK_AT_PREP &
 	     ~(1 << PG_locked |
 	       1 << PG_referenced |
 	       1 << PG_uptodate |
@@ -778,7 +780,7 @@ static int fuse_check_page(struct page *page)
 	       1 << PG_reclaim |
 	       1 << PG_waiters |
 	       LRU_GEN_MASK | LRU_REFS_MASK))) {
-		dump_page(page, "fuse: trying to steal weird page");
+		dump_page(&folio->page, "fuse: trying to steal weird page");
 		return 1;
 	}
 	return 0;
@@ -787,11 +789,11 @@ static int fuse_check_page(struct page *page)
 static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 {
 	int err;
-	struct page *oldpage = *pagep;
-	struct page *newpage;
+	struct folio *oldfolio = page_folio(*pagep);
+	struct folio *newfolio;
 	struct pipe_buffer *buf = cs->pipebufs;
 
-	get_page(oldpage);
+	folio_get(oldfolio);
 	err = unlock_request(cs->req);
 	if (err)
 		goto out_put_old;
@@ -814,35 +816,36 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	if (!pipe_buf_try_steal(cs->pipe, buf))
 		goto out_fallback;
 
-	newpage = buf->page;
+	newfolio = page_folio(buf->page);
 
-	if (!PageUptodate(newpage))
-		SetPageUptodate(newpage);
+	if (!folio_test_uptodate(newfolio))
+		folio_mark_uptodate(newfolio);
 
-	ClearPageMappedToDisk(newpage);
+	folio_clear_mappedtodisk(newfolio);
 
-	if (fuse_check_page(newpage) != 0)
+	if (fuse_check_folio(newfolio) != 0)
 		goto out_fallback_unlock;
 
 	/*
 	 * This is a new and locked page, it shouldn't be mapped or
 	 * have any special flags on it
 	 */
-	if (WARN_ON(page_mapped(oldpage)))
+	if (WARN_ON(folio_mapped(oldfolio)))
 		goto out_fallback_unlock;
-	if (WARN_ON(page_has_private(oldpage)))
+	if (WARN_ON(folio_has_private(oldfolio)))
 		goto out_fallback_unlock;
-	if (WARN_ON(PageDirty(oldpage) || PageWriteback(oldpage)))
+	if (WARN_ON(folio_test_dirty(oldfolio) ||
+				folio_test_writeback(oldfolio)))
 		goto out_fallback_unlock;
-	if (WARN_ON(PageMlocked(oldpage)))
+	if (WARN_ON(folio_test_mlocked(oldfolio)))
 		goto out_fallback_unlock;
 
-	replace_page_cache_page(oldpage, newpage);
+	replace_page_cache_folio(oldfolio, newfolio);
 
-	get_page(newpage);
+	folio_get(newfolio);
 
 	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
-		lru_cache_add(newpage);
+		folio_add_lru(newfolio);
 
 	/*
 	 * Release while we have extra ref on stolen page.  Otherwise
@@ -855,28 +858,28 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	if (test_bit(FR_ABORTED, &cs->req->flags))
 		err = -ENOENT;
 	else
-		*pagep = newpage;
+		*pagep = &newfolio->page;
 	spin_unlock(&cs->req->waitq.lock);
 
 	if (err) {
-		unlock_page(newpage);
-		put_page(newpage);
+		folio_unlock(newfolio);
+		folio_put(newfolio);
 		goto out_put_old;
 	}
 
-	unlock_page(oldpage);
+	folio_unlock(oldfolio);
 	/* Drop ref for ap->pages[] array */
-	put_page(oldpage);
+	folio_put(oldfolio);
 	cs->len = 0;
 
 	err = 0;
 out_put_old:
 	/* Drop ref obtained in this function */
-	put_page(oldpage);
+	folio_put(oldfolio);
 	return err;
 
 out_fallback_unlock:
-	unlock_page(newpage);
+	folio_unlock(newfolio);
 out_fallback:
 	cs->pg = buf->page;
 	cs->offset = buf->offset;
@@ -1498,7 +1501,7 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 	buf[outarg.namelen] = 0;
 
 	down_read(&fc->killsb);
-	err = fuse_reverse_inval_entry(fc, outarg.parent, 0, &name);
+	err = fuse_reverse_inval_entry(fc, outarg.parent, 0, &name, outarg.flags);
 	up_read(&fc->killsb);
 	kfree(buf);
 	return err;
@@ -1546,7 +1549,7 @@ static int fuse_notify_delete(struct fuse_conn *fc, unsigned int size,
 	buf[outarg.namelen] = 0;
 
 	down_read(&fc->killsb);
-	err = fuse_reverse_inval_entry(fc, outarg.parent, outarg.child, &name);
+	err = fuse_reverse_inval_entry(fc, outarg.parent, outarg.child, &name, 0);
 	up_read(&fc->killsb);
 	kfree(buf);
 	return err;
@@ -2254,31 +2257,31 @@ static long fuse_dev_ioctl(struct file *file, unsigned int cmd,
 	int res;
 	int oldfd;
 	struct fuse_dev *fud = NULL;
+	struct fd f;
 
 	switch (cmd) {
 	case FUSE_DEV_IOC_CLONE:
-		res = -EFAULT;
-		if (!get_user(oldfd, (__u32 __user *)arg)) {
-			struct file *old = fget(oldfd);
+		if (get_user(oldfd, (__u32 __user *)arg))
+			return -EFAULT;
 
-			res = -EINVAL;
-			if (old) {
-				/*
-				 * Check against file->f_op because CUSE
-				 * uses the same ioctl handler.
-				 */
-				if (old->f_op == file->f_op &&
-				    old->f_cred->user_ns == file->f_cred->user_ns)
-					fud = fuse_get_dev(old);
+		f = fdget(oldfd);
+		if (!f.file)
+			return -EINVAL;
 
-				if (fud) {
-					mutex_lock(&fuse_mutex);
-					res = fuse_device_clone(fud->fc, file);
-					mutex_unlock(&fuse_mutex);
-				}
-				fput(old);
-			}
+		/*
+		 * Check against file->f_op because CUSE
+		 * uses the same ioctl handler.
+		 */
+		if (f.file->f_op == file->f_op)
+			fud = fuse_get_dev(f.file);
+
+		res = -EINVAL;
+		if (fud) {
+			mutex_lock(&fuse_mutex);
+			res = fuse_device_clone(fud->fc, file);
+			mutex_unlock(&fuse_mutex);
 		}
+		fdput(f);
 		break;
 	default:
 		res = -ENOTTY;

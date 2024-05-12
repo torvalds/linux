@@ -280,6 +280,7 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #define __WRITEABLE	(_PAGE_SILENT_WRITE | _PAGE_WRITE | _PAGE_MODIFIED)
 
 #define _PAGE_CHG_MASK	(_PAGE_ACCESSED | _PAGE_MODIFIED |	\
-			 _PAGE_SOFT_DIRTY | _PFN_MASK | _CACHE_MASK)
+			 _PAGE_SOFT_DIRTY | _PFN_MASK |   \
+			 _CACHE_MASK | _PAGE_SPECIAL)
 
 #endif /* _ASM_PGTABLE_BITS_H */

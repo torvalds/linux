@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include "i915_reg.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
@@ -375,7 +376,7 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 	if (bxt_ddi_phy_is_enabled(dev_priv, phy)) {
 		/* Still read out the GRC value for state verification */
 		if (phy_info->rcomp_phy != -1)
-			dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv, phy);
+			dev_priv->display.state.bxt_phy_grc = bxt_get_grc(dev_priv, phy);
 
 		if (bxt_ddi_phy_verify_state(dev_priv, phy)) {
 			drm_dbg(&dev_priv->drm, "DDI PHY %d already enabled, "
@@ -388,9 +389,7 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 			"force reprogramming it\n", phy);
 	}
 
-	val = intel_de_read(dev_priv, BXT_P_CR_GT_DISP_PWRON);
-	val |= phy_info->pwron_mask;
-	intel_de_write(dev_priv, BXT_P_CR_GT_DISP_PWRON, val);
+	intel_de_rmw(dev_priv, BXT_P_CR_GT_DISP_PWRON, 0, phy_info->pwron_mask);
 
 	/*
 	 * The PHY registers start out inaccessible and respond to reads with
@@ -409,27 +408,19 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 			phy);
 
 	/* Program PLL Rcomp code offset */
-	val = intel_de_read(dev_priv, BXT_PORT_CL1CM_DW9(phy));
-	val &= ~IREF0RC_OFFSET_MASK;
-	val |= 0xE4 << IREF0RC_OFFSET_SHIFT;
-	intel_de_write(dev_priv, BXT_PORT_CL1CM_DW9(phy), val);
+	intel_de_rmw(dev_priv, BXT_PORT_CL1CM_DW9(phy), IREF0RC_OFFSET_MASK,
+		     0xE4 << IREF0RC_OFFSET_SHIFT);
 
-	val = intel_de_read(dev_priv, BXT_PORT_CL1CM_DW10(phy));
-	val &= ~IREF1RC_OFFSET_MASK;
-	val |= 0xE4 << IREF1RC_OFFSET_SHIFT;
-	intel_de_write(dev_priv, BXT_PORT_CL1CM_DW10(phy), val);
+	intel_de_rmw(dev_priv, BXT_PORT_CL1CM_DW10(phy), IREF1RC_OFFSET_MASK,
+		     0xE4 << IREF1RC_OFFSET_SHIFT);
 
 	/* Program power gating */
-	val = intel_de_read(dev_priv, BXT_PORT_CL1CM_DW28(phy));
-	val |= OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN |
-		SUS_CLK_CONFIG;
-	intel_de_write(dev_priv, BXT_PORT_CL1CM_DW28(phy), val);
+	intel_de_rmw(dev_priv, BXT_PORT_CL1CM_DW28(phy), 0,
+		     OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN | SUS_CLK_CONFIG);
 
-	if (phy_info->dual_channel) {
-		val = intel_de_read(dev_priv, BXT_PORT_CL2CM_DW6(phy));
-		val |= DW6_OLDO_DYN_PWR_DOWN_EN;
-		intel_de_write(dev_priv, BXT_PORT_CL2CM_DW6(phy), val);
-	}
+	if (phy_info->dual_channel)
+		intel_de_rmw(dev_priv, BXT_PORT_CL2CM_DW6(phy), 0,
+			     DW6_OLDO_DYN_PWR_DOWN_EN);
 
 	if (phy_info->rcomp_phy != -1) {
 		u32 grc_code;
@@ -441,40 +432,32 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 		 * the corresponding calibrated value from PHY1, and disable
 		 * the automatic calibration on PHY0.
 		 */
-		val = dev_priv->bxt_phy_grc = bxt_get_grc(dev_priv,
-							  phy_info->rcomp_phy);
+		val = bxt_get_grc(dev_priv, phy_info->rcomp_phy);
+		dev_priv->display.state.bxt_phy_grc = val;
+
 		grc_code = val << GRC_CODE_FAST_SHIFT |
 			   val << GRC_CODE_SLOW_SHIFT |
 			   val;
 		intel_de_write(dev_priv, BXT_PORT_REF_DW6(phy), grc_code);
-
-		val = intel_de_read(dev_priv, BXT_PORT_REF_DW8(phy));
-		val |= GRC_DIS | GRC_RDY_OVRD;
-		intel_de_write(dev_priv, BXT_PORT_REF_DW8(phy), val);
+		intel_de_rmw(dev_priv, BXT_PORT_REF_DW8(phy),
+			     0, GRC_DIS | GRC_RDY_OVRD);
 	}
 
 	if (phy_info->reset_delay)
 		udelay(phy_info->reset_delay);
 
-	val = intel_de_read(dev_priv, BXT_PHY_CTL_FAMILY(phy));
-	val |= COMMON_RESET_DIS;
-	intel_de_write(dev_priv, BXT_PHY_CTL_FAMILY(phy), val);
+	intel_de_rmw(dev_priv, BXT_PHY_CTL_FAMILY(phy), 0, COMMON_RESET_DIS);
 }
 
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 	const struct bxt_ddi_phy_info *phy_info;
-	u32 val;
 
 	phy_info = bxt_get_phy_info(dev_priv, phy);
 
-	val = intel_de_read(dev_priv, BXT_PHY_CTL_FAMILY(phy));
-	val &= ~COMMON_RESET_DIS;
-	intel_de_write(dev_priv, BXT_PHY_CTL_FAMILY(phy), val);
+	intel_de_rmw(dev_priv, BXT_PHY_CTL_FAMILY(phy), COMMON_RESET_DIS, 0);
 
-	val = intel_de_read(dev_priv, BXT_P_CR_GT_DISP_PWRON);
-	val &= ~phy_info->pwron_mask;
-	intel_de_write(dev_priv, BXT_P_CR_GT_DISP_PWRON, val);
+	intel_de_rmw(dev_priv, BXT_P_CR_GT_DISP_PWRON, phy_info->pwron_mask, 0);
 }
 
 void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
@@ -567,7 +550,7 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 			   "BXT_PORT_CL2CM_DW6(%d)", phy);
 
 	if (phy_info->rcomp_phy != -1) {
-		u32 grc_code = dev_priv->bxt_phy_grc;
+		u32 grc_code = dev_priv->display.state.bxt_phy_grc;
 
 		grc_code = grc_code << GRC_CODE_FAST_SHIFT |
 			   grc_code << GRC_CODE_SLOW_SHIFT |
@@ -653,6 +636,48 @@ bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
 	}
 
 	return mask;
+}
+
+enum dpio_channel vlv_dig_port_to_channel(struct intel_digital_port *dig_port)
+{
+	switch (dig_port->base.port) {
+	default:
+		MISSING_CASE(dig_port->base.port);
+		fallthrough;
+	case PORT_B:
+	case PORT_D:
+		return DPIO_CH0;
+	case PORT_C:
+		return DPIO_CH1;
+	}
+}
+
+enum dpio_phy vlv_dig_port_to_phy(struct intel_digital_port *dig_port)
+{
+	switch (dig_port->base.port) {
+	default:
+		MISSING_CASE(dig_port->base.port);
+		fallthrough;
+	case PORT_B:
+	case PORT_C:
+		return DPIO_PHY0;
+	case PORT_D:
+		return DPIO_PHY1;
+	}
+}
+
+enum dpio_channel vlv_pipe_to_channel(enum pipe pipe)
+{
+	switch (pipe) {
+	default:
+		MISSING_CASE(pipe);
+		fallthrough;
+	case PIPE_A:
+	case PIPE_C:
+		return DPIO_CH0;
+	case PIPE_B:
+		return DPIO_CH1;
+	}
 }
 
 void chv_set_phy_signal_level(struct intel_encoder *encoder,

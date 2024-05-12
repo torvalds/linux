@@ -8,6 +8,7 @@
 
 #include <linux/device.h>
 #include <linux/dma-direction.h>
+#include <linux/dma-fence.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
@@ -221,7 +222,9 @@ u32 host1x_syncpt_base_id(struct host1x_syncpt_base *base);
 void host1x_syncpt_release_vblank_reservation(struct host1x_client *client,
 					      u32 syncpt_id);
 
-struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold);
+struct dma_fence *host1x_fence_create(struct host1x_syncpt *sp, u32 threshold,
+				      bool timeout);
+void host1x_fence_cancel(struct dma_fence *fence);
 
 /*
  * host1x channel
@@ -288,8 +291,9 @@ struct host1x_job {
 	u32 syncpt_incrs;
 	u32 syncpt_end;
 
-	/* Completion waiter ref */
-	void *waiter;
+	/* Completion fence for job tracking */
+	struct dma_fence *fence;
+	struct dma_fence_cb fence_cb;
 
 	/* Maximum time to wait for this job */
 	unsigned int timeout;
@@ -439,7 +443,7 @@ int __host1x_client_register(struct host1x_client *client);
 		__host1x_client_register(client);	\
 	})
 
-int host1x_client_unregister(struct host1x_client *client);
+void host1x_client_unregister(struct host1x_client *client);
 
 int host1x_client_suspend(struct host1x_client *client);
 int host1x_client_resume(struct host1x_client *client);
@@ -469,11 +473,13 @@ struct host1x_memory_context {
 
 #ifdef CONFIG_IOMMU_API
 struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+							  struct device *dev,
 							  struct pid *pid);
 void host1x_memory_context_get(struct host1x_memory_context *cd);
 void host1x_memory_context_put(struct host1x_memory_context *cd);
 #else
 static inline struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+									struct device *dev,
 									struct pid *pid)
 {
 	return NULL;

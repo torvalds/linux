@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/bus/ti-sysc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Texas Instruments interconnect target module binding
+title: Texas Instruments interconnect target module
 
 maintainers:
   - Tony Lindgren <tony@atomide.com>

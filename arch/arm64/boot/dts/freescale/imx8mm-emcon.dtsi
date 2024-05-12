@@ -18,14 +18,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_led>;
 
-		green {
+		led-green {
 			label = "som:green";
 			gpios = <&gpio3 4 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 
-		red {
+		led-red {
 			label = "som:red";
 			gpios = <&gpio5 10 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
@@ -124,7 +124,7 @@
 		>;
 	};
 
-	pinctrl_ecspi1_cs: ecspi1-cs {
+	pinctrl_ecspi1_cs: ecspi1cs-grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9		0x40000
 			MX8MM_IOMUXC_ECSPI2_SS0_GPIO5_IO13		0x40000
@@ -215,7 +215,7 @@
 		>;
 	};
 
-	pinctrl_pmic: pmic-irq {
+	pinctrl_pmic: pmicirq-grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_NAND_CE1_B_GPIO3_IO2		0x41
 		>;

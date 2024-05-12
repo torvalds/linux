@@ -10,3 +10,9 @@ Netlink documentation for users.
    :maxdepth: 2
 
    intro
+   intro-specs
+   specs
+   c-code-gen
+   genetlink-legacy
+
+See also :ref:`Documentation/core-api/netlink.rst <kernel_netlink>`.

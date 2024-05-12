@@ -17,6 +17,8 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <bpf/btf.h>
+#include "json_writer.h"
 
 static bool verbose(void)
 {
@@ -222,24 +224,32 @@ static char *test_result(bool failed, bool skipped)
 	return failed ? "FAIL" : (skipped ? "SKIP" : "OK");
 }
 
+#define TEST_NUM_WIDTH 7
+
+static void print_test_result(const struct prog_test_def *test, const struct test_state *test_state)
+{
+	int skipped_cnt = test_state->skip_cnt;
+	int subtests_cnt = test_state->subtest_num;
+
+	fprintf(env.stdout, "#%-*d %s:", TEST_NUM_WIDTH, test->test_num, test->test_name);
+	if (test_state->error_cnt)
+		fprintf(env.stdout, "FAIL");
+	else if (!skipped_cnt)
+		fprintf(env.stdout, "OK");
+	else if (skipped_cnt == subtests_cnt || !subtests_cnt)
+		fprintf(env.stdout, "SKIP");
+	else
+		fprintf(env.stdout, "OK (SKIP: %d/%d)", skipped_cnt, subtests_cnt);
+
+	fprintf(env.stdout, "\n");
+}
+
 static void print_test_log(char *log_buf, size_t log_cnt)
 {
 	log_buf[log_cnt] = '\0';
 	fprintf(env.stdout, "%s", log_buf);
 	if (log_buf[log_cnt - 1] != '\n')
 		fprintf(env.stdout, "\n");
-}
-
-#define TEST_NUM_WIDTH 7
-
-static void print_test_name(int test_num, const char *test_name, char *result)
-{
-	fprintf(env.stdout, "#%-*d %s", TEST_NUM_WIDTH, test_num, test_name);
-
-	if (result)
-		fprintf(env.stdout, ":%s", result);
-
-	fprintf(env.stdout, "\n");
 }
 
 static void print_subtest_name(int test_num, int subtest_num,
@@ -260,10 +270,23 @@ static void print_subtest_name(int test_num, int subtest_num,
 	fprintf(env.stdout, "\n");
 }
 
+static void jsonw_write_log_message(json_writer_t *w, char *log_buf, size_t log_cnt)
+{
+	/* open_memstream (from stdio_hijack_init) ensures that log_bug is terminated by a
+	 * null byte. Yet in parallel mode, log_buf will be NULL if there is no message.
+	 */
+	if (log_cnt) {
+		jsonw_string_field(w, "message", log_buf);
+	} else {
+		jsonw_string_field(w, "message", "");
+	}
+}
+
 static void dump_test_log(const struct prog_test_def *test,
 			  const struct test_state *test_state,
 			  bool skip_ok_subtests,
-			  bool par_exec_result)
+			  bool par_exec_result,
+			  json_writer_t *w)
 {
 	bool test_failed = test_state->error_cnt > 0;
 	bool force_log = test_state->force_log;
@@ -287,6 +310,16 @@ static void dump_test_log(const struct prog_test_def *test,
 	if (test_state->log_cnt && print_test)
 		print_test_log(test_state->log_buf, test_state->log_cnt);
 
+	if (w && print_test) {
+		jsonw_start_object(w);
+		jsonw_string_field(w, "name", test->test_name);
+		jsonw_uint_field(w, "number", test->test_num);
+		jsonw_write_log_message(w, test_state->log_buf, test_state->log_cnt);
+		jsonw_bool_field(w, "failed", test_failed);
+		jsonw_name(w, "subtests");
+		jsonw_start_array(w);
+	}
+
 	for (i = 0; i < test_state->subtest_num; i++) {
 		subtest_state = &test_state->subtest_states[i];
 		subtest_failed = subtest_state->error_cnt;
@@ -305,10 +338,23 @@ static void dump_test_log(const struct prog_test_def *test,
 				   test->test_name, subtest_state->name,
 				   test_result(subtest_state->error_cnt,
 					       subtest_state->skipped));
+
+		if (w && print_subtest) {
+			jsonw_start_object(w);
+			jsonw_string_field(w, "name", subtest_state->name);
+			jsonw_uint_field(w, "number", i+1);
+			jsonw_write_log_message(w, subtest_state->log_buf, subtest_state->log_cnt);
+			jsonw_bool_field(w, "failed", subtest_failed);
+			jsonw_end_object(w);
+		}
 	}
 
-	print_test_name(test->test_num, test->test_name,
-			test_result(test_failed, test_state->skip_cnt));
+	if (w && print_test) {
+		jsonw_end_array(w);
+		jsonw_end_object(w);
+	}
+
+	print_test_result(test, test_state);
 }
 
 static void stdio_restore(void);
@@ -583,31 +629,6 @@ out:
 	return err;
 }
 
-int extract_build_id(char *build_id, size_t size)
-{
-	FILE *fp;
-	char *line = NULL;
-	size_t len = 0;
-
-	fp = popen("readelf -n ./urandom_read | grep 'Build ID'", "r");
-	if (fp == NULL)
-		return -1;
-
-	if (getline(&line, &len, fp) == -1)
-		goto err;
-	pclose(fp);
-
-	if (len > size)
-		len = size;
-	memcpy(build_id, line, len);
-	build_id[len] = '\0';
-	free(line);
-	return 0;
-err:
-	pclose(fp);
-	return -1;
-}
-
 static int finit_module(int fd, const char *param_values, int flags)
 {
 	return syscall(__NR_finit_module, fd, param_values, flags);
@@ -707,6 +728,7 @@ enum ARG_KEYS {
 	ARG_TEST_NAME_GLOB_DENYLIST = 'd',
 	ARG_NUM_WORKERS = 'j',
 	ARG_DEBUG = -1,
+	ARG_JSON_SUMMARY = 'J'
 };
 
 static const struct argp_option opts[] = {
@@ -732,6 +754,7 @@ static const struct argp_option opts[] = {
 	  "Number of workers to run in parallel, default to number of cpus." },
 	{ "debug", ARG_DEBUG, NULL, 0,
 	  "print extra debug information for test_progs." },
+	{ "json-summary", ARG_JSON_SUMMARY, "FILE", 0, "Write report in json format to this file."},
 	{},
 };
 
@@ -862,6 +885,13 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case ARG_DEBUG:
 		env->debug = true;
 		break;
+	case ARG_JSON_SUMMARY:
+		env->json = fopen(arg, "w");
+		if (env->json == NULL) {
+			perror("Failed to open json summary file");
+			return -errno;
+		}
+		break;
 	case ARGP_KEY_ARG:
 		argp_usage(state);
 		break;
@@ -960,6 +990,43 @@ int write_sysctl(const char *sysctl, const char *value)
 	return 0;
 }
 
+int get_bpf_max_tramp_links_from(struct btf *btf)
+{
+	const struct btf_enum *e;
+	const struct btf_type *t;
+	__u32 i, type_cnt;
+	const char *name;
+	__u16 j, vlen;
+
+	for (i = 1, type_cnt = btf__type_cnt(btf); i < type_cnt; i++) {
+		t = btf__type_by_id(btf, i);
+		if (!t || !btf_is_enum(t) || t->name_off)
+			continue;
+		e = btf_enum(t);
+		for (j = 0, vlen = btf_vlen(t); j < vlen; j++, e++) {
+			name = btf__str_by_offset(btf, e->name_off);
+			if (name && !strcmp(name, "BPF_MAX_TRAMP_LINKS"))
+				return e->val;
+		}
+	}
+
+	return -1;
+}
+
+int get_bpf_max_tramp_links(void)
+{
+	struct btf *vmlinux_btf;
+	int ret;
+
+	vmlinux_btf = btf__load_vmlinux_btf();
+	if (!ASSERT_OK_PTR(vmlinux_btf, "vmlinux btf"))
+		return -1;
+	ret = get_bpf_max_tramp_links_from(vmlinux_btf);
+	btf__free(vmlinux_btf);
+
+	return ret;
+}
+
 #define MAX_BACKTRACE_SZ 128
 void crash_handler(int signum)
 {
@@ -968,12 +1035,12 @@ void crash_handler(int signum)
 
 	sz = backtrace(bt, ARRAY_SIZE(bt));
 
-	if (env.test) {
-		env.test_state->error_cnt++;
-		dump_test_log(env.test, env.test_state, true, false);
-	}
 	if (env.stdout)
 		stdio_restore();
+	if (env.test) {
+		env.test_state->error_cnt++;
+		dump_test_log(env.test, env.test_state, true, false, NULL);
+	}
 	if (env.worker_id != -1)
 		fprintf(stderr, "[%d]: ", env.worker_id);
 	fprintf(stderr, "Caught signal #%d!\nStack trace:\n", signum);
@@ -1070,8 +1137,7 @@ static void run_one_test(int test_num)
 	state->tested = true;
 
 	if (verbose() && env.worker_id == -1)
-		print_test_name(test_num + 1, test->test_name,
-				test_result(state->error_cnt, state->skip_cnt));
+		print_test_result(test, state);
 
 	reset_affinity();
 	restore_netns();
@@ -1080,7 +1146,7 @@ static void run_one_test(int test_num)
 
 	stdio_restore();
 
-	dump_test_log(test, state, false, false);
+	dump_test_log(test, state, false, false, NULL);
 }
 
 struct dispatch_data {
@@ -1239,7 +1305,7 @@ static void *dispatch_thread(void *ctx)
 		} while (false);
 
 		pthread_mutex_lock(&stdout_output_lock);
-		dump_test_log(test, state, false, true);
+		dump_test_log(test, state, false, true, NULL);
 		pthread_mutex_unlock(&stdout_output_lock);
 	} /* while (true) */
 error:
@@ -1264,6 +1330,7 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 {
 	int i;
 	int succ_cnt = 0, fail_cnt = 0, sub_succ_cnt = 0, skip_cnt = 0;
+	json_writer_t *w = NULL;
 
 	for (i = 0; i < prog_test_cnt; i++) {
 		struct test_state *state = &test_states[i];
@@ -1278,6 +1345,22 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 			fail_cnt++;
 		else
 			succ_cnt++;
+	}
+
+	if (env->json) {
+		w = jsonw_new(env->json);
+		if (!w)
+			fprintf(env->stderr, "Failed to create new JSON stream.");
+	}
+
+	if (w) {
+		jsonw_start_object(w);
+		jsonw_uint_field(w, "success", succ_cnt);
+		jsonw_uint_field(w, "success_subtest", sub_succ_cnt);
+		jsonw_uint_field(w, "skipped", skip_cnt);
+		jsonw_uint_field(w, "failed", fail_cnt);
+		jsonw_name(w, "results");
+		jsonw_start_array(w);
 	}
 
 	/*
@@ -1296,9 +1379,18 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 			if (!state->tested || !state->error_cnt)
 				continue;
 
-			dump_test_log(test, state, true, true);
+			dump_test_log(test, state, true, true, w);
 		}
 	}
+
+	if (w) {
+		jsonw_end_array(w);
+		jsonw_end_object(w);
+		jsonw_destroy(&w);
+	}
+
+	if (env->json)
+		fclose(env->json);
 
 	printf("Summary: %d/%d PASSED, %d SKIPPED, %d FAILED\n",
 	       succ_cnt, sub_succ_cnt, skip_cnt, fail_cnt);

@@ -10,7 +10,7 @@ maintainers:
   - Mattijs Korpershoek <mkorpershoek@baylibre.com>
 
 allOf:
-  - $ref: "/schemas/input/matrix-keymap.yaml#"
+  - $ref: /schemas/input/matrix-keymap.yaml#
 
 description: |
   Mediatek's Keypad controller is used to interface a SoC with a matrix-type

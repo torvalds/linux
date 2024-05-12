@@ -54,6 +54,7 @@
 #define _GNU_SOURCE
 #endif
 #include <asm/types.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -248,7 +249,7 @@
 
 /**
  * FIXTURE_SETUP() - Prepares the setup function for the fixture.
- * *_metadata* is included so that EXPECT_* and ASSERT_* work correctly.
+ * *_metadata* is included so that EXPECT_*, ASSERT_* etc. work correctly.
  *
  * @fixture_name: fixture name
  *
@@ -274,7 +275,7 @@
 
 /**
  * FIXTURE_TEARDOWN()
- * *_metadata* is included so that EXPECT_* and ASSERT_* work correctly.
+ * *_metadata* is included so that EXPECT_*, ASSERT_* etc. work correctly.
  *
  * @fixture_name: fixture name
  *
@@ -387,7 +388,7 @@
 		if (setjmp(_metadata->env) == 0) { \
 			fixture_name##_setup(_metadata, &self, variant->data); \
 			/* Let setup failure terminate early. */ \
-			if (!_metadata->passed) \
+                       if (!_metadata->passed || _metadata->skip) \
 				return; \
 			_metadata->setup_completed = true; \
 			fixture_name##_##test_name(_metadata, &self, variant->data); \
@@ -985,6 +986,127 @@ void __wait_for_test(struct __test_metadata *t)
 	}
 }
 
+static void test_harness_list_tests(void)
+{
+	struct __fixture_variant_metadata *v;
+	struct __fixture_metadata *f;
+	struct __test_metadata *t;
+
+	for (f = __fixture_list; f; f = f->next) {
+		v = f->variant;
+		t = f->tests;
+
+		if (f == __fixture_list)
+			fprintf(stderr, "%-20s %-25s %s\n",
+				"# FIXTURE", "VARIANT", "TEST");
+		else
+			fprintf(stderr, "--------------------------------------------------------------------------------\n");
+
+		do {
+			fprintf(stderr, "%-20s %-25s %s\n",
+				t == f->tests ? f->name : "",
+				v ? v->name : "",
+				t ? t->name : "");
+
+			v = v ? v->next : NULL;
+			t = t ? t->next : NULL;
+		} while (v || t);
+	}
+}
+
+static int test_harness_argv_check(int argc, char **argv)
+{
+	int opt;
+
+	while ((opt = getopt(argc, argv, "hlF:f:V:v:t:T:r:")) != -1) {
+		switch (opt) {
+		case 'f':
+		case 'F':
+		case 'v':
+		case 'V':
+		case 't':
+		case 'T':
+		case 'r':
+			break;
+		case 'l':
+			test_harness_list_tests();
+			return KSFT_SKIP;
+		case 'h':
+		default:
+			fprintf(stderr,
+				"Usage: %s [-h|-l] [-t|-T|-v|-V|-f|-F|-r name]\n"
+				"\t-h       print help\n"
+				"\t-l       list all tests\n"
+				"\n"
+				"\t-t name  include test\n"
+				"\t-T name  exclude test\n"
+				"\t-v name  include variant\n"
+				"\t-V name  exclude variant\n"
+				"\t-f name  include fixture\n"
+				"\t-F name  exclude fixture\n"
+				"\t-r name  run specified test\n"
+				"\n"
+				"Test filter options can be specified "
+				"multiple times. The filtering stops\n"
+				"at the first match. For example to "
+				"include all tests from variant 'bla'\n"
+				"but not test 'foo' specify '-T foo -v bla'.\n"
+				"", argv[0]);
+			return opt == 'h' ? KSFT_SKIP : KSFT_FAIL;
+		}
+	}
+
+	return KSFT_PASS;
+}
+
+static bool test_enabled(int argc, char **argv,
+			 struct __fixture_metadata *f,
+			 struct __fixture_variant_metadata *v,
+			 struct __test_metadata *t)
+{
+	unsigned int flen = 0, vlen = 0, tlen = 0;
+	bool has_positive = false;
+	int opt;
+
+	optind = 1;
+	while ((opt = getopt(argc, argv, "F:f:V:v:t:T:r:")) != -1) {
+		has_positive |= islower(opt);
+
+		switch (tolower(opt)) {
+		case 't':
+			if (!strcmp(t->name, optarg))
+				return islower(opt);
+			break;
+		case 'f':
+			if (!strcmp(f->name, optarg))
+				return islower(opt);
+			break;
+		case 'v':
+			if (!strcmp(v->name, optarg))
+				return islower(opt);
+			break;
+		case 'r':
+			if (!tlen) {
+				flen = strlen(f->name);
+				vlen = strlen(v->name);
+				tlen = strlen(t->name);
+			}
+			if (strlen(optarg) == flen + 1 + vlen + !!vlen + tlen &&
+			    !strncmp(f->name, &optarg[0], flen) &&
+			    !strncmp(v->name, &optarg[flen + 1], vlen) &&
+			    !strncmp(t->name, &optarg[flen + 1 + vlen + !!vlen], tlen))
+				return true;
+			break;
+		}
+	}
+
+	/*
+	 * If there are no positive tests then we assume user just wants
+	 * exclusions and everything else is a pass.
+	 */
+	return !has_positive;
+}
+
 void __run_test(struct __fixture_metadata *f,
 		struct __fixture_variant_metadata *variant,
 		struct __test_metadata *t)
@@ -1032,24 +1154,32 @@ void __run_test(struct __fixture_metadata *f,
 			f->name, variant->name[0] ? "." : "", variant->name, t->name);
 }
 
-static int test_harness_run(int __attribute__((unused)) argc,
-			    char __attribute__((unused)) **argv)
+static int test_harness_run(int argc, char **argv)
 {
 	struct __fixture_variant_metadata no_variant = { .name = "", };
 	struct __fixture_variant_metadata *v;
 	struct __fixture_metadata *f;
 	struct __test_results *results;
 	struct __test_metadata *t;
-	int ret = 0;
+	int ret;
 	unsigned int case_count = 0, test_count = 0;
 	unsigned int count = 0;
 	unsigned int pass_count = 0;
 
+	ret = test_harness_argv_check(argc, argv);
+	if (ret != KSFT_PASS)
+		return ret;
+
 	for (f = __fixture_list; f; f = f->next) {
 		for (v = f->variant ?: &no_variant; v; v = v->next) {
-			case_count++;
+			unsigned int old_tests = test_count;
+
 			for (t = f->tests; t; t = t->next)
-				test_count++;
+				if (test_enabled(argc, argv, f, v, t))
+					test_count++;
+
+			if (old_tests != test_count)
+				case_count++;
 		}
 	}
 
@@ -1063,6 +1193,8 @@ static int test_harness_run(int __attribute__((unused)) argc,
 	for (f = __fixture_list; f; f = f->next) {
 		for (v = f->variant ?: &no_variant; v; v = v->next) {
 			for (t = f->tests; t; t = t->next) {
+				if (!test_enabled(argc, argv, f, v, t))
+					continue;
 				count++;
 				t->results = results;
 				__run_test(f, v, t);

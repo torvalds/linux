@@ -2777,7 +2777,7 @@ clk_cleanup:
 	return ret;
 }
 
-static int cdns_torrent_phy_remove(struct platform_device *pdev)
+static void cdns_torrent_phy_remove(struct platform_device *pdev)
 {
 	struct cdns_torrent_phy *cdns_phy = platform_get_drvdata(pdev);
 	int i;
@@ -2791,8 +2791,6 @@ static int cdns_torrent_phy_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(cdns_phy->clk);
 	cdns_torrent_clk_cleanup(cdns_phy);
-
-	return 0;
 }
 
 /* Single DisplayPort(DP) link configuration */
@@ -4708,7 +4706,7 @@ MODULE_DEVICE_TABLE(of, cdns_torrent_phy_of_match);
 
 static struct platform_driver cdns_torrent_phy_driver = {
 	.probe	= cdns_torrent_phy_probe,
-	.remove = cdns_torrent_phy_remove,
+	.remove_new = cdns_torrent_phy_remove,
 	.driver = {
 		.name	= "cdns-torrent-phy",
 		.of_match_table	= cdns_torrent_phy_of_match,

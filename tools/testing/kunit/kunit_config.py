@@ -8,7 +8,7 @@
 
 from dataclasses import dataclass
 import re
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 
 CONFIG_IS_NOT_SET_PATTERN = r'^# CONFIG_(\w+) is not set$'
 CONFIG_PATTERN = r'^CONFIG_(\w+)=(\S+|".*")$'
@@ -34,7 +34,7 @@ class Kconfig:
 	def __init__(self) -> None:
 		self._entries = {}  # type: Dict[str, str]
 
-	def __eq__(self, other) -> bool:
+	def __eq__(self, other: Any) -> bool:
 		if not isinstance(other, self.__class__):
 			return False
 		return self._entries == other._entries

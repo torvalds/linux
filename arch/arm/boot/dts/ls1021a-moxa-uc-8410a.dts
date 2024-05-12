@@ -30,11 +30,11 @@
 	};
 
 	reg_3p3v: regulator-3p3v {
-		  compatible = "regulator-fixed";
-		  regulator-name = "3P3V";
-		  regulator-min-microvolt = <3300000>;
-		  regulator-max-microvolt = <3300000>;
-		  regulator-always-on;
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 
 	leds {

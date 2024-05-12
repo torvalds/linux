@@ -65,29 +65,90 @@ extern const char *aa_file_perm_names[];
 
 struct aa_perms {
 	u32 allow;
-	u32 audit;	/* set only when allow is set */
-
 	u32 deny;	/* explicit deny, or conflict if allow also set */
-	u32 quiet;	/* set only when ~allow | deny */
-	u32 kill;	/* set only when ~allow | deny */
-	u32 stop;	/* set only when ~allow | deny */
 
-	u32 complain;	/* accumulates only used when ~allow & ~deny */
+	u32 subtree;	/* allow perm on full subtree only when allow is set */
 	u32 cond;	/* set only when ~allow and ~deny */
 
-	u32 hide;	/* set only when  ~allow | deny */
+	u32 kill;	/* set only when ~allow | deny */
+	u32 complain;	/* accumulates only used when ~allow & ~deny */
 	u32 prompt;	/* accumulates only used when ~allow & ~deny */
 
-	/* Reserved:
-	 * u32 subtree;	/ * set only when allow is set * /
-	 */
-	u16 xindex;
+	u32 audit;	/* set only when allow is set */
+	u32 quiet;	/* set only when ~allow | deny */
+	u32 hide;	/* set only when  ~allow | deny */
+
+
+	u32 xindex;
+	u32 tag;	/* tag string index, if present */
+	u32 label;	/* label string index, if present */
 };
+
+/*
+ * Indexes are broken into a 24 bit index and 8 bit flag.
+ * For the index to be valid there must be a value in the flag
+ */
+#define AA_INDEX_MASK			0x00ffffff
+#define AA_INDEX_FLAG_MASK		0xff000000
+#define AA_INDEX_NONE			0
 
 #define ALL_PERMS_MASK 0xffffffff
 extern struct aa_perms nullperms;
 extern struct aa_perms allperms;
 
+/**
+ * aa_perms_accum_raw - accumulate perms with out masking off overlapping perms
+ * @accum - perms struct to accumulate into
+ * @addend - perms struct to add to @accum
+ */
+static inline void aa_perms_accum_raw(struct aa_perms *accum,
+				      struct aa_perms *addend)
+{
+	accum->deny |= addend->deny;
+	accum->allow &= addend->allow & ~addend->deny;
+	accum->audit |= addend->audit & addend->allow;
+	accum->quiet &= addend->quiet & ~addend->allow;
+	accum->kill |= addend->kill & ~addend->allow;
+	accum->complain |= addend->complain & ~addend->allow & ~addend->deny;
+	accum->cond |= addend->cond & ~addend->allow & ~addend->deny;
+	accum->hide &= addend->hide & ~addend->allow;
+	accum->prompt |= addend->prompt & ~addend->allow & ~addend->deny;
+	accum->subtree |= addend->subtree & ~addend->deny;
+
+	if (!accum->xindex)
+		accum->xindex = addend->xindex;
+	if (!accum->tag)
+		accum->tag = addend->tag;
+	if (!accum->label)
+		accum->label = addend->label;
+}
+
+/**
+ * aa_perms_accum - accumulate perms, masking off overlapping perms
+ * @accum - perms struct to accumulate into
+ * @addend - perms struct to add to @accum
+ */
+static inline void aa_perms_accum(struct aa_perms *accum,
+				  struct aa_perms *addend)
+{
+	accum->deny |= addend->deny;
+	accum->allow &= addend->allow & ~accum->deny;
+	accum->audit |= addend->audit & accum->allow;
+	accum->quiet &= addend->quiet & ~accum->allow;
+	accum->kill |= addend->kill & ~accum->allow;
+	accum->complain |= addend->complain & ~accum->allow & ~accum->deny;
+	accum->cond |= addend->cond & ~accum->allow & ~accum->deny;
+	accum->hide &= addend->hide & ~accum->allow;
+	accum->prompt |= addend->prompt & ~accum->allow & ~accum->deny;
+	accum->subtree &= addend->subtree & ~accum->deny;
+
+	if (!accum->xindex)
+		accum->xindex = addend->xindex;
+	if (!accum->tag)
+		accum->tag = addend->tag;
+	if (!accum->label)
+		accum->label = addend->label;
+}
 
 #define xcheck(FN1, FN2)	\
 ({				\
@@ -133,6 +194,9 @@ extern struct aa_perms allperms;
 	xcheck(fn_for_each((L1), (P), (FN1)), fn_for_each((L2), (P), (FN2)))
 
 
+extern struct aa_perms default_perms;
+
+
 void aa_perm_mask_to_str(char *str, size_t str_size, const char *chrs,
 			 u32 mask);
 void aa_audit_perm_names(struct audit_buffer *ab, const char * const *names,
@@ -141,11 +205,10 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
 			u32 chrsmask, const char * const *names, u32 namesmask);
 void aa_apply_modes_to_perms(struct aa_profile *profile,
 			     struct aa_perms *perms);
-void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
-		      struct aa_perms *perms);
 void aa_perms_accum(struct aa_perms *accum, struct aa_perms *addend);
 void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend);
-void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
+void aa_profile_match_label(struct aa_profile *profile,
+			    struct aa_ruleset *rules, struct aa_label *label,
 			    int type, u32 request, struct aa_perms *perms);
 int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
 			  u32 request, int type, u32 *deny,

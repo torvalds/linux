@@ -4,145 +4,160 @@
 
 #include "map_kptr.skel.h"
 #include "map_kptr_fail.skel.h"
-
-static char log_buf[1024 * 1024];
-
-struct {
-	const char *prog_name;
-	const char *err_msg;
-} map_kptr_fail_tests[] = {
-	{ "size_not_bpf_dw", "kptr access size must be BPF_DW" },
-	{ "non_const_var_off", "kptr access cannot have variable offset" },
-	{ "non_const_var_off_kptr_xchg", "R1 doesn't have constant offset. kptr has to be" },
-	{ "misaligned_access_write", "kptr access misaligned expected=8 off=7" },
-	{ "misaligned_access_read", "kptr access misaligned expected=8 off=1" },
-	{ "reject_var_off_store", "variable untrusted_ptr_ access var_off=(0x0; 0x1e0)" },
-	{ "reject_bad_type_match", "invalid kptr access, R1 type=untrusted_ptr_prog_test_ref_kfunc" },
-	{ "marked_as_untrusted_or_null", "R1 type=untrusted_ptr_or_null_ expected=percpu_ptr_" },
-	{ "correct_btf_id_check_size", "access beyond struct prog_test_ref_kfunc at off 32 size 4" },
-	{ "inherit_untrusted_on_walk", "R1 type=untrusted_ptr_ expected=percpu_ptr_" },
-	{ "reject_kptr_xchg_on_unref", "off=8 kptr isn't referenced kptr" },
-	{ "reject_kptr_get_no_map_val", "arg#0 expected pointer to map value" },
-	{ "reject_kptr_get_no_null_map_val", "arg#0 expected pointer to map value" },
-	{ "reject_kptr_get_no_kptr", "arg#0 no referenced kptr at map value offset=0" },
-	{ "reject_kptr_get_on_unref", "arg#0 no referenced kptr at map value offset=8" },
-	{ "reject_kptr_get_bad_type_match", "kernel function bpf_kfunc_call_test_kptr_get args#0" },
-	{ "mark_ref_as_untrusted_or_null", "R1 type=untrusted_ptr_or_null_ expected=percpu_ptr_" },
-	{ "reject_untrusted_store_to_ref", "store to referenced kptr disallowed" },
-	{ "reject_bad_type_xchg", "invalid kptr access, R2 type=ptr_prog_test_ref_kfunc expected=ptr_prog_test_member" },
-	{ "reject_untrusted_xchg", "R2 type=untrusted_ptr_ expected=ptr_" },
-	{ "reject_member_of_ref_xchg", "invalid kptr access, R2 type=ptr_prog_test_ref_kfunc" },
-	{ "reject_indirect_helper_access", "kptr cannot be accessed indirectly by helper" },
-	{ "reject_indirect_global_func_access", "kptr cannot be accessed indirectly by helper" },
-	{ "kptr_xchg_ref_state", "Unreleased reference id=5 alloc_insn=" },
-	{ "kptr_get_ref_state", "Unreleased reference id=3 alloc_insn=" },
-};
-
-static void test_map_kptr_fail_prog(const char *prog_name, const char *err_msg)
-{
-	LIBBPF_OPTS(bpf_object_open_opts, opts, .kernel_log_buf = log_buf,
-						.kernel_log_size = sizeof(log_buf),
-						.kernel_log_level = 1);
-	struct map_kptr_fail *skel;
-	struct bpf_program *prog;
-	int ret;
-
-	skel = map_kptr_fail__open_opts(&opts);
-	if (!ASSERT_OK_PTR(skel, "map_kptr_fail__open_opts"))
-		return;
-
-	prog = bpf_object__find_program_by_name(skel->obj, prog_name);
-	if (!ASSERT_OK_PTR(prog, "bpf_object__find_program_by_name"))
-		goto end;
-
-	bpf_program__set_autoload(prog, true);
-
-	ret = map_kptr_fail__load(skel);
-	if (!ASSERT_ERR(ret, "map_kptr__load must fail"))
-		goto end;
-
-	if (!ASSERT_OK_PTR(strstr(log_buf, err_msg), "expected error message")) {
-		fprintf(stderr, "Expected: %s\n", err_msg);
-		fprintf(stderr, "Verifier: %s\n", log_buf);
-	}
-
-end:
-	map_kptr_fail__destroy(skel);
-}
-
-static void test_map_kptr_fail(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(map_kptr_fail_tests); i++) {
-		if (!test__start_subtest(map_kptr_fail_tests[i].prog_name))
-			continue;
-		test_map_kptr_fail_prog(map_kptr_fail_tests[i].prog_name,
-					map_kptr_fail_tests[i].err_msg);
-	}
-}
+#include "rcu_tasks_trace_gp.skel.h"
 
 static void test_map_kptr_success(bool test_run)
 {
+	LIBBPF_OPTS(bpf_test_run_opts, lopts);
 	LIBBPF_OPTS(bpf_test_run_opts, opts,
 		.data_in = &pkt_v4,
 		.data_size_in = sizeof(pkt_v4),
 		.repeat = 1,
 	);
+	int key = 0, ret, cpu;
 	struct map_kptr *skel;
-	int key = 0, ret;
-	char buf[16];
+	char buf[16], *pbuf;
 
 	skel = map_kptr__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "map_kptr__open_and_load"))
 		return;
 
-	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref), &opts);
-	ASSERT_OK(ret, "test_map_kptr_ref refcount");
-	ASSERT_OK(opts.retval, "test_map_kptr_ref retval");
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref1), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref1 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref1 retval");
 	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref2), &opts);
 	ASSERT_OK(ret, "test_map_kptr_ref2 refcount");
 	ASSERT_OK(opts.retval, "test_map_kptr_ref2 retval");
 
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_ls_map_kptr_ref1), &lopts);
+	ASSERT_OK(ret, "test_ls_map_kptr_ref1 refcount");
+	ASSERT_OK(lopts.retval, "test_ls_map_kptr_ref1 retval");
+
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_ls_map_kptr_ref2), &lopts);
+	ASSERT_OK(ret, "test_ls_map_kptr_ref2 refcount");
+	ASSERT_OK(lopts.retval, "test_ls_map_kptr_ref2 retval");
+
 	if (test_run)
-		return;
+		goto exit;
+
+	cpu = libbpf_num_possible_cpus();
+	if (!ASSERT_GT(cpu, 0, "libbpf_num_possible_cpus"))
+		goto exit;
+
+	pbuf = calloc(cpu, sizeof(buf));
+	if (!ASSERT_OK_PTR(pbuf, "calloc(pbuf)"))
+		goto exit;
 
 	ret = bpf_map__update_elem(skel->maps.array_map,
 				   &key, sizeof(key), buf, sizeof(buf), 0);
 	ASSERT_OK(ret, "array_map update");
-	ret = bpf_map__update_elem(skel->maps.array_map,
-				   &key, sizeof(key), buf, sizeof(buf), 0);
-	ASSERT_OK(ret, "array_map update2");
+	skel->data->ref--;
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref3), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref3 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref3 retval");
 
-	ret = bpf_map__update_elem(skel->maps.hash_map,
-				   &key, sizeof(key), buf, sizeof(buf), 0);
-	ASSERT_OK(ret, "hash_map update");
+	ret = bpf_map__update_elem(skel->maps.pcpu_array_map,
+				   &key, sizeof(key), pbuf, cpu * sizeof(buf), 0);
+	ASSERT_OK(ret, "pcpu_array_map update");
+	skel->data->ref--;
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref3), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref3 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref3 retval");
+
 	ret = bpf_map__delete_elem(skel->maps.hash_map, &key, sizeof(key), 0);
 	ASSERT_OK(ret, "hash_map delete");
+	skel->data->ref--;
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref3), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref3 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref3 retval");
 
-	ret = bpf_map__update_elem(skel->maps.hash_malloc_map,
-				   &key, sizeof(key), buf, sizeof(buf), 0);
-	ASSERT_OK(ret, "hash_malloc_map update");
+	ret = bpf_map__delete_elem(skel->maps.pcpu_hash_map, &key, sizeof(key), 0);
+	ASSERT_OK(ret, "pcpu_hash_map delete");
+	skel->data->ref--;
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref3), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref3 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref3 retval");
+
 	ret = bpf_map__delete_elem(skel->maps.hash_malloc_map, &key, sizeof(key), 0);
 	ASSERT_OK(ret, "hash_malloc_map delete");
+	skel->data->ref--;
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref3), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref3 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref3 retval");
 
-	ret = bpf_map__update_elem(skel->maps.lru_hash_map,
-				   &key, sizeof(key), buf, sizeof(buf), 0);
-	ASSERT_OK(ret, "lru_hash_map update");
+	ret = bpf_map__delete_elem(skel->maps.pcpu_hash_malloc_map, &key, sizeof(key), 0);
+	ASSERT_OK(ret, "pcpu_hash_malloc_map delete");
+	skel->data->ref--;
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref3), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref3 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref3 retval");
+
 	ret = bpf_map__delete_elem(skel->maps.lru_hash_map, &key, sizeof(key), 0);
 	ASSERT_OK(ret, "lru_hash_map delete");
+	skel->data->ref--;
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref3), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref3 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref3 retval");
 
+	ret = bpf_map__delete_elem(skel->maps.lru_pcpu_hash_map, &key, sizeof(key), 0);
+	ASSERT_OK(ret, "lru_pcpu_hash_map delete");
+	skel->data->ref--;
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_map_kptr_ref3), &opts);
+	ASSERT_OK(ret, "test_map_kptr_ref3 refcount");
+	ASSERT_OK(opts.retval, "test_map_kptr_ref3 retval");
+
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.test_ls_map_kptr_ref_del), &lopts);
+	ASSERT_OK(ret, "test_ls_map_kptr_ref_del delete");
+	skel->data->ref--;
+	ASSERT_OK(lopts.retval, "test_ls_map_kptr_ref_del retval");
+
+	free(pbuf);
+exit:
 	map_kptr__destroy(skel);
 }
 
-void test_map_kptr(void)
+static int kern_sync_rcu_tasks_trace(struct rcu_tasks_trace_gp *rcu)
 {
-	if (test__start_subtest("success")) {
+	long gp_seq = READ_ONCE(rcu->bss->gp_seq);
+	LIBBPF_OPTS(bpf_test_run_opts, opts);
+
+	if (!ASSERT_OK(bpf_prog_test_run_opts(bpf_program__fd(rcu->progs.do_call_rcu_tasks_trace),
+					      &opts), "do_call_rcu_tasks_trace"))
+		return -EFAULT;
+	if (!ASSERT_OK(opts.retval, "opts.retval == 0"))
+		return -EFAULT;
+	while (gp_seq == READ_ONCE(rcu->bss->gp_seq))
+		sched_yield();
+	return 0;
+}
+
+void serial_test_map_kptr(void)
+{
+	struct rcu_tasks_trace_gp *skel;
+
+	RUN_TESTS(map_kptr_fail);
+
+	skel = rcu_tasks_trace_gp__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "rcu_tasks_trace_gp__open_and_load"))
+		return;
+	if (!ASSERT_OK(rcu_tasks_trace_gp__attach(skel), "rcu_tasks_trace_gp__attach"))
+		goto end;
+
+	if (test__start_subtest("success-map")) {
+		test_map_kptr_success(true);
+
+		ASSERT_OK(kern_sync_rcu_tasks_trace(skel), "sync rcu_tasks_trace");
+		ASSERT_OK(kern_sync_rcu(), "sync rcu");
+		/* Observe refcount dropping to 1 on bpf_map_free_deferred */
 		test_map_kptr_success(false);
-		/* Do test_run twice, so that we see refcount going back to 1
-		 * after we leave it in map from first iteration.
-		 */
+
+		ASSERT_OK(kern_sync_rcu_tasks_trace(skel), "sync rcu_tasks_trace");
+		ASSERT_OK(kern_sync_rcu(), "sync rcu");
+		/* Observe refcount dropping to 1 on synchronous delete elem */
 		test_map_kptr_success(true);
 	}
-	test_map_kptr_fail();
+
+end:
+	rcu_tasks_trace_gp__destroy(skel);
+	return;
 }

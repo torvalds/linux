@@ -126,12 +126,16 @@ static void stable_tsc_check_supported(void)
 		goto skip_test;
 
 	if (fgets(buf, sizeof(buf), fp) == NULL)
-		goto skip_test;
+		goto close_fp;
 
 	if (strncmp(buf, "tsc", sizeof(buf)))
-		goto skip_test;
+		goto close_fp;
 
+	fclose(fp);
 	return;
+
+close_fp:
+	fclose(fp);
 skip_test:
 	print_skip("Kernel does not use TSC clocksource - assuming that host TSC is not stable");
 	exit(KSFT_SKIP);
@@ -183,14 +187,10 @@ int main(int argc, char *argv[])
 	vcpu_ioctl(vcpu, KVM_SET_TSC_KHZ, (void *) (tsc_khz / l1_scale_factor));
 
 	for (;;) {
-		volatile struct kvm_run *run = vcpu->run;
 		struct ucall uc;
 
 		vcpu_run(vcpu);
-		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-			    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
-			    run->exit_reason,
-			    exit_reason_str(run->exit_reason));
+		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:

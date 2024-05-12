@@ -330,7 +330,7 @@ int drm_dp_aux_dev_init(void)
 {
 	int res;
 
-	drm_dp_aux_dev_class = class_create(THIS_MODULE, "drm_dp_aux_dev");
+	drm_dp_aux_dev_class = class_create("drm_dp_aux_dev");
 	if (IS_ERR(drm_dp_aux_dev_class)) {
 		return PTR_ERR(drm_dp_aux_dev_class);
 	}

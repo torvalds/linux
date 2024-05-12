@@ -412,6 +412,25 @@ int aq_xdp_xmit(struct net_device *dev, int num_frames,
 	return num_frames - drop;
 }
 
+static struct sk_buff *aq_xdp_build_skb(struct xdp_buff *xdp,
+					struct net_device *dev,
+					struct aq_ring_buff_s *buff)
+{
+	struct xdp_frame *xdpf;
+	struct sk_buff *skb;
+
+	xdpf = xdp_convert_buff_to_frame(xdp);
+	if (unlikely(!xdpf))
+		return NULL;
+
+	skb = xdp_build_skb_from_frame(xdpf, dev);
+	if (!skb)
+		return NULL;
+
+	aq_get_rxpages_xdp(buff, xdp);
+	return skb;
+}
+
 static struct sk_buff *aq_xdp_run_prog(struct aq_nic_s *aq_nic,
 				       struct xdp_buff *xdp,
 				       struct aq_ring_s *rx_ring,
@@ -431,7 +450,7 @@ static struct sk_buff *aq_xdp_run_prog(struct aq_nic_s *aq_nic,
 
 	prog = READ_ONCE(rx_ring->xdp_prog);
 	if (!prog)
-		goto pass;
+		return aq_xdp_build_skb(xdp, aq_nic->ndev, buff);
 
 	prefetchw(xdp->data_hard_start); /* xdp_frame write */
 
@@ -442,17 +461,12 @@ static struct sk_buff *aq_xdp_run_prog(struct aq_nic_s *aq_nic,
 	act = bpf_prog_run_xdp(prog, xdp);
 	switch (act) {
 	case XDP_PASS:
-pass:
-		xdpf = xdp_convert_buff_to_frame(xdp);
-		if (unlikely(!xdpf))
-			goto out_aborted;
-		skb = xdp_build_skb_from_frame(xdpf, aq_nic->ndev);
+		skb = aq_xdp_build_skb(xdp, aq_nic->ndev, buff);
 		if (!skb)
 			goto out_aborted;
 		u64_stats_update_begin(&rx_ring->stats.rx.syncp);
 		++rx_ring->stats.rx.xdp_pass;
 		u64_stats_update_end(&rx_ring->stats.rx.syncp);
-		aq_get_rxpages_xdp(buff, xdp);
 		return skb;
 	case XDP_TX:
 		xdpf = xdp_convert_buff_to_frame(xdp);
@@ -934,7 +948,7 @@ unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)
 		/* This data should mimic aq_ethtool_queue_rx_stat_names structure */
 		do {
 			count = 0;
-			start = u64_stats_fetch_begin_irq(&self->stats.rx.syncp);
+			start = u64_stats_fetch_begin(&self->stats.rx.syncp);
 			data[count] = self->stats.rx.packets;
 			data[++count] = self->stats.rx.jumbo_packets;
 			data[++count] = self->stats.rx.lro_packets;
@@ -951,15 +965,15 @@ unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)
 			data[++count] = self->stats.rx.xdp_tx;
 			data[++count] = self->stats.rx.xdp_invalid;
 			data[++count] = self->stats.rx.xdp_redirect;
-		} while (u64_stats_fetch_retry_irq(&self->stats.rx.syncp, start));
+		} while (u64_stats_fetch_retry(&self->stats.rx.syncp, start));
 	} else {
 		/* This data should mimic aq_ethtool_queue_tx_stat_names structure */
 		do {
 			count = 0;
-			start = u64_stats_fetch_begin_irq(&self->stats.tx.syncp);
+			start = u64_stats_fetch_begin(&self->stats.tx.syncp);
 			data[count] = self->stats.tx.packets;
 			data[++count] = self->stats.tx.queue_restarts;
-		} while (u64_stats_fetch_retry_irq(&self->stats.tx.syncp, start));
+		} while (u64_stats_fetch_retry(&self->stats.tx.syncp, start));
 	}
 
 	return ++count;

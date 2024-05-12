@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/power/supply/maxim,max14656.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Maxim MAX14656 DT bindings
+title: Maxim MAX14656
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>
@@ -32,7 +32,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c0 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 

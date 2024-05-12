@@ -200,6 +200,7 @@ static void fq_tin_enqueue(struct fq *fq,
 			   fq_skb_free_t free_func)
 {
 	struct fq_flow *flow;
+	struct sk_buff *next;
 	bool oom;
 
 	lockdep_assert_held(&fq->lock);
@@ -214,11 +215,15 @@ static void fq_tin_enqueue(struct fq *fq,
 	}
 
 	flow->tin = tin;
-	flow->backlog += skb->len;
-	tin->backlog_bytes += skb->len;
-	tin->backlog_packets++;
-	fq->memory_usage += skb->truesize;
-	fq->backlog++;
+	skb_list_walk_safe(skb, skb, next) {
+		skb_mark_not_on_list(skb);
+		flow->backlog += skb->len;
+		tin->backlog_bytes += skb->len;
+		tin->backlog_packets++;
+		fq->memory_usage += skb->truesize;
+		fq->backlog++;
+		__skb_queue_tail(&flow->queue, skb);
+	}
 
 	if (list_empty(&flow->flowchain)) {
 		flow->deficit = fq->quantum;
@@ -226,7 +231,6 @@ static void fq_tin_enqueue(struct fq *fq,
 			      &tin->new_flows);
 	}
 
-	__skb_queue_tail(&flow->queue, skb);
 	oom = (fq->memory_usage > fq->memory_limit);
 	while (fq->backlog > fq->limit || oom) {
 		flow = fq_find_fattest_flow(fq);

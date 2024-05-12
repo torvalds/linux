@@ -83,8 +83,8 @@ This prevents from accidentally exporting a symbol, that is not supposed
 to be a part of ABI what, in turn, improves both libbpf developer- and
 user-experiences.
 
-ABI versionning
----------------
+ABI versioning
+--------------
 
 To make future ABI extensions possible libbpf ABI is versioned.
 Versioning is implemented by ``libbpf.map`` version script that is
@@ -148,7 +148,7 @@ API documentation convention
 The libbpf API is documented via comments above definitions in
 header files. These comments can be rendered by doxygen and sphinx
 for well organized html output. This section describes the
-convention in which these comments should be formated.
+convention in which these comments should be formatted.
 
 Here is an example from btf.h:
 

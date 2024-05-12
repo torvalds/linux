@@ -35,43 +35,17 @@
 
 #include <linux/bitops.h>
 
-#define HNS_ROCE_V2_MAX_QP_NUM			0x1000
-#define HNS_ROCE_V2_MAX_WQE_NUM			0x8000
-#define HNS_ROCE_V2_MAX_SRQ_WR			0x8000
-#define HNS_ROCE_V2_MAX_SRQ_SGE			64
-#define HNS_ROCE_V2_MAX_CQ_NUM			0x100000
-#define HNS_ROCE_V2_MAX_QPC_TIMER_BT_NUM	0x100
-#define HNS_ROCE_V2_MAX_CQC_TIMER_BT_NUM	0x100
-#define HNS_ROCE_V2_MAX_SRQ_NUM			0x100000
-#define HNS_ROCE_V2_MAX_CQE_NUM			0x400000
-#define HNS_ROCE_V2_MAX_RQ_SGE_NUM		64
-#define HNS_ROCE_V2_MAX_SQ_SGE_NUM		64
-#define HNS_ROCE_V2_MAX_SQ_INLINE		0x20
-#define HNS_ROCE_V3_MAX_SQ_INLINE		0x400
 #define HNS_ROCE_V2_MAX_RC_INL_INN_SZ		32
-#define HNS_ROCE_V2_UAR_NUM			256
-#define HNS_ROCE_V2_PHY_UAR_NUM			1
+#define HNS_ROCE_V2_MTT_ENTRY_SZ		64
 #define HNS_ROCE_V2_AEQE_VEC_NUM		1
 #define HNS_ROCE_V2_ABNORMAL_VEC_NUM		1
-#define HNS_ROCE_V2_MAX_MTPT_NUM		0x100000
 #define HNS_ROCE_V2_MAX_SRQWQE_SEGS		0x1000000
 #define HNS_ROCE_V2_MAX_IDX_SEGS		0x1000000
-#define HNS_ROCE_V2_MAX_PD_NUM			0x1000000
 #define HNS_ROCE_V2_MAX_XRCD_NUM		0x1000000
 #define HNS_ROCE_V2_RSV_XRCD_NUM		0
-#define HNS_ROCE_V2_MAX_QP_INIT_RDMA		128
-#define HNS_ROCE_V2_MAX_QP_DEST_RDMA		128
-#define HNS_ROCE_V2_MAX_SQ_DESC_SZ		64
-#define HNS_ROCE_V2_MAX_RQ_DESC_SZ		16
-#define HNS_ROCE_V2_IRRL_ENTRY_SZ		64
-#define HNS_ROCE_V2_EXT_ATOMIC_TRRL_ENTRY_SZ	100
-#define HNS_ROCE_V2_CQC_ENTRY_SZ		64
-#define HNS_ROCE_V2_SRQC_ENTRY_SZ		64
-#define HNS_ROCE_V2_MTPT_ENTRY_SZ		64
-#define HNS_ROCE_V2_MTT_ENTRY_SZ		64
-#define HNS_ROCE_V2_IDX_ENTRY_SZ		4
 
-#define HNS_ROCE_V2_SCCC_SZ			32
+#define HNS_ROCE_V2_QP_ACK_TIMEOUT_OFS_HIP08    10
+
 #define HNS_ROCE_V3_SCCC_SZ			64
 #define HNS_ROCE_V3_GMV_ENTRY_SZ		32
 
@@ -232,6 +206,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_QUERY_FUNC_INFO			= 0x8407,
 	HNS_ROCE_OPC_QUERY_PF_CAPS_NUM                  = 0x8408,
 	HNS_ROCE_OPC_CFG_ENTRY_SIZE			= 0x8409,
+	HNS_ROCE_OPC_QUERY_VF_CAPS_NUM			= 0x8410,
 	HNS_ROCE_OPC_CFG_SGID_TB			= 0x8500,
 	HNS_ROCE_OPC_CFG_SMAC_TB			= 0x8501,
 	HNS_ROCE_OPC_POST_MB				= 0x8504,
@@ -270,6 +245,11 @@ enum hns_roce_cmd_return_status {
 	CMD_INVALID,
 	CMD_ROH_CHECK_FAIL,
 	CMD_OTHER_ERR = 0xff
+};
+
+struct hns_roce_cmd_errcode {
+	enum hns_roce_cmd_return_status return_status;
+	int errno;
 };
 
 enum hns_roce_sgid_type {
@@ -526,7 +506,8 @@ struct hns_roce_v2_qp_context {
 #define QPC_RQ_RTY_TX_ERR QPC_FIELD_LOC(607, 607)
 #define QPC_RX_CQN QPC_FIELD_LOC(631, 608)
 #define QPC_XRC_QP_TYPE QPC_FIELD_LOC(632, 632)
-#define QPC_RSV3 QPC_FIELD_LOC(634, 633)
+#define QPC_CQEIE QPC_FIELD_LOC(633, 633)
+#define QPC_CQEIS QPC_FIELD_LOC(634, 634)
 #define QPC_MIN_RNR_TIME QPC_FIELD_LOC(639, 635)
 #define QPC_RQ_PRODUCER_IDX QPC_FIELD_LOC(655, 640)
 #define QPC_RQ_CONSUMER_IDX QPC_FIELD_LOC(671, 656)
@@ -1327,9 +1308,9 @@ struct hns_roce_link_table {
 #define HNS_ROCE_EXT_LLM_MIN_PAGES(que_num) ((que_num) * 4 + 2)
 
 struct hns_roce_v2_free_mr {
-	struct ib_qp *rsv_qp[HNS_ROCE_FREE_MR_USED_QP_NUM];
-	struct ib_cq *rsv_cq;
-	struct ib_pd *rsv_pd;
+	struct hns_roce_qp *rsv_qp[HNS_ROCE_FREE_MR_USED_QP_NUM];
+	struct hns_roce_cq *rsv_cq;
+	struct hns_roce_pd *rsv_pd;
 	struct mutex mutex;
 };
 
@@ -1458,6 +1439,8 @@ struct hns_roce_sccc_clr_done {
 	__le32 clr_done;
 	__le32 rsv[5];
 };
+
+int hns_roce_v2_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
 static inline void hns_roce_write64(struct hns_roce_dev *hr_dev, __le32 val[2],
 				    void __iomem *dest)

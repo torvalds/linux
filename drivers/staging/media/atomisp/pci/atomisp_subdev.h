@@ -21,8 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/videobuf-core.h>
-
+#include <media/videobuf2-v4l2.h>
 #include "atomisp_common.h"
 #include "atomisp_compat.h"
 #include "atomisp_v4l2.h"
@@ -31,18 +30,6 @@
 
 /* EXP_ID's ranger is 1 ~ 250 */
 #define ATOMISP_MAX_EXP_ID     (250)
-enum atomisp_subdev_input_entity {
-	ATOMISP_SUBDEV_INPUT_NONE,
-	ATOMISP_SUBDEV_INPUT_MEMORY,
-	ATOMISP_SUBDEV_INPUT_CSI2,
-	/*
-	 * The following enum for CSI2 port must go together in one row.
-	 * Otherwise it breaks the code logic.
-	 */
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT1,
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT2,
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT3,
-};
 
 #define ATOMISP_SUBDEV_PAD_SINK			0
 /* capture output for still frames */
@@ -69,7 +56,12 @@ struct atomisp_video_pipe {
 	struct video_device vdev;
 	enum v4l2_buf_type type;
 	struct media_pad pad;
-	struct videobuf_queue capq;
+	struct vb2_queue vb_queue;
+	/* Lock for vb_queue, when also taking isp->mutex this must be taken first! */
+	struct mutex vb_queue_mutex;
+	/* List of video-buffers handed over to the CSS  */
+	struct list_head buffers_in_css;
+	/* List of video-buffers handed over to the driver, but not yet to the CSS */
 	struct list_head activeq;
 	/*
 	 * the buffers waiting for per-frame parameters, this is only valid
@@ -79,10 +71,13 @@ struct atomisp_video_pipe {
 	/* the link list to store per_frame parameters */
 	struct list_head per_frame_params;
 
+	/* Filled through atomisp_get_css_frame_info() on queue setup */
+	struct ia_css_frame_info frame_info;
+
 	/* Store here the initial run mode */
 	unsigned int default_run_mode;
-
-	unsigned int buffers_in_css;
+	/* Set from streamoff to disallow queuing further buffers in CSS */
+	bool stopping;
 
 	/*
 	 * irq_lock is used to protect video buffer state change operations and
@@ -109,6 +104,11 @@ struct atomisp_video_pipe {
 	unsigned int frame_request_config_id[VIDEO_MAX_FRAME];
 	struct atomisp_css_params_with_list *frame_params[VIDEO_MAX_FRAME];
 };
+
+#define vq_to_pipe(queue) \
+	container_of(queue, struct atomisp_video_pipe, vb_queue)
+
+#define vb_to_pipe(vb) vq_to_pipe((vb)->vb2_queue)
 
 struct atomisp_pad_format {
 	struct v4l2_mbus_framefmt fmt;
@@ -183,9 +183,6 @@ struct atomisp_css_params {
 };
 
 struct atomisp_subdev_params {
-	/* FIXME: Determines whether raw capture buffer are being passed to
-	 * user space. Unimplemented for now. */
-	int online_process;
 	int yuv_ds_en;
 	unsigned int color_effect;
 	bool gdc_cac_en;
@@ -237,8 +234,6 @@ struct atomisp_subdev_params {
 	enum atomisp_flash_state flash_state;
 	enum atomisp_frame_status last_frame_status;
 
-	/* continuous capture */
-	struct atomisp_cont_capture_conf offline_parm;
 	/* Flag to check if driver needs to update params to css */
 	bool css_update_params_needed;
 };
@@ -255,7 +250,6 @@ struct atomisp_sub_device {
 	struct atomisp_pad_format fmt[ATOMISP_SUBDEV_PADS_NUM];
 	u16 capture_pad; /* main capture pad; defines much of isp config */
 
-	enum atomisp_subdev_input_entity input;
 	unsigned int output;
 	struct atomisp_video_pipe video_out_capture; /* capture output */
 	struct atomisp_video_pipe video_out_vf;      /* viewfinder output */
@@ -265,11 +259,8 @@ struct atomisp_sub_device {
 	/* struct isp_subdev_params params; */
 	struct atomisp_device *isp;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_ctrl *fmt_auto;
 	struct v4l2_ctrl *run_mode;
-	struct v4l2_ctrl *depth_mode;
 	struct v4l2_ctrl *vfpp;
-	struct v4l2_ctrl *continuous_mode;
 	struct v4l2_ctrl *continuous_raw_buffer_size;
 	struct v4l2_ctrl *continuous_viewfinder;
 	struct v4l2_ctrl *enable_raw_buffer_lock;
@@ -308,7 +299,6 @@ struct atomisp_sub_device {
 	spinlock_t dis_stats_lock;
 
 	struct ia_css_frame *vf_frame; /* TODO: needed? */
-	struct ia_css_frame *raw_output_frame;
 	enum atomisp_frame_status frame_status[VIDEO_MAX_FRAME];
 
 	/* This field specifies which camera (v4l2 input) is selected. */
@@ -325,23 +315,11 @@ struct atomisp_sub_device {
 	unsigned int streaming;
 	bool stream_prepared; /* whether css stream is created */
 
-	/* subdev index: will be used to show which subdev is holding the
-	 * resource, like which camera is used by which subdev
-	 */
-	unsigned int index;
-
-	/* delayed memory allocation for css */
-	struct completion init_done;
-	struct workqueue_struct *delayed_init_workq;
-	unsigned int delayed_init;
-	struct work_struct delayed_init_work;
-
 	unsigned int latest_preview_exp_id; /* CSS ZSL/SDV raw buffer id */
 
 	unsigned int mipi_frame_size;
 
 	bool copy_mode; /* CSI2+ use copy mode */
-	bool yuvpp_mode;	/* CSI2+ yuvpp pipe */
 
 	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID / 32 +
 						 1]; /* Record each Raw Buffer lock status */
@@ -353,7 +331,6 @@ struct atomisp_sub_device {
 
 	struct atomisp_resolution sensor_array_res;
 	bool high_speed_mode; /* Indicate whether now is a high speed mode */
-	int pending_capture_request; /* Indicates the number of pending capture requests. */
 
 	unsigned int preview_exp_id;
 	unsigned int postview_exp_id;

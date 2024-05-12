@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015-2021, NVIDIA Corporation.
+ * Copyright (c) 2015-2022, NVIDIA Corporation.
  */
 
 #include <linux/clk.h>
@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/host1x.h>
 #include <linux/iommu.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -16,18 +17,22 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
-#include <soc/tegra/pmc.h>
+#include <soc/tegra/mc.h>
 
 #include "drm.h"
 #include "falcon.h"
+#include "riscv.h"
 #include "vic.h"
 
+#define NVDEC_FALCON_DEBUGINFO			0x1094
 #define NVDEC_TFBIF_TRANSCFG			0x2c44
 
 struct nvdec_config {
 	const char *firmware;
 	unsigned int version;
 	bool supports_sid;
+	bool has_riscv;
+	bool has_extra_clocks;
 };
 
 struct nvdec {
@@ -37,10 +42,16 @@ struct nvdec {
 	struct tegra_drm_client client;
 	struct host1x_channel *channel;
 	struct device *dev;
-	struct clk *clk;
+	struct clk_bulk_data clks[3];
+	unsigned int num_clks;
+	struct reset_control *reset;
 
 	/* Platform configuration */
 	const struct nvdec_config *config;
+
+	/* RISC-V specific data */
+	struct tegra_drm_riscv riscv;
+	phys_addr_t carveout_base;
 };
 
 static inline struct nvdec *to_nvdec(struct tegra_drm_client *client)
@@ -54,28 +65,20 @@ static inline void nvdec_writel(struct nvdec *nvdec, u32 value,
 	writel(value, nvdec->regs + offset);
 }
 
-static int nvdec_boot(struct nvdec *nvdec)
+static int nvdec_boot_falcon(struct nvdec *nvdec)
 {
-#ifdef CONFIG_IOMMU_API
-	struct iommu_fwspec *spec = dev_iommu_fwspec_get(nvdec->dev);
-#endif
+	u32 stream_id;
 	int err;
 
-#ifdef CONFIG_IOMMU_API
-	if (nvdec->config->supports_sid && spec) {
+	if (nvdec->config->supports_sid && tegra_dev_iommu_get_stream_id(nvdec->dev, &stream_id)) {
 		u32 value;
 
 		value = TRANSCFG_ATT(1, TRANSCFG_SID_FALCON) | TRANSCFG_ATT(0, TRANSCFG_SID_HW);
 		nvdec_writel(nvdec, value, NVDEC_TFBIF_TRANSCFG);
 
-		if (spec->num_ids > 0) {
-			value = spec->ids[0] & 0xffff;
-
-			nvdec_writel(nvdec, value, VIC_THI_STREAMID0);
-			nvdec_writel(nvdec, value, VIC_THI_STREAMID1);
-		}
+		nvdec_writel(nvdec, stream_id, VIC_THI_STREAMID0);
+		nvdec_writel(nvdec, stream_id, VIC_THI_STREAMID1);
 	}
-#endif
 
 	err = falcon_boot(&nvdec->falcon);
 	if (err < 0)
@@ -88,6 +91,64 @@ static int nvdec_boot(struct nvdec *nvdec)
 	}
 
 	return 0;
+}
+
+static int nvdec_wait_debuginfo(struct nvdec *nvdec, const char *phase)
+{
+	int err;
+	u32 val;
+
+	err = readl_poll_timeout(nvdec->regs + NVDEC_FALCON_DEBUGINFO, val, val == 0x0, 10, 100000);
+	if (err) {
+		dev_err(nvdec->dev, "failed to boot %s, debuginfo=0x%x\n", phase, val);
+		return err;
+	}
+
+	return 0;
+}
+
+static int nvdec_boot_riscv(struct nvdec *nvdec)
+{
+	int err;
+
+	err = reset_control_acquire(nvdec->reset);
+	if (err)
+		return err;
+
+	nvdec_writel(nvdec, 0xabcd1234, NVDEC_FALCON_DEBUGINFO);
+
+	err = tegra_drm_riscv_boot_bootrom(&nvdec->riscv, nvdec->carveout_base, 1,
+					   &nvdec->riscv.bl_desc);
+	if (err) {
+		dev_err(nvdec->dev, "failed to execute bootloader\n");
+		goto release_reset;
+	}
+
+	err = nvdec_wait_debuginfo(nvdec, "bootloader");
+	if (err)
+		goto release_reset;
+
+	err = reset_control_reset(nvdec->reset);
+	if (err)
+		goto release_reset;
+
+	nvdec_writel(nvdec, 0xabcd1234, NVDEC_FALCON_DEBUGINFO);
+
+	err = tegra_drm_riscv_boot_bootrom(&nvdec->riscv, nvdec->carveout_base, 1,
+					   &nvdec->riscv.os_desc);
+	if (err) {
+		dev_err(nvdec->dev, "failed to execute firmware\n");
+		goto release_reset;
+	}
+
+	err = nvdec_wait_debuginfo(nvdec, "firmware");
+	if (err)
+		goto release_reset;
+
+release_reset:
+	reset_control_release(nvdec->reset);
+
+	return err;
 }
 
 static int nvdec_init(struct host1x_client *client)
@@ -189,7 +250,7 @@ static const struct host1x_client_ops nvdec_client_ops = {
 	.exit = nvdec_exit,
 };
 
-static int nvdec_load_firmware(struct nvdec *nvdec)
+static int nvdec_load_falcon_firmware(struct nvdec *nvdec)
 {
 	struct host1x_client *client = &nvdec->client.base;
 	struct tegra_drm *tegra = nvdec->client.drm;
@@ -252,30 +313,35 @@ cleanup:
 	return err;
 }
 
-
 static __maybe_unused int nvdec_runtime_resume(struct device *dev)
 {
 	struct nvdec *nvdec = dev_get_drvdata(dev);
 	int err;
 
-	err = clk_prepare_enable(nvdec->clk);
+	err = clk_bulk_prepare_enable(nvdec->num_clks, nvdec->clks);
 	if (err < 0)
 		return err;
 
 	usleep_range(10, 20);
 
-	err = nvdec_load_firmware(nvdec);
-	if (err < 0)
-		goto disable;
+	if (nvdec->config->has_riscv) {
+		err = nvdec_boot_riscv(nvdec);
+		if (err < 0)
+			goto disable;
+	} else {
+		err = nvdec_load_falcon_firmware(nvdec);
+		if (err < 0)
+			goto disable;
 
-	err = nvdec_boot(nvdec);
-	if (err < 0)
-		goto disable;
+		err = nvdec_boot_falcon(nvdec);
+		if (err < 0)
+			goto disable;
+	}
 
 	return 0;
 
 disable:
-	clk_disable_unprepare(nvdec->clk);
+	clk_bulk_disable_unprepare(nvdec->num_clks, nvdec->clks);
 	return err;
 }
 
@@ -285,7 +351,7 @@ static __maybe_unused int nvdec_runtime_suspend(struct device *dev)
 
 	host1x_channel_stop(nvdec->channel);
 
-	clk_disable_unprepare(nvdec->clk);
+	clk_bulk_disable_unprepare(nvdec->num_clks, nvdec->clks);
 
 	return 0;
 }
@@ -346,10 +412,18 @@ static const struct nvdec_config nvdec_t194_config = {
 	.supports_sid = true,
 };
 
+static const struct nvdec_config nvdec_t234_config = {
+	.version = 0x23,
+	.supports_sid = true,
+	.has_riscv = true,
+	.has_extra_clocks = true,
+};
+
 static const struct of_device_id tegra_nvdec_of_match[] = {
 	{ .compatible = "nvidia,tegra210-nvdec", .data = &nvdec_t210_config },
 	{ .compatible = "nvidia,tegra186-nvdec", .data = &nvdec_t186_config },
 	{ .compatible = "nvidia,tegra194-nvdec", .data = &nvdec_t194_config },
+	{ .compatible = "nvidia,tegra234-nvdec", .data = &nvdec_t234_config },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_nvdec_of_match);
@@ -383,13 +457,22 @@ static int nvdec_probe(struct platform_device *pdev)
 	if (IS_ERR(nvdec->regs))
 		return PTR_ERR(nvdec->regs);
 
-	nvdec->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(nvdec->clk)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
-		return PTR_ERR(nvdec->clk);
+	nvdec->clks[0].id = "nvdec";
+	nvdec->num_clks = 1;
+
+	if (nvdec->config->has_extra_clocks) {
+		nvdec->num_clks = 3;
+		nvdec->clks[1].id = "fuse";
+		nvdec->clks[2].id = "tsec_pka";
 	}
 
-	err = clk_set_rate(nvdec->clk, ULONG_MAX);
+	err = devm_clk_bulk_get(dev, nvdec->num_clks, nvdec->clks);
+	if (err) {
+		dev_err(&pdev->dev, "failed to get clock(s)\n");
+		return err;
+	}
+
+	err = clk_set_rate(nvdec->clks[0].clk, ULONG_MAX);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to set clock rate\n");
 		return err;
@@ -399,12 +482,42 @@ static int nvdec_probe(struct platform_device *pdev)
 	if (err < 0)
 		host_class = HOST1X_CLASS_NVDEC;
 
-	nvdec->falcon.dev = dev;
-	nvdec->falcon.regs = nvdec->regs;
+	if (nvdec->config->has_riscv) {
+		struct tegra_mc *mc;
 
-	err = falcon_init(&nvdec->falcon);
-	if (err < 0)
-		return err;
+		mc = devm_tegra_memory_controller_get(dev);
+		if (IS_ERR(mc)) {
+			dev_err_probe(dev, PTR_ERR(mc),
+				"failed to get memory controller handle\n");
+			return PTR_ERR(mc);
+		}
+
+		err = tegra_mc_get_carveout_info(mc, 1, &nvdec->carveout_base, NULL);
+		if (err) {
+			dev_err(dev, "failed to get carveout info: %d\n", err);
+			return err;
+		}
+
+		nvdec->reset = devm_reset_control_get_exclusive_released(dev, "nvdec");
+		if (IS_ERR(nvdec->reset)) {
+			dev_err_probe(dev, PTR_ERR(nvdec->reset), "failed to get reset\n");
+			return PTR_ERR(nvdec->reset);
+		}
+
+		nvdec->riscv.dev = dev;
+		nvdec->riscv.regs = nvdec->regs;
+
+		err = tegra_drm_riscv_read_descriptors(&nvdec->riscv);
+		if (err < 0)
+			return err;
+	} else {
+		nvdec->falcon.dev = dev;
+		nvdec->falcon.regs = nvdec->regs;
+
+		err = falcon_init(&nvdec->falcon);
+		if (err < 0)
+			return err;
+	}
 
 	platform_set_drvdata(pdev, nvdec);
 
@@ -434,21 +547,13 @@ exit_falcon:
 	return err;
 }
 
-static int nvdec_remove(struct platform_device *pdev)
+static void nvdec_remove(struct platform_device *pdev)
 {
 	struct nvdec *nvdec = platform_get_drvdata(pdev);
-	int err;
 
-	err = host1x_client_unregister(&nvdec->client.base);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to unregister host1x client: %d\n",
-			err);
-		return err;
-	}
+	host1x_client_unregister(&nvdec->client.base);
 
 	falcon_exit(&nvdec->falcon);
-
-	return 0;
 }
 
 static const struct dev_pm_ops nvdec_pm_ops = {
@@ -464,7 +569,7 @@ struct platform_driver tegra_nvdec_driver = {
 		.pm = &nvdec_pm_ops
 	},
 	.probe = nvdec_probe,
-	.remove = nvdec_remove,
+	.remove_new = nvdec_remove,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)

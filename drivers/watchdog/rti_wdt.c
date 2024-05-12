@@ -304,15 +304,13 @@ err_iomap:
 	return ret;
 }
 
-static int rti_wdt_remove(struct platform_device *pdev)
+static void rti_wdt_remove(struct platform_device *pdev)
 {
 	struct rti_wdt_device *wdt = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(&wdt->wdd);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id rti_wdt_of_match[] = {
@@ -327,7 +325,7 @@ static struct platform_driver rti_wdt_driver = {
 		.of_match_table = rti_wdt_of_match,
 	},
 	.probe = rti_wdt_probe,
-	.remove = rti_wdt_remove,
+	.remove_new = rti_wdt_remove,
 };
 
 module_platform_driver(rti_wdt_driver);

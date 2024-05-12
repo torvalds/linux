@@ -4,6 +4,19 @@
 
 #define ETH_ALEN 6
 #define HDR_SZ (sizeof(struct ethhdr) + sizeof(struct ipv6hdr) + sizeof(struct udphdr))
+
+/**
+ * enum frame_mark - magics to distinguish page/packet paths
+ * @MARK_XMIT: page was recycled due to the frame being "xmitted" by the NIC.
+ * @MARK_IN: frame is being processed by the input XDP prog.
+ * @MARK_SKB: frame did hit the TC ingress hook as an skb.
+ */
+enum frame_mark {
+	MARK_XMIT	= 0U,
+	MARK_IN		= 0x42,
+	MARK_SKB	= 0x45,
+};
+
 const volatile int ifindex_out;
 const volatile int ifindex_in;
 const volatile __u8 expect_dst[ETH_ALEN];
@@ -34,12 +47,12 @@ int xdp_redirect(struct xdp_md *xdp)
 	if (*metadata != 0x42)
 		return XDP_ABORTED;
 
-	if (*payload == 0) {
-		*payload = 0x42;
+	if (*payload == MARK_XMIT)
 		pkts_seen_zero++;
-	}
 
-	if (bpf_xdp_adjust_meta(xdp, 4))
+	*payload = MARK_IN;
+
+	if (bpf_xdp_adjust_meta(xdp, sizeof(__u64)))
 		return XDP_ABORTED;
 
 	if (retcode > XDP_PASS)
@@ -51,7 +64,7 @@ int xdp_redirect(struct xdp_md *xdp)
 	return ret;
 }
 
-static bool check_pkt(void *data, void *data_end)
+static bool check_pkt(void *data, void *data_end, const __u32 mark)
 {
 	struct ipv6hdr *iph = data + sizeof(struct ethhdr);
 	__u8 *payload = data + HDR_SZ;
@@ -59,13 +72,13 @@ static bool check_pkt(void *data, void *data_end)
 	if (payload + 1 > data_end)
 		return false;
 
-	if (iph->nexthdr != IPPROTO_UDP || *payload != 0x42)
+	if (iph->nexthdr != IPPROTO_UDP || *payload != MARK_IN)
 		return false;
 
 	/* reset the payload so the same packet doesn't get counted twice when
 	 * it cycles back through the kernel path and out the dst veth
 	 */
-	*payload = 0;
+	*payload = mark;
 	return true;
 }
 
@@ -75,11 +88,11 @@ int xdp_count_pkts(struct xdp_md *xdp)
 	void *data = (void *)(long)xdp->data;
 	void *data_end = (void *)(long)xdp->data_end;
 
-	if (check_pkt(data, data_end))
+	if (check_pkt(data, data_end, MARK_XMIT))
 		pkts_seen_xdp++;
 
-	/* Return XDP_DROP to make sure the data page is recycled, like when it
-	 * exits a physical NIC. Recycled pages will be counted in the
+	/* Return %XDP_DROP to recycle the data page with %MARK_XMIT, like
+	 * it exited a physical NIC. Those pages will be counted in the
 	 * pkts_seen_zero counter above.
 	 */
 	return XDP_DROP;
@@ -91,9 +104,12 @@ int tc_count_pkts(struct __sk_buff *skb)
 	void *data = (void *)(long)skb->data;
 	void *data_end = (void *)(long)skb->data_end;
 
-	if (check_pkt(data, data_end))
+	if (check_pkt(data, data_end, MARK_SKB))
 		pkts_seen_tc++;
 
+	/* Will be either recycled or freed, %MARK_SKB makes sure it won't
+	 * hit any of the counters above.
+	 */
 	return 0;
 }
 

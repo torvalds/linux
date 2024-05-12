@@ -95,7 +95,6 @@ struct page;
 /* Default vm area behavior is non-executable.  */
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
 
-#define pfn_valid(pfn) ((pfn) < max_mapnr)
 #define virt_addr_valid(kaddr) pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 /*  Need to not use a define for linesize; may move this to another file.  */
@@ -130,13 +129,6 @@ static inline void clear_page(void *page)
 #define pfn_to_virt(pfn)        __va((pfn) << PAGE_SHIFT)
 
 #define page_to_virt(page)	__va(page_to_phys(page))
-
-/*
- * For port to Hexagon Virtual Machine, MAYBE we check for attempts
- * to reference reserved HVM space, but in any case, the VM will be
- * protected.
- */
-#define kern_addr_valid(addr)   (1)
 
 #include <asm/mem-layout.h>
 #include <asm-generic/memory_model.h>

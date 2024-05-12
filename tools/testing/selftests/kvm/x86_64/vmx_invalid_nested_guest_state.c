@@ -74,9 +74,7 @@ int main(int argc, char *argv[])
 	 * The first exit to L0 userspace should be an I/O access from L2.
 	 * Running L1 should launch L2 without triggering an exit to userspace.
 	 */
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-		    "Expected KVM_EXIT_IO, got: %u (%s)\n",
-		    run->exit_reason, exit_reason_str(run->exit_reason));
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 	TEST_ASSERT(run->io.port == ARBITRARY_IO_PORT,
 		    "Expected IN from port %d from L2, got port %d",

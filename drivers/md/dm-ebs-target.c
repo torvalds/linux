@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2020 Red Hat GmbH
  *
@@ -241,7 +242,7 @@ static void __ebs_process_bios(struct work_struct *ws)
  * <offset>: offset in 512 bytes sectors into <dev_path>
  * <ebs>: emulated block size in units of 512 bytes exposed to the upper layer
  * [<ubs>]: underlying block size in units of 512 bytes imposed on the lower layer;
- * 	    optional, if not supplied, retrieve logical block size from underlying device
+ *	    optional, if not supplied, retrieve logical block size from underlying device
  */
 static int ebs_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
@@ -390,7 +391,7 @@ static int ebs_map(struct dm_target *ti, struct bio *bio)
 }
 
 static void ebs_status(struct dm_target *ti, status_type_t type,
-		       unsigned status_flags, char *result, unsigned maxlen)
+		       unsigned int status_flags, char *result, unsigned int maxlen)
 {
 	struct ebs_c *ec = ti->private;
 
@@ -451,24 +452,7 @@ static struct target_type ebs_target = {
 	.prepare_ioctl	 = ebs_prepare_ioctl,
 	.iterate_devices = ebs_iterate_devices,
 };
-
-static int __init dm_ebs_init(void)
-{
-	int r = dm_register_target(&ebs_target);
-
-	if (r < 0)
-		DMERR("register failed %d", r);
-
-	return r;
-}
-
-static void dm_ebs_exit(void)
-{
-	dm_unregister_target(&ebs_target);
-}
-
-module_init(dm_ebs_init);
-module_exit(dm_ebs_exit);
+module_dm(ebs);
 
 MODULE_AUTHOR("Heinz Mauelshagen <dm-devel@redhat.com>");
 MODULE_DESCRIPTION(DM_NAME " emulated block size target");

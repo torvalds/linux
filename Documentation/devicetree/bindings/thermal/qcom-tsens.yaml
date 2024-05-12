@@ -37,6 +37,7 @@ properties:
       - description: v1 of TSENS
         items:
           - enum:
+              - qcom,msm8956-tsens
               - qcom,msm8976-tsens
               - qcom,qcs404-tsens
           - const: qcom,tsens-v1
@@ -53,11 +54,18 @@ properties:
               - qcom,sc8280xp-tsens
               - qcom,sdm630-tsens
               - qcom,sdm845-tsens
+              - qcom,sm6115-tsens
               - qcom,sm6350-tsens
               - qcom,sm8150-tsens
               - qcom,sm8250-tsens
               - qcom,sm8350-tsens
+              - qcom,sm8450-tsens
+              - qcom,sm8550-tsens
           - const: qcom,tsens-v2
+
+      - description: v2 of TSENS with combined interrupt
+        enum:
+          - qcom,ipq8074-tsens
 
   reg:
     items:
@@ -66,29 +74,127 @@ properties:
 
   interrupts:
     minItems: 1
-    items:
-      - description: Combined interrupt if upper or lower threshold crossed
-      - description: Interrupt if critical threshold crossed
+    maxItems: 2
 
   interrupt-names:
     minItems: 1
-    items:
-      - const: uplow
-      - const: critical
+    maxItems: 2
 
   nvmem-cells:
-    minItems: 1
-    maxItems: 2
-    description:
-      Reference to an nvmem node for the calibration data
+    oneOf:
+      - minItems: 1
+        maxItems: 2
+        description:
+          Reference to an nvmem node for the calibration data
+      - minItems: 5
+        maxItems: 35
+        description: |
+          Reference to nvmem cells for the calibration mode, two calibration
+          bases and two cells per each sensor
+        # special case for msm8974 / apq8084
+      - maxItems: 51
+        description: |
+          Reference to nvmem cells for the calibration mode, two calibration
+          bases and two cells per each sensor, main and backup copies, plus use_backup cell
 
   nvmem-cell-names:
-    minItems: 1
-    items:
-      - const: calib
-      - enum:
-          - calib_backup
-          - calib_sel
+    oneOf:
+      - minItems: 1
+        items:
+          - const: calib
+          - enum:
+              - calib_backup
+              - calib_sel
+      - minItems: 5
+        items:
+          - const: mode
+          - const: base1
+          - const: base2
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+          - pattern: '^s[0-9]+_p1$'
+          - pattern: '^s[0-9]+_p2$'
+        # special case for msm8974 / apq8084
+      - items:
+          - const: mode
+          - const: base1
+          - const: base2
+          - const: use_backup
+          - const: mode_backup
+          - const: base1_backup
+          - const: base2_backup
+          - const: s0_p1
+          - const: s0_p2
+          - const: s1_p1
+          - const: s1_p2
+          - const: s2_p1
+          - const: s2_p2
+          - const: s3_p1
+          - const: s3_p2
+          - const: s4_p1
+          - const: s4_p2
+          - const: s5_p1
+          - const: s5_p2
+          - const: s6_p1
+          - const: s6_p2
+          - const: s7_p1
+          - const: s7_p2
+          - const: s8_p1
+          - const: s8_p2
+          - const: s9_p1
+          - const: s9_p2
+          - const: s10_p1
+          - const: s10_p2
+          - const: s0_p1_backup
+          - const: s0_p2_backup
+          - const: s1_p1_backup
+          - const: s1_p2_backup
+          - const: s2_p1_backup
+          - const: s2_p2_backup
+          - const: s3_p1_backup
+          - const: s3_p2_backup
+          - const: s4_p1_backup
+          - const: s4_p2_backup
+          - const: s5_p1_backup
+          - const: s5_p2_backup
+          - const: s6_p1_backup
+          - const: s6_p2_backup
+          - const: s7_p1_backup
+          - const: s7_p2_backup
+          - const: s8_p1_backup
+          - const: s8_p2_backup
+          - const: s9_p1_backup
+          - const: s9_p2_backup
+          - const: s10_p1_backup
+          - const: s10_p2_backup
 
   "#qcom,sensors":
     description:
@@ -128,22 +234,64 @@ allOf:
     then:
       properties:
         interrupts:
-          maxItems: 1
+          items:
+            - description: Combined interrupt if upper or lower threshold crossed
         interrupt-names:
-          maxItems: 1
-
-    else:
-      properties:
-        interrupts:
-          minItems: 2
-        interrupt-names:
-          minItems: 2
+          items:
+            - const: uplow
 
   - if:
       properties:
         compatible:
           contains:
             enum:
+              - qcom,msm8953-tsens
+              - qcom,msm8996-tsens
+              - qcom,msm8998-tsens
+              - qcom,sc7180-tsens
+              - qcom,sc7280-tsens
+              - qcom,sc8180x-tsens
+              - qcom,sc8280xp-tsens
+              - qcom,sdm630-tsens
+              - qcom,sdm845-tsens
+              - qcom,sm6350-tsens
+              - qcom,sm8150-tsens
+              - qcom,sm8250-tsens
+              - qcom,sm8350-tsens
+              - qcom,sm8450-tsens
+              - qcom,tsens-v2
+    then:
+      properties:
+        interrupts:
+          items:
+            - description: Combined interrupt if upper or lower threshold crossed
+            - description: Interrupt if critical threshold crossed
+        interrupt-names:
+          items:
+            - const: uplow
+            - const: critical
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq8074-tsens
+    then:
+      properties:
+        interrupts:
+          items:
+            - description: Combined interrupt if upper, lower or critical thresholds crossed
+        interrupt-names:
+          items:
+            - const: combined
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq8074-tsens
               - qcom,tsens-v0_1
               - qcom,tsens-v1
               - qcom,tsens-v2
@@ -177,8 +325,38 @@ examples:
 
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    // Example 1 (new calbiration data: for pre v1 IP):
+    thermal-sensor@4a9000 {
+        compatible = "qcom,msm8916-tsens", "qcom,tsens-v0_1";
+        reg = <0x4a9000 0x1000>, /* TM */
+              <0x4a8000 0x1000>; /* SROT */
+
+        nvmem-cells = <&tsens_mode>,
+                      <&tsens_base1>, <&tsens_base2>,
+                      <&tsens_s0_p1>, <&tsens_s0_p2>,
+                      <&tsens_s1_p1>, <&tsens_s1_p2>,
+                      <&tsens_s2_p1>, <&tsens_s2_p2>,
+                      <&tsens_s4_p1>, <&tsens_s4_p2>,
+                      <&tsens_s5_p1>, <&tsens_s5_p2>;
+        nvmem-cell-names = "mode",
+                           "base1", "base2",
+                           "s0_p1", "s0_p2",
+                           "s1_p1", "s1_p2",
+                           "s2_p1", "s2_p2",
+                           "s4_p1", "s4_p2",
+                           "s5_p1", "s5_p2";
+
+        interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "uplow";
+
+        #qcom,sensors = <5>;
+        #thermal-sensor-cells = <1>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
     // Example 1 (legacy: for pre v1 IP):
-    tsens1: thermal-sensor@900000 {
+    tsens1: thermal-sensor@4a9000 {
            compatible = "qcom,msm8916-tsens", "qcom,tsens-v0_1";
            reg = <0x4a9000 0x1000>, /* TM */
                  <0x4a8000 0x1000>; /* SROT */
@@ -224,6 +402,21 @@ examples:
            interrupt-names = "uplow", "critical";
 
            #qcom,sensors = <13>;
+           #thermal-sensor-cells = <1>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    // Example 4 (for any IPQ8074 based SoC-s):
+    tsens4: thermal-sensor@4a9000 {
+           compatible = "qcom,ipq8074-tsens";
+           reg = <0x4a9000 0x1000>,
+                 <0x4a8000 0x1000>;
+
+           interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+           interrupt-names = "combined";
+
+           #qcom,sensors = <16>;
            #thermal-sensor-cells = <1>;
     };
 ...

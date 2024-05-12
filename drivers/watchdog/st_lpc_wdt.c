@@ -239,13 +239,11 @@ static int st_wdog_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int st_wdog_remove(struct platform_device *pdev)
+static void st_wdog_remove(struct platform_device *pdev)
 {
 	struct st_wdog *st_wdog = watchdog_get_drvdata(&st_wdog_dev);
 
 	st_wdog_setup(st_wdog, false);
-
-	return 0;
 }
 
 static int st_wdog_suspend(struct device *dev)
@@ -295,7 +293,7 @@ static struct platform_driver st_wdog_driver = {
 		.of_match_table = st_wdog_match,
 	},
 	.probe = st_wdog_probe,
-	.remove = st_wdog_remove,
+	.remove_new = st_wdog_remove,
 };
 module_platform_driver(st_wdog_driver);
 

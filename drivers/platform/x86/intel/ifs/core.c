@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <linux/kdev_t.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 
 #include <asm/cpu_device_id.h>
 
@@ -15,25 +16,63 @@
 
 static const struct x86_cpu_id ifs_cpu_ids[] __initconst = {
 	X86_MATCH(SAPPHIRERAPIDS_X),
+	X86_MATCH(EMERALDRAPIDS_X),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, ifs_cpu_ids);
 
-static struct ifs_device ifs_device = {
-	.data = {
-		.integrity_cap_bit = MSR_INTEGRITY_CAPS_PERIODIC_BIST_BIT,
+ATTRIBUTE_GROUPS(plat_ifs);
+ATTRIBUTE_GROUPS(plat_ifs_array);
+
+bool *ifs_pkg_auth;
+
+static const struct ifs_test_caps scan_test = {
+	.integrity_cap_bit = MSR_INTEGRITY_CAPS_PERIODIC_BIST_BIT,
+	.test_num = IFS_TYPE_SAF,
+};
+
+static const struct ifs_test_caps array_test = {
+	.integrity_cap_bit = MSR_INTEGRITY_CAPS_ARRAY_BIST_BIT,
+	.test_num = IFS_TYPE_ARRAY_BIST,
+};
+
+static struct ifs_device ifs_devices[] = {
+	[IFS_TYPE_SAF] = {
+		.test_caps = &scan_test,
+		.misc = {
+			.name = "intel_ifs_0",
+			.minor = MISC_DYNAMIC_MINOR,
+			.groups = plat_ifs_groups,
+		},
 	},
-	.misc = {
-		.name = "intel_ifs_0",
-		.nodename = "intel_ifs/0",
-		.minor = MISC_DYNAMIC_MINOR,
+	[IFS_TYPE_ARRAY_BIST] = {
+		.test_caps = &array_test,
+		.misc = {
+			.name = "intel_ifs_1",
+			.minor = MISC_DYNAMIC_MINOR,
+			.groups = plat_ifs_array_groups,
+		},
 	},
 };
+
+#define IFS_NUMTESTS ARRAY_SIZE(ifs_devices)
+
+static void ifs_cleanup(void)
+{
+	int i;
+
+	for (i = 0; i < IFS_NUMTESTS; i++) {
+		if (ifs_devices[i].misc.this_device)
+			misc_deregister(&ifs_devices[i].misc);
+	}
+	kfree(ifs_pkg_auth);
+}
 
 static int __init ifs_init(void)
 {
 	const struct x86_cpu_id *m;
 	u64 msrval;
+	int i, ret;
 
 	m = x86_match_cpu(ifs_cpu_ids);
 	if (!m)
@@ -48,22 +87,27 @@ static int __init ifs_init(void)
 	if (rdmsrl_safe(MSR_INTEGRITY_CAPS, &msrval))
 		return -ENODEV;
 
-	ifs_device.misc.groups = ifs_get_groups();
+	ifs_pkg_auth = kmalloc_array(topology_max_packages(), sizeof(bool), GFP_KERNEL);
+	if (!ifs_pkg_auth)
+		return -ENOMEM;
 
-	if ((msrval & BIT(ifs_device.data.integrity_cap_bit)) &&
-	    !misc_register(&ifs_device.misc)) {
-		down(&ifs_sem);
-		ifs_load_firmware(ifs_device.misc.this_device);
-		up(&ifs_sem);
-		return 0;
+	for (i = 0; i < IFS_NUMTESTS; i++) {
+		if (!(msrval & BIT(ifs_devices[i].test_caps->integrity_cap_bit)))
+			continue;
+		ret = misc_register(&ifs_devices[i].misc);
+		if (ret)
+			goto err_exit;
 	}
+	return 0;
 
-	return -ENODEV;
+err_exit:
+	ifs_cleanup();
+	return ret;
 }
 
 static void __exit ifs_exit(void)
 {
-	misc_deregister(&ifs_device.misc);
+	ifs_cleanup();
 }
 
 module_init(ifs_init);

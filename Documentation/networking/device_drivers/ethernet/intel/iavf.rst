@@ -319,13 +319,8 @@ This is caused by the way the Linux kernel reports this stressed condition.
 Support
 =======
 For general information, go to the Intel support website at:
-
 https://support.intel.com
-
-or the Intel Wired Networking project hosted by Sourceforge at:
-
-https://sourceforge.net/projects/e1000
 
 If an issue is identified with the released source code on the supported kernel
 with a supported adapter, email the specific information related to the issue
-to e1000-devel@lists.sf.net
+to intel-wired-lan@lists.osuosl.org.

@@ -2384,7 +2384,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			MSEL8CR_00_0, MSEL8CR_00_1,
 		))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
@@ -2510,7 +2510,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT323_DATA, PORT322_DATA, PORT321_DATA, PORT320_DATA,
 		))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_irq pinmux_irqs[] = {

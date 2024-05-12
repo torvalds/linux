@@ -20,8 +20,8 @@ description: |
 properties:
   compatible:
     oneOf:
-      - items:
-          - const: mediatek,mt8195-disp-dsc
+      - enum:
+          - mediatek,mt8195-disp-dsc
 
   reg:
     maxItems: 1

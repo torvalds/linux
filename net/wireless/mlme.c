@@ -42,6 +42,10 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 	unsigned int link_id;
 
 	for (link_id = 0; link_id < ARRAY_SIZE(data->links); link_id++) {
+		cr.links[link_id].status = data->links[link_id].status;
+		WARN_ON_ONCE(cr.links[link_id].status != WLAN_STATUS_SUCCESS &&
+			     (!cr.ap_mld_addr || !cr.links[link_id].bss));
+
 		cr.links[link_id].bss = data->links[link_id].bss;
 		if (!cr.links[link_id].bss)
 			continue;
@@ -669,6 +673,39 @@ static bool cfg80211_allowed_address(struct wireless_dev *wdev, const u8 *addr)
 	return ether_addr_equal(addr, wdev_address(wdev));
 }
 
+static bool cfg80211_allowed_random_address(struct wireless_dev *wdev,
+					    const struct ieee80211_mgmt *mgmt)
+{
+	if (ieee80211_is_auth(mgmt->frame_control) ||
+	    ieee80211_is_deauth(mgmt->frame_control)) {
+		/* Allow random TA to be used with authentication and
+		 * deauthentication frames if the driver has indicated support.
+		 */
+		if (wiphy_ext_feature_isset(
+			    wdev->wiphy,
+			    NL80211_EXT_FEATURE_AUTH_AND_DEAUTH_RANDOM_TA))
+			return true;
+	} else if (ieee80211_is_action(mgmt->frame_control) &&
+		   mgmt->u.action.category == WLAN_CATEGORY_PUBLIC) {
+		/* Allow random TA to be used with Public Action frames if the
+		 * driver has indicated support.
+		 */
+		if (!wdev->connected &&
+		    wiphy_ext_feature_isset(
+			    wdev->wiphy,
+			    NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA))
+			return true;
+
+		if (wdev->connected &&
+		    wiphy_ext_feature_isset(
+			    wdev->wiphy,
+			    NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED))
+			return true;
+	}
+
+	return false;
+}
+
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  struct wireless_dev *wdev,
 			  struct cfg80211_mgmt_tx_params *params, u64 *cookie)
@@ -738,7 +775,10 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
 		case NL80211_IFTYPE_AP_VLAN:
-			if (!ether_addr_equal(mgmt->bssid, wdev_address(wdev)))
+			if (!ether_addr_equal(mgmt->bssid, wdev_address(wdev)) &&
+			    (params->link_id < 0 ||
+			     !ether_addr_equal(mgmt->bssid,
+					       wdev->links[params->link_id].addr)))
 				err = -EINVAL;
 			break;
 		case NL80211_IFTYPE_MESH_POINT:
@@ -767,25 +807,9 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			return err;
 	}
 
-	if (!cfg80211_allowed_address(wdev, mgmt->sa)) {
-		/* Allow random TA to be used with Public Action frames if the
-		 * driver has indicated support for this. Otherwise, only allow
-		 * the local address to be used.
-		 */
-		if (!ieee80211_is_action(mgmt->frame_control) ||
-		    mgmt->u.action.category != WLAN_CATEGORY_PUBLIC)
-			return -EINVAL;
-		if (!wdev->connected &&
-		    !wiphy_ext_feature_isset(
-			    &rdev->wiphy,
-			    NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA))
-			return -EINVAL;
-		if (wdev->connected &&
-		    !wiphy_ext_feature_isset(
-			    &rdev->wiphy,
-			    NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED))
-			return -EINVAL;
-	}
+	if (!cfg80211_allowed_address(wdev, mgmt->sa) &&
+	    !cfg80211_allowed_random_address(wdev, mgmt))
+		return -EINVAL;
 
 	/* Transmit the management frame as requested by user space */
 	return rdev_mgmt_tx(rdev, wdev, params, cookie);

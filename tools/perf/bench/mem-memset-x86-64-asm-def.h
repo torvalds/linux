@@ -7,7 +7,3 @@ MEMSET_FN(memset_orig,
 MEMSET_FN(__memset,
 	"x86-64-stosq",
 	"movsq-based memset() in arch/x86/lib/memset_64.S")
-
-MEMSET_FN(memset_erms,
-	"x86-64-stosb",
-	"movsb-based memset() in arch/x86/lib/memset_64.S")

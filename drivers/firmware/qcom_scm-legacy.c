@@ -9,7 +9,7 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/arm-smccc.h>
 #include <linux/dma-mapping.h>
 

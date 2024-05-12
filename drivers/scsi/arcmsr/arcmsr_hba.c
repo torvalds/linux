@@ -57,7 +57,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/circ_buf.h>
 #include <asm/dma.h>
 #include <asm/io.h>
@@ -152,8 +151,9 @@ static int arcmsr_adjust_disk_queue_depth(struct scsi_device *sdev, int queue_de
 	return scsi_change_queue_depth(sdev, queue_depth);
 }
 
-static struct scsi_host_template arcmsr_scsi_host_template = {
+static const struct scsi_host_template arcmsr_scsi_host_template = {
 	.module			= THIS_MODULE,
+	.proc_name		= ARCMSR_NAME,
 	.name			= "Areca SAS/SATA RAID driver",
 	.info			= arcmsr_info,
 	.queuecommand		= arcmsr_queue_command,
@@ -997,6 +997,8 @@ static int arcmsr_set_dma_mask(struct AdapterControlBlock *acb)
 		if (((acb->adapter_type == ACB_ADAPTER_TYPE_A) && !dma_mask_64) ||
 		    dma_set_mask(&pcidev->dev, DMA_BIT_MASK(64)))
 			goto	dma32;
+		if (acb->adapter_type <= ACB_ADAPTER_TYPE_B)
+			return 0;
 		if (dma_set_coherent_mask(&pcidev->dev, DMA_BIT_MASK(64)) ||
 		    dma_set_mask_and_coherent(&pcidev->dev, DMA_BIT_MASK(64))) {
 			printk("arcmsr: set DMA 64 mask failed\n");
@@ -1300,20 +1302,13 @@ static uint8_t arcmsr_abort_allcmd(struct AdapterControlBlock *acb)
 	return rtnval;
 }
 
-static void arcmsr_pci_unmap_dma(struct CommandControlBlock *ccb)
-{
-	struct scsi_cmnd *pcmd = ccb->pcmd;
-
-	scsi_dma_unmap(pcmd);
-}
-
 static void arcmsr_ccb_complete(struct CommandControlBlock *ccb)
 {
 	struct AdapterControlBlock *acb = ccb->acb;
 	struct scsi_cmnd *pcmd = ccb->pcmd;
 	unsigned long flags;
 	atomic_dec(&acb->ccboutstandingcount);
-	arcmsr_pci_unmap_dma(ccb);
+	scsi_dma_unmap(ccb->pcmd);
 	ccb->startdone = ARCMSR_CCB_DONE;
 	spin_lock_irqsave(&acb->ccblist_lock, flags);
 	list_add_tail(&ccb->list, &acb->ccb_free_list);
@@ -1597,7 +1592,7 @@ static void arcmsr_remove_scsi_devices(struct AdapterControlBlock *acb)
 		ccb = acb->pccb_pool[i];
 		if (ccb->startdone == ARCMSR_CCB_START) {
 			ccb->pcmd->result = DID_NO_CONNECT << 16;
-			arcmsr_pci_unmap_dma(ccb);
+			scsi_dma_unmap(ccb->pcmd);
 			scsi_done(ccb->pcmd);
 		}
 	}
@@ -2260,8 +2255,11 @@ static void arcmsr_iop2drv_data_wrote_handle(struct AdapterControlBlock *acb)
 
 	spin_lock_irqsave(&acb->rqbuffer_lock, flags);
 	prbuffer = arcmsr_get_iop_rqbuffer(acb);
-	buf_empty_len = (acb->rqbuf_putIndex - acb->rqbuf_getIndex - 1) &
-		(ARCMSR_MAX_QBUFFER - 1);
+	if (acb->rqbuf_putIndex >= acb->rqbuf_getIndex) {
+		buf_empty_len = (ARCMSR_MAX_QBUFFER - 1) -
+		(acb->rqbuf_putIndex - acb->rqbuf_getIndex);
+	} else
+		buf_empty_len = acb->rqbuf_getIndex - acb->rqbuf_putIndex - 1;
 	if (buf_empty_len >= readl(&prbuffer->data_len)) {
 		if (arcmsr_Read_iop_rqbuffer_data(acb, prbuffer) == 0)
 			acb->acb_flags |= ACB_F_IOPDATA_OVERFLOW;

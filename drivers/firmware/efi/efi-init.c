@@ -22,6 +22,8 @@
 
 #include <asm/efi.h>
 
+unsigned long __initdata screen_info_table = EFI_INVALID_TABLE_ADDR;
+
 static int __init is_memory(efi_memory_desc_t *md)
 {
 	if (md->attribute & (EFI_MEMORY_WB|EFI_MEMORY_WT|EFI_MEMORY_WC))
@@ -55,9 +57,25 @@ extern __weak const efi_config_table_type_t efi_arch_tables[];
 
 static void __init init_screen_info(void)
 {
-	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI &&
-	    memblock_is_map_memory(screen_info.lfb_base))
-		memblock_mark_nomap(screen_info.lfb_base, screen_info.lfb_size);
+	struct screen_info *si;
+
+	if (screen_info_table != EFI_INVALID_TABLE_ADDR) {
+		si = early_memremap(screen_info_table, sizeof(*si));
+		if (!si) {
+			pr_err("Could not map screen_info config table\n");
+			return;
+		}
+		screen_info = *si;
+		memset(si, 0, sizeof(*si));
+		early_memunmap(si, sizeof(*si));
+
+		if (memblock_is_map_memory(screen_info.lfb_base))
+			memblock_mark_nomap(screen_info.lfb_base,
+					    screen_info.lfb_size);
+
+		if (IS_ENABLED(CONFIG_EFI_EARLYCON))
+			efi_earlycon_reprobe();
+	}
 }
 
 static int __init uefi_init(u64 efi_system_table)
@@ -77,7 +95,7 @@ static int __init uefi_init(u64 efi_system_table)
 	if (IS_ENABLED(CONFIG_64BIT))
 		set_bit(EFI_64BIT, &efi.flags);
 
-	retval = efi_systab_check_header(&systab->hdr, 2);
+	retval = efi_systab_check_header(&systab->hdr);
 	if (retval)
 		goto out;
 

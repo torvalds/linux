@@ -40,6 +40,7 @@ arch/x86/lib/x86-opcode-map.txt
 arch/x86/tools/gen-insn-attr-x86.awk
 arch/arm/include/uapi/asm/perf_regs.h
 arch/arm64/include/uapi/asm/perf_regs.h
+arch/loongarch/include/uapi/asm/perf_regs.h
 arch/mips/include/uapi/asm/perf_regs.h
 arch/powerpc/include/uapi/asm/perf_regs.h
 arch/s390/include/uapi/asm/perf_regs.h
@@ -52,7 +53,6 @@ arch/x86/include/uapi/asm/vmx.h
 arch/powerpc/include/uapi/asm/kvm.h
 arch/s390/include/uapi/asm/kvm.h
 arch/s390/include/uapi/asm/kvm_perf.h
-arch/s390/include/uapi/asm/ptrace.h
 arch/s390/include/uapi/asm/sie.h
 arch/arm/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/kvm.h

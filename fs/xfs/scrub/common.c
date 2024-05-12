@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -75,6 +75,7 @@ __xchk_process_error(
 	case 0:
 		return true;
 	case -EDEADLOCK:
+	case -ECHRNG:
 		/* Used to restart an op with deadlock avoidance. */
 		trace_xchk_deadlock_retry(
 				sc->ip ? sc->ip : XFS_I(file_inode(sc->file)),
@@ -130,6 +131,7 @@ __xchk_fblock_process_error(
 	case 0:
 		return true;
 	case -EDEADLOCK:
+	case -ECHRNG:
 		/* Used to restart an op with deadlock avoidance. */
 		trace_xchk_deadlock_retry(sc->ip, sc->sm, *error);
 		break;
@@ -396,25 +398,18 @@ want_ag_read_header_failure(
 }
 
 /*
- * Grab the perag structure and all the headers for an AG.
+ * Grab the AG header buffers for the attached perag structure.
  *
  * The headers should be released by xchk_ag_free, but as a fail safe we attach
  * all the buffers we grab to the scrub transaction so they'll all be freed
- * when we cancel it.  Returns ENOENT if we can't grab the perag structure.
+ * when we cancel it.
  */
-int
-xchk_ag_read_headers(
+static inline int
+xchk_perag_read_headers(
 	struct xfs_scrub	*sc,
-	xfs_agnumber_t		agno,
 	struct xchk_ag		*sa)
 {
-	struct xfs_mount	*mp = sc->mp;
 	int			error;
-
-	ASSERT(!sa->pag);
-	sa->pag = xfs_perag_get(mp, agno);
-	if (!sa->pag)
-		return -ENOENT;
 
 	error = xfs_ialloc_read_agi(sa->pag, sc->tp, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
@@ -424,11 +419,105 @@ xchk_ag_read_headers(
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		return error;
 
-	error = xfs_alloc_read_agfl(sa->pag, sc->tp, &sa->agfl_bp);
-	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
-		return error;
-
 	return 0;
+}
+
+/*
+ * Grab the AG headers for the attached perag structure and wait for pending
+ * intents to drain.
+ */
+static int
+xchk_perag_drain_and_lock(
+	struct xfs_scrub	*sc)
+{
+	struct xchk_ag		*sa = &sc->sa;
+	int			error = 0;
+
+	ASSERT(sa->pag != NULL);
+	ASSERT(sa->agi_bp == NULL);
+	ASSERT(sa->agf_bp == NULL);
+
+	do {
+		if (xchk_should_terminate(sc, &error))
+			return error;
+
+		error = xchk_perag_read_headers(sc, sa);
+		if (error)
+			return error;
+
+		/*
+		 * If we've grabbed an inode for scrubbing then we assume that
+		 * holding its ILOCK will suffice to coordinate with any intent
+		 * chains involving this inode.
+		 */
+		if (sc->ip)
+			return 0;
+
+		/*
+		 * Decide if this AG is quiet enough for all metadata to be
+		 * consistent with each other.  XFS allows the AG header buffer
+		 * locks to cycle across transaction rolls while processing
+		 * chains of deferred ops, which means that there could be
+		 * other threads in the middle of processing a chain of
+		 * deferred ops.  For regular operations we are careful about
+		 * ordering operations to prevent collisions between threads
+		 * (which is why we don't need a per-AG lock), but scrub and
+		 * repair have to serialize against chained operations.
+		 *
+		 * We just locked all the AG headers buffers; now take a look
+		 * to see if there are any intents in progress.  If there are,
+		 * drop the AG headers and wait for the intents to drain.
+		 * Since we hold all the AG header locks for the duration of
+		 * the scrub, this is the only time we have to sample the
+		 * intents counter; any threads increasing it after this point
+		 * can't possibly be in the middle of a chain of AG metadata
+		 * updates.
+		 *
+		 * Obviously, this should be slanted against scrub and in favor
+		 * of runtime threads.
+		 */
+		if (!xfs_perag_intent_busy(sa->pag))
+			return 0;
+
+		if (sa->agf_bp) {
+			xfs_trans_brelse(sc->tp, sa->agf_bp);
+			sa->agf_bp = NULL;
+		}
+
+		if (sa->agi_bp) {
+			xfs_trans_brelse(sc->tp, sa->agi_bp);
+			sa->agi_bp = NULL;
+		}
+
+		if (!(sc->flags & XCHK_FSGATES_DRAIN))
+			return -ECHRNG;
+		error = xfs_perag_intent_drain(sa->pag);
+		if (error == -ERESTARTSYS)
+			error = -EINTR;
+	} while (!error);
+
+	return error;
+}
+
+/*
+ * Grab the per-AG structure, grab all AG header buffers, and wait until there
+ * aren't any pending intents.  Returns -ENOENT if we can't grab the perag
+ * structure.
+ */
+int
+xchk_ag_read_headers(
+	struct xfs_scrub	*sc,
+	xfs_agnumber_t		agno,
+	struct xchk_ag		*sa)
+{
+	struct xfs_mount	*mp = sc->mp;
+
+	ASSERT(!sa->pag);
+	sa->pag = xfs_perag_get(mp, agno);
+	if (!sa->pag)
+		return -ENOENT;
+
+	return xchk_perag_drain_and_lock(sc);
 }
 
 /* Release all the AG btree cursors. */
@@ -482,15 +571,15 @@ xchk_ag_btcur_init(
 	/* Set up a inobt cursor for cross-referencing. */
 	if (sa->agi_bp &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
-		sa->ino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
-				sa->pag, XFS_BTNUM_INO);
+		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
+				XFS_BTNUM_INO);
 	}
 
 	/* Set up a finobt cursor for cross-referencing. */
 	if (sa->agi_bp && xfs_has_finobt(mp) &&
 	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
-		sa->fino_cur = xfs_inobt_init_cursor(mp, sc->tp, sa->agi_bp,
-				sa->pag, XFS_BTNUM_FINO);
+		sa->fino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
+				XFS_BTNUM_FINO);
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */
@@ -515,10 +604,6 @@ xchk_ag_free(
 	struct xchk_ag		*sa)
 {
 	xchk_ag_btcur_free(sa);
-	if (sa->agfl_bp) {
-		xfs_trans_brelse(sc->tp, sa->agfl_bp);
-		sa->agfl_bp = NULL;
-	}
 	if (sa->agf_bp) {
 		xfs_trans_brelse(sc->tp, sa->agf_bp);
 		sa->agf_bp = NULL;
@@ -557,6 +642,14 @@ xchk_ag_init(
 }
 
 /* Per-scrubber setup functions */
+
+void
+xchk_trans_cancel(
+	struct xfs_scrub	*sc)
+{
+	xfs_trans_cancel(sc->tp);
+	sc->tp = NULL;
+}
 
 /*
  * Grab an empty transaction so that we can re-grab locked buffers if
@@ -633,67 +726,104 @@ xchk_checkpoint_log(
 	return 0;
 }
 
+/* Verify that an inode is allocated ondisk, then return its cached inode. */
+int
+xchk_iget(
+	struct xfs_scrub	*sc,
+	xfs_ino_t		inum,
+	struct xfs_inode	**ipp)
+{
+	return xfs_iget(sc->mp, sc->tp, inum, XFS_IGET_UNTRUSTED, 0, ipp);
+}
+
 /*
- * Given an inode and the scrub control structure, grab either the
- * inode referenced in the control structure or the inode passed in.
- * The inode is not locked.
+ * Try to grab an inode in a manner that avoids races with physical inode
+ * allocation.  If we can't, return the locked AGI buffer so that the caller
+ * can single-step the loading process to see where things went wrong.
+ * Callers must have a valid scrub transaction.
+ *
+ * If the iget succeeds, return 0, a NULL AGI, and the inode.
+ *
+ * If the iget fails, return the error, the locked AGI, and a NULL inode.  This
+ * can include -EINVAL and -ENOENT for invalid inode numbers or inodes that are
+ * no longer allocated; or any other corruption or runtime error.
+ *
+ * If the AGI read fails, return the error, a NULL AGI, and NULL inode.
+ *
+ * If a fatal signal is pending, return -EINTR, a NULL AGI, and a NULL inode.
  */
 int
-xchk_get_inode(
-	struct xfs_scrub	*sc)
+xchk_iget_agi(
+	struct xfs_scrub	*sc,
+	xfs_ino_t		inum,
+	struct xfs_buf		**agi_bpp,
+	struct xfs_inode	**ipp)
 {
-	struct xfs_imap		imap;
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
-	struct xfs_inode	*ip = NULL;
+	struct xfs_trans	*tp = sc->tp;
+	struct xfs_perag	*pag;
 	int			error;
 
-	/* We want to scan the inode we already had opened. */
-	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
-		sc->ip = ip_in;
-		return 0;
-	}
+	ASSERT(sc->tp != NULL);
 
-	/* Look up the inode, see if the generation number matches. */
-	if (xfs_internal_inum(mp, sc->sm->sm_ino))
-		return -ENOENT;
-	error = xfs_iget(mp, NULL, sc->sm->sm_ino,
-			XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE, 0, &ip);
-	switch (error) {
-	case -ENOENT:
-		/* Inode doesn't exist, just bail out. */
+again:
+	*agi_bpp = NULL;
+	*ipp = NULL;
+	error = 0;
+
+	if (xchk_should_terminate(sc, &error))
 		return error;
-	case 0:
-		/* Got an inode, continue. */
-		break;
-	case -EINVAL:
+
+	/*
+	 * Attach the AGI buffer to the scrub transaction to avoid deadlocks
+	 * in the iget cache miss path.
+	 */
+	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
+	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
+	xfs_perag_put(pag);
+	if (error)
+		return error;
+
+	error = xfs_iget(mp, tp, inum,
+			XFS_IGET_NORETRY | XFS_IGET_UNTRUSTED, 0, ipp);
+	if (error == -EAGAIN) {
 		/*
-		 * -EINVAL with IGET_UNTRUSTED could mean one of several
-		 * things: userspace gave us an inode number that doesn't
-		 * correspond to fs space, or doesn't have an inobt entry;
-		 * or it could simply mean that the inode buffer failed the
-		 * read verifiers.
+		 * The inode may be in core but temporarily unavailable and may
+		 * require the AGI buffer before it can be returned.  Drop the
+		 * AGI buffer and retry the lookup.
 		 *
-		 * Try just the inode mapping lookup -- if it succeeds, then
-		 * the inode buffer verifier failed and something needs fixing.
-		 * Otherwise, we really couldn't find it so tell userspace
-		 * that it no longer exists.
+		 * Incore lookup will fail with EAGAIN on a cache hit if the
+		 * inode is queued to the inactivation list.  The inactivation
+		 * worker may remove the inode from the unlinked list and hence
+		 * needs the AGI.
+		 *
+		 * Hence xchk_iget_agi() needs to drop the AGI lock on EAGAIN
+		 * to allow inodegc to make progress and move the inode to
+		 * IRECLAIMABLE state where xfs_iget will be able to return it
+		 * again if it can lock the inode.
 		 */
-		error = xfs_imap(sc->mp, sc->tp, sc->sm->sm_ino, &imap,
-				XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE);
-		if (error)
-			return -ENOENT;
-		error = -EFSCORRUPTED;
-		fallthrough;
-	default:
-		trace_xchk_op_error(sc,
-				XFS_INO_TO_AGNO(mp, sc->sm->sm_ino),
-				XFS_INO_TO_AGBNO(mp, sc->sm->sm_ino),
-				error, __return_address);
-		return error;
+		xfs_trans_brelse(tp, *agi_bpp);
+		delay(1);
+		goto again;
 	}
+	if (error)
+		return error;
+
+	/* We got the inode, so we can release the AGI. */
+	ASSERT(*ipp != NULL);
+	xfs_trans_brelse(tp, *agi_bpp);
+	*agi_bpp = NULL;
+	return 0;
+}
+
+/* Install an inode that we opened by handle for scrubbing. */
+int
+xchk_install_handle_inode(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip)
+{
 	if (VFS_I(ip)->i_generation != sc->sm->sm_gen) {
-		xfs_irele(ip);
+		xchk_irele(sc, ip);
 		return -ENOENT;
 	}
 
@@ -701,7 +831,168 @@ xchk_get_inode(
 	return 0;
 }
 
-/* Set us up to scrub a file's contents. */
+/*
+ * In preparation to scrub metadata structures that hang off of an inode,
+ * grab either the inode referenced in the scrub control structure or the
+ * inode passed in.  If the inumber does not reference an allocated inode
+ * record, the function returns ENOENT to end the scrub early.  The inode
+ * is not locked.
+ */
+int
+xchk_iget_for_scrubbing(
+	struct xfs_scrub	*sc)
+{
+	struct xfs_imap		imap;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_perag	*pag;
+	struct xfs_buf		*agi_bp;
+	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
+	struct xfs_inode	*ip = NULL;
+	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, sc->sm->sm_ino);
+	int			error;
+
+	ASSERT(sc->tp == NULL);
+
+	/* We want to scan the inode we already had opened. */
+	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
+		sc->ip = ip_in;
+		return 0;
+	}
+
+	/* Reject internal metadata files and obviously bad inode numbers. */
+	if (xfs_internal_inum(mp, sc->sm->sm_ino))
+		return -ENOENT;
+	if (!xfs_verify_ino(sc->mp, sc->sm->sm_ino))
+		return -ENOENT;
+
+	/* Try a regular untrusted iget. */
+	error = xchk_iget(sc, sc->sm->sm_ino, &ip);
+	if (!error)
+		return xchk_install_handle_inode(sc, ip);
+	if (error == -ENOENT)
+		return error;
+	if (error != -EINVAL)
+		goto out_error;
+
+	/*
+	 * EINVAL with IGET_UNTRUSTED probably means one of several things:
+	 * userspace gave us an inode number that doesn't correspond to fs
+	 * space; the inode btree lacks a record for this inode; or there is a
+	 * record, and it says this inode is free.
+	 *
+	 * We want to look up this inode in the inobt to distinguish two
+	 * scenarios: (1) the inobt says the inode is free, in which case
+	 * there's nothing to do; and (2) the inobt says the inode is
+	 * allocated, but loading it failed due to corruption.
+	 *
+	 * Allocate a transaction and grab the AGI to prevent inobt activity
+	 * in this AG.  Retry the iget in case someone allocated a new inode
+	 * after the first iget failed.
+	 */
+	error = xchk_trans_alloc(sc, 0);
+	if (error)
+		goto out_error;
+
+	error = xchk_iget_agi(sc, sc->sm->sm_ino, &agi_bp, &ip);
+	if (error == 0) {
+		/* Actually got the inode, so install it. */
+		xchk_trans_cancel(sc);
+		return xchk_install_handle_inode(sc, ip);
+	}
+	if (error == -ENOENT)
+		goto out_gone;
+	if (error != -EINVAL)
+		goto out_cancel;
+
+	/* Ensure that we have protected against inode allocation/freeing. */
+	if (agi_bp == NULL) {
+		ASSERT(agi_bp != NULL);
+		error = -ECANCELED;
+		goto out_cancel;
+	}
+
+	/*
+	 * Untrusted iget failed a second time.  Let's try an inobt lookup.
+	 * If the inobt thinks this the inode neither can exist inside the
+	 * filesystem nor is allocated, return ENOENT to signal that the check
+	 * can be skipped.
+	 *
+	 * If the lookup returns corruption, we'll mark this inode corrupt and
+	 * exit to userspace.  There's little chance of fixing anything until
+	 * the inobt is straightened out, but there's nothing we can do here.
+	 *
+	 * If the lookup encounters any other error, exit to userspace.
+	 *
+	 * If the lookup succeeds, something else must be very wrong in the fs
+	 * such that setting up the incore inode failed in some strange way.
+	 * Treat those as corruptions.
+	 */
+	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, sc->sm->sm_ino));
+	if (!pag) {
+		error = -EFSCORRUPTED;
+		goto out_cancel;
+	}
+
+	error = xfs_imap(pag, sc->tp, sc->sm->sm_ino, &imap,
+			XFS_IGET_UNTRUSTED);
+	xfs_perag_put(pag);
+	if (error == -EINVAL || error == -ENOENT)
+		goto out_gone;
+	if (!error)
+		error = -EFSCORRUPTED;
+
+out_cancel:
+	xchk_trans_cancel(sc);
+out_error:
+	trace_xchk_op_error(sc, agno, XFS_INO_TO_AGBNO(mp, sc->sm->sm_ino),
+			error, __return_address);
+	return error;
+out_gone:
+	/* The file is gone, so there's nothing to check. */
+	xchk_trans_cancel(sc);
+	return -ENOENT;
+}
+
+/* Release an inode, possibly dropping it in the process. */
+void
+xchk_irele(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip)
+{
+	if (current->journal_info != NULL) {
+		ASSERT(current->journal_info == sc->tp);
+
+		/*
+		 * If we are in a transaction, we /cannot/ drop the inode
+		 * ourselves, because the VFS will trigger writeback, which
+		 * can require a transaction.  Clear DONTCACHE to force the
+		 * inode to the LRU, where someone else can take care of
+		 * dropping it.
+		 *
+		 * Note that when we grabbed our reference to the inode, it
+		 * could have had an active ref and DONTCACHE set if a sysadmin
+		 * is trying to coerce a change in file access mode.  icache
+		 * hits do not clear DONTCACHE, so we must do it here.
+		 */
+		spin_lock(&VFS_I(ip)->i_lock);
+		VFS_I(ip)->i_state &= ~I_DONTCACHE;
+		spin_unlock(&VFS_I(ip)->i_lock);
+	} else if (atomic_read(&VFS_I(ip)->i_count) == 1) {
+		/*
+		 * If this is the last reference to the inode and the caller
+		 * permits it, set DONTCACHE to avoid thrashing.
+		 */
+		d_mark_dontcache(VFS_I(ip));
+	}
+
+	xfs_irele(ip);
+}
+
+/*
+ * Set us up to scrub metadata mapped by a file's fork.  Callers must not use
+ * this to operate on user-accessible regular file data because the MMAPLOCK is
+ * not taken.
+ */
 int
 xchk_setup_inode_contents(
 	struct xfs_scrub	*sc,
@@ -709,13 +1000,14 @@ xchk_setup_inode_contents(
 {
 	int			error;
 
-	error = xchk_get_inode(sc);
+	error = xchk_iget_for_scrubbing(sc);
 	if (error)
 		return error;
 
-	/* Got the inode, lock it and we're ready to go. */
-	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+	/* Lock the inode so the VFS cannot touch this file. */
+	sc->ilock_flags = XFS_IOLOCK_EXCL;
 	xfs_ilock(sc->ip, sc->ilock_flags);
+
 	error = xchk_trans_alloc(sc, resblks);
 	if (error)
 		goto out;
@@ -789,6 +1081,33 @@ xchk_buffer_recheck(
 	trace_xchk_block_error(sc, xfs_buf_daddr(bp), fa);
 }
 
+static inline int
+xchk_metadata_inode_subtype(
+	struct xfs_scrub	*sc,
+	unsigned int		scrub_type)
+{
+	__u32			smtype = sc->sm->sm_type;
+	int			error;
+
+	sc->sm->sm_type = scrub_type;
+
+	switch (scrub_type) {
+	case XFS_SCRUB_TYPE_INODE:
+		error = xchk_inode(sc);
+		break;
+	case XFS_SCRUB_TYPE_BMBTD:
+		error = xchk_bmap_data(sc);
+		break;
+	default:
+		ASSERT(0);
+		error = -EFSCORRUPTED;
+		break;
+	}
+
+	sc->sm->sm_type = smtype;
+	return error;
+}
+
 /*
  * Scrub the attr/data forks of a metadata inode.  The metadata inode must be
  * pointed to by sc->ip and the ILOCK must be held.
@@ -797,12 +1116,16 @@ int
 xchk_metadata_inode_forks(
 	struct xfs_scrub	*sc)
 {
-	__u32			smtype;
 	bool			shared;
 	int			error;
 
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return 0;
+
+	/* Check the inode record. */
+	error = xchk_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_INODE);
+	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
+		return error;
 
 	/* Metadata inodes don't live on the rt device. */
 	if (sc->ip->i_diflags & XFS_DIFLAG_REALTIME) {
@@ -823,10 +1146,7 @@ xchk_metadata_inode_forks(
 	}
 
 	/* Invoke the data fork scrubber. */
-	smtype = sc->sm->sm_type;
-	sc->sm->sm_type = XFS_SCRUB_TYPE_BMBTD;
-	error = xchk_bmap_data(sc);
-	sc->sm->sm_type = smtype;
+	error = xchk_metadata_inode_subtype(sc, XFS_SCRUB_TYPE_BMBTD);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
@@ -841,53 +1161,27 @@ xchk_metadata_inode_forks(
 			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
 	}
 
-	return error;
+	return 0;
 }
 
 /*
- * Try to lock an inode in violation of the usual locking order rules.  For
- * example, trying to get the IOLOCK while in transaction context, or just
- * plain breaking AG-order or inode-order inode locking rules.  Either way,
- * the only way to avoid an ABBA deadlock is to use trylock and back off if
- * we can't.
+ * Enable filesystem hooks (i.e. runtime code patching) before starting a scrub
+ * operation.  Callers must not hold any locks that intersect with the CPU
+ * hotplug lock (e.g. writeback locks) because code patching must halt the CPUs
+ * to change kernel code.
  */
-int
-xchk_ilock_inverted(
-	struct xfs_inode	*ip,
-	uint			lock_mode)
-{
-	int			i;
-
-	for (i = 0; i < 20; i++) {
-		if (xfs_ilock_nowait(ip, lock_mode))
-			return 0;
-		delay(1);
-	}
-	return -EDEADLOCK;
-}
-
-/* Pause background reaping of resources. */
 void
-xchk_stop_reaping(
-	struct xfs_scrub	*sc)
+xchk_fsgates_enable(
+	struct xfs_scrub	*sc,
+	unsigned int		scrub_fsgates)
 {
-	sc->flags |= XCHK_REAPING_DISABLED;
-	xfs_blockgc_stop(sc->mp);
-	xfs_inodegc_stop(sc->mp);
-}
+	ASSERT(!(scrub_fsgates & ~XCHK_FSGATES_ALL));
+	ASSERT(!(sc->flags & scrub_fsgates));
 
-/* Restart background reaping of resources. */
-void
-xchk_start_reaping(
-	struct xfs_scrub	*sc)
-{
-	/*
-	 * Readonly filesystems do not perform inactivation or speculative
-	 * preallocation, so there's no need to restart the workers.
-	 */
-	if (!xfs_is_readonly(sc->mp)) {
-		xfs_inodegc_start(sc->mp);
-		xfs_blockgc_start(sc->mp);
-	}
-	sc->flags &= ~XCHK_REAPING_DISABLED;
+	trace_xchk_fsgates_enable(sc, scrub_fsgates);
+
+	if (scrub_fsgates & XCHK_FSGATES_DRAIN)
+		xfs_drain_wait_enable();
+
+	sc->flags |= scrub_fsgates;
 }

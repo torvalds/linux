@@ -17,11 +17,18 @@ properties:
   compatible:
     oneOf:
       - const: allwinner,sun6i-a31-mipi-dphy
+      - const: allwinner,sun50i-a100-mipi-dphy
       - items:
           - const: allwinner,sun50i-a64-mipi-dphy
           - const: allwinner,sun6i-a31-mipi-dphy
+      - items:
+          - const: allwinner,sun20i-d1-mipi-dphy
+          - const: allwinner,sun50i-a100-mipi-dphy
 
   reg:
+    maxItems: 1
+
+  interrupts:
     maxItems: 1
 
   clocks:
@@ -38,7 +45,7 @@ properties:
     maxItems: 1
 
   allwinner,direction:
-    $ref: '/schemas/types.yaml#/definitions/string'
+    $ref: /schemas/types.yaml#/definitions/string
     description: |
       Direction of the D-PHY:
       - "rx" for receiving (e.g. when used with MIPI CSI-2);
@@ -53,6 +60,7 @@ required:
   - "#phy-cells"
   - compatible
   - reg
+  - interrupts
   - clocks
   - clock-names
   - resets
@@ -61,9 +69,12 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
     dphy0: d-phy@1ca1000 {
         compatible = "allwinner,sun6i-a31-mipi-dphy";
         reg = <0x01ca1000 0x1000>;
+        interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&ccu 23>, <&ccu 97>;
         clock-names = "bus", "mod";
         resets = <&ccu 4>;

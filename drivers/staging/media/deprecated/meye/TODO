@@ -1,6 +1,0 @@
-The meye driver does not use the vb2 framework for streaming
-video, instead it implements this in the driver.
-
-To prevent removal of this driver early 2023 it has to be
-converted to use vb2. Contact the linux-media@vger.kernel.org
-mailing list if you want to do this.

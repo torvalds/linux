@@ -219,7 +219,6 @@ GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其
         ## 	gpio_free_array()
 
                 gpio_free()
-                gpio_set_debounce()
 
 
 
@@ -358,9 +357,6 @@ GPIO 编号是无符号整数;IRQ 编号也是。这些构成了两个逻辑上�
 	/* 映射 GPIO 编号到 IRQ 编号 */
 	int gpio_to_irq(unsigned gpio);
 
-	/* 映射 IRQ 编号到 GPIO 编号 (尽量避免使用) */
-	int irq_to_gpio(unsigned irq);
-
 它们的返回值为对应命名空间的相关编号，或是负的错误代码(如果无法映射)。
 (例如,某些 GPIO 无法做为 IRQ 使用。)以下的编号错误是未经检测的:使用一个
 未通过 gpio_direction_input()配置为输入的 GPIO 编号，或者使用一个
@@ -372,10 +368,6 @@ gpio_to_irq()返回的非错误值可以传递给 request_irq()或者 free_irq()
 它们通常通过板级特定的初始化代码存放到平台设备的 IRQ 资源中。注意:IRQ
 触发选项是 IRQ 接口的一部分，如 IRQF_TRIGGER_FALLING，系统唤醒能力
 也是如此。
-
-irq_to_gpio()返回的非错误值大多数通常可以被 gpio_get_value()所使用，
-比如在 IRQ 是沿触发时初始化或更新驱动状态。注意某些平台不支持反映射,所以
-你应该尽量避免使用它。
 
 
 模拟开漏信号
@@ -659,33 +651,6 @@ GPIO 控制器的路径类似 /sys/class/gpio/gpiochip42/ (对于从#42 GPIO
 固定的,例如在扩展卡上的 GPIO会根据所使用的主板或所在堆叠架构中其他的板子而
 有所不同。在这种情况下,你可能需要使用 gpiochip 节点(尽可能地结合电路图)来
 确定给定信号所用的 GPIO 编号。
-
-
-从内核代码中导出
-----------------
-
-内核代码可以明确地管理那些已通过 gpio_request()申请的 GPIO 的导出::
-
-	/* 导出 GPIO 到用户空间 */
-	int gpio_export(unsigned gpio, bool direction_may_change);
-
-	/* gpio_export()的逆操作 */
-	void gpio_unexport();
-
-	/* 创建一个 sysfs 连接到已导出的 GPIO 节点 */
-	int gpio_export_link(struct device *dev, const char *name,
-		unsigned gpio)
-
-在一个内核驱动申请一个 GPIO 之后，它可以通过 gpio_export()使其在 sysfs
-接口中可见。该驱动可以控制信号方向是否可修改。这有助于防止用户空间代码无意间
-破坏重要的系统状态。
-
-这个明确的导出有助于(通过使某些实验更容易来)调试，也可以提供一个始终存在的接口，
-与文档配合作为板级支持包的一部分。
-
-在 GPIO 被导出之后，gpio_export_link()允许在 sysfs 文件系统的任何地方
-创建一个到这个 GPIO sysfs 节点的符号链接。这样驱动就可以通过一个描述性的
-名字，在 sysfs 中他们所拥有的设备下提供一个(到这个 GPIO sysfs 节点的)接口。
 
 
 API参考

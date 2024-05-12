@@ -122,7 +122,16 @@
 	clock-frequency = <100000>;
 	status = "okay";
 
-	/* TODO: CYTTSP5 touch controller at 0x24 */
+	touchscreen@24 {
+		compatible = "cypress,tt21000";
+		reg = <0x24>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_cyttsp5_gpio>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <24 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&gpio4 18 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&ldo5_reg>;
+	};
 
 	/* TODO: SY7636 PMIC for E Ink at 0x62 */
 
@@ -312,6 +321,7 @@
 
 &usbotg1 {
 	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg1>;
 	disable-over-current;
 	srp-disable;
 	hnp-disable;

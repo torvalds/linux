@@ -128,8 +128,8 @@
 			micdet-delay = <100>;
 
 			gpio-cfg = <
-				0xffffffff /* don't touch */
-				0xffffffff /* don't touch */
+				0x00000600 /* DMIC_LR, output */
+				0x00000680 /* DMIC_DAT, input */
 				0x00000000 /* Speaker-enable GPIO, output, low */
 				0xffffffff /* don't touch */
 				0xffffffff /* don't touch */
@@ -999,6 +999,18 @@
 		compatible = "innolux,g101ice-l01";
 	};
 
+	opp-table-emc {
+		/delete-node/ opp-750000000-1300;
+		/delete-node/ opp-800000000-1300;
+		/delete-node/ opp-900000000-1350;
+	};
+
+	opp-table-actmon {
+		/delete-node/ opp-750000000;
+		/delete-node/ opp-800000000;
+		/delete-node/ opp-900000000;
+	};
+
 	sound {
 		compatible = "asus,tegra-audio-wm8903-tf300t",
 			     "nvidia,tegra-audio-wm8903";
@@ -1011,24 +1023,10 @@
 			"Int Spk", "RON",
 			"Int Spk", "LOP",
 			"Int Spk", "LON",
-			"IN1L", "Mic Jack",
 			"IN2L", "Mic Jack",
 			"DMICDAT", "Int Mic";
 
 		nvidia,audio-codec = <&wm8903>;
 		nvidia,spkr-en-gpios = <&wm8903 2 GPIO_ACTIVE_HIGH>;
-		nvidia,headset;
 	};
-};
-
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-750000000-1300;
-	/delete-node/ opp-800000000-1300;
-	/delete-node/ opp-900000000-1350;
-};
-
-&emc_bw_dfs_opp_table {
-	/delete-node/ opp-750000000;
-	/delete-node/ opp-800000000;
-	/delete-node/ opp-900000000;
 };

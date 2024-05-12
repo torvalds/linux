@@ -123,23 +123,23 @@ examples:
             #size-cells = <0>;
 
             channel@0 { /* LTD */
-              reg = <0>;
+                reg = <0>;
             };
 
             channel@1 { /* RTD1 */
-              reg = <1>;
-              sensor-type = "voltage";
+                reg = <1>;
+                sensor-type = "voltage";
             };
 
             channel@2 { /* RTD2 */
-              reg = <2>;
-              sensor-type = "temperature";
-              temperature-mode = "thermal-diode";
+                reg = <2>;
+                sensor-type = "temperature";
+                temperature-mode = "thermal-diode";
             };
 
             channel@3 { /* RTD3 */
-              reg = <3>;
-              sensor-type = "temperature";
+                reg = <3>;
+                sensor-type = "temperature";
             };
         };
     };

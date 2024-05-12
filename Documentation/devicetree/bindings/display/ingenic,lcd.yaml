@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/ingenic,lcd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs LCD controller devicetree bindings
+title: Ingenic SoCs LCD controller
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>

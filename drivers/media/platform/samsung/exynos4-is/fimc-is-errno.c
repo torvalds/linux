@@ -54,7 +54,7 @@ const char *fimc_is_param_strerr(unsigned int error)
 	case ERROR_DMA_INPUT_ORDER:
 		return "ERROR_DMA_INPUT_ORDER: Invalid order(DRC: YYCbCr,YCbYCr,FD:NO,YYCbCr,YCbYCr,CbCr,CrCb)";
 	case ERROR_DMA_INPUT_PLANE:
-		return "ERROR_DMA_INPUT_PLANE: Invalid palne (DRC: 3, FD: 1, 2, 3)";
+		return "ERROR_DMA_INPUT_PLANE: Invalid plane (DRC: 3, FD: 1, 2, 3)";
 	case ERROR_OTF_OUTPUT_WIDTH:
 		return "ERROR_OTF_OUTPUT_WIDTH: Invalid width (DRC: 128~8192)";
 	case ERROR_OTF_OUTPUT_HEIGHT:

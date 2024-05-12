@@ -972,7 +972,7 @@ static int ppa_adjust_queue(struct scsi_device *device)
 	return 0;
 }
 
-static struct scsi_host_template ppa_template = {
+static const struct scsi_host_template ppa_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= "ppa",
 	.show_info		= ppa_show_info,

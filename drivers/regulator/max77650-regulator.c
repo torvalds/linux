@@ -395,6 +395,7 @@ MODULE_DEVICE_TABLE(of, max77650_regulator_of_match);
 static struct platform_driver max77650_regulator_driver = {
 	.driver = {
 		.name = "max77650-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = max77650_regulator_of_match,
 	},
 	.probe = max77650_regulator_probe,

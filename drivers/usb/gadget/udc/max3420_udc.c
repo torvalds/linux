@@ -1108,7 +1108,6 @@ static int max3420_udc_start(struct usb_gadget *gadget,
 
 	spin_lock_irqsave(&udc->lock, flags);
 	/* hook up the driver */
-	driver->driver.bus = NULL;
 	udc->driver = driver;
 	udc->gadget.speed = USB_SPEED_FULL;
 
@@ -1320,7 +1319,7 @@ MODULE_DEVICE_TABLE(of, max3420_udc_of_match);
 static struct spi_driver max3420_driver = {
 	.driver = {
 		.name = "max3420-udc",
-		.of_match_table = of_match_ptr(max3420_udc_of_match),
+		.of_match_table = max3420_udc_of_match,
 	},
 	.probe = max3420_probe,
 	.remove = max3420_remove,

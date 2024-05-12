@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/fsl,sai-clock.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale SAI bitclock-as-a-clock binding
+title: Freescale SAI bitclock-as-a-clock
 
 maintainers:
   - Michael Walle <michael@walle.cc>

@@ -66,7 +66,9 @@ check()
 	esac
 	echo "build id: ${id}"
 
-	link=${build_id_dir}/.build-id/${id:0:2}/${id:2}
+	id_file=${id#??}
+	id_dir=${id%$id_file}
+	link=$build_id_dir/.build-id/$id_dir/$id_file
 	echo "link: ${link}"
 
 	if [ ! -h $link ]; then
@@ -74,10 +76,23 @@ check()
 		exit 1
 	fi
 
-	file=${build_id_dir}/.build-id/${id:0:2}/`readlink ${link}`/elf
+	file=${build_id_dir}/.build-id/$id_dir/`readlink ${link}`/elf
 	echo "file: ${file}"
 
-	if [ ! -x $file ]; then
+	# Check for file permission of original file
+	# in case of pe-file.exe file
+	echo $1 | grep ".exe"
+	if [ $? -eq 0 ]; then
+		if [ -x $1  -a ! -x $file ]; then
+			echo "failed: file ${file} executable does not exist"
+			exit 1
+		fi
+
+		if [ ! -x $file -a ! -e $file ]; then
+			echo "failed: file ${file} does not exist"
+			exit 1
+		fi
+	elif [ ! -x $file ]; then
 		echo "failed: file ${file} does not exist"
 		exit 1
 	fi
@@ -117,20 +132,22 @@ test_record()
 {
 	data=$(mktemp /tmp/perf.data.XXX)
 	build_id_dir=$(mktemp -d /tmp/perf.debug.XXX)
-	log=$(mktemp /tmp/perf.log.XXX)
+	log_out=$(mktemp /tmp/perf.log.out.XXX)
+	log_err=$(mktemp /tmp/perf.log.err.XXX)
 	perf="perf --buildid-dir ${build_id_dir}"
 
 	echo "running: perf record $@"
-	${perf} record --buildid-all -o ${data} $@ &> ${log}
+	${perf} record --buildid-all -o ${data} $@ 1>${log_out} 2>${log_err}
 	if [ $? -ne 0 ]; then
 		echo "failed: record $@"
-		echo "see log: ${log}"
+		echo "see log: ${log_err}"
 		exit 1
 	fi
 
-	check ${@: -1}
+	args="$*"
+	check ${args##* }
 
-	rm -f ${log}
+	rm -f ${log_out} ${log_err}
 	rm -rf ${build_id_dir}
 	rm -rf ${data}
 }

@@ -821,7 +821,7 @@ err_cleanup_nand:
 	return ret;
 }
 
-static int nand_davinci_remove(struct platform_device *pdev)
+static void nand_davinci_remove(struct platform_device *pdev)
 {
 	struct davinci_nand_info *info = platform_get_drvdata(pdev);
 	struct nand_chip *chip = &info->chip;
@@ -835,13 +835,11 @@ static int nand_davinci_remove(struct platform_device *pdev)
 	ret = mtd_device_unregister(nand_to_mtd(chip));
 	WARN_ON(ret);
 	nand_cleanup(chip);
-
-	return 0;
 }
 
 static struct platform_driver nand_davinci_driver = {
 	.probe		= nand_davinci_probe,
-	.remove		= nand_davinci_remove,
+	.remove_new	= nand_davinci_remove,
 	.driver		= {
 		.name	= "davinci_nand",
 		.of_match_table = of_match_ptr(davinci_nand_of_match),

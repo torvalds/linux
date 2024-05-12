@@ -3,7 +3,7 @@
  *
  * Module Name: amlresrc.h - AML resource descriptors
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -70,6 +70,8 @@
 #define ACPI_RESTAG_TYPE                        "_TTP"	/* Translation(1), Static (0) */
 #define ACPI_RESTAG_XFERTYPE                    "_SIZ"	/* 8(0), 8And16(1), 16(2) */
 #define ACPI_RESTAG_VENDORDATA                  "_VEN"
+#define ACPI_RESTAG_FQN                         "_FQN"
+#define ACPI_RESTAG_FQD                         "_FQD"
 
 /* Default sizes for "small" resource descriptors */
 
@@ -259,7 +261,10 @@ struct aml_resource_address16 {
 struct aml_resource_extended_irq {
 	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;
 	u8 interrupt_count;
-	u32 interrupts[1];
+	union {
+		u32 interrupt;
+		 ACPI_FLEX_ARRAY(u32, interrupts);
+	};
 	/* res_source_index, res_source optional fields follow */
 };
 
@@ -427,6 +432,20 @@ struct aml_resource_pin_config {
 	 */
 };
 
+#define AML_RESOURCE_CLOCK_INPUT_REVISION      1	/* ACPI 6.5 */
+
+struct aml_resource_clock_input {
+	AML_RESOURCE_LARGE_HEADER_COMMON u8 revision_id;
+	u16 flags;
+	u16 frequency_divisor;
+	u32 frequency_numerator;
+	/*
+	 * Optional fields follow immediately:
+	 * 1) Resource Source index
+	 * 2) Resource Source String
+	 */
+};
+
 #define AML_RESOURCE_PIN_CONFIG_REVISION      1	/* ACPI 6.2 */
 
 struct aml_resource_pin_group {
@@ -533,6 +552,7 @@ union aml_resource {
 	struct aml_resource_pin_group pin_group;
 	struct aml_resource_pin_group_function pin_group_function;
 	struct aml_resource_pin_group_config pin_group_config;
+	struct aml_resource_clock_input clock_input;
 
 	/* Utility overlays */
 

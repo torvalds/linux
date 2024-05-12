@@ -541,7 +541,7 @@ out_err:
 	return ret;
 }
 
-static int clk_bcm63xx_remove(struct platform_device *pdev)
+static void clk_bcm63xx_remove(struct platform_device *pdev)
 {
 	struct clk_bcm63xx_hw *hw = platform_get_drvdata(pdev);
 	int i;
@@ -552,8 +552,6 @@ static int clk_bcm63xx_remove(struct platform_device *pdev)
 		if (!IS_ERR(hw->data.hws[i]))
 			clk_hw_unregister_gate(hw->data.hws[i]);
 	}
-
-	return 0;
 }
 
 static const struct of_device_id clk_bcm63xx_dt_ids[] = {
@@ -570,7 +568,7 @@ static const struct of_device_id clk_bcm63xx_dt_ids[] = {
 
 static struct platform_driver clk_bcm63xx = {
 	.probe = clk_bcm63xx_probe,
-	.remove = clk_bcm63xx_remove,
+	.remove_new = clk_bcm63xx_remove,
 	.driver = {
 		.name = "bcm63xx-clock",
 		.of_match_table = clk_bcm63xx_dt_ids,

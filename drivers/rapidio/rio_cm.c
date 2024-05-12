@@ -2087,13 +2087,11 @@ static int riocm_cdev_add(dev_t devno)
 /*
  * riocm_add_mport - add new local mport device into channel management core
  * @dev: device object associated with mport
- * @class_intf: class interface
  *
  * When a new mport device is added, CM immediately reserves inbound and
  * outbound RapidIO mailboxes that will be used.
  */
-static int riocm_add_mport(struct device *dev,
-			   struct class_interface *class_intf)
+static int riocm_add_mport(struct device *dev)
 {
 	int rc;
 	int i;
@@ -2166,14 +2164,12 @@ static int riocm_add_mport(struct device *dev,
 /*
  * riocm_remove_mport - remove local mport device from channel management core
  * @dev: device object associated with mport
- * @class_intf: class interface
  *
  * Removes a local mport device from the list of registered devices that provide
  * channel management services. Returns an error if the specified mport is not
  * registered with the CM core.
  */
-static void riocm_remove_mport(struct device *dev,
-			       struct class_interface *class_intf)
+static void riocm_remove_mport(struct device *dev)
 {
 	struct rio_mport *mport = to_rio_mport(dev);
 	struct cm_dev *cm;
@@ -2297,7 +2293,7 @@ static int __init riocm_init(void)
 	int ret;
 
 	/* Create device class needed by udev */
-	dev_class = class_create(THIS_MODULE, DRV_NAME);
+	dev_class = class_create(DRV_NAME);
 	if (IS_ERR(dev_class)) {
 		riocm_error("Cannot create " DRV_NAME " class");
 		return PTR_ERR(dev_class);

@@ -17,8 +17,8 @@ maintainers:
   - Vincent Whitchurch <vincent.whitchurch@axis.com>
 
 allOf:
-  - $ref: "reserved-memory.yaml"
-  - $ref: "/schemas/mtd/mtd.yaml"
+  - $ref: reserved-memory.yaml
+  - $ref: /schemas/mtd/mtd.yaml
 
 properties:
   compatible:

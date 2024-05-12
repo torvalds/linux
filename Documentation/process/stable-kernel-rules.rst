@@ -39,7 +39,7 @@ Procedure for submitting patches to the -stable tree
 
    Security patches should not be handled (solely) by the -stable review
    process but should follow the procedures in
-   :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`.
+   :ref:`Documentation/process/security-bugs.rst <securitybugs>`.
 
 For all other submissions, choose one of the following procedures
 -----------------------------------------------------------------

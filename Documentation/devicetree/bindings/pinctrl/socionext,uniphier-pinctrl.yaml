@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/pinctrl/socionext,uniphier-pinctrl.yaml#
@@ -60,7 +61,7 @@ additionalProperties:
     unevaluatedProperties: false
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible
@@ -69,11 +70,17 @@ examples:
   - |
     // The UniPhier pinctrl should be a subnode of a "syscon" compatible node.
 
-    soc-glue@5f800000 {
-        compatible = "socionext,uniphier-pro4-soc-glue", "simple-mfd", "syscon";
-        reg = <0x5f800000 0x2000>;
+    pinctrl {
+        compatible = "socionext,uniphier-ld20-pinctrl";
 
-        pinctrl: pinctrl {
-            compatible = "socionext,uniphier-pro4-pinctrl";
+        pinctrl_ether_rgmii: ether-rgmii {
+            groups = "ether_rgmii";
+            function = "ether_rgmii";
+
+            tx {
+                pins = "RGMII_TXCLK", "RGMII_TXD0", "RGMII_TXD1",
+                       "RGMII_TXD2", "RGMII_TXD3", "RGMII_TXCTL";
+                drive-strength = <9>;
+            };
         };
     };

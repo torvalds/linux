@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/iio/dac/st,stm32-dac.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/iio/dac/st,stm32-dac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 DAC bindings
+title: STMicroelectronics STM32 DAC
 
 description: |
   The STM32 DAC is a 12-bit voltage output digital-to-analog converter. The DAC

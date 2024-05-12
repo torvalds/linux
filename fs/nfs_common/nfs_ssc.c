@@ -12,7 +12,6 @@
 #include <linux/nfs_ssc.h>
 #include "../nfs/nfs4_fs.h"
 
-MODULE_LICENSE("GPL");
 
 struct nfs_ssc_client_ops_tbl nfs_ssc_client_tbl;
 EXPORT_SYMBOL_GPL(nfs_ssc_client_tbl);

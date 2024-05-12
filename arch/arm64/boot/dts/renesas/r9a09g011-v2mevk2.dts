@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "r9a09g011.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rzv2m-pinctrl.h>
 
 / {
@@ -22,6 +23,31 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	connector {
+		compatible = "usb-c-connector";
+		label = "USB-C";
+		data-role = "dual";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				hs_ep: endpoint {
+					remote-endpoint = <&usb3_hs_ep>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				ss_ep: endpoint {
+					remote-endpoint = <&hd3ss3220_in_ep>;
+				};
+			};
+		};
+	};
+
 	memory@58000000 {
 		device_type = "memory";
 		/*
@@ -34,6 +60,36 @@
 	memory@180000000 {
 		device_type = "memory";
 		reg = <0x1 0x80000000 0x0 0x80000000>;
+	};
+
+	reg_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vccq_sdhi0: regulator-vccq-sdhi0 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&pwc 0 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 0>, <1800000 1>;
 	};
 };
 
@@ -50,6 +106,23 @@
 	};
 };
 
+&emmc {
+	pinctrl-0 = <&emmc_pins>;
+	pinctrl-1 = <&emmc_pins>;
+	pinctrl-names = "default", "state_uhs";
+
+	vmmc-supply = <&reg_3v3>;
+	vqmmc-supply = <&reg_1v8>;
+	bus-width = <8>;
+	mmc-hs200-1_8v;
+	no-sd;
+	no-sdio;
+	non-removable;
+	fixed-emmc-driver-type = <1>;
+	max-frequency = <200000000>;
+	status = "okay";
+};
+
 &extal_clk {
 	clock-frequency = <48000000>;
 };
@@ -59,6 +132,30 @@
 	pinctrl-names = "default";
 	clock-frequency = <400000>;
 	status = "okay";
+
+	hd3ss3220@47 {
+		compatible = "ti,hd3ss3220";
+		reg = <0x47>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				hd3ss3220_in_ep: endpoint {
+					remote-endpoint = <&ss_ep>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				hd3ss3220_out_ep: endpoint {
+					remote-endpoint = <&usb3_role_switch>;
+				};
+			};
+		};
+	};
 };
 
 &i2c2 {
@@ -69,6 +166,26 @@
 };
 
 &pinctrl {
+	emmc_pins: emmc {
+		data {
+			pinmux = <RZV2M_PORT_PINMUX(0, 0, 2)>, /* MMDAT0 */
+				 <RZV2M_PORT_PINMUX(0, 1, 2)>, /* MMDAT1 */
+				 <RZV2M_PORT_PINMUX(0, 2, 2)>, /* MMDAT2 */
+				 <RZV2M_PORT_PINMUX(0, 3, 2)>, /* MMDAT3 */
+				 <RZV2M_PORT_PINMUX(0, 4, 2)>, /* MMDAT4 */
+				 <RZV2M_PORT_PINMUX(0, 5, 2)>, /* MMDAT5 */
+				 <RZV2M_PORT_PINMUX(0, 6, 2)>, /* MMDAT6 */
+				 <RZV2M_PORT_PINMUX(0, 7, 2)>; /* MMDAT7 */
+			power-source = <1800>;
+		};
+
+		ctrl {
+			pinmux = <RZV2M_PORT_PINMUX(0, 10, 2)>, /* MMCMD */
+				 <RZV2M_PORT_PINMUX(0, 11, 2)>; /* MMCLK */
+			power-source = <1800>;
+		};
+	};
+
 	i2c0_pins: i2c0 {
 		pinmux = <RZV2M_PORT_PINMUX(5, 0, 2)>, /* SDA */
 			 <RZV2M_PORT_PINMUX(5, 1, 2)>; /* SCL */
@@ -78,8 +195,116 @@
 		pinmux = <RZV2M_PORT_PINMUX(3, 8, 2)>, /* SDA */
 			 <RZV2M_PORT_PINMUX(3, 9, 2)>; /* SCL */
 	};
+
+	sdhi0_pins: sd0 {
+		data {
+			pinmux = <RZV2M_PORT_PINMUX(8, 2, 1)>, /* SD0DAT0 */
+				 <RZV2M_PORT_PINMUX(8, 3, 1)>, /* SD0DAT1 */
+				 <RZV2M_PORT_PINMUX(8, 4, 1)>, /* SD0DAT2 */
+				 <RZV2M_PORT_PINMUX(8, 5, 1)>; /* SD0DAT3 */
+			power-source = <3300>;
+		};
+
+		ctrl {
+			pinmux = <RZV2M_PORT_PINMUX(8, 0, 1)>, /* SD0CMD */
+				 <RZV2M_PORT_PINMUX(8, 1, 1)>; /* SD0CLK */
+			power-source = <3300>;
+		};
+
+		cd {
+			pinmux = <RZV2M_PORT_PINMUX(8, 7, 1)>; /* SD0CD */
+			power-source = <3300>;
+		};
+	};
+
+	sdhi0_pins_uhs: sd0-uhs {
+		data {
+			pinmux = <RZV2M_PORT_PINMUX(8, 2, 1)>, /* SD0DAT0 */
+				 <RZV2M_PORT_PINMUX(8, 3, 1)>, /* SD0DAT1 */
+				 <RZV2M_PORT_PINMUX(8, 4, 1)>, /* SD0DAT2 */
+				 <RZV2M_PORT_PINMUX(8, 5, 1)>; /* SD0DAT3 */
+			power-source = <1800>;
+		};
+
+		ctrl {
+			pinmux = <RZV2M_PORT_PINMUX(8, 0, 1)>, /* SD0CMD */
+				 <RZV2M_PORT_PINMUX(8, 1, 1)>; /* SD0CLK */
+			power-source = <1800>;
+		};
+
+		cd {
+			pinmux = <RZV2M_PORT_PINMUX(8, 7, 1)>; /* SD0CD */
+			power-source = <1800>;
+		};
+	};
+
+	uart0_pins: uart0 {
+		pinmux = <RZV2M_PORT_PINMUX(3, 0, 2)>, /* UATX0 */
+			 <RZV2M_PORT_PINMUX(3, 1, 2)>, /* UARX0 */
+			 <RZV2M_PORT_PINMUX(3, 2, 2)>, /* UACTS0N */
+			 <RZV2M_PORT_PINMUX(3, 3, 2)>; /* UARTS0N */
+	};
+};
+
+&pwc {
+	renesas,rzv2m-pwc-power;
+	status = "okay";
+};
+
+&sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-1 = <&sdhi0_pins_uhs>;
+	pinctrl-names = "default", "state_uhs";
+
+	vmmc-supply = <&reg_3v3>;
+	vqmmc-supply = <&vccq_sdhi0>;
+	bus-width = <4>;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	status = "okay";
 };
 
 &uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&usb3drd {
+	status = "okay";
+};
+
+&usb3host {
+	status = "okay";
+};
+
+&usb3peri {
+	companion = <&usb3host>;
+	status = "okay";
+	usb-role-switch;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			usb3_hs_ep: endpoint {
+				remote-endpoint = <&hs_ep>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			usb3_role_switch: endpoint {
+				remote-endpoint = <&hd3ss3220_out_ep>;
+			};
+		};
+	};
+};
+
+&wdt0 {
 	status = "okay";
 };

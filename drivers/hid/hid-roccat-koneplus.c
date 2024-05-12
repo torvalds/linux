@@ -549,7 +549,7 @@ static int __init koneplus_init(void)
 	int retval;
 
 	/* class name has to be same as driver name */
-	koneplus_class = class_create(THIS_MODULE, "koneplus");
+	koneplus_class = class_create("koneplus");
 	if (IS_ERR(koneplus_class))
 		return PTR_ERR(koneplus_class);
 	koneplus_class->dev_groups = koneplus_groups;

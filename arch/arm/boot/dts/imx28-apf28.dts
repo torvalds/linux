@@ -14,67 +14,59 @@
 		device_type = "memory";
 		reg = <0x40000000 0x08000000>;
 	};
+};
 
-	apb@80000000 {
-		apbh@80000000 {
-			nand-controller@8000c000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
-				status = "okay";
+&duart {
+	pinctrl-names = "default";
+	pinctrl-0 = <&duart_pins_a>;
+	status = "okay";
+};
 
-				partition@0 {
-					label = "u-boot";
-					reg = <0x0 0x300000>;
-				};
+&gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
+	status = "okay";
 
-				partition@300000 {
-					label = "env";
-					reg = <0x300000 0x80000>;
-				};
-
-				partition@380000 {
-					label = "env2";
-					reg = <0x380000 0x80000>;
-				};
-
-				partition@400000 {
-					label = "dtb";
-					reg = <0x400000 0x80000>;
-				};
-
-				partition@480000 {
-					label = "splash";
-					reg = <0x480000 0x80000>;
-				};
-
-				partition@500000 {
-					label = "kernel";
-					reg = <0x500000 0x800000>;
-				};
-
-				partition@d00000 {
-					label = "rootfs";
-					reg = <0xd00000 0xf300000>;
-				};
-			};
-		};
-
-		apbx@80040000 {
-			duart: serial@80074000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&duart_pins_a>;
-				status = "okay";
-			};
-		};
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0 0x300000>;
 	};
 
-	ahb@80080000 {
-		mac0: ethernet@800f0000 {
-			phy-mode = "rmii";
-			pinctrl-names = "default";
-			pinctrl-0 = <&mac0_pins_a>;
-			phy-reset-gpios = <&gpio4 13 GPIO_ACTIVE_LOW>;
-			status = "okay";
-		};
+	partition@300000 {
+		label = "env";
+		reg = <0x300000 0x80000>;
 	};
+
+	partition@380000 {
+		label = "env2";
+		reg = <0x380000 0x80000>;
+	};
+
+	partition@400000 {
+		label = "dtb";
+		reg = <0x400000 0x80000>;
+	};
+
+	partition@480000 {
+		label = "splash";
+		reg = <0x480000 0x80000>;
+	};
+
+	partition@500000 {
+		label = "kernel";
+		reg = <0x500000 0x800000>;
+	};
+
+	partition@d00000 {
+		label = "rootfs";
+		reg = <0xd00000 0xf300000>;
+	};
+};
+
+&mac0 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac0_pins_a>;
+	phy-reset-gpios = <&gpio4 13 GPIO_ACTIVE_LOW>;
+	status = "okay";
 };

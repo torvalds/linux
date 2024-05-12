@@ -565,17 +565,12 @@ atmel_tdes_set_iv_as_last_ciphertext_block(struct atmel_tdes_dev *dd)
 	if (req->cryptlen < ivsize)
 		return;
 
-	if (rctx->mode & TDES_FLAGS_ENCRYPT) {
+	if (rctx->mode & TDES_FLAGS_ENCRYPT)
 		scatterwalk_map_and_copy(req->iv, req->dst,
 					 req->cryptlen - ivsize, ivsize, 0);
-	} else {
-		if (req->src == req->dst)
-			memcpy(req->iv, rctx->lastc, ivsize);
-		else
-			scatterwalk_map_and_copy(req->iv, req->src,
-						 req->cryptlen - ivsize,
-						 ivsize, 0);
-	}
+	else
+		memcpy(req->iv, rctx->lastc, ivsize);
+
 }
 
 static void atmel_tdes_finish_req(struct atmel_tdes_dev *dd, int err)
@@ -590,7 +585,7 @@ static void atmel_tdes_finish_req(struct atmel_tdes_dev *dd, int err)
 	if (!err && (rctx->mode & TDES_FLAGS_OPMODE_MASK) != TDES_FLAGS_ECB)
 		atmel_tdes_set_iv_as_last_ciphertext_block(dd);
 
-	req->base.complete(&req->base, err);
+	skcipher_request_complete(req, err);
 }
 
 static int atmel_tdes_handle_queue(struct atmel_tdes_dev *dd,
@@ -619,7 +614,7 @@ static int atmel_tdes_handle_queue(struct atmel_tdes_dev *dd,
 		return ret;
 
 	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
+		crypto_request_complete(backlog, -EINPROGRESS);
 
 	req = skcipher_request_cast(async_req);
 
@@ -722,7 +717,7 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 	rctx->mode = mode;
 
 	if ((mode & TDES_FLAGS_OPMODE_MASK) != TDES_FLAGS_ECB &&
-	    !(mode & TDES_FLAGS_ENCRYPT) && req->src == req->dst) {
+	    !(mode & TDES_FLAGS_ENCRYPT)) {
 		unsigned int ivsize = crypto_skcipher_ivsize(skcipher);
 
 		if (req->cryptlen >= ivsize)

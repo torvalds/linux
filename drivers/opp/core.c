@@ -935,8 +935,8 @@ static int _set_opp_bw(const struct opp_table *opp_table,
 	return 0;
 }
 
-static int _set_required_opp(struct device *dev, struct device *pd_dev,
-			     struct dev_pm_opp *opp, int i)
+static int _set_performance_state(struct device *dev, struct device *pd_dev,
+				  struct dev_pm_opp *opp, int i)
 {
 	unsigned int pstate = likely(opp) ? opp->required_opps[i]->pstate : 0;
 	int ret;
@@ -953,37 +953,19 @@ static int _set_required_opp(struct device *dev, struct device *pd_dev,
 	return ret;
 }
 
-/* This is only called for PM domain for now */
-static int _set_required_opps(struct device *dev,
-			      struct opp_table *opp_table,
-			      struct dev_pm_opp *opp, bool up)
+static int _opp_set_required_opps_generic(struct device *dev,
+	struct opp_table *opp_table, struct dev_pm_opp *opp, bool scaling_down)
 {
-	struct opp_table **required_opp_tables = opp_table->required_opp_tables;
-	struct device **genpd_virt_devs = opp_table->genpd_virt_devs;
+	dev_err(dev, "setting required-opps isn't supported for non-genpd devices\n");
+	return -ENOENT;
+}
+
+static int _opp_set_required_opps_genpd(struct device *dev,
+	struct opp_table *opp_table, struct dev_pm_opp *opp, bool scaling_down)
+{
+	struct device **genpd_virt_devs =
+		opp_table->genpd_virt_devs ? opp_table->genpd_virt_devs : &dev;
 	int i, ret = 0;
-
-	if (!required_opp_tables)
-		return 0;
-
-	/* required-opps not fully initialized yet */
-	if (lazy_linking_pending(opp_table))
-		return -EBUSY;
-
-	/*
-	 * We only support genpd's OPPs in the "required-opps" for now, as we
-	 * don't know much about other use cases. Error out if the required OPP
-	 * doesn't belong to a genpd.
-	 */
-	if (unlikely(!required_opp_tables[0]->is_genpd)) {
-		dev_err(dev, "required-opps don't belong to a genpd\n");
-		return -ENOENT;
-	}
-
-	/* Single genpd case */
-	if (!genpd_virt_devs)
-		return _set_required_opp(dev, dev, opp, 0);
-
-	/* Multiple genpd case */
 
 	/*
 	 * Acquire genpd_virt_dev_lock to make sure we don't use a genpd_dev
@@ -992,15 +974,15 @@ static int _set_required_opps(struct device *dev,
 	mutex_lock(&opp_table->genpd_virt_dev_lock);
 
 	/* Scaling up? Set required OPPs in normal order, else reverse */
-	if (up) {
+	if (!scaling_down) {
 		for (i = 0; i < opp_table->required_opp_count; i++) {
-			ret = _set_required_opp(dev, genpd_virt_devs[i], opp, i);
+			ret = _set_performance_state(dev, genpd_virt_devs[i], opp, i);
 			if (ret)
 				break;
 		}
 	} else {
 		for (i = opp_table->required_opp_count - 1; i >= 0; i--) {
-			ret = _set_required_opp(dev, genpd_virt_devs[i], opp, i);
+			ret = _set_performance_state(dev, genpd_virt_devs[i], opp, i);
 			if (ret)
 				break;
 		}
@@ -1009,6 +991,34 @@ static int _set_required_opps(struct device *dev,
 	mutex_unlock(&opp_table->genpd_virt_dev_lock);
 
 	return ret;
+}
+
+/* This is only called for PM domain for now */
+static int _set_required_opps(struct device *dev, struct opp_table *opp_table,
+			      struct dev_pm_opp *opp, bool up)
+{
+	/* required-opps not fully initialized yet */
+	if (lazy_linking_pending(opp_table))
+		return -EBUSY;
+
+	if (opp_table->set_required_opps)
+		return opp_table->set_required_opps(dev, opp_table, opp, up);
+
+	return 0;
+}
+
+/* Update set_required_opps handler */
+void _update_set_required_opps(struct opp_table *opp_table)
+{
+	/* Already set */
+	if (opp_table->set_required_opps)
+		return;
+
+	/* All required OPPs will belong to genpd or none */
+	if (opp_table->required_opp_tables[0]->is_genpd)
+		opp_table->set_required_opps = _opp_set_required_opps_genpd;
+	else
+		opp_table->set_required_opps = _opp_set_required_opps_generic;
 }
 
 static void _find_current_opp(struct device *dev, struct opp_table *opp_table)

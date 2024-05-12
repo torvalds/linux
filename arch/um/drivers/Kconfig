@@ -261,6 +261,7 @@ config UML_NET_VECTOR
 config UML_NET_VDE
 	bool "VDE transport (obsolete)"
 	depends on UML_NET
+	depends on !MODVERSIONS
 	select MAY_HAVE_RUNTIME_DEPS
 	help
 	  This User-Mode Linux network transport allows one or more running
@@ -309,6 +310,7 @@ config UML_NET_MCAST
 config UML_NET_PCAP
 	bool "pcap transport (obsolete)"
 	depends on UML_NET
+	depends on !MODVERSIONS
 	select MAY_HAVE_RUNTIME_DEPS
 	help
 	  The pcap transport makes a pcap packet stream on the host look
@@ -381,7 +383,6 @@ config UML_PCI_OVER_VIRTIO
 	select UML_IOMEM_EMULATION
 	select UML_DMA_EMULATION
 	select PCI_MSI
-	select PCI_MSI_IRQ_DOMAIN
 	select PCI_LOCKLESS_CONFIG
 
 config UML_PCI_OVER_VIRTIO_DEVICE_ID

@@ -10,7 +10,7 @@ maintainers:
   - Keiji Hayashibara <hayashibara.keiji@socionext.com>
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:
@@ -25,12 +25,6 @@ examples:
   - |
     // The UniPhier watchdog should be a subnode of a "syscon" compatible node.
 
-    sysctrl@61840000 {
-        compatible = "socionext,uniphier-ld11-sysctrl",
-                     "simple-mfd", "syscon";
-        reg = <0x61840000 0x10000>;
-
-        watchdog {
-            compatible = "socionext,uniphier-wdt";
-        };
+    watchdog {
+        compatible = "socionext,uniphier-wdt";
     };

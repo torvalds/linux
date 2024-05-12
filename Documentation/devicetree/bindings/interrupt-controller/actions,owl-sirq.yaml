@@ -32,7 +32,7 @@ properties:
       The first cell is the input IRQ number, between 0 and 2, while the second
       cell is the trigger type as defined in interrupt.txt in this directory.
 
-  'interrupts':
+  interrupts:
     description: |
       Contains the GIC SPI IRQs mapped to the external interrupt lines.
       They shall be specified sequentially from output 0 to 2.
@@ -44,7 +44,7 @@ required:
   - reg
   - interrupt-controller
   - '#interrupt-cells'
-  - 'interrupts'
+  - interrupts
 
 additionalProperties: false
 

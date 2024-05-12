@@ -41,6 +41,11 @@
 			reg = <0x0 0x4000000 0x0 0x200000>;
 			no-map;
 		};
+
+		tee@4400000 {
+			reg = <0 0x4400000 0 0x1000000>;
+			no-map;
+		};
 	};
 
 	AP_NAME {
@@ -312,7 +317,7 @@
 	 * first one that will have a critical trip point will be chosen.
 	 */
 	thermal-zones {
-		ap_thermal_ic: ap-thermal-ic {
+		ap_thermal_ic: ap-ic-thermal {
 			polling-delay-passive = <0>; /* Interrupt driven */
 			polling-delay = <0>; /* Interrupt driven */
 
@@ -329,7 +334,7 @@
 			cooling-maps { };
 		};
 
-		ap_thermal_cpu0: ap-thermal-cpu0 {
+		ap_thermal_cpu0: ap-cpu0-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -362,7 +367,7 @@
 			};
 		};
 
-		ap_thermal_cpu1: ap-thermal-cpu1 {
+		ap_thermal_cpu1: ap-cpu1-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -395,7 +400,7 @@
 			};
 		};
 
-		ap_thermal_cpu2: ap-thermal-cpu2 {
+		ap_thermal_cpu2: ap-cpu2-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 
@@ -428,7 +433,7 @@
 			};
 		};
 
-		ap_thermal_cpu3: ap-thermal-cpu3 {
+		ap_thermal_cpu3: ap-cpu3-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <1000>;
 

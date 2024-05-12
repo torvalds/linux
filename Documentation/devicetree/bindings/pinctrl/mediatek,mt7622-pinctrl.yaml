@@ -4,12 +4,12 @@
 $id: http://devicetree.org/schemas/pinctrl/mediatek,mt7622-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mediatek MT7622 Pin Controller
+title: MediaTek MT7622 Pin Controller
 
 maintainers:
   - Sean Wang <sean.wang@kernel.org>
 
-description: |+
+description:
   The MediaTek's MT7622 Pin controller is used to control SoC pins.
 
 properties:
@@ -29,10 +29,10 @@ properties:
 
   "#gpio-cells":
     const: 2
-    description: |
-      Number of cells in GPIO specifier. Since the generic GPIO
-      binding is used, the amount of cells must be specified as 2. See the below
-      mentioned gpio binding representation for description of particular cells.
+    description:
+      Number of cells in GPIO specifier. Since the generic GPIO binding is used,
+      the amount of cells must be specified as 2. See the below mentioned gpio
+      binding representation for description of particular cells.
 
   interrupt-controller: true
 
@@ -43,7 +43,7 @@ properties:
     const: 2
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible
@@ -61,25 +61,25 @@ then:
     - "#interrupt-cells"
 
 patternProperties:
-  '-[0-9]+$':
+  '-pins(-[a-z]+)?$':
     type: object
     additionalProperties: false
     patternProperties:
-      'mux':
+      '^mux(-|$)':
         type: object
         additionalProperties: false
-        description: |
+        description:
           pinmux configuration nodes.
-        $ref: "/schemas/pinctrl/pinmux-node.yaml"
+        $ref: /schemas/pinctrl/pinmux-node.yaml
         properties:
           function:
-            description: |
+            description:
               A string containing the name of the function to mux to the group.
             enum: [emmc, eth, i2c, i2s, ir, led, flash, pcie, pmic, pwm, sd,
                    spi, tdm, uart, watchdog, wifi]
 
           groups:
-            description: |
+            description:
               An array of strings. Each string contains the name of a group.
 
           drive-strength:
@@ -244,21 +244,21 @@ patternProperties:
                 groups:
                   enum: [wf0_2g, wf0_5g]
 
-      'conf':
+      '^conf(-|$)':
         type: object
         additionalProperties: false
-        description: |
+        description:
           pinconf configuration nodes.
-        $ref: "/schemas/pinctrl/pincfg-node.yaml"
+        $ref: /schemas/pinctrl/pincfg-node.yaml
 
         properties:
           groups:
-            description: |
+            description:
               An array of strings. Each string contains the name of a group.
               Valid values are the same as the pinmux node.
 
           pins:
-            description: |
+            description:
               An array of strings. Each string contains the name of a pin.
             enum: [GPIO_A, I2S1_IN, I2S1_OUT, I2S_BCLK, I2S_WS, I2S_MCLK, TXD0,
                    RXD0, SPI_WP, SPI_HOLD, SPI_CLK, SPI_MOSI, SPI_MISO, SPI_CS,
@@ -315,14 +315,14 @@ patternProperties:
             enum: [0, 1]
 
           mediatek,tdsel:
-            description: |
+            description:
               An integer describing the steps for output level shifter duty
               cycle when asserted (high pulse width adjustment). Valid arguments
               are from 0 to 15.
             $ref: /schemas/types.yaml#/definitions/uint32
 
           mediatek,rdsel:
-            description: |
+            description:
               An integer describing the steps for input level shifter duty cycle
               when asserted (high pulse width adjustment). Valid arguments are
               from 0 to 63.
@@ -348,7 +348,7 @@ examples:
           gpio-controller;
           #gpio-cells = <2>;
 
-          pinctrl_eth_default: eth-0 {
+          pinctrl_eth_default: eth-pins {
             mux-mdio {
               groups = "mdc_mdio";
               function = "eth";

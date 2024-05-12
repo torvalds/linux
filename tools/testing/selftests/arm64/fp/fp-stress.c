@@ -39,10 +39,12 @@ struct child_data {
 
 static int epoll_fd;
 static struct child_data *children;
+static struct epoll_event *evs;
+static int tests;
 static int num_children;
 static bool terminate;
 
-static void drain_output(bool flush);
+static int startup_pipe[2];
 
 static int num_processors(void)
 {
@@ -82,11 +84,35 @@ static void child_start(struct child_data *child, const char *program)
 		}
 
 		/*
+		 * Duplicate the read side of the startup pipe to
+		 * FD 3 so we can close everything else.
+		 */
+		ret = dup2(startup_pipe[0], 3);
+		if (ret == -1) {
+			fprintf(stderr, "dup2() %d\n", errno);
+			exit(EXIT_FAILURE);
+		}
+
+		/*
 		 * Very dumb mechanism to clean open FDs other than
 		 * stdio. We don't want O_CLOEXEC for the pipes...
 		 */
-		for (i = 3; i < 8192; i++)
+		for (i = 4; i < 8192; i++)
 			close(i);
+
+		/*
+		 * Read from the startup pipe, there should be no data
+		 * and we should block until it is closed.  We just
+		 * carry on on error since this isn't super critical.
+		 */
+		ret = read(3, &i, sizeof(i));
+		if (ret < 0)
+			fprintf(stderr, "read(startp pipe) failed: %s (%d)\n",
+				strerror(errno), errno);
+		if (ret > 0)
+			fprintf(stderr, "%d bytes of data on startup pipe\n",
+				ret);
+		close(3);
 
 		ret = execl(program, program, NULL);
 		fprintf(stderr, "execl(%s) failed: %d (%s)\n",
@@ -112,12 +138,6 @@ static void child_start(struct child_data *child, const char *program)
 			ksft_exit_fail_msg("%s EPOLL_CTL_ADD failed: %s (%d)\n",
 					   child->name, strerror(errno), errno);
 		}
-
-		/*
-		 * Keep output flowing during child startup so logs
-		 * are more timely, can help debugging.
-		 */
-		drain_output(false);
 	}
 }
 
@@ -290,11 +310,11 @@ static void start_fpsimd(struct child_data *child, int cpu, int copy)
 {
 	int ret;
 
-	child_start(child, "./fpsimd-test");
-
 	ret = asprintf(&child->name, "FPSIMD-%d-%d", cpu, copy);
 	if (ret == -1)
 		ksft_exit_fail_msg("asprintf() failed\n");
+
+	child_start(child, "./fpsimd-test");
 
 	ksft_print_msg("Started %s\n", child->name);
 }
@@ -307,11 +327,11 @@ static void start_sve(struct child_data *child, int vl, int cpu)
 	if (ret < 0)
 		ksft_exit_fail_msg("Failed to set SVE VL %d\n", vl);
 
-	child_start(child, "./sve-test");
-
 	ret = asprintf(&child->name, "SVE-VL-%d-%d", vl, cpu);
 	if (ret == -1)
 		ksft_exit_fail_msg("asprintf() failed\n");
+
+	child_start(child, "./sve-test");
 
 	ksft_print_msg("Started %s\n", child->name);
 }
@@ -320,15 +340,15 @@ static void start_ssve(struct child_data *child, int vl, int cpu)
 {
 	int ret;
 
+	ret = asprintf(&child->name, "SSVE-VL-%d-%d", vl, cpu);
+	if (ret == -1)
+		ksft_exit_fail_msg("asprintf() failed\n");
+
 	ret = prctl(PR_SME_SET_VL, vl | PR_SME_VL_INHERIT);
 	if (ret < 0)
 		ksft_exit_fail_msg("Failed to set SME VL %d\n", ret);
 
 	child_start(child, "./ssve-test");
-
-	ret = asprintf(&child->name, "SSVE-VL-%d-%d", vl, cpu);
-	if (ret == -1)
-		ksft_exit_fail_msg("asprintf() failed\n");
 
 	ksft_print_msg("Started %s\n", child->name);
 }
@@ -341,11 +361,24 @@ static void start_za(struct child_data *child, int vl, int cpu)
 	if (ret < 0)
 		ksft_exit_fail_msg("Failed to set SME VL %d\n", ret);
 
-	child_start(child, "./za-test");
-
 	ret = asprintf(&child->name, "ZA-VL-%d-%d", vl, cpu);
 	if (ret == -1)
 		ksft_exit_fail_msg("asprintf() failed\n");
+
+	child_start(child, "./za-test");
+
+	ksft_print_msg("Started %s\n", child->name);
+}
+
+static void start_zt(struct child_data *child, int cpu)
+{
+	int ret;
+
+	ret = asprintf(&child->name, "ZT-%d", cpu);
+	if (ret == -1)
+		ksft_exit_fail_msg("asprintf() failed\n");
+
+	child_start(child, "./zt-test");
 
 	ksft_print_msg("Started %s\n", child->name);
 }
@@ -357,13 +390,16 @@ static void probe_vls(int vls[], int *vl_count, int set_vl)
 
 	*vl_count = 0;
 
-	for (vq = SVE_VQ_MAX; vq > 0; --vq) {
+	for (vq = SVE_VQ_MAX; vq > 0; vq /= 2) {
 		vl = prctl(set_vl, vq * 16);
 		if (vl == -1)
 			ksft_exit_fail_msg("SET_VL failed: %s (%d)\n",
 					   strerror(errno), errno);
 
 		vl &= PR_SVE_VL_LEN_MASK;
+
+		if (*vl_count && (vl == vls[*vl_count - 1]))
+			break;
 
 		vq = sve_vq_from_vl(vl);
 
@@ -375,11 +411,11 @@ static void probe_vls(int vls[], int *vl_count, int set_vl)
 /* Handle any pending output without blocking */
 static void drain_output(bool flush)
 {
-	struct epoll_event ev;
 	int ret = 1;
+	int i;
 
 	while (ret > 0) {
-		ret = epoll_wait(epoll_fd, &ev, 1, 0);
+		ret = epoll_wait(epoll_fd, evs, tests, 0);
 		if (ret < 0) {
 			if (errno == EINTR)
 				continue;
@@ -387,8 +423,8 @@ static void drain_output(bool flush)
 				       strerror(errno), errno);
 		}
 
-		if (ret == 1)
-			child_output(ev.data.ptr, ev.events, flush);
+		for (i = 0; i < ret; i++)
+			child_output(evs[i].data.ptr, evs[i].events, flush);
 	}
 }
 
@@ -401,10 +437,12 @@ int main(int argc, char **argv)
 {
 	int ret;
 	int timeout = 10;
-	int cpus, tests, i, j, c;
+	int cpus, i, j, c;
 	int sve_vl_count, sme_vl_count, fpsimd_per_cpu;
+	bool all_children_started = false;
+	int seen_children;
 	int sve_vls[MAX_VLS], sme_vls[MAX_VLS];
-	struct epoll_event ev;
+	bool have_sme2;
 	struct sigaction sa;
 
 	while ((c = getopt_long(argc, argv, "t:", options, NULL)) != -1) {
@@ -437,6 +475,13 @@ int main(int argc, char **argv)
 		sme_vl_count = 0;
 	}
 
+	if (getauxval(AT_HWCAP2) & HWCAP2_SME2) {
+		tests += cpus;
+		have_sme2 = true;
+	} else {
+		have_sme2 = false;
+	}
+
 	/* Force context switching if we only have FPSIMD */
 	if (!sve_vl_count && !sme_vl_count)
 		fpsimd_per_cpu = 2;
@@ -447,8 +492,9 @@ int main(int argc, char **argv)
 	ksft_print_header();
 	ksft_set_plan(tests);
 
-	ksft_print_msg("%d CPUs, %d SVE VLs, %d SME VLs\n",
-		       cpus, sve_vl_count, sme_vl_count);
+	ksft_print_msg("%d CPUs, %d SVE VLs, %d SME VLs, SME2 %s\n",
+		       cpus, sve_vl_count, sme_vl_count,
+		       have_sme2 ? "present" : "absent");
 
 	if (timeout > 0)
 		ksft_print_msg("Will run for %ds\n", timeout);
@@ -464,6 +510,12 @@ int main(int argc, char **argv)
 		ksft_exit_fail_msg("epoll_create1() failed: %s (%d)\n",
 				   strerror(errno), ret);
 	epoll_fd = ret;
+
+	/* Create a pipe which children will block on before execing */
+	ret = pipe(startup_pipe);
+	if (ret != 0)
+		ksft_exit_fail_msg("Failed to create startup pipe: %s (%d)\n",
+				   strerror(errno), errno);
 
 	/* Get signal handers ready before we start any children */
 	memset(&sa, 0, sizeof(sa));
@@ -484,6 +536,11 @@ int main(int argc, char **argv)
 		ksft_print_msg("Failed to install SIGCHLD handler: %s (%d)\n",
 			       strerror(errno), errno);
 
+	evs = calloc(tests, sizeof(*evs));
+	if (!evs)
+		ksft_exit_fail_msg("Failed to allocated %d epoll events\n",
+				   tests);
+
 	for (i = 0; i < cpus; i++) {
 		for (j = 0; j < fpsimd_per_cpu; j++)
 			start_fpsimd(&children[num_children++], i, j);
@@ -495,7 +552,17 @@ int main(int argc, char **argv)
 			start_ssve(&children[num_children++], sme_vls[j], i);
 			start_za(&children[num_children++], sme_vls[j], i);
 		}
+
+		if (have_sme2)
+			start_zt(&children[num_children++], i);
 	}
+
+	/*
+	 * All children started, close the startup pipe and let them
+	 * run.
+	 */
+	close(startup_pipe[0]);
+	close(startup_pipe[1]);
 
 	for (;;) {
 		/* Did we get a signal asking us to exit? */
@@ -510,7 +577,7 @@ int main(int argc, char **argv)
 		 * useful in emulation where we will both be slow and
 		 * likely to have a large set of VLs.
 		 */
-		ret = epoll_wait(epoll_fd, &ev, 1, 1000);
+		ret = epoll_wait(epoll_fd, evs, tests, 1000);
 		if (ret < 0) {
 			if (errno == EINTR)
 				continue;
@@ -519,12 +586,39 @@ int main(int argc, char **argv)
 		}
 
 		/* Output? */
-		if (ret == 1) {
-			child_output(ev.data.ptr, ev.events, false);
+		if (ret > 0) {
+			for (i = 0; i < ret; i++) {
+				child_output(evs[i].data.ptr, evs[i].events,
+					     false);
+			}
 			continue;
 		}
 
 		/* Otherwise epoll_wait() timed out */
+
+		/*
+		 * If the child processes have not produced output they
+		 * aren't actually running the tests yet .
+		 */
+		if (!all_children_started) {
+			seen_children = 0;
+
+			for (i = 0; i < num_children; i++)
+				if (children[i].output_seen ||
+				    children[i].exited)
+					seen_children++;
+
+			if (seen_children != num_children) {
+				ksft_print_msg("Waiting for %d children\n",
+					       num_children - seen_children);
+				continue;
+			}
+
+			all_children_started = true;
+		}
+
+		ksft_print_msg("Sending signals, timeout remaining: %d\n",
+			       timeout);
 
 		for (i = 0; i < num_children; i++)
 			child_tickle(&children[i]);

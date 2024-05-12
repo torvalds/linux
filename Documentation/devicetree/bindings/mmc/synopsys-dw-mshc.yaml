@@ -4,10 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/synopsys-dw-mshc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys Designware Mobile Storage Host Controller Binding
-
-allOf:
-  - $ref: "synopsys-dw-mshc-common.yaml#"
+title: Synopsys Designware Mobile Storage Host Controller
 
 maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
@@ -37,6 +34,35 @@ properties:
     items:
       - const: biu
       - const: ciu
+
+  altr,sysmgr-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to the sysmgr node
+          - description: register offset that controls the SDMMC clock phase
+          - description: register shift for the smplsel(drive in) setting
+    description:
+      This property is optional. Contains the phandle to System Manager block
+      that contains the SDMMC clock-phase control register. The first value is
+      the pointer to the sysmgr, the 2nd value is the register offset for the
+      SDMMC clock phase register, and the 3rd value is the bit shift for the
+      smplsel(drive in) setting.
+
+allOf:
+  - $ref: synopsys-dw-mshc-common.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: altr,socfpga-dw-mshc
+    then:
+      properties:
+        altr,sysmgr-syscon: true
+    else:
+      properties:
+        altr,sysmgr-syscon: false
 
 required:
   - compatible

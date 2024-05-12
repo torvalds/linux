@@ -294,19 +294,12 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr)
 		}
 
 		break;
-	case KPROBE_HIT_ACTIVE:
-	case KPROBE_HIT_SSDONE:
-		/*
-		 * In case the user-specified fault handler returned
-		 * zero, try to fix up.
-		 */
-		if (fixup_exception(regs))
-			return 1;
 	}
 	return 0;
 }
 
-static void __kprobes kprobe_handler(struct pt_regs *regs)
+static int __kprobes
+kprobe_breakpoint_handler(struct pt_regs *regs, unsigned long esr)
 {
 	struct kprobe *p, *cur_kprobe;
 	struct kprobe_ctlblk *kcb;
@@ -316,38 +309,43 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 	cur_kprobe = kprobe_running();
 
 	p = get_kprobe((kprobe_opcode_t *) addr);
-
-	if (p) {
-		if (cur_kprobe) {
-			if (reenter_kprobe(p, regs, kcb))
-				return;
-		} else {
-			/* Probe hit */
-			set_current_kprobe(p);
-			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-
-			/*
-			 * If we have no pre-handler or it returned 0, we
-			 * continue with normal processing.  If we have a
-			 * pre-handler and it returned non-zero, it will
-			 * modify the execution path and no need to single
-			 * stepping. Let's just reset current kprobe and exit.
-			 */
-			if (!p->pre_handler || !p->pre_handler(p, regs)) {
-				setup_singlestep(p, regs, kcb, 0);
-			} else
-				reset_current_kprobe();
-		}
+	if (WARN_ON_ONCE(!p)) {
+		/*
+		 * Something went wrong. This BRK used an immediate reserved
+		 * for kprobes, but we couldn't find any corresponding probe.
+		 */
+		return DBG_HOOK_ERROR;
 	}
-	/*
-	 * The breakpoint instruction was removed right
-	 * after we hit it.  Another cpu has removed
-	 * either a probepoint or a debugger breakpoint
-	 * at this address.  In either case, no further
-	 * handling of this interrupt is appropriate.
-	 * Return back to original instruction, and continue.
-	 */
+
+	if (cur_kprobe) {
+		/* Hit a kprobe inside another kprobe */
+		if (!reenter_kprobe(p, regs, kcb))
+			return DBG_HOOK_ERROR;
+	} else {
+		/* Probe hit */
+		set_current_kprobe(p);
+		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+
+		/*
+		 * If we have no pre-handler or it returned 0, we
+		 * continue with normal processing.  If we have a
+		 * pre-handler and it returned non-zero, it will
+		 * modify the execution path and not need to single-step
+		 * Let's just reset current kprobe and exit.
+		 */
+		if (!p->pre_handler || !p->pre_handler(p, regs))
+			setup_singlestep(p, regs, kcb, 0);
+		else
+			reset_current_kprobe();
+	}
+
+	return DBG_HOOK_HANDLED;
 }
+
+static struct break_hook kprobes_break_hook = {
+	.imm = KPROBES_BRK_IMM,
+	.fn = kprobe_breakpoint_handler,
+};
 
 static int __kprobes
 kprobe_breakpoint_ss_handler(struct pt_regs *regs, unsigned long esr)
@@ -373,18 +371,6 @@ static struct break_hook kprobes_break_ss_hook = {
 	.fn = kprobe_breakpoint_ss_handler,
 };
 
-static int __kprobes
-kprobe_breakpoint_handler(struct pt_regs *regs, unsigned long esr)
-{
-	kprobe_handler(regs);
-	return DBG_HOOK_HANDLED;
-}
-
-static struct break_hook kprobes_break_hook = {
-	.imm = KPROBES_BRK_IMM,
-	.fn = kprobe_breakpoint_handler,
-};
-
 /*
  * Provide a blacklist of symbols identifying ranges which cannot be kprobed.
  * This blacklist is exposed to userspace via debugfs (kprobes/blacklist).
@@ -399,10 +385,6 @@ int __init arch_populate_kprobe_blacklist(void)
 		return ret;
 	ret = kprobe_add_area_blacklist((unsigned long)__irqentry_text_start,
 					(unsigned long)__irqentry_text_end);
-	if (ret)
-		return ret;
-	ret = kprobe_add_area_blacklist((unsigned long)__idmap_text_start,
-					(unsigned long)__idmap_text_end);
 	if (ret)
 		return ret;
 	ret = kprobe_add_area_blacklist((unsigned long)__hyp_text_start,

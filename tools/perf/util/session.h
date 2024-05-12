@@ -33,7 +33,9 @@ struct perf_session {
 	struct auxtrace		*auxtrace;
 	struct itrace_synth_opts *itrace_synth_opts;
 	struct list_head	auxtrace_index;
+#ifdef HAVE_LIBTRACEEVENT
 	struct trace_event	tevent;
+#endif
 	struct perf_record_time_conv	time_conv;
 	bool			repipe;
 	bool			one_mmap;

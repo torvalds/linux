@@ -96,7 +96,7 @@
  *
  *  26 - ESPFIX small SS
  *  27 - per-cpu			[ offset to per-cpu data area ]
- *  28 - unused
+ *  28 - VDSO getcpu
  *  29 - unused
  *  30 - unused
  *  31 - TSS for double fault handler
@@ -119,6 +119,7 @@
 
 #define GDT_ENTRY_ESPFIX_SS		26
 #define GDT_ENTRY_PERCPU		27
+#define GDT_ENTRY_CPUNODE		28
 
 #define GDT_ENTRY_DOUBLEFAULT_TSS	31
 
@@ -135,6 +136,7 @@
 #define __KERNEL_DS			(GDT_ENTRY_KERNEL_DS*8)
 #define __USER_DS			(GDT_ENTRY_DEFAULT_USER_DS*8 + 3)
 #define __USER_CS			(GDT_ENTRY_DEFAULT_USER_CS*8 + 3)
+#define __USER32_CS			__USER_CS
 #define __ESPFIX_SS			(GDT_ENTRY_ESPFIX_SS*8)
 
 /* segment for calling fn: */
@@ -157,6 +159,8 @@
 #else
 # define __KERNEL_PERCPU		0
 #endif
+
+#define __CPUNODE_SEG			(GDT_ENTRY_CPUNODE*8 + 3)
 
 #else /* 64-bit: */
 
@@ -210,7 +214,6 @@
 #define __KERNEL_DS			(GDT_ENTRY_KERNEL_DS*8)
 #define __USER32_CS			(GDT_ENTRY_DEFAULT_USER32_CS*8 + 3)
 #define __USER_DS			(GDT_ENTRY_DEFAULT_USER_DS*8 + 3)
-#define __USER32_DS			__USER_DS
 #define __USER_CS			(GDT_ENTRY_DEFAULT_USER_CS*8 + 3)
 #define __CPUNODE_SEG			(GDT_ENTRY_CPUNODE*8 + 3)
 
@@ -225,8 +228,6 @@
 #define GDT_SIZE			(GDT_ENTRIES*8)
 #define GDT_ENTRY_TLS_ENTRIES		3
 #define TLS_SIZE			(GDT_ENTRY_TLS_ENTRIES* 8)
-
-#ifdef CONFIG_X86_64
 
 /* Bit size and mask of CPU number stored in the per CPU data (and TSC_AUX) */
 #define VDSO_CPUNODE_BITS		12
@@ -265,7 +266,6 @@ static inline void vdso_read_cpunode(unsigned *cpu, unsigned *node)
 }
 
 #endif /* !__ASSEMBLY__ */
-#endif /* CONFIG_X86_64 */
 
 #ifdef __KERNEL__
 

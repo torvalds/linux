@@ -34,8 +34,6 @@ void isys2401_dma_reg_store(const isys2401_dma_ID_t	dma_id,
 
 	reg_loc = ISYS2401_DMA_BASE[dma_id] + (reg * sizeof(hrt_data));
 
-	ia_css_print("isys dma store at addr(0x%x) val(%u)\n", reg_loc,
-		     (unsigned int)value);
 	ia_css_device_store_uint32(reg_loc, value);
 }
 

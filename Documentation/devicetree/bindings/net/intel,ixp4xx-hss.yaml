@@ -2,8 +2,8 @@
 # Copyright 2021 Linaro Ltd.
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/net/intel,ixp4xx-hss.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/net/intel,ixp4xx-hss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Intel IXP4xx V.35 WAN High Speed Serial Link (HSS)
 
@@ -24,7 +24,7 @@ properties:
     description: The HSS instance
 
   intel,npe-handle:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       items:
         - description: phandle to the NPE this HSS instance is using
@@ -33,7 +33,7 @@ properties:
       and the instance to use in the second cell
 
   intel,queue-chl-rxtrig:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: phandle to the RX trigger queue on the NPE
@@ -41,7 +41,7 @@ properties:
     description: phandle to the RX trigger queue on the NPE
 
   intel,queue-chl-txready:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: phandle to the TX ready queue on the NPE
@@ -49,7 +49,7 @@ properties:
     description: phandle to the TX ready queue on the NPE
 
   intel,queue-pkt-rx:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: phandle to the RX queue on the NPE
@@ -57,7 +57,7 @@ properties:
     description: phandle to the packet RX queue on the NPE
 
   intel,queue-pkt-tx:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 4
     items:
       items:
@@ -66,7 +66,7 @@ properties:
     description: phandle to the packet TX0, TX1, TX2 and TX3 queues on the NPE
 
   intel,queue-pkt-rxfree:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 4
     items:
       items:
@@ -76,7 +76,7 @@ properties:
       RXFREE3 queues on the NPE
 
   intel,queue-pkt-txdone:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: phandle to the TXDONE queue on the NPE

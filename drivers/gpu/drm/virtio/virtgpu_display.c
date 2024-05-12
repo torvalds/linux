@@ -336,6 +336,9 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 {
 	int i, ret;
 
+	if (!vgdev->num_scanouts)
+		return 0;
+
 	ret = drmm_mode_config_init(vgdev->ddev);
 	if (ret)
 		return ret;
@@ -361,6 +364,9 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev)
 {
 	int i;
+
+	if (!vgdev->num_scanouts)
+		return;
 
 	for (i = 0 ; i < vgdev->num_scanouts; ++i)
 		kfree(vgdev->outputs[i].edid);

@@ -798,7 +798,7 @@ static int hisi_nfc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hisi_nfc_remove(struct platform_device *pdev)
+static void hisi_nfc_remove(struct platform_device *pdev)
 {
 	struct hinfc_host *host = platform_get_drvdata(pdev);
 	struct nand_chip *chip = &host->chip;
@@ -807,8 +807,6 @@ static int hisi_nfc_remove(struct platform_device *pdev)
 	ret = mtd_device_unregister(nand_to_mtd(chip));
 	WARN_ON(ret);
 	nand_cleanup(chip);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -860,7 +858,7 @@ static struct platform_driver hisi_nfc_driver = {
 		.pm = &hisi_nfc_pm_ops,
 	},
 	.probe		= hisi_nfc_probe,
-	.remove		= hisi_nfc_remove,
+	.remove_new	= hisi_nfc_remove,
 };
 
 module_platform_driver(hisi_nfc_driver);

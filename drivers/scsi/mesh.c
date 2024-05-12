@@ -1830,7 +1830,7 @@ static int mesh_shutdown(struct macio_dev *mdev)
 	return 0;
 }
 
-static struct scsi_host_template mesh_template = {
+static const struct scsi_host_template mesh_template = {
 	.proc_name			= "mesh",
 	.name				= "MESH",
 	.queuecommand			= mesh_queue,

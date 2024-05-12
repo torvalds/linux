@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/phy-stm32-usbphyc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 USB HS PHY controller binding
+title: STMicroelectronics STM32 USB HS PHY controller
 
 description:
 
@@ -55,7 +55,7 @@ properties:
     description: number of clock cells for ck_usbo_48m consumer
     const: 0
 
-#Required child nodes:
+# Required child nodes:
 
 patternProperties:
   "^usb-phy@[0|1]$":

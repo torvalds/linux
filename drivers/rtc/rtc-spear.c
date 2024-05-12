@@ -405,15 +405,13 @@ err_disable_clock:
 	return status;
 }
 
-static int spear_rtc_remove(struct platform_device *pdev)
+static void spear_rtc_remove(struct platform_device *pdev)
 {
 	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 
 	spear_rtc_disable_interrupt(config);
 	clk_disable_unprepare(config->clk);
 	device_init_wakeup(&pdev->dev, 0);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -477,7 +475,7 @@ MODULE_DEVICE_TABLE(of, spear_rtc_id_table);
 
 static struct platform_driver spear_rtc_driver = {
 	.probe = spear_rtc_probe,
-	.remove = spear_rtc_remove,
+	.remove_new = spear_rtc_remove,
 	.shutdown = spear_rtc_shutdown,
 	.driver = {
 		.name = "rtc-spear",

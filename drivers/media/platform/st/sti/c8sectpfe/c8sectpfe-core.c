@@ -24,16 +24,18 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
-#include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/usb.h>
 #include <linux/wait.h>
-#include <linux/pinctrl/pinctrl.h>
 
-#include "c8sectpfe-core.h"
 #include "c8sectpfe-common.h"
+#include "c8sectpfe-core.h"
 #include "c8sectpfe-debugfs.h"
+
 #include <media/dmxdev.h>
 #include <media/dvb_demux.h>
 #include <media/dvb_frontend.h>
@@ -876,7 +878,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int c8sectpfe_remove(struct platform_device *pdev)
+static void c8sectpfe_remove(struct platform_device *pdev)
 {
 	struct c8sectpfei *fei = platform_get_drvdata(pdev);
 	struct channel_info *channel;
@@ -908,8 +910,6 @@ static int c8sectpfe_remove(struct platform_device *pdev)
 		writel(0, fei->io + SYS_OTHER_CLKEN);
 
 	clk_disable_unprepare(fei->c8sectpfeclk);
-
-	return 0;
 }
 
 
@@ -925,6 +925,7 @@ static int configure_channels(struct c8sectpfei *fei)
 		if (ret) {
 			dev_err(fei->dev,
 				"configure_memdma_and_inputblock failed\n");
+			of_node_put(child);
 			goto err_unmap;
 		}
 		index++;
@@ -1175,7 +1176,7 @@ static struct platform_driver c8sectpfe_driver = {
 		.of_match_table = of_match_ptr(c8sectpfe_match),
 	},
 	.probe	= c8sectpfe_probe,
-	.remove	= c8sectpfe_remove,
+	.remove_new = c8sectpfe_remove,
 };
 
 module_platform_driver(c8sectpfe_driver);

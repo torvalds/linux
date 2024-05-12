@@ -61,7 +61,7 @@ static int new_host_task(struct task_struct **task)
 
 	switch_to_host_task(host0);
 
-	pid = kernel_thread(host_task_stub, NULL, CLONE_FLAGS);
+	pid = kernel_thread(host_task_stub, NULL, NULL, CLONE_FLAGS);
 	if (pid < 0)
 		return pid;
 
@@ -170,7 +170,7 @@ int syscalls_init(void)
 			return -1;
 	}
 
-	if (kernel_thread(idle_host_task_loop, NULL, CLONE_FLAGS) < 0) {
+	if (kernel_thread(idle_host_task_loop, NULL, NULL, CLONE_FLAGS) < 0) {
 		if (lkl_ops->tls_free)
 			lkl_ops->tls_free(task_key);
 		return -1;

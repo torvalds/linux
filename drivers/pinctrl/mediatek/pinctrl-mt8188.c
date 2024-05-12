@@ -1670,5 +1670,4 @@ static int __init mt8188_pinctrl_init(void)
 
 arch_initcall(mt8188_pinctrl_init);
 
-MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MediaTek MT8188 Pinctrl Driver");

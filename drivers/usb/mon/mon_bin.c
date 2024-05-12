@@ -1272,8 +1272,7 @@ static int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_WRITE)
 		return -EPERM;
 
-	vma->vm_flags &= ~VM_MAYWRITE;
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_mod(vma, VM_DONTEXPAND | VM_DONTDUMP, VM_MAYWRITE);
 	vma->vm_private_data = filp->private_data;
 	mon_bin_vma_open(vma);
 	return 0;
@@ -1380,7 +1379,7 @@ int __init mon_bin_init(void)
 {
 	int rc;
 
-	mon_bin_class = class_create(THIS_MODULE, "usbmon");
+	mon_bin_class = class_create("usbmon");
 	if (IS_ERR(mon_bin_class)) {
 		rc = PTR_ERR(mon_bin_class);
 		goto err_class;

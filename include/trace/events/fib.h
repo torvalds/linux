@@ -36,7 +36,6 @@ TRACE_EVENT(fib_table_lookup,
 	),
 
 	TP_fast_assign(
-		struct in6_addr in6_zero = {};
 		struct net_device *dev;
 		struct in6_addr *in6;
 		__be32 *p32;
@@ -74,7 +73,7 @@ TRACE_EVENT(fib_table_lookup,
 				*p32 = nhc->nhc_gw.ipv4;
 
 				in6 = (struct in6_addr *)__entry->gw6;
-				*in6 = in6_zero;
+				*in6 = in6addr_any;
 			} else if (nhc->nhc_gw_family == AF_INET6) {
 				p32 = (__be32 *) __entry->gw4;
 				*p32 = 0;
@@ -87,7 +86,7 @@ TRACE_EVENT(fib_table_lookup,
 			*p32 = 0;
 
 			in6 = (struct in6_addr *)__entry->gw6;
-			*in6 = in6_zero;
+			*in6 = in6addr_any;
 		}
 	),
 

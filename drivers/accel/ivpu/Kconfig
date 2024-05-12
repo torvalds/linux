@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config DRM_ACCEL_IVPU
+	tristate "Intel VPU for Meteor Lake and newer"
+	depends on DRM_ACCEL
+	depends on X86_64 && !UML
+	depends on PCI && PCI_MSI
+	select FW_LOADER
+	select SHMEM
+	select GENERIC_ALLOCATOR
+	help
+	  Choose this option if you have a system that has an 14th generation Intel CPU
+	  or newer. VPU stands for Versatile Processing Unit and it's a CPU-integrated
+	  inference accelerator for Computer Vision and Deep Learning applications.
+
+	  If "M" is selected, the module will be called intel_vpu.

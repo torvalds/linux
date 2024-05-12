@@ -69,7 +69,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	m147_pcc->dma_cntrl = 0;
 }
 
-static struct scsi_host_template mvme147_host_template = {
+static const struct scsi_host_template mvme147_host_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= "MVME147",
 	.name			= "MVME147 built-in SCSI",

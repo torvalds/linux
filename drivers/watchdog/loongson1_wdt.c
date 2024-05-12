@@ -7,7 +7,11 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
-#include <loongson1.h>
+
+/* Loongson 1 Watchdog Register Definitions */
+#define WDT_EN			0x0
+#define WDT_TIMER		0x4
+#define WDT_SET			0x8
 
 #define DEFAULT_HEARTBEAT	30
 
@@ -66,6 +70,18 @@ static int ls1x_wdt_stop(struct watchdog_device *wdt_dev)
 	return 0;
 }
 
+static int ls1x_wdt_restart(struct watchdog_device *wdt_dev,
+			    unsigned long action, void *data)
+{
+	struct ls1x_wdt_drvdata *drvdata = watchdog_get_drvdata(wdt_dev);
+
+	writel(0x1, drvdata->base + WDT_EN);
+	writel(0x1, drvdata->base + WDT_TIMER);
+	writel(0x1, drvdata->base + WDT_SET);
+
+	return 0;
+}
+
 static const struct watchdog_info ls1x_wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity = "Loongson1 Watchdog",
@@ -77,12 +93,8 @@ static const struct watchdog_ops ls1x_wdt_ops = {
 	.stop = ls1x_wdt_stop,
 	.ping = ls1x_wdt_ping,
 	.set_timeout = ls1x_wdt_set_timeout,
+	.restart = ls1x_wdt_restart,
 };
-
-static void ls1x_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
 
 static int ls1x_wdt_probe(struct platform_device *pdev)
 {
@@ -100,19 +112,9 @@ static int ls1x_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(drvdata->base))
 		return PTR_ERR(drvdata->base);
 
-	drvdata->clk = devm_clk_get(dev, pdev->name);
+	drvdata->clk = devm_clk_get_enabled(dev, pdev->name);
 	if (IS_ERR(drvdata->clk))
 		return PTR_ERR(drvdata->clk);
-
-	err = clk_prepare_enable(drvdata->clk);
-	if (err) {
-		dev_err(dev, "clk enable failed\n");
-		return err;
-	}
-	err = devm_add_action_or_reset(dev, ls1x_clk_disable_unprepare,
-				       drvdata->clk);
-	if (err)
-		return err;
 
 	clk_rate = clk_get_rate(drvdata->clk);
 	if (!clk_rate)

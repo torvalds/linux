@@ -25,6 +25,7 @@
 #include "ram.h"
 
 #include <core/memory.h>
+#include <subdev/instmem.h>
 #include <subdev/mmu.h>
 
 struct nvkm_vram {
@@ -33,6 +34,12 @@ struct nvkm_vram {
 	u8 page;
 	struct nvkm_mm_node *mn;
 };
+
+static int
+nvkm_vram_kmap(struct nvkm_memory *memory, struct nvkm_memory **pmemory)
+{
+	return nvkm_instobj_wrap(nvkm_vram(memory)->ram->fb->subdev.device, memory, pmemory);
+}
 
 static int
 nvkm_vram_map(struct nvkm_memory *memory, u64 offset, struct nvkm_vmm *vmm,
@@ -98,6 +105,7 @@ nvkm_vram = {
 	.addr = nvkm_vram_addr,
 	.size = nvkm_vram_size,
 	.map = nvkm_vram_map,
+	.kmap = nvkm_vram_kmap,
 };
 
 int

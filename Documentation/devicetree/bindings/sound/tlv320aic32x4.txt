@@ -8,7 +8,7 @@ Required properties:
 	"ti,tlv320aic32x6" TLV320AIC3206, TLV320AIC3256
 	"ti,tas2505" TAS2505, TAS2521
  - reg: I2C slave address
- - supply-*: Required supply regulators are:
+ - *-supply: Required supply regulators are:
     "iov" - digital IO power supply
     "ldoin" - LDO power supply
     "dv" - Digital core power supply

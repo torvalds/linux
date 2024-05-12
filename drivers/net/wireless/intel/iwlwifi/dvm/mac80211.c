@@ -1571,6 +1571,7 @@ static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 
 const struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
+	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = iwlagn_mac_start,
 	.stop = iwlagn_mac_stop,
 #ifdef CONFIG_PM_SLEEP

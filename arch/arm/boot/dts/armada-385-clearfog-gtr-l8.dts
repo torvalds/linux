@@ -68,8 +68,13 @@
 
 			port@10 {
 				reg = <10>;
-				label = "cpu";
+				phy-mode = "2500base-x";
+
 				ethernet = <&eth1>;
+				fixed-link {
+					speed = <2500>;
+					full-duplex;
+				};
 			};
 
 		};

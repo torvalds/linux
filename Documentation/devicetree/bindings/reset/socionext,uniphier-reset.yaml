@@ -66,53 +66,7 @@ required:
 
 examples:
   - |
-    sysctrl@61840000 {
-        compatible = "socionext,uniphier-sysctrl", "simple-mfd", "syscon";
-        reg = <0x61840000 0x4000>;
-
-        reset {
-            compatible = "socionext,uniphier-ld11-reset";
-            #reset-cells = <1>;
-        };
-
-        // other nodes ...
-    };
-
-  - |
-    mioctrl@59810000 {
-        compatible = "socionext,uniphier-mioctrl", "simple-mfd", "syscon";
-        reg = <0x59810000 0x800>;
-
-        reset {
-            compatible = "socionext,uniphier-ld11-mio-reset";
-            #reset-cells = <1>;
-        };
-
-        // other nodes ...
-    };
-
-  - |
-    perictrl@59820000 {
-        compatible = "socionext,uniphier-perictrl", "simple-mfd", "syscon";
-        reg = <0x59820000 0x200>;
-
-        reset {
-            compatible = "socionext,uniphier-ld11-peri-reset";
-            #reset-cells = <1>;
-        };
-
-        // other nodes ...
-    };
-
-  - |
-    adamv@57920000 {
-        compatible = "socionext,uniphier-ld11-adamv", "simple-mfd", "syscon";
-        reg = <0x57920000 0x1000>;
-
-        reset {
-            compatible = "socionext,uniphier-ld11-adamv-reset";
-            #reset-cells = <1>;
-        };
-
-        // other nodes ...
+    reset-controller {
+        compatible = "socionext,uniphier-ld11-reset";
+        #reset-cells = <1>;
     };

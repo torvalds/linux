@@ -7,6 +7,7 @@
 #include "dr_types.h"
 #include "dr_ste.h"
 
+bool dr_ste_v1_is_miss_addr_set(u8 *hw_ste_p);
 void dr_ste_v1_set_miss_addr(u8 *hw_ste_p, u64 miss_addr);
 u64 dr_ste_v1_get_miss_addr(u8 *hw_ste_p);
 void dr_ste_v1_set_byte_mask(u8 *hw_ste_p, u16 byte_mask);
@@ -30,6 +31,8 @@ void dr_ste_v1_set_action_copy(u8 *d_action, u8 dst_hw_field, u8 dst_shifter,
 			       u8 dst_len, u8 src_hw_field, u8 src_shifter);
 int dr_ste_v1_set_action_decap_l3_list(void *data, u32 data_sz, u8 *hw_action,
 				       u32 hw_action_sz, u16 *used_hw_action_num);
+int dr_ste_v1_alloc_modify_hdr_ptrn_arg(struct mlx5dr_action *action);
+void dr_ste_v1_free_modify_hdr_ptrn_arg(struct mlx5dr_action *action);
 void dr_ste_v1_build_eth_l2_src_dst_init(struct mlx5dr_ste_build *sb,
 					 struct mlx5dr_match_param *mask);
 void dr_ste_v1_build_eth_l3_ipv6_dst_init(struct mlx5dr_ste_build *sb,

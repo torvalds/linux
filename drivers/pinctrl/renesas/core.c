@@ -573,21 +573,10 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7794_pinmux_info,
 	},
 #endif
-/*
- * Both r8a7795 entries must be present to make sanity checks work, but only
- * the first entry is actually used.
- * R-Car H3 ES1.x is matched using soc_device_match() instead.
- */
 #ifdef CONFIG_PINCTRL_PFC_R8A77951
 	{
 		.compatible = "renesas,pfc-r8a7795",
 		.data = &r8a77951_pinmux_info,
-	},
-#endif
-#ifdef CONFIG_PINCTRL_PFC_R8A77950
-	{
-		.compatible = "renesas,pfc-r8a7795",
-		.data = &r8a77950_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A77960
@@ -656,7 +645,7 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &sh73a0_pinmux_info,
 	},
 #endif
-	{ },
+	{ /* sentinel */ }
 };
 #endif
 
@@ -1125,9 +1114,9 @@ static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
 			}
 		}
 
-		if (pin->configs & SH_PFC_PIN_CFG_IO_VOLTAGE) {
+		if (pin->configs & SH_PFC_PIN_CFG_IO_VOLTAGE_MASK) {
 			if (!info->ops || !info->ops->pin_to_pocctrl)
-				sh_pfc_err_once(power, "SH_PFC_PIN_CFG_IO_VOLTAGE flag set but .pin_to_pocctrl() not implemented\n");
+				sh_pfc_err_once(power, "SH_PFC_PIN_CFG_IO_VOLTAGE set but .pin_to_pocctrl() not implemented\n");
 			else if (info->ops->pin_to_pocctrl(pin->pin, &x) < 0)
 				sh_pfc_err("pin %s: SH_PFC_PIN_CFG_IO_VOLTAGE set but invalid pin_to_pocctrl()\n",
 					   pin->name);
@@ -1309,41 +1298,15 @@ free_regs:
 static inline void sh_pfc_check_driver(struct platform_driver *pdrv) {}
 #endif /* !DEBUG */
 
-#ifdef CONFIG_OF
-static const void *sh_pfc_quirk_match(void)
-{
-#ifdef CONFIG_PINCTRL_PFC_R8A77950
-	const struct soc_device_attribute *match;
-	static const struct soc_device_attribute quirks[] = {
-		{
-			.soc_id = "r8a7795", .revision = "ES1.*",
-			.data = &r8a77950_pinmux_info,
-		},
-		{ /* sentinel */ }
-	};
-
-	match = soc_device_match(quirks);
-	if (match)
-		return match->data;
-#endif /* CONFIG_PINCTRL_PFC_R8A77950 */
-
-	return NULL;
-}
-#endif /* CONFIG_OF */
-
 static int sh_pfc_probe(struct platform_device *pdev)
 {
 	const struct sh_pfc_soc_info *info;
 	struct sh_pfc *pfc;
 	int ret;
 
-#ifdef CONFIG_OF
-	if (pdev->dev.of_node) {
-		info = sh_pfc_quirk_match();
-		if (!info)
-			info = of_device_get_match_data(&pdev->dev);
-	} else
-#endif
+	if (pdev->dev.of_node)
+		info = of_device_get_match_data(&pdev->dev);
+	else
 		info = (const void *)platform_get_device_id(pdev)->driver_data;
 
 	pfc = devm_kzalloc(&pdev->dev, sizeof(*pfc), GFP_KERNEL);
@@ -1446,7 +1409,7 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_SHX3
 	{ "pfc-shx3", (kernel_ulong_t)&shx3_pinmux_info },
 #endif
-	{ },
+	{ /* sentinel */ }
 };
 
 static struct platform_driver sh_pfc_driver = {

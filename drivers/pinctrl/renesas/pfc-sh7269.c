@@ -2749,8 +2749,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PJ1_IN, PJ1_OUT,
 		PJ0_IN, PJ0_OUT ))
 	},
-
-	{}
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
@@ -2828,8 +2827,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 		PJ7_DATA, PJ6_DATA, PJ5_DATA, PJ4_DATA,
 		PJ3_DATA, PJ2_DATA, PJ1_DATA, PJ0_DATA ))
 	},
-
-	{ }
+	{ /* sentinel */ }
 };
 
 const struct sh_pfc_soc_info sh7269_pinmux_info = {

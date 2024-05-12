@@ -329,5 +329,4 @@ static struct kunit_suite hw_breakpoint_test_suite = {
 
 kunit_test_suites(&hw_breakpoint_test_suite);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marco Elver <elver@google.com>");

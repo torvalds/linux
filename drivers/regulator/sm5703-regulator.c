@@ -42,6 +42,7 @@ static const int sm5703_buck_voltagemap[] = {
 		.type = REGULATOR_VOLTAGE,				\
 		.id = SM5703_USBLDO ## _id,				\
 		.ops = &sm5703_regulator_ops_fixed,			\
+		.n_voltages = 1,					\
 		.fixed_uV = SM5703_USBLDO_MICROVOLT,			\
 		.enable_reg = SM5703_REG_USBLDO12,			\
 		.enable_mask = SM5703_REG_EN_USBLDO ##_id,		\
@@ -56,6 +57,7 @@ static const int sm5703_buck_voltagemap[] = {
 		.type = REGULATOR_VOLTAGE,				\
 		.id = SM5703_VBUS,					\
 		.ops = &sm5703_regulator_ops_fixed,			\
+		.n_voltages = 1,					\
 		.fixed_uV = SM5703_VBUS_MICROVOLT,			\
 		.enable_reg = SM5703_REG_CNTL,				\
 		.enable_mask = SM5703_OPERATION_MODE_MASK,		\
@@ -155,6 +157,7 @@ MODULE_DEVICE_TABLE(platform, sm5703_regulator_id);
 static struct platform_driver sm5703_regulator_driver = {
 	.driver = {
 		.name = "sm5703-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe	= sm5703_regulator_probe,
 	.id_table	= sm5703_regulator_id,

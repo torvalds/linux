@@ -37,10 +37,8 @@ int axg_tdm_set_tdm_slots(struct snd_soc_dai *dai, u32 *tx_mask,
 			  unsigned int slot_width)
 {
 	struct axg_tdm_iface *iface = snd_soc_dai_get_drvdata(dai);
-	struct axg_tdm_stream *tx = (struct axg_tdm_stream *)
-		dai->playback_dma_data;
-	struct axg_tdm_stream *rx = (struct axg_tdm_stream *)
-		dai->capture_dma_data;
+	struct axg_tdm_stream *tx = snd_soc_dai_dma_data_get_playback(dai);
+	struct axg_tdm_stream *rx = snd_soc_dai_dma_data_get_capture(dai);
 	unsigned int tx_slots, rx_slots;
 	unsigned int fmt = 0;
 
@@ -362,11 +360,14 @@ static int axg_tdm_iface_prepare(struct snd_pcm_substream *substream,
 
 static int axg_tdm_iface_remove_dai(struct snd_soc_dai *dai)
 {
-	if (dai->capture_dma_data)
-		axg_tdm_stream_free(dai->capture_dma_data);
+	int stream;
 
-	if (dai->playback_dma_data)
-		axg_tdm_stream_free(dai->playback_dma_data);
+	for_each_pcm_streams(stream) {
+		struct axg_tdm_stream *ts = snd_soc_dai_dma_data_get(dai, stream);
+
+		if (ts)
+			axg_tdm_stream_free(ts);
+	}
 
 	return 0;
 }
@@ -374,19 +375,20 @@ static int axg_tdm_iface_remove_dai(struct snd_soc_dai *dai)
 static int axg_tdm_iface_probe_dai(struct snd_soc_dai *dai)
 {
 	struct axg_tdm_iface *iface = snd_soc_dai_get_drvdata(dai);
+	int stream;
 
-	if (dai->capture_widget) {
-		dai->capture_dma_data = axg_tdm_stream_alloc(iface);
-		if (!dai->capture_dma_data)
-			return -ENOMEM;
-	}
+	for_each_pcm_streams(stream) {
+		struct axg_tdm_stream *ts;
 
-	if (dai->playback_widget) {
-		dai->playback_dma_data = axg_tdm_stream_alloc(iface);
-		if (!dai->playback_dma_data) {
+		if (!snd_soc_dai_get_widget(dai, stream))
+			continue;
+
+		ts = axg_tdm_stream_alloc(iface);
+		if (!ts) {
 			axg_tdm_iface_remove_dai(dai);
 			return -ENOMEM;
 		}
+		snd_soc_dai_dma_data_set(dai, stream, ts);
 	}
 
 	return 0;
@@ -494,7 +496,7 @@ static int axg_tdm_iface_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct snd_soc_dai_driver *dai_drv;
 	struct axg_tdm_iface *iface;
-	int ret, i;
+	int i;
 
 	iface = devm_kzalloc(dev, sizeof(*iface), GFP_KERNEL);
 	if (!iface)
@@ -531,14 +533,9 @@ static int axg_tdm_iface_probe(struct platform_device *pdev)
 	 * At this point, ignore the error if mclk is missing. We'll
 	 * throw an error if the cpu dai is master and mclk is missing
 	 */
-	iface->mclk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(iface->mclk)) {
-		ret = PTR_ERR(iface->mclk);
-		if (ret == -ENOENT)
-			iface->mclk = NULL;
-		else
-			return dev_err_probe(dev, ret, "failed to get mclk\n");
-	}
+	iface->mclk = devm_clk_get_optional(dev, "mclk");
+	if (IS_ERR(iface->mclk))
+		return dev_err_probe(dev, PTR_ERR(iface->mclk), "failed to get mclk\n");
 
 	return devm_snd_soc_register_component(dev,
 					&axg_tdm_iface_component_drv, dai_drv,

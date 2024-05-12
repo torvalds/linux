@@ -23,6 +23,9 @@
 
 .arch_extension sve
 
+#define ID_AA64SMFR0_EL1_SMEver_SHIFT           56
+#define ID_AA64SMFR0_EL1_SMEver_WIDTH           4
+
 /*
  * LDR (vector to ZA array):
  *	LDR ZA[\nw, #\offset], [X\nxbase, #\offset, MUL VL]
@@ -45,6 +48,26 @@
 		| ((\offset) & 7)
 .endm
 
+/*
+ * LDR (ZT0)
+ *
+ *	LDR ZT0, nx
+ */
+.macro _ldr_zt nx
+	.inst	0xe11f8000			\
+		| (((\nx) & 0x1f) << 5)
+.endm
+
+/*
+ * STR (ZT0)
+ *
+ *	STR ZT0, nx
+ */
+.macro _str_zt nx
+	.inst	0xe13f8000			\
+		| (((\nx) & 0x1f) << 5)
+.endm
+
 .globl do_syscall
 do_syscall:
 	// Store callee saved registers x19-x29 (80 bytes) plus x0 and x1
@@ -64,7 +87,7 @@ do_syscall:
 	msr	S3_3_C4_C2_2, x2
 1:
 
-	// Load ZA if it's enabled - uses x12 as scratch due to SME LDR
+	// Load ZA and ZT0 if enabled - uses x12 as scratch due to SME LDR
 	tbz	x2, #SVCR_ZA_SHIFT, 1f
 	mov	w12, #0
 	ldr	x2, =za_in
@@ -73,6 +96,15 @@ do_syscall:
 	add	x12, x12, #1
 	cmp	x1, x12
 	bne	2b
+
+	// ZT0
+	mrs	x2, S3_0_C0_C4_5	// ID_AA64SMFR0_EL1
+	ubfx	x2, x2, #ID_AA64SMFR0_EL1_SMEver_SHIFT, \
+			 #ID_AA64SMFR0_EL1_SMEver_WIDTH
+	cbz	x2, 1f
+	adrp	x2, zt_in
+	add	x2, x2, :lo12:zt_in
+	_ldr_zt 2
 1:
 
 	// Load GPRs x8-x28, and save our SP/FP for later comparison
@@ -92,8 +124,11 @@ do_syscall:
 	str	x29, [x2], #8		// FP
 	str	x30, [x2], #8		// LR
 
-	// Load FPRs if we're not doing SVE
+	// Load FPRs if we're not doing neither SVE nor streaming SVE
 	cbnz	x0, 1f
+	ldr	x2, =svcr_in
+	tbnz	x2, #SVCR_SM_SHIFT, 1f
+
 	ldr	x2, =fpr_in
 	ldp	q0, q1, [x2]
 	ldp	q2, q3, [x2, #16 * 2]
@@ -111,10 +146,11 @@ do_syscall:
 	ldp	q26, q27, [x2, #16 * 26]
 	ldp	q28, q29, [x2, #16 * 28]
 	ldp	q30, q31, [x2, #16 * 30]
+
+	b	2f
 1:
 
 	// Load the SVE registers if we're doing SVE/SME
-	cbz	x0, 1f
 
 	ldr	x2, =z_in
 	ldr	z0, [x2, #0, MUL VL]
@@ -153,11 +189,11 @@ do_syscall:
 	// Only set a non-zero FFR, test patterns must be zero since the
 	// syscall should clear it - this lets us handle FA64.
 	ldr	x2, =ffr_in
-	ldr	p0, [x2, #0]
+	ldr	p0, [x2]
 	ldr	x2, [x2, #0]
-	cbz	x2, 2f
+	cbz	x2, 1f
 	wrffr	p0.b
-2:
+1:
 
 	ldr	x2, =p_in
 	ldr	p0, [x2, #0, MUL VL]
@@ -176,7 +212,7 @@ do_syscall:
 	ldr	p13, [x2, #13, MUL VL]
 	ldr	p14, [x2, #14, MUL VL]
 	ldr	p15, [x2, #15, MUL VL]
-1:
+2:
 
 	// Do the syscall
 	svc	#0
@@ -235,6 +271,15 @@ do_syscall:
 	add	x12, x12, #1
 	cmp	x1, x12
 	bne	2b
+
+	// ZT0
+	mrs	x2, S3_0_C0_C4_5	// ID_AA64SMFR0_EL1
+	ubfx	x2, x2, #ID_AA64SMFR0_EL1_SMEver_SHIFT, \
+			#ID_AA64SMFR0_EL1_SMEver_WIDTH
+	cbz	x2, 1f
+	adrp	x2, zt_out
+	add	x2, x2, :lo12:zt_out
+	_str_zt 2
 1:
 
 	// Save the SVE state if we have some
@@ -298,7 +343,7 @@ do_syscall:
 	cbz	x2, 1f
 	ldr	x2, =ffr_out
 	rdffr	p0.b
-	str	p0, [x2, #0]
+	str	p0, [x2]
 1:
 
 	// Restore callee saved registers x19-x30

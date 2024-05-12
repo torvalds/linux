@@ -30,7 +30,7 @@ MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");
 MODULE_LICENSE("GPL");
 
-static char *sound_devnode(struct device *dev, umode_t *mode)
+static char *sound_devnode(const struct device *dev, umode_t *mode)
 {
 	if (MAJOR(dev->devt) == SOUND_MAJOR)
 		return NULL;
@@ -45,7 +45,7 @@ static int __init init_soundcore(void)
 	if (rc)
 		return rc;
 
-	sound_class = class_create(THIS_MODULE, "sound");
+	sound_class = class_create("sound");
 	if (IS_ERR(sound_class)) {
 		cleanup_oss_soundcore();
 		return PTR_ERR(sound_class);

@@ -19,11 +19,9 @@
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/cpu.h>
-#if !RAID6_USE_EMPTY_ZERO_PAGE
 /* In .bss so it's zeroed */
 const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(256)));
 EXPORT_SYMBOL(raid6_empty_zero_page);
-#endif
 #endif
 
 struct raid6_calls raid6_call;

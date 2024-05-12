@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2013 IBM Corp.  All rights reserved.
  *     Author: Alexey Kardashevskiy <aik@ozlabs.ru>
+ * Copyright Gavin Shan, IBM Corporation 2014.
  *
  * Derived from original vfio_iommu_type1.c:
  * Copyright (C) 2012 Red Hat, Inc.  All rights reserved.
@@ -773,6 +774,57 @@ static long tce_iommu_create_default_window(struct tce_container *container)
 	return ret;
 }
 
+static long vfio_spapr_ioctl_eeh_pe_op(struct iommu_group *group,
+				       unsigned long arg)
+{
+	struct eeh_pe *pe;
+	struct vfio_eeh_pe_op op;
+	unsigned long minsz;
+
+	pe = eeh_iommu_group_to_pe(group);
+	if (!pe)
+		return -ENODEV;
+
+	minsz = offsetofend(struct vfio_eeh_pe_op, op);
+	if (copy_from_user(&op, (void __user *)arg, minsz))
+		return -EFAULT;
+	if (op.argsz < minsz || op.flags)
+		return -EINVAL;
+
+	switch (op.op) {
+	case VFIO_EEH_PE_DISABLE:
+		return eeh_pe_set_option(pe, EEH_OPT_DISABLE);
+	case VFIO_EEH_PE_ENABLE:
+		return eeh_pe_set_option(pe, EEH_OPT_ENABLE);
+	case VFIO_EEH_PE_UNFREEZE_IO:
+		return eeh_pe_set_option(pe, EEH_OPT_THAW_MMIO);
+	case VFIO_EEH_PE_UNFREEZE_DMA:
+		return eeh_pe_set_option(pe, EEH_OPT_THAW_DMA);
+	case VFIO_EEH_PE_GET_STATE:
+		return eeh_pe_get_state(pe);
+		break;
+	case VFIO_EEH_PE_RESET_DEACTIVATE:
+		return eeh_pe_reset(pe, EEH_RESET_DEACTIVATE, true);
+	case VFIO_EEH_PE_RESET_HOT:
+		return eeh_pe_reset(pe, EEH_RESET_HOT, true);
+	case VFIO_EEH_PE_RESET_FUNDAMENTAL:
+		return eeh_pe_reset(pe, EEH_RESET_FUNDAMENTAL, true);
+	case VFIO_EEH_PE_CONFIGURE:
+		return eeh_pe_configure(pe);
+	case VFIO_EEH_PE_INJECT_ERR:
+		minsz = offsetofend(struct vfio_eeh_pe_op, err.mask);
+		if (op.argsz < minsz)
+			return -EINVAL;
+		if (copy_from_user(&op, (void __user *)arg, minsz))
+			return -EFAULT;
+
+		return eeh_pe_inject_err(pe, op.err.type, op.err.func,
+					 op.err.addr, op.err.mask);
+	default:
+		return -EINVAL;
+	}
+}
+
 static long tce_iommu_ioctl(void *iommu_data,
 				 unsigned int cmd, unsigned long arg)
 {
@@ -785,14 +837,12 @@ static long tce_iommu_ioctl(void *iommu_data,
 		switch (arg) {
 		case VFIO_SPAPR_TCE_IOMMU:
 		case VFIO_SPAPR_TCE_v2_IOMMU:
-			ret = 1;
-			break;
+			return 1;
+		case VFIO_EEH:
+			return eeh_enabled();
 		default:
-			ret = vfio_spapr_iommu_eeh_ioctl(NULL, cmd, arg);
-			break;
+			return 0;
 		}
-
-		return (ret < 0) ? 0 : ret;
 	}
 
 	/*
@@ -1046,8 +1096,7 @@ static long tce_iommu_ioctl(void *iommu_data,
 
 		ret = 0;
 		list_for_each_entry(tcegrp, &container->group_list, next) {
-			ret = vfio_spapr_iommu_eeh_ioctl(tcegrp->grp,
-					cmd, arg);
+			ret = vfio_spapr_ioctl_eeh_pe_op(tcegrp->grp, arg);
 			if (ret)
 				return ret;
 		}
@@ -1141,52 +1190,6 @@ static long tce_iommu_ioctl(void *iommu_data,
 static void tce_iommu_release_ownership(struct tce_container *container,
 		struct iommu_table_group *table_group)
 {
-	int i;
-
-	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i) {
-		struct iommu_table *tbl = container->tables[i];
-
-		if (!tbl)
-			continue;
-
-		tce_iommu_clear(container, tbl, tbl->it_offset, tbl->it_size);
-		if (tbl->it_map)
-			iommu_release_ownership(tbl);
-
-		container->tables[i] = NULL;
-	}
-}
-
-static int tce_iommu_take_ownership(struct tce_container *container,
-		struct iommu_table_group *table_group)
-{
-	int i, j, rc = 0;
-
-	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i) {
-		struct iommu_table *tbl = table_group->tables[i];
-
-		if (!tbl || !tbl->it_map)
-			continue;
-
-		rc = iommu_take_ownership(tbl);
-		if (rc) {
-			for (j = 0; j < i; ++j)
-				iommu_release_ownership(
-						table_group->tables[j]);
-
-			return rc;
-		}
-	}
-
-	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i)
-		container->tables[i] = table_group->tables[i];
-
-	return 0;
-}
-
-static void tce_iommu_release_ownership_ddw(struct tce_container *container,
-		struct iommu_table_group *table_group)
-{
 	long i;
 
 	if (!table_group->ops->unset_window) {
@@ -1197,22 +1200,12 @@ static void tce_iommu_release_ownership_ddw(struct tce_container *container,
 	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i)
 		if (container->tables[i])
 			table_group->ops->unset_window(table_group, i);
-
-	table_group->ops->release_ownership(table_group);
 }
 
-static long tce_iommu_take_ownership_ddw(struct tce_container *container,
+static long tce_iommu_take_ownership(struct tce_container *container,
 		struct iommu_table_group *table_group)
 {
 	long i, ret = 0;
-
-	if (!table_group->ops->create_table || !table_group->ops->set_window ||
-			!table_group->ops->release_ownership) {
-		WARN_ON_ONCE(1);
-		return -EFAULT;
-	}
-
-	table_group->ops->take_ownership(table_group);
 
 	/* Set all windows to the new group */
 	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i) {
@@ -1231,8 +1224,6 @@ static long tce_iommu_take_ownership_ddw(struct tce_container *container,
 release_exit:
 	for (i = 0; i < IOMMU_TABLE_GROUP_MAX_TABLES; ++i)
 		table_group->ops->unset_window(table_group, i);
-
-	table_group->ops->release_ownership(table_group);
 
 	return ret;
 }
@@ -1258,9 +1249,14 @@ static int tce_iommu_attach_group(void *iommu_data,
 		goto unlock_exit;
 	}
 
-	if (tce_groups_attached(container) && (!table_group->ops ||
-			!table_group->ops->take_ownership ||
-			!table_group->ops->release_ownership)) {
+	/* v2 requires full support of dynamic DMA windows */
+	if (container->v2 && table_group->max_dynamic_windows_supported == 0) {
+		ret = -EINVAL;
+		goto unlock_exit;
+	}
+
+	/* v1 reuses TCE tables and does not share them among PEs */
+	if (!container->v2 && tce_groups_attached(container)) {
 		ret = -EBUSY;
 		goto unlock_exit;
 	}
@@ -1295,29 +1291,15 @@ static int tce_iommu_attach_group(void *iommu_data,
 		goto unlock_exit;
 	}
 
-	if (!table_group->ops || !table_group->ops->take_ownership ||
-			!table_group->ops->release_ownership) {
-		if (container->v2) {
-			ret = -EPERM;
-			goto free_exit;
-		}
-		ret = tce_iommu_take_ownership(container, table_group);
-	} else {
-		if (!container->v2) {
-			ret = -EPERM;
-			goto free_exit;
-		}
-		ret = tce_iommu_take_ownership_ddw(container, table_group);
-		if (!tce_groups_attached(container) && !container->tables[0])
-			container->def_window_pending = true;
-	}
+	ret = tce_iommu_take_ownership(container, table_group);
+	if (!tce_groups_attached(container) && !container->tables[0])
+		container->def_window_pending = true;
 
 	if (!ret) {
 		tcegrp->grp = iommu_group;
 		list_add(&tcegrp->next, &container->group_list);
 	}
 
-free_exit:
 	if (ret && tcegrp)
 		kfree(tcegrp);
 
@@ -1356,10 +1338,7 @@ static void tce_iommu_detach_group(void *iommu_data,
 	table_group = iommu_group_get_iommudata(iommu_group);
 	BUG_ON(!table_group);
 
-	if (!table_group->ops || !table_group->ops->release_ownership)
-		tce_iommu_release_ownership(container, table_group);
-	else
-		tce_iommu_release_ownership_ddw(container, table_group);
+	tce_iommu_release_ownership(container, table_group);
 
 unlock_exit:
 	mutex_unlock(&container->lock);

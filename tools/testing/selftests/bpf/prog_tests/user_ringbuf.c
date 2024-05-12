@@ -19,8 +19,6 @@
 
 #include "../progs/test_user_ringbuf.h"
 
-static size_t log_buf_sz = 1 << 20; /* 1 MB */
-static char obj_log_buf[1048576];
 static const long c_sample_size = sizeof(struct sample) + BPF_RINGBUF_HDR_SZ;
 static const long c_ringbuf_size = 1 << 12; /* 1 small page */
 static const long c_max_entries = c_ringbuf_size / c_sample_size;
@@ -592,7 +590,7 @@ static void *kick_kernel_cb(void *arg)
 	/* Kick the kernel, causing it to drain the ring buffer and then wake
 	 * up the test thread waiting on epoll.
 	 */
-	syscall(__NR_getrlimit);
+	syscall(__NR_prlimit64);
 
 	return NULL;
 }
@@ -663,21 +661,6 @@ cleanup:
 	user_ringbuf_success__destroy(skel);
 }
 
-static struct {
-	const char *prog_name;
-	const char *expected_err_msg;
-} failure_tests[] = {
-	/* failure cases */
-	{"user_ringbuf_callback_bad_access1", "negative offset dynptr_ptr ptr"},
-	{"user_ringbuf_callback_bad_access2", "dereference of modified dynptr_ptr ptr"},
-	{"user_ringbuf_callback_write_forbidden", "invalid mem access 'dynptr_ptr'"},
-	{"user_ringbuf_callback_null_context_write", "invalid mem access 'scalar'"},
-	{"user_ringbuf_callback_null_context_read", "invalid mem access 'scalar'"},
-	{"user_ringbuf_callback_discard_dynptr", "arg 1 is an unacquired reference"},
-	{"user_ringbuf_callback_submit_dynptr", "arg 1 is an unacquired reference"},
-	{"user_ringbuf_callback_invalid_return", "At callback return the register R0 has value"},
-};
-
 #define SUCCESS_TEST(_func) { _func, #_func }
 
 static struct {
@@ -698,42 +681,6 @@ static struct {
 	SUCCESS_TEST(test_user_ringbuf_blocking_reserve),
 };
 
-static void verify_fail(const char *prog_name, const char *expected_err_msg)
-{
-	LIBBPF_OPTS(bpf_object_open_opts, opts);
-	struct bpf_program *prog;
-	struct user_ringbuf_fail *skel;
-	int err;
-
-	opts.kernel_log_buf = obj_log_buf;
-	opts.kernel_log_size = log_buf_sz;
-	opts.kernel_log_level = 1;
-
-	skel = user_ringbuf_fail__open_opts(&opts);
-	if (!ASSERT_OK_PTR(skel, "dynptr_fail__open_opts"))
-		goto cleanup;
-
-	prog = bpf_object__find_program_by_name(skel->obj, prog_name);
-	if (!ASSERT_OK_PTR(prog, "bpf_object__find_program_by_name"))
-		goto cleanup;
-
-	bpf_program__set_autoload(prog, true);
-
-	bpf_map__set_max_entries(skel->maps.user_ringbuf, getpagesize());
-
-	err = user_ringbuf_fail__load(skel);
-	if (!ASSERT_ERR(err, "unexpected load success"))
-		goto cleanup;
-
-	if (!ASSERT_OK_PTR(strstr(obj_log_buf, expected_err_msg), "expected_err_msg")) {
-		fprintf(stderr, "Expected err_msg: %s\n", expected_err_msg);
-		fprintf(stderr, "Verifier output: %s\n", obj_log_buf);
-	}
-
-cleanup:
-	user_ringbuf_fail__destroy(skel);
-}
-
 void test_user_ringbuf(void)
 {
 	int i;
@@ -745,10 +692,5 @@ void test_user_ringbuf(void)
 		success_tests[i].test_callback();
 	}
 
-	for (i = 0; i < ARRAY_SIZE(failure_tests); i++) {
-		if (!test__start_subtest(failure_tests[i].prog_name))
-			continue;
-
-		verify_fail(failure_tests[i].prog_name, failure_tests[i].expected_err_msg);
-	}
+	RUN_TESTS(user_ringbuf_fail);
 }

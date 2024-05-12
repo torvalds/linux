@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/arm/tegra/nvidia,tegra-ccplex-cluster.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/arm/tegra/nvidia,tegra-ccplex-cluster.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVIDIA Tegra CPU COMPLEX CLUSTER area device tree bindings
+title: NVIDIA Tegra CPU COMPLEX CLUSTER area
 
 maintainers:
   - Sumit Gupta <sumitg@nvidia.com>
@@ -29,7 +29,7 @@ properties:
     maxItems: 1
 
   nvidia,bpmp:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Specifies the BPMP node that needs to be queried to get
       operating point data for all CPUs.
@@ -47,5 +47,4 @@ examples:
       compatible = "nvidia,tegra234-ccplex-cluster";
       reg = <0x0e000000 0x5ffff>;
       nvidia,bpmp = <&bpmp>;
-      status = "okay";
     };

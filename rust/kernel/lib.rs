@@ -12,24 +12,49 @@
 //! do so first instead of bypassing this crate.
 
 #![no_std]
+#![feature(allocator_api)]
+#![feature(coerce_unsized)]
 #![feature(core_ffi_c)]
+#![feature(dispatch_from_dyn)]
+#![feature(explicit_generic_args_with_impl_trait)]
+#![feature(generic_associated_types)]
+#![feature(new_uninit)]
+#![feature(pin_macro)]
+#![feature(receiver_trait)]
+#![feature(unsize)]
 
 // Ensure conditional compilation based on the kernel configuration works;
 // otherwise we may silently break things like initcall handling.
 #[cfg(not(CONFIG_RUST))]
 compile_error!("Missing kernel configuration for conditional compilation");
 
+// Allow proc-macros to refer to `::kernel` inside the `kernel` crate (this crate).
+extern crate self as kernel;
+
 #[cfg(not(test))]
 #[cfg(not(testlib))]
 mod allocator;
+mod build_assert;
 pub mod error;
+pub mod init;
+pub mod ioctl;
 pub mod prelude;
 pub mod print;
+mod static_assert;
+#[doc(hidden)]
+pub mod std_vendor;
 pub mod str;
+pub mod sync;
+pub mod task;
+pub mod types;
 
 #[doc(hidden)]
 pub use bindings;
 pub use macros;
+pub use uapi;
+
+#[doc(hidden)]
+pub use build_error::build_error;
 
 /// Prefix to appear before log messages printed from within the `kernel` crate.
 const __LOG_PREFIX: &[u8] = b"rust_kernel\0";

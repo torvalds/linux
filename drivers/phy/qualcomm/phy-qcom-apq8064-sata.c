@@ -243,13 +243,11 @@ static int qcom_apq8064_sata_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_apq8064_sata_phy_remove(struct platform_device *pdev)
+static void qcom_apq8064_sata_phy_remove(struct platform_device *pdev)
 {
 	struct qcom_apq8064_sata_phy *phy = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(phy->cfg_clk);
-
-	return 0;
 }
 
 static const struct of_device_id qcom_apq8064_sata_phy_of_match[] = {
@@ -260,7 +258,7 @@ MODULE_DEVICE_TABLE(of, qcom_apq8064_sata_phy_of_match);
 
 static struct platform_driver qcom_apq8064_sata_phy_driver = {
 	.probe	= qcom_apq8064_sata_phy_probe,
-	.remove	= qcom_apq8064_sata_phy_remove,
+	.remove_new = qcom_apq8064_sata_phy_remove,
 	.driver = {
 		.name	= "qcom-apq8064-sata-phy",
 		.of_match_table	= qcom_apq8064_sata_phy_of_match,

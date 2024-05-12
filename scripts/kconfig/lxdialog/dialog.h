@@ -18,22 +18,6 @@
 #endif
 #include <ncurses.h>
 
-/*
- * Colors in ncurses 1.9.9e do not work properly since foreground and
- * background colors are OR'd rather than separately masked.  This version
- * of dialog was hacked to work with ncurses 1.9.9e, making it incompatible
- * with standard curses.  The simplest fix (to make this work with standard
- * curses) uses the wbkgdset() function, not used in the original hack.
- * Turn it off if we're building with 1.9.9e, since it just confuses things.
- */
-#if defined(NCURSES_VERSION) && defined(_NEED_WRAP) && !defined(GCC_PRINTFLIKE)
-#define OLD_NCURSES 1
-#undef  wbkgdset
-#define wbkgdset(w,p)		/*nothing */
-#else
-#define OLD_NCURSES 0
-#endif
-
 #define TR(params) _tracef params
 
 #define KEY_ESC 27
@@ -225,14 +209,3 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 		     int width, int list_height);
 int dialog_inputbox(const char *title, const char *prompt, int height,
 		    int width, const char *init);
-
-/*
- * This is the base for fictitious keys, which activate
- * the buttons.
- *
- * Mouse-generated keys are the following:
- *   -- the first 32 are used as numbers, in addition to '0'-'9'
- *   -- the lowercase are used to signal mouse-enter events (M_EVENT + 'o')
- *   -- uppercase chars are used to invoke the button (M_EVENT + 'O')
- */
-#define M_EVENT (KEY_MAX+1)

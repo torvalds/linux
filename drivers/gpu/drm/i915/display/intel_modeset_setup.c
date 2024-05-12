@@ -10,6 +10,8 @@
 #include <drm/drm_atomic_state_helper.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
+#include "i9xx_wm.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_color.h"
@@ -20,9 +22,12 @@
 #include "intel_display.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_dmc.h"
+#include "intel_fifo_underrun.h"
 #include "intel_modeset_setup.h"
 #include "intel_pch_display.h"
-#include "intel_pm.h"
+#include "intel_vblank.h"
+#include "intel_wm.h"
 #include "skl_watermark.h"
 
 static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
@@ -95,7 +100,6 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 
 	intel_fbc_disable(crtc);
 	intel_update_watermarks(i915);
-	intel_disable_shared_dpll(crtc_state);
 
 	intel_display_power_put_all_in_set(i915, &crtc->enabled_power_domains);
 
@@ -155,6 +159,12 @@ static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state
 	crtc_state->uapi.adjusted_mode = crtc_state->hw.adjusted_mode;
 	crtc_state->uapi.scaling_filter = crtc_state->hw.scaling_filter;
 
+	/* assume 1:1 mapping */
+	drm_property_replace_blob(&crtc_state->hw.degamma_lut,
+				  crtc_state->pre_csc_lut);
+	drm_property_replace_blob(&crtc_state->hw.gamma_lut,
+				  crtc_state->post_csc_lut);
+
 	drm_property_replace_blob(&crtc_state->uapi.degamma_lut,
 				  crtc_state->hw.degamma_lut);
 	drm_property_replace_blob(&crtc_state->uapi.gamma_lut,
@@ -205,13 +215,21 @@ static bool intel_crtc_has_encoders(struct intel_crtc *crtc)
 
 static struct intel_connector *intel_encoder_find_connector(struct intel_encoder *encoder)
 {
-	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
+	struct intel_connector *found_connector = NULL;
 
-	for_each_connector_on_encoder(dev, &encoder->base, connector)
-		return connector;
+	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
+		if (&encoder->base == connector->base.encoder) {
+			found_connector = connector;
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
-	return NULL;
+	return found_connector;
 }
 
 static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state *crtc_state)
@@ -219,12 +237,9 @@ static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	if (!crtc_state->hw.active && !HAS_GMCH(i915))
-		return;
-
 	/*
-	 * We start out with underrun reporting disabled to avoid races.
-	 * For correct bookkeeping mark this on active crtcs.
+	 * We start out with underrun reporting disabled on active
+	 * pipes to avoid races.
 	 *
 	 * Also on gmch platforms we dont have any hardware bits to
 	 * disable the underrun reporting. Which means we need to start
@@ -235,19 +250,9 @@ static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state
 	 * No protection against concurrent access is required - at
 	 * worst a fifo underrun happens which also sets this to false.
 	 */
-	crtc->cpu_fifo_underrun_disabled = true;
-
-	/*
-	 * We track the PCH trancoder underrun reporting state
-	 * within the crtc. With crtc for pipe A housing the underrun
-	 * reporting state for PCH transcoder A, crtc for pipe B housing
-	 * it for PCH transcoder B, etc. LPT-H has only PCH transcoder A,
-	 * and marking underrun reporting as disabled for the non-existing
-	 * PCH transcoders B and C would prevent enabling the south
-	 * error interrupt (see cpt_can_enable_serr_int()).
-	 */
-	if (intel_has_pch_trancoder(i915, crtc->pipe))
-		crtc->pch_fifo_underrun_disabled = true;
+	intel_init_fifo_underrun_reporting(i915, crtc,
+					   !crtc_state->hw.active &&
+					   !HAS_GMCH(i915));
 }
 
 static void intel_sanitize_crtc(struct intel_crtc *crtc,
@@ -632,17 +637,14 @@ static void intel_early_display_was(struct drm_i915_private *i915)
 	 * Also known as Wa_14010480278.
 	 */
 	if (IS_DISPLAY_VER(i915, 10, 12))
-		intel_de_write(i915, GEN9_CLKGATE_DIS_0,
-			       intel_de_read(i915, GEN9_CLKGATE_DIS_0) | DARBF_GATING_DIS);
+		intel_de_rmw(i915, GEN9_CLKGATE_DIS_0, 0, DARBF_GATING_DIS);
 
-	if (IS_HASWELL(i915)) {
-		/*
-		 * WaRsPkgCStateDisplayPMReq:hsw
-		 * System hang if this isn't done before disabling all planes!
-		 */
-		intel_de_write(i915, CHICKEN_PAR1_1,
-			       intel_de_read(i915, CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
-	}
+	/*
+	 * WaRsPkgCStateDisplayPMReq:hsw
+	 * System hang if this isn't done before disabling all planes!
+	 */
+	if (IS_HASWELL(i915))
+		intel_de_rmw(i915, CHICKEN_PAR1_1, 0, FORCE_ARB_IDLE_PLANES);
 
 	if (IS_KABYLAKE(i915) || IS_COFFEELAKE(i915) || IS_COMETLAKE(i915)) {
 		/* Display WA #1142:kbl,cfl,cml */
@@ -683,8 +685,10 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 
 		drm_crtc_vblank_reset(&crtc->base);
 
-		if (crtc_state->hw.active)
+		if (crtc_state->hw.active) {
+			intel_dmc_enable_pipe(i915, crtc->pipe);
 			intel_crtc_vblank_on(crtc_state);
+		}
 	}
 
 	intel_fbc_sanitize(i915);
@@ -706,18 +710,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 
 	intel_dpll_sanitize_state(i915);
 
-	if (IS_G4X(i915)) {
-		g4x_wm_get_hw_state(i915);
-		g4x_wm_sanitize(i915);
-	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
-		vlv_wm_get_hw_state(i915);
-		vlv_wm_sanitize(i915);
-	} else if (DISPLAY_VER(i915) >= 9) {
-		skl_wm_get_hw_state(i915);
-		skl_wm_sanitize(i915);
-	} else if (HAS_PCH_SPLIT(i915)) {
-		ilk_wm_get_hw_state(i915);
-	}
+	intel_wm_get_hw_state(i915);
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =

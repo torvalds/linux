@@ -46,7 +46,7 @@ static int pmsg_major;
 #undef pr_fmt
 #define pr_fmt(fmt) PMSG_NAME ": " fmt
 
-static char *pmsg_devnode(struct device *dev, umode_t *mode)
+static char *pmsg_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0220;
@@ -63,7 +63,7 @@ void pstore_register_pmsg(void)
 		goto err;
 	}
 
-	pmsg_class = class_create(THIS_MODULE, PMSG_NAME);
+	pmsg_class = class_create(PMSG_NAME);
 	if (IS_ERR(pmsg_class)) {
 		pr_err("device class file already in use\n");
 		goto err_class;

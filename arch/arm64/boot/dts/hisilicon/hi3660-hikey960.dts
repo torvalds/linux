@@ -85,28 +85,28 @@
 	leds {
 		compatible = "gpio-leds";
 
-		user_led1 {
+		led-user-1 {
 			label = "green:user1";
 			/* gpio_150_user_led1 */
 			gpios = <&gpio18 6 0>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		user_led2 {
+		led-user-2 {
 			label = "green:user2";
 			/* gpio_151_user_led2 */
 			gpios = <&gpio18 7 0>;
 			linux,default-trigger = "none";
 		};
 
-		user_led3 {
+		led-user-3 {
 			label = "green:user3";
 			/* gpio_189_user_led3 */
 			gpios = <&gpio23 5 0>;
 			linux,default-trigger = "mmc0";
 		};
 
-		user_led4 {
+		led-user-4 {
 			label = "green:user4";
 			/* gpio_190_user_led4 */
 			gpios = <&gpio23 6 0>;
@@ -114,7 +114,7 @@
 			linux,default-trigger = "none";
 		};
 
-		wlan_active_led {
+		led-wlan {
 			label = "yellow:wlan";
 			/* gpio_205_wifi_active */
 			gpios = <&gpio25 5 0>;
@@ -122,7 +122,7 @@
 			default-state = "off";
 		};
 
-		bt_active_led {
+		led-bt {
 			label = "blue:bt";
 			gpios = <&gpio25 7 0>;
 			/* gpio_207_user_led1 */

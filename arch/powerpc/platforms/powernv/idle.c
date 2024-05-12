@@ -1464,14 +1464,19 @@ static int __init pnv_init_idle_states(void)
 			power7_fastsleep_workaround_entry = false;
 			power7_fastsleep_workaround_exit = false;
 		} else {
+			struct device *dev_root;
 			/*
 			 * OPAL_PM_SLEEP_ENABLED_ER1 is set. It indicates that
 			 * workaround is needed to use fastsleep. Provide sysfs
 			 * control to choose how this workaround has to be
 			 * applied.
 			 */
-			device_create_file(cpu_subsys.dev_root,
-				&dev_attr_fastsleep_workaround_applyonce);
+			dev_root = bus_get_dev_root(&cpu_subsys);
+			if (dev_root) {
+				device_create_file(dev_root,
+						   &dev_attr_fastsleep_workaround_applyonce);
+				put_device(dev_root);
+			}
 		}
 
 		update_subcore_sibling_mask();

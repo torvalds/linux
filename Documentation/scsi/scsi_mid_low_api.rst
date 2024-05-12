@@ -436,7 +436,7 @@ Details::
     *
     *      Defined in: drivers/scsi/hosts.c .
     **/
-    struct Scsi_Host * scsi_host_alloc(struct scsi_host_template * sht,
+    struct Scsi_Host * scsi_host_alloc(const struct scsi_host_template * sht,
 				    int privsize)
 
 

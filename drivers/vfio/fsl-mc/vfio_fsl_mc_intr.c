@@ -8,7 +8,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/eventfd.h>
-#include <linux/msi.h>
 
 #include "linux/fsl/mc.h"
 #include "vfio_fsl_mc_private.h"
@@ -30,7 +29,7 @@ static int vfio_fsl_mc_irqs_allocate(struct vfio_fsl_mc_device *vdev)
 
 	irq_count = mc_dev->obj_desc.irq_count;
 
-	mc_irq = kcalloc(irq_count, sizeof(*mc_irq), GFP_KERNEL);
+	mc_irq = kcalloc(irq_count, sizeof(*mc_irq), GFP_KERNEL_ACCOUNT);
 	if (!mc_irq)
 		return -ENOMEM;
 
@@ -78,7 +77,7 @@ static int vfio_set_trigger(struct vfio_fsl_mc_device *vdev,
 	if (fd < 0) /* Disable only */
 		return 0;
 
-	irq->name = kasprintf(GFP_KERNEL, "vfio-irq[%d](%s)",
+	irq->name = kasprintf(GFP_KERNEL_ACCOUNT, "vfio-irq[%d](%s)",
 			    hwirq, dev_name(&vdev->mc_dev->dev));
 	if (!irq->name)
 		return -ENOMEM;

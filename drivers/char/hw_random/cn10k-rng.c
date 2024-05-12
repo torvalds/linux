@@ -145,7 +145,6 @@ static int cn10k_rng_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	rng->ops.read    = cn10k_rng_read;
-	rng->ops.quality = 1000;
 	rng->ops.priv = (unsigned long)rng;
 
 	reset_rng_health_state(rng);

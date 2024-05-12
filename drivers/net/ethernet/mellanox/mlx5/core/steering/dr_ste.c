@@ -15,7 +15,8 @@ static u32 dr_ste_crc32_calc(const void *input_data, size_t length)
 {
 	u32 crc = crc32(0, input_data, length);
 
-	return (__force u32)htonl(crc);
+	return (__force u32)((crc >> 24) & 0xff) | ((crc << 8) & 0xff0000) |
+			    ((crc >> 8) & 0xff00) | ((crc << 24) & 0xff000000);
 }
 
 bool mlx5dr_ste_supp_ttl_cs_recalc(struct mlx5dr_cmd_caps *caps)
@@ -88,6 +89,16 @@ static void dr_ste_set_always_miss(struct dr_hw_ste_format *hw_ste)
 {
 	hw_ste->tag[0] = 0xdc;
 	hw_ste->mask[0] = 0;
+}
+
+bool mlx5dr_ste_is_miss_addr_set(struct mlx5dr_ste_ctx *ste_ctx,
+				 u8 *hw_ste_p)
+{
+	if (!ste_ctx->is_miss_addr_set)
+		return false;
+
+	/* check if miss address is already set for this type of STE */
+	return ste_ctx->is_miss_addr_set(hw_ste_p);
 }
 
 void mlx5dr_ste_set_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
@@ -491,7 +502,7 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	u32 num_entries;
 	int i;
 
-	htbl = kzalloc(sizeof(*htbl), GFP_KERNEL);
+	htbl = mlx5dr_icm_pool_alloc_htbl(pool);
 	if (!htbl)
 		return NULL;
 
@@ -503,6 +514,9 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	htbl->lu_type = lu_type;
 	htbl->byte_mask = byte_mask;
 	htbl->refcount = 0;
+	htbl->pointing_ste = NULL;
+	htbl->ctrl.num_of_valid_entries = 0;
+	htbl->ctrl.num_of_collisions = 0;
 	num_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(chunk);
 
 	for (i = 0; i < num_entries; i++) {
@@ -517,17 +531,20 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	return htbl;
 
 out_free_htbl:
-	kfree(htbl);
+	mlx5dr_icm_pool_free_htbl(pool, htbl);
 	return NULL;
 }
 
 int mlx5dr_ste_htbl_free(struct mlx5dr_ste_htbl *htbl)
 {
+	struct mlx5dr_icm_pool *pool = htbl->chunk->buddy_mem->pool;
+
 	if (htbl->refcount)
 		return -EBUSY;
 
 	mlx5dr_icm_free_chunk(htbl->chunk);
-	kfree(htbl);
+	mlx5dr_icm_pool_free_htbl(pool, htbl);
+
 	return 0;
 }
 
@@ -615,6 +632,63 @@ int mlx5dr_ste_set_action_decap_l3_list(struct mlx5dr_ste_ctx *ste_ctx,
 	return ste_ctx->set_action_decap_l3_list(data, data_sz,
 						 hw_action, hw_action_sz,
 						 used_hw_action_num);
+}
+
+static int
+dr_ste_alloc_modify_hdr_chunk(struct mlx5dr_action *action)
+{
+	struct mlx5dr_domain *dmn = action->rewrite->dmn;
+	u32 chunk_size;
+	int ret;
+
+	chunk_size = ilog2(roundup_pow_of_two(action->rewrite->num_of_actions));
+
+	/* HW modify action index granularity is at least 64B */
+	chunk_size = max_t(u32, chunk_size, DR_CHUNK_SIZE_8);
+
+	action->rewrite->chunk = mlx5dr_icm_alloc_chunk(dmn->action_icm_pool,
+							chunk_size);
+	if (!action->rewrite->chunk)
+		return -ENOMEM;
+
+	action->rewrite->index = (mlx5dr_icm_pool_get_chunk_icm_addr(action->rewrite->chunk) -
+				  dmn->info.caps.hdr_modify_icm_addr) /
+				 DR_ACTION_CACHE_LINE_SIZE;
+
+	ret = mlx5dr_send_postsend_action(action->rewrite->dmn, action);
+	if (ret)
+		goto free_chunk;
+
+	return 0;
+
+free_chunk:
+	mlx5dr_icm_free_chunk(action->rewrite->chunk);
+	return -ENOMEM;
+}
+
+static void dr_ste_free_modify_hdr_chunk(struct mlx5dr_action *action)
+{
+	mlx5dr_icm_free_chunk(action->rewrite->chunk);
+}
+
+int mlx5dr_ste_alloc_modify_hdr(struct mlx5dr_action *action)
+{
+	struct mlx5dr_domain *dmn = action->rewrite->dmn;
+
+	if (mlx5dr_domain_is_support_ptrn_arg(dmn))
+		return dmn->ste_ctx->alloc_modify_hdr_chunk(action);
+
+	return dr_ste_alloc_modify_hdr_chunk(action);
+}
+
+void mlx5dr_ste_free_modify_hdr(struct mlx5dr_action *action)
+{
+	struct mlx5dr_domain *dmn = action->rewrite->dmn;
+
+	if (mlx5dr_domain_is_support_ptrn_arg(dmn))
+		return dmn->ste_ctx->dealloc_modify_hdr_chunk(action);
+
+	return dr_ste_free_modify_hdr_chunk(action);
 }
 
 static int dr_ste_build_pre_check_spec(struct mlx5dr_domain *dmn,

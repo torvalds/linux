@@ -48,7 +48,7 @@ Last reviewed: 08/20/2018
  NOTE:
        More information about watchdog drivers in general, including the ioctl
        interface to /dev/watchdog can be found in
-       Documentation/watchdog/watchdog-api.rst and Documentation/IPMI.txt.
+       Documentation/watchdog/watchdog-api.rst and Documentation/driver-api/ipmi.rst
 
  Due to limitations in the iLO hardware, the NMI pretimeout if enabled,
  can only be set to 9 seconds.  Attempts to set pretimeout to other
@@ -63,9 +63,9 @@ Last reviewed: 08/20/2018
  and loop forever.  This is generally not what a watchdog user wants.
 
  For those wishing to learn more please see:
-	Documentation/admin-guide/kdump/kdump.rst
-	Documentation/admin-guide/kernel-parameters.txt (panic=)
-	Your Linux Distribution specific documentation.
+	- Documentation/admin-guide/kdump/kdump.rst
+	- Documentation/admin-guide/kernel-parameters.txt (panic=)
+	- Your Linux Distribution specific documentation.
 
  If the hpwdt does not receive the NMI associated with an expiring timer,
  the iLO will proceed to reset the system at timeout if the timer hasn't

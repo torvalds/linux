@@ -61,6 +61,7 @@ additionalProperties: false
 patternProperties:
   "-sram@[0-9a-f]+$":
     type: object
+    additionalProperties: false
     description: A region of reserved memory.
 
     properties:

@@ -389,6 +389,9 @@ static int __init intelfb_init(void)
 	if (idonly)
 		return -ENODEV;
 
+	if (fb_modesetting_disabled("intelfb"))
+		return -ENODEV;
+
 #ifndef MODULE
 	if (fb_get_options("intelfb", &option))
 		return -ENODEV;
@@ -1218,6 +1221,9 @@ static int intelfb_check_var(struct fb_var_screeninfo *var,
 	DBG_MSG("intelfb_check_var: accel_flags is %d\n", var->accel_flags);
 
 	dinfo = GET_DINFO(info);
+
+	if (!var->pixclock)
+		return -EINVAL;
 
 	/* update the pitch */
 	if (intelfbhw_validate_mode(dinfo, var) != 0)

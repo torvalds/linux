@@ -14,7 +14,7 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/io.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 
 #include <asm/smp_plat.h>
 

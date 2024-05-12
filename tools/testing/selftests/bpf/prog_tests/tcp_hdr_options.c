@@ -151,7 +151,7 @@ static int check_hdr_opt(const struct bpf_test_option *exp,
 			 const struct bpf_test_option *act,
 			 const char *hdr_desc)
 {
-	if (!ASSERT_OK(memcmp(exp, act, sizeof(*exp)), hdr_desc)) {
+	if (!ASSERT_EQ(memcmp(exp, act, sizeof(*exp)), 0, hdr_desc)) {
 		print_option(exp, "expected: ");
 		print_option(act, "  actual: ");
 		return -1;
@@ -169,7 +169,7 @@ static int check_hdr_stg(const struct hdr_stg *exp, int fd,
 		  "map_lookup(hdr_stg_map_fd)"))
 		return -1;
 
-	if (!ASSERT_OK(memcmp(exp, &act, sizeof(*exp)), stg_desc)) {
+	if (!ASSERT_EQ(memcmp(exp, &act, sizeof(*exp)), 0, stg_desc)) {
 		print_hdr_stg(exp, "expected: ");
 		print_hdr_stg(&act, "  actual: ");
 		return -1;
@@ -485,7 +485,7 @@ static void misc(void)
 			goto check_linum;
 
 		ret = read(sk_fds.passive_fd, recv_msg, sizeof(recv_msg));
-		if (ASSERT_EQ(ret, sizeof(send_msg), "read(msg)"))
+		if (!ASSERT_EQ(ret, sizeof(send_msg), "read(msg)"))
 			goto check_linum;
 	}
 
@@ -504,6 +504,8 @@ static void misc(void)
 		misc_skel->bss->nr_pure_ack);
 
 	ASSERT_EQ(misc_skel->bss->nr_fin, 1, "unexpected nr_fin");
+
+	ASSERT_EQ(misc_skel->bss->nr_hwtstamp, 0, "nr_hwtstamp");
 
 check_linum:
 	ASSERT_FALSE(check_error_linum(&sk_fds), "check_error_linum");
@@ -539,7 +541,7 @@ void test_tcp_hdr_options(void)
 		goto skel_destroy;
 
 	cg_fd = test__join_cgroup(CG_NAME);
-	if (ASSERT_GE(cg_fd, 0, "join_cgroup"))
+	if (!ASSERT_GE(cg_fd, 0, "join_cgroup"))
 		goto skel_destroy;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {

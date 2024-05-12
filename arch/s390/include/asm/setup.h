@@ -34,6 +34,7 @@
 #define MACHINE_FLAG_GS		BIT(16)
 #define MACHINE_FLAG_SCC	BIT(17)
 #define MACHINE_FLAG_PCI_MIO	BIT(18)
+#define MACHINE_FLAG_RDP	BIT(19)
 
 #define LPP_MAGIC		BIT(31)
 #define LPP_PID_MASK		_AC(0xffffffff, UL)
@@ -95,6 +96,7 @@ extern unsigned long mio_wb_bit_mask;
 #define MACHINE_HAS_GS		(S390_lowcore.machine_flags & MACHINE_FLAG_GS)
 #define MACHINE_HAS_SCC		(S390_lowcore.machine_flags & MACHINE_FLAG_SCC)
 #define MACHINE_HAS_PCI_MIO	(S390_lowcore.machine_flags & MACHINE_FLAG_PCI_MIO)
+#define MACHINE_HAS_RDP		(S390_lowcore.machine_flags & MACHINE_FLAG_RDP)
 
 /*
  * Console mode. Override with conmode=
@@ -144,13 +146,13 @@ static inline unsigned long kaslr_offset(void)
 	return __kaslr_offset;
 }
 
-extern int is_full_image;
-
-struct initrd_data {
-	unsigned long start;
-	unsigned long size;
-};
-extern struct initrd_data initrd_data;
+extern int __kaslr_enabled;
+static inline int kaslr_enabled(void)
+{
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE))
+		return __kaslr_enabled;
+	return 0;
+}
 
 struct oldmem_data {
 	unsigned long start;
@@ -158,7 +160,7 @@ struct oldmem_data {
 };
 extern struct oldmem_data oldmem_data;
 
-static inline u32 gen_lpswe(unsigned long addr)
+static __always_inline u32 gen_lpswe(unsigned long addr)
 {
 	BUILD_BUG_ON(addr > 0xfff);
 	return 0xb2b20000 | addr;

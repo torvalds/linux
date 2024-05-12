@@ -34,7 +34,9 @@ properties:
     const: 1
 
   ranges: true
-  pins-are-numbered: true
+  pins-are-numbered:
+    $ref: /schemas/types.yaml#/definitions/flag
+    deprecated: true
   hwlocks: true
 
   interrupts:
@@ -42,7 +44,7 @@ properties:
 
   st,syscfg:
     description: Phandle+args to the syscon node which includes IRQ mux selection.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: syscon node which includes IRQ mux selection
@@ -87,7 +89,7 @@ patternProperties:
       st,bank-name:
         description:
           Should be a name string for this bank as specified in the datasheet.
-        $ref: "/schemas/types.yaml#/definitions/string"
+        $ref: /schemas/types.yaml#/definitions/string
         enum:
           - GPIOA
           - GPIOB
@@ -106,7 +108,7 @@ patternProperties:
         description:
           Should correspond to the EXTI IOport selection (EXTI line used
           to select GPIOs as interrupts).
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 11
 
@@ -138,7 +140,7 @@ patternProperties:
           configuration, pullups, drive, output high/low and output speed.
         properties:
           pinmux:
-            $ref: "/schemas/types.yaml#/definitions/uint32-array"
+            $ref: /schemas/types.yaml#/definitions/uint32-array
             description: |
               Integer array, represents gpio pin number and mux setting.
               Supported pin number and mux varies for different SoCs, and are
@@ -199,14 +201,13 @@ patternProperties:
           - pinmux
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible
   - '#address-cells'
   - '#size-cells'
   - ranges
-  - pins-are-numbered
 
 additionalProperties: false
 
@@ -220,7 +221,6 @@ examples:
               #size-cells = <1>;
               compatible = "st,stm32f429-pinctrl";
               ranges = <0 0x40020000 0x3000>;
-              pins-are-numbered;
 
               gpioa: gpio@0 {
                       gpio-controller;
@@ -238,7 +238,6 @@ examples:
               #size-cells = <1>;
               compatible = "st,stm32f429-pinctrl";
               ranges = <0 0x50020000 0x3000>;
-              pins-are-numbered;
 
               gpiob: gpio@1000 {
                       gpio-controller;

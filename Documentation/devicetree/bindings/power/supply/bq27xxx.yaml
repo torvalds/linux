@@ -60,13 +60,11 @@ properties:
 
   monitored-battery:
     description: |
-       phandle of battery characteristics node.
        The fuel gauge uses the following battery properties:
        - energy-full-design-microwatt-hours
        - charge-full-design-microamp-hours
        - voltage-min-design-microvolt
        Both or neither of the *-full-design-*-hours properties must be set.
-       See Documentation/devicetree/bindings/power/supply/battery.yaml
 
   power-supplies: true
 
@@ -77,15 +75,16 @@ additionalProperties: false
 
 examples:
   - |
-    i2c0 {
+    bat: battery {
+      compatible = "simple-battery";
+      voltage-min-design-microvolt = <3200000>;
+      energy-full-design-microwatt-hours = <5290000>;
+      charge-full-design-microamp-hours = <1430000>;
+    };
+
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
-      bat: battery {
-        compatible = "simple-battery";
-        voltage-min-design-microvolt = <3200000>;
-        energy-full-design-microwatt-hours = <5290000>;
-        charge-full-design-microamp-hours = <1430000>;
-      };
 
       bq27510g3: fuel-gauge@55 {
         compatible = "ti,bq27510g3";

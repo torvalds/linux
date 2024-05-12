@@ -2,5 +2,7 @@
 /conf
 /conf.exe
 /[gmnq]conf
-/[gmnq]conf-cfg
+/[gmnq]conf-bin
+/[gmnq]conf-cflags
+/[gmnq]conf-libs
 /qconf-moc.cc

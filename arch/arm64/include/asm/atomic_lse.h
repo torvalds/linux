@@ -251,22 +251,15 @@ __lse__cmpxchg_case_##name##sz(volatile void *ptr,			\
 					      u##sz old,		\
 					      u##sz new)		\
 {									\
-	register unsigned long x0 asm ("x0") = (unsigned long)ptr;	\
-	register u##sz x1 asm ("x1") = old;				\
-	register u##sz x2 asm ("x2") = new;				\
-	unsigned long tmp;						\
-									\
 	asm volatile(							\
 	__LSE_PREAMBLE							\
-	"	mov	%" #w "[tmp], %" #w "[old]\n"			\
-	"	cas" #mb #sfx "\t%" #w "[tmp], %" #w "[new], %[v]\n"	\
-	"	mov	%" #w "[ret], %" #w "[tmp]"			\
-	: [ret] "+r" (x0), [v] "+Q" (*(u##sz *)ptr),			\
-	  [tmp] "=&r" (tmp)						\
-	: [old] "r" (x1), [new] "r" (x2)				\
+	"	cas" #mb #sfx "	%" #w "[old], %" #w "[new], %[v]\n"	\
+	: [v] "+Q" (*(u##sz *)ptr),					\
+	  [old] "+r" (old)						\
+	: [new] "rZ" (new)						\
 	: cl);								\
 									\
-	return x0;							\
+	return old;							\
 }
 
 __CMPXCHG_CASE(w, b,     ,  8,   )
@@ -311,7 +304,7 @@ __lse__cmpxchg_double##name(unsigned long old1,				\
 	"	eor	%[old2], %[old2], %[oldval2]\n"			\
 	"	orr	%[old1], %[old1], %[old2]"			\
 	: [old1] "+&r" (x0), [old2] "+&r" (x1),				\
-	  [v] "+Q" (*(unsigned long *)ptr)				\
+	  [v] "+Q" (*(__uint128_t *)ptr)				\
 	: [new1] "r" (x2), [new2] "r" (x3), [ptr] "r" (x4),		\
 	  [oldval1] "r" (oldval1), [oldval2] "r" (oldval2)		\
 	: cl);								\

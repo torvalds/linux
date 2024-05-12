@@ -9,7 +9,66 @@
 #include <soc/mscc/vsc7514_regs.h>
 #include "ocelot.h"
 
-const u32 vsc7514_ana_regmap[] = {
+const struct reg_field vsc7514_regfields[REGFIELD_MAX] = {
+	[ANA_ADVLEARN_VLAN_CHK] = REG_FIELD(ANA_ADVLEARN, 11, 11),
+	[ANA_ADVLEARN_LEARN_MIRROR] = REG_FIELD(ANA_ADVLEARN, 0, 10),
+	[ANA_ANEVENTS_MSTI_DROP] = REG_FIELD(ANA_ANEVENTS, 27, 27),
+	[ANA_ANEVENTS_ACLKILL] = REG_FIELD(ANA_ANEVENTS, 26, 26),
+	[ANA_ANEVENTS_ACLUSED] = REG_FIELD(ANA_ANEVENTS, 25, 25),
+	[ANA_ANEVENTS_AUTOAGE] = REG_FIELD(ANA_ANEVENTS, 24, 24),
+	[ANA_ANEVENTS_VS2TTL1] = REG_FIELD(ANA_ANEVENTS, 23, 23),
+	[ANA_ANEVENTS_STORM_DROP] = REG_FIELD(ANA_ANEVENTS, 22, 22),
+	[ANA_ANEVENTS_LEARN_DROP] = REG_FIELD(ANA_ANEVENTS, 21, 21),
+	[ANA_ANEVENTS_AGED_ENTRY] = REG_FIELD(ANA_ANEVENTS, 20, 20),
+	[ANA_ANEVENTS_CPU_LEARN_FAILED] = REG_FIELD(ANA_ANEVENTS, 19, 19),
+	[ANA_ANEVENTS_AUTO_LEARN_FAILED] = REG_FIELD(ANA_ANEVENTS, 18, 18),
+	[ANA_ANEVENTS_LEARN_REMOVE] = REG_FIELD(ANA_ANEVENTS, 17, 17),
+	[ANA_ANEVENTS_AUTO_LEARNED] = REG_FIELD(ANA_ANEVENTS, 16, 16),
+	[ANA_ANEVENTS_AUTO_MOVED] = REG_FIELD(ANA_ANEVENTS, 15, 15),
+	[ANA_ANEVENTS_DROPPED] = REG_FIELD(ANA_ANEVENTS, 14, 14),
+	[ANA_ANEVENTS_CLASSIFIED_DROP] = REG_FIELD(ANA_ANEVENTS, 13, 13),
+	[ANA_ANEVENTS_CLASSIFIED_COPY] = REG_FIELD(ANA_ANEVENTS, 12, 12),
+	[ANA_ANEVENTS_VLAN_DISCARD] = REG_FIELD(ANA_ANEVENTS, 11, 11),
+	[ANA_ANEVENTS_FWD_DISCARD] = REG_FIELD(ANA_ANEVENTS, 10, 10),
+	[ANA_ANEVENTS_MULTICAST_FLOOD] = REG_FIELD(ANA_ANEVENTS, 9, 9),
+	[ANA_ANEVENTS_UNICAST_FLOOD] = REG_FIELD(ANA_ANEVENTS, 8, 8),
+	[ANA_ANEVENTS_DEST_KNOWN] = REG_FIELD(ANA_ANEVENTS, 7, 7),
+	[ANA_ANEVENTS_BUCKET3_MATCH] = REG_FIELD(ANA_ANEVENTS, 6, 6),
+	[ANA_ANEVENTS_BUCKET2_MATCH] = REG_FIELD(ANA_ANEVENTS, 5, 5),
+	[ANA_ANEVENTS_BUCKET1_MATCH] = REG_FIELD(ANA_ANEVENTS, 4, 4),
+	[ANA_ANEVENTS_BUCKET0_MATCH] = REG_FIELD(ANA_ANEVENTS, 3, 3),
+	[ANA_ANEVENTS_CPU_OPERATION] = REG_FIELD(ANA_ANEVENTS, 2, 2),
+	[ANA_ANEVENTS_DMAC_LOOKUP] = REG_FIELD(ANA_ANEVENTS, 1, 1),
+	[ANA_ANEVENTS_SMAC_LOOKUP] = REG_FIELD(ANA_ANEVENTS, 0, 0),
+	[ANA_TABLES_MACACCESS_B_DOM] = REG_FIELD(ANA_TABLES_MACACCESS, 18, 18),
+	[ANA_TABLES_MACTINDX_BUCKET] = REG_FIELD(ANA_TABLES_MACTINDX, 10, 11),
+	[ANA_TABLES_MACTINDX_M_INDEX] = REG_FIELD(ANA_TABLES_MACTINDX, 0, 9),
+	[QSYS_TIMED_FRAME_ENTRY_TFRM_VLD] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 20, 20),
+	[QSYS_TIMED_FRAME_ENTRY_TFRM_FP] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 8, 19),
+	[QSYS_TIMED_FRAME_ENTRY_TFRM_PORTNO] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 4, 7),
+	[QSYS_TIMED_FRAME_ENTRY_TFRM_TM_SEL] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 1, 3),
+	[QSYS_TIMED_FRAME_ENTRY_TFRM_TM_T] = REG_FIELD(QSYS_TIMED_FRAME_ENTRY, 0, 0),
+	[SYS_RESET_CFG_CORE_ENA] = REG_FIELD(SYS_RESET_CFG, 2, 2),
+	[SYS_RESET_CFG_MEM_ENA] = REG_FIELD(SYS_RESET_CFG, 1, 1),
+	[SYS_RESET_CFG_MEM_INIT] = REG_FIELD(SYS_RESET_CFG, 0, 0),
+	/* Replicated per number of ports (12), register size 4 per port */
+	[QSYS_SWITCH_PORT_MODE_PORT_ENA] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 14, 14, 12, 4),
+	[QSYS_SWITCH_PORT_MODE_SCH_NEXT_CFG] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 11, 13, 12, 4),
+	[QSYS_SWITCH_PORT_MODE_YEL_RSRVD] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 10, 10, 12, 4),
+	[QSYS_SWITCH_PORT_MODE_INGRESS_DROP_MODE] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 9, 9, 12, 4),
+	[QSYS_SWITCH_PORT_MODE_TX_PFC_ENA] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 1, 8, 12, 4),
+	[QSYS_SWITCH_PORT_MODE_TX_PFC_MODE] = REG_FIELD_ID(QSYS_SWITCH_PORT_MODE, 0, 0, 12, 4),
+	[SYS_PORT_MODE_DATA_WO_TS] = REG_FIELD_ID(SYS_PORT_MODE, 5, 6, 12, 4),
+	[SYS_PORT_MODE_INCL_INJ_HDR] = REG_FIELD_ID(SYS_PORT_MODE, 3, 4, 12, 4),
+	[SYS_PORT_MODE_INCL_XTR_HDR] = REG_FIELD_ID(SYS_PORT_MODE, 1, 2, 12, 4),
+	[SYS_PORT_MODE_INCL_HDR_ERR] = REG_FIELD_ID(SYS_PORT_MODE, 0, 0, 12, 4),
+	[SYS_PAUSE_CFG_PAUSE_START] = REG_FIELD_ID(SYS_PAUSE_CFG, 10, 18, 12, 4),
+	[SYS_PAUSE_CFG_PAUSE_STOP] = REG_FIELD_ID(SYS_PAUSE_CFG, 1, 9, 12, 4),
+	[SYS_PAUSE_CFG_PAUSE_ENA] = REG_FIELD_ID(SYS_PAUSE_CFG, 0, 1, 12, 4),
+};
+EXPORT_SYMBOL(vsc7514_regfields);
+
+static const u32 vsc7514_ana_regmap[] = {
 	REG(ANA_ADVLEARN,				0x009000),
 	REG(ANA_VLANMASK,				0x009004),
 	REG(ANA_PORT_B_DOMAIN,				0x009008),
@@ -89,9 +148,8 @@ const u32 vsc7514_ana_regmap[] = {
 	REG(ANA_POL_HYST,				0x008bec),
 	REG(ANA_POL_MISC_CFG,				0x008bf0),
 };
-EXPORT_SYMBOL(vsc7514_ana_regmap);
 
-const u32 vsc7514_qs_regmap[] = {
+static const u32 vsc7514_qs_regmap[] = {
 	REG(QS_XTR_GRP_CFG,				0x000000),
 	REG(QS_XTR_RD,					0x000008),
 	REG(QS_XTR_FRM_PRUNING,				0x000010),
@@ -105,9 +163,8 @@ const u32 vsc7514_qs_regmap[] = {
 	REG(QS_INJ_ERR,					0x000040),
 	REG(QS_INH_DBG,					0x000048),
 };
-EXPORT_SYMBOL(vsc7514_qs_regmap);
 
-const u32 vsc7514_qsys_regmap[] = {
+static const u32 vsc7514_qsys_regmap[] = {
 	REG(QSYS_PORT_MODE,				0x011200),
 	REG(QSYS_SWITCH_PORT_MODE,			0x011234),
 	REG(QSYS_STAT_CNT_CFG,				0x011264),
@@ -150,9 +207,8 @@ const u32 vsc7514_qsys_regmap[] = {
 	REG(QSYS_SE_STATE,				0x00004c),
 	REG(QSYS_HSCH_MISC_CFG,				0x011388),
 };
-EXPORT_SYMBOL(vsc7514_qsys_regmap);
 
-const u32 vsc7514_rew_regmap[] = {
+static const u32 vsc7514_rew_regmap[] = {
 	REG(REW_PORT_VLAN_CFG,				0x000000),
 	REG(REW_TAG_CFG,				0x000004),
 	REG(REW_PORT_CFG,				0x000008),
@@ -165,9 +221,8 @@ const u32 vsc7514_rew_regmap[] = {
 	REG(REW_STAT_CFG,				0x000890),
 	REG(REW_PPT,					0x000680),
 };
-EXPORT_SYMBOL(vsc7514_rew_regmap);
 
-const u32 vsc7514_sys_regmap[] = {
+static const u32 vsc7514_sys_regmap[] = {
 	REG(SYS_COUNT_RX_OCTETS,			0x000000),
 	REG(SYS_COUNT_RX_UNICAST,			0x000004),
 	REG(SYS_COUNT_RX_MULTICAST,			0x000008),
@@ -252,15 +307,15 @@ const u32 vsc7514_sys_regmap[] = {
 	REG(SYS_COUNT_DROP_YELLOW_PRIO_4,		0x000218),
 	REG(SYS_COUNT_DROP_YELLOW_PRIO_5,		0x00021c),
 	REG(SYS_COUNT_DROP_YELLOW_PRIO_6,		0x000220),
-	REG(SYS_COUNT_DROP_YELLOW_PRIO_7,		0x000214),
-	REG(SYS_COUNT_DROP_GREEN_PRIO_0,		0x000218),
-	REG(SYS_COUNT_DROP_GREEN_PRIO_1,		0x00021c),
-	REG(SYS_COUNT_DROP_GREEN_PRIO_2,		0x000220),
-	REG(SYS_COUNT_DROP_GREEN_PRIO_3,		0x000224),
-	REG(SYS_COUNT_DROP_GREEN_PRIO_4,		0x000228),
-	REG(SYS_COUNT_DROP_GREEN_PRIO_5,		0x00022c),
-	REG(SYS_COUNT_DROP_GREEN_PRIO_6,		0x000230),
-	REG(SYS_COUNT_DROP_GREEN_PRIO_7,		0x000234),
+	REG(SYS_COUNT_DROP_YELLOW_PRIO_7,		0x000224),
+	REG(SYS_COUNT_DROP_GREEN_PRIO_0,		0x000228),
+	REG(SYS_COUNT_DROP_GREEN_PRIO_1,		0x00022c),
+	REG(SYS_COUNT_DROP_GREEN_PRIO_2,		0x000230),
+	REG(SYS_COUNT_DROP_GREEN_PRIO_3,		0x000234),
+	REG(SYS_COUNT_DROP_GREEN_PRIO_4,		0x000238),
+	REG(SYS_COUNT_DROP_GREEN_PRIO_5,		0x00023c),
+	REG(SYS_COUNT_DROP_GREEN_PRIO_6,		0x000240),
+	REG(SYS_COUNT_DROP_GREEN_PRIO_7,		0x000244),
 	REG(SYS_RESET_CFG,				0x000508),
 	REG(SYS_CMID,					0x00050c),
 	REG(SYS_VLAN_ETYPE_CFG,				0x000510),
@@ -288,9 +343,8 @@ const u32 vsc7514_sys_regmap[] = {
 	REG(SYS_PTP_NXT,				0x0006c0),
 	REG(SYS_PTP_CFG,				0x0006c4),
 };
-EXPORT_SYMBOL(vsc7514_sys_regmap);
 
-const u32 vsc7514_vcap_regmap[] = {
+static const u32 vsc7514_vcap_regmap[] = {
 	/* VCAP_CORE_CFG */
 	REG(VCAP_CORE_UPDATE_CTRL,			0x000000),
 	REG(VCAP_CORE_MV_CFG,				0x000004),
@@ -312,9 +366,8 @@ const u32 vsc7514_vcap_regmap[] = {
 	REG(VCAP_CONST_CORE_CNT,			0x0003b8),
 	REG(VCAP_CONST_IF_CNT,				0x0003bc),
 };
-EXPORT_SYMBOL(vsc7514_vcap_regmap);
 
-const u32 vsc7514_ptp_regmap[] = {
+static const u32 vsc7514_ptp_regmap[] = {
 	REG(PTP_PIN_CFG,				0x000000),
 	REG(PTP_PIN_TOD_SEC_MSB,			0x000004),
 	REG(PTP_PIN_TOD_SEC_LSB,			0x000008),
@@ -325,9 +378,8 @@ const u32 vsc7514_ptp_regmap[] = {
 	REG(PTP_CLK_CFG_ADJ_CFG,			0x0000a4),
 	REG(PTP_CLK_CFG_ADJ_FREQ,			0x0000a8),
 };
-EXPORT_SYMBOL(vsc7514_ptp_regmap);
 
-const u32 vsc7514_dev_gmii_regmap[] = {
+static const u32 vsc7514_dev_gmii_regmap[] = {
 	REG(DEV_CLOCK_CFG,				0x0),
 	REG(DEV_PORT_MISC,				0x4),
 	REG(DEV_EVENTS,					0x8),
@@ -368,9 +420,22 @@ const u32 vsc7514_dev_gmii_regmap[] = {
 	REG(DEV_PCS_FX100_CFG,				0x94),
 	REG(DEV_PCS_FX100_STATUS,			0x98),
 };
-EXPORT_SYMBOL(vsc7514_dev_gmii_regmap);
 
-const struct vcap_field vsc7514_vcap_es0_keys[] = {
+const u32 *vsc7514_regmap[TARGET_MAX] = {
+	[ANA] = vsc7514_ana_regmap,
+	[QS] = vsc7514_qs_regmap,
+	[QSYS] = vsc7514_qsys_regmap,
+	[REW] = vsc7514_rew_regmap,
+	[SYS] = vsc7514_sys_regmap,
+	[S0] = vsc7514_vcap_regmap,
+	[S1] = vsc7514_vcap_regmap,
+	[S2] = vsc7514_vcap_regmap,
+	[PTP] = vsc7514_ptp_regmap,
+	[DEV_GMII] = vsc7514_dev_gmii_regmap,
+};
+EXPORT_SYMBOL(vsc7514_regmap);
+
+static const struct vcap_field vsc7514_vcap_es0_keys[] = {
 	[VCAP_ES0_EGR_PORT]			= { 0,   4 },
 	[VCAP_ES0_IGR_PORT]			= { 4,   4 },
 	[VCAP_ES0_RSV]				= { 8,   2 },
@@ -380,9 +445,8 @@ const struct vcap_field vsc7514_vcap_es0_keys[] = {
 	[VCAP_ES0_DP]				= { 24,  1 },
 	[VCAP_ES0_PCP]				= { 25,  3 },
 };
-EXPORT_SYMBOL(vsc7514_vcap_es0_keys);
 
-const struct vcap_field vsc7514_vcap_es0_actions[]   = {
+static const struct vcap_field vsc7514_vcap_es0_actions[]   = {
 	[VCAP_ES0_ACT_PUSH_OUTER_TAG]		= { 0,   2 },
 	[VCAP_ES0_ACT_PUSH_INNER_TAG]		= { 2,   1 },
 	[VCAP_ES0_ACT_TAG_A_TPID_SEL]		= { 3,   2 },
@@ -402,9 +466,8 @@ const struct vcap_field vsc7514_vcap_es0_actions[]   = {
 	[VCAP_ES0_ACT_RSV]			= { 49, 24 },
 	[VCAP_ES0_ACT_HIT_STICKY]		= { 73,  1 },
 };
-EXPORT_SYMBOL(vsc7514_vcap_es0_actions);
 
-const struct vcap_field vsc7514_vcap_is1_keys[] = {
+static const struct vcap_field vsc7514_vcap_is1_keys[] = {
 	[VCAP_IS1_HK_TYPE]			= { 0,    1 },
 	[VCAP_IS1_HK_LOOKUP]			= { 1,    2 },
 	[VCAP_IS1_HK_IGR_PORT_MASK]		= { 3,   12 },
@@ -454,9 +517,8 @@ const struct vcap_field vsc7514_vcap_is1_keys[] = {
 	[VCAP_IS1_HK_IP4_L4_RNG]		= { 148,  8 },
 	[VCAP_IS1_HK_IP4_IP_PAYLOAD_S1_5TUPLE]	= { 156, 32 },
 };
-EXPORT_SYMBOL(vsc7514_vcap_is1_keys);
 
-const struct vcap_field vsc7514_vcap_is1_actions[] = {
+static const struct vcap_field vsc7514_vcap_is1_actions[] = {
 	[VCAP_IS1_ACT_DSCP_ENA]			= { 0,   1 },
 	[VCAP_IS1_ACT_DSCP_VAL]			= { 1,   6 },
 	[VCAP_IS1_ACT_QOS_ENA]			= { 7,   1 },
@@ -479,9 +541,8 @@ const struct vcap_field vsc7514_vcap_is1_actions[] = {
 	[VCAP_IS1_ACT_CUSTOM_ACE_TYPE_ENA]	= { 74,  4 },
 	[VCAP_IS1_ACT_HIT_STICKY]		= { 78,  1 },
 };
-EXPORT_SYMBOL(vsc7514_vcap_is1_actions);
 
-const struct vcap_field vsc7514_vcap_is2_keys[] = {
+static const struct vcap_field vsc7514_vcap_is2_keys[] = {
 	/* Common: 46 bits */
 	[VCAP_IS2_TYPE]				= { 0,    4 },
 	[VCAP_IS2_HK_FIRST]			= { 4,    1 },
@@ -560,9 +621,8 @@ const struct vcap_field vsc7514_vcap_is2_keys[] = {
 	[VCAP_IS2_HK_OAM_CCM_CNTS_EQ0]		= { 186,  1 },
 	[VCAP_IS2_HK_OAM_IS_Y1731]		= { 187,  1 },
 };
-EXPORT_SYMBOL(vsc7514_vcap_is2_keys);
 
-const struct vcap_field vsc7514_vcap_is2_actions[] = {
+static const struct vcap_field vsc7514_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_HIT_ME_ONCE]		= { 0,   1 },
 	[VCAP_IS2_ACT_CPU_COPY_ENA]		= { 1,   1 },
 	[VCAP_IS2_ACT_CPU_QU_NUM]		= { 2,   3 },
@@ -579,4 +639,47 @@ const struct vcap_field vsc7514_vcap_is2_actions[] = {
 	[VCAP_IS2_ACT_ACL_ID]			= { 43,  6 },
 	[VCAP_IS2_ACT_HIT_CNT]			= { 49, 32 },
 };
-EXPORT_SYMBOL(vsc7514_vcap_is2_actions);
+
+struct vcap_props vsc7514_vcap_props[] = {
+	[VCAP_ES0] = {
+		.action_type_width = 0,
+		.action_table = {
+			[ES0_ACTION_TYPE_NORMAL] = {
+				.width = 73, /* HIT_STICKY not included */
+				.count = 1,
+			},
+		},
+		.target = S0,
+		.keys = vsc7514_vcap_es0_keys,
+		.actions = vsc7514_vcap_es0_actions,
+	},
+	[VCAP_IS1] = {
+		.action_type_width = 0,
+		.action_table = {
+			[IS1_ACTION_TYPE_NORMAL] = {
+				.width = 78, /* HIT_STICKY not included */
+				.count = 4,
+			},
+		},
+		.target = S1,
+		.keys = vsc7514_vcap_is1_keys,
+		.actions = vsc7514_vcap_is1_actions,
+	},
+	[VCAP_IS2] = {
+		.action_type_width = 1,
+		.action_table = {
+			[IS2_ACTION_TYPE_NORMAL] = {
+				.width = 49,
+				.count = 2
+			},
+			[IS2_ACTION_TYPE_SMAC_SIP] = {
+				.width = 6,
+				.count = 4
+			},
+		},
+		.target = S2,
+		.keys = vsc7514_vcap_is2_keys,
+		.actions = vsc7514_vcap_is2_actions,
+	},
+};
+EXPORT_SYMBOL(vsc7514_vcap_props);

@@ -306,7 +306,7 @@ static int bw2_probe(struct platform_device *op)
 	if (!par->regs)
 		goto out_release_fb;
 
-	if (!of_find_property(dp, "width", NULL)) {
+	if (!of_property_present(dp, "width")) {
 		err = bw2_do_default_mode(par, info, &linebytes);
 		if (err)
 			goto out_unmap_regs;
@@ -352,7 +352,7 @@ out_err:
 	return err;
 }
 
-static int bw2_remove(struct platform_device *op)
+static void bw2_remove(struct platform_device *op)
 {
 	struct fb_info *info = dev_get_drvdata(&op->dev);
 	struct bw2_par *par = info->par;
@@ -363,8 +363,6 @@ static int bw2_remove(struct platform_device *op)
 	of_iounmap(&op->resource[0], info->screen_base, info->fix.smem_len);
 
 	framebuffer_release(info);
-
-	return 0;
 }
 
 static const struct of_device_id bw2_match[] = {
@@ -381,7 +379,7 @@ static struct platform_driver bw2_driver = {
 		.of_match_table = bw2_match,
 	},
 	.probe		= bw2_probe,
-	.remove		= bw2_remove,
+	.remove_new	= bw2_remove,
 };
 
 static int __init bw2_init(void)

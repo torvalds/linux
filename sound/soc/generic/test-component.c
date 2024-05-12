@@ -635,11 +635,9 @@ static int test_driver_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int test_driver_remove(struct platform_device *pdev)
+static void test_driver_remove(struct platform_device *pdev)
 {
 	mile_stone_x(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver test_driver = {
@@ -648,7 +646,7 @@ static struct platform_driver test_driver = {
 		.of_match_table = test_of_match,
 	},
 	.probe  = test_driver_probe,
-	.remove = test_driver_remove,
+	.remove_new = test_driver_remove,
 };
 module_platform_driver(test_driver);
 

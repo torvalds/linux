@@ -47,6 +47,8 @@
 #define PLLM_STORE_MASK			(1 << 1)
 #define PLLP_STORE_MASK			(1 << 2)
 
+.arch armv7-a
+
 .macro test_pll_state, rd, test_mask
 	ldr	\rd, tegra_pll_state
 	tst	\rd, #\test_mask

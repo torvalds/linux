@@ -201,7 +201,7 @@ PWM
 		Pulse width modulation fan control.
 
 `pwm[1-*]_enable`
-		Fan speed control method:
+		Fan speed control method.
 
 `pwm[1-*]_mode`
 		direct current or pulse-width modulation.

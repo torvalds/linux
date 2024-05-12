@@ -7,10 +7,26 @@
 #include <asm/processor.h>
 #include <asm/spinlock_types.h>
 
+#define SPINLOCK_BREAK_INSN	0x0000c006	/* break 6,6 */
+
+static inline void arch_spin_val_check(int lock_val)
+{
+	if (IS_ENABLED(CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK))
+		asm volatile(	"andcm,= %0,%1,%%r0\n"
+				".word %2\n"
+		: : "r" (lock_val), "r" (__ARCH_SPIN_LOCK_UNLOCKED_VAL),
+			"i" (SPINLOCK_BREAK_INSN));
+}
+
 static inline int arch_spin_is_locked(arch_spinlock_t *x)
 {
-	volatile unsigned int *a = __ldcw_align(x);
-	return READ_ONCE(*a) == 0;
+	volatile unsigned int *a;
+	int lock_val;
+
+	a = __ldcw_align(x);
+	lock_val = READ_ONCE(*a);
+	arch_spin_val_check(lock_val);
+	return (lock_val == 0);
 }
 
 static inline void arch_spin_lock(arch_spinlock_t *x)
@@ -18,9 +34,18 @@ static inline void arch_spin_lock(arch_spinlock_t *x)
 	volatile unsigned int *a;
 
 	a = __ldcw_align(x);
-	while (__ldcw(a) == 0)
+	do {
+		int lock_val_old;
+
+		lock_val_old = __ldcw(a);
+		arch_spin_val_check(lock_val_old);
+		if (lock_val_old)
+			return;	/* got lock */
+
+		/* wait until we should try to get lock again */
 		while (*a == 0)
 			continue;
+	} while (1);
 }
 
 static inline void arch_spin_unlock(arch_spinlock_t *x)
@@ -29,15 +54,19 @@ static inline void arch_spin_unlock(arch_spinlock_t *x)
 
 	a = __ldcw_align(x);
 	/* Release with ordered store. */
-	__asm__ __volatile__("stw,ma %0,0(%1)" : : "r"(1), "r"(a) : "memory");
+	__asm__ __volatile__("stw,ma %0,0(%1)"
+		: : "r"(__ARCH_SPIN_LOCK_UNLOCKED_VAL), "r"(a) : "memory");
 }
 
 static inline int arch_spin_trylock(arch_spinlock_t *x)
 {
 	volatile unsigned int *a;
+	int lock_val;
 
 	a = __ldcw_align(x);
-	return __ldcw(a) != 0;
+	lock_val = __ldcw(a);
+	arch_spin_val_check(lock_val);
+	return lock_val != 0;
 }
 
 /*

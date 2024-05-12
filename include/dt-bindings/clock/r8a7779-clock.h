@@ -19,6 +19,7 @@
 #define R8A7779_CLK_OUT		7
 
 /* MSTP 0 */
+#define R8A7779_CLK_PWM		5
 #define R8A7779_CLK_HSPI	7
 #define R8A7779_CLK_TMU2	14
 #define R8A7779_CLK_TMU1	15

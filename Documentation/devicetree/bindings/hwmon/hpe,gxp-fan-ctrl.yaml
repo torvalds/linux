@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/hpe,gxp-fan-ctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HPE GXP Fan Controller
+
+maintainers:
+  - Nick Hawkins <nick.hawkins@hpe.com>
+
+description: |
+  The HPE GXP fan controller controls the fans through an external CPLD
+  device that connects to the fans.
+
+properties:
+  compatible:
+    const: hpe,gxp-fan-ctrl
+
+  reg:
+    items:
+      - description: Fan controller PWM
+      - description: Programmable logic
+      - description: Function 2
+
+  reg-names:
+    items:
+      - const: base
+      - const: pl
+      - const: fn2
+
+required:
+  - compatible
+  - reg
+  - reg-names
+
+additionalProperties: false
+
+examples:
+  - |
+    fan-controller@1000c00 {
+      compatible = "hpe,gxp-fan-ctrl";
+      reg = <0x1000c00 0x200>, <0xd1000000 0xff>, <0x80200000 0x100000>;
+      reg-names = "base", "pl", "fn2";
+    };

@@ -17,24 +17,12 @@
 #include "class.h"
 #include "retimer.h"
 
-static bool dev_name_ends_with(struct device *dev, const char *suffix)
-{
-	const char *name = dev_name(dev);
-	const int name_len = strlen(name);
-	const int suffix_len = strlen(suffix);
-
-	if (suffix_len > name_len)
-		return false;
-
-	return strcmp(name + (name_len - suffix_len), suffix) == 0;
-}
-
 static int retimer_fwnode_match(struct device *dev, const void *fwnode)
 {
-	return device_match_fwnode(dev, fwnode) && dev_name_ends_with(dev, "-retimer");
+	return is_typec_retimer(dev) && device_match_fwnode(dev, fwnode);
 }
 
-static void *typec_retimer_match(struct fwnode_handle *fwnode, const char *id, void *data)
+static void *typec_retimer_match(const struct fwnode_handle *fwnode, const char *id, void *data)
 {
 	struct device *dev;
 
@@ -97,7 +85,7 @@ static void typec_retimer_release(struct device *dev)
 	kfree(to_typec_retimer(dev));
 }
 
-static const struct device_type typec_retimer_dev_type = {
+const struct device_type typec_retimer_dev_type = {
 	.name = "typec_retimer",
 	.release = typec_retimer_release,
 };
@@ -169,5 +157,4 @@ EXPORT_SYMBOL_GPL(typec_retimer_get_drvdata);
 
 struct class retimer_class = {
 	.name = "retimer",
-	.owner = THIS_MODULE,
 };

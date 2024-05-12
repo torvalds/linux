@@ -94,7 +94,7 @@ static int mt7615_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	mt76_for_each_q_rx(mdev, i) {
 		napi_disable(&mdev->napi[i]);
 	}
-	tasklet_kill(&dev->irq_tasklet);
+	tasklet_kill(&mdev->irq_tasklet);
 
 	mt7615_dma_reset(dev);
 

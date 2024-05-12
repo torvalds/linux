@@ -206,14 +206,12 @@ put_codec_of_node:
 	return ret;
 }
 
-static int snd_rk_mc_remove(struct platform_device *pdev)
+static void snd_rk_mc_remove(struct platform_device *pdev)
 {
 	of_node_put(rk_dailink.cpus->of_node);
 	rk_dailink.cpus->of_node = NULL;
 	of_node_put(rk_dailink.codecs->of_node);
 	rk_dailink.codecs->of_node = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id rockchip_rt5645_of_match[] = {
@@ -225,7 +223,7 @@ MODULE_DEVICE_TABLE(of, rockchip_rt5645_of_match);
 
 static struct platform_driver snd_rk_mc_driver = {
 	.probe = snd_rk_mc_probe,
-	.remove = snd_rk_mc_remove,
+	.remove_new = snd_rk_mc_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &snd_soc_pm_ops,

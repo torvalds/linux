@@ -75,8 +75,9 @@ void show_registers(struct pt_regs *regs)
 		in_kernel = 0;
 
 	printk("CPU #: %d\n"
-	       "   PC: %08lx    SR: %08lx    SP: %08lx\n",
-	       smp_processor_id(), regs->pc, regs->sr, regs->sp);
+	       "   PC: %08lx    SR: %08lx    SP: %08lx FPCSR: %08lx\n",
+	       smp_processor_id(), regs->pc, regs->sr, regs->sp,
+	       regs->fpcsr);
 	printk("GPR00: %08lx GPR01: %08lx GPR02: %08lx GPR03: %08lx\n",
 	       0L, regs->gpr[1], regs->gpr[2], regs->gpr[3]);
 	printk("GPR04: %08lx GPR05: %08lx GPR06: %08lx GPR07: %08lx\n",
@@ -240,6 +241,28 @@ asmlinkage void unhandled_exception(struct pt_regs *regs, int ea, int vector)
 	printk("Unable to handle exception at EA =0x%x, vector 0x%x",
 	       ea, vector);
 	die("Oops", regs, 9);
+}
+
+asmlinkage void do_fpe_trap(struct pt_regs *regs, unsigned long address)
+{
+	int code = FPE_FLTUNK;
+	unsigned long fpcsr = regs->fpcsr;
+
+	if (fpcsr & SPR_FPCSR_IVF)
+		code = FPE_FLTINV;
+	else if (fpcsr & SPR_FPCSR_OVF)
+		code = FPE_FLTOVF;
+	else if (fpcsr & SPR_FPCSR_UNF)
+		code = FPE_FLTUND;
+	else if (fpcsr & SPR_FPCSR_DZF)
+		code = FPE_FLTDIV;
+	else if (fpcsr & SPR_FPCSR_IXF)
+		code = FPE_FLTRES;
+
+	/* Clear all flags */
+	regs->fpcsr &= ~SPR_FPCSR_ALLF;
+
+	force_sig_fault(SIGFPE, code, (void __user *)regs->pc);
 }
 
 asmlinkage void do_trap(struct pt_regs *regs, unsigned long address)

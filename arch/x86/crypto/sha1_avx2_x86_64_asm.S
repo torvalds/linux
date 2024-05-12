@@ -485,18 +485,18 @@
 	xchg	WK_BUF, PRECALC_BUF
 
 	.align 32
-_loop:
+.L_loop:
 	/*
 	 * code loops through more than one block
 	 * we use K_BASE value as a signal of a last block,
 	 * it is set below by: cmovae BUFFER_PTR, K_BASE
 	 */
 	test BLOCKS_CTR, BLOCKS_CTR
-	jnz _begin
+	jnz .L_begin
 	.align 32
-	jmp	_end
+	jmp	.L_end
 	.align 32
-_begin:
+.L_begin:
 
 	/*
 	 * Do first block
@@ -507,9 +507,6 @@ _begin:
 		RR	j
 		.set j, j+2
 	.endr
-
-	jmp _loop0
-_loop0:
 
 	/*
 	 * rounds:
@@ -545,7 +542,7 @@ _loop0:
 	UPDATE_HASH	16(HASH_PTR), E
 
 	test	BLOCKS_CTR, BLOCKS_CTR
-	jz	_loop
+	jz	.L_loop
 
 	mov	TB, B
 
@@ -562,8 +559,6 @@ _loop0:
 		.set j, j+2
 	.endr
 
-	jmp	_loop1
-_loop1:
 	/*
 	 * rounds
 	 * 20+80,22+80,24+80,26+80,28+80
@@ -573,9 +568,6 @@ _loop1:
 		RR	j+80
 		.set j, j+2
 	.endr
-
-	jmp	_loop2
-_loop2:
 
 	/*
 	 * rounds
@@ -591,9 +583,6 @@ _loop2:
 	sub     $1, BLOCKS_CTR
 	/* Move to the next block only if needed*/
 	ADD_IF_GE BUFFER_PTR2, BLOCKS_CTR, 4, 128
-
-	jmp	_loop3
-_loop3:
 
 	/*
 	 * rounds
@@ -623,10 +612,10 @@ _loop3:
 
 	xchg	WK_BUF, PRECALC_BUF
 
-	jmp	_loop
+	jmp	.L_loop
 
 	.align 32
-	_end:
+.L_end:
 
 .endm
 /*

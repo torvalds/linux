@@ -54,10 +54,6 @@ nouveau-y += nouveau_bios.o
 nouveau-y += nouveau_connector.o
 nouveau-y += nouveau_display.o
 nouveau-y += nouveau_dp.o
-nouveau-y += nouveau_fbcon.o
-nouveau-y += nv04_fbcon.o
-nouveau-y += nv50_fbcon.o
-nouveau-y += nvc0_fbcon.o
 include $(src)/dispnv04/Kbuild
 include $(src)/dispnv50/Kbuild
 

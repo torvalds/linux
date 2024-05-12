@@ -70,6 +70,7 @@ struct rv8803_data {
 	struct mutex flags_lock;
 	u8 ctrl;
 	u8 backup;
+	u8 alarm_invalid:1;
 	enum rv8803_type type;
 };
 
@@ -165,13 +166,13 @@ static int rv8803_regs_init(struct rv8803_data *rv8803)
 
 static int rv8803_regs_configure(struct rv8803_data *rv8803);
 
-static int rv8803_regs_reset(struct rv8803_data *rv8803)
+static int rv8803_regs_reset(struct rv8803_data *rv8803, bool full)
 {
 	/*
 	 * The RV-8803 resets all registers to POR defaults after voltage-loss,
 	 * the Epson RTCs don't, so we manually reset the remainder here.
 	 */
-	if (rv8803->type == rx_8803 || rv8803->type == rx_8900) {
+	if (full || rv8803->type == rx_8803 || rv8803->type == rx_8900) {
 		int ret = rv8803_regs_init(rv8803);
 		if (ret)
 			return ret;
@@ -237,6 +238,11 @@ static int rv8803_get_time(struct device *dev, struct rtc_time *tm)
 	u8 date2[7];
 	u8 *date = date1;
 	int ret, flags;
+
+	if (rv8803->alarm_invalid) {
+		dev_warn(dev, "Corruption detected, data may be invalid.\n");
+		return -EINVAL;
+	}
 
 	flags = rv8803_read_reg(rv8803->client, RV8803_FLAG);
 	if (flags < 0)
@@ -313,12 +319,19 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 		return flags;
 	}
 
-	if (flags & RV8803_FLAG_V2F) {
-		ret = rv8803_regs_reset(rv8803);
+	if ((flags & RV8803_FLAG_V2F) || rv8803->alarm_invalid) {
+		/*
+		 * If we sense corruption in the alarm registers, but see no
+		 * voltage loss flag, we can't rely on other registers having
+		 * sensible values. Reset them fully.
+		 */
+		ret = rv8803_regs_reset(rv8803, rv8803->alarm_invalid);
 		if (ret) {
 			mutex_unlock(&rv8803->flags_lock);
 			return ret;
 		}
+
+		rv8803->alarm_invalid = false;
 	}
 
 	ret = rv8803_write_reg(rv8803->client, RV8803_FLAG,
@@ -344,15 +357,33 @@ static int rv8803_get_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (flags < 0)
 		return flags;
 
+	alarmvals[0] &= 0x7f;
+	alarmvals[1] &= 0x3f;
+	alarmvals[2] &= 0x3f;
+
+	if (!bcd_is_valid(alarmvals[0]) ||
+	    !bcd_is_valid(alarmvals[1]) ||
+	    !bcd_is_valid(alarmvals[2]))
+		goto err_invalid;
+
 	alrm->time.tm_sec  = 0;
-	alrm->time.tm_min  = bcd2bin(alarmvals[0] & 0x7f);
-	alrm->time.tm_hour = bcd2bin(alarmvals[1] & 0x3f);
-	alrm->time.tm_mday = bcd2bin(alarmvals[2] & 0x3f);
+	alrm->time.tm_min  = bcd2bin(alarmvals[0]);
+	alrm->time.tm_hour = bcd2bin(alarmvals[1]);
+	alrm->time.tm_mday = bcd2bin(alarmvals[2]);
 
 	alrm->enabled = !!(rv8803->ctrl & RV8803_CTRL_AIE);
 	alrm->pending = (flags & RV8803_FLAG_AF) && alrm->enabled;
 
+	if ((unsigned int)alrm->time.tm_mday > 31 ||
+	    (unsigned int)alrm->time.tm_hour >= 24 ||
+	    (unsigned int)alrm->time.tm_min >= 60)
+		goto err_invalid;
+
 	return 0;
+
+err_invalid:
+	rv8803->alarm_invalid = true;
+	return -EINVAL;
 }
 
 static int rv8803_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -576,8 +607,16 @@ static int rv8803_regs_configure(struct rv8803_data *rv8803)
 	return 0;
 }
 
-static int rv8803_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static const struct i2c_device_id rv8803_id[] = {
+	{ "rv8803", rv_8803 },
+	{ "rv8804", rx_8804 },
+	{ "rx8803", rx_8803 },
+	{ "rx8900", rx_8900 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, rv8803_id);
+
+static int rv8803_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct rv8803_data *rv8803;
@@ -605,11 +644,14 @@ static int rv8803_probe(struct i2c_client *client,
 
 	mutex_init(&rv8803->flags_lock);
 	rv8803->client = client;
-	if (client->dev.of_node)
+	if (client->dev.of_node) {
 		rv8803->type = (enum rv8803_type)
 			of_device_get_match_data(&client->dev);
-	else
+	} else {
+		const struct i2c_device_id *id = i2c_match_id(rv8803_id, client);
+
 		rv8803->type = id->driver_data;
+	}
 	i2c_set_clientdata(client, rv8803);
 
 	flags = rv8803_read_reg(client, RV8803_FLAG);
@@ -630,9 +672,14 @@ static int rv8803_probe(struct i2c_client *client,
 		return PTR_ERR(rv8803->rtc);
 
 	if (client->irq > 0) {
+		unsigned long irqflags = IRQF_TRIGGER_LOW;
+
+		if (dev_fwnode(&client->dev))
+			irqflags = 0;
+
 		err = devm_request_threaded_irq(&client->dev, client->irq,
 						NULL, rv8803_handle_irq,
-						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+						irqflags | IRQF_ONESHOT,
 						"rv8803", client);
 		if (err) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
@@ -666,15 +713,6 @@ static int rv8803_probe(struct i2c_client *client,
 	return 0;
 }
 
-static const struct i2c_device_id rv8803_id[] = {
-	{ "rv8803", rv_8803 },
-	{ "rv8804", rx_8804 },
-	{ "rx8803", rx_8803 },
-	{ "rx8900", rx_8900 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, rv8803_id);
-
 static const __maybe_unused struct of_device_id rv8803_of_match[] = {
 	{
 		.compatible = "microcrystal,rv8803",
@@ -701,7 +739,7 @@ static struct i2c_driver rv8803_driver = {
 		.name = "rtc-rv8803",
 		.of_match_table = of_match_ptr(rv8803_of_match),
 	},
-	.probe		= rv8803_probe,
+	.probe_new	= rv8803_probe,
 	.id_table	= rv8803_id,
 };
 module_i2c_driver(rv8803_driver);

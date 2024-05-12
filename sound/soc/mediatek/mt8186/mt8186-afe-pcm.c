@@ -2395,6 +2395,7 @@ static bool mt8186_is_volatile_reg(struct device *dev, unsigned int reg)
 	case AUDIO_TOP_CON1:	/* reg bit controlled by CCF */
 	case AUDIO_TOP_CON2:
 	case AUDIO_TOP_CON3:
+	case AFE_DAC_CON0:
 	case AFE_DL1_CUR_MSB:
 	case AFE_DL1_CUR:
 	case AFE_DL1_END:
@@ -2846,10 +2847,6 @@ static int mt8186_afe_pcm_dev_probe(struct platform_device *pdev)
 		dev_err(dev, "init clock error, ret %d\n", ret);
 		return ret;
 	}
-
-	ret = devm_add_action_or_reset(dev, mt8186_deinit_clock, (void *)afe);
-	if (ret)
-		return ret;
 
 	/* init memif */
 	afe->memif_32bit_supported = 0;

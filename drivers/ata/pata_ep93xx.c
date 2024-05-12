@@ -872,7 +872,7 @@ static int ep93xx_pata_port_start(struct ata_port *ap)
 	return 0;
 }
 
-static struct scsi_host_template ep93xx_pata_sht = {
+static const struct scsi_host_template ep93xx_pata_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	/* ep93xx dma implementation limit */
 	.sg_tablesize		= 32,
@@ -931,8 +931,7 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 		goto err_rel_gpio;
 	}
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ide_base = devm_ioremap_resource(&pdev->dev, mem_res);
+	ide_base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem_res);
 	if (IS_ERR(ide_base)) {
 		err = PTR_ERR(ide_base);
 		goto err_rel_gpio;

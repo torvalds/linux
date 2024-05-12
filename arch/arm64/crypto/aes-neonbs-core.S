@@ -15,6 +15,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 
 	.text
@@ -620,12 +621,12 @@ SYM_FUNC_END(aesbs_decrypt8)
 	.endm
 
 	.align		4
-SYM_FUNC_START(aesbs_ecb_encrypt)
+SYM_TYPED_FUNC_START(aesbs_ecb_encrypt)
 	__ecb_crypt	aesbs_encrypt8, v0, v1, v4, v6, v3, v7, v2, v5
 SYM_FUNC_END(aesbs_ecb_encrypt)
 
 	.align		4
-SYM_FUNC_START(aesbs_ecb_decrypt)
+SYM_TYPED_FUNC_START(aesbs_ecb_decrypt)
 	__ecb_crypt	aesbs_decrypt8, v0, v1, v6, v4, v2, v7, v3, v5
 SYM_FUNC_END(aesbs_ecb_decrypt)
 
@@ -760,7 +761,7 @@ SYM_FUNC_START_LOCAL(__xts_crypt8)
 	eor		v6.16b, v6.16b, v31.16b
 	eor		v7.16b, v7.16b, v16.16b
 
-	stp		q16, q17, [sp, #16]
+	stp		q16, q17, [x6]
 
 	mov		bskey, x2
 	mov		rounds, x3
@@ -768,8 +769,8 @@ SYM_FUNC_START_LOCAL(__xts_crypt8)
 SYM_FUNC_END(__xts_crypt8)
 
 	.macro		__xts_crypt, do8, o0, o1, o2, o3, o4, o5, o6, o7
-	stp		x29, x30, [sp, #-48]!
-	mov		x29, sp
+	frame_push	0, 32
+	add		x6, sp, #.Lframe_local_offset
 
 	ld1		{v25.16b}, [x5]
 
@@ -781,7 +782,7 @@ SYM_FUNC_END(__xts_crypt8)
 	eor		v18.16b, \o2\().16b, v27.16b
 	eor		v19.16b, \o3\().16b, v28.16b
 
-	ldp		q24, q25, [sp, #16]
+	ldp		q24, q25, [x6]
 
 	eor		v20.16b, \o4\().16b, v29.16b
 	eor		v21.16b, \o5\().16b, v30.16b
@@ -795,15 +796,15 @@ SYM_FUNC_END(__xts_crypt8)
 	b.gt		0b
 
 	st1		{v25.16b}, [x5]
-	ldp		x29, x30, [sp], #48
+	frame_pop
 	ret
 	.endm
 
-SYM_FUNC_START(aesbs_xts_encrypt)
+SYM_TYPED_FUNC_START(aesbs_xts_encrypt)
 	__xts_crypt	aesbs_encrypt8, v0, v1, v4, v6, v3, v7, v2, v5
 SYM_FUNC_END(aesbs_xts_encrypt)
 
-SYM_FUNC_START(aesbs_xts_decrypt)
+SYM_TYPED_FUNC_START(aesbs_xts_decrypt)
 	__xts_crypt	aesbs_decrypt8, v0, v1, v6, v4, v2, v7, v3, v5
 SYM_FUNC_END(aesbs_xts_decrypt)
 
@@ -820,9 +821,7 @@ SYM_FUNC_END(aesbs_xts_decrypt)
 	 *		     int rounds, int blocks, u8 iv[])
 	 */
 SYM_FUNC_START(aesbs_ctr_encrypt)
-	stp		x29, x30, [sp, #-16]!
-	mov		x29, sp
-
+	frame_push	0
 	ldp		x7, x8, [x5]
 	ld1		{v0.16b}, [x5]
 CPU_LE(	rev		x7, x7		)
@@ -862,6 +861,6 @@ CPU_LE(	rev		x8, x8		)
 	b.gt		0b
 
 	st1		{v0.16b}, [x5]
-	ldp		x29, x30, [sp], #16
+	frame_pop
 	ret
 SYM_FUNC_END(aesbs_ctr_encrypt)

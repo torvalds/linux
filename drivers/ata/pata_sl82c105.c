@@ -238,7 +238,7 @@ static bool sl82c105_sff_irq_check(struct ata_port *ap)
 	return val & mask;
 }
 
-static struct scsi_host_template sl82c105_sht = {
+static const struct scsi_host_template sl82c105_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

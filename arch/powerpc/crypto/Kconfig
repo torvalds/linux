@@ -94,4 +94,21 @@ config CRYPTO_AES_PPC_SPE
 	  architecture specific assembler implementations that work on 1KB
 	  tables or 256 bytes S-boxes.
 
+config CRYPTO_AES_GCM_P10
+	tristate "Stitched AES/GCM acceleration support on P10 or later CPU (PPC)"
+	depends on PPC64 && CPU_LITTLE_ENDIAN && VSX
+	select CRYPTO_LIB_AES
+	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
+	default m
+	help
+	  AEAD cipher: AES cipher algorithms (FIPS-197)
+	  GCM (Galois/Counter Mode) authenticated encryption mode (NIST SP800-38D)
+	  Architecture: powerpc64 using:
+	    - little-endian
+	    - Power10 or later features
+
+	  Support for cryptographic acceleration instructions on Power10 or
+	  later CPU. This module supports stitched acceleration for AES/GCM.
+
 endmenu

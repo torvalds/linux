@@ -5,6 +5,7 @@
  * This code is based on drivers/gpu/drm/mxsfb/mxsfb*
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -15,6 +16,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_dma_helper.h>
@@ -31,13 +33,126 @@
 /* -----------------------------------------------------------------------------
  * CRTC
  */
+
+/*
+ * For conversion from YCbCr to RGB, the CSC operates as follows:
+ *
+ * |R|   |A1 A2 A3|   |Y  + D1|
+ * |G| = |B1 B2 B3| * |Cb + D2|
+ * |B|   |C1 C2 C3|   |Cr + D3|
+ *
+ * The A, B and C coefficients are expressed as Q2.8 fixed point values, and
+ * the D coefficients as Q0.8. Despite the reference manual stating the
+ * opposite, the D1, D2 and D3 offset values are added to Y, Cb and Cr, not
+ * subtracted. They must thus be programmed with negative values.
+ */
+static const u32 lcdif_yuv2rgb_coeffs[3][2][6] = {
+	[DRM_COLOR_YCBCR_BT601] = {
+		[DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+			/*
+			 * BT.601 limited range:
+			 *
+			 * |R|   |1.1644  0.0000  1.5960|   |Y  - 16 |
+			 * |G| = |1.1644 -0.3917 -0.8129| * |Cb - 128|
+			 * |B|   |1.1644  2.0172  0.0000|   |Cr - 128|
+			 */
+			CSC0_COEF0_A1(0x12a) | CSC0_COEF0_A2(0x000),
+			CSC0_COEF1_A3(0x199) | CSC0_COEF1_B1(0x12a),
+			CSC0_COEF2_B2(0x79c) | CSC0_COEF2_B3(0x730),
+			CSC0_COEF3_C1(0x12a) | CSC0_COEF3_C2(0x204),
+			CSC0_COEF4_C3(0x000) | CSC0_COEF4_D1(0x1f0),
+			CSC0_COEF5_D2(0x180) | CSC0_COEF5_D3(0x180),
+		},
+		[DRM_COLOR_YCBCR_FULL_RANGE] = {
+			/*
+			 * BT.601 full range:
+			 *
+			 * |R|   |1.0000  0.0000  1.4020|   |Y  - 0  |
+			 * |G| = |1.0000 -0.3441 -0.7141| * |Cb - 128|
+			 * |B|   |1.0000  1.7720  0.0000|   |Cr - 128|
+			 */
+			CSC0_COEF0_A1(0x100) | CSC0_COEF0_A2(0x000),
+			CSC0_COEF1_A3(0x167) | CSC0_COEF1_B1(0x100),
+			CSC0_COEF2_B2(0x7a8) | CSC0_COEF2_B3(0x749),
+			CSC0_COEF3_C1(0x100) | CSC0_COEF3_C2(0x1c6),
+			CSC0_COEF4_C3(0x000) | CSC0_COEF4_D1(0x000),
+			CSC0_COEF5_D2(0x180) | CSC0_COEF5_D3(0x180),
+		},
+	},
+	[DRM_COLOR_YCBCR_BT709] = {
+		[DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+			/*
+			 * Rec.709 limited range:
+			 *
+			 * |R|   |1.1644  0.0000  1.7927|   |Y  - 16 |
+			 * |G| = |1.1644 -0.2132 -0.5329| * |Cb - 128|
+			 * |B|   |1.1644  2.1124  0.0000|   |Cr - 128|
+			 */
+			CSC0_COEF0_A1(0x12a) | CSC0_COEF0_A2(0x000),
+			CSC0_COEF1_A3(0x1cb) | CSC0_COEF1_B1(0x12a),
+			CSC0_COEF2_B2(0x7c9) | CSC0_COEF2_B3(0x778),
+			CSC0_COEF3_C1(0x12a) | CSC0_COEF3_C2(0x21d),
+			CSC0_COEF4_C3(0x000) | CSC0_COEF4_D1(0x1f0),
+			CSC0_COEF5_D2(0x180) | CSC0_COEF5_D3(0x180),
+		},
+		[DRM_COLOR_YCBCR_FULL_RANGE] = {
+			/*
+			 * Rec.709 full range:
+			 *
+			 * |R|   |1.0000  0.0000  1.5748|   |Y  - 0  |
+			 * |G| = |1.0000 -0.1873 -0.4681| * |Cb - 128|
+			 * |B|   |1.0000  1.8556  0.0000|   |Cr - 128|
+			 */
+			CSC0_COEF0_A1(0x100) | CSC0_COEF0_A2(0x000),
+			CSC0_COEF1_A3(0x193) | CSC0_COEF1_B1(0x100),
+			CSC0_COEF2_B2(0x7d0) | CSC0_COEF2_B3(0x788),
+			CSC0_COEF3_C1(0x100) | CSC0_COEF3_C2(0x1db),
+			CSC0_COEF4_C3(0x000) | CSC0_COEF4_D1(0x000),
+			CSC0_COEF5_D2(0x180) | CSC0_COEF5_D3(0x180),
+		},
+	},
+	[DRM_COLOR_YCBCR_BT2020] = {
+		[DRM_COLOR_YCBCR_LIMITED_RANGE] = {
+			/*
+			 * BT.2020 limited range:
+			 *
+			 * |R|   |1.1644  0.0000  1.6787|   |Y  - 16 |
+			 * |G| = |1.1644 -0.1874 -0.6505| * |Cb - 128|
+			 * |B|   |1.1644  2.1418  0.0000|   |Cr - 128|
+			 */
+			CSC0_COEF0_A1(0x12a) | CSC0_COEF0_A2(0x000),
+			CSC0_COEF1_A3(0x1ae) | CSC0_COEF1_B1(0x12a),
+			CSC0_COEF2_B2(0x7d0) | CSC0_COEF2_B3(0x759),
+			CSC0_COEF3_C1(0x12a) | CSC0_COEF3_C2(0x224),
+			CSC0_COEF4_C3(0x000) | CSC0_COEF4_D1(0x1f0),
+			CSC0_COEF5_D2(0x180) | CSC0_COEF5_D3(0x180),
+		},
+		[DRM_COLOR_YCBCR_FULL_RANGE] = {
+			/*
+			 * BT.2020 full range:
+			 *
+			 * |R|   |1.0000  0.0000  1.4746|   |Y  - 0  |
+			 * |G| = |1.0000 -0.1646 -0.5714| * |Cb - 128|
+			 * |B|   |1.0000  1.8814  0.0000|   |Cr - 128|
+			 */
+			CSC0_COEF0_A1(0x100) | CSC0_COEF0_A2(0x000),
+			CSC0_COEF1_A3(0x179) | CSC0_COEF1_B1(0x100),
+			CSC0_COEF2_B2(0x7d6) | CSC0_COEF2_B3(0x76e),
+			CSC0_COEF3_C1(0x100) | CSC0_COEF3_C2(0x1e2),
+			CSC0_COEF4_C3(0x000) | CSC0_COEF4_D1(0x000),
+			CSC0_COEF5_D2(0x180) | CSC0_COEF5_D3(0x180),
+		},
+	},
+};
+
 static void lcdif_set_formats(struct lcdif_drm_private *lcdif,
+			      struct drm_plane_state *plane_state,
 			      const u32 bus_format)
 {
 	struct drm_device *drm = lcdif->drm;
-	const u32 format = lcdif->crtc.primary->state->fb->format->format;
-
-	writel(CSC0_CTRL_BYPASS, lcdif->base + LCDC_V8_CSC0_CTRL);
+	const u32 format = plane_state->fb->format->format;
+	bool in_yuv = false;
+	bool out_yuv = false;
 
 	switch (bus_format) {
 	case MEDIA_BUS_FMT_RGB565_1X16:
@@ -51,24 +166,7 @@ static void lcdif_set_formats(struct lcdif_drm_private *lcdif,
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 		writel(DISP_PARA_LINE_PATTERN_UYVY_H,
 		       lcdif->base + LCDC_V8_DISP_PARA);
-
-		/* CSC: BT.601 Full Range RGB to YCbCr coefficients. */
-		writel(CSC0_COEF0_A2(0x096) | CSC0_COEF0_A1(0x04c),
-		       lcdif->base + LCDC_V8_CSC0_COEF0);
-		writel(CSC0_COEF1_B1(0x7d5) | CSC0_COEF1_A3(0x01d),
-		       lcdif->base + LCDC_V8_CSC0_COEF1);
-		writel(CSC0_COEF2_B3(0x080) | CSC0_COEF2_B2(0x7ac),
-		       lcdif->base + LCDC_V8_CSC0_COEF2);
-		writel(CSC0_COEF3_C2(0x795) | CSC0_COEF3_C1(0x080),
-		       lcdif->base + LCDC_V8_CSC0_COEF3);
-		writel(CSC0_COEF4_D1(0x000) | CSC0_COEF4_C3(0x7ec),
-		       lcdif->base + LCDC_V8_CSC0_COEF4);
-		writel(CSC0_COEF5_D3(0x080) | CSC0_COEF5_D2(0x080),
-		       lcdif->base + LCDC_V8_CSC0_COEF5);
-
-		writel(CSC0_CTRL_CSC_MODE_RGB2YCbCr,
-		       lcdif->base + LCDC_V8_CSC0_CTRL);
-
+		out_yuv = true;
 		break;
 	default:
 		dev_err(drm->dev, "Unknown media bus format 0x%x\n", bus_format);
@@ -76,6 +174,7 @@ static void lcdif_set_formats(struct lcdif_drm_private *lcdif,
 	}
 
 	switch (format) {
+	/* RGB Formats */
 	case DRM_FORMAT_RGB565:
 		writel(CTRLDESCL0_5_BPP_16_RGB565,
 		       lcdif->base + LCDC_V8_CTRLDESCL0_5);
@@ -100,9 +199,83 @@ static void lcdif_set_formats(struct lcdif_drm_private *lcdif,
 		writel(CTRLDESCL0_5_BPP_32_ARGB8888,
 		       lcdif->base + LCDC_V8_CTRLDESCL0_5);
 		break;
+
+	/* YUV Formats */
+	case DRM_FORMAT_YUYV:
+		writel(CTRLDESCL0_5_BPP_YCbCr422 | CTRLDESCL0_5_YUV_FORMAT_VY2UY1,
+		       lcdif->base + LCDC_V8_CTRLDESCL0_5);
+		in_yuv = true;
+		break;
+	case DRM_FORMAT_YVYU:
+		writel(CTRLDESCL0_5_BPP_YCbCr422 | CTRLDESCL0_5_YUV_FORMAT_UY2VY1,
+		       lcdif->base + LCDC_V8_CTRLDESCL0_5);
+		in_yuv = true;
+		break;
+	case DRM_FORMAT_UYVY:
+		writel(CTRLDESCL0_5_BPP_YCbCr422 | CTRLDESCL0_5_YUV_FORMAT_Y2VY1U,
+		       lcdif->base + LCDC_V8_CTRLDESCL0_5);
+		in_yuv = true;
+		break;
+	case DRM_FORMAT_VYUY:
+		writel(CTRLDESCL0_5_BPP_YCbCr422 | CTRLDESCL0_5_YUV_FORMAT_Y2UY1V,
+		       lcdif->base + LCDC_V8_CTRLDESCL0_5);
+		in_yuv = true;
+		break;
+
 	default:
 		dev_err(drm->dev, "Unknown pixel format 0x%x\n", format);
 		break;
+	}
+
+	/*
+	 * The CSC differentiates between "YCbCr" and "YUV", but the reference
+	 * manual doesn't detail how they differ. Experiments showed that the
+	 * luminance value is unaffected, only the calculations involving chroma
+	 * values differ. The YCbCr mode behaves as expected, with chroma values
+	 * being offset by 128. The YUV mode isn't fully understood.
+	 */
+	if (!in_yuv && out_yuv) {
+		/* RGB -> YCbCr */
+		writel(CSC0_CTRL_CSC_MODE_RGB2YCbCr,
+		       lcdif->base + LCDC_V8_CSC0_CTRL);
+
+		/*
+		 * CSC: BT.601 Limited Range RGB to YCbCr coefficients.
+		 *
+		 * |Y |   | 0.2568  0.5041  0.0979|   |R|   |16 |
+		 * |Cb| = |-0.1482 -0.2910  0.4392| * |G| + |128|
+		 * |Cr|   | 0.4392  0.4392 -0.3678|   |B|   |128|
+		 */
+		writel(CSC0_COEF0_A2(0x081) | CSC0_COEF0_A1(0x041),
+		       lcdif->base + LCDC_V8_CSC0_COEF0);
+		writel(CSC0_COEF1_B1(0x7db) | CSC0_COEF1_A3(0x019),
+		       lcdif->base + LCDC_V8_CSC0_COEF1);
+		writel(CSC0_COEF2_B3(0x070) | CSC0_COEF2_B2(0x7b6),
+		       lcdif->base + LCDC_V8_CSC0_COEF2);
+		writel(CSC0_COEF3_C2(0x7a2) | CSC0_COEF3_C1(0x070),
+		       lcdif->base + LCDC_V8_CSC0_COEF3);
+		writel(CSC0_COEF4_D1(0x010) | CSC0_COEF4_C3(0x7ee),
+		       lcdif->base + LCDC_V8_CSC0_COEF4);
+		writel(CSC0_COEF5_D3(0x080) | CSC0_COEF5_D2(0x080),
+		       lcdif->base + LCDC_V8_CSC0_COEF5);
+	} else if (in_yuv && !out_yuv) {
+		/* YCbCr -> RGB */
+		const u32 *coeffs =
+			lcdif_yuv2rgb_coeffs[plane_state->color_encoding]
+					    [plane_state->color_range];
+
+		writel(CSC0_CTRL_CSC_MODE_YCbCr2RGB,
+		       lcdif->base + LCDC_V8_CSC0_CTRL);
+
+		writel(coeffs[0], lcdif->base + LCDC_V8_CSC0_COEF0);
+		writel(coeffs[1], lcdif->base + LCDC_V8_CSC0_COEF1);
+		writel(coeffs[2], lcdif->base + LCDC_V8_CSC0_COEF2);
+		writel(coeffs[3], lcdif->base + LCDC_V8_CSC0_COEF3);
+		writel(coeffs[4], lcdif->base + LCDC_V8_CSC0_COEF4);
+		writel(coeffs[5], lcdif->base + LCDC_V8_CSC0_COEF5);
+	} else {
+		/* RGB -> RGB, YCbCr -> YCbCr: bypass colorspace converter. */
+		writel(CSC0_CTRL_BYPASS, lcdif->base + LCDC_V8_CSC0_CTRL);
 	}
 }
 
@@ -142,13 +315,35 @@ static void lcdif_set_mode(struct lcdif_drm_private *lcdif, u32 bus_flags)
 	       CTRLDESCL0_1_WIDTH(m->hdisplay),
 	       lcdif->base + LCDC_V8_CTRLDESCL0_1);
 
-	writel(CTRLDESCL0_3_PITCH(lcdif->crtc.primary->state->fb->pitches[0]),
-	       lcdif->base + LCDC_V8_CTRLDESCL0_3);
+	/*
+	 * Undocumented P_SIZE and T_SIZE register but those written in the
+	 * downstream kernel those registers control the AXI burst size. As of
+	 * now there are two known values:
+	 *  1 - 128Byte
+	 *  2 - 256Byte
+	 * Downstream set it to 256B burst size to improve the memory
+	 * efficiency so set it here too.
+	 */
+	ctrl = CTRLDESCL0_3_P_SIZE(2) | CTRLDESCL0_3_T_SIZE(2) |
+	       CTRLDESCL0_3_PITCH(lcdif->crtc.primary->state->fb->pitches[0]);
+	writel(ctrl, lcdif->base + LCDC_V8_CTRLDESCL0_3);
 }
 
 static void lcdif_enable_controller(struct lcdif_drm_private *lcdif)
 {
 	u32 reg;
+
+	/* Set FIFO Panic watermarks, low 1/3, high 2/3 . */
+	writel(FIELD_PREP(PANIC0_THRES_LOW_MASK, 1 * PANIC0_THRES_MAX / 3) |
+	       FIELD_PREP(PANIC0_THRES_HIGH_MASK, 2 * PANIC0_THRES_MAX / 3),
+	       lcdif->base + LCDC_V8_PANIC0_THRES);
+
+	/*
+	 * Enable FIFO Panic, this does not generate interrupt, but
+	 * boosts NoC priority based on FIFO Panic watermarks.
+	 */
+	writel(INT_ENABLE_D1_PLANE_PANIC_EN,
+	       lcdif->base + LCDC_V8_INT_ENABLE_D1);
 
 	reg = readl(lcdif->base + LCDC_V8_DISP_PARA);
 	reg |= DISP_PARA_DISP_ON;
@@ -177,6 +372,9 @@ static void lcdif_disable_controller(struct lcdif_drm_private *lcdif)
 	reg = readl(lcdif->base + LCDC_V8_DISP_PARA);
 	reg &= ~DISP_PARA_DISP_ON;
 	writel(reg, lcdif->base + LCDC_V8_DISP_PARA);
+
+	/* Disable FIFO Panic NoC priority booster. */
+	writel(0, lcdif->base + LCDC_V8_INT_ENABLE_D1);
 }
 
 static void lcdif_reset_block(struct lcdif_drm_private *lcdif)
@@ -188,6 +386,7 @@ static void lcdif_reset_block(struct lcdif_drm_private *lcdif)
 }
 
 static void lcdif_crtc_mode_set_nofb(struct lcdif_drm_private *lcdif,
+				     struct drm_plane_state *plane_state,
 				     struct drm_bridge_state *bridge_state,
 				     const u32 bus_format)
 {
@@ -210,7 +409,7 @@ static void lcdif_crtc_mode_set_nofb(struct lcdif_drm_private *lcdif,
 	/* Mandatory eLCDIF reset as per the Reference Manual */
 	lcdif_reset_block(lcdif);
 
-	lcdif_set_formats(lcdif, bus_format);
+	lcdif_set_formats(lcdif, plane_state, bus_format);
 
 	lcdif_set_mode(lcdif, bus_flags);
 }
@@ -293,7 +492,7 @@ static void lcdif_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	pm_runtime_get_sync(drm->dev);
 
-	lcdif_crtc_mode_set_nofb(lcdif, bridge_state, bus_format);
+	lcdif_crtc_mode_set_nofb(lcdif, new_pstate, bridge_state, bus_format);
 
 	/* Write cur_buf as well to avoid an initial corrupt frame */
 	paddr = drm_fb_dma_get_gem_addr(new_pstate->fb, new_pstate, 0);
@@ -437,12 +636,19 @@ static const struct drm_plane_funcs lcdif_plane_funcs = {
 };
 
 static const u32 lcdif_primary_plane_formats[] = {
+	/* RGB */
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_XRGB4444,
 	DRM_FORMAT_XRGB8888,
+
+	/* Packed YCbCr */
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
 };
 
 static const u64 lcdif_modifiers[] = {
@@ -456,6 +662,11 @@ static const u64 lcdif_modifiers[] = {
 
 int lcdif_kms_init(struct lcdif_drm_private *lcdif)
 {
+	const u32 supported_encodings = BIT(DRM_COLOR_YCBCR_BT601) |
+					BIT(DRM_COLOR_YCBCR_BT709) |
+					BIT(DRM_COLOR_YCBCR_BT2020);
+	const u32 supported_ranges = BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+				     BIT(DRM_COLOR_YCBCR_FULL_RANGE);
 	struct drm_encoder *encoder = &lcdif->encoder;
 	struct drm_crtc *crtc = &lcdif->crtc;
 	int ret;
@@ -468,6 +679,14 @@ int lcdif_kms_init(struct lcdif_drm_private *lcdif)
 				       ARRAY_SIZE(lcdif_primary_plane_formats),
 				       lcdif_modifiers, DRM_PLANE_TYPE_PRIMARY,
 				       NULL);
+	if (ret)
+		return ret;
+
+	ret = drm_plane_create_color_properties(&lcdif->planes.primary,
+						supported_encodings,
+						supported_ranges,
+						DRM_COLOR_YCBCR_BT601,
+						DRM_COLOR_YCBCR_LIMITED_RANGE);
 	if (ret)
 		return ret;
 

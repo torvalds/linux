@@ -156,10 +156,8 @@ void flowctrl_cpu_suspend_exit(unsigned int cpuid)
 static int tegra_flowctrl_probe(struct platform_device *pdev)
 {
 	void __iomem *base = tegra_flowctrl_base;
-	struct resource *res;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tegra_flowctrl_base = devm_ioremap_resource(&pdev->dev, res);
+	tegra_flowctrl_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(tegra_flowctrl_base))
 		return PTR_ERR(tegra_flowctrl_base);
 

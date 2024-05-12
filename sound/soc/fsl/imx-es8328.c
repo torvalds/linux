@@ -149,7 +149,7 @@ static int imx_es8328_probe(struct platform_device *pdev)
 		goto put_device;
 	}
 
-	comp = devm_kzalloc(dev, 3 * sizeof(*comp), GFP_KERNEL);
+	comp = devm_kzalloc(dev, 2 * sizeof(*comp), GFP_KERNEL);
 	if (!comp) {
 		ret = -ENOMEM;
 		goto put_device;
@@ -159,9 +159,13 @@ static int imx_es8328_probe(struct platform_device *pdev)
 
 	data->jack_gpio = of_get_named_gpio(pdev->dev.of_node, "jack-gpio", 0);
 
-	data->dai.cpus		= &comp[0];
+	/*
+	 * CPU == Platform
+	 * platform is using soc-generic-dmaengine-pcm
+	 */
+	data->dai.cpus		=
+	data->dai.platforms	= &comp[0];
 	data->dai.codecs	= &comp[1];
-	data->dai.platforms	= &comp[2];
 
 	data->dai.num_cpus	= 1;
 	data->dai.num_codecs	= 1;
@@ -172,7 +176,6 @@ static int imx_es8328_probe(struct platform_device *pdev)
 	data->dai.codecs->dai_name = "es8328-hifi-analog";
 	data->dai.codecs->of_node = codec_np;
 	data->dai.cpus->of_node = ssi_np;
-	data->dai.platforms->of_node = ssi_np;
 	data->dai.init = &imx_es8328_dai_init;
 	data->dai.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			    SND_SOC_DAIFMT_CBP_CFP;

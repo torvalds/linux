@@ -38,8 +38,14 @@ arch/*/include/generated/
 trace/beauty/generated/
 pmu-events/pmu-events.c
 pmu-events/jevents
+pmu-events/metric_test.log
 feature/
+libapi/
 libbpf/
+libperf/
+libsubcmd/
+libsymbol/
+libtraceevent/
+libtraceevent_plugins/
 fixdep
-libtraceevent-dynamic-list
 Documentation/doc.dep

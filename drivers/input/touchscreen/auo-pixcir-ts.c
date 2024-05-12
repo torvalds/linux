@@ -410,7 +410,7 @@ static void auo_pixcir_input_close(struct input_dev *dev)
 	auo_pixcir_stop(ts);
 }
 
-static int __maybe_unused auo_pixcir_suspend(struct device *dev)
+static int auo_pixcir_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
@@ -442,7 +442,7 @@ unlock:
 	return ret;
 }
 
-static int __maybe_unused auo_pixcir_resume(struct device *dev)
+static int auo_pixcir_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
@@ -472,8 +472,8 @@ unlock:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops,
-			 auo_pixcir_suspend, auo_pixcir_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops,
+				auo_pixcir_suspend, auo_pixcir_resume);
 
 static void auo_pixcir_reset(void *data)
 {
@@ -482,8 +482,7 @@ static void auo_pixcir_reset(void *data)
 	gpiod_set_value_cansleep(ts->gpio_rst, 1);
 }
 
-static int auo_pixcir_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int auo_pixcir_probe(struct i2c_client *client)
 {
 	struct auo_pixcir_ts *ts;
 	struct input_dev *input_dev;
@@ -634,10 +633,10 @@ MODULE_DEVICE_TABLE(of, auo_pixcir_ts_dt_idtable);
 static struct i2c_driver auo_pixcir_driver = {
 	.driver = {
 		.name	= "auo_pixcir_ts",
-		.pm	= &auo_pixcir_pm_ops,
+		.pm	= pm_sleep_ptr(&auo_pixcir_pm_ops),
 		.of_match_table	= of_match_ptr(auo_pixcir_ts_dt_idtable),
 	},
-	.probe		= auo_pixcir_probe,
+	.probe_new	= auo_pixcir_probe,
 	.id_table	= auo_pixcir_idtable,
 };
 

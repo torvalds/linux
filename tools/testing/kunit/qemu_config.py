@@ -17,3 +17,4 @@ class QemuArchParams:
   kernel_path: str
   kernel_command_line: str
   extra_qemu_params: List[str]
+  serial: str = 'stdio'

@@ -22,7 +22,6 @@
 #include "atomisp_compat_css20.h"
 
 #include "../../include/linux/atomisp.h"
-#include <media/videobuf-vmalloc.h>
 
 struct atomisp_device;
 struct atomisp_sub_device;
@@ -42,10 +41,6 @@ int atomisp_css_init(struct atomisp_device *isp);
 
 void atomisp_css_uninit(struct atomisp_device *isp);
 
-void atomisp_css_suspend(struct atomisp_device *isp);
-
-int atomisp_css_resume(struct atomisp_device *isp);
-
 void atomisp_css_init_struct(struct atomisp_sub_device *asd);
 
 int atomisp_css_irq_translate(struct atomisp_device *isp,
@@ -61,7 +56,7 @@ int atomisp_css_irq_enable(struct atomisp_device *isp,
 			   enum ia_css_irq_info info, bool enable);
 
 int atomisp_q_video_buffer_to_css(struct atomisp_sub_device *asd,
-				  struct videobuf_vmalloc_memory *vm_mem,
+				  struct ia_css_frame *frame,
 				  enum atomisp_input_stream_id stream_id,
 				  enum ia_css_buffer_type css_buf_type,
 				  enum ia_css_pipe_id css_pipe_id);
@@ -201,9 +196,6 @@ void atomisp_css_input_set_two_pixels_per_clock(
     struct atomisp_sub_device *asd,
     bool two_ppc);
 
-void atomisp_css_enable_raw_binning(struct atomisp_sub_device *asd,
-				    bool enable);
-
 void atomisp_css_enable_dz(struct atomisp_sub_device *asd, bool enable);
 
 void atomisp_css_capture_set_mode(struct atomisp_sub_device *asd,
@@ -258,13 +250,6 @@ int atomisp_css_yuvpp_configure_output(struct atomisp_sub_device *asd,
 				       unsigned int padded_width,
 				       enum ia_css_frame_format format);
 
-int atomisp_css_yuvpp_configure_viewfinder(
-    struct atomisp_sub_device *asd,
-    unsigned int stream_index,
-    unsigned int width, unsigned int height,
-    unsigned int min_width,
-    enum ia_css_frame_format format);
-
 int atomisp_css_yuvpp_get_output_frame_info(
     struct atomisp_sub_device *asd,
     unsigned int stream_index,
@@ -316,10 +301,6 @@ int atomisp_css_capture_get_viewfinder_frame_info(
 int atomisp_css_copy_get_output_frame_info(
     struct atomisp_sub_device *asd,
     unsigned int stream_index,
-    struct ia_css_frame_info *info);
-
-int atomisp_css_capture_get_output_raw_frame_info(
-    struct atomisp_sub_device *asd,
     struct ia_css_frame_info *info);
 
 int atomisp_css_preview_get_output_frame_info(
@@ -435,9 +416,7 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 
 int atomisp_css_update_stream(struct atomisp_sub_device *asd);
 
-int atomisp_css_isr_thread(struct atomisp_device *isp,
-			   bool *frame_done_found,
-			   bool *css_pipe_done);
+int atomisp_css_isr_thread(struct atomisp_device *isp);
 
 bool atomisp_css_valid_sof(struct atomisp_device *isp);
 

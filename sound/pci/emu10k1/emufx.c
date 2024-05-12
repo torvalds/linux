@@ -641,8 +641,8 @@ snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu,
 	list_for_each_entry(ctl, &emu->fx8010.gpr_ctl, list) {
 		kcontrol = ctl->kcontrol;
 		if (kcontrol->id.iface == id->iface &&
-		    !strcmp(kcontrol->id.name, id->name) &&
-		    kcontrol->id.index == id->index)
+		    kcontrol->id.index == id->index &&
+		    !strcmp(kcontrol->id.name, id->name))
 			return ctl;
 	}
 	return NULL;
@@ -1187,8 +1187,8 @@ snd_emu10k1_init_stereo_onoff_control(struct snd_emu10k1_fx8010_control_gpr *ctl
 }
 
 /*
- * Used for emu1010 - conversion from 32-bit capture inputs from HANA
- * to 2 x 16-bit registers in audigy - their values are read via DMA.
+ * Used for emu1010 - conversion from 32-bit capture inputs from the FPGA
+ * to 2 x 16-bit registers in Audigy - their values are read via DMA.
  * Conversion is performed by Audigy DSP instructions of FX8010.
  */
 static int snd_emu10k1_audigy_dsp_convert_32_to_2x16(
@@ -1213,7 +1213,7 @@ static int snd_emu10k1_audigy_dsp_convert_32_to_2x16(
 
 static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 {
-	int err, i, z, gpr, nctl;
+	int err, z, gpr, nctl;
 	int bit_shifter16;
 	const int playback = 10;
 	const int capture = playback + (SND_EMU10K1_PLAYBACK_CHANNELS * 2); /* we reserve 10 voices */
@@ -1245,12 +1245,10 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	icode->code = icode->tram_addr_map + 256;
 
 	/* clear free GPRs */
-	for (i = 0; i < 512; i++)
-		set_bit(i, icode->gpr_valid);
+	memset(icode->gpr_valid, 0xff, 512 / 8);
 		
 	/* clear TRAM data & address lines */
-	for (i = 0; i < 256; i++)
-		set_bit(i, icode->tram_valid);
+	memset(icode->tram_valid, 0xff, 256 / 8);
 
 	strcpy(icode->name, "Audigy DSP code for ALSA");
 	ptr = 0;
@@ -1260,9 +1258,6 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	gpr_map[gpr++] = 0x00008000;
 	gpr_map[gpr++] = 0x0000ffff;
 	bit_shifter16 = gpr;
-
-	/* stop FX processor */
-	snd_emu10k1_ptr_write(emu, A_DBG, 0, (emu->fx8010.dbg = 0) | A_DBG_SINGLE_STEP);
 
 #if 1
 	/* PCM front Playback Volume (independent from stereo mix)
@@ -1332,8 +1327,9 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 #define A_ADD_VOLUME_IN(var,vol,input) \
 A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
-	/* emu1212 DSP 0 and DSP 1 Capture */
 	if (emu->card_capabilities->emu_model) {
+		/* EMU1010 DSP 0 and DSP 1 Capture */
+		// The 24 MSB hold the actual value. We implicitly discard the 16 LSB.
 		if (emu->card_capabilities->ca0108_chip) {
 			/* Note:JCD:No longer bit shift lower 16bits to upper 16bits of 32bit value. */
 			A_OP(icode, &ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A3_EMU32IN(0x0), A_C_00000001);
@@ -1359,7 +1355,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	gpr += 2;
 
 	/* mic capture buffer */	
-	A_OP(icode, &ptr, iINTERP, A_EXTOUT(A_EXTOUT_MIC_CAP), A_EXTIN(A_EXTIN_AC97_L), 0xcd, A_EXTIN(A_EXTIN_AC97_R));
+	A_OP(icode, &ptr, iINTERP, A_EXTOUT(A_EXTOUT_MIC_CAP), A_EXTIN(A_EXTIN_AC97_L), A_C_40000000, A_EXTIN(A_EXTIN_AC97_R));
 
 	/* Audigy CD Playback Volume */
 	A_ADD_VOLUME_IN(stereo_mix, gpr, A_EXTIN_SPDIF_CD_L);
@@ -1442,7 +1438,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
 	/* Stereo Mix Center Playback */
 	/* Center = sub = Left/2 + Right/2 */
-	A_OP(icode, &ptr, iINTERP, A_GPR(tmp), A_GPR(stereo_mix), 0xcd, A_GPR(stereo_mix+1));
+	A_OP(icode, &ptr, iINTERP, A_GPR(tmp), A_GPR(stereo_mix), A_C_40000000, A_GPR(stereo_mix+1));
 	A_OP(icode, &ptr, iMAC0, A_GPR(playback+4), A_GPR(playback+4), A_GPR(gpr), A_GPR(tmp));
 	snd_emu10k1_init_mono_control(&controls[nctl++], "Center Playback Volume", gpr, 0);
 	gpr++;
@@ -1638,8 +1634,11 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 #endif
 
 	if (emu->card_capabilities->emu_model) {
+		/* Capture 16 channels of S32_LE sound. */
 		if (emu->card_capabilities->ca0108_chip) {
 			dev_info(emu->card->dev, "EMU2 inputs on\n");
+			/* Note that the Tina[2] DSPs have 16 more EMU32 inputs which we don't use. */
+
 			for (z = 0; z < 0x10; z++) {
 				snd_emu10k1_audigy_dsp_convert_32_to_2x16( icode, &ptr, tmp, 
 									bit_shifter16,
@@ -1648,7 +1647,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 			}
 		} else {
 			dev_info(emu->card->dev, "EMU inputs on\n");
-			/* Capture 16 (originally 8) channels of S32_LE sound */
+			/* Note that the Alice2 DSPs have 6 I2S inputs which we don't use. */
 
 			/*
 			dev_dbg(emu->card->dev, "emufx.c: gpr=0x%x, tmp=0x%x\n",
@@ -1886,12 +1885,10 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	icode->code = icode->tram_addr_map + 160;
 	
 	/* clear free GPRs */
-	for (i = 0; i < 256; i++)
-		set_bit(i, icode->gpr_valid);
+	memset(icode->gpr_valid, 0xff, 256 / 8);
 
 	/* clear TRAM data & address lines */
-	for (i = 0; i < 160; i++)
-		set_bit(i, icode->tram_valid);
+	memset(icode->tram_valid, 0xff, 160 / 8);
 
 	strcpy(icode->name, "SB Live! FX8010 code for ALSA v1.2 by Jaroslav Kysela");
 	ptr = 0; i = 0;
@@ -1902,9 +1899,6 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	gpr = capture + SND_EMU10K1_CAPTURE_CHANNELS;
 	tmp = 0x88;	/* we need 4 temporary GPR */
 	/* from 0x8c to 0xff is the area for tone control */
-
-	/* stop FX processor */
-	snd_emu10k1_ptr_write(emu, DBG, 0, (emu->fx8010.dbg = 0) | EMU10K1_DBG_SINGLE_STEP);
 
 	/*
 	 *  Process FX Buses
@@ -2484,7 +2478,7 @@ int snd_emu10k1_fx8010_tram_setup(struct snd_emu10k1 *emu, u32 size)
 	outl(HCFG_LOCKTANKCACHE_MASK | inl(emu->port + HCFG), emu->port + HCFG);
 	spin_unlock_irq(&emu->emu_lock);
 	snd_emu10k1_ptr_write(emu, TCB, 0, 0);
-	snd_emu10k1_ptr_write(emu, TCBS, 0, 0);
+	snd_emu10k1_ptr_write(emu, TCBS, 0, TCBS_BUFFSIZE_16K);
 	if (emu->fx8010.etram_pages.area != NULL) {
 		snd_dma_free_pages(&emu->fx8010.etram_pages);
 		emu->fx8010.etram_pages.area = NULL;
@@ -2523,7 +2517,7 @@ static void snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
 				   struct snd_emu10k1_fx8010_info *info)
 {
 	const char * const *fxbus, * const *extin, * const *extout;
-	unsigned short fxbus_mask, extin_mask, extout_mask;
+	unsigned short extin_mask, extout_mask;
 	int res;
 
 	info->internal_tram_size = emu->fx8010.itram_size;
@@ -2531,11 +2525,10 @@ static void snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
 	fxbus = fxbuses;
 	extin = emu->audigy ? audigy_ins : creative_ins;
 	extout = emu->audigy ? audigy_outs : creative_outs;
-	fxbus_mask = emu->fx8010.fxbus_mask;
-	extin_mask = emu->fx8010.extin_mask;
-	extout_mask = emu->fx8010.extout_mask;
+	extin_mask = emu->audigy ? ~0 : emu->fx8010.extin_mask;
+	extout_mask = emu->audigy ? ~0 : emu->fx8010.extout_mask;
 	for (res = 0; res < 16; res++, fxbus++, extin++, extout++) {
-		copy_string(info->fxbus_names[res], fxbus_mask & (1 << res) ? *fxbus : NULL, "FXBUS", res);
+		copy_string(info->fxbus_names[res], *fxbus, "FXBUS", res);
 		copy_string(info->extin_names[res], extin_mask & (1 << res) ? *extin : NULL, "Unused", res);
 		copy_string(info->extout_names[res], extout_mask & (1 << res) ? *extout : NULL, "Unused", res);
 	}
@@ -2651,17 +2644,19 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 			return -EPERM;
 		if (get_user(addr, (unsigned int __user *)argp))
 			return -EFAULT;
-		if (addr > 0x1ff)
-			return -EINVAL;
-		if (emu->audigy)
-			snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg |= A_DBG_SINGLE_STEP | addr);
-		else
-			snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg |= EMU10K1_DBG_SINGLE_STEP | addr);
-		udelay(10);
-		if (emu->audigy)
-			snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg |= A_DBG_SINGLE_STEP | A_DBG_STEP_ADDR | addr);
-		else
-			snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg |= EMU10K1_DBG_SINGLE_STEP | EMU10K1_DBG_STEP | addr);
+		if (emu->audigy) {
+			if (addr > A_DBG_STEP_ADDR)
+				return -EINVAL;
+			snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg |= A_DBG_SINGLE_STEP);
+			udelay(10);
+			snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg | A_DBG_STEP | addr);
+		} else {
+			if (addr > EMU10K1_DBG_SINGLE_STEP_ADDR)
+				return -EINVAL;
+			snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg |= EMU10K1_DBG_SINGLE_STEP);
+			udelay(10);
+			snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg | EMU10K1_DBG_STEP | addr);
+		}
 		return 0;
 	case SNDRV_EMU10K1_IOCTL_DBG_READ:
 		if (emu->audigy)

@@ -38,6 +38,7 @@ properties:
               - allwinner,sun8i-h3-system-controller
               - allwinner,sun8i-v3s-system-controller
               - allwinner,sun50i-a64-system-controller
+              - amd,pensando-elba-syscon
               - brcm,cru-clkset
               - freecom,fsg-cs2-system-controller
               - fsl,imx93-aonmix-ns-syscfg
@@ -46,13 +47,17 @@ properties:
               - hisilicon,hi6220-sramctrl
               - hisilicon,pcie-sas-subctrl
               - hisilicon,peri-subctrl
+              - hpe,gxp-sysreg
               - intel,lgm-syscon
               - marvell,armada-3700-usb2-host-misc
               - mediatek,mt8135-pctl-a-syscfg
               - mediatek,mt8135-pctl-b-syscfg
+              - mediatek,mt8365-syscfg
               - microchip,lan966x-cpu-syscon
               - microchip,sparx5-cpu-syscon
               - mstar,msc313-pmsleep
+              - nuvoton,ma35d1-sys
+              - nuvoton,wpcm450-shm
               - rockchip,px30-qos
               - rockchip,rk3036-qos
               - rockchip,rk3066-qos
@@ -63,12 +68,7 @@ properties:
               - rockchip,rk3568-qos
               - rockchip,rk3588-qos
               - rockchip,rv1126-qos
-              - samsung,exynos3-sysreg
-              - samsung,exynos4-sysreg
-              - samsung,exynos5-sysreg
-              - samsung,exynos5433-sysreg
-              - samsung,exynos850-sysreg
-              - samsung,exynosautov9-sysreg
+              - starfive,jh7100-sysmain
 
           - const: syscon
 
@@ -85,6 +85,9 @@ properties:
       The size (in bytes) of the IO accesses that should be performed
       on the device.
     enum: [1, 2, 4, 8]
+
+  resets:
+    maxItems: 1
 
   hwlocks:
     maxItems: 1

@@ -109,4 +109,7 @@ static inline void kvmppc_clear_dbsr(void)
 {
 	mtspr(SPRN_DBSR, mfspr(SPRN_DBSR));
 }
+
+int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr);
+
 #endif /* __KVM_BOOKE_H__ */

@@ -18,7 +18,7 @@ static struct device_node *find_dcr_parent(struct device_node *node)
 	const u32 *p;
 
 	for (par = of_node_get(node); par;) {
-		if (of_get_property(par, "dcr-controller", NULL))
+		if (of_property_read_bool(par, "dcr-controller"))
 			break;
 		p = of_get_property(par, "dcr-parent", NULL);
 		tmp = par;

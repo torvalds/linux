@@ -1601,7 +1601,7 @@ release_ecc:
 	return ret;
 }
 
-static int mtk_nfc_remove(struct platform_device *pdev)
+static void mtk_nfc_remove(struct platform_device *pdev)
 {
 	struct mtk_nfc *nfc = platform_get_drvdata(pdev);
 	struct mtk_nfc_nand_chip *mtk_chip;
@@ -1620,8 +1620,6 @@ static int mtk_nfc_remove(struct platform_device *pdev)
 
 	mtk_ecc_release(nfc->ecc);
 	mtk_nfc_disable_clk(&nfc->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1663,7 +1661,7 @@ static SIMPLE_DEV_PM_OPS(mtk_nfc_pm_ops, mtk_nfc_suspend, mtk_nfc_resume);
 
 static struct platform_driver mtk_nfc_driver = {
 	.probe  = mtk_nfc_probe,
-	.remove = mtk_nfc_remove,
+	.remove_new = mtk_nfc_remove,
 	.driver = {
 		.name  = MTK_NAME,
 		.of_match_table = mtk_nfc_id_table,

@@ -37,6 +37,7 @@ properties:
       - samsung,exynos850-cmu-cmgp
       - samsung,exynos850-cmu-core
       - samsung,exynos850-cmu-dpu
+      - samsung,exynos850-cmu-g3d
       - samsung,exynos850-cmu-hsi
       - samsung,exynos850-cmu-is
       - samsung,exynos850-cmu-mfcmscl
@@ -173,6 +174,24 @@ allOf:
       properties:
         compatible:
           contains:
+            const: samsung,exynos850-cmu-g3d
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: G3D clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: dout_g3d_switch
+
+  - if:
+      properties:
+        compatible:
+          contains:
             const: samsung,exynos850-cmu-hsi
 
     then:
@@ -183,7 +202,7 @@ allOf:
             - description: External RTC clock (32768 Hz)
             - description: CMU_HSI bus clock (from CMU_TOP)
             - description: SD card clock (from CMU_TOP)
-            - description: "USB 2.0 DRD clock (from CMU_TOP)"
+            - description: USB 2.0 DRD clock (from CMU_TOP)
 
         clock-names:
           items:

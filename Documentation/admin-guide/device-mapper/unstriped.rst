@@ -35,7 +35,7 @@ An example of undoing an existing dm-stripe
 
 This small bash script will setup 4 loop devices and use the existing
 striped target to combine the 4 devices into one.  It then will use
-the unstriped target ontop of the striped device to access the
+the unstriped target on top of the striped device to access the
 individual backing loop devices.  We write data to the newly exposed
 unstriped devices and verify the data written matches the correct
 underlying device on the striped array::
@@ -110,8 +110,8 @@ to get a 92% reduction in read latency using this device mapper target.
 Example dmsetup usage
 =====================
 
-unstriped ontop of Intel NVMe device that has 2 cores
------------------------------------------------------
+unstriped on top of Intel NVMe device that has 2 cores
+------------------------------------------------------
 
 ::
 
@@ -124,8 +124,8 @@ respectively::
   /dev/mapper/nvmset0
   /dev/mapper/nvmset1
 
-unstriped ontop of striped with 4 drives using 128K chunk size
---------------------------------------------------------------
+unstriped on top of striped with 4 drives using 128K chunk size
+---------------------------------------------------------------
 
 ::
 

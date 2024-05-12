@@ -210,8 +210,8 @@
 		 * As we're dealing with 3wire SPI, we only define SCK
 		 * and MOSI (in the spec MOSI is called "SDA").
 		 */
-		gpio-sck = <&gpio0 5 GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
 		cs-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 		num-chipselects = <1>;
 

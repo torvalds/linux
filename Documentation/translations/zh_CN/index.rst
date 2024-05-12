@@ -71,6 +71,7 @@ TODOList:
    dev-tools/index
    dev-tools/testing-overview
    kernel-hacking/index
+   rust/index
 
 TODOList:
 
@@ -90,12 +91,12 @@ TODOList:
 
    admin-guide/index
    admin-guide/reporting-issues.rst
+   userspace-api/index
 
 TODOList:
 
 * 内核构建系统 <kbuild/index>
 * 用户空间工具 <tools/index>
-* userspace-api/index
 
 也可参考独立于内核文档的 `Linux 手册页 <https://www.kernel.org/doc/man-pages/>`_ 。
 
@@ -119,17 +120,26 @@ TODOList:
 .. toctree::
    :maxdepth: 2
 
-   arch
+   arch/index
 
 其他文档
 --------
 
-有几份未排序的文档似乎不适合放在文档的其他部分，或者可能需要进行一些调整和/或
+有几份未分类的文档似乎不适合放在文档的其他部分，或者可能需要进行一些调整和/或
 转换为reStructureText格式，也有可能太旧。
 
-TODOList:
+.. toctree::
+   :maxdepth: 2
 
-* staging/index
+   staging/index
+
+术语表
+------
+
+.. toctree::
+   :maxdepth: 1
+
+   glossary
 
 
 索引和表格

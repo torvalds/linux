@@ -22,8 +22,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-static int axp20x_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int axp20x_i2c_probe(struct i2c_client *i2c)
 {
 	struct axp20x_dev *axp20x;
 	int ret;
@@ -66,6 +65,7 @@ static const struct of_device_id axp20x_i2c_of_match[] = {
 	{ .compatible = "x-powers,axp223", .data = (void *)AXP223_ID },
 	{ .compatible = "x-powers,axp803", .data = (void *)AXP803_ID },
 	{ .compatible = "x-powers,axp806", .data = (void *)AXP806_ID },
+	{ .compatible = "x-powers,axp15060", .data = (void *)AXP15060_ID },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, axp20x_i2c_of_match);
@@ -79,6 +79,7 @@ static const struct i2c_device_id axp20x_i2c_id[] = {
 	{ "axp223", 0 },
 	{ "axp803", 0 },
 	{ "axp806", 0 },
+	{ "axp15060", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, axp20x_i2c_id);
@@ -100,7 +101,7 @@ static struct i2c_driver axp20x_i2c_driver = {
 		.of_match_table	= of_match_ptr(axp20x_i2c_of_match),
 		.acpi_match_table = ACPI_PTR(axp20x_i2c_acpi_match),
 	},
-	.probe		= axp20x_i2c_probe,
+	.probe_new	= axp20x_i2c_probe,
 	.remove		= axp20x_i2c_remove,
 	.id_table	= axp20x_i2c_id,
 };

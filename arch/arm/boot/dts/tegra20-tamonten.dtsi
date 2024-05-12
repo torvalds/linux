@@ -249,7 +249,7 @@
 			};
 		};
 
-		state_i2cmux_ddc: pinmux_i2cmux_ddc {
+		state_i2cmux_ddc: pinmux-i2cmux-ddc {
 			ddc {
 				nvidia,pins = "ddc";
 				nvidia,function = "i2c2";
@@ -260,7 +260,18 @@
 			};
 		};
 
-		state_i2cmux_pta: pinmux_i2cmux_pta {
+		state_i2cmux_idle: pinmux-i2cmux-idle {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
+
+		state_i2cmux_pta: pinmux-i2cmux-pta {
 			ddc {
 				nvidia,pins = "ddc";
 				nvidia,function = "rsvd4";
@@ -268,17 +279,6 @@
 			pta {
 				nvidia,pins = "pta";
 				nvidia,function = "i2c2";
-			};
-		};
-
-		state_i2cmux_idle: pinmux_i2cmux_idle {
-			ddc {
-				nvidia,pins = "ddc";
-				nvidia,function = "rsvd4";
-			};
-			pta {
-				nvidia,pins = "pta";
-				nvidia,function = "rsvd4";
 			};
 		};
 	};
@@ -299,31 +299,6 @@
 	i2c@7000c400 {
 		clock-frequency = <100000>;
 		status = "okay";
-	};
-
-	i2cmux {
-		compatible = "i2c-mux-pinctrl";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		i2c-parent = <&{/i2c@7000c400}>;
-
-		pinctrl-names = "ddc", "pta", "idle";
-		pinctrl-0 = <&state_i2cmux_ddc>;
-		pinctrl-1 = <&state_i2cmux_pta>;
-		pinctrl-2 = <&state_i2cmux_idle>;
-
-		hdmi_ddc: i2c@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-
-		i2c@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
 	};
 
 	i2c@7000d000 {
@@ -507,6 +482,31 @@
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
+	};
+
+	i2cmux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&{/i2c@7000c400}>;
+
+		pinctrl-names = "ddc", "pta", "idle";
+		pinctrl-0 = <&state_i2cmux_ddc>;
+		pinctrl-1 = <&state_i2cmux_pta>;
+		pinctrl-2 = <&state_i2cmux_idle>;
+
+		hdmi_ddc: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	pci_vdd_reg: regulator-1v05 {

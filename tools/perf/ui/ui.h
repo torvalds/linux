@@ -31,4 +31,7 @@ struct option;
 
 int stdio__config_color(const struct option *opt, const char *mode, int unset);
 
+void pthread__block_sigwinch(void);
+void pthread__unblock_sigwinch(void);
+
 #endif /* _PERF_UI_H_ */

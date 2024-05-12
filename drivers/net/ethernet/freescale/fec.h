@@ -348,7 +348,6 @@ struct bufdesc_ex {
  */
 
 #define FEC_ENET_XDP_HEADROOM	(XDP_PACKET_HEADROOM)
-
 #define FEC_ENET_RX_PAGES	256
 #define FEC_ENET_RX_FRSIZE	(PAGE_SIZE - FEC_ENET_XDP_HEADROOM \
 		- SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
@@ -508,6 +507,11 @@ struct bufdesc_ex {
 /* i.MX6Q adds pm_qos support */
 #define FEC_QUIRK_HAS_PMQOS			BIT(23)
 
+/* Not all FEC hardware block MDIOs support accesses in C45 mode.
+ * Older blocks in the ColdFire parts do not support it.
+ */
+#define FEC_QUIRK_HAS_MDIO_C45		BIT(24)
+
 struct bufdesc_prop {
 	int qid;
 	/* Address of Rx and Tx buffers */
@@ -525,6 +529,19 @@ struct fec_enet_priv_txrx_info {
 	int	offset;
 	struct	page *page;
 	struct  sk_buff *skb;
+};
+
+enum {
+	RX_XDP_REDIRECT = 0,
+	RX_XDP_PASS,
+	RX_XDP_DROP,
+	RX_XDP_TX,
+	RX_XDP_TX_ERRORS,
+	TX_XDP_XMIT,
+	TX_XDP_XMIT_ERRORS,
+
+	/* The following must be the last one */
+	XDP_STATS_TOTAL,
 };
 
 struct fec_enet_priv_tx_q {
@@ -547,6 +564,7 @@ struct fec_enet_priv_rx_q {
 	/* page_pool */
 	struct page_pool *page_pool;
 	struct xdp_rxq_info xdp_rxq;
+	u32 stats[XDP_STATS_TOTAL];
 
 	/* rx queue number, in the range 0-7 */
 	u8 id;
@@ -658,8 +676,13 @@ struct fec_enet_private {
 	unsigned int reload_period;
 	int pps_enable;
 	unsigned int next_counter;
+	struct hrtimer perout_timer;
+	u64 perout_stime;
 
 	struct imx_sc_ipc *ipc_handle;
+
+	/* XDP BPF Program */
+	struct bpf_prog *xdp_prog;
 
 	u64 ethtool_stats[];
 };

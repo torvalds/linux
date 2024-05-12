@@ -163,7 +163,7 @@ out:
 
 /**
  * build_id_parse_buf - Get build ID from a buffer
- * @buf:      Elf note section(s) to parse
+ * @buf:      ELF note section(s) to parse
  * @buf_size: Size of @buf in bytes
  * @build_id: Build ID parsed from @buf, at least BUILD_ID_SIZE_MAX long
  *

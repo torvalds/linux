@@ -54,7 +54,9 @@ static const struct imx_pll14xx_rate_table imx_pll1416x_tbl[] = {
 	PLL_1416X_RATE(800000000U,  200, 3, 1),
 	PLL_1416X_RATE(750000000U,  250, 2, 2),
 	PLL_1416X_RATE(700000000U,  350, 3, 2),
+	PLL_1416X_RATE(640000000U,  320, 3, 2),
 	PLL_1416X_RATE(600000000U,  300, 3, 2),
+	PLL_1416X_RATE(320000000U,  160, 3, 2),
 };
 
 static const struct imx_pll14xx_rate_table imx_pll1443x_tbl[] = {
@@ -254,7 +256,7 @@ static unsigned long clk_pll14xx_recalc_rate(struct clk_hw *hw,
 
 	if (pll->type == PLL_1443X) {
 		pll_div_ctl1 = readl_relaxed(pll->base + DIV_CTL1);
-		kdiv = FIELD_GET(KDIV_MASK, pll_div_ctl1);
+		kdiv = (s16)FIELD_GET(KDIV_MASK, pll_div_ctl1);
 	} else {
 		kdiv = 0;
 	}

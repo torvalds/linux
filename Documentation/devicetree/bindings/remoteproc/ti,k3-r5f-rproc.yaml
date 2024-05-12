@@ -21,6 +21,9 @@ description: |
   called "Single-CPU" mode, where only Core0 is used, but with ability to use
   Core1's TCMs as well.
 
+  AM62 SoC family support a single R5F core only which runs Device Manager
+  firmware and can also be used as a remote processor with IPC communication.
+
   Each Dual-Core R5F sub-system is represented as a single DTS node
   representing the cluster, with a pair of child DT nodes representing
   the individual R5F cores. Each node has a number of required or optional
@@ -34,10 +37,11 @@ properties:
 
   compatible:
     enum:
-      - ti,am654-r5fss
-      - ti,j721e-r5fss
-      - ti,j7200-r5fss
+      - ti,am62-r5fss
       - ti,am64-r5fss
+      - ti,am654-r5fss
+      - ti,j7200-r5fss
+      - ti,j721e-r5fss
       - ti,j721s2-r5fss
 
   power-domains:
@@ -64,10 +68,17 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Configuration Mode for the Dual R5F cores within the R5F cluster.
-      Should be either a value of 1 (LockStep mode) or 0 (Split mode) on
+      For most SoCs (AM65x, J721E, J7200, J721s2),
+      It should be either a value of 1 (LockStep mode) or 0 (Split mode) on
       most SoCs (AM65x, J721E, J7200, J721s2), default is LockStep mode if
-      omitted; and should be either a value of 0 (Split mode) or 2
-      (Single-CPU mode) on AM64x SoCs, default is Split mode if omitted.
+      omitted.
+      For AM64x SoCs,
+      It  should be either a value of 0 (Split mode) or 2 (Single-CPU mode) and
+      default is Split mode if omitted.
+      For AM62x SoCs,
+      It should be set as 3 (Single-Core mode) which is also the default if
+      omitted.
+
 
 # R5F Processor Child Nodes:
 # ==========================
@@ -80,7 +91,9 @@ patternProperties:
       node representing a TI instantiation of the Arm Cortex R5F core. There
       are some specific integration differences for the IP like the usage of
       a Region Address Translator (RAT) for translating the larger SoC bus
-      addresses into a 32-bit address space for the processor.
+      addresses into a 32-bit address space for the processor. For AM62x,
+      the R5F Sub-System device node should only define one R5F child node
+      as it has only one core available.
 
       Each R5F core has an associated 64 KB of Tightly-Coupled Memory (TCM)
       internal memories split between two banks - TCMA and TCMB (further
@@ -100,10 +113,11 @@ patternProperties:
     properties:
       compatible:
         enum:
-          - ti,am654-r5f
-          - ti,j721e-r5f
-          - ti,j7200-r5f
+          - ti,am62-r5f
           - ti,am64-r5f
+          - ti,am654-r5f
+          - ti,j7200-r5f
+          - ti,j721e-r5f
           - ti,j721s2-r5f
 
       reg:
@@ -208,19 +222,39 @@ patternProperties:
 
     unevaluatedProperties: false
 
-if:
-  properties:
-    compatible:
-      enum:
-        - ti,am64-r5fss
-then:
-  properties:
-    ti,cluster-mode:
-      enum: [0, 2]
-else:
-  properties:
-    ti,cluster-mode:
-      enum: [0, 1]
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,am64-r5fss
+    then:
+      properties:
+        ti,cluster-mode:
+          enum: [0, 2]
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,am654-r5fss
+            - ti,j7200-r5fss
+            - ti,j721e-r5fss
+            - ti,j721s2-r5fss
+    then:
+      properties:
+        ti,cluster-mode:
+          enum: [0, 1]
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,am62-r5fss
+    then:
+      properties:
+        ti,cluster-mode:
+          enum: [3]
 
 required:
   - compatible

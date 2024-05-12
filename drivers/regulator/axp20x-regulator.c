@@ -1364,6 +1364,7 @@ static struct platform_driver axp20x_regulator_driver = {
 	.probe	= axp20x_regulator_probe,
 	.driver	= {
 		.name		= "axp20x-regulator",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

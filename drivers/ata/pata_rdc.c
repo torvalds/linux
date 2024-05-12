@@ -288,7 +288,7 @@ static const struct ata_port_info rdc_port_info = {
 	.port_ops	= &rdc_pata_ops,
 };
 
-static struct scsi_host_template rdc_sht = {
+static const struct scsi_host_template rdc_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

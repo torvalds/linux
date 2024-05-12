@@ -44,19 +44,17 @@ parse_tc_vlan_action(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
+	if (!mlx5_eswitch_vlan_actions_supported(priv->mdev, vlan_idx)) {
+		NL_SET_ERR_MSG_MOD(extack, "firmware vlan actions is not supported");
+		return -EOPNOTSUPP;
+	}
+
 	switch (act->id) {
 	case FLOW_ACTION_VLAN_POP:
-		if (vlan_idx) {
-			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev,
-								 MLX5_FS_VLAN_DEPTH)) {
-				NL_SET_ERR_MSG_MOD(extack, "vlan pop action is not supported");
-				return -EOPNOTSUPP;
-			}
-
+		if (vlan_idx)
 			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2;
-		} else {
+		else
 			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_POP;
-		}
 		break;
 	case FLOW_ACTION_VLAN_PUSH:
 		attr->vlan_vid[vlan_idx] = act->vlan.vid;
@@ -65,25 +63,10 @@ parse_tc_vlan_action(struct mlx5e_priv *priv,
 		if (!attr->vlan_proto[vlan_idx])
 			attr->vlan_proto[vlan_idx] = htons(ETH_P_8021Q);
 
-		if (vlan_idx) {
-			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev,
-								 MLX5_FS_VLAN_DEPTH)) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "vlan push action is not supported for vlan depth > 1");
-				return -EOPNOTSUPP;
-			}
-
+		if (vlan_idx)
 			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2;
-		} else {
-			if (!mlx5_eswitch_vlan_actions_supported(priv->mdev, 1) &&
-			    (act->vlan.proto != htons(ETH_P_8021Q) ||
-			     act->vlan.prio)) {
-				NL_SET_ERR_MSG_MOD(extack, "vlan push action is not supported");
-				return -EOPNOTSUPP;
-			}
-
+		else
 			*action |= MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH;
-		}
 		break;
 	case FLOW_ACTION_VLAN_POP_ETH:
 		parse_state->eth_pop = true;
@@ -158,15 +141,6 @@ mlx5e_tc_act_vlan_add_pop_action(struct mlx5e_priv *priv,
 	return err;
 }
 
-static bool
-tc_act_can_offload_vlan(struct mlx5e_tc_act_parse_state *parse_state,
-			const struct flow_action_entry *act,
-			int act_index,
-			struct mlx5_flow_attr *attr)
-{
-	return true;
-}
-
 static int
 tc_act_parse_vlan(struct mlx5e_tc_act_parse_state *parse_state,
 		  const struct flow_action_entry *act,
@@ -222,7 +196,6 @@ tc_act_post_parse_vlan(struct mlx5e_tc_act_parse_state *parse_state,
 }
 
 struct mlx5e_tc_act mlx5e_tc_act_vlan = {
-	.can_offload = tc_act_can_offload_vlan,
 	.parse_action = tc_act_parse_vlan,
 	.post_parse = tc_act_post_parse_vlan,
 };

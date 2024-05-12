@@ -473,14 +473,12 @@ err_free_priv:
 	return ret;
 }
 
-static int csi2rx_remove(struct platform_device *pdev)
+static void csi2rx_remove(struct platform_device *pdev)
 {
 	struct csi2rx_priv *csi2rx = platform_get_drvdata(pdev);
 
 	v4l2_async_unregister_subdev(&csi2rx->subdev);
 	kfree(csi2rx);
-
-	return 0;
 }
 
 static const struct of_device_id csi2rx_of_table[] = {
@@ -491,7 +489,7 @@ MODULE_DEVICE_TABLE(of, csi2rx_of_table);
 
 static struct platform_driver csi2rx_driver = {
 	.probe	= csi2rx_probe,
-	.remove	= csi2rx_remove,
+	.remove_new = csi2rx_remove,
 
 	.driver	= {
 		.name		= "cdns-csi2rx",

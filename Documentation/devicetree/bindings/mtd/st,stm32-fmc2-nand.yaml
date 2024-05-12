@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/st,stm32-fmc2-nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics Flexible Memory Controller 2 (FMC2) Bindings
+title: STMicroelectronics Flexible Memory Controller 2 (FMC2)
 
 maintainers:
   - Christophe Kerello <christophe.kerello@foss.st.com>
@@ -45,7 +45,7 @@ patternProperties:
         enum: [1, 4, 8]
 
 allOf:
-  - $ref: "nand-controller.yaml#"
+  - $ref: nand-controller.yaml#
 
   - if:
       properties:
@@ -101,31 +101,32 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/stm32mp1-clks.h>
     #include <dt-bindings/reset/stm32mp1-resets.h>
-    nand-controller@58002000 {
-      compatible = "st,stm32mp15-fmc2";
-      reg = <0x58002000 0x1000>,
-            <0x80000000 0x1000>,
-            <0x88010000 0x1000>,
-            <0x88020000 0x1000>,
-            <0x81000000 0x1000>,
-            <0x89010000 0x1000>,
-            <0x89020000 0x1000>;
-      interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
-      dmas = <&mdma1 20 0x2 0x12000a02 0x0 0x0>,
-             <&mdma1 20 0x2 0x12000a08 0x0 0x0>,
-             <&mdma1 21 0x2 0x12000a0a 0x0 0x0>;
-      dma-names = "tx", "rx", "ecc";
-      clocks = <&rcc FMC_K>;
-      resets = <&rcc FMC_R>;
-      #address-cells = <1>;
-      #size-cells = <0>;
 
-      nand@0 {
-        reg = <0>;
-        nand-on-flash-bbt;
+    nand-controller@58002000 {
+        compatible = "st,stm32mp15-fmc2";
+        reg = <0x58002000 0x1000>,
+              <0x80000000 0x1000>,
+              <0x88010000 0x1000>,
+              <0x88020000 0x1000>,
+              <0x81000000 0x1000>,
+              <0x89010000 0x1000>,
+              <0x89020000 0x1000>;
+        interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+        dmas = <&mdma1 20 0x2 0x12000a02 0x0 0x0>,
+               <&mdma1 20 0x2 0x12000a08 0x0 0x0>,
+               <&mdma1 21 0x2 0x12000a0a 0x0 0x0>;
+        dma-names = "tx", "rx", "ecc";
+        clocks = <&rcc FMC_K>;
+        resets = <&rcc FMC_R>;
         #address-cells = <1>;
-        #size-cells = <1>;
-      };
+        #size-cells = <0>;
+
+        nand@0 {
+            reg = <0>;
+            nand-on-flash-bbt;
+            #address-cells = <1>;
+            #size-cells = <1>;
+        };
     };
 
 ...

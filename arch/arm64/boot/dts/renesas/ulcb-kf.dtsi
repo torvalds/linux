@@ -6,12 +6,6 @@
  * Copyright (C) 2017 Cogent Embedded, Inc.
  */
 
-/*
- * SSI-PCM3168A
- *	aplay   -D plughw:0,2 xxx.wav
- *	arecord -D plughw:0,3 xxx.wav
- */
-
 / {
 	aliases {
 		serial1 = &hscif0;
@@ -126,7 +120,7 @@
 };
 
 &i2c2 {
-	i2cswitch2: i2c-switch@71 {
+	i2cmux2: i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -212,26 +206,6 @@
 				VCCAD2-supply = <&snd_vcc5v>;
 				VCCDA1-supply = <&snd_vcc5v>;
 				VCCDA2-supply = <&snd_vcc5v>;
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-					mclk-fs = <512>;
-					port@0 {
-						reg = <0>;
-						pcm3168a_endpoint_p: endpoint {
-							remote-endpoint = <&rsnd_for_pcm3168a_play>;
-							clocks = <&clksndsel>;
-						};
-					};
-					port@1 {
-						reg = <1>;
-						pcm3168a_endpoint_c: endpoint {
-							remote-endpoint = <&rsnd_for_pcm3168a_capture>;
-							clocks = <&clksndsel>;
-						};
-					};
-				};
 			};
 
 			gyroscope@6b {
@@ -317,7 +291,7 @@
 };
 
 &i2c4 {
-	i2cswitch4: i2c-switch@71 {
+	i2cmux4: i2c-mux@71 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -418,30 +392,6 @@
 	pinctrl-0 = <&sound_pins
 		     &sound_clk_pins
 		     &sound_pcm_pins>;
-
-	ports {
-		/* rsnd_port0/1 are defined in ulcb.dtsi */
-		rsnd_port2: port@2 {
-			reg = <2>;
-			rsnd_for_pcm3168a_play: endpoint {
-				remote-endpoint = <&pcm3168a_endpoint_p>;
-				bitclock-master;
-				frame-master;
-				dai-tdm-slot-num = <8>;
-				playback = <&ssi3>;
-			};
-		};
-		rsnd_port3: port@3 {
-			reg = <3>;
-			rsnd_for_pcm3168a_capture: endpoint {
-				remote-endpoint = <&pcm3168a_endpoint_c>;
-				bitclock-master;
-				frame-master;
-				dai-tdm-slot-num = <6>;
-				capture = <&ssi4>;
-			};
-		};
-	};
 };
 
 &scif1 {
@@ -476,14 +426,6 @@
 	};
 };
 
-&sound_card {
-	links = <&rsnd_port0	/* ak4613 */
-		 &rsnd_port1	/* HDMI0  */
-		 &rsnd_port2	/* pcm3168a playback */
-		 &rsnd_port3	/* pcm3168a capture  */
-		>;
-};
-
 &ssi4 {
 	shared-pin;
 };
@@ -498,3 +440,17 @@
 &xhci0 {
 	status = "okay";
 };
+
+/*
+ * For sound-test.
+ *
+ * We can switch Audio Card for testing
+ * see also ulcb.dtsi
+ *
+ * #include "ulcb-kf-simple-audio-card.dtsi"
+ * #include "ulcb-kf-simple-audio-card-mix+split.dtsi"
+ * #include "ulcb-kf-audio-graph-card.dtsi"
+ * #include "ulcb-kf-audio-graph-card-mix+split.dtsi"
+ * #include "ulcb-kf-audio-graph-card2-mix+split.dtsi"
+ */
+#include "ulcb-kf-audio-graph-card2.dtsi"

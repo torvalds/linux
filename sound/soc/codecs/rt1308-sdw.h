@@ -166,10 +166,8 @@ struct rt1308_sdw_priv {
 	int rx_mask;
 	int slots;
 	int hw_ver;
-};
-
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
+	unsigned char *bq_params;
+	unsigned int bq_params_cnt;
 };
 
 #endif /* __RT1308_SDW_H__ */

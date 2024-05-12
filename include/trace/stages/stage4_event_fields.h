@@ -26,7 +26,8 @@
 #define __array(_type, _item, _len) {					\
 	.type = #_type"["__stringify(_len)"]", .name = #_item,		\
 	.size = sizeof(_type[_len]), .align = ALIGN_STRUCTFIELD(_type),	\
-	.is_signed = is_signed_type(_type), .filter_type = FILTER_OTHER },
+	.is_signed = is_signed_type(_type), .filter_type = FILTER_OTHER,\
+	.len = _len },
 
 #undef __dynamic_array
 #define __dynamic_array(_type, _item, _len) {				\
@@ -46,6 +47,12 @@
 #undef __bitmask
 #define __bitmask(item, nr_bits) __dynamic_array(unsigned long, item, -1)
 
+#undef __cpumask
+#define __cpumask(item) {						\
+	.type = "__data_loc cpumask_t", .name = #item,			\
+	.size = 4, .align = 4,						\
+	.is_signed = 0, .filter_type = FILTER_OTHER },
+
 #undef __sockaddr
 #define __sockaddr(field, len) __dynamic_array(u8, field, len)
 
@@ -63,6 +70,12 @@
 
 #undef __rel_bitmask
 #define __rel_bitmask(item, nr_bits) __rel_dynamic_array(unsigned long, item, -1)
+
+#undef __rel_cpumask
+#define __rel_cpumask(item) {						\
+	.type = "__rel_loc cpumask_t", .name = #item,			\
+	.size = 4, .align = 4,						\
+	.is_signed = 0, .filter_type = FILTER_OTHER },
 
 #undef __rel_sockaddr
 #define __rel_sockaddr(field, len) __rel_dynamic_array(u8, field, len)

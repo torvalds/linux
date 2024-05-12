@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
+#include <dt-bindings/iio/qcom,spmi-vadc.h>
+#include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/spmi/spmi.h>
-#include <dt-bindings/iio/qcom,spmi-vadc.h>
 
 &spmi_bus {
 	pm8226_0: pm8226@0 {
@@ -10,12 +11,25 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pwrkey@800 {
-			compatible = "qcom,pm8941-pwrkey";
+		pon@800 {
+			compatible = "qcom,pm8916-pon";
 			reg = <0x800>;
-			interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
-			debounce = <15625>;
-			bias-pull-up;
+
+			pwrkey {
+				compatible = "qcom,pm8941-pwrkey";
+				interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				linux,code = <KEY_POWER>;
+			};
+
+			pm8226_resin: resin {
+				compatible = "qcom,pm8941-resin";
+				interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+				debounce = <15625>;
+				bias-pull-up;
+				status = "disabled";
+			};
 		};
 
 		smbb: charger@1000 {
@@ -39,13 +53,6 @@
 					  "dc-valid";
 
 			chg_otg: otg-vbus { };
-		};
-
-		rtc@6000 {
-			compatible = "qcom,pm8941-rtc";
-			reg = <0x6000>, <0x6100>;
-			reg-names = "rtc", "alarm";
-			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
 		pm8226_vadc: adc@3100 {
@@ -81,12 +88,35 @@
 			};
 		};
 
+		pm8226_iadc: adc@3600 {
+			compatible = "qcom,pm8226-iadc", "qcom,spmi-iadc";
+			reg = <0x3600>;
+			interrupts = <0x0 0x36 0x0 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		rtc@6000 {
+			compatible = "qcom,pm8941-rtc";
+			reg = <0x6000>, <0x6100>;
+			reg-names = "rtc", "alarm";
+			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
+		};
+
 		pm8226_mpps: mpps@a000 {
 			compatible = "qcom,pm8226-mpp", "qcom,spmi-mpp";
 			reg = <0xa000>;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&pm8226_mpps 0 0 8>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pm8226_gpios: gpio@c000 {
+			compatible = "qcom,pm8226-gpio", "qcom,spmi-gpio";
+			reg = <0xc000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pm8226_gpios 0 0 8>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
@@ -98,7 +128,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pm8226_spmi_regulators: pm8226-regulators {
+		pm8226_spmi_regulators: regulators {
 			compatible = "qcom,pm8226-regulators";
 		};
 

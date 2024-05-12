@@ -213,7 +213,7 @@ void pci_isa_write_reg(int reg, u32 value)
 			lo |= 0x00000063;
 			_wrmsr(SB_MSR_REG(SB_ERROR), hi, lo);
 		}
-
+		break;
 	default:
 		/* ALL OTHER PCI CONFIG SPACE HEADER IS NOT IMPLEMENTED. */
 		break;

@@ -1072,16 +1072,33 @@
 	display-panel {
 		compatible = "innolux,g101ice-l01";
 	};
-};
 
-&emc_icc_dvfs_opp_table {
-	/delete-node/ opp-750000000-1300;
-	/delete-node/ opp-800000000-1300;
-	/delete-node/ opp-900000000-1350;
-};
+	opp-table-emc {
+		/delete-node/ opp-750000000-1300;
+		/delete-node/ opp-800000000-1300;
+		/delete-node/ opp-900000000-1350;
+	};
 
-&emc_bw_dfs_opp_table {
-	/delete-node/ opp-750000000;
-	/delete-node/ opp-800000000;
-	/delete-node/ opp-900000000;
+	opp-table-actmon {
+		/delete-node/ opp-750000000;
+		/delete-node/ opp-800000000;
+		/delete-node/ opp-900000000;
+	};
+
+	sound {
+		compatible = "asus,tegra-audio-rt5631-tf300tg",
+			     "nvidia,tegra-audio-rt5631";
+		nvidia,model = "Asus Transformer Pad TF300TG RT5631";
+
+		nvidia,audio-routing =
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR",
+			"Int Spk", "SPOL",
+			"Int Spk", "SPOR",
+			"MIC1", "MIC Bias1",
+			"MIC Bias1", "Mic Jack",
+			"DMIC", "Int Mic";
+
+		nvidia,audio-codec = <&rt5631>;
+	};
 };

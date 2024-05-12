@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/idt,versaclock5.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for IDT VersaClock 5 and 6 programmable I2C clock generators
+title: IDT VersaClock 5 and 6 programmable I2C clock generators
 
 description: |
   The IDT VersaClock 5 and VersaClock 6 are programmable I2C
@@ -54,6 +54,7 @@ properties:
       - idt,5p49v5925
       - idt,5p49v5933
       - idt,5p49v5935
+      - idt,5p49v60
       - idt,5p49v6901
       - idt,5p49v6965
       - idt,5p49v6975

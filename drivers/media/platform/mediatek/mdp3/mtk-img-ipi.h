@@ -8,19 +8,11 @@
 #ifndef __MTK_IMG_IPI_H__
 #define __MTK_IMG_IPI_H__
 
-#include <linux/types.h>
+#include <linux/err.h>
+#include "mdp_sm_mt8183.h"
+#include "mtk-mdp3-type.h"
 
-/*
- * ISP-MDP generic input information
- * MD5 of the target SCP blob:
- *     6da52bdcf4bf76a0983b313e1d4745d6
- */
-
-#define IMG_MAX_HW_INPUTS	3
-
-#define IMG_MAX_HW_OUTPUTS	4
-
-#define IMG_MAX_PLANES		3
+/* ISP-MDP generic input information */
 
 #define IMG_IPI_INIT    1
 #define IMG_IPI_DEINIT  2
@@ -51,14 +43,14 @@ struct img_sw_addr {
 
 struct img_plane_format {
 	u32 size;
-	u16 stride;
+	u32 stride;
 } __packed;
 
 struct img_pix_format {
-	u16 width;
-	u16 height;
+	u32 width;
+	u32 height;
 	u32 colorformat; /* enum mdp_color */
-	u16 ycbcr_prof; /* enum mdp_ycbcr_profile */
+	u32 ycbcr_prof; /* enum mdp_ycbcr_profile */
 	struct img_plane_format plane_fmt[IMG_MAX_PLANES];
 } __packed;
 
@@ -71,17 +63,6 @@ struct img_image_buffer {
 
 #define IMG_SUBPIXEL_SHIFT	20
 
-struct img_crop {
-	s16 left;
-	s16 top;
-	u16 width;
-	u16 height;
-	u32 left_subpix;
-	u32 top_subpix;
-	u32 width_subpix;
-	u32 height_subpix;
-} __packed;
-
 #define IMG_CTRL_FLAG_HFLIP	BIT(0)
 #define IMG_CTRL_FLAG_DITHER	BIT(1)
 #define IMG_CTRL_FLAG_SHARPNESS	BIT(4)
@@ -90,24 +71,24 @@ struct img_crop {
 
 struct img_input {
 	struct img_image_buffer buffer;
-	u16 flags; /* HDR, DRE, dither */
+	u32 flags; /* HDR, DRE, dither */
 } __packed;
 
 struct img_output {
 	struct img_image_buffer buffer;
 	struct img_crop crop;
-	s16 rotation;
-	u16 flags; /* H-flip, sharpness, dither */
+	s32 rotation;
+	u32 flags; /* H-flip, sharpness, dither */
 } __packed;
 
 struct img_ipi_frameparam {
 	u32 index;
 	u32 frame_no;
 	struct img_timeval timestamp;
-	u8 type; /* enum mdp_stream_type */
-	u8 state;
-	u8 num_inputs;
-	u8 num_outputs;
+	u32 type; /* enum mdp_stream_type */
+	u32 state;
+	u32 num_inputs;
+	u32 num_outputs;
 	u64 drv_data;
 	struct img_input inputs[IMG_MAX_HW_INPUTS];
 	struct img_output outputs[IMG_MAX_HW_OUTPUTS];
@@ -123,168 +104,46 @@ struct img_sw_buffer {
 } __packed;
 
 struct img_ipi_param {
-	u8 usage;
+	u32 usage;
 	struct img_sw_buffer frm_param;
 } __packed;
 
 struct img_frameparam {
 	struct list_head list_entry;
 	struct img_ipi_frameparam frameparam;
-};
-
-/* ISP-MDP generic output information */
-
-struct img_comp_frame {
-	u32 output_disable:1;
-	u32 bypass:1;
-	u16 in_width;
-	u16 in_height;
-	u16 out_width;
-	u16 out_height;
-	struct img_crop crop;
-	u16 in_total_width;
-	u16 out_total_width;
 } __packed;
 
-struct img_region {
-	s16 left;
-	s16 right;
-	s16 top;
-	s16 bottom;
-} __packed;
+/* Platform config indicator */
+#define MT8183 8183
 
-struct img_offset {
-	s16 left;
-	s16 top;
-	u32 left_subpix;
-	u32 top_subpix;
-} __packed;
+#define CFG_CHECK(plat, p_id) ((plat) == (p_id))
 
-struct img_comp_subfrm {
-	u32 tile_disable:1;
-	struct img_region in;
-	struct img_region out;
-	struct img_offset luma;
-	struct img_offset chroma;
-	s16 out_vertical; /* Output vertical index */
-	s16 out_horizontal; /* Output horizontal index */
-} __packed;
+#define _CFG_OFST(plat, cfg, ofst) ((void *)(&((cfg)->config_##plat) + (ofst)))
+#define CFG_OFST(plat, cfg, ofst) \
+	(IS_ERR_OR_NULL(cfg) ? NULL : _CFG_OFST(plat, cfg, ofst))
 
-#define IMG_MAX_SUBFRAMES	14
+#define _CFG_ADDR(plat, cfg, mem) (&((cfg)->config_##plat.mem))
+#define CFG_ADDR(plat, cfg, mem) \
+	(IS_ERR_OR_NULL(cfg) ? NULL : _CFG_ADDR(plat, cfg, mem))
 
-struct mdp_rdma_subfrm {
-	u32 offset[IMG_MAX_PLANES];
-	u32 offset_0_p;
-	u32 src;
-	u32 clip;
-	u32 clip_ofst;
-} __packed;
+#define _CFG_GET(plat, cfg, mem) ((cfg)->config_##plat.mem)
+#define CFG_GET(plat, cfg, mem) \
+	(IS_ERR_OR_NULL(cfg) ? 0 : _CFG_GET(plat, cfg, mem))
 
-struct mdp_rdma_data {
-	u32 src_ctrl;
-	u32 control;
-	u32 iova[IMG_MAX_PLANES];
-	u32 iova_end[IMG_MAX_PLANES];
-	u32 mf_bkgd;
-	u32 mf_bkgd_in_pxl;
-	u32 sf_bkgd;
-	u32 ufo_dec_y;
-	u32 ufo_dec_c;
-	u32 transform;
-	struct mdp_rdma_subfrm subfrms[IMG_MAX_SUBFRAMES];
-} __packed;
+#define _CFG_COMP(plat, comp, mem) ((comp)->comp_##plat.mem)
+#define CFG_COMP(plat, comp, mem) \
+	(IS_ERR_OR_NULL(comp) ? 0 : _CFG_COMP(plat, comp, mem))
 
-struct mdp_rsz_subfrm {
-	u32 control2;
-	u32 src;
-	u32 clip;
-} __packed;
-
-struct mdp_rsz_data {
-	u32 coeff_step_x;
-	u32 coeff_step_y;
-	u32 control1;
-	u32 control2;
-	struct mdp_rsz_subfrm subfrms[IMG_MAX_SUBFRAMES];
-} __packed;
-
-struct mdp_wrot_subfrm {
-	u32 offset[IMG_MAX_PLANES];
-	u32 src;
-	u32 clip;
-	u32 clip_ofst;
-	u32 main_buf;
-} __packed;
-
-struct mdp_wrot_data {
-	u32 iova[IMG_MAX_PLANES];
-	u32 control;
-	u32 stride[IMG_MAX_PLANES];
-	u32 mat_ctrl;
-	u32 fifo_test;
-	u32 filter;
-	struct mdp_wrot_subfrm subfrms[IMG_MAX_SUBFRAMES];
-} __packed;
-
-struct mdp_wdma_subfrm {
-	u32 offset[IMG_MAX_PLANES];
-	u32 src;
-	u32 clip;
-	u32 clip_ofst;
-} __packed;
-
-struct mdp_wdma_data {
-	u32 wdma_cfg;
-	u32 iova[IMG_MAX_PLANES];
-	u32 w_in_byte;
-	u32 uv_stride;
-	struct mdp_wdma_subfrm subfrms[IMG_MAX_SUBFRAMES];
-} __packed;
-
-struct isp_data {
-	u64 dl_flags; /* 1 << (enum mdp_comp_type) */
-	u32 smxi_iova[4];
-	u32 cq_idx;
-	u32 cq_iova;
-	u32 tpipe_iova[IMG_MAX_SUBFRAMES];
-} __packed;
-
-struct img_compparam {
-	u16 type; /* enum mdp_comp_type */
-	u16 id; /* enum mtk_mdp_comp_id */
-	u32 input;
-	u32 outputs[IMG_MAX_HW_OUTPUTS];
-	u32 num_outputs;
-	struct img_comp_frame frame;
-	struct img_comp_subfrm subfrms[IMG_MAX_SUBFRAMES];
-	u32 num_subfrms;
+struct img_config {
 	union {
-		struct mdp_rdma_data rdma;
-		struct mdp_rsz_data rsz;
-		struct mdp_wrot_data wrot;
-		struct mdp_wdma_data wdma;
-		struct isp_data isp;
+		struct img_config_8183 config_8183;
 	};
 } __packed;
 
-#define IMG_MAX_COMPONENTS	20
-
-struct img_mux {
-	u32 reg;
-	u32 value;
-	u32 subsys_id;
-};
-
-struct img_mmsys_ctrl {
-	struct img_mux sets[IMG_MAX_COMPONENTS * 2];
-	u32 num_sets;
-};
-
-struct img_config {
-	struct img_compparam components[IMG_MAX_COMPONENTS];
-	u32 num_components;
-	struct img_mmsys_ctrl ctrls[IMG_MAX_SUBFRAMES];
-	u32 num_subfrms;
+struct img_compparam {
+	union {
+		struct img_compparam_8183 comp_8183;
+	};
 } __packed;
 
 #endif  /* __MTK_IMG_IPI_H__ */

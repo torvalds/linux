@@ -3857,7 +3857,7 @@ static void cxlflash_pci_resume(struct pci_dev *pdev)
  *
  * Return: Allocated string describing the devtmpfs structure.
  */
-static char *cxlflash_devnode(struct device *dev, umode_t *mode)
+static char *cxlflash_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cxlflash/%s", dev_name(dev));
 }
@@ -3880,7 +3880,7 @@ static int cxlflash_class_init(void)
 
 	cxlflash_major = MAJOR(devno);
 
-	cxlflash_class = class_create(THIS_MODULE, "cxlflash");
+	cxlflash_class = class_create("cxlflash");
 	if (IS_ERR(cxlflash_class)) {
 		rc = PTR_ERR(cxlflash_class);
 		pr_err("%s: class_create failed rc=%d\n", __func__, rc);

@@ -54,6 +54,7 @@ static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t 
 	struct resource *root_res;
 	resource_size_t rebar_size;
 	resource_size_t current_size;
+	intel_wakeref_t wakeref;
 	u32 pci_cmd;
 	int i;
 
@@ -102,15 +103,25 @@ static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t 
 		return;
 	}
 
-	/* First disable PCI memory decoding references */
-	pci_read_config_dword(pdev, PCI_COMMAND, &pci_cmd);
-	pci_write_config_dword(pdev, PCI_COMMAND,
-			       pci_cmd & ~PCI_COMMAND_MEMORY);
+	/*
+	 * Releasing forcewake during BAR resizing results in later forcewake
+	 * ack timeouts and former can happen any time - it is asynchronous.
+	 * Grabbing all forcewakes prevents it.
+	 */
+	with_intel_runtime_pm(i915->uncore.rpm, wakeref) {
+		intel_uncore_forcewake_get(&i915->uncore, FORCEWAKE_ALL);
 
-	_resize_bar(i915, GEN12_LMEM_BAR, rebar_size);
+		/* First disable PCI memory decoding references */
+		pci_read_config_dword(pdev, PCI_COMMAND, &pci_cmd);
+		pci_write_config_dword(pdev, PCI_COMMAND,
+				       pci_cmd & ~PCI_COMMAND_MEMORY);
 
-	pci_assign_unassigned_bus_resources(pdev->bus);
-	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
+		_resize_bar(i915, GEN12_LMEM_BAR, rebar_size);
+
+		pci_assign_unassigned_bus_resources(pdev->bus);
+		pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
+		intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
+	}
 }
 #else
 static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t lmem_size) {}
@@ -158,7 +169,7 @@ static const struct intel_memory_region_ops intel_region_lmem_ops = {
 static bool get_legacy_lowmem_region(struct intel_uncore *uncore,
 				     u64 *start, u32 *size)
 {
-	if (!IS_DG1_GRAPHICS_STEP(uncore->i915, STEP_A0, STEP_C0))
+	if (!IS_DG1(uncore->i915))
 		return false;
 
 	*start = 0;

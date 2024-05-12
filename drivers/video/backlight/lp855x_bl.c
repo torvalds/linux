@@ -394,8 +394,9 @@ static int lp855x_parse_acpi(struct lp855x *lp)
 	return 0;
 }
 
-static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int lp855x_probe(struct i2c_client *cl)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(cl);
 	const struct acpi_device_id *acpi_id = NULL;
 	struct device *dev = &cl->dev;
 	struct lp855x *lp;
@@ -547,7 +548,7 @@ static void lp855x_remove(struct i2c_client *cl)
 	sysfs_remove_group(&lp->dev->kobj, &lp855x_attr_group);
 }
 
-static const struct of_device_id lp855x_dt_ids[] = {
+static const struct of_device_id lp855x_dt_ids[] __maybe_unused = {
 	{ .compatible = "ti,lp8550", },
 	{ .compatible = "ti,lp8551", },
 	{ .compatible = "ti,lp8552", },
@@ -586,7 +587,7 @@ static struct i2c_driver lp855x_driver = {
 		   .of_match_table = of_match_ptr(lp855x_dt_ids),
 		   .acpi_match_table = ACPI_PTR(lp855x_acpi_match),
 		   },
-	.probe = lp855x_probe,
+	.probe_new = lp855x_probe,
 	.remove = lp855x_remove,
 	.id_table = lp855x_ids,
 };

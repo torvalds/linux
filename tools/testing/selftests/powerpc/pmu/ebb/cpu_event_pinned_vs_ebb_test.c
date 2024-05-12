@@ -45,9 +45,8 @@ int cpu_event_pinned_vs_ebb(void)
 
 	SKIP_IF(!ebb_is_supported());
 
-	cpu = pick_online_cpu();
+	cpu = bind_to_cpu(BIND_CPU_ANY);
 	FAIL_IF(cpu < 0);
-	FAIL_IF(bind_to_cpu(cpu));
 
 	FAIL_IF(pipe(read_pipe.fds) == -1);
 	FAIL_IF(pipe(write_pipe.fds) == -1);

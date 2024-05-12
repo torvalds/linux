@@ -14,6 +14,7 @@
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
 #include "sdm850.dtsi"
+#include "sdm845-wcd9340.dtsi"
 #include "pm8998.dtsi"
 
 /*
@@ -43,7 +44,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		// Firmware initialized the display at 1280p instead of 1440p
+		/* Firmware initialized the display at 1280p instead of 1440p */
 		framebuffer0: framebuffer@80400000 {
 			compatible = "simple-framebuffer";
 			reg = <0 0x80400000 0 (1920 * 1280 * 4)>;
@@ -124,12 +125,12 @@
 };
 
 &adsp_pas {
-	firmware-name = "qcom/samsung/w737/qcadsp850.mbn";
+	firmware-name = "qcom/sdm850/samsung/w737/qcadsp850.mbn";
 	status = "okay";
 };
 
 &apps_rsc {
-	pm8998-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8998-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -336,7 +337,7 @@
 };
 
 &cdsp_pas {
-	firmware-name = "qcom/samsung/w737/qccdsp850.mbn";
+	firmware-name = "qcom/sdm850/samsung/w737/qccdsp850.mbn";
 	status = "okay";
 };
 
@@ -383,9 +384,10 @@
 };
 
 &ipa {
-	status = "okay";
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
-	firmware-name = "qcom/samsung/w737/ipa_fws.elf";
+	firmware-name = "qcom/sdm850/samsung/w737/ipa_fws.elf";
+	status = "okay";
 };
 
 /* No idea why it causes an SError when enabled */
@@ -395,51 +397,22 @@
 
 &mss_pil {
 	status = "okay";
-	firmware-name = "qcom/samsung/w737/qcdsp1v2850.mbn", "qcom/samsung/w737/qcdsp2850.mbn";
+	firmware-name = "qcom/sdm850/samsung/w737/qcdsp1v2850.mbn", "qcom/sdm850/samsung/w737/qcdsp2850.mbn";
 };
 
 &qup_i2c10_default {
-	pinconf {
-		pins = "gpio55", "gpio56";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qup_i2c11_default {
-	pinconf {
-		pins = "gpio31", "gpio32";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &qup_i2c12_default {
 	drive-strength = <2>;
 	bias-disable;
-};
-
-&qup_uart6_default {
-	pinmux {
-		 pins = "gpio45", "gpio46", "gpio47", "gpio48";
-		 function = "qup6";
-	};
-
-	cts {
-		pins = "gpio45";
-		bias-pull-down;
-	};
-
-	rts-tx {
-		pins = "gpio46", "gpio47";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	rx {
-		pins = "gpio48";
-		bias-pull-up;
-	};
 };
 
 &qupv3_id_0 {
@@ -547,69 +520,44 @@
 &tlmm {
 	gpio-reserved-ranges = <0 6>, <85 4>;
 
-	pen_irq_l: pen-irq-l {
-		pinmux {
-			pins = "gpio119";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio119";
-			bias-disable;
-		};
-	};
-
-	pen_pdct_l: pen-pdct-l {
-		pinmux {
-			pins = "gpio124";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio124";
-			bias-disable;
-			drive-strength = <2>;
-			output-high;
-		};
-	};
-
-	pen_rst_l: pen-rst-l {
-		pinmux  {
-			pins = "gpio21";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio21";
-			bias-disable;
-			drive-strength = <2>;
-
-			/*
-			 * The pen driver doesn't currently support
-			 * driving this reset line.  By specifying
-			 * output-high here we're relying on the fact
-			 * that this pin has a default pulldown at boot
-			 * (which makes sure the pen was in reset if it
-			 * was powered) and then we set it high here to
-			 * take it out of reset.  Better would be if the
-			 * pen driver could control this and we could
-			 * remove "output-high" here.
-			 */
-			output-high;
-		};
-	};
-
-	wcd_intr_default: wcd_intr_default {
-		pins = "gpio54";
+	pen_irq_l: pen-irq-l-state {
+		pins = "gpio119";
 		function = "gpio";
+		bias-disable;
+	};
 
-		input-enable;
-		bias-pull-down;
+	pen_pdct_l: pen-pdct-l-state {
+		pins = "gpio124";
+		function = "gpio";
+		bias-disable;
 		drive-strength = <2>;
+		output-high;
+	};
+
+	pen_rst_l: pen-rst-l-state {
+		pins = "gpio21";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+
+		/*
+		 * The pen driver doesn't currently support
+		 * driving this reset line.  By specifying
+		 * output-high here we're relying on the fact
+		 * that this pin has a default pulldown at boot
+		 * (which makes sure the pen was in reset if it
+		 * was powered) and then we set it high here to
+		 * take it out of reset.  Better would be if the
+		 * pen driver could control this and we could
+		 * remove "output-high" here.
+		 */
+		output-high;
 	};
 };
 
 &uart6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&qup_uart6_4pin>;
 	status = "okay";
 
 	bluetooth {
@@ -696,14 +644,10 @@
 
 &venus {
 	status = "okay";
-	firmware-name = "qcom/samsung/w737/qcvss850.mbn";
+	firmware-name = "qcom/sdm850/samsung/w737/qcvss850.mbn";
 };
 
-&wcd9340{
-	pinctrl-0 = <&wcd_intr_default>;
-	pinctrl-names = "default";
-	clock-names = "extclk";
-	clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
+&wcd9340 {
 	reset-gpios = <&tlmm 64 GPIO_ACTIVE_HIGH>;
 	vdd-buck-supply = <&vreg_s4a_1p8>;
 	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
@@ -715,18 +659,18 @@
 	qcom,mbhc-headphone-vthreshold-microvolt = <50000>;
 
 	swm: swm@c85 {
-		left_spkr: wsa8810-left{
+		left_spkr: speaker@0,3 {
 			compatible = "sdw10217211000";
 			reg = <0 3>;
-			powerdown-gpios = <&wcdgpio 1 GPIO_ACTIVE_HIGH>;
+			powerdown-gpios = <&wcdgpio 1 GPIO_ACTIVE_LOW>;
 			#thermal-sensor-cells = <0>;
 			sound-name-prefix = "SpkrLeft";
 			#sound-dai-cells = <0>;
 		};
 
-		right_spkr: wsa8810-right{
+		right_spkr: speaker@0,4 {
 			compatible = "sdw10217211000";
-			powerdown-gpios = <&wcdgpio 2 GPIO_ACTIVE_HIGH>;
+			powerdown-gpios = <&wcdgpio 2 GPIO_ACTIVE_LOW>;
 			reg = <0 4>;
 			#thermal-sensor-cells = <0>;
 			sound-name-prefix = "SpkrRight";

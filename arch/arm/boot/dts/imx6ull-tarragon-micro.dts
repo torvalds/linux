@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+//
+// Copyright (C) 2023 chargebyte GmbH
+
+#include "imx6ull-tarragon-common.dtsi"
+
+/ {
+	model = "chargebyte Tarragon Micro";
+	compatible = "chargebyte,imx6ull-tarragon-micro", "fsl,imx6ull";
+};

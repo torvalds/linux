@@ -88,6 +88,7 @@ static ssize_t w1_slave_read(struct file *filp, struct kobject *kobj,
 			     loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
+
 	return w1_ds2781_io(dev, buf, off, count, 0);
 }
 

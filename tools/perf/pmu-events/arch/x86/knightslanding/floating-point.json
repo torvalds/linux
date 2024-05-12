@@ -1,7 +1,6 @@
 [
     {
         "BriefDescription": "Counts the number of floating operations retired that required microcode assists",
-        "Counter": "0,1",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.FP_ASSIST",
         "PublicDescription": "This event counts the number of times that the pipeline stalled due to FP operations needing assists.",
@@ -10,7 +9,6 @@
     },
     {
         "BriefDescription": "Counts the number of vector SSE, AVX, AVX2, AVX-512 micro-ops retired. More specifically, it counts packed SSE, AVX, AVX2, AVX-512 micro-ops (both floating point and integer) except for loads (memory-to-register mov-type micro-ops), packed byte and word multiplies.",
-        "Counter": "0,1",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.PACKED_SIMD",
         "PublicDescription": "This event counts the number of packed vector SSE, AVX, AVX2, and AVX-512 micro-ops retired (floating point, integer and store) except for loads (memory-to-register mov-type micro-ops), packed byte and word multiplies.",
@@ -19,7 +17,6 @@
     },
     {
         "BriefDescription": "Counts the number of scalar SSE, AVX, AVX2, AVX-512 micro-ops retired. More specifically, it counts scalar SSE, AVX, AVX2, AVX-512 micro-ops except for loads (memory-to-register mov-type micro ops), division, sqrt.",
-        "Counter": "0,1",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.SCALAR_SIMD",
         "PublicDescription": "This event counts the number of scalar SSE, AVX, AVX2, AVX-512 micro-ops retired (floating point, integer and store) except for loads (memory-to-register mov-type micro ops), division, sqrt.",

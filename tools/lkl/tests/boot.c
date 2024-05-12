@@ -511,7 +511,7 @@ static int lkl_test_kasan(void)
 
 	line = strtok(log, "\n");
 	while (line) {
-		if (sscanf(line, "[ %*f] ok %*d - kasa%c%c", &c, &d) == 1 &&
+		if (sscanf(line, "[ %*f] ok %*d kasa%c%c", &c, &d) == 1 &&
 			   c == 'n') {
 			lkl_test_logf("%s", line);
 			return TEST_SUCCESS;

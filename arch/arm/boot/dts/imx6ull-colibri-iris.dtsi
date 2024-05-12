@@ -59,7 +59,7 @@
 	 * in userspace.
 	 * The same applies to uart1_tx_on.
 	 */
-	uart25_tx_on {
+	uart25_tx_on-hog {
 		gpio-hog;
 		gpios = <15 0>;
 		output-high;
@@ -67,7 +67,7 @@
 };
 
 &gpio2 {
-	uart1_tx_on {
+	uart1_tx_on-hog {
 		gpio-hog;
 		gpios = <7 0>;
 		output-high;
@@ -117,11 +117,13 @@
 };
 
 &usbotg1 {
+	disable-over-current;
 	vbus-supply = <&reg_usbh_vbus>;
 	status = "okay";
 };
 
 &usbotg2 {
+	disable-over-current;
 	vbus-supply = <&reg_usbh_vbus>;
 	status = "okay";
 };

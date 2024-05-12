@@ -322,7 +322,7 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb332);
 
 static void drm_fb_xrgb8888_to_rgb565_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
-	u16 *dbuf16 = dbuf;
+	__le16 *dbuf16 = dbuf;
 	const __le32 *sbuf32 = sbuf;
 	unsigned int x;
 	u16 val16;
@@ -333,14 +333,15 @@ static void drm_fb_xrgb8888_to_rgb565_line(void *dbuf, const void *sbuf, unsigne
 		val16 = ((pix & 0x00F80000) >> 8) |
 			((pix & 0x0000FC00) >> 5) |
 			((pix & 0x000000F8) >> 3);
-		dbuf16[x] = val16;
+		dbuf16[x] = cpu_to_le16(val16);
 	}
 }
 
+/* TODO: implement this helper as conversion to RGB565|BIG_ENDIAN */
 static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
 						unsigned int pixels)
 {
-	u16 *dbuf16 = dbuf;
+	__le16 *dbuf16 = dbuf;
 	const __le32 *sbuf32 = sbuf;
 	unsigned int x;
 	u16 val16;
@@ -351,7 +352,7 @@ static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
 		val16 = ((pix & 0x00F80000) >> 8) |
 			((pix & 0x0000FC00) >> 5) |
 			((pix & 0x000000F8) >> 3);
-		dbuf16[x] = swab16(val16);
+		dbuf16[x] = cpu_to_le16(swab16(val16));
 	}
 }
 
@@ -395,6 +396,161 @@ void drm_fb_xrgb8888_to_rgb565(struct iosys_map *dst, const unsigned int *dst_pi
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565);
 
+static void drm_fb_xrgb8888_to_xrgb1555_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	__le16 *dbuf16 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	unsigned int x;
+	u16 val16;
+	u32 pix;
+
+	for (x = 0; x < pixels; x++) {
+		pix = le32_to_cpu(sbuf32[x]);
+		val16 = ((pix & 0x00f80000) >> 9) |
+			((pix & 0x0000f800) >> 6) |
+			((pix & 0x000000f8) >> 3);
+		dbuf16[x] = cpu_to_le16(val16);
+	}
+}
+
+/**
+ * drm_fb_xrgb8888_to_xrgb1555 - Convert XRGB8888 to XRGB1555 clip buffer
+ * @dst: Array of XRGB1555 destination buffers
+ * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
+ *             within @dst; can be NULL if scanlines are stored next to each other.
+ * @src: Array of XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * This function copies parts of a framebuffer to display memory and converts
+ * the color format during the process. The parameters @dst, @dst_pitch and
+ * @src refer to arrays. Each array must have at least as many entries as
+ * there are planes in @fb's format. Each entry stores the value for the
+ * format's respective color plane at the same index.
+ *
+ * This function does not apply clipping on @dst (i.e. the destination is at the
+ * top-left corner).
+ *
+ * Drivers can use this function for XRGB1555 devices that don't support
+ * XRGB8888 natively.
+ */
+void drm_fb_xrgb8888_to_xrgb1555(struct iosys_map *dst, const unsigned int *dst_pitch,
+				 const struct iosys_map *src, const struct drm_framebuffer *fb,
+				 const struct drm_rect *clip)
+{
+	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
+		2,
+	};
+
+	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
+		    drm_fb_xrgb8888_to_xrgb1555_line);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_xrgb1555);
+
+static void drm_fb_xrgb8888_to_argb1555_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	__le16 *dbuf16 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	unsigned int x;
+	u16 val16;
+	u32 pix;
+
+	for (x = 0; x < pixels; x++) {
+		pix = le32_to_cpu(sbuf32[x]);
+		val16 = BIT(15) | /* set alpha bit */
+			((pix & 0x00f80000) >> 9) |
+			((pix & 0x0000f800) >> 6) |
+			((pix & 0x000000f8) >> 3);
+		dbuf16[x] = cpu_to_le16(val16);
+	}
+}
+
+/**
+ * drm_fb_xrgb8888_to_argb1555 - Convert XRGB8888 to ARGB1555 clip buffer
+ * @dst: Array of ARGB1555 destination buffers
+ * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
+ *             within @dst; can be NULL if scanlines are stored next to each other.
+ * @src: Array of XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * This function copies parts of a framebuffer to display memory and converts
+ * the color format during the process. The parameters @dst, @dst_pitch and
+ * @src refer to arrays. Each array must have at least as many entries as
+ * there are planes in @fb's format. Each entry stores the value for the
+ * format's respective color plane at the same index.
+ *
+ * This function does not apply clipping on @dst (i.e. the destination is at the
+ * top-left corner).
+ *
+ * Drivers can use this function for ARGB1555 devices that don't support
+ * XRGB8888 natively. It sets an opaque alpha channel as part of the conversion.
+ */
+void drm_fb_xrgb8888_to_argb1555(struct iosys_map *dst, const unsigned int *dst_pitch,
+				 const struct iosys_map *src, const struct drm_framebuffer *fb,
+				 const struct drm_rect *clip)
+{
+	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
+		2,
+	};
+
+	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
+		    drm_fb_xrgb8888_to_argb1555_line);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_argb1555);
+
+static void drm_fb_xrgb8888_to_rgba5551_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	__le16 *dbuf16 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	unsigned int x;
+	u16 val16;
+	u32 pix;
+
+	for (x = 0; x < pixels; x++) {
+		pix = le32_to_cpu(sbuf32[x]);
+		val16 = ((pix & 0x00f80000) >> 8) |
+			((pix & 0x0000f800) >> 5) |
+			((pix & 0x000000f8) >> 2) |
+			BIT(0); /* set alpha bit */
+		dbuf16[x] = cpu_to_le16(val16);
+	}
+}
+
+/**
+ * drm_fb_xrgb8888_to_rgba5551 - Convert XRGB8888 to RGBA5551 clip buffer
+ * @dst: Array of RGBA5551 destination buffers
+ * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
+ *             within @dst; can be NULL if scanlines are stored next to each other.
+ * @src: Array of XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * This function copies parts of a framebuffer to display memory and converts
+ * the color format during the process. The parameters @dst, @dst_pitch and
+ * @src refer to arrays. Each array must have at least as many entries as
+ * there are planes in @fb's format. Each entry stores the value for the
+ * format's respective color plane at the same index.
+ *
+ * This function does not apply clipping on @dst (i.e. the destination is at the
+ * top-left corner).
+ *
+ * Drivers can use this function for RGBA5551 devices that don't support
+ * XRGB8888 natively. It sets an opaque alpha channel as part of the conversion.
+ */
+void drm_fb_xrgb8888_to_rgba5551(struct iosys_map *dst, const unsigned int *dst_pitch,
+				 const struct iosys_map *src, const struct drm_framebuffer *fb,
+				 const struct drm_rect *clip)
+{
+	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
+		2,
+	};
+
+	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
+		    drm_fb_xrgb8888_to_rgba5551_line);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgba5551);
+
 static void drm_fb_xrgb8888_to_rgb888_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
 	u8 *dbuf8 = dbuf;
@@ -404,6 +560,7 @@ static void drm_fb_xrgb8888_to_rgb888_line(void *dbuf, const void *sbuf, unsigne
 
 	for (x = 0; x < pixels; x++) {
 		pix = le32_to_cpu(sbuf32[x]);
+		/* write blue-green-red to output in little endianness */
 		*dbuf8++ = (pix & 0x000000FF) >>  0;
 		*dbuf8++ = (pix & 0x0000FF00) >>  8;
 		*dbuf8++ = (pix & 0x00FF0000) >> 16;
@@ -444,63 +601,112 @@ void drm_fb_xrgb8888_to_rgb888(struct iosys_map *dst, const unsigned int *dst_pi
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888);
 
-static void drm_fb_rgb565_to_xrgb8888_line(void *dbuf, const void *sbuf, unsigned int pixels)
+static void drm_fb_xrgb8888_to_argb8888_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
 	__le32 *dbuf32 = dbuf;
-	const __le16 *sbuf16 = sbuf;
+	const __le32 *sbuf32 = sbuf;
 	unsigned int x;
+	u32 pix;
 
 	for (x = 0; x < pixels; x++) {
-		u16 val16 = le16_to_cpu(sbuf16[x]);
-		u32 val32 = ((val16 & 0xf800) << 8) |
-			    ((val16 & 0x07e0) << 5) |
-			    ((val16 & 0x001f) << 3);
-		val32 = 0xff000000 | val32 |
-			((val32 >> 3) & 0x00070007) |
-			((val32 >> 2) & 0x00000300);
-		dbuf32[x] = cpu_to_le32(val32);
-	}
-}
-
-static void drm_fb_rgb565_to_xrgb8888(struct iosys_map *dst, const unsigned int *dst_pitch,
-				      const struct iosys_map *src,
-				      const struct drm_framebuffer *fb,
-				      const struct drm_rect *clip)
-{
-	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
-		4,
-	};
-
-	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
-		    drm_fb_rgb565_to_xrgb8888_line);
-}
-
-static void drm_fb_rgb888_to_xrgb8888_line(void *dbuf, const void *sbuf, unsigned int pixels)
-{
-	__le32 *dbuf32 = dbuf;
-	const u8 *sbuf8 = sbuf;
-	unsigned int x;
-
-	for (x = 0; x < pixels; x++) {
-		u8 r = *sbuf8++;
-		u8 g = *sbuf8++;
-		u8 b = *sbuf8++;
-		u32 pix = 0xff000000 | (r << 16) | (g << 8) | b;
+		pix = le32_to_cpu(sbuf32[x]);
+		pix |= GENMASK(31, 24); /* fill alpha bits */
 		dbuf32[x] = cpu_to_le32(pix);
 	}
 }
 
-static void drm_fb_rgb888_to_xrgb8888(struct iosys_map *dst, const unsigned int *dst_pitch,
-				      const struct iosys_map *src,
-				      const struct drm_framebuffer *fb,
-				      const struct drm_rect *clip)
+/**
+ * drm_fb_xrgb8888_to_argb8888 - Convert XRGB8888 to ARGB8888 clip buffer
+ * @dst: Array of ARGB8888 destination buffers
+ * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
+ *             within @dst; can be NULL if scanlines are stored next to each other.
+ * @src: Array of XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * This function copies parts of a framebuffer to display memory and converts the
+ * color format during the process. The parameters @dst, @dst_pitch and @src refer
+ * to arrays. Each array must have at least as many entries as there are planes in
+ * @fb's format. Each entry stores the value for the format's respective color plane
+ * at the same index.
+ *
+ * This function does not apply clipping on @dst (i.e. the destination is at the
+ * top-left corner).
+ *
+ * Drivers can use this function for ARGB8888 devices that don't support XRGB8888
+ * natively. It sets an opaque alpha channel as part of the conversion.
+ */
+void drm_fb_xrgb8888_to_argb8888(struct iosys_map *dst, const unsigned int *dst_pitch,
+				 const struct iosys_map *src, const struct drm_framebuffer *fb,
+				 const struct drm_rect *clip)
 {
 	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
 		4,
 	};
 
 	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
-		    drm_fb_rgb888_to_xrgb8888_line);
+		    drm_fb_xrgb8888_to_argb8888_line);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_argb8888);
+
+static void drm_fb_xrgb8888_to_abgr8888_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	__le32 *dbuf32 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	unsigned int x;
+	u32 pix;
+
+	for (x = 0; x < pixels; x++) {
+		pix = le32_to_cpu(sbuf32[x]);
+		pix = ((pix & 0x00ff0000) >> 16) <<  0 |
+		      ((pix & 0x0000ff00) >>  8) <<  8 |
+		      ((pix & 0x000000ff) >>  0) << 16 |
+		      GENMASK(31, 24); /* fill alpha bits */
+		*dbuf32++ = cpu_to_le32(pix);
+	}
+}
+
+static void drm_fb_xrgb8888_to_abgr8888(struct iosys_map *dst, const unsigned int *dst_pitch,
+					const struct iosys_map *src,
+					const struct drm_framebuffer *fb,
+					const struct drm_rect *clip)
+{
+	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
+		4,
+	};
+
+	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
+		    drm_fb_xrgb8888_to_abgr8888_line);
+}
+
+static void drm_fb_xrgb8888_to_xbgr8888_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	__le32 *dbuf32 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	unsigned int x;
+	u32 pix;
+
+	for (x = 0; x < pixels; x++) {
+		pix = le32_to_cpu(sbuf32[x]);
+		pix = ((pix & 0x00ff0000) >> 16) <<  0 |
+		      ((pix & 0x0000ff00) >>  8) <<  8 |
+		      ((pix & 0x000000ff) >>  0) << 16 |
+		      ((pix & 0xff000000) >> 24) << 24;
+		*dbuf32++ = cpu_to_le32(pix);
+	}
+}
+
+static void drm_fb_xrgb8888_to_xbgr8888(struct iosys_map *dst, const unsigned int *dst_pitch,
+					const struct iosys_map *src,
+					const struct drm_framebuffer *fb,
+					const struct drm_rect *clip)
+{
+	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
+		4,
+	};
+
+	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
+		    drm_fb_xrgb8888_to_xbgr8888_line);
 }
 
 static void drm_fb_xrgb8888_to_xrgb2101010_line(void *dbuf, const void *sbuf, unsigned int pixels)
@@ -554,6 +760,59 @@ void drm_fb_xrgb8888_to_xrgb2101010(struct iosys_map *dst, const unsigned int *d
 		    drm_fb_xrgb8888_to_xrgb2101010_line);
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_xrgb2101010);
+
+static void drm_fb_xrgb8888_to_argb2101010_line(void *dbuf, const void *sbuf, unsigned int pixels)
+{
+	__le32 *dbuf32 = dbuf;
+	const __le32 *sbuf32 = sbuf;
+	unsigned int x;
+	u32 val32;
+	u32 pix;
+
+	for (x = 0; x < pixels; x++) {
+		pix = le32_to_cpu(sbuf32[x]);
+		val32 = ((pix & 0x000000ff) << 2) |
+			((pix & 0x0000ff00) << 4) |
+			((pix & 0x00ff0000) << 6);
+		pix = GENMASK(31, 30) | /* set alpha bits */
+		      val32 | ((val32 >> 8) & 0x00300c03);
+		*dbuf32++ = cpu_to_le32(pix);
+	}
+}
+
+/**
+ * drm_fb_xrgb8888_to_argb2101010 - Convert XRGB8888 to ARGB2101010 clip buffer
+ * @dst: Array of ARGB2101010 destination buffers
+ * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
+ *             within @dst; can be NULL if scanlines are stored next to each other.
+ * @src: Array of XRGB8888 source buffers
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ *
+ * This function copies parts of a framebuffer to display memory and converts
+ * the color format during the process. The parameters @dst, @dst_pitch and
+ * @src refer to arrays. Each array must have at least as many entries as
+ * there are planes in @fb's format. Each entry stores the value for the
+ * format's respective color plane at the same index.
+ *
+ * This function does not apply clipping on @dst (i.e. the destination is at the
+ * top-left corner).
+ *
+ * Drivers can use this function for ARGB2101010 devices that don't support XRGB8888
+ * natively.
+ */
+void drm_fb_xrgb8888_to_argb2101010(struct iosys_map *dst, const unsigned int *dst_pitch,
+				    const struct iosys_map *src, const struct drm_framebuffer *fb,
+				    const struct drm_rect *clip)
+{
+	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
+		4,
+	};
+
+	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false,
+		    drm_fb_xrgb8888_to_argb2101010_line);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_argb2101010);
 
 static void drm_fb_xrgb8888_to_gray8_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
@@ -641,41 +900,48 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 {
 	uint32_t fb_format = fb->format->format;
 
-	/* treat alpha channel like filler bits */
-	if (fb_format == DRM_FORMAT_ARGB8888)
-		fb_format = DRM_FORMAT_XRGB8888;
-	if (dst_format == DRM_FORMAT_ARGB8888)
-		dst_format = DRM_FORMAT_XRGB8888;
-	if (fb_format == DRM_FORMAT_ARGB2101010)
-		fb_format = DRM_FORMAT_XRGB2101010;
-	if (dst_format == DRM_FORMAT_ARGB2101010)
-		dst_format = DRM_FORMAT_XRGB2101010;
-
-	if (dst_format == fb_format) {
+	if (fb_format == dst_format) {
 		drm_fb_memcpy(dst, dst_pitch, src, fb, clip);
 		return 0;
-
-	} else if (dst_format == DRM_FORMAT_RGB565) {
-		if (fb_format == DRM_FORMAT_XRGB8888) {
+	} else if (fb_format == (dst_format | DRM_FORMAT_BIG_ENDIAN)) {
+		drm_fb_swab(dst, dst_pitch, src, fb, clip, false);
+		return 0;
+	} else if (fb_format == (dst_format & ~DRM_FORMAT_BIG_ENDIAN)) {
+		drm_fb_swab(dst, dst_pitch, src, fb, clip, false);
+		return 0;
+	} else if (fb_format == DRM_FORMAT_XRGB8888) {
+		if (dst_format == DRM_FORMAT_RGB565) {
 			drm_fb_xrgb8888_to_rgb565(dst, dst_pitch, src, fb, clip, false);
 			return 0;
-		}
-	} else if (dst_format == DRM_FORMAT_RGB888) {
-		if (fb_format == DRM_FORMAT_XRGB8888) {
+		} else if (dst_format == DRM_FORMAT_XRGB1555) {
+			drm_fb_xrgb8888_to_xrgb1555(dst, dst_pitch, src, fb, clip);
+			return 0;
+		} else if (dst_format == DRM_FORMAT_ARGB1555) {
+			drm_fb_xrgb8888_to_argb1555(dst, dst_pitch, src, fb, clip);
+			return 0;
+		} else if (dst_format == DRM_FORMAT_RGBA5551) {
+			drm_fb_xrgb8888_to_rgba5551(dst, dst_pitch, src, fb, clip);
+			return 0;
+		} else if (dst_format == DRM_FORMAT_RGB888) {
 			drm_fb_xrgb8888_to_rgb888(dst, dst_pitch, src, fb, clip);
 			return 0;
-		}
-	} else if (dst_format == DRM_FORMAT_XRGB8888) {
-		if (fb_format == DRM_FORMAT_RGB888) {
-			drm_fb_rgb888_to_xrgb8888(dst, dst_pitch, src, fb, clip);
+		} else if (dst_format == DRM_FORMAT_ARGB8888) {
+			drm_fb_xrgb8888_to_argb8888(dst, dst_pitch, src, fb, clip);
 			return 0;
-		} else if (fb_format == DRM_FORMAT_RGB565) {
-			drm_fb_rgb565_to_xrgb8888(dst, dst_pitch, src, fb, clip);
+		} else if (dst_format == DRM_FORMAT_XBGR8888) {
+			drm_fb_xrgb8888_to_xbgr8888(dst, dst_pitch, src, fb, clip);
 			return 0;
-		}
-	} else if (dst_format == DRM_FORMAT_XRGB2101010) {
-		if (fb_format == DRM_FORMAT_XRGB8888) {
+		} else if (dst_format == DRM_FORMAT_ABGR8888) {
+			drm_fb_xrgb8888_to_abgr8888(dst, dst_pitch, src, fb, clip);
+			return 0;
+		} else if (dst_format == DRM_FORMAT_XRGB2101010) {
 			drm_fb_xrgb8888_to_xrgb2101010(dst, dst_pitch, src, fb, clip);
+			return 0;
+		} else if (dst_format == DRM_FORMAT_ARGB2101010) {
+			drm_fb_xrgb8888_to_argb2101010(dst, dst_pitch, src, fb, clip);
+			return 0;
+		} else if (dst_format == DRM_FORMAT_BGRX8888) {
+			drm_fb_swab(dst, dst_pitch, src, fb, clip, false);
 			return 0;
 		}
 	}
@@ -795,6 +1061,39 @@ void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitc
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_mono);
 
+static uint32_t drm_fb_nonalpha_fourcc(uint32_t fourcc)
+{
+	/* only handle formats with depth != 0 and alpha channel */
+	switch (fourcc) {
+	case DRM_FORMAT_ARGB1555:
+		return DRM_FORMAT_XRGB1555;
+	case DRM_FORMAT_ABGR1555:
+		return DRM_FORMAT_XBGR1555;
+	case DRM_FORMAT_RGBA5551:
+		return DRM_FORMAT_RGBX5551;
+	case DRM_FORMAT_BGRA5551:
+		return DRM_FORMAT_BGRX5551;
+	case DRM_FORMAT_ARGB8888:
+		return DRM_FORMAT_XRGB8888;
+	case DRM_FORMAT_ABGR8888:
+		return DRM_FORMAT_XBGR8888;
+	case DRM_FORMAT_RGBA8888:
+		return DRM_FORMAT_RGBX8888;
+	case DRM_FORMAT_BGRA8888:
+		return DRM_FORMAT_BGRX8888;
+	case DRM_FORMAT_ARGB2101010:
+		return DRM_FORMAT_XRGB2101010;
+	case DRM_FORMAT_ABGR2101010:
+		return DRM_FORMAT_XBGR2101010;
+	case DRM_FORMAT_RGBA1010102:
+		return DRM_FORMAT_RGBX1010102;
+	case DRM_FORMAT_BGRA1010102:
+		return DRM_FORMAT_BGRX1010102;
+	}
+
+	return fourcc;
+}
+
 static bool is_listed_fourcc(const uint32_t *fourccs, size_t nfourccs, uint32_t fourcc)
 {
 	const uint32_t *fourccs_end = fourccs + nfourccs;
@@ -807,73 +1106,48 @@ static bool is_listed_fourcc(const uint32_t *fourccs, size_t nfourccs, uint32_t 
 	return false;
 }
 
-static const uint32_t conv_from_xrgb8888[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_ARGB2101010,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_RGB888,
-};
-
-static const uint32_t conv_from_rgb565_888[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
-};
-
-static bool is_conversion_supported(uint32_t from, uint32_t to)
-{
-	switch (from) {
-	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ARGB8888:
-		return is_listed_fourcc(conv_from_xrgb8888, ARRAY_SIZE(conv_from_xrgb8888), to);
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_RGB888:
-		return is_listed_fourcc(conv_from_rgb565_888, ARRAY_SIZE(conv_from_rgb565_888), to);
-	case DRM_FORMAT_XRGB2101010:
-		return to == DRM_FORMAT_ARGB2101010;
-	case DRM_FORMAT_ARGB2101010:
-		return to == DRM_FORMAT_XRGB2101010;
-	default:
-		return false;
-	}
-}
-
 /**
  * drm_fb_build_fourcc_list - Filters a list of supported color formats against
  *                            the device's native formats
  * @dev: DRM device
  * @native_fourccs: 4CC codes of natively supported color formats
  * @native_nfourccs: The number of entries in @native_fourccs
- * @driver_fourccs: 4CC codes of all driver-supported color formats
- * @driver_nfourccs: The number of entries in @driver_fourccs
  * @fourccs_out: Returns 4CC codes of supported color formats
  * @nfourccs_out: The number of available entries in @fourccs_out
  *
  * This function create a list of supported color format from natively
- * supported formats and the emulated formats.
+ * supported formats and additional emulated formats.
  * At a minimum, most userspace programs expect at least support for
  * XRGB8888 on the primary plane. Devices that have to emulate the
  * format, and possibly others, can use drm_fb_build_fourcc_list() to
  * create a list of supported color formats. The returned list can
  * be handed over to drm_universal_plane_init() et al. Native formats
- * will go before emulated formats. Other heuristics might be applied
+ * will go before emulated formats. Native formats with alpha channel
+ * will be replaced by such without, as primary planes usually don't
+ * support alpha. Other heuristics might be applied
  * to optimize the order. Formats near the beginning of the list are
- * usually preferred over formats near the end of the list. Formats
- * without conversion helpers will be skipped. New drivers should only
- * pass in XRGB8888 and avoid exposing additional emulated formats.
+ * usually preferred over formats near the end of the list.
  *
  * Returns:
  * The number of color-formats 4CC codes returned in @fourccs_out.
  */
 size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 				const u32 *native_fourccs, size_t native_nfourccs,
-				const u32 *driver_fourccs, size_t driver_nfourccs,
 				u32 *fourccs_out, size_t nfourccs_out)
 {
+	/*
+	 * XRGB8888 is the default fallback format for most of userspace
+	 * and it's currently the only format that should be emulated for
+	 * the primary plane. Only if there's ever another default fallback,
+	 * it should be added here.
+	 */
+	static const uint32_t extra_fourccs[] = {
+		DRM_FORMAT_XRGB8888,
+	};
+	static const size_t extra_nfourccs = ARRAY_SIZE(extra_fourccs);
+
 	u32 *fourccs = fourccs_out;
 	const u32 *fourccs_end = fourccs_out + nfourccs_out;
-	uint32_t native_format = 0;
 	size_t i;
 
 	/*
@@ -881,7 +1155,12 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 	 */
 
 	for (i = 0; i < native_nfourccs; ++i) {
-		u32 fourcc = native_fourccs[i];
+		/*
+		 * Several DTs, boot loaders and firmware report native
+		 * alpha formats that are non-alpha formats instead. So
+		 * replace alpha formats by non-alpha formats.
+		 */
+		u32 fourcc = drm_fb_nonalpha_fourcc(native_fourccs[i]);
 
 		if (is_listed_fourcc(fourccs_out, fourccs - fourccs_out, fourcc)) {
 			continue; /* skip duplicate entries */
@@ -892,14 +1171,6 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 
 		drm_dbg_kms(dev, "adding native format %p4cc\n", &fourcc);
 
-		/*
-		 * There should only be one native format with the current API.
-		 * This API needs to be refactored to correctly support arbitrary
-		 * sets of native formats, since it needs to report which native
-		 * format to use for each emulated format.
-		 */
-		if (!native_format)
-			native_format = fourcc;
 		*fourccs = fourcc;
 		++fourccs;
 	}
@@ -908,17 +1179,14 @@ size_t drm_fb_build_fourcc_list(struct drm_device *dev,
 	 * The extra formats, emulated by the driver, go second.
 	 */
 
-	for (i = 0; (i < driver_nfourccs) && (fourccs < fourccs_end); ++i) {
-		u32 fourcc = driver_fourccs[i];
+	for (i = 0; (i < extra_nfourccs) && (fourccs < fourccs_end); ++i) {
+		u32 fourcc = extra_fourccs[i];
 
 		if (is_listed_fourcc(fourccs_out, fourccs - fourccs_out, fourcc)) {
 			continue; /* skip duplicate and native entries */
 		} else if (fourccs == fourccs_end) {
 			drm_warn(dev, "Ignoring emulated format %p4cc\n", &fourcc);
 			continue; /* end of available output buffer */
-		} else if (!is_conversion_supported(fourcc, native_format)) {
-			drm_dbg_kms(dev, "Unsupported emulated format %p4cc\n", &fourcc);
-			continue; /* format is not supported for conversion */
 		}
 
 		drm_dbg_kms(dev, "adding emulated format %p4cc\n", &fourcc);

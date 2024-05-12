@@ -177,10 +177,7 @@ struct x25_forward {
 	atomic_t		refcnt;
 };
 
-static inline struct x25_sock *x25_sk(const struct sock *sk)
-{
-	return (struct x25_sock *)sk;
-}
+#define x25_sk(ptr) container_of_const(ptr, struct x25_sock, sk)
 
 /* af_x25.c */
 extern int  sysctl_x25_restart_request_timeout;

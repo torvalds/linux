@@ -1179,74 +1179,32 @@ static int __init mbus_dt_setup_win(struct mvebu_mbus_state *mbus,
 	return 0;
 }
 
-static int __init
-mbus_parse_ranges(struct device_node *node,
-		  int *addr_cells, int *c_addr_cells, int *c_size_cells,
-		  int *cell_count, const __be32 **ranges_start,
-		  const __be32 **ranges_end)
-{
-	const __be32 *prop;
-	int ranges_len, tuple_len;
-
-	/* Allow a node with no 'ranges' property */
-	*ranges_start = of_get_property(node, "ranges", &ranges_len);
-	if (*ranges_start == NULL) {
-		*addr_cells = *c_addr_cells = *c_size_cells = *cell_count = 0;
-		*ranges_start = *ranges_end = NULL;
-		return 0;
-	}
-	*ranges_end = *ranges_start + ranges_len / sizeof(__be32);
-
-	*addr_cells = of_n_addr_cells(node);
-
-	prop = of_get_property(node, "#address-cells", NULL);
-	*c_addr_cells = be32_to_cpup(prop);
-
-	prop = of_get_property(node, "#size-cells", NULL);
-	*c_size_cells = be32_to_cpup(prop);
-
-	*cell_count = *addr_cells + *c_addr_cells + *c_size_cells;
-	tuple_len = (*cell_count) * sizeof(__be32);
-
-	if (ranges_len % tuple_len) {
-		pr_warn("malformed ranges entry '%pOFn'\n", node);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int __init mbus_dt_setup(struct mvebu_mbus_state *mbus,
 				struct device_node *np)
 {
-	int addr_cells, c_addr_cells, c_size_cells;
-	int i, ret, cell_count;
-	const __be32 *r, *ranges_start, *ranges_end;
+	int ret;
+	struct of_range_parser parser;
+	struct of_range range;
 
-	ret = mbus_parse_ranges(np, &addr_cells, &c_addr_cells,
-				&c_size_cells, &cell_count,
-				&ranges_start, &ranges_end);
+	ret = of_range_parser_init(&parser, np);
 	if (ret < 0)
-		return ret;
+		return 0;
 
-	for (i = 0, r = ranges_start; r < ranges_end; r += cell_count, i++) {
-		u32 windowid, base, size;
+	for_each_of_range(&parser, &range) {
+		u32 windowid = upper_32_bits(range.bus_addr);
 		u8 target, attr;
 
 		/*
 		 * An entry with a non-zero custom field do not
 		 * correspond to a static window, so skip it.
 		 */
-		windowid = of_read_number(r, 1);
 		if (CUSTOM(windowid))
 			continue;
 
 		target = TARGET(windowid);
 		attr = ATTR(windowid);
 
-		base = of_read_number(r + c_addr_cells, addr_cells);
-		size = of_read_number(r + c_addr_cells + addr_cells,
-				      c_size_cells);
-		ret = mbus_dt_setup_win(mbus, base, size, target, attr);
+		ret = mbus_dt_setup_win(mbus, range.cpu_addr, range.size, target, attr);
 		if (ret < 0)
 			return ret;
 	}

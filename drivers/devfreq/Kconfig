@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig PM_DEVFREQ
 	bool "Generic Dynamic Voltage and Frequency Scaling (DVFS) support"
-	select SRCU
 	select PM_OPP
 	help
 	  A device may have a list of frequencies and voltages available.

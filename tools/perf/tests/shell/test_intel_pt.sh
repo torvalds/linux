@@ -506,6 +506,13 @@ test_sample()
 		echo "perf record failed with --aux-sample"
 		return 1
 	fi
+	# Check with event with PMU name
+	if perf_record_no_decode -o "${perfdatafile}" -e br_misp_retired.all_branches:u uname ; then
+		if ! perf_record_no_decode -o "${perfdatafile}" -e '{intel_pt//,br_misp_retired.all_branches/aux-sample-size=8192/}:u' uname ; then
+			echo "perf record failed with --aux-sample-size"
+			return 1
+		fi
+	fi
 	echo OK
 	return 0
 }
@@ -620,6 +627,22 @@ test_event_trace()
 	return 0
 }
 
+test_pipe()
+{
+	echo "--- Test with pipe mode ---"
+	# Check if it works with pipe
+	if ! perf_record_no_bpf -o- -e intel_pt//u uname | perf report -q -i- --itrace=i10000 ; then
+		echo "perf record + report failed with pipe mode"
+		return 1
+	fi
+	if ! perf_record_no_bpf -o- -e intel_pt//u uname | perf inject -b > /dev/null ; then
+		echo "perf record + inject failed with pipe mode"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
 count_result()
 {
 	if [ "$1" -eq 2 ] ; then
@@ -647,6 +670,7 @@ test_virtual_lbr			|| ret=$? ; count_result $ret ; ret=0
 test_power_event			|| ret=$? ; count_result $ret ; ret=0
 test_no_tnt				|| ret=$? ; count_result $ret ; ret=0
 test_event_trace			|| ret=$? ; count_result $ret ; ret=0
+test_pipe				|| ret=$? ; count_result $ret ; ret=0
 
 cleanup
 

@@ -264,7 +264,7 @@ out_up:
 static struct bin_attribute w1_f0d_bin_attr = {
 	.attr = {
 		.name = "eeprom",
-		.mode = S_IRUGO | S_IWUSR,
+		.mode = 0644,
 	},
 	.size = W1_F0D_EEPROM_SIZE,
 	.read = w1_f0d_read_bin,

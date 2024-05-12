@@ -108,6 +108,13 @@ static int ext4_fsync_journal(struct inode *inode, bool datasync,
 	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
 	tid_t commit_tid = datasync ? ei->i_datasync_tid : ei->i_sync_tid;
 
+	/*
+	 * Fastcommit does not really support fsync on directories or other
+	 * special files. Force a full commit.
+	 */
+	if (!S_ISREG(inode->i_mode))
+		return ext4_force_commit(inode->i_sb);
+
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !jbd2_trans_will_send_data_barrier(journal, commit_tid))
 		*needs_barrier = true;
@@ -153,23 +160,12 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		goto out;
 
 	/*
-	 * data=writeback,ordered:
 	 *  The caller's filemap_fdatawrite()/wait will sync the data.
 	 *  Metadata is in the journal, we wait for proper transaction to
 	 *  commit here.
-	 *
-	 * data=journal:
-	 *  filemap_fdatawrite won't do anything (the buffers are clean).
-	 *  ext4_force_commit will write the file data into the journal and
-	 *  will wait on that.
-	 *  filemap_fdatawait() will encounter a ton of newly-dirtied pages
-	 *  (they were dirtied by commit).  But that's OK - the blocks are
-	 *  safe in-journal, which is all fsync() needs to ensure.
 	 */
 	if (!sbi->s_journal)
 		ret = ext4_fsync_nojournal(inode, datasync, &needs_barrier);
-	else if (ext4_should_journal_data(inode))
-		ret = ext4_force_commit(inode->i_sb);
 	else
 		ret = ext4_fsync_journal(inode, datasync, &needs_barrier);
 
