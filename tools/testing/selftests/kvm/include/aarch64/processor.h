@@ -8,6 +8,8 @@
 #define SELFTEST_KVM_PROCESSOR_H
 
 #include "kvm_util.h"
+#include "ucall_common.h"
+
 #include <linux/stringify.h>
 #include <linux/types.h>
 #include <asm/sysreg.h>

@@ -7,13 +7,11 @@
  *
  * Copyright (c) 2024, Intel Corporation.
  */
-
-#define _GNU_SOURCE
-
 #include "arch_timer.h"
 #include "kvm_util.h"
 #include "processor.h"
 #include "timer_test.h"
+#include "ucall_common.h"
 
 static int timer_irq = IRQ_S_TIMER;
 

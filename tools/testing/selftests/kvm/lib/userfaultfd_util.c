@@ -6,9 +6,6 @@
  * Copyright (C) 2018, Red Hat, Inc.
  * Copyright (C) 2019-2022 Google LLC
  */
-
-#define _GNU_SOURCE /* for pipe2 */
-
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>

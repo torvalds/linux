@@ -18,6 +18,7 @@
 #include "test_util.h"
 #include "memstress.h"
 #include "guest_modes.h"
+#include "ucall_common.h"
 
 #ifdef __aarch64__
 #include "aarch64/vgic.h"
@@ -129,7 +130,6 @@ struct test_params {
 	enum vm_mem_backing_src_type backing_src;
 	int slots;
 	uint32_t write_percent;
-	uint32_t random_seed;
 	bool random_access;
 };
 
@@ -153,8 +153,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 				 p->slots, p->backing_src,
 				 p->partition_vcpu_memory_access);
 
-	pr_info("Random seed: %u\n", p->random_seed);
-	memstress_set_random_seed(vm, p->random_seed);
 	memstress_set_write_percent(vm, p->write_percent);
 
 	guest_num_pages = (nr_vcpus * guest_percpu_mem_size) >> vm->page_shift;
@@ -343,10 +341,12 @@ int main(int argc, char *argv[])
 		.partition_vcpu_memory_access = true,
 		.backing_src = DEFAULT_VM_MEM_SRC,
 		.slots = 1,
-		.random_seed = 1,
 		.write_percent = 100,
 	};
 	int opt;
+
+	/* Override the seed to be deterministic by default. */
+	guest_random_seed = 1;
 
 	dirty_log_manual_caps =
 		kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
@@ -392,7 +392,7 @@ int main(int argc, char *argv[])
 			p.phys_offset = strtoull(optarg, NULL, 0);
 			break;
 		case 'r':
-			p.random_seed = atoi_positive("Random seed", optarg);
+			guest_random_seed = atoi_positive("Random seed", optarg);
 			break;
 		case 's':
 			p.backing_src = parse_backing_src_type(optarg);

@@ -171,8 +171,9 @@ static volatile bool guest_saw_irq;
 static void evtchn_handler(struct ex_regs *regs)
 {
 	struct vcpu_info *vi = (void *)VCPU_INFO_VADDR;
-	vi->evtchn_upcall_pending = 0;
-	vi->evtchn_pending_sel = 0;
+
+	vcpu_arch_put_guest(vi->evtchn_upcall_pending, 0);
+	vcpu_arch_put_guest(vi->evtchn_pending_sel, 0);
 	guest_saw_irq = true;
 
 	GUEST_SYNC(TEST_GUEST_SAW_IRQ);
@@ -536,8 +537,6 @@ int main(int argc, char *argv[])
 	};
 	vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &vec);
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
 	vm_install_exception_handler(vm, EVTCHN_VECTOR, evtchn_handler);
 
 	if (do_runstate_tests) {

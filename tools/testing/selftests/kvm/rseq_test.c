@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define _GNU_SOURCE /* for program_invocation_short_name */
+
+/*
+ * Include rseq.c without _GNU_SOURCE defined, before including any headers, so
+ * that rseq.c is compiled with its configuration, not KVM selftests' config.
+ */
+#undef _GNU_SOURCE
+#include "../rseq/rseq.c"
+#define _GNU_SOURCE
+
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -19,8 +27,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include "test_util.h"
-
-#include "../rseq/rseq.c"
+#include "ucall_common.h"
 
 /*
  * Any bug related to task migration is likely to be timing-dependent; perform

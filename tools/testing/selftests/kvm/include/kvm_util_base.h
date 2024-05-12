@@ -27,12 +27,12 @@
 
 /*
  * Provide a version of static_assert() that is guaranteed to have an optional
- * message param.  If _ISOC11_SOURCE is defined, glibc (/usr/include/assert.h)
- * #undefs and #defines static_assert() as a direct alias to _Static_assert(),
- * i.e. effectively makes the message mandatory.  Many KVM selftests #define
- * _GNU_SOURCE for various reasons, and _GNU_SOURCE implies _ISOC11_SOURCE.  As
- * a result, static_assert() behavior is non-deterministic and may or may not
- * require a message depending on #include order.
+ * message param.  _GNU_SOURCE is defined for all KVM selftests, _GNU_SOURCE
+ * implies _ISOC11_SOURCE, and if _ISOC11_SOURCE is defined, glibc #undefs and
+ * #defines static_assert() as a direct alias to _Static_assert() (see
+ * usr/include/assert.h).  Define a custom macro instead of redefining
+ * static_assert() to avoid creating non-deterministic behavior that is
+ * dependent on include order.
  */
 #define __kvm_static_assert(expr, msg, ...) _Static_assert(expr, msg)
 #define kvm_static_assert(expr, ...) __kvm_static_assert(expr, ##__VA_ARGS__, #expr)
@@ -609,6 +609,9 @@ void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva);
 vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva);
 void *addr_gpa2alias(struct kvm_vm *vm, vm_paddr_t gpa);
 
+#ifndef vcpu_arch_put_guest
+#define vcpu_arch_put_guest(mem, val) do { (mem) = (val); } while (0)
+#endif
 
 static inline vm_paddr_t vm_untag_gpa(struct kvm_vm *vm, vm_paddr_t gpa)
 {
