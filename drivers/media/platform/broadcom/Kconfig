@@ -3,7 +3,7 @@
 config VIDEO_BCM2835_UNICAM
 	tristate "Broadcom BCM283x/BCM271x Unicam video capture driver"
 	depends on ARCH_BCM2835 || COMPILE_TEST
-	depends on PM
+	depends on COMMON_CLK && PM
 	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
 	select V4L2_FWNODE
