@@ -42,6 +42,7 @@ extern "C" {
 #define DRM_V3D_PERFMON_DESTROY                   0x09
 #define DRM_V3D_PERFMON_GET_VALUES                0x0a
 #define DRM_V3D_SUBMIT_CPU                        0x0b
+#define DRM_V3D_PERFMON_GET_COUNTER               0x0c
 
 #define DRM_IOCTL_V3D_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CL, struct drm_v3d_submit_cl)
 #define DRM_IOCTL_V3D_WAIT_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_WAIT_BO, struct drm_v3d_wait_bo)
@@ -58,6 +59,8 @@ extern "C" {
 #define DRM_IOCTL_V3D_PERFMON_GET_VALUES  DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_PERFMON_GET_VALUES, \
 						   struct drm_v3d_perfmon_get_values)
 #define DRM_IOCTL_V3D_SUBMIT_CPU          DRM_IOW(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CPU, struct drm_v3d_submit_cpu)
+#define DRM_IOCTL_V3D_PERFMON_GET_COUNTER DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_PERFMON_GET_COUNTER, \
+						   struct drm_v3d_perfmon_get_counter)
 
 #define DRM_V3D_SUBMIT_CL_FLUSH_CACHE             0x01
 #define DRM_V3D_SUBMIT_EXTENSION		  0x02
@@ -716,6 +719,40 @@ struct drm_v3d_perfmon_get_values {
 	__u32 id;
 	__u32 pad;
 	__u64 values_ptr;
+};
+
+#define DRM_V3D_PERFCNT_MAX_NAME 64
+#define DRM_V3D_PERFCNT_MAX_CATEGORY 32
+#define DRM_V3D_PERFCNT_MAX_DESCRIPTION 256
+
+/**
+ * struct drm_v3d_perfmon_get_counter - ioctl to get the description of a
+ * performance counter
+ *
+ * As userspace needs to retrieve information about the performance counters
+ * available, this IOCTL allows users to get information about a performance
+ * counter (name, category and description).
+ */
+struct drm_v3d_perfmon_get_counter {
+	/*
+	 * Counter ID
+	 *
+	 * Must be smaller than the maximum number of performance counters, which
+	 * can be retrieve through DRM_V3D_PARAM_MAX_PERF_COUNTERS.
+	 */
+	__u8 counter;
+
+	/* Name of the counter */
+	__u8 name[DRM_V3D_PERFCNT_MAX_NAME];
+
+	/* Category of the counter */
+	__u8 category[DRM_V3D_PERFCNT_MAX_CATEGORY];
+
+	/* Description of the counter */
+	__u8 description[DRM_V3D_PERFCNT_MAX_DESCRIPTION];
+
+	/* mbz */
+	__u8 reserved[7];
 };
 
 #if defined(__cplusplus)

@@ -217,3 +217,36 @@ int v3d_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 
 	return ret;
 }
+
+int v3d_perfmon_get_counter_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file_priv)
+{
+	struct drm_v3d_perfmon_get_counter *req = data;
+	struct v3d_dev *v3d = to_v3d_dev(dev);
+	const struct v3d_perf_counter_desc *counter;
+
+	for (int i = 0; i < ARRAY_SIZE(req->reserved); i++) {
+		if (req->reserved[i] != 0)
+			return -EINVAL;
+	}
+
+	/* Make sure that the counter ID is valid */
+	if (req->counter >= v3d->max_counters)
+		return -EINVAL;
+
+	if (v3d->ver >= 71) {
+		WARN_ON(v3d->max_counters != ARRAY_SIZE(v3d_v71_performance_counters));
+		counter = &v3d_v71_performance_counters[req->counter];
+	} else if (v3d->ver >= 42) {
+		WARN_ON(v3d->max_counters != ARRAY_SIZE(v3d_v42_performance_counters));
+		counter = &v3d_v42_performance_counters[req->counter];
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	strscpy(req->name, counter->name, sizeof(req->name));
+	strscpy(req->category, counter->category, sizeof(req->category));
+	strscpy(req->description, counter->description, sizeof(req->description));
+
+	return 0;
+}
