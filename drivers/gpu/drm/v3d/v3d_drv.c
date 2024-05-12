@@ -294,6 +294,13 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	v3d->cores = V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_NCORES);
 	WARN_ON(v3d->cores > 1); /* multicore not yet implemented */
 
+	if (v3d->ver >= 71)
+		v3d->max_counters = ARRAY_SIZE(v3d_v71_performance_counters);
+	else if (v3d->ver >= 42)
+		v3d->max_counters = ARRAY_SIZE(v3d_v42_performance_counters);
+	else
+		v3d->max_counters = 0;
+
 	v3d->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(v3d->reset)) {
 		ret = PTR_ERR(v3d->reset);

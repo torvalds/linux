@@ -104,6 +104,11 @@ struct v3d_dev {
 	int ver;
 	bool single_irq_line;
 
+	/* Different revisions of V3D have different total number of performance
+	 * counters
+	 */
+	unsigned int max_counters;
+
 	void __iomem *hub_regs;
 	void __iomem *core_regs[3];
 	void __iomem *bridge_regs;

@@ -123,6 +123,7 @@ int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
 	struct drm_v3d_perfmon_create *req = data;
+	struct v3d_dev *v3d = v3d_priv->v3d;
 	struct v3d_perfmon *perfmon;
 	unsigned int i;
 	int ret;
@@ -134,7 +135,7 @@ int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
 
 	/* Make sure all counters are valid. */
 	for (i = 0; i < req->ncounters; i++) {
-		if (req->counters[i] >= V3D_PERFCNT_NUM)
+		if (req->counters[i] >= v3d->max_counters)
 			return -EINVAL;
 	}
 
