@@ -24,7 +24,7 @@
 #include "iwl-op-mode.h"
 #include "iwl-trans.h"
 #include "fw/notif-wait.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "fw/file.h"
 #include "iwl-config.h"
 #include "sta.h"

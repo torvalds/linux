@@ -18,7 +18,7 @@
 #include "iwl-modparams.h"
 #include "mvm.h"
 #include "iwl-phy-db.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "iwl-csr.h"
 #include "iwl-io.h"
 #include "iwl-prph.h"

@@ -12,7 +12,7 @@
 #include "fw/api/debug.h"
 #include "fw/api/paging.h"
 #include "fw/api/power.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "fw/acpi.h"
 #include "fw/regulatory.h"
 

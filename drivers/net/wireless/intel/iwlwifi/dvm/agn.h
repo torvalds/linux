@@ -385,6 +385,23 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 	iwl_trans_set_pmi(priv->trans, state);
 }
 
+/**
+ * iwl_parse_eeprom_data - parse EEPROM data and return values
+ *
+ * @trans: ransport we're parsing for, for debug only
+ * @cfg: device configuration for parsing and overrides
+ * @eeprom: the EEPROM data
+ * @eeprom_size: length of the EEPROM data
+ *
+ * This function parses all EEPROM values we need and then
+ * returns a (newly allocated) struct containing all the
+ * relevant values for driver use. The struct must be freed
+ * later with iwl_free_nvm_data().
+ */
+struct iwl_nvm_data *
+iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+		      const u8 *eeprom, size_t eeprom_size);
+
 int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS

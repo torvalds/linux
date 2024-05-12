@@ -22,7 +22,7 @@
 #include "mvm.h"
 #include "sta.h"
 #include "time-event.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "iwl-phy-db.h"
 #include "testmode.h"
 #include "fw/error-dump.h"

@@ -9,7 +9,7 @@
 #include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "mvm.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "iwl-nvm-parse.h"
 #include "iwl-prph.h"
 #include "fw/acpi.h"
