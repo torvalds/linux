@@ -35,6 +35,7 @@ use proc_macro::TokenStream;
 ///     author: "Rust for Linux Contributors",
 ///     description: "My very own kernel module!",
 ///     license: "GPL",
+///     alias: ["alternate_module_name"],
 /// }
 ///
 /// struct MyModule;
