@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2021-2023 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  */
 
 #ifndef __iwl_mei_h__
@@ -488,7 +488,7 @@ static inline void iwl_mei_set_nic_info(const u8 *mac_address, const u8 *nvm_add
 static inline void iwl_mei_set_country_code(u16 mcc)
 {}
 
-static inline void iwl_mei_set_power_limit(__le16 *power_limit)
+static inline void iwl_mei_set_power_limit(const __le16 *power_limit)
 {}
 
 static inline int iwl_mei_register(void *priv,
