@@ -936,8 +936,8 @@ static bool has_service_copy_support(struct xe_gt *gt)
 	 * all of the actual service copy engines (BCS1-BCS8) have been fused
 	 * off.
 	 */
-	return gt->info.__engine_mask & GENMASK(XE_HW_ENGINE_BCS8,
-						XE_HW_ENGINE_BCS1);
+	return gt->info.engine_mask & GENMASK(XE_HW_ENGINE_BCS8,
+					      XE_HW_ENGINE_BCS1);
 }
 
 static u32 emit_clear_cmd_len(struct xe_gt *gt)
