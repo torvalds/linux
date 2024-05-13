@@ -17,7 +17,7 @@
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 
-#include "internal.h"
+#include "../internal.h"
 
 #ifdef CONFIG_DMI
 static const struct dmi_system_id acpi_rev_dmi_table[] __initconst;

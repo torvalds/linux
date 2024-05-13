@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/mc146818rtc.h>
 
-#include "internal.h"
+#include "../internal.h"
 
 static const struct acpi_device_id acpi_cmos_rtc_ids[] = {
 	{ "PNP0B00" },

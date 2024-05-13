@@ -25,7 +25,7 @@
 #include <linux/suspend.h>
 #include <linux/delay.h>
 
-#include "internal.h"
+#include "../internal.h"
 
 #ifdef CONFIG_X86_INTEL_LPSS
 
@@ -325,6 +325,7 @@ static const struct lpss_device_desc bsw_i2c_dev_desc = {
 
 static const struct property_entry bsw_spi_properties[] = {
 	PROPERTY_ENTRY_U32("intel,spi-pxa2xx-type", LPSS_BSW_SSP),
+	PROPERTY_ENTRY_U32("num-cs", 2),
 	{ }
 };
 
@@ -886,10 +887,8 @@ static int acpi_lpss_activate(struct device *dev)
 	if (pdata->dev_desc->flags & (LPSS_SAVE_CTX | LPSS_SAVE_CTX_ONCE))
 		lpss_deassert_reset(pdata);
 
-#ifdef CONFIG_PM
 	if (pdata->dev_desc->flags & LPSS_SAVE_CTX_ONCE)
 		acpi_lpss_save_ctx(dev, pdata);
-#endif
 
 	return 0;
 }
