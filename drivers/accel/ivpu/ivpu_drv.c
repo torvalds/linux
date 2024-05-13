@@ -26,6 +26,7 @@
 #include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
+#include "ivpu_ms.h"
 #include "ivpu_pm.h"
 
 #ifndef DRIVER_VERSION_STR
@@ -100,6 +101,7 @@ static void file_priv_release(struct kref *ref)
 	mutex_unlock(&vdev->context_list_lock);
 	pm_runtime_put_autosuspend(vdev->drm.dev);
 
+	mutex_destroy(&file_priv->ms_lock);
 	mutex_destroy(&file_priv->lock);
 	kfree(file_priv);
 }
@@ -122,7 +124,7 @@ static int ivpu_get_capabilities(struct ivpu_device *vdev, struct drm_ivpu_param
 {
 	switch (args->index) {
 	case DRM_IVPU_CAP_METRIC_STREAMER:
-		args->value = 0;
+		args->value = 1;
 		break;
 	case DRM_IVPU_CAP_DMA_MEMORY_RANGE:
 		args->value = 1;
@@ -231,10 +233,13 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 		goto err_dev_exit;
 	}
 
+	INIT_LIST_HEAD(&file_priv->ms_instance_list);
+
 	file_priv->vdev = vdev;
 	file_priv->bound = true;
 	kref_init(&file_priv->ref);
 	mutex_init(&file_priv->lock);
+	mutex_init(&file_priv->ms_lock);
 
 	mutex_lock(&vdev->context_list_lock);
 
@@ -263,6 +268,7 @@ err_xa_erase:
 	xa_erase_irq(&vdev->context_xa, ctx_id);
 err_unlock:
 	mutex_unlock(&vdev->context_list_lock);
+	mutex_destroy(&file_priv->ms_lock);
 	mutex_destroy(&file_priv->lock);
 	kfree(file_priv);
 err_dev_exit:
@@ -278,6 +284,7 @@ static void ivpu_postclose(struct drm_device *dev, struct drm_file *file)
 	ivpu_dbg(vdev, FILE, "file_priv close: ctx %u process %s pid %d\n",
 		 file_priv->ctx.id, current->comm, task_pid_nr(current));
 
+	ivpu_ms_cleanup(file_priv);
 	ivpu_file_priv_put(&file_priv);
 }
 
@@ -288,6 +295,10 @@ static const struct drm_ioctl_desc ivpu_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(IVPU_BO_INFO, ivpu_bo_info_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_SUBMIT, ivpu_submit_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_BO_WAIT, ivpu_bo_wait_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_START, ivpu_ms_start_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_GET_DATA, ivpu_ms_get_data_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_STOP, ivpu_ms_stop_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_METRIC_STREAMER_GET_INFO, ivpu_ms_get_info_ioctl, 0),
 };
 
 static int ivpu_wait_for_ready(struct ivpu_device *vdev)
@@ -638,6 +649,7 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 	ivpu_prepare_for_reset(vdev);
 	ivpu_shutdown(vdev);
 
+	ivpu_ms_cleanup_all(vdev);
 	ivpu_jobs_abort_all(vdev);
 	ivpu_job_done_consumer_fini(vdev);
 	ivpu_pm_cancel_recovery(vdev);

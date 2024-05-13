@@ -155,6 +155,9 @@ struct ivpu_file_priv {
 	struct mutex lock; /* Protects cmdq */
 	struct ivpu_cmdq *cmdq[IVPU_NUM_CMDQS_PER_CTX];
 	struct ivpu_mmu_context ctx;
+	struct mutex ms_lock; /* Protects ms_instance_list, ms_info_bo */
+	struct list_head ms_instance_list;
+	struct ivpu_bo *ms_info_bo;
 	bool has_mmu_faults;
 	bool bound;
 };

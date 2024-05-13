@@ -440,3 +440,101 @@ int ivpu_jsm_hws_setup_priority_bands(struct ivpu_device *vdev)
 
 	return ret;
 }
+
+int ivpu_jsm_metric_streamer_start(struct ivpu_device *vdev, u64 metric_group_mask,
+				   u64 sampling_rate, u64 buffer_addr, u64 buffer_size)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_METRIC_STREAMER_START };
+	struct vpu_jsm_msg resp;
+	int ret;
+
+	req.payload.metric_streamer_start.metric_group_mask = metric_group_mask;
+	req.payload.metric_streamer_start.sampling_rate = sampling_rate;
+	req.payload.metric_streamer_start.buffer_addr = buffer_addr;
+	req.payload.metric_streamer_start.buffer_size = buffer_size;
+
+	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_METRIC_STREAMER_START_DONE, &resp,
+				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	if (ret) {
+		ivpu_warn_ratelimited(vdev, "Failed to start metric streamer: ret %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+int ivpu_jsm_metric_streamer_stop(struct ivpu_device *vdev, u64 metric_group_mask)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_METRIC_STREAMER_STOP };
+	struct vpu_jsm_msg resp;
+	int ret;
+
+	req.payload.metric_streamer_stop.metric_group_mask = metric_group_mask;
+
+	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_METRIC_STREAMER_STOP_DONE, &resp,
+				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	if (ret)
+		ivpu_warn_ratelimited(vdev, "Failed to stop metric streamer: ret %d\n", ret);
+
+	return ret;
+}
+
+int ivpu_jsm_metric_streamer_update(struct ivpu_device *vdev, u64 metric_group_mask,
+				    u64 buffer_addr, u64 buffer_size, u64 *bytes_written)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_METRIC_STREAMER_UPDATE };
+	struct vpu_jsm_msg resp;
+	int ret;
+
+	req.payload.metric_streamer_update.metric_group_mask = metric_group_mask;
+	req.payload.metric_streamer_update.buffer_addr = buffer_addr;
+	req.payload.metric_streamer_update.buffer_size = buffer_size;
+
+	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_METRIC_STREAMER_UPDATE_DONE, &resp,
+				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	if (ret) {
+		ivpu_warn_ratelimited(vdev, "Failed to update metric streamer: ret %d\n", ret);
+		return ret;
+	}
+
+	if (buffer_size && resp.payload.metric_streamer_done.bytes_written > buffer_size) {
+		ivpu_warn_ratelimited(vdev, "MS buffer overflow: bytes_written %#llx > buffer_size %#llx\n",
+				      resp.payload.metric_streamer_done.bytes_written, buffer_size);
+		return -EOVERFLOW;
+	}
+
+	*bytes_written = resp.payload.metric_streamer_done.bytes_written;
+
+	return ret;
+}
+
+int ivpu_jsm_metric_streamer_info(struct ivpu_device *vdev, u64 metric_group_mask, u64 buffer_addr,
+				  u64 buffer_size, u32 *sample_size, u64 *info_size)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_METRIC_STREAMER_INFO };
+	struct vpu_jsm_msg resp;
+	int ret;
+
+	req.payload.metric_streamer_start.metric_group_mask = metric_group_mask;
+	req.payload.metric_streamer_start.buffer_addr = buffer_addr;
+	req.payload.metric_streamer_start.buffer_size = buffer_size;
+
+	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_METRIC_STREAMER_INFO_DONE, &resp,
+				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	if (ret) {
+		ivpu_warn_ratelimited(vdev, "Failed to get metric streamer info: ret %d\n", ret);
+		return ret;
+	}
+
+	if (!resp.payload.metric_streamer_done.sample_size) {
+		ivpu_warn_ratelimited(vdev, "Invalid sample size\n");
+		return -EBADMSG;
+	}
+
+	if (sample_size)
+		*sample_size = resp.payload.metric_streamer_done.sample_size;
+	if (info_size)
+		*info_size = resp.payload.metric_streamer_done.bytes_written;
+
+	return ret;
+}

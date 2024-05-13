@@ -34,5 +34,11 @@ int ivpu_jsm_hws_set_context_sched_properties(struct ivpu_device *vdev, u32 ctx_
 int ivpu_jsm_hws_set_scheduling_log(struct ivpu_device *vdev, u32 engine_idx, u32 host_ssid,
 				    u64 vpu_log_buffer_va);
 int ivpu_jsm_hws_setup_priority_bands(struct ivpu_device *vdev);
-
+int ivpu_jsm_metric_streamer_start(struct ivpu_device *vdev, u64 metric_group_mask,
+				   u64 sampling_rate, u64 buffer_addr, u64 buffer_size);
+int ivpu_jsm_metric_streamer_stop(struct ivpu_device *vdev, u64 metric_group_mask);
+int ivpu_jsm_metric_streamer_update(struct ivpu_device *vdev, u64 metric_group_mask,
+				    u64 buffer_addr, u64 buffer_size, u64 *bytes_written);
+int ivpu_jsm_metric_streamer_info(struct ivpu_device *vdev, u64 metric_group_mask, u64 buffer_addr,
+				  u64 buffer_size, u32 *sample_size, u64 *info_size);
 #endif
