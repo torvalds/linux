@@ -136,11 +136,11 @@ static int tps6286x_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id tps6286x_i2c_id[] = {
-	{ "tps62864", 0 },
-	{ "tps62866", 0 },
-	{ "tps62868", 0 },
-	{ "tps62869", 0 },
-	{},
+	{ "tps62864" },
+	{ "tps62866" },
+	{ "tps62868" },
+	{ "tps62869" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, tps6286x_i2c_id);
 
