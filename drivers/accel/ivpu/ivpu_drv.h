@@ -39,7 +39,11 @@
 #define IVPU_MIN_DB 1
 #define IVPU_MAX_DB 255
 
-#define IVPU_NUM_ENGINES 2
+#define IVPU_NUM_ENGINES       2
+#define IVPU_NUM_PRIORITIES    4
+#define IVPU_NUM_CMDQS_PER_CTX (IVPU_NUM_ENGINES * IVPU_NUM_PRIORITIES)
+
+#define IVPU_CMDQ_INDEX(engine, priority) ((engine) * IVPU_NUM_PRIORITIES + (priority))
 
 #define IVPU_PLATFORM_SILICON 0
 #define IVPU_PLATFORM_SIMICS  2
@@ -149,7 +153,7 @@ struct ivpu_file_priv {
 	struct kref ref;
 	struct ivpu_device *vdev;
 	struct mutex lock; /* Protects cmdq */
-	struct ivpu_cmdq *cmdq[IVPU_NUM_ENGINES];
+	struct ivpu_cmdq *cmdq[IVPU_NUM_CMDQS_PER_CTX];
 	struct ivpu_mmu_context ctx;
 	bool has_mmu_faults;
 	bool bound;
