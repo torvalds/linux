@@ -35,6 +35,15 @@
 #define SNID_STATE3_SINGLE_PATH	   0
 
 /*
+ * Miscellaneous constants
+ */
+
+#define CSS_NUM_CUB_PAGES		2
+#define CSS_CUES_PER_PAGE		128
+#define CSS_NUM_ECUB_PAGES		4
+#define CSS_ECUES_PER_PAGE		64
+
+/*
  * Conditions used to specify which subchannels need evaluation
  */
 enum css_eval_cond {
@@ -122,8 +131,8 @@ struct channel_subsystem {
 	struct mutex mutex;
 	/* channel measurement related */
 	int cm_enabled;
-	void *cub_addr1;
-	void *cub_addr2;
+	void *cub[CSS_NUM_CUB_PAGES];
+	void *ecub[CSS_NUM_ECUB_PAGES];
 	/* for orphaned ccw devices */
 	struct subchannel *pseudo_subchannel;
 };

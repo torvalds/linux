@@ -4785,7 +4785,9 @@
 
 	prot_virt=	[S390] enable hosting protected virtual machines
 			isolated from the hypervisor (if hardware supports
-			that).
+			that). If enabled, the default kernel base address
+			might be overridden even when Kernel Address Space
+			Layout Randomization is disabled.
 			Format: <bool>
 
 	psi=		[KNL] Enable or disable pressure stall information
