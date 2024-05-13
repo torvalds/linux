@@ -42,7 +42,8 @@
 #define DALSMC_MSG_IndicateDrrStatus              0x17  // PMFW 15811
 #define DALSMC_MSG_ActiveUclkFclk                 0x18
 #define DALSMC_MSG_IdleUclkFclk                   0x19
-#define DALSMC_Message_Count                      0x1A
+#define DALSMC_MSG_SetUclkPstateAllow             0x1A
+#define DALSMC_Message_Count                      0x1B
 
 typedef enum {
   FCLK_SWITCH_DISALLOW,
