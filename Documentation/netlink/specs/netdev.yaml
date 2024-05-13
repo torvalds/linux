@@ -439,6 +439,20 @@ attribute-sets:
           Number of the packets dropped by the device due to the transmit
           packets bitrate exceeding the device rate limit.
         type: uint
+      -
+        name: tx-stop
+        doc: |
+          Number of times driver paused accepting new tx packets
+          from the stack to this queue, because the queue was full.
+          Note that if BQL is supported and enabled on the device
+          the networking stack will avoid queuing a lot of data at once.
+        type: uint
+      -
+        name: tx-wake
+        doc: |
+          Number of times driver re-started accepting send
+          requests to this queue from the stack.
+        type: uint
 
 operations:
   list:

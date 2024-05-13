@@ -41,6 +41,9 @@ struct netdev_queue_stats_tx {
 	u64 hw_gso_wire_bytes;
 
 	u64 hw_drop_ratelimits;
+
+	u64 stop;
+	u64 wake;
 };
 
 /**

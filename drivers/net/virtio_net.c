@@ -95,6 +95,8 @@ struct virtnet_sq_stats {
 	u64_stats_t xdp_tx_drops;
 	u64_stats_t kicks;
 	u64_stats_t tx_timeouts;
+	u64_stats_t stop;
+	u64_stats_t wake;
 };
 
 struct virtnet_rq_stats {
@@ -145,6 +147,8 @@ static const struct virtnet_stat_desc virtnet_rq_stats_desc[] = {
 static const struct virtnet_stat_desc virtnet_sq_stats_desc_qstat[] = {
 	VIRTNET_SQ_STAT_QSTAT("packets", packets),
 	VIRTNET_SQ_STAT_QSTAT("bytes",   bytes),
+	VIRTNET_SQ_STAT_QSTAT("stop",	 stop),
+	VIRTNET_SQ_STAT_QSTAT("wake",	 wake),
 };
 
 static const struct virtnet_stat_desc virtnet_rq_stats_desc_qstat[] = {
@@ -1014,6 +1018,9 @@ static void check_sq_full_and_disable(struct virtnet_info *vi,
 	 */
 	if (sq->vq->num_free < 2+MAX_SKB_FRAGS) {
 		netif_stop_subqueue(dev, qnum);
+		u64_stats_update_begin(&sq->stats.syncp);
+		u64_stats_inc(&sq->stats.stop);
+		u64_stats_update_end(&sq->stats.syncp);
 		if (use_napi) {
 			if (unlikely(!virtqueue_enable_cb_delayed(sq->vq)))
 				virtqueue_napi_schedule(&sq->napi, sq->vq);
@@ -1022,6 +1029,9 @@ static void check_sq_full_and_disable(struct virtnet_info *vi,
 			free_old_xmit(sq, false);
 			if (sq->vq->num_free >= 2+MAX_SKB_FRAGS) {
 				netif_start_subqueue(dev, qnum);
+				u64_stats_update_begin(&sq->stats.syncp);
+				u64_stats_inc(&sq->stats.wake);
+				u64_stats_update_end(&sq->stats.syncp);
 				virtqueue_disable_cb(sq->vq);
 			}
 		}
@@ -2322,8 +2332,14 @@ static void virtnet_poll_cleantx(struct receive_queue *rq)
 			free_old_xmit(sq, true);
 		} while (unlikely(!virtqueue_enable_cb_delayed(sq->vq)));
 
-		if (sq->vq->num_free >= 2 + MAX_SKB_FRAGS)
+		if (sq->vq->num_free >= 2 + MAX_SKB_FRAGS) {
+			if (netif_tx_queue_stopped(txq)) {
+				u64_stats_update_begin(&sq->stats.syncp);
+				u64_stats_inc(&sq->stats.wake);
+				u64_stats_update_end(&sq->stats.syncp);
+			}
 			netif_tx_wake_queue(txq);
+		}
 
 		__netif_tx_unlock(txq);
 	}
@@ -2473,8 +2489,14 @@ static int virtnet_poll_tx(struct napi_struct *napi, int budget)
 	virtqueue_disable_cb(sq->vq);
 	free_old_xmit(sq, true);
 
-	if (sq->vq->num_free >= 2 + MAX_SKB_FRAGS)
+	if (sq->vq->num_free >= 2 + MAX_SKB_FRAGS) {
+		if (netif_tx_queue_stopped(txq)) {
+			u64_stats_update_begin(&sq->stats.syncp);
+			u64_stats_inc(&sq->stats.wake);
+			u64_stats_update_end(&sq->stats.syncp);
+		}
 		netif_tx_wake_queue(txq);
+	}
 
 	opaque = virtqueue_enable_cb_prepare(sq->vq);
 
@@ -4789,6 +4811,8 @@ static void virtnet_get_base_stats(struct net_device *dev,
 
 	tx->bytes = 0;
 	tx->packets = 0;
+	tx->stop = 0;
+	tx->wake = 0;
 
 	if (vi->device_stats_cap & VIRTIO_NET_STATS_TYPE_TX_BASIC) {
 		tx->hw_drops = 0;
