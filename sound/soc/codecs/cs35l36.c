@@ -1312,7 +1312,7 @@ static struct regmap_config cs35l36_regmap = {
 	.precious_reg = cs35l36_precious_reg,
 	.volatile_reg = cs35l36_volatile_reg,
 	.readable_reg = cs35l36_readable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t cs35l36_irq(int irq, void *data)
@@ -1944,7 +1944,7 @@ static struct i2c_driver cs35l36_i2c_driver = {
 		.of_match_table = cs35l36_of_match,
 	},
 	.id_table = cs35l36_id,
-	.probe_new = cs35l36_i2c_probe,
+	.probe = cs35l36_i2c_probe,
 	.remove = cs35l36_i2c_remove,
 };
 module_i2c_driver(cs35l36_i2c_driver);

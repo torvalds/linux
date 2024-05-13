@@ -1089,7 +1089,6 @@ static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 	fbi->fb.var.vmode	= FB_VMODE_NONINTERLACED;
 
 	fbi->fb.fbops		= &sa1100fb_ops;
-	fbi->fb.flags		= FBINFO_DEFAULT;
 	fbi->fb.monspecs	= monspecs;
 	fbi->fb.pseudo_palette	= fbi->pseudo_palette;
 
@@ -1215,7 +1214,7 @@ static struct platform_driver sa1100fb_driver = {
 	},
 };
 
-int __init sa1100fb_init(void)
+static int __init sa1100fb_init(void)
 {
 	if (fb_get_options("sa1100fb", NULL))
 		return -ENODEV;

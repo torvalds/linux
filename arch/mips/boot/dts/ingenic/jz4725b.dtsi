@@ -198,11 +198,8 @@
 
 		#sound-dai-cells = <0>;
 
-		clocks = <&cgu JZ4725B_CLK_AIC>,
-			 <&cgu JZ4725B_CLK_I2S>,
-			 <&cgu JZ4725B_CLK_EXT>,
-			 <&cgu JZ4725B_CLK_PLL_HALF>;
-		clock-names = "aic", "i2s", "ext", "pll half";
+		clocks = <&cgu JZ4725B_CLK_AIC>, <&cgu JZ4725B_CLK_I2S>;
+		clock-names = "aic", "i2s";
 
 		interrupt-parent = <&intc>;
 		interrupts = <10>;

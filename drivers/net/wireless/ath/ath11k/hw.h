@@ -64,6 +64,7 @@
 #define TARGET_NUM_WDS_ENTRIES		32
 #define TARGET_DMA_BURST_SIZE		1
 #define TARGET_RX_BATCHMODE		1
+#define TARGET_EMA_MAX_PROFILE_PERIOD	8
 
 #define ATH11K_HW_MAX_QUEUES		4
 #define ATH11K_QUEUE_LEN		4096
@@ -186,7 +187,8 @@ struct ath11k_hw_params {
 	bool supports_shadow_regs;
 	bool idle_ps;
 	bool supports_sta_ps;
-	bool cold_boot_calib;
+	bool coldboot_cal_mm;
+	bool coldboot_cal_ftm;
 	bool cbcal_restart_fw;
 	int fw_mem_mode;
 	u32 num_vdevs;

@@ -40,7 +40,7 @@ static bool dpu_encoder_phys_vid_is_master(
 static void drm_mode_to_intf_timing_params(
 		const struct dpu_encoder_phys *phys_enc,
 		const struct drm_display_mode *mode,
-		struct intf_timing_params *timing)
+		struct dpu_hw_intf_timing_params *timing)
 {
 	memset(timing, 0, sizeof(*timing));
 
@@ -114,7 +114,7 @@ static void drm_mode_to_intf_timing_params(
 	}
 }
 
-static u32 get_horizontal_total(const struct intf_timing_params *timing)
+static u32 get_horizontal_total(const struct dpu_hw_intf_timing_params *timing)
 {
 	u32 active = timing->xres;
 	u32 inactive =
@@ -123,7 +123,7 @@ static u32 get_horizontal_total(const struct intf_timing_params *timing)
 	return active + inactive;
 }
 
-static u32 get_vertical_total(const struct intf_timing_params *timing)
+static u32 get_vertical_total(const struct dpu_hw_intf_timing_params *timing)
 {
 	u32 active = timing->yres;
 	u32 inactive =
@@ -148,7 +148,7 @@ static u32 get_vertical_total(const struct intf_timing_params *timing)
  */
 static u32 programmable_fetch_get_num_lines(
 		struct dpu_encoder_phys *phys_enc,
-		const struct intf_timing_params *timing)
+		const struct dpu_hw_intf_timing_params *timing)
 {
 	u32 worst_case_needed_lines =
 	    phys_enc->hw_intf->cap->prog_fetch_lines_worst_case;
@@ -196,9 +196,9 @@ static u32 programmable_fetch_get_num_lines(
  * @timing: Pointer to the intf timing information for the requested mode
  */
 static void programmable_fetch_config(struct dpu_encoder_phys *phys_enc,
-				      const struct intf_timing_params *timing)
+				      const struct dpu_hw_intf_timing_params *timing)
 {
-	struct intf_prog_fetch f = { 0 };
+	struct dpu_hw_intf_prog_fetch f = { 0 };
 	u32 vfp_fetch_lines = 0;
 	u32 horiz_total = 0;
 	u32 vert_total = 0;
@@ -231,7 +231,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 		struct dpu_encoder_phys *phys_enc)
 {
 	struct drm_display_mode mode;
-	struct intf_timing_params timing_params = { 0 };
+	struct dpu_hw_intf_timing_params timing_params = { 0 };
 	const struct dpu_format *fmt = NULL;
 	u32 fmt_fourcc = DRM_FORMAT_RGB888;
 	unsigned long lock_flags;
@@ -287,7 +287,6 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	if (phys_enc->hw_intf->ops.bind_pingpong_blk)
 		phys_enc->hw_intf->ops.bind_pingpong_blk(
 				phys_enc->hw_intf,
-				true,
 				phys_enc->hw_pp->idx);
 
 	if (phys_enc->hw_pp->merge_3d)
@@ -523,7 +522,7 @@ static void dpu_encoder_phys_vid_disable(struct dpu_encoder_phys *phys_enc)
 {
 	unsigned long lock_flags;
 	int ret;
-	struct intf_status intf_status = {0};
+	struct dpu_hw_intf_status intf_status = {0};
 
 	if (!phys_enc->parent || !phys_enc->parent->dev) {
 		DPU_ERROR("invalid encoder/device\n");
@@ -652,7 +651,7 @@ static int dpu_encoder_phys_vid_get_line_count(
 static int dpu_encoder_phys_vid_get_frame_count(
 		struct dpu_encoder_phys *phys_enc)
 {
-	struct intf_status s = {0};
+	struct dpu_hw_intf_status s = {0};
 	u32 fetch_start = 0;
 	struct drm_display_mode mode;
 
@@ -699,7 +698,6 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 		struct dpu_enc_phys_init_params *p)
 {
 	struct dpu_encoder_phys *phys_enc = NULL;
-	int i;
 
 	if (!p) {
 		DPU_ERROR("failed to create encoder due to invalid parameter\n");
@@ -712,26 +710,14 @@ struct dpu_encoder_phys *dpu_encoder_phys_vid_init(
 		return ERR_PTR(-ENOMEM);
 	}
 
-	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
-	phys_enc->intf_idx = p->intf_idx;
-
 	DPU_DEBUG_VIDENC(phys_enc, "\n");
 
+	dpu_encoder_phys_init(phys_enc, p);
+
 	dpu_encoder_phys_vid_init_ops(&phys_enc->ops);
-	phys_enc->parent = p->parent;
-	phys_enc->dpu_kms = p->dpu_kms;
-	phys_enc->split_role = p->split_role;
 	phys_enc->intf_mode = INTF_MODE_VIDEO;
-	phys_enc->enc_spinlock = p->enc_spinlock;
-	for (i = 0; i < ARRAY_SIZE(phys_enc->irq); i++)
-		phys_enc->irq[i] = -EINVAL;
 
-	atomic_set(&phys_enc->vblank_refcount, 0);
-	atomic_set(&phys_enc->pending_kickoff_cnt, 0);
-	init_waitqueue_head(&phys_enc->pending_kickoff_wq);
-	phys_enc->enable_state = DPU_ENC_DISABLED;
-
-	DPU_DEBUG_VIDENC(phys_enc, "created intf idx:%d\n", p->intf_idx);
+	DPU_DEBUG_VIDENC(phys_enc, "created intf idx:%d\n", p->hw_intf->idx);
 
 	return phys_enc;
 }

@@ -32,6 +32,7 @@
 #include <asm/traps.h>
 #include <asm/user.h>
 #include <asm/fpu/api.h>
+#include <asm/fpu/regset.h>
 
 #include "fpu_system.h"
 #include "fpu_emu.h"

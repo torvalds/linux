@@ -49,6 +49,8 @@ struct dcn_hubbub_wm_set {
 	uint32_t dram_clk_change;
 	uint32_t usr_retrain;
 	uint32_t fclk_pstate_change;
+	uint32_t sr_enter_exit_Z8;
+	uint32_t sr_enter_Z8;
 };
 
 struct dcn_hubbub_wm {
@@ -111,6 +113,9 @@ struct dcn_hubbub_state {
 	uint32_t vm_error_vmid;
 	uint32_t vm_error_pipe;
 	uint32_t vm_error_mode;
+	uint32_t test_debug_data;
+	uint32_t watermark_change_cntl;
+	uint32_t dram_state_cntl;
 };
 
 struct hubbub_funcs {

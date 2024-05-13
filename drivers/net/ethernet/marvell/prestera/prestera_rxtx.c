@@ -5,9 +5,6 @@
 #include <linux/dmapool.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #include "prestera_dsa.h"

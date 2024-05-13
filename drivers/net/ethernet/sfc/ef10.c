@@ -1297,8 +1297,10 @@ static void efx_ef10_fini_nic(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
+	spin_lock_bh(&efx->stats_lock);
 	kfree(nic_data->mc_stats);
 	nic_data->mc_stats = NULL;
+	spin_unlock_bh(&efx->stats_lock);
 }
 
 static int efx_ef10_init_nic(struct efx_nic *efx)
@@ -1852,9 +1854,14 @@ static size_t efx_ef10_update_stats_pf(struct efx_nic *efx, u64 *full_stats,
 
 	efx_ef10_get_stat_mask(efx, mask);
 
-	efx_nic_copy_stats(efx, nic_data->mc_stats);
-	efx_nic_update_stats(efx_ef10_stat_desc, EF10_STAT_COUNT,
-			     mask, stats, nic_data->mc_stats, false);
+	/* If NIC was fini'd (probably resetting), then we can't read
+	 * updated stats right now.
+	 */
+	if (nic_data->mc_stats) {
+		efx_nic_copy_stats(efx, nic_data->mc_stats);
+		efx_nic_update_stats(efx_ef10_stat_desc, EF10_STAT_COUNT,
+				     mask, stats, nic_data->mc_stats, false);
+	}
 
 	/* Update derived statistics */
 	efx_nic_fix_nodesc_drop_stat(efx,
@@ -2202,7 +2209,7 @@ static int efx_ef10_tx_probe(struct efx_tx_queue *tx_queue)
 	/* low two bits of label are what we want for type */
 	BUILD_BUG_ON((EFX_TXQ_TYPE_OUTER_CSUM | EFX_TXQ_TYPE_INNER_CSUM) != 3);
 	tx_queue->type = tx_queue->label & 3;
-	return efx_nic_alloc_buffer(tx_queue->efx, &tx_queue->txd.buf,
+	return efx_nic_alloc_buffer(tx_queue->efx, &tx_queue->txd,
 				    (tx_queue->ptr_mask + 1) *
 				    sizeof(efx_qword_t),
 				    GFP_KERNEL);
@@ -4260,8 +4267,6 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.sriov_init = efx_ef10_sriov_init,
 	.sriov_fini = efx_ef10_sriov_fini,
 	.sriov_wanted = efx_ef10_sriov_wanted,
-	.sriov_reset = efx_ef10_sriov_reset,
-	.sriov_flr = efx_ef10_sriov_flr,
 	.sriov_set_vf_mac = efx_ef10_sriov_set_vf_mac,
 	.sriov_set_vf_vlan = efx_ef10_sriov_set_vf_vlan,
 	.sriov_set_vf_spoofchk = efx_ef10_sriov_set_vf_spoofchk,

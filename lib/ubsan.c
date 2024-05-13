@@ -425,9 +425,6 @@ EXPORT_SYMBOL(__ubsan_handle_load_invalid_value);
 
 void __ubsan_handle_alignment_assumption(void *_data, unsigned long ptr,
 					 unsigned long align,
-					 unsigned long offset);
-void __ubsan_handle_alignment_assumption(void *_data, unsigned long ptr,
-					 unsigned long align,
 					 unsigned long offset)
 {
 	struct alignment_assumption_data *data = _data;

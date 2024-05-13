@@ -669,7 +669,8 @@ static void max310x_batch_read(struct uart_port *port, u8 *rxbuf, unsigned int l
 static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 {
 	struct max310x_one *one = to_max310x_port(port);
-	unsigned int sts, ch, flag, i;
+	unsigned int sts, i;
+	u8 ch, flag;
 
 	if (port->read_status_mask == MAX310X_LSR_RXOVR_BIT) {
 		/* We are just reading, happily ignoring any error conditions.
@@ -1368,6 +1369,11 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 		s->p[i].port.flags	= UPF_FIXED_TYPE | UPF_LOW_LATENCY;
 		s->p[i].port.iotype	= UPIO_PORT;
 		s->p[i].port.iobase	= i;
+		/*
+		 * Use all ones as membase to make sure uart_configure_port() in
+		 * serial_core.c does not abort for SPI/I2C devices where the
+		 * membase address is not applicable.
+		 */
 		s->p[i].port.membase	= (void __iomem *)~0;
 		s->p[i].port.uartclk	= uartclk;
 		s->p[i].port.rs485_config = max310x_rs485_config;
@@ -1399,7 +1405,7 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 	}
 
 #ifdef CONFIG_GPIOLIB
-	/* Setup GPIO cotroller */
+	/* Setup GPIO controller */
 	s->gpio.owner		= THIS_MODULE;
 	s->gpio.parent		= dev;
 	s->gpio.label		= devtype->name;
@@ -1636,7 +1642,7 @@ static struct i2c_driver max310x_i2c_driver = {
 		.of_match_table	= max310x_dt_ids,
 		.pm		= &max310x_pm_ops,
 	},
-	.probe_new	= max310x_i2c_probe,
+	.probe		= max310x_i2c_probe,
 	.remove		= max310x_i2c_remove,
 };
 #endif

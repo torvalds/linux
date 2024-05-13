@@ -8,14 +8,16 @@
 #include <net/sock.h>
 
 /* flags */
-#define NETLINK_F_KERNEL_SOCKET		0x1
-#define NETLINK_F_RECV_PKTINFO		0x2
-#define NETLINK_F_BROADCAST_SEND_ERROR	0x4
-#define NETLINK_F_RECV_NO_ENOBUFS	0x8
-#define NETLINK_F_LISTEN_ALL_NSID	0x10
-#define NETLINK_F_CAP_ACK		0x20
-#define NETLINK_F_EXT_ACK		0x40
-#define NETLINK_F_STRICT_CHK		0x80
+enum {
+	NETLINK_F_KERNEL_SOCKET,
+	NETLINK_F_RECV_PKTINFO,
+	NETLINK_F_BROADCAST_SEND_ERROR,
+	NETLINK_F_RECV_NO_ENOBUFS,
+	NETLINK_F_LISTEN_ALL_NSID,
+	NETLINK_F_CAP_ACK,
+	NETLINK_F_EXT_ACK,
+	NETLINK_F_STRICT_CHK,
+};
 
 #define NLGRPSZ(x)	(ALIGN(x, sizeof(unsigned long) * 8) / 8)
 #define NLGRPLONGS(x)	(NLGRPSZ(x)/sizeof(unsigned long))
@@ -23,10 +25,10 @@
 struct netlink_sock {
 	/* struct sock has to be the first member of netlink_sock */
 	struct sock		sk;
+	unsigned long		flags;
 	u32			portid;
 	u32			dst_portid;
 	u32			dst_group;
-	u32			flags;
 	u32			subscriptions;
 	u32			ngroups;
 	unsigned long		*groups;
@@ -42,6 +44,8 @@ struct netlink_sock {
 	void			(*netlink_rcv)(struct sk_buff *skb);
 	int			(*netlink_bind)(struct net *net, int group);
 	void			(*netlink_unbind)(struct net *net, int group);
+	void			(*netlink_release)(struct sock *sk,
+						   unsigned long *groups);
 	struct module		*module;
 
 	struct rhash_head	node;
@@ -54,6 +58,8 @@ static inline struct netlink_sock *nlk_sk(struct sock *sk)
 	return container_of(sk, struct netlink_sock, sk);
 }
 
+#define nlk_test_bit(nr, sk) test_bit(NETLINK_F_##nr, &nlk_sk(sk)->flags)
+
 struct netlink_table {
 	struct rhashtable	hash;
 	struct hlist_head	mc_list;
@@ -64,6 +70,8 @@ struct netlink_table {
 	struct module		*module;
 	int			(*bind)(struct net *net, int group);
 	void			(*unbind)(struct net *net, int group);
+	void                    (*release)(struct sock *sk,
+					   unsigned long *groups);
 	int			registered;
 };
 

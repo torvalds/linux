@@ -37,7 +37,7 @@ static inline bool
 blk_mq_sched_allow_merge(struct request_queue *q, struct request *rq,
 			 struct bio *bio)
 {
-	if (rq->rq_flags & RQF_ELV) {
+	if (rq->rq_flags & RQF_USE_SCHED) {
 		struct elevator_queue *e = q->elevator;
 
 		if (e->type->ops.allow_merge)
@@ -48,7 +48,7 @@ blk_mq_sched_allow_merge(struct request_queue *q, struct request *rq,
 
 static inline void blk_mq_sched_completed_request(struct request *rq, u64 now)
 {
-	if (rq->rq_flags & RQF_ELV) {
+	if (rq->rq_flags & RQF_USE_SCHED) {
 		struct elevator_queue *e = rq->q->elevator;
 
 		if (e->type->ops.completed_request)
@@ -58,11 +58,11 @@ static inline void blk_mq_sched_completed_request(struct request *rq, u64 now)
 
 static inline void blk_mq_sched_requeue_request(struct request *rq)
 {
-	if (rq->rq_flags & RQF_ELV) {
+	if (rq->rq_flags & RQF_USE_SCHED) {
 		struct request_queue *q = rq->q;
 		struct elevator_queue *e = q->elevator;
 
-		if ((rq->rq_flags & RQF_ELVPRIV) && e->type->ops.requeue_request)
+		if (e->type->ops.requeue_request)
 			e->type->ops.requeue_request(rq);
 	}
 }

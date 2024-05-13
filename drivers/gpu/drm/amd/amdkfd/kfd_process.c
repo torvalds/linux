@@ -28,7 +28,6 @@
 #include <linux/sched/task.h>
 #include <linux/mmu_context.h>
 #include <linux/slab.h>
-#include <linux/amd-iommu.h>
 #include <linux/notifier.h>
 #include <linux/compat.h>
 #include <linux/mman.h>
@@ -41,16 +40,16 @@ struct mm_struct;
 
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
-#include "kfd_iommu.h"
 #include "kfd_svm.h"
 #include "kfd_smi_events.h"
+#include "kfd_debug.h"
 
 /*
  * List of struct kfd_process (field kfd_process).
  * Unique/indexed by mm_struct*
  */
 DEFINE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
-static DEFINE_MUTEX(kfd_processes_mutex);
+DEFINE_MUTEX(kfd_processes_mutex);
 
 DEFINE_SRCU(kfd_processes_srcu);
 
@@ -69,7 +68,6 @@ static struct kfd_process *find_process(const struct task_struct *thread,
 					bool ref);
 static void kfd_process_ref_release(struct kref *ref);
 static struct kfd_process *create_process(const struct task_struct *thread);
-static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep);
 
 static void evict_process_worker(struct work_struct *work);
 static void restore_process_worker(struct work_struct *work);
@@ -269,7 +267,7 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	int cu_cnt;
 	int wave_cnt;
 	int max_waves_per_cu;
-	struct kfd_dev *dev = NULL;
+	struct kfd_node *dev = NULL;
 	struct kfd_process *proc = NULL;
 	struct kfd_process_device *pdd = NULL;
 
@@ -290,7 +288,7 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	wave_cnt = 0;
 	max_waves_per_cu = 0;
 	dev->kfd2kgd->get_cu_occupancy(dev->adev, proc->pasid, &wave_cnt,
-			&max_waves_per_cu);
+			&max_waves_per_cu, 0);
 
 	/* Translate wave count to number of compute units */
 	cu_cnt = (wave_cnt + (max_waves_per_cu - 1)) / max_waves_per_cu;
@@ -691,7 +689,7 @@ void kfd_process_destroy_wq(void)
 static void kfd_process_free_gpuvm(struct kgd_mem *mem,
 			struct kfd_process_device *pdd, void **kptr)
 {
-	struct kfd_dev *dev = pdd->dev;
+	struct kfd_node *dev = pdd->dev;
 
 	if (kptr && *kptr) {
 		amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(mem);
@@ -713,7 +711,7 @@ static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
 				   uint64_t gpu_va, uint32_t size,
 				   uint32_t flags, struct kgd_mem **mem, void **kptr)
 {
-	struct kfd_dev *kdev = pdd->dev;
+	struct kfd_node *kdev = pdd->dev;
 	int err;
 
 	err = amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(kdev->adev, gpu_va, size,
@@ -798,18 +796,19 @@ static void kfd_process_device_destroy_ib_mem(struct kfd_process_device *pdd)
 	kfd_process_free_gpuvm(qpd->ib_mem, pdd, &qpd->ib_kaddr);
 }
 
-struct kfd_process *kfd_create_process(struct file *filep)
+struct kfd_process *kfd_create_process(struct task_struct *thread)
 {
 	struct kfd_process *process;
-	struct task_struct *thread = current;
 	int ret;
 
-	if (!thread->mm)
+	if (!(thread->mm && mmget_not_zero(thread->mm)))
 		return ERR_PTR(-EINVAL);
 
 	/* Only the pthreads threading model is supported. */
-	if (thread->group_leader->mm != thread->mm)
+	if (thread->group_leader->mm != thread->mm) {
+		mmput(thread->mm);
 		return ERR_PTR(-EINVAL);
+	}
 
 	/*
 	 * take kfd processes mutex before starting of process creation
@@ -817,6 +816,12 @@ struct kfd_process *kfd_create_process(struct file *filep)
 	 * create two kfd_process structures
 	 */
 	mutex_lock(&kfd_processes_mutex);
+
+	if (kfd_is_locked()) {
+		mutex_unlock(&kfd_processes_mutex);
+		pr_debug("KFD is locked! Cannot create process");
+		return ERR_PTR(-EINVAL);
+	}
 
 	/* A prior open of /dev/kfd could have already created the process. */
 	process = find_process(thread, false);
@@ -826,10 +831,6 @@ struct kfd_process *kfd_create_process(struct file *filep)
 		process = create_process(thread);
 		if (IS_ERR(process))
 			goto out;
-
-		ret = kfd_process_init_cwsr_apu(process, filep);
-		if (ret)
-			goto out_destroy;
 
 		if (!procfs.kobj)
 			goto out;
@@ -859,21 +860,16 @@ struct kfd_process *kfd_create_process(struct file *filep)
 		kfd_procfs_add_sysfs_stats(process);
 		kfd_procfs_add_sysfs_files(process);
 		kfd_procfs_add_sysfs_counters(process);
+
+		init_waitqueue_head(&process->wait_irq_drain);
 	}
 out:
 	if (!IS_ERR(process))
 		kref_get(&process->ref);
 	mutex_unlock(&kfd_processes_mutex);
+	mmput(thread->mm);
 
 	return process;
-
-out_destroy:
-	hash_del_rcu(&process->kfd_processes);
-	mutex_unlock(&kfd_processes_mutex);
-	synchronize_srcu(&kfd_processes_srcu);
-	/* kfd_process_free_notifier will trigger the cleanup */
-	mmu_notifier_put(&process->mmu_notifier);
-	return ERR_PTR(ret);
 }
 
 struct kfd_process *kfd_get_process(const struct task_struct *thread)
@@ -982,7 +978,7 @@ static void kfd_process_device_free_bos(struct kfd_process_device *pdd)
 static void kfd_process_kunmap_signal_bo(struct kfd_process *p)
 {
 	struct kfd_process_device *pdd;
-	struct kfd_dev *kdev;
+	struct kfd_node *kdev;
 	void *mem;
 
 	kdev = kfd_device_by_id(GET_GPU_ID(p->signal_handle));
@@ -1037,12 +1033,11 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 			free_pages((unsigned long)pdd->qpd.cwsr_kaddr,
 				get_order(KFD_CWSR_TBA_TMA_SIZE));
 
-		bitmap_free(pdd->qpd.doorbell_bitmap);
 		idr_destroy(&pdd->alloc_idr);
 
-		kfd_free_process_doorbells(pdd->dev, pdd->doorbell_index);
+		kfd_free_process_doorbells(pdd->dev->kfd, pdd);
 
-		if (pdd->dev->shared_resources.enable_mes)
+		if (pdd->dev->kfd->shared_resources.enable_mes)
 			amdgpu_amdkfd_free_gtt_mem(pdd->dev->adev,
 						   pdd->proc_ctx_bo);
 		/*
@@ -1125,7 +1120,6 @@ static void kfd_process_wq_release(struct work_struct *work)
 	dma_fence_signal(p->ef);
 
 	kfd_process_remove_sysfs(p);
-	kfd_iommu_unbind_process(p);
 
 	kfd_process_kunmap_signal_bo(p);
 	kfd_process_free_outstanding_kfd_bos(p);
@@ -1169,11 +1163,40 @@ static void kfd_process_free_notifier(struct mmu_notifier *mn)
 
 static void kfd_process_notifier_release_internal(struct kfd_process *p)
 {
+	int i;
+
 	cancel_delayed_work_sync(&p->eviction_work);
 	cancel_delayed_work_sync(&p->restore_work);
 
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+
+		/* re-enable GFX OFF since runtime enable with ttmp setup disabled it. */
+		if (!kfd_dbg_is_rlc_restore_supported(pdd->dev) && p->runtime_info.ttmp_setup)
+			amdgpu_gfx_off_ctrl(pdd->dev->adev, true);
+	}
+
 	/* Indicate to other users that MM is no longer valid */
 	p->mm = NULL;
+	kfd_dbg_trap_disable(p);
+
+	if (atomic_read(&p->debugged_process_count) > 0) {
+		struct kfd_process *target;
+		unsigned int temp;
+		int idx = srcu_read_lock(&kfd_processes_srcu);
+
+		hash_for_each_rcu(kfd_processes_table, temp, target, kfd_processes) {
+			if (target->debugger_process && target->debugger_process == p) {
+				mutex_lock_nested(&target->mutex, 1);
+				kfd_dbg_trap_disable(target);
+				mutex_unlock(&target->mutex);
+				if (atomic_read(&p->debugged_process_count) == 0)
+					break;
+			}
+		}
+
+		srcu_read_unlock(&kfd_processes_srcu, idx);
+	}
 
 	mmu_notifier_put(&p->mmu_notifier);
 }
@@ -1253,16 +1276,19 @@ void kfd_cleanup_processes(void)
 	mmu_notifier_synchronize();
 }
 
-static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep)
+int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep)
 {
 	unsigned long  offset;
 	int i;
 
+	if (p->has_cwsr)
+		return 0;
+
 	for (i = 0; i < p->n_pdds; i++) {
-		struct kfd_dev *dev = p->pdds[i]->dev;
+		struct kfd_node *dev = p->pdds[i]->dev;
 		struct qcm_process_device *qpd = &p->pdds[i]->qpd;
 
-		if (!dev->cwsr_enabled || qpd->cwsr_kaddr || qpd->cwsr_base)
+		if (!dev->kfd->cwsr_enabled || qpd->cwsr_kaddr || qpd->cwsr_base)
 			continue;
 
 		offset = KFD_MMAP_TYPE_RESERVED_MEM | KFD_MMAP_GPU_ID(dev->id);
@@ -1279,19 +1305,23 @@ static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep)
 			return err;
 		}
 
-		memcpy(qpd->cwsr_kaddr, dev->cwsr_isa, dev->cwsr_isa_size);
+		memcpy(qpd->cwsr_kaddr, dev->kfd->cwsr_isa, dev->kfd->cwsr_isa_size);
+
+		kfd_process_set_trap_debug_flag(qpd, p->debug_trap_enabled);
 
 		qpd->tma_addr = qpd->tba_addr + KFD_CWSR_TMA_OFFSET;
 		pr_debug("set tba :0x%llx, tma:0x%llx, cwsr_kaddr:%p for pqm.\n",
 			qpd->tba_addr, qpd->tma_addr, qpd->cwsr_kaddr);
 	}
 
+	p->has_cwsr = true;
+
 	return 0;
 }
 
 static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 {
-	struct kfd_dev *dev = pdd->dev;
+	struct kfd_node *dev = pdd->dev;
 	struct qcm_process_device *qpd = &pdd->qpd;
 	uint32_t flags = KFD_IOC_ALLOC_MEM_FLAGS_GTT
 			| KFD_IOC_ALLOC_MEM_FLAGS_NO_SUBSTITUTE
@@ -1300,7 +1330,7 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 	void *kaddr;
 	int ret;
 
-	if (!dev->cwsr_enabled || qpd->cwsr_kaddr || !qpd->cwsr_base)
+	if (!dev->kfd->cwsr_enabled || qpd->cwsr_kaddr || !qpd->cwsr_base)
 		return 0;
 
 	/* cwsr_base is only set for dGPU */
@@ -1313,7 +1343,10 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 	qpd->cwsr_kaddr = kaddr;
 	qpd->tba_addr = qpd->cwsr_base;
 
-	memcpy(qpd->cwsr_kaddr, dev->cwsr_isa, dev->cwsr_isa_size);
+	memcpy(qpd->cwsr_kaddr, dev->kfd->cwsr_isa, dev->kfd->cwsr_isa_size);
+
+	kfd_process_set_trap_debug_flag(&pdd->qpd,
+					pdd->process->debug_trap_enabled);
 
 	qpd->tma_addr = qpd->tba_addr + KFD_CWSR_TMA_OFFSET;
 	pr_debug("set tba :0x%llx, tma:0x%llx, cwsr_kaddr:%p for pqm.\n",
@@ -1324,10 +1357,10 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
 
 static void kfd_process_device_destroy_cwsr_dgpu(struct kfd_process_device *pdd)
 {
-	struct kfd_dev *dev = pdd->dev;
+	struct kfd_node *dev = pdd->dev;
 	struct qcm_process_device *qpd = &pdd->qpd;
 
-	if (!dev->cwsr_enabled || !qpd->cwsr_kaddr || !qpd->cwsr_base)
+	if (!dev->kfd->cwsr_enabled || !qpd->cwsr_kaddr || !qpd->cwsr_base)
 		return;
 
 	kfd_process_free_gpuvm(qpd->cwsr_mem, pdd, &qpd->cwsr_kaddr);
@@ -1371,7 +1404,7 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 	 * support retry.
 	 */
 	for (i = 0; i < p->n_pdds; i++) {
-		struct kfd_dev *dev = p->pdds[i]->dev;
+		struct kfd_node *dev = p->pdds[i]->dev;
 
 		/* Only consider GFXv9 and higher GPUs. Older GPUs don't
 		 * support the SVM APIs and don't need to be considered
@@ -1394,11 +1427,21 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		if (KFD_GC_VERSION(dev) >= IP_VERSION(10, 1, 1))
 			return false;
 
-		if (dev->noretry)
+		if (dev->kfd->noretry)
 			return false;
 	}
 
 	return true;
+}
+
+void kfd_process_set_trap_debug_flag(struct qcm_process_device *qpd,
+				     bool enabled)
+{
+	if (qpd->cwsr_kaddr) {
+		uint64_t *tma =
+			(uint64_t *)(qpd->cwsr_kaddr + KFD_CWSR_TMA_OFFSET);
+		tma[2] = enabled;
+	}
 }
 
 /*
@@ -1428,6 +1471,11 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (err)
 		goto err_event_init;
 	process->is_32bit_user_mode = in_compat_syscall();
+	process->debug_trap_enabled = false;
+	process->debugger_process = NULL;
+	process->exception_enable_mask = 0;
+	atomic_set(&process->debugged_process_count, 0);
+	sema_init(&process->runtime_enable_sema, 0);
 
 	process->pasid = kfd_pasid_alloc();
 	if (process->pasid == 0) {
@@ -1475,6 +1523,8 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	kfd_unref_process(process);
 	get_task_struct(process->lead_thread);
 
+	INIT_WORK(&process->debug_event_workarea, debug_event_write_work_handler);
+
 	return process;
 
 err_register_notifier:
@@ -1496,39 +1546,7 @@ err_alloc_process:
 	return ERR_PTR(err);
 }
 
-static int init_doorbell_bitmap(struct qcm_process_device *qpd,
-			struct kfd_dev *dev)
-{
-	unsigned int i;
-	int range_start = dev->shared_resources.non_cp_doorbells_start;
-	int range_end = dev->shared_resources.non_cp_doorbells_end;
-
-	if (!KFD_IS_SOC15(dev))
-		return 0;
-
-	qpd->doorbell_bitmap = bitmap_zalloc(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
-					     GFP_KERNEL);
-	if (!qpd->doorbell_bitmap)
-		return -ENOMEM;
-
-	/* Mask out doorbells reserved for SDMA, IH, and VCN on SOC15. */
-	pr_debug("reserved doorbell 0x%03x - 0x%03x\n", range_start, range_end);
-	pr_debug("reserved doorbell 0x%03x - 0x%03x\n",
-			range_start + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
-			range_end + KFD_QUEUE_DOORBELL_MIRROR_OFFSET);
-
-	for (i = 0; i < KFD_MAX_NUM_OF_QUEUES_PER_PROCESS / 2; i++) {
-		if (i >= range_start && i <= range_end) {
-			__set_bit(i, qpd->doorbell_bitmap);
-			__set_bit(i + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
-				  qpd->doorbell_bitmap);
-		}
-	}
-
-	return 0;
-}
-
-struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
+struct kfd_process_device *kfd_get_process_device_data(struct kfd_node *dev,
 							struct kfd_process *p)
 {
 	int i;
@@ -1540,7 +1558,7 @@ struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 	return NULL;
 }
 
-struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
+struct kfd_process_device *kfd_create_process_device_data(struct kfd_node *dev,
 							struct kfd_process *p)
 {
 	struct kfd_process_device *pdd = NULL;
@@ -1551,11 +1569,6 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	pdd = kzalloc(sizeof(*pdd), GFP_KERNEL);
 	if (!pdd)
 		return NULL;
-
-	if (init_doorbell_bitmap(&pdd->qpd, dev)) {
-		pr_err("Failed to init doorbell for process\n");
-		goto err_free_pdd;
-	}
 
 	pdd->dev = dev;
 	INIT_LIST_HEAD(&pdd->qpd.queues_list);
@@ -1573,7 +1586,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	pdd->user_gpu_id = dev->id;
 	atomic64_set(&pdd->evict_duration_counter, 0);
 
-	if (dev->shared_resources.enable_mes) {
+	if (dev->kfd->shared_resources.enable_mes) {
 		retval = amdgpu_amdkfd_alloc_gtt_mem(dev->adev,
 						AMDGPU_MES_PROC_CTX_SIZE,
 						&pdd->proc_ctx_bo,
@@ -1588,6 +1601,11 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	}
 
 	p->pdds[p->n_pdds++] = pdd;
+	if (kfd_dbg_is_per_vmid_supported(pdd->dev))
+		pdd->spi_dbg_override = pdd->dev->kfd2kgd->disable_debug_trap(
+							pdd->dev->adev,
+							false,
+							0);
 
 	/* Init idr used for memory handle translation */
 	idr_init(&pdd->alloc_idr);
@@ -1619,7 +1637,7 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	struct amdgpu_fpriv *drv_priv;
 	struct amdgpu_vm *avm;
 	struct kfd_process *p;
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 	int ret;
 
 	if (!drm_file)
@@ -1679,7 +1697,7 @@ err_reserve_ib_mem:
  *
  * Assumes that the process lock is held.
  */
-struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
+struct kfd_process_device *kfd_bind_process_to_device(struct kfd_node *dev,
 							struct kfd_process *p)
 {
 	struct kfd_process_device *pdd;
@@ -1707,10 +1725,6 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 		}
 	}
 
-	err = kfd_iommu_bind_process_to_device(pdd);
-	if (err)
-		goto out;
-
 	/*
 	 * make sure that runtime_usage counter is incremented just once
 	 * per pdd
@@ -1718,15 +1732,6 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 	pdd->runtime_inuse = true;
 
 	return pdd;
-
-out:
-	/* balance runpm reference count and exit with error */
-	if (!pdd->runtime_inuse) {
-		pm_runtime_mark_last_busy(adev_to_drm(dev->adev)->dev);
-		pm_runtime_put_autosuspend(adev_to_drm(dev->adev)->dev);
-	}
-
-	return ERR_PTR(err);
 }
 
 /* Create specific handle mapped to mem from process local memory idr
@@ -1885,13 +1890,13 @@ int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id)
 }
 
 int
-kfd_process_gpuid_from_adev(struct kfd_process *p, struct amdgpu_device *adev,
-			   uint32_t *gpuid, uint32_t *gpuidx)
+kfd_process_gpuid_from_node(struct kfd_process *p, struct kfd_node *node,
+			    uint32_t *gpuid, uint32_t *gpuidx)
 {
 	int i;
 
 	for (i = 0; i < p->n_pdds; i++)
-		if (p->pdds[i] && p->pdds[i]->dev->adev == adev) {
+		if (p->pdds[i] && p->pdds[i]->dev == node) {
 			*gpuid = p->pdds[i]->user_gpu_id;
 			*gpuidx = i;
 			return 0;
@@ -1961,8 +1966,10 @@ static void restore_process_worker(struct work_struct *work)
 	 */
 
 	p->last_restore_timestamp = get_jiffies_64();
-	ret = amdgpu_amdkfd_gpuvm_restore_process_bos(p->kgd_process_info,
-						     &p->ef);
+	/* VMs may not have been acquired yet during debugging. */
+	if (p->kgd_process_info)
+		ret = amdgpu_amdkfd_gpuvm_restore_process_bos(p->kgd_process_info,
+							     &p->ef);
 	if (ret) {
 		pr_debug("Failed to restore BOs of pasid 0x%x, retry after %d ms\n",
 			 p->pasid, PROCESS_BACK_OFF_TIME_MS);
@@ -1988,7 +1995,7 @@ void kfd_suspend_all_processes(void)
 	WARN(debug_evictions, "Evicting all processes");
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		cancel_delayed_work_sync(&p->eviction_work);
-		cancel_delayed_work_sync(&p->restore_work);
+		flush_delayed_work(&p->restore_work);
 
 		if (kfd_process_evict_queues(p, KFD_QUEUE_EVICTION_TRIGGER_SUSPEND))
 			pr_err("Failed to suspend process 0x%x\n", p->pasid);
@@ -2016,7 +2023,7 @@ int kfd_resume_all_processes(void)
 	return ret;
 }
 
-int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
+int kfd_reserved_mem_mmap(struct kfd_node *dev, struct kfd_process *process,
 			  struct vm_area_struct *vma)
 {
 	struct kfd_process_device *pdd;
@@ -2051,7 +2058,9 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 {
 	struct amdgpu_vm *vm = drm_priv_to_vm(pdd->drm_priv);
 	uint64_t tlb_seq = amdgpu_vm_tlb_seq(vm);
-	struct kfd_dev *dev = pdd->dev;
+	struct kfd_node *dev = pdd->dev;
+	uint32_t xcc_mask = dev->xcc_mask;
+	int xcc = 0;
 
 	/*
 	 * It can be that we race and lose here, but that is extremely unlikely
@@ -2069,9 +2078,133 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 			amdgpu_amdkfd_flush_gpu_tlb_vmid(dev->adev,
 							pdd->qpd.vmid);
 	} else {
-		amdgpu_amdkfd_flush_gpu_tlb_pasid(dev->adev,
-					pdd->process->pasid, type);
+		for_each_inst(xcc, xcc_mask)
+			amdgpu_amdkfd_flush_gpu_tlb_pasid(
+				dev->adev, pdd->process->pasid, type, xcc);
 	}
+}
+
+/* assumes caller holds process lock. */
+int kfd_process_drain_interrupts(struct kfd_process_device *pdd)
+{
+	uint32_t irq_drain_fence[8];
+	uint8_t node_id = 0;
+	int r = 0;
+
+	if (!KFD_IS_SOC15(pdd->dev))
+		return 0;
+
+	pdd->process->irq_drain_is_open = true;
+
+	memset(irq_drain_fence, 0, sizeof(irq_drain_fence));
+	irq_drain_fence[0] = (KFD_IRQ_FENCE_SOURCEID << 8) |
+							KFD_IRQ_FENCE_CLIENTID;
+	irq_drain_fence[3] = pdd->process->pasid;
+
+	/*
+	 * For GFX 9.4.3, send the NodeId also in IH cookie DW[3]
+	 */
+	if (KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 4, 3)) {
+		node_id = ffs(pdd->dev->interrupt_bitmap) - 1;
+		irq_drain_fence[3] |= node_id << 16;
+	}
+
+	/* ensure stale irqs scheduled KFD interrupts and send drain fence. */
+	if (amdgpu_amdkfd_send_close_event_drain_irq(pdd->dev->adev,
+						     irq_drain_fence)) {
+		pdd->process->irq_drain_is_open = false;
+		return 0;
+	}
+
+	r = wait_event_interruptible(pdd->process->wait_irq_drain,
+				     !READ_ONCE(pdd->process->irq_drain_is_open));
+	if (r)
+		pdd->process->irq_drain_is_open = false;
+
+	return r;
+}
+
+void kfd_process_close_interrupt_drain(unsigned int pasid)
+{
+	struct kfd_process *p;
+
+	p = kfd_lookup_process_by_pasid(pasid);
+
+	if (!p)
+		return;
+
+	WRITE_ONCE(p->irq_drain_is_open, false);
+	wake_up_all(&p->wait_irq_drain);
+	kfd_unref_process(p);
+}
+
+struct send_exception_work_handler_workarea {
+	struct work_struct work;
+	struct kfd_process *p;
+	unsigned int queue_id;
+	uint64_t error_reason;
+};
+
+static void send_exception_work_handler(struct work_struct *work)
+{
+	struct send_exception_work_handler_workarea *workarea;
+	struct kfd_process *p;
+	struct queue *q;
+	struct mm_struct *mm;
+	struct kfd_context_save_area_header __user *csa_header;
+	uint64_t __user *err_payload_ptr;
+	uint64_t cur_err;
+	uint32_t ev_id;
+
+	workarea = container_of(work,
+				struct send_exception_work_handler_workarea,
+				work);
+	p = workarea->p;
+
+	mm = get_task_mm(p->lead_thread);
+
+	if (!mm)
+		return;
+
+	kthread_use_mm(mm);
+
+	q = pqm_get_user_queue(&p->pqm, workarea->queue_id);
+
+	if (!q)
+		goto out;
+
+	csa_header = (void __user *)q->properties.ctx_save_restore_area_address;
+
+	get_user(err_payload_ptr, (uint64_t __user **)&csa_header->err_payload_addr);
+	get_user(cur_err, err_payload_ptr);
+	cur_err |= workarea->error_reason;
+	put_user(cur_err, err_payload_ptr);
+	get_user(ev_id, &csa_header->err_event_id);
+
+	kfd_set_event(p, ev_id);
+
+out:
+	kthread_unuse_mm(mm);
+	mmput(mm);
+}
+
+int kfd_send_exception_to_runtime(struct kfd_process *p,
+			unsigned int queue_id,
+			uint64_t error_reason)
+{
+	struct send_exception_work_handler_workarea worker;
+
+	INIT_WORK_ONSTACK(&worker.work, send_exception_work_handler);
+
+	worker.p = p;
+	worker.queue_id = queue_id;
+	worker.error_reason = error_reason;
+
+	schedule_work(&worker.work);
+	flush_work(&worker.work);
+	destroy_work_on_stack(&worker.work);
+
+	return 0;
 }
 
 struct kfd_process_device *kfd_process_device_data_by_id(struct kfd_process *p, uint32_t gpu_id)
@@ -2133,4 +2266,3 @@ int kfd_debugfs_mqds_by_process(struct seq_file *m, void *data)
 }
 
 #endif
-

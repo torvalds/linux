@@ -23,6 +23,7 @@
 #include <asm/pkru.h>
 #include <asm/trapnr.h>
 #include <asm/fpu/xcr.h>
+#include <asm/debugreg.h>
 
 #include "mmu.h"
 #include "x86.h"
@@ -54,9 +55,14 @@ module_param_named(sev, sev_enabled, bool, 0444);
 /* enable/disable SEV-ES support */
 static bool sev_es_enabled = true;
 module_param_named(sev_es, sev_es_enabled, bool, 0444);
+
+/* enable/disable SEV-ES DebugSwap support */
+static bool sev_es_debug_swap_enabled = true;
+module_param_named(debug_swap, sev_es_debug_swap_enabled, bool, 0444);
 #else
 #define sev_enabled false
 #define sev_es_enabled false
+#define sev_es_debug_swap_enabled false
 #endif /* CONFIG_KVM_AMD_SEV */
 
 static u8 sev_enc_bit;
@@ -606,6 +612,9 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 	save->xss  = svm->vcpu.arch.ia32_xss;
 	save->dr6  = svm->vcpu.arch.dr6;
 
+	if (sev_es_debug_swap_enabled)
+		save->sev_features |= SVM_SEV_FEAT_DEBUG_SWAP;
+
 	pr_debug("Virtual Machine Save Area (VMSA):\n");
 	print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1, save, sizeof(*save), false);
 
@@ -618,6 +627,11 @@ static int __sev_launch_update_vmsa(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	struct sev_data_launch_update_vmsa vmsa;
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret;
+
+	if (vcpu->guest_debug) {
+		pr_warn_once("KVM_SET_GUEST_DEBUG for SEV-ES guest is not supported");
+		return -EINVAL;
+	}
 
 	/* Perform some pre-encryption checks against the VMSA */
 	ret = sev_es_sync_vmsa(svm);
@@ -1725,7 +1739,7 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 		 * Note, the source is not required to have the same number of
 		 * vCPUs as the destination when migrating a vanilla SEV VM.
 		 */
-		src_vcpu = kvm_get_vcpu(dst_kvm, i);
+		src_vcpu = kvm_get_vcpu(src_kvm, i);
 		src_svm = to_svm(src_vcpu);
 
 		/*
@@ -2171,7 +2185,7 @@ void __init sev_hardware_setup(void)
 	bool sev_es_supported = false;
 	bool sev_supported = false;
 
-	if (!sev_enabled || !npt_enabled)
+	if (!sev_enabled || !npt_enabled || !nrips)
 		goto out;
 
 	/*
@@ -2216,10 +2230,7 @@ void __init sev_hardware_setup(void)
 	}
 
 	sev_asid_count = max_sev_asid - min_sev_asid + 1;
-	if (misc_cg_set_capacity(MISC_CG_RES_SEV, sev_asid_count))
-		goto out;
-
-	pr_info("SEV supported: %u ASIDs\n", sev_asid_count);
+	WARN_ON_ONCE(misc_cg_set_capacity(MISC_CG_RES_SEV, sev_asid_count));
 	sev_supported = true;
 
 	/* SEV-ES support requested? */
@@ -2244,15 +2255,24 @@ void __init sev_hardware_setup(void)
 		goto out;
 
 	sev_es_asid_count = min_sev_asid - 1;
-	if (misc_cg_set_capacity(MISC_CG_RES_SEV_ES, sev_es_asid_count))
-		goto out;
-
-	pr_info("SEV-ES supported: %u ASIDs\n", sev_es_asid_count);
+	WARN_ON_ONCE(misc_cg_set_capacity(MISC_CG_RES_SEV_ES, sev_es_asid_count));
 	sev_es_supported = true;
 
 out:
+	if (boot_cpu_has(X86_FEATURE_SEV))
+		pr_info("SEV %s (ASIDs %u - %u)\n",
+			sev_supported ? "enabled" : "disabled",
+			min_sev_asid, max_sev_asid);
+	if (boot_cpu_has(X86_FEATURE_SEV_ES))
+		pr_info("SEV-ES %s (ASIDs %u - %u)\n",
+			sev_es_supported ? "enabled" : "disabled",
+			min_sev_asid > 1 ? 1 : 0, min_sev_asid - 1);
+
 	sev_enabled = sev_supported;
 	sev_es_enabled = sev_es_supported;
+	if (!sev_es_enabled || !cpu_feature_enabled(X86_FEATURE_DEBUG_SWAP) ||
+	    !cpu_feature_enabled(X86_FEATURE_NO_NESTED_DATA_BP))
+		sev_es_debug_swap_enabled = false;
 #endif
 }
 
@@ -2414,15 +2434,18 @@ static void sev_es_sync_from_ghcb(struct vcpu_svm *svm)
 	 */
 	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
 
-	vcpu->arch.regs[VCPU_REGS_RAX] = ghcb_get_rax_if_valid(ghcb);
-	vcpu->arch.regs[VCPU_REGS_RBX] = ghcb_get_rbx_if_valid(ghcb);
-	vcpu->arch.regs[VCPU_REGS_RCX] = ghcb_get_rcx_if_valid(ghcb);
-	vcpu->arch.regs[VCPU_REGS_RDX] = ghcb_get_rdx_if_valid(ghcb);
-	vcpu->arch.regs[VCPU_REGS_RSI] = ghcb_get_rsi_if_valid(ghcb);
+	BUILD_BUG_ON(sizeof(svm->sev_es.valid_bitmap) != sizeof(ghcb->save.valid_bitmap));
+	memcpy(&svm->sev_es.valid_bitmap, &ghcb->save.valid_bitmap, sizeof(ghcb->save.valid_bitmap));
 
-	svm->vmcb->save.cpl = ghcb_get_cpl_if_valid(ghcb);
+	vcpu->arch.regs[VCPU_REGS_RAX] = kvm_ghcb_get_rax_if_valid(svm, ghcb);
+	vcpu->arch.regs[VCPU_REGS_RBX] = kvm_ghcb_get_rbx_if_valid(svm, ghcb);
+	vcpu->arch.regs[VCPU_REGS_RCX] = kvm_ghcb_get_rcx_if_valid(svm, ghcb);
+	vcpu->arch.regs[VCPU_REGS_RDX] = kvm_ghcb_get_rdx_if_valid(svm, ghcb);
+	vcpu->arch.regs[VCPU_REGS_RSI] = kvm_ghcb_get_rsi_if_valid(svm, ghcb);
 
-	if (ghcb_xcr0_is_valid(ghcb)) {
+	svm->vmcb->save.cpl = kvm_ghcb_get_cpl_if_valid(svm, ghcb);
+
+	if (kvm_ghcb_xcr0_is_valid(svm)) {
 		vcpu->arch.xcr0 = ghcb_get_xcr0(ghcb);
 		kvm_update_cpuid_runtime(vcpu);
 	}
@@ -2433,84 +2456,88 @@ static void sev_es_sync_from_ghcb(struct vcpu_svm *svm)
 	control->exit_code_hi = upper_32_bits(exit_code);
 	control->exit_info_1 = ghcb_get_sw_exit_info_1(ghcb);
 	control->exit_info_2 = ghcb_get_sw_exit_info_2(ghcb);
+	svm->sev_es.sw_scratch = kvm_ghcb_get_sw_scratch_if_valid(svm, ghcb);
 
 	/* Clear the valid entries fields */
 	memset(ghcb->save.valid_bitmap, 0, sizeof(ghcb->save.valid_bitmap));
 }
 
+static u64 kvm_ghcb_get_sw_exit_code(struct vmcb_control_area *control)
+{
+	return (((u64)control->exit_code_hi) << 32) | control->exit_code;
+}
+
 static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 {
-	struct kvm_vcpu *vcpu;
-	struct ghcb *ghcb;
+	struct vmcb_control_area *control = &svm->vmcb->control;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
 	u64 exit_code;
 	u64 reason;
-
-	ghcb = svm->sev_es.ghcb;
 
 	/*
 	 * Retrieve the exit code now even though it may not be marked valid
 	 * as it could help with debugging.
 	 */
-	exit_code = ghcb_get_sw_exit_code(ghcb);
+	exit_code = kvm_ghcb_get_sw_exit_code(control);
 
 	/* Only GHCB Usage code 0 is supported */
-	if (ghcb->ghcb_usage) {
+	if (svm->sev_es.ghcb->ghcb_usage) {
 		reason = GHCB_ERR_INVALID_USAGE;
 		goto vmgexit_err;
 	}
 
 	reason = GHCB_ERR_MISSING_INPUT;
 
-	if (!ghcb_sw_exit_code_is_valid(ghcb) ||
-	    !ghcb_sw_exit_info_1_is_valid(ghcb) ||
-	    !ghcb_sw_exit_info_2_is_valid(ghcb))
+	if (!kvm_ghcb_sw_exit_code_is_valid(svm) ||
+	    !kvm_ghcb_sw_exit_info_1_is_valid(svm) ||
+	    !kvm_ghcb_sw_exit_info_2_is_valid(svm))
 		goto vmgexit_err;
 
-	switch (ghcb_get_sw_exit_code(ghcb)) {
+	switch (exit_code) {
 	case SVM_EXIT_READ_DR7:
 		break;
 	case SVM_EXIT_WRITE_DR7:
-		if (!ghcb_rax_is_valid(ghcb))
+		if (!kvm_ghcb_rax_is_valid(svm))
 			goto vmgexit_err;
 		break;
 	case SVM_EXIT_RDTSC:
 		break;
 	case SVM_EXIT_RDPMC:
-		if (!ghcb_rcx_is_valid(ghcb))
+		if (!kvm_ghcb_rcx_is_valid(svm))
 			goto vmgexit_err;
 		break;
 	case SVM_EXIT_CPUID:
-		if (!ghcb_rax_is_valid(ghcb) ||
-		    !ghcb_rcx_is_valid(ghcb))
+		if (!kvm_ghcb_rax_is_valid(svm) ||
+		    !kvm_ghcb_rcx_is_valid(svm))
 			goto vmgexit_err;
-		if (ghcb_get_rax(ghcb) == 0xd)
-			if (!ghcb_xcr0_is_valid(ghcb))
+		if (vcpu->arch.regs[VCPU_REGS_RAX] == 0xd)
+			if (!kvm_ghcb_xcr0_is_valid(svm))
 				goto vmgexit_err;
 		break;
 	case SVM_EXIT_INVD:
 		break;
 	case SVM_EXIT_IOIO:
-		if (ghcb_get_sw_exit_info_1(ghcb) & SVM_IOIO_STR_MASK) {
-			if (!ghcb_sw_scratch_is_valid(ghcb))
+		if (control->exit_info_1 & SVM_IOIO_STR_MASK) {
+			if (!kvm_ghcb_sw_scratch_is_valid(svm))
 				goto vmgexit_err;
 		} else {
-			if (!(ghcb_get_sw_exit_info_1(ghcb) & SVM_IOIO_TYPE_MASK))
-				if (!ghcb_rax_is_valid(ghcb))
+			if (!(control->exit_info_1 & SVM_IOIO_TYPE_MASK))
+				if (!kvm_ghcb_rax_is_valid(svm))
 					goto vmgexit_err;
 		}
 		break;
 	case SVM_EXIT_MSR:
-		if (!ghcb_rcx_is_valid(ghcb))
+		if (!kvm_ghcb_rcx_is_valid(svm))
 			goto vmgexit_err;
-		if (ghcb_get_sw_exit_info_1(ghcb)) {
-			if (!ghcb_rax_is_valid(ghcb) ||
-			    !ghcb_rdx_is_valid(ghcb))
+		if (control->exit_info_1) {
+			if (!kvm_ghcb_rax_is_valid(svm) ||
+			    !kvm_ghcb_rdx_is_valid(svm))
 				goto vmgexit_err;
 		}
 		break;
 	case SVM_EXIT_VMMCALL:
-		if (!ghcb_rax_is_valid(ghcb) ||
-		    !ghcb_cpl_is_valid(ghcb))
+		if (!kvm_ghcb_rax_is_valid(svm) ||
+		    !kvm_ghcb_cpl_is_valid(svm))
 			goto vmgexit_err;
 		break;
 	case SVM_EXIT_RDTSCP:
@@ -2518,19 +2545,19 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	case SVM_EXIT_WBINVD:
 		break;
 	case SVM_EXIT_MONITOR:
-		if (!ghcb_rax_is_valid(ghcb) ||
-		    !ghcb_rcx_is_valid(ghcb) ||
-		    !ghcb_rdx_is_valid(ghcb))
+		if (!kvm_ghcb_rax_is_valid(svm) ||
+		    !kvm_ghcb_rcx_is_valid(svm) ||
+		    !kvm_ghcb_rdx_is_valid(svm))
 			goto vmgexit_err;
 		break;
 	case SVM_EXIT_MWAIT:
-		if (!ghcb_rax_is_valid(ghcb) ||
-		    !ghcb_rcx_is_valid(ghcb))
+		if (!kvm_ghcb_rax_is_valid(svm) ||
+		    !kvm_ghcb_rcx_is_valid(svm))
 			goto vmgexit_err;
 		break;
 	case SVM_VMGEXIT_MMIO_READ:
 	case SVM_VMGEXIT_MMIO_WRITE:
-		if (!ghcb_sw_scratch_is_valid(ghcb))
+		if (!kvm_ghcb_sw_scratch_is_valid(svm))
 			goto vmgexit_err;
 		break;
 	case SVM_VMGEXIT_NMI_COMPLETE:
@@ -2546,11 +2573,9 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	return 0;
 
 vmgexit_err:
-	vcpu = &svm->vcpu;
-
 	if (reason == GHCB_ERR_INVALID_USAGE) {
 		vcpu_unimpl(vcpu, "vmgexit: ghcb usage %#x is not valid\n",
-			    ghcb->ghcb_usage);
+			    svm->sev_es.ghcb->ghcb_usage);
 	} else if (reason == GHCB_ERR_INVALID_EVENT) {
 		vcpu_unimpl(vcpu, "vmgexit: exit code %#llx is not valid\n",
 			    exit_code);
@@ -2560,11 +2585,8 @@ vmgexit_err:
 		dump_ghcb(svm);
 	}
 
-	/* Clear the valid entries fields */
-	memset(ghcb->save.valid_bitmap, 0, sizeof(ghcb->save.valid_bitmap));
-
-	ghcb_set_sw_exit_info_1(ghcb, 2);
-	ghcb_set_sw_exit_info_2(ghcb, reason);
+	ghcb_set_sw_exit_info_1(svm->sev_es.ghcb, 2);
+	ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, reason);
 
 	/* Resume the guest to "return" the error code. */
 	return 1;
@@ -2583,7 +2605,7 @@ void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 		 */
 		if (svm->sev_es.ghcb_sa_sync) {
 			kvm_write_guest(svm->vcpu.kvm,
-					ghcb_get_sw_scratch(svm->sev_es.ghcb),
+					svm->sev_es.sw_scratch,
 					svm->sev_es.ghcb_sa,
 					svm->sev_es.ghcb_sa_len);
 			svm->sev_es.ghcb_sa_sync = false;
@@ -2629,12 +2651,11 @@ void pre_sev_run(struct vcpu_svm *svm, int cpu)
 static int setup_vmgexit_scratch(struct vcpu_svm *svm, bool sync, u64 len)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
-	struct ghcb *ghcb = svm->sev_es.ghcb;
 	u64 ghcb_scratch_beg, ghcb_scratch_end;
 	u64 scratch_gpa_beg, scratch_gpa_end;
 	void *scratch_va;
 
-	scratch_gpa_beg = ghcb_get_sw_scratch(ghcb);
+	scratch_gpa_beg = svm->sev_es.sw_scratch;
 	if (!scratch_gpa_beg) {
 		pr_err("vmgexit: scratch gpa not provided\n");
 		goto e_scratch;
@@ -2705,8 +2726,8 @@ static int setup_vmgexit_scratch(struct vcpu_svm *svm, bool sync, u64 len)
 	return 0;
 
 e_scratch:
-	ghcb_set_sw_exit_info_1(ghcb, 2);
-	ghcb_set_sw_exit_info_2(ghcb, GHCB_ERR_INVALID_SCRATCH_AREA);
+	ghcb_set_sw_exit_info_1(svm->sev_es.ghcb, 2);
+	ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, GHCB_ERR_INVALID_SCRATCH_AREA);
 
 	return 1;
 }
@@ -2819,7 +2840,6 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	u64 ghcb_gpa, exit_code;
-	struct ghcb *ghcb;
 	int ret;
 
 	/* Validate the GHCB */
@@ -2844,20 +2864,18 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 	}
 
 	svm->sev_es.ghcb = svm->sev_es.ghcb_map.hva;
-	ghcb = svm->sev_es.ghcb_map.hva;
 
-	trace_kvm_vmgexit_enter(vcpu->vcpu_id, ghcb);
+	trace_kvm_vmgexit_enter(vcpu->vcpu_id, svm->sev_es.ghcb);
 
-	exit_code = ghcb_get_sw_exit_code(ghcb);
-
+	sev_es_sync_from_ghcb(svm);
 	ret = sev_es_validate_vmgexit(svm);
 	if (ret)
 		return ret;
 
-	sev_es_sync_from_ghcb(svm);
-	ghcb_set_sw_exit_info_1(ghcb, 0);
-	ghcb_set_sw_exit_info_2(ghcb, 0);
+	ghcb_set_sw_exit_info_1(svm->sev_es.ghcb, 0);
+	ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, 0);
 
+	exit_code = kvm_ghcb_get_sw_exit_code(control);
 	switch (exit_code) {
 	case SVM_VMGEXIT_MMIO_READ:
 		ret = setup_vmgexit_scratch(svm, true, control->exit_info_2);
@@ -2880,7 +2898,10 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 					    svm->sev_es.ghcb_sa);
 		break;
 	case SVM_VMGEXIT_NMI_COMPLETE:
-		ret = svm_invoke_exit_handler(vcpu, SVM_EXIT_IRET);
+		++vcpu->stat.nmi_window_exits;
+		svm->nmi_masked = false;
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		ret = 1;
 		break;
 	case SVM_VMGEXIT_AP_HLT_LOOP:
 		ret = kvm_emulate_ap_reset_hold(vcpu);
@@ -2895,13 +2916,13 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 			break;
 		case 1:
 			/* Get AP jump table address */
-			ghcb_set_sw_exit_info_2(ghcb, sev->ap_jump_table);
+			ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, sev->ap_jump_table);
 			break;
 		default:
 			pr_err("svm: vmgexit: unsupported AP jump table request - exit_info_1=%#llx\n",
 			       control->exit_info_1);
-			ghcb_set_sw_exit_info_1(ghcb, 2);
-			ghcb_set_sw_exit_info_2(ghcb, GHCB_ERR_INVALID_INPUT);
+			ghcb_set_sw_exit_info_1(svm->sev_es.ghcb, 2);
+			ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, GHCB_ERR_INVALID_INPUT);
 		}
 
 		ret = 1;
@@ -2941,8 +2962,35 @@ int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in)
 				    count, in);
 }
 
+static void sev_es_vcpu_after_set_cpuid(struct vcpu_svm *svm)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+
+	if (boot_cpu_has(X86_FEATURE_V_TSC_AUX)) {
+		bool v_tsc_aux = guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP) ||
+				 guest_cpuid_has(vcpu, X86_FEATURE_RDPID);
+
+		set_msr_interception(vcpu, svm->msrpm, MSR_TSC_AUX, v_tsc_aux, v_tsc_aux);
+	}
+}
+
+void sev_vcpu_after_set_cpuid(struct vcpu_svm *svm)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct kvm_cpuid_entry2 *best;
+
+	/* For sev guests, the memory encryption bit is not reserved in CR3.  */
+	best = kvm_find_cpuid_entry(vcpu, 0x8000001F);
+	if (best)
+		vcpu->arch.reserved_gpa_bits &= ~(1UL << (best->ebx & 0x3f));
+
+	if (sev_es_guest(svm->vcpu.kvm))
+		sev_es_vcpu_after_set_cpuid(svm);
+}
+
 static void sev_es_init_vmcb(struct vcpu_svm *svm)
 {
+	struct vmcb *vmcb = svm->vmcb01.ptr;
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 
 	svm->vmcb->control.nested_ctl |= SVM_NESTED_CTL_SEV_ES_ENABLE;
@@ -2951,9 +2999,12 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 	/*
 	 * An SEV-ES guest requires a VMSA area that is a separate from the
 	 * VMCB page. Do not include the encryption mask on the VMSA physical
-	 * address since hardware will access it using the guest key.
+	 * address since hardware will access it using the guest key.  Note,
+	 * the VMSA will be NULL if this vCPU is the destination for intrahost
+	 * migration, and will be copied later.
 	 */
-	svm->vmcb->control.vmsa_pa = __pa(svm->sev_es.vmsa);
+	if (svm->sev_es.vmsa)
+		svm->vmcb->control.vmsa_pa = __pa(svm->sev_es.vmsa);
 
 	/* Can't intercept CR register access, HV can't modify CR registers */
 	svm_clr_intercept(svm, INTERCEPT_CR0_READ);
@@ -2971,8 +3022,23 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 	svm_set_intercept(svm, TRAP_CR4_WRITE);
 	svm_set_intercept(svm, TRAP_CR8_WRITE);
 
-	/* No support for enable_vmware_backdoor */
-	clr_exception_intercept(svm, GP_VECTOR);
+	vmcb->control.intercepts[INTERCEPT_DR] = 0;
+	if (!sev_es_debug_swap_enabled) {
+		vmcb_set_intercept(&vmcb->control, INTERCEPT_DR7_READ);
+		vmcb_set_intercept(&vmcb->control, INTERCEPT_DR7_WRITE);
+		recalc_intercepts(svm);
+	} else {
+		/*
+		 * Disable #DB intercept iff DebugSwap is enabled.  KVM doesn't
+		 * allow debugging SEV-ES guests, and enables DebugSwap iff
+		 * NO_NESTED_DATA_BP is supported, so there's no reason to
+		 * intercept #DB when DebugSwap is enabled.  For simplicity
+		 * with respect to guest debug, intercept #DB for other VMs
+		 * even if NO_NESTED_DATA_BP is supported, i.e. even if the
+		 * guest can't DoS the CPU with infinite #DB vectoring.
+		 */
+		clr_exception_intercept(svm, DB_VECTOR);
+	}
 
 	/* Can't intercept XSETBV, HV can't modify XCR0 directly */
 	svm_clr_intercept(svm, INTERCEPT_XSETBV);
@@ -2984,20 +3050,18 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTBRANCHTOIP, 1, 1);
 	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTINTFROMIP, 1, 1);
 	set_msr_interception(vcpu, svm->msrpm, MSR_IA32_LASTINTTOIP, 1, 1);
-
-	if (boot_cpu_has(X86_FEATURE_V_TSC_AUX) &&
-	    (guest_cpuid_has(&svm->vcpu, X86_FEATURE_RDTSCP) ||
-	     guest_cpuid_has(&svm->vcpu, X86_FEATURE_RDPID))) {
-		set_msr_interception(vcpu, svm->msrpm, MSR_TSC_AUX, 1, 1);
-		if (guest_cpuid_has(&svm->vcpu, X86_FEATURE_RDTSCP))
-			svm_clr_intercept(svm, INTERCEPT_RDTSCP);
-	}
 }
 
 void sev_init_vmcb(struct vcpu_svm *svm)
 {
 	svm->vmcb->control.nested_ctl |= SVM_NESTED_CTL_SEV_ENABLE;
 	clr_exception_intercept(svm, UD_VECTOR);
+
+	/*
+	 * Don't intercept #GP for SEV guests, e.g. for the VMware backdoor, as
+	 * KVM can't decrypt guest memory to decode the faulting instruction.
+	 */
+	clr_exception_intercept(svm, GP_VECTOR);
 
 	if (sev_es_guest(svm->vcpu.kvm))
 		sev_es_init_vmcb(svm);
@@ -3017,20 +3081,41 @@ void sev_es_vcpu_reset(struct vcpu_svm *svm)
 void sev_es_prepare_switch_to_guest(struct sev_es_save_area *hostsa)
 {
 	/*
-	 * As an SEV-ES guest, hardware will restore the host state on VMEXIT,
-	 * of which one step is to perform a VMLOAD.  KVM performs the
-	 * corresponding VMSAVE in svm_prepare_guest_switch for both
-	 * traditional and SEV-ES guests.
+	 * All host state for SEV-ES guests is categorized into three swap types
+	 * based on how it is handled by hardware during a world switch:
+	 *
+	 * A: VMRUN:   Host state saved in host save area
+	 *    VMEXIT:  Host state loaded from host save area
+	 *
+	 * B: VMRUN:   Host state _NOT_ saved in host save area
+	 *    VMEXIT:  Host state loaded from host save area
+	 *
+	 * C: VMRUN:   Host state _NOT_ saved in host save area
+	 *    VMEXIT:  Host state initialized to default(reset) values
+	 *
+	 * Manually save type-B state, i.e. state that is loaded by VMEXIT but
+	 * isn't saved by VMRUN, that isn't already saved by VMSAVE (performed
+	 * by common SVM code).
 	 */
-
-	/* XCR0 is restored on VMEXIT, save the current host value */
 	hostsa->xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
-
-	/* PKRU is restored on VMEXIT, save the current host value */
 	hostsa->pkru = read_pkru();
-
-	/* MSR_IA32_XSS is restored on VMEXIT, save the currnet host value */
 	hostsa->xss = host_xss;
+
+	/*
+	 * If DebugSwap is enabled, debug registers are loaded but NOT saved by
+	 * the CPU (Type-B). If DebugSwap is disabled/unsupported, the CPU both
+	 * saves and loads debug registers (Type-A).
+	 */
+	if (sev_es_debug_swap_enabled) {
+		hostsa->dr0 = native_get_debugreg(0);
+		hostsa->dr1 = native_get_debugreg(1);
+		hostsa->dr2 = native_get_debugreg(2);
+		hostsa->dr3 = native_get_debugreg(3);
+		hostsa->dr0_addr_mask = amd_get_dr_addr_mask(0);
+		hostsa->dr1_addr_mask = amd_get_dr_addr_mask(1);
+		hostsa->dr2_addr_mask = amd_get_dr_addr_mask(2);
+		hostsa->dr3_addr_mask = amd_get_dr_addr_mask(3);
+	}
 }
 
 void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)

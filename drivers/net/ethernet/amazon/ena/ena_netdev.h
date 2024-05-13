@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <net/xdp.h>
 #include <uapi/linux/bpf.h>
 
 #include "ena_com.h"
@@ -50,6 +51,8 @@
 
 #define ENA_DEFAULT_RING_SIZE	(1024)
 #define ENA_MIN_RING_SIZE	(256)
+
+#define ENA_MIN_RX_BUF_SIZE (2048)
 
 #define ENA_MIN_NUM_IO_QUEUES	(1)
 
@@ -175,7 +178,9 @@ struct ena_tx_buffer {
 struct ena_rx_buffer {
 	struct sk_buff *skb;
 	struct page *page;
+	dma_addr_t dma_addr;
 	u32 page_offset;
+	u32 buf_offset;
 	struct ena_com_buf ena_buf;
 } ____cacheline_aligned;
 

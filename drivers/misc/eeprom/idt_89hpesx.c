@@ -913,15 +913,9 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 		return 0;
 
 	/* Copy data from User-space */
-	buf = kmalloc(count + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, ubuf, count)) {
-		ret = -EFAULT;
-		goto free_buf;
-	}
-	buf[count] = 0;
+	buf = memdup_user_nul(ubuf, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	/* Find position of colon in the buffer */
 	colon_ch = strnchr(buf, count, ':');
@@ -1294,13 +1288,14 @@ static int idt_create_sysfs_files(struct idt_89hpesx_dev *pdev)
 		return 0;
 	}
 
-	/* Allocate memory for attribute file */
-	pdev->ee_file = devm_kmalloc(dev, sizeof(*pdev->ee_file), GFP_KERNEL);
+	/*
+	 * Allocate memory for attribute file and copy the declared EEPROM attr
+	 * structure to change some of fields
+	 */
+	pdev->ee_file = devm_kmemdup(dev, &bin_attr_eeprom,
+				     sizeof(*pdev->ee_file), GFP_KERNEL);
 	if (!pdev->ee_file)
 		return -ENOMEM;
-
-	/* Copy the declared EEPROM attr structure to change some of fields */
-	memcpy(pdev->ee_file, &bin_attr_eeprom, sizeof(*pdev->ee_file));
 
 	/* In case of read-only EEPROM get rid of write ability */
 	if (pdev->eero) {
@@ -1556,7 +1551,7 @@ static struct i2c_driver idt_driver = {
 		.name = IDT_NAME,
 		.of_match_table = idt_of_match,
 	},
-	.probe_new = idt_probe,
+	.probe = idt_probe,
 	.remove = idt_remove,
 	.id_table = idt_ids,
 };

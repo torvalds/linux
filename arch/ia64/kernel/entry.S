@@ -37,7 +37,7 @@
  *	pNonSys:	!pSys
  */
 
-
+#include <linux/export.h>
 #include <linux/pgtable.h>
 #include <asm/asmmacro.h>
 #include <asm/cache.h>
@@ -49,7 +49,6 @@
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
-#include <asm/export.h>
 
 #include "minstate.h"
 

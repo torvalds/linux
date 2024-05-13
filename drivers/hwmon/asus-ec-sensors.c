@@ -101,6 +101,8 @@ enum ec_sensors {
 	ec_sensor_temp_chipset,
 	/* CPU temperature [℃] */
 	ec_sensor_temp_cpu,
+	/* CPU package temperature [℃] */
+	ec_sensor_temp_cpu_package,
 	/* motherboard temperature [℃] */
 	ec_sensor_temp_mb,
 	/* "T_Sensor" temperature sensor reading [℃] */
@@ -139,6 +141,7 @@ enum ec_sensors {
 
 #define SENSOR_TEMP_CHIPSET BIT(ec_sensor_temp_chipset)
 #define SENSOR_TEMP_CPU BIT(ec_sensor_temp_cpu)
+#define SENSOR_TEMP_CPU_PACKAGE BIT(ec_sensor_temp_cpu_package)
 #define SENSOR_TEMP_MB BIT(ec_sensor_temp_mb)
 #define SENSOR_TEMP_T_SENSOR BIT(ec_sensor_temp_t_sensor)
 #define SENSOR_TEMP_VRM BIT(ec_sensor_temp_vrm)
@@ -161,6 +164,7 @@ enum board_family {
 	family_unknown,
 	family_amd_400_series,
 	family_amd_500_series,
+	family_amd_600_series,
 	family_intel_300_series,
 	family_intel_600_series
 };
@@ -231,6 +235,19 @@ static const struct ec_sensor_info sensors_family_amd_500[] = {
 		EC_SENSOR("Extra_2", hwmon_temp, 1, 0x01, 0x0b),
 	[ec_sensor_temp_sensor_extra_3] =
 		EC_SENSOR("Extra_3", hwmon_temp, 1, 0x01, 0x0c),
+};
+
+static const struct ec_sensor_info sensors_family_amd_600[] = {
+	[ec_sensor_temp_cpu] = EC_SENSOR("CPU", hwmon_temp, 1, 0x00, 0x30),
+	[ec_sensor_temp_cpu_package] = EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
+	[ec_sensor_temp_mb] =
+	EC_SENSOR("Motherboard", hwmon_temp, 1, 0x00, 0x32),
+	[ec_sensor_temp_vrm] =
+		EC_SENSOR("VRM", hwmon_temp, 1, 0x00, 0x33),
+	[ec_sensor_temp_water_in] =
+		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x00),
+	[ec_sensor_temp_water_out] =
+		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x01),
 };
 
 static const struct ec_sensor_info sensors_family_intel_300[] = {
@@ -317,6 +334,14 @@ static const struct ec_board_info board_info_pro_ws_x570_ace = {
 		SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
 	.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 	.family = family_amd_500_series,
+};
+
+static const struct ec_board_info board_info_crosshair_x670e_hero = {
+	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE |
+		SENSOR_TEMP_MB | SENSOR_TEMP_VRM |
+		SENSOR_SET_TEMP_WATER,
+	.mutex_path = ACPI_GLOBAL_LOCK_PSEUDO_PATH,
+	.family = family_amd_600_series,
 };
 
 static const struct ec_board_info board_info_crosshair_viii_dark_hero = {
@@ -463,6 +488,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_crosshair_viii_hero),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR VIII HERO (WI-FI)",
 					&board_info_crosshair_viii_hero),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR X670E HERO",
+					&board_info_crosshair_x670e_hero),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG MAXIMUS XI HERO",
 					&board_info_maximus_xi_hero),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG MAXIMUS XI HERO (WI-FI)",
@@ -945,6 +972,9 @@ static int asus_ec_probe(struct platform_device *pdev)
 		break;
 	case family_amd_500_series:
 		ec_data->sensors_info = sensors_family_amd_500;
+		break;
+	case family_amd_600_series:
+		ec_data->sensors_info = sensors_family_amd_600;
 		break;
 	case family_intel_300_series:
 		ec_data->sensors_info = sensors_family_intel_300;

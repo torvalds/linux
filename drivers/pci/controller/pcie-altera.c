@@ -9,11 +9,10 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqdomain.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -806,7 +805,7 @@ static int altera_pcie_probe(struct platform_device *pdev)
 	return pci_host_probe(bridge);
 }
 
-static int altera_pcie_remove(struct platform_device *pdev)
+static void altera_pcie_remove(struct platform_device *pdev)
 {
 	struct altera_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
@@ -814,13 +813,11 @@ static int altera_pcie_remove(struct platform_device *pdev)
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
 	altera_pcie_irq_teardown(pcie);
-
-	return 0;
 }
 
 static struct platform_driver altera_pcie_driver = {
 	.probe		= altera_pcie_probe,
-	.remove		= altera_pcie_remove,
+	.remove_new	= altera_pcie_remove,
 	.driver = {
 		.name	= "altera-pcie",
 		.of_match_table = altera_pcie_of_match,

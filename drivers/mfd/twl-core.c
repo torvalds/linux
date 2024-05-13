@@ -890,7 +890,7 @@ static struct i2c_driver twl_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.pm	= &twl_dev_pm_ops,
 	.id_table	= twl_ids,
-	.probe_new	= twl_probe,
+	.probe		= twl_probe,
 	.remove		= twl_remove,
 };
 builtin_i2c_driver(twl_driver);

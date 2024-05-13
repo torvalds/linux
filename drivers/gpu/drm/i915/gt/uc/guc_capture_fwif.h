@@ -12,7 +12,7 @@
 struct intel_guc;
 struct file;
 
-/**
+/*
  * struct __guc_capture_bufstate
  *
  * Book-keeping structure used to track read and write pointers
@@ -26,7 +26,7 @@ struct __guc_capture_bufstate {
 	u32 wr;
 };
 
-/**
+/*
  * struct __guc_capture_parsed_output - extracted error capture node
  *
  * A single unit of extracted error-capture output data grouped together
@@ -58,7 +58,7 @@ struct __guc_capture_parsed_output {
 #define GCAP_PARSED_REGLIST_INDEX_ENGINST  BIT(GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE)
 };
 
-/**
+/*
  * struct guc_debug_capture_list_header / struct guc_debug_capture_list
  *
  * As part of ADS registration, these header structures (followed by
@@ -76,7 +76,7 @@ struct guc_debug_capture_list {
 	struct guc_mmio_reg regs[];
 } __packed;
 
-/**
+/*
  * struct __guc_mmio_reg_descr / struct __guc_mmio_reg_descr_group
  *
  * intel_guc_capture module uses these structures to maintain static
@@ -101,7 +101,7 @@ struct __guc_mmio_reg_descr_group {
 	struct __guc_mmio_reg_descr *extlist; /* only used for steered registers */
 };
 
-/**
+/*
  * struct guc_state_capture_header_t / struct guc_state_capture_t /
  * guc_state_capture_group_header_t / guc_state_capture_group_t
  *
@@ -148,7 +148,7 @@ struct guc_state_capture_group_t {
 	struct guc_state_capture_t capture_entries[];
 } __packed;
 
-/**
+/*
  * struct __guc_capture_ads_cache
  *
  * A structure to cache register lists that were populated and registered
@@ -187,6 +187,10 @@ struct intel_guc_state_capture {
 	struct __guc_capture_ads_cache ads_cache[GUC_CAPTURE_LIST_INDEX_MAX]
 						[GUC_CAPTURE_LIST_TYPE_MAX]
 						[GUC_MAX_ENGINE_CLASSES];
+
+	/**
+	 * @ads_null_cache: ADS null cache.
+	 */
 	void *ads_null_cache;
 
 	/**
@@ -202,6 +206,10 @@ struct intel_guc_state_capture {
 	struct list_head cachelist;
 #define PREALLOC_NODES_MAX_COUNT (3 * GUC_MAX_ENGINE_CLASSES * GUC_MAX_INSTANCES_PER_CLASS)
 #define PREALLOC_NODES_DEFAULT_NUMREGS 64
+
+	/**
+	 * @max_mmio_per_node: Max MMIO per node.
+	 */
 	int max_mmio_per_node;
 
 	/**

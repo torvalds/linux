@@ -1,0 +1,11 @@
+
+
+# Test ends up reading CRC from frame before cursor update
+# bug
+# sometimes.. tbd if this is a kernel CRC bug or a test
+kms_cursor_crc@.*
+kms_cursor_legacy@flip-vs-cursor-toggle
+kms_cursor_legacy@pipe-A-forked-bo
+kms_cursor_legacy@pipe-A-forked-move
+kms_cursor_legacy@short-flip-before-cursor-toggle
+kms_flip@dpms-vs-vblank-race-interruptible

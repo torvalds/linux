@@ -2,7 +2,7 @@
 // Copyright (c) 2018, The Linux Foundation. All rights reserved.
 #include <linux/clk-provider.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -111,6 +111,18 @@ static const struct alpha_pll_config ipq8074_pll_config = {
 	.test_ctl_hi_val = 0x4000,
 };
 
+static const struct alpha_pll_config ipq9574_pll_config = {
+	.l = 0x3b,
+	.config_ctl_val = 0x200d4828,
+	.config_ctl_hi_val = 0x6,
+	.early_output_mask = BIT(3),
+	.aux2_output_mask = BIT(2),
+	.aux_output_mask = BIT(1),
+	.main_output_mask = BIT(0),
+	.test_ctl_val = 0x0,
+	.test_ctl_hi_val = 0x4000,
+};
+
 struct apss_pll_data {
 	int pll_type;
 	struct clk_alpha_pll *pll;
@@ -133,6 +145,12 @@ static struct apss_pll_data ipq6018_pll_data = {
 	.pll_type = CLK_ALPHA_PLL_TYPE_HUAYRA,
 	.pll = &ipq_pll_huayra,
 	.pll_config = &ipq6018_pll_config,
+};
+
+static struct apss_pll_data ipq9574_pll_data = {
+	.pll_type = CLK_ALPHA_PLL_TYPE_HUAYRA,
+	.pll = &ipq_pll_huayra,
+	.pll_config = &ipq9574_pll_config,
 };
 
 static const struct regmap_config ipq_pll_regmap_config = {
@@ -180,6 +198,7 @@ static const struct of_device_id apss_ipq_pll_match_table[] = {
 	{ .compatible = "qcom,ipq5332-a53pll", .data = &ipq5332_pll_data },
 	{ .compatible = "qcom,ipq6018-a53pll", .data = &ipq6018_pll_data },
 	{ .compatible = "qcom,ipq8074-a53pll", .data = &ipq8074_pll_data },
+	{ .compatible = "qcom,ipq9574-a73pll", .data = &ipq9574_pll_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, apss_ipq_pll_match_table);

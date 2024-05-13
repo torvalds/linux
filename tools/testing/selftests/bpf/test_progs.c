@@ -11,7 +11,6 @@
 #include <signal.h>
 #include <string.h>
 #include <execinfo.h> /* backtrace */
-#include <linux/membarrier.h>
 #include <sys/sysinfo.h> /* get_nprocs */
 #include <netinet/in.h>
 #include <sys/select.h>
@@ -629,68 +628,6 @@ out:
 	return err;
 }
 
-static int finit_module(int fd, const char *param_values, int flags)
-{
-	return syscall(__NR_finit_module, fd, param_values, flags);
-}
-
-static int delete_module(const char *name, int flags)
-{
-	return syscall(__NR_delete_module, name, flags);
-}
-
-/*
- * Trigger synchronize_rcu() in kernel.
- */
-int kern_sync_rcu(void)
-{
-	return syscall(__NR_membarrier, MEMBARRIER_CMD_SHARED, 0, 0);
-}
-
-static void unload_bpf_testmod(void)
-{
-	if (kern_sync_rcu())
-		fprintf(env.stderr, "Failed to trigger kernel-side RCU sync!\n");
-	if (delete_module("bpf_testmod", 0)) {
-		if (errno == ENOENT) {
-			if (verbose())
-				fprintf(stdout, "bpf_testmod.ko is already unloaded.\n");
-			return;
-		}
-		fprintf(env.stderr, "Failed to unload bpf_testmod.ko from kernel: %d\n", -errno);
-		return;
-	}
-	if (verbose())
-		fprintf(stdout, "Successfully unloaded bpf_testmod.ko.\n");
-}
-
-static int load_bpf_testmod(void)
-{
-	int fd;
-
-	/* ensure previous instance of the module is unloaded */
-	unload_bpf_testmod();
-
-	if (verbose())
-		fprintf(stdout, "Loading bpf_testmod.ko...\n");
-
-	fd = open("bpf_testmod.ko", O_RDONLY);
-	if (fd < 0) {
-		fprintf(env.stderr, "Can't find bpf_testmod.ko kernel module: %d\n", -errno);
-		return -ENOENT;
-	}
-	if (finit_module(fd, "", 0)) {
-		fprintf(env.stderr, "Failed to load bpf_testmod.ko into the kernel: %d\n", -errno);
-		close(fd);
-		return -EINVAL;
-	}
-	close(fd);
-
-	if (verbose())
-		fprintf(stdout, "Successfully loaded bpf_testmod.ko.\n");
-	return 0;
-}
-
 /* extern declarations for test funcs */
 #define DEFINE_TEST(name)				\
 	extern void test_##name(void) __weak;		\
@@ -714,7 +651,13 @@ static struct test_state test_states[ARRAY_SIZE(prog_test_defs)];
 
 const char *argp_program_version = "test_progs 0.1";
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
-static const char argp_program_doc[] = "BPF selftests test runner";
+static const char argp_program_doc[] =
+"BPF selftests test runner\v"
+"Options accepting the NAMES parameter take either a comma-separated list\n"
+"of test names, or a filename prefixed with @. The file contains one name\n"
+"(or wildcard pattern) per line, and comments beginning with # are ignored.\n"
+"\n"
+"These options can be passed repeatedly to read multiple files.\n";
 
 enum ARG_KEYS {
 	ARG_TEST_NUM = 'n',
@@ -797,6 +740,7 @@ extern int extra_prog_load_log_flags;
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
 	struct test_env *env = state->input;
+	int err = 0;
 
 	switch (key) {
 	case ARG_TEST_NUM: {
@@ -821,18 +765,28 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	}
 	case ARG_TEST_NAME_GLOB_ALLOWLIST:
 	case ARG_TEST_NAME: {
-		if (parse_test_list(arg,
-				    &env->test_selector.whitelist,
-				    key == ARG_TEST_NAME_GLOB_ALLOWLIST))
-			return -ENOMEM;
+		if (arg[0] == '@')
+			err = parse_test_list_file(arg + 1,
+						   &env->test_selector.whitelist,
+						   key == ARG_TEST_NAME_GLOB_ALLOWLIST);
+		else
+			err = parse_test_list(arg,
+					      &env->test_selector.whitelist,
+					      key == ARG_TEST_NAME_GLOB_ALLOWLIST);
+
 		break;
 	}
 	case ARG_TEST_NAME_GLOB_DENYLIST:
 	case ARG_TEST_NAME_BLACKLIST: {
-		if (parse_test_list(arg,
-				    &env->test_selector.blacklist,
-				    key == ARG_TEST_NAME_GLOB_DENYLIST))
-			return -ENOMEM;
+		if (arg[0] == '@')
+			err = parse_test_list_file(arg + 1,
+						   &env->test_selector.blacklist,
+						   key == ARG_TEST_NAME_GLOB_DENYLIST);
+		else
+			err = parse_test_list(arg,
+					      &env->test_selector.blacklist,
+					      key == ARG_TEST_NAME_GLOB_DENYLIST);
+
 		break;
 	}
 	case ARG_VERIFIER_STATS:
@@ -900,7 +854,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
-	return 0;
+	return err;
 }
 
 /*
@@ -1703,9 +1657,14 @@ int main(int argc, char **argv)
 	env.stderr = stderr;
 
 	env.has_testmod = true;
-	if (!env.list_test_names && load_bpf_testmod()) {
-		fprintf(env.stderr, "WARNING! Selftests relying on bpf_testmod.ko will be skipped.\n");
-		env.has_testmod = false;
+	if (!env.list_test_names) {
+		/* ensure previous instance of the module is unloaded */
+		unload_bpf_testmod(verbose());
+
+		if (load_bpf_testmod(verbose())) {
+			fprintf(env.stderr, "WARNING! Selftests relying on bpf_testmod.ko will be skipped.\n");
+			env.has_testmod = false;
+		}
 	}
 
 	/* initializing tests */
@@ -1802,7 +1761,7 @@ int main(int argc, char **argv)
 	close(env.saved_netns_fd);
 out:
 	if (!env.list_test_names && env.has_testmod)
-		unload_bpf_testmod();
+		unload_bpf_testmod(verbose());
 
 	free_test_selector(&env.test_selector);
 	free_test_selector(&env.subtest_selector);

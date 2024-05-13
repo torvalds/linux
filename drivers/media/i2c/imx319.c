@@ -2558,14 +2558,14 @@ static struct i2c_driver imx319_i2c_driver = {
 		.pm = &imx319_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx319_acpi_ids),
 	},
-	.probe_new = imx319_probe,
+	.probe = imx319_probe,
 	.remove = imx319_remove,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
 module_i2c_driver(imx319_i2c_driver);
 
 MODULE_AUTHOR("Qiu, Tianshu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Rapolu, Chiranjeevi <chiranjeevi.rapolu@intel.com>");
+MODULE_AUTHOR("Rapolu, Chiranjeevi");
 MODULE_AUTHOR("Bingbu Cao <bingbu.cao@intel.com>");
 MODULE_AUTHOR("Yang, Hyungwoo");
 MODULE_DESCRIPTION("Sony imx319 sensor driver");

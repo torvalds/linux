@@ -6,7 +6,8 @@
 
 set -e
 
-skip_test=0
+. "$(dirname $0)"/lib/stat_output.sh
+
 csv_sep=@
 
 stat_output=$(mktemp /tmp/__perf_test.stat_output.csv.XXXXX)
@@ -35,11 +36,12 @@ function commachecker()
 	;; "--interval")	exp=7
 	;; "--per-thread")	exp=7
 	;; "--system-wide-no-aggr")	exp=7
-				[ $(uname -m) = "s390x" ] && exp='^[6-7]$'
+				[ "$(uname -m)" = "s390x" ] && exp='^[6-7]$'
 	;; "--per-core")	exp=8
 	;; "--per-socket")	exp=8
 	;; "--per-node")	exp=8
 	;; "--per-die")		exp=8
+	;; "--per-cache")	exp=8
 	esac
 
 	while read line
@@ -62,168 +64,22 @@ function commachecker()
 	return 0
 }
 
-# Return true if perf_event_paranoid is > $1 and not running as root.
-function ParanoidAndNotRoot()
-{
-	 [ $(id -u) != 0 ] && [ $(cat /proc/sys/kernel/perf_event_paranoid) -gt $1 ]
-}
+perf_cmd="-x$csv_sep -o ${stat_output}"
 
-check_no_args()
-{
-	echo -n "Checking CSV output: no args "
-	perf stat -x$csv_sep -o "${stat_output}" true
-        commachecker --no-args
-	echo "[Success]"
-}
-
-check_system_wide()
-{
-	echo -n "Checking CSV output: system wide "
-	if ParanoidAndNotRoot 0
-	then
-		echo "[Skip] paranoid and not root"
-		return
-	fi
-	perf stat -x$csv_sep -a -o "${stat_output}" true
-        commachecker --system-wide
-	echo "[Success]"
-}
-
-check_system_wide_no_aggr()
-{
-	echo -n "Checking CSV output: system wide no aggregation "
-	if ParanoidAndNotRoot 0
-	then
-		echo "[Skip] paranoid and not root"
-		return
-	fi
-	perf stat -x$csv_sep -A -a --no-merge -o "${stat_output}" true
-        commachecker --system-wide-no-aggr
-	echo "[Success]"
-}
-
-check_interval()
-{
-	echo -n "Checking CSV output: interval "
-	perf stat -x$csv_sep -I 1000 -o "${stat_output}" true
-        commachecker --interval
-	echo "[Success]"
-}
-
-
-check_event()
-{
-	echo -n "Checking CSV output: event "
-	perf stat -x$csv_sep -e cpu-clock -o "${stat_output}" true
-        commachecker --event
-	echo "[Success]"
-}
-
-check_per_core()
-{
-	echo -n "Checking CSV output: per core "
-	if ParanoidAndNotRoot 0
-	then
-		echo "[Skip] paranoid and not root"
-		return
-	fi
-	perf stat -x$csv_sep --per-core -a -o "${stat_output}" true
-        commachecker --per-core
-	echo "[Success]"
-}
-
-check_per_thread()
-{
-	echo -n "Checking CSV output: per thread "
-	if ParanoidAndNotRoot 0
-	then
-		echo "[Skip] paranoid and not root"
-		return
-	fi
-	perf stat -x$csv_sep --per-thread -a -o "${stat_output}" true
-        commachecker --per-thread
-	echo "[Success]"
-}
-
-check_per_die()
-{
-	echo -n "Checking CSV output: per die "
-	if ParanoidAndNotRoot 0
-	then
-		echo "[Skip] paranoid and not root"
-		return
-	fi
-	perf stat -x$csv_sep --per-die -a -o "${stat_output}" true
-        commachecker --per-die
-	echo "[Success]"
-}
-
-check_per_node()
-{
-	echo -n "Checking CSV output: per node "
-	if ParanoidAndNotRoot 0
-	then
-		echo "[Skip] paranoid and not root"
-		return
-	fi
-	perf stat -x$csv_sep --per-node -a -o "${stat_output}" true
-        commachecker --per-node
-	echo "[Success]"
-}
-
-check_per_socket()
-{
-	echo -n "Checking CSV output: per socket "
-	if ParanoidAndNotRoot 0
-	then
-		echo "[Skip] paranoid and not root"
-		return
-	fi
-	perf stat -x$csv_sep --per-socket -a -o "${stat_output}" true
-        commachecker --per-socket
-	echo "[Success]"
-}
-
-# The perf stat options for per-socket, per-core, per-die
-# and -A ( no_aggr mode ) uses the info fetched from this
-# directory: "/sys/devices/system/cpu/cpu*/topology". For
-# example, socket value is fetched from "physical_package_id"
-# file in topology directory.
-# Reference: cpu__get_topology_int in util/cpumap.c
-# If the platform doesn't expose topology information, values
-# will be set to -1. For example, incase of pSeries platform
-# of powerpc, value for  "physical_package_id" is restricted
-# and set to -1. Check here validates the socket-id read from
-# topology file before proceeding further
-
-FILE_LOC="/sys/devices/system/cpu/cpu*/topology/"
-FILE_NAME="physical_package_id"
-
-check_for_topology()
-{
-	if ! ParanoidAndNotRoot 0
-	then
-		socket_file=`ls $FILE_LOC/$FILE_NAME | head -n 1`
-		[ -z $socket_file ] && return 0
-		socket_id=`cat $socket_file`
-		[ $socket_id == -1 ] && skip_test=1
-		return 0
-	fi
-}
-
-check_for_topology
-check_no_args
-check_system_wide
-check_interval
-check_event
-check_per_thread
-check_per_node
+skip_test=$(check_for_topology)
+check_no_args "CSV" "$perf_cmd"
+check_system_wide "CSV" "$perf_cmd"
+check_interval "CSV" "$perf_cmd"
+check_event "CSV" "$perf_cmd"
+check_per_thread "CSV" "$perf_cmd"
+check_per_node "CSV" "$perf_cmd"
 if [ $skip_test -ne 1 ]
 then
-	check_system_wide_no_aggr
-	check_per_core
-	check_per_die
-	check_per_socket
+	check_system_wide_no_aggr "CSV" "$perf_cmd"
+	check_per_core "CSV" "$perf_cmd"
+	check_per_cache_instance "CSV" "$perf_cmd"
+	check_per_die "CSV" "$perf_cmd"
+	check_per_socket "CSV" "$perf_cmd"
 else
 	echo "[Skip] Skipping tests for system_wide_no_aggr, per_core, per_die and per_socket since socket id exposed via topology is invalid"
 fi

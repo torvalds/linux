@@ -1222,6 +1222,19 @@ static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 }
 
 static const struct snd_soc_dai_ops stm32_sai_pcm_dai_ops = {
+	.probe		= stm32_sai_dai_probe,
+	.set_sysclk	= stm32_sai_set_sysclk,
+	.set_fmt	= stm32_sai_set_dai_fmt,
+	.set_tdm_slot	= stm32_sai_set_dai_tdm_slot,
+	.startup	= stm32_sai_startup,
+	.hw_params	= stm32_sai_hw_params,
+	.trigger	= stm32_sai_trigger,
+	.shutdown	= stm32_sai_shutdown,
+	.pcm_new	= stm32_sai_pcm_new,
+};
+
+static const struct snd_soc_dai_ops stm32_sai_pcm_dai_ops2 = {
+	.probe		= stm32_sai_dai_probe,
 	.set_sysclk	= stm32_sai_set_sysclk,
 	.set_fmt	= stm32_sai_set_dai_fmt,
 	.set_tdm_slot	= stm32_sai_set_dai_tdm_slot,
@@ -1233,7 +1246,7 @@ static const struct snd_soc_dai_ops stm32_sai_pcm_dai_ops = {
 
 static int stm32_sai_pcm_process_spdif(struct snd_pcm_substream *substream,
 				       int channel, unsigned long hwoff,
-				       void *buf, unsigned long bytes)
+				       unsigned long bytes)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
@@ -1287,8 +1300,6 @@ static const struct snd_pcm_hardware stm32_sai_pcm_hw = {
 };
 
 static struct snd_soc_dai_driver stm32_sai_playback_dai = {
-		.probe = stm32_sai_dai_probe,
-		.pcm_new = stm32_sai_pcm_new,
 		.id = 1, /* avoid call to fmt_single_name() */
 		.playback = {
 			.channels_min = 1,
@@ -1306,7 +1317,6 @@ static struct snd_soc_dai_driver stm32_sai_playback_dai = {
 };
 
 static struct snd_soc_dai_driver stm32_sai_capture_dai = {
-		.probe = stm32_sai_dai_probe,
 		.id = 1, /* avoid call to fmt_single_name() */
 		.capture = {
 			.channels_min = 1,
@@ -1320,7 +1330,7 @@ static struct snd_soc_dai_driver stm32_sai_capture_dai = {
 				SNDRV_PCM_FMTBIT_S16_LE |
 				SNDRV_PCM_FMTBIT_S32_LE,
 		},
-		.ops = &stm32_sai_pcm_dai_ops,
+		.ops = &stm32_sai_pcm_dai_ops2,
 };
 
 static const struct snd_dmaengine_pcm_config stm32_sai_pcm_config = {
@@ -1485,12 +1495,9 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 		if (ret < 0)
 			return ret;
 	} else {
-		sai->sai_mclk = devm_clk_get(&pdev->dev, "MCLK");
-		if (IS_ERR(sai->sai_mclk)) {
-			if (PTR_ERR(sai->sai_mclk) != -ENOENT)
-				return PTR_ERR(sai->sai_mclk);
-			sai->sai_mclk = NULL;
-		}
+		sai->sai_mclk = devm_clk_get_optional(&pdev->dev, "MCLK");
+		if (IS_ERR(sai->sai_mclk))
+			return PTR_ERR(sai->sai_mclk);
 	}
 
 	return 0;

@@ -21,12 +21,14 @@
 #include <linux/if_hsr.h>
 #include <net/dcbnl.h>
 #include <linux/netpoll.h>
+#include <linux/string.h>
 
 #include "dsa.h"
 #include "port.h"
 #include "master.h"
 #include "netlink.h"
 #include "slave.h"
+#include "switch.h"
 #include "tag.h"
 
 struct dsa_switchdev_event_work {
@@ -161,13 +163,34 @@ static int dsa_slave_schedule_standalone_work(struct net_device *dev,
 	return 0;
 }
 
-static int dsa_slave_host_vlan_rx_filtering(struct net_device *vdev, int vid,
-					    void *arg)
+static int dsa_slave_host_vlan_rx_filtering(void *arg, int vid)
 {
 	struct dsa_host_vlan_rx_filtering_ctx *ctx = arg;
 
 	return dsa_slave_schedule_standalone_work(ctx->dev, ctx->event,
 						  ctx->addr, vid);
+}
+
+static int dsa_slave_vlan_for_each(struct net_device *dev,
+				   int (*cb)(void *arg, int vid), void *arg)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_vlan *v;
+	int err;
+
+	lockdep_assert_held(&dev->addr_list_lock);
+
+	err = cb(arg, 0);
+	if (err)
+		return err;
+
+	list_for_each_entry(v, &dp->user_vlans, list) {
+		err = cb(arg, v->vid);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int dsa_slave_sync_uc(struct net_device *dev,
@@ -180,18 +203,14 @@ static int dsa_slave_sync_uc(struct net_device *dev,
 		.addr = addr,
 		.event = DSA_UC_ADD,
 	};
-	int err;
 
 	dev_uc_add(master, addr);
 
 	if (!dsa_switch_supports_uc_filtering(dp->ds))
 		return 0;
 
-	err = dsa_slave_schedule_standalone_work(dev, DSA_UC_ADD, addr, 0);
-	if (err)
-		return err;
-
-	return vlan_for_each(dev, dsa_slave_host_vlan_rx_filtering, &ctx);
+	return dsa_slave_vlan_for_each(dev, dsa_slave_host_vlan_rx_filtering,
+				       &ctx);
 }
 
 static int dsa_slave_unsync_uc(struct net_device *dev,
@@ -204,18 +223,14 @@ static int dsa_slave_unsync_uc(struct net_device *dev,
 		.addr = addr,
 		.event = DSA_UC_DEL,
 	};
-	int err;
 
 	dev_uc_del(master, addr);
 
 	if (!dsa_switch_supports_uc_filtering(dp->ds))
 		return 0;
 
-	err = dsa_slave_schedule_standalone_work(dev, DSA_UC_DEL, addr, 0);
-	if (err)
-		return err;
-
-	return vlan_for_each(dev, dsa_slave_host_vlan_rx_filtering, &ctx);
+	return dsa_slave_vlan_for_each(dev, dsa_slave_host_vlan_rx_filtering,
+				       &ctx);
 }
 
 static int dsa_slave_sync_mc(struct net_device *dev,
@@ -228,18 +243,14 @@ static int dsa_slave_sync_mc(struct net_device *dev,
 		.addr = addr,
 		.event = DSA_MC_ADD,
 	};
-	int err;
 
 	dev_mc_add(master, addr);
 
 	if (!dsa_switch_supports_mc_filtering(dp->ds))
 		return 0;
 
-	err = dsa_slave_schedule_standalone_work(dev, DSA_MC_ADD, addr, 0);
-	if (err)
-		return err;
-
-	return vlan_for_each(dev, dsa_slave_host_vlan_rx_filtering, &ctx);
+	return dsa_slave_vlan_for_each(dev, dsa_slave_host_vlan_rx_filtering,
+				       &ctx);
 }
 
 static int dsa_slave_unsync_mc(struct net_device *dev,
@@ -252,18 +263,14 @@ static int dsa_slave_unsync_mc(struct net_device *dev,
 		.addr = addr,
 		.event = DSA_MC_DEL,
 	};
-	int err;
 
 	dev_mc_del(master, addr);
 
 	if (!dsa_switch_supports_mc_filtering(dp->ds))
 		return 0;
 
-	err = dsa_slave_schedule_standalone_work(dev, DSA_MC_DEL, addr, 0);
-	if (err)
-		return err;
-
-	return vlan_for_each(dev, dsa_slave_host_vlan_rx_filtering, &ctx);
+	return dsa_slave_vlan_for_each(dev, dsa_slave_host_vlan_rx_filtering,
+				       &ctx);
 }
 
 void dsa_slave_sync_ha(struct net_device *dev)
@@ -1050,10 +1057,10 @@ static void dsa_slave_get_strings(struct net_device *dev,
 	if (stringset == ETH_SS_STATS) {
 		int len = ETH_GSTRING_LEN;
 
-		strncpy(data, "tx_packets", len);
-		strncpy(data + len, "tx_bytes", len);
-		strncpy(data + 2 * len, "rx_packets", len);
-		strncpy(data + 3 * len, "rx_bytes", len);
+		strscpy_pad(data, "tx_packets", len);
+		strscpy_pad(data + len, "tx_bytes", len);
+		strscpy_pad(data + 2 * len, "rx_packets", len);
+		strscpy_pad(data + 3 * len, "rx_bytes", len);
 		if (ds->ops->get_strings)
 			ds->ops->get_strings(ds, dp->index, stringset,
 					     data + 4 * len);
@@ -1759,6 +1766,7 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	struct netlink_ext_ack extack = {0};
 	struct dsa_switch *ds = dp->ds;
 	struct netdev_hw_addr *ha;
+	struct dsa_vlan *v;
 	int ret;
 
 	/* User port... */
@@ -1782,7 +1790,16 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	    !dsa_switch_supports_mc_filtering(ds))
 		return 0;
 
+	v = kzalloc(sizeof(*v), GFP_KERNEL);
+	if (!v) {
+		ret = -ENOMEM;
+		goto rollback;
+	}
+
 	netif_addr_lock_bh(dev);
+
+	v->vid = vid;
+	list_add_tail(&v->list, &dp->user_vlans);
 
 	if (dsa_switch_supports_mc_filtering(ds)) {
 		netdev_for_each_synced_mc_addr(ha, dev) {
@@ -1803,6 +1820,12 @@ static int dsa_slave_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	dsa_flush_workqueue();
 
 	return 0;
+
+rollback:
+	dsa_port_host_vlan_del(dp, &vlan);
+	dsa_port_vlan_del(dp, &vlan);
+
+	return ret;
 }
 
 static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
@@ -1816,6 +1839,7 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 	};
 	struct dsa_switch *ds = dp->ds;
 	struct netdev_hw_addr *ha;
+	struct dsa_vlan *v;
 	int err;
 
 	err = dsa_port_vlan_del(dp, &vlan);
@@ -1831,6 +1855,15 @@ static int dsa_slave_vlan_rx_kill_vid(struct net_device *dev, __be16 proto,
 		return 0;
 
 	netif_addr_lock_bh(dev);
+
+	v = dsa_vlan_find(&dp->user_vlans, &vlan);
+	if (!v) {
+		netif_addr_unlock_bh(dev);
+		return -ENOENT;
+	}
+
+	list_del(&v->list);
+	kfree(v);
 
 	if (dsa_switch_supports_mc_filtering(ds)) {
 		netdev_for_each_synced_mc_addr(ha, dev) {

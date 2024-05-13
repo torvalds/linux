@@ -11,6 +11,7 @@
 struct drm_i915_error_state_buf;
 struct guc_gt_system_info;
 struct intel_engine_coredump;
+struct intel_engine_cs;
 struct intel_context;
 struct intel_gt;
 struct intel_guc;
@@ -20,6 +21,8 @@ int intel_guc_capture_print_engine_node(struct drm_i915_error_state_buf *m,
 					const struct intel_engine_coredump *ee);
 void intel_guc_capture_get_matching_node(struct intel_gt *gt, struct intel_engine_coredump *ee,
 					 struct intel_context *ce);
+bool intel_guc_capture_is_matching_engine(struct intel_gt *gt, struct intel_context *ce,
+					  struct intel_engine_cs *engine);
 void intel_guc_capture_process(struct intel_guc *guc);
 int intel_guc_capture_getlist(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
 			      void **outptr);

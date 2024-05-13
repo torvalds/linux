@@ -26,7 +26,7 @@ Optional properties:
 	will be disabled.
 
 - bosch,slew-rate : slew rate of the CLKOUT signal. If not specified,
-	a resonable value will be calculated.
+	a reasonable value will be calculated.
 
 - bosch,disconnect-rx0-input : see data sheet.
 

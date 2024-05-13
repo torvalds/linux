@@ -6,7 +6,7 @@
  *		 Bo Shen <voice.shen@atmel.com>
  *
  * Links to reference manuals for the supported PWM chips can be found in
- * Documentation/arm/microchip.rst.
+ * Documentation/arch/arm/microchip.rst.
  *
  * Limitations:
  * - Periods start with the inactive level.
@@ -25,7 +25,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
@@ -36,7 +35,7 @@
 #define PWM_SR			0x0C
 #define PWM_ISR			0x1C
 /* Bit field in SR */
-#define PWM_SR_ALL_CH_ON	0x0F
+#define PWM_SR_ALL_CH_MASK	0x0F
 
 /* The following register is PWM channel related registers */
 #define PWM_CH_REG_OFFSET	0x200
@@ -464,6 +463,42 @@ static const struct of_device_id atmel_pwm_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, atmel_pwm_dt_ids);
 
+static int atmel_pwm_enable_clk_if_on(struct atmel_pwm_chip *atmel_pwm, bool on)
+{
+	unsigned int i, cnt = 0;
+	unsigned long sr;
+	int ret = 0;
+
+	sr = atmel_pwm_readl(atmel_pwm, PWM_SR) & PWM_SR_ALL_CH_MASK;
+	if (!sr)
+		return 0;
+
+	cnt = bitmap_weight(&sr, atmel_pwm->chip.npwm);
+
+	if (!on)
+		goto disable_clk;
+
+	for (i = 0; i < cnt; i++) {
+		ret = clk_enable(atmel_pwm->clk);
+		if (ret) {
+			dev_err(atmel_pwm->chip.dev,
+				"failed to enable clock for pwm %pe\n",
+				ERR_PTR(ret));
+
+			cnt = i;
+			goto disable_clk;
+		}
+	}
+
+	return 0;
+
+disable_clk:
+	while (cnt--)
+		clk_disable(atmel_pwm->clk);
+
+	return ret;
+}
+
 static int atmel_pwm_probe(struct platform_device *pdev)
 {
 	struct atmel_pwm_chip *atmel_pwm;
@@ -482,42 +517,31 @@ static int atmel_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(atmel_pwm->base))
 		return PTR_ERR(atmel_pwm->base);
 
-	atmel_pwm->clk = devm_clk_get(&pdev->dev, NULL);
+	atmel_pwm->clk = devm_clk_get_prepared(&pdev->dev, NULL);
 	if (IS_ERR(atmel_pwm->clk))
-		return PTR_ERR(atmel_pwm->clk);
-
-	ret = clk_prepare(atmel_pwm->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare PWM clock\n");
-		return ret;
-	}
+		return dev_err_probe(&pdev->dev, PTR_ERR(atmel_pwm->clk),
+				     "failed to get prepared PWM clock\n");
 
 	atmel_pwm->chip.dev = &pdev->dev;
 	atmel_pwm->chip.ops = &atmel_pwm_ops;
 	atmel_pwm->chip.npwm = 4;
 
-	ret = pwmchip_add(&atmel_pwm->chip);
+	ret = atmel_pwm_enable_clk_if_on(atmel_pwm, true);
+	if (ret < 0)
+		return ret;
+
+	ret = devm_pwmchip_add(&pdev->dev, &atmel_pwm->chip);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add PWM chip %d\n", ret);
-		goto unprepare_clk;
+		dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
+		goto disable_clk;
 	}
 
-	platform_set_drvdata(pdev, atmel_pwm);
+	return 0;
+
+disable_clk:
+	atmel_pwm_enable_clk_if_on(atmel_pwm, false);
 
 	return ret;
-
-unprepare_clk:
-	clk_unprepare(atmel_pwm->clk);
-	return ret;
-}
-
-static void atmel_pwm_remove(struct platform_device *pdev)
-{
-	struct atmel_pwm_chip *atmel_pwm = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&atmel_pwm->chip);
-
-	clk_unprepare(atmel_pwm->clk);
 }
 
 static struct platform_driver atmel_pwm_driver = {
@@ -526,7 +550,6 @@ static struct platform_driver atmel_pwm_driver = {
 		.of_match_table = of_match_ptr(atmel_pwm_dt_ids),
 	},
 	.probe = atmel_pwm_probe,
-	.remove_new = atmel_pwm_remove,
 };
 module_platform_driver(atmel_pwm_driver);
 

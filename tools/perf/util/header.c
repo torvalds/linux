@@ -24,6 +24,7 @@
 #include <bpf/libbpf.h>
 #endif
 #include <perf/cpumap.h>
+#include <tools/libc_compat.h> // reallocarray
 
 #include "dso.h"
 #include "evlist.h"
@@ -37,6 +38,7 @@
 #include "debug.h"
 #include "cpumap.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "vdso.h"
 #include "strbuf.h"
 #include "build-id.h"
@@ -51,7 +53,6 @@
 #include "bpf-event.h"
 #include "bpf-utils.h"
 #include "clockid.h"
-#include "pmu-hybrid.h"
 
 #include <linux/ctype.h>
 #include <internal/lib.h>
@@ -455,6 +456,8 @@ static int write_cpudesc(struct feat_fd *ff,
 #define CPUINFO_PROC	{ "Processor", }
 #elif defined(__xtensa__)
 #define CPUINFO_PROC	{ "core ID", }
+#elif defined(__loongarch__)
+#define CPUINFO_PROC	{ "Model Name", }
 #else
 #define CPUINFO_PROC	{ "model name", }
 #endif
@@ -745,20 +748,14 @@ static int write_pmu_mappings(struct feat_fd *ff,
 	 * Do a first pass to count number of pmu to avoid lseek so this
 	 * works in pipe mode as well.
 	 */
-	while ((pmu = perf_pmu__scan(pmu))) {
-		if (!pmu->name)
-			continue;
+	while ((pmu = perf_pmus__scan(pmu)))
 		pmu_num++;
-	}
 
 	ret = do_write(ff, &pmu_num, sizeof(pmu_num));
 	if (ret < 0)
 		return ret;
 
-	while ((pmu = perf_pmu__scan(pmu))) {
-		if (!pmu->name)
-			continue;
-
+	while ((pmu = perf_pmus__scan(pmu))) {
 		ret = do_write(ff, &pmu->type, sizeof(pmu->type));
 		if (ret < 0)
 			return ret;
@@ -1213,38 +1210,54 @@ static void cpu_cache_level__fprintf(FILE *out, struct cpu_cache_level *c)
 	fprintf(out, "L%d %-15s %8s [%s]\n", c->level, c->type, c->size, c->map);
 }
 
-#define MAX_CACHE_LVL 4
+/*
+ * Build caches levels for a particular CPU from the data in
+ * /sys/devices/system/cpu/cpu<cpu>/cache/
+ * The cache level data is stored in caches[] from index at
+ * *cntp.
+ */
+int build_caches_for_cpu(u32 cpu, struct cpu_cache_level caches[], u32 *cntp)
+{
+	u16 level;
+
+	for (level = 0; level < MAX_CACHE_LVL; level++) {
+		struct cpu_cache_level c;
+		int err;
+		u32 i;
+
+		err = cpu_cache_level__read(&c, cpu, level);
+		if (err < 0)
+			return err;
+
+		if (err == 1)
+			break;
+
+		for (i = 0; i < *cntp; i++) {
+			if (cpu_cache_level__cmp(&c, &caches[i]))
+				break;
+		}
+
+		if (i == *cntp) {
+			caches[*cntp] = c;
+			*cntp = *cntp + 1;
+		} else
+			cpu_cache_level__free(&c);
+	}
+
+	return 0;
+}
 
 static int build_caches(struct cpu_cache_level caches[], u32 *cntp)
 {
-	u32 i, cnt = 0;
-	u32 nr, cpu;
-	u16 level;
+	u32 nr, cpu, cnt = 0;
 
 	nr = cpu__max_cpu().cpu;
 
 	for (cpu = 0; cpu < nr; cpu++) {
-		for (level = 0; level < MAX_CACHE_LVL; level++) {
-			struct cpu_cache_level c;
-			int err;
+		int ret = build_caches_for_cpu(cpu, caches, &cnt);
 
-			err = cpu_cache_level__read(&c, cpu, level);
-			if (err < 0)
-				return err;
-
-			if (err == 1)
-				break;
-
-			for (i = 0; i < cnt; i++) {
-				if (cpu_cache_level__cmp(&c, &caches[i]))
-					break;
-			}
-
-			if (i == cnt)
-				caches[cnt++] = c;
-			else
-				cpu_cache_level__free(&c);
-		}
+		if (ret)
+			return ret;
 	}
 	*cntp = cnt;
 	return 0;
@@ -1372,6 +1385,14 @@ static int memory_node__read(struct memory_node *n, unsigned long idx)
 	return 0;
 }
 
+static void memory_node__delete_nodes(struct memory_node *nodesp, u64 cnt)
+{
+	for (u64 i = 0; i < cnt; i++)
+		bitmap_free(nodesp[i].set);
+
+	free(nodesp);
+}
+
 static int memory_node__sort(const void *a, const void *b)
 {
 	const struct memory_node *na = a;
@@ -1380,13 +1401,14 @@ static int memory_node__sort(const void *a, const void *b)
 	return na->node - nb->node;
 }
 
-static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
+static int build_mem_topology(struct memory_node **nodesp, u64 *cntp)
 {
 	char path[PATH_MAX];
 	struct dirent *ent;
 	DIR *dir;
-	u64 cnt = 0;
 	int ret = 0;
+	size_t cnt = 0, size = 0;
+	struct memory_node *nodes = NULL;
 
 	scnprintf(path, PATH_MAX, "%s/devices/system/node/",
 		  sysfs__mountpoint());
@@ -1410,25 +1432,31 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 		if (r != 1)
 			continue;
 
-		if (WARN_ONCE(cnt >= size,
-			"failed to write MEM_TOPOLOGY, way too many nodes\n")) {
-			closedir(dir);
-			return -1;
-		}
+		if (cnt >= size) {
+			struct memory_node *new_nodes =
+				reallocarray(nodes, cnt + 4, sizeof(*nodes));
 
+			if (!new_nodes) {
+				pr_err("Failed to write MEM_TOPOLOGY, size %zd nodes\n", size);
+				ret = -ENOMEM;
+				goto out;
+			}
+			nodes = new_nodes;
+			size += 4;
+		}
 		ret = memory_node__read(&nodes[cnt++], idx);
 	}
-
-	*cntp = cnt;
+out:
 	closedir(dir);
-
-	if (!ret)
+	if (!ret) {
+		*cntp = cnt;
+		*nodesp = nodes;
 		qsort(nodes, cnt, sizeof(nodes[0]), memory_node__sort);
+	} else
+		memory_node__delete_nodes(nodes, cnt);
 
 	return ret;
 }
-
-#define MAX_MEMORY_NODES 2000
 
 /*
  * The MEM_TOPOLOGY holds physical memory map for every
@@ -1448,8 +1476,8 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 			      struct evlist *evlist __maybe_unused)
 {
-	static struct memory_node nodes[MAX_MEMORY_NODES];
-	u64 bsize, version = 1, i, nr;
+	struct memory_node *nodes = NULL;
+	u64 bsize, version = 1, i, nr = 0;
 	int ret;
 
 	ret = sysfs__read_xll("devices/system/memory/block_size_bytes",
@@ -1457,7 +1485,7 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 	if (ret)
 		return ret;
 
-	ret = build_mem_topology(&nodes[0], MAX_MEMORY_NODES, &nr);
+	ret = build_mem_topology(&nodes, &nr);
 	if (ret)
 		return ret;
 
@@ -1492,6 +1520,7 @@ static int write_mem_topology(struct feat_fd *ff __maybe_unused,
 	}
 
 out:
+	memory_node__delete_nodes(nodes, nr);
 	return ret;
 }
 
@@ -1551,7 +1580,7 @@ static int __write_pmu_caps(struct feat_fd *ff, struct perf_pmu *pmu,
 static int write_cpu_pmu_caps(struct feat_fd *ff,
 			      struct evlist *evlist __maybe_unused)
 {
-	struct perf_pmu *cpu_pmu = perf_pmu__find("cpu");
+	struct perf_pmu *cpu_pmu = perf_pmus__find("cpu");
 	int ret;
 
 	if (!cpu_pmu)
@@ -1571,9 +1600,16 @@ static int write_pmu_caps(struct feat_fd *ff,
 	int nr_pmu = 0;
 	int ret;
 
-	while ((pmu = perf_pmu__scan(pmu))) {
-		if (!pmu->name || !strcmp(pmu->name, "cpu") ||
-		    perf_pmu__caps_parse(pmu) <= 0)
+	while ((pmu = perf_pmus__scan(pmu))) {
+		if (!strcmp(pmu->name, "cpu")) {
+			/*
+			 * The "cpu" PMU is special and covered by
+			 * HEADER_CPU_PMU_CAPS. Note, core PMUs are
+			 * counted/written here for ARM, s390 and Intel hybrid.
+			 */
+			continue;
+		}
+		if (perf_pmu__caps_parse(pmu) <= 0)
 			continue;
 		nr_pmu++;
 	}
@@ -1586,22 +1622,17 @@ static int write_pmu_caps(struct feat_fd *ff,
 		return 0;
 
 	/*
-	 * Write hybrid pmu caps first to maintain compatibility with
-	 * older perf tool.
+	 * Note older perf tools assume core PMUs come first, this is a property
+	 * of perf_pmus__scan.
 	 */
 	pmu = NULL;
-	perf_pmu__for_each_hybrid_pmu(pmu) {
-		ret = __write_pmu_caps(ff, pmu, true);
-		if (ret < 0)
-			return ret;
-	}
-
-	pmu = NULL;
-	while ((pmu = perf_pmu__scan(pmu))) {
-		if (!pmu->name || !strcmp(pmu->name, "cpu") ||
-		    !pmu->nr_caps || perf_pmu__is_hybrid(pmu->name))
+	while ((pmu = perf_pmus__scan(pmu))) {
+		if (!strcmp(pmu->name, "cpu")) {
+			/* Skip as above. */
 			continue;
-
+		}
+		if (perf_pmu__caps_parse(pmu) <= 0)
+			continue;
 		ret = __write_pmu_caps(ff, pmu, true);
 		if (ret < 0)
 			return ret;
@@ -2810,7 +2841,7 @@ static int process_group_desc(struct feat_fd *ff, void *data __maybe_unused)
 
 	i = nr = 0;
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (evsel->core.idx == (int) desc[i].leader_idx) {
+		if (i < nr_groups && evsel->core.idx == (int) desc[i].leader_idx) {
 			evsel__set_leader(evsel, evsel);
 			/* {anon_group} is a dummy name */
 			if (strcmp(desc[i].name, "{anon_group}")) {
@@ -4347,7 +4378,8 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 			     union perf_event *event,
 			     struct evlist **pevlist)
 {
-	u32 i, ids, n_ids;
+	u32 i, n_ids;
+	u64 *ids;
 	struct evsel *evsel;
 	struct evlist *evlist = *pevlist;
 
@@ -4363,9 +4395,8 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 
 	evlist__add(evlist, evsel);
 
-	ids = event->header.size;
-	ids -= (void *)&event->attr.id - (void *)event;
-	n_ids = ids / sizeof(u64);
+	n_ids = event->header.size - sizeof(event->header) - event->attr.attr.size;
+	n_ids = n_ids / sizeof(u64);
 	/*
 	 * We don't have the cpu and thread maps on the header, so
 	 * for allocating the perf_sample_id table we fake 1 cpu and
@@ -4374,8 +4405,9 @@ int perf_event__process_attr(struct perf_tool *tool __maybe_unused,
 	if (perf_evsel__alloc_id(&evsel->core, 1, n_ids))
 		return -ENOMEM;
 
+	ids = perf_record_header_attr_id(event);
 	for (i = 0; i < n_ids; i++) {
-		perf_evlist__id_add(&evlist->core, &evsel->core, 0, i, event->attr.id[i]);
+		perf_evlist__id_add(&evlist->core, &evsel->core, 0, i, ids[i]);
 	}
 
 	return 0;

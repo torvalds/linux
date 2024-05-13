@@ -412,6 +412,13 @@ config HID_GOOGLE_HAMMER
 	help
 	Say Y here if you have a Google Hammer device.
 
+config HID_GOOGLE_STADIA_FF
+	tristate "Google Stadia force feedback"
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you want to enable force feedback support for the Google
+	Stadia controller.
+
 config HID_VIVALDI
 	tristate "Vivaldi Keyboard"
 	select HID_VIVALDI_COMMON
@@ -788,6 +795,26 @@ config HID_NTRIG
 	help
 	Support for N-Trig touch screen.
 
+config HID_NVIDIA_SHIELD
+	tristate "NVIDIA SHIELD devices"
+	depends on USB_HID
+	depends on BT_HIDP
+	depends on LEDS_CLASS
+	select POWER_SUPPLY
+	help
+	  Support for NVIDIA SHIELD accessories.
+
+	  Supported devices:
+	  - Thunderstrike (NVIDIA SHIELD Controller 2017)
+
+config NVIDIA_SHIELD_FF
+	bool "NVIDIA SHIELD force feedback support"
+	depends on HID_NVIDIA_SHIELD
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you would like to enable force feedback support for
+	  NVIDIA SHIELD accessories with haptics capabilities.
+
 config HID_ORTEK
 	tristate "Ortek PKB-1700/WKB-2000/Skycable wireless keyboard and mouse trackpad"
 	help
@@ -1048,9 +1075,11 @@ config STEAM_FF
 	Deck.
 
 config HID_STEELSERIES
-	tristate "Steelseries SRW-S1 steering wheel support"
+	tristate "Steelseries devices support"
+	depends on USB_HID
 	help
-	Support for Steelseries SRW-S1 steering wheel
+	Support for Steelseries SRW-S1 steering wheel, and the Steelseries
+	Arctis 1 Wireless for XBox headset.
 
 config HID_SUNPLUS
 	tristate "Sunplus wireless desktop"
@@ -1285,7 +1314,7 @@ config HID_MCP2221
 
 config HID_KUNIT_TEST
 	tristate "KUnit tests for HID" if !KUNIT_ALL_TESTS
-	depends on KUNIT=y
+	depends on KUNIT
 	depends on HID_BATTERY_STRENGTH
 	depends on HID_UCLOGIC
 	default KUNIT_ALL_TESTS

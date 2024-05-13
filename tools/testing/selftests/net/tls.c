@@ -15,6 +15,7 @@
 #include <linux/tcp.h>
 #include <linux/socket.h>
 
+#include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
 #include <sys/socket.h>
@@ -29,12 +30,15 @@ static int fips_enabled;
 
 struct tls_crypto_info_keys {
 	union {
+		struct tls_crypto_info crypto_info;
 		struct tls12_crypto_info_aes_gcm_128 aes128;
 		struct tls12_crypto_info_chacha20_poly1305 chacha20;
 		struct tls12_crypto_info_sm4_gcm sm4gcm;
 		struct tls12_crypto_info_sm4_ccm sm4ccm;
 		struct tls12_crypto_info_aes_ccm_128 aesccm128;
 		struct tls12_crypto_info_aes_gcm_256 aesgcm256;
+		struct tls12_crypto_info_aria_gcm_128 ariagcm128;
+		struct tls12_crypto_info_aria_gcm_256 ariagcm256;
 	};
 	size_t len;
 };
@@ -74,6 +78,16 @@ static void tls_crypto_info_init(uint16_t tls_version, uint16_t cipher_type,
 		tls12->len = sizeof(struct tls12_crypto_info_aes_gcm_256);
 		tls12->aesgcm256.info.version = tls_version;
 		tls12->aesgcm256.info.cipher_type = cipher_type;
+		break;
+	case TLS_CIPHER_ARIA_GCM_128:
+		tls12->len = sizeof(struct tls12_crypto_info_aria_gcm_128);
+		tls12->ariagcm128.info.version = tls_version;
+		tls12->ariagcm128.info.cipher_type = cipher_type;
+		break;
+	case TLS_CIPHER_ARIA_GCM_256:
+		tls12->len = sizeof(struct tls12_crypto_info_aria_gcm_256);
+		tls12->ariagcm256.info.version = tls_version;
+		tls12->ariagcm256.info.cipher_type = cipher_type;
 		break;
 	default:
 		break;
@@ -227,6 +241,31 @@ TEST_F(tls_basic, base_base)
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 };
 
+TEST_F(tls_basic, bad_cipher)
+{
+	struct tls_crypto_info_keys tls12;
+
+	tls12.crypto_info.version = 200;
+	tls12.crypto_info.cipher_type = TLS_CIPHER_AES_GCM_128;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+
+	tls12.crypto_info.version = TLS_1_2_VERSION;
+	tls12.crypto_info.cipher_type = 50;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+
+	tls12.crypto_info.version = TLS_1_2_VERSION;
+	tls12.crypto_info.cipher_type = 59;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+
+	tls12.crypto_info.version = TLS_1_2_VERSION;
+	tls12.crypto_info.cipher_type = 10;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+
+	tls12.crypto_info.version = TLS_1_2_VERSION;
+	tls12.crypto_info.cipher_type = 70;
+	EXPECT_EQ(setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12, sizeof(struct tls12_crypto_info_aes_gcm_128)), -1);
+}
+
 FIXTURE(tls)
 {
 	int fd, cfd;
@@ -309,6 +348,18 @@ FIXTURE_VARIANT_ADD(tls, 13_nopad)
 	.tls_version = TLS_1_3_VERSION,
 	.cipher_type = TLS_CIPHER_AES_GCM_128,
 	.nopad = true,
+};
+
+FIXTURE_VARIANT_ADD(tls, 12_aria_gcm)
+{
+	.tls_version = TLS_1_2_VERSION,
+	.cipher_type = TLS_CIPHER_ARIA_GCM_128,
+};
+
+FIXTURE_VARIANT_ADD(tls, 12_aria_gcm_256)
+{
+	.tls_version = TLS_1_2_VERSION,
+	.cipher_type = TLS_CIPHER_ARIA_GCM_256,
 };
 
 FIXTURE_SETUP(tls)
@@ -485,6 +536,17 @@ TEST_F(tls, msg_more_unsent)
 	EXPECT_EQ(recv(self->cfd, buf, send_len, MSG_DONTWAIT), -1);
 }
 
+TEST_F(tls, msg_eor)
+{
+	char const *test_str = "test_read";
+	int send_len = 10;
+	char buf[10];
+
+	EXPECT_EQ(send(self->fd, test_str, send_len, MSG_EOR), send_len);
+	EXPECT_EQ(recv(self->cfd, buf, send_len, MSG_WAITALL), send_len);
+	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
+}
+
 TEST_F(tls, sendmsg_single)
 {
 	struct msghdr msg;
@@ -551,11 +613,11 @@ TEST_F(tls, sendmsg_large)
 
 		msg.msg_iov = &vec;
 		msg.msg_iovlen = 1;
-		EXPECT_EQ(sendmsg(self->cfd, &msg, 0), send_len);
+		EXPECT_EQ(sendmsg(self->fd, &msg, 0), send_len);
 	}
 
 	while (recvs++ < sends) {
-		EXPECT_NE(recv(self->fd, mem, send_len, 0), -1);
+		EXPECT_NE(recv(self->cfd, mem, send_len, 0), -1);
 	}
 
 	free(mem);
@@ -584,9 +646,9 @@ TEST_F(tls, sendmsg_multiple)
 	msg.msg_iov = vec;
 	msg.msg_iovlen = iov_len;
 
-	EXPECT_EQ(sendmsg(self->cfd, &msg, 0), total_len);
+	EXPECT_EQ(sendmsg(self->fd, &msg, 0), total_len);
 	buf = malloc(total_len);
-	EXPECT_NE(recv(self->fd, buf, total_len, 0), -1);
+	EXPECT_NE(recv(self->cfd, buf, total_len, 0), -1);
 	for (i = 0; i < iov_len; i++) {
 		EXPECT_EQ(memcmp(test_strs[i], buf + len_cmp,
 				 strlen(test_strs[i])),
@@ -1460,6 +1522,40 @@ TEST_F(tls, shutdown_reuse)
 	EXPECT_EQ(errno, EISCONN);
 }
 
+TEST_F(tls, getsockopt)
+{
+	struct tls_crypto_info_keys expect, get;
+	socklen_t len;
+
+	/* get only the version/cipher */
+	len = sizeof(struct tls_crypto_info);
+	memrnd(&get, sizeof(get));
+	EXPECT_EQ(getsockopt(self->fd, SOL_TLS, TLS_TX, &get, &len), 0);
+	EXPECT_EQ(len, sizeof(struct tls_crypto_info));
+	EXPECT_EQ(get.crypto_info.version, variant->tls_version);
+	EXPECT_EQ(get.crypto_info.cipher_type, variant->cipher_type);
+
+	/* get the full crypto_info */
+	tls_crypto_info_init(variant->tls_version, variant->cipher_type, &expect);
+	len = expect.len;
+	memrnd(&get, sizeof(get));
+	EXPECT_EQ(getsockopt(self->fd, SOL_TLS, TLS_TX, &get, &len), 0);
+	EXPECT_EQ(len, expect.len);
+	EXPECT_EQ(get.crypto_info.version, variant->tls_version);
+	EXPECT_EQ(get.crypto_info.cipher_type, variant->cipher_type);
+	EXPECT_EQ(memcmp(&get, &expect, expect.len), 0);
+
+	/* short get should fail */
+	len = sizeof(struct tls_crypto_info) - 1;
+	EXPECT_EQ(getsockopt(self->fd, SOL_TLS, TLS_TX, &get, &len), -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* partial get of the cipher data should fail */
+	len = expect.len - 1;
+	EXPECT_EQ(getsockopt(self->fd, SOL_TLS, TLS_TX, &get, &len), -1);
+	EXPECT_EQ(errno, EINVAL);
+}
+
 FIXTURE(tls_err)
 {
 	int fd, cfd;
@@ -1643,6 +1739,136 @@ TEST_F(tls_err, timeo)
 		EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
 		EXPECT_EQ(errno, EAGAIN);
 		exit(0);
+	}
+}
+
+TEST_F(tls_err, poll_partial_rec)
+{
+	struct pollfd pfd = { };
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	/* Write 100B, not the full record ... */
+	EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+	/* ... no full record should mean no POLLIN */
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 0);
+	/* Now write the rest, and it should all pop out of the other end. */
+	EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0), rec_len - 100);
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 1);
+	EXPECT_EQ(recv(self->cfd2, rec, sizeof(rec), 0), sizeof(buf));
+	EXPECT_EQ(memcmp(buf, rec, sizeof(buf)), 0);
+}
+
+TEST_F(tls_err, epoll_partial_rec)
+{
+	struct epoll_event ev, events[10];
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+	int epollfd;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	epollfd = epoll_create1(0);
+	ASSERT_GE(epollfd, 0);
+
+	memset(&ev, 0, sizeof(ev));
+	ev.events = EPOLLIN;
+	ev.data.fd = self->cfd2;
+	ASSERT_GE(epoll_ctl(epollfd, EPOLL_CTL_ADD, self->cfd2, &ev), 0);
+
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	/* Write 100B, not the full record ... */
+	EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+	/* ... no full record should mean no POLLIN */
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 0);
+	/* Now write the rest, and it should all pop out of the other end. */
+	EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0), rec_len - 100);
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 1);
+	EXPECT_EQ(recv(self->cfd2, rec, sizeof(rec), 0), sizeof(buf));
+	EXPECT_EQ(memcmp(buf, rec, sizeof(buf)), 0);
+
+	close(epollfd);
+}
+
+TEST_F(tls_err, poll_partial_rec_async)
+{
+	struct pollfd pfd = { };
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+	char token;
+	int p[2];
+	int ret;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	ASSERT_GE(pipe(p), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	ret = fork();
+	ASSERT_GE(ret, 0);
+
+	if (ret) {
+		int status, pid2;
+
+		close(p[1]);
+		usleep(1000); /* Give child a head start */
+
+		EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+
+		EXPECT_EQ(read(p[0], &token, 1), 1); /* Barrier #1 */
+
+		EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0),
+			  rec_len - 100);
+
+		pid2 = wait(&status);
+		EXPECT_EQ(pid2, ret);
+		EXPECT_EQ(status, 0);
+	} else {
+		close(p[0]);
+
+		/* Child should sleep in poll(), never get a wake */
+		pfd.fd = self->cfd2;
+		pfd.events = POLLIN;
+		EXPECT_EQ(poll(&pfd, 1, 5), 0);
+
+		EXPECT_EQ(write(p[1], &token, 1), 1); /* Barrier #1 */
+
+		pfd.fd = self->cfd2;
+		pfd.events = POLLIN;
+		EXPECT_EQ(poll(&pfd, 1, 5), 1);
+
+		exit(!_metadata->passed);
 	}
 }
 

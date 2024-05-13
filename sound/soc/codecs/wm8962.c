@@ -3573,7 +3573,7 @@ static const struct regmap_config wm8962_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8962_reg),
 	.volatile_reg = wm8962_volatile_register,
 	.readable_reg = wm8962_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int wm8962_set_pdata_from_of(struct i2c_client *i2c,
@@ -3946,7 +3946,7 @@ static struct i2c_driver wm8962_i2c_driver = {
 		.of_match_table = wm8962_of_match,
 		.pm = &wm8962_pm,
 	},
-	.probe_new = wm8962_i2c_probe,
+	.probe =    wm8962_i2c_probe,
 	.remove =   wm8962_i2c_remove,
 	.id_table = wm8962_i2c_id,
 };

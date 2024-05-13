@@ -325,7 +325,7 @@ static int tsnep_taprio(struct tsnep_adapter *adapter,
 	if (!adapter->gate_control)
 		return -EOPNOTSUPP;
 
-	if (!qopt->enable) {
+	if (qopt->cmd == TAPRIO_CMD_DESTROY) {
 		/* disable gate control if active */
 		mutex_lock(&adapter->gate_control_lock);
 
@@ -337,6 +337,8 @@ static int tsnep_taprio(struct tsnep_adapter *adapter,
 		mutex_unlock(&adapter->gate_control_lock);
 
 		return 0;
+	} else if (qopt->cmd != TAPRIO_CMD_REPLACE) {
+		return -EOPNOTSUPP;
 	}
 
 	retval = tsnep_validate_gcl(qopt);

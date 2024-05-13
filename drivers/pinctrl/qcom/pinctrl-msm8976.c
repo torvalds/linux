@@ -8,24 +8,16 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-msm.h"
-
-#define FUNCTION(fname)			                \
-	[msm_mux_##fname] = {		                \
-		.name = #fname,				\
-		.groups = fname##_groups,               \
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
-	}
 
 #define REG_BASE 0x0
 #define REG_SIZE 0x1000
 #define PINGROUP(id, f1, f2, f3, f4, f5, f6, f7, f8, f9)	\
 	{					        \
-		.name = "gpio" #id,			\
-		.pins = gpio##id##_pins,		\
-		.npins = ARRAY_SIZE(gpio##id##_pins),	\
+		.grp = PINCTRL_PINGROUP("gpio" #id, 	\
+			gpio##id##_pins, 		\
+			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
 			msm_mux_gpio, /* gpio mode */	\
 			msm_mux_##f1,			\
@@ -62,9 +54,9 @@
 
 #define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
 	{					        \
-		.name = #pg_name,			\
-		.pins = pg_name##_pins,			\
-		.npins = ARRAY_SIZE(pg_name##_pins),	\
+		.grp = PINCTRL_PINGROUP(#pg_name, 	\
+			pg_name##_pins, 		\
+			ARRAY_SIZE(pg_name##_pins)),	\
 		.ctl_reg = ctl,				\
 		.io_reg = 0,				\
 		.intr_cfg_reg = 0,			\
@@ -819,102 +811,102 @@ static const char * const ss_switch_groups[] = {
 	"gpio139",
 };
 
-static const struct msm_function msm8976_functions[] = {
-	FUNCTION(gpio),
-	FUNCTION(blsp_spi1),
-	FUNCTION(smb_int),
-	FUNCTION(blsp_i2c1),
-	FUNCTION(blsp_spi2),
-	FUNCTION(blsp_uart1),
-	FUNCTION(blsp_uart2),
-	FUNCTION(blsp_i2c2),
-	FUNCTION(gcc_gp1_clk_b),
-	FUNCTION(blsp_spi3),
-	FUNCTION(qdss_tracedata_b),
-	FUNCTION(blsp_i2c3),
-	FUNCTION(gcc_gp2_clk_b),
-	FUNCTION(gcc_gp3_clk_b),
-	FUNCTION(blsp_spi4),
-	FUNCTION(cap_int),
-	FUNCTION(blsp_i2c4),
-	FUNCTION(blsp_spi5),
-	FUNCTION(blsp_uart5),
-	FUNCTION(qdss_traceclk_a),
-	FUNCTION(m_voc),
-	FUNCTION(blsp_i2c5),
-	FUNCTION(qdss_tracectl_a),
-	FUNCTION(qdss_tracedata_a),
-	FUNCTION(blsp_spi6),
-	FUNCTION(blsp_uart6),
-	FUNCTION(qdss_tracectl_b),
-	FUNCTION(blsp_i2c6),
-	FUNCTION(qdss_traceclk_b),
-	FUNCTION(mdp_vsync),
-	FUNCTION(pri_mi2s_mclk_a),
-	FUNCTION(sec_mi2s_mclk_a),
-	FUNCTION(cam_mclk),
-	FUNCTION(cci0_i2c),
-	FUNCTION(cci1_i2c),
-	FUNCTION(blsp1_spi),
-	FUNCTION(blsp3_spi),
-	FUNCTION(gcc_gp1_clk_a),
-	FUNCTION(gcc_gp2_clk_a),
-	FUNCTION(gcc_gp3_clk_a),
-	FUNCTION(uim_batt),
-	FUNCTION(sd_write),
-	FUNCTION(uim1_data),
-	FUNCTION(uim1_clk),
-	FUNCTION(uim1_reset),
-	FUNCTION(uim1_present),
-	FUNCTION(uim2_data),
-	FUNCTION(uim2_clk),
-	FUNCTION(uim2_reset),
-	FUNCTION(uim2_present),
-	FUNCTION(ts_xvdd),
-	FUNCTION(mipi_dsi0),
-	FUNCTION(us_euro),
-	FUNCTION(ts_resout),
-	FUNCTION(ts_sample),
-	FUNCTION(sec_mi2s_mclk_b),
-	FUNCTION(pri_mi2s),
-	FUNCTION(codec_reset),
-	FUNCTION(cdc_pdm0),
-	FUNCTION(us_emitter),
-	FUNCTION(pri_mi2s_mclk_b),
-	FUNCTION(pri_mi2s_mclk_c),
-	FUNCTION(lpass_slimbus),
-	FUNCTION(lpass_slimbus0),
-	FUNCTION(lpass_slimbus1),
-	FUNCTION(codec_int1),
-	FUNCTION(codec_int2),
-	FUNCTION(wcss_bt),
-	FUNCTION(sdc3),
-	FUNCTION(wcss_wlan2),
-	FUNCTION(wcss_wlan1),
-	FUNCTION(wcss_wlan0),
-	FUNCTION(wcss_wlan),
-	FUNCTION(wcss_fm),
-	FUNCTION(key_volp),
-	FUNCTION(key_snapshot),
-	FUNCTION(key_focus),
-	FUNCTION(key_home),
-	FUNCTION(pwr_down),
-	FUNCTION(dmic0_clk),
-	FUNCTION(hdmi_int),
-	FUNCTION(dmic0_data),
-	FUNCTION(wsa_vi),
-	FUNCTION(wsa_en),
-	FUNCTION(blsp_spi8),
-	FUNCTION(wsa_irq),
-	FUNCTION(blsp_i2c8),
-	FUNCTION(pa_indicator),
-	FUNCTION(modem_tsync),
-	FUNCTION(ssbi_wtr1),
-	FUNCTION(gsm1_tx),
-	FUNCTION(gsm0_tx),
-	FUNCTION(sdcard_det),
-	FUNCTION(sec_mi2s),
-	FUNCTION(ss_switch),
+static const struct pinfunction msm8976_functions[] = {
+	MSM_PIN_FUNCTION(gpio),
+	MSM_PIN_FUNCTION(blsp_spi1),
+	MSM_PIN_FUNCTION(smb_int),
+	MSM_PIN_FUNCTION(blsp_i2c1),
+	MSM_PIN_FUNCTION(blsp_spi2),
+	MSM_PIN_FUNCTION(blsp_uart1),
+	MSM_PIN_FUNCTION(blsp_uart2),
+	MSM_PIN_FUNCTION(blsp_i2c2),
+	MSM_PIN_FUNCTION(gcc_gp1_clk_b),
+	MSM_PIN_FUNCTION(blsp_spi3),
+	MSM_PIN_FUNCTION(qdss_tracedata_b),
+	MSM_PIN_FUNCTION(blsp_i2c3),
+	MSM_PIN_FUNCTION(gcc_gp2_clk_b),
+	MSM_PIN_FUNCTION(gcc_gp3_clk_b),
+	MSM_PIN_FUNCTION(blsp_spi4),
+	MSM_PIN_FUNCTION(cap_int),
+	MSM_PIN_FUNCTION(blsp_i2c4),
+	MSM_PIN_FUNCTION(blsp_spi5),
+	MSM_PIN_FUNCTION(blsp_uart5),
+	MSM_PIN_FUNCTION(qdss_traceclk_a),
+	MSM_PIN_FUNCTION(m_voc),
+	MSM_PIN_FUNCTION(blsp_i2c5),
+	MSM_PIN_FUNCTION(qdss_tracectl_a),
+	MSM_PIN_FUNCTION(qdss_tracedata_a),
+	MSM_PIN_FUNCTION(blsp_spi6),
+	MSM_PIN_FUNCTION(blsp_uart6),
+	MSM_PIN_FUNCTION(qdss_tracectl_b),
+	MSM_PIN_FUNCTION(blsp_i2c6),
+	MSM_PIN_FUNCTION(qdss_traceclk_b),
+	MSM_PIN_FUNCTION(mdp_vsync),
+	MSM_PIN_FUNCTION(pri_mi2s_mclk_a),
+	MSM_PIN_FUNCTION(sec_mi2s_mclk_a),
+	MSM_PIN_FUNCTION(cam_mclk),
+	MSM_PIN_FUNCTION(cci0_i2c),
+	MSM_PIN_FUNCTION(cci1_i2c),
+	MSM_PIN_FUNCTION(blsp1_spi),
+	MSM_PIN_FUNCTION(blsp3_spi),
+	MSM_PIN_FUNCTION(gcc_gp1_clk_a),
+	MSM_PIN_FUNCTION(gcc_gp2_clk_a),
+	MSM_PIN_FUNCTION(gcc_gp3_clk_a),
+	MSM_PIN_FUNCTION(uim_batt),
+	MSM_PIN_FUNCTION(sd_write),
+	MSM_PIN_FUNCTION(uim1_data),
+	MSM_PIN_FUNCTION(uim1_clk),
+	MSM_PIN_FUNCTION(uim1_reset),
+	MSM_PIN_FUNCTION(uim1_present),
+	MSM_PIN_FUNCTION(uim2_data),
+	MSM_PIN_FUNCTION(uim2_clk),
+	MSM_PIN_FUNCTION(uim2_reset),
+	MSM_PIN_FUNCTION(uim2_present),
+	MSM_PIN_FUNCTION(ts_xvdd),
+	MSM_PIN_FUNCTION(mipi_dsi0),
+	MSM_PIN_FUNCTION(us_euro),
+	MSM_PIN_FUNCTION(ts_resout),
+	MSM_PIN_FUNCTION(ts_sample),
+	MSM_PIN_FUNCTION(sec_mi2s_mclk_b),
+	MSM_PIN_FUNCTION(pri_mi2s),
+	MSM_PIN_FUNCTION(codec_reset),
+	MSM_PIN_FUNCTION(cdc_pdm0),
+	MSM_PIN_FUNCTION(us_emitter),
+	MSM_PIN_FUNCTION(pri_mi2s_mclk_b),
+	MSM_PIN_FUNCTION(pri_mi2s_mclk_c),
+	MSM_PIN_FUNCTION(lpass_slimbus),
+	MSM_PIN_FUNCTION(lpass_slimbus0),
+	MSM_PIN_FUNCTION(lpass_slimbus1),
+	MSM_PIN_FUNCTION(codec_int1),
+	MSM_PIN_FUNCTION(codec_int2),
+	MSM_PIN_FUNCTION(wcss_bt),
+	MSM_PIN_FUNCTION(sdc3),
+	MSM_PIN_FUNCTION(wcss_wlan2),
+	MSM_PIN_FUNCTION(wcss_wlan1),
+	MSM_PIN_FUNCTION(wcss_wlan0),
+	MSM_PIN_FUNCTION(wcss_wlan),
+	MSM_PIN_FUNCTION(wcss_fm),
+	MSM_PIN_FUNCTION(key_volp),
+	MSM_PIN_FUNCTION(key_snapshot),
+	MSM_PIN_FUNCTION(key_focus),
+	MSM_PIN_FUNCTION(key_home),
+	MSM_PIN_FUNCTION(pwr_down),
+	MSM_PIN_FUNCTION(dmic0_clk),
+	MSM_PIN_FUNCTION(hdmi_int),
+	MSM_PIN_FUNCTION(dmic0_data),
+	MSM_PIN_FUNCTION(wsa_vi),
+	MSM_PIN_FUNCTION(wsa_en),
+	MSM_PIN_FUNCTION(blsp_spi8),
+	MSM_PIN_FUNCTION(wsa_irq),
+	MSM_PIN_FUNCTION(blsp_i2c8),
+	MSM_PIN_FUNCTION(pa_indicator),
+	MSM_PIN_FUNCTION(modem_tsync),
+	MSM_PIN_FUNCTION(ssbi_wtr1),
+	MSM_PIN_FUNCTION(gsm1_tx),
+	MSM_PIN_FUNCTION(gsm0_tx),
+	MSM_PIN_FUNCTION(sdcard_det),
+	MSM_PIN_FUNCTION(sec_mi2s),
+	MSM_PIN_FUNCTION(ss_switch),
 };
 
 static const struct msm_pingroup msm8976_groups[] = {

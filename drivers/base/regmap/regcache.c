@@ -279,8 +279,8 @@ int regcache_write(struct regmap *map,
 	return 0;
 }
 
-static bool regcache_reg_needs_sync(struct regmap *map, unsigned int reg,
-				    unsigned int val)
+bool regcache_reg_needs_sync(struct regmap *map, unsigned int reg,
+			     unsigned int val)
 {
 	int ret;
 
@@ -368,8 +368,6 @@ int regcache_sync(struct regmap *map)
 	if (!map->cache_dirty)
 		goto out;
 
-	map->async = true;
-
 	/* Apply any patch first */
 	map->cache_bypass = true;
 	for (i = 0; i < map->patch_regs; i++) {
@@ -392,7 +390,6 @@ int regcache_sync(struct regmap *map)
 
 out:
 	/* Restore the bypass state */
-	map->async = false;
 	map->cache_bypass = bypass;
 	map->no_sync_defaults = false;
 	map->unlock(map->lock_arg);
@@ -561,17 +558,37 @@ void regcache_cache_bypass(struct regmap *map, bool enable)
 }
 EXPORT_SYMBOL_GPL(regcache_cache_bypass);
 
-bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
+/**
+ * regcache_reg_cached - Check if a register is cached
+ *
+ * @map: map to check
+ * @reg: register to check
+ *
+ * Reports if a register is cached.
+ */
+bool regcache_reg_cached(struct regmap *map, unsigned int reg)
+{
+	unsigned int val;
+	int ret;
+
+	map->lock(map->lock_arg);
+
+	ret = regcache_read(map, reg, &val);
+
+	map->unlock(map->lock_arg);
+
+	return ret == 0;
+}
+EXPORT_SYMBOL_GPL(regcache_reg_cached);
+
+void regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 		      unsigned int val)
 {
-	if (regcache_get_val(map, base, idx) == val)
-		return true;
-
 	/* Use device native format if possible */
 	if (map->format.format_val) {
 		map->format.format_val(base + (map->cache_word_size * idx),
 				       val, 0);
-		return false;
+		return;
 	}
 
 	switch (map->cache_word_size) {
@@ -593,18 +610,9 @@ bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 		cache[idx] = val;
 		break;
 	}
-#ifdef CONFIG_64BIT
-	case 8: {
-		u64 *cache = base;
-
-		cache[idx] = val;
-		break;
-	}
-#endif
 	default:
 		BUG();
 	}
-	return false;
 }
 
 unsigned int regcache_get_val(struct regmap *map, const void *base,
@@ -634,13 +642,6 @@ unsigned int regcache_get_val(struct regmap *map, const void *base,
 
 		return cache[idx];
 	}
-#ifdef CONFIG_64BIT
-	case 8: {
-		const u64 *cache = base;
-
-		return cache[idx];
-	}
-#endif
 	default:
 		BUG();
 	}

@@ -907,6 +907,38 @@ static int ethtool_rxnfc_copy_to_compat(void __user *useraddr,
 	return 0;
 }
 
+static int ethtool_rxnfc_copy_struct(u32 cmd, struct ethtool_rxnfc *info,
+				     size_t *info_size, void __user *useraddr)
+{
+	/* struct ethtool_rxnfc was originally defined for
+	 * ETHTOOL_{G,S}RXFH with only the cmd, flow_type and data
+	 * members.  User-space might still be using that
+	 * definition.
+	 */
+	if (cmd == ETHTOOL_GRXFH || cmd == ETHTOOL_SRXFH)
+		*info_size = (offsetof(struct ethtool_rxnfc, data) +
+			      sizeof(info->data));
+
+	if (ethtool_rxnfc_copy_from_user(info, useraddr, *info_size))
+		return -EFAULT;
+
+	if ((cmd == ETHTOOL_GRXFH || cmd == ETHTOOL_SRXFH) && info->flow_type & FLOW_RSS) {
+		*info_size = sizeof(*info);
+		if (ethtool_rxnfc_copy_from_user(info, useraddr, *info_size))
+			return -EFAULT;
+		/* Since malicious users may modify the original data,
+		 * we need to check whether FLOW_RSS is still requested.
+		 */
+		if (!(info->flow_type & FLOW_RSS))
+			return -EINVAL;
+	}
+
+	if (info->cmd != cmd)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 				      const struct ethtool_rxnfc *rxnfc,
 				      size_t size, const u32 *rule_buf)
@@ -944,16 +976,9 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	if (!dev->ethtool_ops->set_rxnfc)
 		return -EOPNOTSUPP;
 
-	/* struct ethtool_rxnfc was originally defined for
-	 * ETHTOOL_{G,S}RXFH with only the cmd, flow_type and data
-	 * members.  User-space might still be using that
-	 * definition. */
-	if (cmd == ETHTOOL_SRXFH)
-		info_size = (offsetof(struct ethtool_rxnfc, data) +
-			     sizeof(info.data));
-
-	if (ethtool_rxnfc_copy_from_user(&info, useraddr, info_size))
-		return -EFAULT;
+	rc = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
+	if (rc)
+		return rc;
 
 	rc = dev->ethtool_ops->set_rxnfc(dev, &info);
 	if (rc)
@@ -978,33 +1003,9 @@ static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 	if (!ops->get_rxnfc)
 		return -EOPNOTSUPP;
 
-	/* struct ethtool_rxnfc was originally defined for
-	 * ETHTOOL_{G,S}RXFH with only the cmd, flow_type and data
-	 * members.  User-space might still be using that
-	 * definition. */
-	if (cmd == ETHTOOL_GRXFH)
-		info_size = (offsetof(struct ethtool_rxnfc, data) +
-			     sizeof(info.data));
-
-	if (ethtool_rxnfc_copy_from_user(&info, useraddr, info_size))
-		return -EFAULT;
-
-	/* If FLOW_RSS was requested then user-space must be using the
-	 * new definition, as FLOW_RSS is newer.
-	 */
-	if (cmd == ETHTOOL_GRXFH && info.flow_type & FLOW_RSS) {
-		info_size = sizeof(info);
-		if (ethtool_rxnfc_copy_from_user(&info, useraddr, info_size))
-			return -EFAULT;
-		/* Since malicious users may modify the original data,
-		 * we need to check whether FLOW_RSS is still requested.
-		 */
-		if (!(info.flow_type & FLOW_RSS))
-			return -EINVAL;
-	}
-
-	if (info.cmd != cmd)
-		return -EINVAL;
+	ret = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
+	if (ret)
+		return ret;
 
 	if (info.cmd == ETHTOOL_GRXCLSRLALL) {
 		if (info.rule_cnt > 0) {
@@ -1436,14 +1437,25 @@ static int ethtool_get_wol(struct net_device *dev, char __user *useraddr)
 
 static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 {
-	struct ethtool_wolinfo wol;
+	struct ethtool_wolinfo wol, cur_wol;
 	int ret;
 
-	if (!dev->ethtool_ops->set_wol)
+	if (!dev->ethtool_ops->get_wol || !dev->ethtool_ops->set_wol)
 		return -EOPNOTSUPP;
+
+	memset(&cur_wol, 0, sizeof(struct ethtool_wolinfo));
+	cur_wol.cmd = ETHTOOL_GWOL;
+	dev->ethtool_ops->get_wol(dev, &cur_wol);
 
 	if (copy_from_user(&wol, useraddr, sizeof(wol)))
 		return -EFAULT;
+
+	if (wol.wolopts & ~cur_wol.supported)
+		return -EINVAL;
+
+	if (wol.wolopts == cur_wol.wolopts &&
+	    !memcmp(wol.sopass, cur_wol.sopass, sizeof(wol.sopass)))
+		return 0;
 
 	ret = dev->ethtool_ops->set_wol(dev, &wol);
 	if (ret)
@@ -3196,7 +3208,7 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		if (v4_m_spec->ip4src ||
 		    v4_m_spec->ip4dst) {
 			match->dissector.used_keys |=
-				BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS);
+				BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS);
 			match->dissector.offset[FLOW_DISSECTOR_KEY_IPV4_ADDRS] =
 				offsetof(struct ethtool_rx_flow_key, ipv4);
 		}
@@ -3211,7 +3223,7 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		if (v4_m_spec->psrc ||
 		    v4_m_spec->pdst) {
 			match->dissector.used_keys |=
-				BIT(FLOW_DISSECTOR_KEY_PORTS);
+				BIT_ULL(FLOW_DISSECTOR_KEY_PORTS);
 			match->dissector.offset[FLOW_DISSECTOR_KEY_PORTS] =
 				offsetof(struct ethtool_rx_flow_key, tp);
 		}
@@ -3248,7 +3260,7 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		if (!ipv6_addr_any((struct in6_addr *)v6_m_spec->ip6src) ||
 		    !ipv6_addr_any((struct in6_addr *)v6_m_spec->ip6dst)) {
 			match->dissector.used_keys |=
-				BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS);
+				BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS);
 			match->dissector.offset[FLOW_DISSECTOR_KEY_IPV6_ADDRS] =
 				offsetof(struct ethtool_rx_flow_key, ipv6);
 		}
@@ -3263,7 +3275,7 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		if (v6_m_spec->psrc ||
 		    v6_m_spec->pdst) {
 			match->dissector.used_keys |=
-				BIT(FLOW_DISSECTOR_KEY_PORTS);
+				BIT_ULL(FLOW_DISSECTOR_KEY_PORTS);
 			match->dissector.offset[FLOW_DISSECTOR_KEY_PORTS] =
 				offsetof(struct ethtool_rx_flow_key, tp);
 		}
@@ -3271,7 +3283,7 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 			match->key.ip.tos = v6_spec->tclass;
 			match->mask.ip.tos = v6_m_spec->tclass;
 			match->dissector.used_keys |=
-				BIT(FLOW_DISSECTOR_KEY_IP);
+				BIT_ULL(FLOW_DISSECTOR_KEY_IP);
 			match->dissector.offset[FLOW_DISSECTOR_KEY_IP] =
 				offsetof(struct ethtool_rx_flow_key, ip);
 		}
@@ -3295,7 +3307,7 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		break;
 	}
 
-	match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_BASIC);
+	match->dissector.used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_BASIC);
 	match->dissector.offset[FLOW_DISSECTOR_KEY_BASIC] =
 		offsetof(struct ethtool_rx_flow_key, basic);
 
@@ -3328,7 +3340,7 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		if (ext_m_spec->vlan_etype ||
 		    ext_m_spec->vlan_tci) {
 			match->dissector.used_keys |=
-				BIT(FLOW_DISSECTOR_KEY_VLAN);
+				BIT_ULL(FLOW_DISSECTOR_KEY_VLAN);
 			match->dissector.offset[FLOW_DISSECTOR_KEY_VLAN] =
 				offsetof(struct ethtool_rx_flow_key, vlan);
 		}
@@ -3343,7 +3355,7 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		       ETH_ALEN);
 
 		match->dissector.used_keys |=
-			BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS);
+			BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS);
 		match->dissector.offset[FLOW_DISSECTOR_KEY_ETH_ADDRS] =
 			offsetof(struct ethtool_rx_flow_key, eth_addrs);
 	}

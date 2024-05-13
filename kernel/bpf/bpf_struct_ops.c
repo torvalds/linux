@@ -374,9 +374,9 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	struct bpf_struct_ops_value *uvalue, *kvalue;
 	const struct btf_member *member;
 	const struct btf_type *t = st_ops->type;
-	struct bpf_tramp_links *tlinks = NULL;
+	struct bpf_tramp_links *tlinks;
 	void *udata, *kdata;
-	int prog_fd, err = 0;
+	int prog_fd, err;
 	void *image, *image_end;
 	u32 i;
 
@@ -509,9 +509,12 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	}
 
 	if (st_map->map.map_flags & BPF_F_LINK) {
-		err = st_ops->validate(kdata);
-		if (err)
-			goto reset_unlock;
+		err = 0;
+		if (st_ops->validate) {
+			err = st_ops->validate(kdata);
+			if (err)
+				goto reset_unlock;
+		}
 		set_memory_rox((long)st_map->image, 1);
 		/* Let bpf_link handle registration & unregistration.
 		 *
@@ -655,9 +658,6 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	const struct btf_type *t, *vt;
 	struct bpf_map *map;
 
-	if (!bpf_capable())
-		return ERR_PTR(-EPERM);
-
 	st_ops = bpf_struct_ops_find_value(attr->btf_vmlinux_value_type_id);
 	if (!st_ops)
 		return ERR_PTR(-ENOTSUPP);
@@ -665,9 +665,6 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	vt = st_ops->value_type;
 	if (attr->value_size != vt->size)
 		return ERR_PTR(-EINVAL);
-
-	if (attr->map_flags & BPF_F_LINK && (!st_ops->validate || !st_ops->update))
-		return ERR_PTR(-EOPNOTSUPP);
 
 	t = st_ops->type;
 
@@ -818,13 +815,16 @@ static int bpf_struct_ops_map_link_update(struct bpf_link *link, struct bpf_map 
 	struct bpf_struct_ops_map *st_map, *old_st_map;
 	struct bpf_map *old_map;
 	struct bpf_struct_ops_link *st_link;
-	int err = 0;
+	int err;
 
 	st_link = container_of(link, struct bpf_struct_ops_link, link);
 	st_map = container_of(new_map, struct bpf_struct_ops_map, map);
 
 	if (!bpf_struct_ops_valid_to_reg(new_map))
 		return -EINVAL;
+
+	if (!st_map->st_ops->update)
+		return -EOPNOTSUPP;
 
 	mutex_lock(&update_mutex);
 

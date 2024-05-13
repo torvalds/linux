@@ -35,4 +35,8 @@ static inline void spectre_v2_update_state(unsigned int state,
 
 int spectre_bhb_update_vectors(unsigned int method);
 
+void cpu_v7_ca8_ibe(void);
+void cpu_v7_ca15_ibe(void);
+void cpu_v7_bugs_init(void);
+
 #endif

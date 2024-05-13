@@ -12,12 +12,15 @@
 #include <linux/jiffies.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/iio/iio.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+
+#include <linux/iio/common/inv_sensors_timestamp.h>
+#include <linux/iio/iio.h>
+
 #include "inv_mpu_iio.h"
 #include "inv_mpu_magn.h"
 
@@ -243,6 +246,15 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.fifo_size = 4 * 1024,
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 		.startup_time = {INV_MPU6500_GYRO_STARTUP_TIME, INV_MPU6500_ACCEL_STARTUP_TIME},
+	},
+	{
+		.whoami = INV_ICM20600_WHOAMI_VALUE,
+		.name = "ICM20600",
+		.reg = &reg_set_icm20602,
+		.config = &chip_config_6500,
+		.fifo_size = 1008,
+		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
+		.startup_time = {INV_ICM20602_GYRO_STARTUP_TIME, INV_ICM20602_ACCEL_STARTUP_TIME},
 	},
 	{
 		.whoami = INV_ICM20602_WHOAMI_VALUE,
@@ -512,6 +524,7 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	int result;
 	u8 d;
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp_chip timestamp;
 
 	result = inv_mpu6050_set_gyro_fsr(st, st->chip_config.fsr);
 	if (result)
@@ -535,12 +548,12 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	if (result)
 		return result;
 
-	/*
-	 * Internal chip period is 1ms (1kHz).
-	 * Let's use at the beginning the theorical value before measuring
-	 * with interrupt timestamps.
-	 */
-	st->chip_period = NSEC_PER_MSEC;
+	/* clock jitter is +/- 2% */
+	timestamp.clock_period = NSEC_PER_SEC / INV_MPU6050_INTERNAL_FREQ_HZ;
+	timestamp.jitter = 20;
+	timestamp.init_period =
+			NSEC_PER_SEC / INV_MPU6050_DIVIDER_TO_FIFO_RATE(st->chip_config.divider);
+	inv_sensors_timestamp_init(&st->timestamp, &timestamp);
 
 	/* magn chip init, noop if not present in the chip */
 	result = inv_mpu_magn_probe(st);
@@ -927,6 +940,8 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	int fifo_rate;
+	u32 fifo_period;
+	bool fifo_on;
 	u8 d;
 	int result;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -943,12 +958,21 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	d = INV_MPU6050_FIFO_RATE_TO_DIVIDER(fifo_rate);
 	/* compute back the fifo rate to handle truncation cases */
 	fifo_rate = INV_MPU6050_DIVIDER_TO_FIFO_RATE(d);
+	fifo_period = NSEC_PER_SEC / fifo_rate;
 
 	mutex_lock(&st->lock);
 	if (d == st->chip_config.divider) {
 		result = 0;
 		goto fifo_rate_fail_unlock;
 	}
+
+	fifo_on = st->chip_config.accl_fifo_enable ||
+		  st->chip_config.gyro_fifo_enable ||
+		  st->chip_config.magn_fifo_enable;
+	result = inv_sensors_timestamp_update_odr(&st->timestamp, fifo_period, fifo_on);
+	if (result)
+		goto fifo_rate_fail_unlock;
+
 	result = pm_runtime_resume_and_get(pdev);
 	if (result)
 		goto fifo_rate_fail_unlock;
@@ -1321,6 +1345,9 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	st->reg = hw_info[st->chip_type].reg;
 	memcpy(&st->chip_config, hw_info[st->chip_type].config,
 	       sizeof(st->chip_config));
+	st->data = devm_kzalloc(regmap_get_device(st->map), st->hw->fifo_size, GFP_KERNEL);
+	if (st->data == NULL)
+		return -ENOMEM;
 
 	/* check chip self-identification */
 	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
@@ -1597,6 +1624,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		indio_dev->num_channels = ARRAY_SIZE(inv_mpu9250_channels);
 		indio_dev->available_scan_masks = inv_mpu9x50_scan_masks;
 		break;
+	case INV_ICM20600:
 	case INV_ICM20602:
 		indio_dev->channels = inv_mpu_channels;
 		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
@@ -1775,3 +1803,4 @@ EXPORT_NS_GPL_DEV_PM_OPS(inv_mpu_pmops, IIO_MPU6050) = {
 MODULE_AUTHOR("Invensense Corporation");
 MODULE_DESCRIPTION("Invensense device MPU6050 driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_INV_SENSORS_TIMESTAMP);

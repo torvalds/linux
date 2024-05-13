@@ -29,9 +29,6 @@
  */
 LIST_HEAD(opp_tables);
 
-/* OPP tables with uninitialized required OPPs */
-LIST_HEAD(lazy_opp_tables);
-
 /* Lock to allow exclusive modification to the device and opp lists */
 DEFINE_MUTEX(opp_table_lock);
 /* Flag indicating that opp_tables list is being updated at the moment */
@@ -180,25 +177,24 @@ unsigned long dev_pm_opp_get_power(struct dev_pm_opp *opp)
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_power);
 
 /**
- * dev_pm_opp_get_freq() - Gets the frequency corresponding to an available opp
- * @opp:	opp for which frequency has to be returned for
+ * dev_pm_opp_get_freq_indexed() - Gets the frequency corresponding to an
+ *				   available opp with specified index
+ * @opp: opp for which frequency has to be returned for
+ * @index: index of the frequency within the required opp
  *
- * Return: frequency in hertz corresponding to the opp, else
- * return 0
+ * Return: frequency in hertz corresponding to the opp with specified index,
+ * else return 0
  */
-unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
+unsigned long dev_pm_opp_get_freq_indexed(struct dev_pm_opp *opp, u32 index)
 {
-	if (IS_ERR_OR_NULL(opp)) {
+	if (IS_ERR_OR_NULL(opp) || index >= opp->opp_table->clk_count) {
 		pr_err("%s: Invalid parameters\n", __func__);
 		return 0;
 	}
 
-	if (!assert_single_clk(opp->opp_table))
-		return 0;
-
-	return opp->rates[0];
+	return opp->rates[index];
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq);
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_freq_indexed);
 
 /**
  * dev_pm_opp_get_level() - Gets the level corresponding to an available opp
@@ -240,7 +236,13 @@ unsigned int dev_pm_opp_get_required_pstate(struct dev_pm_opp *opp,
 	if (lazy_linking_pending(opp->opp_table))
 		return 0;
 
-	return opp->required_opps[index]->pstate;
+	/* The required OPP table must belong to a genpd */
+	if (unlikely(!opp->opp_table->required_opp_tables[index]->is_genpd)) {
+		pr_err("%s: Performance state is only valid for genpds.\n", __func__);
+		return 0;
+	}
+
+	return opp->required_opps[index]->level;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_required_pstate);
 
@@ -445,7 +447,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
 /* Helpers to read keys */
 static unsigned long _read_freq(struct dev_pm_opp *opp, int index)
 {
-	return opp->rates[0];
+	return opp->rates[index];
 }
 
 static unsigned long _read_level(struct dev_pm_opp *opp, int index)
@@ -621,6 +623,34 @@ struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact);
 
+/**
+ * dev_pm_opp_find_freq_exact_indexed() - Search for an exact freq for the
+ *					 clock corresponding to the index
+ * @dev:	Device for which we do this operation
+ * @freq:	frequency to search for
+ * @index:	Clock index
+ * @available:	true/false - match for available opp
+ *
+ * Search for the matching exact OPP for the clock corresponding to the
+ * specified index from a starting freq for a device.
+ *
+ * Return: matching *opp , else returns ERR_PTR in case of error and should be
+ * handled using IS_ERR. Error return values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *
+dev_pm_opp_find_freq_exact_indexed(struct device *dev, unsigned long freq,
+				   u32 index, bool available)
+{
+	return _find_key_exact(dev, freq, index, available, _read_freq, NULL);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact_indexed);
+
 static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
 						   unsigned long *freq)
 {
@@ -654,6 +684,34 @@ struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
 
 /**
+ * dev_pm_opp_find_freq_ceil_indexed() - Search for a rounded ceil freq for the
+ *					 clock corresponding to the index
+ * @dev:	Device for which we do this operation
+ * @freq:	Start frequency
+ * @index:	Clock index
+ *
+ * Search for the matching ceil *available* OPP for the clock corresponding to
+ * the specified index from a starting freq for a device.
+ *
+ * Return: matching *opp and refreshes *freq accordingly, else returns
+ * ERR_PTR in case of error and should be handled using IS_ERR. Error return
+ * values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *
+dev_pm_opp_find_freq_ceil_indexed(struct device *dev, unsigned long *freq,
+				  u32 index)
+{
+	return _find_key_ceil(dev, freq, index, true, _read_freq, NULL);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil_indexed);
+
+/**
  * dev_pm_opp_find_freq_floor() - Search for a rounded floor freq
  * @dev:	device for which we do this operation
  * @freq:	Start frequency
@@ -677,6 +735,34 @@ struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 	return _find_key_floor(dev, freq, 0, true, _read_freq, assert_single_clk);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor);
+
+/**
+ * dev_pm_opp_find_freq_floor_indexed() - Search for a rounded floor freq for the
+ *					  clock corresponding to the index
+ * @dev:	Device for which we do this operation
+ * @freq:	Start frequency
+ * @index:	Clock index
+ *
+ * Search for the matching floor *available* OPP for the clock corresponding to
+ * the specified index from a starting freq for a device.
+ *
+ * Return: matching *opp and refreshes *freq accordingly, else returns
+ * ERR_PTR in case of error and should be handled using IS_ERR. Error return
+ * values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *
+dev_pm_opp_find_freq_floor_indexed(struct device *dev, unsigned long *freq,
+				   u32 index)
+{
+	return _find_key_floor(dev, freq, index, true, _read_freq, NULL);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor_indexed);
 
 /**
  * dev_pm_opp_find_level_exact() - search for an exact level
@@ -938,7 +1024,7 @@ static int _set_opp_bw(const struct opp_table *opp_table,
 static int _set_performance_state(struct device *dev, struct device *pd_dev,
 				  struct dev_pm_opp *opp, int i)
 {
-	unsigned int pstate = likely(opp) ? opp->required_opps[i]->pstate : 0;
+	unsigned int pstate = likely(opp) ? opp->required_opps[i]->level: 0;
 	int ret;
 
 	if (!pd_dev)
@@ -1091,7 +1177,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 
 	/* Return early if nothing to do */
 	if (!forced && old_opp == opp && opp_table->enabled) {
-		dev_dbg(dev, "%s: OPPs are same, nothing to do\n", __func__);
+		dev_dbg_ratelimited(dev, "%s: OPPs are same, nothing to do\n", __func__);
 		return 0;
 	}
 
@@ -1358,7 +1444,10 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 	return opp_table;
 
 remove_opp_dev:
+	_of_clear_opp_table(opp_table);
 	_remove_opp_dev(opp_dev, opp_table);
+	mutex_destroy(&opp_table->genpd_virt_dev_lock);
+	mutex_destroy(&opp_table->lock);
 err:
 	kfree(opp_table);
 	return ERR_PTR(ret);
@@ -1522,16 +1611,8 @@ static void _opp_table_kref_release(struct kref *kref)
 
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
-	list_for_each_entry_safe(opp_dev, temp, &opp_table->dev_list, node) {
-		/*
-		 * The OPP table is getting removed, drop the performance state
-		 * constraints.
-		 */
-		if (opp_table->genpd_performance_state)
-			dev_pm_genpd_set_performance_state((struct device *)(opp_dev->dev), 0);
-
+	list_for_each_entry_safe(opp_dev, temp, &opp_table->dev_list, node)
 		_remove_opp_dev(opp_dev, opp_table);
-	}
 
 	mutex_destroy(&opp_table->genpd_virt_dev_lock);
 	mutex_destroy(&opp_table->lock);
@@ -2379,7 +2460,7 @@ static int _opp_attach_genpd(struct opp_table *opp_table, struct device *dev,
 
 		virt_dev = dev_pm_domain_attach_by_name(dev, *name);
 		if (IS_ERR_OR_NULL(virt_dev)) {
-			ret = PTR_ERR(virt_dev) ? : -ENODEV;
+			ret = virt_dev ? PTR_ERR(virt_dev) : -ENODEV;
 			dev_err(dev, "Couldn't attach to pm_domain: %d\n", ret);
 			goto err;
 		}
@@ -2704,6 +2785,12 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 	if (!src_table || !src_table->required_opp_count)
 		return pstate;
 
+	/* Both OPP tables must belong to genpds */
+	if (unlikely(!src_table->is_genpd || !dst_table->is_genpd)) {
+		pr_err("%s: Performance state is only valid for genpds.\n", __func__);
+		return -EINVAL;
+	}
+
 	/* required-opps not fully initialized yet */
 	if (lazy_linking_pending(src_table))
 		return -EBUSY;
@@ -2722,8 +2809,8 @@ int dev_pm_opp_xlate_performance_state(struct opp_table *src_table,
 	mutex_lock(&src_table->lock);
 
 	list_for_each_entry(opp, &src_table->opp_list, node) {
-		if (opp->pstate == pstate) {
-			dest_pstate = opp->required_opps[i]->pstate;
+		if (opp->level == pstate) {
+			dest_pstate = opp->required_opps[i]->level;
 			goto unlock;
 		}
 	}

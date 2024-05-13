@@ -2,6 +2,7 @@
 config OCFS2_FS
 	tristate "OCFS2 file system support"
 	depends on INET && SYSFS && CONFIGFS_FS
+	select BUFFER_HEAD
 	select JBD2
 	select CRC32
 	select QUOTA
@@ -17,9 +18,9 @@ config OCFS2_FS
 	  You'll want to install the ocfs2-tools package in order to at least
 	  get "mount.ocfs2".
 
-	  Project web page:    https://oss.oracle.com/projects/ocfs2
-	  Tools web page:      https://oss.oracle.com/projects/ocfs2-tools
-	  OCFS2 mailing lists: https://oss.oracle.com/projects/ocfs2/mailman/
+	  Project web page:    https://ocfs2.wiki.kernel.org/
+	  Tools web page:      https://github.com/markfasheh/ocfs2-tools
+	  OCFS2 mailing lists: https://subspace.kernel.org/lists.linux.dev.html
 
 	  For more information on OCFS2, see the file
 	  <file:Documentation/filesystems/ocfs2.rst>.

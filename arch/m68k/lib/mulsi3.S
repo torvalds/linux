@@ -32,7 +32,7 @@ General Public License for more details. */
    Some of this code comes from MINIX, via the folks at ericsson.
    D. V. Henkel-Wallace (gumby@cygnus.com) Fete Bastille, 1992
 */
-#include <asm/export.h>
+#include <linux/export.h>
 /* These are predefined by new versions of GNU cpp.  */
 
 #ifndef __USER_LABEL_PREFIX__

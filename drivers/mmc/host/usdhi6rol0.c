@@ -1884,7 +1884,7 @@ e_free_mmc:
 	return ret;
 }
 
-static int usdhi6_remove(struct platform_device *pdev)
+static void usdhi6_remove(struct platform_device *pdev)
 {
 	struct usdhi6_host *host = platform_get_drvdata(pdev);
 
@@ -1895,13 +1895,11 @@ static int usdhi6_remove(struct platform_device *pdev)
 	usdhi6_dma_release(host);
 	clk_disable_unprepare(host->clk);
 	mmc_free_host(host->mmc);
-
-	return 0;
 }
 
 static struct platform_driver usdhi6_driver = {
 	.probe		= usdhi6_probe,
-	.remove		= usdhi6_remove,
+	.remove_new	= usdhi6_remove,
 	.driver		= {
 		.name	= "usdhi6rol0",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

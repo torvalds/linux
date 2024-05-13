@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/gpio/xlnx,zynqmp-gpio-modepin.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/gpio/xlnx,zynqmp-gpio-modepin.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: ZynqMP Mode Pin GPIO controller
 
@@ -12,7 +12,7 @@ description:
   PS_MODE). Every pin can be configured as input/output.
 
 maintainers:
-  - Piyush Mehta <piyush.mehta@xilinx.com>
+  - Piyush Mehta <piyush.mehta@amd.com>
 
 properties:
   compatible:

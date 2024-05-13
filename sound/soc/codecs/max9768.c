@@ -214,7 +214,7 @@ static struct i2c_driver max9768_i2c_driver = {
 	.driver = {
 		.name = "max9768",
 	},
-	.probe_new = max9768_i2c_probe,
+	.probe = max9768_i2c_probe,
 	.id_table = max9768_i2c_id,
 };
 module_i2c_driver(max9768_i2c_driver);

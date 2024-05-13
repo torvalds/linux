@@ -1401,10 +1401,13 @@ create_conn:
 	server->smbd_conn = smbd_get_connection(
 		server, (struct sockaddr *) &server->dstaddr);
 
-	if (server->smbd_conn)
+	if (server->smbd_conn) {
 		cifs_dbg(VFS, "RDMA transport re-established\n");
-
-	return server->smbd_conn ? 0 : -ENOENT;
+		trace_smb3_smbd_connect_done(server->hostname, server->conn_id, &server->dstaddr);
+		return 0;
+	}
+	trace_smb3_smbd_connect_err(server->hostname, server->conn_id, &server->dstaddr);
+	return -ENOENT;
 }
 
 static void destroy_caches_and_workqueue(struct smbd_connection *info)
@@ -2227,7 +2230,7 @@ static int smbd_iter_to_mr(struct smbd_connection *info,
 
 	memset(sgt->sgl, 0, max_sg * sizeof(struct scatterlist));
 
-	ret = netfs_extract_iter_to_sg(iter, iov_iter_count(iter), sgt, max_sg, 0);
+	ret = extract_iter_to_sg(iter, iov_iter_count(iter), sgt, max_sg, 0);
 	WARN_ON(ret < 0);
 	if (sgt->nents > 0)
 		sg_mark_end(&sgt->sgl[sgt->nents - 1]);
@@ -2500,7 +2503,7 @@ static ssize_t smb_extract_kvec_to_rdma(struct iov_iter *iter,
 			if (is_vmalloc_or_module_addr((void *)kaddr))
 				page = vmalloc_to_page((void *)kaddr);
 			else
-				page = virt_to_page(kaddr);
+				page = virt_to_page((void *)kaddr);
 
 			if (!smb_set_sge(rdma, page, off, seg))
 				return -EIO;

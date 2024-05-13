@@ -383,6 +383,12 @@ E: tomas@nocrew.org
 W: http://tomas.nocrew.org/
 D: dsp56k device driver
 
+N: Srivatsa S. Bhat
+E: srivatsa@csail.mit.edu
+D: Maintainer of Generic Paravirt-Ops subsystem
+D: Maintainer of VMware hypervisor interface
+D: Maintainer of VMware virtual PTP clock driver (ptp_vmw)
+
 N: Ross Biro
 E: ross.biro@gmail.com
 D: Original author of the Linux networking code
@@ -659,11 +665,6 @@ S: 3F, 65 Tajen street
 S: Tamsui town, Taipei county,
 S: Taiwan 251
 S: Republic of China
-
-N: Reinette Chatre
-E: reinette.chatre@intel.com
-D: WiMedia Link Protocol implementation
-D: UWB stack bits and pieces
 
 N: Michael Elizabeth Chastain
 E: mec@shout.net
@@ -3016,12 +3017,6 @@ D: Some smbfs fixes
 S: Demonstratsii 8-382
 S: Tula 300000
 S: Russia
-
-N: Inaky Perez-Gonzalez
-E: inaky.perez-gonzalez@intel.com
-D: UWB stack, HWA-RC driver and HWA-HC drivers
-D: Wireless USB additions to the USB stack
-D: WiMedia Link Protocol bits and pieces
 
 N: Gordon Peters
 E: GordPeters@smarttech.com

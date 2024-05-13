@@ -28,6 +28,12 @@
 			reg = <0x0>;
 			enable-method = "psci";
 			clocks = <&clockgen QORIQ_CLK_CMUX 0>;
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PW20>;
 			#cooling-cells = <2>;
@@ -39,6 +45,12 @@
 			reg = <0x1>;
 			enable-method = "psci";
 			clocks = <&clockgen QORIQ_CLK_CMUX 0>;
+			i-cache-size = <0xc000>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
 			next-level-cache = <&l2>;
 			cpu-idle-states = <&CPU_PW20>;
 			#cooling-cells = <2>;
@@ -47,6 +59,10 @@
 		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
+			cache-size = <0x100000>;
+			cache-line-size = <64>;
+			cache-sets = <1024>;
 		};
 	};
 

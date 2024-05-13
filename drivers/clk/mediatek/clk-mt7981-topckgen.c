@@ -8,9 +8,7 @@
 
 
 #include <linux/clk-provider.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include "clk-mtk.h"
 #include "clk-gate.h"
@@ -310,12 +308,12 @@ static const struct mtk_mux top_muxes[] = {
 			     pextp_tl_ck_parents, 0x010, 0x014, 0x018, 24, 2, 31,
 			     0x1C0, 7),
 	/* CLK_CFG_2 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_EMMC_208M_SEL, "emmc_208m_sel",
-			     emmc_208m_parents, 0x020, 0x024, 0x028, 0, 3, 7,
-			     0x1C0, 8),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_EMMC_400M_SEL, "emmc_400m_sel",
-			     emmc_400m_parents, 0x020, 0x024, 0x028, 8, 2, 15,
-			     0x1C0, 9),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_EMMC_208M_SEL, "emmc_208m_sel",
+				   emmc_208m_parents, 0x020, 0x024, 0x028, 0, 3, 7,
+				   0x1C0, 8, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_EMMC_400M_SEL, "emmc_400m_sel",
+				   emmc_400m_parents, 0x020, 0x024, 0x028, 8, 2, 15,
+				   0x1C0, 9, 0),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_F26M_SEL, "csw_f26m_sel",
 				   csw_f26m_parents, 0x020, 0x024, 0x028, 16, 1, 23,
 				   0x1C0, 10,
@@ -414,7 +412,7 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt7981_topckgen);
 
 static struct platform_driver clk_mt7981_topckgen_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove = mtk_clk_simple_remove,
+	.remove_new = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt7981-topckgen",
 		.of_match_table = of_match_clk_mt7981_topckgen,

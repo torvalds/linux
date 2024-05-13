@@ -460,7 +460,7 @@
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 		rohm,reset-snvs-powered;
 		#clock-cells = <0>;
-		clocks = <&osc_32k 0>;
+		clocks = <&osc_32k>;
 		clock-output-names = "clk-32k-out";
 
 		regulators {
@@ -628,6 +628,10 @@
 	status = "okay";
 };
 
+&disp_blk_ctrl {
+	status = "disabled";
+};
+
 &pgc_mipi {
 	status = "disabled";
 };
@@ -636,6 +640,8 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
+	cts-gpios = <&gpio5 26 GPIO_ACTIVE_LOW>;
+	rts-gpios = <&gpio5 27 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -643,13 +649,6 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	status = "okay";
-};
-
-/* off-board RS232 */
-&uart3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart3>;
 	status = "okay";
 };
 
@@ -814,6 +813,8 @@
 		fsl,pins = <
 			MX8MM_IOMUXC_UART1_RXD_UART1_DCE_RX	0x140
 			MX8MM_IOMUXC_UART1_TXD_UART1_DCE_TX	0x140
+			MX8MM_IOMUXC_UART3_RXD_GPIO5_IO26	0x140 /* CTS# in */
+			MX8MM_IOMUXC_UART3_TXD_GPIO5_IO27	0x140 /* RTS# out */
 		>;
 	};
 
@@ -821,13 +822,6 @@
 		fsl,pins = <
 			MX8MM_IOMUXC_UART2_RXD_UART2_DCE_RX	0x140
 			MX8MM_IOMUXC_UART2_TXD_UART2_DCE_TX	0x140
-		>;
-	};
-
-	pinctrl_uart3: uart3grp {
-		fsl,pins = <
-			MX8MM_IOMUXC_UART3_RXD_UART3_DCE_RX	0x140
-			MX8MM_IOMUXC_UART3_TXD_UART3_DCE_TX	0x140
 		>;
 	};
 

@@ -46,9 +46,9 @@ int pipe_priority_map[] = {
 	KFD_PIPE_PRIORITY_CS_HIGH
 };
 
-struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev, struct queue_properties *q)
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev, struct queue_properties *q)
 {
-	struct kfd_mem_obj *mqd_mem_obj = NULL;
+	struct kfd_mem_obj *mqd_mem_obj;
 
 	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
 	if (!mqd_mem_obj)
@@ -61,10 +61,10 @@ struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev, struct queue_propertie
 	return mqd_mem_obj;
 }
 
-struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
 					struct queue_properties *q)
 {
-	struct kfd_mem_obj *mqd_mem_obj = NULL;
+	struct kfd_mem_obj *mqd_mem_obj;
 	uint64_t offset;
 
 	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
@@ -72,11 +72,12 @@ struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
 		return NULL;
 
 	offset = (q->sdma_engine_id *
-		dev->device_info.num_sdma_queues_per_engine +
+		dev->kfd->device_info.num_sdma_queues_per_engine +
 		q->sdma_queue_id) *
 		dev->dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size;
 
-	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size *
+		  NUM_XCC(dev->xcc_mask);
 
 	mqd_mem_obj->gtt_mem = (void *)((uint64_t)dev->dqm->hiq_sdma_mqd.gtt_mem
 				+ offset);
@@ -96,18 +97,22 @@ void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
 
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		const uint32_t *cu_mask, uint32_t cu_mask_count,
-		uint32_t *se_mask)
+		uint32_t *se_mask, uint32_t inst)
 {
 	struct kfd_cu_info cu_info;
 	uint32_t cu_per_sh[KFD_MAX_NUM_SE][KFD_MAX_NUM_SH_PER_SE] = {0};
 	bool wgp_mode_req = KFD_GC_VERSION(mm->dev) >= IP_VERSION(10, 0, 0);
 	uint32_t en_mask = wgp_mode_req ? 0x3 : 0x1;
-	int i, se, sh, cu, cu_bitmap_sh_mul, inc = wgp_mode_req ? 2 : 1;
+	int i, se, sh, cu, cu_bitmap_sh_mul, cu_inc = wgp_mode_req ? 2 : 1;
+	uint32_t cu_active_per_node;
+	int inc = cu_inc * NUM_XCC(mm->dev->xcc_mask);
+	int xcc_inst = inst + ffs(mm->dev->xcc_mask) - 1;
 
 	amdgpu_amdkfd_get_cu_info(mm->dev->adev, &cu_info);
 
-	if (cu_mask_count > cu_info.cu_active_number)
-		cu_mask_count = cu_info.cu_active_number;
+	cu_active_per_node = cu_info.cu_active_number / mm->dev->kfd->num_nodes;
+	if (cu_mask_count > cu_active_per_node)
+		cu_mask_count = cu_active_per_node;
 
 	/* Exceeding these bounds corrupts the stack and indicates a coding error.
 	 * Returning with no CU's enabled will hang the queue, which should be
@@ -140,7 +145,8 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	for (se = 0; se < cu_info.num_shader_engines; se++)
 		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++)
 			cu_per_sh[se][sh] = hweight32(
-				cu_info.cu_bitmap[se % 4][sh + (se / 4) * cu_bitmap_sh_mul]);
+				cu_info.cu_bitmap[xcc_inst][se % 4][sh + (se / 4) *
+				cu_bitmap_sh_mul]);
 
 	/* Symmetrically map cu_mask to all SEs & SHs:
 	 * se_mask programs up to 2 SH in the upper and lower 16 bits.
@@ -163,20 +169,33 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	 * cu_mask[0] bit8 -> se_mask[0] bit1 (SE0,SH0,CU1)
 	 * ...
 	 *
+	 * For GFX 9.4.3, the following code only looks at a
+	 * subset of the cu_mask corresponding to the inst parameter.
+	 * If we have n XCCs under one GPU node
+	 * cu_mask[0] bit0 -> XCC0 se_mask[0] bit0 (XCC0,SE0,SH0,CU0)
+	 * cu_mask[0] bit1 -> XCC1 se_mask[0] bit0 (XCC1,SE0,SH0,CU0)
+	 * ..
+	 * cu_mask[0] bitn -> XCCn se_mask[0] bit0 (XCCn,SE0,SH0,CU0)
+	 * cu_mask[0] bit n+1 -> XCC0 se_mask[1] bit0 (XCC0,SE1,SH0,CU0)
+	 *
+	 * For example, if there are 6 XCCs under 1 KFD node, this code
+	 * running for each inst, will look at the bits as:
+	 * inst, inst + 6, inst + 12...
+	 *
 	 * First ensure all CUs are disabled, then enable user specified CUs.
 	 */
 	for (i = 0; i < cu_info.num_shader_engines; i++)
 		se_mask[i] = 0;
 
-	i = 0;
-	for (cu = 0; cu < 16; cu += inc) {
+	i = inst;
+	for (cu = 0; cu < 16; cu += cu_inc) {
 		for (sh = 0; sh < cu_info.num_shader_arrays_per_engine; sh++) {
 			for (se = 0; se < cu_info.num_shader_engines; se++) {
 				if (cu_per_sh[se][sh] > cu) {
 					if (cu_mask[i / 32] & (en_mask << (i % 32)))
 						se_mask[se] |= en_mask << (cu + sh * 16);
 					i += inc;
-					if (i == cu_mask_count)
+					if (i >= cu_mask_count)
 						return;
 				}
 			}
@@ -189,7 +208,7 @@ int kfd_hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
 		     struct queue_properties *p, struct mm_struct *mms)
 {
 	return mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, mqd, pipe_id,
-					      queue_id, p->doorbell_off);
+					      queue_id, p->doorbell_off, 0);
 }
 
 int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
@@ -197,7 +216,7 @@ int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
 		uint32_t pipe_id, uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, mqd, type, timeout,
-						pipe_id, queue_id);
+						pipe_id, queue_id, 0);
 }
 
 void kfd_free_mqd_cp(struct mqd_manager *mm, void *mqd,
@@ -216,7 +235,7 @@ bool kfd_is_occupied_cp(struct mqd_manager *mm, void *mqd,
 		 uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_is_occupied(mm->dev->adev, queue_address,
-						pipe_id, queue_id);
+						pipe_id, queue_id, 0);
 }
 
 int kfd_load_mqd_sdma(struct mqd_manager *mm, void *mqd,
@@ -245,4 +264,29 @@ bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 		      uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
+}
+
+uint64_t kfd_hiq_mqd_stride(struct kfd_node *dev)
+{
+	return dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+}
+
+void kfd_get_hiq_xcc_mqd(struct kfd_node *dev, struct kfd_mem_obj *mqd_mem_obj,
+		     uint32_t virtual_xcc_id)
+{
+	uint64_t offset;
+
+	offset = kfd_hiq_mqd_stride(dev) * virtual_xcc_id;
+
+	mqd_mem_obj->gtt_mem = (virtual_xcc_id == 0) ?
+			dev->dqm->hiq_sdma_mqd.gtt_mem : NULL;
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr + offset;
+	mqd_mem_obj->cpu_ptr = (uint32_t *)((uintptr_t)
+				dev->dqm->hiq_sdma_mqd.cpu_ptr + offset);
+}
+
+uint64_t kfd_mqd_stride(struct mqd_manager *mm,
+			struct queue_properties *q)
+{
+	return mm->mqd_size;
 }

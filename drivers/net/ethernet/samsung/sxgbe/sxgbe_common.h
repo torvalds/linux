@@ -511,7 +511,7 @@ struct sxgbe_priv_data {
 struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 					struct sxgbe_plat_data *plat_dat,
 					void __iomem *addr);
-int sxgbe_drv_remove(struct net_device *ndev);
+void sxgbe_drv_remove(struct net_device *ndev);
 void sxgbe_set_ethtool_ops(struct net_device *netdev);
 int sxgbe_mdio_unregister(struct net_device *ndev);
 int sxgbe_mdio_register(struct net_device *ndev);

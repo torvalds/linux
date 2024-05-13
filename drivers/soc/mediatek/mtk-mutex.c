@@ -6,8 +6,7 @@
 #include <linux/clk.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/soc/mediatek/mtk-mmsys.h>
@@ -1051,7 +1050,6 @@ static struct platform_driver mtk_mutex_driver = {
 	.probe		= mtk_mutex_probe,
 	.driver		= {
 		.name	= "mediatek-mutex",
-		.owner	= THIS_MODULE,
 		.of_match_table = mutex_driver_dt_match,
 	},
 };

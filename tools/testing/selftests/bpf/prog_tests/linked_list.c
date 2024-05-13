@@ -23,7 +23,7 @@ static struct {
 	  "bpf_spin_lock at off=" #off " must be held for bpf_list_head" }, \
 	{ #test "_missing_lock_pop_back", \
 	  "bpf_spin_lock at off=" #off " must be held for bpf_list_head" },
-	TEST(kptr, 32)
+	TEST(kptr, 40)
 	TEST(global, 16)
 	TEST(map, 0)
 	TEST(inner_map, 0)
@@ -31,7 +31,7 @@ static struct {
 #define TEST(test, op) \
 	{ #test "_kptr_incorrect_lock_" #op, \
 	  "held lock and object are not in the same allocation\n" \
-	  "bpf_spin_lock at off=32 must be held for bpf_list_head" }, \
+	  "bpf_spin_lock at off=40 must be held for bpf_list_head" }, \
 	{ #test "_global_incorrect_lock_" #op, \
 	  "held lock and object are not in the same allocation\n" \
 	  "bpf_spin_lock at off=16 must be held for bpf_list_head" }, \
@@ -84,23 +84,23 @@ static struct {
 	{ "double_push_back", "arg#1 expected pointer to allocated object" },
 	{ "no_node_value_type", "bpf_list_node not found at offset=0" },
 	{ "incorrect_value_type",
-	  "operation on bpf_list_head expects arg#1 bpf_list_node at offset=40 in struct foo, "
+	  "operation on bpf_list_head expects arg#1 bpf_list_node at offset=48 in struct foo, "
 	  "but arg is at offset=0 in struct bar" },
 	{ "incorrect_node_var_off", "variable ptr_ access var_off=(0x0; 0xffffffff) disallowed" },
-	{ "incorrect_node_off1", "bpf_list_node not found at offset=41" },
-	{ "incorrect_node_off2", "arg#1 offset=0, but expected bpf_list_node at offset=40 in struct foo" },
+	{ "incorrect_node_off1", "bpf_list_node not found at offset=49" },
+	{ "incorrect_node_off2", "arg#1 offset=0, but expected bpf_list_node at offset=48 in struct foo" },
 	{ "no_head_type", "bpf_list_head not found at offset=0" },
 	{ "incorrect_head_var_off1", "R1 doesn't have constant offset" },
 	{ "incorrect_head_var_off2", "variable ptr_ access var_off=(0x0; 0xffffffff) disallowed" },
-	{ "incorrect_head_off1", "bpf_list_head not found at offset=17" },
+	{ "incorrect_head_off1", "bpf_list_head not found at offset=25" },
 	{ "incorrect_head_off2", "bpf_list_head not found at offset=1" },
 	{ "pop_front_off",
-	  "15: (bf) r1 = r6                      ; R1_w=ptr_or_null_foo(id=4,ref_obj_id=4,off=40,imm=0) "
-	  "R6_w=ptr_or_null_foo(id=4,ref_obj_id=4,off=40,imm=0) refs=2,4\n"
+	  "15: (bf) r1 = r6                      ; R1_w=ptr_or_null_foo(id=4,ref_obj_id=4,off=48,imm=0) "
+	  "R6_w=ptr_or_null_foo(id=4,ref_obj_id=4,off=48,imm=0) refs=2,4\n"
 	  "16: (85) call bpf_this_cpu_ptr#154\nR1 type=ptr_or_null_ expected=percpu_ptr_" },
 	{ "pop_back_off",
-	  "15: (bf) r1 = r6                      ; R1_w=ptr_or_null_foo(id=4,ref_obj_id=4,off=40,imm=0) "
-	  "R6_w=ptr_or_null_foo(id=4,ref_obj_id=4,off=40,imm=0) refs=2,4\n"
+	  "15: (bf) r1 = r6                      ; R1_w=ptr_or_null_foo(id=4,ref_obj_id=4,off=48,imm=0) "
+	  "R6_w=ptr_or_null_foo(id=4,ref_obj_id=4,off=48,imm=0) refs=2,4\n"
 	  "16: (85) call bpf_this_cpu_ptr#154\nR1 type=ptr_or_null_ expected=percpu_ptr_" },
 };
 
@@ -257,7 +257,7 @@ static struct btf *init_btf(void)
 	hid = btf__add_struct(btf, "bpf_list_head", 16);
 	if (!ASSERT_EQ(hid, LIST_HEAD, "btf__add_struct bpf_list_head"))
 		goto end;
-	nid = btf__add_struct(btf, "bpf_list_node", 16);
+	nid = btf__add_struct(btf, "bpf_list_node", 24);
 	if (!ASSERT_EQ(nid, LIST_NODE, "btf__add_struct bpf_list_node"))
 		goto end;
 	return btf;
@@ -276,7 +276,7 @@ static void list_and_rb_node_same_struct(bool refcount_field)
 	if (!ASSERT_OK_PTR(btf, "init_btf"))
 		return;
 
-	bpf_rb_node_btf_id = btf__add_struct(btf, "bpf_rb_node", 24);
+	bpf_rb_node_btf_id = btf__add_struct(btf, "bpf_rb_node", 32);
 	if (!ASSERT_GT(bpf_rb_node_btf_id, 0, "btf__add_struct bpf_rb_node"))
 		return;
 
@@ -286,17 +286,17 @@ static void list_and_rb_node_same_struct(bool refcount_field)
 			return;
 	}
 
-	id = btf__add_struct(btf, "bar", refcount_field ? 44 : 40);
+	id = btf__add_struct(btf, "bar", refcount_field ? 60 : 56);
 	if (!ASSERT_GT(id, 0, "btf__add_struct bar"))
 		return;
 	err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
 	if (!ASSERT_OK(err, "btf__add_field bar::a"))
 		return;
-	err = btf__add_field(btf, "c", bpf_rb_node_btf_id, 128, 0);
+	err = btf__add_field(btf, "c", bpf_rb_node_btf_id, 192, 0);
 	if (!ASSERT_OK(err, "btf__add_field bar::c"))
 		return;
 	if (refcount_field) {
-		err = btf__add_field(btf, "ref", bpf_refcount_btf_id, 320, 0);
+		err = btf__add_field(btf, "ref", bpf_refcount_btf_id, 448, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::ref"))
 			return;
 	}
@@ -527,7 +527,7 @@ static void test_btf(void)
 		btf = init_btf();
 		if (!ASSERT_OK_PTR(btf, "init_btf"))
 			break;
-		id = btf__add_struct(btf, "foo", 36);
+		id = btf__add_struct(btf, "foo", 44);
 		if (!ASSERT_EQ(id, 5, "btf__add_struct foo"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
@@ -536,7 +536,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
-		err = btf__add_field(btf, "c", SPIN_LOCK, 256, 0);
+		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::c"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:foo:b", 5, 0);
@@ -553,7 +553,7 @@ static void test_btf(void)
 		btf = init_btf();
 		if (!ASSERT_OK_PTR(btf, "init_btf"))
 			break;
-		id = btf__add_struct(btf, "foo", 36);
+		id = btf__add_struct(btf, "foo", 44);
 		if (!ASSERT_EQ(id, 5, "btf__add_struct foo"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
@@ -562,13 +562,13 @@ static void test_btf(void)
 		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
-		err = btf__add_field(btf, "c", SPIN_LOCK, 256, 0);
+		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::c"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:bar:b", 5, 0);
 		if (!ASSERT_EQ(id, 6, "btf__add_decl_tag contains:bar:b"))
 			break;
-		id = btf__add_struct(btf, "bar", 36);
+		id = btf__add_struct(btf, "bar", 44);
 		if (!ASSERT_EQ(id, 7, "btf__add_struct bar"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
@@ -577,7 +577,7 @@ static void test_btf(void)
 		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::b"))
 			break;
-		err = btf__add_field(btf, "c", SPIN_LOCK, 256, 0);
+		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::c"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:foo:b", 7, 0);
@@ -594,19 +594,19 @@ static void test_btf(void)
 		btf = init_btf();
 		if (!ASSERT_OK_PTR(btf, "init_btf"))
 			break;
-		id = btf__add_struct(btf, "foo", 20);
+		id = btf__add_struct(btf, "foo", 28);
 		if (!ASSERT_EQ(id, 5, "btf__add_struct foo"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::a"))
 			break;
-		err = btf__add_field(btf, "b", SPIN_LOCK, 128, 0);
+		err = btf__add_field(btf, "b", SPIN_LOCK, 192, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:bar:a", 5, 0);
 		if (!ASSERT_EQ(id, 6, "btf__add_decl_tag contains:bar:a"))
 			break;
-		id = btf__add_struct(btf, "bar", 16);
+		id = btf__add_struct(btf, "bar", 24);
 		if (!ASSERT_EQ(id, 7, "btf__add_struct bar"))
 			break;
 		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
@@ -623,19 +623,19 @@ static void test_btf(void)
 		btf = init_btf();
 		if (!ASSERT_OK_PTR(btf, "init_btf"))
 			break;
-		id = btf__add_struct(btf, "foo", 20);
+		id = btf__add_struct(btf, "foo", 28);
 		if (!ASSERT_EQ(id, 5, "btf__add_struct foo"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::a"))
 			break;
-		err = btf__add_field(btf, "b", SPIN_LOCK, 128, 0);
+		err = btf__add_field(btf, "b", SPIN_LOCK, 192, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:bar:b", 5, 0);
 		if (!ASSERT_EQ(id, 6, "btf__add_decl_tag contains:bar:b"))
 			break;
-		id = btf__add_struct(btf, "bar", 36);
+		id = btf__add_struct(btf, "bar", 44);
 		if (!ASSERT_EQ(id, 7, "btf__add_struct bar"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
@@ -644,13 +644,13 @@ static void test_btf(void)
 		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::b"))
 			break;
-		err = btf__add_field(btf, "c", SPIN_LOCK, 256, 0);
+		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::c"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:baz:a", 7, 0);
 		if (!ASSERT_EQ(id, 8, "btf__add_decl_tag contains:baz:a"))
 			break;
-		id = btf__add_struct(btf, "baz", 16);
+		id = btf__add_struct(btf, "baz", 24);
 		if (!ASSERT_EQ(id, 9, "btf__add_struct baz"))
 			break;
 		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
@@ -667,7 +667,7 @@ static void test_btf(void)
 		btf = init_btf();
 		if (!ASSERT_OK_PTR(btf, "init_btf"))
 			break;
-		id = btf__add_struct(btf, "foo", 36);
+		id = btf__add_struct(btf, "foo", 44);
 		if (!ASSERT_EQ(id, 5, "btf__add_struct foo"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
@@ -676,13 +676,13 @@ static void test_btf(void)
 		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::b"))
 			break;
-		err = btf__add_field(btf, "c", SPIN_LOCK, 256, 0);
+		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
 		if (!ASSERT_OK(err, "btf__add_field foo::c"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:bar:b", 5, 0);
 		if (!ASSERT_EQ(id, 6, "btf__add_decl_tag contains:bar:b"))
 			break;
-		id = btf__add_struct(btf, "bar", 36);
+		id = btf__add_struct(btf, "bar", 44);
 		if (!ASSERT_EQ(id, 7, "btf__add_struct bar"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
@@ -691,13 +691,13 @@ static void test_btf(void)
 		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar:b"))
 			break;
-		err = btf__add_field(btf, "c", SPIN_LOCK, 256, 0);
+		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar:c"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:baz:a", 7, 0);
 		if (!ASSERT_EQ(id, 8, "btf__add_decl_tag contains:baz:a"))
 			break;
-		id = btf__add_struct(btf, "baz", 16);
+		id = btf__add_struct(btf, "baz", 24);
 		if (!ASSERT_EQ(id, 9, "btf__add_struct baz"))
 			break;
 		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);
@@ -726,7 +726,7 @@ static void test_btf(void)
 		id = btf__add_decl_tag(btf, "contains:bar:b", 5, 0);
 		if (!ASSERT_EQ(id, 6, "btf__add_decl_tag contains:bar:b"))
 			break;
-		id = btf__add_struct(btf, "bar", 36);
+		id = btf__add_struct(btf, "bar", 44);
 		if (!ASSERT_EQ(id, 7, "btf__add_struct bar"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
@@ -735,13 +735,13 @@ static void test_btf(void)
 		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::b"))
 			break;
-		err = btf__add_field(btf, "c", SPIN_LOCK, 256, 0);
+		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::c"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:baz:b", 7, 0);
 		if (!ASSERT_EQ(id, 8, "btf__add_decl_tag"))
 			break;
-		id = btf__add_struct(btf, "baz", 36);
+		id = btf__add_struct(btf, "baz", 44);
 		if (!ASSERT_EQ(id, 9, "btf__add_struct baz"))
 			break;
 		err = btf__add_field(btf, "a", LIST_HEAD, 0, 0);
@@ -750,13 +750,13 @@ static void test_btf(void)
 		err = btf__add_field(btf, "b", LIST_NODE, 128, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::b"))
 			break;
-		err = btf__add_field(btf, "c", SPIN_LOCK, 256, 0);
+		err = btf__add_field(btf, "c", SPIN_LOCK, 320, 0);
 		if (!ASSERT_OK(err, "btf__add_field bar::c"))
 			break;
 		id = btf__add_decl_tag(btf, "contains:bam:a", 9, 0);
 		if (!ASSERT_EQ(id, 10, "btf__add_decl_tag contains:bam:a"))
 			break;
-		id = btf__add_struct(btf, "bam", 16);
+		id = btf__add_struct(btf, "bam", 24);
 		if (!ASSERT_EQ(id, 11, "btf__add_struct bam"))
 			break;
 		err = btf__add_field(btf, "a", LIST_NODE, 0, 0);

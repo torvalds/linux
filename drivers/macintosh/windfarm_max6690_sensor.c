@@ -128,7 +128,7 @@ static struct i2c_driver wf_max6690_driver = {
 		.name		= "wf_max6690",
 		.of_match_table = wf_max6690_of_id,
 	},
-	.probe_new	= wf_max6690_probe,
+	.probe		= wf_max6690_probe,
 	.remove		= wf_max6690_remove,
 	.id_table	= wf_max6690_id,
 };

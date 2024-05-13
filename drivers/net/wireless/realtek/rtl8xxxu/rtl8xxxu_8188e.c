@@ -1794,7 +1794,8 @@ static void rtl8188e_arfb_refresh(struct rtl8xxxu_ra_info *ra)
 
 static void
 rtl8188e_update_rate_mask(struct rtl8xxxu_priv *priv,
-			  u32 ramask, u8 rateid, int sgi, int txbw_40mhz)
+			  u32 ramask, u8 rateid, int sgi, int txbw_40mhz,
+			  u8 macid)
 {
 	struct rtl8xxxu_ra_info *ra = &priv->ra_info;
 

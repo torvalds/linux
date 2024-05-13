@@ -141,7 +141,7 @@ static struct i2c_driver sy8106a_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= sy8106a_i2c_of_match,
 	},
-	.probe_new = sy8106a_i2c_probe,
+	.probe = sy8106a_i2c_probe,
 	.id_table = sy8106a_i2c_id,
 };
 

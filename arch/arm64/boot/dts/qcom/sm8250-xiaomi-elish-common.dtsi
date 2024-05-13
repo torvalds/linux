@@ -470,76 +470,6 @@
 	status = "okay";
 };
 
-&dsi0 {
-	vdda-supply = <&vreg_l9a_1p2>;
-	qcom,dual-dsi-mode;
-	qcom,sync-dual-dsi;
-	qcom,master-dsi;
-	status = "okay";
-
-	display_panel: panel@0 {
-		reg = <0>;
-		vddio-supply = <&vreg_l14a_1p88>;
-		reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
-		backlight = <&backlight>;
-
-		status = "disabled";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				panel_in_0: endpoint {
-					remote-endpoint = <&dsi0_out>;
-				};
-			};
-
-			port@1{
-				reg = <1>;
-
-				panel_in_1: endpoint {
-					remote-endpoint = <&dsi1_out>;
-				};
-			};
-
-		};
-	};
-};
-
-&dsi0_out {
-	data-lanes = <0 1 2>;
-	remote-endpoint = <&panel_in_0>;
-};
-
-&dsi0_phy {
-	vdds-supply = <&vreg_l5a_0p88>;
-	phy-type = <PHY_TYPE_CPHY>;
-	status = "okay";
-};
-
-&dsi1 {
-	vdda-supply = <&vreg_l9a_1p2>;
-	qcom,dual-dsi-mode;
-	qcom,sync-dual-dsi;
-	/* DSI1 is slave, so use DSI0 clocks */
-	assigned-clock-parents = <&dsi0_phy 0>, <&dsi0_phy 1>;
-	status = "okay";
-};
-
-&dsi1_out {
-	data-lanes = <0 1 2>;
-	remote-endpoint = <&panel_in_1>;
-};
-
-&dsi1_phy {
-	vdds-supply = <&vreg_l5a_0p88>;
-	phy-type = <PHY_TYPE_CPHY>;
-	status = "okay";
-};
-
 &gmu {
 	status = "okay";
 };
@@ -605,6 +535,75 @@
 };
 
 &mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vreg_l9a_1p2>;
+	qcom,dual-dsi-mode;
+	qcom,sync-dual-dsi;
+	qcom,master-dsi;
+	status = "okay";
+
+	display_panel: panel@0 {
+		reg = <0>;
+		vddio-supply = <&vreg_l14a_1p88>;
+		reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
+		backlight = <&backlight>;
+
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				panel_in_0: endpoint {
+					remote-endpoint = <&mdss_dsi0_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				panel_in_1: endpoint {
+					remote-endpoint = <&mdss_dsi1_out>;
+				};
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2>;
+	remote-endpoint = <&panel_in_0>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vreg_l5a_0p88>;
+	phy-type = <PHY_TYPE_CPHY>;
+	status = "okay";
+};
+
+&mdss_dsi1 {
+	vdda-supply = <&vreg_l9a_1p2>;
+	qcom,dual-dsi-mode;
+	qcom,sync-dual-dsi;
+	/* DSI1 is slave, so use DSI0 clocks */
+	assigned-clock-parents = <&mdss_dsi0_phy 0>, <&mdss_dsi0_phy 1>;
+	status = "okay";
+};
+
+&mdss_dsi1_out {
+	data-lanes = <0 1 2>;
+	remote-endpoint = <&panel_in_1>;
+};
+
+&mdss_dsi1_phy {
+	vdds-supply = <&vreg_l5a_0p88>;
+	phy-type = <PHY_TYPE_CPHY>;
 	status = "okay";
 };
 

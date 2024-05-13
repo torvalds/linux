@@ -500,8 +500,8 @@ static int tc_pllupdate(struct tc_data *tc, unsigned int pllctrl)
 	if (ret)
 		return ret;
 
-	/* Wait for PLL to lock: up to 2.09 ms, depending on refclk */
-	usleep_range(3000, 6000);
+	/* Wait for PLL to lock: up to 7.5 ms, depending on refclk */
+	usleep_range(15000, 20000);
 
 	return 0;
 }
@@ -817,7 +817,7 @@ static int tc_set_common_video_mode(struct tc_data *tc,
 	 * sync signals
 	 */
 	ret = regmap_write(tc->regmap, VPCTRL0,
-			   FIELD_PREP(VSDELAY, 0) |
+			   FIELD_PREP(VSDELAY, right_margin + 10) |
 			   OPXLFMT_RGB888 | FRMSYNC_DISABLED | MSF_DISABLED);
 	if (ret)
 		return ret;
@@ -1781,7 +1781,200 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 
 static bool tc_readable_reg(struct device *dev, unsigned int reg)
 {
-	return reg != SYSCTRL;
+	switch (reg) {
+	/* DSI D-PHY Layer */
+	case 0x004:
+	case 0x020:
+	case 0x024:
+	case 0x028:
+	case 0x02c:
+	case 0x030:
+	case 0x038:
+	case 0x040:
+	case 0x044:
+	case 0x048:
+	case 0x04c:
+	case 0x050:
+	case 0x054:
+	/* DSI PPI Layer */
+	case PPI_STARTPPI:
+	case 0x108:
+	case 0x110:
+	case PPI_LPTXTIMECNT:
+	case PPI_LANEENABLE:
+	case PPI_TX_RX_TA:
+	case 0x140:
+	case PPI_D0S_ATMR:
+	case PPI_D1S_ATMR:
+	case 0x14c:
+	case 0x150:
+	case PPI_D0S_CLRSIPOCOUNT:
+	case PPI_D1S_CLRSIPOCOUNT:
+	case PPI_D2S_CLRSIPOCOUNT:
+	case PPI_D3S_CLRSIPOCOUNT:
+	case 0x180:
+	case 0x184:
+	case 0x188:
+	case 0x18c:
+	case 0x190:
+	case 0x1a0:
+	case 0x1a4:
+	case 0x1a8:
+	case 0x1ac:
+	case 0x1b0:
+	case 0x1c0:
+	case 0x1c4:
+	case 0x1c8:
+	case 0x1cc:
+	case 0x1d0:
+	case 0x1e0:
+	case 0x1e4:
+	case 0x1f0:
+	case 0x1f4:
+	/* DSI Protocol Layer */
+	case DSI_STARTDSI:
+	case 0x208:
+	case DSI_LANEENABLE:
+	case 0x214:
+	case 0x218:
+	case 0x220:
+	case 0x224:
+	case 0x228:
+	case 0x230:
+	/* DSI General */
+	case 0x300:
+	/* DSI Application Layer */
+	case 0x400:
+	case 0x404:
+	/* DPI */
+	case DPIPXLFMT:
+	/* Parallel Output */
+	case POCTRL:
+	/* Video Path0 Configuration */
+	case VPCTRL0:
+	case HTIM01:
+	case HTIM02:
+	case VTIM01:
+	case VTIM02:
+	case VFUEN0:
+	/* System */
+	case TC_IDREG:
+	case 0x504:
+	case SYSSTAT:
+	case SYSRSTENB:
+	case SYSCTRL:
+	/* I2C */
+	case 0x520:
+	/* GPIO */
+	case GPIOM:
+	case GPIOC:
+	case GPIOO:
+	case GPIOI:
+	/* Interrupt */
+	case INTCTL_G:
+	case INTSTS_G:
+	case 0x570:
+	case 0x574:
+	case INT_GP0_LCNT:
+	case INT_GP1_LCNT:
+	/* DisplayPort Control */
+	case DP0CTL:
+	/* DisplayPort Clock */
+	case DP0_VIDMNGEN0:
+	case DP0_VIDMNGEN1:
+	case DP0_VMNGENSTATUS:
+	case 0x628:
+	case 0x62c:
+	case 0x630:
+	/* DisplayPort Main Channel */
+	case DP0_SECSAMPLE:
+	case DP0_VIDSYNCDELAY:
+	case DP0_TOTALVAL:
+	case DP0_STARTVAL:
+	case DP0_ACTIVEVAL:
+	case DP0_SYNCVAL:
+	case DP0_MISC:
+	/* DisplayPort Aux Channel */
+	case DP0_AUXCFG0:
+	case DP0_AUXCFG1:
+	case DP0_AUXADDR:
+	case 0x66c:
+	case 0x670:
+	case 0x674:
+	case 0x678:
+	case 0x67c:
+	case 0x680:
+	case 0x684:
+	case 0x688:
+	case DP0_AUXSTATUS:
+	case DP0_AUXI2CADR:
+	/* DisplayPort Link Training */
+	case DP0_SRCCTRL:
+	case DP0_LTSTAT:
+	case DP0_SNKLTCHGREQ:
+	case DP0_LTLOOPCTRL:
+	case DP0_SNKLTCTRL:
+	case 0x6e8:
+	case 0x6ec:
+	case 0x6f0:
+	case 0x6f4:
+	/* DisplayPort Audio */
+	case 0x700:
+	case 0x704:
+	case 0x708:
+	case 0x70c:
+	case 0x710:
+	case 0x714:
+	case 0x718:
+	case 0x71c:
+	case 0x720:
+	/* DisplayPort Source Control */
+	case DP1_SRCCTRL:
+	/* DisplayPort PHY */
+	case DP_PHY_CTRL:
+	case 0x810:
+	case 0x814:
+	case 0x820:
+	case 0x840:
+	/* I2S */
+	case 0x880:
+	case 0x888:
+	case 0x88c:
+	case 0x890:
+	case 0x894:
+	case 0x898:
+	case 0x89c:
+	case 0x8a0:
+	case 0x8a4:
+	case 0x8a8:
+	case 0x8ac:
+	case 0x8b0:
+	case 0x8b4:
+	/* PLL */
+	case DP0_PLLCTRL:
+	case DP1_PLLCTRL:
+	case PXL_PLLCTRL:
+	case PXL_PLLPARAM:
+	case SYS_PLLPARAM:
+	/* HDCP */
+	case 0x980:
+	case 0x984:
+	case 0x988:
+	case 0x98c:
+	case 0x990:
+	case 0x994:
+	case 0x998:
+	case 0x99c:
+	case 0x9a0:
+	case 0x9a4:
+	case 0x9a8:
+	case 0x9ac:
+	/* Debug */
+	case TSTCTL:
+	case PLL_DBG:
+		return true;
+	}
+	return false;
 }
 
 static const struct regmap_range tc_volatile_ranges[] = {
@@ -1890,7 +2083,7 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 	if (dsi_lanes < 0)
 		return dsi_lanes;
 
-	dsi = mipi_dsi_device_register_full(host, &info);
+	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
 	if (IS_ERR(dsi))
 		return dev_err_probe(dev, PTR_ERR(dsi),
 				     "failed to create dsi device\n");
@@ -1901,7 +2094,7 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "failed to attach dsi to host: %d\n", ret);
 		return ret;
@@ -2022,13 +2215,6 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 	return -EINVAL;
 }
 
-static void tc_clk_disable(void *data)
-{
-	struct clk *refclk = data;
-
-	clk_disable_unprepare(refclk);
-}
-
 static int tc_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -2045,20 +2231,10 @@ static int tc_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	tc->refclk = devm_clk_get(dev, "ref");
-	if (IS_ERR(tc->refclk)) {
-		ret = PTR_ERR(tc->refclk);
-		dev_err(dev, "Failed to get refclk: %d\n", ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(tc->refclk);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(dev, tc_clk_disable, tc->refclk);
-	if (ret)
-		return ret;
+	tc->refclk = devm_clk_get_enabled(dev, "ref");
+	if (IS_ERR(tc->refclk))
+		return dev_err_probe(dev, PTR_ERR(tc->refclk),
+				     "Failed to get and enable the ref clk\n");
 
 	/* tRSTW = 100 cycles , at 13 MHz that is ~7.69 us */
 	usleep_range(10, 15);
@@ -2209,7 +2385,7 @@ static struct i2c_driver tc358767_driver = {
 		.of_match_table = tc358767_of_ids,
 	},
 	.id_table = tc358767_i2c_ids,
-	.probe_new = tc_probe,
+	.probe = tc_probe,
 	.remove	= tc_remove,
 };
 module_i2c_driver(tc358767_driver);

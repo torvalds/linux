@@ -47,7 +47,8 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 
 struct bnxt_qplib_drv_modes {
 	u8	wqe_mode;
-	/* Other modes to follow here */
+	bool db_push;
+	bool dbr_pacing;
 };
 
 struct bnxt_qplib_chip_ctx {
@@ -55,8 +56,24 @@ struct bnxt_qplib_chip_ctx {
 	u8	chip_rev;
 	u8	chip_metal;
 	u16	hw_stats_size;
+	u16	hwrm_cmd_max_timeout;
 	struct bnxt_qplib_drv_modes modes;
+	u64	hwrm_intf_ver;
+	u32     dbr_stat_db_fifo;
 };
+
+struct bnxt_qplib_db_pacing_data {
+	u32 do_pacing;
+	u32 pacing_th;
+	u32 alarm_th;
+	u32 fifo_max_depth;
+	u32 fifo_room_mask;
+	u32 fifo_room_shift;
+	u32 grc_reg_offset;
+};
+
+#define BNXT_QPLIB_DBR_PF_DB_OFFSET     0x10000
+#define BNXT_QPLIB_DBR_VF_DB_OFFSET     0x4000
 
 #define PTR_CNT_PER_PG		(PAGE_SIZE / sizeof(void *))
 #define PTR_MAX_IDX_PER_PG	(PTR_CNT_PER_PG - 1)
@@ -109,6 +126,7 @@ enum bnxt_qplib_hwrm_pg_size {
 struct bnxt_qplib_reg_desc {
 	u8		bar_id;
 	resource_size_t	bar_base;
+	unsigned long	offset;
 	void __iomem	*bar_reg;
 	size_t		len;
 };
@@ -185,18 +203,27 @@ struct bnxt_qplib_sgid_tbl {
 	u8				*vlan;
 };
 
+enum {
+	BNXT_QPLIB_DPI_TYPE_KERNEL      = 0,
+	BNXT_QPLIB_DPI_TYPE_UC          = 1,
+	BNXT_QPLIB_DPI_TYPE_WC          = 2
+};
+
 struct bnxt_qplib_dpi {
 	u32				dpi;
+	u32				bit;
 	void __iomem			*dbr;
 	u64				umdbr;
+	u8				type;
 };
 
 struct bnxt_qplib_dpi_tbl {
 	void				**app_tbl;
 	unsigned long			*tbl;
 	u16				max;
-	void __iomem			*dbr_bar_reg_iomem;
-	u64				unmapped_dbr;
+	struct bnxt_qplib_reg_desc	ucreg; /* Hold entire DB bar. */
+	struct bnxt_qplib_reg_desc	wcreg;
+	void __iomem			*priv_db;
 };
 
 struct bnxt_qplib_stats {
@@ -241,7 +268,6 @@ struct bnxt_qplib_ctx {
 	struct bnxt_qplib_tqm_ctx	tqm_ctx;
 	struct bnxt_qplib_stats		stats;
 	struct bnxt_qplib_vf_res	vf_res;
-	u64				hwrm_intf_ver;
 };
 
 struct bnxt_qplib_res {
@@ -251,10 +277,15 @@ struct bnxt_qplib_res {
 	struct net_device		*netdev;
 	struct bnxt_qplib_rcfw		*rcfw;
 	struct bnxt_qplib_pd_tbl	pd_tbl;
+	/* To protect the pd table bit map */
+	struct mutex			pd_tbl_lock;
 	struct bnxt_qplib_sgid_tbl	sgid_tbl;
 	struct bnxt_qplib_dpi_tbl	dpi_tbl;
+	/* To protect the dpi table bit map */
+	struct mutex                    dpi_tbl_lock;
 	bool				prio;
 	bool                            is_vf;
+	struct bnxt_qplib_db_pacing_data *pacing_data;
 };
 
 static inline bool bnxt_qplib_is_chip_gen_p5(struct bnxt_qplib_chip_ctx *cctx)
@@ -339,16 +370,15 @@ void bnxt_qplib_free_hwq(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_hwq *hwq);
 int bnxt_qplib_alloc_init_hwq(struct bnxt_qplib_hwq *hwq,
 			      struct bnxt_qplib_hwq_attr *hwq_attr);
-int bnxt_qplib_alloc_pd(struct bnxt_qplib_pd_tbl *pd_tbl,
+int bnxt_qplib_alloc_pd(struct bnxt_qplib_res *res,
 			struct bnxt_qplib_pd *pd);
 int bnxt_qplib_dealloc_pd(struct bnxt_qplib_res *res,
 			  struct bnxt_qplib_pd_tbl *pd_tbl,
 			  struct bnxt_qplib_pd *pd);
-int bnxt_qplib_alloc_dpi(struct bnxt_qplib_dpi_tbl *dpit,
-			 struct bnxt_qplib_dpi     *dpi,
-			 void                      *app);
+int bnxt_qplib_alloc_dpi(struct bnxt_qplib_res *res,
+			 struct bnxt_qplib_dpi *dpi,
+			 void *app, u8 type);
 int bnxt_qplib_dealloc_dpi(struct bnxt_qplib_res *res,
-			   struct bnxt_qplib_dpi_tbl *dpi_tbl,
 			   struct bnxt_qplib_dpi *dpi);
 void bnxt_qplib_cleanup_res(struct bnxt_qplib_res *res);
 int bnxt_qplib_init_res(struct bnxt_qplib_res *res);
@@ -361,6 +391,9 @@ void bnxt_qplib_free_ctx(struct bnxt_qplib_res *res,
 int bnxt_qplib_alloc_ctx(struct bnxt_qplib_res *res,
 			 struct bnxt_qplib_ctx *ctx,
 			 bool virt_fn, bool is_p5);
+int bnxt_qplib_map_db_bar(struct bnxt_qplib_res *res);
+void bnxt_qplib_unmap_db_bar(struct bnxt_qplib_res *res);
+
 int bnxt_qplib_determine_atomics(struct pci_dev *dev);
 
 static inline void bnxt_qplib_hwq_incr_prod(struct bnxt_qplib_hwq *hwq, u32 cnt)
@@ -449,4 +482,10 @@ static inline bool _is_ext_stats_supported(u16 dev_cap_flags)
 	return dev_cap_flags &
 		CREQ_QUERY_FUNC_RESP_SB_EXT_STATS;
 }
+
+static inline u8 bnxt_qplib_dbr_pacing_en(struct bnxt_qplib_chip_ctx *cctx)
+{
+	return cctx->modes.dbr_pacing;
+}
+
 #endif /* __BNXT_QPLIB_RES_H__ */

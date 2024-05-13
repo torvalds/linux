@@ -76,7 +76,7 @@ struct dw_spi_mscc {
  */
 static void dw_spi_mscc_set_cs(struct spi_device *spi, bool enable)
 {
-	struct dw_spi *dws = spi_master_get_devdata(spi->master);
+	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 	struct dw_spi_mmio *dwsmmio = container_of(dws, struct dw_spi_mmio, dws);
 	struct dw_spi_mscc *dwsmscc = dwsmmio->priv;
 	u32 cs = spi_get_chipselect(spi, 0);
@@ -149,7 +149,7 @@ static int dw_spi_mscc_jaguar2_init(struct platform_device *pdev,
  */
 static void dw_spi_sparx5_set_cs(struct spi_device *spi, bool enable)
 {
-	struct dw_spi *dws = spi_master_get_devdata(spi->master);
+	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 	struct dw_spi_mmio *dwsmmio = container_of(dws, struct dw_spi_mmio, dws);
 	struct dw_spi_mscc *dwsmscc = dwsmmio->priv;
 	u8 cs = spi_get_chipselect(spi, 0);
@@ -236,6 +236,24 @@ static int dw_spi_intel_init(struct platform_device *pdev,
 	return 0;
 }
 
+/*
+ * DMA-based mem ops are not configured for this device and are not tested.
+ */
+static int dw_spi_mountevans_imc_init(struct platform_device *pdev,
+				      struct dw_spi_mmio *dwsmmio)
+{
+	/*
+	 * The Intel Mount Evans SoC's Integrated Management Complex DW
+	 * apb_ssi_v4.02a controller has an errata where a full TX FIFO can
+	 * result in data corruption. The suggested workaround is to never
+	 * completely fill the FIFO. The TX FIFO has a size of 32 so the
+	 * fifo_len is set to 31.
+	 */
+	dwsmmio->dws.fifo_len = 31;
+
+	return 0;
+}
+
 static int dw_spi_canaan_k210_init(struct platform_device *pdev,
 				   struct dw_spi_mmio *dwsmmio)
 {
@@ -259,7 +277,7 @@ static void dw_spi_elba_override_cs(struct regmap *syscon, int cs, int enable)
 
 static void dw_spi_elba_set_cs(struct spi_device *spi, bool enable)
 {
-	struct dw_spi *dws = spi_master_get_devdata(spi->master);
+	struct dw_spi *dws = spi_controller_get_devdata(spi->controller);
 	struct dw_spi_mmio *dwsmmio = container_of(dws, struct dw_spi_mmio, dws);
 	struct regmap *syscon = dwsmmio->priv;
 	u8 cs;
@@ -351,7 +369,9 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
 
-	device_property_read_u32(&pdev->dev, "reg-io-width", &dws->reg_io_width);
+	if (device_property_read_u32(&pdev->dev, "reg-io-width",
+				     &dws->reg_io_width))
+		dws->reg_io_width = 4;
 
 	num_cs = 4;
 
@@ -405,6 +425,10 @@ static const struct of_device_id dw_spi_mmio_of_match[] = {
 	{ .compatible = "snps,dwc-ssi-1.01a", .data = dw_spi_hssi_init},
 	{ .compatible = "intel,keembay-ssi", .data = dw_spi_intel_init},
 	{ .compatible = "intel,thunderbay-ssi", .data = dw_spi_intel_init},
+	{
+		.compatible = "intel,mountevans-imc-ssi",
+		.data = dw_spi_mountevans_imc_init,
+	},
 	{ .compatible = "microchip,sparx5-spi", dw_spi_mscc_sparx5_init},
 	{ .compatible = "canaan,k210-spi", dw_spi_canaan_k210_init},
 	{ .compatible = "amd,pensando-elba-spi", .data = dw_spi_elba_init},

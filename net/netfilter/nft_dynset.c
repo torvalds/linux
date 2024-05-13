@@ -148,7 +148,7 @@ static const struct nla_policy nft_dynset_policy[NFTA_DYNSET_MAX + 1] = {
 	[NFTA_DYNSET_SET_NAME]	= { .type = NLA_STRING,
 				    .len = NFT_SET_MAXNAMELEN - 1 },
 	[NFTA_DYNSET_SET_ID]	= { .type = NLA_U32 },
-	[NFTA_DYNSET_OP]	= { .type = NLA_U32 },
+	[NFTA_DYNSET_OP]	= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_DYNSET_SREG_KEY]	= { .type = NLA_U32 },
 	[NFTA_DYNSET_SREG_DATA]	= { .type = NLA_U32 },
 	[NFTA_DYNSET_TIMEOUT]	= { .type = NLA_U64 },
@@ -190,6 +190,9 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 				    tb[NFTA_DYNSET_SET_ID], genmask);
 	if (IS_ERR(set))
 		return PTR_ERR(set);
+
+	if (set->flags & NFT_SET_OBJECT)
+		return -EOPNOTSUPP;
 
 	if (set->ops->update == NULL)
 		return -EOPNOTSUPP;

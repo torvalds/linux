@@ -25,7 +25,7 @@
 				&range 0 7 0
 				&range 8 116 0>;
 
-			pmu_pmx_func: pmu_pmx_func {
+			pmu_pmx_func: pmu-pins {
 				pinctrl-single,pins = <
 					0x008 MUX_M1 /* PMU1_SSI */
 					0x00c MUX_M1 /* PMU2_SSI */
@@ -34,19 +34,19 @@
 				>;
 			};
 
-			csi0_pwd_n_pmx_func: csi0_pwd_n_pmx_func {
+			csi0_pwd_n_pmx_func: csi0-pwd-n-pins {
 				pinctrl-single,pins = <
 					0x044 MUX_M0 /* CSI0_PWD_N */
 				>;
 			};
 
-			csi1_pwd_n_pmx_func: csi1_pwd_n_pmx_func {
+			csi1_pwd_n_pmx_func: csi1-pwd-n-pins {
 				pinctrl-single,pins = <
 					0x04c MUX_M0 /* CSI1_PWD_N */
 				>;
 			};
 
-			isp0_pmx_func: isp0_pmx_func {
+			isp0_pmx_func: isp0-pins {
 				pinctrl-single,pins = <
 					0x058 MUX_M1 /* ISP_CLK0 */
 					0x064 MUX_M1 /* ISP_SCL0 */
@@ -54,7 +54,7 @@
 				>;
 			};
 
-			isp1_pmx_func: isp1_pmx_func {
+			isp1_pmx_func: isp1-pins {
 				pinctrl-single,pins = <
 					0x05c MUX_M1 /* ISP_CLK1 */
 					0x06c MUX_M1 /* ISP_SCL1 */
@@ -62,47 +62,47 @@
 				>;
 			};
 
-			pwr_key_pmx_func: pwr_key_pmx_func {
+			pwr_key_pmx_func: pwr-key-pins {
 				pinctrl-single,pins = <
 					0x080 MUX_M0 /* GPIO_034 */
 				>;
 			};
 
-			i2c3_pmx_func: i2c3_pmx_func {
+			i2c3_pmx_func: i2c3-pins {
 				pinctrl-single,pins = <
 					0x02c MUX_M1 /* I2C3_SCL */
 					0x030 MUX_M1 /* I2C3_SDA */
 				>;
 			};
 
-			i2c4_pmx_func: i2c4_pmx_func {
+			i2c4_pmx_func: i2c4-pins {
 				pinctrl-single,pins = <
 					0x090 MUX_M1 /* I2C4_SCL */
 					0x094 MUX_M1 /* I2C4_SDA */
 				>;
 			};
 
-			pcie_perstn_pmx_func: pcie_perstn_pmx_func {
+			pcie_perstn_pmx_func: pcie-perstn-pins {
 				pinctrl-single,pins = <
 					0x15c MUX_M1 /* PCIE_PERST_N */
 				>;
 			};
 
-			usbhub5734_pmx_func: usbhub5734_pmx_func {
+			usbhub5734_pmx_func: usbhub5734-pins {
 				pinctrl-single,pins = <
 					0x11c MUX_M0 /* GPIO_073 */
 					0x120 MUX_M0 /* GPIO_074 */
 				>;
 			};
 
-			uart0_pmx_func: uart0_pmx_func {
+			uart0_pmx_func: uart0-pins {
 				pinctrl-single,pins = <
 					0x0cc MUX_M2 /* UART0_RXD */
 					0x0d0 MUX_M2 /* UART0_TXD */
 				>;
 			};
 
-			uart1_pmx_func: uart1_pmx_func {
+			uart1_pmx_func: uart1-pins {
 				pinctrl-single,pins = <
 					0x0b0 MUX_M2 /* UART1_CTS_N */
 					0x0b4 MUX_M2 /* UART1_RTS_N */
@@ -111,7 +111,7 @@
 				>;
 			};
 
-			uart2_pmx_func: uart2_pmx_func {
+			uart2_pmx_func: uart2-pins {
 				pinctrl-single,pins = <
 					0x0bc MUX_M2 /* UART2_CTS_N */
 					0x0c0 MUX_M2 /* UART2_RTS_N */
@@ -120,7 +120,7 @@
 				>;
 			};
 
-			uart3_pmx_func: uart3_pmx_func {
+			uart3_pmx_func: uart3-pins {
 				pinctrl-single,pins = <
 					0x0dc MUX_M1 /* UART3_CTS_N */
 					0x0e0 MUX_M1 /* UART3_RTS_N */
@@ -129,7 +129,7 @@
 				>;
 			};
 
-			uart4_pmx_func: uart4_pmx_func {
+			uart4_pmx_func: uart4-pins {
 				pinctrl-single,pins = <
 					0x0ec MUX_M1 /* UART4_CTS_N */
 					0x0f0 MUX_M1 /* UART4_RTS_N */
@@ -138,7 +138,7 @@
 				>;
 			};
 
-			uart5_pmx_func: uart5_pmx_func {
+			uart5_pmx_func: uart5-pins {
 				pinctrl-single,pins = <
 					0x0c4 MUX_M3 /* UART5_CTS_N */
 					0x0c8 MUX_M3 /* UART5_RTS_N */
@@ -147,7 +147,7 @@
 				>;
 			};
 
-			uart6_pmx_func: uart6_pmx_func {
+			uart6_pmx_func: uart6-pins {
 				pinctrl-single,pins = <
 					0x0cc MUX_M1 /* UART6_CTS_N */
 					0x0d0 MUX_M1 /* UART6_RTS_N */
@@ -156,13 +156,13 @@
 				>;
 			};
 
-			cam0_rst_pmx_func: cam0_rst_pmx_func {
+			cam0_rst_pmx_func: cam0-rst-pins {
 				pinctrl-single,pins = <
 					0x0c8 MUX_M0 /* CAM0_RST */
 				>;
 			};
 
-			cam1_rst_pmx_func: cam1_rst_pmx_func {
+			cam1_rst_pmx_func: cam1-rst-pins {
 				pinctrl-single,pins = <
 					0x124 MUX_M0 /* CAM1_RST */
 				>;
@@ -180,7 +180,7 @@
 			/* pin base, nr pins & gpio function */
 			pinctrl-single,gpio-range = <&range 0 6 0>;
 
-			sd_pmx_func: sd_pmx_func {
+			sd_pmx_func: sd-pins {
 				pinctrl-single,pins = <
 					0x000 MUX_M1 /* SD_CLK */
 					0x004 MUX_M1 /* SD_CMD */
@@ -203,14 +203,14 @@
 			/* pin base, nr pins & gpio function */
 			pinctrl-single,gpio-range = <&range 0 12 0>;
 
-			ufs_pmx_func: ufs_pmx_func {
+			ufs_pmx_func: ufs-pins {
 				pinctrl-single,pins = <
 					0x000 MUX_M1 /* UFS_REF_CLK */
 					0x004 MUX_M1 /* UFS_RST_N */
 				>;
 			};
 
-			spi3_pmx_func: spi3_pmx_func {
+			spi3_pmx_func: spi3-pins {
 				pinctrl-single,pins = <
 					0x008 MUX_M1 /* SPI3_CLK */
 					0x00c MUX_M1 /* SPI3_DI */
@@ -231,7 +231,7 @@
 			/* pin base, nr pins & gpio function */
 			pinctrl-single,gpio-range = <&range 0 6 0>;
 
-			sdio_pmx_func: sdio_pmx_func {
+			sdio_pmx_func: sdio-pins {
 				pinctrl-single,pins = <
 					0x000 MUX_M1 /* SDIO_CLK */
 					0x004 MUX_M1 /* SDIO_CMD */
@@ -254,7 +254,7 @@
 			/* pin base in node, nr pins & gpio function */
 			pinctrl-single,gpio-range = <&range 0 42 0>;
 
-			i2s2_pmx_func: i2s2_pmx_func {
+			i2s2_pmx_func: i2s2-pins {
 				pinctrl-single,pins = <
 					0x044 MUX_M1 /* I2S2_DI */
 					0x048 MUX_M1 /* I2S2_DO */
@@ -263,42 +263,42 @@
 				>;
 			};
 
-			slimbus_pmx_func: slimbus_pmx_func {
+			slimbus_pmx_func: slimbus-pins {
 				pinctrl-single,pins = <
 					0x02c MUX_M1 /* SLIMBUS_CLK */
 					0x030 MUX_M1 /* SLIMBUS_DATA */
 				>;
 			};
 
-			i2c0_pmx_func: i2c0_pmx_func {
+			i2c0_pmx_func: i2c0-pins {
 				pinctrl-single,pins = <
 					0x014 MUX_M1 /* I2C0_SCL */
 					0x018 MUX_M1 /* I2C0_SDA */
 				>;
 			};
 
-			i2c1_pmx_func: i2c1_pmx_func {
+			i2c1_pmx_func: i2c1-pins {
 				pinctrl-single,pins = <
 					0x01c MUX_M1 /* I2C1_SCL */
 					0x020 MUX_M1 /* I2C1_SDA */
 				>;
 			};
 
-			i2c7_pmx_func: i2c7_pmx_func {
+			i2c7_pmx_func: i2c7-pins {
 				pinctrl-single,pins = <
 					0x024 MUX_M3 /* I2C7_SCL */
 					0x028 MUX_M3 /* I2C7_SDA */
 				>;
 			};
 
-			pcie_pmx_func: pcie_pmx_func {
+			pcie_pmx_func: pcie-pins {
 				pinctrl-single,pins = <
 					0x084 MUX_M1 /* PCIE_CLKREQ_N */
 					0x088 MUX_M1 /* PCIE_WAKE_N */
 				>;
 			};
 
-			spi2_pmx_func: spi2_pmx_func {
+			spi2_pmx_func: spi2-pins {
 				pinctrl-single,pins = <
 					0x08c MUX_M1 /* SPI2_CLK */
 					0x090 MUX_M1 /* SPI2_DI */
@@ -307,7 +307,7 @@
 				>;
 			};
 
-			i2s0_pmx_func: i2s0_pmx_func {
+			i2s0_pmx_func: i2s0-pins {
 				pinctrl-single,pins = <
 					0x034 MUX_M1 /* I2S0_DI */
 					0x038 MUX_M1 /* I2S0_DO */
@@ -323,7 +323,7 @@
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <0x20>;
 
-			pmu_cfg_func: pmu_cfg_func {
+			pmu_cfg_func: pmu-cfg-pins {
 				pinctrl-single,pins = <
 					0x010 0x0 /* PMU1_SSI */
 					0x014 0x0 /* PMU2_SSI */
@@ -347,7 +347,7 @@
 				>;
 			};
 
-			i2c3_cfg_func: i2c3_cfg_func {
+			i2c3_cfg_func: i2c3-cfg-pins {
 				pinctrl-single,pins = <
 					0x038 0x0 /* I2C3_SCL */
 					0x03c 0x0 /* I2C3_SDA */
@@ -369,7 +369,7 @@
 				>;
 			};
 
-			csi0_pwd_n_cfg_func: csi0_pwd_n_cfg_func {
+			csi0_pwd_n_cfg_func: csi0-pwd-n-cfg-pins {
 				pinctrl-single,pins = <
 					0x050 0x0 /* CSI0_PWD_N */
 				>;
@@ -390,7 +390,7 @@
 				>;
 			};
 
-			csi1_pwd_n_cfg_func: csi1_pwd_n_cfg_func {
+			csi1_pwd_n_cfg_func: csi1-pwd-n-cfg-pins {
 				pinctrl-single,pins = <
 					0x058 0x0 /* CSI1_PWD_N */
 				>;
@@ -411,7 +411,7 @@
 				>;
 			};
 
-			isp0_cfg_func: isp0_cfg_func {
+			isp0_cfg_func: isp0-cfg-pins {
 				pinctrl-single,pins = <
 					0x064 0x0 /* ISP_CLK0 */
 					0x070 0x0 /* ISP_SCL0 */
@@ -433,7 +433,7 @@
 					DRIVE7_04MA DRIVE6_MASK>;
 			};
 
-			isp1_cfg_func: isp1_cfg_func {
+			isp1_cfg_func: isp1-cfg-pins {
 				pinctrl-single,pins = <
 					0x068 0x0 /* ISP_CLK1 */
 					0x078 0x0 /* ISP_SCL1 */
@@ -456,7 +456,7 @@
 				>;
 			};
 
-			pwr_key_cfg_func: pwr_key_cfg_func {
+			pwr_key_cfg_func: pwr-key-cfg-pins {
 				pinctrl-single,pins = <
 					0x08c 0x0 /* GPIO_034 */
 				>;
@@ -477,7 +477,7 @@
 				>;
 			};
 
-			uart1_cfg_func: uart1_cfg_func {
+			uart1_cfg_func: uart1-cfg-pins {
 				pinctrl-single,pins = <
 					0x0b4 0x0 /* UART1_RXD */
 					0x0b8 0x0 /* UART1_TXD */
@@ -501,7 +501,7 @@
 				>;
 			};
 
-			uart2_cfg_func: uart2_cfg_func {
+			uart2_cfg_func: uart2-cfg-pins {
 				pinctrl-single,pins = <
 					0x0c8 0x0 /* UART2_CTS_N */
 					0x0cc 0x0 /* UART2_RTS_N */
@@ -525,7 +525,7 @@
 				>;
 			};
 
-			uart5_cfg_func: uart5_cfg_func {
+			uart5_cfg_func: uart5-cfg-pins {
 				pinctrl-single,pins = <
 					0x0c8 0x0 /* UART5_RXD */
 					0x0cc 0x0 /* UART5_TXD */
@@ -549,7 +549,7 @@
 				>;
 			};
 
-			cam0_rst_cfg_func: cam0_rst_cfg_func {
+			cam0_rst_cfg_func: cam0-rst-cfg-pins {
 				pinctrl-single,pins = <
 					0x0d4 0x0 /* CAM0_RST */
 				>;
@@ -570,7 +570,7 @@
 				>;
 			};
 
-			uart0_cfg_func: uart0_cfg_func {
+			uart0_cfg_func: uart0-cfg-pins {
 				pinctrl-single,pins = <
 					0x0d8 0x0 /* UART0_RXD */
 					0x0dc 0x0 /* UART0_TXD */
@@ -592,7 +592,7 @@
 				>;
 			};
 
-			uart6_cfg_func: uart6_cfg_func {
+			uart6_cfg_func: uart6-cfg-pins {
 				pinctrl-single,pins = <
 					0x0d8 0x0 /* UART6_CTS_N */
 					0x0dc 0x0 /* UART6_RTS_N */
@@ -616,7 +616,7 @@
 				>;
 			};
 
-			uart3_cfg_func: uart3_cfg_func {
+			uart3_cfg_func: uart3-cfg-pins {
 				pinctrl-single,pins = <
 					0x0e8 0x0 /* UART3_CTS_N */
 					0x0ec 0x0 /* UART3_RTS_N */
@@ -640,7 +640,7 @@
 				>;
 			};
 
-			uart4_cfg_func: uart4_cfg_func {
+			uart4_cfg_func: uart4-cfg-pins {
 				pinctrl-single,pins = <
 					0x0f8 0x0 /* UART4_CTS_N */
 					0x0fc 0x0 /* UART4_RTS_N */
@@ -664,7 +664,7 @@
 				>;
 			};
 
-			cam1_rst_cfg_func: cam1_rst_cfg_func {
+			cam1_rst_cfg_func: cam1-rst-cfg-pins {
 				pinctrl-single,pins = <
 					0x130 0x0 /* CAM1_RST */
 				>;
@@ -692,7 +692,7 @@
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <0x20>;
 
-			ufs_cfg_func: ufs_cfg_func {
+			ufs_cfg_func: ufs-cfg-pins {
 				pinctrl-single,pins = <
 					0x000 0x0 /* UFS_REF_CLK */
 					0x004 0x0 /* UFS_RST_N */
@@ -714,7 +714,7 @@
 				>;
 			};
 
-			spi3_cfg_func: spi3_cfg_func {
+			spi3_cfg_func: spi3-cfg-pins {
 				pinctrl-single,pins = <
 					0x008 0x0 /* SPI3_CLK */
 					0x00c 0x0 /* SPI3_DI */
@@ -745,7 +745,7 @@
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <0x20>;
 
-			sdio_clk_cfg_func: sdio_clk_cfg_func {
+			sdio_clk_cfg_func: sdio-clk-cfg-pins {
 				pinctrl-single,pins = <
 					0x000 0x0 /* SDIO_CLK */
 				>;
@@ -766,7 +766,7 @@
 				>;
 			};
 
-			sdio_cfg_func: sdio_cfg_func {
+			sdio_cfg_func: sdio-cfg-pins {
 				pinctrl-single,pins = <
 					0x004 0x0 /* SDIO_CMD */
 					0x008 0x0 /* SDIO_DATA0 */
@@ -798,7 +798,7 @@
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <0x20>;
 
-			sd_clk_cfg_func: sd_clk_cfg_func {
+			sd_clk_cfg_func: sd-clk-cfg-pins {
 				pinctrl-single,pins = <
 					0x000 0x0 /* SD_CLK */
 				>;
@@ -820,7 +820,7 @@
 				>;
 			};
 
-			sd_cfg_func: sd_cfg_func {
+			sd_cfg_func: sd-cfg-pins {
 				pinctrl-single,pins = <
 					0x004 0x0 /* SD_CMD */
 					0x008 0x0 /* SD_DATA0 */
@@ -853,7 +853,7 @@
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <0x20>;
 
-			i2c0_cfg_func: i2c0_cfg_func {
+			i2c0_cfg_func: i2c0-cfg-pins {
 				pinctrl-single,pins = <
 					0x01c 0x0 /* I2C0_SCL */
 					0x020 0x0 /* I2C0_SDA */
@@ -875,7 +875,7 @@
 				>;
 			};
 
-			i2c1_cfg_func: i2c1_cfg_func {
+			i2c1_cfg_func: i2c1-cfg-pins {
 				pinctrl-single,pins = <
 					0x024 0x0 /* I2C1_SCL */
 					0x028 0x0 /* I2C1_SDA */
@@ -897,7 +897,7 @@
 				>;
 			};
 
-			i2c7_cfg_func: i2c7_cfg_func {
+			i2c7_cfg_func: i2c7-cfg-pins {
 				pinctrl-single,pins = <
 					0x02c 0x0 /* I2C7_SCL */
 					0x030 0x0 /* I2C7_SDA */
@@ -919,7 +919,7 @@
 				>;
 			};
 
-			slimbus_cfg_func: slimbus_cfg_func {
+			slimbus_cfg_func: slimbus-cfg-pins {
 				pinctrl-single,pins = <
 					0x034 0x0 /* SLIMBUS_CLK */
 					0x038 0x0 /* SLIMBUS_DATA */
@@ -941,7 +941,7 @@
 				>;
 			};
 
-			i2s0_cfg_func: i2s0_cfg_func {
+			i2s0_cfg_func: i2s0-cfg-pins {
 				pinctrl-single,pins = <
 					0x040 0x0 /* I2S0_DI */
 					0x044 0x0 /* I2S0_DO */
@@ -965,7 +965,7 @@
 				>;
 			};
 
-			i2s2_cfg_func: i2s2_cfg_func {
+			i2s2_cfg_func: i2s2-cfg-pins {
 				pinctrl-single,pins = <
 					0x050 0x0 /* I2S2_DI */
 					0x054 0x0 /* I2S2_DO */
@@ -989,7 +989,7 @@
 				>;
 			};
 
-			pcie_cfg_func: pcie_cfg_func {
+			pcie_cfg_func: pcie-cfg-pins {
 				pinctrl-single,pins = <
 					0x094 0x0 /* PCIE_CLKREQ_N */
 					0x098 0x0 /* PCIE_WAKE_N */
@@ -1011,7 +1011,7 @@
 				>;
 			};
 
-			spi2_cfg_func: spi2_cfg_func {
+			spi2_cfg_func: spi2-cfg-pins {
 				pinctrl-single,pins = <
 					0x09c 0x0 /* SPI2_CLK */
 					0x0a0 0x0 /* SPI2_DI */
@@ -1035,7 +1035,7 @@
 				>;
 			};
 
-			usb_cfg_func: usb_cfg_func {
+			usb_cfg_func: usb-cfg-pins {
 				pinctrl-single,pins = <
 					0x0ac 0x0 /* GPIO_219 */
 				>;

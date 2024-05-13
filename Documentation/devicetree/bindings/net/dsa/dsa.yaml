@@ -36,7 +36,7 @@ additionalProperties: true
 $defs:
   ethernet-ports:
     description: A DSA switch without any extra port properties
-    $ref: '#/'
+    $ref: '#'
 
     patternProperties:
       "^(ethernet-)?ports$":

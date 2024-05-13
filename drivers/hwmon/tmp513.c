@@ -434,7 +434,7 @@ static umode_t tmp51x_is_visible(const void *_data,
 
 	switch (type) {
 	case hwmon_temp:
-		if (data->id == tmp512 && channel == 4)
+		if (data->id == tmp512 && channel == 3)
 			return 0;
 		switch (attr) {
 		case hwmon_temp_input:
@@ -720,10 +720,7 @@ static int tmp51x_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	if (client->dev.of_node)
-		data->id = (enum tmp51x_ids)device_get_match_data(&client->dev);
-	else
-		data->id = i2c_match_id(tmp51x_id, client)->driver_data;
+	data->id = (uintptr_t)i2c_get_match_data(client);
 
 	ret = tmp51x_configure(dev, data);
 	if (ret < 0) {
@@ -760,7 +757,7 @@ static struct i2c_driver tmp51x_driver = {
 		.name	= "tmp51x",
 		.of_match_table = tmp51x_of_match,
 	},
-	.probe_new	= tmp51x_probe,
+	.probe		= tmp51x_probe,
 	.id_table	= tmp51x_id,
 };
 

@@ -11,6 +11,7 @@
 #include "vpu_boot_api.h"
 #include "ivpu_drv.h"
 #include "ivpu_fw.h"
+#include "ivpu_fw_log.h"
 #include "ivpu_gem.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
@@ -42,22 +43,39 @@ static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
 MODULE_PARM_DESC(firmware, "VPU firmware binary in /lib/firmware/..");
 
+/* TODO: Remove mtl_vpu.bin from names after transition to generation based FW names */
+static struct {
+	int gen;
+	const char *name;
+} fw_names[] = {
+	{ IVPU_HW_37XX, "vpu_37xx.bin" },
+	{ IVPU_HW_37XX, "mtl_vpu.bin" },
+	{ IVPU_HW_37XX, "intel/vpu/vpu_37xx_v0.0.bin" },
+	{ IVPU_HW_40XX, "vpu_40xx.bin" },
+	{ IVPU_HW_40XX, "intel/vpu/vpu_40xx_v0.0.bin" },
+};
+
 static int ivpu_fw_request(struct ivpu_device *vdev)
 {
-	static const char * const fw_names[] = {
-		"mtl_vpu.bin",
-		"intel/vpu/mtl_vpu_v0.0.bin"
-	};
 	int ret = -ENOENT;
 	int i;
 
-	if (ivpu_firmware)
-		return request_firmware(&vdev->fw->file, ivpu_firmware, vdev->drm.dev);
+	if (ivpu_firmware) {
+		ret = request_firmware(&vdev->fw->file, ivpu_firmware, vdev->drm.dev);
+		if (!ret)
+			vdev->fw->name = ivpu_firmware;
+		return ret;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(fw_names); i++) {
-		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i], vdev->drm.dev);
-		if (!ret)
+		if (fw_names[i].gen != ivpu_hw_gen(vdev))
+			continue;
+
+		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i].name, vdev->drm.dev);
+		if (!ret) {
+			vdev->fw->name = fw_names[i].name;
 			return 0;
+		}
 	}
 
 	ivpu_err(vdev, "Failed to request firmware: %d\n", ret);
@@ -142,7 +160,9 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	}
 	ivpu_dbg(vdev, FW_BOOT, "Header version: 0x%x, format 0x%x\n",
 		 fw_hdr->header_version, fw_hdr->image_format);
-	ivpu_dbg(vdev, FW_BOOT, "FW version: %s\n", (char *)fw_hdr + VPU_FW_HEADER_SIZE);
+
+	ivpu_info(vdev, "Firmware: %s, version: %s", fw->name,
+		  (const char *)fw_hdr + VPU_FW_HEADER_SIZE);
 
 	if (IVPU_FW_CHECK_API(vdev, fw_hdr, BOOT, 3))
 		return -EINVAL;
@@ -157,6 +177,10 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 
 	fw->cold_boot_entry_point = fw_hdr->entry_point;
 	fw->entry_point = fw->cold_boot_entry_point;
+
+	fw->trace_level = min_t(u32, ivpu_log_level, IVPU_FW_LOG_FATAL);
+	fw->trace_destination_mask = VPU_TRACE_DESTINATION_VERBOSE_TRACING;
+	fw->trace_hw_component_mask = -1;
 
 	ivpu_dbg(vdev, FW_BOOT, "Size: file %lu image %u runtime %u shavenn %u\n",
 		 fw->file->size, fw->image_size, fw->runtime_size, fw->shave_nn_size);
@@ -182,13 +206,14 @@ static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
 		return -EINVAL;
 	}
 
-	ivpu_hw_init_range(&vdev->hw->ranges.global_low, start, size);
+	ivpu_hw_init_range(&vdev->hw->ranges.global, start, size);
 	return 0;
 }
 
 static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 {
 	struct ivpu_fw_info *fw = vdev->fw;
+	int log_verb_size;
 	int ret;
 
 	ret = ivpu_fw_update_global_range(vdev);
@@ -201,17 +226,45 @@ static int ivpu_fw_mem_init(struct ivpu_device *vdev)
 		return -ENOMEM;
 	}
 
+	fw->mem_log_crit = ivpu_bo_alloc_internal(vdev, 0, IVPU_FW_CRITICAL_BUFFER_SIZE,
+						  DRM_IVPU_BO_CACHED);
+	if (!fw->mem_log_crit) {
+		ivpu_err(vdev, "Failed to allocate critical log buffer\n");
+		ret = -ENOMEM;
+		goto err_free_fw_mem;
+	}
+
+	if (ivpu_log_level <= IVPU_FW_LOG_INFO)
+		log_verb_size = IVPU_FW_VERBOSE_BUFFER_LARGE_SIZE;
+	else
+		log_verb_size = IVPU_FW_VERBOSE_BUFFER_SMALL_SIZE;
+
+	fw->mem_log_verb = ivpu_bo_alloc_internal(vdev, 0, log_verb_size, DRM_IVPU_BO_CACHED);
+	if (!fw->mem_log_verb) {
+		ivpu_err(vdev, "Failed to allocate verbose log buffer\n");
+		ret = -ENOMEM;
+		goto err_free_log_crit;
+	}
+
 	if (fw->shave_nn_size) {
-		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.global_high.start,
+		fw->mem_shave_nn = ivpu_bo_alloc_internal(vdev, vdev->hw->ranges.shave.start,
 							  fw->shave_nn_size, DRM_IVPU_BO_UNCACHED);
 		if (!fw->mem_shave_nn) {
 			ivpu_err(vdev, "Failed to allocate shavenn buffer\n");
-			ivpu_bo_free_internal(fw->mem);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto err_free_log_verb;
 		}
 	}
 
 	return 0;
+
+err_free_log_verb:
+	ivpu_bo_free_internal(fw->mem_log_verb);
+err_free_log_crit:
+	ivpu_bo_free_internal(fw->mem_log_crit);
+err_free_fw_mem:
+	ivpu_bo_free_internal(fw->mem);
+	return ret;
 }
 
 static void ivpu_fw_mem_fini(struct ivpu_device *vdev)
@@ -223,7 +276,12 @@ static void ivpu_fw_mem_fini(struct ivpu_device *vdev)
 		fw->mem_shave_nn = NULL;
 	}
 
+	ivpu_bo_free_internal(fw->mem_log_verb);
+	ivpu_bo_free_internal(fw->mem_log_crit);
 	ivpu_bo_free_internal(fw->mem);
+
+	fw->mem_log_verb = NULL;
+	fw->mem_log_crit = NULL;
 	fw->mem = NULL;
 }
 
@@ -374,6 +432,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	if (!ivpu_fw_is_cold_boot(vdev)) {
 		boot_params->save_restore_ret_address = 0;
 		vdev->pm->is_warmboot = true;
+		wmb(); /* Flush WC buffers after writing save_restore_ret_address */
 		return;
 	}
 
@@ -387,9 +446,9 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	 * Uncached region of VPU address space, covers IPC buffers, job queues
 	 * and log buffers, programmable to L2$ Uncached by VPU MTRR
 	 */
-	boot_params->shared_region_base = vdev->hw->ranges.global_low.start;
-	boot_params->shared_region_size = vdev->hw->ranges.global_low.end -
-					  vdev->hw->ranges.global_low.start;
+	boot_params->shared_region_base = vdev->hw->ranges.global.start;
+	boot_params->shared_region_size = vdev->hw->ranges.global.end -
+					  vdev->hw->ranges.global.start;
 
 	boot_params->ipc_header_area_start = ipc_mem_rx->vpu_addr;
 	boot_params->ipc_header_area_size = ipc_mem_rx->base.size / 2;
@@ -397,10 +456,8 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->ipc_payload_area_start = ipc_mem_rx->vpu_addr + ipc_mem_rx->base.size / 2;
 	boot_params->ipc_payload_area_size = ipc_mem_rx->base.size / 2;
 
-	boot_params->global_aliased_pio_base =
-		vdev->hw->ranges.global_aliased_pio.start;
-	boot_params->global_aliased_pio_size =
-		ivpu_hw_range_size(&vdev->hw->ranges.global_aliased_pio);
+	boot_params->global_aliased_pio_base = vdev->hw->ranges.user.start;
+	boot_params->global_aliased_pio_size = ivpu_hw_range_size(&vdev->hw->ranges.user);
 
 	/* Allow configuration for L2C_PAGE_TABLE with boot param value */
 	boot_params->autoconfig = 1;
@@ -408,7 +465,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	/* Enable L2 cache for first 2GB of high memory */
 	boot_params->cache_defaults[VPU_BOOT_L2_CACHE_CFG_NN].use = 1;
 	boot_params->cache_defaults[VPU_BOOT_L2_CACHE_CFG_NN].cfg =
-		ADDR_TO_L2_CACHE_CFG(vdev->hw->ranges.global_high.start);
+		ADDR_TO_L2_CACHE_CFG(vdev->hw->ranges.shave.start);
 
 	if (vdev->fw->mem_shave_nn)
 		boot_params->shave_nn_fw_base = vdev->fw->mem_shave_nn->vpu_addr;
@@ -423,6 +480,15 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->min_freq_pll_ratio = vdev->hw->pll.min_ratio;
 	boot_params->pn_freq_pll_ratio = vdev->hw->pll.pn_ratio;
 	boot_params->max_freq_pll_ratio = vdev->hw->pll.max_ratio;
+
+	boot_params->default_trace_level = vdev->fw->trace_level;
+	boot_params->tracing_buff_message_format_mask = BIT(VPU_TRACING_FORMAT_STRING);
+	boot_params->trace_destination_mask = vdev->fw->trace_destination_mask;
+	boot_params->trace_hw_component_mask = vdev->fw->trace_hw_component_mask;
+	boot_params->crit_tracing_buff_addr = vdev->fw->mem_log_crit->vpu_addr;
+	boot_params->crit_tracing_buff_size = vdev->fw->mem_log_crit->base.size;
+	boot_params->verbose_tracing_buff_addr = vdev->fw->mem_log_verb->vpu_addr;
+	boot_params->verbose_tracing_buff_size = vdev->fw->mem_log_verb->base.size;
 
 	boot_params->punit_telemetry_sram_base = ivpu_hw_reg_telemetry_offset_get(vdev);
 	boot_params->punit_telemetry_sram_size = ivpu_hw_reg_telemetry_size_get(vdev);

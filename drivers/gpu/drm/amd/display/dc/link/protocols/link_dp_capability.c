@@ -326,8 +326,7 @@ bool dp_is_fec_supported(const struct dc_link *link)
 
 	return (dc_is_dp_signal(link->connector_signal) && link_enc &&
 			link_enc->features.fec_supported &&
-			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&
-			!IS_FPGA_MAXIMUS_DC(link->ctx->dce_environment));
+			link->dpcd_caps.fec_cap.bits.FEC_CAPABLE);
 }
 
 bool dp_should_enable_fec(const struct dc_link *link)
@@ -907,7 +906,7 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting)
 {
 	struct dc_link *link = stream->link;
-	uint32_t req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
+	uint32_t req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing, dc_link_get_highest_encoding_format(link));
 
 	memset(link_setting, 0, sizeof(*link_setting));
 
@@ -940,7 +939,8 @@ bool link_decide_link_settings(struct dc_stream_state *stream,
 
 				tmp_link_setting.link_rate = LINK_RATE_UNKNOWN;
 				tmp_timing.flags.DSC = 0;
-				orig_req_bw = dc_bandwidth_in_kbps_from_timing(&tmp_timing);
+				orig_req_bw = dc_bandwidth_in_kbps_from_timing(&tmp_timing,
+						dc_link_get_highest_encoding_format(link));
 				edp_decide_link_settings(link, &tmp_link_setting, orig_req_bw);
 				max_link_rate = tmp_link_setting.link_rate;
 			}
@@ -1043,9 +1043,7 @@ static enum dc_status wake_up_aux_channel(struct dc_link *link)
 				DP_SET_POWER,
 				&dpcd_power_state,
 				sizeof(dpcd_power_state));
-		if (status < 0)
-			DC_LOG_DC("%s: Failed to power up sink: %s\n", __func__,
-				  dpcd_power_state == DP_SET_POWER_D0 ? "D0" : "D3");
+		DC_LOG_DC("%s: Failed to power up sink\n", __func__);
 		return DC_ERROR_UNEXPECTED;
 	}
 
@@ -1396,7 +1394,7 @@ static bool get_usbc_cable_id(struct dc_link *link, union dp_cable_id *cable_id)
 	cmd.cable_id.header.payload_bytes = sizeof(cmd.cable_id.data);
 	cmd.cable_id.data.input.phy_inst = resource_transmitter_to_phy_idx(
 			link->dc, link->link_enc->transmitter);
-	if (dc_dmub_srv_cmd_with_reply_data(link->ctx->dmub_srv, &cmd) &&
+	if (dm_execute_dmub_cmd(link->dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
 			cmd.cable_id.header.ret_status == 1) {
 		cable_id->raw = cmd.cable_id.data.output_raw;
 		DC_LOG_DC("usbc_cable_id = %d.\n", cable_id->raw);
@@ -1452,7 +1450,8 @@ bool read_is_mst_supported(struct dc_link *link)
  */
 static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 {
-	uint8_t dpcd_data;
+	uint8_t dpcd_data = 0;
+	uint8_t edp_general_cap2 = 0;
 
 	if (!link)
 		return false;
@@ -1461,6 +1460,12 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 		return false;
 
 	link->dpcd_sink_ext_caps.raw = dpcd_data;
+
+	if (core_link_read_dpcd(link, DP_EDP_GENERAL_CAP_2, &edp_general_cap2, 1) != DC_OK)
+		return false;
+
+	link->dpcd_caps.panel_luminance_control = (edp_general_cap2 & DP_EDP_PANEL_LUMINANCE_CONTROL_CAPABLE) != 0;
+
 	return true;
 }
 
@@ -1554,6 +1559,9 @@ static bool retrieve_link_cap(struct dc_link *link)
 	int i;
 	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
 	const uint32_t post_oui_delay = 30; // 30ms
+	bool is_fec_supported = false;
+	bool is_dsc_basic_supported = false;
+	bool is_dsc_passthrough_supported = false;
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
@@ -1696,6 +1704,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 	/* TODO - decouple raw mst capability from policy decision */
 	link->dpcd_caps.is_mst_capable = read_is_mst_supported(link);
+	DC_LOG_DC("%s: MST_Support: %s\n", __func__, str_yes_no(link->dpcd_caps.is_mst_capable));
 
 	get_active_converter_info(ds_port.byte, link);
 
@@ -1803,6 +1812,17 @@ static bool retrieve_link_cap(struct dc_link *link)
 				DP_DSC_SUPPORT,
 				link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
 				sizeof(link->dpcd_caps.dsc_caps.dsc_basic_caps.raw));
+		if (status == DC_OK) {
+			is_fec_supported = link->dpcd_caps.fec_cap.bits.FEC_CAPABLE;
+			is_dsc_basic_supported = link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT;
+			is_dsc_passthrough_supported = link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_PASSTHROUGH_SUPPORT;
+			DC_LOG_DC("%s: FEC_Sink_Support: %s\n", __func__,
+				  str_yes_no(is_fec_supported));
+			DC_LOG_DC("%s: DSC_Basic_Sink_Support: %s\n", __func__,
+				  str_yes_no(is_dsc_basic_supported));
+			DC_LOG_DC("%s: DSC_Passthrough_Sink_Support: %s\n", __func__,
+				  str_yes_no(is_dsc_passthrough_supported));
+		}
 		if (link->dpcd_caps.dongle_type != DISPLAY_DONGLE_NONE) {
 			status = core_link_read_dpcd(
 					link,
@@ -1931,6 +1951,9 @@ void detect_edp_sink_caps(struct dc_link *link)
 			link_rate_in_khz = (supported_link_rates[entry+1] * 0x100 +
 										supported_link_rates[entry]) * 200;
 
+			DC_LOG_DC("%s: eDP v1.4 supported sink rates: [%d] %d kHz\n", __func__,
+				  entry / 2, link_rate_in_khz);
+
 			if (link_rate_in_khz != 0) {
 				link_rate = linkRateInKHzToLinkRateMultiplier(link_rate_in_khz);
 				link->dpcd_caps.edp_supported_link_rates[link->dpcd_caps.edp_supported_link_rates_count] = link_rate;
@@ -1986,6 +2009,16 @@ void detect_edp_sink_caps(struct dc_link *link)
 		core_link_read_dpcd(link, DP_RECEIVER_ALPM_CAP,
 			&link->dpcd_caps.alpm_caps.raw,
 			sizeof(link->dpcd_caps.alpm_caps.raw));
+
+	/*
+	 * Read REPLAY info
+	 */
+	core_link_read_dpcd(link, DP_SINK_PR_PIXEL_DEVIATION_PER_LINE,
+			&link->dpcd_caps.pr_info.pixel_deviation_per_line,
+			sizeof(link->dpcd_caps.pr_info.pixel_deviation_per_line));
+	core_link_read_dpcd(link, DP_SINK_PR_MAX_NUMBER_OF_DEVIATION_LINE,
+			&link->dpcd_caps.pr_info.max_deviation_line,
+			sizeof(link->dpcd_caps.pr_info.max_deviation_line));
 }
 
 bool dp_get_max_link_enc_cap(const struct dc_link *link, struct dc_link_settings *max_link_enc_cap)
@@ -2143,7 +2176,9 @@ static bool dp_verify_link_cap(
 							link,
 							&irq_data))
 				(*fail_count)++;
-
+		} else if (status == LINK_TRAINING_LINK_LOSS) {
+			success = true;
+			(*fail_count)++;
 		} else {
 			(*fail_count)++;
 		}
@@ -2166,6 +2201,7 @@ bool dp_verify_link_cap_with_retries(
 	int i = 0;
 	bool success = false;
 	int fail_count = 0;
+	struct dc_link_settings last_verified_link_cap = fail_safe_link_settings;
 
 	dp_trace_detect_lt_init(link);
 
@@ -2182,10 +2218,14 @@ bool dp_verify_link_cap_with_retries(
 		if (!link_detect_connection_type(link, &type) || type == dc_connection_none) {
 			link->verified_link_cap = fail_safe_link_settings;
 			break;
-		} else if (dp_verify_link_cap(link, known_limit_link_setting,
-				&fail_count) && fail_count == 0) {
-			success = true;
-			break;
+		} else if (dp_verify_link_cap(link, known_limit_link_setting, &fail_count)) {
+			last_verified_link_cap = link->verified_link_cap;
+			if (fail_count == 0) {
+				success = true;
+				break;
+			}
+		} else {
+			link->verified_link_cap = last_verified_link_cap;
 		}
 		fsleep(10 * 1000);
 	}

@@ -14,7 +14,7 @@ description:
   infrastructure shall provide a non-volatile memory with a table whose the
   content is well specified and gives many information about the manufacturer
   (name, country of manufacture, etc) as well as device caracteristics (serial
-  number, hardware version, mac addresses, etc). The underlaying device type
+  number, hardware version, mac addresses, etc). The underlying device type
   (flash, EEPROM,...) is not specified. The exact location of each value is also
   dynamic and should be discovered at run time because it depends on the
   parameters the manufacturer decided to embed.

@@ -337,7 +337,7 @@ static struct i2c_driver tps_65023_i2c_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(tps65023_of_match),
 	},
-	.probe_new = tps_65023_probe,
+	.probe = tps_65023_probe,
 	.id_table = tps_65023_id,
 };
 

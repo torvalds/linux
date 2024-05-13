@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/soc/qcom/geni-se.h>
 #include <linux/spi/spi.h>
 #include <linux/spinlock.h>
@@ -35,7 +36,7 @@
 #define CS_DEMUX_OUTPUT_SEL	GENMASK(3, 0)
 
 #define SE_SPI_TRANS_CFG	0x25c
-#define CS_TOGGLE		BIT(0)
+#define CS_TOGGLE		BIT(1)
 
 #define SE_SPI_WORD_LEN		0x268
 #define WORD_LEN_MSK		GENMASK(9, 0)
@@ -51,6 +52,9 @@
 #define SPI_INTER_WORDS_DELAY_MSK	GENMASK(9, 0)
 #define SPI_CS_CLK_DELAY_MSK		GENMASK(19, 10)
 #define SPI_CS_CLK_DELAY_SHFT		10
+
+#define SE_SPI_SLAVE_EN				(0x2BC)
+#define SPI_SLAVE_EN				BIT(0)
 
 /* M_CMD OP codes for SPI */
 #define SPI_TX_ONLY		1
@@ -97,9 +101,17 @@ struct spi_geni_master {
 	struct dma_chan *tx;
 	struct dma_chan *rx;
 	int cur_xfer_mode;
-	dma_addr_t tx_se_dma;
-	dma_addr_t rx_se_dma;
 };
+
+static void spi_slv_setup(struct spi_geni_master *mas)
+{
+	struct geni_se *se = &mas->se;
+
+	writel(SPI_SLAVE_EN, se->base + SE_SPI_SLAVE_EN);
+	writel(GENI_IO_MUX_0_EN, se->base + GENI_OUTPUT_CTRL);
+	writel(START_TRIGGER, se->base + SE_GENI_CFG_SEQ_START);
+	dev_dbg(mas->dev, "spi slave setup done\n");
+}
 
 static int get_spi_clk_cfg(unsigned int speed_hz,
 			struct spi_geni_master *mas,
@@ -142,12 +154,22 @@ static void handle_se_timeout(struct spi_master *spi,
 	const struct spi_transfer *xfer;
 
 	spin_lock_irq(&mas->lock);
-	reinit_completion(&mas->cancel_done);
 	if (mas->cur_xfer_mode == GENI_SE_FIFO)
 		writel(0, se->base + SE_GENI_TX_WATERMARK_REG);
 
 	xfer = mas->cur_xfer;
 	mas->cur_xfer = NULL;
+
+	if (spi->slave) {
+		/*
+		 * skip CMD Cancel sequnece since spi slave
+		 * doesn`t support CMD Cancel sequnece
+		 */
+		spin_unlock_irq(&mas->lock);
+		goto unmap_if_dma;
+	}
+
+	reinit_completion(&mas->cancel_done);
 	geni_se_cancel_m_cmd(se);
 	spin_unlock_irq(&mas->lock);
 
@@ -174,7 +196,7 @@ static void handle_se_timeout(struct spi_master *spi,
 unmap_if_dma:
 	if (mas->cur_xfer_mode == GENI_SE_DMA) {
 		if (xfer) {
-			if (xfer->tx_buf && mas->tx_se_dma) {
+			if (xfer->tx_buf) {
 				spin_lock_irq(&mas->lock);
 				reinit_completion(&mas->tx_reset_done);
 				writel(1, se->base + SE_DMA_TX_FSM_RST);
@@ -182,9 +204,8 @@ unmap_if_dma:
 				time_left = wait_for_completion_timeout(&mas->tx_reset_done, HZ);
 				if (!time_left)
 					dev_err(mas->dev, "DMA TX RESET failed\n");
-				geni_se_tx_dma_unprep(se, mas->tx_se_dma, xfer->len);
 			}
-			if (xfer->rx_buf && mas->rx_se_dma) {
+			if (xfer->rx_buf) {
 				spin_lock_irq(&mas->lock);
 				reinit_completion(&mas->rx_reset_done);
 				writel(1, se->base + SE_DMA_RX_FSM_RST);
@@ -192,7 +213,6 @@ unmap_if_dma:
 				time_left = wait_for_completion_timeout(&mas->rx_reset_done, HZ);
 				if (!time_left)
 					dev_err(mas->dev, "DMA RX RESET failed\n");
-				geni_se_rx_dma_unprep(se, mas->rx_se_dma, xfer->len);
 			}
 		} else {
 			/*
@@ -523,17 +543,40 @@ static int setup_gsi_xfer(struct spi_transfer *xfer, struct spi_geni_master *mas
 	return 1;
 }
 
+static u32 get_xfer_len_in_words(struct spi_transfer *xfer,
+				struct spi_geni_master *mas)
+{
+	u32 len;
+
+	if (!(mas->cur_bits_per_word % MIN_WORD_LEN))
+		len = xfer->len * BITS_PER_BYTE / mas->cur_bits_per_word;
+	else
+		len = xfer->len / (mas->cur_bits_per_word / BITS_PER_BYTE + 1);
+	len &= TRANS_LEN_MSK;
+
+	return len;
+}
+
 static bool geni_can_dma(struct spi_controller *ctlr,
 			 struct spi_device *slv, struct spi_transfer *xfer)
 {
 	struct spi_geni_master *mas = spi_master_get_devdata(slv->master);
+	u32 len, fifo_size;
 
-	/*
-	 * Return true if transfer needs to be mapped prior to
-	 * calling transfer_one which is the case only for GPI_DMA.
-	 * For SE_DMA mode, map/unmap is done in geni_se_*x_dma_prep.
-	 */
-	return mas->cur_xfer_mode == GENI_GPI_DMA;
+	if (mas->cur_xfer_mode == GENI_GPI_DMA)
+		return true;
+
+	/* Set SE DMA mode for SPI slave. */
+	if (ctlr->slave)
+		return true;
+
+	len = get_xfer_len_in_words(xfer, mas);
+	fifo_size = mas->tx_fifo_depth * mas->fifo_width_bits / mas->cur_bits_per_word;
+
+	if (len > fifo_size)
+		return true;
+	else
+		return false;
 }
 
 static int spi_geni_prepare_message(struct spi_master *spi,
@@ -604,6 +647,7 @@ static void spi_geni_release_dma_chan(struct spi_geni_master *mas)
 
 static int spi_geni_init(struct spi_geni_master *mas)
 {
+	struct spi_master *spi = dev_get_drvdata(mas->dev);
 	struct geni_se *se = &mas->se;
 	unsigned int proto, major, minor, ver;
 	u32 spi_tx_cfg, fifo_disable;
@@ -612,7 +656,14 @@ static int spi_geni_init(struct spi_geni_master *mas)
 	pm_runtime_get_sync(mas->dev);
 
 	proto = geni_se_read_proto(se);
-	if (proto != GENI_SE_SPI) {
+
+	if (spi->slave) {
+		if (proto != GENI_SE_SPI_SLAVE) {
+			dev_err(mas->dev, "Invalid proto %d\n", proto);
+			goto out_pm;
+		}
+		spi_slv_setup(mas);
+	} else if (proto != GENI_SE_SPI) {
 		dev_err(mas->dev, "Invalid proto %d\n", proto);
 		goto out_pm;
 	}
@@ -664,9 +715,11 @@ static int spi_geni_init(struct spi_geni_master *mas)
 	}
 
 	/* We always control CS manually */
-	spi_tx_cfg = readl(se->base + SE_SPI_TRANS_CFG);
-	spi_tx_cfg &= ~CS_TOGGLE;
-	writel(spi_tx_cfg, se->base + SE_SPI_TRANS_CFG);
+	if (!spi->slave) {
+		spi_tx_cfg = readl(se->base + SE_SPI_TRANS_CFG);
+		spi_tx_cfg &= ~CS_TOGGLE;
+		writel(spi_tx_cfg, se->base + SE_SPI_TRANS_CFG);
+	}
 
 out_pm:
 	pm_runtime_put(mas->dev);
@@ -774,7 +827,7 @@ static int setup_se_xfer(struct spi_transfer *xfer,
 				u16 mode, struct spi_master *spi)
 {
 	u32 m_cmd = 0;
-	u32 len, fifo_size;
+	u32 len;
 	struct geni_se *se = &mas->se;
 	int ret;
 
@@ -806,11 +859,7 @@ static int setup_se_xfer(struct spi_transfer *xfer,
 	mas->tx_rem_bytes = 0;
 	mas->rx_rem_bytes = 0;
 
-	if (!(mas->cur_bits_per_word % MIN_WORD_LEN))
-		len = xfer->len * BITS_PER_BYTE / mas->cur_bits_per_word;
-	else
-		len = xfer->len / (mas->cur_bits_per_word / BITS_PER_BYTE + 1);
-	len &= TRANS_LEN_MSK;
+	len = get_xfer_len_in_words(xfer, mas);
 
 	mas->cur_xfer = xfer;
 	if (xfer->tx_buf) {
@@ -825,9 +874,20 @@ static int setup_se_xfer(struct spi_transfer *xfer,
 		mas->rx_rem_bytes = xfer->len;
 	}
 
-	/* Select transfer mode based on transfer length */
-	fifo_size = mas->tx_fifo_depth * mas->fifo_width_bits / mas->cur_bits_per_word;
-	mas->cur_xfer_mode = (len <= fifo_size) ? GENI_SE_FIFO : GENI_SE_DMA;
+	/*
+	 * Select DMA mode if sgt are present; and with only 1 entry
+	 * This is not a serious limitation because the xfer buffers are
+	 * expected to fit into in 1 entry almost always, and if any
+	 * doesn't for any reason we fall back to FIFO mode anyway
+	 */
+	if (!xfer->tx_sg.nents && !xfer->rx_sg.nents)
+		mas->cur_xfer_mode = GENI_SE_FIFO;
+	else if (xfer->tx_sg.nents > 1 || xfer->rx_sg.nents > 1) {
+		dev_warn_once(mas->dev, "Doing FIFO, cannot handle tx_nents-%d, rx_nents-%d\n",
+			xfer->tx_sg.nents, xfer->rx_sg.nents);
+		mas->cur_xfer_mode = GENI_SE_FIFO;
+	} else
+		mas->cur_xfer_mode = GENI_SE_DMA;
 	geni_se_select_mode(se, mas->cur_xfer_mode);
 
 	/*
@@ -838,35 +898,17 @@ static int setup_se_xfer(struct spi_transfer *xfer,
 	geni_se_setup_m_cmd(se, m_cmd, FRAGMENTATION);
 
 	if (mas->cur_xfer_mode == GENI_SE_DMA) {
-		if (m_cmd & SPI_RX_ONLY) {
-			ret =  geni_se_rx_dma_prep(se, xfer->rx_buf,
-				xfer->len, &mas->rx_se_dma);
-			if (ret) {
-				dev_err(mas->dev, "Failed to setup Rx dma %d\n", ret);
-				mas->rx_se_dma = 0;
-				goto unlock_and_return;
-			}
-		}
-		if (m_cmd & SPI_TX_ONLY) {
-			ret =  geni_se_tx_dma_prep(se, (void *)xfer->tx_buf,
-				xfer->len, &mas->tx_se_dma);
-			if (ret) {
-				dev_err(mas->dev, "Failed to setup Tx dma %d\n", ret);
-				mas->tx_se_dma = 0;
-				if (m_cmd & SPI_RX_ONLY) {
-					/* Unmap rx buffer if duplex transfer */
-					geni_se_rx_dma_unprep(se, mas->rx_se_dma, xfer->len);
-					mas->rx_se_dma = 0;
-				}
-				goto unlock_and_return;
-			}
-		}
+		if (m_cmd & SPI_RX_ONLY)
+			geni_se_rx_init_dma(se, sg_dma_address(xfer->rx_sg.sgl),
+				sg_dma_len(xfer->rx_sg.sgl));
+		if (m_cmd & SPI_TX_ONLY)
+			geni_se_tx_init_dma(se, sg_dma_address(xfer->tx_sg.sgl),
+				sg_dma_len(xfer->tx_sg.sgl));
 	} else if (m_cmd & SPI_TX_ONLY) {
 		if (geni_spi_handle_tx(mas))
 			writel(mas->tx_wm, se->base + SE_GENI_TX_WATERMARK_REG);
 	}
 
-unlock_and_return:
 	spin_unlock_irq(&mas->lock);
 	return ret;
 }
@@ -967,14 +1009,6 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 		if (dma_rx_status & RX_RESET_DONE)
 			complete(&mas->rx_reset_done);
 		if (!mas->tx_rem_bytes && !mas->rx_rem_bytes && xfer) {
-			if (xfer->tx_buf && mas->tx_se_dma) {
-				geni_se_tx_dma_unprep(se, mas->tx_se_dma, xfer->len);
-				mas->tx_se_dma = 0;
-			}
-			if (xfer->rx_buf && mas->rx_se_dma) {
-				geni_se_rx_dma_unprep(se, mas->rx_se_dma, xfer->len);
-				mas->rx_se_dma = 0;
-			}
 			spi_finalize_current_transfer(spi);
 			mas->cur_xfer = NULL;
 		}
@@ -1059,6 +1093,7 @@ static int spi_geni_probe(struct platform_device *pdev)
 	spi->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	spi->num_chipselect = 4;
 	spi->max_speed_hz = 50000000;
+	spi->max_dma_len = 0xffff0; /* 24 bits for tx/rx dma length */
 	spi->prepare_message = spi_geni_prepare_message;
 	spi->transfer_one = spi_geni_transfer_one;
 	spi->can_dma = geni_can_dma;
@@ -1076,6 +1111,9 @@ static int spi_geni_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 250);
 	pm_runtime_enable(dev);
+
+	if (device_property_read_bool(&pdev->dev, "spi-slave"))
+		spi->slave = true;
 
 	ret = geni_icc_get(&mas->se, NULL);
 	if (ret)
@@ -1097,8 +1135,14 @@ static int spi_geni_probe(struct platform_device *pdev)
 	 * for dma (gsi) mode, the gsi will set cs based on params passed in
 	 * TRE
 	 */
-	if (mas->cur_xfer_mode == GENI_SE_FIFO)
+	if (!spi->slave && mas->cur_xfer_mode == GENI_SE_FIFO)
 		spi->set_cs = spi_geni_set_cs;
+
+	/*
+	 * TX is required per GSI spec, see setup_gsi_xfer().
+	 */
+	if (mas->cur_xfer_mode == GENI_GPI_DMA)
+		spi->flags = SPI_CONTROLLER_MUST_TX;
 
 	ret = request_irq(mas->irq, geni_spi_isr, 0, dev_name(dev), spi);
 	if (ret)

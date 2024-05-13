@@ -166,8 +166,12 @@ void intel_step_init(struct drm_i915_private *i915)
 						       &RUNTIME_INFO(i915)->graphics.ip);
 		step.media_step = gmd_to_intel_step(i915,
 						    &RUNTIME_INFO(i915)->media.ip);
-		step.display_step = gmd_to_intel_step(i915,
-						      &RUNTIME_INFO(i915)->display.ip);
+		step.display_step = STEP_A0 + DISPLAY_RUNTIME_INFO(i915)->ip.step;
+		if (step.display_step >= STEP_FUTURE) {
+			drm_dbg(&i915->drm, "Using future display steppings\n");
+			step.display_step = STEP_FUTURE;
+		}
+
 		RUNTIME_INFO(i915)->step = step;
 
 		return;
@@ -188,16 +192,16 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_XEHPSDV(i915)) {
 		revids = xehpsdv_revids;
 		size = ARRAY_SIZE(xehpsdv_revids);
-	} else if (IS_ADLP_N(i915)) {
+	} else if (IS_ALDERLAKE_P_N(i915)) {
 		revids = adlp_n_revids;
 		size = ARRAY_SIZE(adlp_n_revids);
-	} else if (IS_ADLP_RPLP(i915)) {
+	} else if (IS_RAPTORLAKE_P(i915)) {
 		revids = adlp_rplp_revids;
 		size = ARRAY_SIZE(adlp_rplp_revids);
 	} else if (IS_ALDERLAKE_P(i915)) {
 		revids = adlp_revids;
 		size = ARRAY_SIZE(adlp_revids);
-	} else if (IS_ADLS_RPLS(i915)) {
+	} else if (IS_RAPTORLAKE_S(i915)) {
 		revids = adls_rpls_revids;
 		size = ARRAY_SIZE(adls_rpls_revids);
 	} else if (IS_ALDERLAKE_S(i915)) {
@@ -209,13 +213,13 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_ROCKETLAKE(i915)) {
 		revids = rkl_revids;
 		size = ARRAY_SIZE(rkl_revids);
-	} else if (IS_TGL_UY(i915)) {
+	} else if (IS_TIGERLAKE_UY(i915)) {
 		revids = tgl_uy_revids;
 		size = ARRAY_SIZE(tgl_uy_revids);
 	} else if (IS_TIGERLAKE(i915)) {
 		revids = tgl_revids;
 		size = ARRAY_SIZE(tgl_revids);
-	} else if (IS_JSL_EHL(i915)) {
+	} else if (IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) {
 		revids = jsl_ehl_revids;
 		size = ARRAY_SIZE(jsl_ehl_revids);
 	} else if (IS_ICELAKE(i915)) {

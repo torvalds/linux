@@ -323,6 +323,10 @@ Some of the interface modes are described below:
     contrast with the 1000BASE-X phy mode used for Clause 38 and 39 PMDs, this
     interface mode has different autonegotiation and only supports full duplex.
 
+``PHY_INTERFACE_MODE_PSGMII``
+    This is the Penta SGMII mode, it is similar to QSGMII but it combines 5
+    SGMII lines into a single link compared to 4 on QSGMII.
+
 Pause frames / flow control
 ===========================
 

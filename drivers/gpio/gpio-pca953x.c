@@ -108,6 +108,7 @@ static const struct i2c_device_id pca953x_id[] = {
 	{ "tca6408", 8  | PCA953X_TYPE | PCA_INT, },
 	{ "tca6416", 16 | PCA953X_TYPE | PCA_INT, },
 	{ "tca6424", 24 | PCA953X_TYPE | PCA_INT, },
+	{ "tca9538", 8  | PCA953X_TYPE | PCA_INT, },
 	{ "tca9539", 16 | PCA953X_TYPE | PCA_INT, },
 	{ "tca9554", 8  | PCA953X_TYPE | PCA_INT, },
 	{ "xra1202", 8  | PCA953X_TYPE },
@@ -1051,7 +1052,6 @@ out:
 
 static int pca953x_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *i2c_id = i2c_client_get_device_id(client);
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
 	int irq_base = 0;
@@ -1090,6 +1090,9 @@ static int pca953x_probe(struct i2c_client *client)
 	}
 
 	chip->client = client;
+	chip->driver_data = (uintptr_t)i2c_get_match_data(client);
+	if (!chip->driver_data)
+		return -ENODEV;
 
 	reg = devm_regulator_get(&client->dev, "vcc");
 	if (IS_ERR(reg))
@@ -1101,20 +1104,6 @@ static int pca953x_probe(struct i2c_client *client)
 		return ret;
 	}
 	chip->regulator = reg;
-
-	if (i2c_id) {
-		chip->driver_data = i2c_id->driver_data;
-	} else {
-		const void *match;
-
-		match = device_get_match_data(&client->dev);
-		if (!match) {
-			ret = -ENODEV;
-			goto err_exit;
-		}
-
-		chip->driver_data = (uintptr_t)match;
-	}
 
 	i2c_set_clientdata(client, chip);
 
@@ -1354,6 +1343,7 @@ static const struct of_device_id pca953x_dt_ids[] = {
 	{ .compatible = "ti,tca6408", .data = OF_953X( 8, PCA_INT), },
 	{ .compatible = "ti,tca6416", .data = OF_953X(16, PCA_INT), },
 	{ .compatible = "ti,tca6424", .data = OF_953X(24, PCA_INT), },
+	{ .compatible = "ti,tca9538", .data = OF_953X( 8, PCA_INT), },
 	{ .compatible = "ti,tca9539", .data = OF_953X(16, PCA_INT), },
 
 	{ .compatible = "onnn,cat9554", .data = OF_953X( 8, PCA_INT), },
@@ -1375,7 +1365,7 @@ static struct i2c_driver pca953x_driver = {
 		.of_match_table = pca953x_dt_ids,
 		.acpi_match_table = pca953x_acpi_ids,
 	},
-	.probe_new	= pca953x_probe,
+	.probe		= pca953x_probe,
 	.remove		= pca953x_remove,
 	.id_table	= pca953x_id,
 };

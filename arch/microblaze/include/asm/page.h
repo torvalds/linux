@@ -30,11 +30,6 @@
 
 #ifndef __ASSEMBLY__
 
-/* MS be sure that SLAB allocates aligned objects */
-#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
-
-#define ARCH_SLAB_MINALIGN	L1_CACHE_BYTES
-
 /*
  * PAGE_OFFSET -- the first address of the first page of memory. With MMU
  * it is set to the kernel start address (aligned on a page boundary).
@@ -104,20 +99,12 @@ extern int page_is_ram(unsigned long pfn);
 # define phys_to_pfn(phys)	(PFN_DOWN(phys))
 # define pfn_to_phys(pfn)	(PFN_PHYS(pfn))
 
-# define virt_to_pfn(vaddr)	(phys_to_pfn((__pa(vaddr))))
-# define pfn_to_virt(pfn)	__va(pfn_to_phys((pfn)))
-
 #  define virt_to_page(kaddr)	(pfn_to_page(__pa(kaddr) >> PAGE_SHIFT))
 #  define page_to_virt(page)   __va(page_to_pfn(page) << PAGE_SHIFT)
 #  define page_to_phys(page)     (page_to_pfn(page) << PAGE_SHIFT)
 
 #  define ARCH_PFN_OFFSET	(memory_start >> PAGE_SHIFT)
 # endif /* __ASSEMBLY__ */
-
-#define	virt_addr_valid(vaddr)	(pfn_valid(virt_to_pfn(vaddr)))
-
-# define __pa(x)	__virt_to_phys((unsigned long)(x))
-# define __va(x)	((void *)__phys_to_virt((unsigned long)(x)))
 
 /* Convert between virtual and physical address for MMU. */
 /* Handle MicroBlaze processor with virtual memory. */
@@ -129,6 +116,25 @@ extern int page_is_ram(unsigned long pfn);
 	addik rd, rs, (CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START)
 #define tovirt(rd, rs) \
 	addik rd, rs, (CONFIG_KERNEL_START - CONFIG_KERNEL_BASE_ADDR)
+
+#ifndef __ASSEMBLY__
+
+# define __pa(x)	__virt_to_phys((unsigned long)(x))
+# define __va(x)	((void *)__phys_to_virt((unsigned long)(x)))
+
+static inline unsigned long virt_to_pfn(const void *vaddr)
+{
+	return phys_to_pfn(__pa(vaddr));
+}
+
+static inline const void *pfn_to_virt(unsigned long pfn)
+{
+	return __va(pfn_to_phys((pfn)));
+}
+
+#define	virt_addr_valid(vaddr)	(pfn_valid(virt_to_pfn(vaddr)))
+
+#endif /* __ASSEMBLY__ */
 
 #define TOPHYS(addr)  __virt_to_phys(addr)
 

@@ -1,0 +1,248 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2013 Marek Vasut <marex@denx.de>
+ */
+
+/dts-v1/;
+#include "imx28.dtsi"
+
+/ {
+	model = "MSR M28CU3";
+	compatible = "msr,m28cu3", "fsl,imx28";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x08000000>;
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 3 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_gpio>;
+
+		user1 {
+			label = "sd0-led";
+			gpios = <&gpio2 26 0>;
+			linux,default-trigger = "mmc0";
+		};
+
+		user2 {
+			label = "sd1-led";
+			gpios = <&gpio2 24 0>;
+			linux,default-trigger = "mmc2";
+		};
+	};
+
+	reg_3p3v: regulator-0 {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	reg_vddio_sd0: regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vddio-sd0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 29 0>;
+	};
+
+	reg_vddio_sd1: regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "vddio-sd1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 19 0>;
+	};
+
+	reg_usb1_vbus: regulator-3 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio3 8 0>;
+		enable-active-high;
+	};
+};
+
+&auart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&auart0_2pins_a>;
+	status = "okay";
+};
+
+&auart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&auart3_2pins_b>;
+	status = "okay";
+};
+
+&duart {
+	pinctrl-names = "default";
+	pinctrl-0 = <&duart_pins_b>;
+	status = "okay";
+};
+
+&gpmi {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpmi_pins_a &gpmi_status_cfg>;
+	status = "okay";
+
+	partition@0 {
+		label = "gpmi-nfc-0-boot";
+		reg = <0x00000000 0x01400000>;
+		read-only;
+	};
+
+	partition@1 {
+		label = "gpmi-nfc-general-use";
+		reg = <0x01400000 0x0ec00000>;
+	};
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcdif_24bit_pins_a
+		     &lcdif_pins_m28>;
+	display = <&display0>;
+	status = "okay";
+
+	display0: display0 {
+		bits-per-pixel = <32>;
+		bus-width = <24>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <6410256>;
+				hactive = <320>;
+				vactive = <240>;
+				hback-porch = <38>;
+				hfront-porch = <20>;
+				vback-porch = <15>;
+				vfront-porch = <5>;
+				hsync-len = <30>;
+				vsync-len = <3>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+		};
+	};
+};
+
+&mac0 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac0_pins_a>;
+	phy-reset-gpios = <&gpio4 13 GPIO_ACTIVE_LOW>;
+	phy-reset-duration = <100>;
+	status = "okay";
+};
+
+&mac1 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac1_pins_a>;
+	status = "okay";
+};
+
+&ocotp {
+	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hog_pins_a>;
+
+	hog_pins_a: hog@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SSP2_SS0__GPIO_2_19
+			MX28_PAD_PWM4__GPIO_3_29
+			MX28_PAD_AUART2_RX__GPIO_3_8
+			MX28_PAD_ENET0_RX_CLK__GPIO_4_13
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	lcdif_pins_m28: lcdif-m28@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_LCD_VSYNC__LCD_VSYNC
+			MX28_PAD_LCD_HSYNC__LCD_HSYNC
+			MX28_PAD_LCD_DOTCLK__LCD_DOTCLK
+			MX28_PAD_LCD_RESET__LCD_RESET
+			MX28_PAD_LCD_CS__LCD_ENABLE
+			MX28_PAD_AUART1_TX__GPIO_3_5
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	led_pins_gpio: leds-m28@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SSP3_MISO__GPIO_2_26
+			MX28_PAD_SSP3_SCK__GPIO_2_24
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm3_pins_a>;
+	status = "okay";
+};
+
+&ssp0 {
+	compatible = "fsl,imx28-mmc";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_4bit_pins_a
+		     &mmc0_cd_cfg
+		     &mmc0_sck_cfg>;
+	bus-width = <4>;
+	vmmc-supply = <&reg_vddio_sd0>;
+	status = "okay";
+};
+
+&ssp2 {
+	compatible = "fsl,imx28-mmc";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_4bit_pins_a
+		     &mmc2_cd_cfg
+		     &mmc2_sck_cfg_a>;
+	bus-width = <4>;
+	vmmc-supply = <&reg_vddio_sd1>;
+	status = "okay";
+};
+
+&usb1 {
+	vbus-supply = <&reg_usb1_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb1_pins_a>;
+	disable-over-current;
+	status = "okay";
+};
+
+&usbphy1 {
+	status = "okay";
+};

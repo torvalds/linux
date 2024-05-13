@@ -17,11 +17,11 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include <asm/hypervisor.h>
 #include <asm/spitfire.h>
-#include <asm/prom.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 

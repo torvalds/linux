@@ -20,8 +20,7 @@
 #include <linux/iopoll.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
@@ -182,12 +181,6 @@ rzg2l_cpg_mux_clk_register(const struct cpg_core_clk *core,
 	return clk_hw->clk;
 }
 
-static int rzg2l_cpg_sd_clk_mux_determine_rate(struct clk_hw *hw,
-					       struct clk_rate_request *req)
-{
-	return clk_mux_determine_rate_flags(hw, req, CLK_MUX_ROUND_CLOSEST);
-}
-
 static int rzg2l_cpg_sd_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct sd_hw_data *hwdata = to_sd_hw_data(hw);
@@ -250,7 +243,7 @@ static u8 rzg2l_cpg_sd_clk_mux_get_parent(struct clk_hw *hw)
 }
 
 static const struct clk_ops rzg2l_cpg_sd_clk_mux_ops = {
-	.determine_rate = rzg2l_cpg_sd_clk_mux_determine_rate,
+	.determine_rate = __clk_mux_determine_rate_closest,
 	.set_parent	= rzg2l_cpg_sd_clk_mux_set_parent,
 	.get_parent	= rzg2l_cpg_sd_clk_mux_get_parent,
 };
@@ -603,10 +596,8 @@ static int rzg2l_cpg_sipll5_set_rate(struct clk_hw *hw,
 	}
 
 	/* Output clock setting 1 */
-	writel(CPG_SIPLL5_CLK1_POSTDIV1_WEN | CPG_SIPLL5_CLK1_POSTDIV2_WEN |
-	       CPG_SIPLL5_CLK1_REFDIV_WEN  | (params.pl5_postdiv1 << 0) |
-	       (params.pl5_postdiv2 << 4) | (params.pl5_refdiv << 8),
-	       priv->base + CPG_SIPLL5_CLK1);
+	writel((params.pl5_postdiv1 << 0) | (params.pl5_postdiv2 << 4) |
+	       (params.pl5_refdiv << 8), priv->base + CPG_SIPLL5_CLK1);
 
 	/* Output clock setting, SSCG modulation value setting 3 */
 	writel((params.pl5_fracin << 8), priv->base + CPG_SIPLL5_CLK3);
@@ -905,9 +896,9 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	unsigned int reg = clock->off;
 	struct device *dev = priv->dev;
 	unsigned long flags;
-	unsigned int i;
 	u32 bitmask = BIT(clock->bit);
 	u32 value;
+	int error;
 
 	if (!clock->off) {
 		dev_dbg(dev, "%pC does not support ON/OFF\n",  hw->clk);
@@ -932,19 +923,13 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	if (!priv->info->has_clk_mon_regs)
 		return 0;
 
-	for (i = 1000; i > 0; --i) {
-		if (((readl(priv->base + CLK_MON_R(reg))) & bitmask))
-			break;
-		cpu_relax();
-	}
-
-	if (!i) {
+	error = readl_poll_timeout_atomic(priv->base + CLK_MON_R(reg), value,
+					  value & bitmask, 0, 10);
+	if (error)
 		dev_err(dev, "Failed to enable CLK_ON %p\n",
 			priv->base + CLK_ON_R(reg));
-		return -ETIMEDOUT;
-	}
 
-	return 0;
+	return error;
 }
 
 static int rzg2l_mod_clock_enable(struct clk_hw *hw)

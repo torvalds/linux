@@ -61,6 +61,7 @@ struct amdgpu_nbio_funcs {
 	u32 (*get_hdp_flush_done_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_index_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_data_offset)(struct amdgpu_device *adev);
+	u32 (*get_pcie_index_hi_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_port_index_offset)(struct amdgpu_device *adev);
 	u32 (*get_pcie_port_data_offset)(struct amdgpu_device *adev);
 	u32 (*get_rev_id)(struct amdgpu_device *adev);
@@ -95,6 +96,12 @@ struct amdgpu_nbio_funcs {
 	void (*apply_l1_link_width_reconfig_wa)(struct amdgpu_device *adev);
 	void (*clear_doorbell_interrupt)(struct amdgpu_device *adev);
 	u32 (*get_rom_offset)(struct amdgpu_device *adev);
+	int (*get_compute_partition_mode)(struct amdgpu_device *adev);
+	u32 (*get_memory_partition_mode)(struct amdgpu_device *adev,
+					 u32 *supp_modes);
+	u64 (*get_pcie_replay_count)(struct amdgpu_device *adev);
+	void (*get_pcie_usage)(struct amdgpu_device *adev, uint64_t *count0,
+					uint64_t *count1);
 };
 
 struct amdgpu_nbio {
@@ -107,5 +114,8 @@ struct amdgpu_nbio {
 };
 
 int amdgpu_nbio_ras_sw_init(struct amdgpu_device *adev);
+void amdgpu_nbio_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0, uint64_t *count1);
 int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
+u64 amdgpu_nbio_get_pcie_replay_count(struct amdgpu_device *adev);
+
 #endif

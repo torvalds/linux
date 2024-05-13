@@ -16,6 +16,7 @@
 #include <linux/types.h>
 
 /*
+ * UNUSED:
  * 1 for normal debug messages, 2 is very verbose. 0 to turn it off.
  */
 #define PACKET_DEBUG		1

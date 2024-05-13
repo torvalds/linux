@@ -5,9 +5,8 @@ Chrome OS ACPI Device
 =====================
 
 Hardware functionality specific to Chrome OS is exposed through a Chrome OS ACPI device.
-The plug and play ID of a Chrome OS ACPI device is GGL0001. GGL is a valid PNP ID of Google.
-PNP ID can be used with the ACPI devices according to the guidelines. The following ACPI
-objects are supported:
+The plug and play ID of a Chrome OS ACPI device is GGL0001 and the hardware ID is
+GOOG0016.  The following ACPI objects are supported:
 
 .. flat-table:: Supported ACPI Objects
    :widths: 1 2

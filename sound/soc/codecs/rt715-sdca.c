@@ -761,7 +761,11 @@ static const struct snd_soc_dapm_route rt715_sdca_audio_map[] = {
 
 static int rt715_sdca_probe(struct snd_soc_component *component)
 {
+	struct rt715_sdca_priv *rt715 = snd_soc_component_get_drvdata(component);
 	int ret;
+
+	if (!rt715->first_hw_init)
+		return 0;
 
 	ret = pm_runtime_resume(component->dev);
 	if (ret < 0 && ret != -EACCES)
@@ -977,6 +981,10 @@ int rt715_sdca_init(struct device *dev, struct regmap *mbq_regmap,
 	rt715->regmap = regmap;
 	rt715->mbq_regmap = mbq_regmap;
 	rt715->hw_sdw_ver = slave->id.sdw_version;
+
+	regcache_cache_only(rt715->regmap, true);
+	regcache_cache_only(rt715->mbq_regmap, true);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -988,6 +996,25 @@ int rt715_sdca_init(struct device *dev, struct regmap *mbq_regmap,
 			&soc_codec_dev_rt715_sdca,
 			rt715_sdca_dai,
 			ARRAY_SIZE(rt715_sdca_dai));
+	if (ret < 0)
+		return ret;
+
+	/* set autosuspend parameters */
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+
+	/* make sure the device does not suspend immediately */
+	pm_runtime_mark_last_busy(dev);
+
+	pm_runtime_enable(dev);
+
+	/* important note: the device is NOT tagged as 'active' and will remain
+	 * 'suspended' until the hardware is enumerated/initialized. This is required
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * fail with -EACCESS because of race conditions between card creation and enumeration
+	 */
+
+	dev_dbg(dev, "%s\n", __func__);
 
 	return ret;
 }
@@ -1000,21 +1027,15 @@ int rt715_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt715->hw_init)
 		return 0;
 
+	regcache_cache_only(rt715->regmap, false);
+	regcache_cache_only(rt715->mbq_regmap, false);
+
 	/*
-	 * PM runtime is only enabled when a Slave reports as Attached
+	 * PM runtime status is marked as 'active' only when a Slave reports as Attached
 	 */
 	if (!rt715->first_hw_init) {
-		/* set autosuspend parameters */
-		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
-		pm_runtime_use_autosuspend(&slave->dev);
-
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
-
-		/* make sure the device does not suspend immediately */
-		pm_runtime_mark_last_busy(&slave->dev);
-
-		pm_runtime_enable(&slave->dev);
 
 		rt715->first_hw_init = true;
 	}

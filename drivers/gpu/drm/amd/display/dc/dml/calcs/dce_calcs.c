@@ -3015,7 +3015,7 @@ static bool all_displays_in_sync(const struct pipe_ctx pipe[],
 	int i, num_active_pipes = 0;
 
 	for (i = 0; i < pipe_count; i++) {
-		if (!pipe[i].stream || pipe[i].top_pipe)
+		if (!resource_is_pipe_type(&pipe[i], OPP_HEAD))
 			continue;
 
 		active_pipes[num_active_pipes++] = &pipe[i];

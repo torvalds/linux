@@ -33,8 +33,6 @@ static struct clk *ac97conf_clk;
 static int reset_gpio;
 static void __iomem *ac97_reg_base;
 
-extern void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio);
-
 /*
  * Beware PXA27x bugs:
  *

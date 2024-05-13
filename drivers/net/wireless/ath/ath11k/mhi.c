@@ -211,7 +211,7 @@ void ath11k_mhi_set_mhictrl_reset(struct ath11k_base *ab)
 
 	val = ath11k_pcic_read32(ab, MHISTATUS);
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "MHISTATUS 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "mhistatus 0x%x\n", val);
 
 	/* Observed on QCA6390 that after SOC_GLOBAL_RESET, MHISTATUS
 	 * has SYSERR bit set and thus need to set MHICTRL_RESET
@@ -263,7 +263,7 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 	if (ret)
 		return ret;
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "Number of assigned MSI for MHI is %d, base vector is %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "num_vectors %d base_vector %d\n",
 		   num_vectors, base_vector);
 
 	irq = kcalloc(num_vectors, sizeof(int), GFP_KERNEL);
@@ -325,7 +325,7 @@ static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 {
 	struct ath11k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "mhi notify status reason %s\n",
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "notify status reason %s\n",
 		   ath11k_mhi_op_callback_to_str(cb));
 
 	switch (cb) {

@@ -1600,7 +1600,7 @@ static int trident_pci_probe(struct pci_dev *dev,
 	info->fbops = &tridentfb_ops;
 	info->pseudo_palette = default_par->pseudo_pal;
 
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN;
+	info->flags = FBINFO_HWACCEL_YPAN;
 	if (!noaccel && default_par->init_accel) {
 		info->flags &= ~FBINFO_HWACCEL_DISABLED;
 		info->flags |= FBINFO_HWACCEL_COPYAREA;

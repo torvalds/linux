@@ -542,14 +542,17 @@ cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-static int cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
-				struct cifs_sb_info *cifs_sb, const char *full_path,
-				struct cifs_open_info_data *data, bool *adjustTZ, bool *symlink)
+static int cifs_query_path_info(const unsigned int xid,
+				struct cifs_tcon *tcon,
+				struct cifs_sb_info *cifs_sb,
+				const char *full_path,
+				struct cifs_open_info_data *data)
 {
 	int rc;
 	FILE_ALL_INFO fi = {};
 
-	*symlink = false;
+	data->symlink = false;
+	data->adjust_tz = false;
 
 	/* could do find first instead but this returns more info */
 	rc = CIFSSMBQPathInfo(xid, tcon, full_path, &fi, 0 /* not legacy */, cifs_sb->local_nls,
@@ -562,7 +565,7 @@ static int cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if ((rc == -EOPNOTSUPP) || (rc == -EINVAL)) {
 		rc = SMBQueryInformation(xid, tcon, full_path, &fi, cifs_sb->local_nls,
 					 cifs_remap(cifs_sb));
-		*adjustTZ = true;
+		data->adjust_tz = true;
 	}
 
 	if (!rc) {
@@ -589,7 +592,7 @@ static int cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		/* Need to check if this is a symbolic link or not */
 		tmprc = CIFS_open(xid, &oparms, &oplock, NULL);
 		if (tmprc == -EOPNOTSUPP)
-			*symlink = true;
+			data->symlink = true;
 		else if (tmprc == 0)
 			CIFSSMBClose(xid, tcon, fid.netfid);
 	}
@@ -969,13 +972,16 @@ cifs_unix_dfs_readlink(const unsigned int xid, struct cifs_tcon *tcon,
 #endif
 }
 
-static int
-cifs_query_symlink(const unsigned int xid, struct cifs_tcon *tcon,
-		   struct cifs_sb_info *cifs_sb, const char *full_path,
-		   char **target_path, bool is_reparse_point)
+static int cifs_query_symlink(const unsigned int xid,
+			      struct cifs_tcon *tcon,
+			      struct cifs_sb_info *cifs_sb,
+			      const char *full_path,
+			      char **target_path,
+			      struct kvec *rsp_iov)
 {
 	int rc;
 	int oplock = 0;
+	bool is_reparse_point = !!rsp_iov;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
 

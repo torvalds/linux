@@ -4,7 +4,9 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_fixed.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_vblank.h>
 #include <linux/minmax.h>
@@ -22,7 +24,7 @@ static u16 pre_mul_blend_channel(u16 src, u16 dst, u16 alpha)
 
 /**
  * pre_mul_alpha_blend - alpha blending equation
- * @src_frame_info: source framebuffer's metadata
+ * @frame_info: Source framebuffer's metadata
  * @stage_buffer: The line with the pixels from src_plane
  * @output_buffer: A line buffer that receives all the blends output
  *
@@ -53,10 +55,30 @@ static void pre_mul_alpha_blend(struct vkms_frame_info *frame_info,
 	}
 }
 
-static bool check_y_limit(struct vkms_frame_info *frame_info, int y)
+static int get_y_pos(struct vkms_frame_info *frame_info, int y)
 {
-	if (y >= frame_info->dst.y1 && y < frame_info->dst.y2)
-		return true;
+	if (frame_info->rotation & DRM_MODE_REFLECT_Y)
+		return drm_rect_height(&frame_info->rotated) - y - 1;
+
+	switch (frame_info->rotation & DRM_MODE_ROTATE_MASK) {
+	case DRM_MODE_ROTATE_90:
+		return frame_info->rotated.x2 - y - 1;
+	case DRM_MODE_ROTATE_270:
+		return y + frame_info->rotated.x1;
+	default:
+		return y;
+	}
+}
+
+static bool check_limit(struct vkms_frame_info *frame_info, int pos)
+{
+	if (drm_rotation_90_or_270(frame_info->rotation)) {
+		if (pos >= 0 && pos < drm_rect_width(&frame_info->rotated))
+			return true;
+	} else {
+		if (pos >= frame_info->rotated.y1 && pos < frame_info->rotated.y2)
+			return true;
+	}
 
 	return false;
 }
@@ -68,12 +90,81 @@ static void fill_background(const struct pixel_argb_u16 *background_color,
 		output_buffer->pixels[i] = *background_color;
 }
 
+// lerp(a, b, t) = a + (b - a) * t
+static u16 lerp_u16(u16 a, u16 b, s64 t)
+{
+	s64 a_fp = drm_int2fixp(a);
+	s64 b_fp = drm_int2fixp(b);
+
+	s64 delta = drm_fixp_mul(b_fp - a_fp,  t);
+
+	return drm_fixp2int(a_fp + delta);
+}
+
+static s64 get_lut_index(const struct vkms_color_lut *lut, u16 channel_value)
+{
+	s64 color_channel_fp = drm_int2fixp(channel_value);
+
+	return drm_fixp_mul(color_channel_fp, lut->channel_value2index_ratio);
+}
+
+/*
+ * This enum is related to the positions of the variables inside
+ * `struct drm_color_lut`, so the order of both needs to be the same.
+ */
+enum lut_channel {
+	LUT_RED = 0,
+	LUT_GREEN,
+	LUT_BLUE,
+	LUT_RESERVED
+};
+
+static u16 apply_lut_to_channel_value(const struct vkms_color_lut *lut, u16 channel_value,
+				      enum lut_channel channel)
+{
+	s64 lut_index = get_lut_index(lut, channel_value);
+
+	/*
+	 * This checks if `struct drm_color_lut` has any gap added by the compiler
+	 * between the struct fields.
+	 */
+	static_assert(sizeof(struct drm_color_lut) == sizeof(__u16) * 4);
+
+	u16 *floor_lut_value = (__u16 *)&lut->base[drm_fixp2int(lut_index)];
+	u16 *ceil_lut_value = (__u16 *)&lut->base[drm_fixp2int_ceil(lut_index)];
+
+	u16 floor_channel_value = floor_lut_value[channel];
+	u16 ceil_channel_value = ceil_lut_value[channel];
+
+	return lerp_u16(floor_channel_value, ceil_channel_value,
+			lut_index & DRM_FIXED_DECIMAL_MASK);
+}
+
+static void apply_lut(const struct vkms_crtc_state *crtc_state, struct line_buffer *output_buffer)
+{
+	if (!crtc_state->gamma_lut.base)
+		return;
+
+	if (!crtc_state->gamma_lut.lut_length)
+		return;
+
+	for (size_t x = 0; x < output_buffer->n_pixels; x++) {
+		struct pixel_argb_u16 *pixel = &output_buffer->pixels[x];
+
+		pixel->r = apply_lut_to_channel_value(&crtc_state->gamma_lut, pixel->r, LUT_RED);
+		pixel->g = apply_lut_to_channel_value(&crtc_state->gamma_lut, pixel->g, LUT_GREEN);
+		pixel->b = apply_lut_to_channel_value(&crtc_state->gamma_lut, pixel->b, LUT_BLUE);
+	}
+}
+
 /**
- * @wb_frame_info: The writeback frame buffer metadata
+ * blend - blend the pixels from all planes and compute crc
+ * @wb: The writeback frame buffer metadata
  * @crtc_state: The crtc state
  * @crc32: The crc output of the final frame
  * @output_buffer: A buffer of a row that will receive the result of the blend(s)
  * @stage_buffer: The line with the pixels from plane being blend to the output
+ * @row_size: The size, in bytes, of a single row
  *
  * This function blends the pixels (Using the `pre_mul_alpha_blend`)
  * from all planes, calculates the crc32 of the output from the former step,
@@ -86,6 +177,7 @@ static void blend(struct vkms_writeback_job *wb,
 {
 	struct vkms_plane_state **plane = crtc_state->active_planes;
 	u32 n_active_planes = crtc_state->num_active_planes;
+	int y_pos;
 
 	const struct pixel_argb_u16 background_color = { .a = 0xffff };
 
@@ -96,18 +188,22 @@ static void blend(struct vkms_writeback_job *wb,
 
 		/* The active planes are composed associatively in z-order. */
 		for (size_t i = 0; i < n_active_planes; i++) {
-			if (!check_y_limit(plane[i]->frame_info, y))
+			y_pos = get_y_pos(plane[i]->frame_info, y);
+
+			if (!check_limit(plane[i]->frame_info, y_pos))
 				continue;
 
-			plane[i]->plane_read(stage_buffer, plane[i]->frame_info, y);
+			vkms_compose_row(stage_buffer, plane[i], y_pos);
 			pre_mul_alpha_blend(plane[i]->frame_info, stage_buffer,
 					    output_buffer);
 		}
 
+		apply_lut(crtc_state, output_buffer);
+
 		*crc32 = crc32_le(*crc32, (void *)output_buffer->pixels, row_size);
 
 		if (wb)
-			wb->wb_write(&wb->wb_frame_info, output_buffer, y);
+			vkms_writeback_row(wb, output_buffer, y_pos);
 	}
 }
 
@@ -118,10 +214,10 @@ static int check_format_funcs(struct vkms_crtc_state *crtc_state,
 	u32 n_active_planes = crtc_state->num_active_planes;
 
 	for (size_t i = 0; i < n_active_planes; i++)
-		if (!planes[i]->plane_read)
+		if (!planes[i]->pixel_read)
 			return -1;
 
-	if (active_wb && !active_wb->wb_write)
+	if (active_wb && !active_wb->pixel_write)
 		return -1;
 
 	return 0;
@@ -218,6 +314,22 @@ void vkms_composer_worker(struct work_struct *work)
 	crtc_state->frame_start = 0;
 	crtc_state->frame_end = 0;
 	crtc_state->crc_pending = false;
+
+	if (crtc->state->gamma_lut) {
+		s64 max_lut_index_fp;
+		s64 u16_max_fp = drm_int2fixp(0xffff);
+
+		crtc_state->gamma_lut.base = (struct drm_color_lut *)crtc->state->gamma_lut->data;
+		crtc_state->gamma_lut.lut_length =
+			crtc->state->gamma_lut->length / sizeof(struct drm_color_lut);
+		max_lut_index_fp = drm_int2fixp(crtc_state->gamma_lut.lut_length  - 1);
+		crtc_state->gamma_lut.channel_value2index_ratio = drm_fixp_div(max_lut_index_fp,
+									       u16_max_fp);
+
+	} else {
+		crtc_state->gamma_lut.base = NULL;
+	}
+
 	spin_unlock_irq(&out->composer_lock);
 
 	/*

@@ -161,7 +161,6 @@ MODULE_DEVICE_TABLE(mcb, men_z188_ids);
 static struct mcb_driver men_z188_driver = {
 	.driver = {
 		.name = "z188-adc",
-		.owner = THIS_MODULE,
 	},
 	.probe = men_z188_probe,
 	.remove = men_z188_remove,

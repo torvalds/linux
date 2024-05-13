@@ -449,6 +449,12 @@ void hubp3_read_state(struct hubp *hubp)
 		SWATH_HEIGHT_C, &rq_regs->rq_regs_c.swath_height,
 		PTE_ROW_HEIGHT_LINEAR_C, &rq_regs->rq_regs_c.pte_row_height_linear);
 
+	if (REG(UCLK_PSTATE_FORCE))
+		s->uclk_pstate_force = REG_READ(UCLK_PSTATE_FORCE);
+
+	if (REG(DCHUBP_CNTL))
+		s->hubp_cntl = REG_READ(DCHUBP_CNTL);
+
 }
 
 void hubp3_setup(

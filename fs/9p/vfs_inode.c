@@ -163,7 +163,6 @@ int v9fs_uflags2omode(int uflags, int extended)
 {
 	int ret;
 
-	ret = 0;
 	switch (uflags&3) {
 	default:
 	case O_RDONLY:
@@ -261,7 +260,7 @@ int v9fs_init_inode(struct v9fs_session_info *v9ses,
 	inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
 	inode->i_blocks = 0;
 	inode->i_rdev = rdev;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	inode->i_atime = inode->i_mtime = inode_set_ctime_current(inode);
 	inode->i_mapping->a_ops = &v9fs_addr_operations;
 	inode->i_private = NULL;
 
@@ -603,7 +602,6 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 
 	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
 
-	err = 0;
 	name = dentry->d_name.name;
 	dfid = v9fs_parent_fid(dentry);
 	if (IS_ERR(dfid)) {
@@ -815,8 +813,6 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (!(flags & O_CREAT) || d_really_is_positive(dentry))
 		return finish_no_open(file, res);
 
-	err = 0;
-
 	v9ses = v9fs_inode2v9ses(dir);
 	perm = unixmode2p9mode(v9ses, mode);
 	p9_omode = v9fs_uflags2omode(flags, v9fs_proto_dotu(v9ses));
@@ -912,7 +908,6 @@ v9fs_vfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		return -EINVAL;
 
 	p9_debug(P9_DEBUG_VFS, "\n");
-	retval = 0;
 	old_inode = d_inode(old_dentry);
 	new_inode = d_inode(new_dentry);
 	v9ses = v9fs_inode2v9ses(old_inode);
@@ -1016,7 +1011,7 @@ v9fs_vfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	p9_debug(P9_DEBUG_VFS, "dentry: %p\n", dentry);
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9ses->cache & (CACHE_META|CACHE_LOOSE)) {
-		generic_fillattr(&nop_mnt_idmap, inode, stat);
+		generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 		return 0;
 	} else if (v9ses->cache & CACHE_WRITEBACK) {
 		if (S_ISREG(inode->i_mode)) {
@@ -1037,7 +1032,7 @@ v9fs_vfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		return PTR_ERR(st);
 
 	v9fs_stat2inode(st, d_inode(dentry), dentry->d_sb, 0);
-	generic_fillattr(&nop_mnt_idmap, d_inode(dentry), stat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(dentry), stat);
 
 	p9stat_free(st);
 	kfree(st);
@@ -1066,7 +1061,6 @@ static int v9fs_vfs_setattr(struct mnt_idmap *idmap,
 	if (retval)
 		return retval;
 
-	retval = -EPERM;
 	v9ses = v9fs_dentry2v9ses(dentry);
 	if (iattr->ia_valid & ATTR_FILE) {
 		fid = iattr->ia_file->private_data;
@@ -1158,7 +1152,7 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 
 	inode->i_atime.tv_sec = stat->atime;
 	inode->i_mtime.tv_sec = stat->mtime;
-	inode->i_ctime.tv_sec = stat->mtime;
+	inode_set_ctime(inode, stat->mtime, 0);
 
 	inode->i_uid = v9ses->dfltuid;
 	inode->i_gid = v9ses->dfltgid;

@@ -841,11 +841,6 @@ static int sdeb_zbc_nr_conv = DEF_ZBC_NR_CONV_ZONES;
 static int submit_queues = DEF_SUBMIT_QUEUES;  /* > 1 for multi-queue (mq) */
 static int poll_queues; /* iouring iopoll interface.*/
 
-static DEFINE_RWLOCK(atomic_rw);
-static DEFINE_RWLOCK(atomic_rw2);
-
-static rwlock_t *ramdisk_lck_a[2];
-
 static char sdebug_proc_name[] = MY_NAME;
 static const char *my_name = MY_NAME;
 
@@ -6817,9 +6812,6 @@ static int __init scsi_debug_init(void)
 	unsigned long sz;
 	int k, ret, hosts_to_add;
 	int idx = -1;
-
-	ramdisk_lck_a[0] = &atomic_rw;
-	ramdisk_lck_a[1] = &atomic_rw2;
 
 	if (sdebug_ndelay >= 1000 * 1000 * 1000) {
 		pr_warn("ndelay must be less than 1 second, ignored\n");

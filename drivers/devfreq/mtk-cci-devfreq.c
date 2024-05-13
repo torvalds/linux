@@ -8,7 +8,6 @@
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/regulator/consumer.h>
@@ -127,7 +126,7 @@ static int mtk_ccifreq_target(struct device *dev, unsigned long *freq,
 			      u32 flags)
 {
 	struct mtk_ccifreq_drv *drv = dev_get_drvdata(dev);
-	struct clk *cci_pll = clk_get_parent(drv->cci_clk);
+	struct clk *cci_pll;
 	struct dev_pm_opp *opp;
 	unsigned long opp_rate;
 	int voltage, pre_voltage, inter_voltage, target_voltage, ret;
@@ -139,6 +138,7 @@ static int mtk_ccifreq_target(struct device *dev, unsigned long *freq,
 		return 0;
 
 	inter_voltage = drv->inter_voltage;
+	cci_pll = clk_get_parent(drv->cci_clk);
 
 	opp_rate = *freq;
 	opp = devfreq_recommended_opp(dev, &opp_rate, 1);

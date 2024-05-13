@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Azoteq IQS7222A/B/C Capacitive Touch Controller
+ * Azoteq IQS7222A/B/C/D Capacitive Touch Controller
  *
  * Copyright (C) 2022 Jeff LaBundy <jeff@labundy.com>
  */
@@ -12,11 +12,12 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
@@ -25,6 +26,7 @@
 #define IQS7222_PROD_NUM_A			840
 #define IQS7222_PROD_NUM_B			698
 #define IQS7222_PROD_NUM_C			863
+#define IQS7222_PROD_NUM_D			1046
 
 #define IQS7222_SYS_STATUS			0x10
 #define IQS7222_SYS_STATUS_RESET		BIT(3)
@@ -54,6 +56,7 @@
 
 #define IQS7222_EVENT_MASK_ATI			BIT(12)
 #define IQS7222_EVENT_MASK_SLDR			BIT(10)
+#define IQS7222_EVENT_MASK_TPAD			IQS7222_EVENT_MASK_SLDR
 #define IQS7222_EVENT_MASK_TOUCH		BIT(1)
 #define IQS7222_EVENT_MASK_PROX			BIT(0)
 
@@ -71,6 +74,7 @@
 #define IQS7222_MAX_COLS_CHAN			6
 #define IQS7222_MAX_COLS_FILT			2
 #define IQS7222_MAX_COLS_SLDR			11
+#define IQS7222_MAX_COLS_TPAD			24
 #define IQS7222_MAX_COLS_GPIO			3
 #define IQS7222_MAX_COLS_SYS			13
 
@@ -102,16 +106,18 @@ enum iqs7222_reg_grp_id {
 	IQS7222_REG_GRP_BTN,
 	IQS7222_REG_GRP_CHAN,
 	IQS7222_REG_GRP_SLDR,
+	IQS7222_REG_GRP_TPAD,
 	IQS7222_REG_GRP_GPIO,
 	IQS7222_REG_GRP_SYS,
 	IQS7222_NUM_REG_GRPS
 };
 
 static const char * const iqs7222_reg_grp_names[IQS7222_NUM_REG_GRPS] = {
-	[IQS7222_REG_GRP_CYCLE] = "cycle",
-	[IQS7222_REG_GRP_CHAN] = "channel",
-	[IQS7222_REG_GRP_SLDR] = "slider",
-	[IQS7222_REG_GRP_GPIO] = "gpio",
+	[IQS7222_REG_GRP_CYCLE] = "cycle-%d",
+	[IQS7222_REG_GRP_CHAN] = "channel-%d",
+	[IQS7222_REG_GRP_SLDR] = "slider-%d",
+	[IQS7222_REG_GRP_TPAD] = "trackpad",
+	[IQS7222_REG_GRP_GPIO] = "gpio-%d",
 };
 
 static const unsigned int iqs7222_max_cols[IQS7222_NUM_REG_GRPS] = {
@@ -122,6 +128,7 @@ static const unsigned int iqs7222_max_cols[IQS7222_NUM_REG_GRPS] = {
 	[IQS7222_REG_GRP_CHAN] = IQS7222_MAX_COLS_CHAN,
 	[IQS7222_REG_GRP_FILT] = IQS7222_MAX_COLS_FILT,
 	[IQS7222_REG_GRP_SLDR] = IQS7222_MAX_COLS_SLDR,
+	[IQS7222_REG_GRP_TPAD] = IQS7222_MAX_COLS_TPAD,
 	[IQS7222_REG_GRP_GPIO] = IQS7222_MAX_COLS_GPIO,
 	[IQS7222_REG_GRP_SYS] = IQS7222_MAX_COLS_SYS,
 };
@@ -130,8 +137,10 @@ static const unsigned int iqs7222_gpio_links[] = { 2, 5, 6, };
 
 struct iqs7222_event_desc {
 	const char *name;
+	u16 link;
 	u16 mask;
 	u16 val;
+	u16 strict;
 	u16 enable;
 	enum iqs7222_reg_key_id reg_key;
 };
@@ -183,6 +192,93 @@ static const struct iqs7222_event_desc iqs7222_sl_events[] = {
 		.name = "event-flick-neg",
 		.mask = BIT(5) | BIT(2),
 		.val = BIT(5) | BIT(2),
+		.enable = BIT(2),
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+	},
+};
+
+static const struct iqs7222_event_desc iqs7222_tp_events[] = {
+	{
+		.name = "event-press",
+		.link = BIT(7),
+	},
+	{
+		.name = "event-tap",
+		.link = BIT(0),
+		.mask = BIT(0),
+		.val = BIT(0),
+		.enable = BIT(0),
+		.reg_key = IQS7222_REG_KEY_TAP,
+	},
+	{
+		.name = "event-swipe-x-pos",
+		.link = BIT(2),
+		.mask = BIT(2) | BIT(1),
+		.val = BIT(2),
+		.strict = BIT(4),
+		.enable = BIT(1),
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+	},
+	{
+		.name = "event-swipe-y-pos",
+		.link = BIT(3),
+		.mask = BIT(3) | BIT(1),
+		.val = BIT(3),
+		.strict = BIT(3),
+		.enable = BIT(1),
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+	},
+	{
+		.name = "event-swipe-x-neg",
+		.link = BIT(4),
+		.mask = BIT(4) | BIT(1),
+		.val = BIT(4),
+		.strict = BIT(4),
+		.enable = BIT(1),
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+	},
+	{
+		.name = "event-swipe-y-neg",
+		.link = BIT(5),
+		.mask = BIT(5) | BIT(1),
+		.val = BIT(5),
+		.strict = BIT(3),
+		.enable = BIT(1),
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+	},
+	{
+		.name = "event-flick-x-pos",
+		.link = BIT(2),
+		.mask = BIT(2) | BIT(1),
+		.val = BIT(2) | BIT(1),
+		.strict = BIT(4),
+		.enable = BIT(2),
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+	},
+	{
+		.name = "event-flick-y-pos",
+		.link = BIT(3),
+		.mask = BIT(3) | BIT(1),
+		.val = BIT(3) | BIT(1),
+		.strict = BIT(3),
+		.enable = BIT(2),
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+	},
+	{
+		.name = "event-flick-x-neg",
+		.link = BIT(4),
+		.mask = BIT(4) | BIT(1),
+		.val = BIT(4) | BIT(1),
+		.strict = BIT(4),
+		.enable = BIT(2),
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+	},
+	{
+		.name = "event-flick-y-neg",
+		.link = BIT(5),
+		.mask = BIT(5) | BIT(1),
+		.val = BIT(5) | BIT(1),
+		.strict = BIT(3),
 		.enable = BIT(2),
 		.reg_key = IQS7222_REG_KEY_AXIAL,
 	},
@@ -521,6 +617,62 @@ static const struct iqs7222_dev_desc iqs7222_devs[] = {
 				.base = IQS7222_SYS_SETUP,
 				.num_row = 1,
 				.num_col = 11,
+			},
+		},
+	},
+	{
+		.prod_num = IQS7222_PROD_NUM_D,
+		.fw_major = 0,
+		.fw_minor = 37,
+		.touch_link = 1770,
+		.allow_offset = 9,
+		.event_offset = 10,
+		.comms_offset = 11,
+		.reg_grps = {
+			[IQS7222_REG_GRP_STAT] = {
+				.base = IQS7222_SYS_STATUS,
+				.num_row = 1,
+				.num_col = 7,
+			},
+			[IQS7222_REG_GRP_CYCLE] = {
+				.base = 0x8000,
+				.num_row = 7,
+				.num_col = 2,
+			},
+			[IQS7222_REG_GRP_GLBL] = {
+				.base = 0x8700,
+				.num_row = 1,
+				.num_col = 3,
+			},
+			[IQS7222_REG_GRP_BTN] = {
+				.base = 0x9000,
+				.num_row = 14,
+				.num_col = 3,
+			},
+			[IQS7222_REG_GRP_CHAN] = {
+				.base = 0xA000,
+				.num_row = 14,
+				.num_col = 4,
+			},
+			[IQS7222_REG_GRP_FILT] = {
+				.base = 0xAE00,
+				.num_row = 1,
+				.num_col = 2,
+			},
+			[IQS7222_REG_GRP_TPAD] = {
+				.base = 0xB000,
+				.num_row = 1,
+				.num_col = 24,
+			},
+			[IQS7222_REG_GRP_GPIO] = {
+				.base = 0xC000,
+				.num_row = 3,
+				.num_col = 3,
+			},
+			[IQS7222_REG_GRP_SYS] = {
+				.base = IQS7222_SYS_SETUP,
+				.num_row = 1,
+				.num_col = 12,
 			},
 		},
 	},
@@ -1009,6 +1161,123 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 		.label = "maximum gesture time",
 	},
 	{
+		.name = "azoteq,num-rows",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_offset = 0,
+		.reg_shift = 4,
+		.reg_width = 4,
+		.val_min = 1,
+		.val_max = 12,
+		.label = "number of rows",
+	},
+	{
+		.name = "azoteq,num-cols",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_offset = 0,
+		.reg_shift = 0,
+		.reg_width = 4,
+		.val_min = 1,
+		.val_max = 12,
+		.label = "number of columns",
+	},
+	{
+		.name = "azoteq,lower-cal-y",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_offset = 1,
+		.reg_shift = 8,
+		.reg_width = 8,
+		.label = "lower vertical calibration",
+	},
+	{
+		.name = "azoteq,lower-cal-x",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_offset = 1,
+		.reg_shift = 0,
+		.reg_width = 8,
+		.label = "lower horizontal calibration",
+	},
+	{
+		.name = "azoteq,upper-cal-y",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_offset = 2,
+		.reg_shift = 8,
+		.reg_width = 8,
+		.label = "upper vertical calibration",
+	},
+	{
+		.name = "azoteq,upper-cal-x",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_offset = 2,
+		.reg_shift = 0,
+		.reg_width = 8,
+		.label = "upper horizontal calibration",
+	},
+	{
+		.name = "azoteq,top-speed",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_offset = 3,
+		.reg_shift = 8,
+		.reg_width = 8,
+		.val_pitch = 4,
+		.label = "top speed",
+	},
+	{
+		.name = "azoteq,bottom-speed",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_offset = 3,
+		.reg_shift = 0,
+		.reg_width = 8,
+		.label = "bottom speed",
+	},
+	{
+		.name = "azoteq,gesture-min-ms",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_key = IQS7222_REG_KEY_TAP,
+		.reg_offset = 20,
+		.reg_shift = 8,
+		.reg_width = 8,
+		.val_pitch = 16,
+		.label = "minimum gesture time",
+	},
+	{
+		.name = "azoteq,gesture-max-ms",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+		.reg_offset = 21,
+		.reg_shift = 8,
+		.reg_width = 8,
+		.val_pitch = 16,
+		.label = "maximum gesture time",
+	},
+	{
+		.name = "azoteq,gesture-max-ms",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_key = IQS7222_REG_KEY_TAP,
+		.reg_offset = 21,
+		.reg_shift = 0,
+		.reg_width = 8,
+		.val_pitch = 16,
+		.label = "maximum gesture time",
+	},
+	{
+		.name = "azoteq,gesture-dist",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_key = IQS7222_REG_KEY_TAP,
+		.reg_offset = 22,
+		.reg_shift = 0,
+		.reg_width = 16,
+		.label = "gesture distance",
+	},
+	{
+		.name = "azoteq,gesture-dist",
+		.reg_grp = IQS7222_REG_GRP_TPAD,
+		.reg_key = IQS7222_REG_KEY_AXIAL,
+		.reg_offset = 23,
+		.reg_shift = 0,
+		.reg_width = 16,
+		.label = "gesture distance",
+	},
+	{
 		.name = "drive-open-drain",
 		.reg_grp = IQS7222_REG_GRP_GPIO,
 		.reg_offset = 0,
@@ -1091,16 +1360,19 @@ struct iqs7222_private {
 	struct gpio_desc *irq_gpio;
 	struct i2c_client *client;
 	struct input_dev *keypad;
+	struct touchscreen_properties prop;
 	unsigned int kp_type[IQS7222_MAX_CHAN][ARRAY_SIZE(iqs7222_kp_events)];
 	unsigned int kp_code[IQS7222_MAX_CHAN][ARRAY_SIZE(iqs7222_kp_events)];
 	unsigned int sl_code[IQS7222_MAX_SLDR][ARRAY_SIZE(iqs7222_sl_events)];
 	unsigned int sl_axis[IQS7222_MAX_SLDR];
+	unsigned int tp_code[ARRAY_SIZE(iqs7222_tp_events)];
 	u16 cycle_setup[IQS7222_MAX_CHAN / 2][IQS7222_MAX_COLS_CYCLE];
 	u16 glbl_setup[IQS7222_MAX_COLS_GLBL];
 	u16 btn_setup[IQS7222_MAX_CHAN][IQS7222_MAX_COLS_BTN];
 	u16 chan_setup[IQS7222_MAX_CHAN][IQS7222_MAX_COLS_CHAN];
 	u16 filt_setup[IQS7222_MAX_COLS_FILT];
 	u16 sldr_setup[IQS7222_MAX_SLDR][IQS7222_MAX_COLS_SLDR];
+	u16 tpad_setup[IQS7222_MAX_COLS_TPAD];
 	u16 gpio_setup[ARRAY_SIZE(iqs7222_gpio_links)][IQS7222_MAX_COLS_GPIO];
 	u16 sys_setup[IQS7222_MAX_COLS_SYS];
 };
@@ -1126,6 +1398,9 @@ static u16 *iqs7222_setup(struct iqs7222_private *iqs7222,
 
 	case IQS7222_REG_GRP_SLDR:
 		return iqs7222->sldr_setup[row];
+
+	case IQS7222_REG_GRP_TPAD:
+		return iqs7222->tpad_setup;
 
 	case IQS7222_REG_GRP_GPIO:
 		return iqs7222->gpio_setup[row];
@@ -1381,9 +1656,6 @@ static int iqs7222_ati_trigger(struct iqs7222_private *iqs7222)
 	if (error)
 		return error;
 
-	sys_setup &= ~IQS7222_SYS_SETUP_INTF_MODE_MASK;
-	sys_setup &= ~IQS7222_SYS_SETUP_PWR_MODE_MASK;
-
 	for (i = 0; i < IQS7222_NUM_RETRIES; i++) {
 		/*
 		 * Trigger ATI from streaming and normal-power modes so that
@@ -1561,8 +1833,11 @@ static int iqs7222_dev_init(struct iqs7222_private *iqs7222, int dir)
 			return error;
 	}
 
-	if (dir == READ)
+	if (dir == READ) {
+		iqs7222->sys_setup[0] &= ~IQS7222_SYS_SETUP_INTF_MODE_MASK;
+		iqs7222->sys_setup[0] &= ~IQS7222_SYS_SETUP_PWR_MODE_MASK;
 		return 0;
+	}
 
 	return iqs7222_ati_trigger(iqs7222);
 }
@@ -1936,6 +2211,14 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		ref_setup[4] = dev_desc->touch_link;
 		if (fwnode_property_present(chan_node, "azoteq,use-prox"))
 			ref_setup[4] -= 2;
+	} else if (dev_desc->reg_grps[IQS7222_REG_GRP_TPAD].num_row &&
+		   fwnode_property_present(chan_node,
+					   "azoteq,counts-filt-enable")) {
+		/*
+		 * In the case of IQS7222D, however, the reference mode field
+		 * is partially repurposed as a counts filter enable control.
+		 */
+		chan_setup[0] |= IQS7222_CHAN_SETUP_0_REF_MODE_REF;
 	}
 
 	if (fwnode_property_present(chan_node, "azoteq,rx-enable")) {
@@ -2278,6 +2561,136 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 				   IQS7222_REG_KEY_NO_WHEEL);
 }
 
+static int iqs7222_parse_tpad(struct iqs7222_private *iqs7222,
+			      struct fwnode_handle *tpad_node, int tpad_index)
+{
+	const struct iqs7222_dev_desc *dev_desc = iqs7222->dev_desc;
+	struct touchscreen_properties *prop = &iqs7222->prop;
+	struct i2c_client *client = iqs7222->client;
+	int num_chan = dev_desc->reg_grps[IQS7222_REG_GRP_CHAN].num_row;
+	int count, error, i;
+	u16 *event_mask = &iqs7222->sys_setup[dev_desc->event_offset];
+	u16 *tpad_setup = iqs7222->tpad_setup;
+	unsigned int chan_sel[12];
+
+	error = iqs7222_parse_props(iqs7222, tpad_node, tpad_index,
+				    IQS7222_REG_GRP_TPAD,
+				    IQS7222_REG_KEY_NONE);
+	if (error)
+		return error;
+
+	count = fwnode_property_count_u32(tpad_node, "azoteq,channel-select");
+	if (count < 0) {
+		dev_err(&client->dev, "Failed to count %s channels: %d\n",
+			fwnode_get_name(tpad_node), count);
+		return count;
+	} else if (!count || count > ARRAY_SIZE(chan_sel)) {
+		dev_err(&client->dev, "Invalid number of %s channels\n",
+			fwnode_get_name(tpad_node));
+		return -EINVAL;
+	}
+
+	error = fwnode_property_read_u32_array(tpad_node,
+					       "azoteq,channel-select",
+					       chan_sel, count);
+	if (error) {
+		dev_err(&client->dev, "Failed to read %s channels: %d\n",
+			fwnode_get_name(tpad_node), error);
+		return error;
+	}
+
+	tpad_setup[6] &= ~GENMASK(num_chan - 1, 0);
+
+	for (i = 0; i < ARRAY_SIZE(chan_sel); i++) {
+		tpad_setup[8 + i] = 0;
+		if (i >= count || chan_sel[i] == U8_MAX)
+			continue;
+
+		if (chan_sel[i] >= num_chan) {
+			dev_err(&client->dev, "Invalid %s channel: %u\n",
+				fwnode_get_name(tpad_node), chan_sel[i]);
+			return -EINVAL;
+		}
+
+		/*
+		 * The following fields indicate which channels participate in
+		 * the trackpad, as well as each channel's relative placement.
+		 */
+		tpad_setup[6] |= BIT(chan_sel[i]);
+		tpad_setup[8 + i] = chan_sel[i] * 34 + 1072;
+	}
+
+	tpad_setup[7] = dev_desc->touch_link;
+	if (fwnode_property_present(tpad_node, "azoteq,use-prox"))
+		tpad_setup[7] -= 2;
+
+	for (i = 0; i < ARRAY_SIZE(iqs7222_tp_events); i++)
+		tpad_setup[20] &= ~(iqs7222_tp_events[i].strict |
+				    iqs7222_tp_events[i].enable);
+
+	for (i = 0; i < ARRAY_SIZE(iqs7222_tp_events); i++) {
+		const char *event_name = iqs7222_tp_events[i].name;
+		struct fwnode_handle *event_node;
+
+		event_node = fwnode_get_named_child_node(tpad_node, event_name);
+		if (!event_node)
+			continue;
+
+		if (fwnode_property_present(event_node,
+					    "azoteq,gesture-angle-tighten"))
+			tpad_setup[20] |= iqs7222_tp_events[i].strict;
+
+		tpad_setup[20] |= iqs7222_tp_events[i].enable;
+
+		error = iqs7222_parse_event(iqs7222, event_node, tpad_index,
+					    IQS7222_REG_GRP_TPAD,
+					    iqs7222_tp_events[i].reg_key,
+					    iqs7222_tp_events[i].link, 1566,
+					    NULL,
+					    &iqs7222->tp_code[i]);
+		fwnode_handle_put(event_node);
+		if (error)
+			return error;
+
+		if (!dev_desc->event_offset)
+			continue;
+
+		/*
+		 * The press/release event is determined based on whether the
+		 * coordinate fields report 0xFFFF and solely relies on touch
+		 * or proximity interrupts to be unmasked.
+		 */
+		if (i)
+			*event_mask |= IQS7222_EVENT_MASK_TPAD;
+		else if (tpad_setup[7] == dev_desc->touch_link)
+			*event_mask |= IQS7222_EVENT_MASK_TOUCH;
+		else
+			*event_mask |= IQS7222_EVENT_MASK_PROX;
+	}
+
+	if (!iqs7222->tp_code[0])
+		return 0;
+
+	input_set_abs_params(iqs7222->keypad, ABS_X,
+			     0, (tpad_setup[4] ? : 1) - 1, 0, 0);
+
+	input_set_abs_params(iqs7222->keypad, ABS_Y,
+			     0, (tpad_setup[5] ? : 1) - 1, 0, 0);
+
+	touchscreen_parse_properties(iqs7222->keypad, false, prop);
+
+	if (prop->max_x >= U16_MAX || prop->max_y >= U16_MAX) {
+		dev_err(&client->dev, "Invalid trackpad size: %u*%u\n",
+			prop->max_x, prop->max_y);
+		return -EINVAL;
+	}
+
+	tpad_setup[4] = prop->max_x + 1;
+	tpad_setup[5] = prop->max_y + 1;
+
+	return 0;
+}
+
 static int (*iqs7222_parse_extra[IQS7222_NUM_REG_GRPS])
 				(struct iqs7222_private *iqs7222,
 				 struct fwnode_handle *reg_grp_node,
@@ -2285,6 +2698,7 @@ static int (*iqs7222_parse_extra[IQS7222_NUM_REG_GRPS])
 	[IQS7222_REG_GRP_CYCLE] = iqs7222_parse_cycle,
 	[IQS7222_REG_GRP_CHAN] = iqs7222_parse_chan,
 	[IQS7222_REG_GRP_SLDR] = iqs7222_parse_sldr,
+	[IQS7222_REG_GRP_TPAD] = iqs7222_parse_tpad,
 };
 
 static int iqs7222_parse_reg_grp(struct iqs7222_private *iqs7222,
@@ -2298,7 +2712,7 @@ static int iqs7222_parse_reg_grp(struct iqs7222_private *iqs7222,
 	if (iqs7222_reg_grp_names[reg_grp]) {
 		char reg_grp_name[16];
 
-		snprintf(reg_grp_name, sizeof(reg_grp_name), "%s-%d",
+		snprintf(reg_grp_name, sizeof(reg_grp_name),
 			 iqs7222_reg_grp_names[reg_grp], reg_grp_index);
 
 		reg_grp_node = device_get_named_child_node(&client->dev,
@@ -2346,8 +2760,8 @@ static int iqs7222_parse_all(struct iqs7222_private *iqs7222)
 			continue;
 
 		/*
-		 * The IQS7222C exposes multiple GPIO and must be informed
-		 * as to which GPIO this group represents.
+		 * The IQS7222C and IQS7222D expose multiple GPIO and must be
+		 * informed as to which GPIO this group represents.
 		 */
 		for (j = 0; j < ARRAY_SIZE(iqs7222_gpio_links); j++)
 			gpio_setup[0] &= ~BIT(iqs7222_gpio_links[j]);
@@ -2480,6 +2894,41 @@ static int iqs7222_report(struct iqs7222_private *iqs7222)
 					 iqs7222->sl_code[i][j], 0);
 	}
 
+	for (i = 0; i < dev_desc->reg_grps[IQS7222_REG_GRP_TPAD].num_row; i++) {
+		u16 tpad_pos_x = le16_to_cpu(status[4]);
+		u16 tpad_pos_y = le16_to_cpu(status[5]);
+		u16 state = le16_to_cpu(status[6]);
+
+		input_report_key(iqs7222->keypad, iqs7222->tp_code[0],
+				 tpad_pos_x < U16_MAX);
+
+		if (tpad_pos_x < U16_MAX)
+			touchscreen_report_pos(iqs7222->keypad, &iqs7222->prop,
+					       tpad_pos_x, tpad_pos_y, false);
+
+		if (!(le16_to_cpu(status[1]) & IQS7222_EVENT_MASK_TPAD))
+			continue;
+
+		/*
+		 * Skip the press/release event, as it does not have separate
+		 * status fields and is handled separately.
+		 */
+		for (j = 1; j < ARRAY_SIZE(iqs7222_tp_events); j++) {
+			u16 mask = iqs7222_tp_events[j].mask;
+			u16 val = iqs7222_tp_events[j].val;
+
+			input_report_key(iqs7222->keypad,
+					 iqs7222->tp_code[j],
+					 (state & mask) == val);
+		}
+
+		input_sync(iqs7222->keypad);
+
+		for (j = 1; j < ARRAY_SIZE(iqs7222_tp_events); j++)
+			input_report_key(iqs7222->keypad,
+					 iqs7222->tp_code[j], 0);
+	}
+
 	input_sync(iqs7222->keypad);
 
 	return 0;
@@ -2584,6 +3033,7 @@ static const struct of_device_id iqs7222_of_match[] = {
 	{ .compatible = "azoteq,iqs7222a" },
 	{ .compatible = "azoteq,iqs7222b" },
 	{ .compatible = "azoteq,iqs7222c" },
+	{ .compatible = "azoteq,iqs7222d" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, iqs7222_of_match);
@@ -2593,10 +3043,10 @@ static struct i2c_driver iqs7222_i2c_driver = {
 		.name = "iqs7222",
 		.of_match_table = iqs7222_of_match,
 	},
-	.probe_new = iqs7222_probe,
+	.probe = iqs7222_probe,
 };
 module_i2c_driver(iqs7222_i2c_driver);
 
 MODULE_AUTHOR("Jeff LaBundy <jeff@labundy.com>");
-MODULE_DESCRIPTION("Azoteq IQS7222A/B/C Capacitive Touch Controller");
+MODULE_DESCRIPTION("Azoteq IQS7222A/B/C/D Capacitive Touch Controller");
 MODULE_LICENSE("GPL");

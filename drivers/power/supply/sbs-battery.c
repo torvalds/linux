@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/property.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/power/sbs-battery.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
@@ -1275,7 +1275,7 @@ static const struct of_device_id sbs_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, sbs_dt_ids);
 
 static struct i2c_driver sbs_battery_driver = {
-	.probe_new	= sbs_probe,
+	.probe		= sbs_probe,
 	.alert		= sbs_alert,
 	.id_table	= sbs_id,
 	.driver = {

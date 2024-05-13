@@ -334,7 +334,7 @@ static struct i2c_driver ad5110_driver = {
 		.name	= "ad5110",
 		.of_match_table = ad5110_of_match,
 	},
-	.probe_new	= ad5110_probe,
+	.probe		= ad5110_probe,
 	.id_table	= ad5110_id,
 };
 module_i2c_driver(ad5110_driver);

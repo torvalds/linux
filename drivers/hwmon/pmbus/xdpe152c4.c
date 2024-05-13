@@ -63,7 +63,7 @@ static struct i2c_driver xdpe152_driver = {
 		.name = "xdpe152c4",
 		.of_match_table = of_match_ptr(xdpe152_of_match),
 	},
-	.probe_new = xdpe152_probe,
+	.probe = xdpe152_probe,
 	.id_table = xdpe152_id,
 };
 

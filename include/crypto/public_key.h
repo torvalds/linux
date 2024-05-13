@@ -48,8 +48,6 @@ struct public_key_signature {
 	const char *pkey_algo;
 	const char *hash_algo;
 	const char *encoding;
-	const void *data;
-	unsigned int data_size;
 };
 
 extern void public_key_signature_free(struct public_key_signature *sig);
@@ -80,11 +78,23 @@ extern int restrict_link_by_ca(struct key *dest_keyring,
 			       const struct key_type *type,
 			       const union key_payload *payload,
 			       struct key *trust_keyring);
+int restrict_link_by_digsig(struct key *dest_keyring,
+			    const struct key_type *type,
+			    const union key_payload *payload,
+			    struct key *trust_keyring);
 #else
 static inline int restrict_link_by_ca(struct key *dest_keyring,
 				      const struct key_type *type,
 				      const union key_payload *payload,
 				      struct key *trust_keyring)
+{
+	return 0;
+}
+
+static inline int restrict_link_by_digsig(struct key *dest_keyring,
+					  const struct key_type *type,
+					  const union key_payload *payload,
+					  struct key *trust_keyring)
 {
 	return 0;
 }

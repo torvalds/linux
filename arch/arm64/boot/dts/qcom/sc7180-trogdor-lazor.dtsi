@@ -55,7 +55,7 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &pm6150_adc {
-	/delete-node/ charger-thermistor@4f;
+	/delete-node/ channel@4f;
 };
 
 &pm6150_adc_tm {

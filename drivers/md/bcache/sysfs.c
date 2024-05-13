@@ -1111,26 +1111,25 @@ SHOW(__bch_cache)
 
 		vfree(p);
 
-		ret = scnprintf(buf, PAGE_SIZE,
-				"Unused:		%zu%%\n"
-				"Clean:		%zu%%\n"
-				"Dirty:		%zu%%\n"
-				"Metadata:	%zu%%\n"
-				"Average:	%llu\n"
-				"Sectors per Q:	%zu\n"
-				"Quantiles:	[",
-				unused * 100 / (size_t) ca->sb.nbuckets,
-				available * 100 / (size_t) ca->sb.nbuckets,
-				dirty * 100 / (size_t) ca->sb.nbuckets,
-				meta * 100 / (size_t) ca->sb.nbuckets, sum,
-				n * ca->sb.bucket_size / (ARRAY_SIZE(q) + 1));
+		ret = sysfs_emit(buf,
+				 "Unused:		%zu%%\n"
+				 "Clean:		%zu%%\n"
+				 "Dirty:		%zu%%\n"
+				 "Metadata:	%zu%%\n"
+				 "Average:	%llu\n"
+				 "Sectors per Q:	%zu\n"
+				 "Quantiles:	[",
+				 unused * 100 / (size_t) ca->sb.nbuckets,
+				 available * 100 / (size_t) ca->sb.nbuckets,
+				 dirty * 100 / (size_t) ca->sb.nbuckets,
+				 meta * 100 / (size_t) ca->sb.nbuckets, sum,
+				 n * ca->sb.bucket_size / (ARRAY_SIZE(q) + 1));
 
 		for (i = 0; i < ARRAY_SIZE(q); i++)
-			ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-					 "%u ", q[i]);
+			ret += sysfs_emit_at(buf, ret, "%u ", q[i]);
 		ret--;
 
-		ret += scnprintf(buf + ret, PAGE_SIZE - ret, "]\n");
+		ret += sysfs_emit_at(buf, ret, "]\n");
 
 		return ret;
 	}

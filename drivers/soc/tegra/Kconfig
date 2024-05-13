@@ -125,6 +125,7 @@ config ARCH_TEGRA_234_SOC
 	bool "NVIDIA Tegra234 SoC"
 	depends on !CPU_BIG_ENDIAN
 	select MAILBOX
+	select PINCTRL_TEGRA234
 	select TEGRA_BPMP
 	select TEGRA_HSP_MBOX
 	select TEGRA_IVC

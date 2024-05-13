@@ -391,3 +391,13 @@ LIBBPF_1.2.0 {
 		bpf_map_get_info_by_fd;
 		bpf_prog_get_info_by_fd;
 } LIBBPF_1.1.0;
+
+LIBBPF_1.3.0 {
+	global:
+		bpf_obj_pin_opts;
+		bpf_object__unpin;
+		bpf_prog_detach_opts;
+		bpf_program__attach_netfilter;
+		bpf_program__attach_tcx;
+		bpf_program__attach_uprobe_multi;
+} LIBBPF_1.2.0;

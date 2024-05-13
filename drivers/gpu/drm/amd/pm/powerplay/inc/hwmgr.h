@@ -190,8 +190,7 @@ struct phm_vce_clock_voltage_dependency_table {
 };
 
 
-enum SMU_ASIC_RESET_MODE
-{
+enum SMU_ASIC_RESET_MODE {
     SMU_ASIC_RESET_MODE_0,
     SMU_ASIC_RESET_MODE_1,
     SMU_ASIC_RESET_MODE_2,
@@ -359,7 +358,7 @@ struct pp_hwmgr_func {
 	int (*set_ppfeature_status)(struct pp_hwmgr *hwmgr, uint64_t ppfeature_masks);
 	int (*set_mp1_state)(struct pp_hwmgr *hwmgr, enum pp_mp1_state mp1_state);
 	int (*asic_reset)(struct pp_hwmgr *hwmgr, enum SMU_ASIC_RESET_MODE mode);
-	int (*smu_i2c_bus_access)(struct pp_hwmgr *hwmgr, bool aquire);
+	int (*smu_i2c_bus_access)(struct pp_hwmgr *hwmgr, bool acquire);
 	int (*set_df_cstate)(struct pp_hwmgr *hwmgr, enum pp_df_cstate state);
 	int (*set_xgmi_pstate)(struct pp_hwmgr *hwmgr, uint32_t pstate);
 	int (*disable_power_features_for_compute_performance)(struct pp_hwmgr *hwmgr,
@@ -516,7 +515,7 @@ struct phm_vq_budgeting_record {
 
 struct phm_vq_budgeting_table {
 	uint8_t numEntries;
-	struct phm_vq_budgeting_record entries[1];
+	struct phm_vq_budgeting_record entries[0];
 };
 
 struct phm_clock_and_voltage_limits {
@@ -607,8 +606,7 @@ struct phm_ppt_v2_information {
 	uint8_t  uc_dcef_dpm_voltage_mode;
 };
 
-struct phm_ppt_v3_information
-{
+struct phm_ppt_v3_information {
 	uint8_t uc_thermal_controller_type;
 
 	uint16_t us_small_power_limit1;
@@ -811,6 +809,8 @@ struct pp_hwmgr {
 	bool gfxoff_state_changed_by_workload;
 	uint32_t pstate_sclk_peak;
 	uint32_t pstate_mclk_peak;
+
+	struct delayed_work swctf_delayed_work;
 };
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr);

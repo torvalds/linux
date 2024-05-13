@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/spinlock.h>
@@ -428,10 +429,11 @@ static int tng_gpio_add_pin_ranges(struct gpio_chip *chip)
 int devm_tng_gpio_probe(struct device *dev, struct tng_gpio *gpio)
 {
 	const struct tng_gpio_info *info = &gpio->info;
+	size_t nctx = DIV_ROUND_UP(info->ngpio, 32);
 	struct gpio_irq_chip *girq;
 	int ret;
 
-	gpio->ctx = devm_kcalloc(dev, DIV_ROUND_UP(info->ngpio, 32), sizeof(*gpio->ctx), GFP_KERNEL);
+	gpio->ctx = devm_kcalloc(dev, nctx, sizeof(*gpio->ctx), GFP_KERNEL);
 	if (!gpio->ctx)
 		return -ENOMEM;
 

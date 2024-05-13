@@ -1,0 +1,5 @@
+kms_draw_crc@.*
+kms_flip@blocking-absolute-wf_vblank
+kms_flip@bo-too-big-interruptible
+kms_flip@busy-flip
+kms_flip@flip-vs-rmfb-interruptible

@@ -11,6 +11,7 @@
 
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/suspend.h>
@@ -218,7 +219,7 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 	} else if (ret != -EACCES && ret != -ENODEV) {
 		dev_err(&pdev->dev, "Failed to Register with Xilinx Event manager %d\n", ret);
 		return ret;
-	} else if (of_find_property(pdev->dev.of_node, "mboxes", NULL)) {
+	} else if (of_property_present(pdev->dev.of_node, "mboxes")) {
 		zynqmp_pm_init_suspend_work =
 			devm_kzalloc(&pdev->dev,
 				     sizeof(struct zynqmp_pm_work_struct),
@@ -240,10 +241,10 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Failed to request rx channel\n");
 			return PTR_ERR(rx_chan);
 		}
-	} else if (of_find_property(pdev->dev.of_node, "interrupts", NULL)) {
+	} else if (of_property_present(pdev->dev.of_node, "interrupts")) {
 		irq = platform_get_irq(pdev, 0);
-		if (irq <= 0)
-			return -ENXIO;
+		if (irq < 0)
+			return irq;
 
 		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 						zynqmp_pm_isr,

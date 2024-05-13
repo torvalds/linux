@@ -55,6 +55,7 @@
 #define PLL_TEST_CTL(p)		((p)->offset + (p)->regs[PLL_OFF_TEST_CTL])
 #define PLL_TEST_CTL_U(p)	((p)->offset + (p)->regs[PLL_OFF_TEST_CTL_U])
 #define PLL_TEST_CTL_U1(p)     ((p)->offset + (p)->regs[PLL_OFF_TEST_CTL_U1])
+#define PLL_TEST_CTL_U2(p)     ((p)->offset + (p)->regs[PLL_OFF_TEST_CTL_U2])
 #define PLL_STATUS(p)		((p)->offset + (p)->regs[PLL_OFF_STATUS])
 #define PLL_OPMODE(p)		((p)->offset + (p)->regs[PLL_OFF_OPMODE])
 #define PLL_FRAC(p)		((p)->offset + (p)->regs[PLL_OFF_FRAC])
@@ -383,10 +384,21 @@ void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 
 	regmap_update_bits(regmap, PLL_USER_CTL(pll), mask, val);
 
-	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL(pll),
-						config->test_ctl_val);
-	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U(pll),
-						config->test_ctl_hi_val);
+	if (config->test_ctl_mask)
+		regmap_update_bits(regmap, PLL_TEST_CTL(pll),
+				   config->test_ctl_mask,
+				   config->test_ctl_val);
+	else
+		clk_alpha_pll_write_config(regmap, PLL_TEST_CTL(pll),
+					   config->test_ctl_val);
+
+	if (config->test_ctl_hi_mask)
+		regmap_update_bits(regmap, PLL_TEST_CTL_U(pll),
+				   config->test_ctl_hi_mask,
+				   config->test_ctl_hi_val);
+	else
+		clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U(pll),
+					   config->test_ctl_hi_val);
 
 	if (pll->flags & SUPPORTS_FSM_MODE)
 		qcom_pll_set_fsm_mode(regmap, PLL_MODE(pll), 6, 0);
@@ -2096,6 +2108,7 @@ void clk_lucid_evo_pll_configure(struct clk_alpha_pll *pll, struct regmap *regma
 	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL(pll), config->test_ctl_val);
 	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U(pll), config->test_ctl_hi_val);
 	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U1(pll), config->test_ctl_hi1_val);
+	clk_alpha_pll_write_config(regmap, PLL_TEST_CTL_U2(pll), config->test_ctl_hi2_val);
 
 	/* Disable PLL output */
 	regmap_update_bits(regmap, PLL_MODE(pll), PLL_OUTCTRL, 0);

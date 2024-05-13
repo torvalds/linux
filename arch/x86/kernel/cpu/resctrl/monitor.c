@@ -30,15 +30,15 @@ struct rmid_entry {
 	struct list_head		list;
 };
 
-/**
- * @rmid_free_lru    A least recently used list of free RMIDs
+/*
+ * @rmid_free_lru - A least recently used list of free RMIDs
  *     These RMIDs are guaranteed to have an occupancy less than the
  *     threshold occupancy
  */
 static LIST_HEAD(rmid_free_lru);
 
-/**
- * @rmid_limbo_count     count of currently unused but (potentially)
+/*
+ * @rmid_limbo_count - count of currently unused but (potentially)
  *     dirty RMIDs.
  *     This counts RMIDs that no one is currently using but that
  *     may have a occupancy value > resctrl_rmid_realloc_threshold. User can
@@ -46,7 +46,7 @@ static LIST_HEAD(rmid_free_lru);
  */
 static unsigned int rmid_limbo_count;
 
-/**
+/*
  * @rmid_entry - The entry in the limbo and free lists.
  */
 static struct rmid_entry	*rmid_ptrs;

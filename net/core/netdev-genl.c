@@ -10,11 +10,11 @@
 
 static int
 netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
-		   u32 portid, u32 seq, int flags, u32 cmd)
+		   const struct genl_info *info)
 {
 	void *hdr;
 
-	hdr = genlmsg_put(rsp, portid, seq, &netdev_nl_family, flags, cmd);
+	hdr = genlmsg_iput(rsp, info);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -25,6 +25,14 @@ netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
 		return -EINVAL;
 	}
 
+	if (netdev->xdp_features & NETDEV_XDP_ACT_XSK_ZEROCOPY) {
+		if (nla_put_u32(rsp, NETDEV_A_DEV_XDP_ZC_MAX_SEGS,
+				netdev->xdp_zc_max_segs)) {
+			genlmsg_cancel(rsp, hdr);
+			return -EINVAL;
+		}
+	}
+
 	genlmsg_end(rsp, hdr);
 
 	return 0;
@@ -33,17 +41,20 @@ netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
 static void
 netdev_genl_dev_notify(struct net_device *netdev, int cmd)
 {
+	struct genl_info info;
 	struct sk_buff *ntf;
 
 	if (!genl_has_listeners(&netdev_nl_family, dev_net(netdev),
 				NETDEV_NLGRP_MGMT))
 		return;
 
+	genl_info_init_ntf(&info, &netdev_nl_family, cmd);
+
 	ntf = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!ntf)
 		return;
 
-	if (netdev_nl_dev_fill(netdev, ntf, 0, 0, 0, cmd)) {
+	if (netdev_nl_dev_fill(netdev, ntf, &info)) {
 		nlmsg_free(ntf);
 		return;
 	}
@@ -72,8 +83,7 @@ int netdev_nl_dev_get_doit(struct sk_buff *skb, struct genl_info *info)
 
 	netdev = __dev_get_by_index(genl_info_net(info), ifindex);
 	if (netdev)
-		err = netdev_nl_dev_fill(netdev, rsp, info->snd_portid,
-					 info->snd_seq, 0, info->genlhdr->cmd);
+		err = netdev_nl_dev_fill(netdev, rsp, info);
 	else
 		err = -ENODEV;
 
@@ -93,42 +103,18 @@ int netdev_nl_dev_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	struct net_device *netdev;
-	int idx = 0, s_idx;
-	int h, s_h;
-	int err;
-
-	s_h = cb->args[0];
-	s_idx = cb->args[1];
+	int err = 0;
 
 	rtnl_lock();
-
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		struct hlist_head *head;
-
-		idx = 0;
-		head = &net->dev_index_head[h];
-		hlist_for_each_entry(netdev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			err = netdev_nl_dev_fill(netdev, skb,
-						 NETLINK_CB(cb->skb).portid,
-						 cb->nlh->nlmsg_seq, 0,
-						 NETDEV_CMD_DEV_GET);
-			if (err < 0)
-				break;
-cont:
-			idx++;
-		}
+	for_each_netdev_dump(net, netdev, cb->args[0]) {
+		err = netdev_nl_dev_fill(netdev, skb, genl_info_dump(cb));
+		if (err < 0)
+			break;
 	}
-
 	rtnl_unlock();
 
 	if (err != -EMSGSIZE)
 		return err;
-
-	cb->args[1] = idx;
-	cb->args[0] = h;
-	cb->seq = net->dev_base_seq;
 
 	return skb->len;
 }

@@ -28,14 +28,6 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
-#undef TTY_DEBUG_WAIT_UNTIL_SENT
-
-#ifdef TTY_DEBUG_WAIT_UNTIL_SENT
-# define tty_debug_wait_until_sent(tty, f, args...)    tty_debug(tty, f, ##args)
-#else
-# define tty_debug_wait_until_sent(tty, f, args...)    do {} while (0)
-#endif
-
 #undef	DEBUG
 
 /*
@@ -198,8 +190,6 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 
 void tty_wait_until_sent(struct tty_struct *tty, long timeout)
 {
-	tty_debug_wait_until_sent(tty, "wait until sent, timeout=%ld\n", timeout);
-
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 
@@ -507,7 +497,7 @@ retry_write_wait:
 		if (retval < 0)
 			return retval;
 
-		if (tty_write_lock(tty, 0) < 0)
+		if (tty_write_lock(tty, false) < 0)
 			goto retry_write_wait;
 
 		/* Racing writer? */
@@ -747,17 +737,17 @@ static int set_ltchars(struct tty_struct *tty, struct ltchars __user *ltchars)
 /**
  *	tty_change_softcar	-	carrier change ioctl helper
  *	@tty: tty to update
- *	@arg: enable/disable CLOCAL
+ *	@enable: enable/disable CLOCAL
  *
  *	Perform a change to the CLOCAL state and call into the driver
  *	layer to make it visible. All done with the termios rwsem
  */
 
-static int tty_change_softcar(struct tty_struct *tty, int arg)
+static int tty_change_softcar(struct tty_struct *tty, bool enable)
 {
 	int ret = 0;
-	int bit = arg ? CLOCAL : 0;
 	struct ktermios old;
+	tcflag_t bit = enable ? CLOCAL : 0;
 
 	down_write(&tty->termios_rwsem);
 	old = tty->termios;

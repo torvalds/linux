@@ -20,8 +20,7 @@
 
 static struct kmem_cache *erofs_inode_cachep __read_mostly;
 
-void _erofs_err(struct super_block *sb, const char *function,
-		const char *fmt, ...)
+void _erofs_err(struct super_block *sb, const char *func, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -31,12 +30,11 @@ void _erofs_err(struct super_block *sb, const char *function,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	pr_err("(device %s): %s: %pV", sb->s_id, function, &vaf);
+	pr_err("(device %s): %s: %pV", sb->s_id, func, &vaf);
 	va_end(args);
 }
 
-void _erofs_info(struct super_block *sb, const char *function,
-		 const char *fmt, ...)
+void _erofs_info(struct super_block *sb, const char *func, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -101,11 +99,9 @@ static void erofs_free_inode(struct inode *inode)
 {
 	struct erofs_inode *vi = EROFS_I(inode);
 
-	/* be careful of RCU symlink path */
 	if (inode->i_op == &erofs_fast_symlink_iops)
 		kfree(inode->i_link);
 	kfree(vi->xattr_shared_xattrs);
-
 	kmem_cache_free(erofs_inode_cachep, vi);
 }
 
@@ -118,8 +114,7 @@ static bool check_layout_compatibility(struct super_block *sb,
 
 	/* check if current kernel meets all mandatory requirements */
 	if (feature & (~EROFS_ALL_FEATURE_INCOMPAT)) {
-		erofs_err(sb,
-			  "unidentified incompatible feature %x, please upgrade kernel version",
+		erofs_err(sb, "unidentified incompatible feature %x, please upgrade kernel",
 			   feature & ~EROFS_ALL_FEATURE_INCOMPAT);
 		return false;
 	}
@@ -200,6 +195,9 @@ static int erofs_load_compr_cfgs(struct super_block *sb,
 		case Z_EROFS_COMPRESSION_LZMA:
 			ret = z_erofs_load_lzma_config(sb, dsb, data, size);
 			break;
+		case Z_EROFS_COMPRESSION_DEFLATE:
+			ret = z_erofs_load_deflate_config(sb, dsb, data, size);
+			break;
 		default:
 			DBG_BUGON(1);
 			ret = -EFAULT;
@@ -237,7 +235,7 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 		return PTR_ERR(ptr);
 	dis = ptr + erofs_blkoff(sb, *pos);
 
-	if (!dif->path) {
+	if (!sbi->devs->flatdev && !dif->path) {
 		if (!dis->tag[0]) {
 			erofs_err(sb, "empty device tag @ pos %llu", *pos);
 			return -EINVAL;
@@ -253,8 +251,8 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 			return PTR_ERR(fscache);
 		dif->fscache = fscache;
 	} else if (!sbi->devs->flatdev) {
-		bdev = blkdev_get_by_path(dif->path, FMODE_READ | FMODE_EXCL,
-					  sb->s_type);
+		bdev = blkdev_get_by_path(dif->path, BLK_OPEN_READ, sb->s_type,
+					  NULL);
 		if (IS_ERR(bdev))
 			return PTR_ERR(bdev);
 		dif->bdev = bdev;
@@ -387,6 +385,7 @@ static int erofs_read_superblock(struct super_block *sb)
 	sbi->xattr_blkaddr = le32_to_cpu(dsb->xattr_blkaddr);
 	sbi->xattr_prefix_start = le32_to_cpu(dsb->xattr_prefix_start);
 	sbi->xattr_prefix_count = dsb->xattr_prefix_count;
+	sbi->xattr_filter_reserved = dsb->xattr_filter_reserved;
 #endif
 	sbi->islotbits = ilog2(sizeof(struct erofs_inode_compact));
 	sbi->root_nid = le16_to_cpu(dsb->root_nid);
@@ -419,16 +418,11 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	if (erofs_is_fscache_mode(sb))
 		erofs_info(sb, "EXPERIMENTAL fscache-based on-demand read feature in use. Use at your own risk!");
-	if (erofs_sb_has_fragments(sbi))
-		erofs_info(sb, "EXPERIMENTAL compressed fragments feature in use. Use at your own risk!");
-	if (erofs_sb_has_dedupe(sbi))
-		erofs_info(sb, "EXPERIMENTAL global deduplication feature in use. Use at your own risk!");
 out:
 	erofs_put_metabuf(&buf);
 	return ret;
 }
 
-/* set up default EROFS parameters */
 static void erofs_default_options(struct erofs_fs_context *ctx)
 {
 #ifdef CONFIG_EROFS_FS_ZIP
@@ -599,68 +593,6 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 	return 0;
 }
 
-#ifdef CONFIG_EROFS_FS_ZIP
-static const struct address_space_operations managed_cache_aops;
-
-static bool erofs_managed_cache_release_folio(struct folio *folio, gfp_t gfp)
-{
-	bool ret = true;
-	struct address_space *const mapping = folio->mapping;
-
-	DBG_BUGON(!folio_test_locked(folio));
-	DBG_BUGON(mapping->a_ops != &managed_cache_aops);
-
-	if (folio_test_private(folio))
-		ret = erofs_try_to_free_cached_page(&folio->page);
-
-	return ret;
-}
-
-/*
- * It will be called only on inode eviction. In case that there are still some
- * decompression requests in progress, wait with rescheduling for a bit here.
- * We could introduce an extra locking instead but it seems unnecessary.
- */
-static void erofs_managed_cache_invalidate_folio(struct folio *folio,
-					       size_t offset, size_t length)
-{
-	const size_t stop = length + offset;
-
-	DBG_BUGON(!folio_test_locked(folio));
-
-	/* Check for potential overflow in debug mode */
-	DBG_BUGON(stop > folio_size(folio) || stop < length);
-
-	if (offset == 0 && stop == folio_size(folio))
-		while (!erofs_managed_cache_release_folio(folio, GFP_NOFS))
-			cond_resched();
-}
-
-static const struct address_space_operations managed_cache_aops = {
-	.release_folio = erofs_managed_cache_release_folio,
-	.invalidate_folio = erofs_managed_cache_invalidate_folio,
-};
-
-static int erofs_init_managed_cache(struct super_block *sb)
-{
-	struct erofs_sb_info *const sbi = EROFS_SB(sb);
-	struct inode *const inode = new_inode(sb);
-
-	if (!inode)
-		return -ENOMEM;
-
-	set_nlink(inode, 1);
-	inode->i_size = OFFSET_MAX;
-
-	inode->i_mapping->a_ops = &managed_cache_aops;
-	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
-	sbi->managed_cache = inode;
-	return 0;
-}
-#else
-static int erofs_init_managed_cache(struct super_block *sb) { return 0; }
-#endif
-
 static struct inode *erofs_nfs_get_inode(struct super_block *sb,
 					 u64 ino, u32 generation)
 {
@@ -792,7 +724,6 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	xa_init(&sbi->managed_pslots);
 #endif
 
-	/* get the root inode */
 	inode = erofs_iget(sb, ROOT_NID(sbi));
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
@@ -809,7 +740,6 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		return -ENOMEM;
 
 	erofs_shrinker_register(sb);
-	/* sb->s_umount is already locked, SB_ACTIVE and SB_BORN are not set */
 	if (erofs_sb_has_fragments(sbi) && sbi->packed_nid) {
 		sbi->packed_inode = erofs_iget(sb, sbi->packed_nid);
 		if (IS_ERR(sbi->packed_inode)) {
@@ -877,7 +807,7 @@ static int erofs_release_device_info(int id, void *ptr, void *data)
 
 	fs_put_dax(dif->dax_dev, NULL);
 	if (dif->bdev)
-		blkdev_put(dif->bdev, FMODE_READ | FMODE_EXCL);
+		blkdev_put(dif->bdev, &erofs_fs_type);
 	erofs_fscache_unregister_cookie(dif->fscache);
 	dif->fscache = NULL;
 	kfree(dif->path);
@@ -942,15 +872,9 @@ static int erofs_init_fs_context(struct fs_context *fc)
 	return 0;
 }
 
-/*
- * could be triggered after deactivate_locked_super()
- * is called, thus including umount and failed to initialize.
- */
 static void erofs_kill_sb(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi;
-
-	WARN_ON(sb->s_magic != EROFS_SUPER_MAGIC);
 
 	/* pseudo mount for anon inodes */
 	if (sb->s_flags & SB_KERNMOUNT) {
@@ -976,7 +900,6 @@ static void erofs_kill_sb(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-/* called when ->s_root is non-NULL */
 static void erofs_put_super(struct super_block *sb)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
@@ -1013,13 +936,11 @@ static int __init erofs_module_init(void)
 	erofs_check_ondisk_layout_definitions();
 
 	erofs_inode_cachep = kmem_cache_create("erofs_inode",
-					       sizeof(struct erofs_inode), 0,
-					       SLAB_RECLAIM_ACCOUNT,
-					       erofs_inode_init_once);
-	if (!erofs_inode_cachep) {
-		err = -ENOMEM;
-		goto icache_err;
-	}
+			sizeof(struct erofs_inode), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD | SLAB_ACCOUNT,
+			erofs_inode_init_once);
+	if (!erofs_inode_cachep)
+		return -ENOMEM;
 
 	err = erofs_init_shrinker();
 	if (err)
@@ -1028,6 +949,10 @@ static int __init erofs_module_init(void)
 	err = z_erofs_lzma_init();
 	if (err)
 		goto lzma_err;
+
+	err = z_erofs_deflate_init();
+	if (err)
+		goto deflate_err;
 
 	erofs_pcpubuf_init();
 	err = z_erofs_init_zip_subsystem();
@@ -1049,12 +974,13 @@ fs_err:
 sysfs_err:
 	z_erofs_exit_zip_subsystem();
 zip_err:
+	z_erofs_deflate_exit();
+deflate_err:
 	z_erofs_lzma_exit();
 lzma_err:
 	erofs_exit_shrinker();
 shrinker_err:
 	kmem_cache_destroy(erofs_inode_cachep);
-icache_err:
 	return err;
 }
 
@@ -1067,13 +993,13 @@ static void __exit erofs_module_exit(void)
 
 	erofs_exit_sysfs();
 	z_erofs_exit_zip_subsystem();
+	z_erofs_deflate_exit();
 	z_erofs_lzma_exit();
 	erofs_exit_shrinker();
 	kmem_cache_destroy(erofs_inode_cachep);
 	erofs_pcpubuf_exit();
 }
 
-/* get filesystem statistics */
 static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;

@@ -21,6 +21,7 @@
 #include <asm/cputype.h>
 #include <asm/mpu.h>
 #include <asm/procinfo.h>
+#include <asm/idmap.h>
 
 #include "mm.h"
 
@@ -178,6 +179,12 @@ void __init paging_init(const struct machine_desc *mdesc)
 void setup_mm_for_reboot(void)
 {
 }
+
+void flush_dcache_folio(struct folio *folio)
+{
+	__cpuc_flush_dcache_area(folio_address(folio), folio_size(folio));
+}
+EXPORT_SYMBOL(flush_dcache_folio);
 
 void flush_dcache_page(struct page *page)
 {

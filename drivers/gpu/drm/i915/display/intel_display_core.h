@@ -17,6 +17,7 @@
 #include <drm/drm_modeset_lock.h>
 
 #include "intel_cdclk.h"
+#include "intel_display_device.h"
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
@@ -30,10 +31,9 @@ struct drm_i915_private;
 struct drm_property;
 struct drm_property_blob;
 struct i915_audio_component;
-struct i915_hdcp_comp_master;
+struct i915_hdcp_arbiter;
 struct intel_atomic_state;
 struct intel_audio_funcs;
-struct intel_bios_encoder_data;
 struct intel_cdclk_funcs;
 struct intel_cdclk_vals;
 struct intel_color_funcs;
@@ -218,7 +218,6 @@ struct intel_vbt_data {
 	struct list_head display_devices;
 	struct list_head bdb_blocks;
 
-	struct intel_bios_encoder_data *ports[I915_MAX_PORTS]; /* Non-NULL if port present. */
 	struct sdvo_device_mapping {
 		u8 initialized;
 		u8 dvo_port;
@@ -314,6 +313,8 @@ struct intel_display {
 			unsigned int deratedbw[I915_NUM_QGV_POINTS];
 			/* for each PSF GV point */
 			unsigned int psf_bw[I915_NUM_PSF_GV_POINTS];
+			/* Peak BW for each QGV point */
+			unsigned int peakbw[I915_NUM_QGV_POINTS];
 			u8 num_qgv_points;
 			u8 num_psf_gv_points;
 			u8 num_planes;
@@ -342,6 +343,15 @@ struct intel_display {
 
 		struct intel_global_obj obj;
 	} dbuf;
+
+	struct {
+		wait_queue_head_t waitqueue;
+
+		/* mutex to protect pmdemand programming sequence */
+		struct mutex lock;
+
+		struct intel_global_obj obj;
+	} pmdemand;
 
 	struct {
 		/*
@@ -395,7 +405,7 @@ struct intel_display {
 	} gmbus;
 
 	struct {
-		struct i915_hdcp_master *master;
+		struct i915_hdcp_arbiter *arbiter;
 		bool comp_added;
 
 		/*
@@ -404,8 +414,8 @@ struct intel_display {
 		 * this is only populated post Meteorlake
 		 */
 		struct intel_hdcp_gsc_message *hdcp_message;
-		/* Mutex to protect the above hdcp component related values. */
-		struct mutex comp_mutex;
+		/* Mutex to protect the above hdcp related values. */
+		struct mutex hdcp_mutex;
 	} hdcp;
 
 	struct {
@@ -417,6 +427,14 @@ struct intel_display {
 		 */
 		u32 state;
 	} hti;
+
+	struct {
+		/* Access with DISPLAY_INFO() */
+		const struct intel_display_device_info *__device_info;
+
+		/* Access with DISPLAY_RUNTIME_INFO() */
+		struct intel_display_runtime_info __runtime_info;
+	} info;
 
 	struct {
 		bool false_color;

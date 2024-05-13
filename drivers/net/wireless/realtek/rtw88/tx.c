@@ -34,43 +34,57 @@ void rtw_tx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 
 void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 {
-	__le32 *txdesc = (__le32 *)skb->data;
+	struct rtw_tx_desc *tx_desc = (struct rtw_tx_desc *)skb->data;
+	bool more_data = false;
 
-	SET_TX_DESC_TXPKTSIZE(txdesc,  pkt_info->tx_pkt_size);
-	SET_TX_DESC_OFFSET(txdesc, pkt_info->offset);
-	SET_TX_DESC_PKT_OFFSET(txdesc, pkt_info->pkt_offset);
-	SET_TX_DESC_QSEL(txdesc, pkt_info->qsel);
-	SET_TX_DESC_BMC(txdesc, pkt_info->bmc);
-	SET_TX_DESC_RATE_ID(txdesc, pkt_info->rate_id);
-	SET_TX_DESC_DATARATE(txdesc, pkt_info->rate);
-	SET_TX_DESC_DISDATAFB(txdesc, pkt_info->dis_rate_fallback);
-	SET_TX_DESC_USE_RATE(txdesc, pkt_info->use_rate);
-	SET_TX_DESC_SEC_TYPE(txdesc, pkt_info->sec_type);
-	SET_TX_DESC_DATA_BW(txdesc, pkt_info->bw);
-	SET_TX_DESC_SW_SEQ(txdesc, pkt_info->seq);
-	SET_TX_DESC_MAX_AGG_NUM(txdesc, pkt_info->ampdu_factor);
-	SET_TX_DESC_AMPDU_DENSITY(txdesc, pkt_info->ampdu_density);
-	SET_TX_DESC_DATA_STBC(txdesc, pkt_info->stbc);
-	SET_TX_DESC_DATA_LDPC(txdesc, pkt_info->ldpc);
-	SET_TX_DESC_AGG_EN(txdesc, pkt_info->ampdu_en);
-	SET_TX_DESC_LS(txdesc, pkt_info->ls);
-	SET_TX_DESC_DATA_SHORT(txdesc, pkt_info->short_gi);
-	SET_TX_DESC_SPE_RPT(txdesc, pkt_info->report);
-	SET_TX_DESC_SW_DEFINE(txdesc, pkt_info->sn);
-	SET_TX_DESC_USE_RTS(txdesc, pkt_info->rts);
+	if (pkt_info->qsel == TX_DESC_QSEL_HIGH)
+		more_data = true;
+
+	tx_desc->w0 = le32_encode_bits(pkt_info->tx_pkt_size, RTW_TX_DESC_W0_TXPKTSIZE) |
+		      le32_encode_bits(pkt_info->offset, RTW_TX_DESC_W0_OFFSET) |
+		      le32_encode_bits(pkt_info->bmc, RTW_TX_DESC_W0_BMC) |
+		      le32_encode_bits(pkt_info->ls, RTW_TX_DESC_W0_LS) |
+		      le32_encode_bits(pkt_info->dis_qselseq, RTW_TX_DESC_W0_DISQSELSEQ);
+
+	tx_desc->w1 = le32_encode_bits(pkt_info->qsel, RTW_TX_DESC_W1_QSEL) |
+		      le32_encode_bits(pkt_info->rate_id, RTW_TX_DESC_W1_RATE_ID) |
+		      le32_encode_bits(pkt_info->sec_type, RTW_TX_DESC_W1_SEC_TYPE) |
+		      le32_encode_bits(pkt_info->pkt_offset, RTW_TX_DESC_W1_PKT_OFFSET) |
+		      le32_encode_bits(more_data, RTW_TX_DESC_W1_MORE_DATA);
+
+	tx_desc->w2 = le32_encode_bits(pkt_info->ampdu_en, RTW_TX_DESC_W2_AGG_EN) |
+		      le32_encode_bits(pkt_info->report, RTW_TX_DESC_W2_SPE_RPT) |
+		      le32_encode_bits(pkt_info->ampdu_density, RTW_TX_DESC_W2_AMPDU_DEN) |
+		      le32_encode_bits(pkt_info->bt_null, RTW_TX_DESC_W2_BT_NULL);
+
+	tx_desc->w3 = le32_encode_bits(pkt_info->hw_ssn_sel, RTW_TX_DESC_W3_HW_SSN_SEL) |
+		      le32_encode_bits(pkt_info->use_rate, RTW_TX_DESC_W3_USE_RATE) |
+		      le32_encode_bits(pkt_info->dis_rate_fallback, RTW_TX_DESC_W3_DISDATAFB) |
+		      le32_encode_bits(pkt_info->rts, RTW_TX_DESC_W3_USE_RTS) |
+		      le32_encode_bits(pkt_info->nav_use_hdr, RTW_TX_DESC_W3_NAVUSEHDR) |
+		      le32_encode_bits(pkt_info->ampdu_factor, RTW_TX_DESC_W3_MAX_AGG_NUM);
+
+	tx_desc->w4 = le32_encode_bits(pkt_info->rate, RTW_TX_DESC_W4_DATARATE);
+
+	tx_desc->w5 = le32_encode_bits(pkt_info->short_gi, RTW_TX_DESC_W5_DATA_SHORT) |
+		      le32_encode_bits(pkt_info->bw, RTW_TX_DESC_W5_DATA_BW) |
+		      le32_encode_bits(pkt_info->ldpc, RTW_TX_DESC_W5_DATA_LDPC) |
+		      le32_encode_bits(pkt_info->stbc, RTW_TX_DESC_W5_DATA_STBC);
+
+	tx_desc->w6 = le32_encode_bits(pkt_info->sn, RTW_TX_DESC_W6_SW_DEFINE);
+
+	tx_desc->w8 = le32_encode_bits(pkt_info->en_hwseq, RTW_TX_DESC_W8_EN_HWSEQ);
+
+	tx_desc->w9 = le32_encode_bits(pkt_info->seq, RTW_TX_DESC_W9_SW_SEQ);
+
 	if (pkt_info->rts) {
-		SET_TX_DESC_RTSRATE(txdesc, DESC_RATE24M);
-		SET_TX_DESC_DATA_RTS_SHORT(txdesc, 1);
+		tx_desc->w4 |= le32_encode_bits(DESC_RATE24M, RTW_TX_DESC_W4_RTSRATE);
+		tx_desc->w5 |= le32_encode_bits(1, RTW_TX_DESC_W5_DATA_RTS_SHORT);
 	}
-	SET_TX_DESC_DISQSELSEQ(txdesc, pkt_info->dis_qselseq);
-	SET_TX_DESC_EN_HWSEQ(txdesc, pkt_info->en_hwseq);
-	SET_TX_DESC_HW_SSN_SEL(txdesc, pkt_info->hw_ssn_sel);
-	SET_TX_DESC_NAVUSEHDR(txdesc, pkt_info->nav_use_hdr);
-	SET_TX_DESC_BT_NULL(txdesc, pkt_info->bt_null);
-	if (pkt_info->tim_offset) {
-		SET_TX_DESC_TIM_EN(txdesc, 1);
-		SET_TX_DESC_TIM_OFFSET(txdesc, pkt_info->tim_offset);
-	}
+
+	if (pkt_info->tim_offset)
+		tx_desc->w9 |= le32_encode_bits(1, RTW_TX_DESC_W9_TIM_EN) |
+			       le32_encode_bits(pkt_info->tim_offset, RTW_TX_DESC_W9_TIM_OFFSET);
 }
 EXPORT_SYMBOL(rtw_tx_fill_tx_desc);
 
@@ -592,8 +606,6 @@ static int rtw_txq_push_skb(struct rtw_dev *rtwdev,
 		rtw_err(rtwdev, "failed to write TX skb to HCI\n");
 		return ret;
 	}
-	rtwtxq->last_push = jiffies;
-
 	return 0;
 }
 
@@ -635,9 +647,8 @@ static void rtw_txq_push(struct rtw_dev *rtwdev,
 	rcu_read_unlock();
 }
 
-void rtw_tx_work(struct work_struct *w)
+void __rtw_tx_work(struct rtw_dev *rtwdev)
 {
-	struct rtw_dev *rtwdev = container_of(w, struct rtw_dev, tx_work);
 	struct rtw_txq *rtwtxq, *tmp;
 
 	spin_lock_bh(&rtwdev->txq_lock);
@@ -656,6 +667,13 @@ void rtw_tx_work(struct work_struct *w)
 	rtw_hci_tx_kick_off(rtwdev);
 
 	spin_unlock_bh(&rtwdev->txq_lock);
+}
+
+void rtw_tx_work(struct work_struct *w)
+{
+	struct rtw_dev *rtwdev = container_of(w, struct rtw_dev, tx_work);
+
+	__rtw_tx_work(rtwdev);
 }
 
 void rtw_txq_init(struct rtw_dev *rtwdev, struct ieee80211_txq *txq)

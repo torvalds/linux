@@ -229,8 +229,8 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 		goto done;
 	}
 
-	curr_rules.width = isp->asd.fmt[isp->asd.capture_pad].fmt.width;
-	curr_rules.height = isp->asd.fmt[isp->asd.capture_pad].fmt.height;
+	curr_rules.width = isp->asd.fmt[ATOMISP_SUBDEV_PAD_SOURCE].fmt.width;
+	curr_rules.height = isp->asd.fmt[ATOMISP_SUBDEV_PAD_SOURCE].fmt.height;
 	curr_rules.fps = fps;
 	curr_rules.run_mode = isp->asd.run_mode->val;
 
@@ -472,38 +472,30 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 	clear_irq_reg(isp);
 
-	if (!atomisp_streaming_count(isp))
+	if (!isp->asd.streaming)
 		goto out_nowake;
 
-	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
-		if (irq_infos & IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
-			atomic_inc(&isp->asd.sof_count);
-			atomisp_sof_event(&isp->asd);
-
-			/* If sequence_temp and sequence are the same
-			 * there where no frames lost so we can increase
-			 * sequence_temp.
-			 * If not then processing of frame is still in progress
-			 * and driver needs to keep old sequence_temp value.
-			 * NOTE: There is assumption here that ISP will not
-			 * start processing next frame from sensor before old
-			 * one is completely done. */
-			if (atomic_read(&isp->asd.sequence) ==
-			    atomic_read(&isp->asd.sequence_temp))
-				atomic_set(&isp->asd.sequence_temp,
-					   atomic_read(&isp->asd.sof_count));
-		}
-		if (irq_infos & IA_CSS_IRQ_INFO_EVENTS_READY)
-			atomic_set(&isp->asd.sequence,
-				   atomic_read(&isp->asd.sequence_temp));
-	}
-
 	if (irq_infos & IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
-		dev_dbg_ratelimited(isp->dev,
-				    "irq:0x%x (SOF)\n",
-				    irq_infos);
+		atomic_inc(&isp->asd.sof_count);
+		atomisp_sof_event(&isp->asd);
+
+		/*
+		 * If sequence_temp and sequence are the same there where no frames
+		 * lost so we can increase sequence_temp.
+		 * If not then processing of frame is still in progress and driver
+		 * needs to keep old sequence_temp value.
+		 * NOTE: There is assumption here that ISP will not start processing
+		 * next frame from sensor before old one is completely done.
+		 */
+		if (atomic_read(&isp->asd.sequence) == atomic_read(&isp->asd.sequence_temp))
+			atomic_set(&isp->asd.sequence_temp, atomic_read(&isp->asd.sof_count));
+
+		dev_dbg_ratelimited(isp->dev, "irq:0x%x (SOF)\n", irq_infos);
 		irq_infos &= ~IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF;
 	}
+
+	if (irq_infos & IA_CSS_IRQ_INFO_EVENTS_READY)
+		atomic_set(&isp->asd.sequence, atomic_read(&isp->asd.sequence_temp));
 
 	if ((irq_infos & IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR) ||
 	    (irq_infos & IA_CSS_IRQ_INFO_IF_ERROR)) {
@@ -638,15 +630,6 @@ void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, enum vb2_buffer_s
 	}
 
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
-}
-
-/* Returns queued buffers back to video-core */
-void atomisp_flush_bufs_and_wakeup(struct atomisp_sub_device *asd)
-{
-	atomisp_flush_video_pipe(&asd->video_out_capture, VB2_BUF_STATE_ERROR, false);
-	atomisp_flush_video_pipe(&asd->video_out_vf, VB2_BUF_STATE_ERROR, false);
-	atomisp_flush_video_pipe(&asd->video_out_preview, VB2_BUF_STATE_ERROR, false);
-	atomisp_flush_video_pipe(&asd->video_out_video_capture, VB2_BUF_STATE_ERROR, false);
 }
 
 /* clean out the parameters that did not apply */
@@ -944,53 +927,39 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		atomisp_qbuffers_to_css(asd);
 }
 
-static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
+void atomisp_assert_recovery_work(struct work_struct *work)
 {
+	struct atomisp_device *isp = container_of(work, struct atomisp_device,
+						  assert_recovery_work);
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	enum ia_css_pipe_id css_pipe_id;
-	bool stream_restart = false;
 	unsigned long flags;
 	int ret;
 
-	lockdep_assert_held(&isp->mutex);
+	mutex_lock(&isp->mutex);
 
-	if (!atomisp_streaming_count(isp))
-		return;
+	if (!isp->asd.streaming)
+		goto out_unlock;
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
-	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED ||
-	    isp->asd.stream_prepared) {
-		stream_restart = true;
+	spin_lock_irqsave(&isp->lock, flags);
+	isp->asd.streaming = false;
+	spin_unlock_irqrestore(&isp->lock, flags);
 
-		spin_lock_irqsave(&isp->lock, flags);
-		isp->asd.streaming = ATOMISP_DEVICE_STREAMING_STOPPING;
-		spin_unlock_irqrestore(&isp->lock, flags);
+	/* stream off sensor */
+	ret = v4l2_subdev_call(isp->inputs[isp->asd.input_curr].camera, video, s_stream, 0);
+	if (ret)
+		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
 
-		/* stream off sensor */
-		ret = v4l2_subdev_call(
-			  isp->inputs[isp->asd.input_curr].
-			  camera, video, s_stream, 0);
-		if (ret)
-			dev_warn(isp->dev,
-				 "can't stop streaming on sensor!\n");
+	atomisp_clear_css_buffer_counters(&isp->asd);
 
-		atomisp_clear_css_buffer_counters(&isp->asd);
+	atomisp_css_stop(&isp->asd, true);
 
-		css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
-		atomisp_css_stop(&isp->asd, css_pipe_id, true);
-
-		spin_lock_irqsave(&isp->lock, flags);
-		isp->asd.streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
-		spin_unlock_irqrestore(&isp->lock, flags);
-
-		isp->asd.preview_exp_id = 1;
-		isp->asd.postview_exp_id = 1;
-		/* notify HAL the CSS reset */
-		dev_dbg(isp->dev,
-			"send reset event to %s\n", isp->asd.subdev.devnode->name);
-		atomisp_reset_event(&isp->asd);
-	}
+	isp->asd.preview_exp_id = 1;
+	isp->asd.postview_exp_id = 1;
+	/* notify HAL the CSS reset */
+	dev_dbg(isp->dev, "send reset event to %s\n", isp->asd.subdev.devnode->name);
+	atomisp_reset_event(&isp->asd);
 
 	/* clear irq */
 	disable_isp_irq(hrt_isp_css_irq_sp);
@@ -1001,25 +970,25 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
 
 	/* reset ISP and restore its state */
-	isp->isp_timeout = true;
 	atomisp_reset(isp);
-	isp->isp_timeout = false;
 
-	if (stream_restart) {
-		atomisp_css_input_set_mode(&isp->asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
+	atomisp_css_input_set_mode(&isp->asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
 
-		css_pipe_id = atomisp_get_css_pipe_id(&isp->asd);
-		if (atomisp_css_start(&isp->asd, css_pipe_id, true)) {
-			dev_warn(isp->dev,
-				 "start SP failed, so do not set streaming to be enable!\n");
-		} else {
-			spin_lock_irqsave(&isp->lock, flags);
-			isp->asd.streaming = ATOMISP_DEVICE_STREAMING_ENABLED;
-			spin_unlock_irqrestore(&isp->lock, flags);
-		}
+	/* Recreate streams destroyed by atomisp_css_stop() */
+	atomisp_create_pipes_stream(&isp->asd);
 
-		atomisp_csi2_configure(&isp->asd);
+	/* Invalidate caches. FIXME: should flush only necessary buffers */
+	wbinvd();
+
+	if (atomisp_css_start(&isp->asd)) {
+		dev_warn(isp->dev, "start SP failed, so do not set streaming to be enable!\n");
+	} else {
+		spin_lock_irqsave(&isp->lock, flags);
+		isp->asd.streaming = true;
+		spin_unlock_irqrestore(&isp->lock, flags);
 	}
+
+	atomisp_csi2_configure(&isp->asd);
 
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
 			       atomisp_css_valid_sof(isp));
@@ -1027,43 +996,18 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, true) < 0)
 		dev_dbg(isp->dev, "DFS auto failed while recovering!\n");
 
-	if (stream_restart) {
-		/*
-		 * dequeueing buffers is not needed. CSS will recycle
-		 * buffers that it has.
-		 */
-		atomisp_flush_bufs_and_wakeup(&isp->asd);
+	/* Dequeueing buffers is not needed, CSS will recycle buffers that it has */
+	atomisp_flush_video_pipe(&isp->asd.video_out, VB2_BUF_STATE_ERROR, false);
 
-		/* Requeue unprocessed per-frame parameters. */
-		atomisp_recover_params_queue(&isp->asd.video_out_capture);
-		atomisp_recover_params_queue(&isp->asd.video_out_preview);
-		atomisp_recover_params_queue(&isp->asd.video_out_video_capture);
+	/* Requeue unprocessed per-frame parameters. */
+	atomisp_recover_params_queue(&isp->asd.video_out);
 
-		ret = v4l2_subdev_call(
-			  isp->inputs[isp->asd.input_curr].camera, video,
-			  s_stream, 1);
-		if (ret)
-			dev_warn(isp->dev,
-				 "can't start streaming on sensor!\n");
-	}
-}
+	ret = v4l2_subdev_call(isp->inputs[isp->asd.input_curr].camera, video, s_stream, 1);
+	if (ret)
+		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
 
-void atomisp_assert_recovery_work(struct work_struct *work)
-{
-	struct atomisp_device *isp = container_of(work, struct atomisp_device,
-						  assert_recovery_work);
-
-	mutex_lock(&isp->mutex);
-	__atomisp_css_recover(isp, true);
+out_unlock:
 	mutex_unlock(&isp->mutex);
-}
-
-void atomisp_css_flush(struct atomisp_device *isp)
-{
-	/* Start recover */
-	__atomisp_css_recover(isp, false);
-
-	dev_dbg(isp->dev, "atomisp css flush done\n");
 }
 
 void atomisp_setup_flash(struct atomisp_sub_device *asd)
@@ -1105,7 +1049,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 
 	spin_lock_irqsave(&isp->lock, flags);
 
-	if (!atomisp_streaming_count(isp)) {
+	if (!isp->asd.streaming) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		return IRQ_HANDLED;
 	}
@@ -1141,7 +1085,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	if (atomisp_css_isr_thread(isp))
 		goto out;
 
-	if (isp->asd.streaming == ATOMISP_DEVICE_STREAMING_ENABLED)
+	if (isp->asd.streaming)
 		atomisp_setup_flash(&isp->asd);
 out:
 	mutex_unlock(&isp->mutex);
@@ -1298,7 +1242,7 @@ static void atomisp_update_capture_mode(struct atomisp_sub_device *asd)
 		atomisp_css_capture_set_mode(asd, IA_CSS_CAPTURE_MODE_ADVANCED);
 	else if (asd->params.low_light)
 		atomisp_css_capture_set_mode(asd, IA_CSS_CAPTURE_MODE_LOW_LIGHT);
-	else if (asd->video_out_capture.sh_fmt == IA_CSS_FRAME_FORMAT_RAW)
+	else if (asd->video_out.sh_fmt == IA_CSS_FRAME_FORMAT_RAW)
 		atomisp_css_capture_set_mode(asd, IA_CSS_CAPTURE_MODE_RAW);
 	else
 		atomisp_css_capture_set_mode(asd, IA_CSS_CAPTURE_MODE_PRIMARY);
@@ -1553,13 +1497,12 @@ void atomisp_free_internal_buffers(struct atomisp_sub_device *asd)
 }
 
 static void atomisp_update_grid_info(struct atomisp_sub_device *asd,
-				     enum ia_css_pipe_id pipe_id,
-				     int source_pad)
+				     enum ia_css_pipe_id pipe_id)
 {
 	struct atomisp_device *isp = asd->isp;
 	int err;
 
-	if (atomisp_css_get_grid_info(asd, pipe_id, source_pad))
+	if (atomisp_css_get_grid_info(asd, pipe_id))
 		return;
 
 	/* We must free all buffers because they no longer match
@@ -1905,161 +1848,6 @@ int atomisp_3a_stat(struct atomisp_sub_device *asd, int flag,
 	dev_dbg(isp->dev, "%s: finish getting exp_id %d 3a stat, isp_config_id %d\n",
 		__func__,
 		config->exp_id, config->isp_config_id);
-	return 0;
-}
-
-int atomisp_get_metadata(struct atomisp_sub_device *asd, int flag,
-			 struct atomisp_metadata *md)
-{
-	struct atomisp_device *isp = asd->isp;
-	struct ia_css_stream_info *stream_info;
-	struct camera_mipi_info *mipi_info;
-	struct atomisp_metadata_buf *md_buf;
-	enum atomisp_metadata_type md_type = ATOMISP_MAIN_METADATA;
-	int ret, i;
-
-	if (flag != 0)
-		return -EINVAL;
-
-	stream_info = &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
-		      stream_info;
-
-	/* We always return the resolution and stride even if there is
-	 * no valid metadata. This allows the caller to get the information
-	 * needed to allocate user-space buffers. */
-	md->width  = stream_info->metadata_info.resolution.width;
-	md->height = stream_info->metadata_info.resolution.height;
-	md->stride = stream_info->metadata_info.stride;
-
-	/* sanity check to avoid writing into unallocated memory.
-	 * This does not return an error because it is a valid way
-	 * for applications to detect that metadata is not enabled. */
-	if (md->width == 0 || md->height == 0 || !md->data)
-		return 0;
-
-	/* This is done in the atomisp_buf_done() */
-	if (list_empty(&asd->metadata_ready[md_type])) {
-		dev_warn(isp->dev, "Metadata queue is empty now!\n");
-		return -EAGAIN;
-	}
-
-	mipi_info = atomisp_to_sensor_mipi_info(
-			isp->inputs[asd->input_curr].camera);
-	if (!mipi_info)
-		return -EINVAL;
-
-	if (mipi_info->metadata_effective_width) {
-		for (i = 0; i < md->height; i++)
-			md->effective_width[i] =
-			    mipi_info->metadata_effective_width[i];
-	}
-
-	md_buf = list_entry(asd->metadata_ready[md_type].next,
-			    struct atomisp_metadata_buf, list);
-	md->exp_id = md_buf->metadata->exp_id;
-	if (md_buf->md_vptr) {
-		ret = copy_to_user(md->data,
-				   md_buf->md_vptr,
-				   stream_info->metadata_info.size);
-	} else {
-		hmm_load(md_buf->metadata->address,
-			 asd->params.metadata_user[md_type],
-			 stream_info->metadata_info.size);
-
-		ret = copy_to_user(md->data,
-				   asd->params.metadata_user[md_type],
-				   stream_info->metadata_info.size);
-	}
-	if (ret) {
-		dev_err(isp->dev, "copy to user failed: copied %d bytes\n",
-			ret);
-		return -EFAULT;
-	}
-
-	list_del_init(&md_buf->list);
-	list_add_tail(&md_buf->list, &asd->metadata[md_type]);
-
-	dev_dbg(isp->dev, "%s: HAL de-queued metadata type %d with exp_id %d\n",
-		__func__, md_type, md->exp_id);
-	return 0;
-}
-
-int atomisp_get_metadata_by_type(struct atomisp_sub_device *asd, int flag,
-				 struct atomisp_metadata_with_type *md)
-{
-	struct atomisp_device *isp = asd->isp;
-	struct ia_css_stream_info *stream_info;
-	struct camera_mipi_info *mipi_info;
-	struct atomisp_metadata_buf *md_buf;
-	enum atomisp_metadata_type md_type;
-	int ret, i;
-
-	if (flag != 0)
-		return -EINVAL;
-
-	stream_info = &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
-		      stream_info;
-
-	/* We always return the resolution and stride even if there is
-	 * no valid metadata. This allows the caller to get the information
-	 * needed to allocate user-space buffers. */
-	md->width  = stream_info->metadata_info.resolution.width;
-	md->height = stream_info->metadata_info.resolution.height;
-	md->stride = stream_info->metadata_info.stride;
-
-	/* sanity check to avoid writing into unallocated memory.
-	 * This does not return an error because it is a valid way
-	 * for applications to detect that metadata is not enabled. */
-	if (md->width == 0 || md->height == 0 || !md->data)
-		return 0;
-
-	md_type = md->type;
-	if (md_type < 0 || md_type >= ATOMISP_METADATA_TYPE_NUM)
-		return -EINVAL;
-
-	/* This is done in the atomisp_buf_done() */
-	if (list_empty(&asd->metadata_ready[md_type])) {
-		dev_warn(isp->dev, "Metadata queue is empty now!\n");
-		return -EAGAIN;
-	}
-
-	mipi_info = atomisp_to_sensor_mipi_info(
-			isp->inputs[asd->input_curr].camera);
-	if (!mipi_info)
-		return -EINVAL;
-
-	if (mipi_info->metadata_effective_width) {
-		for (i = 0; i < md->height; i++)
-			md->effective_width[i] =
-			    mipi_info->metadata_effective_width[i];
-	}
-
-	md_buf = list_entry(asd->metadata_ready[md_type].next,
-			    struct atomisp_metadata_buf, list);
-	md->exp_id = md_buf->metadata->exp_id;
-	if (md_buf->md_vptr) {
-		ret = copy_to_user(md->data,
-				   md_buf->md_vptr,
-				   stream_info->metadata_info.size);
-	} else {
-		hmm_load(md_buf->metadata->address,
-			 asd->params.metadata_user[md_type],
-			 stream_info->metadata_info.size);
-
-		ret = copy_to_user(md->data,
-				   asd->params.metadata_user[md_type],
-				   stream_info->metadata_info.size);
-	}
-	if (ret) {
-		dev_err(isp->dev, "copy to user failed: copied %d bytes\n",
-			ret);
-		return -EFAULT;
-	} else {
-		list_del_init(&md_buf->list);
-		list_add_tail(&md_buf->list, &asd->metadata[md_type]);
-	}
-	dev_dbg(isp->dev, "%s: HAL de-queued metadata type %d with exp_id %d\n",
-		__func__, md_type, md->exp_id);
 	return 0;
 }
 
@@ -3213,22 +3001,13 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 	bool need_to_enqueue_buffer = false;
 	int i;
 
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, pipe->vdev.name);
-		return;
-	}
-
 	lockdep_assert_held(&asd->isp->mutex);
-
-	if (atomisp_is_vf_pipe(pipe))
-		return;
 
 	/*
 	 * CSS/FW requires set parameter and enqueue buffer happen after ISP
 	 * is streamon.
 	 */
-	if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
+	if (!asd->streaming)
 		return;
 
 	if (list_empty(&pipe->per_frame_params) ||
@@ -3283,12 +3062,6 @@ int atomisp_set_parameters(struct video_device *vdev,
 	struct atomisp_css_params *css_param = &asd->params.css_param;
 	int ret;
 
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
-
 	lockdep_assert_held(&asd->isp->mutex);
 
 	if (!asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream) {
@@ -3299,15 +3072,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 	dev_dbg(asd->isp->dev, "set parameter(per_frame_setting %d) isp_config_id %d of %s\n",
 		arg->per_frame_setting, arg->isp_config_id, vdev->name);
 
-	if (IS_ISP2401) {
-		if (atomisp_is_vf_pipe(pipe) && arg->per_frame_setting) {
-			dev_err(asd->isp->dev, "%s: vf pipe not support per_frame_setting",
-				__func__);
-			return -EINVAL;
-		}
-	}
-
-	if (arg->per_frame_setting && !atomisp_is_vf_pipe(pipe)) {
+	if (arg->per_frame_setting) {
 		/*
 		 * Per-frame setting enabled, we allocate a new parameter
 		 * buffer to cache the parameters and only when frame buffers
@@ -3346,7 +3111,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 	if (ret)
 		goto apply_parameter_failed;
 
-	if (!(arg->per_frame_setting && !atomisp_is_vf_pipe(pipe))) {
+	if (!arg->per_frame_setting) {
 		/* indicate to CSS that we have parameters to be updated */
 		asd->params.css_update_params_needed = true;
 	} else {
@@ -3880,66 +3645,202 @@ static void __atomisp_init_stream_info(u16 stream_index,
 	}
 }
 
-/* This function looks up the closest available resolution. */
-int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
-		    bool *res_overflow)
+static void atomisp_fill_pix_format(struct v4l2_pix_format *f,
+				    u32 width, u32 height,
+				    const struct atomisp_format_bridge *br_fmt)
 {
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
-	struct v4l2_subdev_pad_config pad_cfg;
+	u32 bytes;
+
+	f->width = width;
+	f->height = height;
+	f->pixelformat = br_fmt->pixelformat;
+
+	/* Adding padding to width for bytesperline calculation */
+	width = ia_css_frame_pad_width(width, br_fmt->sh_fmt);
+	bytes = BITS_TO_BYTES(br_fmt->depth * width);
+
+	if (br_fmt->planar)
+		f->bytesperline = width;
+	else
+		f->bytesperline = bytes;
+
+	f->sizeimage = PAGE_ALIGN(height * bytes);
+
+	if (f->field == V4L2_FIELD_ANY)
+		f->field = V4L2_FIELD_NONE;
+
+	/*
+	 * FIXME: do we need to set this up differently, depending on the
+	 * sensor or the pipeline?
+	 */
+	f->colorspace = V4L2_COLORSPACE_REC709;
+	f->ycbcr_enc = V4L2_YCBCR_ENC_709;
+	f->xfer_func = V4L2_XFER_FUNC_709;
+}
+
+/* Get sensor padding values for the non padded width x height resolution */
+void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
+			 u32 *padding_w, u32 *padding_h)
+{
+	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
+	struct v4l2_rect native_rect = input->native_rect;
+	const struct atomisp_in_fmt_conv *fc = NULL;
+	u32 min_pad_w = ISP2400_MIN_PAD_W;
+	u32 min_pad_h = ISP2400_MIN_PAD_H;
+	struct v4l2_mbus_framefmt *sink;
+
+	if (!input->crop_support) {
+		*padding_w = pad_w;
+		*padding_h = pad_h;
+		return;
+	}
+
+	width = min(width, input->active_rect.width);
+	height = min(height, input->active_rect.height);
+
+	if (input->binning_support && width <= (input->active_rect.width / 2) &&
+				      height <= (input->active_rect.height / 2)) {
+		native_rect.width /= 2;
+		native_rect.height /= 2;
+	}
+
+	*padding_w = min_t(u32, (native_rect.width - width) & ~1, pad_w);
+	*padding_h = min_t(u32, (native_rect.height - height) & ~1, pad_h);
+
+	/* The below minimum padding requirements are for BYT / ISP2400 only */
+	if (IS_ISP2401)
+		return;
+
+	sink = atomisp_subdev_get_ffmt(&isp->asd.subdev, NULL, V4L2_SUBDEV_FORMAT_ACTIVE,
+				       ATOMISP_SUBDEV_PAD_SINK);
+	if (sink)
+		fc = atomisp_find_in_fmt_conv(sink->code);
+	if (!fc) {
+		dev_warn(isp->dev, "%s: Could not get sensor format\n", __func__);
+		goto apply_min_padding;
+	}
+
+	/*
+	 * The ISP only supports GRBG for other bayer-orders additional padding
+	 * is used so that the raw sensor data can be cropped to fix the order.
+	 */
+	if (fc->bayer_order == IA_CSS_BAYER_ORDER_RGGB ||
+	    fc->bayer_order == IA_CSS_BAYER_ORDER_GBRG)
+		min_pad_w += 2;
+
+	if (fc->bayer_order == IA_CSS_BAYER_ORDER_BGGR ||
+	    fc->bayer_order == IA_CSS_BAYER_ORDER_GBRG)
+		min_pad_h += 2;
+
+apply_min_padding:
+	*padding_w = max_t(u32, *padding_w, min_pad_w);
+	*padding_h = max_t(u32, *padding_h, min_pad_h);
+}
+
+static int atomisp_set_crop(struct atomisp_device *isp,
+			    const struct v4l2_mbus_framefmt *format,
+			    int which)
+{
+	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg,
+		.pads = &input->pad_cfg,
+	};
+	struct v4l2_subdev_selection sel = {
+		.which = which,
+		.target = V4L2_SEL_TGT_CROP,
+		.r.width = format->width,
+		.r.height = format->height,
+	};
+	int ret;
+
+	if (!input->crop_support)
+		return 0;
+
+	/* Cropping is done before binning, when binning double the crop rect */
+	if (input->binning_support && sel.r.width <= (input->native_rect.width / 2) &&
+				      sel.r.height <= (input->native_rect.height / 2)) {
+		sel.r.width *= 2;
+		sel.r.height *= 2;
+	}
+
+	/* Clamp to avoid top/left calculations overflowing */
+	sel.r.width = min(sel.r.width, input->native_rect.width);
+	sel.r.height = min(sel.r.height, input->native_rect.height);
+
+	sel.r.left = ((input->native_rect.width - sel.r.width) / 2) & ~1;
+	sel.r.top = ((input->native_rect.height - sel.r.height) / 2) & ~1;
+
+	ret = v4l2_subdev_call(input->camera, pad, set_selection, &pad_state, &sel);
+	if (ret)
+		dev_err(isp->dev, "Error setting crop to %ux%u @%ux%u: %d\n",
+			sel.r.width, sel.r.height, sel.r.left, sel.r.top, ret);
+
+	return ret;
+}
+
+/* This function looks up the closest available resolution. */
+int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
+		    const struct atomisp_format_bridge **fmt_ret,
+		    const struct atomisp_format_bridge **snr_fmt_ret)
+{
+	const struct atomisp_format_bridge *fmt, *snr_fmt;
+	struct atomisp_sub_device *asd = &isp->asd;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
+	struct v4l2_subdev_state pad_state = {
+		.pads = &input->pad_cfg,
 	};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
-	const struct atomisp_format_bridge *fmt;
+	u32 padding_w, padding_h;
 	int ret;
 
-	if (!asd) {
-		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
-
-	if (!isp->inputs[asd->input_curr].camera)
+	if (!input->camera)
 		return -EINVAL;
 
 	fmt = atomisp_get_format_bridge(f->pixelformat);
-	if (!fmt) {
-		dev_err(isp->dev, "unsupported pixelformat!\n");
-		fmt = atomisp_output_fmts;
+	/* Currently, raw formats are broken!!! */
+	if (!fmt || fmt->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
+		f->pixelformat = V4L2_PIX_FMT_YUV420;
+
+		fmt = atomisp_get_format_bridge(f->pixelformat);
+		if (!fmt)
+			return -EINVAL;
 	}
 
-	if (f->width <= 0 || f->height <= 0)
-		return -EINVAL;
-
-	format.format.code = fmt->mbus_code;
-	format.format.width = f->width;
-	format.format.height = f->height;
-
-	__atomisp_init_stream_info(ATOMISP_INPUT_STREAM_GENERAL,
-				   (struct atomisp_input_stream_info *)format.format.reserved);
+	/*
+	 * atomisp_set_fmt() will set the sensor resolution to the requested
+	 * resolution + padding. Add padding here and remove it again after
+	 * the set_fmt call, like atomisp_set_fmt_to_snr() does.
+	 */
+	atomisp_get_padding(isp, f->width, f->height, &padding_w, &padding_h);
+	v4l2_fill_mbus_format(&format.format, f, fmt->mbus_code);
+	format.format.width += padding_w;
+	format.format.height += padding_h;
 
 	dev_dbg(isp->dev, "try_mbus_fmt: asking for %ux%u\n",
 		format.format.width, format.format.height);
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			       pad, set_fmt, &pad_state, &format);
+	ret = atomisp_set_crop(isp, &format.format, V4L2_SUBDEV_FORMAT_TRY);
+	if (ret)
+		return ret;
+
+	ret = v4l2_subdev_call(input->camera, pad, set_fmt, &pad_state, &format);
 	if (ret)
 		return ret;
 
 	dev_dbg(isp->dev, "try_mbus_fmt: got %ux%u\n",
 		format.format.width, format.format.height);
 
-	fmt = atomisp_get_format_bridge_from_mbus(format.format.code);
-	if (!fmt) {
+	snr_fmt = atomisp_get_format_bridge_from_mbus(format.format.code);
+	if (!snr_fmt) {
 		dev_err(isp->dev, "unknown sensor format 0x%8.8x\n",
 			format.format.code);
 		return -EINVAL;
 	}
 
-	f->pixelformat = fmt->pixelformat;
+	f->width = format.format.width - padding_w;
+	f->height = format.format.height - padding_h;
 
 	/*
 	 * If the format is jpeg or custom RAW, then the width and height will
@@ -3948,22 +3849,8 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	 * the sensor driver.
 	 */
 	if (f->pixelformat == V4L2_PIX_FMT_JPEG ||
-	    f->pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW) {
-		f->width = format.format.width;
-		f->height = format.format.height;
-		return 0;
-	}
-
-	if (!res_overflow || (format.format.width < f->width &&
-			      format.format.height < f->height)) {
-		f->width = format.format.width;
-		f->height = format.format.height;
-		/* Set the flag when resolution requested is
-		 * beyond the max value supported by sensor
-		 */
-		if (res_overflow)
-			*res_overflow = true;
-	}
+	    f->pixelformat == V4L2_PIX_FMT_CUSTOM_M10MO_RAW)
+		goto out_fill_pix_format;
 
 	/* app vs isp */
 	f->width = rounddown(clamp_t(u32, f->width, ATOM_ISP_MIN_WIDTH,
@@ -3971,11 +3858,20 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	f->height = rounddown(clamp_t(u32, f->height, ATOM_ISP_MIN_HEIGHT,
 				      ATOM_ISP_MAX_HEIGHT), ATOM_ISP_STEP_HEIGHT);
 
+out_fill_pix_format:
+	atomisp_fill_pix_format(f, f->width, f->height, fmt);
+
+	if (fmt_ret)
+		*fmt_ret = fmt;
+
+	if (snr_fmt_ret)
+		*snr_fmt_ret = snr_fmt;
+
 	return 0;
 }
 
-enum mipi_port_id __get_mipi_port(struct atomisp_device *isp,
-				  enum atomisp_camera_port port)
+enum mipi_port_id atomisp_port_to_mipi_port(struct atomisp_device *isp,
+					    enum atomisp_camera_port port)
 {
 	switch (port) {
 	case ATOMISP_CAMERA_PORT_PRIMARY:
@@ -3983,9 +3879,7 @@ enum mipi_port_id __get_mipi_port(struct atomisp_device *isp,
 	case ATOMISP_CAMERA_PORT_SECONDARY:
 		return MIPI_PORT1_ID;
 	case ATOMISP_CAMERA_PORT_TERTIARY:
-		if (MIPI_PORT1_ID + 1 != N_MIPI_PORT_ID)
-			return MIPI_PORT1_ID + 1;
-		fallthrough;
+		return MIPI_PORT2_ID;
 	default:
 		dev_err(isp->dev, "unsupported port: %d\n", port);
 		return MIPI_PORT0_ID;
@@ -3999,13 +3893,15 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 {
 	struct v4l2_control ctrl;
 	struct atomisp_device *isp = asd->isp;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_in_fmt_conv *fc;
 	int mipi_freq = 0;
 	unsigned int input_format, bayer_order;
+	enum atomisp_input_format metadata_format = ATOMISP_INPUT_FORMAT_EMBEDDED;
+	u32 mipi_port, metadata_width = 0, metadata_height = 0;
 
 	ctrl.id = V4L2_CID_LINK_FREQ;
-	if (v4l2_g_ctrl
-	    (isp->inputs[asd->input_curr].camera->ctrl_handler, &ctrl) == 0)
+	if (v4l2_g_ctrl(input->camera->ctrl_handler, &ctrl) == 0)
 		mipi_freq = ctrl.value;
 
 	if (asd->stream_env[stream_id].isys_configs == 1) {
@@ -4029,7 +3925,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 
 	/* Compatibility for sensors which provide no media bus code
 	 * in s_mbus_framefmt() nor support pad formats. */
-	if (mipi_info->input_format != -1) {
+	if (mipi_info && mipi_info->input_format != -1) {
 		bayer_order = mipi_info->raw_bayer_order;
 
 		/* Input stream config is still needs configured */
@@ -4039,6 +3935,9 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 		if (!fc)
 			return -EINVAL;
 		input_format = fc->atomisp_in_fmt;
+		metadata_format = mipi_info->metadata_format;
+		metadata_width = mipi_info->metadata_width;
+		metadata_height = mipi_info->metadata_height;
 	} else {
 		struct v4l2_mbus_framefmt *sink;
 
@@ -4055,18 +3954,17 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 	atomisp_css_input_set_format(asd, stream_id, input_format);
 	atomisp_css_input_set_bayer_order(asd, stream_id, bayer_order);
 
-	fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(
-		 mipi_info->metadata_format);
+	fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(metadata_format);
 	if (!fc)
 		return -EINVAL;
+
 	input_format = fc->atomisp_in_fmt;
-	atomisp_css_input_configure_port(asd,
-					 __get_mipi_port(asd->isp, mipi_info->port),
-					 mipi_info->num_lanes,
+	mipi_port = atomisp_port_to_mipi_port(isp, input->port);
+	atomisp_css_input_configure_port(asd, mipi_port,
+					 isp->sensor_lanes[mipi_port],
 					 0xffff4, mipi_freq,
 					 input_format,
-					 mipi_info->metadata_width,
-					 mipi_info->metadata_height);
+					 metadata_width, metadata_height);
 	return 0;
 }
 
@@ -4134,16 +4032,15 @@ static int css_input_resolution_changed(struct atomisp_sub_device *asd,
 
 static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 				  struct ia_css_frame_info *output_info,
-				  struct v4l2_pix_format *pix,
-				  unsigned int source_pad)
+				  const struct v4l2_pix_format *pix)
 {
 	struct camera_mipi_info *mipi_info;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_format_bridge *format;
 	struct v4l2_rect *isp_sink_crop;
 	enum ia_css_pipe_id pipe_id;
-	struct v4l2_subdev_fh fh;
 	int (*configure_output)(struct atomisp_sub_device *asd,
 				unsigned int width, unsigned int height,
 				unsigned int min_width,
@@ -4155,16 +4052,8 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	int (*configure_pp_input)(struct atomisp_sub_device *asd,
 				  unsigned int width, unsigned int height) =
 				      configure_pp_input_nop;
-	const struct atomisp_in_fmt_conv *fc;
+	const struct atomisp_in_fmt_conv *fc = NULL;
 	int ret, i;
-
-	if (!asd) {
-		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
-
-	v4l2_fh_init(&fh.vfh, vdev);
 
 	isp_sink_crop = atomisp_subdev_get_rect(
 			    &asd->subdev, NULL, V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -4174,18 +4063,16 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	if (!format)
 		return -EINVAL;
 
-	if (isp->inputs[asd->input_curr].type != TEST_PATTERN) {
-		mipi_info = atomisp_to_sensor_mipi_info(
-				isp->inputs[asd->input_curr].camera);
-		if (!mipi_info) {
-			dev_err(isp->dev, "mipi_info is NULL\n");
-			return -EINVAL;
-		}
+	if (input->type != TEST_PATTERN) {
+		mipi_info = atomisp_to_sensor_mipi_info(input->camera);
+
 		if (atomisp_set_sensor_mipi_to_isp(asd, ATOMISP_INPUT_STREAM_GENERAL,
 						   mipi_info))
 			return -EINVAL;
-		fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(
-			 mipi_info->input_format);
+
+		if (mipi_info)
+			fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(mipi_info->input_format);
+
 		if (!fc)
 			fc = atomisp_find_in_fmt_conv(
 				 atomisp_subdev_get_ffmt(&asd->subdev,
@@ -4204,49 +4091,24 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	 * CSS still requires viewfinder configuration.
 	 */
 	{
-		struct v4l2_rect vf_size = {0};
-		struct v4l2_mbus_framefmt vf_ffmt = {0};
+		u32 width, height;
 
 		if (pix->width < 640 || pix->height < 480) {
-			vf_size.width = pix->width;
-			vf_size.height = pix->height;
+			width = pix->width;
+			height = pix->height;
 		} else {
-			vf_size.width = 640;
-			vf_size.height = 480;
+			width = 640;
+			height = 480;
 		}
 
-		/* FIXME: proper format name for this one. See
-		   atomisp_output_fmts[] in atomisp_v4l2.c */
-		vf_ffmt.code = V4L2_MBUS_FMT_CUSTOM_YUV420;
-
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
-					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     ATOMISP_SUBDEV_PAD_SOURCE_VF,
-					     V4L2_SEL_TGT_COMPOSE, 0, &vf_size);
-		atomisp_subdev_set_ffmt(&asd->subdev, fh.state,
-					V4L2_SUBDEV_FORMAT_ACTIVE,
-					ATOMISP_SUBDEV_PAD_SOURCE_VF, &vf_ffmt);
-		asd->video_out_vf.sh_fmt = IA_CSS_FRAME_FORMAT_NV12;
-
-		if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
-			atomisp_css_video_configure_viewfinder(asd,
-							       vf_size.width, vf_size.height, 0,
-							       asd->video_out_vf.sh_fmt);
-		} else if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-			if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW ||
-			    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO)
-				atomisp_css_video_configure_viewfinder(asd,
-								       vf_size.width, vf_size.height, 0,
-								       asd->video_out_vf.sh_fmt);
-			else
-				atomisp_css_capture_configure_viewfinder(asd,
-					vf_size.width, vf_size.height, 0,
-					asd->video_out_vf.sh_fmt);
-		} else if (source_pad != ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW ||
+		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO ||
+		    asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
+			atomisp_css_video_configure_viewfinder(asd, width, height, 0,
+							       IA_CSS_FRAME_FORMAT_NV12);
+		} else if (asd->run_mode->val == ATOMISP_RUN_MODE_STILL_CAPTURE ||
 			   asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
-			atomisp_css_capture_configure_viewfinder(asd,
-				vf_size.width, vf_size.height, 0,
-				asd->video_out_vf.sh_fmt);
+			atomisp_css_capture_configure_viewfinder(asd, width, height, 0,
+								 IA_CSS_FRAME_FORMAT_NV12);
 		}
 	}
 
@@ -4268,7 +4130,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 		configure_output = atomisp_css_video_configure_output;
 		get_frame_info = atomisp_css_video_get_output_frame_info;
 		pipe_id = IA_CSS_PIPE_ID_VIDEO;
-	} else if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW) {
+	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
 		configure_output = atomisp_css_preview_configure_output;
 		get_frame_info = atomisp_css_preview_get_output_frame_info;
 		configure_pp_input = atomisp_css_preview_configure_pp_input;
@@ -4333,7 +4195,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 		return ret;
 	}
 
-	atomisp_update_grid_info(asd, pipe_id, source_pad);
+	atomisp_update_grid_info(asd, pipe_id);
 	return 0;
 }
 
@@ -4357,7 +4219,7 @@ static void atomisp_get_dis_envelop(struct atomisp_sub_device *asd,
 }
 
 static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
-				    int source_pad, const struct v4l2_pix_format *f)
+				    const struct v4l2_pix_format *f)
 {
 	struct v4l2_mbus_framefmt *sink, *src;
 
@@ -4370,7 +4232,7 @@ static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 	sink = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 				       V4L2_SUBDEV_FORMAT_ACTIVE, ATOMISP_SUBDEV_PAD_SINK);
 	src = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
-				      V4L2_SUBDEV_FORMAT_ACTIVE, source_pad);
+				      V4L2_SUBDEV_FORMAT_ACTIVE, ATOMISP_SUBDEV_PAD_SOURCE);
 
 	if (sink->code == src->code && sink->width == f->width && sink->height == f->height)
 		asd->copy_mode = true;
@@ -4381,48 +4243,35 @@ static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 }
 
 static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_pix_format *f,
-				  unsigned int padding_w, unsigned int padding_h,
 				  unsigned int dvs_env_w, unsigned int dvs_env_h)
 {
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
+	struct atomisp_device *isp = asd->isp;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_format_bridge *format;
-	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg,
+		.pads = &input->pad_cfg,
 	};
 	struct v4l2_subdev_format vformat = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
 	struct v4l2_mbus_framefmt *ffmt = &vformat.format;
 	struct v4l2_mbus_framefmt *req_ffmt;
-	struct atomisp_device *isp;
 	struct atomisp_input_stream_info *stream_info =
 	    (struct atomisp_input_stream_info *)ffmt->reserved;
-	int source_pad = atomisp_subdev_source_pad(vdev);
-	struct v4l2_subdev_fh fh;
 	int ret;
-
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
-
-	isp = asd->isp;
-
-	v4l2_fh_init(&fh.vfh, vdev);
 
 	format = atomisp_get_format_bridge(f->pixelformat);
 	if (!format)
 		return -EINVAL;
 
 	v4l2_fill_mbus_format(ffmt, f, format->mbus_code);
-	ffmt->height += padding_h + dvs_env_h;
-	ffmt->width += padding_w + dvs_env_w;
+	ffmt->height += asd->sink_pad_padding_h + dvs_env_h;
+	ffmt->width += asd->sink_pad_padding_w + dvs_env_w;
 
 	dev_dbg(isp->dev, "s_mbus_fmt: ask %ux%u (padding %ux%u, dvs %ux%u)\n",
-		ffmt->width, ffmt->height, padding_w, padding_h,
+		ffmt->width, ffmt->height, asd->sink_pad_padding_w, asd->sink_pad_padding_h,
 		dvs_env_w, dvs_env_h);
 
 	__atomisp_init_stream_info(ATOMISP_INPUT_STREAM_GENERAL, stream_info);
@@ -4430,11 +4279,13 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 	req_ffmt = ffmt;
 
 	/* Disable dvs if resolution can't be supported by sensor */
-	if (asd->params.video_dis_en &&
-	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO) {
+	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
+		ret = atomisp_set_crop(isp, &vformat.format, V4L2_SUBDEV_FORMAT_TRY);
+		if (ret)
+			return ret;
+
 		vformat.which = V4L2_SUBDEV_FORMAT_TRY;
-		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-				       pad, set_fmt, &pad_state, &vformat);
+		ret = v4l2_subdev_call(input->camera, pad, set_fmt, &pad_state, &vformat);
 		if (ret)
 			return ret;
 
@@ -4451,9 +4302,13 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 			asd->params.video_dis_en = false;
 		}
 	}
+
+	ret = atomisp_set_crop(isp, &vformat.format, V4L2_SUBDEV_FORMAT_ACTIVE);
+	if (ret)
+		return ret;
+
 	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
-			       set_fmt, NULL, &vformat);
+	ret = v4l2_subdev_call(input->camera, pad, set_fmt, NULL, &vformat);
 	if (ret)
 		return ret;
 
@@ -4466,15 +4321,14 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 	    ffmt->height < ATOM_ISP_STEP_HEIGHT)
 		return -EINVAL;
 
-	if (asd->params.video_dis_en &&
-	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO &&
+	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
 	    (ffmt->width < req_ffmt->width || ffmt->height < req_ffmt->height)) {
 		dev_warn(isp->dev,
 			 "can not enable video dis due to sensor limitation.");
 		asd->params.video_dis_en = false;
 	}
 
-	atomisp_subdev_set_ffmt(&asd->subdev, fh.state,
+	atomisp_subdev_set_ffmt(&asd->subdev, NULL,
 				V4L2_SUBDEV_FORMAT_ACTIVE,
 				ATOMISP_SUBDEV_PAD_SINK, ffmt);
 
@@ -4490,65 +4344,25 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	const struct atomisp_format_bridge *snr_format_bridge;
 	struct ia_css_frame_info output_info;
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
-	unsigned int padding_w = pad_w, padding_h = pad_h;
 	struct v4l2_mbus_framefmt isp_source_fmt = {0};
-	struct v4l2_subdev_format vformat = {
-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
-	};
 	struct v4l2_rect isp_sink_crop;
-	u16 source_pad = atomisp_subdev_source_pad(vdev);
-	struct v4l2_subdev_fh fh;
 	int ret;
 
 	ret = atomisp_pipe_check(pipe, true);
 	if (ret)
 		return ret;
 
-	if (source_pad >= ATOMISP_SUBDEV_PADS_NUM)
-		return -EINVAL;
-
 	dev_dbg(isp->dev,
-		"setting resolution %ux%u on pad %u bytesperline %u\n",
-		f->fmt.pix.width, f->fmt.pix.height, source_pad, f->fmt.pix.bytesperline);
-
-	v4l2_fh_init(&fh.vfh, vdev);
-
-	format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-	if (!format_bridge)
-		return -EINVAL;
-
-	/* Currently, raw formats are broken!!! */
-
-	if (format_bridge->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
-		f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
-
-		format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-		if (!format_bridge)
-			return -EINVAL;
-	}
-	pipe->sh_fmt = format_bridge->sh_fmt;
-	pipe->pix.pixelformat = f->fmt.pix.pixelformat;
+		"setting resolution %ux%u bytesperline %u\n",
+		f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.bytesperline);
 
 	/* Ensure that the resolution is equal or below the maximum supported */
-
-	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	v4l2_fill_mbus_format(&vformat.format, &f->fmt.pix, format_bridge->mbus_code);
-	vformat.format.height += padding_h;
-	vformat.format.width += padding_w;
-
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera, pad,
-			       set_fmt, NULL, &vformat);
+	ret = atomisp_try_fmt(isp, &f->fmt.pix, &format_bridge, &snr_format_bridge);
 	if (ret)
 		return ret;
 
-	f->fmt.pix.width = vformat.format.width - padding_w;
-	f->fmt.pix.height = vformat.format.height - padding_h;
-
-	snr_format_bridge = atomisp_get_format_bridge_from_mbus(vformat.format.code);
-	if (!snr_format_bridge) {
-		dev_warn(isp->dev, "Can't find bridge format\n");
-		return -EINVAL;
-	}
+	pipe->sh_fmt = format_bridge->sh_fmt;
+	pipe->pix.pixelformat = format_bridge->pixelformat;
 
 	atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 				V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -4556,22 +4370,22 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 				    snr_format_bridge->mbus_code;
 
 	isp_source_fmt.code = format_bridge->mbus_code;
-	atomisp_subdev_set_ffmt(&asd->subdev, fh.state,
+	atomisp_subdev_set_ffmt(&asd->subdev, NULL,
 				V4L2_SUBDEV_FORMAT_ACTIVE,
-				source_pad, &isp_source_fmt);
+				ATOMISP_SUBDEV_PAD_SOURCE, &isp_source_fmt);
 
-	if (!atomisp_subdev_format_conversion(asd, source_pad)) {
-		padding_w = 0;
-		padding_h = 0;
+	if (atomisp_subdev_format_conversion(asd)) {
+		atomisp_get_padding(isp, f->fmt.pix.width, f->fmt.pix.height,
+				    &asd->sink_pad_padding_w, &asd->sink_pad_padding_h);
+	} else {
+		asd->sink_pad_padding_w = 0;
+		asd->sink_pad_padding_h = 0;
 	}
 
 	atomisp_get_dis_envelop(asd, f->fmt.pix.width, f->fmt.pix.height,
 				&dvs_env_w, &dvs_env_h);
 
-	asd->capture_pad = source_pad;
-
-	ret = atomisp_set_fmt_to_snr(vdev, &f->fmt.pix,
-				     padding_w, padding_h, dvs_env_w, dvs_env_h);
+	ret = atomisp_set_fmt_to_snr(vdev, &f->fmt.pix, dvs_env_w, dvs_env_h);
 	if (ret) {
 		dev_warn(isp->dev,
 			 "Set format to sensor failed with %d\n", ret);
@@ -4580,7 +4394,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 
 	atomisp_csi_lane_config(isp);
 
-	atomisp_check_copy_mode(asd, source_pad, &f->fmt.pix);
+	atomisp_check_copy_mode(asd, &f->fmt.pix);
 
 	isp_sink_crop = *atomisp_subdev_get_rect(&asd->subdev, NULL,
 			V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -4589,25 +4403,20 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 
 	/* Try to enable YUV downscaling if ISP input is 10 % (either
 	 * width or height) bigger than the desired result. */
-	if (isp_sink_crop.width * 9 / 10 < f->fmt.pix.width ||
+	if (!IS_MOFD ||
+	    isp_sink_crop.width * 9 / 10 < f->fmt.pix.width ||
 	    isp_sink_crop.height * 9 / 10 < f->fmt.pix.height ||
-	    (atomisp_subdev_format_conversion(asd, source_pad) &&
+	    (atomisp_subdev_format_conversion(asd) &&
 	     (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO ||
 	      asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER))) {
 		isp_sink_crop.width = f->fmt.pix.width;
 		isp_sink_crop.height = f->fmt.pix.height;
 
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
+		atomisp_subdev_set_selection(&asd->subdev, NULL,
 					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     ATOMISP_SUBDEV_PAD_SINK,
-					     V4L2_SEL_TGT_CROP,
-					     V4L2_SEL_FLAG_KEEP_CONFIG,
-					     &isp_sink_crop);
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
-					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     source_pad, V4L2_SEL_TGT_COMPOSE,
+					     ATOMISP_SUBDEV_PAD_SOURCE, V4L2_SEL_TGT_COMPOSE,
 					     0, &isp_sink_crop);
-	} else if (IS_MOFD) {
+	} else {
 		struct v4l2_rect main_compose = {0};
 
 		main_compose.width = isp_sink_crop.width;
@@ -4622,103 +4431,24 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 					 f->fmt.pix.height);
 		}
 
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
+		atomisp_subdev_set_selection(&asd->subdev, NULL,
 					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     source_pad,
-					     V4L2_SEL_TGT_COMPOSE, 0,
-					     &main_compose);
-	} else {
-		struct v4l2_rect sink_crop = {0};
-		struct v4l2_rect main_compose = {0};
-
-		main_compose.width = f->fmt.pix.width;
-		main_compose.height = f->fmt.pix.height;
-
-		/* WORKAROUND: this override is universally enabled in
-		 * GMIN to work around a CTS failures (GMINL-539)
-		 * which appears to be related by a hardware
-		 * performance limitation.  It's unclear why this
-		 * particular code triggers the issue. */
-		if (isp_sink_crop.width * main_compose.height >
-		    isp_sink_crop.height * main_compose.width) {
-			sink_crop.height = isp_sink_crop.height;
-			sink_crop.width =
-				DIV_NEAREST_STEP(sink_crop.height * f->fmt.pix.width,
-						 f->fmt.pix.height,
-						 ATOM_ISP_STEP_WIDTH);
-		} else {
-			sink_crop.width = isp_sink_crop.width;
-			sink_crop.height =
-				DIV_NEAREST_STEP(sink_crop.width * f->fmt.pix.height,
-						 f->fmt.pix.width,
-						 ATOM_ISP_STEP_HEIGHT);
-		}
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
-					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     ATOMISP_SUBDEV_PAD_SINK,
-					     V4L2_SEL_TGT_CROP,
-					     V4L2_SEL_FLAG_KEEP_CONFIG,
-					     &sink_crop);
-
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
-					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     source_pad,
+					     ATOMISP_SUBDEV_PAD_SOURCE,
 					     V4L2_SEL_TGT_COMPOSE, 0,
 					     &main_compose);
 	}
 
-	ret = atomisp_set_fmt_to_isp(vdev, &output_info, &f->fmt.pix, source_pad);
+	ret = atomisp_set_fmt_to_isp(vdev, &output_info, &f->fmt.pix);
 	if (ret) {
 		dev_warn(isp->dev, "Can't set format on ISP. Error %d\n", ret);
 		return -EINVAL;
 	}
 
-	pipe->pix.width = f->fmt.pix.width;
-	pipe->pix.height = f->fmt.pix.height;
-	pipe->pix.pixelformat = f->fmt.pix.pixelformat;
-	/*
-	 * FIXME: do we need to setup this differently, depending on the
-	 * sensor or the pipeline?
-	 */
-	pipe->pix.colorspace = V4L2_COLORSPACE_REC709;
-	pipe->pix.ycbcr_enc = V4L2_YCBCR_ENC_709;
-	pipe->pix.xfer_func = V4L2_XFER_FUNC_709;
-
-	if (format_bridge->planar) {
-		pipe->pix.bytesperline = output_info.padded_width;
-		pipe->pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height *
-						 DIV_ROUND_UP(format_bridge->depth *
-							 output_info.padded_width, 8));
-	} else {
-		pipe->pix.bytesperline =
-		    DIV_ROUND_UP(format_bridge->depth *
-				 output_info.padded_width, 8);
-		pipe->pix.sizeimage =
-		    PAGE_ALIGN(f->fmt.pix.height * pipe->pix.bytesperline);
-	}
-	dev_dbg(isp->dev, "%s: image size: %d, %d bytes per line\n",
-		__func__, pipe->pix.sizeimage, pipe->pix.bytesperline);
-
-	if (f->fmt.pix.field == V4L2_FIELD_ANY)
-		f->fmt.pix.field = V4L2_FIELD_NONE;
-	pipe->pix.field = f->fmt.pix.field;
+	atomisp_fill_pix_format(&pipe->pix, f->fmt.pix.width, f->fmt.pix.height, format_bridge);
 
 	f->fmt.pix = pipe->pix;
 	f->fmt.pix.priv = PAGE_ALIGN(pipe->pix.width *
 				     pipe->pix.height * 2);
-
-	/*
-	 * If in video 480P case, no GFX throttle
-	 */
-	if (asd->run_mode->val == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO &&
-	    f->fmt.pix.width == 720 && f->fmt.pix.height == 480)
-		isp->need_gfx_throttle = false;
-	else
-		isp->need_gfx_throttle = true;
-
-	/* Report the needed sizes */
-	f->fmt.pix.sizeimage = pipe->pix.sizeimage;
-	f->fmt.pix.bytesperline = pipe->pix.bytesperline;
 
 	dev_dbg(isp->dev, "%s: %dx%d, image size: %d, %d bytes per line\n",
 		__func__,
@@ -4790,30 +4520,6 @@ out:
 	return ret;
 }
 
-/*
- * set auto exposure metering window to camera sensor
- */
-int atomisp_s_ae_window(struct atomisp_sub_device *asd,
-			struct atomisp_ae_window *arg)
-{
-	struct atomisp_device *isp = asd->isp;
-	/* Coverity CID 298071 - initialzize struct */
-	struct v4l2_subdev_selection sel = { 0 };
-
-	sel.r.left = arg->x_left;
-	sel.r.top = arg->y_top;
-	sel.r.width = arg->x_right - arg->x_left + 1;
-	sel.r.height = arg->y_bottom - arg->y_top + 1;
-
-	if (v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			     pad, set_selection, NULL, &sel)) {
-		dev_err(isp->dev, "failed to call sensor set_selection.\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 int atomisp_flash_enable(struct atomisp_sub_device *asd, int num_frames)
 {
 	struct atomisp_device *isp = asd->isp;
@@ -4836,26 +4542,6 @@ int atomisp_flash_enable(struct atomisp_sub_device *asd, int num_frames)
 	return 0;
 }
 
-bool atomisp_is_vf_pipe(struct atomisp_video_pipe *pipe)
-{
-	struct atomisp_sub_device *asd = pipe->asd;
-
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, pipe->vdev.name);
-		return false;
-	}
-
-	if (pipe == &asd->video_out_vf)
-		return true;
-
-	if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO &&
-	    pipe == &asd->video_out_preview)
-		return true;
-
-	return false;
-}
-
 static int __checking_exp_id(struct atomisp_sub_device *asd, int exp_id)
 {
 	struct atomisp_device *isp = asd->isp;
@@ -4864,7 +4550,7 @@ static int __checking_exp_id(struct atomisp_sub_device *asd, int exp_id)
 		dev_warn(isp->dev, "%s Raw Buffer Lock is disable.\n", __func__);
 		return -EINVAL;
 	}
-	if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED) {
+	if (!asd->streaming) {
 		dev_err(isp->dev, "%s streaming %d invalid exp_id %d.\n",
 			__func__, exp_id, asd->streaming);
 		return -EINVAL;
@@ -4986,7 +4672,7 @@ int atomisp_enable_dz_capt_pipe(struct atomisp_sub_device *asd,
 
 int atomisp_inject_a_fake_event(struct atomisp_sub_device *asd, int *event)
 {
-	if (!event || asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
+	if (!event || !asd->streaming)
 		return -EINVAL;
 
 	lockdep_assert_held(&asd->isp->mutex);
@@ -5012,70 +4698,4 @@ int atomisp_inject_a_fake_event(struct atomisp_sub_device *asd, int *event)
 	}
 
 	return 0;
-}
-
-static int atomisp_get_pipe_id(struct atomisp_video_pipe *pipe)
-{
-	struct atomisp_sub_device *asd = pipe->asd;
-
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, pipe->vdev.name);
-		return -EINVAL;
-	}
-
-	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
-		return IA_CSS_PIPE_ID_VIDEO;
-	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
-		return IA_CSS_PIPE_ID_CAPTURE;
-	} else if (pipe == &asd->video_out_video_capture) {
-		return IA_CSS_PIPE_ID_VIDEO;
-	} else if (pipe == &asd->video_out_vf) {
-		return IA_CSS_PIPE_ID_CAPTURE;
-	} else if (pipe == &asd->video_out_preview) {
-		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-			return IA_CSS_PIPE_ID_VIDEO;
-		else
-			return IA_CSS_PIPE_ID_PREVIEW;
-	} else if (pipe == &asd->video_out_capture) {
-		if (asd->copy_mode)
-			return IA_CSS_PIPE_ID_COPY;
-		else
-			return IA_CSS_PIPE_ID_CAPTURE;
-	}
-
-	/* fail through */
-	dev_warn(asd->isp->dev, "%s failed to find proper pipe\n",
-		 __func__);
-	return IA_CSS_PIPE_ID_CAPTURE;
-}
-
-int atomisp_get_invalid_frame_num(struct video_device *vdev,
-				  int *invalid_frame_num)
-{
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-	struct atomisp_sub_device *asd = pipe->asd;
-	enum ia_css_pipe_id pipe_id;
-	struct ia_css_pipe_info p_info;
-	int ret;
-
-	pipe_id = atomisp_get_pipe_id(pipe);
-	if (!asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].pipes[pipe_id]) {
-		dev_warn(asd->isp->dev,
-			 "%s pipe %d has not been created yet, do SET_FMT first!\n",
-			 __func__, pipe_id);
-		return -EINVAL;
-	}
-
-	ret = ia_css_pipe_get_info(
-		  asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL]
-		  .pipes[pipe_id], &p_info);
-	if (!ret) {
-		*invalid_frame_num = p_info.num_invalid_frames;
-		return 0;
-	} else {
-		dev_warn(asd->isp->dev, "%s get pipe infor failed %d\n",
-			 __func__, ret);
-		return -EINVAL;
-	}
 }

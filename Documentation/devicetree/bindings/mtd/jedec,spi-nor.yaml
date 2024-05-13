@@ -43,8 +43,10 @@ properties:
           - const: jedec,spi-nor
       - const: jedec,spi-nor
     description:
-      Must also include "jedec,spi-nor" for any SPI NOR flash that can be
-      identified by the JEDEC READ ID opcode (0x9F).
+      SPI NOR flashes compatible with the JEDEC SFDP standard or which may be
+      identified with the READ ID opcode (0x9F) do not deserve a specific
+      compatible. They should instead only be matched against the generic
+      "jedec,spi-nor" compatible.
 
   reg:
     minItems: 1
@@ -69,6 +71,21 @@ properties:
       properly if the flash is left in the "wrong" state. This boolean flag can
       be used on such systems, to denote the absence of a reliable reset
       mechanism.
+
+  no-wp:
+    type: boolean
+    description:
+      The status register write disable (SRWD) bit in status register, combined
+      with the WP# signal, provides hardware data protection for the device. When
+      the SRWD bit is set to 1, and the WP# signal is either driven LOW or hard
+      strapped to LOW, the status register nonvolatile bits become read-only and
+      the WRITE STATUS REGISTER operation will not execute. The only way to exit
+      this hardware-protected mode is to drive WP# HIGH. If the WP# signal of the
+      flash device is not connected or is wrongly tied to GND (that includes internal
+      pull-downs) then status register permanently becomes read-only as the SRWD bit
+      cannot be reset. This boolean flag can be used on such systems to avoid setting
+      the SRWD bit while writing the status register. WP# signal hard strapped to GND
+      can be a valid use case.
 
   reset-gpios:
     description:

@@ -499,7 +499,7 @@ static struct i2c_driver max77976_driver = {
 		.name		= MAX77976_DRIVER_NAME,
 		.of_match_table	= max77976_of_id,
 	},
-	.probe_new	= max77976_probe,
+	.probe		= max77976_probe,
 	.id_table	= max77976_i2c_id,
 };
 module_i2c_driver(max77976_driver);

@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
+ * Supports Symphony evaluation board versions >= 1.4a.
+ *
  * Copyright 2019-2020 Variscite Ltd.
  * Copyright (C) 2020 Krzysztof Kozlowski <krzk@kernel.org>
  */
 
 /dts-v1/;
 
+#include <dt-bindings/usb/pd.h>
 #include "imx8mn-var-som.dtsi"
 
 / {
@@ -100,14 +103,26 @@
 		};
 	};
 
+	/*
+	 * For Symphony board version <= 1.4, the PTN5150 IRQ pin is connected
+	 * to GPIO1_IO11 on the SoM (R106 present, R132 absent). From Symphony
+	 * board version >= 1.4a, the PTN5150 ID pin is connected to GPIO1_IO11
+	 * on the SoM (R106 absent, R132 present).
+	 */
 	extcon_usbotg1: typec@3d {
 		compatible = "nxp,ptn5150";
 		reg = <0x3d>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ptn5150>;
 		status = "okay";
+
+		port {
+			typec1_dr_sw: endpoint {
+				remote-endpoint = <&usb1_drd_sw>;
+			};
+		};
 	};
 };
 
@@ -148,48 +163,21 @@
 };
 
 &usbotg1 {
+	dr_mode = "otg";
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+	usb-role-switch;
 	disable-over-current;
-	extcon = <&extcon_usbotg1>, <&extcon_usbotg1>;
-};
+	samsung,picophy-pre-emp-curr-control = <3>;
+	samsung,picophy-dc-vol-level-adjust = <7>;
+	status = "okay";
 
-&pinctrl_fec1 {
-	fsl,pins = <
-		MX8MN_IOMUXC_ENET_MDC_ENET1_MDC			0x3
-		MX8MN_IOMUXC_ENET_MDIO_ENET1_MDIO		0x3
-		MX8MN_IOMUXC_ENET_TD3_ENET1_RGMII_TD3		0x1f
-		MX8MN_IOMUXC_ENET_TD2_ENET1_RGMII_TD2		0x1f
-		MX8MN_IOMUXC_ENET_TD1_ENET1_RGMII_TD1		0x1f
-		MX8MN_IOMUXC_ENET_TD0_ENET1_RGMII_TD0		0x1f
-		MX8MN_IOMUXC_ENET_RD3_ENET1_RGMII_RD3		0x91
-		MX8MN_IOMUXC_ENET_RD2_ENET1_RGMII_RD2		0x91
-		MX8MN_IOMUXC_ENET_RD1_ENET1_RGMII_RD1		0x91
-		MX8MN_IOMUXC_ENET_RD0_ENET1_RGMII_RD0		0x91
-		MX8MN_IOMUXC_ENET_TXC_ENET1_RGMII_TXC		0x1f
-		MX8MN_IOMUXC_ENET_RXC_ENET1_RGMII_RXC		0x91
-		MX8MN_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x91
-		MX8MN_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x1f
-		/* Remove the MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9 as not used */
-	>;
-};
-
-&pinctrl_fec1_sleep {
-	fsl,pins = <
-		MX8MN_IOMUXC_ENET_MDC_GPIO1_IO16		0x120
-		MX8MN_IOMUXC_ENET_MDIO_GPIO1_IO17		0x120
-		MX8MN_IOMUXC_ENET_TD3_GPIO1_IO18		0x120
-		MX8MN_IOMUXC_ENET_TD2_GPIO1_IO19		0x120
-		MX8MN_IOMUXC_ENET_TD1_GPIO1_IO20		0x120
-		MX8MN_IOMUXC_ENET_TD0_GPIO1_IO21		0x120
-		MX8MN_IOMUXC_ENET_RD3_GPIO1_IO29		0x120
-		MX8MN_IOMUXC_ENET_RD2_GPIO1_IO28		0x120
-		MX8MN_IOMUXC_ENET_RD1_GPIO1_IO27		0x120
-		MX8MN_IOMUXC_ENET_RD0_GPIO1_IO26		0x120
-		MX8MN_IOMUXC_ENET_TXC_GPIO1_IO23		0x120
-		MX8MN_IOMUXC_ENET_RXC_GPIO1_IO25		0x120
-		MX8MN_IOMUXC_ENET_RX_CTL_GPIO1_IO24		0x120
-		MX8MN_IOMUXC_ENET_TX_CTL_GPIO1_IO22		0x120
-		/* Remove the MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9 as not used */
-	>;
+	port {
+		usb1_drd_sw: endpoint {
+			remote-endpoint = <&typec1_dr_sw>;
+		};
+	};
 };
 
 &iomuxc {

@@ -330,7 +330,7 @@ void intel_vgpu_reset_resource(struct intel_vgpu *vgpu)
 /**
  * intel_vgpu_alloc_resource() - allocate HW resource for a vGPU
  * @vgpu: vGPU
- * @param: vGPU creation params
+ * @conf: vGPU creation params
  *
  * This function is used to allocate HW resource for a vGPU. User specifies
  * the resource configuration through the creation params.

@@ -2,6 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 #include <test_progs.h>
 #include "timer.skel.h"
+#include "timer_failure.skel.h"
 
 static int timer(struct timer *timer_skel)
 {
@@ -49,10 +50,11 @@ void serial_test_timer(void)
 
 	timer_skel = timer__open_and_load();
 	if (!ASSERT_OK_PTR(timer_skel, "timer_skel_load"))
-		goto cleanup;
+		return;
 
 	err = timer(timer_skel);
 	ASSERT_OK(err, "timer");
-cleanup:
 	timer__destroy(timer_skel);
+
+	RUN_TESTS(timer_failure);
 }

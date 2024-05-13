@@ -756,6 +756,7 @@ void __readwrite_bug(const char *fn)
 }
 EXPORT_SYMBOL(__readwrite_bug);
 
+#ifdef CONFIG_MMU
 void __pte_error(const char *file, int line, pte_t pte)
 {
 	pr_err("%s:%d: bad pte %08llx.\n", file, line, (long long)pte_val(pte));
@@ -770,6 +771,7 @@ void __pgd_error(const char *file, int line, pgd_t pgd)
 {
 	pr_err("%s:%d: bad pgd %08llx.\n", file, line, (long long)pgd_val(pgd));
 }
+#endif
 
 asmlinkage void __div0(void)
 {

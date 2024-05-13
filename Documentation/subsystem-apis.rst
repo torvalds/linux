@@ -10,50 +10,79 @@ is taken directly from the kernel source, with supplemental material added
 as needed (or at least as we managed to add it — probably *not* all that is
 needed).
 
+Core subsystems
+---------------
+
+.. toctree::
+   :maxdepth: 1
+
+   core-api/index
+   driver-api/index
+   mm/index
+   power/index
+   scheduler/index
+   timers/index
+   locking/index
+
+Human interfaces
+----------------
+
+.. toctree::
+   :maxdepth: 1
+
+   input/index
+   hid/index
+   sound/index
+   gpu/index
+   fb/index
+
+Networking interfaces
+---------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   networking/index
+   netlabel/index
+   infiniband/index
+   isdn/index
+   mhi/index
+
+Storage interfaces
+------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   filesystems/index
+   block/index
+   cdrom/index
+   scsi/index
+   target/index
+
 **Fixme**: much more organizational work is needed here.
 
 .. toctree::
    :maxdepth: 1
 
-   driver-api/index
-   core-api/index
-   locking/index
    accounting/index
-   block/index
-   cdrom/index
    cpu-freq/index
-   fb/index
    fpga/index
-   hid/index
    i2c/index
    iio/index
-   isdn/index
-   infiniband/index
    leds/index
-   netlabel/index
-   networking/index
    pcmcia/index
-   power/index
-   target/index
-   timers/index
    spi/index
    w1/index
    watchdog/index
    virt/index
-   input/index
    hwmon/index
-   gpu/index
    accel/index
    security/index
-   sound/index
    crypto/index
-   filesystems/index
-   mm/index
    bpf/index
    usb/index
    PCI/index
-   scsi/index
    misc-devices/index
-   scheduler/index
-   mhi/index
    peci/index
+   wmi/index

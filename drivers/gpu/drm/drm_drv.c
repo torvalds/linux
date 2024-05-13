@@ -84,7 +84,7 @@ DEFINE_STATIC_SRCU(drm_unplug_srcu);
  */
 
 static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
-					     unsigned int type)
+					     enum drm_minor_type type)
 {
 	switch (type) {
 	case DRM_MINOR_PRIMARY:
@@ -116,7 +116,7 @@ static void drm_minor_alloc_release(struct drm_device *dev, void *data)
 	}
 }
 
-static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
+static int drm_minor_alloc(struct drm_device *dev, enum drm_minor_type type)
 {
 	struct drm_minor *minor;
 	unsigned long flags;
@@ -160,7 +160,7 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 	return 0;
 }
 
-static int drm_minor_register(struct drm_device *dev, unsigned int type)
+static int drm_minor_register(struct drm_device *dev, enum drm_minor_type type)
 {
 	struct drm_minor *minor;
 	unsigned long flags;
@@ -203,7 +203,7 @@ err_debugfs:
 	return ret;
 }
 
-static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
+static void drm_minor_unregister(struct drm_device *dev, enum drm_minor_type type)
 {
 	struct drm_minor *minor;
 	unsigned long flags;
@@ -969,7 +969,9 @@ EXPORT_SYMBOL(drm_dev_register);
  *
  * Unregister the DRM device from the system. This does the reverse of
  * drm_dev_register() but does not deallocate the device. The caller must call
- * drm_dev_put() to drop their final reference.
+ * drm_dev_put() to drop their final reference, unless it is managed with devres
+ * (as devices allocated with devm_drm_dev_alloc() are), in which case there is
+ * already an unwind action registered.
  *
  * A special form of unregistering for hotpluggable devices is drm_dev_unplug(),
  * which can be called while there are still open users of @dev.

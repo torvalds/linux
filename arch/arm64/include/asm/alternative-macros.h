@@ -23,17 +23,17 @@
 
 #include <linux/stringify.h>
 
-#define ALTINSTR_ENTRY(feature)					              \
+#define ALTINSTR_ENTRY(cpucap)					              \
 	" .word 661b - .\n"				/* label           */ \
 	" .word 663f - .\n"				/* new instruction */ \
-	" .hword " __stringify(feature) "\n"		/* feature bit     */ \
+	" .hword " __stringify(cpucap) "\n"		/* cpucap          */ \
 	" .byte 662b-661b\n"				/* source len      */ \
 	" .byte 664f-663f\n"				/* replacement len */
 
-#define ALTINSTR_ENTRY_CB(feature, cb)					      \
+#define ALTINSTR_ENTRY_CB(cpucap, cb)					      \
 	" .word 661b - .\n"				/* label           */ \
-	" .word " __stringify(cb) "- .\n"		/* callback */	      \
-	" .hword " __stringify(feature) "\n"		/* feature bit     */ \
+	" .word " __stringify(cb) "- .\n"		/* callback        */ \
+	" .hword " __stringify(cpucap) "\n"		/* cpucap          */ \
 	" .byte 662b-661b\n"				/* source len      */ \
 	" .byte 664f-663f\n"				/* replacement len */
 
@@ -53,13 +53,13 @@
  *
  * Alternatives with callbacks do not generate replacement instructions.
  */
-#define __ALTERNATIVE_CFG(oldinstr, newinstr, feature, cfg_enabled)	\
+#define __ALTERNATIVE_CFG(oldinstr, newinstr, cpucap, cfg_enabled)	\
 	".if "__stringify(cfg_enabled)" == 1\n"				\
 	"661:\n\t"							\
 	oldinstr "\n"							\
 	"662:\n"							\
 	".pushsection .altinstructions,\"a\"\n"				\
-	ALTINSTR_ENTRY(feature)						\
+	ALTINSTR_ENTRY(cpucap)						\
 	".popsection\n"							\
 	".subsection 1\n"						\
 	"663:\n\t"							\
@@ -70,31 +70,31 @@
 	".previous\n"							\
 	".endif\n"
 
-#define __ALTERNATIVE_CFG_CB(oldinstr, feature, cfg_enabled, cb)	\
+#define __ALTERNATIVE_CFG_CB(oldinstr, cpucap, cfg_enabled, cb)	\
 	".if "__stringify(cfg_enabled)" == 1\n"				\
 	"661:\n\t"							\
 	oldinstr "\n"							\
 	"662:\n"							\
 	".pushsection .altinstructions,\"a\"\n"				\
-	ALTINSTR_ENTRY_CB(feature, cb)					\
+	ALTINSTR_ENTRY_CB(cpucap, cb)					\
 	".popsection\n"							\
 	"663:\n\t"							\
 	"664:\n\t"							\
 	".endif\n"
 
-#define _ALTERNATIVE_CFG(oldinstr, newinstr, feature, cfg, ...)	\
-	__ALTERNATIVE_CFG(oldinstr, newinstr, feature, IS_ENABLED(cfg))
+#define _ALTERNATIVE_CFG(oldinstr, newinstr, cpucap, cfg, ...)	\
+	__ALTERNATIVE_CFG(oldinstr, newinstr, cpucap, IS_ENABLED(cfg))
 
-#define ALTERNATIVE_CB(oldinstr, feature, cb) \
-	__ALTERNATIVE_CFG_CB(oldinstr, (1 << ARM64_CB_SHIFT) | (feature), 1, cb)
+#define ALTERNATIVE_CB(oldinstr, cpucap, cb) \
+	__ALTERNATIVE_CFG_CB(oldinstr, (1 << ARM64_CB_SHIFT) | (cpucap), 1, cb)
 #else
 
 #include <asm/assembler.h>
 
-.macro altinstruction_entry orig_offset alt_offset feature orig_len alt_len
+.macro altinstruction_entry orig_offset alt_offset cpucap orig_len alt_len
 	.word \orig_offset - .
 	.word \alt_offset - .
-	.hword (\feature)
+	.hword (\cpucap)
 	.byte \orig_len
 	.byte \alt_len
 .endm
@@ -210,9 +210,9 @@ alternative_endif
 #endif  /*  __ASSEMBLY__  */
 
 /*
- * Usage: asm(ALTERNATIVE(oldinstr, newinstr, feature));
+ * Usage: asm(ALTERNATIVE(oldinstr, newinstr, cpucap));
  *
- * Usage: asm(ALTERNATIVE(oldinstr, newinstr, feature, CONFIG_FOO));
+ * Usage: asm(ALTERNATIVE(oldinstr, newinstr, cpucap, CONFIG_FOO));
  * N.B. If CONFIG_FOO is specified, but not selected, the whole block
  *      will be omitted, including oldinstr.
  */
@@ -224,15 +224,15 @@ alternative_endif
 #include <linux/types.h>
 
 static __always_inline bool
-alternative_has_feature_likely(const unsigned long feature)
+alternative_has_cap_likely(const unsigned long cpucap)
 {
-	compiletime_assert(feature < ARM64_NCAPS,
-			   "feature must be < ARM64_NCAPS");
+	compiletime_assert(cpucap < ARM64_NCAPS,
+			   "cpucap must be < ARM64_NCAPS");
 
 	asm_volatile_goto(
-	ALTERNATIVE_CB("b	%l[l_no]", %[feature], alt_cb_patch_nops)
+	ALTERNATIVE_CB("b	%l[l_no]", %[cpucap], alt_cb_patch_nops)
 	:
-	: [feature] "i" (feature)
+	: [cpucap] "i" (cpucap)
 	:
 	: l_no);
 
@@ -242,15 +242,15 @@ l_no:
 }
 
 static __always_inline bool
-alternative_has_feature_unlikely(const unsigned long feature)
+alternative_has_cap_unlikely(const unsigned long cpucap)
 {
-	compiletime_assert(feature < ARM64_NCAPS,
-			   "feature must be < ARM64_NCAPS");
+	compiletime_assert(cpucap < ARM64_NCAPS,
+			   "cpucap must be < ARM64_NCAPS");
 
 	asm_volatile_goto(
-	ALTERNATIVE("nop", "b	%l[l_yes]", %[feature])
+	ALTERNATIVE("nop", "b	%l[l_yes]", %[cpucap])
 	:
-	: [feature] "i" (feature)
+	: [cpucap] "i" (cpucap)
 	:
 	: l_yes);
 

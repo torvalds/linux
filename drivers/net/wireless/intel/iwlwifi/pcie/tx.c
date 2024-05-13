@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2021, 2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -132,22 +132,6 @@ void iwl_pcie_txq_check_wrptrs(struct iwl_trans *trans)
 	}
 }
 
-static inline void iwl_pcie_tfd_set_tb(struct iwl_trans *trans, void *tfd,
-				       u8 idx, dma_addr_t addr, u16 len)
-{
-	struct iwl_tfd *tfd_fh = (void *)tfd;
-	struct iwl_tfd_tb *tb = &tfd_fh->tbs[idx];
-
-	u16 hi_n_len = len << 4;
-
-	put_unaligned_le32(addr, &tb->lo);
-	hi_n_len |= iwl_get_dma_hi_addr(addr);
-
-	tb->hi_n_len = cpu_to_le16(hi_n_len);
-
-	tfd_fh->num_tbs = idx + 1;
-}
-
 static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 				  dma_addr_t addr, u16 len, bool reset)
 {
@@ -172,7 +156,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 		 "Unaligned address = %llx\n", (unsigned long long)addr))
 		return -EINVAL;
 
-	iwl_pcie_tfd_set_tb(trans, tfd, num_tbs, addr, len);
+	iwl_pcie_gen1_tfd_set_tb(trans, tfd, num_tbs, addr, len);
 
 	return num_tbs;
 }
@@ -364,7 +348,7 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans)
 	for (txq_id = 0; txq_id < trans->trans_cfg->base_params->num_of_queues;
 	     txq_id++) {
 		struct iwl_txq *txq = trans->txqs.txq[txq_id];
-		if (trans->trans_cfg->use_tfh)
+		if (trans->trans_cfg->gen2)
 			iwl_write_direct64(trans,
 					   FH_MEM_CBBC_QUEUE(trans, txq_id),
 					   txq->dma_addr);
@@ -1203,7 +1187,11 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	group_id = cmd->hdr.group_id;
 	cmd_id = WIDE_ID(group_id, cmd->hdr.cmd);
 
-	iwl_txq_gen1_tfd_unmap(trans, meta, txq, index);
+	if (trans->trans_cfg->gen2)
+		iwl_txq_gen2_tfd_unmap(trans, meta,
+				       iwl_txq_get_tfd(trans, txq, index));
+	else
+		iwl_txq_gen1_tfd_unmap(trans, meta, txq, index);
 
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
@@ -1547,6 +1535,9 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* there must be data left over for TB1 or this code must be changed */
 	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd) < IWL_FIRST_TB_SIZE);
+	BUILD_BUG_ON(sizeof(struct iwl_cmd_header) +
+		     offsetofend(struct iwl_tx_cmd, scratch) >
+		     IWL_FIRST_TB_SIZE);
 
 	/* map the data for TB1 */
 	tb1_addr = ((u8 *)&dev_cmd->hdr) + IWL_FIRST_TB_SIZE;

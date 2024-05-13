@@ -48,6 +48,7 @@ MODULE_FIRMWARE("amdgpu/sdma_6_0_0.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_0_1.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_0_2.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_0_3.bin");
+MODULE_FIRMWARE("amdgpu/sdma_6_1_0.bin");
 
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA0_HYP_DEC_REG_START 0x5880
@@ -238,6 +239,8 @@ static void sdma_v6_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
  *
  * @ring: amdgpu ring pointer
  * @ib: IB object to schedule
+ * @flags: unused
+ * @job: job to retrieve vmid from
  *
  * Schedule an IB in the DMA ring.
  */
@@ -585,16 +588,12 @@ static int sdma_v6_0_gfx_resume(struct amdgpu_device *adev)
 		/* enable DMA IBs */
 		WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_QUEUE0_IB_CNTL), ib_cntl);
 
-		ring->sched.ready = true;
-
 		if (amdgpu_sriov_vf(adev))
 			sdma_v6_0_enable(adev, true);
 
 		r = amdgpu_ring_test_helper(ring);
-		if (r) {
-			ring->sched.ready = false;
+		if (r)
 			return r;
-		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_buffer_funcs_status(adev, true);
@@ -942,6 +941,7 @@ static int sdma_v6_0_ring_test_ring(struct amdgpu_ring *ring)
  * sdma_v6_0_ring_test_ib - test an IB on the DMA engine
  *
  * @ring: amdgpu_ring structure holding ring information
+ * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  *
  * Test a simple IB in the DMA ring.
  * Returns 0 on success, error on failure.
@@ -1122,6 +1122,7 @@ static void sdma_v6_0_vm_set_pte_pde(struct amdgpu_ib *ib,
 /**
  * sdma_v6_0_ring_pad_ib - pad the IB
  * @ib: indirect buffer to fill with padding
+ * @ring: amdgpu ring pointer
  *
  * Pad the IB with NOPs to a boundary multiple of 8.
  */
@@ -1171,6 +1172,8 @@ static void sdma_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
  * sdma_v6_0_ring_emit_vm_flush - vm flush using sDMA
  *
  * @ring: amdgpu_ring pointer
+ * @vmid: vmid number to use
+ * @pd_addr: address
  *
  * Update the page table base and flush the VM TLB
  * using sDMA.
@@ -1298,7 +1301,7 @@ static int sdma_v6_0_sw_init(void *handle)
 		ring->doorbell_index =
 			(adev->doorbell_index.sdma_engine[i] << 1); // get DWORD offset
 
-		ring->vm_hub = AMDGPU_GFXHUB_0;
+		ring->vm_hub = AMDGPU_GFXHUB(0);
 		sprintf(ring->name, "sdma%d", i);
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->sdma.trap_irq,

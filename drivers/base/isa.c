@@ -149,11 +149,8 @@ int isa_register_driver(struct isa_driver *isa_driver, unsigned int ndev)
 			break;
 		}
 
-		if (isa_dev->dev.platform_data) {
-			isa_dev->next = isa_driver->devices;
-			isa_driver->devices = &isa_dev->dev;
-		} else
-			device_unregister(&isa_dev->dev);
+		isa_dev->next = isa_driver->devices;
+		isa_driver->devices = &isa_dev->dev;
 	}
 
 	if (!error && !isa_driver->devices)

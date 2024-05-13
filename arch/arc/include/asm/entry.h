@@ -13,6 +13,8 @@
 #include <asm/processor.h>	/* For VMALLOC_START */
 #include <asm/mmu.h>
 
+#ifdef __ASSEMBLY__
+
 #ifdef CONFIG_ISA_ARCOMPACT
 #include <asm/entry-compact.h>	/* ISA specific bits */
 #else
@@ -89,7 +91,7 @@
  * Helpers to save/restore callee-saved regs:
  * used by several macros below
  *-------------------------------------------------------------*/
-.macro SAVE_R13_TO_R24
+.macro SAVE_R13_TO_R25
 	PUSH	r13
 	PUSH	r14
 	PUSH	r15
@@ -102,9 +104,11 @@
 	PUSH	r22
 	PUSH	r23
 	PUSH	r24
+	PUSH	r25
 .endm
 
-.macro RESTORE_R24_TO_R13
+.macro RESTORE_R25_TO_R13
+	POP	r25
 	POP	r24
 	POP	r23
 	POP	r22
@@ -119,81 +123,31 @@
 	POP	r13
 .endm
 
-/*--------------------------------------------------------------
- * Collect User Mode callee regs as struct callee_regs - needed by
- * fork/do_signal/unaligned-access-emulation.
- * (By default only scratch regs are saved on entry to kernel)
- *
- * Special handling for r25 if used for caching Task Pointer.
- * It would have been saved in task->thread.user_r25 already, but to keep
- * the interface same it is copied into regular r25 placeholder in
- * struct callee_regs.
- *-------------------------------------------------------------*/
+/*
+ * save user mode callee regs as struct callee_regs
+ *  - needed by fork/do_signal/unaligned-access-emulation.
+ */
 .macro SAVE_CALLEE_SAVED_USER
-
-	mov	r12, sp		; save SP as ref to pt_regs
-	SAVE_R13_TO_R24
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	; Retrieve orig r25 and save it with rest of callee_regs
-	ld	r12, [r12, PT_user_r25]
-	PUSH	r12
-#else
-	PUSH	r25
-#endif
-
+	SAVE_R13_TO_R25
 .endm
 
-/*--------------------------------------------------------------
- * Save kernel Mode callee regs at the time of Contect Switch.
- *
- * Special handling for r25 if used for caching Task Pointer.
- * Kernel simply skips saving it since it will be loaded with
- * incoming task pointer anyways
- *-------------------------------------------------------------*/
-.macro SAVE_CALLEE_SAVED_KERNEL
-
-	SAVE_R13_TO_R24
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	sub     sp, sp, 4
-#else
-	PUSH	r25
-#endif
-.endm
-
-/*--------------------------------------------------------------
- * Opposite of SAVE_CALLEE_SAVED_KERNEL
- *-------------------------------------------------------------*/
-.macro RESTORE_CALLEE_SAVED_KERNEL
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	add     sp, sp, 4  /* skip usual r25 placeholder */
-#else
-	POP	r25
-#endif
-	RESTORE_R24_TO_R13
-.endm
-
-/*--------------------------------------------------------------
- * Opposite of SAVE_CALLEE_SAVED_USER
- *
- * ptrace tracer or unaligned-access fixup might have changed a user mode
- * callee reg which is saved back to usual r25 storage location
- *-------------------------------------------------------------*/
+/*
+ * restore user mode callee regs as struct callee_regs
+ *  - could have been changed by ptrace tracer or unaligned-access fixup
+ */
 .macro RESTORE_CALLEE_SAVED_USER
+	RESTORE_R25_TO_R13
+.endm
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	POP	r12
-#else
-	POP	r25
-#endif
-	RESTORE_R24_TO_R13
+/*
+ * save/restore kernel mode callee regs at the time of context switch
+ */
+.macro SAVE_CALLEE_SAVED_KERNEL
+	SAVE_R13_TO_R25
+.endm
 
-	; SP is back to start of pt_regs
-#ifdef CONFIG_ARC_CURR_IN_REG
-	st	r12, [sp, PT_user_r25]
-#endif
+.macro RESTORE_CALLEE_SAVED_KERNEL
+	RESTORE_R25_TO_R13
 .endm
 
 /*--------------------------------------------------------------
@@ -229,10 +183,10 @@
 
 #ifdef CONFIG_SMP
 
-/*-------------------------------------------------
+/*
  * Retrieve the current running task on this CPU
- * 1. Determine curr CPU id.
- * 2. Use it to index into _current_task[ ]
+ *  - loads it from backing _current_task[] (and can't use the
+ *    caching reg for current task
  */
 .macro  GET_CURR_TASK_ON_CPU   reg
 	GET_CPU_ID  \reg
@@ -254,7 +208,7 @@
 	add2 \tmp, @_current_task, \tmp
 	st   \tsk, [\tmp]
 #ifdef CONFIG_ARC_CURR_IN_REG
-	mov r25, \tsk
+	mov gp, \tsk
 #endif
 
 .endm
@@ -269,21 +223,20 @@
 .macro  SET_CURR_TASK_ON_CPU    tsk, tmp
 	st  \tsk, [@_current_task]
 #ifdef CONFIG_ARC_CURR_IN_REG
-	mov r25, \tsk
+	mov gp, \tsk
 #endif
 .endm
 
 #endif /* SMP / UNI */
 
-/* ------------------------------------------------------------------
+/*
  * Get the ptr to some field of Current Task at @off in task struct
- *  -Uses r25 for Current task ptr if that is enabled
+ *  - Uses current task cached in reg if enabled
  */
-
 #ifdef CONFIG_ARC_CURR_IN_REG
 
 .macro GET_CURR_TASK_FIELD_PTR  off,  reg
-	add \reg, r25, \off
+	add \reg, gp, \off
 .endm
 
 #else
@@ -294,5 +247,24 @@
 .endm
 
 #endif	/* CONFIG_ARC_CURR_IN_REG */
+
+#else	/* !__ASSEMBLY__ */
+
+extern void do_signal(struct pt_regs *);
+extern void do_notify_resume(struct pt_regs *);
+extern int do_privilege_fault(unsigned long, struct pt_regs *);
+extern int do_extension_fault(unsigned long, struct pt_regs *);
+extern int insterror_is_error(unsigned long, struct pt_regs *);
+extern int do_memory_error(unsigned long, struct pt_regs *);
+extern int trap_is_brkpt(unsigned long, struct pt_regs *);
+extern int do_misaligned_error(unsigned long, struct pt_regs *);
+extern int do_trap5_error(unsigned long, struct pt_regs *);
+extern int do_misaligned_access(unsigned long, struct pt_regs *, struct callee_regs *);
+extern void do_machine_check_fault(unsigned long, struct pt_regs *);
+extern void do_non_swi_trap(unsigned long, struct pt_regs *);
+extern void do_insterror_or_kprobe(unsigned long, struct pt_regs *);
+extern void do_page_fault(unsigned long, struct pt_regs *);
+
+#endif
 
 #endif  /* __ASM_ARC_ENTRY_H */

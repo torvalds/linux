@@ -35,8 +35,9 @@
 #define ADF_GEN4_PM_MSG_PENDING			BIT(0)
 #define ADF_GEN4_PM_MSG_PAYLOAD_BIT_MASK	GENMASK(28, 1)
 
-#define ADF_GEN4_PM_DEFAULT_IDLE_FILTER		(0x0)
+#define ADF_GEN4_PM_DEFAULT_IDLE_FILTER		(0x6)
 #define ADF_GEN4_PM_MAX_IDLE_FILTER		(0x7)
+#define ADF_GEN4_PM_DEFAULT_IDLE_SUPPORT	(0x1)
 
 int adf_gen4_enable_pm(struct adf_accel_dev *accel_dev);
 bool adf_gen4_handle_pm_interrupt(struct adf_accel_dev *accel_dev);

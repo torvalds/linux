@@ -7,8 +7,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/fpga/fpga-bridge.h>
 
 #define FREEZE_CSR_STATUS_OFFSET		0
@@ -198,13 +199,11 @@ static const struct fpga_bridge_ops altera_freeze_br_br_ops = {
 	.enable_show = altera_freeze_br_enable_show,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id altera_freeze_br_of_match[] = {
 	{ .compatible = "altr,freeze-bridge-controller", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_freeze_br_of_match);
-#endif
 
 static int altera_freeze_br_probe(struct platform_device *pdev)
 {
@@ -213,14 +212,12 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 	void __iomem *base_addr;
 	struct altera_freeze_br_data *priv;
 	struct fpga_bridge *br;
-	struct resource *res;
 	u32 status, revision;
 
 	if (!np)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base_addr = devm_ioremap_resource(dev, res);
+	base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base_addr))
 		return PTR_ERR(base_addr);
 
@@ -270,7 +267,7 @@ static struct platform_driver altera_freeze_br_driver = {
 	.remove = altera_freeze_br_remove,
 	.driver = {
 		.name	= "altera_freeze_br",
-		.of_match_table = of_match_ptr(altera_freeze_br_of_match),
+		.of_match_table = altera_freeze_br_of_match,
 	},
 };
 

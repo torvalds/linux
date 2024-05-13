@@ -97,8 +97,9 @@ out:
 
 static void ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 {
-	bool samefs = ovl_same_fs(dentry->d_sb);
-	unsigned int xinobits = ovl_xino_bits(dentry->d_sb);
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
+	bool samefs = ovl_same_fs(ofs);
+	unsigned int xinobits = ovl_xino_bits(ofs);
 	unsigned int xinoshift = 64 - xinobits;
 
 	if (samefs) {
@@ -123,7 +124,7 @@ static void ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 			stat->ino |= ((u64)fsid) << (xinoshift + 1);
 			stat->dev = dentry->d_sb->s_dev;
 			return;
-		} else if (ovl_xino_warn(dentry->d_sb)) {
+		} else if (ovl_xino_warn(ofs)) {
 			pr_warn_ratelimited("inode number too big (%pd2, ino=%llu, xinobits=%d)\n",
 					    dentry, stat->ino, xinobits);
 		}
@@ -149,7 +150,7 @@ static void ovl_map_dev_ino(struct dentry *dentry, struct kstat *stat, int fsid)
 		 * is unique per underlying fs, so we use the unique anonymous
 		 * bdev assigned to the underlying fs.
 		 */
-		stat->dev = OVL_FS(dentry->d_sb)->fs[fsid].pseudo_dev;
+		stat->dev = ofs->fs[fsid].pseudo_dev;
 	}
 }
 
@@ -186,7 +187,7 @@ int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
 	 * If lower filesystem supports NFS file handles, this also guaranties
 	 * persistent st_ino across mount cycle.
 	 */
-	if (!is_dir || ovl_same_dev(dentry->d_sb)) {
+	if (!is_dir || ovl_same_dev(OVL_FS(dentry->d_sb))) {
 		if (!OVL_TYPE_UPPER(type)) {
 			fsid = ovl_layer_lower(dentry)->fsid;
 		} else if (OVL_TYPE_ORIGIN(type)) {
@@ -240,15 +241,22 @@ int ovl_getattr(struct mnt_idmap *idmap, const struct path *path,
 			/*
 			 * If lower is not same as lowerdata or if there was
 			 * no origin on upper, we can end up here.
+			 * With lazy lowerdata lookup, guess lowerdata blocks
+			 * from size to avoid lowerdata lookup on stat(2).
 			 */
 			struct kstat lowerdatastat;
 			u32 lowermask = STATX_BLOCKS;
 
 			ovl_path_lowerdata(dentry, &realpath);
-			err = vfs_getattr(&realpath, &lowerdatastat,
-					  lowermask, flags);
-			if (err)
-				goto out;
+			if (realpath.dentry) {
+				err = vfs_getattr(&realpath, &lowerdatastat,
+						  lowermask, flags);
+				if (err)
+					goto out;
+			} else {
+				lowerdatastat.blocks =
+					round_up(stat->size, stat->blksize) >> 9;
+			}
 			stat->blocks = lowerdatastat.blocks;
 		}
 	}
@@ -288,8 +296,8 @@ int ovl_permission(struct mnt_idmap *idmap,
 	int err;
 
 	/* Careful in RCU walk mode */
-	ovl_i_path_real(inode, &realpath);
-	if (!realpath.dentry) {
+	realinode = ovl_i_path_real(inode, &realpath);
+	if (!realinode) {
 		WARN_ON(!(mask & MAY_NOT_BLOCK));
 		return -ECHILD;
 	}
@@ -302,7 +310,6 @@ int ovl_permission(struct mnt_idmap *idmap,
 	if (err)
 		return err;
 
-	realinode = d_inode(realpath.dentry);
 	old_cred = ovl_override_creds(inode->i_sb);
 	if (!upperinode &&
 	    !special_file(realinode->i_mode) && mask & MAY_WRITE) {
@@ -334,7 +341,7 @@ static const char *ovl_get_link(struct dentry *dentry,
 
 bool ovl_is_private_xattr(struct super_block *sb, const char *name)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 
 	if (ofs->config.userxattr)
 		return strncmp(name, OVL_XATTR_USER_PREFIX,
@@ -559,19 +566,19 @@ struct posix_acl *do_ovl_get_acl(struct mnt_idmap *idmap,
 				 struct inode *inode, int type,
 				 bool rcu, bool noperm)
 {
-	struct inode *realinode = ovl_inode_real(inode);
+	struct inode *realinode;
 	struct posix_acl *acl;
 	struct path realpath;
 
-	if (!IS_POSIXACL(realinode))
-		return NULL;
-
 	/* Careful in RCU walk mode */
-	ovl_i_path_real(inode, &realpath);
-	if (!realpath.dentry) {
+	realinode = ovl_i_path_real(inode, &realpath);
+	if (!realinode) {
 		WARN_ON(!rcu);
 		return ERR_PTR(-ECHILD);
 	}
+
+	if (!IS_POSIXACL(realinode))
+		return NULL;
 
 	if (rcu) {
 		/*
@@ -686,10 +693,10 @@ int ovl_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 }
 #endif
 
-int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags)
+int ovl_update_time(struct inode *inode, int flags)
 {
 	if (flags & S_ATIME) {
-		struct ovl_fs *ofs = inode->i_sb->s_fs_info;
+		struct ovl_fs *ofs = OVL_FS(inode->i_sb);
 		struct path upperpath = {
 			.mnt = ovl_upper_mnt(ofs),
 			.dentry = ovl_upperdentry_dereference(OVL_I(inode)),
@@ -709,6 +716,9 @@ static int ovl_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	int err;
 	struct inode *realinode = ovl_inode_realdata(inode);
 	const struct cred *old_cred;
+
+	if (!realinode)
+		return -EIO;
 
 	if (!realinode->i_op->fiemap)
 		return -EOPNOTSUPP;
@@ -952,7 +962,7 @@ static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
 
 static void ovl_next_ino(struct inode *inode)
 {
-	struct ovl_fs *ofs = inode->i_sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(inode->i_sb);
 
 	inode->i_ino = atomic_long_inc_return(&ofs->last_ino);
 	if (unlikely(!inode->i_ino))
@@ -961,7 +971,8 @@ static void ovl_next_ino(struct inode *inode)
 
 static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 {
-	int xinobits = ovl_xino_bits(inode->i_sb);
+	struct ovl_fs *ofs = OVL_FS(inode->i_sb);
+	int xinobits = ovl_xino_bits(ofs);
 	unsigned int xinoshift = 64 - xinobits;
 
 	/*
@@ -972,7 +983,7 @@ static void ovl_map_ino(struct inode *inode, unsigned long ino, int fsid)
 	 * with d_ino also causes nfsd readdirplus to fail.
 	 */
 	inode->i_ino = ino;
-	if (ovl_same_fs(inode->i_sb)) {
+	if (ovl_same_fs(ofs)) {
 		return;
 	} else if (xinobits && likely(!(ino >> xinoshift))) {
 		inode->i_ino |= (unsigned long)fsid << (xinoshift + 1);
@@ -1003,14 +1014,10 @@ void ovl_inode_init(struct inode *inode, struct ovl_inode_params *oip,
 	struct inode *realinode;
 	struct ovl_inode *oi = OVL_I(inode);
 
-	if (oip->upperdentry)
-		oi->__upperdentry = oip->upperdentry;
-	if (oip->lowerpath && oip->lowerpath->dentry) {
-		oi->lowerpath.dentry = dget(oip->lowerpath->dentry);
-		oi->lowerpath.layer = oip->lowerpath->layer;
-	}
-	if (oip->lowerdata)
-		oi->lowerdata = igrab(d_inode(oip->lowerdata));
+	oi->__upperdentry = oip->upperdentry;
+	oi->oe = oip->oe;
+	oi->redirect = oip->redirect;
+	oi->lowerdata_redirect = oip->lowerdata_redirect;
 
 	realinode = ovl_inode_real(inode);
 	ovl_copyattr(inode);
@@ -1284,7 +1291,7 @@ struct inode *ovl_get_trap_inode(struct super_block *sb, struct dentry *dir)
 static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
 			     struct dentry *lower, bool index)
 {
-	struct ovl_fs *ofs = sb->s_fs_info;
+	struct ovl_fs *ofs = OVL_FS(sb);
 
 	/* No, if pure upper */
 	if (!lower)
@@ -1304,7 +1311,7 @@ static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
 		return false;
 
 	/* No, if non-indexed upper with NFS export */
-	if (sb->s_export_op && upper)
+	if (ofs->config.nfs_export && upper)
 		return false;
 
 	/* Otherwise, hash by lower inode for fsnotify */
@@ -1325,7 +1332,7 @@ struct inode *ovl_get_inode(struct super_block *sb,
 {
 	struct ovl_fs *ofs = OVL_FS(sb);
 	struct dentry *upperdentry = oip->upperdentry;
-	struct ovl_path *lowerpath = oip->lowerpath;
+	struct ovl_path *lowerpath = ovl_lowerpath(oip->oe);
 	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
 	struct inode *inode;
 	struct dentry *lowerdentry = lowerpath ? lowerpath->dentry : NULL;
@@ -1369,7 +1376,9 @@ struct inode *ovl_get_inode(struct super_block *sb,
 			}
 
 			dput(upperdentry);
+			ovl_free_entry(oip->oe);
 			kfree(oip->redirect);
+			kfree(oip->lowerdata_redirect);
 			goto out;
 		}
 
@@ -1398,14 +1407,12 @@ struct inode *ovl_get_inode(struct super_block *sb,
 	if (oip->index)
 		ovl_set_flag(OVL_INDEX, inode);
 
-	OVL_I(inode)->redirect = oip->redirect;
-
 	if (bylower)
 		ovl_set_flag(OVL_CONST_INO, inode);
 
 	/* Check for non-merge dir that may have whiteouts */
 	if (is_dir) {
-		if (((upperdentry && lowerdentry) || oip->numlower > 1) ||
+		if (((upperdentry && lowerdentry) || ovl_numlower(oip->oe) > 1) ||
 		    ovl_path_check_origin_xattr(ofs, &realpath)) {
 			ovl_set_flag(OVL_WHITEOUTS, inode);
 		}

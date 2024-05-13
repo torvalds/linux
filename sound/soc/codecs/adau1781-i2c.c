@@ -56,7 +56,7 @@ static struct i2c_driver adau1781_i2c_driver = {
 		.name = "adau1781",
 		.of_match_table = of_match_ptr(adau1781_i2c_dt_ids),
 	},
-	.probe_new = adau1781_i2c_probe,
+	.probe = adau1781_i2c_probe,
 	.remove = adau1781_i2c_remove,
 	.id_table = adau1781_i2c_ids,
 };

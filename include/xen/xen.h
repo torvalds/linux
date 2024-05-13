@@ -29,8 +29,17 @@ extern bool xen_pvh;
 
 extern uint32_t xen_start_flags;
 
+#ifdef CONFIG_XEN_PV
+extern bool xen_pv_pci_possible;
+#else
+#define xen_pv_pci_possible	0
+#endif
+
 #include <xen/interface/hvm/start_info.h>
 extern struct hvm_start_info pvh_start_info;
+void xen_prepare_pvh(void);
+struct pt_regs;
+void xen_pv_evtchn_do_upcall(struct pt_regs *regs);
 
 #ifdef CONFIG_XEN_DOM0
 #include <xen/interface/xen.h>

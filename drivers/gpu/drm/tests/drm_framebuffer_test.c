@@ -178,13 +178,13 @@ static const struct drm_framebuffer_test drm_framebuffer_create_cases[] = {
 		 .handles = { 1, 1, 1 }, .pitches = { 600, 600, 600 },
 	}
 },
-{ .buffer_created = 1, .name = "YVU420 Normal sizes",
+{ .buffer_created = 1, .name = "YVU420 DRM_MODE_FB_MODIFIERS set without modifier",
 	.cmd = { .width = 600, .height = 600, .pixel_format = DRM_FORMAT_YVU420,
 		 .handles = { 1, 1, 1 }, .flags = DRM_MODE_FB_MODIFIERS,
 		 .pitches = { 600, 300, 300 },
 	}
 },
-{ .buffer_created = 1, .name = "YVU420 DRM_MODE_FB_MODIFIERS set without modifier",
+{ .buffer_created = 1, .name = "YVU420 Normal sizes",
 	.cmd = { .width = 600, .height = 600, .pixel_format = DRM_FORMAT_YVU420,
 		 .handles = { 1, 1, 1 }, .pitches = { 600, 300, 300 },
 	}

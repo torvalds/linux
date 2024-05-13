@@ -26,6 +26,7 @@ properties:
     items:
       - enum:
           - qcom,qdu1000-aoss-qmp
+          - qcom,sa8775p-aoss-qmp
           - qcom,sc7180-aoss-qmp
           - qcom,sc7280-aoss-qmp
           - qcom,sc8180x-aoss-qmp
@@ -76,7 +77,7 @@ patternProperties:
     description:
       The AOSS side channel also provides the controls for three cooling devices,
       these are expressed as subnodes of the QMP node. The name of the node is
-      used to identify the resource and must therefor be "cx", "mx" or "ebi".
+      used to identify the resource and must therefore be "cx", "mx" or "ebi".
 
     properties:
       "#cooling-cells":

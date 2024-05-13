@@ -1422,7 +1422,6 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 	case DR_ACTION_TYP_TNL_L3_TO_L2:
 	{
 		u8 *hw_actions;
-		int ret;
 
 		hw_actions = kzalloc(DR_ACTION_CACHE_LINE_SIZE, GFP_KERNEL);
 		if (!hw_actions)
@@ -2077,8 +2076,9 @@ mlx5dr_action_create_dest_vport(struct mlx5dr_domain *dmn,
 	struct mlx5dr_action *action;
 	u8 peer_vport;
 
-	peer_vport = vhca_id_valid && (vhca_id != dmn->info.caps.gvmi);
-	vport_dmn = peer_vport ? dmn->peer_dmn : dmn;
+	peer_vport = vhca_id_valid && mlx5_core_is_pf(dmn->mdev) &&
+		(vhca_id != dmn->info.caps.gvmi);
+	vport_dmn = peer_vport ? xa_load(&dmn->peer_dmn_xa, vhca_id) : dmn;
 	if (!vport_dmn) {
 		mlx5dr_dbg(dmn, "No peer vport domain for given vhca_id\n");
 		return NULL;

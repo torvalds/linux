@@ -39,7 +39,6 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_data/g762.h>
 
 #define DRVNAME "g762"
@@ -1084,7 +1083,7 @@ static struct i2c_driver g762_driver = {
 		.name = DRVNAME,
 		.of_match_table = of_match_ptr(g762_dt_match),
 	},
-	.probe_new = g762_probe,
+	.probe = g762_probe,
 	.id_table = g762_id,
 };
 

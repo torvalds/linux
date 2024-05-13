@@ -182,7 +182,7 @@ MODULE_DEVICE_TABLE(of, ahci_dm816_of_match);
 
 static struct platform_driver ahci_dm816_driver = {
 	.probe = ahci_dm816_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = AHCI_DM816_DRV_NAME,
 		.of_match_table = ahci_dm816_of_match,

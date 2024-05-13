@@ -331,7 +331,7 @@ static const struct regmap_config sta529_regmap = {
 	.max_register = STA529_MAX_REGISTER,
 	.readable_reg = sta529_readable,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = sta529_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(sta529_reg_defaults),
 };
@@ -379,7 +379,7 @@ static struct i2c_driver sta529_i2c_driver = {
 		.name = "sta529",
 		.of_match_table = sta529_of_match,
 	},
-	.probe_new	= sta529_i2c_probe,
+	.probe		= sta529_i2c_probe,
 	.id_table	= sta529_i2c_id,
 };
 

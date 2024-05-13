@@ -20,6 +20,7 @@ properties:
           - qcom,usb-snps-femto-v2-phy
       - items:
           - enum:
+              - qcom,sa8775p-usb-hs-phy
               - qcom,sc8280xp-usb-hs-phy
           - const: qcom,usb-snps-hs-5nm-phy
       - items:

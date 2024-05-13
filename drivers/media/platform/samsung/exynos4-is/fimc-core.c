@@ -19,7 +19,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <media/v4l2-ioctl.h>
@@ -924,7 +923,6 @@ static int fimc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	u32 lclk_freq = 0;
 	struct fimc_dev *fimc;
-	struct resource *res;
 	int ret = 0;
 	int irq;
 
@@ -961,8 +959,7 @@ static int fimc_probe(struct platform_device *pdev)
 			return PTR_ERR(fimc->sysreg);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fimc->regs = devm_ioremap_resource(dev, res);
+	fimc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(fimc->regs))
 		return PTR_ERR(fimc->regs);
 
@@ -1128,7 +1125,7 @@ static const struct fimc_drvdata fimc_drvdata_exynos4210 = {
 	.out_buf_count	= 32,
 };
 
-/* EXYNOS4412 */
+/* EXYNOS4212, EXYNOS4412 */
 static const struct fimc_drvdata fimc_drvdata_exynos4x12 = {
 	.num_entities	= 4,
 	.lclk_frequency	= 166000000UL,

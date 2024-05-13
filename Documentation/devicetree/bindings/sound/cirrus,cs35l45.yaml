@@ -62,7 +62,7 @@ patternProperties:
           GPIO pin direction. Valid only when 'gpio-ctrl' is 1
             0 = Output
             1 = Input
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1
         default: 1
@@ -71,7 +71,7 @@ patternProperties:
           GPIO level. Valid only when 'gpio-ctrl' is 1 and 'gpio-dir' is 0
             0 = Low
             1 = High
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1
         default: 0
@@ -80,7 +80,7 @@ patternProperties:
           GPIO level. Valid only when 'gpio-ctrl' is 1 and 'gpio-dir' is 0
             0 = CMOS
             1 = Open Drain
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1
         default: 0
@@ -90,7 +90,7 @@ patternProperties:
           and 'gpio-dir' is 0
             0 = Non-inverted, Active High
             1 = Inverted, Active Low
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 1
         default: 0
@@ -114,7 +114,7 @@ patternProperties:
             0 = High impedance input
             1 = Pin acts as a GPIO, direction controlled by 'gpio-dir'
             2-7 = Reserved
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 7
         default: 0

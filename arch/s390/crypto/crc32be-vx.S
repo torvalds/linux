@@ -48,7 +48,7 @@
  *
  * Note that the constant definitions below are extended in order to compute
  * intermediate results with a single VECTOR GALOIS FIELD MULTIPLY instruction.
- * The righmost doubleword can be 0 to prevent contribution to the result or
+ * The rightmost doubleword can be 0 to prevent contribution to the result or
  * can be multiplied by 1 to perform an XOR without the need for a separate
  * VECTOR EXCLUSIVE OR instruction.
  *

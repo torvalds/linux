@@ -10,7 +10,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/mux/driver.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -131,7 +131,7 @@ static int mux_mmio_probe(struct platform_device *pdev)
 static struct platform_driver mux_mmio_driver = {
 	.driver = {
 		.name = "mmio-mux",
-		.of_match_table	= of_match_ptr(mux_mmio_dt_ids),
+		.of_match_table	= mux_mmio_dt_ids,
 	},
 	.probe = mux_mmio_probe,
 };

@@ -90,13 +90,6 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 }
 #endif
 
-#ifndef unxlate_dev_mem_ptr
-#define unxlate_dev_mem_ptr unxlate_dev_mem_ptr
-void __weak unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
-{
-}
-#endif
-
 static inline bool should_stop_iteration(void)
 {
 	if (need_resched())
@@ -699,23 +692,23 @@ static const struct file_operations full_fops = {
 
 static const struct memdev {
 	const char *name;
-	umode_t mode;
 	const struct file_operations *fops;
 	fmode_t fmode;
+	umode_t mode;
 } devlist[] = {
 #ifdef CONFIG_DEVMEM
-	 [DEVMEM_MINOR] = { "mem", 0, &mem_fops, FMODE_UNSIGNED_OFFSET },
+	[DEVMEM_MINOR] = { "mem", &mem_fops, FMODE_UNSIGNED_OFFSET, 0 },
 #endif
-	 [3] = { "null", 0666, &null_fops, FMODE_NOWAIT },
+	[3] = { "null", &null_fops, FMODE_NOWAIT, 0666 },
 #ifdef CONFIG_DEVPORT
-	 [4] = { "port", 0, &port_fops, 0 },
+	[4] = { "port", &port_fops, 0, 0 },
 #endif
-	 [5] = { "zero", 0666, &zero_fops, FMODE_NOWAIT },
-	 [7] = { "full", 0666, &full_fops, 0 },
-	 [8] = { "random", 0666, &random_fops, FMODE_NOWAIT },
-	 [9] = { "urandom", 0666, &urandom_fops, FMODE_NOWAIT },
+	[5] = { "zero", &zero_fops, FMODE_NOWAIT, 0666 },
+	[7] = { "full", &full_fops, 0, 0666 },
+	[8] = { "random", &random_fops, FMODE_NOWAIT, 0666 },
+	[9] = { "urandom", &urandom_fops, FMODE_NOWAIT, 0666 },
 #ifdef CONFIG_PRINTK
-	[11] = { "kmsg", 0644, &kmsg_fops, 0 },
+	[11] = { "kmsg", &kmsg_fops, 0, 0644 },
 #endif
 };
 
@@ -753,20 +746,23 @@ static char *mem_devnode(const struct device *dev, umode_t *mode)
 	return NULL;
 }
 
-static struct class *mem_class;
+static const struct class mem_class = {
+	.name		= "mem",
+	.devnode	= mem_devnode,
+};
 
 static int __init chr_dev_init(void)
 {
+	int retval;
 	int minor;
 
 	if (register_chrdev(MEM_MAJOR, "mem", &memory_fops))
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
 
-	mem_class = class_create("mem");
-	if (IS_ERR(mem_class))
-		return PTR_ERR(mem_class);
+	retval = class_register(&mem_class);
+	if (retval)
+		return retval;
 
-	mem_class->devnode = mem_devnode;
 	for (minor = 1; minor < ARRAY_SIZE(devlist); minor++) {
 		if (!devlist[minor].name)
 			continue;
@@ -777,7 +773,7 @@ static int __init chr_dev_init(void)
 		if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
 			continue;
 
-		device_create(mem_class, NULL, MKDEV(MEM_MAJOR, minor),
+		device_create(&mem_class, NULL, MKDEV(MEM_MAJOR, minor),
 			      NULL, devlist[minor].name);
 	}
 

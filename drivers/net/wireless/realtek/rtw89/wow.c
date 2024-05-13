@@ -40,6 +40,7 @@ static void rtw89_wow_leave_lps(struct rtw89_dev *rtwdev)
 
 static int rtw89_wow_config_mac(struct rtw89_dev *rtwdev, bool enable_wow)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	int ret;
 
 	if (enable_wow) {
@@ -49,7 +50,7 @@ static int rtw89_wow_config_mac(struct rtw89_dev *rtwdev, bool enable_wow)
 			return ret;
 		}
 		rtw89_write32_set(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
-		rtw89_write32_clr(rtwdev, R_AX_RX_FLTR_OPT, B_AX_SNIFFER_MODE);
+		rtw89_write32_clr(rtwdev, mac->rx_fltr, B_AX_SNIFFER_MODE);
 		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
 		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, 0);
 		rtw89_write32(rtwdev, R_AX_ACTION_FWD1, 0);
@@ -91,7 +92,7 @@ static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 	u32 wow_reason_reg;
 	u8 reason;
 
-	if (chip_id == RTL8852A || chip_id == RTL8852B)
+	if (chip_id == RTL8852A || chip_id == RTL8852B || chip_id == RTL8851B)
 		wow_reason_reg = R_AX_C2HREG_DATA3 + 3;
 	else
 		wow_reason_reg = R_AX_C2HREG_DATA3_V1 + 3;

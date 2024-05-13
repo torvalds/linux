@@ -16,6 +16,7 @@
 #include "intel_guc_submission.h"
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 
 /**
  * DOC: GuC
@@ -163,7 +164,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct drm_i915_private *i915 = gt->i915;
 
-	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC);
+	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC, true);
 	intel_guc_ct_init_early(&guc->ct);
 	intel_guc_log_init_early(&guc->log);
 	intel_guc_submission_init_early(guc);
@@ -743,6 +744,14 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
+	/*
+	 * Wa_22016122933: For Media version 13.0, all Media GT shared
+	 * memory needs to be mapped as WC on CPU side and UC (PAT
+	 * index 2) on GPU side.
+	 */
+	if (intel_gt_needs_wa_22016122933(gt))
+		i915_gem_object_set_cache_coherency(obj, I915_CACHE_NONE);
+
 	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
 	if (IS_ERR(vma))
 		goto err;
@@ -784,8 +793,8 @@ int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
 		return PTR_ERR(vma);
 
 	vaddr = i915_gem_object_pin_map_unlocked(vma->obj,
-						 i915_coherent_map_type(guc_to_gt(guc)->i915,
-									vma->obj, true));
+						 intel_gt_coherent_map_type(guc_to_gt(guc),
+									    vma->obj, true));
 	if (IS_ERR(vaddr)) {
 		i915_vma_unpin_and_release(&vma, 0);
 		return PTR_ERR(vaddr);

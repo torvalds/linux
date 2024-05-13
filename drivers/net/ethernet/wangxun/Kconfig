@@ -40,6 +40,17 @@ config NGBE
 config TXGBE
 	tristate "Wangxun(R) 10GbE PCI Express adapters support"
 	depends on PCI
+	depends on COMMON_CLK
+	select MARVELL_10G_PHY
+	select REGMAP
+	select I2C
+	select I2C_DESIGNWARE_PLATFORM
+	select PHYLINK
+	select HWMON if TXGBE=y
+	select SFP
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select PCS_XPCS
 	select LIBWX
 	help
 	  This driver supports Wangxun(R) 10GbE PCI Express family of

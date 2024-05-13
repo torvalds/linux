@@ -3,6 +3,7 @@
 #ifndef ADF_4XXX_HW_DATA_H_
 #define ADF_4XXX_HW_DATA_H_
 
+#include <linux/units.h>
 #include <adf_accel_devices.h>
 
 /* PCIe configuration space */
@@ -64,6 +65,9 @@
 #define ADF_402XX_ASYM_OBJ	"qat_402xx_asym.bin"
 #define ADF_402XX_ADMIN_OBJ	"qat_402xx_admin.bin"
 
+/* Clocks frequency */
+#define ADF_4XXX_KPT_COUNTER_FREQ (100 * HZ_PER_MHZ)
+
 /* qat_4xxx fuse bits are different from old GENs, redefine them */
 enum icp_qat_4xxx_slice_mask {
 	ICP_ACCEL_4XXX_MASK_CIPHER_SLICE = BIT(0),
@@ -72,7 +76,7 @@ enum icp_qat_4xxx_slice_mask {
 	ICP_ACCEL_4XXX_MASK_COMPRESS_SLICE = BIT(3),
 	ICP_ACCEL_4XXX_MASK_UCS_SLICE = BIT(4),
 	ICP_ACCEL_4XXX_MASK_EIA3_SLICE = BIT(5),
-	ICP_ACCEL_4XXX_MASK_SMX_SLICE = BIT(6),
+	ICP_ACCEL_4XXX_MASK_SMX_SLICE = BIT(7),
 };
 
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id);

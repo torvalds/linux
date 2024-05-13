@@ -114,7 +114,7 @@ static void rvu_map_cgx_nix_block(struct rvu *rvu, int pf,
 	p2x = cgx_lmac_get_p2x(cgx_id, lmac_id);
 	/* Firmware sets P2X_SELECT as either NIX0 or NIX1 */
 	pfvf->nix_blkaddr = BLKADDR_NIX0;
-	if (p2x == CMR_P2X_SEL_NIX1)
+	if (is_rvu_supports_nix1(rvu) && p2x == CMR_P2X_SEL_NIX1)
 		pfvf->nix_blkaddr = BLKADDR_NIX1;
 }
 
@@ -236,6 +236,11 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 
 	linfo = &event->link_uinfo;
 	pfmap = cgxlmac_to_pfmap(rvu, event->cgx_id, event->lmac_id);
+	if (!pfmap) {
+		dev_err(rvu->dev, "CGX port%d:%d not mapped with PF\n",
+			event->cgx_id, event->lmac_id);
+		return;
+	}
 
 	do {
 		pfid = find_first_bit(&pfmap,
@@ -345,7 +350,7 @@ int rvu_cgx_init(struct rvu *rvu)
 	rvu->cgx_cnt_max = cgx_get_cgxcnt_max();
 	if (!rvu->cgx_cnt_max) {
 		dev_info(rvu->dev, "No CGX devices found!\n");
-		return -ENODEV;
+		return 0;
 	}
 
 	rvu->cgx_idmap = devm_kzalloc(rvu->dev, rvu->cgx_cnt_max *
@@ -686,7 +691,7 @@ int rvu_mbox_handler_cgx_mac_addr_get(struct rvu *rvu,
 {
 	int pf = rvu_get_pf(req->hdr.pcifunc);
 	u8 cgx_id, lmac_id;
-	int rc = 0, i;
+	int rc = 0;
 	u64 cfg;
 
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
@@ -697,8 +702,7 @@ int rvu_mbox_handler_cgx_mac_addr_get(struct rvu *rvu,
 	rsp->hdr.rc = rc;
 	cfg = cgx_lmac_addr_get(cgx_id, lmac_id);
 	/* copy 48 bit mac address to req->mac_addr */
-	for (i = 0; i < ETH_ALEN; i++)
-		rsp->mac_addr[i] = cfg >> (ETH_ALEN - 1 - i) * 8;
+	u64_to_ether_addr(cfg, rsp->mac_addr);
 	return 0;
 }
 
@@ -763,7 +767,7 @@ static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 	cgxd = rvu_cgx_pdata(cgx_id, rvu);
 
 	mac_ops = get_mac_ops(cgxd);
-	mac_ops->mac_enadis_ptp_config(cgxd, lmac_id, true);
+	mac_ops->mac_enadis_ptp_config(cgxd, lmac_id, enable);
 	/* If PTP is enabled then inform NPC that packets to be
 	 * parsed by this PF will have their data shifted by 8 bytes
 	 * and if PTP is disabled then no shift is required
@@ -1249,4 +1253,22 @@ int rvu_mbox_handler_cgx_prio_flow_ctrl_cfg(struct rvu *rvu,
 
 	mac_ops->mac_get_pfc_frm_cfg(cgxd, lmac_id, &rsp->tx_pause, &rsp->rx_pause);
 	return err;
+}
+
+void rvu_mac_reset(struct rvu *rvu, u16 pcifunc)
+{
+	int pf = rvu_get_pf(pcifunc);
+	struct mac_ops *mac_ops;
+	struct cgx *cgxd;
+	u8 cgx, lmac;
+
+	if (!is_pf_cgxmapped(rvu, pf))
+		return;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx, &lmac);
+	cgxd = rvu_cgx_pdata(cgx, rvu);
+	mac_ops = get_mac_ops(cgxd);
+
+	if (mac_ops->mac_reset(cgxd, lmac, !is_vf(pcifunc)))
+		dev_err(rvu->dev, "Failed to reset MAC\n");
 }

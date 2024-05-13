@@ -7,7 +7,7 @@
 #include <linux/stop_machine.h>
 #include <linux/string_helpers.h>
 
-#include "display/intel_display.h"
+#include "display/intel_display_reset.h"
 #include "display/intel_overlay.h"
 
 #include "gem/i915_gem_context.h"
@@ -20,6 +20,7 @@
 #include "i915_file_private.h"
 #include "i915_gpu_error.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_breadcrumbs.h"
 #include "intel_engine_pm.h"
 #include "intel_engine_regs.h"
@@ -33,9 +34,6 @@
 #include "uc/intel_guc.h"
 
 #define RESET_MAX_RETRIES 3
-
-/* XXX How to handle concurrent GGTT updates using tiling registers? */
-#define RESET_UNDER_STOP_MACHINE 0
 
 static void client_mark_guilty(struct i915_gem_context *ctx, bool banned)
 {
@@ -1370,11 +1368,11 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 
 	/* Use a watchdog to ensure that our reset completes */
 	intel_wedge_on_timeout(&w, gt, 60 * HZ) {
-		intel_display_prepare_reset(gt->i915);
+		intel_display_reset_prepare(gt->i915);
 
 		intel_gt_reset(gt, engine_mask, reason);
 
-		intel_display_finish_reset(gt->i915);
+		intel_display_reset_finish(gt->i915);
 	}
 
 	if (!test_bit(I915_WEDGED, &gt->reset.flags))
@@ -1624,7 +1622,7 @@ void __intel_init_wedge(struct intel_wedge_me *w,
 	w->name = name;
 
 	INIT_DELAYED_WORK_ONSTACK(&w->work, intel_wedge_me);
-	schedule_delayed_work(&w->work, timeout);
+	queue_delayed_work(gt->i915->unordered_wq, &w->work, timeout);
 }
 
 void __intel_fini_wedge(struct intel_wedge_me *w)

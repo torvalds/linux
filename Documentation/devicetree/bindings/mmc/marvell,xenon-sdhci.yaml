@@ -71,8 +71,8 @@ properties:
   marvell,xenon-phy-type:
     $ref: /schemas/types.yaml#/definitions/string
     enum:
-      - "emmc 5.1 phy"
-      - "emmc 5.0 phy"
+      - emmc 5.1 phy
+      - emmc 5.0 phy
     description: |
       Xenon support multiple types of PHYs. To select eMMC 5.1 PHY, set:
       marvell,xenon-phy-type = "emmc 5.1 phy" eMMC 5.1 PHY is the default

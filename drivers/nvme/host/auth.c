@@ -30,18 +30,18 @@ struct nvme_dhchap_queue_context {
 	u32 s2;
 	u16 transaction;
 	u8 status;
+	u8 dhgroup_id;
 	u8 hash_id;
 	size_t hash_len;
-	u8 dhgroup_id;
 	u8 c1[64];
 	u8 c2[64];
 	u8 response[64];
 	u8 *host_response;
 	u8 *ctrl_key;
-	int ctrl_key_len;
 	u8 *host_key;
-	int host_key_len;
 	u8 *sess_key;
+	int ctrl_key_len;
+	int host_key_len;
 	int sess_key_len;
 };
 
@@ -341,7 +341,7 @@ static int nvme_auth_process_dhchap_success1(struct nvme_ctrl *ctrl,
 	struct nvmf_auth_dhchap_success1_data *data = chap->buf;
 	size_t size = sizeof(*data);
 
-	if (chap->ctrl_key)
+	if (chap->s2)
 		size += chap->hash_len;
 
 	if (size > CHAP_BUF_SIZE) {
@@ -825,7 +825,7 @@ static void nvme_queue_auth_work(struct work_struct *work)
 		goto fail2;
 	}
 
-	if (chap->ctrl_key) {
+	if (chap->s2) {
 		/* DH-HMAC-CHAP Step 5: send success2 */
 		dev_dbg(ctrl->device, "%s: qid %d send success2\n",
 			__func__, chap->qid);

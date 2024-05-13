@@ -388,7 +388,7 @@ static const struct i2c_algorithm iop3xx_i2c_algo = {
 	.functionality	= iop3xx_i2c_func,
 };
 
-static int
+static void
 iop3xx_i2c_remove(struct platform_device *pdev)
 {
 	struct i2c_adapter *padapter = platform_get_drvdata(pdev);
@@ -408,8 +408,6 @@ iop3xx_i2c_remove(struct platform_device *pdev)
 	release_mem_region(res->start, IOP3XX_I2C_IO_SIZE);
 	kfree(adapter_data);
 	kfree(padapter);
-
-	return 0;
 }
 
 static int
@@ -529,7 +527,7 @@ MODULE_DEVICE_TABLE(of, i2c_iop3xx_match);
 
 static struct platform_driver iop3xx_i2c_driver = {
 	.probe		= iop3xx_i2c_probe,
-	.remove		= iop3xx_i2c_remove,
+	.remove_new	= iop3xx_i2c_remove,
 	.driver		= {
 		.name	= "IOP3xx-I2C",
 		.of_match_table = i2c_iop3xx_match,

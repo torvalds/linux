@@ -453,4 +453,13 @@ struct acpi_bus_event;
  * BYTE  - number of active lanes
  */
 
+#if defined(CONFIG_VGA_SWITCHEROO)
+void radeon_register_atpx_handler(void);
+void radeon_unregister_atpx_handler(void);
+bool radeon_has_atpx_dgpu_power_cntl(void);
+bool radeon_is_atpx_hybrid(void);
+bool radeon_has_atpx(void);
+bool radeon_atpx_dgpu_req_power_for_displays(void);
+#endif
+
 #endif

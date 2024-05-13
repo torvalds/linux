@@ -468,6 +468,7 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 	struct net_device *pf_dev = bp->dev;
 	u16 max_mtu;
 
+	SET_NETDEV_DEV(dev, &bp->pdev->dev);
 	dev->netdev_ops = &bnxt_vf_rep_netdev_ops;
 	dev->ethtool_ops = &bnxt_vf_rep_ethtool_ops;
 	/* Just inherit all the featues of the parent PF as the VF-R

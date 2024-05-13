@@ -1,7 +1,7 @@
 What:		/sys/bus/mhi/devices/.../serialnumber
 Date:		Sept 2020
 KernelVersion:	5.10
-Contact:	Bhaumik Bhatt <bbhatt@codeaurora.org>
+Contact:	mhi@lists.linux.dev
 Description:	The file holds the serial number of the client device obtained
 		using a BHI (Boot Host Interface) register read after at least
 		one attempt to power up the device has been done. If read
@@ -12,7 +12,7 @@ Users:		Any userspace application or clients interested in device info.
 What:		/sys/bus/mhi/devices/.../oem_pk_hash
 Date:		Sept 2020
 KernelVersion:	5.10
-Contact:	Bhaumik Bhatt <bbhatt@codeaurora.org>
+Contact:	mhi@lists.linux.dev
 Description:	The file holds the OEM PK Hash value of the endpoint device
 		obtained using a BHI (Boot Host Interface) register read after
 		at least one attempt to power up the device has been done. If

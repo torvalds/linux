@@ -2,6 +2,7 @@
 #include "api/fs/fs.h"
 #include "util/evsel.h"
 #include "util/pmu.h"
+#include "util/pmus.h"
 #include "util/topdown.h"
 #include "topdown.h"
 #include "evsel.h"
@@ -22,8 +23,8 @@ bool topdown_sys_has_perf_metrics(void)
 	 * The slots event is only available when the core PMU
 	 * supports the perf metrics feature.
 	 */
-	pmu = perf_pmu__find_by_type(PERF_TYPE_RAW);
-	if (pmu && pmu_have_event(pmu->name, "slots"))
+	pmu = perf_pmus__find_by_type(PERF_TYPE_RAW);
+	if (pmu && perf_pmu__have_event(pmu, "slots"))
 		has_perf_metrics = true;
 
 	cached = true;

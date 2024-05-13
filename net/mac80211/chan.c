@@ -802,6 +802,11 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 		}
 	}
 
+	if (WARN_ON_ONCE(!compat)) {
+		rcu_read_unlock();
+		return;
+	}
+
 	/* TDLS peers can sometimes affect the chandef width */
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
 		if (!sta->uploaded ||
@@ -1205,8 +1210,8 @@ ieee80211_link_chanctx_reservation_complete(struct ieee80211_link_data *link)
 				     &link->csa_finalize_work);
 		break;
 	case NL80211_IFTYPE_STATION:
-		ieee80211_queue_work(&sdata->local->hw,
-				     &link->u.mgd.chswitch_work);
+		wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+					 &link->u.mgd.chswitch_work, 0);
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_AP_VLAN:
@@ -1257,7 +1262,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	struct ieee80211_vif_chanctx_switch vif_chsw[1] = {};
 	struct ieee80211_chanctx *old_ctx, *new_ctx;
 	const struct cfg80211_chan_def *chandef;
-	u32 changed = 0;
+	u64 changed = 0;
 	int err;
 
 	lockdep_assert_held(&local->mtx);
@@ -1653,7 +1658,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 				    reserved_chanctx_list) {
 			struct ieee80211_sub_if_data *sdata = link->sdata;
 			struct ieee80211_bss_conf *link_conf = link->conf;
-			u32 changed = 0;
+			u64 changed = 0;
 
 			if (!ieee80211_link_has_in_place_reservation(link))
 				continue;

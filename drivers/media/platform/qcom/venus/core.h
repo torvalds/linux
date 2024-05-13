@@ -48,6 +48,14 @@ struct bw_tbl {
 	u32 peak_10bit;
 };
 
+enum vpu_version {
+	VPU_VERSION_AR50,
+	VPU_VERSION_AR50_LITE,
+	VPU_VERSION_IRIS1,
+	VPU_VERSION_IRIS2,
+	VPU_VERSION_IRIS2_1,
+};
+
 struct venus_resources {
 	u64 dma_mask;
 	const struct freq_tbl *freq_tbl;
@@ -71,6 +79,7 @@ struct venus_resources {
 	const char * const resets[VIDC_RESETS_NUM_MAX];
 	unsigned int resets_num;
 	enum hfi_version hfi_version;
+	enum vpu_version vpu_version;
 	u8 num_vpp_pipes;
 	u32 max_load;
 	unsigned int vmem_id;
@@ -81,6 +90,23 @@ struct venus_resources {
 	u32 cp_nonpixel_start;
 	u32 cp_nonpixel_size;
 	const char *fwname;
+};
+
+enum venus_fmt {
+	VENUS_FMT_NV12			= 0,
+	VENUS_FMT_QC08C			= 1,
+	VENUS_FMT_QC10C			= 2,
+	VENUS_FMT_P010			= 3,
+	VENUS_FMT_H264			= 4,
+	VENUS_FMT_VP8			= 5,
+	VENUS_FMT_VP9			= 6,
+	VENUS_FMT_HEVC			= 7,
+	VENUS_FMT_VC1_ANNEX_G		= 8,
+	VENUS_FMT_VC1_ANNEX_L		= 9,
+	VENUS_FMT_MPEG4			= 10,
+	VENUS_FMT_MPEG2			= 11,
+	VENUS_FMT_H263			= 12,
+	VENUS_FMT_XVID			= 13,
 };
 
 struct venus_format {
@@ -143,6 +169,7 @@ struct venus_format {
  * @core0_usage_count: usage counter for core0
  * @core1_usage_count: usage counter for core1
  * @root:	debugfs root directory
+ * @venus_ver:	the venus firmware version
  */
 struct venus_core {
 	void __iomem *base;
@@ -201,6 +228,11 @@ struct venus_core {
 	unsigned int core0_usage_count;
 	unsigned int core1_usage_count;
 	struct dentry *root;
+	struct venus_img_version {
+		u32 major;
+		u32 minor;
+		u32 rev;
+	} venus_ver;
 };
 
 struct vdec_controls {
@@ -364,7 +396,8 @@ enum venus_inst_modes {
  * @ycbcr_enc:	current YCbCr encoding
  * @quantization:	current quantization
  * @xfer_func:	current xfer function
- * @codec_state:	current codec API state (see DEC/ENC_STATE_)
+ * @codec_state:	current decoder API state (see DEC_STATE_)
+ * @enc_state:		current encoder API state (see ENC_STATE_)
  * @reconf_wait:	wait queue for resolution change event
  * @subscriptions:	used to hold current events subscriptions
  * @buf_count:		used to count number of buffers (reqbuf(0))
@@ -389,6 +422,7 @@ enum venus_inst_modes {
  * @sequence_out:	a sequence counter for output queue
  * @m2m_dev:	a reference to m2m device structure
  * @m2m_ctx:	a reference to m2m context structure
+ * @ctx_q_lock:	a lock to serialize video device ioctl calls
  * @state:	current state of the instance
  * @done:	a completion for sync HFI operation
  * @error:	an error returned during last HFI sync operation
@@ -460,6 +494,7 @@ struct venus_inst {
 	u32 sequence_out;
 	struct v4l2_m2m_dev *m2m_dev;
 	struct v4l2_m2m_ctx *m2m_ctx;
+	struct mutex ctx_q_lock;
 	unsigned int state;
 	struct completion done;
 	unsigned int error;
@@ -480,6 +515,12 @@ struct venus_inst {
 #define IS_V3(core)	((core)->res->hfi_version == HFI_VERSION_3XX)
 #define IS_V4(core)	((core)->res->hfi_version == HFI_VERSION_4XX)
 #define IS_V6(core)	((core)->res->hfi_version == HFI_VERSION_6XX)
+
+#define IS_AR50(core)		((core)->res->vpu_version == VPU_VERSION_AR50)
+#define IS_AR50_LITE(core)	((core)->res->vpu_version == VPU_VERSION_AR50_LITE)
+#define IS_IRIS1(core)		((core)->res->vpu_version == VPU_VERSION_IRIS1)
+#define IS_IRIS2(core)		((core)->res->vpu_version == VPU_VERSION_IRIS2)
+#define IS_IRIS2_1(core)	((core)->res->vpu_version == VPU_VERSION_IRIS2_1)
 
 #define ctrl_to_inst(ctrl)	\
 	container_of((ctrl)->handler, struct venus_inst, ctrl_handler)
@@ -508,4 +549,19 @@ venus_caps_by_codec(struct venus_core *core, u32 codec, u32 domain)
 	return NULL;
 }
 
+static inline bool
+is_fw_rev_or_newer(struct venus_core *core, u32 vmajor, u32 vminor, u32 vrev)
+{
+	return ((core)->venus_ver.major == vmajor &&
+		(core)->venus_ver.minor == vminor &&
+		(core)->venus_ver.rev >= vrev);
+}
+
+static inline bool
+is_fw_rev_or_older(struct venus_core *core, u32 vmajor, u32 vminor, u32 vrev)
+{
+	return ((core)->venus_ver.major == vmajor &&
+		(core)->venus_ver.minor == vminor &&
+		(core)->venus_ver.rev <= vrev);
+}
 #endif

@@ -2193,7 +2193,7 @@ static const struct regmap_config wm8995_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8995_reg_defaults),
 	.volatile_reg = wm8995_volatile,
 	.readable_reg = wm8995_readable,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 #if defined(CONFIG_SPI_MASTER)
@@ -2268,7 +2268,7 @@ static struct i2c_driver wm8995_i2c_driver = {
 	.driver = {
 		.name = "wm8995",
 	},
-	.probe_new = wm8995_i2c_probe,
+	.probe = wm8995_i2c_probe,
 	.id_table = wm8995_i2c_id
 };
 #endif

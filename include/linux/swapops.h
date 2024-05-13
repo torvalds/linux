@@ -332,15 +332,9 @@ static inline bool is_migration_entry_dirty(swp_entry_t entry)
 	return false;
 }
 
-extern void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
-					spinlock_t *ptl);
 extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 					unsigned long address);
-#ifdef CONFIG_HUGETLB_PAGE
-extern void __migration_entry_wait_huge(struct vm_area_struct *vma,
-					pte_t *ptep, spinlock_t *ptl);
 extern void migration_entry_wait_huge(struct vm_area_struct *vma, pte_t *pte);
-#endif	/* CONFIG_HUGETLB_PAGE */
 #else  /* CONFIG_MIGRATION */
 static inline swp_entry_t make_readable_migration_entry(pgoff_t offset)
 {
@@ -362,15 +356,10 @@ static inline int is_migration_entry(swp_entry_t swp)
 	return 0;
 }
 
-static inline void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
-					spinlock_t *ptl) { }
 static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
-					 unsigned long address) { }
-#ifdef CONFIG_HUGETLB_PAGE
-static inline void __migration_entry_wait_huge(struct vm_area_struct *vma,
-					       pte_t *ptep, spinlock_t *ptl) { }
-static inline void migration_entry_wait_huge(struct vm_area_struct *vma, pte_t *pte) { }
-#endif	/* CONFIG_HUGETLB_PAGE */
+					unsigned long address) { }
+static inline void migration_entry_wait_huge(struct vm_area_struct *vma,
+					pte_t *pte) { }
 static inline int is_writable_migration_entry(swp_entry_t entry)
 {
 	return 0;
@@ -404,7 +393,12 @@ static inline bool is_migration_entry_dirty(swp_entry_t entry)
 typedef unsigned long pte_marker;
 
 #define  PTE_MARKER_UFFD_WP			BIT(0)
-#define  PTE_MARKER_SWAPIN_ERROR		BIT(1)
+/*
+ * "Poisoned" here is meant in the very general sense of "future accesses are
+ * invalid", instead of referring very specifically to hardware memory errors.
+ * This marker is meant to represent any of various different causes of this.
+ */
+#define  PTE_MARKER_POISONED			BIT(1)
 #define  PTE_MARKER_MASK			(BIT(2) - 1)
 
 static inline swp_entry_t make_pte_marker_entry(pte_marker marker)
@@ -432,15 +426,15 @@ static inline pte_t make_pte_marker(pte_marker marker)
 	return swp_entry_to_pte(make_pte_marker_entry(marker));
 }
 
-static inline swp_entry_t make_swapin_error_entry(void)
+static inline swp_entry_t make_poisoned_swp_entry(void)
 {
-	return make_pte_marker_entry(PTE_MARKER_SWAPIN_ERROR);
+	return make_pte_marker_entry(PTE_MARKER_POISONED);
 }
 
-static inline int is_swapin_error_entry(swp_entry_t entry)
+static inline int is_poisoned_swp_entry(swp_entry_t entry)
 {
 	return is_pte_marker_entry(entry) &&
-	    (pte_marker_get(entry) & PTE_MARKER_SWAPIN_ERROR);
+	    (pte_marker_get(entry) & PTE_MARKER_POISONED);
 }
 
 /*

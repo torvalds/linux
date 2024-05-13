@@ -17,7 +17,6 @@
 #include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/string.h>
 #include <linux/kdev_t.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
@@ -28,6 +27,7 @@
 #include <linux/netdevice.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
+#include <linux/string_helpers.h>
 #include <linux/swiotlb.h>
 #include <linux/sysfs.h>
 #include <linux/dma-map-ops.h> /* for dma_default_coherent */
@@ -2306,12 +2306,12 @@ static void device_platform_notify(struct device *dev)
 
 static void device_platform_notify_remove(struct device *dev)
 {
-	acpi_device_notify_remove(dev);
+	if (platform_notify_remove)
+		platform_notify_remove(dev);
 
 	software_node_notify_remove(dev);
 
-	if (platform_notify_remove)
-		platform_notify_remove(dev);
+	acpi_device_notify_remove(dev);
 }
 
 /**
@@ -3108,9 +3108,7 @@ void device_initialize(struct device *dev)
     defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
 	dev->dma_coherent = dma_default_coherent;
 #endif
-#ifdef CONFIG_SWIOTLB
-	dev->dma_io_tlb_mem = &io_tlb_default_mem;
-#endif
+	swiotlb_dev_init(dev);
 }
 EXPORT_SYMBOL_GPL(device_initialize);
 
@@ -3530,18 +3528,19 @@ int device_add(struct device *dev)
 	 * the name, and force the use of dev_name()
 	 */
 	if (dev->init_name) {
-		dev_set_name(dev, "%s", dev->init_name);
+		error = dev_set_name(dev, "%s", dev->init_name);
 		dev->init_name = NULL;
 	}
 
+	if (dev_name(dev))
+		error = 0;
 	/* subsystems can specify simple device enumeration */
-	if (!dev_name(dev) && dev->bus && dev->bus->dev_name)
-		dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
-
-	if (!dev_name(dev)) {
+	else if (dev->bus && dev->bus->dev_name)
+		error = dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
+	else
 		error = -EINVAL;
+	if (error)
 		goto name_error;
-	}
 
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 
@@ -3817,6 +3816,17 @@ void device_del(struct device *dev)
 	device_platform_notify_remove(dev);
 	device_links_purge(dev);
 
+	/*
+	 * If a device does not have a driver attached, we need to clean
+	 * up any managed resources. We do this in device_release(), but
+	 * it's never called (and we leak the device) if a managed
+	 * resource holds a reference to the device. So release all
+	 * managed resources here, like we do in driver_detach(). We
+	 * still need to do so again in device_release() in case someone
+	 * adds a new resource after this point, though.
+	 */
+	devres_release_all(dev);
+
 	bus_notify(dev, BUS_NOTIFY_REMOVED_DEVICE);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	glue_dir = get_glue_dir(dev);
@@ -3910,10 +3920,9 @@ const char *device_get_devnode(const struct device *dev,
 		return dev_name(dev);
 
 	/* replace '!' in the name with '/' */
-	s = kstrdup(dev_name(dev), GFP_KERNEL);
+	s = kstrdup_and_replace(dev_name(dev), '!', '/', GFP_KERNEL);
 	if (!s)
 		return NULL;
-	strreplace(s, '!', '/');
 	return *tmp = s;
 }
 

@@ -50,6 +50,9 @@ struct efi __read_mostly efi = {
 #ifdef CONFIG_EFI_COCO_SECRET
 	.coco_secret		= EFI_INVALID_TABLE_ADDR,
 #endif
+#ifdef CONFIG_UNACCEPTED_MEMORY
+	.unaccepted		= EFI_INVALID_TABLE_ADDR,
+#endif
 };
 EXPORT_SYMBOL(efi);
 
@@ -211,6 +214,7 @@ static int generic_ops_register(void)
 	generic_ops.get_variable = efi.get_variable;
 	generic_ops.get_next_variable = efi.get_next_variable;
 	generic_ops.query_variable_store = efi_query_variable_store;
+	generic_ops.query_variable_info = efi.query_variable_info;
 
 	if (efi_rt_services_supported(EFI_RT_SUPPORTED_SET_VARIABLE)) {
 		generic_ops.set_variable = efi.set_variable;
@@ -269,9 +273,13 @@ static __init int efivar_ssdt_load(void)
 		if (status == EFI_NOT_FOUND) {
 			break;
 		} else if (status == EFI_BUFFER_TOO_SMALL) {
-			name = krealloc(name, name_size, GFP_KERNEL);
-			if (!name)
+			efi_char16_t *name_tmp =
+				krealloc(name, name_size, GFP_KERNEL);
+			if (!name_tmp) {
+				kfree(name);
 				return -ENOMEM;
+			}
+			name = name_tmp;
 			continue;
 		}
 
@@ -584,6 +592,9 @@ static const efi_config_table_type_t common_tables[] __initconst = {
 #ifdef CONFIG_EFI_COCO_SECRET
 	{LINUX_EFI_COCO_SECRET_AREA_GUID,	&efi.coco_secret,	"CocoSecret"	},
 #endif
+#ifdef CONFIG_UNACCEPTED_MEMORY
+	{LINUX_EFI_UNACCEPTED_MEM_TABLE_GUID,	&efi.unaccepted,	"Unaccepted"	},
+#endif
 #ifdef CONFIG_EFI_GENERIC_STUB
 	{LINUX_EFI_SCREEN_INFO_TABLE_GUID,	&screen_info_table			},
 #endif
@@ -614,6 +625,34 @@ static __init int match_config_table(const efi_guid_t *guid,
 	}
 
 	return 0;
+}
+
+/**
+ * reserve_unaccepted - Map and reserve unaccepted configuration table
+ * @unaccepted: Pointer to unaccepted memory table
+ *
+ * memblock_add() makes sure that the table is mapped in direct mapping. During
+ * normal boot it happens automatically because the table is allocated from
+ * usable memory. But during crashkernel boot only memory specifically reserved
+ * for crash scenario is mapped. memblock_add() forces the table to be mapped
+ * in crashkernel case.
+ *
+ * Align the range to the nearest page borders. Ranges smaller than page size
+ * are not going to be mapped.
+ *
+ * memblock_reserve() makes sure that future allocations will not touch the
+ * table.
+ */
+
+static __init void reserve_unaccepted(struct efi_unaccepted_memory *unaccepted)
+{
+	phys_addr_t start, size;
+
+	start = PAGE_ALIGN_DOWN(efi.unaccepted);
+	size = PAGE_ALIGN(sizeof(*unaccepted) + unaccepted->size);
+
+	memblock_add(start, size);
+	memblock_reserve(start, size);
 }
 
 int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
@@ -738,6 +777,23 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 		}
 	}
 
+	if (IS_ENABLED(CONFIG_UNACCEPTED_MEMORY) &&
+	    efi.unaccepted != EFI_INVALID_TABLE_ADDR) {
+		struct efi_unaccepted_memory *unaccepted;
+
+		unaccepted = early_memremap(efi.unaccepted, sizeof(*unaccepted));
+		if (unaccepted) {
+
+			if (unaccepted->version == 1) {
+				reserve_unaccepted(unaccepted);
+			} else {
+				efi.unaccepted = EFI_INVALID_TABLE_ADDR;
+			}
+
+			early_memunmap(unaccepted, sizeof(*unaccepted));
+		}
+	}
+
 	return 0;
 }
 
@@ -822,6 +878,7 @@ static __initdata char memory_type_name[][13] = {
 	"MMIO Port",
 	"PAL Code",
 	"Persistent",
+	"Unaccepted",
 };
 
 char * __init efi_md_typeattr_format(char *buf, size_t size,

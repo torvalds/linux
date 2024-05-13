@@ -866,7 +866,7 @@ out:
 
 	return NULL;
 }
-EXPORT_SYMBOL(dvb_pll_attach);
+EXPORT_SYMBOL_GPL(dvb_pll_attach);
 
 
 static int
@@ -942,7 +942,7 @@ static struct i2c_driver dvb_pll_driver = {
 	.driver = {
 		.name = "dvb_pll",
 	},
-	.probe_new = dvb_pll_probe,
+	.probe    = dvb_pll_probe,
 	.remove   = dvb_pll_remove,
 	.id_table = dvb_pll_id,
 };

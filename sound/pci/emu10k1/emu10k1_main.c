@@ -1,19 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
+ *
  *  Routines for control of EMU10K1 chips
- *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
- *      Added support for Audigy 2 Value.
- *  	Added EMU 1010 support.
- *  	General bug fixes and enhancements.
- *
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
  */
 
 #include <linux/sched.h>
@@ -57,46 +49,49 @@ MODULE_FIRMWARE(EMU1010_NOTEBOOK_FILENAME);
 
 void snd_emu10k1_voice_init(struct snd_emu10k1 *emu, int ch)
 {
-	snd_emu10k1_ptr_write(emu, DCYSUSV, ch, 0);
-	snd_emu10k1_ptr_write(emu, IP, ch, 0);
-	snd_emu10k1_ptr_write(emu, VTFT, ch, VTFT_FILTERTARGET_MASK);
-	snd_emu10k1_ptr_write(emu, CVCF, ch, CVCF_CURRENTFILTER_MASK);
-	snd_emu10k1_ptr_write(emu, PTRX, ch, 0);
-	snd_emu10k1_ptr_write(emu, CPF, ch, 0);
-	snd_emu10k1_ptr_write(emu, CCR, ch, 0);
+	snd_emu10k1_ptr_write_multiple(emu, ch,
+		DCYSUSV, 0,
+		VTFT, VTFT_FILTERTARGET_MASK,
+		CVCF, CVCF_CURRENTFILTER_MASK,
+		PTRX, 0,
+		CPF, 0,
+		CCR, 0,
 
-	snd_emu10k1_ptr_write(emu, PSST, ch, 0);
-	snd_emu10k1_ptr_write(emu, DSL, ch, 0x10);
-	snd_emu10k1_ptr_write(emu, CCCA, ch, 0);
-	snd_emu10k1_ptr_write(emu, Z1, ch, 0);
-	snd_emu10k1_ptr_write(emu, Z2, ch, 0);
-	snd_emu10k1_ptr_write(emu, FXRT, ch, 0x32100000);
+		PSST, 0,
+		DSL, 0x10,
+		CCCA, 0,
+		Z1, 0,
+		Z2, 0,
+		FXRT, 0x32100000,
 
-	snd_emu10k1_ptr_write(emu, ATKHLDM, ch, 0);
-	snd_emu10k1_ptr_write(emu, DCYSUSM, ch, 0);
-	snd_emu10k1_ptr_write(emu, IFATN, ch, IFATN_FILTERCUTOFF_MASK | IFATN_ATTENUATION_MASK);
-	snd_emu10k1_ptr_write(emu, PEFE, ch, 0);
-	snd_emu10k1_ptr_write(emu, FMMOD, ch, 0);
-	snd_emu10k1_ptr_write(emu, TREMFRQ, ch, 24);	/* 1 Hz */
-	snd_emu10k1_ptr_write(emu, FM2FRQ2, ch, 24);	/* 1 Hz */
-	snd_emu10k1_ptr_write(emu, TEMPENV, ch, 0);
+		// The rest is meaningless as long as DCYSUSV_CHANNELENABLE_MASK is zero
+		DCYSUSM, 0,
+		ATKHLDV, 0,
+		ATKHLDM, 0,
+		IP, 0,
+		IFATN, IFATN_FILTERCUTOFF_MASK | IFATN_ATTENUATION_MASK,
+		PEFE, 0,
+		FMMOD, 0,
+		TREMFRQ, 24,	/* 1 Hz */
+		FM2FRQ2, 24,	/* 1 Hz */
+		LFOVAL2, 0,
+		LFOVAL1, 0,
+		ENVVOL, 0,
+		ENVVAL, 0,
 
-	/*** these are last so OFF prevents writing ***/
-	snd_emu10k1_ptr_write(emu, LFOVAL2, ch, 0);
-	snd_emu10k1_ptr_write(emu, LFOVAL1, ch, 0);
-	snd_emu10k1_ptr_write(emu, ATKHLDV, ch, 0);
-	snd_emu10k1_ptr_write(emu, ENVVOL, ch, 0);
-	snd_emu10k1_ptr_write(emu, ENVVAL, ch, 0);
+		REGLIST_END);
 
 	/* Audigy extra stuffs */
 	if (emu->audigy) {
-		snd_emu10k1_ptr_write(emu, A_CSBA, ch, 0);
-		snd_emu10k1_ptr_write(emu, A_CSDC, ch, 0);
-		snd_emu10k1_ptr_write(emu, A_CSFE, ch, 0);
-		snd_emu10k1_ptr_write(emu, A_CSHG, ch, 0);
-		snd_emu10k1_ptr_write(emu, A_FXRT1, ch, 0x03020100);
-		snd_emu10k1_ptr_write(emu, A_FXRT2, ch, 0x3f3f3f3f);
-		snd_emu10k1_ptr_write(emu, A_SENDAMOUNTS, ch, 0);
+		snd_emu10k1_ptr_write_multiple(emu, ch,
+			A_CSBA, 0,
+			A_CSDC, 0,
+			A_CSFE, 0,
+			A_CSHG, 0,
+			A_FXRT1, 0x03020100,
+			A_FXRT2, 0x07060504,
+			A_SENDAMOUNTS, 0,
+			REGLIST_END);
 	}
 }
 
@@ -150,22 +145,26 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK |
 		HCFG_MUTEBUTTONENABLE, emu->port + HCFG);
 
-	/* reset recording buffers */
-	snd_emu10k1_ptr_write(emu, MICBS, 0, ADCBS_BUFSIZE_NONE);
-	snd_emu10k1_ptr_write(emu, MICBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, FXBS, 0, ADCBS_BUFSIZE_NONE);
-	snd_emu10k1_ptr_write(emu, FXBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, ADCBS, 0, ADCBS_BUFSIZE_NONE);
-	snd_emu10k1_ptr_write(emu, ADCBA, 0, 0);
-
-	/* disable channel interrupt */
 	outl(0, emu->port + INTE);
-	snd_emu10k1_ptr_write(emu, CLIEL, 0, 0);
-	snd_emu10k1_ptr_write(emu, CLIEH, 0, 0);
 
-	/* disable stop on loop end */
-	snd_emu10k1_ptr_write(emu, SOLEL, 0, 0);
-	snd_emu10k1_ptr_write(emu, SOLEH, 0, 0);
+	snd_emu10k1_ptr_write_multiple(emu, 0,
+		/* reset recording buffers */
+		MICBS, ADCBS_BUFSIZE_NONE,
+		MICBA, 0,
+		FXBS, ADCBS_BUFSIZE_NONE,
+		FXBA, 0,
+		ADCBS, ADCBS_BUFSIZE_NONE,
+		ADCBA, 0,
+
+		/* disable channel interrupt */
+		CLIEL, 0,
+		CLIEH, 0,
+
+		/* disable stop on loop end */
+		SOLEL, 0,
+		SOLEH, 0,
+
+		REGLIST_END);
 
 	if (emu->audigy) {
 		/* set SPDIF bypass mode */
@@ -179,9 +178,11 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir)
 	for (ch = 0; ch < NUM_G; ch++)
 		snd_emu10k1_voice_init(emu, ch);
 
-	snd_emu10k1_ptr_write(emu, SPCS0, 0, emu->spdif_bits[0]);
-	snd_emu10k1_ptr_write(emu, SPCS1, 0, emu->spdif_bits[1]);
-	snd_emu10k1_ptr_write(emu, SPCS2, 0, emu->spdif_bits[2]);
+	snd_emu10k1_ptr_write_multiple(emu, 0,
+		SPCS0, emu->spdif_bits[0],
+		SPCS1, emu->spdif_bits[1],
+		SPCS2, emu->spdif_bits[2],
+		REGLIST_END);
 
 	if (emu->card_capabilities->emu_model) {
 	} else if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
@@ -382,7 +383,10 @@ static void snd_emu10k1_audio_enable(struct snd_emu10k1 *emu)
 	}
 #endif
 
-	snd_emu10k1_intr_enable(emu, INTE_PCIERRORENABLE);
+	if (emu->card_capabilities->emu_model)
+		snd_emu10k1_intr_enable(emu, INTE_PCIERRORENABLE | INTE_A_GPIOENABLE);
+	else
+		snd_emu10k1_intr_enable(emu, INTE_PCIERRORENABLE);
 }
 
 int snd_emu10k1_done(struct snd_emu10k1 *emu)
@@ -392,41 +396,48 @@ int snd_emu10k1_done(struct snd_emu10k1 *emu)
 	outl(0, emu->port + INTE);
 
 	/*
-	 *  Shutdown the chip
+	 *  Shutdown the voices
 	 */
-	for (ch = 0; ch < NUM_G; ch++)
-		snd_emu10k1_ptr_write(emu, DCYSUSV, ch, 0);
 	for (ch = 0; ch < NUM_G; ch++) {
-		snd_emu10k1_ptr_write(emu, VTFT, ch, 0);
-		snd_emu10k1_ptr_write(emu, CVCF, ch, 0);
-		snd_emu10k1_ptr_write(emu, PTRX, ch, 0);
-		snd_emu10k1_ptr_write(emu, CPF, ch, 0);
+		snd_emu10k1_ptr_write_multiple(emu, ch,
+			DCYSUSV, 0,
+			VTFT, 0,
+			CVCF, 0,
+			PTRX, 0,
+			CPF, 0,
+			REGLIST_END);
 	}
 
-	/* reset recording buffers */
-	snd_emu10k1_ptr_write(emu, MICBS, 0, 0);
-	snd_emu10k1_ptr_write(emu, MICBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, FXBS, 0, 0);
-	snd_emu10k1_ptr_write(emu, FXBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, FXWC, 0, 0);
-	snd_emu10k1_ptr_write(emu, ADCBS, 0, ADCBS_BUFSIZE_NONE);
-	snd_emu10k1_ptr_write(emu, ADCBA, 0, 0);
-	snd_emu10k1_ptr_write(emu, TCBS, 0, TCBS_BUFFSIZE_16K);
-	snd_emu10k1_ptr_write(emu, TCB, 0, 0);
+	// stop the DSP
 	if (emu->audigy)
 		snd_emu10k1_ptr_write(emu, A_DBG, 0, A_DBG_SINGLE_STEP);
 	else
 		snd_emu10k1_ptr_write(emu, DBG, 0, EMU10K1_DBG_SINGLE_STEP);
 
-	/* disable channel interrupt */
-	snd_emu10k1_ptr_write(emu, CLIEL, 0, 0);
-	snd_emu10k1_ptr_write(emu, CLIEH, 0, 0);
-	snd_emu10k1_ptr_write(emu, SOLEL, 0, 0);
-	snd_emu10k1_ptr_write(emu, SOLEH, 0, 0);
+	snd_emu10k1_ptr_write_multiple(emu, 0,
+		/* reset recording buffers */
+		MICBS, 0,
+		MICBA, 0,
+		FXBS, 0,
+		FXBA, 0,
+		FXWC, 0,
+		ADCBS, ADCBS_BUFSIZE_NONE,
+		ADCBA, 0,
+		TCBS, TCBS_BUFFSIZE_16K,
+		TCB, 0,
+
+		/* disable channel interrupt */
+		CLIEL, 0,
+		CLIEH, 0,
+		SOLEL, 0,
+		SOLEH, 0,
+
+		PTB, 0,
+
+		REGLIST_END);
 
 	/* disable audio and lock cache */
 	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, emu->port + HCFG);
-	snd_emu10k1_ptr_write(emu, PTB, 0, 0);
 
 	return 0;
 }
@@ -648,7 +659,6 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 	u16 reg;
 	u8 value;
 	__always_unused u16 write_post;
-	unsigned long flags;
 
 	if (!fw_entry)
 		return -EIO;
@@ -660,7 +670,7 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 	 * GPIO5 -> FPGA DIN
 	 * FPGA CONFIG OFF -> FPGA PGMN
 	 */
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	spin_lock_irq(&emu->emu_lock);
 	outw(0x00, emu->port + A_GPIO); /* Set PGMN low for 100uS. */
 	write_post = inw(emu->port + A_GPIO);
 	udelay(100);
@@ -683,7 +693,7 @@ static int snd_emu1010_load_firmware_entry(struct snd_emu10k1 *emu,
 	/* After programming, set GPIO bit 4 high again. */
 	outw(0x10, emu->port + A_GPIO);
 	write_post = inw(emu->port + A_GPIO);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	spin_unlock_irq(&emu->emu_lock);
 
 	return 0;
 }
@@ -729,14 +739,13 @@ static void emu1010_firmware_work(struct work_struct *work)
 	int err;
 
 	emu = container_of(work, struct snd_emu10k1,
-			   emu1010.firmware_work.work);
+			   emu1010.firmware_work);
 	if (emu->card->shutdown)
 		return;
 #ifdef CONFIG_PM_SLEEP
 	if (emu->suspend)
 		return;
 #endif
-	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp); /* IRQ Status */
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg); /* OPTIONS: Which cards are attached to the EMU */
 	if (reg & EMU_HANA_OPTION_DOCK_OFFLINE) {
 		/* Audio Dock attached */
@@ -747,13 +756,8 @@ static void emu1010_firmware_work(struct work_struct *work)
 				       EMU_HANA_FPGA_CONFIG_AUDIODOCK);
 		err = snd_emu1010_load_firmware(emu, 1, &emu->dock_fw);
 		if (err < 0)
-			goto next;
-
+			return;
 		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
-		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp);
-		dev_info(emu->card->dev,
-			 "emu1010: EMU_HANA+DOCK_IRQ_STATUS = 0x%x\n", tmp);
-		/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
 		snd_emu1010_fpga_read(emu, EMU_HANA_ID, &tmp);
 		dev_info(emu->card->dev,
 			 "emu1010: EMU_HANA+DOCK_ID = 0x%x\n", tmp);
@@ -762,7 +766,7 @@ static void emu1010_firmware_work(struct work_struct *work)
 			dev_info(emu->card->dev,
 				 "emu1010: Loading Audio Dock Firmware file failed, reg = 0x%x\n",
 				 tmp);
-			goto next;
+			return;
 		}
 		dev_info(emu->card->dev,
 			 "emu1010: Audio Dock Firmware loaded\n");
@@ -774,18 +778,48 @@ static void emu1010_firmware_work(struct work_struct *work)
 		msleep(10);
 		/* Unmute all. Default is muted after a firmware load */
 		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
-	} else if (!reg && emu->emu1010.last_reg) {
+	}
+}
+
+static void emu1010_clock_work(struct work_struct *work)
+{
+	struct snd_emu10k1 *emu;
+	struct snd_ctl_elem_id id;
+
+	emu = container_of(work, struct snd_emu10k1,
+			   emu1010.clock_work);
+	if (emu->card->shutdown)
+		return;
+#ifdef CONFIG_PM_SLEEP
+	if (emu->suspend)
+		return;
+#endif
+
+	spin_lock_irq(&emu->reg_lock);
+	// This is the only thing that can actually happen.
+	emu->emu1010.clock_source = emu->emu1010.clock_fallback;
+	emu->emu1010.wclock = 1 - emu->emu1010.clock_source;
+	snd_emu1010_update_clock(emu);
+	spin_unlock_irq(&emu->reg_lock);
+	snd_ctl_build_ioff(&id, emu->ctl_clock_source, 0);
+	snd_ctl_notify(emu->card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
+}
+
+static void emu1010_interrupt(struct snd_emu10k1 *emu)
+{
+	u32 sts;
+
+	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &sts);
+	if (sts & EMU_HANA_IRQ_DOCK_LOST) {
 		/* Audio Dock removed */
 		dev_info(emu->card->dev, "emu1010: Audio Dock detached\n");
 		/* The hardware auto-mutes all, so we unmute again */
 		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
+	} else if (sts & EMU_HANA_IRQ_DOCK) {
+		schedule_work(&emu->emu1010.firmware_work);
 	}
-
- next:
-	emu->emu1010.last_reg = reg;
-	if (!emu->card->shutdown)
-		schedule_delayed_work(&emu->emu1010.firmware_work,
-				      msecs_to_jiffies(1000));
+	if (sts & EMU_HANA_IRQ_WCLK_CHANGED)
+		schedule_work(&emu->emu1010.clock_work);
 }
 
 /*
@@ -798,7 +832,6 @@ static void emu1010_firmware_work(struct work_struct *work)
  */
 static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 {
-	unsigned int i;
 	u32 tmp, tmp2, reg;
 	int err;
 
@@ -855,9 +888,16 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
 	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
-	/* Optical -> ADAT I/O  */
-	emu->emu1010.optical_in = 1; /* IN_ADAT */
-	emu->emu1010.optical_out = 1; /* OUT_ADAT */
+	if (reg & EMU_HANA_OPTION_DOCK_OFFLINE)
+		schedule_work(&emu->emu1010.firmware_work);
+	if (emu->card_capabilities->no_adat) {
+		emu->emu1010.optical_in = 0; /* IN_SPDIF */
+		emu->emu1010.optical_out = 0; /* OUT_SPDIF */
+	} else {
+		/* Optical -> ADAT I/O  */
+		emu->emu1010.optical_in = 1; /* IN_ADAT */
+		emu->emu1010.optical_out = 1; /* OUT_ADAT */
+	}
 	tmp = (emu->emu1010.optical_in ? EMU_HANA_OPTICAL_IN_ADAT : EMU_HANA_OPTICAL_IN_SPDIF) |
 		(emu->emu1010.optical_out ? EMU_HANA_OPTICAL_OUT_ADAT : EMU_HANA_OPTICAL_OUT_SPDIF);
 	snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, tmp);
@@ -875,266 +915,26 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	/* MIDI routing */
 	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, EMU_HANA_MIDI_INA_FROM_HAMOA | EMU_HANA_MIDI_INB_FROM_DOCK2);
 	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, EMU_HANA_MIDI_OUT_DOCK2 | EMU_HANA_MIDI_OUT_SYNC2);
-	/* IRQ Enable: All on */
-	/* snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x0f); */
-	/* IRQ Enable: All off */
-	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x00);
 
-	emu->emu1010.internal_clock = 1; /* 48000 */
+	emu->gpio_interrupt = emu1010_interrupt;
+	// Note: The Audigy INTE is set later
+	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE,
+			       EMU_HANA_IRQ_DOCK | EMU_HANA_IRQ_DOCK_LOST | EMU_HANA_IRQ_WCLK_CHANGED);
+	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg);  // Clear pending IRQs
+
+	emu->emu1010.clock_source = 1;  /* 48000 */
+	emu->emu1010.clock_fallback = 1;  /* 48000 */
 	/* Default WCLK set to 48kHz. */
 	snd_emu1010_fpga_write(emu, EMU_HANA_DEFCLOCK, EMU_HANA_DEFCLOCK_48K);
 	/* Word Clock source, Internal 48kHz x1 */
+	emu->emu1010.wclock = EMU_HANA_WCLOCK_INT_48K;
 	snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K);
 	/* snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, EMU_HANA_WCLOCK_INT_48K | EMU_HANA_WCLOCK_4X); */
-	/* Audio Dock LEDs. */
-	snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_LEDS_2, EMU_HANA_DOCK_LEDS_2_LOCK | EMU_HANA_DOCK_LEDS_2_48K);
+	snd_emu1010_update_clock(emu);
 
-#if 0
-	/* For 96kHz */
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_0, EMU_SRC_HAMOA_ADC_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_1, EMU_SRC_HAMOA_ADC_RIGHT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_4, EMU_SRC_HAMOA_ADC_LEFT2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_5, EMU_SRC_HAMOA_ADC_RIGHT2);
-#endif
-#if 0
-	/* For 192kHz */
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_0, EMU_SRC_HAMOA_ADC_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_1, EMU_SRC_HAMOA_ADC_RIGHT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_2, EMU_SRC_HAMOA_ADC_LEFT2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_3, EMU_SRC_HAMOA_ADC_RIGHT2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_4, EMU_SRC_HAMOA_ADC_LEFT3);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_5, EMU_SRC_HAMOA_ADC_RIGHT3);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_6, EMU_SRC_HAMOA_ADC_LEFT4);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_7, EMU_SRC_HAMOA_ADC_RIGHT4);
-#endif
-#if 1
-	/* For 48kHz */
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_0, EMU_SRC_DOCK_MIC_A1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_1, EMU_SRC_DOCK_MIC_B1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_2, EMU_SRC_HAMOA_ADC_LEFT2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_3, EMU_SRC_HAMOA_ADC_LEFT2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_4, EMU_SRC_DOCK_ADC1_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_5, EMU_SRC_DOCK_ADC1_RIGHT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_6, EMU_SRC_DOCK_ADC2_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_7, EMU_SRC_DOCK_ADC2_RIGHT1);
-	/* Pavel Hofman - setting defaults for 8 more capture channels
-	 * Defaults only, users will set their own values anyways, let's
-	 * just copy/paste.
-	 */
-
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_8, EMU_SRC_DOCK_MIC_A1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_9, EMU_SRC_DOCK_MIC_B1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_A, EMU_SRC_HAMOA_ADC_LEFT2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_B, EMU_SRC_HAMOA_ADC_LEFT2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_C, EMU_SRC_DOCK_ADC1_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_D, EMU_SRC_DOCK_ADC1_RIGHT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_E, EMU_SRC_DOCK_ADC2_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_F, EMU_SRC_DOCK_ADC2_RIGHT1);
-#endif
-#if 0
-	/* Original */
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_4, EMU_SRC_HANA_ADAT);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_5, EMU_SRC_HANA_ADAT + 1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_6, EMU_SRC_HANA_ADAT + 2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_7, EMU_SRC_HANA_ADAT + 3);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_8, EMU_SRC_HANA_ADAT + 4);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_9, EMU_SRC_HANA_ADAT + 5);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_A, EMU_SRC_HANA_ADAT + 6);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_B, EMU_SRC_HANA_ADAT + 7);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_C, EMU_SRC_DOCK_MIC_A1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_D, EMU_SRC_DOCK_MIC_B1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_E, EMU_SRC_HAMOA_ADC_LEFT2);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE2_EMU32_F, EMU_SRC_HAMOA_ADC_LEFT2);
-#endif
-	for (i = 0; i < 0x20; i++) {
-		/* AudioDock Elink <- Silence */
-		snd_emu1010_fpga_link_dst_src_write(emu, 0x0100 + i, EMU_SRC_SILENCE);
-	}
-	for (i = 0; i < 4; i++) {
-		/* Hana SPDIF Out <- Silence */
-		snd_emu1010_fpga_link_dst_src_write(emu, 0x0200 + i, EMU_SRC_SILENCE);
-	}
-	for (i = 0; i < 7; i++) {
-		/* Hamoa DAC <- Silence */
-		snd_emu1010_fpga_link_dst_src_write(emu, 0x0300 + i, EMU_SRC_SILENCE);
-	}
-	for (i = 0; i < 7; i++) {
-		/* Hana ADAT Out <- Silence */
-		snd_emu1010_fpga_link_dst_src_write(emu, EMU_DST_HANA_ADAT + i, EMU_SRC_SILENCE);
-	}
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE_I2S0_LEFT, EMU_SRC_DOCK_ADC1_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE_I2S0_RIGHT, EMU_SRC_DOCK_ADC1_RIGHT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE_I2S1_LEFT, EMU_SRC_DOCK_ADC2_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE_I2S1_RIGHT, EMU_SRC_DOCK_ADC2_RIGHT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE_I2S2_LEFT, EMU_SRC_DOCK_ADC3_LEFT1);
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_ALICE_I2S2_RIGHT, EMU_SRC_DOCK_ADC3_RIGHT1);
+	// The routes are all set to EMU_SRC_SILENCE due to the reset,
+	// so it is safe to simply enable the outputs.
 	snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
-
-#if 0
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HAMOA_DAC_LEFT1, EMU_SRC_ALICE_EMU32B + 2); /* ALICE2 bus 0xa2 */
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HAMOA_DAC_RIGHT1, EMU_SRC_ALICE_EMU32B + 3); /* ALICE2 bus 0xa3 */
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_SPDIF_LEFT1, EMU_SRC_ALICE_EMU32A + 2); /* ALICE2 bus 0xb2 */
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 3); /* ALICE2 bus 0xb3 */
-#endif
-	/* Default outputs */
-	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
-		/* 1616(M) cardbus default outputs */
-		/* ALICE2 bus 0xa0 */
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC1_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
-		emu->emu1010.output_source[0] = 17;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC1_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-		emu->emu1010.output_source[1] = 18;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC2_LEFT1, EMU_SRC_ALICE_EMU32A + 2);
-		emu->emu1010.output_source[2] = 19;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC2_RIGHT1, EMU_SRC_ALICE_EMU32A + 3);
-		emu->emu1010.output_source[3] = 20;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC3_LEFT1, EMU_SRC_ALICE_EMU32A + 4);
-		emu->emu1010.output_source[4] = 21;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC3_RIGHT1, EMU_SRC_ALICE_EMU32A + 5);
-		emu->emu1010.output_source[5] = 22;
-		/* ALICE2 bus 0xa0 */
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_MANA_DAC_LEFT, EMU_SRC_ALICE_EMU32A + 0);
-		emu->emu1010.output_source[16] = 17;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_MANA_DAC_RIGHT, EMU_SRC_ALICE_EMU32A + 1);
-		emu->emu1010.output_source[17] = 18;
-	} else {
-		/* ALICE2 bus 0xa0 */
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC1_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
-		emu->emu1010.output_source[0] = 21;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC1_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-		emu->emu1010.output_source[1] = 22;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC2_LEFT1, EMU_SRC_ALICE_EMU32A + 2);
-		emu->emu1010.output_source[2] = 23;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC2_RIGHT1, EMU_SRC_ALICE_EMU32A + 3);
-		emu->emu1010.output_source[3] = 24;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC3_LEFT1, EMU_SRC_ALICE_EMU32A + 4);
-		emu->emu1010.output_source[4] = 25;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC3_RIGHT1, EMU_SRC_ALICE_EMU32A + 5);
-		emu->emu1010.output_source[5] = 26;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC4_LEFT1, EMU_SRC_ALICE_EMU32A + 6);
-		emu->emu1010.output_source[6] = 27;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_DAC4_RIGHT1, EMU_SRC_ALICE_EMU32A + 7);
-		emu->emu1010.output_source[7] = 28;
-		/* ALICE2 bus 0xa0 */
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_PHONES_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
-		emu->emu1010.output_source[8] = 21;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_PHONES_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-		emu->emu1010.output_source[9] = 22;
-		/* ALICE2 bus 0xa0 */
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_SPDIF_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
-		emu->emu1010.output_source[10] = 21;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_DOCK_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-		emu->emu1010.output_source[11] = 22;
-		/* ALICE2 bus 0xa0 */
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_SPDIF_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
-		emu->emu1010.output_source[12] = 21;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-		emu->emu1010.output_source[13] = 22;
-		/* ALICE2 bus 0xa0 */
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HAMOA_DAC_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
-		emu->emu1010.output_source[14] = 21;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HAMOA_DAC_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-		emu->emu1010.output_source[15] = 22;
-		/* ALICE2 bus 0xa0 */
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_ADAT, EMU_SRC_ALICE_EMU32A + 0);
-		emu->emu1010.output_source[16] = 21;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_ADAT + 1, EMU_SRC_ALICE_EMU32A + 1);
-		emu->emu1010.output_source[17] = 22;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_ADAT + 2, EMU_SRC_ALICE_EMU32A + 2);
-		emu->emu1010.output_source[18] = 23;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_ADAT + 3, EMU_SRC_ALICE_EMU32A + 3);
-		emu->emu1010.output_source[19] = 24;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_ADAT + 4, EMU_SRC_ALICE_EMU32A + 4);
-		emu->emu1010.output_source[20] = 25;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_ADAT + 5, EMU_SRC_ALICE_EMU32A + 5);
-		emu->emu1010.output_source[21] = 26;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_ADAT + 6, EMU_SRC_ALICE_EMU32A + 6);
-		emu->emu1010.output_source[22] = 27;
-		snd_emu1010_fpga_link_dst_src_write(emu,
-			EMU_DST_HANA_ADAT + 7, EMU_SRC_ALICE_EMU32A + 7);
-		emu->emu1010.output_source[23] = 28;
-	}
 
 	return 0;
 }
@@ -1160,7 +960,8 @@ static void snd_emu10k1_free(struct snd_card *card)
 		/* Disable 48Volt power to Audio Dock */
 		snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, 0);
 	}
-	cancel_delayed_work_sync(&emu->emu1010.firmware_work);
+	cancel_work_sync(&emu->emu1010.firmware_work);
+	cancel_work_sync(&emu->emu1010.clock_work);
 	release_firmware(emu->firmware);
 	release_firmware(emu->dock_fw);
 	snd_util_memhdr_free(emu->memhdr);
@@ -1310,7 +1111,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Does NOT support sync daughter card (obviously). */
 	/* Tested by James@superbug.co.uk 4th Nov 2007. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x42011102,
-	 .driver = "Audigy2", .name = "E-mu 1010 Notebook [MAEM8950]",
+	 .driver = "Audigy2", .name = "E-MU 02 CardBus [MAEM8950]",
 	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1323,7 +1124,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * MicroDock[M] to make it an E-MU 1616[m]. */
 	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
-	 .driver = "Audigy2", .name = "E-mu 1010b PCI [MAEM8960]",
+	 .driver = "Audigy2", .name = "E-MU 1010b PCI [MAEM8960]",
 	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1337,7 +1138,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * still work. */
 	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40071102,
-	 .driver = "Audigy2", .name = "E-mu 1010 PCIe [MAEM8986]",
+	 .driver = "Audigy2", .name = "E-MU 1010 PCIe [MAEM8986]",
 	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
@@ -1349,7 +1150,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 * AudioDock[M] to make it an E-MU 1820[m]. */
 	/* Supports sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40011102,
-	 .driver = "Audigy2", .name = "E-mu 1010 [MAEM8810]",
+	 .driver = "Audigy2", .name = "E-MU 1010 [MAEM8810]",
 	 .id = "EMU1010",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
@@ -1359,30 +1160,33 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	/* Supports sync daughter card. */
 	/* Tested by oswald.buddenhagen@gmx.de Mar 2023. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40021102,
-	 .driver = "Audigy2", .name = "E-mu 0404b PCI [MAEM8852]",
+	 .driver = "Audigy2", .name = "E-MU 0404b PCI [MAEM8852]",
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
-	 .spk71 = 1,
+	 .spk20 = 1,
+	 .no_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 new revision */
 	/* This is MAEM8850 "HanaLite" */
 	/* Supports sync daughter card. */
 	/* Tested by James@superbug.co.uk 20-3-2007. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40021102,
-	 .driver = "Audigy2", .name = "E-mu 0404 [MAEM8850]",
+	 .driver = "Audigy2", .name = "E-MU 0404 [MAEM8850]",
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
-	 .spk71 = 1,
+	 .spk20 = 1,
+	 .no_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 */
 	/* EMU0404 PCIe */
 	/* Does NOT support sync daughter card. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40051102,
-	 .driver = "Audigy2", .name = "E-mu 0404 PCIe [MAEM8984]",
+	 .driver = "Audigy2", .name = "E-MU 0404 PCIe [MAEM8984]",
 	 .id = "EMU0404",
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
-	 .spk71 = 1,
+	 .spk20 = 1,
+	 .no_adat = 1,
 	 .emu_model = EMU_MODEL_EMU0404}, /* EMU 0404 PCIe ver_03 */
 	{.vendor = 0x1102, .device = 0x0008,
 	 .driver = "Audigy2", .name = "SB Audigy 2 Value [Unknown]",
@@ -1645,7 +1449,7 @@ static const struct snd_emu_chip_details emu_chip_details[] = {
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x40011102,
-	 .driver = "EMU10K1", .name = "E-mu APS [PC545]",
+	 .driver = "EMU10K1", .name = "E-MU APS [PC545]",
 	 .id = "APS",
 	 .emu10k1_chip = 1,
 	 .ecard = 1} ,
@@ -1736,7 +1540,8 @@ int snd_emu10k1_create(struct snd_card *card,
 	emu->irq = -1;
 	emu->synth = NULL;
 	emu->get_synth_voice = NULL;
-	INIT_DELAYED_WORK(&emu->emu1010.firmware_work, emu1010_firmware_work);
+	INIT_WORK(&emu->emu1010.firmware_work, emu1010_firmware_work);
+	INIT_WORK(&emu->emu1010.clock_work, emu1010_clock_work);
 	/* read revision & serial */
 	emu->revision = pci->revision;
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);

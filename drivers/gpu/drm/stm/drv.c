@@ -10,8 +10,9 @@
 
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_aperture.h>
@@ -185,7 +186,7 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 
 	DRM_DEBUG("%s\n", __func__);
 
-	ret = drm_aperture_remove_framebuffers(false, &drv_driver);
+	ret = drm_aperture_remove_framebuffers(&drv_driver);
 	if (ret)
 		return ret;
 
@@ -213,7 +214,7 @@ err_put:
 	return ret;
 }
 
-static int stm_drm_platform_remove(struct platform_device *pdev)
+static void stm_drm_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 
@@ -222,8 +223,6 @@ static int stm_drm_platform_remove(struct platform_device *pdev)
 	drm_dev_unregister(ddev);
 	drv_unload(ddev);
 	drm_dev_put(ddev);
-
-	return 0;
 }
 
 static const struct of_device_id drv_dt_ids[] = {
@@ -234,7 +233,7 @@ MODULE_DEVICE_TABLE(of, drv_dt_ids);
 
 static struct platform_driver stm_drm_platform_driver = {
 	.probe = stm_drm_platform_probe,
-	.remove = stm_drm_platform_remove,
+	.remove_new = stm_drm_platform_remove,
 	.driver = {
 		.name = "stm32-display",
 		.of_match_table = drv_dt_ids,

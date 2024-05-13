@@ -338,19 +338,12 @@ extern gfp_t gfp_allowed_mask;
 /* Returns true if the gfp_mask allows use of ALLOC_NO_WATERMARK */
 bool gfp_pfmemalloc_allowed(gfp_t gfp_mask);
 
-extern void pm_restrict_gfp_mask(void);
-extern void pm_restore_gfp_mask(void);
+static inline bool gfp_has_io_fs(gfp_t gfp)
+{
+	return (gfp & (__GFP_IO | __GFP_FS)) == (__GFP_IO | __GFP_FS);
+}
 
 extern gfp_t vma_thp_gfp_mask(struct vm_area_struct *vma);
-
-#ifdef CONFIG_PM_SLEEP
-extern bool pm_suspended_storage(void);
-#else
-static inline bool pm_suspended_storage(void)
-{
-	return false;
-}
-#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_CONTIG_ALLOC
 /* The below functions must be run on a range from a single zone. */

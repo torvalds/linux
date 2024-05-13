@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Maintainer: Grant Likely <grant.likely@secretlab.ca>
 		Linus Walleij <linus.walleij@linaro.org>
-Traditional Chinese maintainer: Hu Haowen <src.res@email.cn>
+Traditional Chinese maintainer: Hu Haowen <src.res.211@gmail.com>
 ---------------------------------------------------------------------
 Documentation/admin-guide/gpio 的繁體中文翻譯
 
@@ -18,9 +18,9 @@ Documentation/admin-guide/gpio 的繁體中文翻譯
 
 英文版維護者： Grant Likely <grant.likely@secretlab.ca>
 		Linus Walleij <linus.walleij@linaro.org>
-繁體中文版維護者： 胡皓文 Hu Haowen <src.res@email.cn>
-繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res@email.cn>
-繁體中文版校譯者： 胡皓文 Hu Haowen <src.res@email.cn>
+繁體中文版維護者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
+繁體中文版翻譯者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
+繁體中文版校譯者： 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 以下爲正文
 ---------------------------------------------------------------------
@@ -161,8 +161,7 @@ get/set(獲取/設置)函數調用沒法返回錯誤,且有可能是配置錯誤
 大多數 GPIO 控制器可以通過內存讀/寫指令來訪問。這些指令不會休眠,可以
 安全地在硬(非線程)中斷例程和類似的上下文中完成。
 
-對於那些用 gpio_cansleep()測試總是返回失敗的 GPIO(見下文)，使用
-以下的函數訪問:
+對於那些 GPIO，使用以下的函數訪問:
 
 	/* GPIO 輸入:返回零或非零 */
 	int gpio_get_value(unsigned gpio);
@@ -193,11 +192,6 @@ GPIO值是布爾值，零表示低電平，非零表示高電平。當讀取一�
 GPIO 值的命令需要等待其信息排到隊首才發送命令，再獲得其反饋。期間需要
 休眠，這不能在 IRQ 例程(中斷上下文)中執行。
 
-支持此類 GPIO 的平台通過以下函數返回非零值來區分出這種 GPIO。(此函數需要
-一個之前通過 gpio_request 分配到的有效 GPIO 編號):
-
-	int gpio_cansleep(unsigned gpio);
-
 爲了訪問這種 GPIO,內核定義了一套不同的函數:
 
 	/* GPIO 輸入:返回零或非零 ,可能會休眠 */
@@ -205,7 +199,6 @@ GPIO 值的命令需要等待其信息排到隊首才發送命令，再獲得其
 
 	/* GPIO 輸出,可能會休眠 */
 	void gpio_set_value_cansleep(unsigned gpio, int value);
-
 
 訪問這樣的 GPIO 需要一個允許休眠的上下文，例如線程 IRQ 處理例程，並用以上的
 訪問函數替換那些沒有 cansleep()後綴的自旋鎖安全訪問函數。
@@ -300,29 +293,12 @@ gpio_request()前將這類細節配置好，例如使用 pinctrl 子系統的映
 
 	* GPIOF_INIT_LOW	- 在作爲輸出時,初始值爲低電平
 	* GPIOF_INIT_HIGH	- 在作爲輸出時,初始值爲高電平
-	* GPIOF_OPEN_DRAIN	- gpio引腳爲開漏信號
-	* GPIOF_OPEN_SOURCE	- gpio引腳爲源極開路信號
-
-	* GPIOF_EXPORT_DIR_FIXED	- 將 gpio 導出到 sysfs，並保持方向
-	* GPIOF_EXPORT_DIR_CHANGEABLE	- 同樣是導出, 但允許改變方向
 
 因爲 GPIOF_INIT_* 僅有在配置爲輸出的時候才存在,所以有效的組合爲:
 
 	* GPIOF_IN		- 配置爲輸入
 	* GPIOF_OUT_INIT_LOW	- 配置爲輸出,並初始化爲低電平
 	* GPIOF_OUT_INIT_HIGH	- 配置爲輸出,並初始化爲高電平
-
-當設置 flag 爲 GPIOF_OPEN_DRAIN 時，則假設引腳是開漏信號。這樣的引腳
-將不會在輸出模式下置1。這樣的引腳需要連接上拉電阻。通過使能這個標誌，gpio庫
-將會在被要求輸出模式下置1時將引腳變爲輸入狀態來使引腳置高。引腳在輸出模式下
-通過置0使其輸出低電平。
-
-當設置 flag 爲 GPIOF_OPEN_SOURCE 時，則假設引腳爲源極開路信號。這樣的引腳
-將不會在輸出模式下置0。這樣的引腳需要連接下拉電阻。通過使能這個標誌，gpio庫
-將會在被要求輸出模式下置0時將引腳變爲輸入狀態來使引腳置低。引腳在輸出模式下
-通過置1使其輸出高電平。
-
-將來這些標誌可能擴展到支持更多的屬性。
 
 更進一步,爲了更簡單地聲明/釋放多個 GPIO,'struct gpio'被引進來封裝所有
 這三個領域:
@@ -466,8 +442,8 @@ GPIO 實現者的框架 (可選)
 -------
 爲了支持這個框架，一個平台的 Kconfig 文件將會 "select"(選擇)
 ARCH_REQUIRE_GPIOLIB 或 ARCH_WANT_OPTIONAL_GPIOLIB，並讓它的
-<asm/gpio.h> 包含 <asm-generic/gpio.h>，同時定義三個方法:
-gpio_get_value()、gpio_set_value()和 gpio_cansleep()。
+<asm/gpio.h> 包含 <asm-generic/gpio.h>，同時定義二個方法:
+gpio_get_value()、gpio_set_value()。
 
 它也應提供一個 ARCH_NR_GPIOS 的定義值，這樣可以更好地反映該平台 GPIO
 的實際數量,節省靜態表的空間。(這個定義值應該包含片上系統內建 GPIO 和
@@ -485,7 +461,6 @@ ARCH_WANT_OPTIONAL_GPIOLIB 意味著 gpiolib 核心默認關閉,且用戶可以
 
   #define gpio_get_value	__gpio_get_value
   #define gpio_set_value	__gpio_set_value
-  #define gpio_cansleep		__gpio_cansleep
 
 這些定義可以用更理想的實現方法替代，那就是使用經過邏輯優化的內聯函數來訪問
 基於特定片上系統的 GPIO。例如,若引用的 GPIO (寄存器位偏移)是常量「12」，

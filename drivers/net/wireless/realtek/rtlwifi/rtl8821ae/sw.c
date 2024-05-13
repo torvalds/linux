@@ -269,7 +269,6 @@ static struct rtl_hal_ops rtl8821ae_hal_ops = {
 	.tx_polling = rtl8821ae_tx_polling,
 	.enable_hw_sec = rtl8821ae_enable_hw_security_config,
 	.set_key = rtl8821ae_set_key,
-	.init_sw_leds = rtl8821ae_init_sw_leds,
 	.get_bbreg = rtl8821ae_phy_query_bb_reg,
 	.set_bbreg = rtl8821ae_phy_set_bb_reg,
 	.get_rfreg = rtl8821ae_phy_query_rf_reg,

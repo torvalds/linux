@@ -66,7 +66,7 @@ static int live_nop_switch(void *arg)
 		ctx[n] = live_context(i915, file);
 		if (IS_ERR(ctx[n])) {
 			err = PTR_ERR(ctx[n]);
-			goto out_file;
+			goto out_ctx;
 		}
 	}
 
@@ -82,7 +82,7 @@ static int live_nop_switch(void *arg)
 			this = igt_request_alloc(ctx[n], engine);
 			if (IS_ERR(this)) {
 				err = PTR_ERR(this);
-				goto out_file;
+				goto out_ctx;
 			}
 			if (rq) {
 				i915_request_await_dma_fence(this, &rq->fence);
@@ -93,10 +93,10 @@ static int live_nop_switch(void *arg)
 		}
 		if (i915_request_wait(rq, 0, 10 * HZ) < 0) {
 			pr_err("Failed to populated %d contexts\n", nctx);
-			intel_gt_set_wedged(to_gt(i915));
+			intel_gt_set_wedged(engine->gt);
 			i915_request_put(rq);
 			err = -EIO;
-			goto out_file;
+			goto out_ctx;
 		}
 		i915_request_put(rq);
 
@@ -107,7 +107,7 @@ static int live_nop_switch(void *arg)
 
 		err = igt_live_test_begin(&t, i915, __func__, engine->name);
 		if (err)
-			goto out_file;
+			goto out_ctx;
 
 		end_time = jiffies + i915_selftest.timeout_jiffies;
 		for_each_prime_number_from(prime, 2, 8192) {
@@ -120,7 +120,7 @@ static int live_nop_switch(void *arg)
 				this = igt_request_alloc(ctx[n % nctx], engine);
 				if (IS_ERR(this)) {
 					err = PTR_ERR(this);
-					goto out_file;
+					goto out_ctx;
 				}
 
 				if (rq) { /* Force submission order */
@@ -149,7 +149,7 @@ static int live_nop_switch(void *arg)
 			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				pr_err("Switching between %ld contexts timed out\n",
 				       prime);
-				intel_gt_set_wedged(to_gt(i915));
+				intel_gt_set_wedged(engine->gt);
 				i915_request_put(rq);
 				break;
 			}
@@ -165,7 +165,7 @@ static int live_nop_switch(void *arg)
 
 		err = igt_live_test_end(&t);
 		if (err)
-			goto out_file;
+			goto out_ctx;
 
 		pr_info("Switch latencies on %s: 1 = %lluns, %lu = %lluns\n",
 			engine->name,
@@ -173,6 +173,8 @@ static int live_nop_switch(void *arg)
 			prime - 1, div64_u64(ktime_to_ns(times[1]), prime - 1));
 	}
 
+out_ctx:
+	kfree(ctx);
 out_file:
 	fput(file);
 	return err;

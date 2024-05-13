@@ -15,7 +15,6 @@
 #include <linux/types.h>
 
 #include <media/media-entity.h>
-#include <media/mipi-csi2.h>
 #include <media/v4l2-subdev.h>
 
 #include "imx8-isi-core.h"
@@ -25,32 +24,18 @@ static inline struct mxc_isi_crossbar *to_isi_crossbar(struct v4l2_subdev *sd)
 	return container_of(sd, struct mxc_isi_crossbar, sd);
 }
 
-/* -----------------------------------------------------------------------------
- * Media block control (i.MX8MN and i.MX8MP only)
- */
-#define GASKET_BASE(n)				(0x0060 + (n) * 0x30)
-
-#define GASKET_CTRL				0x0000
-#define GASKET_CTRL_DATA_TYPE(dt)		((dt) << 8)
-#define GASKET_CTRL_DATA_TYPE_MASK		(0x3f << 8)
-#define GASKET_CTRL_DUAL_COMP_ENABLE		BIT(1)
-#define GASKET_CTRL_ENABLE			BIT(0)
-
-#define GASKET_HSIZE				0x0004
-#define GASKET_VSIZE				0x0008
-
 static int mxc_isi_crossbar_gasket_enable(struct mxc_isi_crossbar *xbar,
 					  struct v4l2_subdev_state *state,
 					  struct v4l2_subdev *remote_sd,
 					  u32 remote_pad, unsigned int port)
 {
 	struct mxc_isi_dev *isi = xbar->isi;
+	const struct mxc_gasket_ops *gasket_ops = isi->pdata->gasket_ops;
 	const struct v4l2_mbus_framefmt *fmt;
 	struct v4l2_mbus_frame_desc fd;
-	u32 val;
 	int ret;
 
-	if (!isi->pdata->has_gasket)
+	if (!gasket_ops)
 		return 0;
 
 	/*
@@ -77,17 +62,7 @@ static int mxc_isi_crossbar_gasket_enable(struct mxc_isi_crossbar *xbar,
 	if (!fmt)
 		return -EINVAL;
 
-	regmap_write(isi->gasket, GASKET_BASE(port) + GASKET_HSIZE, fmt->width);
-	regmap_write(isi->gasket, GASKET_BASE(port) + GASKET_VSIZE, fmt->height);
-
-	val = GASKET_CTRL_DATA_TYPE(fd.entry[0].bus.csi2.dt)
-	    | GASKET_CTRL_ENABLE;
-
-	if (fd.entry[0].bus.csi2.dt == MIPI_CSI2_DT_YUV422_8B)
-		val |= GASKET_CTRL_DUAL_COMP_ENABLE;
-
-	regmap_write(isi->gasket, GASKET_BASE(port) + GASKET_CTRL, val);
-
+	gasket_ops->enable(isi, &fd, fmt, port);
 	return 0;
 }
 
@@ -95,11 +70,12 @@ static void mxc_isi_crossbar_gasket_disable(struct mxc_isi_crossbar *xbar,
 					    unsigned int port)
 {
 	struct mxc_isi_dev *isi = xbar->isi;
+	const struct mxc_gasket_ops *gasket_ops = isi->pdata->gasket_ops;
 
-	if (!isi->pdata->has_gasket)
+	if (!gasket_ops)
 		return;
 
-	regmap_write(isi->gasket, GASKET_BASE(port) + GASKET_CTRL, 0);
+	gasket_ops->disable(isi, port);
 }
 
 /* -----------------------------------------------------------------------------
@@ -223,7 +199,7 @@ static int mxc_isi_crossbar_init_cfg(struct v4l2_subdev *sd,
 		route->sink_pad = i;
 		route->source_pad = i + xbar->num_sinks;
 		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
-	};
+	}
 
 	routing.num_routes = xbar->num_sources;
 	routing.routes = routes;
@@ -483,7 +459,7 @@ int mxc_isi_crossbar_init(struct mxc_isi_dev *isi)
 
 	xbar->inputs = kcalloc(xbar->num_sinks, sizeof(*xbar->inputs),
 			       GFP_KERNEL);
-	if (!xbar->pads) {
+	if (!xbar->inputs) {
 		ret = -ENOMEM;
 		goto err_free;
 	}

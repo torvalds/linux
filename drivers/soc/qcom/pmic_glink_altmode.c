@@ -6,6 +6,7 @@
 #include <linux/auxiliary_bus.h>
 #include <linux/bitfield.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
@@ -15,6 +16,7 @@
 #include <linux/usb/typec_altmode.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
+#include <linux/usb/typec_retimer.h>
 
 #include <linux/soc/qcom/pmic_glink.h>
 
@@ -68,6 +70,8 @@ struct pmic_glink_altmode_port {
 	struct typec_switch *typec_switch;
 	struct typec_mux *typec_mux;
 	struct typec_mux_state state;
+	struct typec_retimer *typec_retimer;
+	struct typec_retimer_state retimer_state;
 	struct typec_altmode dp_alt;
 
 	struct work_struct work;
@@ -157,6 +161,14 @@ static void pmic_glink_altmode_enable_dp(struct pmic_glink_altmode *altmode,
 	ret = typec_mux_set(port->typec_mux, &port->state);
 	if (ret)
 		dev_err(altmode->dev, "failed to switch mux to DP\n");
+
+	port->retimer_state.alt = &port->dp_alt;
+	port->retimer_state.data = &dp_data;
+	port->retimer_state.mode = TYPEC_MODAL_STATE(mode);
+
+	ret = typec_retimer_set(port->typec_retimer, &port->retimer_state);
+	if (ret)
+		dev_err(altmode->dev, "failed to setup retimer to DP\n");
 }
 
 static void pmic_glink_altmode_enable_usb(struct pmic_glink_altmode *altmode,
@@ -171,6 +183,36 @@ static void pmic_glink_altmode_enable_usb(struct pmic_glink_altmode *altmode,
 	ret = typec_mux_set(port->typec_mux, &port->state);
 	if (ret)
 		dev_err(altmode->dev, "failed to switch mux to USB\n");
+
+	port->retimer_state.alt = NULL;
+	port->retimer_state.data = NULL;
+	port->retimer_state.mode = TYPEC_STATE_USB;
+
+	ret = typec_retimer_set(port->typec_retimer, &port->retimer_state);
+	if (ret)
+		dev_err(altmode->dev, "failed to setup retimer to USB\n");
+}
+
+static void pmic_glink_altmode_safe(struct pmic_glink_altmode *altmode,
+				    struct pmic_glink_altmode_port *port)
+{
+	int ret;
+
+	port->state.alt = NULL;
+	port->state.data = NULL;
+	port->state.mode = TYPEC_STATE_SAFE;
+
+	ret = typec_mux_set(port->typec_mux, &port->state);
+	if (ret)
+		dev_err(altmode->dev, "failed to switch mux to safe mode\n");
+
+	port->retimer_state.alt = NULL;
+	port->retimer_state.data = NULL;
+	port->retimer_state.mode = TYPEC_STATE_SAFE;
+
+	ret = typec_retimer_set(port->typec_retimer, &port->retimer_state);
+	if (ret)
+		dev_err(altmode->dev, "failed to setup retimer to USB\n");
 }
 
 static void pmic_glink_altmode_worker(struct work_struct *work)
@@ -180,7 +222,9 @@ static void pmic_glink_altmode_worker(struct work_struct *work)
 
 	typec_switch_set(alt_port->typec_switch, alt_port->orientation);
 
-	if (alt_port->svid == USB_TYPEC_DP_SID)
+	if (alt_port->svid == USB_TYPEC_DP_SID && alt_port->mode == 0xff)
+		pmic_glink_altmode_safe(altmode, alt_port);
+	else if (alt_port->svid == USB_TYPEC_DP_SID)
 		pmic_glink_altmode_enable_dp(altmode, alt_port, alt_port->mode,
 					     alt_port->hpd_state, alt_port->hpd_irq);
 	else
@@ -331,6 +375,11 @@ static const struct drm_bridge_funcs pmic_glink_altmode_bridge_funcs = {
 	.attach = pmic_glink_altmode_attach,
 };
 
+static void pmic_glink_altmode_put_retimer(void *data)
+{
+	typec_retimer_put(data);
+}
+
 static void pmic_glink_altmode_put_mux(void *data)
 {
 	typec_mux_put(data);
@@ -369,7 +418,6 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 {
 	struct pmic_glink_altmode_port *alt_port;
 	struct pmic_glink_altmode *altmode;
-	struct typec_altmode_desc mux_desc = {};
 	const struct of_device_id *match;
 	struct fwnode_handle *fwnode;
 	struct device *dev = &adev->dev;
@@ -427,9 +475,7 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 		alt_port->dp_alt.mode = USB_TYPEC_DP_MODE;
 		alt_port->dp_alt.active = 1;
 
-		mux_desc.svid = USB_TYPEC_DP_SID;
-		mux_desc.mode = USB_TYPEC_DP_MODE;
-		alt_port->typec_mux = fwnode_typec_mux_get(fwnode, &mux_desc);
+		alt_port->typec_mux = fwnode_typec_mux_get(fwnode);
 		if (IS_ERR(alt_port->typec_mux))
 			return dev_err_probe(dev, PTR_ERR(alt_port->typec_mux),
 					     "failed to acquire mode-switch for port: %d\n",
@@ -437,6 +483,17 @@ static int pmic_glink_altmode_probe(struct auxiliary_device *adev,
 
 		ret = devm_add_action_or_reset(dev, pmic_glink_altmode_put_mux,
 					       alt_port->typec_mux);
+		if (ret)
+			return ret;
+
+		alt_port->typec_retimer = fwnode_typec_retimer_get(fwnode);
+		if (IS_ERR(alt_port->typec_retimer))
+			return dev_err_probe(dev, PTR_ERR(alt_port->typec_retimer),
+					     "failed to acquire retimer-switch for port: %d\n",
+					     port);
+
+		ret = devm_add_action_or_reset(dev, pmic_glink_altmode_put_retimer,
+					       alt_port->typec_retimer);
 		if (ret)
 			return ret;
 

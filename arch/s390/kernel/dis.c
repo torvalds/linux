@@ -24,8 +24,8 @@
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
+#include <linux/io.h>
 #include <asm/dis.h>
-#include <asm/io.h>
 #include <asm/cpcmd.h>
 #include <asm/lowcore.h>
 #include <asm/debug.h>
@@ -516,7 +516,7 @@ void show_code(struct pt_regs *regs)
 		if (copy_from_regs(regs, code + end, (void *)addr, 2))
 			break;
 	}
-	/* Code snapshot useable ? */
+	/* Code snapshot usable ? */
 	if ((regs->psw.addr & 1) || start >= end) {
 		printk("%s Code: Bad PSW.\n", mode);
 		return;

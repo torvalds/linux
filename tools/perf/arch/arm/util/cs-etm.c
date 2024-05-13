@@ -25,7 +25,7 @@
 #include "../../../util/evsel.h"
 #include "../../../util/perf_api_probe.h"
 #include "../../../util/evsel_config.h"
-#include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
 #include "../../../util/cs-etm.h"
 #include <internal/lib.h> // page_size
 #include "../../../util/session.h"
@@ -79,9 +79,9 @@ static int cs_etm_validate_context_id(struct auxtrace_record *itr,
 	int err;
 	u32 val;
 	u64 contextid = evsel->core.attr.config &
-		(perf_pmu__format_bits(&cs_etm_pmu->format, "contextid") |
-		 perf_pmu__format_bits(&cs_etm_pmu->format, "contextid1") |
-		 perf_pmu__format_bits(&cs_etm_pmu->format, "contextid2"));
+		(perf_pmu__format_bits(cs_etm_pmu, "contextid") |
+		 perf_pmu__format_bits(cs_etm_pmu, "contextid1") |
+		 perf_pmu__format_bits(cs_etm_pmu, "contextid2"));
 
 	if (!contextid)
 		return 0;
@@ -106,7 +106,7 @@ static int cs_etm_validate_context_id(struct auxtrace_record *itr,
 	}
 
 	if (contextid &
-	    perf_pmu__format_bits(&cs_etm_pmu->format, "contextid1")) {
+	    perf_pmu__format_bits(cs_etm_pmu, "contextid1")) {
 		/*
 		 * TRCIDR2.CIDSIZE, bit [9-5], indicates whether contextID
 		 * tracing is supported:
@@ -122,7 +122,7 @@ static int cs_etm_validate_context_id(struct auxtrace_record *itr,
 	}
 
 	if (contextid &
-	    perf_pmu__format_bits(&cs_etm_pmu->format, "contextid2")) {
+	    perf_pmu__format_bits(cs_etm_pmu, "contextid2")) {
 		/*
 		 * TRCIDR2.VMIDOPT[30:29] != 0 and
 		 * TRCIDR2.VMIDSIZE[14:10] == 0b00100 (32bit virtual contextid)
@@ -151,7 +151,7 @@ static int cs_etm_validate_timestamp(struct auxtrace_record *itr,
 	u32 val;
 
 	if (!(evsel->core.attr.config &
-	      perf_pmu__format_bits(&cs_etm_pmu->format, "timestamp")))
+	      perf_pmu__format_bits(cs_etm_pmu, "timestamp")))
 		return 0;
 
 	if (!cs_etm_is_etmv4(itr, cpu)) {
@@ -881,7 +881,7 @@ struct auxtrace_record *cs_etm_record_init(int *err)
 	struct perf_pmu *cs_etm_pmu;
 	struct cs_etm_recording *ptr;
 
-	cs_etm_pmu = perf_pmu__find(CORESIGHT_ETM_PMU_NAME);
+	cs_etm_pmu = perf_pmus__find(CORESIGHT_ETM_PMU_NAME);
 
 	if (!cs_etm_pmu) {
 		*err = -EINVAL;

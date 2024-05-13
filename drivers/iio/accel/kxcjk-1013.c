@@ -1732,7 +1732,7 @@ static struct i2c_driver kxcjk1013_driver = {
 		.of_match_table = kxcjk1013_of_match,
 		.pm	= &kxcjk1013_pm_ops,
 	},
-	.probe_new	= kxcjk1013_probe,
+	.probe		= kxcjk1013_probe,
 	.remove		= kxcjk1013_remove,
 	.id_table	= kxcjk1013_id,
 };

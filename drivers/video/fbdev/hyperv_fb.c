@@ -48,6 +48,7 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/screen_info.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/completion.h>
@@ -1073,7 +1074,7 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 	info->screen_size = dio_fb_size;
 
 getmem_done:
-	aperture_remove_conflicting_devices(base, size, false, KBUILD_MODNAME);
+	aperture_remove_conflicting_devices(base, size, KBUILD_MODNAME);
 
 	if (gen2vm) {
 		/* framebuffer is reallocated, clear screen_info to avoid misuse from kexec */
@@ -1158,8 +1159,6 @@ static int hvfb_probe(struct hv_device *hdev,
 	}
 
 	/* Set up fb_info */
-	info->flags = FBINFO_DEFAULT;
-
 	info->var.xres_virtual = info->var.xres = screen_width;
 	info->var.yres_virtual = info->var.yres = screen_height;
 	info->var.bits_per_pixel = screen_depth;

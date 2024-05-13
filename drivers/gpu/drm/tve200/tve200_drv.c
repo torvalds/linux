@@ -156,7 +156,6 @@ static int tve200_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct tve200_drm_dev_private *priv;
 	struct drm_device *drm;
-	struct resource *res;
 	int irq;
 	int ret;
 
@@ -192,8 +191,7 @@ static int tve200_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_ioremap_resource(dev, res);
+	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs)) {
 		dev_err(dev, "%s failed mmio\n", __func__);
 		ret = -EINVAL;
@@ -238,7 +236,7 @@ dev_unref:
 	return ret;
 }
 
-static int tve200_remove(struct platform_device *pdev)
+static void tve200_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 	struct tve200_drm_dev_private *priv = drm->dev_private;
@@ -249,8 +247,6 @@ static int tve200_remove(struct platform_device *pdev)
 	drm_mode_config_cleanup(drm);
 	clk_disable_unprepare(priv->pclk);
 	drm_dev_put(drm);
-
-	return 0;
 }
 
 static const struct of_device_id tve200_of_match[] = {
@@ -263,10 +259,10 @@ static const struct of_device_id tve200_of_match[] = {
 static struct platform_driver tve200_driver = {
 	.driver = {
 		.name           = "tve200",
-		.of_match_table = of_match_ptr(tve200_of_match),
+		.of_match_table = tve200_of_match,
 	},
 	.probe = tve200_probe,
-	.remove = tve200_remove,
+	.remove_new = tve200_remove,
 };
 drm_module_platform_driver(tve200_driver);
 

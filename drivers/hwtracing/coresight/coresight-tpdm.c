@@ -42,8 +42,8 @@ static void __tpdm_enable(struct tpdm_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
-static int tpdm_enable(struct coresight_device *csdev,
-		       struct perf_event *event, u32 mode)
+static int tpdm_enable(struct coresight_device *csdev, struct perf_event *event,
+		       enum cs_mode mode)
 {
 	struct tpdm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 

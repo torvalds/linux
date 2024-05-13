@@ -445,7 +445,7 @@ void * __must_check __kasan_krealloc(const void *object, size_t size, gfp_t flag
 bool __kasan_check_byte(const void *address, unsigned long ip)
 {
 	if (!kasan_byte_accessible(address)) {
-		kasan_report((unsigned long)address, 1, false, ip);
+		kasan_report(address, 1, false, ip);
 		return false;
 	}
 	return true;

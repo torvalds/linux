@@ -167,13 +167,6 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 	}
 };
 
-static struct snd_soc_dai_link_component dummy_component[] = {
-	{
-		.name = "snd-soc-dummy",
-		.dai_name = "snd-soc-dummy-dai",
-	}
-};
-
 static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
@@ -233,8 +226,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			if (!links[id].name)
 				return NULL;
 			links[id].id = id;
-			links[id].codecs = dummy_component;
-			links[id].num_codecs = ARRAY_SIZE(dummy_component);
+			links[id].codecs = &asoc_dummy_dlc;
+			links[id].num_codecs = 1;
 			links[id].platforms = platform_component;
 			links[id].num_platforms = ARRAY_SIZE(platform_component);
 			links[id].dpcm_capture = 1;
@@ -331,8 +324,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 				if (!idisp_components[i - 1].dai_name)
 					goto devm_err;
 			} else {
-				idisp_components[i - 1].name = "snd-soc-dummy";
-				idisp_components[i - 1].dai_name = "snd-soc-dummy-dai";
+				idisp_components[i - 1] = asoc_dummy_dlc;
 			}
 
 			links[id].codecs = &idisp_components[i - 1];
@@ -360,8 +352,8 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", port);
 		if (!links[id].name)
 			goto devm_err;
-		links[id].codecs = dummy_component;
-		links[id].num_codecs = ARRAY_SIZE(dummy_component);
+		links[id].codecs = &asoc_dummy_dlc;
+		links[id].num_codecs = 1;
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
 		links[id].dpcm_playback = 1;
@@ -471,6 +463,24 @@ static const struct platform_device_id board_ids[] = {
 					SOF_SSP_BT_OFFLOAD_PRESENT |
 					SOF_CS35L41_SPEAKER_AMP_PRESENT),
 	},
+	{
+		.name = "adl_lt6911_hdmi_ssp",
+		.driver_data = (kernel_ulong_t)(SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
+					SOF_HDMI_CAPTURE_1_SSP(0) |
+					SOF_HDMI_CAPTURE_2_SSP(2) |
+					SOF_SSP_HDMI_CAPTURE_PRESENT |
+					SOF_NO_OF_HDMI_PLAYBACK(3) |
+					SOF_HDMI_PLAYBACK_PRESENT),
+	},
+	{
+		.name = "rpl_lt6911_hdmi_ssp",
+		.driver_data = (kernel_ulong_t)(SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
+					SOF_HDMI_CAPTURE_1_SSP(0) |
+					SOF_HDMI_CAPTURE_2_SSP(2) |
+					SOF_SSP_HDMI_CAPTURE_PRESENT |
+					SOF_NO_OF_HDMI_PLAYBACK(3) |
+					SOF_HDMI_PLAYBACK_PRESENT),
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, board_ids);
@@ -486,7 +496,7 @@ static struct platform_driver sof_ssp_amp_driver = {
 module_platform_driver(sof_ssp_amp_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) SOF Amplifier Machine driver");
-MODULE_AUTHOR("balamurugan.c <balamurugan.c@intel.com>");
+MODULE_AUTHOR("Balamurugan C <balamurugan.c@intel.com>");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

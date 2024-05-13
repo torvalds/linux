@@ -185,7 +185,7 @@ struct ice_buf_hdr {
 
 #define ICE_MAX_ENTRIES_IN_BUF(hd_sz, ent_sz)                                 \
 	((ICE_PKG_BUF_SIZE -                                                  \
-	  struct_size((struct ice_buf_hdr *)0, section_entry, 1) - (hd_sz)) / \
+	  struct_size_t(struct ice_buf_hdr,  section_entry, 1) - (hd_sz)) / \
 	 (ent_sz))
 
 /* ice package section IDs */
@@ -297,7 +297,7 @@ struct ice_label_section {
 };
 
 #define ICE_MAX_LABELS_IN_BUF                                             \
-	ICE_MAX_ENTRIES_IN_BUF(struct_size((struct ice_label_section *)0, \
+	ICE_MAX_ENTRIES_IN_BUF(struct_size_t(struct ice_label_section,  \
 					   label, 1) -                    \
 				       sizeof(struct ice_label),          \
 			       sizeof(struct ice_label))
@@ -352,7 +352,7 @@ struct ice_boost_tcam_section {
 };
 
 #define ICE_MAX_BST_TCAMS_IN_BUF                                               \
-	ICE_MAX_ENTRIES_IN_BUF(struct_size((struct ice_boost_tcam_section *)0, \
+	ICE_MAX_ENTRIES_IN_BUF(struct_size_t(struct ice_boost_tcam_section,  \
 					   tcam, 1) -                          \
 				       sizeof(struct ice_boost_tcam_entry),    \
 			       sizeof(struct ice_boost_tcam_entry))
@@ -372,8 +372,7 @@ struct ice_marker_ptype_tcam_section {
 };
 
 #define ICE_MAX_MARKER_PTYPE_TCAMS_IN_BUF                                    \
-	ICE_MAX_ENTRIES_IN_BUF(                                              \
-		struct_size((struct ice_marker_ptype_tcam_section *)0, tcam, \
+	ICE_MAX_ENTRIES_IN_BUF(struct_size_t(struct ice_marker_ptype_tcam_section,  tcam, \
 			    1) -                                             \
 			sizeof(struct ice_marker_ptype_tcam_entry),          \
 		sizeof(struct ice_marker_ptype_tcam_entry))
@@ -417,20 +416,12 @@ struct ice_pkg_enum {
 	void *(*handler)(u32 sect_type, void *section, u32 index, u32 *offset);
 };
 
-int ice_aq_download_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
-			u16 buf_size, bool last_buf, u32 *error_offset,
-			u32 *error_info, struct ice_sq_cd *cd);
 int ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 			  u16 buf_size, struct ice_sq_cd *cd);
 
 void *ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size);
 
-enum ice_ddp_state ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len);
-
 struct ice_buf_build *ice_pkg_buf_alloc(struct ice_hw *hw);
-
-struct ice_generic_seg_hdr *ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
-						struct ice_pkg_hdr *pkg_hdr);
 
 int ice_update_pkg_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
 int ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
@@ -439,7 +430,5 @@ int ice_pkg_buf_reserve_section(struct ice_buf_build *bld, u16 count);
 u16 ice_pkg_buf_get_active_sections(struct ice_buf_build *bld);
 void *ice_pkg_enum_section(struct ice_seg *ice_seg, struct ice_pkg_enum *state,
 			   u32 sect_type);
-
-struct ice_buf_hdr *ice_pkg_val_buf(struct ice_buf *buf);
 
 #endif

@@ -238,8 +238,6 @@ int optee_notif_send(struct optee *optee, u_int key);
 u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 			struct tee_param *param);
 
-int optee_supp_read(struct tee_context *ctx, void __user *buf, size_t len);
-int optee_supp_write(struct tee_context *ctx, void __user *buf, size_t len);
 void optee_supp_init(struct optee_supp *supp);
 void optee_supp_uninit(struct optee_supp *supp);
 void optee_supp_release(struct optee_supp *supp);

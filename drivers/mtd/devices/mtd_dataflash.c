@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/math64.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>

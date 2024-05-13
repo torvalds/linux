@@ -17,7 +17,6 @@
  */
 #define RDS_RDMA_REJ_INCOMPAT		1
 
-int rds_rdma_conn_connect(struct rds_connection *conn);
 int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 			      struct rdma_cm_event *event);
 int rds6_rdma_cm_event_handler(struct rdma_cm_id *cm_id,

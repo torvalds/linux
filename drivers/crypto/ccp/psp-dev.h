@@ -40,6 +40,7 @@ struct psp_device {
 	void *sev_data;
 	void *tee_data;
 	void *platform_access_data;
+	void *dbc_data;
 
 	unsigned int capability;
 };

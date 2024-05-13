@@ -129,7 +129,7 @@ static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u16 fn_id, 
 
 	err = auxiliary_device_add(&sf_dev->adev);
 	if (err) {
-		put_device(&sf_dev->adev.dev);
+		auxiliary_device_uninit(&sf_dev->adev);
 		goto add_err;
 	}
 
@@ -167,7 +167,7 @@ mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_
 	if (!max_functions)
 		return 0;
 
-	base_id = MLX5_CAP_GEN(table->dev, sf_base_id);
+	base_id = mlx5_sf_start_function_id(table->dev);
 	if (event->function_id < base_id || event->function_id >= (base_id + max_functions))
 		return 0;
 
@@ -185,7 +185,7 @@ mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_
 			mlx5_sf_dev_del(table->dev, sf_dev, sf_index);
 		else
 			mlx5_core_err(table->dev,
-				      "SF DEV: teardown state for invalid dev index=%d fn_id=0x%x\n",
+				      "SF DEV: teardown state for invalid dev index=%d sfnum=0x%x\n",
 				      sf_index, event->sw_function_id);
 		break;
 	case MLX5_VHCA_STATE_ACTIVE:
@@ -209,7 +209,7 @@ static int mlx5_sf_dev_vhca_arm_all(struct mlx5_sf_dev_table *table)
 	int i;
 
 	max_functions = mlx5_sf_max_functions(dev);
-	function_id = MLX5_CAP_GEN(dev, sf_base_id);
+	function_id = mlx5_sf_start_function_id(dev);
 	/* Arm the vhca context as the vhca event notifier */
 	for (i = 0; i < max_functions; i++) {
 		err = mlx5_vhca_event_arm(dev, function_id);
@@ -234,7 +234,7 @@ static void mlx5_sf_dev_add_active_work(struct work_struct *work)
 	int i;
 
 	max_functions = mlx5_sf_max_functions(dev);
-	function_id = MLX5_CAP_GEN(dev, sf_base_id);
+	function_id = mlx5_sf_start_function_id(dev);
 	for (i = 0; i < max_functions; i++, function_id++) {
 		if (table->stop_active_wq)
 			return;
@@ -299,7 +299,7 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 	unsigned int max_sfs;
 	int err;
 
-	if (!mlx5_sf_dev_supported(dev) || !mlx5_vhca_event_supported(dev))
+	if (!mlx5_sf_dev_supported(dev))
 		return;
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);

@@ -179,7 +179,7 @@ static struct i2c_driver ams_iaqcore_driver = {
 		.name	= "ams-iaq-core",
 		.of_match_table = ams_iaqcore_dt_ids,
 	},
-	.probe_new = ams_iaqcore_probe,
+	.probe = ams_iaqcore_probe,
 	.id_table = ams_iaqcore_id,
 };
 module_i2c_driver(ams_iaqcore_driver);

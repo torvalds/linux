@@ -255,10 +255,11 @@ config SENSORS_ADT7475
 	  will be called adt7475.
 
 config SENSORS_AHT10
-	tristate "Aosong AHT10"
+	tristate "Aosong AHT10, AHT20"
 	depends on I2C
+	select CRC8
 	help
-	  If you say yes here, you get support for the Aosong AHT10
+	  If you say yes here, you get support for the Aosong AHT10 and AHT20
 	  temperature and humidity sensors
 
 	  This driver can also be built as a module. If so, the module
@@ -733,6 +734,16 @@ config SENSORS_HIH6130
 	  This driver can also be built as a module. If so, the module
 	  will be called hih6130.
 
+config SENSORS_HS3001
+	tristate "Renesas HS3001 humidity and temperature sensors"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Renesas HS3001,
+	  to HS3004 humidity and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called hs3001.
+
 config SENSORS_IBMAEM
 	tristate "IBM Active Energy Manager temperature/power sensors and control"
 	select IPMI_SI
@@ -1096,6 +1107,17 @@ config SENSORS_MAX31760
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max31760.
+
+config MAX31827
+	tristate "MAX31827 low-power temperature switch and similar devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for MAX31827, MAX31828 and
+	  MAX31829 low-power temperature switches and sensors connected with I2C.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max31827.
 
 config SENSORS_MAX6620
 	tristate "Maxim MAX6620 fan controller"
@@ -1939,20 +1961,6 @@ config SENSORS_SFCTEMP
 	  This driver can also be built as a module.  If so, the module
 	  will be called sfctemp.
 
-config SENSORS_SMM665
-	tristate "Summit Microelectronics SMM665"
-	depends on I2C
-	help
-	  If you say yes here you get support for the hardware monitoring
-	  features of the Summit Microelectronics SMM665/SMM665B Six-Channel
-	  Active DC Output Controller / Monitor.
-
-	  Other supported chips are SMM465, SMM665C, SMM764, and SMM766.
-	  Support for those chips is untested.
-
-	  This driver can also be built as a module. If so, the module will
-	  be called smm665.
-
 config SENSORS_ADC128D818
 	tristate "Texas Instruments ADC128D818"
 	depends on I2C
@@ -2408,6 +2416,18 @@ config SENSORS_ASUS_EC
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_ec_sensors.
+
+config SENSORS_HP_WMI
+	tristate "HP WMI Sensors"
+	depends on ACPI_WMI
+	help
+	  If you say yes here you get support for the ACPI hardware monitoring
+	  interface found in HP (and some HP Compaq) business-class computers.
+	  Available sensors vary between systems. Temperature and fan speed
+	  sensors are the most common.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called hp_wmi_sensors.
 
 endif # ACPI
 

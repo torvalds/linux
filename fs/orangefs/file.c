@@ -337,6 +337,26 @@ out:
 	return ret;
 }
 
+static ssize_t orangefs_file_splice_read(struct file *in, loff_t *ppos,
+					 struct pipe_inode_info *pipe,
+					 size_t len, unsigned int flags)
+{
+	struct inode *inode = file_inode(in);
+	ssize_t ret;
+
+	orangefs_stats.reads++;
+
+	down_read(&inode->i_rwsem);
+	ret = orangefs_revalidate_mapping(inode);
+	if (ret)
+		goto out;
+
+	ret = filemap_splice_read(in, ppos, pipe, len, flags);
+out:
+	up_read(&inode->i_rwsem);
+	return ret;
+}
+
 static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
     struct iov_iter *iter)
 {
@@ -556,7 +576,7 @@ const struct file_operations orangefs_file_operations = {
 	.lock		= orangefs_lock,
 	.mmap		= orangefs_file_mmap,
 	.open		= generic_file_open,
-	.splice_read    = generic_file_splice_read,
+	.splice_read    = orangefs_file_splice_read,
 	.splice_write   = iter_file_splice_write,
 	.flush		= orangefs_flush,
 	.release	= orangefs_file_release,

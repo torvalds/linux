@@ -1507,7 +1507,7 @@ static const struct regmap_config wm8753_regmap = {
 	.max_register = WM8753_ADCTL2,
 	.volatile_reg = wm8753_volatile,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8753_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8753_reg_defaults),
 };
@@ -1590,7 +1590,7 @@ static struct i2c_driver wm8753_i2c_driver = {
 		.name = "wm8753",
 		.of_match_table = wm8753_of_match,
 	},
-	.probe_new = wm8753_i2c_probe,
+	.probe = wm8753_i2c_probe,
 	.id_table = wm8753_i2c_id,
 };
 #endif

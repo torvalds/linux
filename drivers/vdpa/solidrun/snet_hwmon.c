@@ -159,7 +159,7 @@ static const struct hwmon_ops snet_hwmon_ops = {
 	.read_string = snet_hwmon_read_string
 };
 
-static const struct hwmon_channel_info *snet_hwmon_info[] = {
+static const struct hwmon_channel_info * const snet_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_LABEL),
 	HWMON_CHANNEL_INFO(power, HWMON_P_INPUT | HWMON_P_LABEL),

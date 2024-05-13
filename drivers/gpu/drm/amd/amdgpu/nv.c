@@ -67,21 +67,18 @@
 static const struct amd_ip_funcs nv_common_ip_funcs;
 
 /* Navi */
-static const struct amdgpu_video_codec_info nv_video_codecs_encode_array[] =
-{
+static const struct amdgpu_video_codec_info nv_video_codecs_encode_array[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 2304, 0)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 4096, 2304, 0)},
 };
 
-static const struct amdgpu_video_codecs nv_video_codecs_encode =
-{
+static const struct amdgpu_video_codecs nv_video_codecs_encode = {
 	.codec_count = ARRAY_SIZE(nv_video_codecs_encode_array),
 	.codec_array = nv_video_codecs_encode_array,
 };
 
 /* Navi1x */
-static const struct amdgpu_video_codec_info nv_video_codecs_decode_array[] =
-{
+static const struct amdgpu_video_codec_info nv_video_codecs_decode_array[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2, 4096, 4096, 3)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4, 4096, 4096, 5)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
@@ -91,8 +88,7 @@ static const struct amdgpu_video_codec_info nv_video_codecs_decode_array[] =
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
 };
 
-static const struct amdgpu_video_codecs nv_video_codecs_decode =
-{
+static const struct amdgpu_video_codecs nv_video_codecs_decode = {
 	.codec_count = ARRAY_SIZE(nv_video_codecs_decode_array),
 	.codec_array = nv_video_codecs_decode_array,
 };
@@ -108,8 +104,7 @@ static const struct amdgpu_video_codecs sc_video_codecs_encode = {
 	.codec_array = sc_video_codecs_encode_array,
 };
 
-static const struct amdgpu_video_codec_info sc_video_codecs_decode_array_vcn0[] =
-{
+static const struct amdgpu_video_codec_info sc_video_codecs_decode_array_vcn0[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2, 4096, 4096, 3)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4, 4096, 4096, 5)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
@@ -120,8 +115,7 @@ static const struct amdgpu_video_codec_info sc_video_codecs_decode_array_vcn0[] 
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
 };
 
-static const struct amdgpu_video_codec_info sc_video_codecs_decode_array_vcn1[] =
-{
+static const struct amdgpu_video_codec_info sc_video_codecs_decode_array_vcn1[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2, 4096, 4096, 3)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4, 4096, 4096, 5)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
@@ -131,27 +125,23 @@ static const struct amdgpu_video_codec_info sc_video_codecs_decode_array_vcn1[] 
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
 };
 
-static const struct amdgpu_video_codecs sc_video_codecs_decode_vcn0 =
-{
+static const struct amdgpu_video_codecs sc_video_codecs_decode_vcn0 = {
 	.codec_count = ARRAY_SIZE(sc_video_codecs_decode_array_vcn0),
 	.codec_array = sc_video_codecs_decode_array_vcn0,
 };
 
-static const struct amdgpu_video_codecs sc_video_codecs_decode_vcn1 =
-{
+static const struct amdgpu_video_codecs sc_video_codecs_decode_vcn1 = {
 	.codec_count = ARRAY_SIZE(sc_video_codecs_decode_array_vcn1),
 	.codec_array = sc_video_codecs_decode_array_vcn1,
 };
 
 /* SRIOV Sienna Cichlid, not const since data is controlled by host */
-static struct amdgpu_video_codec_info sriov_sc_video_codecs_encode_array[] =
-{
+static struct amdgpu_video_codec_info sriov_sc_video_codecs_encode_array[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 2160, 0)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 7680, 4352, 0)},
 };
 
-static struct amdgpu_video_codec_info sriov_sc_video_codecs_decode_array_vcn0[] =
-{
+static struct amdgpu_video_codec_info sriov_sc_video_codecs_decode_array_vcn0[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2, 4096, 4096, 3)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4, 4096, 4096, 5)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
@@ -162,8 +152,7 @@ static struct amdgpu_video_codec_info sriov_sc_video_codecs_decode_array_vcn0[] 
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
 };
 
-static struct amdgpu_video_codec_info sriov_sc_video_codecs_decode_array_vcn1[] =
-{
+static struct amdgpu_video_codec_info sriov_sc_video_codecs_decode_array_vcn1[] = {
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG2, 4096, 4096, 3)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4, 4096, 4096, 5)},
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
@@ -173,20 +162,17 @@ static struct amdgpu_video_codec_info sriov_sc_video_codecs_decode_array_vcn1[] 
 	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
 };
 
-static struct amdgpu_video_codecs sriov_sc_video_codecs_encode =
-{
+static struct amdgpu_video_codecs sriov_sc_video_codecs_encode = {
 	.codec_count = ARRAY_SIZE(sriov_sc_video_codecs_encode_array),
 	.codec_array = sriov_sc_video_codecs_encode_array,
 };
 
-static struct amdgpu_video_codecs sriov_sc_video_codecs_decode_vcn0 =
-{
+static struct amdgpu_video_codecs sriov_sc_video_codecs_decode_vcn0 = {
 	.codec_count = ARRAY_SIZE(sriov_sc_video_codecs_decode_array_vcn0),
 	.codec_array = sriov_sc_video_codecs_decode_array_vcn0,
 };
 
-static struct amdgpu_video_codecs sriov_sc_video_codecs_decode_vcn1 =
-{
+static struct amdgpu_video_codecs sriov_sc_video_codecs_decode_vcn1 = {
 	.codec_count = ARRAY_SIZE(sriov_sc_video_codecs_decode_array_vcn1),
 	.codec_array = sriov_sc_video_codecs_decode_array_vcn1,
 };
@@ -341,11 +327,6 @@ void nv_grbm_select(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmGRBM_GFX_CNTL, grbm_gfx_cntl);
 }
 
-static void nv_vga_set_state(struct amdgpu_device *adev, bool state)
-{
-	/* todo */
-}
-
 static bool nv_read_disabled_bios(struct amdgpu_device *adev)
 {
 	/* todo */
@@ -381,12 +362,12 @@ static uint32_t nv_read_indexed_register(struct amdgpu_device *adev, u32 se_num,
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff, 0);
 
 	val = RREG32(reg_offset);
 
 	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
 	mutex_unlock(&adev->grbm_idx_mutex);
 	return val;
 }
@@ -541,8 +522,7 @@ static void nv_program_aspm(struct amdgpu_device *adev)
 
 }
 
-const struct amdgpu_ip_block_version nv_common_ip_block =
-{
+const struct amdgpu_ip_block_version nv_common_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 1,
 	.minor = 0,
@@ -575,16 +555,6 @@ static bool nv_need_reset_on_init(struct amdgpu_device *adev)
 		return true;
 
 	return false;
-}
-
-static uint64_t nv_get_pcie_replay_count(struct amdgpu_device *adev)
-{
-
-	/* TODO
-	 * dummy implement for pcie_replay_count sysfs interface
-	 * */
-
-	return 0;
 }
 
 static void nv_init_doorbell_index(struct amdgpu_device *adev)
@@ -632,9 +602,9 @@ static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
 				       bool enter)
 {
 	if (enter)
-		amdgpu_gfx_rlc_enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 	else
-		amdgpu_gfx_rlc_exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	if (adev->gfx.funcs->update_perfmon_mgcg)
 		adev->gfx.funcs->update_perfmon_mgcg(adev, !enter);
@@ -647,14 +617,12 @@ static int nv_update_umd_stable_pstate(struct amdgpu_device *adev,
 	return 0;
 }
 
-static const struct amdgpu_asic_funcs nv_asic_funcs =
-{
+static const struct amdgpu_asic_funcs nv_asic_funcs = {
 	.read_disabled_bios = &nv_read_disabled_bios,
 	.read_bios_from_rom = &amdgpu_soc15_read_bios_from_rom,
 	.read_register = &nv_read_register,
 	.reset = &nv_asic_reset,
 	.reset_method = &nv_asic_reset_method,
-	.set_vga_state = &nv_vga_set_state,
 	.get_xclk = &nv_get_xclk,
 	.set_uvd_clocks = &nv_set_uvd_clocks,
 	.set_vce_clocks = &nv_set_vce_clocks,
@@ -662,7 +630,7 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.init_doorbell_index = &nv_init_doorbell_index,
 	.need_full_reset = &nv_need_full_reset,
 	.need_reset_on_init = &nv_need_reset_on_init,
-	.get_pcie_replay_count = &nv_get_pcie_replay_count,
+	.get_pcie_replay_count = &amdgpu_nbio_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,
 	.pre_asic_init = &nv_pre_asic_init,
 	.update_umd_stable_pstate = &nv_update_umd_stable_pstate,
@@ -895,7 +863,8 @@ static int nv_common_early_init(void *handle)
 			AMD_CG_SUPPORT_ATHUB_LS |
 			AMD_CG_SUPPORT_IH_CG |
 			AMD_CG_SUPPORT_VCN_MGCG |
-			AMD_CG_SUPPORT_JPEG_MGCG;
+			AMD_CG_SUPPORT_JPEG_MGCG |
+			AMD_CG_SUPPORT_SDMA_MGCG;
 		adev->pg_flags = AMD_PG_SUPPORT_GFX_PG |
 			AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG |
@@ -956,7 +925,8 @@ static int nv_common_early_init(void *handle)
 			AMD_CG_SUPPORT_ATHUB_LS |
 			AMD_CG_SUPPORT_IH_CG |
 			AMD_CG_SUPPORT_VCN_MGCG |
-			AMD_CG_SUPPORT_JPEG_MGCG;
+			AMD_CG_SUPPORT_JPEG_MGCG |
+			AMD_CG_SUPPORT_SDMA_MGCG;
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG |

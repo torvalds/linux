@@ -19,6 +19,7 @@
 #include <asm/unistd.h>
 
 #include "../kselftest_harness.h"
+#include "user_events_selftests.h"
 
 const char *data_file = "/sys/kernel/tracing/user_events_data";
 const char *enable_file = "/sys/kernel/tracing/events/user_events/__abi_event/enable";
@@ -46,7 +47,7 @@ static int change_event(bool enable)
 	return ret;
 }
 
-static int reg_enable(long *enable, int size, int bit)
+static int reg_enable(void *enable, int size, int bit)
 {
 	struct user_reg reg = {0};
 	int fd = open(data_file, O_RDWR);
@@ -68,7 +69,7 @@ static int reg_enable(long *enable, int size, int bit)
 	return ret;
 }
 
-static int reg_disable(long *enable, int bit)
+static int reg_disable(void *enable, int bit)
 {
 	struct user_unreg reg = {0};
 	int fd = open(data_file, O_RDWR);
@@ -89,15 +90,21 @@ static int reg_disable(long *enable, int bit)
 }
 
 FIXTURE(user) {
-	long check;
+	int check;
+	long check_long;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
+
 	change_event(false);
 	self->check = 0;
+	self->check_long = 0;
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
 }
 
 TEST_F(user, enablement) {
@@ -131,9 +138,9 @@ TEST_F(user, bit_sizes) {
 
 #if BITS_PER_LONG == 8
 	/* Allow 0-64 bits for 64-bit */
-	ASSERT_EQ(0, reg_enable(&self->check, sizeof(long), 63));
-	ASSERT_NE(0, reg_enable(&self->check, sizeof(long), 64));
-	ASSERT_EQ(0, reg_disable(&self->check, 63));
+	ASSERT_EQ(0, reg_enable(&self->check_long, sizeof(long), 63));
+	ASSERT_NE(0, reg_enable(&self->check_long, sizeof(long), 64));
+	ASSERT_EQ(0, reg_disable(&self->check_long, 63));
 #endif
 
 	/* Disallowed sizes (everything beside 4 and 8) */
@@ -195,7 +202,7 @@ static int clone_check(void *check)
 	for (i = 0; i < 10; ++i) {
 		usleep(100000);
 
-		if (*(long *)check)
+		if (*(int *)check)
 			return 0;
 	}
 

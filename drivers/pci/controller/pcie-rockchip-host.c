@@ -24,10 +24,8 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_pci.h>
-#include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/phy/phy.h>
@@ -1009,7 +1007,7 @@ err_set_vpcie:
 	return err;
 }
 
-static int rockchip_pcie_remove(struct platform_device *pdev)
+static void rockchip_pcie_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
@@ -1029,8 +1027,6 @@ static int rockchip_pcie_remove(struct platform_device *pdev)
 		regulator_disable(rockchip->vpcie3v3);
 	regulator_disable(rockchip->vpcie1v8);
 	regulator_disable(rockchip->vpcie0v9);
-
-	return 0;
 }
 
 static const struct dev_pm_ops rockchip_pcie_pm_ops = {
@@ -1051,7 +1047,7 @@ static struct platform_driver rockchip_pcie_driver = {
 		.pm = &rockchip_pcie_pm_ops,
 	},
 	.probe = rockchip_pcie_probe,
-	.remove = rockchip_pcie_remove,
+	.remove_new = rockchip_pcie_remove,
 };
 module_platform_driver(rockchip_pcie_driver);
 

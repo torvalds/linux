@@ -27,7 +27,7 @@ static void perf_begin(struct intel_gt *gt)
 
 	/* Boost gpufreq to max [waitboost] and keep it fixed */
 	atomic_inc(&gt->rps.num_waiters);
-	schedule_work(&gt->rps.work);
+	queue_work(gt->i915->unordered_wq, &gt->rps.work);
 	flush_work(&gt->rps.work);
 }
 
@@ -62,7 +62,7 @@ static int write_timestamp(struct i915_request *rq, int slot)
 		return PTR_ERR(cs);
 
 	cmd = MI_STORE_REGISTER_MEM | MI_USE_GGTT;
-	if (GRAPHICS_VER(rq->engine->i915) >= 8)
+	if (GRAPHICS_VER(rq->i915) >= 8)
 		cmd++;
 	*cs++ = cmd;
 	*cs++ = i915_mmio_reg_offset(timestamp_reg(rq->engine));

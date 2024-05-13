@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/math.h>
 #include <linux/string_helpers.h>
 
 #include "i915_reg.h"
@@ -169,8 +170,8 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 		return;
 
 	cur_state = intel_dpll_get_hw_state(dev_priv, pll, &hw_state);
-	I915_STATE_WARN(cur_state != state,
-	     "%s assertion failure (expected %s, current %s)\n",
+	I915_STATE_WARN(dev_priv, cur_state != state,
+			"%s assertion failure (expected %s, current %s)\n",
 			pll->info->name, str_on_off(state),
 			str_on_off(cur_state));
 }
@@ -191,7 +192,8 @@ intel_combo_pll_enable_reg(struct drm_i915_private *i915,
 {
 	if (IS_DG1(i915))
 		return DG1_DPLL_ENABLE(pll->info->id);
-	else if (IS_JSL_EHL(i915) && (pll->info->id == DPLL_ID_EHL_DPLL4))
+	else if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
+		 (pll->info->id == DPLL_ID_EHL_DPLL4))
 		return MG_PLL_ENABLE(0);
 
 	return ICL_DPLL_ENABLE(pll->info->id);
@@ -351,13 +353,35 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 	return NULL;
 }
 
+/**
+ * intel_reference_shared_dpll_crtc - Get a DPLL reference for a CRTC
+ * @crtc: CRTC on which behalf the reference is taken
+ * @pll: DPLL for which the reference is taken
+ * @shared_dpll_state: the DPLL atomic state in which the reference is tracked
+ *
+ * Take a reference for @pll tracking the use of it by @crtc.
+ */
+static void
+intel_reference_shared_dpll_crtc(const struct intel_crtc *crtc,
+				 const struct intel_shared_dpll *pll,
+				 struct intel_shared_dpll_state *shared_dpll_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	drm_WARN_ON(&i915->drm, (shared_dpll_state->pipe_mask & BIT(crtc->pipe)) != 0);
+
+	shared_dpll_state->pipe_mask |= BIT(crtc->pipe);
+
+	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] reserving %s\n",
+		    crtc->base.base.id, crtc->base.name, pll->info->name);
+}
+
 static void
 intel_reference_shared_dpll(struct intel_atomic_state *state,
 			    const struct intel_crtc *crtc,
 			    const struct intel_shared_dpll *pll,
 			    const struct intel_dpll_hw_state *pll_state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_shared_dpll_state *shared_dpll;
 	const enum intel_dpll_id id = pll->info->id;
 
@@ -366,11 +390,29 @@ intel_reference_shared_dpll(struct intel_atomic_state *state,
 	if (shared_dpll[id].pipe_mask == 0)
 		shared_dpll[id].hw_state = *pll_state;
 
-	drm_WARN_ON(&i915->drm, (shared_dpll[id].pipe_mask & BIT(crtc->pipe)) != 0);
+	intel_reference_shared_dpll_crtc(crtc, pll, &shared_dpll[id]);
+}
 
-	shared_dpll[id].pipe_mask |= BIT(crtc->pipe);
+/**
+ * intel_unreference_shared_dpll_crtc - Drop a DPLL reference for a CRTC
+ * @crtc: CRTC on which behalf the reference is dropped
+ * @pll: DPLL for which the reference is dropped
+ * @shared_dpll_state: the DPLL atomic state in which the reference is tracked
+ *
+ * Drop a reference for @pll tracking the end of use of it by @crtc.
+ */
+void
+intel_unreference_shared_dpll_crtc(const struct intel_crtc *crtc,
+				   const struct intel_shared_dpll *pll,
+				   struct intel_shared_dpll_state *shared_dpll_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] reserving %s\n",
+	drm_WARN_ON(&i915->drm, (shared_dpll_state->pipe_mask & BIT(crtc->pipe)) == 0);
+
+	shared_dpll_state->pipe_mask &= ~BIT(crtc->pipe);
+
+	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] releasing %s\n",
 		    crtc->base.base.id, crtc->base.name, pll->info->name);
 }
 
@@ -378,18 +420,12 @@ static void intel_unreference_shared_dpll(struct intel_atomic_state *state,
 					  const struct intel_crtc *crtc,
 					  const struct intel_shared_dpll *pll)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_shared_dpll_state *shared_dpll;
 	const enum intel_dpll_id id = pll->info->id;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	drm_WARN_ON(&i915->drm, (shared_dpll[id].pipe_mask & BIT(crtc->pipe)) == 0);
-
-	shared_dpll[id].pipe_mask &= ~BIT(crtc->pipe);
-
-	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] releasing %s\n",
-		    crtc->base.base.id, crtc->base.name, pll->info->name);
+	intel_unreference_shared_dpll_crtc(crtc, pll, &shared_dpll[id]);
 }
 
 static void intel_put_dpll(struct intel_atomic_state *state,
@@ -464,12 +500,11 @@ static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 	u32 val;
 	bool enabled;
 
-	I915_STATE_WARN_ON(!(HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)));
-
 	val = intel_de_read(dev_priv, PCH_DREF_CONTROL);
 	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_NONSPREAD_SOURCE_MASK |
 			    DREF_SUPERSPREAD_SOURCE_MASK));
-	I915_STATE_WARN(!enabled, "PCH refclk assertion failure, should be active but is disabled\n");
+	I915_STATE_WARN(dev_priv, !enabled,
+			"PCH refclk assertion failure, should be active but is disabled\n");
 }
 
 static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
@@ -894,7 +929,7 @@ static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 	switch (wrpll & WRPLL_REF_MASK) {
 	case WRPLL_REF_SPECIAL_HSW:
 		/* Muxed-SSC for BDW, non-SSC for non-ULT HSW. */
-		if (IS_HASWELL(dev_priv) && !IS_HSW_ULT(dev_priv)) {
+		if (IS_HASWELL(dev_priv) && !IS_HASWELL_ULT(dev_priv)) {
 			refclk = dev_priv->display.dpll.ref_clks.nssc;
 			break;
 		}
@@ -2427,8 +2462,8 @@ static void icl_wrpll_params_populate(struct skl_wrpll_params *params,
 static bool
 ehl_combo_pll_div_frac_wa_needed(struct drm_i915_private *i915)
 {
-	return ((IS_PLATFORM(i915, INTEL_ELKHARTLAKE) &&
-		 IS_JSL_EHL_DISPLAY_STEP(i915, STEP_B0, STEP_FOREVER)) ||
+	return (((IS_ELKHARTLAKE(i915) || IS_JASPERLAKE(i915)) &&
+		 IS_DISPLAY_STEP(i915, STEP_B0, STEP_FOREVER)) ||
 		 IS_TIGERLAKE(i915) || IS_ALDERLAKE_S(i915) || IS_ALDERLAKE_P(i915)) &&
 		 i915->display.dpll.ref_clks.nssc == 38400;
 }
@@ -3193,7 +3228,8 @@ static int icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 			BIT(DPLL_ID_EHL_DPLL4) |
 			BIT(DPLL_ID_ICL_DPLL1) |
 			BIT(DPLL_ID_ICL_DPLL0);
-	} else if (IS_JSL_EHL(dev_priv) && port != PORT_A) {
+	} else if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
+				port != PORT_A) {
 		dpll_mask =
 			BIT(DPLL_ID_EHL_DPLL4) |
 			BIT(DPLL_ID_ICL_DPLL1) |
@@ -3534,7 +3570,8 @@ static bool icl_pll_get_hw_state(struct drm_i915_private *dev_priv,
 			hw_state->div0 &= TGL_DPLL0_DIV0_AFC_STARTUP_MASK;
 		}
 	} else {
-		if (IS_JSL_EHL(dev_priv) && id == DPLL_ID_EHL_DPLL4) {
+		if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
+		    id == DPLL_ID_EHL_DPLL4) {
 			hw_state->cfgcr0 = intel_de_read(dev_priv,
 							 ICL_DPLL_CFGCR0(4));
 			hw_state->cfgcr1 = intel_de_read(dev_priv,
@@ -3590,7 +3627,8 @@ static void icl_dpll_write(struct drm_i915_private *dev_priv,
 		cfgcr1_reg = TGL_DPLL_CFGCR1(id);
 		div0_reg = TGL_DPLL0_DIV0(id);
 	} else {
-		if (IS_JSL_EHL(dev_priv) && id == DPLL_ID_EHL_DPLL4) {
+		if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
+		    id == DPLL_ID_EHL_DPLL4) {
 			cfgcr0_reg = ICL_DPLL_CFGCR0(4);
 			cfgcr1_reg = ICL_DPLL_CFGCR1(4);
 		} else {
@@ -3748,7 +3786,7 @@ static void adlp_cmtg_clock_gating_wa(struct drm_i915_private *i915, struct inte
 {
 	u32 val;
 
-	if (!IS_ADLP_DISPLAY_STEP(i915, STEP_A0, STEP_B0) ||
+	if (!(IS_ALDERLAKE_P(i915) && IS_DISPLAY_STEP(i915, STEP_A0, STEP_B0)) ||
 	    pll->info->id != DPLL_ID_ICL_DPLL0)
 		return;
 	/*
@@ -3773,7 +3811,7 @@ static void combo_pll_enable(struct drm_i915_private *dev_priv,
 {
 	i915_reg_t enable_reg = intel_combo_pll_enable_reg(dev_priv, pll);
 
-	if (IS_JSL_EHL(dev_priv) &&
+	if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
 	    pll->info->id == DPLL_ID_EHL_DPLL4) {
 
 		/*
@@ -3881,7 +3919,7 @@ static void combo_pll_disable(struct drm_i915_private *dev_priv,
 
 	icl_pll_disable(dev_priv, pll, enable_reg);
 
-	if (IS_JSL_EHL(dev_priv) &&
+	if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
 	    pll->info->id == DPLL_ID_EHL_DPLL4)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_DC_OFF,
 					pll->wakeref);
@@ -4104,7 +4142,7 @@ void intel_shared_dpll_init(struct drm_i915_private *dev_priv)
 
 	mutex_init(&dev_priv->display.dpll.lock);
 
-	if (IS_DG2(dev_priv))
+	if (DISPLAY_VER(dev_priv) >= 14 || IS_DG2(dev_priv))
 		/* No shared DPLLs on DG2; port PLLs are part of the PHY */
 		dpll_mgr = NULL;
 	else if (IS_ALDERLAKE_P(dev_priv))
@@ -4117,7 +4155,7 @@ void intel_shared_dpll_init(struct drm_i915_private *dev_priv)
 		dpll_mgr = &rkl_pll_mgr;
 	else if (DISPLAY_VER(dev_priv) >= 12)
 		dpll_mgr = &tgl_pll_mgr;
-	else if (IS_JSL_EHL(dev_priv))
+	else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv))
 		dpll_mgr = &ehl_pll_mgr;
 	else if (DISPLAY_VER(dev_priv) >= 11)
 		dpll_mgr = &icl_pll_mgr;
@@ -4302,7 +4340,8 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 
 	pll->on = intel_dpll_get_hw_state(i915, pll, &pll->state.hw_state);
 
-	if (IS_JSL_EHL(i915) && pll->on &&
+	if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
+	    pll->on &&
 	    pll->info->id == DPLL_ID_EHL_DPLL4) {
 		pll->wakeref = intel_display_power_get(i915,
 						       POWER_DOMAIN_DC_OFF);
@@ -4314,7 +4353,7 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 			to_intel_crtc_state(crtc->base.state);
 
 		if (crtc_state->hw.active && crtc_state->shared_dpll == pll)
-			pll->state.pipe_mask |= BIT(crtc->pipe);
+			intel_reference_shared_dpll_crtc(crtc, pll, &pll->state);
 	}
 	pll->active_mask = pll->state.pipe_mask;
 
@@ -4407,17 +4446,18 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 	active = intel_dpll_get_hw_state(dev_priv, pll, &dpll_hw_state);
 
 	if (!(pll->info->flags & INTEL_DPLL_ALWAYS_ON)) {
-		I915_STATE_WARN(!pll->on && pll->active_mask,
+		I915_STATE_WARN(dev_priv, !pll->on && pll->active_mask,
 				"pll in active use but not on in sw tracking\n");
-		I915_STATE_WARN(pll->on && !pll->active_mask,
+		I915_STATE_WARN(dev_priv, pll->on && !pll->active_mask,
 				"pll is on but not used by any active pipe\n");
-		I915_STATE_WARN(pll->on != active,
+		I915_STATE_WARN(dev_priv, pll->on != active,
 				"pll on state mismatch (expected %i, found %i)\n",
 				pll->on, active);
 	}
 
 	if (!crtc) {
-		I915_STATE_WARN(pll->active_mask & ~pll->state.pipe_mask,
+		I915_STATE_WARN(dev_priv,
+				pll->active_mask & ~pll->state.pipe_mask,
 				"more active pll users than references: 0x%x vs 0x%x\n",
 				pll->active_mask, pll->state.pipe_mask);
 
@@ -4427,20 +4467,20 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 	pipe_mask = BIT(crtc->pipe);
 
 	if (new_crtc_state->hw.active)
-		I915_STATE_WARN(!(pll->active_mask & pipe_mask),
+		I915_STATE_WARN(dev_priv, !(pll->active_mask & pipe_mask),
 				"pll active mismatch (expected pipe %c in active mask 0x%x)\n",
 				pipe_name(crtc->pipe), pll->active_mask);
 	else
-		I915_STATE_WARN(pll->active_mask & pipe_mask,
+		I915_STATE_WARN(dev_priv, pll->active_mask & pipe_mask,
 				"pll active mismatch (didn't expect pipe %c in active mask 0x%x)\n",
 				pipe_name(crtc->pipe), pll->active_mask);
 
-	I915_STATE_WARN(!(pll->state.pipe_mask & pipe_mask),
+	I915_STATE_WARN(dev_priv, !(pll->state.pipe_mask & pipe_mask),
 			"pll enabled crtcs mismatch (expected 0x%x in 0x%x)\n",
 			pipe_mask, pll->state.pipe_mask);
 
-	I915_STATE_WARN(pll->on && memcmp(&pll->state.hw_state,
-					  &dpll_hw_state,
+	I915_STATE_WARN(dev_priv,
+			pll->on && memcmp(&pll->state.hw_state, &dpll_hw_state,
 					  sizeof(dpll_hw_state)),
 			"pll hw state mismatch\n");
 }
@@ -4460,10 +4500,10 @@ void intel_shared_dpll_state_verify(struct intel_crtc *crtc,
 		u8 pipe_mask = BIT(crtc->pipe);
 		struct intel_shared_dpll *pll = old_crtc_state->shared_dpll;
 
-		I915_STATE_WARN(pll->active_mask & pipe_mask,
+		I915_STATE_WARN(dev_priv, pll->active_mask & pipe_mask,
 				"pll active mismatch (didn't expect pipe %c in active mask (0x%x))\n",
 				pipe_name(crtc->pipe), pll->active_mask);
-		I915_STATE_WARN(pll->state.pipe_mask & pipe_mask,
+		I915_STATE_WARN(dev_priv, pll->state.pipe_mask & pipe_mask,
 				"pll enabled crtcs mismatch (found %x in enabled mask (0x%x))\n",
 				pipe_name(crtc->pipe), pll->state.pipe_mask);
 	}

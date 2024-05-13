@@ -440,7 +440,7 @@ static int vfb_probe(struct platform_device *dev)
 	if (!info)
 		goto err;
 
-	info->screen_base = (char __iomem *)videomemory;
+	info->screen_buffer = videomemory;
 	info->fbops = &vfb_ops;
 
 	if (!fb_find_mode(&info->var, info, mode_option,
@@ -455,7 +455,6 @@ static int vfb_probe(struct platform_device *dev)
 	info->fix = vfb_fix;
 	info->pseudo_palette = info->par;
 	info->par = NULL;
-	info->flags = FBINFO_FLAG_DEFAULT;
 
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (retval < 0)

@@ -28,6 +28,8 @@ void bpf_cpumask_release(struct bpf_cpumask *cpumask) __ksym;
 struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask) __ksym;
 u32 bpf_cpumask_first(const struct cpumask *cpumask) __ksym;
 u32 bpf_cpumask_first_zero(const struct cpumask *cpumask) __ksym;
+u32 bpf_cpumask_first_and(const struct cpumask *src1,
+			  const struct cpumask *src2) __ksym;
 void bpf_cpumask_set_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym;
 void bpf_cpumask_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym;
 bool bpf_cpumask_test_cpu(u32 cpu, const struct cpumask *cpumask) __ksym;
@@ -50,8 +52,8 @@ bool bpf_cpumask_subset(const struct cpumask *src1, const struct cpumask *src2) 
 bool bpf_cpumask_empty(const struct cpumask *cpumask) __ksym;
 bool bpf_cpumask_full(const struct cpumask *cpumask) __ksym;
 void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask *src) __ksym;
-u32 bpf_cpumask_any(const struct cpumask *src) __ksym;
-u32 bpf_cpumask_any_and(const struct cpumask *src1, const struct cpumask *src2) __ksym;
+u32 bpf_cpumask_any_distribute(const struct cpumask *src) __ksym;
+u32 bpf_cpumask_any_and_distribute(const struct cpumask *src1, const struct cpumask *src2) __ksym;
 
 void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;

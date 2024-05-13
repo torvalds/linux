@@ -2,7 +2,7 @@
 /*
  * Access vector cache interface for object managers.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 #ifndef _SELINUX_AVC_H_
 #define _SELINUX_AVC_H_
@@ -167,9 +167,6 @@ int avc_add_callback(int (*callback)(u32 event), u32 events);
 int avc_get_hash_stats(char *page);
 unsigned int avc_get_cache_threshold(void);
 void avc_set_cache_threshold(unsigned int cache_threshold);
-
-/* Attempt to free avc node cache */
-void avc_disable(void);
 
 #ifdef CONFIG_SECURITY_SELINUX_AVC_STATS
 DECLARE_PER_CPU(struct avc_cache_stats, avc_cache_stats);

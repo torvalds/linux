@@ -595,7 +595,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 static struct usb_request *
 mv_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
-	struct mv_req *req = NULL;
+	struct mv_req *req;
 
 	req = kzalloc(sizeof *req, gfp_flags);
 	if (!req)
@@ -2077,7 +2077,7 @@ static void gadget_release(struct device *_dev)
 	complete(udc->done);
 }
 
-static int mv_udc_remove(struct platform_device *pdev)
+static void mv_udc_remove(struct platform_device *pdev)
 {
 	struct mv_udc *udc;
 
@@ -2099,8 +2099,6 @@ static int mv_udc_remove(struct platform_device *pdev)
 
 	/* free dev, wait for the release() finished */
 	wait_for_completion(udc->done);
-
-	return 0;
 }
 
 static int mv_udc_probe(struct platform_device *pdev)
@@ -2411,7 +2409,7 @@ static void mv_udc_shutdown(struct platform_device *pdev)
 
 static struct platform_driver udc_driver = {
 	.probe		= mv_udc_probe,
-	.remove		= mv_udc_remove,
+	.remove_new	= mv_udc_remove,
 	.shutdown	= mv_udc_shutdown,
 	.driver		= {
 		.name	= "mv-udc",

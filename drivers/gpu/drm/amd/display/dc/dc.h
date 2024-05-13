@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-14 Advanced Micro Devices, Inc.
+ * Copyright 2012-2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,12 +40,14 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
+struct abm_save_restore;
+
 /* forward declaration */
 struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.230"
+#define DC_VER "3.2.247"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -60,7 +62,9 @@ struct dc_versions {
 };
 
 enum dp_protocol_version {
-	DP_VERSION_1_4,
+	DP_VERSION_1_4 = 0,
+	DP_VERSION_2_1,
+	DP_VERSION_UNKNOWN,
 };
 
 enum dc_plane_type {
@@ -209,6 +213,8 @@ struct dc_color_caps {
 struct dc_dmub_caps {
 	bool psr;
 	bool mclk_sw;
+	bool subvp_psr;
+	bool gecc_enable;
 };
 
 struct dc_caps {
@@ -262,6 +268,7 @@ struct dc_caps {
 	uint16_t subvp_pstate_allow_width_us;
 	uint16_t subvp_vertical_int_margin_us;
 	bool seamless_odm;
+	uint32_t max_v_total;
 	uint8_t subvp_drr_vblank_start_margin_us;
 };
 
@@ -270,8 +277,13 @@ struct dc_bug_wa {
 	bool dedcn20_305_wa;
 	bool skip_clock_update;
 	bool lt_early_cr_pattern;
+	struct {
+		uint8_t uclk : 1;
+		uint8_t fclk : 1;
+		uint8_t dcfclk : 1;
+		uint8_t dcfclk_ds: 1;
+	} clock_update_disable_mask;
 };
-
 struct dc_dcc_surface_param {
 	struct dc_size surface_size;
 	enum surface_pixel_format format;
@@ -406,7 +418,7 @@ struct dc_config {
 	uint8_t force_bios_fixed_vs;
 	int sdpif_request_limit_words_per_umc;
 	bool use_old_fixed_vs_sequence;
-	bool disable_subvp_drr;
+	bool dc_mode_clk_limit_support;
 };
 
 enum visual_confirm {
@@ -418,7 +430,9 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SWAPCHAIN = 6,
 	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
+	VISUAL_CONFIRM_REPLAY = 12,
 	VISUAL_CONFIRM_SUBVP = 14,
+	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 };
 
 enum dc_psr_power_opts {
@@ -495,7 +509,7 @@ enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
 
-/**
+/*
  * struct dc_clocks - DC pipe clocks
  *
  * For any clocks that may differ per pipe only the max is stored in this
@@ -698,6 +712,8 @@ struct dc_virtual_addr_space_config {
 struct dc_bounding_box_overrides {
 	int sr_exit_time_ns;
 	int sr_enter_plus_exit_time_ns;
+	int sr_exit_z8_time_ns;
+	int sr_enter_plus_exit_z8_time_ns;
 	int urgent_latency_ns;
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
@@ -715,7 +731,7 @@ struct resource_pool;
 struct dce_hwseq;
 struct link_service;
 
-/**
+/*
  * struct dc_debug_options - DC debug struct
  *
  * This struct provides a simple mechanism for developers to change some
@@ -743,7 +759,7 @@ struct dc_debug_options {
 	bool use_max_lb;
 	enum dcc_option disable_dcc;
 
-	/**
+	/*
 	 * @pipe_split_policy: Define which pipe split policy is used by the
 	 * display core.
 	 */
@@ -767,6 +783,8 @@ struct dc_debug_options {
 	int sr_enter_plus_exit_time_dpm0_ns;
 	int sr_exit_time_ns;
 	int sr_enter_plus_exit_time_ns;
+	int sr_exit_z8_time_ns;
+	int sr_enter_plus_exit_z8_time_ns;
 	int urgent_latency_ns;
 	uint32_t underflow_assert_delay_us;
 	int percent_of_ideal_drambw;
@@ -835,6 +853,7 @@ struct dc_debug_options {
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
 	bool disable_fams;
+	bool disable_fams_gaming;
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
@@ -845,6 +864,7 @@ struct dc_debug_options {
 	bool psr_skip_crtc_disable;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
+	uint32_t fixed_vs_aux_delay_config_wa;
 	bool force_disable_subvp;
 	bool force_subvp_mclk_switch;
 	bool allow_sw_cursor_fallback;
@@ -855,7 +875,6 @@ struct dc_debug_options {
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
-	uint32_t fixed_vs_aux_delay_config_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
 	uint32_t mst_start_top_delay;
@@ -879,9 +898,26 @@ struct dc_debug_options {
 	uint32_t fpo_vactive_margin_us;
 	bool disable_fpo_vactive;
 	bool disable_boot_optimizations;
+	bool override_odm_optimization;
+	bool minimize_dispclk_using_odm;
+	bool disable_subvp_high_refresh;
+	bool disable_dp_plus_plus_wa;
+	uint32_t fpo_vactive_min_active_margin_us;
+	uint32_t fpo_vactive_max_blank_us;
+	bool enable_legacy_fast_update;
+	bool disable_dc_mode_overwrite;
+	bool replay_skip_crtc_disabled;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
+
+/* Generic structure that can be used to query properties of DC. More fields
+ * can be added as required.
+ */
+struct dc_current_properties {
+	unsigned int cursor_size_limit;
+};
+
 struct dc {
 	struct dc_debug_options debug;
 	struct dc_versions versions;
@@ -1242,6 +1278,16 @@ struct dc_scaling_info {
 	struct scaling_taps scaling_quality;
 };
 
+struct dc_fast_update {
+	const struct dc_flip_addrs *flip_addr;
+	const struct dc_gamma *gamma;
+	const struct colorspace_transform *gamut_remap_matrix;
+	const struct dc_csc_transform *input_csc_color_matrix;
+	const struct fixed31_32 *coeff_reduction_factor;
+	struct dc_transfer_func *out_transfer_func;
+	struct dc_csc_transform *output_csc_transform;
+};
+
 struct dc_surface_update {
 	struct dc_plane_state *surface;
 
@@ -1301,7 +1347,7 @@ struct dc_validation_set {
 	struct dc_stream_state *stream;
 
 	/**
-	 * @plane_state: Surface state
+	 * @plane_states: Surface state
 	 */
 	struct dc_plane_state *plane_states[MAX_SURFACES];
 
@@ -1376,10 +1422,14 @@ struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
 
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
+void dc_set_disable_128b_132b_stream_overhead(bool disable);
+
 /* The function returns minimum bandwidth required to drive a given timing
  * return - minimum required timing bandwidth in kbps.
  */
-uint32_t dc_bandwidth_in_kbps_from_timing(const struct dc_crtc_timing *timing);
+uint32_t dc_bandwidth_in_kbps_from_timing(
+		const struct dc_crtc_timing *timing,
+		const enum dc_link_encoding_format link_encoding);
 
 /* Link Interfaces */
 /*
@@ -1446,8 +1496,10 @@ struct dc_link {
 	 * object creation.
 	 */
 	enum engine_id eng_id;
+	enum engine_id dpia_preferred_eng_id;
 
 	bool test_pattern_enabled;
+	enum dp_test_pattern current_test_pattern;
 	union compliance_test_state compliance_test_state;
 
 	void *priv;
@@ -1481,7 +1533,10 @@ struct dc_link {
 	enum edp_revision edp_revision;
 	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
 
+	struct backlight_settings backlight_settings;
 	struct psr_settings psr_settings;
+
+	struct replay_settings replay_settings;
 
 	/* Drive settings read from integrated info table */
 	struct dc_lane_settings bios_forced_drive_settings;
@@ -1502,6 +1557,8 @@ struct dc_link {
 		/* Forced DPIA into TBT3 compatibility mode. */
 		bool dpia_forced_tbt3_mode;
 		bool dongle_mode_timing_override;
+		bool blank_stream_on_ocs_change;
+		bool read_dpcd204h_on_irq_hpd;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
@@ -1814,6 +1871,14 @@ enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(
  */
 const struct dc_link_settings *dc_link_get_link_cap(const struct dc_link *link);
 
+/* Get the highest encoding format that the link supports; highest meaning the
+ * encoding format which supports the maximum bandwidth.
+ *
+ * @link - a link with DP RX connection
+ * return - highest encoding format link supports.
+ */
+enum dc_link_encoding_format dc_link_get_highest_encoding_format(const struct dc_link *link);
+
 /* Check if a RX (ex. DP sink, MST hub, passive or active dongle) is connected
  * to a link with dp connector signal type.
  * @link - a link with dp connector signal type
@@ -1947,6 +2012,8 @@ bool dc_link_get_psr_state(const struct dc_link *dc_link, enum dc_psr_state *sta
 bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
+
+bool dc_link_get_replay_state(const struct dc_link *dc_link, uint64_t *state);
 
 /* On eDP links this function call will stall until T12 has elapsed.
  * If the panel is not in power off state, this function will return
@@ -2126,8 +2193,6 @@ struct dc_sink_init_data {
 	bool converter_disable_audio;
 };
 
-bool dc_extended_blank_supported(struct dc *dc);
-
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
 
 /* Newer interfaces  */
@@ -2197,6 +2262,11 @@ void dc_z10_save_init(struct dc *dc);
 bool dc_is_dmub_outbox_supported(struct dc *dc);
 bool dc_enable_dmub_notifications(struct dc *dc);
 
+bool dc_abm_save_restore(
+		struct dc *dc,
+		struct dc_stream_state *stream,
+		struct abm_save_restore *pData);
+
 void dc_enable_dmub_outbox(struct dc *dc);
 
 bool dc_process_dmub_aux_transfer_async(struct dc *dc,
@@ -2220,10 +2290,17 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable);
 
+void dc_print_dmub_diagnostic_data(const struct dc *dc);
+
+void dc_query_current_properties(struct dc *dc, struct dc_current_properties *properties);
+
 /* DSC Interfaces */
 #include "dc_dsc.h"
 
 /* Disable acc mode Interfaces */
 void dc_disable_accelerated_mode(struct dc *dc);
+
+bool dc_is_timing_changed(struct dc_stream_state *cur_stream,
+		       struct dc_stream_state *new_stream);
 
 #endif /* DC_INTERFACE_H_ */

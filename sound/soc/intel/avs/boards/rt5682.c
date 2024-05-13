@@ -79,14 +79,31 @@ static const struct snd_soc_dapm_route card_base_routes[] = {
 	{ "IN1P", NULL, "Headset Mic" },
 };
 
+static struct snd_soc_jack_pin card_jack_pins[] = {
+	{
+		.pin = "Headphone Jack",
+		.mask = SND_JACK_HEADPHONE,
+	},
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
+
 static int avs_rt5682_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_component *component = asoc_rtd_to_codec(runtime, 0)->component;
-	struct snd_soc_jack *jack;
 	struct snd_soc_card *card = runtime->card;
-	int ret;
+	struct snd_soc_jack_pin *pins;
+	struct snd_soc_jack *jack;
+	int num_pins, ret;
 
 	jack = snd_soc_card_get_drvdata(card);
+	num_pins = ARRAY_SIZE(card_jack_pins);
+
+	pins = devm_kmemdup(card->dev, card_jack_pins, sizeof(*pins) * num_pins, GFP_KERNEL);
+	if (!pins)
+		return -ENOMEM;
 
 	/* Need to enable ASRC function for 24MHz mclk rate */
 	if ((avs_rt5682_quirk & AVS_RT5682_MCLK_EN) &&
@@ -95,12 +112,10 @@ static int avs_rt5682_codec_init(struct snd_soc_pcm_runtime *runtime)
 					RT5682_AD_STEREO1_FILTER, RT5682_CLK_SEL_I2S1_ASRC);
 	}
 
-	/*
-	 * Headset buttons map to the google Reference headset.
-	 * These can be configured by userspace.
-	 */
-	ret = snd_soc_card_jack_new(card, "Headset", SND_JACK_HEADSET | SND_JACK_BTN_0 |
-				    SND_JACK_BTN_1 | SND_JACK_BTN_2 | SND_JACK_BTN_3, jack);
+
+	ret = snd_soc_card_jack_new_pins(card, "Headset Jack", SND_JACK_HEADSET | SND_JACK_BTN_0 |
+					 SND_JACK_BTN_1 | SND_JACK_BTN_2 | SND_JACK_BTN_3, jack,
+					 pins, num_pins);
 	if (ret) {
 		dev_err(card->dev, "Headset Jack creation failed: %d\n", ret);
 		return ret;
@@ -130,39 +145,36 @@ avs_rt5682_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_para
 {
 	struct snd_soc_pcm_runtime *runtime = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(runtime, 0);
-	int clk_id, clk_freq;
-	int pll_out, ret;
+	int pll_source, freq_in, freq_out;
+	int ret;
 
 	if (avs_rt5682_quirk & AVS_RT5682_MCLK_EN) {
-		clk_id = RT5682_PLL1_S_MCLK;
+		pll_source = RT5682_PLL1_S_MCLK;
 		if (avs_rt5682_quirk & AVS_RT5682_MCLK_24MHZ)
-			clk_freq = 24000000;
+			freq_in = 24000000;
 		else
-			clk_freq = 19200000;
+			freq_in = 19200000;
 	} else {
-		clk_id = RT5682_PLL1_S_BCLK1;
-		clk_freq = params_rate(params) * 50;
+		pll_source = RT5682_PLL1_S_BCLK1;
+		freq_in = params_rate(params) * 50;
 	}
 
-	pll_out = params_rate(params) * 512;
+	freq_out = params_rate(params) * 512;
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0, clk_id, clk_freq, pll_out);
+	ret = snd_soc_dai_set_pll(codec_dai, RT5682_PLL1, pll_source, freq_in, freq_out);
 	if (ret < 0)
-		dev_err(runtime->dev, "snd_soc_dai_set_pll err = %d\n", ret);
+		dev_err(runtime->dev, "Set PLL failed: %d\n", ret);
 
-	/* Configure sysclk for codec */
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL1, pll_out, SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL1, freq_out, SND_SOC_CLOCK_IN);
 	if (ret < 0)
-		dev_err(runtime->dev, "snd_soc_dai_set_sysclk err = %d\n", ret);
+		dev_err(runtime->dev, "Set sysclk failed: %d\n", ret);
 
-	/* slot_width should equal or large than data length, set them be the same */
+	/* slot_width should be equal or larger than data length. */
 	ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x0, 0x0, 2, params_width(params));
-	if (ret < 0) {
-		dev_err(runtime->dev, "set TDM slot err:%d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		dev_err(runtime->dev, "Set TDM slot failed: %d\n", ret);
 
-	return 0;
+	return ret;
 }
 
 static const struct snd_soc_ops avs_rt5682_ops = {
@@ -220,6 +232,7 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->platforms = platform;
 	dl->num_platforms = 1;
 	dl->id = 0;
+	dl->dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBC_CFC;
 	dl->init = avs_rt5682_codec_init;
 	dl->exit = avs_rt5682_codec_exit;
 	dl->be_hw_params_fixup = avs_rt5682_be_fixup;
@@ -230,38 +243,6 @@ static int avs_create_dai_link(struct device *dev, const char *platform_name, in
 	dl->dpcm_playback = 1;
 
 	*dai_link = dl;
-
-	return 0;
-}
-
-static int avs_create_dapm_routes(struct device *dev, int ssp_port,
-				  struct snd_soc_dapm_route **routes, int *num_routes)
-{
-	struct snd_soc_dapm_route *dr;
-	const int num_base = ARRAY_SIZE(card_base_routes);
-	const int num_dr = num_base + 2;
-	int idx;
-
-	dr = devm_kcalloc(dev, num_dr, sizeof(*dr), GFP_KERNEL);
-	if (!dr)
-		return -ENOMEM;
-
-	memcpy(dr, card_base_routes, num_base * sizeof(*dr));
-
-	idx = num_base;
-	dr[idx].sink = devm_kasprintf(dev, GFP_KERNEL, "AIF1 Playback");
-	dr[idx].source = devm_kasprintf(dev, GFP_KERNEL, "ssp%d Tx", ssp_port);
-	if (!dr[idx].sink || !dr[idx].source)
-		return -ENOMEM;
-
-	idx++;
-	dr[idx].sink = devm_kasprintf(dev, GFP_KERNEL, "ssp%d Rx", ssp_port);
-	dr[idx].source = devm_kasprintf(dev, GFP_KERNEL, "AIF1 Capture");
-	if (!dr[idx].sink || !dr[idx].source)
-		return -ENOMEM;
-
-	*routes = dr;
-	*num_routes = num_dr;
 
 	return 0;
 }
@@ -283,14 +264,13 @@ static int avs_card_resume_post(struct snd_soc_card *card)
 
 static int avs_rt5682_probe(struct platform_device *pdev)
 {
-	struct snd_soc_dapm_route *routes;
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_acpi_mach *mach;
 	struct snd_soc_card *card;
 	struct snd_soc_jack *jack;
 	struct device *dev = &pdev->dev;
 	const char *pname;
-	int num_routes, ssp_port, ret;
+	int ssp_port, ret;
 
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		avs_rt5682_quirk = (unsigned long)pdev->id_entry->driver_data;
@@ -305,12 +285,6 @@ static int avs_rt5682_probe(struct platform_device *pdev)
 	ret = avs_create_dai_link(dev, pname, ssp_port, &dai_link);
 	if (ret) {
 		dev_err(dev, "Failed to create dai link: %d", ret);
-		return ret;
-	}
-
-	ret = avs_create_dapm_routes(dev, ssp_port, &routes, &num_routes);
-	if (ret) {
-		dev_err(dev, "Failed to create dapm routes: %d", ret);
 		return ret;
 	}
 
@@ -330,8 +304,8 @@ static int avs_rt5682_probe(struct platform_device *pdev)
 	card->num_controls = ARRAY_SIZE(card_controls);
 	card->dapm_widgets = card_widgets;
 	card->num_dapm_widgets = ARRAY_SIZE(card_widgets);
-	card->dapm_routes = routes;
-	card->num_dapm_routes = num_routes;
+	card->dapm_routes = card_base_routes;
+	card->num_dapm_routes = ARRAY_SIZE(card_base_routes);
 	card->fully_routed = true;
 	snd_soc_card_set_drvdata(card, jack);
 

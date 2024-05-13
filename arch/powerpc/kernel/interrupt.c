@@ -125,7 +125,7 @@ static notrace void check_return_regs_valid(struct pt_regs *regs)
 	case 0x1600:
 	case 0x1800:
 		validp = &local_paca->hsrr_valid;
-		if (!*validp)
+		if (!READ_ONCE(*validp))
 			return;
 
 		srr0 = mfspr(SPRN_HSRR0);
@@ -135,7 +135,7 @@ static notrace void check_return_regs_valid(struct pt_regs *regs)
 		break;
 	default:
 		validp = &local_paca->srr_valid;
-		if (!*validp)
+		if (!READ_ONCE(*validp))
 			return;
 
 		srr0 = mfspr(SPRN_SRR0);
@@ -161,19 +161,17 @@ static notrace void check_return_regs_valid(struct pt_regs *regs)
 	 * such things will get caught most of the time, statistically
 	 * enough to be able to get a warning out.
 	 */
-	barrier();
-
-	if (!*validp)
+	if (!READ_ONCE(*validp))
 		return;
 
-	if (!warned) {
-		warned = true;
+	if (!data_race(warned)) {
+		data_race(warned = true);
 		printk("%sSRR0 was: %lx should be: %lx\n", h, srr0, regs->nip);
 		printk("%sSRR1 was: %lx should be: %lx\n", h, srr1, regs->msr);
 		show_regs(regs);
 	}
 
-	*validp = 0; /* fixup */
+	WRITE_ONCE(*validp, 0); /* fixup */
 #endif
 }
 
@@ -368,7 +366,6 @@ void preempt_schedule_irq(void);
 
 notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs)
 {
-	unsigned long flags;
 	unsigned long ret = 0;
 	unsigned long kuap;
 	bool stack_store = read_thread_flags() & _TIF_EMULATE_STACK_STORE;
@@ -392,7 +389,7 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs)
 
 	kuap = kuap_get_and_assert_locked();
 
-	local_irq_save(flags);
+	local_irq_disable();
 
 	if (!arch_irq_disabled_regs(regs)) {
 		/* Returning to a kernel context with local irqs enabled. */

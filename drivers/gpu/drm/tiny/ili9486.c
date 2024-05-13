@@ -59,9 +59,11 @@ static int waveshare_command(struct mipi_dbi *mipi, u8 *cmd, u8 *par,
 	 * before being transferred as 8-bit on the big endian SPI bus.
 	 */
 	buf[0] = cpu_to_be16(*cmd);
+	spi_bus_lock(spi->controller);
 	gpiod_set_value_cansleep(mipi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 2);
 	ret = mipi_dbi_spi_transfer(spi, speed_hz, 8, buf, 2);
+	spi_bus_unlock(spi->controller);
 	if (ret || !num)
 		goto free;
 
@@ -79,9 +81,11 @@ static int waveshare_command(struct mipi_dbi *mipi, u8 *cmd, u8 *par,
 	if (*cmd == MIPI_DCS_WRITE_MEMORY_START && !mipi->swap_bytes)
 		bpw = 16;
 
+	spi_bus_lock(spi->controller);
 	gpiod_set_value_cansleep(mipi->dc, 1);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, num);
 	ret = mipi_dbi_spi_transfer(spi, speed_hz, bpw, data, num);
+	spi_bus_unlock(spi->controller);
  free:
 	kfree(buf);
 

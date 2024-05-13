@@ -970,29 +970,6 @@ static void gfx_v9_4_reset_ras_error_count(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmATC_L2_CACHE_4K_DSM_INDEX, 255);
 }
 
-static int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev,
-				     void *inject_if)
-{
-	struct ras_inject_if *info = (struct ras_inject_if *)inject_if;
-	int ret;
-	struct ta_ras_trigger_error_input block_info = { 0 };
-
-	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
-		return -EINVAL;
-
-	block_info.block_id = amdgpu_ras_block_to_ta(info->head.block);
-	block_info.sub_block_index = info->head.sub_block_index;
-	block_info.inject_error_type = amdgpu_ras_error_to_ta(info->head.type);
-	block_info.address = info->address;
-	block_info.value = info->value;
-
-	mutex_lock(&adev->grbm_idx_mutex);
-	ret = psp_ras_trigger_error(&adev->psp, &block_info);
-	mutex_unlock(&adev->grbm_idx_mutex);
-
-	return ret;
-}
-
 static const struct soc15_reg_entry gfx_v9_4_ea_err_status_regs =
 	{ SOC15_REG_ENTRY(GC, 0, mmGCEA_ERR_STATUS), 0, 1, 32 };
 
@@ -1030,7 +1007,6 @@ static void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev)
 
 
 const struct amdgpu_ras_block_hw_ops  gfx_v9_4_ras_ops = {
-	.ras_error_inject = &gfx_v9_4_ras_error_inject,
 	.query_ras_error_count = &gfx_v9_4_query_ras_error_count,
 	.reset_ras_error_count = &gfx_v9_4_reset_ras_error_count,
 	.query_ras_error_status = &gfx_v9_4_query_ras_error_status,

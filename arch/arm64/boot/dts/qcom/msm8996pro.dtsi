@@ -24,101 +24,121 @@
 			opp-hz = /bits/ 64 <307200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-384000000 {
 			opp-hz = /bits/ 64 <384000000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-460800000 {
 			opp-hz = /bits/ 64 <460800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-537600000 {
 			opp-hz = /bits/ 64 <537600000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-614400000 {
 			opp-hz = /bits/ 64 <614400000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-691200000 {
 			opp-hz = /bits/ 64 <691200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <307200>;
 		};
 		opp-768000000 {
 			opp-hz = /bits/ 64 <768000000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <307200>;
 		};
 		opp-844800000 {
 			opp-hz = /bits/ 64 <844800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <384000>;
 		};
 		opp-902400000 {
 			opp-hz = /bits/ 64 <902400000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <441600>;
 		};
 		opp-979200000 {
 			opp-hz = /bits/ 64 <979200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <537600>;
 		};
 		opp-1056000000 {
 			opp-hz = /bits/ 64 <1056000000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <614400>;
 		};
 		opp-1132800000 {
 			opp-hz = /bits/ 64 <1132800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <691200>;
 		};
 		opp-1209600000 {
 			opp-hz = /bits/ 64 <1209600000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <768000>;
 		};
 		opp-1286400000 {
 			opp-hz = /bits/ 64 <1286400000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <844800>;
 		};
 		opp-1363200000 {
 			opp-hz = /bits/ 64 <1363200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <902400>;
 		};
 		opp-1440000000 {
 			opp-hz = /bits/ 64 <1440000000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <979200>;
 		};
 		opp-1516800000 {
 			opp-hz = /bits/ 64 <1516800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1132800>;
 		};
 		opp-1593600000 {
 			opp-hz = /bits/ 64 <1593600000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1190400>;
 		};
 		opp-1996800000 {
 			opp-hz = /bits/ 64 <1996800000>;
 			opp-supported-hw = <0x20>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1516800>;
 		};
 		opp-2188800000 {
 			opp-hz = /bits/ 64 <2188800000>;
 			opp-supported-hw = <0x10>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1593600>;
 		};
 	};
 
@@ -131,136 +151,163 @@
 			opp-hz = /bits/ 64 <307200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-384000000 {
 			opp-hz = /bits/ 64 <384000000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-460800000 {
 			opp-hz = /bits/ 64 <460800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-537600000 {
 			opp-hz = /bits/ 64 <537600000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-614400000 {
 			opp-hz = /bits/ 64 <614400000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <192000>;
 		};
 		opp-691200000 {
 			opp-hz = /bits/ 64 <691200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <307200>;
 		};
 		opp-748800000 {
 			opp-hz = /bits/ 64 <748800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <307200>;
 		};
 		opp-825600000 {
 			opp-hz = /bits/ 64 <825600000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <384000>;
 		};
 		opp-902400000 {
 			opp-hz = /bits/ 64 <902400000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <441600>;
 		};
 		opp-979200000 {
 			opp-hz = /bits/ 64 <979200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <441600>;
 		};
 		opp-1056000000 {
 			opp-hz = /bits/ 64 <1056000000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <537600>;
 		};
 		opp-1132800000 {
 			opp-hz = /bits/ 64 <1132800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <614400>;
 		};
 		opp-1209600000 {
 			opp-hz = /bits/ 64 <1209600000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <691200>;
 		};
 		opp-1286400000 {
 			opp-hz = /bits/ 64 <1286400000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <768000>;
 		};
 		opp-1363200000 {
 			opp-hz = /bits/ 64 <1363200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <844800>;
 		};
 		opp-1440000000 {
 			opp-hz = /bits/ 64 <1440000000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <902400>;
 		};
 		opp-1516800000 {
 			opp-hz = /bits/ 64 <1516800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <979200>;
 		};
 		opp-1593600000 {
 			opp-hz = /bits/ 64 <1593600000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1056000>;
 		};
 		opp-1670400000 {
 			opp-hz = /bits/ 64 <1670400000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1132800>;
 		};
 		opp-1747200000 {
 			opp-hz = /bits/ 64 <1747200000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1190400>;
 		};
 		opp-1824000000 {
 			opp-hz = /bits/ 64 <1824000000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1286400>;
 		};
 		opp-1900800000 {
 			opp-hz = /bits/ 64 <1900800000>;
 			opp-supported-hw = <0x70>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1363200>;
 		};
 		opp-1977600000 {
 			opp-hz = /bits/ 64 <1977600000>;
 			opp-supported-hw = <0x30>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1440000>;
 		};
 		opp-2054400000 {
 			opp-hz = /bits/ 64 <2054400000>;
 			opp-supported-hw = <0x30>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1516800>;
 		};
 		opp-2150400000 {
 			opp-hz = /bits/ 64 <2150400000>;
 			opp-supported-hw = <0x30>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1593600>;
 		};
 		opp-2246400000 {
 			opp-hz = /bits/ 64 <2246400000>;
 			opp-supported-hw = <0x10>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1593600>;
 		};
 		opp-2342400000 {
 			opp-hz = /bits/ 64 <2342400000>;
 			opp-supported-hw = <0x10>;
 			clock-latency-ns = <200000>;
+			opp-peak-kBps = <1593600>;
 		};
 	};
 };
@@ -288,4 +335,8 @@
 		opp-supported-hw = <0x03>;
 	};
 	/* The rest is inherited from msm8996 */
+};
+
+&cbf {
+	compatible = "qcom,msm8996pro-cbf";
 };

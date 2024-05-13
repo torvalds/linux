@@ -10,9 +10,7 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -411,7 +409,7 @@ static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI_SEL, "axi_sel", axi_parents,
 				   0x040, 0x044, 0x048, 0, 2, 7, CLK_CFG_UPDATE,
-				   0, CLK_IS_CRITICAL),
+				   0, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MEM_SEL, "mem_sel", mem_parents, 0x040,
 			     0x044, 0x048, 8, 2, 15, CLK_CFG_UPDATE, 1),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MM_SEL, "mm_sel", mm_parents, 0x040, 0x044,
@@ -432,22 +430,22 @@ static const struct mtk_mux top_muxes[] = {
 			     0x064, 0x068, 0, 1, 7, CLK_CFG_UPDATE, 8),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPI_SEL, "spi_sel", spi_parents, 0x060,
 			     0x064, 0x068, 8, 2, 15, CLK_CFG_UPDATE, 9),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_HC_SEL, "msdc50_0_hc_sel",
-			     msdc50_0_hc_parents, 0x060, 0x064, 0x068, 16, 2,
-			     23, CLK_CFG_UPDATE, 10),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC2_2_HC_SEL, "msdc2_2_hc_sel",
-			     msdc50_0_hc_parents, 0x060, 0x064, 0x068, 24, 2,
-			     31, CLK_CFG_UPDATE, 11),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_HC_SEL, "msdc50_0_hc_sel",
+				   msdc50_0_hc_parents, 0x060, 0x064, 0x068, 16, 2,
+				   23, CLK_CFG_UPDATE, 10, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC2_2_HC_SEL, "msdc2_2_hc_sel",
+				   msdc50_0_hc_parents, 0x060, 0x064, 0x068, 24, 2,
+				   31, CLK_CFG_UPDATE, 11, 0),
 	/* CLK_CFG_3 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_SEL, "msdc50_0_sel",
-			     msdc50_0_parents, 0x070, 0x074, 0x078, 0, 3, 7,
-			     CLK_CFG_UPDATE, 12),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_2_SEL, "msdc50_2_sel",
-			     msdc50_2_parents, 0x070, 0x074, 0x078, 8, 3, 15,
-			     CLK_CFG_UPDATE, 13),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC30_1_SEL, "msdc30_1_sel",
-			     msdc30_1_parents, 0x070, 0x074, 0x078, 16, 3, 23,
-			     CLK_CFG_UPDATE, 14),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_SEL, "msdc50_0_sel",
+				   msdc50_0_parents, 0x070, 0x074, 0x078, 0, 3, 7,
+				   CLK_CFG_UPDATE, 12, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_2_SEL, "msdc50_2_sel",
+				   msdc50_2_parents, 0x070, 0x074, 0x078, 8, 3, 15,
+				   CLK_CFG_UPDATE, 13, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC30_1_SEL, "msdc30_1_sel",
+				   msdc30_1_parents, 0x070, 0x074, 0x078, 16, 3, 23,
+				   CLK_CFG_UPDATE, 14, 0),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUDIO_SEL, "audio_sel", audio_parents,
 			     0x070, 0x074, 0x078, 24, 2, 31, CLK_CFG_UPDATE,
 			     15),
@@ -476,7 +474,7 @@ static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_6 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_DXCC_SEL, "dxcc_sel", dxcc_parents,
 				   0x0a0, 0x0a4, 0x0a8, 0, 2, 7, CLK_CFG_UPDATE,
-				   24, CLK_IS_CRITICAL),
+				   24, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SSUSB_SYS_SEL, "ssusb_sys_sel",
 			     ssusb_sys_parents, 0x0a0, 0x0a4, 0x0a8, 8, 2, 15,
 			     CLK_CFG_UPDATE, 25),
@@ -484,8 +482,8 @@ static const struct mtk_mux top_muxes[] = {
 			     ssusb_sys_parents, 0x0a0, 0x0a4, 0x0a8, 16, 2, 23,
 			     CLK_CFG_UPDATE, 26),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SPM_SEL, "spm_sel", spm_parents,
-				   0x0a0, 0x0a4, 0x0a8, 24, 1, 31,
-				   CLK_CFG_UPDATE, 27, CLK_IS_CRITICAL),
+				   0x0a0, 0x0a4, 0x0a8, 24, 1, 31, CLK_CFG_UPDATE,
+				   27, CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/* CLK_CFG_7 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_I2C_SEL, "i2c_sel", i2c_parents, 0x0b0,
 			     0x0b4, 0x0b8, 0, 3, 7, CLK_CFG_UPDATE, 28),
@@ -811,7 +809,7 @@ static struct platform_driver clk_mt8365_drv = {
 		.of_match_table = of_match_clk_mt8365,
 	},
 	.probe = mtk_clk_simple_probe,
-	.remove = mtk_clk_simple_remove,
+	.remove_new = mtk_clk_simple_remove,
 };
 module_platform_driver(clk_mt8365_drv);
 MODULE_LICENSE("GPL");

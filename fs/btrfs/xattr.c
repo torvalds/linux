@@ -264,7 +264,7 @@ int btrfs_setxattr_trans(struct inode *inode, const char *name,
 		goto out;
 
 	inode_inc_iversion(inode);
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
@@ -407,7 +407,7 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 	ret = btrfs_set_prop(trans, inode, name, value, size, flags);
 	if (!ret) {
 		inode_inc_iversion(inode);
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 		if (ret)
 			btrfs_abort_transaction(trans, ret);

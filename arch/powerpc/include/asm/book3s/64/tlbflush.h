@@ -5,6 +5,7 @@
 #define MMU_NO_CONTEXT	~0UL
 
 #include <linux/mm_types.h>
+#include <linux/mmu_notifier.h>
 #include <asm/book3s/64/tlbflush-hash.h>
 #include <asm/book3s/64/tlbflush-radix.h>
 
@@ -48,6 +49,14 @@ static inline void flush_pmd_tlb_range(struct vm_area_struct *vma,
 {
 	if (radix_enabled())
 		radix__flush_pmd_tlb_range(vma, start, end);
+}
+
+#define __HAVE_ARCH_FLUSH_PUD_TLB_RANGE
+static inline void flush_pud_tlb_range(struct vm_area_struct *vma,
+				       unsigned long start, unsigned long end)
+{
+	if (radix_enabled())
+		radix__flush_pud_tlb_range(vma, start, end);
 }
 
 #define __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE

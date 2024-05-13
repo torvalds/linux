@@ -37,5 +37,9 @@ static inline int fsr_fs(unsigned int fsr)
 
 void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs);
 void early_abt_enable(void);
+asmlinkage void do_DataAbort(unsigned long addr, unsigned int fsr,
+			     struct pt_regs *regs);
+asmlinkage void do_PrefetchAbort(unsigned long addr, unsigned int ifsr,
+				 struct pt_regs *regs);
 
 #endif	/* __ARCH_ARM_FAULT_H */

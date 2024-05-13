@@ -387,7 +387,7 @@ static struct qmi_elem_info qmi_wlanfw_host_cap_req_msg_v01_ei[] = {
 					   mlo_capable_valid),
 	},
 	{
-		.data_type	= QMI_OPT_FLAG,
+		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 1,
 		.elem_size	= sizeof(u8),
 		.array_type	= NO_ARRAY,
@@ -1942,8 +1942,10 @@ static int ath12k_qmi_host_cap_send(struct ath12k_base *ab)
 	req.cal_done_valid = 1;
 	req.cal_done = ab->qmi.cal_done;
 
-	req.feature_list_valid = 1;
-	req.feature_list = BIT(CNSS_QDSS_CFG_MISS_V01);
+	if (ab->hw_params->qmi_cnss_feature_bitmap) {
+		req.feature_list_valid = 1;
+		req.feature_list = ab->hw_params->qmi_cnss_feature_bitmap;
+	}
 
 	/* BRINGUP: here we are piggybacking a lot of stuff using
 	 * internal_sleep_clock, should it be split?
@@ -3056,8 +3058,7 @@ int ath12k_qmi_init_service(struct ath12k_base *ab)
 		return ret;
 	}
 
-	ab->qmi.event_wq = alloc_workqueue("ath12k_qmi_driver_event",
-					   WQ_UNBOUND, 1);
+	ab->qmi.event_wq = alloc_ordered_workqueue("ath12k_qmi_driver_event", 0);
 	if (!ab->qmi.event_wq) {
 		ath12k_err(ab, "failed to allocate workqueue\n");
 		return -EFAULT;

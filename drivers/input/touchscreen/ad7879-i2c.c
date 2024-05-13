@@ -62,7 +62,7 @@ static struct i2c_driver ad7879_i2c_driver = {
 		.pm	= &ad7879_pm_ops,
 		.of_match_table = of_match_ptr(ad7879_i2c_dt_ids),
 	},
-	.probe_new	= ad7879_i2c_probe,
+	.probe		= ad7879_i2c_probe,
 	.id_table	= ad7879_id,
 };
 

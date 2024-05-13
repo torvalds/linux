@@ -18,4 +18,9 @@
 
 #define SMP_CACHE_BYTES	L1_CACHE_BYTES
 
+/* MS be sure that SLAB allocates aligned objects */
+#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+
+#define ARCH_SLAB_MINALIGN	L1_CACHE_BYTES
+
 #endif /* _ASM_MICROBLAZE_CACHE_H */

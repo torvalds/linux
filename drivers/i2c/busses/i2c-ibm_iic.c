@@ -37,9 +37,10 @@
 #include <asm/irq.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include "i2c-ibm_iic.h"
 
@@ -694,10 +695,8 @@ static int iic_probe(struct platform_device *ofdev)
 	int ret;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&ofdev->dev, "failed to allocate device data\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(ofdev, dev);
 
@@ -769,7 +768,7 @@ error_cleanup:
 /*
  * Cleanup initialized IIC interface
  */
-static int iic_remove(struct platform_device *ofdev)
+static void iic_remove(struct platform_device *ofdev)
 {
 	struct ibm_iic_private *dev = platform_get_drvdata(ofdev);
 
@@ -782,8 +781,6 @@ static int iic_remove(struct platform_device *ofdev)
 
 	iounmap(dev->vaddr);
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct of_device_id ibm_iic_match[] = {
@@ -798,7 +795,7 @@ static struct platform_driver ibm_iic_driver = {
 		.of_match_table = ibm_iic_match,
 	},
 	.probe	= iic_probe,
-	.remove	= iic_remove,
+	.remove_new = iic_remove,
 };
 
 module_platform_driver(ibm_iic_driver);

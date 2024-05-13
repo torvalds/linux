@@ -3,6 +3,7 @@
  * Copyright (C) 2021 Red Hat Inc, Daniel Bristot de Oliveira <bristot@kernel.org>
  */
 
+#define _GNU_SOURCE
 #include <dirent.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -88,27 +89,24 @@ void get_duration(time_t start_time, char *output, int output_size)
 }
 
 /*
- * parse_cpu_list - parse a cpu_list filling a char vector with cpus set
+ * parse_cpu_set - parse a cpu_list filling cpu_set_t argument
  *
- * Receives a cpu list, like 1-3,5 (cpus 1, 2, 3, 5), and then set the char
- * in the monitored_cpus.
+ * Receives a cpu list, like 1-3,5 (cpus 1, 2, 3, 5), and then set
+ * filling cpu_set_t argument.
  *
- * XXX: convert to a bitmask.
+ * Returns 1 on success, 0 otherwise.
  */
-int parse_cpu_list(char *cpu_list, char **monitored_cpus)
+int parse_cpu_set(char *cpu_list, cpu_set_t *set)
 {
-	char *mon_cpus;
 	const char *p;
 	int end_cpu;
 	int nr_cpus;
 	int cpu;
 	int i;
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	CPU_ZERO(set);
 
-	mon_cpus = calloc(nr_cpus, sizeof(char));
-	if (!mon_cpus)
-		goto err;
+	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
 	for (p = cpu_list; *p; ) {
 		cpu = atoi(p);
@@ -128,12 +126,12 @@ int parse_cpu_list(char *cpu_list, char **monitored_cpus)
 			end_cpu = cpu;
 
 		if (cpu == end_cpu) {
-			debug_msg("cpu_list: adding cpu %d\n", cpu);
-			mon_cpus[cpu] = 1;
+			debug_msg("cpu_set: adding cpu %d\n", cpu);
+			CPU_SET(cpu, set);
 		} else {
 			for (i = cpu; i <= end_cpu; i++) {
-				debug_msg("cpu_list: adding cpu %d\n", i);
-				mon_cpus[i] = 1;
+				debug_msg("cpu_set: adding cpu %d\n", i);
+				CPU_SET(i, set);
 			}
 		}
 
@@ -141,12 +139,9 @@ int parse_cpu_list(char *cpu_list, char **monitored_cpus)
 			p++;
 	}
 
-	*monitored_cpus = mon_cpus;
-
 	return 0;
-
 err:
-	debug_msg("Error parsing the cpu list %s", cpu_list);
+	debug_msg("Error parsing the cpu set %s\n", cpu_list);
 	return 1;
 }
 
@@ -528,4 +523,297 @@ int set_cpu_dma_latency(int32_t latency)
 	debug_msg("Set /dev/cpu_dma_latency to %d\n", latency);
 
 	return fd;
+}
+
+#define _STR(x) #x
+#define STR(x) _STR(x)
+
+/*
+ * find_mount - find a the mount point of a given fs
+ *
+ * Returns 0 if mount is not found, otherwise return 1 and fill mp
+ * with the mount point.
+ */
+static const int find_mount(const char *fs, char *mp, int sizeof_mp)
+{
+	char mount_point[MAX_PATH];
+	char type[100];
+	int found;
+	FILE *fp;
+
+	fp = fopen("/proc/mounts", "r");
+	if (!fp)
+		return 0;
+
+	while (fscanf(fp, "%*s %" STR(MAX_PATH) "s %99s %*s %*d %*d\n",	mount_point, type) == 2) {
+		if (strcmp(type, fs) == 0) {
+			found = 1;
+			break;
+		}
+	}
+	fclose(fp);
+
+	if (!found)
+		return 0;
+
+	memset(mp, 0, sizeof_mp);
+	strncpy(mp, mount_point, sizeof_mp - 1);
+
+	debug_msg("Fs %s found at %s\n", fs, mp);
+	return 1;
+}
+
+/*
+ * get_self_cgroup - get the current thread cgroup path
+ *
+ * Parse /proc/$$/cgroup file to get the thread's cgroup. As an example of line to parse:
+ *
+ * 0::/user.slice/user-0.slice/session-3.scope'\n'
+ *
+ * This function is interested in the content after the second : and before the '\n'.
+ *
+ * Returns 1 if a string was found, 0 otherwise.
+ */
+static int get_self_cgroup(char *self_cg, int sizeof_self_cg)
+{
+	char path[MAX_PATH], *start;
+	int fd, retval;
+
+	snprintf(path, MAX_PATH, "/proc/%d/cgroup", getpid());
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return 0;
+
+	retval = read(fd, path, MAX_PATH);
+
+	close(fd);
+
+	if (retval <= 0)
+		return 0;
+
+	start = path;
+
+	start = strstr(start, ":");
+	if (!start)
+		return 0;
+
+	/* skip ":" */
+	start++;
+
+	start = strstr(start, ":");
+	if (!start)
+		return 0;
+
+	/* skip ":" */
+	start++;
+
+	if (strlen(start) >= sizeof_self_cg)
+		return 0;
+
+	snprintf(self_cg, sizeof_self_cg, "%s", start);
+
+	/* Swap '\n' with '\0' */
+	start = strstr(self_cg, "\n");
+
+	/* there must be '\n' */
+	if (!start)
+		return 0;
+
+	/* ok, it found a string after the second : and before the \n */
+	*start = '\0';
+
+	return 1;
+}
+
+/*
+ * set_comm_cgroup - Set cgroup to pid_t pid
+ *
+ * If cgroup argument is not NULL, the threads will move to the given cgroup.
+ * Otherwise, the cgroup of the calling, i.e., rtla, thread will be used.
+ *
+ * Supports cgroup v2.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int set_pid_cgroup(pid_t pid, const char *cgroup)
+{
+	char cgroup_path[MAX_PATH - strlen("/cgroup.procs")];
+	char cgroup_procs[MAX_PATH];
+	char pid_str[24];
+	int retval;
+	int cg_fd;
+
+	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
+	if (!retval) {
+		err_msg("Did not find cgroupv2 mount point\n");
+		return 0;
+	}
+
+	if (!cgroup) {
+		retval = get_self_cgroup(&cgroup_path[strlen(cgroup_path)],
+				sizeof(cgroup_path) - strlen(cgroup_path));
+		if (!retval) {
+			err_msg("Did not find self cgroup\n");
+			return 0;
+		}
+	} else {
+		snprintf(&cgroup_path[strlen(cgroup_path)],
+				sizeof(cgroup_path) - strlen(cgroup_path), "%s/", cgroup);
+	}
+
+	snprintf(cgroup_procs, MAX_PATH, "%s/cgroup.procs", cgroup_path);
+
+	debug_msg("Using cgroup path at: %s\n", cgroup_procs);
+
+	cg_fd = open(cgroup_procs, O_RDWR);
+	if (cg_fd < 0)
+		return 0;
+
+	snprintf(pid_str, sizeof(pid_str), "%d\n", pid);
+
+	retval = write(cg_fd, pid_str, strlen(pid_str));
+	if (retval < 0)
+		err_msg("Error setting cgroup attributes for pid:%s - %s\n",
+				pid_str, strerror(errno));
+	else
+		debug_msg("Set cgroup attributes for pid:%s\n", pid_str);
+
+	close(cg_fd);
+
+	return (retval >= 0);
+}
+
+/**
+ * set_comm_cgroup - Set cgroup to threads starting with char *comm_prefix
+ *
+ * If cgroup argument is not NULL, the threads will move to the given cgroup.
+ * Otherwise, the cgroup of the calling, i.e., rtla, thread will be used.
+ *
+ * Supports cgroup v2.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int set_comm_cgroup(const char *comm_prefix, const char *cgroup)
+{
+	char cgroup_path[MAX_PATH - strlen("/cgroup.procs")];
+	char cgroup_procs[MAX_PATH];
+	struct dirent *proc_entry;
+	DIR *procfs;
+	int retval;
+	int cg_fd;
+
+	if (strlen(comm_prefix) >= MAX_PATH) {
+		err_msg("Command prefix is too long: %d < strlen(%s)\n",
+			MAX_PATH, comm_prefix);
+		return 0;
+	}
+
+	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
+	if (!retval) {
+		err_msg("Did not find cgroupv2 mount point\n");
+		return 0;
+	}
+
+	if (!cgroup) {
+		retval = get_self_cgroup(&cgroup_path[strlen(cgroup_path)],
+				sizeof(cgroup_path) - strlen(cgroup_path));
+		if (!retval) {
+			err_msg("Did not find self cgroup\n");
+			return 0;
+		}
+	} else {
+		snprintf(&cgroup_path[strlen(cgroup_path)],
+				sizeof(cgroup_path) - strlen(cgroup_path), "%s/", cgroup);
+	}
+
+	snprintf(cgroup_procs, MAX_PATH, "%s/cgroup.procs", cgroup_path);
+
+	debug_msg("Using cgroup path at: %s\n", cgroup_procs);
+
+	cg_fd = open(cgroup_procs, O_RDWR);
+	if (cg_fd < 0)
+		return 0;
+
+	procfs = opendir("/proc");
+	if (!procfs) {
+		err_msg("Could not open procfs\n");
+		goto out_cg;
+	}
+
+	while ((proc_entry = readdir(procfs))) {
+
+		retval = procfs_is_workload_pid(comm_prefix, proc_entry);
+		if (!retval)
+			continue;
+
+		retval = write(cg_fd, proc_entry->d_name, strlen(proc_entry->d_name));
+		if (retval < 0) {
+			err_msg("Error setting cgroup attributes for pid:%s - %s\n",
+				proc_entry->d_name, strerror(errno));
+			goto out_procfs;
+		}
+
+		debug_msg("Set cgroup attributes for pid:%s\n", proc_entry->d_name);
+	}
+
+	closedir(procfs);
+	close(cg_fd);
+	return 1;
+
+out_procfs:
+	closedir(procfs);
+out_cg:
+	close(cg_fd);
+	return 0;
+}
+
+/**
+ * auto_house_keeping - Automatically move rtla out of measurement threads
+ *
+ * Try to move rtla away from the tracer, if possible.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int auto_house_keeping(cpu_set_t *monitored_cpus)
+{
+	cpu_set_t rtla_cpus, house_keeping_cpus;
+	int retval;
+
+	/* first get the CPUs in which rtla can actually run. */
+	retval = sched_getaffinity(getpid(), sizeof(rtla_cpus), &rtla_cpus);
+	if (retval == -1) {
+		debug_msg("Could not get rtla affinity, rtla might run with the threads!\n");
+		return 0;
+	}
+
+	/* then check if the existing setup is already good. */
+	CPU_AND(&house_keeping_cpus, &rtla_cpus, monitored_cpus);
+	if (!CPU_COUNT(&house_keeping_cpus)) {
+		debug_msg("rtla and the monitored CPUs do not share CPUs.");
+		debug_msg("Skipping auto house-keeping\n");
+		return 1;
+	}
+
+	/* remove the intersection */
+	CPU_XOR(&house_keeping_cpus, &rtla_cpus, monitored_cpus);
+
+	/* get only those that rtla can run */
+	CPU_AND(&house_keeping_cpus, &house_keeping_cpus, &rtla_cpus);
+
+	/* is there any cpu left? */
+	if (!CPU_COUNT(&house_keeping_cpus)) {
+		debug_msg("Could not find any CPU for auto house-keeping\n");
+		return 0;
+	}
+
+	retval = sched_setaffinity(getpid(), sizeof(house_keeping_cpus), &house_keeping_cpus);
+	if (retval == -1) {
+		debug_msg("Could not set affinity for auto house-keeping\n");
+		return 0;
+	}
+
+	debug_msg("rtla automatically moved to an auto house-keeping cpu set\n");
+
+	return 1;
 }

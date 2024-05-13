@@ -11,7 +11,7 @@
 :校譯:
 
  吳想成 Wu XiangCheng <bobwxc@email.cn>
- 胡皓文 Hu Haowen <src.res@email.cn>
+ 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 .. _tw_development_early_stage:
 
@@ -47,7 +47,7 @@
 	試圖向這些人傳達用戶需求是浪費時間。他們太「聰明」了，根本聽不到少數
 	人的話。
 
-（http://lwn.net/articles/131776/）
+（http://lwn.net/Articles/131776/）
 
 實際情況卻是不同的；與特定模塊相比，內核開發人員更關心系統穩定性、長期維護
 以及找到問題的正確解決方案。這個故事的寓意是把重點放在問題上——而不是具體的

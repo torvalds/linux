@@ -61,7 +61,7 @@ enum dc_link_rate {
 	 */
 	LINK_RATE_UHBR10 = 1000,	// UHBR10 - 10.0 Gbps/Lane
 	LINK_RATE_UHBR13_5 = 1350,	// UHBR13.5 - 13.5 Gbps/Lane
-	LINK_RATE_UHBR20 = 2000,	// UHBR10 - 20.0 Gbps/Lane
+	LINK_RATE_UHBR20 = 2000,	// UHBR20 - 20.0 Gbps/Lane
 };
 
 enum dc_link_spread {
@@ -564,6 +564,12 @@ struct dpcd_amd_device_id {
 	uint8_t dce_version;
 	uint8_t dal_version_byte1;
 	uint8_t dal_version_byte2;
+};
+
+struct target_luminance_value {
+	uint8_t byte0;
+	uint8_t byte1;
+	uint8_t byte2;
 };
 
 struct dpcd_source_backlight_set {
@@ -1111,6 +1117,11 @@ struct edp_psr_info {
 	uint8_t force_psrsu_cap;
 };
 
+struct replay_info {
+	uint8_t pixel_deviation_per_line;
+	uint8_t max_deviation_line;
+};
+
 struct dprx_states {
 	bool cable_id_written;
 };
@@ -1225,10 +1236,13 @@ struct dpcd_caps {
 	union dp_main_line_channel_coding_cap channel_coding_cap;
 	union dp_sink_video_fallback_formats fallback_formats;
 	union dp_fec_capability1 fec_cap1;
+	bool panel_luminance_control;
 	union dp_cable_id cable_id;
 	uint8_t edp_rev;
 	union edp_alpm_caps alpm_caps;
 	struct edp_psr_info psr_info;
+
+	struct replay_info pr_info;
 };
 
 union dpcd_sink_ext_caps {
@@ -1265,6 +1279,28 @@ union dpcd_psr_configuration {
 		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
 		unsigned char ENABLE_PSR2               : 1;
 		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union replay_enable_and_configuration {
+	struct {
+		unsigned char FREESYNC_PANEL_REPLAY_MODE              :1;
+		unsigned char TIMING_DESYNC_ERROR_VERIFICATION        :1;
+		unsigned char STATE_TRANSITION_ERROR_DETECTION        :1;
+		unsigned char RESERVED0                               :1;
+		unsigned char RESERVED1                               :4;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_replay_configuration {
+	struct {
+		unsigned char STATE_TRANSITION_ERROR_STATUS    : 1;
+		unsigned char DESYNC_ERROR_STATUS              : 1;
+		unsigned char SINK_DEVICE_REPLAY_STATUS        : 3;
+		unsigned char SINK_FRAME_LOCKED                : 2;
+		unsigned char RESERVED                         : 1;
 	} bits;
 	unsigned char raw;
 };

@@ -119,6 +119,10 @@ properties:
           - fsl,mpr121
             # Monolithic Power Systems Inc. multi-phase controller mp2888
           - mps,mp2888
+            # Monolithic Power Systems Inc. multi-phase controller mp2971
+          - mps,mp2971
+            # Monolithic Power Systems Inc. multi-phase controller mp2973
+          - mps,mp2973
             # Monolithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
             # Honeywell Humidicon HIH-6130 humidity/temperature sensor
@@ -139,6 +143,8 @@ properties:
           - infineon,ir38164
             # Infineon IR38263 Voltage Regulator
           - infineon,ir38263
+            # Infineon IRPS5401 Voltage Regulator (PMIC)
+          - infineon,irps5401
             # Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
           - infineon,slb9635tt
             # Infineon SLB9645 I2C TPM (new protocol, max 400khz)
@@ -191,13 +197,13 @@ properties:
           - maxim,max1237
             # Temperature Sensor, I2C interface
           - maxim,max1619
-            # 10-bit 10 kOhm linear programable voltage divider
+            # 10-bit 10 kOhm linear programmable voltage divider
           - maxim,max5481
-            # 10-bit 50 kOhm linear programable voltage divider
+            # 10-bit 50 kOhm linear programmable voltage divider
           - maxim,max5482
-            # 10-bit 10 kOhm linear programable variable resistor
+            # 10-bit 10 kOhm linear programmable variable resistor
           - maxim,max5483
-            # 10-bit 50 kOhm linear programable variable resistor
+            # 10-bit 50 kOhm linear programmable variable resistor
           - maxim,max5484
             # PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
           - maxim,max6621
@@ -226,7 +232,7 @@ properties:
             # MEMSIC magnetometer
           - memsic,mmc35240
             # MEMSIC 3-axis accelerometer
-          - memsic,mx4005
+          - memsic,mxc4005
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
             # MEMSIC 2-axis 8-bit digital accelerometer
@@ -289,8 +295,6 @@ properties:
           - miramems,da311
             # Temperature sensor with integrated fan control
           - national,lm63
-            # I2C TEMP SENSOR
-          - national,lm75
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
           - national,lm80
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
@@ -313,6 +317,8 @@ properties:
           - plx,pex8648
             # Pulsedlight LIDAR range-finding sensor
           - pulsedlight,lidar-lite-v2
+            # Renesas HS3001 Temperature and Relative Humidity Sensors
+          - renesas,hs3001
             # Renesas ISL29501 time-of-flight sensor
           - renesas,isl29501
             # Rohm DH2228FV

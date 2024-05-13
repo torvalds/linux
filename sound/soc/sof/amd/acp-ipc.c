@@ -130,6 +130,13 @@ static void acp_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 		memcpy(msg->reply_data, &reply, sizeof(reply));
 		ret = reply.error;
 	} else {
+		/*
+		 * To support an IPC tx_message with a
+		 * reply_size set to zero.
+		 */
+		if (!msg->reply_size)
+			goto out;
+
 		/* reply correct size ? */
 		if (reply.hdr.size != msg->reply_size &&
 		    !(reply.hdr.cmd & SOF_IPC_GLB_PROBE)) {
@@ -148,6 +155,8 @@ out:
 irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 	unsigned int dsp_msg_write = sdev->debug_box.offset +
 				     offsetof(struct scratch_ipc_conf, sof_dsp_msg_write);
 	unsigned int dsp_ack_write = sdev->debug_box.offset +
@@ -161,6 +170,8 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 		if ((status & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
 			snd_sof_dsp_panic(sdev, sdev->dsp_box.offset + sizeof(status),
 					  true);
+			status = 0;
+			acp_mailbox_write(sdev, sdev->dsp_box.offset, &status, sizeof(status));
 			return IRQ_HANDLED;
 		}
 		snd_sof_ipc_msgs_rx(sdev);
@@ -190,7 +201,33 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 	acp_mailbox_read(sdev, sdev->debug_box.offset, &status, sizeof(u32));
 	if ((status & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
 		snd_sof_dsp_panic(sdev, sdev->dsp_oops_offset, true);
+		status = 0;
+		acp_mailbox_write(sdev, sdev->debug_box.offset, &status, sizeof(status));
 		return IRQ_HANDLED;
+	}
+
+	if (desc->probe_reg_offset) {
+		u32 val;
+		u32 posn;
+
+		/* Probe register consists of two parts
+		 * (0-30) bit has cumulative position value
+		 * 31 bit is a synchronization flag between DSP and CPU
+		 * for the position update
+		 */
+		val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->probe_reg_offset);
+		if (val & PROBE_STATUS_BIT) {
+			posn = val & ~PROBE_STATUS_BIT;
+			if (adata->probe_stream) {
+				/* Probe related posn value is of 31 bits limited to 2GB
+				 * once wrapped DSP won't send posn interrupt.
+				 */
+				adata->probe_stream->cstream_posn = posn;
+				snd_compr_fragment_elapsed(adata->probe_stream->cstream);
+				snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->probe_reg_offset, posn);
+				ipc_irq = true;
+			}
+		}
 	}
 
 	if (!ipc_irq)

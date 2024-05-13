@@ -188,9 +188,9 @@ static int vcn_v2_5_sw_init(void *handle)
 				(amdgpu_sriov_vf(adev) ? 2*j : 8*j);
 
 		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
-			ring->vm_hub = AMDGPU_MMHUB_1;
+			ring->vm_hub = AMDGPU_MMHUB1(0);
 		else
-			ring->vm_hub = AMDGPU_MMHUB_0;
+			ring->vm_hub = AMDGPU_MMHUB0(0);
 
 		sprintf(ring->name, "vcn_dec_%d", j);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[j].irq,
@@ -208,9 +208,9 @@ static int vcn_v2_5_sw_init(void *handle)
 					(amdgpu_sriov_vf(adev) ? (1 + i + 2*j) : (2 + i + 8*j));
 
 			if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
-				ring->vm_hub = AMDGPU_MMHUB_1;
+				ring->vm_hub = AMDGPU_MMHUB1(0);
 			else
-				ring->vm_hub = AMDGPU_MMHUB_0;
+				ring->vm_hub = AMDGPU_MMHUB0(0);
 
 			sprintf(ring->name, "vcn_enc_%d.%d", j, i);
 			r = amdgpu_ring_init(adev, ring, 512,
@@ -912,9 +912,7 @@ static int vcn_v2_5_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 		UVD_MASTINT_EN__VCPU_EN_MASK, 0, indirect);
 
 	if (indirect)
-		psp_update_vcn_sram(adev, inst_idx, adev->vcn.inst[inst_idx].dpg_sram_gpu_addr,
-				    (uint32_t)((uintptr_t)adev->vcn.inst[inst_idx].dpg_sram_curr_addr -
-					       (uintptr_t)adev->vcn.inst[inst_idx].dpg_sram_cpu_addr));
+		amdgpu_vcn_psp_update_sram(adev, inst_idx, 0);
 
 	ring = &adev->vcn.inst[inst_idx].ring_dec;
 	/* force RBC into idle state */

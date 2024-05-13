@@ -72,7 +72,7 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 	struct creq_query_version_resp resp = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct cmdq_query_version req = {};
-	int rc = 0;
+	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_QUERY_VERSION,
@@ -89,31 +89,29 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 }
 
 int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
-			    struct bnxt_qplib_dev_attr *attr, bool vf)
+			    struct bnxt_qplib_dev_attr *attr)
 {
 	struct creq_query_func_resp resp = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct creq_query_func_resp_sb *sb;
-	struct bnxt_qplib_rcfw_sbuf *sbuf;
+	struct bnxt_qplib_rcfw_sbuf sbuf;
 	struct cmdq_query_func req = {};
 	u8 *tqm_alloc;
-	int i, rc = 0;
+	int i, rc;
 	u32 temp;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_QUERY_FUNC,
 				 sizeof(req));
 
-	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
-	if (!sbuf) {
-		dev_err(&rcfw->pdev->dev,
-			"SP: QUERY_FUNC alloc side buffer failed\n");
+	sbuf.size = ALIGN(sizeof(*sb), BNXT_QPLIB_CMDQE_UNITS);
+	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
+				     &sbuf.dma_addr, GFP_KERNEL);
+	if (!sbuf.sb)
 		return -ENOMEM;
-	}
-
-	sb = sbuf->sb;
-	req.resp_size = sizeof(*sb) / BNXT_QPLIB_CMDQE_UNITS;
-	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, sbuf, sizeof(req),
+	sb = sbuf.sb;
+	req.resp_size = sbuf.size / BNXT_QPLIB_CMDQE_UNITS;
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, &sbuf, sizeof(req),
 				sizeof(resp), 0);
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
@@ -121,9 +119,8 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 
 	/* Extract the context from the side buffer */
 	attr->max_qp = le32_to_cpu(sb->max_qp);
-	/* max_qp value reported by FW for PF doesn't include the QP1 for PF */
-	if (!vf)
-		attr->max_qp += 1;
+	/* max_qp value reported by FW doesn't include the QP1 */
+	attr->max_qp += 1;
 	attr->max_qp_rd_atom =
 		sb->max_qp_rd_atom > BNXT_QPLIB_MAX_OUT_RD_ATOM ?
 		BNXT_QPLIB_MAX_OUT_RD_ATOM : sb->max_qp_rd_atom;
@@ -170,9 +167,13 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 		attr->tqm_alloc_reqs[i * 4 + 3] = *(++tqm_alloc);
 	}
 
+	if (rcfw->res->cctx->hwrm_intf_ver >= HWRM_VERSION_DEV_ATTR_MAX_DPI)
+		attr->max_dpi = le32_to_cpu(sb->max_dpi);
+
 	attr->is_atomic = bnxt_qplib_is_atomic_cap(rcfw);
 bail:
-	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	dma_free_coherent(&rcfw->pdev->dev, sbuf.size,
+			  sbuf.sb, sbuf.dma_addr);
 	return rc;
 }
 
@@ -183,7 +184,7 @@ int bnxt_qplib_set_func_resources(struct bnxt_qplib_res *res,
 	struct creq_set_func_resources_resp resp = {};
 	struct cmdq_set_func_resources req = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
-	int rc = 0;
+	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_SET_FUNC_RESOURCES,
@@ -233,10 +234,6 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	int index;
 
-	if (!sgid_tbl) {
-		dev_err(&res->pdev->dev, "SGID table not allocated\n");
-		return -EINVAL;
-	}
 	/* Do we need a sgid_lock here? */
 	if (!sgid_tbl->active) {
 		dev_err(&res->pdev->dev, "SGID table has no active entries\n");
@@ -297,10 +294,6 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	int i, free_idx;
 
-	if (!sgid_tbl) {
-		dev_err(&res->pdev->dev, "SGID table not allocated\n");
-		return -EINVAL;
-	}
 	/* Do we need a sgid_lock here? */
 	if (sgid_tbl->active == sgid_tbl->max) {
 		dev_err(&res->pdev->dev, "SGID table is full\n");
@@ -468,13 +461,14 @@ int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 	return 0;
 }
 
-void bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
-			   bool block)
+int bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
+			  bool block)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct creq_destroy_ah_resp resp = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct cmdq_destroy_ah req = {};
+	int rc;
 
 	/* Clean up the AH table in the device */
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
@@ -485,7 +479,8 @@ void bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 
 	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
 				sizeof(resp), block);
-	bnxt_qplib_rcfw_send_message(rcfw, &msg);
+	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
+	return rc;
 }
 
 /* MRW */
@@ -721,23 +716,22 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 	struct creq_query_roce_stats_resp_sb *sb;
 	struct cmdq_query_roce_stats req = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
-	struct bnxt_qplib_rcfw_sbuf *sbuf;
-	int rc = 0;
+	struct bnxt_qplib_rcfw_sbuf sbuf;
+	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_QUERY_ROCE_STATS,
 				 sizeof(req));
 
-	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
-	if (!sbuf) {
-		dev_err(&rcfw->pdev->dev,
-			"SP: QUERY_ROCE_STATS alloc side buffer failed\n");
+	sbuf.size = ALIGN(sizeof(*sb), BNXT_QPLIB_CMDQE_UNITS);
+	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
+				     &sbuf.dma_addr, GFP_KERNEL);
+	if (!sbuf.sb)
 		return -ENOMEM;
-	}
+	sb = sbuf.sb;
 
-	sb = sbuf->sb;
-	req.resp_size = sizeof(*sb) / BNXT_QPLIB_CMDQE_UNITS;
-	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, sbuf, sizeof(req),
+	req.resp_size = sbuf.size / BNXT_QPLIB_CMDQE_UNITS;
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, &sbuf, sizeof(req),
 				sizeof(resp), 0);
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
@@ -793,7 +787,8 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 	}
 
 bail:
-	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	dma_free_coherent(&rcfw->pdev->dev, sbuf.size,
+			  sbuf.sb, sbuf.dma_addr);
 	return rc;
 }
 
@@ -804,49 +799,56 @@ int bnxt_qplib_qext_stat(struct bnxt_qplib_rcfw *rcfw, u32 fid,
 	struct creq_query_roce_stats_ext_resp_sb *sb;
 	struct cmdq_query_roce_stats_ext req = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
-	struct bnxt_qplib_rcfw_sbuf *sbuf;
+	struct bnxt_qplib_rcfw_sbuf sbuf;
 	int rc;
 
-	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
-	if (!sbuf) {
-		dev_err(&rcfw->pdev->dev,
-			"SP: QUERY_ROCE_STATS_EXT alloc sb failed");
+	sbuf.size = ALIGN(sizeof(*sb), BNXT_QPLIB_CMDQE_UNITS);
+	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
+				     &sbuf.dma_addr, GFP_KERNEL);
+	if (!sbuf.sb)
 		return -ENOMEM;
-	}
 
+	sb = sbuf.sb;
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_QUERY_ROCE_STATS_EXT_OPCODE_QUERY_ROCE_STATS,
 				 sizeof(req));
 
-	req.resp_size = ALIGN(sizeof(*sb), BNXT_QPLIB_CMDQE_UNITS);
-	req.resp_addr = cpu_to_le64(sbuf->dma_addr);
+	req.resp_size = sbuf.size / BNXT_QPLIB_CMDQE_UNITS;
+	req.resp_addr = cpu_to_le64(sbuf.dma_addr);
 	req.function_id = cpu_to_le32(fid);
 	req.flags = cpu_to_le16(CMDQ_QUERY_ROCE_STATS_EXT_FLAGS_FUNCTION_ID);
 
-	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, sbuf, sizeof(req),
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, &sbuf, sizeof(req),
 				sizeof(resp), 0);
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
 		goto bail;
 
-	sb = sbuf->sb;
 	estat->tx_atomic_req = le64_to_cpu(sb->tx_atomic_req_pkts);
 	estat->tx_read_req = le64_to_cpu(sb->tx_read_req_pkts);
 	estat->tx_read_res = le64_to_cpu(sb->tx_read_res_pkts);
 	estat->tx_write_req = le64_to_cpu(sb->tx_write_req_pkts);
 	estat->tx_send_req = le64_to_cpu(sb->tx_send_req_pkts);
+	estat->tx_roce_pkts = le64_to_cpu(sb->tx_roce_pkts);
+	estat->tx_roce_bytes = le64_to_cpu(sb->tx_roce_bytes);
 	estat->rx_atomic_req = le64_to_cpu(sb->rx_atomic_req_pkts);
 	estat->rx_read_req = le64_to_cpu(sb->rx_read_req_pkts);
 	estat->rx_read_res = le64_to_cpu(sb->rx_read_res_pkts);
 	estat->rx_write_req = le64_to_cpu(sb->rx_write_req_pkts);
 	estat->rx_send_req = le64_to_cpu(sb->rx_send_req_pkts);
+	estat->rx_roce_pkts = le64_to_cpu(sb->rx_roce_pkts);
+	estat->rx_roce_bytes = le64_to_cpu(sb->rx_roce_bytes);
 	estat->rx_roce_good_pkts = le64_to_cpu(sb->rx_roce_good_pkts);
 	estat->rx_roce_good_bytes = le64_to_cpu(sb->rx_roce_good_bytes);
 	estat->rx_out_of_buffer = le64_to_cpu(sb->rx_out_of_buffer_pkts);
 	estat->rx_out_of_sequence = le64_to_cpu(sb->rx_out_of_sequence_pkts);
+	estat->tx_cnp = le64_to_cpu(sb->tx_cnp_pkts);
+	estat->rx_cnp = le64_to_cpu(sb->rx_cnp_pkts);
+	estat->rx_ecn_marked = le64_to_cpu(sb->rx_ecn_marked_pkts);
 
 bail:
-	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
+	dma_free_coherent(&rcfw->pdev->dev, sbuf.size,
+			  sbuf.sb, sbuf.dma_addr);
 	return rc;
 }
 

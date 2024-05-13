@@ -82,8 +82,15 @@ bool dp_parse_link_loss_status(
 	}
 
 	/* Check interlane align.*/
-	if (sink_status_changed ||
-		!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
+	if (link_dp_get_encoding_format(&link->cur_link_settings) == DP_128b_132b_ENCODING &&
+			(!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.EQ_INTERLANE_ALIGN_DONE_128b_132b ||
+			 !hpd_irq_dpcd_data->bytes.lane_status_updated.bits.CDS_INTERLANE_ALIGN_DONE_128b_132b)) {
+		sink_status_changed = true;
+	} else if (!hpd_irq_dpcd_data->bytes.lane_status_updated.bits.INTERLANE_ALIGN_DONE) {
+		sink_status_changed = true;
+	}
+
+	if (sink_status_changed) {
 
 		DC_LOG_HW_HPD_IRQ("%s: Link Status changed.\n", __func__);
 
@@ -175,6 +182,68 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 	return false;
 }
 
+static bool handle_hpd_irq_replay_sink(struct dc_link *link)
+{
+	union dpcd_replay_configuration replay_configuration;
+	/*AMD Replay version reuse DP_PSR_ERROR_STATUS for REPLAY_ERROR status.*/
+	union psr_error_status replay_error_status;
+
+	if (!link->replay_settings.replay_feature_enabled)
+		return false;
+
+	dm_helpers_dp_read_dpcd(
+		link->ctx,
+		link,
+		DP_SINK_PR_REPLAY_STATUS,
+		&replay_configuration.raw,
+		sizeof(replay_configuration.raw));
+
+	dm_helpers_dp_read_dpcd(
+		link->ctx,
+		link,
+		DP_PSR_ERROR_STATUS,
+		&replay_error_status.raw,
+		sizeof(replay_error_status.raw));
+
+	link->replay_settings.config.replay_error_status.bits.LINK_CRC_ERROR =
+		replay_error_status.bits.LINK_CRC_ERROR;
+	link->replay_settings.config.replay_error_status.bits.DESYNC_ERROR =
+		replay_configuration.bits.DESYNC_ERROR_STATUS;
+	link->replay_settings.config.replay_error_status.bits.STATE_TRANSITION_ERROR =
+		replay_configuration.bits.STATE_TRANSITION_ERROR_STATUS;
+
+	if (link->replay_settings.config.replay_error_status.bits.LINK_CRC_ERROR ||
+		link->replay_settings.config.replay_error_status.bits.DESYNC_ERROR ||
+		link->replay_settings.config.replay_error_status.bits.STATE_TRANSITION_ERROR) {
+		bool allow_active;
+
+		/* Acknowledge and clear configuration bits */
+		dm_helpers_dp_write_dpcd(
+			link->ctx,
+			link,
+			DP_SINK_PR_REPLAY_STATUS,
+			&replay_configuration.raw,
+			sizeof(replay_configuration.raw));
+
+		/* Acknowledge and clear error bits */
+		dm_helpers_dp_write_dpcd(
+			link->ctx,
+			link,
+			DP_PSR_ERROR_STATUS,/*DpcdAddress_REPLAY_Error_Status*/
+			&replay_error_status.raw,
+			sizeof(replay_error_status.raw));
+
+		/* Replay error, disable and re-enable Replay */
+		if (link->replay_settings.replay_allow_active) {
+			allow_active = false;
+			edp_set_replay_allow_active(link, &allow_active, true, false, NULL);
+			allow_active = true;
+			edp_set_replay_allow_active(link, &allow_active, true, false, NULL);
+		}
+	}
+	return true;
+}
+
 void dp_handle_link_loss(struct dc_link *link)
 {
 	struct pipe_ctx *pipes[MAX_PIPES];
@@ -198,6 +267,25 @@ void dp_handle_link_loss(struct dc_link *link)
 					link->verified_link_cap.link_spread;
 		}
 		link_set_dpms_on(link->dc->current_state, pipes[i]);
+	}
+}
+
+static void read_dpcd204h_on_irq_hpd(struct dc_link *link, union hpd_irq_data *irq_data)
+{
+	enum dc_status retval;
+	union lane_align_status_updated dpcd_lane_status_updated;
+
+	retval = core_link_read_dpcd(
+			link,
+			DP_LANE_ALIGN_STATUS_UPDATED,
+			&dpcd_lane_status_updated.raw,
+			sizeof(union lane_align_status_updated));
+
+	if (retval == DC_OK) {
+		irq_data->bytes.lane_status_updated.bits.EQ_INTERLANE_ALIGN_DONE_128b_132b =
+				dpcd_lane_status_updated.bits.EQ_INTERLANE_ALIGN_DONE_128b_132b;
+		irq_data->bytes.lane_status_updated.bits.CDS_INTERLANE_ALIGN_DONE_128b_132b =
+				dpcd_lane_status_updated.bits.CDS_INTERLANE_ALIGN_DONE_128b_132b;
 	}
 }
 
@@ -242,6 +330,13 @@ enum dc_status dp_read_hpd_rx_irq_data(
 		irq_data->bytes.lane23_status.raw = tmp[DP_LANE2_3_STATUS_ESI - DP_SINK_COUNT_ESI];
 		irq_data->bytes.lane_status_updated.raw = tmp[DP_LANE_ALIGN_STATUS_UPDATED_ESI - DP_SINK_COUNT_ESI];
 		irq_data->bytes.sink_status.raw = tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI];
+
+		/*
+		 * This display doesn't have correct values in DPCD200Eh.
+		 * Read and check DPCD204h instead.
+		 */
+		if (link->wa_flags.read_dpcd204h_on_irq_hpd)
+			read_dpcd204h_on_irq_hpd(link, irq_data);
 	}
 
 	return retval;
@@ -325,6 +420,10 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 
 	if (handle_hpd_irq_psr_sink(link))
 		/* PSR-related error was detected and handled */
+		return true;
+
+	if (handle_hpd_irq_replay_sink(link))
+		/* Replay-related error was detected and handled */
 		return true;
 
 	/* If PSR-related error handled, Main link may be off,

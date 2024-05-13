@@ -229,7 +229,7 @@ static struct i2c_driver cypress_sf_driver = {
 		.of_match_table = of_match_ptr(cypress_sf_of_match),
 	},
 	.id_table = cypress_sf_id_table,
-	.probe_new = cypress_sf_probe,
+	.probe = cypress_sf_probe,
 };
 module_i2c_driver(cypress_sf_driver);
 

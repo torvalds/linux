@@ -195,7 +195,7 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int intel_xhci_usb_remove(struct platform_device *pdev)
+static void intel_xhci_usb_remove(struct platform_device *pdev)
 {
 	struct intel_xhci_usb_data *data = platform_get_drvdata(pdev);
 
@@ -203,8 +203,6 @@ static int intel_xhci_usb_remove(struct platform_device *pdev)
 
 	usb_role_switch_unregister(data->role_sw);
 	fwnode_handle_put(software_node_fwnode(&intel_xhci_usb_node));
-
-	return 0;
 }
 
 static const struct platform_device_id intel_xhci_usb_table[] = {
@@ -219,7 +217,7 @@ static struct platform_driver intel_xhci_usb_driver = {
 	},
 	.id_table = intel_xhci_usb_table,
 	.probe = intel_xhci_usb_probe,
-	.remove = intel_xhci_usb_remove,
+	.remove_new = intel_xhci_usb_remove,
 };
 
 module_platform_driver(intel_xhci_usb_driver);

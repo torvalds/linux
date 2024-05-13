@@ -373,17 +373,10 @@ static int check_send_valid(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_qp *hr_qp)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
-	struct ib_qp *ibqp = &hr_qp->ibqp;
 
-	if (unlikely(ibqp->qp_type != IB_QPT_RC &&
-		     ibqp->qp_type != IB_QPT_GSI &&
-		     ibqp->qp_type != IB_QPT_UD)) {
-		ibdev_err(ibdev, "not supported QP(0x%x)type!\n",
-			  ibqp->qp_type);
-		return -EOPNOTSUPP;
-	} else if (unlikely(hr_qp->state == IB_QPS_RESET ||
-		   hr_qp->state == IB_QPS_INIT ||
-		   hr_qp->state == IB_QPS_RTR)) {
+	if (unlikely(hr_qp->state == IB_QPS_RESET ||
+		     hr_qp->state == IB_QPS_INIT ||
+		     hr_qp->state == IB_QPS_RTR)) {
 		ibdev_err(ibdev, "failed to post WQE, QP state %u!\n",
 			  hr_qp->state);
 		return -EINVAL;
@@ -757,7 +750,8 @@ out:
 		qp->sq.head += nreq;
 		qp->next_sge = sge_idx;
 
-		if (nreq == 1 && (qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE))
+		if (nreq == 1 && !ret &&
+		    (qp->en_flags & HNS_ROCE_QP_CAP_DIRECT_WQE))
 			write_dwqe(hr_dev, qp, wqe);
 		else
 			update_sq_db(hr_dev, qp);
@@ -771,17 +765,6 @@ out:
 static int check_recv_valid(struct hns_roce_dev *hr_dev,
 			    struct hns_roce_qp *hr_qp)
 {
-	struct ib_device *ibdev = &hr_dev->ib_dev;
-	struct ib_qp *ibqp = &hr_qp->ibqp;
-
-	if (unlikely(ibqp->qp_type != IB_QPT_RC &&
-		     ibqp->qp_type != IB_QPT_GSI &&
-		     ibqp->qp_type != IB_QPT_UD)) {
-		ibdev_err(ibdev, "unsupported qp type, qp_type = %d.\n",
-			  ibqp->qp_type);
-		return -EOPNOTSUPP;
-	}
-
 	if (unlikely(hr_dev->state >= HNS_ROCE_DEVICE_STATE_RST_DOWN))
 		return -EIO;
 
@@ -1630,6 +1613,56 @@ static int hns_roce_query_func_info(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static int hns_roce_hw_v2_query_counter(struct hns_roce_dev *hr_dev,
+					u64 *stats, u32 port, int *num_counters)
+{
+#define CNT_PER_DESC 3
+	struct hns_roce_cmq_desc *desc;
+	int bd_idx, cnt_idx;
+	__le64 *cnt_data;
+	int desc_num;
+	int ret;
+	int i;
+
+	if (port > hr_dev->caps.num_ports)
+		return -EINVAL;
+
+	desc_num = DIV_ROUND_UP(HNS_ROCE_HW_CNT_TOTAL, CNT_PER_DESC);
+	desc = kcalloc(desc_num, sizeof(*desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
+
+	for (i = 0; i < desc_num; i++) {
+		hns_roce_cmq_setup_basic_desc(&desc[i],
+					      HNS_ROCE_OPC_QUERY_COUNTER, true);
+		if (i != desc_num - 1)
+			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+	}
+
+	ret = hns_roce_cmq_send(hr_dev, desc, desc_num);
+	if (ret) {
+		ibdev_err(&hr_dev->ib_dev,
+			  "failed to get counter, ret = %d.\n", ret);
+		goto err_out;
+	}
+
+	for (i = 0; i < HNS_ROCE_HW_CNT_TOTAL && i < *num_counters; i++) {
+		bd_idx = i / CNT_PER_DESC;
+		if (!(desc[bd_idx].flag & HNS_ROCE_CMD_FLAG_NEXT) &&
+		    bd_idx != HNS_ROCE_HW_CNT_TOTAL / CNT_PER_DESC)
+			break;
+
+		cnt_data = (__le64 *)&desc[bd_idx].data[0];
+		cnt_idx = i % CNT_PER_DESC;
+		stats[i] = le64_to_cpu(cnt_data[cnt_idx]);
+	}
+	*num_counters = i;
+
+err_out:
+	kfree(desc);
+	return ret;
+}
+
 static int hns_roce_config_global_param(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmq_desc desc;
@@ -1698,29 +1731,6 @@ static int load_func_res_caps(struct hns_roce_dev *hr_dev, bool is_vf)
 	return 0;
 }
 
-static int load_ext_cfg_caps(struct hns_roce_dev *hr_dev, bool is_vf)
-{
-	struct hns_roce_cmq_desc desc;
-	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
-	struct hns_roce_caps *caps = &hr_dev->caps;
-	u32 func_num, qp_num;
-	int ret;
-
-	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_EXT_CFG, true);
-	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
-	if (ret)
-		return ret;
-
-	func_num = is_vf ? 1 : max_t(u32, 1, hr_dev->func_num);
-	qp_num = hr_reg_read(req, EXT_CFG_QP_PI_NUM) / func_num;
-	caps->num_pi_qps = round_down(qp_num, HNS_ROCE_QP_BANK_NUM);
-
-	qp_num = hr_reg_read(req, EXT_CFG_QP_NUM) / func_num;
-	caps->num_qps = round_down(qp_num, HNS_ROCE_QP_BANK_NUM);
-
-	return 0;
-}
-
 static int load_pf_timer_res_caps(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmq_desc desc;
@@ -1741,36 +1751,16 @@ static int load_pf_timer_res_caps(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
-static int query_func_resource_caps(struct hns_roce_dev *hr_dev, bool is_vf)
-{
-	struct device *dev = hr_dev->dev;
-	int ret;
-
-	ret = load_func_res_caps(hr_dev, is_vf);
-	if (ret) {
-		dev_err(dev, "failed to load res caps, ret = %d (%s).\n", ret,
-			is_vf ? "vf" : "pf");
-		return ret;
-	}
-
-	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
-		ret = load_ext_cfg_caps(hr_dev, is_vf);
-		if (ret)
-			dev_err(dev, "failed to load ext cfg, ret = %d (%s).\n",
-				ret, is_vf ? "vf" : "pf");
-	}
-
-	return ret;
-}
-
 static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 {
 	struct device *dev = hr_dev->dev;
 	int ret;
 
-	ret = query_func_resource_caps(hr_dev, false);
-	if (ret)
+	ret = load_func_res_caps(hr_dev, false);
+	if (ret) {
+		dev_err(dev, "failed to load pf res caps, ret = %d.\n", ret);
 		return ret;
+	}
 
 	ret = load_pf_timer_res_caps(hr_dev);
 	if (ret)
@@ -1782,7 +1772,14 @@ static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_query_vf_resource(struct hns_roce_dev *hr_dev)
 {
-	return query_func_resource_caps(hr_dev, true);
+	struct device *dev = hr_dev->dev;
+	int ret;
+
+	ret = load_func_res_caps(hr_dev, true);
+	if (ret)
+		dev_err(dev, "failed to load vf res caps, ret = %d.\n", ret);
+
+	return ret;
 }
 
 static int __hns_roce_set_vf_switch_param(struct hns_roce_dev *hr_dev,
@@ -1867,24 +1864,6 @@ static int config_vf_hem_resource(struct hns_roce_dev *hr_dev, int vf_id)
 	return hns_roce_cmq_send(hr_dev, desc, 2);
 }
 
-static int config_vf_ext_resource(struct hns_roce_dev *hr_dev, u32 vf_id)
-{
-	struct hns_roce_cmq_desc desc;
-	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
-	struct hns_roce_caps *caps = &hr_dev->caps;
-
-	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_EXT_CFG, false);
-
-	hr_reg_write(req, EXT_CFG_VF_ID, vf_id);
-
-	hr_reg_write(req, EXT_CFG_QP_PI_NUM, caps->num_pi_qps);
-	hr_reg_write(req, EXT_CFG_QP_PI_IDX, vf_id * caps->num_pi_qps);
-	hr_reg_write(req, EXT_CFG_QP_NUM, caps->num_qps);
-	hr_reg_write(req, EXT_CFG_QP_IDX, vf_id * caps->num_qps);
-
-	return hns_roce_cmq_send(hr_dev, &desc, 1);
-}
-
 static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 {
 	u32 func_num = max_t(u32, 1, hr_dev->func_num);
@@ -1898,16 +1877,6 @@ static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 				"failed to config vf-%u hem res, ret = %d.\n",
 				vf_id, ret);
 			return ret;
-		}
-
-		if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
-			ret = config_vf_ext_resource(hr_dev, vf_id);
-			if (ret) {
-				dev_err(hr_dev->dev,
-					"failed to config vf-%u ext res, ret = %d.\n",
-					vf_id, ret);
-				return ret;
-			}
 		}
 	}
 
@@ -2093,9 +2062,6 @@ static void apply_func_caps(struct hns_roce_dev *hr_dev)
 	caps->qpc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
 	caps->cqc_timer_hop_num = HNS_ROCE_HOP_NUM_0;
 
-	caps->num_xrcds = HNS_ROCE_V2_MAX_XRCD_NUM;
-	caps->reserved_xrcds = HNS_ROCE_V2_RSV_XRCD_NUM;
-
 	caps->num_srqwqe_segs = HNS_ROCE_V2_MAX_SRQWQE_SEGS;
 	caps->num_idx_segs = HNS_ROCE_V2_MAX_IDX_SEGS;
 
@@ -2218,6 +2184,7 @@ static int hns_roce_query_caps(struct hns_roce_dev *hr_dev)
 	caps->num_cqs = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_CQS);
 	caps->gid_table_len[0] = hr_reg_read(resp_c, PF_CAPS_C_MAX_GID);
 	caps->max_cqes = 1 << hr_reg_read(resp_c, PF_CAPS_C_CQ_DEPTH);
+	caps->num_xrcds = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_XRCDS);
 	caps->num_mtpts = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_MRWS);
 	caps->num_qps = 1 << hr_reg_read(resp_c, PF_CAPS_C_NUM_QPS);
 	caps->max_qp_init_rdma = hr_reg_read(resp_c, PF_CAPS_C_MAX_ORD);
@@ -2238,6 +2205,7 @@ static int hns_roce_query_caps(struct hns_roce_dev *hr_dev)
 	caps->reserved_mrws = hr_reg_read(resp_e, PF_CAPS_E_RSV_MRWS);
 	caps->chunk_sz = 1 << hr_reg_read(resp_e, PF_CAPS_E_CHUNK_SIZE_SHIFT);
 	caps->reserved_cqs = hr_reg_read(resp_e, PF_CAPS_E_RSV_CQS);
+	caps->reserved_xrcds = hr_reg_read(resp_e, PF_CAPS_E_RSV_XRCDS);
 	caps->reserved_srqs = hr_reg_read(resp_e, PF_CAPS_E_RSV_SRQS);
 	caps->reserved_lkey = hr_reg_read(resp_e, PF_CAPS_E_RSV_LKEYS);
 
@@ -6664,6 +6632,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.query_cqc = hns_roce_v2_query_cqc,
 	.query_qpc = hns_roce_v2_query_qpc,
 	.query_mpt = hns_roce_v2_query_mpt,
+	.query_hw_counter = hns_roce_hw_v2_query_counter,
 	.hns_roce_dev_ops = &hns_roce_v2_dev_ops,
 	.hns_roce_dev_srq_ops = &hns_roce_v2_dev_srq_ops,
 };
@@ -6740,14 +6709,14 @@ static int __hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	ret = hns_roce_init(hr_dev);
 	if (ret) {
 		dev_err(hr_dev->dev, "RoCE Engine init failed!\n");
-		goto error_failed_cfg;
+		goto error_failed_roce_init;
 	}
 
 	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08) {
 		ret = free_mr_init(hr_dev);
 		if (ret) {
 			dev_err(hr_dev->dev, "failed to init free mr!\n");
-			goto error_failed_roce_init;
+			goto error_failed_free_mr_init;
 		}
 	}
 
@@ -6755,10 +6724,10 @@ static int __hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 
 	return 0;
 
-error_failed_roce_init:
+error_failed_free_mr_init:
 	hns_roce_exit(hr_dev);
 
-error_failed_cfg:
+error_failed_roce_init:
 	kfree(hr_dev->priv);
 
 error_failed_kzalloc:

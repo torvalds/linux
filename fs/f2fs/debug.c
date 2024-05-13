@@ -215,6 +215,9 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		si->valid_blks[type] += blks;
 	}
 
+	for (i = 0; i < MAX_CALL_TYPE; i++)
+		si->cp_call_count[i] = atomic_read(&sbi->cp_call_count[i]);
+
 	for (i = 0; i < 2; i++) {
 		si->segment_count[i] = sbi->segment_count[i];
 		si->block_count[i] = sbi->block_count[i];
@@ -497,7 +500,9 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Prefree: %d\n  - Free: %d (%d)\n\n",
 			   si->prefree_count, si->free_segs, si->free_secs);
 		seq_printf(s, "CP calls: %d (BG: %d)\n",
-				si->cp_count, si->bg_cp_count);
+			   si->cp_call_count[TOTAL_CALL],
+			   si->cp_call_count[BACKGROUND]);
+		seq_printf(s, "CP count: %d\n", si->cp_count);
 		seq_printf(s, "  - cp blocks : %u\n", si->meta_count[META_CP]);
 		seq_printf(s, "  - sit blocks : %u\n",
 				si->meta_count[META_SIT]);
@@ -511,12 +516,24 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Total : %4d\n", si->nr_total_ckpt);
 		seq_printf(s, "  - Cur time : %4d(ms)\n", si->cur_ckpt_time);
 		seq_printf(s, "  - Peak time : %4d(ms)\n", si->peak_ckpt_time);
-		seq_printf(s, "GC calls: %d (BG: %d)\n",
-			   si->call_count, si->bg_gc);
-		seq_printf(s, "  - data segments : %d (%d)\n",
-				si->data_segs, si->bg_data_segs);
-		seq_printf(s, "  - node segments : %d (%d)\n",
-				si->node_segs, si->bg_node_segs);
+		seq_printf(s, "GC calls: %d (gc_thread: %d)\n",
+			   si->gc_call_count[BACKGROUND] +
+			   si->gc_call_count[FOREGROUND],
+			   si->gc_call_count[BACKGROUND]);
+		if (__is_large_section(sbi)) {
+			seq_printf(s, "  - data sections : %d (BG: %d)\n",
+					si->gc_secs[DATA][BG_GC] + si->gc_secs[DATA][FG_GC],
+					si->gc_secs[DATA][BG_GC]);
+			seq_printf(s, "  - node sections : %d (BG: %d)\n",
+					si->gc_secs[NODE][BG_GC] + si->gc_secs[NODE][FG_GC],
+					si->gc_secs[NODE][BG_GC]);
+		}
+		seq_printf(s, "  - data segments : %d (BG: %d)\n",
+				si->gc_segs[DATA][BG_GC] + si->gc_segs[DATA][FG_GC],
+				si->gc_segs[DATA][BG_GC]);
+		seq_printf(s, "  - node segments : %d (BG: %d)\n",
+				si->gc_segs[NODE][BG_GC] + si->gc_segs[NODE][FG_GC],
+				si->gc_segs[NODE][BG_GC]);
 		seq_puts(s, "  - Reclaimed segs :\n");
 		seq_printf(s, "    - Normal : %d\n", sbi->gc_reclaimed_segs[GC_NORMAL]);
 		seq_printf(s, "    - Idle CB : %d\n", sbi->gc_reclaimed_segs[GC_IDLE_CB]);
@@ -687,6 +704,8 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	atomic_set(&sbi->inplace_count, 0);
 	for (i = META_CP; i < META_MAX; i++)
 		atomic_set(&sbi->meta_count[i], 0);
+	for (i = 0; i < MAX_CALL_TYPE; i++)
+		atomic_set(&sbi->cp_call_count[i], 0);
 
 	atomic_set(&sbi->max_aw_cnt, 0);
 

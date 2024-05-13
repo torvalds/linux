@@ -24,14 +24,19 @@ static const char *aud_clks[MT8188_CLK_NUM] = {
 	[MT8188_CLK_APMIXED_APLL2] = "apll2",
 
 	/* divider */
+	[MT8188_CLK_TOP_APLL1_D4] = "apll1_d4",
+	[MT8188_CLK_TOP_APLL2_D4] = "apll2_d4",
 	[MT8188_CLK_TOP_APLL12_DIV0] = "apll12_div0",
 	[MT8188_CLK_TOP_APLL12_DIV1] = "apll12_div1",
 	[MT8188_CLK_TOP_APLL12_DIV2] = "apll12_div2",
 	[MT8188_CLK_TOP_APLL12_DIV3] = "apll12_div3",
+	[MT8188_CLK_TOP_APLL12_DIV4] = "apll12_div4",
 	[MT8188_CLK_TOP_APLL12_DIV9] = "apll12_div9",
 
 	/* mux */
 	[MT8188_CLK_TOP_A1SYS_HP_SEL] = "top_a1sys_hp",
+	[MT8188_CLK_TOP_A2SYS_SEL] = "top_a2sys",
+	[MT8188_CLK_TOP_AUD_IEC_SEL] = "top_aud_iec",
 	[MT8188_CLK_TOP_AUD_INTBUS_SEL] = "top_aud_intbus",
 	[MT8188_CLK_TOP_AUDIO_H_SEL] = "top_audio_h",
 	[MT8188_CLK_TOP_AUDIO_LOCAL_BUS_SEL] = "top_audio_local_bus",
@@ -378,6 +383,19 @@ int mt8188_afe_get_default_mclk_source_by_rate(int rate)
 		MT8188_MCK_SEL_APLL1 : MT8188_MCK_SEL_APLL2;
 }
 
+int mt8188_get_apll_by_rate(struct mtk_base_afe *afe, int rate)
+{
+	return ((rate % 8000) == 0) ? MT8188_AUD_PLL1 : MT8188_AUD_PLL2;
+}
+
+int mt8188_get_apll_by_name(struct mtk_base_afe *afe, const char *name)
+{
+	if (strcmp(name, APLL1_W_NAME) == 0)
+		return MT8188_AUD_PLL1;
+
+	return MT8188_AUD_PLL2;
+}
+
 int mt8188_afe_init_clock(struct mtk_base_afe *afe)
 {
 	struct mt8188_afe_private *afe_priv = afe->platform_priv;
@@ -470,8 +488,8 @@ int mt8188_afe_set_clk_parent(struct mtk_base_afe *afe, struct clk *clk,
 	if (clk && parent) {
 		ret = clk_set_parent(clk, parent);
 		if (ret) {
-			dev_dbg(afe->dev, "%s(), failed to set clk parent\n",
-				__func__);
+			dev_dbg(afe->dev, "%s(), failed to set clk parent %d\n",
+				__func__, ret);
 			return ret;
 		}
 	}
@@ -598,54 +616,132 @@ static int mt8188_afe_disable_afe_on(struct mtk_base_afe *afe)
 	return 0;
 }
 
-static int mt8188_afe_enable_timing_sys(struct mtk_base_afe *afe)
+static int mt8188_afe_enable_a1sys(struct mtk_base_afe *afe)
+{
+	struct mt8188_afe_private *afe_priv = afe->platform_priv;
+	int ret;
+
+	ret = mt8188_afe_enable_clk(afe, afe_priv->clk[MT8188_CLK_AUD_A1SYS]);
+	if (ret)
+		return ret;
+
+	return mt8188_afe_enable_top_cg(afe, MT8188_TOP_CG_A1SYS_TIMING);
+}
+
+static int mt8188_afe_disable_a1sys(struct mtk_base_afe *afe)
 {
 	struct mt8188_afe_private *afe_priv = afe->platform_priv;
 
-	mt8188_afe_enable_clk(afe, afe_priv->clk[MT8188_CLK_AUD_A1SYS]);
-	mt8188_afe_enable_clk(afe, afe_priv->clk[MT8188_CLK_AUD_A2SYS]);
+	mt8188_afe_disable_top_cg(afe, MT8188_TOP_CG_A1SYS_TIMING);
+	mt8188_afe_disable_clk(afe, afe_priv->clk[MT8188_CLK_AUD_A1SYS]);
+	return 0;
+}
 
-	mt8188_afe_enable_top_cg(afe, MT8188_TOP_CG_A1SYS_TIMING);
-	mt8188_afe_enable_top_cg(afe, MT8188_TOP_CG_A2SYS_TIMING);
-	mt8188_afe_enable_top_cg(afe, MT8188_TOP_CG_26M_TIMING);
+static int mt8188_afe_enable_a2sys(struct mtk_base_afe *afe)
+{
+	struct mt8188_afe_private *afe_priv = afe->platform_priv;
+	int ret;
+
+	ret = mt8188_afe_enable_clk(afe, afe_priv->clk[MT8188_CLK_AUD_A2SYS]);
+	if (ret)
+		return ret;
+
+	return mt8188_afe_enable_top_cg(afe, MT8188_TOP_CG_A2SYS_TIMING);
+}
+
+static int mt8188_afe_disable_a2sys(struct mtk_base_afe *afe)
+{
+	struct mt8188_afe_private *afe_priv = afe->platform_priv;
+
+	mt8188_afe_disable_top_cg(afe, MT8188_TOP_CG_A2SYS_TIMING);
+	mt8188_afe_disable_clk(afe, afe_priv->clk[MT8188_CLK_AUD_A2SYS]);
+	return 0;
+}
+
+int mt8188_apll1_enable(struct mtk_base_afe *afe)
+{
+	struct mt8188_afe_private *afe_priv = afe->platform_priv;
+	int ret;
+
+	ret = mt8188_afe_enable_clk(afe, afe_priv->clk[MT8188_CLK_TOP_APLL1_D4]);
+	if (ret)
+		return ret;
+
+	ret = mt8188_afe_set_clk_parent(afe, afe_priv->clk[MT8188_CLK_TOP_A1SYS_HP_SEL],
+					afe_priv->clk[MT8188_CLK_TOP_APLL1_D4]);
+	if (ret)
+		goto err_clk_parent;
+
+	ret = mt8188_afe_enable_apll_tuner(afe, MT8188_AUD_PLL1);
+	if (ret)
+		goto err_apll_tuner;
+
+	ret = mt8188_afe_enable_a1sys(afe);
+	if (ret)
+		goto err_a1sys;
+
+	return 0;
+
+err_a1sys:
+	mt8188_afe_disable_apll_tuner(afe, MT8188_AUD_PLL1);
+err_apll_tuner:
+	mt8188_afe_set_clk_parent(afe, afe_priv->clk[MT8188_CLK_TOP_A1SYS_HP_SEL],
+				  afe_priv->clk[MT8188_CLK_XTAL_26M]);
+err_clk_parent:
+	mt8188_afe_disable_clk(afe, afe_priv->clk[MT8188_CLK_TOP_APLL1_D4]);
+
+	return ret;
+}
+
+int mt8188_apll1_disable(struct mtk_base_afe *afe)
+{
+	struct mt8188_afe_private *afe_priv = afe->platform_priv;
+
+	mt8188_afe_disable_a1sys(afe);
+	mt8188_afe_disable_apll_tuner(afe, MT8188_AUD_PLL1);
+	mt8188_afe_set_clk_parent(afe, afe_priv->clk[MT8188_CLK_TOP_A1SYS_HP_SEL],
+				  afe_priv->clk[MT8188_CLK_XTAL_26M]);
+	mt8188_afe_disable_clk(afe, afe_priv->clk[MT8188_CLK_TOP_APLL1_D4]);
 
 	return 0;
 }
 
-static int mt8188_afe_disable_timing_sys(struct mtk_base_afe *afe)
+int mt8188_apll2_enable(struct mtk_base_afe *afe)
 {
-	struct mt8188_afe_private *afe_priv = afe->platform_priv;
+	int ret;
 
-	mt8188_afe_disable_clk(afe, afe_priv->clk[MT8188_CLK_AUD_A1SYS]);
-	mt8188_afe_disable_clk(afe, afe_priv->clk[MT8188_CLK_AUD_A2SYS]);
+	ret = mt8188_afe_enable_apll_tuner(afe, MT8188_AUD_PLL2);
+	if (ret)
+		return ret;
 
-	mt8188_afe_disable_top_cg(afe, MT8188_TOP_CG_26M_TIMING);
-	mt8188_afe_disable_top_cg(afe, MT8188_TOP_CG_A2SYS_TIMING);
-	mt8188_afe_disable_top_cg(afe, MT8188_TOP_CG_A1SYS_TIMING);
+	ret =  mt8188_afe_enable_a2sys(afe);
+	if (ret)
+		goto err_a2sys;
 
+	return 0;
+err_a2sys:
+	mt8188_afe_disable_apll_tuner(afe, MT8188_AUD_PLL2);
+
+	return ret;
+}
+
+int mt8188_apll2_disable(struct mtk_base_afe *afe)
+{
+	mt8188_afe_disable_a2sys(afe);
+	mt8188_afe_disable_apll_tuner(afe, MT8188_AUD_PLL2);
 	return 0;
 }
 
 int mt8188_afe_enable_main_clock(struct mtk_base_afe *afe)
 {
-	mt8188_afe_enable_timing_sys(afe);
-
+	mt8188_afe_enable_top_cg(afe, MT8188_TOP_CG_26M_TIMING);
 	mt8188_afe_enable_afe_on(afe);
-
-	mt8188_afe_enable_apll_tuner(afe, MT8188_AUD_PLL1);
-	mt8188_afe_enable_apll_tuner(afe, MT8188_AUD_PLL2);
-
 	return 0;
 }
 
 int mt8188_afe_disable_main_clock(struct mtk_base_afe *afe)
 {
-	mt8188_afe_disable_apll_tuner(afe, MT8188_AUD_PLL2);
-	mt8188_afe_disable_apll_tuner(afe, MT8188_AUD_PLL1);
-
 	mt8188_afe_disable_afe_on(afe);
-
-	mt8188_afe_disable_timing_sys(afe);
-
+	mt8188_afe_disable_top_cg(afe, MT8188_TOP_CG_26M_TIMING);
 	return 0;
 }

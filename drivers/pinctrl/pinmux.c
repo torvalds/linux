@@ -677,7 +677,6 @@ void pinmux_show_setting(struct seq_file *s,
 DEFINE_SHOW_ATTRIBUTE(pinmux_functions);
 DEFINE_SHOW_ATTRIBUTE(pinmux_pins);
 
-#define PINMUX_SELECT_MAX 128
 static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
 				   size_t len, loff_t *ppos)
 {
@@ -689,17 +688,9 @@ static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
 	unsigned int num_groups;
 	int fsel, gsel, ret;
 
-	if (len > PINMUX_SELECT_MAX)
-		return -ENOMEM;
-
-	buf = kzalloc(PINMUX_SELECT_MAX, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = strncpy_from_user(buf, user_buf, PINMUX_SELECT_MAX);
-	if (ret < 0)
-		goto exit_free_buf;
-	buf[len-1] = '\0';
+	buf = memdup_user_nul(user_buf, len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	/* remove leading and trailing spaces of input buffer */
 	gname = strstrip(buf);
@@ -881,7 +872,7 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 				void *data)
 {
 	struct function_desc *function;
-	int selector;
+	int selector, error;
 
 	if (!name)
 		return -EINVAL;
@@ -901,7 +892,9 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 	function->num_group_names = num_groups;
 	function->data = data;
 
-	radix_tree_insert(&pctldev->pin_function_tree, selector, function);
+	error = radix_tree_insert(&pctldev->pin_function_tree, selector, function);
+	if (error)
+		return error;
 
 	pctldev->num_functions++;
 

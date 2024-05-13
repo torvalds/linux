@@ -691,7 +691,7 @@ DEFINE_EVENT(smb3_tcon_class, smb3_##name,    \
 	TP_ARGS(xid, tid, sesid, unc_name, rc))
 
 DEFINE_SMB3_TCON_EVENT(tcon);
-
+DEFINE_SMB3_TCON_EVENT(qfs_done);
 
 /*
  * For smb2/smb3 open (including create and mkdir) calls
@@ -935,6 +935,8 @@ DEFINE_EVENT(smb3_connect_class, smb3_##name,  \
 	TP_ARGS(hostname, conn_id, addr))
 
 DEFINE_SMB3_CONNECT_EVENT(connect_done);
+DEFINE_SMB3_CONNECT_EVENT(smbd_connect_done);
+DEFINE_SMB3_CONNECT_EVENT(smbd_connect_err);
 
 DECLARE_EVENT_CLASS(smb3_connect_err_class,
 	TP_PROTO(char *hostname, __u64 conn_id,
@@ -1002,6 +1004,26 @@ DEFINE_EVENT(smb3_reconnect_class, smb3_##name,  \
 
 DEFINE_SMB3_RECONNECT_EVENT(reconnect);
 DEFINE_SMB3_RECONNECT_EVENT(partial_send_reconnect);
+
+DECLARE_EVENT_CLASS(smb3_ses_class,
+	TP_PROTO(__u64	sesid),
+	TP_ARGS(sesid),
+	TP_STRUCT__entry(
+		__field(__u64, sesid)
+	),
+	TP_fast_assign(
+		__entry->sesid = sesid;
+	),
+	TP_printk("sid=0x%llx",
+		__entry->sesid)
+)
+
+#define DEFINE_SMB3_SES_EVENT(name)        \
+DEFINE_EVENT(smb3_ses_class, smb3_##name,  \
+	TP_PROTO(__u64	sesid),				\
+	TP_ARGS(sesid))
+
+DEFINE_SMB3_SES_EVENT(ses_not_found);
 
 DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_PROTO(__u64	currmid,

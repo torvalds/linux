@@ -56,9 +56,9 @@ struct af_alg_type {
 };
 
 struct af_alg_sgl {
-	struct scatterlist sg[ALG_MAX_PAGES + 1];
-	struct page *pages[ALG_MAX_PAGES];
-	unsigned int npages;
+	struct sg_table sgt;
+	struct scatterlist sgl[ALG_MAX_PAGES + 1];
+	bool need_unpin;
 };
 
 /* TX SGL entry */
@@ -163,7 +163,6 @@ int af_alg_release(struct socket *sock);
 void af_alg_release_parent(struct sock *sk);
 int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern);
 
-int af_alg_make_sg(struct af_alg_sgl *sgl, struct iov_iter *iter, int len);
 void af_alg_free_sg(struct af_alg_sgl *sgl);
 
 static inline struct alg_sock *alg_sk(struct sock *sk)
@@ -230,8 +229,6 @@ void af_alg_wmem_wakeup(struct sock *sk);
 int af_alg_wait_for_data(struct sock *sk, unsigned flags, unsigned min);
 int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		   unsigned int ivsize);
-ssize_t af_alg_sendpage(struct socket *sock, struct page *page,
-			int offset, size_t size, int flags);
 void af_alg_free_resources(struct af_alg_async_req *areq);
 void af_alg_async_cb(void *data, int err);
 __poll_t af_alg_poll(struct file *file, struct socket *sock,

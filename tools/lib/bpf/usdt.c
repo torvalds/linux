@@ -250,6 +250,7 @@ struct usdt_manager {
 
 	bool has_bpf_cookie;
 	bool has_sema_refcnt;
+	bool has_uprobe_multi;
 };
 
 struct usdt_manager *usdt_manager_new(struct bpf_object *obj)
@@ -284,6 +285,11 @@ struct usdt_manager *usdt_manager_new(struct bpf_object *obj)
 	 */
 	man->has_sema_refcnt = faccessat(AT_FDCWD, ref_ctr_sysfs_path, F_OK, AT_EACCESS) == 0;
 
+	/*
+	 * Detect kernel support for uprobe multi link to be used for attaching
+	 * usdt probes.
+	 */
+	man->has_uprobe_multi = kernel_supports(obj, FEAT_UPROBE_MULTI_LINK);
 	return man;
 }
 
@@ -466,7 +472,7 @@ static int parse_vma_segs(int pid, const char *lib_path, struct elf_seg **segs, 
 
 proceed:
 	sprintf(line, "/proc/%d/maps", pid);
-	f = fopen(line, "r");
+	f = fopen(line, "re");
 	if (!f) {
 		err = -errno;
 		pr_warn("usdt: failed to open '%s' to get base addr of '%s': %d\n",
@@ -808,6 +814,8 @@ struct bpf_link_usdt {
 		long abs_ip;
 		struct bpf_link *link;
 	} *uprobes;
+
+	struct bpf_link *multi_link;
 };
 
 static int bpf_link_usdt_detach(struct bpf_link *link)
@@ -816,6 +824,9 @@ static int bpf_link_usdt_detach(struct bpf_link *link)
 	struct usdt_manager *man = usdt_link->usdt_man;
 	int i;
 
+	bpf_link__destroy(usdt_link->multi_link);
+
+	/* When having multi_link, uprobe_cnt is 0 */
 	for (i = 0; i < usdt_link->uprobe_cnt; i++) {
 		/* detach underlying uprobe link */
 		bpf_link__destroy(usdt_link->uprobes[i].link);
@@ -852,8 +863,11 @@ static int bpf_link_usdt_detach(struct bpf_link *link)
 		 * system is so exhausted on memory, it's the least of user's
 		 * concerns, probably.
 		 * So just do our best here to return those IDs to usdt_manager.
+		 * Another edge case when we can legitimately get NULL is when
+		 * new_cnt is zero, which can happen in some edge cases, so we
+		 * need to be careful about that.
 		 */
-		if (new_free_ids) {
+		if (new_free_ids || new_cnt == 0) {
 			memcpy(new_free_ids + man->free_spec_cnt, usdt_link->spec_ids,
 			       usdt_link->spec_cnt * sizeof(*usdt_link->spec_ids));
 			man->free_spec_ids = new_free_ids;
@@ -943,33 +957,24 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 					  const char *usdt_provider, const char *usdt_name,
 					  __u64 usdt_cookie)
 {
-	int i, fd, err, spec_map_fd, ip_map_fd;
+	unsigned long *offsets = NULL, *ref_ctr_offsets = NULL;
+	int i, err, spec_map_fd, ip_map_fd;
 	LIBBPF_OPTS(bpf_uprobe_opts, opts);
 	struct hashmap *specs_hash = NULL;
 	struct bpf_link_usdt *link = NULL;
 	struct usdt_target *targets = NULL;
+	__u64 *cookies = NULL;
+	struct elf_fd elf_fd;
 	size_t target_cnt;
-	Elf *elf;
 
 	spec_map_fd = bpf_map__fd(man->specs_map);
 	ip_map_fd = bpf_map__fd(man->ip_to_spec_id_map);
 
-	/* TODO: perform path resolution similar to uprobe's */
-	fd = open(path, O_RDONLY);
-	if (fd < 0) {
-		err = -errno;
-		pr_warn("usdt: failed to open ELF binary '%s': %d\n", path, err);
+	err = elf_open(path, &elf_fd);
+	if (err)
 		return libbpf_err_ptr(err);
-	}
 
-	elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
-	if (!elf) {
-		err = -EBADF;
-		pr_warn("usdt: failed to parse ELF binary '%s': %s\n", path, elf_errmsg(-1));
-		goto err_out;
-	}
-
-	err = sanity_check_usdt_elf(elf, path);
+	err = sanity_check_usdt_elf(elf_fd.elf, path);
 	if (err)
 		goto err_out;
 
@@ -982,7 +987,7 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 	/* discover USDT in given binary, optionally limiting
 	 * activations to a given PID, if pid > 0
 	 */
-	err = collect_usdt_targets(man, elf, path, pid, usdt_provider, usdt_name,
+	err = collect_usdt_targets(man, elf_fd.elf, path, pid, usdt_provider, usdt_name,
 				   usdt_cookie, &targets, &target_cnt);
 	if (err <= 0) {
 		err = (err == 0) ? -ENOENT : err;
@@ -1005,10 +1010,21 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 	link->link.detach = &bpf_link_usdt_detach;
 	link->link.dealloc = &bpf_link_usdt_dealloc;
 
-	link->uprobes = calloc(target_cnt, sizeof(*link->uprobes));
-	if (!link->uprobes) {
-		err = -ENOMEM;
-		goto err_out;
+	if (man->has_uprobe_multi) {
+		offsets = calloc(target_cnt, sizeof(*offsets));
+		cookies = calloc(target_cnt, sizeof(*cookies));
+		ref_ctr_offsets = calloc(target_cnt, sizeof(*ref_ctr_offsets));
+
+		if (!offsets || !ref_ctr_offsets || !cookies) {
+			err = -ENOMEM;
+			goto err_out;
+		}
+	} else {
+		link->uprobes = calloc(target_cnt, sizeof(*link->uprobes));
+		if (!link->uprobes) {
+			err = -ENOMEM;
+			goto err_out;
+		}
 	}
 
 	for (i = 0; i < target_cnt; i++) {
@@ -1049,37 +1065,65 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 			goto err_out;
 		}
 
-		opts.ref_ctr_offset = target->sema_off;
-		opts.bpf_cookie = man->has_bpf_cookie ? spec_id : 0;
-		uprobe_link = bpf_program__attach_uprobe_opts(prog, pid, path,
-							      target->rel_ip, &opts);
-		err = libbpf_get_error(uprobe_link);
-		if (err) {
-			pr_warn("usdt: failed to attach uprobe #%d for '%s:%s' in '%s': %d\n",
-				i, usdt_provider, usdt_name, path, err);
+		if (man->has_uprobe_multi) {
+			offsets[i] = target->rel_ip;
+			ref_ctr_offsets[i] = target->sema_off;
+			cookies[i] = spec_id;
+		} else {
+			opts.ref_ctr_offset = target->sema_off;
+			opts.bpf_cookie = man->has_bpf_cookie ? spec_id : 0;
+			uprobe_link = bpf_program__attach_uprobe_opts(prog, pid, path,
+								      target->rel_ip, &opts);
+			err = libbpf_get_error(uprobe_link);
+			if (err) {
+				pr_warn("usdt: failed to attach uprobe #%d for '%s:%s' in '%s': %d\n",
+					i, usdt_provider, usdt_name, path, err);
+				goto err_out;
+			}
+
+			link->uprobes[i].link = uprobe_link;
+			link->uprobes[i].abs_ip = target->abs_ip;
+			link->uprobe_cnt++;
+		}
+	}
+
+	if (man->has_uprobe_multi) {
+		LIBBPF_OPTS(bpf_uprobe_multi_opts, opts_multi,
+			.ref_ctr_offsets = ref_ctr_offsets,
+			.offsets = offsets,
+			.cookies = cookies,
+			.cnt = target_cnt,
+		);
+
+		link->multi_link = bpf_program__attach_uprobe_multi(prog, pid, path,
+								    NULL, &opts_multi);
+		if (!link->multi_link) {
+			err = -errno;
+			pr_warn("usdt: failed to attach uprobe multi for '%s:%s' in '%s': %d\n",
+				usdt_provider, usdt_name, path, err);
 			goto err_out;
 		}
 
-		link->uprobes[i].link = uprobe_link;
-		link->uprobes[i].abs_ip = target->abs_ip;
-		link->uprobe_cnt++;
+		free(offsets);
+		free(ref_ctr_offsets);
+		free(cookies);
 	}
 
 	free(targets);
 	hashmap__free(specs_hash);
-	elf_end(elf);
-	close(fd);
-
+	elf_close(&elf_fd);
 	return &link->link;
 
 err_out:
+	free(offsets);
+	free(ref_ctr_offsets);
+	free(cookies);
+
 	if (link)
 		bpf_link__destroy(&link->link);
 	free(targets);
 	hashmap__free(specs_hash);
-	if (elf)
-		elf_end(elf);
-	close(fd);
+	elf_close(&elf_fd);
 	return libbpf_err_ptr(err);
 }
 

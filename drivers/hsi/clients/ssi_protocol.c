@@ -32,8 +32,6 @@
 #include <linux/hsi/hsi.h>
 #include <linux/hsi/ssi_protocol.h>
 
-void ssi_waketest(struct hsi_client *cl, unsigned int enable);
-
 #define SSIP_TXQUEUE_LEN	100
 #define SSIP_MAX_MTU		65535
 #define SSIP_DEFAULT_MTU	4000

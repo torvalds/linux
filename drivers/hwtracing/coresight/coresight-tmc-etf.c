@@ -206,7 +206,7 @@ static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 	 * touched.
 	 */
 	if (drvdata->mode == CS_MODE_SYSFS) {
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 		goto out;
 	}
 
@@ -229,7 +229,7 @@ static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 	ret = tmc_etb_enable_hw(drvdata);
 	if (!ret) {
 		drvdata->mode = CS_MODE_SYSFS;
-		atomic_inc(csdev->refcnt);
+		atomic_inc(&csdev->refcnt);
 	} else {
 		/* Free up the buffer if we failed to enable */
 		used = false;
@@ -284,7 +284,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 		 * use for this session.
 		 */
 		if (drvdata->pid == pid) {
-			atomic_inc(csdev->refcnt);
+			atomic_inc(&csdev->refcnt);
 			break;
 		}
 
@@ -293,7 +293,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 			/* Associate with monitored process. */
 			drvdata->pid = pid;
 			drvdata->mode = CS_MODE_PERF;
-			atomic_inc(csdev->refcnt);
+			atomic_inc(&csdev->refcnt);
 		}
 	} while (0);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
@@ -302,7 +302,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 }
 
 static int tmc_enable_etf_sink(struct coresight_device *csdev,
-			       u32 mode, void *data)
+			       enum cs_mode mode, void *data)
 {
 	int ret;
 
@@ -338,7 +338,7 @@ static int tmc_disable_etf_sink(struct coresight_device *csdev)
 		return -EBUSY;
 	}
 
-	if (atomic_dec_return(csdev->refcnt)) {
+	if (atomic_dec_return(&csdev->refcnt)) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		return -EBUSY;
 	}
@@ -357,7 +357,8 @@ static int tmc_disable_etf_sink(struct coresight_device *csdev)
 }
 
 static int tmc_enable_etf_link(struct coresight_device *csdev,
-			       int inport, int outport)
+			       struct coresight_connection *in,
+			       struct coresight_connection *out)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -370,7 +371,7 @@ static int tmc_enable_etf_link(struct coresight_device *csdev,
 		return -EBUSY;
 	}
 
-	if (atomic_read(&csdev->refcnt[0]) == 0) {
+	if (atomic_read(&csdev->refcnt) == 0) {
 		ret = tmc_etf_enable_hw(drvdata);
 		if (!ret) {
 			drvdata->mode = CS_MODE_SYSFS;
@@ -378,7 +379,7 @@ static int tmc_enable_etf_link(struct coresight_device *csdev,
 		}
 	}
 	if (!ret)
-		atomic_inc(&csdev->refcnt[0]);
+		atomic_inc(&csdev->refcnt);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	if (first_enable)
@@ -387,7 +388,8 @@ static int tmc_enable_etf_link(struct coresight_device *csdev,
 }
 
 static void tmc_disable_etf_link(struct coresight_device *csdev,
-				 int inport, int outport)
+				 struct coresight_connection *in,
+				 struct coresight_connection *out)
 {
 	unsigned long flags;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -399,7 +401,7 @@ static void tmc_disable_etf_link(struct coresight_device *csdev,
 		return;
 	}
 
-	if (atomic_dec_return(&csdev->refcnt[0]) == 0) {
+	if (atomic_dec_return(&csdev->refcnt) == 0) {
 		tmc_etf_disable_hw(drvdata);
 		drvdata->mode = CS_MODE_DISABLED;
 		last_disable = true;
@@ -450,7 +452,7 @@ static int tmc_set_etf_buffer(struct coresight_device *csdev,
 		return -EINVAL;
 
 	/* wrap head around to the amount of space we have */
-	head = handle->head & ((buf->nr_pages << PAGE_SHIFT) - 1);
+	head = handle->head & (((unsigned long)buf->nr_pages << PAGE_SHIFT) - 1);
 
 	/* find the page to write to */
 	buf->cur = head / PAGE_SIZE;
@@ -487,7 +489,7 @@ static unsigned long tmc_update_etf_buffer(struct coresight_device *csdev,
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* Don't do anything if another tracer is using this sink */
-	if (atomic_read(csdev->refcnt) != 1)
+	if (atomic_read(&csdev->refcnt) != 1)
 		goto out;
 
 	CS_UNLOCK(drvdata->base);

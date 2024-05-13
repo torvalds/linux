@@ -1193,7 +1193,7 @@ static void wb_update_write_bandwidth(struct bdi_writeback *wb,
 	 * write_bandwidth = ---------------------------------------------------
 	 *                                          period
 	 *
-	 * @written may have decreased due to folio_account_redirty().
+	 * @written may have decreased due to folio_redirty_for_writepage().
 	 * Avoid underflowing @bw calculation.
 	 */
 	bw = written - min(written, wb->written_stamp);
@@ -2434,6 +2434,7 @@ int write_cache_pages(struct address_space *mapping,
 
 		for (i = 0; i < nr_folios; i++) {
 			struct folio *folio = fbatch.folios[i];
+			unsigned long nr;
 
 			done_index = folio->index;
 
@@ -2471,6 +2472,7 @@ continue_unlock:
 
 			trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
 			error = writepage(folio, wbc, data);
+			nr = folio_nr_pages(folio);
 			if (unlikely(error)) {
 				/*
 				 * Handle errors according to the type of
@@ -2489,8 +2491,7 @@ continue_unlock:
 					error = 0;
 				} else if (wbc->sync_mode != WB_SYNC_ALL) {
 					ret = error;
-					done_index = folio->index +
-						folio_nr_pages(folio);
+					done_index = folio->index + nr;
 					done = 1;
 					break;
 				}
@@ -2504,7 +2505,8 @@ continue_unlock:
 			 * keep going until we have written all the pages
 			 * we tagged for writeback prior to entering this loop.
 			 */
-			if (--wbc->nr_to_write <= 0 &&
+			wbc->nr_to_write -= nr;
+			if (wbc->nr_to_write <= 0 &&
 			    wbc->sync_mode == WB_SYNC_NONE) {
 				done = 1;
 				break;
@@ -2597,7 +2599,7 @@ EXPORT_SYMBOL(noop_dirty_folio);
 /*
  * Helper function for set_page_dirty family.
  *
- * Caller must hold lock_page_memcg().
+ * Caller must hold folio_memcg_lock().
  *
  * NOTE: This relies on being atomic wrt interrupts.
  */
@@ -2631,7 +2633,7 @@ static void folio_account_dirtied(struct folio *folio,
 /*
  * Helper function for deaccounting dirty page without writeback.
  *
- * Caller must hold lock_page_memcg().
+ * Caller must hold folio_memcg_lock().
  */
 void folio_account_cleaned(struct folio *folio, struct bdi_writeback *wb)
 {
@@ -2650,7 +2652,7 @@ void folio_account_cleaned(struct folio *folio, struct bdi_writeback *wb)
  * If warn is true, then emit a warning if the folio is not uptodate and has
  * not been truncated.
  *
- * The caller must hold lock_page_memcg().  Most callers have the folio
+ * The caller must hold folio_memcg_lock().  Most callers have the folio
  * locked.  A few have the folio blocked from truncation through other
  * means (eg zap_vma_pages() has it mapped and is holding the page table
  * lock).  This can also be called from mark_buffer_dirty(), which I
@@ -2710,37 +2712,6 @@ bool filemap_dirty_folio(struct address_space *mapping, struct folio *folio)
 EXPORT_SYMBOL(filemap_dirty_folio);
 
 /**
- * folio_account_redirty - Manually account for redirtying a page.
- * @folio: The folio which is being redirtied.
- *
- * Most filesystems should call folio_redirty_for_writepage() instead
- * of this fuction.  If your filesystem is doing writeback outside the
- * context of a writeback_control(), it can call this when redirtying
- * a folio, to de-account the dirty counters (NR_DIRTIED, WB_DIRTIED,
- * tsk->nr_dirtied), so that they match the written counters (NR_WRITTEN,
- * WB_WRITTEN) in long term. The mismatches will lead to systematic errors
- * in balanced_dirty_ratelimit and the dirty pages position control.
- */
-void folio_account_redirty(struct folio *folio)
-{
-	struct address_space *mapping = folio->mapping;
-
-	if (mapping && mapping_can_writeback(mapping)) {
-		struct inode *inode = mapping->host;
-		struct bdi_writeback *wb;
-		struct wb_lock_cookie cookie = {};
-		long nr = folio_nr_pages(folio);
-
-		wb = unlocked_inode_to_wb_begin(inode, &cookie);
-		current->nr_dirtied -= nr;
-		node_stat_mod_folio(folio, NR_DIRTIED, -nr);
-		wb_stat_mod(wb, WB_DIRTIED, -nr);
-		unlocked_inode_to_wb_end(inode, &cookie);
-	}
-}
-EXPORT_SYMBOL(folio_account_redirty);
-
-/**
  * folio_redirty_for_writepage - Decline to write a dirty folio.
  * @wbc: The writeback control.
  * @folio: The folio.
@@ -2755,13 +2726,23 @@ EXPORT_SYMBOL(folio_account_redirty);
 bool folio_redirty_for_writepage(struct writeback_control *wbc,
 		struct folio *folio)
 {
-	bool ret;
+	struct address_space *mapping = folio->mapping;
 	long nr = folio_nr_pages(folio);
+	bool ret;
 
 	wbc->pages_skipped += nr;
-	ret = filemap_dirty_folio(folio->mapping, folio);
-	folio_account_redirty(folio);
+	ret = filemap_dirty_folio(mapping, folio);
+	if (mapping && mapping_can_writeback(mapping)) {
+		struct inode *inode = mapping->host;
+		struct bdi_writeback *wb;
+		struct wb_lock_cookie cookie = {};
 
+		wb = unlocked_inode_to_wb_begin(inode, &cookie);
+		current->nr_dirtied -= nr;
+		node_stat_mod_folio(folio, NR_DIRTIED, -nr);
+		wb_stat_mod(wb, WB_DIRTIED, -nr);
+		unlocked_inode_to_wb_end(inode, &cookie);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(folio_redirty_for_writepage);

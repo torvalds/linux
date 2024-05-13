@@ -640,10 +640,13 @@ void segment_warning(int rc, char *seg_name)
 		pr_err("There is not enough memory to load or query "
 		       "DCSS %s\n", seg_name);
 		break;
-	case -ERANGE:
-		pr_err("DCSS %s exceeds the kernel mapping range (%lu) "
-		       "and cannot be loaded\n", seg_name, VMEM_MAX_PHYS);
+	case -ERANGE: {
+		struct range mhp_range = arch_get_mappable_range();
+
+		pr_err("DCSS %s exceeds the kernel mapping range (%llu) "
+		       "and cannot be loaded\n", seg_name, mhp_range.end + 1);
 		break;
+	}
 	default:
 		break;
 	}

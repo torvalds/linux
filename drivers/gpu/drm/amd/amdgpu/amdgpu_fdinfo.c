@@ -53,9 +53,8 @@ static const char *amdgpu_ip_name[AMDGPU_HW_IP_NUM] = {
 	[AMDGPU_HW_IP_VCN_JPEG]	=	"jpeg",
 };
 
-void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
+void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
-	struct drm_file *file = f->private_data;
 	struct amdgpu_device *adev = drm_to_adev(file->minor->dev);
 	struct amdgpu_fpriv *fpriv = file->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
@@ -87,31 +86,30 @@ void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
 	 * ******************************************************************
 	 */
 
-	seq_printf(m, "pasid:\t%u\n", fpriv->vm.pasid);
-	seq_printf(m, "drm-driver:\t%s\n", file->minor->dev->driver->name);
-	seq_printf(m, "drm-pdev:\t%04x:%02x:%02x.%d\n", domain, bus, dev, fn);
-	seq_printf(m, "drm-client-id:\t%Lu\n", vm->immediate.fence_context);
-	seq_printf(m, "drm-memory-vram:\t%llu KiB\n", stats.vram/1024UL);
-	seq_printf(m, "drm-memory-gtt: \t%llu KiB\n", stats.gtt/1024UL);
-	seq_printf(m, "drm-memory-cpu: \t%llu KiB\n", stats.cpu/1024UL);
-	seq_printf(m, "amd-memory-visible-vram:\t%llu KiB\n",
+	drm_printf(p, "pasid:\t%u\n", fpriv->vm.pasid);
+	drm_printf(p, "drm-driver:\t%s\n", file->minor->dev->driver->name);
+	drm_printf(p, "drm-pdev:\t%04x:%02x:%02x.%d\n", domain, bus, dev, fn);
+	drm_printf(p, "drm-client-id:\t%llu\n", vm->immediate.fence_context);
+	drm_printf(p, "drm-memory-vram:\t%llu KiB\n", stats.vram/1024UL);
+	drm_printf(p, "drm-memory-gtt: \t%llu KiB\n", stats.gtt/1024UL);
+	drm_printf(p, "drm-memory-cpu: \t%llu KiB\n", stats.cpu/1024UL);
+	drm_printf(p, "amd-memory-visible-vram:\t%llu KiB\n",
 		   stats.visible_vram/1024UL);
-	seq_printf(m, "amd-evicted-vram:\t%llu KiB\n",
+	drm_printf(p, "amd-evicted-vram:\t%llu KiB\n",
 		   stats.evicted_vram/1024UL);
-	seq_printf(m, "amd-evicted-visible-vram:\t%llu KiB\n",
+	drm_printf(p, "amd-evicted-visible-vram:\t%llu KiB\n",
 		   stats.evicted_visible_vram/1024UL);
-	seq_printf(m, "amd-requested-vram:\t%llu KiB\n",
+	drm_printf(p, "amd-requested-vram:\t%llu KiB\n",
 		   stats.requested_vram/1024UL);
-	seq_printf(m, "amd-requested-visible-vram:\t%llu KiB\n",
+	drm_printf(p, "amd-requested-visible-vram:\t%llu KiB\n",
 		   stats.requested_visible_vram/1024UL);
-	seq_printf(m, "amd-requested-gtt:\t%llu KiB\n",
+	drm_printf(p, "amd-requested-gtt:\t%llu KiB\n",
 		   stats.requested_gtt/1024UL);
-
 	for (hw_ip = 0; hw_ip < AMDGPU_HW_IP_NUM; ++hw_ip) {
 		if (!usage[hw_ip])
 			continue;
 
-		seq_printf(m, "drm-engine-%s:\t%Ld ns\n", amdgpu_ip_name[hw_ip],
+		drm_printf(p, "drm-engine-%s:\t%lld ns\n", amdgpu_ip_name[hw_ip],
 			   ktime_to_ns(usage[hw_ip]));
 	}
 }

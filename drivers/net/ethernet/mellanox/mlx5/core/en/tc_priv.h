@@ -94,13 +94,13 @@ struct mlx5e_tc_flow {
 	 * destinations.
 	 */
 	struct encap_flow_item encaps[MLX5_MAX_FLOW_FWD_VPORTS];
-	struct mlx5e_tc_flow *peer_flow;
 	struct mlx5e_hairpin_entry *hpe; /* attached hairpin instance */
 	struct list_head hairpin; /* flows sharing the same hairpin */
-	struct list_head peer;    /* flows with peer flow */
+	struct list_head peer[MLX5_MAX_PORTS];    /* flows with peer flow */
 	struct list_head unready; /* flows not ready to be offloaded (e.g
 				   * due to missing route)
 				   */
+	struct list_head peer_flows; /* flows on peer */
 	struct net_device *orig_dev; /* netdev adding flow first */
 	int tmp_entry_index;
 	struct list_head tmp_list; /* temporary flow list used by neigh update */

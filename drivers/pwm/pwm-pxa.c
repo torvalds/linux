@@ -8,13 +8,14 @@
  *		eric miao <eric.miao@marvell.com>
  *
  * Links to reference manuals for some of the supported PWM chips can be found
- * in Documentation/arm/marvell.rst.
+ * in Documentation/arch/arm/marvell.rst.
  *
  * Limitations:
  * - When PWM is stopped, the current PWM period stops abruptly at the next
  *   input clock (PWMCR_SD is set) and the output is driven to inactive.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -156,13 +157,6 @@ MODULE_DEVICE_TABLE(of, pwm_of_match);
 #define pwm_of_match NULL
 #endif
 
-static const struct platform_device_id *pxa_pwm_get_id_dt(struct device *dev)
-{
-	const struct of_device_id *id = of_match_device(pwm_of_match, dev);
-
-	return id ? id->data : NULL;
-}
-
 static int pwm_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *id = platform_get_device_id(pdev);
@@ -170,7 +164,7 @@ static int pwm_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (IS_ENABLED(CONFIG_OF) && id == NULL)
-		id = pxa_pwm_get_id_dt(&pdev->dev);
+		id = of_device_get_match_data(&pdev->dev);
 
 	if (id == NULL)
 		return -EINVAL;

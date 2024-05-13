@@ -17,7 +17,6 @@
 #include <linux/mfd/ti-lmu-register.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/slab.h>
 
 struct ti_lmu_data {
@@ -217,7 +216,7 @@ static const struct i2c_device_id ti_lmu_ids[] = {
 MODULE_DEVICE_TABLE(i2c, ti_lmu_ids);
 
 static struct i2c_driver ti_lmu_driver = {
-	.probe_new = ti_lmu_probe,
+	.probe = ti_lmu_probe,
 	.driver = {
 		.name = "ti-lmu",
 		.of_match_table = ti_lmu_of_match,

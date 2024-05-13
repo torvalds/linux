@@ -2,7 +2,7 @@
 
 .. include:: ../disclaimer-zh_TW.rst
 
-:Translator: 胡皓文 Hu Haowen <src.res@email.cn>
+:Translator: 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 ========
 CPU 負載

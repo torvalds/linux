@@ -44,6 +44,10 @@ properties:
   VAHP-supply:
     description: phandle to voltage regulator of headphone
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg
@@ -69,6 +73,13 @@ examples:
         VA-supply = <&reg_audio>;
         VAHP-supply = <&reg_audio>;
         reset-gpios = <&gpiog 9 GPIO_ACTIVE_LOW>;
+
+        /* assume audio-graph */
+        port {
+          cpu_endpoint: endpoint {
+            remote-endpoint = <&cpu_endpoint>;
+          };
+        };
       };
     };
 ...

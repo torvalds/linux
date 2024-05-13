@@ -39,6 +39,7 @@
 #include <linux/types.h>
 #include <linux/skmsg.h>
 #include <net/tls.h>
+#include <net/tls_prot.h>
 
 #define TLS_PAGE_ORDER	(min_t(unsigned int, PAGE_ALLOC_COSTLY_ORDER,	\
 			       TLS_MAX_PAYLOAD_SIZE >> PAGE_SHIFT))
@@ -49,6 +50,59 @@
 	SNMP_INC_STATS((net)->mib.tls_statistics, field)
 #define TLS_DEC_STATS(net, field)				\
 	SNMP_DEC_STATS((net)->mib.tls_statistics, field)
+
+struct tls_cipher_desc {
+	unsigned int nonce;
+	unsigned int iv;
+	unsigned int key;
+	unsigned int salt;
+	unsigned int tag;
+	unsigned int rec_seq;
+	unsigned int iv_offset;
+	unsigned int key_offset;
+	unsigned int salt_offset;
+	unsigned int rec_seq_offset;
+	char *cipher_name;
+	bool offloadable;
+	size_t crypto_info;
+};
+
+#define TLS_CIPHER_MIN TLS_CIPHER_AES_GCM_128
+#define TLS_CIPHER_MAX TLS_CIPHER_ARIA_GCM_256
+extern const struct tls_cipher_desc tls_cipher_desc[TLS_CIPHER_MAX + 1 - TLS_CIPHER_MIN];
+
+static inline const struct tls_cipher_desc *get_cipher_desc(u16 cipher_type)
+{
+	if (cipher_type < TLS_CIPHER_MIN || cipher_type > TLS_CIPHER_MAX)
+		return NULL;
+
+	return &tls_cipher_desc[cipher_type - TLS_CIPHER_MIN];
+}
+
+static inline char *crypto_info_iv(struct tls_crypto_info *crypto_info,
+				   const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->iv_offset;
+}
+
+static inline char *crypto_info_key(struct tls_crypto_info *crypto_info,
+				    const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->key_offset;
+}
+
+static inline char *crypto_info_salt(struct tls_crypto_info *crypto_info,
+				     const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->salt_offset;
+}
+
+static inline char *crypto_info_rec_seq(struct tls_crypto_info *crypto_info,
+					const struct tls_cipher_desc *cipher_desc)
+{
+	return (char *)crypto_info + cipher_desc->rec_seq_offset;
+}
+
 
 /* TLS records are maintained in 'struct tls_rec'. It stores the memory pages
  * allocated or mapped for each TLS record. After encryption, the records are
@@ -86,10 +140,6 @@ void tls_ctx_free(struct sock *sk, struct tls_context *ctx);
 void update_sk_prot(struct sock *sk, struct tls_context *ctx);
 
 int wait_on_pending_writer(struct sock *sk, long *timeo);
-int tls_sk_query(struct sock *sk, int optname, char __user *optval,
-		 int __user *optlen);
-int tls_sk_attach(struct sock *sk, int optname, char __user *optval,
-		  unsigned int optlen);
 void tls_err_abort(struct sock *sk, int err);
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
@@ -97,10 +147,7 @@ void tls_update_rx_zc_capable(struct tls_context *tls_ctx);
 void tls_sw_strparser_arm(struct sock *sk, struct tls_context *ctx);
 void tls_sw_strparser_done(struct tls_context *tls_ctx);
 int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
-int tls_sw_sendpage_locked(struct sock *sk, struct page *page,
-			   int offset, size_t size, int flags);
-int tls_sw_sendpage(struct sock *sk, struct page *page,
-		    int offset, size_t size, int flags);
+void tls_sw_splice_eof(struct socket *sock);
 void tls_sw_cancel_work_tx(struct tls_context *tls_ctx);
 void tls_sw_release_resources_tx(struct sock *sk);
 void tls_sw_free_ctx_tx(struct tls_context *tls_ctx);
@@ -113,10 +160,11 @@ bool tls_sw_sock_is_readable(struct sock *sk);
 ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
 			   struct pipe_inode_info *pipe,
 			   size_t len, unsigned int flags);
+int tls_sw_read_sock(struct sock *sk, read_descriptor_t *desc,
+		     sk_read_actor_t read_actor);
 
 int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
-int tls_device_sendpage(struct sock *sk, struct page *page,
-			int offset, size_t size, int flags);
+void tls_device_splice_eof(struct socket *sock);
 int tls_tx_records(struct sock *sk, int flags);
 
 void tls_sw_write_space(struct sock *sk, struct tls_context *ctx);

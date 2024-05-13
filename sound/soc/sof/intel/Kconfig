@@ -262,6 +262,22 @@ config SND_SOC_SOF_METEORLAKE
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
+config SND_SOC_SOF_INTEL_LNL
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	select SND_SOC_SOF_INTEL_IPC4
+
+config SND_SOC_SOF_LUNARLAKE
+	tristate "SOF support for Lunarlake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_LNL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Lunarlake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
 config SND_SOC_SOF_HDA_COMMON
 	tristate
 	select SND_SOC_SOF_INTEL_COMMON
@@ -284,8 +300,6 @@ if SND_SOC_SOF_HDA_COMMON
 
 config SND_SOC_SOF_HDA_LINK
 	bool "SOF support for HDA Links(HDA/HDMI)"
-	depends on SND_SOC_SOF_NOCODEC_SUPPORT=n
-	select SND_SOC_SOF_PROBE_WORK_QUEUE
 	help
 	  This adds support for HDA links(HDA/HDMI) with Sound Open Firmware
 	  for Intel(R) platforms.
@@ -295,6 +309,7 @@ config SND_SOC_SOF_HDA_LINK
 config SND_SOC_SOF_HDA_AUDIO_CODEC
 	bool "SOF support for HDAudio codecs"
 	depends on SND_SOC_SOF_HDA_LINK
+	select SND_SOC_SOF_PROBE_WORK_QUEUE
 	help
 	  This adds support for HDAudio codecs with Sound Open Firmware
 	  for Intel(R) platforms.

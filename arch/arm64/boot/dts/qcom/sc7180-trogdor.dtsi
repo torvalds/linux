@@ -13,6 +13,7 @@
 #include <dt-bindings/sound/sc7180-lpass.h>
 
 #include "sc7180.dtsi"
+#include "sc7180-firmware-tfa.dtsi"
 /* PMICs depend on spmi_bus label and so must come after sc7180.dtsi */
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
@@ -705,20 +706,6 @@ ap_h1_spi: &spi0 {
 	status = "disabled";
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-};
-
-&dsi0_out {
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi_phy {
-	status = "okay";
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
-};
-
 ap_sar_sensor_i2c: &i2c5 {
 	clock-frequency = <400000>;
 
@@ -788,6 +775,10 @@ hp_i2c: &i2c9 {
 	};
 };
 
+&lpasscc {
+	status = "okay";
+};
+
 &lpass_cpu {
 	status = "okay";
 
@@ -813,7 +804,7 @@ hp_i2c: &i2c9 {
 	};
 };
 
-&mdp {
+&lpass_hm {
 	status = "okay";
 };
 
@@ -832,11 +823,26 @@ hp_i2c: &i2c9 {
 	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000>;
 };
 
+&mdss_dsi0 {
+	status = "okay";
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
+};
+
 &pm6150_adc {
-	charger-thermistor@4f {
+	channel@4f {
 		reg = <ADC5_AMUX_THM3_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
+		label = "charger_therm";
 	};
 };
 

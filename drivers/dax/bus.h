@@ -9,7 +9,6 @@ struct dev_dax;
 struct resource;
 struct dax_device;
 struct dax_region;
-void dax_region_put(struct dax_region *dax_region);
 
 /* dax bus specific ioresource flags */
 #define IORESOURCE_DAX_STATIC BIT(0)
@@ -48,13 +47,6 @@ int __dax_driver_register(struct dax_device_driver *dax_drv,
 void dax_driver_unregister(struct dax_device_driver *dax_drv);
 void kill_dev_dax(struct dev_dax *dev_dax);
 bool static_dev_dax(struct dev_dax *dev_dax);
-
-/*
- * While run_dax() is potentially a generic operation that could be
- * defined in include/linux/dax.h we don't want to grow any users
- * outside of drivers/dax/
- */
-void run_dax(struct dax_device *dax_dev);
 
 #define MODULE_ALIAS_DAX_DEVICE(type) \
 	MODULE_ALIAS("dax:t" __stringify(type) "*")

@@ -556,9 +556,6 @@ void qede_config_rx_mode(struct net_device *ndev);
 void qede_fill_rss_params(struct qede_dev *edev,
 			  struct qed_update_vport_rss_params *rss, u8 *update);
 
-void qede_udp_tunnel_add(struct net_device *dev, struct udp_tunnel_info *ti);
-void qede_udp_tunnel_del(struct net_device *dev, struct udp_tunnel_info *ti);
-
 int qede_xdp(struct net_device *dev, struct netdev_bpf *xdp);
 
 #ifdef CONFIG_DCB

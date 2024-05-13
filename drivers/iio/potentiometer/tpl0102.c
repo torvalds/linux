@@ -161,7 +161,7 @@ static struct i2c_driver tpl0102_driver = {
 	.driver = {
 		.name = "tpl0102",
 	},
-	.probe_new = tpl0102_probe,
+	.probe = tpl0102_probe,
 	.id_table = tpl0102_id,
 };
 

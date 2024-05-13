@@ -1138,7 +1138,8 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	    (lancer_chip(adapter) || BE3_chip(adapter) ||
 	     skb_vlan_tag_present(skb)) && is_ipv4_pkt(skb)) {
 		ip = (struct iphdr *)ip_hdr(skb);
-		pskb_trim(skb, eth_hdr_len + ntohs(ip->tot_len));
+		if (unlikely(pskb_trim(skb, eth_hdr_len + ntohs(ip->tot_len))))
+			goto tx_drop;
 	}
 
 	/* If vlan tag is already inlined in the packet, skip HW VLAN
@@ -2343,11 +2344,10 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 		hdr_len = ETH_HLEN;
 		memcpy(skb->data, start, hdr_len);
 		skb_shinfo(skb)->nr_frags = 1;
-		skb_frag_set_page(skb, 0, page_info->page);
-		skb_frag_off_set(&skb_shinfo(skb)->frags[0],
-				 page_info->page_offset + hdr_len);
-		skb_frag_size_set(&skb_shinfo(skb)->frags[0],
-				  curr_frag_len - hdr_len);
+		skb_frag_fill_page_desc(&skb_shinfo(skb)->frags[0],
+					page_info->page,
+					page_info->page_offset + hdr_len,
+					curr_frag_len - hdr_len);
 		skb->data_len = curr_frag_len - hdr_len;
 		skb->truesize += rx_frag_size;
 		skb->tail += hdr_len;
@@ -2369,16 +2369,17 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 		if (page_info->page_offset == 0) {
 			/* Fresh page */
 			j++;
-			skb_frag_set_page(skb, j, page_info->page);
-			skb_frag_off_set(&skb_shinfo(skb)->frags[j],
-					 page_info->page_offset);
-			skb_frag_size_set(&skb_shinfo(skb)->frags[j], 0);
+			skb_frag_fill_page_desc(&skb_shinfo(skb)->frags[j],
+						page_info->page,
+						page_info->page_offset,
+						curr_frag_len);
 			skb_shinfo(skb)->nr_frags++;
 		} else {
 			put_page(page_info->page);
+			skb_frag_size_add(&skb_shinfo(skb)->frags[j],
+					  curr_frag_len);
 		}
 
-		skb_frag_size_add(&skb_shinfo(skb)->frags[j], curr_frag_len);
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
 		skb->truesize += rx_frag_size;
@@ -2451,14 +2452,16 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 		if (i == 0 || page_info->page_offset == 0) {
 			/* First frag or Fresh page */
 			j++;
-			skb_frag_set_page(skb, j, page_info->page);
-			skb_frag_off_set(&skb_shinfo(skb)->frags[j],
-					 page_info->page_offset);
-			skb_frag_size_set(&skb_shinfo(skb)->frags[j], 0);
+			skb_frag_fill_page_desc(&skb_shinfo(skb)->frags[j],
+						page_info->page,
+						page_info->page_offset,
+						curr_frag_len);
 		} else {
 			put_page(page_info->page);
+			skb_frag_size_add(&skb_shinfo(skb)->frags[j],
+					  curr_frag_len);
 		}
-		skb_frag_size_add(&skb_shinfo(skb)->frags[j], curr_frag_len);
+
 		skb->truesize += rx_frag_size;
 		remaining -= curr_frag_len;
 		memset(page_info, 0, sizeof(*page_info));
@@ -4982,9 +4985,6 @@ static int be_ndo_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	nla_for_each_nested(attr, br_spec, rem) {
 		if (nla_type(attr) != IFLA_BRIDGE_MODE)
 			continue;
-
-		if (nla_len(attr) < sizeof(mode))
-			return -EINVAL;
 
 		mode = nla_get_u16(attr);
 		if (BE3_chip(adapter) && mode == BRIDGE_MODE_VEPA)

@@ -300,10 +300,8 @@ static void tsnep_ethtool_get_channels(struct net_device *netdev,
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
 
-	ch->max_rx = adapter->num_rx_queues;
-	ch->max_tx = adapter->num_tx_queues;
-	ch->rx_count = adapter->num_rx_queues;
-	ch->tx_count = adapter->num_tx_queues;
+	ch->max_combined = adapter->num_queues;
+	ch->combined_count = adapter->num_queues;
 }
 
 static int tsnep_ethtool_get_ts_info(struct net_device *netdev,

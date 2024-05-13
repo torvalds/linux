@@ -9,7 +9,6 @@
 /**
  * struct bpf_cpumask - refcounted BPF cpumask wrapper structure
  * @cpumask:	The actual cpumask embedded in the struct.
- * @rcu:	The RCU head used to free the cpumask with RCU safety.
  * @usage:	Object reference counter. When the refcount goes to 0, the
  *		memory is released back to the BPF allocator, which provides
  *		RCU safety.
@@ -25,7 +24,6 @@
  */
 struct bpf_cpumask {
 	cpumask_t cpumask;
-	struct rcu_head rcu;
 	refcount_t usage;
 };
 
@@ -82,16 +80,6 @@ __bpf_kfunc struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask)
 	return cpumask;
 }
 
-static void cpumask_free_cb(struct rcu_head *head)
-{
-	struct bpf_cpumask *cpumask;
-
-	cpumask = container_of(head, struct bpf_cpumask, rcu);
-	migrate_disable();
-	bpf_mem_cache_free(&bpf_cpumask_ma, cpumask);
-	migrate_enable();
-}
-
 /**
  * bpf_cpumask_release() - Release a previously acquired BPF cpumask.
  * @cpumask: The cpumask being released.
@@ -102,8 +90,12 @@ static void cpumask_free_cb(struct rcu_head *head)
  */
 __bpf_kfunc void bpf_cpumask_release(struct bpf_cpumask *cpumask)
 {
-	if (refcount_dec_and_test(&cpumask->usage))
-		call_rcu(&cpumask->rcu, cpumask_free_cb);
+	if (!refcount_dec_and_test(&cpumask->usage))
+		return;
+
+	migrate_disable();
+	bpf_mem_cache_free_rcu(&bpf_cpumask_ma, cpumask);
+	migrate_enable();
 }
 
 /**
@@ -129,6 +121,21 @@ __bpf_kfunc u32 bpf_cpumask_first(const struct cpumask *cpumask)
 __bpf_kfunc u32 bpf_cpumask_first_zero(const struct cpumask *cpumask)
 {
 	return cpumask_first_zero(cpumask);
+}
+
+/**
+ * bpf_cpumask_first_and() - Return the index of the first nonzero bit from the
+ *			     AND of two cpumasks.
+ * @src1: The first cpumask.
+ * @src2: The second cpumask.
+ *
+ * Find the index of the first nonzero bit of the AND of two cpumasks.
+ * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
+ */
+__bpf_kfunc u32 bpf_cpumask_first_and(const struct cpumask *src1,
+				      const struct cpumask *src2)
+{
+	return cpumask_first_and(src1, src2);
 }
 
 /**
@@ -367,7 +374,7 @@ __bpf_kfunc void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask 
 }
 
 /**
- * bpf_cpumask_any() - Return a random set CPU from a cpumask.
+ * bpf_cpumask_any_distribute() - Return a random set CPU from a cpumask.
  * @cpumask: The cpumask being queried.
  *
  * Return:
@@ -376,26 +383,28 @@ __bpf_kfunc void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask 
  *
  * A struct bpf_cpumask pointer may be safely passed to @src.
  */
-__bpf_kfunc u32 bpf_cpumask_any(const struct cpumask *cpumask)
+__bpf_kfunc u32 bpf_cpumask_any_distribute(const struct cpumask *cpumask)
 {
-	return cpumask_any(cpumask);
+	return cpumask_any_distribute(cpumask);
 }
 
 /**
- * bpf_cpumask_any_and() - Return a random set CPU from the AND of two
- *			   cpumasks.
+ * bpf_cpumask_any_and_distribute() - Return a random set CPU from the AND of
+ *				      two cpumasks.
  * @src1: The first cpumask.
  * @src2: The second cpumask.
  *
  * Return:
- * * A random set bit within [0, num_cpus) if at least one bit is set.
+ * * A random set bit within [0, num_cpus) from the AND of two cpumasks, if at
+ *   least one bit is set.
  * * >= num_cpus if no bit is set.
  *
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
  */
-__bpf_kfunc u32 bpf_cpumask_any_and(const struct cpumask *src1, const struct cpumask *src2)
+__bpf_kfunc u32 bpf_cpumask_any_and_distribute(const struct cpumask *src1,
+					       const struct cpumask *src2)
 {
-	return cpumask_any_and(src1, src2);
+	return cpumask_any_and_distribute(src1, src2);
 }
 
 __diag_pop();
@@ -406,6 +415,7 @@ BTF_ID_FLAGS(func, bpf_cpumask_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_cpumask_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, bpf_cpumask_first, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_first_zero, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_first_and, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_set_cpu, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_clear_cpu, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_test_cpu, KF_RCU)
@@ -422,8 +432,8 @@ BTF_ID_FLAGS(func, bpf_cpumask_subset, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_empty, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_full, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_copy, KF_RCU)
-BTF_ID_FLAGS(func, bpf_cpumask_any, KF_RCU)
-BTF_ID_FLAGS(func, bpf_cpumask_any_and, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_any_distribute, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_any_and_distribute, KF_RCU)
 BTF_SET8_END(cpumask_kfunc_btf_ids)
 
 static const struct btf_kfunc_id_set cpumask_kfunc_set = {

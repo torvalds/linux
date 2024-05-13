@@ -674,10 +674,19 @@ void dcn30_fpu_update_bw_bounding_box(struct dc *dc,
 }
 
 /**
- * Finds dummy_latency_index when MCLK switching using firmware based
- * vblank stretch is enabled. This function will iterate through the
- * table of dummy pstate latencies until the lowest value that allows
+ * dcn30_find_dummy_latency_index_for_fw_based_mclk_switch() - Finds
+ * dummy_latency_index when MCLK switching using firmware based vblank stretch
+ * is enabled. This function will iterate through the table of dummy pstate
+ * latencies until the lowest value that allows
  * dm_allow_self_refresh_and_mclk_switch to happen is found
+ *
+ * @dc: Current DC state
+ * @context: new dc state
+ * @pipes: DML pipe params
+ * @pipe_cnt: number of DML pipes
+ * @vlevel: Voltage level calculated by DML
+ *
+ * Return: lowest dummy_latency_index value
  */
 int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
 							    struct dc_state *context,

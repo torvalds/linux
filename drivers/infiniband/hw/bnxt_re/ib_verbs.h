@@ -60,6 +60,8 @@ struct bnxt_re_pd {
 	struct bnxt_re_dev	*rdev;
 	struct bnxt_qplib_pd	qplib_pd;
 	struct bnxt_re_fence_data fence;
+	struct rdma_user_mmap_entry *pd_db_mmap;
+	struct rdma_user_mmap_entry *pd_wcdb_mmap;
 };
 
 struct bnxt_re_ah {
@@ -134,8 +136,25 @@ struct bnxt_re_ucontext {
 	struct ib_ucontext      ib_uctx;
 	struct bnxt_re_dev	*rdev;
 	struct bnxt_qplib_dpi	dpi;
+	struct bnxt_qplib_dpi   wcdpi;
 	void			*shpg;
 	spinlock_t		sh_lock;	/* protect shpg */
+	struct rdma_user_mmap_entry *shpage_mmap;
+};
+
+enum bnxt_re_mmap_flag {
+	BNXT_RE_MMAP_SH_PAGE,
+	BNXT_RE_MMAP_UC_DB,
+	BNXT_RE_MMAP_WC_DB,
+	BNXT_RE_MMAP_DBR_PAGE,
+	BNXT_RE_MMAP_DBR_BAR,
+};
+
+struct bnxt_re_user_mmap_entry {
+	struct rdma_user_mmap_entry rdma_entry;
+	struct bnxt_re_ucontext *uctx;
+	u64 mem_offset;
+	u8 mmap_flag;
 };
 
 static inline u16 bnxt_re_get_swqe_size(int nsge)
@@ -210,9 +229,15 @@ int bnxt_re_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
 				  struct ib_udata *udata);
+struct ib_mr *bnxt_re_reg_user_mr_dmabuf(struct ib_pd *ib_pd, u64 start,
+					 u64 length, u64 virt_addr,
+					 int fd, int mr_access_flags,
+					 struct ib_udata *udata);
 int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata);
 void bnxt_re_dealloc_ucontext(struct ib_ucontext *context);
 int bnxt_re_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
+void bnxt_re_mmap_free(struct rdma_user_mmap_entry *rdma_entry);
+
 
 unsigned long bnxt_re_lock_cqs(struct bnxt_re_qp *qp);
 void bnxt_re_unlock_cqs(struct bnxt_re_qp *qp, unsigned long flags);

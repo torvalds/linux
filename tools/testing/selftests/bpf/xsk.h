@@ -134,6 +134,11 @@ static inline void xsk_ring_prod__submit(struct xsk_ring_prod *prod, __u32 nb)
 	__atomic_store_n(prod->producer, *prod->producer + nb, __ATOMIC_RELEASE);
 }
 
+static inline void xsk_ring_prod__cancel(struct xsk_ring_prod *prod, __u32 nb)
+{
+	prod->cached_prod -= nb;
+}
+
 static inline __u32 xsk_ring_cons__peek(struct xsk_ring_cons *cons, __u32 nb, __u32 *idx)
 {
 	__u32 entries = xsk_cons_nb_avail(cons, nb);
@@ -233,6 +238,8 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 /* Returns 0 for success and -EBUSY if the umem is still in use. */
 int xsk_umem__delete(struct xsk_umem *umem);
 void xsk_socket__delete(struct xsk_socket *xsk);
+
+int xsk_set_mtu(int ifindex, int mtu);
 
 #ifdef __cplusplus
 } /* extern "C" */

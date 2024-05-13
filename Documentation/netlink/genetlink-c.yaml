@@ -41,7 +41,7 @@ properties:
     description: Name of the define for the family name.
     type: string
   c-version-name:
-    description: Name of the define for the verion of the family.
+    description: Name of the define for the version of the family.
     type: string
   max-by-define:
     description: Makes the number of attributes and commands be specified by a define, not an enum value.
@@ -195,6 +195,16 @@ properties:
                     description: Max length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
               sub-type: *attr-type
+              display-hint: &display-hint
+                description: |
+                  Optional format indicator that is intended only for choosing
+                  the right formatting mechanism when displaying values of this
+                  type.
+                enum: [ hex, mac, fddi, ipv4, ipv6, uuid ]
+              # Start genetlink-c
+              name-prefix:
+                type: string
+              # End genetlink-c
 
       # Make sure name-prefix does not appear in subsets (subsets inherit naming)
       dependencies:
@@ -264,7 +274,7 @@ properties:
               description: Kernel attribute validation flags.
               type: array
               items:
-                enum: [ strict, dump ]
+                enum: [ strict, dump, dump-strict ]
             do: &subop-type
               description: Main command handler.
               type: object

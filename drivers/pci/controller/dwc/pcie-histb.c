@@ -421,7 +421,7 @@ static int histb_pcie_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int histb_pcie_remove(struct platform_device *pdev)
+static void histb_pcie_remove(struct platform_device *pdev)
 {
 	struct histb_pcie *hipcie = platform_get_drvdata(pdev);
 
@@ -429,8 +429,6 @@ static int histb_pcie_remove(struct platform_device *pdev)
 
 	if (hipcie->phy)
 		phy_exit(hipcie->phy);
-
-	return 0;
 }
 
 static const struct of_device_id histb_pcie_of_match[] = {
@@ -441,7 +439,7 @@ MODULE_DEVICE_TABLE(of, histb_pcie_of_match);
 
 static struct platform_driver histb_pcie_platform_driver = {
 	.probe	= histb_pcie_probe,
-	.remove	= histb_pcie_remove,
+	.remove_new = histb_pcie_remove,
 	.driver = {
 		.name = "histb-pcie",
 		.of_match_table = histb_pcie_of_match,

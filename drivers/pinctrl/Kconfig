@@ -355,17 +355,6 @@ config PINCTRL_OCELOT
 
 	  If conpiled as a module, the module name will be pinctrl-ocelot.
 
-config PINCTRL_OXNAS
-	bool
-	depends on OF
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GPIOLIB
-	select OF_GPIO
-	select GPIOLIB_IRQCHIP
-	select MFD_SYSCON
-
 config PINCTRL_PALMAS
 	tristate "Pinctrl driver for the PALMAS Series MFD devices"
 	depends on OF && MFD_PALMAS
@@ -407,7 +396,7 @@ config PINCTRL_PISTACHIO
 
 config PINCTRL_RK805
 	tristate "Pinctrl and GPIO driver for RK805 PMIC"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	select GPIOLIB
 	select PINMUX
 	select GENERIC_PINCONF
@@ -510,7 +499,6 @@ config PINCTRL_MLXBF3
 	select PINMUX
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
-	select GPIO_MLXBF3
 	help
 	  Say Y to select the pinctrl driver for BlueField-3 SoCs.
 	  This pin controller allows selecting the mux function for

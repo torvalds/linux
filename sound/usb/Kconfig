@@ -15,6 +15,7 @@ config SND_USB_AUDIO
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
+	select SND_UMP if SND_USB_AUDIO_MIDI_V2
 	select BITREVERSE
 	select SND_USB_AUDIO_USE_MEDIA_CONTROLLER if MEDIA_CONTROLLER && (MEDIA_SUPPORT=y || MEDIA_SUPPORT=SND_USB_AUDIO)
 	help
@@ -23,6 +24,16 @@ config SND_USB_AUDIO
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-usb-audio.
+
+config SND_USB_AUDIO_MIDI_V2
+	bool "MIDI 2.0 support by USB Audio driver"
+	depends on SND_USB_AUDIO
+	help
+	  Say Y here to include the support for MIDI 2.0 by USB Audio driver.
+	  When the config is set, the driver tries to probe MIDI 2.0 interface
+	  at first, then falls back to MIDI 1.0 interface as default.
+	  The MIDI 2.0 support can be disabled dynamically via midi2_enable
+	  module option, too.
 
 config SND_USB_AUDIO_USE_MEDIA_CONTROLLER
 	bool

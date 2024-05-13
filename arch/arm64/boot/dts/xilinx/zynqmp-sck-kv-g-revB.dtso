@@ -2,9 +2,10 @@
 /*
  * dts file for KV260 revA Carrier Card
  *
- * (C) Copyright 2020 - 2021, Xilinx, Inc.
+ * (C) Copyright 2020 - 2022, Xilinx, Inc.
+ * (C) Copyright 2022 - 2023, Advanced Micro Devices, Inc.
  *
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -21,8 +22,8 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1_default>;
 	pinctrl-1 = <&pinctrl_i2c1_gpio>;
-	scl-gpios = <&gpio 24 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio 24 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio 25 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 
 	/* u14 - 0x40 - ina260 */
 	/* u43 - 0x2d - usb5744 */
@@ -76,13 +77,15 @@
 };
 
 &zynqmp_dpsub {
-	status = "disabled";
+	status = "okay";
 	phy-names = "dp-phy0", "dp-phy1";
 	phys = <&psgtr 1 PHY_TYPE_DP 0 0>, <&psgtr 0 PHY_TYPE_DP 1 0>;
+	assigned-clock-rates = <27000000>, <25000000>, <300000000>;
 };
 
 &zynqmp_dpdma {
 	status = "okay";
+	assigned-clock-rates = <600000000>;
 };
 
 &usb0 {
@@ -115,6 +118,8 @@
 	clk-phase-sd-hs = <126>, <60>;
 	clk-phase-uhs-sdr25 = <120>, <60>;
 	clk-phase-uhs-ddr50 = <126>, <48>;
+	assigned-clock-rates = <187498123>;
+	bus-width = <4>;
 };
 
 &gem3 { /* required by spec */
@@ -123,20 +128,23 @@
 	pinctrl-0 = <&pinctrl_gem3_default>;
 	phy-handle = <&phy0>;
 	phy-mode = "rgmii-id";
+	assigned-clock-rates = <250000000>;
 
 	mdio: mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		reset-gpios = <&gpio 38 GPIO_ACTIVE_LOW>;
-		reset-delay-us = <2>;
 
 		phy0: ethernet-phy@1 {
 			#phy-cells = <1>;
 			reg = <1>;
+			compatible = "ethernet-phy-id2000.a231";
 			ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
 			ti,tx-internal-delay = <DP83867_RGMIIDCTL_2_75_NS>;
 			ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;
 			ti,dp83867-rxctrl-strap-quirk;
+			reset-assert-us = <100>;
+			reset-deassert-us = <280>;
+			reset-gpios = <&gpio 38 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -242,19 +250,22 @@
 	pinctrl_usb0_default: usb0-default {
 		conf {
 			groups = "usb0_0_grp";
-			slew-rate = <SLEW_RATE_SLOW>;
 			power-source = <IO_STANDARD_LVCMOS18>;
 		};
 
 		conf-rx {
 			pins = "MIO52", "MIO53", "MIO55";
 			bias-high-impedance;
+			drive-strength = <12>;
+			slew-rate = <SLEW_RATE_FAST>;
 		};
 
 		conf-tx {
 			pins = "MIO54", "MIO56", "MIO57", "MIO58", "MIO59",
 			"MIO60", "MIO61", "MIO62", "MIO63";
 			bias-disable;
+			drive-strength = <4>;
+			slew-rate = <SLEW_RATE_SLOW>;
 		};
 
 		mux {

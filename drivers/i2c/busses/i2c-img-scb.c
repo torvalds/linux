@@ -913,7 +913,7 @@ static unsigned int img_i2c_auto(struct img_i2c *i2c,
 
 static irqreturn_t img_i2c_isr(int irq, void *dev_id)
 {
-	struct img_i2c *i2c = (struct img_i2c *)dev_id;
+	struct img_i2c *i2c = dev_id;
 	u32 int_status, line_status;
 	/* We handle transaction completion AFTER accessing registers */
 	unsigned int hret;
@@ -1413,7 +1413,7 @@ rpm_disable:
 	return ret;
 }
 
-static int img_i2c_remove(struct platform_device *dev)
+static void img_i2c_remove(struct platform_device *dev)
 {
 	struct img_i2c *i2c = platform_get_drvdata(dev);
 
@@ -1421,8 +1421,6 @@ static int img_i2c_remove(struct platform_device *dev)
 	pm_runtime_disable(&dev->dev);
 	if (!pm_runtime_status_suspended(&dev->dev))
 		img_i2c_runtime_suspend(&dev->dev);
-
-	return 0;
 }
 
 static int img_i2c_runtime_suspend(struct device *dev)
@@ -1456,7 +1454,6 @@ static int img_i2c_runtime_resume(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int img_i2c_suspend(struct device *dev)
 {
 	struct img_i2c *i2c = dev_get_drvdata(dev);
@@ -1484,13 +1481,10 @@ static int img_i2c_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops img_i2c_pm = {
-	SET_RUNTIME_PM_OPS(img_i2c_runtime_suspend,
-			   img_i2c_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(img_i2c_suspend, img_i2c_resume)
+	RUNTIME_PM_OPS(img_i2c_runtime_suspend, img_i2c_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(img_i2c_suspend, img_i2c_resume)
 };
 
 static const struct of_device_id img_scb_i2c_match[] = {
@@ -1503,10 +1497,10 @@ static struct platform_driver img_scb_i2c_driver = {
 	.driver = {
 		.name		= "img-i2c-scb",
 		.of_match_table	= img_scb_i2c_match,
-		.pm		= &img_i2c_pm,
+		.pm		= pm_ptr(&img_i2c_pm),
 	},
 	.probe = img_i2c_probe,
-	.remove = img_i2c_remove,
+	.remove_new = img_i2c_remove,
 };
 module_platform_driver(img_scb_i2c_driver);
 

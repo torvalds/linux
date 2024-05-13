@@ -306,6 +306,34 @@ xfs_file_read_iter(
 	return ret;
 }
 
+STATIC ssize_t
+xfs_file_splice_read(
+	struct file		*in,
+	loff_t			*ppos,
+	struct pipe_inode_info	*pipe,
+	size_t			len,
+	unsigned int		flags)
+{
+	struct inode		*inode = file_inode(in);
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	ssize_t			ret = 0;
+
+	XFS_STATS_INC(mp, xs_read_calls);
+
+	if (xfs_is_shutdown(mp))
+		return -EIO;
+
+	trace_xfs_file_splice_read(ip, *ppos, len);
+
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
+	ret = filemap_splice_read(in, ppos, pipe, len, flags);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+	if (ret > 0)
+		XFS_STATS_ADD(mp, xs_read_bytes, ret);
+	return ret;
+}
+
 /*
  * Common pre-write limit and setup checks.
  *
@@ -717,14 +745,9 @@ write_retry:
 	if (ret)
 		goto out;
 
-	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = inode_to_bdi(inode);
-
 	trace_xfs_file_buffered_write(iocb, from);
 	ret = iomap_file_buffered_write(iocb, from,
 			&xfs_buffered_write_iomap_ops);
-	if (likely(ret >= 0))
-		iocb->ki_pos += ret;
 
 	/*
 	 * If we hit a space limit, try to free up some lingering preallocated
@@ -753,7 +776,6 @@ write_retry:
 		goto write_retry;
 	}
 
-	current->backing_dev_info = NULL;
 out:
 	if (iolock)
 		xfs_iunlock(ip, iolock);
@@ -1172,7 +1194,7 @@ xfs_file_open(
 	if (xfs_is_shutdown(XFS_M(inode->i_sb)))
 		return -EIO;
 	file->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC | FMODE_BUF_WASYNC |
-			FMODE_DIO_PARALLEL_WRITE;
+			FMODE_DIO_PARALLEL_WRITE | FMODE_CAN_ODIRECT;
 	return generic_file_open(inode, file);
 }
 
@@ -1265,11 +1287,11 @@ xfs_file_llseek(
 static inline vm_fault_t
 xfs_dax_fault(
 	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size,
+	unsigned int		order,
 	bool			write_fault,
 	pfn_t			*pfn)
 {
-	return dax_iomap_fault(vmf, pe_size, pfn, NULL,
+	return dax_iomap_fault(vmf, order, pfn, NULL,
 			(write_fault && !vmf->cow_page) ?
 				&xfs_dax_write_iomap_ops :
 				&xfs_read_iomap_ops);
@@ -1278,7 +1300,7 @@ xfs_dax_fault(
 static inline vm_fault_t
 xfs_dax_fault(
 	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size,
+	unsigned int		order,
 	bool			write_fault,
 	pfn_t			*pfn)
 {
@@ -1300,14 +1322,14 @@ xfs_dax_fault(
 static vm_fault_t
 __xfs_filemap_fault(
 	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size,
+	unsigned int		order,
 	bool			write_fault)
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
 	struct xfs_inode	*ip = XFS_I(inode);
 	vm_fault_t		ret;
 
-	trace_xfs_filemap_fault(ip, pe_size, write_fault);
+	trace_xfs_filemap_fault(ip, order, write_fault);
 
 	if (write_fault) {
 		sb_start_pagefault(inode->i_sb);
@@ -1318,9 +1340,9 @@ __xfs_filemap_fault(
 		pfn_t pfn;
 
 		xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-		ret = xfs_dax_fault(vmf, pe_size, write_fault, &pfn);
+		ret = xfs_dax_fault(vmf, order, write_fault, &pfn);
 		if (ret & VM_FAULT_NEEDDSYNC)
-			ret = dax_finish_sync_fault(vmf, pe_size, pfn);
+			ret = dax_finish_sync_fault(vmf, order, pfn);
 		xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
 	} else {
 		if (write_fault) {
@@ -1351,7 +1373,7 @@ xfs_filemap_fault(
 	struct vm_fault		*vmf)
 {
 	/* DAX can shortcut the normal fault path on write faults! */
-	return __xfs_filemap_fault(vmf, PE_SIZE_PTE,
+	return __xfs_filemap_fault(vmf, 0,
 			IS_DAX(file_inode(vmf->vma->vm_file)) &&
 			xfs_is_write_fault(vmf));
 }
@@ -1359,13 +1381,13 @@ xfs_filemap_fault(
 static vm_fault_t
 xfs_filemap_huge_fault(
 	struct vm_fault		*vmf,
-	enum page_entry_size	pe_size)
+	unsigned int		order)
 {
 	if (!IS_DAX(file_inode(vmf->vma->vm_file)))
 		return VM_FAULT_FALLBACK;
 
 	/* DAX can shortcut the normal fault path on write faults! */
-	return __xfs_filemap_fault(vmf, pe_size,
+	return __xfs_filemap_fault(vmf, order,
 			xfs_is_write_fault(vmf));
 }
 
@@ -1373,7 +1395,7 @@ static vm_fault_t
 xfs_filemap_page_mkwrite(
 	struct vm_fault		*vmf)
 {
-	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
+	return __xfs_filemap_fault(vmf, 0, true);
 }
 
 /*
@@ -1386,7 +1408,7 @@ xfs_filemap_pfn_mkwrite(
 	struct vm_fault		*vmf)
 {
 
-	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
+	return __xfs_filemap_fault(vmf, 0, true);
 }
 
 static const struct vm_operations_struct xfs_file_vm_ops = {
@@ -1423,7 +1445,7 @@ const struct file_operations xfs_file_operations = {
 	.llseek		= xfs_file_llseek,
 	.read_iter	= xfs_file_read_iter,
 	.write_iter	= xfs_file_write_iter,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= xfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.iopoll		= iocb_bio_iopoll,
 	.unlocked_ioctl	= xfs_file_ioctl,

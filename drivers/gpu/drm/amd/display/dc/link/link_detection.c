@@ -593,6 +593,10 @@ static bool detect_dp(struct dc_link *link,
 			/* DP SST branch */
 			link->type = dc_connection_sst_branch;
 	} else {
+		if (link->dc->debug.disable_dp_plus_plus_wa &&
+				link->link_enc->features.flags.bits.IS_UHBR20_CAPABLE)
+			return false;
+
 		/* DP passive dongles */
 		sink_caps->signal = dp_passive_dongle_detection(link->ddc,
 								sink_caps,
@@ -872,8 +876,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			(link->dpcd_sink_ext_caps.bits.oled == 1)) {
 			dpcd_set_source_specific_data(link);
 			msleep(post_oui_delay);
-			set_default_brightness_aux(link);
-			//TODO: use cached
+			set_cached_brightness_aux(link);
 		}
 
 		return true;

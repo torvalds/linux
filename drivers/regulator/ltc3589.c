@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -348,7 +347,7 @@ static const struct regmap_config ltc3589_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ltc3589_reg_defaults),
 	.use_single_read = true,
 	.use_single_write = true,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t ltc3589_isr(int irq, void *dev_id)
@@ -392,8 +391,7 @@ static int ltc3589_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, ltc3589);
 	if (client->dev.of_node)
-		ltc3589->variant = (enum ltc3589_variant)
-			of_device_get_match_data(&client->dev);
+		ltc3589->variant = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		ltc3589->variant = id->driver_data;
 	ltc3589->dev = dev;
@@ -477,7 +475,7 @@ static struct i2c_driver ltc3589_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(ltc3589_of_match),
 	},
-	.probe_new = ltc3589_probe,
+	.probe = ltc3589_probe,
 	.id_table = ltc3589_i2c_id,
 };
 module_i2c_driver(ltc3589_driver);

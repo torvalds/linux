@@ -671,11 +671,20 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 	return err;
 }
 
-static int do_fchmodat(int dfd, const char __user *filename, umode_t mode)
+static int do_fchmodat(int dfd, const char __user *filename, umode_t mode,
+		       unsigned int flags)
 {
 	struct path path;
 	int error;
-	unsigned int lookup_flags = LOOKUP_FOLLOW;
+	unsigned int lookup_flags;
+
+	if (unlikely(flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)))
+		return -EINVAL;
+
+	lookup_flags = (flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	if (flags & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+
 retry:
 	error = user_path_at(dfd, filename, lookup_flags, &path);
 	if (!error) {
@@ -689,21 +698,24 @@ retry:
 	return error;
 }
 
+SYSCALL_DEFINE4(fchmodat2, int, dfd, const char __user *, filename,
+		umode_t, mode, unsigned int, flags)
+{
+	return do_fchmodat(dfd, filename, mode, flags);
+}
+
 SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename,
 		umode_t, mode)
 {
-	return do_fchmodat(dfd, filename, mode);
+	return do_fchmodat(dfd, filename, mode, 0);
 }
 
 SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 {
-	return do_fchmodat(AT_FDCWD, filename, mode);
+	return do_fchmodat(AT_FDCWD, filename, mode, 0);
 }
 
-/**
- * setattr_vfsuid - check and set ia_fsuid attribute
- * @kuid: new inode owner
- *
+/*
  * Check whether @kuid is valid and if so generate and set vfsuid_t in
  * ia_vfsuid.
  *
@@ -718,10 +730,7 @@ static inline bool setattr_vfsuid(struct iattr *attr, kuid_t kuid)
 	return true;
 }
 
-/**
- * setattr_vfsgid - check and set ia_fsgid attribute
- * @kgid: new inode owner
- *
+/*
  * Check whether @kgid is valid and if so generate and set vfsgid_t in
  * ia_vfsgid.
  *
@@ -969,6 +978,11 @@ static int do_dentry_open(struct file *f,
 		}
 	}
 
+	/*
+	 * Once we return a file with FMODE_OPENED, __fput() will call
+	 * fsnotify_close(), so we need fsnotify_open() here for symmetry.
+	 */
+	fsnotify_open(f);
 	return 0;
 
 cleanup_all:
@@ -989,7 +1003,6 @@ cleanup_file:
  * @file: file pointer
  * @dentry: pointer to dentry
  * @open: open callback
- * @opened: state of open
  *
  * This can be used to finish opening a file passed to i_op->atomic_open().
  *
@@ -1043,7 +1056,6 @@ EXPORT_SYMBOL(file_path);
  * vfs_open - open the file at the given path
  * @path: path to open
  * @file: newly allocated file with f_flag initialized
- * @cred: credentials to use
  */
 int vfs_open(const struct path *path, struct file *file)
 {
@@ -1116,23 +1128,77 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 }
 EXPORT_SYMBOL(dentry_create);
 
-struct file *open_with_fake_path(const struct path *path, int flags,
+/**
+ * kernel_file_open - open a file for kernel internal use
+ * @path:	path of the file to open
+ * @flags:	open flags
+ * @inode:	the inode
+ * @cred:	credentials for open
+ *
+ * Open a file for use by in-kernel consumers. The file is not accounted
+ * against nr_files and must not be installed into the file descriptor
+ * table.
+ *
+ * Return: Opened file on success, an error pointer on failure.
+ */
+struct file *kernel_file_open(const struct path *path, int flags,
 				struct inode *inode, const struct cred *cred)
 {
-	struct file *f = alloc_empty_file_noaccount(flags, cred);
-	if (!IS_ERR(f)) {
-		int error;
+	struct file *f;
+	int error;
 
-		f->f_path = *path;
-		error = do_dentry_open(f, inode, NULL);
-		if (error) {
-			fput(f);
-			f = ERR_PTR(error);
-		}
+	f = alloc_empty_file_noaccount(flags, cred);
+	if (IS_ERR(f))
+		return f;
+
+	f->f_path = *path;
+	error = do_dentry_open(f, inode, NULL);
+	if (error) {
+		fput(f);
+		f = ERR_PTR(error);
 	}
 	return f;
 }
-EXPORT_SYMBOL(open_with_fake_path);
+EXPORT_SYMBOL_GPL(kernel_file_open);
+
+/**
+ * backing_file_open - open a backing file for kernel internal use
+ * @path:	path of the file to open
+ * @flags:	open flags
+ * @real_path:	path of the backing file
+ * @cred:	credentials for open
+ *
+ * Open a backing file for a stackable filesystem (e.g., overlayfs).
+ * @path may be on the stackable filesystem and backing inode on the
+ * underlying filesystem. In this case, we want to be able to return
+ * the @real_path of the backing inode. This is done by embedding the
+ * returned file into a container structure that also stores the path of
+ * the backing inode on the underlying filesystem, which can be
+ * retrieved using backing_file_real_path().
+ */
+struct file *backing_file_open(const struct path *path, int flags,
+			       const struct path *real_path,
+			       const struct cred *cred)
+{
+	struct file *f;
+	int error;
+
+	f = alloc_empty_backing_file(flags, cred);
+	if (IS_ERR(f))
+		return f;
+
+	f->f_path = *path;
+	path_get(real_path);
+	*backing_file_real_path(f) = *real_path;
+	error = do_dentry_open(f, d_inode(real_path->dentry), NULL);
+	if (error) {
+		fput(f);
+		f = ERR_PTR(error);
+	}
+
+	return f;
+}
+EXPORT_SYMBOL_GPL(backing_file_open);
 
 #define WILL_CREATE(flags)	(flags & (O_CREAT | __O_TMPFILE))
 #define O_PATH_FLAGS		(O_DIRECTORY | O_NOFOLLOW | O_PATH | O_CLOEXEC)
@@ -1156,7 +1222,7 @@ inline struct open_how build_open_how(int flags, umode_t mode)
 inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 {
 	u64 flags = how->flags;
-	u64 strip = FMODE_NONOTIFY | O_CLOEXEC;
+	u64 strip = __FMODE_NONOTIFY | O_CLOEXEC;
 	int lookup_flags = 0;
 	int acc_mode = ACC_MODE(flags);
 
@@ -1271,7 +1337,7 @@ inline int build_open_flags(const struct open_how *how, struct open_flags *op)
 		lookup_flags |= LOOKUP_IN_ROOT;
 	if (how->resolve & RESOLVE_CACHED) {
 		/* Don't bother even trying for create/truncate/tmpfile open */
-		if (flags & (O_TRUNC | O_CREAT | O_TMPFILE))
+		if (flags & (O_TRUNC | O_CREAT | __O_TMPFILE))
 			return -EAGAIN;
 		lookup_flags |= LOOKUP_CACHED;
 	}
@@ -1358,7 +1424,6 @@ static long do_sys_openat2(int dfd, const char __user *filename,
 			put_unused_fd(fd);
 			fd = PTR_ERR(f);
 		} else {
-			fsnotify_open(f);
 			fd_install(fd, f);
 		}
 	}
@@ -1453,7 +1518,7 @@ SYSCALL_DEFINE2(creat, const char __user *, pathname, umode_t, mode)
  * "id" is the POSIX thread ID. We use the
  * files pointer for this..
  */
-int filp_close(struct file *filp, fl_owner_t id)
+static int filp_flush(struct file *filp, fl_owner_t id)
 {
 	int retval = 0;
 
@@ -1470,10 +1535,18 @@ int filp_close(struct file *filp, fl_owner_t id)
 		dnotify_flush(filp, id);
 		locks_remove_posix(filp, id);
 	}
-	fput(filp);
 	return retval;
 }
 
+int filp_close(struct file *filp, fl_owner_t id)
+{
+	int retval;
+
+	retval = filp_flush(filp, id);
+	fput(filp);
+
+	return retval;
+}
 EXPORT_SYMBOL(filp_close);
 
 /*
@@ -1483,7 +1556,20 @@ EXPORT_SYMBOL(filp_close);
  */
 SYSCALL_DEFINE1(close, unsigned int, fd)
 {
-	int retval = close_fd(fd);
+	int retval;
+	struct file *file;
+
+	file = close_fd_get_file(fd);
+	if (!file)
+		return -EBADF;
+
+	retval = filp_flush(file, current->files);
+
+	/*
+	 * We're returning to user space. Don't bother
+	 * with any delayed fput() cases.
+	 */
+	__fput_sync(file);
 
 	/* can't restart close syscall because file table entry was cleared */
 	if (unlikely(retval == -ERESTARTSYS ||
@@ -1496,7 +1582,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 }
 
 /**
- * close_range() - Close all file descriptors in a given range.
+ * sys_close_range() - Close all file descriptors in a given range.
  *
  * @fd:     starting file descriptor to close
  * @max_fd: last file descriptor to close

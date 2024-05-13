@@ -5,8 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
@@ -295,11 +294,9 @@ static int mtk_disp_merge_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mtk_disp_merge_remove(struct platform_device *pdev)
+static void mtk_disp_merge_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_disp_merge_component_ops);
-
-	return 0;
 }
 
 static const struct of_device_id mtk_disp_merge_driver_dt_match[] = {
@@ -311,7 +308,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_merge_driver_dt_match);
 
 struct platform_driver mtk_disp_merge_driver = {
 	.probe = mtk_disp_merge_probe,
-	.remove = mtk_disp_merge_remove,
+	.remove_new = mtk_disp_merge_remove,
 	.driver = {
 		.name = "mediatek-disp-merge",
 		.owner = THIS_MODULE,

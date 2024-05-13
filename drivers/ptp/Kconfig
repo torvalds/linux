@@ -102,7 +102,7 @@ config PTP_1588_CLOCK_INES
 
 config PTP_1588_CLOCK_PCH
 	tristate "Intel PCH EG20T as PTP clock"
-	depends on X86_32 || COMPILE_TEST
+	depends on MIPS_GENERIC || X86_32 || COMPILE_TEST
 	depends on HAS_IOMEM && PCI
 	depends on NET
 	depends on PTP_1588_CLOCK
@@ -154,6 +154,17 @@ config PTP_1588_CLOCK_IDTCM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_clockmatrix.
+
+config PTP_1588_CLOCK_MOCK
+	tristate "Mock-up PTP clock"
+	depends on PTP_1588_CLOCK
+	help
+	  This driver offers a set of PTP clock manipulation operations over
+	  the system monotonic time. It can be used by virtual network device
+	  drivers to emulate PTP capabilities.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_mock.
 
 config PTP_1588_CLOCK_VMW
 	tristate "VMware virtual PTP clock"

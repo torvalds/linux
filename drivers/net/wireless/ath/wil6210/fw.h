@@ -47,7 +47,7 @@ struct wil_fw_record_fill { /* type == wil_fw_type_fill */
  * for informational purpose, data_size is @head.size from record header
  */
 struct wil_fw_record_comment { /* type == wil_fw_type_comment */
-	u8 data[0]; /* free-form data [data_size], see above */
+	DECLARE_FLEX_ARRAY(u8, data); /* free-form data [data_size], see above */
 } __packed;
 
 /* Comment header - common for all comment record types */
@@ -131,7 +131,7 @@ struct wil_fw_data_dwrite {
  * data_size is @head.size where @head is record header
  */
 struct wil_fw_record_direct_write { /* type == wil_fw_type_direct_write */
-	struct wil_fw_data_dwrite data[0];
+	DECLARE_FLEX_ARRAY(struct wil_fw_data_dwrite, data);
 } __packed;
 
 /* verify condition: [@addr] & @mask == @value

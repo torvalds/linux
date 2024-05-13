@@ -13,7 +13,6 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/util_macros.h>
@@ -548,7 +547,7 @@ static const struct regmap_config lm75_regmap_config = {
 	.writeable_reg = lm75_is_writeable_reg,
 	.volatile_reg = lm75_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -579,7 +578,7 @@ static int lm75_probe(struct i2c_client *client)
 	enum lm75_type kind;
 
 	if (client->dev.of_node)
-		kind = (enum lm75_type)of_device_get_match_data(&client->dev);
+		kind = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		kind = i2c_match_id(lm75_ids, client)->driver_data;
 
@@ -945,7 +944,7 @@ static struct i2c_driver lm75_driver = {
 		.of_match_table = of_match_ptr(lm75_of_match),
 		.pm	= LM75_DEV_PM_OPS,
 	},
-	.probe_new	= lm75_probe,
+	.probe		= lm75_probe,
 	.id_table	= lm75_ids,
 	.detect		= lm75_detect,
 	.address_list	= normal_i2c,

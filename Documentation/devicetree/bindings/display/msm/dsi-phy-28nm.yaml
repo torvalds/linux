@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/display/msm/dsi-phy-28nm.yaml#
@@ -15,10 +15,11 @@ allOf:
 properties:
   compatible:
     enum:
+      - qcom,dsi-phy-28nm-8226
+      - qcom,dsi-phy-28nm-8960
       - qcom,dsi-phy-28nm-hpm
       - qcom,dsi-phy-28nm-hpm-fam-b
       - qcom,dsi-phy-28nm-lp
-      - qcom,dsi-phy-28nm-8960
 
   reg:
     items:

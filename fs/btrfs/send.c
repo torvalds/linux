@@ -1774,9 +1774,21 @@ static int read_symlink(struct btrfs_root *root,
 	ei = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			struct btrfs_file_extent_item);
 	type = btrfs_file_extent_type(path->nodes[0], ei);
+	if (unlikely(type != BTRFS_FILE_EXTENT_INLINE)) {
+		ret = -EUCLEAN;
+		btrfs_crit(root->fs_info,
+"send: found symlink extent that is not inline, ino %llu root %llu extent type %d",
+			   ino, btrfs_root_id(root), type);
+		goto out;
+	}
 	compression = btrfs_file_extent_compression(path->nodes[0], ei);
-	BUG_ON(type != BTRFS_FILE_EXTENT_INLINE);
-	BUG_ON(compression);
+	if (unlikely(compression != BTRFS_COMPRESS_NONE)) {
+		ret = -EUCLEAN;
+		btrfs_crit(root->fs_info,
+"send: found symlink extent with compression, ino %llu root %llu compression type %d",
+			   ino, btrfs_root_id(root), compression);
+		goto out;
+	}
 
 	off = btrfs_file_extent_inline_start(ei);
 	len = btrfs_file_extent_ram_bytes(path->nodes[0], ei);
@@ -3673,7 +3685,7 @@ static void tail_append_pending_moves(struct send_ctx *sctx,
 static int apply_children_dir_moves(struct send_ctx *sctx)
 {
 	struct pending_dir_move *pm;
-	struct list_head stack;
+	LIST_HEAD(stack);
 	u64 parent_ino = sctx->cur_ino;
 	int ret = 0;
 
@@ -3681,7 +3693,6 @@ static int apply_children_dir_moves(struct send_ctx *sctx)
 	if (!pm)
 		return 0;
 
-	INIT_LIST_HEAD(&stack);
 	tail_append_pending_moves(sctx, pm, &stack);
 
 	while (!list_empty(&stack)) {
@@ -4153,7 +4164,7 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	int ret = 0;
 	struct recorded_ref *cur;
 	struct recorded_ref *cur2;
-	struct list_head check_dirs;
+	LIST_HEAD(check_dirs);
 	struct fs_path *valid_path = NULL;
 	u64 ow_inode = 0;
 	u64 ow_gen;
@@ -4172,7 +4183,6 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	 * which is always '..'
 	 */
 	BUG_ON(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID);
-	INIT_LIST_HEAD(&check_dirs);
 
 	valid_path = fs_path_alloc();
 	if (!valid_path) {

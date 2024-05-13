@@ -23,8 +23,8 @@
 #include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
@@ -1093,7 +1093,7 @@ static struct i2c_driver iqs5xx_i2c_driver = {
 		.pm		= pm_sleep_ptr(&iqs5xx_pm),
 	},
 	.id_table	= iqs5xx_id,
-	.probe_new	= iqs5xx_probe,
+	.probe		= iqs5xx_probe,
 };
 module_i2c_driver(iqs5xx_i2c_driver);
 

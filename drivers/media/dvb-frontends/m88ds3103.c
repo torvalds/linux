@@ -1695,7 +1695,7 @@ struct dvb_frontend *m88ds3103_attach(const struct m88ds3103_config *cfg,
 	*tuner_i2c_adapter = pdata.get_i2c_adapter(client);
 	return pdata.get_dvb_frontend(client);
 }
-EXPORT_SYMBOL(m88ds3103_attach);
+EXPORT_SYMBOL_GPL(m88ds3103_attach);
 
 static const struct dvb_frontend_ops m88ds3103_ops = {
 	.delsys = {SYS_DVBS, SYS_DVBS2},
@@ -1941,7 +1941,7 @@ static struct i2c_driver m88ds3103_driver = {
 		.name	= "m88ds3103",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= m88ds3103_probe,
+	.probe		= m88ds3103_probe,
 	.remove		= m88ds3103_remove,
 	.id_table	= m88ds3103_id_table,
 };

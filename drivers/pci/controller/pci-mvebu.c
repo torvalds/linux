@@ -87,7 +87,6 @@ struct mvebu_pcie {
 	struct resource io;
 	struct resource realio;
 	struct resource mem;
-	struct resource busn;
 	int nports;
 };
 
@@ -1649,7 +1648,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	return pci_host_probe(bridge);
 }
 
-static int mvebu_pcie_remove(struct platform_device *pdev)
+static void mvebu_pcie_remove(struct platform_device *pdev)
 {
 	struct mvebu_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
@@ -1707,8 +1706,6 @@ static int mvebu_pcie_remove(struct platform_device *pdev)
 		/* Power down card and disable clocks. Must be the last step. */
 		mvebu_pcie_powerdown(port);
 	}
-
-	return 0;
 }
 
 static const struct of_device_id mvebu_pcie_of_match_table[] = {
@@ -1730,7 +1727,7 @@ static struct platform_driver mvebu_pcie_driver = {
 		.pm = &mvebu_pcie_pm_ops,
 	},
 	.probe = mvebu_pcie_probe,
-	.remove = mvebu_pcie_remove,
+	.remove_new = mvebu_pcie_remove,
 };
 module_platform_driver(mvebu_pcie_driver);
 

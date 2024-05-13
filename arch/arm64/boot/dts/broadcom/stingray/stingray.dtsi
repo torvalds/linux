@@ -109,21 +109,25 @@
 		CLUSTER0_L2: l2-cache@0 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		CLUSTER1_L2: l2-cache@100 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		CLUSTER2_L2: l2-cache@200 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 
 		CLUSTER3_L2: l2-cache@300 {
 			compatible = "cache";
 			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -561,7 +565,7 @@
 			iommus = <&smmu 0x6000 0x0000>;
 		};
 
-		enet: ethernet@340000{
+		enet: ethernet@340000 {
 			compatible = "brcm,amac";
 			reg = <0x00340000 0x1000>;
 			reg-names = "amac_base";

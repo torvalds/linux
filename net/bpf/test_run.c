@@ -15,11 +15,12 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <net/net_namespace.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 #include <linux/error-injection.h>
 #include <linux/smp.h>
 #include <linux/sock_diag.h>
 #include <linux/netfilter.h>
+#include <net/netdev_rx_queue.h>
 #include <net/xdp.h>
 #include <net/netfilter/nf_bpf_link.h>
 
@@ -542,6 +543,7 @@ struct bpf_fentry_test_t {
 
 int noinline bpf_fentry_test7(struct bpf_fentry_test_t *arg)
 {
+	asm volatile ("");
 	return (long)arg;
 }
 
@@ -555,33 +557,21 @@ __bpf_kfunc u32 bpf_fentry_test9(u32 *a)
 	return *a;
 }
 
+void noinline bpf_fentry_test_sinfo(struct skb_shared_info *sinfo)
+{
+}
+
 __bpf_kfunc int bpf_modify_return_test(int a, int *b)
 {
 	*b += 1;
 	return a + *b;
 }
 
-__bpf_kfunc u64 bpf_kfunc_call_test1(struct sock *sk, u32 a, u64 b, u32 c, u64 d)
+__bpf_kfunc int bpf_modify_return_test2(int a, int *b, short c, int d,
+					void *e, char f, int g)
 {
-	return a + b + c + d;
-}
-
-__bpf_kfunc int bpf_kfunc_call_test2(struct sock *sk, u32 a, u32 b)
-{
-	return a + b;
-}
-
-__bpf_kfunc struct sock *bpf_kfunc_call_test3(struct sock *sk)
-{
-	return sk;
-}
-
-long noinline bpf_kfunc_call_test4(signed char a, short b, int c, long d)
-{
-	/* Provoke the compiler to assume that the caller has sign-extended a,
-	 * b and c on platforms where this is required (e.g. s390x).
-	 */
-	return (long)a + (long)b + (long)c + d;
+	*b += 1;
+	return a + *b + c + d + (long)e + f + g;
 }
 
 int noinline bpf_fentry_shadow_test(int a)
@@ -606,32 +596,6 @@ struct prog_test_ref_kfunc {
 	refcount_t cnt;
 };
 
-static struct prog_test_ref_kfunc prog_test_struct = {
-	.a = 42,
-	.b = 108,
-	.next = &prog_test_struct,
-	.cnt = REFCOUNT_INIT(1),
-};
-
-__bpf_kfunc struct prog_test_ref_kfunc *
-bpf_kfunc_call_test_acquire(unsigned long *scalar_ptr)
-{
-	refcount_inc(&prog_test_struct.cnt);
-	return &prog_test_struct;
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_offset(struct prog_test_ref_kfunc *p)
-{
-	WARN_ON_ONCE(1);
-}
-
-__bpf_kfunc struct prog_test_member *
-bpf_kfunc_call_memb_acquire(void)
-{
-	WARN_ON_ONCE(1);
-	return NULL;
-}
-
 __bpf_kfunc void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
 {
 	refcount_dec(&p->cnt);
@@ -641,138 +605,11 @@ __bpf_kfunc void bpf_kfunc_call_memb_release(struct prog_test_member *p)
 {
 }
 
-__bpf_kfunc void bpf_kfunc_call_memb1_release(struct prog_test_member1 *p)
-{
-	WARN_ON_ONCE(1);
-}
-
-static int *__bpf_kfunc_call_test_get_mem(struct prog_test_ref_kfunc *p, const int size)
-{
-	if (size > 2 * sizeof(int))
-		return NULL;
-
-	return (int *)p;
-}
-
-__bpf_kfunc int *bpf_kfunc_call_test_get_rdwr_mem(struct prog_test_ref_kfunc *p,
-						  const int rdwr_buf_size)
-{
-	return __bpf_kfunc_call_test_get_mem(p, rdwr_buf_size);
-}
-
-__bpf_kfunc int *bpf_kfunc_call_test_get_rdonly_mem(struct prog_test_ref_kfunc *p,
-						    const int rdonly_buf_size)
-{
-	return __bpf_kfunc_call_test_get_mem(p, rdonly_buf_size);
-}
-
-/* the next 2 ones can't be really used for testing expect to ensure
- * that the verifier rejects the call.
- * Acquire functions must return struct pointers, so these ones are
- * failing.
- */
-__bpf_kfunc int *bpf_kfunc_call_test_acq_rdonly_mem(struct prog_test_ref_kfunc *p,
-						    const int rdonly_buf_size)
-{
-	return __bpf_kfunc_call_test_get_mem(p, rdonly_buf_size);
-}
-
-__bpf_kfunc void bpf_kfunc_call_int_mem_release(int *p)
-{
-}
-
-struct prog_test_pass1 {
-	int x0;
-	struct {
-		int x1;
-		struct {
-			int x2;
-			struct {
-				int x3;
-			};
-		};
-	};
-};
-
-struct prog_test_pass2 {
-	int len;
-	short arr1[4];
-	struct {
-		char arr2[4];
-		unsigned long arr3[8];
-	} x;
-};
-
-struct prog_test_fail1 {
-	void *p;
-	int x;
-};
-
-struct prog_test_fail2 {
-	int x8;
-	struct prog_test_pass1 x;
-};
-
-struct prog_test_fail3 {
-	int len;
-	char arr1[2];
-	char arr2[];
-};
-
-__bpf_kfunc void bpf_kfunc_call_test_pass_ctx(struct __sk_buff *skb)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_pass1(struct prog_test_pass1 *p)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_pass2(struct prog_test_pass2 *p)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_fail1(struct prog_test_fail1 *p)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_fail2(struct prog_test_fail2 *p)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_fail3(struct prog_test_fail3 *p)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_mem_len_pass1(void *mem, int mem__sz)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_mem_len_fail1(void *mem, int len)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_mem_len_fail2(u64 *mem, int len)
-{
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_ref(struct prog_test_ref_kfunc *p)
-{
-	/* p != NULL, but p->cnt could be 0 */
-}
-
-__bpf_kfunc void bpf_kfunc_call_test_destructive(void)
-{
-}
-
-__bpf_kfunc static u32 bpf_kfunc_call_test_static_unused_arg(u32 arg, u32 unused)
-{
-	return arg;
-}
-
 __diag_pop();
 
 BTF_SET8_START(bpf_test_modify_return_ids)
 BTF_ID_FLAGS(func, bpf_modify_return_test)
+BTF_ID_FLAGS(func, bpf_modify_return_test2)
 BTF_ID_FLAGS(func, bpf_fentry_test1, KF_SLEEPABLE)
 BTF_SET8_END(bpf_test_modify_return_ids)
 
@@ -782,32 +619,8 @@ static const struct btf_kfunc_id_set bpf_test_modify_return_set = {
 };
 
 BTF_SET8_START(test_sk_check_kfunc_ids)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test2)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test3)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test4)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_acquire, KF_ACQUIRE | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_kfunc_call_memb_acquire, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_memb_release, KF_RELEASE)
-BTF_ID_FLAGS(func, bpf_kfunc_call_memb1_release, KF_RELEASE)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_get_rdwr_mem, KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_get_rdonly_mem, KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_acq_rdonly_mem, KF_ACQUIRE | KF_RET_NULL)
-BTF_ID_FLAGS(func, bpf_kfunc_call_int_mem_release, KF_RELEASE)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass_ctx)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass1)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_pass2)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail1)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail2)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_fail3)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_pass1)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail1)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_mem_len_fail2)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_ref, KF_TRUSTED_ARGS | KF_RCU)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_destructive, KF_DESTRUCTIVE)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_static_unused_arg)
-BTF_ID_FLAGS(func, bpf_kfunc_call_test_offset)
 BTF_SET8_END(test_sk_check_kfunc_ids)
 
 static void *bpf_test_init(const union bpf_attr *kattr, u32 user_size,
@@ -864,7 +677,11 @@ int bpf_prog_test_run_tracing(struct bpf_prog *prog,
 	case BPF_MODIFY_RETURN:
 		ret = bpf_modify_return_test(1, &b);
 		if (b != 2)
-			side_effect = 1;
+			side_effect++;
+		b = 2;
+		ret += bpf_modify_return_test2(1, &b, 3, 4, (void *)5, 6, 7);
+		if (b != 2)
+			side_effect++;
 		break;
 	default:
 		goto out;
@@ -1415,11 +1232,10 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 			}
 
 			frag = &sinfo->frags[sinfo->nr_frags++];
-			__skb_frag_set_page(frag, page);
 
 			data_len = min_t(u32, kattr->test.data_size_in - size,
 					 PAGE_SIZE);
-			skb_frag_size_set(frag, data_len);
+			skb_frag_fill_page_desc(frag, page, 0, data_len);
 
 			if (copy_from_user(page_address(page), data_in + size,
 					   data_len)) {

@@ -42,8 +42,8 @@
 	hubbub2->shifts->field_name, hubbub2->masks->field_name
 
 /**
- * @DCN32_CRB_SEGMENT_SIZE_KB: Maximum Configurable Return Buffer size for
- * DCN32
+ * DCN32_CRB_SEGMENT_SIZE_KB: Maximum Configurable Return Buffer size for
+ *                            DCN32
  */
 #define DCN32_CRB_SEGMENT_SIZE_KB 64
 
@@ -955,8 +955,8 @@ void hubbub32_init(struct hubbub *hubbub)
 		/*REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);*/
 
 		REG_UPDATE_2(DCHUBBUB_CLOCK_CNTL,
-			DISPCLK_R_DCHUBBUB_GATE_DIS, 0,
-			DCFCLK_R_DCHUBBUB_GATE_DIS, 0);
+			DISPCLK_R_DCHUBBUB_GATE_DIS, 1,
+			DCFCLK_R_DCHUBBUB_GATE_DIS, 1);
 	}
 	/*
 	ignore the "df_pre_cstate_req" from the SDP port control.

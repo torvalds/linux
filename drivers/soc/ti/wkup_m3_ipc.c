@@ -202,7 +202,7 @@ static int wkup_m3_ipc_dbg_init(struct wkup_m3_ipc *m3_ipc)
 {
 	m3_ipc->dbg_path = debugfs_create_dir("wkup_m3_ipc", NULL);
 
-	if (!m3_ipc->dbg_path)
+	if (IS_ERR(m3_ipc->dbg_path))
 		return -EINVAL;
 
 	(void)debugfs_create_file("enable_late_halt", 0644,

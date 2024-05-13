@@ -2642,10 +2642,10 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	bfa_ioc_get_adapter_fw_ver(&port->fcs->bfa->ioc,
 					hba_attr->fw_version);
 
-	strlcpy(hba_attr->driver_version, (char *)driver_info->version,
+	strscpy(hba_attr->driver_version, (char *)driver_info->version,
 		sizeof(hba_attr->driver_version));
 
-	strlcpy(hba_attr->os_name, driver_info->host_os_name,
+	strscpy(hba_attr->os_name, driver_info->host_os_name,
 		sizeof(hba_attr->os_name));
 
 	/*
@@ -2663,13 +2663,13 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	bfa_fcs_fdmi_get_portattr(fdmi, &fcs_port_attr);
 	hba_attr->max_ct_pyld = fcs_port_attr.max_frm_size;
 
-	strlcpy(hba_attr->node_sym_name.symname,
+	strscpy(hba_attr->node_sym_name.symname,
 		port->port_cfg.node_sym_name.symname, BFA_SYMNAME_MAXLEN);
 	strcpy(hba_attr->vendor_info, "QLogic");
 	hba_attr->num_ports =
 		cpu_to_be32(bfa_ioc_get_nports(&port->fcs->bfa->ioc));
 	hba_attr->fabric_name = port->fabric->lps->pr_nwwn;
-	strlcpy(hba_attr->bios_ver, hba_attr->option_rom_ver, BFA_VERSION_LEN);
+	strscpy(hba_attr->bios_ver, hba_attr->option_rom_ver, BFA_VERSION_LEN);
 
 }
 
@@ -2736,19 +2736,19 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	/*
 	 * OS device Name
 	 */
-	strlcpy(port_attr->os_device_name, driver_info->os_device_name,
+	strscpy(port_attr->os_device_name, driver_info->os_device_name,
 		sizeof(port_attr->os_device_name));
 
 	/*
 	 * Host name
 	 */
-	strlcpy(port_attr->host_name, driver_info->host_machine_name,
+	strscpy(port_attr->host_name, driver_info->host_machine_name,
 		sizeof(port_attr->host_name));
 
 	port_attr->node_name = bfa_fcs_lport_get_nwwn(port);
 	port_attr->port_name = bfa_fcs_lport_get_pwwn(port);
 
-	strlcpy(port_attr->port_sym_name.symname,
+	strscpy(port_attr->port_sym_name.symname,
 		bfa_fcs_lport_get_psym_name(port).symname, BFA_SYMNAME_MAXLEN);
 	bfa_fcs_lport_get_attr(port, &lport_attr);
 	port_attr->port_type = cpu_to_be32(lport_attr.port_type);
@@ -3229,7 +3229,7 @@ bfa_fcs_lport_ms_gmal_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 					rsp_str[gmal_entry->len-1] = 0;
 
 				/* copy IP Address to fabric */
-				strlcpy(bfa_fcs_lport_get_fabric_ipaddr(port),
+				strscpy(bfa_fcs_lport_get_fabric_ipaddr(port),
 					gmal_entry->ip_addr,
 					BFA_FCS_FABRIC_IPADDR_SZ);
 				break;
@@ -4667,7 +4667,7 @@ bfa_fcs_lport_ns_send_rspn_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 		 * to that of the base port.
 		 */
 
-		strlcpy(symbl,
+		strscpy(symbl,
 			(char *)&(bfa_fcs_lport_get_psym_name
 			 (bfa_fcs_get_base_port(port->fcs))),
 			sizeof(symbl));
@@ -5194,7 +5194,7 @@ bfa_fcs_lport_ns_util_send_rspn_id(void *cbarg, struct bfa_fcxp_s *fcxp_alloced)
 		 * For Vports, we append the vport's port symbolic name
 		 * to that of the base port.
 		 */
-		strlcpy(symbl, (char *)&(bfa_fcs_lport_get_psym_name
+		strscpy(symbl, (char *)&(bfa_fcs_lport_get_psym_name
 			(bfa_fcs_get_base_port(port->fcs))),
 			sizeof(symbl));
 

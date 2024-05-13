@@ -47,11 +47,9 @@
 #include "clk_mgr.h"
 #include "dsc.h"
 #include "dcn20/dcn20_optc.h"
-#include "dmub_subvp_state.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "dcn32_resource.h"
 #include "link.h"
-#include "dmub/inc/dmub_subvp_state.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -274,8 +272,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_DCN_REQ;
 				cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
 
-				dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-				dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+				dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 				return true;
 			}
@@ -309,8 +306,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 				cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
 				cmd.cab.cab_alloc_ways = ways;
 
-				dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-				dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+				dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 				return true;
 			}
@@ -326,9 +322,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	cmd.cab.header.payload_bytes =
 			sizeof(cmd.cab) - sizeof(cmd.cab.header);
 
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	return true;
 }
@@ -413,6 +407,30 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	}
 }
 
+void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params)
+{
+	struct dc *dc = params->subvp_pipe_control_lock_fast_params.dc;
+	bool lock = params->subvp_pipe_control_lock_fast_params.lock;
+	struct pipe_ctx *pipe_ctx = params->subvp_pipe_control_lock_fast_params.pipe_ctx;
+	bool subvp_immediate_flip = false;
+
+	if (pipe_ctx && pipe_ctx->stream && pipe_ctx->plane_state) {
+		if (pipe_ctx->stream->mall_stream_config.type == SUBVP_MAIN &&
+				pipe_ctx->plane_state->flip_immediate)
+			subvp_immediate_flip = true;
+	}
+
+	// Don't need to lock for DRR VSYNC flips -- FW will wait for DRR pending update cleared.
+	if (subvp_immediate_flip) {
+		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
+
+		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
+		hw_lock_cmd.bits.hw_lock_client = HW_LOCK_CLIENT_DRIVER;
+		hw_lock_cmd.bits.lock = lock;
+		hw_lock_cmd.bits.should_release = !lock;
+		dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
+	}
+}
 
 bool dcn32_set_mpc_shaper_3dlut(
 	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream)
@@ -428,7 +446,7 @@ bool dcn32_set_mpc_shaper_3dlut(
 		if (stream->func_shaper->type == TF_TYPE_HWPWL)
 			shaper_lut = &stream->func_shaper->pwl;
 		else if (stream->func_shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(
+			cm_helper_translate_curve_to_hw_format(stream->ctx,
 					stream->func_shaper,
 					&dpp_base->shaper_params, true);
 			shaper_lut = &dpp_base->shaper_params;
@@ -464,7 +482,7 @@ bool dcn32_set_mcm_luts(
 		if (plane_state->blend_tf->type == TF_TYPE_HWPWL)
 			lut_params = &plane_state->blend_tf->pwl;
 		else if (plane_state->blend_tf->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(
+			cm_helper_translate_curve_to_hw_format(plane_state->ctx,
 					plane_state->blend_tf,
 					&dpp_base->regamma_params, false);
 			lut_params = &dpp_base->regamma_params;
@@ -479,7 +497,7 @@ bool dcn32_set_mcm_luts(
 		else if (plane_state->in_shaper_func->type == TF_TYPE_DISTRIBUTED_POINTS) {
 			// TODO: dpp_base replace
 			ASSERT(false);
-			cm_helper_translate_curve_to_hw_format(
+			cm_helper_translate_curve_to_hw_format(plane_state->ctx,
 					plane_state->in_shaper_func,
 					&dpp_base->shaper_params, true);
 			lut_params = &dpp_base->shaper_params;
@@ -549,7 +567,7 @@ bool dcn32_set_output_transfer_func(struct dc *dc,
 	bool ret = false;
 
 	/* program OGAM or 3DLUT only for the top pipe*/
-	if (pipe_ctx->top_pipe == NULL) {
+	if (resource_is_pipe_type(pipe_ctx, OPP_HEAD)) {
 		/*program shaper and 3dlut in MPC*/
 		ret = dcn32_set_mpc_shaper_3dlut(pipe_ctx, stream);
 		if (ret == false && mpc->funcs->set_output_gamma && stream->out_transfer_func) {
@@ -587,8 +605,8 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
-		if (!pipe->stream || (pipe->stream && !(pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
-						pipe->stream->fpo_in_use))) {
+		if (!pipe->stream || !(pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
+		    pipe->stream->fpo_in_use)) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, false);
 		}
@@ -596,7 +614,7 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 		/* Today only FPO uses cursor P-State force. Only clear cursor P-State force
 		 * if it's not FPO.
 		 */
-		if (!pipe->stream || (pipe->stream && !pipe->stream->fpo_in_use)) {
+		if (!pipe->stream || !pipe->stream->fpo_in_use) {
 			if (hubp && hubp->funcs->hubp_update_force_cursor_pstate_disallow)
 				hubp->funcs->hubp_update_force_cursor_pstate_disallow(hubp, false);
 		}
@@ -721,6 +739,9 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 	clocks->socclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].socclk_mhz * 1000;
 	clocks->dramclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].memclk_mhz * 1000;
 	clocks->dppclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dppclk_mhz * 1000;
+	clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
+	clocks->fclk_p_state_change_support = true;
+	clocks->p_state_change_support = true;
 	if (dc->debug.disable_boot_optimizations) {
 		clocks->dispclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
 	} else {
@@ -730,9 +751,6 @@ static void dcn32_initialize_min_clocks(struct dc *dc)
 		 * freq to ensure that the timing is valid and unchanged.
 		 */
 		clocks->dispclk_khz = dc->clk_mgr->funcs->get_dispclk_from_dentist(dc->clk_mgr);
-		clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
-		clocks->fclk_p_state_change_support = true;
-		clocks->p_state_change_support = true;
 	}
 
 	dc->clk_mgr->funcs->update_clocks(
@@ -946,8 +964,10 @@ void dcn32_init_hw(struct dc *dc)
 
 	// Get DMCUB capabilities
 	if (dc->ctx->dmub_srv) {
-		dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv->dmub);
+		dc_dmub_srv_query_caps_cmd(dc->ctx->dmub_srv);
 		dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
+		dc->caps.dmub_caps.subvp_psr = dc->ctx->dmub_srv->dmub->feature_caps.subvp_psr_support;
+		dc->caps.dmub_caps.gecc_enable = dc->ctx->dmub_srv->dmub->feature_caps.gecc_enable;
 		dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch;
 	}
 }
@@ -1125,10 +1145,6 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 	unsigned int odm_combine_factor = 0;
 	bool two_pix_per_container = false;
 
-	// For phantom pipes, use the same programming as the main pipes
-	if (pipe_ctx->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-		stream = pipe_ctx->stream->mall_stream_config.paired_stream;
-	}
 	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
@@ -1175,6 +1191,36 @@ void dcn32_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
 		pipe_ctx->stream_res.stream_enc->funcs->set_input_mode(pipe_ctx->stream_res.stream_enc,
 				pix_per_cycle);
+}
+
+void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context)
+{
+	unsigned int i;
+	struct pipe_ctx *pipe = NULL;
+	bool otg_disabled[MAX_PIPES] = {false};
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (!resource_is_pipe_type(pipe, OTG_MASTER))
+			continue;
+
+		if ((pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))
+			&& pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
+			reset_sync_context_for_pipe(dc, context, i);
+			otg_disabled[i] = true;
+		}
+	}
+
+	hws->ctx->dc->res_pool->dccg->funcs->trigger_dio_fifo_resync(hws->ctx->dc->res_pool->dccg);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (otg_disabled[i])
+			pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
+	}
 }
 
 void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
@@ -1253,7 +1299,7 @@ static void apply_symclk_on_tx_off_wa(struct dc_link *link)
 	if (link->phy_state.symclk_ref_cnts.otg > 0) {
 		for (i = 0; i < MAX_PIPES; i++) {
 			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-			if (pipe_ctx->stream && pipe_ctx->stream->link == link && pipe_ctx->top_pipe == NULL) {
+			if (resource_is_pipe_type(pipe_ctx, OPP_HEAD) && pipe_ctx->stream->link == link) {
 				pipe_ctx->clock_source->funcs->program_pix_clk(
 						pipe_ctx->clock_source,
 						&pipe_ctx->stream_res.pix_clk_params,
@@ -1336,7 +1382,7 @@ void dcn32_apply_update_flags_for_phantom(struct pipe_ctx *phantom_pipe)
 {
 	phantom_pipe->update_flags.raw = 0;
 	if (phantom_pipe->stream && phantom_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-		if (phantom_pipe->stream && phantom_pipe->plane_state) {
+		if (resource_is_pipe_type(phantom_pipe, DPP_PIPE)) {
 			phantom_pipe->update_flags.bits.enable = 1;
 			phantom_pipe->update_flags.bits.mpcc = 1;
 			phantom_pipe->update_flags.bits.dppclk = 1;
@@ -1346,7 +1392,7 @@ void dcn32_apply_update_flags_for_phantom(struct pipe_ctx *phantom_pipe)
 			phantom_pipe->update_flags.bits.scaler = 1;
 			phantom_pipe->update_flags.bits.viewport = 1;
 			phantom_pipe->update_flags.bits.det_size = 1;
-			if (!phantom_pipe->top_pipe && !phantom_pipe->prev_odm_pipe) {
+			if (resource_is_pipe_type(phantom_pipe, OTG_MASTER)) {
 				phantom_pipe->update_flags.bits.odm = 1;
 				phantom_pipe->update_flags.bits.global_sync = 1;
 			}

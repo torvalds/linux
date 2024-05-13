@@ -98,7 +98,7 @@ static int sun4i_drv_bind(struct device *dev)
 		goto unbind_all;
 
 	/* Remove early framebuffers (ie. simplefb) */
-	ret = drm_aperture_remove_framebuffers(false, &sun4i_drv_driver);
+	ret = drm_aperture_remove_framebuffers(&sun4i_drv_driver);
 	if (ret)
 		goto unbind_all;
 
@@ -408,11 +408,9 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 		return 0;
 }
 
-static int sun4i_drv_remove(struct platform_device *pdev)
+static void sun4i_drv_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &sun4i_drv_master_ops);
-
-	return 0;
 }
 
 static const struct of_device_id sun4i_drv_of_table[] = {
@@ -438,7 +436,7 @@ MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);
 
 static struct platform_driver sun4i_drv_platform_driver = {
 	.probe		= sun4i_drv_probe,
-	.remove		= sun4i_drv_remove,
+	.remove_new	= sun4i_drv_remove,
 	.driver		= {
 		.name		= "sun4i-drm",
 		.of_match_table	= sun4i_drv_of_table,

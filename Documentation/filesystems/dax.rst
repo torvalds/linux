@@ -291,7 +291,7 @@ The DAX code does not work correctly on architectures which have virtually
 mapped caches such as ARM, MIPS and SPARC.
 
 Calling :c:func:`get_user_pages()` on a range of user memory that has been
-mmaped from a `DAX` file will fail when there are no 'struct page' to describe
+mmapped from a `DAX` file will fail when there are no 'struct page' to describe
 those pages.  This problem has been addressed in some device drivers
 by adding optional struct page support for pages under the control of
 the driver (see `CONFIG_NVDIMM_PFN` in ``drivers/nvdimm`` for an example of

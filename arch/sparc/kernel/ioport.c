@@ -39,7 +39,7 @@
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-map-ops.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #include <asm/io.h>
 #include <asm/vaddrs.h>
@@ -191,7 +191,7 @@ static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
 		tack += sizeof (struct resource);
 	}
 
-	strlcpy(tack, name, XNMLN+1);
+	strscpy(tack, name, XNMLN+1);
 	res->name = tack;
 
 	va = _sparc_ioremap(res, busno, phys, size);

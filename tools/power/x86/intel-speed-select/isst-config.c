@@ -5,6 +5,7 @@
  */
 
 #include <linux/isst_if.h>
+#include <sys/utsname.h>
 
 #include "isst.h"
 
@@ -15,7 +16,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.15";
+static const char *version_str = "v1.17";
 
 static const int supported_api_ver = 2;
 static struct isst_if_platform_info isst_platform_info;
@@ -473,10 +474,43 @@ static unsigned int is_cpu_online(int cpu)
 	return online;
 }
 
+static int get_kernel_version(int *major, int *minor)
+{
+	struct utsname buf;
+	int ret;
+
+	ret = uname(&buf);
+	if (ret)
+		return ret;
+
+	ret = sscanf(buf.release, "%d.%d", major, minor);
+	if (ret != 2)
+		return ret;
+
+	return 0;
+}
+
+#define CPU0_HOTPLUG_DEPRECATE_MAJOR_VER	6
+#define CPU0_HOTPLUG_DEPRECATE_MINOR_VER	5
+
 void set_cpu_online_offline(int cpu, int state)
 {
 	char buffer[128];
 	int fd, ret;
+
+	if (!cpu) {
+		int major, minor;
+
+		ret = get_kernel_version(&major, &minor);
+		if (!ret) {
+			if (major > CPU0_HOTPLUG_DEPRECATE_MAJOR_VER || (major == CPU0_HOTPLUG_DEPRECATE_MAJOR_VER &&
+				minor >= CPU0_HOTPLUG_DEPRECATE_MINOR_VER)) {
+				debug_printf("Ignore CPU 0 offline/online for kernel version >= %d.%d\n", major, minor);
+				debug_printf("Use cgroups to isolate CPU 0\n");
+				return;
+			}
+		}
+	}
 
 	snprintf(buffer, sizeof(buffer),
 		 "/sys/devices/system/cpu/cpu%d/online", cpu);
@@ -778,6 +812,7 @@ static void create_cpu_map(void)
 					map.cpu_map[0].logical_cpu);
 			} else {
 				update_punit_cpu_info(map.cpu_map[0].physical_cpu, &cpu_map[i]);
+				punit_id = cpu_map[i].punit_id;
 			}
 		}
 		cpu_map[i].initialized = 1;
@@ -2113,7 +2148,6 @@ static void set_fact_enable(int arg)
 	else
 		for_each_online_power_domain_in_set(set_fact_for_cpu, NULL, NULL,
 					       NULL, &enable);
-	isst_ctdp_display_information_end(outf);
 
 	if (!fact_enable_fail && enable && auto_mode) {
 		/*
@@ -2192,10 +2226,13 @@ static void set_fact_enable(int arg)
 		isst_display_result(&id, outf, "turbo-freq --auto", "enable", 0);
 	}
 
+	isst_ctdp_display_information_end(outf);
+
 	return;
 
 error_disp:
 	isst_display_result(&id, outf, "turbo-freq --auto", "enable", ret);
+	isst_ctdp_display_information_end(outf);
 
 }
 
@@ -2260,9 +2297,6 @@ static void dump_clos_config_for_cpu(struct isst_id *id, void *arg1, void *arg2,
 {
 	struct isst_clos_config clos_config;
 	int ret;
-
-	if (id->cpu < 0)
-		return;
 
 	ret = isst_pm_get_clos(id, current_clos, &clos_config);
 	if (ret)
@@ -2437,12 +2471,16 @@ static void set_clos_assoc(int arg)
 		isst_display_error_info_message(1, "Invalid clos id\n", 0, 0);
 		exit(0);
 	}
+
+	isst_ctdp_display_information_start(outf);
+
 	if (max_target_cpus)
 		for_each_online_target_cpu_in_set(set_clos_assoc_for_cpu, NULL,
 						  NULL, NULL, NULL);
 	else {
 		isst_display_error_info_message(1, "Invalid target cpu. Specify with [-c|--cpu]", 0, 0);
 	}
+	isst_ctdp_display_information_end(outf);
 }
 
 static void get_clos_assoc_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *arg3,
@@ -2618,10 +2656,11 @@ static struct process_cmd_struct isst_cmds[] = {
  */
 void parse_cpu_command(char *optarg)
 {
-	unsigned int start, end;
+	unsigned int start, end, invalid_count;
 	char *next;
 
 	next = optarg;
+	invalid_count = 0;
 
 	while (next && *next) {
 		if (*next == '-') /* no negative cpu numbers */
@@ -2631,6 +2670,8 @@ void parse_cpu_command(char *optarg)
 
 		if (max_target_cpus < MAX_CPUS_IN_ONE_REQ)
 			target_cpus[max_target_cpus++] = start;
+		else
+			invalid_count = 1;
 
 		if (*next == '\0')
 			break;
@@ -2657,12 +2698,21 @@ void parse_cpu_command(char *optarg)
 		while (++start <= end) {
 			if (max_target_cpus < MAX_CPUS_IN_ONE_REQ)
 				target_cpus[max_target_cpus++] = start;
+			else
+				invalid_count = 1;
 		}
 
 		if (*next == ',')
 			next += 1;
 		else if (*next != '\0')
 			goto error;
+	}
+
+	if (invalid_count) {
+		isst_ctdp_display_information_start(outf);
+		isst_display_error_info_message(1, "Too many CPUs in one request: max is", 1, MAX_CPUS_IN_ONE_REQ - 1);
+		isst_ctdp_display_information_end(outf);
+		exit(-1);
 	}
 
 #ifdef DEBUG

@@ -33,6 +33,8 @@ u64 acpi_saved_sp;
 
 #define PREFIX			"ACPI: "
 
+struct acpi_madt_core_pic acpi_core_pic[NR_CPUS];
+
 void __init __iomem * __acpi_map_table(unsigned long phys, unsigned long size)
 {
 
@@ -99,6 +101,7 @@ acpi_parse_processor(union acpi_subtable_headers *header, const unsigned long en
 
 	acpi_table_print_madt_entry(&header->common);
 #ifdef CONFIG_SMP
+	acpi_core_pic[processor->core_id] = *processor;
 	set_processor_mask(processor->core_id, processor->flags);
 #endif
 
@@ -138,6 +141,35 @@ static void __init acpi_process_madt(void)
 			acpi_parse_eio_master, MAX_IO_PICS);
 
 	loongson_sysconf.nr_cpus = num_processors;
+}
+
+int pptt_enabled;
+
+int __init parse_acpi_topology(void)
+{
+	int cpu, topology_id;
+
+	for_each_possible_cpu(cpu) {
+		topology_id = find_acpi_cpu_topology(cpu, 0);
+		if (topology_id < 0) {
+			pr_warn("Invalid BIOS PPTT\n");
+			return -ENOENT;
+		}
+
+		if (acpi_pptt_cpu_is_thread(cpu) <= 0)
+			cpu_data[cpu].core = topology_id;
+		else {
+			topology_id = find_acpi_cpu_topology(cpu, 1);
+			if (topology_id < 0)
+				return -ENOENT;
+
+			cpu_data[cpu].core = topology_id;
+		}
+	}
+
+	pptt_enabled = 1;
+
+	return 0;
 }
 
 #ifndef CONFIG_SUSPEND
@@ -249,7 +281,6 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	pr_info("SRAT: PXM %u -> CPU 0x%02x -> Node %u\n", pxm, pa->apic_id, node);
 }
 
-void __init acpi_numa_arch_fixup(void) {}
 #endif
 
 void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)

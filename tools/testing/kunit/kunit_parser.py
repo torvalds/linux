@@ -212,6 +212,7 @@ KTAP_START = re.compile(r'\s*KTAP version ([0-9]+)$')
 TAP_START = re.compile(r'\s*TAP version ([0-9]+)$')
 KTAP_END = re.compile(r'\s*(List of all partitions:|'
 	'Kernel panic - not syncing: VFS:|reboot: System halted)')
+EXECUTOR_ERROR = re.compile(r'\s*kunit executor: (.*)$')
 
 def extract_tap_lines(kernel_output: Iterable[str]) -> LineStream:
 	"""Extracts KTAP lines from the kernel output."""
@@ -241,6 +242,8 @@ def extract_tap_lines(kernel_output: Iterable[str]) -> LineStream:
 			elif started:
 				# remove the prefix, if any.
 				line = line[prefix_len:]
+				yield line_num, line
+			elif EXECUTOR_ERROR.search(line):
 				yield line_num, line
 	return LineStream(lines=isolate_ktap_output(kernel_output))
 
@@ -447,7 +450,7 @@ def parse_diagnostic(lines: LineStream) -> List[str]:
 	Log of diagnostic lines
 	"""
 	log = []  # type: List[str]
-	non_diagnostic_lines = [TEST_RESULT, TEST_HEADER, KTAP_START]
+	non_diagnostic_lines = [TEST_RESULT, TEST_HEADER, KTAP_START, TAP_START]
 	while lines and not any(re.match(lines.peek())
 			for re in non_diagnostic_lines):
 		log.append(lines.pop())
@@ -713,6 +716,11 @@ def parse_test(lines: LineStream, expected_num: int, log: List[str], is_subtest:
 	"""
 	test = Test()
 	test.log.extend(log)
+
+	# Parse any errors prior to parsing tests
+	err_log = parse_diagnostic(lines)
+	test.log.extend(err_log)
+
 	if not is_subtest:
 		# If parsing the main/top-level test, parse KTAP version line and
 		# test plan
@@ -774,6 +782,7 @@ def parse_test(lines: LineStream, expected_num: int, log: List[str], is_subtest:
 		# Don't override a bad status if this test had one reported.
 		# Assumption: no subtests means CRASHED is from Test.__init__()
 		if test.status in (TestStatus.TEST_CRASHED, TestStatus.SUCCESS):
+			print_log(test.log)
 			test.status = TestStatus.NO_TESTS
 			test.add_error('0 tests run!')
 

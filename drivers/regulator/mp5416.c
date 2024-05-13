@@ -10,7 +10,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
@@ -240,7 +240,7 @@ static struct i2c_driver mp5416_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mp5416_of_match),
 	},
-	.probe_new = mp5416_i2c_probe,
+	.probe = mp5416_i2c_probe,
 	.id_table = mp5416_id,
 };
 module_i2c_driver(mp5416_regulator_driver);

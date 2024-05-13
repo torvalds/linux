@@ -54,6 +54,7 @@ struct cpuinfo_loongarch {
 	struct cache_desc	cache_leaves[CACHE_LEAVES_MAX];
 	int			core;   /* physical core number in package */
 	int			package;/* physical package number */
+	int			global_id; /* physical global thread number */
 	int			vabits; /* Virtual Address size in bits */
 	int			pabits; /* Physical Address size in bits */
 	unsigned int		ksave_mask; /* Usable KSave mask. */

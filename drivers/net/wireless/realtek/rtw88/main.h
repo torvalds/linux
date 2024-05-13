@@ -511,12 +511,6 @@ struct rtw_txpwr_idx {
 	struct rtw_5g_txpwr_idx pwr_idx_5g;
 };
 
-struct rtw_timer_list {
-	struct timer_list timer;
-	void (*function)(void *data);
-	void *args;
-};
-
 struct rtw_channel_params {
 	u8 center_chan;
 	u8 primary_chan;
@@ -734,9 +728,7 @@ struct rtw_ra_report {
 
 struct rtw_txq {
 	struct list_head list;
-
 	unsigned long flags;
-	unsigned long last_push;
 };
 
 #define RTW_BC_MC_MACID 1
@@ -754,7 +746,6 @@ struct rtw_sta_info {
 	u8 rate_id;
 	enum rtw_bandwidth bw_mode;
 	enum rtw_rf_type rf_type;
-	enum rtw_wireless_set wireless_set;
 	u8 stbc_en:2;
 	u8 ldpc_en:2;
 	bool sgi_enable;
@@ -803,6 +794,7 @@ struct rtw_bf_info {
 struct rtw_vif {
 	enum rtw_net_type net_type;
 	u16 aid;
+	u8 mac_id; /* for STA mode only */
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 port;

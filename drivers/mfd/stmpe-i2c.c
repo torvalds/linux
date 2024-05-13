@@ -87,7 +87,7 @@ stmpe_i2c_probe(struct i2c_client *i2c)
 		dev_info(&i2c->dev, "matching on node name, compatible is preferred\n");
 		partnum = id->driver_data;
 	} else
-		partnum = (enum stmpe_partnum)of_id->data;
+		partnum = (uintptr_t)of_id->data;
 
 	return stmpe_probe(&i2c_ci, partnum);
 }
@@ -118,7 +118,7 @@ static struct i2c_driver stmpe_i2c_driver = {
 		.pm = pm_sleep_ptr(&stmpe_dev_pm_ops),
 		.of_match_table = stmpe_of_match,
 	},
-	.probe_new	= stmpe_i2c_probe,
+	.probe		= stmpe_i2c_probe,
 	.remove		= stmpe_i2c_remove,
 	.id_table	= stmpe_i2c_id,
 };

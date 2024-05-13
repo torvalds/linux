@@ -93,18 +93,6 @@ union vmx_exit_reason {
 	u32 full;
 };
 
-static inline bool intel_pmu_has_perf_global_ctrl(struct kvm_pmu *pmu)
-{
-	/*
-	 * Architecturally, Intel's SDM states that IA32_PERF_GLOBAL_CTRL is
-	 * supported if "CPUID.0AH: EAX[7:0] > 0", i.e. if the PMU version is
-	 * greater than zero.  However, KVM only exposes and emulates the MSR
-	 * to/for the guest if the guest PMU supports at least "Architectural
-	 * Performance Monitoring Version 2".
-	 */
-	return pmu->version > 1;
-}
-
 struct lbr_desc {
 	/* Basic info about guest LBR records. */
 	struct x86_pmu_lbr records;
@@ -386,7 +374,6 @@ struct kvm_vmx {
 	u64 *pid_table;
 };
 
-bool nested_vmx_allowed(struct kvm_vcpu *vcpu);
 void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu,
 			struct loaded_vmcs *buddy);
 int allocate_vpid(void);
@@ -574,7 +561,7 @@ static inline u8 vmx_get_rvi(void)
 	 SECONDARY_EXEC_APIC_REGISTER_VIRT |				\
 	 SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |				\
 	 SECONDARY_EXEC_SHADOW_VMCS |					\
-	 SECONDARY_EXEC_XSAVES |					\
+	 SECONDARY_EXEC_ENABLE_XSAVES |					\
 	 SECONDARY_EXEC_RDSEED_EXITING |				\
 	 SECONDARY_EXEC_RDRAND_EXITING |				\
 	 SECONDARY_EXEC_ENABLE_PML |					\

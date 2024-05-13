@@ -81,16 +81,23 @@ static int tps65086_probe(struct i2c_client *client)
 		return PTR_ERR(tps->regmap);
 	}
 
-	ret = regmap_read(tps->regmap, TPS65086_DEVICEID, &version);
+	/* Store device ID to load regulator configuration that fit to IC variant */
+	ret = regmap_read(tps->regmap, TPS65086_DEVICEID1, &tps->chip_id);
 	if (ret) {
-		dev_err(tps->dev, "Failed to read revision register\n");
+		dev_err(tps->dev, "Failed to read revision register 1\n");
+		return ret;
+	}
+
+	ret = regmap_read(tps->regmap, TPS65086_DEVICEID2, &version);
+	if (ret) {
+		dev_err(tps->dev, "Failed to read revision register 2\n");
 		return ret;
 	}
 
 	dev_info(tps->dev, "Device: TPS65086%01lX, OTP: %c, Rev: %ld\n",
-		 (version & TPS65086_DEVICEID_PART_MASK),
-		 (char)((version & TPS65086_DEVICEID_OTP_MASK) >> 4) + 'A',
-		 (version & TPS65086_DEVICEID_REV_MASK) >> 6);
+		 (version & TPS65086_DEVICEID2_PART_MASK),
+		 (char)((version & TPS65086_DEVICEID2_OTP_MASK) >> 4) + 'A',
+		 (version & TPS65086_DEVICEID2_REV_MASK) >> 6);
 
 	if (tps->irq > 0) {
 		ret = regmap_add_irq_chip(tps->regmap, tps->irq, IRQF_ONESHOT, 0,
@@ -129,7 +136,7 @@ static struct i2c_driver tps65086_driver = {
 		.name	= "tps65086",
 		.of_match_table = tps65086_of_match_table,
 	},
-	.probe_new	= tps65086_probe,
+	.probe		= tps65086_probe,
 	.remove		= tps65086_remove,
 	.id_table       = tps65086_id_table,
 };

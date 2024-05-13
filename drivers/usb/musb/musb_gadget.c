@@ -1130,7 +1130,7 @@ static int musb_gadget_disable(struct usb_ep *ep)
 struct usb_request *musb_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 {
 	struct musb_ep		*musb_ep = to_musb_ep(ep);
-	struct musb_request	*request = NULL;
+	struct musb_request	*request;
 
 	request = kzalloc(sizeof *request, gfp_flags);
 	if (!request)

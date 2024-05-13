@@ -92,7 +92,7 @@ static int lp87565_probe(struct i2c_client *client)
 
 	of_id = of_match_device(of_lp87565_match_table, &client->dev);
 	if (of_id)
-		lp87565->dev_type = (enum lp87565_device_type)of_id->data;
+		lp87565->dev_type = (uintptr_t)of_id->data;
 
 	i2c_set_clientdata(client, lp87565);
 
@@ -119,7 +119,7 @@ static struct i2c_driver lp87565_driver = {
 		.name	= "lp87565",
 		.of_match_table = of_lp87565_match_table,
 	},
-	.probe_new = lp87565_probe,
+	.probe = lp87565_probe,
 	.shutdown = lp87565_shutdown,
 	.id_table = lp87565_id_table,
 };

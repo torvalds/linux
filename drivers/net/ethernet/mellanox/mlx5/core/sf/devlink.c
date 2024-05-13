@@ -12,7 +12,7 @@
 #include "diag/sf_tracepoint.h"
 
 struct mlx5_sf {
-	struct devlink_port dl_port;
+	struct mlx5_devlink_port dl_port;
 	unsigned int port_index;
 	u32 controller;
 	u16 id;
@@ -28,7 +28,6 @@ struct mlx5_sf_table {
 	struct mutex sf_state_lock; /* Serializes sf state among user cmds & vhca event handler. */
 	struct notifier_block esw_nb;
 	struct notifier_block vhca_nb;
-	u8 ecpu: 1;
 };
 
 static struct mlx5_sf *
@@ -283,7 +282,7 @@ out:
 static int mlx5_sf_add(struct mlx5_core_dev *dev, struct mlx5_sf_table *table,
 		       const struct devlink_port_new_attrs *new_attr,
 		       struct netlink_ext_ack *extack,
-		       unsigned int *new_port_index)
+		       struct devlink_port **dl_port)
 {
 	struct mlx5_eswitch *esw = dev->priv.eswitch;
 	struct mlx5_sf *sf;
@@ -293,11 +292,11 @@ static int mlx5_sf_add(struct mlx5_core_dev *dev, struct mlx5_sf_table *table,
 	if (IS_ERR(sf))
 		return PTR_ERR(sf);
 
-	err = mlx5_esw_offloads_sf_vport_enable(esw, &sf->dl_port, sf->hw_fn_id,
-						new_attr->controller, new_attr->sfnum);
+	err = mlx5_eswitch_load_sf_vport(esw, sf->hw_fn_id, MLX5_VPORT_UC_ADDR_CHANGE,
+					 &sf->dl_port, new_attr->controller, new_attr->sfnum);
 	if (err)
 		goto esw_err;
-	*new_port_index = sf->port_index;
+	*dl_port = &sf->dl_port.dl_port;
 	trace_mlx5_sf_add(dev, sf->port_index, sf->controller, sf->hw_fn_id, new_attr->sfnum);
 	return 0;
 
@@ -339,7 +338,7 @@ mlx5_sf_new_check_attr(struct mlx5_core_dev *dev, const struct devlink_port_new_
 int mlx5_devlink_sf_port_new(struct devlink *devlink,
 			     const struct devlink_port_new_attrs *new_attr,
 			     struct netlink_ext_ack *extack,
-			     unsigned int *new_port_index)
+			     struct devlink_port **dl_port)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_sf_table *table;
@@ -355,7 +354,7 @@ int mlx5_devlink_sf_port_new(struct devlink *devlink,
 				   "Port add is only supported in eswitch switchdev mode or SF ports are disabled.");
 		return -EOPNOTSUPP;
 	}
-	err = mlx5_sf_add(dev, table, new_attr, extack, new_port_index);
+	err = mlx5_sf_add(dev, table, new_attr, extack, dl_port);
 	mlx5_sf_table_put(table);
 	return err;
 }
@@ -379,7 +378,8 @@ static void mlx5_sf_dealloc(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 	}
 }
 
-int mlx5_devlink_sf_port_del(struct devlink *devlink, unsigned int port_index,
+int mlx5_devlink_sf_port_del(struct devlink *devlink,
+			     struct devlink_port *dl_port,
 			     struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
@@ -394,13 +394,13 @@ int mlx5_devlink_sf_port_del(struct devlink *devlink, unsigned int port_index,
 				   "Port del is only supported in eswitch switchdev mode or SF ports are disabled.");
 		return -EOPNOTSUPP;
 	}
-	sf = mlx5_sf_lookup_by_index(table, port_index);
+	sf = mlx5_sf_lookup_by_index(table, dl_port->index);
 	if (!sf) {
 		err = -ENODEV;
 		goto sf_err;
 	}
 
-	mlx5_esw_offloads_sf_vport_disable(esw, sf->hw_fn_id);
+	mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
 	mlx5_sf_id_erase(table, sf);
 
 	mutex_lock(&table->sf_state_lock);
@@ -472,7 +472,7 @@ static void mlx5_sf_deactivate_all(struct mlx5_sf_table *table)
 	 * arrive. It is safe to destroy all user created SFs.
 	 */
 	xa_for_each(&table->port_indices, index, sf) {
-		mlx5_esw_offloads_sf_vport_disable(esw, sf->hw_fn_id);
+		mlx5_eswitch_unload_sf_vport(esw, sf->hw_fn_id);
 		mlx5_sf_id_erase(table, sf);
 		mlx5_sf_dealloc(table, sf);
 	}

@@ -581,11 +581,7 @@ asmlinkage long compat_sys_io_pgetevents_time64(compat_aio_context_t ctx_id,
 					struct io_event __user *events,
 					struct __kernel_timespec __user *timeout,
 					const struct __compat_aio_sigset __user *usig);
-
-/* fs/cookies.c */
 asmlinkage long compat_sys_lookup_dcookie(u32, u32, char __user *, compat_size_t);
-
-/* fs/eventpoll.c */
 asmlinkage long compat_sys_epoll_pwait(int epfd,
 			struct epoll_event __user *events,
 			int maxevents, int timeout,
@@ -597,18 +593,12 @@ asmlinkage long compat_sys_epoll_pwait2(int epfd,
 			const struct __kernel_timespec __user *timeout,
 			const compat_sigset_t __user *sigmask,
 			compat_size_t sigsetsize);
-
-/* fs/fcntl.c */
 asmlinkage long compat_sys_fcntl(unsigned int fd, unsigned int cmd,
 				 compat_ulong_t arg);
 asmlinkage long compat_sys_fcntl64(unsigned int fd, unsigned int cmd,
 				   compat_ulong_t arg);
-
-/* fs/ioctl.c */
 asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 				 compat_ulong_t arg);
-
-/* fs/open.c */
 asmlinkage long compat_sys_statfs(const char __user *pathname,
 				  struct compat_statfs __user *buf);
 asmlinkage long compat_sys_statfs64(const char __user *pathname,
@@ -623,13 +613,9 @@ asmlinkage long compat_sys_ftruncate(unsigned int, compat_ulong_t);
 /* No generic prototype for truncate64, ftruncate64, fallocate */
 asmlinkage long compat_sys_openat(int dfd, const char __user *filename,
 				  int flags, umode_t mode);
-
-/* fs/readdir.c */
 asmlinkage long compat_sys_getdents(unsigned int fd,
 				    struct compat_linux_dirent __user *dirent,
 				    unsigned int count);
-
-/* fs/read_write.c */
 asmlinkage long compat_sys_lseek(unsigned int, compat_off_t, unsigned int);
 /* No generic prototype for pread64 and pwrite64 */
 asmlinkage ssize_t compat_sys_preadv(compat_ulong_t fd,
@@ -649,14 +635,10 @@ asmlinkage long compat_sys_pwritev64(unsigned long fd,
 		const struct iovec __user *vec,
 		unsigned long vlen, loff_t pos);
 #endif
-
-/* fs/sendfile.c */
 asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
 				    compat_off_t __user *offset, compat_size_t count);
 asmlinkage long compat_sys_sendfile64(int out_fd, int in_fd,
 				    compat_loff_t __user *offset, compat_size_t count);
-
-/* fs/select.c */
 asmlinkage long compat_sys_pselect6_time32(int n, compat_ulong_t __user *inp,
 				    compat_ulong_t __user *outp,
 				    compat_ulong_t __user *exp,
@@ -677,68 +659,45 @@ asmlinkage long compat_sys_ppoll_time64(struct pollfd __user *ufds,
 				 struct __kernel_timespec __user *tsp,
 				 const compat_sigset_t __user *sigmask,
 				 compat_size_t sigsetsize);
-
-/* fs/signalfd.c */
 asmlinkage long compat_sys_signalfd4(int ufd,
 				     const compat_sigset_t __user *sigmask,
 				     compat_size_t sigsetsize, int flags);
-
-/* fs/stat.c */
 asmlinkage long compat_sys_newfstatat(unsigned int dfd,
 				      const char __user *filename,
 				      struct compat_stat __user *statbuf,
 				      int flag);
 asmlinkage long compat_sys_newfstat(unsigned int fd,
 				    struct compat_stat __user *statbuf);
-
-/* fs/sync.c: No generic prototype for sync_file_range and sync_file_range2 */
-
-/* kernel/exit.c */
+/* No generic prototype for sync_file_range and sync_file_range2 */
 asmlinkage long compat_sys_waitid(int, compat_pid_t,
 		struct compat_siginfo __user *, int,
 		struct compat_rusage __user *);
-
-
-
-/* kernel/futex.c */
 asmlinkage long
 compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
 			   compat_size_t len);
 asmlinkage long
 compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 			   compat_size_t __user *len_ptr);
-
-/* kernel/itimer.c */
 asmlinkage long compat_sys_getitimer(int which,
 				     struct old_itimerval32 __user *it);
 asmlinkage long compat_sys_setitimer(int which,
 				     struct old_itimerval32 __user *in,
 				     struct old_itimerval32 __user *out);
-
-/* kernel/kexec.c */
 asmlinkage long compat_sys_kexec_load(compat_ulong_t entry,
 				      compat_ulong_t nr_segments,
 				      struct compat_kexec_segment __user *,
 				      compat_ulong_t flags);
-
-/* kernel/posix-timers.c */
 asmlinkage long compat_sys_timer_create(clockid_t which_clock,
 			struct compat_sigevent __user *timer_event_spec,
 			timer_t __user *created_timer_id);
-
-/* kernel/ptrace.c */
 asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 				  compat_long_t addr, compat_long_t data);
-
-/* kernel/sched/core.c */
 asmlinkage long compat_sys_sched_setaffinity(compat_pid_t pid,
 				     unsigned int len,
 				     compat_ulong_t __user *user_mask_ptr);
 asmlinkage long compat_sys_sched_getaffinity(compat_pid_t pid,
 				     unsigned int len,
 				     compat_ulong_t __user *user_mask_ptr);
-
-/* kernel/signal.c */
 asmlinkage long compat_sys_sigaltstack(const compat_stack_t __user *uss_ptr,
 				       compat_stack_t __user *uoss_ptr);
 asmlinkage long compat_sys_rt_sigsuspend(compat_sigset_t __user *unewset,
@@ -763,25 +722,17 @@ asmlinkage long compat_sys_rt_sigtimedwait_time64(compat_sigset_t __user *uthese
 asmlinkage long compat_sys_rt_sigqueueinfo(compat_pid_t pid, int sig,
 				struct compat_siginfo __user *uinfo);
 /* No generic prototype for rt_sigreturn */
-
-/* kernel/sys.c */
 asmlinkage long compat_sys_times(struct compat_tms __user *tbuf);
 asmlinkage long compat_sys_getrlimit(unsigned int resource,
 				     struct compat_rlimit __user *rlim);
 asmlinkage long compat_sys_setrlimit(unsigned int resource,
 				     struct compat_rlimit __user *rlim);
 asmlinkage long compat_sys_getrusage(int who, struct compat_rusage __user *ru);
-
-/* kernel/time.c */
 asmlinkage long compat_sys_gettimeofday(struct old_timeval32 __user *tv,
 		struct timezone __user *tz);
 asmlinkage long compat_sys_settimeofday(struct old_timeval32 __user *tv,
 		struct timezone __user *tz);
-
-/* kernel/timer.c */
 asmlinkage long compat_sys_sysinfo(struct compat_sysinfo __user *info);
-
-/* ipc/mqueue.c */
 asmlinkage long compat_sys_mq_open(const char __user *u_name,
 			int oflag, compat_mode_t mode,
 			struct compat_mq_attr __user *u_attr);
@@ -790,22 +741,14 @@ asmlinkage long compat_sys_mq_notify(mqd_t mqdes,
 asmlinkage long compat_sys_mq_getsetattr(mqd_t mqdes,
 			const struct compat_mq_attr __user *u_mqstat,
 			struct compat_mq_attr __user *u_omqstat);
-
-/* ipc/msg.c */
 asmlinkage long compat_sys_msgctl(int first, int second, void __user *uptr);
 asmlinkage long compat_sys_msgrcv(int msqid, compat_uptr_t msgp,
 		compat_ssize_t msgsz, compat_long_t msgtyp, int msgflg);
 asmlinkage long compat_sys_msgsnd(int msqid, compat_uptr_t msgp,
 		compat_ssize_t msgsz, int msgflg);
-
-/* ipc/sem.c */
 asmlinkage long compat_sys_semctl(int semid, int semnum, int cmd, int arg);
-
-/* ipc/shm.c */
 asmlinkage long compat_sys_shmctl(int first, int second, void __user *uptr);
 asmlinkage long compat_sys_shmat(int shmid, compat_uptr_t shmaddr, int shmflg);
-
-/* net/socket.c */
 asmlinkage long compat_sys_recvfrom(int fd, void __user *buf, compat_size_t len,
 			    unsigned flags, struct sockaddr __user *addr,
 			    int __user *addrlen);
@@ -813,20 +756,13 @@ asmlinkage long compat_sys_sendmsg(int fd, struct compat_msghdr __user *msg,
 				   unsigned flags);
 asmlinkage long compat_sys_recvmsg(int fd, struct compat_msghdr __user *msg,
 				   unsigned int flags);
-
-/* mm/filemap.c: No generic prototype for readahead */
-
-/* security/keys/keyctl.c */
+/* No generic prototype for readahead */
 asmlinkage long compat_sys_keyctl(u32 option,
 			      u32 arg2, u32 arg3, u32 arg4, u32 arg5);
-
-/* arch/example/kernel/sys_example.c */
 asmlinkage long compat_sys_execve(const char __user *filename, const compat_uptr_t __user *argv,
 		     const compat_uptr_t __user *envp);
-
-/* mm/fadvise.c: No generic prototype for fadvise64_64 */
-
-/* mm/, CONFIG_MMU only */
+/* No generic prototype for fadvise64_64 */
+/* CONFIG_MMU only */
 asmlinkage long compat_sys_rt_tgsigqueueinfo(compat_pid_t tgid,
 					compat_pid_t pid, int sig,
 					struct compat_siginfo __user *uinfo);
@@ -896,18 +832,18 @@ asmlinkage long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u32);
 asmlinkage long compat_sys_recv(int fd, void __user *buf, compat_size_t len,
 				unsigned flags);
 
-/* obsolete: fs/readdir.c */
+/* obsolete */
 asmlinkage long compat_sys_old_readdir(unsigned int fd,
 				       struct compat_old_linux_dirent __user *,
 				       unsigned int count);
 
-/* obsolete: fs/select.c */
+/* obsolete */
 asmlinkage long compat_sys_old_select(struct compat_sel_arg_struct __user *arg);
 
-/* obsolete: ipc */
+/* obsolete */
 asmlinkage long compat_sys_ipc(u32, int, int, u32, compat_uptr_t, u32);
 
-/* obsolete: kernel/signal.c */
+/* obsolete */
 #ifdef __ARCH_WANT_SYS_SIGPENDING
 asmlinkage long compat_sys_sigpending(compat_old_sigset_t __user *set);
 #endif
@@ -922,7 +858,7 @@ asmlinkage long compat_sys_sigaction(int sig,
                                    struct compat_old_sigaction __user *oact);
 #endif
 
-/* obsolete: net/socket.c */
+/* obsolete */
 asmlinkage long compat_sys_socketcall(int call, u32 __user *args);
 
 #ifdef __ARCH_WANT_COMPAT_TRUNCATE64

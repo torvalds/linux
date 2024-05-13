@@ -51,99 +51,35 @@ COND_SYSCALL_COMPAT(io_pgetevents);
 COND_SYSCALL(io_uring_setup);
 COND_SYSCALL(io_uring_enter);
 COND_SYSCALL(io_uring_register);
-
-/* fs/xattr.c */
-
-/* fs/dcache.c */
-
-/* fs/cookies.c */
 COND_SYSCALL(lookup_dcookie);
 COND_SYSCALL_COMPAT(lookup_dcookie);
-
-/* fs/eventfd.c */
 COND_SYSCALL(eventfd2);
-
-/* fs/eventfd.c */
 COND_SYSCALL(epoll_create1);
 COND_SYSCALL(epoll_ctl);
 COND_SYSCALL(epoll_pwait);
 COND_SYSCALL_COMPAT(epoll_pwait);
 COND_SYSCALL(epoll_pwait2);
 COND_SYSCALL_COMPAT(epoll_pwait2);
-
-/* fs/fcntl.c */
-
-/* fs/inotify_user.c */
 COND_SYSCALL(inotify_init1);
 COND_SYSCALL(inotify_add_watch);
 COND_SYSCALL(inotify_rm_watch);
-
-/* fs/ioctl.c */
-
-/* fs/ioprio.c */
 COND_SYSCALL(ioprio_set);
 COND_SYSCALL(ioprio_get);
-
-/* fs/locks.c */
 COND_SYSCALL(flock);
-
-/* fs/namei.c */
-
-/* fs/namespace.c */
-
-/* fs/nfsctl.c */
-
-/* fs/open.c */
-
-/* fs/pipe.c */
-
-/* fs/quota.c */
 COND_SYSCALL(quotactl);
 COND_SYSCALL(quotactl_fd);
-
-/* fs/readdir.c */
-
-/* fs/read_write.c */
-
-/* fs/sendfile.c */
-
-/* fs/select.c */
-
-/* fs/signalfd.c */
 COND_SYSCALL(signalfd4);
 COND_SYSCALL_COMPAT(signalfd4);
-
-/* fs/splice.c */
-
-/* fs/stat.c */
-
-/* fs/sync.c */
-
-/* fs/timerfd.c */
 COND_SYSCALL(timerfd_create);
 COND_SYSCALL(timerfd_settime);
 COND_SYSCALL(timerfd_settime32);
 COND_SYSCALL(timerfd_gettime);
 COND_SYSCALL(timerfd_gettime32);
-
-/* fs/utimes.c */
-
-/* kernel/acct.c */
 COND_SYSCALL(acct);
-
-/* kernel/capability.c */
 COND_SYSCALL(capget);
 COND_SYSCALL(capset);
-
-/* kernel/exec_domain.c */
-
-/* kernel/exit.c */
-
-/* kernel/fork.c */
 /* __ARCH_WANT_SYS_CLONE3 */
 COND_SYSCALL(clone3);
-
-/* kernel/futex/syscalls.c */
 COND_SYSCALL(futex);
 COND_SYSCALL(futex_time32);
 COND_SYSCALL(set_robust_list);
@@ -151,29 +87,11 @@ COND_SYSCALL_COMPAT(set_robust_list);
 COND_SYSCALL(get_robust_list);
 COND_SYSCALL_COMPAT(get_robust_list);
 COND_SYSCALL(futex_waitv);
-
-/* kernel/hrtimer.c */
-
-/* kernel/itimer.c */
-
-/* kernel/kexec.c */
 COND_SYSCALL(kexec_load);
 COND_SYSCALL_COMPAT(kexec_load);
-
-/* kernel/module.c */
 COND_SYSCALL(init_module);
 COND_SYSCALL(delete_module);
-
-/* kernel/posix-timers.c */
-
-/* kernel/printk.c */
 COND_SYSCALL(syslog);
-
-/* kernel/ptrace.c */
-
-/* kernel/sched/core.c */
-
-/* kernel/sys.c */
 COND_SYSCALL(setregid);
 COND_SYSCALL(setgid);
 COND_SYSCALL(setreuid);
@@ -186,12 +104,6 @@ COND_SYSCALL(setfsuid);
 COND_SYSCALL(setfsgid);
 COND_SYSCALL(setgroups);
 COND_SYSCALL(getgroups);
-
-/* kernel/time.c */
-
-/* kernel/timer.c */
-
-/* ipc/mqueue.c */
 COND_SYSCALL(mq_open);
 COND_SYSCALL_COMPAT(mq_open);
 COND_SYSCALL(mq_unlink);
@@ -203,8 +115,6 @@ COND_SYSCALL(mq_notify);
 COND_SYSCALL_COMPAT(mq_notify);
 COND_SYSCALL(mq_getsetattr);
 COND_SYSCALL_COMPAT(mq_getsetattr);
-
-/* ipc/msg.c */
 COND_SYSCALL(msgget);
 COND_SYSCALL(old_msgctl);
 COND_SYSCALL(msgctl);
@@ -214,8 +124,6 @@ COND_SYSCALL(msgrcv);
 COND_SYSCALL_COMPAT(msgrcv);
 COND_SYSCALL(msgsnd);
 COND_SYSCALL_COMPAT(msgsnd);
-
-/* ipc/sem.c */
 COND_SYSCALL(semget);
 COND_SYSCALL(old_semctl);
 COND_SYSCALL(semctl);
@@ -224,8 +132,6 @@ COND_SYSCALL_COMPAT(old_semctl);
 COND_SYSCALL(semtimedop);
 COND_SYSCALL(semtimedop_time32);
 COND_SYSCALL(semop);
-
-/* ipc/shm.c */
 COND_SYSCALL(shmget);
 COND_SYSCALL(old_shmctl);
 COND_SYSCALL(shmctl);
@@ -234,8 +140,6 @@ COND_SYSCALL_COMPAT(old_shmctl);
 COND_SYSCALL(shmat);
 COND_SYSCALL_COMPAT(shmat);
 COND_SYSCALL(shmdt);
-
-/* net/socket.c */
 COND_SYSCALL(socket);
 COND_SYSCALL(socketpair);
 COND_SYSCALL(bind);
@@ -256,30 +160,18 @@ COND_SYSCALL(sendmsg);
 COND_SYSCALL_COMPAT(sendmsg);
 COND_SYSCALL(recvmsg);
 COND_SYSCALL_COMPAT(recvmsg);
-
-/* mm/filemap.c */
-
-/* mm/nommu.c, also with MMU */
 COND_SYSCALL(mremap);
-
-/* security/keys/keyctl.c */
 COND_SYSCALL(add_key);
 COND_SYSCALL(request_key);
 COND_SYSCALL(keyctl);
 COND_SYSCALL_COMPAT(keyctl);
-
-/* security/landlock/syscalls.c */
 COND_SYSCALL(landlock_create_ruleset);
 COND_SYSCALL(landlock_add_rule);
 COND_SYSCALL(landlock_restrict_self);
-
-/* arch/example/kernel/sys_example.c */
-
-/* mm/fadvise.c */
 COND_SYSCALL(fadvise64_64);
 COND_SYSCALL_COMPAT(fadvise64_64);
 
-/* mm/, CONFIG_MMU only */
+/* CONFIG_MMU only */
 COND_SYSCALL(swapon);
 COND_SYSCALL(swapoff);
 COND_SYSCALL(mprotect);
@@ -299,6 +191,7 @@ COND_SYSCALL(set_mempolicy);
 COND_SYSCALL(migrate_pages);
 COND_SYSCALL(move_pages);
 COND_SYSCALL(set_mempolicy_home_node);
+COND_SYSCALL(cachestat);
 
 COND_SYSCALL(perf_event_open);
 COND_SYSCALL(accept4);
@@ -381,6 +274,7 @@ COND_SYSCALL(vm86old);
 COND_SYSCALL(modify_ldt);
 COND_SYSCALL(vm86);
 COND_SYSCALL(kexec_file_load);
+COND_SYSCALL(map_shadow_stack);
 
 /* s390 */
 COND_SYSCALL(s390_pci_mmio_read);

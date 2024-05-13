@@ -713,9 +713,6 @@ int efx_probe_channels(struct efx_nic *efx)
 	struct efx_channel *channel;
 	int rc;
 
-	/* Restart special buffer allocation */
-	efx->next_buffer_table = 0;
-
 	/* Probe channels in reverse, so that any 'extra' channels
 	 * use the start of the buffer table. This allows the traffic
 	 * channels to be resized without moving them or wasting the
@@ -849,35 +846,13 @@ int efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 	struct efx_channel *other_channel[EFX_MAX_CHANNELS], *channel,
 			   *ptp_channel = efx_ptp_channel(efx);
 	struct efx_ptp_data *ptp_data = efx->ptp_data;
-	unsigned int i, next_buffer_table = 0;
 	u32 old_rxq_entries, old_txq_entries;
+	unsigned int i;
 	int rc, rc2;
 
 	rc = efx_check_disabled(efx);
 	if (rc)
 		return rc;
-
-	/* Not all channels should be reallocated. We must avoid
-	 * reallocating their buffer table entries.
-	 */
-	efx_for_each_channel(channel, efx) {
-		struct efx_rx_queue *rx_queue;
-		struct efx_tx_queue *tx_queue;
-
-		if (channel->type->copy)
-			continue;
-		next_buffer_table = max(next_buffer_table,
-					channel->eventq.index +
-					channel->eventq.entries);
-		efx_for_each_channel_rx_queue(rx_queue, channel)
-			next_buffer_table = max(next_buffer_table,
-						rx_queue->rxd.index +
-						rx_queue->rxd.entries);
-		efx_for_each_channel_tx_queue(tx_queue, channel)
-			next_buffer_table = max(next_buffer_table,
-						tx_queue->txd.index +
-						tx_queue->txd.entries);
-	}
 
 	efx_device_detach_sync(efx);
 	efx_stop_all(efx);
@@ -903,9 +878,6 @@ int efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 	efx->txq_entries = txq_entries;
 	for (i = 0; i < efx->n_channels; i++)
 		swap(efx->channel[i], other_channel[i]);
-
-	/* Restart buffer table allocation */
-	efx->next_buffer_table = next_buffer_table;
 
 	for (i = 0; i < efx->n_channels; i++) {
 		channel = efx->channel[i];

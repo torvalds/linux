@@ -365,7 +365,7 @@ static void guest_wp_handler(struct ex_regs *regs)
 
 static void guest_ss_handler(struct ex_regs *regs)
 {
-	GUEST_ASSERT_1(ss_idx < 4, ss_idx);
+	__GUEST_ASSERT(ss_idx < 4, "Expected index < 4, got '%u'", ss_idx);
 	ss_addr[ss_idx++] = regs->pc;
 	regs->pstate |= SPSR_SS;
 }
@@ -410,8 +410,8 @@ static void guest_code_ss(int test_cnt)
 		/* Userspace disables Single Step when the end is nigh. */
 		asm volatile("iter_ss_end:\n");
 
-		GUEST_ASSERT(bvr == w_bvr);
-		GUEST_ASSERT(wvr == w_wvr);
+		GUEST_ASSERT_EQ(bvr, w_bvr);
+		GUEST_ASSERT_EQ(wvr, w_wvr);
 	}
 	GUEST_DONE();
 }
@@ -450,7 +450,7 @@ static void test_guest_debug_exceptions(uint8_t bpn, uint8_t wpn, uint8_t ctx_bp
 	vcpu_run(vcpu);
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	case UCALL_DONE:
 		goto done;

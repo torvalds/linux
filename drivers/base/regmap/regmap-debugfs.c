@@ -636,6 +636,17 @@ void regmap_debugfs_init(struct regmap *map)
 				    &regmap_cache_bypass_fops);
 	}
 
+	/*
+	 * This could interfere with driver operation. Therefore, don't provide
+	 * any real compile time configuration option for this feature. One will
+	 * have to modify the source code directly in order to use it.
+	 */
+#undef REGMAP_ALLOW_FORCE_WRITE_FIELD_DEBUGFS
+#ifdef REGMAP_ALLOW_FORCE_WRITE_FIELD_DEBUGFS
+	debugfs_create_bool("force_write_field", 0600, map->debugfs,
+			    &map->force_write_field);
+#endif
+
 	next = rb_first(&map->range_tree);
 	while (next) {
 		range_node = rb_entry(next, struct regmap_range_node, node);

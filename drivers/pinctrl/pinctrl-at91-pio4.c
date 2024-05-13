@@ -762,6 +762,11 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = 1;
 		break;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		if (res & ATMEL_PIO_OPD_MASK)
+			return -EINVAL;
+		arg = 1;
+		break;
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
 		if (!(res & ATMEL_PIO_SCHMITT_MASK))
 			return -EINVAL;
@@ -827,10 +832,10 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 			conf &= (~ATMEL_PIO_PUEN_MASK);
 			break;
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-			if (arg == 0)
-				conf &= (~ATMEL_PIO_OPD_MASK);
-			else
-				conf |= ATMEL_PIO_OPD_MASK;
+			conf |= ATMEL_PIO_OPD_MASK;
+			break;
+		case PIN_CONFIG_DRIVE_PUSH_PULL:
+			conf &= ~ATMEL_PIO_OPD_MASK;
 			break;
 		case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
 			if (arg == 0)
@@ -934,10 +939,9 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 	if (!atmel_pioctrl->pins[pin_id]->device)
 		return;
 
-	if (atmel_pioctrl->pins[pin_id])
-		seq_printf(s, " (%s, ioset %u) ",
-			   atmel_pioctrl->pins[pin_id]->device,
-			   atmel_pioctrl->pins[pin_id]->ioset);
+	seq_printf(s, " (%s, ioset %u) ",
+		   atmel_pioctrl->pins[pin_id]->device,
+		   atmel_pioctrl->pins[pin_id]->ioset);
 
 	conf = atmel_pin_config_read(pctldev, pin_id);
 	if (conf & ATMEL_PIO_PUEN_MASK)
@@ -948,6 +952,8 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "%s ", "debounce");
 	if (conf & ATMEL_PIO_OPD_MASK)
 		seq_printf(s, "%s ", "open-drain");
+	else
+		seq_printf(s, "%s ", "push-pull");
 	if (conf & ATMEL_PIO_SCHMITT_MASK)
 		seq_printf(s, "%s ", "schmitt");
 	if (atmel_pioctrl->slew_rate_support && (conf & ATMEL_PIO_SR_MASK))
@@ -1146,6 +1152,8 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		/* Pin naming convention: P(bank_name)(bank_pin_number). */
 		pin_desc[i].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "P%c%u",
 						  bank + 'A', line);
+		if (!pin_desc[i].name)
+			return -ENOMEM;
 
 		group->name = group_names[i] = pin_desc[i].name;
 		group->pin = pin_desc[i].number;

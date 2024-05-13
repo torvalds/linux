@@ -20,7 +20,7 @@
  * Temp usage notes:
  *	$1,$2,		- scratch
  */
-#include <asm/export.h>
+#include <linux/export.h>
 	.set noreorder
 	.set noat
 

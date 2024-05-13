@@ -720,7 +720,7 @@ static struct i2c_driver lm95234_driver = {
 	.driver = {
 		.name	= DRVNAME,
 	},
-	.probe_new	= lm95234_probe,
+	.probe		= lm95234_probe,
 	.id_table	= lm95234_id,
 	.detect		= lm95234_detect,
 	.address_list	= normal_i2c,

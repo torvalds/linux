@@ -23,7 +23,7 @@ _head:
 	.word	MZ_MAGIC		/* "MZ", MS-DOS header */
 	.org	0x8
 	.dword	kernel_entry		/* Kernel entry point */
-	.dword	_end - _text		/* Kernel image effective size */
+	.dword	_kernel_asize		/* Kernel image effective size */
 	.quad	PHYS_LINK_KADDR		/* Kernel image load offset from start of RAM */
 	.org	0x38			/* 0x20 ~ 0x37 reserved */
 	.long	LINUX_PE_MAGIC
@@ -32,9 +32,9 @@ _head:
 pe_header:
 	__EFI_PE_HEADER
 
-SYM_DATA(kernel_asize, .long _end - _text);
-SYM_DATA(kernel_fsize, .long _edata - _text);
-SYM_DATA(kernel_offset, .long kernel_offset - _text);
+SYM_DATA(kernel_asize, .long _kernel_asize);
+SYM_DATA(kernel_fsize, .long _kernel_fsize);
+SYM_DATA(kernel_offset, .long _kernel_offset);
 
 #endif
 
@@ -95,12 +95,17 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
-#endif
 
-	/* relocate_kernel() returns the new kernel entry point */
-	jr		a0
-	ASM_BUG()
+	/* Jump to the new kernel: new_pc = current_pc + random_offset */
+	pcaddi		t0, 0
+	add.d		t0, t0, a0
+	jirl		zero, t0, 0xc
+#endif /* CONFIG_RANDOMIZE_BASE */
 
+#endif /* CONFIG_RELOCATABLE */
+
+#ifdef CONFIG_KASAN
+	bl		kasan_early_init
 #endif
 
 	bl		start_kernel

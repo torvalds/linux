@@ -9,28 +9,26 @@
  */
 #include "thermal_core.h"
 
-int __for_each_thermal_trip(struct thermal_zone_device *tz,
-			    int (*cb)(struct thermal_trip *, void *),
-			    void *data)
+int for_each_thermal_trip(struct thermal_zone_device *tz,
+			  int (*cb)(struct thermal_trip *, void *),
+			  void *data)
 {
 	int i, ret;
-	struct thermal_trip trip;
 
 	lockdep_assert_held(&tz->lock);
 
+	if (!tz->trips)
+		return -ENODATA;
+
 	for (i = 0; i < tz->num_trips; i++) {
-
-		ret = __thermal_zone_get_trip(tz, i, &trip);
-		if (ret)
-			return ret;
-
-		ret = cb(&trip, data);
+		ret = cb(&tz->trips[i], data);
 		if (ret)
 			return ret;
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(for_each_thermal_trip);
 
 int thermal_zone_get_num_trips(struct thermal_zone_device *tz)
 {
@@ -103,29 +101,11 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			    struct thermal_trip *trip)
 {
-	int ret;
-
-	if (!tz || trip_id < 0 || trip_id >= tz->num_trips || !trip)
+	if (!tz || !tz->trips || trip_id < 0 || trip_id >= tz->num_trips || !trip)
 		return -EINVAL;
 
-	if (tz->trips) {
-		*trip = tz->trips[trip_id];
-		return 0;
-	}
-
-	if (tz->ops->get_trip_hyst) {
-		ret = tz->ops->get_trip_hyst(tz, trip_id, &trip->hysteresis);
-		if (ret)
-			return ret;
-	} else {
-		trip->hysteresis = 0;
-	}
-
-	ret = tz->ops->get_trip_temp(tz, trip_id, &trip->temperature);
-	if (ret)
-		return ret;
-
-	return tz->ops->get_trip_type(tz, trip_id, &trip->type);
+	*trip = tz->trips[trip_id];
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__thermal_zone_get_trip);
 

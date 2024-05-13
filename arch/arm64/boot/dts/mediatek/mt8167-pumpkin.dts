@@ -11,6 +11,7 @@
 
 / {
 	model = "Pumpkin MT8167";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt8167-pumpkin", "mediatek,mt8167";
 
 	memory@40000000 {

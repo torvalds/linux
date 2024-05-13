@@ -25,15 +25,24 @@
 #define FSA4480_DELAY_L_MIC	0x0e
 #define FSA4480_DELAY_L_SENSE	0x0f
 #define FSA4480_DELAY_L_AGND	0x10
+#define FSA4480_FUNCTION_ENABLE	0x12
 #define FSA4480_RESET		0x1e
 #define FSA4480_MAX_REGISTER	0x1f
 
 #define FSA4480_ENABLE_DEVICE	BIT(7)
 #define FSA4480_ENABLE_SBU	GENMASK(6, 5)
 #define FSA4480_ENABLE_USB	GENMASK(4, 3)
+#define FSA4480_ENABLE_SENSE	BIT(2)
+#define FSA4480_ENABLE_MIC	BIT(1)
+#define FSA4480_ENABLE_AGND	BIT(0)
 
 #define FSA4480_SEL_SBU_REVERSE	GENMASK(6, 5)
 #define FSA4480_SEL_USB		GENMASK(4, 3)
+#define FSA4480_SEL_SENSE	BIT(2)
+#define FSA4480_SEL_MIC		BIT(1)
+#define FSA4480_SEL_AGND	BIT(0)
+
+#define FSA4480_ENABLE_AUTO_JACK_DETECT	BIT(0)
 
 struct fsa4480 {
 	struct i2c_client *client;
@@ -46,8 +55,11 @@ struct fsa4480 {
 
 	struct regmap *regmap;
 
+	enum typec_orientation orientation;
+	unsigned long mode;
+	unsigned int svid;
+
 	u8 cur_enable;
-	u8 cur_select;
 };
 
 static const struct regmap_config fsa4480_regmap_config = {
@@ -58,19 +70,45 @@ static const struct regmap_config fsa4480_regmap_config = {
 	.disable_locking = true,
 };
 
-static int fsa4480_switch_set(struct typec_switch_dev *sw,
-			      enum typec_orientation orientation)
+static int fsa4480_set(struct fsa4480 *fsa)
 {
-	struct fsa4480 *fsa = typec_switch_get_drvdata(sw);
-	u8 new_sel;
+	bool reverse = (fsa->orientation == TYPEC_ORIENTATION_REVERSE);
+	u8 enable = FSA4480_ENABLE_DEVICE;
+	u8 sel = 0;
 
-	mutex_lock(&fsa->lock);
-	new_sel = FSA4480_SEL_USB;
-	if (orientation == TYPEC_ORIENTATION_REVERSE)
-		new_sel |= FSA4480_SEL_SBU_REVERSE;
+	/* USB Mode */
+	if (fsa->mode < TYPEC_STATE_MODAL ||
+	    (!fsa->svid && (fsa->mode == TYPEC_MODE_USB2 ||
+			    fsa->mode == TYPEC_MODE_USB3))) {
+		enable |= FSA4480_ENABLE_USB;
+		sel = FSA4480_SEL_USB;
+	} else if (fsa->svid) {
+		switch (fsa->mode) {
+		/* DP Only */
+		case TYPEC_DP_STATE_C:
+		case TYPEC_DP_STATE_E:
+			enable |= FSA4480_ENABLE_SBU;
+			if (reverse)
+				sel = FSA4480_SEL_SBU_REVERSE;
+			break;
 
-	if (new_sel == fsa->cur_select)
-		goto out_unlock;
+		/* DP + USB */
+		case TYPEC_DP_STATE_D:
+		case TYPEC_DP_STATE_F:
+			enable |= FSA4480_ENABLE_USB | FSA4480_ENABLE_SBU;
+			sel = FSA4480_SEL_USB;
+			if (reverse)
+				sel |= FSA4480_SEL_SBU_REVERSE;
+			break;
+
+		default:
+			return -EOPNOTSUPP;
+		}
+	} else if (fsa->mode == TYPEC_MODE_AUDIO) {
+		/* Audio Accessory Mode, setup to auto Jack Detection */
+		enable |= FSA4480_ENABLE_USB | FSA4480_ENABLE_AGND;
+	} else
+		return -EOPNOTSUPP;
 
 	if (fsa->cur_enable & FSA4480_ENABLE_SBU) {
 		/* Disable SBU output while re-configuring the switch */
@@ -81,48 +119,64 @@ static int fsa4480_switch_set(struct typec_switch_dev *sw,
 		usleep_range(35, 1000);
 	}
 
-	regmap_write(fsa->regmap, FSA4480_SWITCH_SELECT, new_sel);
-	fsa->cur_select = new_sel;
+	regmap_write(fsa->regmap, FSA4480_SWITCH_SELECT, sel);
+	regmap_write(fsa->regmap, FSA4480_SWITCH_ENABLE, enable);
 
-	if (fsa->cur_enable & FSA4480_ENABLE_SBU) {
-		regmap_write(fsa->regmap, FSA4480_SWITCH_ENABLE, fsa->cur_enable);
+	/* Start AUDIO JACK DETECTION to setup MIC, AGND & Sense muxes */
+	if (enable & FSA4480_ENABLE_AGND)
+		regmap_write(fsa->regmap, FSA4480_FUNCTION_ENABLE,
+			     FSA4480_ENABLE_AUTO_JACK_DETECT);
 
+	if (enable & FSA4480_ENABLE_SBU) {
 		/* 15us to allow the SBU switch to turn on again */
 		usleep_range(15, 1000);
 	}
 
-out_unlock:
-	mutex_unlock(&fsa->lock);
+	fsa->cur_enable = enable;
 
 	return 0;
+}
+
+static int fsa4480_switch_set(struct typec_switch_dev *sw,
+			      enum typec_orientation orientation)
+{
+	struct fsa4480 *fsa = typec_switch_get_drvdata(sw);
+	int ret = 0;
+
+	mutex_lock(&fsa->lock);
+
+	if (fsa->orientation != orientation) {
+		fsa->orientation = orientation;
+
+		ret = fsa4480_set(fsa);
+	}
+
+	mutex_unlock(&fsa->lock);
+
+	return ret;
 }
 
 static int fsa4480_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *state)
 {
 	struct fsa4480 *fsa = typec_mux_get_drvdata(mux);
-	u8 new_enable;
+	int ret = 0;
 
 	mutex_lock(&fsa->lock);
 
-	new_enable = FSA4480_ENABLE_DEVICE | FSA4480_ENABLE_USB;
-	if (state->mode >= TYPEC_DP_STATE_A)
-		new_enable |= FSA4480_ENABLE_SBU;
+	if (fsa->mode != state->mode) {
+		fsa->mode = state->mode;
 
-	if (new_enable == fsa->cur_enable)
-		goto out_unlock;
+		if (state->alt)
+			fsa->svid = state->alt->svid;
+		else
+			fsa->svid = 0; // No SVID
 
-	regmap_write(fsa->regmap, FSA4480_SWITCH_ENABLE, new_enable);
-	fsa->cur_enable = new_enable;
-
-	if (new_enable & FSA4480_ENABLE_SBU) {
-		/* 15us to allow the SBU switch to turn off */
-		usleep_range(15, 1000);
+		ret = fsa4480_set(fsa);
 	}
 
-out_unlock:
 	mutex_unlock(&fsa->lock);
 
-	return 0;
+	return ret;
 }
 
 static int fsa4480_probe(struct i2c_client *client)
@@ -143,8 +197,10 @@ static int fsa4480_probe(struct i2c_client *client)
 	if (IS_ERR(fsa->regmap))
 		return dev_err_probe(dev, PTR_ERR(fsa->regmap), "failed to initialize regmap\n");
 
+	/* Safe mode */
 	fsa->cur_enable = FSA4480_ENABLE_DEVICE | FSA4480_ENABLE_USB;
-	fsa->cur_select = FSA4480_SEL_USB;
+	fsa->mode = TYPEC_STATE_SAFE;
+	fsa->orientation = TYPEC_ORIENTATION_NONE;
 
 	/* set default settings */
 	regmap_write(fsa->regmap, FSA4480_SLOW_L, 0x00);
@@ -156,7 +212,7 @@ static int fsa4480_probe(struct i2c_client *client)
 	regmap_write(fsa->regmap, FSA4480_DELAY_L_MIC, 0x00);
 	regmap_write(fsa->regmap, FSA4480_DELAY_L_SENSE, 0x00);
 	regmap_write(fsa->regmap, FSA4480_DELAY_L_AGND, 0x09);
-	regmap_write(fsa->regmap, FSA4480_SWITCH_SELECT, fsa->cur_select);
+	regmap_write(fsa->regmap, FSA4480_SWITCH_SELECT, FSA4480_SEL_USB);
 	regmap_write(fsa->regmap, FSA4480_SWITCH_ENABLE, fsa->cur_enable);
 
 	sw_desc.drvdata = fsa;
@@ -206,7 +262,7 @@ static struct i2c_driver fsa4480_driver = {
 		.name = "fsa4480",
 		.of_match_table = fsa4480_of_table,
 	},
-	.probe_new	= fsa4480_probe,
+	.probe		= fsa4480_probe,
 	.remove		= fsa4480_remove,
 	.id_table	= fsa4480_table,
 };

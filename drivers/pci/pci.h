@@ -11,6 +11,14 @@
 
 #define PCI_VSEC_ID_INTEL_TBT	0x1234	/* Thunderbolt */
 
+#define PCIE_LINK_RETRAIN_TIMEOUT_MS	1000
+
+/*
+ * PCIe r6.0, sec 5.3.3.2.1 <PME Synchronization>
+ * Recommends 1ms to 10ms timeout to check L2 ready.
+ */
+#define PCIE_PME_TO_L2_TIMEOUT_US	10000
+
 extern const unsigned char pcie_link_speed[];
 extern bool pci_early_dump;
 
@@ -63,13 +71,6 @@ struct pci_cap_saved_state *pci_find_saved_ext_cap(struct pci_dev *dev,
 #define PCI_PM_D2_DELAY         200	/* usec; see PCIe r4.0, sec 5.9.1 */
 #define PCI_PM_D3HOT_WAIT       10	/* msec */
 #define PCI_PM_D3COLD_WAIT      100	/* msec */
-
-/*
- * Following exit from Conventional Reset, devices must be ready within 1 sec
- * (PCIe r6.0 sec 6.6.1).  A D3cold to D0 transition implies a Conventional
- * Reset (PCIe r6.0 sec 5.8).
- */
-#define PCI_RESET_WAIT		1000	/* msec */
 
 void pci_update_current_state(struct pci_dev *dev, pci_power_t state);
 void pci_refresh_power_state(struct pci_dev *dev);
@@ -152,8 +153,8 @@ int pci_hp_add_bridge(struct pci_dev *dev);
 void pci_create_legacy_files(struct pci_bus *bus);
 void pci_remove_legacy_files(struct pci_bus *bus);
 #else
-static inline void pci_create_legacy_files(struct pci_bus *bus) { return; }
-static inline void pci_remove_legacy_files(struct pci_bus *bus) { return; }
+static inline void pci_create_legacy_files(struct pci_bus *bus) { }
+static inline void pci_remove_legacy_files(struct pci_bus *bus) { }
 #endif
 
 /* Lock for read/write access to pci device and bus lists */
@@ -427,9 +428,9 @@ void dpc_process_error(struct pci_dev *pdev);
 pci_ers_result_t dpc_reset_link(struct pci_dev *pdev);
 bool pci_dpc_recovered(struct pci_dev *pdev);
 #else
-static inline void pci_save_dpc_state(struct pci_dev *dev) {}
-static inline void pci_restore_dpc_state(struct pci_dev *dev) {}
-static inline void pci_dpc_init(struct pci_dev *pdev) {}
+static inline void pci_save_dpc_state(struct pci_dev *dev) { }
+static inline void pci_restore_dpc_state(struct pci_dev *dev) { }
+static inline void pci_dpc_init(struct pci_dev *pdev) { }
 static inline bool pci_dpc_recovered(struct pci_dev *pdev) { return false; }
 #endif
 
@@ -441,12 +442,12 @@ void pcie_walk_rcec(struct pci_dev *rcec,
 		    int (*cb)(struct pci_dev *, void *),
 		    void *userdata);
 #else
-static inline void pci_rcec_init(struct pci_dev *dev) {}
-static inline void pci_rcec_exit(struct pci_dev *dev) {}
-static inline void pcie_link_rcec(struct pci_dev *rcec) {}
+static inline void pci_rcec_init(struct pci_dev *dev) { }
+static inline void pci_rcec_exit(struct pci_dev *dev) { }
+static inline void pcie_link_rcec(struct pci_dev *rcec) { }
 static inline void pcie_walk_rcec(struct pci_dev *rcec,
 				  int (*cb)(struct pci_dev *, void *),
-				  void *userdata) {}
+				  void *userdata) { }
 #endif
 
 #ifdef CONFIG_PCI_ATS
@@ -489,16 +490,9 @@ static inline int pci_iov_init(struct pci_dev *dev)
 {
 	return -ENODEV;
 }
-static inline void pci_iov_release(struct pci_dev *dev)
-
-{
-}
-static inline void pci_iov_remove(struct pci_dev *dev)
-{
-}
-static inline void pci_restore_iov_state(struct pci_dev *dev)
-{
-}
+static inline void pci_iov_release(struct pci_dev *dev) { }
+static inline void pci_iov_remove(struct pci_dev *dev) { }
+static inline void pci_restore_iov_state(struct pci_dev *dev) { }
 static inline int pci_iov_bus_range(struct pci_bus *bus)
 {
 	return 0;
@@ -541,6 +535,7 @@ void pci_acs_init(struct pci_dev *dev);
 int pci_dev_specific_acs_enabled(struct pci_dev *dev, u16 acs_flags);
 int pci_dev_specific_enable_acs(struct pci_dev *dev);
 int pci_dev_specific_disable_acs_redir(struct pci_dev *dev);
+bool pcie_failed_link_retrain(struct pci_dev *dev);
 #else
 static inline int pci_dev_specific_acs_enabled(struct pci_dev *dev,
 					       u16 acs_flags)
@@ -555,6 +550,10 @@ static inline int pci_dev_specific_disable_acs_redir(struct pci_dev *dev)
 {
 	return -ENOTTY;
 }
+static inline bool pcie_failed_link_retrain(struct pci_dev *dev)
+{
+	return false;
+}
 #endif
 
 /* PCI error reporting and recovery */
@@ -563,6 +562,7 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 		pci_ers_result_t (*reset_subordinates)(struct pci_dev *pdev));
 
 bool pcie_wait_for_link(struct pci_dev *pdev, bool active);
+int pcie_retrain_link(struct pci_dev *pdev, bool use_lt);
 #ifdef CONFIG_PCIEASPM
 void pcie_aspm_init_link_state(struct pci_dev *pdev);
 void pcie_aspm_exit_link_state(struct pci_dev *pdev);
@@ -678,6 +678,18 @@ static inline int devm_of_pci_bridge_init(struct device *dev, struct pci_host_br
 
 #endif /* CONFIG_OF */
 
+struct of_changeset;
+
+#ifdef CONFIG_PCI_DYNAMIC_OF_NODES
+void of_pci_make_dev_node(struct pci_dev *pdev);
+void of_pci_remove_node(struct pci_dev *pdev);
+int of_pci_add_properties(struct pci_dev *pdev, struct of_changeset *ocs,
+			  struct device_node *np);
+#else
+static inline void of_pci_make_dev_node(struct pci_dev *pdev) { }
+static inline void of_pci_remove_node(struct pci_dev *pdev) { }
+#endif
+
 #ifdef CONFIG_PCIEAER
 void pci_no_aer(void);
 void pci_aer_init(struct pci_dev *dev);
@@ -686,6 +698,8 @@ extern const struct attribute_group aer_stats_attr_group;
 void pci_aer_clear_fatal_status(struct pci_dev *dev);
 int pci_aer_clear_status(struct pci_dev *dev);
 int pci_aer_raw_clear_status(struct pci_dev *dev);
+void pci_save_aer_state(struct pci_dev *dev);
+void pci_restore_aer_state(struct pci_dev *dev);
 #else
 static inline void pci_no_aer(void) { }
 static inline void pci_aer_init(struct pci_dev *d) { }
@@ -693,6 +707,8 @@ static inline void pci_aer_exit(struct pci_dev *d) { }
 static inline void pci_aer_clear_fatal_status(struct pci_dev *dev) { }
 static inline int pci_aer_clear_status(struct pci_dev *dev) { return -EINVAL; }
 static inline int pci_aer_raw_clear_status(struct pci_dev *dev) { return -EINVAL; }
+static inline void pci_save_aer_state(struct pci_dev *dev) { }
+static inline void pci_restore_aer_state(struct pci_dev *dev) { }
 #endif
 
 #ifdef CONFIG_ACPI
@@ -713,7 +729,7 @@ static inline int pci_dev_acpi_reset(struct pci_dev *dev, bool probe)
 {
 	return -ENOTTY;
 }
-static inline void pci_set_acpi_fwnode(struct pci_dev *dev) {}
+static inline void pci_set_acpi_fwnode(struct pci_dev *dev) { }
 static inline int pci_acpi_program_hp_params(struct pci_dev *dev)
 {
 	return -ENODEV;
@@ -734,7 +750,7 @@ static inline pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
 {
 	return PCI_UNKNOWN;
 }
-static inline void acpi_pci_refresh_power_state(struct pci_dev *dev) {}
+static inline void acpi_pci_refresh_power_state(struct pci_dev *dev) { }
 static inline int acpi_pci_wakeup(struct pci_dev *dev, bool enable)
 {
 	return -ENODEV;

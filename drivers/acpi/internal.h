@@ -11,6 +11,8 @@
 
 #include <linux/idr.h>
 
+extern struct acpi_device *acpi_root;
+
 int early_acpi_osi_init(void);
 int acpi_osi_init(void);
 acpi_status acpi_os_initialize1(void);
@@ -26,11 +28,6 @@ void acpi_processor_init(void);
 void acpi_platform_init(void);
 void acpi_pnp_init(void);
 void acpi_int340x_thermal_init(void);
-#ifdef CONFIG_ARM_AMBA
-void acpi_amba_init(void);
-#else
-static inline void acpi_amba_init(void) {}
-#endif
 int acpi_sysfs_init(void);
 void acpi_gpe_apply_masked_gpes(void);
 void acpi_container_init(void);
@@ -119,14 +116,13 @@ int acpi_bus_register_early_device(int type);
 /* --------------------------------------------------------------------------
                      Device Matching and Notification
    -------------------------------------------------------------------------- */
-struct acpi_device *acpi_companion_match(const struct device *dev);
+const struct acpi_device *acpi_companion_match(const struct device *dev);
 int __acpi_device_uevent_modalias(const struct acpi_device *adev,
 				  struct kobj_uevent_env *env);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
    -------------------------------------------------------------------------- */
-int acpi_power_init(void);
 void acpi_power_resources_list_free(struct list_head *list);
 int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
 				 struct list_head *list);
@@ -150,15 +146,13 @@ int acpi_wakeup_device_init(void);
                                   Processor
    -------------------------------------------------------------------------- */
 #ifdef CONFIG_ARCH_MIGHT_HAVE_ACPI_PDC
+void acpi_early_processor_control_setup(void);
 void acpi_early_processor_set_pdc(void);
-#else
-static inline void acpi_early_processor_set_pdc(void) {}
-#endif
 
-#ifdef CONFIG_X86
-void acpi_early_processor_osc(void);
+void acpi_proc_quirk_mwait_check(void);
+bool processor_physically_present(acpi_handle handle);
 #else
-static inline void acpi_early_processor_osc(void) {}
+static inline void acpi_early_processor_control_setup(void) {}
 #endif
 
 /* --------------------------------------------------------------------------

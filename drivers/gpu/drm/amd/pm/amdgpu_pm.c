@@ -35,44 +35,6 @@
 #include <linux/pm_runtime.h>
 #include <asm/processor.h>
 
-static const struct cg_flag_name clocks[] = {
-	{AMD_CG_SUPPORT_GFX_FGCG, "Graphics Fine Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_MGCG, "Graphics Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_MGLS, "Graphics Medium Grain memory Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_CGCG, "Graphics Coarse Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_CGLS, "Graphics Coarse Grain memory Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_CGTS, "Graphics Coarse Grain Tree Shader Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_CGTS_LS, "Graphics Coarse Grain Tree Shader Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_CP_LS, "Graphics Command Processor Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_RLC_LS, "Graphics Run List Controller Light Sleep"},
-	{AMD_CG_SUPPORT_GFX_3D_CGCG, "Graphics 3D Coarse Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_3D_CGLS, "Graphics 3D Coarse Grain memory Light Sleep"},
-	{AMD_CG_SUPPORT_MC_LS, "Memory Controller Light Sleep"},
-	{AMD_CG_SUPPORT_MC_MGCG, "Memory Controller Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_SDMA_LS, "System Direct Memory Access Light Sleep"},
-	{AMD_CG_SUPPORT_SDMA_MGCG, "System Direct Memory Access Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_BIF_MGCG, "Bus Interface Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_BIF_LS, "Bus Interface Light Sleep"},
-	{AMD_CG_SUPPORT_UVD_MGCG, "Unified Video Decoder Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_VCE_MGCG, "Video Compression Engine Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_HDP_LS, "Host Data Path Light Sleep"},
-	{AMD_CG_SUPPORT_HDP_MGCG, "Host Data Path Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_DRM_MGCG, "Digital Right Management Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_DRM_LS, "Digital Right Management Light Sleep"},
-	{AMD_CG_SUPPORT_ROM_MGCG, "Rom Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_DF_MGCG, "Data Fabric Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_VCN_MGCG, "VCN Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_HDP_DS, "Host Data Path Deep Sleep"},
-	{AMD_CG_SUPPORT_HDP_SD, "Host Data Path Shutdown"},
-	{AMD_CG_SUPPORT_IH_CG, "Interrupt Handler Clock Gating"},
-	{AMD_CG_SUPPORT_JPEG_MGCG, "JPEG Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_REPEATER_FGCG, "Repeater Fine Grain Clock Gating"},
-	{AMD_CG_SUPPORT_GFX_PERF_CLK, "Perfmon Clock Gating"},
-	{AMD_CG_SUPPORT_ATHUB_MGCG, "Address Translation Hub Medium Grain Clock Gating"},
-	{AMD_CG_SUPPORT_ATHUB_LS, "Address Translation Hub Light Sleep"},
-	{0, NULL},
-};
-
 static const struct hwmon_temp_label {
 	enum PP_HWMON_TEMP channel;
 	const char *label;
@@ -678,7 +640,12 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   clock labeled OD_MCLK
  *
  * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
- *   They can be used to calibrate the sclk voltage curve.
+ *   They can be used to calibrate the sclk voltage curve. This is
+ *   available for Vega20 and NV1X.
+ *
+ * - voltage offset for the six anchor points of the v/f curve labeled
+ *   OD_VDDC_CURVE. They can be used to calibrate the v/f curve. This
+ *   is only availabe for some SMU13 ASICs.
  *
  * - voltage offset(in mV) applied on target voltage calculation.
  *   This is available for Sienna Cichlid, Navy Flounder and Dimgrey
@@ -719,12 +686,19 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   E.g., "p 2 0 800" would set the minimum core clock on core
  *   2 to 800Mhz.
  *
- *   For sclk voltage curve, enter the new values by writing a
- *   string that contains "vc point clock voltage" to the file. The
- *   points are indexed by 0, 1 and 2. E.g., "vc 0 300 600" will
- *   update point1 with clock set as 300Mhz and voltage as
- *   600mV. "vc 2 1000 1000" will update point3 with clock set
- *   as 1000Mhz and voltage 1000mV.
+ *   For sclk voltage curve,
+ *     - For NV1X, enter the new values by writing a string that
+ *       contains "vc point clock voltage" to the file. The points
+ *       are indexed by 0, 1 and 2. E.g., "vc 0 300 600" will update
+ *       point1 with clock set as 300Mhz and voltage as 600mV. "vc 2
+ *       1000 1000" will update point3 with clock set as 1000Mhz and
+ *       voltage 1000mV.
+ *     - For SMU13 ASICs, enter the new values by writing a string that
+ *       contains "vc anchor_point_index voltage_offset" to the file.
+ *       There are total six anchor points defined on the v/f curve with
+ *       index as 0 - 5.
+ *       - "vc 0 10" will update the voltage offset for point1 as 10mv.
+ *       - "vc 5 -10" will update the voltage offset for point6 as -10mv.
  *
  *   To update the voltage offset applied for gfxclk/voltage calculation,
  *   enter the new value by writing a string that contains "vo offset".
@@ -769,7 +743,7 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		type = PP_OD_EDIT_CCLK_VDDC_TABLE;
 	else if (*buf == 'm')
 		type = PP_OD_EDIT_MCLK_VDDC_TABLE;
-	else if(*buf == 'r')
+	else if (*buf == 'r')
 		type = PP_OD_RESTORE_DEFAULT_TABLE;
 	else if (*buf == 'c')
 		type = PP_OD_COMMIT_DPM_TABLE;
@@ -1493,6 +1467,32 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 	return -EINVAL;
 }
 
+static unsigned int amdgpu_hwmon_get_sensor_generic(struct amdgpu_device *adev,
+						    enum amd_pp_sensors sensor,
+						    void *query)
+{
+	int r, size = sizeof(uint32_t);
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
+	if (r < 0) {
+		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+		return r;
+	}
+
+	/* get the sensor value */
+	r = amdgpu_dpm_read_sensor(adev, sensor, query, &size);
+
+	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
+	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+
+	return r;
+}
+
 /**
  * DOC: gpu_busy_percent
  *
@@ -1507,26 +1507,10 @@ static ssize_t amdgpu_get_gpu_busy_percent(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	int r, value, size = sizeof(value);
+	unsigned int value;
+	int r;
 
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(ddev->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return r;
-	}
-
-	/* read the IP busy sensor */
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_LOAD,
-				   (void *)&value, &size);
-
-	pm_runtime_mark_last_busy(ddev->dev);
-	pm_runtime_put_autosuspend(ddev->dev);
-
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_LOAD, &value);
 	if (r)
 		return r;
 
@@ -1547,26 +1531,10 @@ static ssize_t amdgpu_get_mem_busy_percent(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	int r, value, size = sizeof(value);
+	unsigned int value;
+	int r;
 
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(ddev->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return r;
-	}
-
-	/* read the IP busy sensor */
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MEM_LOAD,
-				   (void *)&value, &size);
-
-	pm_runtime_mark_last_busy(ddev->dev);
-	pm_runtime_put_autosuspend(ddev->dev);
-
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MEM_LOAD, &value);
 	if (r)
 		return r;
 
@@ -1840,45 +1808,15 @@ out:
 	return size;
 }
 
-static int amdgpu_device_read_powershift(struct amdgpu_device *adev,
-						uint32_t *ss_power, bool dgpu_share)
-{
-	struct drm_device *ddev = adev_to_drm(adev);
-	uint32_t size;
-	int r = 0;
-
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(ddev->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return r;
-	}
-
-	if (dgpu_share)
-		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
-				   (void *)ss_power, &size);
-	else
-		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
-				   (void *)ss_power, &size);
-
-	pm_runtime_mark_last_busy(ddev->dev);
-	pm_runtime_put_autosuspend(ddev->dev);
-	return r;
-}
-
 static int amdgpu_show_powershift_percent(struct device *dev,
-					char *buf, bool dgpu_share)
+					char *buf, enum amd_pp_sensors sensor)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	uint32_t ss_power;
 	int r = 0, i;
 
-	r = amdgpu_device_read_powershift(adev, &ss_power, dgpu_share);
+	r = amdgpu_hwmon_get_sensor_generic(adev, sensor, (void *)&ss_power);
 	if (r == -EOPNOTSUPP) {
 		/* sensor not available on dGPU, try to read from APU */
 		adev = NULL;
@@ -1891,14 +1829,15 @@ static int amdgpu_show_powershift_percent(struct device *dev,
 		}
 		mutex_unlock(&mgpu_info.mutex);
 		if (adev)
-			r = amdgpu_device_read_powershift(adev, &ss_power, dgpu_share);
+			r = amdgpu_hwmon_get_sensor_generic(adev, sensor, (void *)&ss_power);
 	}
 
-	if (!r)
-		r = sysfs_emit(buf, "%u%%\n", ss_power);
+	if (r)
+		return r;
 
-	return r;
+	return sysfs_emit(buf, "%u%%\n", ss_power);
 }
+
 /**
  * DOC: smartshift_apu_power
  *
@@ -1912,7 +1851,7 @@ static int amdgpu_show_powershift_percent(struct device *dev,
 static ssize_t amdgpu_get_smartshift_apu_power(struct device *dev, struct device_attribute *attr,
 					       char *buf)
 {
-	return amdgpu_show_powershift_percent(dev, buf, false);
+	return amdgpu_show_powershift_percent(dev, buf, AMDGPU_PP_SENSOR_SS_APU_SHARE);
 }
 
 /**
@@ -1928,7 +1867,7 @@ static ssize_t amdgpu_get_smartshift_apu_power(struct device *dev, struct device
 static ssize_t amdgpu_get_smartshift_dgpu_power(struct device *dev, struct device_attribute *attr,
 						char *buf)
 {
-	return amdgpu_show_powershift_percent(dev, buf, true);
+	return amdgpu_show_powershift_percent(dev, buf, AMDGPU_PP_SENSOR_SS_DGPU_SHARE);
 }
 
 /**
@@ -1991,7 +1930,6 @@ out:
 	return r;
 }
 
-
 static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 				uint32_t mask, enum amdgpu_device_attr_states *states)
 {
@@ -2004,15 +1942,15 @@ static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device
 static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 			       uint32_t mask, enum amdgpu_device_attr_states *states)
 {
-	uint32_t ss_power, size;
+	uint32_t ss_power;
 
 	if (!amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
 		*states = ATTR_STATE_UNSUPPORTED;
-	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
-		 (void *)&ss_power, &size))
+	else if (amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+		 (void *)&ss_power))
 		*states = ATTR_STATE_UNSUPPORTED;
-	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
-		 (void *)&ss_power, &size))
+	else if (amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+		 (void *)&ss_power))
 		*states = ATTR_STATE_UNSUPPORTED;
 
 	return 0;
@@ -2075,8 +2013,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
 		if (gc_ver < IP_VERSION(9, 0, 0) ||
-		    gc_ver == IP_VERSION(9, 4, 1) ||
-		    gc_ver == IP_VERSION(9, 4, 2))
+		    !amdgpu_device_has_display_hardware(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
 		if (mp1_ver < IP_VERSION(10, 0, 0))
@@ -2098,17 +2035,21 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		case IP_VERSION(9, 4, 0):
 		case IP_VERSION(9, 4, 1):
 		case IP_VERSION(9, 4, 2):
+		case IP_VERSION(9, 4, 3):
 		case IP_VERSION(10, 3, 0):
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 1):
 		case IP_VERSION(11, 0, 2):
+		case IP_VERSION(11, 0, 3):
 			*states = ATTR_STATE_SUPPORTED;
 			break;
 		default:
 			*states = ATTR_STATE_UNSUPPORTED;
 		}
 	} else if (DEVICE_ATTR_IS(pp_features)) {
-		if (adev->flags & AMD_IS_APU || gc_ver < IP_VERSION(9, 0, 0))
+		if ((adev->flags & AMD_IS_APU &&
+		     gc_ver != IP_VERSION(9, 4, 3)) ||
+		    gc_ver < IP_VERSION(9, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(gpu_metrics)) {
 		if (gc_ver < IP_VERSION(9, 1, 0))
@@ -2119,7 +2060,8 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		      gc_ver == IP_VERSION(10, 1, 2) ||
 		      gc_ver == IP_VERSION(11, 0, 0) ||
 		      gc_ver == IP_VERSION(11, 0, 2) ||
-		      gc_ver == IP_VERSION(11, 0, 3)))
+		      gc_ver == IP_VERSION(11, 0, 3) ||
+		      gc_ver == IP_VERSION(9, 4, 3)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_vclk1)) {
 		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
@@ -2133,7 +2075,8 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		      gc_ver == IP_VERSION(10, 1, 2) ||
 		      gc_ver == IP_VERSION(11, 0, 0) ||
 		      gc_ver == IP_VERSION(11, 0, 2) ||
-		      gc_ver == IP_VERSION(11, 0, 3)))
+		      gc_ver == IP_VERSION(11, 0, 3) ||
+		      gc_ver == IP_VERSION(9, 4, 3)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dclk1)) {
 		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
@@ -2195,15 +2138,19 @@ static int amdgpu_device_attr_create(struct amdgpu_device *adev,
 				     uint32_t mask, struct list_head *attr_list)
 {
 	int ret = 0;
-	struct device_attribute *dev_attr = &attr->dev_attr;
-	const char *name = dev_attr->attr.name;
 	enum amdgpu_device_attr_states attr_states = ATTR_STATE_SUPPORTED;
 	struct amdgpu_device_attr_entry *attr_entry;
+	struct device_attribute *dev_attr;
+	const char *name;
 
 	int (*attr_update)(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 			   uint32_t mask, enum amdgpu_device_attr_states *states) = default_attr_update;
 
-	BUG_ON(!attr);
+	if (!attr)
+		return -EINVAL;
+
+	dev_attr = &attr->dev_attr;
+	name = dev_attr->attr.name;
 
 	attr_update = attr->attr_update ? attr->attr_update : default_attr_update;
 
@@ -2289,45 +2236,31 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int channel = to_sensor_dev_attr(attr)->index;
-	int r, temp = 0, size = sizeof(temp);
-
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
+	int r, temp = 0;
 
 	if (channel >= PP_TEMP_MAX)
 		return -EINVAL;
 
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
-
 	switch (channel) {
 	case PP_TEMP_JUNCTION:
 		/* get current junction temperature */
-		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_HOTSPOT_TEMP,
-					   (void *)&temp, &size);
+		r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_HOTSPOT_TEMP,
+					   (void *)&temp);
 		break;
 	case PP_TEMP_EDGE:
 		/* get current edge temperature */
-		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_EDGE_TEMP,
-					   (void *)&temp, &size);
+		r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_EDGE_TEMP,
+					   (void *)&temp);
 		break;
 	case PP_TEMP_MEM:
 		/* get current memory temperature */
-		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MEM_TEMP,
-					   (void *)&temp, &size);
+		r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MEM_TEMP,
+					   (void *)&temp);
 		break;
 	default:
 		r = -EINVAL;
 		break;
 	}
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	if (r)
 		return r;
@@ -2612,25 +2545,10 @@ static ssize_t amdgpu_hwmon_get_fan1_min(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	u32 min_rpm = 0;
-	u32 size = sizeof(min_rpm);
 	int r;
 
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
-
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MIN_FAN_RPM,
-				   (void *)&min_rpm, &size);
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MIN_FAN_RPM,
+				   (void *)&min_rpm);
 
 	if (r)
 		return r;
@@ -2644,25 +2562,10 @@ static ssize_t amdgpu_hwmon_get_fan1_max(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	u32 max_rpm = 0;
-	u32 size = sizeof(max_rpm);
 	int r;
 
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
-
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_MAX_FAN_RPM,
-				   (void *)&max_rpm, &size);
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_MAX_FAN_RPM,
+				   (void *)&max_rpm);
 
 	if (r)
 		return r;
@@ -2824,26 +2727,11 @@ static ssize_t amdgpu_hwmon_show_vddgfx(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	u32 vddgfx;
-	int r, size = sizeof(vddgfx);
-
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
+	int r;
 
 	/* get the voltage */
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDGFX,
-				   (void *)&vddgfx, &size);
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDGFX,
+				   (void *)&vddgfx);
 	if (r)
 		return r;
 
@@ -2863,30 +2751,15 @@ static ssize_t amdgpu_hwmon_show_vddnb(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	u32 vddnb;
-	int r, size = sizeof(vddnb);
-
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
+	int r;
 
 	/* only APUs have vddnb */
 	if  (!(adev->flags & AMD_IS_APU))
 		return -EINVAL;
 
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
-
 	/* get the voltage */
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB,
-				   (void *)&vddnb, &size);
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_VDDNB,
+				   (void *)&vddnb);
 	if (r)
 		return r;
 
@@ -2900,40 +2773,48 @@ static ssize_t amdgpu_hwmon_show_vddnb_label(struct device *dev,
 	return sysfs_emit(buf, "vddnb\n");
 }
 
-static ssize_t amdgpu_hwmon_show_power_avg(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static unsigned int amdgpu_hwmon_get_power(struct device *dev,
+					   enum amd_pp_sensors sensor)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	unsigned int uw;
 	u32 query = 0;
-	int r, size = sizeof(u32);
-	unsigned uw;
+	int r;
 
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
-
-	/* get the voltage */
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_POWER,
-				   (void *)&query, &size);
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
+	r = amdgpu_hwmon_get_sensor_generic(adev, sensor, (void *)&query);
 	if (r)
 		return r;
 
 	/* convert to microwatts */
 	uw = (query >> 8) * 1000000 + (query & 0xff) * 1000;
 
-	return sysfs_emit(buf, "%u\n", uw);
+	return uw;
+}
+
+static ssize_t amdgpu_hwmon_show_power_avg(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	unsigned int val;
+
+	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_AVG_POWER);
+	if (val < 0)
+		return val;
+
+	return sysfs_emit(buf, "%u\n", val);
+}
+
+static ssize_t amdgpu_hwmon_show_power_input(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	unsigned int val;
+
+	val = amdgpu_hwmon_get_power(dev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER);
+	if (val < 0)
+		return val;
+
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t amdgpu_hwmon_show_power_cap_min(struct device *dev,
@@ -3068,26 +2949,11 @@ static ssize_t amdgpu_hwmon_show_sclk(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	uint32_t sclk;
-	int r, size = sizeof(sclk);
-
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
+	int r;
 
 	/* get the sclk */
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK,
-				   (void *)&sclk, &size);
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GFX_SCLK,
+				   (void *)&sclk);
 	if (r)
 		return r;
 
@@ -3107,26 +2973,11 @@ static ssize_t amdgpu_hwmon_show_mclk(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	uint32_t mclk;
-	int r, size = sizeof(mclk);
-
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
+	int r;
 
 	/* get the sclk */
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK,
-				   (void *)&mclk, &size);
-
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
+	r = amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GFX_MCLK,
+				   (void *)&mclk);
 	if (r)
 		return r;
 
@@ -3185,6 +3036,8 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  * hwmon interfaces for GPU power:
  *
  * - power1_average: average power used by the SoC in microWatts.  On APUs this includes the CPU.
+ *
+ * - power1_input: instantaneous power used by the SoC in microWatts.  On APUs this includes the CPU.
  *
  * - power1_cap_min: minimum cap supported in microWatts
  *
@@ -3254,6 +3107,7 @@ static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, amdgpu_hwmon_show_vddgfx_label, NU
 static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, amdgpu_hwmon_show_vddnb, NULL, 0);
 static SENSOR_DEVICE_ATTR(in1_label, S_IRUGO, amdgpu_hwmon_show_vddnb_label, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_average, S_IRUGO, amdgpu_hwmon_show_power_avg, NULL, 0);
+static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, amdgpu_hwmon_show_power_input, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_cap_max, S_IRUGO, amdgpu_hwmon_show_power_cap_max, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_cap_min, S_IRUGO, amdgpu_hwmon_show_power_cap_min, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_cap, S_IRUGO | S_IWUSR, amdgpu_hwmon_show_power_cap, amdgpu_hwmon_set_power_cap, 0);
@@ -3300,6 +3154,7 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_in1_input.dev_attr.attr,
 	&sensor_dev_attr_in1_label.dev_attr.attr,
 	&sensor_dev_attr_power1_average.dev_attr.attr,
+	&sensor_dev_attr_power1_input.dev_attr.attr,
 	&sensor_dev_attr_power1_cap_max.dev_attr.attr,
 	&sensor_dev_attr_power1_cap_min.dev_attr.attr,
 	&sensor_dev_attr_power1_cap.dev_attr.attr,
@@ -3325,6 +3180,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
+	uint32_t tmp;
 
 	/* under multi-vf mode, the hwmon attributes are all not supported */
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
@@ -3360,7 +3216,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* Skip crit temp on APU */
-	if ((adev->flags & AMD_IS_APU) && (adev->family >= AMDGPU_FAMILY_CZ) &&
+	if ((((adev->flags & AMD_IS_APU) && (adev->family >= AMDGPU_FAMILY_CZ)) ||
+	    (gc_ver == IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
 		return 0;
@@ -3393,9 +3250,10 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	      attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
 		effective_mode &= ~S_IWUSR;
 
-	/* In the case of APUs, this is only implemented on Vangogh */
+	/* not implemented yet for APUs other than GC 10.3.1 (vangogh) and 9.4.3 */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
-	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)))) &&
+	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)) &&
+	      (gc_ver != IP_VERSION(9, 4, 3)))) &&
 	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
@@ -3406,6 +3264,14 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
 	     ((adev->flags & AMD_IS_APU) && (gc_ver < IP_VERSION(9, 3, 0)))) &&
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr))
+		return 0;
+
+	/* not all products support both average and instantaneous */
+	if (attr == &sensor_dev_attr_power1_average.dev_attr.attr &&
+	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&tmp) == -EOPNOTSUPP)
+		return 0;
+	if (attr == &sensor_dev_attr_power1_input.dev_attr.attr &&
+	    amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&tmp) == -EOPNOTSUPP)
 		return 0;
 
 	/* hide max/min values if we can't both query and manage the fan */
@@ -3424,36 +3290,48 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
-	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV ||	/* not implemented yet */
+	     (gc_ver == IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
 		return 0;
 
-	/* only APUs have vddnb */
-	if (!(adev->flags & AMD_IS_APU) &&
+	/* only APUs other than gc 9,4,3 have vddnb */
+	if ((!(adev->flags & AMD_IS_APU) || (gc_ver == IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_in1_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
 		return 0;
 
-	/* no mclk on APUs */
-	if ((adev->flags & AMD_IS_APU) &&
+	/* no mclk on APUs other than gc 9,4,3*/
+	if (((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(9, 4, 3))) &&
 	    (attr == &sensor_dev_attr_freq2_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_freq2_label.dev_attr.attr))
 		return 0;
 
-	/* only SOC15 dGPUs support hotspot and mem temperatures */
 	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0)) &&
-	    (attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_crit.dev_attr.attr ||
+	    (gc_ver != IP_VERSION(9, 4, 3)) &&
+	    (attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp3_crit.dev_attr.attr))
+		return 0;
+
+	/* hotspot temperature for gc 9,4,3*/
+	if ((gc_ver == IP_VERSION(9, 4, 3)) &&
+	    (attr == &sensor_dev_attr_temp1_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_temp1_label.dev_attr.attr))
+		return 0;
+
+	/* only SOC15 dGPUs support hotspot and mem temperatures */
+	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0) ||
+	    (gc_ver == IP_VERSION(9, 4, 3))) &&
+	     (attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_emergency.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_input.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
-	     attr == &sensor_dev_attr_temp3_label.dev_attr.attr))
+	     attr == &sensor_dev_attr_temp3_emergency.dev_attr.attr))
 		return 0;
 
 	/* only Vangogh has fast PPT limit and power labels */
@@ -3542,7 +3420,8 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 #if defined(CONFIG_DEBUG_FS)
 
 static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
-					   struct amdgpu_device *adev) {
+					   struct amdgpu_device *adev)
+{
 	uint16_t *p_val;
 	uint32_t size;
 	int i;
@@ -3591,8 +3470,11 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB, (void *)&value, &size))
 		seq_printf(m, "\t%u mV (VDDNB)\n", value);
 	size = sizeof(uint32_t);
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_POWER, (void *)&query, &size))
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&query, &size))
 		seq_printf(m, "\t%u.%u W (average GPU)\n", query >> 8, query & 0xff);
+	size = sizeof(uint32_t);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&query, &size))
+		seq_printf(m, "\t%u.%u W (current GPU)\n", query >> 8, query & 0xff);
 	size = sizeof(value);
 	seq_printf(m, "\n");
 
@@ -3657,6 +3539,44 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 
 	return 0;
 }
+
+static const struct cg_flag_name clocks[] = {
+	{AMD_CG_SUPPORT_GFX_FGCG, "Graphics Fine Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_MGCG, "Graphics Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_MGLS, "Graphics Medium Grain memory Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_CGCG, "Graphics Coarse Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_CGLS, "Graphics Coarse Grain memory Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_CGTS, "Graphics Coarse Grain Tree Shader Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_CGTS_LS, "Graphics Coarse Grain Tree Shader Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_CP_LS, "Graphics Command Processor Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_RLC_LS, "Graphics Run List Controller Light Sleep"},
+	{AMD_CG_SUPPORT_GFX_3D_CGCG, "Graphics 3D Coarse Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_3D_CGLS, "Graphics 3D Coarse Grain memory Light Sleep"},
+	{AMD_CG_SUPPORT_MC_LS, "Memory Controller Light Sleep"},
+	{AMD_CG_SUPPORT_MC_MGCG, "Memory Controller Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_SDMA_LS, "System Direct Memory Access Light Sleep"},
+	{AMD_CG_SUPPORT_SDMA_MGCG, "System Direct Memory Access Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_BIF_MGCG, "Bus Interface Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_BIF_LS, "Bus Interface Light Sleep"},
+	{AMD_CG_SUPPORT_UVD_MGCG, "Unified Video Decoder Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_VCE_MGCG, "Video Compression Engine Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_HDP_LS, "Host Data Path Light Sleep"},
+	{AMD_CG_SUPPORT_HDP_MGCG, "Host Data Path Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_DRM_MGCG, "Digital Right Management Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_DRM_LS, "Digital Right Management Light Sleep"},
+	{AMD_CG_SUPPORT_ROM_MGCG, "Rom Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_DF_MGCG, "Data Fabric Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_VCN_MGCG, "VCN Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_HDP_DS, "Host Data Path Deep Sleep"},
+	{AMD_CG_SUPPORT_HDP_SD, "Host Data Path Shutdown"},
+	{AMD_CG_SUPPORT_IH_CG, "Interrupt Handler Clock Gating"},
+	{AMD_CG_SUPPORT_JPEG_MGCG, "JPEG Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_REPEATER_FGCG, "Repeater Fine Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_PERF_CLK, "Perfmon Clock Gating"},
+	{AMD_CG_SUPPORT_ATHUB_MGCG, "Address Translation Hub Medium Grain Clock Gating"},
+	{AMD_CG_SUPPORT_ATHUB_LS, "Address Translation Hub Light Sleep"},
+	{0, NULL},
+};
 
 static void amdgpu_parse_cg_state(struct seq_file *m, u64 flags)
 {

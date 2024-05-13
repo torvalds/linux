@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0
 //
 // cs35l45.c - CS35L45 ALSA SoC audio driver
 //
@@ -279,7 +279,7 @@ static const struct snd_kcontrol_new cs35l45_dsp_muxes[] = {
 };
 
 static const struct snd_kcontrol_new cs35l45_dac_muxes[] = {
-	SOC_DAPM_ENUM("DACPCM1 Source", cs35l45_dacpcm_enums[0]),
+	SOC_DAPM_ENUM("DACPCM Source", cs35l45_dacpcm_enums[0]),
 };
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
@@ -333,7 +333,7 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("DSP_RX7 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[6]),
 	SND_SOC_DAPM_MUX("DSP_RX8 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[7]),
 
-	SND_SOC_DAPM_MUX("DACPCM1 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dac_muxes[0]),
+	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &cs35l45_dac_muxes[0]),
 
 	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_NOPM, 0, 0, NULL, 0),
 
@@ -403,7 +403,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{ "ASP_RX1", NULL, "ASP_EN" },
 	{ "ASP_RX2", NULL, "ASP_EN" },
 
-	{ "AMP", NULL, "DACPCM1 Source"},
+	{ "AMP", NULL, "DACPCM Source"},
 	{ "AMP", NULL, "GLOBAL_EN"},
 
 	CS35L45_DSP_MUX_ROUTE("DSP_RX1"),
@@ -427,7 +427,7 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP1 Preload", NULL, "DSP1 Preloader"},
 	{"DSP1", NULL, "DSP1 Preloader"},
 
-	CS35L45_DAC_MUX_ROUTE("DACPCM1"),
+	CS35L45_DAC_MUX_ROUTE("DACPCM"),
 
 	{ "SPK", NULL, "AMP"},
 };
@@ -969,7 +969,7 @@ static irqreturn_t cs35l45_dsp_virt2_mbox_cb(int irq, void *data)
 
 	ret = regmap_read(cs35l45->regmap, CS35L45_DSP_VIRT2_MBOX_3, &mbox_val);
 	if (!ret && mbox_val)
-		ret = cs35l45_dsp_virt2_mbox3_irq_handle(cs35l45, mbox_val & CS35L45_MBOX3_CMD_MASK,
+		cs35l45_dsp_virt2_mbox3_irq_handle(cs35l45, mbox_val & CS35L45_MBOX3_CMD_MASK,
 				(mbox_val & CS35L45_MBOX3_DATA_MASK) >> CS35L45_MBOX3_DATA_SHIFT);
 
 	/* Handle DSP trace log IRQ */
@@ -1078,6 +1078,7 @@ static int cs35l45_initialize(struct cs35l45_private *cs35l45)
 
 	switch (dev_id[0]) {
 	case 0x35A450:
+	case 0x35A460:
 		break;
 	default:
 		dev_err(cs35l45->dev, "Bad DEVID 0x%x\n", dev_id[0]);
@@ -1296,4 +1297,4 @@ EXPORT_SYMBOL_NS_GPL(cs35l45_pm_ops, SND_SOC_CS35L45);
 MODULE_DESCRIPTION("ASoC CS35L45 driver");
 MODULE_AUTHOR("James Schulman, Cirrus Logic Inc, <james.schulman@cirrus.com>");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");

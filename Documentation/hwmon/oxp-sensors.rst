@@ -19,16 +19,30 @@ out the EC registers and values to write to since the EC layout and model is
 different. Aya Neo devices preceding the AIR may not be supportable as the EC
 model is different and do not appear to have manual control capabilities.
 
+Some models have a toggle for changing the behaviour of the "Turbo/Silent"
+button of the device. It will change the key event that it triggers with
+a flip of the `tt_toggle` attribute. See below for boards that support this
+function.
+
 Supported devices
 -----------------
 
 Currently the driver supports the following handhelds:
 
  - AOK ZOE A1
+ - AOK ZOE A1 PRO
+ - Aya Neo 2
  - Aya Neo AIR
  - Aya Neo AIR Pro
+ - Aya Neo Geek
  - OneXPlayer AMD
  - OneXPlayer mini AMD
+ - OneXPlayer mini AMD PRO
+
+"Turbo/Silent" button behaviour toggle is only supported on:
+ - AOK ZOE A1
+ - AOK ZOE A1 PRO
+ - OneXPlayer mini AMD (only with updated alpha BIOS)
  - OneXPlayer mini AMD PRO
 
 Sysfs entries
@@ -47,3 +61,10 @@ pwm1
   Read Write. Read this attribute to see current duty cycle in the range [0-255].
   When pwm1_enable is set to "1" (manual) write any value in the range [0-255]
   to set fan speed.
+
+tt_toggle
+  Read Write. Read this attribute to check the status of the turbo/silent
+  button behaviour function. Write "1" to activate the switch and "0" to
+  deactivate it. The specific keycodes and behaviour is specific to the device
+  both with this function on and off. This attribute is attached to the platform
+  driver and not to the hwmon driver (/sys/devices/platform/oxp-platform/tt_toggle)

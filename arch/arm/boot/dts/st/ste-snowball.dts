@@ -1,0 +1,657 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2011 ST-Ericsson AB
+ */
+
+/dts-v1/;
+#include "ste-db9500.dtsi"
+#include "ste-href-ab8500.dtsi"
+#include "ste-href-family-pinctrl.dtsi"
+
+/ {
+	model = "Calao Systems Snowball platform with device tree";
+	compatible = "calaosystems,snowball-a9500", "st-ericsson,u9500";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	battery: battery {
+		compatible = "simple-battery";
+		battery-type = "lithium-ion-polymer";
+	};
+
+	thermal-zones {
+		battery-thermal {
+			/* This zone will be polled by the battery temperature code */
+			polling-delay = <0>;
+			polling-delay-passive = <0>;
+			thermal-sensors = <&bat_therm>;
+
+			trips {
+				battery-crit-hi {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
+	bat_therm: thermistor {
+		compatible = "murata,ncp18wb473";
+		io-channels = <&gpadc 0x02>; /* BatTemp */
+		pullup-uv = <1800000>;
+		pullup-ohm = <230000>;
+		pulldown-ohm = <0>;
+		#thermal-sensor-cells = <0>;
+	};
+
+	en_3v3_reg: en_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "en-3v3-fixed-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		/* AB8500 GPIOs start from 1 - offset 25 is GPIO26. */
+		gpio = <&ab8500_gpio 25 0x4>;
+		startup-delay-us = <5000>;
+		enable-active-high;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <2>;
+			label = "userpb";
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		};
+		button@2 {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <3>;
+			label = "extkb1";
+			gpios = <&gpio4 23 GPIO_ACTIVE_HIGH>;
+		};
+		button@3 {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <4>;
+			label = "extkb2";
+			gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+		};
+		button@4 {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <5>;
+			label = "extkb3";
+			gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
+		};
+		button@5 {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <6>;
+			label = "extkb4";
+			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpioled_snowball_mode>;
+		used-led {
+			label = "user_led";
+			gpios = <&gpio4 14 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	soc {
+		/* Name the GPIO muxed rails on the Snowball board */
+		gpio@8012e000 {
+			/* GPIOs 0 - 31 */
+			gpio-line-names = "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "",
+				     "AP_GPIO31";
+		};
+
+		gpio@8012e080 {
+			/* GPIOs 32 - 63 */
+			gpio-line-names = "USR PB", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e000 {
+			/* GPIOs 64 - 95 */
+			gpio-line-names = "", "", "", "", "AP_GPIO68", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e100 {
+			/* GPIOs 128 - 159 */
+			gpio-line-names = "", "", "", "", "", "", "", "",
+				     "", "", "", "", "IRQ_LAN", "RSTn_LAN",
+				     "USR_LED", "", "", "", "", "", "",
+				     "", "", "AP_GPIO151", "AP_GPIO152",
+				     "", "", "", "", "", "", "";
+		};
+
+		gpio@8000e180 {
+			/* GPIOs 160 - 191 */
+			gpio-line-names = "", "AP_GPIO161", "AP_GPIO162",
+				     "ACCELEROMETER_INT1_RDY",
+				     "ACCELEROMETER_INT2", "MAG_DRDY",
+				     "GYRO_DRDY", "RSTn_MLC", "RSTn_SLC",
+				     "GYRO_INT", "UART_WAKE", "GBF_RESET",
+				     "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		gpio@8011e000 {
+			/* GPIOs 192 - 223 */
+			gpio-line-names = "HDTV_INTn", "", "", "", "HDTV_RST",
+				     "", "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "", "",
+				     "WLAN_RESETN", "WLAN_IRQ", "MMC_EN",
+				     "MMC_CD", "", "", "", "", "";
+		};
+
+		gpio@8011e080 {
+			/* GPIOs 224 - 255 */
+			gpio-line-names = "", "", "", "", "SD_SEL", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "",
+				     "", "", "", "", "", "", "", "";
+		};
+
+		msp0: msp@80123000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp0txrxtfstck_a_1_default>;
+			status = "okay";
+		};
+
+		msp1: msp@80124000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp1txrx_a_1_default>;
+			status = "okay";
+		};
+
+		msp2: msp@80117000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&msp2_a_1_default>;
+		};
+
+		msp3: msp@80125000 {
+			status = "okay";
+		};
+
+		external-bus@50000000 {
+			status = "okay";
+
+			ethernet@0 {
+				compatible = "smsc,lan9115";
+				reg = <0 0x10000>;
+				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
+				interrupt-parent = <&gpio4>;
+				vdd33a-supply = <&en_3v3_reg>;
+				vddvario-supply = <&db8500_vape_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&eth_snowball_mode>;
+
+				reg-shift = <1>;
+				reg-io-width = <2>;
+				smsc,force-internal-phy;
+				smsc,irq-active-high;
+				smsc,irq-push-pull;
+
+				clocks = <&prcc_pclk 3 0>;
+			};
+		};
+
+		/* ST6G3244ME level translator for 1.8/2.9 V */
+		vmmci: regulator-gpio {
+			compatible = "regulator-gpio";
+
+			/* GPIO228 SD_SEL */
+			gpios = <&gpio7 4 GPIO_ACTIVE_HIGH>;
+			/* GPIO217 MMC_EN */
+			enable-gpios = <&gpio6 25 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2900000>;
+			regulator-name = "mmci-reg";
+			regulator-type = "voltage";
+
+			startup-delay-us = <100>;
+
+			states = <1800000 0x1
+				  2900000 0x0>;
+		};
+
+		// External Micro SD slot
+		mmc@80126000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			sd-uhs-sdr12;
+			sd-uhs-sdr25;
+			/* All direction control is used */
+			st,sig-dir-cmd;
+			st,sig-dir-dat0;
+			st,sig-dir-dat2;
+			st,sig-dir-dat31;
+			st,sig-pin-fbclk;
+			full-pwr-cycle;
+			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			vqmmc-supply = <&vmmci>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc0_a_1_default &sdi0_default_mode>;
+			pinctrl-1 = <&mc0_a_1_sleep>;
+
+			/* GPIO218 MMC_CD */
+			cd-gpios  = <&gpio6 26 GPIO_ACTIVE_LOW>;
+
+			status = "okay";
+		};
+
+		// WLAN SDIO channel
+		mmc@80118000 {
+			arm,primecell-periphid = <0x10480180>;
+			max-frequency = <100000000>;
+			bus-width = <4>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc1_a_1_default>;
+			pinctrl-1 = <&mc1_a_1_sleep>;
+
+			status = "okay";
+		};
+
+		// Unused PoP eMMC - register and put it to sleep by default */
+		mmc@80005000 {
+			arm,primecell-periphid = <0x10480180>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mc2_a_1_sleep>;
+
+			status = "okay";
+		};
+
+		// On-board eMMC
+		mmc@80114000 {
+			arm,primecell-periphid = <0x10480180>;
+		        max-frequency = <100000000>;
+			bus-width = <8>;
+			cap-mmc-highspeed;
+			no-sdio;
+			no-sd;
+			vmmc-supply = <&ab8500_ldo_aux2_reg>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&mc4_a_1_default>;
+			pinctrl-1 = <&mc4_a_1_sleep>;
+
+			status = "okay";
+		};
+
+		serial@80120000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u0_a_1_default>;
+			pinctrl-1 = <&u0_a_1_sleep>;
+			status = "okay";
+		};
+
+		/* This UART is unused and thus left disabled */
+		serial@80121000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u1rxtx_a_1_default>;
+			pinctrl-1 = <&u1rxtx_a_1_sleep>;
+		};
+
+		serial@80007000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&u2rxtx_c_1_default>;
+			pinctrl-1 = <&u2rxtx_c_1_sleep>;
+			status = "okay";
+		};
+
+		i2c@80004000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c0_a_1_default>;
+			pinctrl-1 = <&i2c0_a_1_sleep>;
+			status = "okay";
+		};
+
+		i2c@80122000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c1_b_2_default>;
+			pinctrl-1 = <&i2c1_b_2_sleep>;
+			status = "okay";
+		};
+
+		i2c@80128000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c2_b_2_default>;
+			pinctrl-1 = <&i2c2_b_2_sleep>;
+			status = "okay";
+			lsm303dlh@18 {
+				/* Accelerometer */
+				compatible = "st,lsm303dlh-accel";
+				st,drdy-int-pin = <1>;
+				reg = <0x18>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&accel_snowball_mode>;
+				interrupt-parent = <&gpio5>;
+				interrupts = <3 IRQ_TYPE_EDGE_RISING>, /* INT1 */
+					     <4 IRQ_TYPE_EDGE_RISING>; /* INT2 */
+			};
+			lsm303dlh@1e {
+				/* Magnetometer */
+				compatible = "st,lsm303dlh-magn";
+				reg = <0x1e>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&magneto_snowball_mode>;
+				interrupt-parent = <&gpio5>;
+				interrupts = <5 IRQ_TYPE_EDGE_RISING>; /* DRDY line */
+			};
+			l3g4200d@68 {
+				/* Gyroscope */
+				compatible = "st,l3g4200d-gyro";
+				st,drdy-int-pin = <2>;
+				reg = <0x68>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&gyro_snowball_mode>;
+				interrupt-parent = <&gpio5>;
+				interrupts = <6 IRQ_TYPE_EDGE_RISING>, /* DRDY line */
+					     <9 IRQ_TYPE_EDGE_RISING>; /* INT1 */
+			};
+			lsp001wm@5c {
+				/* Barometer/pressure sensor */
+				compatible = "st,lps001wp-press";
+				reg = <0x5c>;
+				vdd-supply = <&ab8500_ldo_aux1_reg>;
+				vddio-supply = <&db8500_vsmps2_reg>;
+			};
+		};
+
+		i2c@80110000 {
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c3_c_2_default>;
+			pinctrl-1 = <&i2c3_c_2_sleep>;
+			status = "okay";
+		};
+
+		spi@80002000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&ssp0_snowball_mode>;
+			status = "okay";
+		};
+
+		prcmu@80157000 {
+			ab8500 {
+				gpio {
+					/*
+					 * AB8500 GPIOs are numbered starting from 1, so the first
+					 * index 0 is what in the datasheet is called "GPIO1", and
+					 * the second is "GPIO2" and so forth. Confusingly, the
+					 * Snowball schematic then names the "GPIO2" line "PM_GPIO1".
+					 * while later naming "GPIO4" as "PM_GPIO4".
+					 */
+					gpio-line-names = "", /* AB8500 GPIO1 */
+						     "PM_GPIO1", /* AB8500 GPIO2 */
+						     "WLAN_CLK_REQ", /* AB8500 GPIO3 */
+						     "PM_GPIO4", /* AB8500 GPIO4 */
+						     "", "", "", "", "", "", "", "", "", "", "",
+						     "EN_3V6", /* AB8500 GPIO16 */
+						     "", "", "", "" ,"", "", "", "", "",
+						     "EN_3V3", /* AB8500 GPIO26 */
+						     "", "", "", "", "", "", "", "", "", "", "", "", "",
+						     "PM_GPIO40", /* AB8500 GPIO40 */
+						     "PM_GPIO41", /* AB8500 GPIO41 */
+						     "PM_GPIO42"; /* AB8500 GPIO42 */
+				};
+
+				phy {
+					pinctrl-names = "default", "sleep";
+					pinctrl-0 = <&usb_a_1_default>;
+					pinctrl-1 = <&usb_a_1_sleep>;
+				};
+
+				ext_regulators: regulator-external {
+					ab8500_ext1_reg: ab8500_ext1 {
+						regulator-name = "ab8500-ext-supply1";
+					};
+
+					ab8500_ext2_reg_reg: ab8500_ext2 {
+						regulator-name = "ab8500-ext-supply2";
+					};
+
+					ab8500_ext3_reg_reg: ab8500_ext3 {
+						regulator-name = "ab8500-ext-supply3";
+					};
+				};
+
+				regulator {
+					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
+						regulator-name = "V-DISPLAY";
+					};
+
+					ab8500_ldo_aux2_reg: ab8500_ldo_aux2 {
+						regulator-name = "V-eMMC1";
+					};
+
+					ab8500_ldo_aux3_reg: ab8500_ldo_aux3 {
+						regulator-name = "V-MMC-SD";
+					};
+
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
+						regulator-name = "V-INTCORE";
+					};
+
+					ab8500_ldo_tvout_reg: ab8500_ldo_tvout {
+						regulator-name = "V-TVOUT";
+					};
+
+					ab8500_ldo_audio_reg: ab8500_ldo_audio {
+						regulator-name = "V-AUD";
+					};
+
+					ab8500_ldo_anamic1_reg: ab8500_ldo_anamic1 {
+						regulator-name = "V-AMIC1";
+					};
+
+					ab8500_ldo_anamic2_reg: ab8500_ldo_anamic2 {
+						regulator-name = "V-AMIC2";
+					};
+
+					ab8500_ldo_dmic_reg: ab8500_ldo_dmic {
+						regulator-name = "V-DMIC";
+					};
+
+					ab8500_ldo_ana_reg: ab8500_ldo_ana {
+						regulator-name = "V-CSI/DSI";
+					};
+				};
+			};
+		};
+
+		pinctrl {
+			/*
+			 * Set this up using hogs, as time goes by and as seems fit, these
+			 * can be moved over to being controlled by respective device.
+			 */
+			pinctrl-names = "default";
+			pinctrl-0 = <&gbf_snowball_mode>,
+				  <&wlan_snowball_mode>;
+
+			ethernet {
+				/*
+				 * Mux in "SM" which is used for the
+				 * SMSC911x Ethernet adapter
+				 */
+				eth_snowball_mode: eth_snowball {
+					snowball_mux {
+						function = "sm";
+						groups = "sm_b_1";
+					};
+					/* LAN IRQ pin */
+					snowball_cfg1 {
+						pins = "GPIO140_B11";
+						ste,config = <&in_nopull>;
+					};
+					/* LAN reset pin */
+					snowball_cfg2 {
+						pins = "GPIO141_C12";
+						ste,config = <&gpio_out_hi>;
+					};
+
+				};
+			};
+			sdi0 {
+				sdi0_default_mode: sdi0_default {
+					snowball_mux {
+						function = "mc0";
+						/* Add the DAT31 pin even if it is not really used */
+						groups = "mc0dat31dir_a_1";
+					};
+					snowball_cfg1 {
+						pins = "GPIO21_AB3"; /* DAT31DIR */
+						ste,config = <&out_hi>;
+					};
+					/* SD card detect GPIO pin, extend default state */
+					snowball_cfg2 {
+						pins = "GPIO218_AH11";
+						ste,config = <&gpio_in_pu>;
+					};
+					/* VMMCI level-shifter enable */
+					snowball_cfg3 {
+						pins = "GPIO217_AH12";
+						ste,config = <&gpio_out_hi>;
+					};
+					/* VMMCI level-shifter voltage select */
+					snowball_cfg4 {
+						pins = "GPIO228_AJ6";
+						ste,config = <&gpio_out_hi>;
+					};
+				};
+			};
+			ssp0 {
+				ssp0_snowball_mode: ssp0_snowball_default {
+					snowball_mux {
+						function = "ssp0";
+						groups = "ssp0_a_1";
+					};
+					snowball_cfg1 {
+						pins = "GPIO144_B13"; /* FRM */
+						ste,config = <&gpio_out_hi>;
+					};
+					snowball_cfg2 {
+						pins = "GPIO145_C13"; /* RXD */
+						ste,config = <&in_pd>;
+					};
+					snowball_cfg3 {
+						pins =
+						"GPIO146_D13", /* TXD */
+						"GPIO143_D12"; /* CLK */
+						ste,config = <&out_lo>;
+					};
+
+				};
+			};
+			gpio_led {
+				gpioled_snowball_mode: gpioled_default {
+					snowball_cfg1 {
+						pins = "GPIO142_C11";
+						ste,config = <&gpio_out_hi>;
+					};
+
+				};
+			};
+			accelerometer {
+				accel_snowball_mode: accel_snowball {
+					/* Accelerometer lines */
+					snowball_cfg1 {
+						pins =
+						"GPIO163_C20", /* ACCEL_IRQ1 */
+						"GPIO164_B21"; /* ACCEL_IRQ2 */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			gyro {
+				gyro_snowball_mode: gyro_snowball {
+					snowball_cfg1 {
+						pins =
+						"GPIO166_A22", /* DRDY */
+						"GPIO169_D22"; /* INT */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			magnetometer {
+				magneto_snowball_mode: magneto_snowball {
+					snowball_cfg1 {
+						pins = "GPIO165_C21"; /* MAG_DRDY */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+			gbf {
+				gbf_snowball_mode: gbf_snowball {
+					/*
+					 * GBF (GPS, Bluetooth, FM-radio) interface,
+					 * pull low to reset state
+					 */
+					snowball_cfg1 {
+						pins = "GPIO171_D23"; /* GBF_ENA_RESET */
+						ste,config = <&gpio_out_lo>;
+					};
+				 };
+			};
+			wlan {
+				wlan_snowball_mode: wlan_snowball {
+					/*
+					 * Activate this mode with the WLAN chip.
+					 * These are plain GPIO pins used by WLAN
+					 */
+					snowball_cfg1 {
+						pins =
+						"GPIO161_D21", /* WLAN_PMU_EN */
+						"GPIO215_AH13"; /* WLAN_ENA */
+						ste,config = <&gpio_out_lo>;
+					};
+					snowball_cfg2 {
+						pins = "GPIO216_AG12"; /* WLAN_IRQ */
+						ste,config = <&gpio_in_pu>;
+					};
+				};
+			};
+		};
+
+		mcde@a0350000 {
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&lcd_default_mode>;
+			pinctrl-1 = <&lcd_sleep_mode>;
+		};
+	};
+};

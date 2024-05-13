@@ -33,6 +33,7 @@ properties:
           - const: mediatek,mt2701-disp-color
       - items:
           - enum:
+              - mediatek,mt6795-disp-color
               - mediatek,mt8183-disp-color
               - mediatek,mt8186-disp-color
               - mediatek,mt8188-disp-color

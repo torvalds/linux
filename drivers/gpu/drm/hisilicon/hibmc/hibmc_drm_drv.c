@@ -63,7 +63,6 @@ static const struct drm_driver hibmc_driver = {
 	.debugfs_init		= drm_vram_mm_debugfs_init,
 	.dumb_create            = hibmc_dumb_create,
 	.dumb_map_offset        = drm_gem_ttm_dumb_map_offset,
-	.gem_prime_mmap		= drm_gem_prime_mmap,
 };
 
 static int __maybe_unused hibmc_pm_suspend(struct device *dev)

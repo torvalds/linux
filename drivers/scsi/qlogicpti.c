@@ -28,7 +28,7 @@
 #include <linux/jiffies.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/firmware.h>
 #include <linux/pgtable.h>
 
@@ -843,7 +843,7 @@ static int qpti_map_queues(struct qlogicpti *qpti)
 	return 0;
 }
 
-const char *qlogicpti_info(struct Scsi_Host *host)
+static const char *qlogicpti_info(struct Scsi_Host *host)
 {
 	static char buf[80];
 	struct qlogicpti *qpti = (struct qlogicpti *) host->hostdata;

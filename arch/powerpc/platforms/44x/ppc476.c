@@ -103,7 +103,7 @@ static struct i2c_driver avr_driver = {
 	.driver = {
 		.name = "akebono-avr",
 	},
-	.probe_new = avr_probe,
+	.probe = avr_probe,
 	.id_table = avr_id,
 };
 

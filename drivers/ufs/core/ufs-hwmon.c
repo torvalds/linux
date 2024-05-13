@@ -127,7 +127,8 @@ static int ufs_hwmon_write(struct device *dev, enum hwmon_sensor_types type, u32
 	return err;
 }
 
-static umode_t ufs_hwmon_is_visible(const void *_data, enum hwmon_sensor_types type, u32 attr,
+static umode_t ufs_hwmon_is_visible(const void *data,
+				    enum hwmon_sensor_types type, u32 attr,
 				    int channel)
 {
 	if (type != hwmon_temp)
@@ -146,7 +147,7 @@ static umode_t ufs_hwmon_is_visible(const void *_data, enum hwmon_sensor_types t
 	return 0;
 }
 
-static const struct hwmon_channel_info *ufs_hwmon_info[] = {
+static const struct hwmon_channel_info *const ufs_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_ENABLE | HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_LCRIT),
 	NULL
 };

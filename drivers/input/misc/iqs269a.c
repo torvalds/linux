@@ -17,9 +17,9 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -1746,7 +1746,7 @@ static struct i2c_driver iqs269_i2c_driver = {
 		.of_match_table = iqs269_of_match,
 		.pm = pm_sleep_ptr(&iqs269_pm),
 	},
-	.probe_new = iqs269_probe,
+	.probe = iqs269_probe,
 };
 module_i2c_driver(iqs269_i2c_driver);
 

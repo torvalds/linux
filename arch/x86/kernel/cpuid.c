@@ -40,7 +40,6 @@
 #include <asm/processor.h>
 #include <asm/msr.h>
 
-static struct class *cpuid_class;
 static enum cpuhp_state cpuhp_cpuid_state;
 
 struct cpuid_regs_done {
@@ -124,24 +123,29 @@ static const struct file_operations cpuid_fops = {
 	.open = cpuid_open,
 };
 
+static char *cpuid_devnode(const struct device *dev, umode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "cpu/%u/cpuid", MINOR(dev->devt));
+}
+
+static const struct class cpuid_class = {
+	.name		= "cpuid",
+	.devnode	= cpuid_devnode,
+};
+
 static int cpuid_device_create(unsigned int cpu)
 {
 	struct device *dev;
 
-	dev = device_create(cpuid_class, NULL, MKDEV(CPUID_MAJOR, cpu), NULL,
+	dev = device_create(&cpuid_class, NULL, MKDEV(CPUID_MAJOR, cpu), NULL,
 			    "cpu%d", cpu);
 	return PTR_ERR_OR_ZERO(dev);
 }
 
 static int cpuid_device_destroy(unsigned int cpu)
 {
-	device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
+	device_destroy(&cpuid_class, MKDEV(CPUID_MAJOR, cpu));
 	return 0;
-}
-
-static char *cpuid_devnode(const struct device *dev, umode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "cpu/%u/cpuid", MINOR(dev->devt));
 }
 
 static int __init cpuid_init(void)
@@ -154,12 +158,9 @@ static int __init cpuid_init(void)
 		       CPUID_MAJOR);
 		return -EBUSY;
 	}
-	cpuid_class = class_create("cpuid");
-	if (IS_ERR(cpuid_class)) {
-		err = PTR_ERR(cpuid_class);
+	err = class_register(&cpuid_class);
+	if (err)
 		goto out_chrdev;
-	}
-	cpuid_class->devnode = cpuid_devnode;
 
 	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/cpuid:online",
 				cpuid_device_create, cpuid_device_destroy);
@@ -170,7 +171,7 @@ static int __init cpuid_init(void)
 	return 0;
 
 out_class:
-	class_destroy(cpuid_class);
+	class_unregister(&cpuid_class);
 out_chrdev:
 	__unregister_chrdev(CPUID_MAJOR, 0, NR_CPUS, "cpu/cpuid");
 	return err;
@@ -180,7 +181,7 @@ module_init(cpuid_init);
 static void __exit cpuid_exit(void)
 {
 	cpuhp_remove_state(cpuhp_cpuid_state);
-	class_destroy(cpuid_class);
+	class_unregister(&cpuid_class);
 	__unregister_chrdev(CPUID_MAJOR, 0, NR_CPUS, "cpu/cpuid");
 }
 module_exit(cpuid_exit);

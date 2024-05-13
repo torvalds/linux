@@ -62,18 +62,13 @@ install_linux_image () {
 		${MAKE} -f ${srctree}/Makefile INSTALL_DTBS_PATH="${pdir}/usr/lib/linux-image-${KERNELRELEASE}" dtbs_install
 	fi
 
-	if is_enabled CONFIG_MODULES; then
-		${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" modules_install
-		rm -f "${pdir}/lib/modules/${KERNELRELEASE}/build"
-		rm -f "${pdir}/lib/modules/${KERNELRELEASE}/source"
-		if [ "${SRCARCH}" = um ] ; then
-			mkdir -p "${pdir}/usr/lib/uml/modules"
-			mv "${pdir}/lib/modules/${KERNELRELEASE}" "${pdir}/usr/lib/uml/modules/${KERNELRELEASE}"
-		fi
-	fi
+	${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" modules_install
+	rm -f "${pdir}/lib/modules/${KERNELRELEASE}/build"
 
 	# Install the kernel
 	if [ "${ARCH}" = um ] ; then
+		mkdir -p "${pdir}/usr/lib/uml/modules"
+		mv "${pdir}/lib/modules/${KERNELRELEASE}" "${pdir}/usr/lib/uml/modules/${KERNELRELEASE}"
 		mkdir -p "${pdir}/usr/bin" "${pdir}/usr/share/doc/${pname}"
 		cp System.map "${pdir}/usr/lib/uml/modules/${KERNELRELEASE}/System.map"
 		cp ${KCONFIG_CONFIG} "${pdir}/usr/share/doc/${pname}/config"
@@ -166,34 +161,7 @@ install_kernel_headers () {
 
 	rm -rf $pdir
 
-	(
-		cd $srctree
-		find . arch/$SRCARCH -maxdepth 1 -name Makefile\*
-		find include scripts -type f -o -type l
-		find arch/$SRCARCH -name Kbuild.platforms -o -name Platform
-		find $(find arch/$SRCARCH -name include -o -name scripts -type d) -type f
-	) > debian/hdrsrcfiles
-
-	{
-		if is_enabled CONFIG_OBJTOOL; then
-			echo tools/objtool/objtool
-		fi
-
-		find arch/$SRCARCH/include Module.symvers include scripts -type f
-
-		if is_enabled CONFIG_GCC_PLUGINS; then
-			find scripts/gcc-plugins -name \*.so
-		fi
-	} > debian/hdrobjfiles
-
-	destdir=$pdir/usr/src/linux-headers-$version
-	mkdir -p $destdir
-	tar -c -f - -C $srctree -T debian/hdrsrcfiles | tar -xf - -C $destdir
-	tar -c -f - -T debian/hdrobjfiles | tar -xf - -C $destdir
-	rm -f debian/hdrsrcfiles debian/hdrobjfiles
-
-	# copy .config manually to be where it's expected to be
-	cp $KCONFIG_CONFIG $destdir/.config
+	"${srctree}/scripts/package/install-extmod-build" "${pdir}/usr/src/linux-headers-${version}"
 
 	mkdir -p $pdir/lib/modules/$version/
 	ln -s /usr/src/linux-headers-$version $pdir/lib/modules/$version/build

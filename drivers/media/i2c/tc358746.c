@@ -813,8 +813,8 @@ static unsigned long tc358746_find_pll_settings(struct tc358746 *tc358746,
 	u32 min_delta = 0xffffffff;
 	u16 prediv_max = 17;
 	u16 prediv_min = 1;
-	u16 m_best, mul;
-	u16 p_best, p;
+	u16 m_best = 0, mul;
+	u16 p_best = 1, p;
 	u8 postdiv;
 
 	if (fout > 1000 * HZ_PER_MHZ) {
@@ -1426,7 +1426,7 @@ static int tc358746_init_controls(struct tc358746 *tc358746)
 
 static int tc358746_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *sd,
-				 struct v4l2_async_subdev *asd)
+				 struct v4l2_async_connection *asd)
 {
 	struct tc358746 *tc358746 =
 		container_of(notifier, struct tc358746, notifier);
@@ -1445,7 +1445,7 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_PARALLEL,
 	};
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	struct fwnode_handle *ep;
 	int err;
 
@@ -1460,9 +1460,9 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 		return err;
 	}
 
-	v4l2_async_nf_init(&tc358746->notifier);
+	v4l2_async_subdev_nf_init(&tc358746->notifier, &tc358746->sd);
 	asd = v4l2_async_nf_add_fwnode_remote(&tc358746->notifier, ep,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 	fwnode_handle_put(ep);
 
 	if (IS_ERR(asd)) {
@@ -1472,12 +1472,9 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 
 	tc358746->notifier.ops = &tc358746_notify_ops;
 
-	err = v4l2_async_subdev_nf_register(&tc358746->sd, &tc358746->notifier);
+	err = v4l2_async_nf_register(&tc358746->notifier);
 	if (err)
 		goto err_cleanup;
-
-	tc358746->sd.fwnode = fwnode_graph_get_endpoint_by_id(
-		dev_fwnode(tc358746->sd.dev), TC358746_SOURCE, 0, 0);
 
 	err = v4l2_async_register_subdev(&tc358746->sd);
 	if (err)
@@ -1486,7 +1483,6 @@ static int tc358746_async_register(struct tc358746 *tc358746)
 	return 0;
 
 err_unregister:
-	fwnode_handle_put(tc358746->sd.fwnode);
 	v4l2_async_nf_unregister(&tc358746->notifier);
 err_cleanup:
 	v4l2_async_nf_cleanup(&tc358746->notifier);
@@ -1605,7 +1601,6 @@ static void tc358746_remove(struct i2c_client *client)
 	v4l2_fwnode_endpoint_free(&tc358746->csi_vep);
 	v4l2_async_nf_unregister(&tc358746->notifier);
 	v4l2_async_nf_cleanup(&tc358746->notifier);
-	fwnode_handle_put(sd->fwnode);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 
@@ -1686,7 +1681,7 @@ static struct i2c_driver tc358746_driver = {
 		.pm = pm_ptr(&tc358746_pm_ops),
 		.of_match_table = tc358746_of_match,
 	},
-	.probe_new = tc358746_probe,
+	.probe = tc358746_probe,
 	.remove = tc358746_remove,
 };
 

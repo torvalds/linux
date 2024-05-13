@@ -832,6 +832,25 @@ xchk_install_handle_inode(
 }
 
 /*
+ * Install an already-referenced inode for scrubbing.  Get our own reference to
+ * the inode to make disposal simpler.  The inode must not be in I_FREEING or
+ * I_WILL_FREE state!
+ */
+int
+xchk_install_live_inode(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip)
+{
+	if (!igrab(VFS_I(ip))) {
+		xchk_ino_set_corrupt(sc, ip->i_ino);
+		return -EFSCORRUPTED;
+	}
+
+	sc->ip = ip;
+	return 0;
+}
+
+/*
  * In preparation to scrub metadata structures that hang off of an inode,
  * grab either the inode referenced in the scrub control structure or the
  * inode passed in.  If the inumber does not reference an allocated inode
@@ -854,10 +873,8 @@ xchk_iget_for_scrubbing(
 	ASSERT(sc->tp == NULL);
 
 	/* We want to scan the inode we already had opened. */
-	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
-		sc->ip = ip_in;
-		return 0;
-	}
+	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino)
+		return xchk_install_live_inode(sc, ip_in);
 
 	/* Reject internal metadata files and obviously bad inode numbers. */
 	if (xfs_internal_inum(mp, sc->sm->sm_ino))
@@ -1005,18 +1022,46 @@ xchk_setup_inode_contents(
 		return error;
 
 	/* Lock the inode so the VFS cannot touch this file. */
-	sc->ilock_flags = XFS_IOLOCK_EXCL;
-	xfs_ilock(sc->ip, sc->ilock_flags);
+	xchk_ilock(sc, XFS_IOLOCK_EXCL);
 
 	error = xchk_trans_alloc(sc, resblks);
 	if (error)
 		goto out;
-	sc->ilock_flags |= XFS_ILOCK_EXCL;
-	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
-
+	xchk_ilock(sc, XFS_ILOCK_EXCL);
 out:
 	/* scrub teardown will unlock and release the inode for us */
 	return error;
+}
+
+void
+xchk_ilock(
+	struct xfs_scrub	*sc,
+	unsigned int		ilock_flags)
+{
+	xfs_ilock(sc->ip, ilock_flags);
+	sc->ilock_flags |= ilock_flags;
+}
+
+bool
+xchk_ilock_nowait(
+	struct xfs_scrub	*sc,
+	unsigned int		ilock_flags)
+{
+	if (xfs_ilock_nowait(sc->ip, ilock_flags)) {
+		sc->ilock_flags |= ilock_flags;
+		return true;
+	}
+
+	return false;
+}
+
+void
+xchk_iunlock(
+	struct xfs_scrub	*sc,
+	unsigned int		ilock_flags)
+{
+	sc->ilock_flags &= ~ilock_flags;
+	xfs_iunlock(sc->ip, ilock_flags);
 }
 
 /*
@@ -1184,4 +1229,156 @@ xchk_fsgates_enable(
 		xfs_drain_wait_enable();
 
 	sc->flags |= scrub_fsgates;
+}
+
+/*
+ * Decide if this is this a cached inode that's also allocated.  The caller
+ * must hold a reference to an AG and the AGI buffer lock to prevent inodes
+ * from being allocated or freed.
+ *
+ * Look up an inode by number in the given file system.  If the inode number
+ * is invalid, return -EINVAL.  If the inode is not in cache, return -ENODATA.
+ * If the inode is being reclaimed, return -ENODATA because we know the inode
+ * cache cannot be updating the ondisk metadata.
+ *
+ * Otherwise, the incore inode is the one we want, and it is either live,
+ * somewhere in the inactivation machinery, or reclaimable.  The inode is
+ * allocated if i_mode is nonzero.  In all three cases, the cached inode will
+ * be more up to date than the ondisk inode buffer, so we must use the incore
+ * i_mode.
+ */
+int
+xchk_inode_is_allocated(
+	struct xfs_scrub	*sc,
+	xfs_agino_t		agino,
+	bool			*inuse)
+{
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_perag	*pag = sc->sa.pag;
+	xfs_ino_t		ino;
+	struct xfs_inode	*ip;
+	int			error;
+
+	/* caller must hold perag reference */
+	if (pag == NULL) {
+		ASSERT(pag != NULL);
+		return -EINVAL;
+	}
+
+	/* caller must have AGI buffer */
+	if (sc->sa.agi_bp == NULL) {
+		ASSERT(sc->sa.agi_bp != NULL);
+		return -EINVAL;
+	}
+
+	/* reject inode numbers outside existing AGs */
+	ino = XFS_AGINO_TO_INO(sc->mp, pag->pag_agno, agino);
+	if (!xfs_verify_ino(mp, ino))
+		return -EINVAL;
+
+	error = -ENODATA;
+	rcu_read_lock();
+	ip = radix_tree_lookup(&pag->pag_ici_root, agino);
+	if (!ip) {
+		/* cache miss */
+		goto out_rcu;
+	}
+
+	/*
+	 * If the inode number doesn't match, the incore inode got reused
+	 * during an RCU grace period and the radix tree hasn't been updated.
+	 * This isn't the inode we want.
+	 */
+	spin_lock(&ip->i_flags_lock);
+	if (ip->i_ino != ino)
+		goto out_skip;
+
+	trace_xchk_inode_is_allocated(ip);
+
+	/*
+	 * We have an incore inode that matches the inode we want, and the
+	 * caller holds the perag structure and the AGI buffer.  Let's check
+	 * our assumptions below:
+	 */
+
+#ifdef DEBUG
+	/*
+	 * (1) If the incore inode is live (i.e. referenced from the dcache),
+	 * it will not be INEW, nor will it be in the inactivation or reclaim
+	 * machinery.  The ondisk inode had better be allocated.  This is the
+	 * most trivial case.
+	 */
+	if (!(ip->i_flags & (XFS_NEED_INACTIVE | XFS_INEW | XFS_IRECLAIMABLE |
+			     XFS_INACTIVATING))) {
+		/* live inode */
+		ASSERT(VFS_I(ip)->i_mode != 0);
+	}
+
+	/*
+	 * If the incore inode is INEW, there are several possibilities:
+	 *
+	 * (2) For a file that is being created, note that we allocate the
+	 * ondisk inode before allocating, initializing, and adding the incore
+	 * inode to the radix tree.
+	 *
+	 * (3) If the incore inode is being recycled, the inode has to be
+	 * allocated because we don't allow freed inodes to be recycled.
+	 * Recycling doesn't touch i_mode.
+	 */
+	if (ip->i_flags & XFS_INEW) {
+		/* created on disk already or recycling */
+		ASSERT(VFS_I(ip)->i_mode != 0);
+	}
+
+	/*
+	 * (4) If the inode is queued for inactivation (NEED_INACTIVE) but
+	 * inactivation has not started (!INACTIVATING), it is still allocated.
+	 */
+	if ((ip->i_flags & XFS_NEED_INACTIVE) &&
+	    !(ip->i_flags & XFS_INACTIVATING)) {
+		/* definitely before difree */
+		ASSERT(VFS_I(ip)->i_mode != 0);
+	}
+#endif
+
+	/*
+	 * If the incore inode is undergoing inactivation (INACTIVATING), there
+	 * are two possibilities:
+	 *
+	 * (5) It is before the point where it would get freed ondisk, in which
+	 * case i_mode is still nonzero.
+	 *
+	 * (6) It has already been freed, in which case i_mode is zero.
+	 *
+	 * We don't take the ILOCK here, but difree and dialloc update the AGI,
+	 * and we've taken the AGI buffer lock, which prevents that from
+	 * happening.
+	 */
+
+	/*
+	 * (7) Inodes undergoing inactivation (INACTIVATING) or queued for
+	 * reclaim (IRECLAIMABLE) could be allocated or free.  i_mode still
+	 * reflects the ondisk state.
+	 */
+
+	/*
+	 * (8) If the inode is in IFLUSHING, it's safe to query i_mode because
+	 * the flush code uses i_mode to format the ondisk inode.
+	 */
+
+	/*
+	 * (9) If the inode is in IRECLAIM and was reachable via the radix
+	 * tree, it still has the same i_mode as it did before it entered
+	 * reclaim.  The inode object is still alive because we hold the RCU
+	 * read lock.
+	 */
+
+	*inuse = VFS_I(ip)->i_mode != 0;
+	error = 0;
+
+out_skip:
+	spin_unlock(&ip->i_flags_lock);
+out_rcu:
+	rcu_read_unlock();
+	return error;
 }

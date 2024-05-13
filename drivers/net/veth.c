@@ -26,7 +26,7 @@
 #include <linux/ptr_ring.h>
 #include <linux/bpf_trace.h>
 #include <linux/net_tstamp.h>
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 
 #define DRV_NAME	"veth"
 #define DRV_VERSION	"1.0"
@@ -176,12 +176,27 @@ static int veth_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
+static void veth_get_page_pool_stats(struct net_device *dev, u64 *data)
+{
+#ifdef CONFIG_PAGE_POOL_STATS
+	struct veth_priv *priv = netdev_priv(dev);
+	struct page_pool_stats pp_stats = {};
+	int i;
+
+	for (i = 0; i < dev->real_num_rx_queues; i++) {
+		if (!priv->rq[i].page_pool)
+			continue;
+		page_pool_get_stats(priv->rq[i].page_pool, &pp_stats);
+	}
+	page_pool_ethtool_stats_get(data, &pp_stats);
+#endif /* CONFIG_PAGE_POOL_STATS */
+}
+
 static void veth_get_ethtool_stats(struct net_device *dev,
 		struct ethtool_stats *stats, u64 *data)
 {
 	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
 	struct net_device *peer = rtnl_dereference(priv->peer);
-	struct page_pool_stats pp_stats = {};
 	int i, j, idx, pp_idx;
 
 	data[0] = peer ? peer->ifindex : 0;
@@ -225,12 +240,7 @@ static void veth_get_ethtool_stats(struct net_device *dev,
 	}
 
 page_pool_stats:
-	for (i = 0; i < dev->real_num_rx_queues; i++) {
-		if (!priv->rq[i].page_pool)
-			continue;
-		page_pool_get_stats(priv->rq[i].page_pool, &pp_stats);
-	}
-	page_pool_ethtool_stats_get(&data[pp_idx], &pp_stats);
+	veth_get_page_pool_stats(dev, &data[pp_idx]);
 }
 
 static void veth_get_channels(struct net_device *dev,
@@ -334,6 +344,7 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct veth_priv *rcv_priv, *priv = netdev_priv(dev);
 	struct veth_rq *rq = NULL;
+	int ret = NETDEV_TX_OK;
 	struct net_device *rcv;
 	int length = skb->len;
 	bool use_napi = false;
@@ -363,17 +374,17 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (likely(veth_forward_skb(rcv, skb, rq, use_napi) == NET_RX_SUCCESS)) {
 		if (!use_napi)
 			dev_lstats_add(dev, length);
+		else
+			__veth_xdp_flush(rq);
 	} else {
 drop:
 		atomic64_inc(&priv->dropped);
+		ret = NET_XMIT_DROP;
 	}
-
-	if (use_napi)
-		__veth_xdp_flush(rq);
 
 	rcu_read_unlock();
 
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 static u64 veth_stats_tx(struct net_device *dev, u64 *packets, u64 *bytes)
@@ -747,7 +758,7 @@ static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,
 		if (!page)
 			goto drop;
 
-		nskb = build_skb(page_address(page), PAGE_SIZE);
+		nskb = napi_build_skb(page_address(page), PAGE_SIZE);
 		if (!nskb) {
 			page_pool_put_full_page(rq->page_pool, page, true);
 			goto drop;
@@ -1071,8 +1082,9 @@ static int __veth_napi_enable_range(struct net_device *dev, int start, int end)
 err_xdp_ring:
 	for (i--; i >= start; i--)
 		ptr_ring_cleanup(&priv->rq[i].xdp_ring, veth_ptr_free);
+	i = end;
 err_page_pool:
-	for (i = start; i < end; i++) {
+	for (i--; i >= start; i--) {
 		page_pool_destroy(priv->rq[i].page_pool);
 		priv->rq[i].page_pool = NULL;
 	}
@@ -1433,6 +1445,8 @@ static int veth_open(struct net_device *dev)
 		netif_carrier_on(dev);
 		netif_carrier_on(peer);
 	}
+
+	veth_set_xdp_features(dev);
 
 	return 0;
 }
@@ -1850,10 +1864,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 
 		nla_peer = data[VETH_INFO_PEER];
 		ifmp = nla_data(nla_peer);
-		err = rtnl_nla_parse_ifla(peer_tb,
-					  nla_data(nla_peer) + sizeof(struct ifinfomsg),
-					  nla_len(nla_peer) - sizeof(struct ifinfomsg),
-					  NULL);
+		err = rtnl_nla_parse_ifinfomsg(peer_tb, nla_peer, extack);
 		if (err < 0)
 			return err;
 

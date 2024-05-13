@@ -8,44 +8,59 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
-#define PS2_CMD_SETSCALE11	0x00e6
-#define PS2_CMD_SETRES		0x10e8
-#define PS2_CMD_GETID		0x02f2
-#define PS2_CMD_RESET_BAT	0x02ff
+struct ps2dev;
 
-#define PS2_RET_BAT		0xaa
-#define PS2_RET_ID		0x00
-#define PS2_RET_ACK		0xfa
-#define PS2_RET_NAK		0xfe
-#define PS2_RET_ERR		0xfc
+/**
+ * enum ps2_disposition - indicates how received byte should be handled
+ * @PS2_PROCESS: pass to the main protocol handler, process normally
+ * @PS2_IGNORE: skip the byte
+ * @PS2_ERROR: do not process the byte, abort command in progress
+ */
+enum ps2_disposition {
+	PS2_PROCESS,
+	PS2_IGNORE,
+	PS2_ERROR,
+};
 
-#define PS2_FLAG_ACK		BIT(0)	/* Waiting for ACK/NAK */
-#define PS2_FLAG_CMD		BIT(1)	/* Waiting for a command to finish */
-#define PS2_FLAG_CMD1		BIT(2)	/* Waiting for the first byte of command response */
-#define PS2_FLAG_WAITID		BIT(3)	/* Command executing is GET ID */
-#define PS2_FLAG_NAK		BIT(4)	/* Last transmission was NAKed */
-#define PS2_FLAG_ACK_CMD	BIT(5)	/* Waiting to ACK the command (first) byte */
+typedef enum ps2_disposition (*ps2_pre_receive_handler_t)(struct ps2dev *, u8,
+							  unsigned int);
+typedef void (*ps2_receive_handler_t)(struct ps2dev *, u8);
 
+/**
+ * struct ps2dev - represents a device using PS/2 protocol
+ * @serio: a serio port used by the PS/2 device
+ * @cmd_mutex: a mutex ensuring that only one command is executing at a time
+ * @wait: a waitqueue used to signal completion from the serio interrupt handler
+ * @flags: various internal flags indicating stages of PS/2 command execution
+ * @cmdbuf: buffer holding command response
+ * @cmdcnt: outstanding number of bytes of the command response
+ * @nak: a byte transmitted by the device when it refuses command
+ * @pre_receive_handler: checks communication errors and returns disposition
+ * (&enum ps2_disposition) of the received data byte
+ * @receive_handler: main handler of particular PS/2 protocol, such as keyboard
+ *   or mouse protocol
+ */
 struct ps2dev {
 	struct serio *serio;
-
-	/* Ensures that only one command is executing at a time */
 	struct mutex cmd_mutex;
-
-	/* Used to signal completion from interrupt handler */
 	wait_queue_head_t wait;
-
 	unsigned long flags;
 	u8 cmdbuf[8];
 	u8 cmdcnt;
 	u8 nak;
+
+	ps2_pre_receive_handler_t pre_receive_handler;
+	ps2_receive_handler_t receive_handler;
 };
 
-void ps2_init(struct ps2dev *ps2dev, struct serio *serio);
+void ps2_init(struct ps2dev *ps2dev, struct serio *serio,
+	      ps2_pre_receive_handler_t pre_receive_handler,
+	      ps2_receive_handler_t receive_handler);
 int ps2_sendbyte(struct ps2dev *ps2dev, u8 byte, unsigned int timeout);
 void ps2_drain(struct ps2dev *ps2dev, size_t maxbytes, unsigned int timeout);
 void ps2_begin_command(struct ps2dev *ps2dev);
@@ -53,9 +68,8 @@ void ps2_end_command(struct ps2dev *ps2dev);
 int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command);
 int ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command);
 int ps2_sliced_command(struct ps2dev *ps2dev, u8 command);
-bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data);
-bool ps2_handle_response(struct ps2dev *ps2dev, u8 data);
-void ps2_cmd_aborted(struct ps2dev *ps2dev);
 bool ps2_is_keyboard_id(u8 id);
+
+irqreturn_t ps2_interrupt(struct serio *serio, u8 data, unsigned int flags);
 
 #endif /* _LIBPS2_H */

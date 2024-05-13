@@ -27,15 +27,15 @@
 #include <linux/seq_file.h>
 #include <linux/string.h>
 
-static const char *const SM_ECO_NAME       = "eco";
-static const char *const SM_COMFORT_NAME   = "comfort";
-static const char *const SM_SPORT_NAME     = "sport";
-static const char *const SM_TURBO_NAME     = "turbo";
+#define SM_ECO_NAME		"eco"
+#define SM_COMFORT_NAME		"comfort"
+#define SM_SPORT_NAME		"sport"
+#define SM_TURBO_NAME		"turbo"
 
-static const char *const FM_AUTO_NAME     = "auto";
-static const char *const FM_SILENT_NAME   = "silent";
-static const char *const FM_BASIC_NAME    = "basic";
-static const char *const FM_ADVANCED_NAME = "advanced";
+#define FM_AUTO_NAME		"auto"
+#define FM_SILENT_NAME		"silent"
+#define FM_BASIC_NAME		"basic"
+#define FM_ADVANCED_NAME	"advanced"
 
 static const char * const ALLOWED_FW_0[] __initconst = {
 	"14C1EMS1.012",
@@ -276,14 +276,13 @@ static struct msi_ec_conf CONF2 __initdata = {
 
 static const char * const ALLOWED_FW_3[] __initconst = {
 	"1592EMS1.111",
-	"E1592IMS.10C",
 	NULL
 };
 
 static struct msi_ec_conf CONF3 __initdata = {
 	.allowed_fw = ALLOWED_FW_3,
 	.charge_control = {
-		.address      = 0xef,
+		.address      = 0xd7,
 		.offset_start = 0x8a,
 		.offset_end   = 0x80,
 		.range_min    = 0x8a,

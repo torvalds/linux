@@ -2491,7 +2491,7 @@ conv_err_out:
  * byte offset @ofs inside the attribute with the constant byte @val.
  *
  * This function is effectively like memset() applied to an ntfs attribute.
- * Note thie function actually only operates on the page cache pages belonging
+ * Note this function actually only operates on the page cache pages belonging
  * to the ntfs attribute and it marks them dirty after doing the memset().
  * Thus it relies on the vm dirty page write code paths to cause the modified
  * pages to be written to the mft record/disk.

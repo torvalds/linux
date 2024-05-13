@@ -805,7 +805,7 @@ static int mi_set_context(struct i915_request *rq,
 static int remap_l3_slice(struct i915_request *rq, int slice)
 {
 #define L3LOG_DW (GEN7_L3LOG_SIZE / sizeof(u32))
-	u32 *cs, *remap_info = rq->engine->i915->l3_parity.remap_info[slice];
+	u32 *cs, *remap_info = rq->i915->l3_parity.remap_info[slice];
 	int i;
 
 	if (!remap_info)

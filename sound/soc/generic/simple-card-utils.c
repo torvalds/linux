@@ -310,7 +310,8 @@ int asoc_simple_startup(struct snd_pcm_substream *substream)
 		if (fixed_sysclk % props->mclk_fs) {
 			dev_err(rtd->dev, "fixed sysclk %u not divisible by mclk_fs %u\n",
 				fixed_sysclk, props->mclk_fs);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto codec_err;
 		}
 		ret = snd_pcm_hw_constraint_minmax(substream->runtime, SNDRV_PCM_HW_PARAM_RATE,
 			fixed_rate, fixed_rate);
@@ -649,7 +650,7 @@ void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platfo
 	 *	simple-card.c :: simple_count_noml()
 	 */
 	if (!platforms->of_node)
-		platforms->of_node = cpus->of_node;
+		snd_soc_dlc_use_cpu_as_platform(platforms, cpus);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 
@@ -889,11 +890,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
 		li->link, dai_num, cnf_num);
 
-	/* dummy CPU/Codec */
-	priv->dummy.of_node	= NULL;
-	priv->dummy.dai_name	= "snd-soc-dummy-dai";
-	priv->dummy.name	= "snd-soc-dummy";
-
 	priv->dai_props		= dai_props;
 	priv->dai_link		= dai_link;
 	priv->dais		= dais;
@@ -908,7 +904,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	for (i = 0; i < li->link; i++) {
 		if (li->num[i].cpus) {
 			/* Normal CPU */
-			dai_props[i].cpus	=
 			dai_link[i].cpus	= dlcs;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= li->num[i].cpus;
@@ -918,15 +913,13 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dais += li->num[i].cpus;
 		} else {
 			/* DPCM Be's CPU = dummy */
-			dai_props[i].cpus	=
-			dai_link[i].cpus	= &priv->dummy;
+			dai_link[i].cpus	= &asoc_dummy_dlc;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= 1;
 		}
 
 		if (li->num[i].codecs) {
 			/* Normal Codec */
-			dai_props[i].codecs	=
 			dai_link[i].codecs	= dlcs;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= li->num[i].codecs;
@@ -942,15 +935,13 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			}
 		} else {
 			/* DPCM Fe's Codec = dummy */
-			dai_props[i].codecs	=
-			dai_link[i].codecs	= &priv->dummy;
+			dai_link[i].codecs	= &asoc_dummy_dlc;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= 1;
 		}
 
 		if (li->num[i].platforms) {
 			/* Have Platform */
-			dai_props[i].platforms		=
 			dai_link[i].platforms		= dlcs;
 			dai_props[i].num.platforms	=
 			dai_link[i].num_platforms	= li->num[i].platforms;
@@ -958,7 +949,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 			dlcs += li->num[i].platforms;
 		} else {
 			/* Doesn't have Platform */
-			dai_props[i].platforms		=
 			dai_link[i].platforms		= NULL;
 			dai_props[i].num.platforms	=
 			dai_link[i].num_platforms	= 0;
@@ -1023,6 +1013,124 @@ int asoc_graph_is_ports0(struct device_node *np)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(asoc_graph_is_ports0);
+
+static int graph_get_dai_id(struct device_node *ep)
+{
+	struct device_node *node;
+	struct device_node *endpoint;
+	struct of_endpoint info;
+	int i, id;
+	int ret;
+
+	/* use driver specified DAI ID if exist */
+	ret = snd_soc_get_dai_id(ep);
+	if (ret != -ENOTSUPP)
+		return ret;
+
+	/* use endpoint/port reg if exist */
+	ret = of_graph_parse_endpoint(ep, &info);
+	if (ret == 0) {
+		/*
+		 * Because it will count port/endpoint if it doesn't have "reg".
+		 * But, we can't judge whether it has "no reg", or "reg = <0>"
+		 * only of_graph_parse_endpoint().
+		 * We need to check "reg" property
+		 */
+		if (of_property_present(ep,   "reg"))
+			return info.id;
+
+		node = of_get_parent(ep);
+		ret = of_property_present(node, "reg");
+		of_node_put(node);
+		if (ret)
+			return info.port;
+	}
+	node = of_graph_get_port_parent(ep);
+
+	/*
+	 * Non HDMI sound case, counting port/endpoint on its DT
+	 * is enough. Let's count it.
+	 */
+	i = 0;
+	id = -1;
+	for_each_endpoint_of_node(node, endpoint) {
+		if (endpoint == ep)
+			id = i;
+		i++;
+	}
+
+	of_node_put(node);
+
+	if (id < 0)
+		return -ENODEV;
+
+	return id;
+}
+
+int asoc_graph_parse_dai(struct device *dev, struct device_node *ep,
+			 struct snd_soc_dai_link_component *dlc, int *is_single_link)
+{
+	struct device_node *node;
+	struct of_phandle_args args = {};
+	struct snd_soc_dai *dai;
+	int ret;
+
+	if (!ep)
+		return 0;
+
+	node = of_graph_get_port_parent(ep);
+
+	/*
+	 * Try to find from DAI node
+	 */
+	args.np = ep;
+	dai = snd_soc_get_dai_via_args(&args);
+	if (dai) {
+		dlc->dai_name = snd_soc_dai_name_get(dai);
+		dlc->dai_args = snd_soc_copy_dai_args(dev, &args);
+		if (!dlc->dai_args)
+			return -ENOMEM;
+
+		goto parse_dai_end;
+	}
+
+	/* Get dai->name */
+	args.np		= node;
+	args.args[0]	= graph_get_dai_id(ep);
+	args.args_count	= (of_graph_get_endpoint_count(node) > 1);
+
+	/*
+	 * FIXME
+	 *
+	 * Here, dlc->dai_name is pointer to CPU/Codec DAI name.
+	 * If user unbinded CPU or Codec driver, but not for Sound Card,
+	 * dlc->dai_name is keeping unbinded CPU or Codec
+	 * driver's pointer.
+	 *
+	 * If user re-bind CPU or Codec driver again, ALSA SoC will try
+	 * to rebind Card via snd_soc_try_rebind_card(), but because of
+	 * above reason, it might can't bind Sound Card.
+	 * Because Sound Card is pointing to released dai_name pointer.
+	 *
+	 * To avoid this rebind Card issue,
+	 * 1) It needs to alloc memory to keep dai_name eventhough
+	 *    CPU or Codec driver was unbinded, or
+	 * 2) user need to rebind Sound Card everytime
+	 *    if he unbinded CPU or Codec.
+	 */
+	ret = snd_soc_get_dlc(&args, dlc);
+	if (ret < 0) {
+		of_node_put(node);
+		return ret;
+	}
+
+parse_dai_end:
+	if (is_single_link)
+		*is_single_link = of_graph_get_endpoint_count(node) == 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(asoc_graph_parse_dai);
 
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

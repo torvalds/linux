@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/stmmac.h>
 #include <linux/clk.h>
@@ -234,7 +234,8 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	res.addr = mgbe->regs;
 	res.irq = irq;
 
-	mgbe->clks = devm_kzalloc(&pdev->dev, sizeof(*mgbe->clks), GFP_KERNEL);
+	mgbe->clks = devm_kcalloc(&pdev->dev, ARRAY_SIZE(mgbe_clks),
+				  sizeof(*mgbe->clks), GFP_KERNEL);
 	if (!mgbe->clks)
 		return -ENOMEM;
 
@@ -290,7 +291,7 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	}
 
 	plat->has_xgmac = 1;
-	plat->tso_en = 1;
+	plat->flags |= STMMAC_FLAG_TSO_EN;
 	plat->pmt = 1;
 	plat->bsp_priv = mgbe;
 
@@ -337,7 +338,7 @@ static int tegra_mgbe_probe(struct platform_device *pdev)
 	/* Program SID */
 	writel(MGBE_SID, mgbe->hv + MGBE_WRAP_AXI_ASID0_CTRL);
 
-	plat->serdes_up_after_phy_linkup = 1;
+	plat->flags |= STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP;
 
 	err = stmmac_dvr_probe(&pdev->dev, plat, &res);
 	if (err < 0)
@@ -353,15 +354,13 @@ disable_clks:
 	return err;
 }
 
-static int tegra_mgbe_remove(struct platform_device *pdev)
+static void tegra_mgbe_remove(struct platform_device *pdev)
 {
 	struct tegra_mgbe *mgbe = get_stmmac_bsp_priv(&pdev->dev);
 
 	clk_bulk_disable_unprepare(ARRAY_SIZE(mgbe_clks), mgbe->clks);
 
 	stmmac_pltfr_remove(pdev);
-
-	return 0;
 }
 
 static const struct of_device_id tegra_mgbe_match[] = {
@@ -374,7 +373,7 @@ static SIMPLE_DEV_PM_OPS(tegra_mgbe_pm_ops, tegra_mgbe_suspend, tegra_mgbe_resum
 
 static struct platform_driver tegra_mgbe_driver = {
 	.probe = tegra_mgbe_probe,
-	.remove = tegra_mgbe_remove,
+	.remove_new = tegra_mgbe_remove,
 	.driver = {
 		.name = "tegra-mgbe",
 		.pm		= &tegra_mgbe_pm_ops,

@@ -3112,7 +3112,6 @@ static int __init atafb_probe(struct platform_device *pdev)
 #ifdef ATAFB_FALCON
 	fb_info.pseudo_palette = current_par.hw.falcon.pseudo_palette;
 #endif
-	fb_info.flags = FBINFO_FLAG_DEFAULT;
 
 	if (!fb_find_mode(&fb_info.var, &fb_info, mode_option, atafb_modedb,
 			  NUM_TOTAL_MODES, &atafb_modedb[defmode],

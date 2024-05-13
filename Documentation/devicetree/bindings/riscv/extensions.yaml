@@ -1,0 +1,250 @@
+# SPDX-License-Identifier: (GPL-2.0 OR MIT)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/riscv/extensions.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: RISC-V ISA extensions
+
+maintainers:
+  - Paul Walmsley <paul.walmsley@sifive.com>
+  - Palmer Dabbelt <palmer@sifive.com>
+  - Conor Dooley <conor@kernel.org>
+
+description: |
+  RISC-V has a large number of extensions, some of which are "standard"
+  extensions, meaning they are ratified by RISC-V International, and others
+  are "vendor" extensions.
+  This document defines properties that indicate whether a hart supports a
+  given extension.
+
+  Once a standard extension has been ratified, no changes in behaviour can be
+  made without the creation of a new extension.
+  The properties for standard extensions therefore map to their originally
+  ratified states, with the exception of the I, Zicntr & Zihpm extensions.
+  See the "i" property for more information.
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: riscv
+
+properties:
+  riscv,isa:
+    description:
+      Identifies the specific RISC-V instruction set architecture
+      supported by the hart.  These are documented in the RISC-V
+      User-Level ISA document, available from
+      https://riscv.org/specifications/
+
+      Due to revisions of the ISA specification, some deviations
+      have arisen over time.
+      Notably, riscv,isa was defined prior to the creation of the
+      Zicntr, Zicsr, Zifencei and Zihpm extensions and thus "i"
+      implies "zicntr_zicsr_zifencei_zihpm".
+
+      While the isa strings in ISA specification are case
+      insensitive, letters in the riscv,isa string must be all
+      lowercase.
+    $ref: /schemas/types.yaml#/definitions/string
+    pattern: ^rv(?:64|32)imaf?d?q?c?b?k?j?p?v?h?(?:[hsxz](?:[a-z])+)?(?:_[hsxz](?:[a-z])+)*$
+    deprecated: true
+
+  riscv,isa-base:
+    description:
+      The base ISA implemented by this hart, as described by the 20191213
+      version of the unprivileged ISA specification.
+    enum:
+      - rv32i
+      - rv64i
+
+  riscv,isa-extensions:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    minItems: 1
+    description: Extensions supported by the hart.
+    items:
+      anyOf:
+        # single letter extensions, in canonical order
+        - const: i
+          description: |
+            The base integer instruction set, as ratified in the 20191213
+            version of the unprivileged ISA specification.
+
+            This does not include Chapter 10, "Counters", which was moved into
+            the Zicntr and Zihpm extensions after the ratification of the
+            20191213 version of the unprivileged specification.
+
+        - const: m
+          description:
+            The standard M extension for integer multiplication and division, as
+            ratified in the 20191213 version of the unprivileged ISA
+            specification.
+
+        - const: a
+          description:
+            The standard A extension for atomic instructions, as ratified in the
+            20191213 version of the unprivileged ISA specification.
+
+        - const: f
+          description:
+            The standard F extension for single-precision floating point, as
+            ratified in the 20191213 version of the unprivileged ISA
+            specification.
+
+        - const: d
+          description:
+            The standard D extension for double-precision floating-point, as
+            ratified in the 20191213 version of the unprivileged ISA
+            specification.
+
+        - const: q
+          description:
+            The standard Q extension for quad-precision floating-point, as
+            ratified in the 20191213 version of the unprivileged ISA
+            specification.
+
+        - const: c
+          description:
+            The standard C extension for compressed instructions, as ratified in
+            the 20191213 version of the unprivileged ISA specification.
+
+        - const: v
+          description:
+            The standard V extension for vector operations, as ratified
+            in-and-around commit 7a6c8ae ("Fix text that describes vfmv.v.f
+            encoding") of the riscv-v-spec.
+
+        - const: h
+          description:
+            The standard H extension for hypervisors as ratified in the 20191213
+            version of the privileged ISA specification.
+
+        # multi-letter extensions, sorted alphanumerically
+        - const: smaia
+          description: |
+            The standard Smaia supervisor-level extension for the advanced
+            interrupt architecture for machine-mode-visible csr and behavioural
+            changes to interrupts as frozen at commit ccbddab ("Merge pull
+            request #42 from riscv/jhauser-2023-RC4") of riscv-aia.
+
+        - const: ssaia
+          description: |
+            The standard Ssaia supervisor-level extension for the advanced
+            interrupt architecture for supervisor-mode-visible csr and
+            behavioural changes to interrupts as frozen at commit ccbddab
+            ("Merge pull request #42 from riscv/jhauser-2023-RC4") of riscv-aia.
+
+        - const: sscofpmf
+          description: |
+            The standard Sscofpmf supervisor-level extension for count overflow
+            and mode-based filtering as ratified at commit 01d1df0 ("Add ability
+            to manually trigger workflow. (#2)") of riscv-count-overflow.
+
+        - const: sstc
+          description: |
+            The standard Sstc supervisor-level extension for time compare as
+            ratified at commit 3f9ed34 ("Add ability to manually trigger
+            workflow. (#2)") of riscv-time-compare.
+
+        - const: svinval
+          description:
+            The standard Svinval supervisor-level extension for fine-grained
+            address-translation cache invalidation as ratified in the 20191213
+            version of the privileged ISA specification.
+
+        - const: svnapot
+          description:
+            The standard Svnapot supervisor-level extensions for napot
+            translation contiguity as ratified in the 20191213 version of the
+            privileged ISA specification.
+
+        - const: svpbmt
+          description:
+            The standard Svpbmt supervisor-level extensions for page-based
+            memory types as ratified in the 20191213 version of the privileged
+            ISA specification.
+
+        - const: zba
+          description: |
+            The standard Zba bit-manipulation extension for address generation
+            acceleration instructions as ratified at commit 6d33919 ("Merge pull
+            request #158 from hirooih/clmul-fix-loop-end-condition") of
+            riscv-bitmanip.
+
+        - const: zbb
+          description: |
+            The standard Zbb bit-manipulation extension for basic bit-manipulation
+            as ratified at commit 6d33919 ("Merge pull request #158 from
+            hirooih/clmul-fix-loop-end-condition") of riscv-bitmanip.
+
+        - const: zbc
+          description: |
+            The standard Zbc bit-manipulation extension for carry-less
+            multiplication as ratified at commit 6d33919 ("Merge pull request
+            #158 from hirooih/clmul-fix-loop-end-condition") of riscv-bitmanip.
+
+        - const: zbs
+          description: |
+            The standard Zbs bit-manipulation extension for single-bit
+            instructions as ratified at commit 6d33919 ("Merge pull request #158
+            from hirooih/clmul-fix-loop-end-condition") of riscv-bitmanip.
+
+        - const: zicbom
+          description:
+            The standard Zicbom extension for base cache management operations as
+            ratified in commit 3dd606f ("Create cmobase-v1.0.pdf") of riscv-CMOs.
+
+        - const: zicbop
+          description:
+            The standard Zicbop extension for cache-block prefetch instructions
+            as ratified in commit 3dd606f ("Create cmobase-v1.0.pdf") of
+            riscv-CMOs.
+
+        - const: zicboz
+          description:
+            The standard Zicboz extension for cache-block zeroing as ratified
+            in commit 3dd606f ("Create cmobase-v1.0.pdf") of riscv-CMOs.
+
+        - const: zicntr
+          description:
+            The standard Zicntr extension for base counters and timers, as
+            ratified in the 20191213 version of the unprivileged ISA
+            specification.
+
+        - const: zicsr
+          description: |
+            The standard Zicsr extension for control and status register
+            instructions, as ratified in the 20191213 version of the
+            unprivileged ISA specification.
+
+            This does not include Chapter 10, "Counters", which documents
+            special case read-only CSRs, that were moved into the Zicntr and
+            Zihpm extensions after the ratification of the 20191213 version of
+            the unprivileged specification.
+
+        - const: zifencei
+          description:
+            The standard Zifencei extension for instruction-fetch fence, as
+            ratified in the 20191213 version of the unprivileged ISA
+            specification.
+
+        - const: zihintpause
+          description:
+            The standard Zihintpause extension for pause hints, as ratified in
+            commit d8ab5c7 ("Zihintpause is ratified") of the riscv-isa-manual.
+
+        - const: zihpm
+          description:
+            The standard Zihpm extension for hardware performance counters, as
+            ratified in the 20191213 version of the unprivileged ISA
+            specification.
+
+        - const: ztso
+          description:
+            The standard Ztso extension for total store ordering, as ratified
+            in commit 2e5236 ("Ztso is now ratified.") of the
+            riscv-isa-manual.
+
+additionalProperties: true
+...

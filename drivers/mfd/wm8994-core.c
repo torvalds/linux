@@ -320,8 +320,6 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	if (ret != 0)
 		return ret;
 
-	dev_set_drvdata(wm8994->dev, wm8994);
-
 	/* Add the on-chip regulators first for bootstrapping */
 	ret = mfd_add_devices(wm8994->dev, 0,
 			      wm8994_regulator_devs,
@@ -630,7 +628,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c)
 	if (i2c->dev.of_node) {
 		of_id = of_match_device(wm8994_of_match, &i2c->dev);
 		if (of_id)
-			wm8994->type = (enum wm8994_type)of_id->data;
+			wm8994->type = (uintptr_t)of_id->data;
 	} else {
 		wm8994->type = id->driver_data;
 	}
@@ -672,7 +670,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 		.pm = pm_ptr(&wm8994_pm_ops),
 		.of_match_table = wm8994_of_match,
 	},
-	.probe_new = wm8994_i2c_probe,
+	.probe = wm8994_i2c_probe,
 	.remove = wm8994_i2c_remove,
 	.id_table = wm8994_i2c_id,
 };

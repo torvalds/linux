@@ -39,6 +39,7 @@
 
 #ifndef __BNXT_RE_H__
 #define __BNXT_RE_H__
+#include <rdma/uverbs_ioctl.h>
 #include "hw_counters.h"
 #define ROCE_DRV_MODULE_NAME		"bnxt_re"
 
@@ -111,12 +112,34 @@ struct bnxt_re_gsi_context {
 #define BNXT_RE_NQ_IDX			1
 #define BNXT_RE_GEN_P5_MAX_VF		64
 
+struct bnxt_re_pacing {
+	u64 dbr_db_fifo_reg_off;
+	void *dbr_page;
+	u64 dbr_bar_addr;
+	u32 pacing_algo_th;
+	u32 do_pacing_save;
+	u32 dbq_pacing_time; /* ms */
+	u32 dbr_def_do_pacing;
+	bool dbr_pacing;
+	struct mutex dbq_lock; /* synchronize db pacing algo */
+};
+
+#define BNXT_RE_MAX_DBR_DO_PACING 0xFFFF
+#define BNXT_RE_DBR_PACING_TIME 5 /* ms */
+#define BNXT_RE_PACING_ALGO_THRESHOLD 250 /* Entries in DB FIFO */
+#define BNXT_RE_PACING_ALARM_TH_MULTIPLE 2 /* Multiple of pacing algo threshold */
+/* Default do_pacing value when there is no congestion */
+#define BNXT_RE_DBR_DO_PACING_NO_CONGESTION 0x7F /* 1 in 512 probability */
+#define BNXT_RE_DB_FIFO_ROOM_MASK 0x1FFF8000
+#define BNXT_RE_MAX_FIFO_DEPTH 0x2c00
+#define BNXT_RE_DB_FIFO_ROOM_SHIFT 15
+#define BNXT_RE_GRC_FIFO_REG_BASE 0x2000
+
 struct bnxt_re_dev {
 	struct ib_device		ibdev;
 	struct list_head		list;
 	unsigned long			flags;
 #define BNXT_RE_FLAG_NETDEV_REGISTERED		0
-#define BNXT_RE_FLAG_GOT_MSIX			2
 #define BNXT_RE_FLAG_HAVE_L2_REF		3
 #define BNXT_RE_FLAG_RCFW_CHANNEL_EN		4
 #define BNXT_RE_FLAG_QOS_WORK_REG		5
@@ -151,16 +174,9 @@ struct bnxt_re_dev {
 	struct bnxt_qplib_res		qplib_res;
 	struct bnxt_qplib_dpi		dpi_privileged;
 
-	atomic_t			qp_count;
 	struct mutex			qp_lock;	/* protect qp list */
 	struct list_head		qp_list;
 
-	atomic_t			cq_count;
-	atomic_t			srq_count;
-	atomic_t			mr_count;
-	atomic_t			mw_count;
-	atomic_t			ah_count;
-	atomic_t			pd_count;
 	/* Max of 2 lossless traffic class supported per port */
 	u16				cosq[2];
 
@@ -170,6 +186,9 @@ struct bnxt_re_dev {
 	atomic_t nq_alloc_cnt;
 	u32 is_virtfn;
 	u32 num_vfs;
+	struct bnxt_re_pacing pacing;
+	struct work_struct dbq_fifo_check_work;
+	struct delayed_work dbq_pacing_work;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
@@ -179,10 +198,15 @@ struct bnxt_re_dev {
 #define BNXT_RE_ROCEV2_IPV4_PACKET	2
 #define BNXT_RE_ROCEV2_IPV6_PACKET	3
 
+#define BNXT_RE_CHECK_RC(x) ((x) && ((x) != -ETIMEDOUT))
+void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev);
+
 static inline struct device *rdev_to_dev(struct bnxt_re_dev *rdev)
 {
 	if (rdev)
 		return  &rdev->ibdev.dev;
 	return NULL;
 }
+
+extern const struct uapi_definition bnxt_re_uapi_defs[];
 #endif

@@ -211,11 +211,17 @@ enum link_training_result dp_perform_128b_132b_link_training(
 
 	dpcd_set_link_settings(link, lt_settings);
 
-	if (result == LINK_TRAINING_SUCCESS)
+	if (result == LINK_TRAINING_SUCCESS) {
 		result = dp_perform_128b_132b_channel_eq_done_sequence(link, link_res, lt_settings);
+		if (result == LINK_TRAINING_SUCCESS)
+			DC_LOG_HW_LINK_TRAINING("%s: Channel EQ done.\n", __func__);
+	}
 
-	if (result == LINK_TRAINING_SUCCESS)
+	if (result == LINK_TRAINING_SUCCESS) {
 		result = dp_perform_128b_132b_cds_done_sequence(link, link_res, lt_settings);
+		if (result == LINK_TRAINING_SUCCESS)
+			DC_LOG_HW_LINK_TRAINING("%s: CDS done.\n", __func__);
+	}
 
 	return result;
 }

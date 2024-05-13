@@ -58,6 +58,7 @@ struct i915_perf_group;
 
 typedef u32 intel_engine_mask_t;
 #define ALL_ENGINES ((intel_engine_mask_t)~0ul)
+#define VIRTUAL_ENGINES BIT(BITS_PER_TYPE(intel_engine_mask_t) - 1)
 
 struct intel_hw_status_page {
 	struct list_head timelines;
@@ -289,6 +290,7 @@ struct intel_engine_execlists {
 	 */
 	u8 csb_head;
 
+	/* private: selftest */
 	I915_SELFTEST_DECLARE(struct st_preempt_hang preempt_hang;)
 };
 

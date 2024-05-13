@@ -379,6 +379,7 @@ static int rockchip_pdm_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops rockchip_pdm_dai_ops = {
+	.probe = rockchip_pdm_dai_probe,
 	.set_fmt = rockchip_pdm_set_fmt,
 	.trigger = rockchip_pdm_trigger,
 	.hw_params = rockchip_pdm_hw_params,
@@ -391,7 +392,6 @@ static const struct snd_soc_dai_ops rockchip_pdm_dai_ops = {
 			      SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver rockchip_pdm_dai = {
-	.probe = rockchip_pdm_dai_probe,
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
@@ -584,7 +584,7 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 
 	match = of_match_device(rockchip_pdm_match, &pdev->dev);
 	if (match)
-		pdm->version = (enum rk_pdm_version)match->data;
+		pdm->version = (uintptr_t)match->data;
 
 	if (pdm->version == RK_PDM_RK3308) {
 		pdm->reset = devm_reset_control_get(&pdev->dev, "pdm-m");

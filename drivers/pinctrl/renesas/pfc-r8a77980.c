@@ -99,7 +99,7 @@
 #define GPSR1_0		F_(IRQ0,		IP2_27_24)
 
 /* GPSR2 */
-#define GPSR2_29	F_(FSO_TOE_N,  		IP10_19_16)
+#define GPSR2_29	F_(FSO_TOE_N,		IP10_19_16)
 #define GPSR2_28	F_(FSO_CFE_1_N,		IP10_15_12)
 #define GPSR2_27	F_(FSO_CFE_0_N,		IP10_11_8)
 #define GPSR2_26	F_(SDA3,		IP10_7_4)
@@ -264,11 +264,11 @@
 #define IP8_11_8	FM(CANFD0_RX_A)			FM(RXDA_EXTFXR)		FM(PWM1_B)		FM(DU_CDE)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP8_15_12	FM(CANFD1_TX)			FM(FXR_TXDB)		FM(PWM2_B)		FM(TCLK1_B)	FM(TX1_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP8_19_16	FM(CANFD1_RX)			FM(RXDB_EXTFXR)		FM(PWM3_B)		FM(TCLK2_B)	FM(RX1_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP8_23_20	FM(CANFD_CLK_A) 		FM(CLK_EXTFXR)		FM(PWM4_B)		FM(SPEEDIN_B)	FM(SCIF_CLK_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP8_23_20	FM(CANFD_CLK_A)			FM(CLK_EXTFXR)		FM(PWM4_B)		FM(SPEEDIN_B)	FM(SCIF_CLK_B)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP8_27_24	FM(DIGRF_CLKIN)			FM(DIGRF_CLKEN_IN)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP8_31_28	FM(DIGRF_CLKOUT)		FM(DIGRF_CLKEN_OUT)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP9_3_0		FM(IRQ4)			F_(0, 0)		F_(0, 0)		FM(VI0_DATA12)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP9_7_4 	FM(IRQ5)			F_(0, 0)		F_(0, 0)		FM(VI0_DATA13)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP9_7_4		FM(IRQ5)			F_(0, 0)		F_(0, 0)		FM(VI0_DATA13)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP9_11_8	FM(MSIOF0_RXD)			FM(DU_DR0)		F_(0, 0)		FM(VI0_DATA14)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP9_15_12	FM(MSIOF0_TXD)			FM(DU_DR1)		F_(0, 0)		FM(VI0_DATA15)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP9_19_16	FM(MSIOF0_SCK)			FM(DU_DG0)		F_(0, 0)		FM(VI0_DATA16)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)

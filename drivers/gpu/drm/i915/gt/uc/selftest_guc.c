@@ -204,9 +204,9 @@ static int intel_guc_steal_guc_ids(void *arg)
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
 			rq = NULL;
-			if (ret != -EAGAIN) {
-				guc_err(guc, "Failed to create request %d: %pe\n",
-					context_index, ERR_PTR(ret));
+			if ((ret != -EAGAIN) || !last) {
+				guc_err(guc, "Failed to create %srequest %d: %pe\n",
+					last ? "" : "first ", context_index, ERR_PTR(ret));
 				goto err_spin_rq;
 			}
 		} else {

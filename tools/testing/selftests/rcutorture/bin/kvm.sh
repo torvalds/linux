@@ -186,7 +186,7 @@ do
 		fi
 		;;
 	--kconfig|--kconfigs)
-		checkarg --kconfig "(Kconfig options)" $# "$2" '^CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\( CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\)*$' '^error$'
+		checkarg --kconfig "(Kconfig options)" $# "$2" '^\(#CHECK#\)\?CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\( \(#CHECK#\)\?CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\|"[^"]*"\)\)*$' '^error$'
 		TORTURE_KCONFIG_ARG="`echo "$TORTURE_KCONFIG_ARG $2" | sed -e 's/^ *//' -e 's/ *$//'`"
 		shift
 		;;
@@ -655,4 +655,4 @@ fi
 # Control buffer size: --bootargs trace_buf_size=3k
 # Get trace-buffer dumps on all oopses: --bootargs ftrace_dump_on_oops
 # Ditto, but dump only the oopsing CPU: --bootargs ftrace_dump_on_oops=orig_cpu
-# Heavy-handed way to also dump on warnings: --bootargs panic_on_warn
+# Heavy-handed way to also dump on warnings: --bootargs panic_on_warn=1

@@ -15,10 +15,12 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
-#include <dt-bindings/mux/ti-serdes.h>
+#include <dt-bindings/leds/leds-pca9532.h>
 #include <dt-bindings/phy/phy.h>
 #include "k3-am642.dtsi"
 #include "k3-am64-phycore-som.dtsi"
+
+#include "k3-serdes.h"
 
 / {
 	compatible = "phytec,am642-phyboard-electra-rdk",
@@ -75,7 +77,7 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&leds_pins_default &user_leds_pins_default>;
+		pinctrl-0 = <&leds_pins_default>, <&user_leds_pins_default>;
 
 		led-1 {
 			color = <LED_COLOR_ID_RED>;
@@ -104,47 +106,47 @@
 };
 
 &main_pmx0 {
-	can_tc1_pins_default: can-tc1-pins-default {
+	can_tc1_pins_default: can-tc1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0084, PIN_OUTPUT, 7)	/* (P16) GPMC0_ADVn_ALE.GPIO0_32 */
 		>;
 	};
 
-	can_tc2_pins_default: can-tc2-pins-default {
+	can_tc2_pins_default: can-tc2-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0090, PIN_OUTPUT, 7)	/* (P17) GPMC0_BE0n_CLE.GPIO0_35 */
 		>;
 	};
 
-	gpio_keys_pins_default: gpio-keys-pins-default {
+	gpio_keys_pins_default: gpio-keys-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0044, PIN_INPUT, 7)	/* (T18) GPMC0_AD2.GPIO0_17 */
 			AM64X_IOPAD(0x0054, PIN_INPUT, 7)	/* (V20) GPMC0_AD6.GPIO0_21 */
 		>;
 	};
 
-	main_i2c1_pins_default: main-i2c1-pins-default {
+	main_i2c1_pins_default: main-i2c1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0268, PIN_INPUT, 0)	/* (C18) I2C1_SCL */
 			AM64X_IOPAD(0x026c, PIN_INPUT, 0)	/* (B19) I2C1_SDA */
 		>;
 	};
 
-	main_mcan0_pins_default: main-mcan0-pins-default {
+	main_mcan0_pins_default: main-mcan0-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0250, PIN_OUTPUT, 0)	/* (A17) MCAN0_TX */
 			AM64X_IOPAD(0x0254, PIN_INPUT, 0)	/* (B17) MCAN0_RX */
 		>;
 	};
 
-	main_mcan1_pins_default: main-mcan1-pins-default {
+	main_mcan1_pins_default: main-mcan1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0258, PIN_OUTPUT, 0)	/* (C17) MCAN1_TX */
 			AM64X_IOPAD(0x025c, PIN_INPUT, 0)	/* (D17) MCAN1_RX */
 		>;
 	};
 
-	main_mmc1_pins_default: main-mmc1-pins-default {
+	main_mmc1_pins_default: main-mmc1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x027c, PIN_INPUT_PULLUP, 0)	/* (K18) MMC1_DAT3 */
 			AM64X_IOPAD(0x0280, PIN_INPUT_PULLUP, 0)	/* (K19) MMC1_DAT2 */
@@ -157,14 +159,14 @@
 		>;
 	};
 
-	main_uart0_pins_default: main-uart0-pins-default {
+	main_uart0_pins_default: main-uart0-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0230, PIN_INPUT, 0)	/* (D15) UART0_RXD */
 			AM64X_IOPAD(0x0234, PIN_OUTPUT, 0)	/* (C16) UART0_TXD */
 		>;
 	};
 
-	main_uart1_pins_default: main-uart1-pins-default {
+	main_uart1_pins_default: main-uart1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0248, PIN_INPUT, 0)	/* (D16) UART1_CTSn */
 			AM64X_IOPAD(0x024C, PIN_OUTPUT, 0)	/* (E16) UART1_RTSn */
@@ -173,25 +175,25 @@
 		>;
 	};
 
-	main_usb0_pins_default: main-usb0-pins-default {
+	main_usb0_pins_default: main-usb0-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x02a8, PIN_OUTPUT, 0)	/* (E19) USB0_DRVVBUS */
 		>;
 	};
 
-	pcie_usb_sel_pins_default: pcie-usb-sel-pins-default {
+	pcie_usb_sel_pins_default: pcie-usb-sel-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x017c, PIN_OUTPUT, 7)	/* (T1) PRG0_PRU0_GPO7.GPIO1_7 */
 		>;
 	};
 
-	pcie0_pins_default: pcie0-pins-default {
+	pcie0_pins_default: pcie0-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0098, PIN_OUTPUT, 7)	/* (W19) GPMC0_WAIT0.GPIO0_37 */
 		>;
 	};
 
-	user_leds_pins_default: user-leds-pins-default {
+	user_leds_pins_default: user-leds-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x003c, PIN_OUTPUT, 7)	/* (T20) GPMC0_AD0.GPIO0_15 */
 			AM64X_IOPAD(0x0040, PIN_OUTPUT, 7)	/* (U21) GPMC0_AD1.GPIO0_16 */
@@ -209,6 +211,26 @@
 		compatible = "atmel,24c02";
 		pagesize = <16>;
 		reg = <0x51>;
+	};
+
+	led-controller@62 {
+		compatible = "nxp,pca9533";
+		reg = <0x62>;
+
+		led-3 {
+			label = "red:user";
+			type = <PCA9532_TYPE_LED>;
+		};
+
+		led-4 {
+			label = "green:user";
+			type = <PCA9532_TYPE_LED>;
+		};
+
+		led-5 {
+			label = "blue:user";
+			type = <PCA9532_TYPE_LED>;
+		};
 	};
 };
 
@@ -230,6 +252,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
+	current-speed = <115200>;
 };
 
 &main_uart1 {
@@ -237,6 +260,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart1_pins_default>;
 	uart-has-rtscts;
+	current-speed = <115200>;
 };
 
 &sdhci1 {

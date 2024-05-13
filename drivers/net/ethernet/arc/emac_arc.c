@@ -61,11 +61,11 @@ out_netdev:
 static int emac_arc_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	int err;
 
-	err = arc_emac_remove(ndev);
+	arc_emac_remove(ndev);
 	free_netdev(ndev);
-	return err;
+
+	return 0;
 }
 
 static const struct of_device_id emac_arc_dt_ids[] = {

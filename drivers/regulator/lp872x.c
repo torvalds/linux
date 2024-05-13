@@ -864,7 +864,7 @@ static struct lp872x_platform_data
 
 	for (i = 0; i < num_matches; i++) {
 		pdata->regulator_data[i].id =
-				(enum lp872x_regulator_id)match[i].driver_data;
+				(uintptr_t)match[i].driver_data;
 		pdata->regulator_data[i].init_data = match[i].init_data;
 	}
 out:
@@ -947,7 +947,7 @@ static struct i2c_driver lp872x_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(lp872x_dt_ids),
 	},
-	.probe_new = lp872x_probe,
+	.probe = lp872x_probe,
 	.id_table = lp872x_ids,
 };
 

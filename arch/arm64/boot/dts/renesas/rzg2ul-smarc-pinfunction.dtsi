@@ -50,6 +50,12 @@
 		input-enable;
 	};
 
+	mtu3_pins: mtu3 {
+		mtu2-pwm {
+			pinmux = <RZG2L_PORT_PINMUX(4, 0, 4)>; /* MTIOC2A */
+		};
+	};
+
 	scif0_pins: scif0 {
 		pinmux = <RZG2L_PORT_PINMUX(6, 4, 6)>, /* TxD */
 			 <RZG2L_PORT_PINMUX(6, 3, 6)>; /* RxD */

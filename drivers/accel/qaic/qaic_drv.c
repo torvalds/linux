@@ -165,7 +165,6 @@ static const struct drm_driver qaic_accel_driver = {
 
 	.ioctls			= qaic_drm_ioctls,
 	.num_ioctls		= ARRAY_SIZE(qaic_drm_ioctls),
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import	= qaic_gem_prime_import,
 };
 

@@ -14,6 +14,8 @@
 #include "../../../util/intel-bts.h"
 #include "../../../util/pmu.h"
 #include "../../../util/fncache.h"
+#include "../../../util/pmus.h"
+#include "env.h"
 
 struct pmu_alias {
 	char *name;
@@ -124,7 +126,7 @@ close_dir:
 	return ret;
 }
 
-static char *__pmu_find_real_name(const char *name)
+static const char *__pmu_find_real_name(const char *name)
 {
 	struct pmu_alias *pmu_alias;
 
@@ -133,10 +135,10 @@ static char *__pmu_find_real_name(const char *name)
 			return pmu_alias->name;
 	}
 
-	return (char *)name;
+	return name;
 }
 
-char *pmu_find_real_name(const char *name)
+const char *pmu_find_real_name(const char *name)
 {
 	if (cached_list)
 		return __pmu_find_real_name(name);
@@ -147,7 +149,7 @@ char *pmu_find_real_name(const char *name)
 	return __pmu_find_real_name(name);
 }
 
-static char *__pmu_find_alias_name(const char *name)
+static const char *__pmu_find_alias_name(const char *name)
 {
 	struct pmu_alias *pmu_alias;
 
@@ -158,7 +160,7 @@ static char *__pmu_find_alias_name(const char *name)
 	return NULL;
 }
 
-char *pmu_find_alias_name(const char *name)
+const char *pmu_find_alias_name(const char *name)
 {
 	if (cached_list)
 		return __pmu_find_alias_name(name);
@@ -167,4 +169,14 @@ char *pmu_find_alias_name(const char *name)
 	cached_list = true;
 
 	return __pmu_find_alias_name(name);
+}
+
+int perf_pmus__num_mem_pmus(void)
+{
+	/* AMD uses IBS OP pmu and not a core PMU for perf mem/c2c */
+	if (x86__is_amd_cpu())
+		return 1;
+
+	/* Intel uses core pmus for perf mem/c2c */
+	return perf_pmus__num_core_pmus();
 }

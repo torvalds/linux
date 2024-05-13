@@ -3,6 +3,7 @@
  * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
@@ -30,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
+#include <linux/clk/clk-conf.h>
 
 #include <asm/barrier.h>
 #include <asm/sections.h>
@@ -66,7 +68,6 @@ static u64 etm4_get_access_type(struct etmv4_config *config);
 static enum cpuhp_state hp_online;
 
 struct etm4_init_arg {
-	unsigned int		pid;
 	struct device		*dev;
 	struct csdev_access	*csa;
 };
@@ -370,9 +371,17 @@ static void etm4_disable_arch_specific(struct etmv4_drvdata *drvdata)
 }
 
 static void etm4_check_arch_features(struct etmv4_drvdata *drvdata,
-				      unsigned int id)
+				     struct csdev_access *csa)
 {
-	if (etm4_hisi_match_pid(id))
+	/*
+	 * TRCPIDR* registers are not required for ETMs with system
+	 * instructions. They must be identified by the MIDR+REVIDRs.
+	 * Skip the TRCPID checks for now.
+	 */
+	if (!csa->io_mem)
+		return;
+
+	if (etm4_hisi_match_pid(coresight_get_pid(csa)))
 		set_bit(ETM4_IMPDEF_HISI_CORE_COMMIT, drvdata->arch_features);
 }
 #else
@@ -385,7 +394,7 @@ static void etm4_disable_arch_specific(struct etmv4_drvdata *drvdata)
 }
 
 static void etm4_check_arch_features(struct etmv4_drvdata *drvdata,
-				     unsigned int id)
+				     struct csdev_access *csa)
 {
 }
 #endif /* CONFIG_ETM4X_IMPDEF_FEATURE */
@@ -822,8 +831,8 @@ unlock_sysfs_enable:
 	return ret;
 }
 
-static int etm4_enable(struct coresight_device *csdev,
-		       struct perf_event *event, u32 mode)
+static int etm4_enable(struct coresight_device *csdev, struct perf_event *event,
+		       enum cs_mode mode)
 {
 	int ret;
 	u32 val;
@@ -989,7 +998,7 @@ static void etm4_disable_sysfs(struct coresight_device *csdev)
 static void etm4_disable(struct coresight_device *csdev,
 			 struct perf_event *event)
 {
-	u32 mode;
+	enum cs_mode mode;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*
@@ -1066,10 +1075,20 @@ static bool etm4_init_sysreg_access(struct etmv4_drvdata *drvdata,
 	return true;
 }
 
+static bool is_devtype_cpu_trace(void __iomem *base)
+{
+	u32 devtype = readl(base + TRCDEVTYPE);
+
+	return (devtype == CS_DEVTYPE_PE_TRACE);
+}
+
 static bool etm4_init_iomem_access(struct etmv4_drvdata *drvdata,
 				   struct csdev_access *csa)
 {
 	u32 devarch = readl_relaxed(drvdata->base + TRCDEVARCH);
+
+	if (!is_coresight_device(drvdata->base) || !is_devtype_cpu_trace(drvdata->base))
+		return false;
 
 	/*
 	 * All ETMs must implement TRCDEVARCH to indicate that
@@ -1161,7 +1180,7 @@ static void etm4_init_arch_data(void *info)
 	etm4_os_unlock_csa(drvdata, csa);
 	etm4_cs_unlock(drvdata, csa);
 
-	etm4_check_arch_features(drvdata, init_arg->pid);
+	etm4_check_arch_features(drvdata, csa);
 
 	/* find all capabilities of the tracing unit */
 	etmidr0 = etm4x_relaxed_read32(csa, TRCIDR0);
@@ -2044,18 +2063,15 @@ static int etm4_add_coresight_dev(struct etm4_init_arg *init_arg)
 	return 0;
 }
 
-static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
+static int etm4_probe(struct device *dev)
 {
-	struct etmv4_drvdata *drvdata;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev);
 	struct csdev_access access = { 0 };
 	struct etm4_init_arg init_arg = { 0 };
 	struct etm4_init_arg *delayed;
 
-	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
-	if (!drvdata)
+	if (WARN_ON(!drvdata))
 		return -ENOMEM;
-
-	dev_set_drvdata(dev, drvdata);
 
 	if (pm_save_enable == PARAM_PM_SAVE_FIRMWARE)
 		pm_save_enable = coresight_loses_context_with_cpu(dev) ?
@@ -2068,8 +2084,6 @@ static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
 			return -ENOMEM;
 	}
 
-	drvdata->base = base;
-
 	spin_lock_init(&drvdata->spinlock);
 
 	drvdata->cpu = coresight_get_cpu(dev);
@@ -2078,7 +2092,6 @@ static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
 
 	init_arg.dev = dev;
 	init_arg.csa = &access;
-	init_arg.pid = etm_pid;
 
 	/*
 	 * Serialize against CPUHP callbacks to avoid race condition
@@ -2108,6 +2121,7 @@ static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
 
 static int etm4_probe_amba(struct amba_device *adev, const struct amba_id *id)
 {
+	struct etmv4_drvdata *drvdata;
 	void __iomem *base;
 	struct device *dev = &adev->dev;
 	struct resource *res = &adev->res;
@@ -2118,7 +2132,13 @@ static int etm4_probe_amba(struct amba_device *adev, const struct amba_id *id)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	ret = etm4_probe(dev, base, id->id);
+	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
+
+	drvdata->base = base;
+	dev_set_drvdata(dev, drvdata);
+	ret = etm4_probe(dev);
 	if (!ret)
 		pm_runtime_put(&adev->dev);
 
@@ -2127,18 +2147,32 @@ static int etm4_probe_amba(struct amba_device *adev, const struct amba_id *id)
 
 static int etm4_probe_platform_dev(struct platform_device *pdev)
 {
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct etmv4_drvdata *drvdata;
 	int ret;
 
+	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
+
+	drvdata->pclk = coresight_get_enable_apb_pclk(&pdev->dev);
+	if (IS_ERR(drvdata->pclk))
+		return -ENODEV;
+
+	if (res) {
+		drvdata->base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(drvdata->base)) {
+			clk_put(drvdata->pclk);
+			return PTR_ERR(drvdata->base);
+		}
+	}
+
+	dev_set_drvdata(&pdev->dev, drvdata);
 	pm_runtime_get_noresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	/*
-	 * System register based devices could match the
-	 * HW by reading appropriate registers on the HW
-	 * and thus we could skip the PID.
-	 */
-	ret = etm4_probe(&pdev->dev, NULL, 0);
+	ret = etm4_probe(&pdev->dev);
 
 	pm_runtime_put(&pdev->dev);
 	return ret;
@@ -2178,7 +2212,7 @@ static struct amba_cs_uci_id uci_id_etm4[] = {
 		/*  ETMv4 UCI data */
 		.devarch	= ETM_DEVARCH_ETMv4x_ARCH,
 		.devarch_mask	= ETM_DEVARCH_ID_MASK,
-		.devtype	= 0x00000013,
+		.devtype	= CS_DEVTYPE_PE_TRACE,
 	}
 };
 
@@ -2190,7 +2224,7 @@ static void clear_etmdrvdata(void *info)
 	per_cpu(delayed_probe, cpu) = NULL;
 }
 
-static int __exit etm4_remove_dev(struct etmv4_drvdata *drvdata)
+static void __exit etm4_remove_dev(struct etmv4_drvdata *drvdata)
 {
 	bool had_delayed_probe;
 	/*
@@ -2217,8 +2251,6 @@ static int __exit etm4_remove_dev(struct etmv4_drvdata *drvdata)
 		cscfg_unregister_csdev(drvdata->csdev);
 		coresight_unregister(drvdata->csdev);
 	}
-
-	return 0;
 }
 
 static void __exit etm4_remove_amba(struct amba_device *adev)
@@ -2231,13 +2263,16 @@ static void __exit etm4_remove_amba(struct amba_device *adev)
 
 static int __exit etm4_remove_platform_dev(struct platform_device *pdev)
 {
-	int ret = 0;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 
 	if (drvdata)
-		ret = etm4_remove_dev(drvdata);
+		etm4_remove_dev(drvdata);
 	pm_runtime_disable(&pdev->dev);
-	return ret;
+
+	if (drvdata && !IS_ERR_OR_NULL(drvdata->pclk))
+		clk_put(drvdata->pclk);
+
+	return 0;
 }
 
 static const struct amba_id etm4_ids[] = {
@@ -2260,6 +2295,11 @@ static const struct amba_id etm4_ids[] = {
 	CS_AMBA_UCI_ID(0x000cc0af, uci_id_etm4),/* Marvell ThunderX2 */
 	CS_AMBA_UCI_ID(0x000b6d01, uci_id_etm4),/* HiSilicon-Hip08 */
 	CS_AMBA_UCI_ID(0x000b6d02, uci_id_etm4),/* HiSilicon-Hip09 */
+	/*
+	 * Match all PIDs with ETM4 DEVARCH. No need for adding any of the new
+	 * CPUs to the list here.
+	 */
+	CS_AMBA_MATCH_ALL_UCI(uci_id_etm4),
 	{},
 };
 
@@ -2276,11 +2316,45 @@ static struct amba_driver etm4x_amba_driver = {
 	.id_table	= etm4_ids,
 };
 
+#ifdef CONFIG_PM
+static int etm4_runtime_suspend(struct device *dev)
+{
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (drvdata->pclk && !IS_ERR(drvdata->pclk))
+		clk_disable_unprepare(drvdata->pclk);
+
+	return 0;
+}
+
+static int etm4_runtime_resume(struct device *dev)
+{
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (drvdata->pclk && !IS_ERR(drvdata->pclk))
+		clk_prepare_enable(drvdata->pclk);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops etm4_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(etm4_runtime_suspend, etm4_runtime_resume, NULL)
+};
+
 static const struct of_device_id etm4_sysreg_match[] = {
 	{ .compatible	= "arm,coresight-etm4x-sysreg" },
 	{ .compatible	= "arm,embedded-trace-extension" },
 	{}
 };
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id etm4x_acpi_ids[] = {
+	{"ARMHC500", 0}, /* ARM CoreSight ETM4x */
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, etm4x_acpi_ids);
+#endif
 
 static struct platform_driver etm4_platform_driver = {
 	.probe		= etm4_probe_platform_dev,
@@ -2288,7 +2362,9 @@ static struct platform_driver etm4_platform_driver = {
 	.driver			= {
 		.name			= "coresight-etm4x",
 		.of_match_table		= etm4_sysreg_match,
+		.acpi_match_table	= ACPI_PTR(etm4x_acpi_ids),
 		.suppress_bind_attrs	= true,
+		.pm			= &etm4_dev_pm_ops,
 	},
 };
 

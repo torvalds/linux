@@ -15,8 +15,8 @@
  * (http://www.goodreads.com/book/show/2019887.Ia_64_and_Elementary_Functions)
  */
 
+#include <linux/export.h>
 #include <asm/asmmacro.h>
-#include <asm/export.h>
 
 #ifdef MODULO
 # define OP	mod

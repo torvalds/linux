@@ -45,10 +45,6 @@
 #define LS1X_NAND_BASE			0x1fe78000
 #define LS1X_CLK_BASE			0x1fe78030
 
-#include <regs-clk.h>
 #include <regs-mux.h>
-#include <regs-pwm.h>
-#include <regs-rtc.h>
-#include <regs-wdt.h>
 
 #endif /* __ASM_MACH_LOONGSON32_LOONGSON1_H */

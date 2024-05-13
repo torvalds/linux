@@ -332,7 +332,7 @@ static bool fiji_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 
 static int fiji_smu_init(struct pp_hwmgr *hwmgr)
 {
-	struct fiji_smumgr *fiji_priv = NULL;
+	struct fiji_smumgr *fiji_priv;
 
 	fiji_priv = kzalloc(sizeof(struct fiji_smumgr), GFP_KERNEL);
 

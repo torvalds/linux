@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/crypto/ti,sa2ul.yaml#
@@ -66,9 +66,21 @@ patternProperties:
 required:
   - compatible
   - reg
-  - power-domains
   - dmas
   - dma-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,am62-sa3ul
+    then:
+      properties:
+        power-domains: false
+    else:
+      required:
+        - power-domains
 
 additionalProperties: false
 

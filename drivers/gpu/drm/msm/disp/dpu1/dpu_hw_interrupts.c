@@ -17,30 +17,26 @@
  * Register offsets in MDSS register file for the interrupt registers
  * w.r.t. the MDP base
  */
-#define MDP_SSPP_TOP0_OFF		0x0
-#define MDP_INTF_0_OFF			0x6A000
-#define MDP_INTF_1_OFF			0x6A800
-#define MDP_INTF_2_OFF			0x6B000
-#define MDP_INTF_3_OFF			0x6B800
-#define MDP_INTF_4_OFF			0x6C000
-#define MDP_INTF_5_OFF			0x6C800
-#define INTF_INTR_EN			0x1c0
-#define INTF_INTR_STATUS		0x1c4
-#define INTF_INTR_CLEAR			0x1c8
-#define MDP_AD4_0_OFF			0x7C000
-#define MDP_AD4_1_OFF			0x7D000
-#define MDP_AD4_INTR_EN_OFF		0x41c
-#define MDP_AD4_INTR_CLEAR_OFF		0x424
-#define MDP_AD4_INTR_STATUS_OFF		0x420
-#define MDP_INTF_0_OFF_REV_7xxx		0x34000
-#define MDP_INTF_1_OFF_REV_7xxx		0x35000
-#define MDP_INTF_2_OFF_REV_7xxx		0x36000
-#define MDP_INTF_3_OFF_REV_7xxx		0x37000
-#define MDP_INTF_4_OFF_REV_7xxx		0x38000
-#define MDP_INTF_5_OFF_REV_7xxx		0x39000
-#define MDP_INTF_6_OFF_REV_7xxx		0x3a000
-#define MDP_INTF_7_OFF_REV_7xxx		0x3b000
-#define MDP_INTF_8_OFF_REV_7xxx		0x3c000
+#define MDP_INTF_OFF(intf)				(0x6A000 + 0x800 * (intf))
+#define MDP_INTF_INTR_EN(intf)				(MDP_INTF_OFF(intf) + 0x1c0)
+#define MDP_INTF_INTR_STATUS(intf)			(MDP_INTF_OFF(intf) + 0x1c4)
+#define MDP_INTF_INTR_CLEAR(intf)			(MDP_INTF_OFF(intf) + 0x1c8)
+#define MDP_INTF_TEAR_OFF(intf)				(0x6D700 + 0x100 * (intf))
+#define MDP_INTF_INTR_TEAR_EN(intf)			(MDP_INTF_TEAR_OFF(intf) + 0x000)
+#define MDP_INTF_INTR_TEAR_STATUS(intf)			(MDP_INTF_TEAR_OFF(intf) + 0x004)
+#define MDP_INTF_INTR_TEAR_CLEAR(intf)			(MDP_INTF_TEAR_OFF(intf) + 0x008)
+#define MDP_AD4_OFF(ad4)				(0x7C000 + 0x1000 * (ad4))
+#define MDP_AD4_INTR_EN_OFF(ad4)			(MDP_AD4_OFF(ad4) + 0x41c)
+#define MDP_AD4_INTR_CLEAR_OFF(ad4)			(MDP_AD4_OFF(ad4) + 0x424)
+#define MDP_AD4_INTR_STATUS_OFF(ad4)			(MDP_AD4_OFF(ad4) + 0x420)
+#define MDP_INTF_REV_7xxx_OFF(intf)			(0x34000 + 0x1000 * (intf))
+#define MDP_INTF_REV_7xxx_INTR_EN(intf)			(MDP_INTF_REV_7xxx_OFF(intf) + 0x1c0)
+#define MDP_INTF_REV_7xxx_INTR_STATUS(intf)		(MDP_INTF_REV_7xxx_OFF(intf) + 0x1c4)
+#define MDP_INTF_REV_7xxx_INTR_CLEAR(intf)		(MDP_INTF_REV_7xxx_OFF(intf) + 0x1c8)
+#define MDP_INTF_REV_7xxx_TEAR_OFF(intf)		(0x34800 + 0x1000 * (intf))
+#define MDP_INTF_REV_7xxx_INTR_TEAR_EN(intf)		(MDP_INTF_REV_7xxx_TEAR_OFF(intf) + 0x000)
+#define MDP_INTF_REV_7xxx_INTR_TEAR_STATUS(intf)	(MDP_INTF_REV_7xxx_TEAR_OFF(intf) + 0x004)
+#define MDP_INTF_REV_7xxx_INTR_TEAR_CLEAR(intf)		(MDP_INTF_REV_7xxx_TEAR_OFF(intf) + 0x008)
 
 /**
  * struct dpu_intr_reg - array of DPU register sets
@@ -55,110 +51,149 @@ struct dpu_intr_reg {
 };
 
 /*
- * struct dpu_intr_reg -  List of DPU interrupt registers
- *
- * When making changes be sure to sync with dpu_hw_intr_reg
+ * dpu_intr_set_legacy -  List of DPU interrupt registers for DPU <= 6.x
  */
-static const struct dpu_intr_reg dpu_intr_set[] = {
+static const struct dpu_intr_reg dpu_intr_set_legacy[] = {
 	[MDP_SSPP_TOP0_INTR] = {
-		MDP_SSPP_TOP0_OFF+INTR_CLEAR,
-		MDP_SSPP_TOP0_OFF+INTR_EN,
-		MDP_SSPP_TOP0_OFF+INTR_STATUS
+		INTR_CLEAR,
+		INTR_EN,
+		INTR_STATUS
 	},
 	[MDP_SSPP_TOP0_INTR2] = {
-		MDP_SSPP_TOP0_OFF+INTR2_CLEAR,
-		MDP_SSPP_TOP0_OFF+INTR2_EN,
-		MDP_SSPP_TOP0_OFF+INTR2_STATUS
+		INTR2_CLEAR,
+		INTR2_EN,
+		INTR2_STATUS
 	},
 	[MDP_SSPP_TOP0_HIST_INTR] = {
-		MDP_SSPP_TOP0_OFF+HIST_INTR_CLEAR,
-		MDP_SSPP_TOP0_OFF+HIST_INTR_EN,
-		MDP_SSPP_TOP0_OFF+HIST_INTR_STATUS
+		HIST_INTR_CLEAR,
+		HIST_INTR_EN,
+		HIST_INTR_STATUS
 	},
 	[MDP_INTF0_INTR] = {
-		MDP_INTF_0_OFF+INTF_INTR_CLEAR,
-		MDP_INTF_0_OFF+INTF_INTR_EN,
-		MDP_INTF_0_OFF+INTF_INTR_STATUS
+		MDP_INTF_INTR_CLEAR(0),
+		MDP_INTF_INTR_EN(0),
+		MDP_INTF_INTR_STATUS(0)
 	},
 	[MDP_INTF1_INTR] = {
-		MDP_INTF_1_OFF+INTF_INTR_CLEAR,
-		MDP_INTF_1_OFF+INTF_INTR_EN,
-		MDP_INTF_1_OFF+INTF_INTR_STATUS
+		MDP_INTF_INTR_CLEAR(1),
+		MDP_INTF_INTR_EN(1),
+		MDP_INTF_INTR_STATUS(1)
 	},
 	[MDP_INTF2_INTR] = {
-		MDP_INTF_2_OFF+INTF_INTR_CLEAR,
-		MDP_INTF_2_OFF+INTF_INTR_EN,
-		MDP_INTF_2_OFF+INTF_INTR_STATUS
+		MDP_INTF_INTR_CLEAR(2),
+		MDP_INTF_INTR_EN(2),
+		MDP_INTF_INTR_STATUS(2)
 	},
 	[MDP_INTF3_INTR] = {
-		MDP_INTF_3_OFF+INTF_INTR_CLEAR,
-		MDP_INTF_3_OFF+INTF_INTR_EN,
-		MDP_INTF_3_OFF+INTF_INTR_STATUS
+		MDP_INTF_INTR_CLEAR(3),
+		MDP_INTF_INTR_EN(3),
+		MDP_INTF_INTR_STATUS(3)
 	},
 	[MDP_INTF4_INTR] = {
-		MDP_INTF_4_OFF+INTF_INTR_CLEAR,
-		MDP_INTF_4_OFF+INTF_INTR_EN,
-		MDP_INTF_4_OFF+INTF_INTR_STATUS
+		MDP_INTF_INTR_CLEAR(4),
+		MDP_INTF_INTR_EN(4),
+		MDP_INTF_INTR_STATUS(4)
 	},
 	[MDP_INTF5_INTR] = {
-		MDP_INTF_5_OFF+INTF_INTR_CLEAR,
-		MDP_INTF_5_OFF+INTF_INTR_EN,
-		MDP_INTF_5_OFF+INTF_INTR_STATUS
+		MDP_INTF_INTR_CLEAR(5),
+		MDP_INTF_INTR_EN(5),
+		MDP_INTF_INTR_STATUS(5)
+	},
+	[MDP_INTF1_TEAR_INTR] = {
+		MDP_INTF_INTR_TEAR_CLEAR(1),
+		MDP_INTF_INTR_TEAR_EN(1),
+		MDP_INTF_INTR_TEAR_STATUS(1)
+	},
+	[MDP_INTF2_TEAR_INTR] = {
+		MDP_INTF_INTR_TEAR_CLEAR(2),
+		MDP_INTF_INTR_TEAR_EN(2),
+		MDP_INTF_INTR_TEAR_STATUS(2)
 	},
 	[MDP_AD4_0_INTR] = {
-		MDP_AD4_0_OFF + MDP_AD4_INTR_CLEAR_OFF,
-		MDP_AD4_0_OFF + MDP_AD4_INTR_EN_OFF,
-		MDP_AD4_0_OFF + MDP_AD4_INTR_STATUS_OFF,
+		MDP_AD4_INTR_CLEAR_OFF(0),
+		MDP_AD4_INTR_EN_OFF(0),
+		MDP_AD4_INTR_STATUS_OFF(0),
 	},
 	[MDP_AD4_1_INTR] = {
-		MDP_AD4_1_OFF + MDP_AD4_INTR_CLEAR_OFF,
-		MDP_AD4_1_OFF + MDP_AD4_INTR_EN_OFF,
-		MDP_AD4_1_OFF + MDP_AD4_INTR_STATUS_OFF,
+		MDP_AD4_INTR_CLEAR_OFF(1),
+		MDP_AD4_INTR_EN_OFF(1),
+		MDP_AD4_INTR_STATUS_OFF(1),
 	},
-	[MDP_INTF0_7xxx_INTR] = {
-		MDP_INTF_0_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_0_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_0_OFF_REV_7xxx+INTF_INTR_STATUS
+};
+
+/*
+ * dpu_intr_set_7xxx -  List of DPU interrupt registers for DPU >= 7.0
+ */
+static const struct dpu_intr_reg dpu_intr_set_7xxx[] = {
+	[MDP_SSPP_TOP0_INTR] = {
+		INTR_CLEAR,
+		INTR_EN,
+		INTR_STATUS
 	},
-	[MDP_INTF1_7xxx_INTR] = {
-		MDP_INTF_1_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_1_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_1_OFF_REV_7xxx+INTF_INTR_STATUS
+	[MDP_SSPP_TOP0_INTR2] = {
+		INTR2_CLEAR,
+		INTR2_EN,
+		INTR2_STATUS
 	},
-	[MDP_INTF2_7xxx_INTR] = {
-		MDP_INTF_2_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_2_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_2_OFF_REV_7xxx+INTF_INTR_STATUS
+	[MDP_SSPP_TOP0_HIST_INTR] = {
+		HIST_INTR_CLEAR,
+		HIST_INTR_EN,
+		HIST_INTR_STATUS
 	},
-	[MDP_INTF3_7xxx_INTR] = {
-		MDP_INTF_3_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_3_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_3_OFF_REV_7xxx+INTF_INTR_STATUS
+	[MDP_INTF0_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(0),
+		MDP_INTF_REV_7xxx_INTR_EN(0),
+		MDP_INTF_REV_7xxx_INTR_STATUS(0)
 	},
-	[MDP_INTF4_7xxx_INTR] = {
-		MDP_INTF_4_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_4_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_4_OFF_REV_7xxx+INTF_INTR_STATUS
+	[MDP_INTF1_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(1),
+		MDP_INTF_REV_7xxx_INTR_EN(1),
+		MDP_INTF_REV_7xxx_INTR_STATUS(1)
 	},
-	[MDP_INTF5_7xxx_INTR] = {
-		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_5_OFF_REV_7xxx+INTF_INTR_STATUS
+	[MDP_INTF1_TEAR_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_TEAR_CLEAR(1),
+		MDP_INTF_REV_7xxx_INTR_TEAR_EN(1),
+		MDP_INTF_REV_7xxx_INTR_TEAR_STATUS(1)
 	},
-	[MDP_INTF6_7xxx_INTR] = {
-		MDP_INTF_6_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_6_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_6_OFF_REV_7xxx+INTF_INTR_STATUS
+	[MDP_INTF2_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(2),
+		MDP_INTF_REV_7xxx_INTR_EN(2),
+		MDP_INTF_REV_7xxx_INTR_STATUS(2)
 	},
-	[MDP_INTF7_7xxx_INTR] = {
-		MDP_INTF_7_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_7_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_7_OFF_REV_7xxx+INTF_INTR_STATUS
+	[MDP_INTF2_TEAR_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_TEAR_CLEAR(2),
+		MDP_INTF_REV_7xxx_INTR_TEAR_EN(2),
+		MDP_INTF_REV_7xxx_INTR_TEAR_STATUS(2)
 	},
-	[MDP_INTF8_7xxx_INTR] = {
-		MDP_INTF_8_OFF_REV_7xxx+INTF_INTR_CLEAR,
-		MDP_INTF_8_OFF_REV_7xxx+INTF_INTR_EN,
-		MDP_INTF_8_OFF_REV_7xxx+INTF_INTR_STATUS
+	[MDP_INTF3_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(3),
+		MDP_INTF_REV_7xxx_INTR_EN(3),
+		MDP_INTF_REV_7xxx_INTR_STATUS(3)
+	},
+	[MDP_INTF4_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(4),
+		MDP_INTF_REV_7xxx_INTR_EN(4),
+		MDP_INTF_REV_7xxx_INTR_STATUS(4)
+	},
+	[MDP_INTF5_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(5),
+		MDP_INTF_REV_7xxx_INTR_EN(5),
+		MDP_INTF_REV_7xxx_INTR_STATUS(5)
+	},
+	[MDP_INTF6_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(6),
+		MDP_INTF_REV_7xxx_INTR_EN(6),
+		MDP_INTF_REV_7xxx_INTR_STATUS(6)
+	},
+	[MDP_INTF7_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(7),
+		MDP_INTF_REV_7xxx_INTR_EN(7),
+		MDP_INTF_REV_7xxx_INTR_STATUS(7)
+	},
+	[MDP_INTF8_INTR] = {
+		MDP_INTF_REV_7xxx_INTR_CLEAR(8),
+		MDP_INTF_REV_7xxx_INTR_EN(8),
+		MDP_INTF_REV_7xxx_INTR_STATUS(8)
 	},
 };
 
@@ -200,19 +235,19 @@ irqreturn_t dpu_core_irq(struct msm_kms *kms)
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&intr->irq_lock, irq_flags);
-	for (reg_idx = 0; reg_idx < ARRAY_SIZE(dpu_intr_set); reg_idx++) {
+	for (reg_idx = 0; reg_idx < MDP_INTR_MAX; reg_idx++) {
 		if (!test_bit(reg_idx, &intr->irq_mask))
 			continue;
 
 		/* Read interrupt status */
-		irq_status = DPU_REG_READ(&intr->hw, dpu_intr_set[reg_idx].status_off);
+		irq_status = DPU_REG_READ(&intr->hw, intr->intr_set[reg_idx].status_off);
 
 		/* Read enable mask */
-		enable_mask = DPU_REG_READ(&intr->hw, dpu_intr_set[reg_idx].en_off);
+		enable_mask = DPU_REG_READ(&intr->hw, intr->intr_set[reg_idx].en_off);
 
 		/* and clear the interrupt */
 		if (irq_status)
-			DPU_REG_WRITE(&intr->hw, dpu_intr_set[reg_idx].clr_off,
+			DPU_REG_WRITE(&intr->hw, intr->intr_set[reg_idx].clr_off,
 				     irq_status);
 
 		/* Finally update IRQ status based on enable mask */
@@ -269,7 +304,11 @@ static int dpu_hw_intr_enable_irq_locked(struct dpu_hw_intr *intr, int irq_idx)
 	assert_spin_locked(&intr->irq_lock);
 
 	reg_idx = DPU_IRQ_REG(irq_idx);
-	reg = &dpu_intr_set[reg_idx];
+	reg = &intr->intr_set[reg_idx];
+
+	/* Is this interrupt register supported on the platform */
+	if (WARN_ON(!reg->en_off))
+		return -EINVAL;
 
 	cache_irq_mask = intr->cache_irq_mask[reg_idx];
 	if (cache_irq_mask & DPU_IRQ_MASK(irq_idx)) {
@@ -318,7 +357,7 @@ static int dpu_hw_intr_disable_irq_locked(struct dpu_hw_intr *intr, int irq_idx)
 	assert_spin_locked(&intr->irq_lock);
 
 	reg_idx = DPU_IRQ_REG(irq_idx);
-	reg = &dpu_intr_set[reg_idx];
+	reg = &intr->intr_set[reg_idx];
 
 	cache_irq_mask = intr->cache_irq_mask[reg_idx];
 	if ((cache_irq_mask & DPU_IRQ_MASK(irq_idx)) == 0) {
@@ -352,10 +391,10 @@ static void dpu_clear_irqs(struct dpu_kms *dpu_kms)
 	if (!intr)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++) {
+	for (i = 0; i < MDP_INTR_MAX; i++) {
 		if (test_bit(i, &intr->irq_mask))
 			DPU_REG_WRITE(&intr->hw,
-					dpu_intr_set[i].clr_off, 0xffffffff);
+					intr->intr_set[i].clr_off, 0xffffffff);
 	}
 
 	/* ensure register writes go through */
@@ -370,10 +409,10 @@ static void dpu_disable_all_irqs(struct dpu_kms *dpu_kms)
 	if (!intr)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(dpu_intr_set); i++) {
+	for (i = 0; i < MDP_INTR_MAX; i++) {
 		if (test_bit(i, &intr->irq_mask))
 			DPU_REG_WRITE(&intr->hw,
-					dpu_intr_set[i].en_off, 0x00000000);
+					intr->intr_set[i].en_off, 0x00000000);
 	}
 
 	/* ensure register writes go through */
@@ -405,10 +444,10 @@ u32 dpu_core_irq_read(struct dpu_kms *dpu_kms, int irq_idx)
 
 	reg_idx = DPU_IRQ_REG(irq_idx);
 	intr_status = DPU_REG_READ(&intr->hw,
-			dpu_intr_set[reg_idx].status_off) &
+			intr->intr_set[reg_idx].status_off) &
 		DPU_IRQ_MASK(irq_idx);
 	if (intr_status)
-		DPU_REG_WRITE(&intr->hw, dpu_intr_set[reg_idx].clr_off,
+		DPU_REG_WRITE(&intr->hw, intr->intr_set[reg_idx].clr_off,
 				intr_status);
 
 	/* ensure register writes go through */
@@ -419,17 +458,12 @@ u32 dpu_core_irq_read(struct dpu_kms *dpu_kms, int irq_idx)
 	return intr_status;
 }
 
-static void __intr_offset(const struct dpu_mdss_cfg *m,
-		void __iomem *addr, struct dpu_hw_blk_reg_map *hw)
-{
-	hw->blk_addr = addr + m->mdp[0].base;
-}
-
 struct dpu_hw_intr *dpu_hw_intr_init(void __iomem *addr,
 		const struct dpu_mdss_cfg *m)
 {
 	struct dpu_hw_intr *intr;
 	int nirq = MDP_INTR_MAX * 32;
+	unsigned int i;
 
 	if (!addr || !m)
 		return ERR_PTR(-EINVAL);
@@ -438,11 +472,29 @@ struct dpu_hw_intr *dpu_hw_intr_init(void __iomem *addr,
 	if (!intr)
 		return ERR_PTR(-ENOMEM);
 
-	__intr_offset(m, addr, &intr->hw);
+	if (m->mdss_ver->core_major_ver >= 7)
+		intr->intr_set = dpu_intr_set_7xxx;
+	else
+		intr->intr_set = dpu_intr_set_legacy;
+
+	intr->hw.blk_addr = addr + m->mdp[0].base;
 
 	intr->total_irqs = nirq;
 
-	intr->irq_mask = m->mdss_irqs;
+	intr->irq_mask = BIT(MDP_SSPP_TOP0_INTR) |
+			 BIT(MDP_SSPP_TOP0_INTR2) |
+			 BIT(MDP_SSPP_TOP0_HIST_INTR);
+	for (i = 0; i < m->intf_count; i++) {
+		const struct dpu_intf_cfg *intf = &m->intf[i];
+
+		if (intf->type == INTF_NONE)
+			continue;
+
+		intr->irq_mask |= BIT(MDP_INTFn_INTR(intf->id));
+
+		if (intf->intr_tear_rd_ptr != -1)
+			intr->irq_mask |= BIT(DPU_IRQ_REG(intf->intr_tear_rd_ptr));
+	}
 
 	spin_lock_init(&intr->irq_lock);
 
