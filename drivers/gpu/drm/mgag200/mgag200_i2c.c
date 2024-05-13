@@ -36,6 +36,16 @@
 #include "mgag200_ddc.h"
 #include "mgag200_drv.h"
 
+struct mgag200_ddc {
+	struct mga_device *mdev;
+
+	int data;
+	int clock;
+
+	struct i2c_algo_bit_data bit;
+	struct i2c_adapter adapter;
+};
+
 static int mga_i2c_read_gpio(struct mga_device *mdev)
 {
 	WREG8(DAC_INDEX, MGA1064_GEN_IO_DATA);
@@ -63,62 +73,62 @@ static inline void mga_i2c_set(struct mga_device *mdev, int mask, int state)
 
 static void mga_gpio_setsda(void *data, int state)
 {
-	struct mga_i2c_chan *i2c = data;
+	struct mgag200_ddc *ddc = data;
 
-	mga_i2c_set(i2c->mdev, i2c->data, state);
+	mga_i2c_set(ddc->mdev, ddc->data, state);
 }
 
 static void mga_gpio_setscl(void *data, int state)
 {
-	struct mga_i2c_chan *i2c = data;
+	struct mgag200_ddc *ddc = data;
 
-	mga_i2c_set(i2c->mdev, i2c->clock, state);
+	mga_i2c_set(ddc->mdev, ddc->clock, state);
 }
 
 static int mga_gpio_getsda(void *data)
 {
-	struct mga_i2c_chan *i2c = data;
+	struct mgag200_ddc *ddc = data;
 
-	return (mga_i2c_read_gpio(i2c->mdev) & i2c->data) ? 1 : 0;
+	return (mga_i2c_read_gpio(ddc->mdev) & ddc->data) ? 1 : 0;
 }
 
 static int mga_gpio_getscl(void *data)
 {
-	struct mga_i2c_chan *i2c = data;
+	struct mgag200_ddc *ddc = data;
 
-	return (mga_i2c_read_gpio(i2c->mdev) & i2c->clock) ? 1 : 0;
+	return (mga_i2c_read_gpio(ddc->mdev) & ddc->clock) ? 1 : 0;
 }
 
-static void mgag200_i2c_release(struct drm_device *dev, void *res)
+static void mgag200_ddc_release(struct drm_device *dev, void *res)
 {
-	struct mga_i2c_chan *i2c = res;
+	struct mgag200_ddc *ddc = res;
 
-	i2c_del_adapter(&i2c->adapter);
+	i2c_del_adapter(&ddc->adapter);
 }
 
 struct i2c_adapter *mgag200_ddc_create(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
 	const struct mgag200_device_info *info = mdev->info;
-	struct mga_i2c_chan *i2c;
+	struct mgag200_ddc *ddc;
 	struct i2c_algo_bit_data *bit;
 	struct i2c_adapter *adapter;
 	int ret;
 
-	i2c = drmm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
-	if (!i2c)
+	ddc = drmm_kzalloc(dev, sizeof(*ddc), GFP_KERNEL);
+	if (!ddc)
 		return ERR_PTR(-ENOMEM);
 
 	WREG_DAC(MGA1064_GEN_IO_CTL2, 1);
 	WREG_DAC(MGA1064_GEN_IO_DATA, 0xff);
 	WREG_DAC(MGA1064_GEN_IO_CTL, 0);
 
-	i2c->mdev = mdev;
-	i2c->data = BIT(info->i2c.data_bit);
-	i2c->clock = BIT(info->i2c.clock_bit);
+	ddc->mdev = mdev;
+	ddc->data = BIT(info->i2c.data_bit);
+	ddc->clock = BIT(info->i2c.clock_bit);
 
-	bit = &i2c->bit;
-	bit->data = i2c;
+	bit = &ddc->bit;
+	bit->data = ddc;
 	bit->setsda = mga_gpio_setsda;
 	bit->setscl = mga_gpio_setscl;
 	bit->getsda = mga_gpio_getsda;
@@ -126,18 +136,18 @@ struct i2c_adapter *mgag200_ddc_create(struct mga_device *mdev)
 	bit->udelay = 10;
 	bit->timeout = usecs_to_jiffies(2200);
 
-	adapter = &i2c->adapter;
+	adapter = &ddc->adapter;
 	adapter->owner = THIS_MODULE;
 	adapter->algo_data = bit;
 	adapter->dev.parent = dev->dev;
-	snprintf(adapter->name, sizeof(adapter->name), "mga i2c");
-	i2c_set_adapdata(adapter, i2c);
+	snprintf(adapter->name, sizeof(adapter->name), "Matrox DDC bus");
+	i2c_set_adapdata(adapter, ddc);
 
 	ret = i2c_bit_add_bus(adapter);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = drmm_add_action_or_reset(dev, mgag200_i2c_release, i2c);
+	ret = drmm_add_action_or_reset(dev, mgag200_ddc_release, ddc);
 	if (ret)
 		return ERR_PTR(ret);
 

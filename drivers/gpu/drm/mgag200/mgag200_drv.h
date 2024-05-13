@@ -10,9 +10,6 @@
 #ifndef __MGAG200_DRV_H__
 #define __MGAG200_DRV_H__
 
-#include <linux/i2c-algo-bit.h>
-#include <linux/i2c.h>
-
 #include <video/vga.h>
 
 #include <drm/drm_connector.h>
@@ -188,13 +185,6 @@ static inline struct mgag200_crtc_state *to_mgag200_crtc_state(struct drm_crtc_s
 {
 	return container_of(base, struct mgag200_crtc_state, base);
 }
-
-struct mga_i2c_chan {
-	struct i2c_adapter adapter;
-	struct mga_device *mdev;
-	struct i2c_algo_bit_data bit;
-	int data, clock;
-};
 
 enum mga_type {
 	G200_PCI,
