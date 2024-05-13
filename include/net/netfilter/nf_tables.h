@@ -1608,14 +1608,16 @@ static inline int nft_set_elem_is_dead(const struct nft_set_ext *ext)
 }
 
 /**
- *	struct nft_trans - nf_tables object update in transaction
+ * struct nft_trans - nf_tables object update in transaction
  *
- *	@list: used internally
- *	@binding_list: list of objects with possible bindings
- *	@msg_type: message type
- *	@put_net: ctx->net needs to be put
- *	@ctx: transaction context
- *	@data: internal information related to the transaction
+ * @list: used internally
+ * @binding_list: list of objects with possible bindings
+ * @msg_type: message type
+ * @put_net: ctx->net needs to be put
+ * @ctx: transaction context
+ *
+ * This is the information common to all objects in the transaction,
+ * this must always be the first member of derived sub-types.
  */
 struct nft_trans {
 	struct list_head		list;
@@ -1623,26 +1625,29 @@ struct nft_trans {
 	int				msg_type;
 	bool				put_net;
 	struct nft_ctx			ctx;
-	char				data[];
 };
 
 struct nft_trans_rule {
+	struct nft_trans		nft_trans;
 	struct nft_rule			*rule;
 	struct nft_flow_rule		*flow;
 	u32				rule_id;
 	bool				bound;
 };
 
-#define nft_trans_rule(trans)	\
-	(((struct nft_trans_rule *)trans->data)->rule)
-#define nft_trans_flow_rule(trans)	\
-	(((struct nft_trans_rule *)trans->data)->flow)
-#define nft_trans_rule_id(trans)	\
-	(((struct nft_trans_rule *)trans->data)->rule_id)
-#define nft_trans_rule_bound(trans)	\
-	(((struct nft_trans_rule *)trans->data)->bound)
+#define nft_trans_container_rule(trans)			\
+	container_of(trans, struct nft_trans_rule, nft_trans)
+#define nft_trans_rule(trans)				\
+	nft_trans_container_rule(trans)->rule
+#define nft_trans_flow_rule(trans)			\
+	nft_trans_container_rule(trans)->flow
+#define nft_trans_rule_id(trans)			\
+	nft_trans_container_rule(trans)->rule_id
+#define nft_trans_rule_bound(trans)			\
+	nft_trans_container_rule(trans)->bound
 
 struct nft_trans_set {
+	struct nft_trans		nft_trans;
 	struct nft_set			*set;
 	u32				set_id;
 	u32				gc_int;
@@ -1652,22 +1657,25 @@ struct nft_trans_set {
 	u32				size;
 };
 
-#define nft_trans_set(trans)	\
-	(((struct nft_trans_set *)trans->data)->set)
-#define nft_trans_set_id(trans)	\
-	(((struct nft_trans_set *)trans->data)->set_id)
-#define nft_trans_set_bound(trans)	\
-	(((struct nft_trans_set *)trans->data)->bound)
-#define nft_trans_set_update(trans)	\
-	(((struct nft_trans_set *)trans->data)->update)
-#define nft_trans_set_timeout(trans)	\
-	(((struct nft_trans_set *)trans->data)->timeout)
-#define nft_trans_set_gc_int(trans)	\
-	(((struct nft_trans_set *)trans->data)->gc_int)
-#define nft_trans_set_size(trans)	\
-	(((struct nft_trans_set *)trans->data)->size)
+#define nft_trans_container_set(trans)			\
+	container_of(trans, struct nft_trans_set, nft_trans)
+#define nft_trans_set(trans)				\
+	nft_trans_container_set(trans)->set
+#define nft_trans_set_id(trans)				\
+	nft_trans_container_set(trans)->set_id
+#define nft_trans_set_bound(trans)			\
+	nft_trans_container_set(trans)->bound
+#define nft_trans_set_update(trans)			\
+	nft_trans_container_set(trans)->update
+#define nft_trans_set_timeout(trans)			\
+	nft_trans_container_set(trans)->timeout
+#define nft_trans_set_gc_int(trans)			\
+	nft_trans_container_set(trans)->gc_int
+#define nft_trans_set_size(trans)			\
+	nft_trans_container_set(trans)->size
 
 struct nft_trans_chain {
+	struct nft_trans		nft_trans;
 	struct nft_chain		*chain;
 	bool				update;
 	char				*name;
@@ -1679,73 +1687,87 @@ struct nft_trans_chain {
 	struct list_head		hook_list;
 };
 
-#define nft_trans_chain(trans)	\
-	(((struct nft_trans_chain *)trans->data)->chain)
-#define nft_trans_chain_update(trans)	\
-	(((struct nft_trans_chain *)trans->data)->update)
-#define nft_trans_chain_name(trans)	\
-	(((struct nft_trans_chain *)trans->data)->name)
-#define nft_trans_chain_stats(trans)	\
-	(((struct nft_trans_chain *)trans->data)->stats)
-#define nft_trans_chain_policy(trans)	\
-	(((struct nft_trans_chain *)trans->data)->policy)
-#define nft_trans_chain_bound(trans)	\
-	(((struct nft_trans_chain *)trans->data)->bound)
-#define nft_trans_chain_id(trans)	\
-	(((struct nft_trans_chain *)trans->data)->chain_id)
-#define nft_trans_basechain(trans)	\
-	(((struct nft_trans_chain *)trans->data)->basechain)
-#define nft_trans_chain_hooks(trans)	\
-	(((struct nft_trans_chain *)trans->data)->hook_list)
+#define nft_trans_container_chain(trans)		\
+	container_of(trans, struct nft_trans_chain, nft_trans)
+#define nft_trans_chain(trans)				\
+	nft_trans_container_chain(trans)->chain
+#define nft_trans_chain_update(trans)			\
+	nft_trans_container_chain(trans)->update
+#define nft_trans_chain_name(trans)			\
+	nft_trans_container_chain(trans)->name
+#define nft_trans_chain_stats(trans)			\
+	nft_trans_container_chain(trans)->stats
+#define nft_trans_chain_policy(trans)			\
+	nft_trans_container_chain(trans)->policy
+#define nft_trans_chain_bound(trans)			\
+	nft_trans_container_chain(trans)->bound
+#define nft_trans_chain_id(trans)			\
+	nft_trans_container_chain(trans)->chain_id
+#define nft_trans_basechain(trans)			\
+	nft_trans_container_chain(trans)->basechain
+#define nft_trans_chain_hooks(trans)			\
+	nft_trans_container_chain(trans)->hook_list
 
 struct nft_trans_table {
+	struct nft_trans		nft_trans;
 	bool				update;
 };
 
-#define nft_trans_table_update(trans)	\
-	(((struct nft_trans_table *)trans->data)->update)
+#define nft_trans_container_table(trans)		\
+	container_of(trans, struct nft_trans_table, nft_trans)
+#define nft_trans_table_update(trans)			\
+	nft_trans_container_table(trans)->update
 
 struct nft_trans_elem {
+	struct nft_trans		nft_trans;
 	struct nft_set			*set;
 	struct nft_elem_priv		*elem_priv;
 	bool				bound;
 };
 
-#define nft_trans_elem_set(trans)	\
-	(((struct nft_trans_elem *)trans->data)->set)
-#define nft_trans_elem_priv(trans)	\
-	(((struct nft_trans_elem *)trans->data)->elem_priv)
-#define nft_trans_elem_set_bound(trans)	\
-	(((struct nft_trans_elem *)trans->data)->bound)
+#define nft_trans_container_elem(t)			\
+	container_of(t, struct nft_trans_elem, nft_trans)
+#define nft_trans_elem_set(trans)			\
+	nft_trans_container_elem(trans)->set
+#define nft_trans_elem_priv(trans)			\
+	nft_trans_container_elem(trans)->elem_priv
+#define nft_trans_elem_set_bound(trans)			\
+	nft_trans_container_elem(trans)->bound
 
 struct nft_trans_obj {
+	struct nft_trans		nft_trans;
 	struct nft_object		*obj;
 	struct nft_object		*newobj;
 	bool				update;
 };
 
-#define nft_trans_obj(trans)	\
-	(((struct nft_trans_obj *)trans->data)->obj)
-#define nft_trans_obj_newobj(trans) \
-	(((struct nft_trans_obj *)trans->data)->newobj)
-#define nft_trans_obj_update(trans)	\
-	(((struct nft_trans_obj *)trans->data)->update)
+#define nft_trans_container_obj(t)			\
+	container_of(t, struct nft_trans_obj, nft_trans)
+#define nft_trans_obj(trans)				\
+	nft_trans_container_obj(trans)->obj
+#define nft_trans_obj_newobj(trans)			\
+	nft_trans_container_obj(trans)->newobj
+#define nft_trans_obj_update(trans)			\
+	nft_trans_container_obj(trans)->update
 
 struct nft_trans_flowtable {
+	struct nft_trans		nft_trans;
 	struct nft_flowtable		*flowtable;
 	bool				update;
 	struct list_head		hook_list;
 	u32				flags;
 };
 
-#define nft_trans_flowtable(trans)	\
-	(((struct nft_trans_flowtable *)trans->data)->flowtable)
-#define nft_trans_flowtable_update(trans)	\
-	(((struct nft_trans_flowtable *)trans->data)->update)
-#define nft_trans_flowtable_hooks(trans)	\
-	(((struct nft_trans_flowtable *)trans->data)->hook_list)
-#define nft_trans_flowtable_flags(trans)	\
-	(((struct nft_trans_flowtable *)trans->data)->flags)
+#define nft_trans_container_flowtable(t)		\
+	container_of(t, struct nft_trans_flowtable, nft_trans)
+#define nft_trans_flowtable(trans)			\
+	nft_trans_container_flowtable(trans)->flowtable
+#define nft_trans_flowtable_update(trans)		\
+	nft_trans_container_flowtable(trans)->update
+#define nft_trans_flowtable_hooks(trans)		\
+	nft_trans_container_flowtable(trans)->hook_list
+#define nft_trans_flowtable_flags(trans)		\
+	nft_trans_container_flowtable(trans)->flags
 
 #define NFT_TRANS_GC_BATCHCOUNT	256
 

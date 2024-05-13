@@ -153,7 +153,7 @@ static struct nft_trans *nft_trans_alloc_gfp(const struct nft_ctx *ctx,
 {
 	struct nft_trans *trans;
 
-	trans = kzalloc(sizeof(struct nft_trans) + size, gfp);
+	trans = kzalloc(size, gfp);
 	if (trans == NULL)
 		return NULL;
 
@@ -10348,7 +10348,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 					     trans->msg_type, GFP_KERNEL);
 			break;
 		case NFT_MSG_NEWSETELEM:
-			te = (struct nft_trans_elem *)trans->data;
+			te = nft_trans_container_elem(trans);
 
 			nft_setelem_activate(net, te->set, te->elem_priv);
 			nf_tables_setelem_notify(&trans->ctx, te->set,
@@ -10363,7 +10363,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			break;
 		case NFT_MSG_DELSETELEM:
 		case NFT_MSG_DESTROYSETELEM:
-			te = (struct nft_trans_elem *)trans->data;
+			te = nft_trans_container_elem(trans);
 
 			nf_tables_setelem_notify(&trans->ctx, te->set,
 						 te->elem_priv,
@@ -10643,7 +10643,7 @@ static int __nf_tables_abort(struct net *net, enum nfnl_abort_action action)
 				nft_trans_destroy(trans);
 				break;
 			}
-			te = (struct nft_trans_elem *)trans->data;
+			te = nft_trans_container_elem(trans);
 			nft_setelem_remove(net, te->set, te->elem_priv);
 			if (!nft_setelem_is_catchall(te->set, te->elem_priv))
 				atomic_dec(&te->set->nelems);
@@ -10656,7 +10656,7 @@ static int __nf_tables_abort(struct net *net, enum nfnl_abort_action action)
 			break;
 		case NFT_MSG_DELSETELEM:
 		case NFT_MSG_DESTROYSETELEM:
-			te = (struct nft_trans_elem *)trans->data;
+			te = nft_trans_container_elem(trans);
 
 			if (!nft_setelem_active_next(net, te->set, te->elem_priv)) {
 				nft_setelem_data_activate(net, te->set, te->elem_priv);
@@ -11587,6 +11587,14 @@ static struct pernet_operations nf_tables_net_ops = {
 static int __init nf_tables_module_init(void)
 {
 	int err;
+
+	BUILD_BUG_ON(offsetof(struct nft_trans_table, nft_trans) != 0);
+	BUILD_BUG_ON(offsetof(struct nft_trans_chain, nft_trans) != 0);
+	BUILD_BUG_ON(offsetof(struct nft_trans_rule, nft_trans) != 0);
+	BUILD_BUG_ON(offsetof(struct nft_trans_set, nft_trans) != 0);
+	BUILD_BUG_ON(offsetof(struct nft_trans_elem, nft_trans) != 0);
+	BUILD_BUG_ON(offsetof(struct nft_trans_obj, nft_trans) != 0);
+	BUILD_BUG_ON(offsetof(struct nft_trans_flowtable, nft_trans) != 0);
 
 	err = register_pernet_subsys(&nf_tables_net_ops);
 	if (err < 0)
