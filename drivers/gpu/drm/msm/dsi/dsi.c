@@ -89,6 +89,7 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 		return ERR_PTR(-ENOMEM);
 	DBG("dsi probed=%p", msm_dsi);
 
+	mutex_init(&msm_dsi->phy_lock);
 	msm_dsi->id = -1;
 	msm_dsi->pdev = pdev;
 	platform_set_drvdata(pdev, msm_dsi);

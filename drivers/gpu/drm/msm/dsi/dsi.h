@@ -8,6 +8,7 @@
 
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/mutex.h>
 
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
@@ -43,6 +44,7 @@ struct msm_dsi {
 
 	struct device *phy_dev;
 	bool phy_enabled;
+	struct mutex phy_lock;
 
 	int id;
 };
@@ -55,6 +57,9 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_tpg_enable(void);
+
+int dsi_mgr_power_on(struct msm_dsi *msm_dsi);
+void dsi_mgr_power_off(struct msm_dsi *msm_dsi);
 
 /* dsi host */
 struct msm_dsi_host;
