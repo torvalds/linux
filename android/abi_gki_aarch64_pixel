@@ -1988,6 +1988,7 @@
   seq_putc
   seq_put_decimal_ll
   seq_put_decimal_ull
+  seq_put_decimal_ull_width
   seq_puts
   seq_read
   seq_release
