@@ -82,6 +82,22 @@ static void cleanup_netns(struct nstoken *nstoken)
 	SYS_NOFAIL("ip netns del %s", NS_TEST);
 }
 
+static int start_mptcp_server(int family, const char *addr_str, __u16 port,
+			      int timeout_ms)
+{
+	struct network_helper_opts opts = {
+		.timeout_ms	= timeout_ms,
+		.proto		= IPPROTO_MPTCP,
+	};
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
+
+	if (make_sockaddr(family, addr_str, port, &addr, &addrlen))
+		return -1;
+
+	return start_server_addr(SOCK_STREAM, &addr, addrlen, &opts);
+}
+
 static int verify_tsk(int map_fd, int client_fd)
 {
 	int err, cfd = client_fd;

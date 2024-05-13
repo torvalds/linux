@@ -494,20 +494,26 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 static int emit_lse_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 {
 	const u8 code = insn->code;
+	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
 	const u8 dst = bpf2a64[insn->dst_reg];
 	const u8 src = bpf2a64[insn->src_reg];
 	const u8 tmp = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
 	const bool isdw = BPF_SIZE(code) == BPF_DW;
+	const bool arena = BPF_MODE(code) == BPF_PROBE_ATOMIC;
 	const s16 off = insn->off;
-	u8 reg;
+	u8 reg = dst;
 
-	if (!off) {
-		reg = dst;
-	} else {
-		emit_a64_mov_i(1, tmp, off, ctx);
-		emit(A64_ADD(1, tmp, tmp, dst), ctx);
-		reg = tmp;
+	if (off || arena) {
+		if (off) {
+			emit_a64_mov_i(1, tmp, off, ctx);
+			emit(A64_ADD(1, tmp, tmp, dst), ctx);
+			reg = tmp;
+		}
+		if (arena) {
+			emit(A64_ADD(1, tmp, reg, arena_vm_base), ctx);
+			reg = tmp;
+		}
 	}
 
 	switch (insn->imm) {
@@ -575,6 +581,12 @@ static int emit_ll_sc_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	const bool isdw = BPF_SIZE(code) == BPF_DW;
 	u8 reg;
 	s32 jmp_offset;
+
+	if (BPF_MODE(code) == BPF_PROBE_ATOMIC) {
+		/* ll_sc based atomics don't support unsafe pointers yet. */
+		pr_err_once("unknown atomic opcode %02x\n", code);
+		return -EINVAL;
+	}
 
 	if (!off) {
 		reg = dst;
@@ -777,7 +789,8 @@ static int add_exception_handler(const struct bpf_insn *insn,
 
 	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
 		BPF_MODE(insn->code) != BPF_PROBE_MEMSX &&
-			BPF_MODE(insn->code) != BPF_PROBE_MEM32)
+			BPF_MODE(insn->code) != BPF_PROBE_MEM32 &&
+				BPF_MODE(insn->code) != BPF_PROBE_ATOMIC)
 		return 0;
 
 	if (!ctx->prog->aux->extable ||
@@ -876,6 +889,15 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			emit(A64_CBZ(1, tmp, 2), ctx);
 			emit(A64_ORR(1, tmp, dst, tmp), ctx);
 			emit(A64_MOV(1, dst, tmp), ctx);
+			break;
+		} else if (insn_is_mov_percpu_addr(insn)) {
+			if (dst != src)
+				emit(A64_MOV(1, dst, src), ctx);
+			if (cpus_have_cap(ARM64_HAS_VIRT_HOST_EXTN))
+				emit(A64_MRS_TPIDR_EL2(tmp), ctx);
+			else
+				emit(A64_MRS_TPIDR_EL1(tmp), ctx);
+			emit(A64_ADD(1, dst, dst, tmp), ctx);
 			break;
 		}
 		switch (insn->off) {
@@ -1206,6 +1228,21 @@ emit_cond_jmp:
 		const u8 r0 = bpf2a64[BPF_REG_0];
 		bool func_addr_fixed;
 		u64 func_addr;
+		u32 cpu_offset;
+
+		/* Implement helper call to bpf_get_smp_processor_id() inline */
+		if (insn->src_reg == 0 && insn->imm == BPF_FUNC_get_smp_processor_id) {
+			cpu_offset = offsetof(struct thread_info, cpu);
+
+			emit(A64_MRS_SP_EL0(tmp), ctx);
+			if (is_lsi_offset(cpu_offset, 2)) {
+				emit(A64_LDR32I(r0, tmp, cpu_offset), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, cpu_offset, ctx);
+				emit(A64_LDR32(r0, tmp, tmp2), ctx);
+			}
+			break;
+		}
 
 		ret = bpf_jit_get_func_addr(ctx->prog, insn, extra_pass,
 					    &func_addr, &func_addr_fixed);
@@ -1474,10 +1511,16 @@ emit_cond_jmp:
 
 	case BPF_STX | BPF_ATOMIC | BPF_W:
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_W:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_DW:
 		if (cpus_have_cap(ARM64_HAS_LSE_ATOMICS))
 			ret = emit_lse_atomic(insn, ctx);
 		else
 			ret = emit_ll_sc_atomic(insn, ctx);
+		if (ret)
+			return ret;
+
+		ret = add_exception_handler(insn, ctx, dst);
 		if (ret)
 			return ret;
 		break;
@@ -2525,6 +2568,34 @@ bool bpf_jit_supports_exceptions(void)
 bool bpf_jit_supports_arena(void)
 {
 	return true;
+}
+
+bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
+{
+	if (!in_arena)
+		return true;
+	switch (insn->code) {
+	case BPF_STX | BPF_ATOMIC | BPF_W:
+	case BPF_STX | BPF_ATOMIC | BPF_DW:
+		if (!cpus_have_cap(ARM64_HAS_LSE_ATOMICS))
+			return false;
+	}
+	return true;
+}
+
+bool bpf_jit_supports_percpu_insn(void)
+{
+	return true;
+}
+
+bool bpf_jit_inlines_helper_call(s32 imm)
+{
+	switch (imm) {
+	case BPF_FUNC_get_smp_processor_id:
+		return true;
+	default:
+		return false;
+	}
 }
 
 void bpf_jit_free(struct bpf_prog *prog)

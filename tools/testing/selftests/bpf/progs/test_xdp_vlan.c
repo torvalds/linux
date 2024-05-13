@@ -160,7 +160,7 @@ int  xdp_prognum1(struct xdp_md *ctx)
 
 		/* Modifying VLAN, preserve top 4 bits */
 		vlan_hdr->h_vlan_TCI =
-			bpf_htons((bpf_ntohs(vlan_hdr->h_vlan_TCI) & 0xf000)
+			bpf_htons((bpf_ntohs(vlan_hdr->h_vlan_TCI) & 0xf000U)
 				  | TO_VLAN);
 	}
 

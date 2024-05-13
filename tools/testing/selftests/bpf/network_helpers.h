@@ -21,6 +21,8 @@ typedef __u16 __sum16;
 #define VIP_NUM 5
 #define MAGIC_BYTES 123
 
+struct post_socket_opts {};
+
 struct network_helper_opts {
 	const char *cc;
 	int timeout_ms;
@@ -28,6 +30,7 @@ struct network_helper_opts {
 	bool noconnect;
 	int type;
 	int proto;
+	int (*post_socket_cb)(int fd, const struct post_socket_opts *opts);
 };
 
 /* ipv4 test vector */
@@ -49,8 +52,6 @@ extern struct ipv6_packet pkt_v6;
 int settimeo(int fd, int timeout_ms);
 int start_server(int family, int type, const char *addr, __u16 port,
 		 int timeout_ms);
-int start_mptcp_server(int family, const char *addr, __u16 port,
-		       int timeout_ms);
 int *start_reuseport_server(int family, int type, const char *addr_str,
 			    __u16 port, int timeout_ms,
 			    unsigned int nr_listens);

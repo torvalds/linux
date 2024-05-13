@@ -608,7 +608,7 @@ static inline u32 rv_nop(void)
 	return rv_i_insn(0, 0, 0, 0, 0x13);
 }
 
-/* RVC instrutions. */
+/* RVC instructions. */
 
 static inline u16 rvc_addi4spn(u8 rd, u32 imm10)
 {
@@ -737,7 +737,7 @@ static inline u16 rvc_swsp(u32 imm8, u8 rs2)
 	return rv_css_insn(0x6, imm, rs2, 0x2);
 }
 
-/* RVZBB instrutions. */
+/* RVZBB instructions. */
 static inline u32 rvzbb_sextb(u8 rd, u8 rs1)
 {
 	return rv_i_insn(0x604, rs1, 1, rd, 0x13);

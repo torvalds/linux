@@ -72,6 +72,7 @@ two flavors of JITs, the newer eBPF JIT currently supported on:
   - riscv64
   - riscv32
   - loongarch64
+  - arc
 
 And the older cBPF JIT supported on the following archs:
 

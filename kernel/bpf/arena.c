@@ -251,7 +251,7 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 	int ret;
 
 	kbase = bpf_arena_get_kern_vm_start(arena);
-	kaddr = kbase + (u32)(vmf->address & PAGE_MASK);
+	kaddr = kbase + (u32)(vmf->address);
 
 	guard(mutex)(&arena->lock);
 	page = vmalloc_to_page((void *)kaddr);

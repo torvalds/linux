@@ -36,7 +36,5 @@ void serial_test_wq(void)
 
 void serial_test_failures_wq(void)
 {
-	LIBBPF_OPTS(bpf_test_run_opts, topts);
-
 	RUN_TESTS(wq_failures);
 }

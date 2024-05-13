@@ -5,7 +5,7 @@
 #include <bpf/bpf_tracing.h>
 
 extern void bbr_init(struct sock *sk) __ksym;
-extern void bbr_main(struct sock *sk, const struct rate_sample *rs) __ksym;
+extern void bbr_main(struct sock *sk, u32 ack, int flag, const struct rate_sample *rs) __ksym;
 extern u32 bbr_sndbuf_expand(struct sock *sk) __ksym;
 extern u32 bbr_undo_cwnd(struct sock *sk) __ksym;
 extern void bbr_cwnd_event(struct sock *sk, enum tcp_ca_event event) __ksym;
@@ -27,7 +27,7 @@ extern void cubictcp_state(struct sock *sk, u8 new_state) __ksym;
 extern void cubictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event) __ksym;
 extern void cubictcp_acked(struct sock *sk, const struct ack_sample *sample) __ksym;
 
-SEC("struct_ops/init")
+SEC("struct_ops")
 void BPF_PROG(init, struct sock *sk)
 {
 	bbr_init(sk);
@@ -35,38 +35,38 @@ void BPF_PROG(init, struct sock *sk)
 	cubictcp_init(sk);
 }
 
-SEC("struct_ops/in_ack_event")
+SEC("struct_ops")
 void BPF_PROG(in_ack_event, struct sock *sk, u32 flags)
 {
 	dctcp_update_alpha(sk, flags);
 }
 
-SEC("struct_ops/cong_control")
-void BPF_PROG(cong_control, struct sock *sk, const struct rate_sample *rs)
+SEC("struct_ops")
+void BPF_PROG(cong_control, struct sock *sk, u32 ack, int flag, const struct rate_sample *rs)
 {
-	bbr_main(sk, rs);
+	bbr_main(sk, ack, flag, rs);
 }
 
-SEC("struct_ops/cong_avoid")
+SEC("struct_ops")
 void BPF_PROG(cong_avoid, struct sock *sk, u32 ack, u32 acked)
 {
 	cubictcp_cong_avoid(sk, ack, acked);
 }
 
-SEC("struct_ops/sndbuf_expand")
+SEC("struct_ops")
 u32 BPF_PROG(sndbuf_expand, struct sock *sk)
 {
 	return bbr_sndbuf_expand(sk);
 }
 
-SEC("struct_ops/undo_cwnd")
+SEC("struct_ops")
 u32 BPF_PROG(undo_cwnd, struct sock *sk)
 {
 	bbr_undo_cwnd(sk);
 	return dctcp_cwnd_undo(sk);
 }
 
-SEC("struct_ops/cwnd_event")
+SEC("struct_ops")
 void BPF_PROG(cwnd_event, struct sock *sk, enum tcp_ca_event event)
 {
 	bbr_cwnd_event(sk, event);
@@ -74,7 +74,7 @@ void BPF_PROG(cwnd_event, struct sock *sk, enum tcp_ca_event event)
 	cubictcp_cwnd_event(sk, event);
 }
 
-SEC("struct_ops/ssthresh")
+SEC("struct_ops")
 u32 BPF_PROG(ssthresh, struct sock *sk)
 {
 	bbr_ssthresh(sk);
@@ -82,13 +82,13 @@ u32 BPF_PROG(ssthresh, struct sock *sk)
 	return cubictcp_recalc_ssthresh(sk);
 }
 
-SEC("struct_ops/min_tso_segs")
+SEC("struct_ops")
 u32 BPF_PROG(min_tso_segs, struct sock *sk)
 {
 	return bbr_min_tso_segs(sk);
 }
 
-SEC("struct_ops/set_state")
+SEC("struct_ops")
 void BPF_PROG(set_state, struct sock *sk, u8 new_state)
 {
 	bbr_set_state(sk, new_state);
@@ -96,7 +96,7 @@ void BPF_PROG(set_state, struct sock *sk, u8 new_state)
 	cubictcp_state(sk, new_state);
 }
 
-SEC("struct_ops/pkts_acked")
+SEC("struct_ops")
 void BPF_PROG(pkts_acked, struct sock *sk, const struct ack_sample *sample)
 {
 	cubictcp_acked(sk, sample);

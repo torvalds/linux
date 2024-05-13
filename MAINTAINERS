@@ -3712,6 +3712,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iio/imu/bosch,bmi323.yaml
 F:	drivers/iio/imu/bmi323/
 
+BPF JIT for ARC
+M:	Shahab Vahedi <shahab@synopsys.com>
+L:	bpf@vger.kernel.org
+S:	Maintained
+F:	arch/arc/net/
+
 BPF JIT for ARM
 M:	Russell King <linux@armlinux.org.uk>
 M:	Puranjay Mohan <puranjay@kernel.org>
