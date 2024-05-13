@@ -289,6 +289,8 @@ int acp_sof_load_signed_firmware(struct snd_sof_dev *sdev)
 	ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_IRAM, 0,
 				      (void *)sdev->basefw.fw->data,
 				      sdev->basefw.fw->size);
+	if (ret < 0)
+		return ret;
 
 	fw_filename = kasprintf(GFP_KERNEL, "%s/%s",
 				plat_data->fw_filename_prefix,

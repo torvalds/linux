@@ -16,17 +16,19 @@ extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
 extern const char * const __bch2_btree_ids[];
-extern const char * const bch2_csum_types[];
 extern const char * const bch2_csum_opts[];
-extern const char * const __bch2_compression_types[];
 extern const char * const bch2_compression_opts[];
 extern const char * const bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
 extern const char * const __bch2_data_types[];
 extern const char * const bch2_member_states[];
-extern const char * const bch2_jset_entry_types[];
-extern const char * const bch2_fs_usage_types[];
 extern const char * const bch2_d_types[];
+
+void bch2_prt_jset_entry_type(struct printbuf *,	enum bch_jset_entry_type);
+void bch2_prt_fs_usage_type(struct printbuf *,		enum bch_fs_usage_type);
+void bch2_prt_data_type(struct printbuf *,		enum bch_data_type);
+void bch2_prt_csum_type(struct printbuf *,		enum bch_csum_type);
+void bch2_prt_compression_type(struct printbuf *,	enum bch_compression_type);
 
 static inline const char *bch2_d_type_str(unsigned d_type)
 {

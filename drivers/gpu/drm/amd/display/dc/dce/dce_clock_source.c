@@ -976,7 +976,10 @@ static bool dcn31_program_pix_clk(
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 	enum transmitter_color_depth bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
 
-	if (clock_source->ctx->dc->clk_mgr->dp_dto_source_clock_in_khz != 0)
+	// Apply ssed(spread spectrum) dpref clock for edp only.
+	if (clock_source->ctx->dc->clk_mgr->dp_dto_source_clock_in_khz != 0
+		&& pix_clk_params->signal_type == SIGNAL_TYPE_EDP
+		&& encoding == DP_8b_10b_ENCODING)
 		dp_dto_ref_khz = clock_source->ctx->dc->clk_mgr->dp_dto_source_clock_in_khz;
 	// For these signal types Driver to program DP_DTO without calling VBIOS Command table
 	if (dc_is_dp_signal(pix_clk_params->signal_type) || dc_is_virtual_signal(pix_clk_params->signal_type)) {
@@ -1092,9 +1095,6 @@ static bool get_pixel_clk_frequency_100hz(
 	unsigned int clock_hz = 0;
 	unsigned int modulo_hz = 0;
 	unsigned int dp_dto_ref_khz = clock_source->ctx->dc->clk_mgr->dprefclk_khz;
-
-	if (clock_source->ctx->dc->clk_mgr->dp_dto_source_clock_in_khz != 0)
-		dp_dto_ref_khz = clock_source->ctx->dc->clk_mgr->dp_dto_source_clock_in_khz;
 
 	if (clock_source->id == CLOCK_SOURCE_ID_DP_DTO) {
 		clock_hz = REG_READ(PHASE[inst]);

@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2019 Intel Corporation. All rights reserved.
+ * Copyright(c) 2019 Intel Corporation
  *
  * Author: Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
  */
@@ -91,6 +91,7 @@ struct snd_sof_pcm;
 struct snd_sof_dai_config_data {
 	int dai_index;
 	int dai_data; /* contains DAI-specific information */
+	int dai_node_id; /* contains DAI-specific information for Gateway configuration */
 };
 
 /**
@@ -350,6 +351,7 @@ struct snd_sof_pcm {
 	struct list_head list;	/* list in sdev pcm list */
 	struct snd_pcm_hw_params params[2];
 	bool prepared[2]; /* PCM_PARAMS set successfully */
+	bool pending_stop[2]; /* only used if (!pcm_ops->platform_stop_during_hw_free) */
 };
 
 struct snd_sof_led_control {

@@ -37,6 +37,7 @@ config IOMMUFD_TEST
 	depends on DEBUG_KERNEL
 	depends on FAULT_INJECTION
 	depends on RUNTIME_TESTING_MENU
+	select IOMMUFD_DRIVER
 	default n
 	help
 	  This is dangerous, do not enable unless running

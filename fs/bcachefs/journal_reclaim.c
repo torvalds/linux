@@ -67,6 +67,8 @@ void bch2_journal_set_watermark(struct journal *j)
 	    track_event_change(&c->times[BCH_TIME_blocked_write_buffer_full], low_on_wb))
 		trace_and_count(c, journal_full, c);
 
+	mod_bit(JOURNAL_SPACE_LOW, &j->flags, low_on_space || low_on_pin);
+
 	swap(watermark, j->watermark);
 	if (watermark > j->watermark)
 		journal_wake(j);

@@ -288,7 +288,12 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	if (test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags) &&
 	    !test_bit(BCH_FS_emergency_ro, &c->flags))
 		set_bit(BCH_FS_clean_shutdown, &c->flags);
+
 	bch2_fs_journal_stop(&c->journal);
+
+	bch_info(c, "%sshutdown complete, journal seq %llu",
+		 test_bit(BCH_FS_clean_shutdown, &c->flags) ? "" : "un",
+		 c->journal.seq_ondisk);
 
 	/*
 	 * After stopping journal:
@@ -539,6 +544,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 
 	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	bch2_free_pending_node_rewrites(c);
+	bch2_fs_allocator_background_exit(c);
 	bch2_fs_sb_errors_exit(c);
 	bch2_fs_counters_exit(c);
 	bch2_fs_snapshots_exit(c);

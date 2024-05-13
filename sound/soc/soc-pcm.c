@@ -315,23 +315,24 @@ EXPORT_SYMBOL_GPL(snd_soc_runtime_action);
  * @rtd: The ASoC PCM runtime that should be checked.
  *
  * This function checks whether the power down delay should be ignored for a
- * specific PCM runtime. Returns true if the delay is 0, if it the DAI link has
+ * specific PCM runtime. Returns true if the delay is 0, if the DAI link has
  * been configured to ignore the delay, or if none of the components benefits
  * from having the delay.
  */
 bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component;
-	bool ignore = true;
 	int i;
 
 	if (!rtd->pmdown_time || rtd->dai_link->ignore_pmdown_time)
 		return true;
 
 	for_each_rtd_components(rtd, i, component)
-		ignore &= !component->driver->use_pmdown_time;
+		if (component->driver->use_pmdown_time)
+			/* No need to go through all components */
+			return false;
 
-	return ignore;
+	return true;
 }
 
 /**
@@ -723,7 +724,7 @@ static int soc_pcm_clean(struct snd_soc_pcm_runtime *rtd,
 		}
 	}
 
-	for_each_rtd_dais(rtd, i, dai)
+	for_each_rtd_dais_reverse(rtd, i, dai)
 		snd_soc_dai_shutdown(dai, substream, rollback);
 
 	snd_soc_link_shutdown(substream, rollback);

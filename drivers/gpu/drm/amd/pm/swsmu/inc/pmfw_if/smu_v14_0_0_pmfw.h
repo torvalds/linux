@@ -42,7 +42,7 @@
 #define FEATURE_EDC_BIT                      7
 #define FEATURE_PLL_POWER_DOWN_BIT           8
 #define FEATURE_VDDOFF_BIT                   9
-#define FEATURE_VCN_DPM_BIT                 10
+#define FEATURE_VCN_DPM_BIT                 10   /* this is for both VCN0 and VCN1 */
 #define FEATURE_DS_MPM_BIT                  11
 #define FEATURE_FCLK_DPM_BIT                12
 #define FEATURE_SOCCLK_DPM_BIT              13
@@ -56,9 +56,9 @@
 #define FEATURE_DS_GFXCLK_BIT               21
 #define FEATURE_DS_SOCCLK_BIT               22
 #define FEATURE_DS_LCLK_BIT                 23
-#define FEATURE_LOW_POWER_DCNCLKS_BIT       24  // for all DISP clks
+#define FEATURE_LOW_POWER_DCNCLKS_BIT       24
 #define FEATURE_DS_SHUBCLK_BIT              25
-#define FEATURE_SPARE0_BIT                  26  //SPARE
+#define FEATURE_RESERVED0_BIT               26
 #define FEATURE_ZSTATES_BIT                 27
 #define FEATURE_IOMMUL2_PG_BIT              28
 #define FEATURE_DS_FCLK_BIT                 29
@@ -66,8 +66,8 @@
 #define FEATURE_DS_MP1CLK_BIT               31
 #define FEATURE_WHISPER_MODE_BIT            32
 #define FEATURE_SMU_LOW_POWER_BIT           33
-#define FEATURE_SMART_L3_RINSER_BIT         34
-#define FEATURE_SPARE1_BIT                  35  //SPARE
+#define FEATURE_RESERVED1_BIT               34  /* v14_0_0 SMART_L3_RINSER; v14_0_1 RESERVED1 */
+#define FEATURE_GFX_DEM_BIT                 35  /* v14_0_0 SPARE; v14_0_1 GFX_DEM */
 #define FEATURE_PSI_BIT                     36
 #define FEATURE_PROCHOT_BIT                 37
 #define FEATURE_CPUOFF_BIT                  38
@@ -77,11 +77,11 @@
 #define FEATURE_PERF_LIMIT_BIT              42
 #define FEATURE_CORE_DLDO_BIT               43
 #define FEATURE_DVO_BIT                     44
-#define FEATURE_DS_VCN_BIT                  45
+#define FEATURE_DS_VCN_BIT                  45  /* v14_0_1 this is for both VCN0 and VCN1 */
 #define FEATURE_CPPC_BIT                    46
 #define FEATURE_CPPC_PREFERRED_CORES        47
 #define FEATURE_DF_CSTATES_BIT              48
-#define FEATURE_SPARE2_BIT                  49  //SPARE
+#define FEATURE_FAST_PSTATE_CLDO_BIT        49  /* v14_0_0 SPARE */
 #define FEATURE_ATHUB_PG_BIT                50
 #define FEATURE_VDDOFF_ECO_BIT              51
 #define FEATURE_ZSTATES_ECO_BIT             52
@@ -93,8 +93,8 @@
 #define FEATURE_DS_IPUCLK_BIT               58
 #define FEATURE_DS_VPECLK_BIT               59
 #define FEATURE_VPE_DPM_BIT                 60
-#define FEATURE_SPARE_61                    61
-#define FEATURE_FP_DIDT                     62
+#define FEATURE_SMART_L3_RINSER_BIT         61  /* v14_0_0 SPARE*/
+#define FEATURE_PCC_BIT                     62  /* v14_0_0 FP_DIDT v14_0_1 PCC_BIT */
 #define NUM_FEATURES                        63
 
 // Firmware Header/Footer
@@ -151,6 +151,43 @@ typedef struct {
   // MP1_EXT_SCRATCH7 = RTOS Current Job
 } FwStatus_t;
 
+typedef struct {
+  // MP1_EXT_SCRATCH0
+  uint32_t DpmHandlerID         : 8;
+  uint32_t ActivityMonitorID    : 8;
+  uint32_t DpmTimerID           : 8;
+  uint32_t DpmHubID             : 4;
+  uint32_t DpmHubTask           : 4;
+  // MP1_EXT_SCRATCH1
+  uint32_t CclkSyncStatus       : 8;
+  uint32_t ZstateStatus         : 4;
+  uint32_t Cpu1VddOff           : 4;
+  uint32_t DstateFun            : 4;
+  uint32_t DstateDev            : 4;
+  uint32_t GfxOffStatus         : 2;
+  uint32_t Cpu0Off              : 2;
+  uint32_t Cpu1Off              : 2;
+  uint32_t Cpu0VddOff           : 2;
+  // MP1_EXT_SCRATCH2
+  uint32_t P2JobHandler         :32;
+  // MP1_EXT_SCRATCH3
+  uint32_t PostCode             :32;
+  // MP1_EXT_SCRATCH4
+  uint32_t MsgPortBusy          :15;
+  uint32_t RsmuPmiP1Pending     : 1;
+  uint32_t RsmuPmiP2PendingCnt  : 8;
+  uint32_t DfCstateExitPending  : 1;
+  uint32_t Pc6EntryPending      : 1;
+  uint32_t Pc6ExitPending       : 1;
+  uint32_t WarmResetPending     : 1;
+  uint32_t Mp0ClkPending        : 1;
+  uint32_t InWhisperMode        : 1;
+  uint32_t spare2               : 2;
+  // MP1_EXT_SCRATCH5
+  uint32_t IdleMask             :32;
+  // MP1_EXT_SCRATCH6 = RTOS threads' status
+  // MP1_EXT_SCRATCH7 = RTOS Current Job
+} FwStatus_t_v14_0_1;
 
 #pragma pack(pop)
 

@@ -1285,15 +1285,14 @@ spapr_tce_platform_iommu_attach_dev(struct iommu_domain *platform_domain,
 				    struct device *dev)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-	struct iommu_group *grp = iommu_group_get(dev);
 	struct iommu_table_group *table_group;
+	struct iommu_group *grp;
 
 	/* At first attach the ownership is already set */
-	if (!domain) {
-		iommu_group_put(grp);
+	if (!domain)
 		return 0;
-	}
 
+	grp = iommu_group_get(dev);
 	table_group = iommu_group_get_iommudata(grp);
 	/*
 	 * The domain being set to PLATFORM from earlier

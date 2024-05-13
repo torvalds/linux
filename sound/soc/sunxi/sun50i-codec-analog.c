@@ -115,9 +115,16 @@
 #define SUN50I_ADDA_HS_MBIAS_CTRL	0x0e
 #define SUN50I_ADDA_HS_MBIAS_CTRL_MMICBIASEN	7
 
+#define SUN50I_ADDA_MDET_CTRL		0x1c
+#define SUN50I_ADDA_MDET_CTRL_SELDETADC_FS	4
+#define SUN50I_ADDA_MDET_CTRL_SELDETADC_DB	2
+#define SUN50I_ADDA_MDET_CTRL_SELDETADC_BF	0
+
 #define SUN50I_ADDA_JACK_MIC_CTRL	0x1d
+#define SUN50I_ADDA_JACK_MIC_CTRL_JACKDETEN	7
 #define SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN	6
 #define SUN50I_ADDA_JACK_MIC_CTRL_HMICBIASEN	5
+#define SUN50I_ADDA_JACK_MIC_CTRL_MICADCEN	4
 
 /* mixer controls */
 static const struct snd_kcontrol_new sun50i_a64_codec_mixer_controls[] = {
@@ -296,6 +303,19 @@ static const struct snd_kcontrol_new sun50i_codec_earpiece_switch[] = {
 			SUN50I_ADDA_EARPIECE_CTRL1_ESPPA_MUTE, 1, 0),
 };
 
+static int sun50i_codec_hbias_event(struct snd_soc_dapm_widget *w,
+				    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	u32 value = !!SND_SOC_DAPM_EVENT_ON(event);
+
+	regmap_update_bits(component->regmap, SUN50I_ADDA_JACK_MIC_CTRL,
+			   BIT(SUN50I_ADDA_JACK_MIC_CTRL_MICADCEN),
+			   value << SUN50I_ADDA_JACK_MIC_CTRL_MICADCEN);
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget sun50i_a64_codec_widgets[] = {
 	/* DAC */
 	SND_SOC_DAPM_DAC("Left DAC", NULL, SUN50I_ADDA_MIX_DAC_CTRL,
@@ -367,7 +387,8 @@ static const struct snd_soc_dapm_widget sun50i_a64_codec_widgets[] = {
 	/* Microphone Bias */
 	SND_SOC_DAPM_SUPPLY("HBIAS", SUN50I_ADDA_JACK_MIC_CTRL,
 			    SUN50I_ADDA_JACK_MIC_CTRL_HMICBIASEN,
-			    0, NULL, 0),
+			    0, sun50i_codec_hbias_event,
+			    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	/* Mic input path */
 	SND_SOC_DAPM_PGA("Mic2 Amplifier", SUN50I_ADDA_MIC2_CTRL,
@@ -471,17 +492,37 @@ static const struct snd_soc_dapm_route sun50i_a64_codec_routes[] = {
 	{ "EARPIECE", NULL, "Earpiece Amp" },
 };
 
-static int sun50i_a64_codec_suspend(struct snd_soc_component *component)
+static int sun50i_a64_codec_set_bias_level(struct snd_soc_component *component,
+					   enum snd_soc_bias_level level)
 {
-	return regmap_update_bits(component->regmap, SUN50I_ADDA_HP_CTRL,
-				  BIT(SUN50I_ADDA_HP_CTRL_PA_CLK_GATE),
-				  BIT(SUN50I_ADDA_HP_CTRL_PA_CLK_GATE));
-}
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	int hbias;
 
-static int sun50i_a64_codec_resume(struct snd_soc_component *component)
-{
-	return regmap_update_bits(component->regmap, SUN50I_ADDA_HP_CTRL,
-				  BIT(SUN50I_ADDA_HP_CTRL_PA_CLK_GATE), 0);
+	switch (level) {
+	case SND_SOC_BIAS_OFF:
+		regmap_clear_bits(component->regmap, SUN50I_ADDA_JACK_MIC_CTRL,
+				   BIT(SUN50I_ADDA_JACK_MIC_CTRL_JACKDETEN) |
+				   BIT(SUN50I_ADDA_JACK_MIC_CTRL_MICADCEN));
+
+		regmap_set_bits(component->regmap, SUN50I_ADDA_HP_CTRL,
+				BIT(SUN50I_ADDA_HP_CTRL_PA_CLK_GATE));
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		regmap_clear_bits(component->regmap, SUN50I_ADDA_HP_CTRL,
+				   BIT(SUN50I_ADDA_HP_CTRL_PA_CLK_GATE));
+
+		hbias = snd_soc_dapm_get_pin_status(dapm, "HBIAS");
+		regmap_update_bits(component->regmap, SUN50I_ADDA_JACK_MIC_CTRL,
+				   BIT(SUN50I_ADDA_JACK_MIC_CTRL_JACKDETEN) |
+				   BIT(SUN50I_ADDA_JACK_MIC_CTRL_MICADCEN),
+				   BIT(SUN50I_ADDA_JACK_MIC_CTRL_JACKDETEN) |
+				   hbias << SUN50I_ADDA_JACK_MIC_CTRL_MICADCEN);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 static const struct snd_soc_component_driver sun50i_codec_analog_cmpnt_drv = {
@@ -491,8 +532,9 @@ static const struct snd_soc_component_driver sun50i_codec_analog_cmpnt_drv = {
 	.num_dapm_widgets	= ARRAY_SIZE(sun50i_a64_codec_widgets),
 	.dapm_routes		= sun50i_a64_codec_routes,
 	.num_dapm_routes	= ARRAY_SIZE(sun50i_a64_codec_routes),
-	.suspend		= sun50i_a64_codec_suspend,
-	.resume			= sun50i_a64_codec_resume,
+	.set_bias_level		= sun50i_a64_codec_set_bias_level,
+	.idle_bias_on		= true,
+	.suspend_bias_off	= true,
 };
 
 static const struct of_device_id sun50i_codec_analog_of_match[] = {
@@ -526,6 +568,13 @@ static int sun50i_codec_analog_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, SUN50I_ADDA_JACK_MIC_CTRL,
 			   BIT(SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN),
 			   enable << SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN);
+
+	/* Select sample interval of the ADC sample to 16ms */
+	regmap_update_bits(regmap, SUN50I_ADDA_MDET_CTRL,
+			   0x7 << SUN50I_ADDA_MDET_CTRL_SELDETADC_FS |
+			   0x3 << SUN50I_ADDA_MDET_CTRL_SELDETADC_BF,
+			   0x3 << SUN50I_ADDA_MDET_CTRL_SELDETADC_FS |
+			   0x3 << SUN50I_ADDA_MDET_CTRL_SELDETADC_BF);
 
 	return devm_snd_soc_register_component(&pdev->dev,
 					       &sun50i_codec_analog_cmpnt_drv,

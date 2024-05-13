@@ -131,29 +131,33 @@ fsck_err:
 void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 			 struct bkey_s_c k)
 {
-	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
-	unsigned i, nr_data = s->nr_blocks - s->nr_redundant;
+	const struct bch_stripe *sp = bkey_s_c_to_stripe(k).v;
+	struct bch_stripe s = {};
 
-	prt_printf(out, "algo %u sectors %u blocks %u:%u csum %u gran %u",
-	       s->algorithm,
-	       le16_to_cpu(s->sectors),
-	       nr_data,
-	       s->nr_redundant,
-	       s->csum_type,
-	       1U << s->csum_granularity_bits);
+	memcpy(&s, sp, min(sizeof(s), bkey_val_bytes(k.k)));
 
-	for (i = 0; i < s->nr_blocks; i++) {
-		const struct bch_extent_ptr *ptr = s->ptrs + i;
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-		u32 offset;
-		u64 b = sector_to_bucket_and_offset(ca, ptr->offset, &offset);
+	unsigned nr_data = s.nr_blocks - s.nr_redundant;
 
-		prt_printf(out, " %u:%llu:%u", ptr->dev, b, offset);
-		if (i < nr_data)
-			prt_printf(out, "#%u", stripe_blockcount_get(s, i));
-		prt_printf(out, " gen %u", ptr->gen);
-		if (ptr_stale(ca, ptr))
-			prt_printf(out, " stale");
+	prt_printf(out, "algo %u sectors %u blocks %u:%u csum ",
+		   s.algorithm,
+		   le16_to_cpu(s.sectors),
+		   nr_data,
+		   s.nr_redundant);
+	bch2_prt_csum_type(out, s.csum_type);
+	prt_printf(out, " gran %u", 1U << s.csum_granularity_bits);
+
+	for (unsigned i = 0; i < s.nr_blocks; i++) {
+		const struct bch_extent_ptr *ptr = sp->ptrs + i;
+
+		if ((void *) ptr >= bkey_val_end(k))
+			break;
+
+		bch2_extent_ptr_to_text(out, c, ptr);
+
+		if (s.csum_type < BCH_CSUM_NR &&
+		    i < nr_data &&
+		    stripe_blockcount_offset(&s, i) < bkey_val_bytes(k.k))
+			prt_printf(out,  "#%u", stripe_blockcount_get(sp, i));
 	}
 }
 
@@ -607,10 +611,8 @@ static void ec_validate_checksums(struct bch_fs *c, struct ec_stripe_buf *buf)
 				struct printbuf err = PRINTBUF;
 				struct bch_dev *ca = bch_dev_bkey_exists(c, v->ptrs[i].dev);
 
-				prt_printf(&err, "stripe checksum error: expected %0llx:%0llx got %0llx:%0llx (type %s)\n",
-					   want.hi, want.lo,
-					   got.hi, got.lo,
-					   bch2_csum_types[v->csum_type]);
+				prt_str(&err, "stripe ");
+				bch2_csum_err_msg(&err, v->csum_type, want, got);
 				prt_printf(&err, "  for %ps at %u of\n  ", (void *) _RET_IP_, i);
 				bch2_bkey_val_to_text(&err, c, bkey_i_to_s_c(&buf->key));
 				bch_err_ratelimited(ca, "%s", err.buf);

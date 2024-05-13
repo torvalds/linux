@@ -48,13 +48,16 @@ properties:
           - const: renesas,rcar_sound-gen3
       # for Gen4 SoC
       - items:
-          - const: renesas,rcar_sound-r8a779g0  # R-Car V4H
+          - enum:
+              - renesas,rcar_sound-r8a779g0  # R-Car V4H
+              - renesas,rcar_sound-r8a779h0  # R-Car V4M
           - const: renesas,rcar_sound-gen4
       # for Generic
       - enum:
           - renesas,rcar_sound-gen1
           - renesas,rcar_sound-gen2
           - renesas,rcar_sound-gen3
+          - renesas,rcar_sound-gen4
 
   reg:
     minItems: 1

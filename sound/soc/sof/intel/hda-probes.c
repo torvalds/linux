@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2019-2021 Intel Corporation. All rights reserved.
+// Copyright(c) 2019-2021 Intel Corporation
 //
 // Author: Cezary Rojewski <cezary.rojewski@intel.com>
 // Converted to SOF client:
@@ -139,10 +139,12 @@ int hda_probes_register(struct snd_sof_dev *sdev)
 	return sof_client_dev_register(sdev, "hda-probes", 0, &hda_probes_ops,
 				       sizeof(hda_probes_ops));
 }
+EXPORT_SYMBOL_NS(hda_probes_register, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_probes_unregister(struct snd_sof_dev *sdev)
 {
 	sof_client_dev_unregister(sdev, "hda-probes", 0);
 }
+EXPORT_SYMBOL_NS(hda_probes_unregister, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 MODULE_IMPORT_NS(SND_SOC_SOF_CLIENT);
