@@ -618,6 +618,7 @@ static void gmc_v12_0_vram_gtt_location(struct amdgpu_device *adev,
 
 	base = adev->mmhub.funcs->get_fb_location(adev);
 
+	amdgpu_gmc_set_agp_default(adev, mc);
 	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
 	amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_LOW);
 	if (!amdgpu_sriov_vf(adev) && (amdgpu_agp == 1))
