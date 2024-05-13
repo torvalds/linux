@@ -1960,7 +1960,11 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	if ((flags & BCH_WATERMARK_MASK) == BCH_WATERMARK_interior_updates)
 		return 0;
 
-	flags &= ~BCH_WATERMARK_MASK;
+	if ((flags & BCH_WATERMARK_MASK) <= BCH_WATERMARK_reclaim) {
+		flags &= ~BCH_WATERMARK_MASK;
+		flags |= BCH_WATERMARK_btree;
+		flags |= BCH_TRANS_COMMIT_journal_reclaim;
+	}
 
 	b = trans->paths[path].l[level].b;
 

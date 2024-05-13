@@ -66,7 +66,7 @@
  * Other rules which cause the divergence from 1:1 mapping
  *
  *  1. Although ARC700 can do exclusive execute/write protection (meaning R
- *     can be tracked independet of X/W unlike some other CPUs), still to
+ *     can be tracked independently of X/W unlike some other CPUs), still to
  *     keep things consistent with other archs:
  *      -Write implies Read:   W => R
  *      -Execute implies Read: X => R
