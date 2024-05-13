@@ -527,6 +527,7 @@ struct msm_gpu_submitqueue {
 struct msm_gpu_state_bo {
 	u64 iova;
 	size_t size;
+	u32 flags;
 	void *data;
 	bool encoded;
 	char name[32];
