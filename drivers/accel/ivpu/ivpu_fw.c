@@ -44,6 +44,8 @@
 #define IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, name, major, minor) \
 	ivpu_fw_check_api_ver_lt(vdev, fw_hdr, #name, VPU_##name##_API_VER_INDEX, major, minor)
 
+#define IVPU_FOCUS_PRESENT_TIMER_MS 1000
+
 static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
 MODULE_PARM_DESC(firmware, "NPU firmware binary in /lib/firmware/..");
@@ -467,6 +469,8 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->punit_telemetry_sram_size);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.vpu_telemetry_enable = 0x%x\n",
 		 boot_params->vpu_telemetry_enable);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.vpu_scheduling_mode = 0x%x\n",
+		 boot_params->vpu_scheduling_mode);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.dvfs_mode = %u\n",
 		 boot_params->dvfs_mode);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_delayed_entry = %d\n",
@@ -567,6 +571,9 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->punit_telemetry_sram_base = ivpu_hw_reg_telemetry_offset_get(vdev);
 	boot_params->punit_telemetry_sram_size = ivpu_hw_reg_telemetry_size_get(vdev);
 	boot_params->vpu_telemetry_enable = ivpu_hw_reg_telemetry_enable_get(vdev);
+	boot_params->vpu_scheduling_mode = vdev->hw->sched_mode;
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW)
+		boot_params->vpu_focus_present_timer_ms = IVPU_FOCUS_PRESENT_TIMER_MS;
 	boot_params->dvfs_mode = vdev->fw->dvfs_mode;
 	if (!IVPU_WA(disable_d0i3_msg))
 		boot_params->d0i3_delayed_entry = 1;

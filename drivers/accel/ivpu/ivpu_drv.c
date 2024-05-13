@@ -78,7 +78,6 @@ static void file_priv_unbind(struct ivpu_device *vdev, struct ivpu_file_priv *fi
 		ivpu_dbg(vdev, FILE, "file_priv unbind: ctx %u\n", file_priv->ctx.id);
 
 		ivpu_cmdq_release_all_locked(file_priv);
-		ivpu_jsm_context_release(vdev, file_priv->ctx.id);
 		ivpu_bo_unbind_all_bos_from_context(vdev, &file_priv->ctx);
 		ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
 		file_priv->bound = false;
@@ -327,6 +326,21 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 	return ret;
 }
 
+static int ivpu_hw_sched_init(struct ivpu_device *vdev)
+{
+	int ret = 0;
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW) {
+		ret = ivpu_jsm_hws_setup_priority_bands(vdev);
+		if (ret) {
+			ivpu_err(vdev, "Failed to enable hw scheduler: %d", ret);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 /**
  * ivpu_boot() - Start VPU firmware
  * @vdev: VPU device
@@ -360,6 +374,10 @@ int ivpu_boot(struct ivpu_device *vdev)
 	enable_irq(vdev->irq);
 	ivpu_hw_irq_enable(vdev);
 	ivpu_ipc_enable(vdev);
+
+	if (ivpu_fw_is_cold_boot(vdev))
+		return ivpu_hw_sched_init(vdev);
+
 	return 0;
 }
 
