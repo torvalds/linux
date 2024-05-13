@@ -575,8 +575,8 @@ config MACH_PIC32
 	  Microchip PIC32 is a family of general-purpose 32 bit MIPS core
 	  microcontrollers.
 
-config MACH_EYEQ5
-	bool "Mobileye EyeQ5 SoC"
+config EYEQ
+	bool "Mobileye EyeQ SoC"
 	select MACH_GENERIC_CORE
 	select ARM_AMBA
 	select PHYSICAL_START_BOOL
@@ -615,7 +615,7 @@ config MACH_EYEQ5
 	select USB_UHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USE_OF
 	help
-	  Select this to build a kernel supporting EyeQ5 SoC from Mobileye.
+	  Select this to build a kernel supporting EyeQ SoC from Mobileye.
 
 	bool
 
@@ -1021,6 +1021,7 @@ source "arch/mips/generic/Kconfig"
 source "arch/mips/ingenic/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lantiq/Kconfig"
+source "arch/mips/mobileye/Kconfig"
 source "arch/mips/pic32/Kconfig"
 source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
