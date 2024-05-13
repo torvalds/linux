@@ -1423,8 +1423,8 @@ bool optc1_get_otg_active_size(struct timing_generator *optc,
 			OTG_H_BLANK_START, &h_blank_start,
 			OTG_H_BLANK_END, &h_blank_end);
 
-	*otg_active_width = v_blank_start - v_blank_end;
-	*otg_active_height = h_blank_start - h_blank_end;
+	*otg_active_width = h_blank_start - h_blank_end;
+	*otg_active_height = v_blank_start - v_blank_end;
 	return true;
 }
 
