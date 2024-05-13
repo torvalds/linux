@@ -1268,6 +1268,14 @@ int begin_new_exec(struct linux_binprm * bprm)
 		return retval;
 
 	/*
+	 * This tracepoint marks the point before flushing the old exec where
+	 * the current task is still unchanged, but errors are fatal (point of
+	 * no return). The later "sched_process_exec" tracepoint is called after
+	 * the current task has successfully switched to the new exec.
+	 */
+	trace_sched_prepare_exec(current, bprm);
+
+	/*
 	 * Ensure all future errors are fatal.
 	 */
 	bprm->point_of_no_return = true;
