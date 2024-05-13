@@ -14,3 +14,9 @@ void __init fips_signature_selftest_rsa(void);
 #else
 static inline void __init fips_signature_selftest_rsa(void) { }
 #endif
+
+#ifdef CONFIG_FIPS_SIGNATURE_SELFTEST_ECDSA
+void __init fips_signature_selftest_ecdsa(void);
+#else
+static inline void __init fips_signature_selftest_ecdsa(void) { }
+#endif

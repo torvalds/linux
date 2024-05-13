@@ -25,6 +25,7 @@ x509_key_parser-y := \
 obj-$(CONFIG_FIPS_SIGNATURE_SELFTEST) += x509_selftest.o
 x509_selftest-y += selftest.o
 x509_selftest-$(CONFIG_FIPS_SIGNATURE_SELFTEST_RSA) += selftest_rsa.o
+x509_selftest-$(CONFIG_FIPS_SIGNATURE_SELFTEST_ECDSA) += selftest_ecdsa.o
 
 $(obj)/x509_cert_parser.o: \
 	$(obj)/x509.asn1.h \

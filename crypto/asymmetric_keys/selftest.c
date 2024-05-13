@@ -61,6 +61,7 @@ void fips_signature_selftest(const char *name,
 static int __init fips_signature_selftest_init(void)
 {
 	fips_signature_selftest_rsa();
+	fips_signature_selftest_ecdsa();
 	return 0;
 }
 
