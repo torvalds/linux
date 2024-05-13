@@ -318,14 +318,6 @@ int xe_gt_init_early(struct xe_gt *gt)
 			return err;
 	}
 
-	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (err)
-		return err;
-
-	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
-	if (err)
-		return err;
-
 	xe_reg_sr_init(&gt->reg_sr, "GT", gt_to_xe(gt));
 
 	err = xe_wa_init(gt);
