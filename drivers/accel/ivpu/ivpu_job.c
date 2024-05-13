@@ -438,11 +438,28 @@ err_free_job:
 	return NULL;
 }
 
+static struct ivpu_job *ivpu_job_remove_from_submitted_jobs(struct ivpu_device *vdev, u32 job_id)
+{
+	struct ivpu_job *job;
+
+	xa_lock(&vdev->submitted_jobs_xa);
+	job = __xa_erase(&vdev->submitted_jobs_xa, job_id);
+
+	if (xa_empty(&vdev->submitted_jobs_xa) && job) {
+		vdev->busy_time = ktime_add(ktime_sub(ktime_get(), vdev->busy_start_ts),
+					    vdev->busy_time);
+	}
+
+	xa_unlock(&vdev->submitted_jobs_xa);
+
+	return job;
+}
+
 static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32 job_status)
 {
 	struct ivpu_job *job;
 
-	job = xa_erase(&vdev->submitted_jobs_xa, job_id);
+	job = ivpu_job_remove_from_submitted_jobs(vdev, job_id);
 	if (!job)
 		return -ENOENT;
 
@@ -477,6 +494,7 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority)
 	struct ivpu_device *vdev = job->vdev;
 	struct xa_limit job_id_range;
 	struct ivpu_cmdq *cmdq;
+	bool is_first_job;
 	int ret;
 
 	ret = ivpu_rpm_get(vdev);
@@ -497,6 +515,7 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority)
 	job_id_range.max = job_id_range.min | JOB_ID_JOB_MASK;
 
 	xa_lock(&vdev->submitted_jobs_xa);
+	is_first_job = xa_empty(&vdev->submitted_jobs_xa);
 	ret = __xa_alloc(&vdev->submitted_jobs_xa, &job->job_id, job, job_id_range, GFP_KERNEL);
 	if (ret) {
 		ivpu_dbg(vdev, JOB, "Too many active jobs in ctx %d\n",
@@ -516,6 +535,8 @@ static int ivpu_job_submit(struct ivpu_job *job, u8 priority)
 		wmb(); /* Flush WC buffer for jobq header */
 	} else {
 		ivpu_cmdq_ring_db(vdev, cmdq);
+		if (is_first_job)
+			vdev->busy_start_ts = ktime_get();
 	}
 
 	ivpu_dbg(vdev, JOB, "Job submitted: id %3u ctx %2d engine %d prio %d addr 0x%llx next %d\n",

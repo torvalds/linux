@@ -14,7 +14,8 @@ intel_vpu-y := \
 	ivpu_mmu.o \
 	ivpu_mmu_context.o \
 	ivpu_ms.o \
-	ivpu_pm.o
+	ivpu_pm.o \
+	ivpu_sysfs.o
 
 intel_vpu-$(CONFIG_DEBUG_FS) += ivpu_debugfs.o
 

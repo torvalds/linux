@@ -28,6 +28,7 @@
 #include "ivpu_mmu_context.h"
 #include "ivpu_ms.h"
 #include "ivpu_pm.h"
+#include "ivpu_sysfs.h"
 
 #ifndef DRIVER_VERSION_STR
 #define DRIVER_VERSION_STR __stringify(DRM_IVPU_DRIVER_MAJOR) "." \
@@ -696,6 +697,7 @@ static int ivpu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 
 	ivpu_debugfs_init(vdev);
+	ivpu_sysfs_init(vdev);
 
 	ret = drm_dev_register(&vdev->drm, 0);
 	if (ret) {
