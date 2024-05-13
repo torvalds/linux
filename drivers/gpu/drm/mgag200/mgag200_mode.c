@@ -24,6 +24,7 @@
 #include <drm/drm_panic.h>
 #include <drm/drm_print.h>
 
+#include "mgag200_ddc.h"
 #include "mgag200_drv.h"
 
 /*

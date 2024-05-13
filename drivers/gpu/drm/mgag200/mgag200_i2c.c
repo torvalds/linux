@@ -33,6 +33,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "mgag200_ddc.h"
 #include "mgag200_drv.h"
 
 static int mga_i2c_read_gpio(struct mga_device *mdev)
@@ -95,7 +96,7 @@ static void mgag200_i2c_release(struct drm_device *dev, void *res)
 	i2c_del_adapter(&i2c->adapter);
 }
 
-int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c)
+static int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c)
 {
 	struct drm_device *dev = &mdev->base;
 	const struct mgag200_device_info *info = mdev->info;
@@ -128,4 +129,21 @@ int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c)
 		return ret;
 
 	return drmm_add_action_or_reset(dev, mgag200_i2c_release, i2c);
+}
+
+struct i2c_adapter *mgag200_ddc_create(struct mga_device *mdev)
+{
+	struct mga_i2c_chan *i2c;
+	struct drm_device *dev = &mdev->base;
+	int ret;
+
+	i2c = drmm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
+	if (!i2c)
+		return ERR_PTR(-ENOMEM);
+
+	ret = mgag200_i2c_init(mdev, i2c);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return &i2c->adapter;
 }

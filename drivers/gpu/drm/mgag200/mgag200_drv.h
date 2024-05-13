@@ -294,7 +294,6 @@ struct mga_device {
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
-	struct mga_i2c_chan i2c;
 	struct drm_connector connector;
 };
 
@@ -452,8 +451,5 @@ int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vram_avail
 				/* mgag200_bmc.c */
 void mgag200_bmc_disable_vidrst(struct mga_device *mdev);
 void mgag200_bmc_enable_vidrst(struct mga_device *mdev);
-
-				/* mgag200_i2c.c */
-int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c);
 
 #endif				/* __MGAG200_DRV_H__ */
