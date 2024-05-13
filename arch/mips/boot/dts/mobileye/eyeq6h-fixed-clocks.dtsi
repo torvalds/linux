@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Copyright 2023 Mobileye Vision Technologies Ltd.
+ */
+
+#include <dt-bindings/clock/mobileye,eyeq5-clk.h>
+
+/ {
+	xtal: clock-30000000 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <30000000>;
+	};
+
+	pll_west: clock-2000000000-west {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <2000000000>;
+	};
+
+	pll_cpu: clock-2000000000-cpu {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <2000000000>;
+	};
+
+	/* pll-cpu derivatives */
+	occ_cpu: clock-2000000000-occ-cpu {
+		compatible = "fixed-factor-clock";
+		clocks = <&pll_cpu>;
+		#clock-cells = <0>;
+		clock-div = <1>;
+		clock-mult = <1>;
+	};
+
+	/* pll-west derivatives */
+	occ_periph_w: clock-200000000 {
+		compatible = "fixed-factor-clock";
+		clocks = <&pll_west>;
+		#clock-cells = <0>;
+		clock-div = <10>;
+		clock-mult = <1>;
+	};
+	uart_clk: clock-200000000-uart {
+		compatible = "fixed-factor-clock";
+		clocks = <&occ_periph_w>;
+		#clock-cells = <0>;
+		clock-div = <1>;
+		clock-mult = <1>;
+	};
+
+};
