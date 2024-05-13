@@ -1611,18 +1611,26 @@ static inline int nft_set_elem_is_dead(const struct nft_set_ext *ext)
  * struct nft_trans - nf_tables object update in transaction
  *
  * @list: used internally
+ * @net: struct net
+ * @table: struct nft_table the object resides in
  * @msg_type: message type
- * @put_net: ctx->net needs to be put
- * @ctx: transaction context
+ * @seq: netlink sequence number
+ * @flags: modifiers to new request
+ * @report: notify via unicast netlink message
+ * @put_net: net needs to be put
  *
  * This is the information common to all objects in the transaction,
  * this must always be the first member of derived sub-types.
  */
 struct nft_trans {
 	struct list_head		list;
+	struct net			*net;
+	struct nft_table		*table;
 	int				msg_type;
-	bool				put_net;
-	struct nft_ctx			ctx;
+	u32				seq;
+	u16				flags;
+	u8				report:1;
+	u8				put_net:1;
 };
 
 /**
@@ -1793,6 +1801,33 @@ struct nft_trans_gc {
 	struct nft_elem_priv	*priv[NFT_TRANS_GC_BATCHCOUNT];
 	struct rcu_head		rcu;
 };
+
+static inline void nft_ctx_update(struct nft_ctx *ctx,
+				  const struct nft_trans *trans)
+{
+	switch (trans->msg_type) {
+	case NFT_MSG_NEWRULE:
+	case NFT_MSG_DELRULE:
+	case NFT_MSG_DESTROYRULE:
+		ctx->chain = nft_trans_rule_chain(trans);
+		break;
+	case NFT_MSG_NEWCHAIN:
+	case NFT_MSG_DELCHAIN:
+	case NFT_MSG_DESTROYCHAIN:
+		ctx->chain = nft_trans_chain(trans);
+		break;
+	default:
+		ctx->chain = NULL;
+		break;
+	}
+
+	ctx->net = trans->net;
+	ctx->table = trans->table;
+	ctx->family = trans->table->family;
+	ctx->report = trans->report;
+	ctx->flags = trans->flags;
+	ctx->seq = trans->seq;
+}
 
 struct nft_trans_gc *nft_trans_gc_alloc(struct nft_set *set,
 					unsigned int gc_seq, gfp_t gfp);

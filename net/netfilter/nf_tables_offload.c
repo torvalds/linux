@@ -513,7 +513,7 @@ static void nft_flow_rule_offload_abort(struct net *net,
 	int err = 0;
 
 	list_for_each_entry_continue_reverse(trans, &nft_net->commit_list, list) {
-		if (trans->ctx.family != NFPROTO_NETDEV)
+		if (trans->table->family != NFPROTO_NETDEV)
 			continue;
 
 		switch (trans->msg_type) {
@@ -564,7 +564,7 @@ int nft_flow_rule_offload_commit(struct net *net)
 	u8 policy;
 
 	list_for_each_entry(trans, &nft_net->commit_list, list) {
-		if (trans->ctx.family != NFPROTO_NETDEV)
+		if (trans->table->family != NFPROTO_NETDEV)
 			continue;
 
 		switch (trans->msg_type) {
@@ -589,8 +589,8 @@ int nft_flow_rule_offload_commit(struct net *net)
 			if (!(nft_trans_rule_chain(trans)->flags & NFT_CHAIN_HW_OFFLOAD))
 				continue;
 
-			if (trans->ctx.flags & NLM_F_REPLACE ||
-			    !(trans->ctx.flags & NLM_F_APPEND)) {
+			if (trans->flags & NLM_F_REPLACE ||
+			    !(trans->flags & NLM_F_APPEND)) {
 				err = -EOPNOTSUPP;
 				break;
 			}
