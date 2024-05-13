@@ -8,13 +8,22 @@
 
 #include "intel_display_reg_defs.h"
 
+#define _SKL_PLANE(pipe, plane, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
+	_PLANE((plane), _PIPE((pipe), (reg_1_a), (reg_1_b)), _PIPE((pipe), (reg_2_a), (reg_2_b)))
+#define _SKL_PLANE_DW(pipe, plane, dw, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
+	(_SKL_PLANE((pipe), (plane), (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b)) + (dw) * 4)
+#define _MMIO_SKL_PLANE(pipe, plane, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
+	_MMIO(_SKL_PLANE((pipe), (plane), (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b)))
+#define _MMIO_SKL_PLANE_DW(pipe, plane, dw, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
+	_MMIO(_SKL_PLANE_DW((pipe), (plane), (dw), (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b)))
+
 #define _PLANE_CTL_1_A				0x70180
 #define _PLANE_CTL_2_A				0x70280
 #define _PLANE_CTL_1_B				0x71180
 #define _PLANE_CTL_2_B				0x71280
-#define _PLANE_CTL_1(pipe)		_PIPE(pipe, _PLANE_CTL_1_A, _PLANE_CTL_1_B)
-#define _PLANE_CTL_2(pipe)		_PIPE(pipe, _PLANE_CTL_2_A, _PLANE_CTL_2_B)
-#define PLANE_CTL(pipe, plane)		_MMIO_PLANE(plane, _PLANE_CTL_1(pipe), _PLANE_CTL_2(pipe))
+#define PLANE_CTL(pipe, plane)		_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_CTL_1_A, _PLANE_CTL_1_B, \
+							_PLANE_CTL_2_A, _PLANE_CTL_2_B)
 #define   PLANE_CTL_ENABLE			REG_BIT(31)
 #define   PLANE_CTL_ARB_SLOTS_MASK		REG_GENMASK(30, 28) /* icl+ */
 #define   PLANE_CTL_ARB_SLOTS(x)		REG_FIELD_PREP(PLANE_CTL_ARB_SLOTS_MASK, (x)) /* icl+ */
@@ -83,9 +92,9 @@
 #define _PLANE_STRIDE_2_A			0x70288
 #define _PLANE_STRIDE_1_B			0x71188
 #define _PLANE_STRIDE_2_B			0x71288
-#define _PLANE_STRIDE_1(pipe)		_PIPE(pipe, _PLANE_STRIDE_1_A, _PLANE_STRIDE_1_B)
-#define _PLANE_STRIDE_2(pipe)		_PIPE(pipe, _PLANE_STRIDE_2_A, _PLANE_STRIDE_2_B)
-#define PLANE_STRIDE(pipe, plane)	_MMIO_PLANE(plane, _PLANE_STRIDE_1(pipe), _PLANE_STRIDE_2(pipe))
+#define PLANE_STRIDE(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_STRIDE_1_A, _PLANE_STRIDE_1_B, \
+							_PLANE_STRIDE_2_A, _PLANE_STRIDE_2_B)
 #define   PLANE_STRIDE__MASK			REG_GENMASK(11, 0)
 #define   PLANE_STRIDE_(stride)			REG_FIELD_PREP(PLANE_STRIDE__MASK, (stride))
 
@@ -93,9 +102,9 @@
 #define _PLANE_POS_2_A				0x7028c
 #define _PLANE_POS_1_B				0x7118c
 #define _PLANE_POS_2_B				0x7128c
-#define _PLANE_POS_1(pipe)		_PIPE(pipe, _PLANE_POS_1_A, _PLANE_POS_1_B)
-#define _PLANE_POS_2(pipe)		_PIPE(pipe, _PLANE_POS_2_A, _PLANE_POS_2_B)
-#define PLANE_POS(pipe, plane)		_MMIO_PLANE(plane, _PLANE_POS_1(pipe), _PLANE_POS_2(pipe))
+#define PLANE_POS(pipe, plane)		_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_POS_1_A, _PLANE_POS_1_B, \
+							_PLANE_POS_2_A, _PLANE_POS_2_B)
 #define   PLANE_POS_Y_MASK			REG_GENMASK(31, 16)
 #define   PLANE_POS_Y(y)			REG_FIELD_PREP(PLANE_POS_Y_MASK, (y))
 #define   PLANE_POS_X_MASK			REG_GENMASK(15, 0)
@@ -105,9 +114,9 @@
 #define _PLANE_SIZE_2_A				0x70290
 #define _PLANE_SIZE_1_B				0x71190
 #define _PLANE_SIZE_2_B				0x71290
-#define _PLANE_SIZE_1(pipe)		_PIPE(pipe, _PLANE_SIZE_1_A, _PLANE_SIZE_1_B)
-#define _PLANE_SIZE_2(pipe)		_PIPE(pipe, _PLANE_SIZE_2_A, _PLANE_SIZE_2_B)
-#define PLANE_SIZE(pipe, plane)		_MMIO_PLANE(plane, _PLANE_SIZE_1(pipe), _PLANE_SIZE_2(pipe))
+#define PLANE_SIZE(pipe, plane)		_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_SIZE_1_A, _PLANE_SIZE_1_B, \
+							_PLANE_SIZE_2_A, _PLANE_SIZE_2_B)
 #define   PLANE_HEIGHT_MASK			REG_GENMASK(31, 16)
 #define   PLANE_HEIGHT(h)			REG_FIELD_PREP(PLANE_HEIGHT_MASK, (h))
 #define   PLANE_WIDTH_MASK			REG_GENMASK(15, 0)
@@ -117,26 +126,26 @@
 #define _PLANE_KEYVAL_2_A			0x70294
 #define _PLANE_KEYVAL_1_B			0x71194
 #define _PLANE_KEYVAL_2_B			0x71294
-#define _PLANE_KEYVAL_1(pipe)		_PIPE(pipe, _PLANE_KEYVAL_1_A, _PLANE_KEYVAL_1_B)
-#define _PLANE_KEYVAL_2(pipe)		_PIPE(pipe, _PLANE_KEYVAL_2_A, _PLANE_KEYVAL_2_B)
-#define PLANE_KEYVAL(pipe, plane)	_MMIO_PLANE(plane, _PLANE_KEYVAL_1(pipe), _PLANE_KEYVAL_2(pipe))
+#define PLANE_KEYVAL(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane),\
+							_PLANE_KEYVAL_1_A, _PLANE_KEYVAL_1_B, \
+							_PLANE_KEYVAL_2_A, _PLANE_KEYVAL_2_B)
 
 #define _PLANE_KEYMSK_1_A			0x70198
 #define _PLANE_KEYMSK_2_A			0x70298
 #define _PLANE_KEYMSK_1_B			0x71198
 #define _PLANE_KEYMSK_2_B			0x71298
-#define _PLANE_KEYMSK_1(pipe)		_PIPE(pipe, _PLANE_KEYMSK_1_A, _PLANE_KEYMSK_1_B)
-#define _PLANE_KEYMSK_2(pipe)		_PIPE(pipe, _PLANE_KEYMSK_2_A, _PLANE_KEYMSK_2_B)
-#define PLANE_KEYMSK(pipe, plane)	_MMIO_PLANE(plane, _PLANE_KEYMSK_1(pipe), _PLANE_KEYMSK_2(pipe))
+#define PLANE_KEYMSK(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_KEYMSK_1_A, _PLANE_KEYMSK_1_B, \
+							_PLANE_KEYMSK_2_A, _PLANE_KEYMSK_2_B)
 #define   PLANE_KEYMSK_ALPHA_ENABLE		REG_BIT(31)
 
 #define _PLANE_SURF_1_A				0x7019c
 #define _PLANE_SURF_2_A				0x7029c
 #define _PLANE_SURF_1_B				0x7119c
 #define _PLANE_SURF_2_B				0x7129c
-#define _PLANE_SURF_1(pipe)		_PIPE(pipe, _PLANE_SURF_1_A, _PLANE_SURF_1_B)
-#define _PLANE_SURF_2(pipe)		_PIPE(pipe, _PLANE_SURF_2_A, _PLANE_SURF_2_B)
-#define PLANE_SURF(pipe, plane)		_MMIO_PLANE(plane, _PLANE_SURF_1(pipe), _PLANE_SURF_2(pipe))
+#define PLANE_SURF(pipe, plane)		_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_SURF_1_A, _PLANE_SURF_1_B, \
+							_PLANE_SURF_2_A, _PLANE_SURF_2_B)
 #define   PLANE_SURF_ADDR_MASK			REG_GENMASK(31, 12)
 #define   PLANE_SURF_DECRYPT			REG_BIT(2)
 
@@ -144,9 +153,9 @@
 #define _PLANE_KEYMAX_2_A			0x702a0
 #define _PLANE_KEYMAX_1_B			0x711a0
 #define _PLANE_KEYMAX_2_B			0x712a0
-#define _PLANE_KEYMAX_1(pipe)		_PIPE(pipe, _PLANE_KEYMAX_1_A, _PLANE_KEYMAX_1_B)
-#define _PLANE_KEYMAX_2(pipe)		_PIPE(pipe, _PLANE_KEYMAX_2_A, _PLANE_KEYMAX_2_B)
-#define PLANE_KEYMAX(pipe, plane)	_MMIO_PLANE(plane, _PLANE_KEYMAX_1(pipe), _PLANE_KEYMAX_2(pipe))
+#define PLANE_KEYMAX(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_KEYMAX_1_A, _PLANE_KEYMAX_1_B, \
+							_PLANE_KEYMAX_2_A, _PLANE_KEYMAX_2_B)
 #define   PLANE_KEYMAX_ALPHA_MASK		REG_GENMASK(31, 24)
 #define   PLANE_KEYMAX_ALPHA(a)			REG_FIELD_PREP(PLANE_KEYMAX_ALPHA_MASK, (a))
 
@@ -154,9 +163,9 @@
 #define _PLANE_OFFSET_2_A			0x702a4
 #define _PLANE_OFFSET_1_B			0x711a4
 #define _PLANE_OFFSET_2_B			0x712a4
-#define _PLANE_OFFSET_1(pipe)		_PIPE(pipe, _PLANE_OFFSET_1_A, _PLANE_OFFSET_1_B)
-#define _PLANE_OFFSET_2(pipe)		_PIPE(pipe, _PLANE_OFFSET_2_A, _PLANE_OFFSET_2_B)
-#define PLANE_OFFSET(pipe, plane)	_MMIO_PLANE(plane, _PLANE_OFFSET_1(pipe), _PLANE_OFFSET_2(pipe))
+#define PLANE_OFFSET(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_OFFSET_1_A, _PLANE_OFFSET_1_B, \
+							_PLANE_OFFSET_2_A, _PLANE_OFFSET_2_B)
 #define   PLANE_OFFSET_Y_MASK			REG_GENMASK(31, 16)
 #define   PLANE_OFFSET_Y(y)			REG_FIELD_PREP(PLANE_OFFSET_Y_MASK, (y))
 #define   PLANE_OFFSET_X_MASK			REG_GENMASK(15, 0)
@@ -166,25 +175,25 @@
 #define _PLANE_SURFLIVE_2_A			0x702ac
 #define _PLANE_SURFLIVE_1_B			0x711ac
 #define _PLANE_SURFLIVE_2_B			0x712ac
-#define _PLANE_SURFLIVE_1(pipe)		_PIPE(pipe, _PLANE_SURFLIVE_1_A, _PLANE_SURFLIVE_1_B)
-#define _PLANE_SURFLIVE_2(pipe)		_PIPE(pipe, _PLANE_SURFLIVE_2_A, _PLANE_SURFLIVE_2_B)
-#define PLANE_SURFLIVE(pipe, plane)	_MMIO_PLANE(plane, _PLANE_SURFLIVE_1(pipe), _PLANE_SURFLIVE_2(pipe))
+#define PLANE_SURFLIVE(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_SURFLIVE_1_A, _PLANE_SURFLIVE_1_B, \
+							_PLANE_SURFLIVE_2_A, _PLANE_SURFLIVE_2_B)
 
 #define _PLANE_CC_VAL_1_A			0x701b4
 #define _PLANE_CC_VAL_2_A			0x702b4
 #define _PLANE_CC_VAL_1_B			0x711b4
 #define _PLANE_CC_VAL_2_B			0x712b4
-#define _PLANE_CC_VAL_1(pipe, dw)	(_PIPE(pipe, _PLANE_CC_VAL_1_A, _PLANE_CC_VAL_1_B) + (dw) * 4)
-#define _PLANE_CC_VAL_2(pipe, dw)	(_PIPE(pipe, _PLANE_CC_VAL_2_A, _PLANE_CC_VAL_2_B) + (dw) * 4)
-#define PLANE_CC_VAL(pipe, plane, dw)	_MMIO_PLANE((plane), _PLANE_CC_VAL_1((pipe), (dw)), _PLANE_CC_VAL_2((pipe), (dw)))
+#define PLANE_CC_VAL(pipe, plane, dw)	_MMIO_SKL_PLANE_DW((pipe), (plane), (dw), \
+							   _PLANE_CC_VAL_1_A, _PLANE_CC_VAL_1_B, \
+							   _PLANE_CC_VAL_2_A, _PLANE_CC_VAL_2_B)
 
 #define _PLANE_AUX_DIST_1_A			0x701c0
 #define _PLANE_AUX_DIST_2_A			0x702c0
 #define _PLANE_AUX_DIST_1_B			0x711c0
 #define _PLANE_AUX_DIST_2_B			0x712c0
-#define _PLANE_AUX_DIST_1(pipe)		_PIPE(pipe, _PLANE_AUX_DIST_1_A, _PLANE_AUX_DIST_1_B)
-#define _PLANE_AUX_DIST_2(pipe)		_PIPE(pipe, _PLANE_AUX_DIST_2_A, _PLANE_AUX_DIST_2_B)
-#define PLANE_AUX_DIST(pipe, plane)	_MMIO_PLANE(plane, _PLANE_AUX_DIST_1(pipe), _PLANE_AUX_DIST_2(pipe))
+#define PLANE_AUX_DIST(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_AUX_DIST_1_A, _PLANE_AUX_DIST_1_B, \
+							_PLANE_AUX_DIST_2_A, _PLANE_AUX_DIST_2_B)
 #define   PLANE_AUX_DISTANCE_MASK		REG_GENMASK(31, 12)
 #define   PLANE_AUX_STRIDE_MASK			REG_GENMASK(11, 0)
 #define   PLANE_AUX_STRIDE(stride)		REG_FIELD_PREP(PLANE_AUX_STRIDE_MASK, (stride))
@@ -193,17 +202,17 @@
 #define _PLANE_AUX_OFFSET_2_A			0x702c4
 #define _PLANE_AUX_OFFSET_1_B			0x711c4
 #define _PLANE_AUX_OFFSET_2_B			0x712c4
-#define _PLANE_AUX_OFFSET_1(pipe)	_PIPE(pipe, _PLANE_AUX_OFFSET_1_A, _PLANE_AUX_OFFSET_1_B)
-#define _PLANE_AUX_OFFSET_2(pipe)	_PIPE(pipe, _PLANE_AUX_OFFSET_2_A, _PLANE_AUX_OFFSET_2_B)
-#define PLANE_AUX_OFFSET(pipe, plane)	_MMIO_PLANE(plane, _PLANE_AUX_OFFSET_1(pipe), _PLANE_AUX_OFFSET_2(pipe))
+#define PLANE_AUX_OFFSET(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_AUX_OFFSET_1_A, _PLANE_AUX_OFFSET_1_B, \
+							_PLANE_AUX_OFFSET_2_A, _PLANE_AUX_OFFSET_2_B)
 
 #define _PLANE_CUS_CTL_1_A			0x701c8
 #define _PLANE_CUS_CTL_2_A			0x702c8
 #define _PLANE_CUS_CTL_1_B			0x711c8
 #define _PLANE_CUS_CTL_2_B			0x712c8
-#define _PLANE_CUS_CTL_1(pipe)		_PIPE(pipe, _PLANE_CUS_CTL_1_A, _PLANE_CUS_CTL_1_B)
-#define _PLANE_CUS_CTL_2(pipe)		_PIPE(pipe, _PLANE_CUS_CTL_2_A, _PLANE_CUS_CTL_2_B)
-#define PLANE_CUS_CTL(pipe, plane)	_MMIO_PLANE(plane, _PLANE_CUS_CTL_1(pipe), _PLANE_CUS_CTL_2(pipe))
+#define PLANE_CUS_CTL(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_CUS_CTL_1_A, _PLANE_CUS_CTL_1_B, \
+							_PLANE_CUS_CTL_2_A, _PLANE_CUS_CTL_2_B)
 #define   PLANE_CUS_ENABLE			REG_BIT(31)
 #define   PLANE_CUS_Y_PLANE_MASK		REG_BIT(30)
 #define   PLANE_CUS_Y_PLANE_4_RKL		REG_FIELD_PREP(PLANE_CUS_Y_PLANE_MASK, 0)
@@ -225,9 +234,9 @@
 #define _PLANE_COLOR_CTL_2_A			0x702cc
 #define _PLANE_COLOR_CTL_1_B			0x711cc
 #define _PLANE_COLOR_CTL_2_B			0x712cc
-#define _PLANE_COLOR_CTL_1(pipe)	_PIPE(pipe, _PLANE_COLOR_CTL_1_A, _PLANE_COLOR_CTL_1_B)
-#define _PLANE_COLOR_CTL_2(pipe)	_PIPE(pipe, _PLANE_COLOR_CTL_2_A, _PLANE_COLOR_CTL_2_B)
-#define PLANE_COLOR_CTL(pipe, plane)	_MMIO_PLANE(plane, _PLANE_COLOR_CTL_1(pipe), _PLANE_COLOR_CTL_2(pipe))
+#define PLANE_COLOR_CTL(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_COLOR_CTL_1_A, _PLANE_COLOR_CTL_1_B, \
+							_PLANE_COLOR_CTL_2_A, _PLANE_COLOR_CTL_2_B)
 #define   PLANE_COLOR_PIPE_GAMMA_ENABLE			REG_BIT(30) /* Pre-ICL */
 #define   PLANE_COLOR_YUV_RANGE_CORRECTION_DISABLE	REG_BIT(28)
 #define   PLANE_COLOR_PIPE_CSC_ENABLE			REG_BIT(23) /* Pre-ICL */
@@ -249,64 +258,56 @@
 #define _PLANE_INPUT_CSC_RY_GY_2_A		0x702e0
 #define _PLANE_INPUT_CSC_RY_GY_1_B		0x711e0
 #define _PLANE_INPUT_CSC_RY_GY_2_B		0x712e0
-#define _PLANE_INPUT_CSC_RY_GY_1(pipe)	_PIPE(pipe, _PLANE_INPUT_CSC_RY_GY_1_A, _PLANE_INPUT_CSC_RY_GY_1_B)
-#define _PLANE_INPUT_CSC_RY_GY_2(pipe)	_PIPE(pipe, _PLANE_INPUT_CSC_RY_GY_2_A, _PLANE_INPUT_CSC_RY_GY_2_B)
-#define PLANE_INPUT_CSC_COEFF(pipe, plane, index) \
-	_MMIO_PLANE(plane, _PLANE_INPUT_CSC_RY_GY_1(pipe) + (index) * 4, _PLANE_INPUT_CSC_RY_GY_2(pipe) + (index) * 4)
+#define PLANE_INPUT_CSC_COEFF(pipe, plane, index)	_MMIO_SKL_PLANE_DW((pipe), (plane), (index), \
+									   _PLANE_INPUT_CSC_RY_GY_1_A, _PLANE_INPUT_CSC_RY_GY_1_B, \
+									   _PLANE_INPUT_CSC_RY_GY_2_A, _PLANE_INPUT_CSC_RY_GY_2_B)
 
 #define _PLANE_INPUT_CSC_PREOFF_HI_1_A		0x701f8
 #define _PLANE_INPUT_CSC_PREOFF_HI_2_A		0x702f8
 #define _PLANE_INPUT_CSC_PREOFF_HI_1_B		0x711f8
 #define _PLANE_INPUT_CSC_PREOFF_HI_2_B		0x712f8
-#define _PLANE_INPUT_CSC_PREOFF_HI_1(pipe)	_PIPE(pipe, _PLANE_INPUT_CSC_PREOFF_HI_1_A, _PLANE_INPUT_CSC_PREOFF_HI_1_B)
-#define _PLANE_INPUT_CSC_PREOFF_HI_2(pipe)	_PIPE(pipe, _PLANE_INPUT_CSC_PREOFF_HI_2_A, _PLANE_INPUT_CSC_PREOFF_HI_2_B)
-#define PLANE_INPUT_CSC_PREOFF(pipe, plane, index) \
-	_MMIO_PLANE(plane, _PLANE_INPUT_CSC_PREOFF_HI_1(pipe) + (index) * 4, _PLANE_INPUT_CSC_PREOFF_HI_2(pipe) + (index) * 4)
+#define PLANE_INPUT_CSC_PREOFF(pipe, plane, index)	_MMIO_SKL_PLANE_DW((pipe), (plane), (index), \
+									   _PLANE_INPUT_CSC_PREOFF_HI_1_A, _PLANE_INPUT_CSC_PREOFF_HI_1_B, \
+									   _PLANE_INPUT_CSC_PREOFF_HI_2_A, _PLANE_INPUT_CSC_PREOFF_HI_2_B)
 
 #define _PLANE_INPUT_CSC_POSTOFF_HI_1_A		0x70204
 #define _PLANE_INPUT_CSC_POSTOFF_HI_2_A		0x70304
 #define _PLANE_INPUT_CSC_POSTOFF_HI_1_B		0x71204
 #define _PLANE_INPUT_CSC_POSTOFF_HI_2_B		0x71304
-#define _PLANE_INPUT_CSC_POSTOFF_HI_1(pipe)	_PIPE(pipe, _PLANE_INPUT_CSC_POSTOFF_HI_1_A, _PLANE_INPUT_CSC_POSTOFF_HI_1_B)
-#define _PLANE_INPUT_CSC_POSTOFF_HI_2(pipe)	_PIPE(pipe, _PLANE_INPUT_CSC_POSTOFF_HI_2_A, _PLANE_INPUT_CSC_POSTOFF_HI_2_B)
-#define PLANE_INPUT_CSC_POSTOFF(pipe, plane, index) \
-	_MMIO_PLANE(plane, _PLANE_INPUT_CSC_POSTOFF_HI_1(pipe) + (index) * 4, _PLANE_INPUT_CSC_POSTOFF_HI_2(pipe) + (index) * 4)
+#define PLANE_INPUT_CSC_POSTOFF(pipe, plane, index)	_MMIO_SKL_PLANE_DW((pipe), (plane), (index), \
+									   _PLANE_INPUT_CSC_POSTOFF_HI_1_A, _PLANE_INPUT_CSC_POSTOFF_HI_1_B, \
+									   _PLANE_INPUT_CSC_POSTOFF_HI_2_A, _PLANE_INPUT_CSC_POSTOFF_HI_2_B)
 
 #define _PLANE_CSC_RY_GY_1_A			0x70210
 #define _PLANE_CSC_RY_GY_2_A			0x70310
 #define _PLANE_CSC_RY_GY_1_B			0x71210
 #define _PLANE_CSC_RY_GY_2_B			0x71310
-#define _PLANE_CSC_RY_GY_1(pipe)	_PIPE(pipe, _PLANE_CSC_RY_GY_1_A, _PLANE_CSC_RY_GY_1_B)
-#define _PLANE_CSC_RY_GY_2(pipe)	_PIPE(pipe, _PLANE_CSC_RY_GY_2_A, _PLANE_CSC_RY_GY_2_B)
-#define PLANE_CSC_COEFF(pipe, plane, index) \
-	_MMIO_PLANE(plane, _PLANE_CSC_RY_GY_1(pipe) +  (index) * 4, _PLANE_CSC_RY_GY_2(pipe) + (index) * 4)
+#define PLANE_CSC_COEFF(pipe, plane, index)	_MMIO_SKL_PLANE_DW((pipe), (plane), (index), \
+								   _PLANE_CSC_RY_GY_1_A, _PLANE_CSC_RY_GY_1_B, \
+								   _PLANE_CSC_RY_GY_2_A, _PLANE_CSC_RY_GY_2_B)
 
 #define _PLANE_CSC_PREOFF_HI_1_A		0x70228
 #define _PLANE_CSC_PREOFF_HI_2_A		0x70328
 #define _PLANE_CSC_PREOFF_HI_1_B		0x71228
 #define _PLANE_CSC_PREOFF_HI_2_B		0x71328
-#define _PLANE_CSC_PREOFF_HI_1(pipe)	_PIPE(pipe, _PLANE_CSC_PREOFF_HI_1_A, _PLANE_CSC_PREOFF_HI_1_B)
-#define _PLANE_CSC_PREOFF_HI_2(pipe)	_PIPE(pipe, _PLANE_CSC_PREOFF_HI_2_A, _PLANE_CSC_PREOFF_HI_2_B)
-#define PLANE_CSC_PREOFF(pipe, plane, index) \
-	_MMIO_PLANE(plane, _PLANE_CSC_PREOFF_HI_1(pipe) + (index) * 4, _PLANE_CSC_PREOFF_HI_2(pipe) + (index) * 4)
+#define PLANE_CSC_PREOFF(pipe, plane, index)	_MMIO_SKL_PLANE_DW((pipe), (plane), (index), \
+								   _PLANE_CSC_PREOFF_HI_1_A, _PLANE_CSC_PREOFF_HI_1_B, \
+								   _PLANE_CSC_PREOFF_HI_2_A, _PLANE_CSC_PREOFF_HI_2_B)
 
 #define _PLANE_CSC_POSTOFF_HI_1_A		0x70234
 #define _PLANE_CSC_POSTOFF_HI_2_A		0x70334
 #define _PLANE_CSC_POSTOFF_HI_1_B		0x71234
 #define _PLANE_CSC_POSTOFF_HI_2_B		0x71334
-#define _PLANE_CSC_POSTOFF_HI_1(pipe)	_PIPE(pipe, _PLANE_CSC_POSTOFF_HI_1_A, _PLANE_CSC_POSTOFF_HI_1_B)
-#define _PLANE_CSC_POSTOFF_HI_2(pipe)	_PIPE(pipe, _PLANE_CSC_POSTOFF_HI_2_A, _PLANE_CSC_POSTOFF_HI_2_B)
-#define PLANE_CSC_POSTOFF(pipe, plane, index) \
-	_MMIO_PLANE(plane, _PLANE_CSC_POSTOFF_HI_1(pipe) + (index) * 4, _PLANE_CSC_POSTOFF_HI_2(pipe) + (index) * 4)
-
+#define PLANE_CSC_POSTOFF(pipe, plane, index)	_MMIO_SKL_PLANE_DW((pipe), (plane), (index), \
+								   _PLANE_CSC_POSTOFF_HI_1_A, _PLANE_CSC_POSTOFF_HI_1_B, \
+								   _PLANE_CSC_POSTOFF_HI_2_A, _PLANE_CSC_POSTOFF_HI_2_B)
 #define _PLANE_WM_1_A_0				0x70240
 #define _PLANE_WM_1_B_0				0x71240
 #define _PLANE_WM_2_A_0				0x70340
 #define _PLANE_WM_2_B_0				0x71340
-#define _PLANE_WM_1(pipe)		_PIPE(pipe, _PLANE_WM_1_A_0, _PLANE_WM_1_B_0)
-#define _PLANE_WM_2(pipe)		_PIPE(pipe, _PLANE_WM_2_A_0, _PLANE_WM_2_B_0)
-#define _PLANE_WM_BASE(pipe, plane)	_PLANE(plane, _PLANE_WM_1(pipe), _PLANE_WM_2(pipe))
-#define PLANE_WM(pipe, plane, level)	_MMIO(_PLANE_WM_BASE(pipe, plane) + ((4) * (level)))
+#define PLANE_WM(pipe, plane, level)	_MMIO_SKL_PLANE_DW((pipe), (plane), (level), \
+							   _PLANE_WM_1_A_0, _PLANE_WM_1_B_0, \
+							   _PLANE_WM_2_A_0, _PLANE_WM_2_B_0)
 #define   PLANE_WM_EN				REG_BIT(31)
 #define   PLANE_WM_IGNORE_LINES			REG_BIT(30)
 #define   PLANE_WM_LINES_MASK			REG_GENMASK(26, 14)
@@ -316,50 +317,50 @@
 #define _PLANE_WM_SAGV_1_B			0x71258
 #define _PLANE_WM_SAGV_2_A			0x70358
 #define _PLANE_WM_SAGV_2_B			0x71358
-#define _PLANE_WM_SAGV_1(pipe)		_PIPE(pipe, _PLANE_WM_SAGV_1_A, _PLANE_WM_SAGV_1_B)
-#define _PLANE_WM_SAGV_2(pipe)		_PIPE(pipe, _PLANE_WM_SAGV_2_A, _PLANE_WM_SAGV_2_B)
-#define PLANE_WM_SAGV(pipe, plane)	_MMIO(_PLANE(plane, _PLANE_WM_SAGV_1(pipe), _PLANE_WM_SAGV_2(pipe)))
+#define PLANE_WM_SAGV(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_WM_SAGV_1_A, _PLANE_WM_SAGV_1_B, \
+							_PLANE_WM_SAGV_2_A, _PLANE_WM_SAGV_2_B)
 
 #define _PLANE_WM_SAGV_TRANS_1_A		0x7025c
 #define _PLANE_WM_SAGV_TRANS_1_B		0x7125c
 #define _PLANE_WM_SAGV_TRANS_2_A		0x7035c
 #define _PLANE_WM_SAGV_TRANS_2_B		0x7135c
-#define _PLANE_WM_SAGV_TRANS_1(pipe)	_PIPE(pipe, _PLANE_WM_SAGV_TRANS_1_A, _PLANE_WM_SAGV_TRANS_1_B)
-#define _PLANE_WM_SAGV_TRANS_2(pipe)	_PIPE(pipe, _PLANE_WM_SAGV_TRANS_2_A, _PLANE_WM_SAGV_TRANS_2_B)
-#define PLANE_WM_SAGV_TRANS(pipe, plane)	_MMIO(_PLANE(plane, _PLANE_WM_SAGV_TRANS_1(pipe), _PLANE_WM_SAGV_TRANS_2(pipe)))
+#define PLANE_WM_SAGV_TRANS(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+								_PLANE_WM_SAGV_TRANS_1_A, _PLANE_WM_SAGV_TRANS_1_B, \
+								_PLANE_WM_SAGV_TRANS_2_A, _PLANE_WM_SAGV_TRANS_2_B)
 
 #define _PLANE_WM_TRANS_1_A			0x70268
 #define _PLANE_WM_TRANS_1_B			0x71268
 #define _PLANE_WM_TRANS_2_A			0x70368
 #define _PLANE_WM_TRANS_2_B			0x71368
-#define _PLANE_WM_TRANS_1(pipe)		_PIPE(pipe, _PLANE_WM_TRANS_1_A, _PLANE_WM_TRANS_1_B)
-#define _PLANE_WM_TRANS_2(pipe)		_PIPE(pipe, _PLANE_WM_TRANS_2_A, _PLANE_WM_TRANS_2_B)
-#define PLANE_WM_TRANS(pipe, plane)	_MMIO(_PLANE(plane, _PLANE_WM_TRANS_1(pipe), _PLANE_WM_TRANS_2(pipe)))
+#define PLANE_WM_TRANS(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_WM_TRANS_1_A, _PLANE_WM_TRANS_1_B, \
+							_PLANE_WM_TRANS_2_A, _PLANE_WM_TRANS_2_B)
 
 #define _PLANE_CHICKEN_1_A			0x7026c /* tgl+ */
 #define _PLANE_CHICKEN_2_A			0x7036c
 #define _PLANE_CHICKEN_1_B			0x7126c
 #define _PLANE_CHICKEN_2_B			0x7136c
-#define _PLANE_CHICKEN_1(pipe)		_PIPE(pipe, _PLANE_CHICKEN_1_A, _PLANE_CHICKEN_1_B)
-#define _PLANE_CHICKEN_2(pipe)		_PIPE(pipe, _PLANE_CHICKEN_2_A, _PLANE_CHICKEN_2_B)
-#define PLANE_CHICKEN(pipe, plane)	_MMIO_PLANE(plane, _PLANE_CHICKEN_1(pipe), _PLANE_CHICKEN_2(pipe))
+#define PLANE_CHICKEN(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_CHICKEN_1_A, _PLANE_CHICKEN_1_B, \
+							_PLANE_CHICKEN_2_A, _PLANE_CHICKEN_2_B)
 #define   PLANE_CHICKEN_DISABLE_DPT		REG_BIT(19) /* mtl+ */
 
 #define _PLANE_NV12_BUF_CFG_1_A			0x70278
 #define _PLANE_NV12_BUF_CFG_2_A			0x70378
 #define _PLANE_NV12_BUF_CFG_1_B			0x71278
 #define _PLANE_NV12_BUF_CFG_2_B			0x71378
-#define _PLANE_NV12_BUF_CFG_1(pipe)	_PIPE(pipe, _PLANE_NV12_BUF_CFG_1_A, _PLANE_NV12_BUF_CFG_1_B)
-#define _PLANE_NV12_BUF_CFG_2(pipe)	_PIPE(pipe, _PLANE_NV12_BUF_CFG_2_A, _PLANE_NV12_BUF_CFG_2_B)
-#define PLANE_NV12_BUF_CFG(pipe, plane)	_MMIO_PLANE(plane, _PLANE_NV12_BUF_CFG_1(pipe), _PLANE_NV12_BUF_CFG_2(pipe))
+#define PLANE_NV12_BUF_CFG(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_NV12_BUF_CFG_1_A, _PLANE_NV12_BUF_CFG_1_B, \
+							_PLANE_NV12_BUF_CFG_2_A, _PLANE_NV12_BUF_CFG_2_B)
 
 #define _PLANE_BUF_CFG_1_A			0x7027c
 #define _PLANE_BUF_CFG_2_A			0x7037c
 #define _PLANE_BUF_CFG_1_B			0x7127c
 #define _PLANE_BUF_CFG_2_B			0x7137c
-#define _PLANE_BUF_CFG_1(pipe)		_PIPE(pipe, _PLANE_BUF_CFG_1_A, _PLANE_BUF_CFG_1_B)
-#define _PLANE_BUF_CFG_2(pipe)		_PIPE(pipe, _PLANE_BUF_CFG_2_A, _PLANE_BUF_CFG_2_B)
-#define PLANE_BUF_CFG(pipe, plane)	_MMIO_PLANE(plane, _PLANE_BUF_CFG_1(pipe), _PLANE_BUF_CFG_2(pipe))
+#define PLANE_BUF_CFG(pipe, plane)	_MMIO_SKL_PLANE((pipe), (plane), \
+							_PLANE_BUF_CFG_1_A, _PLANE_BUF_CFG_1_B, \
+							_PLANE_BUF_CFG_2_A, _PLANE_BUF_CFG_2_B)
 /* skl+: 10 bits, icl+ 11 bits, adlp+ 12 bits */
 #define   PLANE_BUF_END_MASK			REG_GENMASK(27, 16)
 #define   PLANE_BUF_END(end)			REG_FIELD_PREP(PLANE_BUF_END_MASK, (end))
