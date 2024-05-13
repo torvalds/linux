@@ -6,7 +6,7 @@
 #ifndef _XE_GUC_ADS_H_
 #define _XE_GUC_ADS_H_
 
-#include "xe_guc_ads_types.h"
+struct xe_guc_ads;
 
 int xe_guc_ads_init(struct xe_guc_ads *ads);
 int xe_guc_ads_init_post_hwconfig(struct xe_guc_ads *ads);
