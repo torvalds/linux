@@ -30,6 +30,8 @@ enum dma_alloc_type {
 
 #define MEM_SCRUB_DEFAULT_VAL 0x1122334455667788
 
+static void hl_device_heartbeat(struct work_struct *work);
+
 /*
  * hl_set_dram_bar- sets the bar to allow later access to address
  *
@@ -963,6 +965,8 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cb_mgr;
 	}
 
+	INIT_DELAYED_WORK(&hdev->work_heartbeat, hl_device_heartbeat);
+
 	INIT_DELAYED_WORK(&hdev->device_reset_work.reset_work, device_hard_reset_pending);
 	hdev->device_reset_work.hdev = hdev;
 	hdev->device_fini_pending = 0;
@@ -1603,8 +1607,6 @@ static inline void device_heartbeat_schedule(struct hl_device *hdev)
 	 * one this indication will be true only if eq event was sent by FW.
 	 */
 	hdev->eq_heartbeat_received = true;
-
-	INIT_DELAYED_WORK(&hdev->work_heartbeat, hl_device_heartbeat);
 
 	schedule_delayed_work(&hdev->work_heartbeat,
 			usecs_to_jiffies(HL_HEARTBEAT_PER_USEC));
