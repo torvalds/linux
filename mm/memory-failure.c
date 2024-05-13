@@ -1935,7 +1935,7 @@ static int folio_set_hugetlb_hwpoison(struct folio *folio, struct page *page)
 {
 	struct llist_head *head;
 	struct raw_hwp_page *raw_hwp;
-	struct raw_hwp_page *p, *next;
+	struct raw_hwp_page *p;
 	int ret = folio_test_set_hwpoison(folio) ? -EHWPOISON : 0;
 
 	/*
@@ -1946,7 +1946,7 @@ static int folio_set_hugetlb_hwpoison(struct folio *folio, struct page *page)
 	if (folio_test_hugetlb_raw_hwp_unreliable(folio))
 		return -EHWPOISON;
 	head = raw_hwp_list_head(folio);
-	llist_for_each_entry_safe(p, next, head->first, node) {
+	llist_for_each_entry(p, head->first, node) {
 		if (p->page == page)
 			return -EHWPOISON;
 	}
