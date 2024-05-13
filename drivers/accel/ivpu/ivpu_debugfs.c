@@ -335,6 +335,28 @@ static const struct file_operations ivpu_reset_engine_fops = {
 	.write = ivpu_reset_engine_fn,
 };
 
+static ssize_t
+ivpu_resume_engine_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+{
+	struct ivpu_device *vdev = file->private_data;
+
+	if (!size)
+		return -EINVAL;
+
+	if (ivpu_jsm_hws_resume_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
+		return -ENODEV;
+	if (ivpu_jsm_hws_resume_engine(vdev, DRM_IVPU_ENGINE_COPY))
+		return -ENODEV;
+
+	return size;
+}
+
+static const struct file_operations ivpu_resume_engine_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = ivpu_resume_engine_fn,
+};
+
 void ivpu_debugfs_init(struct ivpu_device *vdev)
 {
 	struct dentry *debugfs_root = vdev->drm.debugfs_root;
@@ -358,6 +380,8 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 
 	debugfs_create_file("reset_engine", 0200, debugfs_root, vdev,
 			    &ivpu_reset_engine_fops);
+	debugfs_create_file("resume_engine", 0200, debugfs_root, vdev,
+			    &ivpu_resume_engine_fops);
 
 	if (ivpu_hw_gen(vdev) >= IVPU_HW_40XX)
 		debugfs_create_file("fw_profiling_freq_drive", 0200,
