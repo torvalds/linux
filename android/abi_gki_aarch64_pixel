@@ -763,6 +763,7 @@
   drm_gem_vm_open
   drm_get_edid
   drm_get_format_info
+  drm_hdmi_avi_infoframe_from_display_mode
   drm_helper_mode_fill_fb_struct
   drm_helper_probe_single_connector_modes
   drm_ioctl
@@ -1034,6 +1035,7 @@
   handle_sysrq
   hashlen_string
   have_governor_per_policy
+  hdmi_avi_infoframe_pack
   hex2bin
   hex_dump_to_buffer
   hex_to_bin
@@ -2237,6 +2239,7 @@
   sysctl_sched_idle_min_granularity
   sysctl_sched_latency
   sysctl_sched_min_granularity
+  sysctl_sched_wakeup_granularity
   sysfs_add_file_to_group
   sysfs_add_link_to_group
   sysfs_create_file_ns
