@@ -448,6 +448,7 @@ nft_trans_alloc_chain(const struct nft_ctx *ctx, int msg_type)
 
 	trans_chain = nft_trans_container_chain(trans);
 	INIT_LIST_HEAD(&trans_chain->nft_trans_binding.binding_list);
+	trans_chain->chain = ctx->chain;
 
 	return trans;
 }
@@ -468,7 +469,6 @@ static struct nft_trans *nft_trans_chain_add(struct nft_ctx *ctx, int msg_type)
 				ntohl(nla_get_be32(ctx->nla[NFTA_CHAIN_ID]));
 		}
 	}
-	nft_trans_chain(trans) = ctx->chain;
 	nft_trans_commit_list_add_tail(ctx->net, trans);
 
 	return trans;
@@ -2089,18 +2089,19 @@ static struct nft_stats __percpu *nft_stats_alloc(const struct nlattr *attr)
 	return newstats;
 }
 
-static void nft_chain_stats_replace(struct nft_trans *trans)
+static void nft_chain_stats_replace(struct nft_trans_chain *trans)
 {
-	struct nft_base_chain *chain = nft_base_chain(trans->ctx.chain);
+	const struct nft_trans *t = &trans->nft_trans_binding.nft_trans;
+	struct nft_base_chain *chain = nft_base_chain(trans->chain);
 
-	if (!nft_trans_chain_stats(trans))
+	if (!trans->stats)
 		return;
 
-	nft_trans_chain_stats(trans) =
-		rcu_replace_pointer(chain->stats, nft_trans_chain_stats(trans),
-				    lockdep_commit_lock_is_held(trans->ctx.net));
+	trans->stats =
+		rcu_replace_pointer(chain->stats, trans->stats,
+				    lockdep_commit_lock_is_held(t->ctx.net));
 
-	if (!nft_trans_chain_stats(trans))
+	if (!trans->stats)
 		static_branch_inc(&nft_counters_enabled);
 }
 
@@ -9456,47 +9457,47 @@ static int nf_tables_validate(struct net *net)
  *
  * We defer the drop policy until the transaction has been finalized.
  */
-static void nft_chain_commit_drop_policy(struct nft_trans *trans)
+static void nft_chain_commit_drop_policy(struct nft_trans_chain *trans)
 {
 	struct nft_base_chain *basechain;
 
-	if (nft_trans_chain_policy(trans) != NF_DROP)
+	if (trans->policy != NF_DROP)
 		return;
 
-	if (!nft_is_base_chain(trans->ctx.chain))
+	if (!nft_is_base_chain(trans->chain))
 		return;
 
-	basechain = nft_base_chain(trans->ctx.chain);
+	basechain = nft_base_chain(trans->chain);
 	basechain->policy = NF_DROP;
 }
 
-static void nft_chain_commit_update(struct nft_trans *trans)
+static void nft_chain_commit_update(struct nft_trans_chain *trans)
 {
-	struct nft_table *table = trans->ctx.table;
+	struct nft_table *table = trans->nft_trans_binding.nft_trans.ctx.table;
 	struct nft_base_chain *basechain;
 
-	if (nft_trans_chain_name(trans)) {
+	if (trans->name) {
 		rhltable_remove(&table->chains_ht,
-				&trans->ctx.chain->rhlhead,
+				&trans->chain->rhlhead,
 				nft_chain_ht_params);
-		swap(trans->ctx.chain->name, nft_trans_chain_name(trans));
+		swap(trans->chain->name, trans->name);
 		rhltable_insert_key(&table->chains_ht,
-				    trans->ctx.chain->name,
-				    &trans->ctx.chain->rhlhead,
+				    trans->chain->name,
+				    &trans->chain->rhlhead,
 				    nft_chain_ht_params);
 	}
 
-	if (!nft_is_base_chain(trans->ctx.chain))
+	if (!nft_is_base_chain(trans->chain))
 		return;
 
 	nft_chain_stats_replace(trans);
 
-	basechain = nft_base_chain(trans->ctx.chain);
+	basechain = nft_base_chain(trans->chain);
 
-	switch (nft_trans_chain_policy(trans)) {
+	switch (trans->policy) {
 	case NF_DROP:
 	case NF_ACCEPT:
-		basechain->policy = nft_trans_chain_policy(trans);
+		basechain->policy = trans->policy;
 		break;
 	}
 }
@@ -10309,14 +10310,14 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			break;
 		case NFT_MSG_NEWCHAIN:
 			if (nft_trans_chain_update(trans)) {
-				nft_chain_commit_update(trans);
+				nft_chain_commit_update(nft_trans_container_chain(trans));
 				nf_tables_chain_notify(&trans->ctx, NFT_MSG_NEWCHAIN,
 						       &nft_trans_chain_hooks(trans));
 				list_splice(&nft_trans_chain_hooks(trans),
 					    &nft_trans_basechain(trans)->hook_list);
 				/* trans destroyed after rcu grace period */
 			} else {
-				nft_chain_commit_drop_policy(trans);
+				nft_chain_commit_drop_policy(nft_trans_container_chain(trans));
 				nft_clear(net, trans->ctx.chain);
 				nf_tables_chain_notify(&trans->ctx, NFT_MSG_NEWCHAIN, NULL);
 				nft_trans_destroy(trans);
