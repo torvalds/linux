@@ -5,14 +5,17 @@
 #ifndef _XE_LRC_H_
 #define _XE_LRC_H_
 
-#include "xe_lrc_types.h"
+#include <linux/types.h>
 
 struct drm_printer;
 struct xe_bb;
 struct xe_device;
 struct xe_exec_queue;
 enum xe_engine_class;
+struct xe_gt;
 struct xe_hw_engine;
+struct xe_lrc;
+struct xe_lrc_snapshot;
 struct xe_vm;
 
 #define LRC_PPHWSP_SCRATCH_ADDR (0x34 * 4)
