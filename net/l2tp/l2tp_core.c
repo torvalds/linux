@@ -887,22 +887,20 @@ pass:
 	return 1;
 }
 
-/* UDP encapsulation receive handler. See net/ipv4/udp.c.
- * Return codes:
- * 0 : success.
- * <0: error
- * >0: skb should be passed up to userspace as UDP.
+/* UDP encapsulation receive and error receive handlers.
+ * See net/ipv4/udp.c for details.
+ *
+ * Note that these functions are called from inside an
+ * RCU-protected region, but without the socket being locked.
+ *
+ * Hence we use rcu_dereference_sk_user_data to access the
+ * tunnel data structure rather the usual l2tp_sk_to_tunnel
+ * accessor function.
  */
 int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2tp_tunnel *tunnel;
 
-	/* Note that this is called from the encap_rcv hook inside an
-	 * RCU-protected region, but without the socket being locked.
-	 * Hence we use rcu_dereference_sk_user_data to access the
-	 * tunnel data structure rather the usual l2tp_sk_to_tunnel
-	 * accessor function.
-	 */
 	tunnel = rcu_dereference_sk_user_data(sk);
 	if (!tunnel)
 		goto pass_up;
@@ -918,6 +916,29 @@ pass_up:
 	return 1;
 }
 EXPORT_SYMBOL_GPL(l2tp_udp_encap_recv);
+
+static void l2tp_udp_encap_err_recv(struct sock *sk, struct sk_buff *skb, int err,
+				    __be16 port, u32 info, u8 *payload)
+{
+	struct l2tp_tunnel *tunnel;
+
+	tunnel = rcu_dereference_sk_user_data(sk);
+	if (!tunnel || tunnel->fd < 0)
+		return;
+
+	sk->sk_err = err;
+	sk_error_report(sk);
+
+	if (ip_hdr(skb)->version == IPVERSION) {
+		if (inet_test_bit(RECVERR, sk))
+			return ip_icmp_error(sk, skb, err, port, info, payload);
+#if IS_ENABLED(CONFIG_IPV6)
+	} else {
+		if (inet6_test_bit(RECVERR6, sk))
+			return ipv6_icmp_error(sk, skb, err, port, info, payload);
+#endif
+	}
+}
 
 /************************************************************************
  * Transmit handling
@@ -1493,6 +1514,7 @@ int l2tp_tunnel_register(struct l2tp_tunnel *tunnel, struct net *net,
 			.sk_user_data = tunnel,
 			.encap_type = UDP_ENCAP_L2TPINUDP,
 			.encap_rcv = l2tp_udp_encap_recv,
+			.encap_err_rcv = l2tp_udp_encap_err_recv,
 			.encap_destroy = l2tp_udp_encap_destroy,
 		};
 
