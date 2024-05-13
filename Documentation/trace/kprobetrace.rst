@@ -74,7 +74,7 @@ Function arguments at kretprobe
 -------------------------------
 Function arguments can be accessed at kretprobe using $arg<N> fetcharg. This
 is useful to record the function parameter and return value at once, and
-trace the difference of structure fields (for debuging a function whether it
+trace the difference of structure fields (for debugging a function whether it
 correctly updates the given data structure or not).
 See the :ref:`sample<fprobetrace_exit_args_sample>` in fprobe event for how
 it works.

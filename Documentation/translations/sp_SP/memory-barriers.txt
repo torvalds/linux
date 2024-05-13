@@ -1,6 +1,6 @@
 NOTE:
 This is a version of Documentation/memory-barriers.txt translated into
-Spanish by Carlos Bilbao <carlos.bilbao@amd.com>. If you find any
+Spanish by Carlos Bilbao <carlos.bilbao.osdev@gmail.com>. If you find any
 difference between this document and the original file or a problem with
 the translation, please contact the maintainer of this file. Please also
 note that the purpose of this file is to be easier to read for non English
@@ -18,7 +18,7 @@ Documento original: David Howells <dhowells@redhat.com>
     Will Deacon <will.deacon@arm.com>
     Peter Zijlstra <peterz@infradead.org>
 
-Traducido por: Carlos Bilbao <carlos.bilbao@amd.com>
+Traducido por: Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
 Nota: Si tiene alguna duda sobre la exactitud del contenido de esta
 traducción, la única referencia válida es la documentación oficial en
 inglés.

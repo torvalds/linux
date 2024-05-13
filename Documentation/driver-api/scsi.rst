@@ -259,7 +259,7 @@ attributes for Serial Attached SCSI, a variant of SATA aimed at large
 high-end systems.
 
 The SAS transport class contains common code to deal with SAS HBAs, an
-aproximated representation of SAS topologies in the driver model, and
+approximated representation of SAS topologies in the driver model, and
 various sysfs attributes to expose these topologies and management
 interfaces to userspace.
 
