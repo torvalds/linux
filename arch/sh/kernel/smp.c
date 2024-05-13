@@ -322,11 +322,13 @@ void smp_message_recv(unsigned int msg)
 	}
 }
 
+#ifdef CONFIG_PROFILING
 /* Not really SMP stuff ... */
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_MMU
 
