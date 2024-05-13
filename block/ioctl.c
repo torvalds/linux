@@ -33,7 +33,7 @@ static int blkpg_do_ioctl(struct block_device *bdev,
 	if (op == BLKPG_DEL_PARTITION)
 		return bdev_del_partition(disk, p.pno);
 
-	if (p.start < 0 || p.length <= 0 || p.start + p.length < 0)
+	if (p.start < 0 || p.length <= 0 || LLONG_MAX - p.length < p.start)
 		return -EINVAL;
 	/* Check that the partition is aligned to the block size */
 	if (!IS_ALIGNED(p.start | p.length, bdev_logical_block_size(bdev)))
@@ -95,9 +95,12 @@ static int compat_blkpg_ioctl(struct block_device *bdev,
 static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 		unsigned long arg)
 {
-	uint64_t range[2];
-	uint64_t start, len, end;
+	unsigned int bs_mask = bdev_logical_block_size(bdev) - 1;
 	struct inode *inode = bdev->bd_inode;
+	uint64_t range[2], start, len, end;
+	struct bio *prev = NULL, *bio;
+	sector_t sector, nr_sects;
+	struct blk_plug plug;
 	int err;
 
 	if (!(mode & BLK_OPEN_WRITE))
@@ -105,6 +108,8 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 
 	if (!bdev_max_discard_sectors(bdev))
 		return -EOPNOTSUPP;
+	if (bdev_read_only(bdev))
+		return -EPERM;
 
 	if (copy_from_user(range, (void __user *)arg, sizeof(range)))
 		return -EFAULT;
@@ -112,9 +117,9 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 	start = range[0];
 	len = range[1];
 
-	if (start & 511)
+	if (!len)
 		return -EINVAL;
-	if (len & 511)
+	if ((start | len) & bs_mask)
 		return -EINVAL;
 
 	if (check_add_overflow(start, len, &end) ||
@@ -125,7 +130,32 @@ static int blk_ioctl_discard(struct block_device *bdev, blk_mode_t mode,
 	err = truncate_bdev_range(bdev, mode, start, start + len - 1);
 	if (err)
 		goto fail;
-	err = blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL);
+
+	sector = start >> SECTOR_SHIFT;
+	nr_sects = len >> SECTOR_SHIFT;
+
+	blk_start_plug(&plug);
+	while (1) {
+		if (fatal_signal_pending(current)) {
+			if (prev)
+				bio_await_chain(prev);
+			err = -EINTR;
+			goto out_unplug;
+		}
+		bio = blk_alloc_discard_bio(bdev, &sector, &nr_sects,
+				GFP_KERNEL);
+		if (!bio)
+			break;
+		prev = bio_chain_and_submit(prev, bio);
+	}
+	if (prev) {
+		err = submit_bio_wait(prev);
+		if (err == -EOPNOTSUPP)
+			err = 0;
+		bio_put(prev);
+	}
+out_unplug:
+	blk_finish_plug(&plug);
 fail:
 	filemap_invalidate_unlock(inode->i_mapping);
 	return err;

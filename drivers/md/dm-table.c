@@ -2042,7 +2042,8 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		r = dm_set_zones_restrictions(t, q);
 		if (r)
 			return r;
-		if (!static_key_enabled(&zoned_enabled.key))
+		if (blk_queue_is_zoned(q) &&
+		    !static_key_enabled(&zoned_enabled.key))
 			static_branch_enable(&zoned_enabled);
 	}
 

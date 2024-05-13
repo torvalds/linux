@@ -604,8 +604,7 @@ static void assign_discard_permit(struct limiter *limiter)
 
 static void get_waiters(struct limiter *limiter)
 {
-	bio_list_merge(&limiter->waiters, &limiter->new_waiters);
-	bio_list_init(&limiter->new_waiters);
+	bio_list_merge_init(&limiter->waiters, &limiter->new_waiters);
 }
 
 static inline struct data_vio *get_available_data_vio(struct data_vio_pool *pool)
