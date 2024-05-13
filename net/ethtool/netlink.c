@@ -4,7 +4,6 @@
 #include <linux/ethtool_netlink.h>
 #include <linux/pm_runtime.h>
 #include "netlink.h"
-#include <linux/phy_link_topology.h>
 
 static struct genl_family ethtool_genl_family;
 
@@ -29,24 +28,6 @@ const struct nla_policy ethnl_header_policy_stats[] = {
 					    .len = ALTIFNAMSIZ - 1 },
 	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
 							  ETHTOOL_FLAGS_STATS),
-};
-
-const struct nla_policy ethnl_header_policy_phy[] = {
-	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
-	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
-					    .len = ALTIFNAMSIZ - 1 },
-	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
-							  ETHTOOL_FLAGS_BASIC),
-	[ETHTOOL_A_HEADER_PHY_INDEX]		= NLA_POLICY_MIN(NLA_U32, 1),
-};
-
-const struct nla_policy ethnl_header_policy_phy_stats[] = {
-	[ETHTOOL_A_HEADER_DEV_INDEX]	= { .type = NLA_U32 },
-	[ETHTOOL_A_HEADER_DEV_NAME]	= { .type = NLA_NUL_STRING,
-					    .len = ALTIFNAMSIZ - 1 },
-	[ETHTOOL_A_HEADER_FLAGS]	= NLA_POLICY_MASK(NLA_U32,
-							  ETHTOOL_FLAGS_STATS),
-	[ETHTOOL_A_HEADER_PHY_INDEX]		= NLA_POLICY_MIN(NLA_U32, 1),
 };
 
 int ethnl_ops_begin(struct net_device *dev)
@@ -108,9 +89,8 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 			       const struct nlattr *header, struct net *net,
 			       struct netlink_ext_ack *extack, bool require_dev)
 {
-	struct nlattr *tb[ARRAY_SIZE(ethnl_header_policy_phy)];
+	struct nlattr *tb[ARRAY_SIZE(ethnl_header_policy)];
 	const struct nlattr *devname_attr;
-	struct phy_device *phydev = NULL;
 	struct net_device *dev = NULL;
 	u32 flags = 0;
 	int ret;
@@ -124,7 +104,7 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 	/* No validation here, command policy should have a nested policy set
 	 * for the header, therefore validation should have already been done.
 	 */
-	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy_phy) - 1, header,
+	ret = nla_parse_nested(tb, ARRAY_SIZE(ethnl_header_policy) - 1, header,
 			       NULL, extack);
 	if (ret < 0)
 		return ret;
@@ -165,30 +145,6 @@ int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 		return -EINVAL;
 	}
 
-	if (dev) {
-		if (tb[ETHTOOL_A_HEADER_PHY_INDEX]) {
-			struct nlattr *phy_id;
-
-			phy_id = tb[ETHTOOL_A_HEADER_PHY_INDEX];
-			phydev = phy_link_topo_get_phy(dev->link_topo,
-						       nla_get_u32(phy_id));
-			if (!phydev) {
-				NL_SET_BAD_ATTR(extack, phy_id);
-				return -ENODEV;
-			}
-		} else {
-			/* If we need a PHY but no phy index is specified, fallback
-			 * to dev->phydev
-			 */
-			phydev = dev->phydev;
-		}
-	} else if (tb[ETHTOOL_A_HEADER_PHY_INDEX]) {
-		NL_SET_ERR_MSG_ATTR(extack, header,
-				    "can't target a PHY without a netdev");
-		return -EINVAL;
-	}
-
-	req_info->phydev = phydev;
 	req_info->dev = dev;
 	req_info->flags = flags;
 	return 0;

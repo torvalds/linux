@@ -29,7 +29,6 @@
 #include <linux/phy.h>
 #include <linux/phylib_stubs.h>
 #include <linux/phy_led_triggers.h>
-#include <linux/phy_link_topology.h>
 #include <linux/pse-pd/pse.h>
 #include <linux/property.h>
 #include <linux/rtnetlink.h>
@@ -276,14 +275,6 @@ static void phy_mdio_device_remove(struct mdio_device *mdiodev)
 }
 
 static struct phy_driver genphy_driver;
-
-static struct phy_link_topology *phy_get_link_topology(struct phy_device *phydev)
-{
-	if (phydev->attached_dev)
-		return phydev->attached_dev->link_topo;
-
-	return NULL;
-}
 
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
@@ -1379,46 +1370,6 @@ phy_standalone_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(phy_standalone);
 
 /**
- * phy_sfp_connect_phy - Connect the SFP module's PHY to the upstream PHY
- * @upstream: pointer to the upstream phy device
- * @phy: pointer to the SFP module's phy device
- *
- * This helper allows keeping track of PHY devices on the link. It adds the
- * SFP module's phy to the phy namespace of the upstream phy
- */
-int phy_sfp_connect_phy(void *upstream, struct phy_device *phy)
-{
-	struct phy_device *phydev = upstream;
-	struct phy_link_topology *topo = phy_get_link_topology(phydev);
-
-	if (topo)
-		return phy_link_topo_add_phy(topo, phy, PHY_UPSTREAM_PHY, phydev);
-
-	return 0;
-}
-EXPORT_SYMBOL(phy_sfp_connect_phy);
-
-/**
- * phy_sfp_disconnect_phy - Disconnect the SFP module's PHY from the upstream PHY
- * @upstream: pointer to the upstream phy device
- * @phy: pointer to the SFP module's phy device
- *
- * This helper allows keeping track of PHY devices on the link. It removes the
- * SFP module's phy to the phy namespace of the upstream phy. As the module phy
- * will be destroyed, re-inserting the same module will add a new phy with a
- * new index.
- */
-void phy_sfp_disconnect_phy(void *upstream, struct phy_device *phy)
-{
-	struct phy_device *phydev = upstream;
-	struct phy_link_topology *topo = phy_get_link_topology(phydev);
-
-	if (topo)
-		phy_link_topo_del_phy(topo, phy);
-}
-EXPORT_SYMBOL(phy_sfp_disconnect_phy);
-
-/**
  * phy_sfp_attach - attach the SFP bus to the PHY upstream network device
  * @upstream: pointer to the phy device
  * @bus: sfp bus representing cage being attached
@@ -1560,11 +1511,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 		if (phydev->sfp_bus_attached)
 			dev->sfp_bus = phydev->sfp_bus;
-
-		err = phy_link_topo_add_phy(dev->link_topo, phydev,
-					    PHY_UPSTREAM_MAC, dev);
-		if (err)
-			goto error;
 	}
 
 	/* Some Ethernet drivers try to connect to a PHY device before
@@ -1992,7 +1938,6 @@ void phy_detach(struct phy_device *phydev)
 	if (dev) {
 		phydev->attached_dev->phydev = NULL;
 		phydev->attached_dev = NULL;
-		phy_link_topo_del_phy(dev->link_topo, phydev);
 	}
 	phydev->phylink = NULL;
 
