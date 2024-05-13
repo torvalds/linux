@@ -67,6 +67,12 @@ config ATH10K_DEBUGFS
 
 	  If unsure, say Y to make it easier to debug problems.
 
+config ATH10K_LEDS
+	bool
+	depends on ATH10K
+	depends on LEDS_CLASS=y || LEDS_CLASS=MAC80211
+	default y
+
 config ATH10K_SPECTRAL
 	bool "Atheros ath10k spectral scan support"
 	depends on ATH10K_DEBUGFS
