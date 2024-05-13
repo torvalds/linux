@@ -167,6 +167,7 @@ extern u8 ivpu_pll_min_ratio;
 extern u8 ivpu_pll_max_ratio;
 extern int ivpu_sched_mode;
 extern bool ivpu_disable_mmu_cont_pages;
+extern bool ivpu_force_snoop;
 
 #define IVPU_TEST_MODE_FW_TEST            BIT(0)
 #define IVPU_TEST_MODE_NULL_HW            BIT(1)
@@ -239,6 +240,11 @@ static inline bool ivpu_is_simics(struct ivpu_device *vdev)
 static inline bool ivpu_is_fpga(struct ivpu_device *vdev)
 {
 	return ivpu_get_platform(vdev) == IVPU_PLATFORM_FPGA;
+}
+
+static inline bool ivpu_is_force_snoop_enabled(struct ivpu_device *vdev)
+{
+	return ivpu_force_snoop;
 }
 
 #endif /* __IVPU_DRV_H__ */

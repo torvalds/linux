@@ -60,6 +60,10 @@ bool ivpu_disable_mmu_cont_pages;
 module_param_named(disable_mmu_cont_pages, ivpu_disable_mmu_cont_pages, bool, 0644);
 MODULE_PARM_DESC(disable_mmu_cont_pages, "Disable MMU contiguous pages optimization");
 
+bool ivpu_force_snoop;
+module_param_named(force_snoop, ivpu_force_snoop, bool, 0644);
+MODULE_PARM_DESC(force_snoop, "Force snooping for NPU host memory access");
+
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv)
 {
 	struct ivpu_device *vdev = file_priv->vdev;
