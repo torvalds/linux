@@ -328,6 +328,8 @@ int xe_gt_init_early(struct xe_gt *gt)
 	xe_wa_process_oob(gt);
 	xe_tuning_process_gt(gt);
 
+	xe_force_wake_init_gt(gt, gt_to_fw(gt));
+
 	return 0;
 }
 
