@@ -184,6 +184,13 @@ config PINCTRL_IMXRT1050
 	help
 	  Say Y here to enable the imxrt1050 pinctrl driver
 
+config PINCTRL_IMX91
+	tristate "IMX91 pinctrl driver"
+	depends on ARCH_MXC
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx91 pinctrl driver
+
 config PINCTRL_IMX93
 	tristate "IMX93 pinctrl driver"
 	depends on ARCH_MXC
