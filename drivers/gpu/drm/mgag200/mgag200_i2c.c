@@ -96,54 +96,50 @@ static void mgag200_i2c_release(struct drm_device *dev, void *res)
 	i2c_del_adapter(&i2c->adapter);
 }
 
-static int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c)
+struct i2c_adapter *mgag200_ddc_create(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
 	const struct mgag200_device_info *info = mdev->info;
-	int ret;
-
-	WREG_DAC(MGA1064_GEN_IO_CTL2, 1);
-	WREG_DAC(MGA1064_GEN_IO_DATA, 0xff);
-	WREG_DAC(MGA1064_GEN_IO_CTL, 0);
-
-	i2c->data = BIT(info->i2c.data_bit);
-	i2c->clock = BIT(info->i2c.clock_bit);
-	i2c->adapter.owner = THIS_MODULE;
-	i2c->adapter.dev.parent = dev->dev;
-	i2c->mdev = mdev;
-	i2c_set_adapdata(&i2c->adapter, i2c);
-	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name), "mga i2c");
-
-	i2c->adapter.algo_data = &i2c->bit;
-
-	i2c->bit.udelay = 10;
-	i2c->bit.timeout = usecs_to_jiffies(2200);
-	i2c->bit.data = i2c;
-	i2c->bit.setsda		= mga_gpio_setsda;
-	i2c->bit.setscl		= mga_gpio_setscl;
-	i2c->bit.getsda		= mga_gpio_getsda;
-	i2c->bit.getscl		= mga_gpio_getscl;
-
-	ret = i2c_bit_add_bus(&i2c->adapter);
-	if (ret)
-		return ret;
-
-	return drmm_add_action_or_reset(dev, mgag200_i2c_release, i2c);
-}
-
-struct i2c_adapter *mgag200_ddc_create(struct mga_device *mdev)
-{
 	struct mga_i2c_chan *i2c;
-	struct drm_device *dev = &mdev->base;
+	struct i2c_algo_bit_data *bit;
+	struct i2c_adapter *adapter;
 	int ret;
 
 	i2c = drmm_kzalloc(dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
 		return ERR_PTR(-ENOMEM);
 
-	ret = mgag200_i2c_init(mdev, i2c);
+	WREG_DAC(MGA1064_GEN_IO_CTL2, 1);
+	WREG_DAC(MGA1064_GEN_IO_DATA, 0xff);
+	WREG_DAC(MGA1064_GEN_IO_CTL, 0);
+
+	i2c->mdev = mdev;
+	i2c->data = BIT(info->i2c.data_bit);
+	i2c->clock = BIT(info->i2c.clock_bit);
+
+	bit = &i2c->bit;
+	bit->data = i2c;
+	bit->setsda = mga_gpio_setsda;
+	bit->setscl = mga_gpio_setscl;
+	bit->getsda = mga_gpio_getsda;
+	bit->getscl = mga_gpio_getscl;
+	bit->udelay = 10;
+	bit->timeout = usecs_to_jiffies(2200);
+
+	adapter = &i2c->adapter;
+	adapter->owner = THIS_MODULE;
+	adapter->algo_data = bit;
+	adapter->dev.parent = dev->dev;
+	snprintf(adapter->name, sizeof(adapter->name), "mga i2c");
+	i2c_set_adapdata(adapter, i2c);
+
+	ret = i2c_bit_add_bus(adapter);
 	if (ret)
 		return ERR_PTR(ret);
 
-	return &i2c->adapter;
+	ret = drmm_add_action_or_reset(dev, mgag200_i2c_release, i2c);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return adapter;
 }
