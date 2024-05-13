@@ -63,29 +63,29 @@ static inline void mga_i2c_set(struct mga_device *mdev, int mask, int state)
 static void mga_gpio_setsda(void *data, int state)
 {
 	struct mga_i2c_chan *i2c = data;
-	struct mga_device *mdev = to_mga_device(i2c->dev);
-	mga_i2c_set(mdev, i2c->data, state);
+
+	mga_i2c_set(i2c->mdev, i2c->data, state);
 }
 
 static void mga_gpio_setscl(void *data, int state)
 {
 	struct mga_i2c_chan *i2c = data;
-	struct mga_device *mdev = to_mga_device(i2c->dev);
-	mga_i2c_set(mdev, i2c->clock, state);
+
+	mga_i2c_set(i2c->mdev, i2c->clock, state);
 }
 
 static int mga_gpio_getsda(void *data)
 {
 	struct mga_i2c_chan *i2c = data;
-	struct mga_device *mdev = to_mga_device(i2c->dev);
-	return (mga_i2c_read_gpio(mdev) & i2c->data) ? 1 : 0;
+
+	return (mga_i2c_read_gpio(i2c->mdev) & i2c->data) ? 1 : 0;
 }
 
 static int mga_gpio_getscl(void *data)
 {
 	struct mga_i2c_chan *i2c = data;
-	struct mga_device *mdev = to_mga_device(i2c->dev);
-	return (mga_i2c_read_gpio(mdev) & i2c->clock) ? 1 : 0;
+
+	return (mga_i2c_read_gpio(i2c->mdev) & i2c->clock) ? 1 : 0;
 }
 
 static void mgag200_i2c_release(struct drm_device *dev, void *res)
@@ -109,7 +109,7 @@ int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c)
 	i2c->clock = BIT(info->i2c.clock_bit);
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->adapter.dev.parent = dev->dev;
-	i2c->dev = dev;
+	i2c->mdev = mdev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name), "mga i2c");
 

@@ -191,7 +191,7 @@ static inline struct mgag200_crtc_state *to_mgag200_crtc_state(struct drm_crtc_s
 
 struct mga_i2c_chan {
 	struct i2c_adapter adapter;
-	struct drm_device *dev;
+	struct mga_device *mdev;
 	struct i2c_algo_bit_data bit;
 	int data, clock;
 };
