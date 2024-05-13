@@ -567,6 +567,12 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_ttm_sys_mgr_init(xe);
 
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_init_early(gt);
+		if (err)
+			return err;
+	}
+
 	for_each_gt(gt, xe, id)
 		xe_force_wake_init_gt(gt, gt_to_fw(gt));
 
@@ -604,12 +610,6 @@ int xe_device_probe(struct xe_device *xe)
 	err = xe_irq_install(xe);
 	if (err)
 		goto err;
-
-	for_each_gt(gt, xe, id) {
-		err = xe_gt_init_early(gt);
-		if (err)
-			goto err_irq_shutdown;
-	}
 
 	err = xe_device_set_has_flat_ccs(xe);
 	if (err)
