@@ -589,6 +589,7 @@ static int ivpu_hw_37xx_info_init(struct ivpu_device *vdev)
 	hw->tile_fuse = TILE_FUSE_ENABLE_BOTH;
 	hw->sku = TILE_SKU_BOTH;
 	hw->config = WP_CONFIG_2_TILE_4_3_RATIO;
+	hw->sched_mode = ivpu_sched_mode;
 
 	ivpu_pll_init_frequency_ratios(vdev);
 

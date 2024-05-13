@@ -158,6 +158,7 @@ struct ivpu_file_priv {
 extern int ivpu_dbg_mask;
 extern u8 ivpu_pll_min_ratio;
 extern u8 ivpu_pll_max_ratio;
+extern int ivpu_sched_mode;
 extern bool ivpu_disable_mmu_cont_pages;
 
 #define IVPU_TEST_MODE_FW_TEST            BIT(0)
