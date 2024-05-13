@@ -99,6 +99,28 @@ static int mgag200_ddc_algo_bit_data_getscl(void *data)
 	return (mga_i2c_read_gpio(ddc->mdev) & ddc->clock) ? 1 : 0;
 }
 
+static int mgag200_ddc_algo_bit_data_pre_xfer(struct i2c_adapter *adapter)
+{
+	struct mgag200_ddc *ddc = i2c_get_adapdata(adapter);
+	struct mga_device *mdev = ddc->mdev;
+
+	/*
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
+	 */
+	mutex_lock(&mdev->rmmio_lock);
+
+	return 0;
+}
+
+static void mgag200_ddc_algo_bit_data_post_xfer(struct i2c_adapter *adapter)
+{
+	struct mgag200_ddc *ddc = i2c_get_adapdata(adapter);
+	struct mga_device *mdev = ddc->mdev;
+
+	mutex_unlock(&mdev->rmmio_lock);
+}
+
 static void mgag200_ddc_release(struct drm_device *dev, void *res)
 {
 	struct mgag200_ddc *ddc = res;
@@ -133,6 +155,8 @@ struct i2c_adapter *mgag200_ddc_create(struct mga_device *mdev)
 	bit->setscl = mgag200_ddc_algo_bit_data_setscl;
 	bit->getsda = mgag200_ddc_algo_bit_data_getsda;
 	bit->getscl = mgag200_ddc_algo_bit_data_getscl;
+	bit->pre_xfer = mgag200_ddc_algo_bit_data_pre_xfer;
+	bit->post_xfer = mgag200_ddc_algo_bit_data_post_xfer;
 	bit->udelay = 10;
 	bit->timeout = usecs_to_jiffies(2200);
 
