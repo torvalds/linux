@@ -644,6 +644,14 @@ config CRYPTO_DEV_ROCKCHIP_DEBUG
 	  This will create /sys/kernel/debug/rk3288_crypto/stats for displaying
 	  the number of requests per algorithm and other internal stats.
 
+config CRYPTO_DEV_TEGRA
+	tristate "Enable Tegra Security Engine"
+	depends on TEGRA_HOST1X
+	select CRYPTO_ENGINE
+
+	help
+	  Select this to enable Tegra Security Engine which accelerates various
+	  AES encryption/decryption and HASH algorithms.
 
 config CRYPTO_DEV_ZYNQMP_AES
 	tristate "Support for Xilinx ZynqMP AES hw accelerator"

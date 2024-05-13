@@ -21764,6 +21764,11 @@ M:	Prashant Gaikwad <pgaikwad@nvidia.com>
 S:	Supported
 F:	drivers/clk/tegra/
 
+TEGRA CRYPTO DRIVERS
+M:	Akhil R <akhilrajeev@nvidia.com>
+S:	Supported
+F:	drivers/crypto/tegra/*
+
 TEGRA DMA DRIVERS
 M:	Laxman Dewangan <ldewangan@nvidia.com>
 M:	Jon Hunter <jonathanh@nvidia.com>
