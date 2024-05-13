@@ -6,7 +6,7 @@
 #include <linux/dma-buf.h>
 #include <linux/genalloc.h>
 #include <linux/slab.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include "tee_private.h"
 
 static int pool_op_gen_alloc(struct tee_shm_pool *pool, struct tee_shm *shm,

@@ -11,7 +11,7 @@
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/uaccess.h>
 #include <crypto/hash.h>
 #include <crypto/sha1.h>

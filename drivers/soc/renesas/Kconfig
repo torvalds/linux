@@ -24,6 +24,7 @@ config ARCH_RCAR_GEN2
 	select RENESAS_IRQC
 	select RST_RCAR
 	select SYS_SUPPORTS_SH_CMT
+	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_RCAR_GEN3
 	bool
@@ -343,6 +344,11 @@ config ARCH_R9A09G011
 	select PWC_RZV2M
 	help
 	  This enables support for the Renesas RZ/V2M SoC.
+
+config ARCH_R9A09G057
+	bool "ARM64 Platform support for RZ/V2H(P)"
+	help
+	  This enables support for the Renesas RZ/V2H(P) SoC variants.
 
 endif # ARM64
 
