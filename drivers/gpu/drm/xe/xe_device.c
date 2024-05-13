@@ -597,9 +597,6 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
-	for_each_gt(gt, xe, id)
-		xe_pcode_init(gt);
-
 	err = xe_display_init_noirq(xe);
 	if (err)
 		return err;
