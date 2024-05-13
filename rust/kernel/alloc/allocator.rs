@@ -2,10 +2,9 @@
 
 //! Allocator support.
 
+use super::{flags::*, Flags};
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr;
-
-use crate::bindings;
 
 struct KernelAllocator;
 
@@ -15,7 +14,7 @@ struct KernelAllocator;
 ///
 /// - `ptr` can be either null or a pointer which has been allocated by this allocator.
 /// - `new_layout` must have a non-zero size.
-unsafe fn krealloc_aligned(ptr: *mut u8, new_layout: Layout, flags: bindings::gfp_t) -> *mut u8 {
+pub(crate) unsafe fn krealloc_aligned(ptr: *mut u8, new_layout: Layout, flags: Flags) -> *mut u8 {
     // Customized layouts from `Layout::from_size_align()` can have size < align, so pad first.
     let layout = new_layout.pad_to_align();
 
@@ -36,14 +35,14 @@ unsafe fn krealloc_aligned(ptr: *mut u8, new_layout: Layout, flags: bindings::gf
     //   function safety requirement.
     // - `size` is greater than 0 since it's either a `layout.size()` (which cannot be zero
     //   according to the function safety requirement) or a result from `next_power_of_two()`.
-    unsafe { bindings::krealloc(ptr as *const core::ffi::c_void, size, flags) as *mut u8 }
+    unsafe { bindings::krealloc(ptr as *const core::ffi::c_void, size, flags.0) as *mut u8 }
 }
 
 unsafe impl GlobalAlloc for KernelAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         // SAFETY: `ptr::null_mut()` is null and `layout` has a non-zero size by the function safety
         // requirement.
-        unsafe { krealloc_aligned(ptr::null_mut(), layout, bindings::GFP_KERNEL) }
+        unsafe { krealloc_aligned(ptr::null_mut(), layout, GFP_KERNEL) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
@@ -64,19 +63,13 @@ unsafe impl GlobalAlloc for KernelAllocator {
         //   requirement.
         // - the size of `layout` is not zero because `new_size` is not zero by the function safety
         //   requirement.
-        unsafe { krealloc_aligned(ptr, layout, bindings::GFP_KERNEL) }
+        unsafe { krealloc_aligned(ptr, layout, GFP_KERNEL) }
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         // SAFETY: `ptr::null_mut()` is null and `layout` has a non-zero size by the function safety
         // requirement.
-        unsafe {
-            krealloc_aligned(
-                ptr::null_mut(),
-                layout,
-                bindings::GFP_KERNEL | bindings::__GFP_ZERO,
-            )
-        }
+        unsafe { krealloc_aligned(ptr::null_mut(), layout, GFP_KERNEL | __GFP_ZERO) }
     }
 }
 
