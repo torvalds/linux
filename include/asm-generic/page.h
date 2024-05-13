@@ -81,7 +81,7 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 #define virt_to_pfn virt_to_pfn
 static inline void *pfn_to_virt(unsigned long pfn)
 {
-	return __va(pfn) << PAGE_SHIFT;
+	return __va((pfn) << PAGE_SHIFT);
 }
 #define pfn_to_virt pfn_to_virt
 
