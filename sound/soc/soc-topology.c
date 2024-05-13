@@ -73,7 +73,7 @@ struct soc_tplg {
 	int bytes_ext_ops_count;
 
 	/* optional fw loading callbacks to component drivers */
-	struct snd_soc_tplg_ops *ops;
+	const struct snd_soc_tplg_ops *ops;
 };
 
 /* check we dont overflow the data for this control chunk */
@@ -2334,7 +2334,7 @@ static int soc_tplg_load(struct soc_tplg *tplg)
 
 /* load audio component topology from "firmware" file */
 int snd_soc_tplg_component_load(struct snd_soc_component *comp,
-	struct snd_soc_tplg_ops *ops, const struct firmware *fw)
+	const struct snd_soc_tplg_ops *ops, const struct firmware *fw)
 {
 	struct soc_tplg tplg;
 	int ret;
