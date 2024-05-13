@@ -9682,10 +9682,10 @@ static void nf_tables_commit_chain_prepare_cancel(struct net *net)
 	struct nft_trans *trans, *next;
 
 	list_for_each_entry_safe(trans, next, &nft_net->commit_list, list) {
-		struct nft_chain *chain = trans->ctx.chain;
-
 		if (trans->msg_type == NFT_MSG_NEWRULE ||
 		    trans->msg_type == NFT_MSG_DELRULE) {
+			struct nft_chain *chain = trans->ctx.chain;
+
 			kvfree(chain->blob_next);
 			chain->blob_next = NULL;
 		}
@@ -10318,7 +10318,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 				/* trans destroyed after rcu grace period */
 			} else {
 				nft_chain_commit_drop_policy(nft_trans_container_chain(trans));
-				nft_clear(net, trans->ctx.chain);
+				nft_clear(net, nft_trans_chain(trans));
 				nf_tables_chain_notify(&trans->ctx, NFT_MSG_NEWCHAIN, NULL);
 				nft_trans_destroy(trans);
 			}
@@ -10334,11 +10334,11 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 								    true);
 				}
 			} else {
-				nft_chain_del(trans->ctx.chain);
+				nft_chain_del(nft_trans_chain(trans));
 				nf_tables_chain_notify(&trans->ctx, NFT_MSG_DELCHAIN,
 						       NULL);
 				nf_tables_unregister_hook(trans->ctx.net, table,
-							  trans->ctx.chain);
+							  nft_trans_chain(trans));
 			}
 			break;
 		case NFT_MSG_NEWRULE:
