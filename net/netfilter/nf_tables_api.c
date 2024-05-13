@@ -1656,15 +1656,15 @@ static int nf_tables_deltable(struct sk_buff *skb, const struct nfnl_info *info,
 	return nft_flush_table(&ctx);
 }
 
-static void nf_tables_table_destroy(struct nft_ctx *ctx)
+static void nf_tables_table_destroy(struct nft_table *table)
 {
-	if (WARN_ON(ctx->table->use > 0))
+	if (WARN_ON(table->use > 0))
 		return;
 
-	rhltable_destroy(&ctx->table->chains_ht);
-	kfree(ctx->table->name);
-	kfree(ctx->table->udata);
-	kfree(ctx->table);
+	rhltable_destroy(&table->chains_ht);
+	kfree(table->name);
+	kfree(table->udata);
+	kfree(table);
 }
 
 void nft_register_chain_type(const struct nft_chain_type *ctype)
@@ -9521,7 +9521,7 @@ static void nft_commit_release(struct nft_trans *trans)
 	switch (trans->msg_type) {
 	case NFT_MSG_DELTABLE:
 	case NFT_MSG_DESTROYTABLE:
-		nf_tables_table_destroy(&trans->ctx);
+		nf_tables_table_destroy(trans->ctx.table);
 		break;
 	case NFT_MSG_NEWCHAIN:
 		free_percpu(nft_trans_chain_stats(trans));
@@ -10518,7 +10518,7 @@ static void nf_tables_abort_release(struct nft_trans *trans)
 {
 	switch (trans->msg_type) {
 	case NFT_MSG_NEWTABLE:
-		nf_tables_table_destroy(&trans->ctx);
+		nf_tables_table_destroy(trans->ctx.table);
 		break;
 	case NFT_MSG_NEWCHAIN:
 		if (nft_trans_chain_update(trans))
@@ -11490,7 +11490,7 @@ static void __nft_release_table(struct net *net, struct nft_table *table)
 		nft_use_dec(&table->use);
 		nf_tables_chain_destroy(chain);
 	}
-	nf_tables_table_destroy(&ctx);
+	nf_tables_table_destroy(table);
 }
 
 static void __nft_release_tables(struct net *net)
