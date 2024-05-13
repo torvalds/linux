@@ -4494,3 +4494,21 @@ int amdgpu_ras_reserve_page(struct amdgpu_device *adev, uint64_t pfn)
 
 	return ret;
 }
+
+void amdgpu_ras_event_log_print(struct amdgpu_device *adev, u64 event_id,
+				const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (amdgpu_ras_event_id_is_valid(adev, event_id))
+		dev_printk(KERN_INFO, adev->dev, "{%llu}%pV", event_id, &vaf);
+	else
+		dev_printk(KERN_INFO, adev->dev, "%pV", &vaf);
+
+	va_end(args);
+}
