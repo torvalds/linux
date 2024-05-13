@@ -1091,7 +1091,7 @@ EXPORT_SYMBOL(ap_hex2bitmap);
  */
 static int modify_bitmap(const char *str, unsigned long *bitmap, int bits)
 {
-	int a, i, z;
+	unsigned long a, i, z;
 	char *np, sign;
 
 	/* bits needs to be a multiple of 8 */
