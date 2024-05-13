@@ -194,7 +194,7 @@
 			};
 
 			i2c0_pins: i2c0-pins {
-				pins = "PI6", "PI7";
+				pins = "PI5", "PI6";
 				function = "i2c0";
 			};
 
@@ -773,6 +773,15 @@
 			clock-names = "hosc", "losc", "iosc", "pll-periph";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+		};
+
+		nmi_intc: interrupt-controller@7010320 {
+			compatible = "allwinner,sun50i-h616-nmi",
+				     "allwinner,sun9i-a80-nmi";
+			reg = <0x07010320 0xc>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		r_pio: pinctrl@7022000 {

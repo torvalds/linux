@@ -1099,21 +1099,25 @@
 				  0xc2000000 0x1 0xf8230000  0x1 0xf8230000  0x0 0x020000
 				  /* BAR4 (PF5) - non-prefetchable memory */
 				  0x82000000 0x1 0xfc000000  0x1 0xfc000000  0x0 0x400000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0000 0 0 1 &gic 0 0 GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+					<0000 0 0 2 &gic 0 0 GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 
 			enetc_port0: ethernet@0,0 {
-				compatible = "fsl,enetc";
+				compatible = "pci1957,e100", "fsl,enetc";
 				reg = <0x000000 0 0 0 0>;
 				status = "disabled";
 			};
 
 			enetc_port1: ethernet@0,1 {
-				compatible = "fsl,enetc";
+				compatible = "pci1957,e100", "fsl,enetc";
 				reg = <0x000100 0 0 0 0>;
 				status = "disabled";
 			};
 
 			enetc_port2: ethernet@0,2 {
-				compatible = "fsl,enetc";
+				compatible = "pci1957,e100", "fsl,enetc";
 				reg = <0x000200 0 0 0 0>;
 				phy-mode = "internal";
 				status = "disabled";
@@ -1126,14 +1130,14 @@
 			};
 
 			enetc_mdio_pf3: mdio@0,3 {
-				compatible = "fsl,enetc-mdio";
+				compatible = "pci1957,ee01", "fsl,enetc-mdio";
 				reg = <0x000300 0 0 0 0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
 
 			ethernet@0,4 {
-				compatible = "fsl,enetc-ptp";
+				compatible = "pci1957,ee02", "fsl,enetc-ptp";
 				reg = <0x000400 0 0 0 0>;
 				clocks = <&clockgen QORIQ_CLK_HWACCEL 3>;
 				little-endian;
@@ -1143,7 +1147,7 @@
 			mscc_felix: ethernet-switch@0,5 {
 				reg = <0x000500 0 0 0 0>;
 				/* IEP INT_B */
-				interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <2>;
 				status = "disabled";
 
 				mscc_felix_ports: ports {
@@ -1201,7 +1205,7 @@
 			};
 
 			enetc_port3: ethernet@0,6 {
-				compatible = "fsl,enetc";
+				compatible = "pci1957,e100", "fsl,enetc";
 				reg = <0x000600 0 0 0 0>;
 				phy-mode = "internal";
 				status = "disabled";
@@ -1216,7 +1220,7 @@
 			rcec@1f,0 {
 				reg = <0x00f800 0 0 0 0>;
 				/* IEP INT_A */
-				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <1>;
 			};
 		};
 

@@ -14,7 +14,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 5000000>;
+		pwms = <&pwm1 0 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <7>;
 		enable-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
@@ -79,6 +79,5 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	status = "okay";
 };

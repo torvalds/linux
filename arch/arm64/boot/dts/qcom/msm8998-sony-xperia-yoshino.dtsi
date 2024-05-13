@@ -98,30 +98,35 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 		label = "Side buttons";
+		pinctrl-0 = <&focus_n &snapshot_n &vol_down_n &vol_up_n>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&vol_down_n &focus_n &snapshot_n>;
-		button-vol-down {
-			label = "Volume Down";
-			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_KEY>;
-			linux,code = <KEY_VOLUMEDOWN>;
-			wakeup-source;
+		button-camera-focus {
+			label = "Camera Focus";
+			gpios = <&pm8998_gpios 8 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_CAMERA_FOCUS>;
 			debounce-interval = <15>;
 		};
 
 		button-camera-snapshot {
 			label = "Camera Snapshot";
 			gpios = <&pm8998_gpios 7 GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA>;
 			debounce-interval = <15>;
 		};
 
-		button-camera-focus {
-			label = "Camera Focus";
-			gpios = <&pm8998_gpios 8 GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_KEY>;
-			linux,code = <KEY_CAMERA_FOCUS>;
+		button-vol-down {
+			label = "Volume Down";
+			gpios = <&pm8998_gpios 5 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			wakeup-source;
+			debounce-interval = <15>;
+		};
+
+		button-vol-up {
+			label = "Volume Up";
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			wakeup-source;
 			debounce-interval = <15>;
 		};
 	};
@@ -345,6 +350,14 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
+	vol_up_n: vol-up-n-state {
+		pins = "gpio6";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		bias-pull-up;
+		input-enable;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+	};
+
 	focus_n: focus-n-state {
 		pins = "gpio7";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -405,9 +418,33 @@
 	};
 };
 
-&pm8998_resin {
-	linux,code = <KEY_VOLUMEUP>;
+&pmi8998_lpg {
+	qcom,power-source = <1>;
+
 	status = "okay";
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_BLUE>;
+		};
+
+		led@4 {
+			reg = <4>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@5 {
+			reg = <5>;
+			color = <LED_COLOR_ID_RED>;
+		};
+	};
 };
 
 &qusb2phy {

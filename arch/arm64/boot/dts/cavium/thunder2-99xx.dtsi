@@ -83,7 +83,7 @@
 	};
 
 	pmu {
-		compatible = "brcm,vulcan-pmu", "arm,armv8-pmuv3";
+		compatible = "brcm,vulcan-pmu";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>; /* PMU overflow */
 	};
 
@@ -103,7 +103,6 @@
 
 		/* ECAM at 0x3000_0000 - 0x4000_0000 */
 		reg = <0x0 0x30000000  0x0 0x10000000>;
-		reg-names = "PCI ECAM";
 
 		/*
 		 * PCI ranges:

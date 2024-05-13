@@ -182,6 +182,15 @@ allOf:
         compatible:
           contains:
             enum:
+              - nvidia,tegra194-host1x
+    then:
+      properties:
+        dma-coherent: true
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - nvidia,tegra234-host1x
     then:
       properties:
@@ -225,6 +234,8 @@ allOf:
           description: Specification of stream IDs available for memory context device
             use. Should be a mapping of IDs 0..n to IOMMU entries corresponding to
             usable stream IDs.
+
+        dma-coherent: true
 
       required:
         - reg-names

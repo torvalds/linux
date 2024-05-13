@@ -158,3 +158,19 @@
 		};
 	};
 };
+
+&i2c2 {
+	hdmi@3d {
+		avdd-supply = <&buck5_reg>;
+		dvdd-supply = <&buck5_reg>;
+		pvdd-supply = <&buck5_reg>;
+		a2vdd-supply = <&buck5_reg>;
+		v1p2-supply = <&buck5_reg>;
+	};
+};
+
+&i2c3 {
+	camera@3c {
+		DOVDD-supply = <&buck5_reg>;
+	};
+};
