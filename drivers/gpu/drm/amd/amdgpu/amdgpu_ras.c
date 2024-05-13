@@ -4287,21 +4287,8 @@ static struct ras_err_info *amdgpu_ras_error_get_info(struct ras_err_data *err_d
 
 void amdgpu_ras_add_mca_err_addr(struct ras_err_info *err_info, struct ras_err_addr *err_addr)
 {
-	struct ras_err_addr *mca_err_addr;
-
 	/* This function will be retired. */
 	return;
-	mca_err_addr = kzalloc(sizeof(*mca_err_addr), GFP_KERNEL);
-	if (!mca_err_addr)
-		return;
-
-	INIT_LIST_HEAD(&mca_err_addr->node);
-
-	mca_err_addr->err_status = err_addr->err_status;
-	mca_err_addr->err_ipid = err_addr->err_ipid;
-	mca_err_addr->err_addr = err_addr->err_addr;
-
-	list_add_tail(&mca_err_addr->node, &err_info->err_addr_list);
 }
 
 void amdgpu_ras_del_mca_err_addr(struct ras_err_info *err_info, struct ras_err_addr *mca_err_addr)
