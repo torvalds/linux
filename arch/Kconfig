@@ -1617,4 +1617,7 @@ config CC_HAS_SANE_FUNCTION_ALIGNMENT
 	# strict alignment always, even with -falign-functions.
 	def_bool CC_HAS_MIN_FUNCTION_ALIGNMENT || CC_IS_CLANG
 
+config ARCH_NEED_CMPXCHG_1_EMU
+	bool
+
 endmenu
