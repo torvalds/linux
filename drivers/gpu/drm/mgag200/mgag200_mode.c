@@ -738,23 +738,6 @@ void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_st
 }
 
 /*
- * Connector
- */
-
-int mgag200_vga_connector_helper_get_modes(struct drm_connector *connector)
-{
-	const struct drm_edid *drm_edid;
-	int count;
-
-	drm_edid = drm_edid_read(connector);
-	drm_edid_connector_update(connector, drm_edid);
-	count = drm_edid_connector_add_modes(connector);
-	drm_edid_free(drm_edid);
-
-	return count;
-}
-
-/*
  * Mode config
  */
 
