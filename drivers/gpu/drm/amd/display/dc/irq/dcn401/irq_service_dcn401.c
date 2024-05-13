@@ -6,8 +6,8 @@
 #include "include/logger_interface.h"
 #include "../dce110/irq_service_dce110.h"
 
-#include "dcn/dcn_3_2_0_offset.h"
-#include "dcn/dcn_3_2_0_sh_mask.h"
+#include "dcn/dcn_4_1_0_offset.h"
+#include "dcn/dcn_4_1_0_sh_mask.h"
 
 #include "irq_service_dcn401.h"
 
