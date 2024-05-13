@@ -1790,9 +1790,9 @@ nomem_req:
 
 static void cifs_destroy_netfs(void)
 {
-	mempool_destroy(&cifs_io_subrequest_pool);
+	mempool_exit(&cifs_io_subrequest_pool);
 	kmem_cache_destroy(cifs_io_subrequest_cachep);
-	mempool_destroy(&cifs_io_request_pool);
+	mempool_exit(&cifs_io_request_pool);
 	kmem_cache_destroy(cifs_io_request_cachep);
 }
 
