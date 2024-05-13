@@ -12,6 +12,7 @@
 #include <asm/unistd.h>
 #include <asm/syscalls.h>
 #include <asm/cpu.h>
+#include <linux/screen_info.h>
 
 struct lkl_host_operations *lkl_ops;
 static char cmd_line[COMMAND_LINE_SIZE];
@@ -19,6 +20,8 @@ static void *init_sem;
 static int is_running;
 void (*pm_power_off)(void) = NULL;
 static unsigned long mem_size = 64 * 1024 * 1024;
+
+struct screen_info screen_info;
 
 long lkl_panic_blink(int state)
 {
