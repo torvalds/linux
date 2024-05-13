@@ -732,9 +732,9 @@ static void ap_check_bindings_complete(void)
 		if (bound == apqns) {
 			if (!completion_done(&ap_apqn_bindings_complete)) {
 				complete_all(&ap_apqn_bindings_complete);
+				ap_send_bindings_complete_uevent();
 				pr_debug("%s all apqn bindings complete\n", __func__);
 			}
-			ap_send_bindings_complete_uevent();
 		}
 	}
 }
@@ -893,6 +893,12 @@ static int ap_device_probe(struct device *dev)
 		if (!!devres != !!drvres)
 			goto out;
 	}
+
+	/*
+	 * Rearm the bindings complete completion to trigger
+	 * bindings complete when all devices are bound again
+	 */
+	reinit_completion(&ap_apqn_bindings_complete);
 
 	/* Add queue/card to list of active queues/cards */
 	spin_lock_bh(&ap_queues_lock);
