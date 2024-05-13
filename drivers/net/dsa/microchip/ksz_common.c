@@ -1227,7 +1227,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 3,		/* total port count */
 		.port_nirqs = 3,
 		.num_tx_queues = 4,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
@@ -1257,7 +1257,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
 		.num_tx_queues = 4,
-		.num_ipvs = 4,
+		.num_ipms = 4,
 		.ops = &ksz8_dev_ops,
 		.phylink_mac_ops = &ksz8_phylink_mac_ops,
 		.ksz87xx_eee_link_erratum = true,
@@ -1298,7 +1298,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
 		.num_tx_queues = 4,
-		.num_ipvs = 4,
+		.num_ipms = 4,
 		.ops = &ksz8_dev_ops,
 		.phylink_mac_ops = &ksz8_phylink_mac_ops,
 		.ksz87xx_eee_link_erratum = true,
@@ -1325,7 +1325,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
 		.num_tx_queues = 4,
-		.num_ipvs = 4,
+		.num_ipms = 4,
 		.ops = &ksz8_dev_ops,
 		.phylink_mac_ops = &ksz8_phylink_mac_ops,
 		.ksz87xx_eee_link_erratum = true,
@@ -1352,7 +1352,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x4,	/* can be configured as cpu port */
 		.port_cnt = 3,
 		.num_tx_queues = 4,
-		.num_ipvs = 4,
+		.num_ipms = 4,
 		.ops = &ksz8_dev_ops,
 		.phylink_mac_ops = &ksz8830_phylink_mac_ops,
 		.mib_names = ksz88xx_mib_names,
@@ -1378,7 +1378,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 7,		/* total physical port count */
 		.port_nirqs = 4,
 		.num_tx_queues = 4,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
@@ -1413,7 +1413,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 6,		/* total physical port count */
 		.port_nirqs = 2,
 		.num_tx_queues = 4,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
 		.mib_names = ksz9477_mib_names,
@@ -1447,7 +1447,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 7,		/* total physical port count */
 		.port_nirqs = 2,
 		.num_tx_queues = 4,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
 		.mib_names = ksz9477_mib_names,
@@ -1479,7 +1479,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 3,		/* total port count */
 		.port_nirqs = 2,
 		.num_tx_queues = 4,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
 		.mib_names = ksz9477_mib_names,
@@ -1507,7 +1507,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 3,		/* total port count */
 		.port_nirqs = 3,
 		.num_tx_queues = 4,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
@@ -1536,7 +1536,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 7,		/* total port count */
 		.port_nirqs = 3,
 		.num_tx_queues = 4,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
@@ -1570,7 +1570,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 7,		/* total physical port count */
 		.port_nirqs = 3,
 		.num_tx_queues = 4,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &ksz9477_dev_ops,
 		.mib_names = ksz9477_mib_names,
@@ -1602,7 +1602,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 5,		/* total physical port count */
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
@@ -1630,7 +1630,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 6,		/* total physical port count */
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
@@ -1658,7 +1658,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 8,		/* total physical port count */
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
@@ -1690,7 +1690,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 5,		/* total physical port count */
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
@@ -1722,7 +1722,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_cnt = 8,		/* total physical port count */
 		.port_nirqs = 6,
 		.num_tx_queues = 8,
-		.num_ipvs = 8,
+		.num_ipms = 8,
 		.tc_cbs_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
@@ -2726,20 +2726,20 @@ static int ksz9477_set_default_prio_queue_mapping(struct ksz_device *dev,
 						  int port)
 {
 	u32 queue_map = 0;
-	int ipv;
+	int ipm;
 
-	for (ipv = 0; ipv < dev->info->num_ipvs; ipv++) {
+	for (ipm = 0; ipm < dev->info->num_ipms; ipm++) {
 		int queue;
 
 		/* Traffic Type (TT) is corresponding to the Internal Priority
-		 * Value (IPV) in the switch. Traffic Class (TC) is
+		 * Map (IPM) in the switch. Traffic Class (TC) is
 		 * corresponding to the queue in the switch.
 		 */
-		queue = ieee8021q_tt_to_tc(ipv, dev->info->num_tx_queues);
+		queue = ieee8021q_tt_to_tc(ipm, dev->info->num_tx_queues);
 		if (queue < 0)
 			return queue;
 
-		queue_map |= queue << (ipv * KSZ9477_PORT_TC_MAP_S);
+		queue_map |= queue << (ipm * KSZ9477_PORT_TC_MAP_S);
 	}
 
 	return ksz_pwrite32(dev, port, KSZ9477_PORT_MRI_TC_MAP__4, queue_map);
@@ -3609,7 +3609,7 @@ static int ksz_tc_ets_add(struct ksz_device *dev, int port,
 	for (tc_prio = 0; tc_prio < ARRAY_SIZE(p->priomap); tc_prio++) {
 		int queue;
 
-		if (tc_prio >= dev->info->num_ipvs)
+		if (tc_prio >= dev->info->num_ipms)
 			break;
 
 		queue = ksz_ets_band_to_queue(p, p->priomap[tc_prio]);

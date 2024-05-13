@@ -62,7 +62,7 @@ struct ksz_chip_data {
 	int port_cnt;
 	u8 port_nirqs;
 	u8 num_tx_queues;
-	u8 num_ipvs; /* number of Internal Priority Values */
+	u8 num_ipms; /* number of Internal Priority Maps */
 	bool tc_cbs_supported;
 	const struct ksz_dev_ops *ops;
 	const struct phylink_mac_ops *phylink_mac_ops;

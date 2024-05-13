@@ -52,7 +52,7 @@ static const struct ksz_apptrust_map ksz9477_apptrust_map_to_bit[] = {
 };
 
 /* ksz_supported_apptrust[] - Supported apptrust selectors and Priority Order
- *			      of Internal Priority Value (IPV) sources.
+ *			      of Internal Priority Map (IPM) sources.
  *
  * This array defines the apptrust selectors supported by the hardware, where
  * the index within the array indicates the priority of the selector - lower
@@ -80,10 +80,6 @@ static const struct ksz_apptrust_map ksz9477_apptrust_map_to_bit[] = {
 static const u8 ksz_supported_apptrust[] = {
 	DCB_APP_SEL_PCP,
 	IEEE_8021QAZ_APP_SEL_DSCP,
-};
-
-static const u8 ksz8_port2_supported_apptrust[] = {
-	DCB_APP_SEL_PCP,
 };
 
 static const char * const ksz_supported_apptrust_variants[] = {
@@ -246,7 +242,7 @@ int ksz_port_set_default_prio(struct dsa_switch *ds, int port, u8 prio)
 	int reg, shift, ret;
 	u8 mask;
 
-	if (prio >= dev->info->num_ipvs)
+	if (prio >= dev->info->num_ipms)
 		return -EINVAL;
 
 	if (ksz_is_ksz88x3(dev)) {
@@ -282,7 +278,7 @@ int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp)
 	ksz_get_dscp_prio_reg(dev, &reg, &per_reg, &mask);
 
 	/* If DSCP remapping is disabled, DSCP bits 3-5 are used as Internal
-	 * Priority Value (IPV)
+	 * Priority Map (IPM)
 	 */
 	if (!is_ksz8(dev)) {
 		ret = ksz_read8(dev, KSZ9477_REG_SW_MAC_TOS_CTRL, &data);
@@ -290,7 +286,7 @@ int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp)
 			return ret;
 
 		/* If DSCP remapping is disabled, DSCP bits 3-5 are used as
-		 * Internal Priority Value (IPV)
+		 * Internal Priority Map (IPM)
 		 */
 		if (!(data & KSZ9477_SW_TOS_DSCP_REMAP))
 			return FIELD_GET(KSZ9477_SW_TOS_DSCP_DEFAULT_PRIO_M,
@@ -310,7 +306,18 @@ int ksz_port_get_dscp_prio(struct dsa_switch *ds, int port, u8 dscp)
 	return (data >> shift) & mask;
 }
 
-static int ksz_set_global_dscp_entry(struct ksz_device *dev, u8 dscp, u8 ipv)
+/**
+ * ksz_set_global_dscp_entry - Sets the global DSCP-to-priority mapping entry
+ * @dev: Pointer to the KSZ switch device structure
+ * @dscp: DSCP value for which to set the priority
+ * @ipm: Priority value to set
+ *
+ * This function sets the global DSCP-to-priority mapping entry for the
+ * specified DSCP value.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
+static int ksz_set_global_dscp_entry(struct ksz_device *dev, u8 dscp, u8 ipm)
 {
 	int reg, per_reg, shift;
 	u8 mask;
@@ -320,7 +327,7 @@ static int ksz_set_global_dscp_entry(struct ksz_device *dev, u8 dscp, u8 ipv)
 	shift = (dscp % per_reg) * (8 / per_reg);
 
 	return ksz_rmw8(dev, reg + (dscp / per_reg), mask << shift,
-			ipv << shift);
+			ipm << shift);
 }
 
 /**
@@ -349,15 +356,15 @@ static int ksz_init_global_dscp_map(struct ksz_device *dev)
 	}
 
 	for (dscp = 0; dscp < DSCP_MAX; dscp++) {
-		int ipv, tt;
+		int ipm, tt;
 
 		/* Map DSCP to Traffic Type, which is corresponding to the
-		 * Internal Priority Value (IPV) in the switch.
+		 * Internal Priority Map (IPM) in the switch.
 		 */
 		if (!is_ksz8(dev)) {
-			ipv = ietf_dscp_to_ieee8021q_tt(dscp);
+			ipm = ietf_dscp_to_ieee8021q_tt(dscp);
 		} else {
-			/* On KSZ8xxx variants we do not have IPV to queue
+			/* On KSZ8xxx variants we do not have IPM to queue
 			 * remapping table. We need to convert DSCP to Traffic
 			 * Type and then to queue.
 			 */
@@ -365,46 +372,66 @@ static int ksz_init_global_dscp_map(struct ksz_device *dev)
 			if (tt < 0)
 				return tt;
 
-			ipv = ieee8021q_tt_to_tc(tt, dev->info->num_tx_queues);
+			ipm = ieee8021q_tt_to_tc(tt, dev->info->num_tx_queues);
 		}
 
-		if (ipv < 0)
-			return ipv;
+		if (ipm < 0)
+			return ipm;
 
-		ret = ksz_set_global_dscp_entry(dev, dscp, ipv);
+		ret = ksz_set_global_dscp_entry(dev, dscp, ipm);
 	}
 
 	return 0;
 }
 
+/**
+ * ksz_port_add_dscp_prio - Adds a DSCP-to-priority mapping entry for a port on
+ *			    a KSZ switch.
+ * @ds: Pointer to the DSA switch structure
+ * @port: Port number for which to add the DSCP-to-priority mapping entry
+ * @dscp: DSCP value for which to add the priority
+ * @prio: Priority value to set
+ *
+ * Return: 0 on success, or a negative error code on failure
+ */
 int ksz_port_add_dscp_prio(struct dsa_switch *ds, int port, u8 dscp, u8 prio)
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (prio >= dev->info->num_ipvs)
+	if (prio >= dev->info->num_ipms)
 		return -ERANGE;
 
 	return ksz_set_global_dscp_entry(dev, dscp, prio);
 }
 
+/**
+ * ksz_port_del_dscp_prio - Deletes a DSCP-to-priority mapping entry for a port
+ *			    on a KSZ switch.
+ * @ds: Pointer to the DSA switch structure
+ * @port: Port number for which to delete the DSCP-to-priority mapping entry
+ * @dscp: DSCP value for which to delete the priority
+ * @prio: Priority value to delete
+ *
+ * Return: 0 on success, or a negative error code on failure
+ */
 int ksz_port_del_dscp_prio(struct dsa_switch *ds, int port, u8 dscp, u8 prio)
 {
 	struct ksz_device *dev = ds->priv;
-	int ipv;
+	int ipm;
 
 	if (ksz_port_get_dscp_prio(ds, port, dscp) != prio)
 		return 0;
 
 	if (is_ksz8(dev)) {
-		ipv = ieee8021q_tt_to_tc(IEEE8021Q_TT_BE,
+		ipm = ieee8021q_tt_to_tc(IEEE8021Q_TT_BE,
 					 dev->info->num_tx_queues);
-		if (ipv < 0)
-			return ipv;
+		if (ipm < 0)
+			return ipm;
 	} else {
-		ipv = IEEE8021Q_TT_BE;
+		ipm = IEEE8021Q_TT_BE;
 	}
 
-	return ksz_set_global_dscp_entry(dev, dscp, ipv);
+	return ksz_set_global_dscp_entry(dev, dscp, ipm);
 }
 
 /**
@@ -740,36 +767,25 @@ int ksz_port_get_apptrust(struct dsa_switch *ds, int port, u8 *sel, int *nsel)
  */
 int ksz_dcb_init_port(struct ksz_device *dev, int port)
 {
-	const u8 *sel;
-	int ret, ipv;
-	int sel_len;
+	const u8 ksz_default_apptrust[] = { DCB_APP_SEL_PCP };
+	int ret, ipm;
 
 	if (is_ksz8(dev)) {
-		ipv = ieee8021q_tt_to_tc(IEEE8021Q_TT_BE,
+		ipm = ieee8021q_tt_to_tc(IEEE8021Q_TT_BE,
 					 dev->info->num_tx_queues);
-		if (ipv < 0)
-			return ipv;
+		if (ipm < 0)
+			return ipm;
 	} else {
-		ipv = IEEE8021Q_TT_BE;
+		ipm = IEEE8021Q_TT_BE;
 	}
 
 	/* Set the default priority for the port to Best Effort */
-	ret = ksz_port_set_default_prio(dev->ds, port, ipv);
+	ret = ksz_port_set_default_prio(dev->ds, port, ipm);
 	if (ret)
 		return ret;
 
-	if (ksz_is_ksz88x3(dev) && port == KSZ_PORT_2) {
-		/* KSZ88x3 devices do not support DSCP classification on
-		 * "Port 2.
-		 */
-		sel = ksz8_port2_supported_apptrust;
-		sel_len = ARRAY_SIZE(ksz8_port2_supported_apptrust);
-	} else {
-		sel = ksz_supported_apptrust;
-		sel_len = ARRAY_SIZE(ksz_supported_apptrust);
-	}
-
-	return ksz_port_set_apptrust(dev->ds, port, sel, sel_len);
+	return ksz_port_set_apptrust(dev->ds, port, ksz_default_apptrust,
+				     ARRAY_SIZE(ksz_default_apptrust));
 }
 
 /**
