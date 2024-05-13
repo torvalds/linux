@@ -9,7 +9,7 @@
 
 #include "../kernel/futex/futex.h"
 #include "io_uring.h"
-#include "rsrc.h"
+#include "alloc_cache.h"
 #include "futex.h"
 
 struct io_futex {
@@ -27,27 +27,21 @@ struct io_futex {
 };
 
 struct io_futex_data {
-	union {
-		struct futex_q		q;
-		struct io_cache_entry	cache;
-	};
+	struct futex_q	q;
 	struct io_kiocb	*req;
 };
 
-void io_futex_cache_init(struct io_ring_ctx *ctx)
-{
-	io_alloc_cache_init(&ctx->futex_cache, IO_NODE_ALLOC_CACHE_MAX,
-				sizeof(struct io_futex_data));
-}
+#define IO_FUTEX_ALLOC_CACHE_MAX	32
 
-static void io_futex_cache_entry_free(struct io_cache_entry *entry)
+bool io_futex_cache_init(struct io_ring_ctx *ctx)
 {
-	kfree(container_of(entry, struct io_futex_data, cache));
+	return io_alloc_cache_init(&ctx->futex_cache, IO_FUTEX_ALLOC_CACHE_MAX,
+				sizeof(struct io_futex_data));
 }
 
 void io_futex_cache_free(struct io_ring_ctx *ctx)
 {
-	io_alloc_cache_free(&ctx->futex_cache, io_futex_cache_entry_free);
+	io_alloc_cache_free(&ctx->futex_cache, kfree);
 }
 
 static void __io_futex_complete(struct io_kiocb *req, struct io_tw_state *ts)
@@ -63,7 +57,7 @@ static void io_futex_complete(struct io_kiocb *req, struct io_tw_state *ts)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	io_tw_lock(ctx, ts);
-	if (!io_alloc_cache_put(&ctx->futex_cache, &ifd->cache))
+	if (!io_alloc_cache_put(&ctx->futex_cache, ifd))
 		kfree(ifd);
 	__io_futex_complete(req, ts);
 }
@@ -259,11 +253,11 @@ static void io_futex_wake_fn(struct wake_q_head *wake_q, struct futex_q *q)
 
 static struct io_futex_data *io_alloc_ifd(struct io_ring_ctx *ctx)
 {
-	struct io_cache_entry *entry;
+	struct io_futex_data *ifd;
 
-	entry = io_alloc_cache_get(&ctx->futex_cache);
-	if (entry)
-		return container_of(entry, struct io_futex_data, cache);
+	ifd = io_alloc_cache_get(&ctx->futex_cache);
+	if (ifd)
+		return ifd;
 
 	return kmalloc(sizeof(struct io_futex_data), GFP_NOWAIT);
 }
