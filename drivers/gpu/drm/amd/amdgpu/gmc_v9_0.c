@@ -844,7 +844,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
 
 	if (vmhub >= AMDGPU_MMHUB0(0))
-		inst = GET_INST(GC, 0);
+		inst = 0;
 	else
 		inst = vmhub;
 
@@ -876,9 +876,9 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		for (j = 0; j < adev->usec_timeout; j++) {
 			/* a read return value of 1 means semaphore acquire */
 			if (vmhub >= AMDGPU_MMHUB0(0))
-				tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, sem, inst);
+				tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, sem, GET_INST(GC, inst));
 			else
-				tmp = RREG32_SOC15_IP_NO_KIQ(GC, sem, inst);
+				tmp = RREG32_SOC15_IP_NO_KIQ(GC, sem, GET_INST(GC, inst));
 			if (tmp & 0x1)
 				break;
 			udelay(1);
@@ -889,9 +889,9 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	}
 
 	if (vmhub >= AMDGPU_MMHUB0(0))
-		WREG32_SOC15_IP_NO_KIQ(MMHUB, req, inv_req, inst);
+		WREG32_SOC15_IP_NO_KIQ(MMHUB, req, inv_req, GET_INST(GC, inst));
 	else
-		WREG32_SOC15_IP_NO_KIQ(GC, req, inv_req, inst);
+		WREG32_SOC15_IP_NO_KIQ(GC, req, inv_req, GET_INST(GC, inst));
 
 	/*
 	 * Issue a dummy read to wait for the ACK register to
@@ -904,9 +904,9 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 	for (j = 0; j < adev->usec_timeout; j++) {
 		if (vmhub >= AMDGPU_MMHUB0(0))
-			tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, ack, inst);
+			tmp = RREG32_SOC15_IP_NO_KIQ(MMHUB, ack, GET_INST(GC, inst));
 		else
-			tmp = RREG32_SOC15_IP_NO_KIQ(GC, ack, inst);
+			tmp = RREG32_SOC15_IP_NO_KIQ(GC, ack, GET_INST(GC, inst));
 		if (tmp & (1 << vmid))
 			break;
 		udelay(1);
@@ -919,9 +919,9 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 		 * write with 0 means semaphore release
 		 */
 		if (vmhub >= AMDGPU_MMHUB0(0))
-			WREG32_SOC15_IP_NO_KIQ(MMHUB, sem, 0, inst);
+			WREG32_SOC15_IP_NO_KIQ(MMHUB, sem, 0, GET_INST(GC, inst));
 		else
-			WREG32_SOC15_IP_NO_KIQ(GC, sem, 0, inst);
+			WREG32_SOC15_IP_NO_KIQ(GC, sem, 0, GET_INST(GC, inst));
 	}
 
 	spin_unlock(&adev->gmc.invalidate_lock);
