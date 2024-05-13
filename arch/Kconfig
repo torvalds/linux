@@ -63,7 +63,7 @@ config KPROBES
 	depends on MODULES
 	depends on HAVE_KPROBES
 	select KALLSYMS
-	select TASKS_RCU if PREEMPTION
+	select NEED_TASKS_RCU
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
@@ -112,7 +112,7 @@ config STATIC_CALL_SELFTEST
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES
-	select TASKS_RCU if PREEMPTION
+	select NEED_TASKS_RCU
 
 config KPROBES_ON_FTRACE
 	def_bool y
