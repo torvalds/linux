@@ -12,11 +12,13 @@
 #include <uapi/drm/ivpu_accel.h>
 
 #include "ivpu_drv.h"
+#include "ivpu_fw.h"
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_pm.h"
+#include "vpu_boot_api.h"
 
 #define CMD_BUF_IDX	     0
 #define JOB_ID_JOB_MASK	     GENMASK(7, 0)
@@ -26,6 +28,53 @@
 static void ivpu_cmdq_ring_db(struct ivpu_device *vdev, struct ivpu_cmdq *cmdq)
 {
 	ivpu_hw_reg_db_set(vdev, cmdq->db_id);
+}
+
+static int ivpu_preemption_buffers_create(struct ivpu_device *vdev,
+					  struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
+{
+	u64 primary_size = ALIGN(vdev->fw->primary_preempt_buf_size, PAGE_SIZE);
+	u64 secondary_size = ALIGN(vdev->fw->secondary_preempt_buf_size, PAGE_SIZE);
+	struct ivpu_addr_range range;
+
+	if (vdev->hw->sched_mode != VPU_SCHEDULING_MODE_HW)
+		return 0;
+
+	range.start = vdev->hw->ranges.user.end - (primary_size * IVPU_NUM_CMDQS_PER_CTX);
+	range.end = vdev->hw->ranges.user.end;
+	cmdq->primary_preempt_buf = ivpu_bo_create(vdev, &file_priv->ctx, &range, primary_size,
+						   DRM_IVPU_BO_WC);
+	if (!cmdq->primary_preempt_buf) {
+		ivpu_err(vdev, "Failed to create primary preemption buffer\n");
+		return -ENOMEM;
+	}
+
+	range.start = vdev->hw->ranges.shave.end - (secondary_size * IVPU_NUM_CMDQS_PER_CTX);
+	range.end = vdev->hw->ranges.shave.end;
+	cmdq->secondary_preempt_buf = ivpu_bo_create(vdev, &file_priv->ctx, &range, secondary_size,
+						     DRM_IVPU_BO_WC);
+	if (!cmdq->secondary_preempt_buf) {
+		ivpu_err(vdev, "Failed to create secondary preemption buffer\n");
+		goto err_free_primary;
+	}
+
+	return 0;
+
+err_free_primary:
+	ivpu_bo_free(cmdq->primary_preempt_buf);
+	return -ENOMEM;
+}
+
+static void ivpu_preemption_buffers_free(struct ivpu_device *vdev,
+					 struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
+{
+	if (vdev->hw->sched_mode != VPU_SCHEDULING_MODE_HW)
+		return;
+
+	drm_WARN_ON(&vdev->drm, !cmdq->primary_preempt_buf);
+	drm_WARN_ON(&vdev->drm, !cmdq->secondary_preempt_buf);
+	ivpu_bo_free(cmdq->primary_preempt_buf);
+	ivpu_bo_free(cmdq->secondary_preempt_buf);
 }
 
 static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 engine)
@@ -50,6 +99,10 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 e
 	if (!cmdq->mem)
 		goto err_erase_xa;
 
+	ret = ivpu_preemption_buffers_create(vdev, file_priv, cmdq);
+	if (ret)
+		goto err_free_cmdq_mem;
+
 	cmdq->entry_count = (u32)((ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header)) /
 				  sizeof(struct vpu_job_queue_entry));
 
@@ -62,6 +115,8 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 e
 
 	return cmdq;
 
+err_free_cmdq_mem:
+	ivpu_bo_free(cmdq->mem);
 err_erase_xa:
 	xa_erase(&vdev->db_xa, cmdq->db_id);
 err_free_cmdq:
@@ -74,6 +129,7 @@ static void ivpu_cmdq_free(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *c
 	if (!cmdq)
 		return;
 
+	ivpu_preemption_buffers_free(file_priv->vdev, file_priv, cmdq);
 	ivpu_bo_free(cmdq->mem);
 	xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
 	kfree(cmdq);
@@ -207,6 +263,15 @@ static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)
 	entry->flags = 0;
 	if (unlikely(ivpu_test_mode & IVPU_TEST_MODE_NULL_SUBMISSION))
 		entry->flags = VPU_JOB_FLAGS_NULL_SUBMISSION_MASK;
+
+	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW &&
+	    (unlikely(!(ivpu_test_mode & IVPU_TEST_MODE_PREEMPTION_DISABLE)))) {
+		entry->primary_preempt_buf_addr = cmdq->primary_preempt_buf->vpu_addr;
+		entry->primary_preempt_buf_size = ivpu_bo_size(cmdq->primary_preempt_buf);
+		entry->secondary_preempt_buf_addr = cmdq->secondary_preempt_buf->vpu_addr;
+		entry->secondary_preempt_buf_size = ivpu_bo_size(cmdq->secondary_preempt_buf);
+	}
+
 	wmb(); /* Ensure that tail is updated after filling entry */
 	header->tail = next_entry;
 	wmb(); /* Flush WC buffer for jobq header */
