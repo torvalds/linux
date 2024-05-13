@@ -3,6 +3,7 @@
 #define _BCACHEFS_SB_MEMBERS_H
 
 #include "darray.h"
+#include "bkey_types.h"
 
 extern char * const bch2_member_error_strs[];
 
@@ -220,6 +221,8 @@ static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 			: 1,
 		.freespace_initialized = BCH_MEMBER_FREESPACE_INITIALIZED(mi),
 		.valid		= bch2_member_exists(mi),
+		.btree_bitmap_shift	= mi->btree_bitmap_shift,
+		.btree_allocated_bitmap = le64_to_cpu(mi->btree_allocated_bitmap),
 	};
 }
 
@@ -227,5 +230,23 @@ void bch2_sb_members_from_cpu(struct bch_fs *);
 
 void bch2_dev_io_errors_to_text(struct printbuf *, struct bch_dev *);
 void bch2_dev_errors_reset(struct bch_dev *);
+
+static inline bool bch2_dev_btree_bitmap_marked_sectors(struct bch_dev *ca, u64 start, unsigned sectors)
+{
+	u64 end = start + sectors;
+
+	if (end > 64ULL << ca->mi.btree_bitmap_shift)
+		return false;
+
+	for (unsigned bit = start >> ca->mi.btree_bitmap_shift;
+	     (u64) bit << ca->mi.btree_bitmap_shift < end;
+	     bit++)
+		if (!(ca->mi.btree_allocated_bitmap & BIT_ULL(bit)))
+			return false;
+	return true;
+}
+
+bool bch2_dev_btree_bitmap_marked(struct bch_fs *, struct bkey_s_c);
+void bch2_dev_btree_bitmap_mark(struct bch_fs *, struct bkey_s_c);
 
 #endif /* _BCACHEFS_SB_MEMBERS_H */

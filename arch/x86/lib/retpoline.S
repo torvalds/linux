@@ -382,8 +382,15 @@ SYM_FUNC_END(call_depth_return_thunk)
 SYM_CODE_START(__x86_return_thunk)
 	UNWIND_HINT_FUNC
 	ANNOTATE_NOENDBR
+#if defined(CONFIG_MITIGATION_UNRET_ENTRY) || \
+    defined(CONFIG_MITIGATION_SRSO) || \
+    defined(CONFIG_MITIGATION_CALL_DEPTH_TRACKING)
 	ALTERNATIVE __stringify(ANNOTATE_UNRET_SAFE; ret), \
 		   "jmp warn_thunk_thunk", X86_FEATURE_ALWAYS
+#else
+	ANNOTATE_UNRET_SAFE
+	ret
+#endif
 	int3
 SYM_CODE_END(__x86_return_thunk)
 EXPORT_SYMBOL(__x86_return_thunk)

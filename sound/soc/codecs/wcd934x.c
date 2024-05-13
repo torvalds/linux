@@ -5967,7 +5967,6 @@ static struct platform_driver wcd934x_codec_driver = {
 	}
 };
 
-MODULE_ALIAS("platform:wcd934x-codec");
 module_platform_driver(wcd934x_codec_driver);
 MODULE_DESCRIPTION("WCD934x codec driver");
 MODULE_LICENSE("GPL v2");

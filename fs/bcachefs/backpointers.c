@@ -49,13 +49,15 @@ int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (!bch2_dev_exists2(c, bp.k->p.inode))
 		return 0;
 
+	struct bch_dev *ca = bch_dev_bkey_exists(c, bp.k->p.inode);
 	struct bpos bucket = bp_pos_to_bucket(c, bp.k->p);
 	int ret = 0;
 
-	bkey_fsck_err_on(!bpos_eq(bp.k->p, bucket_pos_to_bp(c, bucket, bp.v->bucket_offset)),
+	bkey_fsck_err_on((bp.v->bucket_offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT) >= ca->mi.bucket_size ||
+			 !bpos_eq(bp.k->p, bucket_pos_to_bp(c, bucket, bp.v->bucket_offset)),
 			 c, err,
-			 backpointer_pos_wrong,
-			 "backpointer at wrong pos");
+			 backpointer_bucket_offset_wrong,
+			 "backpointer bucket_offset wrong");
 fsck_err:
 	return ret;
 }
@@ -468,7 +470,7 @@ found:
 		goto err;
 	}
 
-	bio = bio_alloc(ca->disk_sb.bdev, 1, REQ_OP_READ, GFP_KERNEL);
+	bio = bio_alloc(ca->disk_sb.bdev, buf_pages(data_buf, bytes), REQ_OP_READ, GFP_KERNEL);
 	bio->bi_iter.bi_sector = p.ptr.offset;
 	bch2_bio_map(bio, data_buf, bytes);
 	ret = submit_bio_wait(bio);

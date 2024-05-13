@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "btree_cache.h"
 #include "disk_groups.h"
 #include "opts.h"
 #include "replicas.h"
@@ -425,4 +426,56 @@ void bch2_dev_errors_reset(struct bch_dev *ca)
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
+}
+
+/*
+ * Per member "range has btree nodes" bitmap:
+ *
+ * This is so that if we ever have to run the btree node scan to repair we don't
+ * have to scan full devices:
+ */
+
+bool bch2_dev_btree_bitmap_marked(struct bch_fs *c, struct bkey_s_c k)
+{
+	bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr)
+		if (!bch2_dev_btree_bitmap_marked_sectors(bch_dev_bkey_exists(c, ptr->dev),
+							  ptr->offset, btree_sectors(c)))
+			return false;
+	return true;
+}
+
+static void __bch2_dev_btree_bitmap_mark(struct bch_sb_field_members_v2 *mi, unsigned dev,
+				u64 start, unsigned sectors)
+{
+	struct bch_member *m = __bch2_members_v2_get_mut(mi, dev);
+	u64 bitmap = le64_to_cpu(m->btree_allocated_bitmap);
+
+	u64 end = start + sectors;
+
+	int resize = ilog2(roundup_pow_of_two(end)) - (m->btree_bitmap_shift + 6);
+	if (resize > 0) {
+		u64 new_bitmap = 0;
+
+		for (unsigned i = 0; i < 64; i++)
+			if (bitmap & BIT_ULL(i))
+				new_bitmap |= BIT_ULL(i >> resize);
+		bitmap = new_bitmap;
+		m->btree_bitmap_shift += resize;
+	}
+
+	for (unsigned bit = start >> m->btree_bitmap_shift;
+	     (u64) bit << m->btree_bitmap_shift < end;
+	     bit++)
+		bitmap |= BIT_ULL(bit);
+
+	m->btree_allocated_bitmap = cpu_to_le64(bitmap);
+}
+
+void bch2_dev_btree_bitmap_mark(struct bch_fs *c, struct bkey_s_c k)
+{
+	lockdep_assert_held(&c->sb_lock);
+
+	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
+	bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr)
+		__bch2_dev_btree_bitmap_mark(mi, ptr->dev, ptr->offset, btree_sectors(c));
 }

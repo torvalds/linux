@@ -3,7 +3,7 @@
  * Intel Kabylake I2S Machine Driver with MAXIM98927
  * RT5514 and RT5663 Codecs
  *
- * Copyright (C) 2017, Intel Corporation. All rights reserved.
+ * Copyright (C) 2017, Intel Corporation
  *
  * Modified from:
  *   Intel Kabylake I2S Machine driver supporting MAXIM98927 and
@@ -791,6 +791,7 @@ static struct snd_soc_card kabylake_audio_card = {
 	.codec_conf = max98927_codec_conf,
 	.num_configs = ARRAY_SIZE(max98927_codec_conf),
 	.fully_routed = true,
+	.disable_route_checks = true,
 	.late_probe = kabylake_card_late_probe,
 };
 

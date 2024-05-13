@@ -891,7 +891,7 @@ static const struct snd_soc_component_driver soc_component_dev_tas5086 = {
 };
 
 static const struct i2c_device_id tas5086_i2c_id[] = {
-	{ "tas5086", 0 },
+	{ "tas5086" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas5086_i2c_id);

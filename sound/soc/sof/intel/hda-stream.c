@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Authors: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //	    Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
@@ -23,6 +23,11 @@
 #include "../sof-audio.h"
 #include "../ipc4-priv.h"
 #include "hda.h"
+
+int sof_hda_position_quirk = SOF_HDA_POSITION_QUIRK_USE_DPIB_REGISTERS;
+module_param_named(position_quirk, sof_hda_position_quirk, int, 0444);
+MODULE_PARM_DESC(position_quirk, "SOF HDaudio position quirk");
+EXPORT_SYMBOL_NS(sof_hda_position_quirk, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 #define HDA_LTRP_GB_VALUE_US	95
 
@@ -709,6 +714,7 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_stream_hw_free, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 {
@@ -731,6 +737,7 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_check_stream_irq, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 static void
 hda_dsp_compr_bytes_transferred(struct hdac_stream *hstream, int direction)
@@ -765,12 +772,27 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 			writeb(sd_status, s->sd_addr + SOF_HDA_ADSP_REG_SD_STS);
 
 			active = true;
-			if ((!s->substream && !s->cstream) ||
-			    !s->running ||
-			    (sd_status & SOF_HDA_CL_DMA_SD_INT_COMPLETE) == 0)
+			if (!s->running)
 				continue;
+			if ((sd_status & SOF_HDA_CL_DMA_SD_INT_COMPLETE) == 0)
+				continue;
+			if (!s->substream && !s->cstream) {
+				/*
+				 * when no substream is found, the DMA may used for code loading
+				 * or data transfers which can rely on wait_for_completion()
+				 */
+				struct sof_intel_hda_stream *hda_stream;
+				struct hdac_ext_stream *hext_stream;
 
-			/* Inform ALSA only in case not do that with IPC */
+				hext_stream = stream_to_hdac_ext_stream(s);
+				hda_stream = container_of(hext_stream, struct sof_intel_hda_stream,
+							  hext_stream);
+
+				complete(&hda_stream->ioc);
+				continue;
+			}
+
+			/* Inform ALSA only if the IPC position is not used */
 			if (s->substream && sof_hda->no_ipc_position) {
 				snd_sof_pcm_period_elapsed(s->substream);
 			} else if (s->cstream) {
@@ -812,6 +834,7 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_NS(hda_dsp_stream_threaded_handler, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 {
@@ -880,6 +903,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 			return -ENOMEM;
 
 		hda_stream->sdev = sdev;
+		init_completion(&hda_stream->ioc);
 
 		hext_stream = &hda_stream->hext_stream;
 
@@ -948,6 +972,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_stream_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 {
@@ -977,6 +1002,7 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 		devm_kfree(sdev->dev, hda_stream);
 	}
 }
+EXPORT_SYMBOL_NS(hda_dsp_stream_free, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 					      int direction, bool can_sleep)
@@ -1063,6 +1089,7 @@ snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 
 	return pos;
 }
+EXPORT_SYMBOL_NS(hda_dsp_stream_get_position, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 #define merge_u64(u32_u, u32_l) (((u64)(u32_u) << 32) | (u32_l))
 
@@ -1102,6 +1129,7 @@ u64 hda_dsp_get_stream_llp(struct snd_sof_dev *sdev,
 
 	return merge_u64(llp_u, llp_l);
 }
+EXPORT_SYMBOL_NS(hda_dsp_get_stream_llp, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /**
  * hda_dsp_get_stream_ldp - Retrieve the LDP (Linear DMA Position) of the stream
@@ -1133,3 +1161,4 @@ u64 hda_dsp_get_stream_ldp(struct snd_sof_dev *sdev,
 
 	return ((u64)ldp_u << 32) | ldp_l;
 }
+EXPORT_SYMBOL_NS(hda_dsp_get_stream_ldp, SND_SOC_SOF_INTEL_HDA_COMMON);

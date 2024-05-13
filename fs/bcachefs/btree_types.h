@@ -321,9 +321,9 @@ struct bkey_cached {
 	struct btree_bkey_cached_common c;
 
 	unsigned long		flags;
+	unsigned long		btree_trans_barrier_seq;
 	u16			u64s;
 	bool			valid;
-	u32			btree_trans_barrier_seq;
 	struct bkey_cached_key	key;
 
 	struct rhash_head	hash;
@@ -364,7 +364,21 @@ struct btree_insert_entry {
 	unsigned long		ip_allocated;
 };
 
+/* Number of btree paths we preallocate, usually enough */
 #define BTREE_ITER_INITIAL		64
+/*
+ * Lmiit for btree_trans_too_many_iters(); this is enough that almost all code
+ * paths should run inside this limit, and if they don't it usually indicates a
+ * bug (leaking/duplicated btree paths).
+ *
+ * exception: some fsck paths
+ *
+ * bugs with excessive path usage seem to have possibly been eliminated now, so
+ * we might consider eliminating this (and btree_trans_too_many_iter()) at some
+ * point.
+ */
+#define BTREE_ITER_NORMAL_LIMIT		256
+/* never exceed limit */
 #define BTREE_ITER_MAX			(1U << 10)
 
 struct btree_trans_commit_hook;

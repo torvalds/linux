@@ -125,6 +125,15 @@ static inline u32 get_ancestor_below(struct snapshot_table *t, u32 id, u32 ances
 	return s->parent;
 }
 
+static bool test_ancestor_bitmap(struct snapshot_table *t, u32 id, u32 ancestor)
+{
+	const struct snapshot_t *s = __snapshot_t(t, id);
+	if (!s)
+		return false;
+
+	return test_bit(ancestor - id - 1, s->is_ancestor);
+}
+
 bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 {
 	bool ret;
@@ -140,13 +149,11 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 	while (id && id < ancestor - IS_ANCESTOR_BITMAP)
 		id = get_ancestor_below(t, id, ancestor);
 
-	if (id && id < ancestor) {
-		ret = test_bit(ancestor - id - 1, __snapshot_t(t, id)->is_ancestor);
+	ret = id && id < ancestor
+		? test_ancestor_bitmap(t, id, ancestor)
+		: id == ancestor;
 
-		EBUG_ON(ret != __bch2_snapshot_is_ancestor_early(t, id, ancestor));
-	} else {
-		ret = id == ancestor;
-	}
+	EBUG_ON(ret != __bch2_snapshot_is_ancestor_early(t, id, ancestor));
 out:
 	rcu_read_unlock();
 

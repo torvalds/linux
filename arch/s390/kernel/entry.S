@@ -340,7 +340,8 @@ SYM_CODE_START(pgm_check_handler)
 	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK
 	stctg	%c1,%c1,__PT_CR1(%r11)
 #if IS_ENABLED(CONFIG_KVM)
-	lg	%r12,__LC_GMAP
+	ltg	%r12,__LC_GMAP
+	jz	5f
 	clc	__GMAP_ASCE(8,%r12), __PT_CR1(%r11)
 	jne	5f
 	BPENTER	__SF_SIE_FLAGS(%r10),_TIF_ISOLATE_BP_GUEST

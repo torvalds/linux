@@ -102,7 +102,10 @@ static int amdgpu_mes_event_log_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
+	if (!amdgpu_mes_log_enable)
+		return 0;
+
+	r = amdgpu_bo_create_kernel(adev, AMDGPU_MES_LOG_BUFFER_SIZE, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_GTT,
 				    &adev->mes.event_log_gpu_obj,
 				    &adev->mes.event_log_gpu_addr,
@@ -1549,11 +1552,10 @@ static int amdgpu_debugfs_mes_event_log_show(struct seq_file *m, void *unused)
 	uint32_t *mem = (uint32_t *)(adev->mes.event_log_cpu_addr);
 
 	seq_hex_dump(m, "", DUMP_PREFIX_OFFSET, 32, 4,
-		     mem, PAGE_SIZE, false);
+		     mem, AMDGPU_MES_LOG_BUFFER_SIZE, false);
 
 	return 0;
 }
-
 
 DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_mes_event_log);
 
@@ -1565,7 +1567,7 @@ void amdgpu_debugfs_mes_event_log_init(struct amdgpu_device *adev)
 #if defined(CONFIG_DEBUG_FS)
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
-	if (adev->enable_mes)
+	if (adev->enable_mes && amdgpu_mes_log_enable)
 		debugfs_create_file("amdgpu_mes_event_log", 0444, root,
 				    adev, &amdgpu_debugfs_mes_event_log_fops);
 

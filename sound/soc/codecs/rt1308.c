@@ -795,7 +795,7 @@ MODULE_DEVICE_TABLE(acpi, rt1308_acpi_match);
 #endif
 
 static const struct i2c_device_id rt1308_i2c_id[] = {
-	{ "rt1308", 0 },
+	{ "rt1308" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt1308_i2c_id);

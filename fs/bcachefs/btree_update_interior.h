@@ -57,7 +57,8 @@ struct btree_update {
 	unsigned			took_gc_lock:1;
 
 	enum btree_id			btree_id;
-	unsigned			update_level;
+	unsigned			update_level_start;
+	unsigned			update_level_end;
 
 	struct disk_reservation		disk_res;
 

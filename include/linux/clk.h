@@ -286,6 +286,11 @@ static inline int clk_rate_exclusive_get(struct clk *clk)
 	return 0;
 }
 
+static inline int devm_clk_rate_exclusive_get(struct device *dev, struct clk *clk)
+{
+	return 0;
+}
+
 static inline void clk_rate_exclusive_put(struct clk *clk) {}
 
 #endif
