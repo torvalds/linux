@@ -145,6 +145,30 @@ static const struct file_operations dvfs_mode_fops = {
 	.write = dvfs_mode_fops_write,
 };
 
+static ssize_t
+fw_dyndbg_fops_write(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+{
+	struct ivpu_device *vdev = file->private_data;
+	char buffer[VPU_DYNDBG_CMD_MAX_LEN] = {};
+	int ret;
+
+	if (size >= VPU_DYNDBG_CMD_MAX_LEN)
+		return -EINVAL;
+
+	ret = strncpy_from_user(buffer, user_buf, size);
+	if (ret < 0)
+		return ret;
+
+	ivpu_jsm_dyndbg_control(vdev, buffer, size);
+	return size;
+}
+
+static const struct file_operations fw_dyndbg_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = fw_dyndbg_fops_write,
+};
+
 static int fw_log_show(struct seq_file *s, void *v)
 {
 	struct ivpu_device *vdev = s->private;
@@ -369,6 +393,8 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 	debugfs_create_file("dvfs_mode", 0200, debugfs_root, vdev,
 			    &dvfs_mode_fops);
 
+	debugfs_create_file("fw_dyndbg", 0200, debugfs_root, vdev,
+			    &fw_dyndbg_fops);
 	debugfs_create_file("fw_log", 0644, debugfs_root, vdev,
 			    &fw_log_fops);
 	debugfs_create_file("fw_trace_destination_mask", 0200, debugfs_root, vdev,
