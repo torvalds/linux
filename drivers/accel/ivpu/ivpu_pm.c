@@ -264,6 +264,7 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 
 	if (!hw_is_idle) {
 		ivpu_err(vdev, "NPU failed to enter idle, force suspended.\n");
+		atomic_inc(&vdev->pm->reset_counter);
 		ivpu_fw_log_dump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
