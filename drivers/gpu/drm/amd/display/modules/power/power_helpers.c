@@ -973,6 +973,20 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 	return true;
 }
 
+void set_replay_defer_update_coasting_vtotal(struct dc_link *link,
+	enum replay_coasting_vtotal_type type,
+	uint32_t vtotal)
+{
+	link->replay_settings.defer_update_coasting_vtotal_table[type] = vtotal;
+}
+
+void update_replay_coasting_vtotal_from_defer(struct dc_link *link,
+	enum replay_coasting_vtotal_type type)
+{
+	link->replay_settings.coasting_vtotal_table[type] =
+		link->replay_settings.defer_update_coasting_vtotal_table[type];
+}
+
 void set_replay_coasting_vtotal(struct dc_link *link,
 	enum replay_coasting_vtotal_type type,
 	uint32_t vtotal)
