@@ -71,28 +71,28 @@ static inline void mga_i2c_set(struct mga_device *mdev, int mask, int state)
 	mga_i2c_set_gpio(mdev, ~mask, state);
 }
 
-static void mga_gpio_setsda(void *data, int state)
+static void mgag200_ddc_algo_bit_data_setsda(void *data, int state)
 {
 	struct mgag200_ddc *ddc = data;
 
 	mga_i2c_set(ddc->mdev, ddc->data, state);
 }
 
-static void mga_gpio_setscl(void *data, int state)
+static void mgag200_ddc_algo_bit_data_setscl(void *data, int state)
 {
 	struct mgag200_ddc *ddc = data;
 
 	mga_i2c_set(ddc->mdev, ddc->clock, state);
 }
 
-static int mga_gpio_getsda(void *data)
+static int mgag200_ddc_algo_bit_data_getsda(void *data)
 {
 	struct mgag200_ddc *ddc = data;
 
 	return (mga_i2c_read_gpio(ddc->mdev) & ddc->data) ? 1 : 0;
 }
 
-static int mga_gpio_getscl(void *data)
+static int mgag200_ddc_algo_bit_data_getscl(void *data)
 {
 	struct mgag200_ddc *ddc = data;
 
@@ -129,10 +129,10 @@ struct i2c_adapter *mgag200_ddc_create(struct mga_device *mdev)
 
 	bit = &ddc->bit;
 	bit->data = ddc;
-	bit->setsda = mga_gpio_setsda;
-	bit->setscl = mga_gpio_setscl;
-	bit->getsda = mga_gpio_getsda;
-	bit->getscl = mga_gpio_getscl;
+	bit->setsda = mgag200_ddc_algo_bit_data_setsda;
+	bit->setscl = mgag200_ddc_algo_bit_data_setscl;
+	bit->getsda = mgag200_ddc_algo_bit_data_getsda;
+	bit->getscl = mgag200_ddc_algo_bit_data_getscl;
 	bit->udelay = 10;
 	bit->timeout = usecs_to_jiffies(2200);
 
