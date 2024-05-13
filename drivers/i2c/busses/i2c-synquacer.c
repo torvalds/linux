@@ -311,7 +311,7 @@ static int synquacer_i2c_doxfer(struct synquacer_i2c *i2c,
 				struct i2c_msg *msgs, int num)
 {
 	unsigned char bsr;
-	unsigned long timeout;
+	unsigned long time_left;
 	int ret;
 
 	synquacer_i2c_hw_init(i2c);
@@ -335,9 +335,9 @@ static int synquacer_i2c_doxfer(struct synquacer_i2c *i2c,
 		return ret;
 	}
 
-	timeout = wait_for_completion_timeout(&i2c->completion,
-					msecs_to_jiffies(i2c->timeout_ms));
-	if (timeout == 0) {
+	time_left = wait_for_completion_timeout(&i2c->completion,
+						msecs_to_jiffies(i2c->timeout_ms));
+	if (time_left == 0) {
 		dev_dbg(i2c->dev, "timeout\n");
 		return -EAGAIN;
 	}

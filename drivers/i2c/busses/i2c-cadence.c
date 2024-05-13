@@ -790,8 +790,6 @@ static int cdns_i2c_process_msg(struct cdns_i2c *id, struct i2c_msg *msg,
 	time_left = wait_for_completion_timeout(&id->xfer_done, msg_timeout);
 	if (time_left == 0) {
 		cdns_i2c_master_reset(adap);
-		dev_err(id->adap.dev.parent,
-				"timeout waiting on completion\n");
 		return -ETIMEDOUT;
 	}
 

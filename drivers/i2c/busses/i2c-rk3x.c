@@ -1060,7 +1060,8 @@ static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
 				struct i2c_msg *msgs, int num, bool polling)
 {
 	struct rk3x_i2c *i2c = (struct rk3x_i2c *)adap->algo_data;
-	unsigned long timeout, flags;
+	unsigned long flags;
+	long time_left;
 	u32 val;
 	int ret = 0;
 	int i;
@@ -1092,23 +1093,20 @@ static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
 		if (!polling) {
 			rk3x_i2c_start(i2c);
 
-			timeout = wait_event_timeout(i2c->wait, !i2c->busy,
-						     msecs_to_jiffies(WAIT_TIMEOUT));
+			time_left = wait_event_timeout(i2c->wait, !i2c->busy,
+						       msecs_to_jiffies(WAIT_TIMEOUT));
 		} else {
 			disable_irq(i2c->irq);
 			rk3x_i2c_start(i2c);
 
-			timeout = rk3x_i2c_wait_xfer_poll(i2c);
+			time_left = rk3x_i2c_wait_xfer_poll(i2c);
 
 			enable_irq(i2c->irq);
 		}
 
 		spin_lock_irqsave(&i2c->lock, flags);
 
-		if (timeout == 0) {
-			dev_err(i2c->dev, "timeout, ipd: 0x%02x, state: %d\n",
-				i2c_readl(i2c, REG_IPD), i2c->state);
-
+		if (time_left == 0) {
 			/* Force a STOP condition without interrupt */
 			i2c_writel(i2c, 0, REG_IEN);
 			val = i2c_readl(i2c, REG_CON) & REG_CON_TUNING_MASK;
