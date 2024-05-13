@@ -208,11 +208,6 @@ static void print_raid_stripe_key(const struct extent_buffer *eb, u32 item_size,
 				  struct btrfs_stripe_extent *stripe)
 {
 	const int num_stripes = btrfs_num_raid_stripes(item_size);
-	const u8 encoding = btrfs_stripe_extent_encoding(eb, stripe);
-
-	pr_info("\t\t\tencoding: %s\n",
-		(encoding && encoding < BTRFS_NR_RAID_TYPES) ?
-		btrfs_raid_array[encoding].raid_name : "unknown");
 
 	for (int i = 0; i < num_stripes; i++)
 		pr_info("\t\t\tstride %d devid %llu physical %llu\n",

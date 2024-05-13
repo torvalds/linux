@@ -1682,9 +1682,6 @@ static int check_inode_ref(struct extent_buffer *leaf,
 static int check_raid_stripe_extent(const struct extent_buffer *leaf,
 				    const struct btrfs_key *key, int slot)
 {
-	struct btrfs_stripe_extent *stripe_extent =
-		btrfs_item_ptr(leaf, slot, struct btrfs_stripe_extent);
-
 	if (unlikely(!IS_ALIGNED(key->objectid, leaf->fs_info->sectorsize))) {
 		generic_err(leaf, slot,
 "invalid key objectid for raid stripe extent, have %llu expect aligned to %u",
@@ -1695,22 +1692,6 @@ static int check_raid_stripe_extent(const struct extent_buffer *leaf,
 	if (unlikely(!btrfs_fs_incompat(leaf->fs_info, RAID_STRIPE_TREE))) {
 		generic_err(leaf, slot,
 	"RAID_STRIPE_EXTENT present but RAID_STRIPE_TREE incompat bit unset");
-		return -EUCLEAN;
-	}
-
-	switch (btrfs_stripe_extent_encoding(leaf, stripe_extent)) {
-	case BTRFS_STRIPE_RAID0:
-	case BTRFS_STRIPE_RAID1:
-	case BTRFS_STRIPE_DUP:
-	case BTRFS_STRIPE_RAID10:
-	case BTRFS_STRIPE_RAID5:
-	case BTRFS_STRIPE_RAID6:
-	case BTRFS_STRIPE_RAID1C3:
-	case BTRFS_STRIPE_RAID1C4:
-		break;
-	default:
-		generic_err(leaf, slot, "invalid raid stripe encoding %u",
-			    btrfs_stripe_extent_encoding(leaf, stripe_extent));
 		return -EUCLEAN;
 	}
 
