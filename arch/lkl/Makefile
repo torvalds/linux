@@ -14,7 +14,7 @@ endif
 # workaround for #include_next<stdarg.h> errors
 LINUXINCLUDE := -isystem arch/lkl/include/system $(LINUXINCLUDE)
 # workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=52991
-KBUILD_CFLAGS += -mno-ms-bitfields
+KBUILD_CFLAGS += -mno-ms-bitfields -D__DISABLE_EXPORTS
 else ifneq (,$(CONFIG_OUTPUT_FORMAT))
 $(error Unrecognized platform: $(CONFIG_OUTPUT_FORMAT))
 endif
