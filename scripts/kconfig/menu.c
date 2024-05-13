@@ -263,11 +263,9 @@ static void sym_check_prop(struct symbol *sym)
 					    sym->name);
 			}
 			if (sym_is_choice(sym)) {
-				struct property *choice_prop =
-					sym_get_choice_prop(sym2);
+				struct menu *choice = sym_get_choice_menu(sym2);
 
-				if (!choice_prop ||
-				    prop_get_symbol(choice_prop) != sym)
+				if (!choice || choice->sym != sym)
 					prop_warn(prop,
 						  "choice default symbol '%s' is not contained in the choice",
 						  sym2->name);
