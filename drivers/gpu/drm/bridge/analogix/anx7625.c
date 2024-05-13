@@ -2193,11 +2193,6 @@ static int anx7625_bridge_attach(struct drm_bridge *bridge,
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
 
-	if (!bridge->encoder) {
-		DRM_DEV_ERROR(dev, "Parent encoder object not found");
-		return -ENODEV;
-	}
-
 	ctx->aux.drm_dev = bridge->dev;
 	err = drm_dp_aux_register(&ctx->aux);
 	if (err) {
@@ -2434,11 +2429,6 @@ static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
 	struct drm_connector *connector;
 
 	dev_dbg(dev, "drm atomic enable\n");
-
-	if (!bridge->encoder) {
-		dev_err(dev, "Parent encoder object not found");
-		return;
-	}
 
 	connector = drm_atomic_get_new_connector_for_encoder(state->base.state,
 							     bridge->encoder);
