@@ -573,8 +573,24 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 	bool need_recalculation = false;
 	uint32_t cstate_enter_plus_exit_z8_ns;
 
-	if (!context || context->stream_count == 0)
+	if (!context)
 		return true;
+
+	else if (context->stream_count == 0) {
+		unsigned int lowest_state_idx = 0;
+
+		out_clks.p_state_supported = true;
+		out_clks.dispclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dispclk_mhz * 1000;
+		out_clks.dcfclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dcfclk_mhz * 1000;
+		out_clks.fclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].fabricclk_mhz * 1000;
+		out_clks.uclk_mts = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dram_speed_mts;
+		out_clks.phyclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].phyclk_mhz * 1000;
+		out_clks.socclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].socclk_mhz * 1000;
+		out_clks.ref_dtbclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dtbclk_mhz * 1000;
+		context->bw_ctx.bw.dcn.clk.dtbclk_en = false;
+		dml2_copy_clocks_to_dc_state(&out_clks, context);
+		return true;
+	}
 
 	/* Zero out before each call before proceeding */
 	memset(&dml2->v20.scratch, 0, sizeof(struct dml2_wrapper_scratch));
