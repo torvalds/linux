@@ -627,7 +627,52 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 static int wilc_sdio_deinit(struct wilc *wilc)
 {
+	struct sdio_func *func = dev_to_sdio_func(wilc->dev);
 	struct wilc_sdio *sdio_priv = wilc->bus_data;
+	struct sdio_cmd52 cmd;
+	int ret;
+
+	cmd.read_write = 1;
+	cmd.function = 0;
+	cmd.raw = 1;
+
+	/* Disable all functions interrupts */
+	cmd.address = SDIO_CCCR_IENx;
+	cmd.data = 0;
+	ret = wilc_sdio_cmd52(wilc, &cmd);
+	if (ret) {
+		dev_err(&func->dev, "Failed to disable functions interrupts\n");
+		return ret;
+	}
+
+	/* Disable all functions */
+	cmd.address = SDIO_CCCR_IOEx;
+	cmd.data = 0;
+	ret = wilc_sdio_cmd52(wilc, &cmd);
+	if (ret) {
+		dev_err(&func->dev,
+			"Failed to reset all functions\n");
+		return ret;
+	}
+
+	/* Disable CSA */
+	cmd.read_write = 0;
+	cmd.address = SDIO_FBR_BASE(1);
+	ret = wilc_sdio_cmd52(wilc, &cmd);
+	if (ret) {
+		dev_err(&func->dev,
+			"Failed to read CSA for function 1\n");
+		return ret;
+	}
+	cmd.read_write = 1;
+	cmd.address = SDIO_FBR_BASE(1);
+	cmd.data &= ~SDIO_FBR_ENABLE_CSA;
+	ret = wilc_sdio_cmd52(wilc, &cmd);
+	if (ret) {
+		dev_err(&func->dev,
+			"Failed to disable CSA for function 1\n");
+		return ret;
+	}
 
 	sdio_priv->isinit = false;
 	return 0;
