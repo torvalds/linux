@@ -8,6 +8,8 @@
 
 #include <drm/drm_mm.h>
 
+#include "xe_guc_klv_thresholds_set_types.h"
+
 struct xe_bo;
 
 /**
@@ -32,6 +34,8 @@ struct xe_gt_sriov_config {
 	u32 exec_quantum;
 	/** @preempt_timeout: preemption timeout in microseconds. */
 	u32 preempt_timeout;
+	/** @thresholds: GuC thresholds for adverse events notifications. */
+	u32 thresholds[XE_GUC_KLV_NUM_THRESHOLDS];
 };
 
 /**

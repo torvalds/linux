@@ -25,6 +25,7 @@
 #include "xe_guc_fwif.h"
 #include "xe_guc_id_mgr.h"
 #include "xe_guc_klv_helpers.h"
+#include "xe_guc_klv_thresholds_set.h"
 #include "xe_guc_submit.h"
 #include "xe_lmtt.h"
 #include "xe_map.h"
@@ -206,6 +207,15 @@ static int pf_push_vf_cfg_preempt_timeout(struct xe_gt *gt, unsigned int vfid, u
 static int pf_push_vf_cfg_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 {
 	return pf_push_vf_cfg_u64(gt, vfid, GUC_KLV_VF_CFG_LMEM_SIZE_KEY, size);
+}
+
+static int pf_push_vf_cfg_threshold(struct xe_gt *gt, unsigned int vfid,
+				    enum xe_guc_klv_threshold_index index, u32 value)
+{
+	u32 key = xe_guc_klv_threshold_index_to_key(index);
+
+	xe_gt_assert(gt, key);
+	return pf_push_vf_cfg_u32(gt, vfid, key, value);
 }
 
 static struct xe_gt_sriov_config *pf_pick_vf_config(struct xe_gt *gt, unsigned int vfid)
@@ -1746,6 +1756,83 @@ static void pf_reset_config_sched(struct xe_gt *gt, struct xe_gt_sriov_config *c
 
 	config->exec_quantum = 0;
 	config->preempt_timeout = 0;
+}
+
+static int pf_provision_threshold(struct xe_gt *gt, unsigned int vfid,
+				  enum xe_guc_klv_threshold_index index, u32 value)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	int err;
+
+	err = pf_push_vf_cfg_threshold(gt, vfid, index, value);
+	if (unlikely(err))
+		return err;
+
+	config->thresholds[index] = value;
+
+	return 0;
+}
+
+static int pf_get_threshold(struct xe_gt *gt, unsigned int vfid,
+			    enum xe_guc_klv_threshold_index index)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+
+	return config->thresholds[index];
+}
+
+static const char *threshold_unit(u32 threshold)
+{
+	return threshold ? "" : "(disabled)";
+}
+
+/**
+ * xe_gt_sriov_pf_config_set_threshold - Configure threshold for the VF.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @index: the threshold index
+ * @value: requested value (0 means disabled)
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_set_threshold(struct xe_gt *gt, unsigned int vfid,
+					enum xe_guc_klv_threshold_index index, u32 value)
+{
+	u32 key = xe_guc_klv_threshold_index_to_key(index);
+	const char *name = xe_guc_klv_key_to_string(key);
+	int err;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	err = pf_provision_threshold(gt, vfid, index, value);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return pf_config_set_u32_done(gt, vfid, value,
+				      xe_gt_sriov_pf_config_get_threshold(gt, vfid, index),
+				      name, threshold_unit, err);
+}
+
+/**
+ * xe_gt_sriov_pf_config_get_threshold - Get VF's threshold.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier
+ * @index: the threshold index
+ *
+ * This function can only be called on PF.
+ *
+ * Return: value of VF's (or PF's) threshold.
+ */
+u32 xe_gt_sriov_pf_config_get_threshold(struct xe_gt *gt, unsigned int vfid,
+					enum xe_guc_klv_threshold_index index)
+{
+	u32 value;
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	value = pf_get_threshold(gt, vfid, index);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return value;
 }
 
 static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
