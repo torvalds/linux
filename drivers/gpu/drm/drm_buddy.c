@@ -249,6 +249,7 @@ int drm_buddy_init(struct drm_buddy *mm, u64 size, u64 chunk_size)
 
 	mm->size = size;
 	mm->avail = size;
+	mm->clear_avail = 0;
 	mm->chunk_size = chunk_size;
 	mm->max_order = ilog2(size) - ilog2(chunk_size);
 
@@ -574,7 +575,7 @@ __drm_buddy_alloc_range_bias(struct drm_buddy *mm,
 
 	block = __alloc_range_bias(mm, start, end, order,
 				   flags, fallback);
-	if (IS_ERR(block) && mm->clear_avail)
+	if (IS_ERR(block))
 		return __alloc_range_bias(mm, start, end, order,
 					  flags, !fallback);
 
