@@ -70,6 +70,7 @@ atomic_or(V,X)  { __atomic_op(X,|,V); }
 atomic_xor(V,X) { __atomic_op(X,^,V); }
 atomic_inc(X)   { __atomic_op(X,+,1); }
 atomic_dec(X)   { __atomic_op(X,-,1); }
+atomic_andnot(V,X) { __atomic_op(X,&~,V); }
 
 atomic_add_return(V,X) __atomic_op_return{mb}(X,+,V)
 atomic_add_return_relaxed(V,X) __atomic_op_return{once}(X,+,V)
@@ -138,3 +139,8 @@ atomic_add_negative(V,X) __atomic_op_return{mb}(X,+,V) < 0
 atomic_add_negative_relaxed(V,X) __atomic_op_return{once}(X,+,V) < 0
 atomic_add_negative_acquire(V,X) __atomic_op_return{acquire}(X,+,V) < 0
 atomic_add_negative_release(V,X) __atomic_op_return{release}(X,+,V) < 0
+
+atomic_fetch_andnot(V,X) __atomic_fetch_op{mb}(X,&~,V)
+atomic_fetch_andnot_acquire(V,X) __atomic_fetch_op{acquire}(X,&~,V)
+atomic_fetch_andnot_release(V,X) __atomic_fetch_op{release}(X,&~,V)
+atomic_fetch_andnot_relaxed(V,X) __atomic_fetch_op{once}(X,&~,V)
