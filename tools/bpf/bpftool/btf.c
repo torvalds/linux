@@ -43,6 +43,13 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_ENUM64]	= "ENUM64",
 };
 
+struct sort_datum {
+	int index;
+	int type_rank;
+	const char *sort_name;
+	const char *own_name;
+};
+
 static const char *btf_int_enc_str(__u8 encoding)
 {
 	switch (encoding) {
@@ -460,9 +467,122 @@ static void __printf(2, 0) btf_dump_printf(void *ctx,
 	vfprintf(stdout, fmt, args);
 }
 
-static int dump_btf_c(const struct btf *btf,
-		      __u32 *root_type_ids, int root_type_cnt)
+static int btf_type_rank(const struct btf *btf, __u32 index, bool has_name)
 {
+	const struct btf_type *t = btf__type_by_id(btf, index);
+	const int kind = btf_kind(t);
+	const int max_rank = 10;
+
+	if (t->name_off)
+		has_name = true;
+
+	switch (kind) {
+	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
+		return has_name ? 1 : 0;
+	case BTF_KIND_INT:
+	case BTF_KIND_FLOAT:
+		return 2;
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION:
+		return has_name ? 3 : max_rank;
+	case BTF_KIND_FUNC_PROTO:
+		return has_name ? 4 : max_rank;
+	case BTF_KIND_ARRAY:
+		if (has_name)
+			return btf_type_rank(btf, btf_array(t)->type, has_name);
+		return max_rank;
+	case BTF_KIND_TYPE_TAG:
+	case BTF_KIND_CONST:
+	case BTF_KIND_PTR:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_DECL_TAG:
+		if (has_name)
+			return btf_type_rank(btf, t->type, has_name);
+		return max_rank;
+	default:
+		return max_rank;
+	}
+}
+
+static const char *btf_type_sort_name(const struct btf *btf, __u32 index, bool from_ref)
+{
+	const struct btf_type *t = btf__type_by_id(btf, index);
+
+	switch (btf_kind(t)) {
+	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64: {
+		int name_off = t->name_off;
+
+		/* Use name of the first element for anonymous enums if allowed */
+		if (!from_ref && !t->name_off && btf_vlen(t))
+			name_off = btf_enum(t)->name_off;
+
+		return btf__name_by_offset(btf, name_off);
+	}
+	case BTF_KIND_ARRAY:
+		return btf_type_sort_name(btf, btf_array(t)->type, true);
+	case BTF_KIND_TYPE_TAG:
+	case BTF_KIND_CONST:
+	case BTF_KIND_PTR:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_DECL_TAG:
+		return btf_type_sort_name(btf, t->type, true);
+	default:
+		return btf__name_by_offset(btf, t->name_off);
+	}
+	return NULL;
+}
+
+static int btf_type_compare(const void *left, const void *right)
+{
+	const struct sort_datum *d1 = (const struct sort_datum *)left;
+	const struct sort_datum *d2 = (const struct sort_datum *)right;
+	int r;
+
+	if (d1->type_rank != d2->type_rank)
+		return d1->type_rank < d2->type_rank ? -1 : 1;
+
+	r = strcmp(d1->sort_name, d2->sort_name);
+	if (r)
+		return r;
+
+	return strcmp(d1->own_name, d2->own_name);
+}
+
+static struct sort_datum *sort_btf_c(const struct btf *btf)
+{
+	struct sort_datum *datums;
+	int n;
+
+	n = btf__type_cnt(btf);
+	datums = malloc(sizeof(struct sort_datum) * n);
+	if (!datums)
+		return NULL;
+
+	for (int i = 0; i < n; ++i) {
+		struct sort_datum *d = datums + i;
+		const struct btf_type *t = btf__type_by_id(btf, i);
+
+		d->index = i;
+		d->type_rank = btf_type_rank(btf, i, false);
+		d->sort_name = btf_type_sort_name(btf, i, false);
+		d->own_name = btf__name_by_offset(btf, t->name_off);
+	}
+
+	qsort(datums, n, sizeof(struct sort_datum), btf_type_compare);
+
+	return datums;
+}
+
+static int dump_btf_c(const struct btf *btf,
+		      __u32 *root_type_ids, int root_type_cnt, bool sort_dump)
+{
+	struct sort_datum *datums = NULL;
 	struct btf_dump *d;
 	int err = 0, i;
 
@@ -486,8 +606,12 @@ static int dump_btf_c(const struct btf *btf,
 	} else {
 		int cnt = btf__type_cnt(btf);
 
+		if (sort_dump)
+			datums = sort_btf_c(btf);
 		for (i = 1; i < cnt; i++) {
-			err = btf_dump__dump_type(d, i);
+			int idx = datums ? datums[i].index : i;
+
+			err = btf_dump__dump_type(d, idx);
 			if (err)
 				goto done;
 		}
@@ -500,6 +624,7 @@ static int dump_btf_c(const struct btf *btf,
 	printf("#endif /* __VMLINUX_H__ */\n");
 
 done:
+	free(datums);
 	btf_dump__free(d);
 	return err;
 }
@@ -549,10 +674,10 @@ static bool btf_is_kernel_module(__u32 btf_id)
 
 static int do_dump(int argc, char **argv)
 {
+	bool dump_c = false, sort_dump_c = true;
 	struct btf *btf = NULL, *base = NULL;
 	__u32 root_type_ids[2];
 	int root_type_cnt = 0;
-	bool dump_c = false;
 	__u32 btf_id = -1;
 	const char *src;
 	int fd = -1;
@@ -663,6 +788,9 @@ static int do_dump(int argc, char **argv)
 				goto done;
 			}
 			NEXT_ARG();
+		} else if (is_prefix(*argv, "unsorted")) {
+			sort_dump_c = false;
+			NEXT_ARG();
 		} else {
 			p_err("unrecognized option: '%s'", *argv);
 			err = -EINVAL;
@@ -691,7 +819,7 @@ static int do_dump(int argc, char **argv)
 			err = -ENOTSUP;
 			goto done;
 		}
-		err = dump_btf_c(btf, root_type_ids, root_type_cnt);
+		err = dump_btf_c(btf, root_type_ids, root_type_cnt, sort_dump_c);
 	} else {
 		err = dump_btf_raw(btf, root_type_ids, root_type_cnt);
 	}
@@ -1063,7 +1191,7 @@ static int do_help(int argc, char **argv)
 		"       %1$s %2$s help\n"
 		"\n"
 		"       BTF_SRC := { id BTF_ID | prog PROG | map MAP [{key | value | kv | all}] | file FILE }\n"
-		"       FORMAT  := { raw | c }\n"
+		"       FORMAT  := { raw | c [unsorted] }\n"
 		"       " HELP_SPEC_MAP "\n"
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
