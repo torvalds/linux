@@ -312,6 +312,9 @@ struct mptcp_sock {
 			free_first:1,
 			rcvspace_init:1;
 	u32		notsent_lowat;
+	int		keepalive_cnt;
+	int		keepalive_idle;
+	int		keepalive_intvl;
 	struct work_struct work;
 	struct sk_buff  *ooo_last_skb;
 	struct rb_root  out_of_order_queue;
