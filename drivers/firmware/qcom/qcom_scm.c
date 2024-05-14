@@ -114,7 +114,6 @@ static const u8 qcom_scm_cpu_warm_bits[QCOM_SCM_BOOT_MAX_CPUS] = {
 };
 
 #define QCOM_SMC_WAITQ_FLAG_WAKE_ONE	BIT(0)
-#define QCOM_SMC_WAITQ_FLAG_WAKE_ALL	BIT(1)
 
 #define QCOM_DLOAD_MASK		GENMASK(5, 4)
 #define QCOM_DLOAD_NODUMP	0
@@ -1795,9 +1794,8 @@ static irqreturn_t qcom_scm_irq_handler(int irq, void *data)
 			goto out;
 		}
 
-		if (flags != QCOM_SMC_WAITQ_FLAG_WAKE_ONE &&
-		    flags != QCOM_SMC_WAITQ_FLAG_WAKE_ALL) {
-			dev_err(scm->dev, "Invalid flags found for wq_ctx: %u\n", flags);
+		if (flags != QCOM_SMC_WAITQ_FLAG_WAKE_ONE) {
+			dev_err(scm->dev, "Invalid flags received for wq_ctx: %u\n", flags);
 			goto out;
 		}
 
