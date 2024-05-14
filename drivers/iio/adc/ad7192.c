@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
+#include <linux/units.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -186,6 +187,7 @@ struct ad7192_state {
 	struct regulator		*vref;
 	struct clk			*mclk;
 	u16				int_vref_mv;
+	u32				aincom_mv;
 	u32				fclk;
 	u32				mode;
 	u32				conf;
@@ -742,10 +744,24 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 			*val = -(1 << (chan->scan_type.realbits - 1));
 		else
 			*val = 0;
+
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			/*
+			 * Only applies to pseudo-differential inputs.
+			 * AINCOM voltage has to be converted to "raw" units.
+			 */
+			if (st->aincom_mv && !chan->differential)
+				*val += DIV_ROUND_CLOSEST_ULL((u64)st->aincom_mv * NANO,
+							      st->scale_avail[gain][1]);
+			return IIO_VAL_INT;
 		/* Kelvin to Celsius */
-		if (chan->type == IIO_TEMP)
+		case IIO_TEMP:
 			*val -= 273 * ad7192_get_temp_scale(unipolar);
-		return IIO_VAL_INT;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = DIV_ROUND_CLOSEST(ad7192_get_f_adc(st), 1024);
 		return IIO_VAL_INT;
@@ -1052,6 +1068,7 @@ static int ad7192_probe(struct spi_device *spi)
 {
 	struct ad7192_state *st;
 	struct iio_dev *indio_dev;
+	struct regulator *aincom;
 	int ret;
 
 	if (!spi->irq) {
@@ -1066,6 +1083,35 @@ static int ad7192_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	mutex_init(&st->lock);
+
+	/*
+	 * Regulator aincom is optional to maintain compatibility with older DT.
+	 * Newer firmware should provide a zero volt fixed supply if wired to
+	 * ground.
+	 */
+	aincom = devm_regulator_get_optional(&spi->dev, "aincom");
+	if (IS_ERR(aincom)) {
+		if (PTR_ERR(aincom) != -ENODEV)
+			return dev_err_probe(&spi->dev, PTR_ERR(aincom),
+					     "Failed to get AINCOM supply\n");
+
+		st->aincom_mv = 0;
+	} else {
+		ret = regulator_enable(aincom);
+		if (ret)
+			return dev_err_probe(&spi->dev, ret,
+					     "Failed to enable specified AINCOM supply\n");
+
+		ret = devm_add_action_or_reset(&spi->dev, ad7192_reg_disable, aincom);
+		if (ret)
+			return ret;
+
+		ret = regulator_get_voltage(aincom);
+		if (ret < 0)
+			return dev_err_probe(&spi->dev, ret,
+					     "Device tree error, AINCOM voltage undefined\n");
+		st->aincom_mv = ret / MILLI;
+	}
 
 	st->avdd = devm_regulator_get(&spi->dev, "avdd");
 	if (IS_ERR(st->avdd))
