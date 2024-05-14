@@ -103,6 +103,9 @@ struct hid_bpf_ops {
 				  unsigned char reportnum, __u8 *buf,
 				  size_t len, enum hid_report_type rtype,
 				  enum hid_class_request reqtype);
+	int (*hid_hw_output_report)(struct hid_device *hdev, __u8 *buf, size_t len);
+	int (*hid_input_report)(struct hid_device *hid, enum hid_report_type type,
+				u8 *data, u32 size, int interrupt);
 	struct module *owner;
 	const struct bus_type *bus_type;
 };
