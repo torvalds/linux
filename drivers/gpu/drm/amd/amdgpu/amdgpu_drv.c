@@ -198,7 +198,7 @@ int amdgpu_discovery = -1;
 int amdgpu_mes;
 int amdgpu_mes_log_enable = 0;
 int amdgpu_mes_kiq;
-int amdgpu_uni_mes;
+int amdgpu_uni_mes = 1;
 int amdgpu_noretry = -1;
 int amdgpu_force_asic_type = -1;
 int amdgpu_tmz = -1; /* auto */
@@ -695,7 +695,7 @@ module_param_named(mes_kiq, amdgpu_mes_kiq, int, 0444);
  * (0 = disabled (default), 1 = enabled)
  */
 MODULE_PARM_DESC(uni_mes,
-	"Enable Unified Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
+	"Enable Unified Micro Engine Scheduler (0 = disabled, 1 = enabled(default)");
 module_param_named(uni_mes, amdgpu_uni_mes, int, 0444);
 
 /**
