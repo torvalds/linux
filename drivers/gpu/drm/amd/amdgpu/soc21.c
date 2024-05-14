@@ -389,6 +389,7 @@ soc21_asic_reset_method(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 11):
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
+	case IP_VERSION(14, 0, 4):
 		return AMD_RESET_METHOD_MODE2;
 	default:
 		if (amdgpu_dpm_is_baco_supported(adev))
