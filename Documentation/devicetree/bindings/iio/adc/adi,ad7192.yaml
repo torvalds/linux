@@ -41,6 +41,11 @@ properties:
   interrupts:
     maxItems: 1
 
+  aincom-supply:
+    description: |
+      AINCOM voltage supply. Analog inputs AINx are referenced to this input
+      when configured for pseudo-differential operation.
+
   dvdd-supply:
     description: DVdd voltage supply
 
@@ -117,6 +122,7 @@ examples:
             clock-names = "mclk";
             interrupts = <25 0x2>;
             interrupt-parent = <&gpio>;
+            aincom-supply = <&aincom>;
             dvdd-supply = <&dvdd>;
             avdd-supply = <&avdd>;
             vref-supply = <&vref>;
