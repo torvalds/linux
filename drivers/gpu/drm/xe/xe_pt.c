@@ -812,8 +812,9 @@ bool xe_pt_zap_ptes(struct xe_tile *tile, struct xe_vma *vma)
 		.tile = tile,
 	};
 	struct xe_pt *pt = xe_vma_vm(vma)->pt_root[tile->id];
+	u8 pt_mask = (vma->tile_present & ~vma->tile_invalidated);
 
-	if (!(vma->tile_present & BIT(tile->id)))
+	if (!(pt_mask & BIT(tile->id)))
 		return false;
 
 	(void)xe_pt_walk_shared(&pt->base, pt->level, xe_vma_start(vma),
