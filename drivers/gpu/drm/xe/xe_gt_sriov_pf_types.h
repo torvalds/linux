@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 #include "xe_gt_sriov_pf_config_types.h"
+#include "xe_gt_sriov_pf_monitor_types.h"
 #include "xe_gt_sriov_pf_policy_types.h"
 #include "xe_gt_sriov_pf_service_types.h"
 
@@ -18,6 +19,10 @@
 struct xe_gt_sriov_metadata {
 	/** @config: per-VF provisioning data. */
 	struct xe_gt_sriov_config config;
+
+	/** @monitor: per-VF monitoring data. */
+	struct xe_gt_sriov_monitor monitor;
+
 	/** @version: negotiated VF/PF ABI version */
 	struct xe_gt_sriov_pf_service_version version;
 };
