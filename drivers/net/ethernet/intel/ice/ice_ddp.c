@@ -1434,13 +1434,13 @@ ice_dwnld_sign_and_cfg_segs(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr,
 		goto exit;
 	}
 
+	count = le32_to_cpu(seg->signed_buf_count);
+	state = ice_download_pkg_sig_seg(hw, seg);
+	if (state || !count)
+		goto exit;
+
 	conf_idx = le32_to_cpu(seg->signed_seg_idx);
 	start = le32_to_cpu(seg->signed_buf_start);
-	count = le32_to_cpu(seg->signed_buf_count);
-
-	state = ice_download_pkg_sig_seg(hw, seg);
-	if (state)
-		goto exit;
 
 	state = ice_download_pkg_config_seg(hw, pkg_hdr, conf_idx, start,
 					    count);

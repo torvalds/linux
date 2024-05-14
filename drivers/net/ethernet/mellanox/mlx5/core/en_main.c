@@ -6194,7 +6194,7 @@ static int mlx5e_resume(struct auxiliary_device *adev)
 	return 0;
 }
 
-static int _mlx5e_suspend(struct auxiliary_device *adev)
+static int _mlx5e_suspend(struct auxiliary_device *adev, bool pre_netdev_reg)
 {
 	struct mlx5e_dev *mlx5e_dev = auxiliary_get_drvdata(adev);
 	struct mlx5e_priv *priv = mlx5e_dev->priv;
@@ -6203,7 +6203,7 @@ static int _mlx5e_suspend(struct auxiliary_device *adev)
 	struct mlx5_core_dev *pos;
 	int i;
 
-	if (!netif_device_present(netdev)) {
+	if (!pre_netdev_reg && !netif_device_present(netdev)) {
 		if (test_bit(MLX5E_STATE_DESTROYING, &priv->state))
 			mlx5_sd_for_each_dev(i, mdev, pos)
 				mlx5e_destroy_mdev_resources(pos);
@@ -6226,7 +6226,7 @@ static int mlx5e_suspend(struct auxiliary_device *adev, pm_message_t state)
 
 	actual_adev = mlx5_sd_get_adev(mdev, adev, edev->idx);
 	if (actual_adev)
-		err = _mlx5e_suspend(actual_adev);
+		err = _mlx5e_suspend(actual_adev, false);
 
 	mlx5_sd_cleanup(mdev);
 	return err;
@@ -6293,7 +6293,7 @@ static int _mlx5e_probe(struct auxiliary_device *adev)
 	return 0;
 
 err_resume:
-	_mlx5e_suspend(adev);
+	_mlx5e_suspend(adev, true);
 err_profile_cleanup:
 	profile->cleanup(priv);
 err_destroy_netdev:
@@ -6333,7 +6333,7 @@ static void _mlx5e_remove(struct auxiliary_device *adev)
 	mlx5_core_uplink_netdev_set(mdev, NULL);
 	mlx5e_dcbnl_delete_app(priv);
 	unregister_netdev(priv->netdev);
-	_mlx5e_suspend(adev);
+	_mlx5e_suspend(adev, false);
 	priv->profile->cleanup(priv);
 	mlx5e_destroy_netdev(priv);
 	mlx5e_devlink_port_unregister(mlx5e_dev);

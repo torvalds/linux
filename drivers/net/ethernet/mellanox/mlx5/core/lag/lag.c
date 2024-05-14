@@ -811,7 +811,7 @@ void mlx5_disable_lag(struct mlx5_lag *ldev)
 	if (shared_fdb)
 		for (i = 0; i < ldev->ports; i++)
 			if (!(ldev->pf[i].dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV))
-				mlx5_eswitch_reload_reps(ldev->pf[i].dev->priv.eswitch);
+				mlx5_eswitch_reload_ib_reps(ldev->pf[i].dev->priv.eswitch);
 }
 
 static bool mlx5_shared_fdb_supported(struct mlx5_lag *ldev)
@@ -919,7 +919,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 			mlx5_rescan_drivers_locked(dev0);
 
 			for (i = 0; i < ldev->ports; i++) {
-				err = mlx5_eswitch_reload_reps(ldev->pf[i].dev->priv.eswitch);
+				err = mlx5_eswitch_reload_ib_reps(ldev->pf[i].dev->priv.eswitch);
 				if (err)
 					break;
 			}
@@ -930,7 +930,7 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 				mlx5_deactivate_lag(ldev);
 				mlx5_lag_add_devices(ldev);
 				for (i = 0; i < ldev->ports; i++)
-					mlx5_eswitch_reload_reps(ldev->pf[i].dev->priv.eswitch);
+					mlx5_eswitch_reload_ib_reps(ldev->pf[i].dev->priv.eswitch);
 				mlx5_core_err(dev0, "Failed to enable lag\n");
 				return;
 			}
