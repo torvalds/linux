@@ -33,6 +33,8 @@ qcom_rpmh.ko
 clk-qcom.ko
 clk-dummy.ko
 clk-rpmh.ko
+dcc_v2.ko
+memory_dump_v2.ko
 gcc-anorak.ko
 qcom-cpufreq-hw.ko
 dispcc0-anorak.ko
