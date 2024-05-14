@@ -1746,6 +1746,27 @@ static void domain_dirty_freerun(struct dirty_throttle_control *dtc,
 	dtc->freerun = dirty <= dirty_freerun_ceiling(thresh, bg_thresh);
 }
 
+static void wb_dirty_freerun(struct dirty_throttle_control *dtc,
+			     bool strictlimit)
+{
+	dtc->freerun = false;
+
+	/* was already handled in domain_dirty_freerun */
+	if (strictlimit)
+		return;
+
+	wb_dirty_limits(dtc);
+	/*
+	 * LOCAL_THROTTLE tasks must not be throttled when below the per-wb
+	 * freerun ceiling.
+	 */
+	if (!(current->flags & PF_LOCAL_THROTTLE))
+		return;
+
+	dtc->freerun = dtc->wb_dirty <
+		       dirty_freerun_ceiling(dtc->wb_thresh, dtc->wb_bg_thresh);
+}
+
 /*
  * balance_dirty_pages() must be called by processes which are generating dirty
  * data.  It looks at the number of dirty pages in the machine and will force
@@ -1838,19 +1859,9 @@ free_running:
 		 * Calculate global domain's pos_ratio and select the
 		 * global dtc by default.
 		 */
-		if (!strictlimit) {
-			wb_dirty_limits(gdtc);
-
-			if ((current->flags & PF_LOCAL_THROTTLE) &&
-			    gdtc->wb_dirty <
-			    dirty_freerun_ceiling(gdtc->wb_thresh,
-						  gdtc->wb_bg_thresh))
-				/*
-				 * LOCAL_THROTTLE tasks must not be throttled
-				 * when below the per-wb freerun ceiling.
-				 */
-				goto free_running;
-		}
+		wb_dirty_freerun(gdtc, strictlimit);
+		if (gdtc->freerun)
+			goto free_running;
 
 		dirty_exceeded = (gdtc->wb_dirty > gdtc->wb_thresh) &&
 			((gdtc->dirty > gdtc->thresh) || strictlimit);
@@ -1865,20 +1876,10 @@ free_running:
 			 * both global and memcg domains.  Choose the one
 			 * w/ lower pos_ratio.
 			 */
-			if (!strictlimit) {
-				wb_dirty_limits(mdtc);
+			wb_dirty_freerun(mdtc, strictlimit);
+			if (mdtc->freerun)
+				goto free_running;
 
-				if ((current->flags & PF_LOCAL_THROTTLE) &&
-				    mdtc->wb_dirty <
-				    dirty_freerun_ceiling(mdtc->wb_thresh,
-							  mdtc->wb_bg_thresh))
-					/*
-					 * LOCAL_THROTTLE tasks must not be
-					 * throttled when below the per-wb
-					 * freerun ceiling.
-					 */
-					goto free_running;
-			}
 			dirty_exceeded |= (mdtc->wb_dirty > mdtc->wb_thresh) &&
 				((mdtc->dirty > mdtc->thresh) || strictlimit);
 
