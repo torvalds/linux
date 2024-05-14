@@ -626,7 +626,7 @@ void btrfs_remove_ordered_extent(struct btrfs_inode *btrfs_inode,
 	freespace_inode = btrfs_is_free_space_inode(btrfs_inode);
 
 	btrfs_lockdep_acquire(fs_info, btrfs_trans_pending_ordered);
-	/* This is paired with btrfs_alloc_ordered_extent. */
+	/* This is paired with alloc_ordered_extent(). */
 	spin_lock(&btrfs_inode->lock);
 	btrfs_mod_outstanding_extents(btrfs_inode, -1);
 	spin_unlock(&btrfs_inode->lock);
