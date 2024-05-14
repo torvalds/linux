@@ -501,7 +501,7 @@ config X86_FRED
 	  When enabled, try to use Flexible Return and Event Delivery
 	  instead of the legacy SYSCALL/SYSENTER/IDT architecture for
 	  ring transitions and exception/interrupt handling if the
-	  system supports.
+	  system supports it.
 
 config X86_BIGSMP
 	bool "Support for big SMP systems with more than 8 CPUs"
