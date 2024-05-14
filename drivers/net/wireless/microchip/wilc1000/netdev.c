@@ -588,7 +588,6 @@ static int wilc_mac_open(struct net_device *ndev)
 	struct wilc *wl = vif->wilc;
 	int ret = 0;
 	struct mgmt_frame_regs mgmt_regs = {};
-	u8 addr[ETH_ALEN] __aligned(2);
 
 	if (!wl || !wl->dev) {
 		netdev_err(ndev, "device not ready\n");
@@ -607,24 +606,18 @@ static int wilc_mac_open(struct net_device *ndev)
 		return ret;
 	}
 
+	netdev_dbg(ndev, "Mac address: %pM\n", ndev->dev_addr);
+	ret = wilc_set_mac_address(vif, ndev->dev_addr);
+	if (ret) {
+		netdev_err(ndev, "Failed to enforce MAC address in chip");
+		wilc_deinit_host_int(ndev);
+		if (!wl->open_ifcs)
+			wilc_wlan_deinitialize(ndev);
+		return ret;
+	}
+
 	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
 				vif->idx);
-
-	if (is_valid_ether_addr(ndev->dev_addr)) {
-		ether_addr_copy(addr, ndev->dev_addr);
-		wilc_set_mac_address(vif, addr);
-	} else {
-		wilc_get_mac_address(vif, addr);
-		eth_hw_addr_set(ndev, addr);
-	}
-	netdev_dbg(ndev, "Mac address: %pM\n", ndev->dev_addr);
-
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		netdev_err(ndev, "Wrong MAC address\n");
-		wilc_deinit_host_int(ndev);
-		wilc_wlan_deinitialize(ndev);
-		return -EINVAL;
-	}
 
 	mgmt_regs.interface_stypes = vif->mgmt_reg_stypes;
 	/* so we detect a change */
@@ -941,6 +934,7 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 				      int vif_type, enum nl80211_iftype type,
 				      bool rtnl_locked)
 {
+	u8 mac_address[ETH_ALEN];
 	struct net_device *ndev;
 	struct wilc_vif *vif;
 	int ret;
@@ -969,6 +963,18 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	vif->iftype = vif_type;
 	vif->idx = wilc_get_available_idx(wl);
 	vif->mac_opened = 0;
+
+	memcpy(mac_address, wl->nv_mac_address, ETH_ALEN);
+	/* WILC firmware uses locally administered MAC address for the
+	 * second virtual interface (bit 1 of first byte set), but
+	 * since it is possibly not loaded/running yet, reproduce this behavior
+	 * in the driver during interface creation.
+	 */
+	if (vif->idx)
+		mac_address[0] |= 0x2;
+
+	eth_hw_addr_set(vif->ndev, mac_address);
+
 	mutex_lock(&wl->vif_mutex);
 	list_add_tail_rcu(&vif->list, &wl->vif_list);
 	wl->vif_num += 1;

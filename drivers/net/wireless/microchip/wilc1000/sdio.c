@@ -24,6 +24,9 @@ MODULE_DEVICE_TABLE(sdio, wilc_sdio_ids);
 
 #define WILC_SDIO_BLOCK_SIZE 512
 
+static int wilc_sdio_init(struct wilc *wilc, bool resume);
+static int wilc_sdio_deinit(struct wilc *wilc);
+
 struct wilc_sdio {
 	bool irq_gpio;
 	u32 block_size;
@@ -178,6 +181,16 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	}
 	clk_prepare_enable(wilc->rtc_clk);
 
+	wilc_sdio_init(wilc, false);
+
+	ret = wilc_load_mac_from_nv(wilc);
+	if (ret) {
+		pr_err("Can not retrieve MAC address from chip\n");
+		goto clk_disable_unprepare;
+	}
+
+	wilc_sdio_deinit(wilc);
+
 	vif = wilc_netdev_ifc_init(wilc, "wlan%d", WILC_STATION_MODE,
 				   NL80211_IFTYPE_STATION, false);
 	if (IS_ERR(vif)) {
@@ -187,6 +200,7 @@ static int wilc_sdio_probe(struct sdio_func *func,
 
 	dev_info(&func->dev, "Driver Initializing success\n");
 	return 0;
+
 clk_disable_unprepare:
 	clk_disable_unprepare(wilc->rtc_clk);
 dispose_irq:
