@@ -228,8 +228,6 @@ loop:
 		if (transaction && time_after_eq(jiffies,
 						transaction->t_expires))
 			should_sleep = 0;
-		if (journal->j_flags & JBD2_UNMOUNT)
-			should_sleep = 0;
 		if (should_sleep) {
 			write_unlock(&journal->j_state_lock);
 			schedule();
