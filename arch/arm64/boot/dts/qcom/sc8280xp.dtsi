@@ -2312,7 +2312,7 @@
 			status = "disabled";
 		};
 
-		ufs_mem_hc: ufs@1d84000 {
+		ufs_mem_hc: ufshc@1d84000 {
 			compatible = "qcom,sc8280xp-ufshc", "qcom,ufshc",
 				     "jedec,ufs-2.0";
 			reg = <0 0x01d84000 0 0x3000>;
@@ -2378,7 +2378,7 @@
 			status = "disabled";
 		};
 
-		ufs_card_hc: ufs@1da4000 {
+		ufs_card_hc: ufshc@1da4000 {
 			compatible = "qcom,sc8280xp-ufshc", "qcom,ufshc",
 				     "jedec,ufs-2.0";
 			reg = <0 0x01da4000 0 0x3000>;
