@@ -333,14 +333,11 @@ static const struct dmi_system_id dmi_nodevs[] = {
 static void sfh1_1_init_work(struct work_struct *work)
 {
 	struct amd_mp2_dev *mp2 = container_of(work, struct amd_mp2_dev, work);
-	struct pci_dev *pdev = mp2->pdev;
 	int rc;
 
 	rc = mp2->sfh1_1_ops->init(mp2);
-	if (rc) {
-		dev_err(&pdev->dev, "sfh1_1_init failed err %d\n", rc);
+	if (rc)
 		return;
-	}
 
 	amd_sfh_clear_intr(mp2);
 	mp2->init_done = 1;
