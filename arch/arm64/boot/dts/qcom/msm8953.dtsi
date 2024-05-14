@@ -1971,42 +1971,56 @@
 				opp-19200000 {
 					opp-hz = /bits/ 64 <19200000>;
 					opp-supported-hw = <0xff>;
+					opp-avg-kBps = <0>, <50000>;
+					opp-peak-kBps = <1689600>, <500000>;
 					required-opps = <&rpmpd_opp_min_svs>;
 				};
 
 				opp-133300000 {
 					opp-hz = /bits/ 64 <133300000>;
 					opp-supported-hw = <0xff>;
+					opp-avg-kBps = <0>, <50000>;
+					opp-peak-kBps = <1689600>, <500000>;
 					required-opps = <&rpmpd_opp_min_svs>;
 				};
 
 				opp-216000000 {
 					opp-hz = /bits/ 64 <216000000>;
 					opp-supported-hw = <0xff>;
+					opp-avg-kBps = <0>, <50000>;
+					opp-peak-kBps = <3072000>, <500000>;
 					required-opps = <&rpmpd_opp_low_svs>;
 				};
 
 				opp-320000000 {
 					opp-hz = /bits/ 64 <320000000>;
 					opp-supported-hw = <0xff>;
+					opp-avg-kBps = <0>, <50000>;
+					opp-peak-kBps = <3379200>, <500000>;
 					required-opps = <&rpmpd_opp_svs>;
 				};
 
 				opp-400000000 {
 					opp-hz = /bits/ 64 <400000000>;
 					opp-supported-hw = <0xff>;
+					opp-avg-kBps = <0>, <50000>;
+					opp-peak-kBps = <5376000>, <500000>;
 					required-opps = <&rpmpd_opp_svs_plus>;
 				};
 
 				opp-510000000 {
 					opp-hz = /bits/ 64 <510000000>;
 					opp-supported-hw = <0xff>;
+					opp-avg-kBps = <0>, <50000>;
+					opp-peak-kBps = <6451200>, <500000>;
 					required-opps = <&rpmpd_opp_nom>;
 				};
 
 				opp-560000000 {
 					opp-hz = /bits/ 64 <560000000>;
 					opp-supported-hw = <0xff>;
+					opp-avg-kBps = <0>, <50000>;
+					opp-peak-kBps = <6758400>, <500000>;
 					required-opps = <&rpmpd_opp_nom_plus>;
 				};
 
@@ -2017,6 +2031,8 @@
 				opp-650000000 {
 					opp-hz = /bits/ 64 <650000000>;
 					opp-supported-hw = <0xff>;
+					opp-avg-kBps = <0>, <50000>;
+					opp-peak-kBps = <7449600>, <500000>;
 					required-opps = <&rpmpd_opp_turbo>;
 				};
 			};

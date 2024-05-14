@@ -92,6 +92,8 @@
 	opp-725000000 {
 		opp-hz = /bits/ 64 <725000000>;
 		opp-supported-hw = <0xff>;
+		opp-avg-kBps = <0>, <50000>;
+		opp-peak-kBps = <7449600>, <500000>;
 		required-opps = <&rpmpd_opp_turbo>;
 	};
 };
