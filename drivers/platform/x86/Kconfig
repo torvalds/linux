@@ -666,6 +666,17 @@ config ACPI_QUICKSTART
 	  To compile this driver as a module, choose M here: the module will be
 	  called quickstart.
 
+config MEEGOPAD_ANX7428
+	tristate "MeeGoPad ANX7428 Type-C Switch"
+	depends on ACPI && GPIOLIB && I2C
+	help
+	  Some MeeGoPad top-set boxes have an ANX7428 Type-C Switch for
+	  USB3.1 Gen 1 and DisplayPort over Type-C alternate mode support.
+
+	  This driver takes care of powering on the ANX7428 on supported
+	  MeeGoPad top-set boxes. After this the ANX7428 takes care of Type-C
+	  connector orientation and PD alternate mode switching autonomously.
+
 config MSI_EC
 	tristate "MSI EC Extras"
 	depends on ACPI
