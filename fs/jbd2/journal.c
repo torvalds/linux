@@ -316,11 +316,8 @@ static void journal_kill_thread(journal_t *journal)
  *
  * Return value:
  *  <0: Error
- * >=0: Finished OK
- *
- * On success:
- * Bit 0 set == escape performed on the data
- * Bit 1 set == buffer copy-out performed (kfree the data after IO)
+ *  =0: Finished OK without escape
+ *  =1: Finished OK with escape
  */
 
 int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
@@ -455,7 +452,7 @@ repeat:
 	set_buffer_shadow(bh_in);
 	spin_unlock(&jh_in->b_state_lock);
 
-	return do_escape | (done_copy_out << 1);
+	return do_escape;
 }
 
 /*
