@@ -339,15 +339,36 @@ static enum dcn_hubbub_page_table_block_size page_table_block_size_to_hw(unsigne
 	case 4096:
 		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_4KB;
 		break;
-	case 65536:
-		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_64KB;
+	case 8192:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_8KB;
+		break;
+	case 16384:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_16KB;
 		break;
 	case 32768:
 		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_32KB;
 		break;
+	case 65536:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_64KB;
+		break;
+	case 131072:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_128KB;
+		break;
+	case 262144:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_256KB;
+		break;
+	case 524288:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_512KB;
+		break;
+	case 1048576:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_1024KB;
+		break;
+	case 2097152:
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_2048KB;
+		break;
 	default:
 		ASSERT(false);
-		block_size = page_table_block_size;
+		block_size = DCN_PAGE_TABLE_BLOCK_SIZE_4KB;
 		break;
 	}
 
