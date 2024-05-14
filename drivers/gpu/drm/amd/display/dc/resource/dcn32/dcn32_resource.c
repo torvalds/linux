@@ -1978,6 +1978,10 @@ unsigned int dcn32_calculate_mall_ways_from_bytes(const struct dc *dc, unsigned 
 {
 	uint32_t cache_lines_used, lines_per_way, total_cache_lines, num_ways;
 
+	if (total_size_in_mall_bytes == 0) {
+		return 0;
+	}
+
 	/* add 2 lines for worst case alignment */
 	cache_lines_used = total_size_in_mall_bytes / dc->caps.cache_line_size + 2;
 

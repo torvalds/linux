@@ -131,12 +131,20 @@ static bool dcn401_smu_send_msg_with_param_delay(struct clk_mgr_internal *clk_mg
 	return false;
 }
 
-void dcn401_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool enable)
+void dcn401_smu_send_fclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool support)
 {
-	smu_print("FCLK P-state support value is : %d\n", enable);
+	smu_print("FCLK P-state support value is : %d\n", support);
 
 	dcn401_smu_send_msg_with_param(clk_mgr,
-			DALSMC_MSG_SetFclkSwitchAllow, enable ? FCLK_PSTATE_SUPPORTED : FCLK_PSTATE_NOTSUPPORTED, NULL);
+			DALSMC_MSG_SetFclkSwitchAllow, support, NULL);
+}
+
+void dcn401_smu_send_uclk_pstate_message(struct clk_mgr_internal *clk_mgr, bool support)
+{
+	smu_print("UCLK P-state support value is : %d\n", support);
+
+	dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_SetUclkPstateAllow, support, NULL);
 }
 
 void dcn401_smu_send_cab_for_uclk_message(struct clk_mgr_internal *clk_mgr, unsigned int num_ways)

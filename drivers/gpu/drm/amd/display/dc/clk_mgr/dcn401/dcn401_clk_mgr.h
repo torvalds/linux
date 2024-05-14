@@ -38,7 +38,7 @@ union dcn401_clk_mgr_block_sequence_params {
 	struct {
 		/* inputs */
 		bool support;
-	} update_fclk_pstate_support_params;
+	} update_pstate_support_params;
 	struct {
 		/* inputs */
 		unsigned int num_ways;
@@ -82,6 +82,7 @@ enum dcn401_clk_mgr_block_sequence_func {
 	CLK_MGR401_UPDATE_IDLE_HARDMINS,
 	CLK_MGR401_UPDATE_DEEP_SLEEP_DCFCLK,
 	CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT,
+	CLK_MGR401_UPDATE_UCLK_PSTATE_SUPPORT,
 	CLK_MGR401_UPDATE_CAB_FOR_UCLK,
 	CLK_MGR401_UPDATE_WAIT_FOR_DMUB_ACK,
 	CLK_MGR401_INDICATE_DRR_STATUS,

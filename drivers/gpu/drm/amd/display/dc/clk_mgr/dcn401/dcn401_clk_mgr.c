@@ -467,10 +467,10 @@ static void dcn401_update_clocks_legacy(struct clk_mgr *clk_mgr_base,
 		if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
 			clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
 
-			/* To enable FCLK P-state switching, send FCLK_PSTATE_SUPPORTED message to PMFW */
+			/* To enable FCLK P-state switching, send PSTATE_SUPPORTED message to PMFW */
 			if (clk_mgr_base->clks.fclk_p_state_change_support) {
 				/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
-				dcn401_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_SUPPORTED);
+				dcn401_smu_send_fclk_pstate_message(clk_mgr, true);
 			}
 		}
 
@@ -506,7 +506,7 @@ static void dcn401_update_clocks_legacy(struct clk_mgr *clk_mgr_base,
 
 
 		p_state_change_support = new_clocks->p_state_change_support || (total_plane_count == 0);
-		if (should_update_pstate_support(safe_to_lower, p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
+		if (should_update_pstate_support(safe_to_lower, p_state_change_support, clk_mgr_base->clks.prev_p_state_change_support)) {
 			clk_mgr_base->clks.p_state_change_support = p_state_change_support;
 			clk_mgr_base->clks.fw_based_mclk_switching = p_state_change_support && new_clocks->fw_based_mclk_switching;
 
@@ -525,7 +525,7 @@ static void dcn401_update_clocks_legacy(struct clk_mgr *clk_mgr_base,
 				update_fclk &&
 				dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_FCLK)) {
 			/* Handle code for sending a message to PMFW that FCLK P-state change is not supported */
-			dcn401_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_NOTSUPPORTED);
+			dcn401_smu_send_fclk_pstate_message(clk_mgr, false);
 		}
 
 		/* Always update saved value, even if new value not set due to P-State switching unsupported */
@@ -678,7 +678,12 @@ static void dcn401_execute_block_sequence(struct clk_mgr *clk_mgr_base, unsigned
 		case CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT:
 			dcn401_smu_send_fclk_pstate_message(
 					clk_mgr_internal,
-					params->update_fclk_pstate_support_params.support);
+					params->update_pstate_support_params.support);
+			break;
+		case CLK_MGR401_UPDATE_UCLK_PSTATE_SUPPORT:
+			dcn401_smu_send_uclk_pstate_message(
+					clk_mgr_internal,
+					params->update_pstate_support_params.support);
 			break;
 		case CLK_MGR401_UPDATE_CAB_FOR_UCLK:
 			dcn401_smu_send_cab_for_uclk_message(
@@ -773,16 +778,16 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 	/* CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT */
 	clk_mgr_base->clks.fclk_prev_p_state_change_support = clk_mgr_base->clks.fclk_p_state_change_support;
 	fclk_p_state_change_support = new_clocks->fclk_p_state_change_support || (total_plane_count == 0);
-	if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
+	if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_prev_p_state_change_support)) {
 		clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
 		update_active_fclk = true;
 		update_idle_fclk = true;
 
-		/* To enable FCLK P-state switching, send FCLK_PSTATE_SUPPORTED message to PMFW */
+		/* To enable FCLK P-state switching, send PSTATE_SUPPORTED message to PMFW */
 		if (clk_mgr_base->clks.fclk_p_state_change_support) {
 			/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
 			if (dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
-				block_sequence[num_steps].params.update_fclk_pstate_support_params.support = FCLK_PSTATE_SUPPORTED;
+				block_sequence[num_steps].params.update_pstate_support_params.support = true;
 				block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
 				num_steps++;
 			}
@@ -825,12 +830,26 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		/* We don't actually care about socclk, don't notify SMU of hard min */
 		clk_mgr_base->clks.socclk_khz = new_clocks->socclk_khz;
 
-	/* CLK_MGR401_UPDATE_CAB_FOR_UCLK */
-	clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
-	clk_mgr_base->clks.prev_num_ways = clk_mgr_base->clks.num_ways;
+	/* UCLK */
+	if (new_clocks->fw_based_mclk_switching != clk_mgr_base->clks.fw_based_mclk_switching &&
+			new_clocks->fw_based_mclk_switching) {
+		/* enable FAMS features */
+		clk_mgr_base->clks.fw_based_mclk_switching = new_clocks->fw_based_mclk_switching;
 
+		block_sequence[num_steps].params.update_wait_for_dmub_ack_params.enable = clk_mgr_base->clks.fw_based_mclk_switching;
+		block_sequence[num_steps].func = CLK_MGR401_UPDATE_WAIT_FOR_DMUB_ACK;
+		num_steps++;
+
+		block_sequence[num_steps].params.indicate_drr_status_params.mod_drr_for_pstate = clk_mgr_base->clks.fw_based_mclk_switching;
+		block_sequence[num_steps].func = CLK_MGR401_INDICATE_DRR_STATUS;
+		num_steps++;
+	}
+
+	/* CLK_MGR401_UPDATE_CAB_FOR_UCLK */
+	clk_mgr_base->clks.prev_num_ways = clk_mgr_base->clks.num_ways;
 	if (clk_mgr_base->clks.num_ways != new_clocks->num_ways &&
 			clk_mgr_base->clks.num_ways < new_clocks->num_ways) {
+		/* increase num ways for subvp */
 		clk_mgr_base->clks.num_ways = new_clocks->num_ways;
 		if (dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK)) {
 			block_sequence[num_steps].params.update_cab_for_uclk_params.num_ways = clk_mgr_base->clks.num_ways;
@@ -839,15 +858,22 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		}
 	}
 
-	/* UCLK */
+	clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
 	uclk_p_state_change_support = new_clocks->p_state_change_support || (total_plane_count == 0);
-	if (should_update_pstate_support(safe_to_lower, uclk_p_state_change_support, clk_mgr_base->clks.p_state_change_support)) {
+	if (should_update_pstate_support(safe_to_lower, uclk_p_state_change_support, clk_mgr_base->clks.prev_p_state_change_support)) {
 		clk_mgr_base->clks.p_state_change_support = uclk_p_state_change_support;
 		update_active_uclk = true;
 		update_idle_uclk = true;
 
-		/* to disable P-State switching, set UCLK min = max */
-		if (!clk_mgr_base->clks.p_state_change_support) {
+		if (clk_mgr_base->clks.p_state_change_support) {
+			/* enable UCLK switching  */
+			if (dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK)) {
+				block_sequence[num_steps].params.update_pstate_support_params.support = true;
+				block_sequence[num_steps].func = CLK_MGR401_UPDATE_UCLK_PSTATE_SUPPORT;
+				num_steps++;
+			}
+		} else {
+			/* when disabling P-State switching, set UCLK min = max */
 			if (dc->clk_mgr->dc_mode_softmax_enabled) {
 				/* will never have the functional UCLK min above the softmax
 				* since we calculate mode support based on softmax being the max UCLK
@@ -870,6 +896,7 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 			active_uclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz);
 		}
 	}
+
 	if (should_set_clock(safe_to_lower, new_clocks->idle_dramclk_khz, clk_mgr_base->clks.idle_dramclk_khz)) {
 		clk_mgr_base->clks.idle_dramclk_khz = new_clocks->idle_dramclk_khz;
 
@@ -877,17 +904,6 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 			update_idle_uclk = true;
 			idle_uclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.idle_dramclk_khz);
 		}
-	}
-
-	/* set UCLK to requested value */
-	if ((update_active_uclk || update_idle_uclk) &&
-			dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK) &&
-			!is_idle_dpm_enabled) {
-		block_sequence[num_steps].params.update_hardmin_params.ppclk = PPCLK_UCLK;
-		block_sequence[num_steps].params.update_hardmin_params.freq_mhz = active_uclk_mhz;
-		block_sequence[num_steps].params.update_hardmin_params.response = NULL;
-		block_sequence[num_steps].func = CLK_MGR401_UPDATE_HARDMIN_PPCLK;
-		num_steps++;
 	}
 
 	/* FCLK */
@@ -927,8 +943,51 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		num_steps++;
 	}
 
-	/* CLK_MGR401_UPDATE_WAIT_FOR_DMUB_ACK, CLK_MGR401_INDICATE_DRR_STATUS*/
-	if (clk_mgr_base->clks.fw_based_mclk_switching != new_clocks->fw_based_mclk_switching) {
+	/* set UCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
+	if (update_active_uclk || update_idle_uclk) {
+		if (!is_idle_dpm_enabled) {
+			block_sequence[num_steps].params.update_hardmin_params.ppclk = PPCLK_UCLK;
+			block_sequence[num_steps].params.update_hardmin_params.freq_mhz = active_uclk_mhz;
+			block_sequence[num_steps].params.update_hardmin_params.response = NULL;
+			block_sequence[num_steps].func = CLK_MGR401_UPDATE_HARDMIN_PPCLK;
+			num_steps++;
+		}
+
+		/* disable UCLK P-State support if needed */
+		if (!uclk_p_state_change_support &&
+				should_update_pstate_support(safe_to_lower, uclk_p_state_change_support, clk_mgr_base->clks.prev_p_state_change_support) &&
+				dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK)) {
+			block_sequence[num_steps].params.update_pstate_support_params.support = false;
+			block_sequence[num_steps].func = CLK_MGR401_UPDATE_UCLK_PSTATE_SUPPORT;
+			num_steps++;
+		}
+	}
+
+	/* set FCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
+	if (update_active_fclk || update_idle_fclk) {
+		/* No need to send active FCLK hardmin, automatically set based on DCFCLK */
+		// if (!is_idle_dpm_enabled) {
+		// 	block_sequence[*num_steps].update_hardmin_params.clk_mgr = clk_mgr;
+		// 	block_sequence[*num_steps].update_hardmin_params.ppclk = PPCLK_FCLK;
+		// 	block_sequence[*num_steps].update_hardmin_params.freq_mhz = active_fclk_mhz;
+		// 	block_sequence[*num_steps].update_hardmin_params.response = NULL;
+		// 	block_sequence[*num_steps].func = CLK_MGR401_UPDATE_HARDMIN_PPCLK;
+		// 	(*num_steps)++;
+		// }
+
+		/* disable FCLK P-State support if needed */
+		if (!fclk_p_state_change_support &&
+				should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_prev_p_state_change_support) &&
+				dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
+			block_sequence[num_steps].params.update_pstate_support_params.support = false;
+			block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
+			num_steps++;
+		}
+	}
+
+	if (new_clocks->fw_based_mclk_switching != clk_mgr_base->clks.fw_based_mclk_switching &&
+			safe_to_lower && !new_clocks->fw_based_mclk_switching) {
+		/* disable FAMS features */
 		clk_mgr_base->clks.fw_based_mclk_switching = new_clocks->fw_based_mclk_switching;
 
 		block_sequence[num_steps].params.update_wait_for_dmub_ack_params.enable = clk_mgr_base->clks.fw_based_mclk_switching;
@@ -940,28 +999,10 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		num_steps++;
 	}
 
-	/* set FCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
-	if ((update_active_fclk || update_idle_fclk)) {
-		/* disable FCLK P-State support if needed */
-		if (clk_mgr_base->clks.fclk_p_state_change_support != clk_mgr_base->clks.fclk_prev_p_state_change_support &&
-				dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
-			block_sequence[num_steps].params.update_fclk_pstate_support_params.support = FCLK_PSTATE_NOTSUPPORTED;
-			block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
-			num_steps++;
-		}
-
-		/* No need to send active FCLK hardmin, automatically set based on DCFCLK */
-		// block_sequence[*num_steps].update_hardmin_params.clk_mgr = clk_mgr;
-		// block_sequence[*num_steps].update_hardmin_params.ppclk = PPCLK_FCLK;
-		// block_sequence[*num_steps].update_hardmin_params.freq_mhz = active_fclk_mhz;
-		// block_sequence[*num_steps].update_hardmin_params.response = NULL;
-		// block_sequence[*num_steps].func = CLK_MGR401_UPDATE_HARDMIN_PPCLK;
-		// (*num_steps)++;
-	}
-
 	/* CLK_MGR401_UPDATE_CAB_FOR_UCLK */
 	if (clk_mgr_base->clks.num_ways != new_clocks->num_ways &&
-			clk_mgr_base->clks.num_ways > new_clocks->num_ways) {
+			safe_to_lower && clk_mgr_base->clks.num_ways > new_clocks->num_ways) {
+		/* decrease num ways for subvp */
 		clk_mgr_base->clks.num_ways = new_clocks->num_ways;
 		if (dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK)) {
 			block_sequence[num_steps].params.update_cab_for_uclk_params.num_ways = clk_mgr_base->clks.num_ways;
