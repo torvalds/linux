@@ -60,11 +60,6 @@ module_param(force_minrev, bool, S_IRUSR | S_IWUSR);
  */
 struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
 
-struct cpu_info_ctx {
-	struct cpu_signature	*cpu_sig;
-	int			err;
-};
-
 /*
  * Those patch levels cannot be updated to newer ones and thus should be final.
  */
