@@ -436,7 +436,7 @@ $(obj)/core.o: private rustc_objcopy = $(foreach sym,$(redirect-intrinsics),--re
 $(obj)/core.o: private rustc_target_flags = $(core-cfgs)
 $(obj)/core.o: $(RUST_LIB_SRC)/core/src/lib.rs FORCE
 	+$(call if_changed_dep,rustc_library)
-ifneq ($(or $(CONFIG_X86_64),$(CONFIG_LOONGARCH)),)
+ifdef CONFIG_X86_64
 $(obj)/core.o: scripts/target.json
 endif
 
