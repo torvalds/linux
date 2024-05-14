@@ -14,8 +14,6 @@
 #include <net/genetlink.h>
 #include <net/rstreason.h>
 
-#include "mptcp_pm_gen.h"
-
 #define MPTCP_SUPPORTED_VERSION	1
 
 /* MPTCP option bits */
