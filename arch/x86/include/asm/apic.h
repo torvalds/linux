@@ -14,6 +14,7 @@
 #include <asm/msr.h>
 #include <asm/hardirq.h>
 #include <asm/io.h>
+#include <asm/posted_intr.h>
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
@@ -498,6 +499,11 @@ static inline bool lapic_vector_set_in_irr(unsigned int vector)
 	u32 irr = apic_read(APIC_IRR + (vector / 32 * 0x10));
 
 	return !!(irr & (1U << (vector % 32)));
+}
+
+static inline bool is_vector_pending(unsigned int vector)
+{
+	return lapic_vector_set_in_irr(vector) || pi_pending_this_cpu(vector);
 }
 
 /*
