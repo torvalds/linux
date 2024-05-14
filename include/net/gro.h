@@ -42,8 +42,7 @@ struct napi_gro_cb {
 	/* Used in ipv6_gro_receive() and foo-over-udp and esp-in-udp */
 	u16	proto;
 
-	/* used to support CHECKSUM_COMPLETE for tunneling protocols */
-	__wsum	csum;
+	u16	pad;
 
 /* Used in napi_gro_cb::free */
 #define NAPI_GRO_FREE             1
@@ -84,6 +83,9 @@ struct napi_gro_cb {
 		/* GRO is done by frag_list pointer chaining. */
 		u8	is_flist:1;
 	);
+
+	/* used to support CHECKSUM_COMPLETE for tunneling protocols */
+	__wsum	csum;
 
 	/* L3 offsets */
 	union {
