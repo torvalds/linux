@@ -140,6 +140,7 @@ struct dirty_throttle_control {
 
 	unsigned long		pos_ratio;
 	bool			freerun;
+	bool			dirty_exceeded;
 };
 
 /*
@@ -1775,6 +1776,13 @@ static void wb_dirty_freerun(struct dirty_throttle_control *dtc,
 		       dirty_freerun_ceiling(dtc->wb_thresh, dtc->wb_bg_thresh);
 }
 
+static inline void wb_dirty_exceeded(struct dirty_throttle_control *dtc,
+				     bool strictlimit)
+{
+	dtc->dirty_exceeded = (dtc->wb_dirty > dtc->wb_thresh) &&
+		((dtc->dirty > dtc->thresh) || strictlimit);
+}
+
 /*
  * balance_dirty_pages() must be called by processes which are generating dirty
  * data.  It looks at the number of dirty pages in the machine and will force
@@ -1797,7 +1805,6 @@ static int balance_dirty_pages(struct bdi_writeback *wb,
 	long max_pause;
 	long min_pause;
 	int nr_dirtied_pause;
-	bool dirty_exceeded = false;
 	unsigned long task_ratelimit;
 	unsigned long dirty_ratelimit;
 	struct backing_dev_info *bdi = wb->bdi;
@@ -1866,9 +1873,7 @@ free_running:
 		if (gdtc->freerun)
 			goto free_running;
 
-		dirty_exceeded = (gdtc->wb_dirty > gdtc->wb_thresh) &&
-			((gdtc->dirty > gdtc->thresh) || strictlimit);
-
+		wb_dirty_exceeded(gdtc, strictlimit);
 		wb_position_ratio(gdtc);
 		sdtc = gdtc;
 
@@ -1883,17 +1888,14 @@ free_running:
 			if (mdtc->freerun)
 				goto free_running;
 
-			dirty_exceeded |= (mdtc->wb_dirty > mdtc->wb_thresh) &&
-				((mdtc->dirty > mdtc->thresh) || strictlimit);
-
+			wb_dirty_exceeded(mdtc, strictlimit);
 			wb_position_ratio(mdtc);
 			if (mdtc->pos_ratio < gdtc->pos_ratio)
 				sdtc = mdtc;
 		}
 
-		if (dirty_exceeded != wb->dirty_exceeded)
-			wb->dirty_exceeded = dirty_exceeded;
-
+		wb->dirty_exceeded = gdtc->dirty_exceeded ||
+				     (mdtc && mdtc->dirty_exceeded);
 		if (time_is_before_jiffies(READ_ONCE(wb->bw_time_stamp) +
 					   BANDWIDTH_INTERVAL))
 			__wb_update_bandwidth(gdtc, mdtc, true);
