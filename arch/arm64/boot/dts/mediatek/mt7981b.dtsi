@@ -116,6 +116,13 @@
 			#interrupt-cells = <2>;
 		};
 
+		efuse@11f20000 {
+			compatible = "mediatek,mt7981-efuse", "mediatek,efuse";
+			reg = <0 0x11f20000 0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		clock-controller@15000000 {
 			compatible = "mediatek,mt7981-ethsys", "syscon";
 			reg = <0 0x15000000 0 0x1000>;
