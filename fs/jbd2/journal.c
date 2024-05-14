@@ -325,7 +325,6 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 				  struct buffer_head **bh_out,
 				  sector_t blocknr)
 {
-	int need_copy_out = 0;
 	int done_copy_out = 0;
 	int do_escape = 0;
 	char *mapped_data;
@@ -380,16 +379,14 @@ repeat:
 	/*
 	 * Check for escaping
 	 */
-	if (*((__be32 *)mapped_data) == cpu_to_be32(JBD2_MAGIC_NUMBER)) {
-		need_copy_out = 1;
+	if (*((__be32 *)mapped_data) == cpu_to_be32(JBD2_MAGIC_NUMBER))
 		do_escape = 1;
-	}
 	kunmap_local(mapped_data);
 
 	/*
 	 * Do we need to do a data copy?
 	 */
-	if (need_copy_out && !done_copy_out) {
+	if (do_escape && !done_copy_out) {
 		char *tmp;
 
 		spin_unlock(&jh_in->b_state_lock);
