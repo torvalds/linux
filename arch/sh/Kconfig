@@ -125,7 +125,8 @@ config ARCH_HAS_ILOG2_U64
 
 config NO_IOPORT_MAP
 	def_bool !PCI
-	depends on !SH_SHMIN && !SH_HP6XX && !SH_SOLUTION_ENGINE
+	depends on !SH_SHMIN && !SH_HP6XX && !SH_SOLUTION_ENGINE && \
+		   !SH_DREAMCAST
 
 config IO_TRAPPED
 	bool

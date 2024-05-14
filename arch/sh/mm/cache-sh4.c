@@ -376,8 +376,6 @@ static void __flush_cache_one(unsigned long addr, unsigned long phys,
 	} while (--way_count != 0);
 }
 
-extern void __weak sh4__flush_region_init(void);
-
 /*
  * SH-4 has virtually indexed and physically tagged cache.
  */
