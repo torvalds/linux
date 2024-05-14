@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * AD7190 AD7192 AD7193 AD7195 SPI ADC driver
+ * AD7192 and similar SPI ADC driver
  *
  * Copyright 2011-2015 Analog Devices Inc.
  */
@@ -129,10 +129,24 @@
 #define AD7193_CH_AIN8		0x480 /* AIN7 - AINCOM */
 #define AD7193_CH_AINCOM	0x600 /* AINCOM - AINCOM */
 
+#define AD7194_CH_POS(x)	(((x) - 1) << 4)
+#define AD7194_CH_NEG(x)	((x) - 1)
+
+/* 10th bit corresponds to CON18(Pseudo) */
+#define AD7194_CH(p)		(BIT(10) | AD7194_CH_POS(p))
+
+#define AD7194_DIFF_CH(p, n)	(AD7194_CH_POS(p) | AD7194_CH_NEG(n))
+#define AD7194_CH_TEMP		0x100
+#define AD7194_CH_BASE_NR	2
+#define AD7194_CH_AIN_START	1
+#define AD7194_CH_AIN_NR	16
+#define AD7194_CH_MAX_NR	272
+
 /* ID Register Bit Designations (AD7192_REG_ID) */
 #define CHIPID_AD7190		0x4
 #define CHIPID_AD7192		0x0
 #define CHIPID_AD7193		0x2
+#define CHIPID_AD7194		0x3
 #define CHIPID_AD7195		0x6
 #define AD7192_ID_MASK		GENMASK(3, 0)
 
@@ -170,6 +184,7 @@ enum {
 	ID_AD7190,
 	ID_AD7192,
 	ID_AD7193,
+	ID_AD7194,
 	ID_AD7195,
 };
 
@@ -178,7 +193,9 @@ struct ad7192_chip_info {
 	const char			*name;
 	const struct iio_chan_spec	*channels;
 	u8				num_channels;
+	const struct ad_sigma_delta_info	*sigma_delta_info;
 	const struct iio_info		*info;
+	int (*parse_channels)(struct iio_dev *indio_dev);
 };
 
 struct ad7192_state {
@@ -343,6 +360,18 @@ static const struct ad_sigma_delta_info ad7192_sigma_delta_info = {
 	.read_mask = BIT(6),
 	.status_ch_mask = GENMASK(3, 0),
 	.num_slots = 4,
+	.irq_flags = IRQF_TRIGGER_FALLING,
+};
+
+static const struct ad_sigma_delta_info ad7194_sigma_delta_info = {
+	.set_channel = ad7192_set_channel,
+	.append_status = ad7192_append_status,
+	.disable_all = ad7192_disable_all,
+	.set_mode = ad7192_set_mode,
+	.has_registers = true,
+	.addr_shift = 3,
+	.read_mask = BIT(6),
+	.status_ch_mask = GENMASK(3, 0),
 	.irq_flags = IRQF_TRIGGER_FALLING,
 };
 
@@ -937,6 +966,14 @@ static const struct iio_info ad7192_info = {
 	.update_scan_mode = ad7192_update_scan_mode,
 };
 
+static const struct iio_info ad7194_info = {
+	.read_raw = ad7192_read_raw,
+	.write_raw = ad7192_write_raw,
+	.write_raw_get_fmt = ad7192_write_raw_get_fmt,
+	.read_avail = ad7192_read_avail,
+	.validate_trigger = ad_sd_validate_trigger,
+};
+
 static const struct iio_info ad7195_info = {
 	.read_raw = ad7192_read_raw,
 	.write_raw = ad7192_write_raw,
@@ -1028,12 +1065,95 @@ static const struct iio_chan_spec ad7193_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(14),
 };
 
+static bool ad7194_validate_ain_channel(struct device *dev, u32 ain)
+{
+	return in_range(ain, AD7194_CH_AIN_START, AD7194_CH_AIN_NR);
+}
+
+static int ad7194_parse_channels(struct iio_dev *indio_dev)
+{
+	struct device *dev = indio_dev->dev.parent;
+	struct iio_chan_spec *ad7194_channels;
+	const struct iio_chan_spec ad7194_chan = AD7193_CHANNEL(0, 0, 0);
+	const struct iio_chan_spec ad7194_chan_diff = AD7193_DIFF_CHANNEL(0, 0, 0, 0);
+	const struct iio_chan_spec ad7194_chan_temp = AD719x_TEMP_CHANNEL(0, 0);
+	const struct iio_chan_spec ad7194_chan_timestamp = IIO_CHAN_SOFT_TIMESTAMP(0);
+	unsigned int num_channels, index = 0;
+	u32 ain[2];
+	int ret;
+
+	num_channels = device_get_child_node_count(dev);
+	if (num_channels > AD7194_CH_MAX_NR)
+		return dev_err_probe(dev, -EINVAL, "Too many channels: %u\n",
+				     num_channels);
+
+	num_channels += AD7194_CH_BASE_NR;
+
+	ad7194_channels = devm_kcalloc(dev, num_channels,
+				       sizeof(*ad7194_channels), GFP_KERNEL);
+	if (!ad7194_channels)
+		return -ENOMEM;
+
+	indio_dev->channels = ad7194_channels;
+	indio_dev->num_channels = num_channels;
+
+	device_for_each_child_node_scoped(dev, child) {
+		ret = fwnode_property_read_u32_array(child, "diff-channels",
+						     ain, ARRAY_SIZE(ain));
+		if (ret == 0) {
+			if (!ad7194_validate_ain_channel(dev, ain[0]))
+				return dev_err_probe(dev, -EINVAL,
+						     "Invalid AIN channel: %u\n",
+						     ain[0]);
+
+			if (!ad7194_validate_ain_channel(dev, ain[1]))
+				return dev_err_probe(dev, -EINVAL,
+						     "Invalid AIN channel: %u\n",
+						     ain[1]);
+
+			*ad7194_channels = ad7194_chan_diff;
+			ad7194_channels->scan_index = index++;
+			ad7194_channels->channel = ain[0];
+			ad7194_channels->channel2 = ain[1];
+			ad7194_channels->address = AD7194_DIFF_CH(ain[0], ain[1]);
+		} else {
+			ret = fwnode_property_read_u32(child, "single-channel",
+						       &ain[0]);
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "Missing channel property\n");
+
+			if (!ad7194_validate_ain_channel(dev, ain[0]))
+				return dev_err_probe(dev, -EINVAL,
+						     "Invalid AIN channel: %u\n",
+						     ain[0]);
+
+			*ad7194_channels = ad7194_chan;
+			ad7194_channels->scan_index = index++;
+			ad7194_channels->channel = ain[0];
+			ad7194_channels->address = AD7194_CH(ain[0]);
+		}
+		ad7194_channels++;
+	}
+
+	*ad7194_channels = ad7194_chan_temp;
+	ad7194_channels->scan_index = index++;
+	ad7194_channels->address = AD7194_CH_TEMP;
+	ad7194_channels++;
+
+	*ad7194_channels = ad7194_chan_timestamp;
+	ad7194_channels->scan_index = index;
+
+	return 0;
+}
+
 static const struct ad7192_chip_info ad7192_chip_info_tbl[] = {
 	[ID_AD7190] = {
 		.chip_id = CHIPID_AD7190,
 		.name = "ad7190",
 		.channels = ad7192_channels,
 		.num_channels = ARRAY_SIZE(ad7192_channels),
+		.sigma_delta_info = &ad7192_sigma_delta_info,
 		.info = &ad7192_info,
 	},
 	[ID_AD7192] = {
@@ -1041,6 +1161,7 @@ static const struct ad7192_chip_info ad7192_chip_info_tbl[] = {
 		.name = "ad7192",
 		.channels = ad7192_channels,
 		.num_channels = ARRAY_SIZE(ad7192_channels),
+		.sigma_delta_info = &ad7192_sigma_delta_info,
 		.info = &ad7192_info,
 	},
 	[ID_AD7193] = {
@@ -1048,13 +1169,22 @@ static const struct ad7192_chip_info ad7192_chip_info_tbl[] = {
 		.name = "ad7193",
 		.channels = ad7193_channels,
 		.num_channels = ARRAY_SIZE(ad7193_channels),
+		.sigma_delta_info = &ad7192_sigma_delta_info,
 		.info = &ad7192_info,
+	},
+	[ID_AD7194] = {
+		.chip_id = CHIPID_AD7194,
+		.name = "ad7194",
+		.info = &ad7194_info,
+		.sigma_delta_info = &ad7194_sigma_delta_info,
+		.parse_channels = ad7194_parse_channels,
 	},
 	[ID_AD7195] = {
 		.chip_id = CHIPID_AD7195,
 		.name = "ad7195",
 		.channels = ad7192_channels,
 		.num_channels = ARRAY_SIZE(ad7192_channels),
+		.sigma_delta_info = &ad7192_sigma_delta_info,
 		.info = &ad7195_info,
 	},
 };
@@ -1161,11 +1291,17 @@ static int ad7192_probe(struct spi_device *spi)
 	st->chip_info = spi_get_device_match_data(spi);
 	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = st->chip_info->channels;
-	indio_dev->num_channels = st->chip_info->num_channels;
 	indio_dev->info = st->chip_info->info;
+	if (st->chip_info->parse_channels) {
+		ret = st->chip_info->parse_channels(indio_dev);
+		if (ret)
+			return ret;
+	} else {
+		indio_dev->channels = st->chip_info->channels;
+		indio_dev->num_channels = st->chip_info->num_channels;
+	}
 
-	ret = ad_sd_init(&st->sd, indio_dev, spi, &ad7192_sigma_delta_info);
+	ret = ad_sd_init(&st->sd, indio_dev, spi, st->chip_info->sigma_delta_info);
 	if (ret)
 		return ret;
 
@@ -1202,6 +1338,7 @@ static const struct of_device_id ad7192_of_match[] = {
 	{ .compatible = "adi,ad7190", .data = &ad7192_chip_info_tbl[ID_AD7190] },
 	{ .compatible = "adi,ad7192", .data = &ad7192_chip_info_tbl[ID_AD7192] },
 	{ .compatible = "adi,ad7193", .data = &ad7192_chip_info_tbl[ID_AD7193] },
+	{ .compatible = "adi,ad7194", .data = &ad7192_chip_info_tbl[ID_AD7194] },
 	{ .compatible = "adi,ad7195", .data = &ad7192_chip_info_tbl[ID_AD7195] },
 	{}
 };
@@ -1211,6 +1348,7 @@ static const struct spi_device_id ad7192_ids[] = {
 	{ "ad7190", (kernel_ulong_t)&ad7192_chip_info_tbl[ID_AD7190] },
 	{ "ad7192", (kernel_ulong_t)&ad7192_chip_info_tbl[ID_AD7192] },
 	{ "ad7193", (kernel_ulong_t)&ad7192_chip_info_tbl[ID_AD7193] },
+	{ "ad7194", (kernel_ulong_t)&ad7192_chip_info_tbl[ID_AD7194] },
 	{ "ad7195", (kernel_ulong_t)&ad7192_chip_info_tbl[ID_AD7195] },
 	{}
 };
@@ -1227,6 +1365,6 @@ static struct spi_driver ad7192_driver = {
 module_spi_driver(ad7192_driver);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
-MODULE_DESCRIPTION("Analog Devices AD7190, AD7192, AD7193, AD7195 ADC");
+MODULE_DESCRIPTION("Analog Devices AD7192 and similar ADC");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(IIO_AD_SIGMA_DELTA);
