@@ -81,19 +81,11 @@ static void cmd_help(void)
 	printf("\t-h: help\n");
 }
 
-void tests_cleanup(void)
-{
-	mbm_test_cleanup();
-	mba_test_cleanup();
-	cmt_test_cleanup();
-	cat_test_cleanup();
-}
-
-static int test_prepare(void)
+static int test_prepare(const struct resctrl_test *test)
 {
 	int res;
 
-	res = signal_handler_register();
+	res = signal_handler_register(test);
 	if (res) {
 		ksft_print_msg("Failed to register signal handler\n");
 		return res;
@@ -108,8 +100,10 @@ static int test_prepare(void)
 	return 0;
 }
 
-static void test_cleanup(void)
+static void test_cleanup(const struct resctrl_test *test)
 {
+	if (test->cleanup)
+		test->cleanup();
 	umount_resctrlfs();
 	signal_handler_unregister();
 }
@@ -136,7 +130,7 @@ static void run_single_test(const struct resctrl_test *test, const struct user_p
 
 	ksft_print_msg("Starting %s test ...\n", test->name);
 
-	if (test_prepare()) {
+	if (test_prepare(test)) {
 		ksft_exit_fail_msg("Abnormal failure when preparing for the test\n");
 		return;
 	}
@@ -151,7 +145,7 @@ static void run_single_test(const struct resctrl_test *test, const struct user_p
 	ksft_test_result(!ret, "%s: test\n", test->name);
 
 cleanup:
-	test_cleanup();
+	test_cleanup(test);
 }
 
 static void init_user_params(struct user_params *uparams)
@@ -253,13 +247,13 @@ last_arg:
 	 * 2. We execute perf commands
 	 */
 	if (geteuid() != 0)
-		return ksft_exit_skip("Not running as root. Skipping...\n");
+		ksft_exit_skip("Not running as root. Skipping...\n");
 
 	if (!check_resctrlfs_support())
-		return ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
+		ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
 
 	if (umount_resctrlfs())
-		return ksft_exit_skip("resctrl FS unmount failed.\n");
+		ksft_exit_skip("resctrl FS unmount failed.\n");
 
 	filter_dmesg();
 
