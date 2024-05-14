@@ -30,5 +30,5 @@
 
 1.5 < S 2000:2000(0) win 32792 <mss 1000,nop,wscale 0, TS val 233 ecr 0,nop,nop>
 
-+0 `conntrack -L -p tcp --dport 8080 2>/dev/null | grep -q SYN_RECV`
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null | grep -q SYN_RECV`
 +0 `iptables -v -S INPUT | grep INVALID | grep -q -- "-c 0 0"`
