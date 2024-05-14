@@ -31,6 +31,8 @@
 #define DIRECT64_PROPNAME "linux,direct64-ddr-window-info"
 #define DMA64_PROPNAME "linux,dma64-ddr-window-info"
 
+#define	MIN_DDW_VPMEM_DMA_WINDOW	SZ_2G
+
 /* Boot time flags */
 extern int iommu_is_off;
 extern int iommu_force_on;
