@@ -13,6 +13,12 @@
 #define WILC_MAX_RATES_SUPPORTED		12
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_MAX_NUM_SCANNED_CH			14
+#define WILC_NVMEM_MAX_NUM_BANK			6
+#define WILC_NVMEM_BANK_BASE			0x30000000
+#define WILC_NVMEM_LOW_BANK_OFFSET		0x102c
+#define WILC_NVMEM_HIGH_BANK_OFFSET		0x1380
+#define WILC_NVMEM_IS_BANK_USED			BIT(31)
+#define WILC_NVMEM_IS_BANK_INVALID		BIT(30)
 
 struct wilc_assoc_resp {
 	__le16 capab_info;
@@ -127,4 +133,11 @@ struct wilc_external_auth_param {
 	__le32 key_mgmt_suites;
 	__le16 status;
 } __packed;
+
+static inline u32 get_bank_offset_from_bank_index(unsigned int i)
+{
+	return (((i) < 2) ? WILC_NVMEM_LOW_BANK_OFFSET + ((i) * 32) :
+		WILC_NVMEM_HIGH_BANK_OFFSET + ((i) - 2) * 16);
+}
+
 #endif
