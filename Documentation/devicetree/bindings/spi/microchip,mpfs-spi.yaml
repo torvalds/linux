@@ -13,9 +13,6 @@ description:
 maintainers:
   - Conor Dooley <conor.dooley@microchip.com>
 
-allOf:
-  - $ref: spi-controller.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -42,6 +39,32 @@ required:
   - reg
   - interrupts
   - clocks
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,mpfs-spi
+    then:
+      properties:
+        num-cs:
+          default: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,mpfs-spi
+      not:
+        required:
+          - cs-gpios
+    then:
+      properties:
+        num-cs:
+          maximum: 1
 
 unevaluatedProperties: false
 
