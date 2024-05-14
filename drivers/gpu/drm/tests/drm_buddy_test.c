@@ -23,9 +23,11 @@ static inline u64 get_size(int order, u64 chunk_size)
 
 static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 {
-	u32 mm_size, ps, bias_size, bias_start, bias_end, bias_rem;
+	u32 mm_size, size, ps, bias_size, bias_start, bias_end, bias_rem;
 	DRM_RND_STATE(prng, random_seed);
 	unsigned int i, count, *order;
+	struct drm_buddy_block *block;
+	unsigned long flags;
 	struct drm_buddy mm;
 	LIST_HEAD(allocated);
 
@@ -219,6 +221,38 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 						     DRM_BUDDY_RANGE_ALLOCATION),
 			      "buddy_alloc passed with bias(%x-%x), size=%u\n",
 			      bias_start, bias_end, ps);
+
+	drm_buddy_free_list(&mm, &allocated, 0);
+	drm_buddy_fini(&mm);
+
+	/*
+	 * Allocate cleared blocks in the bias range when the DRM buddy's clear avail is
+	 * zero. This will validate the bias range allocation in scenarios like system boot
+	 * when no cleared blocks are available and exercise the fallback path too. The resulting
+	 * blocks should always be dirty.
+	 */
+
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, ps),
+			       "buddy_init failed\n");
+
+	bias_start = round_up(prandom_u32_state(&prng) % (mm_size - ps), ps);
+	bias_end = round_up(bias_start + prandom_u32_state(&prng) % (mm_size - bias_start), ps);
+	bias_end = max(bias_end, bias_start + ps);
+	bias_rem = bias_end - bias_start;
+
+	flags = DRM_BUDDY_CLEAR_ALLOCATION | DRM_BUDDY_RANGE_ALLOCATION;
+	size = max(round_up(prandom_u32_state(&prng) % bias_rem, ps), ps);
+
+	KUNIT_ASSERT_FALSE_MSG(test,
+			       drm_buddy_alloc_blocks(&mm, bias_start,
+						      bias_end, size, ps,
+						      &allocated,
+						      flags),
+			       "buddy_alloc failed with bias(%x-%x), size=%u, ps=%u\n",
+			       bias_start, bias_end, size, ps);
+
+	list_for_each_entry(block, &allocated, link)
+		KUNIT_EXPECT_EQ(test, drm_buddy_block_is_clear(block), false);
 
 	drm_buddy_free_list(&mm, &allocated, 0);
 	drm_buddy_fini(&mm);
