@@ -19,6 +19,7 @@ struct dw8250_port_data {
 	struct uart_8250_dma	dma;
 
 	/* Hardware configuration */
+	u32			cpr_value;
 	u8			dlf_size;
 
 	/* RS485 variables */
@@ -27,7 +28,7 @@ struct dw8250_port_data {
 
 struct dw8250_platform_data {
 	u8 usr_reg;
-	u32 cpr_val;
+	u32 cpr_value;
 	unsigned int quirks;
 };
 
