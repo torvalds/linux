@@ -1468,7 +1468,7 @@ void wq_worker_sleeping(struct task_struct *task)
  * wq_worker_tick - a scheduler tick occurred while a kworker is running
  * @task: task currently running
  *
- * Called from scheduler_tick(). We're in the IRQ context and the current
+ * Called from sched_tick(). We're in the IRQ context and the current
  * worker's fields which follow the 'K' locking rule can be accessed safely.
  */
 void wq_worker_tick(struct task_struct *task)
