@@ -2116,6 +2116,20 @@ static void wb_bg_dirty_limits(struct dirty_throttle_control *dtc)
 		dtc->wb_dirty = wb_stat(wb, WB_RECLAIMABLE);
 }
 
+static bool domain_over_bg_thresh(struct dirty_throttle_control *dtc)
+{
+	domain_dirty_avail(dtc, false);
+	domain_dirty_limits(dtc);
+	if (dtc->dirty > dtc->bg_thresh)
+		return true;
+
+	wb_bg_dirty_limits(dtc);
+	if (dtc->wb_dirty > dtc->wb_bg_thresh)
+		return true;
+
+	return false;
+}
+
 /**
  * wb_over_bg_thresh - does @wb need to be written back?
  * @wb: bdi_writeback of interest
@@ -2127,31 +2141,14 @@ static void wb_bg_dirty_limits(struct dirty_throttle_control *dtc)
  */
 bool wb_over_bg_thresh(struct bdi_writeback *wb)
 {
-	struct dirty_throttle_control gdtc_stor = { GDTC_INIT(wb) };
-	struct dirty_throttle_control mdtc_stor = { MDTC_INIT(wb, &gdtc_stor) };
-	struct dirty_throttle_control * const gdtc = &gdtc_stor;
-	struct dirty_throttle_control * const mdtc = mdtc_valid(&mdtc_stor) ?
-						     &mdtc_stor : NULL;
+	struct dirty_throttle_control gdtc = { GDTC_INIT(wb) };
+	struct dirty_throttle_control mdtc = { MDTC_INIT(wb, &gdtc) };
 
-	domain_dirty_avail(gdtc, false);
-	domain_dirty_limits(gdtc);
-	if (gdtc->dirty > gdtc->bg_thresh)
+	if (domain_over_bg_thresh(&gdtc))
 		return true;
 
-	wb_bg_dirty_limits(gdtc);
-	if (gdtc->wb_dirty > gdtc->wb_bg_thresh)
-		return true;
-
-	if (mdtc) {
-		domain_dirty_avail(mdtc, false);
-		domain_dirty_limits(mdtc);	/* ditto, ignore writeback */
-		if (mdtc->dirty > mdtc->bg_thresh)
-			return true;
-
-		wb_bg_dirty_limits(mdtc);
-		if (mdtc->wb_dirty > mdtc->wb_bg_thresh)
-			return true;
-	}
+	if (mdtc_valid(&mdtc))
+		return domain_over_bg_thresh(&mdtc);
 
 	return false;
 }
