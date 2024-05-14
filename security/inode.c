@@ -112,18 +112,20 @@ static struct dentry *securityfs_create_dentry(const char *name, umode_t mode,
 	struct dentry *dentry;
 	struct inode *dir, *inode;
 	int error;
+	bool pinned = false;
 
 	if (!(mode & S_IFMT))
 		mode = (mode & S_IALLUGO) | S_IFREG;
 
 	pr_debug("securityfs: creating file '%s'\n",name);
 
-	error = simple_pin_fs(&fs_type, &mount, &mount_count);
-	if (error)
-		return ERR_PTR(error);
-
-	if (!parent)
+	if (!parent) {
+		error = simple_pin_fs(&fs_type, &mount, &mount_count);
+		if (error)
+			return ERR_PTR(error);
+		pinned = true;
 		parent = mount->mnt_root;
+	}
 
 	dir = d_inode(parent);
 
@@ -167,7 +169,8 @@ out1:
 	dentry = ERR_PTR(error);
 out:
 	inode_unlock(dir);
-	simple_release_fs(&mount, &mount_count);
+	if (pinned)
+		simple_release_fs(&mount, &mount_count);
 	return dentry;
 }
 
@@ -307,13 +310,15 @@ void securityfs_remove(struct dentry *dentry)
 			simple_unlink(dir, dentry);
 	}
 	inode_unlock(dir);
-	simple_release_fs(&mount, &mount_count);
+	if (dir == dir->i_sb->s_root->d_inode)
+		simple_release_fs(&mount, &mount_count);
 }
 EXPORT_SYMBOL_GPL(securityfs_remove);
 
 static void remove_one(struct dentry *victim)
 {
-	simple_release_fs(&mount, &mount_count);
+	if (victim->d_parent == victim->d_sb->s_root)
+		simple_release_fs(&mount, &mount_count);
 }
 
 /**
