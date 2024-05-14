@@ -1070,7 +1070,7 @@ static noinline int btrfs_mksnapshot(const struct path *parent,
 	atomic_inc(&root->snapshot_force_cow);
 	snapshot_force_cow = true;
 
-	btrfs_wait_ordered_extents(root, U64_MAX, 0, (u64)-1);
+	btrfs_wait_ordered_extents(root, U64_MAX, NULL);
 
 	ret = btrfs_mksubvol(parent, idmap, name, namelen,
 			     root, readonly, inherit);

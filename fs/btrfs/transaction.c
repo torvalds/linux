@@ -2110,7 +2110,7 @@ static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
 static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 {
 	if (btrfs_test_opt(fs_info, FLUSHONCOMMIT))
-		btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
+		btrfs_wait_ordered_roots(fs_info, U64_MAX, NULL);
 }
 
 /*
