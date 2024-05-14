@@ -103,6 +103,15 @@ config GPIO_REGMAP
 	select REGMAP
 	tristate
 
+config GPIO_SWNODE_UNDEFINED
+	bool
+	help
+	  This adds a special place holder for software nodes to contain an
+	  undefined GPIO reference, this is primarily used by SPI to allow a
+	  list of GPIO chip selects to mark a certain chip select as being
+	  controlled the SPI device's internal chip select mechanism and not
+	  a GPIO.
+
 # put drivers in the right section, in alphabetical order
 
 # This symbol is selected by both I2C and SPI expanders

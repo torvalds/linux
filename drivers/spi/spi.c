@@ -312,7 +312,7 @@ static const struct attribute_group *spi_master_groups[] = {
 
 static void spi_statistics_add_transfer_stats(struct spi_statistics __percpu *pcpu_stats,
 					      struct spi_transfer *xfer,
-					      struct spi_controller *ctlr)
+					      struct spi_message *msg)
 {
 	int l2len = min(fls(xfer->len), SPI_STATISTICS_HISTO_SIZE) - 1;
 	struct spi_statistics *stats;
@@ -328,11 +328,9 @@ static void spi_statistics_add_transfer_stats(struct spi_statistics __percpu *pc
 	u64_stats_inc(&stats->transfer_bytes_histo[l2len]);
 
 	u64_stats_add(&stats->bytes, xfer->len);
-	if ((xfer->tx_buf) &&
-	    (xfer->tx_buf != ctlr->dummy_tx))
+	if (spi_valid_txbuf(msg, xfer))
 		u64_stats_add(&stats->bytes_tx, xfer->len);
-	if ((xfer->rx_buf) &&
-	    (xfer->rx_buf != ctlr->dummy_rx))
+	if (spi_valid_rxbuf(msg, xfer))
 		u64_stats_add(&stats->bytes_rx, xfer->len);
 
 	u64_stats_update_end(&stats->syncp);
@@ -597,10 +595,16 @@ EXPORT_SYMBOL_GPL(spi_alloc_device);
 
 static void spi_dev_set_name(struct spi_device *spi)
 {
-	struct acpi_device *adev = ACPI_COMPANION(&spi->dev);
+	struct device *dev = &spi->dev;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 
-	if (adev) {
-		dev_set_name(&spi->dev, "spi-%s", acpi_dev_name(adev));
+	if (is_acpi_device_node(fwnode)) {
+		dev_set_name(dev, "spi-%s", acpi_dev_name(to_acpi_device_node(fwnode)));
+		return;
+	}
+
+	if (is_software_node(fwnode)) {
+		dev_set_name(dev, "spi-%pfwP", fwnode);
 		return;
 	}
 
@@ -822,14 +826,10 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	proxy->controller_data = chip->controller_data;
 	proxy->controller_state = NULL;
 	/*
-	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
-	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
-	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
-	 * spi->chip_select[0] will give the physical CS.
-	 * By default spi->chip_select[0] will hold the physical CS number so, set
-	 * spi->cs_index_mask as 0x01.
+	 * By default spi->chip_select[0] will hold the physical CS number,
+	 * so set bit 0 in spi->cs_index_mask.
 	 */
-	proxy->cs_index_mask = 0x01;
+	proxy->cs_index_mask = BIT(0);
 
 	if (chip->swnode) {
 		status = device_add_software_node(&proxy->dev, chip->swnode);
@@ -1022,20 +1022,45 @@ static void spi_res_release(struct spi_controller *ctlr, struct spi_message *mes
 }
 
 /*-------------------------------------------------------------------------*/
+#define spi_for_each_valid_cs(spi, idx)				\
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)		\
+		if (!(spi->cs_index_mask & BIT(idx))) {} else
+
 static inline bool spi_is_last_cs(struct spi_device *spi)
 {
 	u8 idx;
 	bool last = false;
 
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-		if (spi->cs_index_mask & BIT(idx)) {
-			if (spi->controller->last_cs[idx] == spi_get_chipselect(spi, idx))
-				last = true;
-		}
+	spi_for_each_valid_cs(spi, idx) {
+		if (spi->controller->last_cs[idx] == spi_get_chipselect(spi, idx))
+			last = true;
 	}
 	return last;
 }
 
+static void spi_toggle_csgpiod(struct spi_device *spi, u8 idx, bool enable, bool activate)
+{
+	/*
+	 * Historically ACPI has no means of the GPIO polarity and
+	 * thus the SPISerialBus() resource defines it on the per-chip
+	 * basis. In order to avoid a chain of negations, the GPIO
+	 * polarity is considered being Active High. Even for the cases
+	 * when _DSD() is involved (in the updated versions of ACPI)
+	 * the GPIO CS polarity must be defined Active High to avoid
+	 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
+	 * into account.
+	 */
+	if (has_acpi_companion(&spi->dev))
+		gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx), !enable);
+	else
+		/* Polarity handled by GPIO library */
+		gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx), activate);
+
+	if (activate)
+		spi_delay_exec(&spi->cs_setup, NULL);
+	else
+		spi_delay_exec(&spi->cs_inactive, NULL);
+}
 
 static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 {
@@ -1072,31 +1097,9 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 
 	if (spi_is_csgpiod(spi)) {
 		if (!(spi->mode & SPI_NO_CS)) {
-			/*
-			 * Historically ACPI has no means of the GPIO polarity and
-			 * thus the SPISerialBus() resource defines it on the per-chip
-			 * basis. In order to avoid a chain of negations, the GPIO
-			 * polarity is considered being Active High. Even for the cases
-			 * when _DSD() is involved (in the updated versions of ACPI)
-			 * the GPIO CS polarity must be defined Active High to avoid
-			 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
-			 * into account.
-			 */
-			for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-				if ((spi->cs_index_mask & BIT(idx)) && spi_get_csgpiod(spi, idx)) {
-					if (has_acpi_companion(&spi->dev))
-						gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx),
-									 !enable);
-					else
-						/* Polarity handled by GPIO library */
-						gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx),
-									 activate);
-
-					if (activate)
-						spi_delay_exec(&spi->cs_setup, NULL);
-					else
-						spi_delay_exec(&spi->cs_inactive, NULL);
-				}
+			spi_for_each_valid_cs(spi, idx) {
+				if (spi_get_csgpiod(spi, idx))
+					spi_toggle_csgpiod(spi, idx, enable, activate);
 			}
 		}
 		/* Some SPI masters need both GPIO CS & slave_select */
@@ -1205,12 +1208,10 @@ static void spi_unmap_buf_attrs(struct spi_controller *ctlr,
 				enum dma_data_direction dir,
 				unsigned long attrs)
 {
-	if (sgt->orig_nents) {
-		dma_unmap_sgtable(dev, sgt, dir, attrs);
-		sg_free_table(sgt);
-		sgt->orig_nents = 0;
-		sgt->nents = 0;
-	}
+	dma_unmap_sgtable(dev, sgt, dir, attrs);
+	sg_free_table(sgt);
+	sgt->orig_nents = 0;
+	sgt->nents = 0;
 }
 
 void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
@@ -1315,10 +1316,8 @@ static void spi_dma_sync_for_device(struct spi_controller *ctlr,
 	if (!ctlr->cur_msg_mapped)
 		return;
 
-	if (xfer->tx_sg.orig_nents)
-		dma_sync_sgtable_for_device(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
-	if (xfer->rx_sg.orig_nents)
-		dma_sync_sgtable_for_device(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
+	dma_sync_sgtable_for_device(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
+	dma_sync_sgtable_for_device(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
 }
 
 static void spi_dma_sync_for_cpu(struct spi_controller *ctlr,
@@ -1330,10 +1329,8 @@ static void spi_dma_sync_for_cpu(struct spi_controller *ctlr,
 	if (!ctlr->cur_msg_mapped)
 		return;
 
-	if (xfer->rx_sg.orig_nents)
-		dma_sync_sgtable_for_cpu(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
-	if (xfer->tx_sg.orig_nents)
-		dma_sync_sgtable_for_cpu(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
+	dma_sync_sgtable_for_cpu(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
+	dma_sync_sgtable_for_cpu(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
 }
 #else /* !CONFIG_HAS_DMA */
 static inline int __spi_map_msg(struct spi_controller *ctlr,
@@ -1613,8 +1610,8 @@ static int spi_transfer_one_message(struct spi_controller *ctlr,
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		trace_spi_transfer_start(msg, xfer);
 
-		spi_statistics_add_transfer_stats(statm, xfer, ctlr);
-		spi_statistics_add_transfer_stats(stats, xfer, ctlr);
+		spi_statistics_add_transfer_stats(statm, xfer, msg);
+		spi_statistics_add_transfer_stats(stats, xfer, msg);
 
 		if (!ctlr->ptp_sts_supported) {
 			xfer->ptp_sts_word_pre = 0;
@@ -3709,9 +3706,6 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 	 * to the same values as *xferp, so tx_buf, rx_buf and len
 	 * are all identical (as well as most others)
 	 * so we just have to fix up len and the pointers.
-	 *
-	 * This also includes support for the depreciated
-	 * spi_message.is_dma_mapped interface.
 	 */
 
 	/*
@@ -3725,12 +3719,8 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 		/* Update rx_buf, tx_buf and DMA */
 		if (xfers[i].rx_buf)
 			xfers[i].rx_buf += offset;
-		if (xfers[i].rx_dma)
-			xfers[i].rx_dma += offset;
 		if (xfers[i].tx_buf)
 			xfers[i].tx_buf += offset;
-		if (xfers[i].tx_dma)
-			xfers[i].tx_dma += offset;
 
 		/* Update length */
 		xfers[i].len = min(maxsize, xfers[i].len - offset);
