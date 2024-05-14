@@ -266,15 +266,6 @@ static int cdn_dp_connector_get_modes(struct drm_connector *connector)
 
 	mutex_lock(&dp->lock);
 
-	if (dp->drm_edid) {
-		/* FIXME: get rid of drm_edid_raw() */
-		const struct edid *edid = drm_edid_raw(dp->drm_edid);
-
-		DRM_DEV_DEBUG_KMS(dp->dev, "got edid: width[%d] x height[%d]\n",
-				  edid->width_cm, edid->height_cm);
-
-	}
-
 	ret = drm_edid_connector_add_modes(connector);
 
 	mutex_unlock(&dp->lock);
@@ -369,6 +360,7 @@ static int cdn_dp_firmware_init(struct cdn_dp_device *dp)
 
 static int cdn_dp_get_sink_capability(struct cdn_dp_device *dp)
 {
+	const struct drm_display_info *info = &dp->connector.display_info;
 	int ret;
 
 	if (!cdn_dp_check_sink_connection(dp))
@@ -386,7 +378,11 @@ static int cdn_dp_get_sink_capability(struct cdn_dp_device *dp)
 					    cdn_dp_get_edid_block, dp);
 	drm_edid_connector_update(&dp->connector, dp->drm_edid);
 
-	dp->sink_has_audio = dp->connector.display_info.has_audio;
+	dp->sink_has_audio = info->has_audio;
+
+	if (dp->drm_edid)
+		DRM_DEV_DEBUG_KMS(dp->dev, "got edid: width[%d] x height[%d]\n",
+				  info->width_mm / 10, info->height_mm / 10);
 
 	return 0;
 }
