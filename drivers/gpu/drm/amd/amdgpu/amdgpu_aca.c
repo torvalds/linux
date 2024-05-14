@@ -686,7 +686,8 @@ static void aca_manager_fini(struct aca_handle_manager *mgr)
 
 bool amdgpu_aca_is_enabled(struct amdgpu_device *adev)
 {
-	return adev->aca.is_enabled;
+	return (adev->aca.is_enabled ||
+		adev->debug_enable_ras_aca);
 }
 
 int amdgpu_aca_init(struct amdgpu_device *adev)
