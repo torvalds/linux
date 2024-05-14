@@ -678,7 +678,7 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 	}
 	rcu_read_unlock();
 
-	result = wilc_set_mac_address(vif, (u8 *)addr->sa_data);
+	result = wilc_set_mac_address(vif, addr->sa_data);
 	if (result)
 		return result;
 
