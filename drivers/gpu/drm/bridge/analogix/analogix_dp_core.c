@@ -1108,7 +1108,7 @@ out:
 static int analogix_dp_get_modes(struct drm_connector *connector)
 {
 	struct analogix_dp_device *dp = to_dp(connector);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret, num_modes = 0;
 
 	if (dp->plat_data->panel) {
@@ -1120,12 +1120,13 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 			return 0;
 		}
 
-		edid = drm_get_edid(connector, &dp->aux.ddc);
-		if (edid) {
-			drm_connector_update_edid_property(&dp->connector,
-							   edid);
-			num_modes += drm_add_edid_modes(&dp->connector, edid);
-			kfree(edid);
+		drm_edid = drm_edid_read_ddc(connector, &dp->aux.ddc);
+
+		drm_edid_connector_update(&dp->connector, drm_edid);
+
+		if (drm_edid) {
+			num_modes += drm_edid_connector_add_modes(&dp->connector);
+			drm_edid_free(drm_edid);
 		}
 
 		ret = analogix_dp_prepare_panel(dp, false, false);
