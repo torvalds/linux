@@ -4671,6 +4671,8 @@ static const struct amdgpu_ring_funcs gfx_v9_4_3_ring_funcs_compute = {
 	.emit_wave_limit = gfx_v9_4_3_emit_wave_limit,
 	.reset = gfx_v9_4_3_reset_kcq,
 	.emit_cleaner_shader = gfx_v9_4_3_ring_emit_cleaner_shader,
+	.begin_use = amdgpu_gfx_enforce_isolation_ring_begin_use,
+	.end_use = amdgpu_gfx_enforce_isolation_ring_end_use,
 };
 
 static const struct amdgpu_ring_funcs gfx_v9_4_3_ring_funcs_kiq = {
