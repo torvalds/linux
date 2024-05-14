@@ -224,8 +224,6 @@ loop:
 
 		prepare_to_wait(&journal->j_wait_commit, &wait,
 				TASK_INTERRUPTIBLE);
-		if (journal->j_commit_sequence != journal->j_commit_request)
-			should_sleep = 0;
 		transaction = journal->j_running_transaction;
 		if (transaction && time_after_eq(jiffies,
 						transaction->t_expires))
