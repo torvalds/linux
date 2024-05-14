@@ -990,10 +990,15 @@ static inline void acpi_put_acpi_dev(struct acpi_device *adev)
 {
 	acpi_dev_put(adev);
 }
+
+int acpi_wait_for_acpi_ipmi(void);
+
 #else	/* CONFIG_ACPI */
 
 static inline int register_acpi_bus_type(void *bus) { return 0; }
 static inline int unregister_acpi_bus_type(void *bus) { return 0; }
+
+static inline int acpi_wait_for_acpi_ipmi(void) { return 0; }
 
 #endif				/* CONFIG_ACPI */
 

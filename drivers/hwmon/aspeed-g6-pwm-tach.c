@@ -516,13 +516,11 @@ static int aspeed_pwm_tach_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aspeed_pwm_tach_remove(struct platform_device *pdev)
+static void aspeed_pwm_tach_remove(struct platform_device *pdev)
 {
 	struct aspeed_pwm_tach_data *priv = platform_get_drvdata(pdev);
 
 	reset_control_assert(priv->reset);
-
-	return 0;
 }
 
 static const struct of_device_id aspeed_pwm_tach_match[] = {
@@ -535,7 +533,7 @@ MODULE_DEVICE_TABLE(of, aspeed_pwm_tach_match);
 
 static struct platform_driver aspeed_pwm_tach_driver = {
 	.probe = aspeed_pwm_tach_probe,
-	.remove = aspeed_pwm_tach_remove,
+	.remove_new = aspeed_pwm_tach_remove,
 	.driver	= {
 		.name = "aspeed-g6-pwm-tach",
 		.of_match_table = aspeed_pwm_tach_match,
