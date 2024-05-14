@@ -643,7 +643,7 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 
 		if (pipe->stream && (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN ||
 				(stream_status && stream_status->fpo_in_use)) &&
-				(!old_pipe->stream || (dc_state_get_pipe_subvp_type(context, old_pipe) != SUBVP_MAIN &&
+				(!old_pipe->stream || (dc_state_get_pipe_subvp_type(dc->current_state, old_pipe) != SUBVP_MAIN &&
 				(old_stream_status && !old_stream_status->fpo_in_use)))) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, true);
