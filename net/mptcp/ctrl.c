@@ -133,6 +133,24 @@ static int proc_scheduler(struct ctl_table *ctl, int write,
 	return ret;
 }
 
+static int proc_available_schedulers(struct ctl_table *ctl,
+				     int write, void *buffer,
+				     size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table tbl = { .maxlen = MPTCP_SCHED_BUF_MAX, };
+	int ret;
+
+	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
+	if (!tbl.data)
+		return -ENOMEM;
+
+	mptcp_get_available_schedulers(tbl.data, MPTCP_SCHED_BUF_MAX);
+	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	kfree(tbl.data);
+
+	return ret;
+}
+
 static struct ctl_table mptcp_sysctl_table[] = {
 	{
 		.procname = "enabled",
@@ -188,6 +206,12 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.proc_handler = proc_scheduler,
 	},
 	{
+		.procname = "available_schedulers",
+		.maxlen	= MPTCP_SCHED_BUF_MAX,
+		.mode = 0644,
+		.proc_handler = proc_available_schedulers,
+	},
+	{
 		.procname = "close_timeout",
 		.maxlen = sizeof(unsigned int),
 		.mode = 0644,
@@ -214,7 +238,8 @@ static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 	table[4].data = &pernet->stale_loss_cnt;
 	table[5].data = &pernet->pm_type;
 	table[6].data = &pernet->scheduler;
-	table[7].data = &pernet->close_timeout;
+	/* table[7] is for available_schedulers which is read-only info */
+	table[8].data = &pernet->close_timeout;
 
 	hdr = register_net_sysctl_sz(net, MPTCP_SYSCTL_PATH, table,
 				     ARRAY_SIZE(mptcp_sysctl_table));
