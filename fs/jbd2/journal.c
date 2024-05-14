@@ -220,15 +220,12 @@ loop:
 		 * so we don't sleep
 		 */
 		DEFINE_WAIT(wait);
-		int should_sleep = 1;
 
 		prepare_to_wait(&journal->j_wait_commit, &wait,
 				TASK_INTERRUPTIBLE);
 		transaction = journal->j_running_transaction;
-		if (transaction && time_after_eq(jiffies,
-						transaction->t_expires))
-			should_sleep = 0;
-		if (should_sleep) {
+		if (transaction == NULL ||
+		    time_before(jiffies, transaction->t_expires)) {
 			write_unlock(&journal->j_state_lock);
 			schedule();
 			write_lock(&journal->j_state_lock);
