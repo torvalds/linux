@@ -2083,8 +2083,10 @@ int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 			timing->h_border_left +
 			timing->h_border_right;
 	int width = h_active / count;
-	bool two_pixel_alignment_required =
-			otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing);
+	bool two_pixel_alignment_required = false;
+
+	if (otg_master && otg_master->stream_res.tg && otg_master->stream)
+		two_pixel_alignment_required = otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing);
 
 	if ((width % 2) && two_pixel_alignment_required)
 		width++;
@@ -2124,7 +2126,7 @@ struct rect resource_get_odm_slice_src_rect(struct pipe_ctx *pipe_ctx)
 	odm_slice_dst = resource_get_odm_slice_dst_rect(opp_head);
 	odm_slice_src = odm_slice_dst;
 
-	if (opp->funcs->opp_get_left_edge_extra_pixel_count)
+	if (opp && opp->funcs->opp_get_left_edge_extra_pixel_count)
 		left_edge_extra_pixel_count =
 				opp->funcs->opp_get_left_edge_extra_pixel_count(
 						opp, pipe_ctx->stream->timing.pixel_encoding,
