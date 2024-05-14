@@ -208,7 +208,7 @@ static ktime_t initcall_debug_start(struct device *dev, void *cb)
 	if (!pm_print_times_enabled)
 		return 0;
 
-	dev_info(dev, "calling %pS @ %i, parent: %s\n", cb,
+	dev_info(dev, "calling %ps @ %i, parent: %s\n", cb,
 		 task_pid_nr(current),
 		 dev->parent ? dev_name(dev->parent) : "none");
 	return ktime_get();
@@ -223,7 +223,7 @@ static void initcall_debug_report(struct device *dev, ktime_t calltime,
 		return;
 
 	rettime = ktime_get();
-	dev_info(dev, "%pS returned %d after %Ld usecs\n", cb, error,
+	dev_info(dev, "%ps returned %d after %Ld usecs\n", cb, error,
 		 (unsigned long long)ktime_us_delta(rettime, calltime));
 }
 
@@ -1927,7 +1927,7 @@ EXPORT_SYMBOL_GPL(dpm_suspend_start);
 void __suspend_report_result(const char *function, struct device *dev, void *fn, int ret)
 {
 	if (ret)
-		dev_err(dev, "%s(): %pS returns %d\n", function, fn, ret);
+		dev_err(dev, "%s(): %ps returns %d\n", function, fn, ret);
 }
 EXPORT_SYMBOL_GPL(__suspend_report_result);
 
