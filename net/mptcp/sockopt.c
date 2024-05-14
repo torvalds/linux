@@ -999,6 +999,10 @@ static int mptcp_getsockopt_info(struct mptcp_sock *msk, char __user *optval, in
 	if (get_user(len, optlen))
 		return -EFAULT;
 
+	/* When used only to check if a fallback to TCP happened. */
+	if (len == 0)
+		return 0;
+
 	len = min_t(unsigned int, len, sizeof(struct mptcp_info));
 
 	mptcp_diag_fill_info(msk, &m_info);
