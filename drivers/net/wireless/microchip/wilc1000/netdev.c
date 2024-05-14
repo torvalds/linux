@@ -965,16 +965,6 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	vif->priv.wdev.iftype = type;
 	vif->priv.dev = ndev;
 
-	if (rtnl_locked)
-		ret = cfg80211_register_netdevice(ndev);
-	else
-		ret = register_netdev(ndev);
-
-	if (ret) {
-		ret = -EFAULT;
-		goto error;
-	}
-
 	ndev->needs_free_netdev = true;
 	vif->iftype = vif_type;
 	vif->idx = wilc_get_available_idx(wl);
@@ -985,13 +975,24 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	mutex_unlock(&wl->vif_mutex);
 	synchronize_rcu();
 
+	if (rtnl_locked)
+		ret = cfg80211_register_netdevice(ndev);
+	else
+		ret = register_netdev(ndev);
+
+	if (ret) {
+		ret = -EFAULT;
+		goto error_remove_vif;
+	}
+
 	return vif;
 
-error:
-	if (rtnl_locked)
-		cfg80211_unregister_netdevice(ndev);
-	else
-		unregister_netdev(ndev);
+error_remove_vif:
+	mutex_lock(&wl->vif_mutex);
+	list_del_rcu(&vif->list);
+	wl->vif_num -= 1;
+	mutex_unlock(&wl->vif_mutex);
+	synchronize_rcu();
 	free_netdev(ndev);
 	return ERR_PTR(ret);
 }
