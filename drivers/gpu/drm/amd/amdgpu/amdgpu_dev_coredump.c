@@ -224,12 +224,29 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 			   coredump->reset_task_info.process_name,
 			   coredump->reset_task_info.pid);
 
-	/* GPU IP's information of the SOC */
-	drm_printf(&p, "\nIP Information\n");
+	/* SOC Information */
+	drm_printf(&p, "\nSOC Information\n");
+	drm_printf(&p, "SOC Device id: %d\n", coredump->adev->pdev->device);
+	drm_printf(&p, "SOC PCI Revision id: %d\n", coredump->adev->pdev->revision);
 	drm_printf(&p, "SOC Family: %d\n", coredump->adev->family);
 	drm_printf(&p, "SOC Revision id: %d\n", coredump->adev->rev_id);
 	drm_printf(&p, "SOC External Revision id: %d\n", coredump->adev->external_rev_id);
 
+	/* Memory Information */
+	drm_printf(&p, "\nSOC Memory Information\n");
+	drm_printf(&p, "real vram size: %llu\n", coredump->adev->gmc.real_vram_size);
+	drm_printf(&p, "visible vram size: %llu\n", coredump->adev->gmc.visible_vram_size);
+	drm_printf(&p, "visible vram size: %llu\n", coredump->adev->mman.gtt_mgr.manager.size);
+
+	/* GDS Config */
+	drm_printf(&p, "\nGDS Config\n");
+	drm_printf(&p, "gds: total size: %d\n", coredump->adev->gds.gds_size);
+	drm_printf(&p, "gds: compute partition size: %d\n", coredump->adev->gds.gds_size);
+	drm_printf(&p, "gds: gws per compute partition: %d\n", coredump->adev->gds.gws_size);
+	drm_printf(&p, "gds: os per compute partition: %d\n", coredump->adev->gds.oa_size);
+
+	/* HWIP Version Information */
+	drm_printf(&p, "\nHW IP Version Information\n");
 	for (int i = 1; i < MAX_HWIP; i++) {
 		for (int j = 0; j < HWIP_MAX_INSTANCE; j++) {
 			ver = coredump->adev->ip_versions[i][j];
