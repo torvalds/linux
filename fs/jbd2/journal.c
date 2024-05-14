@@ -351,7 +351,6 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 	atomic_set(&new_bh->b_count, 1);
 
 	spin_lock(&jh_in->b_state_lock);
-repeat:
 	/*
 	 * If a new transaction has already done a buffer copy-out, then
 	 * we use that version of the data for the commit.
@@ -399,22 +398,22 @@ repeat:
 		spin_lock(&jh_in->b_state_lock);
 		if (jh_in->b_frozen_data) {
 			jbd2_free(tmp, bh_in->b_size);
-			goto repeat;
+			goto copy_done;
 		}
 
 		jh_in->b_frozen_data = tmp;
 		memcpy_from_folio(tmp, new_folio, new_offset, bh_in->b_size);
-
-		new_folio = virt_to_folio(tmp);
-		new_offset = offset_in_folio(new_folio, tmp);
-		done_copy_out = 1;
-
 		/*
 		 * This isn't strictly necessary, as we're using frozen
 		 * data for the escaping, but it keeps consistency with
 		 * b_frozen_data usage.
 		 */
 		jh_in->b_frozen_triggers = jh_in->b_triggers;
+
+copy_done:
+		new_folio = virt_to_folio(jh_in->b_frozen_data);
+		new_offset = offset_in_folio(new_folio, jh_in->b_frozen_data);
+		done_copy_out = 1;
 	}
 
 	/*
