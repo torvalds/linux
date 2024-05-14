@@ -258,6 +258,9 @@ static int mchp_corespi_setup(struct spi_device *spi)
 	struct mchp_corespi *corespi = spi_controller_get_devdata(spi->controller);
 	u32 reg;
 
+	if (spi_is_csgpiod(spi))
+		return 0;
+
 	/*
 	 * Active high targets need to be specifically set to their inactive
 	 * states during probe by adding them to the "control group" & thus
@@ -516,6 +519,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 
 	host->num_chipselect = num_cs;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	host->use_gpio_descriptors = true;
 	host->setup = mchp_corespi_setup;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->transfer_one = mchp_corespi_transfer_one;
