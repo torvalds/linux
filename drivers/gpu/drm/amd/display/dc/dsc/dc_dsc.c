@@ -1261,11 +1261,6 @@ void dc_set_disable_128b_132b_stream_overhead(bool disable)
 	disable_128b_132b_stream_overhead = disable;
 }
 
-bool dc_get_disable_128b_132b_stream_overhead(void)
-{
-	return disable_128b_132b_stream_overhead;
-}
-
 void dc_dsc_get_default_config_option(const struct dc *dc, struct dc_dsc_config_options *options)
 {
 	options->dsc_min_slice_height_override = dc->debug.dsc_min_slice_height_override;

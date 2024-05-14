@@ -726,4 +726,4 @@ void dpp401_set_cursor_matrix(
 	enum dc_color_space color_space,
 	struct dc_csc_transform cursor_csc_color_matrix);
 
-#endif
+#endif /* __DCN401_DPP_H__ */

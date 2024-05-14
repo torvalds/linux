@@ -880,12 +880,8 @@ static void dcn401_program_compbuf_segments(struct hubbub *hubbub, unsigned comp
 				+ hubbub2->det3_size + compbuf_size_seg <= hubbub2->crb_size_segs);
 		REG_UPDATE(DCHUBBUB_COMPBUF_CTRL, COMPBUF_SIZE, compbuf_size_seg);
 		hubbub2->compbuf_size_segments = compbuf_size_seg;
-#ifdef DIAGS_BUILD
-		REG_GET(DCHUBBUB_COMPBUF_CTRL, CONFIG_ERROR, &cur_compbuf_size_seg);
-		ASSERT(!cur_compbuf_size_seg);
-#else
+
 		ASSERT(REG_GET(DCHUBBUB_COMPBUF_CTRL, CONFIG_ERROR, &cur_compbuf_size_seg) && !cur_compbuf_size_seg);
-#endif
 	}
 }
 
