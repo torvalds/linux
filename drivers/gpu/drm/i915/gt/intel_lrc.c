@@ -1130,7 +1130,8 @@ int lrc_alloc(struct intel_context *ce, struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(ce->state);
 
-	ce->default_state = engine->default_state;
+	if (!intel_context_has_own_state(ce))
+		ce->default_state = engine->default_state;
 
 	vma = __lrc_alloc_state(ce, engine);
 	if (IS_ERR(vma))

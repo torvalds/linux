@@ -2163,6 +2163,15 @@ struct drm_i915_gem_context_param {
  * supports this per context flag.
  */
 #define I915_CONTEXT_PARAM_LOW_LATENCY		0xe
+
+/*
+ * I915_CONTEXT_PARAM_CONTEXT_IMAGE:
+ *
+ * Allows userspace to provide own context images.
+ *
+ * Note that this is a debug API not available on production kernel builds.
+ */
+#define I915_CONTEXT_PARAM_CONTEXT_IMAGE	0xf
 /* Must be kept compact -- no holes and well documented */
 
 	/** @value: Context parameter value to be set or queried */
@@ -2563,6 +2572,24 @@ struct i915_context_param_engines {
 	__u64 extensions; \
 	struct i915_engine_class_instance engines[N__]; \
 } __attribute__((packed)) name__
+
+struct i915_gem_context_param_context_image {
+	/** @engine: Engine class & instance to be configured. */
+	struct i915_engine_class_instance engine;
+
+	/** @flags: One of the supported flags or zero. */
+	__u32 flags;
+#define I915_CONTEXT_IMAGE_FLAG_ENGINE_INDEX (1u << 0)
+
+	/** @size: Size of the image blob pointed to by @image. */
+	__u32 size;
+
+	/** @mbz: Must be zero. */
+	__u32 mbz;
+
+	/** @image: Userspace memory containing the context image. */
+	__u64 image;
+} __attribute__((packed));
 
 /**
  * struct drm_i915_gem_context_create_ext_setparam - Context parameter

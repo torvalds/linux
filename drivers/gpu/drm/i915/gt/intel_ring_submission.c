@@ -569,7 +569,8 @@ static int ring_context_alloc(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = ce->engine;
 
-	ce->default_state = engine->default_state;
+	if (!intel_context_has_own_state(ce))
+		ce->default_state = engine->default_state;
 
 	/* One ringbuffer to rule them all */
 	GEM_BUG_ON(!engine->legacy.ring);
