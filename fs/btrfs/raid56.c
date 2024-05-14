@@ -40,6 +40,85 @@
 
 #define BTRFS_STRIPE_HASH_TABLE_BITS				11
 
+static void dump_bioc(const struct btrfs_fs_info *fs_info, const struct btrfs_io_context *bioc)
+{
+	if (unlikely(!bioc)) {
+		btrfs_crit(fs_info, "bioc=NULL");
+		return;
+	}
+	btrfs_crit(fs_info,
+"bioc logical=%llu full_stripe=%llu size=%llu map_type=0x%llx mirror=%u replace_nr_stripes=%u replace_stripe_src=%d num_stripes=%u",
+		bioc->logical, bioc->full_stripe_logical, bioc->size,
+		bioc->map_type, bioc->mirror_num, bioc->replace_nr_stripes,
+		bioc->replace_stripe_src, bioc->num_stripes);
+	for (int i = 0; i < bioc->num_stripes; i++) {
+		btrfs_crit(fs_info, "    nr=%d devid=%llu physical=%llu",
+			   i, bioc->stripes[i].dev->devid,
+			   bioc->stripes[i].physical);
+	}
+}
+
+static void btrfs_dump_rbio(const struct btrfs_fs_info *fs_info,
+			    const struct btrfs_raid_bio *rbio)
+{
+	if (!IS_ENABLED(CONFIG_BTRFS_ASSERT))
+		return;
+
+	dump_bioc(fs_info, rbio->bioc);
+	btrfs_crit(fs_info,
+"rbio flags=0x%lx nr_sectors=%u nr_data=%u real_stripes=%u stripe_nsectors=%u scrubp=%u dbitmap=0x%lx",
+		rbio->flags, rbio->nr_sectors, rbio->nr_data,
+		rbio->real_stripes, rbio->stripe_nsectors,
+		rbio->scrubp, rbio->dbitmap);
+}
+
+#define ASSERT_RBIO(expr, rbio)						\
+({									\
+	if (IS_ENABLED(CONFIG_BTRFS_ASSERT) && unlikely(!(expr))) {	\
+		const struct btrfs_fs_info *__fs_info = (rbio)->bioc ?	\
+					(rbio)->bioc->fs_info : NULL;	\
+									\
+		btrfs_dump_rbio(__fs_info, (rbio));			\
+	}								\
+	ASSERT((expr));							\
+})
+
+#define ASSERT_RBIO_STRIPE(expr, rbio, stripe_nr)			\
+({									\
+	if (IS_ENABLED(CONFIG_BTRFS_ASSERT) && unlikely(!(expr))) {	\
+		const struct btrfs_fs_info *__fs_info = (rbio)->bioc ?	\
+					(rbio)->bioc->fs_info : NULL;	\
+									\
+		btrfs_dump_rbio(__fs_info, (rbio));			\
+		btrfs_crit(__fs_info, "stripe_nr=%d", (stripe_nr));	\
+	}								\
+	ASSERT((expr));							\
+})
+
+#define ASSERT_RBIO_SECTOR(expr, rbio, sector_nr)			\
+({									\
+	if (IS_ENABLED(CONFIG_BTRFS_ASSERT) && unlikely(!(expr))) {	\
+		const struct btrfs_fs_info *__fs_info = (rbio)->bioc ?	\
+					(rbio)->bioc->fs_info : NULL;	\
+									\
+		btrfs_dump_rbio(__fs_info, (rbio));			\
+		btrfs_crit(__fs_info, "sector_nr=%d", (sector_nr));	\
+	}								\
+	ASSERT((expr));							\
+})
+
+#define ASSERT_RBIO_LOGICAL(expr, rbio, logical)			\
+({									\
+	if (IS_ENABLED(CONFIG_BTRFS_ASSERT) && unlikely(!(expr))) {	\
+		const struct btrfs_fs_info *__fs_info = (rbio)->bioc ?	\
+					(rbio)->bioc->fs_info : NULL;	\
+									\
+		btrfs_dump_rbio(__fs_info, (rbio));			\
+		btrfs_crit(__fs_info, "logical=%llu", (logical));		\
+	}								\
+	ASSERT((expr));							\
+})
+
 /* Used by the raid56 code to lock stripes for read/modify/write */
 struct btrfs_stripe_hash {
 	struct list_head hash_list;
@@ -592,8 +671,8 @@ static unsigned int rbio_stripe_sector_index(const struct btrfs_raid_bio *rbio,
 					     unsigned int stripe_nr,
 					     unsigned int sector_nr)
 {
-	ASSERT(stripe_nr < rbio->real_stripes);
-	ASSERT(sector_nr < rbio->stripe_nsectors);
+	ASSERT_RBIO_STRIPE(stripe_nr < rbio->real_stripes, rbio, stripe_nr);
+	ASSERT_RBIO_SECTOR(sector_nr < rbio->stripe_nsectors, rbio, sector_nr);
 
 	return stripe_nr * rbio->stripe_nsectors + sector_nr;
 }
@@ -873,8 +952,10 @@ static struct sector_ptr *sector_in_rbio(struct btrfs_raid_bio *rbio,
 	struct sector_ptr *sector;
 	int index;
 
-	ASSERT(stripe_nr >= 0 && stripe_nr < rbio->real_stripes);
-	ASSERT(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors);
+	ASSERT_RBIO_STRIPE(stripe_nr >= 0 && stripe_nr < rbio->real_stripes,
+			   rbio, stripe_nr);
+	ASSERT_RBIO_SECTOR(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors,
+			   rbio, sector_nr);
 
 	index = stripe_nr * rbio->stripe_nsectors + sector_nr;
 	ASSERT(index >= 0 && index < rbio->nr_sectors);
@@ -1057,8 +1138,10 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 	 * thus it can be larger than rbio->real_stripe.
 	 * So here we check against bioc->num_stripes, not rbio->real_stripes.
 	 */
-	ASSERT(stripe_nr >= 0 && stripe_nr < rbio->bioc->num_stripes);
-	ASSERT(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors);
+	ASSERT_RBIO_STRIPE(stripe_nr >= 0 && stripe_nr < rbio->bioc->num_stripes,
+			   rbio, stripe_nr);
+	ASSERT_RBIO_SECTOR(sector_nr >= 0 && sector_nr < rbio->stripe_nsectors,
+			   rbio, sector_nr);
 	ASSERT(sector->page);
 
 	stripe = &rbio->bioc->stripes[stripe_nr];
@@ -1197,14 +1280,14 @@ static void assert_rbio(struct btrfs_raid_bio *rbio)
 	 * At least two stripes (2 disks RAID5), and since real_stripes is U8,
 	 * we won't go beyond 256 disks anyway.
 	 */
-	ASSERT(rbio->real_stripes >= 2);
-	ASSERT(rbio->nr_data > 0);
+	ASSERT_RBIO(rbio->real_stripes >= 2, rbio);
+	ASSERT_RBIO(rbio->nr_data > 0, rbio);
 
 	/*
 	 * This is another check to make sure nr data stripes is smaller
 	 * than total stripes.
 	 */
-	ASSERT(rbio->nr_data < rbio->real_stripes);
+	ASSERT_RBIO(rbio->nr_data < rbio->real_stripes, rbio);
 }
 
 /* Generate PQ for one vertical stripe. */
@@ -1641,9 +1724,10 @@ static void rbio_add_bio(struct btrfs_raid_bio *rbio, struct bio *orig_bio)
 	const u32 sectorsize = fs_info->sectorsize;
 	u64 cur_logical;
 
-	ASSERT(orig_logical >= full_stripe_start &&
-	       orig_logical + orig_len <= full_stripe_start +
-	       rbio->nr_data * BTRFS_STRIPE_LEN);
+	ASSERT_RBIO_LOGICAL(orig_logical >= full_stripe_start &&
+			    orig_logical + orig_len <= full_stripe_start +
+			    rbio->nr_data * BTRFS_STRIPE_LEN,
+			    rbio, orig_logical);
 
 	bio_list_add(&rbio->bio_list, orig_bio);
 	rbio->bio_list_bytes += orig_bio->bi_iter.bi_size;
@@ -2389,7 +2473,7 @@ struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
 			break;
 		}
 	}
-	ASSERT(i < rbio->real_stripes);
+	ASSERT_RBIO_STRIPE(i < rbio->real_stripes, rbio, i);
 
 	bitmap_copy(&rbio->dbitmap, dbitmap, stripe_nsectors);
 	return rbio;
@@ -2555,7 +2639,7 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio)
 	 * Replace is running and our parity stripe needs to be duplicated to
 	 * the target device.  Check we have a valid source stripe number.
 	 */
-	ASSERT(rbio->bioc->replace_stripe_src >= 0);
+	ASSERT_RBIO(rbio->bioc->replace_stripe_src >= 0, rbio);
 	for_each_set_bit(sectornr, pbitmap, rbio->stripe_nsectors) {
 		struct sector_ptr *sector;
 
