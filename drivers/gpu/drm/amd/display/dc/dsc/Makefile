@@ -29,6 +29,7 @@ DSC_DCN401 += dcn401_dsc.o
 
 AMD_DISPLAY_FILES += $(addprefix $(AMDDALPATH)/dc/dsc/dcn401/,$(DSC_DCN401))
 
+endif
 
 DSC = dc_dsc.o rc_calc.o rc_calc_dpi.o
 
@@ -36,4 +37,3 @@ AMD_DAL_DSC = $(addprefix $(AMDDALPATH)/dc/dsc/,$(DSC))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_DSC)
 
-endif
