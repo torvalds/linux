@@ -17,6 +17,7 @@
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_sriov_pf_helpers.h"
+#include "xe_gt_sriov_pf_monitor.h"
 #include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_pm.h"
@@ -55,6 +56,7 @@ static unsigned int extract_vfid(struct dentry *d)
  *      │   │   ├── doorbells_provisioned
  *      │   │   ├── runtime_registers
  *      │   │   ├── negotiated_versions
+ *      │   │   ├── adverse_events
  */
 
 static const struct drm_info_list pf_info[] = {
@@ -87,6 +89,11 @@ static const struct drm_info_list pf_info[] = {
 		"negotiated_versions",
 		.show = xe_gt_debugfs_simple_show,
 		.data = xe_gt_sriov_pf_service_print_version,
+	},
+	{
+		"adverse_events",
+		.show = xe_gt_debugfs_simple_show,
+		.data = xe_gt_sriov_pf_monitor_print_events,
 	},
 };
 
