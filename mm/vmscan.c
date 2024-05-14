@@ -128,6 +128,9 @@ struct scan_control {
 	unsigned int memcg_low_reclaim:1;
 	unsigned int memcg_low_skipped:1;
 
+	/* Shared cgroup tree walk failed, rescan the whole tree */
+	unsigned int memcg_full_walk:1;
+
 	unsigned int hibernation_mode:1;
 
 	/* One of the zones is ready for compaction */
@@ -5845,9 +5848,25 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
 static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
 {
 	struct mem_cgroup *target_memcg = sc->target_mem_cgroup;
+	struct mem_cgroup_reclaim_cookie reclaim = {
+		.pgdat = pgdat,
+	};
+	struct mem_cgroup_reclaim_cookie *partial = &reclaim;
 	struct mem_cgroup *memcg;
 
-	memcg = mem_cgroup_iter(target_memcg, NULL, NULL);
+	/*
+	 * In most cases, direct reclaimers can do partial walks
+	 * through the cgroup tree, using an iterator state that
+	 * persists across invocations. This strikes a balance between
+	 * fairness and allocation latency.
+	 *
+	 * For kswapd, reliable forward progress is more important
+	 * than a quick return to idle. Always do full walks.
+	 */
+	if (current_is_kswapd() || sc->memcg_full_walk)
+		partial = NULL;
+
+	memcg = mem_cgroup_iter(target_memcg, NULL, partial);
 	do {
 		struct lruvec *lruvec = mem_cgroup_lruvec(memcg, pgdat);
 		unsigned long reclaimed;
@@ -5897,7 +5916,12 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
 				   sc->nr_scanned - scanned,
 				   sc->nr_reclaimed - reclaimed);
 
-	} while ((memcg = mem_cgroup_iter(target_memcg, memcg, NULL)));
+		/* If partial walks are allowed, bail once goal is reached */
+		if (partial && sc->nr_reclaimed >= sc->nr_to_reclaim) {
+			mem_cgroup_iter_break(target_memcg, memcg);
+			break;
+		}
+	} while ((memcg = mem_cgroup_iter(target_memcg, memcg, partial)));
 }
 
 static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
@@ -6269,6 +6293,20 @@ retry:
 	/* Aborted reclaim to try compaction? don't OOM, then */
 	if (sc->compaction_ready)
 		return 1;
+
+	/*
+	 * In most cases, direct reclaimers can do partial walks
+	 * through the cgroup tree to meet the reclaim goal while
+	 * keeping latency low. Since the iterator state is shared
+	 * among all direct reclaim invocations (to retain fairness
+	 * among cgroups), though, high concurrency can result in
+	 * individual threads not seeing enough cgroups to make
+	 * meaningful forward progress. Avoid false OOMs in this case.
+	 */
+	if (!sc->memcg_full_walk) {
+		sc->memcg_full_walk = 1;
+		goto retry;
+	}
 
 	/*
 	 * We make inactive:active ratio decisions based on the node's
