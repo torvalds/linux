@@ -14,6 +14,32 @@ typedef struct {
 
 #define ATOMIC64_INIT(val)	{ (val) }
 
+/*
+ * Read an atomic64_t non-atomically.
+ *
+ * This is intended to be used in cases where a subsequent atomic operation
+ * will handle the torn value, and can be used to prime the first iteration
+ * of unconditional try_cmpxchg() loops, e.g.:
+ *
+ * 	s64 val = arch_atomic64_read_nonatomic(v);
+ * 	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val OP i);
+ *
+ * This is NOT safe to use where the value is not always checked by a
+ * subsequent atomic operation, such as in conditional try_cmpxchg() loops
+ * that can break before the atomic operation, e.g.:
+ *
+ * 	s64 val = arch_atomic64_read_nonatomic(v);
+ * 	do {
+ * 		if (condition(val))
+ * 			break;
+ * 	} while (!arch_atomic64_try_cmpxchg(v, &val, val OP i);
+ */
+static __always_inline s64 arch_atomic64_read_nonatomic(const atomic64_t *v)
+{
+	/* See comment in arch_atomic_read(). */
+	return __READ_ONCE(v->counter);
+}
+
 #define __ATOMIC64_DECL(sym) void atomic64_##sym(atomic64_t *, ...)
 #ifndef ATOMIC64_EXPORT
 #define ATOMIC64_DECL_ONE __ATOMIC64_DECL
@@ -61,11 +87,17 @@ ATOMIC64_DECL(add_unless);
 #undef __ATOMIC64_DECL
 #undef ATOMIC64_EXPORT
 
-static __always_inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 o, s64 n)
+static __always_inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
 {
-	return arch_cmpxchg64(&v->counter, o, n);
+	return arch_cmpxchg64(&v->counter, old, new);
 }
 #define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
+
+static __always_inline bool arch_atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
+{
+	return arch_try_cmpxchg64(&v->counter, old, new);
+}
+#define arch_atomic64_try_cmpxchg arch_atomic64_try_cmpxchg
 
 static __always_inline s64 arch_atomic64_xchg(atomic64_t *v, s64 n)
 {
@@ -195,69 +227,62 @@ static __always_inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 
 static __always_inline void arch_atomic64_and(s64 i, atomic64_t *v)
 {
-	s64 old, c = 0;
+	s64 val = arch_atomic64_read_nonatomic(v);
 
-	while ((old = arch_atomic64_cmpxchg(v, c, c & i)) != c)
-		c = old;
+	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val & i));
 }
 
 static __always_inline s64 arch_atomic64_fetch_and(s64 i, atomic64_t *v)
 {
-	s64 old, c = 0;
+	s64 val = arch_atomic64_read_nonatomic(v);
 
-	while ((old = arch_atomic64_cmpxchg(v, c, c & i)) != c)
-		c = old;
+	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val & i));
 
-	return old;
+	return val;
 }
 #define arch_atomic64_fetch_and arch_atomic64_fetch_and
 
 static __always_inline void arch_atomic64_or(s64 i, atomic64_t *v)
 {
-	s64 old, c = 0;
+	s64 val = arch_atomic64_read_nonatomic(v);
 
-	while ((old = arch_atomic64_cmpxchg(v, c, c | i)) != c)
-		c = old;
+	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val | i));
 }
 
 static __always_inline s64 arch_atomic64_fetch_or(s64 i, atomic64_t *v)
 {
-	s64 old, c = 0;
+	s64 val = arch_atomic64_read_nonatomic(v);
 
-	while ((old = arch_atomic64_cmpxchg(v, c, c | i)) != c)
-		c = old;
+	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val | i));
 
-	return old;
+	return val;
 }
 #define arch_atomic64_fetch_or arch_atomic64_fetch_or
 
 static __always_inline void arch_atomic64_xor(s64 i, atomic64_t *v)
 {
-	s64 old, c = 0;
+	s64 val = arch_atomic64_read_nonatomic(v);
 
-	while ((old = arch_atomic64_cmpxchg(v, c, c ^ i)) != c)
-		c = old;
+	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val ^ i));
 }
 
 static __always_inline s64 arch_atomic64_fetch_xor(s64 i, atomic64_t *v)
 {
-	s64 old, c = 0;
+	s64 val = arch_atomic64_read_nonatomic(v);
 
-	while ((old = arch_atomic64_cmpxchg(v, c, c ^ i)) != c)
-		c = old;
+	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val ^ i));
 
-	return old;
+	return val;
 }
 #define arch_atomic64_fetch_xor arch_atomic64_fetch_xor
 
 static __always_inline s64 arch_atomic64_fetch_add(s64 i, atomic64_t *v)
 {
-	s64 old, c = 0;
+	s64 val = arch_atomic64_read_nonatomic(v);
 
-	while ((old = arch_atomic64_cmpxchg(v, c, c + i)) != c)
-		c = old;
+	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val + i));
 
-	return old;
+	return val;
 }
 #define arch_atomic64_fetch_add arch_atomic64_fetch_add
 
