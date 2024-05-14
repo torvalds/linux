@@ -8,6 +8,7 @@
 
 #include "abi/guc_klvs_abi.h"
 #include "xe_guc_klv_helpers.h"
+#include "xe_guc_klv_thresholds_set.h"
 
 #define make_u64(hi, lo) ((u64)((u64)(u32)(hi) << 32 | (u32)(lo)))
 
@@ -48,6 +49,17 @@ const char *xe_guc_klv_key_to_string(u16 key)
 		return "begin_db_id";
 	case GUC_KLV_VF_CFG_BEGIN_CONTEXT_ID_KEY:
 		return "begin_ctx_id";
+
+	/* VF CFG threshold keys */
+#define define_threshold_key_to_string_case(TAG, NAME, ...)	\
+								\
+	case MAKE_GUC_KLV_VF_CFG_THRESHOLD_KEY(TAG):		\
+		return #NAME;
+
+	/* private: auto-generated case statements */
+	MAKE_XE_GUC_KLV_THRESHOLDS_SET(define_threshold_key_to_string_case)
+#undef define_threshold_key_to_string_case
+
 	default:
 		return "(unknown)";
 	}
