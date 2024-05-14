@@ -34,11 +34,8 @@
 static void cifs_set_netfs_context(struct inode *inode)
 {
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
 	netfs_inode_init(&cifs_i->netfs, &cifs_req_ops, true);
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO)
-		__set_bit(NETFS_ICTX_WRITETHROUGH, &cifs_i->netfs.flags);
 }
 
 static void cifs_set_ops(struct inode *inode)
