@@ -112,7 +112,9 @@
 #include "amdgpu_xcp.h"
 #include "amdgpu_seq64.h"
 #include "amdgpu_reg_state.h"
+#if defined(CONFIG_DRM_AMD_ISP)
 #include "amdgpu_isp.h"
+#endif
 
 #define MAX_GPU_INSTANCE		64
 
@@ -1048,8 +1050,10 @@ struct amdgpu_device {
 	/* display related functionality */
 	struct amdgpu_display_manager dm;
 
+#if defined(CONFIG_DRM_AMD_ISP)
 	/* isp */
 	struct amdgpu_isp		isp;
+#endif
 
 	/* mes */
 	bool                            enable_mes;
