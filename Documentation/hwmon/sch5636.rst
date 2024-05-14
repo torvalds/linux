@@ -1,0 +1,37 @@
+Kernel driver sch5636
+=====================
+
+Supported chips:
+
+  * SMSC SCH5636
+
+    Prefix: 'sch5636'
+
+    Addresses scanned: none, address read from Super I/O config space
+
+Author: Hans de Goede <hdegoede@redhat.com>
+
+
+Description
+-----------
+
+SMSC SCH5636 Super I/O chips include an embedded microcontroller for
+hardware monitoring solutions, allowing motherboard manufacturers to create
+their own custom hwmon solution based upon the SCH5636.
+
+Currently the sch5636 driver only supports the Fujitsu Theseus SCH5636 based
+hwmon solution. The sch5636 driver runs a sanity check on loading to ensure
+it is dealing with a Fujitsu Theseus and not with another custom SCH5636 based
+hwmon solution.
+
+The Fujitsu Theseus can monitor up to 5 voltages, 8 fans and 16
+temperatures. Note that the driver detects how many fan headers /
+temperature sensors are actually implemented on the motherboard, so you will
+likely see fewer temperature and fan inputs.
+
+The Fujitsu Theseus hwmon solution also contains an integrated watchdog.
+This watchdog is fully supported by the sch5636 driver.
+
+An application note describing the Theseus' registers, as well as an
+application note describing the protocol for communicating with the
+microcontroller is available upon request. Please mail me if you want a copy.

@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config MT7601U
+	tristate "MediaTek MT7601U (USB) support"
+	depends on MAC80211
+	depends on USB
+	help
+	  This adds support for MT7601U-based wireless USB dongles.

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Hid Sensor common modules
+#
+menu "Hid Sensor IIO Common"
+
+config HID_SENSOR_IIO_COMMON
+	tristate "Common modules for all HID Sensor IIO drivers"
+	depends on HID_SENSOR_HUB
+	select HID_SENSOR_IIO_TRIGGER if IIO_BUFFER
+	help
+	  Say yes here to build support for HID sensor to use
+	  HID sensor common processing for attributes and IIO triggers.
+	  There are many attributes which can be shared among multiple
+	  HID sensor drivers, this module contains processing for those
+	  attributes.
+
+config HID_SENSOR_IIO_TRIGGER
+	tristate "Common module (trigger) for all HID Sensor IIO drivers"
+	depends on HID_SENSOR_HUB && HID_SENSOR_IIO_COMMON && IIO_BUFFER
+	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build trigger support for HID sensors.
+	  Triggers will be send if all requested attributes were read.
+
+	  If this driver is compiled as a module, it will be named
+	  hid-sensor-trigger.
+
+endmenu

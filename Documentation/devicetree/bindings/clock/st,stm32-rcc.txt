@@ -1,0 +1,138 @@
+STMicroelectronics STM32 Reset and Clock Controller
+===================================================
+
+The RCC IP is both a reset and a clock controller.
+
+Please refer to clock-bindings.txt for common clock controller binding usage.
+Please also refer to reset.txt for common reset controller binding usage.
+
+Required properties:
+- compatible: Should be:
+  "st,stm32f42xx-rcc"
+  "st,stm32f469-rcc"
+  "st,stm32f746-rcc"
+  "st,stm32f769-rcc"
+
+- reg: should be register base and length as documented in the
+  datasheet
+- #reset-cells: 1, see below
+- #clock-cells: 2, device nodes should specify the clock in their "clocks"
+  property, containing a phandle to the clock device node, an index selecting
+  between gated clocks and other clocks and an index specifying the clock to
+  use.
+- clocks: External oscillator clock phandle
+  - high speed external clock signal (HSE)
+  - external I2S clock (I2S_CKIN)
+
+Example:
+
+	rcc: rcc@40023800 {
+		#reset-cells = <1>;
+		#clock-cells = <2>
+		compatible = "st,stm32f42xx-rcc", "st,stm32-rcc";
+		reg = <0x40023800 0x400>;
+		clocks = <&clk_hse>, <&clk_i2s_ckin>;
+	};
+
+Specifying gated clocks
+=======================
+
+The primary index must be set to 0.
+
+The secondary index is the bit number within the RCC register bank, starting
+from the first RCC clock enable register (RCC_AHB1ENR, address offset 0x30).
+
+It is calculated as: index = register_offset / 4 * 32 + bit_offset.
+Where bit_offset is the bit offset within the register (LSB is 0, MSB is 31).
+
+To simplify the usage and to share bit definition with the reset and clock
+drivers of the RCC IP, macros are available to generate the index in
+human-readble format.
+
+For STM32F4 series, the macro are available here:
+ - include/dt-bindings/mfd/stm32f4-rcc.h
+
+Example:
+
+	/* Gated clock, AHB1 bit 0 (GPIOA) */
+	... {
+		clocks = <&rcc 0 STM32F4_AHB1_CLOCK(GPIOA)>
+	};
+
+	/* Gated clock, AHB2 bit 4 (CRYP) */
+	... {
+		clocks = <&rcc 0 STM32F4_AHB2_CLOCK(CRYP)>
+	};
+
+Specifying other clocks
+=======================
+
+The primary index must be set to 1.
+
+The secondary index is bound with the following magic numbers:
+
+	0	SYSTICK
+	1	FCLK
+	2	CLK_LSI		(low-power clock source)
+	3	CLK_LSE		(generated from a 32.768 kHz low-speed external
+				 crystal or ceramic resonator)
+	4	CLK_HSE_RTC	(HSE division factor for RTC clock)
+	5	CLK_RTC		(real-time clock)
+	6	PLL_VCO_I2S	(vco frequency of I2S pll)
+	7	PLL_VCO_SAI	(vco frequency of SAI pll)
+	8	CLK_LCD		(LCD-TFT)
+	9	CLK_I2S		(I2S clocks)
+	10	CLK_SAI1	(audio clocks)
+	11	CLK_SAI2
+	12	CLK_I2SQ_PDIV	(post divisor of pll i2s q divisor)
+	13	CLK_SAIQ_PDIV	(post divisor of pll sai q divisor)
+
+	14	CLK_HSI		(Internal ocscillator clock)
+	15	CLK_SYSCLK	(System Clock)
+	16	CLK_HDMI_CEC	(HDMI-CEC clock)
+	17	CLK_SPDIF	(SPDIF-Rx clock)
+	18	CLK_USART1	(U(s)arts clocks)
+	19	CLK_USART2
+	20	CLK_USART3
+	21	CLK_UART4
+	22	CLK_UART5
+	23	CLK_USART6
+	24	CLK_UART7
+	25	CLK_UART8
+	26	CLK_I2C1	(I2S clocks)
+	27	CLK_I2C2
+	28	CLK_I2C3
+	29	CLK_I2C4
+	30	CLK_LPTIMER	(LPTimer1 clock)
+	31	CLK_PLL_SRC
+	32	CLK_DFSDM1
+	33	CLK_ADFSDM1
+	34	CLK_F769_DSI
+)
+
+Example:
+
+	/* Misc clock, FCLK */
+	... {
+		clocks = <&rcc 1 STM32F4_APB1_CLOCK(TIM2)>
+	};
+
+
+Specifying softreset control of devices
+=======================================
+
+Device nodes should specify the reset channel required in their "resets"
+property, containing a phandle to the reset device node and an index specifying
+which channel to use.
+The index is the bit number within the RCC registers bank, starting from RCC
+base address.
+It is calculated as: index = register_offset / 4 * 32 + bit_offset.
+Where bit_offset is the bit offset within the register.
+For example, for CRC reset:
+  crc = AHB1RSTR_offset / 4 * 32 + CRCRST_bit_offset = 0x10 / 4 * 32 + 12 = 140
+
+example:
+
+	timer2 {
+		resets	= <&rcc STM32F4_APB1_RESET(TIM2)>;
+	};

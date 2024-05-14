@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config BOSCH_BNO055
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config BOSCH_BNO055_SERIAL
+	tristate "Bosch BNO055 attached via UART"
+	depends on SERIAL_DEV_BUS
+	select BOSCH_BNO055
+	help
+	  Enable this to support Bosch BNO055 IMUs attached via UART.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called bno055_sl.
+
+config BOSCH_BNO055_I2C
+	tristate "Bosch BNO055 attached via I2C bus"
+	depends on I2C
+	select REGMAP_I2C
+	select BOSCH_BNO055
+	help
+	  Enable this to support Bosch BNO055 IMUs attached via I2C bus.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called bno055_i2c.

@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+if ARCH_ASPEED || COMPILE_TEST
+
+menu "ASPEED SoC drivers"
+
+config ASPEED_LPC_CTRL
+	tristate "ASPEED LPC firmware cycle control"
+	select REGMAP
+	select MFD_SYSCON
+	default ARCH_ASPEED
+	help
+	  Control LPC firmware cycle mappings through ioctl()s. The driver
+	  also provides a read/write interface to a BMC ram region where the
+	  host LPC read/write region can be buffered.
+
+config ASPEED_LPC_SNOOP
+	tristate "ASPEED LPC snoop support"
+	select REGMAP
+	select MFD_SYSCON
+	default ARCH_ASPEED
+	help
+	  Provides a driver to control the LPC snoop interface which
+	  allows the BMC to listen on and save the data written by
+	  the host to an arbitrary LPC I/O port.
+
+config ASPEED_UART_ROUTING
+	tristate "ASPEED uart routing control"
+	select REGMAP
+	select MFD_SYSCON
+	default ARCH_ASPEED
+	help
+	  Provides a driver to control the UART routing paths, allowing
+	  users to perform runtime configuration of the RX muxes among
+	  the UART controllers and I/O pins.
+
+config ASPEED_P2A_CTRL
+	tristate "ASPEED P2A (VGA MMIO to BMC) bridge control"
+	select REGMAP
+	select MFD_SYSCON
+	default ARCH_ASPEED
+	help
+	  Control ASPEED P2A VGA MMIO to BMC mappings through ioctl()s.  The
+	  driver also provides an interface for userspace mappings to a
+	  pre-defined region.
+
+config ASPEED_SOCINFO
+	bool "ASPEED SoC Information driver"
+	default ARCH_ASPEED
+	select SOC_BUS
+	default ARCH_ASPEED
+	help
+	  Say yes to support decoding of ASPEED BMC information.
+
+endmenu
+
+endif

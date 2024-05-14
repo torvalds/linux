@@ -1,0 +1,78 @@
+RT5677 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt5677".
+
+- reg : The I2C address of the device.
+
+- interrupts : The CODEC's interrupt output.
+
+- gpio-controller : Indicates this device is a GPIO controller.
+
+- #gpio-cells : Should be two. The first cell is the pin number and the
+  second cell is used to specify optional parameters (currently unused).
+
+Optional properties:
+
+- realtek,pow-ldo2-gpio : The GPIO that controls the CODEC's POW_LDO2 pin.
+- realtek,reset-gpio : The GPIO that controls the CODEC's RESET pin. Active low.
+
+- realtek,in1-differential
+- realtek,in2-differential
+- realtek,lout1-differential
+- realtek,lout2-differential
+- realtek,lout3-differential
+  Boolean. Indicate MIC1/2 input and LOUT1/2/3 outputs are differential,
+  rather than single-ended.
+
+- realtek,gpio-config
+  Array of six 8bit elements that configures GPIO.
+    0 - floating (reset value)
+    1 - pull down
+    2 - pull up
+
+- realtek,jd1-gpio
+  Configures GPIO Mic Jack detection 1.
+  Select 0 ~ 3 as OFF, GPIO1, GPIO2 and GPIO3 respectively.
+
+- realtek,jd2-gpio
+- realtek,jd3-gpio
+  Configures GPIO Mic Jack detection 2 and 3.
+  Select 0 ~ 3 as OFF, GPIO4, GPIO5 and GPIO6 respectively.
+
+Pins on the device (for linking into audio routes):
+
+  * IN1P
+  * IN1N
+  * IN2P
+  * IN2N
+  * MICBIAS1
+  * DMIC1
+  * DMIC2
+  * DMIC3
+  * DMIC4
+  * LOUT1
+  * LOUT2
+  * LOUT3
+
+Example:
+
+rt5677 {
+	compatible = "realtek,rt5677";
+	reg = <0x2c>;
+	interrupt-parent = <&gpio>;
+	interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_HIGH>;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+
+	realtek,pow-ldo2-gpio =
+		<&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+	realtek,reset-gpio = <&gpio TEGRA_GPIO(BB, 3) GPIO_ACTIVE_LOW>;
+	realtek,in1-differential = "true";
+	realtek,gpio-config = /bits/ 8  <0 0 0 0 0 2>;   /* pull up GPIO6 */
+	realtek,jd2-gpio = <3>;  /* Enables Jack detection for GPIO6 */
+};

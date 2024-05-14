@@ -1,0 +1,24 @@
+What:		/sys/bus/platform/drivers/aspeed-vuart/*/lpc_address
+Date:		April 2017
+Contact:	Jeremy Kerr <jk@ozlabs.org>
+Description:	Configures which IO port the host side of the UART
+		will appear on the host <-> BMC LPC bus.
+Users:		OpenBMC.  Proposed changes should be mailed to
+		openbmc@lists.ozlabs.org
+
+What:		/sys/bus/platform/drivers/aspeed-vuart/*/sirq
+Date:		April 2017
+Contact:	Jeremy Kerr <jk@ozlabs.org>
+Description:	Configures which interrupt number the host side of
+		the UART will appear on the host <-> BMC LPC bus.
+Users:		OpenBMC.  Proposed changes should be mailed to
+		openbmc@lists.ozlabs.org
+
+What:		/sys/bus/platform/drivers/aspeed-vuart/*/sirq_polarity
+Date:		July 2019
+Contact:	Oskar Senft <osk@google.com>
+Description:	Configures the polarity of the serial interrupt to the
+		host via the BMC LPC bus.
+		Set to 0 for active-low or 1 for active-high.
+Users:		OpenBMC.  Proposed changes should be mailed to
+		openbmc@lists.ozlabs.org

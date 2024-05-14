@@ -1,0 +1,158 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,rpmcc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm RPM Clock Controller
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+
+description: |
+  The clock enumerators are defined in <dt-bindings/clock/qcom,rpmcc.h> and
+  come in pairs:: FOO_CLK followed by FOO_A_CLK. The latter clock is
+  an "active" clock, which means that the consumer only care that the clock is
+  available when the apps CPU subsystem is active, i.e. not suspended or in
+  deep idle. If it is important that the clock keeps running during system
+  suspend, you need to specify the non-active clock, the one not containing
+  *_A_* in the enumerator name.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,rpmcc-apq8060
+          - qcom,rpmcc-apq8064
+          - qcom,rpmcc-ipq806x
+          - qcom,rpmcc-mdm9607
+          - qcom,rpmcc-msm8226
+          - qcom,rpmcc-msm8660
+          - qcom,rpmcc-msm8909
+          - qcom,rpmcc-msm8916
+          - qcom,rpmcc-msm8936
+          - qcom,rpmcc-msm8953
+          - qcom,rpmcc-msm8974
+          - qcom,rpmcc-msm8976
+          - qcom,rpmcc-msm8992
+          - qcom,rpmcc-msm8994
+          - qcom,rpmcc-msm8996
+          - qcom,rpmcc-msm8998
+          - qcom,rpmcc-qcm2290
+          - qcom,rpmcc-qcs404
+          - qcom,rpmcc-sdm660
+          - qcom,rpmcc-sm6115
+          - qcom,rpmcc-sm6125
+          - qcom,rpmcc-sm6375
+      - const: qcom,rpmcc
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+
+required:
+  - compatible
+  - '#clock-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,rpmcc-apq8060
+              - qcom,rpmcc-ipq806x
+              - qcom,rpmcc-msm8660
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: pxo clock
+
+        clock-names:
+          items:
+            - const: pxo
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,rpmcc-apq8064
+    then:
+      properties:
+        clocks:
+          items:
+            - description: pxo clock
+            - description: cxo clock
+
+        clock-names:
+          items:
+            - const: pxo
+            - const: cxo
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,rpmcc-mdm9607
+              - qcom,rpmcc-msm8226
+              - qcom,rpmcc-msm8916
+              - qcom,rpmcc-msm8936
+              - qcom,rpmcc-msm8953
+              - qcom,rpmcc-msm8974
+              - qcom,rpmcc-msm8976
+              - qcom,rpmcc-msm8992
+              - qcom,rpmcc-msm8994
+              - qcom,rpmcc-msm8996
+              - qcom,rpmcc-msm8998
+              - qcom,rpmcc-qcm2290
+              - qcom,rpmcc-qcs404
+              - qcom,rpmcc-sdm660
+              - qcom,rpmcc-sm6115
+              - qcom,rpmcc-sm6125
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: xo clock
+
+        clock-names:
+          items:
+            - const: xo
+
+additionalProperties: false
+
+examples:
+  - |
+    rpm {
+        rpm-requests {
+            compatible = "qcom,rpm-msm8916";
+            qcom,smd-channels = "rpm_requests";
+
+            clock-controller {
+                compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
+                #clock-cells = <1>;
+            };
+        };
+    };
+
+  - |
+    rpm {
+        clock-controller {
+            compatible = "qcom,rpmcc-ipq806x", "qcom,rpmcc";
+            #clock-cells = <1>;
+            clocks = <&pxo_board>;
+            clock-names = "pxo";
+        };
+    };

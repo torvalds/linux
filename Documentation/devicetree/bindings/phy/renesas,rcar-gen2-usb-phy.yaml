@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/renesas,rcar-gen2-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car Gen2 USB PHY
+
+maintainers:
+  - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,usb-phy-r8a7742      # RZ/G1H
+          - renesas,usb-phy-r8a7743      # RZ/G1M
+          - renesas,usb-phy-r8a7744      # RZ/G1N
+          - renesas,usb-phy-r8a7745      # RZ/G1E
+          - renesas,usb-phy-r8a77470     # RZ/G1C
+          - renesas,usb-phy-r8a7790      # R-Car H2
+          - renesas,usb-phy-r8a7791      # R-Car M2-W
+          - renesas,usb-phy-r8a7794      # R-Car E2
+      - const: renesas,rcar-gen2-usb-phy # R-Car Gen2 or RZ/G1
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: usbhs
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+patternProperties:
+  "^usb-phy@[02]$":
+    type: object
+    description: Subnode corresponding to a USB channel.
+
+    properties:
+      reg:
+        description: FIXME RZ/G1C supports channel 0 only
+        enum: [0, 2]
+
+      '#phy-cells':
+        description: |
+          The phandle's argument in the PHY specifier is the USB controller
+          selector for the USB channel.
+          For RZ/G1C:
+            - 0 for EHCI/OHCI
+            - 1 for HS-USB
+          For all other SoCS:
+            - 0 for PCI EHCI/OHCI
+            - 1 for HS-USB (channel 0) or xHCI (channel 2)
+        const: 1
+
+    required:
+      - reg
+      - '#phy-cells'
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+  - clocks
+  - clock-names
+  - resets
+  - power-domains
+  - usb-phy@0
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: renesas,usb-phy-r8a77470
+then:
+  properties:
+    usb-phy@2: false
+else:
+  required:
+    - usb-phy@2
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
+    #include <dt-bindings/power/r8a7790-sysc.h>
+    usb-phy-controller@e6590100 {
+        compatible = "renesas,usb-phy-r8a7790", "renesas,rcar-gen2-usb-phy";
+        reg = <0xe6590100 0x100>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        clocks = <&cpg CPG_MOD 704>;
+        clock-names = "usbhs";
+        power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+        resets = <&cpg 704>;
+
+        usb0: usb-phy@0 {
+            reg = <0>;
+            #phy-cells = <1>;
+        };
+        usb2: usb-phy@2 {
+            reg = <2>;
+            #phy-cells = <1>;
+        };
+    };

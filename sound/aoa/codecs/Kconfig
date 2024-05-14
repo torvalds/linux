@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_AOA_ONYX
+	tristate "support Onyx chip"
+	select I2C
+	select I2C_POWERMAC
+	help
+	This option enables support for the Onyx (pcm3052)
+	codec chip found in the latest Apple machines
+	(most of those with digital audio output).
+
+config SND_AOA_TAS
+	tristate "support TAS chips"
+	select I2C
+	select I2C_POWERMAC
+	help
+	This option enables support for the tas chips
+	found in a lot of Apple Machines, especially
+	iBooks and PowerBooks without digital.
+
+config SND_AOA_TOONIE
+	tristate "support Toonie chip"
+	help
+	This option enables support for the toonie codec
+	found in the Mac Mini. If you have a Mac Mini and
+	want to hear sound, select this option.

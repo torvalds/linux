@@ -1,0 +1,267 @@
+[
+  {
+    "EventCode": "0x10016",
+    "EventName": "PM_VSU0_ISSUE",
+    "BriefDescription": "VSU instruction issued to VSU pipe 0."
+  },
+  {
+    "EventCode": "0x1001C",
+    "EventName": "PM_ULTRAVISOR_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in ultravisor state."
+  },
+  {
+    "EventCode": "0x100F0",
+    "EventName": "PM_CYC",
+    "BriefDescription": "Processor cycles."
+  },
+  {
+    "EventCode": "0x10134",
+    "EventName": "PM_MRK_ST_DONE_L2",
+    "BriefDescription": "Marked store completed in L2."
+  },
+  {
+    "EventCode": "0x1505E",
+    "EventName": "PM_LD_HIT_L1",
+    "BriefDescription": "Load finished without experiencing an L1 miss."
+  },
+  {
+    "EventCode": "0x1F056",
+    "EventName": "PM_DISP_SS0_2_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 1 or 2 instructions."
+  },
+  {
+    "EventCode": "0x10066",
+    "EventName": "PM_ADJUNCT_CYC",
+    "BriefDescription": "Cycles in which the thread is in Adjunct state. MSR[S HV PR] bits = 011."
+  },
+  {
+    "EventCode": "0x101E4",
+    "EventName": "PM_MRK_L1_ICACHE_MISS",
+    "BriefDescription": "Marked instruction suffered an instruction cache miss."
+  },
+  {
+    "EventCode": "0x101EA",
+    "EventName": "PM_MRK_L1_RELOAD_VALID",
+    "BriefDescription": "Marked demand reload."
+  },
+  {
+    "EventCode": "0x100F4",
+    "EventName": "PM_FLOP_CMPL",
+    "BriefDescription": "Floating Point Operations Completed. Includes any type. It counts once for each 1, 2, 4 or 8 flop instruction. Use PM_1|2|4|8_FLOP_CMPL events to count flops."
+  },
+  {
+    "EventCode": "0x100FA",
+    "EventName": "PM_RUN_LATCH_ANY_THREAD_CYC",
+    "BriefDescription": "Cycles when at least one thread has the run latch set."
+  },
+  {
+    "EventCode": "0x100FC",
+    "EventName": "PM_LD_REF_L1",
+    "BriefDescription": "All L1 D cache load references counted at finish, gated by reject. In P9 and earlier this event counted only cacheable loads but in P10 both cacheable and non-cacheable loads are included."
+  },
+  {
+    "EventCode": "0x2000C",
+    "EventName": "PM_RUN_LATCH_ALL_THREADS_CYC",
+    "BriefDescription": "Cycles when the run latch is set for all threads."
+  },
+  {
+    "EventCode": "0x2E010",
+    "EventName": "PM_ADJUNCT_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in Adjunct state."
+  },
+  {
+    "EventCode": "0x2E014",
+    "EventName": "PM_STCX_FIN",
+    "BriefDescription": "Conditional store instruction (STCX) finished. LARX and STCX are instructions used to acquire a lock."
+  },
+  {
+    "EventCode": "0x20130",
+    "EventName": "PM_MRK_INST_DECODED",
+    "BriefDescription": "An instruction was marked at decode time. Random Instruction Sampling (RIS) only."
+  },
+  {
+    "EventCode": "0x20132",
+    "EventName": "PM_MRK_DFU_ISSUE",
+    "BriefDescription": "The marked instruction was a decimal floating point operation issued to the VSU. Measured at issue time."
+  },
+  {
+    "EventCode": "0x20134",
+    "EventName": "PM_MRK_FXU_ISSUE",
+    "BriefDescription": "The marked instruction was a fixed point operation issued to the VSU. Measured at issue time."
+  },
+  {
+    "EventCode": "0x2505C",
+    "EventName": "PM_VSU_ISSUE",
+    "BriefDescription": "At least one VSU instruction was issued to one of the VSU pipes. Up to 4 per cycle. Includes fixed point operations."
+  },
+  {
+    "EventCode": "0x2F054",
+    "EventName": "PM_DISP_SS1_2_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 1 dispatches either 1 or 2 instructions."
+  },
+  {
+    "EventCode": "0x2F056",
+    "EventName": "PM_DISP_SS1_4_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 1 dispatches either 3 or 4 instructions."
+  },
+  {
+    "EventCode": "0x2006C",
+    "EventName": "PM_RUN_CYC_SMT4_MODE",
+    "BriefDescription": "Cycles when this thread's run latch is set and the core is in SMT4 mode."
+  },
+  {
+    "EventCode": "0x201E0",
+    "EventName": "PM_MRK_DATA_FROM_MEMORY",
+    "BriefDescription": "The processor's data cache was reloaded from local, remote, or distant memory due to a demand miss for a marked load."
+  },
+  {
+    "EventCode": "0x201E4",
+    "EventName": "PM_MRK_DATA_FROM_L3MISS",
+    "BriefDescription": "The processor's L1 data cache was reloaded from beyond the local core's L3 due to a demand miss for a marked instruction."
+  },
+  {
+    "EventCode": "0x201E8",
+    "EventName": "PM_THRESH_EXC_512",
+    "BriefDescription": "Threshold counter exceeded a value of 512."
+  },
+  {
+    "EventCode": "0x200F2",
+    "EventName": "PM_INST_DISP",
+    "BriefDescription": "PowerPC instruction dispatched."
+  },
+  {
+    "EventCode": "0x30132",
+    "EventName": "PM_MRK_VSU_FIN",
+    "BriefDescription": "VSU marked instruction finished. Excludes simple FX instructions issued to the Store Unit."
+  },
+  {
+    "EventCode": "0x30038",
+    "EventName": "PM_EXEC_STALL_DMISS_LMEM",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from the local memory, local OpenCAPI cache, or local OpenCAPI memory."
+  },
+  {
+    "EventCode": "0x3F04A",
+    "EventName": "PM_LSU_ST5_FIN",
+    "BriefDescription": "LSU Finished an internal operation in ST2 port."
+  },
+  {
+    "EventCode": "0x3405A",
+    "EventName": "PM_PRIVILEGED_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in Privileged state."
+  },
+  {
+    "EventCode": "0x3F150",
+    "EventName": "PM_MRK_ST_DRAIN_CYC",
+    "BriefDescription": "Cycles in which the marked store drained from the core to the L2."
+  },
+  {
+    "EventCode": "0x3F054",
+    "EventName": "PM_DISP_SS0_4_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 3 or 4 instructions."
+  },
+  {
+    "EventCode": "0x3F056",
+    "EventName": "PM_DISP_SS0_8_INSTR_CYC",
+    "BriefDescription": "Cycles in which Superslice 0 dispatches either 5, 6, 7 or 8 instructions."
+  },
+  {
+    "EventCode": "0x30162",
+    "EventName": "PM_MRK_ISSUE_DEPENDENT_LOAD",
+    "BriefDescription": "The marked instruction was dependent on a load. It is eligible for issue kill."
+  },
+  {
+    "EventCode": "0x40114",
+    "EventName": "PM_MRK_START_PROBE_NOP_DISP",
+    "BriefDescription": "Marked Start probe nop dispatched. Instruction AND R0,R0,R0."
+  },
+  {
+    "EventCode": "0x4001C",
+    "EventName": "PM_VSU_FIN",
+    "BriefDescription": "VSU instruction finished."
+  },
+  {
+    "EventCode": "0x4C01A",
+    "EventName": "PM_EXEC_STALL_DMISS_OFF_NODE",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from a distant chip."
+  },
+  {
+    "EventCode": "0x4D012",
+    "EventName": "PM_PMC3_SAVED",
+    "BriefDescription": "The conditions for the speculative event selected for PMC3 are met and PMC3 is charged."
+  },
+  {
+    "EventCode": "0x4D022",
+    "EventName": "PM_HYPERVISOR_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in hypervisor state."
+  },
+  {
+    "EventCode": "0x4D026",
+    "EventName": "PM_ULTRAVISOR_CYC",
+    "BriefDescription": "Cycles when the thread is in Ultravisor state. MSR[S HV PR]=110."
+  },
+  {
+    "EventCode": "0x4D028",
+    "EventName": "PM_PRIVILEGED_CYC",
+    "BriefDescription": "Cycles when the thread is in Privileged state. MSR[S HV PR]=x00."
+  },
+  {
+    "EventCode": "0x40030",
+    "EventName": "PM_INST_FIN",
+    "BriefDescription": "Instruction finished."
+  },
+  {
+    "EventCode": "0x44146",
+    "EventName": "PM_MRK_STCX_CORE_CYC",
+    "BriefDescription": "Cycles spent in the core portion of a marked STCX instruction. It starts counting when the instruction is decoded and stops counting when it drains into the L2."
+  },
+  {
+    "EventCode": "0x44054",
+    "EventName": "PM_VECTOR_LD_CMPL",
+    "BriefDescription": "Vector load instruction completed."
+  },
+  {
+    "EventCode": "0x45054",
+    "EventName": "PM_FMA_CMPL",
+    "BriefDescription": "Two floating point instruction completed (FMA class of instructions: fmadd, fnmadd, fmsub, fnmsub). Scalar instructions only."
+  },
+  {
+    "EventCode": "0x45056",
+    "EventName": "PM_SCALAR_FLOP_CMPL",
+    "BriefDescription": "Scalar floating point instruction completed."
+  },
+  {
+    "EventCode": "0x4505C",
+    "EventName": "PM_MATH_FLOP_CMPL",
+    "BriefDescription": "Math floating point instruction completed."
+  },
+  {
+    "EventCode": "0x4D05E",
+    "EventName": "PM_BR_CMPL",
+    "BriefDescription": "A branch completed. All branches are included."
+  },
+  {
+    "EventCode": "0x4E15E",
+    "EventName": "PM_MRK_INST_FLUSHED",
+    "BriefDescription": "The marked instruction was flushed."
+  },
+  {
+    "EventCode": "0x401E6",
+    "EventName": "PM_MRK_INST_FROM_L3MISS",
+    "BriefDescription": "The processor's instruction cache was reloaded from beyond the local core's L3 due to a demand miss for a marked instruction."
+  },
+  {
+    "EventCode": "0x401E8",
+    "EventName": "PM_MRK_DATA_FROM_L2MISS",
+    "BriefDescription": "The processor's L1 data cache was reloaded from a source beyond the local core's L2 due to a demand miss for a marked instruction."
+  },
+  {
+    "EventCode": "0x400F0",
+    "EventName": "PM_LD_DEMAND_MISS_L1_FIN",
+    "BriefDescription": "Load missed L1, counted at finish time."
+  },
+  {
+    "EventCode": "0x400FA",
+    "EventName": "PM_RUN_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the run latch is set."
+  }
+]

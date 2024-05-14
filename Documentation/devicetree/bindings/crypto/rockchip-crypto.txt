@@ -1,0 +1,28 @@
+Rockchip Electronics And Security Accelerator
+
+Required properties:
+- compatible: Should be "rockchip,rk3288-crypto"
+- reg: Base physical address of the engine and length of memory mapped
+       region
+- interrupts: Interrupt number
+- clocks: Reference to the clocks about crypto
+- clock-names: "aclk" used to clock data
+	       "hclk" used to clock data
+	       "sclk" used to clock crypto accelerator
+	       "apb_pclk" used to clock dma
+- resets: Must contain an entry for each entry in reset-names.
+	  See ../reset/reset.txt for details.
+- reset-names: Must include the name "crypto-rst".
+
+Examples:
+
+	crypto: cypto-controller@ff8a0000 {
+		compatible = "rockchip,rk3288-crypto";
+		reg = <0xff8a0000 0x4000>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_CRYPTO>, <&cru HCLK_CRYPTO>,
+			 <&cru SCLK_CRYPTO>, <&cru ACLK_DMAC1>;
+		clock-names = "aclk", "hclk", "sclk", "apb_pclk";
+		resets = <&cru SRST_CRYPTO>;
+		reset-names = "crypto-rst";
+	};

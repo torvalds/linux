@@ -1,0 +1,175 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2019 Analog Devices Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/adi,ad7476.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AD7476 and similar simple SPI ADCs from multiple manufacturers.
+
+maintainers:
+  - Michael Hennerich <michael.hennerich@analog.com>
+
+description: |
+  A lot of simple SPI ADCs have very straight forward interfaces.
+  They typically don't provide a MOSI pin, simply reading out data
+  on MISO when the clock toggles.
+
+properties:
+  compatible:
+    enum:
+      - adi,ad7091
+      - adi,ad7091r
+      - adi,ad7273
+      - adi,ad7274
+      - adi,ad7276
+      - adi,ad7277
+      - adi,ad7278
+      - adi,ad7466
+      - adi,ad7467
+      - adi,ad7468
+      - adi,ad7475
+      - adi,ad7476
+      - adi,ad7476a
+      - adi,ad7477
+      - adi,ad7477a
+      - adi,ad7478
+      - adi,ad7478a
+      - adi,ad7495
+      - adi,ad7910
+      - adi,ad7920
+      - adi,ad7940
+      - ti,adc081s
+      - ti,adc101s
+      - ti,adc121s
+      - ti,ads7866
+      - ti,ads7867
+      - ti,ads7868
+      - lltc,ltc2314-14
+
+  reg:
+    maxItems: 1
+
+  vcc-supply:
+    description:
+      Main powersupply voltage for the chips, sometimes referred to as VDD on
+      datasheets.  If there is no separate vref-supply, then this is needed
+      to establish channel scaling.
+
+  vdrive-supply:
+    description:
+      Some devices have separate supply for their digital control side.
+
+  vref-supply:
+    description:
+      Some devices have a specific reference voltage supplied on a different pin
+      to the other supplies. Needed to be able to establish channel scaling
+      unless there is also an internal reference available (e.g. ad7091r)
+
+  adi,conversion-start-gpios:
+    description: A GPIO used to trigger the start of a conversion
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+  # Devices where reference is vcc
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7091
+              - adi,ad7276
+              - adi,ad7277
+              - adi,ad7278
+              - adi,ad7466
+              - adi,ad7467
+              - adi,ad7468
+              - adi,ad7940
+              - ti,adc081s
+              - ti,adc101s
+              - ti,adc121s
+              - ti,ads7866
+              - ti,ads7868
+    then:
+      required:
+        - vcc-supply
+  # Devices with a vref
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7091r
+              - adi,ad7273
+              - adi,ad7274
+              - adi,ad7475
+              - lltc,ltc2314-14
+    then:
+      properties:
+        vref-supply: true
+    else:
+      properties:
+        vref-supply: false
+  # Devices with a vref where it is not optional
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7273
+              - adi,ad7274
+              - adi,ad7475
+              - lltc,ltc2314-14
+    then:
+      required:
+        - vref-supply
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7475
+              - adi,ad7495
+    then:
+      properties:
+        vdrive-supply: true
+    else:
+      properties:
+        vdrive-supply: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7091
+              - adi,ad7091r
+    then:
+      properties:
+        adi,conversion-start-gpios: true
+    else:
+      properties:
+        adi,conversion-start-gpios: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      adc@0 {
+        compatible = "adi,ad7091r";
+        reg = <0>;
+        spi-max-frequency = <5000000>;
+        vcc-supply = <&adc_vcc>;
+        vref-supply = <&adc_vref>;
+      };
+    };
+...

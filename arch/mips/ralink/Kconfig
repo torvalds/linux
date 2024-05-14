@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: GPL-2.0
+if RALINK
+
+config CLKEVT_RT3352
+	bool
+	depends on SOC_RT305X || SOC_MT7620
+	default y
+	select TIMER_OF
+	select CLKSRC_MMIO
+
+config RALINK_ILL_ACC
+	bool
+	depends on SOC_RT305X
+	default y
+
+config IRQ_INTC
+	bool
+	default y
+	depends on !SOC_MT7621
+
+choice
+	prompt "Ralink SoC selection"
+	default SOC_RT305X
+	help
+	  Select Ralink MIPS SoC type.
+
+	config SOC_RT288X
+		bool "RT288x"
+		select MIPS_AUTO_PFN_OFFSET
+		select MIPS_L1_CACHE_SHIFT_4
+		select HAVE_PCI
+
+	config SOC_RT305X
+		bool "RT305x"
+
+	config SOC_RT3883
+		bool "RT3883"
+		select HAVE_PCI
+
+	config SOC_MT7620
+		bool "MT7620/8"
+		select CPU_MIPSR2_IRQ_VI
+		select HAVE_PCI
+
+	config SOC_MT7621
+		bool "MT7621"
+		select MIPS_CPU_SCACHE
+		select SYS_SUPPORTS_MULTITHREADING
+		select SYS_SUPPORTS_SMP
+		select SYS_SUPPORTS_MIPS_CPS
+		select SYS_SUPPORTS_HIGHMEM
+		select MIPS_GIC
+		select CLKSRC_MIPS_GIC
+		select HAVE_PCI
+		select PCI_DRIVERS_GENERIC
+		select SOC_BUS
+
+		help
+		  The MT7621 system-on-a-chip includes an 880 MHz MIPS1004Kc dual-core CPU,
+		  a 5-port 10/100/1000 switch/PHY and one RGMII.
+endchoice
+
+choice
+	prompt "Devicetree selection"
+	depends on !SOC_MT7621
+	default DTB_RT_NONE
+	help
+	  Select the devicetree.
+
+	config DTB_RT_NONE
+		bool "None"
+
+	config DTB_RT2880_EVAL
+		bool "RT2880 eval kit"
+		depends on SOC_RT288X
+		select BUILTIN_DTB
+
+	config DTB_RT305X_EVAL
+		bool "RT305x eval kit"
+		depends on SOC_RT305X
+		select BUILTIN_DTB
+
+	config DTB_RT3883_EVAL
+		bool "RT3883 eval kit"
+		depends on SOC_RT3883
+		select BUILTIN_DTB
+
+	config DTB_MT7620A_EVAL
+		bool "MT7620A eval kit"
+		depends on SOC_MT7620
+		select BUILTIN_DTB
+
+	config DTB_OMEGA2P
+		bool "Onion Omega2+"
+		depends on SOC_MT7620
+		select BUILTIN_DTB
+
+	config DTB_VOCORE2
+		bool "VoCore2"
+		depends on SOC_MT7620
+		select BUILTIN_DTB
+
+endchoice
+
+endif

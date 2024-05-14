@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mailbox/ti,secure-proxy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments' Secure Proxy
+
+maintainers:
+  - Nishanth Menon <nm@ti.com>
+
+description: |
+  The Texas Instruments' secure proxy is a mailbox controller that has
+  configurable queues selectable at SoC(System on Chip) integration. The
+  Message manager is broken up into different address regions that are
+  called "threads" or "proxies" - each instance is unidirectional and is
+  instantiated at SoC integration level by system controller to indicate
+  receive or transmit path.
+
+properties:
+  $nodename:
+    pattern: "^mailbox@[0-9a-f]+$"
+
+  compatible:
+    const: ti,am654-secure-proxy
+
+  "#mbox-cells":
+    const: 1
+    description:
+      Contains the secure proxy thread ID used for the specific transfer path.
+
+  reg-names:
+    items:
+      - const: target_data
+      - const: rt
+      - const: scfg
+
+  reg:
+    minItems: 3
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 100
+    items:
+      pattern: "^rx_[0-9]{3}$"
+    description:
+      Contains the interrupt name information for the Rx interrupt path for
+      secure proxy thread in the form 'rx_<PID>'.
+
+  interrupts:
+    minItems: 1
+    maxItems: 100
+    description:
+      Contains the interrupt information for the Rx interrupt path for secure
+      proxy.
+
+required:
+  - compatible
+  - reg-names
+  - reg
+  - interrupt-names
+  - interrupts
+  - "#mbox-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    secure_proxy: mailbox@32c00000 {
+          compatible = "ti,am654-secure-proxy";
+          #mbox-cells = <1>;
+          reg-names = "target_data", "rt", "scfg";
+          reg = <0x32c00000 0x100000>,
+                <0x32400000 0x100000>,
+                <0x32800000 0x100000>;
+          interrupt-names = "rx_011";
+          interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+    };

@@ -1,0 +1,276 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SOC_TEGRA
+	tristate "SoC Audio for the Tegra System-on-Chip"
+	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
+	depends on COMMON_CLK
+	depends on RESET_CONTROLLER
+	select REGMAP_MMIO
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say Y or M here if you want support for SoC audio on Tegra.
+
+if SND_SOC_TEGRA
+
+config SND_SOC_TEGRA20_AC97
+	tristate "Tegra20 AC97 interface"
+	select SND_SOC_AC97_BUS
+	select SND_SOC_TEGRA20_DAS
+	help
+	  Say Y or M if you want to add support for codecs attached to the
+	  Tegra20 AC97 interface. You will also need to select the individual
+	  machine drivers to support below.
+
+config SND_SOC_TEGRA20_DAS
+	tristate "Tegra20 DAS module"
+	help
+	  Say Y or M if you want to add support for the Tegra20 DAS module.
+	  You will also need to select the individual machine drivers to
+	  support below.
+
+config SND_SOC_TEGRA20_I2S
+	tristate "Tegra20 I2S interface"
+	select SND_SOC_TEGRA20_DAS
+	help
+	  Say Y or M if you want to add support for codecs attached to the
+	  Tegra20 I2S interface. You will also need to select the individual
+	  machine drivers to support below.
+
+config SND_SOC_TEGRA20_SPDIF
+	tristate "Tegra20 SPDIF interface"
+	help
+	  Say Y or M if you want to add support for the Tegra20 SPDIF interface.
+	  You will also need to select the individual machine drivers to support
+	  below.
+
+config SND_SOC_TEGRA30_AHUB
+	tristate "Tegra30 AHUB module"
+	help
+	  Say Y or M if you want to add support for the Tegra30 AHUB module.
+	  You will also need to select the individual machine drivers to
+	  support below.
+
+config SND_SOC_TEGRA30_I2S
+	tristate "Tegra30 I2S interface"
+	select SND_SOC_TEGRA30_AHUB
+	help
+	  Say Y or M if you want to add support for codecs attached to the
+	  Tegra30 I2S interface. You will also need to select the individual
+	  machine drivers to support below.
+
+config SND_SOC_TEGRA210_AHUB
+	tristate "Tegra210 AHUB module"
+	help
+	  Config to enable Audio Hub (AHUB) module, which comprises of a
+	  switch called Audio Crossbar (AXBAR) used to configure or modify
+	  the audio routing path between various HW accelerators present in
+	  AHUB.
+	  Say Y or M if you want to add support for Tegra210 AHUB module.
+
+config SND_SOC_TEGRA210_DMIC
+	tristate "Tegra210 DMIC module"
+	help
+	  Config to enable the Digital MIC (DMIC) controller which is used
+	  to interface with Pulse Density Modulation (PDM) input devices.
+	  The DMIC controller implements a converter to convert PDM signals
+	  to Pulse Code Modulation (PCM) signals. This can be viewed as a
+	  PDM receiver.
+	  Say Y or M if you want to add support for Tegra210 DMIC module.
+
+config SND_SOC_TEGRA210_I2S
+	tristate "Tegra210 I2S module"
+	help
+	  Config to enable the Inter-IC Sound (I2S) Controller which
+	  implements full-duplex and bidirectional and single direction
+	  point-to-point serial interfaces. It can interface with I2S
+	  compatible devices.
+	  Say Y or M if you want to add support for Tegra210 I2S module.
+
+config SND_SOC_TEGRA210_OPE
+	tristate "Tegra210 OPE module"
+	help
+	  Config to enable the Output Processing Engine (OPE) which includes
+	  Parametric Equalizer (PEQ) and Multi Band Dynamic Range Compressor
+	  (MBDRC) sub blocks for data processing. It can support up to 8
+	  channels.
+	  Say Y or M if you want to add support for Tegra210 OPE module.
+
+config SND_SOC_TEGRA186_ASRC
+	tristate "Tegra186 ASRC module"
+	help
+	  Config to enable the Asynchronous Sample Rate Converter (ASRC),
+	  which converts the sampling frequency of the input signal from
+	  one frequency to another. It can handle over a wide range of
+	  sample rate ratios (freq_in/freq_out) from 1:24 to 24:1.
+	  ASRC has two modes of operation. One where ratio can be programmed
+	  in SW and the other where it gets information from ratio estimator
+	  module.
+	  Say Y or M if you want to add support for Tegra186 ASRC module.
+
+config SND_SOC_TEGRA186_DSPK
+	tristate "Tegra186 DSPK module"
+	help
+	  Config to enable the Digital Speaker Controller (DSPK) which
+	  converts the multi-bit Pulse Code Modulation (PCM) audio input to
+	  oversampled 1-bit Pulse Density Modulation (PDM) output. From the
+	  signal flow perspective DSPK can be viewed as a PDM transmitter
+	  that up-samples the input to the desired sampling rate by
+	  interpolation and then converts the oversampled PCM input to
+	  the desired 1-bit output via Delta Sigma Modulation (DSM).
+	  Say Y or M if you want to add support for Tegra186 DSPK module.
+
+config SND_SOC_TEGRA210_ADMAIF
+	tristate "Tegra210 ADMAIF module"
+	help
+	  Config to enable ADMAIF which is the interface between ADMA and
+	  Audio Hub (AHUB). Each ADMA channel that sends/receives data to/
+	  from AHUB must interface through an ADMAIF channel. ADMA channel
+	  sending data to AHUB pairs with an ADMAIF Tx channel, where as
+	  ADMA channel receiving data from AHUB pairs with an ADMAIF Rx
+	  channel. Buffer size is configurable for each ADMAIIF channel.
+	  Say Y or M if you want to add support for Tegra210 ADMAIF module.
+
+config SND_SOC_TEGRA210_MVC
+	tristate "Tegra210 MVC module"
+	help
+	  Config to enable the digital Master Volume Controller (MVC) which
+	  provides gain or attenuation to a digital signal path. It can be
+	  used in input or output signal path. It can be used either for
+	  per-stream volume control or for master volume control.
+	  Say Y or M if you want to add support for Tegra210 MVC module.
+
+config SND_SOC_TEGRA210_SFC
+	tristate "Tegra210 SFC module"
+	help
+	  Config to enable the Sampling Frequency Converter (SFC) which
+	  converts the sampling frequency of input signal to another
+	  frequency. It supports sampling frequency conversion of streams
+	  upto 2 channels (stereo).
+	  Say Y or M if you want to add support for Tegra210 SFC module.
+
+config SND_SOC_TEGRA210_AMX
+	tristate "Tegra210 AMX module"
+	help
+	  Config to enable the Audio Multiplexer (AMX) which can multiplex
+	  four input streams (each of up to 16 channels) and generate
+	  output stream (of up to 16 channels). A byte RAM helps to form an
+	  output frame by any combination of bytes from the input frames.
+	  Say Y or M if you want to add support for Tegra210 AMX module.
+
+config SND_SOC_TEGRA210_ADX
+	tristate "Tegra210 ADX module"
+	help
+	  Config to enable the Audio Demultiplexer (ADX) which takes an
+	  input stream (up to 16 channels) and demultiplexes it into four
+	  output streams (each of up to 16 channels). A byte RAM helps to
+	  form output frames by any combination of bytes from the input
+	  frame. Its design is identical to that of byte RAM in the AMX
+	  except that the data flow direction is reversed.
+	  Say Y or M if you want to add support for Tegra210 ADX module.
+
+config SND_SOC_TEGRA210_MIXER
+	tristate "Tegra210 Mixer module"
+	help
+	  Config to enable the Mixer module which can help to mix multiple
+	  audio streams. It supports mixing of upto 10 input streams,
+	  where each stream can contain maximum of 8 channels. It supports
+	  5 output each of which can be a mix of any combination of 10
+	  input streams.
+	  Say Y or M if you want to add support for Tegra210 Mixer module.
+
+config SND_SOC_TEGRA_AUDIO_GRAPH_CARD
+	tristate "Audio Graph Card based Tegra driver"
+	depends on SND_AUDIO_GRAPH_CARD
+	help
+	  Config to enable Tegra audio machine driver based on generic
+	  audio graph driver. It is a thin driver written to customize
+	  few things for Tegra audio. Most of the code is re-used from
+	  audio graph driver and the same DT bindings are used.
+
+config SND_SOC_TEGRA_MACHINE_DRV
+	tristate
+
+config SND_SOC_TEGRA_RT5640
+	tristate "SoC Audio support for Tegra boards using an RT5640 codec"
+	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_RT5640
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the RT5640 codec, such as Dalmore.
+
+config SND_SOC_TEGRA_WM8753
+	tristate "SoC Audio support for Tegra boards using a WM8753 codec"
+	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_WM8753
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the WM8753 codec, such as Whistler.
+
+config SND_SOC_TEGRA_WM8903
+	tristate "SoC Audio support for Tegra boards using a WM8903 codec"
+	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_WM8903
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the WM8093 codec. Currently, the supported boards are
+	  Harmony, Ventana, Seaboard, Kaen, and Aebl.
+
+config SND_SOC_TEGRA_WM9712
+	tristate "SoC Audio support for Tegra boards using a WM9712 codec"
+	depends on GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_TEGRA20_AC97
+	select SND_SOC_WM9712
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the WM9712 (or compatible) codec.
+
+config SND_SOC_TEGRA_TRIMSLICE
+	tristate "SoC Audio support for TrimSlice board"
+	depends on I2C
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_TLV320AIC23_I2C
+	help
+	  Say Y or M here if you want to add support for SoC audio on the
+	  TrimSlice platform.
+
+config SND_SOC_TEGRA_ALC5632
+	tristate "SoC Audio support for Tegra boards using an ALC5632 codec"
+	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_ALC5632
+	help
+	  Say Y or M here if you want to add support for SoC audio on the
+	  Toshiba AC100 netbook.
+
+config SND_SOC_TEGRA_MAX98090
+	tristate "SoC Audio support for Tegra boards using a MAX98090 codec"
+	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_MAX98090
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the MAX98090 codec, such as Venice2.
+
+config SND_SOC_TEGRA_RT5677
+	tristate "SoC Audio support for Tegra boards using a RT5677 codec"
+	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_RT5677
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the RT5677 codec, such as Ryu.
+
+config SND_SOC_TEGRA_SGTL5000
+	tristate "SoC Audio support for Tegra boards using a SGTL5000 codec"
+	depends on I2C && GPIOLIB
+	select SND_SOC_TEGRA_MACHINE_DRV
+	select SND_SOC_SGTL5000
+	help
+	  Say Y or M here if you want to add support for SoC audio on Tegra
+	  boards using the SGTL5000 codec, such as Apalis T30, Apalis TK1 or
+	  Colibri T30.
+
+endif

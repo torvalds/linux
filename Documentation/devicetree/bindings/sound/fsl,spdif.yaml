@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/fsl,spdif.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Sony/Philips Digital Interface Format (S/PDIF) Controller
+
+maintainers:
+  - Shengjiu Wang <shengjiu.wang@nxp.com>
+
+description: |
+  The Freescale S/PDIF audio block is a stereo transceiver that allows the
+  processor to receive and transmit digital audio via an coaxial cable or
+  a fibre cable.
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx35-spdif
+      - fsl,vf610-spdif
+      - fsl,imx6sx-spdif
+      - fsl,imx8qm-spdif
+      - fsl,imx8qxp-spdif
+      - fsl,imx8mq-spdif
+      - fsl,imx8mm-spdif
+      - fsl,imx8mn-spdif
+      - fsl,imx8ulp-spdif
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+  clocks:
+    items:
+      - description: The core clock of spdif controller.
+      - description: Clock for tx0 and rx0.
+      - description: Clock for tx1 and rx1.
+      - description: Clock for tx2 and rx2.
+      - description: Clock for tx3 and rx3.
+      - description: Clock for tx4 and rx4.
+      - description: Clock for tx5 and rx5.
+      - description: Clock for tx6 and rx6.
+      - description: Clock for tx7 and rx7.
+      - description: The spba clock is required when SPDIF is placed as a bus
+          slave of the Shared Peripheral Bus and when two or more bus masters
+          (CPU, DMA or DSP) try to access it. This property is optional depending
+          on the SoC design.
+      - description: PLL clock source for 8kHz series rate, optional.
+      - description: PLL clock source for 11khz series rate, optional.
+    minItems: 9
+
+  clock-names:
+    items:
+      - const: core
+      - const: rxtx0
+      - const: rxtx1
+      - const: rxtx2
+      - const: rxtx3
+      - const: rxtx4
+      - const: rxtx5
+      - const: rxtx6
+      - const: rxtx7
+      - const: spba
+      - const: pll8k
+      - const: pll11k
+    minItems: 9
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      If this property is absent, the native endian mode will be in use
+      as default, or the big endian mode will be in use for all the device
+      registers. Set this flag for HCDs with big endian descriptors and big
+      endian registers.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - dmas
+  - dma-names
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    spdif@2004000 {
+        compatible = "fsl,imx35-spdif";
+        reg = <0x02004000 0x4000>;
+        interrupts = <0 52 0x04>;
+        dmas = <&sdma 14 18 0>,
+               <&sdma 15 18 0>;
+        dma-names = "rx", "tx";
+        clocks = <&clks 197>, <&clks 3>,
+                 <&clks 197>, <&clks 107>,
+                 <&clks 0>, <&clks 118>,
+                 <&clks 62>, <&clks 139>,
+                 <&clks 0>;
+        clock-names = "core", "rxtx0",
+                      "rxtx1", "rxtx2",
+                      "rxtx3", "rxtx4",
+                      "rxtx5", "rxtx6",
+                      "rxtx7";
+        big-endian;
+    };

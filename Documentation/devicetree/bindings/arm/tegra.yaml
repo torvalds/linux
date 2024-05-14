@@ -1,0 +1,171 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/tegra.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jonathan Hunter <jonathanh@nvidia.com>
+
+properties:
+  $nodename:
+    const: "/"
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - compal,paz00
+              - compulab,trimslice
+              - nvidia,harmony
+              - nvidia,seaboard
+              - nvidia,ventana
+          - const: nvidia,tegra20
+      - items:
+          - enum:
+              - ad,medcom-wide
+              - ad,plutux
+              - ad,tec
+          - const: ad,tamonten
+          - const: nvidia,tegra20
+      - items:
+          - enum:
+              - toradex,colibri_t20-eval-v3
+              - toradex,colibri_t20-iris
+          - const: toradex,colibri_t20
+          - const: nvidia,tegra20
+      - items:
+          - const: asus,tf101
+          - const: nvidia,tegra20
+      - items:
+          - const: acer,picasso
+          - const: nvidia,tegra20
+      - items:
+          - enum:
+              - nvidia,beaver
+          - const: nvidia,tegra30
+      - items:
+          - enum:
+              - nvidia,cardhu-a02
+              - nvidia,cardhu-a04
+          - const: nvidia,cardhu
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf201
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf300t
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf300tg
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tf700t
+          - const: nvidia,tegra30
+      - items:
+          - const: toradex,apalis_t30-eval
+          - const: toradex,apalis_t30
+          - const: nvidia,tegra30
+      - items:
+          - const: toradex,apalis_t30-v1.1-eval
+          - const: toradex,apalis_t30-eval
+          - const: toradex,apalis_t30-v1.1
+          - const: toradex,apalis_t30
+          - const: nvidia,tegra30
+      - items:
+          - enum:
+              - toradex,colibri_t30-eval-v3
+          - const: toradex,colibri_t30
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,grouper
+          - const: nvidia,tegra30
+      - items:
+          - const: asus,tilapia
+          - const: asus,grouper
+          - const: nvidia,tegra30
+      - items:
+          - const: ouya,ouya
+          - const: nvidia,tegra30
+      - items:
+          - const: pegatron,chagall
+          - const: nvidia,tegra30
+      - items:
+          - enum:
+              - asus,tf701t
+              - nvidia,dalmore
+              - nvidia,roth
+              - nvidia,tn7
+          - const: nvidia,tegra114
+      - items:
+          - enum:
+              - nvidia,jetson-tk1
+              - nvidia,venice2
+          - const: nvidia,tegra124
+      - items:
+          - const: toradex,apalis-tk1-eval
+          - const: toradex,apalis-tk1
+          - const: nvidia,tegra124
+      - items:
+          - const: toradex,apalis-tk1-v1.2-eval
+          - const: toradex,apalis-tk1-eval
+          - const: toradex,apalis-tk1-v1.2
+          - const: toradex,apalis-tk1
+          - const: nvidia,tegra124
+      - items:
+          - enum:
+              - nvidia,norrin
+          - const: nvidia,tegra132
+          - const: nvidia,tegra124
+      - items:
+          - enum:
+              - nvidia,darcy
+              - nvidia,p2371-0000
+              - nvidia,p2371-2180
+              - nvidia,p2571
+              - nvidia,p2894-0050-a08
+          - const: nvidia,tegra210
+      - description: Jetson TX2 Developer Kit
+        items:
+          - const: nvidia,p2771-0000
+          - const: nvidia,tegra186
+      - description: Jetson TX2 NX Developer Kit
+        items:
+          - const: nvidia,p3509-0000+p3636-0001
+          - const: nvidia,tegra186
+      - description: Jetson AGX Xavier Developer Kit
+        items:
+          - const: nvidia,p2972-0000
+          - const: nvidia,tegra194
+      - description: Jetson Xavier NX
+        items:
+          - const: nvidia,p3668-0000
+          - const: nvidia,tegra194
+      - description: Jetson Xavier NX (eMMC)
+        items:
+          - const: nvidia,p3668-0001
+          - const: nvidia,tegra194
+      - description: Jetson Xavier NX Developer Kit
+        items:
+          - const: nvidia,p3509-0000+p3668-0000
+          - const: nvidia,tegra194
+      - description: Jetson Xavier NX Developer Kit (eMMC)
+        items:
+          - const: nvidia,p3509-0000+p3668-0001
+          - const: nvidia,tegra194
+      - items:
+          - const: nvidia,tegra234-vdk
+          - const: nvidia,tegra234
+      - description: Jetson AGX Orin
+        items:
+          - const: nvidia,p3701-0000
+          - const: nvidia,tegra234
+      - description: Jetson AGX Orin Developer Kit
+        items:
+          - const: nvidia,p3737-0000+p3701-0000
+          - const: nvidia,p3701-0000
+          - const: nvidia,tegra234
+
+additionalProperties: true

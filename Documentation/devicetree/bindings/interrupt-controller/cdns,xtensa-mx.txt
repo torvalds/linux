@@ -1,0 +1,18 @@
+* Xtensa Interrupt Distributor and Programmable Interrupt Controller (MX)
+
+Required properties:
+- compatible: Should be "cdns,xtensa-mx".
+
+Remaining properties have exact same meaning as in Xtensa PIC
+(see cdns,xtensa-pic.txt).
+
+Examples:
+	pic: pic {
+		compatible = "cdns,xtensa-mx";
+		/* one cell: internal irq number,
+		 * two cells: second cell == 0: internal irq number
+		 *            second cell == 1: external irq number
+		 */
+		#interrupt-cells = <2>;
+		interrupt-controller;
+	};

@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2021 Collabora Ltd.
+ * Copyright 2021 BSH Hausgeraete GmbH
+ */
+
+/dts-v1/;
+
+#include "imx8mn-bsh-smm-s2-common.dtsi"
+
+/ {
+	model = "BSH SMM S2";
+	compatible = "bsh,imx8mn-bsh-smm-s2", "fsl,imx8mn";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x0 0x10000000>;
+	};
+};
+
+&gpmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpmi_nand>;
+	nand-on-flash-bbt;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_gpmi_nand: gpmi-nand {
+		fsl,pins = <
+			MX8MN_IOMUXC_NAND_ALE_RAWNAND_ALE		0x00000096
+			MX8MN_IOMUXC_NAND_CE0_B_RAWNAND_CE0_B		0x00000096
+			MX8MN_IOMUXC_NAND_CLE_RAWNAND_CLE		0x00000096
+			MX8MN_IOMUXC_NAND_DATA00_RAWNAND_DATA00		0x00000096
+			MX8MN_IOMUXC_NAND_DATA01_RAWNAND_DATA01		0x00000096
+			MX8MN_IOMUXC_NAND_DATA02_RAWNAND_DATA02		0x00000096
+			MX8MN_IOMUXC_NAND_DATA03_RAWNAND_DATA03		0x00000096
+			MX8MN_IOMUXC_NAND_DATA04_RAWNAND_DATA04		0x00000096
+			MX8MN_IOMUXC_NAND_DATA05_RAWNAND_DATA05		0x00000096
+			MX8MN_IOMUXC_NAND_DATA06_RAWNAND_DATA06		0x00000096
+			MX8MN_IOMUXC_NAND_DATA07_RAWNAND_DATA07		0x00000096
+			MX8MN_IOMUXC_NAND_RE_B_RAWNAND_RE_B		0x00000096
+			MX8MN_IOMUXC_NAND_READY_B_RAWNAND_READY_B	0x00000056
+			MX8MN_IOMUXC_NAND_WE_B_RAWNAND_WE_B		0x00000096
+			MX8MN_IOMUXC_NAND_WP_B_RAWNAND_WP_B		0x00000096
+		>;
+	};
+};

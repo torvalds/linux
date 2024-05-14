@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mips/loongson/devices.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Loongson based Platforms Device Tree Bindings
+
+maintainers:
+  - Jiaxun Yang <jiaxun.yang@flygoat.com>
+description: |
+  Devices with a Loongson CPU shall have the following properties.
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+
+      - description: Classic Loongson64 Quad Core + LS7A
+        items:
+          - const: loongson,loongson64c-4core-ls7a
+
+      - description: Classic Loongson64 Quad Core + RS780E
+        items:
+          - const: loongson,loongson64c-4core-rs780e
+
+      - description: Classic Loongson64 Octa Core + RS780E
+        items:
+          - const: loongson,loongson64c-8core-rs780e
+
+      - description: Generic Loongson64 Quad Core + LS7A
+        items:
+          - const: loongson,loongson64g-4core-ls7a
+
+      - description: Virtual Loongson64 Quad Core + VirtIO
+        items:
+          - const: loongson,loongson64v-4core-virtio
+
+additionalProperties: true
+
+...

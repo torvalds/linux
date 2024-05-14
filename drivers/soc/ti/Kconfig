@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+#
+# TI SOC drivers
+#
+menuconfig SOC_TI
+	bool "TI SOC drivers support"
+
+if SOC_TI
+
+config KEYSTONE_NAVIGATOR_QMSS
+	tristate "Keystone Queue Manager Sub System"
+	depends on ARCH_KEYSTONE
+	help
+	  Say y here to support the Keystone multicore Navigator Queue
+	  Manager support. The Queue Manager is a hardware module that
+	  is responsible for accelerating management of the packet queues.
+	  Packets are queued/de-queued by writing/reading descriptor address
+	  to a particular memory mapped location in the Queue Manager module.
+
+	  If unsure, say N.
+
+config KEYSTONE_NAVIGATOR_DMA
+	tristate "TI Keystone Navigator Packet DMA support"
+	depends on ARCH_KEYSTONE
+	help
+	  Say y tp enable support for the Keystone Navigator Packet DMA on
+	  on Keystone family of devices. It sets up the dma channels for the
+	  Queue Manager Sub System.
+
+	  If unsure, say N.
+
+config AMX3_PM
+	tristate "AMx3 Power Management"
+	depends on SOC_AM33XX || SOC_AM43XX
+	depends on WKUP_M3_IPC && TI_EMIF_SRAM && SRAM && RTC_DRV_OMAP
+	help
+	  Enable power management on AM335x and AM437x. Required for suspend to mem
+	  and standby states on both AM335x and AM437x platforms and for deeper cpuidle
+	  c-states on AM335x. Also required for rtc and ddr in self-refresh low
+	  power mode on AM437x platforms.
+
+config WKUP_M3_IPC
+	tristate "TI AMx3 Wkup-M3 IPC Driver"
+	depends on WKUP_M3_RPROC
+	depends on OMAP2PLUS_MBOX
+	help
+	  TI AM33XX and AM43XX have a Cortex M3, the Wakeup M3, to handle
+	  low power transitions. This IPC driver provides the necessary API
+	  to communicate and use the Wakeup M3 for PM features like suspend
+	  resume and boots it using wkup_m3_rproc driver.
+
+config TI_SCI_PM_DOMAINS
+	tristate "TI SCI PM Domains Driver"
+	depends on TI_SCI_PROTOCOL
+	depends on PM_GENERIC_DOMAINS
+	help
+	  Generic power domain implementation for TI device implementing
+	  the TI SCI protocol.
+
+	  To compile this as a module, choose M here. The module will be
+	  called ti_sci_pm_domains. Note this is needed early in boot before
+	  rootfs may be available.
+
+config TI_K3_RINGACC
+	bool "K3 Ring accelerator Sub System"
+	depends on ARCH_K3 || COMPILE_TEST
+	depends on TI_SCI_INTA_IRQCHIP
+	help
+	  Say y here to support the K3 Ring accelerator module.
+	  The Ring Accelerator (RINGACC or RA)  provides hardware acceleration
+	  to enable straightforward passing of work between a producer
+	  and a consumer. There is one RINGACC module per NAVSS on TI AM65x SoCs
+	  If unsure, say N.
+
+config TI_K3_SOCINFO
+	bool
+	depends on ARCH_K3 || COMPILE_TEST
+	select SOC_BUS
+	select MFD_SYSCON
+	help
+	  Include support for the SoC bus socinfo for the TI K3 Multicore SoC
+	  platforms to provide information about the SoC family and
+	  variant to user space.
+
+config TI_PRUSS
+	tristate "TI PRU-ICSS Subsystem Platform drivers"
+	depends on SOC_AM33XX || SOC_AM43XX || SOC_DRA7XX || ARCH_KEYSTONE || ARCH_K3
+	select MFD_SYSCON
+	help
+	  TI PRU-ICSS Subsystem platform specific support.
+
+	  Say Y or M here to support the Programmable Realtime Unit (PRU)
+	  processors on various TI SoCs. It's safe to say N here if you're
+	  not interested in the PRU or if you are unsure.
+
+endif # SOC_TI
+
+config TI_SCI_INTA_MSI_DOMAIN
+	bool
+	select GENERIC_MSI_IRQ_DOMAIN
+	help
+	  Driver to enable Interrupt Aggregator specific MSI Domain.

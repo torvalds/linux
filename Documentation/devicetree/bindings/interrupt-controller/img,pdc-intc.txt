@@ -1,0 +1,105 @@
+* ImgTec Powerdown Controller (PDC) Interrupt Controller Binding
+
+This binding specifies what properties must be available in the device tree
+representation of a PDC IRQ controller. This has a number of input interrupt
+lines which can wake the system, and are passed on through output interrupt
+lines.
+
+Required properties:
+
+    - compatible: Specifies the compatibility list for the interrupt controller.
+      The type shall be <string> and the value shall include "img,pdc-intc".
+
+    - reg: Specifies the base PDC physical address(s) and size(s) of the
+      addressable register space. The type shall be <prop-encoded-array>.
+
+    - interrupt-controller: The presence of this property identifies the node
+      as an interrupt controller. No property value shall be defined.
+
+    - #interrupt-cells: Specifies the number of cells needed to encode an
+      interrupt source. The type shall be a <u32> and the value shall be 2.
+
+    - num-perips: Number of waking peripherals.
+
+    - num-syswakes: Number of SysWake inputs.
+
+    - interrupts: List of interrupt specifiers. The first specifier shall be the
+      shared SysWake interrupt, and remaining specifies shall be PDC peripheral
+      interrupts in order.
+
+* Interrupt Specifier Definition
+
+  Interrupt specifiers consists of 2 cells encoded as follows:
+
+    - <1st-cell>: The interrupt-number that identifies the interrupt source.
+                    0-7:  Peripheral interrupts
+                    8-15: SysWake interrupts
+
+    - <2nd-cell>: The level-sense information, encoded using the Linux interrupt
+                  flags as follows (only 4 valid for peripheral interrupts):
+                    0 = none (decided by software)
+                    1 = low-to-high edge triggered
+                    2 = high-to-low edge triggered
+                    3 = both edge triggered
+                    4 = active-high level-sensitive (required for perip irqs)
+                    8 = active-low level-sensitive
+
+* Examples
+
+Example 1:
+
+	/*
+	 * TZ1090 PDC block
+	 */
+	pdc: pdc@02006000 {
+		// This is an interrupt controller node.
+		interrupt-controller;
+
+		// Three cells to encode interrupt sources.
+		#interrupt-cells = <2>;
+
+		// Offset address of 0x02006000 and size of 0x1000.
+		reg = <0x02006000 0x1000>;
+
+		// Compatible with Meta hardware trigger block.
+		compatible = "img,pdc-intc";
+
+		// Three peripherals are connected.
+		num-perips = <3>;
+
+		// Four SysWakes are connected.
+		num-syswakes = <4>;
+
+		interrupts = <18 4 /* level */>, /* Syswakes */
+			     <30 4 /* level */>, /* Peripheral 0 (RTC) */
+			     <29 4 /* level */>, /* Peripheral 1 (IR) */
+			     <31 4 /* level */>; /* Peripheral 2 (WDT) */
+	};
+
+Example 2:
+
+	/*
+	 * An SoC peripheral that is wired through the PDC.
+	 */
+	rtc0 {
+		// The interrupt controller that this device is wired to.
+		interrupt-parent = <&pdc>;
+
+		// Interrupt source Peripheral 0
+		interrupts = <0   /* Peripheral 0 (RTC) */
+		              4>  /* IRQ_TYPE_LEVEL_HIGH */
+	};
+
+Example 3:
+
+	/*
+	 * An interrupt generating device that is wired to a SysWake pin.
+	 */
+	touchscreen0 {
+		// The interrupt controller that this device is wired to.
+		interrupt-parent = <&pdc>;
+
+		// Interrupt source SysWake 0 that is active-low level-sensitive
+		interrupts = <8 /* SysWake0 */
+			      8 /* IRQ_TYPE_LEVEL_LOW */>;
+	};

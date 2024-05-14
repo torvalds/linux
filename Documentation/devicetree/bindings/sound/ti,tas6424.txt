@@ -1,0 +1,22 @@
+Texas Instruments TAS6424 Quad-Channel Audio amplifier
+
+The TAS6424 serial control bus communicates through I2C protocols.
+
+Required properties:
+	- compatible: "ti,tas6424" - TAS6424
+	- reg: I2C slave address
+	- sound-dai-cells: must be equal to 0
+	- standby-gpios: GPIO used to shut the TAS6424 down.
+	- mute-gpios: GPIO used to mute all the outputs
+
+Example:
+
+tas6424: tas6424@6a {
+	compatible = "ti,tas6424";
+	reg = <0x6a>;
+
+	#sound-dai-cells = <0>;
+};
+
+For more product information please see the link below:
+https://www.ti.com/product/TAS6424-Q1

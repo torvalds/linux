@@ -1,0 +1,22 @@
+Sitronix ST7586 display panel
+
+Required properties:
+- compatible:	"lego,ev3-lcd".
+- a0-gpios:	The A0 signal (since this binding is for serial mode, this is
+                the pin labeled D1 on the controller, not the pin labeled A0)
+- reset-gpios:	Reset pin
+
+The node for this driver must be a child node of a SPI controller, hence
+all mandatory properties described in ../spi/spi-bus.txt must be specified.
+
+Optional properties:
+- rotation:	panel rotation in degrees counter clockwise (0,90,180,270)
+
+Example:
+	display@0{
+		compatible = "lego,ev3-lcd";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		a0-gpios = <&gpio 43 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio 80 GPIO_ACTIVE_HIGH>;
+	};

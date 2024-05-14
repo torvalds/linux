@@ -1,0 +1,309 @@
+===============================================================================
+Freescale Interlaken Look-Aside Controller Device Bindings
+Copyright 2012 Freescale Semiconductor Inc.
+
+CONTENTS
+  - Interlaken Look-Aside Controller (LAC) Node
+  - Example LAC Node
+  - Interlaken Look-Aside Controller (LAC) Software Portal Node
+  - Interlaken Look-Aside Controller (LAC) Software Portal Child Nodes
+  - Example LAC SWP Node with Child Nodes
+
+==============================================================================
+Interlaken Look-Aside Controller (LAC) Node
+
+DESCRIPTION
+
+The Interlaken is a narrow, high speed channelized chip-to-chip interface. To
+facilitate interoperability between a data path device and a look-aside
+co-processor, the Interlaken Look-Aside protocol is defined for short
+transaction-related transfers. Although based on the Interlaken protocol,
+Interlaken Look-Aside is not directly compatible with Interlaken and can be
+considered a different operation mode.
+
+The Interlaken LA controller connects internal platform to Interlaken serial
+interface. It accepts LA command through software portals, which are system
+memory mapped 4KB spaces. The LA commands are then translated into the
+Interlaken control words and data words, which are sent on TX side to TCAM
+through SerDes lanes.
+
+There are two 4KiB spaces defined within the LAC global register memory map.
+There is a full register set at 0x0000-0x0FFF (also known as the "hypervisor"
+version), and a subset at 0x1000-0x1FFF.  The former is a superset of the
+latter, and includes certain registers that should not be accessible to
+partitioned software.  Separate nodes are used for each region, with a phandle
+linking the hypervisor node to the normal operating node.
+
+PROPERTIES
+
+  - compatible
+	Usage: required
+	Value type: <string>
+	Definition: Must include "fsl,interlaken-lac". This represents only
+		those LAC CCSR registers not protected in partitioned
+		software. The version of the device is determined by the LAC
+		IP Block Revision Register (IPBRR0) at offset 0x0BF8.
+
+		Table of correspondences between IPBRR0 values and example
+		chips:
+			Value		Device
+			-----------	-------
+			0x02000100	T4240
+
+		The Hypervisor node has a different compatible. It must include
+		"fsl,interlaken-lac-hv". This node represents the protected
+		LAC register space and is required except inside a partition
+		where access to the hypervisor node is to be denied.
+
+  - fsl,non-hv-node
+	Usage: required in "fsl,interlaken-lac-hv"
+	Value type: <phandle>
+	Definition: Points to the non-protected LAC CCSR mapped register space
+		node.
+
+  - reg
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: A standard property. The first resource represents the
+		Interlaken LAC configuration registers.
+
+  - interrupts:
+	Usage: required in non-hv node only
+	Value type: <prop-encoded-array>
+	Definition: Interrupt mapping for Interlaken LAC error IRQ.
+
+EXAMPLE
+	lac: lac@229000 {
+		compatible = "fsl,interlaken-lac"
+		reg = <0x229000 0x1000>;
+		interrupts = <16 2 1 18>;
+	};
+
+	lac-hv@228000 {
+		compatible = "fsl,interlaken-lac-hv"
+		reg = <0x228000 0x1000>;
+		fsl,non-hv-node = <&lac>;
+	};
+
+===============================================================================
+Interlaken Look-Aside Controller (LAC) Software Portal Container Node
+
+DESCRIPTION
+The Interlaken Look-Aside Controller (LAC) utilizes Software Portals to accept
+Interlaken Look-Aside (ILA) commands. The Interlaken LAC software portal
+memory map occupies 128KB of memory space. The software portal memory space is
+intended to be cache-enabled. WIMG for each software space is required to be
+0010 if stashing is enabled; otherwise, WIMG can be 0000 or 0010.
+
+PROPERTIES
+
+  - #address-cells
+	Usage: required
+	Value type: <u32>
+	Definition: A standard property. Must have a value of 1.
+
+  - #size-cells
+	Usage: required
+	Value type: <u32>
+	Definition: A standard property. Must have a value of 1.
+
+  - compatible
+	Usage: required
+	Value type: <string>
+	Definition: Must include "fsl,interlaken-lac-portals"
+
+  - ranges
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: A standard property. Specifies the address and length
+		of the LAC portal memory space.
+
+===============================================================================
+Interlaken Look-Aside Controller (LAC) Software Portals Child Nodes
+
+DESCRIPTION
+There are up to 24 available software portals with each software portal
+requiring 4KB of consecutive memory within the software portal memory mapped
+space.
+
+PROPERTIES
+
+  - compatible
+	Usage: required
+	Value type: <string>
+	Definition: Must include "fsl,interlaken-lac-portal-vX.Y" where X is
+		the Major version (IP_MJ) found in the LAC IP Block Revision
+		Register (IPBRR0), at offset 0x0BF8, and Y is the Minor version
+		(IP_MN).
+
+		Table of correspondences between version values and example chips:
+		    Value	Device
+		    ------	-------
+		      1.0	T4240
+
+  - reg
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: A standard property.  The first resource represents the
+		Interlaken LAC software portal registers.
+
+  - fsl,liodn
+	Value type: <u32>
+	Definition: The logical I/O device number (LIODN) for this device.  The
+		LIODN is a number expressed by this device and used to perform
+		look-ups in the IOMMU (PAMU) address table when performing
+		DMAs. This property is automatically added by u-boot.
+
+===============================================================================
+EXAMPLE
+
+lac-portals {
+	#address-cells = <0x1>;
+	#size-cells = <0x1>;
+	compatible = "fsl,interlaken-lac-portals";
+	ranges = <0x0 0xf 0xf4400000 0x20000>;
+
+	lportal0: lac-portal@0 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x204>;
+		reg = <0x0 0x1000>;
+	};
+
+	lportal1: lac-portal@1000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x205>;
+		reg = <0x1000 0x1000>;
+	};
+
+	lportal2: lac-portal@2000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x206>;
+		reg = <0x2000 0x1000>;
+	};
+
+	lportal3: lac-portal@3000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x207>;
+		reg = <0x3000 0x1000>;
+	};
+
+	lportal4: lac-portal@4000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x208>;
+		reg = <0x4000 0x1000>;
+	};
+
+	lportal5: lac-portal@5000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x209>;
+		reg = <0x5000 0x1000>;
+	};
+
+	lportal6: lac-portal@6000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x20A>;
+		reg = <0x6000 0x1000>;
+	};
+
+	lportal7: lac-portal@7000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x20B>;
+		reg = <0x7000 0x1000>;
+	};
+
+	lportal8: lac-portal@8000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x20C>;
+		reg = <0x8000 0x1000>;
+	};
+
+	lportal9: lac-portal@9000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x20D>;
+		reg = <0x9000 0x1000>;
+	};
+
+	lportal10: lac-portal@a000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x20E>;
+		reg = <0xA000 0x1000>;
+	};
+
+	lportal11: lac-portal@b000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x20F>;
+		reg = <0xB000 0x1000>;
+	};
+
+	lportal12: lac-portal@c000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x210>;
+		reg = <0xC000 0x1000>;
+	};
+
+	lportal13: lac-portal@d000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x211>;
+		reg = <0xD000 0x1000>;
+	};
+
+	lportal14: lac-portal@e000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x212>;
+		reg = <0xE000 0x1000>;
+	};
+
+	lportal15: lac-portal@f000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x213>;
+		reg = <0xF000 0x1000>;
+	};
+
+	lportal16: lac-portal@10000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x214>;
+		reg = <0x10000 0x1000>;
+	};
+
+	lportal17: lac-portal@11000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x215>;
+		reg = <0x11000 0x1000>;
+	};
+
+	lportal8: lac-portal@1200 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x216>;
+		reg = <0x12000 0x1000>;
+	};
+
+	lportal19: lac-portal@13000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x217>;
+		reg = <0x13000 0x1000>;
+	};
+
+	lportal20: lac-portal@14000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x218>;
+		reg = <0x14000 0x1000>;
+	};
+
+	lportal21: lac-portal@15000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x219>;
+		reg = <0x15000 0x1000>;
+	};
+
+	lportal22: lac-portal@16000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x21A>;
+		reg = <0x16000 0x1000>;
+	};
+
+	lportal23: lac-portal@17000 {
+		compatible = "fsl,interlaken-lac-portal-v1.0";
+		fsl,liodn = <0x21B>;
+		reg = <0x17000 0x1000>;
+	};
+};

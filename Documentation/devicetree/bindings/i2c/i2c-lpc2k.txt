@@ -1,0 +1,33 @@
+NXP I2C controller for LPC2xxx/178x/18xx/43xx
+
+Required properties:
+ - compatible: must be "nxp,lpc1788-i2c"
+ - reg: physical address and length of the device registers
+ - interrupts: a single interrupt specifier
+ - clocks: clock for the device
+ - #address-cells: should be <1>
+ - #size-cells: should be <0>
+
+Optional properties:
+- clock-frequency: the desired I2C bus clock frequency in Hz; in
+  absence of this property the default value is used (100 kHz).
+
+Example:
+i2c0: i2c@400a1000 {
+	compatible = "nxp,lpc1788-i2c";
+	reg = <0x400a1000 0x1000>;
+	interrupts = <18>;
+	clocks = <&ccu1 CLK_APB1_I2C0>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+};
+
+&i2c0 {
+	clock-frequency = <400000>;
+
+	lm75@48 {
+		compatible = "nxp,lm75";
+		reg = <0x48>;
+	};
+};
+

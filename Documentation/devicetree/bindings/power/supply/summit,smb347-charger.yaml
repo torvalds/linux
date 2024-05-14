@@ -1,0 +1,182 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/summit,smb347-charger.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Battery charger driver for SMB345, SMB347 and SMB358
+
+maintainers:
+  - David Heidelberg <david@ixit.cz>
+  - Dmitry Osipenko <digetx@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - summit,smb345
+      - summit,smb347
+      - summit,smb358
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  monitored-battery:
+    description: phandle to the battery node
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  summit,enable-usb-charging:
+    type: boolean
+    description: Enable charging through USB.
+
+  summit,enable-otg-charging:
+    type: boolean
+    description: Provide power for USB OTG
+
+  summit,enable-mains-charging:
+    type: boolean
+    description: Enable charging through mains
+
+  summit,enable-charge-control:
+    description: Enable charging control
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # SMB3XX_CHG_ENABLE_SW SW (I2C interface)
+      - 1 # SMB3XX_CHG_ENABLE_PIN_ACTIVE_LOW Pin control (Active Low)
+      - 2 # SMB3XX_CHG_ENABLE_PIN_ACTIVE_HIGH Pin control (Active High)
+
+  summit,fast-voltage-threshold-microvolt:
+    description: Voltage threshold to transit to fast charge mode (in uV)
+    minimum: 2400000
+    maximum: 3000000
+
+  summit,mains-current-limit-microamp:
+    description: Maximum input current from AC/DC input (in uA)
+
+  summit,usb-current-limit-microamp:
+    description: Maximum input current from USB input (in uA)
+
+  summit,charge-current-compensation-microamp:
+    description: Charge current compensation (in uA)
+
+  summit,chip-temperature-threshold-celsius:
+    description: Chip temperature for thermal regulation in °C.
+    enum: [100, 110, 120, 130]
+
+  summit,soft-compensation-method:
+    description: Soft temperature limit compensation method
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # SMB3XX_SOFT_TEMP_COMPENSATE_NONE Compensation none
+      - 1 # SMB3XX_SOFT_TEMP_COMPENSATE_CURRENT Current compensation
+      - 2 # SMB3XX_SOFT_TEMP_COMPENSATE_VOLTAGE Voltage compensation
+
+  summit,inok-polarity:
+    description: |
+      Polarity of INOK signal indicating presence of external power supply.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # SMB3XX_SYSOK_INOK_ACTIVE_LOW
+      - 1 # SMB3XX_SYSOK_INOK_ACTIVE_HIGH
+
+  usb-vbus:
+    $ref: /schemas/regulator/regulator.yaml#
+    type: object
+
+    properties:
+      summit,needs-inok-toggle:
+        type: boolean
+        description: INOK signal is fixed and polarity needs to be toggled
+                     in order to enable/disable output mode.
+
+    unevaluatedProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - summit,smb345
+            - summit,smb358
+
+    then:
+      properties:
+        summit,mains-current-limit-microamp:
+          enum: [ 300000, 500000, 700000, 1000000,
+                  1500000, 1800000, 2000000]
+
+        summit,usb-current-limit-microamp:
+          enum: [ 300000, 500000, 700000, 1000000,
+                  1500000, 1800000, 2000000]
+
+        summit,charge-current-compensation-microamp:
+          enum: [200000, 450000, 600000, 900000]
+
+    else:
+      properties:
+        summit,mains-current-limit-microamp:
+          enum: [ 300000, 500000, 700000, 900000, 1200000,
+                  1500000, 1800000, 2000000, 2200000, 2500000]
+
+        summit,usb-current-limit-microamp:
+          enum: [ 300000, 500000, 700000, 900000, 1200000,
+                  1500000, 1800000, 2000000, 2200000, 2500000]
+
+        summit,charge-current-compensation-microamp:
+          enum: [250000, 700000, 900000, 1200000]
+
+required:
+  - compatible
+  - reg
+
+anyOf:
+  - required:
+      - summit,enable-usb-charging
+  - required:
+      - summit,enable-otg-charging
+  - required:
+      - summit,enable-mains-charging
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/power/summit,smb347-charger.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        charger@7f {
+            compatible = "summit,smb347";
+            reg = <0x7f>;
+
+            summit,enable-charge-control = <SMB3XX_CHG_ENABLE_PIN_ACTIVE_HIGH>;
+            summit,inok-polarity = <SMB3XX_SYSOK_INOK_ACTIVE_LOW>;
+            summit,chip-temperature-threshold-celsius = <110>;
+            summit,mains-current-limit-microamp = <2000000>;
+            summit,usb-current-limit-microamp = <500000>;
+            summit,enable-usb-charging;
+            summit,enable-mains-charging;
+
+            monitored-battery = <&battery>;
+
+            usb-vbus {
+                regulator-name = "usb_vbus";
+                regulator-min-microvolt = <5000000>;
+                regulator-max-microvolt = <5000000>;
+                regulator-min-microamp = <750000>;
+                regulator-max-microamp = <750000>;
+                summit,needs-inok-toggle;
+            };
+        };
+    };
+
+    battery: battery-cell {
+        compatible = "simple-battery";
+        constant-charge-current-max-microamp = <1800000>;
+        operating-range-celsius = <0 45>;
+        alert-celsius = <3 42>;
+    };

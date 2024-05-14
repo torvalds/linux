@@ -1,0 +1,34 @@
+What:           /sys/devices/uncore_iio_x/dieX
+Date:           February 2020
+Contact:        Roman Sudarikov <roman.sudarikov@linux.intel.com>
+Description:
+                Each IIO stack (PCIe root port) has its own IIO PMON block, so
+                each dieX file (where X is die number) holds "Segment:Root Bus"
+                for PCIe root port, which can be monitored by that IIO PMON
+                block.
+                For example, on 4-die Xeon platform with up to 6 IIO stacks per
+                die and, therefore, 6 IIO PMON blocks per die, the mapping of
+                IIO PMON block 0 exposes as the following::
+
+		    $ ls /sys/devices/uncore_iio_0/die*
+		    -r--r--r-- /sys/devices/uncore_iio_0/die0
+		    -r--r--r-- /sys/devices/uncore_iio_0/die1
+		    -r--r--r-- /sys/devices/uncore_iio_0/die2
+		    -r--r--r-- /sys/devices/uncore_iio_0/die3
+
+		    $ tail /sys/devices/uncore_iio_0/die*
+		    ==> /sys/devices/uncore_iio_0/die0 <==
+		    0000:00
+		    ==> /sys/devices/uncore_iio_0/die1 <==
+		    0000:40
+		    ==> /sys/devices/uncore_iio_0/die2 <==
+		    0000:80
+		    ==> /sys/devices/uncore_iio_0/die3 <==
+		    0000:c0
+
+                Which means::
+
+		    IIO PMU 0 on die 0 belongs to PCI RP on bus 0x00, domain 0x0000
+		    IIO PMU 0 on die 1 belongs to PCI RP on bus 0x40, domain 0x0000
+		    IIO PMU 0 on die 2 belongs to PCI RP on bus 0x80, domain 0x0000
+		    IIO PMU 0 on die 3 belongs to PCI RP on bus 0xc0, domain 0x0000

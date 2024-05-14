@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/socionext,uniphier-pcie-ep.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext UniPhier PCIe endpoint controller
+
+description: |
+  UniPhier PCIe endpoint controller is based on the Synopsys DesignWare
+  PCI core. It shares common features with the PCIe DesignWare core and
+  inherits common properties defined in
+  Documentation/devicetree/bindings/pci/snps,dw-pcie-ep.yaml.
+
+maintainers:
+  - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+
+allOf:
+  - $ref: /schemas/pci/snps,dw-pcie-ep.yaml#
+
+properties:
+  compatible:
+    enum:
+      - socionext,uniphier-pro5-pcie-ep
+      - socionext,uniphier-nx1-pcie-ep
+
+  reg:
+    minItems: 4
+    maxItems: 5
+
+  reg-names:
+    oneOf:
+      - items:
+          - const: dbi
+          - const: dbi2
+          - const: link
+          - const: addr_space
+      - items:
+          - const: dbi
+          - const: dbi2
+          - const: link
+          - const: addr_space
+          - const: atu
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    oneOf:
+      - items:              # for Pro5
+          - const: gio
+          - const: link
+      - const: link         # for NX1
+
+  resets:
+    minItems: 1
+    maxItems: 2
+
+  reset-names:
+    oneOf:
+      - items:              # for Pro5
+          - const: gio
+          - const: link
+      - const: link         # for NX1
+
+  num-ib-windows:
+    const: 16
+
+  num-ob-windows:
+    const: 16
+
+  num-lanes: true
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    const: pcie-phy
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    pcie_ep: pcie-ep@66000000 {
+        compatible = "socionext,uniphier-pro5-pcie-ep";
+        reg-names = "dbi", "dbi2", "link", "addr_space";
+        reg = <0x66000000 0x1000>, <0x66001000 0x1000>,
+              <0x66010000 0x10000>, <0x67000000 0x400000>;
+        clock-names = "gio", "link";
+        clocks = <&sys_clk 12>, <&sys_clk 24>;
+        reset-names = "gio", "link";
+        resets = <&sys_rst 12>, <&sys_rst 24>;
+        num-ib-windows = <16>;
+        num-ob-windows = <16>;
+        num-lanes = <4>;
+        phy-names = "pcie-phy";
+        phys = <&pcie_phy>;
+    };

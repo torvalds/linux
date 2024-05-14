@@ -1,0 +1,13 @@
+rfkill - radio frequency (RF) connector kill switch support
+
+For details to this subsystem look at Documentation/driver-api/rfkill.rst.
+
+What:		/sys/class/rfkill/rfkill[0-9]+/claim
+Date:		09-Jul-2007
+KernelVersion	v2.6.22
+Contact:	linux-wireless@vger.kernel.org
+Description:	This file was deprecated because there no longer was a way to
+		claim just control over a single rfkill instance.
+		This file was scheduled to be removed in 2012, and was removed
+		in 2016.
+Values:		0: Kernel handles events

@@ -1,0 +1,234 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * GE SBC310 Device Tree Source
+ *
+ * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
+ *
+ * Based on: SBS CM6 Device Tree Source
+ * Copyright 2007 SBS Technologies GmbH & Co. KG
+ * And: mpc8641_hpcn.dts (MPC8641 HPCN Device Tree Source)
+ * Copyright 2006 Freescale Semiconductor Inc.
+ */
+
+/*
+ * Compiled with dtc -I dts -O dtb -o gef_sbc310.dtb gef_sbc310.dts
+ */
+
+/include/ "mpc8641si-pre.dtsi"
+
+/ {
+	model = "GEF_SBC310";
+	compatible = "gef,sbc310";
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x40000000>;	// set by uboot
+	};
+
+	lbc: localbus@fef05000 {
+		reg = <0xfef05000 0x1000>;
+
+		ranges = <0 0 0xff000000 0x01000000	// 16MB Boot flash
+			  1 0 0xe0000000 0x08000000	// Paged Flash 0
+			  2 0 0xe8000000 0x08000000	// Paged Flash 1
+			  3 0 0xfc100000 0x00020000	// NVRAM
+			  4 0 0xfc000000 0x00010000>;	// FPGA
+
+		/* flash@0,0 is a mirror of part of the memory in flash@1,0
+		flash@0,0 {
+			compatible = "gef,sbc310-firmware-mirror", "cfi-flash";
+			reg = <0x0 0x0 0x01000000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			partition@0 {
+				label = "firmware";
+				reg = <0x0 0x01000000>;
+				read-only;
+			};
+		};
+		*/
+
+		flash@1,0 {
+			compatible = "gef,sbc310-paged-flash", "cfi-flash";
+			reg = <0x1 0x0 0x8000000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			partition@0 {
+				label = "user";
+				reg = <0x0 0x7800000>;
+			};
+			partition@7800000 {
+				label = "firmware";
+				reg = <0x7800000 0x800000>;
+				read-only;
+			};
+		};
+
+		nvram@3,0 {
+			device_type = "nvram";
+			compatible = "simtek,stk14ca8";
+			reg = <0x3 0x0 0x20000>;
+		};
+
+		fpga@4,0 {
+			compatible = "gef,fpga-regs";
+			reg = <0x4 0x0 0x40>;
+		};
+
+		wdt@4,2000 {
+			compatible = "gef,sbc310-fpga-wdt", "gef,fpga-wdt-1.00",
+				"gef,fpga-wdt";
+			reg = <0x4 0x2000 0x8>;
+			interrupts = <0x1a 0x4>;
+			interrupt-parent = <&gef_pic>;
+		};
+/*
+		wdt@4,2010 {
+			compatible = "gef,sbc310-fpga-wdt", "gef,fpga-wdt-1.00",
+				"gef,fpga-wdt";
+			reg = <0x4 0x2010 0x8>;
+			interrupts = <0x1b 0x4>;
+			interrupt-parent = <&gef_pic>;
+		};
+*/
+		gef_pic: pic@4,4000 {
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			compatible = "gef,sbc310-fpga-pic", "gef,fpga-pic";
+			reg = <0x4 0x4000 0x20>;
+			interrupts = <0x8 0x9 0 0>;
+
+		};
+		gef_gpio: gpio@4,8000 {
+			#gpio-cells = <2>;
+			compatible = "gef,sbc310-gpio";
+			reg = <0x4 0x8000 0x24>;
+			gpio-controller;
+		};
+	};
+
+	soc: soc@fef00000 {
+		ranges = <0x0 0xfef00000 0x00100000>;
+
+		i2c@3000 {
+			rtc@51 {
+				compatible = "epson,rx8581";
+				reg = <0x00000051>;
+			};
+		};
+
+		i2c@3100 {
+			hwmon@48 {
+				compatible = "national,lm92";
+				reg = <0x48>;
+			};
+
+			hwmon@4c {
+				compatible = "adi,adt7461";
+				reg = <0x4c>;
+			};
+
+			eti@6b {
+				compatible = "dallas,ds1682";
+				reg = <0x6b>;
+			};
+		};
+
+		enet0: ethernet@24000 {
+			tbi-handle = <&tbi0>;
+			phy-handle = <&phy0>;
+			phy-connection-type = "gmii";
+		};
+
+		mdio@24520 {
+			phy0: ethernet-phy@0 {
+				interrupt-parent = <&gef_pic>;
+				interrupts = <0x9 0x4>;
+				reg = <1>;
+			};
+			phy2: ethernet-phy@2 {
+				interrupt-parent = <&gef_pic>;
+				interrupts = <0x8 0x4>;
+				reg = <3>;
+			};
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet1: ethernet@26000 {
+			tbi-handle = <&tbi2>;
+			phy-handle = <&phy2>;
+			phy-connection-type = "gmii";
+		};
+
+		mdio@26520 {
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		enet2: ethernet@25000 {
+			status = "disabled";
+		};
+
+		mdio@25520 {
+			status = "disabled";
+		};
+
+		enet3: ethernet@27000 {
+			status = "disabled";
+		};
+
+		mdio@27520 {
+			status = "disabled";
+		};
+	};
+
+	pci0: pcie@fef08000 {
+		reg = <0xfef08000 0x1000>;
+		ranges = <0x02000000 0x0 0x80000000 0x80000000 0x0 0x40000000
+			  0x01000000 0x0 0x00000000 0xfe000000 0x0 0x00400000>;
+		interrupt-map-mask = <0xff00 0x0 0x0 0x7>;
+		interrupt-map = <
+			0x0000 0x0 0x0 0x1 &mpic 0x0 0x2
+			0x0000 0x0 0x0 0x2 &mpic 0x1 0x2
+			0x0000 0x0 0x0 0x3 &mpic 0x2 0x2
+			0x0000 0x0 0x0 0x4 &mpic 0x3 0x2
+		>;
+
+		pcie@0 {
+			ranges = <0x02000000 0x0 0x80000000
+				  0x02000000 0x0 0x80000000
+				  0x0 0x40000000
+
+				  0x01000000 0x0 0x00000000
+				  0x01000000 0x0 0x00000000
+				  0x0 0x00400000>;
+		};
+	};
+
+	pci1: pcie@fef09000 {
+		reg = <0xfef09000 0x1000>;
+		ranges = <0x02000000 0x0 0xc0000000 0xc0000000 0x0 0x20000000
+			  0x01000000 0x0 0x00000000 0xfe400000 0x0 0x00400000>;
+
+		pcie@0 {
+			ranges = <0x02000000 0x0 0xc0000000
+				  0x02000000 0x0 0xc0000000
+				  0x0 0x20000000
+
+				  0x01000000 0x0 0x00000000
+				  0x01000000 0x0 0x00000000
+				  0x0 0x00400000>;
+		};
+	};
+};
+
+/include/ "mpc8641si-post.dtsi"

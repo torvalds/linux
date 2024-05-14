@@ -1,0 +1,544 @@
+#
+#	EDAC Kconfig
+#	Copyright (c) 2008 Doug Thompson www.softwarebitmaker.com
+#	Licensed and distributed under the GPL
+
+config EDAC_ATOMIC_SCRUB
+	bool
+
+config EDAC_SUPPORT
+	bool
+
+menuconfig EDAC
+	tristate "EDAC (Error Detection And Correction) reporting"
+	depends on HAS_IOMEM && EDAC_SUPPORT && RAS
+	help
+	  EDAC is a subsystem along with hardware-specific drivers designed to
+	  report hardware errors. These are low-level errors that are reported
+	  in the CPU or supporting chipset or other subsystems:
+	  memory errors, cache errors, PCI errors, thermal throttling, etc..
+	  If unsure, select 'Y'.
+
+	  The mailing list for the EDAC project is linux-edac@vger.kernel.org.
+
+if EDAC
+
+config EDAC_LEGACY_SYSFS
+	bool "EDAC legacy sysfs"
+	default y
+	help
+	  Enable the compatibility sysfs nodes.
+	  Use 'Y' if your edac utilities aren't ported to work with the newer
+	  structures.
+
+config EDAC_DEBUG
+	bool "Debugging"
+	select DEBUG_FS
+	help
+	  This turns on debugging information for the entire EDAC subsystem.
+	  You do so by inserting edac_module with "edac_debug_level=x." Valid
+	  levels are 0-4 (from low to high) and by default it is set to 2.
+	  Usually you should select 'N' here.
+
+config EDAC_DECODE_MCE
+	tristate "Decode MCEs in human-readable form (only on AMD for now)"
+	depends on CPU_SUP_AMD && X86_MCE_AMD
+	default y
+	help
+	  Enable this option if you want to decode Machine Check Exceptions
+	  occurring on your machine in human-readable form.
+
+	  You should definitely say Y here in case you want to decode MCEs
+	  which occur really early upon boot, before the module infrastructure
+	  has been initialized.
+
+config EDAC_GHES
+	bool "Output ACPI APEI/GHES BIOS detected errors via EDAC"
+	depends on ACPI_APEI_GHES && (EDAC=y)
+	select UEFI_CPER
+	help
+	  Not all machines support hardware-driven error report. Some of those
+	  provide a BIOS-driven error report mechanism via ACPI, using the
+	  APEI/GHES driver. By enabling this option, the error reports provided
+	  by GHES are sent to userspace via the EDAC API.
+
+	  When this option is enabled, it will disable the hardware-driven
+	  mechanisms, if a GHES BIOS is detected, entering into the
+	  "Firmware First" mode.
+
+	  It should be noticed that keeping both GHES and a hardware-driven
+	  error mechanism won't work well, as BIOS will race with OS, while
+	  reading the error registers. So, if you want to not use "Firmware
+	  first" GHES error mechanism, you should disable GHES either at
+	  compilation time or by passing "ghes.disable=1" Kernel parameter
+	  at boot time.
+
+	  In doubt, say 'Y'.
+
+config EDAC_AMD64
+	tristate "AMD64 (Opteron, Athlon64)"
+	depends on AMD_NB && EDAC_DECODE_MCE
+	help
+	  Support for error detection and correction of DRAM ECC errors on
+	  the AMD64 families (>= K8) of memory controllers.
+
+	  When EDAC_DEBUG is enabled, hardware error injection facilities
+	  through sysfs are available:
+
+	  AMD CPUs up to and excluding family 0x17 provide for Memory
+	  Error Injection into the ECC detection circuits. The amd64_edac
+	  module allows the operator/user to inject Uncorrectable and
+	  Correctable errors into DRAM.
+
+	  When enabled, in each of the respective memory controller directories
+	  (/sys/devices/system/edac/mc/mcX), there are 3 input files:
+
+	  - inject_section (0..3, 16-byte section of 64-byte cacheline),
+	  - inject_word (0..8, 16-bit word of 16-byte section),
+	  - inject_ecc_vector (hex ecc vector: select bits of inject word)
+
+	  In addition, there are two control files, inject_read and inject_write,
+	  which trigger the DRAM ECC Read and Write respectively.
+
+config EDAC_AL_MC
+	tristate "Amazon's Annapurna Lab Memory Controller"
+	depends on (ARCH_ALPINE || COMPILE_TEST)
+	help
+	  Support for error detection and correction for Amazon's Annapurna
+	  Labs Alpine chips which allow 1 bit correction and 2 bits detection.
+
+config EDAC_AMD76X
+	tristate "AMD 76x (760, 762, 768)"
+	depends on PCI && X86_32
+	help
+	  Support for error detection and correction on the AMD 76x
+	  series of chipsets used with the Athlon processor.
+
+config EDAC_E7XXX
+	tristate "Intel e7xxx (e7205, e7500, e7501, e7505)"
+	depends on PCI && X86_32
+	help
+	  Support for error detection and correction on the Intel
+	  E7205, E7500, E7501 and E7505 server chipsets.
+
+config EDAC_E752X
+	tristate "Intel e752x (e7520, e7525, e7320) and 3100"
+	depends on PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  E7520, E7525, E7320 server chipsets.
+
+config EDAC_I82443BXGX
+	tristate "Intel 82443BX/GX (440BX/GX)"
+	depends on PCI && X86_32
+	depends on BROKEN
+	help
+	  Support for error detection and correction on the Intel
+	  82443BX/GX memory controllers (440BX/GX chipsets).
+
+config EDAC_I82875P
+	tristate "Intel 82875p (D82875P, E7210)"
+	depends on PCI && X86_32
+	help
+	  Support for error detection and correction on the Intel
+	  DP82785P and E7210 server chipsets.
+
+config EDAC_I82975X
+	tristate "Intel 82975x (D82975x)"
+	depends on PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  DP82975x server chipsets.
+
+config EDAC_I3000
+	tristate "Intel 3000/3010"
+	depends on PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  3000 and 3010 server chipsets.
+
+config EDAC_I3200
+	tristate "Intel 3200"
+	depends on PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  3200 and 3210 server chipsets.
+
+config EDAC_IE31200
+	tristate "Intel e312xx"
+	depends on PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  E3-1200 based DRAM controllers.
+
+config EDAC_X38
+	tristate "Intel X38"
+	depends on PCI && X86
+	help
+	  Support for error detection and correction on the Intel
+	  X38 server chipsets.
+
+config EDAC_I5400
+	tristate "Intel 5400 (Seaburg) chipsets"
+	depends on PCI && X86
+	help
+	  Support for error detection and correction the Intel
+	  i5400 MCH chipset (Seaburg).
+
+config EDAC_I7CORE
+	tristate "Intel i7 Core (Nehalem) processors"
+	depends on PCI && X86 && X86_MCE_INTEL
+	help
+	  Support for error detection and correction the Intel
+	  i7 Core (Nehalem) Integrated Memory Controller that exists on
+	  newer processors like i7 Core, i7 Core Extreme, Xeon 35xx
+	  and Xeon 55xx processors.
+
+config EDAC_I82860
+	tristate "Intel 82860"
+	depends on PCI && X86_32
+	help
+	  Support for error detection and correction on the Intel
+	  82860 chipset.
+
+config EDAC_R82600
+	tristate "Radisys 82600 embedded chipset"
+	depends on PCI && X86_32
+	help
+	  Support for error detection and correction on the Radisys
+	  82600 embedded chipset.
+
+config EDAC_I5000
+	tristate "Intel Greencreek/Blackford chipset"
+	depends on X86 && PCI
+	help
+	  Support for error detection and correction the Intel
+	  Greekcreek/Blackford chipsets.
+
+config EDAC_I5100
+	tristate "Intel San Clemente MCH"
+	depends on X86 && PCI
+	help
+	  Support for error detection and correction the Intel
+	  San Clemente MCH.
+
+config EDAC_I7300
+	tristate "Intel Clarksboro MCH"
+	depends on X86 && PCI
+	help
+	  Support for error detection and correction the Intel
+	  Clarksboro MCH (Intel 7300 chipset).
+
+config EDAC_SBRIDGE
+	tristate "Intel Sandy-Bridge/Ivy-Bridge/Haswell Integrated MC"
+	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG
+	help
+	  Support for error detection and correction the Intel
+	  Sandy Bridge, Ivy Bridge and Haswell Integrated Memory Controllers.
+
+config EDAC_SKX
+	tristate "Intel Skylake server Integrated MC"
+	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG && ACPI
+	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_SKX can't be y
+	select DMI
+	select ACPI_ADXL
+	help
+	  Support for error detection and correction the Intel
+	  Skylake server Integrated Memory Controllers. If your
+	  system has non-volatile DIMMs you should also manually
+	  select CONFIG_ACPI_NFIT.
+
+config EDAC_I10NM
+	tristate "Intel 10nm server Integrated MC"
+	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG && ACPI
+	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_I10NM can't be y
+	select DMI
+	select ACPI_ADXL
+	help
+	  Support for error detection and correction the Intel
+	  10nm server Integrated Memory Controllers. If your
+	  system has non-volatile DIMMs you should also manually
+	  select CONFIG_ACPI_NFIT.
+
+config EDAC_PND2
+	tristate "Intel Pondicherry2"
+	depends on PCI && X86_64 && X86_MCE_INTEL
+	select P2SB if X86
+	help
+	  Support for error detection and correction on the Intel
+	  Pondicherry2 Integrated Memory Controller. This SoC IP is
+	  first used on the Apollo Lake platform and Denverton
+	  micro-server but may appear on others in the future.
+
+config EDAC_IGEN6
+	tristate "Intel client SoC Integrated MC"
+	depends on PCI && PCI_MMCONFIG && ARCH_HAVE_NMI_SAFE_CMPXCHG
+	depends on X86_64 && X86_MCE_INTEL
+	help
+	  Support for error detection and correction on the Intel
+	  client SoC Integrated Memory Controller using In-Band ECC IP.
+	  This In-Band ECC is first used on the Elkhart Lake SoC but
+	  may appear on others in the future.
+
+config EDAC_MPC85XX
+	bool "Freescale MPC83xx / MPC85xx"
+	depends on FSL_SOC && EDAC=y
+	help
+	  Support for error detection and correction on the Freescale
+	  MPC8349, MPC8560, MPC8540, MPC8548, T4240
+
+config EDAC_LAYERSCAPE
+	tristate "Freescale Layerscape DDR"
+	depends on ARCH_LAYERSCAPE || SOC_LS1021A
+	help
+	  Support for error detection and correction on Freescale memory
+	  controllers on Layerscape SoCs.
+
+config EDAC_PASEMI
+	tristate "PA Semi PWRficient"
+	depends on PPC_PASEMI && PCI
+	help
+	  Support for error detection and correction on PA Semi
+	  PWRficient.
+
+config EDAC_CELL
+	tristate "Cell Broadband Engine memory controller"
+	depends on PPC_CELL_COMMON
+	help
+	  Support for error detection and correction on the
+	  Cell Broadband Engine internal memory controller
+	  on platform without a hypervisor
+
+config EDAC_PPC4XX
+	tristate "PPC4xx IBM DDR2 Memory Controller"
+	depends on 4xx
+	help
+	  This enables support for EDAC on the ECC memory used
+	  with the IBM DDR2 memory controller found in various
+	  PowerPC 4xx embedded processors such as the 405EX[r],
+	  440SP, 440SPe, 460EX, 460GT and 460SX.
+
+config EDAC_AMD8131
+	tristate "AMD8131 HyperTransport PCI-X Tunnel"
+	depends on PCI && PPC_MAPLE
+	help
+	  Support for error detection and correction on the
+	  AMD8131 HyperTransport PCI-X Tunnel chip.
+	  Note, add more Kconfig dependency if it's adopted
+	  on some machine other than Maple.
+
+config EDAC_AMD8111
+	tristate "AMD8111 HyperTransport I/O Hub"
+	depends on PCI && PPC_MAPLE
+	help
+	  Support for error detection and correction on the
+	  AMD8111 HyperTransport I/O Hub chip.
+	  Note, add more Kconfig dependency if it's adopted
+	  on some machine other than Maple.
+
+config EDAC_CPC925
+	tristate "IBM CPC925 Memory Controller (PPC970FX)"
+	depends on PPC64
+	help
+	  Support for error detection and correction on the
+	  IBM CPC925 Bridge and Memory Controller, which is
+	  a companion chip to the PowerPC 970 family of
+	  processors.
+
+config EDAC_HIGHBANK_MC
+	tristate "Highbank Memory Controller"
+	depends on ARCH_HIGHBANK
+	help
+	  Support for error detection and correction on the
+	  Calxeda Highbank memory controller.
+
+config EDAC_HIGHBANK_L2
+	tristate "Highbank L2 Cache"
+	depends on ARCH_HIGHBANK
+	help
+	  Support for error detection and correction on the
+	  Calxeda Highbank memory controller.
+
+config EDAC_OCTEON_PC
+	tristate "Cavium Octeon Primary Caches"
+	depends on CPU_CAVIUM_OCTEON
+	help
+	  Support for error detection and correction on the primary caches of
+	  the cnMIPS cores of Cavium Octeon family SOCs.
+
+config EDAC_OCTEON_L2C
+	tristate "Cavium Octeon Secondary Caches (L2C)"
+	depends on CAVIUM_OCTEON_SOC
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
+
+config EDAC_OCTEON_LMC
+	tristate "Cavium Octeon DRAM Memory Controller (LMC)"
+	depends on CAVIUM_OCTEON_SOC
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
+
+config EDAC_OCTEON_PCI
+	tristate "Cavium Octeon PCI Controller"
+	depends on PCI && CAVIUM_OCTEON_SOC
+	help
+	  Support for error detection and correction on the
+	  Cavium Octeon family of SOCs.
+
+config EDAC_THUNDERX
+	tristate "Cavium ThunderX EDAC"
+	depends on ARM64
+	depends on PCI
+	help
+	  Support for error detection and correction on the
+	  Cavium ThunderX memory controllers (LMC), Cache
+	  Coherent Processor Interconnect (CCPI) and L2 cache
+	  blocks (TAD, CBC, MCI).
+
+config EDAC_ALTERA
+	bool "Altera SOCFPGA ECC"
+	depends on EDAC=y && ARCH_INTEL_SOCFPGA
+	help
+	  Support for error detection and correction on the
+	  Altera SOCs. This is the global enable for the
+	  various Altera peripherals.
+
+config EDAC_ALTERA_SDRAM
+	bool "Altera SDRAM ECC"
+	depends on EDAC_ALTERA=y
+	help
+	  Support for error detection and correction on the
+	  Altera SDRAM Memory for Altera SoCs. Note that the
+	  preloader must initialize the SDRAM before loading
+	  the kernel.
+
+config EDAC_ALTERA_L2C
+	bool "Altera L2 Cache ECC"
+	depends on EDAC_ALTERA=y && CACHE_L2X0
+	help
+	  Support for error detection and correction on the
+	  Altera L2 cache Memory for Altera SoCs. This option
+	  requires L2 cache.
+
+config EDAC_ALTERA_OCRAM
+	bool "Altera On-Chip RAM ECC"
+	depends on EDAC_ALTERA=y && SRAM && GENERIC_ALLOCATOR
+	help
+	  Support for error detection and correction on the
+	  Altera On-Chip RAM Memory for Altera SoCs.
+
+config EDAC_ALTERA_ETHERNET
+	bool "Altera Ethernet FIFO ECC"
+	depends on EDAC_ALTERA=y
+	help
+	  Support for error detection and correction on the
+	  Altera Ethernet FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_NAND
+	bool "Altera NAND FIFO ECC"
+	depends on EDAC_ALTERA=y && MTD_NAND_DENALI
+	help
+	  Support for error detection and correction on the
+	  Altera NAND FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_DMA
+	bool "Altera DMA FIFO ECC"
+	depends on EDAC_ALTERA=y && PL330_DMA=y
+	help
+	  Support for error detection and correction on the
+	  Altera DMA FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_USB
+	bool "Altera USB FIFO ECC"
+	depends on EDAC_ALTERA=y && USB_DWC2
+	help
+	  Support for error detection and correction on the
+	  Altera USB FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_QSPI
+	bool "Altera QSPI FIFO ECC"
+	depends on EDAC_ALTERA=y && SPI_CADENCE_QUADSPI
+	help
+	  Support for error detection and correction on the
+	  Altera QSPI FIFO Memory for Altera SoCs.
+
+config EDAC_ALTERA_SDMMC
+	bool "Altera SDMMC FIFO ECC"
+	depends on EDAC_ALTERA=y && MMC_DW
+	help
+	  Support for error detection and correction on the
+	  Altera SDMMC FIFO Memory for Altera SoCs.
+
+config EDAC_SIFIVE
+	bool "Sifive platform EDAC driver"
+	depends on EDAC=y && SIFIVE_CCACHE
+	help
+	  Support for error detection and correction on the SiFive SoCs.
+
+config EDAC_ARMADA_XP
+	bool "Marvell Armada XP DDR and L2 Cache ECC"
+	depends on MACH_MVEBU_V7
+	help
+	  Support for error correction and detection on the Marvell Aramada XP
+	  DDR RAM and L2 cache controllers.
+
+config EDAC_SYNOPSYS
+	tristate "Synopsys DDR Memory Controller"
+	depends on ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_INTEL_SOCFPGA || ARCH_MXC
+	help
+	  Support for error detection and correction on the Synopsys DDR
+	  memory controller.
+
+config EDAC_XGENE
+	tristate "APM X-Gene SoC"
+	depends on (ARM64 || COMPILE_TEST)
+	help
+	  Support for error detection and correction on the
+	  APM X-Gene family of SOCs.
+
+config EDAC_TI
+	tristate "Texas Instruments DDR3 ECC Controller"
+	depends on ARCH_KEYSTONE || SOC_DRA7XX
+	help
+	  Support for error detection and correction on the TI SoCs.
+
+config EDAC_QCOM
+	tristate "QCOM EDAC Controller"
+	depends on ARCH_QCOM && QCOM_LLCC
+	help
+	  Support for error detection and correction on the
+	  Qualcomm Technologies, Inc. SoCs.
+
+	  This driver reports Single Bit Errors (SBEs) and Double Bit Errors (DBEs).
+	  As of now, it supports error reporting for Last Level Cache Controller (LLCC)
+	  of Tag RAM and Data RAM.
+
+	  For debugging issues having to do with stability and overall system
+	  health, you should probably say 'Y' here.
+
+config EDAC_ASPEED
+	tristate "Aspeed AST BMC SoC"
+	depends on ARCH_ASPEED
+	help
+	  Support for error detection and correction on the Aspeed AST BMC SoC.
+
+	  First, ECC must be configured in the bootloader. Then, this driver
+	  will expose error counters via the EDAC kernel framework.
+
+config EDAC_BLUEFIELD
+	tristate "Mellanox BlueField Memory ECC"
+	depends on ARM64 && ((MELLANOX_PLATFORM && ACPI) || COMPILE_TEST)
+	help
+	  Support for error detection and correction on the
+	  Mellanox BlueField SoCs.
+
+config EDAC_DMC520
+	tristate "ARM DMC-520 ECC"
+	depends on ARM64
+	help
+	  Support for error detection and correction on the
+	  SoCs with ARM DMC-520 DRAM controller.
+
+endif # EDAC

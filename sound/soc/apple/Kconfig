@@ -1,0 +1,8 @@
+config SND_SOC_APPLE_MCA
+	tristate "Apple Silicon MCA driver"
+	depends on ARCH_APPLE || COMPILE_TEST
+	select SND_DMAENGINE_PCM
+	default ARCH_APPLE
+	help
+	  This option enables an ASoC platform driver for MCA peripherals found
+	  on Apple Silicon SoCs.

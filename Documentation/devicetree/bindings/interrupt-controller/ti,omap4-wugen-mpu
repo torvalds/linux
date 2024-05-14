@@ -1,0 +1,31 @@
+TI OMAP4 Wake-up Generator
+
+All TI OMAP4/5 (and their derivatives) an interrupt controller that
+routes interrupts to the GIC, and also serves as a wakeup source. It
+is also referred to as "WUGEN-MPU", hence the name of the binding.
+
+Required properties:
+
+- compatible : should contain at least "ti,omap4-wugen-mpu" or
+  "ti,omap5-wugen-mpu"
+- reg : Specifies base physical address and size of the registers.
+- interrupt-controller : Identifies the node as an interrupt controller.
+- #interrupt-cells : Specifies the number of cells needed to encode an
+  interrupt source. The value must be 3.
+
+Notes:
+
+- Because this HW ultimately routes interrupts to the GIC, the
+  interrupt specifier must be that of the GIC.
+- Only SPIs can use the WUGEN as an interrupt parent. SGIs and PPIs
+  are explicitly forbidden.
+
+Example:
+
+       wakeupgen: interrupt-controller@48281000 {
+               compatible = "ti,omap5-wugen-mpu", "ti,omap4-wugen-mpu";
+               interrupt-controller;
+               #interrupt-cells = <3>;
+               reg = <0x48281000 0x1000>;
+               interrupt-parent = <&gic>;
+       };

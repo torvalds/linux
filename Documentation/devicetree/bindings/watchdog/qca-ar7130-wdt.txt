@@ -1,0 +1,13 @@
+* Qualcomm Atheros AR7130 Watchdog Timer (WDT) Controller
+
+Required properties:
+- compatible: must be "qca,ar7130-wdt"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+
+Example:
+
+wdt@18060008 {
+	compatible = "qca,ar9330-wdt", "qca,ar7130-wdt";
+	reg = <0x18060008 0x8>;
+};

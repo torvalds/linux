@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Inclinometer sensors
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Inclinometer sensors"
+
+config HID_SENSOR_INCLINOMETER_3D
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	tristate "HID Inclinometer 3D"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  Inclinometer 3D.
+
+config HID_SENSOR_DEVICE_ROTATION
+	depends on HID_SENSOR_HUB
+	select IIO_BUFFER
+	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
+	tristate "HID Device Rotation"
+	help
+	  Say yes here to build support for the HID SENSOR
+	  device rotation. The output of a device rotation sensor
+	  is presented using quaternion format.
+
+endmenu

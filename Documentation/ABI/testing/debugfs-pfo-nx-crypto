@@ -1,0 +1,45 @@
+What:		/sys/kernel/debug/nx-crypto/*
+Date:		March 2012
+KernelVersion:	3.4
+Contact:	Kent Yoder <key@linux.vnet.ibm.com>
+Description:
+
+These debugfs interfaces are built by the nx-crypto driver, built in
+arch/powerpc/crypto/nx.
+
+Error Detection
+===============
+
+errors:
+  A u32 providing a total count of errors since the driver was loaded. The
+  only errors counted here are those returned from the hcall, H_COP_OP.
+
+last_error:
+  The most recent non-zero return code from the H_COP_OP hcall. -EBUSY is not
+  recorded here (the hcall will retry until -EBUSY goes away).
+
+last_error_pid:
+  The process ID of the process who received the most recent error from the
+  hcall.
+
+Device Use
+==========
+
+aes_bytes:
+  The total number of bytes encrypted using AES in any of the driver's
+  supported modes.
+
+aes_ops:
+  The total number of AES operations submitted to the hardware.
+
+sha256_bytes:
+  The total number of bytes hashed by the hardware using SHA-256.
+
+sha256_ops:
+  The total number of SHA-256 operations submitted to the hardware.
+
+sha512_bytes:
+  The total number of bytes hashed by the hardware using SHA-512.
+
+sha512_ops:
+  The total number of SHA-512 operations submitted to the hardware.

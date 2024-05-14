@@ -1,0 +1,83 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2022 Toradex
+ */
+
+/dts-v1/;
+#include "imx7d-colibri.dtsi"
+#include "imx7-colibri-iris-v2.dtsi"
+
+/ {
+	model = "Toradex Colibri iMX7D on Iris V2 Carrier Board";
+	compatible = "toradex,colibri-imx7d-iris-v2",
+		     "toradex,colibri-imx7d",
+		     "fsl,imx7d";
+};
+
+&ad7879_ts {
+	status = "okay";
+};
+
+&atmel_mxt_ts {
+	status = "okay";
+};
+
+&backlight {
+	status = "okay";
+};
+
+&gpio2 {
+	/*
+	 * This switches the LVDS transceiver to VESA color mapping mode.
+	 */
+	lvds-color-map-hog {
+		gpio-hog;
+		gpios = <13 GPIO_ACTIVE_HIGH>; /* SODIMM 95 */
+		line-name = "LVDS_COLOR_MAP";
+		output-low;
+	};
+};
+
+&gpio7 {
+	/*
+	 * This switches the LVDS transceiver to the 24-bit RGB mode.
+	 */
+	lvds-rgb-mode-hog {
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_HIGH>; /* SODIMM 63 */
+		line-name = "LVDS_RGB_MODE";
+		output-low;
+	};
+
+	/*
+	 * This switches the LVDS transceiver to the single-channel
+	 * output mode.
+	 */
+	lvds-ch-mode-hog {
+		gpio-hog;
+		gpios = <3 GPIO_ACTIVE_HIGH>; /* SODIMM 55 */
+		line-name = "LVDS_CH_MODE";
+		output-high;
+	};
+
+	/* This turns the LVDS transceiver on */
+	lvds-power-on-hog {
+		gpio-hog;
+		gpios = <11 GPIO_ACTIVE_HIGH>; /* SODIMM 99 */
+		line-name = "LVDS_POWER_ON";
+		output-high;
+	};
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&panel_dpi {
+	status = "okay";
+};
+
+/* Colibri USBH */
+&usbotg2 {
+	status = "okay";
+};

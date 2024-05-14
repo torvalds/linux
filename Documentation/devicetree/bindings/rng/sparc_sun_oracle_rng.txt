@@ -1,0 +1,30 @@
+HWRNG support for the n2_rng driver
+
+Required properties:
+- reg		: base address to sample from
+- compatible	: should contain one of the following
+	RNG versions:
+	- 'SUNW,n2-rng' for Niagara 2 Platform (SUN UltraSPARC T2 CPU)
+	- 'SUNW,vf-rng' for Victoria Falls Platform (SUN UltraSPARC T2 Plus CPU)
+	- 'SUNW,kt-rng' for Rainbow/Yosemite Falls Platform (SUN SPARC T3/T4), (UltraSPARC KT/Niagara 3 - development names)
+	more recent systems (after Oracle acquisition of SUN)
+	- 'ORCL,m4-rng' for SPARC T5/M5
+	- 'ORCL,m7-rng' for SPARC T7/M7
+
+Examples:
+/* linux LDOM on SPARC T5-2 */
+Node 0xf029a4f4
+	.node:  f029a4f4
+	rng-#units:  00000002
+	compatible: 'ORCL,m4-rng'
+	reg:  0000000e
+	name: 'random-number-generator'
+
+/* solaris on SPARC M7-8 */
+Node 0xf028c08c
+	rng-#units:  00000003
+	compatible: 'ORCL,m7-rng'
+	reg:  0000000e
+	name:  'random-number-generator'
+
+PS: see as well prtconfs.git by DaveM

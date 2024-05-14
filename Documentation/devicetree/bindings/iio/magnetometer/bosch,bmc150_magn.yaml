@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/magnetometer/bosch,bmc150_magn.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Bosch BMC150 magnetometer sensor
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+  Supports a range of parts, some of which form part of a multi die
+  package that also contains other sensors.  The interface is independent
+  however, so a separate driver is used to support the magnetometer part.
+  Datasheet at:
+  http://ae-bst.resource.bosch.com/media/products/dokumente/bmc150/BST-BMC150-DS000-04.pdf
+
+properties:
+  compatible:
+    description:
+      Note the bmm150_magn is a deprecated compatible as this part contains only
+      a magnetometer.
+    enum:
+      - bosch,bmc150_magn
+      - bosch,bmc156_magn
+      - bosch,bmm150
+      - bosch,bmm150_magn
+
+  reg:
+    maxItems: 1
+
+  vdd-supply: true
+  vddio-supply: true
+
+  interrupts:
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        magnetometer@12 {
+            compatible = "bosch,bmc150_magn";
+            reg = <0x12>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <0 1>;
+        };
+    };
+...

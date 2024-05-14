@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/rda,rda5807.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Unisoc Communications RDA5807 FM radio receiver
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+
+properties:
+  compatible:
+    enum:
+      - rda,rda5807
+
+  reg:
+    description: I2C address.
+    maxItems: 1
+
+  power-supply: true
+
+  rda,lnan:
+    description: Use LNAN input port.
+    type: boolean
+
+  rda,lnap:
+    description: Use LNAP input port.
+    type: boolean
+
+  rda,analog-out:
+    description: Enable analog audio output.
+    type: boolean
+
+  rda,i2s-out:
+    description: Enable I2S digital audio output.
+    type: boolean
+
+  rda,lna-microamp:
+    description: LNA working current, in micro-amperes.
+    default: 2500
+    enum: [1800, 2100, 2500, 3000]
+
+required:
+  - compatible
+  - reg
+  - power-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      radio@11 {
+        compatible = "rda,rda5807";
+        reg = <0x11>;
+
+        power-supply = <&ldo6>;
+
+        rda,lnan;
+        rda,lnap;
+        rda,analog-out;
+      };
+    };

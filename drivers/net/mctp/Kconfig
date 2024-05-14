@@ -1,0 +1,38 @@
+
+if MCTP
+
+menu "MCTP Device Drivers"
+
+config MCTP_SERIAL
+	tristate "MCTP serial transport"
+	depends on TTY
+	select CRC_CCITT
+	help
+	  This driver provides an MCTP-over-serial interface, through a
+	  serial line-discipline, as defined by DMTF specification "DSP0253 -
+	  MCTP Serial Transport Binding". By attaching the ldisc to a serial
+	  device, we get a new net device to transport MCTP packets.
+
+	  This allows communication with external MCTP endpoints which use
+	  serial as their transport. It can also be used as an easy way to
+	  provide MCTP connectivity between virtual machines, by forwarding
+	  data between simple virtual serial devices.
+
+	  Say y here if you need to connect to MCTP endpoints over serial. To
+	  compile as a module, use m; the module will be called mctp-serial.
+
+config MCTP_TRANSPORT_I2C
+	tristate "MCTP SMBus/I2C transport"
+	# i2c-mux is optional, but we must build as a module if i2c-mux is a module
+	depends on I2C_MUX || !I2C_MUX
+	depends on I2C
+	depends on I2C_SLAVE
+	select MCTP_FLOWS
+	help
+	  Provides a driver to access MCTP devices over SMBus/I2C transport,
+	  from DMTF specification DSP0237. A MCTP protocol network device is
+	  created for each I2C bus that has been assigned a mctp-i2c device.
+
+endmenu
+
+endif

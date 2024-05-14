@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/richtek,rt9455.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Binding for Richtek rt9455 battery charger
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: richtek,rt9455
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  richtek,output-charge-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: output current from the charger to the battery, in uA.
+
+  richtek,end-of-charge-percentage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      percent of the output charge current. When the current in constant-voltage phase drops
+      below output_charge_current x end-of-charge-percentage, charge is terminated.
+
+  richtek,battery-regulation-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum battery voltage in uV.
+
+  richtek,boost-output-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      maximum voltage provided to consumer devices, when the charger is in boost mode, in uV.
+
+  richtek,min-input-voltage-regulation:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      input voltage level in uV, used to decrease voltage level when the over current of the
+      input power source occurs. This prevents input voltage drop due to insufficient
+      current provided by the power source. Defaults to 4500000 uV (4.5V).
+
+  richtek,avg-input-current-regulation:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      input current value in uA drained by the charger from the power source.
+      Defaults to 500000 uA (500mA).
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - richtek,output-charge-current
+  - richtek,end-of-charge-percentage
+  - richtek,battery-regulation-voltage
+  - richtek,boost-output-voltage
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@22 {
+        compatible = "richtek,rt9455";
+        reg = <0x22>;
+
+        interrupt-parent = <&gpio1>;
+        interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+
+        richtek,output-charge-current	    = <500000>;
+        richtek,end-of-charge-percentage    = <10>;
+        richtek,battery-regulation-voltage  = <4200000>;
+        richtek,boost-output-voltage	    = <5050000>;
+
+        richtek,min-input-voltage-regulation = <4500000>;
+        richtek,avg-input-current-regulation = <500000>;
+      };
+    };

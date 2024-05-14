@@ -1,0 +1,44 @@
+Binding for Qualcomm Atheros AR7xxx/AR9XXX CPU interrupt controller
+
+On most SoC the IRQ controller need to flush the DDR FIFO before running
+the interrupt handler of some devices. This is configured using the
+qca,ddr-wb-channels and qca,ddr-wb-channel-interrupts properties.
+
+Required Properties:
+
+- compatible: has to be "qca,<soctype>-cpu-intc", "qca,ar7100-cpu-intc"
+  as fallback
+- interrupt-controller : Identifies the node as an interrupt controller
+- #interrupt-cells : Specifies the number of cells needed to encode interrupt
+		     source, should be 1 for intc
+
+Please refer to interrupts.txt in this directory for details of the common
+Interrupt Controllers bindings used by client devices.
+
+Optional Properties:
+
+- qca,ddr-wb-channel-interrupts: List of the interrupts needing a write
+  buffer flush
+- qca,ddr-wb-channels: List of phandles to the write buffer channels for
+  each interrupt. If qca,ddr-wb-channel-interrupts is not present the interrupt
+  default to the entry's index.
+
+Example:
+
+	interrupt-controller {
+		compatible = "qca,ar9132-cpu-intc", "qca,ar7100-cpu-intc";
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		qca,ddr-wb-channel-interrupts = <2>, <3>, <4>, <5>;
+		qca,ddr-wb-channels = <&ddr_ctrl 3>, <&ddr_ctrl 2>,
+					<&ddr_ctrl 0>, <&ddr_ctrl 1>;
+	};
+
+	...
+
+	ddr_ctrl: memory-controller@18000000 {
+		...
+		#qca,ddr-wb-channel-cells = <1>;
+	};

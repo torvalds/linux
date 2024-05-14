@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/falcon/base.o
+nvkm-y += nvkm/falcon/cmdq.o
+nvkm-y += nvkm/falcon/msgq.o
+nvkm-y += nvkm/falcon/qmgr.o
+nvkm-y += nvkm/falcon/v1.o

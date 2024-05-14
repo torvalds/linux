@@ -1,0 +1,23 @@
+* Holt HI-311X stand-alone CAN controller device tree bindings
+
+Required properties:
+ - compatible: Should be one of the following:
+   - "holt,hi3110" for HI-3110
+ - reg: SPI chip select.
+ - clocks: The clock feeding the CAN controller.
+ - interrupts: Should contain IRQ line for the CAN controller.
+
+Optional properties:
+ - vdd-supply: Regulator that powers the CAN controller.
+ - xceiver-supply: Regulator that powers the CAN transceiver.
+
+Example:
+	can0: can@1 {
+		compatible = "holt,hi3110";
+		reg = <1>;
+		clocks = <&clk32m>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+		vdd-supply = <&reg5v0>;
+		xceiver-supply = <&reg5v0>;
+	};

@@ -1,0 +1,130 @@
+* Network
+
+Currently defined compatibles:
+- fsl,cpm1-scc-enet
+- fsl,cpm2-scc-enet
+- fsl,cpm1-fec-enet
+- fsl,cpm2-fcc-enet (third resource is GFEMR)
+- fsl,qe-enet
+
+Example:
+
+	ethernet@11300 {
+		compatible = "fsl,mpc8272-fcc-enet",
+			     "fsl,cpm2-fcc-enet";
+		reg = <11300 20 8400 100 11390 1>;
+		local-mac-address = [ 00 00 00 00 00 00 ];
+		interrupts = <20 8>;
+		interrupt-parent = <&PIC>;
+		phy-handle = <&PHY0>;
+		fsl,cpm-command = <12000300>;
+	};
+
+* MDIO
+
+Currently defined compatibles:
+fsl,pq1-fec-mdio (reg is same as first resource of FEC device)
+fsl,cpm2-mdio-bitbang (reg is port C registers)
+
+Properties for fsl,cpm2-mdio-bitbang:
+fsl,mdio-pin : pin of port C controlling mdio data
+fsl,mdc-pin : pin of port C controlling mdio clock
+
+Example:
+	mdio@10d40 {
+		compatible = "fsl,mpc8272ads-mdio-bitbang",
+			     "fsl,mpc8272-mdio-bitbang",
+			     "fsl,cpm2-mdio-bitbang";
+		reg = <10d40 14>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		fsl,mdio-pin = <12>;
+		fsl,mdc-pin = <13>;
+	};
+
+* HDLC
+
+Currently defined compatibles:
+- fsl,ucc-hdlc
+
+Properties for fsl,ucc-hdlc:
+- rx-clock-name
+- tx-clock-name
+	Usage: required
+	Value type: <string>
+	Definition : Must be "brg1"-"brg16" for internal clock source,
+		     Must be "clk1"-"clk24" for external clock source.
+
+- fsl,tdm-interface
+	Usage: optional
+	Value type: <empty>
+	Definition : Specify that hdlc is based on tdm-interface
+
+The property below is dependent on fsl,tdm-interface:
+- fsl,rx-sync-clock
+	Usage: required
+	Value type: <string>
+	Definition : Must be "none", "rsync_pin", "brg9-11" and "brg13-15".
+
+- fsl,tx-sync-clock
+	Usage: required
+	Value type: <string>
+	Definition : Must be "none", "tsync_pin", "brg9-11" and "brg13-15".
+
+- fsl,tdm-framer-type
+	Usage: required for tdm interface
+	Value type: <string>
+	Definition : "e1" or "t1".Now e1 and t1 are used, other framer types
+		     are not supported.
+
+- fsl,tdm-id
+	Usage: required for tdm interface
+	Value type: <u32>
+	Definition : number of TDM ID
+
+- fsl,tx-timeslot-mask
+- fsl,rx-timeslot-mask
+	Usage: required for tdm interface
+	Value type: <u32>
+	Definition : time slot mask for TDM operation. Indicates which time
+		     slots used for transmitting and receiving.
+
+- fsl,siram-entry-id
+	Usage: required for tdm interface
+	Value type: <u32>
+	Definition : Must be 0,2,4...64. the number of TDM entry.
+
+- fsl,tdm-internal-loopback
+	usage: optional for tdm interface
+	value type: <empty>
+	Definition : Internal loopback connecting on TDM layer.
+- fsl,hmask
+	usage: optional
+	Value type: <u16>
+	Definition: HDLC address recognition. Set to zero to disable
+		    address filtering of packets:
+		    fsl,hmask = /bits/ 16 <0x0000>;
+
+Example for tdm interface:
+
+	ucc@2000 {
+		compatible = "fsl,ucc-hdlc";
+		rx-clock-name = "clk8";
+		tx-clock-name = "clk9";
+		fsl,rx-sync-clock = "rsync_pin";
+		fsl,tx-sync-clock = "tsync_pin";
+		fsl,tx-timeslot-mask = <0xfffffffe>;
+		fsl,rx-timeslot-mask = <0xfffffffe>;
+		fsl,tdm-framer-type = "e1";
+		fsl,tdm-id = <0>;
+		fsl,siram-entry-id = <0>;
+		fsl,tdm-interface;
+	};
+
+Example for hdlc without tdm interface:
+
+	ucc@2000 {
+		compatible = "fsl,ucc-hdlc";
+		rx-clock-name = "brg1";
+		tx-clock-name = "brg1";
+	};

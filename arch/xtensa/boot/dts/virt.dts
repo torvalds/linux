@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+/ {
+	compatible = "cdns,xtensa-iss";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&pic>;
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 debug";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			compatible = "cdns,xtensa-cpu";
+			reg = <0>;
+			clocks = <&osc>;
+		};
+	};
+
+	clocks {
+		osc: osc {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <40000000>;
+		};
+	};
+
+	pic: pic {
+		compatible = "cdns,xtensa-pic";
+		/* one cell: internal irq number,
+		 * two cells: second cell == 0: internal irq number
+		 *            second cell == 1: external irq number
+		 */
+		#address-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupt-controller;
+	};
+
+	pci {
+		compatible = "pci-host-ecam-generic";
+		device_type = "pci";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		#interrupt-cells = <0x1>;
+
+		bus-range = <0x0 0x3e>;
+		reg = <0xf0100000 0x03f00000>;
+
+		     // BUS_ADDRESS(3)  CPU_PHYSICAL(1)  SIZE(2)
+		ranges = <0x01000000 0x0 0x00000000  0xf0000000  0x0 0x00010000>,
+			 <0x02000000 0x0 0xf4000000  0xf4000000  0x0 0x08000000>;
+
+		     // PCI_DEVICE(3)  INT#(1)  CONTROLLER(PHANDLE)  CONTROLLER_DATA(2)
+		interrupt-map = <
+			0x0000 0x0 0x0  0x1  &pic  0x0 0x1
+			0x0800 0x0 0x0  0x1  &pic  0x1 0x1
+			0x1000 0x0 0x0  0x1  &pic  0x2 0x1
+			0x1800 0x0 0x0  0x1  &pic  0x3 0x1
+			>;
+
+		interrupt-map-mask = <0x1800 0x0 0x0  0x7>;
+	};
+};

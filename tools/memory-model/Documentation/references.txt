@@ -1,0 +1,131 @@
+This document provides background reading for memory models and related
+tools.  These documents are aimed at kernel hackers who are interested
+in memory models.
+
+
+Hardware manuals and models
+===========================
+
+o	SPARC International Inc. (Ed.). 1994. "The SPARC Architecture
+	Reference Manual Version 9". SPARC International Inc.
+
+o	Compaq Computer Corporation (Ed.). 2002. "Alpha Architecture
+	Reference Manual".  Compaq Computer Corporation.
+
+o	Intel Corporation (Ed.). 2002. "A Formal Specification of Intel
+	Itanium Processor Family Memory Ordering". Intel Corporation.
+
+o	Intel Corporation (Ed.). 2002. "Intel 64 and IA-32 Architectures
+	Software Developer’s Manual". Intel Corporation.
+
+o	Peter Sewell, Susmit Sarkar, Scott Owens, Francesco Zappa Nardelli,
+	and Magnus O. Myreen. 2010. "x86-TSO: A Rigorous and Usable
+	Programmer's Model for x86 Multiprocessors". Commun. ACM 53, 7
+	(July, 2010), 89-97. http://doi.acm.org/10.1145/1785414.1785443
+
+o	IBM Corporation (Ed.). 2009. "Power ISA Version 2.06". IBM
+	Corporation.
+
+o	ARM Ltd. (Ed.). 2009. "ARM Barrier Litmus Tests and Cookbook".
+	ARM Ltd.
+
+o	Susmit Sarkar, Peter Sewell, Jade Alglave, Luc Maranget, and
+	Derek Williams.  2011. "Understanding POWER Multiprocessors". In
+	Proceedings of the 32Nd ACM SIGPLAN Conference on Programming
+	Language Design and Implementation (PLDI ’11). ACM, New York,
+	NY, USA, 175–186.
+
+o	Susmit Sarkar, Kayvan Memarian, Scott Owens, Mark Batty,
+	Peter Sewell, Luc Maranget, Jade Alglave, and Derek Williams.
+	2012. "Synchronising C/C++ and POWER". In Proceedings of the 33rd
+	ACM SIGPLAN Conference on Programming Language Design and
+	Implementation (PLDI '12). ACM, New York, NY, USA, 311-322.
+
+o	ARM Ltd. (Ed.). 2014. "ARM Architecture Reference Manual (ARMv8,
+	for ARMv8-A architecture profile)". ARM Ltd.
+
+o	Imagination Technologies, LTD. 2015. "MIPS(R) Architecture
+	For Programmers, Volume II-A: The MIPS64(R) Instruction,
+	Set Reference Manual". Imagination Technologies,
+	LTD. https://imgtec.com/?do-download=4302.
+
+o	Shaked Flur, Kathryn E. Gray, Christopher Pulte, Susmit
+	Sarkar, Ali Sezgin, Luc Maranget, Will Deacon, and Peter
+	Sewell. 2016. "Modelling the ARMv8 Architecture, Operationally:
+	Concurrency and ISA". In Proceedings of the 43rd Annual ACM
+	SIGPLAN-SIGACT Symposium on Principles of Programming Languages
+	(POPL ’16). ACM, New York, NY, USA, 608–621.
+
+o	Shaked Flur, Susmit Sarkar, Christopher Pulte, Kyndylan Nienhuis,
+	Luc Maranget, Kathryn E. Gray, Ali Sezgin, Mark Batty, and Peter
+	Sewell. 2017. "Mixed-size Concurrency: ARM, POWER, C/C++11,
+	and SC". In Proceedings of the 44th ACM SIGPLAN Symposium on
+	Principles of Programming Languages (POPL 2017). ACM, New York,
+	NY, USA, 429–442.
+
+o	Christopher Pulte, Shaked Flur, Will Deacon, Jon French,
+	Susmit Sarkar, and Peter Sewell. 2018. "Simplifying ARM concurrency:
+	multicopy-atomic axiomatic and operational models for ARMv8". In
+	Proceedings of the ACM on Programming Languages, Volume 2, Issue
+	POPL, Article No. 19. ACM, New York, NY, USA.
+
+
+Linux-kernel memory model
+=========================
+
+o	Jade Alglave, Will Deacon, Boqun Feng, David Howells, Daniel
+	Lustig, Luc Maranget, Paul E. McKenney, Andrea Parri, Nicholas
+	Piggin, Alan Stern, Akira Yokosawa, and Peter Zijlstra.
+	2019. "Calibrating your fear of big bad optimizing compilers"
+	Linux Weekly News.  https://lwn.net/Articles/799218/
+
+o	Jade Alglave, Will Deacon, Boqun Feng, David Howells, Daniel
+	Lustig, Luc Maranget, Paul E. McKenney, Andrea Parri, Nicholas
+	Piggin, Alan Stern, Akira Yokosawa, and Peter Zijlstra.
+	2019. "Who's afraid of a big bad optimizing compiler?"
+	Linux Weekly News.  https://lwn.net/Articles/793253/
+
+o	Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and
+	Alan Stern.  2018. "Frightening small children and disconcerting
+	grown-ups: Concurrency in the Linux kernel". In Proceedings of
+	the 23rd International Conference on Architectural Support for
+	Programming Languages and Operating Systems (ASPLOS 2018). ACM,
+	New York, NY, USA, 405-418.  Webpage: http://diy.inria.fr/linux/.
+
+o	Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and
+	Alan Stern.  2017.  "A formal kernel memory-ordering model (part 1)"
+	Linux Weekly News.  https://lwn.net/Articles/718628/
+
+o	Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and
+	Alan Stern.  2017.  "A formal kernel memory-ordering model (part 2)"
+	Linux Weekly News.  https://lwn.net/Articles/720550/
+
+o	Jade Alglave, Luc Maranget, Paul E. McKenney, Andrea Parri, and
+	Alan Stern.  2017-2019.  "A Formal Model of Linux-Kernel Memory
+	Ordering" (backup material for the LWN articles)
+	https://mirrors.edge.kernel.org/pub/linux/kernel/people/paulmck/LWNLinuxMM/
+
+
+Memory-model tooling
+====================
+
+o	Daniel Jackson. 2002. "Alloy: A Lightweight Object Modelling
+	Notation". ACM Trans. Softw. Eng. Methodol. 11, 2 (April 2002),
+	256–290. http://doi.acm.org/10.1145/505145.505149
+
+o	Jade Alglave, Luc Maranget, and Michael Tautschnig. 2014. "Herding
+	Cats: Modelling, Simulation, Testing, and Data Mining for Weak
+	Memory". ACM Trans. Program. Lang. Syst. 36, 2, Article 7 (July
+	2014), 7:1–7:74 pages.
+
+o	Jade Alglave, Patrick Cousot, and Luc Maranget. 2016. "Syntax and
+	semantics of the weak consistency model specification language
+	cat". CoRR abs/1608.07531 (2016). https://arxiv.org/abs/1608.07531
+
+
+Memory-model comparisons
+========================
+
+o	Paul E. McKenney, Ulrich Weigand, Andrea Parri, and Boqun
+	Feng. 2018. "Linux-Kernel Memory Model". (27 September 2018).
+	http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0124r6.html.

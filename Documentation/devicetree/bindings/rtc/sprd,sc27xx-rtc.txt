@@ -1,0 +1,26 @@
+Spreadtrum SC27xx Real Time Clock
+
+Required properties:
+- compatible: should be "sprd,sc2731-rtc".
+- reg: address offset of rtc register.
+- interrupts: rtc alarm interrupt.
+
+Example:
+
+	sc2731_pmic: pmic@0 {
+		compatible = "sprd,sc2731";
+		reg = <0>;
+		spi-max-frequency = <26000000>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		rtc@280 {
+			compatible = "sprd,sc2731-rtc";
+			reg = <0x280>;
+			interrupt-parent = <&sc2731_pmic>;
+			interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};

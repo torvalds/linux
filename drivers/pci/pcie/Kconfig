@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# PCI Express Port Bus Configuration
+#
+config PCIEPORTBUS
+	bool "PCI Express Port Bus support"
+	help
+	  This enables PCI Express Port Bus support. Users can then enable
+	  support for Native Hot-Plug, Advanced Error Reporting, Power
+	  Management Events, and Downstream Port Containment.
+
+#
+# Include service Kconfig here
+#
+config HOTPLUG_PCI_PCIE
+	bool "PCI Express Hotplug driver"
+	depends on HOTPLUG_PCI && PCIEPORTBUS
+	help
+	  Say Y here if you have a motherboard that supports PCI Express Native
+	  Hotplug
+
+	  When in doubt, say N.
+
+config PCIEAER
+	bool "PCI Express Advanced Error Reporting support"
+	depends on PCIEPORTBUS
+	select RAS
+	help
+	  This enables PCI Express Root Port Advanced Error Reporting
+	  (AER) driver support. Error reporting messages sent to Root
+	  Port will be handled by PCI Express AER driver.
+
+config PCIEAER_INJECT
+	tristate "PCI Express error injection support"
+	depends on PCIEAER
+	select GENERIC_IRQ_INJECTION
+	help
+	  This enables PCI Express Root Port Advanced Error Reporting
+	  (AER) software error injector.
+
+	  Debugging AER code is quite difficult because it is hard
+	  to trigger various real hardware errors. Software-based
+	  error injection can fake almost all kinds of errors with the
+	  help of a user space helper tool aer-inject, which can be
+	  gotten from:
+	     https://git.kernel.org/cgit/linux/kernel/git/gong.chen/aer-inject.git/
+
+#
+# PCI Express ECRC
+#
+config PCIE_ECRC
+	bool "PCI Express ECRC settings control"
+	depends on PCIEAER
+	help
+	  Used to override firmware/bios settings for PCI Express ECRC
+	  (transaction layer end-to-end CRC checking).
+
+	  When in doubt, say N.
+
+#
+# PCI Express ASPM
+#
+config PCIEASPM
+	bool "PCI Express ASPM control" if EXPERT
+	default y
+	help
+	  This enables OS control over PCI Express ASPM (Active State
+	  Power Management) and Clock Power Management. ASPM supports
+	  state L0/L0s/L1.
+
+	  ASPM is initially set up by the firmware. With this option enabled,
+	  Linux can modify this state in order to disable ASPM on known-bad
+	  hardware or configurations and enable it when known-safe.
+
+	  ASPM can be disabled or enabled at runtime via
+	  /sys/module/pcie_aspm/parameters/policy
+
+	  When in doubt, say Y.
+
+choice
+	prompt "Default ASPM policy"
+	default PCIEASPM_DEFAULT
+	depends on PCIEASPM
+
+config PCIEASPM_DEFAULT
+	bool "BIOS default"
+	depends on PCIEASPM
+	help
+	  Use the BIOS defaults for PCI Express ASPM.
+
+config PCIEASPM_POWERSAVE
+	bool "Powersave"
+	depends on PCIEASPM
+	help
+	  Enable PCI Express ASPM L0s and L1 where possible, even if the
+	  BIOS did not.
+
+config PCIEASPM_POWER_SUPERSAVE
+	bool "Power Supersave"
+	depends on PCIEASPM
+	help
+	  Same as PCIEASPM_POWERSAVE, except it also enables L1 substates where
+	  possible. This would result in higher power savings while staying in L1
+	  where the components support it.
+
+config PCIEASPM_PERFORMANCE
+	bool "Performance"
+	depends on PCIEASPM
+	help
+	  Disable PCI Express ASPM L0s and L1, even if the BIOS enabled them.
+endchoice
+
+config PCIE_PME
+	def_bool y
+	depends on PCIEPORTBUS && PM
+
+config PCIE_DPC
+	bool "PCI Express Downstream Port Containment support"
+	depends on PCIEPORTBUS && PCIEAER
+	help
+	  This enables PCI Express Downstream Port Containment (DPC)
+	  driver support.  DPC events from Root and Downstream ports
+	  will be handled by the DPC driver.  If your system doesn't
+	  have this capability or you do not want to use this feature,
+	  it is safe to answer N.
+
+config PCIE_PTM
+	bool "PCI Express Precision Time Measurement support"
+	help
+	  This enables PCI Express Precision Time Measurement (PTM)
+	  support.
+
+	  This is only useful if you have devices that support PTM, but it
+	  is safe to enable even if you don't.
+
+config PCIE_EDR
+	bool "PCI Express Error Disconnect Recover support"
+	depends on PCIE_DPC && ACPI
+	help
+	  This option adds Error Disconnect Recover support as specified
+	  in the Downstream Port Containment Related Enhancements ECN to
+	  the PCI Firmware Specification r3.2.  Enable this if you want to
+	  support hybrid DPC model which uses both firmware and OS to
+	  implement DPC.

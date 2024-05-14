@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+/fd-001-lookup
+/fd-002-posix-eq
+/fd-003-kthread
+/proc-fsconfig-hidepid
+/proc-loadavg-001
+/proc-multiple-procfs
+/proc-empty-vm
+/proc-pid-vm
+/proc-self-map-files-001
+/proc-self-map-files-002
+/proc-self-syscall
+/proc-self-wchan
+/proc-subset-pid
+/proc-tid0
+/proc-uptime-001
+/proc-uptime-002
+/read
+/self
+/setns-dcache
+/setns-sysvipc
+/thread-self

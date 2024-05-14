@@ -1,0 +1,140 @@
+What:		/sys/class/ata_*
+Description:
+		Provide a place in sysfs for storing the ATA topology of the
+		system. This allows retrieving various information about ATA
+		objects.
+
+Files under /sys/class/ata_port
+-------------------------------
+
+For each port, a directory ataX is created where X is the ata_port_id of the
+port. The device parent is the ata host device.
+
+
+What:		/sys/class/ata_port/ataX/nr_pmp_links
+What:		/sys/class/ata_port/ataX/idle_irq
+Date:		May, 2010
+KernelVersion:	v2.6.37
+Contact:	Gwendal Grignou <gwendal@chromium.org>
+Description:
+		nr_pmp_links:	(RO) If a SATA Port Multiplier (PM) is
+				connected, the number of links behind it.
+
+		idle_irq:	(RO) Number of IRQ received by the port while
+				idle [some ata HBA only].
+
+
+What:		/sys/class/ata_port/ataX/port_no
+Date:		May, 2013
+KernelVersion:	v3.11
+Contact:	Gwendal Grignou <gwendal@chromium.org>
+Description:
+		(RO) Host local port number. While registering host controller,
+		port numbers are tracked based upon number of ports available on
+		the controller. This attribute is needed by udev for composing
+		persistent links in /dev/disk/by-path.
+
+Files under /sys/class/ata_link
+-------------------------------
+
+Behind each port, there is a ata_link. If there is a SATA PM in the topology, 15
+ata_link objects are created.
+
+If a link is behind a port, the directory name is linkX, where X is ata_port_id
+of the port. If a link is behind a PM, its name is linkX.Y where X is
+ata_port_id of the parent port and Y the PM port.
+
+
+What:		/sys/class/ata_link/linkX[.Y]/hw_sata_spd_limit
+What:		/sys/class/ata_link/linkX[.Y]/sata_spd_limit
+What:		/sys/class/ata_link/linkX[.Y]/sata_spd
+Date:		May, 2010
+KernelVersion:	v2.6.37
+Contact:	Gwendal Grignou <gwendal@chromium.org>
+Description:
+		hw_sata_spd_limit:	(RO) Maximum speed supported by the
+					connected SATA device.
+
+		sata_spd_limit:		(RO) Maximum speed imposed by libata.
+
+		sata_spd:		(RO) Current speed of the link
+					eg. 1.5, 3 Gbps etc.
+
+
+Files under /sys/class/ata_device
+---------------------------------
+
+Behind each link, up to two ata devices are created.
+The name of the directory is devX[.Y].Z where:
+- X is ata_port_id of the port where the device is connected,
+- Y the port of the PM if any, and
+- Z the device id: for PATA, there is usually 2 devices [0,1], only 1 for SATA.
+
+
+What:		/sys/class/ata_device/devX[.Y].Z/spdn_cnt
+What:		/sys/class/ata_device/devX[.Y].Z/gscr
+What:		/sys/class/ata_device/devX[.Y].Z/ering
+What:		/sys/class/ata_device/devX[.Y].Z/id
+What:		/sys/class/ata_device/devX[.Y].Z/pio_mode
+What:		/sys/class/ata_device/devX[.Y].Z/xfer_mode
+What:		/sys/class/ata_device/devX[.Y].Z/dma_mode
+What:		/sys/class/ata_device/devX[.Y].Z/class
+Date:		May, 2010
+KernelVersion:	v2.6.37
+Contact:	Gwendal Grignou <gwendal@chromium.org>
+Description:
+		spdn_cnt:	(RO) Number of times libata decided to lower the
+				speed of link due to errors.
+
+		gscr:		(RO) Cached result of the dump of PM GSCR
+				register. Valid registers are:
+
+				0:      SATA_PMP_GSCR_PROD_ID,
+				1:	SATA_PMP_GSCR_REV,
+				2:      SATA_PMP_GSCR_PORT_INFO,
+				32:     SATA_PMP_GSCR_ERROR,
+				33:     SATA_PMP_GSCR_ERROR_EN,
+				64:     SATA_PMP_GSCR_FEAT,
+				96:     SATA_PMP_GSCR_FEAT_EN,
+				130:    SATA_PMP_GSCR_SII_GPIO
+
+				Only valid if the device is a PM.
+
+		ering:		(RO) Formatted output of the error ring of the
+				device.
+
+		id:		(RO) Cached result of IDENTIFY command, as
+				described in ATA8 7.16 and 7.17. Only valid if
+				the device is not a PM.
+
+		pio_mode:	(RO) PIO transfer mode used by the device.
+				Mostly used by PATA devices.
+
+		xfer_mode:	(RO) Current transfer mode. Mostly used by
+				PATA devices.
+
+		dma_mode:	(RO) DMA transfer mode used by the device.
+				Mostly used by PATA devices.
+
+		class:		(RO) Device class. Can be "ata" for disk,
+				"atapi" for packet device, "pmp" for PM, or
+				"none" if no device was found behind the link.
+
+
+What:		/sys/class/ata_device/devX[.Y].Z/trim
+Date:		May, 2015
+KernelVersion:	v4.10
+Contact:	Gwendal Grignou <gwendal@chromium.org>
+Description:
+		(RO) Shows the DSM TRIM mode currently used by the device. Valid
+		values are:
+
+		unsupported:		Drive does not support DSM TRIM
+
+		unqueued:               Drive supports unqueued DSM TRIM only
+
+		queued:                 Drive supports queued DSM TRIM
+
+		forced_unqueued:	Drive's queued DSM support is known to
+					be buggy and only unqueued TRIM commands
+					are sent

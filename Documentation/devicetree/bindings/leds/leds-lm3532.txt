@@ -1,0 +1,105 @@
+* Texas Instruments - lm3532 White LED driver with ambient light sensing
+capability.
+
+The LM3532 provides the 3 high-voltage, low-side current sinks. The device is
+programmable over an I2C-compatible interface and has independent
+current control for all three channels. The adaptive current regulation
+method allows for different LED currents in each current sink thus allowing
+for a wide variety of backlight and keypad applications.
+
+The main features of the LM3532 include dual ambient light sensor inputs
+each with 32 internal voltage setting resistors, 8-bit logarithmic and linear
+brightness control, dual external PWM brightness control inputs, and up to
+1000:1 dimming ratio with programmable fade in and fade out settings.
+
+Required properties:
+	- compatible : "ti,lm3532"
+	- reg : I2C slave address
+	- #address-cells : 1
+	- #size-cells : 0
+
+Optional properties:
+	- enable-gpios : gpio pin to enable (active high)/disable the device.
+	- ramp-up-us - The Run time ramp rates/step are from one current
+		       set-point to another after the device has reached its
+		       initial target set point from turn-on
+	- ramp-down-us - The Run time ramp rates/step are from one current
+			 set-point to another after the device has reached its
+			 initial target set point from turn-on
+	Range for ramp settings: 8us - 65536us
+
+Optional properties if ALS mode is used:
+	- ti,als-vmin - Minimum ALS voltage defined in Volts
+	- ti,als-vmax - Maximum ALS voltage defined in Volts
+	Per the data sheet the max ALS voltage is 2V and the min is 0V
+
+	- ti,als1-imp-sel - ALS1 impedance resistor selection in Ohms
+	- ti,als2-imp-sel - ALS2 impedance resistor selection in Ohms
+	Range for impedance select: 37000 Ohms - 1190 Ohms
+	Values above 37kohms will be set to the "High Impedance" setting
+
+	- ti,als-avrg-time-us - Determines the length of time the device needs to
+			  average the two ALS inputs.  This is only used if
+			  the input mode is LM3532_ALS_INPUT_AVRG.
+			     Range: 17920us - 2293760us
+	- ti,als-input-mode - Determines how the device uses the attached ALS
+			   devices.
+			   0x00 - ALS1 and ALS2 input average
+			   0x01 - ALS1 Input
+			   0x02 - ALS2 Input
+			   0x03 - Max of ALS1 and ALS2
+
+Required child properties:
+	- reg : Indicates control bank the LED string is controlled by
+	- led-sources : see Documentation/devicetree/bindings/leds/common.txt
+	- ti,led-mode : Defines if the LED strings are manually controlled or
+			if the LED strings are controlled by the ALS.
+			0x00 - LED strings are I2C controlled via full scale
+			       brightness control register
+			0x01 - LED strings are ALS controlled
+
+Optional LED child properties:
+	- label : see Documentation/devicetree/bindings/leds/common.txt
+	- linux,default-trigger :
+	   see Documentation/devicetree/bindings/leds/common.txt
+	- led-max-microamp : Defines the full scale current value for each control
+			  bank.  The range is from 5000uA-29800uA in increments
+			  of 800uA.
+
+Example:
+led-controller@38 {
+	compatible = "ti,lm3532";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reg = <0x38>;
+
+	enable-gpios = <&gpio6 12 GPIO_ACTIVE_HIGH>;
+	ramp-up-us = <1024>;
+	ramp-down-us = <65536>;
+
+	ti,als-vmin = <0>;
+	ti,als-vmax = <2000>;
+	ti,als1-imp-sel = <4110>;
+	ti,als2-imp-sel = <2180>;
+	ti,als-avrg-time-us = <17920>;
+	ti,als-input-mode = <0x00>;
+
+	led@0 {
+		reg = <0>;
+		led-sources = <2>;
+		ti,led-mode = <1>;
+		led-max-microamp = <21800>;
+		label = ":backlight";
+		linux,default-trigger = "backlight";
+	};
+
+	led@1 {
+		reg = <1>;
+		led-sources = <1>;
+		ti,led-mode = <0>;
+		label = ":kbd_backlight";
+	};
+};
+
+For more product information please see the links below:
+https://www.ti.com/product/LM3532

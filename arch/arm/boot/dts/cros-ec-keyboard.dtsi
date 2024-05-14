@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Keyboard dts fragment for devices that use cros-ec-keyboard
+ *
+ * Copyright (c) 2014 Google, Inc
+*/
+
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/input/cros-ec-keyboard.h>
+
+&cros_ec {
+	keyboard_controller: keyboard-controller {
+		compatible = "google,cros-ec-keyb";
+		keypad,num-rows = <8>;
+		keypad,num-columns = <13>;
+		google,needs-ghost-filter;
+
+		linux,keymap = <
+			CROS_STD_TOP_ROW_KEYMAP
+			CROS_STD_MAIN_KEYMAP
+		>;
+	};
+};

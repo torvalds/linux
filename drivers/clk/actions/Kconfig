@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CLK_ACTIONS
+	bool "Clock driver for Actions Semi SoCs"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	select REGMAP_MMIO
+	select RESET_CONTROLLER
+	default ARCH_ACTIONS
+
+if CLK_ACTIONS
+
+# SoC Drivers
+
+config CLK_OWL_S500
+	bool "Support for the Actions Semi OWL S500 clocks"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	default ARCH_ACTIONS
+
+config CLK_OWL_S700
+	bool "Support for the Actions Semi OWL S700 clocks"
+	depends on (ARM64 && ARCH_ACTIONS) || COMPILE_TEST
+	default ARM64 && ARCH_ACTIONS
+
+config CLK_OWL_S900
+	bool "Support for the Actions Semi OWL S900 clocks"
+	depends on (ARM64 && ARCH_ACTIONS) || COMPILE_TEST
+	default ARM64 && ARCH_ACTIONS
+
+endif

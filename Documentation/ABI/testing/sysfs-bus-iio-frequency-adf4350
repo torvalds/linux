@@ -1,0 +1,21 @@
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_frequency_resolution
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Stores channel Y frequency resolution/channel spacing in Hz.
+		The value given directly influences the MODULUS used by
+		the fractional-N PLL. It is assumed that the algorithm
+		that is used to compute the various dividers, is able to
+		generate proper values for multiples of channel spacing.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_altvoltageY_refin_frequency
+KernelVersion:	3.4.0
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Sets channel Y REFin frequency in Hz. In some clock chained
+		applications, the reference frequency used by the PLL may
+		change during runtime. This attribute allows the user to
+		adjust the reference frequency accordingly.
+		The value written has no effect until out_altvoltageY_frequency
+		is updated. Consider to use out_altvoltageY_powerdown to power
+		down the PLL and its RFOut buffers during REFin changes.

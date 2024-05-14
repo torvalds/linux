@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+# Copyright (C) 2021 GE Inc.
+# Copyright (C) 2021 Collabora Ltd.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/misc/ge-achc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GE Healthcare USB Management Controller
+
+description: |
+  A device which handles data acquisition from compatible USB based peripherals.
+  SPI is used for device management.
+
+  Note: This device does not expose the peripherals as USB devices.
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+properties:
+  compatible:
+    items:
+      - const: ge,achc
+      - const: nxp,kinetis-k20
+
+  clocks:
+    maxItems: 1
+
+  vdd-supply:
+    description: Digital power supply regulator on VDD pin
+
+  vdda-supply:
+    description: Analog power supply regulator on VDDA pin
+
+  reg:
+    items:
+      - description: Control interface
+      - description: Firmware programming interface
+
+  reset-gpios:
+    description: GPIO used for hardware reset.
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - reg
+  - reset-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        spi@1 {
+            compatible = "ge,achc", "nxp,kinetis-k20";
+            reg = <1>, <0>;
+            clocks = <&achc_24M>;
+            reset-gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
+        };
+    };

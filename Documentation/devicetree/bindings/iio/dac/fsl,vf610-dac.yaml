@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/fsl,vf610-dac.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale vf610 Digital to Analog Converter
+
+maintainers:
+  - Sanchayan Maity <maitysanchayan@gmail.com>
+
+properties:
+  compatible:
+    const: fsl,vf610-dac
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: dac
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/vf610-clock.h>
+    bus@40000000 {
+        compatible = "fsl,aips-bus", "simple-bus";
+        reg = <0x40000000 0x00070000>;
+        ranges;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        dac@400cc000 {
+            compatible = "fsl,vf610-dac";
+            reg = <0x400cc000 0x1000>;
+            interrupts = <55 IRQ_TYPE_LEVEL_HIGH>;
+            clock-names = "dac";
+            clocks = <&clks VF610_CLK_DAC0>;
+        };
+    };
+...

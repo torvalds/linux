@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# to be include'd by arch/$(ARCH)/boot/Makefile after setting
+# EFI_ZBOOT_PAYLOAD, EFI_ZBOOT_BFD_TARGET and EFI_ZBOOT_MACH_TYPE
+
+comp-type-$(CONFIG_KERNEL_GZIP)		:= gzip
+comp-type-$(CONFIG_KERNEL_LZ4)		:= lz4
+comp-type-$(CONFIG_KERNEL_LZMA)		:= lzma
+comp-type-$(CONFIG_KERNEL_LZO)		:= lzo
+comp-type-$(CONFIG_KERNEL_XZ)		:= xzkern
+comp-type-$(CONFIG_KERNEL_ZSTD)		:= zstd22
+
+# in GZIP, the appended le32 carrying the uncompressed size is part of the
+# format, but in other cases, we just append it at the end for convenience,
+# causing the original tools to complain when checking image integrity.
+# So disregard it when calculating the payload size in the zimage header.
+zboot-method-y				:= $(comp-type-y)_with_size
+zboot-size-len-y			:= 4
+
+zboot-method-$(CONFIG_KERNEL_GZIP)	:= gzip
+zboot-size-len-$(CONFIG_KERNEL_GZIP)	:= 0
+
+$(obj)/vmlinuz: $(obj)/$(EFI_ZBOOT_PAYLOAD) FORCE
+	$(call if_changed,$(zboot-method-y))
+
+OBJCOPYFLAGS_vmlinuz.o := -I binary -O $(EFI_ZBOOT_BFD_TARGET) \
+			  --rename-section .data=.gzdata,load,alloc,readonly,contents
+$(obj)/vmlinuz.o: $(obj)/vmlinuz FORCE
+	$(call if_changed,objcopy)
+
+AFLAGS_zboot-header.o += -DMACHINE_TYPE=IMAGE_FILE_MACHINE_$(EFI_ZBOOT_MACH_TYPE) \
+			 -DZBOOT_EFI_PATH="\"$(realpath $(obj)/vmlinuz.efi.elf)\"" \
+			 -DZBOOT_SIZE_LEN=$(zboot-size-len-y) \
+			 -DCOMP_TYPE="\"$(comp-type-y)\""
+
+$(obj)/zboot-header.o: $(srctree)/drivers/firmware/efi/libstub/zboot-header.S FORCE
+	$(call if_changed_rule,as_o_S)
+
+ZBOOT_DEPS := $(obj)/zboot-header.o $(objtree)/drivers/firmware/efi/libstub/lib.a
+
+LDFLAGS_vmlinuz.efi.elf := -T $(srctree)/drivers/firmware/efi/libstub/zboot.lds
+$(obj)/vmlinuz.efi.elf: $(obj)/vmlinuz.o $(ZBOOT_DEPS) FORCE
+	$(call if_changed,ld)
+
+OBJCOPYFLAGS_vmlinuz.efi := -O binary
+$(obj)/vmlinuz.efi: $(obj)/vmlinuz.efi.elf FORCE
+	$(call if_changed,objcopy)
+
+targets += zboot-header.o vmlinuz vmlinuz.o vmlinuz.efi.elf vmlinuz.efi

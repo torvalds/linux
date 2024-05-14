@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-2.0
+CFLAGS_KASAN_NOSANITIZE := -fno-builtin
+KASAN_SHADOW_OFFSET ?= $(CONFIG_KASAN_SHADOW_OFFSET)
+
+cc-param = $(call cc-option, -mllvm -$(1), $(call cc-option, --param $(1)))
+
+ifdef CONFIG_KASAN_STACK
+	stack_enable := 1
+else
+	stack_enable := 0
+endif
+
+ifdef CONFIG_KASAN_GENERIC
+
+ifdef CONFIG_KASAN_INLINE
+	call_threshold := 10000
+else
+	call_threshold := 0
+endif
+
+CFLAGS_KASAN_MINIMAL := -fsanitize=kernel-address
+
+# -fasan-shadow-offset fails without -fsanitize
+CFLAGS_KASAN_SHADOW := $(call cc-option, -fsanitize=kernel-address \
+			-fasan-shadow-offset=$(KASAN_SHADOW_OFFSET), \
+			$(call cc-option, -fsanitize=kernel-address \
+			-mllvm -asan-mapping-offset=$(KASAN_SHADOW_OFFSET)))
+
+ifeq ($(strip $(CFLAGS_KASAN_SHADOW)),)
+	CFLAGS_KASAN := $(CFLAGS_KASAN_MINIMAL)
+else
+	# Now add all the compiler specific options that are valid standalone
+	CFLAGS_KASAN := $(CFLAGS_KASAN_SHADOW) \
+	 $(call cc-param,asan-globals=1) \
+	 $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
+	 $(call cc-param,asan-instrument-allocas=1)
+endif
+
+CFLAGS_KASAN += $(call cc-param,asan-stack=$(stack_enable))
+
+endif # CONFIG_KASAN_GENERIC
+
+ifdef CONFIG_KASAN_SW_TAGS
+
+ifdef CONFIG_KASAN_INLINE
+    instrumentation_flags := $(call cc-param,hwasan-mapping-offset=$(KASAN_SHADOW_OFFSET))
+else
+    instrumentation_flags := $(call cc-param,hwasan-instrument-with-calls=1)
+endif
+
+CFLAGS_KASAN := -fsanitize=kernel-hwaddress \
+		$(call cc-param,hwasan-instrument-stack=$(stack_enable)) \
+		$(call cc-param,hwasan-use-short-granules=0) \
+		$(call cc-param,hwasan-inline-all-checks=0) \
+		$(instrumentation_flags)
+
+endif # CONFIG_KASAN_SW_TAGS
+
+export CFLAGS_KASAN CFLAGS_KASAN_NOSANITIZE

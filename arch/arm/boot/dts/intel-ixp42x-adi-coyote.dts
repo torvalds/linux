@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: ISC
+/*
+ * Device Tree file for ADI Engineering Coyote platform.
+ * Derived from boardfiles written by MontaVista software.
+ * Ethernet set-up from OpenWrt.
+ */
+
+/dts-v1/;
+
+#include "intel-ixp42x.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "ADI Engineering Coyote reference design";
+	compatible = "adieng,coyote", "intel,ixp42x";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 {
+		/* CHECKME: 16 MB SDRAM minimum, maybe the Coyote actually has more */
+		device_type = "memory";
+		reg = <0x00000000 0x01000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 root=/dev/sda1 rw rootwait";
+		stdout-path = "uart1:115200n8";
+	};
+
+	aliases {
+		/* These are switched around */
+		serial0 = &uart1;
+		serial1 = &uart0;
+	};
+
+	soc {
+		bus@c4000000 {
+			flash@0,0 {
+				compatible = "intel,ixp4xx-flash", "cfi-flash";
+				bank-width = <2>;
+				/*
+				 * 32 MB of Flash in 128 0x20000 sized blocks
+				 * mapped in at CS0 and CS1
+				 */
+				reg = <0 0x00000000 0x2000000>;
+
+				/* Configure expansion bus to allow writes */
+				intel,ixp4xx-eb-write-enable = <1>;
+
+				partitions {
+					compatible = "redboot-fis";
+					/* CHECKME: guess this is Redboot FIS */
+					fis-index-block = <0x1ff>;
+				};
+			};
+		};
+
+		pci@c0000000 {
+			status = "ok";
+
+			/*
+			 * Taken from Coyote PCI boardfile.
+			 * We have slots (IDSEL) 1 and 2 with one assigned IRQ
+			 * each handling all IRQs.
+			 */
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map =
+			/* IDSEL 1 */
+			<0x0800 0 0 1 &gpio0 6 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 1 is irq 6 */
+			<0x0800 0 0 2 &gpio0 6 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 1 is irq 6 */
+			<0x0800 0 0 3 &gpio0 6 IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 1 is irq 6 */
+			<0x0800 0 0 4 &gpio0 6 IRQ_TYPE_LEVEL_LOW>, /* INT D on slot 1 is irq 6 */
+			/* IDSEL 2 */
+			<0x1000 0 0 1 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 2 is irq 11 */
+			<0x1000 0 0 2 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 2 is irq 11 */
+			<0x1000 0 0 3 &gpio0 11 IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 2 is irq 11 */
+			<0x1000 0 0 4 &gpio0 11 IRQ_TYPE_LEVEL_LOW>; /* INT D on slot 2 is irq 11 */
+		};
+
+		/* EthB */
+		ethernet@c8009000 {
+			status = "ok";
+			queue-rx = <&qmgr 3>;
+			queue-txready = <&qmgr 20>;
+			phy-mode = "rgmii";
+			phy-handle = <&phy5>;
+
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				phy4: ethernet-phy@4 {
+					reg = <4>;
+				};
+
+				phy5: ethernet-phy@5 {
+					reg = <5>;
+				};
+			};
+		};
+
+		/* EthC */
+		ethernet@c800a000 {
+			status = "ok";
+			queue-rx = <&qmgr 4>;
+			queue-txready = <&qmgr 21>;
+			phy-mode = "rgmii";
+			phy-handle = <&phy4>;
+		};
+	};
+};

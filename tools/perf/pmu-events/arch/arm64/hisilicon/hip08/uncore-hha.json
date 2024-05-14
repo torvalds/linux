@@ -1,0 +1,152 @@
+[
+   {
+	    "ConfigCode": "0x00",
+	    "EventName": "rx_ops_num",
+	    "BriefDescription": "The number of all operations received by the HHA",
+	    "PublicDescription": "The number of all operations received by the HHA",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x01",
+	    "EventName": "rx_outer",
+	    "BriefDescription": "The number of all operations received by the HHA from another socket",
+	    "PublicDescription": "The number of all operations received by the HHA from another socket",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x02",
+	    "EventName": "rx_sccl",
+	    "BriefDescription": "The number of all operations received by the HHA from another SCCL in this socket",
+	    "PublicDescription": "The number of all operations received by the HHA from another SCCL in this socket",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x03",
+	    "EventName": "rx_ccix",
+	    "BriefDescription": "Count of the number of operations that HHA has received from CCIX",
+	    "PublicDescription": "Count of the number of operations that HHA has received from CCIX",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x4",
+	    "EventName": "rx_wbi",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x5",
+	    "EventName": "rx_wbip",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x11",
+	    "EventName": "rx_wtistash",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x1c",
+	    "EventName": "rd_ddr_64b",
+	    "BriefDescription": "The number of read operations sent by HHA to DDRC which size is 64 bytes",
+	    "PublicDescription": "The number of read operations sent by HHA to DDRC which size is 64bytes",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x1d",
+	    "EventName": "wr_ddr_64b",
+	    "BriefDescription": "The number of write operations sent by HHA to DDRC which size is 64 bytes",
+	    "PublicDescription": "The number of write operations sent by HHA to DDRC which size is 64 bytes",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x1e",
+	    "EventName": "rd_ddr_128b",
+	    "BriefDescription": "The number of read operations sent by HHA to DDRC which size is 128 bytes",
+	    "PublicDescription": "The number of read operations sent by HHA to DDRC which size is 128 bytes",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x1f",
+	    "EventName": "wr_ddr_128b",
+	    "BriefDescription": "The number of write operations sent by HHA to DDRC which size is 128 bytes",
+	    "PublicDescription": "The number of write operations sent by HHA to DDRC which size is 128 bytes",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x20",
+	    "EventName": "spill_num",
+	    "BriefDescription": "Count of the number of spill operations that the HHA has sent",
+	    "PublicDescription": "Count of the number of spill operations that the HHA has sent",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x21",
+	    "EventName": "spill_success",
+	    "BriefDescription": "Count of the number of successful spill operations that the HHA has sent",
+	    "PublicDescription": "Count of the number of successful spill operations that the HHA has sent",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x23",
+	    "EventName": "bi_num",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x32",
+	    "EventName": "mediated_num",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x33",
+	    "EventName": "tx_snp_num",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x34",
+	    "EventName": "tx_snp_outer",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x35",
+	    "EventName": "tx_snp_ccix",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x38",
+	    "EventName": "rx_snprspdata",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x3c",
+	    "EventName": "rx_snprsp_outer",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x40",
+	    "EventName": "sdir-lookup",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x41",
+	    "EventName": "edir-lookup",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x42",
+	    "EventName": "sdir-hit",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x43",
+	    "EventName": "edir-hit",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x4c",
+	    "EventName": "sdir-home-migrate",
+	    "Unit": "hisi_sccl,hha"
+   },
+   {
+	    "ConfigCode": "0x4d",
+	    "EventName": "edir-home-migrate",
+	    "Unit": "hisi_sccl,hha"
+   }
+]

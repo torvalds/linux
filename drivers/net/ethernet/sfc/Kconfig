@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Solarflare device configuration
+#
+
+config NET_VENDOR_SOLARFLARE
+	bool "Solarflare devices"
+	default y
+	help
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Solarflare devices. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_SOLARFLARE
+
+config SFC
+	tristate "Solarflare SFC9100/EF100-family support"
+	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
+	select MDIO
+	select CRC32
+	help
+	  This driver supports 10/40-gigabit Ethernet cards based on
+	  the Solarflare SFC9100-family controllers.
+
+	  It also supports 10/25/40/100-gigabit Ethernet cards based
+	  on the Solarflare EF100 networking IP in Xilinx FPGAs.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called sfc.
+config SFC_MTD
+	bool "Solarflare SFC9100-family MTD support"
+	depends on SFC && MTD && !(SFC=y && MTD=m)
+	default y
+	help
+	  This exposes the on-board flash and/or EEPROM as MTD devices
+	  (e.g. /dev/mtd1).  This is required to update the firmware or
+	  the boot configuration under Linux.
+config SFC_MCDI_MON
+	bool "Solarflare SFC9100-family hwmon support"
+	depends on SFC && HWMON && !(SFC=y && HWMON=m)
+	default y
+	help
+	  This exposes the on-board firmware-managed sensors as a
+	  hardware monitor device.
+config SFC_SRIOV
+	bool "Solarflare SFC9100-family SR-IOV support"
+	depends on SFC && PCI_IOV
+	default y
+	help
+	  This enables support for the Single Root I/O Virtualization
+	  features, allowing accelerated network performance in
+	  virtualized environments.
+config SFC_MCDI_LOGGING
+	bool "Solarflare SFC9100-family MCDI logging support"
+	depends on SFC
+	default y
+	help
+	  This enables support for tracing of MCDI (Management-Controller-to-
+	  Driver-Interface) commands and responses, allowing debugging of
+	  driver/firmware interaction.  The tracing is actually enabled by
+	  a sysfs file 'mcdi_logging' under the PCI device.
+
+source "drivers/net/ethernet/sfc/falcon/Kconfig"
+source "drivers/net/ethernet/sfc/siena/Kconfig"
+
+endif # NET_VENDOR_SOLARFLARE
