@@ -138,7 +138,7 @@ static int octeon_l2c_probe(struct platform_device *pdev)
 
 	/* 'Tags' are block 0, 'Data' is block 1*/
 	l2c = edac_device_alloc_ctl_info(0, "l2c", num_tads, "l2c", 2, 0,
-					 NULL, 0, edac_device_alloc_index());
+					 edac_device_alloc_index());
 	if (!l2c)
 		return -ENOMEM;
 
