@@ -1773,7 +1773,6 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 		       const struct wilc_hif_func *ops)
 {
 	struct wilc *wl;
-	struct wilc_vif *vif;
 	int ret, i;
 
 	wl = wilc_create_wiphy(dev);
@@ -1802,17 +1801,8 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 		ret = -ENOMEM;
 		goto free_cfg;
 	}
-	vif = wilc_netdev_ifc_init(wl, "wlan%d", WILC_STATION_MODE,
-				   NL80211_IFTYPE_STATION, false);
-	if (IS_ERR(vif)) {
-		ret = PTR_ERR(vif);
-		goto free_hq;
-	}
 
 	return 0;
-
-free_hq:
-	destroy_workqueue(wl->hif_workqueue);
 
 free_cfg:
 	wilc_wlan_cfg_deinit(wl);

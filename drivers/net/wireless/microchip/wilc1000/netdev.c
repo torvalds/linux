@@ -996,6 +996,7 @@ error_remove_vif:
 	free_netdev(ndev);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(wilc_netdev_ifc_init);
 
 MODULE_DESCRIPTION("Atmel WILC1000 core wireless driver");
 MODULE_LICENSE("GPL");
