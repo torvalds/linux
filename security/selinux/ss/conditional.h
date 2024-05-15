@@ -79,6 +79,6 @@ void cond_compute_xperms(struct avtab *ctab, struct avtab_key *key,
 			 struct extended_perms_decision *xpermd);
 void evaluate_cond_nodes(struct policydb *p);
 void cond_policydb_destroy_dup(struct policydb *p);
-int cond_policydb_dup(struct policydb *new, struct policydb *orig);
+int cond_policydb_dup(struct policydb *new, const struct policydb *orig);
 
 #endif /* _CONDITIONAL_H_ */

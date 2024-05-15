@@ -672,14 +672,16 @@ static int (*const index_f[SYM_NUM])(void *key, void *datum, void *datap) = {
 /* clang-format on */
 
 #ifdef CONFIG_SECURITY_SELINUX_DEBUG
-static void hash_eval(struct hashtab *h, const char *hash_name)
+static void hash_eval(struct hashtab *h, const char *hash_name,
+		      const char *hash_details)
 {
 	struct hashtab_info info;
 
 	hashtab_stat(h, &info);
 	pr_debug(
-		"SELinux: %s:  %d entries and %d/%d buckets used, longest chain length %d, sum of chain length^2 %llu\n",
-		hash_name, h->nel, info.slots_used, h->size, info.max_chain_len,
+		"SELinux: %s%s%s:  %d entries and %d/%d buckets used, longest chain length %d, sum of chain length^2 %llu\n",
+		hash_name, hash_details ? "@" : "", hash_details ?: "", h->nel,
+		info.slots_used, h->size, info.max_chain_len,
 		info.chain2_len_sum);
 }
 
@@ -688,11 +690,12 @@ static void symtab_hash_eval(struct symtab *s)
 	int i;
 
 	for (i = 0; i < SYM_NUM; i++)
-		hash_eval(&s[i].table, symtab_name[i]);
+		hash_eval(&s[i].table, symtab_name[i], NULL);
 }
 
 #else
-static inline void hash_eval(struct hashtab *h, const char *hash_name)
+static inline void hash_eval(struct hashtab *h, const char *hash_name,
+			     const char *hash_details)
 {
 }
 static inline void symtab_hash_eval(struct symtab *s)
@@ -1178,6 +1181,8 @@ static int common_read(struct policydb *p, struct symtab *s, void *fp)
 			goto bad;
 	}
 
+	hash_eval(&comdatum->permissions.table, "common_permissions", key);
+
 	rc = symtab_insert(s, key, comdatum);
 	if (rc)
 		goto bad;
@@ -1357,6 +1362,8 @@ static int class_read(struct policydb *p, struct symtab *s, void *fp)
 		if (rc)
 			goto bad;
 	}
+
+	hash_eval(&cladatum->permissions.table, "class_permissions", key);
 
 	rc = read_cons_helper(p, &cladatum->constraints, ncons, 0, fp);
 	if (rc)
@@ -1898,7 +1905,7 @@ static int range_read(struct policydb *p, void *fp)
 		rt = NULL;
 		r = NULL;
 	}
-	hash_eval(&p->range_tr, "rangetr");
+	hash_eval(&p->range_tr, "rangetr", NULL);
 	rc = 0;
 out:
 	kfree(rt);
@@ -1943,6 +1950,7 @@ static int filename_trans_read_helper_compat(struct policydb *p, void *fp)
 		if (unlikely(ebitmap_get_bit(&datum->stypes, stype - 1))) {
 			/* conflicting/duplicate rules are ignored */
 			datum = NULL;
+			rc = 0;
 			goto out;
 		}
 		if (likely(datum->otype == otype))
@@ -2116,7 +2124,7 @@ static int filename_trans_read(struct policydb *p, void *fp)
 				return rc;
 		}
 	}
-	hash_eval(&p->filename_trans, "filenametr");
+	hash_eval(&p->filename_trans, "filenametr", NULL);
 	return 0;
 }
 
@@ -2648,6 +2656,8 @@ int policydb_read(struct policydb *p, void *fp)
 		rtk = NULL;
 		rtd = NULL;
 	}
+
+	hash_eval(&p->role_tr, "roletr", NULL);
 
 	rc = next_entry(buf, fp, sizeof(u32));
 	if (rc)
