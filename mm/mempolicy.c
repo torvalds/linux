@@ -1211,7 +1211,6 @@ static struct folio *alloc_migration_target_by_mpol(struct folio *src,
 	struct migration_mpol *mmpol = (struct migration_mpol *)private;
 	struct mempolicy *pol = mmpol->pol;
 	pgoff_t ilx = mmpol->ilx;
-	struct page *page;
 	unsigned int order;
 	int nid = numa_node_id();
 	gfp_t gfp;
@@ -1235,8 +1234,7 @@ static struct folio *alloc_migration_target_by_mpol(struct folio *src,
 	else
 		gfp = GFP_HIGHUSER_MOVABLE | __GFP_RETRY_MAYFAIL | __GFP_COMP;
 
-	page = alloc_pages_mpol(gfp, order, pol, ilx, nid);
-	return page_rmappable_folio(page);
+	return folio_alloc_mpol(gfp, order, pol, ilx, nid);
 }
 #else
 
