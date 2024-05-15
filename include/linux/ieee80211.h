@@ -1101,7 +1101,7 @@ enum ieee80211_vht_opmode_bits {
 };
 
 /**
- * enum ieee80211_s1g_chanwidth
+ * enum ieee80211_s1g_chanwidth - S1G channel widths
  * These are defined in IEEE802.11-2016ah Table 10-20
  * as BSS Channel Width
  *
@@ -4145,7 +4145,7 @@ enum ieee80211_idle_options {
 };
 
 /**
- * struct ieee80211_bss_max_idle_period_ie
+ * struct ieee80211_bss_max_idle_period_ie - BSS max idle period element struct
  *
  * This structure refers to "BSS Max idle period element"
  *
@@ -4180,7 +4180,7 @@ enum ieee80211_sa_query_action {
 };
 
 /**
- * struct ieee80211_bssid_index
+ * struct ieee80211_bssid_index - multiple BSSID index element structure
  *
  * This structure refers to "Multiple BSSID-index element"
  *
@@ -4195,7 +4195,8 @@ struct ieee80211_bssid_index {
 };
 
 /**
- * struct ieee80211_multiple_bssid_configuration
+ * struct ieee80211_multiple_bssid_configuration - multiple BSSID configuration
+ *	element structure
  *
  * This structure refers to "Multiple BSSID Configuration element"
  *
