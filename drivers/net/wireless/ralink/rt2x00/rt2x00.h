@@ -335,16 +335,6 @@ struct link {
 	struct delayed_work watchdog_work;
 	unsigned int watchdog_interval;
 	unsigned int watchdog;
-
-	/*
-	 * Work structure for scheduling periodic AGC adjustments.
-	 */
-	struct delayed_work agc_work;
-
-	/*
-	 * Work structure for scheduling periodic VCO calibration.
-	 */
-	struct delayed_work vco_work;
 };
 
 enum rt2x00_delayed_flags {
