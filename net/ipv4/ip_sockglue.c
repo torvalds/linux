@@ -509,7 +509,7 @@ static bool ipv4_datagram_support_cmsg(const struct sock *sk,
 	 * or without payload (SOF_TIMESTAMPING_OPT_TSONLY).
 	 */
 	info = PKTINFO_SKB_CB(skb);
-	if (!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG) ||
+	if (!(READ_ONCE(sk->sk_tsflags) & SOF_TIMESTAMPING_OPT_CMSG) ||
 	    !info->ipi_ifindex)
 		return false;
 

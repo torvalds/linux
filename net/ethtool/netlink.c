@@ -509,7 +509,7 @@ lock_and_cont:
 cont:
 			idx++;
 		}
-
+		ret = 0;
 	}
 	rtnl_unlock();
 

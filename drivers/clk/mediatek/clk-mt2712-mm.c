@@ -135,5 +135,5 @@ static struct platform_driver clk_mt2712_mm_drv = {
 		.name = "clk-mt2712-mm",
 	},
 };
-
-builtin_platform_driver(clk_mt2712_mm_drv);
+module_platform_driver(clk_mt2712_mm_drv);
+MODULE_LICENSE("GPL");

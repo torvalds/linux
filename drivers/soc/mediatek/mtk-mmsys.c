@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -426,4 +427,19 @@ static struct platform_driver mtk_mmsys_drv = {
 	.probe = mtk_mmsys_probe,
 };
 
-builtin_platform_driver(mtk_mmsys_drv);
+static int __init mtk_mmsys_init(void)
+{
+	return platform_driver_register(&mtk_mmsys_drv);
+}
+
+static void __exit mtk_mmsys_exit(void)
+{
+	platform_driver_unregister(&mtk_mmsys_drv);
+}
+
+module_init(mtk_mmsys_init);
+module_exit(mtk_mmsys_exit);
+
+MODULE_AUTHOR("Yongqiang Niu <yongqiang.niu@mediatek.com>");
+MODULE_DESCRIPTION("MediaTek SoC MMSYS driver");
+MODULE_LICENSE("GPL");

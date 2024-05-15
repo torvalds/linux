@@ -567,7 +567,6 @@ static int gh_rm_send_request(struct gh_rm *rm, u32 message_id,
 	hdr_template.seq = cpu_to_le16(connection->reply.seq);
 	hdr_template.msg_id = cpu_to_le32(message_id);
 
-	mutex_lock(&rm->send_lock);
 	do {
 		msg = kmem_cache_zalloc(rm->cache, GFP_KERNEL);
 		if (!msg) {
@@ -606,7 +605,6 @@ static int gh_rm_send_request(struct gh_rm *rm, u32 message_id,
 	} while (buf_size_remaining);
 
 out:
-	mutex_unlock(&rm->send_lock);
 	return ret < 0 ? ret : 0;
 }
 
@@ -660,6 +658,7 @@ int gh_rm_call(void *_rm, u32 message_id, const void *req_buf, size_t req_buf_si
 	connection->reply.seq = lower_16_bits(seq_id);
 
 	/* Send the request to the Resource Manager */
+	mutex_lock(&rm->send_lock);
 	ret = gh_rm_send_request(rm, message_id, req_buf, req_buf_size, connection);
 	if (ret < 0)
 		goto out;
@@ -699,6 +698,7 @@ int gh_rm_call(void *_rm, u32 message_id, const void *req_buf, size_t req_buf_si
 	}
 
 out:
+	mutex_unlock(&rm->send_lock);
 	xa_erase(&rm->call_xarray, connection->reply.seq);
 free:
 	kfree(connection);
