@@ -297,17 +297,21 @@ static void dpp401_dscl_set_scl_filter(
 	if ((dpp->base.ctx->dc->config.use_spl) && (!dpp->base.ctx->dc->debug.disable_spl)) {
 		filter_h = scl_data->dscl_prog_data.filter_h;
 		filter_v = scl_data->dscl_prog_data.filter_v;
-		filter_h_c = scl_data->dscl_prog_data.filter_h_c;
-		filter_v_c = scl_data->dscl_prog_data.filter_v_c;
+		if (chroma_coef_mode) {
+			filter_h_c = scl_data->dscl_prog_data.filter_h_c;
+			filter_v_c = scl_data->dscl_prog_data.filter_v_c;
+		}
 	} else {
 		filter_h = dpp401_dscl_get_filter_coeffs_64p(
 			scl_data->taps.h_taps, scl_data->ratios.horz);
 		filter_v = dpp401_dscl_get_filter_coeffs_64p(
 			scl_data->taps.v_taps, scl_data->ratios.vert);
-		filter_h_c = dpp401_dscl_get_filter_coeffs_64p(
-			scl_data->taps.h_taps_c, scl_data->ratios.horz_c);
-		filter_v_c = dpp401_dscl_get_filter_coeffs_64p(
-			scl_data->taps.v_taps_c, scl_data->ratios.vert_c);
+		if (chroma_coef_mode) {
+			filter_h_c = dpp401_dscl_get_filter_coeffs_64p(
+				scl_data->taps.h_taps_c, scl_data->ratios.horz_c);
+			filter_v_c = dpp401_dscl_get_filter_coeffs_64p(
+				scl_data->taps.v_taps_c, scl_data->ratios.vert_c);
+		}
 	}
 
 	h_2tap_hardcode_coef_en = scl_data->taps.h_taps < 3
