@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/notifier.h>
 #include <linux/of_address.h>
 #include <linux/rpmsg.h>
 #include <linux/scatterlist.h>
@@ -15,6 +16,7 @@
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
 #include <linux/workqueue.h>
+#include <linux/remoteproc/qcom_rproc.h>
 #include <linux/rpmsg/qcom_glink.h>
 
 #include "qcom_glink_cma.h"
@@ -44,9 +46,13 @@ static const char * const to_dsp_str[DSP_MAX] = {
 #define DSP_LABEL_TO_STR(dsp) (((dsp) >= DSP_MAX) ? "INVALID DSP" : to_dsp_str[(dsp)])
 
 enum {
-	MSG_SETUP,
-	MSG_SETUP_ACK,
-	MSG_MAX
+	MSG_SETUP,		/* inbound / outbound */
+	MSG_SETUP_ACK,		/* outbound */
+	MSG_SSR_AFTER_POWERUP,	/* outbound */
+	MSG_SSR_SETUP,		/* inbound */
+	MSG_SSR_SETUP_ACK,	/* outbound */
+	MSG_MAX,
+	MSG_ERR = 0xff,
 };
 
 struct virtio_glink_bridge_msg {
@@ -56,7 +62,7 @@ struct virtio_glink_bridge_msg {
 	__virtio32 size;
 };
 
-struct virtio_glink_bridge_rsp {
+struct virtio_glink_bridge_msg_ack {
 	__virtio32 type;
 	__virtio32 label;
 	__virtio32 status;
@@ -66,9 +72,14 @@ struct virtio_glink_bridge_dsp_info {
 	int label;
 	const char *label_str;
 	struct device_node *np;
+	struct virtio_glink_bridge *vgbridge;
 
 	struct glink_cma_config config;
 	struct qcom_glink *glink;
+
+	struct notifier_block nb;
+	void *notifier_handle;
+	spinlock_t ssr_lock;
 
 	struct list_head node;
 };
@@ -93,6 +104,133 @@ static int virtio_glink_bridge_dsp_str_to_label(const char * const label_str)
 	return -EINVAL;
 }
 
+static int virtio_glink_bridge_to_msg_ack_type(u32 msg_type)
+{
+	switch (msg_type) {
+	case MSG_SETUP:
+		return MSG_SETUP_ACK;
+	case MSG_SSR_SETUP:
+		return MSG_SSR_SETUP_ACK;
+	default:
+		return MSG_ERR;
+	}
+}
+
+static int virtio_glink_bridge_msg_type_supported(u32 msg_type)
+{
+	switch (msg_type) {
+	case MSG_SETUP:
+	case MSG_SSR_SETUP:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int virtio_glink_bridge_send_msg(struct virtio_glink_bridge *vgbridge,
+					u32 msg_type, u32 label)
+{
+	struct virtio_device *vdev = vgbridge->vdev;
+	struct virtio_glink_bridge_msg *msg;
+	struct scatterlist sg;
+	int rc;
+
+	msg = vgbridge->buf;
+	memset(msg, 0, sizeof(*msg));
+	msg->type = cpu_to_virtio32(vdev, msg_type);
+	msg->label = cpu_to_virtio32(vdev, label);
+	sg_init_one(&sg, msg, sizeof(*msg));
+
+	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, msg, GFP_ATOMIC);
+	if (rc) {
+		dev_err(&vdev->dev, "fail to add input buffer\n");
+		return rc;
+	}
+
+	virtqueue_kick(vgbridge->vq);
+
+	return 0;
+}
+
+static int virtio_glink_bridge_send_msg_ack(struct virtio_glink_bridge *vgbridge,
+						u32 msg_type, u32 label, int status)
+{
+	struct virtio_device *vdev = vgbridge->vdev;
+	struct virtio_glink_bridge_msg_ack *ack;
+	struct scatterlist sg;
+	int rc;
+
+	ack = vgbridge->buf;
+	memset(ack, 0, sizeof(*ack));
+	ack->type = cpu_to_virtio32(vdev, msg_type);
+	ack->label = cpu_to_virtio32(vdev, label);
+	ack->status = cpu_to_virtio32(vdev, status);
+	sg_init_one(&sg, ack, sizeof(*ack));
+
+	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, ack, GFP_ATOMIC);
+	if (rc) {
+		dev_err(&vdev->dev, "fail to add input buffer\n");
+		return rc;
+	}
+
+	virtqueue_kick(vgbridge->vq);
+
+	return 0;
+}
+
+static void virtio_glink_bridge_ssr_after_powerup(struct virtio_glink_bridge_dsp_info *dsp_info)
+{
+	virtio_glink_bridge_send_msg(dsp_info->vgbridge, MSG_SSR_AFTER_POWERUP, dsp_info->label);
+}
+
+static void virtio_glink_bridge_ssr_after_shutdown(struct virtio_glink_bridge_dsp_info *dsp_info)
+{
+	qcom_glink_cma_unregister(dsp_info->glink);
+	dsp_info->glink = NULL;
+}
+
+static int virtio_glink_bridge_ssr_cb(struct notifier_block *nb,
+					unsigned long state, void *data)
+{
+	struct virtio_glink_bridge_dsp_info *dsp_info;
+	struct device *dev;
+
+	dsp_info = container_of(nb, struct virtio_glink_bridge_dsp_info, nb);
+
+	spin_lock(&dsp_info->ssr_lock);
+	dev = &dsp_info->vgbridge->vdev->dev;
+
+	dev_info(dev, "received cb state %ld for %s\n", state, dsp_info->label);
+
+	switch (state) {
+	case QCOM_SSR_AFTER_POWERUP:
+		virtio_glink_bridge_ssr_after_powerup(dsp_info);
+		break;
+	case QCOM_SSR_AFTER_SHUTDOWN:
+		virtio_glink_bridge_ssr_after_shutdown(dsp_info);
+		break;
+	default:
+		break;
+	}
+	spin_unlock(&dsp_info->ssr_lock);
+
+	return NOTIFY_DONE;
+}
+
+static struct virtio_glink_bridge_dsp_info *virtio_glink_bridge_get_dsp_info(
+							struct virtio_glink_bridge *vgbridge,
+							u32 label)
+{
+	struct virtio_glink_bridge_dsp_info *dsp_info;
+
+	list_for_each_entry(dsp_info, &vgbridge->dsp_infos, node) {
+		if (dsp_info->label == label)
+			return dsp_info;
+	}
+
+	return NULL;
+}
+
 static void virtio_glink_bridge_rx_work(struct work_struct *work)
 {
 	struct virtio_glink_bridge *vgbridge = container_of(work, struct virtio_glink_bridge,
@@ -100,77 +238,105 @@ static void virtio_glink_bridge_rx_work(struct work_struct *work)
 	struct virtio_glink_bridge_dsp_info *dsp_info;
 	struct virtio_device *vdev = vgbridge->vdev;
 	struct virtio_glink_bridge_msg *msg;
-	struct virtio_glink_bridge_rsp *rsp;
 	struct device *dev = &vdev->dev;
 	struct glink_cma_config *config;
-	u32 type, label, address, size;
-	bool dsp_found = false;
-	struct scatterlist sg;
+	u32 msg_type, msg_ack_type;
+	u32 label, address, size;
 	unsigned int len;
+	void *handle;
 	int rc;
 
 	msg = (struct virtio_glink_bridge_msg *)virtqueue_get_buf(vgbridge->vq, &len);
 	if (!msg || len != sizeof(*msg)) {
 		dev_err(dev, "fail to get virtqueue buffer\n");
+		msg_ack_type = MSG_ERR;
 		label = VIRTIO_GLINK_BRIDGE_NO_LABEL;
 		rc = VIRTIO_GLINK_BRIDGE_EINVAL;
 		goto out;
 	}
 
-	type = virtio32_to_cpu(vdev, msg->type);
 	label = virtio32_to_cpu(vdev, msg->label);
-	address = virtio32_to_cpu(vdev, msg->address);
-	size = virtio32_to_cpu(vdev, msg->size);
-
-	list_for_each_entry(dsp_info, &vgbridge->dsp_infos, node) {
-		if (dsp_info->label == label) {
-			dsp_found = true;
-			break;
-		}
+	msg_type = virtio32_to_cpu(vdev, msg->type);
+	if (!virtio_glink_bridge_msg_type_supported(msg_type)) {
+		dev_err(dev, "unsupported msg type %u\n", msg_type);
+		msg_ack_type = MSG_ERR;
+		rc = VIRTIO_GLINK_BRIDGE_EINVAL;
+		goto out;
 	}
-	if (!dsp_found) {
+
+	msg_ack_type = virtio_glink_bridge_to_msg_ack_type(msg_type);
+
+	dsp_info = virtio_glink_bridge_get_dsp_info(vgbridge, label);
+	if (!dsp_info) {
 		dev_err(dev, "fail to find dsp_info\n");
 		rc = VIRTIO_GLINK_BRIDGE_ENODEV;
 		goto out;
 	}
-	if (dsp_info->glink) {
-		dev_err(dev, "DSP already registered\n");
-		rc = VIRTIO_GLINK_BRIDGE_EINVAL;
-		goto out;
-	}
-	config = &dsp_info->config;
 
-	config->base = devm_memremap(dev, address, size, MEMREMAP_WC);
-	if (IS_ERR(config->base)) {
-		dev_err(dev, "memremap fail\n");
-		config->base = NULL;
-		rc = VIRTIO_GLINK_BRIDGE_ENOMEM;
-		goto out;
-	}
-	config->size = size;
+	spin_lock(&dsp_info->ssr_lock);
 
-	dsp_info->glink = qcom_glink_cma_register(dev, dsp_info->np, config);
-	if (IS_ERR(dsp_info->glink)) {
-		dev_err(dev, "fail to register with GLINK CMA core\n");
-		dsp_info->glink = NULL;
-		rc = VIRTIO_GLINK_BRIDGE_EINVAL;
-		goto out;
+	switch (msg_type) {
+	case MSG_SETUP:
+		if (dsp_info->glink) {
+			dev_err(dev, "DSP already registered\n");
+			rc = VIRTIO_GLINK_BRIDGE_EINVAL;
+			goto unlock;
+		}
+
+		dsp_info->vgbridge = vgbridge;
+
+		address = virtio32_to_cpu(vdev, msg->address);
+		size = virtio32_to_cpu(vdev, msg->size);
+
+		config = &dsp_info->config;
+
+		config->base = devm_memremap(dev, address, size, MEMREMAP_WC);
+		if (IS_ERR(config->base)) {
+			dev_err(dev, "memremap fail\n");
+			config->base = NULL;
+			rc = VIRTIO_GLINK_BRIDGE_ENOMEM;
+			goto unlock;
+		}
+		config->size = size;
+
+		dsp_info->glink = qcom_glink_cma_register(dev, dsp_info->np, config);
+		if (IS_ERR(dsp_info->glink)) {
+			dev_err(dev, "fail to register with GLINK CMA core\n");
+			dsp_info->glink = NULL;
+			rc = VIRTIO_GLINK_BRIDGE_EINVAL;
+			goto unlock;
+		}
+
+		dsp_info->nb.notifier_call = virtio_glink_bridge_ssr_cb;
+
+		handle = qcom_register_ssr_notifier(dsp_info->label_str, &dsp_info->nb);
+		if (IS_ERR_OR_NULL(handle)) {
+			dev_err(dev, "fail to register with SSR notifier for %s\n",
+				dsp_info->label);
+			rc = VIRTIO_GLINK_BRIDGE_EINVAL;
+			goto unlock;
+		}
+
+		dsp_info->notifier_handle = handle;
+		break;
+	case MSG_SSR_SETUP:
+		dsp_info->glink = qcom_glink_cma_register(dev, dsp_info->np, &dsp_info->config);
+		if (IS_ERR(dsp_info->glink)) {
+			dev_err(dev, "fail to register with GLINK CMA core\n");
+			dsp_info->glink = NULL;
+			rc = VIRTIO_GLINK_BRIDGE_EINVAL;
+			goto unlock;
+		}
+		break;
 	}
 
 	rc = VIRTIO_GLINK_BRIDGE_SUCCESS;
+unlock:
+	virtio_glink_bridge_send_msg_ack(vgbridge, msg_ack_type, label, rc);
+	spin_unlock(&dsp_info->ssr_lock);
+	return;
 out:
-	rsp = vgbridge->buf;
-	rsp->type = cpu_to_virtio32(vdev, MSG_SETUP_ACK);
-	rsp->label = cpu_to_virtio32(vdev, label);
-	rsp->status = cpu_to_virtio32(vdev, rc);
-	sg_init_one(&sg, rsp, sizeof(*rsp));
-
-	/* BE will hold on to the buffer for the next message to send */
-	rc = virtqueue_add_inbuf(vgbridge->vq, &sg, 1, rsp, GFP_KERNEL);
-	if (rc)
-		dev_err(dev, "fail to add input buffer\n");
-
-	virtqueue_kick(vgbridge->vq);
+	virtio_glink_bridge_send_msg_ack(vgbridge, msg_ack_type, label, rc);
 }
 
 static void virtio_glink_bridge_isr(struct virtqueue *vq)
@@ -217,6 +383,7 @@ static int virtio_glink_bridge_of_parse(struct virtio_glink_bridge *vgbridge)
 			goto out;
 		}
 
+		spin_lock_init(&dsp_info->ssr_lock);
 		dsp_info->np = child_np;
 		list_add_tail(&dsp_info->node, &vgbridge->dsp_infos);
 	}
@@ -228,9 +395,7 @@ out:
 static int virtio_glink_bridge_probe(struct virtio_device *vdev)
 {
 	struct virtio_glink_bridge *vgbridge;
-	struct virtio_glink_bridge_msg *msg;
 	struct device *dev = &vdev->dev;
-	struct scatterlist sg[1];
 	int rc;
 
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
@@ -263,16 +428,9 @@ static int virtio_glink_bridge_probe(struct virtio_device *vdev)
 
 	virtio_device_ready(vdev);
 
-	msg = vgbridge->buf;
-	msg->type = MSG_SETUP;
-	sg_init_one(sg, msg, sizeof(*msg));
-	rc = virtqueue_add_inbuf(vgbridge->vq, sg, 1, msg, GFP_KERNEL);
-	if (rc) {
-		dev_err(dev, "fail to add to input buffer\n");
+	rc = virtio_glink_bridge_send_msg(vgbridge, MSG_SETUP, VIRTIO_GLINK_BRIDGE_NO_LABEL);
+	if (rc)
 		goto err;
-	}
-
-	virtqueue_kick(vgbridge->vq);
 
 	return 0;
 err:
