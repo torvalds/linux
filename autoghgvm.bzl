@@ -38,6 +38,7 @@ def define_autoghgvm():
         "drivers/soc/qcom/minidump.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
         "drivers/soc/qcom/rename_devices.ko",
+        "drivers/soc/qcom/rq_stats.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/spi/spi-msm-geni.ko",
         "drivers/spi/spidev.ko",
