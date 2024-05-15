@@ -75,6 +75,8 @@ typedef __s64			s64;
 #undef __NR_bdflush
 #undef __NR_send
 #undef __NR_recv
+#undef __NR_sysfs
+#undef __NR_signalfd
 
 #undef __NR_umount
 #define __NR_umount __NR_umount2
@@ -123,6 +125,10 @@ struct sockaddr {
 	unsigned short int sa_family;
 	char sa_data[14];
 };
+
+struct __aio_sigset;
+struct cachestat;
+struct cachestat_range;
 
 #define __UAPI_DEF_IF_NET_DEVICE_FLAGS_LOWER_UP_DORMANT_ECHO 1
 #define __UAPI_DEF_IF_IFNAMSIZ	1
