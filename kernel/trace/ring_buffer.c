@@ -6283,7 +6283,7 @@ static int __rb_map_vma(struct ring_buffer_per_cpu *cpu_buffer,
 	}
 
 	while (p < nr_pages) {
-		struct page *page = virt_to_page(cpu_buffer->subbuf_ids[s]);
+		struct page *page = virt_to_page((void *)cpu_buffer->subbuf_ids[s]);
 		int off = 0;
 
 		if (WARN_ON_ONCE(s >= nr_subbufs)) {
