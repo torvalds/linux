@@ -71,8 +71,6 @@ enum environment_cap {
  *	CRDA and can be used by other regulatory requests. When a
  *	the last request is not yet processed we must yield until it
  *	is processed before processing any new requests.
- * @country_ie_checksum: checksum of the last processed and accepted
- *	country IE
  * @country_ie_env: lets us know if the AP is telling us we are outdoor,
  *	indoor, or if it doesn't matter
  * @list: used to insert into the reg_requests_list linked list
