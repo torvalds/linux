@@ -378,7 +378,7 @@ ivpu_ipc_match_consumer(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons
 	return false;
 }
 
-void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread)
+void ivpu_ipc_irq_handler(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	struct ivpu_ipc_consumer *cons;
@@ -442,11 +442,12 @@ void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread)
 		}
 	}
 
-	if (wake_thread)
-		*wake_thread = !list_empty(&ipc->cb_msg_list);
+	if (!list_empty(&ipc->cb_msg_list))
+		if (!kfifo_put(&vdev->hw->irq.fifo, IVPU_HW_IRQ_SRC_IPC))
+			ivpu_err_ratelimited(vdev, "IRQ FIFO full\n");
 }
 
-irqreturn_t ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev)
+void ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	struct ivpu_ipc_rx_msg *rx_msg, *r;
@@ -462,8 +463,6 @@ irqreturn_t ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev)
 		rx_msg->callback(vdev, rx_msg->ipc_hdr, rx_msg->jsm_msg);
 		ivpu_ipc_rx_msg_del(vdev, rx_msg);
 	}
-
-	return IRQ_HANDLED;
 }
 
 int ivpu_ipc_init(struct ivpu_device *vdev)

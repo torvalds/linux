@@ -320,7 +320,7 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 
 	timeout = jiffies + msecs_to_jiffies(vdev->timeout.boot);
 	while (1) {
-		ivpu_ipc_irq_handler(vdev, NULL);
+		ivpu_ipc_irq_handler(vdev);
 		ret = ivpu_ipc_receive(vdev, &cons, &ipc_hdr, NULL, 0);
 		if (ret != -ETIMEDOUT || time_after_eq(jiffies, timeout))
 			break;
@@ -449,8 +449,23 @@ static const struct drm_driver driver = {
 static irqreturn_t ivpu_irq_thread_handler(int irq, void *arg)
 {
 	struct ivpu_device *vdev = arg;
+	u8 irq_src;
 
-	return ivpu_ipc_irq_thread_handler(vdev);
+	if (kfifo_is_empty(&vdev->hw->irq.fifo))
+		return IRQ_NONE;
+
+	while (kfifo_get(&vdev->hw->irq.fifo, &irq_src)) {
+		switch (irq_src) {
+		case IVPU_HW_IRQ_SRC_IPC:
+			ivpu_ipc_irq_thread_handler(vdev);
+			break;
+		default:
+			ivpu_err_ratelimited(vdev, "Unknown IRQ source: %u\n", irq_src);
+			break;
+		}
+	}
+
+	return IRQ_HANDLED;
 }
 
 static int ivpu_irq_init(struct ivpu_device *vdev)

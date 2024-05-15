@@ -1066,7 +1066,7 @@ static void irq_noc_firewall_handler(struct ivpu_device *vdev)
 }
 
 /* Handler for IRQs from NPU core */
-bool ivpu_hw_ip_irq_handler_37xx(struct ivpu_device *vdev, int irq, bool *wake_thread)
+bool ivpu_hw_ip_irq_handler_37xx(struct ivpu_device *vdev, int irq)
 {
 	u32 status = REGV_RD32(VPU_37XX_HOST_SS_ICB_STATUS_0) & ICB_0_IRQ_MASK_37XX;
 
@@ -1079,7 +1079,7 @@ bool ivpu_hw_ip_irq_handler_37xx(struct ivpu_device *vdev, int irq, bool *wake_t
 		ivpu_mmu_irq_evtq_handler(vdev);
 
 	if (REG_TEST_FLD(VPU_37XX_HOST_SS_ICB_STATUS_0, HOST_IPC_FIFO_INT, status))
-		ivpu_ipc_irq_handler(vdev, wake_thread);
+		ivpu_ipc_irq_handler(vdev);
 
 	if (REG_TEST_FLD(VPU_37XX_HOST_SS_ICB_STATUS_0, MMU_IRQ_1_INT, status))
 		ivpu_dbg(vdev, IRQ, "MMU sync complete\n");
@@ -1100,7 +1100,7 @@ bool ivpu_hw_ip_irq_handler_37xx(struct ivpu_device *vdev, int irq, bool *wake_t
 }
 
 /* Handler for IRQs from NPU core */
-bool ivpu_hw_ip_irq_handler_40xx(struct ivpu_device *vdev, int irq, bool *wake_thread)
+bool ivpu_hw_ip_irq_handler_40xx(struct ivpu_device *vdev, int irq)
 {
 	u32 status = REGV_RD32(VPU_40XX_HOST_SS_ICB_STATUS_0) & ICB_0_IRQ_MASK_40XX;
 
@@ -1113,7 +1113,7 @@ bool ivpu_hw_ip_irq_handler_40xx(struct ivpu_device *vdev, int irq, bool *wake_t
 		ivpu_mmu_irq_evtq_handler(vdev);
 
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, HOST_IPC_FIFO_INT, status))
-		ivpu_ipc_irq_handler(vdev, wake_thread);
+		ivpu_ipc_irq_handler(vdev);
 
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, MMU_IRQ_1_INT, status))
 		ivpu_dbg(vdev, IRQ, "MMU sync complete\n");

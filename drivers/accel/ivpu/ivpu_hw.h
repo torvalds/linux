@@ -6,9 +6,15 @@
 #ifndef __IVPU_HW_H__
 #define __IVPU_HW_H__
 
+#include <linux/kfifo.h>
+
 #include "ivpu_drv.h"
 #include "ivpu_hw_btrs.h"
 #include "ivpu_hw_ip.h"
+
+#define IVPU_HW_IRQ_FIFO_LENGTH 1024
+
+#define IVPU_HW_IRQ_SRC_IPC 1
 
 struct ivpu_addr_range {
 	resource_size_t start;
@@ -18,7 +24,8 @@ struct ivpu_addr_range {
 struct ivpu_hw_info {
 	struct {
 		bool (*btrs_irq_handler)(struct ivpu_device *vdev, int irq);
-		bool (*ip_irq_handler)(struct ivpu_device *vdev, int irq, bool *wake_thread);
+		bool (*ip_irq_handler)(struct ivpu_device *vdev, int irq);
+		DECLARE_KFIFO(fifo, u8, IVPU_HW_IRQ_FIFO_LENGTH);
 	} irq;
 	struct {
 		struct ivpu_addr_range global;
@@ -61,9 +68,9 @@ static inline u32 ivpu_hw_btrs_irq_handler(struct ivpu_device *vdev, int irq)
 	return vdev->hw->irq.btrs_irq_handler(vdev, irq);
 }
 
-static inline u32 ivpu_hw_ip_irq_handler(struct ivpu_device *vdev, int irq, bool *wake_thread)
+static inline u32 ivpu_hw_ip_irq_handler(struct ivpu_device *vdev, int irq)
 {
-	return vdev->hw->irq.ip_irq_handler(vdev, irq, wake_thread);
+	return vdev->hw->irq.ip_irq_handler(vdev, irq);
 }
 
 static inline void ivpu_hw_range_init(struct ivpu_addr_range *range, u64 start, u64 size)
