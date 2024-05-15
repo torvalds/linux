@@ -265,7 +265,12 @@ static bool sync_exp_work_done(unsigned long s)
 {
 	if (rcu_exp_gp_seq_done(s)) {
 		trace_rcu_exp_grace_period(rcu_state.name, s, TPS("done"));
-		smp_mb(); /* Ensure test happens before caller kfree(). */
+		/*
+		 * Order GP completion with preceding accesses. Order also GP
+		 * completion with post GP update side accesses. Pairs with
+		 * rcu_seq_end().
+		 */
+		smp_mb();
 		return true;
 	}
 	return false;
@@ -967,7 +972,6 @@ void synchronize_rcu_expedited(void)
 	rnp = rcu_get_root();
 	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
 		   sync_exp_work_done(s));
-	smp_mb(); /* Work actions happen before return. */
 
 	/* Let the next expedited grace period start. */
 	mutex_unlock(&rcu_state.exp_mutex);
