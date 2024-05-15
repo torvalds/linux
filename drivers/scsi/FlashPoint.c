@@ -2631,7 +2631,6 @@ static void FPT_sres(u32 port, unsigned char p_card,
 	WRW_HARPOON((port + hp_fiforead), (unsigned short)0x00);
 
 	our_target = (unsigned char)(RD_HARPOON(port + hp_select_id) >> 4);
-	currTar_Info = &FPT_sccbMgrTbl[p_card][our_target];
 
 	msgRetryCount = 0;
 	do {
