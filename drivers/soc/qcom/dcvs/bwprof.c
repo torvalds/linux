@@ -169,17 +169,19 @@ static BWPROF_ATTR_RW(mon_enabled);
 static BWPROF_ATTR_RO(last_sample);
 static BWPROF_ATTR_RO(client);
 
-static struct attribute *bwprof_attr[] = {
+static struct attribute *bwprof_attrs[] = {
 	&sample_ms.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(bwprof);
 
-static struct attribute *mon_attr[] = {
+static struct attribute *mon_attrs[] = {
 	&mon_enabled.attr,
 	&last_sample.attr,
 	&client.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(mon);
 
 static ssize_t attr_show(struct kobject *kobj, struct attribute *attr,
 				char *buf)
@@ -212,13 +214,13 @@ static const struct sysfs_ops bwprof_sysfs_ops = {
 
 static struct kobj_type bwprof_ktype = {
 	.sysfs_ops	= &bwprof_sysfs_ops,
-	.default_attrs	= bwprof_attr,
+	.default_groups = bwprof_groups,
 
 };
 
 static struct kobj_type mon_ktype = {
 	.sysfs_ops	= &bwprof_sysfs_ops,
-	.default_attrs	= mon_attr,
+	.default_groups = mon_groups,
 
 };
 
@@ -399,7 +401,7 @@ static int bwprof_mon_probe(struct platform_device *pdev)
 	ret = of_property_read_string(dev->of_node, QCOM_BWPROF_CLIENT_PROP,
 					&bw_node->client);
 	if (ret < 0) {
-		dev_err(dev, "client not found!\n", ret);
+		dev_err(dev, "client not found!: %d\n", ret);
 		return ret;
 	}
 
