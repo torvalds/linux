@@ -67,6 +67,7 @@ def define_pitti():
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/mfd/qcom-i2c-pmic.ko",
         "drivers/mfd/qcom-spmi-pmic.ko",
+        "drivers/misc/qseecom_proxy.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
         "drivers/mmc/host/sdhci-msm-scaling.ko",
