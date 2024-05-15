@@ -651,12 +651,11 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 	// func_desc_t is 8 bytes if ABIv2, else 16 bytes
 	desc = func_desc(addr);
 	for (i = 0; i < sizeof(func_desc_t) / sizeof(u32); i++) {
-		if (patch_instruction(((u32 *)&entry->funcdata) + i,
-				      ppc_inst(((u32 *)(&desc))[i])))
+		if (patch_u32(((u32 *)&entry->funcdata) + i, ((u32 *)&desc)[i]))
 			return 0;
 	}
 
-	if (patch_instruction(&entry->magic, ppc_inst(STUB_MAGIC)))
+	if (patch_u32(&entry->magic, STUB_MAGIC))
 		return 0;
 
 	return 1;
