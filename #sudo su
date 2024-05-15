@@ -1,3 +1,4 @@
+#SUDO SU 
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt274.c  --  RT274 ALSA SoC audio codec driver
