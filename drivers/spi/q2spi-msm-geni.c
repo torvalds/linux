@@ -2630,6 +2630,8 @@ static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt)
 	ret = q2spi_setup_gsi_xfer(q2spi_pkt);
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "%s Err q2spi_setup_gsi_xfer failed: %d\n", __func__, ret);
+		atomic_set(&q2spi->sma_wr_pending, 0);
+		atomic_set(&q2spi->doorbell_pending, 0);
 		q2spi_geni_se_dump_regs(q2spi);
 		gpi_dump_for_geni(q2spi->gsi->tx_c);
 		goto unmap_buf;
@@ -2640,6 +2642,8 @@ static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt)
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "%s PID:%d Err completion timeout: %d\n",
 			    __func__, current->pid, ret);
+		atomic_set(&q2spi->sma_wr_pending, 0);
+		atomic_set(&q2spi->doorbell_pending, 0);
 		q2spi_geni_se_dump_regs(q2spi);
 		dev_err(q2spi->dev, "%s Err dump gsi regs\n", __func__);
 		gpi_dump_for_geni(q2spi->gsi->tx_c);
@@ -2851,7 +2855,6 @@ int q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_pack
 		ret = q2spi_gsi_submit(q2spi_pkt);
 		if (ret) {
 			Q2SPI_ERROR(q2spi, "%s Err q2spi_gsi_submit failed: %d\n", __func__, ret);
-			atomic_set(&q2spi->sma_wr_pending, 0);
 			return ret;
 		}
 		Q2SPI_DEBUG(q2spi, "%s wakeup sma_wr_comp\n", __func__);
@@ -3658,6 +3661,7 @@ int q2spi_send_system_mem_access(struct q2spi_geni *q2spi, struct q2spi_packet *
 		if (timeout <= 0) {
 			Q2SPI_ERROR(q2spi, "%s Err timeout %ld for sma write complete\n",
 				    __func__, timeout);
+			atomic_set(&q2spi->doorbell_pending, 0);
 			if (timeout == -ERESTARTSYS) {
 				q2spi_sys_restart = true;
 				return -ERESTARTSYS;
