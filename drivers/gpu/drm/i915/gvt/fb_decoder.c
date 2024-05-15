@@ -373,7 +373,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		gvt_dbg_core("alpha_plane=0x%x, alpha_force=0x%x\n",
 			alpha_plane, alpha_force);
 
-	plane->base = vgpu_vreg_t(vgpu, CURBASE(pipe)) & I915_GTT_PAGE_MASK;
+	plane->base = vgpu_vreg_t(vgpu, CURBASE(dev_priv, pipe)) & I915_GTT_PAGE_MASK;
 	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 

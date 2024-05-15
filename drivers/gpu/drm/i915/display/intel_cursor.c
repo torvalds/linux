@@ -296,7 +296,7 @@ static void i845_cursor_update_arm(struct intel_plane *plane,
 	    plane->cursor.size != size ||
 	    plane->cursor.cntl != cntl) {
 		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, PIPE_A), 0);
-		intel_de_write_fw(dev_priv, CURBASE(PIPE_A), base);
+		intel_de_write_fw(dev_priv, CURBASE(dev_priv, PIPE_A), base);
 		intel_de_write_fw(dev_priv, CURSIZE(PIPE_A), size);
 		intel_de_write_fw(dev_priv, CURPOS(PIPE_A), pos);
 		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, PIPE_A), cntl);
@@ -648,14 +648,14 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 					  fbc_ctl);
 		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, pipe), cntl);
 		intel_de_write_fw(dev_priv, CURPOS(pipe), pos);
-		intel_de_write_fw(dev_priv, CURBASE(pipe), base);
+		intel_de_write_fw(dev_priv, CURBASE(dev_priv, pipe), base);
 
 		plane->cursor.base = base;
 		plane->cursor.size = fbc_ctl;
 		plane->cursor.cntl = cntl;
 	} else {
 		intel_de_write_fw(dev_priv, CURPOS(pipe), pos);
-		intel_de_write_fw(dev_priv, CURBASE(pipe), base);
+		intel_de_write_fw(dev_priv, CURBASE(dev_priv, pipe), base);
 	}
 }
 
