@@ -1320,12 +1320,22 @@ static inline void perf_sample_save_raw_data(struct perf_sample_data *data,
 	data->sample_flags |= PERF_SAMPLE_RAW;
 }
 
+static inline bool has_branch_stack(struct perf_event *event)
+{
+	return event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK;
+}
+
 static inline void perf_sample_save_brstack(struct perf_sample_data *data,
 					    struct perf_event *event,
 					    struct perf_branch_stack *brs,
 					    u64 *brs_cntr)
 {
 	int size = sizeof(u64); /* nr */
+
+	if (!has_branch_stack(event))
+		return;
+	if (WARN_ON_ONCE(data->sample_flags & PERF_SAMPLE_BRANCH_STACK))
+		return;
 
 	if (branch_sample_hw_index(event))
 		size += sizeof(u64);
@@ -1715,11 +1725,6 @@ static inline unsigned long perf_arch_guest_misc_flags(struct pt_regs *regs)
 }
 # define perf_arch_guest_misc_flags(regs)	perf_arch_guest_misc_flags(regs)
 #endif
-
-static inline bool has_branch_stack(struct perf_event *event)
-{
-	return event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK;
-}
 
 static inline bool needs_branch_stack(struct perf_event *event)
 {
