@@ -46,6 +46,17 @@ test_LAG_cleanup()
 	ip link add mv0 link "$name" up address "$ucaddr" type macvlan
 	# Used to test dev->mc handling
 	ip address add "$addr6" dev "$name"
+
+	# Check that addresses were added as expected
+	(grep_bridge_fdb "$ucaddr" bridge fdb show dev dummy1 ||
+		grep_bridge_fdb "$ucaddr" bridge fdb show dev dummy2) >/dev/null
+	check_err $? "macvlan unicast address not found on a slave"
+
+	# mcaddr is added asynchronously by addrconf_dad_work(), use busywait
+	(busywait 10000 grep_bridge_fdb "$mcaddr" bridge fdb show dev dummy1 ||
+		grep_bridge_fdb "$mcaddr" bridge fdb show dev dummy2) >/dev/null
+	check_err $? "IPv6 solicited-node multicast mac address not found on a slave"
+
 	ip link set dev "$name" down
 	ip link del "$name"
 
