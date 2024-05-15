@@ -307,7 +307,7 @@ static int rx8581_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rx8581_id[] = {
-	{ "rx8581", 0 },
+	{ "rx8581" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rx8581_id);

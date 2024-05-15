@@ -451,7 +451,7 @@ static const struct acpi_device_id rx6110_i2c_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rx6110_i2c_acpi_match);
 
 static const struct i2c_device_id rx6110_i2c_id[] = {
-	{ "rx6110", 0 },
+	{ "rx6110" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rx6110_i2c_id);

@@ -586,7 +586,7 @@ static int ds3232_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ds3232_id[] = {
-	{ "ds3232", 0 },
+	{ "ds3232" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds3232_id);

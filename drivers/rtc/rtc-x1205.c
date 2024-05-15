@@ -663,7 +663,7 @@ static void x1205_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id x1205_id[] = {
-	{ "x1205", 0 },
+	{ "x1205" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, x1205_id);
