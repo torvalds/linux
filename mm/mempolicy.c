@@ -2277,6 +2277,13 @@ struct page *alloc_pages_mpol_noprof(gfp_t gfp, unsigned int order,
 	return page;
 }
 
+struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
+		struct mempolicy *pol, pgoff_t ilx, int nid)
+{
+	return page_rmappable_folio(alloc_pages_mpol_noprof(gfp | __GFP_COMP,
+							order, pol, ilx, nid));
+}
+
 /**
  * vma_alloc_folio - Allocate a folio for a VMA.
  * @gfp: GFP flags.
