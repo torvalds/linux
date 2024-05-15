@@ -943,6 +943,12 @@ static int __rtw_download_firmware_legacy(struct rtw_dev *rtwdev,
 {
 	int ret = 0;
 
+	/* reset firmware if still present */
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8703B &&
+	    rtw_read8_mask(rtwdev, REG_MCUFW_CTRL, BIT_RAM_DL_SEL)) {
+		rtw_write8(rtwdev, REG_MCUFW_CTRL, 0x00);
+	}
+
 	en_download_firmware_legacy(rtwdev, true);
 	ret = download_firmware_legacy(rtwdev, fw->firmware->data, fw->firmware->size);
 	en_download_firmware_legacy(rtwdev, false);
@@ -1033,14 +1039,15 @@ static void __rtw_mac_flush_prio_queue(struct rtw_dev *rtwdev,
 		msleep(20);
 	}
 
-	/* priority queue is still not empty, throw a warning,
+	/* priority queue is still not empty, throw a debug message
 	 *
 	 * Note that if we want to flush the tx queue when having a lot of
 	 * traffic (ex, 100Mbps up), some of the packets could be dropped.
 	 * And it requires like ~2secs to flush the full priority queue.
 	 */
 	if (!drop)
-		rtw_warn(rtwdev, "timed out to flush queue %d\n", prio_queue);
+		rtw_dbg(rtwdev, RTW_DBG_UNEXP,
+			"timed out to flush queue %d\n", prio_queue);
 }
 
 static void rtw_mac_flush_prio_queues(struct rtw_dev *rtwdev,

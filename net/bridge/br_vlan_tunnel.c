@@ -65,13 +65,14 @@ static int __vlan_tunnel_info_add(struct net_bridge_vlan_group *vg,
 {
 	struct metadata_dst *metadata = rtnl_dereference(vlan->tinfo.tunnel_dst);
 	__be64 key = key32_to_tunnel_id(cpu_to_be32(tun_id));
+	IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 	int err;
 
 	if (metadata)
 		return -EEXIST;
 
-	metadata = __ip_tun_set_dst(0, 0, 0, 0, 0, TUNNEL_KEY,
-				    key, 0);
+	__set_bit(IP_TUNNEL_KEY_BIT, flags);
+	metadata = __ip_tun_set_dst(0, 0, 0, 0, 0, flags, key, 0);
 	if (!metadata)
 		return -EINVAL;
 
@@ -185,6 +186,7 @@ void br_handle_ingress_vlan_tunnel(struct sk_buff *skb,
 int br_handle_egress_vlan_tunnel(struct sk_buff *skb,
 				 struct net_bridge_vlan *vlan)
 {
+	IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 	struct metadata_dst *tunnel_dst;
 	__be64 tunnel_id;
 	int err;
@@ -202,7 +204,8 @@ int br_handle_egress_vlan_tunnel(struct sk_buff *skb,
 		return err;
 
 	if (BR_INPUT_SKB_CB(skb)->backup_nhid) {
-		tunnel_dst = __ip_tun_set_dst(0, 0, 0, 0, 0, TUNNEL_KEY,
+		__set_bit(IP_TUNNEL_KEY_BIT, flags);
+		tunnel_dst = __ip_tun_set_dst(0, 0, 0, 0, 0, flags,
 					      tunnel_id, 0);
 		if (!tunnel_dst)
 			return -ENOMEM;

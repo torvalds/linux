@@ -254,7 +254,7 @@ void free_fib_info(struct fib_info *fi)
 		return;
 	}
 
-	call_rcu(&fi->rcu, free_fib_info_rcu);
+	call_rcu_hurry(&fi->rcu, free_fib_info_rcu);
 }
 EXPORT_SYMBOL_GPL(free_fib_info);
 

@@ -1,12 +1,33 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
+#include <linux/dmi.h>
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-context-info-gen3.h"
 #include "internal.h"
 #include "iwl-prph.h"
+
+static const struct dmi_system_id dmi_force_scu_active_approved_list[] = {
+	{ .ident = "DELL",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		},
+	},
+	{ .ident = "DELL",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+		},
+	},
+	/* keep last */
+	{}
+};
+
+static bool iwl_is_force_scu_active_approved(void)
+{
+	return !!dmi_check_system(dmi_force_scu_active_approved_list);
+}
 
 static void
 iwl_pcie_ctxt_info_dbg_enable(struct iwl_trans *trans,
@@ -127,6 +148,14 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	if (trans->trans_cfg->imr_enabled)
 		control_flags |= IWL_PRPH_SCRATCH_IMR_DEBUG_EN;
+
+	if (CSR_HW_REV_TYPE(trans->hw_rev) == IWL_CFG_MAC_TYPE_GL &&
+	    iwl_is_force_scu_active_approved()) {
+		control_flags |= IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE;
+		IWL_DEBUG_FW(trans,
+			     "Context Info: Set SCU_FORCE_ACTIVE (0x%x) in control_flags\n",
+			     IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE);
+	}
 
 	/* initialize RX default queue */
 	prph_sc_ctrl->rbd_cfg.free_rbd_addr =

@@ -37,6 +37,7 @@
 #include <net/inet_connection_sock.h>
 #include <net/tcp.h>
 #include <net/tls.h>
+#include <linux/skbuff_ref.h>
 
 #include "tls.h"
 #include "trace.h"

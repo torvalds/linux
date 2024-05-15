@@ -489,7 +489,7 @@ static int prestera_port_change_mtu(struct net_device *dev, int mtu)
 	if (err)
 		return err;
 
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 
 	return 0;
 }
@@ -821,7 +821,7 @@ static void prestera_port_handle_event(struct prestera_switch *sw,
 
 		if (port->state_mac.oper) {
 			if (port->phy_link)
-				phylink_mac_change(port->phy_link, true);
+				phylink_pcs_change(&port->phylink_pcs, true);
 			else
 				netif_carrier_on(port->dev);
 
@@ -829,7 +829,7 @@ static void prestera_port_handle_event(struct prestera_switch *sw,
 				queue_delayed_work(prestera_wq, caching_dw, 0);
 		} else {
 			if (port->phy_link)
-				phylink_mac_change(port->phy_link, false);
+				phylink_pcs_change(&port->phylink_pcs, false);
 			else if (netif_running(port->dev) && netif_carrier_ok(port->dev))
 				netif_carrier_off(port->dev);
 

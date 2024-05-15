@@ -519,7 +519,7 @@ ltq_etop_change_mtu(struct net_device *dev, int new_mtu)
 	struct ltq_etop_priv *priv = netdev_priv(dev);
 	unsigned long flags;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu, LTQ_ETOP_IGPLEN);

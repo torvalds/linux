@@ -218,7 +218,7 @@ lio_vf_rep_change_mtu(struct net_device *ndev, int new_mtu)
 		return -EIO;
 	}
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	return 0;
 }

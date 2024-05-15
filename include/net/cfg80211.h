@@ -1149,6 +1149,8 @@ ieee80211_chandef_max_power(struct cfg80211_chan_def *chandef)
  * @band_mask: which bands to check on
  * @prohibited_flags: which channels to not consider usable,
  *	%IEEE80211_CHAN_DISABLED is always taken into account
+ *
+ * Return: %true if usable channels found, %false otherwise
  */
 bool cfg80211_any_usable_channels(struct wiphy *wiphy,
 				  unsigned long band_mask,
@@ -1575,6 +1577,8 @@ struct cfg80211_csa_settings {
  * @beacon_next: beacon data to be used after the color change
  * @count: number of beacons until the color change
  * @color: the color used after the change
+ * @link_id: defines the link on which color change is expected during MLO.
+ *	0 in case of non-MLO.
  */
 struct cfg80211_color_change_settings {
 	struct cfg80211_beacon_data beacon_color_change;
@@ -1583,6 +1587,7 @@ struct cfg80211_color_change_settings {
 	struct cfg80211_beacon_data beacon_next;
 	u8 count;
 	u8 color;
+	u8 link_id;
 };
 
 /**
@@ -1833,9 +1838,11 @@ enum cfg80211_station_type {
  *
  * Utility function for the @change_station driver method. Call this function
  * with the appropriate station type looking up the station (and checking that
- * it exists). It will verify whether the station change is acceptable, and if
- * not will return an error code. Note that it may modify the parameters for
- * backward compatibility reasons, so don't use them before calling this.
+ * it exists). It will verify whether the station change is acceptable.
+ *
+ * Return: 0 if the change is acceptable, otherwise an error code. Note that
+ * it may modify the parameters for backward compatibility reasons, so don't
+ * use them before calling this.
  */
 int cfg80211_check_station_change(struct wiphy *wiphy,
 				  struct station_parameters *params,
@@ -2229,7 +2236,7 @@ struct cfg80211_sar_capa {
  * @mac_addr: the mac address of the station of interest
  * @sinfo: pointer to the structure to fill with the information
  *
- * Returns 0 on success and sinfo is filled with the available information
+ * Return: 0 on success and sinfo is filled with the available information
  * otherwise returns a negative error code and the content of sinfo has to be
  * considered undefined.
  */
@@ -5334,6 +5341,8 @@ struct wiphy_iftype_ext_capab {
  * cfg80211_get_iftype_ext_capa - lookup interface type extended capability
  * @wiphy: the wiphy to look up from
  * @type: the interface type to look up
+ *
+ * Return: The extended capability for the given interface @type, may be %NULL
  */
 const struct wiphy_iftype_ext_capab *
 cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype type);
@@ -5904,6 +5913,10 @@ int wiphy_register(struct wiphy *wiphy);
 /**
  * get_wiphy_regdom - get custom regdomain for the given wiphy
  * @wiphy: the wiphy to get the regdomain from
+ *
+ * Context: Requires any of RTNL, wiphy mutex or RCU protection.
+ *
+ * Return: pointer to the regulatory domain associated with the wiphy
  */
 const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy);
 
@@ -6421,6 +6434,8 @@ ieee80211_get_channel(struct wiphy *wiphy, int freq)
  *
  * The Preferred Scanning Channels (PSC) are defined in
  * Draft IEEE P802.11ax/D5.0, 26.17.2.3.3
+ *
+ * Return: %true if channel is a PSC, %false otherwise
  */
 static inline bool cfg80211_channel_is_psc(struct ieee80211_channel *chan)
 {
@@ -6450,8 +6465,8 @@ ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
  * ieee80211_mandatory_rates - get mandatory rates for a given band
  * @sband: the band to look for rates in
  *
- * This function returns a bitmap of the mandatory rates for the given
- * band, bits are set according to the rate position in the bitrates array.
+ * Return: a bitmap of the mandatory rates for the given band, bits
+ * are set according to the rate position in the bitrates array.
  */
 u32 ieee80211_mandatory_rates(struct ieee80211_supported_band *sband);
 
@@ -6665,6 +6680,8 @@ bool ieee80211_get_8023_tunnel_proto(const void *hdr, __be16 *proto);
  * header to the ethernet header (if present).
  *
  * @skb: The 802.3 frame with embedded mesh header
+ *
+ * Return: 0 on success. Non-zero on error.
  */
 int ieee80211_strip_8023_mesh_hdr(struct sk_buff *skb);
 
@@ -7043,6 +7060,8 @@ const struct ieee80211_reg_rule *freq_reg_info(struct wiphy *wiphy,
  *
  * You can use this to map the regulatory request initiator enum to a
  * proper string representation.
+ *
+ * Return: pointer to string representation of the initiator
  */
 const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
 
@@ -7051,6 +7070,8 @@ const char *reg_initiator_name(enum nl80211_reg_initiator initiator);
  * @wiphy: wiphy for which pre-CAC capability is checked.
  *
  * Pre-CAC is allowed only in some regdomains (notable ETSI).
+ *
+ * Return: %true if allowed, %false otherwise
  */
 bool regulatory_pre_cac_allowed(struct wiphy *wiphy);
 
@@ -7185,6 +7206,8 @@ static inline void cfg80211_gen_new_bssid(const u8 *bssid, u8 max_bssid,
  * cfg80211_is_element_inherited - returns if element ID should be inherited
  * @element: element to check
  * @non_inherit_element: non inheritance element
+ *
+ * Return: %true if should be inherited, %false otherwise
  */
 bool cfg80211_is_element_inherited(const struct element *element,
 				   const struct element *non_inherit_element);
@@ -7197,6 +7220,8 @@ bool cfg80211_is_element_inherited(const struct element *element,
  * @sub_elem: current MBSSID subelement (profile)
  * @merged_ie: location of the merged profile
  * @max_copy_len: max merged profile length
+ *
+ * Return: the number of bytes merged
  */
 size_t cfg80211_merge_profile(const u8 *ie, size_t ielen,
 			      const struct element *mbssid_elem,
@@ -7224,7 +7249,7 @@ enum cfg80211_bss_frame_type {
  * @ielen: length of IEs
  * @band: enum nl80211_band of the channel
  *
- * Returns the channel number, or -1 if none could be determined.
+ * Return: the channel number, or -1 if none could be determined.
  */
 int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
 				    enum nl80211_band band);
@@ -7302,6 +7327,8 @@ cfg80211_inform_bss(struct wiphy *wiphy,
  * @bss_type: type of BSS, see &enum ieee80211_bss_type
  * @privacy: privacy filter, see &enum ieee80211_privacy
  * @use_for: indicates which use is intended
+ *
+ * Return: Reference-counted BSS on success. %NULL on error.
  */
 struct cfg80211_bss *__cfg80211_get_bss(struct wiphy *wiphy,
 					struct ieee80211_channel *channel,
@@ -7322,6 +7349,8 @@ struct cfg80211_bss *__cfg80211_get_bss(struct wiphy *wiphy,
  * @privacy: privacy filter, see &enum ieee80211_privacy
  *
  * This version implies regular usage, %NL80211_BSS_USE_FOR_NORMAL.
+ *
+ * Return: Reference-counted BSS on success. %NULL on error.
  */
 static inline struct cfg80211_bss *
 cfg80211_get_bss(struct wiphy *wiphy, struct ieee80211_channel *channel,
@@ -7706,8 +7735,9 @@ int cfg80211_vendor_cmd_reply(struct sk_buff *skb);
  * cfg80211_vendor_cmd_get_sender - get the current sender netlink ID
  * @wiphy: the wiphy
  *
- * Return the current netlink port ID in a vendor command handler.
- * Valid to call only there.
+ * Return: the current netlink port ID in a vendor command handler.
+ *
+ * Context: May only be called from a vendor command handler
  */
 unsigned int cfg80211_vendor_cmd_get_sender(struct wiphy *wiphy);
 
@@ -8260,6 +8290,8 @@ void cfg80211_tx_mgmt_expired(struct wireless_dev *wdev, u64 cookie,
  *
  * @sinfo: the station information
  * @gfp: allocation flags
+ *
+ * Return: 0 on success. Non-zero on error.
  */
 int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp);
 
@@ -8777,13 +8809,13 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
  * also checks if IR-relaxation conditions apply, to allow beaconing under
  * more permissive conditions.
  *
- * Requires the wiphy mutex to be held.
+ * Context: Requires the wiphy mutex to be held.
  */
 bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
 				   struct cfg80211_chan_def *chandef,
 				   enum nl80211_iftype iftype);
 
-/*
+/**
  * cfg80211_ch_switch_notify - update wdev channel and notify userspace
  * @dev: the device which switched channels
  * @chandef: the new channel definition
@@ -8796,7 +8828,7 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
 			       struct cfg80211_chan_def *chandef,
 			       unsigned int link_id);
 
-/*
+/**
  * cfg80211_ch_switch_started_notify - notify channel switch start
  * @dev: the device on which the channel switch started
  * @chandef: the future channel definition
@@ -8819,7 +8851,7 @@ void cfg80211_ch_switch_started_notify(struct net_device *dev,
  * @operating_class: the operating class to convert
  * @band: band pointer to fill
  *
- * Returns %true if the conversion was successful, %false otherwise.
+ * Return: %true if the conversion was successful, %false otherwise.
  */
 bool ieee80211_operating_class_to_band(u8 operating_class,
 				       enum nl80211_band *band);
@@ -8831,7 +8863,7 @@ bool ieee80211_operating_class_to_band(u8 operating_class,
  * @chan: the ieee80211_channel to convert
  * @chandef: a pointer to the resulting chandef
  *
- * Returns %true if the conversion was successful, %false otherwise.
+ * Return: %true if the conversion was successful, %false otherwise.
  */
 bool ieee80211_operating_class_to_chandef(u8 operating_class,
 					  struct ieee80211_channel *chan,
@@ -8843,7 +8875,7 @@ bool ieee80211_operating_class_to_chandef(u8 operating_class,
  * @chandef: the chandef to convert
  * @op_class: a pointer to the resulting operating class
  *
- * Returns %true if the conversion was successful, %false otherwise.
+ * Return: %true if the conversion was successful, %false otherwise.
  */
 bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 					  u8 *op_class);
@@ -8853,7 +8885,7 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
  *
  * @chandef: the chandef to convert
  *
- * Returns the center frequency of chandef (1st segment) in KHz.
+ * Return: the center frequency of chandef (1st segment) in KHz.
  */
 static inline u32
 ieee80211_chandef_to_khz(const struct cfg80211_chan_def *chandef)
@@ -8861,7 +8893,7 @@ ieee80211_chandef_to_khz(const struct cfg80211_chan_def *chandef)
 	return MHZ_TO_KHZ(chandef->center_freq1) + chandef->freq1_offset;
 }
 
-/*
+/**
  * cfg80211_tdls_oper_request - request userspace to perform TDLS operation
  * @dev: the device on which the operation is requested
  * @peer: the MAC address of the peer device
@@ -8880,11 +8912,11 @@ void cfg80211_tdls_oper_request(struct net_device *dev, const u8 *peer,
 				enum nl80211_tdls_operation oper,
 				u16 reason_code, gfp_t gfp);
 
-/*
+/**
  * cfg80211_calculate_bitrate - calculate actual bitrate (in 100Kbps units)
  * @rate: given rate_info to calculate bitrate from
  *
- * return 0 if MCS index >= 32
+ * Return: calculated bitrate
  */
 u32 cfg80211_calculate_bitrate(struct rate_info *rate);
 
@@ -8898,7 +8930,7 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate);
  * when the driver wishes to unregister the wdev, e.g. when the hardware device
  * is unbound from the driver.
  *
- * Requires the RTNL and wiphy mutex to be held.
+ * Context: Requires the RTNL and wiphy mutex to be held.
  */
 void cfg80211_unregister_wdev(struct wireless_dev *wdev);
 
@@ -8911,7 +8943,9 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev);
  * held. Otherwise, both register_netdevice() and register_netdev() are usable
  * instead as well.
  *
- * Requires the RTNL and wiphy mutex to be held.
+ * Context: Requires the RTNL and wiphy mutex to be held.
+ *
+ * Return: 0 on success. Non-zero on error.
  */
 int cfg80211_register_netdevice(struct net_device *dev);
 
@@ -8924,7 +8958,7 @@ int cfg80211_register_netdevice(struct net_device *dev);
  * is held. Otherwise, both unregister_netdevice() and unregister_netdev() are
  * usable instead as well.
  *
- * Requires the RTNL and wiphy mutex to be held.
+ * Context: Requires the RTNL and wiphy mutex to be held.
  */
 static inline void cfg80211_unregister_netdevice(struct net_device *dev)
 {
@@ -9000,9 +9034,9 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
  * correctly, if not the result of using this function will not
  * be ordered correctly either, i.e. it does no reordering.
  *
- * The function returns the offset where the next part of the
- * buffer starts, which may be @ielen if the entire (remainder)
- * of the buffer should be used.
+ * Return: The offset where the next part of the buffer starts, which
+ * may be @ielen if the entire (remainder) of the buffer should be
+ * used.
  */
 size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 			      const u8 *ids, int n_ids,
@@ -9030,9 +9064,9 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
  * correctly, if not the result of using this function will not
  * be ordered correctly either, i.e. it does no reordering.
  *
- * The function returns the offset where the next part of the
- * buffer starts, which may be @ielen if the entire (remainder)
- * of the buffer should be used.
+ * Return: The offset where the next part of the buffer starts, which
+ * may be @ielen if the entire (remainder) of the buffer should be
+ * used.
  */
 static inline size_t ieee80211_ie_split(const u8 *ies, size_t ielen,
 					const u8 *ids, int n_ids, size_t offset)
@@ -9096,6 +9130,8 @@ unsigned int ieee80211_get_num_supported_channels(struct wiphy *wiphy);
  * This function can be called by the driver to check whether a
  * combination of interfaces and their types are allowed according to
  * the interface combinations.
+ *
+ * Return: 0 if combinations are allowed. Non-zero on error.
  */
 int cfg80211_check_combinations(struct wiphy *wiphy,
 				struct iface_combination_params *params);
@@ -9111,6 +9147,8 @@ int cfg80211_check_combinations(struct wiphy *wiphy,
  * This function can be called by the driver to check what possible
  * combinations it fits in at a given moment, e.g. for channel switching
  * purposes.
+ *
+ * Return: 0 on success. Non-zero on error.
  */
 int cfg80211_iter_combinations(struct wiphy *wiphy,
 			       struct iface_combination_params *params,
@@ -9118,7 +9156,7 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 					    void *data),
 			       void *data);
 
-/*
+/**
  * cfg80211_stop_iface - trigger interface disconnection
  *
  * @wiphy: the wiphy
@@ -9173,6 +9211,8 @@ static inline void wiphy_ext_feature_set(struct wiphy *wiphy,
  *
  * The extended features are flagged in multiple bytes (see
  * &struct wiphy.@ext_features)
+ *
+ * Return: %true if extended feature flag is set, %false otherwise
  */
 static inline bool
 wiphy_ext_feature_isset(struct wiphy *wiphy,
@@ -9294,6 +9334,8 @@ void cfg80211_pmsr_complete(struct wireless_dev *wdev,
  * Check whether the interface is allowed to operate; additionally, this API
  * can be used to check iftype against the software interfaces when
  * check_swif is '1'.
+ *
+ * Return: %true if allowed, %false otherwise
  */
 bool cfg80211_iftype_allowed(struct wiphy *wiphy, enum nl80211_iftype iftype,
 			     bool is_4addr, u8 check_swif);
@@ -9386,60 +9428,78 @@ void cfg80211_bss_flush(struct wiphy *wiphy);
  * @cmd: the actual event we want to notify
  * @count: the number of TBTTs until the color change happens
  * @color_bitmap: representations of the colors that the local BSS is aware of
+ * @link_id: valid link_id in case of MLO or 0 for non-MLO.
+ *
+ * Return: 0 on success. Non-zero on error.
  */
 int cfg80211_bss_color_notify(struct net_device *dev,
 			      enum nl80211_commands cmd, u8 count,
-			      u64 color_bitmap);
+			      u64 color_bitmap, u8 link_id);
 
 /**
  * cfg80211_obss_color_collision_notify - notify about bss color collision
  * @dev: network device
  * @color_bitmap: representations of the colors that the local BSS is aware of
+ * @link_id: valid link_id in case of MLO or 0 for non-MLO.
+ *
+ * Return: 0 on success. Non-zero on error.
  */
 static inline int cfg80211_obss_color_collision_notify(struct net_device *dev,
-						       u64 color_bitmap)
+						       u64 color_bitmap,
+						       u8 link_id)
 {
 	return cfg80211_bss_color_notify(dev, NL80211_CMD_OBSS_COLOR_COLLISION,
-					 0, color_bitmap);
+					 0, color_bitmap, link_id);
 }
 
 /**
  * cfg80211_color_change_started_notify - notify color change start
  * @dev: the device on which the color is switched
  * @count: the number of TBTTs until the color change happens
+ * @link_id: valid link_id in case of MLO or 0 for non-MLO.
  *
  * Inform the userspace about the color change that has started.
+ *
+ * Return: 0 on success. Non-zero on error.
  */
 static inline int cfg80211_color_change_started_notify(struct net_device *dev,
-						       u8 count)
+						       u8 count, u8 link_id)
 {
 	return cfg80211_bss_color_notify(dev, NL80211_CMD_COLOR_CHANGE_STARTED,
-					 count, 0);
+					 count, 0, link_id);
 }
 
 /**
  * cfg80211_color_change_aborted_notify - notify color change abort
  * @dev: the device on which the color is switched
+ * @link_id: valid link_id in case of MLO or 0 for non-MLO.
  *
  * Inform the userspace about the color change that has aborted.
+ *
+ * Return: 0 on success. Non-zero on error.
  */
-static inline int cfg80211_color_change_aborted_notify(struct net_device *dev)
+static inline int cfg80211_color_change_aborted_notify(struct net_device *dev,
+						       u8 link_id)
 {
 	return cfg80211_bss_color_notify(dev, NL80211_CMD_COLOR_CHANGE_ABORTED,
-					 0, 0);
+					 0, 0, link_id);
 }
 
 /**
  * cfg80211_color_change_notify - notify color change completion
  * @dev: the device on which the color was switched
+ * @link_id: valid link_id in case of MLO or 0 for non-MLO.
  *
  * Inform the userspace about the color change that has completed.
+ *
+ * Return: 0 on success. Non-zero on error.
  */
-static inline int cfg80211_color_change_notify(struct net_device *dev)
+static inline int cfg80211_color_change_notify(struct net_device *dev,
+					       u8 link_id)
 {
 	return cfg80211_bss_color_notify(dev,
 					 NL80211_CMD_COLOR_CHANGE_COMPLETED,
-					 0, 0);
+					 0, 0, link_id);
 }
 
 /**
@@ -9477,6 +9537,8 @@ void cfg80211_schedule_channels_check(struct wireless_dev *wdev);
  * @ppos: read position
  * @handler: the read handler to call (under wiphy lock)
  * @data: additional data to pass to the read handler
+ *
+ * Return: the number of characters read, or a negative errno
  */
 ssize_t wiphy_locked_debugfs_read(struct wiphy *wiphy, struct file *file,
 				  char *buf, size_t bufsize,
@@ -9499,6 +9561,8 @@ ssize_t wiphy_locked_debugfs_read(struct wiphy *wiphy, struct file *file,
  * @count: read count
  * @handler: the write handler to call (under wiphy lock)
  * @data: additional data to pass to the write handler
+ *
+ * Return: the number of characters written, or a negative errno
  */
 ssize_t wiphy_locked_debugfs_write(struct wiphy *wiphy, struct file *file,
 				   char *buf, size_t bufsize,

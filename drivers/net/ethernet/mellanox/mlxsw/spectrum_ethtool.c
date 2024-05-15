@@ -1649,6 +1649,18 @@ mlxsw_sp2_mask_ethtool_100gaui_2_100gbase_cr2_kr2[] = {
 	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_100gaui_2_100gbase_cr2_kr2)
 
 static const enum ethtool_link_mode_bit_indices
+mlxsw_sp2_mask_ethtool_100gaui_1_100gbase_cr_kr[] = {
+	ETHTOOL_LINK_MODE_100000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR_ER_FR_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseDR_Full_BIT,
+};
+
+#define MLXSW_SP2_MASK_ETHTOOL_100GAUI_1_100GBASE_CR_KR_LEN \
+	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_100gaui_1_100gbase_cr_kr)
+
+static const enum ethtool_link_mode_bit_indices
 mlxsw_sp2_mask_ethtool_200gaui_4_200gbase_cr4_kr4[] = {
 	ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT,
 	ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT,
@@ -1661,6 +1673,18 @@ mlxsw_sp2_mask_ethtool_200gaui_4_200gbase_cr4_kr4[] = {
 	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_200gaui_4_200gbase_cr4_kr4)
 
 static const enum ethtool_link_mode_bit_indices
+mlxsw_sp2_mask_ethtool_200gaui_2_200gbase_cr2_kr2[] = {
+	ETHTOOL_LINK_MODE_200000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_200000baseSR2_Full_BIT,
+	ETHTOOL_LINK_MODE_200000baseLR2_ER2_FR2_Full_BIT,
+	ETHTOOL_LINK_MODE_200000baseDR2_Full_BIT,
+	ETHTOOL_LINK_MODE_200000baseCR2_Full_BIT,
+};
+
+#define MLXSW_SP2_MASK_ETHTOOL_200GAUI_2_200GBASE_CR2_KR2_LEN \
+	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_200gaui_2_200gbase_cr2_kr2)
+
+static const enum ethtool_link_mode_bit_indices
 mlxsw_sp2_mask_ethtool_400gaui_8[] = {
 	ETHTOOL_LINK_MODE_400000baseKR8_Full_BIT,
 	ETHTOOL_LINK_MODE_400000baseSR8_Full_BIT,
@@ -1671,6 +1695,18 @@ mlxsw_sp2_mask_ethtool_400gaui_8[] = {
 
 #define MLXSW_SP2_MASK_ETHTOOL_400GAUI_8_LEN \
 	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_400gaui_8)
+
+static const enum ethtool_link_mode_bit_indices
+mlxsw_sp2_mask_ethtool_400gaui_4_400gbase_cr4_kr4[] = {
+	ETHTOOL_LINK_MODE_400000baseKR4_Full_BIT,
+	ETHTOOL_LINK_MODE_400000baseSR4_Full_BIT,
+	ETHTOOL_LINK_MODE_400000baseLR4_ER4_FR4_Full_BIT,
+	ETHTOOL_LINK_MODE_400000baseDR4_Full_BIT,
+	ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT,
+};
+
+#define MLXSW_SP2_MASK_ETHTOOL_400GAUI_4_400GBASE_CR4_KR4_LEN \
+	ARRAY_SIZE(mlxsw_sp2_mask_ethtool_400gaui_4_400gbase_cr4_kr4)
 
 static const enum ethtool_link_mode_bit_indices
 mlxsw_sp2_mask_ethtool_800gaui_8[] = {
@@ -1817,6 +1853,14 @@ static const struct mlxsw_sp2_port_link_mode mlxsw_sp2_port_link_mode[] = {
 		.width		= 2,
 	},
 	{
+		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_100GAUI_1_100GBASE_CR_KR,
+		.mask_ethtool	= mlxsw_sp2_mask_ethtool_100gaui_1_100gbase_cr_kr,
+		.m_ethtool_len	= MLXSW_SP2_MASK_ETHTOOL_100GAUI_1_100GBASE_CR_KR_LEN,
+		.mask_sup_width	= MLXSW_SP_PORT_MASK_WIDTH_1X,
+		.speed		= SPEED_100000,
+		.width		= 1,
+	},
+	{
 		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_200GAUI_4_200GBASE_CR4_KR4,
 		.mask_ethtool	= mlxsw_sp2_mask_ethtool_200gaui_4_200gbase_cr4_kr4,
 		.m_ethtool_len	= MLXSW_SP2_MASK_ETHTOOL_200GAUI_4_200GBASE_CR4_KR4_LEN,
@@ -1826,12 +1870,28 @@ static const struct mlxsw_sp2_port_link_mode mlxsw_sp2_port_link_mode[] = {
 		.width		= 4,
 	},
 	{
+		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_200GAUI_2_200GBASE_CR2_KR2,
+		.mask_ethtool	= mlxsw_sp2_mask_ethtool_200gaui_2_200gbase_cr2_kr2,
+		.m_ethtool_len	= MLXSW_SP2_MASK_ETHTOOL_200GAUI_2_200GBASE_CR2_KR2_LEN,
+		.mask_sup_width	= MLXSW_SP_PORT_MASK_WIDTH_2X,
+		.speed		= SPEED_200000,
+		.width		= 2,
+	},
+	{
 		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_400GAUI_8,
 		.mask_ethtool	= mlxsw_sp2_mask_ethtool_400gaui_8,
 		.m_ethtool_len	= MLXSW_SP2_MASK_ETHTOOL_400GAUI_8_LEN,
 		.mask_sup_width	= MLXSW_SP_PORT_MASK_WIDTH_8X,
 		.speed		= SPEED_400000,
 		.width		= 8,
+	},
+	{
+		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_400GAUI_4_400GBASE_CR4_KR4,
+		.mask_ethtool	= mlxsw_sp2_mask_ethtool_400gaui_4_400gbase_cr4_kr4,
+		.m_ethtool_len	= MLXSW_SP2_MASK_ETHTOOL_400GAUI_4_400GBASE_CR4_KR4_LEN,
+		.mask_sup_width	= MLXSW_SP_PORT_MASK_WIDTH_4X,
+		.speed		= SPEED_400000,
+		.width		= 4,
 	},
 	{
 		.mask		= MLXSW_REG_PTYS_EXT_ETH_SPEED_800GAUI_8,

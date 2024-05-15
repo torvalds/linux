@@ -238,7 +238,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 			ipoib_warn(priv, "mtu > %d will cause multicast packet drops.\n",
 				   priv->mcast_mtu);
 
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 		return 0;
 	}
 
@@ -265,7 +265,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 		if (carrier_status)
 			netif_carrier_on(dev);
 	} else {
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 	}
 
 	return ret;

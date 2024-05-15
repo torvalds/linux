@@ -42,7 +42,7 @@ __mlxsw_only_on_spectrum()
 	local src=$1; shift
 
 	if ! mlxsw_on_spectrum "$rev"; then
-		log_test_skip $src:$caller "(Spectrum-$rev only)"
+		log_test_xfail $src:$caller "(Spectrum-$rev only)"
 		return 1
 	fi
 }
