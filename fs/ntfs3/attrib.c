@@ -254,7 +254,7 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 
 	align = sbi->cluster_size;
 	if (is_attr_compressed(attr))
-		align <<= COMPRESSION_UNIT;
+		align <<= NTFS_LZNT_CUNIT;
 	len = (rsize + align - 1) >> sbi->cluster_bits;
 
 	run_init(run);
