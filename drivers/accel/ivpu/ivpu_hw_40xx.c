@@ -6,6 +6,7 @@
 #include "ivpu_drv.h"
 #include "ivpu_fw.h"
 #include "ivpu_hw.h"
+#include "ivpu_hw_btrs_lnl_reg.h"
 #include "ivpu_hw_40xx_reg.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_ipc.h"
@@ -58,12 +59,12 @@
 
 #define ICB_0_1_IRQ_MASK ((((u64)ICB_1_IRQ_MASK) << 32) | ICB_0_IRQ_MASK)
 
-#define BUTTRESS_IRQ_MASK ((REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR)) | \
-			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI0_ERR)) | \
-			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI1_ERR)) | \
-			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, IMR0_ERR)) | \
-			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, IMR1_ERR)) | \
-			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, SURV_ERR)))
+#define BUTTRESS_IRQ_MASK ((REG_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, ATS_ERR)) | \
+			   (REG_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, CFI0_ERR)) | \
+			   (REG_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, CFI1_ERR)) | \
+			   (REG_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, IMR0_ERR)) | \
+			   (REG_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, IMR1_ERR)) | \
+			   (REG_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, SURV_ERR)))
 
 #define BUTTRESS_IRQ_ENABLE_MASK ((u32)~BUTTRESS_IRQ_MASK)
 #define BUTTRESS_IRQ_DISABLE_MASK ((u32)-1)
@@ -160,7 +161,7 @@ static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
 
 static int ivpu_pll_wait_for_cmd_send(struct ivpu_device *vdev)
 {
-	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_WP_REQ_CMD, SEND, 0, PLL_TIMEOUT_US);
+	return REGB_POLL_FLD(VPU_HW_BTRS_LNL_WP_REQ_CMD, SEND, 0, PLL_TIMEOUT_US);
 }
 
 static int ivpu_pll_cmd_send(struct ivpu_device *vdev, u16 min_ratio, u16 max_ratio,
@@ -175,24 +176,24 @@ static int ivpu_pll_cmd_send(struct ivpu_device *vdev, u16 min_ratio, u16 max_ra
 		return ret;
 	}
 
-	val = REGB_RD32(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD0);
-	val = REG_SET_FLD_NUM(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD0, MIN_RATIO, min_ratio, val);
-	val = REG_SET_FLD_NUM(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD0, MAX_RATIO, max_ratio, val);
-	REGB_WR32(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD0, val);
+	val = REGB_RD32(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD0);
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD0, MIN_RATIO, min_ratio, val);
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD0, MAX_RATIO, max_ratio, val);
+	REGB_WR32(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD0, val);
 
-	val = REGB_RD32(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD1);
-	val = REG_SET_FLD_NUM(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD1, TARGET_RATIO, target_ratio, val);
-	val = REG_SET_FLD_NUM(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD1, EPP, epp, val);
-	REGB_WR32(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD1, val);
+	val = REGB_RD32(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD1);
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD1, TARGET_RATIO, target_ratio, val);
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD1, EPP, epp, val);
+	REGB_WR32(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD1, val);
 
-	val = REGB_RD32(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD2);
-	val = REG_SET_FLD_NUM(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD2, CONFIG, config, val);
-	val = REG_SET_FLD_NUM(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD2, CDYN, cdyn, val);
-	REGB_WR32(VPU_40XX_BUTTRESS_WP_REQ_PAYLOAD2, val);
+	val = REGB_RD32(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD2);
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD2, CONFIG, config, val);
+	val = REG_SET_FLD_NUM(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD2, CDYN, cdyn, val);
+	REGB_WR32(VPU_HW_BTRS_LNL_WP_REQ_PAYLOAD2, val);
 
-	val = REGB_RD32(VPU_40XX_BUTTRESS_WP_REQ_CMD);
-	val = REG_SET_FLD(VPU_40XX_BUTTRESS_WP_REQ_CMD, SEND, val);
-	REGB_WR32(VPU_40XX_BUTTRESS_WP_REQ_CMD, val);
+	val = REGB_RD32(VPU_HW_BTRS_LNL_WP_REQ_CMD);
+	val = REG_SET_FLD(VPU_HW_BTRS_LNL_WP_REQ_CMD, SEND, val);
+	REGB_WR32(VPU_HW_BTRS_LNL_WP_REQ_CMD, val);
 
 	ret = ivpu_pll_wait_for_cmd_send(vdev);
 	if (ret)
@@ -203,7 +204,7 @@ static int ivpu_pll_cmd_send(struct ivpu_device *vdev, u16 min_ratio, u16 max_ra
 
 static int ivpu_pll_wait_for_status_ready(struct ivpu_device *vdev)
 {
-	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, READY, 1, PLL_TIMEOUT_US);
+	return REGB_POLL_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, READY, 1, PLL_TIMEOUT_US);
 }
 
 static int ivpu_wait_for_clock_own_resource_ack(struct ivpu_device *vdev)
@@ -211,7 +212,7 @@ static int ivpu_wait_for_clock_own_resource_ack(struct ivpu_device *vdev)
 	if (ivpu_is_simics(vdev))
 		return 0;
 
-	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, CLOCK_RESOURCE_OWN_ACK, 1, TIMEOUT_US);
+	return REGB_POLL_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, CLOCK_RESOURCE_OWN_ACK, 1, TIMEOUT_US);
 }
 
 static void ivpu_pll_init_frequency_ratios(struct ivpu_device *vdev)
@@ -220,12 +221,12 @@ static void ivpu_pll_init_frequency_ratios(struct ivpu_device *vdev)
 	u8 fuse_min_ratio, fuse_pn_ratio, fuse_max_ratio;
 	u32 fmin_fuse, fmax_fuse;
 
-	fmin_fuse = REGB_RD32(VPU_40XX_BUTTRESS_FMIN_FUSE);
-	fuse_min_ratio = REG_GET_FLD(VPU_40XX_BUTTRESS_FMIN_FUSE, MIN_RATIO, fmin_fuse);
-	fuse_pn_ratio = REG_GET_FLD(VPU_40XX_BUTTRESS_FMIN_FUSE, PN_RATIO, fmin_fuse);
+	fmin_fuse = REGB_RD32(VPU_HW_BTRS_LNL_FMIN_FUSE);
+	fuse_min_ratio = REG_GET_FLD(VPU_HW_BTRS_LNL_FMIN_FUSE, MIN_RATIO, fmin_fuse);
+	fuse_pn_ratio = REG_GET_FLD(VPU_HW_BTRS_LNL_FMIN_FUSE, PN_RATIO, fmin_fuse);
 
-	fmax_fuse = REGB_RD32(VPU_40XX_BUTTRESS_FMAX_FUSE);
-	fuse_max_ratio = REG_GET_FLD(VPU_40XX_BUTTRESS_FMAX_FUSE, MAX_RATIO, fmax_fuse);
+	fmax_fuse = REGB_RD32(VPU_HW_BTRS_LNL_FMAX_FUSE);
+	fuse_max_ratio = REG_GET_FLD(VPU_HW_BTRS_LNL_FMAX_FUSE, MAX_RATIO, fmax_fuse);
 
 	hw->pll.min_ratio = clamp_t(u8, ivpu_pll_min_ratio, fuse_min_ratio, fuse_max_ratio);
 	hw->pll.max_ratio = clamp_t(u8, ivpu_pll_max_ratio, hw->pll.min_ratio, fuse_max_ratio);
@@ -429,8 +430,8 @@ static int ivpu_boot_host_ss_axi_drive(struct ivpu_device *vdev, bool enable)
 	}
 
 	if (enable) {
-		REGB_WR32(VPU_40XX_BUTTRESS_PORT_ARBITRATION_WEIGHTS, WEIGHTS_DEFAULT);
-		REGB_WR32(VPU_40XX_BUTTRESS_PORT_ARBITRATION_WEIGHTS_ATS, WEIGHTS_ATS_DEFAULT);
+		REGB_WR32(VPU_HW_BTRS_LNL_PORT_ARBITRATION_WEIGHTS, WEIGHTS_DEFAULT);
+		REGB_WR32(VPU_HW_BTRS_LNL_PORT_ARBITRATION_WEIGHTS_ATS, WEIGHTS_ATS_DEFAULT);
 	}
 
 	return ret;
@@ -667,20 +668,20 @@ static int ivpu_boot_d0i3_drive(struct ivpu_device *vdev, bool enable)
 	int ret;
 	u32 val;
 
-	ret = REGB_POLL_FLD(VPU_40XX_BUTTRESS_D0I3_CONTROL, INPROGRESS, 0, TIMEOUT_US);
+	ret = REGB_POLL_FLD(VPU_HW_BTRS_LNL_D0I3_CONTROL, INPROGRESS, 0, TIMEOUT_US);
 	if (ret) {
 		ivpu_err(vdev, "Failed to sync before D0i3 transition: %d\n", ret);
 		return ret;
 	}
 
-	val = REGB_RD32(VPU_40XX_BUTTRESS_D0I3_CONTROL);
+	val = REGB_RD32(VPU_HW_BTRS_LNL_D0I3_CONTROL);
 	if (enable)
-		val = REG_SET_FLD(VPU_40XX_BUTTRESS_D0I3_CONTROL, I3, val);
+		val = REG_SET_FLD(VPU_HW_BTRS_LNL_D0I3_CONTROL, I3, val);
 	else
-		val = REG_CLR_FLD(VPU_40XX_BUTTRESS_D0I3_CONTROL, I3, val);
-	REGB_WR32(VPU_40XX_BUTTRESS_D0I3_CONTROL, val);
+		val = REG_CLR_FLD(VPU_HW_BTRS_LNL_D0I3_CONTROL, I3, val);
+	REGB_WR32(VPU_HW_BTRS_LNL_D0I3_CONTROL, val);
 
-	ret = REGB_POLL_FLD(VPU_40XX_BUTTRESS_D0I3_CONTROL, INPROGRESS, 0, TIMEOUT_US);
+	ret = REGB_POLL_FLD(VPU_HW_BTRS_LNL_D0I3_CONTROL, INPROGRESS, 0, TIMEOUT_US);
 	if (ret) {
 		ivpu_err(vdev, "Failed to sync after D0i3 transition: %d\n", ret);
 		return ret;
@@ -710,13 +711,13 @@ static int ivpu_hw_40xx_info_init(struct ivpu_device *vdev)
 	u32 tile_disable;
 	u32 fuse;
 
-	fuse = REGB_RD32(VPU_40XX_BUTTRESS_TILE_FUSE);
-	if (!REG_TEST_FLD(VPU_40XX_BUTTRESS_TILE_FUSE, VALID, fuse)) {
+	fuse = REGB_RD32(VPU_HW_BTRS_LNL_TILE_FUSE);
+	if (!REG_TEST_FLD(VPU_HW_BTRS_LNL_TILE_FUSE, VALID, fuse)) {
 		ivpu_err(vdev, "Fuse: invalid (0x%x)\n", fuse);
 		return -EIO;
 	}
 
-	tile_disable = REG_GET_FLD(VPU_40XX_BUTTRESS_TILE_FUSE, CONFIG, fuse);
+	tile_disable = REG_GET_FLD(VPU_HW_BTRS_LNL_TILE_FUSE, CONFIG, fuse);
 	if (!ivpu_tile_disable_check(tile_disable)) {
 		ivpu_err(vdev, "Fuse: Invalid tile disable config (0x%x)\n", tile_disable);
 		return -EIO;
@@ -751,17 +752,17 @@ static int ivpu_hw_40xx_ip_reset(struct ivpu_device *vdev)
 	int ret;
 	u32 val;
 
-	ret = REGB_POLL_FLD(VPU_40XX_BUTTRESS_IP_RESET, TRIGGER, 0, TIMEOUT_US);
+	ret = REGB_POLL_FLD(VPU_HW_BTRS_LNL_IP_RESET, TRIGGER, 0, TIMEOUT_US);
 	if (ret) {
 		ivpu_err(vdev, "Wait for *_TRIGGER timed out\n");
 		return ret;
 	}
 
-	val = REGB_RD32(VPU_40XX_BUTTRESS_IP_RESET);
-	val = REG_SET_FLD(VPU_40XX_BUTTRESS_IP_RESET, TRIGGER, val);
-	REGB_WR32(VPU_40XX_BUTTRESS_IP_RESET, val);
+	val = REGB_RD32(VPU_HW_BTRS_LNL_IP_RESET);
+	val = REG_SET_FLD(VPU_HW_BTRS_LNL_IP_RESET, TRIGGER, val);
+	REGB_WR32(VPU_HW_BTRS_LNL_IP_RESET, val);
 
-	ret = REGB_POLL_FLD(VPU_40XX_BUTTRESS_IP_RESET, TRIGGER, 0, TIMEOUT_US);
+	ret = REGB_POLL_FLD(VPU_HW_BTRS_LNL_IP_RESET, TRIGGER, 0, TIMEOUT_US);
 	if (ret)
 		ivpu_err(vdev, "Timed out waiting for RESET completion\n");
 
@@ -817,28 +818,28 @@ static int ivpu_hw_40xx_d0i3_disable(struct ivpu_device *vdev)
 
 static void ivpu_hw_40xx_profiling_freq_reg_set(struct ivpu_device *vdev)
 {
-	u32 val = REGB_RD32(VPU_40XX_BUTTRESS_VPU_STATUS);
+	u32 val = REGB_RD32(VPU_HW_BTRS_LNL_VPU_STATUS);
 
 	if (vdev->hw->pll.profiling_freq == PLL_PROFILING_FREQ_DEFAULT)
-		val = REG_CLR_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, PERF_CLK, val);
+		val = REG_CLR_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, PERF_CLK, val);
 	else
-		val = REG_SET_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, PERF_CLK, val);
+		val = REG_SET_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, PERF_CLK, val);
 
-	REGB_WR32(VPU_40XX_BUTTRESS_VPU_STATUS, val);
+	REGB_WR32(VPU_HW_BTRS_LNL_VPU_STATUS, val);
 }
 
 static void ivpu_hw_40xx_ats_print(struct ivpu_device *vdev)
 {
 	ivpu_dbg(vdev, MISC, "Buttress ATS: %s\n",
-		 REGB_RD32(VPU_40XX_BUTTRESS_HM_ATS) ? "Enable" : "Disable");
+		 REGB_RD32(VPU_HW_BTRS_LNL_HM_ATS) ? "Enable" : "Disable");
 }
 
 static void ivpu_hw_40xx_clock_relinquish_disable(struct ivpu_device *vdev)
 {
-	u32 val = REGB_RD32(VPU_40XX_BUTTRESS_VPU_STATUS);
+	u32 val = REGB_RD32(VPU_HW_BTRS_LNL_VPU_STATUS);
 
-	val = REG_SET_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, DISABLE_CLK_RELINQUISH, val);
-	REGB_WR32(VPU_40XX_BUTTRESS_VPU_STATUS, val);
+	val = REG_SET_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, DISABLE_CLK_RELINQUISH, val);
+	REGB_WR32(VPU_HW_BTRS_LNL_VPU_STATUS, val);
 }
 
 static int ivpu_hw_40xx_power_up(struct ivpu_device *vdev)
@@ -908,14 +909,14 @@ static bool ivpu_hw_40xx_is_idle(struct ivpu_device *vdev)
 	if (IVPU_WA(punit_disabled))
 		return true;
 
-	val = REGB_RD32(VPU_40XX_BUTTRESS_VPU_STATUS);
-	return REG_TEST_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, READY, val) &&
-	       REG_TEST_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, IDLE, val);
+	val = REGB_RD32(VPU_HW_BTRS_LNL_VPU_STATUS);
+	return REG_TEST_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, READY, val) &&
+	       REG_TEST_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, IDLE, val);
 }
 
 static int ivpu_hw_40xx_wait_for_idle(struct ivpu_device *vdev)
 {
-	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, IDLE, 0x1, IDLE_TIMEOUT_US);
+	return REGB_POLL_FLD(VPU_HW_BTRS_LNL_VPU_STATUS, IDLE, 0x1, IDLE_TIMEOUT_US);
 }
 
 static void ivpu_hw_40xx_save_d0i3_entry_timestamp(struct ivpu_device *vdev)
@@ -979,8 +980,8 @@ static u32 ivpu_hw_40xx_reg_pll_freq_get(struct ivpu_device *vdev)
 {
 	u32 pll_curr_ratio;
 
-	pll_curr_ratio = REGB_RD32(VPU_40XX_BUTTRESS_PLL_FREQ);
-	pll_curr_ratio &= VPU_40XX_BUTTRESS_PLL_FREQ_RATIO_MASK;
+	pll_curr_ratio = REGB_RD32(VPU_HW_BTRS_LNL_PLL_FREQ);
+	pll_curr_ratio &= VPU_HW_BTRS_LNL_PLL_FREQ_RATIO_MASK;
 
 	return PLL_RATIO_TO_FREQ(pll_curr_ratio);
 }
@@ -992,17 +993,17 @@ static u32 ivpu_hw_40xx_ratio_to_freq(struct ivpu_device *vdev, u32 ratio)
 
 static u32 ivpu_hw_40xx_reg_telemetry_offset_get(struct ivpu_device *vdev)
 {
-	return REGB_RD32(VPU_40XX_BUTTRESS_VPU_TELEMETRY_OFFSET);
+	return REGB_RD32(VPU_HW_BTRS_LNL_VPU_TELEMETRY_OFFSET);
 }
 
 static u32 ivpu_hw_40xx_reg_telemetry_size_get(struct ivpu_device *vdev)
 {
-	return REGB_RD32(VPU_40XX_BUTTRESS_VPU_TELEMETRY_SIZE);
+	return REGB_RD32(VPU_HW_BTRS_LNL_VPU_TELEMETRY_SIZE);
 }
 
 static u32 ivpu_hw_40xx_reg_telemetry_enable_get(struct ivpu_device *vdev)
 {
-	return REGB_RD32(VPU_40XX_BUTTRESS_VPU_TELEMETRY_ENABLE);
+	return REGB_RD32(VPU_HW_BTRS_LNL_VPU_TELEMETRY_ENABLE);
 }
 
 static void ivpu_hw_40xx_reg_db_set(struct ivpu_device *vdev, u32 db_id)
@@ -1039,14 +1040,14 @@ static void ivpu_hw_40xx_irq_enable(struct ivpu_device *vdev)
 {
 	REGV_WR32(VPU_40XX_HOST_SS_FW_SOC_IRQ_EN, ITF_FIREWALL_VIOLATION_MASK);
 	REGV_WR64(VPU_40XX_HOST_SS_ICB_ENABLE_0, ICB_0_1_IRQ_MASK);
-	REGB_WR32(VPU_40XX_BUTTRESS_LOCAL_INT_MASK, BUTTRESS_IRQ_ENABLE_MASK);
-	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
+	REGB_WR32(VPU_HW_BTRS_LNL_LOCAL_INT_MASK, BUTTRESS_IRQ_ENABLE_MASK);
+	REGB_WR32(VPU_HW_BTRS_LNL_GLOBAL_INT_MASK, 0x0);
 }
 
 static void ivpu_hw_40xx_irq_disable(struct ivpu_device *vdev)
 {
-	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
-	REGB_WR32(VPU_40XX_BUTTRESS_LOCAL_INT_MASK, BUTTRESS_IRQ_DISABLE_MASK);
+	REGB_WR32(VPU_HW_BTRS_LNL_GLOBAL_INT_MASK, 0x1);
+	REGB_WR32(VPU_HW_BTRS_LNL_LOCAL_INT_MASK, BUTTRESS_IRQ_DISABLE_MASK);
 	REGV_WR64(VPU_40XX_HOST_SS_ICB_ENABLE_0, 0x0ull);
 	REGV_WR32(VPU_40XX_HOST_SS_FW_SOC_IRQ_EN, 0x0ul);
 }
@@ -1106,57 +1107,57 @@ static bool ivpu_hw_40xx_irqv_handler(struct ivpu_device *vdev, int irq, bool *w
 static bool ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 {
 	bool schedule_recovery = false;
-	u32 status = REGB_RD32(VPU_40XX_BUTTRESS_INTERRUPT_STAT) & BUTTRESS_IRQ_MASK;
+	u32 status = REGB_RD32(VPU_HW_BTRS_LNL_INTERRUPT_STAT) & BUTTRESS_IRQ_MASK;
 
 	if (!status)
 		return false;
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE, status))
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, FREQ_CHANGE, status))
 		ivpu_dbg(vdev, IRQ, "FREQ_CHANGE");
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR, status)) {
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, ATS_ERR, status)) {
 		ivpu_err(vdev, "ATS_ERR LOG1 0x%08x ATS_ERR_LOG2 0x%08x\n",
-			 REGB_RD32(VPU_40XX_BUTTRESS_ATS_ERR_LOG1),
-			 REGB_RD32(VPU_40XX_BUTTRESS_ATS_ERR_LOG2));
-		REGB_WR32(VPU_40XX_BUTTRESS_ATS_ERR_CLEAR, 0x1);
+			 REGB_RD32(VPU_HW_BTRS_LNL_ATS_ERR_LOG1),
+			 REGB_RD32(VPU_HW_BTRS_LNL_ATS_ERR_LOG2));
+		REGB_WR32(VPU_HW_BTRS_LNL_ATS_ERR_CLEAR, 0x1);
 		schedule_recovery = true;
 	}
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI0_ERR, status)) {
-		ivpu_err(vdev, "CFI0_ERR 0x%08x", REGB_RD32(VPU_40XX_BUTTRESS_CFI0_ERR_LOG));
-		REGB_WR32(VPU_40XX_BUTTRESS_CFI0_ERR_CLEAR, 0x1);
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, CFI0_ERR, status)) {
+		ivpu_err(vdev, "CFI0_ERR 0x%08x", REGB_RD32(VPU_HW_BTRS_LNL_CFI0_ERR_LOG));
+		REGB_WR32(VPU_HW_BTRS_LNL_CFI0_ERR_CLEAR, 0x1);
 		schedule_recovery = true;
 	}
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI1_ERR, status)) {
-		ivpu_err(vdev, "CFI1_ERR 0x%08x", REGB_RD32(VPU_40XX_BUTTRESS_CFI1_ERR_LOG));
-		REGB_WR32(VPU_40XX_BUTTRESS_CFI1_ERR_CLEAR, 0x1);
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, CFI1_ERR, status)) {
+		ivpu_err(vdev, "CFI1_ERR 0x%08x", REGB_RD32(VPU_HW_BTRS_LNL_CFI1_ERR_LOG));
+		REGB_WR32(VPU_HW_BTRS_LNL_CFI1_ERR_CLEAR, 0x1);
 		schedule_recovery = true;
 	}
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, IMR0_ERR, status)) {
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, IMR0_ERR, status)) {
 		ivpu_err(vdev, "IMR_ERR_CFI0 LOW: 0x%08x HIGH: 0x%08x",
-			 REGB_RD32(VPU_40XX_BUTTRESS_IMR_ERR_CFI0_LOW),
-			 REGB_RD32(VPU_40XX_BUTTRESS_IMR_ERR_CFI0_HIGH));
-		REGB_WR32(VPU_40XX_BUTTRESS_IMR_ERR_CFI0_CLEAR, 0x1);
+			 REGB_RD32(VPU_HW_BTRS_LNL_IMR_ERR_CFI0_LOW),
+			 REGB_RD32(VPU_HW_BTRS_LNL_IMR_ERR_CFI0_HIGH));
+		REGB_WR32(VPU_HW_BTRS_LNL_IMR_ERR_CFI0_CLEAR, 0x1);
 		schedule_recovery = true;
 	}
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, IMR1_ERR, status)) {
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, IMR1_ERR, status)) {
 		ivpu_err(vdev, "IMR_ERR_CFI1 LOW: 0x%08x HIGH: 0x%08x",
-			 REGB_RD32(VPU_40XX_BUTTRESS_IMR_ERR_CFI1_LOW),
-			 REGB_RD32(VPU_40XX_BUTTRESS_IMR_ERR_CFI1_HIGH));
-		REGB_WR32(VPU_40XX_BUTTRESS_IMR_ERR_CFI1_CLEAR, 0x1);
+			 REGB_RD32(VPU_HW_BTRS_LNL_IMR_ERR_CFI1_LOW),
+			 REGB_RD32(VPU_HW_BTRS_LNL_IMR_ERR_CFI1_HIGH));
+		REGB_WR32(VPU_HW_BTRS_LNL_IMR_ERR_CFI1_CLEAR, 0x1);
 		schedule_recovery = true;
 	}
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, SURV_ERR, status)) {
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, SURV_ERR, status)) {
 		ivpu_err(vdev, "Survivability error detected\n");
 		schedule_recovery = true;
 	}
 
 	/* This must be done after interrupts are cleared at the source. */
-	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
+	REGB_WR32(VPU_HW_BTRS_LNL_INTERRUPT_STAT, status);
 
 	if (schedule_recovery)
 		ivpu_pm_trigger_recovery(vdev, "Buttress IRQ");
@@ -1169,13 +1170,13 @@ static irqreturn_t ivpu_hw_40xx_irq_handler(int irq, void *ptr)
 	bool irqv_handled, irqb_handled, wake_thread = false;
 	struct ivpu_device *vdev = ptr;
 
-	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
+	REGB_WR32(VPU_HW_BTRS_LNL_GLOBAL_INT_MASK, 0x1);
 
 	irqv_handled = ivpu_hw_40xx_irqv_handler(vdev, irq, &wake_thread);
 	irqb_handled = ivpu_hw_40xx_irqb_handler(vdev, irq);
 
 	/* Re-enable global interrupts to re-trigger MSI for pending interrupts */
-	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
+	REGB_WR32(VPU_HW_BTRS_LNL_GLOBAL_INT_MASK, 0x0);
 
 	if (wake_thread)
 		return IRQ_WAKE_THREAD;
@@ -1187,7 +1188,7 @@ static irqreturn_t ivpu_hw_40xx_irq_handler(int irq, void *ptr)
 static void ivpu_hw_40xx_diagnose_failure(struct ivpu_device *vdev)
 {
 	u32 irqv = REGV_RD32(VPU_40XX_HOST_SS_ICB_STATUS_0) & ICB_0_IRQ_MASK;
-	u32 irqb = REGB_RD32(VPU_40XX_BUTTRESS_INTERRUPT_STAT) & BUTTRESS_IRQ_MASK;
+	u32 irqb = REGB_RD32(VPU_HW_BTRS_LNL_INTERRUPT_STAT) & BUTTRESS_IRQ_MASK;
 
 	if (ivpu_hw_40xx_reg_ipc_rx_count_get(vdev))
 		ivpu_err(vdev, "IPC FIFO queue not empty, missed IPC IRQ");
@@ -1201,29 +1202,29 @@ static void ivpu_hw_40xx_diagnose_failure(struct ivpu_device *vdev)
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, NOC_FIREWALL_INT, irqv))
 		ivpu_err(vdev, "NOC Firewall irq detected\n");
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR, irqb)) {
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, ATS_ERR, irqb)) {
 		ivpu_err(vdev, "ATS_ERR_LOG1 0x%08x ATS_ERR_LOG2 0x%08x\n",
-			 REGB_RD32(VPU_40XX_BUTTRESS_ATS_ERR_LOG1),
-			 REGB_RD32(VPU_40XX_BUTTRESS_ATS_ERR_LOG2));
+			 REGB_RD32(VPU_HW_BTRS_LNL_ATS_ERR_LOG1),
+			 REGB_RD32(VPU_HW_BTRS_LNL_ATS_ERR_LOG2));
 	}
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI0_ERR, irqb))
-		ivpu_err(vdev, "CFI0_ERR_LOG 0x%08x\n", REGB_RD32(VPU_40XX_BUTTRESS_CFI0_ERR_LOG));
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, CFI0_ERR, irqb))
+		ivpu_err(vdev, "CFI0_ERR_LOG 0x%08x\n", REGB_RD32(VPU_HW_BTRS_LNL_CFI0_ERR_LOG));
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI1_ERR, irqb))
-		ivpu_err(vdev, "CFI1_ERR_LOG 0x%08x\n", REGB_RD32(VPU_40XX_BUTTRESS_CFI1_ERR_LOG));
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, CFI1_ERR, irqb))
+		ivpu_err(vdev, "CFI1_ERR_LOG 0x%08x\n", REGB_RD32(VPU_HW_BTRS_LNL_CFI1_ERR_LOG));
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, IMR0_ERR, irqb))
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, IMR0_ERR, irqb))
 		ivpu_err(vdev, "IMR_ERR_CFI0 LOW: 0x%08x HIGH: 0x%08x\n",
-			 REGB_RD32(VPU_40XX_BUTTRESS_IMR_ERR_CFI0_LOW),
-			 REGB_RD32(VPU_40XX_BUTTRESS_IMR_ERR_CFI0_HIGH));
+			 REGB_RD32(VPU_HW_BTRS_LNL_IMR_ERR_CFI0_LOW),
+			 REGB_RD32(VPU_HW_BTRS_LNL_IMR_ERR_CFI0_HIGH));
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, IMR1_ERR, irqb))
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, IMR1_ERR, irqb))
 		ivpu_err(vdev, "IMR_ERR_CFI1 LOW: 0x%08x HIGH: 0x%08x\n",
-			 REGB_RD32(VPU_40XX_BUTTRESS_IMR_ERR_CFI1_LOW),
-			 REGB_RD32(VPU_40XX_BUTTRESS_IMR_ERR_CFI1_HIGH));
+			 REGB_RD32(VPU_HW_BTRS_LNL_IMR_ERR_CFI1_LOW),
+			 REGB_RD32(VPU_HW_BTRS_LNL_IMR_ERR_CFI1_HIGH));
 
-	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, SURV_ERR, irqb))
+	if (REG_TEST_FLD(VPU_HW_BTRS_LNL_INTERRUPT_STAT, SURV_ERR, irqb))
 		ivpu_err(vdev, "Survivability error detected\n");
 }
 
