@@ -409,7 +409,7 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 	debugfs_create_file("resume_engine", 0200, debugfs_root, vdev,
 			    &ivpu_resume_engine_fops);
 
-	if (ivpu_hw_gen(vdev) >= IVPU_HW_40XX)
+	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX)
 		debugfs_create_file("fw_profiling_freq_drive", 0200,
 				    debugfs_root, vdev, &fw_profiling_freq_fops);
 }

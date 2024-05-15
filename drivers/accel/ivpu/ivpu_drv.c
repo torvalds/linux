@@ -464,9 +464,11 @@ static int ivpu_irq_init(struct ivpu_device *vdev)
 		return ret;
 	}
 
+	ivpu_irq_handlers_init(vdev);
+
 	vdev->irq = pci_irq_vector(pdev, 0);
 
-	ret = devm_request_threaded_irq(vdev->drm.dev, vdev->irq, vdev->hw->ops->irq_handler,
+	ret = devm_request_threaded_irq(vdev->drm.dev, vdev->irq, ivpu_hw_irq_handler,
 					ivpu_irq_thread_handler, IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to request an IRQ %d\n", ret);
@@ -543,13 +545,10 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	if (!vdev->pm)
 		return -ENOMEM;
 
-	if (ivpu_hw_gen(vdev) >= IVPU_HW_40XX) {
-		vdev->hw->ops = &ivpu_hw_40xx_ops;
+	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_40XX)
 		vdev->hw->dma_bits = 48;
-	} else {
-		vdev->hw->ops = &ivpu_hw_37xx_ops;
+	else
 		vdev->hw->dma_bits = 38;
-	}
 
 	vdev->platform = IVPU_PLATFORM_INVALID;
 	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
@@ -578,7 +577,7 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 		goto err_xa_destroy;
 
 	/* Init basic HW info based on buttress registers which are accessible before power up */
-	ret = ivpu_hw_info_init(vdev);
+	ret = ivpu_hw_init(vdev);
 	if (ret)
 		goto err_xa_destroy;
 

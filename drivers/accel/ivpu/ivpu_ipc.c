@@ -129,7 +129,7 @@ static void ivpu_ipc_tx_release(struct ivpu_device *vdev, u32 vpu_addr)
 
 static void ivpu_ipc_tx(struct ivpu_device *vdev, u32 vpu_addr)
 {
-	ivpu_hw_reg_ipc_tx_set(vdev, vpu_addr);
+	ivpu_hw_ipc_tx_set(vdev, vpu_addr);
 }
 
 static void
@@ -392,8 +392,8 @@ void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread)
 	 * Driver needs to purge all messages from IPC FIFO to clear IPC interrupt.
 	 * Without purge IPC FIFO to 0 next IPC interrupts won't be generated.
 	 */
-	while (ivpu_hw_reg_ipc_rx_count_get(vdev)) {
-		vpu_addr = ivpu_hw_reg_ipc_rx_addr_get(vdev);
+	while (ivpu_hw_ipc_rx_count_get(vdev)) {
+		vpu_addr = ivpu_hw_ipc_rx_addr_get(vdev);
 		if (vpu_addr == REG_IO_ERROR) {
 			ivpu_err_ratelimited(vdev, "Failed to read IPC rx addr register\n");
 			return;

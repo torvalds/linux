@@ -54,10 +54,10 @@ static struct {
 	int gen;
 	const char *name;
 } fw_names[] = {
-	{ IVPU_HW_37XX, "vpu_37xx.bin" },
-	{ IVPU_HW_37XX, "intel/vpu/vpu_37xx_v0.0.bin" },
-	{ IVPU_HW_40XX, "vpu_40xx.bin" },
-	{ IVPU_HW_40XX, "intel/vpu/vpu_40xx_v0.0.bin" },
+	{ IVPU_HW_IP_37XX, "vpu_37xx.bin" },
+	{ IVPU_HW_IP_37XX, "intel/vpu/vpu_37xx_v0.0.bin" },
+	{ IVPU_HW_IP_40XX, "vpu_40xx.bin" },
+	{ IVPU_HW_IP_40XX, "intel/vpu/vpu_40xx_v0.0.bin" },
 };
 
 static int ivpu_fw_request(struct ivpu_device *vdev)
@@ -73,7 +73,7 @@ static int ivpu_fw_request(struct ivpu_device *vdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fw_names); i++) {
-		if (fw_names[i].gen != ivpu_hw_gen(vdev))
+		if (fw_names[i].gen != ivpu_hw_ip_gen(vdev))
 			continue;
 
 		ret = firmware_request_nowarn(&vdev->fw->file, fw_names[i].name, vdev->drm.dev);
@@ -246,7 +246,7 @@ static int ivpu_fw_update_global_range(struct ivpu_device *vdev)
 		return -EINVAL;
 	}
 
-	ivpu_hw_init_range(&vdev->hw->ranges.global, start, size);
+	ivpu_hw_range_init(&vdev->hw->ranges.global, start, size);
 	return 0;
 }
 
@@ -511,7 +511,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 
 	boot_params->magic = VPU_BOOT_PARAMS_MAGIC;
 	boot_params->vpu_id = to_pci_dev(vdev->drm.dev)->bus->number;
-	boot_params->frequency = ivpu_hw_reg_pll_freq_get(vdev);
+	boot_params->frequency = ivpu_hw_pll_freq_get(vdev);
 
 	/*
 	 * This param is a debug firmware feature.  It switches default clock
@@ -568,9 +568,9 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->verbose_tracing_buff_addr = vdev->fw->mem_log_verb->vpu_addr;
 	boot_params->verbose_tracing_buff_size = ivpu_bo_size(vdev->fw->mem_log_verb);
 
-	boot_params->punit_telemetry_sram_base = ivpu_hw_reg_telemetry_offset_get(vdev);
-	boot_params->punit_telemetry_sram_size = ivpu_hw_reg_telemetry_size_get(vdev);
-	boot_params->vpu_telemetry_enable = ivpu_hw_reg_telemetry_enable_get(vdev);
+	boot_params->punit_telemetry_sram_base = ivpu_hw_telemetry_offset_get(vdev);
+	boot_params->punit_telemetry_sram_size = ivpu_hw_telemetry_size_get(vdev);
+	boot_params->vpu_telemetry_enable = ivpu_hw_telemetry_enable_get(vdev);
 	boot_params->vpu_scheduling_mode = vdev->hw->sched_mode;
 	if (vdev->hw->sched_mode == VPU_SCHEDULING_MODE_HW)
 		boot_params->vpu_focus_present_timer_ms = IVPU_FOCUS_PRESENT_TIMER_MS;

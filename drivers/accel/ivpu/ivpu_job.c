@@ -27,7 +27,7 @@
 
 static void ivpu_cmdq_ring_db(struct ivpu_device *vdev, struct ivpu_cmdq *cmdq)
 {
-	ivpu_hw_reg_db_set(vdev, cmdq->db_id);
+	ivpu_hw_db_set(vdev, cmdq->db_id);
 }
 
 static int ivpu_preemption_buffers_create(struct ivpu_device *vdev,

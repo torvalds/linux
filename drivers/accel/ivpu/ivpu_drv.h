@@ -27,8 +27,13 @@
 #define PCI_DEVICE_ID_ARL   0xad1d
 #define PCI_DEVICE_ID_LNL   0x643e
 
-#define IVPU_HW_37XX	37
-#define IVPU_HW_40XX	40
+#define IVPU_HW_IP_37XX 37
+#define IVPU_HW_IP_40XX 40
+#define IVPU_HW_IP_50XX 50
+#define IVPU_HW_IP_60XX 60
+
+#define IVPU_HW_BTRS_MTL 1
+#define IVPU_HW_BTRS_LNL 2
 
 #define IVPU_GLOBAL_CONTEXT_MMU_SSID   0
 /* SSID 1 is used by the VPU to represent reserved context */
@@ -198,16 +203,32 @@ static inline u16 ivpu_device_id(struct ivpu_device *vdev)
 	return to_pci_dev(vdev->drm.dev)->device;
 }
 
-static inline int ivpu_hw_gen(struct ivpu_device *vdev)
+static inline int ivpu_hw_ip_gen(struct ivpu_device *vdev)
 {
 	switch (ivpu_device_id(vdev)) {
 	case PCI_DEVICE_ID_MTL:
 	case PCI_DEVICE_ID_ARL:
-		return IVPU_HW_37XX;
+		return IVPU_HW_IP_37XX;
 	case PCI_DEVICE_ID_LNL:
-		return IVPU_HW_40XX;
+		return IVPU_HW_IP_40XX;
 	default:
-		ivpu_err(vdev, "Unknown NPU device\n");
+		dump_stack();
+		ivpu_err(vdev, "Unknown NPU IP generation\n");
+		return 0;
+	}
+}
+
+static inline int ivpu_hw_btrs_gen(struct ivpu_device *vdev)
+{
+	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_MTL:
+	case PCI_DEVICE_ID_ARL:
+		return IVPU_HW_BTRS_MTL;
+	case PCI_DEVICE_ID_LNL:
+		return IVPU_HW_BTRS_LNL;
+	default:
+		dump_stack();
+		ivpu_err(vdev, "Unknown buttress generation\n");
 		return 0;
 	}
 }
