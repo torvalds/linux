@@ -3166,10 +3166,13 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 		struct folio *folio;
 
 		/*
-		 * Good, the fallocate(2) manpage permits EINTR: we may have
-		 * been interrupted because we are using up too much memory.
+		 * Check for fatal signal so that we abort early in OOM
+		 * situations. We don't want to abort in case of non-fatal
+		 * signals as large fallocate can take noticeable time and
+		 * e.g. periodic timers may result in fallocate constantly
+		 * restarting.
 		 */
-		if (signal_pending(current))
+		if (fatal_signal_pending(current))
 			error = -EINTR;
 		else if (shmem_falloc.nr_unswapped > shmem_falloc.nr_falloced)
 			error = -ENOMEM;
