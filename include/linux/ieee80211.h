@@ -4731,6 +4731,11 @@ static inline bool ieee80211_action_contains_tpc(struct sk_buff *skb)
 	return true;
 }
 
+/**
+ * ieee80211_is_timing_measurement - check if frame is timing measurement response
+ * @skb: the SKB to check
+ * Return: whether or not the frame is a valid timing measurement response
+ */
 static inline bool ieee80211_is_timing_measurement(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
@@ -4750,6 +4755,11 @@ static inline bool ieee80211_is_timing_measurement(struct sk_buff *skb)
 	return false;
 }
 
+/**
+ * ieee80211_is_ftm - check if frame is FTM response
+ * @skb: the SKB to check
+ * Return: whether or not the frame is a valid FTM response action frame
+ */
 static inline bool ieee80211_is_ftm(struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
