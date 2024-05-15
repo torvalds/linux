@@ -672,6 +672,49 @@ static void goodix_berlin_power_off_act(void *data)
 	goodix_berlin_power_off(cd);
 }
 
+static ssize_t registers_read(struct file *filp, struct kobject *kobj,
+			      struct bin_attribute *bin_attr,
+			      char *buf, loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct goodix_berlin_core *cd = dev_get_drvdata(dev);
+	int error;
+
+	error = regmap_raw_read(cd->regmap, off, buf, count);
+
+	return error ? error : count;
+}
+
+static ssize_t registers_write(struct file *filp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct goodix_berlin_core *cd = dev_get_drvdata(dev);
+	int error;
+
+	error = regmap_raw_write(cd->regmap, off, buf, count);
+
+	return error ? error : count;
+}
+
+static BIN_ATTR_ADMIN_RW(registers, 0);
+
+static struct bin_attribute *goodix_berlin_bin_attrs[] = {
+	&bin_attr_registers,
+	NULL,
+};
+
+static const struct attribute_group goodix_berlin_attr_group = {
+	.bin_attrs = goodix_berlin_bin_attrs,
+};
+
+const struct attribute_group *goodix_berlin_groups[] = {
+	&goodix_berlin_attr_group,
+	NULL,
+};
+EXPORT_SYMBOL_GPL(goodix_berlin_groups);
+
 int goodix_berlin_probe(struct device *dev, int irq, const struct input_id *id,
 			struct regmap *regmap)
 {
