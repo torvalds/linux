@@ -235,14 +235,21 @@ void ffa_device_unregister(struct ffa_device *ffa_dev)
 }
 EXPORT_SYMBOL_GPL(ffa_device_unregister);
 
-int arm_ffa_bus_init(void)
+static int __init arm_ffa_bus_init(void)
 {
 	return bus_register(&ffa_bus_type);
 }
+subsys_initcall(arm_ffa_bus_init);
 
-void arm_ffa_bus_exit(void)
+static void __exit arm_ffa_bus_exit(void)
 {
 	ffa_devices_unregister();
 	bus_unregister(&ffa_bus_type);
 	ida_destroy(&ffa_bus_id);
 }
+module_exit(arm_ffa_bus_exit);
+
+MODULE_ALIAS("ffa-core");
+MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
+MODULE_DESCRIPTION("ARM FF-A bus");
+MODULE_LICENSE("GPL");
