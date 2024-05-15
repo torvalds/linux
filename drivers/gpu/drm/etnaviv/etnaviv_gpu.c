@@ -863,12 +863,15 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	 *
 	 * On MC1.0 cores the linear window offset is ignored by the TS engine,
 	 * leading to inconsistent memory views. Avoid using the offset on those
-	 * cores if possible, otherwise disable the TS feature.
+	 * cores if possible, otherwise disable the TS feature. MMUv2 doesn't
+	 * expose this issue, as all TS accesses are MMU translated, so the
+	 * linear window offset won't be used.
 	 */
 	cmdbuf_paddr = ALIGN_DOWN(etnaviv_cmdbuf_get_pa(&gpu->buffer), SZ_128M);
 
 	if (!(gpu->identity.features & chipFeatures_PIPE_3D) ||
-	    (gpu->identity.minor_features0 & chipMinorFeatures0_MC20)) {
+	    (gpu->identity.minor_features0 & chipMinorFeatures0_MC20) ||
+	    (gpu->identity.minor_features1 & chipMinorFeatures1_MMU_VERSION)) {
 		if (cmdbuf_paddr >= SZ_2G)
 			priv->mmu_global->memory_base = SZ_2G;
 		else
