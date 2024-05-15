@@ -14,6 +14,24 @@
 
 static unsigned long memshare_granule_sz;
 
+static void kvm_page_relinquish(struct page *page)
+{
+	phys_addr_t phys, end;
+	u32 func_id = ARM_SMCCC_VENDOR_HYP_KVM_MEM_RELINQUISH_FUNC_ID;
+
+	phys = page_to_phys(page);
+	end = phys + PAGE_SIZE;
+
+	while (phys < end) {
+		struct arm_smccc_res res;
+
+		arm_smccc_1_1_invoke(func_id, phys, 0, 0, &res);
+		BUG_ON(res.a0 != SMCCC_RET_SUCCESS);
+
+		phys += memshare_granule_sz;
+	}
+}
+
 void kvm_init_memrelinquish_services(void)
 {
 	int i;
@@ -34,6 +52,9 @@ void kvm_init_memrelinquish_services(void)
 		return;
 
 	memshare_granule_sz = res.a0;
+
+	if (memshare_granule_sz)
+		hyp_ops.page_relinquish = kvm_page_relinquish;
 }
 
 bool kvm_has_memrelinquish_services(void)
@@ -44,22 +65,14 @@ EXPORT_SYMBOL_GPL(kvm_has_memrelinquish_services);
 
 void page_relinquish(struct page *page)
 {
-	phys_addr_t phys, end;
-	u32 func_id = ARM_SMCCC_VENDOR_HYP_KVM_MEM_RELINQUISH_FUNC_ID;
-
-	if (!memshare_granule_sz)
-		return;
-
-	phys = page_to_phys(page);
-	end = phys + PAGE_SIZE;
-
-	while (phys < end) {
-		struct arm_smccc_res res;
-
-		arm_smccc_1_1_invoke(func_id, phys, 0, 0, &res);
-		BUG_ON(res.a0 != SMCCC_RET_SUCCESS);
-
-		phys += memshare_granule_sz;
-	}
+	if (hyp_ops.page_relinquish)
+		hyp_ops.page_relinquish(page);
 }
 EXPORT_SYMBOL_GPL(page_relinquish);
+
+void post_page_relinquish_tlb_inv(void)
+{
+	if (hyp_ops.post_page_relinquish_tlb_inv)
+		hyp_ops.post_page_relinquish_tlb_inv();
+}
+EXPORT_SYMBOL_GPL(post_page_relinquish_tlb_inv);

@@ -1,9 +1,11 @@
 [abi_symbol_list]
 # commonly used symbols
+  alloc_chrdev_region
   __alloc_pages
   __alloc_percpu
   alloc_workqueue
   alt_cb_patch_nops
+  anon_inode_getfile
   __arch_copy_from_user
   __arch_copy_to_user
   arm64_use_ng_mappings
@@ -13,6 +15,7 @@
   atomic_notifier_chain_unregister
   __bitmap_and
   bitmap_find_free_region
+  bitmap_parselist
   bitmap_release_region
   __bitmap_weight
   blocking_notifier_call_chain
@@ -22,26 +25,26 @@
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
+  bpf_trace_run5
   bpf_trace_run6
   call_rcu
   cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
+  cdev_add
+  cdev_del
   cdev_init
   __check_object_size
   __class_create
   class_destroy
+  __class_register
+  class_unregister
   clk_disable
   clk_enable
   clk_get
-  __clk_get_hw
   clk_get_rate
-  clk_hw_get_parent
+  __clk_is_enabled
   clk_prepare
-  clk_register
-  clk_register_clkdev
-  clk_register_fixed_factor
-  clk_register_fixed_rate
   clk_set_rate
   clk_unprepare
   cma_alloc
@@ -58,6 +61,7 @@
   cpu_pm_register_notifier
   __cpu_possible_mask
   crc32_le
+  _ctype
   debugfs_create_dir
   debugfs_create_file
   debugfs_create_u32
@@ -90,6 +94,7 @@
   _dev_info
   devm_add_action
   devm_clk_get
+  devm_clk_get_optional
   devm_free_irq
   devm_gen_pool_create
   devm_gpiod_get
@@ -121,6 +126,8 @@
   devm_snd_soc_register_component
   devm_thermal_of_zone_register
   _dev_notice
+  dev_pm_opp_put
+  _dev_printk
   devres_add
   __devres_alloc_node
   dev_set_name
@@ -146,6 +153,7 @@
   dma_fence_release
   dma_fence_remove_callback
   dma_fence_signal
+  dma_fence_signal_locked
   dma_fence_wait_timeout
   dma_free_attrs
   dma_heap_buffer_alloc
@@ -233,7 +241,6 @@
   drm_kms_helper_poll_init
   drmm_mode_config_init
   drm_mode_config_cleanup
-  drm_mode_copy
   drm_mode_create
   drm_mode_duplicate
   drm_mode_object_put
@@ -252,14 +259,18 @@
   drm_release
   drm_vblank_init
   dump_stack
+  dw_pcie_ep_init
   dw_pcie_host_init
   dw_pcie_own_conf_map_bus
   dw_pcie_read
+  dw_pcie_read_dbi
   dw_pcie_setup_rc
   dw_pcie_write
+  dw_pcie_write_dbi
   enable_irq
   fd_install
   _find_first_bit
+  _find_first_zero_bit
   _find_next_bit
   finish_wait
   flush_delayed_work
@@ -289,7 +300,6 @@
   gpiod_set_raw_value
   gpiod_set_value_cansleep
   gpio_free
-  gpio_request
   gpio_request_one
   gpio_to_desc
   handle_edge_irq
@@ -315,7 +325,10 @@
   __init_waitqueue_head
   iomem_resource
   iommu_get_domain_for_dev
+  iommu_map
+  iommu_map_sg
   iommu_register_device_fault_handler
+  iommu_unmap
   iommu_unregister_device_fault_handler
   ioremap_prot
   iounmap
@@ -392,7 +405,9 @@
   loops_per_jiffy
   mdiobus_read
   mdiobus_write
+  memchr_inv
   memcpy
+  __memcpy_fromio
   memdup_user
   mem_section
   memset
@@ -403,6 +418,7 @@
   mipi_dsi_device_unregister
   mipi_dsi_driver_register_full
   mipi_dsi_driver_unregister
+  misc_deregister
   misc_register
   mod_timer
   module_layout
@@ -419,13 +435,12 @@
   netdev_warn
   noop_llseek
   nr_cpu_ids
+  nsecs_to_jiffies
   ns_to_timespec64
   __num_online_cpus
   of_address_to_resource
   of_alias_get_id
-  of_clk_add_provider
   of_clk_get
-  of_clk_src_onecell_get
   of_count_phandle_with_args
   of_device_get_match_data
   of_device_is_available
@@ -467,10 +482,15 @@
   oops_in_progress
   panic
   panic_notifier_list
+  param_ops_bool
   param_ops_int
   param_ops_string
   param_ops_uint
   pcie_get_mps
+  pci_epc_mem_alloc_addr
+  pci_epc_mem_free_addr
+  pci_epc_set_bar
+  pci_epc_unmap_addr
   pcie_set_mps
   pci_find_bus
   pci_generic_config_read
@@ -504,6 +524,7 @@
   platform_get_irq_optional
   platform_get_resource
   platform_get_resource_byname
+  __pm_relax
   __pm_runtime_disable
   pm_runtime_enable
   pm_runtime_forbid
@@ -515,7 +536,9 @@
   __pm_runtime_set_status
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
+  __pm_stay_awake
   pm_wakeup_dev_event
+  pm_wakeup_ws_event
   preempt_schedule
   preempt_schedule_notrace
   prepare_to_wait_event
@@ -538,6 +561,7 @@
   _raw_spin_unlock_irqrestore
   _raw_write_lock_irqsave
   _raw_write_unlock_irqrestore
+  rb_next
   rcu_barrier
   rdev_get_drvdata
   rdev_get_id
@@ -545,8 +569,10 @@
   regcache_mark_dirty
   regcache_sync
   __register_chrdev
+  register_chrdev_region
   register_console
   register_pm_notifier
+  register_reboot_notifier
   register_syscore_ops
   regmap_read
   regmap_update_bits_base
@@ -575,6 +601,7 @@
   seq_puts
   seq_read
   set_cpus_allowed_ptr
+  set_normalized_timespec64
   sg_alloc_table
   sg_free_table
   sg_init_table
@@ -585,6 +612,7 @@
   simple_attr_write
   simple_open
   simple_read_from_buffer
+  simple_strtoul
   simple_write_to_buffer
   single_open
   single_release
@@ -627,6 +655,7 @@
   strstr
   __sw_hweight32
   sync_file_create
+  synchronize_irq
   syscon_regmap_lookup_by_phandle
   sysfs_create_file_ns
   sysfs_create_group
@@ -647,6 +676,8 @@
   ttm_bo_mmap_obj
   __udelay
   __unregister_chrdev
+  unregister_chrdev_region
+  unregister_pm_notifier
   up
   up_write
   __usecs_to_jiffies
@@ -684,13 +715,17 @@
   video_unregister_device
   vmalloc
   vmap
+  vscnprintf
   vsnprintf
   vunmap
   vzalloc
+  wait_for_completion
   wait_for_completion_interruptible_timeout
   wait_for_completion_timeout
   __wake_up
   wake_up_process
+  wakeup_source_register
+  wakeup_source_unregister
   __warn_printk
   ww_mutex_lock
   ww_mutex_unlock
@@ -706,15 +741,25 @@
   cec_transmit_done_ts
   cec_unregister_adapter
   drm_bridge_hpd_notify
+  drm_mode_copy
   hdmi_avi_infoframe_init
   hdmi_avi_infoframe_pack
   i2c_new_ancillary_device
   regmap_bulk_write
   regmap_register_patch
 
+# required by clk_exynosauto.ko
+  __clk_get_hw
+  clk_hw_get_parent
+  clk_register
+  clk_register_clkdev
+  clk_register_fixed_factor
+  clk_register_fixed_rate
+  of_clk_add_provider
+  of_clk_src_onecell_get
+
 # required by cmupmucal.ko
   debugfs_create_x32
-  of_find_node_by_type
 
 # required by dmatest.ko
   __dma_request_channel
@@ -726,7 +771,6 @@
   mempool_free_slab
   param_get_bool
   param_get_string
-  param_ops_bool
   param_set_bool
   param_set_copystring
   set_freezable
@@ -735,7 +779,6 @@
 
 # required by drm_display_helper.ko
   devm_backlight_device_register
-  _dev_printk
   drm_atomic_get_connector_state
   drm_atomic_get_crtc_state
   drm_atomic_get_new_private_obj_state
@@ -751,7 +794,6 @@
   drm_edid_get_monitor_name
   drm_modeset_lock_single_interruptible
   __drm_printfn_debug
-  memchr_inv
   __sw_hweight8
   system_long_wq
 
@@ -777,6 +819,7 @@
   nr_irqs
   proc_create
   register_die_notifier
+  register_module_notifier
   register_restart_handler
   return_address
   rtc_time64_to_tm
@@ -838,9 +881,7 @@
   platform_device_alloc
   platform_device_del
   platform_device_put
-  __pm_relax
   pm_runtime_allow
-  __pm_stay_awake
   typec_register_partner
   typec_register_port
   typec_set_data_role
@@ -848,14 +889,10 @@
   typec_set_pwr_role
   typec_unregister_partner
   typec_unregister_port
-  unregister_pm_notifier
   usb_gadget_set_state
   usb_otg_state_string
-  wakeup_source_register
-  wakeup_source_unregister
 
 # required by exynos-acme.ko
-  bitmap_parselist
   __cpu_active_mask
   cpufreq_cpu_get
   cpufreq_cpu_get_raw
@@ -874,9 +911,6 @@
   get_cpu_device
   system_state
 
-# required by exynos-adv-tracer-s2d.ko
-  simple_strtoul
-
 # required by exynos-chipid_v2.ko
   of_find_node_opts_by_path
   soc_device_register
@@ -888,7 +922,6 @@
   __cpu_present_mask
 
 # required by exynos-debug-test.ko
-  _ctype
   remove_cpu
   smp_call_function
   smp_call_function_single
@@ -967,6 +1000,7 @@
   drm_mode_config_helper_resume
   drm_mode_config_helper_suspend
   drm_mode_config_reset
+  drm_mode_object_find
   drm_mode_object_get
   drm_of_component_match_add
   drm_of_crtc_port_mask
@@ -1010,15 +1044,13 @@
   platform_find_device_by_driver
   seq_hex_dump
   seq_release
-  synchronize_irq
   vmalloc_to_page
 
 # required by exynos_mfc.ko
   clk_put
+  dma_buf_begin_cpu_access_partial
+  dma_buf_end_cpu_access_partial
   hex_dump_to_buffer
-  iommu_map
-  iommu_map_sg
-  iommu_unmap
   __sw_hweight64
   _totalram_pages
 
@@ -1056,10 +1088,12 @@
   strncasecmp
   thermal_cdev_update
 
+# required by exyswd-rng.ko
+  devm_hwrng_register
+
 # required by gpu-sched.ko
   mod_delayed_work_on
   sched_set_fifo_low
-  wait_for_completion
   __xa_alloc
   xa_destroy
   xa_erase
@@ -1075,8 +1109,6 @@
   hrtimer_try_to_cancel
 
 # required by hwmon.ko
-  __class_register
-  class_unregister
   device_property_read_string
   devres_free
   devres_release
@@ -1096,14 +1128,34 @@
   i2c_smbus_xfer
   i2c_transfer_buffer_flags
   i2c_verify_client
-  register_chrdev_region
-  unregister_chrdev_region
 
 # required by lontium-lt9611.ko
   drm_hdmi_avi_infoframe_from_display_mode
   platform_device_register_full
   regmap_multi_reg_write
   regulator_set_load
+
+# required by npu.ko
+  __bitmap_clear
+  __bitmap_set
+  cdev_alloc
+  console_printk
+  cpuidle_pause_and_lock
+  cpuidle_resume_and_unlock
+  devm_clk_put
+  dev_pm_opp_find_freq_ceil
+  dev_pm_opp_find_freq_floor
+  dma_fence_free
+  fget
+  _find_next_zero_bit
+  firmware_request_nowarn
+  __kfifo_in
+  __kfifo_out
+  of_irq_parse_one
+  rb_erase
+  rb_insert_color
+  strrchr
+  sysfs_remove_file_ns
 
 # required by panel-samsung-dummy.ko
   drm_panel_add
@@ -1113,13 +1165,16 @@
 # required by panic-fingerprint.ko
   stack_trace_save
 
+# required by pcie-exynos-dw-ep.ko
+  pci_epc_map_addr
+
 # required by pcs_xpcs.ko
   mdiobus_modify_changed
   phylink_mii_c22_pcs_decode_state
   phylink_mii_c22_pcs_encode_advertisement
 
 # required by phy-exynosauto-usbdrd-super.ko
-  __clk_is_enabled
+  gpio_request
 
 # required by pinctrl-samsung-core.ko
   device_get_next_child_node
@@ -1190,13 +1245,18 @@
 
 # required by rtc-s2vps02.ko
   devm_rtc_device_register
-  pm_wakeup_ws_event
   rtc_update_irq
   rtc_valid_tm
 
 # required by s2vps02-master-mfd.ko
   __devm_irq_alloc_descs
   handle_nested_irq
+
+# required by s3c2410_wdt.ko
+  watchdog_init_timeout
+  watchdog_register_device
+  watchdog_set_restart_priority
+  watchdog_unregister_device
 
 # required by sam-is.ko
   down
@@ -1206,9 +1266,9 @@
   kernel_neon_end
   kobject_del
   kthread_flush_worker
+  pfn_is_map_memory
   pm_relax
   pm_stay_awake
-  register_reboot_notifier
   regulator_get_optional
   regulator_get_voltage
   regulator_is_enabled
@@ -1216,7 +1276,6 @@
   regulator_set_voltage
   unregister_reboot_notifier
   vb2_mmap
-  vscnprintf
 
 # required by samsung-bridge-dummy.ko
   drm_atomic_helper_bridge_propagate_bus_fmt
@@ -1232,7 +1291,6 @@
 
 # required by samsung_dma_heap.ko
   adjust_managed_page_count
-  anon_inode_getfile
   deferred_free
   dma_buf_get_flags
   dmabuf_page_pool_alloc
@@ -1246,7 +1304,6 @@
   dma_heap_get_name
   is_dma_buf_file
   iterate_fd
-  misc_deregister
   remap_pfn_range
   __sg_page_iter_next
   __sg_page_iter_start
@@ -1274,8 +1331,11 @@
 
 # required by scaler.ko
   clk_set_parent
+  devm_get_free_pages
   dma_fence_default_wait
   dma_heap_buffer_free
+  flush_signals
+  kill_pid
   sync_file_get_fence
   v4l2_ctrl_handler_free
   v4l2_ctrl_handler_init_class
@@ -1310,14 +1370,14 @@
   backlight_device_unregister
   __bitmap_andnot
   __bitmap_xor
-  bpf_trace_run5
   bpf_trace_run9
   capable
   devfreq_recommended_opp
+  devfreq_resume_device
+  devfreq_suspend_device
   __devm_drm_dev_alloc
   devm_iounmap
   dev_pm_opp_get_voltage
-  dev_pm_opp_put
   dev_pm_qos_update_request
   dma_buf_dynamic_attach
   dma_buf_move_notify
@@ -1328,7 +1388,6 @@
   dma_fence_chain_walk
   dma_fence_get_status
   dma_fence_get_stub
-  dma_fence_signal_locked
   dma_fence_wait_any_timeout
   dma_get_required_mask
   dma_resv_add_fence
@@ -1393,7 +1452,6 @@
   drm_syncobj_get_handle
   drm_syncobj_replace_fence
   __fdget
-  _find_first_zero_bit
   __folio_put
   __get_task_comm
   handle_simple_irq
@@ -1410,12 +1468,10 @@
   jiffies64_to_msecs
   jiffies_to_usecs
   kobject_put
-  __memcpy_fromio
   __memcpy_toio
   memremap
   memunmap
   mmu_notifier_synchronize
-  nsecs_to_jiffies
   page_pinner_inited
   __page_pinner_put_page
   param_ops_charp
@@ -1453,12 +1509,10 @@
   __rb_erase_color
   rb_first_postorder
   __rb_insert_augmented
-  rb_next
   rb_next_postorder
   __rcu_read_lock
   __rcu_read_unlock
   seq_write
-  set_normalized_timespec64
   sg_alloc_table_from_pages_segment
   si_meminfo
   sysfs_create_files
@@ -1525,12 +1579,13 @@
   snd_soc_jack_report
 
 # required by snd-soc-samsung-abox-core.ko
-  __devm_regmap_init
+  devm_ioremap_wc
   __devm_regmap_init_mmio_clk
   __devm_request_region
   dma_mmap_attrs
   irq_set_affinity
   kthread_bind
+  of_property_match_string
   __platform_register_drivers
   platform_unregister_drivers
   pm_runtime_no_callbacks
@@ -1547,10 +1602,10 @@
   snd_soc_dapm_mux_update_power
   snd_soc_dapm_new_control
   snd_soc_dapm_new_controls
+  snd_soc_new_compress
   snd_soc_set_runtime_hwparams
   snd_soc_unregister_component
   stpcpy
-  __tasklet_hi_schedule
 
 # required by snd-soc-tas6424.ko
   regcache_cache_only
@@ -1579,7 +1634,6 @@
   stream_open
 
 # required by stmmac-platform.ko
-  devm_clk_get_optional
   of_get_mac_address
   of_phy_is_fixed_link
 
@@ -1727,14 +1781,20 @@
   xsk_uses_need_wakeup
 
 # required by sxgmac.ko
-  alloc_chrdev_region
-  cdev_add
   gpiod_direction_output
   gpiod_set_value
 
 # required by ufs-exynosauto-core.ko
+  __crypto_memneq
+  devm_blk_crypto_profile_init
+  dmam_free_coherent
   scsi_dma_unmap
   scsi_done
+  __traceiter_android_vh_ufs_fill_prdt
+  __traceiter_android_vh_ufs_prepare_command
+  __tracepoint_android_vh_ufs_fill_prdt
+  __tracepoint_android_vh_ufs_prepare_command
+  trace_print_symbols_seq
   ufshcd_auto_hibern8_update
   ufshcd_config_pwr_mode
   ufshcd_dme_get_attr
@@ -1753,10 +1813,8 @@
   console_suspend_enabled
   current_work
   default_wake_function
+  __devm_regmap_init
   dma_buf_fd
-  dw_pcie_ep_init
-  dw_pcie_read_dbi
-  dw_pcie_write_dbi
   irq_create_of_mapping
   irq_dispose_mapping
   irq_find_matching_fwspec
@@ -1769,21 +1827,16 @@
   kthread_complete_and_exit
   nonseekable_open
   of_clk_del_provider
+  of_find_node_by_type
   of_irq_find_parent
   pci_disable_device
   pci_disable_msi
   pci_enable_device
-  pci_epc_map_addr
-  pci_epc_mem_alloc_addr
-  pci_epc_mem_free_addr
-  pci_epc_set_bar
-  pci_epc_unmap_addr
   pci_ioremap_wc_bar
   pci_num_vf
   __pci_register_driver
   pci_request_regions
   pci_unregister_driver
-  pfn_is_map_memory
   __platform_driver_probe
   pm_power_off
   proc_create_data
@@ -1795,9 +1848,8 @@
   strnstr
   sysfs_create_bin_file
   sysfs_remove_bin_file
+  __tasklet_hi_schedule
   __task_pid_nr_ns
   thermal_of_zone_register
   thermal_of_zone_unregister
   vprintk
-  watchdog_register_device
-  watchdog_unregister_device

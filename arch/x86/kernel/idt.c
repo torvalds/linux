@@ -117,7 +117,7 @@ static const __initconst struct idt_data def_idts[] = {
 
 	SYSG(X86_TRAP_OF,		asm_exc_overflow),
 #if defined(CONFIG_IA32_EMULATION)
-	SYSG(IA32_SYSCALL_VECTOR,	entry_INT80_compat),
+	SYSG(IA32_SYSCALL_VECTOR,	asm_int80_emulation),
 #elif defined(CONFIG_X86_32)
 	SYSG(IA32_SYSCALL_VECTOR,	entry_INT80_32),
 #endif

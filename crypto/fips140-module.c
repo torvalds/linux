@@ -23,6 +23,7 @@
 #undef __DISABLE_EXPORTS
 
 #include <linux/ctype.h>
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <crypto/aead.h>
 #include <crypto/aes.h>
@@ -357,6 +358,94 @@ static void __init unapply_rodata_relocations(void *section, int section_size,
 	}
 }
 
+enum {
+	PACIASP		= 0xd503233f,
+	AUTIASP		= 0xd50323bf,
+	SCS_PUSH	= 0xf800865e,
+	SCS_POP		= 0xf85f8e5e,
+};
+
+/*
+ * To make the integrity check work with dynamic Shadow Call Stack (SCS),
+ * replace all instructions that push or pop from the SCS with the Pointer
+ * Authentication Code (PAC) instructions that were present originally.
+ */
+static void __init unapply_scs_patch(void *section, int section_size)
+{
+#if defined(CONFIG_ARM64) && defined(CONFIG_UNWIND_PATCH_PAC_INTO_SCS)
+	u32 *insns = section;
+	int i;
+
+	for (i = 0; i < section_size / sizeof(insns[0]); i++) {
+		if (insns[i] == SCS_PUSH)
+			insns[i] = PACIASP;
+		else if (insns[i] == SCS_POP)
+			insns[i] = AUTIASP;
+	}
+#endif
+}
+
+#ifdef CONFIG_CRYPTO_FIPS140_MOD_DEBUG_INTEGRITY_CHECK
+static struct {
+	const void *text;
+	int textsize;
+	const void *rodata;
+	int rodatasize;
+} saved_integrity_check_info;
+
+static ssize_t fips140_text_read(struct file *file, char __user *to,
+				 size_t count, loff_t *ppos)
+{
+	return simple_read_from_buffer(to, count, ppos,
+				       saved_integrity_check_info.text,
+				       saved_integrity_check_info.textsize);
+}
+
+static ssize_t fips140_rodata_read(struct file *file, char __user *to,
+				   size_t count, loff_t *ppos)
+{
+	return simple_read_from_buffer(to, count, ppos,
+				       saved_integrity_check_info.rodata,
+				       saved_integrity_check_info.rodatasize);
+}
+
+static const struct file_operations fips140_text_fops = {
+	.read = fips140_text_read,
+};
+
+static const struct file_operations fips140_rodata_fops = {
+	.read = fips140_rodata_read,
+};
+
+static void fips140_init_integrity_debug_files(const void *text, int textsize,
+					       const void *rodata,
+					       int rodatasize)
+{
+	struct dentry *dir;
+
+	dir = debugfs_create_dir("fips140", NULL);
+
+	saved_integrity_check_info.text = kmemdup(text, textsize, GFP_KERNEL);
+	saved_integrity_check_info.textsize = textsize;
+	if (saved_integrity_check_info.text)
+		debugfs_create_file("text", 0400, dir, NULL,
+				    &fips140_text_fops);
+
+	saved_integrity_check_info.rodata = kmemdup(rodata, rodatasize,
+						    GFP_KERNEL);
+	saved_integrity_check_info.rodatasize = rodatasize;
+	if (saved_integrity_check_info.rodata)
+		debugfs_create_file("rodata", 0400, dir, NULL,
+				    &fips140_rodata_fops);
+}
+#else /* CONFIG_CRYPTO_FIPS140_MOD_DEBUG_INTEGRITY_CHECK */
+static void fips140_init_integrity_debug_files(const void *text, int textsize,
+					       const void *rodata,
+					       int rodatasize)
+{
+}
+#endif /* !CONFIG_CRYPTO_FIPS140_MOD_DEBUG_INTEGRITY_CHECK */
+
 extern struct {
 	u32	offset;
 	u32	count;
@@ -397,6 +486,11 @@ static bool __init check_fips140_module_hmac(void)
 	unapply_rodata_relocations(rodatacopy, rodatasize,
 				  offset_to_ptr(&fips140_rela_rodata.offset),
 				  fips140_rela_rodata.count);
+
+	unapply_scs_patch(textcopy, textsize);
+
+	fips140_init_integrity_debug_files(textcopy, textsize,
+					   rodatacopy, rodatasize);
 
 	fips140_inject_integrity_failure(textcopy);
 
@@ -538,10 +632,14 @@ fips140_init(void)
 	 */
 
 	if (!check_fips140_module_hmac()) {
-		pr_crit("integrity check failed -- giving up!\n");
-		goto panic;
+		if (!IS_ENABLED(CONFIG_CRYPTO_FIPS140_MOD_DEBUG_INTEGRITY_CHECK)) {
+			pr_crit("integrity check failed -- giving up!\n");
+			goto panic;
+		}
+		pr_crit("ignoring integrity check failure due to debug mode\n");
+	} else {
+		pr_info("integrity check passed\n");
 	}
-	pr_info("integrity check passed\n");
 
 	complete_all(&fips140_tests_done);
 

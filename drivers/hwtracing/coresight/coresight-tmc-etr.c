@@ -667,7 +667,8 @@ static int tmc_etr_alloc_flat_buf(struct tmc_drvdata *drvdata,
 		return -ENOMEM;
 
 	flat_buf->sgt = dma_alloc_noncontiguous(real_dev, etr_buf->size,
-						DMA_FROM_DEVICE, GFP_KERNEL, 0);
+						DMA_FROM_DEVICE,
+						GFP_KERNEL | __GFP_NOWARN, 0);
 	if (!flat_buf->sgt) {
 		kfree(flat_buf);
 		return -ENOMEM;
@@ -1078,18 +1079,22 @@ static void tmc_sync_etr_buf(struct tmc_drvdata *drvdata)
 	etr_buf->ops->sync(etr_buf, rrp, rwp);
 }
 
-static int  __tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
+static int __tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 {
 	u32 axictl, sts;
 	struct etr_buf *etr_buf = drvdata->etr_buf;
-	int rc;
+	int rc = 0;
 
 	CS_UNLOCK(drvdata->base);
 
 	/* Wait for TMCSReady bit to be set */
 	rc = tmc_wait_for_tmcready(drvdata);
-	if (rc)
+	if (rc) {
+		dev_err(&drvdata->csdev->dev,
+			"Failed to enable : TMC not ready\n");
+		CS_LOCK(drvdata->base);
 		return rc;
+	}
 
 	writel_relaxed(etr_buf->size / 4, drvdata->base + TMC_RSZ);
 	writel_relaxed(TMC_MODE_CIRCULAR_BUFFER, drvdata->base + TMC_MODE);
@@ -1138,7 +1143,7 @@ static int  __tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 	tmc_enable_hw(drvdata);
 
 	CS_LOCK(drvdata->base);
-	return 0;
+	return rc;
 }
 
 static int tmc_etr_enable_hw(struct tmc_drvdata *drvdata,
@@ -1165,13 +1170,15 @@ static int tmc_etr_enable_hw(struct tmc_drvdata *drvdata,
 	if (rc)
 		return rc;
 	rc = coresight_claim_device(drvdata->csdev);
-	if (rc)
-		return rc;
-
-	drvdata->etr_buf = etr_buf;
-	rc = __tmc_etr_enable_hw(drvdata);
-	if (rc)
-		coresight_disclaim_device(drvdata->csdev);
+	if (!rc) {
+		drvdata->etr_buf = etr_buf;
+		rc = __tmc_etr_enable_hw(drvdata);
+		if (rc) {
+			drvdata->etr_buf = NULL;
+			coresight_disclaim_device(drvdata->csdev);
+			tmc_etr_disable_catu(drvdata);
+		}
+	}
 
 	return rc;
 }

@@ -44,7 +44,6 @@ int tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 			"timeout while waiting for TMC to be Ready\n");
 		return -EBUSY;
 	}
-
 	return 0;
 }
 

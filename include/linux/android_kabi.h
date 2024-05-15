@@ -33,6 +33,7 @@
 #define _ANDROID_KABI_H
 
 #include <linux/compiler.h>
+#include <linux/stringify.h>
 
 /*
  * Worker macros, don't use these, use the ones without a leading '_'

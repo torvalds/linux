@@ -1025,6 +1025,7 @@
   iio_trigger_poll_chained
   iio_trigger_register
   iio_trigger_unregister
+  iio_trigger_using_own
   import_iovec
   in4_pton
   inet_csk_get_port
@@ -2252,6 +2253,14 @@
   usb_udc_vbus_handler
   __usecs_to_jiffies
   usleep_range_state
+  __v4l2_async_nf_add_fwnode
+  v4l2_async_nf_cleanup
+  v4l2_async_nf_init
+  v4l2_async_nf_register
+  v4l2_async_nf_unregister
+  v4l2_async_register_subdev
+  v4l2_async_register_subdev_sensor
+  v4l2_async_unregister_subdev
   v4l2_ctrl_auto_cluster
   v4l2_ctrl_handler_free
   v4l2_ctrl_handler_init_class
@@ -2288,6 +2297,9 @@
   v4l2_fh_init
   v4l2_fh_open
   __v4l2_find_nearest_size
+  v4l2_fwnode_device_parse
+  v4l2_fwnode_endpoint_alloc_parse
+  v4l2_fwnode_endpoint_parse
   v4l2_get_link_freq
   v4l2_g_parm_cap
   v4l2_i2c_subdev_init

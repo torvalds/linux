@@ -314,6 +314,7 @@
   pci_iounmap
   pci_read_config_byte
   pci_read_config_dword
+  pci_read_config_word
   __pci_register_driver
   pci_release_region
   pci_request_region
@@ -440,6 +441,7 @@
   sysfs_remove_group
   sysfs_remove_link
   system_freezable_wq
+  system_unbound_wq
   system_wq
   __tasklet_schedule
   tasklet_setup
@@ -896,6 +898,13 @@
   vlan_vids_add_by_dev
   vlan_vids_del_by_dev
 
+# required by open-dice.ko
+  devm_memremap
+  devm_memunmap
+  of_reserved_mem_lookup
+  __platform_driver_probe
+  vm_iomap_memory
+
 # required by pl111_drm.ko
   __clk_get_name
   clk_hw_get_parent
@@ -1142,6 +1151,7 @@
   page_relinquish
   page_reporting_register
   page_reporting_unregister
+  post_page_relinquish_tlb_inv
   register_oom_notifier
   register_shrinker
   __SetPageMovable

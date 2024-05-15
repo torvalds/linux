@@ -255,7 +255,7 @@ static int bpf_test_partial(const char *mount_dir)
 	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 	     src_fd != -1);
 	TESTEQUAL(create_file(src_fd, s(test_name), 1, 2), 0);
-	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_trace",
+	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_partial",
 				  &bpf_fd, NULL, NULL), 0);
 	TESTEQUAL(mount_fuse(mount_dir, bpf_fd, src_fd, &fuse_dev), 0);
 
@@ -363,7 +363,7 @@ static int bpf_test_readdir(const char *mount_dir)
 	     src_fd != -1);
 	TESTEQUAL(create_file(src_fd, s(names[0]), 1, 2), 0);
 	TESTEQUAL(create_file(src_fd, s(names[1]), 1, 2), 0);
-	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_trace",
+	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_partial",
 				  &bpf_fd, NULL, NULL), 0);
 	TESTEQUAL(mount_fuse(mount_dir, bpf_fd, src_fd, &fuse_dev), 0);
 
@@ -1490,6 +1490,8 @@ out:
 static int bpf_test_lseek(const char *mount_dir)
 {
 	const char *file = "real";
+	const char *sparse_file = "sparse";
+	const off_t sparse_length = 0x100000000u;
 	const char *test_data = "data";
 	int result = TEST_FAILURE;
 	int src_fd = -1;
@@ -1502,6 +1504,12 @@ static int bpf_test_lseek(const char *mount_dir)
 	TEST(fd = openat(src_fd, file, O_CREAT | O_RDWR | O_CLOEXEC, 0777),
 	     fd != -1);
 	TESTEQUAL(write(fd, test_data, strlen(test_data)), strlen(test_data));
+	TESTSYSCALL(close(fd));
+	fd = -1;
+	TEST(fd = openat(src_fd, sparse_file, O_CREAT | O_RDWR | O_CLOEXEC,
+			 0777),
+	     fd != -1);
+	TESTSYSCALL(ftruncate(fd, sparse_length));
 	TESTSYSCALL(close(fd));
 	fd = -1;
 	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_trace",
@@ -1518,6 +1526,18 @@ static int bpf_test_lseek(const char *mount_dir)
 	TESTEQUAL(bpf_test_trace("lseek"), 0);
 	TESTEQUAL(lseek(fd, 1, SEEK_DATA), 1);
 	TESTEQUAL(bpf_test_trace("lseek"), 0);
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	TEST(fd = s_open(s_path(s(mount_dir), s(sparse_file)),
+			 O_RDONLY | O_CLOEXEC),
+	     fd != -1);
+	TESTEQUAL(lseek(fd, -256, SEEK_END), sparse_length - 256);
+	TESTEQUAL(lseek(fd, 0, SEEK_CUR), sparse_length - 256);
+
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
 	result = TEST_SUCCESS;
 out:
 	close(fd);
@@ -2114,6 +2134,50 @@ out:
 	return result;
 }
 
+/**
+ * Test that fuse passthrough correctly traverses a mount point on the lower fs
+ */
+static int bpf_test_follow_mounts(const char *mount_dir)
+{
+	const char *bind_src = "bind_src";
+	const char *bind_dst = "bind_dst";
+	const char *file = "file";
+	int fd = -1;
+	int src_fd = -1;
+	int result = TEST_FAILURE;
+
+	TESTSYSCALL(s_mkdir(s_path(s(ft_src), s(bind_src)), 0777));
+	TESTSYSCALL(s_mkdir(s_path(s(ft_src), s(bind_dst)), 0777));
+	TEST(fd = s_creat(s_pathn(3, s(ft_src), s(bind_src), s(file)), 0777),
+	     fd != -1);
+	TESTSYSCALL(close(fd));
+	fd = -1;
+	TESTSYSCALL(s_mount(s_path(s(ft_src), s(bind_src)),
+			    s_path(s(ft_src), s(bind_dst)),
+			    s(NULL), MS_BIND, s(NULL)));
+	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
+	     src_fd != -1);
+	TESTEQUAL(mount_fuse_no_init(mount_dir, -1, src_fd, NULL), 0);
+	TEST(fd = s_open(s_pathn(3, s(mount_dir), s(bind_src), s(file)),
+			 O_RDONLY),
+	     fd != -1);
+	TESTSYSCALL(close(fd));
+	fd = -1;
+	TEST(fd = s_open(s_pathn(3, s(mount_dir), s(bind_dst), s(file)),
+			 O_RDONLY),
+	     fd != -1);
+	TESTSYSCALL(close(fd));
+	fd = -1;
+
+	result = TEST_SUCCESS;
+out:
+	umount(mount_dir);
+	close(src_fd);
+	s_umount(s_path(s(ft_src), s(bind_dst)));
+	close(fd);
+	return result;
+}
+
 static void parse_range(const char *ranges, bool *run_test, size_t tests)
 {
 	size_t i;
@@ -2244,6 +2308,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(bpf_test_create_and_remove_bpf),
 		MAKE_TEST(bpf_test_mkdir_and_remove_bpf),
 		MAKE_TEST(bpf_test_readahead),
+		MAKE_TEST(bpf_test_follow_mounts),
 	};
 #undef MAKE_TEST
 

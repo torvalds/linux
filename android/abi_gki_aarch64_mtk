@@ -152,6 +152,8 @@
   clk_bulk_put
   clk_bulk_put_all
   clk_bulk_unprepare
+  clkdev_add
+  clkdev_drop
   clk_disable
   clk_divider_ops
   clk_enable
@@ -169,6 +171,7 @@
   clk_hw_get_rate
   clk_hw_is_enabled
   clk_hw_is_prepared
+  clk_hw_register
   clk_hw_round_rate
   clk_hw_set_parent
   __clk_is_enabled
@@ -186,6 +189,7 @@
   clk_set_parent
   clk_set_rate
   clk_unprepare
+  clk_unregister
   clockevents_config_and_register
   clocks_calc_mult_shift
   clocksource_mmio_init
@@ -359,6 +363,7 @@
   dev_close_many
   dev_coredumpv
   dev_driver_string
+  _dev_emerg
   _dev_err
   dev_err_probe
   dev_fetch_sw_netstats
@@ -471,8 +476,10 @@
   dev_mc_unsync
   devm_devfreq_add_device
   devm_devfreq_register_notifier
+  devm_devfreq_register_opp_notifier
   devm_devfreq_remove_device
   devm_devfreq_unregister_notifier
+  devm_devfreq_unregister_opp_notifier
   devm_extcon_dev_allocate
   devm_extcon_dev_register
   devm_extcon_register_notifier
@@ -676,6 +683,7 @@
   dma_resv_iter_first_unlocked
   dma_resv_iter_next_unlocked
   dma_resv_reserve_fences
+  dma_resv_wait_timeout
   dma_run_dependencies
   dma_set_coherent_mask
   dma_set_mask
@@ -825,6 +833,7 @@
   drm_kms_helper_poll_disable
   drm_kms_helper_poll_enable
   drm_kms_helper_poll_fini
+  drm_kms_helper_poll_init
   drmm_mode_config_init
   drm_mode_config_cleanup
   drm_mode_config_reset
@@ -878,6 +887,7 @@
   dst_cache_set_ip4
   dst_cache_set_ip6
   dst_release
+  dummy_irq_chip
   dump_stack
   efi
   em_cpu_get
@@ -908,6 +918,7 @@
   extcon_get_edev_by_phandle
   extcon_get_state
   extcon_set_state_sync
+  fasync_helper
   __fdget
   fd_install
   fget
@@ -928,6 +939,8 @@
   find_vpid
   finish_wait
   firmware_request_nowarn
+  fixed_phy_register
+  fixed_phy_unregister
   flush_dcache_page
   flush_delayed_fput
   flush_delayed_work
@@ -989,11 +1002,16 @@
   generic_file_llseek
   generic_handle_domain_irq
   generic_handle_irq
+  generic_handle_irq_safe
   genlmsg_multicast_allns
   genlmsg_put
   genl_register_family
   genl_unregister_family
+  __genphy_config_aneg
+  genphy_read_status
   genphy_resume
+  genphy_soft_reset
+  genphy_suspend
   gen_pool_add_owner
   gen_pool_alloc_algo_owner
   gen_pool_avail
@@ -1054,6 +1072,7 @@
   gpiod_direction_input
   gpiod_direction_output
   gpiod_direction_output_raw
+  gpiod_get_optional
   gpiod_get_raw_value
   gpiod_get_value
   gpiod_get_value_cansleep
@@ -1257,6 +1276,9 @@
   irq_create_of_mapping
   irq_dispose_mapping
   __irq_domain_add
+  __irq_domain_alloc_fwnode
+  irq_domain_create_simple
+  irq_domain_free_fwnode
   irq_domain_free_irqs_common
   irq_domain_get_irq_data
   irq_domain_remove
@@ -1328,6 +1350,7 @@
   kfree_skb_list_reason
   kfree_skb_partial
   kfree_skb_reason
+  kill_fasync
   kimage_vaddr
   kimage_voffset
   __kmalloc
@@ -1395,6 +1418,7 @@
   kthread_unpark
   kthread_worker_fn
   ktime_get
+  ktime_get_coarse_ts64
   ktime_get_coarse_with_offset
   ktime_get_mono_fast_ns
   ktime_get_raw
@@ -1451,8 +1475,12 @@
   mdiobus_alloc_size
   mdiobus_free
   mdiobus_get_phy
+  __mdiobus_read
+  mdiobus_read
   __mdiobus_register
   mdiobus_unregister
+  __mdiobus_write
+  mdiobus_write
   media_create_ancillary_link
   media_create_intf_link
   media_create_pad_link
@@ -1716,6 +1744,7 @@
   of_machine_is_compatible
   of_match_device
   of_match_node
+  __of_mdiobus_register
   of_n_addr_cells
   of_n_size_cells
   __of_parse_phandle_with_args
@@ -1858,9 +1887,14 @@
   phy_connect_direct
   phy_disconnect
   phy_do_ioctl_running
+  phy_drivers_register
+  phy_drivers_unregister
+  phy_error
   phy_ethtool_get_eee
   phy_ethtool_get_link_ksettings
   phy_ethtool_get_wol
+  phy_ethtool_ksettings_get
+  phy_ethtool_ksettings_set
   phy_ethtool_nway_reset
   phy_ethtool_set_eee
   phy_ethtool_set_link_ksettings
@@ -1868,8 +1902,10 @@
   phy_exit
   phy_find_first
   phy_get
+  phy_get_pause
   phy_init
   phy_init_eee
+  phy_init_hw
   phylink_connect_phy
   phylink_create
   phylink_destroy
@@ -1886,13 +1922,20 @@
   phy_power_on
   phy_print_status
   phy_put
+  phy_read_mmd
+  phy_register_fixup_for_uid
   phy_remove_link_mode
+  phy_restore_page
+  phy_save_page
   phy_set_mode_ext
   phy_start
   phy_start_aneg
   phy_stop
   phy_support_asym_pause
   phy_suspend
+  phy_trigger_machine
+  phy_unregister_fixup_for_uid
+  phy_write_mmd
   pick_migrate_task
   pid_task
   pinconf_generic_parse_dt_config
@@ -1926,6 +1969,7 @@
   __platform_driver_register
   platform_driver_unregister
   platform_find_device_by_driver
+  platform_get_ethdev_address
   platform_get_irq
   platform_get_irq_byname
   platform_get_irq_byname_optional
@@ -2122,9 +2166,12 @@
   regmap_field_read
   regmap_field_update_bits_base
   regmap_irq_get_domain
+  regmap_multi_reg_write
   regmap_raw_read
   regmap_raw_write
   regmap_read
+  regmap_register_patch
+  regmap_test_bits
   regmap_update_bits_base
   regmap_write
   regulator_bulk_disable
@@ -2170,6 +2217,7 @@
   remove_proc_entry
   remove_proc_subtree
   remove_wait_queue
+  report_iommu_fault
   request_firmware
   request_firmware_direct
   request_firmware_nowait
@@ -2445,19 +2493,25 @@
   snd_soc_dapm_get_pin_switch
   snd_soc_dapm_get_volsw
   snd_soc_dapm_info_pin_switch
+  snd_soc_dapm_kcontrol_widget
   snd_soc_dapm_new_controls
   snd_soc_dapm_new_widgets
   snd_soc_dapm_put_enum_double
   snd_soc_dapm_put_pin_switch
   snd_soc_dapm_put_volsw
   snd_soc_dapm_sync
+  snd_soc_dpcm_get_substream
+  snd_soc_get_enum_double
   snd_soc_get_volsw
   snd_soc_info_enum_double
   snd_soc_info_volsw
   snd_soc_jack_report
   snd_soc_new_compress
   snd_soc_of_get_dai_link_codecs
+  snd_soc_of_parse_audio_routing
+  snd_soc_pm_ops
   snd_soc_poweroff
+  snd_soc_put_enum_double
   snd_soc_put_volsw
   snd_soc_register_component
   snd_soc_resume
@@ -2630,6 +2684,7 @@
   thermal_zone_get_zone_by_name
   thread_group_cputime_adjusted
   tick_nohz_get_sleep_length
+  time64_to_tm
   timecounter_init
   timecounter_read
   timer_of_init
@@ -3036,6 +3091,7 @@
   usb_autopm_get_interface_no_resume
   usb_autopm_put_interface
   usb_autopm_put_interface_async
+  usb_check_bulk_endpoints
   usb_clear_halt
   usb_composite_probe
   usb_composite_unregister
@@ -3122,10 +3178,12 @@
   usb_role_string
   usb_role_switch_get
   usb_role_switch_get_drvdata
+  usb_role_switch_put
   usb_role_switch_register
   usb_role_switch_set_role
   usb_role_switch_unregister
   usb_root_hub_lost_power
+  usb_scuttle_anchored_urbs
   usb_set_interface
   usb_show_dynids
   usb_speed_string
@@ -3141,6 +3199,13 @@
   uuid_gen
   uuid_null
   uuid_parse
+  v4l2_async_nf_cleanup
+  v4l2_async_nf_init
+  v4l2_async_nf_parse_fwnode_endpoints
+  v4l2_async_nf_register
+  v4l2_async_nf_unregister
+  v4l2_async_register_subdev
+  v4l2_async_unregister_subdev
   v4l2_compat_ioctl32
   v4l2_ctrl_find
   v4l2_ctrl_g_ctrl
@@ -3177,6 +3242,7 @@
   v4l2_fh_open
   __v4l2_find_nearest_size
   v4l2_format_info
+  v4l2_fwnode_endpoint_parse
   v4l2_i2c_subdev_init
   v4l2_m2m_buf_copy_metadata
   v4l2_m2m_buf_queue
@@ -3190,7 +3256,9 @@
   v4l2_m2m_get_vq
   v4l2_m2m_init
   v4l2_m2m_ioctl_create_bufs
+  v4l2_m2m_ioctl_decoder_cmd
   v4l2_m2m_ioctl_dqbuf
+  v4l2_m2m_ioctl_encoder_cmd
   v4l2_m2m_ioctl_expbuf
   v4l2_m2m_ioctl_prepare_buf
   v4l2_m2m_ioctl_qbuf
@@ -3198,7 +3266,10 @@
   v4l2_m2m_ioctl_reqbufs
   v4l2_m2m_ioctl_streamoff
   v4l2_m2m_ioctl_streamon
+  v4l2_m2m_ioctl_try_decoder_cmd
+  v4l2_m2m_ioctl_try_encoder_cmd
   v4l2_m2m_job_finish
+  v4l2_m2m_last_buffer_done
   v4l2_m2m_next_buf
   v4l2_m2m_qbuf
   v4l2_m2m_register_media_controller
