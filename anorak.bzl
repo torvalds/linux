@@ -104,6 +104,8 @@ def define_anorak():
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/sysmon_subsystem_stats.ko",
+        "drivers/thermal/qcom/bcl_pmic5.ko",
+        "drivers/thermal/qcom/bcl_soc.ko",
         "drivers/thermal/qcom/cpu_hotplug.ko",
         "drivers/thermal/qcom/ddr_cdev.ko",
         "drivers/thermal/qcom/qcom_tsens.ko",
