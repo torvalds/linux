@@ -543,7 +543,9 @@ static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
 		if (crtc_state->enable_psr2_su_region_et) {
 			u32 val = intel_cursor_position(crtc_state, plane_state,
 				true);
-			intel_de_write_fw(dev_priv, CURPOS_ERLY_TPT(pipe), val);
+			intel_de_write_fw(dev_priv,
+					  CURPOS_ERLY_TPT(dev_priv, pipe),
+					  val);
 		}
 
 		intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id),
