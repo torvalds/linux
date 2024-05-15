@@ -113,6 +113,11 @@ same_cpu_crypt
     The default is to use an unbound workqueue so that encryption work
     is automatically balanced between available CPUs.
 
+high_priority
+    Set dm-crypt workqueues and the writer thread to high priority. This
+    improves throughput and latency of dm-crypt while degrading general
+    responsiveness of the system.
+
 submit_from_crypt_cpus
     Disable offloading writes to a separate thread after encryption.
     There are some situations where offloading write bios from the
