@@ -3936,11 +3936,11 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	/* register minidump */
 	if (msm_minidump_enabled()) {
 		ufs_qcom_register_minidump((uintptr_t)host,
-					sizeof(struct ufs_qcom_host), "UFS_QHOST", 0);
+					sizeof(struct ufs_qcom_host), "UFS_QHOST", host_id);
 		ufs_qcom_register_minidump((uintptr_t)hba,
-					sizeof(struct ufs_hba), "UFS_HBA", 0);
+					sizeof(struct ufs_hba), "UFS_HBA", host_id);
 		ufs_qcom_register_minidump((uintptr_t)hba->host,
-					sizeof(struct Scsi_Host), "UFS_SHOST", 0);
+					sizeof(struct Scsi_Host), "UFS_SHOST", host_id);
 
 		/* Register Panic handler to dump more information in case of kernel panic */
 		host->ufs_qcom_panic_nb.notifier_call = ufs_qcom_panic_handler;
