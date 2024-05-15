@@ -297,7 +297,7 @@ static void i845_cursor_update_arm(struct intel_plane *plane,
 	    plane->cursor.cntl != cntl) {
 		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, PIPE_A), 0);
 		intel_de_write_fw(dev_priv, CURBASE(dev_priv, PIPE_A), base);
-		intel_de_write_fw(dev_priv, CURSIZE(PIPE_A), size);
+		intel_de_write_fw(dev_priv, CURSIZE(dev_priv, PIPE_A), size);
 		intel_de_write_fw(dev_priv, CURPOS(dev_priv, PIPE_A), pos);
 		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, PIPE_A), cntl);
 
