@@ -5615,21 +5615,6 @@ struct btrfs_chunk_map *btrfs_alloc_chunk_map(int num_stripes, gfp_t gfp)
 	return map;
 }
 
-struct btrfs_chunk_map *btrfs_clone_chunk_map(struct btrfs_chunk_map *map, gfp_t gfp)
-{
-	const int size = btrfs_chunk_map_size(map->num_stripes);
-	struct btrfs_chunk_map *clone;
-
-	clone = kmemdup(map, size, gfp);
-	if (!clone)
-		return NULL;
-
-	refcount_set(&clone->refs, 1);
-	RB_CLEAR_NODE(&clone->rb_node);
-
-	return clone;
-}
-
 static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 			struct alloc_chunk_ctl *ctl,
 			struct btrfs_device_info *devices_info)

@@ -391,7 +391,7 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 	 * the leaf before writing into the log tree. See the comments at
 	 * copy_items() for more details.
 	 */
-	ASSERT(root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID);
+	ASSERT(btrfs_root_id(root) != BTRFS_TREE_LOG_OBJECTID);
 
 	item_size = btrfs_item_size(eb, slot);
 	src_ptr = btrfs_item_ptr_offset(eb, slot);
@@ -748,7 +748,6 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			goto out;
 
 		if (ins.objectid > 0) {
-			struct btrfs_ref ref = { 0 };
 			u64 csum_start;
 			u64 csum_end;
 			LIST_HEAD(ordered_sums);
@@ -762,13 +761,15 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			if (ret < 0) {
 				goto out;
 			} else if (ret == 0) {
-				btrfs_init_generic_ref(&ref,
-						BTRFS_ADD_DELAYED_REF,
-						ins.objectid, ins.offset, 0,
-						root->root_key.objectid);
-				btrfs_init_data_ref(&ref,
-						root->root_key.objectid,
-						key->objectid, offset, 0, false);
+				struct btrfs_ref ref = {
+					.action = BTRFS_ADD_DELAYED_REF,
+					.bytenr = ins.objectid,
+					.num_bytes = ins.offset,
+					.owning_root = btrfs_root_id(root),
+					.ref_root = btrfs_root_id(root),
+				};
+				btrfs_init_data_ref(&ref, key->objectid, offset,
+						    0, false);
 				ret = btrfs_inc_extent_ref(trans, &ref);
 				if (ret)
 					goto out;
@@ -778,7 +779,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				 * allocation tree
 				 */
 				ret = btrfs_alloc_logged_file_extent(trans,
-						root->root_key.objectid,
+						btrfs_root_id(root),
 						key->objectid, offset, &ins);
 				if (ret)
 					goto out;
@@ -797,9 +798,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 
 			ret = btrfs_lookup_csums_list(root->log_root,
 						csum_start, csum_end - 1,
-						&ordered_sums, 0, false);
-			if (ret)
+						&ordered_sums, false);
+			if (ret < 0)
 				goto out;
+			ret = 0;
 			/*
 			 * Now delete all existing cums in the csum root that
 			 * cover our range. We do this because we can have an
@@ -3045,7 +3047,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		if (ret != -ENOSPC)
 			btrfs_err(fs_info,
 				  "failed to update log for root %llu ret %d",
-				  root->root_key.objectid, ret);
+				  btrfs_root_id(root), ret);
 		btrfs_wait_tree_log_extents(log, mark);
 		mutex_unlock(&log_root_tree->log_mutex);
 		goto out;
@@ -4460,9 +4462,10 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 		disk_bytenr += extent_offset;
 		ret = btrfs_lookup_csums_list(csum_root, disk_bytenr,
 					      disk_bytenr + extent_num_bytes - 1,
-					      &ordered_sums, 0, false);
-		if (ret)
+					      &ordered_sums, false);
+		if (ret < 0)
 			goto out;
+		ret = 0;
 
 		list_for_each_entry_safe(sums, sums_next, &ordered_sums, list) {
 			if (!ret)
@@ -4574,8 +4577,8 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	struct btrfs_root *csum_root;
 	u64 csum_offset;
 	u64 csum_len;
-	u64 mod_start = em->mod_start;
-	u64 mod_len = em->mod_len;
+	u64 mod_start = em->start;
+	u64 mod_len = em->len;
 	LIST_HEAD(ordered_sums);
 	int ret = 0;
 
@@ -4655,9 +4658,10 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	csum_root = btrfs_csum_root(trans->fs_info, em->block_start);
 	ret = btrfs_lookup_csums_list(csum_root, em->block_start + csum_offset,
 				      em->block_start + csum_offset +
-				      csum_len - 1, &ordered_sums, 0, false);
-	if (ret)
+				      csum_len - 1, &ordered_sums, false);
+	if (ret < 0)
 		return ret;
+	ret = 0;
 
 	while (!list_empty(&ordered_sums)) {
 		struct btrfs_ordered_sum *sums = list_entry(ordered_sums.next,
@@ -4945,7 +4949,7 @@ process:
 		 * private list.
 		 */
 		if (ret) {
-			clear_em_logging(tree, em);
+			clear_em_logging(inode, em);
 			free_extent_map(em);
 			continue;
 		}
@@ -4954,7 +4958,7 @@ process:
 
 		ret = log_one_extent(trans, inode, em, path, ctx);
 		write_lock(&tree->lock);
-		clear_em_logging(tree, em);
+		clear_em_logging(inode, em);
 		free_extent_map(em);
 	}
 	WARN_ON(!list_empty(&extents));
