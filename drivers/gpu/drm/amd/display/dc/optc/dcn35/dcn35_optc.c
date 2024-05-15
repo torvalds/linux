@@ -50,7 +50,8 @@
  * @optc: Output Pipe Timing Combine instance reference.
  * @opp_id: Output Plane Processor instance ID.
  * @opp_cnt: Output Plane Processor count.
- * @timing: Timing parameters used to configure DCN blocks.
+ * @segment_width: Width of the segment.
+ * @last_segment_width: Width of the last segment.
  *
  * Return: void.
  */
