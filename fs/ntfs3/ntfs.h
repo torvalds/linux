@@ -999,9 +999,6 @@ struct REPARSE_POINT {
 
 static_assert(sizeof(struct REPARSE_POINT) == 0x18);
 
-/* Maximum allowed size of the reparse data. */
-#define MAXIMUM_REPARSE_DATA_BUFFER_SIZE	(16 * 1024)
-
 /*
  * The value of the following constant needs to satisfy the following
  * conditions:
