@@ -437,7 +437,7 @@ static void osnoise_hist_usage(char *usage)
 	static const char * const msg[] = {
 		"",
 		"  usage: rtla osnoise hist [-h] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
-		"	  [-T us] [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
+		"	  [-T us] [-t[file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
 		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-b N] [-E N] [--no-header] [--no-summary] \\",
 		"	  [--no-index] [--with-zeros] [-C[=cgroup_name]] [--warm-up]",
 		"",
@@ -453,7 +453,7 @@ static void osnoise_hist_usage(char *usage)
 		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
-		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
+		"	  -t/--trace[file]: save the stopped trace to [file|osnoise_trace.txt]",
 		"	  -e/--event <sys:event>: enable the <sys:event> in the trace instance, multiple -e are allowed",
 		"	     --filter <filter>: enable a trace event filter to the previous -e event",
 		"	     --trigger <trigger>: enable a trace event trigger to the previous -e event",
@@ -645,9 +645,13 @@ static struct osnoise_hist_params
 			params->threshold = get_llong_from_str(optarg);
 			break;
 		case 't':
-			if (optarg)
-				/* skip = */
-				params->trace_output = &optarg[1];
+			if (optarg) {
+				if (optarg[0] == '=')
+					params->trace_output = &optarg[1];
+				else
+					params->trace_output = &optarg[0];
+			} else if (optind < argc && argv[optind][0] != '0')
+				params->trace_output = argv[optind];
 			else
 				params->trace_output = "osnoise_trace.txt";
 			break;
