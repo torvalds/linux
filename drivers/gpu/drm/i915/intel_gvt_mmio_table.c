@@ -145,9 +145,9 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(PIPE_FRMCOUNT_G4X(PIPE_B));
 	MMIO_D(PIPE_FRMCOUNT_G4X(PIPE_C));
 	MMIO_D(PIPE_FRMCOUNT_G4X(_PIPE_EDP));
-	MMIO_D(CURCNTR(PIPE_A));
-	MMIO_D(CURCNTR(PIPE_B));
-	MMIO_D(CURCNTR(PIPE_C));
+	MMIO_D(CURCNTR(dev_priv, PIPE_A));
+	MMIO_D(CURCNTR(dev_priv, PIPE_B));
+	MMIO_D(CURCNTR(dev_priv, PIPE_C));
 	MMIO_D(CURPOS(PIPE_A));
 	MMIO_D(CURPOS(PIPE_B));
 	MMIO_D(CURPOS(PIPE_C));

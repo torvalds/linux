@@ -295,11 +295,11 @@ static void i845_cursor_update_arm(struct intel_plane *plane,
 	if (plane->cursor.base != base ||
 	    plane->cursor.size != size ||
 	    plane->cursor.cntl != cntl) {
-		intel_de_write_fw(dev_priv, CURCNTR(PIPE_A), 0);
+		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, PIPE_A), 0);
 		intel_de_write_fw(dev_priv, CURBASE(PIPE_A), base);
 		intel_de_write_fw(dev_priv, CURSIZE(PIPE_A), size);
 		intel_de_write_fw(dev_priv, CURPOS(PIPE_A), pos);
-		intel_de_write_fw(dev_priv, CURCNTR(PIPE_A), cntl);
+		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, PIPE_A), cntl);
 
 		plane->cursor.base = base;
 		plane->cursor.size = size;
@@ -328,7 +328,7 @@ static bool i845_cursor_get_hw_state(struct intel_plane *plane,
 	if (!wakeref)
 		return false;
 
-	ret = intel_de_read(dev_priv, CURCNTR(PIPE_A)) & CURSOR_ENABLE;
+	ret = intel_de_read(dev_priv, CURCNTR(dev_priv, PIPE_A)) & CURSOR_ENABLE;
 
 	*pipe = PIPE_A;
 
@@ -646,7 +646,7 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 		if (HAS_CUR_FBC(dev_priv))
 			intel_de_write_fw(dev_priv, CUR_FBC_CTL(pipe),
 					  fbc_ctl);
-		intel_de_write_fw(dev_priv, CURCNTR(pipe), cntl);
+		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, pipe), cntl);
 		intel_de_write_fw(dev_priv, CURPOS(pipe), pos);
 		intel_de_write_fw(dev_priv, CURBASE(pipe), base);
 
@@ -684,7 +684,7 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 	if (!wakeref)
 		return false;
 
-	val = intel_de_read(dev_priv, CURCNTR(plane->pipe));
+	val = intel_de_read(dev_priv, CURCNTR(dev_priv, plane->pipe));
 
 	ret = val & MCURSOR_MODE_MASK;
 
