@@ -44,17 +44,16 @@ config EISA_PCI_EISA
 
 	  When in doubt, say Y.
 
-# Using EISA_VIRTUAL_ROOT on something other than an Alpha or
-# an X86 may lead to crashes...
+# Using EISA_VIRTUAL_ROOT on something other than an X86 may lead
+# to crashes...
 
 config EISA_VIRTUAL_ROOT
 	bool "EISA virtual root device"
-	depends on EISA && (ALPHA || X86)
+	depends on EISA && X86
 	default y
 	help
 	  Activate this option if your system only have EISA bus
-	  (no PCI slots). The Alpha Jensen is an example of such
-	  a system.
+	  (no PCI slots).
 
 	  When in doubt, say Y.
 

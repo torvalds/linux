@@ -7,7 +7,6 @@
 
 use super::{lock::Backend, lock::Guard, LockClassKey};
 use crate::{
-    bindings,
     init::PinInit,
     pin_init,
     str::CStr,
@@ -75,7 +74,7 @@ pub use new_condvar;
 ///     Box::pin_init(pin_init!(Example {
 ///         value <- new_mutex!(0),
 ///         value_changed <- new_condvar!(),
-///     }))
+///     }), GFP_KERNEL)
 /// }
 /// ```
 ///

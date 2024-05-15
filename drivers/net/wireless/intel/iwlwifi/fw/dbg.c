@@ -1026,17 +1026,12 @@ static int iwl_dump_ini_prph_mac_iter_common(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	__le32 *val = range->data;
-	u32 prph_val;
 	int i;
 
 	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = size;
-	for (i = 0; i < le32_to_cpu(size); i += 4) {
-		prph_val = iwl_read_prph(fwrt->trans, addr + i);
-		if (iwl_trans_is_hw_error_value(prph_val))
-			return -EBUSY;
-		*val++ = cpu_to_le32(prph_val);
-	}
+	for (i = 0; i < le32_to_cpu(size); i += 4)
+		*val++ = cpu_to_le32(iwl_read_prph(fwrt->trans, addr + i));
 
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
@@ -3084,6 +3079,7 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	if (!test_bit(wk_idx, &fwrt->dump.active_wks))
 		return;
 
+	/* also checks 'desc' for pre-ini mode, since that shadows in union */
 	if (!dump_data->trig) {
 		IWL_ERR(fwrt, "dump trigger data is not set\n");
 		goto out;

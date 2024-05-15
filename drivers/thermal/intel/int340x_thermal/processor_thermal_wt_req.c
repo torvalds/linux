@@ -134,3 +134,4 @@ EXPORT_SYMBOL_GPL(proc_thermal_wt_req_remove);
 
 MODULE_IMPORT_NS(INT340X_THERMAL);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Processor Thermal Work Load type request Interface");

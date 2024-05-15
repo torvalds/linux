@@ -523,7 +523,7 @@ static int aurora_l2_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "data ECC is not enabled\n");
 
 	dci = edac_device_alloc_ctl_info(sizeof(*drvdata),
-					 "cpu", 1, "L", 1, 2, NULL, 0, 0);
+					 "cpu", 1, "L", 1, 2, 0);
 	if (!dci)
 		return -ENOMEM;
 

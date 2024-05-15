@@ -2488,7 +2488,7 @@ static int gem_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct gem *gp = netdev_priv(dev);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	/* We'll just catch it later when the device is up'd or resumed */
 	if (!netif_running(dev) || !netif_device_present(dev))

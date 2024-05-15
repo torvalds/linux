@@ -25,7 +25,7 @@ to be disabled when executing the fragment allocation.
 The network stack uses two separate caches per CPU to handle fragment
 allocation.  The netdev_alloc_cache is used by callers making use of the
 netdev_alloc_frag and __netdev_alloc_skb calls.  The napi_alloc_cache is
-used by callers of the __napi_alloc_frag and __napi_alloc_skb calls.  The
+used by callers of the __napi_alloc_frag and napi_alloc_skb calls.  The
 main difference between these two calls is the context in which they may be
 called.  The "netdev" prefixed functions are usable in any context as these
 functions will disable interrupts, while the "napi" prefixed functions are

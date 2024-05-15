@@ -353,6 +353,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 /**
  * ccid2_rtt_estimator - Sample RTT and compute RTO using RFC2988 algorithm
  * @sk: socket to perform estimator on
+ * @mrtt: measured RTT
  *
  * This code is almost identical with TCP's tcp_rtt_estimator(), since
  * - it has a higher sampling frequency (recommended by RFC 1323),

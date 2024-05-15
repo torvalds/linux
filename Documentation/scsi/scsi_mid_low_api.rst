@@ -42,18 +42,18 @@ This version of the document roughly matches linux kernel version 2.6.8 .
 Documentation
 =============
 There is a SCSI documentation directory within the kernel source tree,
-typically Documentation/scsi . Most documents are in plain
-(i.e. ASCII) text. This file is named scsi_mid_low_api.txt and can be
+typically Documentation/scsi . Most documents are in reStructuredText
+format. This file is named scsi_mid_low_api.rst and can be
 found in that directory. A more recent copy of this document may be found
-at http://web.archive.org/web/20070107183357rn_1/sg.torque.net/scsi/.
-Many LLDs are documented there (e.g. aic7xxx.txt). The SCSI mid-level is
-briefly described in scsi.txt which contains a url to a document
-describing the SCSI subsystem in the lk 2.4 series. Two upper level
-drivers have documents in that directory: st.txt (SCSI tape driver) and
-scsi-generic.txt (for the sg driver).
+at https://docs.kernel.org/scsi/scsi_mid_low_api.html. Many LLDs are
+documented in Documentation/scsi (e.g. aic7xxx.rst). The SCSI mid-level is
+briefly described in scsi.rst which contains a URL to a document describing
+the SCSI subsystem in the Linux Kernel 2.4 series. Two upper level
+drivers have documents in that directory: st.rst (SCSI tape driver) and
+scsi-generic.rst (for the sg driver).
 
-Some documentation (or urls) for LLDs may be found in the C source code
-or in the same directory as the C source code. For example to find a url
+Some documentation (or URLs) for LLDs may be found in the C source code
+or in the same directory as the C source code. For example to find a URL
 about the USB mass storage driver see the
 /usr/src/linux/drivers/usb/storage directory.
 

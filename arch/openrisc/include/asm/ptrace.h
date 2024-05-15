@@ -59,7 +59,7 @@ struct pt_regs {
 	 * -1 for all other exceptions.
 	 */
 	long  orig_gpr11;	/* For restarting system calls */
-	long fpcsr;		/* Floating point control status register. */
+	long dummy;		/* Cheap alignment fix */
 	long dummy2;		/* Cheap alignment fix */
 };
 
@@ -115,6 +115,5 @@ static inline long regs_return_value(struct pt_regs *regs)
 #define PT_GPR31      124
 #define PT_PC	      128
 #define PT_ORIG_GPR11 132
-#define PT_FPCSR      136
 
 #endif /* __ASM_OPENRISC_PTRACE_H */

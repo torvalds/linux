@@ -58,12 +58,6 @@ enum tg_state_flags {
 	THROTL_TG_CANCELING	= 1 << 2,	/* starts to cancel bio */
 };
 
-enum {
-	LIMIT_LOW,
-	LIMIT_MAX,
-	LIMIT_CNT,
-};
-
 struct throtl_grp {
 	/* must be the first member */
 	struct blkg_policy_data pd;
@@ -102,14 +96,14 @@ struct throtl_grp {
 	bool has_rules_iops[2];
 
 	/* internally used bytes per second rate limits */
-	uint64_t bps[2][LIMIT_CNT];
+	uint64_t bps[2];
 	/* user configured bps limits */
-	uint64_t bps_conf[2][LIMIT_CNT];
+	uint64_t bps_conf[2];
 
 	/* internally used IOPS limits */
-	unsigned int iops[2][LIMIT_CNT];
+	unsigned int iops[2];
 	/* user configured IOPS limits */
-	unsigned int iops_conf[2][LIMIT_CNT];
+	unsigned int iops_conf[2];
 
 	/* Number of bytes dispatched in current slice */
 	uint64_t bytes_disp[2];
@@ -132,21 +126,9 @@ struct throtl_grp {
 
 	unsigned long last_check_time;
 
-	unsigned long latency_target; /* us */
-	unsigned long latency_target_conf; /* us */
 	/* When did we start a new slice */
 	unsigned long slice_start[2];
 	unsigned long slice_end[2];
-
-	unsigned long last_finish_time; /* ns / 1024 */
-	unsigned long checked_last_finish_time; /* ns / 1024 */
-	unsigned long avg_idletime; /* ns / 1024 */
-	unsigned long idletime_threshold; /* us */
-	unsigned long idletime_threshold_conf; /* us */
-
-	unsigned int bio_cnt; /* total bios */
-	unsigned int bad_bio_cnt; /* bios exceeding latency threshold */
-	unsigned long bio_cnt_reset_time;
 
 	struct blkg_rwstat stat_bytes;
 	struct blkg_rwstat stat_ios;
@@ -168,23 +150,33 @@ static inline struct throtl_grp *blkg_to_tg(struct blkcg_gq *blkg)
  * Internal throttling interface
  */
 #ifndef CONFIG_BLK_DEV_THROTTLING
-static inline int blk_throtl_init(struct gendisk *disk) { return 0; }
 static inline void blk_throtl_exit(struct gendisk *disk) { }
-static inline void blk_throtl_register(struct gendisk *disk) { }
 static inline bool blk_throtl_bio(struct bio *bio) { return false; }
 static inline void blk_throtl_cancel_bios(struct gendisk *disk) { }
 #else /* CONFIG_BLK_DEV_THROTTLING */
-int blk_throtl_init(struct gendisk *disk);
 void blk_throtl_exit(struct gendisk *disk);
-void blk_throtl_register(struct gendisk *disk);
 bool __blk_throtl_bio(struct bio *bio);
 void blk_throtl_cancel_bios(struct gendisk *disk);
 
+static inline bool blk_throtl_activated(struct request_queue *q)
+{
+	return q->td != NULL;
+}
+
 static inline bool blk_should_throtl(struct bio *bio)
 {
-	struct throtl_grp *tg = blkg_to_tg(bio->bi_blkg);
+	struct throtl_grp *tg;
 	int rw = bio_data_dir(bio);
 
+	/*
+	 * This is called under bio_queue_enter(), and it's synchronized with
+	 * the activation of blk-throtl, which is protected by
+	 * blk_mq_freeze_queue().
+	 */
+	if (!blk_throtl_activated(bio->bi_bdev->bd_queue))
+		return false;
+
+	tg = blkg_to_tg(bio->bi_blkg);
 	if (!cgroup_subsys_on_dfl(io_cgrp_subsys)) {
 		if (!bio_flagged(bio, BIO_CGROUP_ACCT)) {
 			bio_set_flag(bio, BIO_CGROUP_ACCT);

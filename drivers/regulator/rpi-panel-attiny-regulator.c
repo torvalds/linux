@@ -75,7 +75,7 @@ static const struct regmap_config attiny_regmap_config = {
 	.val_bits = 8,
 	.disable_locking = 1,
 	.max_register = REG_WRITE_DATA_L,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int attiny_set_port_state(struct attiny_lcd *state, int reg, u8 val)

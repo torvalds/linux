@@ -91,7 +91,7 @@ static int max16064_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max16064_id[] = {
-	{"max16064", 0},
+	{"max16064"},
 	{}
 };
 

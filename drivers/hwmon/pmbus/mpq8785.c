@@ -62,7 +62,7 @@ static int mpq8785_probe(struct i2c_client *client)
 };
 
 static const struct i2c_device_id mpq8785_id[] = {
-	{ "mpq8785", 0 },
+	{ "mpq8785" },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, mpq8785_id);

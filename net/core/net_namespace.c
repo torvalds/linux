@@ -1093,7 +1093,7 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 end:
 	if (net_cb.fillargs.add_ref)
 		put_net(net_cb.tgt_net);
-	return err < 0 ? err : skb->len;
+	return err;
 }
 
 static void rtnl_net_notifyid(struct net *net, int cmd, int id, u32 portid,
@@ -1208,7 +1208,8 @@ void __init net_ns_init(void)
 	rtnl_register(PF_UNSPEC, RTM_NEWNSID, rtnl_net_newid, NULL,
 		      RTNL_FLAG_DOIT_UNLOCKED);
 	rtnl_register(PF_UNSPEC, RTM_GETNSID, rtnl_net_getid, rtnl_net_dumpid,
-		      RTNL_FLAG_DOIT_UNLOCKED);
+		      RTNL_FLAG_DOIT_UNLOCKED |
+		      RTNL_FLAG_DUMP_UNLOCKED);
 }
 
 static void free_exit_list(struct pernet_operations *ops, struct list_head *net_exit_list)

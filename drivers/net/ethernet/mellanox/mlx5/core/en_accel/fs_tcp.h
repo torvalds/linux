@@ -11,14 +11,14 @@ int mlx5e_accel_fs_tcp_create(struct mlx5e_flow_steering *fs);
 void mlx5e_accel_fs_tcp_destroy(struct mlx5e_flow_steering *fs);
 struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_flow_steering *fs,
 					       struct sock *sk, u32 tirn,
-					       uint32_t flow_tag);
+					       u32 flow_tag);
 void mlx5e_accel_fs_del_sk(struct mlx5_flow_handle *rule);
 #else
 static inline int mlx5e_accel_fs_tcp_create(struct mlx5e_flow_steering *fs) { return 0; }
 static inline void mlx5e_accel_fs_tcp_destroy(struct mlx5e_flow_steering *fs) {}
 static inline struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_flow_steering *fs,
 							     struct sock *sk, u32 tirn,
-							     uint32_t flow_tag)
+							     u32 flow_tag)
 { return ERR_PTR(-EOPNOTSUPP); }
 static inline void mlx5e_accel_fs_del_sk(struct mlx5_flow_handle *rule) {}
 #endif

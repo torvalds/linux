@@ -56,6 +56,7 @@
  */
 #define TEE_IMPL_ID_OPTEE	1
 #define TEE_IMPL_ID_AMDTEE	2
+#define TEE_IMPL_ID_TSTEE	3
 
 /*
  * OP-TEE specific capabilities

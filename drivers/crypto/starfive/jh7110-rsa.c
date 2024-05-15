@@ -45,6 +45,9 @@ static inline int starfive_pka_wait_done(struct starfive_cryp_ctx *ctx)
 
 static void starfive_rsa_free_key(struct starfive_rsa_key *key)
 {
+	if (!key->key_sz)
+		return;
+
 	kfree_sensitive(key->d);
 	kfree_sensitive(key->e);
 	kfree_sensitive(key->n);
@@ -273,7 +276,6 @@ static int starfive_rsa_enc_core(struct starfive_cryp_ctx *ctx, int enc)
 
 err_rsa_crypt:
 	writel(STARFIVE_RSA_RESET, cryp->base + STARFIVE_PKA_CACR_OFFSET);
-	kfree(rctx->rsa_data);
 	return ret;
 }
 
@@ -534,15 +536,13 @@ static int starfive_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct starfive_cryp_ctx *ctx = akcipher_tfm_ctx(tfm);
 
+	ctx->cryp = starfive_cryp_find_dev(ctx);
+	if (!ctx->cryp)
+		return -ENODEV;
+
 	ctx->akcipher_fbk = crypto_alloc_akcipher("rsa-generic", 0, 0);
 	if (IS_ERR(ctx->akcipher_fbk))
 		return PTR_ERR(ctx->akcipher_fbk);
-
-	ctx->cryp = starfive_cryp_find_dev(ctx);
-	if (!ctx->cryp) {
-		crypto_free_akcipher(ctx->akcipher_fbk);
-		return -ENODEV;
-	}
 
 	akcipher_set_reqsize(tfm, sizeof(struct starfive_cryp_request_ctx) +
 			     sizeof(struct crypto_akcipher) + 32);

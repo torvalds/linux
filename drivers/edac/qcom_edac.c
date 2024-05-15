@@ -349,7 +349,6 @@ static int qcom_llcc_edac_probe(struct platform_device *pdev)
 	/* Allocate edac control info */
 	edev_ctl = edac_device_alloc_ctl_info(0, "qcom-llcc", 1, "bank",
 					      llcc_driv_data->num_banks, 1,
-					      NULL, 0,
 					      edac_device_alloc_index());
 
 	if (!edev_ctl)

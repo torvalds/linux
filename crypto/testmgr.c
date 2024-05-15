@@ -5098,6 +5098,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.akcipher = __VECS(ecdsa_nist_p384_tv_template)
 		}
 	}, {
+		.alg = "ecdsa-nist-p521",
+		.test = alg_test_akcipher,
+		.fips_allowed = 1,
+		.suite = {
+			.akcipher = __VECS(ecdsa_nist_p521_tv_template)
+		}
+	}, {
 		.alg = "ecrdsa",
 		.test = alg_test_akcipher,
 		.suite = {

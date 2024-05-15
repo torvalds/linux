@@ -675,10 +675,8 @@ static const struct attribute_group *rapl_attr_update[] = {
 static int __init init_rapl_pmus(void)
 {
 	int maxdie = topology_max_packages() * topology_max_dies_per_package();
-	size_t size;
 
-	size = sizeof(*rapl_pmus) + maxdie * sizeof(struct rapl_pmu *);
-	rapl_pmus = kzalloc(size, GFP_KERNEL);
+	rapl_pmus = kzalloc(struct_size(rapl_pmus, pmus, maxdie), GFP_KERNEL);
 	if (!rapl_pmus)
 		return -ENOMEM;
 
@@ -808,6 +806,9 @@ static const struct x86_cpu_id rapl_model_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_S,	&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE,		&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE_L,	&model_skl),
+	X86_MATCH_INTEL_FAM6_MODEL(ARROWLAKE_H,		&model_skl),
+	X86_MATCH_INTEL_FAM6_MODEL(ARROWLAKE,		&model_skl),
+	X86_MATCH_INTEL_FAM6_MODEL(LUNARLAKE_M,		&model_skl),
 	{},
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);

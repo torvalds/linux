@@ -53,7 +53,7 @@ config SCSI_ESP_PIO
 
 config SCSI_NETLINK
 	bool
-	default	n
+	default n
 	depends on NET
 
 config SCSI_PROC_FS
@@ -327,7 +327,7 @@ config ISCSI_TCP
 
 config ISCSI_BOOT_SYSFS
 	tristate "iSCSI Boot Sysfs Interface"
-	default	n
+	default n
 	help
 	  This option enables support for exposing iSCSI boot information
 	  via sysfs to userspace. If you wish to export this information,

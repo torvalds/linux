@@ -63,7 +63,7 @@ config KPROBES
 	depends on MODULES
 	depends on HAVE_KPROBES
 	select KALLSYMS
-	select TASKS_RCU if PREEMPTION
+	select NEED_TASKS_RCU
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
@@ -112,7 +112,7 @@ config STATIC_CALL_SELFTEST
 config OPTPROBES
 	def_bool y
 	depends on KPROBES && HAVE_OPTPROBES
-	select TASKS_RCU if PREEMPTION
+	select NEED_TASKS_RCU
 
 config KPROBES_ON_FTRACE
 	def_bool y
@@ -509,6 +509,15 @@ config MMU_LAZY_TLB_SHOOTDOWN
 
 config ARCH_HAVE_NMI_SAFE_CMPXCHG
 	bool
+
+config ARCH_HAVE_EXTRA_ELF_NOTES
+	bool
+	help
+	  An architecture should select this in order to enable adding an
+	  arch-specific ELF note section to core files. It must provide two
+	  functions: elf_coredump_extra_notes_size() and
+	  elf_coredump_extra_notes_write() which are invoked by the ELF core
+	  dumper.
 
 config ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
 	bool
@@ -1616,5 +1625,8 @@ config CC_HAS_SANE_FUNCTION_ALIGNMENT
 	# available or extra care is required in the kernel. Clang provides
 	# strict alignment always, even with -falign-functions.
 	def_bool CC_HAS_MIN_FUNCTION_ALIGNMENT || CC_IS_CLANG
+
+config ARCH_NEED_CMPXCHG_1_EMU
+	bool
 
 endmenu

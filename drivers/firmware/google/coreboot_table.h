@@ -97,8 +97,12 @@ struct coreboot_driver {
 	const struct coreboot_device_id *id_table;
 };
 
+/* use a macro to avoid include chaining to get THIS_MODULE */
+#define coreboot_driver_register(driver) \
+	__coreboot_driver_register(driver, THIS_MODULE)
 /* Register a driver that uses the data from a coreboot table. */
-int coreboot_driver_register(struct coreboot_driver *driver);
+int __coreboot_driver_register(struct coreboot_driver *driver,
+			       struct module *owner);
 
 /* Unregister a driver that uses the data from a coreboot table. */
 void coreboot_driver_unregister(struct coreboot_driver *driver);

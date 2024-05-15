@@ -400,20 +400,6 @@ static struct platform_device *sh7786_devices[] __initdata = {
 	&usb_ohci_device,
 };
 
-/*
- * Please call this function if your platform board
- * use external clock for USB
- * */
-#define USBCTL0		0xffe70858
-#define CLOCK_MODE_MASK 0xffffff7f
-#define EXT_CLOCK_MODE  0x00000080
-
-void __init sh7786_usb_use_exclock(void)
-{
-	u32 val = __raw_readl(USBCTL0) & CLOCK_MODE_MASK;
-	__raw_writel(val | EXT_CLOCK_MODE, USBCTL0);
-}
-
 #define USBINITREG1	0xffe70094
 #define USBINITREG2	0xffe7009c
 #define USBINITVAL1	0x00ff0040

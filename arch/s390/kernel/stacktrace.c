@@ -101,3 +101,22 @@ void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
 	}
 	pagefault_enable();
 }
+
+unsigned long return_address(unsigned int n)
+{
+	struct unwind_state state;
+	unsigned long addr;
+
+	/* Increment to skip current stack entry */
+	n++;
+
+	unwind_for_each_frame(&state, NULL, NULL, 0) {
+		addr = unwind_get_return_address(&state);
+		if (!addr)
+			break;
+		if (!n--)
+			return addr;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(return_address);

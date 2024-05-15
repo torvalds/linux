@@ -766,6 +766,7 @@ static int tcp_metrics_nl_dump(struct sk_buff *skb,
 	unsigned int max_rows = 1U << tcp_metrics_hash_log;
 	unsigned int row, s_row = cb->args[0];
 	int s_col = cb->args[1], col = s_col;
+	int res = 0;
 
 	for (row = s_row; row < max_rows; row++, s_col = 0) {
 		struct tcp_metrics_block *tm;
@@ -778,7 +779,8 @@ static int tcp_metrics_nl_dump(struct sk_buff *skb,
 				continue;
 			if (col < s_col)
 				continue;
-			if (tcp_metrics_dump_info(skb, cb, tm) < 0) {
+			res = tcp_metrics_dump_info(skb, cb, tm);
+			if (res < 0) {
 				rcu_read_unlock();
 				goto done;
 			}
@@ -789,7 +791,7 @@ static int tcp_metrics_nl_dump(struct sk_buff *skb,
 done:
 	cb->args[0] = row;
 	cb->args[1] = col;
-	return skb->len;
+	return res;
 }
 
 static int __parse_nl_addr(struct genl_info *info, struct inetpeer_addr *addr,
@@ -986,6 +988,7 @@ static struct genl_family tcp_metrics_nl_family __ro_after_init = {
 	.maxattr	= TCP_METRICS_ATTR_MAX,
 	.policy = tcp_metrics_nl_policy,
 	.netnsok	= true,
+	.parallel_ops	= true,
 	.module		= THIS_MODULE,
 	.small_ops	= tcp_metrics_nl_ops,
 	.n_small_ops	= ARRAY_SIZE(tcp_metrics_nl_ops),

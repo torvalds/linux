@@ -3032,6 +3032,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_port_start32);
  */
 int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev)
 {
+#ifdef CONFIG_HAS_IOPORT
 	unsigned long bmdma = pci_resource_start(pdev, 4);
 	u8 simplex;
 
@@ -3044,6 +3045,9 @@ int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev)
 	if (simplex & 0x80)
 		return -EOPNOTSUPP;
 	return 0;
+#else
+	return -ENOENT;
+#endif /* CONFIG_HAS_IOPORT */
 }
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_clear_simplex);
 

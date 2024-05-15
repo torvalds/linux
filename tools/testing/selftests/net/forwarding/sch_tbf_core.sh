@@ -227,7 +227,7 @@ do_tbf_test()
 	local nr=$(rate $t2 $t3 10)
 	local nr_pct=$((100 * (nr - er) / er))
 	((-5 <= nr_pct && nr_pct <= 5))
-	check_err $? "Expected rate $(humanize $er), got $(humanize $nr), which is $nr_pct% off. Required accuracy is +-5%."
+	xfail_on_slow check_err $? "Expected rate $(humanize $er), got $(humanize $nr), which is $nr_pct% off. Required accuracy is +-5%."
 
 	log_test "TC $((vlan - 10)): TBF rate ${mbit}Mbit"
 }

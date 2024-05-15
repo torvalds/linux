@@ -1287,6 +1287,24 @@ struct ieee80211_ttlm_elem {
 	u8 optional[];
 } __packed;
 
+/**
+ * struct ieee80211_bss_load_elem - BSS Load elemen
+ *
+ * Defined in section 9.4.2.26 in IEEE 802.11-REVme D4.1
+ *
+ * @sta_count: total number of STAs currently associated with the AP.
+ * @channel_util: Percentage of time that the access point sensed the channel
+ *	was busy. This value is in range [0, 255], the highest value means
+ *	100% busy.
+ * @avail_admission_capa: remaining amount of medium time used for admission
+ *	control.
+ */
+struct ieee80211_bss_load_elem {
+	__le16 sta_count;
+	u8 channel_util;
+	__le16 avail_admission_capa;
+} __packed;
+
 struct ieee80211_mgmt {
 	__le16 frame_control;
 	__le16 duration;
@@ -2742,9 +2760,11 @@ static inline bool ieee80211_he_capa_size_ok(const u8 *data, u8 len)
 #define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x40000000
 #define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x80000000
 
-#define IEEE80211_6GHZ_CTRL_REG_LPI_AP	0
-#define IEEE80211_6GHZ_CTRL_REG_SP_AP	1
-#define IEEE80211_6GHZ_CTRL_REG_VLP_AP	2
+#define IEEE80211_6GHZ_CTRL_REG_LPI_AP		0
+#define IEEE80211_6GHZ_CTRL_REG_SP_AP		1
+#define IEEE80211_6GHZ_CTRL_REG_VLP_AP		2
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP	3
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP	4
 
 /**
  * struct ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
@@ -5166,7 +5186,7 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 	bool check_common_len = false;
 	u16 control;
 
-	if (len < fixed)
+	if (!data || len < fixed)
 		return false;
 
 	control = le16_to_cpu(mle->control);
@@ -5302,7 +5322,7 @@ static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 		info_len += 1;
 
 	return prof->sta_info_len >= info_len &&
-	       fixed + prof->sta_info_len <= len;
+	       fixed + prof->sta_info_len - 1 <= len;
 }
 
 /**

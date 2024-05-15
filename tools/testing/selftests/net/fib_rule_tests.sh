@@ -9,6 +9,7 @@ PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 
 RTABLE=100
 RTABLE_PEER=101
+RTABLE_VRF=102
 GW_IP4=192.51.100.2
 SRC_IP=192.51.100.3
 GW_IP6=2001:db8:1::2
@@ -17,7 +18,14 @@ SRC_IP6=2001:db8:1::3
 DEV_ADDR=192.51.100.1
 DEV_ADDR6=2001:db8:1::1
 DEV=dummy0
-TESTS="fib_rule6 fib_rule4 fib_rule6_connect fib_rule4_connect"
+TESTS="
+	fib_rule6
+	fib_rule4
+	fib_rule6_connect
+	fib_rule4_connect
+	fib_rule6_vrf
+	fib_rule4_vrf
+"
 
 SELFTEST_PATH=""
 
@@ -27,13 +35,18 @@ log_test()
 	local expected=$2
 	local msg="$3"
 
+	$IP rule show | grep -q l3mdev
+	if [ $? -eq 0 ]; then
+		msg="$msg (VRF)"
+	fi
+
 	if [ ${rc} -eq ${expected} ]; then
 		nsuccess=$((nsuccess+1))
-		printf "\n    TEST: %-50s  [ OK ]\n" "${msg}"
+		printf "\n    TEST: %-60s  [ OK ]\n" "${msg}"
 	else
 		ret=1
 		nfail=$((nfail+1))
-		printf "\n    TEST: %-50s  [FAIL]\n" "${msg}"
+		printf "\n    TEST: %-60s  [FAIL]\n" "${msg}"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
@@ -128,6 +141,17 @@ cleanup_peer()
 {
 	$IP link del dev veth0
 	ip netns del $peerns
+}
+
+setup_vrf()
+{
+	$IP link add name vrf0 up type vrf table $RTABLE_VRF
+	$IP link set dev $DEV master vrf0
+}
+
+cleanup_vrf()
+{
+	$IP link del dev vrf0
 }
 
 fib_check_iproute_support()
@@ -246,6 +270,13 @@ fib_rule6_test()
 		match="ipproto ipv6-icmp"
 		fib_rule6_test_match_n_redirect "$match" "$match" "ipproto ipv6-icmp match"
 	fi
+}
+
+fib_rule6_vrf_test()
+{
+	setup_vrf
+	fib_rule6_test
+	cleanup_vrf
 }
 
 # Verify that the IPV6_TCLASS option of UDPv6 and TCPv6 sockets is properly
@@ -385,6 +416,13 @@ fib_rule4_test()
 	fi
 }
 
+fib_rule4_vrf_test()
+{
+	setup_vrf
+	fib_rule4_test
+	cleanup_vrf
+}
+
 # Verify that the IP_TOS option of UDPv4 and TCPv4 sockets is properly taken
 # into account when connecting the socket and when sending packets.
 fib_rule4_connect_test()
@@ -467,6 +505,8 @@ do
 	fib_rule4_test|fib_rule4)		fib_rule4_test;;
 	fib_rule6_connect_test|fib_rule6_connect)	fib_rule6_connect_test;;
 	fib_rule4_connect_test|fib_rule4_connect)	fib_rule4_connect_test;;
+	fib_rule6_vrf_test|fib_rule6_vrf)	fib_rule6_vrf_test;;
+	fib_rule4_vrf_test|fib_rule4_vrf)	fib_rule4_vrf_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 

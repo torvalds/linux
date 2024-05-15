@@ -23,6 +23,14 @@
 		reset-gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
 	};
 
+	extcon_usb3: extcon-usb3 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb3_id>;
+		status = "disabled";
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -46,7 +54,7 @@
 	pcie_refclk_gen: pcie-refclk-gen-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <1000000000>;
+		clock-frequency = <100000000>;
 	};
 
 	pcie_refclk: pcie-refclk-clock {
@@ -137,6 +145,11 @@
 	snps,reset-gpio = <&gpio4 RK_PC3 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 100000>;
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	status = "okay";
 };
 
 &i2c1 {
@@ -322,6 +335,13 @@
 			rockchip,pins = <1 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	usb3 {
+		usb3_id: usb3-id {
+			rockchip,pins =
+			  <3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &saradc {
@@ -396,7 +416,7 @@
 		vcca-supply = <&vcc5v0_sys>;
 
 		rk806_dvs1_null: dvs1-null-pins {
-			pins = "gpio_pwrctrl2";
+			pins = "gpio_pwrctrl1";
 			function = "pin_fun0";
 		};
 
@@ -681,6 +701,11 @@
 
 &tsadc {
 	status = "okay";
+};
+
+/* Routed to UART0 on the Q7 connector */
+&uart2 {
+	pinctrl-0 = <&uart2m2_xfer>;
 };
 
 /* Mule-ATtiny UPDI */

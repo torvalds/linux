@@ -75,6 +75,10 @@ static const struct renesas_family fam_rzg3s __initconst __maybe_unused = {
 	.name	= "RZ/G3S",
 };
 
+static const struct renesas_family fam_rzv2h __initconst __maybe_unused = {
+	.name	= "RZ/V2H",
+};
+
 static const struct renesas_family fam_rzv2l __initconst __maybe_unused = {
 	.name	= "RZ/V2L",
 };
@@ -175,6 +179,11 @@ static const struct renesas_soc soc_rz_g2ul __initconst __maybe_unused = {
 static const struct renesas_soc soc_rz_g3s __initconst __maybe_unused = {
 	.family = &fam_rzg3s,
 	.id	= 0x85e0447,
+};
+
+static const struct renesas_soc soc_rz_v2h __initconst __maybe_unused = {
+	.family = &fam_rzv2h,
+	.id     = 0x847a447,
 };
 
 static const struct renesas_soc soc_rz_v2l __initconst __maybe_unused = {
@@ -407,6 +416,9 @@ static const struct of_device_id renesas_socs[] __initconst __maybe_unused = {
 #ifdef CONFIG_ARCH_R9A09G011
 	{ .compatible = "renesas,r9a09g011",	.data = &soc_rz_v2m },
 #endif
+#ifdef CONFIG_ARCH_R9A09G057
+	{ .compatible = "renesas,r9a09g057",	.data = &soc_rz_v2h },
+#endif
 #ifdef CONFIG_ARCH_SH73A0
 	{ .compatible = "renesas,sh73a0",	.data = &soc_shmobile_ag5 },
 #endif
@@ -432,6 +444,11 @@ static const struct renesas_id id_rzg2l __initconst = {
 	.mask = 0xfffffff,
 };
 
+static const struct renesas_id id_rzv2h __initconst = {
+	.offset = 0x304,
+	.mask = 0xfffffff,
+};
+
 static const struct renesas_id id_rzv2m __initconst = {
 	.offset = 0x104,
 	.mask = 0xff,
@@ -449,6 +466,7 @@ static const struct of_device_id renesas_ids[] __initconst = {
 	{ .compatible = "renesas,r9a07g054-sysc",	.data = &id_rzg2l },
 	{ .compatible = "renesas,r9a08g045-sysc",	.data = &id_rzg2l },
 	{ .compatible = "renesas,r9a09g011-sys",	.data = &id_rzv2m },
+	{ .compatible = "renesas,r9a09g057-sys",	.data = &id_rzv2h },
 	{ .compatible = "renesas,prr",			.data = &id_prr },
 	{ /* sentinel */ }
 };
@@ -513,7 +531,7 @@ static int __init renesas_soc_init(void)
 			eslo = product & 0xf;
 			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u",
 							   eshi, eslo);
-		}  else if (id == &id_rzg2l) {
+		}  else if (id == &id_rzg2l || id == &id_rzv2h) {
 			eshi =  ((product >> 28) & 0x0f);
 			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%u",
 							   eshi);

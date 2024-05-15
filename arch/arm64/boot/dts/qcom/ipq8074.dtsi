@@ -323,6 +323,13 @@
 				bias-disable;
 			};
 
+			serial_5_pins: serial5-state {
+				pins = "gpio9", "gpio16";
+				function = "blsp5_uart";
+				drive-strength = <8>;
+				bias-disable;
+			};
+
 			i2c_0_pins: i2c-0-state {
 				pins = "gpio42", "gpio43";
 				function = "blsp1_i2c";
@@ -349,7 +356,7 @@
 				       "gpio5", "gpio6", "gpio7",
 				       "gpio8", "gpio10", "gpio11",
 				       "gpio12", "gpio13", "gpio14",
-				       "gpio15", "gpio16", "gpio17";
+				       "gpio15", "gpio17";
 				function = "qpic";
 				drive-strength = <8>;
 				bias-disable;
@@ -467,6 +474,18 @@
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-0 = <&serial_4_pins>;
+			pinctrl-names = "default";
+			status = "disabled";
+		};
+
+		blsp1_uart6: serial@78b4000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x078b4000 0x200>;
+			interrupts = <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_UART6_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			pinctrl-0 = <&serial_5_pins>;
 			pinctrl-names = "default";
 			status = "disabled";
 		};
@@ -864,6 +883,16 @@
 				      "ahb",
 				      "axi_m_sticky";
 			status = "disabled";
+
+			pcie@0 {
+				device_type = "pci";
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				bus-range = <0x01 0xff>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 
 		pcie0: pcie@20000000 {
@@ -929,6 +958,16 @@
 				      "axi_m_sticky",
 				      "axi_s_sticky";
 			status = "disabled";
+
+			pcie@0 {
+				device_type = "pci";
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				bus-range = <0x01 0xff>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 	};
 

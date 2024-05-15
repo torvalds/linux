@@ -50,9 +50,9 @@ static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
  * Caller holds a reference to the file already, we don't need to do
  * anything else to get an extra reference.
  */
-__cold void io_uring_show_fdinfo(struct seq_file *m, struct file *f)
+__cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 {
-	struct io_ring_ctx *ctx = f->private_data;
+	struct io_ring_ctx *ctx = file->private_data;
 	struct io_overflow_cqe *ocqe;
 	struct io_rings *r = ctx->rings;
 	struct rusage sq_usage;

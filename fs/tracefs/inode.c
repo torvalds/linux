@@ -11,14 +11,14 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/mount.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/tracefs.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>
 #include <linux/seq_file.h>
-#include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/slab.h>
 #include "internal.h"
@@ -281,7 +281,7 @@ struct inode *tracefs_get_inode(struct super_block *sb)
 	return inode;
 }
 
-struct tracefs_mount_opts {
+struct tracefs_fs_info {
 	kuid_t uid;
 	kgid_t gid;
 	umode_t mode;
@@ -293,67 +293,50 @@ enum {
 	Opt_uid,
 	Opt_gid,
 	Opt_mode,
-	Opt_err
 };
 
-static const match_table_t tokens = {
-	{Opt_uid, "uid=%u"},
-	{Opt_gid, "gid=%u"},
-	{Opt_mode, "mode=%o"},
-	{Opt_err, NULL}
+static const struct fs_parameter_spec tracefs_param_specs[] = {
+	fsparam_u32	("gid",		Opt_gid),
+	fsparam_u32oct	("mode",	Opt_mode),
+	fsparam_u32	("uid",		Opt_uid),
+	{}
 };
 
-struct tracefs_fs_info {
-	struct tracefs_mount_opts mount_opts;
-};
-
-static int tracefs_parse_options(char *data, struct tracefs_mount_opts *opts)
+static int tracefs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	substring_t args[MAX_OPT_ARGS];
-	int option;
-	int token;
+	struct tracefs_fs_info *opts = fc->s_fs_info;
+	struct fs_parse_result result;
 	kuid_t uid;
 	kgid_t gid;
-	char *p;
+	int opt;
 
-	opts->opts = 0;
-	opts->mode = TRACEFS_DEFAULT_MODE;
+	opt = fs_parse(fc, tracefs_param_specs, param, &result);
+	if (opt < 0)
+		return opt;
 
-	while ((p = strsep(&data, ",")) != NULL) {
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_uid:
-			if (match_int(&args[0], &option))
-				return -EINVAL;
-			uid = make_kuid(current_user_ns(), option);
-			if (!uid_valid(uid))
-				return -EINVAL;
-			opts->uid = uid;
-			break;
-		case Opt_gid:
-			if (match_int(&args[0], &option))
-				return -EINVAL;
-			gid = make_kgid(current_user_ns(), option);
-			if (!gid_valid(gid))
-				return -EINVAL;
-			opts->gid = gid;
-			break;
-		case Opt_mode:
-			if (match_octal(&args[0], &option))
-				return -EINVAL;
-			opts->mode = option & S_IALLUGO;
-			break;
-		/*
-		 * We might like to report bad mount options here;
-		 * but traditionally tracefs has ignored all mount options
-		 */
-		}
-
-		opts->opts |= BIT(token);
+	switch (opt) {
+	case Opt_uid:
+		uid = make_kuid(current_user_ns(), result.uint_32);
+		if (!uid_valid(uid))
+			return invalf(fc, "Unknown uid");
+		opts->uid = uid;
+		break;
+	case Opt_gid:
+		gid = make_kgid(current_user_ns(), result.uint_32);
+		if (!gid_valid(gid))
+			return invalf(fc, "Unknown gid");
+		opts->gid = gid;
+		break;
+	case Opt_mode:
+		opts->mode = result.uint_32 & S_IALLUGO;
+		break;
+	/*
+	 * We might like to report bad mount options here;
+	 * but traditionally tracefs has ignored all mount options
+	 */
 	}
+
+	opts->opts |= BIT(opt);
 
 	return 0;
 }
@@ -362,7 +345,6 @@ static int tracefs_apply_options(struct super_block *sb, bool remount)
 {
 	struct tracefs_fs_info *fsi = sb->s_fs_info;
 	struct inode *inode = d_inode(sb->s_root);
-	struct tracefs_mount_opts *opts = &fsi->mount_opts;
 	struct tracefs_inode *ti;
 	bool update_uid, update_gid;
 	umode_t tmp_mode;
@@ -372,22 +354,22 @@ static int tracefs_apply_options(struct super_block *sb, bool remount)
 	 * options.
 	 */
 
-	if (!remount || opts->opts & BIT(Opt_mode)) {
+	if (!remount || fsi->opts & BIT(Opt_mode)) {
 		tmp_mode = READ_ONCE(inode->i_mode) & ~S_IALLUGO;
-		tmp_mode |= opts->mode;
+		tmp_mode |= fsi->mode;
 		WRITE_ONCE(inode->i_mode, tmp_mode);
 	}
 
-	if (!remount || opts->opts & BIT(Opt_uid))
-		inode->i_uid = opts->uid;
+	if (!remount || fsi->opts & BIT(Opt_uid))
+		inode->i_uid = fsi->uid;
 
-	if (!remount || opts->opts & BIT(Opt_gid))
-		inode->i_gid = opts->gid;
+	if (!remount || fsi->opts & BIT(Opt_gid))
+		inode->i_gid = fsi->gid;
 
-	if (remount && (opts->opts & BIT(Opt_uid) || opts->opts & BIT(Opt_gid))) {
+	if (remount && (fsi->opts & BIT(Opt_uid) || fsi->opts & BIT(Opt_gid))) {
 
-		update_uid = opts->opts & BIT(Opt_uid);
-		update_gid = opts->opts & BIT(Opt_gid);
+		update_uid = fsi->opts & BIT(Opt_uid);
+		update_gid = fsi->opts & BIT(Opt_gid);
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(ti, &tracefs_inodes, list) {
@@ -406,35 +388,31 @@ static int tracefs_apply_options(struct super_block *sb, bool remount)
 	return 0;
 }
 
-static int tracefs_remount(struct super_block *sb, int *flags, char *data)
+static int tracefs_reconfigure(struct fs_context *fc)
 {
-	int err;
-	struct tracefs_fs_info *fsi = sb->s_fs_info;
+	struct super_block *sb = fc->root->d_sb;
+	struct tracefs_fs_info *sb_opts = sb->s_fs_info;
+	struct tracefs_fs_info *new_opts = fc->s_fs_info;
 
 	sync_filesystem(sb);
-	err = tracefs_parse_options(data, &fsi->mount_opts);
-	if (err)
-		goto fail;
+	/* structure copy of new mount options to sb */
+	*sb_opts = *new_opts;
 
-	tracefs_apply_options(sb, true);
-
-fail:
-	return err;
+	return tracefs_apply_options(sb, true);
 }
 
 static int tracefs_show_options(struct seq_file *m, struct dentry *root)
 {
 	struct tracefs_fs_info *fsi = root->d_sb->s_fs_info;
-	struct tracefs_mount_opts *opts = &fsi->mount_opts;
 
-	if (!uid_eq(opts->uid, GLOBAL_ROOT_UID))
+	if (!uid_eq(fsi->uid, GLOBAL_ROOT_UID))
 		seq_printf(m, ",uid=%u",
-			   from_kuid_munged(&init_user_ns, opts->uid));
-	if (!gid_eq(opts->gid, GLOBAL_ROOT_GID))
+			   from_kuid_munged(&init_user_ns, fsi->uid));
+	if (!gid_eq(fsi->gid, GLOBAL_ROOT_GID))
 		seq_printf(m, ",gid=%u",
-			   from_kgid_munged(&init_user_ns, opts->gid));
-	if (opts->mode != TRACEFS_DEFAULT_MODE)
-		seq_printf(m, ",mode=%o", opts->mode);
+			   from_kgid_munged(&init_user_ns, fsi->gid));
+	if (fsi->mode != TRACEFS_DEFAULT_MODE)
+		seq_printf(m, ",mode=%o", fsi->mode);
 
 	return 0;
 }
@@ -444,7 +422,6 @@ static const struct super_operations tracefs_super_operations = {
 	.free_inode     = tracefs_free_inode,
 	.drop_inode     = generic_delete_inode,
 	.statfs		= simple_statfs,
-	.remount_fs	= tracefs_remount,
 	.show_options	= tracefs_show_options,
 };
 
@@ -489,26 +466,14 @@ static const struct dentry_operations tracefs_dentry_operations = {
 	.d_release = tracefs_d_release,
 };
 
-static int trace_fill_super(struct super_block *sb, void *data, int silent)
+static int tracefs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	static const struct tree_descr trace_files[] = {{""}};
-	struct tracefs_fs_info *fsi;
 	int err;
 
-	fsi = kzalloc(sizeof(struct tracefs_fs_info), GFP_KERNEL);
-	sb->s_fs_info = fsi;
-	if (!fsi) {
-		err = -ENOMEM;
-		goto fail;
-	}
-
-	err = tracefs_parse_options(data, &fsi->mount_opts);
+	err = simple_fill_super(sb, TRACEFS_MAGIC, trace_files);
 	if (err)
-		goto fail;
-
-	err  =  simple_fill_super(sb, TRACEFS_MAGIC, trace_files);
-	if (err)
-		goto fail;
+		return err;
 
 	sb->s_op = &tracefs_super_operations;
 	sb->s_d_op = &tracefs_dentry_operations;
@@ -516,24 +481,45 @@ static int trace_fill_super(struct super_block *sb, void *data, int silent)
 	tracefs_apply_options(sb, false);
 
 	return 0;
-
-fail:
-	kfree(fsi);
-	sb->s_fs_info = NULL;
-	return err;
 }
 
-static struct dentry *trace_mount(struct file_system_type *fs_type,
-			int flags, const char *dev_name,
-			void *data)
+static int tracefs_get_tree(struct fs_context *fc)
 {
-	return mount_single(fs_type, flags, data, trace_fill_super);
+	return get_tree_single(fc, tracefs_fill_super);
+}
+
+static void tracefs_free_fc(struct fs_context *fc)
+{
+	kfree(fc->s_fs_info);
+}
+
+static const struct fs_context_operations tracefs_context_ops = {
+	.free		= tracefs_free_fc,
+	.parse_param	= tracefs_parse_param,
+	.get_tree	= tracefs_get_tree,
+	.reconfigure	= tracefs_reconfigure,
+};
+
+static int tracefs_init_fs_context(struct fs_context *fc)
+{
+	struct tracefs_fs_info *fsi;
+
+	fsi = kzalloc(sizeof(struct tracefs_fs_info), GFP_KERNEL);
+	if (!fsi)
+		return -ENOMEM;
+
+	fsi->mode = TRACEFS_DEFAULT_MODE;
+
+	fc->s_fs_info = fsi;
+	fc->ops = &tracefs_context_ops;
+	return 0;
 }
 
 static struct file_system_type trace_fs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"tracefs",
-	.mount =	trace_mount,
+	.init_fs_context = tracefs_init_fs_context,
+	.parameters	= tracefs_param_specs,
 	.kill_sb =	kill_litter_super,
 };
 MODULE_ALIAS_FS("tracefs");

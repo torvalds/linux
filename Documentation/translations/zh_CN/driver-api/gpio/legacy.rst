@@ -208,8 +208,6 @@ GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其
                 gpio_request()
 
         ## 	gpio_request_one()
-        ##	gpio_request_array()
-        ## 	gpio_free_array()
 
                 gpio_free()
 
@@ -272,14 +270,6 @@ gpio_request()前将这类细节配置好，例如使用引脚控制子系统的
 	 */
 	int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 
-	/* 在单个函数中申请多个 GPIO
-	 */
-	int gpio_request_array(struct gpio *array, size_t num);
-
-	/* 在单个函数中释放多个 GPIO
-	 */
-	void gpio_free_array(struct gpio *array, size_t num);
-
 这里 'flags' 当前定义可指定以下属性:
 
 	* GPIOF_DIR_IN		- 配置方向为输入
@@ -316,12 +306,6 @@ gpio_request()前将这类细节配置好，例如使用引脚控制子系统的
 	err = gpio_request_one(31, GPIOF_IN, "Reset Button");
 	if (err)
 		...
-
-	err = gpio_request_array(leds_gpios, ARRAY_SIZE(leds_gpios));
-	if (err)
-		...
-
-	gpio_free_array(leds_gpios, ARRAY_SIZE(leds_gpios));
 
 
 GPIO 映射到 IRQ

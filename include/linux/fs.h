@@ -110,23 +110,26 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  */
 
 /* file is open for reading */
-#define FMODE_READ		((__force fmode_t)0x1)
+#define FMODE_READ		((__force fmode_t)(1 << 0))
 /* file is open for writing */
-#define FMODE_WRITE		((__force fmode_t)0x2)
+#define FMODE_WRITE		((__force fmode_t)(1 << 1))
 /* file is seekable */
-#define FMODE_LSEEK		((__force fmode_t)0x4)
+#define FMODE_LSEEK		((__force fmode_t)(1 << 2))
 /* file can be accessed using pread */
-#define FMODE_PREAD		((__force fmode_t)0x8)
+#define FMODE_PREAD		((__force fmode_t)(1 << 3))
 /* file can be accessed using pwrite */
-#define FMODE_PWRITE		((__force fmode_t)0x10)
+#define FMODE_PWRITE		((__force fmode_t)(1 << 4))
 /* File is opened for execution with sys_execve / sys_uselib */
-#define FMODE_EXEC		((__force fmode_t)0x20)
+#define FMODE_EXEC		((__force fmode_t)(1 << 5))
 /* File writes are restricted (block device specific) */
-#define FMODE_WRITE_RESTRICTED  ((__force fmode_t)0x40)
+#define FMODE_WRITE_RESTRICTED	((__force fmode_t)(1 << 6))
+
+/* FMODE_* bits 7 to 8 */
+
 /* 32bit hashes as llseek() offset (for directories) */
-#define FMODE_32BITHASH         ((__force fmode_t)0x200)
+#define FMODE_32BITHASH         ((__force fmode_t)(1 << 9))
 /* 64bit hashes as llseek() offset (for directories) */
-#define FMODE_64BITHASH         ((__force fmode_t)0x400)
+#define FMODE_64BITHASH         ((__force fmode_t)(1 << 10))
 
 /*
  * Don't update ctime and mtime.
@@ -134,60 +137,53 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  * Currently a special hack for the XFS open_by_handle ioctl, but we'll
  * hopefully graduate it to a proper O_CMTIME flag supported by open(2) soon.
  */
-#define FMODE_NOCMTIME		((__force fmode_t)0x800)
+#define FMODE_NOCMTIME		((__force fmode_t)(1 << 11))
 
 /* Expect random access pattern */
-#define FMODE_RANDOM		((__force fmode_t)0x1000)
+#define FMODE_RANDOM		((__force fmode_t)(1 << 12))
 
 /* File is huge (eg. /dev/mem): treat loff_t as unsigned */
-#define FMODE_UNSIGNED_OFFSET	((__force fmode_t)0x2000)
+#define FMODE_UNSIGNED_OFFSET	((__force fmode_t)(1 << 13))
 
 /* File is opened with O_PATH; almost nothing can be done with it */
-#define FMODE_PATH		((__force fmode_t)0x4000)
+#define FMODE_PATH		((__force fmode_t)(1 << 14))
 
 /* File needs atomic accesses to f_pos */
-#define FMODE_ATOMIC_POS	((__force fmode_t)0x8000)
+#define FMODE_ATOMIC_POS	((__force fmode_t)(1 << 15))
 /* Write access to underlying fs */
-#define FMODE_WRITER		((__force fmode_t)0x10000)
+#define FMODE_WRITER		((__force fmode_t)(1 << 16))
 /* Has read method(s) */
-#define FMODE_CAN_READ          ((__force fmode_t)0x20000)
+#define FMODE_CAN_READ          ((__force fmode_t)(1 << 17))
 /* Has write method(s) */
-#define FMODE_CAN_WRITE         ((__force fmode_t)0x40000)
+#define FMODE_CAN_WRITE         ((__force fmode_t)(1 << 18))
 
-#define FMODE_OPENED		((__force fmode_t)0x80000)
-#define FMODE_CREATED		((__force fmode_t)0x100000)
+#define FMODE_OPENED		((__force fmode_t)(1 << 19))
+#define FMODE_CREATED		((__force fmode_t)(1 << 20))
 
 /* File is stream-like */
-#define FMODE_STREAM		((__force fmode_t)0x200000)
+#define FMODE_STREAM		((__force fmode_t)(1 << 21))
 
 /* File supports DIRECT IO */
-#define	FMODE_CAN_ODIRECT	((__force fmode_t)0x400000)
+#define	FMODE_CAN_ODIRECT	((__force fmode_t)(1 << 22))
 
-#define	FMODE_NOREUSE		((__force fmode_t)0x800000)
+#define	FMODE_NOREUSE		((__force fmode_t)(1 << 23))
 
-/* File supports non-exclusive O_DIRECT writes from multiple threads */
-#define FMODE_DIO_PARALLEL_WRITE	((__force fmode_t)0x1000000)
+/* FMODE_* bit 24 */
 
 /* File is embedded in backing_file object */
-#define FMODE_BACKING		((__force fmode_t)0x2000000)
+#define FMODE_BACKING		((__force fmode_t)(1 << 25))
 
 /* File was opened by fanotify and shouldn't generate fanotify events */
-#define FMODE_NONOTIFY		((__force fmode_t)0x4000000)
+#define FMODE_NONOTIFY		((__force fmode_t)(1 << 26))
 
 /* File is capable of returning -EAGAIN if I/O will block */
-#define FMODE_NOWAIT		((__force fmode_t)0x8000000)
+#define FMODE_NOWAIT		((__force fmode_t)(1 << 27))
 
 /* File represents mount that needs unmounting */
-#define FMODE_NEED_UNMOUNT	((__force fmode_t)0x10000000)
+#define FMODE_NEED_UNMOUNT	((__force fmode_t)(1 << 28))
 
 /* File does not contribute to nr_files count */
-#define FMODE_NOACCOUNT		((__force fmode_t)0x20000000)
-
-/* File supports async buffered reads */
-#define FMODE_BUF_RASYNC	((__force fmode_t)0x40000000)
-
-/* File supports async nowait buffered writes */
-#define FMODE_BUF_WASYNC	((__force fmode_t)0x80000000)
+#define FMODE_NOACCOUNT		((__force fmode_t)(1 << 29))
 
 /*
  * Attribute flags.  These should be or-ed together to figure out what
@@ -1035,12 +1031,13 @@ struct file_handle {
 	__u32 handle_bytes;
 	int handle_type;
 	/* file identifier */
-	unsigned char f_handle[];
+	unsigned char f_handle[] __counted_by(handle_bytes);
 };
 
 static inline struct file *get_file(struct file *f)
 {
-	atomic_long_inc(&f->f_count);
+	long prior = atomic_long_fetch_inc_relaxed(&f->f_count);
+	WARN_ONCE(!prior, "struct file::f_count incremented from zero; use-after-free condition present!\n");
 	return f;
 }
 
@@ -2003,8 +2000,11 @@ struct iov_iter;
 struct io_uring_cmd;
 struct offset_ctx;
 
+typedef unsigned int __bitwise fop_flags_t;
+
 struct file_operations {
 	struct module *owner;
+	fop_flags_t fop_flags;
 	loff_t (*llseek) (struct file *, loff_t, int);
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
@@ -2017,7 +2017,6 @@ struct file_operations {
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
-	unsigned long mmap_supported_flags;
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *, fl_owner_t id);
 	int (*release) (struct inode *, struct file *);
@@ -2047,6 +2046,17 @@ struct file_operations {
 	int (*uring_cmd_iopoll)(struct io_uring_cmd *, struct io_comp_batch *,
 				unsigned int poll_flags);
 } __randomize_layout;
+
+/* Supports async buffered reads */
+#define FOP_BUFFER_RASYNC	((__force fop_flags_t)(1 << 0))
+/* Supports async buffered writes */
+#define FOP_BUFFER_WASYNC	((__force fop_flags_t)(1 << 1))
+/* Supports synchronous page faults for mappings */
+#define FOP_MMAP_SYNC		((__force fop_flags_t)(1 << 2))
+/* Supports non-exclusive O_DIRECT writes from multiple threads */
+#define FOP_DIO_PARALLEL_WRITE	((__force fop_flags_t)(1 << 3))
+/* Contains huge pages */
+#define FOP_HUGE_PAGES		((__force fop_flags_t)(1 << 4))
 
 /* Wrap a directory iterator that needs exclusive inode access */
 int wrap_directory_iterator(struct file *, struct dir_context *,
@@ -2253,7 +2263,13 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags 
 
 #define IS_DEADDIR(inode)	((inode)->i_flags & S_DEAD)
 #define IS_NOCMTIME(inode)	((inode)->i_flags & S_NOCMTIME)
+
+#ifdef CONFIG_SWAP
 #define IS_SWAPFILE(inode)	((inode)->i_flags & S_SWAPFILE)
+#else
+#define IS_SWAPFILE(inode)	((void)(inode), 0U)
+#endif
+
 #define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
 #define IS_IMA(inode)		((inode)->i_flags & S_IMA)
 #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
@@ -3340,6 +3356,8 @@ void simple_offset_init(struct offset_ctx *octx);
 int simple_offset_add(struct offset_ctx *octx, struct dentry *dentry);
 void simple_offset_remove(struct offset_ctx *octx, struct dentry *dentry);
 int simple_offset_empty(struct dentry *dentry);
+int simple_offset_rename(struct inode *old_dir, struct dentry *old_dentry,
+			 struct inode *new_dir, struct dentry *new_dentry);
 int simple_offset_rename_exchange(struct inode *old_dir,
 				  struct dentry *old_dentry,
 				  struct inode *new_dir,

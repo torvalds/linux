@@ -34,7 +34,7 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	type = FILEID_BTRFS_WITHOUT_PARENT;
 
 	fid->objectid = btrfs_ino(BTRFS_I(inode));
-	fid->root_objectid = BTRFS_I(inode)->root->root_key.objectid;
+	fid->root_objectid = btrfs_root_id(BTRFS_I(inode)->root);
 	fid->gen = inode->i_generation;
 
 	if (parent) {
@@ -42,7 +42,7 @@ static int btrfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 
 		fid->parent_objectid = BTRFS_I(parent)->location.objectid;
 		fid->parent_gen = parent->i_generation;
-		parent_root_id = BTRFS_I(parent)->root->root_key.objectid;
+		parent_root_id = btrfs_root_id(BTRFS_I(parent)->root);
 
 		if (parent_root_id != fid->root_objectid) {
 			fid->parent_root_objectid = parent_root_id;
@@ -160,7 +160,7 @@ struct dentry *btrfs_get_parent(struct dentry *child)
 		return ERR_PTR(-ENOMEM);
 
 	if (btrfs_ino(BTRFS_I(dir)) == BTRFS_FIRST_FREE_OBJECTID) {
-		key.objectid = root->root_key.objectid;
+		key.objectid = btrfs_root_id(root);
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;
@@ -243,7 +243,7 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 		return -ENOMEM;
 
 	if (ino == BTRFS_FIRST_FREE_OBJECTID) {
-		key.objectid = BTRFS_I(inode)->root->root_key.objectid;
+		key.objectid = btrfs_root_id(BTRFS_I(inode)->root);
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;

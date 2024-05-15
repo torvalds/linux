@@ -31,16 +31,11 @@
 #  define NR_IRQS      (32768 + 16)    /* marvel - 32 pids */
 # endif
 
-#elif defined(CONFIG_ALPHA_CABRIOLET) || \
-      defined(CONFIG_ALPHA_EB66P)     || \
-      defined(CONFIG_ALPHA_EB164)     || \
-      defined(CONFIG_ALPHA_PC164)     || \
+#elif defined(CONFIG_ALPHA_PC164)     || \
       defined(CONFIG_ALPHA_LX164)
 # define NR_IRQS	35
 
-#elif defined(CONFIG_ALPHA_EB66)      || \
-      defined(CONFIG_ALPHA_EB64P)     || \
-      defined(CONFIG_ALPHA_MIKASA)
+#elif defined(CONFIG_ALPHA_MIKASA)
 # define NR_IRQS	32
 
 #elif defined(CONFIG_ALPHA_ALCOR)     || \
@@ -55,7 +50,6 @@
 # define NR_IRQS	40
 
 #elif defined(CONFIG_ALPHA_DP264) || \
-      defined(CONFIG_ALPHA_LYNX)  || \
       defined(CONFIG_ALPHA_SHARK)
 # define NR_IRQS	64
 

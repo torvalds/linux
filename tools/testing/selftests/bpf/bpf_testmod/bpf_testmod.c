@@ -10,11 +10,21 @@
 #include <linux/percpu-defs.h>
 #include <linux/sysfs.h>
 #include <linux/tracepoint.h>
+#include <linux/net.h>
+#include <linux/socket.h>
+#include <linux/nsproxy.h>
+#include <linux/inet.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+#include <linux/un.h>
+#include <net/sock.h>
 #include "bpf_testmod.h"
 #include "bpf_testmod_kfunc.h"
 
 #define CREATE_TRACE_POINTS
 #include "bpf_testmod-events.h"
+
+#define CONNECT_TIMEOUT_SEC 1
 
 typedef int (*func_proto_typedef)(long);
 typedef int (*func_proto_typedef_nested1)(func_proto_typedef);
@@ -22,6 +32,8 @@ typedef int (*func_proto_typedef_nested2)(func_proto_typedef_nested1);
 
 DEFINE_PER_CPU(int, bpf_testmod_ksym_percpu) = 123;
 long bpf_testmod_test_struct_arg_result;
+static DEFINE_MUTEX(sock_lock);
+static struct socket *sock;
 
 struct bpf_testmod_struct_arg_1 {
 	int a;
@@ -497,6 +509,241 @@ __bpf_kfunc static u32 bpf_kfunc_call_test_static_unused_arg(u32 arg, u32 unused
 	return arg;
 }
 
+__bpf_kfunc void bpf_kfunc_call_test_sleepable(void)
+{
+}
+
+__bpf_kfunc int bpf_kfunc_init_sock(struct init_sock_args *args)
+{
+	int proto;
+	int err;
+
+	mutex_lock(&sock_lock);
+
+	if (sock) {
+		pr_err("%s called without releasing old sock", __func__);
+		err = -EPERM;
+		goto out;
+	}
+
+	switch (args->af) {
+	case AF_INET:
+	case AF_INET6:
+		proto = args->type == SOCK_STREAM ? IPPROTO_TCP : IPPROTO_UDP;
+		break;
+	case AF_UNIX:
+		proto = PF_UNIX;
+		break;
+	default:
+		pr_err("invalid address family %d\n", args->af);
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = sock_create_kern(current->nsproxy->net_ns, args->af, args->type,
+			       proto, &sock);
+
+	if (!err)
+		/* Set timeout for call to kernel_connect() to prevent it from hanging,
+		 * and consider the connection attempt failed if it returns
+		 * -EINPROGRESS.
+		 */
+		sock->sk->sk_sndtimeo = CONNECT_TIMEOUT_SEC * HZ;
+out:
+	mutex_unlock(&sock_lock);
+
+	return err;
+}
+
+__bpf_kfunc void bpf_kfunc_close_sock(void)
+{
+	mutex_lock(&sock_lock);
+
+	if (sock) {
+		sock_release(sock);
+		sock = NULL;
+	}
+
+	mutex_unlock(&sock_lock);
+}
+
+__bpf_kfunc int bpf_kfunc_call_kernel_connect(struct addr_args *args)
+{
+	int err;
+
+	if (args->addrlen > sizeof(args->addr))
+		return -EINVAL;
+
+	mutex_lock(&sock_lock);
+
+	if (!sock) {
+		pr_err("%s called without initializing sock", __func__);
+		err = -EPERM;
+		goto out;
+	}
+
+	err = kernel_connect(sock, (struct sockaddr *)&args->addr,
+			     args->addrlen, 0);
+out:
+	mutex_unlock(&sock_lock);
+
+	return err;
+}
+
+__bpf_kfunc int bpf_kfunc_call_kernel_bind(struct addr_args *args)
+{
+	int err;
+
+	if (args->addrlen > sizeof(args->addr))
+		return -EINVAL;
+
+	mutex_lock(&sock_lock);
+
+	if (!sock) {
+		pr_err("%s called without initializing sock", __func__);
+		err = -EPERM;
+		goto out;
+	}
+
+	err = kernel_bind(sock, (struct sockaddr *)&args->addr, args->addrlen);
+out:
+	mutex_unlock(&sock_lock);
+
+	return err;
+}
+
+__bpf_kfunc int bpf_kfunc_call_kernel_listen(void)
+{
+	int err;
+
+	mutex_lock(&sock_lock);
+
+	if (!sock) {
+		pr_err("%s called without initializing sock", __func__);
+		err = -EPERM;
+		goto out;
+	}
+
+	err = kernel_listen(sock, 128);
+out:
+	mutex_unlock(&sock_lock);
+
+	return err;
+}
+
+__bpf_kfunc int bpf_kfunc_call_kernel_sendmsg(struct sendmsg_args *args)
+{
+	struct msghdr msg = {
+		.msg_name	= &args->addr.addr,
+		.msg_namelen	= args->addr.addrlen,
+	};
+	struct kvec iov;
+	int err;
+
+	if (args->addr.addrlen > sizeof(args->addr.addr) ||
+	    args->msglen > sizeof(args->msg))
+		return -EINVAL;
+
+	iov.iov_base = args->msg;
+	iov.iov_len  = args->msglen;
+
+	mutex_lock(&sock_lock);
+
+	if (!sock) {
+		pr_err("%s called without initializing sock", __func__);
+		err = -EPERM;
+		goto out;
+	}
+
+	err = kernel_sendmsg(sock, &msg, &iov, 1, args->msglen);
+	args->addr.addrlen = msg.msg_namelen;
+out:
+	mutex_unlock(&sock_lock);
+
+	return err;
+}
+
+__bpf_kfunc int bpf_kfunc_call_sock_sendmsg(struct sendmsg_args *args)
+{
+	struct msghdr msg = {
+		.msg_name	= &args->addr.addr,
+		.msg_namelen	= args->addr.addrlen,
+	};
+	struct kvec iov;
+	int err;
+
+	if (args->addr.addrlen > sizeof(args->addr.addr) ||
+	    args->msglen > sizeof(args->msg))
+		return -EINVAL;
+
+	iov.iov_base = args->msg;
+	iov.iov_len  = args->msglen;
+
+	iov_iter_kvec(&msg.msg_iter, ITER_SOURCE, &iov, 1, args->msglen);
+	mutex_lock(&sock_lock);
+
+	if (!sock) {
+		pr_err("%s called without initializing sock", __func__);
+		err = -EPERM;
+		goto out;
+	}
+
+	err = sock_sendmsg(sock, &msg);
+	args->addr.addrlen = msg.msg_namelen;
+out:
+	mutex_unlock(&sock_lock);
+
+	return err;
+}
+
+__bpf_kfunc int bpf_kfunc_call_kernel_getsockname(struct addr_args *args)
+{
+	int err;
+
+	mutex_lock(&sock_lock);
+
+	if (!sock) {
+		pr_err("%s called without initializing sock", __func__);
+		err = -EPERM;
+		goto out;
+	}
+
+	err = kernel_getsockname(sock, (struct sockaddr *)&args->addr);
+	if (err < 0)
+		goto out;
+
+	args->addrlen = err;
+	err = 0;
+out:
+	mutex_unlock(&sock_lock);
+
+	return err;
+}
+
+__bpf_kfunc int bpf_kfunc_call_kernel_getpeername(struct addr_args *args)
+{
+	int err;
+
+	mutex_lock(&sock_lock);
+
+	if (!sock) {
+		pr_err("%s called without initializing sock", __func__);
+		err = -EPERM;
+		goto out;
+	}
+
+	err = kernel_getpeername(sock, (struct sockaddr *)&args->addr);
+	if (err < 0)
+		goto out;
+
+	args->addrlen = err;
+	err = 0;
+out:
+	mutex_unlock(&sock_lock);
+
+	return err;
+}
+
 BTF_KFUNCS_START(bpf_testmod_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
@@ -523,6 +770,16 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_test_ref, KF_TRUSTED_ARGS | KF_RCU)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_destructive, KF_DESTRUCTIVE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_static_unused_arg)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_offset)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_sleepable, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_init_sock, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_close_sock, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_connect, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_bind, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_listen, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_sendmsg, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_sock_sendmsg, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_getsockname, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_getpeername, KF_SLEEPABLE)
 BTF_KFUNCS_END(bpf_testmod_check_kfunc_ids)
 
 static int bpf_testmod_ops_init(struct btf *btf)
@@ -653,6 +910,8 @@ static int bpf_testmod_init(void)
 		return ret;
 	if (bpf_fentry_test1(0) < 0)
 		return -EINVAL;
+	sock = NULL;
+	mutex_init(&sock_lock);
 	return sysfs_create_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
 }
 
@@ -666,6 +925,7 @@ static void bpf_testmod_exit(void)
 	while (refcount_read(&prog_test_struct.cnt) > 1)
 		msleep(20);
 
+	bpf_kfunc_close_sock();
 	sysfs_remove_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
 }
 

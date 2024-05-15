@@ -3,7 +3,7 @@
  * NXP S32G2 SoC family
  *
  * Copyright (c) 2021 SUSE LLC
- * Copyright (c) 2017-2021 NXP
+ * Copyright 2017-2021, 2024 NXP
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -13,6 +13,18 @@
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
+
+	reserved-memory  {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		scmi_buf: shm@d0000000 {
+			compatible = "arm,scmi-shmem";
+			reg = <0x0 0xd0000000 0x0 0x80>;
+			no-map;
+		};
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -77,6 +89,19 @@
 	};
 
 	firmware {
+		scmi {
+			compatible = "arm,scmi-smc";
+			arm,smc-id = <0xc20000fe>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			shmem = <&scmi_buf>;
+
+			clks: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+		};
+
 		psci {
 			compatible = "arm,psci-1.0";
 			method = "smc";
@@ -110,6 +135,16 @@
 				     "fsl,s32v234-linflexuart";
 			reg = <0x402bc000 0x3000>;
 			interrupts = <GIC_SPI 84 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+		};
+
+		usdhc0: mmc@402f0000 {
+			compatible = "nxp,s32g2-usdhc";
+			reg = <0x402f0000 0x1000>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 32>, <&clks 31>, <&clks 33>;
+			clock-names = "ipg", "ahb", "per";
+			bus-width = <8>;
 			status = "disabled";
 		};
 

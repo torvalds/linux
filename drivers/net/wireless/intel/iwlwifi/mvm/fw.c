@@ -494,7 +494,7 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 	int ret;
 	struct iwl_host_cmd cmd = {
 		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
-			      UATS_TABLE_CMD),
+			      MCC_ALLOWED_AP_TYPE_CMD),
 		.flags = 0,
 		.data[0] = &mvm->fwrt.uats_table,
 		.len[0] =  sizeof(mvm->fwrt.uats_table),
@@ -516,7 +516,7 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 					IWL_FW_CMD_VER_UNKNOWN);
 	if (cmd_ver != 1) {
 		IWL_DEBUG_RADIO(mvm,
-				"UATS_TABLE_CMD ver %d not supported\n",
+				"MCC_ALLOWED_AP_TYPE_CMD ver %d not supported\n",
 				cmd_ver);
 		return;
 	}
@@ -529,9 +529,10 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret < 0)
-		IWL_ERR(mvm, "failed to send UATS_TABLE_CMD (%d)\n", ret);
+		IWL_ERR(mvm, "failed to send MCC_ALLOWED_AP_TYPE_CMD (%d)\n",
+			ret);
 	else
-		IWL_DEBUG_RADIO(mvm, "UATS_TABLE_CMD sent to FW\n");
+		IWL_DEBUG_RADIO(mvm, "MCC_ALLOWED_AP_TYPE_CMD sent to FW\n");
 }
 
 static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
@@ -666,7 +667,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
 			       NULL);
 
-	if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_BZ)
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
 		mvm->trans->step_urm = !!(iwl_read_umac_prph(mvm->trans,
 							     CNVI_PMU_STEP_FLOW) &
 						CNVI_PMU_STEP_FLOW_FORCE_URM);
@@ -896,11 +897,13 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	u32 n_subbands;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
 					   IWL_FW_CMD_VER_UNKNOWN);
-	if (cmd_ver == 7) {
+	if (cmd_ver >= 7) {
 		len = sizeof(cmd.v7);
 		n_subbands = IWL_NUM_SUB_BANDS_V2;
 		per_chain = cmd.v7.per_chain[0][0];
 		cmd.v7.flags = cpu_to_le32(mvm->fwrt.reduced_power_flags);
+		if (cmd_ver == 8)
+			len = sizeof(cmd.v8);
 	} else if (cmd_ver == 6) {
 		len = sizeof(cmd.v6);
 		n_subbands = IWL_NUM_SUB_BANDS_V2;
@@ -1223,94 +1226,12 @@ static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
+	struct iwl_lari_config_change_cmd cmd;
+	size_t cmd_size;
 	int ret;
-	u32 value;
-	struct iwl_lari_config_change_cmd_v7 cmd = {};
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						   LARI_CONFIG_CHANGE), 1);
 
-	cmd.config_bitmap = iwl_get_lari_config_bitmap(&mvm->fwrt);
-
-	ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_11AX_ENABLEMENT, &value);
-	if (!ret)
-		cmd.oem_11ax_allow_bitmap = cpu_to_le32(value);
-
-	ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_UNII4_CHAN, &value);
-	if (!ret)
-		cmd.oem_unii4_allow_bitmap = cpu_to_le32(value);
-
-	ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ACTIVATE_CHANNEL, &value);
+	ret = iwl_fill_lari_config(&mvm->fwrt, &cmd, &cmd_size);
 	if (!ret) {
-		if (cmd_ver < 8)
-			value &= ~ACTIVATE_5G2_IN_WW_MASK;
-		cmd.chan_state_active_bitmap = cpu_to_le32(value);
-	}
-
-	ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_6E, &value);
-	if (!ret)
-		cmd.oem_uhb_allow_bitmap = cpu_to_le32(value);
-
-	ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_FORCE_DISABLE_CHANNELS,
-			       &value);
-	if (!ret)
-		cmd.force_disable_channels_bitmap = cpu_to_le32(value);
-
-	ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ENERGY_DETECTION_THRESHOLD,
-			       &value);
-	if (!ret)
-		cmd.edt_bitmap = cpu_to_le32(value);
-
-	if (cmd.config_bitmap ||
-	    cmd.oem_uhb_allow_bitmap ||
-	    cmd.oem_11ax_allow_bitmap ||
-	    cmd.oem_unii4_allow_bitmap ||
-	    cmd.chan_state_active_bitmap ||
-	    cmd.force_disable_channels_bitmap ||
-	    cmd.edt_bitmap) {
-		size_t cmd_size;
-
-		switch (cmd_ver) {
-		case 8:
-		case 7:
-			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v7);
-			break;
-		case 6:
-			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v6);
-			break;
-		case 5:
-			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v5);
-			break;
-		case 4:
-			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v4);
-			break;
-		case 3:
-			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v3);
-			break;
-		case 2:
-			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v2);
-			break;
-		default:
-			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v1);
-			break;
-		}
-
-		IWL_DEBUG_RADIO(mvm,
-				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x, oem_11ax_allow_bitmap=0x%x\n",
-				le32_to_cpu(cmd.config_bitmap),
-				le32_to_cpu(cmd.oem_11ax_allow_bitmap));
-		IWL_DEBUG_RADIO(mvm,
-				"sending LARI_CONFIG_CHANGE, oem_unii4_allow_bitmap=0x%x, chan_state_active_bitmap=0x%x, cmd_ver=%d\n",
-				le32_to_cpu(cmd.oem_unii4_allow_bitmap),
-				le32_to_cpu(cmd.chan_state_active_bitmap),
-				cmd_ver);
-		IWL_DEBUG_RADIO(mvm,
-				"sending LARI_CONFIG_CHANGE, oem_uhb_allow_bitmap=0x%x, force_disable_channels_bitmap=0x%x\n",
-				le32_to_cpu(cmd.oem_uhb_allow_bitmap),
-				le32_to_cpu(cmd.force_disable_channels_bitmap));
-		IWL_DEBUG_RADIO(mvm,
-				"sending LARI_CONFIG_CHANGE, edt_bitmap=0x%x\n",
-				le32_to_cpu(cmd.edt_bitmap));
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						   LARI_CONFIG_CHANGE),

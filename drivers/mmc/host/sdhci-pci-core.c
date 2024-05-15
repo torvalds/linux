@@ -63,7 +63,7 @@ static int sdhci_pci_init_wakeup(struct sdhci_pci_chip *chip)
 	if ((pm_flags & MMC_PM_KEEP_POWER) && (pm_flags & MMC_PM_WAKE_SDIO_IRQ))
 		return device_wakeup_enable(&chip->pdev->dev);
 	else if (!cap_cd_wake)
-		return device_wakeup_disable(&chip->pdev->dev);
+		device_wakeup_disable(&chip->pdev->dev);
 
 	return 0;
 }

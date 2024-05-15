@@ -6,6 +6,17 @@
 
 #include "ice_common.h"
 
+/**
+ * DOC: ice_sched.h
+ *
+ * This header file stores everything that is needed for broadly understood
+ * scheduler. It consists of defines related to layers, structures related to
+ * aggregator, functions declarations and others.
+ */
+
+#define ICE_SCHED_5_LAYERS	5
+#define ICE_SCHED_9_LAYERS	9
+
 #define SCHED_NODE_NAME_MAX_LEN 32
 
 #define ICE_QGRP_LAYER_OFFSET	2

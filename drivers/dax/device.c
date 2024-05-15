@@ -377,7 +377,7 @@ static const struct file_operations dax_fops = {
 	.release = dax_release,
 	.get_unmapped_area = dax_get_unmapped_area,
 	.mmap = dax_mmap,
-	.mmap_supported_flags = MAP_SYNC,
+	.fop_flags = FOP_MMAP_SYNC,
 };
 
 static void dev_dax_cdev_del(void *cdev)

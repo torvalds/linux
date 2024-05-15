@@ -8,7 +8,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include "optee_private.h"
 #include "optee_rpc_cmd.h"
 

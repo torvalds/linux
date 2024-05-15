@@ -5427,7 +5427,7 @@ static int netdev_change_mtu(struct net_device *dev, int new_mtu)
 	}
 	hw_mtu = (hw_mtu + 3) & ~3;
 	hw_priv->mtu = hw_mtu;
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	return 0;
 }

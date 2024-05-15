@@ -74,7 +74,7 @@ struct srp_rport {
 };
 
 /**
- * struct srp_function_template
+ * struct srp_function_template - template for SRP initiator drivers
  *
  * Fields that are only relevant for SRP initiator drivers:
  * @has_rport_state: Whether or not to create the state, fast_io_fail_tmo and
@@ -124,7 +124,7 @@ enum scsi_timeout_action srp_timed_out(struct scsi_cmnd *scmd);
  * srp_chkready() - evaluate the transport layer state before I/O
  * @rport: SRP target port pointer.
  *
- * Returns a SCSI result code that can be returned by the LLD queuecommand()
+ * Returns: a SCSI result code that can be returned by the LLD queuecommand()
  * implementation. The role of this function is similar to that of
  * fc_remote_port_chkready().
  */

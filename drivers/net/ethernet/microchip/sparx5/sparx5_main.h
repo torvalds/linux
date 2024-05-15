@@ -18,6 +18,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/hrtimer.h>
 #include <linux/debugfs.h>
+#include <net/flow_offload.h>
 
 #include "sparx5_main_regs.h"
 
@@ -173,6 +174,7 @@ struct sparx5_port {
 	struct phylink_config phylink_config;
 	struct phylink *phylink;
 	struct phylink_pcs phylink_pcs;
+	struct flow_stats mirror_stats;
 	u16 portno;
 	/* Ingress default VLAN (pvid) */
 	u16 pvid;
@@ -225,6 +227,22 @@ struct sparx5_mdb_entry {
 	bool cpu_copy;
 	u16 vid;
 	u16 pgid_idx;
+};
+
+struct sparx5_mall_mirror_entry {
+	u32 idx;
+	struct sparx5_port *port;
+};
+
+struct sparx5_mall_entry {
+	struct list_head list;
+	struct sparx5_port *port;
+	unsigned long cookie;
+	enum flow_action_id type;
+	bool ingress;
+	union {
+		struct sparx5_mall_mirror_entry mirror;
+	};
 };
 
 #define SPARX5_PTP_TIMEOUT		msecs_to_jiffies(10)
@@ -295,6 +313,7 @@ struct sparx5 {
 	struct vcap_control *vcap_ctrl;
 	/* PGID allocation map */
 	u8 pgid_map[PGID_TABLE_SIZE];
+	struct list_head mall_entries;
 	/* Common root for debugfs */
 	struct dentry *debugfs_root;
 };
@@ -540,6 +559,12 @@ void sparx5_psfp_init(struct sparx5 *sparx5);
 /* sparx5_qos.c */
 void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,
 			  const ktime_t org_base_time, ktime_t *new_base_time);
+
+/* sparx5_mirror.c */
+int sparx5_mirror_add(struct sparx5_mall_entry *entry);
+void sparx5_mirror_del(struct sparx5_mall_entry *entry);
+void sparx5_mirror_stats(struct sparx5_mall_entry *entry,
+			 struct flow_stats *fstats);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)

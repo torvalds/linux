@@ -42,7 +42,7 @@
  * can take this difference into account during load balance. A per cpu
  * structure is preferred because each CPU updates its own cpu_capacity field
  * during the load balance except for idle cores. One idle core is selected
- * to run the rebalance_domains for all idle cores and the cpu_capacity can be
+ * to run the sched_balance_domains for all idle cores and the cpu_capacity can be
  * updated during this sequence.
  */
 

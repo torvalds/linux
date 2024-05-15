@@ -1670,11 +1670,13 @@ static void gswip_port_set_pause(struct gswip_priv *priv, int port,
 			mdio_phy, GSWIP_MDIO_PHYp(port));
 }
 
-static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
+static void gswip_phylink_mac_config(struct phylink_config *config,
 				     unsigned int mode,
 				     const struct phylink_link_state *state)
 {
-	struct gswip_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+	int port = dp->index;
 	u32 miicfg = 0;
 
 	miicfg |= GSWIP_MII_CFG_LDCLKDIS;
@@ -1700,7 +1702,7 @@ static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
 		miicfg |= GSWIP_MII_CFG_MODE_GMII;
 		break;
 	default:
-		dev_err(ds->dev,
+		dev_err(dp->ds->dev,
 			"Unsupported interface: %d\n", state->interface);
 		return;
 	}
@@ -1726,28 +1728,32 @@ static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
 	}
 }
 
-static void gswip_phylink_mac_link_down(struct dsa_switch *ds, int port,
+static void gswip_phylink_mac_link_down(struct phylink_config *config,
 					unsigned int mode,
 					phy_interface_t interface)
 {
-	struct gswip_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+	int port = dp->index;
 
 	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, port);
 
-	if (!dsa_is_cpu_port(ds, port))
+	if (!dsa_port_is_cpu(dp))
 		gswip_port_set_link(priv, port, false);
 }
 
-static void gswip_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void gswip_phylink_mac_link_up(struct phylink_config *config,
+				      struct phy_device *phydev,
 				      unsigned int mode,
 				      phy_interface_t interface,
-				      struct phy_device *phydev,
 				      int speed, int duplex,
 				      bool tx_pause, bool rx_pause)
 {
-	struct gswip_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+	int port = dp->index;
 
-	if (!dsa_is_cpu_port(ds, port)) {
+	if (!dsa_port_is_cpu(dp)) {
 		gswip_port_set_link(priv, port, true);
 		gswip_port_set_speed(priv, port, speed, interface);
 		gswip_port_set_duplex(priv, port, duplex);
@@ -1824,6 +1830,12 @@ static int gswip_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(gswip_rmon_cnt);
 }
 
+static const struct phylink_mac_ops gswip_phylink_mac_ops = {
+	.mac_config	= gswip_phylink_mac_config,
+	.mac_link_down	= gswip_phylink_mac_link_down,
+	.mac_link_up	= gswip_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops gswip_xrx200_switch_ops = {
 	.get_tag_protocol	= gswip_get_tag_protocol,
 	.setup			= gswip_setup,
@@ -1842,9 +1854,6 @@ static const struct dsa_switch_ops gswip_xrx200_switch_ops = {
 	.port_change_mtu	= gswip_port_change_mtu,
 	.port_max_mtu		= gswip_port_max_mtu,
 	.phylink_get_caps	= gswip_xrx200_phylink_get_caps,
-	.phylink_mac_config	= gswip_phylink_mac_config,
-	.phylink_mac_link_down	= gswip_phylink_mac_link_down,
-	.phylink_mac_link_up	= gswip_phylink_mac_link_up,
 	.get_strings		= gswip_get_strings,
 	.get_ethtool_stats	= gswip_get_ethtool_stats,
 	.get_sset_count		= gswip_get_sset_count,
@@ -1868,9 +1877,6 @@ static const struct dsa_switch_ops gswip_xrx300_switch_ops = {
 	.port_change_mtu	= gswip_port_change_mtu,
 	.port_max_mtu		= gswip_port_max_mtu,
 	.phylink_get_caps	= gswip_xrx300_phylink_get_caps,
-	.phylink_mac_config	= gswip_phylink_mac_config,
-	.phylink_mac_link_down	= gswip_phylink_mac_link_down,
-	.phylink_mac_link_up	= gswip_phylink_mac_link_up,
 	.get_strings		= gswip_get_strings,
 	.get_ethtool_stats	= gswip_get_ethtool_stats,
 	.get_sset_count		= gswip_get_sset_count,
@@ -2136,6 +2142,7 @@ static int gswip_probe(struct platform_device *pdev)
 	priv->ds->num_ports = priv->hw_info->max_ports;
 	priv->ds->priv = priv;
 	priv->ds->ops = priv->hw_info->ops;
+	priv->ds->phylink_mac_ops = &gswip_phylink_mac_ops;
 	priv->dev = dev;
 	mutex_init(&priv->pce_table_lock);
 	version = gswip_switch_r(priv, GSWIP_VERSION);

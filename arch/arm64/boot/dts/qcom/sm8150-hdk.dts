@@ -609,6 +609,11 @@
 	firmware-name = "qcom/sm8150/cdsp.mbn";
 };
 
+&remoteproc_mpss {
+	firmware-name = "qcom/sm8150/modem.mbn";
+	status = "okay";
+};
+
 &remoteproc_slpi {
 	status = "okay";
 
@@ -712,4 +717,15 @@
 
 &usb_2_dwc3 {
 	dr_mode = "host";
+};
+
+&wifi {
+	status = "okay";
+
+	vdd-0.8-cx-mx-supply = <&vreg_l1a_0p75>;
+	vdd-1.8-xo-supply = <&vreg_l7a_1p8>;
+	vdd-1.3-rfa-supply = <&vreg_l2c_1p3>;
+	vdd-3.3-ch0-supply = <&vreg_l11c_3p3>;
+
+	qcom,ath10k-calibration-variant = "Qualcomm_sm8150hdk";
 };

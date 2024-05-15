@@ -1929,6 +1929,7 @@ static int btf_dump_int_data(struct btf_dump *d,
 			if (d->typed_dump->is_array_terminated)
 				break;
 			if (*(char *)data == '\0') {
+				btf_dump_type_values(d, "'\\0'");
 				d->typed_dump->is_array_terminated = true;
 				break;
 			}
@@ -2031,6 +2032,7 @@ static int btf_dump_array_data(struct btf_dump *d,
 	__u32 i, elem_type_id;
 	__s64 elem_size;
 	bool is_array_member;
+	bool is_array_terminated;
 
 	elem_type_id = array->type;
 	elem_type = skip_mods_and_typedefs(d->btf, elem_type_id, NULL);
@@ -2066,12 +2068,15 @@ static int btf_dump_array_data(struct btf_dump *d,
 	 */
 	is_array_member = d->typed_dump->is_array_member;
 	d->typed_dump->is_array_member = true;
+	is_array_terminated = d->typed_dump->is_array_terminated;
+	d->typed_dump->is_array_terminated = false;
 	for (i = 0; i < array->nelems; i++, data += elem_size) {
 		if (d->typed_dump->is_array_terminated)
 			break;
 		btf_dump_dump_type_data(d, NULL, elem_type, elem_type_id, data, 0, 0);
 	}
 	d->typed_dump->is_array_member = is_array_member;
+	d->typed_dump->is_array_terminated = is_array_terminated;
 	d->typed_dump->depth--;
 	btf_dump_data_pfx(d);
 	btf_dump_type_values(d, "]");

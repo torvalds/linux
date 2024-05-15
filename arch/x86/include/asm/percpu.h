@@ -59,36 +59,24 @@
 #define __force_percpu_prefix	"%%"__stringify(__percpu_seg)":"
 #define __my_cpu_offset		this_cpu_read(this_cpu_off)
 
-#ifdef CONFIG_USE_X86_SEG_SUPPORT
-/*
- * Efficient implementation for cases in which the compiler supports
- * named address spaces.  Allows the compiler to perform additional
- * optimizations that can save more instructions.
- */
-#define arch_raw_cpu_ptr(ptr)					\
-({								\
-	unsigned long tcp_ptr__;				\
-	tcp_ptr__ = __raw_cpu_read(, this_cpu_off);		\
-								\
-	tcp_ptr__ += (unsigned long)(ptr);			\
-	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
-})
-#else /* CONFIG_USE_X86_SEG_SUPPORT */
 /*
  * Compared to the generic __my_cpu_offset version, the following
  * saves one instruction and avoids clobbering a temp register.
+ *
+ * arch_raw_cpu_ptr should not be used in 32-bit VDSO for a 64-bit
+ * kernel, because games are played with CONFIG_X86_64 there and
+ * sizeof(this_cpu_off) becames 4.
  */
-#define arch_raw_cpu_ptr(ptr)					\
+#ifndef BUILD_VDSO32_64
+#define arch_raw_cpu_ptr(_ptr)					\
 ({								\
-	unsigned long tcp_ptr__;				\
-	asm ("mov " __percpu_arg(1) ", %0"			\
-	     : "=r" (tcp_ptr__)					\
-	     : "m" (__my_cpu_var(this_cpu_off)));		\
-								\
-	tcp_ptr__ += (unsigned long)(ptr);			\
-	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
+	unsigned long tcp_ptr__ = raw_cpu_read_long(this_cpu_off); \
+	tcp_ptr__ += (__force unsigned long)(_ptr);		\
+	(typeof(*(_ptr)) __kernel __force *)tcp_ptr__;		\
 })
-#endif /* CONFIG_USE_X86_SEG_SUPPORT */
+#else
+#define arch_raw_cpu_ptr(_ptr) ({ BUILD_BUG(); (typeof(_ptr))0; })
+#endif
 
 #define PER_CPU_VAR(var)	%__percpu_seg:(var)__percpu_rel
 
@@ -102,8 +90,8 @@
 #endif /* CONFIG_SMP */
 
 #define __my_cpu_type(var)	typeof(var) __percpu_seg_override
-#define __my_cpu_ptr(ptr)	(__my_cpu_type(*ptr) *)(uintptr_t)(ptr)
-#define __my_cpu_var(var)	(*__my_cpu_ptr(&var))
+#define __my_cpu_ptr(ptr)	(__my_cpu_type(*(ptr))*)(__force uintptr_t)(ptr)
+#define __my_cpu_var(var)	(*__my_cpu_ptr(&(var)))
 #define __percpu_arg(x)		__percpu_prefix "%" #x
 #define __force_percpu_arg(x)	__force_percpu_prefix "%" #x
 
@@ -230,25 +218,26 @@ do {									\
 })
 
 /*
- * xchg is implemented using cmpxchg without a lock prefix. xchg is
- * expensive due to the implied lock prefix.  The processor cannot prefetch
- * cachelines if xchg is used.
+ * raw_cpu_xchg() can use a load-store since
+ * it is not required to be IRQ-safe.
  */
-#define percpu_xchg_op(size, qual, _var, _nval)				\
+#define raw_percpu_xchg_op(_var, _nval)					\
 ({									\
-	__pcpu_type_##size pxo_old__;					\
-	__pcpu_type_##size pxo_new__ = __pcpu_cast_##size(_nval);	\
-	asm qual (__pcpu_op2_##size("mov", __percpu_arg([var]),		\
-				    "%[oval]")				\
-		  "\n1:\t"						\
-		  __pcpu_op2_##size("cmpxchg", "%[nval]",		\
-				    __percpu_arg([var]))		\
-		  "\n\tjnz 1b"						\
-		  : [oval] "=&a" (pxo_old__),				\
-		    [var] "+m" (__my_cpu_var(_var))			\
-		  : [nval] __pcpu_reg_##size(, pxo_new__)		\
-		  : "memory");						\
-	(typeof(_var))(unsigned long) pxo_old__;			\
+	typeof(_var) pxo_old__ = raw_cpu_read(_var);			\
+	raw_cpu_write(_var, _nval);					\
+	pxo_old__;							\
+})
+
+/*
+ * this_cpu_xchg() is implemented using cmpxchg without a lock prefix.
+ * xchg is expensive due to the implied lock prefix. The processor
+ * cannot prefetch cachelines if xchg is used.
+ */
+#define this_percpu_xchg_op(_var, _nval)				\
+({									\
+	typeof(_var) pxo_old__ = this_cpu_read(_var);			\
+	do { } while (!this_cpu_try_cmpxchg(_var, &pxo_old__, _nval));	\
+	pxo_old__;							\
 })
 
 /*
@@ -428,10 +417,6 @@ do {									\
  * actually per-thread variables implemented as per-CPU variables and
  * thus stable for the duration of the respective task.
  */
-#define this_cpu_read_stable_1(pcp)	percpu_stable_op(1, "mov", pcp)
-#define this_cpu_read_stable_2(pcp)	percpu_stable_op(2, "mov", pcp)
-#define this_cpu_read_stable_4(pcp)	percpu_stable_op(4, "mov", pcp)
-#define this_cpu_read_stable_8(pcp)	percpu_stable_op(8, "mov", pcp)
 #define this_cpu_read_stable(pcp)	__pcpu_size_call_return(this_cpu_read_stable_, pcp)
 
 #ifdef CONFIG_USE_X86_SEG_SUPPORT
@@ -500,6 +485,10 @@ do {									\
 #define this_cpu_read_const(pcp)	({ BUILD_BUG(); (typeof(pcp))0; })
 #endif /* CONFIG_USE_X86_SEG_SUPPORT */
 
+#define this_cpu_read_stable_1(pcp)	percpu_stable_op(1, "mov", pcp)
+#define this_cpu_read_stable_2(pcp)	percpu_stable_op(2, "mov", pcp)
+#define this_cpu_read_stable_4(pcp)	percpu_stable_op(4, "mov", pcp)
+
 #define raw_cpu_add_1(pcp, val)		percpu_add_op(1, , (pcp), val)
 #define raw_cpu_add_2(pcp, val)		percpu_add_op(2, , (pcp), val)
 #define raw_cpu_add_4(pcp, val)		percpu_add_op(4, , (pcp), val)
@@ -509,18 +498,6 @@ do {									\
 #define raw_cpu_or_1(pcp, val)		percpu_to_op(1, , "or", (pcp), val)
 #define raw_cpu_or_2(pcp, val)		percpu_to_op(2, , "or", (pcp), val)
 #define raw_cpu_or_4(pcp, val)		percpu_to_op(4, , "or", (pcp), val)
-
-/*
- * raw_cpu_xchg() can use a load-store since it is not required to be
- * IRQ-safe.
- */
-#define raw_percpu_xchg_op(var, nval)					\
-({									\
-	typeof(var) pxo_ret__ = raw_cpu_read(var);			\
-	raw_cpu_write(var, (nval));					\
-	pxo_ret__;							\
-})
-
 #define raw_cpu_xchg_1(pcp, val)	raw_percpu_xchg_op(pcp, val)
 #define raw_cpu_xchg_2(pcp, val)	raw_percpu_xchg_op(pcp, val)
 #define raw_cpu_xchg_4(pcp, val)	raw_percpu_xchg_op(pcp, val)
@@ -534,9 +511,9 @@ do {									\
 #define this_cpu_or_1(pcp, val)		percpu_to_op(1, volatile, "or", (pcp), val)
 #define this_cpu_or_2(pcp, val)		percpu_to_op(2, volatile, "or", (pcp), val)
 #define this_cpu_or_4(pcp, val)		percpu_to_op(4, volatile, "or", (pcp), val)
-#define this_cpu_xchg_1(pcp, nval)	percpu_xchg_op(1, volatile, pcp, nval)
-#define this_cpu_xchg_2(pcp, nval)	percpu_xchg_op(2, volatile, pcp, nval)
-#define this_cpu_xchg_4(pcp, nval)	percpu_xchg_op(4, volatile, pcp, nval)
+#define this_cpu_xchg_1(pcp, nval)	this_percpu_xchg_op(pcp, nval)
+#define this_cpu_xchg_2(pcp, nval)	this_percpu_xchg_op(pcp, nval)
+#define this_cpu_xchg_4(pcp, nval)	this_percpu_xchg_op(pcp, nval)
 
 #define raw_cpu_add_return_1(pcp, val)		percpu_add_return_op(1, , pcp, val)
 #define raw_cpu_add_return_2(pcp, val)		percpu_add_return_op(2, , pcp, val)
@@ -563,6 +540,8 @@ do {									\
  * 32 bit must fall back to generic operations.
  */
 #ifdef CONFIG_X86_64
+#define this_cpu_read_stable_8(pcp)	percpu_stable_op(8, "mov", pcp)
+
 #define raw_cpu_add_8(pcp, val)			percpu_add_op(8, , (pcp), val)
 #define raw_cpu_and_8(pcp, val)			percpu_to_op(8, , "and", (pcp), val)
 #define raw_cpu_or_8(pcp, val)			percpu_to_op(8, , "or", (pcp), val)
@@ -575,41 +554,41 @@ do {									\
 #define this_cpu_and_8(pcp, val)		percpu_to_op(8, volatile, "and", (pcp), val)
 #define this_cpu_or_8(pcp, val)			percpu_to_op(8, volatile, "or", (pcp), val)
 #define this_cpu_add_return_8(pcp, val)		percpu_add_return_op(8, volatile, pcp, val)
-#define this_cpu_xchg_8(pcp, nval)		percpu_xchg_op(8, volatile, pcp, nval)
+#define this_cpu_xchg_8(pcp, nval)		this_percpu_xchg_op(pcp, nval)
 #define this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(8, volatile, pcp, oval, nval)
 #define this_cpu_try_cmpxchg_8(pcp, ovalp, nval)	percpu_try_cmpxchg_op(8, volatile, pcp, ovalp, nval)
-#endif
 
-static __always_inline bool x86_this_cpu_constant_test_bit(unsigned int nr,
-                        const unsigned long __percpu *addr)
-{
-	unsigned long __percpu *a =
-		(unsigned long __percpu *)addr + nr / BITS_PER_LONG;
-
-#ifdef CONFIG_X86_64
-	return ((1UL << (nr % BITS_PER_LONG)) & raw_cpu_read_8(*a)) != 0;
+#define raw_cpu_read_long(pcp)		raw_cpu_read_8(pcp)
 #else
-	return ((1UL << (nr % BITS_PER_LONG)) & raw_cpu_read_4(*a)) != 0;
+/* There is no generic 64 bit read stable operation for 32 bit targets. */
+#define this_cpu_read_stable_8(pcp)	({ BUILD_BUG(); (typeof(pcp))0; })
+
+#define raw_cpu_read_long(pcp)		raw_cpu_read_4(pcp)
 #endif
-}
 
-static inline bool x86_this_cpu_variable_test_bit(int nr,
-                        const unsigned long __percpu *addr)
-{
-	bool oldbit;
+#define x86_this_cpu_constant_test_bit(_nr, _var)			\
+({									\
+	unsigned long __percpu *addr__ =				\
+		(unsigned long __percpu *)&(_var) + ((_nr) / BITS_PER_LONG); \
+	!!((1UL << ((_nr) % BITS_PER_LONG)) & raw_cpu_read(*addr__));	\
+})
 
-	asm volatile("btl "__percpu_arg(2)",%1"
-			CC_SET(c)
-			: CC_OUT(c) (oldbit)
-			: "m" (*__my_cpu_ptr((unsigned long __percpu *)(addr))), "Ir" (nr));
+#define x86_this_cpu_variable_test_bit(_nr, _var)		\
+({								\
+	bool oldbit;						\
+								\
+	asm volatile("btl %[nr], " __percpu_arg([var])		\
+		     CC_SET(c)					\
+		     : CC_OUT(c) (oldbit)			\
+		     : [var] "m" (__my_cpu_var(_var)),		\
+		       [nr] "rI" (_nr));			\
+	oldbit;							\
+})
 
-	return oldbit;
-}
-
-#define x86_this_cpu_test_bit(nr, addr)			\
-	(__builtin_constant_p((nr))			\
-	 ? x86_this_cpu_constant_test_bit((nr), (addr))	\
-	 : x86_this_cpu_variable_test_bit((nr), (addr)))
+#define x86_this_cpu_test_bit(_nr, _var)			\
+	(__builtin_constant_p(_nr)				\
+	 ? x86_this_cpu_constant_test_bit(_nr, _var)		\
+	 : x86_this_cpu_variable_test_bit(_nr, _var))
 
 
 #include <asm-generic/percpu.h>

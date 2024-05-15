@@ -19,11 +19,11 @@
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/statfs.h>
-#include <linux/parser.h>
 #include <linux/seq_file.h>
-#include <linux/mount.h>
 #include <linux/crc32.h>
 #include <linux/mpage.h>
+#include <linux/fs_parser.h>
+#include <linux/fs_context.h>
 #include "qnx6.h"
 
 static const struct super_operations qnx6_sops;
@@ -31,7 +31,7 @@ static const struct super_operations qnx6_sops;
 static void qnx6_put_super(struct super_block *sb);
 static struct inode *qnx6_alloc_inode(struct super_block *sb);
 static void qnx6_free_inode(struct inode *inode);
-static int qnx6_remount(struct super_block *sb, int *flags, char *data);
+static int qnx6_reconfigure(struct fs_context *fc);
 static int qnx6_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int qnx6_show_options(struct seq_file *seq, struct dentry *root);
 
@@ -40,7 +40,6 @@ static const struct super_operations qnx6_sops = {
 	.free_inode	= qnx6_free_inode,
 	.put_super	= qnx6_put_super,
 	.statfs		= qnx6_statfs,
-	.remount_fs	= qnx6_remount,
 	.show_options	= qnx6_show_options,
 };
 
@@ -54,10 +53,12 @@ static int qnx6_show_options(struct seq_file *seq, struct dentry *root)
 	return 0;
 }
 
-static int qnx6_remount(struct super_block *sb, int *flags, char *data)
+static int qnx6_reconfigure(struct fs_context *fc)
 {
+	struct super_block *sb = fc->root->d_sb;
+
 	sync_filesystem(sb);
-	*flags |= SB_RDONLY;
+	fc->sb_flags |= SB_RDONLY;
 	return 0;
 }
 
@@ -218,39 +219,36 @@ void qnx6_superblock_debug(struct qnx6_super_block *sb, struct super_block *s)
 #endif
 
 enum {
-	Opt_mmifs,
-	Opt_err
+	Opt_mmifs
 };
 
-static const match_table_t tokens = {
-	{Opt_mmifs, "mmi_fs"},
-	{Opt_err, NULL}
+struct qnx6_context {
+	unsigned long s_mount_opts;
 };
 
-static int qnx6_parse_options(char *options, struct super_block *sb)
+static const struct fs_parameter_spec qnx6_param_spec[] = {
+	fsparam_flag	("mmi_fs",	Opt_mmifs),
+	{}
+};
+
+static int qnx6_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char *p;
-	struct qnx6_sb_info *sbi = QNX6_SB(sb);
-	substring_t args[MAX_OPT_ARGS];
+	struct qnx6_context *ctx = fc->fs_private;
+	struct fs_parse_result result;
+	int opt;
 
-	if (!options)
-		return 1;
+	opt = fs_parse(fc, qnx6_param_spec, param, &result);
+	if (opt < 0)
+		return opt;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_mmifs:
-			set_opt(sbi->s_mount_opt, MMI_FS);
-			break;
-		default:
-			return 0;
-		}
+	switch (opt) {
+	case Opt_mmifs:
+		ctx->s_mount_opts |= QNX6_MOUNT_MMI_FS;
+		break;
+	default:
+		return -EINVAL;
 	}
-	return 1;
+	return 0;
 }
 
 static struct buffer_head *qnx6_check_first_superblock(struct super_block *s,
@@ -293,22 +291,25 @@ static struct buffer_head *qnx6_check_first_superblock(struct super_block *s,
 static struct inode *qnx6_private_inode(struct super_block *s,
 					struct qnx6_root_node *p);
 
-static int qnx6_fill_super(struct super_block *s, void *data, int silent)
+static int qnx6_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct buffer_head *bh1 = NULL, *bh2 = NULL;
 	struct qnx6_super_block *sb1 = NULL, *sb2 = NULL;
 	struct qnx6_sb_info *sbi;
+	struct qnx6_context *ctx = fc->fs_private;
 	struct inode *root;
 	const char *errmsg;
 	struct qnx6_sb_info *qs;
 	int ret = -EINVAL;
 	u64 offset;
 	int bootblock_offset = QNX6_BOOTBLOCK_SIZE;
+	int silent = fc->sb_flags & SB_SILENT;
 
 	qs = kzalloc(sizeof(struct qnx6_sb_info), GFP_KERNEL);
 	if (!qs)
 		return -ENOMEM;
 	s->s_fs_info = qs;
+	qs->s_mount_opt = ctx->s_mount_opts;
 
 	/* Superblock always is 512 Byte long */
 	if (!sb_set_blocksize(s, QNX6_SUPERBLOCK_SIZE)) {
@@ -316,12 +317,7 @@ static int qnx6_fill_super(struct super_block *s, void *data, int silent)
 		goto outnobh;
 	}
 
-	/* parse the mount-options */
-	if (!qnx6_parse_options((char *) data, s)) {
-		pr_err("invalid mount options.\n");
-		goto outnobh;
-	}
-	if (test_opt(s, MMI_FS)) {
+	if (qs->s_mount_opt == QNX6_MOUNT_MMI_FS) {
 		sb1 = qnx6_mmi_fill_super(s, silent);
 		if (sb1)
 			goto mmi_success;
@@ -632,18 +628,43 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(qnx6_inode_cachep);
 }
 
-static struct dentry *qnx6_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int qnx6_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, qnx6_fill_super);
+	return get_tree_bdev(fc, qnx6_fill_super);
+}
+
+static void qnx6_free_fc(struct fs_context *fc)
+{
+	kfree(fc->fs_private);
+}
+
+static const struct fs_context_operations qnx6_context_ops = {
+	.parse_param	= qnx6_parse_param,
+	.get_tree	= qnx6_get_tree,
+	.reconfigure	= qnx6_reconfigure,
+	.free		= qnx6_free_fc,
+};
+
+static int qnx6_init_fs_context(struct fs_context *fc)
+{
+	struct qnx6_context *ctx;
+
+	ctx = kzalloc(sizeof(struct qnx6_context), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	fc->ops = &qnx6_context_ops;
+	fc->fs_private = ctx;
+
+	return 0;
 }
 
 static struct file_system_type qnx6_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "qnx6",
-	.mount		= qnx6_mount,
-	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "qnx6",
+	.kill_sb		= kill_block_super,
+	.fs_flags		= FS_REQUIRES_DEV,
+	.init_fs_context	= qnx6_init_fs_context,
+	.parameters		= qnx6_param_spec,
 };
 MODULE_ALIAS_FS("qnx6");
 

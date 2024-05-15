@@ -1985,7 +1985,8 @@ static int irdma_addr_resolve_neigh(struct irdma_device *iwdev, u32 src_ip,
 	__be32 dst_ipaddr = htonl(dst_ip);
 	__be32 src_ipaddr = htonl(src_ip);
 
-	rt = ip_route_output(&init_net, dst_ipaddr, src_ipaddr, 0, 0);
+	rt = ip_route_output(&init_net, dst_ipaddr, src_ipaddr, 0, 0,
+			     RT_SCOPE_UNIVERSE);
 	if (IS_ERR(rt)) {
 		ibdev_dbg(&iwdev->ibdev, "CM: ip_route_output fail\n");
 		return -EINVAL;

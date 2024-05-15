@@ -79,7 +79,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <0 170 4>,
 			     <0 171 4>,
 			     <0 172 4>,

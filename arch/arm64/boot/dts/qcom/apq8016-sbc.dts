@@ -91,7 +91,7 @@
 
 		compatible = "gpio-leds";
 
-		led@1 {
+		led-1 {
 			label = "apq8016-sbc:green:user1";
 			function = LED_FUNCTION_HEARTBEAT;
 			color = <LED_COLOR_ID_GREEN>;
@@ -100,7 +100,7 @@
 			default-state = "off";
 		};
 
-		led@2 {
+		led-2 {
 			label = "apq8016-sbc:green:user2";
 			function = LED_FUNCTION_DISK_ACTIVITY;
 			color = <LED_COLOR_ID_GREEN>;
@@ -109,7 +109,7 @@
 			default-state = "off";
 		};
 
-		led@3 {
+		led-3 {
 			label = "apq8016-sbc:green:user3";
 			function = LED_FUNCTION_DISK_ACTIVITY;
 			color = <LED_COLOR_ID_GREEN>;
@@ -118,7 +118,7 @@
 			default-state = "off";
 		};
 
-		led@4 {
+		led-4 {
 			label = "apq8016-sbc:green:user4";
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&pm8916_gpios 2 GPIO_ACTIVE_HIGH>;
@@ -127,7 +127,7 @@
 			default-state = "off";
 		};
 
-		led@5 {
+		led-5 {
 			label = "apq8016-sbc:yellow:wlan";
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_YELLOW>;
@@ -136,7 +136,7 @@
 			default-state = "off";
 		};
 
-		led@6 {
+		led-6 {
 			label = "apq8016-sbc:blue:bt";
 			function = LED_FUNCTION_BLUETOOTH;
 			color = <LED_COLOR_ID_BLUE>;

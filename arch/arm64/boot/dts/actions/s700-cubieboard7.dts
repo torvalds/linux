@@ -24,7 +24,7 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
-	memory@1,e0000000 {
+	memory@1e0000000 {
 		device_type = "memory";
 		reg = <0x1 0xe0000000 0x0 0x0>;
 	};

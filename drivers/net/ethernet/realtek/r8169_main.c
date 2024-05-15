@@ -2229,6 +2229,8 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 		 * the wild. Let's disable detection.
 		 * { 0x7cf, 0x540,	RTL_GIGA_MAC_VER_45 },
 		 */
+		/* Realtek calls it RTL8168M, but it's handled like RTL8168H */
+		{ 0x7cf, 0x6c0,	RTL_GIGA_MAC_VER_46 },
 
 		/* 8168G family. */
 		{ 0x7cf, 0x5c8,	RTL_GIGA_MAC_VER_44 },
@@ -3922,7 +3924,7 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	netdev_update_features(dev);
 	rtl_jumbo_config(tp);
 	rtl_set_eee_txidle_timer(tp);

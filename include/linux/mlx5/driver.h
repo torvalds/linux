@@ -85,7 +85,7 @@ enum mlx5_sqp_t {
 };
 
 enum {
-	MLX5_MAX_PORTS	= 4,
+	MLX5_MAX_PORTS	= 8,
 };
 
 enum {
@@ -1375,11 +1375,4 @@ static inline bool mlx5_is_macsec_roce_supported(struct mlx5_core_dev *mdev)
 enum {
 	MLX5_OCTWORD = 16,
 };
-
-struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
-			       irqreturn_t (*handler)(int, void *),
-			       const struct irq_affinity_desc *affdesc,
-			       const char *name);
-void mlx5_msix_free(struct mlx5_core_dev *dev, struct msi_map map);
-
 #endif /* MLX5_DRIVER_H */

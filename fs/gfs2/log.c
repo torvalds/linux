@@ -786,7 +786,7 @@ void gfs2_glock_remove_revoke(struct gfs2_glock *gl)
 {
 	if (atomic_dec_return(&gl->gl_revokes) == 0) {
 		clear_bit(GLF_LFLUSH, &gl->gl_flags);
-		gfs2_glock_queue_put(gl);
+		gfs2_glock_put_async(gl);
 	}
 }
 
@@ -1108,7 +1108,8 @@ repeat:
 	lops_before_commit(sdp, tr);
 	if (gfs2_withdrawing_or_withdrawn(sdp))
 		goto out_withdraw;
-	gfs2_log_submit_bio(&sdp->sd_jdesc->jd_log_bio, REQ_OP_WRITE);
+	if (sdp->sd_jdesc)
+		gfs2_log_submit_bio(&sdp->sd_jdesc->jd_log_bio, REQ_OP_WRITE);
 	if (gfs2_withdrawing_or_withdrawn(sdp))
 		goto out_withdraw;
 

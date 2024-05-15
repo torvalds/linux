@@ -916,22 +916,15 @@ void __init create_kmalloc_caches(void)
 	 * Including KMALLOC_CGROUP if CONFIG_MEMCG_KMEM defined
 	 */
 	for (type = KMALLOC_NORMAL; type < NR_KMALLOC_TYPES; type++) {
-		for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
-			if (!kmalloc_caches[type][i])
-				new_kmalloc_cache(i, type);
+		/* Caches that are NOT of the two-to-the-power-of size. */
+		if (KMALLOC_MIN_SIZE <= 32)
+			new_kmalloc_cache(1, type);
+		if (KMALLOC_MIN_SIZE <= 64)
+			new_kmalloc_cache(2, type);
 
-			/*
-			 * Caches that are not of the two-to-the-power-of size.
-			 * These have to be created immediately after the
-			 * earlier power of two caches
-			 */
-			if (KMALLOC_MIN_SIZE <= 32 && i == 6 &&
-					!kmalloc_caches[type][1])
-				new_kmalloc_cache(1, type);
-			if (KMALLOC_MIN_SIZE <= 64 && i == 7 &&
-					!kmalloc_caches[type][2])
-				new_kmalloc_cache(2, type);
-		}
+		/* Caches that are of the two-to-the-power-of size. */
+		for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
+			new_kmalloc_cache(i, type);
 	}
 #ifdef CONFIG_RANDOM_KMALLOC_CACHES
 	random_kmalloc_seed = get_random_u64();
@@ -1078,7 +1071,6 @@ static void cache_show(struct kmem_cache *s, struct seq_file *m)
 		   sinfo.limit, sinfo.batchcount, sinfo.shared);
 	seq_printf(m, " : slabdata %6lu %6lu %6lu",
 		   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
-	slabinfo_show_stats(m, s);
 	seq_putc(m, '\n');
 }
 
@@ -1155,7 +1147,6 @@ static const struct proc_ops slabinfo_proc_ops = {
 	.proc_flags	= PROC_ENTRY_PERMANENT,
 	.proc_open	= slabinfo_open,
 	.proc_read	= seq_read,
-	.proc_write	= slabinfo_write,
 	.proc_lseek	= seq_lseek,
 	.proc_release	= seq_release,
 };

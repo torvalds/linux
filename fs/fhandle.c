@@ -36,7 +36,7 @@ static long do_sys_name_to_handle(const struct path *path,
 	if (f_handle.handle_bytes > MAX_HANDLE_SZ)
 		return -EINVAL;
 
-	handle = kzalloc(sizeof(struct file_handle) + f_handle.handle_bytes,
+	handle = kzalloc(struct_size(handle, f_handle, f_handle.handle_bytes),
 			 GFP_KERNEL);
 	if (!handle)
 		return -ENOMEM;
@@ -71,7 +71,7 @@ static long do_sys_name_to_handle(const struct path *path,
 	/* copy the mount id */
 	if (put_user(real_mount(path->mnt)->mnt_id, mnt_id) ||
 	    copy_to_user(ufh, handle,
-			 sizeof(struct file_handle) + handle_bytes))
+			 struct_size(handle, f_handle, handle_bytes)))
 		retval = -EFAULT;
 	kfree(handle);
 	return retval;
@@ -192,7 +192,7 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 		retval = -EINVAL;
 		goto out_err;
 	}
-	handle = kmalloc(sizeof(struct file_handle) + f_handle.handle_bytes,
+	handle = kmalloc(struct_size(handle, f_handle, f_handle.handle_bytes),
 			 GFP_KERNEL);
 	if (!handle) {
 		retval = -ENOMEM;

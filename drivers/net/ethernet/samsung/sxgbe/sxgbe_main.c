@@ -1804,7 +1804,7 @@ static int sxgbe_set_features(struct net_device *dev,
  */
 static int sxgbe_change_mtu(struct net_device *dev, int new_mtu)
 {
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	if (!netif_running(dev))
 		return 0;

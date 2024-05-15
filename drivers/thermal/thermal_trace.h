@@ -9,6 +9,8 @@
 #include <linux/thermal.h>
 #include <linux/tracepoint.h>
 
+#include "thermal_core.h"
+
 TRACE_DEFINE_ENUM(THERMAL_TRIP_CRITICAL);
 TRACE_DEFINE_ENUM(THERMAL_TRIP_HOT);
 TRACE_DEFINE_ENUM(THERMAL_TRIP_PASSIVE);
