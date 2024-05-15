@@ -372,7 +372,7 @@ static void __apply_relocation(u8 *buf, const u8 * const instr, size_t instrlen,
 void apply_relocation(u8 *buf, const u8 * const instr, size_t instrlen, u8 *repl, size_t repl_len)
 {
 	__apply_relocation(buf, instr, instrlen, repl, repl_len);
-	optimize_nops(instr, buf, repl_len);
+	optimize_nops(instr, buf, instrlen);
 }
 
 /* Low-level backend functions usable from alternative code replacements. */
