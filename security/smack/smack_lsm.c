@@ -4886,7 +4886,7 @@ static int smack_inode_copy_up(struct dentry *dentry, struct cred **new)
 	return 0;
 }
 
-static int smack_inode_copy_up_xattr(const char *name)
+static int smack_inode_copy_up_xattr(struct dentry *src, const char *name)
 {
 	/*
 	 * Return 1 if this is the smack access Smack attribute.

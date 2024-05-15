@@ -26,6 +26,7 @@
 #include <linux/ima.h>
 #include <linux/fs.h>
 #include <linux/iversion.h>
+#include <linux/evm.h>
 
 #include "ima.h"
 
@@ -173,7 +174,7 @@ static void ima_check_last_writer(struct ima_iint_cache *iint,
 				      STATX_CHANGE_COOKIE,
 				      AT_STATX_SYNC_AS_STAT) ||
 		    !(stat.result_mask & STATX_CHANGE_COOKIE) ||
-		    stat.change_cookie != iint->version) {
+		    stat.change_cookie != iint->real_inode.version) {
 			iint->flags &= ~(IMA_DONE_MASK | IMA_NEW_FILE);
 			iint->measured_pcrs = 0;
 			if (update)
@@ -208,9 +209,10 @@ static int process_measurement(struct file *file, const struct cred *cred,
 			       u32 secid, char *buf, loff_t size, int mask,
 			       enum ima_hooks func)
 {
-	struct inode *backing_inode, *inode = file_inode(file);
+	struct inode *real_inode, *inode = file_inode(file);
 	struct ima_iint_cache *iint = NULL;
 	struct ima_template_desc *template_desc = NULL;
+	struct inode *metadata_inode;
 	char *pathbuf = NULL;
 	char filename[NAME_MAX];
 	const char *pathname = NULL;
@@ -285,17 +287,28 @@ static int process_measurement(struct file *file, const struct cred *cred,
 		iint->measured_pcrs = 0;
 	}
 
-	/* Detect and re-evaluate changes made to the backing file. */
-	backing_inode = d_real_inode(file_dentry(file));
-	if (backing_inode != inode &&
+	/*
+	 * On stacked filesystems, detect and re-evaluate file data and
+	 * metadata changes.
+	 */
+	real_inode = d_real_inode(file_dentry(file));
+	if (real_inode != inode &&
 	    (action & IMA_DO_MASK) && (iint->flags & IMA_DONE_MASK)) {
-		if (!IS_I_VERSION(backing_inode) ||
-		    backing_inode->i_sb->s_dev != iint->real_dev ||
-		    backing_inode->i_ino != iint->real_ino ||
-		    !inode_eq_iversion(backing_inode, iint->version)) {
+		if (!IS_I_VERSION(real_inode) ||
+		    integrity_inode_attrs_changed(&iint->real_inode,
+						  real_inode)) {
 			iint->flags &= ~IMA_DONE_MASK;
 			iint->measured_pcrs = 0;
 		}
+
+		/*
+		 * Reset the EVM status when metadata changed.
+		 */
+		metadata_inode = d_inode(d_real(file_dentry(file),
+					 D_REAL_METADATA));
+		if (evm_metadata_changed(inode, metadata_inode))
+			iint->flags &= ~(IMA_APPRAISED |
+					 IMA_APPRAISED_SUBMASK);
 	}
 
 	/* Determine if already appraised/measured based on bitmask
@@ -902,6 +915,13 @@ static int ima_post_load_data(char *buf, loff_t size,
 		return 0;
 	}
 
+	/*
+	 * Measure the init_module syscall buffer containing the ELF image.
+	 */
+	if (load_id == LOADING_MODULE)
+		ima_measure_critical_data("modules", "init_module",
+					  buf, size, true, NULL, 0);
+
 	return 0;
 }
 
@@ -941,6 +961,8 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 					    .buf_len = size};
 	struct ima_template_desc *template;
 	struct ima_max_digest_data hash;
+	struct ima_digest_data *hash_hdr = container_of(&hash.hdr,
+						struct ima_digest_data, hdr);
 	char digest_hash[IMA_MAX_DIGEST_SIZE];
 	int digest_hash_len = hash_digest_size[ima_hash_algo];
 	int violation = 0;
@@ -979,7 +1001,7 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 	if (!pcr)
 		pcr = CONFIG_IMA_MEASURE_PCR_IDX;
 
-	iint.ima_hash = &hash.hdr;
+	iint.ima_hash = hash_hdr;
 	iint.ima_hash->algo = ima_hash_algo;
 	iint.ima_hash->length = hash_digest_size[ima_hash_algo];
 
@@ -990,7 +1012,7 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 	}
 
 	if (buf_hash) {
-		memcpy(digest_hash, hash.hdr.digest, digest_hash_len);
+		memcpy(digest_hash, hash_hdr->digest, digest_hash_len);
 
 		ret = ima_calc_buffer_hash(digest_hash, digest_hash_len,
 					   iint.ima_hash);
