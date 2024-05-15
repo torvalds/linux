@@ -47,7 +47,7 @@ static __always_inline void uaccess_restore(unsigned int flags)
 
 #elif defined(CONFIG_CPU_TTBR0_PAN)
 
-static inline unsigned int uaccess_save_and_enable(void)
+static __always_inline unsigned int uaccess_save_and_enable(void)
 {
 	unsigned int old_ttbcr = cpu_get_ttbcr();
 

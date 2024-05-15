@@ -187,7 +187,7 @@ static inline unsigned int cpu_get_ttbcr(void)
 
 static inline void cpu_set_ttbcr(unsigned int ttbcr)
 {
-	asm("mcr p15, 0, %0, c2, c0, 2" : : "r" (ttbcr));
+	asm volatile("mcr p15, 0, %0, c2, c0, 2" : : "r" (ttbcr) : "memory");
 }
 
 #else	/*!CONFIG_MMU */
