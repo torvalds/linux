@@ -604,25 +604,15 @@ static inline bool ieee80211_is_s1g_beacon(__le16 fc)
 }
 
 /**
- * ieee80211_next_tbtt_present - check if IEEE80211_FTYPE_EXT &&
- * IEEE80211_STYPE_S1G_BEACON && IEEE80211_S1G_BCN_NEXT_TBTT
+ * ieee80211_is_s1g_short_beacon - check if frame is an S1G short beacon
  * @fc: frame control bytes in little-endian byteorder
- */
-static inline bool ieee80211_next_tbtt_present(__le16 fc)
-{
-	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
-	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON) &&
-	       fc & cpu_to_le16(IEEE80211_S1G_BCN_NEXT_TBTT);
-}
-
-/**
- * ieee80211_is_s1g_short_beacon - check if next tbtt present bit is set. Only
- * true for S1G beacons when they're short.
- * @fc: frame control bytes in little-endian byteorder
+ * Return: whether or not the frame is an S1G short beacon,
+ *	i.e. it is an S1G beacon with 'next TBTT' flag set
  */
 static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
 {
-	return ieee80211_is_s1g_beacon(fc) && ieee80211_next_tbtt_present(fc);
+	return ieee80211_is_s1g_beacon(fc) &&
+		(fc & cpu_to_le16(IEEE80211_S1G_BCN_NEXT_TBTT));
 }
 
 /**
