@@ -29,7 +29,7 @@ static void gt_sysfs_fini(struct drm_device *drm, void *arg)
 	kobject_put(gt->sysfs);
 }
 
-void xe_gt_sysfs_init(struct xe_gt *gt)
+int xe_gt_sysfs_init(struct xe_gt *gt)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
@@ -38,24 +38,18 @@ void xe_gt_sysfs_init(struct xe_gt *gt)
 
 	kg = kzalloc(sizeof(*kg), GFP_KERNEL);
 	if (!kg)
-		return;
+		return -ENOMEM;
 
 	kobject_init(&kg->base, &xe_gt_sysfs_kobj_type);
 	kg->gt = gt;
 
 	err = kobject_add(&kg->base, tile->sysfs, "gt%d", gt->info.id);
 	if (err) {
-		drm_warn(&xe->drm, "failed to add GT sysfs directory, err: %d\n", err);
 		kobject_put(&kg->base);
-		return;
+		return err;
 	}
 
 	gt->sysfs = &kg->base;
 
-	err = drmm_add_action_or_reset(&xe->drm, gt_sysfs_fini, gt);
-	if (err) {
-		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
-		return;
-	}
+	return drmm_add_action_or_reset(&xe->drm, gt_sysfs_fini, gt);
 }

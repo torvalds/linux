@@ -879,6 +879,7 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 			       struct i915_gem_proto_context *pc,
 			       struct drm_i915_gem_context_param *args)
 {
+	struct drm_i915_private *i915 = fpriv->i915;
 	int ret = 0;
 
 	switch (args->param) {
@@ -902,6 +903,13 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 			ret = -EPERM;
 		else
 			pc->user_flags &= ~BIT(UCONTEXT_BANNABLE);
+		break;
+
+	case I915_CONTEXT_PARAM_LOW_LATENCY:
+		if (intel_uc_uses_guc_submission(&to_gt(i915)->uc))
+			pc->user_flags |= BIT(UCONTEXT_LOW_LATENCY);
+		else
+			ret = -EINVAL;
 		break;
 
 	case I915_CONTEXT_PARAM_RECOVERABLE:
@@ -991,6 +999,9 @@ static int intel_context_set_gem(struct intel_context *ce,
 	/* A valid SSEU has no zero fields */
 	if (sseu.slice_mask && !WARN_ON(ce->engine->class != RENDER_CLASS))
 		ret = intel_context_reconfigure_sseu(ce, sseu);
+
+	if (test_bit(UCONTEXT_LOW_LATENCY, &ctx->user_flags))
+		__set_bit(CONTEXT_LOW_LATENCY, &ce->flags);
 
 	return ret;
 }
@@ -1630,6 +1641,9 @@ i915_gem_create_context(struct drm_i915_private *i915,
 	if (vm)
 		ctx->vm = vm;
 
+	/* Assign early so intel_context_set_gem can access these flags */
+	ctx->user_flags = pc->user_flags;
+
 	mutex_init(&ctx->engines_mutex);
 	if (pc->num_user_engines >= 0) {
 		i915_gem_context_set_user_engines(ctx);
@@ -1651,8 +1665,6 @@ i915_gem_create_context(struct drm_i915_private *i915,
 	 * loads it will restore whatever remap state already exists. If there
 	 * is no remap info, it will be a NOP. */
 	ctx->remap_slice = ALL_L3_SLICES(i915);
-
-	ctx->user_flags = pc->user_flags;
 
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;

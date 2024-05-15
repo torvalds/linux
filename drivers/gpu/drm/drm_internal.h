@@ -21,6 +21,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#ifndef __DRM_INTERNAL_H__
+#define __DRM_INTERNAL_H__
+
 #include <linux/kthread.h>
 #include <linux/types.h>
 
@@ -32,7 +35,6 @@
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
-struct cea_sad;
 struct dentry;
 struct dma_buf;
 struct iosys_map;
@@ -170,6 +172,8 @@ void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 			const struct drm_gem_object *obj);
 
+int drm_gem_pin_locked(struct drm_gem_object *obj);
+void drm_gem_unpin_locked(struct drm_gem_object *obj);
 int drm_gem_pin(struct drm_gem_object *obj);
 void drm_gem_unpin(struct drm_gem_object *obj);
 int drm_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map);
@@ -273,6 +277,4 @@ void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb);
 void drm_framebuffer_debugfs_init(struct drm_device *dev);
 
-/* drm_edid.c */
-void drm_edid_cta_sad_get(const struct cea_sad *cta_sad, u8 *sad);
-void drm_edid_cta_sad_set(struct cea_sad *cta_sad, const u8 *sad);
+#endif /* __DRM_INTERNAL_H__ */

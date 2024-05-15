@@ -28,6 +28,7 @@
  */
 
 #include <linux/ascii85.h>
+#include <linux/debugfs.h>
 #include <linux/highmem.h>
 #include <linux/nmi.h>
 #include <linux/pagevec.h>
@@ -1245,8 +1246,7 @@ static void engine_record_registers(struct intel_engine_coredump *ee)
 		if (MEDIA_VER(i915) >= 13 && engine->gt->type == GT_MEDIA)
 			ee->fault_reg = intel_uncore_read(engine->uncore,
 							  XELPMP_RING_FAULT_REG);
-
-		else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+		else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 			ee->fault_reg = intel_gt_mcr_read_any(engine->gt,
 							      XEHP_RING_FAULT_REG);
 		else if (GRAPHICS_VER(i915) >= 12)
@@ -1852,7 +1852,7 @@ static void gt_record_global_regs(struct intel_gt_coredump *gt)
 	if (GRAPHICS_VER(i915) == 7)
 		gt->err_int = intel_uncore_read(uncore, GEN7_ERR_INT);
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		gt->fault_data0 = intel_gt_mcr_read_any((struct intel_gt *)gt->_gt,
 							XEHP_FAULT_TLB_DATA0);
 		gt->fault_data1 = intel_gt_mcr_read_any((struct intel_gt *)gt->_gt,

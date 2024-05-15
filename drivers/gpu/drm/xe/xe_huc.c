@@ -58,8 +58,8 @@ static int huc_alloc_gsc_pkt(struct xe_huc *huc)
 	bo = xe_bo_create_pin_map(xe, gt_to_tile(gt), NULL,
 				  PXP43_HUC_AUTH_INOUT_SIZE * 2,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_SYSTEM_BIT |
-				  XE_BO_CREATE_GGTT_BIT);
+				  XE_BO_FLAG_SYSTEM |
+				  XE_BO_FLAG_GGTT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 

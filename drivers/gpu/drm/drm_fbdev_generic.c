@@ -113,7 +113,6 @@ static int drm_fbdev_generic_helper_fb_probe(struct drm_fb_helper *fb_helper,
 	/* screen */
 	info->flags |= FBINFO_VIRTFB | FBINFO_READS_FAST;
 	info->screen_buffer = screen_buffer;
-	info->fix.smem_start = page_to_phys(vmalloc_to_page(info->screen_buffer));
 	info->fix.smem_len = screen_size;
 
 	/* deferred I/O */
@@ -197,14 +196,14 @@ static int drm_fbdev_generic_damage_blit(struct drm_fb_helper *fb_helper,
 	 */
 	mutex_lock(&fb_helper->lock);
 
-	ret = drm_client_buffer_vmap(buffer, &map);
+	ret = drm_client_buffer_vmap_local(buffer, &map);
 	if (ret)
 		goto out;
 
 	dst = map;
 	drm_fbdev_generic_damage_blit_real(fb_helper, clip, &dst);
 
-	drm_client_buffer_vunmap(buffer);
+	drm_client_buffer_vunmap_local(buffer);
 
 out:
 	mutex_unlock(&fb_helper->lock);
