@@ -1035,6 +1035,16 @@ static void __blkcg_rstat_flush(struct blkcg *blkcg, int cpu)
 		struct blkg_iostat cur;
 		unsigned int seq;
 
+		/*
+		 * Order assignment of `next_bisc` from `bisc->lnode.next` in
+		 * llist_for_each_entry_safe and clearing `bisc->lqueued` for
+		 * avoiding to assign `next_bisc` with new next pointer added
+		 * in blk_cgroup_bio_start() in case of re-ordering.
+		 *
+		 * The pair barrier is implied in llist_add() in blk_cgroup_bio_start().
+		 */
+		smp_mb();
+
 		WRITE_ONCE(bisc->lqueued, false);
 
 		/* fetch the current per-cpu values */
