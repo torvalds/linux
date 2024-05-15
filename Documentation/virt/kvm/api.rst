@@ -6316,7 +6316,7 @@ The "flags" field is reserved for future extensions and must be '0'.
 :Architectures: none
 :Type: vm ioctl
 :Parameters: struct kvm_create_guest_memfd(in)
-:Returns: 0 on success, <0 on error
+:Returns: A file descriptor on success, <0 on error
 
 KVM_CREATE_GUEST_MEMFD creates an anonymous file and returns a file descriptor
 that refers to it.  guest_memfd files are roughly analogous to files created
@@ -6893,6 +6893,13 @@ executing the guest, or it can decide to suspend, dump, or restart the guest.
 Note that KVM does not skip the faulting instruction as it does for
 KVM_EXIT_MMIO, but userspace has to emulate any change to the processing state
 if it decides to decode and emulate the instruction.
+
+This feature isn't available to protected VMs, as userspace does not
+have access to the state that is required to perform the emulation.
+Instead, a data abort exception is directly injected in the guest.
+Note that although KVM_CAP_ARM_NISV_TO_USER will be reported if
+queried outside of a protected VM context, the feature will not be
+exposed if queried on a protected VM file descriptor.
 
 ::
 
@@ -8819,6 +8826,8 @@ means the VM type with value @n is supported.  Possible values of @n are::
 
   #define KVM_X86_DEFAULT_VM	0
   #define KVM_X86_SW_PROTECTED_VM	1
+  #define KVM_X86_SEV_VM	2
+  #define KVM_X86_SEV_ES_VM	3
 
 Note, KVM_X86_SW_PROTECTED_VM is currently only for development and testing.
 Do not use KVM_X86_SW_PROTECTED_VM for "real" VMs, and especially not in

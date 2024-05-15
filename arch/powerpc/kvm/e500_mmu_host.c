@@ -747,12 +747,6 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	return false;
 }
 
-bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
-{
-	/* The page will get remapped properly on its next fault */
-	return kvm_e500_mmu_unmap_gfn(kvm, range);
-}
-
 /*****************************************/
 
 int e500_mmu_host_init(struct kvmppc_vcpu_e500 *vcpu_e500)

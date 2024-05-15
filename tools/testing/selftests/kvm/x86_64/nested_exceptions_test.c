@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#define _GNU_SOURCE /* for program_invocation_short_name */
-
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"

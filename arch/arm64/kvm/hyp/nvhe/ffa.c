@@ -600,7 +600,6 @@ static bool ffa_call_supported(u64 func_id)
 	case FFA_MSG_POLL:
 	case FFA_MSG_WAIT:
 	/* 32-bit variants of 64-bit calls */
-	case FFA_MSG_SEND_DIRECT_REQ:
 	case FFA_MSG_SEND_DIRECT_RESP:
 	case FFA_RXTX_MAP:
 	case FFA_MEM_DONATE:
