@@ -646,7 +646,8 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 	    plane->cursor.size != fbc_ctl ||
 	    plane->cursor.cntl != cntl) {
 		if (HAS_CUR_FBC(dev_priv))
-			intel_de_write_fw(dev_priv, CUR_FBC_CTL(pipe),
+			intel_de_write_fw(dev_priv,
+					  CUR_FBC_CTL(dev_priv, pipe),
 					  fbc_ctl);
 		intel_de_write_fw(dev_priv, CURCNTR(dev_priv, pipe), cntl);
 		intel_de_write_fw(dev_priv, CURPOS(dev_priv, pipe), pos);
