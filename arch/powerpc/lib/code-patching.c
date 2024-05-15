@@ -386,12 +386,18 @@ NOKPROBE_SYMBOL(patch_instruction);
 
 int patch_uint(void *addr, unsigned int val)
 {
+	if (!IS_ALIGNED((unsigned long)addr, sizeof(unsigned int)))
+		return -EINVAL;
+
 	return patch_mem(addr, val, false);
 }
 NOKPROBE_SYMBOL(patch_uint);
 
 int patch_ulong(void *addr, unsigned long val)
 {
+	if (!IS_ALIGNED((unsigned long)addr, sizeof(unsigned long)))
+		return -EINVAL;
+
 	return patch_mem(addr, val, true);
 }
 NOKPROBE_SYMBOL(patch_ulong);

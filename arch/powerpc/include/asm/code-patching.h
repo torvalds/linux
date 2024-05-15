@@ -95,11 +95,17 @@ int patch_ulong(void *addr, unsigned long val);
 
 static inline int patch_uint(void *addr, unsigned int val)
 {
+	if (!IS_ALIGNED((unsigned long)addr, sizeof(unsigned int)))
+		return -EINVAL;
+
 	return patch_instruction(addr, ppc_inst(val));
 }
 
 static inline int patch_ulong(void *addr, unsigned long val)
 {
+	if (!IS_ALIGNED((unsigned long)addr, sizeof(unsigned long)))
+		return -EINVAL;
+
 	return patch_instruction(addr, ppc_inst(val));
 }
 
