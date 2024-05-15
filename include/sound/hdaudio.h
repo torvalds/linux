@@ -351,6 +351,7 @@ struct hdac_bus {
 	bool needs_damn_long_delay:1;
 	bool not_use_interrupts:1;	/* prohibiting the RIRB IRQ */
 	bool access_sdnctl_in_dword:1;	/* accessing the sdnctl register by dword */
+	bool use_pio_for_commands:1;	/* Use PIO instead of CORB for commands */
 
 	int poll_count;
 
@@ -731,6 +732,7 @@ static inline unsigned int snd_array_index(struct snd_array *array, void *ptr)
 			{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HDA_DG2_0) }, \
 			{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HDA_DG2_1) }, \
 			{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HDA_DG2_2) }, \
+			{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HDA_BMG) }, \
 			{ } \
 		}, pci) || HDA_CONTROLLER_IS_HSW(pci))
 

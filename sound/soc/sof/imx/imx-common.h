@@ -15,13 +15,4 @@ void imx8_get_registers(struct snd_sof_dev *sdev,
 
 void imx8_dump(struct snd_sof_dev *sdev, u32 flags);
 
-struct imx_clocks {
-	struct clk_bulk_data *dsp_clks;
-	int num_dsp_clks;
-};
-
-int imx8_parse_clocks(struct snd_sof_dev *sdev, struct imx_clocks *clks);
-int imx8_enable_clocks(struct snd_sof_dev *sdev, struct imx_clocks *clks);
-void imx8_disable_clocks(struct snd_sof_dev *sdev, struct imx_clocks *clks);
-
 #endif

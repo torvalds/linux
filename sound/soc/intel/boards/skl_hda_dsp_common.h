@@ -28,6 +28,7 @@ struct skl_hda_hdmi_pcm {
 };
 
 struct skl_hda_private {
+	struct snd_soc_card card;
 	struct list_head hdmi_pcm_list;
 	int pcm_count;
 	int dai_index;

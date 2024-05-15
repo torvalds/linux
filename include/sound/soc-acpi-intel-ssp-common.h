@@ -3,8 +3,8 @@
  * Copyright(c) 2023 Intel Corporation.
  */
 
-#ifndef __SOF_SSP_COMMON_H
-#define __SOF_SSP_COMMON_H
+#ifndef __LINUX_SND_SOC_ACPI_INTEL_SSP_COMMON_H
+#define __LINUX_SND_SOC_ACPI_INTEL_SSP_COMMON_H
 
 /* Cirrus Logic */
 #define CS35L41_ACPI_HID	"CSC3541"
@@ -37,7 +37,7 @@
 #define RT5682_ACPI_HID		"10EC5682"
 #define RT5682S_ACPI_HID	"RTL5682"
 
-enum sof_ssp_codec {
+enum snd_soc_acpi_intel_codec {
 	CODEC_NONE,
 
 	/* headphone codec */
@@ -65,16 +65,17 @@ enum sof_ssp_codec {
 	CODEC_RT1308,
 };
 
-enum sof_ssp_codec sof_ssp_detect_codec_type(struct device *dev);
-enum sof_ssp_codec sof_ssp_detect_amp_type(struct device *dev);
+enum snd_soc_acpi_intel_codec
+snd_soc_acpi_intel_detect_codec_type(struct device *dev);
+enum snd_soc_acpi_intel_codec
+snd_soc_acpi_intel_detect_amp_type(struct device *dev);
 
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_SOF_SSP_COMMON)
-const char *sof_ssp_get_codec_name(enum sof_ssp_codec codec_type);
-#else
-static inline const char *sof_ssp_get_codec_name(enum sof_ssp_codec codec_type)
-{
-	return NULL;
-}
-#endif
+const char *
+snd_soc_acpi_intel_get_codec_name(enum snd_soc_acpi_intel_codec codec_type);
 
-#endif /* __SOF_SSP_COMMON_H */
+const char *
+snd_soc_acpi_intel_get_codec_tplg_suffix(enum snd_soc_acpi_intel_codec codec_type);
+const char *
+snd_soc_acpi_intel_get_amp_tplg_suffix(enum snd_soc_acpi_intel_codec codec_type);
+
+#endif /* __LINUX_SND_SOC_ACPI_INTEL_SSP_COMMON_H */

@@ -131,14 +131,6 @@ static int rt_amp_add_device_props(struct device *sdw_dev)
 	return ret;
 }
 
-static const struct snd_kcontrol_new rt_amp_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Speaker"),
-};
-
-static const struct snd_soc_dapm_widget rt_amp_widgets[] = {
-	SND_SOC_DAPM_SPK("Speaker", NULL),
-};
-
 /*
  * dapm routes for rt1308/rt1316/rt1318 will be registered dynamically
  * according to the number of rt1308/rt1316/rt1318 used. The first two
@@ -166,15 +158,11 @@ static const struct snd_soc_dapm_route rt1318_map[] = {
 	{ "Speaker", NULL, "rt1318-2 SPOR" },
 };
 
-static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_pcm_runtime *rtd,
+static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_dai *dai,
 								 char *codec_name)
 {
-	const char *dai_name;
-
-	dai_name = rtd->dai_link->codecs->dai_name;
-
 	/* get the codec name */
-	snprintf(codec_name, CODEC_NAME_SIZE, "%s", dai_name);
+	snprintf(codec_name, CODEC_NAME_SIZE, "%s", dai->name);
 
 	/* choose the right codec's map  */
 	if (strcmp(codec_name, "rt1308") == 0)
@@ -185,16 +173,16 @@ static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_
 		return rt1318_map;
 }
 
-int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	const struct snd_soc_dapm_route *rt_amp_map;
 	char codec_name[CODEC_NAME_SIZE];
-	struct snd_soc_dai *dai;
+	struct snd_soc_dai *codec_dai;
 	int ret;
 	int i;
 
-	rt_amp_map = get_codec_name_and_route(rtd, codec_name);
+	rt_amp_map = get_codec_name_and_route(dai, codec_name);
 
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 					  "%s spk:%s",
@@ -202,24 +190,10 @@ int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_add_card_controls(card, rt_amp_controls,
-					ARRAY_SIZE(rt_amp_controls));
-	if (ret) {
-		dev_err(card->dev, "%s controls addition failed: %d\n", codec_name, ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt_amp_widgets,
-					ARRAY_SIZE(rt_amp_widgets));
-	if (ret) {
-		dev_err(card->dev, "%s widgets addition failed: %d\n", codec_name, ret);
-		return ret;
-	}
-
-	for_each_rtd_codec_dais(rtd, i, dai) {
-		if (strstr(dai->component->name_prefix, "-1"))
+	for_each_rtd_codec_dais(rtd, i, codec_dai) {
+		if (strstr(codec_dai->component->name_prefix, "-1"))
 			ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map, 2);
-		else if (strstr(dai->component->name_prefix, "-2"))
+		else if (strstr(codec_dai->component->name_prefix, "-2"))
 			ret = snd_soc_dapm_add_routes(&card->dapm, rt_amp_map + 2, 2);
 	}
 
@@ -281,7 +255,6 @@ int sof_sdw_rt_amp_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_
 }
 
 int sof_sdw_rt_amp_init(struct snd_soc_card *card,
-			const struct snd_soc_acpi_link_adr *link,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback)

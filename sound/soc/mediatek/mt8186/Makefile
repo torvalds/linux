@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # platform driver
-snd-soc-mt8186-afe-objs := \
+snd-soc-mt8186-afe-y := \
 	mt8186-afe-pcm.o \
 	mt8186-audsys-clk.o \
 	mt8186-afe-clk.o \
@@ -18,5 +18,4 @@ snd-soc-mt8186-afe-objs := \
 	mt8186-mt6366-common.o
 
 obj-$(CONFIG_SND_SOC_MT8186) += snd-soc-mt8186-afe.o
-obj-$(CONFIG_SND_SOC_MT8186_MT6366_DA7219_MAX98357) += mt8186-mt6366-da7219-max98357.o
-obj-$(CONFIG_SND_SOC_MT8186_MT6366_RT1019_RT5682S) += mt8186-mt6366-rt1019-rt5682s.o
+obj-$(CONFIG_SND_SOC_MT8186_MT6366) += mt8186-mt6366.o

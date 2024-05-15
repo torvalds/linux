@@ -179,7 +179,9 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM5102A
 	imply SND_SOC_PCM512x_I2C
 	imply SND_SOC_PCM512x_SPI
+	imply SND_SOC_PCM6240
 	imply SND_SOC_PEB2466
+	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
 	imply SND_SOC_RT274
@@ -1172,6 +1174,7 @@ config SND_SOC_IDT821034
 
 config SND_SOC_INNO_RK3036
 	tristate "Inno codec driver for RK3036 SoC"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
@@ -1422,6 +1425,15 @@ config SND_SOC_PCM512x_SPI
 	select SND_SOC_PCM512x
 	select REGMAP_SPI
 
+config SND_SOC_PCM6240
+	tristate "Texas Instruments PCM6240 Family Audio chips based on I2C"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments PCM6240 Family Audio chips.
+	  Note the PCM6240 driver implements a flexible and configurable
+	  setting for register and filter coefficients, to one, two or
+	  even multiple PCM6240 Family Audio chips.
+
 config SND_SOC_PEB2466
 	tristate "Infineon PEB2466 quad PCM codec"
 	depends on SPI
@@ -1433,8 +1445,21 @@ config SND_SOC_PEB2466
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-peb2466.
 
+config SND_SOC_RK3308
+	tristate "Rockchip RK3308 audio CODEC"
+	depends on ARM64 || COMPILE_TEST
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This is a device driver for the audio codec embedded in the
+	  Rockchip RK3308 SoC.
+
+	  It has 8 24-bit ADCs and 2 24-bit DACs. The maximum supported
+	  sampling rate is 192 kHz.
+
 config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	select REGMAP_MMIO
 
 config SND_SOC_RK817

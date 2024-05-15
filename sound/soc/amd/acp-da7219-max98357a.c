@@ -733,7 +733,7 @@ static struct regulator_config acp_da7219_cfg = {
 	.init_data = &acp_da7219_data,
 };
 
-static struct regulator_ops acp_da7219_ops = {
+static const struct regulator_ops acp_da7219_ops = {
 };
 
 static const struct regulator_desc acp_da7219_desc = {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2020 Intel Corporation. All rights reserved.
+// Copyright(c) 2020 Intel Corporation
 #include <linux/module.h>
 #include <linux/string.h>
 #include <sound/pcm.h>
@@ -10,7 +10,22 @@
 #include <sound/soc-dai.h>
 #include <sound/soc-dapm.h>
 #include <uapi/sound/asound.h>
+#include "../common/soc-intel-quirks.h"
 #include "sof_maxim_common.h"
+
+/*
+ * Common structures and functions
+ */
+static const struct snd_kcontrol_new maxim_2spk_kcontrols[] = {
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
+
+};
+
+static const struct snd_soc_dapm_widget maxim_2spk_widgets[] = {
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
+};
 
 /* helper function to get the number of specific codec */
 static unsigned int get_num_codecs(const char *hid)
@@ -24,14 +39,16 @@ static unsigned int get_num_codecs(const char *hid)
 	return dev_num;
 }
 
+/*
+ * Maxim MAX98373
+ */
 #define MAX_98373_PIN_NAME 16
 
-const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
+static const struct snd_soc_dapm_route max_98373_dapm_routes[] = {
 	/* speaker */
 	{ "Left Spk", NULL, "Left BE_OUT" },
 	{ "Right Spk", NULL, "Right BE_OUT" },
 };
-EXPORT_SYMBOL_NS(max_98373_dapm_routes, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
 static struct snd_soc_codec_conf max_98373_codec_conf[] = {
 	{
@@ -44,7 +61,7 @@ static struct snd_soc_codec_conf max_98373_codec_conf[] = {
 	},
 };
 
-struct snd_soc_dai_link_component max_98373_components[] = {
+static struct snd_soc_dai_link_component max_98373_components[] = {
 	{  /* For Right */
 		.name = MAX_98373_DEV0_NAME,
 		.dai_name = MAX_98373_CODEC_DAI,
@@ -54,7 +71,6 @@ struct snd_soc_dai_link_component max_98373_components[] = {
 		.dai_name = MAX_98373_CODEC_DAI,
 	},
 };
-EXPORT_SYMBOL_NS(max_98373_components, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
 static int max_98373_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
@@ -81,7 +97,7 @@ static int max_98373_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int max_98373_trigger(struct snd_pcm_substream *substream, int cmd)
+static int max_98373_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai;
@@ -124,26 +140,60 @@ int max_98373_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(max_98373_trigger, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
-struct snd_soc_ops max_98373_ops = {
+static const struct snd_soc_ops max_98373_ops = {
 	.hw_params = max_98373_hw_params,
 	.trigger = max_98373_trigger,
 };
-EXPORT_SYMBOL_NS(max_98373_ops, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
-int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd)
+static int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	unsigned int num_codecs = get_num_codecs(MAX_98373_ACPI_HID);
 	int ret;
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, max_98373_dapm_routes,
-				      ARRAY_SIZE(max_98373_dapm_routes));
-	if (ret)
-		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);
+	switch (num_codecs) {
+	case 2:
+		ret = snd_soc_dapm_new_controls(&card->dapm, maxim_2spk_widgets,
+						ARRAY_SIZE(maxim_2spk_widgets));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98373 widgets, ret %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = snd_soc_add_card_controls(card, maxim_2spk_kcontrols,
+						ARRAY_SIZE(maxim_2spk_kcontrols));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98373 kcontrols, ret %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = snd_soc_dapm_add_routes(&card->dapm, max_98373_dapm_routes,
+					      ARRAY_SIZE(max_98373_dapm_routes));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98373 routes, ret %d\n",
+				ret);
+			return ret;
+		}
+		break;
+	default:
+		dev_err(rtd->dev, "max98373: invalid num_codecs %d\n", num_codecs);
+		return -EINVAL;
+	}
+
 	return ret;
 }
-EXPORT_SYMBOL_NS(max_98373_spk_codec_init, SND_SOC_INTEL_SOF_MAXIM_COMMON);
+
+void max_98373_dai_link(struct device *dev, struct snd_soc_dai_link *link)
+{
+	link->codecs = max_98373_components;
+	link->num_codecs = ARRAY_SIZE(max_98373_components);
+	link->init = max_98373_spk_codec_init;
+	link->ops = &max_98373_ops;
+}
+EXPORT_SYMBOL_NS(max_98373_dai_link, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 
 void max_98373_set_codec_conf(struct snd_soc_card *card)
 {
@@ -175,6 +225,17 @@ static const struct snd_soc_dapm_route max_98390_tt_dapm_routes[] = {
 	/* Tweeter speaker */
 	{ "TL Spk", NULL, "Tweeter Left BE_OUT" },
 	{ "TR Spk", NULL, "Tweeter Right BE_OUT" },
+};
+
+static struct snd_soc_codec_conf max_98390_cml_codec_conf[] = {
+	{
+		.dlc = COMP_CODEC_CONF(MAX_98390_DEV0_NAME),
+		.name_prefix = "Left",
+	},
+	{
+		.dlc = COMP_CODEC_CONF(MAX_98390_DEV1_NAME),
+		.name_prefix = "Right",
+	},
 };
 
 static struct snd_soc_codec_conf max_98390_codec_conf[] = {
@@ -229,6 +290,7 @@ static int max_98390_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *codec_dai;
 	int i, ret;
 
@@ -238,13 +300,24 @@ static int max_98390_hw_params(struct snd_pcm_substream *substream,
 			return -ENODEV;
 		}
 
-		ret = snd_soc_dai_set_tdm_slot(codec_dai, max_98390_tdm_mask[i].tx,
-					       max_98390_tdm_mask[i].rx, 4,
-					       params_width(params));
-		if (ret < 0) {
-			dev_err(codec_dai->dev, "fail to set tdm slot, ret %d\n",
-				ret);
-			return ret;
+		switch (dai_link->dai_fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+		case SND_SOC_DAIFMT_DSP_A:
+		case SND_SOC_DAIFMT_DSP_B:
+			/* 4-slot TDM */
+			ret = snd_soc_dai_set_tdm_slot(codec_dai,
+						       max_98390_tdm_mask[i].tx,
+						       max_98390_tdm_mask[i].rx,
+						       4,
+						       params_width(params));
+			if (ret < 0) {
+				dev_err(codec_dai->dev, "fail to set tdm slot, ret %d\n",
+					ret);
+				return ret;
+			}
+			break;
+		default:
+			dev_dbg(codec_dai->dev, "codec is in I2S mode\n");
+			break;
 		}
 	}
 	return 0;
@@ -287,6 +360,22 @@ static int max_98390_init(struct snd_soc_pcm_runtime *rtd)
 		fallthrough;
 	case 2:
 		/* add regular speakers dapm route */
+		ret = snd_soc_dapm_new_controls(&card->dapm, maxim_2spk_widgets,
+						ARRAY_SIZE(maxim_2spk_widgets));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98390 woofer widgets, ret %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = snd_soc_add_card_controls(card, maxim_2spk_kcontrols,
+						ARRAY_SIZE(maxim_2spk_kcontrols));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98390 woofer kcontrols, ret %d\n",
+				ret);
+			return ret;
+		}
+
 		ret = snd_soc_dapm_add_routes(&card->dapm, max_98390_dapm_routes,
 					      ARRAY_SIZE(max_98390_dapm_routes));
 		if (ret) {
@@ -337,6 +426,10 @@ void max_98390_set_codec_conf(struct device *dev, struct snd_soc_card *card)
 
 	switch (num_codecs) {
 	case 2:
+		if (soc_intel_is_cml())
+			card->codec_conf = max_98390_cml_codec_conf;
+
+		fallthrough;
 	case 4:
 		card->num_configs = num_codecs;
 		break;

@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018-2021 Intel Corporation. All rights reserved.
+// Copyright(c) 2018-2021 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -132,7 +132,7 @@ irq:
 	return ret;
 }
 
-struct snd_sof_dsp_ops sof_tng_ops = {
+const struct snd_sof_dsp_ops sof_tng_ops = {
 	/* device init */
 	.probe		= tangier_pci_probe,
 

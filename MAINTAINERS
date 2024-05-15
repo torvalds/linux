@@ -19240,6 +19240,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/media/rockchip-rga.yaml
 F:	drivers/media/platform/rockchip/rga/
 
+ROCKCHIP RK3308 INTERNAL AUDIO CODEC
+M:	Luca Ceresoli <luca.ceresoli@bootlin.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/rockchip,rk3308-codec.yaml
+F:	sound/soc/codecs/rk3308_codec.c
+F:	sound/soc/codecs/rk3308_codec.h
+
 ROCKCHIP VIDEO DECODER DRIVER
 M:	Ezequiel Garcia <ezequiel@vanguardiasur.com.ar>
 L:	linux-media@vger.kernel.org
@@ -20823,6 +20830,12 @@ F:	include/sound/sof/
 F:	include/trace/events/sof*.h
 F:	include/uapi/sound/asoc.h
 F:	sound/soc/
+
+SOUND - SOC LAYER / dapm-graph
+M:	Luca Ceresoli <luca.ceresoli@bootlin.com>
+L:	linux-sound@vger.kernel.org
+S:	Maintained
+F:	tools/sound/dapm-graph
 
 SOUND - SOUND OPEN FIRMWARE (SOF) DRIVERS
 M:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
