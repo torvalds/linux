@@ -4,7 +4,7 @@
  */
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"WLED: %s: " fmt, __func__
@@ -1397,7 +1397,7 @@ static const struct wled_config wled4_config_defaults = {
 static const struct wled_config wled5_config_defaults = {
 	.boost_i_limit = 5,
 	.fs_current = 10,	/* 25 mA */
-	.ovp = 4,
+	.ovp = 6,
 	.switch_freq = -EINVAL,
 	.string_cfg = 0xf,
 	.mod_sel = 0,
