@@ -6,6 +6,7 @@
 
 #include "intel_display_reg_defs.h"
 
+/* g4x/ilk/snb video sprite */
 #define _DVSACNTR		0x72180
 #define _DVSBCNTR		0x73180
 #define DVSCNTR(pipe) _MMIO_PIPE(pipe, _DVSACNTR, _DVSBCNTR)
@@ -111,6 +112,7 @@
 #define _DVSBGAMCMAX_ILK	0x73340 /* ilk/snb */
 #define DVSGAMCMAX_ILK(pipe, i) _MMIO(_PIPE(pipe, _DVSAGAMCMAX_ILK, _DVSBGAMCMAX_ILK) + (i) * 4) /* 3 x u1.10 */
 
+/* ivb/hsw/bdw sprite */
 #define _SPRA_CTL		0x70280
 #define _SPRB_CTL		0x71280
 #define SPRCTL(pipe) _MMIO_PIPE(pipe, _SPRA_CTL, _SPRB_CTL)
@@ -140,8 +142,8 @@
 #define   SPRITE_TILED				REG_BIT(10)
 #define   SPRITE_DEST_KEY			REG_BIT(2)
 
-#define _SPRA_LINOFF		0x70284
-#define _SPRB_LINOFF		0x71284
+#define _SPRA_LINOFF		0x70284 /* ivb */
+#define _SPRB_LINOFF		0x71284 /* ivb */
 #define SPRLINOFF(pipe) _MMIO_PIPE(pipe, _SPRA_LINOFF, _SPRB_LINOFF)
 
 #define _SPRA_STRIDE		0x70288
@@ -181,24 +183,24 @@
 #define _SPRB_KEYMAX		0x712a0
 #define SPRKEYMAX(pipe) _MMIO_PIPE(pipe, _SPRA_KEYMAX, _SPRB_KEYMAX)
 
-#define _SPRA_TILEOFF		0x702a4
-#define _SPRB_TILEOFF		0x712a4
+#define _SPRA_TILEOFF		0x702a4 /* ivb */
+#define _SPRB_TILEOFF		0x712a4 /* ivb */
 #define SPRTILEOFF(pipe) _MMIO_PIPE(pipe, _SPRA_TILEOFF, _SPRB_TILEOFF)
 #define   SPRITE_OFFSET_Y_MASK	REG_GENMASK(31, 16)
 #define   SPRITE_OFFSET_Y(y)	REG_FIELD_PREP(SPRITE_OFFSET_Y_MASK, (y))
 #define   SPRITE_OFFSET_X_MASK	REG_GENMASK(15, 0)
 #define   SPRITE_OFFSET_X(x)	REG_FIELD_PREP(SPRITE_OFFSET_X_MASK, (x))
 
-#define _SPRA_OFFSET		0x702a4
-#define _SPRB_OFFSET		0x712a4
+#define _SPRA_OFFSET		0x702a4 /* hsw/bdw */
+#define _SPRB_OFFSET		0x712a4 /* hsw/bdw */
 #define SPROFFSET(pipe) _MMIO_PIPE(pipe, _SPRA_OFFSET, _SPRB_OFFSET)
 
 #define _SPRA_SURFLIVE		0x702ac
 #define _SPRB_SURFLIVE		0x712ac
 #define SPRSURFLIVE(pipe) _MMIO_PIPE(pipe, _SPRA_SURFLIVE, _SPRB_SURFLIVE)
 
-#define _SPRA_SCALE		0x70304
-#define _SPRB_SCALE		0x71304
+#define _SPRA_SCALE		0x70304 /* ivb */
+#define _SPRB_SCALE		0x71304 /* ivb */
 #define SPRSCALE(pipe) _MMIO_PIPE(pipe, _SPRA_SCALE, _SPRB_SCALE)
 #define   SPRITE_SCALE_ENABLE			REG_BIT(31)
 #define   SPRITE_FILTER_MASK			REG_GENMASK(30, 29)
@@ -224,6 +226,7 @@
 #define _SPRB_GAMC17		0x7144c
 #define SPRGAMC17(pipe, i) _MMIO(_PIPE(pipe, _SPRA_GAMC17, _SPRB_GAMC17) + (i) * 4) /* 3 x u2.10 */
 
+/* vlv/chv sprite */
 #define _VLV_SPR(pipe, plane_id, reg_a, reg_b) \
 	_PIPE((pipe) * 2 + (plane_id) - PLANE_SPRITE0, (reg_a), (reg_b))
 #define _MMIO_VLV_SPR(pipe, plane_id, reg_a, reg_b) \
