@@ -11,7 +11,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
@@ -478,7 +477,7 @@ static struct i2c_driver max8997_i2c_driver = {
 		   .suppress_bind_attrs = true,
 		   .of_match_table = of_match_ptr(max8997_pmic_dt_match),
 	},
-	.probe_new = max8997_i2c_probe,
+	.probe = max8997_i2c_probe,
 	.id_table = max8997_i2c_id,
 };
 

@@ -28,40 +28,6 @@ Description:
 		drivers, non-authorized one are not.  By default, wired
 		USB devices are authorized.
 
-		Certified Wireless USB devices are not authorized
-		initially and should be (by writing 1) after the
-		device has been authenticated.
-
-What:		/sys/bus/usb/device/.../wusb_cdid
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		A devices's CDID, as 16 space-separated hex octets.
-
-What:		/sys/bus/usb/device/.../wusb_ck
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		Write the device's connection key (CK) to start the
-		authentication of the device.  The CK is 16
-		space-separated hex octets.
-
-What:		/sys/bus/usb/device/.../wusb_disconnect
-Date:		July 2008
-KernelVersion:	2.6.27
-Contact:	David Vrabel <david.vrabel@csr.com>
-Description:
-		For Certified Wireless USB devices only.
-
-		Write a 1 to force the device to disconnect
-		(equivalent to unplugging a wired USB device).
-
 What:		/sys/bus/usb/drivers/.../new_id
 Date:		October 2011
 Contact:	linux-usb@vger.kernel.org
@@ -291,6 +257,16 @@ Description:
 		port initialization will be failed quickly. In addition, if a port
 		which is marked with early_stop has failed to initialize, it will ignore
 		all future connections until this attribute is clear.
+
+What:		/sys/bus/usb/devices/.../<hub_interface>/port<X>/state
+Date:		June 2023
+Contact:	Roy Luo <royluo@google.com>
+Description:
+		Indicates current state of the USB device attached to the port.
+		Valid states are: 'not-attached', 'attached', 'powered',
+		'reconnecting', 'unauthenticated', 'default', 'addressed',
+		'configured', and 'suspended'. This file supports poll() to
+		monitor the state change from user space.
 
 What:		/sys/bus/usb/devices/.../power/usb2_lpm_l1_timeout
 Date:		May 2013

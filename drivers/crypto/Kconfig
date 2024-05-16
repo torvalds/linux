@@ -70,10 +70,9 @@ config ZCRYPT
 	select HW_RANDOM
 	help
 	  Select this option if you want to enable support for
-	  s390 cryptographic adapters like:
-	  + Crypto Express 2 up to 7 Coprocessor (CEXxC)
-	  + Crypto Express 2 up to 7 Accelerator (CEXxA)
-	  + Crypto Express 4 up to 7 EP11 Coprocessor (CEXxP)
+	  s390 cryptographic adapters like Crypto Express 4 up
+	  to 8 in Coprocessor (CEXxC), EP11 Coprocessor (CEXxP)
+	  or Accelerator (CEXxA) mode.
 
 config ZCRYPT_DEBUG
 	bool "Enable debug features for s390 cryptographic adapters"
@@ -91,17 +90,6 @@ config ZCRYPT_DEBUG
 	  Do not enable on production level kernel build.
 
 	  If unsure, say N.
-
-config ZCRYPT_MULTIDEVNODES
-	bool "Support for multiple zcrypt device nodes"
-	default y
-	depends on S390
-	depends on ZCRYPT
-	help
-	  With this option enabled the zcrypt device driver can
-	  provide multiple devices nodes in /dev. Each device
-	  node can get customized to limit access and narrow
-	  down the use of the available crypto hardware.
 
 config PKEY
 	tristate "Kernel API for protected key handling"
@@ -807,5 +795,6 @@ config CRYPTO_DEV_SA2UL
 	  acceleration for cryptographic algorithms on these devices.
 
 source "drivers/crypto/aspeed/Kconfig"
+source "drivers/crypto/starfive/Kconfig"
 
 endif # CRYPTO_HW

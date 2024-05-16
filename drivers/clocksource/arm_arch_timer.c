@@ -191,22 +191,40 @@ u32 arch_timer_reg_read(int access, enum arch_timer_reg reg,
 	return val;
 }
 
-static notrace u64 arch_counter_get_cntpct_stable(void)
+static noinstr u64 raw_counter_get_cntpct_stable(void)
 {
 	return __arch_counter_get_cntpct_stable();
 }
 
-static notrace u64 arch_counter_get_cntpct(void)
+static notrace u64 arch_counter_get_cntpct_stable(void)
+{
+	u64 val;
+	preempt_disable_notrace();
+	val = __arch_counter_get_cntpct_stable();
+	preempt_enable_notrace();
+	return val;
+}
+
+static noinstr u64 arch_counter_get_cntpct(void)
 {
 	return __arch_counter_get_cntpct();
 }
 
-static notrace u64 arch_counter_get_cntvct_stable(void)
+static noinstr u64 raw_counter_get_cntvct_stable(void)
 {
 	return __arch_counter_get_cntvct_stable();
 }
 
-static notrace u64 arch_counter_get_cntvct(void)
+static notrace u64 arch_counter_get_cntvct_stable(void)
+{
+	u64 val;
+	preempt_disable_notrace();
+	val = __arch_counter_get_cntvct_stable();
+	preempt_enable_notrace();
+	return val;
+}
+
+static noinstr u64 arch_counter_get_cntvct(void)
 {
 	return __arch_counter_get_cntvct();
 }
@@ -753,14 +771,14 @@ static int arch_timer_set_next_event_phys(unsigned long evt,
 	return 0;
 }
 
-static u64 arch_counter_get_cnt_mem(struct arch_timer *t, int offset_lo)
+static noinstr u64 arch_counter_get_cnt_mem(struct arch_timer *t, int offset_lo)
 {
 	u32 cnt_lo, cnt_hi, tmp_hi;
 
 	do {
-		cnt_hi = readl_relaxed(t->base + offset_lo + 4);
-		cnt_lo = readl_relaxed(t->base + offset_lo);
-		tmp_hi = readl_relaxed(t->base + offset_lo + 4);
+		cnt_hi = __le32_to_cpu((__le32 __force)__raw_readl(t->base + offset_lo + 4));
+		cnt_lo = __le32_to_cpu((__le32 __force)__raw_readl(t->base + offset_lo));
+		tmp_hi = __le32_to_cpu((__le32 __force)__raw_readl(t->base + offset_lo + 4));
 	} while (cnt_hi != tmp_hi);
 
 	return ((u64) cnt_hi << 32) | cnt_lo;
@@ -774,6 +792,13 @@ static __always_inline void set_next_event_mem(const int access, unsigned long e
 	u64 cnt;
 
 	ctrl = arch_timer_reg_read(access, ARCH_TIMER_REG_CTRL, clk);
+
+	/* Timer must be disabled before programming CVAL */
+	if (ctrl & ARCH_TIMER_CTRL_ENABLE) {
+		ctrl &= ~ARCH_TIMER_CTRL_ENABLE;
+		arch_timer_reg_write(access, ARCH_TIMER_REG_CTRL, ctrl, clk);
+	}
+
 	ctrl |= ARCH_TIMER_CTRL_ENABLE;
 	ctrl &= ~ARCH_TIMER_CTRL_IT_MASK;
 
@@ -1060,7 +1085,7 @@ bool arch_timer_evtstrm_available(void)
 	return cpumask_test_cpu(raw_smp_processor_id(), &evtstrm_available);
 }
 
-static u64 arch_counter_get_cntvct_mem(void)
+static noinstr u64 arch_counter_get_cntvct_mem(void)
 {
 	return arch_counter_get_cnt_mem(arch_timer_mem, CNTVCT_LO);
 }
@@ -1074,6 +1099,7 @@ struct arch_timer_kvm_info *arch_timer_get_kvm_info(void)
 
 static void __init arch_counter_register(unsigned type)
 {
+	u64 (*scr)(void);
 	u64 start_count;
 	int width;
 
@@ -1083,21 +1109,28 @@ static void __init arch_counter_register(unsigned type)
 
 		if ((IS_ENABLED(CONFIG_ARM64) && !is_hyp_mode_available()) ||
 		    arch_timer_uses_ppi == ARCH_TIMER_VIRT_PPI) {
-			if (arch_timer_counter_has_wa())
+			if (arch_timer_counter_has_wa()) {
 				rd = arch_counter_get_cntvct_stable;
-			else
+				scr = raw_counter_get_cntvct_stable;
+			} else {
 				rd = arch_counter_get_cntvct;
+				scr = arch_counter_get_cntvct;
+			}
 		} else {
-			if (arch_timer_counter_has_wa())
+			if (arch_timer_counter_has_wa()) {
 				rd = arch_counter_get_cntpct_stable;
-			else
+				scr = raw_counter_get_cntpct_stable;
+			} else {
 				rd = arch_counter_get_cntpct;
+				scr = arch_counter_get_cntpct;
+			}
 		}
 
 		arch_timer_read_counter = rd;
 		clocksource_counter.vdso_clock_mode = vdso_default;
 	} else {
 		arch_timer_read_counter = arch_counter_get_cntvct_mem;
+		scr = arch_counter_get_cntvct_mem;
 	}
 
 	width = arch_counter_get_width();
@@ -1113,7 +1146,7 @@ static void __init arch_counter_register(unsigned type)
 	timecounter_init(&arch_timer_kvm_info.timecounter,
 			 &cyclecounter, start_count);
 
-	sched_clock_register(arch_timer_read_counter, width, arch_timer_rate);
+	sched_clock_register(scr, width, arch_timer_rate);
 }
 
 static void arch_timer_stop(struct clock_event_device *clk)

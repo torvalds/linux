@@ -767,8 +767,7 @@ static int stm32f4_i2c_probe(struct platform_device *pdev)
 	if (!i2c_dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c_dev->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(i2c_dev->base))
 		return PTR_ERR(i2c_dev->base);
 
@@ -861,15 +860,13 @@ clk_free:
 	return ret;
 }
 
-static int stm32f4_i2c_remove(struct platform_device *pdev)
+static void stm32f4_i2c_remove(struct platform_device *pdev)
 {
 	struct stm32f4_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c_dev->adap);
 
 	clk_unprepare(i2c_dev->clk);
-
-	return 0;
 }
 
 static const struct of_device_id stm32f4_i2c_match[] = {
@@ -884,7 +881,7 @@ static struct platform_driver stm32f4_i2c_driver = {
 		.of_match_table = stm32f4_i2c_match,
 	},
 	.probe = stm32f4_i2c_probe,
-	.remove = stm32f4_i2c_remove,
+	.remove_new = stm32f4_i2c_remove,
 };
 
 module_platform_driver(stm32f4_i2c_driver);

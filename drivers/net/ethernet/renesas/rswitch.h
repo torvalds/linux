@@ -48,6 +48,7 @@
 #define GWCA_NUM_IRQS		8
 #define GWCA_INDEX		0
 #define AGENT_INDEX_GWCA	3
+#define GWCA_IPV_NUM		0
 #define GWRO			RSWITCH_GWCA0_OFFSET
 
 #define GWCA_TS_IRQ_RESOURCE_NAME	"gwca0_rxts0"
@@ -768,11 +769,14 @@ enum rswitch_gwca_mode {
 #define GWARIRM_ARR		BIT(1)
 
 #define GWDCC_BALR		BIT(24)
+#define GWDCC_DCP_MASK		GENMASK(18, 16)
+#define GWDCC_DCP(prio)		FIELD_PREP(GWDCC_DCP_MASK, (prio))
 #define GWDCC_DQT		BIT(11)
 #define GWDCC_ETS		BIT(9)
 #define GWDCC_EDE		BIT(8)
 
 #define GWTRC(queue)		(GWTRC0 + (queue) / 32 * 4)
+#define GWTPC_PPPL(ipv)		BIT(ipv)
 #define GWDCC_OFFS(queue)	(GWDCC0 + (queue) * 4)
 
 #define GWDIS(i)		(GWDIS0 + (i) * 0x10)
@@ -788,6 +792,8 @@ enum rswitch_gwca_mode {
 
 #define CABPIRM_BPIOG		BIT(0)
 #define CABPIRM_BPR		BIT(1)
+
+#define CABPPFLC_INIT_VALUE	0x00800080
 
 /* MFWD */
 #define FWPC0_LTHTA		BIT(0)
@@ -863,6 +869,7 @@ enum DIE_DT {
 
 /* For transmission */
 #define INFO1_TSUN(val)		((u64)(val) << 8ULL)
+#define INFO1_IPV(prio)		((u64)(prio) << 28ULL)
 #define INFO1_CSD0(index)	((u64)(index) << 32ULL)
 #define INFO1_CSD1(index)	((u64)(index) << 40ULL)
 #define INFO1_DV(port_vector)	((u64)(port_vector) << 48ULL)
@@ -908,6 +915,7 @@ struct rswitch_etha {
 	bool external_phy;
 	struct mii_bus *mii;
 	phy_interface_t phy_interface;
+	u32 psmcs;
 	u8 mac_addr[MAX_ADDR_LEN];
 	int link;
 	int speed;
@@ -1004,6 +1012,10 @@ struct rswitch_private {
 	struct rswitch_etha etha[RSWITCH_NUM_PORTS];
 	struct rswitch_mfwd mfwd;
 
+	spinlock_t lock;	/* lock interrupt registers' control */
+	struct clk *clk;
+
+	bool etha_no_runtime_change;
 	bool gwca_halt;
 };
 

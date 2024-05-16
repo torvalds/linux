@@ -26,6 +26,8 @@ properties:
           - qcom,pm8150c-flash-led
           - qcom,pm8150l-flash-led
           - qcom,pm8350c-flash-led
+          - qcom,pm8550-flash-led
+          - qcom,pmi8998-flash-led
       - const: qcom,spmi-flash-led
 
   reg:

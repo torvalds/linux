@@ -89,6 +89,8 @@ config LEDS_QCOM_FLASH
 	  the total LED current will be split symmetrically on each channel and
 	  they will be enabled/disabled at the same time.
 
+	  This driver can be built as a module, it will be called "leds-qcom-flash".
+
 config LEDS_RT4505
 	tristate "LED support for RT4505 flashlight controller"
 	depends on I2C && OF

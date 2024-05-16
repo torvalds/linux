@@ -132,7 +132,7 @@ static inline u64 __i915_vma_size(const struct i915_vma *vma)
 }
 
 /**
- * i915_vma_offset - Obtain the va range size of the vma
+ * i915_vma_size - Obtain the va range size of the vma
  * @vma: The vma
  *
  * GPU virtual address space may be allocated with padding. This
@@ -250,7 +250,7 @@ i915_vma_compare(struct i915_vma *vma,
 
 struct i915_vma_work *i915_vma_work(void);
 int i915_vma_bind(struct i915_vma *vma,
-		  enum i915_cache_level cache_level,
+		  unsigned int pat_index,
 		  u32 flags,
 		  struct i915_vma_work *work,
 		  struct i915_vma_resource *vma_res);
@@ -418,6 +418,11 @@ i915_vma_unpin_fence(struct i915_vma *vma)
 		__i915_vma_unpin_fence(vma);
 }
 
+static inline int i915_vma_fence_id(const struct i915_vma *vma)
+{
+	return vma->fence ? vma->fence->id : -1;
+}
+
 void i915_vma_parked(struct intel_gt *gt);
 
 static inline bool i915_vma_is_scanout(const struct i915_vma *vma)
@@ -434,6 +439,8 @@ static inline void i915_vma_clear_scanout(struct i915_vma *vma)
 {
 	clear_bit(I915_VMA_SCANOUT_BIT, __i915_vma_flags(vma));
 }
+
+void i915_ggtt_clear_scanout(struct drm_i915_gem_object *obj);
 
 #define for_each_until(cond) if (cond) break; else
 

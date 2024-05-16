@@ -59,6 +59,8 @@
 #include <linux/uaccess.h>
 #include <linux/nfs_ssc.h>
 
+#include <uapi/linux/tls.h>
+
 #include "nfs4_fs.h"
 #include "callback.h"
 #include "delegation.h"
@@ -68,6 +70,8 @@
 #include "nfs4session.h"
 #include "pnfs.h"
 #include "nfs.h"
+#include "netns.h"
+#include "sysfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -491,6 +495,16 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	seq_printf(m, ",timeo=%lu", 10U * nfss->client->cl_timeout->to_initval / HZ);
 	seq_printf(m, ",retrans=%u", nfss->client->cl_timeout->to_retries);
 	seq_printf(m, ",sec=%s", nfs_pseudoflavour_to_name(nfss->client->cl_auth->au_flavor));
+	switch (clp->cl_xprtsec.policy) {
+	case RPC_XPRTSEC_TLS_ANON:
+		seq_puts(m, ",xprtsec=tls");
+		break;
+	case RPC_XPRTSEC_TLS_X509:
+		seq_puts(m, ",xprtsec=mtls");
+		break;
+	default:
+		break;
+	}
 
 	if (version != 4)
 		nfs_show_mountd_options(m, nfss, showdefaults);
@@ -1077,6 +1091,7 @@ static void nfs_fill_super(struct super_block *sb, struct nfs_fs_context *ctx)
 						 &sb->s_blocksize_bits);
 
 	nfs_super_set_maxbytes(sb, server->maxfilesize);
+	nfs_sysfs_move_server_to_sb(sb);
 	server->has_sec_mnt_opts = ctx->has_sec_mnt_opts;
 }
 
@@ -1319,19 +1334,18 @@ error_splat_super:
 }
 
 /*
- * Destroy an NFS2/3 superblock
+ * Destroy an NFS superblock
  */
 void nfs_kill_super(struct super_block *s)
 {
 	struct nfs_server *server = NFS_SB(s);
-	dev_t dev = s->s_dev;
 
-	generic_shutdown_super(s);
+	nfs_sysfs_move_sb_to_server(server);
+	kill_anon_super(s);
 
 	nfs_fscache_release_super_cookie(s);
 
 	nfs_free_server(server);
-	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL_GPL(nfs_kill_super);
 

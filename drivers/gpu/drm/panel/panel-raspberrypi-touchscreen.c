@@ -47,7 +47,6 @@
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/pm.h>
 
@@ -489,7 +488,7 @@ static struct i2c_driver rpi_touchscreen_driver = {
 		.name = "rpi_touchscreen",
 		.of_match_table = rpi_touchscreen_of_ids,
 	},
-	.probe_new = rpi_touchscreen_probe,
+	.probe = rpi_touchscreen_probe,
 	.remove = rpi_touchscreen_remove,
 };
 

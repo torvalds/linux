@@ -228,32 +228,26 @@ static vm_fault_t __dev_dax_pud_fault(struct dev_dax *dev_dax,
 }
 #endif /* !CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
 
-static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
-		enum page_entry_size pe_size)
+static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf, unsigned int order)
 {
 	struct file *filp = vmf->vma->vm_file;
 	vm_fault_t rc = VM_FAULT_SIGBUS;
 	int id;
 	struct dev_dax *dev_dax = filp->private_data;
 
-	dev_dbg(&dev_dax->dev, "%s: %s (%#lx - %#lx) size = %d\n", current->comm,
+	dev_dbg(&dev_dax->dev, "%s: %s (%#lx - %#lx) order:%d\n", current->comm,
 			(vmf->flags & FAULT_FLAG_WRITE) ? "write" : "read",
-			vmf->vma->vm_start, vmf->vma->vm_end, pe_size);
+			vmf->vma->vm_start, vmf->vma->vm_end, order);
 
 	id = dax_read_lock();
-	switch (pe_size) {
-	case PE_SIZE_PTE:
+	if (order == 0)
 		rc = __dev_dax_pte_fault(dev_dax, vmf);
-		break;
-	case PE_SIZE_PMD:
+	else if (order == PMD_ORDER)
 		rc = __dev_dax_pmd_fault(dev_dax, vmf);
-		break;
-	case PE_SIZE_PUD:
+	else if (order == PUD_ORDER)
 		rc = __dev_dax_pud_fault(dev_dax, vmf);
-		break;
-	default:
+	else
 		rc = VM_FAULT_SIGBUS;
-	}
 
 	dax_read_unlock(id);
 
@@ -262,7 +256,7 @@ static vm_fault_t dev_dax_huge_fault(struct vm_fault *vmf,
 
 static vm_fault_t dev_dax_fault(struct vm_fault *vmf)
 {
-	return dev_dax_huge_fault(vmf, PE_SIZE_PTE);
+	return dev_dax_huge_fault(vmf, 0);
 }
 
 static int dev_dax_may_split(struct vm_area_struct *vma, unsigned long addr)
@@ -396,7 +390,7 @@ static void dev_dax_kill(void *dev_dax)
 	kill_dev_dax(dev_dax);
 }
 
-int dev_dax_probe(struct dev_dax *dev_dax)
+static int dev_dax_probe(struct dev_dax *dev_dax)
 {
 	struct dax_device *dax_dev = dev_dax->dax_dev;
 	struct device *dev = &dev_dax->dev;
@@ -471,7 +465,6 @@ int dev_dax_probe(struct dev_dax *dev_dax)
 	run_dax(dax_dev);
 	return devm_add_action_or_reset(dev, dev_dax_kill, dev_dax);
 }
-EXPORT_SYMBOL_GPL(dev_dax_probe);
 
 static struct dax_device_driver device_dax_driver = {
 	.probe = dev_dax_probe,

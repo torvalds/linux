@@ -13,6 +13,19 @@ static const struct {
 } mana_eth_stats[] = {
 	{"stop_queue", offsetof(struct mana_ethtool_stats, stop_queue)},
 	{"wake_queue", offsetof(struct mana_ethtool_stats, wake_queue)},
+	{"hc_tx_bytes", offsetof(struct mana_ethtool_stats, hc_tx_bytes)},
+	{"hc_tx_ucast_pkts", offsetof(struct mana_ethtool_stats,
+					hc_tx_ucast_pkts)},
+	{"hc_tx_ucast_bytes", offsetof(struct mana_ethtool_stats,
+					hc_tx_ucast_bytes)},
+	{"hc_tx_bcast_pkts", offsetof(struct mana_ethtool_stats,
+					hc_tx_bcast_pkts)},
+	{"hc_tx_bcast_bytes", offsetof(struct mana_ethtool_stats,
+					hc_tx_bcast_bytes)},
+	{"hc_tx_mcast_pkts", offsetof(struct mana_ethtool_stats,
+					hc_tx_mcast_pkts)},
+	{"hc_tx_mcast_bytes", offsetof(struct mana_ethtool_stats,
+					hc_tx_mcast_bytes)},
 	{"tx_cq_err", offsetof(struct mana_ethtool_stats, tx_cqe_err)},
 	{"tx_cqe_unknown_type", offsetof(struct mana_ethtool_stats,
 					tx_cqe_unknown_type)},
@@ -114,6 +127,8 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 
 	if (!apc->port_is_up)
 		return;
+	/* we call mana function to update stats from GDMA */
+	mana_query_gf_stats(apc);
 
 	for (q = 0; q < ARRAY_SIZE(mana_eth_stats); q++)
 		data[i++] = *(u64 *)(eth_stats + mana_eth_stats[q].offset);

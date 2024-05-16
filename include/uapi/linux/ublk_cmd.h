@@ -47,6 +47,14 @@
 	_IOWR('u', UBLK_CMD_END_USER_RECOVERY, struct ublksrv_ctrl_cmd)
 #define UBLK_U_CMD_GET_DEV_INFO2	\
 	_IOR('u', UBLK_CMD_GET_DEV_INFO2, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_GET_FEATURES	\
+	_IOR('u', 0x13, struct ublksrv_ctrl_cmd)
+
+/*
+ * 64bits are enough now, and it should be easy to extend in case of
+ * running out of feature flags
+ */
+#define UBLK_FEATURES_LEN  8
 
 /*
  * IO commands, issued by ublk server, and handled by ublk driver.
@@ -93,8 +101,28 @@
 #define UBLKSRV_CMD_BUF_OFFSET	0
 #define UBLKSRV_IO_BUF_OFFSET	0x80000000
 
-/* tag bit is 12bit, so at most 4096 IOs for each queue */
+/* tag bit is 16bit, so far limit at most 4096 IOs for each queue */
 #define UBLK_MAX_QUEUE_DEPTH	4096
+
+/* single IO buffer max size is 32MB */
+#define UBLK_IO_BUF_OFF		0
+#define UBLK_IO_BUF_BITS	25
+#define UBLK_IO_BUF_BITS_MASK	((1ULL << UBLK_IO_BUF_BITS) - 1)
+
+/* so at most 64K IOs for each queue */
+#define UBLK_TAG_OFF		UBLK_IO_BUF_BITS
+#define UBLK_TAG_BITS		16
+#define UBLK_TAG_BITS_MASK	((1ULL << UBLK_TAG_BITS) - 1)
+
+/* max 4096 queues */
+#define UBLK_QID_OFF		(UBLK_TAG_OFF + UBLK_TAG_BITS)
+#define UBLK_QID_BITS		12
+#define UBLK_QID_BITS_MASK	((1ULL << UBLK_QID_BITS) - 1)
+
+#define UBLK_MAX_NR_QUEUES	(1U << UBLK_QID_BITS)
+
+#define UBLKSRV_IO_BUF_TOTAL_BITS	(UBLK_QID_OFF + UBLK_QID_BITS)
+#define UBLKSRV_IO_BUF_TOTAL_SIZE	(1ULL << UBLKSRV_IO_BUF_TOTAL_BITS)
 
 /*
  * zero copy requires 4k block size, and can remap ublk driver's io
@@ -144,6 +172,15 @@
 
 /* use ioctl encoding for uring command */
 #define UBLK_F_CMD_IOCTL_ENCODE	(1UL << 6)
+
+/* Copy between request and user buffer by pread()/pwrite() */
+#define UBLK_F_USER_COPY	(1UL << 7)
+
+/*
+ * User space sets this flag when setting up the device to request zoned storage support. Kernel may
+ * deny the request by returning an error.
+ */
+#define UBLK_F_ZONED (1ULL << 8)
 
 /* device state */
 #define UBLK_S_DEV_DEAD	0
@@ -201,9 +238,27 @@ struct ublksrv_ctrl_dev_info {
 #define		UBLK_IO_OP_READ		0
 #define		UBLK_IO_OP_WRITE		1
 #define		UBLK_IO_OP_FLUSH		2
-#define		UBLK_IO_OP_DISCARD	3
-#define		UBLK_IO_OP_WRITE_SAME	4
-#define		UBLK_IO_OP_WRITE_ZEROES	5
+#define		UBLK_IO_OP_DISCARD		3
+#define		UBLK_IO_OP_WRITE_SAME		4
+#define		UBLK_IO_OP_WRITE_ZEROES		5
+#define		UBLK_IO_OP_ZONE_OPEN		10
+#define		UBLK_IO_OP_ZONE_CLOSE		11
+#define		UBLK_IO_OP_ZONE_FINISH		12
+#define		UBLK_IO_OP_ZONE_APPEND		13
+#define		UBLK_IO_OP_ZONE_RESET_ALL	14
+#define		UBLK_IO_OP_ZONE_RESET		15
+/*
+ * Construct a zone report. The report request is carried in `struct
+ * ublksrv_io_desc`. The `start_sector` field must be the first sector of a zone
+ * and shall indicate the first zone of the report. The `nr_zones` shall
+ * indicate how many zones should be reported at most. The report shall be
+ * delivered as a `struct blk_zone` array. To report fewer zones than requested,
+ * zero the last entry of the returned array.
+ *
+ * Related definitions(blk_zone, blk_zone_cond, blk_zone_type, ...) in
+ * include/uapi/linux/blkzoned.h are part of ublk UAPI.
+ */
+#define		UBLK_IO_OP_REPORT_ZONES		18
 
 #define		UBLK_IO_F_FAILFAST_DEV		(1U << 8)
 #define		UBLK_IO_F_FAILFAST_TRANSPORT	(1U << 9)
@@ -224,7 +279,10 @@ struct ublksrv_io_desc {
 	/* op: bit 0-7, flags: bit 8-31 */
 	__u32		op_flags;
 
-	__u32		nr_sectors;
+	union {
+		__u32		nr_sectors;
+		__u32		nr_zones; /* for UBLK_IO_OP_REPORT_ZONES */
+	};
 
 	/* start sector for this io */
 	__u64		start_sector;
@@ -253,11 +311,21 @@ struct ublksrv_io_cmd {
 	/* io result, it is valid for COMMIT* command only */
 	__s32	result;
 
-	/*
-	 * userspace buffer address in ublksrv daemon process, valid for
-	 * FETCH* command only
-	 */
-	__u64	addr;
+	union {
+		/*
+		 * userspace buffer address in ublksrv daemon process, valid for
+		 * FETCH* command only
+		 *
+		 * `addr` should not be used when UBLK_F_USER_COPY is enabled,
+		 * because userspace handles data copy by pread()/pwrite() over
+		 * /dev/ublkcN. But in case of UBLK_F_ZONED, this union is
+		 * re-used to pass back the allocated LBA for
+		 * UBLK_IO_OP_ZONE_APPEND which actually depends on
+		 * UBLK_F_USER_COPY
+		 */
+		__u64	addr;
+		__u64	zone_append_lba;
+	};
 };
 
 struct ublk_param_basic {
@@ -300,6 +368,13 @@ struct ublk_param_devt {
 	__u32   disk_minor;
 };
 
+struct ublk_param_zoned {
+	__u32	max_open_zones;
+	__u32	max_active_zones;
+	__u32	max_zone_append_sectors;
+	__u8	reserved[20];
+};
+
 struct ublk_params {
 	/*
 	 * Total length of parameters, userspace has to set 'len' for both
@@ -311,11 +386,13 @@ struct ublk_params {
 #define UBLK_PARAM_TYPE_BASIC           (1 << 0)
 #define UBLK_PARAM_TYPE_DISCARD         (1 << 1)
 #define UBLK_PARAM_TYPE_DEVT            (1 << 2)
+#define UBLK_PARAM_TYPE_ZONED           (1 << 3)
 	__u32	types;			/* types of parameter included */
 
 	struct ublk_param_basic		basic;
 	struct ublk_param_discard	discard;
 	struct ublk_param_devt		devt;
+	struct ublk_param_zoned	zoned;
 };
 
 #endif

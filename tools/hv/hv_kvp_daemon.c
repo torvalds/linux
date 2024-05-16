@@ -1171,12 +1171,79 @@ static int process_ip_string(FILE *f, char *ip_string, int type)
 	return 0;
 }
 
+/*
+ * Only IPv4 subnet strings needs to be converted to plen
+ * For IPv6 the subnet is already privided in plen format
+ */
+static int kvp_subnet_to_plen(char *subnet_addr_str)
+{
+	int plen = 0;
+	struct in_addr subnet_addr4;
+
+	/*
+	 * Convert subnet address to binary representation
+	 */
+	if (inet_pton(AF_INET, subnet_addr_str, &subnet_addr4) == 1) {
+		uint32_t subnet_mask = ntohl(subnet_addr4.s_addr);
+
+		while (subnet_mask & 0x80000000) {
+			plen++;
+			subnet_mask <<= 1;
+		}
+	} else {
+		return -1;
+	}
+
+	return plen;
+}
+
+static int process_ip_string_nm(FILE *f, char *ip_string, char *subnet,
+				int is_ipv6)
+{
+	char addr[INET6_ADDRSTRLEN];
+	char subnet_addr[INET6_ADDRSTRLEN];
+	int error, i = 0;
+	int ip_offset = 0, subnet_offset = 0;
+	int plen;
+
+	memset(addr, 0, sizeof(addr));
+	memset(subnet_addr, 0, sizeof(subnet_addr));
+
+	while (parse_ip_val_buffer(ip_string, &ip_offset, addr,
+				   (MAX_IP_ADDR_SIZE * 2)) &&
+				   parse_ip_val_buffer(subnet,
+						       &subnet_offset,
+						       subnet_addr,
+						       (MAX_IP_ADDR_SIZE *
+							2))) {
+		if (!is_ipv6)
+			plen = kvp_subnet_to_plen((char *)subnet_addr);
+		else
+			plen = atoi(subnet_addr);
+
+		if (plen < 0)
+			return plen;
+
+		error = fprintf(f, "address%d=%s/%d\n", ++i, (char *)addr,
+				plen);
+		if (error < 0)
+			return error;
+
+		memset(addr, 0, sizeof(addr));
+		memset(subnet_addr, 0, sizeof(subnet_addr));
+	}
+
+	return 0;
+}
+
 static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 {
 	int error = 0;
-	char if_file[PATH_MAX];
-	FILE *file;
+	char if_filename[PATH_MAX];
+	char nm_filename[PATH_MAX];
+	FILE *ifcfg_file, *nmfile;
 	char cmd[PATH_MAX];
+	int is_ipv6 = 0;
 	char *mac_addr;
 	int str_len;
 
@@ -1197,7 +1264,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 * in a given distro to configure the interface and so are free
 	 * ignore information that may not be relevant.
 	 *
-	 * Here is the format of the ip configuration file:
+	 * Here is the ifcfg format of the ip configuration file:
 	 *
 	 * HWADDR=macaddr
 	 * DEVICE=interface name
@@ -1220,6 +1287,32 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 * tagged as IPV6_DEFAULTGW and IPV6 NETMASK will be tagged as
 	 * IPV6NETMASK.
 	 *
+	 * Here is the keyfile format of the ip configuration file:
+	 *
+	 * [ethernet]
+	 * mac-address=macaddr
+	 * [connection]
+	 * interface-name=interface name
+	 *
+	 * [ipv4]
+	 * method=<protocol> (where <protocol> is "auto" if DHCP is configured
+	 *                       or "manual" if no boot-time protocol should be used)
+	 *
+	 * address1=ipaddr1/plen
+	 * address2=ipaddr2/plen
+	 *
+	 * gateway=gateway1;gateway2
+	 *
+	 * dns=dns1;dns2
+	 *
+	 * [ipv6]
+	 * address1=ipaddr1/plen
+	 * address2=ipaddr2/plen
+	 *
+	 * gateway=gateway1;gateway2
+	 *
+	 * dns=dns1;dns2
+	 *
 	 * The host can specify multiple ipv4 and ipv6 addresses to be
 	 * configured for the interface. Furthermore, the configuration
 	 * needs to be persistent. A subsequent GET call on the interface
@@ -1227,14 +1320,29 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 * call.
 	 */
 
-	snprintf(if_file, sizeof(if_file), "%s%s%s", KVP_CONFIG_LOC,
-		"/ifcfg-", if_name);
+	/*
+	 * We are populating both ifcfg and nmconnection files
+	 */
+	snprintf(if_filename, sizeof(if_filename), "%s%s%s", KVP_CONFIG_LOC,
+		 "/ifcfg-", if_name);
 
-	file = fopen(if_file, "w");
+	ifcfg_file = fopen(if_filename, "w");
 
-	if (file == NULL) {
+	if (!ifcfg_file) {
 		syslog(LOG_ERR, "Failed to open config file; error: %d %s",
-				errno, strerror(errno));
+		       errno, strerror(errno));
+		return HV_E_FAIL;
+	}
+
+	snprintf(nm_filename, sizeof(nm_filename), "%s%s%s%s", KVP_CONFIG_LOC,
+		 "/", if_name, ".nmconnection");
+
+	nmfile = fopen(nm_filename, "w");
+
+	if (!nmfile) {
+		syslog(LOG_ERR, "Failed to open config file; error: %d %s",
+		       errno, strerror(errno));
+		fclose(ifcfg_file);
 		return HV_E_FAIL;
 	}
 
@@ -1248,14 +1356,31 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 		goto setval_error;
 	}
 
-	error = kvp_write_file(file, "HWADDR", "", mac_addr);
-	free(mac_addr);
-	if (error)
-		goto setval_error;
+	error = kvp_write_file(ifcfg_file, "HWADDR", "", mac_addr);
+	if (error < 0)
+		goto setmac_error;
 
-	error = kvp_write_file(file, "DEVICE", "", if_name);
+	error = kvp_write_file(ifcfg_file, "DEVICE", "", if_name);
+	if (error < 0)
+		goto setmac_error;
+
+	error = fprintf(nmfile, "\n[connection]\n");
+	if (error < 0)
+		goto setmac_error;
+
+	error = kvp_write_file(nmfile, "interface-name", "", if_name);
 	if (error)
-		goto setval_error;
+		goto setmac_error;
+
+	error = fprintf(nmfile, "\n[ethernet]\n");
+	if (error < 0)
+		goto setmac_error;
+
+	error = kvp_write_file(nmfile, "mac-address", "", mac_addr);
+	if (error)
+		goto setmac_error;
+
+	free(mac_addr);
 
 	/*
 	 * The dhcp_enabled flag is only for IPv4. In the case the host only
@@ -1263,47 +1388,91 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 * proceed to parse and pass the IPv6 information to the
 	 * disto-specific script hv_set_ifconfig.
 	 */
+
+	/*
+	 * First populate the ifcfg file format
+	 */
 	if (new_val->dhcp_enabled) {
-		error = kvp_write_file(file, "BOOTPROTO", "", "dhcp");
+		error = kvp_write_file(ifcfg_file, "BOOTPROTO", "", "dhcp");
 		if (error)
 			goto setval_error;
-
 	} else {
-		error = kvp_write_file(file, "BOOTPROTO", "", "none");
+		error = kvp_write_file(ifcfg_file, "BOOTPROTO", "", "none");
 		if (error)
+			goto setval_error;
+	}
+
+	error = process_ip_string(ifcfg_file, (char *)new_val->ip_addr,
+				  IPADDR);
+	if (error)
+		goto setval_error;
+
+	error = process_ip_string(ifcfg_file, (char *)new_val->sub_net,
+				  NETMASK);
+	if (error)
+		goto setval_error;
+
+	error = process_ip_string(ifcfg_file, (char *)new_val->gate_way,
+				  GATEWAY);
+	if (error)
+		goto setval_error;
+
+	error = process_ip_string(ifcfg_file, (char *)new_val->dns_addr, DNS);
+	if (error)
+		goto setval_error;
+
+	if (new_val->addr_family == ADDR_FAMILY_IPV6) {
+		error = fprintf(nmfile, "\n[ipv6]\n");
+		if (error < 0)
+			goto setval_error;
+		is_ipv6 = 1;
+	} else {
+		error = fprintf(nmfile, "\n[ipv4]\n");
+		if (error < 0)
+			goto setval_error;
+	}
+
+	/*
+	 * Now we populate the keyfile format
+	 */
+
+	if (new_val->dhcp_enabled) {
+		error = kvp_write_file(nmfile, "method", "", "auto");
+		if (error < 0)
+			goto setval_error;
+	} else {
+		error = kvp_write_file(nmfile, "method", "", "manual");
+		if (error < 0)
 			goto setval_error;
 	}
 
 	/*
 	 * Write the configuration for ipaddress, netmask, gateway and
-	 * name servers.
+	 * name services
 	 */
-
-	error = process_ip_string(file, (char *)new_val->ip_addr, IPADDR);
-	if (error)
+	error = process_ip_string_nm(nmfile, (char *)new_val->ip_addr,
+				     (char *)new_val->sub_net, is_ipv6);
+	if (error < 0)
 		goto setval_error;
 
-	error = process_ip_string(file, (char *)new_val->sub_net, NETMASK);
-	if (error)
+	error = fprintf(nmfile, "gateway=%s\n", (char *)new_val->gate_way);
+	if (error < 0)
 		goto setval_error;
 
-	error = process_ip_string(file, (char *)new_val->gate_way, GATEWAY);
-	if (error)
+	error = fprintf(nmfile, "dns=%s\n", (char *)new_val->dns_addr);
+	if (error < 0)
 		goto setval_error;
 
-	error = process_ip_string(file, (char *)new_val->dns_addr, DNS);
-	if (error)
-		goto setval_error;
-
-	fclose(file);
+	fclose(nmfile);
+	fclose(ifcfg_file);
 
 	/*
 	 * Now that we have populated the configuration file,
 	 * invoke the external script to do its magic.
 	 */
 
-	str_len = snprintf(cmd, sizeof(cmd), KVP_SCRIPTS_PATH "%s %s",
-			   "hv_set_ifconfig", if_file);
+	str_len = snprintf(cmd, sizeof(cmd), KVP_SCRIPTS_PATH "%s %s %s",
+			   "hv_set_ifconfig", if_filename, nm_filename);
 	/*
 	 * This is a little overcautious, but it's necessary to suppress some
 	 * false warnings from gcc 8.0.1.
@@ -1316,14 +1485,16 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 
 	if (system(cmd)) {
 		syslog(LOG_ERR, "Failed to execute cmd '%s'; error: %d %s",
-				cmd, errno, strerror(errno));
+		       cmd, errno, strerror(errno));
 		return HV_E_FAIL;
 	}
 	return 0;
-
+setmac_error:
+	free(mac_addr);
 setval_error:
 	syslog(LOG_ERR, "Failed to write config file");
-	fclose(file);
+	fclose(ifcfg_file);
+	fclose(nmfile);
 	return error;
 }
 

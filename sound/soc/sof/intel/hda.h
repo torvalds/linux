@@ -414,10 +414,12 @@
 	(HDA_DSP_BDL_SIZE / sizeof(struct sof_intel_dsp_bdl))
 
 /* Number of DAIs */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+#define SOF_SKL_NUM_DAIS_NOCODEC	8
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 #define SOF_SKL_NUM_DAIS		15
 #else
-#define SOF_SKL_NUM_DAIS		8
+#define SOF_SKL_NUM_DAIS		SOF_SKL_NUM_DAIS_NOCODEC
 #endif
 
 /* Intel HD Audio SRAM Window 0*/
@@ -779,15 +781,22 @@ int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
 int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev);
+int hda_sdw_check_lcount_ext(struct snd_sof_dev *sdev);
 int hda_sdw_startup(struct snd_sof_dev *sdev);
 void hda_common_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable);
 void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable);
+bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev);
 void hda_sdw_process_wakeen(struct snd_sof_dev *sdev);
 bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev);
 
 #else
 
 static inline int hda_sdw_check_lcount_common(struct snd_sof_dev *sdev)
+{
+	return 0;
+}
+
+static inline int hda_sdw_check_lcount_ext(struct snd_sof_dev *sdev)
 {
 	return 0;
 }
@@ -805,6 +814,11 @@ static inline void hda_sdw_int_enable(struct snd_sof_dev *sdev, bool enable)
 {
 }
 
+static inline bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev)
+{
+	return false;
+}
+
 static inline void hda_sdw_process_wakeen(struct snd_sof_dev *sdev)
 {
 }
@@ -815,6 +829,18 @@ static inline bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
 }
 
 #endif
+
+int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
+			  struct snd_pcm_hw_params *params,
+			  struct snd_soc_dai *cpu_dai,
+			  int link_id);
+
+int sdw_hda_dai_hw_free(struct snd_pcm_substream *substream,
+			struct snd_soc_dai *cpu_dai,
+			int link_id);
+
+int sdw_hda_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+			struct snd_soc_dai *cpu_dai);
 
 /* common dai driver */
 extern struct snd_soc_dai_driver skl_dai[];
@@ -837,6 +863,8 @@ extern struct snd_sof_dsp_ops sof_icl_ops;
 int sof_icl_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_mtl_ops;
 int sof_mtl_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_lnl_ops;
+int sof_lnl_ops_init(struct snd_sof_dev *sdev);
 
 extern const struct sof_intel_dsp_desc skl_chip_info;
 extern const struct sof_intel_dsp_desc apl_chip_info;
@@ -848,6 +876,7 @@ extern const struct sof_intel_dsp_desc ehl_chip_info;
 extern const struct sof_intel_dsp_desc jsl_chip_info;
 extern const struct sof_intel_dsp_desc adls_chip_info;
 extern const struct sof_intel_dsp_desc mtl_chip_info;
+extern const struct sof_intel_dsp_desc lnl_chip_info;
 
 /* Probes support */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
@@ -917,6 +946,11 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
  * @pre_trigger: Function pointer for DAI DMA pre-trigger actions
  * @trigger: Function pointer for DAI DMA trigger actions
  * @post_trigger: Function pointer for DAI DMA post-trigger actions
+ * @codec_dai_set_stream: Function pointer to set codec-side stream information
+ * @calc_stream_format: Function pointer to determine stream format from hw_params and
+ * for HDaudio codec DAI from the .sig bits
+ * @get_hlink: Mandatory function pointer to retrieve hlink, mainly to program LOSIDV
+ * for legacy HDaudio links or program HDaudio Extended Link registers.
  */
 struct hda_dai_widget_dma_ops {
 	struct hdac_ext_stream *(*get_hext_stream)(struct snd_sof_dev *sdev,
@@ -936,11 +970,21 @@ struct hda_dai_widget_dma_ops {
 		       struct snd_pcm_substream *substream, int cmd);
 	int (*post_trigger)(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 			    struct snd_pcm_substream *substream, int cmd);
+	void (*codec_dai_set_stream)(struct snd_sof_dev *sdev,
+				     struct snd_pcm_substream *substream,
+				     struct hdac_stream *hstream);
+	unsigned int (*calc_stream_format)(struct snd_sof_dev *sdev,
+					   struct snd_pcm_substream *substream,
+					   struct snd_pcm_hw_params *params);
+	struct hdac_ext_link * (*get_hlink)(struct snd_sof_dev *sdev,
+					    struct snd_pcm_substream *substream);
 };
 
 const struct hda_dai_widget_dma_ops *
 hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
 int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
 		   struct snd_sof_dai_config_data *data);
+int hda_link_dma_cleanup(struct snd_pcm_substream *substream, struct hdac_ext_stream *hext_stream,
+			 struct snd_soc_dai *cpu_dai);
 
 #endif

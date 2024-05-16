@@ -88,23 +88,35 @@ static bool is_event_type_allowed(int rsc_type, int event_type)
 	}
 }
 
+static int dct_event_notifier(struct mlx5_ib_dev *dev, struct mlx5_eqe *eqe)
+{
+	struct mlx5_core_dct *dct;
+	unsigned long flags;
+	u32 qpn;
+
+	qpn = be32_to_cpu(eqe->data.dct.dctn) & 0xFFFFFF;
+	xa_lock_irqsave(&dev->qp_table.dct_xa, flags);
+	dct = xa_load(&dev->qp_table.dct_xa, qpn);
+	if (dct)
+		complete(&dct->drained);
+	xa_unlock_irqrestore(&dev->qp_table.dct_xa, flags);
+	return NOTIFY_OK;
+}
+
 static int rsc_event_notifier(struct notifier_block *nb,
 			      unsigned long type, void *data)
 {
+	struct mlx5_ib_dev *dev =
+		container_of(nb, struct mlx5_ib_dev, qp_table.nb);
 	struct mlx5_core_rsc_common *common;
-	struct mlx5_qp_table *table;
-	struct mlx5_core_dct *dct;
+	struct mlx5_eqe *eqe = data;
 	u8 event_type = (u8)type;
 	struct mlx5_core_qp *qp;
-	struct mlx5_eqe *eqe;
 	u32 rsn;
 
 	switch (event_type) {
 	case MLX5_EVENT_TYPE_DCT_DRAINED:
-		eqe = data;
-		rsn = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
-		rsn |= (MLX5_RES_DCT << MLX5_USER_INDEX_LEN);
-		break;
+		return dct_event_notifier(dev, eqe);
 	case MLX5_EVENT_TYPE_PATH_MIG:
 	case MLX5_EVENT_TYPE_COMM_EST:
 	case MLX5_EVENT_TYPE_SQ_DRAINED:
@@ -113,7 +125,6 @@ static int rsc_event_notifier(struct notifier_block *nb,
 	case MLX5_EVENT_TYPE_PATH_MIG_FAILED:
 	case MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
 	case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
-		eqe = data;
 		rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
 		rsn |= (eqe->data.qp_srq.type << MLX5_USER_INDEX_LEN);
 		break;
@@ -121,8 +132,7 @@ static int rsc_event_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 	}
 
-	table = container_of(nb, struct mlx5_qp_table, nb);
-	common = mlx5_get_rsc(table, rsn);
+	common = mlx5_get_rsc(&dev->qp_table, rsn);
 	if (!common)
 		return NOTIFY_OK;
 
@@ -137,11 +147,6 @@ static int rsc_event_notifier(struct notifier_block *nb,
 		qp->event(qp, event_type);
 		/* Need to put resource in event handler */
 		return NOTIFY_OK;
-	case MLX5_RES_DCT:
-		dct = (struct mlx5_core_dct *)common;
-		if (event_type == MLX5_EVENT_TYPE_DCT_DRAINED)
-			complete(&dct->drained);
-		break;
 	default:
 		break;
 	}
@@ -188,28 +193,15 @@ static void destroy_resource_common(struct mlx5_ib_dev *dev,
 }
 
 static int _mlx5_core_destroy_dct(struct mlx5_ib_dev *dev,
-				  struct mlx5_core_dct *dct, bool need_cleanup)
+				  struct mlx5_core_dct *dct)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_dct_in)] = {};
 	struct mlx5_core_qp *qp = &dct->mqp;
-	int err;
 
-	err = mlx5_core_drain_dct(dev, dct);
-	if (err) {
-		if (dev->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
-			goto destroy;
-
-		return err;
-	}
-	wait_for_completion(&dct->drained);
-destroy:
-	if (need_cleanup)
-		destroy_resource_common(dev, &dct->mqp);
 	MLX5_SET(destroy_dct_in, in, opcode, MLX5_CMD_OP_DESTROY_DCT);
 	MLX5_SET(destroy_dct_in, in, dctn, qp->qpn);
 	MLX5_SET(destroy_dct_in, in, uid, qp->uid);
-	err = mlx5_cmd_exec_in(dev->mdev, destroy_dct, in);
-	return err;
+	return mlx5_cmd_exec_in(dev->mdev, destroy_dct, in);
 }
 
 int mlx5_core_create_dct(struct mlx5_ib_dev *dev, struct mlx5_core_dct *dct,
@@ -227,13 +219,13 @@ int mlx5_core_create_dct(struct mlx5_ib_dev *dev, struct mlx5_core_dct *dct,
 
 	qp->qpn = MLX5_GET(create_dct_out, out, dctn);
 	qp->uid = MLX5_GET(create_dct_in, in, uid);
-	err = create_resource_common(dev, qp, MLX5_RES_DCT);
+	err = xa_err(xa_store_irq(&dev->qp_table.dct_xa, qp->qpn, dct, GFP_KERNEL));
 	if (err)
 		goto err_cmd;
 
 	return 0;
 err_cmd:
-	_mlx5_core_destroy_dct(dev, dct, false);
+	_mlx5_core_destroy_dct(dev, dct);
 	return err;
 }
 
@@ -284,7 +276,31 @@ static int mlx5_core_drain_dct(struct mlx5_ib_dev *dev,
 int mlx5_core_destroy_dct(struct mlx5_ib_dev *dev,
 			  struct mlx5_core_dct *dct)
 {
-	return _mlx5_core_destroy_dct(dev, dct, true);
+	struct mlx5_qp_table *table = &dev->qp_table;
+	struct mlx5_core_dct *tmp;
+	int err;
+
+	err = mlx5_core_drain_dct(dev, dct);
+	if (err) {
+		if (dev->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+			goto destroy;
+
+		return err;
+	}
+	wait_for_completion(&dct->drained);
+
+destroy:
+	tmp = xa_cmpxchg_irq(&table->dct_xa, dct->mqp.qpn, dct, XA_ZERO_ENTRY, GFP_KERNEL);
+	if (WARN_ON(tmp != dct))
+		return xa_err(tmp) ?: -EINVAL;
+
+	err = _mlx5_core_destroy_dct(dev, dct);
+	if (err) {
+		xa_cmpxchg_irq(&table->dct_xa, dct->mqp.qpn, XA_ZERO_ENTRY, dct, 0);
+		return err;
+	}
+	xa_erase_irq(&table->dct_xa, dct->mqp.qpn);
+	return 0;
 }
 
 int mlx5_core_destroy_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp)
@@ -298,8 +314,7 @@ int mlx5_core_destroy_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp)
 	MLX5_SET(destroy_qp_in, in, opcode, MLX5_CMD_OP_DESTROY_QP);
 	MLX5_SET(destroy_qp_in, in, qpn, qp->qpn);
 	MLX5_SET(destroy_qp_in, in, uid, qp->uid);
-	mlx5_cmd_exec_in(dev->mdev, destroy_qp, in);
-	return 0;
+	return mlx5_cmd_exec_in(dev->mdev, destroy_qp, in);
 }
 
 int mlx5_core_set_delay_drop(struct mlx5_ib_dev *dev,
@@ -488,6 +503,7 @@ int mlx5_init_qp_table(struct mlx5_ib_dev *dev)
 
 	spin_lock_init(&table->lock);
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
+	xa_init(&table->dct_xa);
 	mlx5_qp_debugfs_init(dev->mdev);
 
 	table->nb.notifier_call = rsc_event_notifier;
@@ -551,14 +567,14 @@ int mlx5_core_xrcd_dealloc(struct mlx5_ib_dev *dev, u32 xrcdn)
 	return mlx5_cmd_exec_in(dev->mdev, dealloc_xrcd, in);
 }
 
-static void destroy_rq_tracked(struct mlx5_ib_dev *dev, u32 rqn, u16 uid)
+static int destroy_rq_tracked(struct mlx5_ib_dev *dev, u32 rqn, u16 uid)
 {
 	u32 in[MLX5_ST_SZ_DW(destroy_rq_in)] = {};
 
 	MLX5_SET(destroy_rq_in, in, opcode, MLX5_CMD_OP_DESTROY_RQ);
 	MLX5_SET(destroy_rq_in, in, rqn, rqn);
 	MLX5_SET(destroy_rq_in, in, uid, uid);
-	mlx5_cmd_exec_in(dev->mdev, destroy_rq, in);
+	return mlx5_cmd_exec_in(dev->mdev, destroy_rq, in);
 }
 
 int mlx5_core_create_rq_tracked(struct mlx5_ib_dev *dev, u32 *in, int inlen,
@@ -589,8 +605,7 @@ int mlx5_core_destroy_rq_tracked(struct mlx5_ib_dev *dev,
 				 struct mlx5_core_qp *rq)
 {
 	destroy_resource_common(dev, rq);
-	destroy_rq_tracked(dev, rq->qpn, rq->uid);
-	return 0;
+	return destroy_rq_tracked(dev, rq->qpn, rq->uid);
 }
 
 static void destroy_sq_tracked(struct mlx5_ib_dev *dev, u32 sqn, u16 uid)

@@ -14,6 +14,7 @@
  *  hash table, so this file is not used on them.)
  */
 
+#include <linux/export.h>
 #include <linux/pgtable.h>
 #include <linux/init.h>
 #include <asm/reg.h>
@@ -22,7 +23,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #include <asm/code-patching-asm.h>
 
@@ -199,12 +199,12 @@ _GLOBAL(add_hash_page)
 	lis	r6, (mmu_hash_lock - PAGE_OFFSET)@ha
 	addi	r6, r6, (mmu_hash_lock - PAGE_OFFSET)@l
 10:	lwarx	r0,0,r6			/* take the mmu_hash_lock */
-	cmpi	0,r0,0
+	cmpwi	0,r0,0
 	bne-	11f
 	stwcx.	r8,0,r6
 	beq+	12f
 11:	lwz	r0,0(r6)
-	cmpi	0,r0,0
+	cmpwi	0,r0,0
 	beq	10b
 	b	11b
 12:	isync
@@ -512,12 +512,12 @@ _GLOBAL(flush_hash_pages)
 	lwz	r8, TASK_CPU(r8)
 	oris	r8,r8,9
 10:	lwarx	r0,0,r9
-	cmpi	0,r0,0
+	cmpwi	0,r0,0
 	bne-	11f
 	stwcx.	r8,0,r9
 	beq+	12f
 11:	lwz	r0,0(r9)
-	cmpi	0,r0,0
+	cmpwi	0,r0,0
 	beq	10b
 	b	11b
 12:	isync

@@ -6,6 +6,7 @@
  * Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -17,10 +18,6 @@
 #include <linux/clk.h>
 
 #include <asm/div64.h>
-
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 
 /*
  * SoC architecture allocates register space for 4 PWMs but only

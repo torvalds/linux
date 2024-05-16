@@ -14,12 +14,8 @@
 #![no_std]
 #![feature(allocator_api)]
 #![feature(coerce_unsized)]
-#![feature(core_ffi_c)]
 #![feature(dispatch_from_dyn)]
-#![feature(explicit_generic_args_with_impl_trait)]
-#![feature(generic_associated_types)]
 #![feature(new_uninit)]
-#![feature(pin_macro)]
 #![feature(receiver_trait)]
 #![feature(unsize)]
 
@@ -38,6 +34,8 @@ mod build_assert;
 pub mod error;
 pub mod init;
 pub mod ioctl;
+#[cfg(CONFIG_KUNIT)]
+pub mod kunit;
 pub mod prelude;
 pub mod print;
 mod static_assert;
@@ -97,7 +95,4 @@ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
     pr_emerg!("{}\n", info);
     // SAFETY: FFI call.
     unsafe { bindings::BUG() };
-    // Bindgen currently does not recognize `__noreturn` so `BUG` returns `()`
-    // instead of `!`. See <https://github.com/rust-lang/rust-bindgen/issues/2094>.
-    loop {}
 }

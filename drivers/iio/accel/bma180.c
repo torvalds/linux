@@ -16,7 +16,6 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/bitops.h>
 #include <linux/regulator/consumer.h>
@@ -1134,7 +1133,7 @@ static struct i2c_driver bma180_driver = {
 		.pm	= pm_sleep_ptr(&bma180_pm_ops),
 		.of_match_table = bma180_of_match,
 	},
-	.probe_new	= bma180_probe,
+	.probe		= bma180_probe,
 	.remove		= bma180_remove,
 	.id_table	= bma180_ids,
 };

@@ -69,13 +69,12 @@ int xen_set_irq_priority(unsigned irq, unsigned priority);
 /*
  * Allow extra references to event channels exposed to userspace by evtchn
  */
-int evtchn_make_refcounted(evtchn_port_t evtchn);
+int evtchn_make_refcounted(evtchn_port_t evtchn, bool is_static);
 int evtchn_get(evtchn_port_t evtchn);
 void evtchn_put(evtchn_port_t evtchn);
 
 void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
 void rebind_evtchn_irq(evtchn_port_t evtchn, int irq);
-int xen_set_affinity_evtchn(struct irq_desc *desc, unsigned int tcpu);
 
 static inline void notify_remote_via_evtchn(evtchn_port_t port)
 {
@@ -106,8 +105,7 @@ int irq_from_virq(unsigned int cpu, unsigned int virq);
 evtchn_port_t evtchn_from_irq(unsigned irq);
 
 int xen_set_callback_via(uint64_t via);
-void xen_evtchn_do_upcall(struct pt_regs *regs);
-int xen_hvm_evtchn_do_upcall(void);
+int xen_evtchn_do_upcall(void);
 
 /* Bind a pirq for a physical interrupt to an irq. */
 int xen_bind_pirq_gsi_to_irq(unsigned gsi,
@@ -138,4 +136,16 @@ int xen_test_irq_shared(int irq);
 
 /* initialize Xen IRQ subsystem */
 void xen_init_IRQ(void);
+
+irqreturn_t xen_debug_interrupt(int irq, void *dev_id);
+
+static inline void xen_evtchn_close(evtchn_port_t port)
+{
+	struct evtchn_close close;
+
+	close.port = port;
+	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
+		BUG();
+}
+
 #endif	/* _XEN_EVENTS_H */

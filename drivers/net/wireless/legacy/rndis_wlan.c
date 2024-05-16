@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for RNDIS based wireless USB devices.
+ * Driver for RNDIS based USB wireless devices.
  *
  * Copyright (C) 2007 by Bjorge Dijkstra <bjd@jooz.net>
  * Copyright (C) 2008-2009 by Jussi Kivilinna <jussi.kivilinna@iki.fi>

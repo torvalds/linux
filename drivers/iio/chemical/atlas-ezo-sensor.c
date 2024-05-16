@@ -238,7 +238,7 @@ static struct i2c_driver atlas_ezo_driver = {
 		.name	= ATLAS_EZO_DRV_NAME,
 		.of_match_table	= atlas_ezo_dt_ids,
 	},
-	.probe_new	= atlas_ezo_probe,
+	.probe		= atlas_ezo_probe,
 	.id_table	= atlas_ezo_id,
 };
 module_i2c_driver(atlas_ezo_driver);

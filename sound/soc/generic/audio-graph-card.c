@@ -55,120 +55,15 @@ static const struct snd_soc_ops graph_ops = {
 	.hw_params	= asoc_simple_hw_params,
 };
 
-static int graph_get_dai_id(struct device_node *ep)
-{
-	struct device_node *node;
-	struct device_node *endpoint;
-	struct of_endpoint info;
-	int i, id;
-	const u32 *reg;
-	int ret;
-
-	/* use driver specified DAI ID if exist */
-	ret = snd_soc_get_dai_id(ep);
-	if (ret != -ENOTSUPP)
-		return ret;
-
-	/* use endpoint/port reg if exist */
-	ret = of_graph_parse_endpoint(ep, &info);
-	if (ret == 0) {
-		/*
-		 * Because it will count port/endpoint if it doesn't have "reg".
-		 * But, we can't judge whether it has "no reg", or "reg = <0>"
-		 * only of_graph_parse_endpoint().
-		 * We need to check "reg" property
-		 */
-		if (of_property_present(ep,   "reg"))
-			return info.id;
-
-		node = of_get_parent(ep);
-		reg = of_get_property(node, "reg", NULL);
-		of_node_put(node);
-		if (reg)
-			return info.port;
-	}
-	node = of_graph_get_port_parent(ep);
-
-	/*
-	 * Non HDMI sound case, counting port/endpoint on its DT
-	 * is enough. Let's count it.
-	 */
-	i = 0;
-	id = -1;
-	for_each_endpoint_of_node(node, endpoint) {
-		if (endpoint == ep)
-			id = i;
-		i++;
-	}
-
-	of_node_put(node);
-
-	if (id < 0)
-		return -ENODEV;
-
-	return id;
-}
-
 static bool soc_component_is_pcm(struct snd_soc_dai_link_component *dlc)
 {
 	struct snd_soc_dai *dai = snd_soc_find_dai_with_mutex(dlc);
 
 	if (dai && (dai->component->driver->pcm_construct ||
-		    dai->driver->pcm_new))
+		    (dai->driver->ops && dai->driver->ops->pcm_new)))
 		return true;
 
 	return false;
-}
-
-static int asoc_simple_parse_dai(struct device_node *ep,
-				 struct snd_soc_dai_link_component *dlc,
-				 int *is_single_link)
-{
-	struct device_node *node;
-	struct of_phandle_args args;
-	int ret;
-
-	if (!ep)
-		return 0;
-
-	node = of_graph_get_port_parent(ep);
-
-	/* Get dai->name */
-	args.np		= node;
-	args.args[0]	= graph_get_dai_id(ep);
-	args.args_count	= (of_graph_get_endpoint_count(node) > 1);
-
-	/*
-	 * FIXME
-	 *
-	 * Here, dlc->dai_name is pointer to CPU/Codec DAI name.
-	 * If user unbinded CPU or Codec driver, but not for Sound Card,
-	 * dlc->dai_name is keeping unbinded CPU or Codec
-	 * driver's pointer.
-	 *
-	 * If user re-bind CPU or Codec driver again, ALSA SoC will try
-	 * to rebind Card via snd_soc_try_rebind_card(), but because of
-	 * above reason, it might can't bind Sound Card.
-	 * Because Sound Card is pointing to released dai_name pointer.
-	 *
-	 * To avoid this rebind Card issue,
-	 * 1) It needs to alloc memory to keep dai_name eventhough
-	 *    CPU or Codec driver was unbinded, or
-	 * 2) user need to rebind Sound Card everytime
-	 *    if he unbinded CPU or Codec.
-	 */
-	ret = snd_soc_get_dai_name(&args, &dlc->dai_name);
-	if (ret < 0) {
-		of_node_put(node);
-		return ret;
-	}
-
-	dlc->of_node = node;
-
-	if (is_single_link)
-		*is_single_link = of_graph_get_endpoint_count(node) == 1;
-
-	return 0;
 }
 
 static void graph_parse_convert(struct device *dev,
@@ -231,7 +126,7 @@ static int graph_parse_node(struct asoc_simple_priv *priv,
 
 	graph_parse_mclk_fs(top, ep, dai_props);
 
-	ret = asoc_simple_parse_dai(ep, dlc, cpu);
+	ret = asoc_graph_parse_dai(dev, ep, dlc, cpu);
 	if (ret < 0)
 		return ret;
 
@@ -530,77 +425,6 @@ static int graph_for_each_link(struct asoc_simple_priv *priv,
 	return ret;
 }
 
-static int graph_get_dais_count(struct asoc_simple_priv *priv,
-				struct link_info *li);
-
-int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
-{
-	struct snd_soc_card *card = simple_priv_to_card(priv);
-	struct link_info *li;
-	int ret;
-
-	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
-	if (!li)
-		return -ENOMEM;
-
-	card->owner = THIS_MODULE;
-	card->dev = dev;
-
-	ret = graph_get_dais_count(priv, li);
-	if (ret < 0)
-		return ret;
-
-	if (!li->link)
-		return -EINVAL;
-
-	ret = asoc_simple_init_priv(priv, li);
-	if (ret < 0)
-		return ret;
-
-	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->pa_gpio)) {
-		ret = PTR_ERR(priv->pa_gpio);
-		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
-		return ret;
-	}
-
-	ret = asoc_simple_parse_widgets(card, NULL);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_parse_routing(card, NULL);
-	if (ret < 0)
-		return ret;
-
-	memset(li, 0, sizeof(*li));
-	ret = graph_for_each_link(priv, li,
-				  graph_dai_link_of,
-				  graph_dai_link_of_dpcm);
-	if (ret < 0)
-		goto err;
-
-	ret = asoc_simple_parse_card_name(card, NULL);
-	if (ret < 0)
-		goto err;
-
-	snd_soc_card_set_drvdata(card, priv);
-
-	asoc_simple_debug_info(priv);
-
-	ret = devm_snd_soc_register_card(dev, card);
-	if (ret < 0)
-		goto err;
-
-	devm_kfree(dev, li);
-	return 0;
-
-err:
-	asoc_simple_clean_reference(card);
-
-	return dev_err_probe(dev, ret, "parse error\n");
-}
-EXPORT_SYMBOL_GPL(audio_graph_parse_of);
-
 static int graph_count_noml(struct asoc_simple_priv *priv,
 			    struct device_node *cpu_ep,
 			    struct device_node *codec_ep,
@@ -716,6 +540,74 @@ static int graph_get_dais_count(struct asoc_simple_priv *priv,
 				   graph_count_noml,
 				   graph_count_dpcm);
 }
+
+int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
+{
+	struct snd_soc_card *card = simple_priv_to_card(priv);
+	struct link_info *li;
+	int ret;
+
+	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
+	if (!li)
+		return -ENOMEM;
+
+	card->owner = THIS_MODULE;
+	card->dev = dev;
+
+	ret = graph_get_dais_count(priv, li);
+	if (ret < 0)
+		return ret;
+
+	if (!li->link)
+		return -EINVAL;
+
+	ret = asoc_simple_init_priv(priv, li);
+	if (ret < 0)
+		return ret;
+
+	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
+	if (IS_ERR(priv->pa_gpio)) {
+		ret = PTR_ERR(priv->pa_gpio);
+		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
+		return ret;
+	}
+
+	ret = asoc_simple_parse_widgets(card, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = asoc_simple_parse_routing(card, NULL);
+	if (ret < 0)
+		return ret;
+
+	memset(li, 0, sizeof(*li));
+	ret = graph_for_each_link(priv, li,
+				  graph_dai_link_of,
+				  graph_dai_link_of_dpcm);
+	if (ret < 0)
+		goto err;
+
+	ret = asoc_simple_parse_card_name(card, NULL);
+	if (ret < 0)
+		goto err;
+
+	snd_soc_card_set_drvdata(card, priv);
+
+	asoc_simple_debug_info(priv);
+
+	ret = devm_snd_soc_register_card(dev, card);
+	if (ret < 0)
+		goto err;
+
+	devm_kfree(dev, li);
+	return 0;
+
+err:
+	asoc_simple_clean_reference(card);
+
+	return dev_err_probe(dev, ret, "parse error\n");
+}
+EXPORT_SYMBOL_GPL(audio_graph_parse_of);
 
 static int graph_probe(struct platform_device *pdev)
 {

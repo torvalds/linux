@@ -10,7 +10,7 @@
  * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
-#include <asm/export.h>
+#include <linux/export.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
 #include <asm/ftrace.h>

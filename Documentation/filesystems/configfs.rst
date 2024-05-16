@@ -253,7 +253,7 @@ to be used.
 If binary attribute is readable and the config_item provides a
 ct_item_ops->read_bin_attribute() method, that method will be called
 whenever userspace asks for a read(2) on the attribute.  The converse
-will happen for write(2). The reads/writes are bufferred so only a
+will happen for write(2). The reads/writes are buffered so only a
 single read/write will occur; the attributes' need not concern itself
 with it.
 

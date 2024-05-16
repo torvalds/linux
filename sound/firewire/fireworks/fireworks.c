@@ -18,7 +18,7 @@
 
 MODULE_DESCRIPTION("Echo Fireworks driver");
 MODULE_AUTHOR("Takashi Sakamoto <o-takashi@sakamocchi.jp>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 static int index[SNDRV_CARDS]	= SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS]	= SNDRV_DEFAULT_STR;
@@ -93,11 +93,11 @@ get_hardware_info(struct snd_efw *efw)
 	strcpy(efw->card->driver, "Fireworks");
 	strcpy(efw->card->shortname, hwinfo->model_name);
 	strcpy(efw->card->mixername, hwinfo->model_name);
-	snprintf(efw->card->longname, sizeof(efw->card->longname),
-		 "%s %s v%s, GUID %08x%08x at %s, S%d",
-		 hwinfo->vendor_name, hwinfo->model_name, version,
-		 hwinfo->guid_hi, hwinfo->guid_lo,
-		 dev_name(&efw->unit->device), 100 << fw_dev->max_speed);
+	scnprintf(efw->card->longname, sizeof(efw->card->longname),
+		  "%s %s v%s, GUID %08x%08x at %s, S%d",
+		  hwinfo->vendor_name, hwinfo->model_name, version,
+		  hwinfo->guid_hi, hwinfo->guid_lo,
+		  dev_name(&efw->unit->device), 100 << fw_dev->max_speed);
 
 	if (hwinfo->flags & BIT(FLAG_RESP_ADDR_CHANGABLE))
 		efw->resp_addr_changable = true;

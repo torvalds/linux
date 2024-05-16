@@ -25,11 +25,10 @@ struct page;
 	prefetch() should be defined by the architecture, if not, the 
 	#define below provides a no-op define.	
 	
-	There are 3 prefetch() macros:
+	There are 2 prefetch() macros:
 	
 	prefetch(x)  	- prefetches the cacheline at "x" for read
 	prefetchw(x)	- prefetches the cacheline at "x" for write
-	spin_lock_prefetch(x) - prefetches the spinlock *x for taking
 	
 	there is also PREFETCH_STRIDE which is the architecure-preferred 
 	"lookahead" size for prefetching streamed operations.
@@ -42,10 +41,6 @@ struct page;
 
 #ifndef ARCH_HAS_PREFETCHW
 #define prefetchw(x) __builtin_prefetch(x,1)
-#endif
-
-#ifndef ARCH_HAS_SPINLOCK_PREFETCH
-#define spin_lock_prefetch(x) prefetchw(x)
 #endif
 
 #ifndef PREFETCH_STRIDE

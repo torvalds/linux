@@ -15,6 +15,7 @@ powerpc
     cxl
     cxlflash
     dawr-power9
+    dexcr
     dscr
     eeh-pci-error-recovery
     elf_hwcaps
@@ -35,6 +36,7 @@ powerpc
     ultravisor
     vas-api
     vcpudispatch_stats
+    vmemmap_dedup
 
     features
 

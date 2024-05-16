@@ -10,6 +10,7 @@
 #include "regs-ost.h"
 #include "reset.h"
 #include "smemc.h"
+#include "generic.h"
 
 static void do_hw_reset(void);
 

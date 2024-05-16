@@ -481,7 +481,7 @@ void irdma_free_cqp_request(struct irdma_cqp *cqp,
 	if (cqp_request->dynamic) {
 		kfree(cqp_request);
 	} else {
-		cqp_request->request_done = false;
+		WRITE_ONCE(cqp_request->request_done, false);
 		cqp_request->callback_fcn = NULL;
 		cqp_request->waiting = false;
 
@@ -515,7 +515,7 @@ irdma_free_pending_cqp_request(struct irdma_cqp *cqp,
 {
 	if (cqp_request->waiting) {
 		cqp_request->compl_info.error = true;
-		cqp_request->request_done = true;
+		WRITE_ONCE(cqp_request->request_done, true);
 		wake_up(&cqp_request->waitq);
 	}
 	wait_event_timeout(cqp->remove_wq,
@@ -567,11 +567,11 @@ static int irdma_wait_event(struct irdma_pci_f *rf,
 	bool cqp_error = false;
 	int err_code = 0;
 
-	cqp_timeout.compl_cqp_cmds = rf->sc_dev.cqp_cmd_stats[IRDMA_OP_CMPL_CMDS];
+	cqp_timeout.compl_cqp_cmds = atomic64_read(&rf->sc_dev.cqp->completed_ops);
 	do {
 		irdma_cqp_ce_handler(rf, &rf->ccq.sc_cq);
 		if (wait_event_timeout(cqp_request->waitq,
-				       cqp_request->request_done,
+				       READ_ONCE(cqp_request->request_done),
 				       msecs_to_jiffies(CQP_COMPL_WAIT_TIME_MS)))
 			break;
 
@@ -758,6 +758,31 @@ void irdma_qp_rem_ref(struct ib_qp *ibqp)
 	iwdev->rf->qp_table[qp_num] = NULL;
 	spin_unlock_irqrestore(&iwdev->rf->qptable_lock, flags);
 	complete(&iwqp->free_qp);
+}
+
+void irdma_cq_add_ref(struct ib_cq *ibcq)
+{
+	struct irdma_cq *iwcq = to_iwcq(ibcq);
+
+	refcount_inc(&iwcq->refcnt);
+}
+
+void irdma_cq_rem_ref(struct ib_cq *ibcq)
+{
+	struct ib_device *ibdev = ibcq->device;
+	struct irdma_device *iwdev = to_iwdev(ibdev);
+	struct irdma_cq *iwcq = to_iwcq(ibcq);
+	unsigned long flags;
+
+	spin_lock_irqsave(&iwdev->rf->cqtable_lock, flags);
+	if (!refcount_dec_and_test(&iwcq->refcnt)) {
+		spin_unlock_irqrestore(&iwdev->rf->cqtable_lock, flags);
+		return;
+	}
+
+	iwdev->rf->cq_table[iwcq->cq_num] = NULL;
+	spin_unlock_irqrestore(&iwdev->rf->cqtable_lock, flags);
+	complete(&iwcq->free_cq);
 }
 
 struct ib_device *to_ibdev(struct irdma_sc_dev *dev)

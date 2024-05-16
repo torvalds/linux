@@ -90,7 +90,7 @@ unsigned int		ip6_mtu(const struct dst_entry *dst);
 static struct dst_entry *ip6_negative_advice(struct dst_entry *);
 static void		ip6_dst_destroy(struct dst_entry *);
 static void		ip6_dst_ifdown(struct dst_entry *,
-				       struct net_device *dev, int how);
+				       struct net_device *dev);
 static void		 ip6_dst_gc(struct dst_ops *ops);
 
 static int		ip6_pkt_discard(struct sk_buff *skb);
@@ -371,8 +371,7 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 	fib6_info_release(from);
 }
 
-static void ip6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
-			   int how)
+static void ip6_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
 {
 	struct rt6_info *rt = (struct rt6_info *)dst;
 	struct inet6_dev *idev = rt->rt6i_idev;
@@ -423,6 +422,9 @@ void fib6_select_path(const struct net *net, struct fib6_result *res,
 
 	if (match->nh && have_oif_match && res->nh)
 		return;
+
+	if (skb)
+		IP6CB(skb)->flags |= IP6SKB_MULTIPATH;
 
 	/* We might have already computed the hash for ICMPv6 errors. In such
 	 * case it will always be non-zero. Otherwise now is the time to do it.
@@ -2951,7 +2953,8 @@ void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu)
 	if (!oif && skb->dev)
 		oif = l3mdev_master_ifindex(skb->dev);
 
-	ip6_update_pmtu(skb, sock_net(sk), mtu, oif, sk->sk_mark, sk->sk_uid);
+	ip6_update_pmtu(skb, sock_net(sk), mtu, oif, READ_ONCE(sk->sk_mark),
+			sk->sk_uid);
 
 	dst = __sk_dst_get(sk);
 	if (!dst || !dst->obsolete ||
@@ -3172,8 +3175,8 @@ void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif)
 
 void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk)
 {
-	ip6_redirect(skb, sock_net(sk), sk->sk_bound_dev_if, sk->sk_mark,
-		     sk->sk_uid);
+	ip6_redirect(skb, sock_net(sk), sk->sk_bound_dev_if,
+		     READ_ONCE(sk->sk_mark), sk->sk_uid);
 }
 EXPORT_SYMBOL_GPL(ip6_sk_redirect);
 
@@ -3360,6 +3363,7 @@ static int ip6_route_check_nh_onlink(struct net *net,
 static int ip6_route_check_nh(struct net *net,
 			      struct fib6_config *cfg,
 			      struct net_device **_dev,
+			      netdevice_tracker *dev_tracker,
 			      struct inet6_dev **idev)
 {
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
@@ -3404,7 +3408,7 @@ static int ip6_route_check_nh(struct net *net,
 			err = -EHOSTUNREACH;
 	} else {
 		*_dev = dev = res.nh->fib_nh_dev;
-		dev_hold(dev);
+		netdev_hold(dev, dev_tracker, GFP_ATOMIC);
 		*idev = in6_dev_get(dev);
 	}
 
@@ -3412,7 +3416,9 @@ static int ip6_route_check_nh(struct net *net,
 }
 
 static int ip6_validate_gw(struct net *net, struct fib6_config *cfg,
-			   struct net_device **_dev, struct inet6_dev **idev,
+			   struct net_device **_dev,
+			   netdevice_tracker *dev_tracker,
+			   struct inet6_dev **idev,
 			   struct netlink_ext_ack *extack)
 {
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
@@ -3453,7 +3459,8 @@ static int ip6_validate_gw(struct net *net, struct fib6_config *cfg,
 		if (cfg->fc_flags & RTNH_F_ONLINK)
 			err = ip6_route_check_nh_onlink(net, cfg, dev, extack);
 		else
-			err = ip6_route_check_nh(net, cfg, _dev, idev);
+			err = ip6_route_check_nh(net, cfg, _dev, dev_tracker,
+						 idev);
 
 		rcu_read_unlock();
 
@@ -3503,6 +3510,7 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 		 struct fib6_config *cfg, gfp_t gfp_flags,
 		 struct netlink_ext_ack *extack)
 {
+	netdevice_tracker *dev_tracker = &fib6_nh->fib_nh_dev_tracker;
 	struct net_device *dev = NULL;
 	struct inet6_dev *idev = NULL;
 	int addr_type;
@@ -3520,7 +3528,8 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 
 	err = -ENODEV;
 	if (cfg->fc_ifindex) {
-		dev = dev_get_by_index(net, cfg->fc_ifindex);
+		dev = netdev_get_by_index(net, cfg->fc_ifindex,
+					  dev_tracker, gfp_flags);
 		if (!dev)
 			goto out;
 		idev = in6_dev_get(dev);
@@ -3554,11 +3563,11 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 		/* hold loopback dev/idev if we haven't done so. */
 		if (dev != net->loopback_dev) {
 			if (dev) {
-				dev_put(dev);
+				netdev_put(dev, dev_tracker);
 				in6_dev_put(idev);
 			}
 			dev = net->loopback_dev;
-			dev_hold(dev);
+			netdev_hold(dev, dev_tracker, gfp_flags);
 			idev = in6_dev_get(dev);
 			if (!idev) {
 				err = -ENODEV;
@@ -3569,7 +3578,8 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 	}
 
 	if (cfg->fc_flags & RTF_GATEWAY) {
-		err = ip6_validate_gw(net, cfg, &dev, &idev, extack);
+		err = ip6_validate_gw(net, cfg, &dev, dev_tracker,
+				      &idev, extack);
 		if (err)
 			goto out;
 
@@ -3610,8 +3620,6 @@ pcpu_alloc:
 	}
 
 	fib6_nh->fib_nh_dev = dev;
-	netdev_tracker_alloc(dev, &fib6_nh->fib_nh_dev_tracker, gfp_flags);
-
 	fib6_nh->fib_nh_oif = dev->ifindex;
 	err = 0;
 out:
@@ -3621,7 +3629,7 @@ out:
 	if (err) {
 		lwtstate_put(fib6_nh->fib_nh_lws);
 		fib6_nh->fib_nh_lws = NULL;
-		dev_put(dev);
+		netdev_put(dev, dev_tracker);
 	}
 
 	return err;
@@ -3755,10 +3763,10 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 		rt->dst_nocount = true;
 
 	if (cfg->fc_flags & RTF_EXPIRES)
-		fib6_set_expires(rt, jiffies +
-				clock_t_to_jiffies(cfg->fc_expires));
+		fib6_set_expires_locked(rt, jiffies +
+					clock_t_to_jiffies(cfg->fc_expires));
 	else
-		fib6_clean_expires(rt);
+		fib6_clean_expires_locked(rt);
 
 	if (cfg->fc_protocol == RTPROT_UNSPEC)
 		cfg->fc_protocol = RTPROT_BOOT;
@@ -4538,7 +4546,8 @@ static int ip6_pkt_prohibit_out(struct net *net, struct sock *sk, struct sk_buff
 struct fib6_info *addrconf_f6i_alloc(struct net *net,
 				     struct inet6_dev *idev,
 				     const struct in6_addr *addr,
-				     bool anycast, gfp_t gfp_flags)
+				     bool anycast, gfp_t gfp_flags,
+				     struct netlink_ext_ack *extack)
 {
 	struct fib6_config cfg = {
 		.fc_table = l3mdev_fib_table(idev->dev) ? : RT6_TABLE_LOCAL,
@@ -4560,7 +4569,7 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 		cfg.fc_flags |= RTF_LOCAL;
 	}
 
-	f6i = ip6_route_info_create(&cfg, gfp_flags, NULL);
+	f6i = ip6_route_info_create(&cfg, gfp_flags, extack);
 	if (!IS_ERR(f6i)) {
 		f6i->dst_nocount = true;
 
@@ -4575,21 +4584,19 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 
 /* remove deleted ip from prefsrc entries */
 struct arg_dev_net_ip {
-	struct net_device *dev;
 	struct net *net;
 	struct in6_addr *addr;
 };
 
 static int fib6_remove_prefsrc(struct fib6_info *rt, void *arg)
 {
-	struct net_device *dev = ((struct arg_dev_net_ip *)arg)->dev;
 	struct net *net = ((struct arg_dev_net_ip *)arg)->net;
 	struct in6_addr *addr = ((struct arg_dev_net_ip *)arg)->addr;
 
 	if (!rt->nh &&
-	    ((void *)rt->fib6_nh->fib_nh_dev == dev || !dev) &&
 	    rt != net->ipv6.fib6_null_entry &&
-	    ipv6_addr_equal(addr, &rt->fib6_prefsrc.addr)) {
+	    ipv6_addr_equal(addr, &rt->fib6_prefsrc.addr) &&
+	    !ipv6_chk_addr(net, addr, rt->fib6_nh->fib_nh_dev, 0)) {
 		spin_lock_bh(&rt6_exception_lock);
 		/* remove prefsrc entry */
 		rt->fib6_prefsrc.plen = 0;
@@ -4602,7 +4609,6 @@ void rt6_remove_prefsrc(struct inet6_ifaddr *ifp)
 {
 	struct net *net = dev_net(ifp->idev->dev);
 	struct arg_dev_net_ip adni = {
-		.dev = ifp->idev->dev,
 		.net = net,
 		.addr = &ifp->addr,
 	};
@@ -6449,6 +6455,15 @@ struct ctl_table * __net_init ipv6_route_sysctl_init(struct net *net)
 	}
 
 	return table;
+}
+
+size_t ipv6_route_sysctl_table_size(struct net *net)
+{
+	/* Don't export sysctls to unprivileged users */
+	if (net->user_ns != &init_user_ns)
+		return 1;
+
+	return ARRAY_SIZE(ipv6_route_table_template);
 }
 #endif
 

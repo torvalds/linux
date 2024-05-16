@@ -183,7 +183,7 @@ static struct i2c_driver lt7182s_driver = {
 		.name = "lt7182s",
 		.of_match_table = of_match_ptr(lt7182s_of_match),
 	},
-	.probe_new = lt7182s_probe,
+	.probe = lt7182s_probe,
 	.id_table = lt7182s_id,
 };
 

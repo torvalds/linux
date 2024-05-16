@@ -63,8 +63,9 @@ static int get_var_len(const struct snd_seq_event *event)
 	return event->data.ext.len & ~SNDRV_SEQ_EXT_MASK;
 }
 
-int snd_seq_dump_var_event(const struct snd_seq_event *event,
-			   snd_seq_dump_func_t func, void *private_data)
+static int dump_var_event(const struct snd_seq_event *event,
+			  snd_seq_dump_func_t func, void *private_data,
+			  int offset, int maxlen)
 {
 	int len, err;
 	struct snd_seq_event_cell *cell;
@@ -72,10 +73,16 @@ int snd_seq_dump_var_event(const struct snd_seq_event *event,
 	len = get_var_len(event);
 	if (len <= 0)
 		return len;
+	if (len <= offset)
+		return 0;
+	if (maxlen && len > offset + maxlen)
+		len = offset + maxlen;
 
 	if (event->data.ext.len & SNDRV_SEQ_EXT_USRPTR) {
 		char buf[32];
 		char __user *curptr = (char __force __user *)event->data.ext.ptr;
+		curptr += offset;
+		len -= offset;
 		while (len > 0) {
 			int size = sizeof(buf);
 			if (len < size)
@@ -91,19 +98,34 @@ int snd_seq_dump_var_event(const struct snd_seq_event *event,
 		return 0;
 	}
 	if (!(event->data.ext.len & SNDRV_SEQ_EXT_CHAINED))
-		return func(private_data, event->data.ext.ptr, len);
+		return func(private_data, event->data.ext.ptr + offset,
+			    len - offset);
 
 	cell = (struct snd_seq_event_cell *)event->data.ext.ptr;
 	for (; len > 0 && cell; cell = cell->next) {
 		int size = sizeof(struct snd_seq_event);
+		char *curptr = (char *)&cell->event;
+
+		if (offset >= size) {
+			offset -= size;
+			len -= size;
+			continue;
+		}
 		if (len < size)
 			size = len;
-		err = func(private_data, &cell->event, size);
+		err = func(private_data, curptr + offset, size - offset);
 		if (err < 0)
 			return err;
+		offset = 0;
 		len -= size;
 	}
 	return 0;
+}
+
+int snd_seq_dump_var_event(const struct snd_seq_event *event,
+			   snd_seq_dump_func_t func, void *private_data)
+{
+	return dump_var_event(event, func, private_data, 0, 0);
 }
 EXPORT_SYMBOL(snd_seq_dump_var_event);
 
@@ -132,11 +154,27 @@ static int seq_copy_in_user(void *ptr, void *src, int size)
 	return 0;
 }
 
+static int expand_var_event(const struct snd_seq_event *event,
+			    int offset, int size, char *buf, bool in_kernel)
+{
+	if (event->data.ext.len & SNDRV_SEQ_EXT_USRPTR) {
+		if (! in_kernel)
+			return -EINVAL;
+		if (copy_from_user(buf,
+				   (char __force __user *)event->data.ext.ptr + offset,
+				   size))
+			return -EFAULT;
+		return 0;
+	}
+	return dump_var_event(event,
+			     in_kernel ? seq_copy_in_kernel : seq_copy_in_user,
+			     &buf, offset, size);
+}
+
 int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char *buf,
 			     int in_kernel, int size_aligned)
 {
-	int len, newlen;
-	int err;
+	int len, newlen, err;
 
 	len = get_var_len(event);
 	if (len < 0)
@@ -146,20 +184,39 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 		newlen = roundup(len, size_aligned);
 	if (count < newlen)
 		return -EAGAIN;
-
-	if (event->data.ext.len & SNDRV_SEQ_EXT_USRPTR) {
-		if (! in_kernel)
-			return -EINVAL;
-		if (copy_from_user(buf, (void __force __user *)event->data.ext.ptr, len))
+	err = expand_var_event(event, 0, len, buf, in_kernel);
+	if (err < 0)
+		return err;
+	if (len != newlen) {
+		if (in_kernel)
+			memset(buf + len, 0, newlen - len);
+		else if (clear_user((__force void __user *)buf + len,
+				    newlen - len))
 			return -EFAULT;
-		return newlen;
 	}
-	err = snd_seq_dump_var_event(event,
-				     in_kernel ? seq_copy_in_kernel : seq_copy_in_user,
-				     &buf);
-	return err < 0 ? err : newlen;
+	return newlen;
 }
 EXPORT_SYMBOL(snd_seq_expand_var_event);
+
+int snd_seq_expand_var_event_at(const struct snd_seq_event *event, int count,
+				char *buf, int offset)
+{
+	int len, err;
+
+	len = get_var_len(event);
+	if (len < 0)
+		return len;
+	if (len <= offset)
+		return 0;
+	len -= offset;
+	if (len > count)
+		len = count;
+	err = expand_var_event(event, offset, count, buf, true);
+	if (err < 0)
+		return err;
+	return len;
+}
+EXPORT_SYMBOL_GPL(snd_seq_expand_var_event_at);
 
 /*
  * release this cell, free extended data if available
@@ -288,6 +345,7 @@ int snd_seq_event_dup(struct snd_seq_pool *pool, struct snd_seq_event *event,
 	int ncells, err;
 	unsigned int extlen;
 	struct snd_seq_event_cell *cell;
+	int size;
 
 	*cellp = NULL;
 
@@ -305,7 +363,12 @@ int snd_seq_event_dup(struct snd_seq_pool *pool, struct snd_seq_event *event,
 		return err;
 
 	/* copy the event */
-	cell->event = *event;
+	size = snd_seq_event_packet_size(event);
+	memcpy(&cell->ump, event, size);
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+	if (size < sizeof(cell->event))
+		cell->ump.raw.extra = 0;
+#endif
 
 	/* decompose */
 	if (snd_seq_ev_is_variable(event)) {
@@ -323,7 +386,7 @@ int snd_seq_event_dup(struct snd_seq_pool *pool, struct snd_seq_event *event,
 		tail = NULL;
 
 		while (ncells-- > 0) {
-			int size = sizeof(struct snd_seq_event);
+			size = sizeof(struct snd_seq_event);
 			if (len < size)
 				size = len;
 			err = snd_seq_cell_alloc(pool, &tmp, nonblock, file,

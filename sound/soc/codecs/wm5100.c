@@ -2400,7 +2400,7 @@ static const struct regmap_config wm5100_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm5100_reg_defaults),
 	.volatile_reg = wm5100_volatile_register,
 	.readable_reg = wm5100_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const unsigned int wm5100_mic_ctrl_reg[] = {
@@ -2709,7 +2709,7 @@ static struct i2c_driver wm5100_i2c_driver = {
 		.name = "wm5100",
 		.pm = &wm5100_pm,
 	},
-	.probe_new = wm5100_i2c_probe,
+	.probe =    wm5100_i2c_probe,
 	.remove =   wm5100_i2c_remove,
 	.id_table = wm5100_i2c_id,
 };

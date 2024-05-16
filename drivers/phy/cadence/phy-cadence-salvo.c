@@ -6,6 +6,7 @@
  * Copyright (c) 2019-2020 NXP
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -15,7 +16,9 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
-/* PHY register definition */
+#define USB3_PHY_OFFSET			0x0
+#define USB2_PHY_OFFSET			0x38000
+/* USB3 PHY register definition */
 #define PHY_PMA_CMN_CTRL1			0xC800
 #define TB_ADDR_CMN_DIAG_HSCLK_SEL		0x01e0
 #define TB_ADDR_CMN_PLL0_VCOCAL_INIT_TMR	0x0084
@@ -87,8 +90,35 @@
 #define TB_ADDR_XCVR_DIAG_LANE_FCM_EN_MGN_TMR	0x40f2
 #define TB_ADDR_TX_RCVDETSC_CTRL	        0x4124
 
+/* USB2 PHY register definition */
+#define UTMI_REG15				0xaf
+#define UTMI_AFE_RX_REG0			0x0d
+#define UTMI_AFE_RX_REG5			0x12
+#define UTMI_AFE_BC_REG4			0x29
+
+/* Align UTMI_AFE_RX_REG0 bit[7:6] define */
+enum usb2_disconn_threshold {
+	USB2_DISCONN_THRESHOLD_575 = 0x0,
+	USB2_DISCONN_THRESHOLD_610 = 0x1,
+	USB2_DISCONN_THRESHOLD_645 = 0x3,
+};
+
+#define RX_USB2_DISCONN_MASK			GENMASK(7, 6)
+
 /* TB_ADDR_TX_RCVDETSC_CTRL */
 #define RXDET_IN_P3_32KHZ			BIT(0)
+/*
+ * UTMI_REG15
+ *
+ * Gate how many us for the txvalid signal until analog
+ * HS/FS transmitters have powered up
+ */
+#define TXVALID_GATE_THRESHOLD_HS_MASK		(BIT(4) | BIT(5))
+/* 0us, txvalid is ready just after HS/FS transmitters have powered up */
+#define TXVALID_GATE_THRESHOLD_HS_0US		(BIT(4) | BIT(5))
+
+#define SET_B_SESSION_VALID			(BIT(6) | BIT(5))
+#define CLR_B_SESSION_VALID			(BIT(6))
 
 struct cdns_reg_pairs {
 	u16 val;
@@ -106,19 +136,27 @@ struct cdns_salvo_phy {
 	struct clk *clk;
 	void __iomem *base;
 	struct cdns_salvo_data *data;
+	enum usb2_disconn_threshold usb2_disconn;
 };
 
 static const struct of_device_id cdns_salvo_phy_of_match[];
-static u16 cdns_salvo_read(struct cdns_salvo_phy *salvo_phy, u32 reg)
+static const struct cdns_salvo_data cdns_nxp_salvo_data;
+
+static bool cdns_is_nxp_phy(struct cdns_salvo_phy *salvo_phy)
 {
-	return (u16)readl(salvo_phy->base +
+	return salvo_phy->data == &cdns_nxp_salvo_data;
+}
+
+static u16 cdns_salvo_read(struct cdns_salvo_phy *salvo_phy, u32 offset, u32 reg)
+{
+	return (u16)readl(salvo_phy->base + offset +
 		reg * (1 << salvo_phy->data->reg_offset_shift));
 }
 
-static void cdns_salvo_write(struct cdns_salvo_phy *salvo_phy,
+static void cdns_salvo_write(struct cdns_salvo_phy *salvo_phy, u32 offset,
 			     u32 reg, u16 val)
 {
-	writel(val, salvo_phy->base +
+	writel(val, salvo_phy->base + offset +
 		reg * (1 << salvo_phy->data->reg_offset_shift));
 }
 
@@ -219,14 +257,26 @@ static int cdns_salvo_phy_init(struct phy *phy)
 	for (i = 0; i < data->init_sequence_length; i++) {
 		const struct cdns_reg_pairs *reg_pair = data->init_sequence_val + i;
 
-		cdns_salvo_write(salvo_phy, reg_pair->off, reg_pair->val);
+		cdns_salvo_write(salvo_phy, USB3_PHY_OFFSET, reg_pair->off, reg_pair->val);
 	}
 
 	/* RXDET_IN_P3_32KHZ, Receiver detect slow clock enable */
-	value = cdns_salvo_read(salvo_phy, TB_ADDR_TX_RCVDETSC_CTRL);
+	value = cdns_salvo_read(salvo_phy, USB3_PHY_OFFSET, TB_ADDR_TX_RCVDETSC_CTRL);
 	value |= RXDET_IN_P3_32KHZ;
-	cdns_salvo_write(salvo_phy, TB_ADDR_TX_RCVDETSC_CTRL,
+	cdns_salvo_write(salvo_phy, USB3_PHY_OFFSET, TB_ADDR_TX_RCVDETSC_CTRL,
 			 RXDET_IN_P3_32KHZ);
+
+	value = cdns_salvo_read(salvo_phy, USB2_PHY_OFFSET, UTMI_REG15);
+	value &= ~TXVALID_GATE_THRESHOLD_HS_MASK;
+	cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_REG15,
+			 value | TXVALID_GATE_THRESHOLD_HS_0US);
+
+	cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_AFE_RX_REG5, 0x5);
+
+	value = cdns_salvo_read(salvo_phy, USB2_PHY_OFFSET, UTMI_AFE_RX_REG0);
+	value &= ~RX_USB2_DISCONN_MASK;
+	value = FIELD_PREP(RX_USB2_DISCONN_MASK, salvo_phy->usb2_disconn);
+	cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_AFE_RX_REG0, value);
 
 	udelay(10);
 
@@ -251,11 +301,29 @@ static int cdns_salvo_phy_power_off(struct phy *phy)
 	return 0;
 }
 
+static int cdns_salvo_set_mode(struct phy *phy, enum phy_mode mode, int submode)
+{
+	struct cdns_salvo_phy *salvo_phy = phy_get_drvdata(phy);
+
+	if (!cdns_is_nxp_phy(salvo_phy))
+		return 0;
+
+	if (mode == PHY_MODE_USB_DEVICE)
+		cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_AFE_BC_REG4,
+			 SET_B_SESSION_VALID);
+	else
+		cdns_salvo_write(salvo_phy, USB2_PHY_OFFSET, UTMI_AFE_BC_REG4,
+			 CLR_B_SESSION_VALID);
+
+	return 0;
+}
+
 static const struct phy_ops cdns_salvo_phy_ops = {
 	.init		= cdns_salvo_phy_init,
 	.power_on	= cdns_salvo_phy_power_on,
 	.power_off	= cdns_salvo_phy_power_off,
 	.owner		= THIS_MODULE,
+	.set_mode	= cdns_salvo_set_mode,
 };
 
 static int cdns_salvo_phy_probe(struct platform_device *pdev)
@@ -264,6 +332,7 @@ static int cdns_salvo_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct cdns_salvo_phy *salvo_phy;
 	struct cdns_salvo_data *data;
+	u32 val;
 
 	data = (struct cdns_salvo_data *)of_device_get_match_data(dev);
 	salvo_phy = devm_kzalloc(dev, sizeof(*salvo_phy), GFP_KERNEL);
@@ -274,6 +343,16 @@ static int cdns_salvo_phy_probe(struct platform_device *pdev)
 	salvo_phy->clk = devm_clk_get_optional(dev, "salvo_phy_clk");
 	if (IS_ERR(salvo_phy->clk))
 		return PTR_ERR(salvo_phy->clk);
+
+	if (of_property_read_u32(dev->of_node, "cdns,usb2-disconnect-threshold-microvolt", &val))
+		val = 575;
+
+	if (val < 610)
+		salvo_phy->usb2_disconn = USB2_DISCONN_THRESHOLD_575;
+	else if (val < 645)
+		salvo_phy->usb2_disconn = USB2_DISCONN_THRESHOLD_610;
+	else
+		salvo_phy->usb2_disconn = USB2_DISCONN_THRESHOLD_645;
 
 	salvo_phy->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(salvo_phy->base))

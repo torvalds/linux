@@ -8,6 +8,7 @@
 #include "machine.h"
 #include "map.h"
 #include "parse-events.h"
+#include "thread.h"
 #include "hists_common.h"
 #include "util/mmap.h"
 #include <errno.h>
@@ -70,6 +71,7 @@ static int add_hist_entries(struct evlist *evlist, struct machine *machine)
 	struct perf_sample sample = { .period = 1, .weight = 1, };
 	size_t i = 0, k;
 
+	addr_location__init(&al);
 	/*
 	 * each evsel will have 10 samples - 5 common and 5 distinct.
 	 * However the second evsel also has a collapsed entry for
@@ -90,13 +92,13 @@ static int add_hist_entries(struct evlist *evlist, struct machine *machine)
 			he = hists__add_entry(hists, &al, NULL,
 					      NULL, NULL, NULL, &sample, true);
 			if (he == NULL) {
-				addr_location__put(&al);
 				goto out;
 			}
 
-			fake_common_samples[k].thread = al.thread;
+			thread__put(fake_common_samples[k].thread);
+			fake_common_samples[k].thread = thread__get(al.thread);
 			map__put(fake_common_samples[k].map);
-			fake_common_samples[k].map = al.map;
+			fake_common_samples[k].map = map__get(al.map);
 			fake_common_samples[k].sym = al.sym;
 		}
 
@@ -110,20 +112,22 @@ static int add_hist_entries(struct evlist *evlist, struct machine *machine)
 			he = hists__add_entry(hists, &al, NULL,
 					      NULL, NULL, NULL, &sample, true);
 			if (he == NULL) {
-				addr_location__put(&al);
 				goto out;
 			}
 
-			fake_samples[i][k].thread = al.thread;
-			fake_samples[i][k].map = al.map;
+			thread__put(fake_samples[i][k].thread);
+			fake_samples[i][k].thread = thread__get(al.thread);
+			map__put(fake_samples[i][k].map);
+			fake_samples[i][k].map = map__get(al.map);
 			fake_samples[i][k].sym = al.sym;
 		}
 		i++;
 	}
 
+	addr_location__exit(&al);
 	return 0;
-
 out:
+	addr_location__exit(&al);
 	pr_debug("Not enough memory for adding a hist entry\n");
 	return -1;
 }
@@ -144,7 +148,7 @@ static int find_sample(struct sample *samples, size_t nr_samples,
 		       struct thread *t, struct map *m, struct symbol *s)
 {
 	while (nr_samples--) {
-		if (samples->thread == t &&
+		if (RC_CHK_ACCESS(samples->thread) == RC_CHK_ACCESS(t) &&
 		    RC_CHK_ACCESS(samples->map) == RC_CHK_ACCESS(m) &&
 		    samples->sym == s)
 			return 1;

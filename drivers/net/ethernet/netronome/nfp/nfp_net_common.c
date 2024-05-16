@@ -53,6 +53,8 @@
 #include "crypto/crypto.h"
 #include "crypto/fw.h"
 
+static int nfp_net_mc_unsync(struct net_device *netdev, const unsigned char *addr);
+
 /**
  * nfp_net_get_fw_version() - Read and parse the FW version
  * @fw_ver:	Output fw_version structure to read to
@@ -598,7 +600,7 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 
 	if (likely(!dp->ktls_tx))
 		return skb;
-	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
+	if (!tls_is_skb_tx_device_offloaded(skb))
 		return skb;
 
 	datalen = skb->len - skb_tcp_all_headers(skb);
@@ -666,7 +668,7 @@ void nfp_net_tls_tx_undo(struct sk_buff *skb, u64 tls_handle)
 
 	if (!tls_handle)
 		return;
-	if (WARN_ON_ONCE(!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk)))
+	if (WARN_ON_ONCE(!tls_is_skb_tx_device_offloaded(skb)))
 		return;
 
 	datalen = skb->len - skb_tcp_all_headers(skb);
@@ -922,7 +924,7 @@ static void nfp_net_write_mac_addr(struct nfp_net *nn, const u8 *addr)
  */
 static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 {
-	u32 new_ctrl, update;
+	u32 new_ctrl, new_ctrl_w1, update;
 	unsigned int r;
 	int err;
 
@@ -935,13 +937,28 @@ static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 	if (nn->cap & NFP_NET_CFG_CTRL_RINGCFG)
 		new_ctrl &= ~NFP_NET_CFG_CTRL_RINGCFG;
 
-	nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, 0);
-	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, 0);
+	if (!(nn->cap_w1 & NFP_NET_CFG_CTRL_FREELIST_EN)) {
+		nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, 0);
+		nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, 0);
+	}
 
 	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
 	err = nfp_net_reconfig(nn, update);
 	if (err)
 		nn_err(nn, "Could not disable device: %d\n", err);
+
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_FREELIST_EN) {
+		new_ctrl_w1 = nn->dp.ctrl_w1;
+		new_ctrl_w1 &= ~NFP_NET_CFG_CTRL_FREELIST_EN;
+		nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, 0);
+		nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, 0);
+
+		nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, new_ctrl_w1);
+		err = nfp_net_reconfig(nn, update);
+		if (err)
+			nn_err(nn, "Could not disable FREELIST_EN: %d\n", err);
+		nn->dp.ctrl_w1 = new_ctrl_w1;
+	}
 
 	for (r = 0; r < nn->dp.num_rx_rings; r++) {
 		nfp_net_rx_ring_reset(&nn->dp.rx_rings[r]);
@@ -962,11 +979,12 @@ static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
  */
 static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 {
-	u32 bufsz, new_ctrl, update = 0;
+	u32 bufsz, new_ctrl, new_ctrl_w1, update = 0;
 	unsigned int r;
 	int err;
 
 	new_ctrl = nn->dp.ctrl;
+	new_ctrl_w1 = nn->dp.ctrl_w1;
 
 	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_RSS_ANY) {
 		nfp_net_rss_write_key(nn);
@@ -999,16 +1017,25 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	bufsz = nn->dp.fl_bufsz - nn->dp.rx_dma_off - NFP_NET_RX_BUF_NON_DATA;
 	nn_writel(nn, NFP_NET_CFG_FLBUFSZ, bufsz);
 
-	/* Enable device */
-	new_ctrl |= NFP_NET_CFG_CTRL_ENABLE;
+	/* Enable device
+	 * Step 1: Replace the CTRL_ENABLE by NFP_NET_CFG_CTRL_FREELIST_EN if
+	 * FREELIST_EN exits.
+	 */
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_FREELIST_EN)
+		new_ctrl_w1 |= NFP_NET_CFG_CTRL_FREELIST_EN;
+	else
+		new_ctrl |= NFP_NET_CFG_CTRL_ENABLE;
 	update |= NFP_NET_CFG_UPDATE_GEN;
 	update |= NFP_NET_CFG_UPDATE_MSIX;
 	update |= NFP_NET_CFG_UPDATE_RING;
 	if (nn->cap & NFP_NET_CFG_CTRL_RINGCFG)
 		new_ctrl |= NFP_NET_CFG_CTRL_RINGCFG;
 
+	/* Step 2: Send the configuration and write the freelist.
+	 * - The freelist only need to be written once.
+	 */
 	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
-	nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, nn->dp.ctrl_w1);
+	nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, new_ctrl_w1);
 	err = nfp_net_reconfig(nn, update);
 	if (err) {
 		nfp_net_clear_config_and_disable(nn);
@@ -1016,9 +1043,24 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	}
 
 	nn->dp.ctrl = new_ctrl;
+	nn->dp.ctrl_w1 = new_ctrl_w1;
 
 	for (r = 0; r < nn->dp.num_rx_rings; r++)
 		nfp_net_rx_ring_fill_freelist(&nn->dp, &nn->dp.rx_rings[r]);
+
+	/* Step 3: Do the NFP_NET_CFG_CTRL_ENABLE. Send the configuration.
+	 */
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_FREELIST_EN) {
+		new_ctrl |= NFP_NET_CFG_CTRL_ENABLE;
+		nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
+
+		err = nfp_net_reconfig(nn, update);
+		if (err) {
+			nfp_net_clear_config_and_disable(nn);
+			return err;
+		}
+		nn->dp.ctrl = new_ctrl;
+	}
 
 	return 0;
 }
@@ -1084,6 +1126,9 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 
 	/* Step 2: Tell NFP
 	 */
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_MCAST_FILTER)
+		__dev_mc_unsync(netdev, nfp_net_mc_unsync);
+
 	nfp_net_clear_config_and_disable(nn);
 	nfp_port_configure(netdev, false);
 
@@ -2063,9 +2108,6 @@ static int nfp_net_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 		if (nla_type(attr) != IFLA_BRIDGE_MODE)
 			continue;
 
-		if (nla_len(attr) < sizeof(mode))
-			return -EINVAL;
-
 		new_ctrl = nn->dp.ctrl;
 		mode = nla_get_u16(attr);
 		if (mode == BRIDGE_MODE_VEPA)
@@ -2418,6 +2460,8 @@ static void nfp_net_rss_init(struct nfp_net *nn)
 	/* Enable IPv4/IPv6 TCP by default */
 	nn->rss_cfg = NFP_NET_CFG_RSS_IPV4_TCP |
 		      NFP_NET_CFG_RSS_IPV6_TCP |
+		      NFP_NET_CFG_RSS_IPV4_UDP |
+		      NFP_NET_CFG_RSS_IPV6_UDP |
 		      FIELD_PREP(NFP_NET_CFG_RSS_HFUNC, nn->rss_hfunc) |
 		      NFP_NET_CFG_RSS_MASK;
 }

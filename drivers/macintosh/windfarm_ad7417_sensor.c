@@ -320,7 +320,7 @@ static struct i2c_driver wf_ad7417_driver = {
 		.name	= "wf_ad7417",
 		.of_match_table = wf_ad7417_of_id,
 	},
-	.probe_new	= wf_ad7417_probe,
+	.probe		= wf_ad7417_probe,
 	.remove		= wf_ad7417_remove,
 	.id_table	= wf_ad7417_id,
 };

@@ -22,6 +22,7 @@ struct pmu_scan_result {
 	int nr_aliases;
 	int nr_formats;
 	int nr_caps;
+	bool is_core;
 };
 
 static const struct option options[] = {
@@ -40,13 +41,11 @@ static struct pmu_scan_result *results;
 
 static int save_result(void)
 {
-	struct perf_pmu *pmu;
+	struct perf_pmu *pmu = NULL;
 	struct list_head *list;
 	struct pmu_scan_result *r;
 
-	perf_pmu__scan(NULL);
-
-	perf_pmus__for_each_pmu(pmu) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		r = realloc(results, (nr_pmus + 1) * sizeof(*r));
 		if (r == NULL)
 			return -ENOMEM;
@@ -55,11 +54,10 @@ static int save_result(void)
 		r = results + nr_pmus;
 
 		r->name = strdup(pmu->name);
+		r->is_core = pmu->is_core;
 		r->nr_caps = pmu->nr_caps;
 
-		r->nr_aliases = 0;
-		list_for_each(list, &pmu->aliases)
-			r->nr_aliases++;
+		r->nr_aliases = perf_pmu__num_events(pmu);
 
 		r->nr_formats = 0;
 		list_for_each(list, &pmu->format)
@@ -70,11 +68,11 @@ static int save_result(void)
 		nr_pmus++;
 	}
 
-	perf_pmu__destroy();
+	perf_pmus__destroy();
 	return 0;
 }
 
-static int check_result(void)
+static int check_result(bool core_only)
 {
 	struct pmu_scan_result *r;
 	struct perf_pmu *pmu;
@@ -83,7 +81,10 @@ static int check_result(void)
 
 	for (int i = 0; i < nr_pmus; i++) {
 		r = &results[i];
-		pmu = perf_pmu__find(r->name);
+		if (core_only && !r->is_core)
+			continue;
+
+		pmu = perf_pmus__find(r->name);
 		if (pmu == NULL) {
 			pr_err("Cannot find PMU %s\n", r->name);
 			return -1;
@@ -95,9 +96,7 @@ static int check_result(void)
 			return -1;
 		}
 
-		nr = 0;
-		list_for_each(list, &pmu->aliases)
-			nr++;
+		nr = perf_pmu__num_events(pmu);
 		if (nr != r->nr_aliases) {
 			pr_err("Unmatched number of event aliases in %s: expect %d vs got %d\n",
 				pmu->name, r->nr_aliases, nr);
@@ -132,7 +131,6 @@ static int run_pmu_scan(void)
 	struct timeval start, end, diff;
 	double time_average, time_stddev;
 	u64 runtime_us;
-	unsigned int i;
 	int ret;
 
 	init_stats(&stats);
@@ -144,26 +142,30 @@ static int run_pmu_scan(void)
 		return -1;
 	}
 
-	for (i = 0; i < iterations; i++) {
-		gettimeofday(&start, NULL);
-		perf_pmu__scan(NULL);
-		gettimeofday(&end, NULL);
+	for (int j = 0; j < 2; j++) {
+		bool core_only = (j == 0);
 
-		timersub(&end, &start, &diff);
-		runtime_us = diff.tv_sec * USEC_PER_SEC + diff.tv_usec;
-		update_stats(&stats, runtime_us);
+		for (unsigned int i = 0; i < iterations; i++) {
+			gettimeofday(&start, NULL);
+			if (core_only)
+				perf_pmus__scan_core(NULL);
+			else
+				perf_pmus__scan(NULL);
+			gettimeofday(&end, NULL);
+			timersub(&end, &start, &diff);
+			runtime_us = diff.tv_sec * USEC_PER_SEC + diff.tv_usec;
+			update_stats(&stats, runtime_us);
 
-		ret = check_result();
-		perf_pmu__destroy();
-		if (ret < 0)
-			break;
+			ret = check_result(core_only);
+			perf_pmus__destroy();
+			if (ret < 0)
+				break;
+		}
+		time_average = avg_stats(&stats);
+		time_stddev = stddev_stats(&stats);
+		pr_info("  Average%s PMU scanning took: %.3f usec (+- %.3f usec)\n",
+			core_only ? " core" : "", time_average, time_stddev);
 	}
-
-	time_average = avg_stats(&stats);
-	time_stddev = stddev_stats(&stats);
-	pr_info("  Average PMU scanning took: %.3f usec (+- %.3f usec)\n",
-		time_average, time_stddev);
-
 	delete_result();
 	return 0;
 }

@@ -450,7 +450,7 @@ static int am65_cpsw_configure_taprio(struct net_device *ndev,
 
 	am65_cpsw_est_update_state(ndev);
 
-	if (!est_new->taprio.enable) {
+	if (est_new->taprio.cmd == TAPRIO_CMD_DESTROY) {
 		am65_cpsw_stop_est(ndev);
 		return ret;
 	}
@@ -476,7 +476,7 @@ static int am65_cpsw_configure_taprio(struct net_device *ndev,
 	am65_cpsw_est_set_sched_list(ndev, est_new);
 	am65_cpsw_port_est_assign_buf_num(ndev, est_new->buf);
 
-	am65_cpsw_est_set(ndev, est_new->taprio.enable);
+	am65_cpsw_est_set(ndev, est_new->taprio.cmd == TAPRIO_CMD_REPLACE);
 
 	if (tact == TACT_PROG) {
 		ret = am65_cpsw_timer_set(ndev, est_new);
@@ -520,7 +520,7 @@ static int am65_cpsw_set_taprio(struct net_device *ndev, void *type_data)
 	am65_cpsw_cp_taprio(taprio, &est_new->taprio);
 	ret = am65_cpsw_configure_taprio(ndev, est_new);
 	if (!ret) {
-		if (taprio->enable) {
+		if (taprio->cmd == TAPRIO_CMD_REPLACE) {
 			devm_kfree(&ndev->dev, port->qos.est_admin);
 
 			port->qos.est_admin = est_new;
@@ -564,7 +564,12 @@ purge_est:
 static int am65_cpsw_setup_taprio(struct net_device *ndev, void *type_data)
 {
 	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
+	struct tc_taprio_qopt_offload *taprio = type_data;
 	struct am65_cpsw_common *common = port->common;
+
+	if (taprio->cmd != TAPRIO_CMD_REPLACE &&
+	    taprio->cmd != TAPRIO_CMD_DESTROY)
+		return -EOPNOTSUPP;
 
 	if (!IS_ENABLED(CONFIG_TI_AM65_CPSW_TAS))
 		return -ENODEV;
@@ -619,9 +624,9 @@ static int am65_cpsw_qos_clsflower_add_policer(struct am65_cpsw_port *port,
 	int ret;
 
 	if (dissector->used_keys &
-	    ~(BIT(FLOW_DISSECTOR_KEY_BASIC) |
-	      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
+	    ~(BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Unsupported keys used");
 		return -EOPNOTSUPP;

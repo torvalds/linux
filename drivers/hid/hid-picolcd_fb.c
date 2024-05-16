@@ -221,7 +221,7 @@ int picolcd_fb_reset(struct picolcd_data *data, int clear)
 	return 0;
 }
 
-/* Update fb_vbitmap from the screen_base and send changed tiles to device */
+/* Update fb_vbitmap from the screen_buffer and send changed tiles to device */
 static void picolcd_fb_update(struct fb_info *info)
 {
 	int chip, tile, n;
@@ -527,7 +527,6 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 	info->var = picolcdfb_var;
 	info->fix = picolcdfb_fix;
 	info->fix.smem_len   = PICOLCDFB_SIZE*8;
-	info->flags = FBINFO_FLAG_DEFAULT;
 
 	fbdata = info->par;
 	spin_lock_init(&fbdata->lock);
@@ -541,7 +540,7 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 		dev_err(dev, "can't get a free page for framebuffer\n");
 		goto err_nomem;
 	}
-	info->screen_base = (char __force __iomem *)fbdata->bitmap;
+	info->screen_buffer = fbdata->bitmap;
 	info->fix.smem_start = (unsigned long)fbdata->bitmap;
 	memset(fbdata->vbitmap, 0xff, PICOLCDFB_SIZE);
 	data->fb_info = info;

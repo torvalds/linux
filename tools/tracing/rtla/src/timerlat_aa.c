@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "osnoise.h"
 #include "timerlat.h"
+#include <unistd.h>
 
 enum timelat_state {
 	TIMERLAT_INIT = 0,
@@ -158,6 +159,7 @@ static int timerlat_aa_irq_latency(struct timerlat_aa_data *taa_data,
 	taa_data->thread_nmi_sum = 0;
 	taa_data->thread_irq_sum = 0;
 	taa_data->thread_softirq_sum = 0;
+	taa_data->thread_thread_sum = 0;
 	taa_data->thread_blocking_duration = 0;
 	taa_data->timer_irq_start_time = 0;
 	taa_data->timer_irq_duration = 0;
@@ -233,7 +235,7 @@ static int timerlat_aa_thread_latency(struct timerlat_aa_data *taa_data,
  *
  * Returns 0 on success, -1 otherwise.
  */
-int timerlat_aa_handler(struct trace_seq *s, struct tep_record *record,
+static int timerlat_aa_handler(struct trace_seq *s, struct tep_record *record,
 			struct tep_event *event, void *context)
 {
 	struct timerlat_aa_context *taa_ctx = timerlat_aa_get_ctx();
@@ -336,7 +338,23 @@ static int timerlat_aa_irq_handler(struct trace_seq *s, struct tep_record *recor
 		taa_data->timer_irq_start_time = start;
 		taa_data->timer_irq_duration = duration;
 
-		taa_data->timer_irq_start_delay = taa_data->timer_irq_start_time - expected_start;
+		/*
+		 * We are dealing with two different clock sources: the
+		 * external clock source that timerlat uses as a reference
+		 * and the clock used by the tracer. There are also two
+		 * moments: the time reading the clock and the timer in
+		 * which the event is placed in the buffer (the trace
+		 * event timestamp). If the processor is slow or there
+		 * is some hardware noise, the difference between the
+		 * timestamp and the external clock read can be longer
+		 * than the IRQ handler delay, resulting in a negative
+		 * time. If so, set IRQ start delay as 0. In the end,
+		 * it is less relevant than the noise.
+		 */
+		if (expected_start < taa_data->timer_irq_start_time)
+			taa_data->timer_irq_start_delay = taa_data->timer_irq_start_time - expected_start;
+		else
+			taa_data->timer_irq_start_delay = 0;
 
 		/*
 		 * not exit from idle.
@@ -527,7 +545,7 @@ static int timerlat_aa_kworker_start_handler(struct trace_seq *s, struct tep_rec
 static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 				     int irq_thresh, int thread_thresh)
 {
-	unsigned long long exp_irq_ts;
+	long long exp_irq_ts;
 	int total;
 	int irq;
 
@@ -544,12 +562,15 @@ static void timerlat_thread_analysis(struct timerlat_aa_data *taa_data, int cpu,
 
 	/*
 	 * Expected IRQ arrival time using the trace clock as the base.
+	 *
+	 * TODO: Add a list of previous IRQ, and then run the list backwards.
 	 */
 	exp_irq_ts = taa_data->timer_irq_start_time - taa_data->timer_irq_start_delay;
-
-	if (exp_irq_ts < taa_data->prev_irq_timstamp + taa_data->prev_irq_duration)
-		printf("  Previous IRQ interference:	\t\t up to  %9.2f us\n",
-			ns_to_usf(taa_data->prev_irq_duration));
+	if (exp_irq_ts < taa_data->prev_irq_timstamp + taa_data->prev_irq_duration) {
+		if (taa_data->prev_irq_timstamp < taa_data->timer_irq_start_time)
+			printf("  Previous IRQ interference:	\t\t up to  %9.2f us\n",
+				ns_to_usf(taa_data->prev_irq_duration));
+	}
 
 	/*
 	 * The delay that the IRQ suffered before starting.
@@ -665,6 +686,25 @@ print_total:
 		ns_to_usf(total));
 }
 
+static int timerlat_auto_analysis_collect_trace(struct timerlat_aa_context *taa_ctx)
+{
+	struct trace_instance *trace = &taa_ctx->tool->trace;
+	int retval;
+
+	retval = tracefs_iterate_raw_events(trace->tep,
+					    trace->inst,
+					    NULL,
+					    0,
+					    collect_registered_events,
+					    trace);
+		if (retval < 0) {
+			err_msg("Error iterating on events\n");
+			return 0;
+		}
+
+	return 1;
+}
+
 /**
  * timerlat_auto_analysis - Analyze the collected data
  */
@@ -676,6 +716,8 @@ void timerlat_auto_analysis(int irq_thresh, int thread_thresh)
 	int max_exit_from_idle_cpu;
 	struct tep_handle *tep;
 	int cpu;
+
+	timerlat_auto_analysis_collect_trace(taa_ctx);
 
 	/* bring stop tracing to the ns scale */
 	irq_thresh = irq_thresh * 1000;
@@ -838,6 +880,10 @@ out_err:
  */
 static void timerlat_aa_unregister_events(struct osnoise_tool *tool, int dump_tasks)
 {
+
+	tep_unregister_event_handler(tool->trace.tep, -1, "ftrace", "timerlat",
+				     timerlat_aa_handler, tool);
+
 	tracefs_event_disable(tool->trace.inst, "osnoise", NULL);
 
 	tep_unregister_event_handler(tool->trace.tep, -1, "osnoise", "nmi_noise",
@@ -874,6 +920,10 @@ static void timerlat_aa_unregister_events(struct osnoise_tool *tool, int dump_ta
 static int timerlat_aa_register_events(struct osnoise_tool *tool, int dump_tasks)
 {
 	int retval;
+
+	tep_register_event_handler(tool->trace.tep, -1, "ftrace", "timerlat",
+				timerlat_aa_handler, tool);
+
 
 	/*
 	 * register auto-analysis handlers.
@@ -955,8 +1005,9 @@ out_ctx:
  *
  * Returns 0 on success, -1 otherwise.
  */
-int timerlat_aa_init(struct osnoise_tool *tool, int nr_cpus, int dump_tasks)
+int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks)
 {
+	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	struct timerlat_aa_context *taa_ctx;
 	int retval;
 

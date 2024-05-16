@@ -17,7 +17,6 @@
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_net.h>
 
 #include "stmmac_platform.h"
@@ -104,11 +103,11 @@ struct sti_dwmac {
 	struct regmap *regmap;
 	bool gmac_en;
 	u32 speed;
-	void (*fix_retime_src)(void *priv, unsigned int speed);
+	void (*fix_retime_src)(void *priv, unsigned int speed, unsigned int mode);
 };
 
 struct sti_dwmac_of_data {
-	void (*fix_retime_src)(void *priv, unsigned int speed);
+	void (*fix_retime_src)(void *priv, unsigned int speed, unsigned int mode);
 };
 
 static u32 phy_intf_sels[] = {
@@ -136,7 +135,7 @@ static u32 stih4xx_tx_retime_val[] = {
 				 | STIH4XX_ETH_SEL_INTERNAL_NOTEXT_PHYCLK,
 };
 
-static void stih4xx_fix_retime_src(void *priv, u32 spd)
+static void stih4xx_fix_retime_src(void *priv, u32 spd, unsigned int mode)
 {
 	struct sti_dwmac *dwmac = priv;
 	u32 src = dwmac->tx_retime_src;
@@ -188,7 +187,7 @@ static int sti_dwmac_set_mode(struct sti_dwmac *dwmac)
 	val = (iface == PHY_INTERFACE_MODE_REVMII) ? 0 : ENMII;
 	regmap_update_bits(regmap, reg, ENMII_MASK, val);
 
-	dwmac->fix_retime_src(dwmac, dwmac->speed);
+	dwmac->fix_retime_src(dwmac, dwmac->speed, 0);
 
 	return 0;
 }
@@ -317,15 +316,13 @@ err_remove_config_dt:
 	return ret;
 }
 
-static int sti_dwmac_remove(struct platform_device *pdev)
+static void sti_dwmac_remove(struct platform_device *pdev)
 {
 	struct sti_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
 
 	stmmac_dvr_remove(&pdev->dev);
 
 	clk_disable_unprepare(dwmac->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -365,7 +362,7 @@ MODULE_DEVICE_TABLE(of, sti_dwmac_match);
 
 static struct platform_driver sti_dwmac_driver = {
 	.probe  = sti_dwmac_probe,
-	.remove = sti_dwmac_remove,
+	.remove_new = sti_dwmac_remove,
 	.driver = {
 		.name           = "sti-dwmac",
 		.pm		= &sti_dwmac_pm_ops,

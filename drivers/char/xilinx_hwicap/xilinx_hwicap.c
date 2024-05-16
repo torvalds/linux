@@ -113,7 +113,9 @@ static DEFINE_MUTEX(hwicap_mutex);
 static bool probed_devices[HWICAP_DEVICES];
 static struct mutex icap_sem;
 
-static struct class *icap_class;
+static const struct class icap_class = {
+	.name = "xilinx_config",
+};
 
 #define UNIMPLEMENTED 0xFFFF
 
@@ -687,7 +689,7 @@ static int hwicap_setup(struct device *dev, int id,
 		goto failed3;
 	}
 
-	device_create(icap_class, dev, devt, NULL, "%s%d", DRIVER_NAME, id);
+	device_create(&icap_class, dev, devt, NULL, "%s%d", DRIVER_NAME, id);
 	return 0;		/* success */
 
  failed3:
@@ -720,27 +722,6 @@ static struct hwicap_driver_config fifo_icap_config = {
 	.get_status = fifo_icap_get_status,
 	.reset = fifo_icap_reset,
 };
-
-static int hwicap_remove(struct device *dev)
-{
-	struct hwicap_drvdata *drvdata;
-
-	drvdata = dev_get_drvdata(dev);
-
-	if (!drvdata)
-		return 0;
-
-	device_destroy(icap_class, drvdata->devt);
-	cdev_del(&drvdata->cdev);
-	iounmap(drvdata->base_address);
-	release_mem_region(drvdata->mem_start, drvdata->mem_size);
-	kfree(drvdata);
-
-	mutex_lock(&icap_sem);
-	probed_devices[MINOR(dev->devt)-XHWICAP_MINOR] = 0;
-	mutex_unlock(&icap_sem);
-	return 0;		/* success */
-}
 
 #ifdef CONFIG_OF
 static int hwicap_of_probe(struct platform_device *op,
@@ -825,9 +806,22 @@ static int hwicap_drv_probe(struct platform_device *pdev)
 			&buffer_icap_config, regs);
 }
 
-static int hwicap_drv_remove(struct platform_device *pdev)
+static void hwicap_drv_remove(struct platform_device *pdev)
 {
-	return hwicap_remove(&pdev->dev);
+	struct device *dev = &pdev->dev;
+	struct hwicap_drvdata *drvdata;
+
+	drvdata = dev_get_drvdata(dev);
+
+	device_destroy(&icap_class, drvdata->devt);
+	cdev_del(&drvdata->cdev);
+	iounmap(drvdata->base_address);
+	release_mem_region(drvdata->mem_start, drvdata->mem_size);
+	kfree(drvdata);
+
+	mutex_lock(&icap_sem);
+	probed_devices[MINOR(dev->devt)-XHWICAP_MINOR] = 0;
+	mutex_unlock(&icap_sem);
 }
 
 #ifdef CONFIG_OF
@@ -844,7 +838,7 @@ MODULE_DEVICE_TABLE(of, hwicap_of_match);
 
 static struct platform_driver hwicap_platform_driver = {
 	.probe = hwicap_drv_probe,
-	.remove = hwicap_drv_remove,
+	.remove_new = hwicap_drv_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = hwicap_of_match,
@@ -856,7 +850,9 @@ static int __init hwicap_module_init(void)
 	dev_t devt;
 	int retval;
 
-	icap_class = class_create("xilinx_config");
+	retval = class_register(&icap_class);
+	if (retval)
+		return retval;
 	mutex_init(&icap_sem);
 
 	devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR);
@@ -882,7 +878,7 @@ static void __exit hwicap_module_cleanup(void)
 {
 	dev_t devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR);
 
-	class_destroy(icap_class);
+	class_unregister(&icap_class);
 
 	platform_driver_unregister(&hwicap_platform_driver);
 

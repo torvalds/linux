@@ -384,7 +384,8 @@ static int ucs1002_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		return ucs1002_get_usb_type(info, val);
 	case POWER_SUPPLY_PROP_HEALTH:
-		return val->intval = info->health;
+		val->intval = info->health;
+		return 0;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = info->present;
 		return 0;
@@ -680,7 +681,7 @@ static struct i2c_driver ucs1002_driver = {
 		   .name = "ucs1002",
 		   .of_match_table = ucs1002_of_match,
 	},
-	.probe_new = ucs1002_probe,
+	.probe = ucs1002_probe,
 };
 module_i2c_driver(ucs1002_driver);
 

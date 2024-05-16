@@ -15,7 +15,7 @@
 #include <linux/mfd/rohm-bd71828.h>
 #include <linux/mfd/rohm-generic.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 
@@ -564,7 +564,7 @@ static struct i2c_driver bd71828_drv = {
 		.name = "rohm-bd71828",
 		.of_match_table = bd71828_of_match,
 	},
-	.probe_new = &bd71828_i2c_probe,
+	.probe = bd71828_i2c_probe,
 };
 module_i2c_driver(bd71828_drv);
 

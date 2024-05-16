@@ -105,6 +105,8 @@ struct apple_gmux_config {
 #define GMUX_BRIGHTNESS_MASK		0x00ffffff
 #define GMUX_MAX_BRIGHTNESS		GMUX_BRIGHTNESS_MASK
 
+# define MMIO_GMUX_MAX_BRIGHTNESS	0xffff
+
 static u8 gmux_pio_read8(struct apple_gmux_data *gmux_data, int port)
 {
 	return inb(gmux_data->iostart + port);
@@ -278,7 +280,7 @@ static u32 gmux_mmio_read32(struct apple_gmux_data *gmux_data, int port)
 	iowrite8(GMUX_MMIO_READ | sizeof(val),
 		gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
 	gmux_mmio_wait(gmux_data);
-	val = be32_to_cpu(ioread32(gmux_data->iomem_base));
+	val = ioread32be(gmux_data->iomem_base);
 	mutex_unlock(&gmux_data->index_lock);
 
 	return val;
@@ -288,7 +290,7 @@ static void gmux_mmio_write32(struct apple_gmux_data *gmux_data, int port,
 			       u32 val)
 {
 	mutex_lock(&gmux_data->index_lock);
-	iowrite32(cpu_to_be32(val), gmux_data->iomem_base);
+	iowrite32be(val, gmux_data->iomem_base);
 	iowrite8(port & 0xff, gmux_data->iomem_base + GMUX_MMIO_PORT_SELECT);
 	iowrite8(GMUX_MMIO_WRITE | sizeof(val),
 		gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
@@ -857,7 +859,17 @@ get_version:
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
-	props.max_brightness = gmux_read32(gmux_data, GMUX_PORT_MAX_BRIGHTNESS);
+
+	/*
+	 * All MMIO gmux's have 0xffff as max brightness, but some iMacs incorrectly
+	 * report 0x03ff, despite the firmware being happy to set 0xffff as the brightness
+	 * at boot. Force 0xffff for all MMIO gmux's so they all have the correct brightness
+	 * range.
+	 */
+	if (type == APPLE_GMUX_TYPE_MMIO)
+		props.max_brightness = MMIO_GMUX_MAX_BRIGHTNESS;
+	else
+		props.max_brightness = gmux_read32(gmux_data, GMUX_PORT_MAX_BRIGHTNESS);
 
 #if IS_REACHABLE(CONFIG_ACPI_VIDEO)
 	register_bdev = acpi_video_get_backlight_type() == acpi_backlight_apple_gmux;

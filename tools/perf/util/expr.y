@@ -7,6 +7,8 @@
 #include "util/debug.h"
 #define IN_EXPR_Y 1
 #include "expr.h"
+#include "expr-bison.h"
+int expr_lex(YYSTYPE * yylval_param , void *yyscanner);
 %}
 
 %define api.pure full
@@ -37,7 +39,7 @@
 	} ids;
 }
 
-%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO SOURCE_COUNT EXPR_ERROR
+%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO SOURCE_COUNT HAS_EVENT STRCMP_CPUID_STR EXPR_ERROR
 %left MIN MAX IF
 %left '|'
 %left '^'
@@ -56,7 +58,7 @@
 static void expr_error(double *final_val __maybe_unused,
 		       struct expr_parse_ctx *ctx __maybe_unused,
 		       bool compute_ids __maybe_unused,
-		       void *scanner,
+		       void *scanner __maybe_unused,
 		       const char *s)
 {
 	pr_debug("%s\n", s);
@@ -123,20 +125,6 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
  * constant value using OP. Its invariant that there are no ids.  If computing
  * ids for non-constants union the set of IDs that must be computed.
  */
-#define BINARY_LONG_OP(RESULT, OP, LHS, RHS)				\
-	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
-		assert(LHS.ids == NULL);				\
-		assert(RHS.ids == NULL);				\
-		if (isnan(LHS.val) || isnan(RHS.val)) {			\
-			RESULT.val = NAN;				\
-		} else {						\
-			RESULT.val = (long)LHS.val OP (long)RHS.val;	\
-		}							\
-		RESULT.ids = NULL;					\
-	} else {							\
-	        RESULT = union_expr(LHS, RHS);				\
-	}
-
 #define BINARY_OP(RESULT, OP, LHS, RHS)					\
 	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
 		assert(LHS.ids == NULL);				\
@@ -213,9 +201,87 @@ expr: NUMBER
 }
 | ID				{ $$ = handle_id(ctx, $1, compute_ids, /*source_count=*/false); }
 | SOURCE_COUNT '(' ID ')'	{ $$ = handle_id(ctx, $3, compute_ids, /*source_count=*/true); }
-| expr '|' expr { BINARY_LONG_OP($$, |, $1, $3); }
-| expr '&' expr { BINARY_LONG_OP($$, &, $1, $3); }
-| expr '^' expr { BINARY_LONG_OP($$, ^, $1, $3); }
+| HAS_EVENT '(' ID ')'
+{
+	$$.val = expr__has_event(ctx, compute_ids, $3);
+	$$.ids = NULL;
+	free($3);
+}
+| STRCMP_CPUID_STR '(' ID ')'
+{
+	$$.val = expr__strcmp_cpuid_str(ctx, compute_ids, $3);
+	$$.ids = NULL;
+	free($3);
+}
+| expr '|' expr
+{
+	if (is_const($1.val) && is_const($3.val)) {
+		assert($1.ids == NULL);
+		assert($3.ids == NULL);
+		$$.ids = NULL;
+		$$.val = (fpclassify($1.val) == FP_ZERO && fpclassify($3.val) == FP_ZERO) ? 0 : 1;
+	} else if (is_const($1.val)) {
+		assert($1.ids == NULL);
+		if (fpclassify($1.val) == FP_ZERO) {
+			$$ = $3;
+		} else {
+			$$.val = 1;
+			$$.ids = NULL;
+			ids__free($3.ids);
+		}
+	} else if (is_const($3.val)) {
+		assert($3.ids == NULL);
+		if (fpclassify($3.val) == FP_ZERO) {
+			$$ = $1;
+		} else {
+			$$.val = 1;
+			$$.ids = NULL;
+			ids__free($1.ids);
+		}
+	} else {
+		$$ = union_expr($1, $3);
+	}
+}
+| expr '&' expr
+{
+	if (is_const($1.val) && is_const($3.val)) {
+		assert($1.ids == NULL);
+		assert($3.ids == NULL);
+		$$.val = (fpclassify($1.val) != FP_ZERO && fpclassify($3.val) != FP_ZERO) ? 1 : 0;
+		$$.ids = NULL;
+	} else if (is_const($1.val)) {
+		assert($1.ids == NULL);
+		if (fpclassify($1.val) != FP_ZERO) {
+			$$ = $3;
+		} else {
+			$$.val = 0;
+			$$.ids = NULL;
+			ids__free($3.ids);
+		}
+	} else if (is_const($3.val)) {
+		assert($3.ids == NULL);
+		if (fpclassify($3.val) != FP_ZERO) {
+			$$ = $1;
+		} else {
+			$$.val = 0;
+			$$.ids = NULL;
+			ids__free($1.ids);
+		}
+	} else {
+		$$ = union_expr($1, $3);
+	}
+}
+| expr '^' expr
+{
+	if (is_const($1.val) && is_const($3.val)) {
+		assert($1.ids == NULL);
+		assert($3.ids == NULL);
+		$$.val = (fpclassify($1.val) == FP_ZERO) != (fpclassify($3.val) == FP_ZERO) ? 1 : 0;
+		$$.ids = NULL;
+	} else {
+		$$ = union_expr($1, $3);
+	}
+}
 | expr '<' expr { BINARY_OP($$, <, $1, $3); }
 | expr '>' expr { BINARY_OP($$, >, $1, $3); }
 | expr '+' expr { BINARY_OP($$, +, $1, $3); }

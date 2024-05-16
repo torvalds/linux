@@ -10,8 +10,9 @@
 #include <linux/of_net.h>
 #include <linux/netdevice.h>
 #include <linux/phylink.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/skbuff.h>
 #include <net/switchdev.h>

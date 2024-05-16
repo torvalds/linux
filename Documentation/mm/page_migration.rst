@@ -73,14 +73,13 @@ In kernel use of migrate_pages()
    It also prevents the swapper or other scans from encountering
    the page.
 
-2. We need to have a function of type new_page_t that can be
+2. We need to have a function of type new_folio_t that can be
    passed to migrate_pages(). This function should figure out
-   how to allocate the correct new page given the old page.
+   how to allocate the correct new folio given the old folio.
 
 3. The migrate_pages() function is called which attempts
    to do the migration. It will call the function to allocate
-   the new page for each page that is considered for
-   moving.
+   the new folio for each folio that is considered for moving.
 
 How migrate_pages() works
 =========================
@@ -181,7 +180,7 @@ The following events (counters) can be used to monitor page migration.
 4. THP_MIGRATION_FAIL: A THP could not be migrated nor it could be split.
 
 5. THP_MIGRATION_SPLIT: A THP was migrated, but not as such: first, the THP had
-   to be split. After splitting, a migration retry was used for it's sub-pages.
+   to be split. After splitting, a migration retry was used for its sub-pages.
 
 THP_MIGRATION_* events also update the appropriate PGMIGRATE_SUCCESS or
 PGMIGRATE_FAIL events. For example, a THP migration failure will cause both

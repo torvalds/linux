@@ -218,7 +218,7 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 	master->num_chipselect = 16;
 	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_3WIRE;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->flags = SPI_MASTER_HALF_DUPLEX;
+	master->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	master->transfer_one_message = spi_xcomm_transfer_one;
 	master->dev.of_node = i2c->dev.of_node;
 	i2c_set_clientdata(i2c, master);
@@ -241,7 +241,7 @@ static struct i2c_driver spi_xcomm_driver = {
 		.name	= "spi-xcomm",
 	},
 	.id_table	= spi_xcomm_ids,
-	.probe_new	= spi_xcomm_probe,
+	.probe		= spi_xcomm_probe,
 };
 module_i2c_driver(spi_xcomm_driver);
 

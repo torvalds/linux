@@ -11,7 +11,6 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_vblank_work.h>
 
-#include "i915_irq.h"
 #include "i915_vgpu.h"
 #include "i9xx_plane.h"
 #include "icl_dsi.h"
@@ -21,6 +20,7 @@
 #include "intel_crtc.h"
 #include "intel_cursor.h"
 #include "intel_display_debugfs.h"
+#include "intel_display_irq.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_drrs.h"
@@ -35,7 +35,11 @@
 
 static void assert_vblank_disabled(struct drm_crtc *crtc)
 {
-	if (I915_STATE_WARN_ON(drm_crtc_vblank_get(crtc) == 0))
+	struct drm_i915_private *i915 = to_i915(crtc->dev);
+
+	if (I915_STATE_WARN(i915, drm_crtc_vblank_get(crtc) == 0,
+			    "[CRTC:%d:%s] vblank assertion failure (expected off, current on)\n",
+			    crtc->base.id, crtc->name))
 		drm_crtc_vblank_put(crtc);
 }
 
@@ -302,7 +306,7 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		return PTR_ERR(crtc);
 
 	crtc->pipe = pipe;
-	crtc->num_scalers = RUNTIME_INFO(dev_priv)->num_scalers[pipe];
+	crtc->num_scalers = DISPLAY_RUNTIME_INFO(dev_priv)->num_scalers[pipe];
 
 	if (DISPLAY_VER(dev_priv) >= 9)
 		primary = skl_universal_plane_create(dev_priv, pipe,
@@ -510,6 +514,13 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 						      VBLANK_EVASION_TIME_US);
 	max = vblank_start - 1;
 
+	/*
+	 * M/N is double buffered on the transcoder's undelayed vblank,
+	 * so with seamless M/N we must evade both vblanks.
+	 */
+	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
+		min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
+
 	if (min <= 0 || max <= 0)
 		goto irq_disable;
 
@@ -692,7 +703,8 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 * FIXME Should be synchronized with the start of vblank somehow...
 	 */
 	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
-		intel_crtc_update_active_timings(new_crtc_state);
+		intel_crtc_update_active_timings(new_crtc_state,
+						 new_crtc_state->vrr.enable);
 
 	local_irq_enable();
 

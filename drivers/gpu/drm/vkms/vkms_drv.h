@@ -23,10 +23,14 @@
 
 #define NUM_OVERLAY_PLANES 8
 
+#define VKMS_LUT_SIZE 256
+
 struct vkms_frame_info {
 	struct drm_framebuffer *fb;
 	struct drm_rect src, dst;
+	struct drm_rect rotated;
 	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
+	unsigned int rotation;
 	unsigned int offset;
 	unsigned int pitch;
 	unsigned int cpp;
@@ -44,8 +48,7 @@ struct line_buffer {
 struct vkms_writeback_job {
 	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
 	struct vkms_frame_info wb_frame_info;
-	void (*wb_write)(struct vkms_frame_info *frame_info,
-			 const struct line_buffer *buffer, int y);
+	void (*pixel_write)(u8 *dst_pixels, struct pixel_argb_u16 *in_pixel);
 };
 
 /**
@@ -56,12 +59,17 @@ struct vkms_writeback_job {
 struct vkms_plane_state {
 	struct drm_shadow_plane_state base;
 	struct vkms_frame_info *frame_info;
-	void (*plane_read)(struct line_buffer *buffer,
-			   const struct vkms_frame_info *frame_info, int y);
+	void (*pixel_read)(u8 *src_buffer, struct pixel_argb_u16 *out_pixel);
 };
 
 struct vkms_plane {
 	struct drm_plane base;
+};
+
+struct vkms_color_lut {
+	struct drm_color_lut *base;
+	size_t lut_length;
+	s64 channel_value2index_ratio;
 };
 
 /**
@@ -79,6 +87,7 @@ struct vkms_crtc_state {
 	/* stack of active planes for crc computation, should be in z order */
 	struct vkms_plane_state **active_planes;
 	struct vkms_writeback_job *active_writeback;
+	struct vkms_color_lut gamma_lut;
 
 	/* below four are protected by vkms_output.composer_lock */
 	bool crc_pending;
@@ -155,6 +164,8 @@ int vkms_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 /* Composer Support */
 void vkms_composer_worker(struct work_struct *work);
 void vkms_set_composer(struct vkms_output *out, bool enabled);
+void vkms_compose_row(struct line_buffer *stage_buffer, struct vkms_plane_state *plane, int y);
+void vkms_writeback_row(struct vkms_writeback_job *wb, const struct line_buffer *src_buffer, int y);
 
 /* Writeback */
 int vkms_enable_writeback_connector(struct vkms_device *vkmsdev);

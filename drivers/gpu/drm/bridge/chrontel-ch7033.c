@@ -603,11 +603,11 @@ static const struct i2c_device_id ch7033_ids[] = {
 MODULE_DEVICE_TABLE(i2c, ch7033_ids);
 
 static struct i2c_driver ch7033_driver = {
-	.probe_new = ch7033_probe,
+	.probe = ch7033_probe,
 	.remove = ch7033_remove,
 	.driver = {
 		.name = "ch7033",
-		.of_match_table = of_match_ptr(ch7033_dt_ids),
+		.of_match_table = ch7033_dt_ids,
 	},
 	.id_table = ch7033_ids,
 };

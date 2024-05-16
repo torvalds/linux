@@ -26,6 +26,9 @@ config ARC
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_IOREMAP
+	select GENERIC_STRNCPY_FROM_USER if MMU
+	select GENERIC_STRNLEN_USER if MMU
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if ARC_MMU_V4
@@ -41,6 +44,7 @@ config ARC
 	select HAVE_PERF_EVENTS
 	select HAVE_SYSCALL_TRACEPOINTS
 	select IRQ_DOMAIN
+	select LOCK_MM_AND_FIND_VMA
 	select MODULES_USE_ELF_RELA
 	select OF
 	select OF_EARLY_FLATTREE
@@ -489,11 +493,11 @@ config ARC_KVADDR_SIZE
 	  kernel-user gutter)
 
 config ARC_CURR_IN_REG
-	bool "Dedicate Register r25 for current_task pointer"
+	bool "cache current task pointer in gp"
 	default y
 	help
-	  This reserved Register R25 to point to Current Task in
-	  kernel mode. This saves memory access for each such access
+	  This reserves gp register to point to Current Task in
+	  kernel mode eliding memory access for each access
 
 
 config ARC_EMUL_UNALIGNED

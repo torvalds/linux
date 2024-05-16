@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/display/panel/panel-mipi-dbi-spi.yaml#
@@ -66,7 +66,9 @@ properties:
   compatible:
     items:
       - enum:
+          - saef,sftc154b
           - sainsmart18
+          - shineworld,lh133k
       - const: panel-mipi-dbi-spi
 
   write-only:
@@ -85,6 +87,8 @@ properties:
     description: |
       Logic level supply for interface signals (Vddi).
       No need to set if this is the same as power-supply.
+
+  spi-3wire: true
 
 required:
   - compatible

@@ -12,7 +12,6 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/fs.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -1170,7 +1169,7 @@ static struct i2c_driver rt1015_i2c_driver = {
 		.of_match_table = of_match_ptr(rt1015_of_match),
 		.acpi_match_table = ACPI_PTR(rt1015_acpi_match),
 	},
-	.probe_new = rt1015_i2c_probe,
+	.probe = rt1015_i2c_probe,
 	.shutdown = rt1015_i2c_shutdown,
 	.id_table = rt1015_i2c_id,
 };

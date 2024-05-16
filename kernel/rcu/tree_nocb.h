@@ -77,9 +77,9 @@ __setup("rcu_nocbs", rcu_nocb_setup);
 static int __init parse_rcu_nocb_poll(char *arg)
 {
 	rcu_nocb_poll = true;
-	return 0;
+	return 1;
 }
-early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
+__setup("rcu_nocb_poll", parse_rcu_nocb_poll);
 
 /*
  * Don't bother bypassing ->cblist if the call_rcu() rate is low.
@@ -1319,12 +1319,21 @@ lazy_rcu_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 	int cpu;
 	unsigned long count = 0;
 
+	if (WARN_ON_ONCE(!cpumask_available(rcu_nocb_mask)))
+		return 0;
+
+	/*  Protect rcu_nocb_mask against concurrent (de-)offloading. */
+	if (!mutex_trylock(&rcu_state.barrier_mutex))
+		return 0;
+
 	/* Snapshot count of all CPUs */
-	for_each_possible_cpu(cpu) {
+	for_each_cpu(cpu, rcu_nocb_mask) {
 		struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 
 		count +=  READ_ONCE(rdp->lazy_len);
 	}
+
+	mutex_unlock(&rcu_state.barrier_mutex);
 
 	return count ? count : SHRINK_EMPTY;
 }
@@ -1336,15 +1345,45 @@ lazy_rcu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 	unsigned long flags;
 	unsigned long count = 0;
 
-	/* Snapshot count of all CPUs */
-	for_each_possible_cpu(cpu) {
-		struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-		int _count = READ_ONCE(rdp->lazy_len);
+	if (WARN_ON_ONCE(!cpumask_available(rcu_nocb_mask)))
+		return 0;
+	/*
+	 * Protect against concurrent (de-)offloading. Otherwise nocb locking
+	 * may be ignored or imbalanced.
+	 */
+	if (!mutex_trylock(&rcu_state.barrier_mutex)) {
+		/*
+		 * But really don't insist if barrier_mutex is contended since we
+		 * can't guarantee that it will never engage in a dependency
+		 * chain involving memory allocation. The lock is seldom contended
+		 * anyway.
+		 */
+		return 0;
+	}
 
-		if (_count == 0)
+	/* Snapshot count of all CPUs */
+	for_each_cpu(cpu, rcu_nocb_mask) {
+		struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
+		int _count;
+
+		if (WARN_ON_ONCE(!rcu_rdp_is_offloaded(rdp)))
 			continue;
+
+		if (!READ_ONCE(rdp->lazy_len))
+			continue;
+
 		rcu_nocb_lock_irqsave(rdp, flags);
-		WRITE_ONCE(rdp->lazy_len, 0);
+		/*
+		 * Recheck under the nocb lock. Since we are not holding the bypass
+		 * lock we may still race with increments from the enqueuer but still
+		 * we know for sure if there is at least one lazy callback.
+		 */
+		_count = READ_ONCE(rdp->lazy_len);
+		if (!_count) {
+			rcu_nocb_unlock_irqrestore(rdp, flags);
+			continue;
+		}
+		WARN_ON_ONCE(!rcu_nocb_flush_bypass(rdp, NULL, jiffies, false));
 		rcu_nocb_unlock_irqrestore(rdp, flags);
 		wake_nocb_gp(rdp, false);
 		sc->nr_to_scan -= _count;
@@ -1352,6 +1391,9 @@ lazy_rcu_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 		if (sc->nr_to_scan <= 0)
 			break;
 	}
+
+	mutex_unlock(&rcu_state.barrier_mutex);
+
 	return count ? count : SHRINK_STOP;
 }
 

@@ -132,6 +132,7 @@ static void construct_link_service_ddc(struct link_service *link_srv)
 	link_srv->destroy_ddc_service = link_destroy_ddc_service;
 	link_srv->query_ddc_data = link_query_ddc_data;
 	link_srv->aux_transfer_raw = link_aux_transfer_raw;
+	link_srv->configure_fixed_vs_pe_retimer = link_configure_fixed_vs_pe_retimer;
 	link_srv->aux_transfer_with_retries_no_mutex =
 			link_aux_transfer_with_retries_no_mutex;
 	link_srv->is_in_aux_transaction_mode = link_is_in_aux_transaction_mode;
@@ -207,6 +208,13 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_set_sink_vtotal_in_psr_active =
 			edp_set_sink_vtotal_in_psr_active;
 	link_srv->edp_get_psr_residency = edp_get_psr_residency;
+
+	link_srv->edp_get_replay_state = edp_get_replay_state;
+	link_srv->edp_set_replay_allow_active = edp_set_replay_allow_active;
+	link_srv->edp_setup_replay = edp_setup_replay;
+	link_srv->edp_set_coasting_vtotal = edp_set_coasting_vtotal;
+	link_srv->edp_replay_residency = edp_replay_residency;
+
 	link_srv->edp_wait_for_t12 = edp_wait_for_t12;
 	link_srv->edp_is_ilr_optimization_required =
 			edp_is_ilr_optimization_required;
@@ -563,11 +571,9 @@ static bool construct_phy(struct dc_link *link,
 		goto create_fail;
 	}
 
-	/* TODO: #DAL3 Implement id to str function.*/
-	LINK_INFO("Connector[%d] description:"
-		  "signal %d\n",
+	LINK_INFO("Connector[%d] description: signal: %s\n",
 		  init_params->connector_index,
-		  link->connector_signal);
+		  signal_type_to_string(link->connector_signal));
 
 	ddc_service_init_data.ctx = link->ctx;
 	ddc_service_init_data.id = link->link_id;
@@ -784,6 +790,10 @@ static bool construct_dpia(struct dc_link *link,
 
 	/* Set dpia port index : 0 to number of dpia ports */
 	link->ddc_hw_inst = init_params->connector_index;
+
+	// Assign Dpia preferred eng_id
+	if (link->dc->res_pool->funcs->get_preferred_eng_id_dpia)
+		link->dpia_preferred_eng_id = link->dc->res_pool->funcs->get_preferred_eng_id_dpia(link->ddc_hw_inst);
 
 	/* TODO: Create link encoder */
 

@@ -433,16 +433,21 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			 * Dump encryption keys. This is an old ioctl that only
 			 * handles AES-128-{CCM,GCM}.
 			 */
-			if (pSMBFile == NULL)
-				break;
 			if (!capable(CAP_SYS_ADMIN)) {
 				rc = -EACCES;
 				break;
 			}
 
-			tcon = tlink_tcon(pSMBFile->tlink);
+			cifs_sb = CIFS_SB(inode->i_sb);
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+			tcon = tlink_tcon(tlink);
 			if (!smb3_encryption_required(tcon)) {
 				rc = -EOPNOTSUPP;
+				cifs_put_tlink(tlink);
 				break;
 			}
 			pkey_inf.cipher_type =
@@ -459,6 +464,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EFAULT;
 			else
 				rc = 0;
+			cifs_put_tlink(tlink);
 			break;
 		case CIFS_DUMP_FULL_KEY:
 			/*
@@ -470,8 +476,16 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EACCES;
 				break;
 			}
-			tcon = tlink_tcon(pSMBFile->tlink);
+			cifs_sb = CIFS_SB(inode->i_sb);
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+
+			tcon = tlink_tcon(tlink);
 			rc = cifs_dump_full_key(tcon, (void __user *)arg);
+			cifs_put_tlink(tlink);
 			break;
 		case CIFS_IOC_NOTIFY:
 			if (!S_ISDIR(inode->i_mode)) {

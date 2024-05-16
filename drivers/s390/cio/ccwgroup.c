@@ -152,7 +152,7 @@ static ssize_t ccwgroup_online_show(struct device *dev,
 
 /*
  * Provide an 'ungroup' attribute so the user can remove group devices no
- * longer needed or accidentially created. Saves memory :)
+ * longer needed or accidentally created. Saves memory :)
  */
 static void ccwgroup_ungroup(struct ccwgroup_device *gdev)
 {

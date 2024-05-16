@@ -14,6 +14,8 @@
  */
 #define CDNS_MCP_IP_MAX_CMD_LEN		32
 
+#define SDW_CADENCE_MCP_IP_OFFSET	0x4000
+
 /**
  * struct sdw_cdns_pdi: PDI (Physical Data Interface) instance
  *
@@ -196,5 +198,8 @@ int cdns_set_sdw_stream(struct snd_soc_dai *dai,
 
 void sdw_cdns_check_self_clearing_bits(struct sdw_cdns *cdns, const char *string,
 				       bool initial_delay, int reset_iterations);
+
+void sdw_cdns_config_update(struct sdw_cdns *cdns);
+int sdw_cdns_config_update_set_wait(struct sdw_cdns *cdns);
 
 #endif /* __SDW_CADENCE_H */

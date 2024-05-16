@@ -282,7 +282,6 @@ static inline void tramp_free(void *tramp) { }
 
 /* Defined as markers to the end of the ftrace default trampolines */
 extern void ftrace_regs_caller_end(void);
-extern void ftrace_regs_caller_ret(void);
 extern void ftrace_caller_end(void);
 extern void ftrace_caller_op_ptr(void);
 extern void ftrace_regs_caller_op_ptr(void);
@@ -524,9 +523,6 @@ static void *addr_from_call(void *ptr)
 
 	return ptr + CALL_INSN_SIZE + call.disp;
 }
-
-void prepare_ftrace_return(unsigned long ip, unsigned long *parent,
-			   unsigned long frame_pointer);
 
 /*
  * If the ops->trampoline was not allocated, then it probably

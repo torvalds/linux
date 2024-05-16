@@ -69,7 +69,7 @@ struct htt_ver_req {
  * The HTT tx descriptor is defined in two manners: by a struct with
  * bitfields, and by a series of [dword offset, bit mask, bit shift]
  * definitions.
- * The target should use the struct def, for simplicitly and clarity,
+ * The target should use the struct def, for simplicity and clarity,
  * but the host shall use the bit-mast + bit-shift defs, to be endian-
  * neutral.  Specifically, the host shall use the get/set macros built
  * around the mask + shift defs.
@@ -707,7 +707,7 @@ struct htt_rx_indication_prefix {
 	__le16 fw_rx_desc_bytes;
 	u8 pad0;
 	u8 pad1;
-};
+} __packed;
 
 struct htt_rx_indication {
 	struct htt_rx_indication_hdr hdr;
@@ -1565,7 +1565,7 @@ struct htt_tx_fetch_ind {
 		/* ath10k_htt_get_tx_fetch_ind_resp_ids() */
 		DECLARE_FLEX_ARRAY(__le32, resp_ids);
 		DECLARE_FLEX_ARRAY(struct htt_tx_fetch_record, records);
-	};
+	} __packed;
 } __packed;
 
 static inline void *
@@ -1723,7 +1723,7 @@ struct htt_resp {
 		struct htt_tx_mode_switch_ind tx_mode_switch_ind;
 		struct htt_channel_change chan_change;
 		struct htt_peer_tx_stats peer_tx_stats;
-	};
+	} __packed;
 } __packed;
 
 /*** host side structures follow ***/
@@ -2086,7 +2086,7 @@ static inline bool ath10k_htt_rx_proc_rx_frag_ind(struct ath10k_htt *htt,
  * for correctly accessing rx descriptor data.
  */
 
-/* base struct used for abstracting the rx descritor representation */
+/* base struct used for abstracting the rx descriptor representation */
 struct htt_rx_desc {
 	union {
 		/* This field is filled on the host using the msdu buffer

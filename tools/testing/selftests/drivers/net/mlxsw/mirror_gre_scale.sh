@@ -165,6 +165,7 @@ mirror_gre_setup_prepare()
 	simple_if_init $h3
 
 	ip link add name br1 type bridge vlan_filtering 1
+	ip link set dev br1 addrgenmode none
 	ip link set dev br1 up
 
 	ip link set dev $swp1 master br1

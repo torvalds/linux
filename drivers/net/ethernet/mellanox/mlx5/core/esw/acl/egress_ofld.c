@@ -15,13 +15,27 @@ static void esw_acl_egress_ofld_fwd2vport_destroy(struct mlx5_vport *vport)
 	vport->egress.offloads.fwd_rule = NULL;
 }
 
-static void esw_acl_egress_ofld_bounce_rule_destroy(struct mlx5_vport *vport)
+void esw_acl_egress_ofld_bounce_rule_destroy(struct mlx5_vport *vport, int rule_index)
 {
-	if (!vport->egress.offloads.bounce_rule)
+	struct mlx5_flow_handle *bounce_rule =
+		xa_load(&vport->egress.offloads.bounce_rules, rule_index);
+
+	if (!bounce_rule)
 		return;
 
-	mlx5_del_flow_rules(vport->egress.offloads.bounce_rule);
-	vport->egress.offloads.bounce_rule = NULL;
+	mlx5_del_flow_rules(bounce_rule);
+	xa_erase(&vport->egress.offloads.bounce_rules, rule_index);
+}
+
+static void esw_acl_egress_ofld_bounce_rules_destroy(struct mlx5_vport *vport)
+{
+	struct mlx5_flow_handle *bounce_rule;
+	unsigned long i;
+
+	xa_for_each(&vport->egress.offloads.bounce_rules, i, bounce_rule) {
+		mlx5_del_flow_rules(bounce_rule);
+		xa_erase(&vport->egress.offloads.bounce_rules, i);
+	}
 }
 
 static int esw_acl_egress_ofld_fwd2vport_create(struct mlx5_eswitch *esw,
@@ -96,7 +110,7 @@ static void esw_acl_egress_ofld_rules_destroy(struct mlx5_vport *vport)
 {
 	esw_acl_egress_vlan_destroy(vport);
 	esw_acl_egress_ofld_fwd2vport_destroy(vport);
-	esw_acl_egress_ofld_bounce_rule_destroy(vport);
+	esw_acl_egress_ofld_bounce_rules_destroy(vport);
 }
 
 static int esw_acl_egress_ofld_groups_create(struct mlx5_eswitch *esw,
@@ -194,6 +208,7 @@ int esw_acl_egress_ofld_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport
 		vport->egress.acl = NULL;
 		return err;
 	}
+	vport->egress.type = VPORT_EGRESS_ACL_TYPE_DEFAULT;
 
 	err = esw_acl_egress_ofld_groups_create(esw, vport);
 	if (err)

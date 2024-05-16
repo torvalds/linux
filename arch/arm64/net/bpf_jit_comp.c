@@ -322,7 +322,13 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 	 *
 	 */
 
-	emit_bti(A64_BTI_C, ctx);
+	/* bpf function may be invoked by 3 instruction types:
+	 * 1. bl, attached via freplace to bpf prog via short jump
+	 * 2. br, attached via freplace to bpf prog via long jump
+	 * 3. blr, working as a function pointer, used by emit_call.
+	 * So BTI_JC should used here to support both br and blr.
+	 */
+	emit_bti(A64_BTI_JC, ctx);
 
 	emit(A64_MOV(1, A64_R(9), A64_LR), ctx);
 	emit(A64_NOP, ctx);
@@ -709,7 +715,8 @@ static int add_exception_handler(const struct bpf_insn *insn,
 		/* First pass */
 		return 0;
 
-	if (BPF_MODE(insn->code) != BPF_PROBE_MEM)
+	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
+		BPF_MODE(insn->code) != BPF_PROBE_MEMSX)
 		return 0;
 
 	if (!ctx->prog->aux->extable ||
@@ -773,12 +780,26 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	u8 dst_adj;
 	int off_adj;
 	int ret;
+	bool sign_extend;
 
 	switch (code) {
 	/* dst = src */
 	case BPF_ALU | BPF_MOV | BPF_X:
 	case BPF_ALU64 | BPF_MOV | BPF_X:
-		emit(A64_MOV(is64, dst, src), ctx);
+		switch (insn->off) {
+		case 0:
+			emit(A64_MOV(is64, dst, src), ctx);
+			break;
+		case 8:
+			emit(A64_SXTB(is64, dst, src), ctx);
+			break;
+		case 16:
+			emit(A64_SXTH(is64, dst, src), ctx);
+			break;
+		case 32:
+			emit(A64_SXTW(is64, dst, src), ctx);
+			break;
+		}
 		break;
 	/* dst = dst OP src */
 	case BPF_ALU | BPF_ADD | BPF_X:
@@ -807,11 +828,17 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 		break;
 	case BPF_ALU | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_DIV | BPF_X:
-		emit(A64_UDIV(is64, dst, dst, src), ctx);
+		if (!off)
+			emit(A64_UDIV(is64, dst, dst, src), ctx);
+		else
+			emit(A64_SDIV(is64, dst, dst, src), ctx);
 		break;
 	case BPF_ALU | BPF_MOD | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
-		emit(A64_UDIV(is64, tmp, dst, src), ctx);
+		if (!off)
+			emit(A64_UDIV(is64, tmp, dst, src), ctx);
+		else
+			emit(A64_SDIV(is64, tmp, dst, src), ctx);
 		emit(A64_MSUB(is64, dst, dst, tmp, src), ctx);
 		break;
 	case BPF_ALU | BPF_LSH | BPF_X:
@@ -834,11 +861,12 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	/* dst = BSWAP##imm(dst) */
 	case BPF_ALU | BPF_END | BPF_FROM_LE:
 	case BPF_ALU | BPF_END | BPF_FROM_BE:
+	case BPF_ALU64 | BPF_END | BPF_FROM_LE:
 #ifdef CONFIG_CPU_BIG_ENDIAN
-		if (BPF_SRC(code) == BPF_FROM_BE)
+		if (BPF_CLASS(code) == BPF_ALU && BPF_SRC(code) == BPF_FROM_BE)
 			goto emit_bswap_uxt;
 #else /* !CONFIG_CPU_BIG_ENDIAN */
-		if (BPF_SRC(code) == BPF_FROM_LE)
+		if (BPF_CLASS(code) == BPF_ALU && BPF_SRC(code) == BPF_FROM_LE)
 			goto emit_bswap_uxt;
 #endif
 		switch (imm) {
@@ -937,12 +965,18 @@ emit_bswap_uxt:
 	case BPF_ALU | BPF_DIV | BPF_K:
 	case BPF_ALU64 | BPF_DIV | BPF_K:
 		emit_a64_mov_i(is64, tmp, imm, ctx);
-		emit(A64_UDIV(is64, dst, dst, tmp), ctx);
+		if (!off)
+			emit(A64_UDIV(is64, dst, dst, tmp), ctx);
+		else
+			emit(A64_SDIV(is64, dst, dst, tmp), ctx);
 		break;
 	case BPF_ALU | BPF_MOD | BPF_K:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
 		emit_a64_mov_i(is64, tmp2, imm, ctx);
-		emit(A64_UDIV(is64, tmp, dst, tmp2), ctx);
+		if (!off)
+			emit(A64_UDIV(is64, tmp, dst, tmp2), ctx);
+		else
+			emit(A64_SDIV(is64, tmp, dst, tmp2), ctx);
 		emit(A64_MSUB(is64, dst, dst, tmp, tmp2), ctx);
 		break;
 	case BPF_ALU | BPF_LSH | BPF_K:
@@ -960,7 +994,11 @@ emit_bswap_uxt:
 
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
-		jmp_offset = bpf2a64_offset(i, off, ctx);
+	case BPF_JMP32 | BPF_JA:
+		if (BPF_CLASS(code) == BPF_JMP)
+			jmp_offset = bpf2a64_offset(i, off, ctx);
+		else
+			jmp_offset = bpf2a64_offset(i, imm, ctx);
 		check_imm26(jmp_offset);
 		emit(A64_B(jmp_offset), ctx);
 		break;
@@ -1116,7 +1154,7 @@ emit_cond_jmp:
 		return 1;
 	}
 
-	/* LDX: dst = *(size *)(src + off) */
+	/* LDX: dst = (u64)*(unsigned size *)(src + off) */
 	case BPF_LDX | BPF_MEM | BPF_W:
 	case BPF_LDX | BPF_MEM | BPF_H:
 	case BPF_LDX | BPF_MEM | BPF_B:
@@ -1125,6 +1163,13 @@ emit_cond_jmp:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_B:
+	/* LDXS: dst_reg = (s64)*(signed size *)(src_reg + off) */
+	case BPF_LDX | BPF_MEMSX | BPF_B:
+	case BPF_LDX | BPF_MEMSX | BPF_H:
+	case BPF_LDX | BPF_MEMSX | BPF_W:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_B:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_H:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_W:
 		if (ctx->fpb_offset > 0 && src == fp) {
 			src_adj = fpb;
 			off_adj = off + ctx->fpb_offset;
@@ -1132,29 +1177,49 @@ emit_cond_jmp:
 			src_adj = src;
 			off_adj = off;
 		}
+		sign_extend = (BPF_MODE(insn->code) == BPF_MEMSX ||
+				BPF_MODE(insn->code) == BPF_PROBE_MEMSX);
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
 			if (is_lsi_offset(off_adj, 2)) {
-				emit(A64_LDR32I(dst, src_adj, off_adj), ctx);
+				if (sign_extend)
+					emit(A64_LDRSWI(dst, src_adj, off_adj), ctx);
+				else
+					emit(A64_LDR32I(dst, src_adj, off_adj), ctx);
 			} else {
 				emit_a64_mov_i(1, tmp, off, ctx);
-				emit(A64_LDR32(dst, src, tmp), ctx);
+				if (sign_extend)
+					emit(A64_LDRSW(dst, src_adj, off_adj), ctx);
+				else
+					emit(A64_LDR32(dst, src, tmp), ctx);
 			}
 			break;
 		case BPF_H:
 			if (is_lsi_offset(off_adj, 1)) {
-				emit(A64_LDRHI(dst, src_adj, off_adj), ctx);
+				if (sign_extend)
+					emit(A64_LDRSHI(dst, src_adj, off_adj), ctx);
+				else
+					emit(A64_LDRHI(dst, src_adj, off_adj), ctx);
 			} else {
 				emit_a64_mov_i(1, tmp, off, ctx);
-				emit(A64_LDRH(dst, src, tmp), ctx);
+				if (sign_extend)
+					emit(A64_LDRSH(dst, src, tmp), ctx);
+				else
+					emit(A64_LDRH(dst, src, tmp), ctx);
 			}
 			break;
 		case BPF_B:
 			if (is_lsi_offset(off_adj, 0)) {
-				emit(A64_LDRBI(dst, src_adj, off_adj), ctx);
+				if (sign_extend)
+					emit(A64_LDRSBI(dst, src_adj, off_adj), ctx);
+				else
+					emit(A64_LDRBI(dst, src_adj, off_adj), ctx);
 			} else {
 				emit_a64_mov_i(1, tmp, off, ctx);
-				emit(A64_LDRB(dst, src, tmp), ctx);
+				if (sign_extend)
+					emit(A64_LDRSB(dst, src, tmp), ctx);
+				else
+					emit(A64_LDRB(dst, src, tmp), ctx);
 			}
 			break;
 		case BPF_DW:
@@ -1731,21 +1796,21 @@ static void invoke_bpf_mod_ret(struct jit_ctx *ctx, struct bpf_tramp_links *tl,
 	}
 }
 
-static void save_args(struct jit_ctx *ctx, int args_off, int nargs)
+static void save_args(struct jit_ctx *ctx, int args_off, int nregs)
 {
 	int i;
 
-	for (i = 0; i < nargs; i++) {
+	for (i = 0; i < nregs; i++) {
 		emit(A64_STR64I(i, A64_SP, args_off), ctx);
 		args_off += 8;
 	}
 }
 
-static void restore_args(struct jit_ctx *ctx, int args_off, int nargs)
+static void restore_args(struct jit_ctx *ctx, int args_off, int nregs)
 {
 	int i;
 
-	for (i = 0; i < nargs; i++) {
+	for (i = 0; i < nregs; i++) {
 		emit(A64_LDR64I(i, A64_SP, args_off), ctx);
 		args_off += 8;
 	}
@@ -1764,7 +1829,7 @@ static void restore_args(struct jit_ctx *ctx, int args_off, int nargs)
  */
 static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 			      struct bpf_tramp_links *tlinks, void *orig_call,
-			      int nargs, u32 flags)
+			      int nregs, u32 flags)
 {
 	int i;
 	int stack_size;
@@ -1772,7 +1837,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	int regs_off;
 	int retval_off;
 	int args_off;
-	int nargs_off;
+	int nregs_off;
 	int ip_off;
 	int run_ctx_off;
 	struct bpf_tramp_links *fentry = &tlinks[BPF_TRAMP_FENTRY];
@@ -1795,11 +1860,11 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	 * SP + retval_off  [ return value      ] BPF_TRAMP_F_CALL_ORIG or
 	 *                                        BPF_TRAMP_F_RET_FENTRY_RET
 	 *
-	 *                  [ argN              ]
+	 *                  [ arg reg N         ]
 	 *                  [ ...               ]
-	 * SP + args_off    [ arg1              ]
+	 * SP + args_off    [ arg reg 1         ]
 	 *
-	 * SP + nargs_off   [ args count        ]
+	 * SP + nregs_off   [ arg regs count    ]
 	 *
 	 * SP + ip_off      [ traced function   ] BPF_TRAMP_F_IP_ARG flag
 	 *
@@ -1816,13 +1881,13 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	if (flags & BPF_TRAMP_F_IP_ARG)
 		stack_size += 8;
 
-	nargs_off = stack_size;
+	nregs_off = stack_size;
 	/* room for args count */
 	stack_size += 8;
 
 	args_off = stack_size;
 	/* room for args */
-	stack_size += nargs * 8;
+	stack_size += nregs * 8;
 
 	/* room for return value */
 	retval_off = stack_size;
@@ -1865,12 +1930,12 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 		emit(A64_STR64I(A64_R(10), A64_SP, ip_off), ctx);
 	}
 
-	/* save args count*/
-	emit(A64_MOVZ(1, A64_R(10), nargs, 0), ctx);
-	emit(A64_STR64I(A64_R(10), A64_SP, nargs_off), ctx);
+	/* save arg regs count*/
+	emit(A64_MOVZ(1, A64_R(10), nregs, 0), ctx);
+	emit(A64_STR64I(A64_R(10), A64_SP, nregs_off), ctx);
 
-	/* save args */
-	save_args(ctx, args_off, nargs);
+	/* save arg regs */
+	save_args(ctx, args_off, nregs);
 
 	/* save callee saved registers */
 	emit(A64_STR64I(A64_R(19), A64_SP, regs_off), ctx);
@@ -1897,7 +1962,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	}
 
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
-		restore_args(ctx, args_off, nargs);
+		restore_args(ctx, args_off, nregs);
 		/* call original func */
 		emit(A64_LDR64I(A64_R(10), A64_SP, retaddr_off), ctx);
 		emit(A64_ADR(A64_LR, AARCH64_INSN_SIZE * 2), ctx);
@@ -1926,7 +1991,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	}
 
 	if (flags & BPF_TRAMP_F_RESTORE_REGS)
-		restore_args(ctx, args_off, nargs);
+		restore_args(ctx, args_off, nregs);
 
 	/* restore callee saved register x19 and x20 */
 	emit(A64_LDR64I(A64_R(19), A64_SP, regs_off), ctx);
@@ -1967,24 +2032,25 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 				void *orig_call)
 {
 	int i, ret;
-	int nargs = m->nr_args;
+	int nregs = m->nr_args;
 	int max_insns = ((long)image_end - (long)image) / AARCH64_INSN_SIZE;
 	struct jit_ctx ctx = {
 		.image = NULL,
 		.idx = 0,
 	};
 
-	/* the first 8 arguments are passed by registers */
-	if (nargs > 8)
-		return -ENOTSUPP;
-
-	/* don't support struct argument */
+	/* extra registers needed for struct argument */
 	for (i = 0; i < MAX_BPF_FUNC_ARGS; i++) {
+		/* The arg_size is at most 16 bytes, enforced by the verifier. */
 		if (m->arg_flags[i] & BTF_FMODEL_STRUCT_ARG)
-			return -ENOTSUPP;
+			nregs += (m->arg_size[i] + 7) / 8 - 1;
 	}
 
-	ret = prepare_trampoline(&ctx, im, tlinks, orig_call, nargs, flags);
+	/* the first 8 registers are used for arguments */
+	if (nregs > 8)
+		return -ENOTSUPP;
+
+	ret = prepare_trampoline(&ctx, im, tlinks, orig_call, nregs, flags);
 	if (ret < 0)
 		return ret;
 
@@ -1995,7 +2061,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 	ctx.idx = 0;
 
 	jit_fill_hole(image, (unsigned int)(image_end - image));
-	ret = prepare_trampoline(&ctx, im, tlinks, orig_call, nargs, flags);
+	ret = prepare_trampoline(&ctx, im, tlinks, orig_call, nregs, flags);
 
 	if (ret > 0 && validate_code(&ctx) < 0)
 		ret = -EINVAL;

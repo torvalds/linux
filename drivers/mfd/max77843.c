@@ -13,7 +13,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77843-private.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 static const struct mfd_cell max77843_devs[] = {
@@ -207,7 +207,7 @@ static struct i2c_driver max77843_i2c_driver = {
 		.of_match_table = max77843_dt_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe_new = max77843_probe,
+	.probe = max77843_probe,
 	.id_table = max77843_id,
 };
 

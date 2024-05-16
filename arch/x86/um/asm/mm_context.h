@@ -11,8 +11,6 @@
 #include <linux/mutex.h>
 #include <asm/ldt.h>
 
-extern void ldt_host_info(void);
-
 #define LDT_PAGES_MAX \
 	((LDT_ENTRIES * LDT_ENTRY_SIZE)/PAGE_SIZE)
 #define LDT_ENTRIES_PER_PAGE \

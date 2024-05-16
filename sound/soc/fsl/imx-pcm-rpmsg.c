@@ -19,6 +19,7 @@
 static struct snd_pcm_hardware imx_rpmsg_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		SNDRV_PCM_INFO_BATCH |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_NO_PERIOD_WAKEUP |
@@ -228,6 +229,10 @@ static int imx_rpmsg_pcm_open(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream)
 {
 	struct rpmsg_info *info = dev_get_drvdata(component->dev);
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct fsl_rpmsg *rpmsg = dev_get_drvdata(cpu_dai->dev);
+	struct snd_pcm_hardware pcm_hardware;
 	struct rpmsg_msg *msg;
 	int ret = 0;
 	int cmd;
@@ -255,10 +260,11 @@ static int imx_rpmsg_pcm_open(struct snd_soc_component *component,
 
 	info->send_message(msg, info);
 
-	imx_rpmsg_pcm_hardware.period_bytes_max =
-			imx_rpmsg_pcm_hardware.buffer_bytes_max / 2;
+	pcm_hardware = imx_rpmsg_pcm_hardware;
+	pcm_hardware.buffer_bytes_max = rpmsg->buffer_size;
+	pcm_hardware.period_bytes_max = pcm_hardware.buffer_bytes_max / 2;
 
-	snd_soc_set_runtime_hwparams(substream, &imx_rpmsg_pcm_hardware);
+	snd_soc_set_runtime_hwparams(substream, &pcm_hardware);
 
 	ret = snd_pcm_hw_constraint_integer(substream->runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
@@ -597,7 +603,6 @@ static int imx_rpmsg_pcm_new(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
-	imx_rpmsg_pcm_hardware.buffer_bytes_max = rpmsg->buffer_size;
 	return snd_pcm_set_fixed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_WC,
 					    pcm->card->dev, rpmsg->buffer_size);
 }

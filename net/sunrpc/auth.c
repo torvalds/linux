@@ -32,7 +32,7 @@ static unsigned int auth_hashbits = RPC_CREDCACHE_DEFAULT_HASHBITS;
 static const struct rpc_authops __rcu *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 	[RPC_AUTH_NULL] = (const struct rpc_authops __force __rcu *)&authnull_ops,
 	[RPC_AUTH_UNIX] = (const struct rpc_authops __force __rcu *)&authunix_ops,
-	NULL,			/* others can be loadable modules */
+	[RPC_AUTH_TLS]  = (const struct rpc_authops __force __rcu *)&authtls_ops,
 };
 
 static LIST_HEAD(cred_unused);
@@ -769,9 +769,14 @@ int rpcauth_wrap_req(struct rpc_task *task, struct xdr_stream *xdr)
  * @task: controlling RPC task
  * @xdr: xdr_stream containing RPC Reply header
  *
- * On success, @xdr is updated to point past the verifier and
- * zero is returned. Otherwise, @xdr is in an undefined state
- * and a negative errno is returned.
+ * Return values:
+ *   %0: Verifier is valid. @xdr now points past the verifier.
+ *   %-EIO: Verifier is corrupted or message ended early.
+ *   %-EACCES: Verifier is intact but not valid.
+ *   %-EPROTONOSUPPORT: Server does not support the requested auth type.
+ *
+ * When a negative errno is returned, @xdr is left in an undefined
+ * state.
  */
 int
 rpcauth_checkverf(struct rpc_task *task, struct xdr_stream *xdr)

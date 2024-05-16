@@ -273,8 +273,8 @@ static void lkdtm_HUNG_TASK(void)
 	schedule();
 }
 
-volatile unsigned int huge = INT_MAX - 2;
-volatile unsigned int ignored;
+static volatile unsigned int huge = INT_MAX - 2;
+static volatile unsigned int ignored;
 
 static void lkdtm_OVERFLOW_SIGNED(void)
 {
@@ -305,11 +305,11 @@ static void lkdtm_OVERFLOW_UNSIGNED(void)
 	ignored = value;
 }
 
-/* Intentionally using old-style flex array definition of 1 byte. */
+/* Intentionally using unannotated flex array definition. */
 struct array_bounds_flex_array {
 	int one;
 	int two;
-	char data[1];
+	char data[];
 };
 
 struct array_bounds {
@@ -341,7 +341,7 @@ static void lkdtm_ARRAY_BOUNDS(void)
 	 * For the uninstrumented flex array member, also touch 1 byte
 	 * beyond to verify it is correctly uninstrumented.
 	 */
-	for (i = 0; i < sizeof(not_checked->data) + 1; i++)
+	for (i = 0; i < 2; i++)
 		not_checked->data[i] = 'A';
 
 	pr_info("Array access beyond bounds ...\n");
@@ -352,6 +352,46 @@ static void lkdtm_ARRAY_BOUNDS(void)
 	kfree(checked);
 	pr_err("FAIL: survived array bounds overflow!\n");
 	if (IS_ENABLED(CONFIG_UBSAN_BOUNDS))
+		pr_expected_config(CONFIG_UBSAN_TRAP);
+	else
+		pr_expected_config(CONFIG_UBSAN_BOUNDS);
+}
+
+struct lkdtm_annotated {
+	unsigned long flags;
+	int count;
+	int array[] __counted_by(count);
+};
+
+static volatile int fam_count = 4;
+
+static void lkdtm_FAM_BOUNDS(void)
+{
+	struct lkdtm_annotated *inst;
+
+	inst = kzalloc(struct_size(inst, array, fam_count + 1), GFP_KERNEL);
+	if (!inst) {
+		pr_err("FAIL: could not allocate test struct!\n");
+		return;
+	}
+
+	inst->count = fam_count;
+	pr_info("Array access within bounds ...\n");
+	inst->array[1] = fam_count;
+	ignored = inst->array[1];
+
+	pr_info("Array access beyond bounds ...\n");
+	inst->array[fam_count] = fam_count;
+	ignored = inst->array[fam_count];
+
+	kfree(inst);
+
+	pr_err("FAIL: survived access of invalid flexible array member index!\n");
+
+	if (!__has_attribute(__counted_by__))
+		pr_warn("This is expected since this %s was built a compiler supporting __counted_by\n",
+			lkdtm_kernel_info);
+	else if (IS_ENABLED(CONFIG_UBSAN_BOUNDS))
 		pr_expected_config(CONFIG_UBSAN_TRAP);
 	else
 		pr_expected_config(CONFIG_UBSAN_BOUNDS);
@@ -393,7 +433,7 @@ static void lkdtm_CORRUPT_LIST_ADD(void)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
 	else {
 		pr_err("list_add() corruption not detected!\n");
-		pr_expected_config(CONFIG_DEBUG_LIST);
+		pr_expected_config(CONFIG_LIST_HARDENED);
 	}
 }
 
@@ -420,7 +460,7 @@ static void lkdtm_CORRUPT_LIST_DEL(void)
 		pr_err("Overwrite did not happen, but no BUG?!\n");
 	else {
 		pr_err("list_del() corruption not detected!\n");
-		pr_expected_config(CONFIG_DEBUG_LIST);
+		pr_expected_config(CONFIG_LIST_HARDENED);
 	}
 }
 
@@ -487,6 +527,7 @@ static void lkdtm_UNSET_SMEP(void)
 	 * the cr4 writing instruction.
 	 */
 	insn = (unsigned char *)native_write_cr4;
+	OPTIMIZER_HIDE_VAR(insn);
 	for (i = 0; i < MOV_CR4_DEPTH; i++) {
 		/* mov %rdi, %cr4 */
 		if (insn[i] == 0x0f && insn[i+1] == 0x22 && insn[i+2] == 0xe7)
@@ -615,6 +656,7 @@ static struct crashtype crashtypes[] = {
 	CRASHTYPE(OVERFLOW_SIGNED),
 	CRASHTYPE(OVERFLOW_UNSIGNED),
 	CRASHTYPE(ARRAY_BOUNDS),
+	CRASHTYPE(FAM_BOUNDS),
 	CRASHTYPE(CORRUPT_LIST_ADD),
 	CRASHTYPE(CORRUPT_LIST_DEL),
 	CRASHTYPE(STACK_GUARD_PAGE_LEADING),

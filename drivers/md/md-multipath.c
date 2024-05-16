@@ -107,6 +107,7 @@ static bool multipath_make_request(struct mddev *mddev, struct bio * bio)
 	    && md_flush_request(mddev, bio))
 		return true;
 
+	md_account_bio(mddev, &bio);
 	mp_bh = mempool_alloc(&conf->pool, GFP_NOIO);
 
 	mp_bh->master_bio = bio;
@@ -400,8 +401,8 @@ static int multipath_run (struct mddev *mddev)
 	if (ret)
 		goto out_free_conf;
 
-	mddev->thread = md_register_thread(multipathd, mddev,
-					   "multipath");
+	rcu_assign_pointer(mddev->thread,
+			   md_register_thread(multipathd, mddev, "multipath"));
 	if (!mddev->thread)
 		goto out_free_conf;
 

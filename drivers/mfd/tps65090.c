@@ -17,7 +17,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65090.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/err.h>
 
 #define NUM_INT_REG 2
@@ -236,7 +235,7 @@ static struct i2c_driver tps65090_driver = {
 		.suppress_bind_attrs = true,
 		.of_match_table = of_match_ptr(tps65090_of_match),
 	},
-	.probe_new	= tps65090_i2c_probe,
+	.probe		= tps65090_i2c_probe,
 	.id_table	= tps65090_id_table,
 };
 

@@ -154,12 +154,14 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct convert_json *c = container_of(tool, struct convert_json, tool);
 	FILE *out = c->out;
-	struct addr_location al, tal;
+	struct addr_location al;
 	u64 sample_type = __evlist__combined_sample_type(evsel->evlist);
 	u8 cpumode = PERF_RECORD_MISC_USER;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_err("Sample resolution failed!\n");
+		addr_location__exit(&al);
 		return -1;
 	}
 
@@ -172,13 +174,13 @@ static int process_sample_event(struct perf_tool *tool,
 	output_json_format(out, false, 2, "{");
 
 	output_json_key_format(out, false, 3, "timestamp", "%" PRIi64, sample->time);
-	output_json_key_format(out, true, 3, "pid", "%i", al.thread->pid_);
-	output_json_key_format(out, true, 3, "tid", "%i", al.thread->tid);
+	output_json_key_format(out, true, 3, "pid", "%i", thread__pid(al.thread));
+	output_json_key_format(out, true, 3, "tid", "%i", thread__tid(al.thread));
 
 	if ((sample_type & PERF_SAMPLE_CPU))
 		output_json_key_format(out, true, 3, "cpu", "%i", sample->cpu);
-	else if (al.thread->cpu >= 0)
-		output_json_key_format(out, true, 3, "cpu", "%i", al.thread->cpu);
+	else if (thread__cpu(al.thread) >= 0)
+		output_json_key_format(out, true, 3, "cpu", "%i", thread__cpu(al.thread));
 
 	output_json_key_string(out, true, 3, "comm", thread__comm_str(al.thread));
 
@@ -190,6 +192,7 @@ static int process_sample_event(struct perf_tool *tool,
 
 		for (i = 0; i < sample->callchain->nr; ++i) {
 			u64 ip = sample->callchain->ips[i];
+			struct addr_location tal;
 
 			if (ip >= PERF_CONTEXT_MAX) {
 				switch (ip) {
@@ -215,8 +218,10 @@ static int process_sample_event(struct perf_tool *tool,
 			else
 				fputc(',', out);
 
+			addr_location__init(&tal);
 			ok = thread__find_symbol(al.thread, cpumode, ip, &tal);
 			output_sample_callchain_entry(tool, ip, ok ? &tal : NULL);
+			addr_location__exit(&tal);
 		}
 	} else {
 		output_sample_callchain_entry(tool, sample->ip, &al);
@@ -245,6 +250,7 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 #endif
 	output_json_format(out, false, 2, "}");
+	addr_location__exit(&al);
 	return 0;
 }
 

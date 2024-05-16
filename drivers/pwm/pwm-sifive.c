@@ -13,6 +13,7 @@
  */
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
@@ -51,9 +52,9 @@ struct pwm_sifive_ddata {
 };
 
 static inline
-struct pwm_sifive_ddata *pwm_sifive_chip_to_ddata(struct pwm_chip *c)
+struct pwm_sifive_ddata *pwm_sifive_chip_to_ddata(struct pwm_chip *chip)
 {
-	return container_of(c, struct pwm_sifive_ddata, chip);
+	return container_of(chip, struct pwm_sifive_ddata, chip);
 }
 
 static int pwm_sifive_request(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -244,12 +245,12 @@ static int pwm_sifive_probe(struct platform_device *pdev)
 	if (IS_ERR(ddata->regs))
 		return PTR_ERR(ddata->regs);
 
-	ddata->clk = devm_clk_get(dev, NULL);
+	ddata->clk = devm_clk_get_prepared(dev, NULL);
 	if (IS_ERR(ddata->clk))
 		return dev_err_probe(dev, PTR_ERR(ddata->clk),
 				     "Unable to find controller clock\n");
 
-	ret = clk_prepare_enable(ddata->clk);
+	ret = clk_enable(ddata->clk);
 	if (ret) {
 		dev_err(dev, "failed to enable clock for pwm: %d\n", ret);
 		return ret;
@@ -308,7 +309,6 @@ disable_clk:
 		clk_disable(ddata->clk);
 		--enabled_clks;
 	}
-	clk_unprepare(ddata->clk);
 
 	return ret;
 }
@@ -327,8 +327,6 @@ static void pwm_sifive_remove(struct platform_device *dev)
 		if (pwm->state.enabled)
 			clk_disable(ddata->clk);
 	}
-
-	clk_unprepare(ddata->clk);
 }
 
 static const struct of_device_id pwm_sifive_of_match[] = {

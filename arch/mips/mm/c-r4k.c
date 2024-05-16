@@ -568,13 +568,14 @@ static inline void local_r4k_flush_cache_page(void *args)
 	if ((mm == current->active_mm) && (pte_val(*ptep) & _PAGE_VALID))
 		vaddr = NULL;
 	else {
+		struct folio *folio = page_folio(page);
 		/*
 		 * Use kmap_coherent or kmap_atomic to do flushes for
 		 * another ASID than the current one.
 		 */
 		map_coherent = (cpu_has_dc_aliases &&
-				page_mapcount(page) &&
-				!Page_dcache_dirty(page));
+				folio_mapped(folio) &&
+				!folio_test_dcache_dirty(folio));
 		if (map_coherent)
 			vaddr = kmap_coherent(page, addr);
 		else

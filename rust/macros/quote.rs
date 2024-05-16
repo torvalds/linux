@@ -39,12 +39,14 @@ impl ToTokens for TokenStream {
 /// [`quote_spanned!`](https://docs.rs/quote/latest/quote/macro.quote_spanned.html) macro from the
 /// `quote` crate but provides only just enough functionality needed by the current `macros` crate.
 macro_rules! quote_spanned {
-    ($span:expr => $($tt:tt)*) => {
-    #[allow(clippy::vec_init_then_push)]
-    {
-        let mut tokens = ::std::vec::Vec::new();
-        let span = $span;
-        quote_spanned!(@proc tokens span $($tt)*);
+    ($span:expr => $($tt:tt)*) => {{
+        let mut tokens;
+        #[allow(clippy::vec_init_then_push)]
+        {
+            tokens = ::std::vec::Vec::new();
+            let span = $span;
+            quote_spanned!(@proc tokens span $($tt)*);
+        }
         ::proc_macro::TokenStream::from_iter(tokens)
     }};
     (@proc $v:ident $span:ident) => {};
@@ -119,6 +121,18 @@ macro_rules! quote_spanned {
     (@proc $v:ident $span:ident ! $($tt:tt)*) => {
         $v.push(::proc_macro::TokenTree::Punct(
                 ::proc_macro::Punct::new('!', ::proc_macro::Spacing::Alone)
+        ));
+        quote_spanned!(@proc $v $span $($tt)*);
+    };
+    (@proc $v:ident $span:ident ; $($tt:tt)*) => {
+        $v.push(::proc_macro::TokenTree::Punct(
+                ::proc_macro::Punct::new(';', ::proc_macro::Spacing::Alone)
+        ));
+        quote_spanned!(@proc $v $span $($tt)*);
+    };
+    (@proc $v:ident $span:ident + $($tt:tt)*) => {
+        $v.push(::proc_macro::TokenTree::Punct(
+                ::proc_macro::Punct::new('+', ::proc_macro::Spacing::Alone)
         ));
         quote_spanned!(@proc $v $span $($tt)*);
     };

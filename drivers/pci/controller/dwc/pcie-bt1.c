@@ -617,13 +617,11 @@ static int bt1_pcie_probe(struct platform_device *pdev)
 	return bt1_pcie_add_port(btpci);
 }
 
-static int bt1_pcie_remove(struct platform_device *pdev)
+static void bt1_pcie_remove(struct platform_device *pdev)
 {
 	struct bt1_pcie *btpci = platform_get_drvdata(pdev);
 
 	bt1_pcie_del_port(btpci);
-
-	return 0;
 }
 
 static const struct of_device_id bt1_pcie_of_match[] = {
@@ -634,7 +632,7 @@ MODULE_DEVICE_TABLE(of, bt1_pcie_of_match);
 
 static struct platform_driver bt1_pcie_driver = {
 	.probe = bt1_pcie_probe,
-	.remove = bt1_pcie_remove,
+	.remove_new = bt1_pcie_remove,
 	.driver = {
 		.name	= "bt1-pcie",
 		.of_match_table = bt1_pcie_of_match,

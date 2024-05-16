@@ -349,6 +349,11 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	}
 	read_unlock(&fs_info->global_root_lock);
 
+	if (btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE)) {
+		num_bytes += btrfs_root_used(&fs_info->block_group_root->root_item);
+		min_items++;
+	}
+
 	/*
 	 * But we also want to reserve enough space so we can do the fallback
 	 * global reserve for an unlink, which is an additional
@@ -540,4 +545,23 @@ try_reserve:
 		return block_rsv;
 
 	return ERR_PTR(ret);
+}
+
+int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
+				       struct btrfs_block_rsv *rsv)
+{
+	u64 needed_bytes;
+	int ret;
+
+	/* 1 for slack space, 1 for updating the inode */
+	needed_bytes = btrfs_calc_insert_metadata_size(fs_info, 1) +
+		btrfs_calc_metadata_size(fs_info, 1);
+
+	spin_lock(&rsv->lock);
+	if (rsv->reserved < needed_bytes)
+		ret = -ENOSPC;
+	else
+		ret = 0;
+	spin_unlock(&rsv->lock);
+	return ret;
 }

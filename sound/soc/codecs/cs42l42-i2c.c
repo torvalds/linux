@@ -92,7 +92,7 @@ static struct i2c_driver cs42l42_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(cs42l42_acpi_match),
 		},
 	.id_table = cs42l42_id,
-	.probe_new = cs42l42_i2c_probe,
+	.probe = cs42l42_i2c_probe,
 	.remove = cs42l42_i2c_remove,
 };
 

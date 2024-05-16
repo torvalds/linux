@@ -29,7 +29,6 @@
 		};
 
 		serial@31d0000 {
-			current-speed = <115200>;
 			status = "okay";
 		};
 
@@ -119,7 +118,7 @@
 
 			phys = <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-0}>,
 			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-1}>;
-			phy-names = "usb2-0", "usb3-1";
+			phy-names = "usb2-0", "usb3-0";
 		};
 
 		usb@3610000 {
@@ -132,6 +131,19 @@
 			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-1}>;
 			phy-names = "usb2-0", "usb2-1", "usb2-2", "usb3-0",
 				    "usb3-1";
+		};
+
+		/* C8 - Ethernet */
+		pcie@140a0000 {
+			status = "okay";
+
+			num-lanes = <2>;
+
+			phys = <&p2u_gbe_2>, <&p2u_gbe_3>;
+			phy-names = "p2u-0", "p2u-1";
+
+			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
+			vpcie3v3-supply = <&vdd_3v3_pcie>;
 		};
 
 		/* C1 - M.2 Key-E */
@@ -153,19 +165,6 @@
 			phys = <&p2u_hsio_4>, <&p2u_hsio_5>, <&p2u_hsio_6>,
 			       <&p2u_hsio_7>;
 			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
-		};
-
-		/* C8 - Ethernet */
-		pcie@140a0000 {
-			status = "okay";
-
-			num-lanes = <2>;
-
-			phys = <&p2u_gbe_2>, <&p2u_gbe_3>;
-			phy-names = "p2u-0", "p2u-1";
-
-			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
-			vpcie3v3-supply = <&vdd_3v3_pcie>;
 		};
 
 		/* C7 - M.2 Key-M */
@@ -209,7 +208,6 @@
 	fan: pwm-fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm3 0 45334>;
-		cooling-levels = <0 95 178 255>;
 		#cooling-cells = <2>;
 	};
 

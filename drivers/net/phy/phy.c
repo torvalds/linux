@@ -52,6 +52,7 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(NOLINK)
 	PHY_STATE_STR(CABLETEST)
 	PHY_STATE_STR(HALTED)
+	PHY_STATE_STR(ERROR)
 	}
 
 	return NULL;
@@ -453,6 +454,40 @@ int phy_do_ioctl_running(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phy_do_ioctl(dev, ifr, cmd);
 }
 EXPORT_SYMBOL(phy_do_ioctl_running);
+
+/**
+ * __phy_hwtstamp_get - Get hardware timestamping configuration from PHY
+ *
+ * @phydev: the PHY device structure
+ * @config: structure holding the timestamping configuration
+ *
+ * Query the PHY device for its current hardware timestamping configuration.
+ */
+int __phy_hwtstamp_get(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config)
+{
+	if (!phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(phydev, config->ifr, SIOCGHWTSTAMP);
+}
+
+/**
+ * __phy_hwtstamp_set - Modify PHY hardware timestamping configuration
+ *
+ * @phydev: the PHY device structure
+ * @config: structure holding the timestamping configuration
+ * @extack: netlink extended ack structure, for error reporting
+ */
+int __phy_hwtstamp_set(struct phy_device *phydev,
+		       struct kernel_hwtstamp_config *config,
+		       struct netlink_ext_ack *extack)
+{
+	if (!phydev)
+		return -ENODEV;
+
+	return phy_mii_ioctl(phydev, config->ifr, SIOCSHWTSTAMP);
+}
 
 /**
  * phy_queue_state_machine - Trigger the state machine to run soon
@@ -1183,9 +1218,11 @@ void phy_stop_machine(struct phy_device *phydev)
 
 static void phy_process_error(struct phy_device *phydev)
 {
-	mutex_lock(&phydev->lock);
-	phydev->state = PHY_HALTED;
-	mutex_unlock(&phydev->lock);
+	/* phydev->lock must be held for the state change to be safe */
+	if (!mutex_is_locked(&phydev->lock))
+		phydev_err(phydev, "PHY-device data unsafe context\n");
+
+	phydev->state = PHY_ERROR;
 
 	phy_trigger_machine(phydev);
 }
@@ -1194,17 +1231,18 @@ static void phy_error_precise(struct phy_device *phydev,
 			      const void *func, int err)
 {
 	WARN(1, "%pS: returned: %d\n", func, err);
+	mutex_lock(&phydev->lock);
 	phy_process_error(phydev);
+	mutex_unlock(&phydev->lock);
 }
 
 /**
- * phy_error - enter HALTED state for this PHY device
+ * phy_error - enter ERROR state for this PHY device
  * @phydev: target phy_device struct
  *
- * Moves the PHY to the HALTED state in response to a read
+ * Moves the PHY to the ERROR state in response to a read
  * or write error, and tells the controller the link is down.
- * Must not be called from interrupt context, or while the
- * phydev->lock is held.
+ * Must be called with phydev->lock held.
  */
 void phy_error(struct phy_device *phydev)
 {
@@ -1326,7 +1364,8 @@ void phy_stop(struct phy_device *phydev)
 	struct net_device *dev = phydev->attached_dev;
 	enum phy_state old_state;
 
-	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN) {
+	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN &&
+	    phydev->state != PHY_ERROR) {
 		WARN(1, "called from state %s\n",
 		     phy_state_to_str(phydev->state));
 		return;
@@ -1443,6 +1482,7 @@ void phy_state_machine(struct work_struct *work)
 		}
 		break;
 	case PHY_HALTED:
+	case PHY_ERROR:
 		if (phydev->link) {
 			phydev->link = 0;
 			phy_link_down(phydev);

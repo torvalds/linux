@@ -574,7 +574,7 @@ static struct i2c_driver tmp007_driver = {
 		.of_match_table = tmp007_of_match,
 		.pm	= pm_sleep_ptr(&tmp007_pm_ops),
 	},
-	.probe_new	= tmp007_probe,
+	.probe		= tmp007_probe,
 	.id_table	= tmp007_id,
 };
 module_i2c_driver(tmp007_driver);

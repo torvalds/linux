@@ -8,7 +8,7 @@ parents, one of which can be selected as output.  This clock does not
 gate or adjust the parent rate via a divider or multiplier.
 
 By default the "clocks" property lists the parents in the same order
-as they are programmed into the regster.  E.g:
+as they are programmed into the register.  E.g:
 
 	clocks = <&foo_clock>, <&bar_clock>, <&baz_clock>;
 

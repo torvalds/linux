@@ -151,48 +151,72 @@ s64 __percpu_counter_sum(struct percpu_counter *fbc)
 }
 EXPORT_SYMBOL(__percpu_counter_sum);
 
-int __percpu_counter_init(struct percpu_counter *fbc, s64 amount, gfp_t gfp,
-			  struct lock_class_key *key)
+int __percpu_counter_init_many(struct percpu_counter *fbc, s64 amount,
+			       gfp_t gfp, u32 nr_counters,
+			       struct lock_class_key *key)
 {
 	unsigned long flags __maybe_unused;
+	size_t counter_size;
+	s32 __percpu *counters;
+	u32 i;
 
-	raw_spin_lock_init(&fbc->lock);
-	lockdep_set_class(&fbc->lock, key);
-	fbc->count = amount;
-	fbc->counters = alloc_percpu_gfp(s32, gfp);
-	if (!fbc->counters)
+	counter_size = ALIGN(sizeof(*counters), __alignof__(*counters));
+	counters = __alloc_percpu_gfp(nr_counters * counter_size,
+				      __alignof__(*counters), gfp);
+	if (!counters) {
+		fbc[0].counters = NULL;
 		return -ENOMEM;
+	}
 
-	debug_percpu_counter_activate(fbc);
+	for (i = 0; i < nr_counters; i++) {
+		raw_spin_lock_init(&fbc[i].lock);
+		lockdep_set_class(&fbc[i].lock, key);
+#ifdef CONFIG_HOTPLUG_CPU
+		INIT_LIST_HEAD(&fbc[i].list);
+#endif
+		fbc[i].count = amount;
+		fbc[i].counters = (void *)counters + (i * counter_size);
+
+		debug_percpu_counter_activate(&fbc[i]);
+	}
 
 #ifdef CONFIG_HOTPLUG_CPU
-	INIT_LIST_HEAD(&fbc->list);
 	spin_lock_irqsave(&percpu_counters_lock, flags);
-	list_add(&fbc->list, &percpu_counters);
+	for (i = 0; i < nr_counters; i++)
+		list_add(&fbc[i].list, &percpu_counters);
 	spin_unlock_irqrestore(&percpu_counters_lock, flags);
 #endif
 	return 0;
 }
-EXPORT_SYMBOL(__percpu_counter_init);
+EXPORT_SYMBOL(__percpu_counter_init_many);
 
-void percpu_counter_destroy(struct percpu_counter *fbc)
+void percpu_counter_destroy_many(struct percpu_counter *fbc, u32 nr_counters)
 {
 	unsigned long flags __maybe_unused;
+	u32 i;
 
-	if (!fbc->counters)
+	if (WARN_ON_ONCE(!fbc))
 		return;
 
-	debug_percpu_counter_deactivate(fbc);
+	if (!fbc[0].counters)
+		return;
+
+	for (i = 0; i < nr_counters; i++)
+		debug_percpu_counter_deactivate(&fbc[i]);
 
 #ifdef CONFIG_HOTPLUG_CPU
 	spin_lock_irqsave(&percpu_counters_lock, flags);
-	list_del(&fbc->list);
+	for (i = 0; i < nr_counters; i++)
+		list_del(&fbc[i].list);
 	spin_unlock_irqrestore(&percpu_counters_lock, flags);
 #endif
-	free_percpu(fbc->counters);
-	fbc->counters = NULL;
+
+	free_percpu(fbc[0].counters);
+
+	for (i = 0; i < nr_counters; i++)
+		fbc[i].counters = NULL;
 }
-EXPORT_SYMBOL(percpu_counter_destroy);
+EXPORT_SYMBOL(percpu_counter_destroy_many);
 
 int percpu_counter_batch __read_mostly = 32;
 EXPORT_SYMBOL(percpu_counter_batch);

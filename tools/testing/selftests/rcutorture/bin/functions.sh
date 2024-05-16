@@ -45,7 +45,7 @@ checkarg () {
 configfrag_boot_params () {
 	if test -r "$2.boot"
 	then
-		echo $1 `grep -v '^#' "$2.boot" | tr '\012' ' '`
+		echo `grep -v '^#' "$2.boot" | tr '\012' ' '` $1
 	else
 		echo $1
 	fi
@@ -250,7 +250,7 @@ identify_qemu_args () {
 		echo -machine virt,gic-version=host -cpu host
 		;;
 	qemu-system-ppc64)
-		echo -enable-kvm -M pseries -nodefaults
+		echo -M pseries -nodefaults
 		echo -device spapr-vscsi
 		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then

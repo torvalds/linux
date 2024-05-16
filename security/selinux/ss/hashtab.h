@@ -6,7 +6,7 @@
  * functions for hash computation and key comparison are
  * provided by the creator of the table.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 #ifndef _SS_HASHTAB_H_
 #define _SS_HASHTAB_H_
@@ -142,7 +142,13 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 		int (*destroy)(void *k, void *d, void *args),
 		void *args);
 
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 /* Fill info with some hash table statistics */
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info);
+#else
+static inline void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
+{
+}
+#endif
 
 #endif	/* _SS_HASHTAB_H */

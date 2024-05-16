@@ -63,7 +63,7 @@ static inline int store_tod_clock_ext_cc(union tod_clock *clk)
 	return cc;
 }
 
-static inline void store_tod_clock_ext(union tod_clock *tod)
+static __always_inline void store_tod_clock_ext(union tod_clock *tod)
 {
 	asm volatile("stcke %0" : "=Q" (*tod) : : "cc");
 }
@@ -177,7 +177,7 @@ static inline void local_tick_enable(unsigned long comp)
 
 typedef unsigned long cycles_t;
 
-static inline unsigned long get_tod_clock(void)
+static __always_inline unsigned long get_tod_clock(void)
 {
 	union tod_clock clk;
 
@@ -204,6 +204,11 @@ void init_cpu_timer(void);
 
 extern union tod_clock tod_clock_base;
 
+static __always_inline unsigned long __get_tod_clock_monotonic(void)
+{
+	return get_tod_clock() - tod_clock_base.tod;
+}
+
 /**
  * get_clock_monotonic - returns current time in clock rate units
  *
@@ -216,7 +221,7 @@ static inline unsigned long get_tod_clock_monotonic(void)
 	unsigned long tod;
 
 	preempt_disable_notrace();
-	tod = get_tod_clock() - tod_clock_base.tod;
+	tod = __get_tod_clock_monotonic();
 	preempt_enable_notrace();
 	return tod;
 }
@@ -240,7 +245,7 @@ static inline unsigned long get_tod_clock_monotonic(void)
  * -> ns = (th * 125) + ((tl * 125) >> 9);
  *
  */
-static inline unsigned long tod_to_ns(unsigned long todval)
+static __always_inline unsigned long tod_to_ns(unsigned long todval)
 {
 	return ((todval >> 9) * 125) + (((todval & 0x1ff) * 125) >> 9);
 }

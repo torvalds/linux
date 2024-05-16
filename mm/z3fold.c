@@ -125,18 +125,14 @@ struct z3fold_header {
 /**
  * struct z3fold_pool - stores metadata for each z3fold pool
  * @name:	pool name
- * @lock:	protects pool unbuddied/lru lists
+ * @lock:	protects pool unbuddied lists
  * @stale_lock:	protects pool stale page list
  * @unbuddied:	per-cpu array of lists tracking z3fold pages that contain 2-
  *		buddies; the list each z3fold page is added to depends on
  *		the size of its free region.
- * @lru:	list tracking the z3fold pages in LRU order by most recently
- *		added buddy.
  * @stale:	list of pages marked for freeing
  * @pages_nr:	number of z3fold pages in the pool.
  * @c_handle:	cache for z3fold_buddy_slots allocation
- * @zpool:	zpool driver
- * @zpool_ops:	zpool operations structure with an evict callback
  * @compact_wq:	workqueue for page layout background optimization
  * @release_wq:	workqueue for safe page release
  * @work:	work_struct for safe page release
@@ -149,12 +145,9 @@ struct z3fold_pool {
 	spinlock_t lock;
 	spinlock_t stale_lock;
 	struct list_head *unbuddied;
-	struct list_head lru;
 	struct list_head stale;
 	atomic64_t pages_nr;
 	struct kmem_cache *c_handle;
-	struct zpool *zpool;
-	const struct zpool_ops *zpool_ops;
 	struct workqueue_struct *compact_wq;
 	struct workqueue_struct *release_wq;
 	struct work_struct work;
@@ -329,7 +322,6 @@ static struct z3fold_header *init_z3fold_page(struct page *page, bool headless,
 	struct z3fold_header *zhdr = page_address(page);
 	struct z3fold_buddy_slots *slots;
 
-	INIT_LIST_HEAD(&page->lru);
 	clear_bit(PAGE_HEADLESS, &page->private);
 	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
 	clear_bit(NEEDS_COMPACTING, &page->private);
@@ -451,8 +443,6 @@ static void __release_z3fold_page(struct z3fold_header *zhdr, bool locked)
 	set_bit(PAGE_STALE, &page->private);
 	clear_bit(NEEDS_COMPACTING, &page->private);
 	spin_lock(&pool->lock);
-	if (!list_empty(&page->lru))
-		list_del_init(&page->lru);
 	spin_unlock(&pool->lock);
 
 	if (locked)
@@ -486,6 +476,16 @@ static void release_z3fold_page_locked_list(struct kref *ref)
 
 	WARN_ON(z3fold_page_trylock(zhdr));
 	__release_z3fold_page(zhdr, true);
+}
+
+static inline int put_z3fold_locked(struct z3fold_header *zhdr)
+{
+	return kref_put(&zhdr->refcount, release_z3fold_page_locked);
+}
+
+static inline int put_z3fold_locked_list(struct z3fold_header *zhdr)
+{
+	return kref_put(&zhdr->refcount, release_z3fold_page_locked_list);
 }
 
 static void free_pages_work(struct work_struct *w)
@@ -674,7 +674,7 @@ static struct z3fold_header *compact_single_buddy(struct z3fold_header *zhdr)
 	return new_zhdr;
 
 out_fail:
-	if (new_zhdr && !kref_put(&new_zhdr->refcount, release_z3fold_page_locked)) {
+	if (new_zhdr && !put_z3fold_locked(new_zhdr)) {
 		add_to_unbuddied(pool, new_zhdr);
 		z3fold_page_unlock(new_zhdr);
 	}
@@ -749,7 +749,7 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
 	list_del_init(&zhdr->buddy);
 	spin_unlock(&pool->lock);
 
-	if (kref_put(&zhdr->refcount, release_z3fold_page_locked))
+	if (put_z3fold_locked(zhdr))
 		return;
 
 	if (test_bit(PAGE_STALE, &page->private) ||
@@ -760,7 +760,7 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
 
 	if (!zhdr->foreign_handles && buddy_single(zhdr) &&
 	    zhdr->mapped_count == 0 && compact_single_buddy(zhdr)) {
-		if (!kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
+		if (!put_z3fold_locked(zhdr)) {
 			clear_bit(PAGE_CLAIMED, &page->private);
 			z3fold_page_unlock(zhdr);
 		}
@@ -886,7 +886,7 @@ lookup:
 	return zhdr;
 
 out_fail:
-	if (!kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
+	if (!put_z3fold_locked(zhdr)) {
 		add_to_unbuddied(pool, zhdr);
 		z3fold_page_unlock(zhdr);
 	}
@@ -930,7 +930,6 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp)
 		for_each_unbuddied_list(i, 0)
 			INIT_LIST_HEAD(&unbuddied[i]);
 	}
-	INIT_LIST_HEAD(&pool->lru);
 	INIT_LIST_HEAD(&pool->stale);
 	atomic64_set(&pool->pages_nr, 0);
 	pool->name = name;
@@ -1021,8 +1020,7 @@ retry:
 		if (zhdr) {
 			bud = get_free_buddy(zhdr, chunks);
 			if (bud == HEADLESS) {
-				if (!kref_put(&zhdr->refcount,
-					     release_z3fold_page_locked))
+				if (!put_z3fold_locked(zhdr))
 					z3fold_page_unlock(zhdr);
 				pr_err("No free chunks in unbuddied\n");
 				WARN_ON(1);
@@ -1073,12 +1071,6 @@ found:
 
 headless:
 	spin_lock(&pool->lock);
-	/* Add/move z3fold page to beginning of LRU */
-	if (!list_empty(&page->lru))
-		list_del(&page->lru);
-
-	list_add(&page->lru, &pool->lru);
-
 	*handle = encode_handle(zhdr, bud);
 	spin_unlock(&pool->lock);
 	if (bud != HEADLESS)
@@ -1115,9 +1107,6 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 		 * immediately so we don't care about its value any more.
 		 */
 		if (!page_claimed) {
-			spin_lock(&pool->lock);
-			list_del(&page->lru);
-			spin_unlock(&pool->lock);
 			put_z3fold_header(zhdr);
 			free_z3fold_page(page, true);
 			atomic64_dec(&pool->pages_nr);
@@ -1147,7 +1136,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 
 	if (!page_claimed)
 		free_handle(handle, zhdr);
-	if (kref_put(&zhdr->refcount, release_z3fold_page_locked_list))
+	if (put_z3fold_locked_list(zhdr))
 		return;
 	if (page_claimed) {
 		/* the page has not been claimed by us */
@@ -1170,194 +1159,6 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
 	clear_bit(PAGE_CLAIMED, &page->private);
 	queue_work_on(zhdr->cpu, pool->compact_wq, &zhdr->work);
 	put_z3fold_header(zhdr);
-}
-
-/**
- * z3fold_reclaim_page() - evicts allocations from a pool page and frees it
- * @pool:	pool from which a page will attempt to be evicted
- * @retries:	number of pages on the LRU list for which eviction will
- *		be attempted before failing
- *
- * z3fold reclaim is different from normal system reclaim in that it is done
- * from the bottom, up. This is because only the bottom layer, z3fold, has
- * information on how the allocations are organized within each z3fold page.
- * This has the potential to create interesting locking situations between
- * z3fold and the user, however.
- *
- * To avoid these, this is how z3fold_reclaim_page() should be called:
- *
- * The user detects a page should be reclaimed and calls z3fold_reclaim_page().
- * z3fold_reclaim_page() will remove a z3fold page from the pool LRU list and
- * call the user-defined eviction handler with the pool and handle as
- * arguments.
- *
- * If the handle can not be evicted, the eviction handler should return
- * non-zero. z3fold_reclaim_page() will add the z3fold page back to the
- * appropriate list and try the next z3fold page on the LRU up to
- * a user defined number of retries.
- *
- * If the handle is successfully evicted, the eviction handler should
- * return 0 _and_ should have called z3fold_free() on the handle. z3fold_free()
- * contains logic to delay freeing the page if the page is under reclaim,
- * as indicated by the setting of the PG_reclaim flag on the underlying page.
- *
- * If all buddies in the z3fold page are successfully evicted, then the
- * z3fold page can be freed.
- *
- * Returns: 0 if page is successfully freed, otherwise -EINVAL if there are
- * no pages to evict or an eviction handler is not registered, -EAGAIN if
- * the retry limit was hit.
- */
-static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
-{
-	int i, ret = -1;
-	struct z3fold_header *zhdr = NULL;
-	struct page *page = NULL;
-	struct list_head *pos;
-	unsigned long first_handle = 0, middle_handle = 0, last_handle = 0;
-	struct z3fold_buddy_slots slots __attribute__((aligned(SLOTS_ALIGN)));
-
-	rwlock_init(&slots.lock);
-	slots.pool = (unsigned long)pool | (1 << HANDLES_NOFREE);
-
-	spin_lock(&pool->lock);
-	for (i = 0; i < retries; i++) {
-		if (list_empty(&pool->lru)) {
-			spin_unlock(&pool->lock);
-			return -EINVAL;
-		}
-		list_for_each_prev(pos, &pool->lru) {
-			page = list_entry(pos, struct page, lru);
-
-			zhdr = page_address(page);
-			if (test_bit(PAGE_HEADLESS, &page->private)) {
-				/*
-				 * For non-headless pages, we wait to do this
-				 * until we have the page lock to avoid racing
-				 * with __z3fold_alloc(). Headless pages don't
-				 * have a lock (and __z3fold_alloc() will never
-				 * see them), but we still need to test and set
-				 * PAGE_CLAIMED to avoid racing with
-				 * z3fold_free(), so just do it now before
-				 * leaving the loop.
-				 */
-				if (test_and_set_bit(PAGE_CLAIMED, &page->private))
-					continue;
-
-				break;
-			}
-
-			if (!z3fold_page_trylock(zhdr)) {
-				zhdr = NULL;
-				continue; /* can't evict at this point */
-			}
-
-			/* test_and_set_bit is of course atomic, but we still
-			 * need to do it under page lock, otherwise checking
-			 * that bit in __z3fold_alloc wouldn't make sense
-			 */
-			if (zhdr->foreign_handles ||
-			    test_and_set_bit(PAGE_CLAIMED, &page->private)) {
-				z3fold_page_unlock(zhdr);
-				zhdr = NULL;
-				continue; /* can't evict such page */
-			}
-			list_del_init(&zhdr->buddy);
-			zhdr->cpu = -1;
-			/* See comment in __z3fold_alloc. */
-			kref_get(&zhdr->refcount);
-			break;
-		}
-
-		if (!zhdr)
-			break;
-
-		list_del_init(&page->lru);
-		spin_unlock(&pool->lock);
-
-		if (!test_bit(PAGE_HEADLESS, &page->private)) {
-			/*
-			 * We need encode the handles before unlocking, and
-			 * use our local slots structure because z3fold_free
-			 * can zero out zhdr->slots and we can't do much
-			 * about that
-			 */
-			first_handle = 0;
-			last_handle = 0;
-			middle_handle = 0;
-			memset(slots.slot, 0, sizeof(slots.slot));
-			if (zhdr->first_chunks)
-				first_handle = __encode_handle(zhdr, &slots,
-								FIRST);
-			if (zhdr->middle_chunks)
-				middle_handle = __encode_handle(zhdr, &slots,
-								MIDDLE);
-			if (zhdr->last_chunks)
-				last_handle = __encode_handle(zhdr, &slots,
-								LAST);
-			/*
-			 * it's safe to unlock here because we hold a
-			 * reference to this page
-			 */
-			z3fold_page_unlock(zhdr);
-		} else {
-			first_handle = encode_handle(zhdr, HEADLESS);
-			last_handle = middle_handle = 0;
-		}
-		/* Issue the eviction callback(s) */
-		if (middle_handle) {
-			ret = pool->zpool_ops->evict(pool->zpool, middle_handle);
-			if (ret)
-				goto next;
-		}
-		if (first_handle) {
-			ret = pool->zpool_ops->evict(pool->zpool, first_handle);
-			if (ret)
-				goto next;
-		}
-		if (last_handle) {
-			ret = pool->zpool_ops->evict(pool->zpool, last_handle);
-			if (ret)
-				goto next;
-		}
-next:
-		if (test_bit(PAGE_HEADLESS, &page->private)) {
-			if (ret == 0) {
-				free_z3fold_page(page, true);
-				atomic64_dec(&pool->pages_nr);
-				return 0;
-			}
-			spin_lock(&pool->lock);
-			list_add(&page->lru, &pool->lru);
-			spin_unlock(&pool->lock);
-			clear_bit(PAGE_CLAIMED, &page->private);
-		} else {
-			struct z3fold_buddy_slots *slots = zhdr->slots;
-			z3fold_page_lock(zhdr);
-			if (kref_put(&zhdr->refcount,
-					release_z3fold_page_locked)) {
-				kmem_cache_free(pool->c_handle, slots);
-				return 0;
-			}
-			/*
-			 * if we are here, the page is still not completely
-			 * free. Take the global pool lock then to be able
-			 * to add it back to the lru list
-			 */
-			spin_lock(&pool->lock);
-			list_add(&page->lru, &pool->lru);
-			spin_unlock(&pool->lock);
-			if (list_empty(&zhdr->buddy))
-				add_to_unbuddied(pool, zhdr);
-			clear_bit(PAGE_CLAIMED, &page->private);
-			z3fold_page_unlock(zhdr);
-		}
-
-		/* We started off locked to we need to lock the pool back */
-		spin_lock(&pool->lock);
-	}
-	spin_unlock(&pool->lock);
-	return -EAGAIN;
 }
 
 /**
@@ -1470,8 +1271,6 @@ static bool z3fold_page_isolate(struct page *page, isolate_mode_t mode)
 	spin_lock(&pool->lock);
 	if (!list_empty(&zhdr->buddy))
 		list_del_init(&zhdr->buddy);
-	if (!list_empty(&page->lru))
-		list_del_init(&page->lru);
 	spin_unlock(&pool->lock);
 
 	kref_get(&zhdr->refcount);
@@ -1531,9 +1330,6 @@ static int z3fold_page_migrate(struct page *newpage, struct page *page,
 		encode_handle(new_zhdr, MIDDLE);
 	set_bit(NEEDS_COMPACTING, &newpage->private);
 	new_zhdr->cpu = smp_processor_id();
-	spin_lock(&pool->lock);
-	list_add(&newpage->lru, &pool->lru);
-	spin_unlock(&pool->lock);
 	__SetPageMovable(newpage, &z3fold_mops);
 	z3fold_page_unlock(new_zhdr);
 
@@ -1557,11 +1353,8 @@ static void z3fold_page_putback(struct page *page)
 	if (!list_empty(&zhdr->buddy))
 		list_del_init(&zhdr->buddy);
 	INIT_LIST_HEAD(&page->lru);
-	if (kref_put(&zhdr->refcount, release_z3fold_page_locked))
+	if (put_z3fold_locked(zhdr))
 		return;
-	spin_lock(&pool->lock);
-	list_add(&page->lru, &pool->lru);
-	spin_unlock(&pool->lock);
 	if (list_empty(&zhdr->buddy))
 		add_to_unbuddied(pool, zhdr);
 	clear_bit(PAGE_CLAIMED, &page->private);
@@ -1578,18 +1371,9 @@ static const struct movable_operations z3fold_mops = {
  * zpool
  ****************/
 
-static void *z3fold_zpool_create(const char *name, gfp_t gfp,
-			       const struct zpool_ops *zpool_ops,
-			       struct zpool *zpool)
+static void *z3fold_zpool_create(const char *name, gfp_t gfp)
 {
-	struct z3fold_pool *pool;
-
-	pool = z3fold_create_pool(name, gfp);
-	if (pool) {
-		pool->zpool = zpool;
-		pool->zpool_ops = zpool_ops;
-	}
-	return pool;
+	return z3fold_create_pool(name, gfp);
 }
 
 static void z3fold_zpool_destroy(void *pool)
@@ -1605,25 +1389,6 @@ static int z3fold_zpool_malloc(void *pool, size_t size, gfp_t gfp,
 static void z3fold_zpool_free(void *pool, unsigned long handle)
 {
 	z3fold_free(pool, handle);
-}
-
-static int z3fold_zpool_shrink(void *pool, unsigned int pages,
-			unsigned int *reclaimed)
-{
-	unsigned int total = 0;
-	int ret = -EINVAL;
-
-	while (total < pages) {
-		ret = z3fold_reclaim_page(pool, 8);
-		if (ret < 0)
-			break;
-		total++;
-	}
-
-	if (reclaimed)
-		*reclaimed = total;
-
-	return ret;
 }
 
 static void *z3fold_zpool_map(void *pool, unsigned long handle,
@@ -1649,7 +1414,6 @@ static struct zpool_driver z3fold_zpool_driver = {
 	.destroy =	z3fold_zpool_destroy,
 	.malloc =	z3fold_zpool_malloc,
 	.free =		z3fold_zpool_free,
-	.shrink =	z3fold_zpool_shrink,
 	.map =		z3fold_zpool_map,
 	.unmap =	z3fold_zpool_unmap,
 	.total_size =	z3fold_zpool_total_size,

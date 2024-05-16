@@ -25,7 +25,6 @@ menuconfig SWAP
 config ZSWAP
 	bool "Compressed cache for swap pages"
 	depends on SWAP
-	select FRONTSWAP
 	select CRYPTO
 	select ZPOOL
 	help
@@ -45,6 +44,22 @@ config ZSWAP_DEFAULT_ON
 
 	  The selection made here can be overridden by using the kernel
 	  command line 'zswap.enabled=' option.
+
+config ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON
+	bool "Invalidate zswap entries when pages are loaded"
+	depends on ZSWAP
+	help
+	  If selected, exclusive loads for zswap will be enabled at boot,
+	  otherwise it will be disabled.
+
+	  If exclusive loads are enabled, when a page is loaded from zswap,
+	  the zswap entry is invalidated at once, as opposed to leaving it
+	  in zswap until the swap entry is freed.
+
+	  This avoids having two copies of the same page in memory
+	  (compressed and uncompressed) after faulting in a page from zswap.
+	  The cost is that if the page was never dirtied and needs to be
+	  swapped out again, it will be re-compressed.
 
 choice
 	prompt "Default compressor"
@@ -218,18 +233,23 @@ choice
 	help
 	   This option allows to select a slab allocator.
 
-config SLAB
-	bool "SLAB"
+config SLAB_DEPRECATED
+	bool "SLAB (DEPRECATED)"
 	depends on !PREEMPT_RT
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
+	  Deprecated and scheduled for removal in a few cycles. Replaced by
+	  SLUB.
+
+	  If you cannot migrate to SLUB, please contact linux-mm@kvack.org
+	  and the people listed in the SLAB ALLOCATOR section of MAINTAINERS
+	  file, explaining why.
+
 	  The regular slab allocator that is established and known to work
 	  well in all environments. It organizes cache hot objects in
 	  per cpu and per node queues.
 
 config SLUB
 	bool "SLUB (Unqueued Allocator)"
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
 	help
 	   SLUB is a slab allocator that minimizes cache line usage
 	   instead of managing queues of cached objects (SLAB approach).
@@ -239,6 +259,11 @@ config SLUB
 	   a slab allocator.
 
 endchoice
+
+config SLAB
+	bool
+	default y
+	depends on SLAB_DEPRECATED
 
 config SLUB_TINY
 	bool "Configure SLUB for minimal memory footprint"
@@ -310,6 +335,23 @@ config SLUB_CPU_PARTIAL
 	  in the latency of the free. On overflow these caches will be cleared
 	  which requires the taking of locks that may cause latency spikes.
 	  Typically one would choose no for a realtime system.
+
+config RANDOM_KMALLOC_CACHES
+	default n
+	depends on SLUB && !SLUB_TINY
+	bool "Randomize slab caches for normal kmalloc"
+	help
+	  A hardening feature that creates multiple copies of slab caches for
+	  normal kmalloc allocation and makes kmalloc randomly pick one based
+	  on code address, which makes the attackers more difficult to spray
+	  vulnerable memory objects on the heap for the purpose of exploiting
+	  memory vulnerabilities.
+
+	  Currently the number of copies is set to 16, a reasonably large value
+	  that effectively diverges the memory objects allocated for different
+	  subsystems or modules into different caches, at the expense of a
+	  limited degree of memory and CPU overhead that relates to hardware and
+	  system workload.
 
 endmenu # SLAB allocator options
 
@@ -461,7 +503,10 @@ config SPARSEMEM_VMEMMAP
 # Select this config option from the architecture Kconfig, if it is preferred
 # to enable the feature of HugeTLB/dev_dax vmemmap optimization.
 #
-config ARCH_WANT_OPTIMIZE_VMEMMAP
+config ARCH_WANT_OPTIMIZE_DAX_VMEMMAP
+	bool
+
+config ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
 	bool
 
 config HAVE_MEMBLOCK_PHYS_MAP
@@ -542,6 +587,9 @@ config MHP_MEMMAP_ON_MEMORY
 	depends on ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 
 endif # MEMORY_HOTPLUG
+
+config ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
+       bool
 
 # Heavily threaded applications may benefit from splitting the mm-wide
 # page_table_lock, so that faults on different parts of the user address
@@ -844,9 +892,6 @@ config USE_PERCPU_NUMA_NODE_ID
 config HAVE_SETUP_PER_CPU_AREA
 	bool
 
-config FRONTSWAP
-	bool
-
 config CMA
 	bool "Contiguous Memory Allocator"
 	depends on MMU
@@ -1118,6 +1163,9 @@ config KMAP_LOCAL_NON_LINEAR_PTE_ARRAY
 config IO_MAPPING
 	bool
 
+config MEMFD_CREATE
+	bool "Enable memfd_create() system call" if EXPERT
+
 config SECRETMEM
 	default y
 	bool "Enable memfd_secret() system call" if EXPERT
@@ -1205,6 +1253,10 @@ config PER_VMA_LOCK
 
 	  This feature allows locking each virtual memory area separately when
 	  handling page faults instead of taking mmap_lock.
+
+config LOCK_MM_AND_FIND_VMA
+	bool
+	depends on !STACK_GROWSUP
 
 source "mm/damon/Kconfig"
 

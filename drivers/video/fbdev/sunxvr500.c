@@ -10,7 +10,7 @@
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #include <asm/io.h>
 
@@ -200,7 +200,6 @@ static int e3d_set_fbinfo(struct e3d_info *ep)
 	struct fb_info *info = ep->info;
 	struct fb_var_screeninfo *var = &info->var;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &e3d_ops;
 	info->screen_base = ep->fb_base;
 	info->screen_size = ep->fb_size;

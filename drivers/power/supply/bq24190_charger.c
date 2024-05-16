@@ -965,7 +965,7 @@ static int bq24190_charger_get_precharge(struct bq24190_dev_info *bdi,
 		union power_supply_propval *val)
 {
 	u8 v;
-	int ret;
+	int curr, ret;
 
 	ret = bq24190_read_mask(bdi, BQ24190_REG_PCTCC,
 			BQ24190_REG_PCTCC_IPRECHG_MASK,
@@ -973,7 +973,20 @@ static int bq24190_charger_get_precharge(struct bq24190_dev_info *bdi,
 	if (ret < 0)
 		return ret;
 
-	val->intval = ++v * 128 * 1000;
+	curr = ++v * 128 * 1000;
+
+	ret = bq24190_read_mask(bdi, BQ24190_REG_CCC,
+			BQ24190_REG_CCC_FORCE_20PCT_MASK,
+			BQ24190_REG_CCC_FORCE_20PCT_SHIFT, &v);
+	if (ret < 0)
+		return ret;
+
+	/* If FORCE_20PCT is enabled, then current is 50% of IPRECHG value */
+	if (v)
+		curr /= 2;
+
+	val->intval = curr;
+
 	return 0;
 }
 
@@ -2034,7 +2047,7 @@ static const struct of_device_id bq24190_of_match[] = {
 MODULE_DEVICE_TABLE(of, bq24190_of_match);
 
 static struct i2c_driver bq24190_driver = {
-	.probe_new	= bq24190_probe,
+	.probe		= bq24190_probe,
 	.remove		= bq24190_remove,
 	.shutdown	= bq24190_shutdown,
 	.id_table	= bq24190_i2c_ids,

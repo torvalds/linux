@@ -14,7 +14,7 @@ test_global_aggr()
 {
 	perf stat -a --no-big-num -e cycles,instructions sleep 1  2>&1 | \
 	grep -e cycles -e instructions | \
-	while read num evt hash ipc rest
+	while read num evt _hash ipc rest
 	do
 		# skip not counted events
 		if [ "$num" = "<not" ]; then
@@ -33,7 +33,7 @@ test_global_aggr()
 		fi
 
 		# use printf for rounding and a leading zero
-		res=`printf "%.2f" $(echo "scale=6; $num / $cyc" | bc -q)`
+		res=`printf "%.2f" "$(echo "scale=6; $num / $cyc" | bc -q)"`
 		if [ "$ipc" != "$res" ]; then
 			echo "IPC is different: $res != $ipc  ($num / $cyc)"
 			exit 1
@@ -45,7 +45,7 @@ test_no_aggr()
 {
 	perf stat -a -A --no-big-num -e cycles,instructions sleep 1  2>&1 | \
 	grep ^CPU | \
-	while read cpu num evt hash ipc rest
+	while read cpu num evt _hash ipc rest
 	do
 		# skip not counted events
 		if [ "$num" = "<not" ]; then
@@ -67,7 +67,7 @@ test_no_aggr()
 		fi
 
 		# use printf for rounding and a leading zero
-		res=`printf "%.2f" $(echo "scale=6; $num / $cyc" | bc -q)`
+		res=`printf "%.2f" "$(echo "scale=6; $num / $cyc" | bc -q)"`
 		if [ "$ipc" != "$res" ]; then
 			echo "IPC is different for $cpu: $res != $ipc  ($num / $cyc)"
 			exit 1

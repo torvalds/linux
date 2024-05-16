@@ -143,7 +143,9 @@ properties:
       - description: Octavo OSD32MP15x System-in-Package based boards
         items:
           - enum:
-              - lxa,stm32mp157c-mc1 # Linux Automation MC-1
+              - lxa,stm32mp157c-mc1      # Linux Automation MC-1
+              - lxa,stm32mp157c-tac-gen1 # Linux Automation TAC (Generation 1)
+              - lxa,stm32mp157c-tac-gen2 # Linux Automation TAC (Generation 2)
           - const: oct,stm32mp15xx-osd32
           - enum:
               - st,stm32mp157
@@ -154,6 +156,18 @@ properties:
               - seeed,stm32mp157c-odyssey
           - const: seeed,stm32mp157c-odyssey-som
           - const: st,stm32mp157
+
+      - description: Phytec STM32MP1 SoM based Boards
+        items:
+          - const: phytec,phycore-stm32mp1-3
+          - const: phytec,phycore-stm32mp157c-som
+          - const: st,stm32mp157
+
+      - description: ST STM32MP257 based Boards
+        items:
+          - enum:
+              - st,stm32mp257f-ev1
+          - const: st,stm32mp257
 
 additionalProperties: true
 

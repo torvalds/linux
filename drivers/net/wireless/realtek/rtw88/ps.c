@@ -18,6 +18,7 @@ static int rtw_ips_pwr_up(struct rtw_dev *rtwdev)
 	if (ret)
 		rtw_err(rtwdev, "leave idle state failed\n");
 
+	rtw_coex_ips_notify(rtwdev, COEX_IPS_LEAVE);
 	rtw_set_channel(rtwdev);
 
 	return ret;
@@ -36,8 +37,7 @@ int rtw_enter_ips(struct rtw_dev *rtwdev)
 	return 0;
 }
 
-static void rtw_restore_port_cfg_iter(void *data, u8 *mac,
-				      struct ieee80211_vif *vif)
+static void rtw_restore_port_cfg_iter(void *data, struct ieee80211_vif *vif)
 {
 	struct rtw_dev *rtwdev = data;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
@@ -62,8 +62,6 @@ int rtw_leave_ips(struct rtw_dev *rtwdev)
 	}
 
 	rtw_iterate_vifs(rtwdev, rtw_restore_port_cfg_iter, rtwdev);
-
-	rtw_coex_ips_notify(rtwdev, COEX_IPS_LEAVE);
 
 	return 0;
 }
@@ -321,8 +319,7 @@ static void __rtw_vif_recalc_lps(struct rtw_vif_recalc_lps_iter_data *data,
 	data->found_vif = vif;
 }
 
-static void rtw_vif_recalc_lps_iter(void *data, u8 *mac,
-				    struct ieee80211_vif *vif)
+static void rtw_vif_recalc_lps_iter(void *data, struct ieee80211_vif *vif)
 {
 	__rtw_vif_recalc_lps(data, vif);
 }

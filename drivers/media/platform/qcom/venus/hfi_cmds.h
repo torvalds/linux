@@ -56,7 +56,7 @@ struct hfi_sys_set_resource_pkt {
 	struct hfi_pkt_hdr hdr;
 	u32 resource_handle;
 	u32 resource_type;
-	u32 resource_data[1];
+	u32 resource_data[];
 };
 
 struct hfi_sys_release_resource_pkt {
@@ -117,7 +117,7 @@ struct hfi_session_set_buffers_pkt {
 	u32 extradata_size;
 	u32 min_buffer_size;
 	u32 num_buffers;
-	u32 buffer_info[1];
+	u32 buffer_info[];
 };
 
 struct hfi_session_get_sequence_header_pkt {

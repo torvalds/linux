@@ -439,7 +439,6 @@ static struct irq_chip brcm_msi_irq_chip = {
 };
 
 static struct msi_domain_info brcm_msi_domain_info = {
-	/* Multi MSI is supported by the controller, but not by this driver */
 	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
 		   MSI_FLAG_MULTI_PCI_MSI),
 	.chip	= &brcm_msi_irq_chip,
@@ -874,6 +873,11 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 
 	/* Reset the bridge */
 	pcie->bridge_sw_init_set(pcie, 1);
+
+	/* Ensure that PERST# is asserted; some bootloaders may deassert it. */
+	if (pcie->type == BCM2711)
+		pcie->perst_set(pcie, 1);
+
 	usleep_range(100, 200);
 
 	/* Take the bridge out of reset */
@@ -1396,7 +1400,7 @@ static void __brcm_pcie_remove(struct brcm_pcie *pcie)
 	clk_disable_unprepare(pcie->clk);
 }
 
-static int brcm_pcie_remove(struct platform_device *pdev)
+static void brcm_pcie_remove(struct platform_device *pdev)
 {
 	struct brcm_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
@@ -1404,8 +1408,6 @@ static int brcm_pcie_remove(struct platform_device *pdev)
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
 	__brcm_pcie_remove(pcie);
-
-	return 0;
 }
 
 static const int pcie_offsets[] = {
@@ -1612,7 +1614,7 @@ static const struct dev_pm_ops brcm_pcie_pm_ops = {
 
 static struct platform_driver brcm_pcie_driver = {
 	.probe = brcm_pcie_probe,
-	.remove = brcm_pcie_remove,
+	.remove_new = brcm_pcie_remove,
 	.driver = {
 		.name = "brcm-pcie",
 		.of_match_table = brcm_pcie_match,

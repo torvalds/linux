@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright IBM Corp. 2016
+ * Copyright IBM Corp. 2016, 2023
  * Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  *
  * Adjunct processor bus, queue related code.
@@ -92,51 +92,6 @@ __ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen,
 		qid |= 0x400000UL;
 	return ap_nqap(qid, psmid, msg, msglen);
 }
-
-int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen)
-{
-	struct ap_queue_status status;
-
-	status = __ap_send(qid, psmid, msg, msglen, 0);
-	if (status.async)
-		return -EPERM;
-	switch (status.response_code) {
-	case AP_RESPONSE_NORMAL:
-		return 0;
-	case AP_RESPONSE_Q_FULL:
-	case AP_RESPONSE_RESET_IN_PROGRESS:
-		return -EBUSY;
-	case AP_RESPONSE_REQ_FAC_NOT_INST:
-		return -EINVAL;
-	default:	/* Device is gone. */
-		return -ENODEV;
-	}
-}
-EXPORT_SYMBOL(ap_send);
-
-int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t msglen)
-{
-	struct ap_queue_status status;
-
-	if (!msg)
-		return -EINVAL;
-	status = ap_dqap(qid, psmid, msg, msglen, NULL, NULL, NULL);
-	if (status.async)
-		return -EPERM;
-	switch (status.response_code) {
-	case AP_RESPONSE_NORMAL:
-		return 0;
-	case AP_RESPONSE_NO_PENDING_REPLY:
-		if (status.queue_empty)
-			return -ENOENT;
-		return -EBUSY;
-	case AP_RESPONSE_RESET_IN_PROGRESS:
-		return -EBUSY;
-	default:
-		return -ENODEV;
-	}
-}
-EXPORT_SYMBOL(ap_recv);
 
 /* State machine definitions and helpers */
 
@@ -274,13 +229,6 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 
 	/* Start the next request on the queue. */
 	ap_msg = list_entry(aq->requestq.next, struct ap_message, list);
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.action == AP_FI_ACTION_NQAP_QID_INVAL) {
-		AP_DBF_WARN("%s fi cmd 0x%04x: forcing invalid qid 0xFF00\n",
-			    __func__, ap_msg->fi.cmd);
-		qid = 0xFF00;
-	}
-#endif
 	status = __ap_send(qid, ap_msg->psmid,
 			   ap_msg->msg, ap_msg->len,
 			   ap_msg->flags & AP_MSG_FLAG_SPECIAL);

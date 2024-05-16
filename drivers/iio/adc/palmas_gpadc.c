@@ -14,12 +14,10 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/i2c.h>
 #include <linux/pm.h>
 #include <linux/mfd/palmas.h>
 #include <linux/completion.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/machine.h>
@@ -917,8 +915,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 
 	adc->irq_auto_0 = platform_get_irq(pdev, 1);
 	if (adc->irq_auto_0 < 0)
-		return dev_err_probe(adc->dev, adc->irq_auto_0,
-				     "get auto0 irq failed\n");
+		return adc->irq_auto_0;
 
 	ret = devm_request_threaded_irq(&pdev->dev, adc->irq_auto_0, NULL,
 					palmas_gpadc_irq_auto, IRQF_ONESHOT,
@@ -930,8 +927,7 @@ static int palmas_gpadc_probe(struct platform_device *pdev)
 
 	adc->irq_auto_1 = platform_get_irq(pdev, 2);
 	if (adc->irq_auto_1 < 0)
-		return dev_err_probe(adc->dev, adc->irq_auto_1,
-				     "get auto1 irq failed\n");
+		return adc->irq_auto_1;
 
 	ret = devm_request_threaded_irq(&pdev->dev, adc->irq_auto_1, NULL,
 					palmas_gpadc_irq_auto, IRQF_ONESHOT,

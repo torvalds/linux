@@ -1084,7 +1084,7 @@ static const struct regmap_config cs42l52_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs42l52_reg_defaults),
 	.readable_reg = cs42l52_readable_register,
 	.volatile_reg = cs42l52_volatile_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
@@ -1226,7 +1226,7 @@ static struct i2c_driver cs42l52_i2c_driver = {
 		.of_match_table = cs42l52_of_match,
 	},
 	.id_table = cs42l52_id,
-	.probe_new = cs42l52_i2c_probe,
+	.probe = cs42l52_i2c_probe,
 };
 
 module_i2c_driver(cs42l52_i2c_driver);

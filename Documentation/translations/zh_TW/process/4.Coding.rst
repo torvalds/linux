@@ -11,7 +11,7 @@
 :校譯:
 
  吳想成 Wu XiangCheng <bobwxc@email.cn>
- 胡皓文 Hu Haowen <src.res@email.cn>
+ 胡皓文 Hu Haowen <src.res.211@gmail.com>
 
 .. _tw_development_coding:
 
@@ -152,7 +152,7 @@ Linus對這個問題給出了最佳答案:
 	所以我們不會通過引入新問題來修復錯誤。這種方式是靠不住的，沒人知道
 	是否真的有進展。是前進兩步、後退一步，還是前進一步、後退兩步？
 
-（http://lwn.net/articles/243460/）
+（http://lwn.net/Articles/243460/）
 
 特別不受歡迎的一種回歸類型是用戶空間ABI的任何變化。一旦接口被導出到用戶空間，
 就必須無限期地支持它。這一事實使得用戶空間接口的創建特別具有挑戰性：因爲它們

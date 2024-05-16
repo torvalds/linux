@@ -85,7 +85,7 @@ free_apusys_pll_data:
 	return r;
 }
 
-static int clk_mt8195_apusys_pll_remove(struct platform_device *pdev)
+static void clk_mt8195_apusys_pll_remove(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
@@ -93,8 +93,6 @@ static int clk_mt8195_apusys_pll_remove(struct platform_device *pdev)
 	of_clk_del_provider(node);
 	mtk_clk_unregister_plls(apusys_plls, ARRAY_SIZE(apusys_plls), clk_data);
 	mtk_free_clk_data(clk_data);
-
-	return 0;
 }
 
 static const struct of_device_id of_match_clk_mt8195_apusys_pll[] = {
@@ -105,7 +103,7 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8195_apusys_pll);
 
 static struct platform_driver clk_mt8195_apusys_pll_drv = {
 	.probe = clk_mt8195_apusys_pll_probe,
-	.remove = clk_mt8195_apusys_pll_remove,
+	.remove_new = clk_mt8195_apusys_pll_remove,
 	.driver = {
 		.name = "clk-mt8195-apusys_pll",
 		.of_match_table = of_match_clk_mt8195_apusys_pll,

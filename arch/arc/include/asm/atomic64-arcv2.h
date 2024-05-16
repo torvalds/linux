@@ -60,7 +60,7 @@ static inline void arch_atomic64_##op(s64 a, atomic64_t *v)		\
 	"	bnz     1b		\n"				\
 	: "=&r"(val)							\
 	: "r"(&v->counter), "ir"(a)					\
-	: "cc");							\
+	: "cc", "memory");						\
 }									\
 
 #define ATOMIC64_OP_RETURN(op, op1, op2)		        	\
@@ -77,7 +77,7 @@ static inline s64 arch_atomic64_##op##_return_relaxed(s64 a, atomic64_t *v)	\
 	"	bnz     1b		\n"				\
 	: [val] "=&r"(val)						\
 	: "r"(&v->counter), "ir"(a)					\
-	: "cc");	/* memory clobber comes from smp_mb() */	\
+	: "cc", "memory");						\
 									\
 	return val;							\
 }
@@ -99,7 +99,7 @@ static inline s64 arch_atomic64_fetch_##op##_relaxed(s64 a, atomic64_t *v)	\
 	"	bnz     1b		\n"				\
 	: "=&r"(orig), "=&r"(val)					\
 	: "r"(&v->counter), "ir"(a)					\
-	: "cc");	/* memory clobber comes from smp_mb() */	\
+	: "cc", "memory");						\
 									\
 	return orig;							\
 }
@@ -159,6 +159,7 @@ arch_atomic64_cmpxchg(atomic64_t *ptr, s64 expected, s64 new)
 
 	return prev;
 }
+#define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
 
 static inline s64 arch_atomic64_xchg(atomic64_t *ptr, s64 new)
 {
@@ -179,14 +180,7 @@ static inline s64 arch_atomic64_xchg(atomic64_t *ptr, s64 new)
 
 	return prev;
 }
-
-/**
- * arch_atomic64_dec_if_positive - decrement by 1 if old value positive
- * @v: pointer of type atomic64_t
- *
- * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
- */
+#define arch_atomic64_xchg arch_atomic64_xchg
 
 static inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 {
@@ -212,15 +206,6 @@ static inline s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 }
 #define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
 
-/**
- * arch_atomic64_fetch_add_unless - add unless the number is a given value
- * @v: pointer of type atomic64_t
- * @a: the amount to add to v...
- * @u: ...unless v is equal to u.
- *
- * Atomically adds @a to @v, if it was not @u.
- * Returns the old value of @v
- */
 static inline s64 arch_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 {
 	s64 old, temp;

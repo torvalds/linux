@@ -9,7 +9,7 @@
 #include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 #include "clk-gate.h"
@@ -367,10 +367,12 @@ static const struct mtk_mux top_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI_SEL, "axi_sel", axi_parents,
 			      CLK_CFG_0, CLK_CFG_0_SET, CLK_CFG_0_CLR,
-			      0, 2, 7, CLK_CFG_UPDATE, 0, CLK_IS_CRITICAL),
+			      0, 2, 7, CLK_CFG_UPDATE, 0,
+			      CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MEM_SEL, "mem_sel", mem_parents,
 			      CLK_CFG_0, CLK_CFG_0_SET, CLK_CFG_0_CLR,
-			      8, 2, 15, CLK_CFG_UPDATE, 1, CLK_IS_CRITICAL),
+			      8, 2, 15, CLK_CFG_UPDATE, 1,
+			      CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MM_SEL, "mm_sel", mm_parents, CLK_CFG_0,
 			CLK_CFG_0_SET, CLK_CFG_0_CLR, 16, 3, 23,
 			CLK_CFG_UPDATE, 2),
@@ -404,15 +406,15 @@ static const struct mtk_mux top_muxes[] = {
 			CLK_CFG_2_SET, CLK_CFG_2_CLR, 24, 2, 31,
 			CLK_CFG_UPDATE, 11),
 	/* CLK_CFG_3 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_HCLK_SEL, "msdc5hclk",
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_HCLK_SEL, "msdc5hclk",
 			msdc5hclk_parents, CLK_CFG_3, CLK_CFG_3_SET,
-			CLK_CFG_3_CLR, 0, 2, 7, CLK_CFG_UPDATE, 12),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_SEL, "msdc50_0_sel",
+			CLK_CFG_3_CLR, 0, 2, 7, CLK_CFG_UPDATE, 12, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_SEL, "msdc50_0_sel",
 			msdc50_0_parents, CLK_CFG_3, CLK_CFG_3_SET,
-			CLK_CFG_3_CLR, 8, 3, 15, CLK_CFG_UPDATE, 13),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC30_1_SEL, "msdc30_1_sel",
+			CLK_CFG_3_CLR, 8, 3, 15, CLK_CFG_UPDATE, 13, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC30_1_SEL, "msdc30_1_sel",
 			msdc30_1_parents, CLK_CFG_3, CLK_CFG_3_SET,
-			CLK_CFG_3_CLR, 16, 3, 23, CLK_CFG_UPDATE, 14),
+			CLK_CFG_3_CLR, 16, 3, 23, CLK_CFG_UPDATE, 14, 0),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUDIO_SEL, "audio_sel", audio_parents,
 			CLK_CFG_3, CLK_CFG_3_SET, CLK_CFG_3_CLR,
 			24, 2, 31, CLK_CFG_UPDATE, 15),
@@ -459,7 +461,7 @@ static const struct mtk_mux top_muxes[] = {
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_PWRAP_ULPOSC_SEL, "ulposc_sel",
 			      ulposc_parents, CLK_CFG_7, CLK_CFG_7_SET,
 			      CLK_CFG_7_CLR, 0, 3, 7, CLK_CFG_UPDATE, 28,
-			      CLK_IS_CRITICAL),
+			      CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_CAMTM_SEL, "camtm_sel", camtm_parents,
 			CLK_CFG_7, CLK_CFG_7_SET, CLK_CFG_7_CLR, 8, 2, 15,
 			CLK_CFG_UPDATE, 29),
@@ -729,13 +731,10 @@ static int clk_mt6765_apmixed_probe(struct platform_device *pdev)
 	int r;
 	struct device_node *node = pdev->dev.of_node;
 	void __iomem *base;
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base)) {
-		pr_err("%s(): ioremap failed\n", __func__);
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 
@@ -764,13 +763,10 @@ static int clk_mt6765_top_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	void __iomem *base;
 	struct clk_hw_onecell_data *clk_data;
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base)) {
-		pr_err("%s(): ioremap failed\n", __func__);
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 
 	clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
 
@@ -805,13 +801,10 @@ static int clk_mt6765_ifr_probe(struct platform_device *pdev)
 	int r;
 	struct device_node *node = pdev->dev.of_node;
 	void __iomem *base;
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base)) {
-		pr_err("%s(): ioremap failed\n", __func__);
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 
 	clk_data = mtk_alloc_clk_data(CLK_IFR_NR_CLK);
 

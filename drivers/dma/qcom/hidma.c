@@ -45,12 +45,12 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/of_dma.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
@@ -214,7 +214,6 @@ static int hidma_chan_init(struct hidma_dev *dmadev, u32 dma_sig)
 
 	spin_lock_init(&mchan->lock);
 	list_add_tail(&mchan->chan.device_node, &ddev->channels);
-	dmadev->ddev.chancnt++;
 	return 0;
 }
 
@@ -766,17 +765,15 @@ static int hidma_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	trca_resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	trca = devm_ioremap_resource(&pdev->dev, trca_resource);
+	trca = devm_platform_get_and_ioremap_resource(pdev, 0, &trca_resource);
 	if (IS_ERR(trca)) {
-		rc = -ENOMEM;
+		rc = PTR_ERR(trca);
 		goto bailout;
 	}
 
-	evca_resource = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	evca = devm_ioremap_resource(&pdev->dev, evca_resource);
+	evca = devm_platform_get_and_ioremap_resource(pdev, 1, &evca_resource);
 	if (IS_ERR(evca)) {
-		rc = -ENOMEM;
+		rc = PTR_ERR(evca);
 		goto bailout;
 	}
 
@@ -786,7 +783,7 @@ static int hidma_probe(struct platform_device *pdev)
 	 */
 	chirq = platform_get_irq(pdev, 0);
 	if (chirq < 0) {
-		rc = -ENODEV;
+		rc = chirq;
 		goto bailout;
 	}
 

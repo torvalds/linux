@@ -388,7 +388,9 @@ nfsd_sanitize_attrs(struct inode *inode, struct iattr *iap)
 				iap->ia_mode &= ~S_ISGID;
 		} else {
 			/* set ATTR_KILL_* bits and let VFS handle it */
-			iap->ia_valid |= (ATTR_KILL_SUID | ATTR_KILL_SGID);
+			iap->ia_valid |= ATTR_KILL_SUID;
+			iap->ia_valid |=
+				setattr_should_drop_sgid(&nop_mnt_idmap, inode);
 		}
 	}
 }
@@ -518,7 +520,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	nfsd_sanitize_attrs(inode, iap);
 
-	if (check_guard && guardtime != inode->i_ctime.tv_sec)
+	if (check_guard && guardtime != inode_get_ctime(inode).tv_sec)
 		return nfserr_notsync;
 
 	/*
@@ -936,7 +938,7 @@ nfsd_open_verified(struct svc_rqst *rqstp, struct svc_fh *fhp, int may_flags,
 
 /*
  * Grab and keep cached pages associated with a file in the svc_rqst
- * so that they can be passed to the network sendmsg/sendpage routines
+ * so that they can be passed to the network sendmsg routines
  * directly. They will be released after the sending has completed.
  *
  * Return values: Number of bytes consumed, or -EIO if there are no
@@ -954,10 +956,13 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	last_page = page + (offset + sd->len - 1) / PAGE_SIZE;
 	for (page += offset / PAGE_SIZE; page <= last_page; page++) {
 		/*
-		 * Skip page replacement when extending the contents
-		 * of the current page.
+		 * Skip page replacement when extending the contents of the
+		 * current page.  But note that we may get two zero_pages in a
+		 * row from shmem.
 		 */
-		if (page == *(rqstp->rq_next_page - 1))
+		if (page == *(rqstp->rq_next_page - 1) &&
+		    offset_in_page(rqstp->rq_res.page_base +
+				   rqstp->rq_res.page_len))
 			continue;
 		if (unlikely(!svc_rqst_replace_page(rqstp, page)))
 			return -EIO;
@@ -1001,6 +1006,18 @@ static __be32 nfsd_finish_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	}
 }
 
+/**
+ * nfsd_splice_read - Perform a VFS read using a splice pipe
+ * @rqstp: RPC transaction context
+ * @fhp: file handle of file to be read
+ * @file: opened struct file of file to be read
+ * @offset: starting byte offset
+ * @count: IN: requested number of bytes; OUT: number of bytes read
+ * @eof: OUT: set non-zero if operation reached the end of the file
+ *
+ * Returns nfs_ok on success, otherwise an nfserr stat value is
+ * returned.
+ */
 __be32 nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			struct file *file, loff_t offset, unsigned long *count,
 			u32 *eof)
@@ -1014,22 +1031,50 @@ __be32 nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	ssize_t host_err;
 
 	trace_nfsd_read_splice(rqstp, fhp, offset, *count);
-	rqstp->rq_next_page = rqstp->rq_respages + 1;
 	host_err = splice_direct_to_actor(file, &sd, nfsd_direct_splice_actor);
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
 
-__be32 nfsd_readv(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		  struct file *file, loff_t offset,
-		  struct kvec *vec, int vlen, unsigned long *count,
-		  u32 *eof)
+/**
+ * nfsd_iter_read - Perform a VFS read using an iterator
+ * @rqstp: RPC transaction context
+ * @fhp: file handle of file to be read
+ * @file: opened struct file of file to be read
+ * @offset: starting byte offset
+ * @count: IN: requested number of bytes; OUT: number of bytes read
+ * @base: offset in first page of read buffer
+ * @eof: OUT: set non-zero if operation reached the end of the file
+ *
+ * Some filesystems or situations cannot use nfsd_splice_read. This
+ * function is the slightly less-performant fallback for those cases.
+ *
+ * Returns nfs_ok on success, otherwise an nfserr stat value is
+ * returned.
+ */
+__be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
+		      struct file *file, loff_t offset, unsigned long *count,
+		      unsigned int base, u32 *eof)
 {
+	unsigned long v, total;
 	struct iov_iter iter;
 	loff_t ppos = offset;
+	struct page *page;
 	ssize_t host_err;
 
+	v = 0;
+	total = *count;
+	while (total) {
+		page = *(rqstp->rq_next_page++);
+		rqstp->rq_vec[v].iov_base = page_address(page) + base;
+		rqstp->rq_vec[v].iov_len = min_t(size_t, total, PAGE_SIZE - base);
+		total -= rqstp->rq_vec[v].iov_len;
+		++v;
+		base = 0;
+	}
+	WARN_ON_ONCE(v > ARRAY_SIZE(rqstp->rq_vec));
+
 	trace_nfsd_read_vector(rqstp, fhp, offset, *count);
-	iov_iter_kvec(&iter, ITER_DEST, vec, vlen, *count);
+	iov_iter_kvec(&iter, ITER_DEST, rqstp->rq_vec, v, *count);
 	host_err = vfs_iter_read(file, &iter, &ppos, 0);
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
@@ -1159,14 +1204,24 @@ out_nfserr:
 	return nfserr;
 }
 
-/*
- * Read data from a file. count must contain the requested read count
- * on entry. On return, *count contains the number of bytes actually read.
+/**
+ * nfsd_read - Read data from a file
+ * @rqstp: RPC transaction context
+ * @fhp: file handle of file to be read
+ * @offset: starting byte offset
+ * @count: IN: requested number of bytes; OUT: number of bytes read
+ * @eof: OUT: set non-zero if operation reached the end of the file
+ *
+ * The caller must verify that there is enough space in @rqstp.rq_res
+ * to perform this operation.
+ *
  * N.B. After this call fhp needs an fh_put
+ *
+ * Returns nfs_ok on success, otherwise an nfserr stat value is
+ * returned.
  */
 __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
-	loff_t offset, struct kvec *vec, int vlen, unsigned long *count,
-	u32 *eof)
+		 loff_t offset, unsigned long *count, u32 *eof)
 {
 	struct nfsd_file	*nf;
 	struct file *file;
@@ -1181,12 +1236,10 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
 		err = nfsd_splice_read(rqstp, fhp, file, offset, count, eof);
 	else
-		err = nfsd_readv(rqstp, fhp, file, offset, vec, vlen, count, eof);
+		err = nfsd_iter_read(rqstp, fhp, file, offset, count, 0, eof);
 
 	nfsd_file_put(nf);
-
 	trace_nfsd_read_done(rqstp, fhp, offset, *count);
-
 	return err;
 }
 
@@ -1487,7 +1540,9 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	dput(dchild);
 	if (err)
 		goto out_unlock;
-	fh_fill_pre_attrs(fhp);
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 	err = nfsd_create_locked(rqstp, fhp, attrs, type, rdev, resfhp);
 	fh_fill_post_attrs(fhp);
 out_unlock:
@@ -1582,13 +1637,16 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		inode_unlock(dentry->d_inode);
 		goto out_drop_write;
 	}
-	fh_fill_pre_attrs(fhp);
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 	host_err = vfs_symlink(&nop_mnt_idmap, d_inode(dentry), dnew, path);
 	err = nfserrno(host_err);
 	cerr = fh_compose(resfhp, fhp->fh_export, dnew, fhp);
 	if (!err)
 		nfsd_create_setattr(rqstp, fhp, resfhp, attrs);
 	fh_fill_post_attrs(fhp);
+out_unlock:
 	inode_unlock(dentry->d_inode);
 	if (!err)
 		err = nfserrno(commit_metadata(fhp));
@@ -1650,7 +1708,9 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = nfserr_noent;
 	if (d_really_is_negative(dold))
 		goto out_dput;
-	fh_fill_pre_attrs(ffhp);
+	err = fh_fill_pre_attrs(ffhp);
+	if (err != nfs_ok)
+		goto out_dput;
 	host_err = vfs_link(dold, &nop_mnt_idmap, dirp, dnew, NULL);
 	fh_fill_post_attrs(ffhp);
 	inode_unlock(dirp);
@@ -1728,6 +1788,12 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	if (!flen || isdotent(fname, flen) || !tlen || isdotent(tname, tlen))
 		goto out;
 
+	err = (rqstp->rq_vers == 2) ? nfserr_acces : nfserr_xdev;
+	if (ffhp->fh_export->ex_path.mnt != tfhp->fh_export->ex_path.mnt)
+		goto out;
+	if (ffhp->fh_export->ex_path.dentry != tfhp->fh_export->ex_path.dentry)
+		goto out;
+
 retry:
 	host_err = fh_want_write(ffhp);
 	if (host_err) {
@@ -1736,8 +1802,12 @@ retry:
 	}
 
 	trap = lock_rename(tdentry, fdentry);
-	fh_fill_pre_attrs(ffhp);
-	fh_fill_pre_attrs(tfhp);
+	err = fh_fill_pre_attrs(ffhp);
+	if (err != nfs_ok)
+		goto out_unlock;
+	err = fh_fill_pre_attrs(tfhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 
 	odentry = lookup_one_len(fname, fdentry, flen);
 	host_err = PTR_ERR(odentry);
@@ -1757,12 +1827,6 @@ retry:
 		goto out_dput_old;
 	host_err = -ENOTEMPTY;
 	if (ndentry == trap)
-		goto out_dput_new;
-
-	host_err = -EXDEV;
-	if (ffhp->fh_export->ex_path.mnt != tfhp->fh_export->ex_path.mnt)
-		goto out_dput_new;
-	if (ffhp->fh_export->ex_path.dentry != tfhp->fh_export->ex_path.dentry)
 		goto out_dput_new;
 
 	if ((ndentry->d_sb->s_export_op->flags & EXPORT_OP_CLOSE_BEFORE_UNLINK) &&
@@ -1804,6 +1868,7 @@ retry:
 		fh_fill_post_attrs(ffhp);
 		fh_fill_post_attrs(tfhp);
 	}
+out_unlock:
 	unlock_rename(tdentry, fdentry);
 	fh_drop_write(ffhp);
 
@@ -1863,12 +1928,14 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		goto out_unlock;
 	}
 	rinode = d_inode(rdentry);
-	ihold(rinode);
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 
+	ihold(rinode);
 	if (!type)
 		type = d_inode(rdentry)->i_mode & S_IFMT;
 
-	fh_fill_pre_attrs(fhp);
 	if (type != S_IFDIR) {
 		int retries;
 
@@ -2288,16 +2355,18 @@ nfsd_removexattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name)
 		return nfserrno(ret);
 
 	inode_lock(fhp->fh_dentry->d_inode);
-	fh_fill_pre_attrs(fhp);
-
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
 	ret = __vfs_removexattr_locked(&nop_mnt_idmap, fhp->fh_dentry,
 				       name, NULL);
-
+	err = nfsd_xattr_errno(ret);
 	fh_fill_post_attrs(fhp);
+out_unlock:
 	inode_unlock(fhp->fh_dentry->d_inode);
 	fh_drop_write(fhp);
 
-	return nfsd_xattr_errno(ret);
+	return err;
 }
 
 __be32
@@ -2315,15 +2384,17 @@ nfsd_setxattr(struct svc_rqst *rqstp, struct svc_fh *fhp, char *name,
 	if (ret)
 		return nfserrno(ret);
 	inode_lock(fhp->fh_dentry->d_inode);
-	fh_fill_pre_attrs(fhp);
-
-	ret = __vfs_setxattr_locked(&nop_mnt_idmap, fhp->fh_dentry, name, buf,
-				    len, flags, NULL);
+	err = fh_fill_pre_attrs(fhp);
+	if (err != nfs_ok)
+		goto out_unlock;
+	ret = __vfs_setxattr_locked(&nop_mnt_idmap, fhp->fh_dentry,
+				    name, buf, len, flags, NULL);
 	fh_fill_post_attrs(fhp);
+	err = nfsd_xattr_errno(ret);
+out_unlock:
 	inode_unlock(fhp->fh_dentry->d_inode);
 	fh_drop_write(fhp);
-
-	return nfsd_xattr_errno(ret);
+	return err;
 }
 #endif
 

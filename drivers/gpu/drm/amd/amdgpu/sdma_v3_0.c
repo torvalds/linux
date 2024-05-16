@@ -734,8 +734,6 @@ static int sdma_v3_0_gfx_resume(struct amdgpu_device *adev)
 #endif
 		/* enable DMA IBs */
 		WREG32(mmSDMA0_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
-
-		ring->sched.ready = true;
 	}
 
 	/* unhalt the MEs */

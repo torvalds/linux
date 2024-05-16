@@ -56,7 +56,7 @@
 	};
 
 	aliases {
-		hsuart0 = &uart6;
+		serial1 = &uart6;
 	};
 
 	/* Reserved memory changes */

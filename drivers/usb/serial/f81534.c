@@ -656,7 +656,7 @@ out_unlock:
 	return status;
 }
 
-static void f81534_break_ctl(struct tty_struct *tty, int break_state)
+static int f81534_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
@@ -675,6 +675,8 @@ static void f81534_break_ctl(struct tty_struct *tty, int break_state)
 		dev_err(&port->dev, "set break failed: %d\n", status);
 
 	mutex_unlock(&port_priv->lcr_mutex);
+
+	return status;
 }
 
 static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,

@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
+ *                   Lee Revell <rlrevell@joe-job.com>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
+ *
  *  Routines for control of EMU10K1 chips / proc interface routines
- *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
- *  	Added EMU 1010 support.
- *
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
  */
 
 #include <linux/slab.h>
@@ -66,158 +61,100 @@ static void snd_emu10k1_proc_spdif_status(struct snd_emu10k1 * emu,
 static void snd_emu10k1_proc_read(struct snd_info_entry *entry, 
 				  struct snd_info_buffer *buffer)
 {
-	/* FIXME - output names are in emufx.c too */
-	static const char * const creative_outs[32] = {
-		/* 00 */ "AC97 Left",
-		/* 01 */ "AC97 Right",
-		/* 02 */ "Optical IEC958 Left",
-		/* 03 */ "Optical IEC958 Right",
-		/* 04 */ "Center",
-		/* 05 */ "LFE",
-		/* 06 */ "Headphone Left",
-		/* 07 */ "Headphone Right",
-		/* 08 */ "Surround Left",
-		/* 09 */ "Surround Right",
-		/* 10 */ "PCM Capture Left",
-		/* 11 */ "PCM Capture Right",
-		/* 12 */ "MIC Capture",
-		/* 13 */ "AC97 Surround Left",
-		/* 14 */ "AC97 Surround Right",
-		/* 15 */ "???",
-		/* 16 */ "???",
-		/* 17 */ "Analog Center",
-		/* 18 */ "Analog LFE",
-		/* 19 */ "???",
-		/* 20 */ "???",
-		/* 21 */ "???",
-		/* 22 */ "???",
-		/* 23 */ "???",
-		/* 24 */ "???",
-		/* 25 */ "???",
-		/* 26 */ "???",
-		/* 27 */ "???",
-		/* 28 */ "???",
-		/* 29 */ "???",
-		/* 30 */ "???",
-		/* 31 */ "???"
-	};
-
-	static const char * const audigy_outs[64] = {
-		/* 00 */ "Digital Front Left",
-		/* 01 */ "Digital Front Right",
-		/* 02 */ "Digital Center",
-		/* 03 */ "Digital LEF",
-		/* 04 */ "Headphone Left",
-		/* 05 */ "Headphone Right",
-		/* 06 */ "Digital Rear Left",
-		/* 07 */ "Digital Rear Right",
-		/* 08 */ "Front Left",
-		/* 09 */ "Front Right",
-		/* 10 */ "Center",
-		/* 11 */ "LFE",
-		/* 12 */ "???",
-		/* 13 */ "???",
-		/* 14 */ "Rear Left",
-		/* 15 */ "Rear Right",
-		/* 16 */ "AC97 Front Left",
-		/* 17 */ "AC97 Front Right",
-		/* 18 */ "ADC Capture Left",
-		/* 19 */ "ADC Capture Right",
-		/* 20 */ "???",
-		/* 21 */ "???",
-		/* 22 */ "???",
-		/* 23 */ "???",
-		/* 24 */ "???",
-		/* 25 */ "???",
-		/* 26 */ "???",
-		/* 27 */ "???",
-		/* 28 */ "???",
-		/* 29 */ "???",
-		/* 30 */ "???",
-		/* 31 */ "???",
-		/* 32 */ "FXBUS2_0",
-		/* 33 */ "FXBUS2_1",
-		/* 34 */ "FXBUS2_2",
-		/* 35 */ "FXBUS2_3",
-		/* 36 */ "FXBUS2_4",
-		/* 37 */ "FXBUS2_5",
-		/* 38 */ "FXBUS2_6",
-		/* 39 */ "FXBUS2_7",
-		/* 40 */ "FXBUS2_8",
-		/* 41 */ "FXBUS2_9",
-		/* 42 */ "FXBUS2_10",
-		/* 43 */ "FXBUS2_11",
-		/* 44 */ "FXBUS2_12",
-		/* 45 */ "FXBUS2_13",
-		/* 46 */ "FXBUS2_14",
-		/* 47 */ "FXBUS2_15",
-		/* 48 */ "FXBUS2_16",
-		/* 49 */ "FXBUS2_17",
-		/* 50 */ "FXBUS2_18",
-		/* 51 */ "FXBUS2_19",
-		/* 52 */ "FXBUS2_20",
-		/* 53 */ "FXBUS2_21",
-		/* 54 */ "FXBUS2_22",
-		/* 55 */ "FXBUS2_23",
-		/* 56 */ "FXBUS2_24",
-		/* 57 */ "FXBUS2_25",
-		/* 58 */ "FXBUS2_26",
-		/* 59 */ "FXBUS2_27",
-		/* 60 */ "FXBUS2_28",
-		/* 61 */ "FXBUS2_29",
-		/* 62 */ "FXBUS2_30",
-		/* 63 */ "FXBUS2_31"
-	};
-
 	struct snd_emu10k1 *emu = entry->private_data;
-	unsigned int val, val1;
-	int nefx = emu->audigy ? 64 : 32;
-	const char * const *outputs = emu->audigy ? audigy_outs : creative_outs;
+	const char * const *inputs = emu->audigy ?
+		snd_emu10k1_audigy_ins : snd_emu10k1_sblive_ins;
+	const char * const *outputs = emu->audigy ?
+		snd_emu10k1_audigy_outs : snd_emu10k1_sblive_outs;
+	unsigned short extin_mask = emu->audigy ? ~0 : emu->fx8010.extin_mask;
+	unsigned short extout_mask = emu->audigy ? ~0 : emu->fx8010.extout_mask;
+	unsigned int val, val1, ptrx, psst, dsl, snda;
+	int nefx = emu->audigy ? 32 : 16;
 	int idx;
 	
 	snd_iprintf(buffer, "EMU10K1\n\n");
 	snd_iprintf(buffer, "Card                  : %s\n",
-		    emu->audigy ? "Audigy" : (emu->card_capabilities->ecard ? "EMU APS" : "Creative"));
+		    emu->card_capabilities->emu_model ? "E-MU D.A.S." :
+		    emu->card_capabilities->ecard ? "E-MU A.P.S." :
+		    emu->audigy ? "SB Audigy" : "SB Live!");
 	snd_iprintf(buffer, "Internal TRAM (words) : 0x%x\n", emu->fx8010.itram_size);
 	snd_iprintf(buffer, "External TRAM (words) : 0x%x\n", (int)emu->fx8010.etram_pages.bytes / 2);
-	snd_iprintf(buffer, "\n");
-	snd_iprintf(buffer, "Effect Send Routing   :\n");
+
+	snd_iprintf(buffer, "\nEffect Send Routing & Amounts:\n");
 	for (idx = 0; idx < NUM_G; idx++) {
-		val = emu->audigy ?
-			snd_emu10k1_ptr_read(emu, A_FXRT1, idx) :
-			snd_emu10k1_ptr_read(emu, FXRT, idx);
-		val1 = emu->audigy ?
-			snd_emu10k1_ptr_read(emu, A_FXRT2, idx) :
-			0;
+		ptrx = snd_emu10k1_ptr_read(emu, PTRX, idx);
+		psst = snd_emu10k1_ptr_read(emu, PSST, idx);
+		dsl = snd_emu10k1_ptr_read(emu, DSL, idx);
 		if (emu->audigy) {
-			snd_iprintf(buffer, "Ch%i: A=%i, B=%i, C=%i, D=%i, ",
+			val = snd_emu10k1_ptr_read(emu, A_FXRT1, idx);
+			val1 = snd_emu10k1_ptr_read(emu, A_FXRT2, idx);
+			snda = snd_emu10k1_ptr_read(emu, A_SENDAMOUNTS, idx);
+			snd_iprintf(buffer, "Ch%-2i: A=%2i:%02x, B=%2i:%02x, C=%2i:%02x, D=%2i:%02x, ",
 				idx,
-				val & 0x3f,
-				(val >> 8) & 0x3f,
-				(val >> 16) & 0x3f,
-				(val >> 24) & 0x3f);
-			snd_iprintf(buffer, "E=%i, F=%i, G=%i, H=%i\n",
-				val1 & 0x3f,
-				(val1 >> 8) & 0x3f,
-				(val1 >> 16) & 0x3f,
-				(val1 >> 24) & 0x3f);
+				val & 0x3f, REG_VAL_GET(PTRX_FXSENDAMOUNT_A, ptrx),
+				(val >> 8) & 0x3f, REG_VAL_GET(PTRX_FXSENDAMOUNT_B, ptrx),
+				(val >> 16) & 0x3f, REG_VAL_GET(PSST_FXSENDAMOUNT_C, psst),
+				(val >> 24) & 0x3f, REG_VAL_GET(DSL_FXSENDAMOUNT_D, dsl));
+			snd_iprintf(buffer, "E=%2i:%02x, F=%2i:%02x, G=%2i:%02x, H=%2i:%02x\n",
+				val1 & 0x3f, (snda >> 24) & 0xff,
+				(val1 >> 8) & 0x3f, (snda >> 16) & 0xff,
+				(val1 >> 16) & 0x3f, (snda >> 8) & 0xff,
+				(val1 >> 24) & 0x3f, snda & 0xff);
 		} else {
-			snd_iprintf(buffer, "Ch%i: A=%i, B=%i, C=%i, D=%i\n",
+			val = snd_emu10k1_ptr_read(emu, FXRT, idx);
+			snd_iprintf(buffer, "Ch%-2i: A=%2i:%02x, B=%2i:%02x, C=%2i:%02x, D=%2i:%02x\n",
 				idx,
-				(val >> 16) & 0x0f,
-				(val >> 20) & 0x0f,
-				(val >> 24) & 0x0f,
-				(val >> 28) & 0x0f);
+				(val >> 16) & 0x0f, REG_VAL_GET(PTRX_FXSENDAMOUNT_A, ptrx),
+				(val >> 20) & 0x0f, REG_VAL_GET(PTRX_FXSENDAMOUNT_B, ptrx),
+				(val >> 24) & 0x0f, REG_VAL_GET(PSST_FXSENDAMOUNT_C, psst),
+				(val >> 28) & 0x0f, REG_VAL_GET(DSL_FXSENDAMOUNT_D, dsl));
 		}
 	}
-	snd_iprintf(buffer, "\nCaptured FX Outputs   :\n");
-	for (idx = 0; idx < nefx; idx++) {
-		if (emu->efx_voices_mask[idx/32] & (1 << (idx%32)))
-			snd_iprintf(buffer, "  Output %02i [%s]\n", idx, outputs[idx]);
+	snd_iprintf(buffer, "\nEffect Send Targets:\n");
+	// Audigy actually has 64, but we don't use them all.
+	for (idx = 0; idx < 32; idx++) {
+		const char *c = snd_emu10k1_fxbus[idx];
+		if (c)
+			snd_iprintf(buffer, "  Channel %02i [%s]\n", idx, c);
 	}
-	snd_iprintf(buffer, "\nAll FX Outputs        :\n");
-	for (idx = 0; idx < (emu->audigy ? 64 : 32); idx++)
-		snd_iprintf(buffer, "  Output %02i [%s]\n", idx, outputs[idx]);
+	if (!emu->card_capabilities->emu_model) {
+		snd_iprintf(buffer, "\nOutput Channels:\n");
+		for (idx = 0; idx < 32; idx++)
+			if (outputs[idx] && (extout_mask & (1 << idx)))
+				snd_iprintf(buffer, "  Channel %02i [%s]\n", idx, outputs[idx]);
+		snd_iprintf(buffer, "\nInput Channels:\n");
+		for (idx = 0; idx < 16; idx++)
+			if (inputs[idx] && (extin_mask & (1 << idx)))
+				snd_iprintf(buffer, "  Channel %02i [%s]\n", idx, inputs[idx]);
+		snd_iprintf(buffer, "\nMultichannel Capture Sources:\n");
+		for (idx = 0; idx < nefx; idx++)
+			if (emu->efx_voices_mask[0] & (1 << idx))
+				snd_iprintf(buffer, "  Channel %02i [Output: %s]\n",
+					    idx, outputs[idx] ? outputs[idx] : "???");
+		if (emu->audigy) {
+			for (idx = 0; idx < 32; idx++)
+				if (emu->efx_voices_mask[1] & (1 << idx))
+					snd_iprintf(buffer, "  Channel %02i [Input: %s]\n",
+						    idx + 32, inputs[idx] ? inputs[idx] : "???");
+		} else {
+			for (idx = 0; idx < 16; idx++) {
+				if (emu->efx_voices_mask[0] & ((1 << 16) << idx)) {
+					if (emu->card_capabilities->sblive51) {
+						s8 c = snd_emu10k1_sblive51_fxbus2_map[idx];
+						if (c == -1)
+							snd_iprintf(buffer, "  Channel %02i [Output: %s]\n",
+								    idx + 16, outputs[idx + 16]);
+						else
+							snd_iprintf(buffer, "  Channel %02i [Input: %s]\n",
+								    idx + 16, inputs[c]);
+					} else {
+						snd_iprintf(buffer, "  Channel %02i [Input: %s]\n",
+							    idx + 16, inputs[idx] ? inputs[idx] : "???");
+					}
+				}
+			}
+		}
+	}
 }
 
 static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry, 
@@ -226,27 +163,40 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 	struct snd_emu10k1 *emu = entry->private_data;
 	u32 value;
 	u32 value2;
-	u32 rate;
 
 	if (emu->card_capabilities->emu_model) {
-		snd_emu1010_fpga_read(emu, 0x38, &value);
-		if ((value & 0x1) == 0) {
-			snd_emu1010_fpga_read(emu, 0x2a, &value);
-			snd_emu1010_fpga_read(emu, 0x2b, &value2);
-			rate = 0x1770000 / (((value << 5) | value2)+1);	
-			snd_iprintf(buffer, "ADAT Locked : %u\n", rate);
-		} else {
-			snd_iprintf(buffer, "ADAT Unlocked\n");
+		// This represents the S/PDIF lock status on 0404b, which is
+		// kinda weird and unhelpful, because monitoring it via IRQ is
+		// impractical (one gets an IRQ flood as long as it is desynced).
+		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &value);
+		snd_iprintf(buffer, "Lock status 1: %#x\n", value & 0x10);
+
+		// Bit 0x1 in LO being 0 is supposedly for ADAT lock.
+		// The registers are always all zero on 0404b.
+		snd_emu1010_fpga_read(emu, EMU_HANA_LOCK_STS_LO, &value);
+		snd_emu1010_fpga_read(emu, EMU_HANA_LOCK_STS_HI, &value2);
+		snd_iprintf(buffer, "Lock status 2: %#x %#x\n", value, value2);
+
+		snd_iprintf(buffer, "S/PDIF rate: %dHz\n",
+			    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_HANA_SPDIF_IN));
+		if (emu->card_capabilities->emu_model != EMU_MODEL_EMU0404) {
+			snd_iprintf(buffer, "ADAT rate: %dHz\n",
+				    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_HANA_ADAT_IN));
+			snd_iprintf(buffer, "Dock rate: %dHz\n",
+				    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_2ND_HANA));
 		}
-		snd_emu1010_fpga_read(emu, 0x20, &value);
-		if ((value & 0x4) == 0) {
-			snd_emu1010_fpga_read(emu, 0x28, &value);
-			snd_emu1010_fpga_read(emu, 0x29, &value2);
-			rate = 0x1770000 / (((value << 5) | value2)+1);	
-			snd_iprintf(buffer, "SPDIF Locked : %d\n", rate);
-		} else {
-			snd_iprintf(buffer, "SPDIF Unlocked\n");
-		}
+		if (emu->card_capabilities->emu_model == EMU_MODEL_EMU0404 ||
+		    emu->card_capabilities->emu_model == EMU_MODEL_EMU1010)
+			snd_iprintf(buffer, "BNC rate: %dHz\n",
+				    snd_emu1010_get_raw_rate(emu, EMU_HANA_WCLOCK_SYNC_BNC));
+
+		snd_emu1010_fpga_read(emu, EMU_HANA_SPDIF_MODE, &value);
+		if (value & EMU_HANA_SPDIF_MODE_RX_INVALID)
+			snd_iprintf(buffer, "\nS/PDIF input invalid\n");
+		else
+			snd_iprintf(buffer, "\nS/PDIF mode: %s%s\n",
+				    value & EMU_HANA_SPDIF_MODE_RX_PRO ? "professional" : "consumer",
+				    value & EMU_HANA_SPDIF_MODE_RX_NOCOPY ? ", no copy" : "");
 	} else {
 		snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
 		snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
@@ -273,37 +223,148 @@ static void snd_emu10k1_proc_rates_read(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_emu10k1_proc_acode_read(struct snd_info_entry *entry, 
+struct emu10k1_reg_entry {
+	unsigned short base, size;
+	const char *name;
+};
+
+static const struct emu10k1_reg_entry sblive_reg_entries[] = {
+	{    0, 0x10, "FXBUS" },
+	{ 0x10, 0x10, "EXTIN" },
+	{ 0x20, 0x10, "EXTOUT" },
+	{ 0x30, 0x10, "FXBUS2" },
+	{ 0x40, 0x20, NULL },  // Constants
+	{ 0x100, 0x100, "GPR" },
+	{ 0x200, 0x80, "ITRAM_DATA" },
+	{ 0x280, 0x20, "ETRAM_DATA" },
+	{ 0x300, 0x80, "ITRAM_ADDR" },
+	{ 0x380, 0x20, "ETRAM_ADDR" },
+	{ 0x400, 0, NULL }
+};
+
+static const struct emu10k1_reg_entry audigy_reg_entries[] = {
+	{    0, 0x40, "FXBUS" },
+	{ 0x40, 0x10, "EXTIN" },
+	{ 0x50, 0x10, "P16VIN" },
+	{ 0x60, 0x20, "EXTOUT" },
+	{ 0x80, 0x20, "FXBUS2" },
+	{ 0xa0, 0x10, "EMU32OUTH" },
+	{ 0xb0, 0x10, "EMU32OUTL" },
+	{ 0xc0, 0x20, NULL },  // Constants
+	// This can't be quite right - overlap.
+	//{ 0x100, 0xc0, "ITRAM_CTL" },
+	//{ 0x1c0, 0x40, "ETRAM_CTL" },
+	{ 0x160, 0x20, "A3_EMU32IN" },
+	{ 0x1e0, 0x20, "A3_EMU32OUT" },
+	{ 0x200, 0xc0, "ITRAM_DATA" },
+	{ 0x2c0, 0x40, "ETRAM_DATA" },
+	{ 0x300, 0xc0, "ITRAM_ADDR" },
+	{ 0x3c0, 0x40, "ETRAM_ADDR" },
+	{ 0x400, 0x200, "GPR" },
+	{ 0x600, 0, NULL }
+};
+
+static const char * const emu10k1_const_entries[] = {
+	"C_00000000",
+	"C_00000001",
+	"C_00000002",
+	"C_00000003",
+	"C_00000004",
+	"C_00000008",
+	"C_00000010",
+	"C_00000020",
+	"C_00000100",
+	"C_00010000",
+	"C_00000800",
+	"C_10000000",
+	"C_20000000",
+	"C_40000000",
+	"C_80000000",
+	"C_7fffffff",
+	"C_ffffffff",
+	"C_fffffffe",
+	"C_c0000000",
+	"C_4f1bbcdc",
+	"C_5a7ef9db",
+	"C_00100000",
+	"GPR_ACCU",
+	"GPR_COND",
+	"GPR_NOISE0",
+	"GPR_NOISE1",
+	"GPR_IRQ",
+	"GPR_DBAC",
+	"GPR_DBACE",
+	"???",
+};
+
+static int disasm_emu10k1_reg(char *buffer,
+			      const struct emu10k1_reg_entry *entries,
+			      unsigned reg, const char *pfx)
+{
+	for (int i = 0; ; i++) {
+		unsigned base = entries[i].base;
+		unsigned size = entries[i].size;
+		if (!size)
+			return sprintf(buffer, "%s0x%03x", pfx, reg);
+		if (reg >= base && reg < base + size) {
+			const char *name = entries[i].name;
+			reg -= base;
+			if (name)
+				return sprintf(buffer, "%s%s(%u)", pfx, name, reg);
+			return sprintf(buffer, "%s%s", pfx, emu10k1_const_entries[reg]);
+		}
+	}
+}
+
+static int disasm_sblive_reg(char *buffer, unsigned reg, const char *pfx)
+{
+	return disasm_emu10k1_reg(buffer, sblive_reg_entries, reg, pfx);
+}
+
+static int disasm_audigy_reg(char *buffer, unsigned reg, const char *pfx)
+{
+	return disasm_emu10k1_reg(buffer, audigy_reg_entries, reg, pfx);
+}
+
+static void snd_emu10k1_proc_acode_read(struct snd_info_entry *entry,
 				        struct snd_info_buffer *buffer)
 {
 	u32 pc;
 	struct snd_emu10k1 *emu = entry->private_data;
+	static const char * const insns[16] = {
+		"MAC0", "MAC1", "MAC2", "MAC3", "MACINT0", "MACINT1", "ACC3", "MACMV",
+		"ANDXOR", "TSTNEG", "LIMITGE", "LIMITLT", "LOG", "EXP", "INTERP", "SKIP",
+	};
+	static const char spaces[] = "                              ";
+	const int nspaces = sizeof(spaces) - 1;
 
 	snd_iprintf(buffer, "FX8010 Instruction List '%s'\n", emu->fx8010.name);
 	snd_iprintf(buffer, "  Code dump      :\n");
 	for (pc = 0; pc < (emu->audigy ? 1024 : 512); pc++) {
 		u32 low, high;
+		int len;
+		char buf[100];
+		char *bufp = buf;
 			
 		low = snd_emu10k1_efx_read(emu, pc * 2);
 		high = snd_emu10k1_efx_read(emu, pc * 2 + 1);
-		if (emu->audigy)
-			snd_iprintf(buffer, "    OP(0x%02x, 0x%03x, 0x%03x, 0x%03x, 0x%03x) /* 0x%04x: 0x%08x%08x */\n",
-				    (high >> 24) & 0x0f,
-				    (high >> 12) & 0x7ff,
-				    (high >> 0) & 0x7ff,
-				    (low >> 12) & 0x7ff,
-				    (low >> 0) & 0x7ff,
-				    pc,
-				    high, low);
-		else
-			snd_iprintf(buffer, "    OP(0x%02x, 0x%03x, 0x%03x, 0x%03x, 0x%03x) /* 0x%04x: 0x%08x%08x */\n",
-				    (high >> 20) & 0x0f,
-				    (high >> 10) & 0x3ff,
-				    (high >> 0) & 0x3ff,
-				    (low >> 10) & 0x3ff,
-				    (low >> 0) & 0x3ff,
-				    pc,
-				    high, low);
+		if (emu->audigy) {
+			bufp += sprintf(bufp, "    %-7s  ", insns[(high >> 24) & 0x0f]);
+			bufp += disasm_audigy_reg(bufp, (high >> 12) & 0x7ff, "");
+			bufp += disasm_audigy_reg(bufp, (high >> 0) & 0x7ff, ", ");
+			bufp += disasm_audigy_reg(bufp, (low >> 12) & 0x7ff, ", ");
+			bufp += disasm_audigy_reg(bufp, (low >> 0) & 0x7ff, ", ");
+		} else {
+			bufp += sprintf(bufp, "    %-7s  ", insns[(high >> 20) & 0x0f]);
+			bufp += disasm_sblive_reg(bufp, (high >> 10) & 0x3ff, "");
+			bufp += disasm_sblive_reg(bufp, (high >> 0) & 0x3ff, ", ");
+			bufp += disasm_sblive_reg(bufp, (low >> 10) & 0x3ff, ", ");
+			bufp += disasm_sblive_reg(bufp, (low >> 0) & 0x3ff, ", ");
+		}
+		len = (int)(ptrdiff_t)(bufp - buf);
+		snd_iprintf(buffer, "%s %s /* 0x%04x: 0x%08x%08x */\n",
+			    buf, &spaces[nspaces - clamp(65 - len, 0, nspaces)],
+			    pc, high, low);
 	}
 }
 
@@ -365,21 +426,32 @@ static void snd_emu10k1_proc_voices_read(struct snd_info_entry *entry,
 	struct snd_emu10k1 *emu = entry->private_data;
 	struct snd_emu10k1_voice *voice;
 	int idx;
-	
-	snd_iprintf(buffer, "ch\tuse\tpcm\tefx\tsynth\tmidi\n");
+	static const char * const types[] = {
+		"Unused", "EFX", "EFX IRQ", "PCM", "PCM IRQ", "Synth"
+	};
+	static_assert(ARRAY_SIZE(types) == EMU10K1_NUM_TYPES);
+
+	snd_iprintf(buffer, "ch\tdirty\tlast\tuse\n");
 	for (idx = 0; idx < NUM_G; idx++) {
 		voice = &emu->voices[idx];
-		snd_iprintf(buffer, "%i\t%i\t%i\t%i\t%i\t%i\n",
+		snd_iprintf(buffer, "%i\t%u\t%u\t%s\n",
 			idx,
-			voice->use,
-			voice->pcm,
-			voice->efx,
-			voice->synth,
-			voice->midi);
+			voice->dirty,
+			voice->last,
+			types[voice->use]);
 	}
 }
 
 #ifdef CONFIG_SND_DEBUG
+
+static void snd_emu_proc_emu1010_link_read(struct snd_emu10k1 *emu,
+					   struct snd_info_buffer *buffer,
+					   u32 dst)
+{
+	u32 src = snd_emu1010_fpga_link_dst_src_read(emu, dst);
+	snd_iprintf(buffer, "%04x: %04x\n", dst, src);
+}
+
 static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 				     struct snd_info_buffer *buffer)
 {
@@ -390,7 +462,39 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 
 	for(i = 0; i < 0x40; i+=1) {
 		snd_emu1010_fpga_read(emu, i, &value);
-		snd_iprintf(buffer, "%02X: %08X, %02X\n", i, value, (value >> 8) & 0x7f);
+		snd_iprintf(buffer, "%02x: %02x\n", i, value);
+	}
+
+	snd_iprintf(buffer, "\nEMU1010 Routes:\n\n");
+
+	for (i = 0; i < 16; i++)  // To Alice2/Tina[2] via EMU32
+		snd_emu_proc_emu1010_link_read(emu, buffer, i);
+	if (emu->card_capabilities->emu_model != EMU_MODEL_EMU0404)
+		for (i = 0; i < 32; i++)  // To Dock via EDI
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x100 + i);
+	if (emu->card_capabilities->emu_model != EMU_MODEL_EMU1616)
+		for (i = 0; i < 8; i++)  // To Hamoa/local
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x200 + i);
+	for (i = 0; i < 8; i++)  // To Hamoa/Mana/local
+		snd_emu_proc_emu1010_link_read(emu, buffer, 0x300 + i);
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
+		for (i = 0; i < 16; i++)  // To Tina2 via EMU32
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x400 + i);
+	} else if (emu->card_capabilities->emu_model != EMU_MODEL_EMU0404) {
+		for (i = 0; i < 8; i++)  // To Hana ADAT
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x400 + i);
+		if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1010B) {
+			for (i = 0; i < 16; i++)  // To Tina via EMU32
+				snd_emu_proc_emu1010_link_read(emu, buffer, 0x500 + i);
+		} else {
+			// To Alice2 via I2S
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x500);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x501);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x600);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x601);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x700);
+			snd_emu_proc_emu1010_link_read(emu, buffer, 0x701);
+		}
 	}
 }
 
@@ -399,13 +503,10 @@ static void snd_emu_proc_io_reg_read(struct snd_info_entry *entry,
 {
 	struct snd_emu10k1 *emu = entry->private_data;
 	unsigned long value;
-	unsigned long flags;
 	int i;
 	snd_iprintf(buffer, "IO Registers:\n\n");
 	for(i = 0; i < 0x40; i+=4) {
-		spin_lock_irqsave(&emu->emu_lock, flags);
 		value = inl(emu->port + i);
-		spin_unlock_irqrestore(&emu->emu_lock, flags);
 		snd_iprintf(buffer, "%02X: %08lX\n", i, value);
 	}
 }
@@ -414,16 +515,13 @@ static void snd_emu_proc_io_reg_write(struct snd_info_entry *entry,
                                       struct snd_info_buffer *buffer)
 {
 	struct snd_emu10k1 *emu = entry->private_data;
-	unsigned long flags;
 	char line[64];
 	u32 reg, val;
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x", &reg, &val) != 2)
 			continue;
 		if (reg < 0x40 && val <= 0xffffffff) {
-			spin_lock_irqsave(&emu->emu_lock, flags);
 			outl(val, emu->port + (reg & 0xfffffffc));
-			spin_unlock_irqrestore(&emu->emu_lock, flags);
 		}
 	}
 }
@@ -433,15 +531,14 @@ static unsigned int snd_ptr_read(struct snd_emu10k1 * emu,
 				 unsigned int reg,
 				 unsigned int chn)
 {
-	unsigned long flags;
 	unsigned int regptr, val;
 
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	spin_lock_irq(&emu->emu_lock);
 	outl(regptr, emu->port + iobase + PTR);
 	val = inl(emu->port + iobase + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	spin_unlock_irq(&emu->emu_lock);
 	return val;
 }
 
@@ -452,14 +549,13 @@ static void snd_ptr_write(struct snd_emu10k1 *emu,
 			  unsigned int data)
 {
 	unsigned int regptr;
-	unsigned long flags;
 
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	spin_lock_irq(&emu->emu_lock);
 	outl(regptr, emu->port + iobase + PTR);
 	outl(data, emu->port + iobase + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	spin_unlock_irq(&emu->emu_lock);
 }
 
 
@@ -485,7 +581,8 @@ static void snd_emu_proc_ptr_reg_read(struct snd_info_entry *entry,
 }
 
 static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
-				       struct snd_info_buffer *buffer, int iobase)
+				       struct snd_info_buffer *buffer,
+				       int iobase, int length, int voices)
 {
 	struct snd_emu10k1 *emu = entry->private_data;
 	char line[64];
@@ -493,7 +590,7 @@ static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x %x", &reg, &channel_id, &val) != 3)
 			continue;
-		if (reg < 0xa0 && val <= 0xffffffff && channel_id <= 3)
+		if (reg < length && channel_id < voices)
 			snd_ptr_write(emu, iobase, reg, channel_id, val);
 	}
 }
@@ -501,13 +598,15 @@ static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
 static void snd_emu_proc_ptr_reg_write00(struct snd_info_entry *entry,
 					 struct snd_info_buffer *buffer)
 {
-	snd_emu_proc_ptr_reg_write(entry, buffer, 0);
+	snd_emu_proc_ptr_reg_write(entry, buffer, 0, 0x80, 64);
 }
 
 static void snd_emu_proc_ptr_reg_write20(struct snd_info_entry *entry,
 					 struct snd_info_buffer *buffer)
 {
-	snd_emu_proc_ptr_reg_write(entry, buffer, 0x20);
+	struct snd_emu10k1 *emu = entry->private_data;
+	snd_emu_proc_ptr_reg_write(entry, buffer, 0x20,
+				   emu->card_capabilities->ca0108_chip ? 0xa0 : 0x80, 4);
 }
 	
 
@@ -563,15 +662,19 @@ int snd_emu10k1_proc_init(struct snd_emu10k1 *emu)
 	snd_card_rw_proc_new(emu->card, "ptr_regs00b", emu,
 			     snd_emu_proc_ptr_reg_read00b,
 			     snd_emu_proc_ptr_reg_write00);
-	snd_card_rw_proc_new(emu->card, "ptr_regs20a", emu,
-			     snd_emu_proc_ptr_reg_read20a,
-			     snd_emu_proc_ptr_reg_write20);
-	snd_card_rw_proc_new(emu->card, "ptr_regs20b", emu,
-			     snd_emu_proc_ptr_reg_read20b,
-			     snd_emu_proc_ptr_reg_write20);
-	snd_card_rw_proc_new(emu->card, "ptr_regs20c", emu,
-			     snd_emu_proc_ptr_reg_read20c,
-			     snd_emu_proc_ptr_reg_write20);
+	if (!emu->card_capabilities->emu_model &&
+	    (emu->card_capabilities->ca0151_chip || emu->card_capabilities->ca0108_chip)) {
+		snd_card_rw_proc_new(emu->card, "ptr_regs20a", emu,
+				     snd_emu_proc_ptr_reg_read20a,
+				     snd_emu_proc_ptr_reg_write20);
+		snd_card_rw_proc_new(emu->card, "ptr_regs20b", emu,
+				     snd_emu_proc_ptr_reg_read20b,
+				     snd_emu_proc_ptr_reg_write20);
+		if (emu->card_capabilities->ca0108_chip)
+			snd_card_rw_proc_new(emu->card, "ptr_regs20c", emu,
+					     snd_emu_proc_ptr_reg_read20c,
+					     snd_emu_proc_ptr_reg_write20);
+	}
 #endif
 	
 	snd_card_ro_proc_new(emu->card, "emu10k1", emu, snd_emu10k1_proc_read);

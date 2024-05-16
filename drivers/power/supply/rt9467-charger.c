@@ -598,8 +598,8 @@ static int rt9467_run_aicl(struct rt9467_chg_data *data)
 
 	reinit_completion(&data->aicl_done);
 	ret = wait_for_completion_timeout(&data->aicl_done, msecs_to_jiffies(3500));
-	if (ret)
-		return ret;
+	if (ret == 0)
+		return -ETIMEDOUT;
 
 	ret = rt9467_get_value_from_ranges(data, F_IAICR, RT9467_RANGE_IAICR, &aicr_get);
 	if (ret) {
@@ -1192,7 +1192,7 @@ static int rt9467_charger_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, data);
 
 	/* Default pull charge enable gpio to make 'CHG_EN' by SW control only */
-	ceb_gpio = devm_gpiod_get_optional(dev, "charge-enable", GPIOD_OUT_LOW);
+	ceb_gpio = devm_gpiod_get_optional(dev, "charge-enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ceb_gpio))
 		return dev_err_probe(dev, PTR_ERR(ceb_gpio),
 				     "Failed to config charge enable gpio\n");
@@ -1272,7 +1272,7 @@ static struct i2c_driver rt9467_charger_driver = {
 		.name = "rt9467-charger",
 		.of_match_table = rt9467_charger_of_match_table,
 	},
-	.probe_new = rt9467_charger_probe,
+	.probe = rt9467_charger_probe,
 };
 module_i2c_driver(rt9467_charger_driver);
 

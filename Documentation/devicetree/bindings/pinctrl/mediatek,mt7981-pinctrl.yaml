@@ -386,7 +386,7 @@ patternProperties:
           mediatek,pull-up-adv:
             description: |
               Valid arguments for 'mediatek,pull-up-adv' are '0', '1', '2', '3'
-              Pull up setings for 2 pull resistors, R0 and R1. Valid arguments
+              Pull up settings for 2 pull resistors, R0 and R1. Valid arguments
               are described as below:
               0: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
               1: (R1, R0) = (0, 1) which means R1 disabled and R0 enabled.
@@ -398,7 +398,7 @@ patternProperties:
           mediatek,pull-down-adv:
             description: |
               Valid arguments for 'mediatek,pull-up-adv' are '0', '1', '2', '3'
-              Pull down setings for 2 pull resistors, R0 and R1. Valid arguments
+              Pull down settings for 2 pull resistors, R0 and R1. Valid arguments
               are described as below:
               0: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.
               1: (R1, R0) = (0, 1) which means R1 disabled and R0 enabled.

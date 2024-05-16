@@ -863,7 +863,6 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 	struct device *dev = &pf->si->pdev->dev;
 	struct enetc_mdio_priv *mdio_priv;
 	struct phylink_pcs *phylink_pcs;
-	struct mdio_device *mdio_device;
 	struct mii_bus *bus;
 	int err;
 
@@ -889,17 +888,9 @@ static int enetc_imdio_create(struct enetc_pf *pf)
 		goto free_mdio_bus;
 	}
 
-	mdio_device = mdio_device_create(bus, 0);
-	if (IS_ERR(mdio_device)) {
-		err = PTR_ERR(mdio_device);
-		dev_err(dev, "cannot create mdio device (%d)\n", err);
-		goto unregister_mdiobus;
-	}
-
-	phylink_pcs = lynx_pcs_create(mdio_device);
-	if (!phylink_pcs) {
-		mdio_device_free(mdio_device);
-		err = -ENOMEM;
+	phylink_pcs = lynx_pcs_create_mdiodev(bus, 0);
+	if (IS_ERR(phylink_pcs)) {
+		err = PTR_ERR(phylink_pcs);
 		dev_err(dev, "cannot create lynx pcs (%d)\n", err);
 		goto unregister_mdiobus;
 	}
@@ -918,13 +909,8 @@ free_mdio_bus:
 
 static void enetc_imdio_remove(struct enetc_pf *pf)
 {
-	struct mdio_device *mdio_device;
-
-	if (pf->pcs) {
-		mdio_device = lynx_get_mdio_device(pf->pcs);
-		mdio_device_free(mdio_device);
+	if (pf->pcs)
 		lynx_pcs_destroy(pf->pcs);
-	}
 	if (pf->imdio) {
 		mdiobus_unregister(pf->imdio);
 		mdiobus_free(pf->imdio);
@@ -1200,13 +1186,8 @@ static int enetc_init_port_rss_memory(struct enetc_si *si)
 
 static int enetc_pf_register_with_ierb(struct pci_dev *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
 	struct platform_device *ierb_pdev;
 	struct device_node *ierb_node;
-
-	/* Don't register with the IERB if the PF itself is disabled */
-	if (!node || !of_device_is_available(node))
-		return 0;
 
 	ierb_node = of_find_compatible_node(NULL, NULL,
 					    "fsl,ls1028a-enetc-ierb");
@@ -1220,6 +1201,59 @@ static int enetc_pf_register_with_ierb(struct pci_dev *pdev)
 		return -EPROBE_DEFER;
 
 	return enetc_ierb_register_pf(ierb_pdev, pdev);
+}
+
+static struct enetc_si *enetc_psi_create(struct pci_dev *pdev)
+{
+	struct enetc_si *si;
+	int err;
+
+	err = enetc_pci_probe(pdev, KBUILD_MODNAME, sizeof(struct enetc_pf));
+	if (err) {
+		dev_err_probe(&pdev->dev, err, "PCI probing failed\n");
+		goto out;
+	}
+
+	si = pci_get_drvdata(pdev);
+	if (!si->hw.port || !si->hw.global) {
+		err = -ENODEV;
+		dev_err(&pdev->dev, "could not map PF space, probing a VF?\n");
+		goto out_pci_remove;
+	}
+
+	err = enetc_setup_cbdr(&pdev->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
+			       &si->cbd_ring);
+	if (err)
+		goto out_pci_remove;
+
+	err = enetc_init_port_rfs_memory(si);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize RFS memory\n");
+		goto out_teardown_cbdr;
+	}
+
+	err = enetc_init_port_rss_memory(si);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize RSS memory\n");
+		goto out_teardown_cbdr;
+	}
+
+	return si;
+
+out_teardown_cbdr:
+	enetc_teardown_cbdr(&si->cbd_ring);
+out_pci_remove:
+	enetc_pci_remove(pdev);
+out:
+	return ERR_PTR(err);
+}
+
+static void enetc_psi_destroy(struct pci_dev *pdev)
+{
+	struct enetc_si *si = pci_get_drvdata(pdev);
+
+	enetc_teardown_cbdr(&si->cbd_ring);
+	enetc_pci_remove(pdev);
 }
 
 static int enetc_pf_probe(struct pci_dev *pdev,
@@ -1240,38 +1274,10 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 			 "Could not register with IERB driver: %pe, please update the device tree\n",
 			 ERR_PTR(err));
 
-	err = enetc_pci_probe(pdev, KBUILD_MODNAME, sizeof(*pf));
-	if (err)
-		return dev_err_probe(&pdev->dev, err, "PCI probing failed\n");
-
-	si = pci_get_drvdata(pdev);
-	if (!si->hw.port || !si->hw.global) {
-		err = -ENODEV;
-		dev_err(&pdev->dev, "could not map PF space, probing a VF?\n");
-		goto err_map_pf_space;
-	}
-
-	err = enetc_setup_cbdr(&pdev->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
-			       &si->cbd_ring);
-	if (err)
-		goto err_setup_cbdr;
-
-	err = enetc_init_port_rfs_memory(si);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to initialize RFS memory\n");
-		goto err_init_port_rfs;
-	}
-
-	err = enetc_init_port_rss_memory(si);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to initialize RSS memory\n");
-		goto err_init_port_rss;
-	}
-
-	if (node && !of_device_is_available(node)) {
-		dev_info(&pdev->dev, "device is disabled, skipping\n");
-		err = -ENODEV;
-		goto err_device_disabled;
+	si = enetc_psi_create(pdev);
+	if (IS_ERR(si)) {
+		err = PTR_ERR(si);
+		goto err_psi_create;
 	}
 
 	pf = enetc_si_priv(si);
@@ -1353,15 +1359,9 @@ err_alloc_si_res:
 	si->ndev = NULL;
 	free_netdev(ndev);
 err_alloc_netdev:
-err_init_port_rss:
-err_init_port_rfs:
-err_device_disabled:
 err_setup_mac_addresses:
-	enetc_teardown_cbdr(&si->cbd_ring);
-err_setup_cbdr:
-err_map_pf_space:
-	enetc_pci_remove(pdev);
-
+	enetc_psi_destroy(pdev);
+err_psi_create:
 	return err;
 }
 
@@ -1384,12 +1384,29 @@ static void enetc_pf_remove(struct pci_dev *pdev)
 	enetc_free_msix(priv);
 
 	enetc_free_si_resources(priv);
-	enetc_teardown_cbdr(&si->cbd_ring);
 
 	free_netdev(si->ndev);
 
-	enetc_pci_remove(pdev);
+	enetc_psi_destroy(pdev);
 }
+
+static void enetc_fixup_clear_rss_rfs(struct pci_dev *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct enetc_si *si;
+
+	/* Only apply quirk for disabled functions. For the ones
+	 * that are enabled, enetc_pf_probe() will apply it.
+	 */
+	if (node && of_device_is_available(node))
+		return;
+
+	si = enetc_psi_create(pdev);
+	if (!IS_ERR(si))
+		enetc_psi_destroy(pdev);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_FREESCALE, ENETC_DEV_ID_PF,
+			enetc_fixup_clear_rss_rfs);
 
 static const struct pci_device_id enetc_pf_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_FREESCALE, ENETC_DEV_ID_PF) },

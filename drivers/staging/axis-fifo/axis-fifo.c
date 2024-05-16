@@ -15,6 +15,8 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
@@ -31,10 +33,6 @@
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
 #include <linux/miscdevice.h>
-
-#include <linux/of_address.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
 
 /* ----------------------------
  *       driver parameters
@@ -839,16 +837,8 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	 * ----------------------------
 	 */
 
-	/* get iospace for the device */
-	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r_mem) {
-		dev_err(fifo->dt_device, "invalid address\n");
-		rc = -ENODEV;
-		goto err_initial;
-	}
-
-	/* request physical memory */
-	fifo->base_addr = devm_ioremap_resource(fifo->dt_device, r_mem);
+	/* get iospace for the device and request physical memory */
+	fifo->base_addr = devm_platform_get_and_ioremap_resource(pdev, 0, &r_mem);
 	if (IS_ERR(fifo->base_addr)) {
 		rc = PTR_ERR(fifo->base_addr);
 		goto err_initial;
@@ -905,9 +895,6 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	rc = misc_register(&fifo->miscdev);
 	if (rc < 0)
 		goto err_initial;
-
-	dev_info(fifo->dt_device, "axis-fifo created at %pa mapped to 0x%pa, irq=%i\n",
-		 &r_mem->start, &fifo->base_addr, fifo->irq);
 
 	return 0;
 

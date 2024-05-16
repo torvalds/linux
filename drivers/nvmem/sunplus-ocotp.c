@@ -13,8 +13,8 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/nvmem-provider.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 /*
@@ -192,9 +192,11 @@ static int sp_ocotp_probe(struct platform_device *pdev)
 	sp_ocotp_nvmem_config.dev = dev;
 
 	nvmem = devm_nvmem_register(dev, &sp_ocotp_nvmem_config);
-	if (IS_ERR(nvmem))
-		return dev_err_probe(&pdev->dev, PTR_ERR(nvmem),
+	if (IS_ERR(nvmem)) {
+		ret = dev_err_probe(&pdev->dev, PTR_ERR(nvmem),
 						"register nvmem device fail\n");
+		goto err;
+	}
 
 	platform_set_drvdata(pdev, nvmem);
 
@@ -203,6 +205,9 @@ static int sp_ocotp_probe(struct platform_device *pdev)
 		(int)OTP_WORD_SIZE, (int)QAC628_OTP_SIZE);
 
 	return 0;
+err:
+	clk_unprepare(otp->clk);
+	return ret;
 }
 
 static const struct of_device_id sp_ocotp_dt_ids[] = {

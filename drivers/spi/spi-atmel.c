@@ -233,7 +233,8 @@
  */
 #define DMA_MIN_BYTES	16
 
-#define SPI_DMA_TIMEOUT		(msecs_to_jiffies(1000))
+#define SPI_DMA_MIN_TIMEOUT	(msecs_to_jiffies(1000))
+#define SPI_DMA_TIMEOUT_PER_10K	(msecs_to_jiffies(4))
 
 #define AUTOSUSPEND_TIMEOUT	2000
 
@@ -1279,7 +1280,8 @@ static int atmel_spi_one_transfer(struct spi_controller *host,
 	struct atmel_spi_device	*asd;
 	int			timeout;
 	int			ret;
-	unsigned long		dma_timeout;
+	unsigned int		dma_timeout;
+	long			ret_timeout;
 
 	as = spi_controller_get_devdata(host);
 
@@ -1333,11 +1335,13 @@ static int atmel_spi_one_transfer(struct spi_controller *host,
 			atmel_spi_unlock(as);
 		}
 
-		dma_timeout = wait_for_completion_timeout(&as->xfer_completion,
-							  SPI_DMA_TIMEOUT);
-		if (WARN_ON(dma_timeout == 0)) {
-			dev_err(&spi->dev, "spi transfer timeout\n");
-			as->done_status = -EIO;
+		dma_timeout = msecs_to_jiffies(spi_controller_xfer_timeout(host, xfer));
+		ret_timeout = wait_for_completion_interruptible_timeout(&as->xfer_completion,
+									dma_timeout);
+		if (ret_timeout <= 0) {
+			dev_err(&spi->dev, "spi transfer %s\n",
+				!ret_timeout ? "timeout" : "canceled");
+			as->done_status = ret_timeout < 0 ? ret_timeout : -EIO;
 		}
 
 		if (as->done_status)
@@ -1446,10 +1450,6 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(&pdev->dev);
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs)
-		return -ENXIO;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -1471,8 +1471,8 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	host->bus_num = pdev->id;
 	host->num_chipselect = 4;
 	host->setup = atmel_spi_setup;
-	host->flags = (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX |
-			SPI_MASTER_GPIO_SS);
+	host->flags = (SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX |
+			SPI_CONTROLLER_GPIO_SS);
 	host->transfer_one = atmel_spi_one_transfer;
 	host->set_cs = atmel_spi_set_cs;
 	host->cleanup = atmel_spi_cleanup;
@@ -1486,7 +1486,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	spin_lock_init(&as->lock);
 
 	as->pdev = pdev;
-	as->regs = devm_ioremap_resource(&pdev->dev, regs);
+	as->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
 	if (IS_ERR(as->regs)) {
 		ret = PTR_ERR(as->regs);
 		goto out_unmap_regs;

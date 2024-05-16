@@ -101,6 +101,7 @@
 #include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/termios_internal.h>
+#include <linux/fs.h>
 
 #include <linux/kbd_kern.h>
 #include <linux/vt_kern.h>
@@ -269,7 +270,7 @@ static int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
 }
 
 /* Caller must hold tty_lock */
-static int check_tty_count(struct tty_struct *tty, const char *routine)
+static void check_tty_count(struct tty_struct *tty, const char *routine)
 {
 #ifdef CHECK_TTY_COUNT
 	struct list_head *p;
@@ -289,10 +290,8 @@ static int check_tty_count(struct tty_struct *tty, const char *routine)
 	if (tty->count != (count + kopen_count)) {
 		tty_warn(tty, "%s: tty->count(%d) != (#fd's(%d) + #kopen's(%d))\n",
 			 routine, tty->count, count, kopen_count);
-		return (count + kopen_count);
 	}
 #endif
-	return 0;
 }
 
 /**
@@ -466,7 +465,7 @@ static const struct file_operations tty_fops = {
 	.llseek		= no_llseek,
 	.read_iter	= tty_read,
 	.write_iter	= tty_write,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= copy_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.poll		= tty_poll,
 	.unlocked_ioctl	= tty_ioctl,
@@ -481,7 +480,7 @@ static const struct file_operations console_fops = {
 	.llseek		= no_llseek,
 	.read_iter	= tty_read,
 	.write_iter	= redirected_tty_write,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= copy_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.poll		= tty_poll,
 	.unlocked_ioctl	= tty_ioctl,
@@ -811,18 +810,26 @@ void start_tty(struct tty_struct *tty)
 }
 EXPORT_SYMBOL(start_tty);
 
-static void tty_update_time(struct timespec64 *time)
+static void tty_update_time(struct tty_struct *tty, bool mtime)
 {
 	time64_t sec = ktime_get_real_seconds();
+	struct tty_file_private *priv;
 
-	/*
-	 * We only care if the two values differ in anything other than the
-	 * lower three bits (i.e every 8 seconds).  If so, then we can update
-	 * the time of the tty device, otherwise it could be construded as a
-	 * security leak to let userspace know the exact timing of the tty.
-	 */
-	if ((sec ^ time->tv_sec) & ~7)
-		time->tv_sec = sec;
+	spin_lock(&tty->files_lock);
+	list_for_each_entry(priv, &tty->tty_files, list) {
+		struct inode *inode = file_inode(priv->file);
+		struct timespec64 *time = mtime ? &inode->i_mtime : &inode->i_atime;
+
+		/*
+		 * We only care if the two values differ in anything other than the
+		 * lower three bits (i.e every 8 seconds).  If so, then we can update
+		 * the time of the tty device, otherwise it could be construded as a
+		 * security leak to let userspace know the exact timing of the tty.
+		 */
+		if ((sec ^ time->tv_sec) & ~7)
+			time->tv_sec = sec;
+	}
+	spin_unlock(&tty->files_lock);
 }
 
 /*
@@ -836,19 +843,18 @@ static void tty_update_time(struct timespec64 *time)
  * data or clears the cookie. The cookie may be something that the
  * ldisc maintains state for and needs to free.
  */
-static int iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty,
-		struct file *file, struct iov_iter *to)
+static ssize_t iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty,
+				struct file *file, struct iov_iter *to)
 {
-	int retval = 0;
 	void *cookie = NULL;
 	unsigned long offset = 0;
 	char kernel_buf[64];
-	size_t count = iov_iter_count(to);
+	ssize_t retval = 0;
+	size_t copied, count = iov_iter_count(to);
 
 	do {
-		int size, copied;
+		ssize_t size = min(count, sizeof(kernel_buf));
 
-		size = count > sizeof(kernel_buf) ? sizeof(kernel_buf) : count;
 		size = ld->ops->read(tty, file, kernel_buf, size, &cookie, offset);
 		if (!size)
 			break;
@@ -905,11 +911,11 @@ static int iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty,
  */
 static ssize_t tty_read(struct kiocb *iocb, struct iov_iter *to)
 {
-	int i;
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct tty_struct *tty = file_tty(file);
 	struct tty_ldisc *ld;
+	ssize_t ret;
 
 	if (tty_paranoia_check(tty, inode, "tty_read"))
 		return -EIO;
@@ -922,15 +928,15 @@ static ssize_t tty_read(struct kiocb *iocb, struct iov_iter *to)
 	ld = tty_ldisc_ref_wait(tty);
 	if (!ld)
 		return hung_up_tty_read(iocb, to);
-	i = -EIO;
+	ret = -EIO;
 	if (ld->ops->read)
-		i = iterate_tty_read(ld, tty, file, to);
+		ret = iterate_tty_read(ld, tty, file, to);
 	tty_ldisc_deref(ld);
 
-	if (i > 0)
-		tty_update_time(&inode->i_atime);
+	if (ret > 0)
+		tty_update_time(tty, false);
 
-	return i;
+	return ret;
 }
 
 void tty_write_unlock(struct tty_struct *tty)
@@ -939,7 +945,7 @@ void tty_write_unlock(struct tty_struct *tty)
 	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
 }
 
-int tty_write_lock(struct tty_struct *tty, int ndelay)
+int tty_write_lock(struct tty_struct *tty, bool ndelay)
 {
 	if (!mutex_trylock(&tty->atomic_write_lock)) {
 		if (ndelay)
@@ -954,15 +960,11 @@ int tty_write_lock(struct tty_struct *tty, int ndelay)
  * Split writes up in sane blocksizes to avoid
  * denial-of-service type attacks
  */
-static inline ssize_t do_tty_write(
-	ssize_t (*write)(struct tty_struct *, struct file *, const unsigned char *, size_t),
-	struct tty_struct *tty,
-	struct file *file,
-	struct iov_iter *from)
+static ssize_t iterate_tty_write(struct tty_ldisc *ld, struct tty_struct *tty,
+				 struct file *file, struct iov_iter *from)
 {
-	size_t count = iov_iter_count(from);
+	size_t chunk, count = iov_iter_count(from);
 	ssize_t ret, written = 0;
-	unsigned int chunk;
 
 	ret = tty_write_lock(tty, file->f_flags & O_NDELAY);
 	if (ret < 0)
@@ -1006,16 +1008,13 @@ static inline ssize_t do_tty_write(
 
 	/* Do the write .. */
 	for (;;) {
-		size_t size = count;
-
-		if (size > chunk)
-			size = chunk;
+		size_t size = min(chunk, count);
 
 		ret = -EFAULT;
 		if (copy_from_iter(tty->write_buf, size, from) != size)
 			break;
 
-		ret = write(tty, file, tty->write_buf, size);
+		ret = ld->ops->write(tty, file, tty->write_buf, size);
 		if (ret <= 0)
 			break;
 
@@ -1036,7 +1035,7 @@ static inline ssize_t do_tty_write(
 		cond_resched();
 	}
 	if (written) {
-		tty_update_time(&file_inode(file)->i_mtime);
+		tty_update_time(tty, true);
 		ret = written;
 	}
 out:
@@ -1086,7 +1085,7 @@ static ssize_t file_tty_write(struct file *file, struct kiocb *iocb, struct iov_
 	if (!ld->ops->write)
 		ret = -EIO;
 	else
-		ret = do_tty_write(ld->ops->write, tty, file, from);
+		ret = iterate_tty_write(ld, tty, file, from);
 	tty_ldisc_deref(ld);
 	return ret;
 }
@@ -1153,7 +1152,7 @@ int tty_send_xchar(struct tty_struct *tty, char ch)
 		return 0;
 	}
 
-	if (tty_write_lock(tty, 0) < 0)
+	if (tty_write_lock(tty, false) < 0)
 		return -ERESTARTSYS;
 
 	down_read(&tty->termios_rwsem);
@@ -2276,7 +2275,7 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
 	char ch, mbz = 0;
 	struct tty_ldisc *ld;
 
-	if (!tty_legacy_tiocsti)
+	if (!tty_legacy_tiocsti && !capable(CAP_SYS_ADMIN))
 		return -EIO;
 
 	if ((current->signal->tty != tty) && !capable(CAP_SYS_ADMIN))
@@ -2479,7 +2478,7 @@ static int send_break(struct tty_struct *tty, unsigned int duration)
 		retval = tty->ops->break_ctl(tty, duration);
 	else {
 		/* Do the work ourselves */
-		if (tty_write_lock(tty, 0) < 0)
+		if (tty_write_lock(tty, false) < 0)
 			return -EINTR;
 		retval = tty->ops->break_ctl(tty, -1);
 		if (retval)
@@ -3022,7 +3021,7 @@ void __do_SAK(struct tty_struct *tty)
 	} while_each_pid_task(session, PIDTYPE_SID, p);
 
 	/* Now kill any processes that happen to have the tty open */
-	do_each_thread(g, p) {
+	for_each_process_thread(g, p) {
 		if (p->signal->tty == tty) {
 			tty_notice(tty, "SAK: killed process %d (%s): by controlling tty\n",
 				   task_pid_nr(p), p->comm);
@@ -3039,7 +3038,7 @@ void __do_SAK(struct tty_struct *tty)
 					PIDTYPE_SID);
 		}
 		task_unlock(p);
-	} while_each_thread(g, p);
+	}
 	read_unlock(&tasklist_lock);
 	put_pid(session);
 }

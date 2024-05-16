@@ -5,13 +5,6 @@
 #ifndef __SUNRPC_SYSFS_H
 #define __SUNRPC_SYSFS_H
 
-struct rpc_sysfs_client {
-	struct kobject kobject;
-	struct net *net;
-	struct rpc_clnt *clnt;
-	struct rpc_xprt_switch *xprt_switch;
-};
-
 struct rpc_sysfs_xprt_switch {
 	struct kobject kobject;
 	struct net *net;

@@ -22,6 +22,11 @@ struct btrfs_zoned_device_info {
 	u8  zone_size_shift;
 	u32 nr_zones;
 	unsigned int max_active_zones;
+	/*
+	 * Reserved active zones for one metadata and one system block group.
+	 * It can vary per-device depending on the allocation status.
+	 */
+	int reserved_active_zones;
 	atomic_t active_zones_left;
 	unsigned long *seq_zones;
 	unsigned long *empty_zones;
@@ -29,6 +34,8 @@ struct btrfs_zoned_device_info {
 	struct blk_zone *zone_cache;
 	struct blk_zone sb_zones[2 * BTRFS_SUPER_MIRROR_MAX];
 };
+
+void btrfs_finish_ordered_zoned(struct btrfs_ordered_extent *ordered);
 
 #ifdef CONFIG_BLK_DEV_ZONED
 int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
@@ -54,15 +61,10 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new);
 void btrfs_calc_zone_unusable(struct btrfs_block_group *cache);
 void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 			    struct extent_buffer *eb);
-void btrfs_free_redirty_list(struct btrfs_transaction *trans);
 bool btrfs_use_zone_append(struct btrfs_bio *bbio);
 void btrfs_record_physical_zoned(struct btrfs_bio *bbio);
-void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered);
-bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
-				    struct extent_buffer *eb,
-				    struct btrfs_block_group **cache_ret);
-void btrfs_revert_meta_write_pointer(struct btrfs_block_group *cache,
-				     struct extent_buffer *eb);
+int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
+				   struct btrfs_eb_write_context *ctx);
 int btrfs_zoned_issue_zeroout(struct btrfs_device *device, u64 physical, u64 length);
 int btrfs_sync_zone_write_pointer(struct btrfs_device *tgt_dev, u64 logical,
 				  u64 physical_start, u64 physical_pos);
@@ -81,6 +83,7 @@ void btrfs_zoned_release_data_reloc_bg(struct btrfs_fs_info *fs_info, u64 logica
 int btrfs_zone_finish_one_bg(struct btrfs_fs_info *fs_info);
 int btrfs_zoned_activate_one_bg(struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info, bool do_finish);
+void btrfs_check_active_zone_reservation(struct btrfs_fs_info *fs_info);
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 				     struct blk_zone *zone)
@@ -179,7 +182,6 @@ static inline void btrfs_calc_zone_unusable(struct btrfs_block_group *cache) { }
 
 static inline void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 					  struct extent_buffer *eb) { }
-static inline void btrfs_free_redirty_list(struct btrfs_transaction *trans) { }
 
 static inline bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 {
@@ -190,20 +192,10 @@ static inline void btrfs_record_physical_zoned(struct btrfs_bio *bbio)
 {
 }
 
-static inline void btrfs_rewrite_logical_zoned(
-				struct btrfs_ordered_extent *ordered) { }
-
-static inline bool btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
-			       struct extent_buffer *eb,
-			       struct btrfs_block_group **cache_ret)
+static inline int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
+						 struct btrfs_eb_write_context *ctx)
 {
-	return true;
-}
-
-static inline void btrfs_revert_meta_write_pointer(
-						struct btrfs_block_group *cache,
-						struct extent_buffer *eb)
-{
+	return 0;
 }
 
 static inline int btrfs_zoned_issue_zeroout(struct btrfs_device *device,
@@ -265,6 +257,8 @@ static inline int btrfs_zoned_activate_one_bg(struct btrfs_fs_info *fs_info,
 	/* Consider all the block groups are active */
 	return 0;
 }
+
+static inline void btrfs_check_active_zone_reservation(struct btrfs_fs_info *fs_info) { }
 
 #endif
 

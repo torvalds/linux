@@ -116,6 +116,18 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_FPU;
 		elf_hwcap |= HWCAP_LOONGARCH_FPU;
 	}
+#ifdef CONFIG_CPU_HAS_LSX
+	if (config & CPUCFG2_LSX) {
+		c->options |= LOONGARCH_CPU_LSX;
+		elf_hwcap |= HWCAP_LOONGARCH_LSX;
+	}
+#endif
+#ifdef CONFIG_CPU_HAS_LASX
+	if (config & CPUCFG2_LASX) {
+		c->options |= LOONGARCH_CPU_LASX;
+		elf_hwcap |= HWCAP_LOONGARCH_LASX;
+	}
+#endif
 	if (config & CPUCFG2_COMPLEX) {
 		c->options |= LOONGARCH_CPU_COMPLEX;
 		elf_hwcap |= HWCAP_LOONGARCH_COMPLEX;
@@ -124,10 +136,28 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_CRYPTO;
 		elf_hwcap |= HWCAP_LOONGARCH_CRYPTO;
 	}
+	if (config & CPUCFG2_PTW) {
+		c->options |= LOONGARCH_CPU_PTW;
+		elf_hwcap |= HWCAP_LOONGARCH_PTW;
+	}
 	if (config & CPUCFG2_LVZP) {
 		c->options |= LOONGARCH_CPU_LVZ;
 		elf_hwcap |= HWCAP_LOONGARCH_LVZ;
 	}
+#ifdef CONFIG_CPU_HAS_LBT
+	if (config & CPUCFG2_X86BT) {
+		c->options |= LOONGARCH_CPU_LBT_X86;
+		elf_hwcap |= HWCAP_LOONGARCH_LBT_X86;
+	}
+	if (config & CPUCFG2_ARMBT) {
+		c->options |= LOONGARCH_CPU_LBT_ARM;
+		elf_hwcap |= HWCAP_LOONGARCH_LBT_ARM;
+	}
+	if (config & CPUCFG2_MIPSBT) {
+		c->options |= LOONGARCH_CPU_LBT_MIPS;
+		elf_hwcap |= HWCAP_LOONGARCH_LBT_MIPS;
+	}
+#endif
 
 	config = read_cpucfg(LOONGARCH_CPUCFG6);
 	if (config & CPUCFG6_PMP)

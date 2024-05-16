@@ -12,7 +12,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/regmap.h>
@@ -165,9 +165,6 @@ enum bwmon_fields {
 struct icc_bwmon_data {
 	unsigned int sample_ms;
 	unsigned int count_unit_kb; /* kbytes */
-	unsigned int default_highbw_kbps;
-	unsigned int default_medbw_kbps;
-	unsigned int default_lowbw_kbps;
 	u8 zone1_thres_count;
 	u8 zone3_thres_count;
 	unsigned int quirks;
@@ -564,7 +561,11 @@ static void bwmon_set_threshold(struct icc_bwmon *bwmon,
 static void bwmon_start(struct icc_bwmon *bwmon)
 {
 	const struct icc_bwmon_data *data = bwmon->data;
+	u32 bw_low = 0;
 	int window;
+
+	/* No need to check for errors, as this must have succeeded before. */
+	dev_pm_opp_find_bw_ceil(bwmon->dev, &bw_low, 0);
 
 	bwmon_clear_counters(bwmon, true);
 
@@ -572,12 +573,9 @@ static void bwmon_start(struct icc_bwmon *bwmon)
 	/* Maximum sampling window: 0xffffff for v4 and 0xfffff for v5 */
 	regmap_field_write(bwmon->regs[F_SAMPLE_WINDOW], window);
 
-	bwmon_set_threshold(bwmon, bwmon->regs[F_THRESHOLD_HIGH],
-			    data->default_highbw_kbps);
-	bwmon_set_threshold(bwmon, bwmon->regs[F_THRESHOLD_MED],
-			    data->default_medbw_kbps);
-	bwmon_set_threshold(bwmon, bwmon->regs[F_THRESHOLD_LOW],
-			    data->default_lowbw_kbps);
+	bwmon_set_threshold(bwmon, bwmon->regs[F_THRESHOLD_HIGH], bw_low);
+	bwmon_set_threshold(bwmon, bwmon->regs[F_THRESHOLD_MED], bw_low);
+	bwmon_set_threshold(bwmon, bwmon->regs[F_THRESHOLD_LOW], 0);
 
 	regmap_field_write(bwmon->regs[F_THRESHOLD_COUNT_ZONE0],
 			   BWMON_THRESHOLD_COUNT_ZONE0_DEFAULT);
@@ -806,10 +804,7 @@ static int bwmon_remove(struct platform_device *pdev)
 
 static const struct icc_bwmon_data msm8998_bwmon_data = {
 	.sample_ms = 4,
-	.count_unit_kb = 64,
-	.default_highbw_kbps = 4800 * 1024, /* 4.8 GBps */
-	.default_medbw_kbps = 512 * 1024, /* 512 MBps */
-	.default_lowbw_kbps = 0,
+	.count_unit_kb = 1024,
 	.zone1_thres_count = 16,
 	.zone3_thres_count = 1,
 	.quirks = BWMON_HAS_GLOBAL_IRQ,
@@ -822,9 +817,6 @@ static const struct icc_bwmon_data msm8998_bwmon_data = {
 static const struct icc_bwmon_data sdm845_cpu_bwmon_data = {
 	.sample_ms = 4,
 	.count_unit_kb = 64,
-	.default_highbw_kbps = 4800 * 1024, /* 4.8 GBps */
-	.default_medbw_kbps = 512 * 1024, /* 512 MBps */
-	.default_lowbw_kbps = 0,
 	.zone1_thres_count = 16,
 	.zone3_thres_count = 1,
 	.quirks = BWMON_HAS_GLOBAL_IRQ,
@@ -835,9 +827,6 @@ static const struct icc_bwmon_data sdm845_cpu_bwmon_data = {
 static const struct icc_bwmon_data sdm845_llcc_bwmon_data = {
 	.sample_ms = 4,
 	.count_unit_kb = 1024,
-	.default_highbw_kbps = 800 * 1024, /* 800 MBps */
-	.default_medbw_kbps = 256 * 1024, /* 256 MBps */
-	.default_lowbw_kbps = 0,
 	.zone1_thres_count = 16,
 	.zone3_thres_count = 1,
 	.regmap_fields = sdm845_llcc_bwmon_reg_fields,
@@ -847,9 +836,6 @@ static const struct icc_bwmon_data sdm845_llcc_bwmon_data = {
 static const struct icc_bwmon_data sc7280_llcc_bwmon_data = {
 	.sample_ms = 4,
 	.count_unit_kb = 64,
-	.default_highbw_kbps = 800 * 1024, /* 800 MBps */
-	.default_medbw_kbps = 256 * 1024, /* 256 MBps */
-	.default_lowbw_kbps = 0,
 	.zone1_thres_count = 16,
 	.zone3_thres_count = 1,
 	.quirks = BWMON_NEEDS_FORCE_CLEAR,

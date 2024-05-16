@@ -198,7 +198,7 @@ static struct i2c_driver veml6070_driver = {
 	.driver = {
 		.name   = VEML6070_DRV_NAME,
 	},
-	.probe_new = veml6070_probe,
+	.probe = veml6070_probe,
 	.remove  = veml6070_remove,
 	.id_table = veml6070_id,
 };

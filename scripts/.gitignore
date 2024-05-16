@@ -6,6 +6,8 @@
 /kallsyms.exe
 /module.lds
 /recordmcount
+/rustdoc_test_builder
+/rustdoc_test_gen
 /sign-file
 /sorttable
 /target.json

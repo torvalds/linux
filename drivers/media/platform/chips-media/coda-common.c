@@ -19,12 +19,12 @@
 #include <linux/irq.h>
 #include <linux/kfifo.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
-#include <linux/of.h>
 #include <linux/ratelimit.h>
 #include <linux/reset.h>
 
@@ -3268,7 +3268,7 @@ static int coda_probe(struct platform_device *pdev)
 						       &dev->iram.blob);
 	}
 
-	dev->workqueue = alloc_workqueue("coda", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+	dev->workqueue = alloc_ordered_workqueue("coda", WQ_MEM_RECLAIM);
 	if (!dev->workqueue) {
 		dev_err(&pdev->dev, "unable to alloc workqueue\n");
 		ret = -ENOMEM;

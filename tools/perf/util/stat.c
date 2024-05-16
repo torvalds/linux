@@ -264,6 +264,28 @@ void evlist__copy_prev_raw_counts(struct evlist *evlist)
 		evsel__copy_prev_raw_counts(evsel);
 }
 
+static void evsel__copy_res_stats(struct evsel *evsel)
+{
+	struct perf_stat_evsel *ps = evsel->stats;
+
+	/*
+	 * For GLOBAL aggregation mode, it updates the counts for each run
+	 * in the evsel->stats.res_stats.  See perf_stat_process_counter().
+	 */
+	*ps->aggr[0].counts.values = avg_stats(&ps->res_stats);
+}
+
+void evlist__copy_res_stats(struct perf_stat_config *config, struct evlist *evlist)
+{
+	struct evsel *evsel;
+
+	if (config->aggr_mode != AGGR_GLOBAL)
+		return;
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__copy_res_stats(evsel);
+}
+
 static size_t pkg_id_hash(long __key, void *ctx __maybe_unused)
 {
 	uint64_t *key = (uint64_t *) __key;
@@ -707,7 +729,7 @@ size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp)
 
 size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp)
 {
-	struct perf_stat_config sc;
+	struct perf_stat_config sc = {};
 	size_t ret;
 
 	perf_event__read_stat_config(&sc, &event->stat_config);

@@ -12,6 +12,7 @@
 #include <linux/cache.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 /*
  * Maximum values for blocksize and alignmask, used to allocate
@@ -56,7 +57,6 @@ struct sk_buff;
 struct crypto_type {
 	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
 	unsigned int (*extsize)(struct crypto_alg *alg);
-	int (*init)(struct crypto_tfm *tfm, u32 type, u32 mask);
 	int (*init_tfm)(struct crypto_tfm *tfm);
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 	int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
@@ -82,6 +82,8 @@ struct crypto_instance {
 		/* List of attached spawns before registration. */
 		struct crypto_spawn *spawns;
 	};
+
+	struct work_struct free_work;
 
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };

@@ -26,12 +26,21 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Conditional branch instructions retired.",
+        "BriefDescription": "Conditional branch instructions retired. [This event is alias to BR_INST_RETIRED.CONDITIONAL]",
+        "Errata": "SKL091",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.COND",
+        "PublicDescription": "This event counts conditional branch instructions retired. [This event is alias to BR_INST_RETIRED.CONDITIONAL]",
+        "SampleAfterValue": "400009",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Conditional branch instructions retired. [This event is alias to BR_INST_RETIRED.COND]",
         "Errata": "SKL091",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.CONDITIONAL",
         "PEBS": "1",
-        "PublicDescription": "This event counts conditional branch instructions retired.",
+        "PublicDescription": "This event counts conditional branch instructions retired. [This event is alias to BR_INST_RETIRED.COND]",
         "SampleAfterValue": "400009",
         "UMask": "0x1"
     },
@@ -352,10 +361,10 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Stalls caused by changing prefix length of the instruction.",
+        "BriefDescription": "Stalls caused by changing prefix length of the instruction. [This event is alias to DECODE.LCP]",
         "EventCode": "0x87",
         "EventName": "ILD_STALL.LCP",
-        "PublicDescription": "Counts cycles that the Instruction Length decoder (ILD) stalls occurred due to dynamically changing prefix length of the decoded instruction (by operand size prefix instruction 0x66, address size prefix instruction 0x67 or REX.W for Intel64). Count is proportional to the number of prefixes in a 16B-line. This may result in a three-cycle penalty for each LCP (Length changing prefix) in a 16-byte chunk.",
+        "PublicDescription": "Counts cycles that the Instruction Length decoder (ILD) stalls occurred due to dynamically changing prefix length of the decoded instruction (by operand size prefix instruction 0x66, address size prefix instruction 0x67 or REX.W for Intel64). Count is proportional to the number of prefixes in a 16B-line. This may result in a three-cycle penalty for each LCP (Length changing prefix) in a 16-byte chunk. [This event is alias to DECODE.LCP]",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -410,6 +419,16 @@
         "Invert": "1",
         "PEBS": "2",
         "PublicDescription": "Number of cycles using an always true condition applied to  PEBS instructions retired event. (inst_ret< 16)",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Clears speculative count",
+        "CounterMask": "1",
+        "EdgeDetect": "1",
+        "EventCode": "0x0D",
+        "EventName": "INT_MISC.CLEARS_COUNT",
+        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -469,11 +488,11 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles 4 Uops delivered by the LSD, but didn't come from the decoder.",
+        "BriefDescription": "Cycles 4 Uops delivered by the LSD, but didn't come from the decoder. [This event is alias to LSD.CYCLES_OK]",
         "CounterMask": "4",
         "EventCode": "0xA8",
         "EventName": "LSD.CYCLES_4_UOPS",
-        "PublicDescription": "Counts the cycles when 4 uops are delivered by the LSD (Loop-stream detector).",
+        "PublicDescription": "Counts the cycles when 4 uops are delivered by the LSD (Loop-stream detector). [This event is alias to LSD.CYCLES_OK]",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -483,6 +502,15 @@
         "EventCode": "0xA8",
         "EventName": "LSD.CYCLES_ACTIVE",
         "PublicDescription": "Counts the cycles when at least one uop is delivered by the LSD (Loop-stream detector).",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Cycles 4 Uops delivered by the LSD, but didn't come from the decoder. [This event is alias to LSD.CYCLES_4_UOPS]",
+        "CounterMask": "4",
+        "EventCode": "0xA8",
+        "EventName": "LSD.CYCLES_OK",
+        "PublicDescription": "Counts the cycles when 4 uops are delivered by the LSD (Loop-stream detector). [This event is alias to LSD.CYCLES_4_UOPS]",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },

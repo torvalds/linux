@@ -45,7 +45,7 @@ Required properties for each child node:
 - aspeed,fan-tach-ch : should specify the Fan tach input channel.
                 integer value in the range 0 through 15, with 0 indicating
 		Fan tach channel 0 and 15 indicating Fan tach channel 15.
-		Atleast one Fan tach input channel is required.
+		At least one Fan tach input channel is required.
 
 Examples:
 

@@ -74,7 +74,6 @@ additionalProperties:
             offset by 10.  Additional identifiers are provided to specify the
             MDIO source peripheral.
 
-        phandle: true
         bias-disable: true
         bias-pull-up:
           description: Pull up the pin with 50 kOhm
@@ -91,9 +90,6 @@ additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 
     - type: object
-      properties:
-        phandle: true
-
       additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 

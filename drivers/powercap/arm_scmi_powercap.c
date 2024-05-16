@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/powercap.h>
 #include <linux/scmi_protocol.h>
+#include <linux/slab.h>
 
 #define to_scmi_powercap_zone(z)		\
 	container_of(z, struct scmi_powercap_zone, zone)
@@ -19,6 +20,8 @@
 static const struct scmi_powercap_proto_ops *powercap_ops;
 
 struct scmi_powercap_zone {
+	bool registered;
+	bool invalid;
 	unsigned int height;
 	struct device *dev;
 	struct scmi_protocol_handle *ph;
@@ -32,6 +35,7 @@ struct scmi_powercap_root {
 	unsigned int num_zones;
 	struct scmi_powercap_zone *spzones;
 	struct list_head *registered_zones;
+	struct list_head scmi_zones;
 };
 
 static struct powercap_control_type *scmi_top_pcntrl;
@@ -70,10 +74,26 @@ static int scmi_powercap_get_power_uw(struct powercap_zone *pz,
 	return 0;
 }
 
+static int scmi_powercap_zone_enable_set(struct powercap_zone *pz, bool mode)
+{
+	struct scmi_powercap_zone *spz = to_scmi_powercap_zone(pz);
+
+	return powercap_ops->cap_enable_set(spz->ph, spz->info->id, mode);
+}
+
+static int scmi_powercap_zone_enable_get(struct powercap_zone *pz, bool *mode)
+{
+	struct scmi_powercap_zone *spz = to_scmi_powercap_zone(pz);
+
+	return powercap_ops->cap_enable_get(spz->ph, spz->info->id, mode);
+}
+
 static const struct powercap_zone_ops zone_ops = {
 	.get_max_power_range_uw = scmi_powercap_get_max_power_range_uw,
 	.get_power_uw = scmi_powercap_get_power_uw,
 	.release = scmi_powercap_zone_release,
+	.set_enable = scmi_powercap_zone_enable_set,
+	.get_enable = scmi_powercap_zone_enable_get,
 };
 
 static void scmi_powercap_normalize_cap(const struct scmi_powercap_zone *spz,
@@ -255,12 +275,6 @@ static void scmi_powercap_unregister_all_zones(struct scmi_powercap_root *pr)
 	}
 }
 
-static inline bool
-scmi_powercap_is_zone_registered(struct scmi_powercap_zone *spz)
-{
-	return !list_empty(&spz->node);
-}
-
 static inline unsigned int
 scmi_powercap_get_zone_height(struct scmi_powercap_zone *spz)
 {
@@ -279,11 +293,46 @@ scmi_powercap_get_parent_zone(struct scmi_powercap_zone *spz)
 	return &spz->spzones[spz->info->parent_id];
 }
 
+static int scmi_powercap_register_zone(struct scmi_powercap_root *pr,
+				       struct scmi_powercap_zone *spz,
+				       struct scmi_powercap_zone *parent)
+{
+	int ret = 0;
+	struct powercap_zone *z;
+
+	if (spz->invalid) {
+		list_del(&spz->node);
+		return -EINVAL;
+	}
+
+	z = powercap_register_zone(&spz->zone, scmi_top_pcntrl, spz->info->name,
+				   parent ? &parent->zone : NULL,
+				   &zone_ops, 1, &constraint_ops);
+	if (!IS_ERR(z)) {
+		spz->height = scmi_powercap_get_zone_height(spz);
+		spz->registered = true;
+		list_move(&spz->node, &pr->registered_zones[spz->height]);
+		dev_dbg(spz->dev, "Registered node %s - parent %s - height:%d\n",
+			spz->info->name, parent ? parent->info->name : "ROOT",
+			spz->height);
+	} else {
+		list_del(&spz->node);
+		ret = PTR_ERR(z);
+		dev_err(spz->dev,
+			"Error registering node:%s - parent:%s - h:%d - ret:%d\n",
+			spz->info->name,
+			parent ? parent->info->name : "ROOT",
+			spz->height, ret);
+	}
+
+	return ret;
+}
+
 /**
- * scmi_powercap_register_zone  - Register an SCMI powercap zone recursively
+ * scmi_zones_register- Register SCMI powercap zones starting from parent zones
  *
+ * @dev: A reference to the SCMI device
  * @pr: A reference to the root powercap zones descriptors
- * @spz: A reference to the SCMI powercap zone to register
  *
  * When registering SCMI powercap zones with the powercap framework we should
  * take care to always register zones starting from the root ones and to
@@ -293,10 +342,10 @@ scmi_powercap_get_parent_zone(struct scmi_powercap_zone *spz)
  * zones provided by the SCMI platform firmware is built to comply with such
  * requirement.
  *
- * This function, given an SCMI powercap zone to register, takes care to walk
- * the SCMI powercap zones tree up to the root looking recursively for
- * unregistered parent zones before registering the provided zone; at the same
- * time each registered zone height in such a tree is accounted for and each
+ * This function, given the set of SCMI powercap zones to register, takes care
+ * to walk the SCMI powercap zones trees up to the root registering any
+ * unregistered parent zone before registering the child zones; at the same
+ * time each registered-zone height in such a tree is accounted for and each
  * zone, once registered, is stored in the @registered_zones array that is
  * indexed by zone height: this way will be trivial, at unregister time, to walk
  * the @registered_zones array backward and unregister all the zones starting
@@ -314,56 +363,54 @@ scmi_powercap_get_parent_zone(struct scmi_powercap_zone *spz)
  *
  * Return: 0 on Success
  */
-static int scmi_powercap_register_zone(struct scmi_powercap_root *pr,
-				       struct scmi_powercap_zone *spz)
+static int scmi_zones_register(struct device *dev,
+			       struct scmi_powercap_root *pr)
 {
 	int ret = 0;
-	struct scmi_powercap_zone *parent;
+	unsigned int sp = 0, reg_zones = 0;
+	struct scmi_powercap_zone *spz, **zones_stack;
 
-	if (!spz->info)
-		return ret;
+	zones_stack = kcalloc(pr->num_zones, sizeof(spz), GFP_KERNEL);
+	if (!zones_stack)
+		return -ENOMEM;
 
-	parent = scmi_powercap_get_parent_zone(spz);
-	if (parent && !scmi_powercap_is_zone_registered(parent)) {
-		/*
-		 * Bail out if a parent domain was marked as unsupported:
-		 * only domains participating as leaves can be skipped.
-		 */
-		if (!parent->info)
-			return -ENODEV;
+	spz = list_first_entry_or_null(&pr->scmi_zones,
+				       struct scmi_powercap_zone, node);
+	while (spz) {
+		struct scmi_powercap_zone *parent;
 
-		ret = scmi_powercap_register_zone(pr, parent);
-		if (ret)
-			return ret;
-	}
-
-	if (!scmi_powercap_is_zone_registered(spz)) {
-		struct powercap_zone *z;
-
-		z = powercap_register_zone(&spz->zone,
-					   scmi_top_pcntrl,
-					   spz->info->name,
-					   parent ? &parent->zone : NULL,
-					   &zone_ops, 1, &constraint_ops);
-		if (!IS_ERR(z)) {
-			spz->height = scmi_powercap_get_zone_height(spz);
-			list_add(&spz->node,
-				 &pr->registered_zones[spz->height]);
-			dev_dbg(spz->dev,
-				"Registered node %s - parent %s - height:%d\n",
-				spz->info->name,
-				parent ? parent->info->name : "ROOT",
-				spz->height);
-			ret = 0;
+		parent = scmi_powercap_get_parent_zone(spz);
+		if (parent && !parent->registered) {
+			zones_stack[sp++] = spz;
+			spz = parent;
 		} else {
-			ret = PTR_ERR(z);
-			dev_err(spz->dev,
-				"Error registering node:%s - parent:%s - h:%d - ret:%d\n",
-				 spz->info->name,
-				 parent ? parent->info->name : "ROOT",
-				 spz->height, ret);
+			ret = scmi_powercap_register_zone(pr, spz, parent);
+			if (!ret) {
+				reg_zones++;
+			} else if (sp) {
+				/* Failed to register a non-leaf zone.
+				 * Bail-out.
+				 */
+				dev_err(dev,
+					"Failed to register non-leaf zone - ret:%d\n",
+					ret);
+				scmi_powercap_unregister_all_zones(pr);
+				reg_zones = 0;
+				goto out;
+			}
+			/* Pick next zone to process */
+			if (sp)
+				spz = zones_stack[--sp];
+			else
+				spz = list_first_entry_or_null(&pr->scmi_zones,
+							       struct scmi_powercap_zone,
+							       node);
 		}
 	}
+
+out:
+	kfree(zones_stack);
+	dev_info(dev, "Registered %d SCMI Powercap domains !\n", reg_zones);
 
 	return ret;
 }
@@ -408,6 +455,8 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 	if (!pr->registered_zones)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&pr->scmi_zones);
+
 	for (i = 0, spz = pr->spzones; i < pr->num_zones; i++, spz++) {
 		/*
 		 * Powercap domains are validate by the protocol layer, i.e.
@@ -422,6 +471,7 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 		INIT_LIST_HEAD(&spz->node);
 		INIT_LIST_HEAD(&pr->registered_zones[i]);
 
+		list_add_tail(&spz->node, &pr->scmi_zones);
 		/*
 		 * Forcibly skip powercap domains using an abstract scale.
 		 * Note that only leaves domains can be skipped, so this could
@@ -432,7 +482,7 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 			dev_warn(dev,
 				 "Abstract power scale not supported. Skip %s.\n",
 				 spz->info->name);
-			spz->info = NULL;
+			spz->invalid = true;
 			continue;
 		}
 	}
@@ -441,20 +491,11 @@ static int scmi_powercap_probe(struct scmi_device *sdev)
 	 * Scan array of retrieved SCMI powercap domains and register them
 	 * recursively starting from the root domains.
 	 */
-	for (i = 0, spz = pr->spzones; i < pr->num_zones; i++, spz++) {
-		ret = scmi_powercap_register_zone(pr, spz);
-		if (ret) {
-			dev_err(dev,
-				"Failed to register powercap zone %s - ret:%d\n",
-				spz->info->name, ret);
-			scmi_powercap_unregister_all_zones(pr);
-			return ret;
-		}
-	}
+	ret = scmi_zones_register(dev, pr);
+	if (ret)
+		return ret;
 
 	dev_set_drvdata(dev, pr);
-
-	dev_info(dev, "Registered %d SCMI Powercap domains !\n", pr->num_zones);
 
 	return ret;
 }

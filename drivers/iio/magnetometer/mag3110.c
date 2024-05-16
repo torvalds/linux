@@ -641,7 +641,7 @@ static struct i2c_driver mag3110_driver = {
 		.of_match_table = mag3110_of_match,
 		.pm	= pm_sleep_ptr(&mag3110_pm_ops),
 	},
-	.probe_new = mag3110_probe,
+	.probe = mag3110_probe,
 	.remove = mag3110_remove,
 	.id_table = mag3110_id,
 };

@@ -553,7 +553,7 @@ static const struct regmap_config wm9090_regmap = {
 	.volatile_reg = wm9090_volatile,
 	.readable_reg = wm9090_readable,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm9090_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm9090_reg_defaults),
 };
@@ -616,7 +616,7 @@ static struct i2c_driver wm9090_i2c_driver = {
 	.driver = {
 		.name = "wm9090",
 	},
-	.probe_new = wm9090_i2c_probe,
+	.probe = wm9090_i2c_probe,
 	.id_table = wm9090_id,
 };
 

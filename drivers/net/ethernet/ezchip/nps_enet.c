@@ -6,10 +6,9 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/of_net.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include "nps_enet.h"
 
 #define DRV_NAME			"nps_mgt_enet"

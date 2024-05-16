@@ -31,13 +31,18 @@ struct erdma_user_mmap_entry {
 	u8 mmap_flag;
 };
 
+struct erdma_ext_db_info {
+	bool enable;
+	u16 sdb_off;
+	u16 rdb_off;
+	u16 cdb_off;
+};
+
 struct erdma_ucontext {
 	struct ib_ucontext ibucontext;
 
-	u32 sdb_type;
-	u32 sdb_idx;
-	u32 sdb_page_idx;
-	u32 sdb_page_off;
+	struct erdma_ext_db_info ext_db;
+
 	u64 sdb;
 	u64 rdb;
 	u64 cdb;
@@ -60,7 +65,7 @@ struct erdma_pd {
  * MemoryRegion definition.
  */
 #define ERDMA_MAX_INLINE_MTT_ENTRIES 4
-#define MTT_SIZE(mtt_cnt) (mtt_cnt << 3) /* per mtt takes 8 Bytes. */
+#define MTT_SIZE(mtt_cnt) ((mtt_cnt) << 3) /* per mtt entry takes 8 Bytes. */
 #define ERDMA_MR_MAX_MTT_CNT 524288
 #define ERDMA_MTT_ENTRY_SIZE 8
 
@@ -68,8 +73,8 @@ struct erdma_pd {
 #define ERDMA_MR_TYPE_FRMR 1
 #define ERDMA_MR_TYPE_DMA 2
 
-#define ERDMA_MR_INLINE_MTT 0
-#define ERDMA_MR_INDIRECT_MTT 1
+#define ERDMA_MR_MTT_0LEVEL 0
+#define ERDMA_MR_MTT_1LEVEL 1
 
 #define ERDMA_MR_ACC_RA BIT(0)
 #define ERDMA_MR_ACC_LR BIT(1)
@@ -85,10 +90,28 @@ static inline u8 to_erdma_access_flags(int access)
 	       (access & IB_ACCESS_REMOTE_ATOMIC ? ERDMA_MR_ACC_RA : 0);
 }
 
+/* Hierarchical storage structure for MTT entries */
+struct erdma_mtt {
+	u64 *buf;
+	size_t size;
+
+	bool continuous;
+	union {
+		dma_addr_t buf_dma;
+		struct {
+			struct scatterlist *sglist;
+			u32 nsg;
+			u32 level;
+		};
+	};
+
+	struct erdma_mtt *low_level;
+};
+
 struct erdma_mem {
 	struct ib_umem *umem;
-	void *mtt_buf;
-	u32 mtt_type;
+	struct erdma_mtt *mtt;
+
 	u32 page_size;
 	u32 page_offset;
 	u32 page_cnt;
@@ -96,8 +119,6 @@ struct erdma_mem {
 
 	u64 va;
 	u64 len;
-
-	u64 mtt_entry[ERDMA_MAX_INLINE_MTT_ENTRIES];
 };
 
 struct erdma_mr {
@@ -116,8 +137,8 @@ struct erdma_user_dbrecords_page {
 };
 
 struct erdma_uqp {
-	struct erdma_mem sq_mtt;
-	struct erdma_mem rq_mtt;
+	struct erdma_mem sq_mem;
+	struct erdma_mem rq_mem;
 
 	dma_addr_t sq_db_info_dma_addr;
 	dma_addr_t rq_db_info_dma_addr;
@@ -229,7 +250,7 @@ struct erdma_kcq_info {
 };
 
 struct erdma_ucq_info {
-	struct erdma_mem qbuf_mtt;
+	struct erdma_mem qbuf_mem;
 	struct erdma_user_dbrecords_page *user_dbr_page;
 	dma_addr_t db_info_dma_addr;
 };

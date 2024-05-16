@@ -415,7 +415,7 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
  * @flags: framework-specific flags
  * @fixed_rate: non-adjustable clock rate
  */
-#define clk_hw_register_fixed_rate_parent_data(dev, name, parent_hw, flags,   \
+#define clk_hw_register_fixed_rate_parent_data(dev, name, parent_data, flags, \
 					     fixed_rate)		      \
 	__clk_hw_register_fixed_rate((dev), NULL, (name), NULL, NULL,	      \
 				     (parent_data), (flags), (fixed_rate), 0, \
@@ -1333,6 +1333,8 @@ int __clk_mux_determine_rate_closest(struct clk_hw *hw,
 int clk_mux_determine_rate_flags(struct clk_hw *hw,
 				 struct clk_rate_request *req,
 				 unsigned long flags);
+int clk_hw_determine_rate_no_reparent(struct clk_hw *hw,
+				      struct clk_rate_request *req);
 void clk_hw_reparent(struct clk_hw *hw, struct clk_hw *new_parent);
 void clk_hw_get_rate_range(struct clk_hw *hw, unsigned long *min_rate,
 			   unsigned long *max_rate);
@@ -1377,7 +1379,7 @@ struct clk_onecell_data {
 
 struct clk_hw_onecell_data {
 	unsigned int num;
-	struct clk_hw *hws[];
+	struct clk_hw *hws[] __counted_by(num);
 };
 
 #define CLK_OF_DECLARE(name, compat, fn) \

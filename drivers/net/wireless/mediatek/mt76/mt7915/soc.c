@@ -6,7 +6,6 @@
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/of_gpio.h>
 #include <linux/iopoll.h>
@@ -15,6 +14,9 @@
 #include <linux/clk.h>
 
 #include "mt7915.h"
+
+#define MT7981_CON_INFRA_VERSION 0x02090000
+#define MT7986_CON_INFRA_VERSION 0x02070000
 
 /* INFRACFG */
 #define MT_INFRACFG_CONN2AP_SLPPROT	0x0d0
@@ -167,9 +169,13 @@ static u32 mt76_wmac_rmw(void __iomem *base, u32 offset, u32 mask, u32 val)
 	return val;
 }
 
-static u8 mt7986_wmac_check_adie_type(struct mt7915_dev *dev)
+static u8 mt798x_wmac_check_adie_type(struct mt7915_dev *dev)
 {
 	u32 val;
+
+	/* Only DBDC A-die is used with MT7981 */
+	if (is_mt7981(&dev->mt76))
+		return ADIE_DBDC;
 
 	val = readl(dev->sku + MT_TOP_POS_SKU);
 
@@ -195,7 +201,7 @@ static int mt7986_wmac_gpio_setup(struct mt7915_dev *dev)
 	int ret;
 	u8 type;
 
-	type = mt7986_wmac_check_adie_type(dev);
+	type = mt798x_wmac_check_adie_type(dev);
 	pinctrl = devm_pinctrl_get(dev->mt76.dev);
 	if (IS_ERR(pinctrl))
 		return PTR_ERR(pinctrl);
@@ -257,16 +263,26 @@ static int mt7986_wmac_consys_lockup(struct mt7915_dev *dev, bool enable)
 	return 0;
 }
 
-static int mt7986_wmac_coninfra_check(struct mt7915_dev *dev)
+static int mt798x_wmac_coninfra_check(struct mt7915_dev *dev)
 {
 	u32 cur;
+	u32 con_infra_version;
 
-	return read_poll_timeout(mt76_rr, cur, (cur == 0x02070000),
+	if (is_mt7981(&dev->mt76)) {
+		con_infra_version = MT7981_CON_INFRA_VERSION;
+	} else if (is_mt7986(&dev->mt76)) {
+		con_infra_version = MT7986_CON_INFRA_VERSION;
+	} else {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return read_poll_timeout(mt76_rr, cur, (cur == con_infra_version),
 				 USEC_PER_MSEC, 50 * USEC_PER_MSEC,
 				 false, dev, MT_CONN_INFRA_BASE);
 }
 
-static int mt7986_wmac_coninfra_setup(struct mt7915_dev *dev)
+static int mt798x_wmac_coninfra_setup(struct mt7915_dev *dev)
 {
 	struct device *pdev = dev->mt76.dev;
 	struct reserved_mem *rmem;
@@ -284,14 +300,24 @@ static int mt7986_wmac_coninfra_setup(struct mt7915_dev *dev)
 
 	val = (rmem->base >> 16) & MT_TOP_MCU_EMI_BASE_MASK;
 
-	/* Set conninfra subsys PLL check */
-	mt76_rmw_field(dev, MT_INFRA_CKGEN_BUS,
-		       MT_INFRA_CKGEN_BUS_RDY_SEL_MASK, 0x1);
-	mt76_rmw_field(dev, MT_INFRA_CKGEN_BUS,
-		       MT_INFRA_CKGEN_BUS_RDY_SEL_MASK, 0x1);
+	if (is_mt7986(&dev->mt76)) {
+		/* Set conninfra subsys PLL check */
+		mt76_rmw_field(dev, MT_INFRA_CKGEN_BUS,
+			       MT_INFRA_CKGEN_BUS_RDY_SEL_MASK, 0x1);
+		mt76_rmw_field(dev, MT_INFRA_CKGEN_BUS,
+			       MT_INFRA_CKGEN_BUS_RDY_SEL_MASK, 0x1);
+	}
 
 	mt76_rmw_field(dev, MT_TOP_MCU_EMI_BASE,
 		       MT_TOP_MCU_EMI_BASE_MASK, val);
+
+	if (is_mt7981(&dev->mt76)) {
+		mt76_rmw_field(dev, MT_TOP_WF_AP_PERI_BASE,
+			       MT_TOP_WF_AP_PERI_BASE_MASK, 0x300d0000 >> 16);
+
+		mt76_rmw_field(dev, MT_TOP_EFUSE_BASE,
+			       MT_TOP_EFUSE_BASE_MASK, 0x11f20000 >> 16);
+	}
 
 	mt76_wr(dev, MT_INFRA_BUS_EMI_START, rmem->base);
 	mt76_wr(dev, MT_INFRA_BUS_EMI_END, rmem->size);
@@ -305,15 +331,18 @@ static int mt7986_wmac_coninfra_setup(struct mt7915_dev *dev)
 	return 0;
 }
 
-static int mt7986_wmac_sku_setup(struct mt7915_dev *dev, u32 *adie_type)
+static int mt798x_wmac_sku_setup(struct mt7915_dev *dev, u32 *adie_type)
 {
 	int ret;
-	u32 adie_main, adie_ext;
+	u32 adie_main = 0, adie_ext = 0;
 
 	mt76_rmw_field(dev, MT_CONN_INFRA_ADIE_RESET,
 		       MT_CONN_INFRA_ADIE1_RESET_MASK, 0x1);
-	mt76_rmw_field(dev, MT_CONN_INFRA_ADIE_RESET,
-		       MT_CONN_INFRA_ADIE2_RESET_MASK, 0x1);
+
+	if (is_mt7986(&dev->mt76)) {
+		mt76_rmw_field(dev, MT_CONN_INFRA_ADIE_RESET,
+			       MT_CONN_INFRA_ADIE2_RESET_MASK, 0x1);
+	}
 
 	mt76_wmac_spi_lock(dev);
 
@@ -321,9 +350,11 @@ static int mt7986_wmac_sku_setup(struct mt7915_dev *dev, u32 *adie_type)
 	if (ret)
 		goto out;
 
-	ret = mt76_wmac_spi_read(dev, 1, MT_ADIE_CHIP_ID, &adie_ext);
-	if (ret)
-		goto out;
+	if (is_mt7986(&dev->mt76)) {
+		ret = mt76_wmac_spi_read(dev, 1, MT_ADIE_CHIP_ID, &adie_ext);
+		if (ret)
+			goto out;
+	}
 
 	*adie_type = FIELD_GET(MT_ADIE_CHIP_ID_MASK, adie_main) |
 		     (MT_ADIE_CHIP_ID_MASK & adie_ext);
@@ -470,7 +501,7 @@ static int mt7986_wmac_adie_xtal_trim_7976(struct mt7915_dev *dev, u8 adie)
 	return ret;
 }
 
-static int mt7986_wmac_adie_patch_7976(struct mt7915_dev *dev, u8 adie)
+static int mt798x_wmac_adie_patch_7976(struct mt7915_dev *dev, u8 adie)
 {
 	u32 id, version, rg_xo_01, rg_xo_03;
 	int ret;
@@ -489,7 +520,14 @@ static int mt7986_wmac_adie_patch_7976(struct mt7915_dev *dev, u8 adie)
 		rg_xo_01 = 0x1d59080f;
 		rg_xo_03 = 0x34c00fe0;
 	} else {
-		rg_xo_01 = 0x1959f80f;
+		if (is_mt7981(&dev->mt76)) {
+			rg_xo_01 = 0x1959c80f;
+		} else if (is_mt7986(&dev->mt76)) {
+			rg_xo_01 = 0x1959f80f;
+		} else {
+			WARN_ON(1);
+			return -EINVAL;
+		}
 		rg_xo_03 = 0x34d00fe0;
 	}
 
@@ -611,7 +649,15 @@ static int mt7986_wmac_adie_patch_7975(struct mt7915_dev *dev, u8 adie)
 		return ret;
 
 	/* turn on SX0 LTBUF */
-	ret = mt76_wmac_spi_write(dev, adie, 0x074, 0x00000002);
+	if (is_mt7981(&dev->mt76)) {
+		ret = mt76_wmac_spi_write(dev, adie, 0x074, 0x00000007);
+	} else if (is_mt7986(&dev->mt76)) {
+		ret = mt76_wmac_spi_write(dev, adie, 0x074, 0x00000002);
+	} else {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
 	if (ret)
 		return ret;
 
@@ -658,7 +704,10 @@ static int mt7986_wmac_adie_patch_7975(struct mt7915_dev *dev, u8 adie)
 		return ret;
 
 	/* set CKB driving and filter */
-	return mt76_wmac_spi_write(dev, adie, 0x2c8, 0x00000072);
+	if (is_mt7986(&dev->mt76))
+		return mt76_wmac_spi_write(dev, adie, 0x2c8, 0x00000072);
+
+	return ret;
 }
 
 static int mt7986_wmac_adie_cfg(struct mt7915_dev *dev, u8 adie, u32 adie_type)
@@ -686,7 +735,7 @@ static int mt7986_wmac_adie_cfg(struct mt7915_dev *dev, u8 adie, u32 adie_type)
 
 		ret = mt7986_wmac_adie_patch_7975(dev, adie);
 	} else if (is_7976(dev, adie, adie_type)) {
-		if (mt7986_wmac_check_adie_type(dev) == ADIE_DBDC) {
+		if (mt798x_wmac_check_adie_type(dev) == ADIE_DBDC) {
 			ret = mt76_wmac_spi_write(dev, adie,
 						  MT_ADIE_WRI_CK_SEL, 0x1c);
 			if (ret)
@@ -701,7 +750,7 @@ static int mt7986_wmac_adie_cfg(struct mt7915_dev *dev, u8 adie, u32 adie_type)
 		if (ret)
 			goto out;
 
-		ret = mt7986_wmac_adie_patch_7976(dev, adie);
+		ret = mt798x_wmac_adie_patch_7976(dev, adie);
 	}
 out:
 	mt76_wmac_spi_unlock(dev);
@@ -714,6 +763,7 @@ mt7986_wmac_afe_cal(struct mt7915_dev *dev, u8 adie, bool dbdc, u32 adie_type)
 {
 	int ret;
 	u8 idx;
+	u32 txcal;
 
 	mt76_wmac_spi_lock(dev);
 	if (is_7975(dev, adie, adie_type))
@@ -744,12 +794,18 @@ mt7986_wmac_afe_cal(struct mt7915_dev *dev, u8 adie, bool dbdc, u32 adie_type)
 		       MT_AFE_RG_WBG_EN_WPLL_UP_MASK, 0x1);
 	usleep_range(60, 100);
 
-	mt76_rmw_field(dev, MT_AFE_DIG_EN_01(idx),
-		       MT_AFE_RG_WBG_EN_TXCAL_MASK, 0x1f);
+	txcal = (MT_AFE_RG_WBG_EN_TXCAL_BT |
+		      MT_AFE_RG_WBG_EN_TXCAL_WF0 |
+		      MT_AFE_RG_WBG_EN_TXCAL_WF1 |
+		      MT_AFE_RG_WBG_EN_TXCAL_WF2 |
+		      MT_AFE_RG_WBG_EN_TXCAL_WF3);
+	if (is_mt7981(&dev->mt76))
+		txcal |= MT_AFE_RG_WBG_EN_TXCAL_WF4;
+
+	mt76_set(dev, MT_AFE_DIG_EN_01(idx), txcal);
 	usleep_range(800, 1000);
 
-	mt76_rmw(dev, MT_AFE_DIG_EN_01(idx),
-		 MT_AFE_RG_WBG_EN_TXCAL_MASK, 0x0);
+	mt76_clear(dev, MT_AFE_DIG_EN_01(idx), txcal);
 	mt76_rmw(dev, MT_AFE_DIG_EN_03(idx),
 		 MT_AFE_RG_WBG_EN_PLL_UP_MASK, 0x0);
 
@@ -806,7 +862,7 @@ static int mt7986_wmac_bus_timeout(struct mt7915_dev *dev)
 	mt76_rmw_field(dev, MT_INFRA_BUS_ON_TIMEOUT,
 		       MT_INFRA_BUS_TIMEOUT_EN_MASK, 0xf);
 
-	return mt7986_wmac_coninfra_check(dev);
+	return mt798x_wmac_coninfra_check(dev);
 }
 
 static void mt7986_wmac_clock_enable(struct mt7915_dev *dev, u32 adie_type)
@@ -876,14 +932,15 @@ static int mt7986_wmac_top_wfsys_wakeup(struct mt7915_dev *dev, bool enable)
 	if (!enable)
 		return 0;
 
-	return mt7986_wmac_coninfra_check(dev);
+	return mt798x_wmac_coninfra_check(dev);
 }
 
 static int mt7986_wmac_wm_enable(struct mt7915_dev *dev, bool enable)
 {
 	u32 cur;
 
-	mt76_wr(dev, MT_CONNINFRA_SKU_DEC_ADDR, 0);
+	if (is_mt7986(&dev->mt76))
+		mt76_wr(dev, MT_CONNINFRA_SKU_DEC_ADDR, 0);
 
 	mt76_rmw_field(dev, MT7986_TOP_WM_RESET,
 		       MT7986_TOP_WM_RESET_MASK, enable);
@@ -1006,7 +1063,7 @@ mt7986_wmac_adie_setup(struct mt7915_dev *dev, u8 adie, u32 adie_type)
 	if (ret)
 		return ret;
 
-	if (!adie && (mt7986_wmac_check_adie_type(dev) == ADIE_DBDC))
+	if (!adie && (mt798x_wmac_check_adie_type(dev) == ADIE_DBDC))
 		ret = mt7986_wmac_afe_cal(dev, adie, true, adie_type);
 
 	return ret;
@@ -1061,15 +1118,15 @@ int mt7986_wmac_enable(struct mt7915_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt7986_wmac_coninfra_check(dev);
+	ret = mt798x_wmac_coninfra_check(dev);
 	if (ret)
 		return ret;
 
-	ret = mt7986_wmac_coninfra_setup(dev);
+	ret = mt798x_wmac_coninfra_setup(dev);
 	if (ret)
 		return ret;
 
-	ret = mt7986_wmac_sku_setup(dev, &adie_type);
+	ret = mt798x_wmac_sku_setup(dev, &adie_type);
 	if (ret)
 		return ret;
 
@@ -1077,9 +1134,12 @@ int mt7986_wmac_enable(struct mt7915_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt7986_wmac_adie_setup(dev, 1, adie_type);
-	if (ret)
-		return ret;
+	/* mt7981 doesn't support a second a-die */
+	if (is_mt7986(&dev->mt76)) {
+		ret = mt7986_wmac_adie_setup(dev, 1, adie_type);
+		if (ret)
+			return ret;
+	}
 
 	ret = mt7986_wmac_subsys_powerup(dev, adie_type);
 	if (ret)
@@ -1132,7 +1192,7 @@ void mt7986_wmac_disable(struct mt7915_dev *dev)
 	mt7986_wmac_consys_reset(dev, false);
 }
 
-static int mt7986_wmac_init(struct mt7915_dev *dev)
+static int mt798x_wmac_init(struct mt7915_dev *dev)
 {
 	struct device *pdev = dev->mt76.dev;
 	struct platform_device *pfdev = to_platform_device(pdev);
@@ -1165,7 +1225,7 @@ static int mt7986_wmac_init(struct mt7915_dev *dev)
 	return 0;
 }
 
-static int mt7986_wmac_probe(struct platform_device *pdev)
+static int mt798x_wmac_probe(struct platform_device *pdev)
 {
 	void __iomem *mem_base;
 	struct mt7915_dev *dev;
@@ -1203,7 +1263,7 @@ static int mt7986_wmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_device;
 
-	ret = mt7986_wmac_init(dev);
+	ret = mt798x_wmac_init(dev);
 	if (ret)
 		goto free_irq;
 
@@ -1225,7 +1285,7 @@ free_device:
 	return ret;
 }
 
-static int mt7986_wmac_remove(struct platform_device *pdev)
+static int mt798x_wmac_remove(struct platform_device *pdev)
 {
 	struct mt7915_dev *dev = platform_get_drvdata(pdev);
 
@@ -1234,20 +1294,21 @@ static int mt7986_wmac_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id mt7986_wmac_of_match[] = {
+static const struct of_device_id mt798x_wmac_of_match[] = {
+	{ .compatible = "mediatek,mt7981-wmac", .data = (u32 *)0x7981 },
 	{ .compatible = "mediatek,mt7986-wmac", .data = (u32 *)0x7986 },
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, mt7986_wmac_of_match);
+MODULE_DEVICE_TABLE(of, mt798x_wmac_of_match);
 
-struct platform_driver mt7986_wmac_driver = {
+struct platform_driver mt798x_wmac_driver = {
 	.driver = {
-		.name = "mt7986-wmac",
-		.of_match_table = mt7986_wmac_of_match,
+		.name = "mt798x-wmac",
+		.of_match_table = mt798x_wmac_of_match,
 	},
-	.probe = mt7986_wmac_probe,
-	.remove = mt7986_wmac_remove,
+	.probe = mt798x_wmac_probe,
+	.remove = mt798x_wmac_remove,
 };
 
 MODULE_FIRMWARE(MT7986_FIRMWARE_WA);
@@ -1255,3 +1316,7 @@ MODULE_FIRMWARE(MT7986_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7986_FIRMWARE_WM_MT7975);
 MODULE_FIRMWARE(MT7986_ROM_PATCH);
 MODULE_FIRMWARE(MT7986_ROM_PATCH_MT7975);
+
+MODULE_FIRMWARE(MT7981_FIRMWARE_WA);
+MODULE_FIRMWARE(MT7981_FIRMWARE_WM);
+MODULE_FIRMWARE(MT7981_ROM_PATCH);

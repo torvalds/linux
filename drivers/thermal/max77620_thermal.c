@@ -139,8 +139,6 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, mtherm);
-
 	return 0;
 }
 

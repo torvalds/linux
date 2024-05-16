@@ -548,12 +548,12 @@ static inline void kvmppc_set_host_ipi(int cpu)
 	 * pairs with the barrier in kvmppc_clear_host_ipi()
 	 */
 	smp_mb();
-	paca_ptrs[cpu]->kvm_hstate.host_ipi = 1;
+	WRITE_ONCE(paca_ptrs[cpu]->kvm_hstate.host_ipi, 1);
 }
 
 static inline void kvmppc_clear_host_ipi(int cpu)
 {
-	paca_ptrs[cpu]->kvm_hstate.host_ipi = 0;
+	WRITE_ONCE(paca_ptrs[cpu]->kvm_hstate.host_ipi, 0);
 	/*
 	 * order clearing of host_ipi flag vs. processing of IPI messages
 	 *
@@ -894,7 +894,7 @@ void kvmppc_init_lpid(unsigned long nr_lpids);
 
 static inline void kvmppc_mmu_flush_icache(kvm_pfn_t pfn)
 {
-	struct page *page;
+	struct folio *folio;
 	/*
 	 * We can only access pages that the kernel maps
 	 * as memory. Bail out for unmapped ones.
@@ -903,10 +903,10 @@ static inline void kvmppc_mmu_flush_icache(kvm_pfn_t pfn)
 		return;
 
 	/* Clear i-cache for new pages */
-	page = pfn_to_page(pfn);
-	if (!test_bit(PG_dcache_clean, &page->flags)) {
-		flush_dcache_icache_page(page);
-		set_bit(PG_dcache_clean, &page->flags);
+	folio = page_folio(pfn_to_page(pfn));
+	if (!test_bit(PG_dcache_clean, &folio->flags)) {
+		flush_dcache_icache_folio(folio);
+		set_bit(PG_dcache_clean, &folio->flags);
 	}
 }
 

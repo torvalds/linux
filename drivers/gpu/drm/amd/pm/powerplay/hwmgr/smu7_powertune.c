@@ -520,8 +520,7 @@ static const struct gpu_pt_config_reg DIDTConfig_Polaris12[] = {
 	{   0xFFFFFFFF  }
 };
 
-static const struct gpu_pt_config_reg DIDTConfig_Polaris11_Kicker[] =
-{
+static const struct gpu_pt_config_reg DIDTConfig_Polaris11_Kicker[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                Shift                                               Value       Type
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -646,7 +645,7 @@ static const struct gpu_pt_config_reg DIDTConfig_Polaris11_Kicker[] =
 	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_CTRL_ENABLE_MASK,   DIDT_TCP_STALL_CTRL__DIDT_STALL_CTRL_ENABLE__SHIFT, 0x0001,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_HI_MASK,      DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_HI__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_LO_MASK,      DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_LO__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
-	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,  DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT,0x01aa,     GPU_CONFIGREG_DIDT_IND },
+	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,  DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT, 0x01aa,     GPU_CONFIGREG_DIDT_IND },
 	{   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__UNUSED_0_MASK,                 DIDT_TCP_STALL_CTRL__UNUSED_0__SHIFT,               0x0000,     GPU_CONFIGREG_DIDT_IND },
 
 	{   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,      DIDT_TCP_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
@@ -666,8 +665,7 @@ static const struct gpu_pt_config_reg DIDTConfig_Polaris11_Kicker[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct gpu_pt_config_reg GCCACConfig_VegaM[] =
-{
+static const struct gpu_pt_config_reg GCCACConfig_VegaM[] = {
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //      Offset                             Mask                                                Shift                                               Value       Type
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -703,8 +701,7 @@ static const struct gpu_pt_config_reg GCCACConfig_VegaM[] =
     {   0xFFFFFFFF  }  // End of list
 };
 
-static const struct gpu_pt_config_reg DIDTConfig_VegaM[] =
-{
+static const struct gpu_pt_config_reg DIDTConfig_VegaM[] = {
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //      Offset                             Mask                                                Shift                                               Value       Type
 // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -831,7 +828,7 @@ static const struct gpu_pt_config_reg DIDTConfig_VegaM[] =
     {   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_CTRL_ENABLE_MASK,   DIDT_TCP_STALL_CTRL__DIDT_STALL_CTRL_ENABLE__SHIFT, 0x0001,     GPU_CONFIGREG_DIDT_IND },
     {   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_HI_MASK,      DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_HI__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
     {   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_LO_MASK,      DIDT_TCP_STALL_CTRL__DIDT_STALL_DELAY_LO__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
-    {   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,  DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT,0x01aa,     GPU_CONFIGREG_DIDT_IND },
+    {   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD_MASK,  DIDT_TCP_STALL_CTRL__DIDT_HI_POWER_THRESHOLD__SHIFT, 0x01aa,     GPU_CONFIGREG_DIDT_IND },
     {   ixDIDT_TCP_STALL_CTRL,             DIDT_TCP_STALL_CTRL__UNUSED_0_MASK,                 DIDT_TCP_STALL_CTRL__UNUSED_0__SHIFT,               0x0000,     GPU_CONFIGREG_DIDT_IND },
 
     {   ixDIDT_TCP_TUNING_CTRL,            DIDT_TCP_TUNING_CTRL__DIDT_TUNING_ENABLE_MASK,      DIDT_TCP_TUNING_CTRL__DIDT_TUNING_ENABLE__SHIFT,    0x0001,     GPU_CONFIGREG_DIDT_IND },
@@ -973,7 +970,7 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 	    PP_CAP(PHM_PlatformCaps_TDRamping) ||
 	    PP_CAP(PHM_PlatformCaps_TCPRamping)) {
 
-		amdgpu_gfx_rlc_enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 		mutex_lock(&adev->grbm_idx_mutex);
 		value = 0;
 		value2 = cgs_read_register(hwmgr->device, mmGRBM_GFX_INDEX);
@@ -1048,13 +1045,13 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 		}
 
 		mutex_unlock(&adev->grbm_idx_mutex);
-		amdgpu_gfx_rlc_exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	}
 
 	return 0;
 error:
 	mutex_unlock(&adev->grbm_idx_mutex);
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	return result;
 }
 
@@ -1068,7 +1065,7 @@ int smu7_disable_didt_config(struct pp_hwmgr *hwmgr)
 	    PP_CAP(PHM_PlatformCaps_TDRamping) ||
 	    PP_CAP(PHM_PlatformCaps_TCPRamping)) {
 
-		amdgpu_gfx_rlc_enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 		result = smu7_enable_didt(hwmgr, false);
 		PP_ASSERT_WITH_CODE((result == 0),
@@ -1081,12 +1078,12 @@ int smu7_disable_didt_config(struct pp_hwmgr *hwmgr)
 			PP_ASSERT_WITH_CODE((0 == result),
 					"Failed to disable DPM DIDT.", goto error);
 		}
-		amdgpu_gfx_rlc_exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	}
 
 	return 0;
 error:
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	return result;
 }
 
@@ -1103,7 +1100,7 @@ int smu7_enable_smc_cac(struct pp_hwmgr *hwmgr)
 		PP_ASSERT_WITH_CODE((0 == smc_result),
 				"Failed to enable CAC in SMC.", result = -1);
 
-		data->cac_enabled = (0 == smc_result) ? true : false;
+		data->cac_enabled = smc_result == 0;
 	}
 	return result;
 }

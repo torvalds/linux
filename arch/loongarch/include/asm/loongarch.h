@@ -12,54 +12,8 @@
 #ifndef __ASSEMBLY__
 #include <larchintrin.h>
 
-/*
- * parse_r var, r - Helper assembler macro for parsing register names.
- *
- * This converts the register name in $n form provided in \r to the
- * corresponding register number, which is assigned to the variable \var. It is
- * needed to allow explicit encoding of instructions in inline assembly where
- * registers are chosen by the compiler in $n form, allowing us to avoid using
- * fixed register numbers.
- *
- * It also allows newer instructions (not implemented by the assembler) to be
- * transparently implemented using assembler macros, instead of needing separate
- * cases depending on toolchain support.
- *
- * Simple usage example:
- * __asm__ __volatile__("parse_r addr, %0\n\t"
- *			"#invtlb op, 0, %0\n\t"
- *			".word ((0x6498000) | (addr << 10) | (0 << 5) | op)"
- *			: "=r" (status);
- */
-
-/* Match an individual register number and assign to \var */
-#define _IFC_REG(n)				\
-	".ifc	\\r, $r" #n "\n\t"		\
-	"\\var	= " #n "\n\t"			\
-	".endif\n\t"
-
-__asm__(".macro	parse_r var r\n\t"
-	"\\var	= -1\n\t"
-	_IFC_REG(0)  _IFC_REG(1)  _IFC_REG(2)  _IFC_REG(3)
-	_IFC_REG(4)  _IFC_REG(5)  _IFC_REG(6)  _IFC_REG(7)
-	_IFC_REG(8)  _IFC_REG(9)  _IFC_REG(10) _IFC_REG(11)
-	_IFC_REG(12) _IFC_REG(13) _IFC_REG(14) _IFC_REG(15)
-	_IFC_REG(16) _IFC_REG(17) _IFC_REG(18) _IFC_REG(19)
-	_IFC_REG(20) _IFC_REG(21) _IFC_REG(22) _IFC_REG(23)
-	_IFC_REG(24) _IFC_REG(25) _IFC_REG(26) _IFC_REG(27)
-	_IFC_REG(28) _IFC_REG(29) _IFC_REG(30) _IFC_REG(31)
-	".iflt	\\var\n\t"
-	".error	\"Unable to parse register name \\r\"\n\t"
-	".endif\n\t"
-	".endm");
-
-#undef _IFC_REG
-
 /* CPUCFG */
-static inline u32 read_cpucfg(u32 reg)
-{
-	return __cpucfg(reg);
-}
+#define read_cpucfg(reg) __cpucfg(reg)
 
 #endif /* !__ASSEMBLY__ */
 
@@ -138,6 +92,7 @@ static inline u32 read_cpucfg(u32 reg)
 #define  CPUCFG2_MIPSBT			BIT(20)
 #define  CPUCFG2_LSPW			BIT(21)
 #define  CPUCFG2_LAM			BIT(22)
+#define  CPUCFG2_PTW			BIT(24)
 
 #define LOONGARCH_CPUCFG3		0x3
 #define  CPUCFG3_CCDMA			BIT(0)
@@ -206,56 +161,18 @@ static inline u32 read_cpucfg(u32 reg)
 #ifndef __ASSEMBLY__
 
 /* CSR */
-static __always_inline u32 csr_read32(u32 reg)
-{
-	return __csrrd_w(reg);
-}
-
-static __always_inline u64 csr_read64(u32 reg)
-{
-	return __csrrd_d(reg);
-}
-
-static __always_inline void csr_write32(u32 val, u32 reg)
-{
-	__csrwr_w(val, reg);
-}
-
-static __always_inline void csr_write64(u64 val, u32 reg)
-{
-	__csrwr_d(val, reg);
-}
-
-static __always_inline u32 csr_xchg32(u32 val, u32 mask, u32 reg)
-{
-	return __csrxchg_w(val, mask, reg);
-}
-
-static __always_inline u64 csr_xchg64(u64 val, u64 mask, u32 reg)
-{
-	return __csrxchg_d(val, mask, reg);
-}
+#define csr_read32(reg) __csrrd_w(reg)
+#define csr_read64(reg) __csrrd_d(reg)
+#define csr_write32(val, reg) __csrwr_w(val, reg)
+#define csr_write64(val, reg) __csrwr_d(val, reg)
+#define csr_xchg32(val, mask, reg) __csrxchg_w(val, mask, reg)
+#define csr_xchg64(val, mask, reg) __csrxchg_d(val, mask, reg)
 
 /* IOCSR */
-static __always_inline u32 iocsr_read32(u32 reg)
-{
-	return __iocsrrd_w(reg);
-}
-
-static __always_inline u64 iocsr_read64(u32 reg)
-{
-	return __iocsrrd_d(reg);
-}
-
-static __always_inline void iocsr_write32(u32 val, u32 reg)
-{
-	__iocsrwr_w(val, reg);
-}
-
-static __always_inline void iocsr_write64(u64 val, u32 reg)
-{
-	__iocsrwr_d(val, reg);
-}
+#define iocsr_read32(reg) __iocsrrd_w(reg)
+#define iocsr_read64(reg) __iocsrrd_d(reg)
+#define iocsr_write32(val, reg) __iocsrwr_w(val, reg)
+#define iocsr_write64(val, reg) __iocsrwr_d(val, reg)
 
 #endif /* !__ASSEMBLY__ */
 
@@ -453,6 +370,9 @@ static __always_inline void iocsr_write64(u64 val, u32 reg)
 #define  CSR_PWCTL0_PTBASE		(_ULCAST_(0x1f) << CSR_PWCTL0_PTBASE_SHIFT)
 
 #define LOONGARCH_CSR_PWCTL1		0x1d	/* PWCtl1 */
+#define  CSR_PWCTL1_PTW_SHIFT		24
+#define  CSR_PWCTL1_PTW_WIDTH		1
+#define  CSR_PWCTL1_PTW			(_ULCAST_(0x1) << CSR_PWCTL1_PTW_SHIFT)
 #define  CSR_PWCTL1_DIR3WIDTH_SHIFT	18
 #define  CSR_PWCTL1_DIR3WIDTH_WIDTH	5
 #define  CSR_PWCTL1_DIR3WIDTH		(_ULCAST_(0x1f) << CSR_PWCTL1_DIR3WIDTH_SHIFT)
@@ -1167,7 +1087,7 @@ static __always_inline void iocsr_write64(u64 val, u32 reg)
 
 #ifndef __ASSEMBLY__
 
-static inline u64 drdtime(void)
+static __always_inline u64 drdtime(void)
 {
 	int rID = 0;
 	u64 val = 0;
@@ -1441,11 +1361,18 @@ __BUILD_CSR_OP(tlbidx)
 #define EXCCODE_INT_START	64
 #define EXCCODE_INT_END		(EXCCODE_INT_START + EXCCODE_INT_NUM - 1)
 
-/* FPU register names */
+/* FPU Status Register Names */
+#ifndef CONFIG_AS_HAS_FCSR_CLASS
 #define LOONGARCH_FCSR0	$r0
 #define LOONGARCH_FCSR1	$r1
 #define LOONGARCH_FCSR2	$r2
 #define LOONGARCH_FCSR3	$r3
+#else
+#define LOONGARCH_FCSR0	$fcsr0
+#define LOONGARCH_FCSR1	$fcsr1
+#define LOONGARCH_FCSR2	$fcsr2
+#define LOONGARCH_FCSR3	$fcsr3
+#endif
 
 /* FPU Status Register Values */
 #define FPU_CSR_RSVD	0xe0e0fce0
@@ -1482,6 +1409,10 @@ __BUILD_CSR_OP(tlbidx)
 #define FPU_CSR_RZ	0x100	/* towards zero */
 #define FPU_CSR_RU	0x200	/* towards +Infinity */
 #define FPU_CSR_RD	0x300	/* towards -Infinity */
+
+/* Bit 6 of FPU Status Register specify the LBT TOP simulation mode */
+#define FPU_CSR_TM_SHIFT	0x6
+#define FPU_CSR_TM		(_ULCAST_(1) << FPU_CSR_TM_SHIFT)
 
 #define read_fcsr(source)	\
 ({	\

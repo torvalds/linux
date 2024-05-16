@@ -266,6 +266,7 @@ LIBBPF_API int bpf_object__pin_programs(struct bpf_object *obj,
 LIBBPF_API int bpf_object__unpin_programs(struct bpf_object *obj,
 					  const char *path);
 LIBBPF_API int bpf_object__pin(struct bpf_object *object, const char *path);
+LIBBPF_API int bpf_object__unpin(struct bpf_object *object, const char *path);
 
 LIBBPF_API const char *bpf_object__name(const struct bpf_object *obj);
 LIBBPF_API unsigned int bpf_object__kversion(const struct bpf_object *obj);
@@ -529,6 +530,57 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 				      const char *pattern,
 				      const struct bpf_kprobe_multi_opts *opts);
 
+struct bpf_uprobe_multi_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	/* array of function symbols to attach to */
+	const char **syms;
+	/* array of function addresses to attach to */
+	const unsigned long *offsets;
+	/* optional, array of associated ref counter offsets */
+	const unsigned long *ref_ctr_offsets;
+	/* optional, array of associated BPF cookies */
+	const __u64 *cookies;
+	/* number of elements in syms/addrs/cookies arrays */
+	size_t cnt;
+	/* create return uprobes */
+	bool retprobe;
+	size_t :0;
+};
+
+#define bpf_uprobe_multi_opts__last_field retprobe
+
+/**
+ * @brief **bpf_program__attach_uprobe_multi()** attaches a BPF program
+ * to multiple uprobes with uprobe_multi link.
+ *
+ * User can specify 2 mutually exclusive set of inputs:
+ *
+ *   1) use only path/func_pattern/pid arguments
+ *
+ *   2) use path/pid with allowed combinations of
+ *      syms/offsets/ref_ctr_offsets/cookies/cnt
+ *
+ *      - syms and offsets are mutually exclusive
+ *      - ref_ctr_offsets and cookies are optional
+ *
+ *
+ * @param prog BPF program to attach
+ * @param pid Process ID to attach the uprobe to, 0 for self (own process),
+ * -1 for all processes
+ * @param binary_path Path to binary
+ * @param func_pattern Regular expression to specify functions to attach
+ * BPF program to
+ * @param opts Additional options (see **struct bpf_uprobe_multi_opts**)
+ * @return 0, on success; negative error code, otherwise
+ */
+LIBBPF_API struct bpf_link *
+bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
+				 pid_t pid,
+				 const char *binary_path,
+				 const char *func_pattern,
+				 const struct bpf_uprobe_multi_opts *opts);
+
 struct bpf_ksyscall_opts {
 	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
@@ -718,6 +770,36 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_freplace(const struct bpf_program *prog,
 			     int target_fd, const char *attach_func_name);
 
+struct bpf_netfilter_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+
+	__u32 pf;
+	__u32 hooknum;
+	__s32 priority;
+	__u32 flags;
+};
+#define bpf_netfilter_opts__last_field flags
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_netfilter(const struct bpf_program *prog,
+			      const struct bpf_netfilter_opts *opts);
+
+struct bpf_tcx_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	__u32 flags;
+	__u32 relative_fd;
+	__u32 relative_id;
+	__u64 expected_revision;
+	size_t :0;
+};
+#define bpf_tcx_opts__last_field expected_revision
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_tcx(const struct bpf_program *prog, int ifindex,
+			const struct bpf_tcx_opts *opts);
+
 struct bpf_map;
 
 LIBBPF_API struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map);
@@ -869,8 +951,22 @@ LIBBPF_API int bpf_map__set_numa_node(struct bpf_map *map, __u32 numa_node);
 /* get/set map key size */
 LIBBPF_API __u32 bpf_map__key_size(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_key_size(struct bpf_map *map, __u32 size);
-/* get/set map value size */
+/* get map value size */
 LIBBPF_API __u32 bpf_map__value_size(const struct bpf_map *map);
+/**
+ * @brief **bpf_map__set_value_size()** sets map value size.
+ * @param map the BPF map instance
+ * @return 0, on success; negative error, otherwise
+ *
+ * There is a special case for maps with associated memory-mapped regions, like
+ * the global data section maps (bss, data, rodata). When this function is used
+ * on such a map, the mapped region is resized. Afterward, an attempt is made to
+ * adjust the corresponding BTF info. This attempt is best-effort and can only
+ * succeed if the last variable of the data section map is an array. The array
+ * BTF type is replaced by a new BTF array type with a different length.
+ * Any previously existing pointers returned from bpf_map__initial_value() or
+ * corresponding data section skeleton pointer must be reinitialized.
+ */
 LIBBPF_API int bpf_map__set_value_size(struct bpf_map *map, __u32 size);
 /* get map key/value BTF type IDs */
 LIBBPF_API __u32 bpf_map__btf_key_type_id(const struct bpf_map *map);
@@ -884,7 +980,7 @@ LIBBPF_API int bpf_map__set_map_extra(struct bpf_map *map, __u64 map_extra);
 
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
-LIBBPF_API const void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
+LIBBPF_API void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
 
 /**
  * @brief **bpf_map__is_internal()** tells the caller whether or not the
@@ -1076,9 +1172,10 @@ struct bpf_xdp_query_opts {
 	__u32 skb_prog_id;	/* output */
 	__u8 attach_mode;	/* output */
 	__u64 feature_flags;	/* output */
+	__u32 xdp_zc_max_segs;	/* output */
 	size_t :0;
 };
-#define bpf_xdp_query_opts__last_field feature_flags
+#define bpf_xdp_query_opts__last_field xdp_zc_max_segs
 
 LIBBPF_API int bpf_xdp_attach(int ifindex, int prog_fd, __u32 flags,
 			      const struct bpf_xdp_attach_opts *opts);

@@ -1065,7 +1065,7 @@ static const struct regmap_config sta350_regmap = {
 	.max_register =		STA350_MISC2,
 	.reg_defaults =		sta350_regs,
 	.num_reg_defaults =	ARRAY_SIZE(sta350_regs),
-	.cache_type =		REGCACHE_RBTREE,
+	.cache_type =		REGCACHE_MAPLE,
 	.wr_table =		&sta350_write_regs,
 	.rd_table =		&sta350_read_regs,
 	.volatile_table =	&sta350_volatile_regs,
@@ -1249,7 +1249,7 @@ static struct i2c_driver sta350_i2c_driver = {
 		.name = "sta350",
 		.of_match_table = of_match_ptr(st350_dt_ids),
 	},
-	.probe_new = sta350_i2c_probe,
+	.probe =    sta350_i2c_probe,
 	.remove =   sta350_i2c_remove,
 	.id_table = sta350_i2c_id,
 };

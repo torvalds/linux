@@ -30,7 +30,7 @@ struct rtw89_debugfs_priv {
 		u32 cb_data;
 		struct {
 			u32 addr;
-			u8 len;
+			u32 len;
 		} read_reg;
 		struct {
 			u32 addr;
@@ -164,11 +164,14 @@ static int rtw89_debug_priv_read_reg_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
-	u32 addr, data;
-	u8 len;
+	u32 addr, end, data, k;
+	u32 len;
 
 	len = debugfs_priv->read_reg.len;
 	addr = debugfs_priv->read_reg.addr;
+
+	if (len > 4)
+		goto ndata;
 
 	switch (len) {
 	case 1:
@@ -186,6 +189,20 @@ static int rtw89_debug_priv_read_reg_get(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "get %d bytes at 0x%08x=0x%08x\n", len, addr, data);
+
+	return 0;
+
+ndata:
+	end = addr + len;
+
+	for (; addr < end; addr += 16) {
+		seq_printf(m, "%08xh : ", 0x18600000 + addr);
+		for (k = 0; k < 16; k += 4) {
+			data = rtw89_read32(rtwdev, addr + k);
+			seq_printf(m, "%08x ", data);
+		}
+		seq_puts(m, "\n");
+	}
 
 	return 0;
 }
@@ -359,6 +376,7 @@ struct txpwr_map {
 	u8 size;
 	u32 addr_from;
 	u32 addr_to;
+	u32 addr_to_1ss;
 };
 
 #define __GEN_TXPWR_ENT2(_t, _e0, _e1) \
@@ -396,6 +414,7 @@ static const struct txpwr_map __txpwr_map_byr = {
 	.size = ARRAY_SIZE(__txpwr_ent_byr),
 	.addr_from = R_AX_PWR_BY_RATE,
 	.addr_to = R_AX_PWR_BY_RATE_MAX,
+	.addr_to_1ss = R_AX_PWR_BY_RATE_1SS_MAX,
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt[] = {
@@ -451,6 +470,7 @@ static const struct txpwr_map __txpwr_map_lmt = {
 	.size = ARRAY_SIZE(__txpwr_ent_lmt),
 	.addr_from = R_AX_PWR_LMT,
 	.addr_to = R_AX_PWR_LMT_MAX,
+	.addr_to_1ss = R_AX_PWR_LMT_1SS_MAX,
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
@@ -478,6 +498,7 @@ static const struct txpwr_map __txpwr_map_lmt_ru = {
 	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru),
 	.addr_from = R_AX_PWR_RU_LMT,
 	.addr_to = R_AX_PWR_RU_LMT_MAX,
+	.addr_to_1ss = R_AX_PWR_RU_LMT_1SS_MAX,
 };
 
 static u8 __print_txpwr_ent(struct seq_file *m, const struct txpwr_ent *ent,
@@ -510,6 +531,8 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 			     const struct txpwr_map *map)
 {
 	u8 fct = rtwdev->chip->txpwr_factor_mac;
+	u8 path_num = rtwdev->chip->rf_path_num;
+	u32 max_valid_addr;
 	u32 val, addr;
 	s8 *buf, tmp;
 	u8 cur, i;
@@ -519,7 +542,12 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 	if (!buf)
 		return -ENOMEM;
 
-	for (addr = map->addr_from; addr <= map->addr_to; addr += 4) {
+	if (path_num == 1)
+		max_valid_addr = map->addr_to_1ss;
+	else
+		max_valid_addr = map->addr_to;
+
+	for (addr = map->addr_from; addr <= max_valid_addr; addr += 4) {
 		ret = rtw89_mac_txpwr_read32(rtwdev, RTW89_PHY_0, addr, &val);
 		if (ret)
 			val = MASKDWORD;
@@ -544,9 +572,9 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 		seq_puts(m, #_regd "\n"); \
 		break
 
-static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev)
+static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
+			 const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
@@ -576,16 +604,21 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	const struct rtw89_chan *chan;
 	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
+	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
 	seq_puts(m, "[Regulatory] ");
-	__print_regd(m, rtwdev);
+	__print_regd(m, rtwdev, chan);
 
 	seq_puts(m, "[SAR]\n");
-	rtw89_print_sar(m, rtwdev);
+	rtw89_print_sar(m, rtwdev, chan->freq);
+
+	seq_puts(m, "[TAS]\n");
+	rtw89_print_tas(m, rtwdev);
 
 	seq_puts(m, "\n[TX power byrate]\n");
 	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_byr);
@@ -762,6 +795,9 @@ static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 				     struct rtw89_dev *rtwdev,
 				     u8 sel, u32 start_addr, u32 len)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
 	u32 base_addr, start_page, residue;
 	u32 i, j, p, pages;
 	u32 dump_len, remain;
@@ -771,17 +807,17 @@ static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 	pages = len / MAC_MEM_DUMP_PAGE_SIZE + 1;
 	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
 	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
-	base_addr = rtw89_mac_mem_base_addrs[sel];
+	base_addr = mac->mem_base_addrs[sel];
 	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
 
 	for (p = 0; p < pages; p++) {
 		dump_len = min_t(u32, remain, MAC_MEM_DUMP_PAGE_SIZE);
-		rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, base_addr);
-		for (i = R_AX_INDIR_ACCESS_ENTRY + residue;
-		     i < R_AX_INDIR_ACCESS_ENTRY + dump_len;) {
+		rtw89_write32(rtwdev, filter_model_addr, base_addr);
+		for (i = indir_access_addr + residue;
+		     i < indir_access_addr + dump_len;) {
 			seq_printf(m, "%08xh:", i);
 			for (j = 0;
-			     j < 4 && i < R_AX_INDIR_ACCESS_ENTRY + dump_len;
+			     j < 4 && i < indir_access_addr + dump_len;
 			     j++, i += 4) {
 				val = rtw89_read32(rtwdev, i);
 				seq_printf(m, "  %08x", val);
@@ -2998,17 +3034,18 @@ static ssize_t rtw89_debug_priv_send_h2c_set(struct file *filp,
 	struct rtw89_debugfs_priv *debugfs_priv = filp->private_data;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
 	u8 *h2c;
+	int ret;
 	u16 h2c_len = count / 2;
 
 	h2c = rtw89_hex2bin_user(rtwdev, user_buf, count);
 	if (IS_ERR(h2c))
 		return -EFAULT;
 
-	rtw89_fw_h2c_raw(rtwdev, h2c, h2c_len);
+	ret = rtw89_fw_h2c_raw(rtwdev, h2c, h2c_len);
 
 	kfree(h2c);
 
-	return count;
+	return ret ? ret : count;
 }
 
 static int
@@ -3164,29 +3201,33 @@ static ssize_t rtw89_debug_priv_btc_manual_set(struct file *filp,
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	bool btc_manual;
+	int ret;
 
-	if (kstrtobool_from_user(user_buf, count, &btc_manual))
-		goto out;
+	ret = kstrtobool_from_user(user_buf, count, &btc_manual);
+	if (ret)
+		return ret;
 
 	btc->ctrl.manual = btc_manual;
-out:
+
 	return count;
 }
 
-static ssize_t rtw89_debug_fw_log_btc_manual_set(struct file *filp,
-						 const char __user *user_buf,
-						 size_t count, loff_t *loff)
+static ssize_t rtw89_debug_fw_log_manual_set(struct file *filp,
+					     const char __user *user_buf,
+					     size_t count, loff_t *loff)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = filp->private_data;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
-	struct rtw89_fw_info *fw_info = &rtwdev->fw;
+	struct rtw89_fw_log *log = &rtwdev->fw.log;
 	bool fw_log_manual;
 
 	if (kstrtobool_from_user(user_buf, count, &fw_log_manual))
 		goto out;
 
 	mutex_lock(&rtwdev->mutex);
-	fw_info->fw_log_enable = fw_log_manual;
+	log->enable = fw_log_manual;
+	if (log->enable)
+		rtw89_fw_log_prepare(rtwdev);
 	rtw89_fw_h2c_fw_log(rtwdev, fw_log_manual);
 	mutex_unlock(&rtwdev->mutex);
 out:
@@ -3206,7 +3247,11 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	struct seq_file *m = (struct seq_file *)data;
 	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
 	struct rtw89_hal *hal = &rtwdev->hal;
+	u8 ant_num = hal->ant_diversity ? 2 : rtwdev->chip->rf_path_num;
+	bool ant_asterisk = hal->tx_path_diversity || hal->ant_diversity;
+	u8 evm_min, evm_max;
 	u8 rssi;
+	u8 snr;
 	int i;
 
 	seq_printf(m, "TX rate [%d]: ", rtwsta->mac_id);
@@ -3256,13 +3301,27 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	rssi = ewma_rssi_read(&rtwsta->avg_rssi);
 	seq_printf(m, "RSSI: %d dBm (raw=%d, prev=%d) [",
 		   RTW89_RSSI_RAW_TO_DBM(rssi), rssi, rtwsta->prev_rssi);
-	for (i = 0; i < rtwdev->chip->rf_path_num; i++) {
+	for (i = 0; i < ant_num; i++) {
 		rssi = ewma_rssi_read(&rtwsta->rssi[i]);
 		seq_printf(m, "%d%s%s", RTW89_RSSI_RAW_TO_DBM(rssi),
-			   hal->tx_path_diversity && (hal->antenna_tx & BIT(i)) ? "*" : "",
-			   i + 1 == rtwdev->chip->rf_path_num ? "" : ", ");
+			   ant_asterisk && (hal->antenna_tx & BIT(i)) ? "*" : "",
+			   i + 1 == ant_num ? "" : ", ");
 	}
 	seq_puts(m, "]\n");
+
+	seq_puts(m, "EVM: [");
+	for (i = 0; i < (hal->ant_diversity ? 2 : 1); i++) {
+		evm_min = ewma_evm_read(&rtwsta->evm_min[i]);
+		evm_max = ewma_evm_read(&rtwsta->evm_max[i]);
+
+		seq_printf(m, "%s(%2u.%02u, %2u.%02u)", i == 0 ? "" : " ",
+			   evm_min >> 2, (evm_min & 0x3) * 25,
+			   evm_max >> 2, (evm_max & 0x3) * 25);
+	}
+	seq_puts(m, "]\t");
+
+	snr = ewma_snr_read(&rtwsta->avg_snr);
+	seq_printf(m, "SNR: %u\n", snr);
 }
 
 static void
@@ -3276,20 +3335,26 @@ rtw89_debug_append_rx_rate(struct seq_file *m, struct rtw89_pkt_stat *pkt_stat,
 			   pkt_stat->rx_rate_cnt[first_rate + i]);
 }
 
+#define FIRST_RATE_SAME(rate) {RTW89_HW_RATE_ ## rate, RTW89_HW_RATE_ ## rate}
+#define FIRST_RATE_ENUM(rate) {RTW89_HW_RATE_ ## rate, RTW89_HW_RATE_V1_ ## rate}
+#define FIRST_RATE_GEV1(rate) {RTW89_HW_RATE_INVAL, RTW89_HW_RATE_V1_ ## rate}
+
 static const struct rtw89_rx_rate_cnt_info {
-	enum rtw89_hw_rate first_rate;
+	enum rtw89_hw_rate first_rate[RTW89_CHIP_GEN_NUM];
 	int len;
 	int ext;
 	const char *rate_mode;
 } rtw89_rx_rate_cnt_infos[] = {
-	{RTW89_HW_RATE_CCK1, 4, 0, "Legacy:"},
-	{RTW89_HW_RATE_OFDM6, 8, 0, "OFDM:"},
-	{RTW89_HW_RATE_MCS0, 8, 0, "HT 0:"},
-	{RTW89_HW_RATE_MCS8, 8, 0, "HT 1:"},
-	{RTW89_HW_RATE_VHT_NSS1_MCS0, 10, 2, "VHT 1SS:"},
-	{RTW89_HW_RATE_VHT_NSS2_MCS0, 10, 2, "VHT 2SS:"},
-	{RTW89_HW_RATE_HE_NSS1_MCS0, 12, 0, "HE 1SS:"},
-	{RTW89_HW_RATE_HE_NSS2_MCS0, 12, 0, "HE 2ss:"},
+	{FIRST_RATE_SAME(CCK1), 4, 0, "Legacy:"},
+	{FIRST_RATE_SAME(OFDM6), 8, 0, "OFDM:"},
+	{FIRST_RATE_ENUM(MCS0), 8, 0, "HT 0:"},
+	{FIRST_RATE_ENUM(MCS8), 8, 0, "HT 1:"},
+	{FIRST_RATE_ENUM(VHT_NSS1_MCS0), 10, 2, "VHT 1SS:"},
+	{FIRST_RATE_ENUM(VHT_NSS2_MCS0), 10, 2, "VHT 2SS:"},
+	{FIRST_RATE_ENUM(HE_NSS1_MCS0), 12, 0, "HE 1SS:"},
+	{FIRST_RATE_ENUM(HE_NSS2_MCS0), 12, 0, "HE 2SS:"},
+	{FIRST_RATE_GEV1(EHT_NSS1_MCS0), 14, 2, "EHT 1SS:"},
+	{FIRST_RATE_GEV1(EHT_NSS2_MCS0), 14, 0, "EHT 2SS:"},
 };
 
 static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
@@ -3298,7 +3363,9 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
 	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.last_pkt_stat;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_rx_rate_cnt_info *info;
+	enum rtw89_hw_rate first_rate;
 	int i;
 
 	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d), RX: %u [%u] Mbps (lv: %d)\n",
@@ -3310,15 +3377,20 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 		   stats->rx_avg_len);
 
 	seq_puts(m, "RX count:\n");
+
 	for (i = 0; i < ARRAY_SIZE(rtw89_rx_rate_cnt_infos); i++) {
 		info = &rtw89_rx_rate_cnt_infos[i];
+		first_rate = info->first_rate[chip->chip_gen];
+		if (first_rate >= RTW89_HW_RATE_NR)
+			continue;
+
 		seq_printf(m, "%10s [", info->rate_mode);
 		rtw89_debug_append_rx_rate(m, pkt_stat,
-					   info->first_rate, info->len);
+					   first_rate, info->len);
 		if (info->ext) {
 			seq_puts(m, "][");
 			rtw89_debug_append_rx_rate(m, pkt_stat,
-						   info->first_rate + info->len, info->ext);
+						   first_rate + info->len, info->ext);
 		}
 		seq_puts(m, "]\n");
 	}
@@ -3522,7 +3594,7 @@ static struct rtw89_debugfs_priv rtw89_debug_priv_btc_manual = {
 };
 
 static struct rtw89_debugfs_priv rtw89_debug_priv_fw_log_manual = {
-	.cb_write = rtw89_debug_fw_log_btc_manual_set,
+	.cb_write = rtw89_debug_fw_log_manual_set,
 };
 
 static struct rtw89_debugfs_priv rtw89_debug_priv_phy_info = {

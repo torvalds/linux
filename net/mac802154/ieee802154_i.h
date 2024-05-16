@@ -58,6 +58,7 @@ struct ieee802154_local {
 	/* Scanning */
 	u8 scan_page;
 	u8 scan_channel;
+	struct ieee802154_beacon_req_frame scan_beacon_req;
 	struct cfg802154_scan_request __rcu *scan_req;
 	struct delayed_work scan_work;
 
@@ -70,6 +71,8 @@ struct ieee802154_local {
 	/* Asynchronous tasks */
 	struct list_head rx_beacon_list;
 	struct work_struct rx_beacon_work;
+	struct list_head rx_mac_cmd_list;
+	struct work_struct rx_mac_cmd_work;
 
 	bool started;
 	bool suspended;
@@ -152,6 +155,22 @@ static inline bool
 ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 {
 	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
+}
+
+static inline int ieee802154_get_mac_cmd(struct sk_buff *skb, u8 *mac_cmd)
+{
+	struct ieee802154_mac_cmd_pl mac_pl;
+	int ret;
+
+	if (mac_cb(skb)->type != IEEE802154_FC_TYPE_MAC_CMD)
+		return -EINVAL;
+
+	ret = ieee802154_mac_cmd_pl_pull(skb, &mac_pl);
+	if (ret)
+		return ret;
+
+	*mac_cmd = mac_pl.cmd_id;
+	return 0;
 }
 
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
@@ -274,6 +293,8 @@ static inline bool mac802154_is_beaconing(struct ieee802154_local *local)
 {
 	return test_bit(IEEE802154_IS_BEACONING, &local->ongoing);
 }
+
+void mac802154_rx_mac_cmd_worker(struct work_struct *work);
 
 /* interface handling */
 int ieee802154_iface_init(void);

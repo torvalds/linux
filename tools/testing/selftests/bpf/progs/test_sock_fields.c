@@ -265,7 +265,10 @@ static __noinline bool sk_dst_port__load_word(struct bpf_sock *sk)
 
 static __noinline bool sk_dst_port__load_half(struct bpf_sock *sk)
 {
-	__u16 *half = (__u16 *)&sk->dst_port;
+	__u16 *half;
+
+	asm volatile ("");
+	half = (__u16 *)&sk->dst_port;
 	return half[0] == bpf_htons(0xcafe);
 }
 

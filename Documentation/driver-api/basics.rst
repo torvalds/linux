@@ -15,8 +15,8 @@ Driver device table
    :no-identifiers: pci_device_id
 
 
-Delaying, scheduling, and timer routines
-----------------------------------------
+Delaying and scheduling routines
+--------------------------------
 
 .. kernel-doc:: include/linux/sched.h
    :internal:
@@ -33,16 +33,16 @@ Delaying, scheduling, and timer routines
 .. kernel-doc:: include/linux/completion.h
    :internal:
 
-.. kernel-doc:: kernel/time/timer.c
-   :export:
+Time and timer routines
+-----------------------
 
-Wait queues and Wake events
----------------------------
-
-.. kernel-doc:: include/linux/wait.h
+.. kernel-doc:: include/linux/jiffies.h
    :internal:
 
-.. kernel-doc:: kernel/sched/wait.c
+.. kernel-doc:: kernel/time/time.c
+   :export:
+
+.. kernel-doc:: kernel/time/timer.c
    :export:
 
 High-resolution timers
@@ -55,6 +55,15 @@ High-resolution timers
    :internal:
 
 .. kernel-doc:: kernel/time/hrtimer.c
+   :export:
+
+Wait queues and Wake events
+---------------------------
+
+.. kernel-doc:: include/linux/wait.h
+   :internal:
+
+.. kernel-doc:: kernel/sched/wait.c
    :export:
 
 Internal Functions
@@ -84,7 +93,13 @@ Reference counting
 Atomics
 -------
 
-.. kernel-doc:: arch/x86/include/asm/atomic.h
+.. kernel-doc:: include/linux/atomic/atomic-instrumented.h
+   :internal:
+
+.. kernel-doc:: include/linux/atomic/atomic-arch-fallback.h
+   :internal:
+
+.. kernel-doc:: include/linux/atomic/atomic-long.h
    :internal:
 
 Kernel objects manipulation

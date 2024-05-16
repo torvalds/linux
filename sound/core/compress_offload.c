@@ -546,7 +546,7 @@ static int snd_compr_allocate_buffer(struct snd_compr_stream *stream,
 		if (stream->runtime->dma_buffer_p) {
 
 			if (buffer_size > stream->runtime->dma_buffer_p->bytes)
-				dev_err(&stream->device->dev,
+				dev_err(stream->device->dev,
 						"Not enough DMA buffer");
 			else
 				buffer = stream->runtime->dma_buffer_p->area;
@@ -589,7 +589,7 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 	struct snd_compr_params *params;
 	int retval;
 
-	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN) {
+	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN || stream->next_track) {
 		/*
 		 * we should allow parameter change only when stream has been
 		 * opened not in other cases
@@ -610,6 +610,9 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 
 		retval = stream->ops->set_params(stream, params);
 		if (retval)
+			goto out;
+
+		if (stream->next_track)
 			goto out;
 
 		stream->metadata_set = false;
@@ -1067,7 +1070,7 @@ static int snd_compress_dev_register(struct snd_device *device)
 	/* register compressed device */
 	ret = snd_register_device(SNDRV_DEVICE_TYPE_COMPRESS,
 				  compr->card, compr->device,
-				  &snd_compr_file_ops, compr, &compr->dev);
+				  &snd_compr_file_ops, compr, compr->dev);
 	if (ret < 0) {
 		pr_err("snd_register_device failed %d\n", ret);
 		return ret;
@@ -1081,7 +1084,7 @@ static int snd_compress_dev_disconnect(struct snd_device *device)
 	struct snd_compr *compr;
 
 	compr = device->device_data;
-	snd_unregister_device(&compr->dev);
+	snd_unregister_device(compr->dev);
 	return 0;
 }
 
@@ -1155,7 +1158,7 @@ static int snd_compress_dev_free(struct snd_device *device)
 
 	compr = device->device_data;
 	snd_compress_proc_done(compr);
-	put_device(&compr->dev);
+	put_device(compr->dev);
 	return 0;
 }
 
@@ -1186,12 +1189,16 @@ int snd_compress_new(struct snd_card *card, int device,
 
 	snd_compress_set_id(compr, id);
 
-	snd_device_initialize(&compr->dev, card);
-	dev_set_name(&compr->dev, "comprC%iD%i", card->number, device);
+	ret = snd_device_alloc(&compr->dev, card);
+	if (ret)
+		return ret;
+	dev_set_name(compr->dev, "comprC%iD%i", card->number, device);
 
 	ret = snd_device_new(card, SNDRV_DEV_COMPRESS, compr, &ops);
 	if (ret == 0)
 		snd_compress_proc_init(compr);
+	else
+		put_device(compr->dev);
 
 	return ret;
 }

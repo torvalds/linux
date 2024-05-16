@@ -11,6 +11,7 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include "sc7180.dtsi"
+#include "sc7180-firmware-tfa.dtsi"
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
 
@@ -295,7 +296,11 @@
 	};
 };
 
-&dsi0 {
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
 	status = "okay";
 
 	vdda-supply = <&vreg_l3c_1p2>;
@@ -314,7 +319,7 @@
 
 		port {
 			panel0_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
+				remote-endpoint = <&mdss_dsi0_out>;
 			};
 		};
 	};
@@ -329,17 +334,9 @@
 	};
 };
 
-&dsi_phy {
+&mdss_dsi0_phy {
 	status = "okay";
 	vdds-supply = <&vreg_l4a_0p8>;
-};
-
-&mdp {
-	status = "okay";
-};
-
-&mdss {
-	status = "okay";
 };
 
 &qfprom {

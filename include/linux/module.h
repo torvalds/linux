@@ -968,15 +968,6 @@ static inline int lookup_module_symbol_name(unsigned long addr, char *symname)
 	return -ERANGE;
 }
 
-static inline int lookup_module_symbol_attrs(unsigned long addr,
-					     unsigned long *size,
-					     unsigned long *offset,
-					     char *modname,
-					     char *name)
-{
-	return -ERANGE;
-}
-
 static inline int module_get_kallsym(unsigned int symnum, unsigned long *value,
 				     char *type, char *name,
 				     char *module_name, int *exported)

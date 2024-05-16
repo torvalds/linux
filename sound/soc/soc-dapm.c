@@ -916,6 +916,8 @@ static int dapm_create_or_share_kcontrol(struct snd_soc_dapm_widget *w,
 				return -EINVAL;
 			}
 		}
+		if (w->no_wname_in_kcontrol_name)
+			wname_in_long_name = false;
 
 		if (wname_in_long_name && kcname_in_long_name) {
 			/*
@@ -2216,6 +2218,16 @@ static void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
 			    &dapm_widget_power_fops);
 }
 
+static void dapm_debugfs_free_widget(struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_context *dapm = w->dapm;
+
+	if (!dapm->debugfs_dapm || !w->name)
+		return;
+
+	debugfs_lookup_and_remove(w->name, dapm->debugfs_dapm);
+}
+
 static void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
 {
 	debugfs_remove_recursive(dapm->debugfs_dapm);
@@ -2229,6 +2241,10 @@ void snd_soc_dapm_debugfs_init(struct snd_soc_dapm_context *dapm,
 }
 
 static inline void dapm_debugfs_add_widget(struct snd_soc_dapm_widget *w)
+{
+}
+
+static inline void dapm_debugfs_free_widget(struct snd_soc_dapm_widget *w)
 {
 }
 
@@ -2495,6 +2511,8 @@ void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
 			dapm_free_path(p);
 	}
 
+	dapm_debugfs_free_widget(w);
+
 	kfree(w->kcontrols);
 	kfree_const(w->name);
 	kfree_const(w->sname);
@@ -2709,6 +2727,18 @@ int snd_soc_dapm_update_dai(struct snd_pcm_substream *substream,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_update_dai);
+
+int snd_soc_dapm_widget_name_cmp(struct snd_soc_dapm_widget *widget, const char *s)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
+	const char *wname = widget->name;
+
+	if (component->name_prefix)
+		wname += strlen(component->name_prefix) + 1; /* plus space */
+
+	return strcmp(wname, s);
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_widget_name_cmp);
 
 /*
  * dapm_update_widget_flags() - Re-compute widget sink and source flags
@@ -4322,39 +4352,6 @@ static void dapm_connect_dai_routes(struct snd_soc_dapm_context *dapm,
 	snd_soc_dapm_add_path(dapm, src, sink, NULL, NULL);
 }
 
-static int get_stream_cpu(struct snd_soc_dai_link *dai_link, int stream)
-{
-	/*
-	 * [Normal]
-	 *
-	 * Playback
-	 *	CPU  : SNDRV_PCM_STREAM_PLAYBACK
-	 *	Codec: SNDRV_PCM_STREAM_PLAYBACK
-	 *
-	 * Playback
-	 *	CPU  : SNDRV_PCM_STREAM_CAPTURE
-	 *	Codec: SNDRV_PCM_STREAM_CAPTURE
-	 */
-	if (!dai_link->c2c_params)
-		return stream;
-
-	/*
-	 * [Codec2Codec]
-	 *
-	 * Playback
-	 *	CPU  : SNDRV_PCM_STREAM_CAPTURE
-	 *	Codec: SNDRV_PCM_STREAM_PLAYBACK
-	 *
-	 * Capture
-	 *	CPU  : SNDRV_PCM_STREAM_PLAYBACK
-	 *	Codec: SNDRV_PCM_STREAM_CAPTURE
-	 */
-	if (stream == SNDRV_PCM_STREAM_CAPTURE)
-		return SNDRV_PCM_STREAM_PLAYBACK;
-
-	return SNDRV_PCM_STREAM_CAPTURE;
-}
-
 static void dapm_connect_dai_pair(struct snd_soc_card *card,
 				  struct snd_soc_pcm_runtime *rtd,
 				  struct snd_soc_dai *codec_dai,
@@ -4372,7 +4369,7 @@ static void dapm_connect_dai_pair(struct snd_soc_card *card,
 	for_each_pcm_streams(stream) {
 		int stream_cpu, stream_codec;
 
-		stream_cpu	= get_stream_cpu(dai_link, stream);
+		stream_cpu	= snd_soc_get_stream_cpu(dai_link, stream);
 		stream_codec	= stream;
 
 		/* connect BE DAI playback if widgets are valid */
@@ -4461,9 +4458,31 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				dapm_connect_dai_pair(card, rtd, codec_dai,
 						      asoc_rtd_to_cpu(rtd, i));
+		} else if (rtd->dai_link->num_codecs > rtd->dai_link->num_cpus) {
+			int cpu_id;
+
+			if (!rtd->dai_link->codec_ch_maps) {
+				dev_err(card->dev, "%s: no codec channel mapping table provided\n",
+					__func__);
+				continue;
+			}
+
+			for_each_rtd_codec_dais(rtd, i, codec_dai) {
+				cpu_id = rtd->dai_link->codec_ch_maps[i].connected_cpu_id;
+				if (cpu_id >= rtd->dai_link->num_cpus) {
+					dev_err(card->dev,
+						"%s: dai_link %s cpu_id %d too large, num_cpus is %d\n",
+						__func__, rtd->dai_link->name, cpu_id,
+						rtd->dai_link->num_cpus);
+					continue;
+				}
+				dapm_connect_dai_pair(card, rtd, codec_dai,
+						      asoc_rtd_to_cpu(rtd, cpu_id));
+			}
 		} else {
 			dev_err(card->dev,
-				"N cpus to M codecs link is not supported yet\n");
+				"%s: codec number %d < cpu number %d is not supported\n",
+				__func__, rtd->dai_link->num_codecs, rtd->dai_link->num_cpus);
 		}
 	}
 }

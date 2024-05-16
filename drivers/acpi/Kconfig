@@ -542,10 +542,10 @@ config ACPI_PFRUT
 
 if ARM64
 source "drivers/acpi/arm64/Kconfig"
+endif
 
 config ACPI_PPTT
 	bool
-endif
 
 config ACPI_PCC
 	bool "ACPI PCC Address Space"
@@ -581,7 +581,7 @@ config ACPI_VIOT
 
 config ACPI_PRMT
 	bool "Platform Runtime Mechanism Support"
-	depends on EFI && (X86_64 || ARM64)
+	depends on EFI_RUNTIME_WRAPPERS && (X86_64 || ARM64)
 	default y
 	help
 	  Platform Runtime Mechanism (PRM) is a firmware interface exposing a

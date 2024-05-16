@@ -46,8 +46,6 @@ static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
  * Runtime (in-memory) states of filesystem
  */
 enum {
-	/* Global indicator of serious filesystem errors */
-	BTRFS_FS_STATE_ERROR,
 	/*
 	 * Filesystem is being remounted, allow to skip some operations, like
 	 * defrag
@@ -543,7 +541,6 @@ struct btrfs_fs_info {
 	 * A third pool does submit_bio to avoid deadlocking with the other two.
 	 */
 	struct btrfs_workqueue *workers;
-	struct btrfs_workqueue *hipri_workers;
 	struct btrfs_workqueue *delalloc_workers;
 	struct btrfs_workqueue *flush_workers;
 	struct workqueue_struct *endio_workers;
@@ -577,6 +574,7 @@ struct btrfs_fs_info {
 	s32 dirty_metadata_batch;
 	s32 delalloc_batch;
 
+	/* Protected by 'trans_lock'. */
 	struct list_head dirty_cowonly_roots;
 
 	struct btrfs_fs_devices *fs_devices;
@@ -643,7 +641,6 @@ struct btrfs_fs_info {
 	 */
 	refcount_t scrub_workers_refcnt;
 	struct workqueue_struct *scrub_workers;
-	struct workqueue_struct *scrub_wr_completion_workers;
 	struct btrfs_subpage_info *subpage_info;
 
 	struct btrfs_discard_ctl discard_ctl;
@@ -686,6 +683,12 @@ struct btrfs_fs_info {
 	/* Protected by qgroup_rescan_lock */
 	bool qgroup_rescan_running;
 	u8 qgroup_drop_subtree_thres;
+
+	/*
+	 * If this is not 0, then it indicates a serious filesystem error has
+	 * happened and it contains that error (negative errno value).
+	 */
+	int fs_error;
 
 	/* Filesystem state */
 	unsigned long fs_state;
@@ -766,6 +769,9 @@ struct btrfs_fs_info {
 	spinlock_t relocation_bg_lock;
 	u64 data_reloc_bg;
 	struct mutex zoned_data_reloc_io_lock;
+
+	struct btrfs_block_group *active_meta_bg;
+	struct btrfs_block_group *active_system_bg;
 
 	u64 nr_global_roots;
 
@@ -854,7 +860,7 @@ static inline u64 btrfs_calc_metadata_size(const struct btrfs_fs_info *fs_info,
 
 static inline bool btrfs_is_zoned(const struct btrfs_fs_info *fs_info)
 {
-	return fs_info->zone_size > 0;
+	return IS_ENABLED(CONFIG_BLK_DEV_ZONED) && fs_info->zone_size > 0;
 }
 
 /*
@@ -963,8 +969,8 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 	clear_and_wake_up_bit(BTRFS_FS_UNFINISHED_DROPS, &fs_info->flags);
 }
 
-#define BTRFS_FS_ERROR(fs_info)	(unlikely(test_bit(BTRFS_FS_STATE_ERROR, \
-						   &(fs_info)->fs_state)))
+#define BTRFS_FS_ERROR(fs_info)	(READ_ONCE((fs_info)->fs_error))
+
 #define BTRFS_FS_LOG_CLEANUP_ERROR(fs_info)				\
 	(unlikely(test_bit(BTRFS_FS_STATE_LOG_CLEANUP_ERROR,		\
 			   &(fs_info)->fs_state)))

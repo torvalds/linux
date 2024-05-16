@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2023, NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/export.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/io.h>
 
-#include <soc/tegra/fuse.h>
 #include <soc/tegra/common.h>
+#include <soc/tegra/fuse.h>
 
 #include "fuse.h"
 
@@ -62,6 +62,7 @@ bool tegra_is_silicon(void)
 	switch (tegra_get_chip_id()) {
 	case TEGRA194:
 	case TEGRA234:
+	case TEGRA264:
 		if (tegra_get_platform() == 0)
 			return true;
 

@@ -14,6 +14,34 @@
 #include "txgbe_hw.h"
 
 /**
+ *  txgbe_disable_sec_tx_path - Stops the transmit data path
+ *  @wx: pointer to hardware structure
+ *
+ *  Stops the transmit data path and waits for the HW to internally empty
+ *  the tx security block
+ **/
+int txgbe_disable_sec_tx_path(struct wx *wx)
+{
+	int val;
+
+	wr32m(wx, WX_TSC_CTL, WX_TSC_CTL_TX_DIS, WX_TSC_CTL_TX_DIS);
+	return read_poll_timeout(rd32, val, val & WX_TSC_ST_SECTX_RDY,
+				 1000, 20000, false, wx, WX_TSC_ST);
+}
+
+/**
+ *  txgbe_enable_sec_tx_path - Enables the transmit data path
+ *  @wx: pointer to hardware structure
+ *
+ *  Enables the transmit data path.
+ **/
+void txgbe_enable_sec_tx_path(struct wx *wx)
+{
+	wr32m(wx, WX_TSC_CTL, WX_TSC_CTL_TX_DIS, 0);
+	WX_WRITE_FLUSH(wx);
+}
+
+/**
  *  txgbe_init_thermal_sensor_thresh - Inits thermal sensor thresholds
  *  @wx: pointer to hardware structure
  *
@@ -160,34 +188,24 @@ int txgbe_read_pba_string(struct wx *wx, u8 *pba_num, u32 pba_num_size)
 static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
 {
 	u16 *eeprom_ptrs = NULL;
-	u32 buffer_size = 0;
-	u16 *buffer = NULL;
 	u16 *local_buffer;
 	int status;
 	u16 i;
 
 	wx_init_eeprom_params(wx);
 
-	if (!buffer) {
-		eeprom_ptrs = kvmalloc_array(TXGBE_EEPROM_LAST_WORD, sizeof(u16),
-					     GFP_KERNEL);
-		if (!eeprom_ptrs)
-			return -ENOMEM;
-		/* Read pointer area */
-		status = wx_read_ee_hostif_buffer(wx, 0,
-						  TXGBE_EEPROM_LAST_WORD,
-						  eeprom_ptrs);
-		if (status != 0) {
-			wx_err(wx, "Failed to read EEPROM image\n");
-			kvfree(eeprom_ptrs);
-			return status;
-		}
-		local_buffer = eeprom_ptrs;
-	} else {
-		if (buffer_size < TXGBE_EEPROM_LAST_WORD)
-			return -EFAULT;
-		local_buffer = buffer;
+	eeprom_ptrs = kvmalloc_array(TXGBE_EEPROM_LAST_WORD, sizeof(u16),
+				     GFP_KERNEL);
+	if (!eeprom_ptrs)
+		return -ENOMEM;
+	/* Read pointer area */
+	status = wx_read_ee_hostif_buffer(wx, 0, TXGBE_EEPROM_LAST_WORD, eeprom_ptrs);
+	if (status != 0) {
+		wx_err(wx, "Failed to read EEPROM image\n");
+		kvfree(eeprom_ptrs);
+		return status;
 	}
+	local_buffer = eeprom_ptrs;
 
 	for (i = 0; i < TXGBE_EEPROM_LAST_WORD; i++)
 		if (i != wx->eeprom.sw_region_offset + TXGBE_EEPROM_CHECKSUM)
@@ -195,9 +213,6 @@ static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
 
 	if (eeprom_ptrs)
 		kvfree(eeprom_ptrs);
-
-	if (*checksum > TXGBE_EEPROM_SUM)
-		return -EINVAL;
 
 	*checksum = TXGBE_EEPROM_SUM - *checksum;
 
@@ -276,11 +291,14 @@ int txgbe_reset_hw(struct wx *wx)
 	if (status != 0)
 		return status;
 
-	if (!(((wx->subsystem_device_id & WX_NCSI_MASK) == WX_NCSI_SUP) ||
-	      ((wx->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP)))
-		wx_reset_hostif(wx);
+	if (wx->media_type != sp_media_copper) {
+		u32 val;
 
-	usleep_range(10, 100);
+		val = WX_MIS_RST_LAN_RST(wx->bus.func);
+		wr32(wx, WX_MIS_RST, val | rd32(wx, WX_MIS_RST));
+		WX_WRITE_FLUSH(wx);
+		usleep_range(10, 100);
+	}
 
 	status = wx_check_flash_load(wx, TXGBE_SPI_ILDR_STATUS_LAN_SW_RST(wx->bus.func));
 	if (status != 0)

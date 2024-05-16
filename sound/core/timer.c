@@ -1246,6 +1246,7 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 {
 	struct snd_timer *timer;
 	struct snd_timer_instance *ti;
+	unsigned long resolution;
 
 	mutex_lock(&register_mutex);
 	list_for_each_entry(timer, &snd_timer_list, device_list) {
@@ -1269,10 +1270,13 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 				    timer->tmr_device, timer->tmr_subdevice);
 		}
 		snd_iprintf(buffer, "%s :", timer->name);
-		if (timer->hw.resolution)
+		spin_lock_irq(&timer->lock);
+		resolution = snd_timer_hw_resolution(timer);
+		spin_unlock_irq(&timer->lock);
+		if (resolution)
 			snd_iprintf(buffer, " %lu.%03luus (%lu ticks)",
-				    timer->hw.resolution / 1000,
-				    timer->hw.resolution % 1000,
+				    resolution / 1000,
+				    resolution % 1000,
 				    timer->hw.ticks);
 		if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
 			snd_iprintf(buffer, " SLAVE");
@@ -1662,7 +1666,9 @@ static int snd_timer_user_ginfo(struct file *file,
 			ginfo->flags |= SNDRV_TIMER_FLG_SLAVE;
 		strscpy(ginfo->id, t->id, sizeof(ginfo->id));
 		strscpy(ginfo->name, t->name, sizeof(ginfo->name));
-		ginfo->resolution = t->hw.resolution;
+		spin_lock_irq(&t->lock);
+		ginfo->resolution = snd_timer_hw_resolution(t);
+		spin_unlock_irq(&t->lock);
 		if (t->hw.resolution_min > 0) {
 			ginfo->resolution_min = t->hw.resolution_min;
 			ginfo->resolution_max = t->hw.resolution_max;
@@ -1817,7 +1823,9 @@ static int snd_timer_user_info(struct file *file,
 		info->flags |= SNDRV_TIMER_FLG_SLAVE;
 	strscpy(info->id, t->id, sizeof(info->id));
 	strscpy(info->name, t->name, sizeof(info->name));
-	info->resolution = t->hw.resolution;
+	spin_lock_irq(&t->lock);
+	info->resolution = snd_timer_hw_resolution(t);
+	spin_unlock_irq(&t->lock);
 	if (copy_to_user(_info, info, sizeof(*_info)))
 		err = -EFAULT;
 	kfree(info);
@@ -2293,7 +2301,7 @@ static void snd_timer_free_all(void)
 		snd_timer_free(timer);
 }
 
-static struct device timer_dev;
+static struct device *timer_dev;
 
 /*
  *  ENTRY functions
@@ -2303,8 +2311,10 @@ static int __init alsa_timer_init(void)
 {
 	int err;
 
-	snd_device_initialize(&timer_dev, NULL);
-	dev_set_name(&timer_dev, "timer");
+	err = snd_device_alloc(&timer_dev, NULL);
+	if (err < 0)
+		return err;
+	dev_set_name(timer_dev, "timer");
 
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_register(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1,
@@ -2318,7 +2328,7 @@ static int __init alsa_timer_init(void)
 	}
 
 	err = snd_register_device(SNDRV_DEVICE_TYPE_TIMER, NULL, 0,
-				  &snd_timer_f_ops, NULL, &timer_dev);
+				  &snd_timer_f_ops, NULL, timer_dev);
 	if (err < 0) {
 		pr_err("ALSA: unable to register timer device (%i)\n", err);
 		snd_timer_free_all();
@@ -2329,15 +2339,15 @@ static int __init alsa_timer_init(void)
 	return 0;
 
 put_timer:
-	put_device(&timer_dev);
+	put_device(timer_dev);
 	return err;
 }
 
 static void __exit alsa_timer_exit(void)
 {
-	snd_unregister_device(&timer_dev);
+	snd_unregister_device(timer_dev);
 	snd_timer_free_all();
-	put_device(&timer_dev);
+	put_device(timer_dev);
 	snd_timer_proc_done();
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1);

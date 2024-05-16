@@ -432,71 +432,6 @@ out:
 EXPORT_SYMBOL(wx_read_ee_hostif_buffer);
 
 /**
- *  wx_calculate_checksum - Calculate checksum for buffer
- *  @buffer: pointer to EEPROM
- *  @length: size of EEPROM to calculate a checksum for
- *  Calculates the checksum for some buffer on a specified length.  The
- *  checksum calculated is returned.
- **/
-static u8 wx_calculate_checksum(u8 *buffer, u32 length)
-{
-	u8 sum = 0;
-	u32 i;
-
-	if (!buffer)
-		return 0;
-
-	for (i = 0; i < length; i++)
-		sum += buffer[i];
-
-	return (u8)(0 - sum);
-}
-
-/**
- *  wx_reset_hostif - send reset cmd to fw
- *  @wx: pointer to hardware structure
- *
- *  Sends reset cmd to firmware through the manageability
- *  block.
- **/
-int wx_reset_hostif(struct wx *wx)
-{
-	struct wx_hic_reset reset_cmd;
-	int ret_val = 0;
-	int i;
-
-	reset_cmd.hdr.cmd = FW_RESET_CMD;
-	reset_cmd.hdr.buf_len = FW_RESET_LEN;
-	reset_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
-	reset_cmd.lan_id = wx->bus.func;
-	reset_cmd.reset_type = (u16)wx->reset_type;
-	reset_cmd.hdr.checksum = 0;
-	reset_cmd.hdr.checksum = wx_calculate_checksum((u8 *)&reset_cmd,
-						       (FW_CEM_HDR_LEN +
-							reset_cmd.hdr.buf_len));
-
-	for (i = 0; i <= FW_CEM_MAX_RETRIES; i++) {
-		ret_val = wx_host_interface_command(wx, (u32 *)&reset_cmd,
-						    sizeof(reset_cmd),
-						    WX_HI_COMMAND_TIMEOUT,
-						    true);
-		if (ret_val != 0)
-			continue;
-
-		if (reset_cmd.hdr.cmd_or_resp.ret_status ==
-		    FW_CEM_RESP_STATUS_SUCCESS)
-			ret_val = 0;
-		else
-			ret_val = -EFAULT;
-
-		break;
-	}
-
-	return ret_val;
-}
-EXPORT_SYMBOL(wx_reset_hostif);
-
-/**
  *  wx_init_eeprom_params - Initialize EEPROM params
  *  @wx: pointer to hardware structure
  *
@@ -1182,11 +1117,27 @@ static void wx_enable_sec_rx_path(struct wx *wx)
 	WX_WRITE_FLUSH(wx);
 }
 
+static void wx_vlan_strip_control(struct wx *wx, bool enable)
+{
+	int i, j;
+
+	for (i = 0; i < wx->num_rx_queues; i++) {
+		struct wx_ring *ring = wx->rx_ring[i];
+
+		j = ring->reg_idx;
+		wr32m(wx, WX_PX_RR_CFG(j), WX_PX_RR_CFG_VLAN,
+		      enable ? WX_PX_RR_CFG_VLAN : 0);
+	}
+}
+
 void wx_set_rx_mode(struct net_device *netdev)
 {
 	struct wx *wx = netdev_priv(netdev);
+	netdev_features_t features;
 	u32 fctrl, vmolr, vlnctrl;
 	int count;
+
+	features = netdev->features;
 
 	/* Check for Promiscuous and All Multicast modes */
 	fctrl = rd32(wx, WX_PSR_CTL);
@@ -1254,6 +1205,13 @@ void wx_set_rx_mode(struct net_device *netdev)
 	wr32(wx, WX_PSR_VLAN_CTL, vlnctrl);
 	wr32(wx, WX_PSR_CTL, fctrl);
 	wr32(wx, WX_PSR_VM_L2CTL(0), vmolr);
+
+	if ((features & NETIF_F_HW_VLAN_CTAG_RX) &&
+	    (features & NETIF_F_HW_VLAN_STAG_RX))
+		wx_vlan_strip_control(wx, true);
+	else
+		wx_vlan_strip_control(wx, false);
+
 }
 EXPORT_SYMBOL(wx_set_rx_mode);
 
@@ -1462,13 +1420,23 @@ static void wx_configure_tx(struct wx *wx)
 	      WX_MAC_TX_CFG_TE, WX_MAC_TX_CFG_TE);
 }
 
+static void wx_restore_vlan(struct wx *wx)
+{
+	u16 vid = 1;
+
+	wx_vlan_rx_add_vid(wx->netdev, htons(ETH_P_8021Q), 0);
+
+	for_each_set_bit_from(vid, wx->active_vlans, VLAN_N_VID)
+		wx_vlan_rx_add_vid(wx->netdev, htons(ETH_P_8021Q), vid);
+}
+
 /**
  * wx_configure_rx - Configure Receive Unit after Reset
  * @wx: pointer to private structure
  *
  * Configure the Rx unit of the MAC after a reset.
  **/
-static void wx_configure_rx(struct wx *wx)
+void wx_configure_rx(struct wx *wx)
 {
 	u32 psrtype, i;
 	int ret;
@@ -1478,7 +1446,6 @@ static void wx_configure_rx(struct wx *wx)
 	psrtype = WX_RDB_PL_CFG_L4HDR |
 		  WX_RDB_PL_CFG_L3HDR |
 		  WX_RDB_PL_CFG_L2HDR |
-		  WX_RDB_PL_CFG_TUN_TUNHDR |
 		  WX_RDB_PL_CFG_TUN_TUNHDR;
 	wr32(wx, WX_RDB_PL_CFG(0), psrtype);
 
@@ -1512,6 +1479,7 @@ static void wx_configure_rx(struct wx *wx)
 	wx_enable_rx(wx);
 	wx_enable_sec_rx_path(wx);
 }
+EXPORT_SYMBOL(wx_configure_rx);
 
 static void wx_configure_isb(struct wx *wx)
 {
@@ -1527,7 +1495,7 @@ void wx_configure(struct wx *wx)
 	wx_configure_port(wx);
 
 	wx_set_rx_mode(wx->netdev);
-
+	wx_restore_vlan(wx);
 	wx_enable_sec_rx_path(wx);
 
 	wx_configure_tx(wx);
@@ -1726,5 +1694,242 @@ int wx_sw_init(struct wx *wx)
 	return 0;
 }
 EXPORT_SYMBOL(wx_sw_init);
+
+/**
+ *  wx_find_vlvf_slot - find the vlanid or the first empty slot
+ *  @wx: pointer to hardware structure
+ *  @vlan: VLAN id to write to VLAN filter
+ *
+ *  return the VLVF index where this VLAN id should be placed
+ *
+ **/
+static int wx_find_vlvf_slot(struct wx *wx, u32 vlan)
+{
+	u32 bits = 0, first_empty_slot = 0;
+	int regindex;
+
+	/* short cut the special case */
+	if (vlan == 0)
+		return 0;
+
+	/* Search for the vlan id in the VLVF entries. Save off the first empty
+	 * slot found along the way
+	 */
+	for (regindex = 1; regindex < WX_PSR_VLAN_SWC_ENTRIES; regindex++) {
+		wr32(wx, WX_PSR_VLAN_SWC_IDX, regindex);
+		bits = rd32(wx, WX_PSR_VLAN_SWC);
+		if (!bits && !(first_empty_slot))
+			first_empty_slot = regindex;
+		else if ((bits & 0x0FFF) == vlan)
+			break;
+	}
+
+	if (regindex >= WX_PSR_VLAN_SWC_ENTRIES) {
+		if (first_empty_slot)
+			regindex = first_empty_slot;
+		else
+			regindex = -ENOMEM;
+	}
+
+	return regindex;
+}
+
+/**
+ *  wx_set_vlvf - Set VLAN Pool Filter
+ *  @wx: pointer to hardware structure
+ *  @vlan: VLAN id to write to VLAN filter
+ *  @vind: VMDq output index that maps queue to VLAN id in VFVFB
+ *  @vlan_on: boolean flag to turn on/off VLAN in VFVF
+ *  @vfta_changed: pointer to boolean flag which indicates whether VFTA
+ *                 should be changed
+ *
+ *  Turn on/off specified bit in VLVF table.
+ **/
+static int wx_set_vlvf(struct wx *wx, u32 vlan, u32 vind, bool vlan_on,
+		       bool *vfta_changed)
+{
+	int vlvf_index;
+	u32 vt, bits;
+
+	/* If VT Mode is set
+	 *   Either vlan_on
+	 *     make sure the vlan is in VLVF
+	 *     set the vind bit in the matching VLVFB
+	 *   Or !vlan_on
+	 *     clear the pool bit and possibly the vind
+	 */
+	vt = rd32(wx, WX_CFG_PORT_CTL);
+	if (!(vt & WX_CFG_PORT_CTL_NUM_VT_MASK))
+		return 0;
+
+	vlvf_index = wx_find_vlvf_slot(wx, vlan);
+	if (vlvf_index < 0)
+		return vlvf_index;
+
+	wr32(wx, WX_PSR_VLAN_SWC_IDX, vlvf_index);
+	if (vlan_on) {
+		/* set the pool bit */
+		if (vind < 32) {
+			bits = rd32(wx, WX_PSR_VLAN_SWC_VM_L);
+			bits |= (1 << vind);
+			wr32(wx, WX_PSR_VLAN_SWC_VM_L, bits);
+		} else {
+			bits = rd32(wx, WX_PSR_VLAN_SWC_VM_H);
+			bits |= (1 << (vind - 32));
+			wr32(wx, WX_PSR_VLAN_SWC_VM_H, bits);
+		}
+	} else {
+		/* clear the pool bit */
+		if (vind < 32) {
+			bits = rd32(wx, WX_PSR_VLAN_SWC_VM_L);
+			bits &= ~(1 << vind);
+			wr32(wx, WX_PSR_VLAN_SWC_VM_L, bits);
+			bits |= rd32(wx, WX_PSR_VLAN_SWC_VM_H);
+		} else {
+			bits = rd32(wx, WX_PSR_VLAN_SWC_VM_H);
+			bits &= ~(1 << (vind - 32));
+			wr32(wx, WX_PSR_VLAN_SWC_VM_H, bits);
+			bits |= rd32(wx, WX_PSR_VLAN_SWC_VM_L);
+		}
+	}
+
+	if (bits) {
+		wr32(wx, WX_PSR_VLAN_SWC, (WX_PSR_VLAN_SWC_VIEN | vlan));
+		if (!vlan_on && vfta_changed)
+			*vfta_changed = false;
+	} else {
+		wr32(wx, WX_PSR_VLAN_SWC, 0);
+	}
+
+	return 0;
+}
+
+/**
+ *  wx_set_vfta - Set VLAN filter table
+ *  @wx: pointer to hardware structure
+ *  @vlan: VLAN id to write to VLAN filter
+ *  @vind: VMDq output index that maps queue to VLAN id in VFVFB
+ *  @vlan_on: boolean flag to turn on/off VLAN in VFVF
+ *
+ *  Turn on/off specified VLAN in the VLAN filter table.
+ **/
+static int wx_set_vfta(struct wx *wx, u32 vlan, u32 vind, bool vlan_on)
+{
+	u32 bitindex, vfta, targetbit;
+	bool vfta_changed = false;
+	int regindex, ret;
+
+	/* this is a 2 part operation - first the VFTA, then the
+	 * VLVF and VLVFB if VT Mode is set
+	 * We don't write the VFTA until we know the VLVF part succeeded.
+	 */
+
+	/* Part 1
+	 * The VFTA is a bitstring made up of 128 32-bit registers
+	 * that enable the particular VLAN id, much like the MTA:
+	 *    bits[11-5]: which register
+	 *    bits[4-0]:  which bit in the register
+	 */
+	regindex = (vlan >> 5) & 0x7F;
+	bitindex = vlan & 0x1F;
+	targetbit = (1 << bitindex);
+	/* errata 5 */
+	vfta = wx->mac.vft_shadow[regindex];
+	if (vlan_on) {
+		if (!(vfta & targetbit)) {
+			vfta |= targetbit;
+			vfta_changed = true;
+		}
+	} else {
+		if ((vfta & targetbit)) {
+			vfta &= ~targetbit;
+			vfta_changed = true;
+		}
+	}
+	/* Part 2
+	 * Call wx_set_vlvf to set VLVFB and VLVF
+	 */
+	ret = wx_set_vlvf(wx, vlan, vind, vlan_on, &vfta_changed);
+	if (ret != 0)
+		return ret;
+
+	if (vfta_changed)
+		wr32(wx, WX_PSR_VLAN_TBL(regindex), vfta);
+	wx->mac.vft_shadow[regindex] = vfta;
+
+	return 0;
+}
+
+/**
+ *  wx_clear_vfta - Clear VLAN filter table
+ *  @wx: pointer to hardware structure
+ *
+ *  Clears the VLAN filer table, and the VMDq index associated with the filter
+ **/
+static void wx_clear_vfta(struct wx *wx)
+{
+	u32 offset;
+
+	for (offset = 0; offset < wx->mac.vft_size; offset++) {
+		wr32(wx, WX_PSR_VLAN_TBL(offset), 0);
+		wx->mac.vft_shadow[offset] = 0;
+	}
+
+	for (offset = 0; offset < WX_PSR_VLAN_SWC_ENTRIES; offset++) {
+		wr32(wx, WX_PSR_VLAN_SWC_IDX, offset);
+		wr32(wx, WX_PSR_VLAN_SWC, 0);
+		wr32(wx, WX_PSR_VLAN_SWC_VM_L, 0);
+		wr32(wx, WX_PSR_VLAN_SWC_VM_H, 0);
+	}
+}
+
+int wx_vlan_rx_add_vid(struct net_device *netdev,
+		       __be16 proto, u16 vid)
+{
+	struct wx *wx = netdev_priv(netdev);
+
+	/* add VID to filter table */
+	wx_set_vfta(wx, vid, VMDQ_P(0), true);
+	set_bit(vid, wx->active_vlans);
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_vlan_rx_add_vid);
+
+int wx_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
+{
+	struct wx *wx = netdev_priv(netdev);
+
+	/* remove VID from filter table */
+	if (vid)
+		wx_set_vfta(wx, vid, VMDQ_P(0), false);
+	clear_bit(vid, wx->active_vlans);
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_vlan_rx_kill_vid);
+
+/**
+ *  wx_start_hw - Prepare hardware for Tx/Rx
+ *  @wx: pointer to hardware structure
+ *
+ *  Starts the hardware using the generic start_hw function
+ *  and the generation start_hw function.
+ *  Then performs revision-specific operations, if any.
+ **/
+void wx_start_hw(struct wx *wx)
+{
+	int i;
+
+	/* Clear the VLAN filter table */
+	wx_clear_vfta(wx);
+	WX_WRITE_FLUSH(wx);
+	/* Clear the rate limiters */
+	for (i = 0; i < wx->mac.max_tx_queues; i++) {
+		wr32(wx, WX_TDM_RP_IDX, i);
+		wr32(wx, WX_TDM_RP_RATE, 0);
+	}
+}
+EXPORT_SYMBOL(wx_start_hw);
 
 MODULE_LICENSE("GPL");

@@ -1911,11 +1911,9 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	inode_lock(vi);
 	/* We can write back this queue in page reclaim. */
-	current->backing_dev_info = inode_to_bdi(vi);
 	err = ntfs_prepare_file_for_write(iocb, from);
 	if (iov_iter_count(from) && !err)
 		written = ntfs_perform_write(file, from, iocb->ki_pos);
-	current->backing_dev_info = NULL;
 	inode_unlock(vi);
 	iocb->ki_pos += written;
 	if (likely(written > 0))
@@ -1992,7 +1990,7 @@ const struct file_operations ntfs_file_ops = {
 #endif /* NTFS_RW */
 	.mmap		= generic_file_mmap,
 	.open		= ntfs_file_open,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= filemap_splice_read,
 };
 
 const struct inode_operations ntfs_file_inode_ops = {

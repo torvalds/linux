@@ -82,18 +82,11 @@ void flush_icache_mm(struct mm_struct *mm, bool local)
 #ifdef CONFIG_MMU
 void flush_icache_pte(pte_t pte)
 {
-	struct page *page = pte_page(pte);
+	struct folio *folio = page_folio(pte_page(pte));
 
-	/*
-	 * HugeTLB pages are always fully mapped, so only setting head page's
-	 * PG_dcache_clean flag is enough.
-	 */
-	if (PageHuge(page))
-		page = compound_head(page);
-
-	if (!test_bit(PG_dcache_clean, &page->flags)) {
+	if (!test_bit(PG_dcache_clean, &folio->flags)) {
 		flush_icache_all();
-		set_bit(PG_dcache_clean, &page->flags);
+		set_bit(PG_dcache_clean, &folio->flags);
 	}
 }
 #endif /* CONFIG_MMU */
@@ -104,9 +97,9 @@ EXPORT_SYMBOL_GPL(riscv_cbom_block_size);
 unsigned int riscv_cboz_block_size;
 EXPORT_SYMBOL_GPL(riscv_cboz_block_size);
 
-static void cbo_get_block_size(struct device_node *node,
-			       const char *name, u32 *block_size,
-			       unsigned long *first_hartid)
+static void __init cbo_get_block_size(struct device_node *node,
+				      const char *name, u32 *block_size,
+				      unsigned long *first_hartid)
 {
 	unsigned long hartid;
 	u32 val;
@@ -126,7 +119,7 @@ static void cbo_get_block_size(struct device_node *node,
 	}
 }
 
-void riscv_init_cbo_blocksizes(void)
+void __init riscv_init_cbo_blocksizes(void)
 {
 	unsigned long cbom_hartid, cboz_hartid;
 	u32 cbom_block_size = 0, cboz_block_size = 0;

@@ -538,7 +538,7 @@ static struct i2c_driver vl6180_driver = {
 		.name   = VL6180_DRV_NAME,
 		.of_match_table = vl6180_of_match,
 	},
-	.probe_new = vl6180_probe,
+	.probe = vl6180_probe,
 	.id_table = vl6180_id,
 };
 

@@ -3,7 +3,7 @@
  * cfg80211 wext compat for managed mode.
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2009, 2020-2022 Intel Corporation
+ * Copyright (C) 2009, 2020-2023 Intel Corporation
  */
 
 #include <linux/export.h>
@@ -338,6 +338,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 	if (!ie_len)
 		ie = NULL;
 
+	wiphy_lock(wdev->wiphy);
 	wdev_lock(wdev);
 
 	/* no change */
@@ -370,6 +371,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 	err = 0;
  out:
 	wdev_unlock(wdev);
+	wiphy_unlock(wdev->wiphy);
 	return err;
 }
 

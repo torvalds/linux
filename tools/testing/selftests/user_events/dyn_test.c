@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "../kselftest_harness.h"
+#include "user_events_selftests.h"
 
 const char *abi_file = "/sys/kernel/tracing/user_events_data";
 const char *enable_file = "/sys/kernel/tracing/events/user_events/__test_event/enable";
@@ -143,12 +144,16 @@ do { \
 
 FIXTURE(user) {
 	int check;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
+
 	wait_for_delete();
 }
 
@@ -217,6 +222,18 @@ TEST_F(user, matching) {
 	/* Types don't match */
 	TEST_NMATCH("__test_event u64 a; u64 b",
 		    "__test_event u32 a; u32 b");
+
+	/* Struct name and size matches */
+	TEST_MATCH("__test_event struct my_struct a 20",
+		   "__test_event struct my_struct a 20");
+
+	/* Struct name don't match */
+	TEST_NMATCH("__test_event struct my_struct a 20",
+		    "__test_event struct my_struct b 20");
+
+	/* Struct size don't match */
+	TEST_NMATCH("__test_event struct my_struct a 20",
+		    "__test_event struct my_struct a 21");
 }
 
 int main(int argc, char **argv)

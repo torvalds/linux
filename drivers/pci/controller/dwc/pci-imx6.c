@@ -17,8 +17,8 @@
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/mfd/syscon/imx7-iomuxc-gpr.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -80,6 +80,7 @@ struct imx6_pcie {
 	struct clk		*pcie;
 	struct clk		*pcie_aux;
 	struct regmap		*iomuxc_gpr;
+	u16			msi_ctrl;
 	u32			controller_id;
 	struct reset_control	*pciephy_reset;
 	struct reset_control	*apps_reset;
@@ -1039,6 +1040,7 @@ static void imx6_pcie_host_exit(struct dw_pcie_rp *pp)
 
 static const struct dw_pcie_host_ops imx6_pcie_host_ops = {
 	.host_init = imx6_pcie_host_init,
+	.host_deinit = imx6_pcie_host_exit,
 };
 
 static const struct dw_pcie_ops dw_pcie_ops = {
@@ -1178,6 +1180,26 @@ pm_turnoff_sleep:
 	usleep_range(1000, 10000);
 }
 
+static void imx6_pcie_msi_save_restore(struct imx6_pcie *imx6_pcie, bool save)
+{
+	u8 offset;
+	u16 val;
+	struct dw_pcie *pci = imx6_pcie->pci;
+
+	if (pci_msi_enabled()) {
+		offset = dw_pcie_find_capability(pci, PCI_CAP_ID_MSI);
+		if (save) {
+			val = dw_pcie_readw_dbi(pci, offset + PCI_MSI_FLAGS);
+			imx6_pcie->msi_ctrl = val;
+		} else {
+			dw_pcie_dbi_ro_wr_en(pci);
+			val = imx6_pcie->msi_ctrl;
+			dw_pcie_writew_dbi(pci, offset + PCI_MSI_FLAGS, val);
+			dw_pcie_dbi_ro_wr_dis(pci);
+		}
+	}
+}
+
 static int imx6_pcie_suspend_noirq(struct device *dev)
 {
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
@@ -1186,6 +1208,7 @@ static int imx6_pcie_suspend_noirq(struct device *dev)
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 
+	imx6_pcie_msi_save_restore(imx6_pcie, true);
 	imx6_pcie_pm_turnoff(imx6_pcie);
 	imx6_pcie_stop_link(imx6_pcie->pci);
 	imx6_pcie_host_exit(pp);
@@ -1205,6 +1228,7 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 	ret = imx6_pcie_host_init(pp);
 	if (ret)
 		return ret;
+	imx6_pcie_msi_save_restore(imx6_pcie, false);
 	dw_pcie_setup_rc(pp);
 
 	if (imx6_pcie->link_is_up)
@@ -1259,8 +1283,7 @@ static int imx6_pcie_probe(struct platform_device *pdev)
 			return PTR_ERR(imx6_pcie->phy_base);
 	}
 
-	dbi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pci->dbi_base = devm_ioremap_resource(dev, dbi_base);
+	pci->dbi_base = devm_platform_get_and_ioremap_resource(pdev, 0, &dbi_base);
 	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
 

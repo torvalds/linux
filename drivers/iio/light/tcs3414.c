@@ -373,7 +373,7 @@ static struct i2c_driver tcs3414_driver = {
 		.name	= TCS3414_DRV_NAME,
 		.pm	= pm_sleep_ptr(&tcs3414_pm_ops),
 	},
-	.probe_new	= tcs3414_probe,
+	.probe		= tcs3414_probe,
 	.id_table	= tcs3414_id,
 };
 module_i2c_driver(tcs3414_driver);

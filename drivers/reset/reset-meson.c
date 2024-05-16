@@ -14,7 +14,6 @@
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/of_device.h>
 
 #define BITS_PER_REG	32
 
@@ -116,22 +115,18 @@ MODULE_DEVICE_TABLE(of, meson_reset_dt_ids);
 static int meson_reset_probe(struct platform_device *pdev)
 {
 	struct meson_reset *data;
-	struct resource *res;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	data->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->reg_base))
 		return PTR_ERR(data->reg_base);
 
 	data->param = of_device_get_match_data(&pdev->dev);
 	if (!data->param)
 		return -ENODEV;
-
-	platform_set_drvdata(pdev, data);
 
 	spin_lock_init(&data->lock);
 

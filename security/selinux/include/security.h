@@ -2,7 +2,7 @@
 /*
  * Security server interface.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  *
  */
 
@@ -65,6 +65,7 @@
 #define SE_SBPROC		0x0200
 #define SE_SBGENFS		0x0400
 #define SE_SBGENFS_XATTR	0x0800
+#define SE_SBNATIVE		0x1000
 
 #define CONTEXT_STR	"context"
 #define FSCONTEXT_STR	"fscontext"
@@ -147,58 +148,45 @@ static inline bool checkreqprot_get(void)
 
 static inline bool selinux_policycap_netpeer(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_NETPEER]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_NETPEER]);
 }
 
 static inline bool selinux_policycap_openperm(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_OPENPERM]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_OPENPERM]);
 }
 
 static inline bool selinux_policycap_extsockclass(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_EXTSOCKCLASS]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_EXTSOCKCLASS]);
 }
 
 static inline bool selinux_policycap_alwaysnetwork(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_ALWAYSNETWORK]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_ALWAYSNETWORK]);
 }
 
 static inline bool selinux_policycap_cgroupseclabel(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_CGROUPSECLABEL]);
+	return READ_ONCE(selinux_state.policycap[POLICYDB_CAP_CGROUPSECLABEL]);
 }
 
 static inline bool selinux_policycap_nnp_nosuid_transition(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_NNP_NOSUID_TRANSITION]);
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_NNP_NOSUID_TRANSITION]);
 }
 
 static inline bool selinux_policycap_genfs_seclabel_symlinks(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_GENFS_SECLABEL_SYMLINKS]);
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_GENFS_SECLABEL_SYMLINKS]);
 }
 
 static inline bool selinux_policycap_ioctl_skip_cloexec(void)
 {
-	struct selinux_state *state = &selinux_state;
-
-	return READ_ONCE(state->policycap[POLICYDB_CAP_IOCTL_SKIP_CLOEXEC]);
+	return READ_ONCE(
+		selinux_state.policycap[POLICYDB_CAP_IOCTL_SKIP_CLOEXEC]);
 }
 
 struct selinux_policy_convert_data;
@@ -318,9 +306,9 @@ int security_net_peersid_resolve(u32 nlbl_sid, u32 nlbl_type,
 				 u32 *peer_sid);
 
 int security_get_classes(struct selinux_policy *policy,
-			 char ***classes, int *nclasses);
+			 char ***classes, u32 *nclasses);
 int security_get_permissions(struct selinux_policy *policy,
-			     char *class, char ***perms, int *nperms);
+			     const char *class, char ***perms, u32 *nperms);
 int security_get_reject_unknown(void);
 int security_get_allow_unknown(void);
 
@@ -381,10 +369,9 @@ struct selinux_kernel_status {
 	 */
 } __packed;
 
-extern void selinux_status_update_setenforce(int enforcing);
-extern void selinux_status_update_policyload(int seqno);
+extern void selinux_status_update_setenforce(bool enforcing);
+extern void selinux_status_update_policyload(u32 seqno);
 extern void selinux_complete_init(void);
-extern void exit_sel_fs(void);
 extern struct path selinux_null;
 extern void selnl_notify_setenforce(int val);
 extern void selnl_notify_policyload(u32 seqno);

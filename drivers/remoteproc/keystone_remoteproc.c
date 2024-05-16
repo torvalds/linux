@@ -476,7 +476,7 @@ free_rproc:
 	return ret;
 }
 
-static int keystone_rproc_remove(struct platform_device *pdev)
+static void keystone_rproc_remove(struct platform_device *pdev)
 {
 	struct keystone_rproc *ksproc = platform_get_drvdata(pdev);
 
@@ -486,8 +486,6 @@ static int keystone_rproc_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	rproc_free(ksproc->rproc);
 	of_reserved_mem_device_release(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id keystone_rproc_of_match[] = {
@@ -501,7 +499,7 @@ MODULE_DEVICE_TABLE(of, keystone_rproc_of_match);
 
 static struct platform_driver keystone_rproc_driver = {
 	.probe	= keystone_rproc_probe,
-	.remove	= keystone_rproc_remove,
+	.remove_new = keystone_rproc_remove,
 	.driver	= {
 		.name = "keystone-rproc",
 		.of_match_table = keystone_rproc_of_match,

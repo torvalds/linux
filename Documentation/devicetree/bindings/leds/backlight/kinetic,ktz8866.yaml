@@ -21,6 +21,9 @@ properties:
   compatible:
     const: kinetic,ktz8866
 
+  reg:
+    maxItems: 1
+
   vddpos-supply:
     description: positive boost supply regulator.
 
@@ -33,6 +36,7 @@ properties:
 
   current-num-sinks:
     description: number of the LED current sinks' channels.
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2, 3, 4, 5, 6]
 
   kinetic,current-ramp-delay-ms:
@@ -53,6 +57,7 @@ properties:
 
 required:
   - compatible
+  - reg
   - vddpos-supply
   - vddneg-supply
   - enable-gpios
@@ -63,14 +68,19 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
 
-    backlight {
-        compatible = "kinetic,ktz8866";
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-        vddpos-supply = <&bl_vddpos_5p5>;
-        vddneg-supply = <&bl_vddneg_5p5>;
-        enable-gpios = <&tlmm 139 GPIO_ACTIVE_HIGH>;
-        current-num-sinks = <5>;
-        kinetic,current-ramp-delay-ms = <128>;
-        kinetic,led-enable-ramp-delay-ms = <1>;
-        kinetic,enable-lcd-bias;
+        backlight@11 {
+            compatible = "kinetic,ktz8866";
+            reg = <0x11>;
+            vddpos-supply = <&bl_vddpos_5p5>;
+            vddneg-supply = <&bl_vddneg_5p5>;
+            enable-gpios = <&tlmm 139 GPIO_ACTIVE_HIGH>;
+            current-num-sinks = <5>;
+            kinetic,current-ramp-delay-ms = <128>;
+            kinetic,led-enable-ramp-delay-ms = <1>;
+            kinetic,enable-lcd-bias;
+        };
     };

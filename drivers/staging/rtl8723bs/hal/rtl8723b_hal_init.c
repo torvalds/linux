@@ -2275,7 +2275,10 @@ void Hal_EfuseParseBTCoexistInfo_8723B(
 			pHalData->EEPROMBluetoothAntNum = tempval & BIT(0);
 			/*  EFUSE_0xC3[6] == 0, S1(Main)-RF_PATH_A; */
 			/*  EFUSE_0xC3[6] == 1, S0(Aux)-RF_PATH_B */
-			pHalData->ant_path = (tempval & BIT(6))? RF_PATH_B : RF_PATH_A;
+			if (tempval & BIT(6))
+				pHalData->ant_path = RF_PATH_B;
+			else
+				pHalData->ant_path = RF_PATH_A;
 		} else {
 			pHalData->EEPROMBluetoothAntNum = Ant_x1;
 			if (pHalData->PackageType == PACKAGE_QFN68)
@@ -2606,7 +2609,7 @@ static void rtl8723b_fill_default_txdesc(
 	pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	pattrib = &pxmitframe->attrib;
-	bmcst = IS_MCAST(pattrib->ra);
+	bmcst = is_multicast_ether_addr(pattrib->ra);
 
 	ptxdesc = (struct txdesc_8723b *)pbuf;
 

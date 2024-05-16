@@ -404,7 +404,7 @@ static int elroy_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int 
 static void
 lba_wr_cfg(struct lba_device *d, u32 tok, u8 reg, u32 data, u32 size)
 {
-	int error = 0;
+	int error __maybe_unused = 0;
 	u32 arb_mask = 0;
 	u32 error_config = 0;
 	u32 status_control = 0;
@@ -1018,7 +1018,7 @@ static void
 lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 {
 	unsigned long bytecnt;
-	long io_count;
+	long io_count __maybe_unused;
 	long status;	/* PDC return status */
 	long pa_count;
 	pdc_pat_cell_mod_maddr_block_t *pa_pdc_cell;	/* PA_VIEW */
@@ -1162,10 +1162,6 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 #define lba_pat_port_ops lba_astro_port_ops
 #define lba_pat_resources(pa_dev, lba_dev)
 #endif	/* CONFIG_64BIT */
-
-
-extern void sba_distributed_lmmio(struct parisc_device *, struct resource *);
-extern void sba_directed_lmmio(struct parisc_device *, struct resource *);
 
 
 static void
@@ -1539,7 +1535,8 @@ lba_driver_probe(struct parisc_device *dev)
 	}
 
 	/* Tell I/O SAPIC driver we have a IRQ handler/region. */
-	tmp_obj = iosapic_register(dev->hpa.start + LBA_IOSAPIC_BASE);
+	tmp_obj = iosapic_register(dev->hpa.start + LBA_IOSAPIC_BASE,
+						addr + LBA_IOSAPIC_BASE);
 
 	/* NOTE: PCI devices (e.g. 103c:1005 graphics card) which don't
 	**	have an IRT entry will get NULL back from iosapic code.
@@ -1685,10 +1682,11 @@ static struct parisc_driver lba_driver __refdata = {
 ** One time initialization to let the world know the LBA was found.
 ** Must be called exactly once before pci_init().
 */
-void __init lba_init(void)
+static int __init lba_init(void)
 {
-	register_parisc_driver(&lba_driver);
+	return register_parisc_driver(&lba_driver);
 }
+arch_initcall(lba_init);
 
 /*
 ** Initialize the IBASE/IMASK registers for LBA (Elroy).

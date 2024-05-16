@@ -176,8 +176,8 @@ static ssize_t slots_read(struct file *filp, char __user *buf, size_t count,
 	int ret;
 
 	cmd = filp->private_data;
-	weight = bitmap_weight(&cmd->bitmask, cmd->max_reg_cmds);
-	field = cmd->max_reg_cmds - weight;
+	weight = bitmap_weight(&cmd->vars.bitmask, cmd->vars.max_reg_cmds);
+	field = cmd->vars.max_reg_cmds - weight;
 	ret = snprintf(tbuf, sizeof(tbuf), "%d\n", field);
 	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
 }
@@ -187,6 +187,24 @@ static const struct file_operations slots_fops = {
 	.open	= simple_open,
 	.read	= slots_read,
 };
+
+static struct mlx5_cmd_stats *
+mlx5_cmdif_alloc_stats(struct xarray *stats_xa, int opcode)
+{
+	struct mlx5_cmd_stats *stats = kzalloc(sizeof(*stats), GFP_KERNEL);
+	int err;
+
+	if (!stats)
+		return NULL;
+
+	err = xa_insert(stats_xa, opcode, stats, GFP_KERNEL);
+	if (err) {
+		kfree(stats);
+		return NULL;
+	}
+	spin_lock_init(&stats->lock);
+	return stats;
+}
 
 void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 {
@@ -200,10 +218,14 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 
 	debugfs_create_file("slots_inuse", 0400, *cmd, &dev->cmd, &slots_fops);
 
+	xa_init(&dev->cmd.stats);
+
 	for (i = 0; i < MLX5_CMD_OP_MAX; i++) {
-		stats = &dev->cmd.stats[i];
 		namep = mlx5_command_str(i);
 		if (strcmp(namep, "unknown command opcode")) {
+			stats = mlx5_cmdif_alloc_stats(&dev->cmd.stats, i);
+			if (!stats)
+				continue;
 			stats->root = debugfs_create_dir(namep, *cmd);
 
 			debugfs_create_file("average", 0400, stats->root, stats,
@@ -224,7 +246,13 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 
 void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev)
 {
+	struct mlx5_cmd_stats *stats;
+	unsigned long i;
+
 	debugfs_remove_recursive(dev->priv.dbg.cmdif_debugfs);
+	xa_for_each(&dev->cmd.stats, i, stats)
+		kfree(stats);
+	xa_destroy(&dev->cmd.stats);
 }
 
 void mlx5_cq_debugfs_init(struct mlx5_core_dev *dev)
@@ -246,6 +274,7 @@ void mlx5_pages_debugfs_init(struct mlx5_core_dev *dev)
 
 	debugfs_create_u32("fw_pages_total", 0400, pages, &dev->priv.fw_pages);
 	debugfs_create_u32("fw_pages_vfs", 0400, pages, &dev->priv.page_counters[MLX5_VF]);
+	debugfs_create_u32("fw_pages_ec_vfs", 0400, pages, &dev->priv.page_counters[MLX5_EC_VF]);
 	debugfs_create_u32("fw_pages_sfs", 0400, pages, &dev->priv.page_counters[MLX5_SF]);
 	debugfs_create_u32("fw_pages_host_pf", 0400, pages, &dev->priv.page_counters[MLX5_HOST_PF]);
 	debugfs_create_u32("fw_pages_alloc_failed", 0400, pages, &dev->priv.fw_pages_alloc_failed);
@@ -513,11 +542,11 @@ EXPORT_SYMBOL(mlx5_debug_qp_add);
 
 void mlx5_debug_qp_remove(struct mlx5_core_dev *dev, struct mlx5_core_qp *qp)
 {
-	if (!mlx5_debugfs_root)
+	if (!mlx5_debugfs_root || !qp->dbg)
 		return;
 
-	if (qp->dbg)
-		rem_res_tree(qp->dbg);
+	rem_res_tree(qp->dbg);
+	qp->dbg = NULL;
 }
 EXPORT_SYMBOL(mlx5_debug_qp_remove);
 

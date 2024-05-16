@@ -45,6 +45,9 @@ properties:
       - const: fspi_en
       - const: fspi
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg

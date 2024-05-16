@@ -7,20 +7,23 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx Versal clock controller
 
 maintainers:
-  - Michal Simek <michal.simek@xilinx.com>
-  - Jolly Shah <jolly.shah@xilinx.com>
-  - Rajan Vaja <rajan.vaja@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 description: |
   The clock controller is a hardware block of Xilinx versal clock tree. It
   reads required input clock frequencies from the devicetree and acts as clock
   provider for all clock consumers of PS clocks.
 
-select: false
-
 properties:
   compatible:
-    const: xlnx,versal-clk
+    oneOf:
+      - enum:
+          - xlnx,versal-clk
+          - xlnx,zynqmp-clk
+      - items:
+          - enum:
+              - xlnx,versal-net-clk
+          - const: xlnx,versal-clk
 
   "#clock-cells":
     const: 1
@@ -28,16 +31,12 @@ properties:
   clocks:
     description: List of clock specifiers which are external input
       clocks to the given clock controller.
-    items:
-      - description: reference clock
-      - description: alternate reference clock
-      - description: alternate reference clock for programmable logic
+    minItems: 3
+    maxItems: 8
 
   clock-names:
-    items:
-      - const: ref
-      - const: alt_ref
-      - const: pl_alt_ref
+    minItems: 3
+    maxItems: 8
 
 required:
   - compatible
@@ -46,6 +45,61 @@ required:
   - clock-names
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - xlnx,versal-clk
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: reference clock
+            - description: alternate reference clock
+            - description: alternate reference clock for programmable logic
+
+        clock-names:
+          items:
+            - const: ref
+            - const: alt_ref
+            - const: pl_alt_ref
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - xlnx,zynqmp-clk
+
+    then:
+      properties:
+        clocks:
+          minItems: 5
+          items:
+            - description: PS reference clock
+            - description: reference clock for video system
+            - description: alternative PS reference clock
+            - description: auxiliary reference clock
+            - description: transceiver reference clock
+            - description: (E)MIO clock source  (Optional clock)
+            - description: GEM emio clock  (Optional clock)
+            - description: Watchdog external clock (Optional clock)
+
+        clock-names:
+          minItems: 5
+          items:
+            - const: pss_ref_clk
+            - const: video_clk
+            - const: pss_alt_ref_clk
+            - const: aux_ref_clk
+            - const: gt_crx_ref_clk
+            - pattern: "^mio_clk[00-77]+.*$"
+            - pattern: "gem[0-3]+_emio_clk.*$"
+            - pattern: "swdt[0-1]+_ext_clk.*$"
 
 examples:
   - |
@@ -60,5 +114,14 @@ examples:
           clock-names = "ref", "alt_ref", "pl_alt_ref";
         };
       };
+    };
+
+    clock-controller {
+        #clock-cells = <1>;
+        compatible = "xlnx,zynqmp-clk";
+        clocks = <&pss_ref_clk>, <&video_clk>, <&pss_alt_ref_clk>,
+                 <&aux_ref_clk>, <&gt_crx_ref_clk>;
+        clock-names = "pss_ref_clk", "video_clk", "pss_alt_ref_clk",
+                      "aux_ref_clk", "gt_crx_ref_clk";
     };
 ...

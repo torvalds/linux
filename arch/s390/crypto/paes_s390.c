@@ -5,7 +5,7 @@
  * s390 implementation of the AES Cipher Algorithm with protected keys.
  *
  * s390 Version:
- *   Copyright IBM Corp. 2017,2020
+ *   Copyright IBM Corp. 2017, 2023
  *   Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  *		Harald Freudenberger <freude@de.ibm.com>
  */
@@ -35,7 +35,7 @@
  * and padding is also possible, the limits need to be generous.
  */
 #define PAES_MIN_KEYSIZE 16
-#define PAES_MAX_KEYSIZE 320
+#define PAES_MAX_KEYSIZE MAXEP11AESKEYBLOBSIZE
 
 static u8 *ctrblk;
 static DEFINE_MUTEX(ctrblk_lock);
@@ -103,7 +103,7 @@ static inline void _free_kb_keybuf(struct key_blob *kb)
 {
 	if (kb->key && kb->key != kb->keybuf
 	    && kb->keylen > sizeof(kb->keybuf)) {
-		kfree(kb->key);
+		kfree_sensitive(kb->key);
 		kb->key = NULL;
 	}
 }
@@ -132,7 +132,8 @@ static inline int __paes_keyblob2pkey(struct key_blob *kb,
 		if (i > 0 && ret == -EAGAIN && in_task())
 			if (msleep_interruptible(1000))
 				return -EINTR;
-		ret = pkey_keyblob2pkey(kb->key, kb->keylen, pk);
+		ret = pkey_keyblob2pkey(kb->key, kb->keylen,
+					pk->protkey, &pk->len, &pk->type);
 		if (ret == 0)
 			break;
 	}
@@ -145,6 +146,7 @@ static inline int __paes_convert_key(struct s390_paes_ctx *ctx)
 	int ret;
 	struct pkey_protkey pkey;
 
+	pkey.len = sizeof(pkey.protkey);
 	ret = __paes_keyblob2pkey(&ctx->kb, &pkey);
 	if (ret)
 		return ret;
@@ -413,6 +415,9 @@ static void xts_paes_exit(struct crypto_skcipher *tfm)
 static inline int __xts_paes_convert_key(struct s390_pxts_ctx *ctx)
 {
 	struct pkey_protkey pkey0, pkey1;
+
+	pkey0.len = sizeof(pkey0.protkey);
+	pkey1.len = sizeof(pkey1.protkey);
 
 	if (__paes_keyblob2pkey(&ctx->kb[0], &pkey0) ||
 	    __paes_keyblob2pkey(&ctx->kb[1], &pkey1))

@@ -12,6 +12,7 @@
 #include <asm/cpu-info.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
+#include <asm/ftrace.h>
 
 void output_ptreg_defines(void)
 {
@@ -117,13 +118,6 @@ void output_thread_defines(void)
 	OFFSET(THREAD_CSRECFG, task_struct,
 	       thread.csr_ecfg);
 
-	OFFSET(THREAD_SCR0, task_struct, thread.scr0);
-	OFFSET(THREAD_SCR1, task_struct, thread.scr1);
-	OFFSET(THREAD_SCR2, task_struct, thread.scr2);
-	OFFSET(THREAD_SCR3, task_struct, thread.scr3);
-
-	OFFSET(THREAD_EFLAGS, task_struct, thread.eflags);
-
 	OFFSET(THREAD_FPU, task_struct, thread.fpu);
 
 	OFFSET(THREAD_BVADDR, task_struct, \
@@ -171,6 +165,17 @@ void output_thread_fpu_defines(void)
 
 	OFFSET(THREAD_FCSR, loongarch_fpu, fcsr);
 	OFFSET(THREAD_FCC,  loongarch_fpu, fcc);
+	OFFSET(THREAD_FTOP, loongarch_fpu, ftop);
+	BLANK();
+}
+
+void output_thread_lbt_defines(void)
+{
+	OFFSET(THREAD_SCR0,  loongarch_lbt, scr0);
+	OFFSET(THREAD_SCR1,  loongarch_lbt, scr1);
+	OFFSET(THREAD_SCR2,  loongarch_lbt, scr2);
+	OFFSET(THREAD_SCR3,  loongarch_lbt, scr3);
+	OFFSET(THREAD_EFLAGS, loongarch_lbt, eflags);
 	BLANK();
 }
 
@@ -264,11 +269,23 @@ void output_smpboot_defines(void)
 #ifdef CONFIG_HIBERNATION
 void output_pbe_defines(void)
 {
-	COMMENT(" Linux struct pbe offsets. ");
+	COMMENT("Linux struct pbe offsets.");
 	OFFSET(PBE_ADDRESS, pbe, address);
 	OFFSET(PBE_ORIG_ADDRESS, pbe, orig_address);
 	OFFSET(PBE_NEXT, pbe, next);
 	DEFINE(PBE_SIZE, sizeof(struct pbe));
+	BLANK();
+}
+#endif
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+void output_fgraph_ret_regs_defines(void)
+{
+	COMMENT("LoongArch fgraph_ret_regs offsets.");
+	OFFSET(FGRET_REGS_A0, fgraph_ret_regs, regs[0]);
+	OFFSET(FGRET_REGS_A1, fgraph_ret_regs, regs[1]);
+	OFFSET(FGRET_REGS_FP, fgraph_ret_regs, fp);
+	DEFINE(FGRET_REGS_SIZE, sizeof(struct fgraph_ret_regs));
 	BLANK();
 }
 #endif

@@ -36,7 +36,7 @@ static int wm831x_i2c_probe(struct i2c_client *i2c)
 			dev_err(&i2c->dev, "Failed to match device\n");
 			return -ENODEV;
 		}
-		type = (enum wm831x_parent)of_id->data;
+		type = (uintptr_t)of_id->data;
 	} else {
 		type = (enum wm831x_parent)id->driver_data;
 	}
@@ -102,7 +102,7 @@ static struct i2c_driver wm831x_i2c_driver = {
 		.of_match_table = of_match_ptr(wm831x_of_match),
 		.suppress_bind_attrs = true,
 	},
-	.probe_new = wm831x_i2c_probe,
+	.probe = wm831x_i2c_probe,
 	.id_table = wm831x_i2c_id,
 };
 

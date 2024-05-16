@@ -347,7 +347,7 @@ static void syncookie_estab(void)
 	exp_active_estab_in.max_delack_ms = 22;
 
 	exp_passive_hdr_stg.syncookie = true;
-	exp_active_hdr_stg.resend_syn = true,
+	exp_active_hdr_stg.resend_syn = true;
 
 	prepare_out();
 

@@ -15,7 +15,7 @@
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
+#include <crypto/utils.h>
 
 #include "ieee80211_i.h"
 #include "michael.h"

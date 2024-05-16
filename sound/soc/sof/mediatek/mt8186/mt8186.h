@@ -38,6 +38,11 @@ struct snd_sof_dev;
 #define DSP_MBOX3_IRQ_EN		BIT(3)
 #define DSP_MBOX4_IRQ_EN		BIT(4)
 #define DSP_PDEBUGPC			0x013C
+#define DSP_PDEBUGDATA			0x0140
+#define DSP_PDEBUGINST			0x0144
+#define DSP_PDEBUGLS0STAT		0x0148
+#define DSP_PDEBUGSTATUS		0x014C
+#define DSP_PFAULTINFO			0x0150
 #define ADSP_CK_EN			0x1000
 #define CORE_CLK_EN			BIT(0)
 #define COREDBG_EN			BIT(1)

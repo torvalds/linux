@@ -55,12 +55,11 @@
 
 /* Offset from pad_regs */
 #define PADCFG0				0x000
-#define PADCFG0_RXEVCFG_SHIFT		25
 #define PADCFG0_RXEVCFG_MASK		GENMASK(26, 25)
-#define PADCFG0_RXEVCFG_LEVEL		0
-#define PADCFG0_RXEVCFG_EDGE		1
-#define PADCFG0_RXEVCFG_DISABLED	2
-#define PADCFG0_RXEVCFG_EDGE_BOTH	3
+#define PADCFG0_RXEVCFG_LEVEL		(0 << 25)
+#define PADCFG0_RXEVCFG_EDGE		(1 << 25)
+#define PADCFG0_RXEVCFG_DISABLED	(2 << 25)
+#define PADCFG0_RXEVCFG_EDGE_BOTH	(3 << 25)
 #define PADCFG0_PREGFRXSEL		BIT(24)
 #define PADCFG0_RXINV			BIT(23)
 #define PADCFG0_GPIROUTIOXAPIC		BIT(20)
@@ -108,8 +107,7 @@ struct intel_community_context {
 #define pin_to_padno(c, p)	((p) - (c)->pin_base)
 #define padgroup_offset(g, p)	((p) - (g)->base)
 
-static struct intel_community *intel_get_community(struct intel_pinctrl *pctrl,
-						   unsigned int pin)
+struct intel_community *intel_get_community(struct intel_pinctrl *pctrl, unsigned int pin)
 {
 	struct intel_community *community;
 	int i;
@@ -124,6 +122,7 @@ static struct intel_community *intel_get_community(struct intel_pinctrl *pctrl,
 	dev_warn(pctrl->dev, "failed to find community for pin %u\n", pin);
 	return NULL;
 }
+EXPORT_SYMBOL_NS_GPL(intel_get_community, PINCTRL_INTEL);
 
 static const struct intel_padgroup *
 intel_community_get_padgroup(const struct intel_community *community,
@@ -277,23 +276,24 @@ static bool intel_pad_usable(struct intel_pinctrl *pctrl, unsigned int pin)
 	return intel_pad_owned_by_host(pctrl, pin) && intel_pad_is_unlocked(pctrl, pin);
 }
 
-static int intel_get_groups_count(struct pinctrl_dev *pctldev)
+int intel_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->soc->ngroups;
 }
+EXPORT_SYMBOL_NS_GPL(intel_get_groups_count, PINCTRL_INTEL);
 
-static const char *intel_get_group_name(struct pinctrl_dev *pctldev,
-				      unsigned int group)
+const char *intel_get_group_name(struct pinctrl_dev *pctldev, unsigned int group)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->soc->groups[group].grp.name;
 }
+EXPORT_SYMBOL_NS_GPL(intel_get_group_name, PINCTRL_INTEL);
 
-static int intel_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
-			      const unsigned int **pins, unsigned int *npins)
+int intel_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
+			 const unsigned int **pins, unsigned int *npins)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -301,6 +301,7 @@ static int intel_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
 	*npins = pctrl->soc->groups[group].grp.npins;
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(intel_get_group_pins, PINCTRL_INTEL);
 
 static void intel_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 			       unsigned int pin)
@@ -360,25 +361,24 @@ static const struct pinctrl_ops intel_pinctrl_ops = {
 	.pin_dbg_show = intel_pin_dbg_show,
 };
 
-static int intel_get_functions_count(struct pinctrl_dev *pctldev)
+int intel_get_functions_count(struct pinctrl_dev *pctldev)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->soc->nfunctions;
 }
+EXPORT_SYMBOL_NS_GPL(intel_get_functions_count, PINCTRL_INTEL);
 
-static const char *intel_get_function_name(struct pinctrl_dev *pctldev,
-					   unsigned int function)
+const char *intel_get_function_name(struct pinctrl_dev *pctldev, unsigned int function)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
 	return pctrl->soc->functions[function].func.name;
 }
+EXPORT_SYMBOL_NS_GPL(intel_get_function_name, PINCTRL_INTEL);
 
-static int intel_get_function_groups(struct pinctrl_dev *pctldev,
-				     unsigned int function,
-				     const char * const **groups,
-				     unsigned int * const ngroups)
+int intel_get_function_groups(struct pinctrl_dev *pctldev, unsigned int function,
+			      const char * const **groups, unsigned int * const ngroups)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -386,6 +386,7 @@ static int intel_get_function_groups(struct pinctrl_dev *pctldev,
 	*ngroups = pctrl->soc->functions[function].func.ngroups;
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(intel_get_function_groups, PINCTRL_INTEL);
 
 static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev,
 				unsigned int function, unsigned int group)
@@ -411,18 +412,19 @@ static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	/* Now enable the mux setting for each pin in the group */
 	for (i = 0; i < grp->grp.npins; i++) {
 		void __iomem *padcfg0;
-		u32 value;
+		u32 value, pmode;
 
 		padcfg0 = intel_get_padcfg(pctrl, grp->grp.pins[i], PADCFG0);
-		value = readl(padcfg0);
 
+		value = readl(padcfg0);
 		value &= ~PADCFG0_PMODE_MASK;
 
 		if (grp->modes)
-			value |= grp->modes[i] << PADCFG0_PMODE_SHIFT;
+			pmode = grp->modes[i];
 		else
-			value |= grp->mode << PADCFG0_PMODE_SHIFT;
+			pmode = grp->mode;
 
+		value |= pmode << PADCFG0_PMODE_SHIFT;
 		writel(value, padcfg0);
 	}
 
@@ -1126,9 +1128,9 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned int type)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	unsigned int pin = intel_gpio_to_pin(pctrl, irqd_to_hwirq(d), NULL, NULL);
+	u32 rxevcfg, rxinv, value;
 	unsigned long flags;
 	void __iomem *reg;
-	u32 value;
 
 	reg = intel_get_padcfg(pctrl, pin, PADCFG0);
 	if (!reg)
@@ -1144,27 +1146,31 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned int type)
 		return -EPERM;
 	}
 
+	if ((type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
+		rxevcfg = PADCFG0_RXEVCFG_EDGE_BOTH;
+	} else if (type & IRQ_TYPE_EDGE_FALLING) {
+		rxevcfg = PADCFG0_RXEVCFG_EDGE;
+	} else if (type & IRQ_TYPE_EDGE_RISING) {
+		rxevcfg = PADCFG0_RXEVCFG_EDGE;
+	} else if (type & IRQ_TYPE_LEVEL_MASK) {
+		rxevcfg = PADCFG0_RXEVCFG_LEVEL;
+	} else {
+		rxevcfg = PADCFG0_RXEVCFG_DISABLED;
+	}
+
+	if (type == IRQ_TYPE_EDGE_FALLING || type == IRQ_TYPE_LEVEL_LOW)
+		rxinv = PADCFG0_RXINV;
+	else
+		rxinv = 0;
+
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	intel_gpio_set_gpio_mode(reg);
 
 	value = readl(reg);
 
-	value &= ~(PADCFG0_RXEVCFG_MASK | PADCFG0_RXINV);
-
-	if ((type & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
-		value |= PADCFG0_RXEVCFG_EDGE_BOTH << PADCFG0_RXEVCFG_SHIFT;
-	} else if (type & IRQ_TYPE_EDGE_FALLING) {
-		value |= PADCFG0_RXEVCFG_EDGE << PADCFG0_RXEVCFG_SHIFT;
-		value |= PADCFG0_RXINV;
-	} else if (type & IRQ_TYPE_EDGE_RISING) {
-		value |= PADCFG0_RXEVCFG_EDGE << PADCFG0_RXEVCFG_SHIFT;
-	} else if (type & IRQ_TYPE_LEVEL_MASK) {
-		if (type & IRQ_TYPE_LEVEL_LOW)
-			value |= PADCFG0_RXINV;
-	} else {
-		value |= PADCFG0_RXEVCFG_DISABLED << PADCFG0_RXEVCFG_SHIFT;
-	}
+	value = (value & ~PADCFG0_RXEVCFG_MASK) | rxevcfg;
+	value = (value & ~PADCFG0_RXINV) | rxinv;
 
 	writel(value, reg);
 
@@ -1662,7 +1668,7 @@ int intel_pinctrl_probe_by_hid(struct platform_device *pdev)
 
 	return intel_pinctrl_probe(pdev, data);
 }
-EXPORT_SYMBOL_GPL(intel_pinctrl_probe_by_hid);
+EXPORT_SYMBOL_NS_GPL(intel_pinctrl_probe_by_hid, PINCTRL_INTEL);
 
 int intel_pinctrl_probe_by_uid(struct platform_device *pdev)
 {
@@ -1674,7 +1680,7 @@ int intel_pinctrl_probe_by_uid(struct platform_device *pdev)
 
 	return intel_pinctrl_probe(pdev, data);
 }
-EXPORT_SYMBOL_GPL(intel_pinctrl_probe_by_uid);
+EXPORT_SYMBOL_NS_GPL(intel_pinctrl_probe_by_uid, PINCTRL_INTEL);
 
 const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_device *pdev)
 {
@@ -1706,7 +1712,7 @@ const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_
 
 	return data ?: ERR_PTR(-ENODATA);
 }
-EXPORT_SYMBOL_GPL(intel_pinctrl_get_soc_data);
+EXPORT_SYMBOL_NS_GPL(intel_pinctrl_get_soc_data, PINCTRL_INTEL);
 
 #ifdef CONFIG_PM_SLEEP
 static bool __intel_gpio_is_direct_irq(u32 value)

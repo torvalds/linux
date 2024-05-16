@@ -168,8 +168,6 @@ struct callchain_cursor {
 	struct callchain_cursor_node	*curr;
 };
 
-extern __thread struct callchain_cursor callchain_cursor;
-
 static inline void callchain_init(struct callchain_root *root)
 {
 	INIT_LIST_HEAD(&root->node.val);
@@ -211,6 +209,8 @@ int callchain_cursor_append(struct callchain_cursor *cursor, u64 ip,
 /* Close a cursor writing session. Initialize for the reader */
 static inline void callchain_cursor_commit(struct callchain_cursor *cursor)
 {
+	if (cursor == NULL)
+		return;
 	cursor->curr = cursor->first;
 	cursor->pos = 0;
 }
@@ -219,7 +219,7 @@ static inline void callchain_cursor_commit(struct callchain_cursor *cursor)
 static inline struct callchain_cursor_node *
 callchain_cursor_current(struct callchain_cursor *cursor)
 {
-	if (cursor->pos == cursor->nr)
+	if (cursor == NULL || cursor->pos == cursor->nr)
 		return NULL;
 
 	return cursor->curr;
@@ -230,6 +230,8 @@ static inline void callchain_cursor_advance(struct callchain_cursor *cursor)
 	cursor->curr = cursor->curr->next;
 	cursor->pos++;
 }
+
+struct callchain_cursor *get_tls_callchain_cursor(void);
 
 int callchain_cursor__copy(struct callchain_cursor *dst,
 			   struct callchain_cursor *src);

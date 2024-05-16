@@ -9,7 +9,6 @@
  * Copyright (C) 2007 Instituto Nokia de Tecnologia - INdT
  */
 
-#include <linux/gpio.h>
 #include <linux/platform_device.h>
 
 #include "hardware.h"

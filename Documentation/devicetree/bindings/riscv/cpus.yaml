@@ -23,6 +23,10 @@ description: |
   two cores, each of which has two hyperthreads, could be described as
   having four harts.
 
+allOf:
+  - $ref: /schemas/cpu.yaml#
+  - $ref: extensions.yaml
+
 properties:
   compatible:
     oneOf:
@@ -61,7 +65,7 @@ properties:
       hart.  These values originate from the RISC-V Privileged
       Specification document, available from
       https://riscv.org/specifications/
-    $ref: "/schemas/types.yaml#/definitions/string"
+    $ref: /schemas/types.yaml#/definitions/string
     enum:
       - riscv,sv32
       - riscv,sv39
@@ -79,30 +83,15 @@ properties:
     description:
       The blocksize in bytes for the Zicboz cache operations.
 
-  riscv,isa:
-    description:
-      Identifies the specific RISC-V instruction set architecture
-      supported by the hart.  These are documented in the RISC-V
-      User-Level ISA document, available from
-      https://riscv.org/specifications/
-
-      Due to revisions of the ISA specification, some deviations
-      have arisen over time.
-      Notably, riscv,isa was defined prior to the creation of the
-      Zicsr and Zifencei extensions and thus "i" implies
-      "zicsr_zifencei".
-
-      While the isa strings in ISA specification are case
-      insensitive, letters in the riscv,isa string must be all
-      lowercase to simplify parsing.
-    $ref: "/schemas/types.yaml#/definitions/string"
-    pattern: ^rv(?:64|32)imaf?d?q?c?b?k?j?p?v?h?(?:[hsxz](?:[a-z])+)?(?:_[hsxz](?:[a-z])+)*$
-
+  # RISC-V has multiple properties for cache op block sizes as the sizes
+  # differ between individual CBO extensions
+  cache-op-block-size: false
   # RISC-V requires 'timebase-frequency' in /cpus, so disallow it here
   timebase-frequency: false
 
   interrupt-controller:
     type: object
+    additionalProperties: false
     description: Describes the CPU's local interrupt controller
 
     properties:
@@ -120,7 +109,7 @@ properties:
       - interrupt-controller
 
   cpu-idle-states:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       maxItems: 1
     description: |
@@ -133,11 +122,20 @@ properties:
       DMIPS/MHz, relative to highest capacity-dmips-mhz
       in the system.
 
+anyOf:
+  - required:
+      - riscv,isa
+  - required:
+      - riscv,isa-base
+
+dependencies:
+  riscv,isa-base: [ "riscv,isa-extensions" ]
+  riscv,isa-extensions: [ "riscv,isa-base" ]
+
 required:
-  - riscv,isa
   - interrupt-controller
 
-additionalProperties: true
+unevaluatedProperties: false
 
 examples:
   - |
@@ -154,7 +152,9 @@ examples:
                 i-cache-sets = <128>;
                 i-cache-size = <16384>;
                 reg = <0>;
-                riscv,isa = "rv64imac";
+                riscv,isa-base = "rv64i";
+                riscv,isa-extensions = "i", "m", "a", "c";
+
                 cpu_intc0: interrupt-controller {
                         #interrupt-cells = <1>;
                         compatible = "riscv,cpu-intc";
@@ -177,8 +177,10 @@ examples:
                 i-tlb-size = <32>;
                 mmu-type = "riscv,sv39";
                 reg = <1>;
-                riscv,isa = "rv64imafdc";
                 tlb-split;
+                riscv,isa-base = "rv64i";
+                riscv,isa-extensions = "i", "m", "a", "f", "d", "c";
+
                 cpu_intc1: interrupt-controller {
                         #interrupt-cells = <1>;
                         compatible = "riscv,cpu-intc";
@@ -196,8 +198,10 @@ examples:
                 device_type = "cpu";
                 reg = <0>;
                 compatible = "riscv";
-                riscv,isa = "rv64imafdc";
                 mmu-type = "riscv,sv48";
+                riscv,isa-base = "rv64i";
+                riscv,isa-extensions = "i", "m", "a", "f", "d", "c";
+
                 interrupt-controller {
                         #interrupt-cells = <1>;
                         interrupt-controller;

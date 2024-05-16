@@ -91,6 +91,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq6018", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x6100>;
 		};
 	};
 
@@ -145,6 +146,32 @@
 		method = "smc";
 	};
 
+	rpm: remoteproc {
+		compatible = "qcom,ipq6018-rpm-proc", "qcom,rpm-proc";
+
+		glink-edge {
+			compatible = "qcom,glink-rpm";
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+			mboxes = <&apcs_glb 0>;
+
+			rpm_requests: rpm-requests {
+				compatible = "qcom,rpm-ipq6018";
+				qcom,glink-channels = "rpm_requests";
+
+				regulators {
+					compatible = "qcom,rpm-mp5496-regulators";
+
+					ipq6018_s2: s2 {
+						regulator-min-microvolt = <725000>;
+						regulator-max-microvolt = <1062500>;
+						regulator-always-on;
+					};
+				};
+			};
+		};
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -155,41 +182,29 @@
 			no-map;
 		};
 
+		bootloader@4a100000 {
+			reg = <0x0 0x4a100000 0x0 0x400000>;
+			no-map;
+		};
+
+		sbl@4a500000 {
+			reg = <0x0 0x4a500000 0x0 0x100000>;
+			no-map;
+		};
+
 		tz: memory@4a600000 {
-			reg = <0x0 0x4a600000 0x0 0x00400000>;
+			reg = <0x0 0x4a600000 0x0 0x400000>;
 			no-map;
 		};
 
 		smem_region: memory@4aa00000 {
-			reg = <0x0 0x4aa00000 0x0 0x00100000>;
+			reg = <0x0 0x4aa00000 0x0 0x100000>;
 			no-map;
 		};
 
 		q6_region: memory@4ab00000 {
-			reg = <0x0 0x4ab00000 0x0 0x05500000>;
+			reg = <0x0 0x4ab00000 0x0 0x5500000>;
 			no-map;
-		};
-	};
-
-	rpm-glink {
-		compatible = "qcom,glink-rpm";
-		interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-		qcom,rpm-msg-ram = <&rpm_msg_ram>;
-		mboxes = <&apcs_glb 0>;
-
-		rpm_requests: rpm-requests {
-			compatible = "qcom,rpm-ipq6018";
-			qcom,glink-channels = "rpm_requests";
-
-			regulators {
-				compatible = "qcom,rpm-mp5496-regulators";
-
-				ipq6018_s2: s2 {
-					regulator-min-microvolt = <725000>;
-					regulator-max-microvolt = <1062500>;
-					regulator-always-on;
-				};
-			};
 		};
 	};
 
@@ -199,7 +214,7 @@
 		hwlocks = <&tcsr_mutex 0>;
 	};
 
-	soc: soc {
+	soc: soc@0 {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0 0 0 0 0x0 0xffffffff>;
@@ -302,7 +317,14 @@
 			status = "disabled";
 		};
 
-		prng: qrng@e1000 {
+		qfprom: efuse@a4000 {
+			compatible = "qcom,ipq6018-qfprom", "qcom,qfprom";
+			reg = <0x0 0x000a4000 0x0 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
+		prng: qrng@e3000 {
 			compatible = "qcom,prng-ee";
 			reg = <0x0 0x000e3000 0x0 0x1000>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
@@ -441,7 +463,6 @@
 			#size-cells = <0>;
 			reg = <0x0 0x078b5000 0x0 0x600>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
-			spi-max-frequency = <50000000>;
 			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
@@ -456,7 +477,6 @@
 			#size-cells = <0>;
 			reg = <0x0 0x078b6000 0x0 0x600>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
-			spi-max-frequency = <50000000>;
 			clocks = <&gcc GCC_BLSP1_QUP2_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
@@ -572,7 +592,7 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <0x3>;
+			#interrupt-cells = <3>;
 			reg = <0x0 0x0b000000 0x0 0x1000>,  /*GICD*/
 			      <0x0 0x0b002000 0x0 0x1000>,  /*GICC*/
 			      <0x0 0x0b001000 0x0 0x1000>,  /*GICH*/

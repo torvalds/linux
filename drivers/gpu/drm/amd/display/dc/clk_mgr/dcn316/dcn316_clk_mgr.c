@@ -45,23 +45,13 @@
 #define MAX_INSTANCE                                        7
 #define MAX_SEGMENT                                         6
 
-struct IP_BASE_INSTANCE
-{
+struct IP_BASE_INSTANCE {
     unsigned int segment[MAX_SEGMENT];
 };
 
-struct IP_BASE
-{
+struct IP_BASE {
     struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
 };
-
-static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 0 } },
-                                        { { 0x00016E00, 0x02401C00, 0, 0, 0, 0 } },
-                                        { { 0x00017000, 0x02402000, 0, 0, 0, 0 } },
-                                        { { 0x00017200, 0x02402400, 0, 0, 0, 0 } },
-                                        { { 0x0001B000, 0x0242D800, 0, 0, 0, 0 } },
-                                        { { 0x0001B200, 0x0242DC00, 0, 0, 0, 0 } },
-                                        { { 0x0001B400, 0x0242E000, 0, 0, 0, 0 } } } };
 
 #define regCLK1_CLK_PLL_REQ						0x0237
 #define regCLK1_CLK_PLL_REQ_BASE_IDX			0
@@ -72,9 +62,6 @@ static const struct IP_BASE CLK_BASE = { { { { 0x00016C00, 0x02401800, 0, 0, 0, 
 #define CLK1_CLK_PLL_REQ__FbMult_int_MASK		0x000001FFL
 #define CLK1_CLK_PLL_REQ__PllSpineDiv_MASK		0x0000F000L
 #define CLK1_CLK_PLL_REQ__FbMult_frac_MASK		0xFFFF0000L
-
-#define REG(reg_name) \
-	(CLK_BASE.instance[0].segment[reg ## reg_name ## _BASE_IDX] + reg ## reg_name)
 
 #define TO_CLK_MGR_DCN316(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn316, base)
@@ -207,12 +194,10 @@ static void dcn316_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	// workaround: Limit dppclk to 100Mhz to avoid lower eDP panel switch to plus 4K monitor underflow.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		if (new_clocks->dppclk_khz < 100000)
-			new_clocks->dppclk_khz = 100000;
-		if (new_clocks->dispclk_khz < 100000)
-			new_clocks->dispclk_khz = 100000;
-	}
+	if (new_clocks->dppclk_khz < 100000)
+		new_clocks->dppclk_khz = 100000;
+	if (new_clocks->dispclk_khz < 100000)
+		new_clocks->dispclk_khz = 100000;
 
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->base.clks.dppclk_khz)) {
 		if (clk_mgr->base.clks.dppclk_khz > new_clocks->dppclk_khz)
@@ -254,9 +239,7 @@ static void dcn316_update_clocks(struct clk_mgr *clk_mgr_base,
 	cmd.notify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
 	cmd.notify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
 
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static void dcn316_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
@@ -581,36 +564,6 @@ static struct clk_mgr_funcs dcn316_funcs = {
 };
 extern struct clk_mgr_funcs dcn3_fpga_funcs;
 
-static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
-{
-	/* get FbMult value */
-	struct fixed31_32 pll_req;
-	unsigned int fbmult_frac_val = 0;
-	unsigned int fbmult_int_val = 0;
-
-	/*
-	 * Register value of fbmult is in 8.16 format, we are converting to 31.32
-	 * to leverage the fix point operations available in driver
-	 */
-
-	REG_GET(CLK1_CLK_PLL_REQ, FbMult_frac, &fbmult_frac_val); /* 16 bit fractional part*/
-	REG_GET(CLK1_CLK_PLL_REQ, FbMult_int, &fbmult_int_val); /* 8 bit integer part */
-
-	pll_req = dc_fixpt_from_int(fbmult_int_val);
-
-	/*
-	 * since fractional part is only 16 bit in register definition but is 32 bit
-	 * in our fix point definiton, need to shift left by 16 to obtain correct value
-	 */
-	pll_req.value |= fbmult_frac_val << 16;
-
-	/* multiply by REFCLK period */
-	pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
-
-	/* integer part is now VCO frequency in kHz */
-	return dc_fixpt_floor(pll_req);
-}
-
 void dcn316_clk_mgr_construct(
 		struct dc_context *ctx,
 		struct clk_mgr_dcn316 *clk_mgr,
@@ -618,6 +571,7 @@ void dcn316_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	struct dcn316_smu_dpm_clks smu_dpm_clks = { 0 };
+	struct clk_log_info log_info = {0};
 
 	clk_mgr->base.base.ctx = ctx;
 	clk_mgr->base.base.funcs = &dcn316_funcs;
@@ -657,35 +611,28 @@ void dcn316_clk_mgr_construct(
 
 	ASSERT(smu_dpm_clks.dpm_clks);
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		clk_mgr->base.base.funcs = &dcn3_fpga_funcs;
-		clk_mgr->base.base.dentist_vco_freq_khz = 2500000;
+	clk_mgr->base.smu_ver = dcn316_smu_get_smu_version(&clk_mgr->base);
+
+	if (clk_mgr->base.smu_ver > 0)
+		clk_mgr->base.smu_present = true;
+
+	// Skip this for now as it did not work on DCN315, renable during bring up
+	//clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
+	clk_mgr->base.base.dentist_vco_freq_khz = 2500000;
+
+	/* in case we don't get a value from the register, use default */
+	if (clk_mgr->base.base.dentist_vco_freq_khz == 0)
+		clk_mgr->base.base.dentist_vco_freq_khz = 2500000; /* 2400MHz */
+
+
+	if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
+		dcn316_bw_params.wm_table = lpddr5_wm_table;
 	} else {
-		struct clk_log_info log_info = {0};
-
-		clk_mgr->base.smu_ver = dcn316_smu_get_smu_version(&clk_mgr->base);
-
-		if (clk_mgr->base.smu_ver > 0)
-			clk_mgr->base.smu_present = true;
-
-		// Skip this for now as it did not work on DCN315, renable during bring up
-		clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
-
-		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->base.base.dentist_vco_freq_khz == 0)
-			clk_mgr->base.base.dentist_vco_freq_khz = 2500000; /* 2400MHz */
-
-
-		if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
-			dcn316_bw_params.wm_table = lpddr5_wm_table;
-		} else {
-			dcn316_bw_params.wm_table = ddr4_wm_table;
-		}
-		/* Saved clocks configured at boot for debug purposes */
-		dcn316_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
-					  &clk_mgr->base.base, &log_info);
-
+		dcn316_bw_params.wm_table = ddr4_wm_table;
 	}
+	/* Saved clocks configured at boot for debug purposes */
+	dcn316_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
+				  &clk_mgr->base.base, &log_info);
 
 	clk_mgr->base.base.dprefclk_khz = 600000;
 	clk_mgr->base.base.dprefclk_khz = dcn316_smu_get_dpref_clk(&clk_mgr->base);

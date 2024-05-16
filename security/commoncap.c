@@ -197,7 +197,7 @@ out:
  * This function retrieves the capabilities of the nominated task and returns
  * them to the caller.
  */
-int cap_capget(struct task_struct *target, kernel_cap_t *effective,
+int cap_capget(const struct task_struct *target, kernel_cap_t *effective,
 	       kernel_cap_t *inheritable, kernel_cap_t *permitted)
 {
 	const struct cred *cred;
@@ -314,7 +314,7 @@ int cap_inode_need_killpriv(struct dentry *dentry)
  * the vfsmount must be passed through @idmap. This function will then
  * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs @nop_mnt_idmap.
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  *
  * Return: 0 if successful, -ve on error.
  */
@@ -522,7 +522,7 @@ static bool validheader(size_t size, const struct vfs_cap_data *cap)
  * the vfsmount must be passed through @idmap. This function will then
  * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs @nop_mnt_idmap.
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  *
  * Return: On success, return the new size; on error, return < 0.
  */
@@ -630,7 +630,7 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
  * the vfsmount must be passed through @idmap. This function will then
  * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs @nop_mnt_idmap.
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  */
 int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
 			   const struct dentry *dentry,
@@ -1133,7 +1133,7 @@ int cap_task_fix_setuid(struct cred *new, const struct cred *old, int flags)
 		break;
 
 	case LSM_SETID_FS:
-		/* juggle the capabilties to follow FSUID changes, unless
+		/* juggle the capabilities to follow FSUID changes, unless
 		 * otherwise suppressed
 		 *
 		 * FIXME - is fsuser used for all CAP_FS_MASK capabilities?
@@ -1184,10 +1184,10 @@ static int cap_safe_nice(struct task_struct *p)
 }
 
 /**
- * cap_task_setscheduler - Detemine if scheduler policy change is permitted
+ * cap_task_setscheduler - Determine if scheduler policy change is permitted
  * @p: The task to affect
  *
- * Detemine if the requested scheduler policy change is permitted for the
+ * Determine if the requested scheduler policy change is permitted for the
  * specified task.
  *
  * Return: 0 if permission is granted, -ve if denied.
@@ -1198,11 +1198,11 @@ int cap_task_setscheduler(struct task_struct *p)
 }
 
 /**
- * cap_task_setioprio - Detemine if I/O priority change is permitted
+ * cap_task_setioprio - Determine if I/O priority change is permitted
  * @p: The task to affect
  * @ioprio: The I/O priority to set
  *
- * Detemine if the requested I/O priority change is permitted for the specified
+ * Determine if the requested I/O priority change is permitted for the specified
  * task.
  *
  * Return: 0 if permission is granted, -ve if denied.
@@ -1213,11 +1213,11 @@ int cap_task_setioprio(struct task_struct *p, int ioprio)
 }
 
 /**
- * cap_task_setnice - Detemine if task priority change is permitted
+ * cap_task_setnice - Determine if task priority change is permitted
  * @p: The task to affect
  * @nice: The nice value to set
  *
- * Detemine if the requested task priority change is permitted for the
+ * Determine if the requested task priority change is permitted for the
  * specified task.
  *
  * Return: 0 if permission is granted, -ve if denied.

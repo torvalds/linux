@@ -270,7 +270,7 @@ static struct i2c_driver adjd_s311_driver = {
 	.driver = {
 		.name	= ADJD_S311_DRV_NAME,
 	},
-	.probe_new	= adjd_s311_probe,
+	.probe		= adjd_s311_probe,
 	.id_table	= adjd_s311_id,
 };
 module_i2c_driver(adjd_s311_driver);

@@ -402,8 +402,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c)
 
 		of_id = of_match_device(max14577_dt_match, &i2c->dev);
 		if (of_id)
-			max14577->dev_type =
-				(enum maxim_device_type)of_id->data;
+			max14577->dev_type = (uintptr_t)of_id->data;
 	} else {
 		max14577->dev_type = id->driver_data;
 	}
@@ -518,7 +517,7 @@ static struct i2c_driver max14577_i2c_driver = {
 		.pm = pm_sleep_ptr(&max14577_pm),
 		.of_match_table = max14577_dt_match,
 	},
-	.probe_new = max14577_i2c_probe,
+	.probe = max14577_i2c_probe,
 	.remove = max14577_i2c_remove,
 	.id_table = max14577_i2c_id,
 };

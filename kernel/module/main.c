@@ -820,10 +820,8 @@ static struct module_attribute modinfo_refcnt =
 void __module_get(struct module *module)
 {
 	if (module) {
-		preempt_disable();
 		atomic_inc(&module->refcnt);
 		trace_module_get(module, _RET_IP_);
-		preempt_enable();
 	}
 }
 EXPORT_SYMBOL(__module_get);
@@ -833,15 +831,12 @@ bool try_module_get(struct module *module)
 	bool ret = true;
 
 	if (module) {
-		preempt_disable();
 		/* Note: here, we can fail to get a reference */
 		if (likely(module_is_live(module) &&
 			   atomic_inc_not_zero(&module->refcnt) != 0))
 			trace_module_get(module, _RET_IP_);
 		else
 			ret = false;
-
-		preempt_enable();
 	}
 	return ret;
 }
@@ -852,11 +847,9 @@ void module_put(struct module *module)
 	int ret;
 
 	if (module) {
-		preempt_disable();
 		ret = atomic_dec_if_positive(&module->refcnt);
 		WARN_ON(ret < 0);	/* Failed to put refcount */
 		trace_module_put(module, _RET_IP_);
-		preempt_enable();
 	}
 }
 EXPORT_SYMBOL(module_put);
@@ -1302,12 +1295,20 @@ void *__symbol_get(const char *symbol)
 	};
 
 	preempt_disable();
-	if (!find_symbol(&fsa) || strong_try_module_get(fsa.owner)) {
-		preempt_enable();
-		return NULL;
+	if (!find_symbol(&fsa))
+		goto fail;
+	if (fsa.license != GPL_ONLY) {
+		pr_warn("failing symbol_get of non-GPLONLY symbol %s.\n",
+			symbol);
+		goto fail;
 	}
+	if (strong_try_module_get(fsa.owner))
+		goto fail;
 	preempt_enable();
 	return (void *)kernel_symbol_value(fsa.sym);
+fail:
+	preempt_enable();
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(__symbol_get);
 
@@ -1491,7 +1492,7 @@ long module_get_offset_and_type(struct module *mod, enum mod_mem_type type,
 	return offset | mask;
 }
 
-static bool module_init_layout_section(const char *sname)
+bool module_init_layout_section(const char *sname)
 {
 #ifndef CONFIG_MODULE_UNLOAD
 	if (module_exit_section(sname))
@@ -3057,34 +3058,82 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	return load_module(&info, uargs, 0);
 }
 
-SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
+struct idempotent {
+	const void *cookie;
+	struct hlist_node entry;
+	struct completion complete;
+	int ret;
+};
+
+#define IDEM_HASH_BITS 8
+static struct hlist_head idem_hash[1 << IDEM_HASH_BITS];
+static DEFINE_SPINLOCK(idem_lock);
+
+static bool idempotent(struct idempotent *u, const void *cookie)
+{
+	int hash = hash_ptr(cookie, IDEM_HASH_BITS);
+	struct hlist_head *head = idem_hash + hash;
+	struct idempotent *existing;
+	bool first;
+
+	u->ret = 0;
+	u->cookie = cookie;
+	init_completion(&u->complete);
+
+	spin_lock(&idem_lock);
+	first = true;
+	hlist_for_each_entry(existing, head, entry) {
+		if (existing->cookie != cookie)
+			continue;
+		first = false;
+		break;
+	}
+	hlist_add_head(&u->entry, idem_hash + hash);
+	spin_unlock(&idem_lock);
+
+	return !first;
+}
+
+/*
+ * We were the first one with 'cookie' on the list, and we ended
+ * up completing the operation. We now need to walk the list,
+ * remove everybody - which includes ourselves - fill in the return
+ * value, and then complete the operation.
+ */
+static int idempotent_complete(struct idempotent *u, int ret)
+{
+	const void *cookie = u->cookie;
+	int hash = hash_ptr(cookie, IDEM_HASH_BITS);
+	struct hlist_head *head = idem_hash + hash;
+	struct hlist_node *next;
+	struct idempotent *pos;
+
+	spin_lock(&idem_lock);
+	hlist_for_each_entry_safe(pos, next, head, entry) {
+		if (pos->cookie != cookie)
+			continue;
+		hlist_del(&pos->entry);
+		pos->ret = ret;
+		complete(&pos->complete);
+	}
+	spin_unlock(&idem_lock);
+	return ret;
+}
+
+static int init_module_from_file(struct file *f, const char __user * uargs, int flags)
 {
 	struct load_info info = { };
 	void *buf = NULL;
 	int len;
-	int err;
 
-	err = may_init_module();
-	if (err)
-		return err;
-
-	pr_debug("finit_module: fd=%d, uargs=%p, flags=%i\n", fd, uargs, flags);
-
-	if (flags & ~(MODULE_INIT_IGNORE_MODVERSIONS
-		      |MODULE_INIT_IGNORE_VERMAGIC
-		      |MODULE_INIT_COMPRESSED_FILE))
-		return -EINVAL;
-
-	len = kernel_read_file_from_fd(fd, 0, &buf, INT_MAX, NULL,
-				       READING_MODULE);
+	len = kernel_read_file(f, 0, &buf, INT_MAX, NULL, READING_MODULE);
 	if (len < 0) {
 		mod_stat_inc(&failed_kreads);
-		mod_stat_add_long(len, &invalid_kread_bytes);
 		return len;
 	}
 
 	if (flags & MODULE_INIT_COMPRESSED_FILE) {
-		err = module_decompress(&info, buf, len);
+		int err = module_decompress(&info, buf, len);
 		vfree(buf); /* compressed data is no longer needed */
 		if (err) {
 			mod_stat_inc(&failed_decompress);
@@ -3097,6 +3146,46 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 	}
 
 	return load_module(&info, uargs, flags);
+}
+
+static int idempotent_init_module(struct file *f, const char __user * uargs, int flags)
+{
+	struct idempotent idem;
+
+	if (!f || !(f->f_mode & FMODE_READ))
+		return -EBADF;
+
+	/* See if somebody else is doing the operation? */
+	if (idempotent(&idem, file_inode(f))) {
+		wait_for_completion(&idem.complete);
+		return idem.ret;
+	}
+
+	/* Otherwise, we'll do it and complete others */
+	return idempotent_complete(&idem,
+		init_module_from_file(f, uargs, flags));
+}
+
+SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
+{
+	int err;
+	struct fd f;
+
+	err = may_init_module();
+	if (err)
+		return err;
+
+	pr_debug("finit_module: fd=%d, uargs=%p, flags=%i\n", fd, uargs, flags);
+
+	if (flags & ~(MODULE_INIT_IGNORE_MODVERSIONS
+		      |MODULE_INIT_IGNORE_VERMAGIC
+		      |MODULE_INIT_COMPRESSED_FILE))
+		return -EINVAL;
+
+	f = fdget(fd);
+	err = idempotent_init_module(f.file, uargs, flags);
+	fdput(f);
+	return err;
 }
 
 /* Keep in sync with MODULE_FLAGS_BUF_SIZE !!! */

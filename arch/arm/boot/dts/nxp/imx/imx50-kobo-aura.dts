@@ -1,0 +1,287 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright 2019 Jonathan Neuschäfer
+//
+// The Kobo Aura e-book reader, model N514. The mainboard is marked as E606F0B.
+
+/dts-v1/;
+#include "imx50.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	model = "Kobo Aura (N514)";
+	compatible = "kobo,aura", "fsl,imx50";
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+
+	memory@70000000 {
+		device_type = "memory";
+		reg = <0x70000000 0x10000000>;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_leds>;
+
+		led-on {
+			label = "kobo_aura:orange:on";
+			gpios = <&gpio6 24 GPIO_ACTIVE_LOW>;
+			panic-indicator;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpiokeys>;
+
+		key-power {
+			label = "Power Button";
+			gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+		};
+
+		event-hallsensor {
+			label = "Hallsensor";
+			gpios = <&gpio5 15 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESERVED>;
+			linux,input-type = <EV_SW>;
+		};
+
+		event-frontlight {
+			label = "Frontlight";
+			gpios = <&gpio4 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_DISPLAYTOGGLE>;
+		};
+	};
+
+	sd2_pwrseq: pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sd2_reset>;
+		reset-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
+	};
+
+	sd2_vmmc: gpio-regulator {
+		compatible = "regulator-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sd2_vmmc>;
+		regulator-name = "vmmc";
+		states = <3300000 0>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
+		startup-delay-us = <100000>;
+	};
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sd1>;
+	max-frequency = <50000000>;
+	bus-width = <4>;
+	cd-gpios = <&gpio5 17 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	status = "okay";
+
+	/* External µSD card */
+};
+
+&esdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sd2>;
+	bus-width = <4>;
+	max-frequency = <50000000>;
+	disable-wp;
+	mmc-pwrseq = <&sd2_pwrseq>;
+	vmmc-supply = <&sd2_vmmc>;
+	status = "okay";
+
+	/* CyberTan WC121 SDIO WiFi (BCM43362) */
+};
+
+&esdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sd3>;
+	bus-width = <8>;
+	non-removable;
+	max-frequency = <50000000>;
+	disable-wp;
+	status = "okay";
+
+	/* Internal eMMC */
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	touchscreen@15 {
+		reg = <0x15>;
+		compatible = "elan,ektf2132";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ts>;
+		power-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
+		interrupts-extended = <&gpio5 13 IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+
+	/* TODO: TPS65185 PMIC for E Ink at 0x68 */
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	status = "okay";
+
+	embedded-controller@43 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ec>;
+		compatible = "netronix,ntxec";
+		reg = <0x43>;
+		system-power-controller;
+		interrupts-extended = <&gpio4 11 IRQ_TYPE_EDGE_FALLING>;
+		#pwm-cells = <2>;
+	};
+};
+
+&iomuxc {
+	pinctrl_ec: ecgrp {
+		fsl,pins = <
+			MX50_PAD_CSPI_SS0__GPIO4_11		0x0	/* INT */
+		>;
+	};
+
+	pinctrl_gpiokeys: gpiokeysgrp {
+		fsl,pins = <
+			MX50_PAD_CSPI_MISO__GPIO4_10		0x0
+			MX50_PAD_SD2_D7__GPIO5_15		0x0
+			MX50_PAD_KEY_ROW0__GPIO4_1		0x0
+		>;
+	};
+
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			MX50_PAD_I2C1_SCL__I2C1_SCL		0x400001fd
+			MX50_PAD_I2C1_SDA__I2C1_SDA		0x400001fd
+		>;
+	};
+
+	pinctrl_i2c2: i2c2grp {
+		fsl,pins = <
+			MX50_PAD_I2C2_SCL__I2C2_SCL		0x400001fd
+			MX50_PAD_I2C2_SDA__I2C2_SDA		0x400001fd
+		>;
+	};
+
+	pinctrl_i2c3: i2c3grp {
+		fsl,pins = <
+			MX50_PAD_I2C3_SCL__I2C3_SCL		0x400001fd
+			MX50_PAD_I2C3_SDA__I2C3_SDA		0x400001fd
+		>;
+	};
+
+	pinctrl_leds: ledsgrp {
+		fsl,pins = <
+			MX50_PAD_PWM1__GPIO6_24			0x0
+		>;
+	};
+
+	pinctrl_sd1: sd1grp {
+		fsl,pins = <
+			MX50_PAD_SD1_CMD__ESDHC1_CMD		0x1e4
+			MX50_PAD_SD1_CLK__ESDHC1_CLK		0xd4
+			MX50_PAD_SD1_D0__ESDHC1_DAT0		0x1d4
+			MX50_PAD_SD1_D1__ESDHC1_DAT1		0x1d4
+			MX50_PAD_SD1_D2__ESDHC1_DAT2		0x1d4
+			MX50_PAD_SD1_D3__ESDHC1_DAT3		0x1d4
+
+			MX50_PAD_SD2_CD__GPIO5_17		0x0
+		>;
+	};
+
+	pinctrl_sd2: sd2grp {
+		fsl,pins = <
+			MX50_PAD_SD2_CMD__ESDHC2_CMD		0x1e4
+			MX50_PAD_SD2_CLK__ESDHC2_CLK		0xd4
+			MX50_PAD_SD2_D0__ESDHC2_DAT0		0x1d4
+			MX50_PAD_SD2_D1__ESDHC2_DAT1		0x1d4
+			MX50_PAD_SD2_D2__ESDHC2_DAT2		0x1d4
+			MX50_PAD_SD2_D3__ESDHC2_DAT3		0x1d4
+		>;
+	};
+
+	pinctrl_sd2_reset: sd2-resetgrp {
+		fsl,pins = <
+			MX50_PAD_ECSPI2_MOSI__GPIO4_17		0x0
+		>;
+	};
+
+	pinctrl_sd2_vmmc: sd2-vmmcgrp {
+		fsl,pins = <
+			MX50_PAD_ECSPI1_SCLK__GPIO4_12		0x0
+		>;
+	};
+
+	pinctrl_sd3: sd3grp {
+		fsl,pins = <
+			MX50_PAD_SD3_CMD__ESDHC3_CMD		0x1e4
+			MX50_PAD_SD3_CLK__ESDHC3_CLK		0xd4
+			MX50_PAD_SD3_D0__ESDHC3_DAT0		0x1d4
+			MX50_PAD_SD3_D1__ESDHC3_DAT1		0x1d4
+			MX50_PAD_SD3_D2__ESDHC3_DAT2		0x1d4
+			MX50_PAD_SD3_D3__ESDHC3_DAT3		0x1d4
+			MX50_PAD_SD3_D4__ESDHC3_DAT4		0x1d4
+			MX50_PAD_SD3_D5__ESDHC3_DAT5		0x1d4
+			MX50_PAD_SD3_D6__ESDHC3_DAT6		0x1d4
+			MX50_PAD_SD3_D7__ESDHC3_DAT7		0x1d4
+		>;
+	};
+
+	pinctrl_ts: tsgrp {
+		fsl,pins = <
+			MX50_PAD_CSPI_MOSI__GPIO4_9		0x0
+			MX50_PAD_SD2_D5__GPIO5_13		0x0
+		>;
+	};
+
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			MX50_PAD_UART2_TXD__UART2_TXD_MUX	0x1e4
+			MX50_PAD_UART2_RXD__UART2_RXD_MUX	0x1e4
+		>;
+	};
+
+	pinctrl_usbphy: usbphygrp {
+		fsl,pins = <
+			MX50_PAD_ECSPI2_SS0__GPIO4_19		0x0
+		>;
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&usbotg {
+	phy_type = "utmi_wide";
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+&usbphy0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbphy>;
+	vbus-detect-gpio = <&gpio4 19 GPIO_ACTIVE_LOW>;
+};

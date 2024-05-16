@@ -62,6 +62,7 @@ config EXTCON_INTEL_CHT_WC
 	tristate "Intel Cherrytrail Whiskey Cove PMIC extcon driver"
 	depends on INTEL_SOC_PMIC_CHTWC
 	depends on USB_SUPPORT
+	depends on POWER_SUPPLY
 	select USB_ROLE_SWITCH
 	help
 	  Say Y here to enable extcon support for charger detection / control
@@ -185,6 +186,7 @@ config EXTCON_USBC_TUSB320
 	tristate "TI TUSB320 USB-C extcon support"
 	depends on I2C && TYPEC
 	select REGMAP_I2C
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
 	help
 	  Say Y here to enable support for USB Type C cable detection extcon
 	  support using a TUSB320.

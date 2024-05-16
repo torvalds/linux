@@ -15,11 +15,11 @@ Supported devices:
 
   Corsair HX850i
 
-  Corsair HX1000i (revision 1 and 2)
+  Corsair HX1000i (Series 2022 and 2023)
 
   Corsair HX1200i
 
-  Corsair HX1500i
+  Corsair HX1500i (Series 2022 and 2023)
 
   Corsair RM550i
 
@@ -69,6 +69,8 @@ power1_input		Total power usage
 power2_input		Power usage of the 12v psu rail
 power3_input		Power usage of the 5v psu rail
 power4_input		Power usage of the 3.3v psu rail
+pwm1			PWM value, read only
+pwm1_enable		PWM mode, read only
 temp1_input		Temperature of the psu vrm component
 temp1_crit		Temperature max cirtical value of the psu vrm component
 temp2_input		Temperature of the psu case
@@ -78,11 +80,14 @@ temp2_crit		Temperature max critical value of psu case
 Usage Notes
 -----------
 
-It is an USB HID device, so it is auto-detected and supports hot-swapping.
+It is an USB HID device, so it is auto-detected, supports hot-swapping and
+several devices at once.
 
 Flickering values in the rail voltage levels can be an indicator for a failing
-PSU. The driver also provides some additional useful values via debugfs, which
-do not fit into the hwmon class.
+PSU. Accordingly to the default automatic fan speed plan the fan starts at about
+30% of the wattage rating. If this does not happen, a fan failure is likely. The
+driver also provides some additional useful values via debugfs, which do not fit
+into the hwmon class.
 
 Debugfs entries
 ---------------

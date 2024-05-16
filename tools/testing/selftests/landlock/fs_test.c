@@ -10,6 +10,7 @@
 #define _GNU_SOURCE
 #include <fcntl.h>
 #include <linux/landlock.h>
+#include <linux/magic.h>
 #include <sched.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,6 +20,7 @@
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
+#include <sys/vfs.h>
 #include <unistd.h>
 
 #include "common.h"
@@ -107,9 +109,11 @@ static bool fgrep(FILE *const inf, const char *const str)
 	return false;
 }
 
-static bool supports_overlayfs(void)
+static bool supports_filesystem(const char *const filesystem)
 {
-	bool res;
+	char str[32];
+	int len;
+	bool res = true;
 	FILE *const inf = fopen("/proc/filesystems", "r");
 
 	/*
@@ -119,9 +123,33 @@ static bool supports_overlayfs(void)
 	if (!inf)
 		return true;
 
-	res = fgrep(inf, "nodev\toverlay\n");
+	/* filesystem can be null for bind mounts. */
+	if (!filesystem)
+		goto out;
+
+	len = snprintf(str, sizeof(str), "nodev\t%s\n", filesystem);
+	if (len >= sizeof(str))
+		/* Ignores too-long filesystem names. */
+		goto out;
+
+	res = fgrep(inf, str);
+
+out:
 	fclose(inf);
 	return res;
+}
+
+static bool cwd_matches_fs(unsigned int fs_magic)
+{
+	struct statfs statfs_buf;
+
+	if (!fs_magic)
+		return true;
+
+	if (statfs(".", &statfs_buf))
+		return true;
+
+	return statfs_buf.f_type == fs_magic;
 }
 
 static void mkdir_parents(struct __test_metadata *const _metadata,
@@ -206,7 +234,26 @@ out:
 	return err;
 }
 
-static void prepare_layout(struct __test_metadata *const _metadata)
+struct mnt_opt {
+	const char *const source;
+	const char *const type;
+	const unsigned long flags;
+	const char *const data;
+};
+
+const struct mnt_opt mnt_tmp = {
+	.type = "tmpfs",
+	.data = "size=4m,mode=700",
+};
+
+static int mount_opt(const struct mnt_opt *const mnt, const char *const target)
+{
+	return mount(mnt->source ?: mnt->type, target, mnt->type, mnt->flags,
+		     mnt->data);
+}
+
+static void prepare_layout_opt(struct __test_metadata *const _metadata,
+			       const struct mnt_opt *const mnt)
 {
 	disable_caps(_metadata);
 	umask(0077);
@@ -217,10 +264,26 @@ static void prepare_layout(struct __test_metadata *const _metadata)
 	 * for tests relying on pivot_root(2) and move_mount(2).
 	 */
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	ASSERT_EQ(0, unshare(CLONE_NEWNS));
-	ASSERT_EQ(0, mount("tmp", TMP_DIR, "tmpfs", 0, "size=4m,mode=700"));
+	ASSERT_EQ(0, unshare(CLONE_NEWNS | CLONE_NEWCGROUP));
+	ASSERT_EQ(0, mount_opt(mnt, TMP_DIR))
+	{
+		TH_LOG("Failed to mount the %s filesystem: %s", mnt->type,
+		       strerror(errno));
+		/*
+		 * FIXTURE_TEARDOWN() is not called when FIXTURE_SETUP()
+		 * failed, so we need to explicitly do a minimal cleanup to
+		 * avoid cascading errors with other tests that don't depend on
+		 * the same filesystem.
+		 */
+		remove_path(TMP_DIR);
+	}
 	ASSERT_EQ(0, mount(NULL, TMP_DIR, NULL, MS_PRIVATE | MS_REC, NULL));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+static void prepare_layout(struct __test_metadata *const _metadata)
+{
+	prepare_layout_opt(_metadata, &mnt_tmp);
 }
 
 static void cleanup_layout(struct __test_metadata *const _metadata)
@@ -229,6 +292,20 @@ static void cleanup_layout(struct __test_metadata *const _metadata)
 	EXPECT_EQ(0, umount(TMP_DIR));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 	EXPECT_EQ(0, remove_path(TMP_DIR));
+}
+
+/* clang-format off */
+FIXTURE(layout0) {};
+/* clang-format on */
+
+FIXTURE_SETUP(layout0)
+{
+	prepare_layout(_metadata);
+}
+
+FIXTURE_TEARDOWN(layout0)
+{
+	cleanup_layout(_metadata);
 }
 
 static void create_layout1(struct __test_metadata *const _metadata)
@@ -248,7 +325,7 @@ static void create_layout1(struct __test_metadata *const _metadata)
 	create_file(_metadata, file1_s3d1);
 	create_directory(_metadata, dir_s3d2);
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	ASSERT_EQ(0, mount("tmp", dir_s3d2, "tmpfs", 0, "size=4m,mode=700"));
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s3d2));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 
 	ASSERT_EQ(0, mkdir(dir_s3d3, 0700));
@@ -262,11 +339,13 @@ static void remove_layout1(struct __test_metadata *const _metadata)
 	EXPECT_EQ(0, remove_path(file1_s1d3));
 	EXPECT_EQ(0, remove_path(file1_s1d2));
 	EXPECT_EQ(0, remove_path(file1_s1d1));
+	EXPECT_EQ(0, remove_path(dir_s1d3));
 
 	EXPECT_EQ(0, remove_path(file2_s2d3));
 	EXPECT_EQ(0, remove_path(file1_s2d3));
 	EXPECT_EQ(0, remove_path(file1_s2d2));
 	EXPECT_EQ(0, remove_path(file1_s2d1));
+	EXPECT_EQ(0, remove_path(dir_s2d2));
 
 	EXPECT_EQ(0, remove_path(file1_s3d1));
 	EXPECT_EQ(0, remove_path(dir_s3d3));
@@ -510,7 +589,7 @@ TEST_F_FORK(layout1, file_and_dir_access_rights)
 	ASSERT_EQ(0, close(ruleset_fd));
 }
 
-TEST_F_FORK(layout1, unknown_access_rights)
+TEST_F_FORK(layout0, unknown_access_rights)
 {
 	__u64 access_mask;
 
@@ -608,7 +687,7 @@ static void enforce_ruleset(struct __test_metadata *const _metadata,
 	}
 }
 
-TEST_F_FORK(layout1, proc_nsfs)
+TEST_F_FORK(layout0, proc_nsfs)
 {
 	const struct rule rules[] = {
 		{
@@ -657,11 +736,11 @@ TEST_F_FORK(layout1, proc_nsfs)
 	ASSERT_EQ(0, close(path_beneath.parent_fd));
 }
 
-TEST_F_FORK(layout1, unpriv)
+TEST_F_FORK(layout0, unpriv)
 {
 	const struct rule rules[] = {
 		{
-			.path = dir_s1d2,
+			.path = TMP_DIR,
 			.access = ACCESS_RO,
 		},
 		{},
@@ -1301,12 +1380,12 @@ TEST_F_FORK(layout1, inherit_superset)
 	ASSERT_EQ(0, test_open(file1_s1d3, O_RDONLY));
 }
 
-TEST_F_FORK(layout1, max_layers)
+TEST_F_FORK(layout0, max_layers)
 {
 	int i, err;
 	const struct rule rules[] = {
 		{
-			.path = dir_s1d2,
+			.path = TMP_DIR,
 			.access = ACCESS_RO,
 		},
 		{},
@@ -4030,21 +4109,24 @@ static const char (*merge_sub_files[])[] = {
  *         └── work
  */
 
-/* clang-format off */
-FIXTURE(layout2_overlay) {};
-/* clang-format on */
+FIXTURE(layout2_overlay)
+{
+	bool skip_test;
+};
 
 FIXTURE_SETUP(layout2_overlay)
 {
-	if (!supports_overlayfs())
-		SKIP(return, "overlayfs is not supported");
+	if (!supports_filesystem("overlay")) {
+		self->skip_test = true;
+		SKIP(return, "overlayfs is not supported (setup)");
+	}
 
 	prepare_layout(_metadata);
 
 	create_directory(_metadata, LOWER_BASE);
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	/* Creates tmpfs mount points to get deterministic overlayfs. */
-	ASSERT_EQ(0, mount("tmp", LOWER_BASE, "tmpfs", 0, "size=4m,mode=700"));
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, LOWER_BASE));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 	create_file(_metadata, lower_fl1);
 	create_file(_metadata, lower_dl1_fl2);
@@ -4054,7 +4136,7 @@ FIXTURE_SETUP(layout2_overlay)
 
 	create_directory(_metadata, UPPER_BASE);
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	ASSERT_EQ(0, mount("tmp", UPPER_BASE, "tmpfs", 0, "size=4m,mode=700"));
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, UPPER_BASE));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 	create_file(_metadata, upper_fu1);
 	create_file(_metadata, upper_du1_fu2);
@@ -4075,8 +4157,8 @@ FIXTURE_SETUP(layout2_overlay)
 
 FIXTURE_TEARDOWN(layout2_overlay)
 {
-	if (!supports_overlayfs())
-		SKIP(return, "overlayfs is not supported");
+	if (self->skip_test)
+		SKIP(return, "overlayfs is not supported (teardown)");
 
 	EXPECT_EQ(0, remove_path(lower_do1_fl3));
 	EXPECT_EQ(0, remove_path(lower_dl1_fl2));
@@ -4109,8 +4191,8 @@ FIXTURE_TEARDOWN(layout2_overlay)
 
 TEST_F_FORK(layout2_overlay, no_restriction)
 {
-	if (!supports_overlayfs())
-		SKIP(return, "overlayfs is not supported");
+	if (self->skip_test)
+		SKIP(return, "overlayfs is not supported (test)");
 
 	ASSERT_EQ(0, test_open(lower_fl1, O_RDONLY));
 	ASSERT_EQ(0, test_open(lower_dl1, O_RDONLY));
@@ -4275,8 +4357,8 @@ TEST_F_FORK(layout2_overlay, same_content_different_file)
 	size_t i;
 	const char *path_entry;
 
-	if (!supports_overlayfs())
-		SKIP(return, "overlayfs is not supported");
+	if (self->skip_test)
+		SKIP(return, "overlayfs is not supported (test)");
 
 	/* Sets rules on base directories (i.e. outside overlay scope). */
 	ruleset_fd = create_ruleset(_metadata, ACCESS_RW, layer1_base);
@@ -4421,6 +4503,263 @@ TEST_F_FORK(layout2_overlay, same_content_different_file)
 	for_each_path(merge_sub_files, path_entry, i) {
 		ASSERT_EQ(0, test_open(path_entry, O_RDWR));
 	}
+}
+
+FIXTURE(layout3_fs)
+{
+	bool has_created_dir;
+	bool has_created_file;
+	char *dir_path;
+	bool skip_test;
+};
+
+FIXTURE_VARIANT(layout3_fs)
+{
+	const struct mnt_opt mnt;
+	const char *const file_path;
+	unsigned int cwd_fs_magic;
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(layout3_fs, tmpfs) {
+	/* clang-format on */
+	.mnt = mnt_tmp,
+	.file_path = file1_s1d1,
+};
+
+FIXTURE_VARIANT_ADD(layout3_fs, ramfs) {
+	.mnt = {
+		.type = "ramfs",
+		.data = "mode=700",
+	},
+	.file_path = TMP_DIR "/dir/file",
+};
+
+FIXTURE_VARIANT_ADD(layout3_fs, cgroup2) {
+	.mnt = {
+		.type = "cgroup2",
+	},
+	.file_path = TMP_DIR "/test/cgroup.procs",
+};
+
+FIXTURE_VARIANT_ADD(layout3_fs, proc) {
+	.mnt = {
+		.type = "proc",
+	},
+	.file_path = TMP_DIR "/self/status",
+};
+
+FIXTURE_VARIANT_ADD(layout3_fs, sysfs) {
+	.mnt = {
+		.type = "sysfs",
+	},
+	.file_path = TMP_DIR "/kernel/notes",
+};
+
+FIXTURE_VARIANT_ADD(layout3_fs, hostfs) {
+	.mnt = {
+		.source = TMP_DIR,
+		.flags = MS_BIND,
+	},
+	.file_path = TMP_DIR "/dir/file",
+	.cwd_fs_magic = HOSTFS_SUPER_MAGIC,
+};
+
+FIXTURE_SETUP(layout3_fs)
+{
+	struct stat statbuf;
+	const char *slash;
+	size_t dir_len;
+
+	if (!supports_filesystem(variant->mnt.type) ||
+	    !cwd_matches_fs(variant->cwd_fs_magic)) {
+		self->skip_test = true;
+		SKIP(return, "this filesystem is not supported (setup)");
+	}
+
+	slash = strrchr(variant->file_path, '/');
+	ASSERT_NE(slash, NULL);
+	dir_len = (size_t)slash - (size_t)variant->file_path;
+	ASSERT_LT(0, dir_len);
+	self->dir_path = malloc(dir_len + 1);
+	self->dir_path[dir_len] = '\0';
+	strncpy(self->dir_path, variant->file_path, dir_len);
+
+	prepare_layout_opt(_metadata, &variant->mnt);
+
+	/* Creates directory when required. */
+	if (stat(self->dir_path, &statbuf)) {
+		set_cap(_metadata, CAP_DAC_OVERRIDE);
+		EXPECT_EQ(0, mkdir(self->dir_path, 0700))
+		{
+			TH_LOG("Failed to create directory \"%s\": %s",
+			       self->dir_path, strerror(errno));
+			free(self->dir_path);
+			self->dir_path = NULL;
+		}
+		self->has_created_dir = true;
+		clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	}
+
+	/* Creates file when required. */
+	if (stat(variant->file_path, &statbuf)) {
+		int fd;
+
+		set_cap(_metadata, CAP_DAC_OVERRIDE);
+		fd = creat(variant->file_path, 0600);
+		EXPECT_LE(0, fd)
+		{
+			TH_LOG("Failed to create file \"%s\": %s",
+			       variant->file_path, strerror(errno));
+		}
+		EXPECT_EQ(0, close(fd));
+		self->has_created_file = true;
+		clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	}
+}
+
+FIXTURE_TEARDOWN(layout3_fs)
+{
+	if (self->skip_test)
+		SKIP(return, "this filesystem is not supported (teardown)");
+
+	if (self->has_created_file) {
+		set_cap(_metadata, CAP_DAC_OVERRIDE);
+		/*
+		 * Don't check for error because the file might already
+		 * have been removed (cf. release_inode test).
+		 */
+		unlink(variant->file_path);
+		clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	}
+
+	if (self->has_created_dir) {
+		set_cap(_metadata, CAP_DAC_OVERRIDE);
+		/*
+		 * Don't check for error because the directory might already
+		 * have been removed (cf. release_inode test).
+		 */
+		rmdir(self->dir_path);
+		clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	}
+	free(self->dir_path);
+	self->dir_path = NULL;
+
+	cleanup_layout(_metadata);
+}
+
+static void layer3_fs_tag_inode(struct __test_metadata *const _metadata,
+				FIXTURE_DATA(layout3_fs) * self,
+				const FIXTURE_VARIANT(layout3_fs) * variant,
+				const char *const rule_path)
+{
+	const struct rule layer1_allow_read_file[] = {
+		{
+			.path = rule_path,
+			.access = LANDLOCK_ACCESS_FS_READ_FILE,
+		},
+		{},
+	};
+	const struct landlock_ruleset_attr layer2_deny_everything_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
+	};
+	const char *const dev_null_path = "/dev/null";
+	int ruleset_fd;
+
+	if (self->skip_test)
+		SKIP(return, "this filesystem is not supported (test)");
+
+	/* Checks without Landlock. */
+	EXPECT_EQ(0, test_open(dev_null_path, O_RDONLY | O_CLOEXEC));
+	EXPECT_EQ(0, test_open(variant->file_path, O_RDONLY | O_CLOEXEC));
+
+	ruleset_fd = create_ruleset(_metadata, LANDLOCK_ACCESS_FS_READ_FILE,
+				    layer1_allow_read_file);
+	EXPECT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	EXPECT_EQ(0, close(ruleset_fd));
+
+	EXPECT_EQ(EACCES, test_open(dev_null_path, O_RDONLY | O_CLOEXEC));
+	EXPECT_EQ(0, test_open(variant->file_path, O_RDONLY | O_CLOEXEC));
+
+	/* Forbids directory reading. */
+	ruleset_fd =
+		landlock_create_ruleset(&layer2_deny_everything_attr,
+					sizeof(layer2_deny_everything_attr), 0);
+	EXPECT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	EXPECT_EQ(0, close(ruleset_fd));
+
+	/* Checks with Landlock and forbidden access. */
+	EXPECT_EQ(EACCES, test_open(dev_null_path, O_RDONLY | O_CLOEXEC));
+	EXPECT_EQ(EACCES, test_open(variant->file_path, O_RDONLY | O_CLOEXEC));
+}
+
+/* Matrix of tests to check file hierarchy evaluation. */
+
+TEST_F_FORK(layout3_fs, tag_inode_dir_parent)
+{
+	/* The current directory must not be the root for this test. */
+	layer3_fs_tag_inode(_metadata, self, variant, ".");
+}
+
+TEST_F_FORK(layout3_fs, tag_inode_dir_mnt)
+{
+	layer3_fs_tag_inode(_metadata, self, variant, TMP_DIR);
+}
+
+TEST_F_FORK(layout3_fs, tag_inode_dir_child)
+{
+	layer3_fs_tag_inode(_metadata, self, variant, self->dir_path);
+}
+
+TEST_F_FORK(layout3_fs, tag_inode_file)
+{
+	layer3_fs_tag_inode(_metadata, self, variant, variant->file_path);
+}
+
+/* Light version of layout1.release_inodes */
+TEST_F_FORK(layout3_fs, release_inodes)
+{
+	const struct rule layer1[] = {
+		{
+			.path = TMP_DIR,
+			.access = LANDLOCK_ACCESS_FS_READ_DIR,
+		},
+		{},
+	};
+	int ruleset_fd;
+
+	if (self->skip_test)
+		SKIP(return, "this filesystem is not supported (test)");
+
+	/* Clean up for the teardown to not fail. */
+	if (self->has_created_file)
+		EXPECT_EQ(0, remove_path(variant->file_path));
+
+	if (self->has_created_dir)
+		/* Don't check for error because of cgroup specificities. */
+		remove_path(self->dir_path);
+
+	ruleset_fd =
+		create_ruleset(_metadata, LANDLOCK_ACCESS_FS_READ_DIR, layer1);
+	ASSERT_LE(0, ruleset_fd);
+
+	/* Unmount the filesystem while it is being used by a ruleset. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, umount(TMP_DIR));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	/* Replaces with a new mount point to simplify FIXTURE_TEARDOWN. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, TMP_DIR));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Checks that access to the new mount point is denied. */
+	ASSERT_EQ(EACCES, test_open(TMP_DIR, O_RDONLY));
 }
 
 TEST_HARNESS_MAIN

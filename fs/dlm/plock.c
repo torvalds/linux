@@ -11,6 +11,8 @@
 #include <linux/dlm_plock.h>
 #include <linux/slab.h>
 
+#include <trace/events/dlm.h>
+
 #include "dlm_internal.h"
 #include "lockspace.h"
 
@@ -30,8 +32,6 @@ struct plock_async_data {
 struct plock_op {
 	struct list_head list;
 	int done;
-	/* if lock op got interrupted while waiting dlm_controld reply */
-	bool sigint;
 	struct dlm_plock_info info;
 	/* if set indicates async handling */
 	struct plock_async_data *data;
@@ -42,6 +42,27 @@ static inline void set_version(struct dlm_plock_info *info)
 	info->version[0] = DLM_PLOCK_VERSION_MAJOR;
 	info->version[1] = DLM_PLOCK_VERSION_MINOR;
 	info->version[2] = DLM_PLOCK_VERSION_PATCH;
+}
+
+static struct plock_op *plock_lookup_waiter(const struct dlm_plock_info *info)
+{
+	struct plock_op *op = NULL, *iter;
+
+	list_for_each_entry(iter, &recv_list, list) {
+		if (iter->info.fsid == info->fsid &&
+		    iter->info.number == info->number &&
+		    iter->info.owner == info->owner &&
+		    iter->info.pid == info->pid &&
+		    iter->info.start == info->start &&
+		    iter->info.end == info->end &&
+		    iter->info.ex == info->ex &&
+		    iter->info.wait) {
+			op = iter;
+			break;
+		}
+	}
+
+	return op;
 }
 
 static int check_version(struct dlm_plock_info *info)
@@ -76,30 +97,26 @@ static void send_op(struct plock_op *op)
 	wake_up(&send_wq);
 }
 
-/* If a process was killed while waiting for the only plock on a file,
-   locks_remove_posix will not see any lock on the file so it won't
-   send an unlock-close to us to pass on to userspace to clean up the
-   abandoned waiter.  So, we have to insert the unlock-close when the
-   lock call is interrupted. */
-
-static void do_unlock_close(const struct dlm_plock_info *info)
+static int do_lock_cancel(const struct dlm_plock_info *orig_info)
 {
 	struct plock_op *op;
+	int rv;
 
 	op = kzalloc(sizeof(*op), GFP_NOFS);
 	if (!op)
-		return;
+		return -ENOMEM;
 
-	op->info.optype		= DLM_PLOCK_OP_UNLOCK;
-	op->info.pid		= info->pid;
-	op->info.fsid		= info->fsid;
-	op->info.number		= info->number;
-	op->info.start		= 0;
-	op->info.end		= OFFSET_MAX;
-	op->info.owner		= info->owner;
+	op->info = *orig_info;
+	op->info.optype = DLM_PLOCK_OP_CANCEL;
+	op->info.wait = 0;
 
-	op->info.flags |= DLM_PLOCK_FL_CLOSE;
 	send_op(op);
+	wait_event(recv_wq, (op->done != 0));
+
+	rv = op->info.rv;
+
+	dlm_release_plock_op(op);
+	return rv;
 }
 
 int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
@@ -157,23 +174,49 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 
 	send_op(op);
 
-	rv = wait_event_interruptible(recv_wq, (op->done != 0));
-	if (rv == -ERESTARTSYS) {
-		spin_lock(&ops_lock);
-		/* recheck under ops_lock if we got a done != 0,
-		 * if so this interrupt case should be ignored
-		 */
-		if (op->done != 0) {
+	if (op->info.wait) {
+		rv = wait_event_interruptible(recv_wq, (op->done != 0));
+		if (rv == -ERESTARTSYS) {
+			spin_lock(&ops_lock);
+			/* recheck under ops_lock if we got a done != 0,
+			 * if so this interrupt case should be ignored
+			 */
+			if (op->done != 0) {
+				spin_unlock(&ops_lock);
+				goto do_lock_wait;
+			}
 			spin_unlock(&ops_lock);
-			goto do_lock_wait;
-		}
 
-		op->sigint = true;
-		spin_unlock(&ops_lock);
-		log_debug(ls, "%s: wait interrupted %x %llx pid %d",
-			  __func__, ls->ls_global_id,
-			  (unsigned long long)number, op->info.pid);
-		goto out;
+			rv = do_lock_cancel(&op->info);
+			switch (rv) {
+			case 0:
+				/* waiter was deleted in user space, answer will never come
+				 * remove original request. The original request must be
+				 * on recv_list because the answer of do_lock_cancel()
+				 * synchronized it.
+				 */
+				spin_lock(&ops_lock);
+				list_del(&op->list);
+				spin_unlock(&ops_lock);
+				rv = -EINTR;
+				break;
+			case -ENOENT:
+				/* cancellation wasn't successful but op should be done */
+				fallthrough;
+			default:
+				/* internal error doing cancel we need to wait */
+				goto wait;
+			}
+
+			log_debug(ls, "%s: wait interrupted %x %llx pid %d",
+				  __func__, ls->ls_global_id,
+				  (unsigned long long)number, op->info.pid);
+			dlm_release_plock_op(op);
+			goto out;
+		}
+	} else {
+wait:
+		wait_event(recv_wq, (op->done != 0));
 	}
 
 do_lock_wait:
@@ -236,8 +279,8 @@ static int dlm_plock_callback(struct plock_op *op)
 	rv = notify(fl, 0);
 	if (rv) {
 		/* XXX: We need to cancel the fs lock here: */
-		log_print("dlm_plock_callback: lock granted after lock request "
-			  "failed; dangling lock!\n");
+		log_print("%s: lock granted after lock request failed; dangling lock!",
+			  __func__);
 		goto out;
 	}
 
@@ -314,6 +357,75 @@ out:
 }
 EXPORT_SYMBOL_GPL(dlm_posix_unlock);
 
+/*
+ * NOTE: This implementation can only handle async lock requests as nfs
+ * do it. It cannot handle cancellation of a pending lock request sitting
+ * in wait_event(), but for now only nfs is the only user local kernel
+ * user.
+ */
+int dlm_posix_cancel(dlm_lockspace_t *lockspace, u64 number, struct file *file,
+		     struct file_lock *fl)
+{
+	struct dlm_plock_info info;
+	struct plock_op *op;
+	struct dlm_ls *ls;
+	int rv;
+
+	/* this only works for async request for now and nfs is the only
+	 * kernel user right now.
+	 */
+	if (WARN_ON_ONCE(!fl->fl_lmops || !fl->fl_lmops->lm_grant))
+		return -EOPNOTSUPP;
+
+	ls = dlm_find_lockspace_local(lockspace);
+	if (!ls)
+		return -EINVAL;
+
+	memset(&info, 0, sizeof(info));
+	info.pid = fl->fl_pid;
+	info.ex = (fl->fl_type == F_WRLCK);
+	info.fsid = ls->ls_global_id;
+	dlm_put_lockspace(ls);
+	info.number = number;
+	info.start = fl->fl_start;
+	info.end = fl->fl_end;
+	info.owner = (__u64)fl->fl_pid;
+
+	rv = do_lock_cancel(&info);
+	switch (rv) {
+	case 0:
+		spin_lock(&ops_lock);
+		/* lock request to cancel must be on recv_list because
+		 * do_lock_cancel() synchronizes it.
+		 */
+		op = plock_lookup_waiter(&info);
+		if (WARN_ON_ONCE(!op)) {
+			spin_unlock(&ops_lock);
+			rv = -ENOLCK;
+			break;
+		}
+
+		list_del(&op->list);
+		spin_unlock(&ops_lock);
+		WARN_ON(op->info.optype != DLM_PLOCK_OP_LOCK);
+		op->data->callback(op->data->fl, -EINTR);
+		dlm_release_plock_op(op);
+		rv = -EINTR;
+		break;
+	case -ENOENT:
+		/* if cancel wasn't successful we probably were to late
+		 * or it was a non-blocking lock request, so just unlock it.
+		 */
+		rv = dlm_posix_unlock(lockspace, number, file, fl);
+		break;
+	default:
+		break;
+	}
+
+	return rv;
+}
+EXPORT_SYMBOL_GPL(dlm_posix_cancel);
+
 int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 		  struct file_lock *fl)
 {
@@ -360,7 +472,9 @@ int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 		locks_init_lock(fl);
 		fl->fl_type = (op->info.ex) ? F_WRLCK : F_RDLCK;
 		fl->fl_flags = FL_POSIX;
-		fl->fl_pid = -op->info.pid;
+		fl->fl_pid = op->info.pid;
+		if (op->info.nodeid != dlm_our_nodeid())
+			fl->fl_pid = -fl->fl_pid;
 		fl->fl_start = op->info.start;
 		fl->fl_end = op->info.end;
 		rv = 0;
@@ -389,13 +503,15 @@ static ssize_t dev_read(struct file *file, char __user *u, size_t count,
 		if (op->info.flags & DLM_PLOCK_FL_CLOSE)
 			list_del(&op->list);
 		else
-			list_move(&op->list, &recv_list);
+			list_move_tail(&op->list, &recv_list);
 		memcpy(&info, &op->info, sizeof(info));
 	}
 	spin_unlock(&ops_lock);
 
 	if (!op)
 		return -EAGAIN;
+
+	trace_dlm_plock_read(&info);
 
 	/* there is no need to get a reply from userspace for unlocks
 	   that were generated by the vfs cleaning up for a close
@@ -424,36 +540,45 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 	if (copy_from_user(&info, u, sizeof(info)))
 		return -EFAULT;
 
+	trace_dlm_plock_write(&info);
+
 	if (check_version(&info))
 		return -EINVAL;
 
+	/*
+	 * The results for waiting ops (SETLKW) can be returned in any
+	 * order, so match all fields to find the op.  The results for
+	 * non-waiting ops are returned in the order that they were sent
+	 * to userspace, so match the result with the first non-waiting op.
+	 */
 	spin_lock(&ops_lock);
-	list_for_each_entry(iter, &recv_list, list) {
-		if (iter->info.fsid == info.fsid &&
-		    iter->info.number == info.number &&
-		    iter->info.owner == info.owner) {
-			if (iter->sigint) {
-				list_del(&iter->list);
-				spin_unlock(&ops_lock);
-
-				pr_debug("%s: sigint cleanup %x %llx pid %d",
-					  __func__, iter->info.fsid,
-					  (unsigned long long)iter->info.number,
-					  iter->info.pid);
-				do_unlock_close(&iter->info);
-				memcpy(&iter->info, &info, sizeof(info));
-				dlm_release_plock_op(iter);
-				return count;
+	if (info.wait) {
+		op = plock_lookup_waiter(&info);
+	} else {
+		list_for_each_entry(iter, &recv_list, list) {
+			if (!iter->info.wait &&
+			    iter->info.fsid == info.fsid) {
+				op = iter;
+				break;
 			}
-			list_del_init(&iter->list);
-			memcpy(&iter->info, &info, sizeof(info));
-			if (iter->data)
-				do_callback = 1;
-			else
-				iter->done = 1;
-			op = iter;
-			break;
 		}
+	}
+
+	if (op) {
+		/* Sanity check that op and info match. */
+		if (info.wait)
+			WARN_ON(op->info.optype != DLM_PLOCK_OP_LOCK);
+		else
+			WARN_ON(op->info.number != info.number ||
+				op->info.owner != info.owner ||
+				op->info.optype != info.optype);
+
+		list_del_init(&op->list);
+		memcpy(&op->info, &info, sizeof(info));
+		if (op->data)
+			do_callback = 1;
+		else
+			op->done = 1;
 	}
 	spin_unlock(&ops_lock);
 
@@ -463,8 +588,8 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 		else
 			wake_up(&recv_wq);
 	} else
-		log_print("%s: no op %x %llx", __func__,
-			  info.fsid, (unsigned long long)info.number);
+		pr_debug("%s: no op %x %llx", __func__,
+			 info.fsid, (unsigned long long)info.number);
 	return count;
 }
 
@@ -509,5 +634,7 @@ int dlm_plock_init(void)
 void dlm_plock_exit(void)
 {
 	misc_deregister(&plock_dev_misc);
+	WARN_ON(!list_empty(&send_list));
+	WARN_ON(!list_empty(&recv_list));
 }
 

@@ -21,7 +21,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/can/dev.h>
@@ -625,7 +624,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 
 		timestamp = hecc_read(priv, HECC_CANLNT);
 		err = can_rx_offload_queue_timestamp(&priv->offload, skb,
-						  timestamp);
+						     timestamp);
 		if (err)
 			ndev->stats.rx_fifo_errors++;
 	}
@@ -748,8 +747,8 @@ static irqreturn_t ti_hecc_interrupt(int irq, void *dev_id)
 			spin_unlock_irqrestore(&priv->mbx_lock, flags);
 			stamp = hecc_read_stamp(priv, mbxno);
 			stats->tx_bytes +=
-				can_rx_offload_get_echo_skb(&priv->offload,
-							    mbxno, stamp, NULL);
+				can_rx_offload_get_echo_skb_queue_timestamp(&priv->offload,
+									    mbxno, stamp, NULL);
 			stats->tx_packets++;
 			--priv->tx_tail;
 		}
@@ -963,7 +962,7 @@ probe_exit_candev:
 	return err;
 }
 
-static int ti_hecc_remove(struct platform_device *pdev)
+static void ti_hecc_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
@@ -973,8 +972,6 @@ static int ti_hecc_remove(struct platform_device *pdev)
 	clk_put(priv->clk);
 	can_rx_offload_del(&priv->offload);
 	free_candev(ndev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1028,7 +1025,7 @@ static struct platform_driver ti_hecc_driver = {
 		.of_match_table = ti_hecc_dt_ids,
 	},
 	.probe = ti_hecc_probe,
-	.remove = ti_hecc_remove,
+	.remove_new = ti_hecc_remove,
 	.suspend = ti_hecc_suspend,
 	.resume = ti_hecc_resume,
 };

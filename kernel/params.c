@@ -331,7 +331,7 @@ EXPORT_SYMBOL(param_ops_bool);
 
 int param_set_bool_enable_only(const char *val, const struct kernel_param *kp)
 {
-	int err = 0;
+	int err;
 	bool new_value;
 	bool orig_value = *(bool *)kp->arg;
 	struct kernel_param dummy_kp = *kp;
@@ -847,7 +847,7 @@ static void __init param_sysfs_builtin(void)
 			name_len = 0;
 		} else {
 			name_len = dot - kp->name + 1;
-			strlcpy(modname, kp->name, name_len);
+			strscpy(modname, kp->name, name_len);
 		}
 		kernel_add_sysfs_param(modname, kp, name_len);
 	}

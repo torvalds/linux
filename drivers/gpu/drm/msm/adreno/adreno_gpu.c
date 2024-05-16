@@ -320,16 +320,13 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 		*value = adreno_gpu->info->revn;
 		return 0;
 	case MSM_PARAM_GMEM_SIZE:
-		*value = adreno_gpu->gmem;
+		*value = adreno_gpu->info->gmem;
 		return 0;
 	case MSM_PARAM_GMEM_BASE:
 		*value = !adreno_is_a650_family(adreno_gpu) ? 0x100000 : 0;
 		return 0;
 	case MSM_PARAM_CHIP_ID:
-		*value =  (uint64_t)adreno_gpu->rev.patchid |
-			 ((uint64_t)adreno_gpu->rev.minor << 8) |
-			 ((uint64_t)adreno_gpu->rev.major << 16) |
-			 ((uint64_t)adreno_gpu->rev.core  << 24);
+		*value = adreno_gpu->chip_id;
 		if (!adreno_gpu->info->revn)
 			*value |= ((uint64_t) adreno_gpu->speedbin) << 32;
 		return 0;
@@ -400,17 +397,9 @@ int adreno_set_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 	case MSM_PARAM_CMDLINE: {
 		char *str, **paramp;
 
-		str = kmalloc(len + 1, GFP_KERNEL);
-		if (!str)
-			return -ENOMEM;
-
-		if (copy_from_user(str, u64_to_user_ptr(value), len)) {
-			kfree(str);
-			return -EFAULT;
-		}
-
-		/* Ensure string is null terminated: */
-		str[len] = '\0';
+		str = memdup_user_nul(u64_to_user_ptr(value), len);
+		if (IS_ERR(str))
+			return PTR_ERR(str);
 
 		mutex_lock(&gpu->lock);
 
@@ -526,6 +515,10 @@ int adreno_load_fw(struct adreno_gpu *adreno_gpu)
 		const struct firmware *fw;
 
 		if (!adreno_gpu->info->fw[i])
+			continue;
+
+		/* Skip loading GMU firwmare with GMU Wrapper */
+		if (adreno_has_gmu_wrapper(adreno_gpu) && i == ADRENO_FW_GMU)
 			continue;
 
 		/* Skip if the firmware has already been loaded */
@@ -843,10 +836,9 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 	if (IS_ERR_OR_NULL(state))
 		return;
 
-	drm_printf(p, "revision: %d (%d.%d.%d.%d)\n",
-			adreno_gpu->info->revn, adreno_gpu->rev.core,
-			adreno_gpu->rev.major, adreno_gpu->rev.minor,
-			adreno_gpu->rev.patchid);
+	drm_printf(p, "revision: %u (%"ADRENO_CHIPID_FMT")\n",
+			adreno_gpu->info->revn,
+			ADRENO_CHIPID_ARGS(adreno_gpu->chip_id));
 	/*
 	 * If this is state collected due to iova fault, so fault related info
 	 *
@@ -917,10 +909,9 @@ void adreno_dump_info(struct msm_gpu *gpu)
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	int i;
 
-	printk("revision: %d (%d.%d.%d.%d)\n",
-			adreno_gpu->info->revn, adreno_gpu->rev.core,
-			adreno_gpu->rev.major, adreno_gpu->rev.minor,
-			adreno_gpu->rev.patchid);
+	printk("revision: %u (%"ADRENO_CHIPID_FMT")\n",
+			adreno_gpu->info->revn,
+			ADRENO_CHIPID_ARGS(adreno_gpu->chip_id));
 
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct msm_ringbuffer *ring = gpu->rb[i];
@@ -1037,14 +1028,16 @@ int adreno_gpu_ocmem_init(struct device *dev, struct adreno_gpu *adreno_gpu,
 		return PTR_ERR(ocmem);
 	}
 
-	ocmem_hdl = ocmem_allocate(ocmem, OCMEM_GRAPHICS, adreno_gpu->gmem);
+	ocmem_hdl = ocmem_allocate(ocmem, OCMEM_GRAPHICS, adreno_gpu->info->gmem);
 	if (IS_ERR(ocmem_hdl))
 		return PTR_ERR(ocmem_hdl);
 
 	adreno_ocmem->ocmem = ocmem;
 	adreno_ocmem->base = ocmem_hdl->addr;
 	adreno_ocmem->hdl = ocmem_hdl;
-	adreno_gpu->gmem = ocmem_hdl->len;
+
+	if (WARN_ON(ocmem_hdl->len != adreno_gpu->info->gmem))
+		return -ENOMEM;
 
 	return 0;
 }
@@ -1069,13 +1062,19 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	struct adreno_platform_config *config = dev->platform_data;
 	struct msm_gpu_config adreno_gpu_config  = { 0 };
 	struct msm_gpu *gpu = &adreno_gpu->base;
-	struct adreno_rev *rev = &config->rev;
 	const char *gpu_name;
 	u32 speedbin;
 	int ret;
 
-	/* Only handle the core clock when GMU is not in use */
-	if (config->rev.core < 6) {
+	adreno_gpu->funcs = funcs;
+	adreno_gpu->info = config->info;
+	adreno_gpu->chip_id = config->chip_id;
+
+	gpu->allow_relocs = config->info->family < ADRENO_6XX_GEN1;
+
+	/* Only handle the core clock when GMU is not in use (or is absent). */
+	if (adreno_has_gmu_wrapper(adreno_gpu) ||
+	    adreno_gpu->info->family < ADRENO_6XX_GEN1) {
 		/*
 		 * This can only be done before devm_pm_opp_of_add_table(), or
 		 * dev_pm_opp_set_config() will WARN_ON()
@@ -1091,24 +1090,14 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 			devm_pm_opp_set_clkname(dev, "core");
 	}
 
-	adreno_gpu->funcs = funcs;
-	adreno_gpu->info = adreno_info(config->rev);
-	adreno_gpu->gmem = adreno_gpu->info->gmem;
-	adreno_gpu->revn = adreno_gpu->info->revn;
-	adreno_gpu->rev = *rev;
-
 	if (adreno_read_speedbin(dev, &speedbin) || !speedbin)
 		speedbin = 0xffff;
 	adreno_gpu->speedbin = (uint16_t) (0xffff & speedbin);
 
-	gpu_name = adreno_gpu->info->name;
-	if (!gpu_name) {
-		gpu_name = devm_kasprintf(dev, GFP_KERNEL, "%d.%d.%d.%d",
-				rev->core, rev->major, rev->minor,
-				rev->patchid);
-		if (!gpu_name)
-			return -ENOMEM;
-	}
+	gpu_name = devm_kasprintf(dev, GFP_KERNEL, "%"ADRENO_CHIPID_FMT,
+			ADRENO_CHIPID_ARGS(config->chip_id));
+	if (!gpu_name)
+		return -ENOMEM;
 
 	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
 

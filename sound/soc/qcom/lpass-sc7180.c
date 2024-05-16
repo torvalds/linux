@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
+#include <linux/pm.h>
 #include <dt-bindings/sound/sc7180-lpass.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -43,7 +43,6 @@ static struct snd_soc_dai_driver sc7180_lpass_cpu_dai_driver[] = {
 			.channels_min	= 2,
 			.channels_max	= 2,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 	}, {
 		.id = MI2S_SECONDARY,
@@ -57,9 +56,7 @@ static struct snd_soc_dai_driver sc7180_lpass_cpu_dai_driver[] = {
 			.channels_min	= 2,
 			.channels_max	= 2,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
-		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
-		.pcm_new = lpass_cpu_pcm_new,
+		.ops    = &asoc_qcom_lpass_cpu_dai_ops2,
 	}, {
 		.id = LPASS_DP_RX,
 		.name = "Hdmi",

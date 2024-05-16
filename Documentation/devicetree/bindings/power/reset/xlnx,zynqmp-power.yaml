@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx Zynq MPSoC Power Management
 
 maintainers:
-  - Michal Simek <michal.simek@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 description: |
   The zynqmp-power node describes the power management configurations.

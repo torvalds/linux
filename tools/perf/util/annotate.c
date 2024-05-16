@@ -32,6 +32,7 @@
 #include "block-range.h"
 #include "string2.h"
 #include "util/event.h"
+#include "util/sharded_mutex.h"
 #include "arch/common.h"
 #include "namespaces.h"
 #include <regex.h>
@@ -61,6 +62,10 @@ static regex_t	 file_lineno;
 static struct ins_ops *ins__find(struct arch *arch, const char *name);
 static void ins__sort(struct arch *arch);
 static int disasm_line__parse(char *line, const char **namep, char **rawp);
+static int call__scnprintf(struct ins *ins, char *bf, size_t size,
+			  struct ins_operands *ops, int max_ins_name);
+static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
+			  struct ins_operands *ops, int max_ins_name);
 
 struct arch {
 	const char	*name;
@@ -70,6 +75,7 @@ struct arch {
 	struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
 	bool		sorted_instructions;
 	bool		initialized;
+	const char	*insn_suffix;
 	void		*priv;
 	unsigned int	model;
 	unsigned int	family;
@@ -179,6 +185,7 @@ static struct arch architectures[] = {
 		.init = x86__annotate_init,
 		.instructions = x86__instructions,
 		.nr_instructions = ARRAY_SIZE(x86__instructions),
+		.insn_suffix = "bwlq",
 		.objdump =  {
 			.comment_char = '#',
 		},
@@ -321,7 +328,7 @@ static struct ins_ops call_ops = {
 
 bool ins__is_call(const struct ins *ins)
 {
-	return ins->ops == &call_ops || ins->ops == &s390_call_ops;
+	return ins->ops == &call_ops || ins->ops == &s390_call_ops || ins->ops == &loongarch_call_ops;
 }
 
 /*
@@ -462,7 +469,7 @@ static struct ins_ops jump_ops = {
 
 bool ins__is_jump(const struct ins *ins)
 {
-	return ins->ops == &jump_ops;
+	return ins->ops == &jump_ops || ins->ops == &loongarch_jump_ops;
 }
 
 static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
@@ -558,13 +565,26 @@ static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_sy
 		return -1;
 
 	*s = '\0';
+
+	/*
+	 * x86 SIB addressing has something like 0x8(%rax, %rcx, 1)
+	 * then it needs to have the closing parenthesis.
+	 */
+	if (strchr(ops->raw, '(')) {
+		*s = ',';
+		s = strchr(ops->raw, ')');
+		if (s == NULL || s[1] != ',')
+			return -1;
+		*++s = '\0';
+	}
+
 	ops->source.raw = strdup(ops->raw);
 	*s = ',';
 
 	if (ops->source.raw == NULL)
 		return -1;
 
-	target = ++s;
+	target = skip_spaces(++s);
 	comment = strchr(s, arch->objdump.comment_char);
 
 	if (comment != NULL)
@@ -707,6 +727,26 @@ static struct ins_ops *__ins__find(struct arch *arch, const char *name)
 	}
 
 	ins = bsearch(name, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
+	if (ins)
+		return ins->ops;
+
+	if (arch->insn_suffix) {
+		char tmp[32];
+		char suffix;
+		size_t len = strlen(name);
+
+		if (len == 0 || len >= sizeof(tmp))
+			return NULL;
+
+		suffix = name[len - 1];
+		if (strchr(arch->insn_suffix, suffix) == NULL)
+			return NULL;
+
+		strcpy(tmp, name);
+		tmp[len - 1] = '\0'; /* remove the suffix and check again */
+
+		ins = bsearch(tmp, arch->instructions, nmemb, sizeof(struct ins), ins__key_cmp);
+	}
 	return ins ? ins->ops : NULL;
 }
 
@@ -821,7 +861,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
 
-	mutex_lock(&notes->lock);
+	annotation__lock(notes);
 	if (notes->src != NULL) {
 		memset(notes->src->histograms, 0,
 		       notes->src->nr_histograms * notes->src->sizeof_sym_hist);
@@ -829,7 +869,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 			memset(notes->src->cycles_hist, 0,
 				symbol__size(sym) * sizeof(struct cyc_hist));
 	}
-	mutex_unlock(&notes->lock);
+	annotation__unlock(notes);
 }
 
 static int __symbol__account_cycles(struct cyc_hist *ch,
@@ -1086,7 +1126,7 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 	notes->hit_insn = 0;
 	notes->cover_insn = 0;
 
-	mutex_lock(&notes->lock);
+	annotation__lock(notes);
 	for (offset = size - 1; offset >= 0; --offset) {
 		struct cyc_hist *ch;
 
@@ -1105,7 +1145,7 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 			notes->have_cycles = true;
 		}
 	}
-	mutex_unlock(&notes->lock);
+	annotation__unlock(notes);
 }
 
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
@@ -1183,7 +1223,7 @@ static void annotation_line__init(struct annotation_line *al,
 
 static void annotation_line__exit(struct annotation_line *al)
 {
-	free_srcline(al->path);
+	zfree_srcline(&al->path);
 	zfree(&al->line);
 }
 
@@ -1256,16 +1296,63 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool r
 	return ins__scnprintf(&dl->ins, bf, size, &dl->ops, max_ins_name);
 }
 
-void annotation__init(struct annotation *notes)
-{
-	mutex_init(&notes->lock);
-}
-
 void annotation__exit(struct annotation *notes)
 {
 	annotated_source__delete(notes->src);
-	mutex_destroy(&notes->lock);
 }
+
+static struct sharded_mutex *sharded_mutex;
+
+static void annotation__init_sharded_mutex(void)
+{
+	/* As many mutexes as there are CPUs. */
+	sharded_mutex = sharded_mutex__new(cpu__max_present_cpu().cpu);
+}
+
+static size_t annotation__hash(const struct annotation *notes)
+{
+	return (size_t)notes;
+}
+
+static struct mutex *annotation__get_mutex(const struct annotation *notes)
+{
+	static pthread_once_t once = PTHREAD_ONCE_INIT;
+
+	pthread_once(&once, annotation__init_sharded_mutex);
+	if (!sharded_mutex)
+		return NULL;
+
+	return sharded_mutex__get_mutex(sharded_mutex, annotation__hash(notes));
+}
+
+void annotation__lock(struct annotation *notes)
+	NO_THREAD_SAFETY_ANALYSIS
+{
+	struct mutex *mutex = annotation__get_mutex(notes);
+
+	if (mutex)
+		mutex_lock(mutex);
+}
+
+void annotation__unlock(struct annotation *notes)
+	NO_THREAD_SAFETY_ANALYSIS
+{
+	struct mutex *mutex = annotation__get_mutex(notes);
+
+	if (mutex)
+		mutex_unlock(mutex);
+}
+
+bool annotation__trylock(struct annotation *notes)
+{
+	struct mutex *mutex = annotation__get_mutex(notes);
+
+	if (!mutex)
+		return false;
+
+	return mutex_trylock(mutex);
+}
+
 
 static void annotation_line__add(struct annotation_line *al, struct list_head *head)
 {
@@ -1511,6 +1598,7 @@ static int symbol__parse_objdump_line(struct symbol *sym,
 	/* /filename:linenr ? Save line number and ignore. */
 	if (regexec(&file_lineno, parsed_line, 2, match, 0) == 0) {
 		*line_nr = atoi(parsed_line + match[1].rm_so);
+		free(*fileloc);
 		*fileloc = strdup(parsed_line);
 		return 0;
 	}
@@ -1559,7 +1647,6 @@ static int symbol__parse_objdump_line(struct symbol *sym,
 	}
 
 	annotation_line__add(&dl->al, &notes->src->source);
-
 	return 0;
 }
 
@@ -1696,7 +1783,10 @@ fallback:
 		 * cache, or is just a kallsyms file, well, lets hope that this
 		 * DSO is the same as when 'perf record' ran.
 		 */
-		__symbol__join_symfs(filename, filename_size, dso->long_name);
+		if (dso->kernel && dso->long_name[0] == '/')
+			snprintf(filename, filename_size, "%s", dso->long_name);
+		else
+			__symbol__join_symfs(filename, filename_size, dso->long_name);
 
 		mutex_lock(&dso->lock);
 		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
@@ -1756,8 +1846,11 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 	perf_exe(tpath, sizeof(tpath));
 
 	bfdf = bfd_openr(tpath, NULL);
-	assert(bfdf);
-	assert(bfd_check_format(bfdf, bfd_object));
+	if (bfdf == NULL)
+		abort();
+
+	if (!bfd_check_format(bfdf, bfd_object))
+		abort();
 
 	s = open_memstream(&buf, &buf_size);
 	if (!s) {
@@ -1805,7 +1898,8 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 #else
 	disassemble = disassembler(bfdf);
 #endif
-	assert(disassemble);
+	if (disassemble == NULL)
+		abort();
 
 	fflush(s);
 	do {
@@ -2101,6 +2195,7 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		nline++;
 	}
 	free(line);
+	free(fileloc);
 
 	err = finish_command(&objdump_process);
 	if (err)

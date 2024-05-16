@@ -1568,27 +1568,6 @@ static void dsa_port_phylink_validate(struct phylink_config *config,
 		phylink_generic_validate(config, supported, state);
 }
 
-static void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
-					       struct phylink_link_state *state)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct dsa_switch *ds = dp->ds;
-	int err;
-
-	/* Only called for inband modes */
-	if (!ds->ops->phylink_mac_link_state) {
-		state->link = 0;
-		return;
-	}
-
-	err = ds->ops->phylink_mac_link_state(ds, dp->index, state);
-	if (err < 0) {
-		dev_err(ds->dev, "p%d: phylink_mac_link_state() failed: %d\n",
-			dp->index, err);
-		state->link = 0;
-	}
-}
-
 static struct phylink_pcs *
 dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
 				phy_interface_t interface)
@@ -1601,6 +1580,21 @@ dsa_port_phylink_mac_select_pcs(struct phylink_config *config,
 		pcs = ds->ops->phylink_mac_select_pcs(ds, dp->index, interface);
 
 	return pcs;
+}
+
+static int dsa_port_phylink_mac_prepare(struct phylink_config *config,
+					unsigned int mode,
+					phy_interface_t interface)
+{
+	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_switch *ds = dp->ds;
+	int err = 0;
+
+	if (ds->ops->phylink_mac_prepare)
+		err = ds->ops->phylink_mac_prepare(ds, dp->index, mode,
+						   interface);
+
+	return err;
 }
 
 static void dsa_port_phylink_mac_config(struct phylink_config *config,
@@ -1616,15 +1610,19 @@ static void dsa_port_phylink_mac_config(struct phylink_config *config,
 	ds->ops->phylink_mac_config(ds, dp->index, mode, state);
 }
 
-static void dsa_port_phylink_mac_an_restart(struct phylink_config *config)
+static int dsa_port_phylink_mac_finish(struct phylink_config *config,
+				       unsigned int mode,
+				       phy_interface_t interface)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
+	int err = 0;
 
-	if (!ds->ops->phylink_mac_an_restart)
-		return;
+	if (ds->ops->phylink_mac_finish)
+		err = ds->ops->phylink_mac_finish(ds, dp->index, mode,
+						  interface);
 
-	ds->ops->phylink_mac_an_restart(ds, dp->index);
+	return err;
 }
 
 static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
@@ -1670,9 +1668,9 @@ static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 static const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
 	.validate = dsa_port_phylink_validate,
 	.mac_select_pcs = dsa_port_phylink_mac_select_pcs,
-	.mac_pcs_get_state = dsa_port_phylink_mac_pcs_get_state,
+	.mac_prepare = dsa_port_phylink_mac_prepare,
 	.mac_config = dsa_port_phylink_mac_config,
-	.mac_an_restart = dsa_port_phylink_mac_an_restart,
+	.mac_finish = dsa_port_phylink_mac_finish,
 	.mac_link_down = dsa_port_phylink_mac_link_down,
 	.mac_link_up = dsa_port_phylink_mac_link_up,
 };
@@ -1688,15 +1686,19 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 	if (err)
 		mode = PHY_INTERFACE_MODE_NA;
 
-	/* Presence of phylink_mac_link_state or phylink_mac_an_restart is
-	 * an indicator of a legacy phylink driver.
-	 */
-	if (ds->ops->phylink_mac_link_state ||
-	    ds->ops->phylink_mac_an_restart)
-		dp->pl_config.legacy_pre_march2020 = true;
-
-	if (ds->ops->phylink_get_caps)
+	if (ds->ops->phylink_get_caps) {
 		ds->ops->phylink_get_caps(ds, dp->index, &dp->pl_config);
+	} else {
+		/* For legacy drivers */
+		if (mode != PHY_INTERFACE_MODE_NA) {
+			__set_bit(mode, dp->pl_config.supported_interfaces);
+		} else {
+			__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+				  dp->pl_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_GMII,
+				  dp->pl_config.supported_interfaces);
+		}
+	}
 
 	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
 			    mode, &dsa_port_phylink_mac_ops);

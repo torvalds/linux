@@ -16,6 +16,16 @@ struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 
+/*
+ * FIXME: We should instead only take spinlocks once for the entire update
+ * instead of once per mmio.
+ */
+#if IS_ENABLED(CONFIG_PROVE_LOCKING)
+#define VBLANK_EVASION_TIME_US 250
+#else
+#define VBLANK_EVASION_TIME_US 100
+#endif
+
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs);
 u32 intel_crtc_max_vblank_count(const struct intel_crtc_state *crtc_state);

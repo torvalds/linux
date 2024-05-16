@@ -1,47 +1,54 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/linkage.h>
 #include <asm/percpu.h>
+#include <asm/processor-flags.h>
 
 .text
 
 /*
+ * Emulate 'cmpxchg16b %gs:(%rsi)'
+ *
  * Inputs:
  * %rsi : memory location to compare
  * %rax : low 64 bits of old value
  * %rdx : high 64 bits of old value
  * %rbx : low 64 bits of new value
  * %rcx : high 64 bits of new value
- * %al  : Operation successful
+ *
+ * Notably this is not LOCK prefixed and is not safe against NMIs
  */
 SYM_FUNC_START(this_cpu_cmpxchg16b_emu)
 
-#
-# Emulate 'cmpxchg16b %gs:(%rsi)' except we return the result in %al not
-# via the ZF.  Caller will access %al to get result.
-#
-# Note that this is only useful for a cpuops operation.  Meaning that we
-# do *not* have a fully atomic operation but just an operation that is
-# *atomic* on a single cpu (as provided by the this_cpu_xx class of
-# macros).
-#
 	pushfq
 	cli
 
-	cmpq PER_CPU_VAR((%rsi)), %rax
-	jne .Lnot_same
-	cmpq PER_CPU_VAR(8(%rsi)), %rdx
-	jne .Lnot_same
+	/* if (*ptr == old) */
+	cmpq	PER_CPU_VAR(0(%rsi)), %rax
+	jne	.Lnot_same
+	cmpq	PER_CPU_VAR(8(%rsi)), %rdx
+	jne	.Lnot_same
 
-	movq %rbx, PER_CPU_VAR((%rsi))
-	movq %rcx, PER_CPU_VAR(8(%rsi))
+	/* *ptr = new */
+	movq	%rbx, PER_CPU_VAR(0(%rsi))
+	movq	%rcx, PER_CPU_VAR(8(%rsi))
+
+	/* set ZF in EFLAGS to indicate success */
+	orl	$X86_EFLAGS_ZF, (%rsp)
 
 	popfq
-	mov $1, %al
 	RET
 
 .Lnot_same:
+	/* *ptr != old */
+
+	/* old = *ptr */
+	movq	PER_CPU_VAR(0(%rsi)), %rax
+	movq	PER_CPU_VAR(8(%rsi)), %rdx
+
+	/* clear ZF in EFLAGS to indicate failure */
+	andl	$(~X86_EFLAGS_ZF), (%rsp)
+
 	popfq
-	xor %al,%al
 	RET
 
 SYM_FUNC_END(this_cpu_cmpxchg16b_emu)

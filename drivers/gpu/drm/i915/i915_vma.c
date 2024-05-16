@@ -34,6 +34,7 @@
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
+#include "gt/intel_tlb.h"
 
 #include "i915_drv.h"
 #include "i915_gem_evict.h"
@@ -74,14 +75,14 @@ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 	char buf[512];
 
 	if (!vma->node.stack) {
-		drm_dbg(&to_i915(vma->obj->base.dev)->drm,
+		drm_dbg(vma->obj->base.dev,
 			"vma.node [%08llx + %08llx] %s: unknown owner\n",
 			vma->node.start, vma->node.size, reason);
 		return;
 	}
 
 	stack_depot_snprint(vma->node.stack, buf, sizeof(buf), 0);
-	drm_dbg(&to_i915(vma->obj->base.dev)->drm,
+	drm_dbg(vma->obj->base.dev,
 		"vma.node [%08llx + %08llx] %s: inserted at %s\n",
 		vma->node.start, vma->node.size, reason, buf);
 }
@@ -315,7 +316,7 @@ struct i915_vma_work {
 	struct i915_vma_resource *vma_res;
 	struct drm_i915_gem_object *obj;
 	struct i915_sw_dma_fence_cb cb;
-	enum i915_cache_level cache_level;
+	unsigned int pat_index;
 	unsigned int flags;
 };
 
@@ -334,7 +335,7 @@ static void __vma_bind(struct dma_fence_work *work)
 		return;
 
 	vma_res->ops->bind_vma(vma_res->vm, &vw->stash,
-			       vma_res, vw->cache_level, vw->flags);
+			       vma_res, vw->pat_index, vw->flags);
 }
 
 static void __vma_release(struct dma_fence_work *work)
@@ -426,7 +427,7 @@ i915_vma_resource_init_from_vma(struct i915_vma_resource *vma_res,
 /**
  * i915_vma_bind - Sets up PTEs for an VMA in it's corresponding address space.
  * @vma: VMA to map
- * @cache_level: mapping cache level
+ * @pat_index: PAT index to set in PTE
  * @flags: flags like global or local mapping
  * @work: preallocated worker for allocating and binding the PTE
  * @vma_res: pointer to a preallocated vma resource. The resource is either
@@ -437,7 +438,7 @@ i915_vma_resource_init_from_vma(struct i915_vma_resource *vma_res,
  * Note that DMA addresses are also the only part of the SG table we care about.
  */
 int i915_vma_bind(struct i915_vma *vma,
-		  enum i915_cache_level cache_level,
+		  unsigned int pat_index,
 		  u32 flags,
 		  struct i915_vma_work *work,
 		  struct i915_vma_resource *vma_res)
@@ -507,7 +508,7 @@ int i915_vma_bind(struct i915_vma *vma,
 		struct dma_fence *prev;
 
 		work->vma_res = i915_vma_resource_get(vma->resource);
-		work->cache_level = cache_level;
+		work->pat_index = pat_index;
 		work->flags = bind_flags;
 
 		/*
@@ -537,7 +538,7 @@ int i915_vma_bind(struct i915_vma *vma,
 
 			return ret;
 		}
-		vma->ops->bind_vma(vma->vm, NULL, vma->resource, cache_level,
+		vma->ops->bind_vma(vma->vm, NULL, vma->resource, pat_index,
 				   bind_flags);
 	}
 
@@ -805,7 +806,7 @@ i915_vma_insert(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	 * attempt to find space.
 	 */
 	if (size > end - 2 * guard) {
-		drm_dbg(&to_i915(vma->obj->base.dev)->drm,
+		drm_dbg(vma->obj->base.dev,
 			"Attempting to bind an object larger than the aperture: request=%llu > %s aperture=%llu\n",
 			size, flags & PIN_MAPPABLE ? "mappable" : "total", end);
 		return -ENOSPC;
@@ -814,7 +815,7 @@ i915_vma_insert(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	color = 0;
 
 	if (i915_vm_has_cache_coloring(vma->vm))
-		color = vma->obj->cache_level;
+		color = vma->obj->pat_index;
 
 	if (flags & PIN_OFFSET_FIXED) {
 		u64 offset = flags & PIN_OFFSET_MASK;
@@ -1339,6 +1340,12 @@ err_unpin:
 
 void vma_invalidate_tlb(struct i915_address_space *vm, u32 *tlb)
 {
+	struct intel_gt *gt;
+	int id;
+
+	if (!tlb)
+		return;
+
 	/*
 	 * Before we release the pages that were bound by this vma, we
 	 * must invalidate all the TLBs that may still have a reference
@@ -1347,7 +1354,9 @@ void vma_invalidate_tlb(struct i915_address_space *vm, u32 *tlb)
 	 * the most recent TLB invalidation seqno, and if we have not yet
 	 * flushed the TLBs upon release, perform a full invalidation.
 	 */
-	WRITE_ONCE(*tlb, intel_gt_next_invalidate_tlb_full(vm->gt));
+	for_each_gt(gt, vm->i915, id)
+		WRITE_ONCE(tlb[id],
+			   intel_gt_next_invalidate_tlb_full(gt));
 }
 
 static void __vma_put_pages(struct i915_vma *vma, unsigned int count)
@@ -1518,7 +1527,7 @@ int i915_vma_pin_ww(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 
 	GEM_BUG_ON(!vma->pages);
 	err = i915_vma_bind(vma,
-			    vma->obj->cache_level,
+			    vma->obj->pat_index,
 			    flags, work, vma_res);
 	vma_res = NULL;
 	if (err)
@@ -1629,6 +1638,26 @@ int i915_ggtt_pin(struct i915_vma *vma, struct i915_gem_ww_ctx *ww,
 	return err;
 }
 
+/**
+ * i915_ggtt_clear_scanout - Clear scanout flag for all objects ggtt vmas
+ * @obj: i915 GEM object
+ * This function clears scanout flags for objects ggtt vmas. These flags are set
+ * when object is pinned for display use and this function to clear them all is
+ * targeted to be called by frontbuffer tracking code when the frontbuffer is
+ * about to be released.
+ */
+void i915_ggtt_clear_scanout(struct drm_i915_gem_object *obj)
+{
+	struct i915_vma *vma;
+
+	spin_lock(&obj->vma.lock);
+	for_each_ggtt_vma(vma, obj) {
+		i915_vma_clear_scanout(vma);
+		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
+	}
+	spin_unlock(&obj->vma.lock);
+}
+
 static void __vma_close(struct i915_vma *vma, struct intel_gt *gt)
 {
 	/*
@@ -1710,6 +1739,8 @@ static void release_references(struct i915_vma *vma, struct intel_gt *gt,
 	if (vm_ddestroy)
 		i915_vm_resv_put(vma->vm);
 
+	/* Wait for async active retire */
+	i915_active_wait(&vma->active);
 	i915_active_fini(&vma->active);
 	GEM_WARN_ON(vma->resource);
 	i915_vma_free(vma);
@@ -1906,7 +1937,7 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 	if (flags & EXEC_OBJECT_WRITE) {
 		struct intel_frontbuffer *front;
 
-		front = __intel_frontbuffer_get(obj);
+		front = i915_gem_object_get_frontbuffer(obj);
 		if (unlikely(front)) {
 			if (intel_frontbuffer_invalidate(front, ORIGIN_CS))
 				i915_active_add_request(&front->write, rq);
@@ -1992,7 +2023,7 @@ struct dma_fence *__i915_vma_evict(struct i915_vma *vma, bool async)
 
 	if (async)
 		unbind_fence = i915_vma_resource_unbind(vma_res,
-							&vma->obj->mm.tlb);
+							vma->obj->mm.tlb);
 	else
 		unbind_fence = i915_vma_resource_unbind(vma_res, NULL);
 
@@ -2009,7 +2040,7 @@ struct dma_fence *__i915_vma_evict(struct i915_vma *vma, bool async)
 			dma_fence_put(unbind_fence);
 			unbind_fence = NULL;
 		}
-		vma_invalidate_tlb(vma->vm, &vma->obj->mm.tlb);
+		vma_invalidate_tlb(vma->vm, vma->obj->mm.tlb);
 	}
 
 	/*

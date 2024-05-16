@@ -49,10 +49,10 @@ struct drmres {
 	 * Some archs want to perform DMA into kmalloc caches
 	 * and need a guaranteed alignment larger than
 	 * the alignment of a 64-bit integer.
-	 * Thus we use ARCH_KMALLOC_MINALIGN here and get exactly the same
-	 * buffer alignment as if it was allocated by plain kmalloc().
+	 * Thus we use ARCH_DMA_MINALIGN for data[] which will force the same
+	 * alignment for struct drmres when allocated by kmalloc().
 	 */
-	u8 __aligned(ARCH_KMALLOC_MINALIGN) data[];
+	u8 __aligned(ARCH_DMA_MINALIGN) data[];
 };
 
 static void free_dr(struct drmres *dr)
@@ -196,7 +196,7 @@ void *drmm_kmalloc(struct drm_device *dev, size_t size, gfp_t gfp)
 			       size, gfp);
 		return NULL;
 	}
-	dr->node.name = kstrdup_const("kmalloc", GFP_KERNEL);
+	dr->node.name = kstrdup_const("kmalloc", gfp);
 
 	add_dr(dev, dr);
 

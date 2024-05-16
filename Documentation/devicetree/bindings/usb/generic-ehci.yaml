@@ -38,6 +38,7 @@ properties:
               - allwinner,sun8i-a83t-ehci
               - allwinner,sun8i-h3-ehci
               - allwinner,sun8i-r40-ehci
+              - allwinner,sun8i-v3s-ehci
               - allwinner,sun9i-a80-ehci
               - allwinner,sun20i-d1-ehci
               - aspeed,ast2400-ehci
@@ -61,11 +62,13 @@ properties:
               - ibm,476gtr-ehci
               - nxp,lpc1850-ehci
               - qca,ar7100-ehci
+              - rockchip,rk3588-ehci
               - snps,hsdk-v1.0-ehci
               - socionext,uniphier-ehci
           - const: generic-ehci
       - items:
           - enum:
+              - atmel,at91sam9g45-ehci
               - cavium,octeon-6335-ehci
               - ibm,usb-ehci-440epx
               - ibm,usb-ehci-460ex

@@ -125,8 +125,7 @@ static void goldfish_tty_rw(struct goldfish_tty *qtty,
 	}
 }
 
-static void goldfish_tty_do_write(int line, const char *buf,
-				  unsigned int count)
+static void goldfish_tty_do_write(int line, const u8 *buf, unsigned int count)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[line];
 	unsigned long address = (unsigned long)(void *)buf;
@@ -186,8 +185,8 @@ static void goldfish_tty_hangup(struct tty_struct *tty)
 	tty_port_hangup(tty->port);
 }
 
-static int goldfish_tty_write(struct tty_struct *tty, const unsigned char *buf,
-								int count)
+static ssize_t goldfish_tty_write(struct tty_struct *tty, const u8 *buf,
+				  size_t count)
 {
 	goldfish_tty_do_write(tty->index, buf, count);
 	return count;

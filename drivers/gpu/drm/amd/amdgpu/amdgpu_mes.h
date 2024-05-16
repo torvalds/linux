@@ -27,6 +27,7 @@
 #include "amdgpu_irq.h"
 #include "kgd_kfd_interface.h"
 #include "amdgpu_gfx.h"
+#include "amdgpu_doorbell.h"
 #include <linux/sched/mm.h>
 
 #define AMDGPU_MES_MAX_COMPUTE_PIPES        8
@@ -76,7 +77,6 @@ struct amdgpu_mes {
 	uint32_t			kiq_version;
 
 	uint32_t                        total_max_queue;
-	uint32_t                        doorbell_id_offset;
 	uint32_t                        max_doorbell_slices;
 
 	uint64_t                        default_process_quantum;
@@ -128,6 +128,11 @@ struct amdgpu_mes {
 	int                             (*kiq_hw_init)(struct amdgpu_device *adev);
 	int                             (*kiq_hw_fini)(struct amdgpu_device *adev);
 
+	/* MES doorbells */
+	uint32_t			db_start_dw_offset;
+	uint32_t			num_mes_dbs;
+	unsigned long			*doorbell_bitmap;
+
 	/* ip specific functions */
 	const struct amdgpu_mes_funcs   *funcs;
 };
@@ -142,7 +147,6 @@ struct amdgpu_mes_process {
 	uint64_t 		process_quantum;
 	struct 			list_head gang_list;
 	uint32_t 		doorbell_index;
-	unsigned long 		*doorbell_bitmap;
 	struct mutex		doorbell_lock;
 };
 
@@ -219,9 +223,12 @@ struct mes_add_queue_input {
 	uint32_t        gws_size;
 	uint64_t	tba_addr;
 	uint64_t	tma_addr;
+	uint32_t	trap_en;
+	uint32_t	skip_process_ctx_clear;
 	uint32_t	is_kfd_process;
 	uint32_t	is_aql_queue;
 	uint32_t	queue_size;
+	uint32_t	exclusively_scheduled;
 };
 
 struct mes_remove_queue_input {
@@ -256,6 +263,7 @@ enum mes_misc_opcode {
 	MES_MISC_OP_READ_REG,
 	MES_MISC_OP_WRM_REG_WAIT,
 	MES_MISC_OP_WRM_REG_WR_WAIT,
+	MES_MISC_OP_SET_SHADER_DEBUGGER,
 };
 
 struct mes_misc_op_input {
@@ -278,6 +286,21 @@ struct mes_misc_op_input {
 			uint32_t                   reg0;
 			uint32_t                   reg1;
 		} wrm_reg;
+
+		struct {
+			uint64_t process_context_addr;
+			union {
+				struct {
+					uint64_t single_memop : 1;
+					uint64_t single_alu_op : 1;
+					uint64_t reserved: 30;
+				};
+				uint32_t u32all;
+			} flags;
+			uint32_t spi_gdbg_per_vmid_cntl;
+			uint32_t tcp_watch_cntl[4];
+			uint32_t trap_en;
+		} set_shader_debugger;
 	};
 };
 
@@ -340,6 +363,12 @@ int amdgpu_mes_reg_wait(struct amdgpu_device *adev, uint32_t reg,
 int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
 				  uint32_t reg0, uint32_t reg1,
 				  uint32_t ref, uint32_t mask);
+int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
+				uint64_t process_context_addr,
+				uint32_t spi_gdbg_per_vmid_cntl,
+				const uint32_t *tcp_watch_cntl,
+				uint32_t flags,
+				bool trap_en);
 
 int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 			int queue_type, int idx,
@@ -362,14 +391,6 @@ int amdgpu_mes_ctx_unmap_meta_data(struct amdgpu_device *adev,
 
 int amdgpu_mes_self_test(struct amdgpu_device *adev);
 
-int amdgpu_mes_alloc_process_doorbells(struct amdgpu_device *adev,
-					unsigned int *doorbell_index);
-void amdgpu_mes_free_process_doorbells(struct amdgpu_device *adev,
-					unsigned int doorbell_index);
-unsigned int amdgpu_mes_get_doorbell_dw_offset_in_bar(
-					struct amdgpu_device *adev,
-					uint32_t doorbell_index,
-					unsigned int doorbell_id);
 int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev);
 
 /*

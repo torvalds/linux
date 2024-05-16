@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Copyright (C) 2018 emtrion GmbH
+//
+
+/ {
+	aliases {
+		boardid = &boardid;
+		mmc0 = &usdhc3;
+		mmc1 = &usdhc2;
+		mmc2 = &usdhc1;
+		mmc3 = &usdhc4;
+	};
+
+	reg_wall_5p0: reg-wall5p0 {
+		compatible = "regulator-fixed";
+		regulator-name = "Main-Supply";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	reg_base3p3: reg-base3p3 {
+		compatible = "regulator-fixed";
+		vin-supply = <&reg_wall_5p0>;
+		regulator-name = "3V3-avari";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	reg_base1p5: reg-base1p5 {
+		compatible = "regulator-fixed";
+		vin-supply = <&reg_base3p3>;
+		regulator-name = "1V5-avari";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	reg_usb_otg: reg-otgvbus {
+		compatible = "regulator-fixed";
+		vin-supply = <&reg_wall_5p0>;
+		regulator-name = "OTG_VBUS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		regulator-always-on;
+	};
+
+	clk_codec: clock-codec {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency  = <12000000>;
+	};
+
+	sound {
+		compatible = "fsl,imx-audio-sgtl5000";
+		model = "emCON-avari-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <3>;
+	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux>;
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
+};
+
+&can2 {
+	status = "okay";
+};
+
+&ecspi2 {
+	status = "okay";
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c2>;
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c3 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	status = "okay";
+
+	sgtl5000: audio-codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		#sound-dai-cells = <0>;
+		clocks = <&clk_codec>;
+		VDDA-supply = <&reg_base3p3>;
+		VDDIO-supply = <&reg_base3p3>;
+	};
+
+	captouch: touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_irq_touch2 &pinctrl_emcon_gpio4>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
+		wake-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
+	};
+
+	boardid: gpio@3a {
+		compatible = "nxp,pca8574";
+		reg = <0x3a>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&pcie {
+	status = "okay";
+};
+
+&rgb_encoder {
+	status = "okay";
+};
+
+&rgb_panel {
+	compatible = "edt,etm0700g0bdh6";
+	status = "okay";
+};
+
+&ssi2 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+	uart-has-rtscts;
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
+&usbotg {
+	status = "okay";
+};
+
+&usdhc1 {
+	status = "okay";
+};

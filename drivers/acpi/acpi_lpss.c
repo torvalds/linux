@@ -201,10 +201,18 @@ static void byt_i2c_setup(struct lpss_private_data *pdata)
 	writel(0, pdata->mmio_base + LPSS_I2C_ENABLE);
 }
 
-/* BSW PWM used for backlight control by the i915 driver */
+/*
+ * BSW PWM1 is used for backlight control by the i915 driver
+ * BSW PWM2 is used for backlight control for fixed (etched into the glass)
+ * touch controls on some models. These touch-controls have specialized
+ * drivers which know they need the "pwm_soc_lpss_2" con-id.
+ */
 static struct pwm_lookup bsw_pwm_lookup[] = {
 	PWM_LOOKUP_WITH_MODULE("80862288:00", 0, "0000:00:02.0",
 			       "pwm_soc_backlight", 0, PWM_POLARITY_NORMAL,
+			       "pwm-lpss-platform"),
+	PWM_LOOKUP_WITH_MODULE("80862289:00", 0, NULL,
+			       "pwm_soc_lpss_2", 0, PWM_POLARITY_NORMAL,
 			       "pwm-lpss-platform"),
 };
 

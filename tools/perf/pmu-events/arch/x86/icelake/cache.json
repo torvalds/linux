@@ -155,18 +155,18 @@
         "UMask": "0x21"
     },
     {
-        "BriefDescription": "All requests that miss L2 cache. This event is not supported on ICL and ICX products, only supported on RKL products.",
+        "BriefDescription": "This event is deprecated.",
+        "Deprecated": "1",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.MISS",
-        "PublicDescription": "Counts all requests that miss L2 cache. This event is not supported on ICL and ICX products, only supported on RKL products.",
         "SampleAfterValue": "200003",
         "UMask": "0x3f"
     },
     {
-        "BriefDescription": "All L2 requests. This event is not supported on ICL and ICX products, only supported on RKL products.",
+        "BriefDescription": "This event is deprecated.",
+        "Deprecated": "1",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.REFERENCES",
-        "PublicDescription": "Counts all L2 requests. This event is not supported on ICL and ICX products, only supported on RKL products.",
         "SampleAfterValue": "200003",
         "UMask": "0xff"
     },
@@ -337,6 +337,16 @@
         "PublicDescription": "Counts retired load instructions whose data sources were hits in L3 without snoops required.",
         "SampleAfterValue": "100003",
         "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Retired instructions with at least 1 uncacheable load or Bus Lock.",
+        "Data_LA": "1",
+        "EventCode": "0xd4",
+        "EventName": "MEM_LOAD_MISC_RETIRED.UC",
+        "PEBS": "1",
+        "PublicDescription": "Retired instructions with at least one load to uncacheable memory-type, or at least one cache-line split locked access (Bus Lock).",
+        "SampleAfterValue": "100007",
+        "UMask": "0x4"
     },
     {
         "BriefDescription": "Number of completed demand load requests that missed the L1, but hit the FB(fill buffer), because a preceding miss to the same cacheline initiated the line to be brought into L1, but data is not yet ready in L1.",
@@ -832,6 +842,14 @@
         "PublicDescription": "Counts the number of off-core outstanding read-for-ownership (RFO) store transactions every cycle. An RFO transaction is considered to be in the Off-core outstanding state between L2 cache miss and transaction completion.",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts bus locks, accounts for cache line split locks and UC locks.",
+        "EventCode": "0xF4",
+        "EventName": "SQ_MISC.BUS_LOCK",
+        "PublicDescription": "Counts the more expensive bus lock needed to enforce cache coherency for certain memory accesses that need to be done atomically.  Can be created by issuing an atomic instruction (via the LOCK prefix) which causes a cache line split or accesses uncacheable memory.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
     },
     {
         "BriefDescription": "Cycles the queue waiting for offcore responses is full.",

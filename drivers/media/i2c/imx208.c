@@ -1100,7 +1100,7 @@ static struct i2c_driver imx208_i2c_driver = {
 		.pm = &imx208_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx208_acpi_ids),
 	},
-	.probe_new = imx208_probe,
+	.probe = imx208_probe,
 	.remove = imx208_remove,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
@@ -1109,6 +1109,6 @@ module_i2c_driver(imx208_i2c_driver);
 
 MODULE_AUTHOR("Yeh, Andy <andy.yeh@intel.com>");
 MODULE_AUTHOR("Chen, Ping-chung <ping-chung.chen@intel.com>");
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
+MODULE_AUTHOR("Shawn Tu");
 MODULE_DESCRIPTION("Sony IMX208 sensor driver");
 MODULE_LICENSE("GPL v2");

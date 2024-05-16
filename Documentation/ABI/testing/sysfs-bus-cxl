@@ -58,6 +58,65 @@ Description:
 		affinity for this device.
 
 
+What:		/sys/bus/cxl/devices/memX/security/state
+Date:		June, 2023
+KernelVersion:	v6.5
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) Reading this file will display the CXL security state for
+		that device. Such states can be: 'disabled', 'sanitize', when
+		a sanitization is currently underway; or those available only
+		for persistent memory: 'locked', 'unlocked' or 'frozen'. This
+		sysfs entry is select/poll capable from userspace to notify
+		upon completion of a sanitize operation.
+
+
+What:           /sys/bus/cxl/devices/memX/security/sanitize
+Date:           June, 2023
+KernelVersion:  v6.5
+Contact:        linux-cxl@vger.kernel.org
+Description:
+		(WO) Write a boolean 'true' string value to this attribute to
+		sanitize the device to securely re-purpose or decommission it.
+		This is done by ensuring that all user data and meta-data,
+		whether it resides in persistent capacity, volatile capacity,
+		or the LSA, is made permanently unavailable by whatever means
+		is appropriate for the media type. This functionality requires
+		the device to be disabled, that is, not actively decoding any
+		HPA ranges. This permits avoiding explicit global CPU cache
+		management, relying instead for it to be done when a region
+		transitions between software programmed and hardware committed
+		states. If this file is not present, then there is no hardware
+		support for the operation.
+
+
+What            /sys/bus/cxl/devices/memX/security/erase
+Date:           June, 2023
+KernelVersion:  v6.5
+Contact:        linux-cxl@vger.kernel.org
+Description:
+		(WO) Write a boolean 'true' string value to this attribute to
+		secure erase user data by changing the media encryption keys for
+		all user data areas of the device. This functionality requires
+		the device to be disabled, that is, not actively decoding any
+		HPA ranges. This permits avoiding explicit global CPU cache
+		management, relying instead for it to be done when a region
+		transitions between software programmed and hardware committed
+		states. If this file is not present, then there is no hardware
+		support for the operation.
+
+
+What:		/sys/bus/cxl/devices/memX/firmware/
+Date:		April, 2023
+KernelVersion:	v6.5
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) Firmware uploader mechanism. The different files under
+		this directory can be used to upload and activate new
+		firmware for CXL devices. The interfaces under this are
+		documented in sysfs-class-firmware.
+
+
 What:		/sys/bus/cxl/devices/*/devtype
 Date:		June, 2021
 KernelVersion:	v5.14

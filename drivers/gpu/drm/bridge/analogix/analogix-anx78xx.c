@@ -1373,7 +1373,6 @@ static const struct i2c_device_id anx78xx_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, anx78xx_id);
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id anx78xx_match_table[] = {
 	{ .compatible = "analogix,anx7808", .data = anx7808_i2c_addresses },
 	{ .compatible = "analogix,anx7812", .data = anx781x_i2c_addresses },
@@ -1382,14 +1381,13 @@ static const struct of_device_id anx78xx_match_table[] = {
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, anx78xx_match_table);
-#endif
 
 static struct i2c_driver anx78xx_driver = {
 	.driver = {
 		   .name = "anx7814",
-		   .of_match_table = of_match_ptr(anx78xx_match_table),
+		   .of_match_table = anx78xx_match_table,
 		  },
-	.probe_new = anx78xx_i2c_probe,
+	.probe = anx78xx_i2c_probe,
 	.remove = anx78xx_i2c_remove,
 	.id_table = anx78xx_id,
 };

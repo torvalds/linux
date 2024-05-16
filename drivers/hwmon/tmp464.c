@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -644,7 +644,7 @@ static const struct regmap_config tmp464_regmap_config = {
 	.max_register = TMP464_DEVICE_ID_REG,
 	.volatile_reg = tmp464_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -699,7 +699,7 @@ static struct i2c_driver tmp464_driver = {
 		.name	= "tmp464",
 		.of_match_table = of_match_ptr(tmp464_of_match),
 	},
-	.probe_new = tmp464_probe,
+	.probe = tmp464_probe,
 	.id_table = tmp464_id,
 	.detect = tmp464_detect,
 	.address_list = normal_i2c,

@@ -1215,7 +1215,7 @@ static struct i2c_driver ov2740_i2c_driver = {
 		.pm = pm_sleep_ptr(&ov2740_pm_ops),
 		.acpi_match_table = ov2740_acpi_ids,
 	},
-	.probe_new = ov2740_probe,
+	.probe = ov2740_probe,
 	.remove = ov2740_remove,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
@@ -1223,7 +1223,7 @@ static struct i2c_driver ov2740_i2c_driver = {
 module_i2c_driver(ov2740_i2c_driver);
 
 MODULE_AUTHOR("Qiu, Tianshu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
+MODULE_AUTHOR("Shawn Tu");
 MODULE_AUTHOR("Bingbu Cao <bingbu.cao@intel.com>");
 MODULE_DESCRIPTION("OmniVision OV2740 sensor driver");
 MODULE_LICENSE("GPL v2");

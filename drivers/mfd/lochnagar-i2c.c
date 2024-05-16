@@ -379,10 +379,10 @@ static int lochnagar_i2c_probe(struct i2c_client *i2c)
 static struct i2c_driver lochnagar_i2c_driver = {
 	.driver = {
 		.name = "lochnagar",
-		.of_match_table = of_match_ptr(lochnagar_of_match),
+		.of_match_table = lochnagar_of_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe_new = lochnagar_i2c_probe,
+	.probe = lochnagar_i2c_probe,
 };
 
 static int __init lochnagar_i2c_init(void)

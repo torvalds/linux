@@ -76,4 +76,16 @@ config TYPEC_WCOVE
 	  To compile this driver as module, choose M here: the module will be
 	  called typec_wcove.ko
 
+config TYPEC_QCOM_PMIC
+	tristate "Qualcomm PMIC USB Type-C Port Controller Manager driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on DRM || DRM=n
+	help
+	  A Type-C port and Power Delivery driver which aggregates two
+	  discrete pieces of silicon in the PM8150b PMIC block: the
+	  Type-C port controller and the Power Delivery PHY.
+
+	  This driver enables Type-C role switching, orientation, Alternate
+	  mode and Power Delivery support both for VBUS and VCONN.
+
 endif # TYPEC_TCPM

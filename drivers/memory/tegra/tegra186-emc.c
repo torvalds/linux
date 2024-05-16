@@ -7,9 +7,11 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
 #include <soc/tegra/bpmp.h>
+#include "mc.h"
 
 struct tegra186_emc_dvfs {
 	unsigned long latency;
@@ -29,7 +31,14 @@ struct tegra186_emc {
 		unsigned long min_rate;
 		unsigned long max_rate;
 	} debugfs;
+
+	struct icc_provider provider;
 };
+
+static inline struct tegra186_emc *to_tegra186_emc(struct icc_provider *provider)
+{
+	return container_of(provider, struct tegra186_emc, provider);
+}
 
 /*
  * debugfs interface
@@ -146,12 +155,170 @@ DEFINE_DEBUGFS_ATTRIBUTE(tegra186_emc_debug_max_rate_fops,
 			  tegra186_emc_debug_max_rate_get,
 			  tegra186_emc_debug_max_rate_set, "%llu\n");
 
-static int tegra186_emc_probe(struct platform_device *pdev)
+static int tegra186_emc_get_emc_dvfs_latency(struct tegra186_emc *emc)
 {
 	struct mrq_emc_dvfs_latency_response response;
 	struct tegra_bpmp_message msg;
-	struct tegra186_emc *emc;
 	unsigned int i;
+	int err;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.mrq = MRQ_EMC_DVFS_LATENCY;
+	msg.tx.data = NULL;
+	msg.tx.size = 0;
+	msg.rx.data = &response;
+	msg.rx.size = sizeof(response);
+
+	err = tegra_bpmp_transfer(emc->bpmp, &msg);
+	if (err < 0) {
+		dev_err(emc->dev, "failed to EMC DVFS pairs: %d\n", err);
+		return err;
+	}
+	if (msg.rx.ret < 0) {
+		dev_err(emc->dev, "EMC DVFS MRQ failed: %d (BPMP error code)\n", msg.rx.ret);
+		return -EINVAL;
+	}
+
+	emc->debugfs.min_rate = ULONG_MAX;
+	emc->debugfs.max_rate = 0;
+
+	emc->num_dvfs = response.num_pairs;
+
+	emc->dvfs = devm_kmalloc_array(emc->dev, emc->num_dvfs, sizeof(*emc->dvfs), GFP_KERNEL);
+	if (!emc->dvfs)
+		return -ENOMEM;
+
+	dev_dbg(emc->dev, "%u DVFS pairs:\n", emc->num_dvfs);
+
+	for (i = 0; i < emc->num_dvfs; i++) {
+		emc->dvfs[i].rate = response.pairs[i].freq * 1000;
+		emc->dvfs[i].latency = response.pairs[i].latency;
+
+		if (emc->dvfs[i].rate < emc->debugfs.min_rate)
+			emc->debugfs.min_rate = emc->dvfs[i].rate;
+
+		if (emc->dvfs[i].rate > emc->debugfs.max_rate)
+			emc->debugfs.max_rate = emc->dvfs[i].rate;
+
+		dev_dbg(emc->dev, "  %2u: %lu Hz -> %lu us\n", i,
+			emc->dvfs[i].rate, emc->dvfs[i].latency);
+	}
+
+	err = clk_set_rate_range(emc->clk, emc->debugfs.min_rate, emc->debugfs.max_rate);
+	if (err < 0) {
+		dev_err(emc->dev, "failed to set rate range [%lu-%lu] for %pC\n",
+			emc->debugfs.min_rate, emc->debugfs.max_rate, emc->clk);
+		return err;
+	}
+
+	emc->debugfs.root = debugfs_create_dir("emc", NULL);
+	debugfs_create_file("available_rates", 0444, emc->debugfs.root, emc,
+			    &tegra186_emc_debug_available_rates_fops);
+	debugfs_create_file("min_rate", 0644, emc->debugfs.root, emc,
+			    &tegra186_emc_debug_min_rate_fops);
+	debugfs_create_file("max_rate", 0644, emc->debugfs.root, emc,
+			    &tegra186_emc_debug_max_rate_fops);
+
+	return 0;
+}
+
+/*
+ * tegra_emc_icc_set_bw() - Set BW api for EMC provider
+ * @src: ICC node for External Memory Controller (EMC)
+ * @dst: ICC node for External Memory (DRAM)
+ *
+ * Do nothing here as info to BPMP-FW is now passed in the BW set function
+ * of the MC driver. BPMP-FW sets the final Freq based on the passed values.
+ */
+static int tegra_emc_icc_set_bw(struct icc_node *src, struct icc_node *dst)
+{
+	return 0;
+}
+
+static struct icc_node *
+tegra_emc_of_icc_xlate(struct of_phandle_args *spec, void *data)
+{
+	struct icc_provider *provider = data;
+	struct icc_node *node;
+
+	/* External Memory is the only possible ICC route */
+	list_for_each_entry(node, &provider->nodes, node_list) {
+		if (node->id != TEGRA_ICC_EMEM)
+			continue;
+
+		return node;
+	}
+
+	return ERR_PTR(-EPROBE_DEFER);
+}
+
+static int tegra_emc_icc_get_init_bw(struct icc_node *node, u32 *avg, u32 *peak)
+{
+	*avg = 0;
+	*peak = 0;
+
+	return 0;
+}
+
+static int tegra_emc_interconnect_init(struct tegra186_emc *emc)
+{
+	struct tegra_mc *mc = dev_get_drvdata(emc->dev->parent);
+	const struct tegra_mc_soc *soc = mc->soc;
+	struct icc_node *node;
+	int err;
+
+	emc->provider.dev = emc->dev;
+	emc->provider.set = tegra_emc_icc_set_bw;
+	emc->provider.data = &emc->provider;
+	emc->provider.aggregate = soc->icc_ops->aggregate;
+	emc->provider.xlate = tegra_emc_of_icc_xlate;
+	emc->provider.get_bw = tegra_emc_icc_get_init_bw;
+
+	icc_provider_init(&emc->provider);
+
+	/* create External Memory Controller node */
+	node = icc_node_create(TEGRA_ICC_EMC);
+	if (IS_ERR(node)) {
+		err = PTR_ERR(node);
+		goto err_msg;
+	}
+
+	node->name = "External Memory Controller";
+	icc_node_add(node, &emc->provider);
+
+	/* link External Memory Controller to External Memory (DRAM) */
+	err = icc_link_create(node, TEGRA_ICC_EMEM);
+	if (err)
+		goto remove_nodes;
+
+	/* create External Memory node */
+	node = icc_node_create(TEGRA_ICC_EMEM);
+	if (IS_ERR(node)) {
+		err = PTR_ERR(node);
+		goto remove_nodes;
+	}
+
+	node->name = "External Memory (DRAM)";
+	icc_node_add(node, &emc->provider);
+
+	err = icc_provider_register(&emc->provider);
+	if (err)
+		goto remove_nodes;
+
+	return 0;
+
+remove_nodes:
+	icc_nodes_remove(&emc->provider);
+err_msg:
+	dev_err(emc->dev, "failed to initialize ICC: %d\n", err);
+
+	return err;
+}
+
+static int tegra186_emc_probe(struct platform_device *pdev)
+{
+	struct tegra_mc *mc = dev_get_drvdata(pdev->dev.parent);
+	struct tegra186_emc *emc;
 	int err;
 
 	emc = devm_kzalloc(&pdev->dev, sizeof(*emc), GFP_KERNEL);
@@ -172,69 +339,37 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, emc);
 	emc->dev = &pdev->dev;
 
-	memset(&msg, 0, sizeof(msg));
-	msg.mrq = MRQ_EMC_DVFS_LATENCY;
-	msg.tx.data = NULL;
-	msg.tx.size = 0;
-	msg.rx.data = &response;
-	msg.rx.size = sizeof(response);
-
-	err = tegra_bpmp_transfer(emc->bpmp, &msg);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to EMC DVFS pairs: %d\n", err);
-		goto put_bpmp;
-	}
-	if (msg.rx.ret < 0) {
-		err = -EINVAL;
-		dev_err(&pdev->dev, "EMC DVFS MRQ failed: %d (BPMP error code)\n", msg.rx.ret);
-		goto put_bpmp;
+	if (tegra_bpmp_mrq_is_supported(emc->bpmp, MRQ_EMC_DVFS_LATENCY)) {
+		err = tegra186_emc_get_emc_dvfs_latency(emc);
+		if (err)
+			goto put_bpmp;
 	}
 
-	emc->debugfs.min_rate = ULONG_MAX;
-	emc->debugfs.max_rate = 0;
+	if (mc && mc->soc->icc_ops) {
+		if (tegra_bpmp_mrq_is_supported(emc->bpmp, MRQ_BWMGR_INT)) {
+			mc->bwmgr_mrq_supported = true;
 
-	emc->num_dvfs = response.num_pairs;
+			/*
+			 * MC driver probe can't get BPMP reference as it gets probed
+			 * earlier than BPMP. So, save the BPMP ref got from the EMC
+			 * DT node in the mc->bpmp and use it in MC's icc_set hook.
+			 */
+			mc->bpmp = emc->bpmp;
+			barrier();
+		}
 
-	emc->dvfs = devm_kmalloc_array(&pdev->dev, emc->num_dvfs,
-				       sizeof(*emc->dvfs), GFP_KERNEL);
-	if (!emc->dvfs) {
-		err = -ENOMEM;
-		goto put_bpmp;
+		/*
+		 * Initialize the ICC even if BPMP-FW doesn't support 'MRQ_BWMGR_INT'.
+		 * Use the flag 'mc->bwmgr_mrq_supported' within MC driver and return
+		 * EINVAL instead of passing the request to BPMP-FW later when the BW
+		 * request is made by client with 'icc_set_bw()' call.
+		 */
+		err = tegra_emc_interconnect_init(emc);
+		if (err) {
+			mc->bpmp = NULL;
+			goto put_bpmp;
+		}
 	}
-
-	dev_dbg(&pdev->dev, "%u DVFS pairs:\n", emc->num_dvfs);
-
-	for (i = 0; i < emc->num_dvfs; i++) {
-		emc->dvfs[i].rate = response.pairs[i].freq * 1000;
-		emc->dvfs[i].latency = response.pairs[i].latency;
-
-		if (emc->dvfs[i].rate < emc->debugfs.min_rate)
-			emc->debugfs.min_rate = emc->dvfs[i].rate;
-
-		if (emc->dvfs[i].rate > emc->debugfs.max_rate)
-			emc->debugfs.max_rate = emc->dvfs[i].rate;
-
-		dev_dbg(&pdev->dev, "  %2u: %lu Hz -> %lu us\n", i,
-			emc->dvfs[i].rate, emc->dvfs[i].latency);
-	}
-
-	err = clk_set_rate_range(emc->clk, emc->debugfs.min_rate,
-				 emc->debugfs.max_rate);
-	if (err < 0) {
-		dev_err(&pdev->dev,
-			"failed to set rate range [%lu-%lu] for %pC\n",
-			emc->debugfs.min_rate, emc->debugfs.max_rate,
-			emc->clk);
-		goto put_bpmp;
-	}
-
-	emc->debugfs.root = debugfs_create_dir("emc", NULL);
-	debugfs_create_file("available_rates", S_IRUGO, emc->debugfs.root,
-			    emc, &tegra186_emc_debug_available_rates_fops);
-	debugfs_create_file("min_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
-			    emc, &tegra186_emc_debug_min_rate_fops);
-	debugfs_create_file("max_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
-			    emc, &tegra186_emc_debug_max_rate_fops);
 
 	return 0;
 
@@ -245,9 +380,12 @@ put_bpmp:
 
 static int tegra186_emc_remove(struct platform_device *pdev)
 {
+	struct tegra_mc *mc = dev_get_drvdata(pdev->dev.parent);
 	struct tegra186_emc *emc = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(emc->debugfs.root);
+
+	mc->bpmp = NULL;
 	tegra_bpmp_put(emc->bpmp);
 
 	return 0;
@@ -272,6 +410,7 @@ static struct platform_driver tegra186_emc_driver = {
 		.name = "tegra186-emc",
 		.of_match_table = tegra186_emc_of_match,
 		.suppress_bind_attrs = true,
+		.sync_state = icc_sync_state,
 	},
 	.probe = tegra186_emc_probe,
 	.remove = tegra186_emc_remove,

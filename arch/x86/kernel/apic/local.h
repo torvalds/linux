@@ -13,18 +13,16 @@
 #include <asm/irq_vectors.h>
 #include <asm/apic.h>
 
-/* APIC flat 64 */
-void flat_init_apic_ldr(void);
-
 /* X2APIC */
-int x2apic_apic_id_valid(u32 apicid);
-int x2apic_apic_id_registered(void);
 void __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest);
 unsigned int x2apic_get_apic_id(unsigned long id);
 u32 x2apic_set_apic_id(unsigned int id);
 int x2apic_phys_pkg_id(int initial_apicid, int index_msb);
+
+void x2apic_send_IPI_all(int vector);
+void x2apic_send_IPI_allbutself(int vector);
 void x2apic_send_IPI_self(int vector);
-void __x2apic_send_IPI_shorthand(int vector, u32 which);
+extern u32 x2apic_max_apicid;
 
 /* IPI */
 
@@ -46,7 +44,10 @@ static inline unsigned int __prepare_ICR(unsigned int shortcut, int vector,
 	return icr;
 }
 
-void __default_send_IPI_shortcut(unsigned int shortcut, int vector);
+void default_init_apic_ldr(void);
+
+void apic_mem_wait_icr_idle(void);
+u32 apic_mem_wait_icr_idle_timeout(void);
 
 /*
  * This is used to send an IPI with no shorthand notation (the destination is
@@ -62,8 +63,23 @@ void default_send_IPI_allbutself(int vector);
 void default_send_IPI_all(int vector);
 void default_send_IPI_self(int vector);
 
+bool default_apic_id_registered(void);
+
 #ifdef CONFIG_X86_32
 void default_send_IPI_mask_sequence_logical(const struct cpumask *mask, int vector);
 void default_send_IPI_mask_allbutself_logical(const struct cpumask *mask, int vector);
 void default_send_IPI_mask_logical(const struct cpumask *mask, int vector);
+void x86_32_probe_bigsmp_early(void);
+void x86_32_install_bigsmp(void);
+#else
+static inline void x86_32_probe_bigsmp_early(void) { }
+static inline void x86_32_install_bigsmp(void) { }
+#endif
+
+#ifdef CONFIG_X86_BIGSMP
+bool apic_bigsmp_possible(bool cmdline_selected);
+void apic_bigsmp_force(void);
+#else
+static inline bool apic_bigsmp_possible(bool cmdline_selected) { return false; };
+static inline void apic_bigsmp_force(void) { }
 #endif

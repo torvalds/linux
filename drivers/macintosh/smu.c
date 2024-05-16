@@ -33,9 +33,11 @@
 #include <linux/delay.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
@@ -470,7 +472,7 @@ EXPORT_SYMBOL(smu_present);
 int __init smu_init (void)
 {
 	struct device_node *np;
-	const u32 *data;
+	u64 data;
 	int ret = 0;
 
         np = of_find_node_by_type(NULL, "smu");
@@ -514,8 +516,7 @@ int __init smu_init (void)
 		ret = -ENXIO;
 		goto fail_bootmem;
 	}
-	data = of_get_property(smu->db_node, "reg", NULL);
-	if (data == NULL) {
+	if (of_property_read_reg(smu->db_node, 0, &data, NULL)) {
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO address !\n");
 		ret = -ENXIO;
 		goto fail_db_node;
@@ -525,7 +526,7 @@ int __init smu_init (void)
 	 * and ack. GPIOs are at 0x50, best would be to find that out
 	 * in the device-tree though.
 	 */
-	smu->doorbell = *data;
+	smu->doorbell = data;
 	if (smu->doorbell < 0x50)
 		smu->doorbell += 0x50;
 
@@ -534,13 +535,12 @@ int __init smu_init (void)
 		smu->msg_node = of_find_node_by_name(NULL, "smu-interrupt");
 		if (smu->msg_node == NULL)
 			break;
-		data = of_get_property(smu->msg_node, "reg", NULL);
-		if (data == NULL) {
+		if (of_property_read_reg(smu->msg_node, 0, &data, NULL)) {
 			of_node_put(smu->msg_node);
 			smu->msg_node = NULL;
 			break;
 		}
-		smu->msg = *data;
+		smu->msg = data;
 		if (smu->msg < 0x50)
 			smu->msg += 0x50;
 	} while(0);

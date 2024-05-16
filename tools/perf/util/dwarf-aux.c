@@ -478,8 +478,10 @@ static const char *die_get_file_name(Dwarf_Die *dw_die, int idx)
 {
 	Dwarf_Die cu_die;
 	Dwarf_Files *files;
+	Dwarf_Attribute attr_mem;
 
-	if (idx < 0 || !dwarf_diecu(dw_die, &cu_die, NULL, NULL) ||
+	if (idx < 0 || !dwarf_attr_integrate(dw_die, DW_AT_decl_file, &attr_mem) ||
+	    !dwarf_cu_die(attr_mem.cu, &cu_die, NULL, NULL, NULL, NULL, NULL, NULL) ||
 	    dwarf_getsrcfiles(&cu_die, &files, NULL) != 0)
 		return NULL;
 
@@ -1074,16 +1076,18 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 		/* Function pointer */
 		return strbuf_add(buf, "(function_type)", 15);
 	} else {
-		if (!dwarf_diename(&type))
-			return -ENOENT;
+		const char *name = dwarf_diename(&type);
+
 		if (tag == DW_TAG_union_type)
 			tmp = "union ";
 		else if (tag == DW_TAG_structure_type)
 			tmp = "struct ";
 		else if (tag == DW_TAG_enumeration_type)
 			tmp = "enum ";
+		else if (name == NULL)
+			return -ENOENT;
 		/* Write a base name */
-		return strbuf_addf(buf, "%s%s", tmp, dwarf_diename(&type));
+		return strbuf_addf(buf, "%s%s", tmp, name ?: "");
 	}
 	ret = die_get_typename(&type, buf);
 	return ret ? ret : strbuf_addstr(buf, tmp);
@@ -1103,7 +1107,7 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 	ret = die_get_typename(vr_die, buf);
 	if (ret < 0) {
 		pr_debug("Failed to get type, make it unknown.\n");
-		ret = strbuf_add(buf, " (unknown_type)", 14);
+		ret = strbuf_add(buf, "(unknown_type)", 14);
 	}
 
 	return ret < 0 ? ret : strbuf_addf(buf, "\t%s", dwarf_diename(vr_die));

@@ -11,7 +11,6 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
-#include <linux/irqchip/mxs.h>
 #include <linux/reboot.h>
 #include <linux/micrel_phy.h>
 #include <linux/of_address.h>
@@ -472,7 +471,6 @@ static const char *const mxs_dt_compat[] __initconst = {
 };
 
 DT_MACHINE_START(MXS, "Freescale MXS (Device Tree)")
-	.handle_irq	= icoll_handle_irq,
 	.init_machine	= mxs_machine_init,
 	.init_late      = mxs_pm_init,
 	.dt_compat	= mxs_dt_compat,

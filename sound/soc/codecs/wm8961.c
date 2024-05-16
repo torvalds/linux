@@ -904,7 +904,7 @@ static const struct regmap_config wm8961_regmap = {
 
 	.reg_defaults = wm8961_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8961_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8961_volatile,
 	.readable_reg = wm8961_readable,
@@ -982,7 +982,7 @@ static struct i2c_driver wm8961_i2c_driver = {
 		.name = "wm8961",
 		.of_match_table = of_match_ptr(wm8961_of_match),
 	},
-	.probe_new = wm8961_i2c_probe,
+	.probe = wm8961_i2c_probe,
 	.id_table = wm8961_i2c_id,
 };
 

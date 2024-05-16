@@ -56,6 +56,8 @@ struct amdgpu_bo_param {
 	bool				no_wait_gpu;
 	struct dma_resv			*resv;
 	void				(*destroy)(struct ttm_buffer_object *bo);
+	/* xcp partition number plus 1, 0 means any partition */
+	int8_t				xcp_id_plus1;
 };
 
 /* bo virtual addresses in a vm */
@@ -108,6 +110,13 @@ struct amdgpu_bo {
 	struct mmu_interval_notifier	notifier;
 #endif
 	struct kgd_mem                  *kfd_bo;
+
+	/*
+	 * For GPUs with spatial partitioning, xcp partition number, -1 means
+	 * any partition. For other ASICs without spatial partition, always 0
+	 * for memory accounting.
+	 */
+	int8_t				xcp_id;
 };
 
 struct amdgpu_bo_user {
@@ -173,6 +182,8 @@ static inline unsigned amdgpu_mem_type_to_domain(u32 mem_type)
 		return AMDGPU_GEM_DOMAIN_GWS;
 	case AMDGPU_PL_OA:
 		return AMDGPU_GEM_DOMAIN_OA;
+	case AMDGPU_PL_DOORBELL:
+		return AMDGPU_GEM_DOMAIN_DOORBELL;
 	default:
 		break;
 	}
@@ -241,7 +252,7 @@ static inline bool amdgpu_bo_in_cpu_visible_vram(struct amdgpu_bo *bo)
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct amdgpu_res_cursor cursor;
 
-	if (bo->tbo.resource->mem_type != TTM_PL_VRAM)
+	if (!bo->tbo.resource || bo->tbo.resource->mem_type != TTM_PL_VRAM)
 		return false;
 
 	amdgpu_res_first(bo->tbo.resource, 0, amdgpu_bo_size(bo), &cursor);

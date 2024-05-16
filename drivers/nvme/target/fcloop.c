@@ -645,8 +645,6 @@ fcloop_fcp_recv_work(struct work_struct *work)
 	}
 	if (ret)
 		fcloop_call_host_done(fcpreq, tfcp_req, ret);
-
-	return;
 }
 
 static void
@@ -1168,7 +1166,8 @@ __wait_localport_unreg(struct fcloop_lport *lport)
 
 	ret = nvme_fc_unregister_localport(lport->localport);
 
-	wait_for_completion(&lport->unreg_done);
+	if (!ret)
+		wait_for_completion(&lport->unreg_done);
 
 	kfree(lport);
 

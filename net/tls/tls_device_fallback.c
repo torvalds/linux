@@ -55,7 +55,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 			  struct tls_prot_info *prot)
 {
 	unsigned char buf[TLS_HEADER_SIZE + MAX_IV_SIZE];
-	const struct tls_cipher_size_desc *cipher_sz;
+	const struct tls_cipher_desc *cipher_desc;
 	struct scatterlist sg_in[3];
 	struct scatterlist sg_out[3];
 	unsigned int buf_size;
@@ -69,9 +69,9 @@ static int tls_enc_record(struct aead_request *aead_req,
 	default:
 		return -EINVAL;
 	}
-	cipher_sz = &tls_cipher_size_desc[prot->cipher_type];
+	cipher_desc = get_cipher_desc(prot->cipher_type);
 
-	buf_size = TLS_HEADER_SIZE + cipher_sz->iv;
+	buf_size = TLS_HEADER_SIZE + cipher_desc->iv;
 	len = min_t(int, *in_len, buf_size);
 
 	scatterwalk_copychunks(buf, in, len, 0);
@@ -85,11 +85,11 @@ static int tls_enc_record(struct aead_request *aead_req,
 	scatterwalk_pagedone(out, 1, 1);
 
 	len = buf[4] | (buf[3] << 8);
-	len -= cipher_sz->iv;
+	len -= cipher_desc->iv;
 
-	tls_make_aad(aad, len - cipher_sz->tag, (char *)&rcd_sn, buf[0], prot);
+	tls_make_aad(aad, len - cipher_desc->tag, (char *)&rcd_sn, buf[0], prot);
 
-	memcpy(iv + cipher_sz->salt, buf + TLS_HEADER_SIZE, cipher_sz->iv);
+	memcpy(iv + cipher_desc->salt, buf + TLS_HEADER_SIZE, cipher_desc->iv);
 
 	sg_init_table(sg_in, ARRAY_SIZE(sg_in));
 	sg_init_table(sg_out, ARRAY_SIZE(sg_out));
@@ -100,7 +100,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 
 	*in_len -= len;
 	if (*in_len < 0) {
-		*in_len += cipher_sz->tag;
+		*in_len += cipher_desc->tag;
 		/* the input buffer doesn't contain the entire record.
 		 * trim len accordingly. The resulting authentication tag
 		 * will contain garbage, but we don't care, so we won't
@@ -121,7 +121,7 @@ static int tls_enc_record(struct aead_request *aead_req,
 		scatterwalk_pagedone(out, 1, 1);
 	}
 
-	len -= cipher_sz->tag;
+	len -= cipher_desc->tag;
 	aead_request_set_crypt(aead_req, sg_in, sg_out, len, iv);
 
 	rc = crypto_aead_encrypt(aead_req);
@@ -271,7 +271,7 @@ static int fill_sg_in(struct scatterlist *sg_in,
 		 * There is a corner case where the packet contains
 		 * both an acked and a non-acked record.
 		 * We currently don't handle that case and rely
-		 * on TCP to retranmit a packet that doesn't contain
+		 * on TCP to retransmit a packet that doesn't contain
 		 * already acked payload.
 		 */
 		if (!is_start_marker)
@@ -309,14 +309,14 @@ static void fill_sg_out(struct scatterlist sg_out[3], void *buf,
 			int sync_size,
 			void *dummy_buf)
 {
-	const struct tls_cipher_size_desc *cipher_sz =
-		&tls_cipher_size_desc[tls_ctx->crypto_send.info.cipher_type];
+	const struct tls_cipher_desc *cipher_desc =
+		get_cipher_desc(tls_ctx->crypto_send.info.cipher_type);
 
 	sg_set_buf(&sg_out[0], dummy_buf, sync_size);
 	sg_set_buf(&sg_out[1], nskb->data + tcp_payload_offset, payload_len);
 	/* Add room for authentication tag produced by crypto */
 	dummy_buf += sync_size;
-	sg_set_buf(&sg_out[2], dummy_buf, cipher_sz->tag);
+	sg_set_buf(&sg_out[2], dummy_buf, cipher_desc->tag);
 }
 
 static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
@@ -328,7 +328,7 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 	struct tls_offload_context_tx *ctx = tls_offload_ctx_tx(tls_ctx);
 	int tcp_payload_offset = skb_tcp_all_headers(skb);
 	int payload_len = skb->len - tcp_payload_offset;
-	const struct tls_cipher_size_desc *cipher_sz;
+	const struct tls_cipher_desc *cipher_desc;
 	void *buf, *iv, *aad, *dummy_buf, *salt;
 	struct aead_request *aead_req;
 	struct sk_buff *nskb = NULL;
@@ -348,16 +348,16 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 	default:
 		goto free_req;
 	}
-	cipher_sz = &tls_cipher_size_desc[tls_ctx->crypto_send.info.cipher_type];
-	buf_len = cipher_sz->salt + cipher_sz->iv + TLS_AAD_SPACE_SIZE +
-		  sync_size + cipher_sz->tag;
+	cipher_desc = get_cipher_desc(tls_ctx->crypto_send.info.cipher_type);
+	buf_len = cipher_desc->salt + cipher_desc->iv + TLS_AAD_SPACE_SIZE +
+		  sync_size + cipher_desc->tag;
 	buf = kmalloc(buf_len, GFP_ATOMIC);
 	if (!buf)
 		goto free_req;
 
 	iv = buf;
-	memcpy(iv, salt, cipher_sz->salt);
-	aad = buf + cipher_sz->salt + cipher_sz->iv;
+	memcpy(iv, salt, cipher_desc->salt);
+	aad = buf + cipher_desc->salt + cipher_desc->iv;
 	dummy_buf = aad + TLS_AAD_SPACE_SIZE;
 
 	nskb = alloc_skb(skb_headroom(skb) + skb->len, GFP_ATOMIC);
@@ -471,12 +471,15 @@ int tls_sw_fallback_init(struct sock *sk,
 			 struct tls_offload_context_tx *offload_ctx,
 			 struct tls_crypto_info *crypto_info)
 {
-	const struct tls_cipher_size_desc *cipher_sz;
-	const u8 *key;
+	const struct tls_cipher_desc *cipher_desc;
 	int rc;
 
+	cipher_desc = get_cipher_desc(crypto_info->cipher_type);
+	if (!cipher_desc || !cipher_desc->offloadable)
+		return -EINVAL;
+
 	offload_ctx->aead_send =
-	    crypto_alloc_aead("gcm(aes)", 0, CRYPTO_ALG_ASYNC);
+	    crypto_alloc_aead(cipher_desc->cipher_name, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(offload_ctx->aead_send)) {
 		rc = PTR_ERR(offload_ctx->aead_send);
 		pr_err_ratelimited("crypto_alloc_aead failed rc=%d\n", rc);
@@ -484,24 +487,13 @@ int tls_sw_fallback_init(struct sock *sk,
 		goto err_out;
 	}
 
-	switch (crypto_info->cipher_type) {
-	case TLS_CIPHER_AES_GCM_128:
-		key = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->key;
-		break;
-	case TLS_CIPHER_AES_GCM_256:
-		key = ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->key;
-		break;
-	default:
-		rc = -EINVAL;
-		goto free_aead;
-	}
-	cipher_sz = &tls_cipher_size_desc[crypto_info->cipher_type];
-
-	rc = crypto_aead_setkey(offload_ctx->aead_send, key, cipher_sz->key);
+	rc = crypto_aead_setkey(offload_ctx->aead_send,
+				crypto_info_key(crypto_info, cipher_desc),
+				cipher_desc->key);
 	if (rc)
 		goto free_aead;
 
-	rc = crypto_aead_setauthsize(offload_ctx->aead_send, cipher_sz->tag);
+	rc = crypto_aead_setauthsize(offload_ctx->aead_send, cipher_desc->tag);
 	if (rc)
 		goto free_aead;
 

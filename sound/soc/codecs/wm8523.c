@@ -437,7 +437,7 @@ static const struct regmap_config wm8523_regmap = {
 
 	.reg_defaults = wm8523_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8523_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8523_volatile_register,
 };
@@ -527,7 +527,7 @@ static struct i2c_driver wm8523_i2c_driver = {
 		.name = "wm8523",
 		.of_match_table = wm8523_of_match,
 	},
-	.probe_new = wm8523_i2c_probe,
+	.probe = wm8523_i2c_probe,
 	.id_table = wm8523_i2c_id,
 };
 

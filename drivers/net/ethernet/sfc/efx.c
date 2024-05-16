@@ -32,6 +32,7 @@
 #include "io.h"
 #include "selftest.h"
 #include "sriov.h"
+#include "efx_devlink.h"
 
 #include "mcdi_port_common.h"
 #include "mcdi_pcol.h"
@@ -604,7 +605,6 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
 	.ndo_get_phys_port_name	= efx_get_phys_port_name,
-	.ndo_setup_tc		= efx_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
 #endif
@@ -877,6 +877,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	if (efx->type->sriov_fini)
 		efx->type->sriov_fini(efx);
 
+	efx_fini_devlink_lock(efx);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -886,6 +887,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	efx_fini_io(efx);
 	pci_dbg(efx->pci_dev, "shutdown successful\n");
 
+	efx_fini_devlink_and_unlock(efx);
 	efx_fini_struct(efx);
 	free_netdev(efx->net_dev);
 	probe_data = container_of(efx, struct efx_probe_data, efx);
@@ -1025,7 +1027,13 @@ static int efx_pci_probe_post_io(struct efx_nic *efx)
 				NETDEV_XDP_ACT_REDIRECT |
 				NETDEV_XDP_ACT_NDO_XMIT;
 
+	/* devlink creation, registration and lock */
+	rc = efx_probe_devlink_and_lock(efx);
+	if (rc)
+		pci_err(efx->pci_dev, "devlink registration failed");
+
 	rc = efx_register_netdev(efx);
+	efx_probe_devlink_unlock(efx);
 	if (!rc)
 		return 0;
 

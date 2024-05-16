@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Broadcom BCM470X / BCM5301X ARM platform code.
+ * DTS for Luxul XWC-1000
+ *
+ * Copyright 2014 Luxul Inc.
+ */
+
+/dts-v1/;
+
+#include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
+
+/ {
+	compatible = "luxul,xwc-1000", "brcm,bcm4708";
+	model = "Luxul XWC-1000 (BCM4708)";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>;
+	};
+
+	nvram@1eff0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1eff0000 0x10000>;
+
+		et0macaddr: et0macaddr {
+		};
+	};
+
+	nand_controller: nand-controller@18028000 {
+		nand@0 {
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				partition@0 {
+					label = "ubi";
+					reg = <0x00000000 0x08000000>;
+				};
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-status {
+			label = "bcm53xx:green:status";
+			gpios = <&chipcommon 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "timer";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 7 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&gmac0 {
+	nvmem-cells = <&et0macaddr>;
+	nvmem-cell-names = "mac-address";
+};
+
+&spi_nor {
+	status = "okay";
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@4 {
+			label = "lan";
+		};
+
+		port@5 {
+			label = "cpu";
+		};
+	};
+};

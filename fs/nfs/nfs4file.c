@@ -438,7 +438,7 @@ void nfs42_ssc_unregister_ops(void)
 }
 #endif /* CONFIG_NFS_V4_2 */
 
-static int nfs4_setlease(struct file *file, long arg, struct file_lock **lease,
+static int nfs4_setlease(struct file *file, int arg, struct file_lock **lease,
 			 void **priv)
 {
 	return nfs4_proc_setlease(file, arg, lease, priv);
@@ -454,7 +454,7 @@ const struct file_operations nfs4_file_operations = {
 	.fsync		= nfs_file_fsync,
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= nfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.check_flags	= nfs_check_flags,
 	.setlease	= nfs4_setlease,

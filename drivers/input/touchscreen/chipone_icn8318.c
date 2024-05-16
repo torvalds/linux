@@ -191,12 +191,8 @@ static int icn8318_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->wake_gpio = devm_gpiod_get(dev, "wake", GPIOD_OUT_LOW);
-	if (IS_ERR(data->wake_gpio)) {
-		error = PTR_ERR(data->wake_gpio);
-		if (error != -EPROBE_DEFER)
-			dev_err(dev, "Error getting wake gpio: %d\n", error);
-		return error;
-	}
+	if (IS_ERR(data->wake_gpio))
+		return dev_err_probe(dev, PTR_ERR(data->wake_gpio), "Error getting wake gpio\n");
 
 	input = devm_input_allocate_device(dev);
 	if (!input)
@@ -264,7 +260,7 @@ static struct i2c_driver icn8318_driver = {
 		.pm	= pm_sleep_ptr(&icn8318_pm_ops),
 		.of_match_table = icn8318_of_match,
 	},
-	.probe_new = icn8318_probe,
+	.probe = icn8318_probe,
 	.id_table = icn8318_i2c_id,
 };
 

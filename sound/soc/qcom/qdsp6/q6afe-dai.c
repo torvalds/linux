@@ -12,6 +12,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 #include "q6dsp-lpass-ports.h"
+#include "q6dsp-common.h"
 #include "q6afe.h"
 
 
@@ -69,6 +70,7 @@ static int q6hdmi_hw_params(struct snd_pcm_substream *substream,
 	struct q6afe_dai_data *dai_data = dev_get_drvdata(dai->dev);
 	int channels = params_channels(params);
 	struct q6afe_hdmi_cfg *hdmi = &dai_data->port_config[dai->id].hdmi;
+	int ret;
 
 	hdmi->sample_rate = params_rate(params);
 	switch (params_format(params)) {
@@ -80,33 +82,11 @@ static int q6hdmi_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* HDMI spec CEA-861-E: Table 28 Audio InfoFrame Data Byte 4 */
-	switch (channels) {
-	case 2:
-		hdmi->channel_allocation = 0;
-		break;
-	case 3:
-		hdmi->channel_allocation = 0x02;
-		break;
-	case 4:
-		hdmi->channel_allocation = 0x06;
-		break;
-	case 5:
-		hdmi->channel_allocation = 0x0A;
-		break;
-	case 6:
-		hdmi->channel_allocation = 0x0B;
-		break;
-	case 7:
-		hdmi->channel_allocation = 0x12;
-		break;
-	case 8:
-		hdmi->channel_allocation = 0x13;
-		break;
-	default:
-		dev_err(dai->dev, "invalid Channels = %u\n", channels);
-		return -EINVAL;
-	}
+	ret = q6dsp_get_channel_allocation(channels);
+	if (ret < 0)
+		return ret;
+
+	hdmi->channel_allocation = (u16) ret;
 
 	return 0;
 }
@@ -496,7 +476,7 @@ static int q6afe_mi2s_set_sysclk(struct snd_soc_dai *dai,
 
 static const struct snd_soc_dapm_route q6afe_dapm_routes[] = {
 	{"HDMI Playback", NULL, "HDMI_RX"},
-	{"Display Port Playback", NULL, "DISPLAY_PORT_RX"},
+	{"DISPLAY_PORT_RX_0 Playback", NULL, "DISPLAY_PORT_RX"},
 	{"Slimbus Playback", NULL, "SLIMBUS_0_RX"},
 	{"Slimbus1 Playback", NULL, "SLIMBUS_1_RX"},
 	{"Slimbus2 Playback", NULL, "SLIMBUS_2_RX"},
@@ -639,44 +619,6 @@ static const struct snd_soc_dapm_route q6afe_dapm_routes[] = {
 	{"RX_CODEC_DMA_RX_7 Playback", NULL, "RX_CODEC_DMA_RX_7"},
 };
 
-static const struct snd_soc_dai_ops q6hdmi_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.hw_params	= q6hdmi_hw_params,
-	.shutdown	= q6afe_dai_shutdown,
-};
-
-static const struct snd_soc_dai_ops q6i2s_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.hw_params	= q6i2s_hw_params,
-	.set_fmt	= q6i2s_set_fmt,
-	.shutdown	= q6afe_dai_shutdown,
-	.set_sysclk	= q6afe_mi2s_set_sysclk,
-};
-
-static const struct snd_soc_dai_ops q6slim_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.hw_params	= q6slim_hw_params,
-	.shutdown	= q6afe_dai_shutdown,
-	.set_channel_map = q6slim_set_channel_map,
-};
-
-static const struct snd_soc_dai_ops q6tdm_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.shutdown	= q6afe_dai_shutdown,
-	.set_sysclk	= q6afe_mi2s_set_sysclk,
-	.set_tdm_slot     = q6tdm_set_tdm_slot,
-	.set_channel_map  = q6tdm_set_channel_map,
-	.hw_params        = q6tdm_hw_params,
-};
-
-static const struct snd_soc_dai_ops q6dma_ops = {
-	.prepare	= q6afe_dai_prepare,
-	.shutdown	= q6afe_dai_shutdown,
-	.set_sysclk	= q6afe_mi2s_set_sysclk,
-	.set_channel_map  = q6dma_set_channel_map,
-	.hw_params        = q6dma_hw_params,
-};
-
 static int msm_dai_q6_dai_probe(struct snd_soc_dai *dai)
 {
 	struct q6afe_dai_data *dai_data = dev_get_drvdata(dai->dev);
@@ -701,6 +643,54 @@ static int msm_dai_q6_dai_remove(struct snd_soc_dai *dai)
 
 	return 0;
 }
+
+static const struct snd_soc_dai_ops q6hdmi_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.hw_params		= q6hdmi_hw_params,
+	.shutdown		= q6afe_dai_shutdown,
+};
+
+static const struct snd_soc_dai_ops q6i2s_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.hw_params		= q6i2s_hw_params,
+	.set_fmt		= q6i2s_set_fmt,
+	.shutdown		= q6afe_dai_shutdown,
+	.set_sysclk		= q6afe_mi2s_set_sysclk,
+};
+
+static const struct snd_soc_dai_ops q6slim_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.hw_params		= q6slim_hw_params,
+	.shutdown		= q6afe_dai_shutdown,
+	.set_channel_map	= q6slim_set_channel_map,
+};
+
+static const struct snd_soc_dai_ops q6tdm_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.shutdown		= q6afe_dai_shutdown,
+	.set_sysclk		= q6afe_mi2s_set_sysclk,
+	.set_tdm_slot		= q6tdm_set_tdm_slot,
+	.set_channel_map	= q6tdm_set_channel_map,
+	.hw_params		= q6tdm_hw_params,
+};
+
+static const struct snd_soc_dai_ops q6dma_ops = {
+	.probe			= msm_dai_q6_dai_probe,
+	.remove			= msm_dai_q6_dai_remove,
+	.prepare		= q6afe_dai_prepare,
+	.shutdown		= q6afe_dai_shutdown,
+	.set_sysclk		= q6afe_mi2s_set_sysclk,
+	.set_channel_map	= q6dma_set_channel_map,
+	.hw_params		= q6dma_hw_params,
+};
 
 static const struct snd_soc_dapm_widget q6afe_dai_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("HDMI_RX", NULL, 0, SND_SOC_NOPM, 0, 0),
@@ -1061,8 +1051,6 @@ static int q6afe_dai_dev_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, dai_data);
 	of_q6afe_parse_dai_data(dev, dai_data);
 
-	cfg.probe = msm_dai_q6_dai_probe;
-	cfg.remove = msm_dai_q6_dai_remove;
 	cfg.q6hdmi_ops = &q6hdmi_ops;
 	cfg.q6slim_ops = &q6slim_ops;
 	cfg.q6i2s_ops = &q6i2s_ops;

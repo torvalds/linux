@@ -67,6 +67,7 @@ struct proto udplitev6_prot = {
 	.sysctl_wmem_offset = offsetof(struct net, ipv4.sysctl_udp_wmem_min),
 	.sysctl_rmem_offset = offsetof(struct net, ipv4.sysctl_udp_rmem_min),
 	.obj_size	   = sizeof(struct udp6_sock),
+	.ipv6_pinfo_offset = offsetof(struct udp6_sock, inet6),
 	.h.udp_table	   = &udplite_table,
 };
 

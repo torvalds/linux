@@ -123,18 +123,17 @@ static void svc_rdma_send_cid_init(struct svcxprt_rdma *rdma,
 static struct svc_rdma_send_ctxt *
 svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 {
+	int node = ibdev_to_node(rdma->sc_cm_id->device);
 	struct svc_rdma_send_ctxt *ctxt;
 	dma_addr_t addr;
 	void *buffer;
-	size_t size;
 	int i;
 
-	size = sizeof(*ctxt);
-	size += rdma->sc_max_send_sges * sizeof(struct ib_sge);
-	ctxt = kmalloc(size, GFP_KERNEL);
+	ctxt = kmalloc_node(struct_size(ctxt, sc_sges, rdma->sc_max_send_sges),
+			    GFP_KERNEL, node);
 	if (!ctxt)
 		goto fail0;
-	buffer = kmalloc(rdma->sc_max_req_size, GFP_KERNEL);
+	buffer = kmalloc_node(rdma->sc_max_req_size, GFP_KERNEL, node);
 	if (!buffer)
 		goto fail1;
 	addr = ib_dma_map_single(rdma->sc_pd->device, buffer,
@@ -148,7 +147,6 @@ svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 	ctxt->sc_send_wr.wr_cqe = &ctxt->sc_cqe;
 	ctxt->sc_send_wr.sg_list = ctxt->sc_sges;
 	ctxt->sc_send_wr.send_flags = IB_SEND_SIGNALED;
-	init_completion(&ctxt->sc_done);
 	ctxt->sc_cqe.done = svc_rdma_wc_send;
 	ctxt->sc_xprt_buf = buffer;
 	xdr_buf_init(&ctxt->sc_hdrbuf, ctxt->sc_xprt_buf,
@@ -214,6 +212,7 @@ out:
 
 	ctxt->sc_send_wr.num_sge = 0;
 	ctxt->sc_cur_sge_no = 0;
+	ctxt->sc_page_count = 0;
 	return ctxt;
 
 out_empty:
@@ -228,12 +227,17 @@ out_empty:
  * svc_rdma_send_ctxt_put - Return send_ctxt to free list
  * @rdma: controlling svcxprt_rdma
  * @ctxt: object to return to the free list
+ *
+ * Pages left in sc_pages are DMA unmapped and released.
  */
 void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 			    struct svc_rdma_send_ctxt *ctxt)
 {
 	struct ib_device *device = rdma->sc_cm_id->device;
 	unsigned int i;
+
+	if (ctxt->sc_page_count)
+		release_pages(ctxt->sc_pages, ctxt->sc_page_count);
 
 	/* The first SGE contains the transport header, which
 	 * remains mapped until @ctxt is destroyed.
@@ -281,12 +285,12 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 		container_of(cqe, struct svc_rdma_send_ctxt, sc_cqe);
 
 	svc_rdma_wake_send_waiters(rdma, 1);
-	complete(&ctxt->sc_done);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
 		goto flushed;
 
 	trace_svcrdma_wc_send(wc, &ctxt->sc_cid);
+	svc_rdma_send_ctxt_put(rdma, ctxt);
 	return;
 
 flushed:
@@ -294,6 +298,7 @@ flushed:
 		trace_svcrdma_wc_send_err(wc, &ctxt->sc_cid);
 	else
 		trace_svcrdma_wc_send_flush(wc, &ctxt->sc_cid);
+	svc_rdma_send_ctxt_put(rdma, ctxt);
 	svc_xprt_deferred_close(&rdma->sc_xprt);
 }
 
@@ -310,7 +315,7 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 	struct ib_send_wr *wr = &ctxt->sc_send_wr;
 	int ret;
 
-	reinit_completion(&ctxt->sc_done);
+	might_sleep();
 
 	/* Sync the transport header buffer */
 	ib_dma_sync_single_for_device(rdma->sc_pd->device,
@@ -799,6 +804,25 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 				       svc_rdma_xb_dma_map, &args);
 }
 
+/* The svc_rqst and all resources it owns are released as soon as
+ * svc_rdma_sendto returns. Transfer pages under I/O to the ctxt
+ * so they are released by the Send completion handler.
+ */
+static void svc_rdma_save_io_pages(struct svc_rqst *rqstp,
+				   struct svc_rdma_send_ctxt *ctxt)
+{
+	int i, pages = rqstp->rq_next_page - rqstp->rq_respages;
+
+	ctxt->sc_page_count += pages;
+	for (i = 0; i < pages; i++) {
+		ctxt->sc_pages[i] = rqstp->rq_respages[i];
+		rqstp->rq_respages[i] = NULL;
+	}
+
+	/* Prevent svc_xprt_release from releasing pages in rq_pages */
+	rqstp->rq_next_page = rqstp->rq_respages;
+}
+
 /* Prepare the portion of the RPC Reply that will be transmitted
  * via RDMA Send. The RPC-over-RDMA transport header is prepared
  * in sc_sges[0], and the RPC xdr_buf is prepared in following sges.
@@ -828,6 +852,8 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 	if (ret < 0)
 		return ret;
 
+	svc_rdma_save_io_pages(rqstp, sctxt);
+
 	if (rctxt->rc_inv_rkey) {
 		sctxt->sc_send_wr.opcode = IB_WR_SEND_WITH_INV;
 		sctxt->sc_send_wr.ex.invalidate_rkey = rctxt->rc_inv_rkey;
@@ -835,13 +861,7 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 		sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	}
 
-	ret = svc_rdma_send(rdma, sctxt);
-	if (ret < 0)
-		return ret;
-
-	ret = wait_for_completion_killable(&sctxt->sc_done);
-	svc_rdma_send_ctxt_put(rdma, sctxt);
-	return ret;
+	return svc_rdma_send(rdma, sctxt);
 }
 
 /**
@@ -907,8 +927,7 @@ void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	sctxt->sc_sges[0].length = sctxt->sc_hdrbuf.len;
 	if (svc_rdma_send(rdma, sctxt))
 		goto put_ctxt;
-
-	wait_for_completion_killable(&sctxt->sc_done);
+	return;
 
 put_ctxt:
 	svc_rdma_send_ctxt_put(rdma, sctxt);
@@ -976,17 +995,16 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	ret = svc_rdma_send_reply_msg(rdma, sctxt, rctxt, rqstp);
 	if (ret < 0)
 		goto put_ctxt;
-
-	/* Prevent svc_xprt_release() from releasing the page backing
-	 * rq_res.head[0].iov_base. It's no longer being accessed by
-	 * the I/O device. */
-	rqstp->rq_respages++;
 	return 0;
 
 reply_chunk:
 	if (ret != -E2BIG && ret != -EINVAL)
 		goto put_ctxt;
 
+	/* Send completion releases payload pages that were part
+	 * of previously posted RDMA Writes.
+	 */
+	svc_rdma_save_io_pages(rqstp, sctxt);
 	svc_rdma_send_error_msg(rdma, sctxt, rctxt, ret);
 	return 0;
 

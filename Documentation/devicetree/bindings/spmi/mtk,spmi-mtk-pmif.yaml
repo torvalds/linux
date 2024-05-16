@@ -14,13 +14,18 @@ description: |+
   for multiple SoCs to control a single SPMI master.
 
 allOf:
-  - $ref: "spmi.yaml"
+  - $ref: spmi.yaml
 
 properties:
   compatible:
-    enum:
-      - mediatek,mt6873-spmi
-      - mediatek,mt8195-spmi
+    oneOf:
+      - enum:
+          - mediatek,mt6873-spmi
+          - mediatek,mt8195-spmi
+      - items:
+          - enum:
+              - mediatek,mt8186-spmi
+          - const: mediatek,mt8195-spmi
 
   reg:
     maxItems: 2

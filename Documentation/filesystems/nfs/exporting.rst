@@ -122,8 +122,8 @@ are exportable by setting the s_export_op field in the struct
 super_block.  This field must point to a "struct export_operations"
 struct which has the following members:
 
- encode_fh  (optional)
-    Takes a dentry and creates a filehandle fragment which can later be used
+  encode_fh (optional)
+    Takes a dentry and creates a filehandle fragment which may later be used
     to find or create a dentry for the same object.  The default
     implementation creates a filehandle fragment that encodes a 32bit inode
     and generation number for the inode encoded, and if necessary the
@@ -215,3 +215,29 @@ following flags are defined:
     This flag causes nfsd to close any open files for this inode _before_
     calling into the vfs to do an unlink or a rename that would replace
     an existing file.
+
+  EXPORT_OP_REMOTE_FS - Backing storage for this filesystem is remote
+    PF_LOCAL_THROTTLE exists for loopback NFSD, where a thread needs to
+    write to one bdi (the final bdi) in order to free up writes queued
+    to another bdi (the client bdi). Such threads get a private balance
+    of dirty pages so that dirty pages for the client bdi do not imact
+    the daemon writing to the final bdi. For filesystems whose durable
+    storage is not local (such as exported NFS filesystems), this
+    constraint has negative consequences. EXPORT_OP_REMOTE_FS enables
+    an export to disable writeback throttling.
+
+  EXPORT_OP_NOATOMIC_ATTR - Filesystem does not update attributes atomically
+    EXPORT_OP_NOATOMIC_ATTR indicates that the exported filesystem
+    cannot provide the semantics required by the "atomic" boolean in
+    NFSv4's change_info4. This boolean indicates to a client whether the
+    returned before and after change attributes were obtained atomically
+    with the respect to the requested metadata operation (UNLINK,
+    OPEN/CREATE, MKDIR, etc).
+
+  EXPORT_OP_FLUSH_ON_CLOSE - Filesystem flushes file data on close(2)
+    On most filesystems, inodes can remain under writeback after the
+    file is closed. NFSD relies on client activity or local flusher
+    threads to handle writeback. Certain filesystems, such as NFS, flush
+    all of an inode's dirty data on last close. Exports that behave this
+    way should set EXPORT_OP_FLUSH_ON_CLOSE so that NFSD knows to skip
+    waiting for writeback when closing such files.

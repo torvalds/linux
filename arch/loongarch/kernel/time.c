@@ -29,7 +29,7 @@ static void constant_event_handler(struct clock_event_device *dev)
 {
 }
 
-irqreturn_t constant_timer_interrupt(int irq, void *data)
+static irqreturn_t constant_timer_interrupt(int irq, void *data)
 {
 	int cpu = smp_processor_id();
 	struct clock_event_device *cd;
@@ -190,9 +190,9 @@ static u64 read_const_counter(struct clocksource *clk)
 	return drdtime();
 }
 
-static u64 native_sched_clock(void)
+static noinstr u64 sched_clock_read(void)
 {
-	return read_const_counter(NULL);
+	return drdtime();
 }
 
 static struct clocksource clocksource_const = {
@@ -211,7 +211,7 @@ int __init constant_clocksource_init(void)
 
 	res = clocksource_register_hz(&clocksource_const, freq);
 
-	sched_clock_register(native_sched_clock, 64, freq);
+	sched_clock_register(sched_clock_read, 64, freq);
 
 	pr_info("Constant clock source device register\n");
 

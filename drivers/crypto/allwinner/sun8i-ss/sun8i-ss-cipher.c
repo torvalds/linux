@@ -8,7 +8,7 @@
  * This file add support for AES cipher with 128,192,256 bits keysize in
  * CBC and ECB mode.
  *
- * You could find a link for the datasheet in Documentation/arm/sunxi.rst
+ * You could find a link for the datasheet in Documentation/arch/arm/sunxi.rst
  */
 
 #include <linux/bottom_half.h>
@@ -24,7 +24,7 @@ static bool sun8i_ss_need_fallback(struct skcipher_request *areq)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
 	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct sun8i_ss_alg_template *algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher);
+	struct sun8i_ss_alg_template *algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher.base);
 	struct scatterlist *in_sg = areq->src;
 	struct scatterlist *out_sg = areq->dst;
 	struct scatterlist *sg;
@@ -93,13 +93,18 @@ static int sun8i_ss_cipher_fallback(struct skcipher_request *areq)
 	struct sun8i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 	int err;
 
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
-	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
-	struct sun8i_ss_alg_template *algt;
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG)) {
+		struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+		struct sun8i_ss_alg_template *algt __maybe_unused;
 
-	algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher);
-	algt->stat_fb++;
+		algt = container_of(alg, struct sun8i_ss_alg_template,
+				    alg.skcipher.base);
+
+#ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
+		algt->stat_fb++;
 #endif
+	}
+
 	skcipher_request_set_tfm(&rctx->fallback_req, op->fallback_tfm);
 	skcipher_request_set_callback(&rctx->fallback_req, areq->base.flags,
 				      areq->base.complete, areq->base.data);
@@ -193,7 +198,7 @@ static int sun8i_ss_cipher(struct skcipher_request *areq)
 	int nsgd = sg_nents_for_len(areq->dst, areq->cryptlen);
 	int i;
 
-	algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher);
+	algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher.base);
 
 	dev_dbg(ss->dev, "%s %s %u %x IV(%p %u) key=%u\n", __func__,
 		crypto_tfm_alg_name(areq->base.tfm),
@@ -324,7 +329,7 @@ theend:
 	return err;
 }
 
-static int sun8i_ss_handle_cipher_request(struct crypto_engine *engine, void *areq)
+int sun8i_ss_handle_cipher_request(struct crypto_engine *engine, void *areq)
 {
 	int err;
 	struct skcipher_request *breq = container_of(areq, struct skcipher_request, base);
@@ -390,7 +395,7 @@ int sun8i_ss_cipher_init(struct crypto_tfm *tfm)
 
 	memset(op, 0, sizeof(struct sun8i_cipher_tfm_ctx));
 
-	algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher);
+	algt = container_of(alg, struct sun8i_ss_alg_template, alg.skcipher.base);
 	op->ss = algt->ss;
 
 	op->fallback_tfm = crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
@@ -407,10 +412,6 @@ int sun8i_ss_cipher_init(struct crypto_tfm *tfm)
 	memcpy(algt->fbname,
 	       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(op->fallback_tfm)),
 	       CRYPTO_MAX_ALG_NAME);
-
-	op->enginectx.op.do_one_request = sun8i_ss_handle_cipher_request;
-	op->enginectx.op.prepare_request = NULL;
-	op->enginectx.op.unprepare_request = NULL;
 
 	err = pm_runtime_resume_and_get(op->ss->dev);
 	if (err < 0) {

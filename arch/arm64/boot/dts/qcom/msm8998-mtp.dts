@@ -11,6 +11,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. MSM8998 v1 MTP";
 	compatible = "qcom,msm8998-mtp", "qcom,msm8998";
+	chassis-type = "handset";
 
 	qcom,board-id = <8 0>;
 

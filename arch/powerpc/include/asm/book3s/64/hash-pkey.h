@@ -24,7 +24,7 @@ static inline u64 pte_to_hpte_pkey_bits(u64 pteflags, unsigned long flags)
 		    ((pteflags & H_PTE_PKEY_BIT1) ? HPTE_R_KEY_BIT1 : 0x0UL) |
 		    ((pteflags & H_PTE_PKEY_BIT0) ? HPTE_R_KEY_BIT0 : 0x0UL));
 
-	if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP) ||
+	if (mmu_has_feature(MMU_FTR_KUAP) ||
 	    mmu_has_feature(MMU_FTR_BOOK3S_KUEP)) {
 		if ((pte_pkey == 0) && (flags & HPTE_USE_KERNEL_KEY))
 			return HASH_DEFAULT_KERNEL_KEY;

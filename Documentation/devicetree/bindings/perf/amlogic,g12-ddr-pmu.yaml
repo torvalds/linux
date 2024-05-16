@@ -42,8 +42,8 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     pmu {
-        #address-cells=<2>;
-        #size-cells=<2>;
+        #address-cells = <2>;
+        #size-cells = <2>;
 
         pmu@ff638000 {
             compatible = "amlogic,g12a-ddr-pmu";

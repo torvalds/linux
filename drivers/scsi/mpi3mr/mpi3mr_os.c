@@ -33,6 +33,12 @@ static int logging_level;
 module_param(logging_level, int, 0);
 MODULE_PARM_DESC(logging_level,
 	" bits for enabling additional logging info (default=0)");
+static int max_sgl_entries = MPI3MR_DEFAULT_SGL_ENTRIES;
+module_param(max_sgl_entries, int, 0444);
+MODULE_PARM_DESC(max_sgl_entries,
+	"Preferred max number of SG entries to be used for a single I/O\n"
+	"The actual value will be determined by the driver\n"
+	"(Minimum=256, Maximum=2048, default=256)");
 
 /* Forward declarations*/
 static void mpi3mr_send_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
@@ -424,6 +430,7 @@ void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc)
 			tgt_priv->io_throttle_enabled = 0;
 			tgt_priv->io_divert = 0;
 			tgt_priv->throttle_group = NULL;
+			tgt_priv->wslen = 0;
 			if (tgtdev->host_exposed)
 				atomic_set(&tgt_priv->block_io, 1);
 		}
@@ -1034,6 +1041,19 @@ mpi3mr_update_sdev(struct scsi_device *sdev, void *data)
 void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 {
 	struct mpi3mr_tgt_dev *tgtdev, *tgtdev_next;
+	struct mpi3mr_stgt_priv_data *tgt_priv;
+
+	dprint_reset(mrioc, "refresh target devices: check for removals\n");
+	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
+	    list) {
+		if ((tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) &&
+		    tgtdev->host_exposed && tgtdev->starget &&
+		    tgtdev->starget->hostdata) {
+			tgt_priv = tgtdev->starget->hostdata;
+			tgt_priv->dev_removed = 1;
+			atomic_set(&tgt_priv->block_io, 0);
+		}
+	}
 
 	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
 	    list) {
@@ -1102,6 +1122,18 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		tgtdev->io_throttle_enabled =
 		    (flags & MPI3_DEVICE0_FLAGS_IO_THROTTLING_REQUIRED) ? 1 : 0;
 
+	switch (flags & MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_MASK) {
+	case MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_256_LB:
+		tgtdev->wslen = MPI3MR_WRITE_SAME_MAX_LEN_256_BLKS;
+		break;
+	case MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_2048_LB:
+		tgtdev->wslen = MPI3MR_WRITE_SAME_MAX_LEN_2048_BLKS;
+		break;
+	case MPI3_DEVICE0_FLAGS_MAX_WRITE_SAME_NO_LIMIT:
+	default:
+		tgtdev->wslen = 0;
+		break;
+	}
 
 	if (tgtdev->starget && tgtdev->starget->hostdata) {
 		scsi_tgt_priv_data = (struct mpi3mr_stgt_priv_data *)
@@ -1113,6 +1145,7 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 		    tgtdev->io_throttle_enabled;
 		if (is_added == true)
 			atomic_set(&scsi_tgt_priv_data->block_io, 0);
+		scsi_tgt_priv_data->wslen = tgtdev->wslen;
 	}
 
 	switch (dev_pg0->access_status) {
@@ -3413,7 +3446,7 @@ static int mpi3mr_prepare_sg_scmd(struct mpi3mr_ioc *mrioc,
 		    scsi_bufflen(scmd));
 		return -ENOMEM;
 	}
-	if (sges_left > MPI3MR_SG_DEPTH) {
+	if (sges_left > mrioc->max_sgl_entries) {
 		sdev_printk(KERN_ERR, scmd->device,
 		    "scsi_dma_map returned unsupported sge count %d!\n",
 		    sges_left);
@@ -3934,6 +3967,48 @@ void mpi3mr_wait_for_host_io(struct mpi3mr_ioc *mrioc, u32 timeout)
 }
 
 /**
+ * mpi3mr_setup_divert_ws - Setup Divert IO flag for write same
+ * @mrioc: Adapter instance reference
+ * @scmd: SCSI command reference
+ * @scsiio_req: MPI3 SCSI IO request
+ * @scsiio_flags: Pointer to MPI3 SCSI IO Flags
+ * @wslen: write same max length
+ *
+ * Gets values of unmap, ndob and number of blocks from write
+ * same scsi io and based on these values it sets divert IO flag
+ * and reason for diverting IO to firmware.
+ *
+ * Return: Nothing
+ */
+static inline void mpi3mr_setup_divert_ws(struct mpi3mr_ioc *mrioc,
+	struct scsi_cmnd *scmd, struct mpi3_scsi_io_request *scsiio_req,
+	u32 *scsiio_flags, u16 wslen)
+{
+	u8 unmap = 0, ndob = 0;
+	u8 opcode = scmd->cmnd[0];
+	u32 num_blocks = 0;
+	u16 sa = (scmd->cmnd[8] << 8) | (scmd->cmnd[9]);
+
+	if (opcode == WRITE_SAME_16) {
+		unmap = scmd->cmnd[1] & 0x08;
+		ndob = scmd->cmnd[1] & 0x01;
+		num_blocks = get_unaligned_be32(scmd->cmnd + 10);
+	} else if ((opcode == VARIABLE_LENGTH_CMD) && (sa == WRITE_SAME_32)) {
+		unmap = scmd->cmnd[10] & 0x08;
+		ndob = scmd->cmnd[10] & 0x01;
+		num_blocks = get_unaligned_be32(scmd->cmnd + 28);
+	} else
+		return;
+
+	if ((unmap) && (ndob) && (num_blocks > wslen)) {
+		scsiio_req->msg_flags |=
+		    MPI3_SCSIIO_MSGFLAGS_DIVERT_TO_FIRMWARE;
+		*scsiio_flags |=
+			MPI3_SCSIIO_FLAGS_DIVERT_REASON_WRITE_SAME_TOO_LARGE;
+	}
+}
+
+/**
  * mpi3mr_eh_host_reset - Host reset error handling callback
  * @scmd: SCSI command reference
  *
@@ -4430,7 +4505,6 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 	unsigned long flags;
 	int retval = 0;
 	struct sas_rphy *rphy = NULL;
-	bool update_stgt_priv_data = false;
 
 	scsi_tgt_priv_data = kzalloc(sizeof(*scsi_tgt_priv_data), GFP_KERNEL);
 	if (!scsi_tgt_priv_data)
@@ -4439,38 +4513,49 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 	starget->hostdata = scsi_tgt_priv_data;
 
 	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
-
 	if (starget->channel == mrioc->scsi_device_channel) {
 		tgt_dev = __mpi3mr_get_tgtdev_by_perst_id(mrioc, starget->id);
-		if (tgt_dev && !tgt_dev->is_hidden)
-			update_stgt_priv_data = true;
-		else
+		if (tgt_dev && !tgt_dev->is_hidden) {
+			scsi_tgt_priv_data->starget = starget;
+			scsi_tgt_priv_data->dev_handle = tgt_dev->dev_handle;
+			scsi_tgt_priv_data->perst_id = tgt_dev->perst_id;
+			scsi_tgt_priv_data->dev_type = tgt_dev->dev_type;
+			scsi_tgt_priv_data->tgt_dev = tgt_dev;
+			tgt_dev->starget = starget;
+			atomic_set(&scsi_tgt_priv_data->block_io, 0);
+			retval = 0;
+			if ((tgt_dev->dev_type == MPI3_DEVICE_DEVFORM_PCIE) &&
+			    ((tgt_dev->dev_spec.pcie_inf.dev_info &
+			    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_MASK) ==
+			    MPI3_DEVICE0_PCIE_DEVICE_INFO_TYPE_NVME_DEVICE) &&
+			    ((tgt_dev->dev_spec.pcie_inf.dev_info &
+			    MPI3_DEVICE0_PCIE_DEVICE_INFO_PITYPE_MASK) !=
+			    MPI3_DEVICE0_PCIE_DEVICE_INFO_PITYPE_0))
+				scsi_tgt_priv_data->dev_nvme_dif = 1;
+			scsi_tgt_priv_data->io_throttle_enabled = tgt_dev->io_throttle_enabled;
+			scsi_tgt_priv_data->wslen = tgt_dev->wslen;
+			if (tgt_dev->dev_type == MPI3_DEVICE_DEVFORM_VD)
+				scsi_tgt_priv_data->throttle_group = tgt_dev->dev_spec.vd_inf.tg;
+		} else
 			retval = -ENXIO;
 	} else if (mrioc->sas_transport_enabled && !starget->channel) {
 		rphy = dev_to_rphy(starget->dev.parent);
 		tgt_dev = __mpi3mr_get_tgtdev_by_addr_and_rphy(mrioc,
 		    rphy->identify.sas_address, rphy);
 		if (tgt_dev && !tgt_dev->is_hidden && !tgt_dev->non_stl &&
-		    (tgt_dev->dev_type == MPI3_DEVICE_DEVFORM_SAS_SATA))
-			update_stgt_priv_data = true;
-		else
+		    (tgt_dev->dev_type == MPI3_DEVICE_DEVFORM_SAS_SATA)) {
+			scsi_tgt_priv_data->starget = starget;
+			scsi_tgt_priv_data->dev_handle = tgt_dev->dev_handle;
+			scsi_tgt_priv_data->perst_id = tgt_dev->perst_id;
+			scsi_tgt_priv_data->dev_type = tgt_dev->dev_type;
+			scsi_tgt_priv_data->tgt_dev = tgt_dev;
+			scsi_tgt_priv_data->io_throttle_enabled = tgt_dev->io_throttle_enabled;
+			scsi_tgt_priv_data->wslen = tgt_dev->wslen;
+			tgt_dev->starget = starget;
+			atomic_set(&scsi_tgt_priv_data->block_io, 0);
+			retval = 0;
+		} else
 			retval = -ENXIO;
-	}
-
-	if (update_stgt_priv_data) {
-		scsi_tgt_priv_data->starget = starget;
-		scsi_tgt_priv_data->dev_handle = tgt_dev->dev_handle;
-		scsi_tgt_priv_data->perst_id = tgt_dev->perst_id;
-		scsi_tgt_priv_data->dev_type = tgt_dev->dev_type;
-		scsi_tgt_priv_data->tgt_dev = tgt_dev;
-		tgt_dev->starget = starget;
-		atomic_set(&scsi_tgt_priv_data->block_io, 0);
-		retval = 0;
-		scsi_tgt_priv_data->io_throttle_enabled =
-		    tgt_dev->io_throttle_enabled;
-		if (tgt_dev->dev_type == MPI3_DEVICE_DEVFORM_VD)
-			scsi_tgt_priv_data->throttle_group =
-			    tgt_dev->dev_spec.vd_inf.tg;
 	}
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 
@@ -4732,6 +4817,10 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 
 	mpi3mr_setup_eedp(mrioc, scmd, scsiio_req);
 
+	if (stgt_priv_data->wslen)
+		mpi3mr_setup_divert_ws(mrioc, scmd, scsiio_req, &scsiio_flags,
+		    stgt_priv_data->wslen);
+
 	memcpy(scsiio_req->cdb.cdb32, scmd->cmnd, scmd->cmd_len);
 	scsiio_req->data_length = cpu_to_le32(scsi_bufflen(scmd));
 	scsiio_req->dev_handle = cpu_to_le16(dev_handle);
@@ -4818,10 +4907,10 @@ static const struct scsi_host_template mpi3mr_driver_template = {
 	.no_write_same			= 1,
 	.can_queue			= 1,
 	.this_id			= -1,
-	.sg_tablesize			= MPI3MR_SG_DEPTH,
+	.sg_tablesize			= MPI3MR_DEFAULT_SGL_ENTRIES,
 	/* max xfer supported is 1M (2K in 512 byte sized sectors)
 	 */
-	.max_sectors			= 2048,
+	.max_sectors			= (MPI3MR_DEFAULT_MAX_IO_SIZE / 512),
 	.cmd_per_lun			= MPI3MR_MAX_CMDS_LUN,
 	.max_segment_size		= 0xffffffff,
 	.track_queue_depth		= 1,
@@ -5004,6 +5093,16 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mrioc->pdev = pdev;
 	mrioc->stop_bsgs = 1;
 
+	mrioc->max_sgl_entries = max_sgl_entries;
+	if (max_sgl_entries > MPI3MR_MAX_SGL_ENTRIES)
+		mrioc->max_sgl_entries = MPI3MR_MAX_SGL_ENTRIES;
+	else if (max_sgl_entries < MPI3MR_DEFAULT_SGL_ENTRIES)
+		mrioc->max_sgl_entries = MPI3MR_DEFAULT_SGL_ENTRIES;
+	else {
+		mrioc->max_sgl_entries /= MPI3MR_DEFAULT_SGL_ENTRIES;
+		mrioc->max_sgl_entries *= MPI3MR_DEFAULT_SGL_ENTRIES;
+	}
+
 	/* init shost parameters */
 	shost->max_cmd_len = MPI3MR_MAX_CDB_LENGTH;
 	shost->max_lun = -1;
@@ -5068,7 +5167,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		shost->nr_maps = 3;
 
 	shost->can_queue = mrioc->max_host_ios;
-	shost->sg_tablesize = MPI3MR_SG_DEPTH;
+	shost->sg_tablesize = mrioc->max_sgl_entries;
 	shost->max_id = mrioc->facts.max_perids + 1;
 
 	retval = scsi_add_host(shost, &pdev->dev);

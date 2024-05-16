@@ -718,7 +718,7 @@ static struct i2c_driver m88rs6000t_driver = {
 	.driver = {
 		.name	= "m88rs6000t",
 	},
-	.probe_new	= m88rs6000t_probe,
+	.probe		= m88rs6000t_probe,
 	.remove		= m88rs6000t_remove,
 	.id_table	= m88rs6000t_id,
 };

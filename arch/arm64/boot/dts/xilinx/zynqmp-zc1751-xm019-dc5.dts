@@ -4,8 +4,8 @@
  *
  * (C) Copyright 2015 - 2021, Xilinx, Inc.
  *
- * Siva Durga Prasad <siva.durga.paladugu@xilinx.com>
- * Michal Simek <michal.simek@xilinx.com>
+ * Siva Durga Prasad Paladugu <siva.durga.prasad.paladugu@amd.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 /dts-v1/;
@@ -91,8 +91,8 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c0_default>;
 	pinctrl-1 = <&pinctrl_i2c0_gpio>;
-	scl-gpios = <&gpio 74 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio 75 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio 74 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio 75 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 };
 
 &i2c1 {
@@ -100,8 +100,8 @@
 	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1_default>;
 	pinctrl-1 = <&pinctrl_i2c1_gpio>;
-	scl-gpios = <&gpio 76 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio 77 GPIO_ACTIVE_HIGH>;
+	scl-gpios = <&gpio 76 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio 77 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 
 };
 

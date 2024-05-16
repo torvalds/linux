@@ -550,4 +550,15 @@ config EDAC_ZYNQMP
 	  Xilinx ZynqMP OCM (On Chip Memory) controller. It can also be
 	  built as a module. In that case it will be called zynqmp_edac.
 
+config EDAC_NPCM
+	tristate "Nuvoton NPCM DDR Memory Controller"
+	depends on (ARCH_NPCM || COMPILE_TEST)
+	help
+	  Support for error detection and correction on the Nuvoton NPCM DDR
+	  memory controller.
+
+	  The memory controller supports single bit error correction, double bit
+	  error detection (in-line ECC in which a section 1/8th of the memory
+	  device used to store data is used for ECC storage).
+
 endif # EDAC

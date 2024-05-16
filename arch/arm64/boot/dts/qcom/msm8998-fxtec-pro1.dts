@@ -31,7 +31,7 @@
 	 */
 	extcon_usb: extcon-usb {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&tlmm 38 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>;
 	};
 
 	gpio-hall-sensors {

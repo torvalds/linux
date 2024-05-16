@@ -8,7 +8,7 @@ title: Qualcomm Global Clock & Reset Controller
 
 maintainers:
   - Stephen Boyd <sboyd@kernel.org>
-  - Taniya Das <tdas@codeaurora.org>
+  - Taniya Das <quic_tdas@quicinc.com>
 
 description: |
   Qualcomm global clock control module provides the clocks, resets and power
@@ -19,8 +19,6 @@ description: |
     include/dt-bindings/reset/qcom,gcc-ipq6018.h
     include/dt-bindings/clock/qcom,gcc-msm8953.h
     include/dt-bindings/clock/qcom,gcc-mdm9607.h
-    include/dt-bindings/clock/qcom,gcc-mdm9615.h
-    include/dt-bindings/reset/qcom,gcc-mdm9615.h
 
 allOf:
   - $ref: qcom,gcc.yaml#
@@ -30,8 +28,6 @@ properties:
     enum:
       - qcom,gcc-ipq6018
       - qcom,gcc-mdm9607
-      - qcom,gcc-msm8953
-      - qcom,gcc-mdm9615
 
 required:
   - compatible

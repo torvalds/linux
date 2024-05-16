@@ -8,9 +8,9 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 
 #include "mn88443x.h"
 
@@ -800,7 +800,7 @@ static struct i2c_driver mn88443x_driver = {
 		.name = "mn88443x",
 		.of_match_table = mn88443x_of_match,
 	},
-	.probe_new = mn88443x_probe,
+	.probe    = mn88443x_probe,
 	.remove   = mn88443x_remove,
 	.id_table = mn88443x_i2c_id,
 };

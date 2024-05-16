@@ -59,6 +59,7 @@ struct nvkm_fb {
 	struct nvkm_memory *mmu_wr;
 };
 
+u64 nvkm_fb_vidmem_size(struct nvkm_device *);
 int nvkm_fb_mem_unlock(struct nvkm_fb *);
 
 void nvkm_fb_tile_init(struct nvkm_fb *, int region, u32 addr, u32 size,

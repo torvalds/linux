@@ -27,6 +27,7 @@
 #include <linux/dmi.h>
 #include <linux/interrupt.h>
 #include <linux/bits.h>
+#include <media/v4l2-fwnode.h>
 
 #include <asm/iosf_mbi.h>
 
@@ -124,21 +125,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_merr[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_457MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -171,21 +158,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_merr_1179[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -251,22 +224,8 @@ static const struct atomisp_freq_scaling_rule dfs_rules_merr_117a[] = {
 		.width = ISP_FREQ_RULE_ANY,
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_200MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -298,21 +257,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_byt[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_400MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -344,28 +289,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_cht[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = 1280,
-		.height = 720,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_356MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -389,21 +313,7 @@ static const struct atomisp_freq_scaling_rule dfs_rules_cht_soc[] = {
 		.height = ISP_FREQ_RULE_ANY,
 		.fps = ISP_FREQ_RULE_ANY,
 		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
 		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_356MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
 	},
 };
 
@@ -424,34 +334,22 @@ const struct atomisp_dfs_config dfs_config_cht_soc = {
 	.dfs_table_size = ARRAY_SIZE(dfs_rules_cht_soc),
 };
 
-int atomisp_video_init(struct atomisp_video_pipe *video, const char *name,
-		       unsigned int run_mode)
+int atomisp_video_init(struct atomisp_video_pipe *video)
 {
 	int ret;
-	const char *direction;
 
-	switch (video->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		direction = "output";
-		video->pad.flags = MEDIA_PAD_FL_SINK;
-		video->vdev.fops = &atomisp_fops;
-		video->vdev.ioctl_ops = &atomisp_ioctl_ops;
-		video->vdev.lock = &video->isp->mutex;
-		break;
-	default:
-		return -EINVAL;
-	}
-
+	video->pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&video->vdev.entity, 1, &video->pad);
 	if (ret < 0)
 		return ret;
 
 	/* Initialize the video device. */
-	snprintf(video->vdev.name, sizeof(video->vdev.name),
-		 "ATOMISP ISP %s %s", name, direction);
+	strscpy(video->vdev.name, "ATOMISP video output", sizeof(video->vdev.name));
+	video->vdev.fops = &atomisp_fops;
+	video->vdev.ioctl_ops = &atomisp_ioctl_ops;
+	video->vdev.lock = &video->isp->mutex;
 	video->vdev.release = video_device_release_empty;
 	video_set_drvdata(&video->vdev, video->isp);
-	video->default_run_mode = run_mode;
 
 	return 0;
 }
@@ -755,15 +653,9 @@ static int atomisp_suspend(struct device *dev)
 				     dev_get_drvdata(dev);
 	unsigned long flags;
 
-	/*
-	 * FIXME: Suspend is not supported by sensors. Abort if any video
-	 * node was opened.
-	 */
-	if (atomisp_dev_users(isp))
-		return -EBUSY;
-
+	/* FIXME: Suspend is not supported by sensors. Abort if streaming. */
 	spin_lock_irqsave(&isp->lock, flags);
-	if (isp->asd.streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
+	if (isp->asd.streaming) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		dev_err(isp->dev, "atomisp cannot suspend at this time.\n");
 		return -EINVAL;
@@ -772,12 +664,25 @@ static int atomisp_suspend(struct device *dev)
 
 	pm_runtime_resume(dev);
 
+	isp->asd.recreate_streams_on_resume = isp->asd.stream_prepared;
+	atomisp_destroy_pipes_stream(&isp->asd);
+
 	return atomisp_power_off(dev);
 }
 
 static int atomisp_resume(struct device *dev)
 {
-	return atomisp_power_on(dev);
+	struct atomisp_device *isp = dev_get_drvdata(dev);
+	int ret;
+
+	ret = atomisp_power_on(dev);
+	if (ret)
+		return ret;
+
+	if (isp->asd.recreate_streams_on_resume)
+		ret = atomisp_create_pipes_stream(&isp->asd);
+
+	return ret;
 }
 
 int atomisp_csi_lane_config(struct atomisp_device *isp)
@@ -785,7 +690,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	static const struct {
 		u8 code;
-		u8 lanes[MRFLD_PORT_NUM];
+		u8 lanes[N_MIPI_PORT_ID];
 	} portconfigs[] = {
 		/* Tangier/Merrifield available lane configurations */
 		{ 0x00, { 4, 1, 0 } },		/* 00000 */
@@ -809,7 +714,6 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 	};
 
 	unsigned int i, j;
-	u8 sensor_lanes[MRFLD_PORT_NUM] = { 0 };
 	u32 csi_control;
 	int nportconfigs;
 	u32 port_config_mask;
@@ -837,41 +741,13 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 		nportconfigs = ARRAY_SIZE(portconfigs);
 	}
 
-	for (i = 0; i < isp->input_cnt; i++) {
-		struct camera_mipi_info *mipi_info;
-
-		if (isp->inputs[i].type != RAW_CAMERA)
-			continue;
-
-		mipi_info = atomisp_to_sensor_mipi_info(isp->inputs[i].camera);
-		if (!mipi_info)
-			continue;
-
-		switch (mipi_info->port) {
-		case ATOMISP_CAMERA_PORT_PRIMARY:
-			sensor_lanes[0] = mipi_info->num_lanes;
-			break;
-		case ATOMISP_CAMERA_PORT_SECONDARY:
-			sensor_lanes[1] = mipi_info->num_lanes;
-			break;
-		case ATOMISP_CAMERA_PORT_TERTIARY:
-			sensor_lanes[2] = mipi_info->num_lanes;
-			break;
-		default:
-			dev_err(isp->dev,
-				"%s: invalid port: %d for the %dth sensor\n",
-				__func__, mipi_info->port, i);
-			return -EINVAL;
-		}
-	}
-
 	for (i = 0; i < nportconfigs; i++) {
-		for (j = 0; j < MRFLD_PORT_NUM; j++)
-			if (sensor_lanes[j] &&
-			    sensor_lanes[j] != portconfigs[i].lanes[j])
+		for (j = 0; j < N_MIPI_PORT_ID; j++)
+			if (isp->sensor_lanes[j] &&
+			    isp->sensor_lanes[j] != portconfigs[i].lanes[j])
 				break;
 
-		if (j == MRFLD_PORT_NUM)
+		if (j == N_MIPI_PORT_ID)
 			break;			/* Found matching setting */
 	}
 
@@ -879,7 +755,7 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 		dev_err(isp->dev,
 			"%s: could not find the CSI port setting for %d-%d-%d\n",
 			__func__,
-			sensor_lanes[0], sensor_lanes[1], sensor_lanes[2]);
+			isp->sensor_lanes[0], isp->sensor_lanes[1], isp->sensor_lanes[2]);
 		return -EINVAL;
 	}
 
@@ -907,7 +783,11 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 {
 	const struct atomisp_platform_data *pdata;
 	struct intel_v4l2_subdev_table *subdevs;
-	int ret, raw_index = -1, count;
+	int ret, mipi_port;
+
+	ret = atomisp_csi2_bridge_parse_firmware(isp);
+	if (ret)
+		return ret;
 
 	pdata = atomisp_get_platform_data();
 	if (!pdata) {
@@ -915,23 +795,12 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		return 0;
 	}
 
-	/* FIXME: should return -EPROBE_DEFER if not all subdevs were probed */
-	for (count = 0; count < SUBDEV_WAIT_TIMEOUT_MAX_COUNT; count++) {
-		int camera_count = 0;
-
-		for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
-			if (subdevs->type == RAW_CAMERA)
-				camera_count++;
-		}
-		if (camera_count)
-			break;
-		msleep(SUBDEV_WAIT_TIMEOUT);
-	}
-	/* Wait more time to give more time for subdev init code to finish */
-	msleep(5 * SUBDEV_WAIT_TIMEOUT);
-
-	/* FIXME: should, instead, use I2C probe */
-
+	/*
+	 * TODO: this is left here for now to allow testing atomisp-sensor
+	 * drivers which are still using the atomisp_gmin_platform infra before
+	 * converting them to standard v4l2 sensor drivers using runtime-pm +
+	 * ACPI for pm and v4l2_async_register_subdev_sensor() registration.
+	 */
 	for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
 		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdevs->subdev);
 		if (ret)
@@ -939,25 +808,20 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 
 		switch (subdevs->type) {
 		case RAW_CAMERA:
-			dev_dbg(isp->dev, "raw_index: %d\n", raw_index);
-			raw_index = isp->input_cnt;
-			if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {
-				dev_warn(isp->dev,
-					 "too many atomisp inputs, ignored\n");
+			if (subdevs->port >= ATOMISP_CAMERA_NR_PORTS) {
+				dev_err(isp->dev, "port %d not supported\n", subdevs->port);
 				break;
 			}
 
-			isp->inputs[isp->input_cnt].type = subdevs->type;
-			isp->inputs[isp->input_cnt].port = subdevs->port;
-			isp->inputs[isp->input_cnt].camera = subdevs->subdev;
-			isp->inputs[isp->input_cnt].sensor_index = 0;
-			/*
-			 * initialize the subdev frame size, then next we can
-			 * judge whether frame_size store effective value via
-			 * pixel_format.
-			 */
-			isp->inputs[isp->input_cnt].frame_size.pixel_format = 0;
-			isp->input_cnt++;
+			if (isp->sensor_subdevs[subdevs->port]) {
+				dev_err(isp->dev, "port %d already has a sensor attached\n",
+					subdevs->port);
+				break;
+			}
+
+			mipi_port = atomisp_port_to_mipi_port(isp, subdevs->port);
+			isp->sensor_lanes[mipi_port] = subdevs->lanes;
+			isp->sensor_subdevs[subdevs->port] = subdevs->subdev;
 			break;
 		case CAMERA_MOTOR:
 			if (isp->motor) {
@@ -978,21 +842,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			break;
 		}
 	}
-
-	/*
-	 * HACK: Currently VCM belongs to primary sensor only, but correct
-	 * approach must be to acquire from platform code which sensor
-	 * owns it.
-	 */
-	if (isp->motor && raw_index >= 0)
-		isp->inputs[raw_index].motor = isp->motor;
-
-	/* Proceed even if no modules detected. For COS mode and no modules. */
-	if (!isp->input_cnt)
-		dev_warn(isp->dev, "no camera attached or fail to detect\n");
-	else
-		dev_info(isp->dev, "detected %d camera sensors\n",
-			 isp->input_cnt);
 
 	return atomisp_csi_lane_config(isp);
 }
@@ -1067,29 +916,8 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		goto subdev_register_failed;
 	}
 
-	for (i = 0; i < isp->input_cnt; i++) {
-		if (isp->inputs[i].port >= ATOMISP_CAMERA_NR_PORTS) {
-			dev_err(isp->dev, "isp->inputs port %d not supported\n",
-				isp->inputs[i].port);
-			ret = -EINVAL;
-			goto link_failed;
-		}
-	}
-
-	if (isp->input_cnt < ATOM_ISP_MAX_INPUTS) {
-		dev_dbg(isp->dev,
-			"TPG detected, camera_cnt: %d\n", isp->input_cnt);
-		isp->inputs[isp->input_cnt].type = TEST_PATTERN;
-		isp->inputs[isp->input_cnt].port = -1;
-		isp->inputs[isp->input_cnt++].camera = &isp->tpg.sd;
-	} else {
-		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
-	}
-
 	return 0;
 
-link_failed:
-	atomisp_subdev_unregister_entities(&isp->asd);
 subdev_register_failed:
 	atomisp_tpg_unregister_entities(&isp->tpg);
 tpg_register_failed:
@@ -1103,15 +931,152 @@ v4l2_device_failed:
 	return ret;
 }
 
-static int atomisp_register_device_nodes(struct atomisp_device *isp)
+static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 {
-	int err;
+	struct v4l2_subdev_mbus_code_enum mbus_code_enum = { };
+	struct v4l2_subdev_frame_size_enum fse = { };
+	struct v4l2_subdev_state sd_state = {
+		.pads = &input->pad_cfg,
+	};
+	struct v4l2_subdev_selection sel = { };
+	int i, err;
 
-	err = atomisp_subdev_register_video_nodes(&isp->asd, &isp->v4l2_dev);
+	mbus_code_enum.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	err = v4l2_subdev_call(input->camera, pad, enum_mbus_code, NULL, &mbus_code_enum);
+	if (!err)
+		input->code = mbus_code_enum.code;
+
+	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.target = V4L2_SEL_TGT_NATIVE_SIZE;
+	err = v4l2_subdev_call(input->camera, pad, get_selection, NULL, &sel);
+	if (err)
+		return;
+
+	input->native_rect = sel.r;
+
+	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.target = V4L2_SEL_TGT_CROP_DEFAULT;
+	err = v4l2_subdev_call(input->camera, pad, get_selection, NULL, &sel);
+	if (err)
+		return;
+
+	input->active_rect = sel.r;
+
+	/*
+	 * Check for a framesize with half active_rect width and height,
+	 * if found assume the sensor supports binning.
+	 * Do this before changing the crop-rect since that may influence
+	 * enum_frame_size results.
+	 */
+	for (i = 0; ; i++) {
+		fse.index = i;
+		fse.code = input->code;
+		fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+
+		err = v4l2_subdev_call(input->camera, pad, enum_frame_size, NULL, &fse);
+		if (err)
+			break;
+
+		if (fse.min_width <= (input->active_rect.width / 2) &&
+		    fse.min_height <= (input->active_rect.height / 2)) {
+			input->binning_support = true;
+			break;
+		}
+	}
+
+	/*
+	 * The ISP also wants the non-active pixels at the border of the sensor
+	 * for padding, set the crop rect to cover the entire sensor instead
+	 * of only the default active area.
+	 *
+	 * Do this for both try and active formats since the try_crop rect in
+	 * pad_cfg may influence (clamp) future try_fmt calls with which == try.
+	 */
+	sel.which = V4L2_SUBDEV_FORMAT_TRY;
+	sel.target = V4L2_SEL_TGT_CROP;
+	sel.r = input->native_rect;
+	err = v4l2_subdev_call(input->camera, pad, set_selection, &sd_state, &sel);
+	if (err)
+		return;
+
+	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	sel.target = V4L2_SEL_TGT_CROP;
+	sel.r = input->native_rect;
+	err = v4l2_subdev_call(input->camera, pad, set_selection, NULL, &sel);
+	if (err)
+		return;
+
+	dev_info(input->camera->dev, "Supports crop native %dx%d active %dx%d binning %d\n",
+		 input->native_rect.width, input->native_rect.height,
+		 input->active_rect.width, input->active_rect.height,
+		 input->binning_support);
+
+	input->crop_support = true;
+}
+
+int atomisp_register_device_nodes(struct atomisp_device *isp)
+{
+	struct atomisp_input_subdev *input;
+	int i, err;
+
+	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
+		err = media_create_pad_link(&isp->csi2_port[i].subdev.entity,
+					    CSI2_PAD_SOURCE, &isp->asd.subdev.entity,
+					    ATOMISP_SUBDEV_PAD_SINK, 0);
+		if (err)
+			return err;
+
+		if (!isp->sensor_subdevs[i])
+			continue;
+
+		input = &isp->inputs[isp->input_cnt];
+
+		input->type = RAW_CAMERA;
+		input->port = i;
+		input->camera = isp->sensor_subdevs[i];
+
+		atomisp_init_sensor(input);
+
+		/*
+		 * HACK: Currently VCM belongs to primary sensor only, but correct
+		 * approach must be to acquire from platform code which sensor
+		 * owns it.
+		 */
+		if (i == ATOMISP_CAMERA_PORT_PRIMARY)
+			input->motor = isp->motor;
+
+		err = media_create_pad_link(&input->camera->entity, 0,
+					    &isp->csi2_port[i].subdev.entity,
+					    CSI2_PAD_SINK,
+					    MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+		if (err)
+			return err;
+
+		isp->input_cnt++;
+	}
+
+	if (!isp->input_cnt)
+		dev_warn(isp->dev, "no camera attached or fail to detect\n");
+	else
+		dev_info(isp->dev, "detected %d camera sensors\n", isp->input_cnt);
+
+	if (isp->input_cnt < ATOM_ISP_MAX_INPUTS) {
+		dev_dbg(isp->dev, "TPG detected, camera_cnt: %d\n", isp->input_cnt);
+		isp->inputs[isp->input_cnt].type = TEST_PATTERN;
+		isp->inputs[isp->input_cnt].port = -1;
+		isp->inputs[isp->input_cnt++].camera = &isp->tpg.sd;
+	} else {
+		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
+	}
+
+	isp->asd.video_out.vdev.v4l2_dev = &isp->v4l2_dev;
+	isp->asd.video_out.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	err = video_register_device(&isp->asd.video_out.vdev, VFL_TYPE_VIDEO, -1);
 	if (err)
 		return err;
 
-	err = atomisp_create_pads_links(isp);
+	err = media_create_pad_link(&isp->asd.subdev.entity, ATOMISP_SUBDEV_PAD_SOURCE,
+				    &isp->asd.video_out.vdev.entity, 0, 0);
 	if (err)
 		return err;
 
@@ -1543,9 +1508,11 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 
-	err = atomisp_register_device_nodes(isp);
-	if (err)
+	err = v4l2_async_nf_register(&isp->notifier);
+	if (err) {
+		dev_err(isp->dev, "failed to register async notifier : %d\n", err);
 		goto css_init_fail;
+	}
 
 	atomisp_drvfs_init(isp);
 
@@ -1648,3 +1615,4 @@ MODULE_AUTHOR("Wen Wang <wen.w.wang@intel.com>");
 MODULE_AUTHOR("Xiaolin Zhang <xiaolin.zhang@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Intel ATOM Platform ISP Driver");
+MODULE_IMPORT_NS(INTEL_IPU_BRIDGE);

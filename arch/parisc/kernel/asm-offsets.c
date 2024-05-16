@@ -275,6 +275,8 @@ int main(void)
 	 * and kernel data on physical huge pages */
 #ifdef CONFIG_HUGETLB_PAGE
 	DEFINE(HUGEPAGE_SIZE, 1UL << REAL_HPAGE_SHIFT);
+#elif !defined(CONFIG_64BIT)
+	DEFINE(HUGEPAGE_SIZE, 4*1024*1024);
 #else
 	DEFINE(HUGEPAGE_SIZE, PAGE_SIZE);
 #endif

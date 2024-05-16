@@ -2,6 +2,7 @@
 /* Copyright (c) 2022 Meta */
 #include <stddef.h>
 #include <string.h>
+#include <stdbool.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>

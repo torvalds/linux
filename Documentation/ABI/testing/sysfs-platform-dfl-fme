@@ -90,7 +90,7 @@ KernelVersion:  5.4
 Contact:	Wu Hao <hao.wu@intel.com>
 Description:	Read-Write. Read this file to get errors detected on FME.
 		Write this file to clear errors logged in fme_errors. Write
-		fials with -EINVAL if input parsing fails or input error code
+		fails with -EINVAL if input parsing fails or input error code
 		doesn't match.
 
 What:		/sys/bus/platform/devices/dfl-fme.0/errors/first_error

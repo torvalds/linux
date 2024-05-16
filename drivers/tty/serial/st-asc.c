@@ -250,7 +250,7 @@ static void asc_receive_chars(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	unsigned long status, mode;
 	unsigned long c = 0;
-	char flag;
+	u8 flag;
 	bool ignore_pe = false;
 
 	/*
@@ -691,8 +691,7 @@ static int asc_init_port(struct asc_port *ascport,
 	port->irq	= platform_get_irq(pdev, 0);
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_ST_ASC_CONSOLE);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	port->membase = devm_ioremap_resource(&pdev->dev, res);
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
 	port->mapbase = res->start;
@@ -704,7 +703,9 @@ static int asc_init_port(struct asc_port *ascport,
 	if (WARN_ON(IS_ERR(ascport->clk)))
 		return -EINVAL;
 	/* ensure that clk rate is correct by enabling the clk */
-	clk_prepare_enable(ascport->clk);
+	ret = clk_prepare_enable(ascport->clk);
+	if (ret)
+		return ret;
 	ascport->port.uartclk = clk_get_rate(ascport->clk);
 	WARN_ON(ascport->port.uartclk == 0);
 	clk_disable_unprepare(ascport->clk);
@@ -754,7 +755,7 @@ static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 
 	asc_ports[id].hw_flow_control = of_property_read_bool(np,
 							"uart-has-rtscts");
-	asc_ports[id].force_m1 =  of_property_read_bool(np, "st,force_m1");
+	asc_ports[id].force_m1 =  of_property_read_bool(np, "st,force-m1");
 	asc_ports[id].port.line = id;
 	asc_ports[id].rts = NULL;
 
@@ -796,7 +797,9 @@ static int asc_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
-	return uart_remove_one_port(&asc_uart_driver, port);
+	uart_remove_one_port(&asc_uart_driver, port);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

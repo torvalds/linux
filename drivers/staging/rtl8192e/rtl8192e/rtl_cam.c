@@ -49,8 +49,7 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 }
 
 void rtl92e_set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
-		      u16 KeyType, const u8 *MacAddr, u8 DefaultKey,
-		      u32 *KeyContent, u8 is_mesh)
+		      u16 KeyType, const u8 *MacAddr, u32 *KeyContent)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -58,14 +57,12 @@ void rtl92e_set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 	if (EntryNo >= TOTAL_CAM_ENTRY)
 		return;
 
-	if (!is_mesh) {
-		ieee->swcamtable[EntryNo].bused = true;
-		ieee->swcamtable[EntryNo].key_index = KeyIndex;
-		ieee->swcamtable[EntryNo].key_type = KeyType;
-		memcpy(ieee->swcamtable[EntryNo].macaddr, MacAddr, 6);
-		ieee->swcamtable[EntryNo].useDK = DefaultKey;
-		memcpy(ieee->swcamtable[EntryNo].key_buf, (u8 *)KeyContent, 16);
-	}
+	ieee->swcamtable[EntryNo].bused = true;
+	ieee->swcamtable[EntryNo].key_index = KeyIndex;
+	ieee->swcamtable[EntryNo].key_type = KeyType;
+	memcpy(ieee->swcamtable[EntryNo].macaddr, MacAddr, 6);
+	ieee->swcamtable[EntryNo].useDK = 0;
+	memcpy(ieee->swcamtable[EntryNo].key_buf, (u8 *)KeyContent, 16);
 }
 
 void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
@@ -100,7 +97,6 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 		usConfig |= BIT15 | (KeyType << 2);
 	else
 		usConfig |= BIT15 | (KeyType << 2) | KeyIndex;
-
 
 	for (i = 0; i < CAM_CONTENT_COUNT; i++) {
 		TargetCommand  = i + CAM_CONTENT_COUNT * EntryNo;
@@ -149,7 +145,6 @@ void rtl92e_cam_restore(struct net_device *dev)
 
 	if ((priv->rtllib->pairwise_key_type == KEY_TYPE_WEP40) ||
 	    (priv->rtllib->pairwise_key_type == KEY_TYPE_WEP104)) {
-
 		for (EntryId = 0; EntryId < 4; EntryId++) {
 			MacAddr = CAM_CONST_ADDR[EntryId];
 			if (priv->rtllib->swcamtable[EntryId].bused) {

@@ -26,10 +26,10 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/workqueue.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 #include <asm/appldata.h>
 #include <asm/vtimer.h>
-#include <linux/uaccess.h>
-#include <asm/io.h>
 #include <asm/smp.h>
 
 #include "appldata.h"
@@ -365,7 +365,7 @@ int appldata_register_ops(struct appldata_ops *ops)
 	ops->ctl_table[0].proc_handler = appldata_generic_handler;
 	ops->ctl_table[0].data = ops;
 
-	ops->sysctl_header = register_sysctl(appldata_proc_name, ops->ctl_table);
+	ops->sysctl_header = register_sysctl_sz(appldata_proc_name, ops->ctl_table, 1);
 	if (!ops->sysctl_header)
 		goto out;
 	return 0;

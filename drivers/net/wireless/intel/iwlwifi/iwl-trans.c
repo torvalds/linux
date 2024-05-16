@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2021, 2023 Intel Corporation
  */
 #include <linux/kernel.h>
 #include <linux/bsearch.h>
@@ -42,7 +42,7 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 
 	WARN_ON(!ops->wait_txq_empty && !ops->wait_tx_queues_empty);
 
-	if (trans->trans_cfg->use_tfh) {
+	if (trans->trans_cfg->gen2) {
 		trans->txqs.tfd.addr_size = 64;
 		trans->txqs.tfd.max_tbs = IWL_TFH_NUM_TBS;
 		trans->txqs.tfd.size = sizeof(struct iwl_tfh_tfd);
@@ -101,7 +101,7 @@ int iwl_trans_init(struct iwl_trans *trans)
 
 	/* Some things must not change even if the config does */
 	WARN_ON(trans->txqs.tfd.addr_size !=
-		(trans->trans_cfg->use_tfh ? 64 : 36));
+		(trans->trans_cfg->gen2 ? 64 : 36));
 
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
 		 "iwl_cmd_pool:%s", dev_name(trans->dev));

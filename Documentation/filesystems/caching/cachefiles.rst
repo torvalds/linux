@@ -416,7 +416,7 @@ process is the target of an operation by some other process (SIGKILL for
 example).
 
 The subjective security holds the active security properties of a process, and
-may be overridden.  This is not seen externally, and is used whan a process
+may be overridden.  This is not seen externally, and is used when a process
 acts upon another object, for example SIGKILLing another process or opening a
 file.
 

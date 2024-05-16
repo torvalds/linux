@@ -271,7 +271,7 @@ static const struct regmap_config cs4349_regmap = {
 	.num_reg_defaults	= ARRAY_SIZE(cs4349_reg_defaults),
 	.readable_reg		= cs4349_readable_register,
 	.writeable_reg		= cs4349_writeable_register,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static int cs4349_i2c_probe(struct i2c_client *client)
@@ -375,7 +375,7 @@ static struct i2c_driver cs4349_i2c_driver = {
 		.pm = &cs4349_runtime_pm,
 	},
 	.id_table	= cs4349_i2c_id,
-	.probe_new	= cs4349_i2c_probe,
+	.probe		= cs4349_i2c_probe,
 	.remove		= cs4349_i2c_remove,
 };
 

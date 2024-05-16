@@ -20,8 +20,6 @@
 #include <linux/prefetch.h>
 #include <net/ip.h>
 
-static bool xgene_mdio_status;
-
 u32 xgene_mdio_rd_mac(struct xgene_mdio_pdata *pdata, u32 rd_addr)
 {
 	void __iomem *addr, *rd, *cmd, *cmd_done;
@@ -79,7 +77,7 @@ EXPORT_SYMBOL(xgene_mdio_wr_mac);
 
 int xgene_mdio_rgmii_read(struct mii_bus *bus, int phy_id, int reg)
 {
-	struct xgene_mdio_pdata *pdata = (struct xgene_mdio_pdata *)bus->priv;
+	struct xgene_mdio_pdata *pdata = bus->priv;
 	u32 data, done;
 	u8 wait = 10;
 
@@ -105,7 +103,7 @@ EXPORT_SYMBOL(xgene_mdio_rgmii_read);
 
 int xgene_mdio_rgmii_write(struct mii_bus *bus, int phy_id, int reg, u16 data)
 {
-	struct xgene_mdio_pdata *pdata = (struct xgene_mdio_pdata *)bus->priv;
+	struct xgene_mdio_pdata *pdata = bus->priv;
 	u32 val, done;
 	u8 wait = 10;
 
@@ -335,7 +333,7 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 
 	of_id = of_match_device(xgene_mdio_of_match, &pdev->dev);
 	if (of_id) {
-		mdio_id = (enum xgene_mdio_id)of_id->data;
+		mdio_id = (uintptr_t)of_id->data;
 	} else {
 #ifdef CONFIG_ACPI
 		const struct acpi_device_id *acpi_id;
@@ -421,7 +419,6 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 		goto out_mdiobus;
 
 	pdata->mdio_bus = mdio_bus;
-	xgene_mdio_status = true;
 
 	return 0;
 

@@ -395,7 +395,7 @@ static int sun6i_isp_proc_link(struct sun6i_isp_device *isp_dev,
 
 static int sun6i_isp_proc_notifier_bound(struct v4l2_async_notifier *notifier,
 					 struct v4l2_subdev *remote_subdev,
-					 struct v4l2_async_subdev *async_subdev)
+					 struct v4l2_async_connection *async_subdev)
 {
 	struct sun6i_isp_device *isp_dev =
 		container_of(notifier, struct sun6i_isp_device, proc.notifier);
@@ -536,7 +536,7 @@ int sun6i_isp_proc_setup(struct sun6i_isp_device *isp_dev)
 
 	/* V4L2 Async */
 
-	v4l2_async_nf_init(notifier);
+	v4l2_async_nf_init(notifier, v4l2_dev);
 	notifier->ops = &sun6i_isp_proc_notifier_ops;
 
 	sun6i_isp_proc_source_setup(isp_dev, &proc->source_csi0,
@@ -544,7 +544,7 @@ int sun6i_isp_proc_setup(struct sun6i_isp_device *isp_dev)
 	sun6i_isp_proc_source_setup(isp_dev, &proc->source_csi1,
 				    SUN6I_ISP_PORT_CSI1);
 
-	ret = v4l2_async_nf_register(v4l2_dev, notifier);
+	ret = v4l2_async_nf_register(notifier);
 	if (ret) {
 		v4l2_err(v4l2_dev,
 			 "failed to register v4l2 async notifier: %d\n", ret);

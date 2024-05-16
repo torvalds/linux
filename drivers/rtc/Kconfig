@@ -395,7 +395,7 @@ config RTC_DRV_NCT3018Y
 
 config RTC_DRV_RK808
 	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 RTC"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	help
 	  If you say yes here you will get support for the
 	  RTC of RK805, RK809 and RK817, RK808 and RK818 PMIC.
@@ -904,9 +904,9 @@ config RTC_DRV_PCF2127
 	select REGMAP_SPI if SPI_MASTER
 	select WATCHDOG_CORE if WATCHDOG
 	help
-	  If you say yes here you get support for the NXP PCF2127/29 RTC
+	  If you say yes here you get support for the NXP PCF2127/29/31 RTC
 	  chips with integrated quartz crystal for industrial applications.
-	  Both chips also have watchdog timer and tamper switch detection
+	  These chips also have watchdog timer and tamper switch detection
 	  features.
 
 	  PCF2127 has an additional feature of 512 bytes battery backed
@@ -956,6 +956,7 @@ comment "Platform RTC drivers"
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
 	depends on X86 || ARM || PPC || MIPS || SPARC64
+	depends on HAS_IOPORT || MACH_DECSTATION
 	default y if X86
 	select RTC_MC146818_LIB
 	help
@@ -976,6 +977,7 @@ config RTC_DRV_CMOS
 config RTC_DRV_ALPHA
 	bool "Alpha PC-style CMOS"
 	depends on ALPHA
+	depends on HAS_IOPORT
 	select RTC_MC146818_LIB
 	default y
 	help
@@ -1193,7 +1195,8 @@ config RTC_DRV_MSM6242
 
 config RTC_DRV_BQ4802
 	tristate "TI BQ4802"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAS_IOPORT
+	depends on SPARC || COMPILE_TEST
 	help
 	  If you say Y here you will get support for the TI
 	  BQ4802 RTC chip.
@@ -1685,6 +1688,19 @@ config RTC_DRV_JZ4740
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-jz4740.
 
+config RTC_DRV_LOONGSON
+	tristate "Loongson On-chip RTC"
+	depends on MACH_LOONGSON32 || MACH_LOONGSON64 || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This is a driver for the Loongson on-chip Counter0 (Time-Of-Year
+	  counter) to be used as a RTC.
+	  It can be found on Loongson-1 series cpu, Loongson-2K series cpu
+	  and Loongson LS7A bridge chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-loongson.
+
 config RTC_DRV_LPC24XX
 	tristate "NXP RTC for LPC178x/18xx/408x/43xx"
 	depends on ARCH_LPC18XX || COMPILE_TEST
@@ -1725,16 +1741,6 @@ config RTC_DRV_TEGRA
 
 	  This drive can also be built as a module. If so, the module
 	  will be called rtc-tegra.
-
-config RTC_DRV_LOONGSON1
-	tristate "loongson1 RTC support"
-	depends on MACH_LOONGSON32
-	help
-	  This is a driver for the loongson1 on-chip Counter0 (Time-Of-Year
-	  counter) to be used as a RTC.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-ls1x.
 
 config RTC_DRV_MXC
 	tristate "Freescale MXC Real Time Clock"

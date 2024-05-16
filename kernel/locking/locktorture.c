@@ -33,24 +33,20 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 
-torture_param(int, nwriters_stress, -1,
-	     "Number of write-locking stress-test threads");
-torture_param(int, nreaders_stress, -1,
-	     "Number of read-locking stress-test threads");
+torture_param(int, nwriters_stress, -1, "Number of write-locking stress-test threads");
+torture_param(int, nreaders_stress, -1, "Number of read-locking stress-test threads");
+torture_param(int, long_hold, 100, "Do occasional long hold of lock (ms), 0=disable");
 torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
-torture_param(int, onoff_interval, 0,
-	     "Time between CPU hotplugs (s), 0=disable");
-torture_param(int, shuffle_interval, 3,
-	     "Number of jiffies between shuffles, 0=disable");
+torture_param(int, onoff_interval, 0, "Time between CPU hotplugs (s), 0=disable");
+torture_param(int, shuffle_interval, 3, "Number of jiffies between shuffles, 0=disable");
 torture_param(int, shutdown_secs, 0, "Shutdown time (j), <= zero to disable.");
-torture_param(int, stat_interval, 60,
-	     "Number of seconds between stats printk()s");
+torture_param(int, stat_interval, 60, "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of jiffies to run/halt test, 0=disable");
 torture_param(int, rt_boost, 2,
-		"Do periodic rt-boost. 0=Disable, 1=Only for rt_mutex, 2=For all lock types.");
+		   "Do periodic rt-boost. 0=Disable, 1=Only for rt_mutex, 2=For all lock types.");
 torture_param(int, rt_boost_factor, 50, "A factor determining how often rt-boost happens.");
-torture_param(int, verbose, 1,
-	     "Enable verbose debugging printk()s");
+torture_param(int, writer_fifo, 0, "Run writers at sched_set_fifo() priority");
+torture_param(int, verbose, 1, "Enable verbose debugging printk()s");
 torture_param(int, nested_locks, 0, "Number of nested locks (max = 8)");
 /* Going much higher trips "BUG: MAX_LOCKDEP_CHAIN_HLOCKS too low!" errors */
 #define MAX_NESTED_LOCKS 8
@@ -120,7 +116,7 @@ static int torture_lock_busted_write_lock(int tid __maybe_unused)
 
 static void torture_lock_busted_write_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = 100;
+	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
 
 	/* We want a long delay occasionally to force massive contention.  */
 	if (!(torture_random(trsp) %
@@ -198,16 +194,18 @@ __acquires(torture_spinlock)
 static void torture_spin_lock_write_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = 100;
+	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
+	unsigned long j;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
 	 */
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
+	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 2000 * longdelay_ms))) {
+		j = jiffies;
 		mdelay(longdelay_ms);
-	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2 * shortdelay_us)))
+		pr_alert("%s: delay = %lu jiffies.\n", __func__, jiffies - j);
+	}
+	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 200 * shortdelay_us)))
 		udelay(shortdelay_us);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
@@ -322,7 +320,7 @@ __acquires(torture_rwlock)
 static void torture_rwlock_write_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = 100;
+	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
 
 	/* We want a short delay mostly to emulate likely code, and
 	 * we want a long delay occasionally to force massive contention.
@@ -455,14 +453,12 @@ __acquires(torture_mutex)
 
 static void torture_mutex_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = 100;
+	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
 
 	/* We want a long delay occasionally to force massive contention.  */
 	if (!(torture_random(trsp) %
 	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
 		mdelay(longdelay_ms * 5);
-	else
-		mdelay(longdelay_ms / 5);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
@@ -630,7 +626,7 @@ __acquires(torture_rtmutex)
 static void torture_rtmutex_delay(struct torture_random_state *trsp)
 {
 	const unsigned long shortdelay_us = 2;
-	const unsigned long longdelay_ms = 100;
+	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
 
 	/*
 	 * We want a short delay mostly to emulate likely code, and
@@ -640,7 +636,7 @@ static void torture_rtmutex_delay(struct torture_random_state *trsp)
 	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
 		mdelay(longdelay_ms);
 	if (!(torture_random(trsp) %
-	      (cxt.nrealwriters_stress * 2 * shortdelay_us)))
+	      (cxt.nrealwriters_stress * 200 * shortdelay_us)))
 		udelay(shortdelay_us);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
@@ -695,14 +691,12 @@ __acquires(torture_rwsem)
 
 static void torture_rwsem_write_delay(struct torture_random_state *trsp)
 {
-	const unsigned long longdelay_ms = 100;
+	const unsigned long longdelay_ms = long_hold ? long_hold : ULONG_MAX;
 
 	/* We want a long delay occasionally to force massive contention.  */
 	if (!(torture_random(trsp) %
 	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
 		mdelay(longdelay_ms * 10);
-	else
-		mdelay(longdelay_ms / 10);
 	if (!(torture_random(trsp) % (cxt.nrealwriters_stress * 20000)))
 		torture_preempt_schedule();  /* Allow test to be preempted. */
 }
@@ -816,7 +810,8 @@ static int lock_torture_writer(void *arg)
 	bool skip_main_lock;
 
 	VERBOSE_TOROUT_STRING("lock_torture_writer task started");
-	set_user_nice(current, MAX_NICE);
+	if (!rt_task(current))
+		set_user_nice(current, MAX_NICE);
 
 	do {
 		if ((torture_random(&rand) & 0xfffff) == 0)
@@ -848,8 +843,8 @@ static int lock_torture_writer(void *arg)
 
 			lwsp->n_lock_acquired++;
 		}
-		cxt.cur_ops->write_delay(&rand);
 		if (!skip_main_lock) {
+			cxt.cur_ops->write_delay(&rand);
 			lock_is_write_held = false;
 			WRITE_ONCE(last_lock_release, jiffies);
 			cxt.cur_ops->writeunlock(tid);
@@ -1022,8 +1017,7 @@ static void lock_torture_cleanup(void)
 
 	if (writer_tasks) {
 		for (i = 0; i < cxt.nrealwriters_stress; i++)
-			torture_stop_kthread(lock_torture_writer,
-					     writer_tasks[i]);
+			torture_stop_kthread(lock_torture_writer, writer_tasks[i]);
 		kfree(writer_tasks);
 		writer_tasks = NULL;
 	}
@@ -1251,8 +1245,9 @@ static int __init lock_torture_init(void)
 			goto create_reader;
 
 		/* Create writer. */
-		firsterr = torture_create_kthread(lock_torture_writer, &cxt.lwsa[i],
-						  writer_tasks[i]);
+		firsterr = torture_create_kthread_cb(lock_torture_writer, &cxt.lwsa[i],
+						     writer_tasks[i],
+						     writer_fifo ? sched_set_fifo : NULL);
 		if (torture_init_error(firsterr))
 			goto unwind;
 

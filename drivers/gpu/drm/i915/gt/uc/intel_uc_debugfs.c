@@ -10,6 +10,7 @@
 
 #include "gt/intel_gt_debugfs.h"
 #include "intel_guc_debugfs.h"
+#include "intel_gsc_uc_debugfs.h"
 #include "intel_huc_debugfs.h"
 #include "intel_uc.h"
 #include "intel_uc_debugfs.h"
@@ -58,6 +59,7 @@ void intel_uc_debugfs_register(struct intel_uc *uc, struct dentry *gt_root)
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), uc);
 
+	intel_gsc_uc_debugfs_register(&uc->gsc, root);
 	intel_guc_debugfs_register(&uc->guc, root);
 	intel_huc_debugfs_register(&uc->huc, root);
 }

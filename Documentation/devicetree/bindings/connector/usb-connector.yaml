@@ -30,6 +30,9 @@ properties:
           - const: samsung,usb-connector-11pin
           - const: usb-b-connector
 
+  reg:
+    maxItems: 1
+
   label:
     description: Symbolic name for the connector.
 
@@ -168,6 +171,13 @@ properties:
       offer the power, Capability Mismatch is set. Required for power sink and
       power dual role.
 
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description: OF graph bindings modeling a data bus to the connector, e.g.
+      there is a single High Speed (HS) port present in this connector. If there
+      is more than one bus (several port, with 'reg' property), they can be grouped
+      under 'ports'.
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
     description: OF graph bindings modeling any data bus to the connector
@@ -217,13 +227,13 @@ properties:
       state as defined in 7.4.2 Sink Electrical Parameters of USB Power Delivery Specification
       Revision 3.0, Version 1.2. When the property is set, the port requests pSnkStby(2.5W -
       5V@500mA) upon entering SNK_DISCOVERY(instead of 3A or the 1.5A, Rp current advertised, during
-      SNK_DISCOVERY) and the actual currrent limit after reception of PS_Ready for PD link or during
+      SNK_DISCOVERY) and the actual current limit after reception of PS_Ready for PD link or during
       SNK_READY for non-pd link.
     type: boolean
 
 dependencies:
-  sink-vdos-v1: [ 'sink-vdos' ]
-  sink-vdos: [ 'sink-vdos-v1' ]
+  sink-vdos-v1: [ sink-vdos ]
+  sink-vdos: [ sink-vdos-v1 ]
 
 required:
   - compatible
@@ -257,7 +267,7 @@ anyOf:
         - typec-power-opmode
         - new-source-frs-typec-current
 
-additionalProperties: true
+additionalProperties: false
 
 examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).
@@ -319,6 +329,19 @@ examples:
             sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)
                          PDO_VAR(5000, 12000, 2000)>;
             op-sink-microwatt = <10000000>;
+        };
+    };
+
+  # USB-C connector attached to SoC with a single High-Speed controller
+  - |
+    connector {
+        compatible = "usb-c-connector";
+        label = "USB-C";
+
+        port {
+            high_speed_ep: endpoint {
+                remote-endpoint = <&usb_hs_ep>;
+            };
         };
     };
 

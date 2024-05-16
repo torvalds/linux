@@ -246,7 +246,7 @@ static struct i2c_driver p8_i2c_occ_driver = {
 		.name = "occ-hwmon",
 		.of_match_table = p8_i2c_occ_of_match,
 	},
-	.probe_new = p8_i2c_occ_probe,
+	.probe = p8_i2c_occ_probe,
 	.remove = p8_i2c_occ_remove,
 };
 

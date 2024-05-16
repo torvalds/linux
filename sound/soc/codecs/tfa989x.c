@@ -416,7 +416,7 @@ static struct i2c_driver tfa989x_i2c_driver = {
 		.name = "tfa989x",
 		.of_match_table = tfa989x_of_match,
 	},
-	.probe_new = tfa989x_i2c_probe,
+	.probe = tfa989x_i2c_probe,
 };
 module_i2c_driver(tfa989x_i2c_driver);
 

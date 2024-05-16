@@ -173,7 +173,7 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 	int err;
 
 	down_read(&card->controls_rwsem);
-	kctl = snd_ctl_find_id(card, id);
+	kctl = snd_ctl_find_id_locked(card, id);
 	if (! kctl) {
 		up_read(&card->controls_rwsem);
 		return -ENOENT;
@@ -197,7 +197,7 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 	return err;
 }
 
-static int get_elem_size(int type, int count)
+static int get_elem_size(snd_ctl_elem_type_t type, int count)
 {
 	switch (type) {
 	case SNDRV_CTL_ELEM_TYPE_INTEGER64:
@@ -234,8 +234,8 @@ static int copy_ctl_value_from_user(struct snd_card *card,
 	if (type < 0)
 		return type;
 
-	if (type == SNDRV_CTL_ELEM_TYPE_BOOLEAN ||
-	    type == SNDRV_CTL_ELEM_TYPE_INTEGER) {
+	if (type == (__force int)SNDRV_CTL_ELEM_TYPE_BOOLEAN ||
+	    type == (__force int)SNDRV_CTL_ELEM_TYPE_INTEGER) {
 		for (i = 0; i < count; i++) {
 			s32 __user *intp = valuep;
 			int val;
@@ -244,7 +244,7 @@ static int copy_ctl_value_from_user(struct snd_card *card,
 			data->value.integer.value[i] = val;
 		}
 	} else {
-		size = get_elem_size(type, count);
+		size = get_elem_size((__force snd_ctl_elem_type_t)type, count);
 		if (size < 0) {
 			dev_err(card->dev, "snd_ioctl32_ctl_elem_value: unknown type %d\n", type);
 			return -EINVAL;
@@ -267,8 +267,8 @@ static int copy_ctl_value_to_user(void __user *userdata,
 	struct snd_ctl_elem_value32 __user *data32 = userdata;
 	int i, size;
 
-	if (type == SNDRV_CTL_ELEM_TYPE_BOOLEAN ||
-	    type == SNDRV_CTL_ELEM_TYPE_INTEGER) {
+	if (type == (__force int)SNDRV_CTL_ELEM_TYPE_BOOLEAN ||
+	    type == (__force int)SNDRV_CTL_ELEM_TYPE_INTEGER) {
 		for (i = 0; i < count; i++) {
 			s32 __user *intp = valuep;
 			int val;
@@ -277,7 +277,7 @@ static int copy_ctl_value_to_user(void __user *userdata,
 				return -EFAULT;
 		}
 	} else {
-		size = get_elem_size(type, count);
+		size = get_elem_size((__force snd_ctl_elem_type_t)type, count);
 		if (copy_to_user(valuep, data->value.bytes.data, size))
 			return -EFAULT;
 	}

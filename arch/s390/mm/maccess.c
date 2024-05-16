@@ -13,9 +13,9 @@
 #include <linux/gfp.h>
 #include <linux/cpu.h>
 #include <linux/uio.h>
+#include <linux/io.h>
 #include <asm/asm-extable.h>
 #include <asm/ctl_reg.h>
-#include <asm/io.h>
 #include <asm/abs_lowcore.h>
 #include <asm/stacktrace.h>
 #include <asm/maccess.h>
@@ -86,11 +86,12 @@ size_t memcpy_real_iter(struct iov_iter *iter, unsigned long src, size_t count)
 	void *chunk;
 	pte_t pte;
 
+	BUILD_BUG_ON(MEMCPY_REAL_SIZE != PAGE_SIZE);
 	while (count) {
-		phys = src & PAGE_MASK;
-		offset = src & ~PAGE_MASK;
+		phys = src & MEMCPY_REAL_MASK;
+		offset = src & ~MEMCPY_REAL_MASK;
 		chunk = (void *)(__memcpy_real_area + offset);
-		len = min(count, PAGE_SIZE - offset);
+		len = min(count, MEMCPY_REAL_SIZE - offset);
 		pte = mk_pte_phys(phys, PAGE_KERNEL_RO);
 
 		mutex_lock(&memcpy_real_mutex);

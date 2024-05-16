@@ -191,8 +191,7 @@ static void sumo_construct_vid_mapping_table(struct amdgpu_device *adev,
 }
 
 #if 0
-static const struct kv_lcac_config_values sx_local_cac_cfg_kv[] =
-{
+static const struct kv_lcac_config_values sx_local_cac_cfg_kv[] = {
 	{  0,       4,        1    },
 	{  1,       4,        1    },
 	{  2,       5,        1    },
@@ -204,32 +203,27 @@ static const struct kv_lcac_config_values sx_local_cac_cfg_kv[] =
 	{ 0xffffffff }
 };
 
-static const struct kv_lcac_config_values mc0_local_cac_cfg_kv[] =
-{
+static const struct kv_lcac_config_values mc0_local_cac_cfg_kv[] = {
 	{  0,       4,        1    },
 	{ 0xffffffff }
 };
 
-static const struct kv_lcac_config_values mc1_local_cac_cfg_kv[] =
-{
+static const struct kv_lcac_config_values mc1_local_cac_cfg_kv[] = {
 	{  0,       4,        1    },
 	{ 0xffffffff }
 };
 
-static const struct kv_lcac_config_values mc2_local_cac_cfg_kv[] =
-{
+static const struct kv_lcac_config_values mc2_local_cac_cfg_kv[] = {
 	{  0,       4,        1    },
 	{ 0xffffffff }
 };
 
-static const struct kv_lcac_config_values mc3_local_cac_cfg_kv[] =
-{
+static const struct kv_lcac_config_values mc3_local_cac_cfg_kv[] = {
 	{  0,       4,        1    },
 	{ 0xffffffff }
 };
 
-static const struct kv_lcac_config_values cpl_local_cac_cfg_kv[] =
-{
+static const struct kv_lcac_config_values cpl_local_cac_cfg_kv[] = {
 	{  0,       4,        1    },
 	{  1,       4,        1    },
 	{  2,       5,        1    },
@@ -260,39 +254,32 @@ static const struct kv_lcac_config_values cpl_local_cac_cfg_kv[] =
 	{ 0xffffffff }
 };
 
-static const struct kv_lcac_config_reg sx0_cac_config_reg[] =
-{
+static const struct kv_lcac_config_reg sx0_cac_config_reg[] = {
 	{ 0xc0400d00, 0x003e0000, 17, 0x3fc00000, 22, 0x0001fffe, 1, 0x00000001, 0 }
 };
 
-static const struct kv_lcac_config_reg mc0_cac_config_reg[] =
-{
+static const struct kv_lcac_config_reg mc0_cac_config_reg[] = {
 	{ 0xc0400d30, 0x003e0000, 17, 0x3fc00000, 22, 0x0001fffe, 1, 0x00000001, 0 }
 };
 
-static const struct kv_lcac_config_reg mc1_cac_config_reg[] =
-{
+static const struct kv_lcac_config_reg mc1_cac_config_reg[] = {
 	{ 0xc0400d3c, 0x003e0000, 17, 0x3fc00000, 22, 0x0001fffe, 1, 0x00000001, 0 }
 };
 
-static const struct kv_lcac_config_reg mc2_cac_config_reg[] =
-{
+static const struct kv_lcac_config_reg mc2_cac_config_reg[] = {
 	{ 0xc0400d48, 0x003e0000, 17, 0x3fc00000, 22, 0x0001fffe, 1, 0x00000001, 0 }
 };
 
-static const struct kv_lcac_config_reg mc3_cac_config_reg[] =
-{
+static const struct kv_lcac_config_reg mc3_cac_config_reg[] = {
 	{ 0xc0400d54, 0x003e0000, 17, 0x3fc00000, 22, 0x0001fffe, 1, 0x00000001, 0 }
 };
 
-static const struct kv_lcac_config_reg cpl_cac_config_reg[] =
-{
+static const struct kv_lcac_config_reg cpl_cac_config_reg[] = {
 	{ 0xc0400d80, 0x003e0000, 17, 0x3fc00000, 22, 0x0001fffe, 1, 0x00000001, 0 }
 };
 #endif
 
-static const struct kv_pt_config_reg didt_config_kv[] =
-{
+static const struct kv_pt_config_reg didt_config_kv[] = {
 	{ 0x10, 0x000000ff, 0, 0x0, KV_CONFIGREG_DIDT_IND },
 	{ 0x10, 0x0000ff00, 8, 0x0, KV_CONFIGREG_DIDT_IND },
 	{ 0x10, 0x00ff0000, 16, 0x0, KV_CONFIGREG_DIDT_IND },
@@ -508,19 +495,19 @@ static int kv_enable_didt(struct amdgpu_device *adev, bool enable)
 	    pi->caps_db_ramping ||
 	    pi->caps_td_ramping ||
 	    pi->caps_tcp_ramping) {
-		amdgpu_gfx_rlc_enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 		if (enable) {
 			ret = kv_program_pt_config_registers(adev, didt_config_kv);
 			if (ret) {
-				amdgpu_gfx_rlc_exit_safe_mode(adev);
+				amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 				return ret;
 			}
 		}
 
 		kv_do_enable_didt(adev, enable);
 
-		amdgpu_gfx_rlc_exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	}
 
 	return 0;
@@ -1173,9 +1160,9 @@ static void kv_calculate_dfs_bypass_settings(struct amdgpu_device *adev)
 					pi->graphics_level[i].ClkBypassCntl = 2;
 				else if (kv_get_clock_difference(table->entries[i].clk, 26600) < 200)
 					pi->graphics_level[i].ClkBypassCntl = 7;
-				else if (kv_get_clock_difference(table->entries[i].clk , 20000) < 200)
+				else if (kv_get_clock_difference(table->entries[i].clk, 20000) < 200)
 					pi->graphics_level[i].ClkBypassCntl = 6;
-				else if (kv_get_clock_difference(table->entries[i].clk , 10000) < 200)
+				else if (kv_get_clock_difference(table->entries[i].clk, 10000) < 200)
 					pi->graphics_level[i].ClkBypassCntl = 8;
 				else
 					pi->graphics_level[i].ClkBypassCntl = 0;
@@ -1825,7 +1812,7 @@ static void kv_set_valid_clock_range(struct amdgpu_device *adev,
 			if ((new_ps->levels[0].sclk -
 			     table->entries[pi->highest_valid].sclk_frequency) >
 			    (table->entries[pi->lowest_valid].sclk_frequency -
-			     new_ps->levels[new_ps->num_levels -1].sclk))
+			     new_ps->levels[new_ps->num_levels - 1].sclk))
 				pi->highest_valid = pi->lowest_valid;
 			else
 				pi->lowest_valid =  pi->highest_valid;
@@ -3333,8 +3320,7 @@ static const struct amd_ip_funcs kv_dpm_ip_funcs = {
 	.set_powergating_state = kv_dpm_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version kv_smu_ip_block =
-{
+const struct amdgpu_ip_block_version kv_smu_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 1,
 	.minor = 0,

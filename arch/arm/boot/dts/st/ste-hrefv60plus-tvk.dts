@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2012 ST-Ericsson AB
+ *
+ * Device Tree for the HREF version 60 or later with the TVK1281618 R2 UIB
+ */
+
+/dts-v1/;
+#include "ste-db8500.dtsi"
+#include "ste-hrefv60plus.dtsi"
+#include "ste-href-tvk1281618-r2.dtsi"
+
+/ {
+	model = "ST-Ericsson HREF (v60+) and TVK1281618 R2 UIB";
+	compatible = "st-ericsson,hrefv60+", "st-ericsson,u8500";
+
+	/* ST6G3244ME level translator for 1.8/2.9 V */
+	vmmci: regulator-gpio {
+		compatible = "regulator-gpio";
+
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <2900000>;
+		regulator-name = "mmci-reg";
+		regulator-type = "voltage";
+
+		startup-delay-us = <100>;
+
+		states = <1800000 0x1
+			  2900000 0x0>;
+
+		gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&vmmci_default_mode>;
+	};
+};
+
+&pinctrl {
+	vmmci {
+		vmmci_default_mode: vmmc_default {
+			/* VMMCI level-shifter enable */
+			default_hrefv60_cfg2 {
+				pins = "GPIO169_D22";
+				ste,config = <&gpio_out_hi>;
+			};
+			/* VMMCI level-shifter voltage select */
+			default_hrefv60_cfg3 {
+				pins = "GPIO5_AG6";
+				ste,config = <&gpio_out_hi>;
+			};
+		};
+	};
+};

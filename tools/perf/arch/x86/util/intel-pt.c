@@ -23,7 +23,7 @@
 #include "../../../util/mmap.h"
 #include <subcmd/parse-options.h>
 #include "../../../util/parse-events.h"
-#include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
 #include "../../../util/debug.h"
 #include "../../../util/auxtrace.h"
 #include "../../../util/perf_api_probe.h"
@@ -60,8 +60,7 @@ struct intel_pt_recording {
 	size_t				priv_size;
 };
 
-static int intel_pt_parse_terms_with_default(const char *pmu_name,
-					     struct list_head *formats,
+static int intel_pt_parse_terms_with_default(struct perf_pmu *pmu,
 					     const char *str,
 					     u64 *config)
 {
@@ -75,13 +74,12 @@ static int intel_pt_parse_terms_with_default(const char *pmu_name,
 
 	INIT_LIST_HEAD(terms);
 
-	err = parse_events_terms(terms, str);
+	err = parse_events_terms(terms, str, /*input=*/ NULL);
 	if (err)
 		goto out_free;
 
 	attr.config = *config;
-	err = perf_pmu__config_terms(pmu_name, formats, &attr, terms, true,
-				     NULL);
+	err = perf_pmu__config_terms(pmu, &attr, terms, /*zero=*/true, /*err=*/NULL);
 	if (err)
 		goto out_free;
 
@@ -91,12 +89,10 @@ out_free:
 	return err;
 }
 
-static int intel_pt_parse_terms(const char *pmu_name, struct list_head *formats,
-				const char *str, u64 *config)
+static int intel_pt_parse_terms(struct perf_pmu *pmu, const char *str, u64 *config)
 {
 	*config = 0;
-	return intel_pt_parse_terms_with_default(pmu_name, formats, str,
-						 config);
+	return intel_pt_parse_terms_with_default(pmu, str, config);
 }
 
 static u64 intel_pt_masked_bits(u64 mask, u64 bits)
@@ -126,7 +122,7 @@ static int intel_pt_read_config(struct perf_pmu *intel_pt_pmu, const char *str,
 
 	*res = 0;
 
-	mask = perf_pmu__format_bits(&intel_pt_pmu->format, str);
+	mask = perf_pmu__format_bits(intel_pt_pmu, str);
 	if (!mask)
 		return -EINVAL;
 
@@ -236,8 +232,7 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 
 	pr_debug2("%s default config: %s\n", intel_pt_pmu->name, buf);
 
-	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format, buf,
-			     &config);
+	intel_pt_parse_terms(intel_pt_pmu, buf, &config);
 
 	close(dirfd);
 	return config;
@@ -348,16 +343,11 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	if (priv_size != ptr->priv_size)
 		return -EINVAL;
 
-	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format,
-			     "tsc", &tsc_bit);
-	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format,
-			     "noretcomp", &noretcomp_bit);
-	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format,
-			     "mtc", &mtc_bit);
-	mtc_freq_bits = perf_pmu__format_bits(&intel_pt_pmu->format,
-					      "mtc_period");
-	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format,
-			     "cyc", &cyc_bit);
+	intel_pt_parse_terms(intel_pt_pmu, "tsc", &tsc_bit);
+	intel_pt_parse_terms(intel_pt_pmu, "noretcomp", &noretcomp_bit);
+	intel_pt_parse_terms(intel_pt_pmu, "mtc", &mtc_bit);
+	mtc_freq_bits = perf_pmu__format_bits(intel_pt_pmu, "mtc_period");
+	intel_pt_parse_terms(intel_pt_pmu, "cyc", &cyc_bit);
 
 	intel_pt_tsc_ctc_ratio(&tsc_ctc_ratio_n, &tsc_ctc_ratio_d);
 
@@ -511,7 +501,7 @@ static int intel_pt_val_config_term(struct perf_pmu *intel_pt_pmu, int dirfd,
 
 	valid |= 1;
 
-	bits = perf_pmu__format_bits(&intel_pt_pmu->format, name);
+	bits = perf_pmu__format_bits(intel_pt_pmu, name);
 
 	config &= bits;
 
@@ -781,8 +771,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		intel_pt_evsel->core.attr.aux_watermark = aux_watermark;
 	}
 
-	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format,
-			     "tsc", &tsc_bit);
+	intel_pt_parse_terms(intel_pt_pmu, "tsc", &tsc_bit);
 
 	if (opts->full_auxtrace && (intel_pt_evsel->core.attr.config & tsc_bit))
 		have_timing_info = true;
@@ -1185,7 +1174,7 @@ static u64 intel_pt_reference(struct auxtrace_record *itr __maybe_unused)
 
 struct auxtrace_record *intel_pt_recording_init(int *err)
 {
-	struct perf_pmu *intel_pt_pmu = perf_pmu__find(INTEL_PT_PMU_NAME);
+	struct perf_pmu *intel_pt_pmu = perf_pmus__find(INTEL_PT_PMU_NAME);
 	struct intel_pt_recording *ptr;
 
 	if (!intel_pt_pmu)

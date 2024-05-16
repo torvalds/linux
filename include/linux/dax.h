@@ -241,10 +241,10 @@ void dax_flush(struct dax_device *dax_dev, void *addr, size_t size);
 
 ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 		const struct iomap_ops *ops);
-vm_fault_t dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+vm_fault_t dax_iomap_fault(struct vm_fault *vmf, unsigned int order,
 		    pfn_t *pfnp, int *errp, const struct iomap_ops *ops);
 vm_fault_t dax_finish_sync_fault(struct vm_fault *vmf,
-		enum page_entry_size pe_size, pfn_t pfn);
+		unsigned int order, pfn_t pfn);
 int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
 int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
 				      pgoff_t index);
@@ -259,6 +259,19 @@ int dax_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 static inline bool dax_mapping(struct address_space *mapping)
 {
 	return mapping->host && IS_DAX(mapping->host);
+}
+
+/*
+ * Due to dax's memory and block duo personalities, hwpoison reporting
+ * takes into consideration which personality is presently visible.
+ * When dax acts like a block device, such as in block IO, an encounter of
+ * dax hwpoison is reported as -EIO.
+ * When dax acts like memory, such as in page fault, a detection of hwpoison
+ * is reported as -EHWPOISON which leads to VM_FAULT_HWPOISON.
+ */
+static inline int dax_mem2blk_err(int err)
+{
+	return (err == -EHWPOISON) ? -EIO : err;
 }
 
 #ifdef CONFIG_DEV_DAX_HMEM_DEVICES

@@ -87,6 +87,7 @@ static inline void rcu_read_unlock_trace(void)
 void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func);
 void synchronize_rcu_tasks_trace(void);
 void rcu_barrier_tasks_trace(void);
+struct task_struct *get_rcu_tasks_trace_gp_kthread(void);
 #else
 /*
  * The BPF JIT forms these addresses even when it doesn't call these

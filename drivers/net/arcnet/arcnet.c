@@ -196,13 +196,10 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 void arcnet_led_event(struct net_device *dev, enum arcnet_led_event event)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
-	unsigned long led_delay = 350;
-	unsigned long tx_delay = 50;
 
 	switch (event) {
 	case ARCNET_LED_EVENT_RECON:
-		led_trigger_blink_oneshot(lp->recon_led_trig,
-					  &led_delay, &led_delay, 0);
+		led_trigger_blink_oneshot(lp->recon_led_trig, 350, 350, 0);
 		break;
 	case ARCNET_LED_EVENT_OPEN:
 		led_trigger_event(lp->tx_led_trig, LED_OFF);
@@ -213,8 +210,7 @@ void arcnet_led_event(struct net_device *dev, enum arcnet_led_event event)
 		led_trigger_event(lp->recon_led_trig, LED_OFF);
 		break;
 	case ARCNET_LED_EVENT_TX:
-		led_trigger_blink_oneshot(lp->tx_led_trig,
-					  &tx_delay, &tx_delay, 0);
+		led_trigger_blink_oneshot(lp->tx_led_trig, 50, 50, 0);
 		break;
 	}
 }
@@ -468,7 +464,7 @@ static void arcnet_reply_tasklet(struct tasklet_struct *t)
 
 	ret = sock_queue_err_skb(sk, ackskb);
 	if (ret)
-		kfree_skb(ackskb);
+		dev_kfree_skb_irq(ackskb);
 
 	local_irq_enable();
 };

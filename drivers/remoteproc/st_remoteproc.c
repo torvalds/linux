@@ -448,7 +448,7 @@ free_rproc:
 	return ret;
 }
 
-static int st_rproc_remove(struct platform_device *pdev)
+static void st_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct st_rproc *ddata = rproc->priv;
@@ -462,13 +462,11 @@ static int st_rproc_remove(struct platform_device *pdev)
 		mbox_free_channel(ddata->mbox_chan[i]);
 
 	rproc_free(rproc);
-
-	return 0;
 }
 
 static struct platform_driver st_rproc_driver = {
 	.probe = st_rproc_probe,
-	.remove = st_rproc_remove,
+	.remove_new = st_rproc_remove,
 	.driver = {
 		.name = "st-rproc",
 		.of_match_table = of_match_ptr(st_rproc_match),

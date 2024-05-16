@@ -36,6 +36,10 @@ if cc_is_clang:
             vars[var] = sub("-fno-semantic-interposition", "", vars[var])
         if not clang_has_option("-ffat-lto-objects"):
             vars[var] = sub("-ffat-lto-objects", "", vars[var])
+        if not clang_has_option("-ftree-loop-distribute-patterns"):
+            vars[var] = sub("-ftree-loop-distribute-patterns", "", vars[var])
+        if not clang_has_option("-gno-variable-location-views"):
+            vars[var] = sub("-gno-variable-location-views", "", vars[var])
 
 from setuptools import setup, Extension
 
@@ -61,6 +65,9 @@ if cc_is_clang:
     cflags += ["-Wno-unused-command-line-argument" ]
 else:
     cflags += ['-Wno-cast-function-type' ]
+
+# The python headers have mixed code with declarations (decls after asserts, for instance)
+cflags += [ "-Wno-declaration-after-statement" ]
 
 src_perf  = getenv('srctree') + '/tools/perf'
 build_lib = getenv('PYTHON_EXTBUILD_LIB')

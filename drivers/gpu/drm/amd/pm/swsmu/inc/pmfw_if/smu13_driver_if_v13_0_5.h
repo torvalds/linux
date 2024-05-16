@@ -23,7 +23,7 @@
 #ifndef __SMU13_DRIVER_IF_V13_0_5_H__
 #define __SMU13_DRIVER_IF_V13_0_5_H__
 
-#define PMFW_DRIVER_IF_VERSION 4
+#define SMU13_0_5_DRIVER_IF_VERSION 5
 
 // Throttler Status Bitmask
 #define THROTTLER_STATUS_BIT_SPL            0
@@ -103,7 +103,6 @@ typedef struct {
   uint16_t ThrottlerStatus;
 
   uint16_t CurrentSocketPower;          //[mW]
-  uint16_t spare1;
 } SmuMetrics_t;
 
 //Freq in MHz

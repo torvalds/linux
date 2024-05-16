@@ -35,6 +35,7 @@
 #define DWMAC_CORE_5_10		0x51
 #define DWMAC_CORE_5_20		0x52
 #define DWXGMAC_CORE_2_10	0x21
+#define DWXGMAC_CORE_2_20	0x22
 #define DWXLGMAC_CORE_2_00	0x20
 
 /* Device ID */
@@ -59,14 +60,26 @@
 /* #define FRAME_FILTER_DEBUG */
 
 struct stmmac_txq_stats {
-	unsigned long tx_pkt_n;
-	unsigned long tx_normal_irq_n;
-};
+	u64 tx_bytes;
+	u64 tx_packets;
+	u64 tx_pkt_n;
+	u64 tx_normal_irq_n;
+	u64 napi_poll;
+	u64 tx_clean;
+	u64 tx_set_ic_bit;
+	u64 tx_tso_frames;
+	u64 tx_tso_nfrags;
+	struct u64_stats_sync syncp;
+} ____cacheline_aligned_in_smp;
 
 struct stmmac_rxq_stats {
-	unsigned long rx_pkt_n;
-	unsigned long rx_normal_irq_n;
-};
+	u64 rx_bytes;
+	u64 rx_packets;
+	u64 rx_pkt_n;
+	u64 rx_normal_irq_n;
+	u64 napi_poll;
+	struct u64_stats_sync syncp;
+} ____cacheline_aligned_in_smp;
 
 /* Extra statistic and debug information exposed by ethtool */
 struct stmmac_extra_stats {
@@ -81,6 +94,7 @@ struct stmmac_extra_stats {
 	unsigned long tx_frame_flushed;
 	unsigned long tx_payload_error;
 	unsigned long tx_ip_header_error;
+	unsigned long tx_collision;
 	/* Receive errors */
 	unsigned long rx_desc;
 	unsigned long sa_filter_fail;
@@ -113,14 +127,6 @@ struct stmmac_extra_stats {
 	/* Tx/Rx IRQ Events */
 	unsigned long rx_early_irq;
 	unsigned long threshold;
-	unsigned long tx_pkt_n;
-	unsigned long rx_pkt_n;
-	unsigned long normal_irq_n;
-	unsigned long rx_normal_irq_n;
-	unsigned long napi_poll;
-	unsigned long tx_normal_irq_n;
-	unsigned long tx_clean;
-	unsigned long tx_set_ic_bit;
 	unsigned long irq_receive_pmt_irq_n;
 	/* MMC info */
 	unsigned long mmc_tx_irq_n;
@@ -190,9 +196,6 @@ struct stmmac_extra_stats {
 	unsigned long mtl_rx_fifo_ctrl_active;
 	unsigned long mac_rx_frame_ctrl_fifo;
 	unsigned long mac_gmii_rx_proto_engine;
-	/* TSO */
-	unsigned long tx_tso_frames;
-	unsigned long tx_tso_nfrags;
 	/* EST */
 	unsigned long mtl_est_cgce;
 	unsigned long mtl_est_hlbs;
@@ -202,6 +205,10 @@ struct stmmac_extra_stats {
 	/* per queue statistics */
 	struct stmmac_txq_stats txq_stats[MTL_MAX_TX_QUEUES];
 	struct stmmac_rxq_stats rxq_stats[MTL_MAX_RX_QUEUES];
+	unsigned long rx_dropped;
+	unsigned long rx_errors;
+	unsigned long tx_dropped;
+	unsigned long tx_errors;
 };
 
 /* Safety Feature statistics exposed by ethtool */
@@ -406,6 +413,18 @@ struct dma_features {
 	unsigned int number_tx_queues;
 	/* PPS output */
 	unsigned int pps_out_num;
+	/* Number of Traffic Classes */
+	unsigned int numtc;
+	/* DCB Feature Enable */
+	unsigned int dcben;
+	/* IEEE 1588 High Word Register Enable */
+	unsigned int advthword;
+	/* PTP Offload Enable */
+	unsigned int ptoen;
+	/* One-Step Timestamping Enable */
+	unsigned int osten;
+	/* Priority-Based Flow Control Enable */
+	unsigned int pfcen;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
 	/* TX and RX FIFO sizes */
@@ -426,14 +445,40 @@ struct dma_features {
 	unsigned int dvlan;
 	unsigned int l3l4fnum;
 	unsigned int arpoffsel;
+	/* One Step for PTP over UDP/IP Feature Enable */
+	unsigned int pou_ost_en;
+	/* Tx Timestamp FIFO Depth */
+	unsigned int ttsfd;
+	/* Queue/Channel-Based VLAN tag insertion on Tx */
+	unsigned int cbtisel;
+	/* Supported Parallel Instruction Processor Engines */
+	unsigned int frppipe_num;
+	/* Number of Extended VLAN Tag Filters */
+	unsigned int nrvf_num;
 	/* TSN Features */
 	unsigned int estwid;
 	unsigned int estdep;
 	unsigned int estsel;
 	unsigned int fpesel;
 	unsigned int tbssel;
+	/* Number of DMA channels enabled for TBS */
+	unsigned int tbs_ch_num;
+	/* Per-Stream Filtering Enable */
+	unsigned int sgfsel;
 	/* Numbers of Auxiliary Snapshot Inputs */
 	unsigned int aux_snapshot_n;
+	/* Timestamp System Time Source */
+	unsigned int tssrc;
+	/* Enhanced DMA Enable */
+	unsigned int edma;
+	/* Different Descriptor Cache Enable */
+	unsigned int ediffc;
+	/* VxLAN/NVGRE Enable */
+	unsigned int vxn;
+	/* Debug Memory Interface Enable */
+	unsigned int dbgmem;
+	/* Number of Policing Counters */
+	unsigned int pcsel;
 };
 
 /* RX Buffer size must be multiple of 4/8/16 bytes */
@@ -519,6 +564,7 @@ struct mac_device_info {
 	const struct stmmac_tc_ops *tc;
 	const struct stmmac_mmc_ops *mmc;
 	struct dw_xpcs *xpcs;
+	struct phylink_pcs *lynx_pcs; /* Lynx external PCS */
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;
 	void __iomem *pcsr;     /* vpointer to device CSRs */

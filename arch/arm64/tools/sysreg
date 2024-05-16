@@ -48,6 +48,61 @@
 # feature that introduces them (eg, FEAT_LS64_ACCDATA introduces enumeration
 # item ACCDATA) though it may be more taseful to do something else.
 
+Sysreg	OSDTRRX_EL1	2	0	0	0	2
+Res0	63:32
+Field	31:0	DTRRX
+EndSysreg
+
+Sysreg	MDCCINT_EL1	2	0	0	2	0
+Res0	63:31
+Field	30	RX
+Field	29	TX
+Res0	28:0
+EndSysreg
+
+Sysreg	MDSCR_EL1	2	0	0	2	2
+Res0	63:36
+Field	35	EHBWE
+Field	34	EnSPM
+Field	33	TTA
+Field	32	EMBWE
+Field	31	TFO
+Field	30	RXfull
+Field	29	TXfull
+Res0	28
+Field	27	RXO
+Field	26	TXU
+Res0	25:24
+Field	23:22	INTdis
+Field	21	TDA
+Res0	20
+Field	19	SC2
+Res0	18:16
+Field	15	MDE
+Field	14	HDE
+Field	13	KDE
+Field	12	TDCC
+Res0	11:7
+Field	6	ERR
+Res0	5:1
+Field	0	SS
+EndSysreg
+
+Sysreg	OSDTRTX_EL1	2	0	0	3	2
+Res0	63:32
+Field	31:0	DTRTX
+EndSysreg
+
+Sysreg	OSECCR_EL1	2	0	0	6	2
+Res0	63:32
+Field	31:0	EDECCR
+EndSysreg
+
+Sysreg	OSLAR_EL1	2	0	1	0	4
+Res0	63:1
+Field	0	OSLK
+EndSysreg
+
 Sysreg ID_PFR0_EL1	3	0	0	1	0
 Res0	63:32
 UnsignedEnum	31:28	RAS
@@ -1292,7 +1347,11 @@ UnsignedEnum	51:48	RPRFM
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Res0	47:28
+Res0	47:32
+UnsignedEnum	31:28	CLRBHB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
 UnsignedEnum	27:24	PAC_frac
 	0b0000	NI
 	0b0001	IMP
@@ -1533,6 +1592,78 @@ UnsignedEnum	7:4	UAO
 	0b0001	IMP
 EndEnum
 UnsignedEnum	3:0	CnP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64MMFR3_EL1	3	0	0	7	3
+UnsignedEnum	63:60	Spec_FPACC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	ADERR
+	0b0000	NI
+	0b0001	DEV_ASYNC
+	0b0010	FEAT_ADERR
+	0b0011	FEAT_ADERR_IND
+EndEnum
+UnsignedEnum	55:52	SDERR
+	0b0000	NI
+	0b0001	DEV_SYNC
+	0b0010	FEAT_ADERR
+	0b0011	FEAT_ADERR_IND
+EndEnum
+Res0	51:48
+UnsignedEnum	47:44	ANERR
+	0b0000	NI
+	0b0001	ASYNC
+	0b0010	FEAT_ANERR
+	0b0011	FEAT_ANERR_IND
+EndEnum
+UnsignedEnum	43:40	SNERR
+	0b0000	NI
+	0b0001	SYNC
+	0b0010	FEAT_ANERR
+	0b0011	FEAT_ANERR_IND
+EndEnum
+UnsignedEnum	39:36	D128_2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	35:32	D128
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	31:28	MEC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	AIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	23:20	S2POE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	19:16	S1POE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	S2PIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	S1PIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	SCTLRX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	TCRX
 	0b0000	NI
 	0b0001	IMP
 EndEnum
@@ -1890,7 +2021,7 @@ Field	0	SM
 EndSysreg
 
 SysregFields	HFGxTR_EL2
-Field	63	nAMIAIR2_EL1
+Field	63	nAMAIR2_EL1
 Field	62	nMAIR2_EL1
 Field	61	nS2POR_EL1
 Field	60	nPOR_EL1
@@ -1905,9 +2036,9 @@ Field	52	nGCS_EL0
 Res0	51
 Field	50	nACCDATA_EL1
 Field	49	ERXADDR_EL1
-Field	48	EXRPFGCDN_EL1
-Field	47	EXPFGCTL_EL1
-Field	46	EXPFGF_EL1
+Field	48	ERXPFGCDN_EL1
+Field	47	ERXPFGCTL_EL1
+Field	46	ERXPFGF_EL1
 Field	45	ERXMISCn_EL1
 Field	44	ERXSTATUS_EL1
 Field	43	ERXCTLR_EL1
@@ -1922,8 +2053,8 @@ Field	35	TPIDR_EL0
 Field	34	TPIDRRO_EL0
 Field	33	TPIDR_EL1
 Field	32	TCR_EL1
-Field	31	SCTXNUM_EL0
-Field	30	SCTXNUM_EL1
+Field	31	SCXTNUM_EL0
+Field	30	SCXTNUM_EL1
 Field	29	SCTLR_EL1
 Field	28	REVIDR_EL1
 Field	27	PAR_EL1
@@ -2029,12 +2160,151 @@ Field	1	ICIALLU
 Field	0	ICIALLUIS
 EndSysreg
 
+Sysreg HDFGRTR_EL2	3	4	3	1	4
+Field	63	PMBIDR_EL1
+Field	62	nPMSNEVFR_EL1
+Field	61	nBRBDATA
+Field	60	nBRBCTL
+Field	59	nBRBIDR
+Field	58	PMCEIDn_EL0
+Field	57	PMUSERENR_EL0
+Field	56	TRBTRG_EL1
+Field	55	TRBSR_EL1
+Field	54	TRBPTR_EL1
+Field	53	TRBMAR_EL1
+Field	52	TRBLIMITR_EL1
+Field	51	TRBIDR_EL1
+Field	50	TRBBASER_EL1
+Res0	49
+Field	48	TRCVICTLR
+Field	47	TRCSTATR
+Field	46	TRCSSCSRn
+Field	45	TRCSEQSTR
+Field	44	TRCPRGCTLR
+Field	43	TRCOSLSR
+Res0	42
+Field	41	TRCIMSPECn
+Field	40	TRCID
+Res0	39:38
+Field	37	TRCCNTVRn
+Field	36	TRCCLAIM
+Field	35	TRCAUXCTLR
+Field	34	TRCAUTHSTATUS
+Field	33	TRC
+Field	32	PMSLATFR_EL1
+Field	31	PMSIRR_EL1
+Field	30	PMSIDR_EL1
+Field	29	PMSICR_EL1
+Field	28	PMSFCR_EL1
+Field	27	PMSEVFR_EL1
+Field	26	PMSCR_EL1
+Field	25	PMBSR_EL1
+Field	24	PMBPTR_EL1
+Field	23	PMBLIMITR_EL1
+Field	22	PMMIR_EL1
+Res0	21:20
+Field	19	PMSELR_EL0
+Field	18	PMOVS
+Field	17	PMINTEN
+Field	16	PMCNTEN
+Field	15	PMCCNTR_EL0
+Field	14	PMCCFILTR_EL0
+Field	13	PMEVTYPERn_EL0
+Field	12	PMEVCNTRn_EL0
+Field	11	OSDLR_EL1
+Field	10	OSECCR_EL1
+Field	9	OSLSR_EL1
+Res0	8
+Field	7	DBGPRCR_EL1
+Field	6	DBGAUTHSTATUS_EL1
+Field	5	DBGCLAIM
+Field	4	MDSCR_EL1
+Field	3	DBGWVRn_EL1
+Field	2	DBGWCRn_EL1
+Field	1	DBGBVRn_EL1
+Field	0	DBGBCRn_EL1
+EndSysreg
+
+Sysreg HDFGWTR_EL2	3	4	3	1	5
+Res0	63
+Field	62	nPMSNEVFR_EL1
+Field	61	nBRBDATA
+Field	60	nBRBCTL
+Res0	59:58
+Field	57	PMUSERENR_EL0
+Field	56	TRBTRG_EL1
+Field	55	TRBSR_EL1
+Field	54	TRBPTR_EL1
+Field	53	TRBMAR_EL1
+Field	52	TRBLIMITR_EL1
+Res0	51
+Field	50	TRBBASER_EL1
+Field	49	TRFCR_EL1
+Field	48	TRCVICTLR
+Res0	47
+Field	46	TRCSSCSRn
+Field	45	TRCSEQSTR
+Field	44	TRCPRGCTLR
+Res0	43
+Field	42	TRCOSLAR
+Field	41	TRCIMSPECn
+Res0	40:38
+Field	37	TRCCNTVRn
+Field	36	TRCCLAIM
+Field	35	TRCAUXCTLR
+Res0	34
+Field	33	TRC
+Field	32	PMSLATFR_EL1
+Field	31	PMSIRR_EL1
+Res0	30
+Field	29	PMSICR_EL1
+Field	28	PMSFCR_EL1
+Field	27	PMSEVFR_EL1
+Field	26	PMSCR_EL1
+Field	25	PMBSR_EL1
+Field	24	PMBPTR_EL1
+Field	23	PMBLIMITR_EL1
+Res0	22
+Field	21	PMCR_EL0
+Field	20	PMSWINC_EL0
+Field	19	PMSELR_EL0
+Field	18	PMOVS
+Field	17	PMINTEN
+Field	16	PMCNTEN
+Field	15	PMCCNTR_EL0
+Field	14	PMCCFILTR_EL0
+Field	13	PMEVTYPERn_EL0
+Field	12	PMEVCNTRn_EL0
+Field	11	OSDLR_EL1
+Field	10	OSECCR_EL1
+Res0	9
+Field	8	OSLAR_EL1
+Field	7	DBGPRCR_EL1
+Res0	6
+Field	5	DBGCLAIM
+Field	4	MDSCR_EL1
+Field	3	DBGWVRn_EL1
+Field	2	DBGWCRn_EL1
+Field	1	DBGBVRn_EL1
+Field	0	DBGBCRn_EL1
+EndSysreg
+
 Sysreg	ZCR_EL2	3	4	1	2	0
 Fields	ZCR_ELx
 EndSysreg
 
 Sysreg	HCRX_EL2	3	4	1	2	2
-Res0	63:12
+Res0	63:23
+Field	22	GCSEn
+Field	21	EnIDCP128
+Field	20	EnSDERR
+Field	19	TMEA
+Field	18	EnSNERR
+Field	17	D128En
+Field	16	PTTWI
+Field	15	SCTLR2En
+Field	14	TCR2En
+Res0	13:12
 Field	11	MSCEn
 Field	10	MCE2
 Field	9	CMOW
@@ -2153,6 +2423,87 @@ Sysreg	TTBR1_EL1	3	0	2	0	1
 Fields	TTBRx_EL1
 EndSysreg
 
+SysregFields	TCR2_EL1x
+Res0	63:16
+Field	15	DisCH1
+Field	14	DisCH0
+Res0	13:12
+Field	11	HAFT
+Field	10	PTTWI
+Res0	9:6
+Field	5	D128
+Field	4	AIE
+Field	3	POE
+Field	2	E0POE
+Field	1	PIE
+Field	0	PnCH
+EndSysregFields
+
+Sysreg	TCR2_EL1	3	0	2	0	3
+Fields	TCR2_EL1x
+EndSysreg
+
+Sysreg	TCR2_EL12	3	5	2	0	3
+Fields	TCR2_EL1x
+EndSysreg
+
+Sysreg	TCR2_EL2	3	4	2	0	3
+Res0	63:16
+Field	15	DisCH1
+Field	14	DisCH0
+Field	13	AMEC1
+Field	12	AMEC0
+Field	11	HAFT
+Field	10	PTTWI
+Field	9:8	SKL1
+Field	7:6	SKL0
+Field	5	D128
+Field	4	AIE
+Field	3	POE
+Field	2	E0POE
+Field	1	PIE
+Field	0	PnCH
+EndSysreg
+
+SysregFields PIRx_ELx
+Field	63:60	Perm15
+Field	59:56	Perm14
+Field	55:52	Perm13
+Field	51:48	Perm12
+Field	47:44	Perm11
+Field	43:40	Perm10
+Field	39:36	Perm9
+Field	35:32	Perm8
+Field	31:28	Perm7
+Field	27:24	Perm6
+Field	23:20	Perm5
+Field	19:16	Perm4
+Field	15:12	Perm3
+Field	11:8	Perm2
+Field	7:4	Perm1
+Field	3:0	Perm0
+EndSysregFields
+
+Sysreg	PIRE0_EL1	3	0	10	2	2
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIRE0_EL12	3	5	10	2	2
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL1		3	0	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL12	3	5	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL2		3	4	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
 Sysreg	LORSA_EL1	3	0	10	4	0
 Res0	63:52
 Field	51:16	SA
@@ -2199,4 +2550,81 @@ EndSysreg
 Sysreg	ICC_NMIAR1_EL1	3	0	12	9	5
 Res0	63:24
 Field	23:0	INTID
+EndSysreg
+
+Sysreg	TRBLIMITR_EL1	3	0	9	11	0
+Field	63:12	LIMIT
+Res0	11:7
+Field	6	XE
+Field	5	nVM
+Enum	4:3	TM
+	0b00	STOP
+	0b01	IRQ
+	0b11	IGNR
+EndEnum
+Enum	2:1	FM
+	0b00	FILL
+	0b01	WRAP
+	0b11	CBUF
+EndEnum
+Field	0	E
+EndSysreg
+
+Sysreg	TRBPTR_EL1	3	0	9	11	1
+Field	63:0	PTR
+EndSysreg
+
+Sysreg	TRBBASER_EL1	3	0	9	11	2
+Field	63:12	BASE
+Res0	11:0
+EndSysreg
+
+Sysreg	TRBSR_EL1	3	0	9	11	3
+Res0	63:56
+Field	55:32	MSS2
+Field	31:26	EC
+Res0	25:24
+Field	23	DAT
+Field	22	IRQ
+Field	21	TRG
+Field	20	WRAP
+Res0	19
+Field	18	EA
+Field	17	S
+Res0	16
+Field	15:0	MSS
+EndSysreg
+
+Sysreg	TRBMAR_EL1	3	0	9	11	4
+Res0	63:12
+Enum	11:10	PAS
+	0b00	SECURE
+	0b01	NON_SECURE
+	0b10	ROOT
+	0b11	REALM
+EndEnum
+Enum	9:8	SH
+	0b00	NON_SHAREABLE
+	0b10	OUTER_SHAREABLE
+	0b11	INNER_SHAREABLE
+EndEnum
+Field	7:0	Attr
+EndSysreg
+
+Sysreg	TRBTRG_EL1	3	0	9	11	6
+Res0	63:32
+Field	31:0	TRG
+EndSysreg
+
+Sysreg	TRBIDR_EL1	3	0	9	11	7
+Res0	63:12
+Enum	11:8	EA
+	0b0000	NON_DESC
+	0b0001	IGNORE
+	0b0010	SERROR
+EndEnum
+Res0	7:6
+Field	5	F
+Field	4	P
+Field	3:0	Align
 EndSysreg

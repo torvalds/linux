@@ -24,7 +24,7 @@
 /* Setting timeout to -1 disables the alarm */
 static uint64_t timeout = 120;
 
-int run_test(int (test_function)(void), char *name)
+int run_test(int (test_function)(void), const char *name)
 {
 	bool terminated;
 	int rc, status;
@@ -101,7 +101,7 @@ void test_harness_set_timeout(uint64_t time)
 	timeout = time;
 }
 
-int test_harness(int (test_function)(void), char *name)
+int test_harness(int (test_function)(void), const char *name)
 {
 	int rc;
 

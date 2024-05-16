@@ -16,11 +16,11 @@
 #include <linux/writeback.h>
 #include <linux/device.h>
 #include <trace/events/writeback.h>
+#include "internal.h"
 
 struct backing_dev_info noop_backing_dev_info;
 EXPORT_SYMBOL_GPL(noop_backing_dev_info);
 
-static struct class *bdi_class;
 static const char *bdi_unknown_name = "(unknown)";
 
 /*
@@ -34,8 +34,6 @@ LIST_HEAD(bdi_list);
 
 /* bdi_wq serves all asynchronous writeback tasks */
 struct workqueue_struct *bdi_wq;
-
-#define K(x) ((x) << (PAGE_SHIFT - 10))
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -345,13 +343,19 @@ static struct attribute *bdi_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(bdi_dev);
 
+static const struct class bdi_class = {
+	.name		= "bdi",
+	.dev_groups	= bdi_dev_groups,
+};
+
 static __init int bdi_class_init(void)
 {
-	bdi_class = class_create("bdi");
-	if (IS_ERR(bdi_class))
-		return PTR_ERR(bdi_class);
+	int ret;
 
-	bdi_class->dev_groups = bdi_dev_groups;
+	ret = class_register(&bdi_class);
+	if (ret)
+		return ret;
+
 	bdi_debug_init();
 
 	return 0;
@@ -728,9 +732,6 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 
 	might_alloc(gfp);
 
-	if (!memcg_css->parent)
-		return &bdi->wb;
-
 	do {
 		wb = wb_get_lookup(bdi, memcg_css);
 	} while (!wb && !cgwb_create(bdi, memcg_css, gfp));
@@ -1001,7 +1002,7 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 		return 0;
 
 	vsnprintf(bdi->dev_name, sizeof(bdi->dev_name), fmt, args);
-	dev = device_create(bdi_class, NULL, MKDEV(0, 0), bdi, bdi->dev_name);
+	dev = device_create(&bdi_class, NULL, MKDEV(0, 0), bdi, bdi->dev_name);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 

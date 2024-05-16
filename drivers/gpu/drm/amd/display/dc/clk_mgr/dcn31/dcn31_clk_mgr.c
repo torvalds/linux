@@ -87,6 +87,11 @@ static int dcn31_get_active_display_cnt_wa(
 				stream->signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
 				stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK)
 			tmds_present = true;
+
+		/* Checking stream / link detection ensuring that PHY is active*/
+		if (dc_is_dp_signal(stream->signal) && !stream->dpms_off)
+			display_count++;
+
 	}
 
 	for (i = 0; i < dc->link_count; i++) {
@@ -205,10 +210,8 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	// workaround: Limit dppclk to 100Mhz to avoid lower eDP panel switch to plus 4K monitor underflow.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		if (new_clocks->dppclk_khz < 100000)
-			new_clocks->dppclk_khz = 100000;
-	}
+	if (new_clocks->dppclk_khz < 100000)
+		new_clocks->dppclk_khz = 100000;
 
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->base.clks.dppclk_khz)) {
 		if (clk_mgr->base.clks.dppclk_khz > new_clocks->dppclk_khz)
@@ -250,9 +253,7 @@ void dcn31_update_clocks(struct clk_mgr *clk_mgr_base,
 	cmd.notify_clocks.clocks.dispclk_khz = clk_mgr_base->clks.dispclk_khz;
 	cmd.notify_clocks.clocks.dppclk_khz = clk_mgr_base->clks.dppclk_khz;
 
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
@@ -674,6 +675,7 @@ void dcn31_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	struct dcn31_smu_dpm_clks smu_dpm_clks = { 0 };
+	struct clk_log_info log_info = {0};
 
 	clk_mgr->base.base.ctx = ctx;
 	clk_mgr->base.base.funcs = &dcn31_funcs;
@@ -713,29 +715,22 @@ void dcn31_clk_mgr_construct(
 
 	ASSERT(smu_dpm_clks.dpm_clks);
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		clk_mgr->base.base.funcs = &dcn3_fpga_funcs;
+	clk_mgr->base.smu_ver = dcn31_smu_get_smu_version(&clk_mgr->base);
+
+	if (clk_mgr->base.smu_ver)
+		clk_mgr->base.smu_present = true;
+
+	/* TODO: Check we get what we expect during bringup */
+	clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
+
+	if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
+		dcn31_bw_params.wm_table = lpddr5_wm_table;
 	} else {
-		struct clk_log_info log_info = {0};
-
-		clk_mgr->base.smu_ver = dcn31_smu_get_smu_version(&clk_mgr->base);
-
-		if (clk_mgr->base.smu_ver)
-			clk_mgr->base.smu_present = true;
-
-		/* TODO: Check we get what we expect during bringup */
-		clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
-
-		if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
-			dcn31_bw_params.wm_table = lpddr5_wm_table;
-		} else {
-			dcn31_bw_params.wm_table = ddr5_wm_table;
-		}
-		/* Saved clocks configured at boot for debug purposes */
-		dcn31_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
-					 &clk_mgr->base.base, &log_info);
-
+		dcn31_bw_params.wm_table = ddr5_wm_table;
 	}
+	/* Saved clocks configured at boot for debug purposes */
+	dcn31_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
+				 &clk_mgr->base.base, &log_info);
 
 	clk_mgr->base.base.dprefclk_khz = 600000;
 	clk_mgr->base.base.clks.ref_dtbclk_khz = 600000;

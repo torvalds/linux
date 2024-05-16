@@ -40,6 +40,7 @@ int amdgpu_reset_init(struct amdgpu_device *adev)
 
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 6):
 		ret = aldebaran_reset_init(adev);
 		break;
 	case IP_VERSION(11, 0, 7):
@@ -61,6 +62,7 @@ int amdgpu_reset_fini(struct amdgpu_device *adev)
 
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 6):
 		ret = aldebaran_reset_fini(adev);
 		break;
 	case IP_VERSION(11, 0, 7):
@@ -85,7 +87,7 @@ int amdgpu_reset_prepare_hwcontext(struct amdgpu_device *adev,
 		reset_handler = adev->reset_cntl->get_reset_handler(
 			adev->reset_cntl, reset_context);
 	if (!reset_handler)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return reset_handler->prepare_hwcontext(adev->reset_cntl,
 						reset_context);
@@ -101,7 +103,7 @@ int amdgpu_reset_perform_reset(struct amdgpu_device *adev,
 		reset_handler = adev->reset_cntl->get_reset_handler(
 			adev->reset_cntl, reset_context);
 	if (!reset_handler)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	ret = reset_handler->perform_reset(adev->reset_cntl, reset_context);
 	if (ret)

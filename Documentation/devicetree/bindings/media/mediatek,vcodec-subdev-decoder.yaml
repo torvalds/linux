@@ -36,7 +36,7 @@ description: |
   controls the information of each hardware independent which include clk/power/irq.
 
   There are two workqueues in parent device: lat workqueue and core workqueue. They are used
-  to lat and core hardware deocder. Lat workqueue need to get input bitstream and lat buffer,
+  to lat and core hardware decoder. Lat workqueue need to get input bitstream and lat buffer,
   then enable lat to decode, writing the result to lat buffer, dislabe hardware when lat decode
   done. Core workqueue need to get lat buffer and output buffer, then enable core to decode,
   writing the result to output buffer, disable hardware when core decode done. These two

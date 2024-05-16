@@ -7,7 +7,8 @@
 
 #include <linux/mtd/rawnand.h>
 #include <linux/of_gpio.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include <lantiq_soc.h>
 

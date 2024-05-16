@@ -305,6 +305,12 @@ properties:
           - const: allwinner,i12-tvbox
           - const: allwinner,sun7i-a20
 
+      - description: ICnova A20 ADB4006
+        items:
+          - const: incircuit,icnova-a20-adb4006
+          - const: incircuit,icnova-a20
+          - const: allwinner,sun7i-a20
+
       - description: ICNova A20 SWAC
         items:
           - const: incircuit,icnova-a20-swac
@@ -535,13 +541,13 @@ properties:
           - const: msi,primo81
           - const: allwinner,sun6i-a31s
 
-      - description: Emlid Neutis N5 Developper Board
+      - description: Emlid Neutis N5 Developer Board
         items:
           - const: emlid,neutis-n5-devboard
           - const: emlid,neutis-n5
           - const: allwinner,sun50i-h5
 
-      - description: Emlid Neutis N5H3 Developper Board
+      - description: Emlid Neutis N5H3 Developer Board
         items:
           - const: emlid,neutis-n5h3-devboard
           - const: emlid,neutis-n5h3
@@ -990,5 +996,10 @@ properties:
         items:
           - const: xunlong,orangepi-zero2
           - const: allwinner,sun50i-h616
+
+      - description: Xunlong OrangePi Zero 3
+        items:
+          - const: xunlong,orangepi-zero3
+          - const: allwinner,sun50i-h618
 
 additionalProperties: true

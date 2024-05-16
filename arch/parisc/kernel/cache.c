@@ -19,6 +19,7 @@
 #include <linux/pagemap.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
+#include <linux/syscalls.h>
 #include <asm/pdc.h>
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
@@ -28,6 +29,7 @@
 #include <asm/sections.h>
 #include <asm/shmparam.h>
 #include <asm/mmu_context.h>
+#include <asm/cachectl.h>
 
 int split_tlb __ro_after_init;
 int dcache_stride __ro_after_init;
@@ -56,7 +58,7 @@ int pa_serialize_tlb_flushes __ro_after_init;
 
 struct pdc_cache_info cache_info __ro_after_init;
 #ifndef CONFIG_PA20
-static struct pdc_btlb_info btlb_info __ro_after_init;
+struct pdc_btlb_info btlb_info __ro_after_init;
 #endif
 
 DEFINE_STATIC_KEY_TRUE(parisc_has_cache);
@@ -92,11 +94,11 @@ static inline void flush_data_cache(void)
 /* Kernel virtual address of pfn.  */
 #define pfn_va(pfn)	__va(PFN_PHYS(pfn))
 
-void
-__update_cache(pte_t pte)
+void __update_cache(pte_t pte)
 {
 	unsigned long pfn = pte_pfn(pte);
-	struct page *page;
+	struct folio *folio;
+	unsigned int nr;
 
 	/* We don't have pte special.  As a result, we can be called with
 	   an invalid pfn and we don't need to flush the kernel dcache page.
@@ -104,13 +106,17 @@ __update_cache(pte_t pte)
 	if (!pfn_valid(pfn))
 		return;
 
-	page = pfn_to_page(pfn);
-	if (page_mapping_file(page) &&
-	    test_bit(PG_dcache_dirty, &page->flags)) {
-		flush_kernel_dcache_page_addr(pfn_va(pfn));
-		clear_bit(PG_dcache_dirty, &page->flags);
+	folio = page_folio(pfn_to_page(pfn));
+	pfn = folio_pfn(folio);
+	nr = folio_nr_pages(folio);
+	if (folio_flush_mapping(folio) &&
+	    test_bit(PG_dcache_dirty, &folio->flags)) {
+		while (nr--)
+			flush_kernel_dcache_page_addr(pfn_va(pfn + nr));
+		clear_bit(PG_dcache_dirty, &folio->flags);
 	} else if (parisc_requires_coherency())
-		flush_kernel_dcache_page_addr(pfn_va(pfn));
+		while (nr--)
+			flush_kernel_dcache_page_addr(pfn_va(pfn + nr));
 }
 
 void
@@ -258,12 +264,6 @@ parisc_cache_init(void)
 	icache_stride = CAFL_STRIDE(cache_info.ic_conf);
 #undef CAFL_STRIDE
 
-#ifndef CONFIG_PA20
-	if (pdc_btlb_info(&btlb_info) < 0) {
-		memset(&btlb_info, 0, sizeof btlb_info);
-	}
-#endif
-
 	if ((boot_cpu_data.pdc.capabilities & PDC_MODEL_NVA_MASK) ==
 						PDC_MODEL_NVA_UNSUPPORTED) {
 		printk(KERN_WARNING "parisc_cache_init: Only equivalent aliasing supported!\n");
@@ -364,6 +364,20 @@ static void flush_user_cache_page(struct vm_area_struct *vma, unsigned long vmad
 	preempt_enable();
 }
 
+void flush_icache_pages(struct vm_area_struct *vma, struct page *page,
+		unsigned int nr)
+{
+	void *kaddr = page_address(page);
+
+	for (;;) {
+		flush_kernel_dcache_page_addr(kaddr);
+		flush_kernel_icache_page(kaddr);
+		if (--nr == 0)
+			break;
+		kaddr += PAGE_SIZE;
+	}
+}
+
 static inline pte_t *get_ptep(struct mm_struct *mm, unsigned long addr)
 {
 	pte_t *ptep = NULL;
@@ -392,27 +406,30 @@ static inline bool pte_needs_flush(pte_t pte)
 		== (_PAGE_PRESENT | _PAGE_ACCESSED);
 }
 
-void flush_dcache_page(struct page *page)
+void flush_dcache_folio(struct folio *folio)
 {
-	struct address_space *mapping = page_mapping_file(page);
-	struct vm_area_struct *mpnt;
-	unsigned long offset;
+	struct address_space *mapping = folio_flush_mapping(folio);
+	struct vm_area_struct *vma;
 	unsigned long addr, old_addr = 0;
+	void *kaddr;
 	unsigned long count = 0;
-	unsigned long flags;
+	unsigned long i, nr, flags;
 	pgoff_t pgoff;
 
 	if (mapping && !mapping_mapped(mapping)) {
-		set_bit(PG_dcache_dirty, &page->flags);
+		set_bit(PG_dcache_dirty, &folio->flags);
 		return;
 	}
 
-	flush_kernel_dcache_page_addr(page_address(page));
+	nr = folio_nr_pages(folio);
+	kaddr = folio_address(folio);
+	for (i = 0; i < nr; i++)
+		flush_kernel_dcache_page_addr(kaddr + i * PAGE_SIZE);
 
 	if (!mapping)
 		return;
 
-	pgoff = page->index;
+	pgoff = folio->index;
 
 	/*
 	 * We have carefully arranged in arch_get_unmapped_area() that
@@ -422,15 +439,33 @@ void flush_dcache_page(struct page *page)
 	 * on machines that support equivalent aliasing
 	 */
 	flush_dcache_mmap_lock_irqsave(mapping, flags);
-	vma_interval_tree_foreach(mpnt, &mapping->i_mmap, pgoff, pgoff) {
-		offset = (pgoff - mpnt->vm_pgoff) << PAGE_SHIFT;
-		addr = mpnt->vm_start + offset;
-		if (parisc_requires_coherency()) {
-			pte_t *ptep;
+	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff + nr - 1) {
+		unsigned long offset = pgoff - vma->vm_pgoff;
+		unsigned long pfn = folio_pfn(folio);
 
-			ptep = get_ptep(mpnt->vm_mm, addr);
-			if (ptep && pte_needs_flush(*ptep))
-				flush_user_cache_page(mpnt, addr);
+		addr = vma->vm_start;
+		nr = folio_nr_pages(folio);
+		if (offset > -nr) {
+			pfn -= offset;
+			nr += offset;
+		} else {
+			addr += offset * PAGE_SIZE;
+		}
+		if (addr + nr * PAGE_SIZE > vma->vm_end)
+			nr = (vma->vm_end - addr) / PAGE_SIZE;
+
+		if (parisc_requires_coherency()) {
+			for (i = 0; i < nr; i++) {
+				pte_t *ptep = get_ptep(vma->vm_mm,
+							addr + i * PAGE_SIZE);
+				if (!ptep)
+					continue;
+				if (pte_needs_flush(*ptep))
+					flush_user_cache_page(vma,
+							addr + i * PAGE_SIZE);
+				/* Optimise accesses to the same table? */
+				pte_unmap(ptep);
+			}
 		} else {
 			/*
 			 * The TLB is the engine of coherence on parisc:
@@ -443,27 +478,32 @@ void flush_dcache_page(struct page *page)
 			 * in (until the user or kernel specifically
 			 * accesses it, of course)
 			 */
-			flush_tlb_page(mpnt, addr);
+			for (i = 0; i < nr; i++)
+				flush_tlb_page(vma, addr + i * PAGE_SIZE);
 			if (old_addr == 0 || (old_addr & (SHM_COLOUR - 1))
 					!= (addr & (SHM_COLOUR - 1))) {
-				__flush_cache_page(mpnt, addr, page_to_phys(page));
+				for (i = 0; i < nr; i++)
+					__flush_cache_page(vma,
+						addr + i * PAGE_SIZE,
+						(pfn + i) * PAGE_SIZE);
 				/*
 				 * Software is allowed to have any number
 				 * of private mappings to a page.
 				 */
-				if (!(mpnt->vm_flags & VM_SHARED))
+				if (!(vma->vm_flags & VM_SHARED))
 					continue;
 				if (old_addr)
 					pr_err("INEQUIVALENT ALIASES 0x%lx and 0x%lx in file %pD\n",
-						old_addr, addr, mpnt->vm_file);
-				old_addr = addr;
+						old_addr, addr, vma->vm_file);
+				if (nr == folio_nr_pages(folio))
+					old_addr = addr;
 			}
 		}
 		WARN_ON(++count == 4096);
 	}
 	flush_dcache_mmap_unlock_irqrestore(mapping, flags);
 }
-EXPORT_SYMBOL(flush_dcache_page);
+EXPORT_SYMBOL(flush_dcache_folio);
 
 /* Defined in arch/parisc/kernel/pacache.S */
 EXPORT_SYMBOL(flush_kernel_dcache_range_asm);
@@ -561,14 +601,20 @@ EXPORT_SYMBOL(flush_kernel_dcache_page_addr);
 static void flush_cache_page_if_present(struct vm_area_struct *vma,
 	unsigned long vmaddr, unsigned long pfn)
 {
-	pte_t *ptep = get_ptep(vma->vm_mm, vmaddr);
+	bool needs_flush = false;
+	pte_t *ptep;
 
 	/*
 	 * The pte check is racy and sometimes the flush will trigger
 	 * a non-access TLB miss. Hopefully, the page has already been
 	 * flushed.
 	 */
-	if (ptep && pte_needs_flush(*ptep))
+	ptep = get_ptep(vma->vm_mm, vmaddr);
+	if (ptep) {
+		needs_flush = pte_needs_flush(*ptep);
+		pte_unmap(ptep);
+	}
+	if (needs_flush)
 		flush_cache_page(vma, vmaddr, pfn);
 }
 
@@ -635,17 +681,22 @@ static void flush_cache_pages(struct vm_area_struct *vma, unsigned long start, u
 	pte_t *ptep;
 
 	for (addr = start; addr < end; addr += PAGE_SIZE) {
+		bool needs_flush = false;
 		/*
 		 * The vma can contain pages that aren't present. Although
 		 * the pte search is expensive, we need the pte to find the
 		 * page pfn and to check whether the page should be flushed.
 		 */
 		ptep = get_ptep(vma->vm_mm, addr);
-		if (ptep && pte_needs_flush(*ptep)) {
+		if (ptep) {
+			needs_flush = pte_needs_flush(*ptep);
+			pfn = pte_pfn(*ptep);
+			pte_unmap(ptep);
+		}
+		if (needs_flush) {
 			if (parisc_requires_coherency()) {
 				flush_user_cache_page(vma, addr);
 			} else {
-				pfn = pte_pfn(*ptep);
 				if (WARN_ON(!pfn_valid(pfn)))
 					return;
 				__flush_cache_page(vma, addr, PFN_PHYS(pfn));
@@ -774,3 +825,50 @@ void invalidate_kernel_vmap_range(void *vaddr, int size)
 	flush_tlb_kernel_range(start, end);
 }
 EXPORT_SYMBOL(invalidate_kernel_vmap_range);
+
+
+SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
+	unsigned int, cache)
+{
+	unsigned long start, end;
+	ASM_EXCEPTIONTABLE_VAR(error);
+
+	if (bytes == 0)
+		return 0;
+	if (!access_ok((void __user *) addr, bytes))
+		return -EFAULT;
+
+	end = addr + bytes;
+
+	if (cache & DCACHE) {
+		start = addr;
+		__asm__ __volatile__ (
+#ifdef CONFIG_64BIT
+			"1: cmpb,*<<,n	%0,%2,1b\n"
+#else
+			"1: cmpb,<<,n	%0,%2,1b\n"
+#endif
+			"   fic,m	%3(%4,%0)\n"
+			"2: sync\n"
+			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b)
+			: "+r" (start), "+r" (error)
+			: "r" (end), "r" (dcache_stride), "i" (SR_USER));
+	}
+
+	if (cache & ICACHE && error == 0) {
+		start = addr;
+		__asm__ __volatile__ (
+#ifdef CONFIG_64BIT
+			"1: cmpb,*<<,n	%0,%2,1b\n"
+#else
+			"1: cmpb,<<,n	%0,%2,1b\n"
+#endif
+			"   fdc,m	%3(%4,%0)\n"
+			"2: sync\n"
+			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b)
+			: "+r" (start), "+r" (error)
+			: "r" (end), "r" (icache_stride), "i" (SR_USER));
+	}
+
+	return error;
+}

@@ -19,8 +19,6 @@ enum tr_select {
 
 struct ts_common_info {
 	struct list_head		List;
-	struct timer_list		SetupTimer;
-	struct timer_list		InactTimer;
 	u8				Addr[ETH_ALEN];
 	union tspec_body TSpec;
 	union qos_tclas TClass[TCLAS_NUM];
@@ -52,7 +50,5 @@ struct rx_ts_record {
 	u8 rx_last_frag_num;
 	u8 num;
 };
-
-
 
 #endif

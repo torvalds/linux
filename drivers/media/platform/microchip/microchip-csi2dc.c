@@ -476,7 +476,7 @@ static const struct v4l2_subdev_ops csi2dc_subdev_ops = {
 
 static int csi2dc_async_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_subdev *subdev,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asd)
 {
 	struct csi2dc_device *csi2dc = container_of(notifier,
 						struct csi2dc_device, notifier);
@@ -520,14 +520,14 @@ static const struct v4l2_async_notifier_operations csi2dc_async_ops = {
 static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
 				   struct fwnode_handle *input_fwnode)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asd;
 	int ret = 0;
 
-	v4l2_async_nf_init(&csi2dc->notifier);
+	v4l2_async_subdev_nf_init(&csi2dc->notifier, &csi2dc->csi2dc_sd);
 
 	asd = v4l2_async_nf_add_fwnode_remote(&csi2dc->notifier,
 					      input_fwnode,
-					      struct v4l2_async_subdev);
+					      struct v4l2_async_connection);
 
 	fwnode_handle_put(input_fwnode);
 
@@ -542,8 +542,7 @@ static int csi2dc_prepare_notifier(struct csi2dc_device *csi2dc,
 
 	csi2dc->notifier.ops = &csi2dc_async_ops;
 
-	ret = v4l2_async_subdev_nf_register(&csi2dc->csi2dc_sd,
-					    &csi2dc->notifier);
+	ret = v4l2_async_nf_register(&csi2dc->notifier);
 	if (ret) {
 		dev_err(csi2dc->dev, "fail to register async notifier: %d\n",
 			ret);

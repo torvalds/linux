@@ -411,6 +411,9 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}, {
 		.name = "support wake on lan",
 		.cap_bit = HNAE3_DEV_SUPPORT_WOL_B,
+	}, {
+		.name = "support tm flush",
+		.cap_bit = HNAE3_DEV_SUPPORT_TM_FLUSH_B,
 	}
 };
 
@@ -438,19 +441,36 @@ static void hns3_dbg_fill_content(char *content, u16 len,
 				  const struct hns3_dbg_item *items,
 				  const char **result, u16 size)
 {
+#define HNS3_DBG_LINE_END_LEN	2
 	char *pos = content;
+	u16 item_len;
 	u16 i;
 
-	memset(content, ' ', len);
-	for (i = 0; i < size; i++) {
-		if (result)
-			strncpy(pos, result[i], strlen(result[i]));
-		else
-			strncpy(pos, items[i].name, strlen(items[i].name));
-
-		pos += strlen(items[i].name) + items[i].interval;
+	if (!len) {
+		return;
+	} else if (len <= HNS3_DBG_LINE_END_LEN) {
+		*pos++ = '\0';
+		return;
 	}
 
+	memset(content, ' ', len);
+	len -= HNS3_DBG_LINE_END_LEN;
+
+	for (i = 0; i < size; i++) {
+		item_len = strlen(items[i].name) + items[i].interval;
+		if (len < item_len)
+			break;
+
+		if (result) {
+			if (item_len < strlen(result[i]))
+				break;
+			memcpy(pos, result[i], strlen(result[i]));
+		} else {
+			memcpy(pos, items[i].name, strlen(items[i].name));
+		}
+		pos += item_len;
+		len -= item_len;
+	}
 	*pos++ = '\n';
 	*pos++ = '\0';
 }
@@ -941,8 +961,7 @@ static const struct hns3_dbg_item tx_bd_info_items[] = {
 	{ "MSS_HW_CSUM", 0 },
 };
 
-static void hns3_dump_tx_bd_info(struct hns3_nic_priv *priv,
-				 struct hns3_desc *desc, char **result, int idx)
+static void hns3_dump_tx_bd_info(struct hns3_desc *desc, char **result, int idx)
 {
 	unsigned int j = 0;
 
@@ -991,7 +1010,7 @@ static int hns3_dbg_tx_bd_info(struct hns3_dbg_data *d, char *buf, int len)
 	for (i = 0; i < ring->desc_num; i++) {
 		desc = &ring->desc[i];
 
-		hns3_dump_tx_bd_info(priv, desc, result, i);
+		hns3_dump_tx_bd_info(desc, result, i);
 		hns3_dbg_fill_content(content, sizeof(content),
 				      tx_bd_info_items, (const char **)result,
 				      ARRAY_SIZE(tx_bd_info_items));
@@ -1026,6 +1045,7 @@ hns3_dbg_dev_specs(struct hnae3_handle *h, char *buf, int len, int *pos)
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
 	struct hnae3_dev_specs *dev_specs = &ae_dev->dev_specs;
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	struct net_device *dev = kinfo->netdev;
 
 	*pos += scnprintf(buf + *pos, len - *pos, "dev_spec:\n");
 	*pos += scnprintf(buf + *pos, len - *pos, "MAC entry num: %u\n",
@@ -1068,6 +1088,9 @@ hns3_dbg_dev_specs(struct hnae3_handle *h, char *buf, int len, int *pos)
 			  dev_specs->mc_mac_size);
 	*pos += scnprintf(buf + *pos, len - *pos, "MAC statistics number: %u\n",
 			  dev_specs->mac_stats_num);
+	*pos += scnprintf(buf + *pos, len - *pos,
+			  "TX timeout threshold: %d seconds\n",
+			  dev->watchdog_timeo / HZ);
 }
 
 static int hns3_dbg_dev_info(struct hnae3_handle *h, char *buf, int len)
@@ -1392,15 +1415,18 @@ int hns3_dbg_init(struct hnae3_handle *handle)
 	return 0;
 
 out:
-	mutex_destroy(&handle->dbgfs_lock);
 	debugfs_remove_recursive(handle->hnae3_dbgfs);
 	handle->hnae3_dbgfs = NULL;
+	mutex_destroy(&handle->dbgfs_lock);
 	return ret;
 }
 
 void hns3_dbg_uninit(struct hnae3_handle *handle)
 {
 	u32 i;
+
+	debugfs_remove_recursive(handle->hnae3_dbgfs);
+	handle->hnae3_dbgfs = NULL;
 
 	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cmd); i++)
 		if (handle->dbgfs_buf[i]) {
@@ -1409,8 +1435,6 @@ void hns3_dbg_uninit(struct hnae3_handle *handle)
 		}
 
 	mutex_destroy(&handle->dbgfs_lock);
-	debugfs_remove_recursive(handle->hnae3_dbgfs);
-	handle->hnae3_dbgfs = NULL;
 }
 
 void hns3_dbg_register_debugfs(const char *debugfs_dir_name)

@@ -84,15 +84,15 @@ enum epf_ntb_bar {
  * |                                                  |
  * |                                                  |
  * |                                                  |
- * +-----------------------+--------------------------+ Base+span_offset
+ * +-----------------------+--------------------------+ Base+spad_offset
  * |                       |                          |
- * |    Peer Span Space    |    Span Space            |
+ * |    Peer Spad Space    |    Spad Space            |
  * |                       |                          |
  * |                       |                          |
- * +-----------------------+--------------------------+ Base+span_offset
- * |                       |                          |     +span_count * 4
+ * +-----------------------+--------------------------+ Base+spad_offset
+ * |                       |                          |     +spad_count * 4
  * |                       |                          |
- * |     Span Space        |   Peer Span Space        |
+ * |     Spad Space        |   Peer Spad Space        |
  * |                       |                          |
  * +-----------------------+--------------------------+
  *       Virtual PCI             PCIe Endpoint
@@ -986,22 +986,22 @@ static struct config_group *epf_ntb_add_cfs(struct pci_epf *epf,
 /*==== virtual PCI bus driver, which only load virtual NTB PCI driver ====*/
 
 static u32 pci_space[] = {
-	0xffffffff,	/*DeviceID, Vendor ID*/
-	0,		/*Status, Command*/
-	0xffffffff,	/*Class code, subclass, prog if, revision id*/
-	0x40,		/*bist, header type, latency Timer, cache line size*/
-	0,		/*BAR 0*/
-	0,		/*BAR 1*/
-	0,		/*BAR 2*/
-	0,		/*BAR 3*/
-	0,		/*BAR 4*/
-	0,		/*BAR 5*/
-	0,		/*Cardbus cis point*/
-	0,		/*Subsystem ID Subystem vendor id*/
-	0,		/*ROM Base Address*/
-	0,		/*Reserved, Cap. Point*/
-	0,		/*Reserved,*/
-	0,		/*Max Lat, Min Gnt, interrupt pin, interrupt line*/
+	0xffffffff,	/* Device ID, Vendor ID */
+	0,		/* Status, Command */
+	0xffffffff,	/* Base Class, Subclass, Prog Intf, Revision ID */
+	0x40,		/* BIST, Header Type, Latency Timer, Cache Line Size */
+	0,		/* BAR 0 */
+	0,		/* BAR 1 */
+	0,		/* BAR 2 */
+	0,		/* BAR 3 */
+	0,		/* BAR 4 */
+	0,		/* BAR 5 */
+	0,		/* Cardbus CIS Pointer */
+	0,		/* Subsystem ID, Subsystem Vendor ID */
+	0,		/* ROM Base Address */
+	0,		/* Reserved, Capabilities Pointer */
+	0,		/* Reserved */
+	0,		/* Max_Lat, Min_Gnt, Interrupt Pin, Interrupt Line */
 };
 
 static int pci_read(struct pci_bus *bus, unsigned int devfn, int where, int size, u32 *val)
@@ -1285,6 +1285,7 @@ static int pci_vntb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_register_dev:
+	put_device(&ndev->ntb.dev);
 	return -EINVAL;
 }
 
@@ -1395,13 +1396,15 @@ static struct pci_epf_ops epf_ntb_ops = {
 /**
  * epf_ntb_probe() - Probe NTB function driver
  * @epf: NTB endpoint function device
+ * @id: NTB endpoint function device ID
  *
  * Probe NTB function driver when endpoint function bus detects a NTB
  * endpoint function.
  *
  * Returns: Zero for success, or an error code in case of failure
  */
-static int epf_ntb_probe(struct pci_epf *epf)
+static int epf_ntb_probe(struct pci_epf *epf,
+			 const struct pci_epf_device_id *id)
 {
 	struct epf_ntb *ntb;
 	struct device *dev;

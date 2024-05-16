@@ -692,8 +692,19 @@ static int dp83869_configure_mode(struct phy_device *phydev,
 	/* Below init sequence for each operational mode is defined in
 	 * section 9.4.8 of the datasheet.
 	 */
+	phy_ctrl_val = dp83869->mode;
+	if (phydev->interface == PHY_INTERFACE_MODE_MII) {
+		if (dp83869->mode == DP83869_100M_MEDIA_CONVERT ||
+		    dp83869->mode == DP83869_RGMII_100_BASE) {
+			phy_ctrl_val |= DP83869_OP_MODE_MII;
+		} else {
+			phydev_err(phydev, "selected op-mode is not valid with MII mode\n");
+			return -EINVAL;
+		}
+	}
+
 	ret = phy_write_mmd(phydev, DP83869_DEVADDR, DP83869_OP_MODE,
-			    dp83869->mode);
+			    phy_ctrl_val);
 	if (ret)
 		return ret;
 

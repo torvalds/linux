@@ -650,7 +650,7 @@ static int ps3fb_set_par(struct fb_info *info)
 	}
 
 	/* Clear XDR frame buffer memory */
-	memset((void __force *)info->screen_base, 0, info->fix.smem_len);
+	memset(info->screen_buffer, 0, info->fix.smem_len);
 
 	/* Clear DDR frame buffer memory */
 	lines = vmode->yres * par->num_frames;
@@ -1140,12 +1140,12 @@ static int ps3fb_probe(struct ps3_system_bus_device *dev)
 	 * memory
 	 */
 	fb_start = ps3fb_videomemory.address + GPU_FB_START;
-	info->screen_base = (char __force __iomem *)fb_start;
+	info->screen_buffer = fb_start;
 	info->fix.smem_start = __pa(fb_start);
 	info->fix.smem_len = ps3fb_videomemory.size - GPU_FB_START;
 
 	info->pseudo_palette = par->pseudo_palette;
-	info->flags = FBINFO_DEFAULT | FBINFO_READS_FAST |
+	info->flags = FBINFO_READS_FAST |
 		      FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
 
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
@@ -1168,9 +1168,7 @@ static int ps3fb_probe(struct ps3_system_bus_device *dev)
 
 	ps3_system_bus_set_drvdata(dev, info);
 
-	dev_info(info->device, "%s %s, using %u KiB of video memory\n",
-		 dev_driver_string(info->dev), dev_name(info->dev),
-		 info->fix.smem_len >> 10);
+	fb_info(info, "using %u KiB of video memory\n", info->fix.smem_len >> 10);
 
 	task = kthread_run(ps3fbd, info, DEVICE_NAME);
 	if (IS_ERR(task)) {

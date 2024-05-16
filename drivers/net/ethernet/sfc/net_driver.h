@@ -27,6 +27,7 @@
 #include <linux/mtd/mtd.h>
 #include <net/busy_poll.h>
 #include <net/xdp.h>
+#include <net/netevent.h>
 
 #include "enum.h"
 #include "bitfield.h"
@@ -66,9 +67,7 @@
 #define EFX_MAX_CORE_TX_QUEUES	(EFX_MAX_TX_TC * EFX_MAX_CHANNELS)
 #define EFX_TXQ_TYPE_OUTER_CSUM	1	/* Outer checksum offload */
 #define EFX_TXQ_TYPE_INNER_CSUM	2	/* Inner checksum offload */
-#define EFX_TXQ_TYPE_HIGHPRI	4	/* High-priority (for TC) */
-#define EFX_TXQ_TYPES		8
-/* HIGHPRI is Siena-only, and INNER_CSUM is EF10, so no need for both */
+#define EFX_TXQ_TYPES		4
 #define EFX_MAX_TXQ_PER_CHANNEL	4
 #define EFX_MAX_TX_QUEUES	(EFX_MAX_TXQ_PER_CHANNEL * EFX_MAX_CHANNELS)
 
@@ -121,26 +120,6 @@ struct efx_buffer {
 	void *addr;
 	dma_addr_t dma_addr;
 	unsigned int len;
-};
-
-/**
- * struct efx_special_buffer - DMA buffer entered into buffer table
- * @buf: Standard &struct efx_buffer
- * @index: Buffer index within controller;s buffer table
- * @entries: Number of buffer table entries
- *
- * The NIC has a buffer table that maps buffers of size %EFX_BUF_SIZE.
- * Event and descriptor rings are addressed via one or more buffer
- * table entries (and so can be physically non-contiguous, although we
- * currently do not take advantage of that).  On Falcon and Siena we
- * have to take care of allocating and initialising the entries
- * ourselves.  On later hardware this is managed by the firmware and
- * @index and @entries are left as 0.
- */
-struct efx_special_buffer {
-	struct efx_buffer buf;
-	unsigned int index;
-	unsigned int entries;
 };
 
 /**
@@ -236,7 +215,7 @@ struct efx_tx_buffer {
  *	Normally this will equal @write_count, but as option descriptors
  *	don't produce completion events, they won't update this.
  *	Filled in iff @efx->type->option_descriptors; only used for PIO.
- *	Thus, this is written and used on EF10, and neither on farch.
+ *	Thus, this is only written and used on EF10.
  * @old_read_count: The value of read_count when last checked.
  *	This is here for performance reasons.  The xmit path will
  *	only get the up-to-date value of read_count if this
@@ -269,7 +248,7 @@ struct efx_tx_queue {
 	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;
 	struct efx_buffer *cb_page;
-	struct efx_special_buffer txd;
+	struct efx_buffer txd;
 	unsigned int ptr_mask;
 	void __iomem *piobuf;
 	unsigned int piobuf_offset;
@@ -398,7 +377,7 @@ struct efx_rx_queue {
 	struct efx_nic *efx;
 	int core_index;
 	struct efx_rx_buffer *buffer;
-	struct efx_special_buffer rxd;
+	struct efx_buffer rxd;
 	unsigned int ptr_mask;
 	bool refill_enabled;
 	bool flush_pending;
@@ -514,7 +493,7 @@ struct efx_channel {
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned long busy_poll_state;
 #endif
-	struct efx_special_buffer eventq;
+	struct efx_buffer eventq;
 	unsigned int eventq_mask;
 	unsigned int eventq_read_ptr;
 	int event_test_cpu;
@@ -753,18 +732,6 @@ struct efx_hw_stat_desc {
 	u16 offset;
 };
 
-/* Number of bits used in a multicast filter hash address */
-#define EFX_MCAST_HASH_BITS 8
-
-/* Number of (single-bit) entries in a multicast filter hash */
-#define EFX_MCAST_HASH_ENTRIES (1 << EFX_MCAST_HASH_BITS)
-
-/* An Efx multicast filter hash */
-union efx_multicast_hash {
-	u8 byte[EFX_MCAST_HASH_ENTRIES / 8];
-	efx_oword_t oword[EFX_MCAST_HASH_ENTRIES / sizeof(efx_oword_t) / 8];
-};
-
 struct vfdi_status;
 
 /* The reserved RSS context value */
@@ -894,7 +861,6 @@ struct efx_mae;
  * @tx_dc_base: Base qword address in SRAM of TX queue descriptor caches
  * @rx_dc_base: Base qword address in SRAM of RX queue descriptor caches
  * @sram_lim_qw: Qword address limit of SRAM
- * @next_buffer_table: First available buffer table id
  * @n_channels: Number of channels in use
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
  * @n_tx_channels: Number of channels used for TX
@@ -956,10 +922,6 @@ struct efx_mae;
  *	see &enum ethtool_fec_config_bits.
  * @link_state: Current state of the link
  * @n_link_state_changes: Number of times the link has changed state
- * @unicast_filter: Flag for Falcon-arch simple unicast filter.
- *	Protected by @mac_lock.
- * @multicast_hash: Multicast hash table for Falcon-arch.
- *	Protected by @mac_lock.
  * @wanted_fc: Wanted flow control flags
  * @fc_disable: When non-zero flow control is disabled. Typically used to
  *	ensure that network back pressure doesn't delay dma queue flushes.
@@ -996,6 +958,7 @@ struct efx_mae;
  * @xdp_rxq_info_failed: Have any of the rx queues failed to initialise their
  *      xdp_rxq_info structures?
  * @netdev_notifier: Netdevice notifier.
+ * @netevent_notifier: Netevent notifier (for neighbour updates).
  * @tc: state for TC offload (EF100).
  * @devlink: reference to devlink structure owned by this device
  * @dl_port: devlink port associated with the PF
@@ -1062,7 +1025,6 @@ struct efx_nic {
 	unsigned tx_dc_base;
 	unsigned rx_dc_base;
 	unsigned sram_lim_qw;
-	unsigned next_buffer_table;
 
 	unsigned int max_channels;
 	unsigned int max_vis;
@@ -1137,8 +1099,6 @@ struct efx_nic {
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
 
-	bool unicast_filter;
-	union efx_multicast_hash multicast_hash;
 	u8 wanted_fc;
 	unsigned fc_disable;
 
@@ -1183,6 +1143,7 @@ struct efx_nic {
 	bool xdp_rxq_info_failed;
 
 	struct notifier_block netdev_notifier;
+	struct notifier_block netevent_notifier;
 	struct efx_tc_state *tc;
 
 	struct devlink *devlink;
@@ -1260,10 +1221,6 @@ struct efx_udp_tunnel {
  * @remove_port: Free resources allocated by probe_port()
  * @handle_global_event: Handle a "global" event (may be %NULL)
  * @fini_dmaq: Flush and finalise DMA queues (RX and TX queues)
- * @prepare_flush: Prepare the hardware for flushing the DMA queues
- *	(for Falcon architecture)
- * @finish_flush: Clean up after flushing the DMA queues (for Falcon
- *	architecture)
  * @prepare_flr: Prepare for an FLR
  * @finish_flr: Clean up after an FLR
  * @describe_stats: Describe statistics for ethtool
@@ -1285,8 +1242,7 @@ struct efx_udp_tunnel {
  * @set_wol: Push WoL configuration to the NIC
  * @resume_wol: Synchronise WoL state between driver and MC (e.g. after resume)
  * @get_fec_stats: Get standard FEC statistics.
- * @test_chip: Test registers.  May use efx_farch_test_registers(), and is
- *	expected to reset the NIC.
+ * @test_chip: Test registers. This is expected to reset the NIC.
  * @test_nvram: Test validity of NVRAM contents
  * @mcdi_request: Send an MCDI request with the given header and SDU.
  *	The SDU length may be any value from 0 up to the protocol-
@@ -1411,8 +1367,6 @@ struct efx_nic_type {
 	void (*remove_port)(struct efx_nic *efx);
 	bool (*handle_global_event)(struct efx_channel *channel, efx_qword_t *);
 	int (*fini_dmaq)(struct efx_nic *efx);
-	void (*prepare_flush)(struct efx_nic *efx);
-	void (*finish_flush)(struct efx_nic *efx);
 	void (*prepare_flr)(struct efx_nic *efx);
 	void (*finish_flr)(struct efx_nic *efx);
 	size_t (*describe_stats)(struct efx_nic *efx, u8 *names);
@@ -1528,8 +1482,6 @@ struct efx_nic_type {
 	int (*sriov_init)(struct efx_nic *efx);
 	void (*sriov_fini)(struct efx_nic *efx);
 	bool (*sriov_wanted)(struct efx_nic *efx);
-	void (*sriov_reset)(struct efx_nic *efx);
-	void (*sriov_flr)(struct efx_nic *efx, unsigned vf_i);
 	int (*sriov_set_vf_mac)(struct efx_nic *efx, int vf_i, const u8 *mac);
 	int (*sriov_set_vf_vlan)(struct efx_nic *efx, int vf_i, u16 vlan,
 				 u8 qos);

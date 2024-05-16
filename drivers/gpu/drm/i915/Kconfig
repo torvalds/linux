@@ -17,6 +17,7 @@ config DRM_I915
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select DRM_MIPI_DSI
+	select FB_IOMEM_HELPERS if DRM_FBDEV_EMULATION
 	select RELAY
 	select I2C
 	select I2C_ALGOBIT

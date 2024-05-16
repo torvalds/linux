@@ -5,6 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
 
+#include "bpf_misc.h"
 #include "cpumask_common.h"
 
 char _license[] SEC("license") = "GPL";
@@ -175,6 +176,38 @@ release_exit:
 }
 
 SEC("tp_btf/task_newtask")
+int BPF_PROG(test_firstand_nocpu, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *mask1, *mask2;
+	u32 first;
+
+	if (!is_test_task())
+		return 0;
+
+	mask1 = create_cpumask();
+	if (!mask1)
+		return 0;
+
+	mask2 = create_cpumask();
+	if (!mask2)
+		goto release_exit;
+
+	bpf_cpumask_set_cpu(0, mask1);
+	bpf_cpumask_set_cpu(1, mask2);
+
+	first = bpf_cpumask_first_and(cast(mask1), cast(mask2));
+	if (first <= 1)
+		err = 3;
+
+release_exit:
+	if (mask1)
+		bpf_cpumask_release(mask1);
+	if (mask2)
+		bpf_cpumask_release(mask2);
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
 int BPF_PROG(test_test_and_set_clear, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *cpumask;
@@ -311,13 +344,13 @@ int BPF_PROG(test_copy_any_anyand, struct task_struct *task, u64 clone_flags)
 	bpf_cpumask_set_cpu(1, mask2);
 	bpf_cpumask_or(dst1, cast(mask1), cast(mask2));
 
-	cpu = bpf_cpumask_any(cast(mask1));
+	cpu = bpf_cpumask_any_distribute(cast(mask1));
 	if (cpu != 0) {
 		err = 6;
 		goto release_exit;
 	}
 
-	cpu = bpf_cpumask_any(cast(dst2));
+	cpu = bpf_cpumask_any_distribute(cast(dst2));
 	if (cpu < nr_cpus) {
 		err = 7;
 		goto release_exit;
@@ -329,13 +362,13 @@ int BPF_PROG(test_copy_any_anyand, struct task_struct *task, u64 clone_flags)
 		goto release_exit;
 	}
 
-	cpu = bpf_cpumask_any(cast(dst2));
+	cpu = bpf_cpumask_any_distribute(cast(dst2));
 	if (cpu > 1) {
 		err = 9;
 		goto release_exit;
 	}
 
-	cpu = bpf_cpumask_any_and(cast(mask1), cast(mask2));
+	cpu = bpf_cpumask_any_and_distribute(cast(mask1), cast(mask2));
 	if (cpu < nr_cpus) {
 		err = 10;
 		goto release_exit;
@@ -424,5 +457,28 @@ int BPF_PROG(test_global_mask_rcu, struct task_struct *task, u64 clone_flags)
 	bpf_cpumask_test_cpu(0, (const struct cpumask *)local);
 	bpf_rcu_read_unlock();
 
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__success
+int BPF_PROG(test_refcount_null_tracking, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *mask1, *mask2;
+
+	mask1 = bpf_cpumask_create();
+	mask2 = bpf_cpumask_create();
+
+	if (!mask1 || !mask2)
+		goto free_masks_return;
+
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)mask1);
+	bpf_cpumask_test_cpu(0, (const struct cpumask *)mask2);
+
+free_masks_return:
+	if (mask1)
+		bpf_cpumask_release(mask1);
+	if (mask2)
+		bpf_cpumask_release(mask2);
 	return 0;
 }

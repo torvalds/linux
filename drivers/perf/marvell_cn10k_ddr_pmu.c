@@ -8,11 +8,10 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/perf_event.h>
 #include <linux/hrtimer.h>
 #include <linux/acpi.h>
+#include <linux/platform_device.h>
 
 /* Performance Counters Operating Mode Control Registers */
 #define DDRC_PERF_CNT_OP_MODE_CTRL	0x8020

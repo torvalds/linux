@@ -252,6 +252,9 @@
 #define PS_TO_REG				200
 #define FIFO_SIZE				8
 
+/* Delay used to get the second part from the LTC */
+#define LAN8841_GET_SEC_LTC_DELAY		(500 * NSEC_PER_MSEC)
+
 struct kszphy_hw_stat {
 	const char *string;
 	u8 reg;
@@ -319,6 +322,10 @@ struct kszphy_ptp_priv {
 	/* Lock for ptp_clock */
 	struct mutex ptp_lock;
 	struct ptp_pin_desc *pin_config;
+
+	s64 seconds;
+	/* Lock for accessing seconds */
+	spinlock_t seconds_lock;
 };
 
 struct kszphy_priv {
@@ -637,7 +644,7 @@ static int ksz8051_ksz8795_match_phy_device(struct phy_device *phydev,
 {
 	int ret;
 
-	if ((phydev->phy_id & MICREL_PHY_ID_MASK) != PHY_ID_KSZ8051)
+	if (!phy_id_compare(phydev->phy_id, PHY_ID_KSZ8051, MICREL_PHY_ID_MASK))
 		return 0;
 
 	ret = phy_read(phydev, MII_BMSR);
@@ -1566,7 +1573,7 @@ static int ksz9x31_cable_test_fault_length(struct phy_device *phydev, u16 stat)
 	 *
 	 * distance to fault = (VCT_DATA - 22) * 4 / cable propagation velocity
 	 */
-	if ((phydev->phy_id & MICREL_PHY_ID_MASK) == PHY_ID_KSZ9131)
+	if (phydev_id_compare(phydev, PHY_ID_KSZ9131))
 		dt = clamp(dt - 22, 0, 255);
 
 	return (dt * 400) / 10;
@@ -1772,6 +1779,82 @@ static int ksz886x_read_status(struct phy_device *phydev)
 		return ret;
 
 	return genphy_read_status(phydev);
+}
+
+struct ksz9477_errata_write {
+	u8 dev_addr;
+	u8 reg_addr;
+	u16 val;
+};
+
+static const struct ksz9477_errata_write ksz9477_errata_writes[] = {
+	 /* Register settings are needed to improve PHY receive performance */
+	{0x01, 0x6f, 0xdd0b},
+	{0x01, 0x8f, 0x6032},
+	{0x01, 0x9d, 0x248c},
+	{0x01, 0x75, 0x0060},
+	{0x01, 0xd3, 0x7777},
+	{0x1c, 0x06, 0x3008},
+	{0x1c, 0x08, 0x2000},
+
+	/* Transmit waveform amplitude can be improved (1000BASE-T, 100BASE-TX, 10BASE-Te) */
+	{0x1c, 0x04, 0x00d0},
+
+	/* Register settings are required to meet data sheet supply current specifications */
+	{0x1c, 0x13, 0x6eff},
+	{0x1c, 0x14, 0xe6ff},
+	{0x1c, 0x15, 0x6eff},
+	{0x1c, 0x16, 0xe6ff},
+	{0x1c, 0x17, 0x00ff},
+	{0x1c, 0x18, 0x43ff},
+	{0x1c, 0x19, 0xc3ff},
+	{0x1c, 0x1a, 0x6fff},
+	{0x1c, 0x1b, 0x07ff},
+	{0x1c, 0x1c, 0x0fff},
+	{0x1c, 0x1d, 0xe7ff},
+	{0x1c, 0x1e, 0xefff},
+	{0x1c, 0x20, 0xeeee},
+};
+
+static int ksz9477_config_init(struct phy_device *phydev)
+{
+	int err;
+	int i;
+
+	/* Apply PHY settings to address errata listed in
+	 * KSZ9477, KSZ9897, KSZ9896, KSZ9567, KSZ8565
+	 * Silicon Errata and Data Sheet Clarification documents.
+	 *
+	 * Document notes: Before configuring the PHY MMD registers, it is
+	 * necessary to set the PHY to 100 Mbps speed with auto-negotiation
+	 * disabled by writing to register 0xN100-0xN101. After writing the
+	 * MMD registers, and after all errata workarounds that involve PHY
+	 * register settings, write register 0xN100-0xN101 again to enable
+	 * and restart auto-negotiation.
+	 */
+	err = phy_write(phydev, MII_BMCR, BMCR_SPEED100 | BMCR_FULLDPLX);
+	if (err)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(ksz9477_errata_writes); ++i) {
+		const struct ksz9477_errata_write *errata = &ksz9477_errata_writes[i];
+
+		err = phy_write_mmd(phydev, errata->dev_addr, errata->reg_addr, errata->val);
+		if (err)
+			return err;
+	}
+
+	/* According to KSZ9477 Errata DS80000754C (Module 4) all EEE modes
+	 * in this switch shall be regarded as broken.
+	 */
+	if (phydev->dev_flags & MICREL_NO_EEE)
+		phydev->eee_broken_modes = -1;
+
+	err = genphy_restart_aneg(phydev);
+	if (err)
+		return err;
+
+	return kszphy_config_init(phydev);
 }
 
 static int kszphy_get_sset_count(struct phy_device *phydev)
@@ -1998,7 +2081,7 @@ static __always_inline int ksz886x_cable_test_fault_length(struct phy_device *ph
 	 */
 	dt = FIELD_GET(data_mask, status);
 
-	if ((phydev->phy_id & MICREL_PHY_ID_MASK) == PHY_ID_LAN8814)
+	if (phydev_id_compare(phydev, PHY_ID_LAN8814))
 		return ((dt - 22) * 800) / 10;
 	else
 		return (dt * 400) / 10;
@@ -3238,6 +3321,9 @@ static int lan8814_probe(struct phy_device *phydev)
 #define LAN8841_PTP_CMD_CTL_PTP_RESET		BIT(0)
 #define LAN8841_PTP_RX_PARSE_CONFIG		368
 #define LAN8841_PTP_TX_PARSE_CONFIG		432
+#define LAN8841_PTP_RX_MODE			381
+#define LAN8841_PTP_INSERT_TS_EN		BIT(0)
+#define LAN8841_PTP_INSERT_TS_32BIT		BIT(1)
 
 static int lan8841_config_init(struct phy_device *phydev)
 {
@@ -3386,68 +3472,18 @@ static void lan8841_ptp_process_tx_ts(struct kszphy_ptp_priv *ptp_priv)
 		lan8814_match_tx_skb(ptp_priv, sec, nsec, seq);
 }
 
-#define LAN8841_PTP_RX_INGRESS_SEC_LO			389
-#define LAN8841_PTP_RX_INGRESS_SEC_HI			388
-#define LAN8841_PTP_RX_INGRESS_NS_LO			387
-#define LAN8841_PTP_RX_INGRESS_NS_HI			386
-#define LAN8841_PTP_RX_INGRESS_NSEC_HI_VALID		BIT(15)
-#define LAN8841_PTP_RX_MSG_HEADER2			391
-
-static struct lan8814_ptp_rx_ts *lan8841_ptp_get_rx_ts(struct kszphy_ptp_priv *ptp_priv)
-{
-	struct phy_device *phydev = ptp_priv->phydev;
-	struct lan8814_ptp_rx_ts *rx_ts;
-	u32 sec, nsec;
-	u16 seq;
-
-	nsec = phy_read_mmd(phydev, 2, LAN8841_PTP_RX_INGRESS_NS_HI);
-	if (!(nsec & LAN8841_PTP_RX_INGRESS_NSEC_HI_VALID))
-		return NULL;
-
-	nsec = ((nsec & 0x3fff) << 16);
-	nsec = nsec | phy_read_mmd(phydev, 2, LAN8841_PTP_RX_INGRESS_NS_LO);
-
-	sec = phy_read_mmd(phydev, 2, LAN8841_PTP_RX_INGRESS_SEC_HI);
-	sec = sec << 16;
-	sec = sec | phy_read_mmd(phydev, 2, LAN8841_PTP_RX_INGRESS_SEC_LO);
-
-	seq = phy_read_mmd(phydev, 2, LAN8841_PTP_RX_MSG_HEADER2);
-
-	rx_ts = kzalloc(sizeof(*rx_ts), GFP_KERNEL);
-	if (!rx_ts)
-		return NULL;
-
-	rx_ts->seconds = sec;
-	rx_ts->nsec = nsec;
-	rx_ts->seq_id = seq;
-
-	return rx_ts;
-}
-
-static void lan8841_ptp_process_rx_ts(struct kszphy_ptp_priv *ptp_priv)
-{
-	struct lan8814_ptp_rx_ts *rx_ts;
-
-	while ((rx_ts = lan8841_ptp_get_rx_ts(ptp_priv)) != NULL)
-		lan8814_match_rx_ts(ptp_priv, rx_ts);
-}
-
 #define LAN8841_PTP_INT_STS			259
 #define LAN8841_PTP_INT_STS_PTP_TX_TS_OVRFL_INT	BIT(13)
 #define LAN8841_PTP_INT_STS_PTP_TX_TS_INT	BIT(12)
-#define LAN8841_PTP_INT_STS_PTP_RX_TS_OVRFL_INT	BIT(9)
-#define LAN8841_PTP_INT_STS_PTP_RX_TS_INT	BIT(8)
 #define LAN8841_PTP_INT_STS_PTP_GPIO_CAP_INT	BIT(2)
 
-static void lan8841_ptp_flush_fifo(struct kszphy_ptp_priv *ptp_priv, bool egress)
+static void lan8841_ptp_flush_fifo(struct kszphy_ptp_priv *ptp_priv)
 {
 	struct phy_device *phydev = ptp_priv->phydev;
 	int i;
 
 	for (i = 0; i < FIFO_SIZE; ++i)
-		phy_read_mmd(phydev, 2,
-			     egress ? LAN8841_PTP_TX_MSG_HEADER2 :
-				      LAN8841_PTP_RX_MSG_HEADER2);
+		phy_read_mmd(phydev, 2, LAN8841_PTP_TX_MSG_HEADER2);
 
 	phy_read_mmd(phydev, 2, LAN8841_PTP_INT_STS);
 }
@@ -3525,23 +3561,17 @@ static void lan8841_handle_ptp_interrupt(struct phy_device *phydev)
 		if (status & LAN8841_PTP_INT_STS_PTP_TX_TS_INT)
 			lan8841_ptp_process_tx_ts(ptp_priv);
 
-		if (status & LAN8841_PTP_INT_STS_PTP_RX_TS_INT)
-			lan8841_ptp_process_rx_ts(ptp_priv);
-
 		if (status & LAN8841_PTP_INT_STS_PTP_GPIO_CAP_INT)
 			lan8841_gpio_process_cap(ptp_priv);
 
 		if (status & LAN8841_PTP_INT_STS_PTP_TX_TS_OVRFL_INT) {
-			lan8841_ptp_flush_fifo(ptp_priv, true);
+			lan8841_ptp_flush_fifo(ptp_priv);
 			skb_queue_purge(&ptp_priv->tx_queue);
 		}
 
-		if (status & LAN8841_PTP_INT_STS_PTP_RX_TS_OVRFL_INT) {
-			lan8841_ptp_flush_fifo(ptp_priv, false);
-			skb_queue_purge(&ptp_priv->rx_queue);
-		}
-
-	} while (status);
+	} while (status & (LAN8841_PTP_INT_STS_PTP_TX_TS_INT |
+			   LAN8841_PTP_INT_STS_PTP_GPIO_CAP_INT |
+			   LAN8841_PTP_INT_STS_PTP_TX_TS_OVRFL_INT));
 }
 
 #define LAN8841_INTS_PTP		BIT(9)
@@ -3605,32 +3635,46 @@ static int lan8841_ts_info(struct mii_timestamper *mii_ts,
 #define LAN8841_PTP_INT_EN			260
 #define LAN8841_PTP_INT_EN_PTP_TX_TS_OVRFL_EN	BIT(13)
 #define LAN8841_PTP_INT_EN_PTP_TX_TS_EN		BIT(12)
-#define LAN8841_PTP_INT_EN_PTP_RX_TS_OVRFL_EN	BIT(9)
-#define LAN8841_PTP_INT_EN_PTP_RX_TS_EN		BIT(8)
 
-static void lan8841_ptp_enable_int(struct kszphy_ptp_priv *ptp_priv,
-				   bool enable)
+static void lan8841_ptp_enable_processing(struct kszphy_ptp_priv *ptp_priv,
+					  bool enable)
 {
 	struct phy_device *phydev = ptp_priv->phydev;
 
-	if (enable)
-		/* Enable interrupts */
+	if (enable) {
+		/* Enable interrupts on the TX side */
 		phy_modify_mmd(phydev, 2, LAN8841_PTP_INT_EN,
 			       LAN8841_PTP_INT_EN_PTP_TX_TS_OVRFL_EN |
-			       LAN8841_PTP_INT_EN_PTP_RX_TS_OVRFL_EN |
-			       LAN8841_PTP_INT_EN_PTP_TX_TS_EN |
-			       LAN8841_PTP_INT_EN_PTP_RX_TS_EN,
+			       LAN8841_PTP_INT_EN_PTP_TX_TS_EN,
 			       LAN8841_PTP_INT_EN_PTP_TX_TS_OVRFL_EN |
-			       LAN8841_PTP_INT_EN_PTP_RX_TS_OVRFL_EN |
-			       LAN8841_PTP_INT_EN_PTP_TX_TS_EN |
-			       LAN8841_PTP_INT_EN_PTP_RX_TS_EN);
-	else
-		/* Disable interrupts */
+			       LAN8841_PTP_INT_EN_PTP_TX_TS_EN);
+
+		/* Enable the modification of the frame on RX side,
+		 * this will add the ns and 2 bits of sec in the reserved field
+		 * of the PTP header
+		 */
+		phy_modify_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
+			       LAN8841_PTP_RX_MODE,
+			       LAN8841_PTP_INSERT_TS_EN |
+			       LAN8841_PTP_INSERT_TS_32BIT,
+			       LAN8841_PTP_INSERT_TS_EN |
+			       LAN8841_PTP_INSERT_TS_32BIT);
+
+		ptp_schedule_worker(ptp_priv->ptp_clock, 0);
+	} else {
+		/* Disable interrupts on the TX side */
 		phy_modify_mmd(phydev, 2, LAN8841_PTP_INT_EN,
 			       LAN8841_PTP_INT_EN_PTP_TX_TS_OVRFL_EN |
-			       LAN8841_PTP_INT_EN_PTP_RX_TS_OVRFL_EN |
-			       LAN8841_PTP_INT_EN_PTP_TX_TS_EN |
-			       LAN8841_PTP_INT_EN_PTP_RX_TS_EN, 0);
+			       LAN8841_PTP_INT_EN_PTP_TX_TS_EN, 0);
+
+		/* Disable modification of the RX frames */
+		phy_modify_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
+			       LAN8841_PTP_RX_MODE,
+			       LAN8841_PTP_INSERT_TS_EN |
+			       LAN8841_PTP_INSERT_TS_32BIT, 0);
+
+		ptp_cancel_worker_sync(ptp_priv->ptp_clock);
+	}
 }
 
 #define LAN8841_PTP_RX_TIMESTAMP_EN		379
@@ -3641,7 +3685,6 @@ static int lan8841_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 {
 	struct kszphy_ptp_priv *ptp_priv = container_of(mii_ts, struct kszphy_ptp_priv, mii_ts);
 	struct phy_device *phydev = ptp_priv->phydev;
-	struct lan8814_ptp_rx_ts *rx_ts, *tmp;
 	struct hwtstamp_config config;
 	int txcfg = 0, rxcfg = 0;
 	int pkt_ts_enable;
@@ -3705,22 +3748,59 @@ static int lan8841_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 				PTP_TX_MOD_TX_PTP_SYNC_TS_INSERT_ : 0);
 
 	/* Now enable/disable the timestamping */
-	lan8841_ptp_enable_int(ptp_priv,
-			       config.rx_filter != HWTSTAMP_FILTER_NONE);
+	lan8841_ptp_enable_processing(ptp_priv,
+				      config.rx_filter != HWTSTAMP_FILTER_NONE);
 
-	/* In case of multiple starts and stops, these needs to be cleared */
-	list_for_each_entry_safe(rx_ts, tmp, &ptp_priv->rx_ts_list, list) {
-		list_del(&rx_ts->list);
-		kfree(rx_ts);
-	}
-
-	skb_queue_purge(&ptp_priv->rx_queue);
 	skb_queue_purge(&ptp_priv->tx_queue);
 
-	lan8841_ptp_flush_fifo(ptp_priv, false);
-	lan8841_ptp_flush_fifo(ptp_priv, true);
+	lan8841_ptp_flush_fifo(ptp_priv);
 
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
+}
+
+static bool lan8841_rxtstamp(struct mii_timestamper *mii_ts,
+			     struct sk_buff *skb, int type)
+{
+	struct kszphy_ptp_priv *ptp_priv =
+			container_of(mii_ts, struct kszphy_ptp_priv, mii_ts);
+	struct ptp_header *header = ptp_parse_header(skb, type);
+	struct skb_shared_hwtstamps *shhwtstamps;
+	struct timespec64 ts;
+	unsigned long flags;
+	u32 ts_header;
+
+	if (!header)
+		return false;
+
+	if (ptp_priv->rx_filter == HWTSTAMP_FILTER_NONE ||
+	    type == PTP_CLASS_NONE)
+		return false;
+
+	if ((type & ptp_priv->version) == 0 || (type & ptp_priv->layer) == 0)
+		return false;
+
+	spin_lock_irqsave(&ptp_priv->seconds_lock, flags);
+	ts.tv_sec = ptp_priv->seconds;
+	spin_unlock_irqrestore(&ptp_priv->seconds_lock, flags);
+	ts_header = __be32_to_cpu(header->reserved2);
+
+	shhwtstamps = skb_hwtstamps(skb);
+	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+
+	/* Check for any wrap arounds for the second part */
+	if ((ts.tv_sec & GENMASK(1, 0)) == 0 && (ts_header >> 30) == 3)
+		ts.tv_sec -= GENMASK(1, 0) + 1;
+	else if ((ts.tv_sec & GENMASK(1, 0)) == 3 && (ts_header >> 30) == 0)
+		ts.tv_sec += 1;
+
+	shhwtstamps->hwtstamp =
+		ktime_set((ts.tv_sec & ~(GENMASK(1, 0))) | ts_header >> 30,
+			  ts_header & GENMASK(29, 0));
+	header->reserved2 = 0;
+
+	netif_rx(skb);
+
+	return true;
 }
 
 #define LAN8841_EVENT_A		0
@@ -3807,6 +3887,7 @@ static int lan8841_ptp_settime64(struct ptp_clock_info *ptp,
 	struct kszphy_ptp_priv *ptp_priv = container_of(ptp, struct kszphy_ptp_priv,
 							ptp_clock_info);
 	struct phy_device *phydev = ptp_priv->phydev;
+	unsigned long flags;
 	int ret;
 
 	/* Set the value to be stored */
@@ -3822,6 +3903,10 @@ static int lan8841_ptp_settime64(struct ptp_clock_info *ptp,
 		      LAN8841_PTP_CMD_CTL_PTP_LTC_LOAD);
 	ret = lan8841_ptp_update_target(ptp_priv, ts);
 	mutex_unlock(&ptp_priv->ptp_lock);
+
+	spin_lock_irqsave(&ptp_priv->seconds_lock, flags);
+	ptp_priv->seconds = ts->tv_sec;
+	spin_unlock_irqrestore(&ptp_priv->seconds_lock, flags);
 
 	return ret;
 }
@@ -3861,6 +3946,30 @@ static int lan8841_ptp_gettime64(struct ptp_clock_info *ptp,
 
 	set_normalized_timespec64(ts, s, ns);
 	return 0;
+}
+
+static void lan8841_ptp_getseconds(struct ptp_clock_info *ptp,
+				   struct timespec64 *ts)
+{
+	struct kszphy_ptp_priv *ptp_priv = container_of(ptp, struct kszphy_ptp_priv,
+							ptp_clock_info);
+	struct phy_device *phydev = ptp_priv->phydev;
+	time64_t s;
+
+	mutex_lock(&ptp_priv->ptp_lock);
+	/* Issue the command to read the LTC */
+	phy_write_mmd(phydev, 2, LAN8841_PTP_CMD_CTL,
+		      LAN8841_PTP_CMD_CTL_PTP_LTC_READ);
+
+	/* Read the LTC */
+	s = phy_read_mmd(phydev, 2, LAN8841_PTP_LTC_RD_SEC_HI);
+	s <<= 16;
+	s |= phy_read_mmd(phydev, 2, LAN8841_PTP_LTC_RD_SEC_MID);
+	s <<= 16;
+	s |= phy_read_mmd(phydev, 2, LAN8841_PTP_LTC_RD_SEC_LO);
+	mutex_unlock(&ptp_priv->ptp_lock);
+
+	set_normalized_timespec64(ts, s, 0);
 }
 
 #define LAN8841_PTP_LTC_STEP_ADJ_LO			276
@@ -4365,6 +4474,22 @@ static int lan8841_ptp_enable(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+static long lan8841_ptp_do_aux_work(struct ptp_clock_info *ptp)
+{
+	struct kszphy_ptp_priv *ptp_priv = container_of(ptp, struct kszphy_ptp_priv,
+							ptp_clock_info);
+	struct timespec64 ts;
+	unsigned long flags;
+
+	lan8841_ptp_getseconds(&ptp_priv->ptp_clock_info, &ts);
+
+	spin_lock_irqsave(&ptp_priv->seconds_lock, flags);
+	ptp_priv->seconds = ts.tv_sec;
+	spin_unlock_irqrestore(&ptp_priv->seconds_lock, flags);
+
+	return nsecs_to_jiffies(LAN8841_GET_SEC_LTC_DELAY);
+}
+
 static struct ptp_clock_info lan8841_ptp_clock_info = {
 	.owner		= THIS_MODULE,
 	.name		= "lan8841 ptp",
@@ -4375,6 +4500,7 @@ static struct ptp_clock_info lan8841_ptp_clock_info = {
 	.adjfine	= lan8841_ptp_adjfine,
 	.verify         = lan8841_ptp_verify,
 	.enable         = lan8841_ptp_enable,
+	.do_aux_work	= lan8841_ptp_do_aux_work,
 	.n_per_out      = LAN8841_PTP_GPIO_NUM,
 	.n_ext_ts       = LAN8841_PTP_GPIO_NUM,
 	.n_pins         = LAN8841_PTP_GPIO_NUM,
@@ -4435,13 +4561,11 @@ static int lan8841_probe(struct phy_device *phydev)
 
 	/* Initialize the SW */
 	skb_queue_head_init(&ptp_priv->tx_queue);
-	skb_queue_head_init(&ptp_priv->rx_queue);
-	INIT_LIST_HEAD(&ptp_priv->rx_ts_list);
-	spin_lock_init(&ptp_priv->rx_ts_lock);
 	ptp_priv->phydev = phydev;
 	mutex_init(&ptp_priv->ptp_lock);
+	spin_lock_init(&ptp_priv->seconds_lock);
 
-	ptp_priv->mii_ts.rxtstamp = lan8814_rxtstamp;
+	ptp_priv->mii_ts.rxtstamp = lan8841_rxtstamp;
 	ptp_priv->mii_ts.txtstamp = lan8814_txtstamp;
 	ptp_priv->mii_ts.hwtstamp = lan8841_hwtstamp;
 	ptp_priv->mii_ts.ts_info = lan8841_ts_info;
@@ -4449,6 +4573,16 @@ static int lan8841_probe(struct phy_device *phydev)
 	phydev->mii_ts = &ptp_priv->mii_ts;
 
 	return 0;
+}
+
+static int lan8841_suspend(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+	struct kszphy_ptp_priv *ptp_priv = &priv->ptp_priv;
+
+	ptp_cancel_worker_sync(ptp_priv->ptp_clock);
+
+	return genphy_suspend(phydev);
 }
 
 static struct phy_driver ksphy_driver[] = {
@@ -4674,7 +4808,7 @@ static struct phy_driver ksphy_driver[] = {
 	.get_sset_count = kszphy_get_sset_count,
 	.get_strings	= kszphy_get_strings,
 	.get_stats	= kszphy_get_stats,
-	.suspend	= genphy_suspend,
+	.suspend	= lan8841_suspend,
 	.resume		= genphy_resume,
 	.cable_test_start	= lan8814_cable_test_start,
 	.cable_test_get_status	= ksz886x_cable_test_get_status,
@@ -4735,7 +4869,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip KSZ9477",
 	/* PHY_GBIT_FEATURES */
-	.config_init	= kszphy_config_init,
+	.config_init	= ksz9477_config_init,
 	.config_intr	= kszphy_config_intr,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.suspend	= genphy_suspend,

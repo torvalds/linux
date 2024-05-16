@@ -234,9 +234,9 @@ struct mctp_flow {
 struct mctp_route {
 	mctp_eid_t		min, max;
 
-	struct mctp_dev		*dev;
-	unsigned int		mtu;
 	unsigned char		type;
+	unsigned int		mtu;
+	struct mctp_dev		*dev;
 	int			(*output)(struct mctp_route *route,
 					  struct sk_buff *skb);
 

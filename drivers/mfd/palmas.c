@@ -18,7 +18,8 @@
 #include <linux/err.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/palmas.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
 static const struct regmap_config palmas_regmap_config[PALMAS_NUM_CLIENTS] = {
 	{
@@ -725,7 +726,7 @@ static struct i2c_driver palmas_i2c_driver = {
 		   .name = "palmas",
 		   .of_match_table = of_palmas_match_tbl,
 	},
-	.probe_new = palmas_i2c_probe,
+	.probe = palmas_i2c_probe,
 	.remove = palmas_i2c_remove,
 	.id_table = palmas_i2c_id,
 };

@@ -5,8 +5,8 @@
  * Copyright 2019, IBM Corporation.
  *
  */
+#include <linux/export.h>
 #include <asm/ppc_asm.h>
-#include <asm/export.h>
 
 _GLOBAL(ucall_norets)
 EXPORT_SYMBOL_GPL(ucall_norets)

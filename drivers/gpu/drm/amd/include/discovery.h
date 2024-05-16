@@ -30,7 +30,7 @@
 #define GC_TABLE_ID                     0x4347
 #define HARVEST_TABLE_SIGNATURE         0x56524148
 #define VCN_INFO_TABLE_ID               0x004E4356
-#define MALL_INFO_TABLE_ID              0x4D414C4C
+#define MALL_INFO_TABLE_ID              0x4C4C414D
 
 typedef enum
 {
@@ -79,7 +79,14 @@ typedef struct ip_discovery_header
 	uint32_t id;           /* Table ID */
 	uint16_t num_dies;     /* Number of Dies */
 	die_info die_info[16]; /* list die information for up to 16 dies */
-	uint16_t padding[1];   /* padding */
+	union {
+		uint16_t padding[1];	/* version <= 3 */
+		struct {		/* version == 4 */
+			uint8_t base_addr_64_bit : 1; /* ip structures are using 64 bit base address */
+			uint8_t reserved : 7;
+			uint8_t reserved2;
+		};
+	};
 } ip_discovery_header;
 
 typedef struct ip
@@ -115,8 +122,28 @@ typedef struct ip_v3
 	uint8_t sub_revision : 4;               /* HCID Sub-Revision */
 	uint8_t variant : 4;                    /* HW variant */
 #endif
-	uint32_t base_address[1];               /* Base Address list. Corresponds to the num_base_address field*/
+	uint32_t base_address[];		/* Base Address list. Corresponds to the num_base_address field*/
 } ip_v3;
+
+typedef struct ip_v4 {
+	uint16_t hw_id;                         /* Hardware ID */
+	uint8_t instance_number;                /* Instance number for the IP */
+	uint8_t num_base_address;               /* Number of base addresses*/
+	uint8_t major;                          /* Hardware ID.major version */
+	uint8_t minor;                          /* Hardware ID.minor version */
+	uint8_t revision;                       /* Hardware ID.revision version */
+#if defined(LITTLEENDIAN_CPU)
+	uint8_t sub_revision : 4;               /* HCID Sub-Revision */
+	uint8_t variant : 4;                    /* HW variant */
+#elif defined(BIGENDIAN_CPU)
+	uint8_t variant : 4;                    /* HW variant */
+	uint8_t sub_revision : 4;               /* HCID Sub-Revision */
+#endif
+	union {
+		DECLARE_FLEX_ARRAY(uint32_t, base_address);	/* 32-bit Base Address list. Corresponds to the num_base_address field*/
+		DECLARE_FLEX_ARRAY(uint64_t, base_address_64);	/* 64-bit Base Address list. Corresponds to the num_base_address field*/
+	} __packed;
+} ip_v4;
 
 typedef struct die_header
 {
@@ -134,6 +161,7 @@ typedef struct ip_structure
 		{
 			ip *ip_list;
 			ip_v3 *ip_v3_list;
+			ip_v4 *ip_v4_list;
 		};                                  /* IP list. Variable size*/
 	} die;
 } ip_structure;
@@ -252,6 +280,36 @@ struct gc_info_v2_0 {
 	uint32_t gc_num_packer_per_sc;
 };
 
+struct gc_info_v2_1 {
+	struct gpu_info_header header;
+
+	uint32_t gc_num_se;
+	uint32_t gc_num_cu_per_sh;
+	uint32_t gc_num_sh_per_se;
+	uint32_t gc_num_rb_per_se;
+	uint32_t gc_num_tccs;
+	uint32_t gc_num_gprs;
+	uint32_t gc_num_max_gs_thds;
+	uint32_t gc_gs_table_depth;
+	uint32_t gc_gsprim_buff_depth;
+	uint32_t gc_parameter_cache_depth;
+	uint32_t gc_double_offchip_lds_buffer;
+	uint32_t gc_wave_size;
+	uint32_t gc_max_waves_per_simd;
+	uint32_t gc_max_scratch_slots_per_cu;
+	uint32_t gc_lds_size;
+	uint32_t gc_num_sc_per_se;
+	uint32_t gc_num_packer_per_sc;
+	/* new for v2_1 */
+	uint32_t gc_num_tcp_per_sh;
+	uint32_t gc_tcp_size_per_cu;
+	uint32_t gc_num_sdp_interface;
+	uint32_t gc_num_cu_per_sqc;
+	uint32_t gc_instruction_cache_size_per_sqc;
+	uint32_t gc_scalar_data_cache_size_per_sqc;
+	uint32_t gc_tcc_size;
+};
+
 typedef struct harvest_info_header {
 	uint32_t signature; /* Table Signature */
 	uint32_t version;   /* Table Version */
@@ -282,6 +340,12 @@ struct mall_info_v1_0 {
 	uint32_t m_half_use;
 	uint32_t m_mall_config;
 	uint32_t reserved[5];
+};
+
+struct mall_info_v2_0 {
+	struct mall_info_header header;
+	uint32_t mall_size_per_umc;
+	uint32_t reserved[8];
 };
 
 #define VCN_INFO_TABLE_MAX_NUM_INSTANCES 4

@@ -184,7 +184,7 @@ out:
 
 static int process_branch_callback(struct evsel *evsel,
 				   struct perf_sample *sample,
-				   struct addr_location *al __maybe_unused,
+				   struct addr_location *al,
 				   struct perf_annotate *ann,
 				   struct machine *machine)
 {
@@ -195,21 +195,29 @@ static int process_branch_callback(struct evsel *evsel,
 		.hide_unresolved	= symbol_conf.hide_unresolved,
 		.ops		= &hist_iter_branch,
 	};
-
 	struct addr_location a;
+	int ret;
 
-	if (machine__resolve(machine, &a, sample) < 0)
-		return -1;
+	addr_location__init(&a);
+	if (machine__resolve(machine, &a, sample) < 0) {
+		ret = -1;
+		goto out;
+	}
 
-	if (a.sym == NULL)
-		return 0;
+	if (a.sym == NULL) {
+		ret = 0;
+		goto out;
+	}
 
 	if (a.map != NULL)
 		map__dso(a.map)->hit = 1;
 
 	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
 
-	return hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
+	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
+out:
+	addr_location__exit(&a);
+	return ret;
 }
 
 static bool has_annotation(struct perf_annotate *ann)
@@ -272,10 +280,12 @@ static int process_sample_event(struct perf_tool *tool,
 	struct addr_location al;
 	int ret = 0;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
-		return -1;
+		ret = -1;
+		goto out_put;
 	}
 
 	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
@@ -288,7 +298,7 @@ static int process_sample_event(struct perf_tool *tool,
 		ret = -1;
 	}
 out_put:
-	addr_location__put(&al);
+	addr_location__exit(&al);
 	return ret;
 }
 
@@ -342,7 +352,7 @@ static void hists__find_annotations(struct hists *hists,
 		notes = symbol__annotation(he->ms.sym);
 		if (notes->src == NULL) {
 find_next:
-			if (key == K_LEFT)
+			if (key == K_LEFT || key == '<')
 				nd = rb_prev(nd);
 			else
 				nd = rb_next(nd);
@@ -378,9 +388,11 @@ find_next:
 					return;
 				/* fall through */
 			case K_RIGHT:
+			case '>':
 				next = rb_next(nd);
 				break;
 			case K_LEFT:
+			case '<':
 				next = rb_prev(nd);
 				break;
 			default:

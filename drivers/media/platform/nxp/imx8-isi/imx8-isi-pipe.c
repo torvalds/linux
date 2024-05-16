@@ -791,7 +791,6 @@ int mxc_isi_pipe_init(struct mxc_isi_dev *isi, unsigned int id)
 
 	irq = platform_get_irq(to_platform_device(isi->dev), id);
 	if (irq < 0) {
-		dev_err(pipe->isi->dev, "Failed to get IRQ (%d)\n", irq);
 		ret = irq;
 		goto error;
 	}

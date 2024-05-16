@@ -15,6 +15,7 @@
 #include <linux/spinlock.h>
 #include <asm/hwcap.h>
 #include <asm/kvm_aia.h>
+#include <asm/ptrace.h>
 #include <asm/kvm_vcpu_fp.h>
 #include <asm/kvm_vcpu_insn.h>
 #include <asm/kvm_vcpu_sbi.h>
@@ -26,6 +27,8 @@
 #define KVM_HALT_POLL_NS_DEFAULT	500000
 
 #define KVM_VCPU_MAX_FEATURES		0
+
+#define KVM_IRQCHIP_NUM_PINS		1024
 
 #define KVM_REQ_SLEEP \
 	KVM_ARCH_REQ_FLAGS(0, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
@@ -145,6 +148,7 @@ struct kvm_cpu_context {
 	unsigned long sstatus;
 	unsigned long hstatus;
 	union __riscv_fp_state fp;
+	struct __riscv_v_ext_state vector;
 };
 
 struct kvm_vcpu_csr {
@@ -318,6 +322,8 @@ int kvm_riscv_gstage_vmid_init(struct kvm *kvm);
 bool kvm_riscv_gstage_vmid_ver_changed(struct kvm_vmid *vmid);
 void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu);
 
+int kvm_riscv_setup_default_irq_routing(struct kvm *kvm, u32 lines);
+
 void __kvm_riscv_unpriv_trap(void);
 
 unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
@@ -330,6 +336,15 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			struct kvm_cpu_trap *trap);
 
 void __kvm_riscv_switch_to(struct kvm_vcpu_arch *vcpu_arch);
+
+void kvm_riscv_vcpu_setup_isa(struct kvm_vcpu *vcpu);
+unsigned long kvm_riscv_vcpu_num_regs(struct kvm_vcpu *vcpu);
+int kvm_riscv_vcpu_copy_reg_indices(struct kvm_vcpu *vcpu,
+				    u64 __user *uindices);
+int kvm_riscv_vcpu_get_reg(struct kvm_vcpu *vcpu,
+			   const struct kvm_one_reg *reg);
+int kvm_riscv_vcpu_set_reg(struct kvm_vcpu *vcpu,
+			   const struct kvm_one_reg *reg);
 
 int kvm_riscv_vcpu_set_interrupt(struct kvm_vcpu *vcpu, unsigned int irq);
 int kvm_riscv_vcpu_unset_interrupt(struct kvm_vcpu *vcpu, unsigned int irq);

@@ -263,7 +263,7 @@ int ath11k_pcic_get_user_msi_assignment(struct ath11k_base *ab, char *user_name,
 			*user_base_data = *base_vector + ab->pci.msi.ep_base_data;
 
 			ath11k_dbg(ab, ATH11K_DBG_PCI,
-				   "Assign MSI to user: %s, num_vectors: %d, user_base_data: %u, base_vector: %u\n",
+				   "msi assignment %s num_vectors %d user_base_data %u base_vector %u\n",
 				   user_name, *num_vectors, *user_base_data,
 				   *base_vector);
 
@@ -466,7 +466,6 @@ void ath11k_pcic_ext_irq_enable(struct ath11k_base *ab)
 		struct ath11k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
 
 		if (!irq_grp->napi_enabled) {
-			dev_set_threaded(&irq_grp->napi_ndev, true);
 			napi_enable(&irq_grp->napi);
 			irq_grp->napi_enabled = true;
 		}
@@ -527,7 +526,7 @@ static irqreturn_t ath11k_pcic_ext_interrupt_handler(int irq, void *arg)
 	if (!test_bit(ATH11K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags))
 		return IRQ_HANDLED;
 
-	ath11k_dbg(irq_grp->ab, ATH11K_DBG_PCI, "ext irq:%d\n", irq);
+	ath11k_dbg(irq_grp->ab, ATH11K_DBG_PCI, "ext irq %d\n", irq);
 
 	/* last interrupt received for this group */
 	irq_grp->timestamp = jiffies;
@@ -597,7 +596,7 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
 			ab->irq_num[irq_idx] = irq;
 
 			ath11k_dbg(ab, ATH11K_DBG_PCI,
-				   "irq:%d group:%d\n", irq, i);
+				   "irq %d group %d\n", irq, i);
 
 			irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
 			ret = request_irq(irq, ath11k_pcic_ext_interrupt_handler,

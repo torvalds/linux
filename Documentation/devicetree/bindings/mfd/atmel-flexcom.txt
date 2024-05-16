@@ -6,6 +6,7 @@ at boot time according to the device tree.
 
 Required properties:
 - compatible:		Should be "atmel,sama5d2-flexcom"
+			or "microchip,sam9x7-flexcom", "atmel,sama5d2-flexcom"
 - reg:			Should be the offset/length value for Flexcom dedicated
 			I/O registers (without USART, TWI or SPI registers).
 - clocks:		Should be the Flexcom peripheral clock from PMC.

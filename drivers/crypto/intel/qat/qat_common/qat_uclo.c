@@ -11,7 +11,7 @@
 #include "icp_qat_hal.h"
 #include "icp_qat_fw_loader_handle.h"
 
-#define UWORD_CPYBUF_SIZE 1024
+#define UWORD_CPYBUF_SIZE 1024U
 #define INVLD_UWORD 0xffffffffffull
 #define PID_MINOR_REV 0xf
 #define PID_MAJOR_REV (0xf << 4)
@@ -1685,7 +1685,7 @@ static void qat_uclo_del_mof(struct icp_qat_fw_loader_handle *handle)
 }
 
 static int qat_uclo_seek_obj_inside_mof(struct icp_qat_mof_handle *mobj_handle,
-					char *obj_name, char **obj_ptr,
+					const char *obj_name, char **obj_ptr,
 					unsigned int *obj_size)
 {
 	struct icp_qat_mof_objhdr *obj_hdr = mobj_handle->obj_table.obj_hdr;
@@ -1837,8 +1837,8 @@ static int qat_uclo_check_mof_format(struct icp_qat_mof_file_hdr *mof_hdr)
 
 static int qat_uclo_map_mof_obj(struct icp_qat_fw_loader_handle *handle,
 				struct icp_qat_mof_file_hdr *mof_ptr,
-				u32 mof_size, char *obj_name, char **obj_ptr,
-				unsigned int *obj_size)
+				u32 mof_size, const char *obj_name,
+				char **obj_ptr, unsigned int *obj_size)
 {
 	struct icp_qat_mof_chunkhdr *mof_chunkhdr;
 	unsigned int file_id = mof_ptr->file_id;
@@ -1888,7 +1888,7 @@ static int qat_uclo_map_mof_obj(struct icp_qat_fw_loader_handle *handle,
 }
 
 int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
-		     void *addr_ptr, u32 mem_size, char *obj_name)
+		     void *addr_ptr, u32 mem_size, const char *obj_name)
 {
 	char *obj_addr;
 	u32 obj_size;
@@ -1986,10 +1986,7 @@ static void qat_uclo_wr_uimage_raw_page(struct icp_qat_fw_loader_handle *handle,
 	uw_relative_addr = 0;
 	words_num = encap_page->micro_words_num;
 	while (words_num) {
-		if (words_num < UWORD_CPYBUF_SIZE)
-			cpylen = words_num;
-		else
-			cpylen = UWORD_CPYBUF_SIZE;
+		cpylen = min(words_num, UWORD_CPYBUF_SIZE);
 
 		/* load the buffer */
 		for (i = 0; i < cpylen; i++)

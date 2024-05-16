@@ -46,7 +46,7 @@ static int pcm186x_i2c_probe(struct i2c_client *i2c)
 }
 
 static struct i2c_driver pcm186x_i2c_driver = {
-	.probe_new	= pcm186x_i2c_probe,
+	.probe		= pcm186x_i2c_probe,
 	.id_table	= pcm186x_i2c_id,
 	.driver		= {
 		.name	= "pcm186x",

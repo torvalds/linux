@@ -35,6 +35,7 @@ static const char * const nct6775_sio_names[] __initconst = {
 	"NCT6796D",
 	"NCT6797D",
 	"NCT6798D",
+	"NCT6796D-S/NCT6799D-R",
 };
 
 static unsigned short force_id;
@@ -85,6 +86,7 @@ MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
 #define SIO_NCT6796_ID		0xd420
 #define SIO_NCT6797_ID		0xd450
 #define SIO_NCT6798_ID		0xd428
+#define SIO_NCT6799_ID		0xd800
 #define SIO_ID_MASK		0xFFF8
 
 /*
@@ -418,7 +420,7 @@ static int nct6775_resume(struct device *dev)
 	if (data->kind == nct6791 || data->kind == nct6792 ||
 	    data->kind == nct6793 || data->kind == nct6795 ||
 	    data->kind == nct6796 || data->kind == nct6797 ||
-	    data->kind == nct6798)
+	    data->kind == nct6798 || data->kind == nct6799)
 		nct6791_enable_io_mapping(sio_data);
 
 	sio_data->sio_exit(sio_data);
@@ -565,7 +567,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 	} else {
 		/*
 		 * NCT6779D, NCT6791D, NCT6792D, NCT6793D, NCT6795D, NCT6796D,
-		 * NCT6797D, NCT6798D
+		 * NCT6797D, NCT6798D, NCT6799D
 		 */
 		int cr1a = sio_data->sio_inb(sio_data, 0x1a);
 		int cr1b = sio_data->sio_inb(sio_data, 0x1b);
@@ -575,11 +577,16 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 		int cr2b = sio_data->sio_inb(sio_data, 0x2b);
 		int cr2d = sio_data->sio_inb(sio_data, 0x2d);
 		int cr2f = sio_data->sio_inb(sio_data, 0x2f);
+		bool vsb_ctl_en = cr2f & BIT(0);
 		bool dsw_en = cr2f & BIT(3);
 		bool ddr4_en = cr2f & BIT(4);
+		bool as_seq1_en = cr2f & BIT(7);
 		int cre0;
+		int cre6;
 		int creb;
 		int cred;
+
+		cre6 = sio_data->sio_inb(sio_data, 0xe6);
 
 		sio_data->sio_select(sio_data, NCT6775_LD_12);
 		cre0 = sio_data->sio_inb(sio_data, 0xe0);
@@ -683,6 +690,29 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 			pwm7pin = !(cr1d & (BIT(2) | BIT(3)));
 			pwm7pin |= cr2d & BIT(7);
 			pwm7pin |= creb & BIT(2);
+			break;
+		case nct6799:
+			fan4pin = cr1c & BIT(6);
+			fan5pin = cr1c & BIT(7);
+
+			fan6pin = !(cr1b & BIT(0)) && (cre0 & BIT(3));
+			fan6pin |= cre6 & BIT(5);
+			fan6pin |= creb & BIT(5);
+			fan6pin |= !as_seq1_en && (cr2a & BIT(4));
+
+			fan7pin = cr1b & BIT(5);
+			fan7pin |= !vsb_ctl_en && !(cr2b & BIT(2));
+			fan7pin |= creb & BIT(3);
+
+			pwm6pin = !(cr1b & BIT(0)) && (cre0 & BIT(4));
+			pwm6pin |= !as_seq1_en && !(cred & BIT(2)) && (cr2a & BIT(3));
+			pwm6pin |= (creb & BIT(4)) && !(cr2a & BIT(0));
+			pwm6pin |= cre6 & BIT(3);
+
+			pwm7pin = !vsb_ctl_en && !(cr1d & (BIT(2) | BIT(3)));
+			pwm7pin |= creb & BIT(2);
+			pwm7pin |= cr2d & BIT(7);
+
 			break;
 		default:	/* NCT6779D */
 			break;
@@ -838,6 +868,7 @@ static int nct6775_platform_probe_init(struct nct6775_data *data)
 	case nct6796:
 	case nct6797:
 	case nct6798:
+	case nct6799:
 		break;
 	}
 
@@ -876,6 +907,7 @@ static int nct6775_platform_probe_init(struct nct6775_data *data)
 		case nct6796:
 		case nct6797:
 		case nct6798:
+		case nct6799:
 			tmp |= 0x7e;
 			break;
 		}
@@ -1005,6 +1037,9 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	case SIO_NCT6798_ID:
 		sio_data->kind = nct6798;
 		break;
+	case SIO_NCT6799_ID:
+		sio_data->kind = nct6799;
+		break;
 	default:
 		if (val != 0xffff)
 			pr_debug("unsupported chip ID: 0x%04x\n", val);
@@ -1033,7 +1068,7 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	if (sio_data->kind == nct6791 || sio_data->kind == nct6792 ||
 	    sio_data->kind == nct6793 || sio_data->kind == nct6795 ||
 	    sio_data->kind == nct6796 || sio_data->kind == nct6797 ||
-	    sio_data->kind == nct6798)
+	    sio_data->kind == nct6798 || sio_data->kind == nct6799)
 		nct6791_enable_io_mapping(sio_data);
 
 	sio_data->sio_exit(sio_data);

@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/units.h>
 #include <linux/fpga-dfl.h>
 
 #include "dfl.h"
@@ -231,19 +232,19 @@ static int thermal_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	switch (attr) {
 	case hwmon_temp_input:
 		v = readq(feature->ioaddr + FME_THERM_RDSENSOR_FMT1);
-		*val = (long)(FIELD_GET(FPGA_TEMPERATURE, v) * 1000);
+		*val = (long)(FIELD_GET(FPGA_TEMPERATURE, v) * MILLI);
 		break;
 	case hwmon_temp_max:
 		v = readq(feature->ioaddr + FME_THERM_THRESHOLD);
-		*val = (long)(FIELD_GET(TEMP_THRESHOLD1, v) * 1000);
+		*val = (long)(FIELD_GET(TEMP_THRESHOLD1, v) * MILLI);
 		break;
 	case hwmon_temp_crit:
 		v = readq(feature->ioaddr + FME_THERM_THRESHOLD);
-		*val = (long)(FIELD_GET(TEMP_THRESHOLD2, v) * 1000);
+		*val = (long)(FIELD_GET(TEMP_THRESHOLD2, v) * MILLI);
 		break;
 	case hwmon_temp_emergency:
 		v = readq(feature->ioaddr + FME_THERM_THRESHOLD);
-		*val = (long)(FIELD_GET(TRIP_THRESHOLD, v) * 1000);
+		*val = (long)(FIELD_GET(TRIP_THRESHOLD, v) * MILLI);
 		break;
 	case hwmon_temp_max_alarm:
 		v = readq(feature->ioaddr + FME_THERM_THRESHOLD);
@@ -265,7 +266,7 @@ static const struct hwmon_ops thermal_hwmon_ops = {
 	.read = thermal_hwmon_read,
 };
 
-static const struct hwmon_channel_info *thermal_hwmon_info[] = {
+static const struct hwmon_channel_info * const thermal_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_EMERGENCY |
 				 HWMON_T_MAX   | HWMON_T_MAX_ALARM |
 				 HWMON_T_CRIT  | HWMON_T_CRIT_ALARM),
@@ -382,15 +383,15 @@ static int power_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	switch (attr) {
 	case hwmon_power_input:
 		v = readq(feature->ioaddr + FME_PWR_STATUS);
-		*val = (long)(FIELD_GET(PWR_CONSUMED, v) * 1000000);
+		*val = (long)(FIELD_GET(PWR_CONSUMED, v) * MICRO);
 		break;
 	case hwmon_power_max:
 		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
-		*val = (long)(FIELD_GET(PWR_THRESHOLD1, v) * 1000000);
+		*val = (long)(FIELD_GET(PWR_THRESHOLD1, v) * MICRO);
 		break;
 	case hwmon_power_crit:
 		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
-		*val = (long)(FIELD_GET(PWR_THRESHOLD2, v) * 1000000);
+		*val = (long)(FIELD_GET(PWR_THRESHOLD2, v) * MICRO);
 		break;
 	case hwmon_power_max_alarm:
 		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
@@ -415,7 +416,7 @@ static int power_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	int ret = 0;
 	u64 v;
 
-	val = clamp_val(val / 1000000, 0, PWR_THRESHOLD_MAX);
+	val = clamp_val(val / MICRO, 0, PWR_THRESHOLD_MAX);
 
 	mutex_lock(&pdata->lock);
 
@@ -465,7 +466,7 @@ static const struct hwmon_ops power_hwmon_ops = {
 	.write = power_hwmon_write,
 };
 
-static const struct hwmon_channel_info *power_hwmon_info[] = {
+static const struct hwmon_channel_info * const power_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(power, HWMON_P_INPUT |
 				  HWMON_P_MAX   | HWMON_P_MAX_ALARM |
 				  HWMON_P_CRIT  | HWMON_P_CRIT_ALARM),

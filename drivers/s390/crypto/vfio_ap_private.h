@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/mdev.h>
 #include <linux/delay.h>
+#include <linux/eventfd.h>
 #include <linux/mutex.h>
 #include <linux/kvm_host.h>
 #include <linux/vfio.h>
@@ -103,6 +104,7 @@ struct ap_queue_table {
  *		PQAP(AQIC) instruction.
  * @mdev:	the mediated device
  * @qtable:	table of queues (struct vfio_ap_queue) assigned to the mdev
+ * @req_trigger eventfd ctx for signaling userspace to return a device
  * @apm_add:	bitmap of APIDs added to the host's AP configuration
  * @aqm_add:	bitmap of APQIs added to the host's AP configuration
  * @adm_add:	bitmap of control domain numbers added to the host's AP
@@ -117,6 +119,7 @@ struct ap_matrix_mdev {
 	crypto_hook pqap_hook;
 	struct mdev_device *mdev;
 	struct ap_queue_table qtable;
+	struct eventfd_ctx *req_trigger;
 	DECLARE_BITMAP(apm_add, AP_DEVICES);
 	DECLARE_BITMAP(aqm_add, AP_DOMAINS);
 	DECLARE_BITMAP(adm_add, AP_DOMAINS);
@@ -130,7 +133,8 @@ struct ap_matrix_mdev {
  * @apqn: the APQN of the AP queue device
  * @saved_isc: the guest ISC registered with the GIB interface
  * @mdev_qnode: allows the vfio_ap_queue struct to be added to a hashtable
- * @reset_rc: the status response code from the last reset of the queue
+ * @reset_status: the status from the last reset of the queue
+ * @reset_work: work to wait for queue reset to complete
  */
 struct vfio_ap_queue {
 	struct ap_matrix_mdev *matrix_mdev;
@@ -139,7 +143,8 @@ struct vfio_ap_queue {
 #define VFIO_AP_ISC_INVALID 0xff
 	unsigned char saved_isc;
 	struct hlist_node mdev_qnode;
-	unsigned int reset_rc;
+	struct ap_queue_status reset_status;
+	struct work_struct reset_work;
 };
 
 int vfio_ap_mdev_register(void);

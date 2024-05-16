@@ -1451,13 +1451,8 @@ static int mip4_probe(struct i2c_client *client)
 
 	ts->gpio_ce = devm_gpiod_get_optional(&client->dev,
 					      "ce", GPIOD_OUT_LOW);
-	if (IS_ERR(ts->gpio_ce)) {
-		error = PTR_ERR(ts->gpio_ce);
-		if (error != -EPROBE_DEFER)
-			dev_err(&client->dev,
-				"Failed to get gpio: %d\n", error);
-		return error;
-	}
+	if (IS_ERR(ts->gpio_ce))
+		return dev_err_probe(&client->dev, PTR_ERR(ts->gpio_ce), "Failed to get gpio\n");
 
 	error = mip4_power_on(ts);
 	if (error)
@@ -1591,7 +1586,7 @@ MODULE_DEVICE_TABLE(i2c, mip4_i2c_ids);
 
 static struct i2c_driver mip4_driver = {
 	.id_table = mip4_i2c_ids,
-	.probe_new = mip4_probe,
+	.probe = mip4_probe,
 	.driver = {
 		.name = MIP4_DEVICE_NAME,
 		.of_match_table = of_match_ptr(mip4_of_match),

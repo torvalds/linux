@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * Copyright IBM Corp. 2006, 2019
+ * Copyright IBM Corp. 2006, 2023
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
@@ -67,15 +67,8 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_RESPONSE_INVALID_DOMAIN	     0x42
 
 /*
- * Known device types
+ * Supported AP device types
  */
-#define AP_DEVICE_TYPE_PCICC	3
-#define AP_DEVICE_TYPE_PCICA	4
-#define AP_DEVICE_TYPE_PCIXCC	5
-#define AP_DEVICE_TYPE_CEX2A	6
-#define AP_DEVICE_TYPE_CEX2C	7
-#define AP_DEVICE_TYPE_CEX3A	8
-#define AP_DEVICE_TYPE_CEX3C	9
 #define AP_DEVICE_TYPE_CEX4	10
 #define AP_DEVICE_TYPE_CEX5	11
 #define AP_DEVICE_TYPE_CEX6	12
@@ -233,30 +226,6 @@ struct ap_queue {
 
 typedef enum ap_sm_wait (ap_func_t)(struct ap_queue *queue);
 
-/* failure injection cmd struct */
-struct ap_fi {
-	union {
-		u16 cmd;		/* fi flags + action */
-		struct {
-			u8 flags;	/* fi flags only */
-			u8 action;	/* fi action only */
-		};
-	};
-};
-
-/* all currently known fi actions */
-enum ap_fi_actions {
-	AP_FI_ACTION_CCA_AGENT_FF   = 0x01,
-	AP_FI_ACTION_CCA_DOM_INVAL  = 0x02,
-	AP_FI_ACTION_NQAP_QID_INVAL = 0x03,
-};
-
-/* all currently known fi flags */
-enum ap_fi_flags {
-	AP_FI_FLAG_NO_RETRY	  = 0x01,
-	AP_FI_FLAG_TOGGLE_SPECIAL = 0x02,
-};
-
 struct ap_message {
 	struct list_head list;		/* Request queueing. */
 	unsigned long psmid;		/* Message id. */
@@ -264,7 +233,6 @@ struct ap_message {
 	size_t len;			/* actual msg len in msg buffer */
 	size_t bufsize;			/* allocated msg buffer size */
 	u16 flags;			/* Flags, see AP_MSG_FLAG_xxx */
-	struct ap_fi fi;		/* Failure Injection cmd */
 	int rc;				/* Return code for this message */
 	void *private;			/* ap driver private pointer. */
 	/* receive is called from tasklet context */
@@ -297,14 +265,6 @@ static inline void ap_release_message(struct ap_message *ap_msg)
 	kfree_sensitive(ap_msg->private);
 }
 
-/*
- * Note: don't use ap_send/ap_recv after using ap_queue_message
- * for the first time. Otherwise the ap message queue will get
- * confused.
- */
-int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen);
-int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t msglen);
-
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event);
 enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event);
 
@@ -314,6 +274,7 @@ void ap_flush_queue(struct ap_queue *aq);
 
 void *ap_airq_ptr(void);
 int ap_sb_available(void);
+bool ap_is_se_guest(void);
 void ap_wait(enum ap_sm_wait wait);
 void ap_request_timeout(struct timer_list *t);
 void ap_bus_force_rescan(void);
@@ -384,7 +345,7 @@ int ap_apqn_in_matrix_owned_by_def_drv(unsigned long *apm,
  * like "+1-16,-32,-0x40,+128" where only single bits or ranges of
  * bits are cleared or set. Distinction is done based on the very
  * first character which may be '+' or '-' for the relative string
- * and othewise assume to be an absolute value string. If parsing fails
+ * and otherwise assume to be an absolute value string. If parsing fails
  * a negative errno value is returned. All arguments and bitmaps are
  * big endian order.
  */

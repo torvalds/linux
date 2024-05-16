@@ -535,6 +535,14 @@ static int i915_gem_init_stolen(struct intel_memory_region *mem)
 	/* Basic memrange allocator for stolen space. */
 	drm_mm_init(&i915->mm.stolen, 0, i915->dsm.usable_size);
 
+	/*
+	 * Access to stolen lmem beyond certain size for MTL A0 stepping
+	 * would crash the machine. Disable stolen lmem for userspace access
+	 * by setting usable_size to zero.
+	 */
+	if (IS_METEORLAKE(i915) && INTEL_REVID(i915) == 0x0)
+		i915->dsm.usable_size = 0;
+
 	return 0;
 }
 
@@ -557,7 +565,9 @@ static void dbg_poison(struct i915_ggtt *ggtt,
 
 		ggtt->vm.insert_page(&ggtt->vm, addr,
 				     ggtt->error_capture.start,
-				     I915_CACHE_NONE, 0);
+				     i915_gem_get_pat_index(ggtt->vm.i915,
+							    I915_CACHE_NONE),
+				     0);
 		mb();
 
 		s = io_mapping_map_wc(&ggtt->iomap,
@@ -882,7 +892,7 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	} else {
 		resource_size_t lmem_range;
 
-		lmem_range = intel_gt_mcr_read_any(&i915->gt0, XEHP_TILE0_ADDR_RANGE) & 0xFFFF;
+		lmem_range = intel_gt_mcr_read_any(to_gt(i915), XEHP_TILE0_ADDR_RANGE) & 0xFFFF;
 		lmem_size = lmem_range >> XEHP_TILE_LMEM_RANGE_SHIFT;
 		lmem_size *= SZ_1G;
 	}
@@ -963,4 +973,40 @@ i915_gem_stolen_smem_setup(struct drm_i915_private *i915, u16 type,
 bool i915_gem_object_is_stolen(const struct drm_i915_gem_object *obj)
 {
 	return obj->ops == &i915_gem_object_stolen_ops;
+}
+
+bool i915_gem_stolen_initialized(const struct drm_i915_private *i915)
+{
+	return drm_mm_initialized(&i915->mm.stolen);
+}
+
+u64 i915_gem_stolen_area_address(const struct drm_i915_private *i915)
+{
+	return i915->dsm.stolen.start;
+}
+
+u64 i915_gem_stolen_area_size(const struct drm_i915_private *i915)
+{
+	return resource_size(&i915->dsm.stolen);
+}
+
+u64 i915_gem_stolen_node_address(const struct drm_i915_private *i915,
+				 const struct drm_mm_node *node)
+{
+	return i915->dsm.stolen.start + i915_gem_stolen_node_offset(node);
+}
+
+bool i915_gem_stolen_node_allocated(const struct drm_mm_node *node)
+{
+	return drm_mm_node_allocated(node);
+}
+
+u64 i915_gem_stolen_node_offset(const struct drm_mm_node *node)
+{
+	return node->start;
+}
+
+u64 i915_gem_stolen_node_size(const struct drm_mm_node *node)
+{
+	return node->size;
 }

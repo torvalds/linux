@@ -440,38 +440,35 @@ static struct symbol *symbols__next(struct symbol *sym)
 	return NULL;
 }
 
-static void symbols__insert_by_name(struct rb_root_cached *symbols, struct symbol *sym)
+static int symbols__sort_name_cmp(const void *vlhs, const void *vrhs)
 {
-	struct rb_node **p = &symbols->rb_root.rb_node;
-	struct rb_node *parent = NULL;
-	struct symbol_name_rb_node *symn, *s;
-	bool leftmost = true;
+	const struct symbol *lhs = *((const struct symbol **)vlhs);
+	const struct symbol *rhs = *((const struct symbol **)vrhs);
 
-	symn = container_of(sym, struct symbol_name_rb_node, sym);
-
-	while (*p != NULL) {
-		parent = *p;
-		s = rb_entry(parent, struct symbol_name_rb_node, rb_node);
-		if (strcmp(sym->name, s->sym.name) < 0)
-			p = &(*p)->rb_left;
-		else {
-			p = &(*p)->rb_right;
-			leftmost = false;
-		}
-	}
-	rb_link_node(&symn->rb_node, parent, p);
-	rb_insert_color_cached(&symn->rb_node, symbols, leftmost);
+	return strcmp(lhs->name, rhs->name);
 }
 
-static void symbols__sort_by_name(struct rb_root_cached *symbols,
-				  struct rb_root_cached *source)
+static struct symbol **symbols__sort_by_name(struct rb_root_cached *source, size_t *len)
 {
 	struct rb_node *nd;
+	struct symbol **result;
+	size_t i = 0, size = 0;
+
+	for (nd = rb_first_cached(source); nd; nd = rb_next(nd))
+		size++;
+
+	result = malloc(sizeof(*result) * size);
+	if (!result)
+		return NULL;
 
 	for (nd = rb_first_cached(source); nd; nd = rb_next(nd)) {
 		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
-		symbols__insert_by_name(symbols, pos);
+
+		result[i++] = pos;
 	}
+	qsort(result, size, sizeof(*result), symbols__sort_name_cmp);
+	*len = size;
+	return result;
 }
 
 int symbol__match_symbol_name(const char *name, const char *str,
@@ -491,48 +488,53 @@ int symbol__match_symbol_name(const char *name, const char *str,
 		return arch__compare_symbol_names(name, str);
 }
 
-static struct symbol *symbols__find_by_name(struct rb_root_cached *symbols,
+static struct symbol *symbols__find_by_name(struct symbol *symbols[],
+					    size_t symbols_len,
 					    const char *name,
-					    enum symbol_tag_include includes)
+					    enum symbol_tag_include includes,
+					    size_t *found_idx)
 {
-	struct rb_node *n;
-	struct symbol_name_rb_node *s = NULL;
+	size_t i, lower = 0, upper = symbols_len;
+	struct symbol *s = NULL;
 
-	if (symbols == NULL)
+	if (found_idx)
+		*found_idx = SIZE_MAX;
+
+	if (!symbols_len)
 		return NULL;
 
-	n = symbols->rb_root.rb_node;
-
-	while (n) {
+	while (lower < upper) {
 		int cmp;
 
-		s = rb_entry(n, struct symbol_name_rb_node, rb_node);
-		cmp = symbol__match_symbol_name(s->sym.name, name, includes);
+		i = (lower + upper) / 2;
+		cmp = symbol__match_symbol_name(symbols[i]->name, name, includes);
 
 		if (cmp > 0)
-			n = n->rb_left;
+			upper = i;
 		else if (cmp < 0)
-			n = n->rb_right;
-		else
+			lower = i + 1;
+		else {
+			if (found_idx)
+				*found_idx = i;
+			s = symbols[i];
 			break;
-	}
-
-	if (n == NULL)
-		return NULL;
-
-	if (includes != SYMBOL_TAG_INCLUDE__DEFAULT_ONLY)
-		/* return first symbol that has same name (if any) */
-		for (n = rb_prev(n); n; n = rb_prev(n)) {
-			struct symbol_name_rb_node *tmp;
-
-			tmp = rb_entry(n, struct symbol_name_rb_node, rb_node);
-			if (arch__compare_symbol_names(tmp->sym.name, s->sym.name))
-				break;
-
-			s = tmp;
 		}
+	}
+	if (s && includes != SYMBOL_TAG_INCLUDE__DEFAULT_ONLY) {
+		/* return first symbol that has same name (if any) */
+		for (; i > 0; i--) {
+			struct symbol *tmp = symbols[i - 1];
 
-	return &s->sym;
+			if (!arch__compare_symbol_names(tmp->name, s->name)) {
+				if (found_idx)
+					*found_idx = i - 1;
+				s = tmp;
+			} else
+				break;
+		}
+	}
+	assert(!found_idx || !s || s == symbols[*found_idx]);
+	return s;
 }
 
 void dso__reset_find_symbol_cache(struct dso *dso)
@@ -590,31 +592,41 @@ struct symbol *dso__next_symbol(struct symbol *sym)
 	return symbols__next(sym);
 }
 
-struct symbol *symbol__next_by_name(struct symbol *sym)
+struct symbol *dso__next_symbol_by_name(struct dso *dso, size_t *idx)
 {
-	struct symbol_name_rb_node *s = container_of(sym, struct symbol_name_rb_node, sym);
-	struct rb_node *n = rb_next(&s->rb_node);
+	if (*idx + 1 >= dso->symbol_names_len)
+		return NULL;
 
-	return n ? &rb_entry(n, struct symbol_name_rb_node, rb_node)->sym : NULL;
+	++*idx;
+	return dso->symbol_names[*idx];
 }
 
  /*
   * Returns first symbol that matched with @name.
   */
-struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name)
+struct symbol *dso__find_symbol_by_name(struct dso *dso, const char *name, size_t *idx)
 {
-	struct symbol *s = symbols__find_by_name(&dso->symbol_names, name,
-						 SYMBOL_TAG_INCLUDE__NONE);
+	struct symbol *s = symbols__find_by_name(dso->symbol_names, dso->symbol_names_len,
+						name, SYMBOL_TAG_INCLUDE__NONE, idx);
 	if (!s)
-		s = symbols__find_by_name(&dso->symbol_names, name,
-					  SYMBOL_TAG_INCLUDE__DEFAULT_ONLY);
+		s = symbols__find_by_name(dso->symbol_names, dso->symbol_names_len,
+					name, SYMBOL_TAG_INCLUDE__DEFAULT_ONLY, idx);
 	return s;
 }
 
 void dso__sort_by_name(struct dso *dso)
 {
-	dso__set_sorted_by_name(dso);
-	return symbols__sort_by_name(&dso->symbol_names, &dso->symbols);
+	mutex_lock(&dso->lock);
+	if (!dso__sorted_by_name(dso)) {
+		size_t len;
+
+		dso->symbol_names = symbols__sort_by_name(&dso->symbols, &len);
+		if (dso->symbol_names) {
+			dso->symbol_names_len = len;
+			dso__set_sorted_by_name(dso);
+		}
+	}
+	mutex_unlock(&dso->lock);
 }
 
 /*
@@ -1458,16 +1470,18 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 		list_del_init(&new_node->node);
 
 		if (RC_CHK_ACCESS(new_map) == RC_CHK_ACCESS(replacement_map)) {
+			struct map *map_ref;
+
 			map__set_start(map, map__start(new_map));
 			map__set_end(map, map__end(new_map));
 			map__set_pgoff(map, map__pgoff(new_map));
 			map__set_map_ip(map, map__map_ip_ptr(new_map));
 			map__set_unmap_ip(map, map__unmap_ip_ptr(new_map));
 			/* Ensure maps are correctly ordered */
-			map__get(map);
-			maps__remove(kmaps, map);
-			err = maps__insert(kmaps, map);
-			map__put(map);
+			map_ref = map__get(map);
+			maps__remove(kmaps, map_ref);
+			err = maps__insert(kmaps, map_ref);
+			map__put(map_ref);
 			map__put(new_map);
 			if (err)
 				goto out_err;
@@ -2190,15 +2204,20 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	if (symsrc__init(&ss, dso, symfs_vmlinux, symtab_type))
 		return -1;
 
+	/*
+	 * dso__load_sym() may copy 'dso' which will result in the copies having
+	 * an incorrect long name unless we set it here first.
+	 */
+	dso__set_long_name(dso, vmlinux, vmlinux_allocated);
+	if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
+		dso->binary_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
+	else
+		dso->binary_type = DSO_BINARY_TYPE__VMLINUX;
+
 	err = dso__load_sym(dso, map, &ss, &ss, 0);
 	symsrc__destroy(&ss);
 
 	if (err > 0) {
-		if (dso->kernel == DSO_SPACE__KERNEL_GUEST)
-			dso->binary_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
-		else
-			dso->binary_type = DSO_BINARY_TYPE__VMLINUX;
-		dso__set_long_name(dso, vmlinux, vmlinux_allocated);
 		dso__set_loaded(dso);
 		pr_debug("Using %s for symbols\n", symfs_vmlinux);
 	}
@@ -2653,10 +2672,6 @@ int symbol__init(struct perf_env *env)
 	symbol_conf.priv_size = PERF_ALIGN(symbol_conf.priv_size, sizeof(u64));
 
 	symbol__elf_init();
-
-	if (symbol_conf.sort_by_name)
-		symbol_conf.priv_size += (sizeof(struct symbol_name_rb_node) -
-					  sizeof(struct symbol));
 
 	if (symbol_conf.try_vmlinux_path && vmlinux_path__init(env) < 0)
 		return -1;

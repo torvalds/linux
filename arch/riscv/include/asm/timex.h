@@ -88,6 +88,4 @@ static inline int read_current_timer(unsigned long *timer_val)
 	return 0;
 }
 
-extern void time_init(void);
-
 #endif /* _ASM_RISCV_TIMEX_H */

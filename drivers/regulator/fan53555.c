@@ -12,7 +12,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/param.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -775,7 +775,7 @@ static struct i2c_driver fan53555_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(fan53555_dt_ids),
 	},
-	.probe_new = fan53555_regulator_probe,
+	.probe = fan53555_regulator_probe,
 	.id_table = fan53555_id,
 };
 

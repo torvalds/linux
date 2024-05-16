@@ -12,14 +12,13 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/seq_file.h>
 
@@ -1955,6 +1954,12 @@ static const struct pcs_soc_data pinctrl_single_am437x = {
 	.irq_status_mask = (1 << 30),   /* OMAP_WAKEUP_EVENT */
 };
 
+static const struct pcs_soc_data pinctrl_single_am654 = {
+	.flags = PCS_QUIRK_SHARED_IRQ | PCS_CONTEXT_LOSS_OFF,
+	.irq_enable_mask = (1 << 29),   /* WKUP_EN */
+	.irq_status_mask = (1 << 30),   /* WKUP_EVT */
+};
+
 static const struct pcs_soc_data pinctrl_single = {
 };
 
@@ -1963,11 +1968,12 @@ static const struct pcs_soc_data pinconf_single = {
 };
 
 static const struct of_device_id pcs_of_match[] = {
+	{ .compatible = "ti,am437-padconf", .data = &pinctrl_single_am437x },
+	{ .compatible = "ti,am654-padconf", .data = &pinctrl_single_am654 },
+	{ .compatible = "ti,dra7-padconf", .data = &pinctrl_single_dra7 },
 	{ .compatible = "ti,omap3-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap4-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap5-padconf", .data = &pinctrl_single_omap_wkup },
-	{ .compatible = "ti,dra7-padconf", .data = &pinctrl_single_dra7 },
-	{ .compatible = "ti,am437-padconf", .data = &pinctrl_single_am437x },
 	{ .compatible = "pinctrl-single", .data = &pinctrl_single },
 	{ .compatible = "pinconf-single", .data = &pinconf_single },
 	{ },

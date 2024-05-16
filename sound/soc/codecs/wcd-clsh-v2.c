@@ -355,6 +355,7 @@ void wcd_clsh_set_hph_mode(struct wcd_clsh_ctrl *ctrl, int mode)
 		wcd_clsh_v2_set_hph_mode(comp, mode);
 
 }
+EXPORT_SYMBOL_GPL(wcd_clsh_set_hph_mode);
 
 static void wcd_clsh_set_flyback_current(struct snd_soc_component *comp,
 					 int mode)
@@ -869,11 +870,13 @@ int wcd_clsh_ctrl_set_state(struct wcd_clsh_ctrl *ctrl,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wcd_clsh_ctrl_set_state);
 
 int wcd_clsh_ctrl_get_state(struct wcd_clsh_ctrl *ctrl)
 {
 	return ctrl->state;
 }
+EXPORT_SYMBOL_GPL(wcd_clsh_ctrl_get_state);
 
 struct wcd_clsh_ctrl *wcd_clsh_ctrl_alloc(struct snd_soc_component *comp,
 					  int version)
@@ -890,8 +893,13 @@ struct wcd_clsh_ctrl *wcd_clsh_ctrl_alloc(struct snd_soc_component *comp,
 
 	return ctrl;
 }
+EXPORT_SYMBOL_GPL(wcd_clsh_ctrl_alloc);
 
 void wcd_clsh_ctrl_free(struct wcd_clsh_ctrl *ctrl)
 {
 	kfree(ctrl);
 }
+EXPORT_SYMBOL_GPL(wcd_clsh_ctrl_free);
+
+MODULE_DESCRIPTION("WCD93XX Class-H driver");
+MODULE_LICENSE("GPL");

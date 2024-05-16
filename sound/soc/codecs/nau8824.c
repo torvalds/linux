@@ -2030,7 +2030,7 @@ static struct i2c_driver nau8824_i2c_driver = {
 		.of_match_table = of_match_ptr(nau8824_of_ids),
 		.acpi_match_table = ACPI_PTR(nau8824_acpi_match),
 	},
-	.probe_new = nau8824_i2c_probe,
+	.probe = nau8824_i2c_probe,
 	.id_table = nau8824_i2c_ids,
 };
 module_i2c_driver(nau8824_i2c_driver);

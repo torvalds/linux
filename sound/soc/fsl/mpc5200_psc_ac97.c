@@ -222,6 +222,7 @@ static int psc_ac97_probe(struct snd_soc_dai *cpu_dai)
  * psc_ac97_dai_template: template CPU Digital Audio Interface
  */
 static const struct snd_soc_dai_ops psc_ac97_analog_ops = {
+	.probe		= psc_ac97_probe,
 	.hw_params	= psc_ac97_hw_analog_params,
 	.trigger	= psc_ac97_trigger,
 };
@@ -233,7 +234,6 @@ static const struct snd_soc_dai_ops psc_ac97_digital_ops = {
 static struct snd_soc_dai_driver psc_ac97_dai[] = {
 {
 	.name = "mpc5200-psc-ac97.0",
-	.probe	= psc_ac97_probe,
 	.playback = {
 		.stream_name	= "AC97 Playback",
 		.channels_min   = 1,

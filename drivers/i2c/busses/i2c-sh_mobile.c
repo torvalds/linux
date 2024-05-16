@@ -20,7 +20,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -871,7 +871,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 {
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
-	struct resource *res;
 	const struct sh_mobile_dt_config *config;
 	int ret;
 	u32 bus_speed;
@@ -893,10 +892,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	pd->dev = &dev->dev;
 	platform_set_drvdata(dev, pd);
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-
-	pd->res = res;
-	pd->reg = devm_ioremap_resource(&dev->dev, res);
+	pd->reg = devm_platform_get_and_ioremap_resource(dev, 0, &pd->res);
 	if (IS_ERR(pd->reg))
 		return PTR_ERR(pd->reg);
 
@@ -905,7 +901,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	pd->clks_per_count = 1;
 
 	/* Newer variants come with two new bits in ICIC */
-	if (resource_size(res) > 0x17)
+	if (resource_size(pd->res) > 0x17)
 		pd->flags |= IIC_FLAG_HAS_ICIC67;
 
 	pm_runtime_enable(&dev->dev);
@@ -956,17 +952,15 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int sh_mobile_i2c_remove(struct platform_device *dev)
+static void sh_mobile_i2c_remove(struct platform_device *dev)
 {
 	struct sh_mobile_i2c_data *pd = platform_get_drvdata(dev);
 
 	i2c_del_adapter(&pd->adap);
 	sh_mobile_i2c_release_dma(pd);
 	pm_runtime_disable(&dev->dev);
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sh_mobile_i2c_suspend(struct device *dev)
 {
 	struct sh_mobile_i2c_data *pd = dev_get_drvdata(dev);
@@ -984,23 +978,18 @@ static int sh_mobile_i2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sh_mobile_i2c_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_mobile_i2c_suspend,
-				      sh_mobile_i2c_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_mobile_i2c_suspend,
+				  sh_mobile_i2c_resume)
 };
-
-#define DEV_PM_OPS (&sh_mobile_i2c_pm_ops)
-#else
-#define DEV_PM_OPS NULL
-#endif /* CONFIG_PM_SLEEP */
 
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
 		.of_match_table = sh_mobile_i2c_dt_ids,
-		.pm	= DEV_PM_OPS,
+		.pm	= pm_sleep_ptr(&sh_mobile_i2c_pm_ops),
 	},
 	.probe		= sh_mobile_i2c_probe,
-	.remove		= sh_mobile_i2c_remove,
+	.remove_new	= sh_mobile_i2c_remove,
 };
 
 static int __init sh_mobile_i2c_adap_init(void)

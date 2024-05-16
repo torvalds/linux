@@ -8,10 +8,10 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/notifier.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 
@@ -69,8 +69,6 @@ static int ocelot_restart_handle(struct notifier_block *this,
 static int ocelot_reset_probe(struct platform_device *pdev)
 {
 	struct ocelot_reset_context *ctx;
-	struct resource *res;
-
 	struct device *dev = &pdev->dev;
 	int err;
 
@@ -78,8 +76,7 @@ static int ocelot_reset_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctx->base = devm_ioremap_resource(dev, res);
+	ctx->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->base))
 		return PTR_ERR(ctx->base);
 

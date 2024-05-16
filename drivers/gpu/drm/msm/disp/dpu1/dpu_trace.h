@@ -453,29 +453,6 @@ TRACE_EVENT(dpu_enc_trigger_flush,
 		  __entry->extra_flush_bits, __entry->pending_flush_ret)
 );
 
-DECLARE_EVENT_CLASS(dpu_enc_ktime_template,
-	TP_PROTO(uint32_t drm_id, ktime_t time),
-	TP_ARGS(drm_id, time),
-	TP_STRUCT__entry(
-		__field(	uint32_t,	drm_id	)
-		__field(	ktime_t,	time	)
-	),
-	TP_fast_assign(
-		__entry->drm_id = drm_id;
-		__entry->time = time;
-	),
-	TP_printk("id=%u, time=%lld", __entry->drm_id,
-		  ktime_to_ms(__entry->time))
-);
-DEFINE_EVENT(dpu_enc_ktime_template, dpu_enc_vsync_event_work,
-	TP_PROTO(uint32_t drm_id, ktime_t time),
-	TP_ARGS(drm_id, time)
-);
-DEFINE_EVENT(dpu_enc_ktime_template, dpu_enc_early_kickoff,
-	TP_PROTO(uint32_t drm_id, ktime_t time),
-	TP_ARGS(drm_id, time)
-);
-
 DECLARE_EVENT_CLASS(dpu_id_event_template,
 	TP_PROTO(uint32_t drm_id, u32 event),
 	TP_ARGS(drm_id, event),
@@ -869,6 +846,20 @@ TRACE_EVENT(dpu_pp_connect_ext_te,
 		__entry->cfg = cfg;
 	),
 	TP_printk("pp:%d cfg:%u", __entry->pp, __entry->cfg)
+);
+
+TRACE_EVENT(dpu_intf_connect_ext_te,
+	TP_PROTO(enum dpu_intf intf, u32 cfg),
+	TP_ARGS(intf, cfg),
+	TP_STRUCT__entry(
+		__field(	enum dpu_intf,	intf	)
+		__field(	u32,			cfg	)
+	),
+	TP_fast_assign(
+		__entry->intf = intf;
+		__entry->cfg = cfg;
+	),
+	TP_printk("intf:%d cfg:%u", __entry->intf, __entry->cfg)
 );
 
 TRACE_EVENT(dpu_core_irq_register_callback,

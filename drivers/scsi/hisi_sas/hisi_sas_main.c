@@ -787,7 +787,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 		 * However we don't need to issue a hard reset here for these
 		 * reasons:
 		 * a. When probing the device, libsas/libata already issues a
-		 * hard reset in sas_probe_sata() -> ata_sas_async_probe().
+		 * hard reset in sas_probe_sata() -> ata_port_probe().
 		 * Note that in hisi_sas_debug_I_T_nexus_reset() we take care
 		 * to issue a hard reset by checking the dev status (== INIT).
 		 * b. When resetting the controller, this is simply unnecessary.
@@ -1018,10 +1018,8 @@ static void hisi_sas_phy_init(struct hisi_hba *hisi_hba, int phy_no)
 	phy->minimum_linkrate = SAS_LINK_RATE_1_5_GBPS;
 	phy->maximum_linkrate = hisi_hba->hw->phy_get_max_linkrate();
 	sas_phy->enabled = (phy_no < hisi_hba->n_phy) ? 1 : 0;
-	sas_phy->class = SAS;
 	sas_phy->iproto = SAS_PROTOCOL_ALL;
 	sas_phy->tproto = 0;
-	sas_phy->type = PHY_TYPE_PHYSICAL;
 	sas_phy->role = PHY_ROLE_INITIATOR;
 	sas_phy->oob_mode = OOB_NOT_CONNECTED;
 	sas_phy->linkrate = SAS_LINK_RATE_UNKNOWN;
@@ -1065,23 +1063,18 @@ EXPORT_SYMBOL_GPL(hisi_sas_phy_enable);
 
 static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
 {
-	struct sas_ha_struct *sas_ha = sas_phy->ha;
-	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
 	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
 	struct asd_sas_port *sas_port = sas_phy->port;
 	struct hisi_sas_port *port;
-	unsigned long flags;
 
 	if (!sas_port)
 		return;
 
 	port = to_hisi_sas_port(sas_port);
-	spin_lock_irqsave(&hisi_hba->lock, flags);
 	port->port_attached = 1;
 	port->id = phy->port_id;
 	phy->port = port;
 	sas_port->lldd_port = port;
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 }
 
 static void hisi_sas_do_release_task(struct hisi_hba *hisi_hba, struct sas_task *task,
@@ -2519,10 +2512,9 @@ int hisi_sas_probe(struct platform_device *pdev,
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = hisi_hba->dev;
-	sha->lldd_module = THIS_MODULE;
 	sha->sas_addr = &hisi_hba->sas_addr[0];
 	sha->num_phys = hisi_hba->n_phy;
-	sha->core.shost = hisi_hba->shost;
+	sha->shost = hisi_hba->shost;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		sha->sas_phy[i] = &hisi_hba->phy[i].sas_phy;
@@ -2560,20 +2552,19 @@ err_out_ha:
 }
 EXPORT_SYMBOL_GPL(hisi_sas_probe);
 
-int hisi_sas_remove(struct platform_device *pdev)
+void hisi_sas_remove(struct platform_device *pdev)
 {
 	struct sas_ha_struct *sha = platform_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
-	struct Scsi_Host *shost = sha->core.shost;
+	struct Scsi_Host *shost = sha->shost;
 
 	del_timer_sync(&hisi_hba->timer);
 
 	sas_unregister_ha(sha);
-	sas_remove_host(sha->core.shost);
+	sas_remove_host(shost);
 
 	hisi_sas_free(hisi_hba);
 	scsi_host_put(shost);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_remove);
 

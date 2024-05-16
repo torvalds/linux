@@ -67,7 +67,7 @@ static void __flush_context(void)
 	lockdep_assert_held(&context_lock);
 
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
-	bitmap_clear(context_asid_map, 0, num_asids);
+	bitmap_zero(context_asid_map, num_asids);
 
 	/* Mark already active ASIDs as used */
 	for_each_possible_cpu(i) {

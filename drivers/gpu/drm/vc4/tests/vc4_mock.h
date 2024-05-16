@@ -43,6 +43,9 @@ struct vc4_dummy_output {
 	struct drm_connector connector;
 };
 
+#define encoder_to_vc4_dummy_output(_enc)				\
+	container_of_const(_enc, struct vc4_dummy_output, encoder.base)
+
 struct vc4_dummy_output *vc4_dummy_output(struct kunit *test,
 					  struct drm_device *drm,
 					  struct drm_crtc *crtc,

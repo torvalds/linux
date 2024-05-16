@@ -108,7 +108,7 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_setup_master_slave);
  */
 int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 {
-	int ctrl1, ctrl2, ret;
+	int bt1_ctrl, ctrl1, ctrl2, ret;
 
 	/* Half duplex is not supported */
 	if (phydev->duplex != DUPLEX_FULL)
@@ -174,6 +174,15 @@ int genphy_c45_pma_setup_forced(struct phy_device *phydev)
 
 	if (genphy_c45_baset1_able(phydev)) {
 		ret = genphy_c45_pma_baset1_setup_master_slave(phydev);
+		if (ret < 0)
+			return ret;
+
+		bt1_ctrl = 0;
+		if (phydev->speed == SPEED_1000)
+			bt1_ctrl = MDIO_PMA_PMD_BT1_CTRL_STRAP_B1000;
+
+		ret = phy_modify_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
+				     MDIO_PMA_PMD_BT1_CTRL_STRAP, bt1_ctrl);
 		if (ret < 0)
 			return ret;
 	}
@@ -873,6 +882,44 @@ int genphy_c45_an_config_eee_aneg(struct phy_device *phydev)
 }
 
 /**
+ * genphy_c45_pma_baset1_read_abilities - read supported baset1 link modes from PMA
+ * @phydev: target phy_device struct
+ *
+ * Read the supported link modes from the extended BASE-T1 ability register
+ */
+int genphy_c45_pma_baset1_read_abilities(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1);
+	if (val < 0)
+		return val;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_PMD_BT1_B10L_ABLE);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_PMD_BT1_B100_ABLE);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT1_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_PMD_BT1_B1000_ABLE);
+
+	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_T1_STAT);
+	if (val < 0)
+		return val;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			 phydev->supported,
+			 val & MDIO_AN_STAT1_ABLE);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_read_abilities);
+
+/**
  * genphy_c45_pma_read_abilities - read supported link modes from PMA
  * @phydev: target phy_device struct
  *
@@ -968,21 +1015,9 @@ int genphy_c45_pma_read_abilities(struct phy_device *phydev)
 		}
 
 		if (val & MDIO_PMA_EXTABLE_BT1) {
-			val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1);
+			val = genphy_c45_pma_baset1_read_abilities(phydev);
 			if (val < 0)
 				return val;
-
-			linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
-					 phydev->supported,
-					 val & MDIO_PMA_PMD_BT1_B10L_ABLE);
-
-			val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_T1_STAT);
-			if (val < 0)
-				return val;
-
-			linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-					 phydev->supported,
-					 val & MDIO_AN_STAT1_ABLE);
 		}
 	}
 
@@ -1425,12 +1460,15 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
 
 /**
- * genphy_c45_ethtool_set_eee - get EEE supported and status
+ * genphy_c45_ethtool_set_eee - set EEE supported and status
  * @phydev: target phy_device struct
  * @data: ethtool_eee data
  *
- * Description: it reportes the Supported/Advertisement/LP Advertisement
- * capabilities.
+ * Description: sets the Supported/Advertisement/LP Advertisement
+ * capabilities. If eee_enabled is false, no links modes are
+ * advertised, but the previously advertised link modes are
+ * retained. This allows EEE to be enabled/disabled in a
+ * non-destructive way.
  */
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_eee *data)

@@ -187,13 +187,12 @@ static int tegra20_spdif_filter_rates(struct snd_pcm_hw_params *params,
 	struct tegra20_spdif *spdif = dev_get_drvdata(dai->dev);
 	struct clk *parent = clk_get_parent(spdif->clk_spdif_out);
 	static const unsigned int rates[] = { 32000, 44100, 48000 };
-	long i, parent_rate, valid_rates = 0;
+	unsigned long i, parent_rate, valid_rates = 0;
 
 	parent_rate = clk_get_rate(parent);
-	if (parent_rate <= 0) {
-		dev_err(dai->dev, "Can't get parent clock rate: %ld\n",
-			parent_rate);
-		return parent_rate ?: -EINVAL;
+	if (!parent_rate) {
+		dev_err(dai->dev, "Can't get parent clock rate\n");
+		return -EINVAL;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(rates); i++) {
@@ -242,6 +241,7 @@ static int tegra20_spdif_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops tegra20_spdif_dai_ops = {
+	.probe = tegra20_spdif_probe,
 	.hw_params = tegra20_spdif_hw_params,
 	.trigger = tegra20_spdif_trigger,
 	.startup = tegra20_spdif_startup,
@@ -249,7 +249,6 @@ static const struct snd_soc_dai_ops tegra20_spdif_dai_ops = {
 
 static struct snd_soc_dai_driver tegra20_spdif_dai = {
 	.name = "tegra20-spdif",
-	.probe = tegra20_spdif_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,

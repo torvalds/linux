@@ -15,7 +15,8 @@
 #include <linux/init.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/fbio.h>
@@ -283,7 +284,6 @@ static int p9100_probe(struct platform_device *op)
 	if (!par->regs)
 		goto out_release_fb;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &p9100_ops;
 	info->screen_base = of_ioremap(&op->resource[2], 0,
 				       info->fix.smem_len, "p9100 ram");

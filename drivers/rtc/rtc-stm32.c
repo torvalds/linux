@@ -6,11 +6,13 @@
 
 #include <linux/bcd.h>
 #include <linux/clk.h>
+#include <linux/errno.h>
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/regmap.h>
 #include <linux/rtc.h>
@@ -89,6 +91,9 @@
 /* Max STM32 RTC register offset is 0x3FC */
 #define UNDEF_REG			0xFFFF
 
+/* STM32 RTC driver time helpers */
+#define SEC_PER_DAY		(24 * 60 * 60)
+
 struct stm32_rtc;
 
 struct stm32_rtc_registers {
@@ -114,7 +119,7 @@ struct stm32_rtc_data {
 	void (*clear_events)(struct stm32_rtc *rtc, unsigned int flags);
 	bool has_pclk;
 	bool need_dbp;
-	bool has_wakeirq;
+	bool need_accuracy;
 };
 
 struct stm32_rtc {
@@ -127,7 +132,6 @@ struct stm32_rtc {
 	struct clk *rtc_ck;
 	const struct stm32_rtc_data *data;
 	int irq_alarm;
-	int wakeirq_alarm;
 };
 
 static void stm32_rtc_wpr_unlock(struct stm32_rtc *rtc)
@@ -160,10 +164,9 @@ static int stm32_rtc_enter_init_mode(struct stm32_rtc *rtc)
 		 * slowest rtc_ck frequency may be 32kHz and highest should be
 		 * 1MHz, we poll every 10 us with a timeout of 100ms.
 		 */
-		return readl_relaxed_poll_timeout_atomic(
-					rtc->base + regs->isr,
-					isr, (isr & STM32_RTC_ISR_INITF),
-					10, 100000);
+		return readl_relaxed_poll_timeout_atomic(rtc->base + regs->isr, isr,
+							 (isr & STM32_RTC_ISR_INITF),
+							 10, 100000);
 	}
 
 	return 0;
@@ -427,40 +430,42 @@ static int stm32_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int stm32_rtc_valid_alrm(struct stm32_rtc *rtc, struct rtc_time *tm)
+static int stm32_rtc_valid_alrm(struct device *dev, struct rtc_time *tm)
 {
-	const struct stm32_rtc_registers *regs = &rtc->data->regs;
-	int cur_day, cur_mon, cur_year, cur_hour, cur_min, cur_sec;
-	unsigned int dr = readl_relaxed(rtc->base + regs->dr);
-	unsigned int tr = readl_relaxed(rtc->base + regs->tr);
-
-	cur_day = (dr & STM32_RTC_DR_DATE) >> STM32_RTC_DR_DATE_SHIFT;
-	cur_mon = (dr & STM32_RTC_DR_MONTH) >> STM32_RTC_DR_MONTH_SHIFT;
-	cur_year = (dr & STM32_RTC_DR_YEAR) >> STM32_RTC_DR_YEAR_SHIFT;
-	cur_sec = (tr & STM32_RTC_TR_SEC) >> STM32_RTC_TR_SEC_SHIFT;
-	cur_min = (tr & STM32_RTC_TR_MIN) >> STM32_RTC_TR_MIN_SHIFT;
-	cur_hour = (tr & STM32_RTC_TR_HOUR) >> STM32_RTC_TR_HOUR_SHIFT;
+	static struct rtc_time now;
+	time64_t max_alarm_time64;
+	int max_day_forward;
+	int next_month;
+	int next_year;
 
 	/*
 	 * Assuming current date is M-D-Y H:M:S.
 	 * RTC alarm can't be set on a specific month and year.
 	 * So the valid alarm range is:
 	 *	M-D-Y H:M:S < alarm <= (M+1)-D-Y H:M:S
-	 * with a specific case for December...
 	 */
-	if ((((tm->tm_year > cur_year) &&
-	      (tm->tm_mon == 0x1) && (cur_mon == 0x12)) ||
-	     ((tm->tm_year == cur_year) &&
-	      (tm->tm_mon <= cur_mon + 1))) &&
-	    ((tm->tm_mday > cur_day) ||
-	     ((tm->tm_mday == cur_day) &&
-	     ((tm->tm_hour > cur_hour) ||
-	      ((tm->tm_hour == cur_hour) && (tm->tm_min > cur_min)) ||
-	      ((tm->tm_hour == cur_hour) && (tm->tm_min == cur_min) &&
-	       (tm->tm_sec >= cur_sec))))))
-		return 0;
+	stm32_rtc_read_time(dev, &now);
 
-	return -EINVAL;
+	/*
+	 * Find the next month and the year of the next month.
+	 * Note: tm_mon and next_month are from 0 to 11
+	 */
+	next_month = now.tm_mon + 1;
+	if (next_month == 12) {
+		next_month = 0;
+		next_year = now.tm_year + 1;
+	} else {
+		next_year = now.tm_year;
+	}
+
+	/* Find the maximum limit of alarm in days. */
+	max_day_forward = rtc_month_days(now.tm_mon, now.tm_year)
+			 - now.tm_mday
+			 + min(rtc_month_days(next_month, next_year), now.tm_mday);
+
+	/* Convert to timestamp and compare the alarm time and its upper limit */
+	max_alarm_time64 = rtc_tm_to_time64(&now) + max_day_forward * SEC_PER_DAY;
+	return rtc_tm_to_time64(tm) <= max_alarm_time64 ? 0 : -EINVAL;
 }
 
 static int stm32_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
@@ -471,16 +476,16 @@ static int stm32_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned int cr, isr, alrmar;
 	int ret = 0;
 
-	tm2bcd(tm);
-
 	/*
 	 * RTC alarm can't be set on a specific date, unless this date is
 	 * up to the same day of month next month.
 	 */
-	if (stm32_rtc_valid_alrm(rtc, tm) < 0) {
+	if (stm32_rtc_valid_alrm(dev, tm) < 0) {
 		dev_err(dev, "Alarm can be set only on upcoming month.\n");
 		return -EINVAL;
 	}
+
+	tm2bcd(tm);
 
 	alrmar = 0;
 	/* tm_year and tm_mon are not used because not supported by RTC */
@@ -547,7 +552,7 @@ static void stm32_rtc_clear_events(struct stm32_rtc *rtc,
 static const struct stm32_rtc_data stm32_rtc_data = {
 	.has_pclk = false,
 	.need_dbp = true,
-	.has_wakeirq = false,
+	.need_accuracy = false,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -569,7 +574,7 @@ static const struct stm32_rtc_data stm32_rtc_data = {
 static const struct stm32_rtc_data stm32h7_rtc_data = {
 	.has_pclk = true,
 	.need_dbp = true,
-	.has_wakeirq = false,
+	.need_accuracy = false,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -600,7 +605,7 @@ static void stm32mp1_rtc_clear_events(struct stm32_rtc *rtc,
 static const struct stm32_rtc_data stm32mp1_data = {
 	.has_pclk = true,
 	.need_dbp = false,
-	.has_wakeirq = true,
+	.need_accuracy = true,
 	.regs = {
 		.tr = 0x00,
 		.dr = 0x04,
@@ -633,7 +638,7 @@ static int stm32_rtc_init(struct platform_device *pdev,
 	const struct stm32_rtc_registers *regs = &rtc->data->regs;
 	unsigned int prer, pred_a, pred_s, pred_a_max, pred_s_max, cr;
 	unsigned int rate;
-	int ret = 0;
+	int ret;
 
 	rate = clk_get_rate(rtc->rtc_ck);
 
@@ -641,18 +646,32 @@ static int stm32_rtc_init(struct platform_device *pdev,
 	pred_a_max = STM32_RTC_PRER_PRED_A >> STM32_RTC_PRER_PRED_A_SHIFT;
 	pred_s_max = STM32_RTC_PRER_PRED_S >> STM32_RTC_PRER_PRED_S_SHIFT;
 
-	for (pred_a = pred_a_max; pred_a + 1 > 0; pred_a--) {
-		pred_s = (rate / (pred_a + 1)) - 1;
+	if (rate > (pred_a_max + 1) * (pred_s_max + 1)) {
+		dev_err(&pdev->dev, "rtc_ck rate is too high: %dHz\n", rate);
+		return -EINVAL;
+	}
 
-		if (((pred_s + 1) * (pred_a + 1)) == rate)
-			break;
+	if (rtc->data->need_accuracy) {
+		for (pred_a = 0; pred_a <= pred_a_max; pred_a++) {
+			pred_s = (rate / (pred_a + 1)) - 1;
+
+			if (pred_s <= pred_s_max && ((pred_s + 1) * (pred_a + 1)) == rate)
+				break;
+		}
+	} else {
+		for (pred_a = pred_a_max; pred_a + 1 > 0; pred_a--) {
+			pred_s = (rate / (pred_a + 1)) - 1;
+
+			if (((pred_s + 1) * (pred_a + 1)) == rate)
+				break;
+		}
 	}
 
 	/*
 	 * Can't find a 1Hz, so give priority to RTC power consumption
 	 * by choosing the higher possible value for prediv_a
 	 */
-	if ((pred_s > pred_s_max) || (pred_a > pred_a_max)) {
+	if (pred_s > pred_s_max || pred_a > pred_a_max) {
 		pred_a = pred_a_max;
 		pred_s = (rate / (pred_a + 1)) - 1;
 
@@ -660,6 +679,20 @@ static int stm32_rtc_init(struct platform_device *pdev,
 			 (rate < ((pred_a + 1) * (pred_s + 1))) ?
 			 "fast" : "slow");
 	}
+
+	cr = readl_relaxed(rtc->base + regs->cr);
+
+	prer = readl_relaxed(rtc->base + regs->prer);
+	prer &= STM32_RTC_PRER_PRED_S | STM32_RTC_PRER_PRED_A;
+
+	pred_s = (pred_s << STM32_RTC_PRER_PRED_S_SHIFT) &
+		 STM32_RTC_PRER_PRED_S;
+	pred_a = (pred_a << STM32_RTC_PRER_PRED_A_SHIFT) &
+		 STM32_RTC_PRER_PRED_A;
+
+	/* quit if there is nothing to initialize */
+	if ((cr & STM32_RTC_CR_FMT) == 0 && prer == (pred_s | pred_a))
+		return 0;
 
 	stm32_rtc_wpr_unlock(rtc);
 
@@ -670,13 +703,10 @@ static int stm32_rtc_init(struct platform_device *pdev,
 		goto end;
 	}
 
-	prer = (pred_s << STM32_RTC_PRER_PRED_S_SHIFT) & STM32_RTC_PRER_PRED_S;
-	writel_relaxed(prer, rtc->base + regs->prer);
-	prer |= (pred_a << STM32_RTC_PRER_PRED_A_SHIFT) & STM32_RTC_PRER_PRED_A;
-	writel_relaxed(prer, rtc->base + regs->prer);
+	writel_relaxed(pred_s, rtc->base + regs->prer);
+	writel_relaxed(pred_a | pred_s, rtc->base + regs->prer);
 
 	/* Force 24h time format */
-	cr = readl_relaxed(rtc->base + regs->cr);
 	cr &= ~STM32_RTC_CR_FMT;
 	writel_relaxed(cr, rtc->base + regs->cr);
 
@@ -735,16 +765,13 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 		rtc->rtc_ck = devm_clk_get(&pdev->dev, NULL);
 	} else {
 		rtc->pclk = devm_clk_get(&pdev->dev, "pclk");
-		if (IS_ERR(rtc->pclk)) {
-			dev_err(&pdev->dev, "no pclk clock");
-			return PTR_ERR(rtc->pclk);
-		}
+		if (IS_ERR(rtc->pclk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(rtc->pclk), "no pclk clock");
+
 		rtc->rtc_ck = devm_clk_get(&pdev->dev, "rtc_ck");
 	}
-	if (IS_ERR(rtc->rtc_ck)) {
-		dev_err(&pdev->dev, "no rtc_ck clock");
-		return PTR_ERR(rtc->rtc_ck);
-	}
+	if (IS_ERR(rtc->rtc_ck))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rtc->rtc_ck), "no rtc_ck clock");
 
 	if (rtc->data->has_pclk) {
 		ret = clk_prepare_enable(rtc->pclk);
@@ -779,19 +806,12 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 	}
 
 	ret = device_init_wakeup(&pdev->dev, true);
-	if (rtc->data->has_wakeirq) {
-		rtc->wakeirq_alarm = platform_get_irq(pdev, 1);
-		if (rtc->wakeirq_alarm > 0) {
-			ret = dev_pm_set_dedicated_wake_irq(&pdev->dev,
-							    rtc->wakeirq_alarm);
-		} else {
-			ret = rtc->wakeirq_alarm;
-			if (rtc->wakeirq_alarm == -EPROBE_DEFER)
-				goto err;
-		}
-	}
 	if (ret)
-		dev_warn(&pdev->dev, "alarm can't wake up the system: %d", ret);
+		goto err;
+
+	ret = dev_pm_set_wake_irq(&pdev->dev, rtc->irq_alarm);
+	if (ret)
+		goto err;
 
 	platform_set_drvdata(pdev, rtc);
 
@@ -871,16 +891,12 @@ static void stm32_rtc_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, false);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int stm32_rtc_suspend(struct device *dev)
 {
 	struct stm32_rtc *rtc = dev_get_drvdata(dev);
 
 	if (rtc->data->has_pclk)
 		clk_disable_unprepare(rtc->pclk);
-
-	if (device_may_wakeup(dev))
-		return enable_irq_wake(rtc->irq_alarm);
 
 	return 0;
 }
@@ -903,15 +919,12 @@ static int stm32_rtc_resume(struct device *dev)
 		return ret;
 	}
 
-	if (device_may_wakeup(dev))
-		return disable_irq_wake(rtc->irq_alarm);
-
 	return ret;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(stm32_rtc_pm_ops,
-			 stm32_rtc_suspend, stm32_rtc_resume);
+static const struct dev_pm_ops stm32_rtc_pm_ops = {
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(stm32_rtc_suspend, stm32_rtc_resume)
+};
 
 static struct platform_driver stm32_rtc_driver = {
 	.probe		= stm32_rtc_probe,

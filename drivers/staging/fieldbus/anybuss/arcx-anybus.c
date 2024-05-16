@@ -156,8 +156,8 @@ create_anybus_host(struct platform_device *pdev, int idx)
 	if (IS_ERR(ops.regmap))
 		return ERR_CAST(ops.regmap);
 	ops.irq = platform_get_irq(pdev, idx);
-	if (ops.irq <= 0)
-		return ERR_PTR(-EINVAL);
+	if (ops.irq < 0)
+		return ERR_PTR(ops.irq);
 	return devm_anybuss_host_common_probe(&pdev->dev, &ops);
 }
 
@@ -343,7 +343,7 @@ static struct platform_driver controller_driver = {
 	.remove_new = controller_remove,
 	.driver		= {
 		.name   = "arcx-anybus-controller",
-		.of_match_table	= of_match_ptr(controller_of_match),
+		.of_match_table	= controller_of_match,
 	},
 };
 
