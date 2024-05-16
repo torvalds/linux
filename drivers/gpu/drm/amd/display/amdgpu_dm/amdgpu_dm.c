@@ -1662,13 +1662,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.driver = adev;
 
-	adev->dm.cgs_device = amdgpu_cgs_create_device(adev);
-
-	if (!adev->dm.cgs_device) {
-		DRM_ERROR("amdgpu: failed to create cgs device.\n");
-		goto error;
-	}
-
+	/* cgs_device was created in dm_sw_init() */
 	init_data.cgs_device = adev->dm.cgs_device;
 
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
@@ -1751,8 +1745,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	/* Enable DWB for tested platforms only */
 	if (amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 0, 0))
 		init_data.num_virtual_links = 1;
-
-	INIT_LIST_HEAD(&adev->dm.da_list);
 
 	retrieve_dmi_info(&adev->dm);
 
@@ -2320,6 +2312,16 @@ static int dm_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
+
+	adev->dm.cgs_device = amdgpu_cgs_create_device(adev);
+
+	if (!adev->dm.cgs_device) {
+		DRM_ERROR("amdgpu: failed to create cgs device.\n");
+		return -EINVAL;
+	}
+
+	/* Moved from dm init since we need to use allocations for storing bounding box data */
+	INIT_LIST_HEAD(&adev->dm.da_list);
 
 	r = dm_dmub_sw_init(adev);
 	if (r)
