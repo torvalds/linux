@@ -40,6 +40,7 @@
 
 #include "i915_config.h"
 #include "i915_reg.h"
+#include "i9xx_plane_regs.h"
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
 #include "intel_display_rps.h"

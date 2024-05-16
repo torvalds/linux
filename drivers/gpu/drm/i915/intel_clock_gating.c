@@ -25,6 +25,7 @@
  *
  */
 
+#include "display/i9xx_plane_regs.h"
 #include "display/intel_de.h"
 #include "display/intel_display.h"
 #include "display/intel_display_trace.h"
