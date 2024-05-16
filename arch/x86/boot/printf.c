@@ -254,6 +254,8 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 		case 'd':
 		case 'i':
 			flags |= SIGN;
+			break;
+
 		case 'u':
 			break;
 
