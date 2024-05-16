@@ -16,6 +16,7 @@
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_sriov_pf_debugfs.h"
+#include "xe_gt_sriov_vf_debugfs.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
@@ -306,4 +307,6 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 
 	if (IS_SRIOV_PF(xe))
 		xe_gt_sriov_pf_debugfs_register(gt, root);
+	else if (IS_SRIOV_VF(xe))
+		xe_gt_sriov_vf_debugfs_register(gt, root);
 }
