@@ -24,7 +24,6 @@
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 #include "intel_vblank.h"
-#include "skl_universal_plane.h"
 #include "skl_watermark.h"
 
 #include "gem/i915_gem_object.h"
@@ -559,6 +558,29 @@ static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
 	}
 }
 
+static u32 skl_cursor_ddb_reg_val(const struct skl_ddb_entry *entry)
+{
+	if (!entry->end)
+		return 0;
+
+	return CUR_BUF_END(entry->end - 1) |
+		CUR_BUF_START(entry->start);
+}
+
+static u32 skl_cursor_wm_reg_val(const struct skl_wm_level *level)
+{
+	u32 val = 0;
+
+	if (level->enable)
+		val |= CUR_WM_EN;
+	if (level->ignore_lines)
+		val |= CUR_WM_IGNORE_LINES;
+	val |= REG_FIELD_PREP(CUR_WM_BLOCKS_MASK, level->blocks);
+	val |= REG_FIELD_PREP(CUR_WM_LINES_MASK, level->lines);
+
+	return val;
+}
+
 static void skl_write_cursor_wm(struct intel_plane *plane,
 				const struct intel_crtc_state *crtc_state)
 {
@@ -572,22 +594,22 @@ static void skl_write_cursor_wm(struct intel_plane *plane,
 
 	for (level = 0; level < i915->display.wm.num_levels; level++)
 		intel_de_write_fw(i915, CUR_WM(pipe, level),
-				  skl_plane_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
+				  skl_cursor_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
 
 	intel_de_write_fw(i915, CUR_WM_TRANS(pipe),
-			  skl_plane_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
+			  skl_cursor_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
 
 	if (HAS_HW_SAGV_WM(i915)) {
 		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 
 		intel_de_write_fw(i915, CUR_WM_SAGV(pipe),
-				  skl_plane_wm_reg_val(&wm->sagv.wm0));
+				  skl_cursor_wm_reg_val(&wm->sagv.wm0));
 		intel_de_write_fw(i915, CUR_WM_SAGV_TRANS(pipe),
-				  skl_plane_wm_reg_val(&wm->sagv.trans_wm));
+				  skl_cursor_wm_reg_val(&wm->sagv.trans_wm));
 	}
 
 	intel_de_write_fw(i915, CUR_BUF_CFG(pipe),
-			  skl_plane_ddb_reg_val(ddb));
+			  skl_cursor_ddb_reg_val(ddb));
 }
 
 /* TODO: split into noarm+arm pair */

@@ -622,7 +622,7 @@ static u32 skl_plane_stride(const struct intel_plane_state *plane_state,
 	return stride / skl_plane_stride_mult(fb, color_plane, rotation);
 }
 
-u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry)
+static u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry)
 {
 	if (!entry->end)
 		return 0;
@@ -631,7 +631,7 @@ u32 skl_plane_ddb_reg_val(const struct skl_ddb_entry *entry)
 		PLANE_BUF_START(entry->start);
 }
 
-u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
+static u32 skl_plane_wm_reg_val(const struct skl_wm_level *level)
 {
 	u32 val = 0;
 
