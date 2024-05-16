@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#define _GNU_SOURCE
-
 #include <linux/limits.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -257,7 +255,7 @@ static int test_no_invasive_cgroup_shrink(const char *root)
 {
 	int ret = KSFT_FAIL;
 	size_t control_allocation_size = MB(10);
-	char *control_allocation, *wb_group = NULL, *control_group = NULL;
+	char *control_allocation = NULL, *wb_group = NULL, *control_group = NULL;
 
 	wb_group = setup_test_group_1M(root, "per_memcg_wb_test1");
 	if (!wb_group)
@@ -342,7 +340,7 @@ static int test_no_kmem_bypass(const char *root)
 	struct sysinfo sys_info;
 	int ret = KSFT_FAIL;
 	int child_status;
-	char *test_group;
+	char *test_group = NULL;
 	pid_t child_pid;
 
 	/* Read sys info and compute test values accordingly */
@@ -440,7 +438,7 @@ int main(int argc, char **argv)
 	char root[PATH_MAX];
 	int i, ret = EXIT_SUCCESS;
 
-	if (cg_find_unified_root(root, sizeof(root)))
+	if (cg_find_unified_root(root, sizeof(root), NULL))
 		ksft_exit_skip("cgroup v2 isn't mounted\n");
 
 	if (!zswap_configured())

@@ -1,6 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#define _GNU_SOURCE
-
 #include <linux/limits.h>
 #include <linux/oom.h>
 #include <fcntl.h>
@@ -716,7 +714,9 @@ static bool reclaim_until(const char *memcg, long goal)
  */
 static int test_memcg_reclaim(const char *root)
 {
-	int ret = KSFT_FAIL, fd, retries;
+	int ret = KSFT_FAIL;
+	int fd = -1;
+	int retries;
 	char *memcg;
 	long current, expected_usage;
 
@@ -1314,7 +1314,7 @@ int main(int argc, char **argv)
 	char root[PATH_MAX];
 	int i, proc_status, ret = EXIT_SUCCESS;
 
-	if (cg_find_unified_root(root, sizeof(root)))
+	if (cg_find_unified_root(root, sizeof(root), NULL))
 		ksft_exit_skip("cgroup v2 isn't mounted\n");
 
 	/*
