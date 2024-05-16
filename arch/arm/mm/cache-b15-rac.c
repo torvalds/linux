@@ -5,6 +5,7 @@
  * Copyright (C) 2015-2016 Broadcom
  */
 
+#include <linux/cfi_types.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>

@@ -17,6 +17,7 @@
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/smp.h>
+#include <linux/cfi.h>
 #include <linux/cpu_pm.h>
 #include <linux/coresight.h>
 
@@ -903,6 +904,37 @@ unlock:
 	watchpoint_single_step_handler(addr);
 }
 
+#ifdef CONFIG_CFI_CLANG
+static void hw_breakpoint_cfi_handler(struct pt_regs *regs)
+{
+	/*
+	 * TODO: implementing target and type to pass to CFI using the more
+	 * elaborate report_cfi_failure() requires compiler work. To be able
+	 * to properly extract target information the compiler needs to
+	 * emit a stable instructions sequence for the CFI checks so we can
+	 * decode the instructions preceding the trap and figure out which
+	 * registers were used.
+	 */
+
+	switch (report_cfi_failure_noaddr(regs, instruction_pointer(regs))) {
+	case BUG_TRAP_TYPE_BUG:
+		die("Oops - CFI", regs, 0);
+		break;
+	case BUG_TRAP_TYPE_WARN:
+		/* Skip the breaking instruction */
+		instruction_pointer(regs) += 4;
+		break;
+	default:
+		die("Unknown CFI error", regs, 0);
+		break;
+	}
+}
+#else
+static void hw_breakpoint_cfi_handler(struct pt_regs *regs)
+{
+}
+#endif
+
 /*
  * Called from either the Data Abort Handler [watchpoint] or the
  * Prefetch Abort Handler [breakpoint] with interrupts disabled.
@@ -931,6 +963,9 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 		fallthrough;
 	case ARM_ENTRY_SYNC_WATCHPOINT:
 		watchpoint_handler(addr, fsr, regs);
+		break;
+	case ARM_ENTRY_CFI_BREAKPOINT:
+		hw_breakpoint_cfi_handler(regs);
 		break;
 	default:
 		ret = 1; /* Unhandled fault. */
