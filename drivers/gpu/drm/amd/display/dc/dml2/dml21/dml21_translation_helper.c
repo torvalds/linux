@@ -306,7 +306,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 
 	if (in_dc->ctx->dc_bios->vram_info.num_chans) {
 		dml_clk_table->dram_config.channel_count = in_dc->ctx->dc_bios->vram_info.num_chans;
-		//dml_soc_bb->mall_allocated_for_dcn_mbytes = TODO;
+		dml_soc_bb->mall_allocated_for_dcn_mbytes = in_dc->caps.mall_size_total / 1048576;
 	}
 
 	if (in_dc->ctx->dc_bios->vram_info.dram_channel_width_bytes) {
