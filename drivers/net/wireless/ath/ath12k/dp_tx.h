@@ -12,7 +12,7 @@
 
 struct ath12k_dp_htt_wbm_tx_status {
 	bool acked;
-	int ack_rssi;
+	s8 ack_rssi;
 };
 
 int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab);
