@@ -47,6 +47,7 @@
 #define PIL_TZ_PEAK_BW	UINT_MAX
 
 #define ADSP_DECRYPT_SHUTDOWN_DELAY_MS	100
+#define RPROC_HANDOVER_POLL_DELAY_MS	1
 
 static struct icc_path *scm_perf_client;
 static int scm_pas_bw_count;
@@ -674,6 +675,9 @@ static int adsp_start(struct rproc *rproc)
 
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_start", "enter");
 
+	if (adsp->check_status)
+		adsp->current_users = 0;
+
 	qcom_q6v5_prepare(&adsp->q6v5);
 
 	if (is_mss_ssr_hyp_assign_en(adsp)) {
@@ -869,6 +873,17 @@ static int rproc_find_status_register(struct qcom_adsp *adsp)
 	return 0;
 }
 
+static bool rproc_poll_handover(struct qcom_adsp *adsp)
+{
+	unsigned int retry_num = 50;
+
+	do {
+		msleep(RPROC_HANDOVER_POLL_DELAY_MS);
+	} while (!adsp->q6v5.handover_issued && --retry_num);
+
+	return adsp->q6v5.handover_issued;
+}
+
 /**
  * rproc_set_state() - Request the SOCCP to change state
  * @state: 1 to set state to RUNNING (D3 to D0)
@@ -889,9 +904,15 @@ int rproc_set_state(struct rproc *rproc, bool state)
 		pr_err("no rproc or adsp\n");
 		return -EINVAL;
 	}
-	if (rproc->state != RPROC_RUNNING) {
+	if (!adsp->q6v5.running) {
 		dev_err(adsp->dev, "rproc is not running\n");
 		return -EINVAL;
+	} else if (!adsp->q6v5.handover_issued) {
+		dev_err(adsp->dev, "rproc is running but handover is not received\n");
+		if (!rproc_poll_handover(adsp)) {
+			dev_err(adsp->dev, "retry for handover timedout\n");
+			return -EINVAL;
+		}
 	}
 
 	mutex_lock(&adsp->adsp_lock);
