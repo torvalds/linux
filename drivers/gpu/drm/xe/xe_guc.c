@@ -19,6 +19,7 @@
 #include "xe_force_wake.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_sriov_vf.h"
 #include "xe_guc_ads.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_db_mgr.h"
@@ -547,6 +548,38 @@ out:
 	return 0	/* FIXME: ret, don't want to stop load currently */;
 }
 
+static int vf_guc_min_load_for_hwconfig(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	int ret;
+
+	ret = xe_gt_sriov_vf_bootstrap(gt);
+	if (ret)
+		return ret;
+
+	ret = xe_gt_sriov_vf_query_config(gt);
+	if (ret)
+		return ret;
+
+	ret = xe_guc_hwconfig_init(guc);
+	if (ret)
+		return ret;
+
+	ret = xe_guc_enable_communication(guc);
+	if (ret)
+		return ret;
+
+	ret = xe_gt_sriov_vf_connect(gt);
+	if (ret)
+		return ret;
+
+	ret = xe_gt_sriov_vf_query_runtime(gt);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 /**
  * xe_guc_min_load_for_hwconfig - load minimal GuC and read hwconfig table
  * @guc: The GuC object
@@ -561,6 +594,9 @@ out:
 int xe_guc_min_load_for_hwconfig(struct xe_guc *guc)
 {
 	int ret;
+
+	if (IS_SRIOV_VF(guc_to_xe(guc)))
+		return vf_guc_min_load_for_hwconfig(guc);
 
 	xe_guc_ads_populate_minimal(&guc->ads);
 
