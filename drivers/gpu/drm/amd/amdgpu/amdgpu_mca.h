@@ -84,7 +84,7 @@ struct mca_bank_set {
 
 struct mca_bank_cache {
 	struct mca_bank_set mca_set;
-	struct mutex lock;
+	spinlock_t lock;
 };
 
 struct amdgpu_mca {

@@ -233,7 +233,7 @@ int amdgpu_mca_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(mca->mca_caches); i++) {
 		mca_cache = &mca->mca_caches[i];
-		mutex_init(&mca_cache->lock);
+		spin_lock_init(&mca_cache->lock);
 		amdgpu_mca_bank_set_init(&mca_cache->mca_set);
 	}
 
@@ -251,7 +251,6 @@ void amdgpu_mca_fini(struct amdgpu_device *adev)
 	for (i = 0; i < ARRAY_SIZE(mca->mca_caches); i++) {
 		mca_cache = &mca->mca_caches[i];
 		amdgpu_mca_bank_set_release(&mca_cache->mca_set);
-		mutex_destroy(&mca_cache->lock);
 	}
 }
 
@@ -456,9 +455,9 @@ static int amdgpu_mca_add_mca_set_to_cache(struct amdgpu_device *adev, enum amdg
 	struct mca_bank_cache *mca_cache = &adev->mca.mca_caches[type];
 	int ret;
 
-	mutex_lock(&mca_cache->lock);
+	spin_lock(&mca_cache->lock);
 	ret = amdgpu_mca_bank_set_merge(&mca_cache->mca_set, new);
-	mutex_unlock(&mca_cache->lock);
+	spin_unlock(&mca_cache->lock);
 
 	return ret;
 }
@@ -488,10 +487,10 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 	}
 
 	/* dispatch mca set again if mca cache has valid data */
-	mutex_lock(&mca_cache->lock);
+	spin_lock(&mca_cache->lock);
 	if (mca_cache->mca_set.nr_entries)
 		ret = amdgpu_mca_dispatch_mca_set(adev, blk, type, &mca_cache->mca_set, err_data);
-	mutex_unlock(&mca_cache->lock);
+	spin_unlock(&mca_cache->lock);
 
 out_mca_release:
 	amdgpu_mca_bank_set_release(&mca_set);
