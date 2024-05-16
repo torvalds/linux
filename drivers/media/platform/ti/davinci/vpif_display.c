@@ -934,7 +934,7 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	}
 
 	/* Configure subdevice timings, if any */
-	ret = v4l2_subdev_call(ch->sd, video, s_dv_timings, timings);
+	ret = v4l2_subdev_call(ch->sd, pad, s_dv_timings, 0, timings);
 	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		ret = 0;
 	if (ret < 0) {
