@@ -3413,6 +3413,9 @@ static bool intel_bios_encoder_supports_dp_dual_mode(const struct intel_bios_enc
 {
 	const struct child_device_config *child = &devdata->child;
 
+	if (!devdata)
+		return false;
+
 	if (!intel_bios_encoder_supports_dp(devdata) ||
 	    !intel_bios_encoder_supports_hdmi(devdata))
 		return false;
