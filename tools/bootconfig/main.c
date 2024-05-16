@@ -23,13 +23,22 @@ static int xbc_show_value(struct xbc_node *node, bool semicolon)
 	int i = 0;
 
 	eol = semicolon ? ";\n" : "\n";
-	xbc_array_for_each_value(node, val) {
-		if (strchr(val, '"'))
-			q = '\'';
-		else
-			q = '"';
-		printf("%c%s%c%s", q, val, q, xbc_node_is_array(node) ? ", " : eol);
-		i++;
+	if(xbc_node_is_value(node)){
+		xbc_array_for_each_value(node, val) {
+			if (strchr(val, '"'))
+				q = '\'';
+			else
+				q = '"';
+			printf("%c%s%c%s", q, val, q, xbc_node_is_array(node) ? ", " : eol);
+			i++;
+		}
+	}else{
+		struct xbc_node *child = xbc_node_get_child(node);
+		while(child){
+			i += xbc_show_value(child, semicolon);
+			child = xbc_node_get_next(child);
+		}
+
 	}
 	return i;
 }
