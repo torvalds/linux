@@ -218,4 +218,15 @@ void kunit_mem_assert_format(const struct kunit_assert *assert,
 			     const struct va_format *message,
 			     struct string_stream *stream);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+void kunit_assert_print_msg(const struct va_format *message,
+			    struct string_stream *stream);
+bool is_literal(const char *text, long long value);
+bool is_str_literal(const char *text, const char *value);
+void kunit_assert_hexdump(struct string_stream *stream,
+			  const void *buf,
+			  const void *compared_buf,
+			  const size_t len);
+#endif
+
 #endif /*  _KUNIT_ASSERT_H */
