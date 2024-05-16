@@ -3515,7 +3515,7 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	ioc_info(ioc, "High IOPs queues : disabled\n");
 	ioc->reply_queue_count = 1;
 	ioc->iopoll_q_start_index = ioc->reply_queue_count - 0;
-	r = pci_alloc_irq_vectors(ioc->pdev, 1, 1, PCI_IRQ_LEGACY);
+	r = pci_alloc_irq_vectors(ioc->pdev, 1, 1, PCI_IRQ_INTX);
 	if (r < 0) {
 		dfailprintk(ioc,
 			    ioc_info(ioc, "pci_alloc_irq_vector(legacy) failed (r=%d) !!!\n",

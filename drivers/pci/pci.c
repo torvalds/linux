@@ -1277,6 +1277,11 @@ static int pci_dev_wait(struct pci_dev *dev, char *reset_type, int timeout)
 	for (;;) {
 		u32 id;
 
+		if (pci_dev_is_disconnected(dev)) {
+			pci_dbg(dev, "disconnected; not waiting\n");
+			return -ENOTTY;
+		}
+
 		pci_read_config_dword(dev, PCI_COMMAND, &id);
 		if (!PCI_POSSIBLE_ERROR(id))
 			break;
@@ -2109,20 +2114,6 @@ static int pci_enable_device_flags(struct pci_dev *dev, unsigned long flags)
 		atomic_dec(&dev->enable_cnt);
 	return err;
 }
-
-/**
- * pci_enable_device_io - Initialize a device for use with IO space
- * @dev: PCI device to be initialized
- *
- * Initialize device before it's used by a driver. Ask low-level code
- * to enable I/O resources. Wake up the device if it was suspended.
- * Beware, this function can fail.
- */
-int pci_enable_device_io(struct pci_dev *dev)
-{
-	return pci_enable_device_flags(dev, IORESOURCE_IO);
-}
-EXPORT_SYMBOL(pci_enable_device_io);
 
 /**
  * pci_enable_device_mem - Initialize a device for use with Memory space
@@ -4625,11 +4616,12 @@ int pcie_retrain_link(struct pci_dev *pdev, bool use_lt)
 
 	/*
 	 * Ensure the updated LNKCTL parameters are used during link
-	 * training by checking that there is no ongoing link training to
-	 * avoid LTSSM race as recommended in Implementation Note at the
-	 * end of PCIe r6.0.1 sec 7.5.3.7.
+	 * training by checking that there is no ongoing link training that
+	 * may have started before link parameters were changed, so as to
+	 * avoid LTSSM race as recommended in Implementation Note at the end
+	 * of PCIe r6.1 sec 7.5.3.7.
 	 */
-	rc = pcie_wait_for_link_status(pdev, use_lt, !use_lt);
+	rc = pcie_wait_for_link_status(pdev, true, false);
 	if (rc)
 		return rc;
 

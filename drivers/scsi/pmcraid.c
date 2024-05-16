@@ -4033,7 +4033,7 @@ static int
 pmcraid_register_interrupt_handler(struct pmcraid_instance *pinstance)
 {
 	struct pci_dev *pdev = pinstance->pdev;
-	unsigned int irq_flag = PCI_IRQ_LEGACY, flag;
+	unsigned int irq_flag = PCI_IRQ_INTX, flag;
 	int num_hrrq, rc, i;
 	irq_handler_t isr;
 
