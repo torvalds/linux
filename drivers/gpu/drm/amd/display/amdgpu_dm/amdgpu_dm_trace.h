@@ -87,7 +87,7 @@ TRACE_EVENT(amdgpu_dc_performance,
 			__entry->writes = write_count;
 			__entry->read_delta = read_count - *last_read;
 			__entry->write_delta = write_count - *last_write;
-			__assign_str(func, func);
+			__assign_str(func);
 			__entry->line = line;
 			*last_read = read_count;
 			*last_write = write_count;

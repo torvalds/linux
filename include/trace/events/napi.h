@@ -26,7 +26,7 @@ TRACE_EVENT(napi_poll,
 
 	TP_fast_assign(
 		__entry->napi = napi;
-		__assign_str(dev_name, napi->dev ? napi->dev->name : NO_DEV);
+		__assign_str(dev_name);
 		__entry->work = work;
 		__entry->budget = budget;
 	),

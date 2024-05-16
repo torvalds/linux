@@ -113,7 +113,7 @@ TRACE_EVENT(tracing_mark_write,
 	),
 	TP_fast_assign(
 			__entry->pid = pid;
-			__assign_str(trace_name, name);
+			__assign_str(trace_name);
 			__entry->trace_begin = trace_begin;
 	),
 	TP_printk("%s|%d|%s", __entry->trace_begin ? "B" : "E",
@@ -130,7 +130,7 @@ TRACE_EVENT(dpu_trace_counter,
 	),
 	TP_fast_assign(
 			__entry->pid = current->tgid;
-			__assign_str(counter_name, name);
+			__assign_str(counter_name);
 			__entry->value = value;
 	),
 	TP_printk("%d|%s|%d", __entry->pid,
@@ -379,7 +379,7 @@ TRACE_EVENT(dpu_enc_rc,
 		__entry->sw_event = sw_event;
 		__entry->idle_pc_supported = idle_pc_supported;
 		__entry->rc_state = rc_state;
-		__assign_str(stage_str, stage);
+		__assign_str(stage_str);
 	),
 	TP_printk("%s: id:%u, sw_event:%d, idle_pc_supported:%s, rc_state:%d",
 		  __get_str(stage_str), __entry->drm_id, __entry->sw_event,
@@ -401,7 +401,7 @@ TRACE_EVENT(dpu_enc_frame_done_cb_not_busy,
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
 		__entry->event = event;
-		__assign_str(intf_mode_str, intf_mode);
+		__assign_str(intf_mode_str);
 		__entry->intf_idx = intf_idx;
 		__entry->wb_idx = wb_idx;
 	),
@@ -446,7 +446,7 @@ TRACE_EVENT(dpu_enc_trigger_flush,
 	),
 	TP_fast_assign(
 		__entry->drm_id = drm_id;
-		__assign_str(intf_mode_str, intf_mode);
+		__assign_str(intf_mode_str);
 		__entry->intf_idx = intf_idx;
 		__entry->wb_idx = wb_idx;
 		__entry->pending_kickoff_cnt = pending_kickoff_cnt;
@@ -946,7 +946,7 @@ TRACE_EVENT(dpu_core_perf_update_clk,
 		__field(	u64,			clk_rate	)
 	),
 	TP_fast_assign(
-		__assign_str(dev_name, dev->unique);
+		__assign_str(dev_name);
 		__entry->stop_req = stop_req;
 		__entry->clk_rate = clk_rate;
 	),
