@@ -916,7 +916,7 @@ void hci_request_setup(struct hci_dev *hdev)
 
 void hci_request_cancel_all(struct hci_dev *hdev)
 {
-	hci_cmd_sync_cancel_sync(hdev, ENODEV);
+	__hci_cmd_sync_cancel(hdev, ENODEV);
 
 	cancel_interleave_scan(hdev);
 }
