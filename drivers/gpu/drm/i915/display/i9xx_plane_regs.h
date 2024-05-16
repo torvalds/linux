@@ -37,53 +37,53 @@
 #define   DISP_LINE_DOUBLE		REG_BIT(20)
 #define   DISP_STEREO_POLARITY_SECOND	REG_BIT(18)
 #define   DISP_ALPHA_PREMULTIPLY	REG_BIT(16) /* CHV pipe B */
-#define   DISP_ROTATE_180		REG_BIT(15)
+#define   DISP_ROTATE_180		REG_BIT(15) /* i965+ */
 #define   DISP_TRICKLE_FEED_DISABLE	REG_BIT(14) /* g4x+ */
-#define   DISP_TILED			REG_BIT(10)
+#define   DISP_TILED			REG_BIT(10) /* i965+ */
 #define   DISP_ASYNC_FLIP		REG_BIT(9) /* g4x+ */
 #define   DISP_MIRROR			REG_BIT(8) /* CHV pipe B */
 
-#define _DSPAADDR				0x70184
+#define _DSPAADDR				0x70184 /* pre-i965 */
 #define DSPADDR(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPAADDR)
 
-#define _DSPALINOFF				0x70184
+#define _DSPALINOFF				0x70184 /* i965+ */
 #define DSPLINOFF(plane)			_MMIO_PIPE2(dev_priv, plane, _DSPALINOFF)
 
 #define _DSPASTRIDE				0x70188
 #define DSPSTRIDE(plane)			_MMIO_PIPE2(dev_priv, plane, _DSPASTRIDE)
 
-#define _DSPAPOS				0x7018C /* reserved */
+#define _DSPAPOS				0x7018C /* pre-g4x */
 #define DSPPOS(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPAPOS)
 #define   DISP_POS_Y_MASK		REG_GENMASK(31, 16)
 #define   DISP_POS_Y(y)			REG_FIELD_PREP(DISP_POS_Y_MASK, (y))
 #define   DISP_POS_X_MASK		REG_GENMASK(15, 0)
 #define   DISP_POS_X(x)			REG_FIELD_PREP(DISP_POS_X_MASK, (x))
 
-#define _DSPASIZE				0x70190
+#define _DSPASIZE				0x70190 /* pre-g4x */
 #define DSPSIZE(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPASIZE)
 #define   DISP_HEIGHT_MASK		REG_GENMASK(31, 16)
 #define   DISP_HEIGHT(h)		REG_FIELD_PREP(DISP_HEIGHT_MASK, (h))
 #define   DISP_WIDTH_MASK		REG_GENMASK(15, 0)
 #define   DISP_WIDTH(w)			REG_FIELD_PREP(DISP_WIDTH_MASK, (w))
 
-#define _DSPASURF				0x7019C /* 965+ only */
+#define _DSPASURF				0x7019C /* i965+ */
 #define DSPSURF(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPASURF)
 #define   DISP_ADDR_MASK		REG_GENMASK(31, 12)
 
-#define _DSPATILEOFF				0x701A4 /* 965+ only */
+#define _DSPATILEOFF				0x701A4 /* i965+ */
 #define DSPTILEOFF(plane)			_MMIO_PIPE2(dev_priv, plane, _DSPATILEOFF)
 #define   DISP_OFFSET_Y_MASK		REG_GENMASK(31, 16)
 #define   DISP_OFFSET_Y(y)		REG_FIELD_PREP(DISP_OFFSET_Y_MASK, (y))
 #define   DISP_OFFSET_X_MASK		REG_GENMASK(15, 0)
 #define   DISP_OFFSET_X(x)		REG_FIELD_PREP(DISP_OFFSET_X_MASK, (x))
 
-#define _DSPAOFFSET				0x701A4 /* HSW */
+#define _DSPAOFFSET				0x701A4 /* hsw+ */
 #define DSPOFFSET(plane)			_MMIO_PIPE2(dev_priv, plane, _DSPAOFFSET)
 
-#define _DSPASURFLIVE				0x701AC
+#define _DSPASURFLIVE				0x701AC /* g4x+ */
 #define DSPSURFLIVE(plane)			_MMIO_PIPE2(dev_priv, plane, _DSPASURFLIVE)
 
-#define _DSPAGAMC				0x701E0
+#define _DSPAGAMC				0x701E0 /* pre-g4x */
 #define DSPGAMC(plane, i)			_MMIO_PIPE2(dev_priv, plane, _DSPAGAMC + (5 - (i)) * 4) /* plane C only, 6 x u0.8 */
 
 /* CHV pipe B primary plane */
