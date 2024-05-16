@@ -1281,6 +1281,9 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 	if (ret)
 		return ret;
 
+	if (WARN_ON(!count)) /* Should always be at least one */
+		return -ERANGE;
+
 	if (count > (hdr.argsz - sizeof(hdr)) / sizeof(*devices)) {
 		hdr.count = count;
 		ret = -ENOSPC;
