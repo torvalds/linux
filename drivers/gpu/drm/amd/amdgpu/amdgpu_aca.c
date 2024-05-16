@@ -222,9 +222,9 @@ static struct aca_bank_error *new_bank_error(struct aca_error *aerr, struct aca_
 	INIT_LIST_HEAD(&bank_error->node);
 	memcpy(&bank_error->info, info, sizeof(*info));
 
-	mutex_lock(&aerr->lock);
+	spin_lock(&aerr->lock);
 	list_add_tail(&bank_error->node, &aerr->list);
-	mutex_unlock(&aerr->lock);
+	spin_unlock(&aerr->lock);
 
 	return bank_error;
 }
@@ -235,7 +235,7 @@ static struct aca_bank_error *find_bank_error(struct aca_error *aerr, struct aca
 	struct aca_bank_info *tmp_info;
 	bool found = false;
 
-	mutex_lock(&aerr->lock);
+	spin_lock(&aerr->lock);
 	list_for_each_entry(bank_error, &aerr->list, node) {
 		tmp_info = &bank_error->info;
 		if (tmp_info->socket_id == info->socket_id &&
@@ -246,7 +246,7 @@ static struct aca_bank_error *find_bank_error(struct aca_error *aerr, struct aca
 	}
 
 out_unlock:
-	mutex_unlock(&aerr->lock);
+	spin_unlock(&aerr->lock);
 
 	return found ? bank_error : NULL;
 }
@@ -474,7 +474,7 @@ static int aca_log_aca_error(struct aca_handle *handle, enum aca_error_type type
 	struct aca_error *aerr = &error_cache->errors[type];
 	struct aca_bank_error *bank_error, *tmp;
 
-	mutex_lock(&aerr->lock);
+	spin_lock(&aerr->lock);
 
 	if (list_empty(&aerr->list))
 		goto out_unlock;
@@ -485,7 +485,7 @@ static int aca_log_aca_error(struct aca_handle *handle, enum aca_error_type type
 	}
 
 out_unlock:
-	mutex_unlock(&aerr->lock);
+	spin_unlock(&aerr->lock);
 
 	return 0;
 }
@@ -542,7 +542,7 @@ int amdgpu_aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *han
 
 static void aca_error_init(struct aca_error *aerr, enum aca_error_type type)
 {
-	mutex_init(&aerr->lock);
+	spin_lock_init(&aerr->lock);
 	INIT_LIST_HEAD(&aerr->list);
 	aerr->type = type;
 	aerr->nr_errors = 0;
@@ -561,11 +561,10 @@ static void aca_error_fini(struct aca_error *aerr)
 {
 	struct aca_bank_error *bank_error, *tmp;
 
-	mutex_lock(&aerr->lock);
+	spin_lock(&aerr->lock);
 	list_for_each_entry_safe(bank_error, tmp, &aerr->list, node)
 		aca_bank_error_remove(aerr, bank_error);
-
-	mutex_destroy(&aerr->lock);
+	spin_unlock(&aerr->lock);
 }
 
 static void aca_fini_error_cache(struct aca_handle *handle)
