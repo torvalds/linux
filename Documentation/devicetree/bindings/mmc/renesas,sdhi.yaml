@@ -12,16 +12,13 @@ maintainers:
 properties:
   compatible:
     oneOf:
-      - items:
-          - const: renesas,sdhi-sh73a0  # R-Mobile APE6
-      - items:
-          - const: renesas,sdhi-r7s72100 # RZ/A1H
-      - items:
-          - const: renesas,sdhi-r7s9210 # SH-Mobile AG5
-      - items:
-          - const: renesas,sdhi-r8a73a4 # R-Mobile APE6
-      - items:
-          - const: renesas,sdhi-r8a7740 # R-Mobile A1
+      - enum:
+          - renesas,sdhi-mmc-r8a77470 # RZ/G1C
+          - renesas,sdhi-r7s72100 # RZ/A1H
+          - renesas,sdhi-r7s9210 # SH-Mobile AG5
+          - renesas,sdhi-r8a73a4 # R-Mobile APE6
+          - renesas,sdhi-r8a7740 # R-Mobile A1
+          - renesas,sdhi-sh73a0  # R-Mobile APE6
       - items:
           - enum:
               - renesas,sdhi-r8a7778 # R-Car M1
@@ -41,8 +38,6 @@ properties:
               - renesas,sdhi-r8a7794  # R-Car E2
           - const: renesas,rcar-gen2-sdhi # R-Car Gen2 and RZ/G1
       - items:
-          - const: renesas,sdhi-mmc-r8a77470 # RZ/G1C (SDHI/MMC IP)
-      - items:
           - enum:
               - renesas,sdhi-r8a774a1  # RZ/G2M
               - renesas,sdhi-r8a774b1  # RZ/G2N
@@ -56,11 +51,6 @@ properties:
               - renesas,sdhi-r8a77980  # R-Car V3H
               - renesas,sdhi-r8a77990  # R-Car E3
               - renesas,sdhi-r8a77995  # R-Car D3
-              - renesas,sdhi-r9a07g043 # RZ/G2UL and RZ/Five
-              - renesas,sdhi-r9a07g044 # RZ/G2{L,LC}
-              - renesas,sdhi-r9a07g054 # RZ/V2L
-              - renesas,sdhi-r9a08g045 # RZ/G3S
-              - renesas,sdhi-r9a09g011 # RZ/V2M
           - const: renesas,rcar-gen3-sdhi # R-Car Gen3 or RZ/G2
       - items:
           - enum:
@@ -69,6 +59,14 @@ properties:
               - renesas,sdhi-r8a779g0  # R-Car V4H
               - renesas,sdhi-r8a779h0  # R-Car V4M
           - const: renesas,rcar-gen4-sdhi # R-Car Gen4
+      - items:
+          - enum:
+              - renesas,sdhi-r9a07g043 # RZ/G2UL and RZ/Five
+              - renesas,sdhi-r9a07g044 # RZ/G2{L,LC}
+              - renesas,sdhi-r9a07g054 # RZ/V2L
+              - renesas,sdhi-r9a08g045 # RZ/G3S
+              - renesas,sdhi-r9a09g011 # RZ/V2M
+          - const: renesas,rzg2l-sdhi
 
   reg:
     maxItems: 1
@@ -120,12 +118,7 @@ allOf:
       properties:
         compatible:
           contains:
-            enum:
-              - renesas,sdhi-r9a07g043
-              - renesas,sdhi-r9a07g044
-              - renesas,sdhi-r9a07g054
-              - renesas,sdhi-r9a08g045
-              - renesas,sdhi-r9a09g011
+            const: renesas,rzg2l-sdhi
     then:
       properties:
         clocks:
