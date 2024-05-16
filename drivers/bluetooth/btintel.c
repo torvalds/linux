@@ -26,19 +26,9 @@
 #define ECDSA_OFFSET		644
 #define ECDSA_HEADER_LEN	320
 
-#define BTINTEL_PPAG_NAME   "PPAG"
-
 enum {
 	DSM_SET_WDISABLE2_DELAY = 1,
 	DSM_SET_RESET_METHOD = 3,
-};
-
-/* structure to store the PPAG data read from ACPI table */
-struct btintel_ppag {
-	u32	domain;
-	u32     mode;
-	acpi_status status;
-	struct hci_dev *hdev;
 };
 
 #define CMD_WRITE_BOOT_PARAMS	0xfc0e
@@ -1324,65 +1314,6 @@ static int btintel_read_debug_features(struct hci_dev *hdev,
 	return 0;
 }
 
-static acpi_status btintel_ppag_callback(acpi_handle handle, u32 lvl, void *data,
-					 void **ret)
-{
-	acpi_status status;
-	size_t len;
-	struct btintel_ppag *ppag = data;
-	union acpi_object *p, *elements;
-	struct acpi_buffer string = {ACPI_ALLOCATE_BUFFER, NULL};
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
-	struct hci_dev *hdev = ppag->hdev;
-
-	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
-	if (ACPI_FAILURE(status)) {
-		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
-		return status;
-	}
-
-	len = strlen(string.pointer);
-	if (len < strlen(BTINTEL_PPAG_NAME)) {
-		kfree(string.pointer);
-		return AE_OK;
-	}
-
-	if (strncmp((char *)string.pointer + len - 4, BTINTEL_PPAG_NAME, 4)) {
-		kfree(string.pointer);
-		return AE_OK;
-	}
-	kfree(string.pointer);
-
-	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
-	if (ACPI_FAILURE(status)) {
-		ppag->status = status;
-		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
-		return status;
-	}
-
-	p = buffer.pointer;
-	ppag = (struct btintel_ppag *)data;
-
-	if (p->type != ACPI_TYPE_PACKAGE || p->package.count != 2) {
-		kfree(buffer.pointer);
-		bt_dev_warn(hdev, "PPAG-BT: Invalid object type: %d or package count: %d",
-			    p->type, p->package.count);
-		ppag->status = AE_ERROR;
-		return AE_ERROR;
-	}
-
-	elements = p->package.elements;
-
-	/* PPAG table is located at element[1] */
-	p = &elements[1];
-
-	ppag->domain = (u32)p->package.elements[0].integer.value;
-	ppag->mode = (u32)p->package.elements[1].integer.value;
-	ppag->status = AE_OK;
-	kfree(buffer.pointer);
-	return AE_CTRL_TERMINATE;
-}
-
 static int btintel_set_debug_features(struct hci_dev *hdev,
 			       const struct intel_debug_features *features)
 {
@@ -2427,10 +2358,13 @@ error:
 
 static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver)
 {
-	struct btintel_ppag ppag;
 	struct sk_buff *skb;
 	struct hci_ppag_enable_cmd ppag_cmd;
 	acpi_handle handle;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *p, *elements;
+	u32 domain, mode;
+	acpi_status status;
 
 	/* PPAG is not supported if CRF is HrP2, Jfp2, JfP1 */
 	switch (ver->cnvr_top & 0xFFF) {
@@ -2448,22 +2382,34 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 		return;
 	}
 
-	memset(&ppag, 0, sizeof(ppag));
-
-	ppag.hdev = hdev;
-	ppag.status = AE_NOT_FOUND;
-	acpi_walk_namespace(ACPI_TYPE_PACKAGE, handle, 1, NULL,
-			    btintel_ppag_callback, &ppag, NULL);
-
-	if (ACPI_FAILURE(ppag.status)) {
-		if (ppag.status == AE_NOT_FOUND) {
+	status = acpi_evaluate_object(handle, "PPAG", NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_NOT_FOUND) {
 			bt_dev_dbg(hdev, "PPAG-BT: ACPI entry not found");
 			return;
 		}
+		bt_dev_warn(hdev, "PPAG-BT: ACPI Failure: %s", acpi_format_exception(status));
 		return;
 	}
 
-	if (ppag.domain != 0x12) {
+	p = buffer.pointer;
+	if (p->type != ACPI_TYPE_PACKAGE || p->package.count != 2) {
+		bt_dev_warn(hdev, "PPAG-BT: Invalid object type: %d or package count: %d",
+			    p->type, p->package.count);
+		kfree(buffer.pointer);
+		return;
+	}
+
+	elements = p->package.elements;
+
+	/* PPAG table is located at element[1] */
+	p = &elements[1];
+
+	domain = (u32)p->package.elements[0].integer.value;
+	mode = (u32)p->package.elements[1].integer.value;
+	kfree(buffer.pointer);
+
+	if (domain != 0x12) {
 		bt_dev_dbg(hdev, "PPAG-BT: Bluetooth domain is disabled in ACPI firmware");
 		return;
 	}
@@ -2474,19 +2420,22 @@ static void btintel_set_ppag(struct hci_dev *hdev, struct intel_version_tlv *ver
 	 * BIT 1 : 0 Disabled in China
 	 *         1 Enabled in China
 	 */
-	if ((ppag.mode & 0x01) != BIT(0) && (ppag.mode & 0x02) != BIT(1)) {
-		bt_dev_dbg(hdev, "PPAG-BT: EU, China mode are disabled in CB/BIOS");
+	mode &= 0x03;
+
+	if (!mode) {
+		bt_dev_dbg(hdev, "PPAG-BT: EU, China mode are disabled in BIOS");
 		return;
 	}
 
-	ppag_cmd.ppag_enable_flags = cpu_to_le32(ppag.mode);
+	ppag_cmd.ppag_enable_flags = cpu_to_le32(mode);
 
-	skb = __hci_cmd_sync(hdev, INTEL_OP_PPAG_CMD, sizeof(ppag_cmd), &ppag_cmd, HCI_CMD_TIMEOUT);
+	skb = __hci_cmd_sync(hdev, INTEL_OP_PPAG_CMD, sizeof(ppag_cmd),
+			     &ppag_cmd, HCI_CMD_TIMEOUT);
 	if (IS_ERR(skb)) {
 		bt_dev_warn(hdev, "Failed to send PPAG Enable (%ld)", PTR_ERR(skb));
 		return;
 	}
-	bt_dev_info(hdev, "PPAG-BT: Enabled (Mode %d)", ppag.mode);
+	bt_dev_info(hdev, "PPAG-BT: Enabled (Mode %d)", mode);
 	kfree_skb(skb);
 }
 
