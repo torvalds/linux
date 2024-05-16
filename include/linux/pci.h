@@ -1821,17 +1821,21 @@ extern bool pcie_ports_native;
 #define pcie_ports_native	false
 #endif
 
-#define PCIE_LINK_STATE_L0S		BIT(0)
-#define PCIE_LINK_STATE_L1		BIT(1)
-#define PCIE_LINK_STATE_CLKPM		BIT(2)
-#define PCIE_LINK_STATE_L1_1		BIT(3)
-#define PCIE_LINK_STATE_L1_2		BIT(4)
-#define PCIE_LINK_STATE_L1_1_PCIPM	BIT(5)
-#define PCIE_LINK_STATE_L1_2_PCIPM	BIT(6)
-#define PCIE_LINK_STATE_ALL		(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |\
-					 PCIE_LINK_STATE_CLKPM | PCIE_LINK_STATE_L1_1 |\
-					 PCIE_LINK_STATE_L1_2 | PCIE_LINK_STATE_L1_1_PCIPM |\
+#define PCIE_LINK_STATE_L0S		(BIT(0) | BIT(1)) /* Upstr/dwnstr L0s */
+#define PCIE_LINK_STATE_L1		BIT(2)	/* L1 state */
+#define PCIE_LINK_STATE_L1_1		BIT(3)	/* ASPM L1.1 state */
+#define PCIE_LINK_STATE_L1_2		BIT(4)	/* ASPM L1.2 state */
+#define PCIE_LINK_STATE_L1_1_PCIPM	BIT(5)	/* PCI-PM L1.1 state */
+#define PCIE_LINK_STATE_L1_2_PCIPM	BIT(6)	/* PCI-PM L1.2 state */
+#define PCIE_LINK_STATE_ASPM_ALL	(PCIE_LINK_STATE_L0S		|\
+					 PCIE_LINK_STATE_L1		|\
+					 PCIE_LINK_STATE_L1_1		|\
+					 PCIE_LINK_STATE_L1_2		|\
+					 PCIE_LINK_STATE_L1_1_PCIPM	|\
 					 PCIE_LINK_STATE_L1_2_PCIPM)
+#define PCIE_LINK_STATE_CLKPM		BIT(7)
+#define PCIE_LINK_STATE_ALL		(PCIE_LINK_STATE_ASPM_ALL	|\
+					 PCIE_LINK_STATE_CLKPM)
 
 #ifdef CONFIG_PCIEASPM
 int pci_disable_link_state(struct pci_dev *pdev, int state);
