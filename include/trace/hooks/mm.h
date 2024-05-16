@@ -60,6 +60,9 @@ DECLARE_HOOK(android_vh_filemap_get_folio,
 DECLARE_HOOK(android_vh_meminfo_proc_show,
 	TP_PROTO(struct seq_file *m),
 	TP_ARGS(m));
+DECLARE_RESTRICTED_HOOK(android_rvh_meminfo_proc_show,
+	TP_PROTO(struct seq_file *m),
+	TP_ARGS(m), 1);
 DECLARE_HOOK(android_vh_exit_mm,
 	TP_PROTO(struct mm_struct *mm),
 	TP_ARGS(mm));

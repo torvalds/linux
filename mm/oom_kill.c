@@ -511,7 +511,7 @@ static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
 static struct task_struct *oom_reaper_list;
 static DEFINE_SPINLOCK(oom_reaper_lock);
 
-static bool __oom_reap_task_mm(struct mm_struct *mm)
+bool __oom_reap_task_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
 	bool ret = true;
@@ -560,6 +560,7 @@ static bool __oom_reap_task_mm(struct mm_struct *mm)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__oom_reap_task_mm);
 
 /*
  * Reaps the address space of the give task.

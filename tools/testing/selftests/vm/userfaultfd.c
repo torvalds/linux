@@ -65,6 +65,9 @@
 
 #ifdef __NR_userfaultfd
 
+#define ALIGN_UP(x, align_to) \
+	((__typeof__(x))((((unsigned long)(x)) + ((align_to)-1)) & ~((align_to)-1)))
+
 static unsigned long nr_cpus, nr_pages, nr_pages_per_cpu, page_size, hpage_size;
 
 #define BOUNCE_RANDOM		(1<<0)
@@ -93,6 +96,8 @@ static volatile bool test_uffdio_zeropage_eexist = true;
 static bool test_uffdio_wp = true;
 /* Whether to test uffd minor faults */
 static bool test_uffdio_minor = false;
+/* Whether to test uffd move ioctl */
+static bool test_uffdio_move = false;
 
 static bool map_shared;
 static int shm_fd;
@@ -112,6 +117,8 @@ struct uffd_stats {
 	unsigned long wp_faults;
 	unsigned long minor_faults;
 };
+
+static void (*uffd_test_page_fault_handler)(struct uffd_msg *msg, struct uffd_stats *args);
 
 /* pthread_mutex_t starts at page offset 0 */
 #define area_mutex(___area, ___nr)					\
@@ -365,6 +372,11 @@ static void shmem_check_pmd_mapping(void *p, int expect_nr_hpages)
 		    expect_nr_hpages);
 }
 
+struct uffd_test_case_ops {
+	void (*pre_alloc)();
+	void (*post_alloc)();
+};
+
 struct uffd_test_ops {
 	void (*allocate_area)(void **alloc_area, bool is_src);
 	void (*release_pages)(char *rel_area);
@@ -513,14 +525,19 @@ static void uffd_test_ctx_clear(void)
 	munmap_area((void **)&area_remap);
 }
 
-static void uffd_test_ctx_init(uint64_t features)
+static void uffd_test_ctx_init(uint64_t features,
+			       struct uffd_test_case_ops *uffd_test_case_ops)
 {
 	unsigned long nr, cpu;
 
-	uffd_test_ctx_clear();
+	if (uffd_test_case_ops && uffd_test_case_ops->pre_alloc)
+		uffd_test_case_ops->pre_alloc();
 
 	uffd_test_ops->allocate_area((void **)&area_src, true);
 	uffd_test_ops->allocate_area((void **)&area_dst, false);
+
+	if (uffd_test_case_ops && uffd_test_case_ops->post_alloc)
+		uffd_test_case_ops->post_alloc();
 
 	userfaultfd_open(&features);
 
@@ -721,6 +738,30 @@ static int copy_page(int ufd, unsigned long offset)
 	return __copy_page(ufd, offset, false);
 }
 
+static int move_page(int ufd, unsigned long offset, unsigned long len)
+{
+	struct uffdio_move uffdio_move;
+
+	if (offset + len > nr_pages * page_size)
+		err("unexpected offset %lu and length %lu\n", offset, len);
+	uffdio_move.dst = (unsigned long) area_dst + offset;
+	uffdio_move.src = (unsigned long) area_src + offset;
+	uffdio_move.len = len;
+	uffdio_move.mode = UFFDIO_MOVE_MODE_ALLOW_SRC_HOLES;
+	uffdio_move.move = 0;
+	if (ioctl(ufd, UFFDIO_MOVE, &uffdio_move)) {
+		/* real retval in uffdio_move.move */
+		if (uffdio_move.move != -EEXIST)
+			err("UFFDIO_MOVE error: %"PRId64,
+			    (int64_t)uffdio_move.move);
+		wake_range(ufd, uffdio_move.dst, len);
+	} else if (uffdio_move.move != len) {
+		err("UFFDIO_MOVE error: %"PRId64, (int64_t)uffdio_move.move);
+	} else
+		return 1;
+	return 0;
+}
+
 static int uffd_read_msg(int ufd, struct uffd_msg *msg)
 {
 	int ret = read(uffd, msg, sizeof(*msg));
@@ -842,7 +883,10 @@ static void *uffd_poll_thread(void *arg)
 			err("unexpected msg event %u\n", msg.event);
 			break;
 		case UFFD_EVENT_PAGEFAULT:
-			uffd_handle_page_fault(&msg, stats);
+			if (uffd_test_page_fault_handler)
+				uffd_test_page_fault_handler(&msg, stats);
+			else
+				uffd_handle_page_fault(&msg, stats);
 			break;
 		case UFFD_EVENT_FORK:
 			close(uffd);
@@ -1178,7 +1222,7 @@ static int userfaultfd_zeropage_test(void)
 	printf("testing UFFDIO_ZEROPAGE: ");
 	fflush(stdout);
 
-	uffd_test_ctx_init(0);
+	uffd_test_ctx_init(0, NULL);
 
 	uffdio_register.range.start = (unsigned long) area_dst;
 	uffdio_register.range.len = nr_pages * page_size;
@@ -1195,8 +1239,228 @@ static int userfaultfd_zeropage_test(void)
 		if (my_bcmp(area_dst, zeropage, page_size))
 			err("zeropage is not zero");
 
+	uffd_test_ctx_clear();
 	printf("done.\n");
 	return 0;
+}
+
+static void prevent_hugepages()
+{
+	/* This should be done before source area is populated */
+	if (madvise(area_src, nr_pages * page_size, MADV_NOHUGEPAGE)) {
+		/* Ignore only if CONFIG_TRANSPARENT_HUGEPAGE=n */
+		if (errno != EINVAL) {
+			err("madvise(MADV_NOHUGEPAGE) failed");
+		}
+	}
+}
+
+static void request_src_hugepages()
+{
+	/* This should be done before source area is populated */
+	if (madvise(area_src, nr_pages * page_size, MADV_HUGEPAGE)) {
+		if (errno == EINVAL)
+			err("CONFIG_TRANSPARENT_HUGEPAGE is not set");
+		else
+			err("madvise(MADV_HUGEPAGE) failed");
+	}
+}
+
+static void request_hugepages()
+{
+	request_src_hugepages();
+	if (madvise(area_dst, nr_pages * page_size, MADV_HUGEPAGE))
+		err("madvise(MADV_HUGEPAGE) failure");
+}
+
+static void request_split_hugepages()
+{
+	request_src_hugepages();
+	if (madvise(area_dst, nr_pages * page_size, MADV_NOHUGEPAGE))
+		err("madvise(MADV_NOHUGEPAGE) failure");
+}
+
+struct uffd_test_case_ops uffd_move_test_case_ops = {
+	.post_alloc = prevent_hugepages,
+};
+
+struct uffd_test_case_ops uffd_move_test_pmd_case_ops = {
+	.post_alloc = request_hugepages,
+};
+
+struct uffd_test_case_ops uffd_move_test_pmd_split_case_ops = {
+	.post_alloc = request_split_hugepages,
+};
+
+static void
+uffd_move_handle_fault_common(struct uffd_msg *msg, struct uffd_stats *args,
+			      unsigned long len)
+{
+	unsigned long offset;
+
+	if (msg->event != UFFD_EVENT_PAGEFAULT)
+		err("unexpected msg event %u", msg->event);
+
+	if (msg->arg.pagefault.flags &
+	    (UFFD_PAGEFAULT_FLAG_WP | UFFD_PAGEFAULT_FLAG_MINOR | UFFD_PAGEFAULT_FLAG_WRITE))
+		err("unexpected fault type %llu", msg->arg.pagefault.flags);
+
+	offset = (char *)(unsigned long)msg->arg.pagefault.address - area_dst;
+	offset &= ~(len-1);
+
+	if (move_page(uffd, offset, len))
+		args->missing_faults++;
+}
+
+static void uffd_move_handle_fault(struct uffd_msg *msg,
+				   struct uffd_stats *args)
+{
+	uffd_move_handle_fault_common(msg, args, page_size);
+}
+
+static void uffd_move_pmd_handle_fault(struct uffd_msg *msg,
+				       struct uffd_stats *args)
+{
+	uffd_move_handle_fault_common(msg, args, read_pmd_pagesize());
+}
+
+static int
+uffd_move_test_common(struct uffd_test_case_ops *uffd_test_case_ops,
+		      unsigned long chunk_size,
+		      void (*handle_fault)(struct uffd_msg *msg, struct uffd_stats *args))
+{
+	struct uffdio_register uffdio_register;
+	unsigned long nr;
+	pthread_t uffd_mon;
+	char c;
+	unsigned long long count;
+	struct uffd_stats args = { 0 };
+	char *orig_area_src, *orig_area_dst;
+	unsigned long step_size, step_count;
+	unsigned long src_offs = 0;
+	unsigned long dst_offs = 0;
+
+	uffd_test_ctx_init(UFFD_FEATURE_MOVE, uffd_test_case_ops);
+
+	/* Prevent source pages from being mapped more than once */
+	if (madvise(area_src, nr_pages * page_size, MADV_DONTFORK))
+		err("madvise(MADV_DONTFORK) failure");
+
+	uffdio_register.range.start = (unsigned long) area_dst;
+	uffdio_register.range.len = nr_pages * page_size;
+	uffdio_register.mode = UFFDIO_REGISTER_MODE_MISSING;
+	if (ioctl(uffd, UFFDIO_REGISTER, &uffdio_register))
+		err("register failure");
+
+	uffd_test_page_fault_handler = handle_fault;
+	if (pthread_create(&uffd_mon, NULL, uffd_poll_thread, &args))
+		err("uffd_poll_thread create");
+
+	step_size = chunk_size / page_size;
+	step_count = nr_pages / step_size;
+
+	if (chunk_size > page_size) {
+		char *aligned_src = ALIGN_UP(area_src, chunk_size);
+		char *aligned_dst = ALIGN_UP(area_dst, chunk_size);
+
+		if (aligned_src != area_src || aligned_dst != area_dst) {
+			src_offs = (aligned_src - area_src) / page_size;
+			dst_offs = (aligned_dst - area_dst) / page_size;
+			step_count--;
+		}
+		orig_area_src = area_src;
+		orig_area_dst = area_dst;
+		area_src = aligned_src;
+		area_dst = aligned_dst;
+	}
+
+	/*
+	 * Read each of the pages back using the UFFD-registered mapping. We
+	 * expect that the first time we touch a page, it will result in a missing
+	 * fault. uffd_poll_thread will resolve the fault by moving source
+	 * page to destination.
+	 */
+	for (nr = 0; nr < step_count * step_size; nr += step_size) {
+		unsigned long i;
+
+		/* Check area_src content */
+		for (i = 0; i < step_size; i++) {
+			count = *area_count(area_src, nr + i);
+			if (count != count_verify[src_offs + nr + i])
+				err("nr %lu source memory invalid %llu %llu\n",
+				    nr + i, count, count_verify[src_offs + nr + i]);
+		}
+
+		/* Faulting into area_dst should move the page or the huge page */
+		for (i = 0; i < step_size; i++) {
+			count = *area_count(area_dst, nr + i);
+			if (count != count_verify[dst_offs + nr + i])
+				err("nr %lu memory corruption %llu %llu\n",
+				    nr, count, count_verify[dst_offs + nr + i]);
+		}
+
+		/* Re-check area_src content which should be empty */
+		for (i = 0; i < step_size; i++) {
+			count = *area_count(area_src, nr + i);
+			if (count != 0)
+				err("nr %lu move failed %llu %llu\n",
+				    nr, count, count_verify[src_offs + nr + i]);
+		}
+	}
+	if (step_size > page_size) {
+		area_src = orig_area_src;
+		area_dst = orig_area_dst;
+	}
+
+	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
+		err("pipe write");
+	if (pthread_join(uffd_mon, NULL))
+		err("join() failed");
+
+	uffd_test_page_fault_handler = NULL;
+	uffd_test_ctx_clear();
+
+	return args.missing_faults != step_count || args.minor_faults != 0;
+}
+
+static int uffd_move_test(void)
+{
+        printf("move ");
+	return uffd_move_test_common(&uffd_move_test_case_ops, page_size,
+				     uffd_move_handle_fault);
+}
+
+static int uffd_move_pmd_test(void)
+{
+	printf("move-pmd ");
+	return uffd_move_test_common(&uffd_move_test_pmd_case_ops,
+				     read_pmd_pagesize(),
+				     uffd_move_pmd_handle_fault);
+}
+
+static int uffd_move_pmd_split_test(void)
+{
+	printf("move-pmd-split ");
+	return uffd_move_test_common(&uffd_move_test_pmd_split_case_ops,
+				     read_pmd_pagesize(),
+				     uffd_move_pmd_handle_fault);
+}
+
+static int userfaultfd_move_test(void)
+{
+	int ret;
+
+	if (!test_uffdio_move)
+		return 0;
+
+	printf("testing UFFDIO_MOVE: ");
+	fflush(stdout);
+
+	ret = uffd_move_test() || uffd_move_pmd_test()
+		|| uffd_move_pmd_split_test();
+
+	printf("done.\n");
+	return ret;
 }
 
 static int userfaultfd_events_test(void)
@@ -1207,13 +1471,14 @@ static int userfaultfd_events_test(void)
 	pid_t pid;
 	char c;
 	struct uffd_stats stats = { 0 };
+	int ret;
 
 	printf("testing events (fork, remap, remove): ");
 	fflush(stdout);
 
 	features = UFFD_FEATURE_EVENT_FORK | UFFD_FEATURE_EVENT_REMAP |
 		UFFD_FEATURE_EVENT_REMOVE;
-	uffd_test_ctx_init(features);
+	uffd_test_ctx_init(features, NULL);
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
@@ -1243,12 +1508,16 @@ static int userfaultfd_events_test(void)
 		err("faulting process failed");
 	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
 		err("pipe write");
+	ret = 1;
 	if (pthread_join(uffd_mon, NULL))
-		return 1;
+		goto out;
 
 	uffd_stats_report(&stats, 1);
 
-	return stats.missing_faults != nr_pages;
+	ret = stats.missing_faults != nr_pages;
+out:
+	uffd_test_ctx_clear();
+	return ret;
 }
 
 static int userfaultfd_sig_test(void)
@@ -1260,12 +1529,13 @@ static int userfaultfd_sig_test(void)
 	pid_t pid;
 	char c;
 	struct uffd_stats stats = { 0 };
+	int ret;
 
 	printf("testing signal delivery: ");
 	fflush(stdout);
 
 	features = UFFD_FEATURE_EVENT_FORK|UFFD_FEATURE_SIGBUS;
-	uffd_test_ctx_init(features);
+	uffd_test_ctx_init(features, NULL);
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
@@ -1300,14 +1570,18 @@ static int userfaultfd_sig_test(void)
 		err("faulting process failed");
 	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
 		err("pipe write");
+	ret = 1;
 	if (pthread_join(uffd_mon, (void **)&userfaults))
-		return 1;
+		goto out;
 
 	printf("done.\n");
 	if (userfaults)
 		err("Signal test failed, userfaults: %ld", userfaults);
 
-	return userfaults != 0;
+	ret = userfaults != 0;
+out:
+	uffd_test_ctx_clear();
+	return ret;
 }
 
 void check_memory_contents(char *p)
@@ -1336,6 +1610,7 @@ static int userfaultfd_minor_test(void)
 	pthread_t uffd_mon;
 	char c;
 	struct uffd_stats stats = { 0 };
+	int ret;
 
 	if (!test_uffdio_minor)
 		return 0;
@@ -1343,7 +1618,7 @@ static int userfaultfd_minor_test(void)
 	printf("testing minor faults: ");
 	fflush(stdout);
 
-	uffd_test_ctx_init(uffd_minor_feature());
+	uffd_test_ctx_init(uffd_minor_feature(), NULL);
 
 	uffdio_register.range.start = (unsigned long)area_dst_alias;
 	uffdio_register.range.len = nr_pages * page_size;
@@ -1376,8 +1651,9 @@ static int userfaultfd_minor_test(void)
 
 	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
 		err("pipe write");
+	ret = 1;
 	if (pthread_join(uffd_mon, NULL))
-		return 1;
+		goto out;
 
 	uffd_stats_report(&stats, 1);
 
@@ -1398,7 +1674,10 @@ static int userfaultfd_minor_test(void)
 		printf(" done.\n");
 	}
 
-	return stats.missing_faults != 0 || stats.minor_faults != nr_pages;
+	ret = stats.missing_faults != 0 || stats.minor_faults != nr_pages;
+out:
+	uffd_test_ctx_clear();
+	return ret;
 }
 
 #define BIT_ULL(nr)                   (1ULL << (nr))
@@ -1478,7 +1757,7 @@ static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 	/* Flush so it doesn't flush twice in parent/child later */
 	fflush(stdout);
 
-	uffd_test_ctx_init(0);
+	uffd_test_ctx_init(0, NULL);
 
 	if (test_pgsize > page_size) {
 		/* This is a thp test */
@@ -1532,6 +1811,7 @@ static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 	pagemap_check_wp(value, false);
 
 	close(pagemap_fd);
+	uffd_test_ctx_clear();
 	printf("done\n");
 }
 
@@ -1542,7 +1822,7 @@ static int userfaultfd_stress(void)
 	struct uffdio_register uffdio_register;
 	struct uffd_stats uffd_stats[nr_cpus];
 
-	uffd_test_ctx_init(0);
+	uffd_test_ctx_init(0, NULL);
 
 	if (posix_memalign(&area, page_size, page_size))
 		err("out of memory");
@@ -1621,8 +1901,10 @@ static int userfaultfd_stress(void)
 		uffd_stats_reset(uffd_stats, nr_cpus);
 
 		/* bounce pass */
-		if (stress(uffd_stats))
+		if (stress(uffd_stats)) {
+			uffd_test_ctx_clear();
 			return 1;
+		}
 
 		/* Clear all the write protections if there is any */
 		if (test_uffdio_wp)
@@ -1654,6 +1936,7 @@ static int userfaultfd_stress(void)
 
 		uffd_stats_report(uffd_stats, nr_cpus);
 	}
+	uffd_test_ctx_clear();
 
 	if (test_type == TEST_ANON) {
 		/*
@@ -1671,7 +1954,8 @@ static int userfaultfd_stress(void)
 	}
 
 	return userfaultfd_zeropage_test() || userfaultfd_sig_test()
-		|| userfaultfd_events_test() || userfaultfd_minor_test();
+		|| userfaultfd_events_test() || userfaultfd_minor_test()
+		|| userfaultfd_move_test();
 }
 
 /*
@@ -1703,6 +1987,7 @@ static void set_test_type(const char *type)
 	if (!strcmp(type, "anon")) {
 		test_type = TEST_ANON;
 		uffd_test_ops = &anon_uffd_test_ops;
+		test_uffdio_move = true;
 	} else if (!strcmp(type, "hugetlb")) {
 		test_type = TEST_HUGETLB;
 		uffd_test_ops = &hugetlb_uffd_test_ops;

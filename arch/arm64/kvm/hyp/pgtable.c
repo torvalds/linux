@@ -887,7 +887,9 @@ static void stage2_coalesce_walk_table_post(u64 addr, u64 end, u32 level,
 	 * of the page table page.
 	 */
 	if (mm_ops->page_count(childp) == 1) {
-		stage2_put_pte(ptep, data->mmu, addr, level, mm_ops);
+		kvm_clear_pte(ptep);
+		kvm_call_hyp(__kvm_tlb_flush_vmid, data->mmu);
+		mm_ops->put_page(ptep);
 		mm_ops->put_page(childp);
 	}
 }

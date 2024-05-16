@@ -11,7 +11,7 @@
 #include <linux/net.h>
 #include <linux/igmp.h>
 #include <linux/workqueue.h>
-#include <net/sch_generic.h>
+#include <net/pkt_sched.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/udp.h>
@@ -80,11 +80,11 @@ static struct mld2_grec mldv2_zero_grec;
 
 static struct amt_skb_cb *amt_skb_cb(struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(struct amt_skb_cb) + sizeof(struct qdisc_skb_cb) >
+	BUILD_BUG_ON(sizeof(struct amt_skb_cb) + sizeof(struct tc_skb_cb) >
 		     sizeof_field(struct sk_buff, cb));
 
 	return (struct amt_skb_cb *)((void *)skb->cb +
-		sizeof(struct qdisc_skb_cb));
+		sizeof(struct tc_skb_cb));
 }
 
 static void __amt_source_gc_work(void)
