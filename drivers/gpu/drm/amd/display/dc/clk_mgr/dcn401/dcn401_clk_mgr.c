@@ -791,12 +791,14 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 				block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
 				num_steps++;
 			}
-		} else {
-			/* P-State is not supported so force max clocks */
-			idle_fclk_mhz =
-					clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1].fclk_mhz;
-			active_fclk_mhz = idle_fclk_mhz;
 		}
+	}
+
+	if (!clk_mgr_base->clks.fclk_p_state_change_support && dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
+		/* when P-State switching disabled, set UCLK min = max */
+		idle_fclk_mhz =
+				clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1].fclk_mhz;
+		active_fclk_mhz = idle_fclk_mhz;
 	}
 
 	/* UPDATE DCFCLK */
@@ -872,19 +874,21 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 				block_sequence[num_steps].func = CLK_MGR401_UPDATE_UCLK_PSTATE_SUPPORT;
 				num_steps++;
 			}
-		} else {
-			/* when disabling P-State switching, set UCLK min = max */
-			if (dc->clk_mgr->dc_mode_softmax_enabled) {
-				/* will never have the functional UCLK min above the softmax
-				* since we calculate mode support based on softmax being the max UCLK
-				* frequency.
-				*/
-				active_uclk_mhz = clk_mgr_base->bw_params->dc_mode_softmax_memclk;
-			} else {
-				active_uclk_mhz = clk_mgr_base->bw_params->max_memclk_mhz;
-			}
-			idle_uclk_mhz = active_uclk_mhz;
 		}
+	}
+
+	if (!clk_mgr_base->clks.p_state_change_support && dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK)) {
+		/* when P-State switching disabled, set UCLK min = max */
+		if (dc->clk_mgr->dc_mode_softmax_enabled) {
+			/* will never have the functional UCLK min above the softmax
+			* since we calculate mode support based on softmax being the max UCLK
+			* frequency.
+			*/
+			active_uclk_mhz = clk_mgr_base->bw_params->dc_mode_softmax_memclk;
+		} else {
+			active_uclk_mhz = clk_mgr_base->bw_params->max_memclk_mhz;
+		}
+		idle_uclk_mhz = active_uclk_mhz;
 	}
 
 	/* Always update saved value, even if new value not set due to P-State switching unsupported */
