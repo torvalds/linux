@@ -48,6 +48,10 @@
 
 #define SMU14_TOOL_SIZE			0x19000
 
+#define CTF_OFFSET_EDGE			5
+#define CTF_OFFSET_HOTSPOT		5
+#define CTF_OFFSET_MEM			5
+
 extern const int decoded_link_speed[5];
 extern const int decoded_link_width[7];
 
@@ -235,6 +239,10 @@ int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 				long input[], uint32_t size);
 
 void smu_v14_0_set_smu_mailbox_registers(struct smu_context *smu);
+
+int smu_v14_0_enable_thermal_alert(struct smu_context *smu);
+
+int smu_v14_0_disable_thermal_alert(struct smu_context *smu);
 
 #endif
 #endif

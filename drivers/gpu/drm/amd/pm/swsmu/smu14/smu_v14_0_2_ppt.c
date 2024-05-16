@@ -1277,10 +1277,41 @@ static int smu_v14_0_2_update_pcie_parameters(struct smu_context *smu,
 	return 0;
 }
 
+static const struct smu_temperature_range smu14_thermal_policy[] = {
+	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
+	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
+};
+
 static int smu_v14_0_2_get_thermal_temperature_range(struct smu_context *smu,
 						     struct smu_temperature_range *range)
 {
-	// TODO
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_14_0_2_powerplay_table *powerplay_table =
+		table_context->power_play_table;
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
+	if (!range)
+		return -EINVAL;
+
+	memcpy(range, &smu14_thermal_policy[0], sizeof(struct smu_temperature_range));
+
+	range->max = pptable->CustomSkuTable.TemperatureLimit[TEMP_EDGE] *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->edge_emergency_max = (pptable->CustomSkuTable.TemperatureLimit[TEMP_EDGE] + CTF_OFFSET_EDGE) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_crit_max = pptable->CustomSkuTable.TemperatureLimit[TEMP_HOTSPOT] *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_emergency_max = (pptable->CustomSkuTable.TemperatureLimit[TEMP_HOTSPOT] + CTF_OFFSET_HOTSPOT) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_crit_max = pptable->CustomSkuTable.TemperatureLimit[TEMP_MEM] *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_emergency_max = (pptable->CustomSkuTable.TemperatureLimit[TEMP_MEM] + CTF_OFFSET_MEM)*
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->software_shutdown_temp = powerplay_table->software_shutdown_temp;
+	range->software_shutdown_temp_offset = pptable->CustomSkuTable.FanAbnormalTempLimitOffset;
 
 	return 0;
 }
@@ -1871,6 +1902,8 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.update_pcie_parameters = smu_v14_0_2_update_pcie_parameters,
 	.get_thermal_temperature_range = smu_v14_0_2_get_thermal_temperature_range,
 	.register_irq_handler = smu_v14_0_register_irq_handler,
+	.enable_thermal_alert = smu_v14_0_enable_thermal_alert,
+	.disable_thermal_alert = smu_v14_0_disable_thermal_alert,
 	.notify_memory_pool_location = smu_v14_0_notify_memory_pool_location,
 	.set_soft_freq_limited_range = smu_v14_0_set_soft_freq_limited_range,
 	.init_pptable_microcode = smu_v14_0_init_pptable_microcode,
