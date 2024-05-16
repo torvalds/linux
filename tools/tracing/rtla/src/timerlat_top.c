@@ -47,6 +47,7 @@ struct timerlat_top_params {
 	int			kernel_workload;
 	int			pretty_output;
 	int			warmup;
+	int			buffer_size;
 	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
@@ -479,6 +480,7 @@ static void timerlat_top_usage(char *usage)
 		"	  -k/--kernel-threads: use timerlat kernel-space threads instead of rtla user-space threads",
 		"	  -U/--user-load: enable timerlat for user-defined user-space workload",
 		"	     --warm-up s: let the workload run for s seconds before collecting data",
+		"	     --trace-buffer-size kB: set the per-cpu trace buffer size in kB",
 		NULL,
 	};
 
@@ -547,13 +549,14 @@ static struct timerlat_top_params
 			{"dump-tasks",		no_argument,		0, '4'},
 			{"aa-only",		required_argument,	0, '5'},
 			{"warm-up",		required_argument,	0, '6'},
+			{"trace-buffer-size",	required_argument,	0, '7'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:C::d:De:hH:i:knp:P:qs:t::T:uU0:1:2:345:6:",
+		c = getopt_long(argc, argv, "a:c:C::d:De:hH:i:knp:P:qs:t::T:uU0:1:2:345:6:7:",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -715,6 +718,9 @@ static struct timerlat_top_params
 			break;
 		case '6':
 			params->warmup = get_llong_from_str(optarg);
+			break;
+		case '7':
+			params->buffer_size = get_llong_from_str(optarg);
 			break;
 		default:
 			timerlat_top_usage("Invalid option");
@@ -970,6 +976,12 @@ int timerlat_top_main(int argc, char *argv[])
 
 		if (params->events) {
 			retval = trace_events_enable(&record->trace, params->events);
+			if (retval)
+				goto out_top;
+		}
+
+		if (params->buffer_size > 0) {
+			retval = trace_set_buffer_size(&record->trace, params->buffer_size);
 			if (retval)
 				goto out_top;
 		}

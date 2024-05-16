@@ -54,6 +54,9 @@
 
         After starting the workload, let it run for *s* seconds before starting collecting the data, allowing the system to warm-up. Statistical data generated during warm-up is discarded.
 
+**--trace-buffer-size** *kB*
+        Set the per-cpu trace buffer size in kB for the tracing output.
+
 **-h**, **--help**
 
         Print help menu.

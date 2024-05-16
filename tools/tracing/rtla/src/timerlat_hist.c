@@ -54,6 +54,7 @@ struct timerlat_hist_params {
 	int			bucket_size;
 	int			entries;
 	int			warmup;
+	int			buffer_size;
 };
 
 struct timerlat_hist_cpu {
@@ -669,6 +670,7 @@ static void timerlat_hist_usage(char *usage)
 		"	  -k/--kernel-threads: use timerlat kernel-space threads instead of rtla user-space threads",
 		"	  -U/--user-load: enable timerlat for user-defined user-space workload",
 		"	     --warm-up s: let the workload run for s seconds before collecting data",
+		"	     --trace-buffer-size kB: set the per-cpu trace buffer size in kB",
 		NULL,
 	};
 
@@ -745,13 +747,14 @@ static struct timerlat_hist_params
 			{"no-aa",		no_argument,		0, '9'},
 			{"dump-task",		no_argument,		0, '\1'},
 			{"warm-up",		required_argument,	0, '\2'},
+			{"trace-buffer-size",	required_argument,	0, '\3'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:knp:P:s:t::T:uU0123456:7:8:9\1\2:",
+		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:knp:P:s:t::T:uU0123456:7:8:9\1\2:\3",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -925,6 +928,9 @@ static struct timerlat_hist_params
 			break;
 		case '\2':
 			params->warmup = get_llong_from_str(optarg);
+			break;
+		case '\3':
+			params->buffer_size = get_llong_from_str(optarg);
 			break;
 		default:
 			timerlat_hist_usage("Invalid option");
@@ -1176,6 +1182,12 @@ int timerlat_hist_main(int argc, char *argv[])
 
 		if (params->events) {
 			retval = trace_events_enable(&record->trace, params->events);
+			if (retval)
+				goto out_hist;
+		}
+
+		if (params->buffer_size > 0) {
+			retval = trace_set_buffer_size(&record->trace, params->buffer_size);
 			if (retval)
 				goto out_hist;
 		}
