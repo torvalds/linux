@@ -549,7 +549,10 @@ venc_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd *cmd)
 
 		fdata.buffer_type = HFI_BUFFER_INPUT;
 		fdata.flags |= HFI_BUFFERFLAG_EOS;
-		fdata.device_addr = 0xdeadb000;
+		if (IS_V3(inst->core))
+			fdata.device_addr = 0;
+		else
+			fdata.device_addr = 0xdeadb000;
 
 		ret = hfi_session_process_buf(inst, &fdata);
 

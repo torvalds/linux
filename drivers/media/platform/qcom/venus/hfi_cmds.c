@@ -288,7 +288,7 @@ int pkt_session_etb_encoder(
 		struct hfi_session_empty_buffer_uncompressed_plane0_pkt *pkt,
 		void *cookie, struct hfi_frame_data *in_frame)
 {
-	if (!cookie || !in_frame->device_addr)
+	if (!cookie || (!in_frame->device_addr && in_frame->alloc_len))
 		return -EINVAL;
 
 	pkt->shdr.hdr.size = sizeof(*pkt);
