@@ -1097,36 +1097,6 @@ int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
 	return ret;
 }
 
-int inode_write_data(struct inode *inode, const void *data, size_t bytes)
-{
-	pgoff_t idx;
-
-	/* Write non resident data. */
-	for (idx = 0; bytes; idx++) {
-		size_t op = bytes > PAGE_SIZE ? PAGE_SIZE : bytes;
-		struct page *page = ntfs_map_page(inode->i_mapping, idx);
-
-		if (IS_ERR(page))
-			return PTR_ERR(page);
-
-		lock_page(page);
-		WARN_ON(!PageUptodate(page));
-		ClearPageUptodate(page);
-
-		memcpy(page_address(page), data, op);
-
-		flush_dcache_page(page);
-		SetPageUptodate(page);
-		unlock_page(page);
-
-		ntfs_unmap_page(page);
-
-		bytes -= op;
-		data = Add2Ptr(data, PAGE_SIZE);
-	}
-	return 0;
-}
-
 /*
  * ntfs_reparse_bytes
  *
