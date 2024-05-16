@@ -705,7 +705,7 @@ static void icl_plane_disable_sel_fetch_arm(struct intel_plane *plane,
 	if (!crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	intel_de_write_fw(i915, PLANE_SEL_FETCH_CTL(pipe, plane->id), 0);
+	intel_de_write_fw(i915, SEL_FETCH_PLANE_CTL(pipe, plane->id), 0);
 }
 
 static void
@@ -1304,7 +1304,7 @@ static void icl_plane_update_sel_fetch_noarm(struct intel_plane *plane,
 
 	val = (clip->y1 + plane_state->uapi.dst.y1) << 16;
 	val |= plane_state->uapi.dst.x1;
-	intel_de_write_fw(i915, PLANE_SEL_FETCH_POS(pipe, plane->id), val);
+	intel_de_write_fw(i915, SEL_FETCH_PLANE_POS(pipe, plane->id), val);
 
 	x = plane_state->view.color_plane[color_plane].x;
 
@@ -1319,13 +1319,13 @@ static void icl_plane_update_sel_fetch_noarm(struct intel_plane *plane,
 
 	val = y << 16 | x;
 
-	intel_de_write_fw(i915, PLANE_SEL_FETCH_OFFSET(pipe, plane->id),
+	intel_de_write_fw(i915, SEL_FETCH_PLANE_OFFSET(pipe, plane->id),
 			  val);
 
 	/* Sizes are 0 based */
 	val = (drm_rect_height(clip) - 1) << 16;
 	val |= (drm_rect_width(&plane_state->uapi.src) >> 16) - 1;
-	intel_de_write_fw(i915, PLANE_SEL_FETCH_SIZE(pipe, plane->id), val);
+	intel_de_write_fw(i915, SEL_FETCH_PLANE_SIZE(pipe, plane->id), val);
 }
 
 static void
@@ -1414,8 +1414,8 @@ static void icl_plane_update_sel_fetch_arm(struct intel_plane *plane,
 		return;
 
 	if (drm_rect_height(&plane_state->psr2_sel_fetch_area) > 0)
-		intel_de_write_fw(i915, PLANE_SEL_FETCH_CTL(pipe, plane->id),
-				  PLANE_SEL_FETCH_CTL_ENABLE);
+		intel_de_write_fw(i915, SEL_FETCH_PLANE_CTL(pipe, plane->id),
+				  SEL_FETCH_PLANE_CTL_ENABLE);
 	else
 		icl_plane_disable_sel_fetch_arm(plane, crtc_state);
 }
