@@ -112,7 +112,6 @@
 #include "amdgpu_xcp.h"
 #include "amdgpu_seq64.h"
 #include "amdgpu_reg_state.h"
-#include "amdgpu_umsch_mm.h"
 
 #define MAX_GPU_INSTANCE		64
 
