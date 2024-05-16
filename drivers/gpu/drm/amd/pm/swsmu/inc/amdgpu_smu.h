@@ -1574,6 +1574,7 @@ typedef struct {
 } WifiBandEntryTable_t;
 
 #define STR_SOC_PSTATE_POLICY "soc_pstate"
+#define STR_XGMI_PLPD_POLICY "xgmi_plpd"
 
 struct smu_dpm_policy *smu_get_pm_policy(struct smu_context *smu,
 					 enum pp_pm_policy p_type);
