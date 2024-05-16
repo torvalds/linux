@@ -1380,18 +1380,11 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 	bool new_device_added = false;
 	struct btrfs_device *device = NULL;
 	struct file *bdev_file;
-	u64 bytenr, bytenr_orig;
+	u64 bytenr;
 	dev_t devt;
 	int ret;
 
 	lockdep_assert_held(&uuid_mutex);
-
-	/*
-	 * we would like to check all the supers, but that would make
-	 * a btrfs mount succeed after a mkfs from a different FS.
-	 * So, we need to add a special mount option to scan for
-	 * later supers, using BTRFS_SUPER_MIRROR_MAX instead
-	 */
 
 	/*
 	 * Avoid an exclusive open here, as the systemd-udev may initiate the
@@ -1407,7 +1400,12 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 	if (IS_ERR(bdev_file))
 		return ERR_CAST(bdev_file);
 
-	bytenr_orig = btrfs_sb_offset(0);
+	/*
+	 * We would like to check all the super blocks, but doing so would
+	 * allow a mount to succeed after a mkfs from a different filesystem.
+	 * Currently, recovery from a bad primary btrfs superblock is done
+	 * using the userspace command 'btrfs check --super'.
+	 */
 	ret = btrfs_sb_log_location_bdev(file_bdev(bdev_file), 0, READ, &bytenr);
 	if (ret) {
 		device = ERR_PTR(ret);
@@ -1415,7 +1413,7 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 	}
 
 	disk_super = btrfs_read_disk_super(file_bdev(bdev_file), bytenr,
-					   bytenr_orig);
+					   btrfs_sb_offset(0));
 	if (IS_ERR(disk_super)) {
 		device = ERR_CAST(disk_super);
 		goto error_bdev_put;
