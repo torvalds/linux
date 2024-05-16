@@ -17,6 +17,17 @@
 #define _MMIO_SKL_PLANE_DW(pipe, plane, dw, reg_1_a, reg_1_b, reg_2_a, reg_2_b) \
 	_MMIO(_SKL_PLANE_DW((pipe), (plane), (dw), (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b)))
 
+#define _SEL_FETCH(pipe, plane, reg_1_a, reg_1_b, reg_2_a, reg_2_b, reg_5_a, reg_5_b, reg_6_a, reg_6_b) \
+	_PICK_EVEN_2RANGES((plane), PLANE_5, \
+			   _PIPE((pipe), (reg_1_a), (reg_1_b)), \
+			   _PIPE((pipe), (reg_2_a), (reg_2_b)), \
+			   _PIPE((pipe), (reg_5_a), (reg_5_b)), \
+			   _PIPE((pipe), (reg_6_a), (reg_6_b)))
+#define _MMIO_SEL_FETCH(pipe, plane, reg_1_a, reg_1_b, reg_2_a, reg_2_b, reg_5_a, reg_5_b, reg_6_a, reg_6_b) \
+	_MMIO(_SEL_FETCH((pipe), (plane), \
+			 (reg_1_a), (reg_1_b), (reg_2_a), (reg_2_b), \
+			 (reg_5_a), (reg_5_b), (reg_6_a), (reg_6_b)))
+
 #define _PLANE_CTL_1_A				0x70180
 #define _PLANE_CTL_2_A				0x70280
 #define _PLANE_CTL_1_B				0x71180
@@ -366,5 +377,66 @@
 #define   PLANE_BUF_END(end)			REG_FIELD_PREP(PLANE_BUF_END_MASK, (end))
 #define   PLANE_BUF_START_MASK			REG_GENMASK(11, 0)
 #define   PLANE_BUF_START(start)		REG_FIELD_PREP(PLANE_BUF_START_MASK, (start))
+
+/* tgl+ */
+#define _SEL_FETCH_PLANE_CTL_1_A		0x70890
+#define _SEL_FETCH_PLANE_CTL_2_A		0x708b0
+#define _SEL_FETCH_PLANE_CTL_5_A		0x70920
+#define _SEL_FETCH_PLANE_CTL_6_A		0x70940
+#define _SEL_FETCH_PLANE_CTL_1_B		0x71890
+#define _SEL_FETCH_PLANE_CTL_2_B		0x718b0
+#define _SEL_FETCH_PLANE_CTL_5_B		0x71920
+#define _SEL_FETCH_PLANE_CTL_6_B		0x71940
+#define SEL_FETCH_PLANE_CTL(pipe, plane)	_MMIO_SEL_FETCH((pipe), (plane),\
+								_SEL_FETCH_PLANE_CTL_1_A, _SEL_FETCH_PLANE_CTL_1_B, \
+								_SEL_FETCH_PLANE_CTL_2_A, _SEL_FETCH_PLANE_CTL_2_B, \
+								_SEL_FETCH_PLANE_CTL_5_A, _SEL_FETCH_PLANE_CTL_5_B, \
+								_SEL_FETCH_PLANE_CTL_6_A, _SEL_FETCH_PLANE_CTL_6_B)
+#define   SEL_FETCH_PLANE_CTL_ENABLE		REG_BIT(31)
+
+/* tgl+ */
+#define _SEL_FETCH_PLANE_POS_1_A		0x70894
+#define _SEL_FETCH_PLANE_POS_2_A		0x708b4
+#define _SEL_FETCH_PLANE_POS_5_A		0x70924
+#define _SEL_FETCH_PLANE_POS_6_A		0x70944
+#define _SEL_FETCH_PLANE_POS_1_B		0x71894
+#define _SEL_FETCH_PLANE_POS_2_B		0x718b4
+#define _SEL_FETCH_PLANE_POS_5_B		0x71924
+#define _SEL_FETCH_PLANE_POS_6_B		0x71944
+#define SEL_FETCH_PLANE_POS(pipe, plane)	_MMIO_SEL_FETCH((pipe), (plane),\
+								_SEL_FETCH_PLANE_POS_1_A, _SEL_FETCH_PLANE_POS_1_B, \
+								_SEL_FETCH_PLANE_POS_2_A, _SEL_FETCH_PLANE_POS_2_B, \
+								_SEL_FETCH_PLANE_POS_5_A, _SEL_FETCH_PLANE_POS_5_B, \
+								_SEL_FETCH_PLANE_POS_6_A, _SEL_FETCH_PLANE_POS_6_B)
+
+/* tgl+ */
+#define _SEL_FETCH_PLANE_SIZE_1_A		0x70898
+#define _SEL_FETCH_PLANE_SIZE_2_A		0x708b8
+#define _SEL_FETCH_PLANE_SIZE_5_A		0x70928
+#define _SEL_FETCH_PLANE_SIZE_6_A		0x70948
+#define _SEL_FETCH_PLANE_SIZE_1_B		0x71898
+#define _SEL_FETCH_PLANE_SIZE_2_B		0x718b8
+#define _SEL_FETCH_PLANE_SIZE_5_B		0x71928
+#define _SEL_FETCH_PLANE_SIZE_6_B		0x71948
+#define SEL_FETCH_PLANE_SIZE(pipe, plane)	_MMIO_SEL_FETCH((pipe), (plane),\
+								_SEL_FETCH_PLANE_POS_1_A, _SEL_FETCH_PLANE_POS_1_B, \
+								_SEL_FETCH_PLANE_POS_2_A, _SEL_FETCH_PLANE_POS_2_B, \
+								_SEL_FETCH_PLANE_POS_5_A, _SEL_FETCH_PLANE_POS_5_B, \
+								_SEL_FETCH_PLANE_POS_6_A, _SEL_FETCH_PLANE_POS_6_B)
+
+/* tgl+ */
+#define _SEL_FETCH_PLANE_OFFSET_1_A		0x7089c
+#define _SEL_FETCH_PLANE_OFFSET_2_A		0x708bc
+#define _SEL_FETCH_PLANE_OFFSET_5_A		0x7092c
+#define _SEL_FETCH_PLANE_OFFSET_6_A		0x7094c
+#define _SEL_FETCH_PLANE_OFFSET_1_B		0x7189c
+#define _SEL_FETCH_PLANE_OFFSET_2_B		0x718bc
+#define _SEL_FETCH_PLANE_OFFSET_5_B		0x7192c
+#define _SEL_FETCH_PLANE_OFFSET_6_B		0x7194c
+#define SEL_FETCH_PLANE_OFFSET(pipe, plane)	_MMIO_SEL_FETCH((pipe), (plane),\
+								_SEL_FETCH_PLANE_POS_1_A, _SEL_FETCH_PLANE_POS_1_B, \
+								_SEL_FETCH_PLANE_POS_2_A, _SEL_FETCH_PLANE_POS_2_B, \
+								_SEL_FETCH_PLANE_POS_5_A, _SEL_FETCH_PLANE_POS_5_B, \
+								_SEL_FETCH_PLANE_POS_6_A, _SEL_FETCH_PLANE_POS_6_B)
 
 #endif /* __SKL_UNIVERSAL_PLANE_REGS_H__ */
