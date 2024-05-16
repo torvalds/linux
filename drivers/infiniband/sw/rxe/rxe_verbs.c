@@ -812,7 +812,7 @@ static void copy_inline_data_to_wqe(struct rxe_send_wqe *wqe,
 	int i;
 
 	for (i = 0; i < ibwr->num_sge; i++, sge++) {
-		memcpy(p, ib_virt_dma_to_page(sge->addr), sge->length);
+		memcpy(p, ib_virt_dma_to_ptr(sge->addr), sge->length);
 		p += sge->length;
 	}
 }
