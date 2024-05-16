@@ -42,6 +42,7 @@
 #include <linux/dma-fence-array.h>
 #include <linux/pci-p2pdma.h>
 #include <linux/pm_runtime.h>
+#include "amdgpu_trace.h"
 
 /**
  * amdgpu_dma_buf_attach - &dma_buf_ops.attach implementation
@@ -63,6 +64,7 @@ static int amdgpu_dma_buf_attach(struct dma_buf *dmabuf,
 		attach->peer2peer = false;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
+	trace_amdgpu_runpm_reference_dumps(1, __func__);
 	if (r < 0)
 		goto out;
 
@@ -70,6 +72,7 @@ static int amdgpu_dma_buf_attach(struct dma_buf *dmabuf,
 
 out:
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	trace_amdgpu_runpm_reference_dumps(0, __func__);
 	return r;
 }
 
@@ -90,6 +93,7 @@ static void amdgpu_dma_buf_detach(struct dma_buf *dmabuf,
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	trace_amdgpu_runpm_reference_dumps(0, __func__);
 }
 
 /**
@@ -373,6 +377,10 @@ amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 	struct amdgpu_vm_bo_base *bo_base;
 	int r;
 
+	/* FIXME: This should be after the "if", but needs a fix to make sure
+	 * DMABuf imports are initialized in the right VM list.
+	 */
+	amdgpu_vm_bo_invalidate(adev, bo, false);
 	if (!bo->tbo.resource || bo->tbo.resource->mem_type == TTM_PL_SYSTEM)
 		return;
 
@@ -409,7 +417,7 @@ amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 		if (!r)
 			r = amdgpu_vm_clear_freed(adev, vm, NULL);
 		if (!r)
-			r = amdgpu_vm_handle_moved(adev, vm);
+			r = amdgpu_vm_handle_moved(adev, vm, ticket);
 
 		if (r && r != -EBUSY)
 			DRM_ERROR("Failed to invalidate VM page tables (%d))\n",

@@ -674,14 +674,6 @@ static int jpeg_v4_0_set_powergating_state(void *handle,
 	return ret;
 }
 
-static int jpeg_v4_0_set_interrupt_state(struct amdgpu_device *adev,
-					struct amdgpu_irq_src *source,
-					unsigned type,
-					enum amdgpu_interrupt_state state)
-{
-	return 0;
-}
-
 static int jpeg_v4_0_set_ras_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					unsigned int type,
@@ -727,6 +719,8 @@ static const struct amd_ip_funcs jpeg_v4_0_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = jpeg_v4_0_set_clockgating_state,
 	.set_powergating_state = jpeg_v4_0_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs jpeg_v4_0_dec_ring_vm_funcs = {
@@ -765,7 +759,6 @@ static void jpeg_v4_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_irq_src_funcs jpeg_v4_0_irq_funcs = {
-	.set = jpeg_v4_0_set_interrupt_state,
 	.process = jpeg_v4_0_process_interrupt,
 };
 

@@ -6,11 +6,29 @@
 #ifndef BTRFS_TRANSACTION_H
 #define BTRFS_TRANSACTION_H
 
+#include <linux/atomic.h>
 #include <linux/refcount.h>
+#include <linux/list.h>
+#include <linux/time64.h>
+#include <linux/mutex.h>
+#include <linux/wait.h>
 #include "btrfs_inode.h"
 #include "delayed-ref.h"
-#include "ctree.h"
+#include "extent-io-tree.h"
+#include "block-rsv.h"
+#include "messages.h"
 #include "misc.h"
+
+struct dentry;
+struct inode;
+struct btrfs_pending_snapshot;
+struct btrfs_fs_info;
+struct btrfs_root_item;
+struct btrfs_root;
+struct btrfs_path;
+
+/* Radix-tree tag for roots that are part of the trasaction. */
+#define BTRFS_ROOT_TRANS_TAG			0
 
 enum btrfs_trans_state {
 	TRANS_STATE_RUNNING,
@@ -118,8 +136,10 @@ enum {
 struct btrfs_trans_handle {
 	u64 transid;
 	u64 bytes_reserved;
+	u64 delayed_refs_bytes_reserved;
 	u64 chunk_bytes_reserved;
 	unsigned long delayed_ref_updates;
+	unsigned long delayed_ref_csum_deletions;
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_rsv *orig_rsv;
@@ -139,6 +159,7 @@ struct btrfs_trans_handle {
 	bool in_fsync;
 	struct btrfs_fs_info *fs_info;
 	struct list_head new_bgs;
+	struct btrfs_block_rsv delayed_rsv;
 };
 
 /*
@@ -172,7 +193,7 @@ static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
 {
 	spin_lock(&inode->lock);
 	inode->last_trans = trans->transaction->transid;
-	inode->last_sub_trans = inode->root->log_transid;
+	inode->last_sub_trans = btrfs_get_root_log_transid(inode->root);
 	inode->last_log_commit = inode->last_sub_trans - 1;
 	spin_unlock(&inode->lock);
 }
@@ -200,32 +221,32 @@ static inline void btrfs_clear_skip_qgroup(struct btrfs_trans_handle *trans)
 	delayed_refs->qgroup_to_skip = 0;
 }
 
-bool __cold abort_should_print_stack(int errno);
+bool __cold abort_should_print_stack(int error);
 
 /*
  * Call btrfs_abort_transaction as early as possible when an error condition is
  * detected, that way the exact stack trace is reported for some errors.
  */
-#define btrfs_abort_transaction(trans, errno)		\
+#define btrfs_abort_transaction(trans, error)		\
 do {								\
 	bool first = false;					\
 	/* Report first abort since mount */			\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
 			&((trans)->fs_info->fs_state))) {	\
 		first = true;					\
-		if (WARN(abort_should_print_stack(errno),	\
+		if (WARN(abort_should_print_stack(error),	\
 			KERN_ERR				\
 			"BTRFS: Transaction aborted (error %d)\n",	\
-			(errno))) {					\
+			(error))) {					\
 			/* Stack trace printed. */			\
 		} else {						\
 			btrfs_err((trans)->fs_info,			\
 				  "Transaction aborted (error %d)",	\
-				  (errno));			\
+				  (error));			\
 		}						\
 	}							\
 	__btrfs_abort_transaction((trans), __func__,		\
-				  __LINE__, (errno), first);	\
+				  __LINE__, (error), first);	\
 } while (0)
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans);
@@ -243,7 +264,6 @@ struct btrfs_trans_handle *btrfs_attach_transaction_barrier(
 int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid);
 
 void btrfs_add_dead_root(struct btrfs_root *root);
-int btrfs_defrag_root(struct btrfs_root *root);
 void btrfs_maybe_wake_unfinished_drop(struct btrfs_fs_info *fs_info);
 int btrfs_clean_one_deleted_snapshot(struct btrfs_fs_info *fs_info);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans);
@@ -257,14 +277,13 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 				struct extent_io_tree *dirty_pages, int mark);
 int btrfs_wait_tree_log_extents(struct btrfs_root *root, int mark);
 int btrfs_transaction_blocked(struct btrfs_fs_info *info);
-int btrfs_transaction_in_commit(struct btrfs_fs_info *info);
 void btrfs_put_transaction(struct btrfs_transaction *transaction);
 void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
 void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans);
 void __cold __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 				      const char *function,
-				      unsigned int line, int errno, bool first_hit);
+				      unsigned int line, int error, bool first_hit);
 
 int __init btrfs_transaction_init(void);
 void __cold btrfs_transaction_exit(void);

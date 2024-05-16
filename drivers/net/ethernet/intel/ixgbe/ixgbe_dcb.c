@@ -18,7 +18,7 @@
  * @max: max credits by traffic class
  * @max_frame: maximum frame size
  */
-static s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill,
+static int ixgbe_ieee_credits(__u8 *bw, __u16 *refill,
 			      __u16 *max, int max_frame)
 {
 	int min_percent = 100;
@@ -59,7 +59,7 @@ static s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill,
  * It should be called only after the rules are checked by
  * ixgbe_dcb_check_config().
  */
-s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *hw,
+int ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *hw,
 				   struct ixgbe_dcb_config *dcb_config,
 				   int max_frame, u8 direction)
 {
@@ -247,7 +247,7 @@ void ixgbe_dcb_unpack_map(struct ixgbe_dcb_config *cfg, int direction, u8 *map)
  *
  * Configure dcb settings and enable dcb mode.
  */
-s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
+int ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 			struct ixgbe_dcb_config *dcb_config)
 {
 	u8 pfc_en;
@@ -283,7 +283,7 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 }
 
 /* Helper routines to abstract HW specifics from DCB netlink ops */
-s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
+int ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 {
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
@@ -300,7 +300,7 @@ s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en, u8 *prio_tc)
 	return -EINVAL;
 }
 
-s32 ixgbe_dcb_hw_ets(struct ixgbe_hw *hw, struct ieee_ets *ets, int max_frame)
+int ixgbe_dcb_hw_ets(struct ixgbe_hw *hw, struct ieee_ets *ets, int max_frame)
 {
 	__u16 refill[IEEE_8021QAZ_MAX_TCS], max[IEEE_8021QAZ_MAX_TCS];
 	__u8 prio_type[IEEE_8021QAZ_MAX_TCS];
@@ -333,7 +333,7 @@ s32 ixgbe_dcb_hw_ets(struct ixgbe_hw *hw, struct ieee_ets *ets, int max_frame)
 				       bwg_id, prio_type, ets->prio_tc);
 }
 
-s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
+int ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
 			    u16 *refill, u16 *max, u8 *bwg_id,
 			    u8 *prio_type, u8 *prio_tc)
 {

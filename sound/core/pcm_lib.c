@@ -1706,12 +1706,46 @@ int snd_pcm_hw_param_last(struct snd_pcm_substream *pcm,
 }
 EXPORT_SYMBOL(snd_pcm_hw_param_last);
 
+/**
+ * snd_pcm_hw_params_bits - Get the number of bits per the sample.
+ * @p: hardware parameters
+ *
+ * Return: The number of bits per sample based on the format,
+ * subformat and msbits the specified hw params has.
+ */
+int snd_pcm_hw_params_bits(const struct snd_pcm_hw_params *p)
+{
+	snd_pcm_subformat_t subformat = params_subformat(p);
+	snd_pcm_format_t format = params_format(p);
+
+	switch (format) {
+	case SNDRV_PCM_FORMAT_S32_LE:
+	case SNDRV_PCM_FORMAT_U32_LE:
+	case SNDRV_PCM_FORMAT_S32_BE:
+	case SNDRV_PCM_FORMAT_U32_BE:
+		switch (subformat) {
+		case SNDRV_PCM_SUBFORMAT_MSBITS_20:
+			return 20;
+		case SNDRV_PCM_SUBFORMAT_MSBITS_24:
+			return 24;
+		case SNDRV_PCM_SUBFORMAT_MSBITS_MAX:
+		case SNDRV_PCM_SUBFORMAT_STD:
+		default:
+			break;
+		}
+		fallthrough;
+	default:
+		return snd_pcm_format_width(format);
+	}
+}
+EXPORT_SYMBOL(snd_pcm_hw_params_bits);
+
 static int snd_pcm_lib_ioctl_reset(struct snd_pcm_substream *substream,
 				   void *arg)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned long flags;
-	snd_pcm_stream_lock_irqsave(substream, flags);
+
+	guard(pcm_stream_lock_irqsave)(substream);
 	if (snd_pcm_running(substream) &&
 	    snd_pcm_update_hw_ptr(substream) >= 0)
 		runtime->status->hw_ptr %= runtime->buffer_size;
@@ -1719,7 +1753,6 @@ static int snd_pcm_lib_ioctl_reset(struct snd_pcm_substream *substream,
 		runtime->status->hw_ptr = 0;
 		runtime->hw_ptr_wrap = 0;
 	}
-	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return 0;
 }
 
@@ -1865,14 +1898,11 @@ EXPORT_SYMBOL(snd_pcm_period_elapsed_under_stream_lock);
  */
 void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 {
-	unsigned long flags;
-
 	if (snd_BUG_ON(!substream))
 		return;
 
-	snd_pcm_stream_lock_irqsave(substream, flags);
+	guard(pcm_stream_lock_irqsave)(substream);
 	snd_pcm_period_elapsed_under_stream_lock(substream);
-	snd_pcm_stream_unlock_irqrestore(substream, flags);
 }
 EXPORT_SYMBOL(snd_pcm_period_elapsed);
 

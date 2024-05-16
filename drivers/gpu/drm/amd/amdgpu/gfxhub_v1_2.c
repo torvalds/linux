@@ -139,7 +139,9 @@ gfxhub_v1_2_xcc_init_system_aperture_regs(struct amdgpu_device *adev,
 			WREG32_SOC15_RLC(GC, GET_INST(GC, i), regMC_VM_SYSTEM_APERTURE_LOW_ADDR,
 				min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 
-			if (adev->apu_flags & AMD_APU_IS_RAVEN2)
+			if (adev->apu_flags & (AMD_APU_IS_RAVEN2 |
+					       AMD_APU_IS_RENOIR |
+					       AMD_APU_IS_GREEN_SARDINE))
 			       /*
 				* Raven2 has a HW issue that it is unable to use the
 				* vram which is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR.
@@ -454,10 +456,12 @@ static void gfxhub_v1_2_xcc_gart_disable(struct amdgpu_device *adev,
 		WREG32_SOC15_RLC(GC, GET_INST(GC, j), regMC_VM_MX_L1_TLB_CNTL, tmp);
 
 		/* Setup L2 cache */
-		tmp = RREG32_SOC15(GC, GET_INST(GC, j), regVM_L2_CNTL);
-		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 0);
-		WREG32_SOC15(GC, GET_INST(GC, j), regVM_L2_CNTL, tmp);
-		WREG32_SOC15(GC, GET_INST(GC, j), regVM_L2_CNTL3, 0);
+		if (!amdgpu_sriov_vf(adev)) {
+			tmp = RREG32_SOC15(GC, GET_INST(GC, j), regVM_L2_CNTL);
+			tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 0);
+			WREG32_SOC15(GC, GET_INST(GC, j), regVM_L2_CNTL, tmp);
+			WREG32_SOC15(GC, GET_INST(GC, j), regVM_L2_CNTL3, 0);
+		}
 	}
 }
 
@@ -616,6 +620,20 @@ static int gfxhub_v1_2_get_xgmi_info(struct amdgpu_device *adev)
 	return 0;
 }
 
+static bool gfxhub_v1_2_query_utcl2_poison_status(struct amdgpu_device *adev,
+				int xcc_id)
+{
+	u32 fed, status;
+
+	status = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regVM_L2_PROTECTION_FAULT_STATUS);
+	fed = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, FED);
+	/* reset page fault status */
+	WREG32_P(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id),
+			regVM_L2_PROTECTION_FAULT_STATUS), 1, ~1);
+
+	return fed;
+}
+
 const struct amdgpu_gfxhub_funcs gfxhub_v1_2_funcs = {
 	.get_mc_fb_offset = gfxhub_v1_2_get_mc_fb_offset,
 	.setup_vm_pt_regs = gfxhub_v1_2_setup_vm_pt_regs,
@@ -624,6 +642,7 @@ const struct amdgpu_gfxhub_funcs gfxhub_v1_2_funcs = {
 	.set_fault_enable_default = gfxhub_v1_2_set_fault_enable_default,
 	.init = gfxhub_v1_2_init,
 	.get_xgmi_info = gfxhub_v1_2_get_xgmi_info,
+	.query_utcl2_poison_status = gfxhub_v1_2_query_utcl2_poison_status,
 };
 
 static int gfxhub_v1_2_xcp_resume(void *handle, uint32_t inst_mask)

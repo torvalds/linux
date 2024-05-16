@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
 #include <linux/elf.h>
+#include <asm/page-states.h>
 #include <asm/boot_data.h>
 #include <asm/sections.h>
 #include <asm/maccess.h>
@@ -49,12 +50,54 @@ static void detect_facilities(void)
 {
 	if (test_facility(8)) {
 		machine.has_edat1 = 1;
-		__ctl_set_bit(0, 23);
+		local_ctl_set_bit(0, CR0_EDAT_BIT);
 	}
 	if (test_facility(78))
 		machine.has_edat2 = 1;
 	if (test_facility(130))
 		machine.has_nx = 1;
+}
+
+static int cmma_test_essa(void)
+{
+	unsigned long reg1, reg2, tmp = 0;
+	int rc = 1;
+	psw_t old;
+
+	/* Test ESSA_GET_STATE */
+	asm volatile(
+		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
+		"	epsw	%[reg1],%[reg2]\n"
+		"	st	%[reg1],0(%[psw_pgm])\n"
+		"	st	%[reg2],4(%[psw_pgm])\n"
+		"	larl	%[reg1],1f\n"
+		"	stg	%[reg1],8(%[psw_pgm])\n"
+		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
+		"	la	%[rc],0\n"
+		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		: [reg1] "=&d" (reg1),
+		  [reg2] "=&a" (reg2),
+		  [rc] "+&d" (rc),
+		  [tmp] "=&d" (tmp),
+		  "+Q" (S390_lowcore.program_new_psw),
+		  "=Q" (old)
+		: [psw_old] "a" (&old),
+		  [psw_pgm] "a" (&S390_lowcore.program_new_psw),
+		  [cmd] "i" (ESSA_GET_STATE)
+		: "cc", "memory");
+	return rc;
+}
+
+static void cmma_init(void)
+{
+	if (!cmma_flag)
+		return;
+	if (cmma_test_essa()) {
+		cmma_flag = 0;
+		return;
+	}
+	if (test_facility(147))
+		cmma_flag = 2;
 }
 
 static void setup_lpp(void)
@@ -98,7 +141,8 @@ static void copy_bootdata(void)
 	memcpy((void *)vmlinux.bootdata_preserved_off, __boot_data_preserved_start, vmlinux.bootdata_preserved_size);
 }
 
-static void handle_relocs(unsigned long offset)
+#ifdef CONFIG_PIE_BUILD
+static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr, unsigned long offset)
 {
 	Elf64_Rela *rela_start, *rela_end, *rela;
 	int r_type, r_sym, rc;
@@ -128,6 +172,54 @@ static void handle_relocs(unsigned long offset)
 			error("Unknown relocation type");
 	}
 }
+
+static void kaslr_adjust_got(unsigned long offset) {}
+static void rescue_relocs(void) {}
+static void free_relocs(void) {}
+#else
+static int *vmlinux_relocs_64_start;
+static int *vmlinux_relocs_64_end;
+
+static void rescue_relocs(void)
+{
+	unsigned long size = __vmlinux_relocs_64_end - __vmlinux_relocs_64_start;
+
+	vmlinux_relocs_64_start = (void *)physmem_alloc_top_down(RR_RELOC, size, 0);
+	vmlinux_relocs_64_end = (void *)vmlinux_relocs_64_start + size;
+	memmove(vmlinux_relocs_64_start, __vmlinux_relocs_64_start, size);
+}
+
+static void free_relocs(void)
+{
+	physmem_free(RR_RELOC);
+}
+
+static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr, unsigned long offset)
+{
+	int *reloc;
+	long loc;
+
+	/* Adjust R_390_64 relocations */
+	for (reloc = vmlinux_relocs_64_start; reloc < vmlinux_relocs_64_end; reloc++) {
+		loc = (long)*reloc + offset;
+		if (loc < min_addr || loc > max_addr)
+			error("64-bit relocation outside of kernel!\n");
+		*(u64 *)loc += offset;
+	}
+}
+
+static void kaslr_adjust_got(unsigned long offset)
+{
+	u64 *entry;
+
+	/*
+	 * Even without -fPIE, Clang still uses a global offset table for some
+	 * reason. Adjust the GOT entries.
+	 */
+	for (entry = (u64 *)vmlinux.got_start; entry < (u64 *)vmlinux.got_end; entry++)
+		*entry += offset;
+}
+#endif
 
 /*
  * Merge information from several sources into a single ident_map_size value.
@@ -212,7 +304,8 @@ static unsigned long setup_kernel_memory_layout(void)
 	VMALLOC_END = MODULES_VADDR;
 
 	/* allow vmalloc area to occupy up to about 1/2 of the rest virtual space left */
-	vmalloc_size = min(vmalloc_size, round_down(VMALLOC_END / 2, _REGION3_SIZE));
+	vsize = round_down(VMALLOC_END / 2, _SEGMENT_SIZE);
+	vmalloc_size = min(vmalloc_size, vsize);
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
 
 	/* split remaining virtual space between 1:1 mapping & vmemmap array */
@@ -255,14 +348,19 @@ static void setup_vmalloc_size(void)
 	vmalloc_size = max(size, vmalloc_size);
 }
 
-static void offset_vmlinux_info(unsigned long offset)
+static void kaslr_adjust_vmlinux_info(unsigned long offset)
 {
 	*(unsigned long *)(&vmlinux.entry) += offset;
 	vmlinux.bootdata_off += offset;
 	vmlinux.bootdata_preserved_off += offset;
+#ifdef CONFIG_PIE_BUILD
 	vmlinux.rela_dyn_start += offset;
 	vmlinux.rela_dyn_end += offset;
 	vmlinux.dynsym_start += offset;
+#else
+	vmlinux.got_start += offset;
+	vmlinux.got_end += offset;
+#endif
 	vmlinux.init_mm_off += offset;
 	vmlinux.swapper_pg_dir_off += offset;
 	vmlinux.invalid_pg_dir_off += offset;
@@ -306,6 +404,7 @@ void startup_kernel(void)
 	setup_boot_command_line();
 	parse_boot_command_line();
 	detect_facilities();
+	cmma_init();
 	sanitize_prot_virt_host();
 	max_physmem_end = detect_max_physmem_end();
 	setup_ident_map_size(max_physmem_end);
@@ -316,6 +415,7 @@ void startup_kernel(void)
 	detect_physmem_online_ranges(max_physmem_end);
 	save_ipl_cert_comp_list();
 	rescue_initrd(safe_addr, ident_map_size);
+	rescue_relocs();
 
 	if (kaslr_enabled()) {
 		vmlinux_lma = randomize_within_range(vmlinux.image_size + vmlinux.bss_size,
@@ -323,7 +423,7 @@ void startup_kernel(void)
 						     ident_map_size);
 		if (vmlinux_lma) {
 			__kaslr_offset = vmlinux_lma - vmlinux.default_lma;
-			offset_vmlinux_info(__kaslr_offset);
+			kaslr_adjust_vmlinux_info(__kaslr_offset);
 		}
 	}
 	vmlinux_lma = vmlinux_lma ?: vmlinux.default_lma;
@@ -348,18 +448,20 @@ void startup_kernel(void)
 	/*
 	 * The order of the following operations is important:
 	 *
-	 * - handle_relocs() must follow clear_bss_section() to establish static
-	 *   memory references to data in .bss to be used by setup_vmem()
+	 * - kaslr_adjust_relocs() must follow clear_bss_section() to establish
+	 *   static memory references to data in .bss to be used by setup_vmem()
 	 *   (i.e init_mm.pgd)
 	 *
-	 * - setup_vmem() must follow handle_relocs() to be able using
+	 * - setup_vmem() must follow kaslr_adjust_relocs() to be able using
 	 *   static memory references to data in .bss (i.e init_mm.pgd)
 	 *
-	 * - copy_bootdata() must follow setup_vmem() to propagate changes to
-	 *   bootdata made by setup_vmem()
+	 * - copy_bootdata() must follow setup_vmem() to propagate changes
+	 *   to bootdata made by setup_vmem()
 	 */
 	clear_bss_section(vmlinux_lma);
-	handle_relocs(__kaslr_offset);
+	kaslr_adjust_relocs(vmlinux_lma, vmlinux_lma + vmlinux.image_size, __kaslr_offset);
+	kaslr_adjust_got(__kaslr_offset);
+	free_relocs();
 	setup_vmem(asce_limit);
 	copy_bootdata();
 

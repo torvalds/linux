@@ -74,13 +74,16 @@ static void dp_hpo_fixed_vs_pe_retimer_set_tx_ffe(struct dc_link *link,
 static void dp_hpo_fixed_vs_pe_retimer_program_override_test_pattern(struct dc_link *link,
 		struct encoder_set_dp_phy_pattern_param *tp_params)
 {
+	uint8_t clk_src = 0x4C;
+	uint8_t pattern = 0x4F; /* SQ128 */
+
 	const uint8_t vendor_lttpr_write_data_pg0[4] = {0x1, 0x11, 0x0, 0x0};
-	const uint8_t vendor_lttpr_write_data_pg1[4] = {0x1, 0x50, 0x50, 0x0};
-	const uint8_t vendor_lttpr_write_data_pg2[4] = {0x1, 0x51, 0x50, 0x0};
+	const uint8_t vendor_lttpr_write_data_pg1[4] = {0x1, 0x50, 0x50, clk_src};
+	const uint8_t vendor_lttpr_write_data_pg2[4] = {0x1, 0x51, 0x50, clk_src};
 	const uint8_t vendor_lttpr_write_data_pg3[4]  = {0x1, 0x10, 0x58, 0x21};
 	const uint8_t vendor_lttpr_write_data_pg4[4]  = {0x1, 0x10, 0x59, 0x21};
-	const uint8_t vendor_lttpr_write_data_pg5[4] = {0x1, 0x1C, 0x58, 0x4F};
-	const uint8_t vendor_lttpr_write_data_pg6[4] = {0x1, 0x1C, 0x59, 0x4F};
+	const uint8_t vendor_lttpr_write_data_pg5[4] = {0x1, 0x1C, 0x58, pattern};
+	const uint8_t vendor_lttpr_write_data_pg6[4] = {0x1, 0x1C, 0x59, pattern};
 	const uint8_t vendor_lttpr_write_data_pg7[4]  = {0x1, 0x30, 0x51, 0x20};
 	const uint8_t vendor_lttpr_write_data_pg8[4]  = {0x1, 0x30, 0x52, 0x20};
 	const uint8_t vendor_lttpr_write_data_pg9[4]  = {0x1, 0x30, 0x54, 0x20};
@@ -123,18 +126,20 @@ static bool dp_hpo_fixed_vs_pe_retimer_set_override_test_pattern(struct dc_link 
 	struct encoder_set_dp_phy_pattern_param hw_tp_params = { 0 };
 	const uint8_t vendor_lttpr_exit_manual_automation_0[4] = {0x1, 0x11, 0x0, 0x06};
 
+	if (!link->dpcd_caps.lttpr_caps.main_link_channel_coding.bits.DP_128b_132b_SUPPORTED)
+		return false;
+
 	if (tp_params == NULL)
 		return false;
 
-	if (tp_params->dp_phy_pattern < DP_TEST_PATTERN_SQUARE_BEGIN ||
-			tp_params->dp_phy_pattern > DP_TEST_PATTERN_SQUARE_END) {
+	if (!IS_DP_PHY_SQUARE_PATTERN(tp_params->dp_phy_pattern)) {
 		// Deprogram overrides from previously set square wave override
 		if (link->current_test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM ||
 				link->current_test_pattern == DP_TEST_PATTERN_D102)
 			link->dc->link_srv->configure_fixed_vs_pe_retimer(link->ddc,
 					&vendor_lttpr_exit_manual_automation_0[0],
 					sizeof(vendor_lttpr_exit_manual_automation_0));
-		else
+		else if (IS_DP_PHY_SQUARE_PATTERN(link->current_test_pattern))
 			dp_dio_fixed_vs_pe_retimer_exit_manual_automation(link);
 
 		return false;
@@ -147,8 +152,6 @@ static bool dp_hpo_fixed_vs_pe_retimer_set_override_test_pattern(struct dc_link 
 		link_hwss->ext.set_dp_link_test_pattern(link, link_res, &hw_tp_params);
 
 	dp_hpo_fixed_vs_pe_retimer_program_override_test_pattern(link, tp_params);
-
-	dp_hpo_fixed_vs_pe_retimer_set_tx_ffe(link, &link->cur_lane_setting[0]);
 
 	return true;
 }
@@ -170,16 +173,18 @@ static void set_hpo_fixed_vs_pe_retimer_dp_lane_settings(struct dc_link *link,
 		const struct dc_link_settings *link_settings,
 		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
 {
-	link_res->hpo_dp_link_enc->funcs->set_ffe(
-			link_res->hpo_dp_link_enc,
-			link_settings,
-			lane_settings[0].FFE_PRESET.raw);
-
-	// FFE is programmed when retimer is programmed for SQ128, but explicit
-	// programming needed here as well in case FFE-only update is requested
-	if (link->current_test_pattern >= DP_TEST_PATTERN_SQUARE_BEGIN &&
-			link->current_test_pattern <= DP_TEST_PATTERN_SQUARE_END)
-		dp_hpo_fixed_vs_pe_retimer_set_tx_ffe(link, &lane_settings[0]);
+	// Don't update our HW FFE when outputting phy test patterns
+	if (IS_DP_PHY_PATTERN(link->pending_test_pattern)) {
+		// Directly program FIXED_VS retimer FFE for SQ128 override
+		if (IS_DP_PHY_SQUARE_PATTERN(link->pending_test_pattern)) {
+			dp_hpo_fixed_vs_pe_retimer_set_tx_ffe(link, &lane_settings[0]);
+		}
+	} else {
+		link_res->hpo_dp_link_enc->funcs->set_ffe(
+				link_res->hpo_dp_link_enc,
+				link_settings,
+				lane_settings[0].FFE_PRESET.raw);
+	}
 }
 
 static void enable_hpo_fixed_vs_pe_retimer_dp_link_output(struct dc_link *link,
@@ -214,13 +219,7 @@ static const struct link_hwss hpo_fixed_vs_pe_retimer_dp_link_hwss = {
 
 bool requires_fixed_vs_pe_retimer_hpo_link_hwss(const struct dc_link *link)
 {
-	if (!(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN))
-		return false;
-
-	if (!link->dpcd_caps.lttpr_caps.main_link_channel_coding.bits.DP_128b_132b_SUPPORTED)
-		return false;
-
-	return true;
+	return requires_fixed_vs_pe_retimer_dio_link_hwss(link);
 }
 
 const struct link_hwss *get_hpo_fixed_vs_pe_retimer_dp_link_hwss(void)

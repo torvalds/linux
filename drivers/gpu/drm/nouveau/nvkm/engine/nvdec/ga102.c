@@ -21,8 +21,17 @@
  */
 #include "priv.h"
 
-#include <subdev/mc.h>
-#include <subdev/timer.h>
+#include <subdev/gsp.h>
+
+#include <nvif/class.h>
+
+static const struct nvkm_engine_func
+ga102_nvdec_gsp = {
+	.sclass = {
+		{ -1, -1, NVC7B0_VIDEO_DECODER },
+		{}
+	}
+};
 
 static const struct nvkm_falcon_func
 ga102_nvdec_flcn = {
@@ -57,5 +66,8 @@ int
 ga102_nvdec_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_nvdec **pnvdec)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_nvdec_new(&ga102_nvdec_gsp, device, type, inst, pnvdec);
+
 	return nvkm_nvdec_new_(ga102_nvdec_fwif, device, type, inst, 0x848000, pnvdec);
 }

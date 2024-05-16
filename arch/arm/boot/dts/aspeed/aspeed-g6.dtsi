@@ -474,6 +474,7 @@
 				reg = <0x1e780500 0x100>;
 				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
+				#interrupt-cells = <2>;
 				interrupt-controller;
 				bus-frequency = <12000000>;
 				pinctrl-names = "default";
@@ -488,6 +489,7 @@
 				reg = <0x1e780600 0x100>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB2>;
+				#interrupt-cells = <2>;
 				interrupt-controller;
 				bus-frequency = <12000000>;
 				pinctrl-names = "default";
@@ -902,7 +904,6 @@
 	i2c0: i2c-bus@80 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x80 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -917,7 +918,6 @@
 	i2c1: i2c-bus@100 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x100 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -932,7 +932,6 @@
 	i2c2: i2c-bus@180 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x180 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -947,7 +946,6 @@
 	i2c3: i2c-bus@200 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x200 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -962,7 +960,6 @@
 	i2c4: i2c-bus@280 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x280 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -977,7 +974,6 @@
 	i2c5: i2c-bus@300 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x300 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -992,7 +988,6 @@
 	i2c6: i2c-bus@380 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x380 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1007,7 +1002,6 @@
 	i2c7: i2c-bus@400 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x400 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1022,7 +1016,6 @@
 	i2c8: i2c-bus@480 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x480 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1037,7 +1030,6 @@
 	i2c9: i2c-bus@500 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x500 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1052,7 +1044,6 @@
 	i2c10: i2c-bus@580 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x580 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1067,7 +1058,6 @@
 	i2c11: i2c-bus@600 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x600 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1082,7 +1072,6 @@
 	i2c12: i2c-bus@680 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x680 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1097,7 +1086,6 @@
 	i2c13: i2c-bus@700 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x700 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1112,7 +1100,6 @@
 	i2c14: i2c-bus@780 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x780 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;
@@ -1127,7 +1114,6 @@
 	i2c15: i2c-bus@800 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		#interrupt-cells = <1>;
 		reg = <0x800 0x80>;
 		compatible = "aspeed,ast2600-i2c-bus";
 		clocks = <&syscon ASPEED_CLK_APB2>;

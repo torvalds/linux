@@ -70,19 +70,19 @@ vimc_scaler_get_crop_bound_sink(const struct v4l2_mbus_framefmt *sink_fmt)
 	return r;
 }
 
-static int vimc_scaler_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *sd_state)
+static int vimc_scaler_init_state(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *mf;
 	struct v4l2_rect *r;
 	unsigned int i;
 
 	for (i = 0; i < sd->entity.num_pads; i++) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
+		mf = v4l2_subdev_state_get_format(sd_state, i);
 		*mf = fmt_default;
 	}
 
-	r = v4l2_subdev_get_try_crop(sd, sd_state, VIMC_SCALER_SINK);
+	r = v4l2_subdev_state_get_crop(sd_state, VIMC_SCALER_SINK);
 	*r = crop_rect_default;
 
 	return 0;
@@ -138,7 +138,7 @@ vimc_scaler_pad_format(struct vimc_scaler_device *vscaler,
 		    enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&vscaler->sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &vscaler->fmt[pad];
 }
@@ -149,8 +149,7 @@ vimc_scaler_pad_crop(struct vimc_scaler_device *vscaler,
 		  enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&vscaler->sd, sd_state,
-						VIMC_SCALER_SINK);
+		return v4l2_subdev_state_get_crop(sd_state, VIMC_SCALER_SINK);
 	else
 		return &vscaler->crop_rect;
 }
@@ -293,7 +292,6 @@ static int vimc_scaler_set_selection(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops vimc_scaler_pad_ops = {
-	.init_cfg		= vimc_scaler_init_cfg,
 	.enum_mbus_code		= vimc_scaler_enum_mbus_code,
 	.enum_frame_size	= vimc_scaler_enum_frame_size,
 	.get_fmt		= vimc_scaler_get_fmt,
@@ -346,6 +344,10 @@ static const struct v4l2_subdev_video_ops vimc_scaler_video_ops = {
 static const struct v4l2_subdev_ops vimc_scaler_ops = {
 	.pad = &vimc_scaler_pad_ops,
 	.video = &vimc_scaler_video_ops,
+};
+
+static const struct v4l2_subdev_internal_ops vimc_scaler_internal_ops = {
+	.init_state = vimc_scaler_init_state,
 };
 
 static void vimc_scaler_fill_src_frame(const struct vimc_scaler_device *const vscaler,
@@ -424,6 +426,8 @@ static struct vimc_ent_device *vimc_scaler_add(struct vimc_device *vimc,
 		kfree(vscaler);
 		return ERR_PTR(ret);
 	}
+
+	vscaler->sd.internal_ops = &vimc_scaler_internal_ops;
 
 	vscaler->ved.process_frame = vimc_scaler_process_frame;
 	vscaler->ved.dev = vimc->mdev.dev;

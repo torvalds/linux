@@ -163,7 +163,7 @@
 		};
 
 		avb: ethernet@a3300000 {
-			compatible = "renesas,etheravb-r9a09g011","renesas,etheravb-rzv2m";
+			compatible = "renesas,etheravb-r9a09g011", "renesas,etheravb-rzv2m";
 			reg = <0 0xa3300000 0 0x800>;
 			interrupts = <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>, /* ch0: Rx0 BE */
 				     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>, /* ch1: Rx1 NC */

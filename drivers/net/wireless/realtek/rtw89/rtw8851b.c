@@ -205,6 +205,20 @@ static const struct rtw89_dig_regs rtw8851b_dig_regs = {
 			      B_PATH1_S20_FOLLOW_BY_PAGCUGC_EN_MSK},
 };
 
+static const struct rtw89_edcca_regs rtw8851b_edcca_regs = {
+	.edcca_level			= R_SEG0R_EDCCA_LVL_V1,
+	.edcca_mask			= B_EDCCA_LVL_MSK0,
+	.edcca_p_mask			= B_EDCCA_LVL_MSK1,
+	.ppdu_level			= R_SEG0R_EDCCA_LVL_V1,
+	.ppdu_mask			= B_EDCCA_LVL_MSK3,
+	.rpt_a				= R_EDCCA_RPT_A,
+	.rpt_b				= R_EDCCA_RPT_B,
+	.rpt_sel			= R_EDCCA_RPT_SEL,
+	.rpt_sel_mask			= B_EDCCA_RPT_SEL_MSK,
+	.tx_collision_t2r_st		= R_TX_COLLISION_T2R_ST,
+	.tx_collision_t2r_st_mask	= B_TX_COLLISION_T2R_ST_M,
+};
+
 static const struct rtw89_btc_rf_trx_para rtw89_btc_8851b_rf_ul[] = {
 	{255, 0, 0, 7}, /* 0 -> original */
 	{255, 2, 0, 7}, /* 1 -> for BT-connected ACI issue && BTG co-rx */
@@ -500,7 +514,8 @@ static void rtw8851b_efuse_parsing_gain_offset(struct rtw89_dev *rtwdev,
 	gain->offset_valid = valid;
 }
 
-static int rtw8851b_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map)
+static int rtw8851b_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
+			       enum rtw89_efuse_block block)
 {
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw8851b_efuse *map;
@@ -886,7 +901,7 @@ static void rtw8851b_set_gain_error(struct rtw89_dev *rtwdev,
 				    enum rtw89_subband subband,
 				    enum rtw89_rf_path path)
 {
-	const struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
+	const struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain.ax;
 	u8 gain_band = rtw89_subband_to_bb_gain_band(subband);
 	s32 val;
 	u32 reg;
@@ -972,7 +987,7 @@ next:
 static
 void rtw8851b_set_rxsc_rpl_comp(struct rtw89_dev *rtwdev, enum rtw89_subband subband)
 {
-	const struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
+	const struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain.ax;
 	u8 band = rtw89_subband_to_bb_gain_band(subband);
 	u32 val;
 
@@ -1704,10 +1719,11 @@ static void rtw8851b_set_tx_shape(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan,
 				  enum rtw89_phy_idx phy_idx)
 {
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
-	u8 tx_shape_cck = rtw89_8851b_tx_shape[band][RTW89_RS_CCK][regd];
-	u8 tx_shape_ofdm = rtw89_8851b_tx_shape[band][RTW89_RS_OFDM][regd];
+	u8 tx_shape_cck = (*rfe_parms->tx_shape.lmt)[band][RTW89_RS_CCK][regd];
+	u8 tx_shape_ofdm = (*rfe_parms->tx_shape.lmt)[band][RTW89_RS_OFDM][regd];
 
 	if (band == RTW89_BAND_2G)
 		rtw8851b_bb_set_tx_shape_dfir(rtwdev, chan, tx_shape_cck, phy_idx);
@@ -1778,14 +1794,15 @@ rtw8851b_init_txpwr_unit(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 	return 0;
 }
 
-static void rtw8851b_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev, bool bt_en)
+static void rtw8851b_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
+				     enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
-	rtw89_phy_write_reg3_tbl(rtwdev, bt_en ? &rtw8851b_btc_preagc_en_defs_tbl :
+	rtw89_phy_write_reg3_tbl(rtwdev, en ? &rtw8851b_btc_preagc_en_defs_tbl :
 						 &rtw8851b_btc_preagc_dis_defs_tbl);
 
-	if (!bt_en) {
+	if (!en) {
 		if (chan->band_type == RTW89_BAND_2G) {
 			rtw89_phy_write32_mask(rtwdev, R_PATH0_G_LNA6_OP1DB_V1,
 					       B_PATH0_G_LNA6_OP1DB_V1, 0x20);
@@ -1800,11 +1817,12 @@ static void rtw8851b_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev, bool bt_en)
 	}
 }
 
-static void rtw8851b_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
+static void rtw8851b_ctrl_btg_bt_rx(struct rtw89_dev *rtwdev, bool en,
+				    enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
-	if (btg) {
+	if (en) {
 		rtw89_phy_write32_mask(rtwdev, R_PATH0_BT_SHARE_V1,
 				       B_PATH0_BT_SHARE_V1, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_PATH0_BTG_PATH_V1,
@@ -1903,41 +1921,81 @@ static u8 rtw8851b_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 
 static void rtw8851b_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_module *module = &btc->mdinfo;
+	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
+	union rtw89_btc_module_info *md = &rtwdev->btc.mdinfo;
 
-	module->rfe_type = rtwdev->efuse.rfe_type;
-	module->cv = rtwdev->hal.cv;
-	module->bt_solo = 0;
-	module->switch_type = BTC_SWITCH_INTERNAL;
-	module->ant.isolation = 10;
-	module->kt_ver_adie = rtwdev->hal.acv;
+	if  (ver->fcxinit == 7) {
+		md->md_v7.rfe_type = rtwdev->efuse.rfe_type;
+		md->md_v7.kt_ver = rtwdev->hal.cv;
+		md->md_v7.bt_solo = 0;
+		md->md_v7.switch_type = BTC_SWITCH_INTERNAL;
+		md->md_v7.ant.isolation = 10;
+		md->md_v7.kt_ver_adie = rtwdev->hal.acv;
 
-	if (module->rfe_type == 0)
-		return;
+		if (md->md_v7.rfe_type == 0)
+			return;
 
-	/* rfe_type 3*n+1: 1-Ant(shared),
-	 *	    3*n+2: 2-Ant+Div(non-shared),
-	 *	    3*n+3: 2-Ant+no-Div(non-shared)
-	 */
-	module->ant.num = (module->rfe_type % 3 == 1) ? 1 : 2;
-	/* WL-1ss at S0, btg at s0 (On 1 WL RF) */
-	module->ant.single_pos = RF_PATH_A;
-	module->ant.btg_pos = RF_PATH_A;
-	module->ant.stream_cnt = 1;
+		/* rfe_type 3*n+1: 1-Ant(shared),
+		 *	    3*n+2: 2-Ant+Div(non-shared),
+		 *	    3*n+3: 2-Ant+no-Div(non-shared)
+		 */
+		md->md_v7.ant.num = (md->md_v7.rfe_type % 3 == 1) ? 1 : 2;
+		/* WL-1ss at S0, btg at s0 (On 1 WL RF) */
+		md->md_v7.ant.single_pos = RF_PATH_A;
+		md->md_v7.ant.btg_pos = RF_PATH_A;
+		md->md_v7.ant.stream_cnt = 1;
 
-	if (module->ant.num == 1) {
-		module->ant.type = BTC_ANT_SHARED;
-		module->bt_pos = BTC_BT_BTG;
-		module->wa_type = 1;
-		module->ant.diversity = 0;
-	} else { /* ant.num == 2 */
-		module->ant.type = BTC_ANT_DEDICATED;
-		module->bt_pos = BTC_BT_ALONE;
-		module->switch_type = BTC_SWITCH_EXTERNAL;
-		module->wa_type = 0;
-		if (module->rfe_type % 3 == 2)
-			module->ant.diversity = 1;
+		if (md->md_v7.ant.num == 1) {
+			md->md_v7.ant.type = BTC_ANT_SHARED;
+			md->md_v7.bt_pos = BTC_BT_BTG;
+			md->md_v7.wa_type = 1;
+			md->md_v7.ant.diversity = 0;
+		} else { /* ant.num == 2 */
+			md->md_v7.ant.type = BTC_ANT_DEDICATED;
+			md->md_v7.bt_pos = BTC_BT_ALONE;
+			md->md_v7.switch_type = BTC_SWITCH_EXTERNAL;
+			md->md_v7.wa_type = 0;
+			if (md->md_v7.rfe_type % 3 == 2)
+				md->md_v7.ant.diversity = 1;
+		}
+		rtwdev->btc.btg_pos = md->md_v7.ant.btg_pos;
+		rtwdev->btc.ant_type = md->md_v7.ant.type;
+	} else {
+		md->md.rfe_type = rtwdev->efuse.rfe_type;
+		md->md.cv = rtwdev->hal.cv;
+		md->md.bt_solo = 0;
+		md->md.switch_type = BTC_SWITCH_INTERNAL;
+		md->md.ant.isolation = 10;
+		md->md.kt_ver_adie = rtwdev->hal.acv;
+
+		if (md->md.rfe_type == 0)
+			return;
+
+		/* rfe_type 3*n+1: 1-Ant(shared),
+		 *	    3*n+2: 2-Ant+Div(non-shared),
+		 *	    3*n+3: 2-Ant+no-Div(non-shared)
+		 */
+		md->md.ant.num = (md->md.rfe_type % 3 == 1) ? 1 : 2;
+		/* WL-1ss at S0, btg at s0 (On 1 WL RF) */
+		md->md.ant.single_pos = RF_PATH_A;
+		md->md.ant.btg_pos = RF_PATH_A;
+		md->md.ant.stream_cnt = 1;
+
+		if (md->md.ant.num == 1) {
+			md->md.ant.type = BTC_ANT_SHARED;
+			md->md.bt_pos = BTC_BT_BTG;
+			md->md.wa_type = 1;
+			md->md.ant.diversity = 0;
+		} else { /* ant.num == 2 */
+			md->md.ant.type = BTC_ANT_DEDICATED;
+			md->md.bt_pos = BTC_BT_ALONE;
+			md->md.switch_type = BTC_SWITCH_EXTERNAL;
+			md->md.wa_type = 0;
+			if (md->md.rfe_type % 3 == 2)
+				md->md.ant.diversity = 1;
+		}
+		rtwdev->btc.btg_pos = md->md.ant.btg_pos;
+		rtwdev->btc.ant_type = md->md.ant.type;
 	}
 }
 
@@ -1947,7 +2005,7 @@ void rtw8851b_set_trx_mask(struct rtw89_dev *rtwdev, u8 path, u8 group, u32 val)
 	if (group > BTC_BT_SS_GROUP)
 		group--; /* Tx-group=1, Rx-group=2 */
 
-	if (rtwdev->btc.mdinfo.ant.type == BTC_ANT_SHARED) /* 1-Ant */
+	if (rtwdev->btc.ant_type == BTC_ANT_SHARED) /* 1-Ant */
 		group += 3;
 
 	rtw89_write_rf(rtwdev, path, RR_LUTWA, RFREG_MASK, group);
@@ -1962,9 +2020,9 @@ static void rtw8851b_btc_init_cfg(struct rtw89_dev *rtwdev)
 	};
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_module *module = &btc->mdinfo;
-	struct rtw89_btc_ant_info *ant = &module->ant;
-	u8 path, path_min, path_max;
+	union rtw89_btc_module_info *md = &btc->mdinfo;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	u8 path, path_min, path_max, str_cnt, ant_sing_pos;
 
 	/* PTA init  */
 	rtw89_mac_coex_init(rtwdev, &coex_params);
@@ -1973,9 +2031,17 @@ static void rtw8851b_btc_init_cfg(struct rtw89_dev *rtwdev)
 	chip->ops->btc_set_wl_pri(rtwdev, BTC_PRI_MASK_TX_RESP, true);
 	chip->ops->btc_set_wl_pri(rtwdev, BTC_PRI_MASK_BEACON, true);
 
+	if (ver->fcxinit == 7) {
+		str_cnt = md->md_v7.ant.stream_cnt;
+		ant_sing_pos = md->md_v7.ant.single_pos;
+	} else {
+		str_cnt = md->md.ant.stream_cnt;
+		ant_sing_pos = md->md.ant.single_pos;
+	}
+
 	/* for 1-Ant && 1-ss case: only 1-path */
-	if (ant->stream_cnt == 1) {
-		path_min = ant->single_pos;
+	if (str_cnt == 1) {
+		path_min = ant_sing_pos;
 		path_max = path_min;
 	} else {
 		path_min = RF_PATH_A;
@@ -1998,7 +2064,7 @@ static void rtw8851b_btc_init_cfg(struct rtw89_dev *rtwdev)
 		/* if GNT_WL = 0 && BT = Tx_group -->
 		 * Shared-Ant && BTG-path:WL mask(0x55f), others:WL THRU(0x5ff)
 		 */
-		if (ant->type == BTC_ANT_SHARED && ant->btg_pos == path)
+		if (btc->ant_type == BTC_ANT_SHARED && btc->btg_pos == path)
 			rtw8851b_set_trx_mask(rtwdev, path, BTC_BT_TX_GROUP, 0x55f);
 		else
 			rtw8851b_set_trx_mask(rtwdev, path, BTC_BT_TX_GROUP, 0x5ff);
@@ -2130,19 +2196,18 @@ void rtw8851b_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
 static void rtw8851b_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_ant_info *ant = &btc->mdinfo.ant;
 
-	rtw89_write_rf(rtwdev, ant->btg_pos, RR_LUTWE, RFREG_MASK, 0x80000);
-	rtw89_write_rf(rtwdev, ant->btg_pos, RR_LUTWA, RFREG_MASK, 0x1);
-	rtw89_write_rf(rtwdev, ant->btg_pos, RR_LUTWD1, RFREG_MASK, 0x110);
+	rtw89_write_rf(rtwdev, btc->btg_pos, RR_LUTWE, RFREG_MASK, 0x80000);
+	rtw89_write_rf(rtwdev, btc->btg_pos, RR_LUTWA, RFREG_MASK, 0x1);
+	rtw89_write_rf(rtwdev, btc->btg_pos, RR_LUTWD1, RFREG_MASK, 0x110);
 
 	/* set WL standby = Rx for GNT_BT_Tx = 1->0 settle issue */
 	if (state)
-		rtw89_write_rf(rtwdev, ant->btg_pos, RR_LUTWD0, RFREG_MASK, 0x179c);
+		rtw89_write_rf(rtwdev, btc->btg_pos, RR_LUTWD0, RFREG_MASK, 0x179c);
 	else
-		rtw89_write_rf(rtwdev, ant->btg_pos, RR_LUTWD0, RFREG_MASK, 0x208);
+		rtw89_write_rf(rtwdev, btc->btg_pos, RR_LUTWD0, RFREG_MASK, 0x208);
 
-	rtw89_write_rf(rtwdev, ant->btg_pos, RR_LUTWE, RFREG_MASK, 0x0);
+	rtw89_write_rf(rtwdev, btc->btg_pos, RR_LUTWE, RFREG_MASK, 0x0);
 }
 
 #define LNA2_51B_MA 0x700
@@ -2157,7 +2222,6 @@ static void rtw8851b_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 	 * level=1 Fix LNA2=5: TIA 1/0= (LNA2,TIAN6) = (5,0)/(5,1) = 18dB/12dB
 	 */
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_ant_info *ant = &btc->mdinfo.ant;
 	const struct rtw89_reg2_def *rf;
 	u32 n, i, val;
 
@@ -2185,10 +2249,10 @@ static void rtw8851b_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
 	for (i = 0; i < n; i++, rf++) {
 		val = rf->data;
 		/* bit[10] = 1 if non-shared-ant for 8851b */
-		if (btc->mdinfo.ant.type == BTC_ANT_DEDICATED)
+		if (btc->ant_type == BTC_ANT_DEDICATED)
 			val |= 0x4;
 
-		rtw89_write_rf(rtwdev, ant->btg_pos, rf->addr, LNA2_51B_MA, val);
+		rtw89_write_rf(rtwdev, btc->btg_pos, rf->addr, LNA2_51B_MA, val);
 	}
 }
 
@@ -2280,6 +2344,8 @@ static int rtw8851b_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.enable_bb_rf		= rtw8851b_mac_enable_bb_rf,
 	.disable_bb_rf		= rtw8851b_mac_disable_bb_rf,
+	.bb_preinit		= NULL,
+	.bb_postinit		= NULL,
 	.bb_reset		= rtw8851b_bb_reset,
 	.bb_sethw		= rtw8851b_bb_sethw,
 	.read_rf		= rtw89_phy_read_rf_v1,
@@ -2290,7 +2356,9 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.read_phycap		= rtw8851b_read_phycap,
 	.fem_setup		= NULL,
 	.rfe_gpio		= rtw8851b_rfe_gpio,
+	.rfk_hw_init		= NULL,
 	.rfk_init		= rtw8851b_rfk_init,
+	.rfk_init_late		= NULL,
 	.rfk_channel		= rtw8851b_rfk_channel,
 	.rfk_band_changed	= rtw8851b_rfk_band_changed,
 	.rfk_scan		= rtw8851b_rfk_scan,
@@ -2300,9 +2368,9 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.set_txpwr_ctrl		= rtw8851b_set_txpwr_ctrl,
 	.init_txpwr_unit	= rtw8851b_init_txpwr_unit,
 	.get_thermal		= rtw8851b_get_thermal,
-	.ctrl_btg		= rtw8851b_ctrl_btg,
+	.ctrl_btg_bt_rx		= rtw8851b_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8851b_query_ppdu,
-	.bb_ctrl_btc_preagc	= rtw8851b_bb_ctrl_btc_preagc,
+	.ctrl_nbtg_bt_tx	= rtw8851b_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= rtw8851b_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= rtw8851b_set_txpwr_ul_tb_offset,
 	.pwr_on_func		= rtw8851b_pwr_on_func,
@@ -2315,6 +2383,12 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.stop_sch_tx		= rtw89_mac_stop_sch_tx,
 	.resume_sch_tx		= rtw89_mac_resume_sch_tx,
 	.h2c_dctl_sec_cam	= NULL,
+	.h2c_default_cmac_tbl	= rtw89_fw_h2c_default_cmac_tbl,
+	.h2c_assoc_cmac_tbl	= rtw89_fw_h2c_assoc_cmac_tbl,
+	.h2c_ampdu_cmac_tbl	= NULL,
+	.h2c_default_dmac_tbl	= NULL,
+	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon,
+	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam,
 
 	.btc_set_rfe		= rtw8851b_btc_set_rfe,
 	.btc_init_cfg		= rtw8851b_btc_init_cfg,
@@ -2345,6 +2419,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.fw_basename		= RTW8851B_FW_BASENAME,
 	.fw_format_max		= RTW8851B_FW_FORMAT_MAX,
 	.try_ce_fw		= true,
+	.bbmcu_nr		= 0,
 	.needed_fw_elms		= 0,
 	.fifo_size		= 196608,
 	.small_fifo_size	= true,
@@ -2354,8 +2429,8 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.rsvd_ple_ofst		= 0x2f800,
 	.hfc_param_ini		= rtw8851b_hfc_param_ini_pcie,
 	.dle_mem		= rtw8851b_dle_mem_pcie,
-	.wde_qempty_acq_num     = 4,
-	.wde_qempty_mgq_sel     = 4,
+	.wde_qempty_acq_grpnum	= 4,
+	.wde_qempty_mgq_grpsel	= 4,
 	.rf_base_addr		= {0xe000},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
@@ -2364,7 +2439,6 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.rf_table		= {&rtw89_8851b_phy_radioa_table,},
 	.nctl_table		= &rtw89_8851b_phy_nctl_table,
 	.nctl_post_table	= &rtw8851b_nctl_post_defs_tbl,
-	.byr_table		= &rtw89_8851b_byr_table,
 	.dflt_parms		= &rtw89_8851b_dflt_parms,
 	.rfe_parms_conf		= rtw89_8851b_rfe_parms_conf,
 	.txpwr_factor_rf	= 2,
@@ -2375,9 +2449,12 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.support_chanctx_num	= 0,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ),
-	.support_bw160		= false,
+	.support_bandwidths	= BIT(NL80211_CHAN_WIDTH_20) |
+				  BIT(NL80211_CHAN_WIDTH_40) |
+				  BIT(NL80211_CHAN_WIDTH_80),
 	.support_unii4		= true,
-	.support_ul_tb_ctrl	= true,
+	.ul_tb_waveform_ctrl	= true,
+	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= false,
 	.rf_path_num		= 1,
 	.tx_nss			= 1,
@@ -2388,12 +2465,14 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.bacam_num		= 2,
 	.bacam_dynamic_num	= 4,
 	.bacam_ver		= RTW89_BACAM_V0,
+	.ppdu_max_usr		= 4,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 2048,
 	.limit_efuse_size	= 1280,
 	.dav_phy_efuse_size	= 0,
 	.dav_log_efuse_size	= 0,
+	.efuse_blocks		= NULL,
 	.phycap_addr		= 0x580,
 	.phycap_size		= 128,
 	.para_ver		= 0,
@@ -2419,6 +2498,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.hci_func_en_addr	= R_AX_HCI_FUNC_EN,
 	.h2c_desc_size		= sizeof(struct rtw89_txwd_body),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body),
+	.txwd_info_size		= sizeof(struct rtw89_txwd_info),
 	.h2c_ctrl_reg		= R_AX_H2CREG_CTRL,
 	.h2c_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
 	.h2c_regs		= rtw8851b_h2c_regs,
@@ -2426,17 +2506,21 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.c2h_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
 	.c2h_regs		= rtw8851b_c2h_regs,
 	.page_regs		= &rtw8851b_page_regs,
+	.wow_reason_reg		= R_AX_C2HREG_DATA3 + 3,
 	.cfo_src_fd		= true,
 	.cfo_hw_comp		= true,
 	.dcfo_comp		= &rtw8851b_dcfo_comp,
 	.dcfo_comp_sft		= 12,
 	.imr_info		= &rtw8851b_imr_info,
+	.imr_dmac_table		= NULL,
+	.imr_cmac_table		= NULL,
 	.rrsr_cfgs		= &rtw8851b_rrsr_cfgs,
+	.bss_clr_vld		= {R_BSS_CLR_MAP_V1, B_BSS_CLR_MAP_VLD0},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V1,
 	.dma_ch_mask		= BIT(RTW89_DMA_ACH4) | BIT(RTW89_DMA_ACH5) |
 				  BIT(RTW89_DMA_ACH6) | BIT(RTW89_DMA_ACH7) |
 				  BIT(RTW89_DMA_B1MG) | BIT(RTW89_DMA_B1HI),
-	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL_V1,
+	.edcca_regs		= &rtw8851b_edcca_regs,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8851b,
 #endif

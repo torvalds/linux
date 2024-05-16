@@ -330,7 +330,7 @@ l1_%=:	r7 = r0;					\
 
 SEC("cgroup/skb")
 __description("spin_lock: test10 lock in subprog without unlock")
-__failure __msg("unlock is missing")
+__success
 __failure_unpriv __msg_unpriv("")
 __naked void lock_in_subprog_without_unlock(void)
 {

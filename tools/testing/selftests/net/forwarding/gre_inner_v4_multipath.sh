@@ -267,7 +267,7 @@ multipath4_test()
 
 	ip vrf exec v$h1 \
 	   $MZ $h1 -q -p 64 -A "192.0.3.2-192.0.3.62" -B "192.0.4.2-192.0.4.62" \
-	       -d 1msec -c 50 -t udp "sp=1024,dp=1024"
+	       -d $MZ_DELAY -c 50 -t udp "sp=1024,dp=1024"
 	sleep 1
 
 	local t1_111=$(tc_rule_stats_get $ul32 111 ingress)

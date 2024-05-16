@@ -140,6 +140,25 @@
  *     DRM_FORMAT_MOD_LINEAR. Before linux kernel release v5.1 there have been
  *     various bugs in this area with inconsistencies between the capability
  *     flag and per-plane properties.
+ *
+ * SIZE_HINTS:
+ *     Blob property which contains the set of recommended plane size
+ *     which can used for simple "cursor like" use cases (eg. no scaling).
+ *     Using these hints frees userspace from extensive probing of
+ *     supported plane sizes through atomic/setcursor ioctls.
+ *
+ *     The blob contains an array of struct drm_plane_size_hint, in
+ *     order of preference. For optimal usage userspace should pick
+ *     the first size that satisfies its own requirements.
+ *
+ *     Drivers should only attach this property to planes that
+ *     support a very limited set of sizes.
+ *
+ *     Note that property value 0 (ie. no blob) is reserved for potential
+ *     future use. Current userspace is expected to ignore the property
+ *     if the value is 0, and fall back to some other means (eg.
+ *     &DRM_CAP_CURSOR_WIDTH and &DRM_CAP_CURSOR_HEIGHT) to determine
+ *     the appropriate plane size to use.
  */
 
 static unsigned int drm_num_planes(struct drm_device *dev)
@@ -226,6 +245,103 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
 
 	drm_object_attach_property(&plane->base, config->modifiers_property,
 				   blob->base.id);
+
+	return 0;
+}
+
+/**
+ * DOC: hotspot properties
+ *
+ * HOTSPOT_X: property to set mouse hotspot x offset.
+ * HOTSPOT_Y: property to set mouse hotspot y offset.
+ *
+ * When the plane is being used as a cursor image to display a mouse pointer,
+ * the "hotspot" is the offset within the cursor image where mouse events
+ * are expected to go.
+ *
+ * Positive values move the hotspot from the top-left corner of the cursor
+ * plane towards the right and bottom.
+ *
+ * Most display drivers do not need this information because the
+ * hotspot is not actually connected to anything visible on screen.
+ * However, this is necessary for display drivers like the para-virtualized
+ * drivers (eg qxl, vbox, virtio, vmwgfx), that are attached to a user console
+ * with a mouse pointer.  Since these consoles are often being remoted over a
+ * network, they would otherwise have to wait to display the pointer movement to
+ * the user until a full network round-trip has occurred.  New mouse events have
+ * to be sent from the user's console, over the network to the virtual input
+ * devices, forwarded to the desktop for processing, and then the cursor plane's
+ * position can be updated and sent back to the user's console over the network.
+ * Instead, with the hotspot information, the console can anticipate the new
+ * location, and draw the mouse cursor there before the confirmation comes in.
+ * To do that correctly, the user's console must be able predict how the
+ * desktop will process mouse events, which normally requires the desktop's
+ * mouse topology information, ie where each CRTC sits in the mouse coordinate
+ * space.  This is typically sent to the para-virtualized drivers using some
+ * driver-specific method, and the driver then forwards it to the console by
+ * way of the virtual display device or hypervisor.
+ *
+ * The assumption is generally made that there is only one cursor plane being
+ * used this way at a time, and that the desktop is feeding all mouse devices
+ * into the same global pointer.  Para-virtualized drivers that require this
+ * should only be exposing a single cursor plane, or find some other way
+ * to coordinate with a userspace desktop that supports multiple pointers.
+ * If the hotspot properties are set, the cursor plane is therefore assumed to be
+ * used only for displaying a mouse cursor image, and the position of the combined
+ * cursor plane + offset can therefore be used for coordinating with input from a
+ * mouse device.
+ *
+ * The cursor will then be drawn either at the location of the plane in the CRTC
+ * console, or as a free-floating cursor plane on the user's console
+ * corresponding to their desktop mouse position.
+ *
+ * DRM clients which would like to work correctly on drivers which expose
+ * hotspot properties should advertise DRM_CLIENT_CAP_CURSOR_PLANE_HOTSPOT.
+ * Setting this property on drivers which do not special case
+ * cursor planes will return EOPNOTSUPP, which can be used by userspace to
+ * gauge requirements of the hardware/drivers they're running on. Advertising
+ * DRM_CLIENT_CAP_CURSOR_PLANE_HOTSPOT implies that the userspace client will be
+ * correctly setting the hotspot properties.
+ */
+
+/**
+ * drm_plane_create_hotspot_properties - creates the mouse hotspot
+ * properties and attaches them to the given cursor plane
+ *
+ * @plane: drm cursor plane
+ *
+ * This function enables the mouse hotspot property on a given
+ * cursor plane. Look at the documentation for hotspot properties
+ * to get a better understanding for what they're used for.
+ *
+ * RETURNS:
+ * Zero for success or -errno
+ */
+static int drm_plane_create_hotspot_properties(struct drm_plane *plane)
+{
+	struct drm_property *prop_x;
+	struct drm_property *prop_y;
+
+	drm_WARN_ON(plane->dev,
+		    !drm_core_check_feature(plane->dev,
+					    DRIVER_CURSOR_HOTSPOT));
+
+	prop_x = drm_property_create_signed_range(plane->dev, 0, "HOTSPOT_X",
+						  INT_MIN, INT_MAX);
+	if (IS_ERR(prop_x))
+		return PTR_ERR(prop_x);
+
+	prop_y = drm_property_create_signed_range(plane->dev, 0, "HOTSPOT_Y",
+						  INT_MIN, INT_MAX);
+	if (IS_ERR(prop_y)) {
+		drm_property_destroy(plane->dev, prop_x);
+		return PTR_ERR(prop_y);
+	}
+
+	drm_object_attach_property(&plane->base, prop_x, 0);
+	drm_object_attach_property(&plane->base, prop_y, 0);
+	plane->hotspot_x_property = prop_x;
+	plane->hotspot_y_property = prop_y;
 
 	return 0;
 }
@@ -347,6 +463,10 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 		drm_object_attach_property(&plane->base, config->prop_src_y, 0);
 		drm_object_attach_property(&plane->base, config->prop_src_w, 0);
 		drm_object_attach_property(&plane->base, config->prop_src_h, 0);
+	}
+	if (drm_core_check_feature(dev, DRIVER_CURSOR_HOTSPOT) &&
+	    type == DRM_PLANE_TYPE_CURSOR) {
+		drm_plane_create_hotspot_properties(plane);
 	}
 
 	if (format_modifier_count)
@@ -676,6 +796,19 @@ int drm_mode_getplane_res(struct drm_device *dev, void *data,
 		 */
 		if (plane->type != DRM_PLANE_TYPE_OVERLAY &&
 		    !file_priv->universal_planes)
+			continue;
+
+		/*
+		 * If we're running on a virtualized driver then,
+		 * unless userspace advertizes support for the
+		 * virtualized cursor plane, disable cursor planes
+		 * because they'll be broken due to missing cursor
+		 * hotspot info.
+		 */
+		if (plane->type == DRM_PLANE_TYPE_CURSOR &&
+		    drm_core_check_feature(dev, DRIVER_CURSOR_HOTSPOT) &&
+		    file_priv->atomic &&
+		    !file_priv->supports_virtualized_cursor_plane)
 			continue;
 
 		if (drm_lease_held(file_priv, plane->base.id)) {
@@ -1052,8 +1185,10 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				return PTR_ERR(fb);
 			}
 
-			fb->hot_x = req->hot_x;
-			fb->hot_y = req->hot_y;
+			if (plane->hotspot_x_property && plane->state)
+				plane->state->hotspot_x = req->hot_x;
+			if (plane->hotspot_y_property && plane->state)
+				plane->state->hotspot_y = req->hot_y;
 		} else {
 			fb = NULL;
 		}
@@ -1387,6 +1522,7 @@ retry:
 out:
 	if (fb)
 		drm_framebuffer_put(fb);
+	fb = NULL;
 	if (plane->old_fb)
 		drm_framebuffer_put(plane->old_fb);
 	plane->old_fb = NULL;
@@ -1442,6 +1578,36 @@ out:
  * Drivers implementing damage can use drm_atomic_helper_damage_iter_init() and
  * drm_atomic_helper_damage_iter_next() helper iterator function to get damage
  * rectangles clipped to &drm_plane_state.src.
+ *
+ * Note that there are two types of damage handling: frame damage and buffer
+ * damage, the type of damage handling implemented depends on a driver's upload
+ * target. Drivers implementing a per-plane or per-CRTC upload target need to
+ * handle frame damage, while drivers implementing a per-buffer upload target
+ * need to handle buffer damage.
+ *
+ * The existing damage helpers only support the frame damage type, there is no
+ * buffer age support or similar damage accumulation algorithm implemented yet.
+ *
+ * Only drivers handling frame damage can use the mentioned damage helpers to
+ * iterate over the damaged regions. Drivers that handle buffer damage, must set
+ * &drm_plane_state.ignore_damage_clips for drm_atomic_helper_damage_iter_init()
+ * to know that damage clips should be ignored and return &drm_plane_state.src
+ * as the damage rectangle, to force a full plane update.
+ *
+ * Drivers with a per-buffer upload target could compare the &drm_plane_state.fb
+ * of the old and new plane states to determine if the framebuffer attached to a
+ * plane has changed or not since the last plane update. If &drm_plane_state.fb
+ * has changed, then &drm_plane_state.ignore_damage_clips must be set to true.
+ *
+ * That is because drivers with a per-plane upload target, expect the backing
+ * storage buffer to not change for a given plane. If the upload buffer changes
+ * between page flips, the new upload buffer has to be updated as a whole. This
+ * can be improved in the future if support for frame damage is added to the DRM
+ * damage helpers, similarly to how user-space already handle this case as it is
+ * explained in the following documents:
+ *
+ *     https://registry.khronos.org/EGL/extensions/KHR/EGL_KHR_swap_buffers_with_damage.txt
+ *     https://emersion.fr/blog/2019/intro-to-damage-tracking/
  */
 
 /**
@@ -1582,3 +1748,40 @@ int drm_plane_create_scaling_filter_property(struct drm_plane *plane,
 	return 0;
 }
 EXPORT_SYMBOL(drm_plane_create_scaling_filter_property);
+
+/**
+ * drm_plane_add_size_hints_property - create a size hints property
+ *
+ * @plane: drm plane
+ * @hints: size hints
+ * @num_hints: number of size hints
+ *
+ * Create a size hints property for the plane.
+ *
+ * RETURNS:
+ * Zero for success or -errno
+ */
+int drm_plane_add_size_hints_property(struct drm_plane *plane,
+				      const struct drm_plane_size_hint *hints,
+				      int num_hints)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_property_blob *blob;
+
+	/* extending to other plane types needs actual thought */
+	if (drm_WARN_ON(dev, plane->type != DRM_PLANE_TYPE_CURSOR))
+		return -EINVAL;
+
+	blob = drm_property_create_blob(dev,
+					array_size(sizeof(hints[0]), num_hints),
+					hints);
+	if (IS_ERR(blob))
+		return PTR_ERR(blob);
+
+	drm_object_attach_property(&plane->base, config->size_hints_property,
+				   blob->base.id);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_add_size_hints_property);

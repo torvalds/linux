@@ -87,42 +87,40 @@ struct smca_bank {
 static DEFINE_PER_CPU_READ_MOSTLY(struct smca_bank[MAX_NR_BANKS], smca_banks);
 static DEFINE_PER_CPU_READ_MOSTLY(u8[N_SMCA_BANK_TYPES], smca_bank_counts);
 
-struct smca_bank_name {
-	const char *name;	/* Short name for sysfs */
-	const char *long_name;	/* Long name for pretty-printing */
-};
-
-static struct smca_bank_name smca_names[] = {
-	[SMCA_LS ... SMCA_LS_V2]	= { "load_store",	"Load Store Unit" },
-	[SMCA_IF]			= { "insn_fetch",	"Instruction Fetch Unit" },
-	[SMCA_L2_CACHE]			= { "l2_cache",		"L2 Cache" },
-	[SMCA_DE]			= { "decode_unit",	"Decode Unit" },
-	[SMCA_RESERVED]			= { "reserved",		"Reserved" },
-	[SMCA_EX]			= { "execution_unit",	"Execution Unit" },
-	[SMCA_FP]			= { "floating_point",	"Floating Point Unit" },
-	[SMCA_L3_CACHE]			= { "l3_cache",		"L3 Cache" },
-	[SMCA_CS ... SMCA_CS_V2]	= { "coherent_slave",	"Coherent Slave" },
-	[SMCA_PIE]			= { "pie",		"Power, Interrupts, etc." },
+static const char * const smca_names[] = {
+	[SMCA_LS ... SMCA_LS_V2]	= "load_store",
+	[SMCA_IF]			= "insn_fetch",
+	[SMCA_L2_CACHE]			= "l2_cache",
+	[SMCA_DE]			= "decode_unit",
+	[SMCA_RESERVED]			= "reserved",
+	[SMCA_EX]			= "execution_unit",
+	[SMCA_FP]			= "floating_point",
+	[SMCA_L3_CACHE]			= "l3_cache",
+	[SMCA_CS ... SMCA_CS_V2]	= "coherent_slave",
+	[SMCA_PIE]			= "pie",
 
 	/* UMC v2 is separate because both of them can exist in a single system. */
-	[SMCA_UMC]			= { "umc",		"Unified Memory Controller" },
-	[SMCA_UMC_V2]			= { "umc_v2",		"Unified Memory Controller v2" },
-	[SMCA_PB]			= { "param_block",	"Parameter Block" },
-	[SMCA_PSP ... SMCA_PSP_V2]	= { "psp",		"Platform Security Processor" },
-	[SMCA_SMU ... SMCA_SMU_V2]	= { "smu",		"System Management Unit" },
-	[SMCA_MP5]			= { "mp5",		"Microprocessor 5 Unit" },
-	[SMCA_MPDMA]			= { "mpdma",		"MPDMA Unit" },
-	[SMCA_NBIO]			= { "nbio",		"Northbridge IO Unit" },
-	[SMCA_PCIE ... SMCA_PCIE_V2]	= { "pcie",		"PCI Express Unit" },
-	[SMCA_XGMI_PCS]			= { "xgmi_pcs",		"Ext Global Memory Interconnect PCS Unit" },
-	[SMCA_NBIF]			= { "nbif",		"NBIF Unit" },
-	[SMCA_SHUB]			= { "shub",		"System Hub Unit" },
-	[SMCA_SATA]			= { "sata",		"SATA Unit" },
-	[SMCA_USB]			= { "usb",		"USB Unit" },
-	[SMCA_GMI_PCS]			= { "gmi_pcs",		"Global Memory Interconnect PCS Unit" },
-	[SMCA_XGMI_PHY]			= { "xgmi_phy",		"Ext Global Memory Interconnect PHY Unit" },
-	[SMCA_WAFL_PHY]			= { "wafl_phy",		"WAFL PHY Unit" },
-	[SMCA_GMI_PHY]			= { "gmi_phy",		"Global Memory Interconnect PHY Unit" },
+	[SMCA_UMC]			= "umc",
+	[SMCA_UMC_V2]			= "umc_v2",
+	[SMCA_MA_LLC]			= "ma_llc",
+	[SMCA_PB]			= "param_block",
+	[SMCA_PSP ... SMCA_PSP_V2]	= "psp",
+	[SMCA_SMU ... SMCA_SMU_V2]	= "smu",
+	[SMCA_MP5]			= "mp5",
+	[SMCA_MPDMA]			= "mpdma",
+	[SMCA_NBIO]			= "nbio",
+	[SMCA_PCIE ... SMCA_PCIE_V2]	= "pcie",
+	[SMCA_XGMI_PCS]			= "xgmi_pcs",
+	[SMCA_NBIF]			= "nbif",
+	[SMCA_SHUB]			= "shub",
+	[SMCA_SATA]			= "sata",
+	[SMCA_USB]			= "usb",
+	[SMCA_USR_DP]			= "usr_dp",
+	[SMCA_USR_CP]			= "usr_cp",
+	[SMCA_GMI_PCS]			= "gmi_pcs",
+	[SMCA_XGMI_PHY]			= "xgmi_phy",
+	[SMCA_WAFL_PHY]			= "wafl_phy",
+	[SMCA_GMI_PHY]			= "gmi_phy",
 };
 
 static const char *smca_get_name(enum smca_bank_types t)
@@ -130,17 +128,8 @@ static const char *smca_get_name(enum smca_bank_types t)
 	if (t >= N_SMCA_BANK_TYPES)
 		return NULL;
 
-	return smca_names[t].name;
+	return smca_names[t];
 }
-
-const char *smca_get_long_name(enum smca_bank_types t)
-{
-	if (t >= N_SMCA_BANK_TYPES)
-		return NULL;
-
-	return smca_names[t].long_name;
-}
-EXPORT_SYMBOL_GPL(smca_get_long_name);
 
 enum smca_bank_types smca_get_bank_type(unsigned int cpu, unsigned int bank)
 {
@@ -178,6 +167,7 @@ static const struct smca_hwid smca_hwid_mcatypes[] = {
 	{ SMCA_CS,	 HWID_MCATYPE(0x2E, 0x0)	},
 	{ SMCA_PIE,	 HWID_MCATYPE(0x2E, 0x1)	},
 	{ SMCA_CS_V2,	 HWID_MCATYPE(0x2E, 0x2)	},
+	{ SMCA_MA_LLC,	 HWID_MCATYPE(0x2E, 0x4)	},
 
 	/* Unified Memory Controller MCA type */
 	{ SMCA_UMC,	 HWID_MCATYPE(0x96, 0x0)	},
@@ -212,6 +202,8 @@ static const struct smca_hwid smca_hwid_mcatypes[] = {
 	{ SMCA_SHUB,	 HWID_MCATYPE(0x80, 0x0)	},
 	{ SMCA_SATA,	 HWID_MCATYPE(0xA8, 0x0)	},
 	{ SMCA_USB,	 HWID_MCATYPE(0xAA, 0x0)	},
+	{ SMCA_USR_DP,	 HWID_MCATYPE(0x170, 0x0)	},
+	{ SMCA_USR_CP,	 HWID_MCATYPE(0x180, 0x0)	},
 	{ SMCA_GMI_PCS,  HWID_MCATYPE(0x241, 0x0)	},
 	{ SMCA_XGMI_PHY, HWID_MCATYPE(0x259, 0x0)	},
 	{ SMCA_WAFL_PHY, HWID_MCATYPE(0x267, 0x0)	},
@@ -713,17 +705,75 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 		deferred_error_interrupt_enable(c);
 }
 
-bool amd_mce_is_memory_error(struct mce *m)
+/*
+ * DRAM ECC errors are reported in the Northbridge (bank 4) with
+ * Extended Error Code 8.
+ */
+static bool legacy_mce_is_memory_error(struct mce *m)
+{
+	return m->bank == 4 && XEC(m->status, 0x1f) == 8;
+}
+
+/*
+ * DRAM ECC errors are reported in Unified Memory Controllers with
+ * Extended Error Code 0.
+ */
+static bool smca_mce_is_memory_error(struct mce *m)
 {
 	enum smca_bank_types bank_type;
-	/* ErrCodeExt[20:16] */
-	u8 xec = (m->status >> 16) & 0x1f;
+
+	if (XEC(m->status, 0x3f))
+		return false;
 
 	bank_type = smca_get_bank_type(m->extcpu, m->bank);
-	if (mce_flags.smca)
-		return (bank_type == SMCA_UMC || bank_type == SMCA_UMC_V2) && xec == 0x0;
 
-	return m->bank == 4 && xec == 0x8;
+	return bank_type == SMCA_UMC || bank_type == SMCA_UMC_V2;
+}
+
+bool amd_mce_is_memory_error(struct mce *m)
+{
+	if (mce_flags.smca)
+		return smca_mce_is_memory_error(m);
+	else
+		return legacy_mce_is_memory_error(m);
+}
+
+/*
+ * AMD systems do not have an explicit indicator that the value in MCA_ADDR is
+ * a system physical address. Therefore, individual cases need to be detected.
+ * Future cases and checks will be added as needed.
+ *
+ * 1) General case
+ *	a) Assume address is not usable.
+ * 2) Poison errors
+ *	a) Indicated by MCA_STATUS[43]: poison. Defined for all banks except legacy
+ *	   northbridge (bank 4).
+ *	b) Refers to poison consumption in the core. Does not include "no action",
+ *	   "action optional", or "deferred" error severities.
+ *	c) Will include a usable address so that immediate action can be taken.
+ * 3) Northbridge DRAM ECC errors
+ *	a) Reported in legacy bank 4 with extended error code (XEC) 8.
+ *	b) MCA_STATUS[43] is *not* defined as poison in legacy bank 4. Therefore,
+ *	   this bit should not be checked.
+ *
+ * NOTE: SMCA UMC memory errors fall into case #1.
+ */
+bool amd_mce_usable_address(struct mce *m)
+{
+	/* Check special northbridge case 3) first. */
+	if (!mce_flags.smca) {
+		if (legacy_mce_is_memory_error(m))
+			return true;
+		else if (m->bank == 4)
+			return false;
+	}
+
+	/* Check poison bit for all other bank types. */
+	if (m->status & MCI_STATUS_POISON)
+		return true;
+
+	/* Assume address is not usable for all others. */
+	return false;
 }
 
 static void __log_error(unsigned int bank, u64 status, u64 addr, u64 misc)
@@ -1181,7 +1231,7 @@ static int threshold_create_bank(struct threshold_bank **bp, unsigned int cpu,
 		return -ENODEV;
 
 	if (is_shared_bank(bank)) {
-		nb = node_to_amd_nb(topology_die_id(cpu));
+		nb = node_to_amd_nb(topology_amd_node_id(cpu));
 
 		/* threshold descriptor already initialized on this node? */
 		if (nb && nb->bank4) {
@@ -1285,7 +1335,7 @@ static void threshold_remove_bank(struct threshold_bank *bank)
 		 * The last CPU on this node using the shared bank is going
 		 * away, remove that bank now.
 		 */
-		nb = node_to_amd_nb(topology_die_id(smp_processor_id()));
+		nb = node_to_amd_nb(topology_amd_node_id(smp_processor_id()));
 		nb->bank4 = NULL;
 	}
 

@@ -1158,12 +1158,12 @@ dump_eps(struct usb_hcd *hcd)
 		end = dp + sizeof(ubuf);
 		*dp = '\0';
 		list_for_each_entry(urb, &ep->urb_list, urb_list) {
-			ret = snprintf(dp, end - dp, " %p(%d.%s %d/%d)", urb,
-				       usb_pipetype(urb->pipe),
-				       usb_urb_dir_in(urb) ? "IN" : "OUT",
-				       urb->actual_length,
-				       urb->transfer_buffer_length);
-			if (ret < 0 || ret >= end - dp)
+			ret = scnprintf(dp, end - dp, " %p(%d.%s %d/%d)", urb,
+					usb_pipetype(urb->pipe),
+					usb_urb_dir_in(urb) ? "IN" : "OUT",
+					urb->actual_length,
+					urb->transfer_buffer_length);
+			if (ret == end - dp - 1)
 				break;	/* error or buffer full */
 			dp += ret;
 		}
@@ -1255,9 +1255,9 @@ max3421_handle_irqs(struct usb_hcd *hcd)
 			end = sbuf + sizeof(sbuf);
 			*dp = '\0';
 			for (i = 0; i < 16; ++i) {
-				int ret = snprintf(dp, end - dp, " %lu",
-						   max3421_hcd->err_stat[i]);
-				if (ret < 0 || ret >= end - dp)
+				int ret = scnprintf(dp, end - dp, " %lu",
+						    max3421_hcd->err_stat[i]);
+				if (ret == end - dp - 1)
 					break;	/* error or buffer full */
 				dp += ret;
 			}

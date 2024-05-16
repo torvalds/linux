@@ -22,7 +22,6 @@ properties:
     maxItems: 1
 
   label:
-    $ref: /schemas/types.yaml#/definitions/string
     description: Unique name to identify which channel this is.
 
   bipolar:

@@ -230,21 +230,22 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
  * amdgpu_vce_entity_init - init entity
  *
  * @adev: amdgpu_device pointer
+ * @ring: amdgpu_ring pointer to check
  *
+ * Initialize the entity used for handle management in the kernel driver.
  */
-int amdgpu_vce_entity_init(struct amdgpu_device *adev)
+int amdgpu_vce_entity_init(struct amdgpu_device *adev, struct amdgpu_ring *ring)
 {
-	struct amdgpu_ring *ring;
-	struct drm_gpu_scheduler *sched;
-	int r;
+	if (ring == &adev->vce.ring[0]) {
+		struct drm_gpu_scheduler *sched = &ring->sched;
+		int r;
 
-	ring = &adev->vce.ring[0];
-	sched = &ring->sched;
-	r = drm_sched_entity_init(&adev->vce.entity, DRM_SCHED_PRIORITY_NORMAL,
-				  &sched, 1, NULL);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up VCE run queue.\n");
-		return r;
+		r = drm_sched_entity_init(&adev->vce.entity, DRM_SCHED_PRIORITY_NORMAL,
+					  &sched, 1, NULL);
+		if (r != 0) {
+			DRM_ERROR("Failed setting up VCE run queue.\n");
+			return r;
+		}
 	}
 
 	return 0;
@@ -742,7 +743,8 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p,
 	uint32_t created = 0;
 	uint32_t allocated = 0;
 	uint32_t tmp, handle = 0;
-	uint32_t *size = &tmp;
+	uint32_t dummy = 0xffffffff;
+	uint32_t *size = &dummy;
 	unsigned int idx;
 	int i, r = 0;
 

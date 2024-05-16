@@ -1562,7 +1562,7 @@ static const struct of_device_id kmb_ocs_aes_of_match[] = {
 	{}
 };
 
-static int kmb_ocs_aes_remove(struct platform_device *pdev)
+static void kmb_ocs_aes_remove(struct platform_device *pdev)
 {
 	struct ocs_aes_dev *aes_dev;
 
@@ -1575,8 +1575,6 @@ static int kmb_ocs_aes_remove(struct platform_device *pdev)
 	spin_unlock(&ocs_aes.lock);
 
 	crypto_engine_exit(aes_dev->engine);
-
-	return 0;
 }
 
 static int kmb_ocs_aes_probe(struct platform_device *pdev)
@@ -1658,7 +1656,7 @@ list_del:
 /* The OCS driver is a platform device. */
 static struct platform_driver kmb_ocs_aes_driver = {
 	.probe = kmb_ocs_aes_probe,
-	.remove = kmb_ocs_aes_remove,
+	.remove_new = kmb_ocs_aes_remove,
 	.driver = {
 			.name = DRV_NAME,
 			.of_match_table = kmb_ocs_aes_of_match,

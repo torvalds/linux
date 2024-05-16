@@ -135,8 +135,6 @@ source "drivers/uio/Kconfig"
 
 source "drivers/vfio/Kconfig"
 
-source "drivers/vlynq/Kconfig"
-
 source "drivers/virt/Kconfig"
 
 source "drivers/virtio/Kconfig"
@@ -174,6 +172,8 @@ source "drivers/rpmsg/Kconfig"
 source "drivers/soundwire/Kconfig"
 
 source "drivers/soc/Kconfig"
+
+source "drivers/pmdomain/Kconfig"
 
 source "drivers/devfreq/Kconfig"
 
@@ -242,5 +242,7 @@ source "drivers/peci/Kconfig"
 source "drivers/hte/Kconfig"
 
 source "drivers/cdx/Kconfig"
+
+source "drivers/dpll/Kconfig"
 
 endmenu

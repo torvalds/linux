@@ -151,7 +151,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	switch (parm->v_action) {
 	case TCA_VLAN_ACT_POP:
@@ -427,6 +427,7 @@ static struct tc_action_ops act_vlan_ops = {
 	.offload_act_setup =	tcf_vlan_offload_act_setup,
 	.size		=	sizeof(struct tcf_vlan),
 };
+MODULE_ALIAS_NET_ACT("vlan");
 
 static __net_init int vlan_init_net(struct net *net)
 {

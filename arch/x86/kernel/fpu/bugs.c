@@ -2,6 +2,9 @@
 /*
  * x86 FPU bug checks:
  */
+#include <linux/printk.h>
+
+#include <asm/cpufeature.h>
 #include <asm/fpu/api.h>
 
 /*

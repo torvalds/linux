@@ -12,5 +12,4 @@ Unsorted Documentation
    rpmsg
    speculation
    static-keys
-   tee
    xz

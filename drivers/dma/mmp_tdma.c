@@ -14,9 +14,9 @@
 #include <linux/slab.h>
 #include <linux/dmaengine.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/device.h>
 #include <linux/genalloc.h>
-#include <linux/of_device.h>
 #include <linux/of_dma.h>
 
 #include "dmaengine.h"
@@ -552,12 +552,10 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 	mmp_tdma_enable_chan(tdmac);
 }
 
-static int mmp_tdma_remove(struct platform_device *pdev)
+static void mmp_tdma_remove(struct platform_device *pdev)
 {
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
-
-	return 0;
 }
 
 static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
@@ -637,18 +635,13 @@ MODULE_DEVICE_TABLE(of, mmp_tdma_dt_ids);
 static int mmp_tdma_probe(struct platform_device *pdev)
 {
 	enum mmp_tdma_type type;
-	const struct of_device_id *of_id;
 	struct mmp_tdma_device *tdev;
 	int i, ret;
 	int irq = 0, irq_num = 0;
 	int chan_num = TDMA_CHANNEL_NUM;
 	struct gen_pool *pool = NULL;
 
-	of_id = of_match_device(mmp_tdma_dt_ids, &pdev->dev);
-	if (of_id)
-		type = (enum mmp_tdma_type) of_id->data;
-	else
-		type = platform_get_device_id(pdev)->driver_data;
+	type = (enum mmp_tdma_type)device_get_match_data(&pdev->dev);
 
 	/* always have couple channels */
 	tdev = devm_kzalloc(&pdev->dev, sizeof(*tdev), GFP_KERNEL);
@@ -726,34 +719,24 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pdev->dev.of_node) {
-		ret = of_dma_controller_register(pdev->dev.of_node,
-							mmp_tdma_xlate, tdev);
-		if (ret) {
-			dev_err(tdev->device.dev,
-				"failed to register controller\n");
-			return ret;
-		}
+	ret = of_dma_controller_register(pdev->dev.of_node,
+					 mmp_tdma_xlate, tdev);
+	if (ret) {
+		dev_err(tdev->device.dev, "failed to register controller\n");
+		return ret;
 	}
 
 	dev_info(tdev->device.dev, "initialized\n");
 	return 0;
 }
 
-static const struct platform_device_id mmp_tdma_id_table[] = {
-	{ "mmp-adma",	MMP_AUD_TDMA },
-	{ "pxa910-squ",	PXA910_SQU },
-	{ },
-};
-
 static struct platform_driver mmp_tdma_driver = {
 	.driver		= {
 		.name	= "mmp-tdma",
 		.of_match_table = mmp_tdma_dt_ids,
 	},
-	.id_table	= mmp_tdma_id_table,
 	.probe		= mmp_tdma_probe,
-	.remove		= mmp_tdma_remove,
+	.remove_new	= mmp_tdma_remove,
 };
 
 module_platform_driver(mmp_tdma_driver);

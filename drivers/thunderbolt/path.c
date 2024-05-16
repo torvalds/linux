@@ -19,9 +19,9 @@ static void tb_dump_hop(const struct tb_path_hop *hop, const struct tb_regs_hop 
 
 	tb_port_dbg(port, " In HopID: %d => Out port: %d Out HopID: %d\n",
 		    hop->in_hop_index, regs->out_port, regs->next_hop);
-	tb_port_dbg(port, "  Weight: %d Priority: %d Credits: %d Drop: %d\n",
-		    regs->weight, regs->priority,
-		    regs->initial_credits, regs->drop_packages);
+	tb_port_dbg(port, "  Weight: %d Priority: %d Credits: %d Drop: %d PM: %d\n",
+		    regs->weight, regs->priority, regs->initial_credits,
+		    regs->drop_packages, regs->pmps);
 	tb_port_dbg(port, "   Counter enabled: %d Counter index: %d\n",
 		    regs->counter_enable, regs->counter);
 	tb_port_dbg(port, "  Flow Control (In/Eg): %d/%d Shared Buffer (In/Eg): %d/%d\n",
@@ -446,6 +446,19 @@ static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index,
 	return -ETIMEDOUT;
 }
 
+/**
+ * tb_path_deactivate_hop() - Deactivate one path in path config space
+ * @port: Lane or protocol adapter
+ * @hop_index: HopID of the path to be cleared
+ *
+ * This deactivates or clears a single path config space entry at
+ * @hop_index. Returns %0 in success and negative errno otherwise.
+ */
+int tb_path_deactivate_hop(struct tb_port *port, int hop_index)
+{
+	return __tb_path_deactivate_hop(port, hop_index, true);
+}
+
 static void __tb_path_deactivate_hops(struct tb_path *path, int first_hop)
 {
 	int i, res;
@@ -535,6 +548,7 @@ int tb_path_activate(struct tb_path *path)
 		hop.next_hop = path->hops[i].next_hop_index;
 		hop.out_port = path->hops[i].out_port->port;
 		hop.initial_credits = path->hops[i].initial_credits;
+		hop.pmps = path->hops[i].pm_support;
 		hop.unknown1 = 0;
 		hop.enable = 1;
 

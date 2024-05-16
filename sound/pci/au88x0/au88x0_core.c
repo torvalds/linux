@@ -1195,7 +1195,7 @@ static int vortex_adbdma_bufshift(vortex_t * vortex, int adbdma)
 				VORTEX_ADBDMA_BUFBASE + (((adbdma << 2) + pp) << 2),
 				snd_pcm_sgbuf_get_addr(dma->substream,
 				dma->period_bytes * p));
-			/* Force write thru cache. */
+			/* Force write through cache. */
 			hwread(vortex->mmio, VORTEX_ADBDMA_BUFBASE +
 			       (((adbdma << 2) + pp) << 2));
 		}
@@ -1237,7 +1237,7 @@ static void vortex_adbdma_resetup(vortex_t *vortex, int adbdma) {
 			VORTEX_ADBDMA_BUFBASE + (((adbdma << 2) + pp) << 2),
 			snd_pcm_sgbuf_get_addr(dma->substream,
 					       dma->period_bytes * p));
-		/* Force write thru cache. */
+		/* Force write through cache. */
 		hwread(vortex->mmio, VORTEX_ADBDMA_BUFBASE + (((adbdma << 2)+pp) << 2));
 	}
 }
@@ -1466,7 +1466,7 @@ static int vortex_wtdma_bufshift(vortex_t * vortex, int wtdma)
 				(((wtdma << 2) + pp) << 2),
 				snd_pcm_sgbuf_get_addr(dma->substream,
 						       dma->period_bytes * p));
-			/* Force write thru cache. */
+			/* Force write through cache. */
 			hwread(vortex->mmio, VORTEX_WTDMA_BUFBASE +
 			       (((wtdma << 2) + pp) << 2));
 		}
@@ -1854,7 +1854,7 @@ vortex_connection_mixin_mix(vortex_t * vortex, int en, unsigned char mixin,
 		vortex_mix_disableinput(vortex, mix, mixin, a);
 }
 
-// Connect absolut address to mixin.
+// Connect absolute address to mixin.
 static void
 vortex_connection_adb_mixin(vortex_t * vortex, int en,
 			    unsigned char channel, unsigned char source,
@@ -1880,7 +1880,7 @@ vortex_connection_src_src_adbdma(vortex_t * vortex, int en,
 			ADB_DMA(adbdma));
 }
 
-// mix to absolut address.
+// mix to absolute address.
 static void
 vortex_connection_mix_adb(vortex_t * vortex, int en, unsigned char ch,
 			  unsigned char mix, unsigned char dest)

@@ -8,6 +8,7 @@
 #include <drm/drm_drv.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_utils.h"
 
 #define FDO_BUG_MSG "Please file a bug on drm/i915; see " FDO_BUG_URL " for details."
@@ -124,4 +125,20 @@ bool i915_vtd_active(struct drm_i915_private *i915)
 
 	/* Running as a guest, we assume the host is enforcing VT'd */
 	return i915_run_as_guest();
+}
+
+bool i915_direct_stolen_access(struct drm_i915_private *i915)
+{
+	/*
+	 * Wa_22018444074
+	 *
+	 * Access via BAR can hang MTL, go directly to GSM/DSM,
+	 * except for VM guests which won't have access to it.
+	 *
+	 * Normally this would not work but on MTL the system firmware
+	 * should have relaxed the access permissions sufficiently.
+	 * 0x138914==0x1 indicates that the firmware has done its job.
+	 */
+	return IS_METEORLAKE(i915) && !i915_run_as_guest() &&
+		intel_uncore_read(&i915->uncore, MTL_PCODE_STOLEN_ACCESS) == STOLEN_ACCESS_ALLOWED;
 }

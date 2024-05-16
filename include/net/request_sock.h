@@ -61,7 +61,11 @@ struct request_sock {
 	struct request_sock		*dl_next;
 	u16				mss;
 	u8				num_retrans; /* number of retransmits */
-	u8				syncookie:1; /* syncookie: encode tcpopts in timestamp */
+	u8				syncookie:1; /* True if
+						      * 1) tcpopts needs to be encoded in
+						      *    TS of SYN+ACK
+						      * 2) ACK is validated by BPF kfunc.
+						      */
 	u8				num_timeout:7; /* number of timeouts */
 	u32				ts_recent;
 	struct timer_list		rsk_timer;
@@ -81,6 +85,45 @@ static inline struct request_sock *inet_reqsk(const struct sock *sk)
 static inline struct sock *req_to_sk(struct request_sock *req)
 {
 	return (struct sock *)req;
+}
+
+/**
+ * skb_steal_sock - steal a socket from an sk_buff
+ * @skb: sk_buff to steal the socket from
+ * @refcounted: is set to true if the socket is reference-counted
+ * @prefetched: is set to true if the socket was assigned from bpf
+ */
+static inline struct sock *skb_steal_sock(struct sk_buff *skb,
+					  bool *refcounted, bool *prefetched)
+{
+	struct sock *sk = skb->sk;
+
+	if (!sk) {
+		*prefetched = false;
+		*refcounted = false;
+		return NULL;
+	}
+
+	*prefetched = skb_sk_is_prefetched(skb);
+	if (*prefetched) {
+#if IS_ENABLED(CONFIG_SYN_COOKIES)
+		if (sk->sk_state == TCP_NEW_SYN_RECV && inet_reqsk(sk)->syncookie) {
+			struct request_sock *req = inet_reqsk(sk);
+
+			*refcounted = false;
+			sk = req->rsk_listener;
+			req->rsk_listener = NULL;
+			return sk;
+		}
+#endif
+		*refcounted = sk_is_refcounted(sk);
+	} else {
+		*refcounted = true;
+	}
+
+	skb->destructor = NULL;
+	skb->sk = NULL;
+	return sk;
 }
 
 static inline struct request_sock *
@@ -105,6 +148,7 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 	sk_node_init(&req_to_sk(req)->sk_node);
 	sk_tx_queue_clear(req_to_sk(req));
 	req->saved_syn = NULL;
+	req->syncookie = 0;
 	req->timeout = 0;
 	req->num_timeout = 0;
 	req->num_retrans = 0;

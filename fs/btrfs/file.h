@@ -3,6 +3,21 @@
 #ifndef BTRFS_FILE_H
 #define BTRFS_FILE_H
 
+#include <linux/types.h>
+
+struct file;
+struct extent_state;
+struct kiocb;
+struct iov_iter;
+struct page;
+struct btrfs_ioctl_encoded_io_args;
+struct btrfs_drop_extents_args;
+struct btrfs_inode;
+struct btrfs_root;
+struct btrfs_path;
+struct btrfs_replace_extent_info;
+struct btrfs_trans_handle;
+
 extern const struct file_operations btrfs_file_operations;
 
 int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync);

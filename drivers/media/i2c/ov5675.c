@@ -513,9 +513,6 @@ struct ov5675 {
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
-
 	/* True if the device has been identified */
 	bool identified;
 };
@@ -949,9 +946,6 @@ static int ov5675_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (ov5675->streaming == enable)
-		return 0;
-
 	mutex_lock(&ov5675->mutex);
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -971,7 +965,6 @@ static int ov5675_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov5675->streaming = enable;
 	mutex_unlock(&ov5675->mutex);
 
 	return ret;
@@ -1027,42 +1020,6 @@ static int ov5675_power_on(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ov5675_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov5675 *ov5675 = to_ov5675(sd);
-
-	mutex_lock(&ov5675->mutex);
-	if (ov5675->streaming)
-		ov5675_stop_streaming(ov5675);
-
-	mutex_unlock(&ov5675->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused ov5675_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov5675 *ov5675 = to_ov5675(sd);
-	int ret;
-
-	mutex_lock(&ov5675->mutex);
-	if (ov5675->streaming) {
-		ret = ov5675_start_streaming(ov5675);
-		if (ret) {
-			ov5675->streaming = false;
-			ov5675_stop_streaming(ov5675);
-			mutex_unlock(&ov5675->mutex);
-			return ret;
-		}
-	}
-
-	mutex_unlock(&ov5675->mutex);
-
-	return 0;
-}
-
 static int ov5675_set_format(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
@@ -1079,7 +1036,7 @@ static int ov5675_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&ov5675->mutex);
 	ov5675_update_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov5675->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov5675->link_freq, mode->link_freq_index);
@@ -1112,9 +1069,8 @@ static int ov5675_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov5675->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov5675->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		ov5675_update_pad_format(ov5675->cur_mode, &fmt->format);
 
@@ -1184,7 +1140,7 @@ static int ov5675_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov5675->mutex);
 	ov5675_update_pad_format(&supported_modes[0],
-				 v4l2_subdev_get_try_format(sd, fh->state, 0));
+				 v4l2_subdev_state_get_format(fh->state, 0));
 	mutex_unlock(&ov5675->mutex);
 
 	return 0;
@@ -1409,7 +1365,6 @@ probe_power_off:
 }
 
 static const struct dev_pm_ops ov5675_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov5675_suspend, ov5675_resume)
 	SET_RUNTIME_PM_OPS(ov5675_power_off, ov5675_power_on, NULL)
 };
 

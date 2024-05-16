@@ -77,9 +77,6 @@
 /*
  * GC2235 System control registers
  */
-/*
- * GC2235 System control registers
- */
 #define GC2235_SENSOR_ID_H		0xF0
 #define GC2235_SENSOR_ID_L		0xF1
 #define GC2235_RESET_RELATED		0xFE
@@ -167,7 +164,7 @@ enum gc2235_tok_type {
 	GC2235_TOK_MASK = 0xfff0
 };
 
-/**
+/*
  * struct gc2235_reg - MI sensor  register format
  * @type: type of the register
  * @reg: 8-bit offset to register

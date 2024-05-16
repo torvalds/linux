@@ -1210,7 +1210,7 @@ static int swim3_attach(struct macio_dev *mdev,
 	if (rc)
 		goto out_unregister;
 
-	disk = blk_mq_alloc_disk(&fs->tag_set, fs);
+	disk = blk_mq_alloc_disk(&fs->tag_set, NULL, fs);
 	if (IS_ERR(disk)) {
 		rc = PTR_ERR(disk);
 		goto out_free_tag_set;

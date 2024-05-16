@@ -32,6 +32,7 @@
 struct snd_pcm_hardware {
 	unsigned int info;		/* SNDRV_PCM_INFO_* */
 	u64 formats;			/* SNDRV_PCM_FMTBIT_* */
+	u32 subformats;			/* for S32_LE, SNDRV_PCM_SUBFMTBIT_* */
 	unsigned int rates;		/* SNDRV_PCM_RATE_* */
 	unsigned int rate_min;		/* min rate */
 	unsigned int rate_max;		/* max rate */
@@ -216,6 +217,12 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_FMTBIT_S20		SNDRV_PCM_FMTBIT_S20_BE
 #define SNDRV_PCM_FMTBIT_U20		SNDRV_PCM_FMTBIT_U20_BE
 #endif
+
+#define _SNDRV_PCM_SUBFMTBIT(fmt)	BIT((__force int)SNDRV_PCM_SUBFORMAT_##fmt)
+#define SNDRV_PCM_SUBFMTBIT_STD		_SNDRV_PCM_SUBFMTBIT(STD)
+#define SNDRV_PCM_SUBFMTBIT_MSBITS_MAX	_SNDRV_PCM_SUBFMTBIT(MSBITS_MAX)
+#define SNDRV_PCM_SUBFMTBIT_MSBITS_20	_SNDRV_PCM_SUBFMTBIT(MSBITS_20)
+#define SNDRV_PCM_SUBFMTBIT_MSBITS_24	_SNDRV_PCM_SUBFMTBIT(MSBITS_24)
 
 struct snd_pcm_file {
 	struct snd_pcm_substream *substream;
@@ -651,6 +658,18 @@ void snd_pcm_stream_unlock_irqrestore(struct snd_pcm_substream *substream,
 		typecheck(unsigned long, flags);			\
 		flags = _snd_pcm_stream_lock_irqsave_nested(substream); \
 	} while (0)
+
+/* definitions for guard(); use like guard(pcm_stream_lock) */
+DEFINE_LOCK_GUARD_1(pcm_stream_lock, struct snd_pcm_substream,
+		    snd_pcm_stream_lock(_T->lock),
+		    snd_pcm_stream_unlock(_T->lock))
+DEFINE_LOCK_GUARD_1(pcm_stream_lock_irq, struct snd_pcm_substream,
+		    snd_pcm_stream_lock_irq(_T->lock),
+		    snd_pcm_stream_unlock_irq(_T->lock))
+DEFINE_LOCK_GUARD_1(pcm_stream_lock_irqsave, struct snd_pcm_substream,
+		    snd_pcm_stream_lock_irqsave(_T->lock, _T->flags),
+		    snd_pcm_stream_unlock_irqrestore(_T->lock, _T->flags),
+		    unsigned long flags)
 
 /**
  * snd_pcm_group_for_each_entry - iterate over the linked substreams

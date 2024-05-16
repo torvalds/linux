@@ -28,5 +28,5 @@ Description:
 	    /label ... (r/o) descriptive, not necessarily unique
 	    /ngpio ... (r/o) number of GPIOs; numbered N to N + (ngpio - 1)
 
-  This ABI is deprecated and will be removed after 2020. It is
-  replaced with the GPIO character device.
+  This ABI is obsoleted by Documentation/ABI/testing/gpio-cdev and will be
+  removed after 2020.

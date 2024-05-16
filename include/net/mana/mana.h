@@ -39,7 +39,6 @@ enum TRI_STATE {
 #define COMP_ENTRY_SIZE 64
 
 #define RX_BUFFERS_PER_QUEUE 512
-#define MANA_RX_DATA_ALIGN 64
 
 #define MAX_SEND_BUFFERS_PER_QUEUE 256
 
@@ -339,7 +338,7 @@ struct mana_rxq {
 	/* MUST BE THE LAST MEMBER:
 	 * Each receive buffer has an associated mana_recv_buf_oob.
 	 */
-	struct mana_recv_buf_oob rx_oobs[];
+	struct mana_recv_buf_oob rx_oobs[] __counted_by(num_rx_buf);
 };
 
 struct mana_tx_qp {
@@ -353,6 +352,25 @@ struct mana_tx_qp {
 struct mana_ethtool_stats {
 	u64 stop_queue;
 	u64 wake_queue;
+	u64 hc_rx_discards_no_wqe;
+	u64 hc_rx_err_vport_disabled;
+	u64 hc_rx_bytes;
+	u64 hc_rx_ucast_pkts;
+	u64 hc_rx_ucast_bytes;
+	u64 hc_rx_bcast_pkts;
+	u64 hc_rx_bcast_bytes;
+	u64 hc_rx_mcast_pkts;
+	u64 hc_rx_mcast_bytes;
+	u64 hc_tx_err_gf_disabled;
+	u64 hc_tx_err_vport_disabled;
+	u64 hc_tx_err_inval_vportoffset_pkt;
+	u64 hc_tx_err_vlan_enforcement;
+	u64 hc_tx_err_eth_type_enforcement;
+	u64 hc_tx_err_sa_enforcement;
+	u64 hc_tx_err_sqpdid_enforcement;
+	u64 hc_tx_err_cqpdid_enforcement;
+	u64 hc_tx_err_mtu_violation;
+	u64 hc_tx_err_inval_oob;
 	u64 hc_tx_bytes;
 	u64 hc_tx_ucast_pkts;
 	u64 hc_tx_ucast_bytes;
@@ -360,6 +378,7 @@ struct mana_ethtool_stats {
 	u64 hc_tx_bcast_bytes;
 	u64 hc_tx_mcast_pkts;
 	u64 hc_tx_mcast_bytes;
+	u64 hc_tx_err_gdma;
 	u64 tx_cqe_err;
 	u64 tx_cqe_unknown_type;
 	u64 rx_coalesced_err;
@@ -602,8 +621,8 @@ struct mana_query_gf_stat_resp {
 	struct gdma_resp_hdr hdr;
 	u64 reported_stats;
 	/* rx errors/discards */
-	u64 discard_rx_nowqe;
-	u64 err_rx_vport_disabled;
+	u64 rx_discards_nowqe;
+	u64 rx_err_vport_disabled;
 	/* rx bytes/packets */
 	u64 hc_rx_bytes;
 	u64 hc_rx_ucast_pkts;
@@ -613,16 +632,16 @@ struct mana_query_gf_stat_resp {
 	u64 hc_rx_mcast_pkts;
 	u64 hc_rx_mcast_bytes;
 	/* tx errors */
-	u64 err_tx_gf_disabled;
-	u64 err_tx_vport_disabled;
-	u64 err_tx_inval_vport_offset_pkt;
-	u64 err_tx_vlan_enforcement;
-	u64 err_tx_ethtype_enforcement;
-	u64 err_tx_SA_enforecement;
-	u64 err_tx_SQPDID_enforcement;
-	u64 err_tx_CQPDID_enforcement;
-	u64 err_tx_mtu_violation;
-	u64 err_tx_inval_oob;
+	u64 tx_err_gf_disabled;
+	u64 tx_err_vport_disabled;
+	u64 tx_err_inval_vport_offset_pkt;
+	u64 tx_err_vlan_enforcement;
+	u64 tx_err_ethtype_enforcement;
+	u64 tx_err_SA_enforcement;
+	u64 tx_err_SQPDID_enforcement;
+	u64 tx_err_CQPDID_enforcement;
+	u64 tx_err_mtu_violation;
+	u64 tx_err_inval_oob;
 	/* tx bytes/packets */
 	u64 hc_tx_bytes;
 	u64 hc_tx_ucast_pkts;
@@ -632,7 +651,7 @@ struct mana_query_gf_stat_resp {
 	u64 hc_tx_mcast_pkts;
 	u64 hc_tx_mcast_bytes;
 	/* tx error */
-	u64 err_tx_gdma;
+	u64 tx_err_gdma;
 }; /* HW DATA */
 
 /* Configure vPort Rx Steering */

@@ -58,11 +58,12 @@ static int __intel_dsm(struct intel_host *intel_host, struct device *dev,
 	int err = 0;
 	size_t len;
 
-	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &intel_dsm_guid, 0, fn, NULL);
+	obj = acpi_evaluate_dsm_typed(ACPI_HANDLE(dev), &intel_dsm_guid, 0, fn, NULL,
+				      ACPI_TYPE_BUFFER);
 	if (!obj)
 		return -EOPNOTSUPP;
 
-	if (obj->type != ACPI_TYPE_BUFFER || obj->buffer.length < 1) {
+	if (obj->buffer.length < 1) {
 		err = -EINVAL;
 		goto out;
 	}

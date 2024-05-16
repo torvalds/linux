@@ -112,7 +112,9 @@
 
 /* Register Direct Mode Registers */
 #define XILINX_DMA_REG_VSIZE			0x0000
+#define XILINX_DMA_VSIZE_MASK			GENMASK(12, 0)
 #define XILINX_DMA_REG_HSIZE			0x0004
+#define XILINX_DMA_HSIZE_MASK			GENMASK(15, 0)
 
 #define XILINX_DMA_REG_FRMDLY_STRIDE		0x0008
 #define XILINX_DMA_FRMDLY_STRIDE_FRMDLY_SHIFT	24
@@ -2050,6 +2052,10 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 	if (!xt->numf || !xt->sgl[0].size)
 		return NULL;
 
+	if (xt->numf & ~XILINX_DMA_VSIZE_MASK ||
+	    xt->sgl[0].size & ~XILINX_DMA_HSIZE_MASK)
+		return NULL;
+
 	if (xt->frame_size != 1)
 		return NULL;
 
@@ -3242,10 +3248,8 @@ disable_clks:
 /**
  * xilinx_dma_remove - Driver remove function
  * @pdev: Pointer to the platform_device structure
- *
- * Return: Always '0'
  */
-static int xilinx_dma_remove(struct platform_device *pdev)
+static void xilinx_dma_remove(struct platform_device *pdev)
 {
 	struct xilinx_dma_device *xdev = platform_get_drvdata(pdev);
 	int i;
@@ -3259,8 +3263,6 @@ static int xilinx_dma_remove(struct platform_device *pdev)
 			xilinx_dma_chan_remove(xdev->chan[i]);
 
 	xdma_disable_allclks(xdev);
-
-	return 0;
 }
 
 static struct platform_driver xilinx_vdma_driver = {
@@ -3269,7 +3271,7 @@ static struct platform_driver xilinx_vdma_driver = {
 		.of_match_table = xilinx_dma_of_ids,
 	},
 	.probe = xilinx_dma_probe,
-	.remove = xilinx_dma_remove,
+	.remove_new = xilinx_dma_remove,
 };
 
 module_platform_driver(xilinx_vdma_driver);

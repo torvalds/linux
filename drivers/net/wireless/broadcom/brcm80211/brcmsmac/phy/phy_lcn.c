@@ -3299,7 +3299,7 @@ wlc_lcnphy_run_samples(struct brcms_phy *pi,
 
 	if (iqcalmode) {
 
-		and_phy_reg(pi, 0x453, (u16) ~(0x1 << 15));
+		and_phy_reg(pi, 0x453, 0xffff & ~(0x1 << 15));
 		or_phy_reg(pi, 0x453, (0x1 << 15));
 	} else {
 		write_phy_reg(pi, 0x63f, 1);

@@ -22,15 +22,15 @@ static void tlb_flush(struct mmu_gather *tlb);
 #include <asm-generic/tlb.h>
 
 /*
- * get the tlbi levels in arm64.  Default value is 0 if more than one
- * of cleared_* is set or neither is set.
- * Arm64 doesn't support p4ds now.
+ * get the tlbi levels in arm64.  Default value is TLBI_TTL_UNKNOWN if more than
+ * one of cleared_* is set or neither is set - this elides the level hinting to
+ * the hardware.
  */
 static inline int tlb_get_level(struct mmu_gather *tlb)
 {
 	/* The TTL field is only valid for the leaf entry. */
 	if (tlb->freed_tables)
-		return 0;
+		return TLBI_TTL_UNKNOWN;
 
 	if (tlb->cleared_ptes && !(tlb->cleared_pmds ||
 				   tlb->cleared_puds ||
@@ -47,7 +47,12 @@ static inline int tlb_get_level(struct mmu_gather *tlb)
 				   tlb->cleared_p4ds))
 		return 1;
 
-	return 0;
+	if (tlb->cleared_p4ds && !(tlb->cleared_ptes ||
+				   tlb->cleared_pmds ||
+				   tlb->cleared_puds))
+		return 0;
+
+	return TLBI_TTL_UNKNOWN;
 }
 
 static inline void tlb_flush(struct mmu_gather *tlb)
@@ -96,7 +101,13 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
 static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pudp,
 				  unsigned long addr)
 {
-	tlb_remove_ptdesc(tlb, virt_to_ptdesc(pudp));
+	struct ptdesc *ptdesc = virt_to_ptdesc(pudp);
+
+	if (!pgtable_l4_enabled())
+		return;
+
+	pagetable_pud_dtor(ptdesc);
+	tlb_remove_ptdesc(tlb, ptdesc);
 }
 #endif
 

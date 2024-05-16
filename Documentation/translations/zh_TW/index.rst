@@ -15,7 +15,7 @@
 
 .. note::
    內核文檔繁體中文版的翻譯工作正在進行中。如果您願意並且有時間參與這項工
-   作，歡迎提交補丁給胡皓文 <src.res.211@gmail.com>。
+   作，歡迎提交補丁給胡皓文 <2023002089@link.tyut.edu.cn>。
 
 與Linux 內核社區一起工作
 ------------------------
@@ -55,11 +55,11 @@ TODOList:
    :maxdepth: 1
 
    process/license-rules
+   dev-tools/index
 
 TODOList:
 
 * doc-guide/index
-* dev-tools/index
 * dev-tools/testing-overview
 * kernel-hacking/index
 * rust/index
@@ -101,9 +101,10 @@ TODOList:
 體系結構文檔
 ------------
 
-TODOList:
+.. toctree::
+   :maxdepth: 1
 
-* arch/index
+   arch/index
 
 其他文檔
 --------

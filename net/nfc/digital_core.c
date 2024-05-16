@@ -858,4 +858,5 @@ void nfc_digital_unregister_device(struct nfc_digital_dev *ddev)
 }
 EXPORT_SYMBOL(nfc_digital_unregister_device);
 
+MODULE_DESCRIPTION("NFC Digital protocol stack");
 MODULE_LICENSE("GPL");

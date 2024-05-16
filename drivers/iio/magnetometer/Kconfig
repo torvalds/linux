@@ -6,6 +6,18 @@
 
 menu "Magnetometer sensors"
 
+config AF8133J
+	tristate "Voltafield AF8133J 3-Axis Magnetometer"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Voltafield AF8133J I2C-based
+	  3-axis magnetometer chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called af8133j.
+
 config AK8974
 	tristate "Asahi Kasei AK8974 3-Axis Magnetometer"
 	depends on I2C

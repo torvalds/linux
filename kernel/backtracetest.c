@@ -21,24 +21,20 @@ static void backtrace_test_normal(void)
 	dump_stack();
 }
 
-static DECLARE_COMPLETION(backtrace_work);
-
-static void backtrace_test_irq_callback(unsigned long data)
+static void backtrace_test_bh_workfn(struct work_struct *work)
 {
 	dump_stack();
-	complete(&backtrace_work);
 }
 
-static DECLARE_TASKLET_OLD(backtrace_tasklet, &backtrace_test_irq_callback);
+static DECLARE_WORK(backtrace_bh_work, &backtrace_test_bh_workfn);
 
-static void backtrace_test_irq(void)
+static void backtrace_test_bh(void)
 {
-	pr_info("Testing a backtrace from irq context.\n");
+	pr_info("Testing a backtrace from BH context.\n");
 	pr_info("The following trace is a kernel self test and not a bug!\n");
 
-	init_completion(&backtrace_work);
-	tasklet_schedule(&backtrace_tasklet);
-	wait_for_completion(&backtrace_work);
+	queue_work(system_bh_wq, &backtrace_bh_work);
+	flush_work(&backtrace_bh_work);
 }
 
 #ifdef CONFIG_STACKTRACE
@@ -65,7 +61,7 @@ static int backtrace_regression_test(void)
 	pr_info("====[ backtrace testing ]===========\n");
 
 	backtrace_test_normal();
-	backtrace_test_irq();
+	backtrace_test_bh();
 	backtrace_test_saved();
 
 	pr_info("====[ end of backtrace testing ]====\n");

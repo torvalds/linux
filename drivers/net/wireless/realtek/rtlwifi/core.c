@@ -662,13 +662,6 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (mac->act_scanning)
 			mac->n_channels++;
 
-		if (rtlpriv->dm.supp_phymode_switch &&
-			mac->link_state < MAC80211_LINKED &&
-			!mac->act_scanning) {
-			if (rtlpriv->cfg->ops->chk_switch_dmdp)
-				rtlpriv->cfg->ops->chk_switch_dmdp(hw);
-		}
-
 		/*
 		 *because we should back channel to
 		 *current_network.chan in scanning,
@@ -1197,10 +1190,6 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			mac->vendor = PEER_UNKNOWN;
 			mac->mode = 0;
 
-			if (rtlpriv->dm.supp_phymode_switch) {
-				if (rtlpriv->cfg->ops->chk_switch_dmdp)
-					rtlpriv->cfg->ops->chk_switch_dmdp(hw);
-			}
 			rtl_dbg(rtlpriv, COMP_MAC80211, DBG_DMESG,
 				"BSS_CHANGED_UN_ASSOC\n");
 		}
@@ -1463,11 +1452,6 @@ static void rtl_op_sw_scan_start(struct ieee80211_hw *hw,
 	else if (rtlpriv->btcoexist.btc_ops)
 		rtlpriv->btcoexist.btc_ops->btc_scan_notify_wifi_only(rtlpriv,
 								      1);
-
-	if (rtlpriv->dm.supp_phymode_switch) {
-		if (rtlpriv->cfg->ops->chk_switch_dmdp)
-			rtlpriv->cfg->ops->chk_switch_dmdp(hw);
-	}
 
 	if (mac->link_state == MAC80211_LINKED) {
 		rtl_lps_leave(hw, true);
@@ -1897,7 +1881,7 @@ bool rtl_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 	/*this is wrong, fill_tx_cmddesc needs update*/
 	pdesc = &ring->desc[0];
 
-	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, 1, 1, skb);
+	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, skb);
 
 	__skb_queue_tail(&ring->queue, skb);
 
@@ -1919,6 +1903,10 @@ void rtl_init_sw_leds(struct ieee80211_hw *hw)
 EXPORT_SYMBOL(rtl_init_sw_leds);
 
 const struct ieee80211_ops rtl_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.start = rtl_op_start,
 	.stop = rtl_op_stop,
 	.tx = rtl_op_tx,

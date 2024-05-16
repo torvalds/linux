@@ -232,9 +232,7 @@ struct gb_fw_download_fetch_firmware_request {
 	__le32			size;
 } __packed;
 
-struct gb_fw_download_fetch_firmware_response {
-	__u8			data[0];
-} __packed;
+/* gb_fw_download_fetch_firmware_response contains no other data */
 
 /* firmware download release firmware request */
 struct gb_fw_download_release_firmware_request {
@@ -414,9 +412,7 @@ struct gb_bootrom_get_firmware_request {
 	__le32			size;
 } __packed;
 
-struct gb_bootrom_get_firmware_response {
-	__u8			data[0];
-} __packed;
+/* gb_bootrom_get_firmware_response contains no other data */
 
 /* Bootrom protocol Ready to boot request */
 struct gb_bootrom_ready_to_boot_request {

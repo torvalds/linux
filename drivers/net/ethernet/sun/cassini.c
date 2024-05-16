@@ -176,7 +176,7 @@ static char version[] =
 static int cassini_debug = -1;	/* -1 == use CAS_DEF_MSG_ENABLE as value */
 static int link_mode;
 
-MODULE_AUTHOR("Adrian Sun (asun@darksunrising.com)");
+MODULE_AUTHOR("Adrian Sun <asun@darksunrising.com>");
 MODULE_DESCRIPTION("Sun Cassini(+) ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("sun/cassini.bin");

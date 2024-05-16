@@ -112,7 +112,7 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
 					   "%s (ino=%lu): a race condition while inserting a data block at offset=%llu",
 					   __func__, inode->i_ino,
 					   (unsigned long long)blkoff);
-				err = 0;
+				err = -EAGAIN;
 			}
 			nilfs_transaction_abort(inode->i_sb);
 			goto out;
@@ -175,7 +175,8 @@ static int nilfs_writepages(struct address_space *mapping,
 
 static int nilfs_writepage(struct page *page, struct writeback_control *wbc)
 {
-	struct inode *inode = page->mapping->host;
+	struct folio *folio = page_folio(page);
+	struct inode *inode = folio->mapping->host;
 	int err;
 
 	if (sb_rdonly(inode->i_sb)) {
@@ -185,13 +186,13 @@ static int nilfs_writepage(struct page *page, struct writeback_control *wbc)
 		 * have dirty pages that try to be flushed in background.
 		 * So, here we simply discard this dirty page.
 		 */
-		nilfs_clear_dirty_page(page, false);
-		unlock_page(page);
+		nilfs_clear_folio_dirty(folio, false);
+		folio_unlock(folio);
 		return -EROFS;
 	}
 
-	redirty_page_for_writepage(wbc, page);
-	unlock_page(page);
+	folio_redirty_for_writepage(wbc, folio);
+	folio_unlock(folio);
 
 	if (wbc->sync_mode == WB_SYNC_ALL) {
 		err = nilfs_construct_segment(inode->i_sb);
@@ -214,7 +215,7 @@ static bool nilfs_dirty_folio(struct address_space *mapping,
 	/*
 	 * The page may not be locked, eg if called from try_to_unmap_one()
 	 */
-	spin_lock(&mapping->private_lock);
+	spin_lock(&mapping->i_private_lock);
 	head = folio_buffers(folio);
 	if (head) {
 		struct buffer_head *bh = head;
@@ -230,7 +231,7 @@ static bool nilfs_dirty_folio(struct address_space *mapping,
 	} else if (ret) {
 		nr_dirty = 1 << (folio_shift(folio) - inode->i_blkbits);
 	}
-	spin_unlock(&mapping->private_lock);
+	spin_unlock(&mapping->i_private_lock);
 
 	if (nr_dirty)
 		nilfs_set_file_dirty(inode, nr_dirty);
@@ -366,7 +367,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	atomic64_inc(&root->inodes_count);
 	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
 	inode->i_ino = ino;
-	inode->i_mtime = inode->i_atime = inode_set_ctime_current(inode);
+	simple_inode_init_ts(inode);
 
 	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)) {
 		err = nilfs_bmap_read(ii->i_bmap, NULL);
@@ -449,12 +450,12 @@ int nilfs_read_inode_common(struct inode *inode,
 	i_gid_write(inode, le32_to_cpu(raw_inode->i_gid));
 	set_nlink(inode, le16_to_cpu(raw_inode->i_links_count));
 	inode->i_size = le64_to_cpu(raw_inode->i_size);
-	inode->i_atime.tv_sec = le64_to_cpu(raw_inode->i_mtime);
+	inode_set_atime(inode, le64_to_cpu(raw_inode->i_mtime),
+			le32_to_cpu(raw_inode->i_mtime_nsec));
 	inode_set_ctime(inode, le64_to_cpu(raw_inode->i_ctime),
 			le32_to_cpu(raw_inode->i_ctime_nsec));
-	inode->i_mtime.tv_sec = le64_to_cpu(raw_inode->i_mtime);
-	inode->i_atime.tv_nsec = le32_to_cpu(raw_inode->i_mtime_nsec);
-	inode->i_mtime.tv_nsec = le32_to_cpu(raw_inode->i_mtime_nsec);
+	inode_set_mtime(inode, le64_to_cpu(raw_inode->i_mtime),
+			le32_to_cpu(raw_inode->i_mtime_nsec));
 	if (nilfs_is_metadata_file_inode(inode) && !S_ISREG(inode->i_mode))
 		return -EIO; /* this inode is for metadata and corrupted */
 	if (inode->i_nlink == 0)
@@ -519,7 +520,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 			inode, inode->i_mode,
 			huge_decode_dev(le64_to_cpu(raw_inode->i_device_code)));
 	}
-	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
+	nilfs_ifile_unmap_inode(raw_inode);
 	brelse(bh);
 	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	nilfs_set_inode_flags(inode);
@@ -528,7 +529,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 	return 0;
 
  failed_unmap:
-	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
+	nilfs_ifile_unmap_inode(raw_inode);
 	brelse(bh);
 
  bad_inode:
@@ -758,8 +759,18 @@ struct inode *nilfs_iget_for_shadow(struct inode *inode)
 	return s_inode;
 }
 
+/**
+ * nilfs_write_inode_common - export common inode information to on-disk inode
+ * @inode:     inode object
+ * @raw_inode: on-disk inode
+ *
+ * This function writes standard information from the on-memory inode @inode
+ * to @raw_inode on ifile, cpfile or a super root block.  Since inode bmap
+ * data is not exported, nilfs_bmap_write() must be called separately during
+ * log writing.
+ */
 void nilfs_write_inode_common(struct inode *inode,
-			      struct nilfs_inode *raw_inode, int has_bmap)
+			      struct nilfs_inode *raw_inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 
@@ -768,30 +779,15 @@ void nilfs_write_inode_common(struct inode *inode,
 	raw_inode->i_gid = cpu_to_le32(i_gid_read(inode));
 	raw_inode->i_links_count = cpu_to_le16(inode->i_nlink);
 	raw_inode->i_size = cpu_to_le64(inode->i_size);
-	raw_inode->i_ctime = cpu_to_le64(inode_get_ctime(inode).tv_sec);
-	raw_inode->i_mtime = cpu_to_le64(inode->i_mtime.tv_sec);
-	raw_inode->i_ctime_nsec = cpu_to_le32(inode_get_ctime(inode).tv_nsec);
-	raw_inode->i_mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+	raw_inode->i_ctime = cpu_to_le64(inode_get_ctime_sec(inode));
+	raw_inode->i_mtime = cpu_to_le64(inode_get_mtime_sec(inode));
+	raw_inode->i_ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
+	raw_inode->i_mtime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
 	raw_inode->i_blocks = cpu_to_le64(inode->i_blocks);
 
 	raw_inode->i_flags = cpu_to_le32(ii->i_flags);
 	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
 
-	if (NILFS_ROOT_METADATA_FILE(inode->i_ino)) {
-		struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
-
-		/* zero-fill unused portion in the case of super root block */
-		raw_inode->i_xattr = 0;
-		raw_inode->i_pad = 0;
-		memset((void *)raw_inode + sizeof(*raw_inode), 0,
-		       nilfs->ns_inode_size - sizeof(*raw_inode));
-	}
-
-	if (has_bmap)
-		nilfs_bmap_write(ii->i_bmap, raw_inode);
-	else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-		raw_inode->i_device_code =
-			cpu_to_le64(huge_encode_dev(inode->i_rdev));
 	/*
 	 * When extending inode, nilfs->ns_inode_size should be checked
 	 * for substitutions of appended fields.
@@ -812,14 +808,13 @@ void nilfs_update_inode(struct inode *inode, struct buffer_head *ibh, int flags)
 	if (flags & I_DIRTY_DATASYNC)
 		set_bit(NILFS_I_INODE_SYNC, &ii->i_state);
 
-	nilfs_write_inode_common(inode, raw_inode, 0);
-		/*
-		 * XXX: call with has_bmap = 0 is a workaround to avoid
-		 * deadlock of bmap.  This delays update of i_bmap to just
-		 * before writing.
-		 */
+	nilfs_write_inode_common(inode, raw_inode);
 
-	nilfs_ifile_unmap_inode(ifile, ino, ibh);
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
+		raw_inode->i_device_code =
+			cpu_to_le64(huge_encode_dev(inode->i_rdev));
+
+	nilfs_ifile_unmap_inode(raw_inode);
 }
 
 #define NILFS_MAX_TRUNCATE_BLOCKS	16384  /* 64MB for 4KB block */
@@ -875,7 +870,7 @@ void nilfs_truncate(struct inode *inode)
 
 	nilfs_truncate_bmap(ii, blkoff);
 
-	inode->i_mtime = inode_set_ctime_current(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	if (IS_SYNC(inode))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 

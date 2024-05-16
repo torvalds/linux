@@ -793,13 +793,11 @@ static int bwmon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int bwmon_remove(struct platform_device *pdev)
+static void bwmon_remove(struct platform_device *pdev)
 {
 	struct icc_bwmon *bwmon = platform_get_drvdata(pdev);
 
 	bwmon_disable(bwmon);
-
-	return 0;
 }
 
 static const struct icc_bwmon_data msm8998_bwmon_data = {
@@ -862,7 +860,7 @@ MODULE_DEVICE_TABLE(of, bwmon_of_match);
 
 static struct platform_driver bwmon_driver = {
 	.probe = bwmon_probe,
-	.remove = bwmon_remove,
+	.remove_new = bwmon_remove,
 	.driver = {
 		.name = "qcom-bwmon",
 		.of_match_table = bwmon_of_match,

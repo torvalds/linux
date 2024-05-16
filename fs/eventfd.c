@@ -43,7 +43,17 @@ struct eventfd_ctx {
 	int id;
 };
 
-__u64 eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n, __poll_t mask)
+/**
+ * eventfd_signal_mask - Increment the event counter
+ * @ctx: [in] Pointer to the eventfd context.
+ * @mask: [in] poll mask
+ *
+ * This function is supposed to be called by the kernel in paths that do not
+ * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
+ * value, and we signal this as overflow condition by returning a EPOLLERR
+ * to poll(2).
+ */
+void eventfd_signal_mask(struct eventfd_ctx *ctx, __poll_t mask)
 {
 	unsigned long flags;
 
@@ -56,45 +66,23 @@ __u64 eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n, __poll_t mask)
 	 * safe context.
 	 */
 	if (WARN_ON_ONCE(current->in_eventfd))
-		return 0;
+		return;
 
 	spin_lock_irqsave(&ctx->wqh.lock, flags);
 	current->in_eventfd = 1;
-	if (ULLONG_MAX - ctx->count < n)
-		n = ULLONG_MAX - ctx->count;
-	ctx->count += n;
+	if (ctx->count < ULLONG_MAX)
+		ctx->count++;
 	if (waitqueue_active(&ctx->wqh))
 		wake_up_locked_poll(&ctx->wqh, EPOLLIN | mask);
 	current->in_eventfd = 0;
 	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
-
-	return n;
 }
-
-/**
- * eventfd_signal - Adds @n to the eventfd counter.
- * @ctx: [in] Pointer to the eventfd context.
- * @n: [in] Value of the counter to be added to the eventfd internal counter.
- *          The value cannot be negative.
- *
- * This function is supposed to be called by the kernel in paths that do not
- * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
- * value, and we signal this as overflow condition by returning a EPOLLERR
- * to poll(2).
- *
- * Returns the amount by which the counter was incremented.  This will be less
- * than @n if the counter has overflowed.
- */
-__u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n)
-{
-	return eventfd_signal_mask(ctx, n, 0);
-}
-EXPORT_SYMBOL_GPL(eventfd_signal);
+EXPORT_SYMBOL_GPL(eventfd_signal_mask);
 
 static void eventfd_free_ctx(struct eventfd_ctx *ctx)
 {
 	if (ctx->id >= 0)
-		ida_simple_remove(&eventfd_ida, ctx->id);
+		ida_free(&eventfd_ida, ctx->id);
 	kfree(ctx);
 }
 
@@ -263,7 +251,7 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 	ssize_t res;
 	__u64 ucnt;
 
-	if (count < sizeof(ucnt))
+	if (count != sizeof(ucnt))
 		return -EINVAL;
 	if (copy_from_user(&ucnt, buf, sizeof(ucnt)))
 		return -EFAULT;
@@ -295,13 +283,18 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 static void eventfd_show_fdinfo(struct seq_file *m, struct file *f)
 {
 	struct eventfd_ctx *ctx = f->private_data;
+	__u64 cnt;
 
 	spin_lock_irq(&ctx->wqh.lock);
-	seq_printf(m, "eventfd-count: %16llx\n",
-		   (unsigned long long)ctx->count);
+	cnt = ctx->count;
 	spin_unlock_irq(&ctx->wqh.lock);
-	seq_printf(m, "eventfd-id: %d\n", ctx->id);
-	seq_printf(m, "eventfd-semaphore: %d\n",
+
+	seq_printf(m,
+		   "eventfd-count: %16llx\n"
+		   "eventfd-id: %d\n"
+		   "eventfd-semaphore: %d\n",
+		   cnt,
+		   ctx->id,
 		   !!(ctx->flags & EFD_SEMAPHORE));
 }
 #endif
@@ -395,6 +388,7 @@ static int do_eventfd(unsigned int count, int flags)
 	/* Check the EFD_* constants for consistency.  */
 	BUILD_BUG_ON(EFD_CLOEXEC != O_CLOEXEC);
 	BUILD_BUG_ON(EFD_NONBLOCK != O_NONBLOCK);
+	BUILD_BUG_ON(EFD_SEMAPHORE != (1 << 0));
 
 	if (flags & ~EFD_FLAGS_SET)
 		return -EINVAL;
@@ -407,7 +401,7 @@ static int do_eventfd(unsigned int count, int flags)
 	init_waitqueue_head(&ctx->wqh);
 	ctx->count = count;
 	ctx->flags = flags;
-	ctx->id = ida_simple_get(&eventfd_ida, 0, 0, GFP_KERNEL);
+	ctx->id = ida_alloc(&eventfd_ida, GFP_KERNEL);
 
 	flags &= EFD_SHARED_FCNTL_FLAGS;
 	flags |= O_RDWR;

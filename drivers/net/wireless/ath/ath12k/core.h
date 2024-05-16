@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_CORE_H
@@ -11,6 +11,9 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/bitfield.h>
+#include <linux/dmi.h>
+#include <linux/ctype.h>
+#include <linux/firmware.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -22,6 +25,7 @@
 #include "hal_rx.h"
 #include "reg.h"
 #include "dbring.h"
+#include "fw.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -31,6 +35,15 @@
 
 /* Pending management packets threshold for dropping probe responses */
 #define ATH12K_PRB_RSP_DROP_THRESHOLD ((ATH12K_TX_MGMT_TARGET_MAX_SUPPORT_WMI * 3) / 4)
+
+/* SMBIOS type containing Board Data File Name Extension */
+#define ATH12K_SMBIOS_BDF_EXT_TYPE 0xF8
+
+/* SMBIOS type structure length (excluding strings-set) */
+#define ATH12K_SMBIOS_BDF_EXT_LENGTH 0x9
+
+/* The magic used by QCA spec */
+#define ATH12K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 #define ATH12K_INVALID_HW_MAC_ID	0xFF
 #define	ATH12K_RX_RATE_TABLE_NUM	320
@@ -43,6 +56,11 @@
 #define ATH12K_RESET_FAIL_TIMEOUT_HZ		(20 * HZ)
 #define ATH12K_RECONFIGURE_TIMEOUT_HZ		(10 * HZ)
 #define ATH12K_RECOVER_START_TIMEOUT_HZ		(20 * HZ)
+
+enum ath12k_bdf_search {
+	ATH12K_BDF_SEARCH_DEFAULT,
+	ATH12K_BDF_SEARCH_BUS_AND_BOARD,
+};
 
 enum wme_ac {
 	WME_AC_BE,
@@ -129,6 +147,13 @@ struct ath12k_ext_irq_grp {
 	struct net_device napi_ndev;
 };
 
+struct ath12k_smbios_bdf {
+	struct dmi_header hdr;
+	u32 padding;
+	u8 bdf_enabled;
+	u8 bdf_ext[];
+} __packed;
+
 #define HEHANDLE_CAP_PHYINFO_SIZE       3
 #define HECAP_PHYINFO_SIZE              9
 #define HECAP_MACINFO_SIZE              5
@@ -181,6 +206,8 @@ enum ath12k_dev_flags {
 	ATH12K_FLAG_REGISTERED,
 	ATH12K_FLAG_QMI_FAIL,
 	ATH12K_FLAG_HTC_SUSPEND_COMPLETE,
+	ATH12K_FLAG_CE_IRQ_ENABLED,
+	ATH12K_FLAG_EXT_IRQ_ENABLED,
 };
 
 enum ath12k_monitor_flags {
@@ -239,6 +266,7 @@ struct ath12k_vif {
 	u8 tx_encap_type;
 	u8 vdev_stats_id;
 	u32 punct_bitmap;
+	bool ps;
 };
 
 struct ath12k_vif_iter {
@@ -400,7 +428,7 @@ struct ath12k_sta {
 };
 
 #define ATH12K_MIN_5G_FREQ 4150
-#define ATH12K_MIN_6G_FREQ 5945
+#define ATH12K_MIN_6G_FREQ 5925
 #define ATH12K_MAX_6G_FREQ 7115
 #define ATH12K_NUM_CHANS 100
 #define ATH12K_MAX_5G_CHAN 173
@@ -448,8 +476,7 @@ struct ath12k_per_peer_tx_stats {
 struct ath12k {
 	struct ath12k_base *ab;
 	struct ath12k_pdev *pdev;
-	struct ieee80211_hw *hw;
-	struct ieee80211_ops *ops;
+	struct ath12k_hw *ah;
 	struct ath12k_wmi_pdev *wmi;
 	struct ath12k_pdev_dp dp;
 	u8 mac_addr[ETH_ALEN];
@@ -513,6 +540,7 @@ struct ath12k {
 	/* pdev_idx starts from 0 whereas pdev->pdev_id starts with 1 */
 	u8 pdev_idx;
 	u8 lmac_id;
+	u8 hw_link_id;
 
 	struct completion peer_assoc_done;
 	struct completion peer_delete_done;
@@ -570,6 +598,13 @@ struct ath12k {
 	bool monitor_vdev_created;
 	bool monitor_started;
 	int monitor_vdev_id;
+};
+
+struct ath12k_hw {
+	struct ieee80211_hw *hw;
+
+	u8 num_radio;
+	struct ath12k radio[] __aligned(sizeof(void *));
 };
 
 struct ath12k_band_cap {
@@ -705,6 +740,16 @@ struct ath12k_base {
 	u8 fw_pdev_count;
 
 	struct ath12k_pdev __rcu *pdevs_active[MAX_RADIOS];
+
+	/* Holds information of wiphy (hw) registration.
+	 *
+	 * In Multi/Single Link Operation case, all pdevs are registered as
+	 * a single wiphy. In other (legacy/Non-MLO) cases, each pdev is
+	 * registered as separate wiphys.
+	 */
+	struct ath12k_hw *ah[MAX_RADIOS];
+	u8 num_hw;
+
 	struct ath12k_wmi_hal_reg_capabilities_ext_arg hal_reg_cap[MAX_RADIOS];
 	unsigned long long free_vdev_map;
 	unsigned long long free_vdev_stats_id_map;
@@ -719,7 +764,6 @@ struct ath12k_base {
 	struct ath12k_wmi_target_cap_arg target_caps;
 	u32 ext_service_bitmap[WMI_SERVICE_EXT_BM_SIZE];
 	bool pdevs_macaddr_valid;
-	int bd_api;
 
 	const struct ath12k_hw_params *hw_params;
 
@@ -771,8 +815,46 @@ struct ath12k_base {
 	u64 fw_soc_drop_count;
 	bool static_window_map;
 
+	struct work_struct rfkill_work;
+	/* true means radio is on */
+	bool rfkill_radio_on;
+
+	struct {
+		enum ath12k_bdf_search bdf_search;
+		u32 vendor;
+		u32 device;
+		u32 subsystem_vendor;
+		u32 subsystem_device;
+	} id;
+
+	struct {
+		u32 api_version;
+
+		const struct firmware *fw;
+		const u8 *amss_data;
+		size_t amss_len;
+		const u8 *amss_dualmac_data;
+		size_t amss_dualmac_len;
+		const u8 *m3_data;
+		size_t m3_len;
+
+		DECLARE_BITMAP(fw_features, ATH12K_FW_FEATURE_COUNT);
+	} fw;
+
+	const struct hal_rx_ops *hal_rx_ops;
+
+	/* slo_capable denotes if the single/multi link operation
+	 * is supported within the same chip (SoC).
+	 */
+	bool slo_capable;
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
+};
+
+struct ath12k_pdev_map {
+	struct ath12k_base *ab;
+	u8 pdev_idx;
 };
 
 int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab);
@@ -788,13 +870,18 @@ int ath12k_core_fetch_board_data_api_1(struct ath12k_base *ab,
 int ath12k_core_fetch_bdf(struct ath12k_base *ath12k,
 			  struct ath12k_board_data *bd);
 void ath12k_core_free_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd);
-
+int ath12k_core_fetch_regdb(struct ath12k_base *ab, struct ath12k_board_data *bd);
+int ath12k_core_check_dt(struct ath12k_base *ath12k);
+int ath12k_core_check_smbios(struct ath12k_base *ab);
 void ath12k_core_halt(struct ath12k *ar);
 int ath12k_core_resume(struct ath12k_base *ab);
 int ath12k_core_suspend(struct ath12k_base *ab);
 
 const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
 						    const char *filename);
+u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab);
+u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab);
+u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab);
 
 static inline const char *ath12k_scan_state_str(enum ath12k_scan_state state)
 {
@@ -830,6 +917,11 @@ static inline struct ath12k_vif *ath12k_vif_to_arvif(struct ieee80211_vif *vif)
 	return (struct ath12k_vif *)vif->drv_priv;
 }
 
+static inline struct ath12k_sta *ath12k_sta_to_arsta(struct ieee80211_sta *sta)
+{
+	return (struct ath12k_sta *)sta->drv_priv;
+}
+
 static inline struct ath12k *ath12k_ab_to_ar(struct ath12k_base *ab,
 					     int mac_id)
 {
@@ -854,4 +946,18 @@ static inline const char *ath12k_bus_str(enum ath12k_bus bus)
 	return "unknown";
 }
 
+static inline struct ath12k_hw *ath12k_hw_to_ah(struct ieee80211_hw  *hw)
+{
+	return hw->priv;
+}
+
+static inline struct ath12k *ath12k_ah_to_ar(struct ath12k_hw *ah)
+{
+	return ah->radio;
+}
+
+static inline struct ieee80211_hw *ath12k_ar_to_hw(struct ath12k *ar)
+{
+	return ar->ah->hw;
+}
 #endif /* _CORE_H_ */

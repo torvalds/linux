@@ -6,6 +6,8 @@
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/delay.h>
+
 #include "tb.h"
 
 /**
@@ -43,6 +45,49 @@ static int find_port_lc_cap(struct tb_port *port)
 	phys = tb_phy_port_from_link(port->port);
 
 	return sw->cap_lc + start + phys * size;
+}
+
+/**
+ * tb_lc_reset_port() - Trigger downstream port reset through LC
+ * @port: Port that is reset
+ *
+ * Triggers downstream port reset through link controller registers.
+ * Returns %0 in case of success negative errno otherwise. Only supports
+ * non-USB4 routers with link controller (that's Thunderbolt 2 and
+ * Thunderbolt 3).
+ */
+int tb_lc_reset_port(struct tb_port *port)
+{
+	struct tb_switch *sw = port->sw;
+	int cap, ret;
+	u32 mode;
+
+	if (sw->generation < 2)
+		return -EINVAL;
+
+	cap = find_port_lc_cap(port);
+	if (cap < 0)
+		return cap;
+
+	ret = tb_sw_read(sw, &mode, TB_CFG_SWITCH, cap + TB_LC_PORT_MODE, 1);
+	if (ret)
+		return ret;
+
+	mode |= TB_LC_PORT_MODE_DPR;
+
+	ret = tb_sw_write(sw, &mode, TB_CFG_SWITCH, cap + TB_LC_PORT_MODE, 1);
+	if (ret)
+		return ret;
+
+	fsleep(10000);
+
+	ret = tb_sw_read(sw, &mode, TB_CFG_SWITCH, cap + TB_LC_PORT_MODE, 1);
+	if (ret)
+		return ret;
+
+	mode &= ~TB_LC_PORT_MODE_DPR;
+
+	return tb_sw_write(sw, &mode, TB_CFG_SWITCH, cap + TB_LC_PORT_MODE, 1);
 }
 
 static int tb_lc_set_port_configured(struct tb_port *port, bool configured)

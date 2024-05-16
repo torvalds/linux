@@ -56,21 +56,15 @@ static const char *amdgpu_ip_name[AMDGPU_HW_IP_NUM] = {
 
 void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
-	struct amdgpu_device *adev = drm_to_adev(file->minor->dev);
 	struct amdgpu_fpriv *fpriv = file->driver_priv;
 	struct amdgpu_vm *vm = &fpriv->vm;
 
 	struct amdgpu_mem_stats stats;
 	ktime_t usage[AMDGPU_HW_IP_NUM];
-	uint32_t bus, dev, fn, domain;
 	unsigned int hw_ip;
 	int ret;
 
 	memset(&stats, 0, sizeof(stats));
-	bus = adev->pdev->bus->number;
-	domain = pci_domain_nr(adev->pdev->bus);
-	dev = PCI_SLOT(adev->pdev->devfn);
-	fn = PCI_FUNC(adev->pdev->devfn);
 
 	ret = amdgpu_bo_reserve(vm->root.bo, false);
 	if (ret)
@@ -88,9 +82,6 @@ void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 	 */
 
 	drm_printf(p, "pasid:\t%u\n", fpriv->vm.pasid);
-	drm_printf(p, "drm-driver:\t%s\n", file->minor->dev->driver->name);
-	drm_printf(p, "drm-pdev:\t%04x:%02x:%02x.%d\n", domain, bus, dev, fn);
-	drm_printf(p, "drm-client-id:\t%llu\n", vm->immediate.fence_context);
 	drm_printf(p, "drm-memory-vram:\t%llu KiB\n", stats.vram/1024UL);
 	drm_printf(p, "drm-memory-gtt: \t%llu KiB\n", stats.gtt/1024UL);
 	drm_printf(p, "drm-memory-cpu: \t%llu KiB\n", stats.cpu/1024UL);
@@ -106,6 +97,10 @@ void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 		   stats.requested_visible_vram/1024UL);
 	drm_printf(p, "amd-requested-gtt:\t%llu KiB\n",
 		   stats.requested_gtt/1024UL);
+	drm_printf(p, "drm-shared-vram:\t%llu KiB\n", stats.vram_shared/1024UL);
+	drm_printf(p, "drm-shared-gtt:\t%llu KiB\n", stats.gtt_shared/1024UL);
+	drm_printf(p, "drm-shared-cpu:\t%llu KiB\n", stats.cpu_shared/1024UL);
+
 	for (hw_ip = 0; hw_ip < AMDGPU_HW_IP_NUM; ++hw_ip) {
 		if (!usage[hw_ip])
 			continue;

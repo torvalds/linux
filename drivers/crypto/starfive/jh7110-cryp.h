@@ -50,8 +50,6 @@ union starfive_aes_csr {
 		u32 ccm_start			:1;
 #define STARFIVE_AES_MODE_ECB			0x0
 #define STARFIVE_AES_MODE_CBC			0x1
-#define STARFIVE_AES_MODE_CFB			0x2
-#define STARFIVE_AES_MODE_OFB			0x3
 #define STARFIVE_AES_MODE_CTR			0x4
 #define STARFIVE_AES_MODE_CCM			0x5
 #define STARFIVE_AES_MODE_GCM			0x6
@@ -125,6 +123,15 @@ union starfive_pka_cacr {
 	};
 };
 
+union starfive_pka_casr {
+	u32 v;
+	struct {
+#define STARFIVE_PKA_DONE			BIT(0)
+		u32 done			:1;
+		u32 rsvd_0			:31;
+	};
+};
+
 struct starfive_rsa_key {
 	u8	*n;
 	u8	*e;
@@ -183,7 +190,6 @@ struct starfive_cryp_dev {
 	struct crypto_engine			*engine;
 	struct tasklet_struct			aes_done;
 	struct tasklet_struct			hash_done;
-	struct completion			pka_done;
 	size_t					assoclen;
 	size_t					total_in;
 	size_t					total_out;

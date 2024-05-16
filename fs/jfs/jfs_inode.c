@@ -97,8 +97,8 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	jfs_inode->mode2 |= inode->i_mode;
 
 	inode->i_blocks = 0;
-	inode->i_mtime = inode->i_atime = inode_set_ctime_current(inode);
-	jfs_inode->otime = inode_get_ctime(inode).tv_sec;
+	simple_inode_init_ts(inode);
+	jfs_inode->otime = inode_get_ctime_sec(inode);
 	inode->i_generation = JFS_SBI(sb)->gengen++;
 
 	jfs_inode->cflag = 0;

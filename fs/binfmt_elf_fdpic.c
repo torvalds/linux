@@ -320,7 +320,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	else
 		executable_stack = EXSTACK_DEFAULT;
 
-	if (stack_size == 0) {
+	if (stack_size == 0 && interp_params.flags & ELF_FDPIC_FLAG_PRESENT) {
 		stack_size = interp_params.stack_size;
 		if (interp_params.flags & ELF_FDPIC_FLAG_EXEC_STACK)
 			executable_stack = EXSTACK_ENABLE_X;
@@ -899,10 +899,12 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	kdebug("- DYNAMIC[]: %lx", params->dynamic_addr);
 	seg = loadmap->segs;
 	for (loop = 0; loop < loadmap->nsegs; loop++, seg++)
-		kdebug("- LOAD[%d] : %08x-%08x [va=%x ms=%x]",
+		kdebug("- LOAD[%d] : %08llx-%08llx [va=%llx ms=%llx]",
 		       loop,
-		       seg->addr, seg->addr + seg->p_memsz - 1,
-		       seg->p_vaddr, seg->p_memsz);
+		       (unsigned long long) seg->addr,
+		       (unsigned long long) seg->addr + seg->p_memsz - 1,
+		       (unsigned long long) seg->p_vaddr,
+		       (unsigned long long) seg->p_memsz);
 
 	return 0;
 
@@ -1081,9 +1083,10 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		maddr = vm_mmap(file, maddr, phdr->p_memsz + disp, prot, flags,
 				phdr->p_offset - disp);
 
-		kdebug("mmap[%d] <file> sz=%lx pr=%x fl=%x of=%lx --> %08lx",
-		       loop, phdr->p_memsz + disp, prot, flags,
-		       phdr->p_offset - disp, maddr);
+		kdebug("mmap[%d] <file> sz=%llx pr=%x fl=%x of=%llx --> %08lx",
+		       loop, (unsigned long long) phdr->p_memsz + disp,
+		       prot, flags, (unsigned long long) phdr->p_offset - disp,
+		       maddr);
 
 		if (IS_ERR_VALUE(maddr))
 			return (int) maddr;
@@ -1145,8 +1148,9 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 
 #else
 		if (excess > 0) {
-			kdebug("clear[%d] ad=%lx sz=%lx",
-			       loop, maddr + phdr->p_filesz, excess);
+			kdebug("clear[%d] ad=%llx sz=%lx", loop,
+			       (unsigned long long) maddr + phdr->p_filesz,
+			       excess);
 			if (clear_user((void *) maddr + phdr->p_filesz, excess))
 				return -EFAULT;
 		}
@@ -1355,7 +1359,7 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	SET_UID(psinfo->pr_uid, from_kuid_munged(cred->user_ns, cred->uid));
 	SET_GID(psinfo->pr_gid, from_kgid_munged(cred->user_ns, cred->gid));
 	rcu_read_unlock();
-	strncpy(psinfo->pr_fname, p->comm, sizeof(psinfo->pr_fname));
+	get_task_comm(psinfo->pr_fname, p);
 
 	return 0;
 }

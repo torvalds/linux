@@ -179,7 +179,7 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 
 	/* fill in sl */
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
-		q->sl->element[j].sbal = virt_to_phys(q->sbal[j]);
+		q->sl->element[j].sbal = virt_to_dma64(q->sbal[j]);
 }
 
 static void setup_queues(struct qdio_irq *irq_ptr,
@@ -291,9 +291,9 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 
 static void qdio_fill_qdr_desc(struct qdesfmt0 *desc, struct qdio_q *queue)
 {
-	desc->sliba = virt_to_phys(queue->slib);
-	desc->sla = virt_to_phys(queue->sl);
-	desc->slsba = virt_to_phys(&queue->slsb);
+	desc->sliba = virt_to_dma64(queue->slib);
+	desc->sla = virt_to_dma64(queue->sl);
+	desc->slsba = virt_to_dma64(&queue->slsb);
 
 	desc->akey = PAGE_DEFAULT_KEY >> 4;
 	desc->bkey = PAGE_DEFAULT_KEY >> 4;
@@ -315,7 +315,7 @@ static void setup_qdr(struct qdio_irq *irq_ptr,
 	irq_ptr->qdr->oqdcnt = qdio_init->no_output_qs;
 	irq_ptr->qdr->iqdsz = sizeof(struct qdesfmt0) / 4; /* size in words */
 	irq_ptr->qdr->oqdsz = sizeof(struct qdesfmt0) / 4;
-	irq_ptr->qdr->qiba = virt_to_phys(&irq_ptr->qib);
+	irq_ptr->qdr->qiba = virt_to_dma64(&irq_ptr->qib);
 	irq_ptr->qdr->qkey = PAGE_DEFAULT_KEY >> 4;
 
 	for (i = 0; i < qdio_init->no_input_qs; i++)

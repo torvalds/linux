@@ -10,20 +10,16 @@
 
 const struct pmu_metrics_table *pmu_metrics_table__find(void)
 {
-	struct perf_pmu *pmu = pmu__find_core_pmu();
+	struct perf_pmu *pmu;
 
+	/* Metrics aren't currently supported on heterogeneous Arm systems */
+	if (perf_pmus__num_core_pmus() > 1)
+		return NULL;
+
+	/* Doesn't matter which one here because they'll all be the same */
+	pmu = perf_pmus__find_core_pmu();
 	if (pmu)
 		return perf_pmu__find_metrics_table(pmu);
-
-	return NULL;
-}
-
-const struct pmu_events_table *pmu_events_table__find(void)
-{
-	struct perf_pmu *pmu = pmu__find_core_pmu();
-
-	if (pmu)
-		return perf_pmu__find_events_table(pmu);
 
 	return NULL;
 }
@@ -32,7 +28,7 @@ double perf_pmu__cpu_slots_per_cycle(void)
 {
 	char path[PATH_MAX];
 	unsigned long long slots = 0;
-	struct perf_pmu *pmu = pmu__find_core_pmu();
+	struct perf_pmu *pmu = perf_pmus__find_core_pmu();
 
 	if (pmu) {
 		perf_pmu__pathname_scnprintf(path, sizeof(path),

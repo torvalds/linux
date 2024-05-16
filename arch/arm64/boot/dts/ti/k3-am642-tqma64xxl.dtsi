@@ -85,6 +85,15 @@
 			no-map;
 		};
 	};
+
+	reg_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "V_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &main_i2c0 {
@@ -96,11 +105,13 @@
 	tmp1075: temperature-sensor@4a {
 		compatible = "ti,tmp1075";
 		reg = <0x4a>;
+		vs-supply = <&reg_1v8>;
 	};
 
 	eeprom0: eeprom@50 {
 		compatible = "st,24c02", "atmel,24c02";
 		reg = <0x50>;
+		vcc-supply = <&reg_1v8>;
 		pagesize = <16>;
 		read-only;
 	};
@@ -114,6 +125,7 @@
 	eeprom1: eeprom@54 {
 		compatible = "st,24c64", "atmel,24c64";
 		reg = <0x54>;
+		vcc-supply = <&reg_1v8>;
 		pagesize = <32>;
 	};
 };
@@ -207,6 +219,7 @@
 };
 
 &sdhci0 {
+	status = "okay";
 	non-removable;
 	disable-wp;
 	no-sdio;

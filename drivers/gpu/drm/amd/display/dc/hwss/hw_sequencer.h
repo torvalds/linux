@@ -50,7 +50,7 @@ struct pg_block_update;
 struct subvp_pipe_control_lock_fast_params {
 	struct dc *dc;
 	bool lock;
-	struct pipe_ctx *pipe_ctx;
+	bool subvp_immediate_flip;
 };
 
 struct pipe_control_lock_params {
@@ -200,7 +200,7 @@ struct hw_sequencer_funcs {
 			struct dc_state *context);
 	enum dc_status (*apply_ctx_to_hw)(struct dc *dc,
 			struct dc_state *context);
-	void (*disable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+	void (*disable_plane)(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx);
 	void (*disable_pixel_data)(struct dc *dc, struct pipe_ctx *pipe_ctx, bool blank);
 	void (*apply_ctx_for_surface)(struct dc *dc,
 			const struct dc_stream_state *stream,
@@ -248,6 +248,7 @@ struct hw_sequencer_funcs {
 	void (*enable_per_frame_crtc_position_reset)(struct dc *dc,
 			int group_size, struct pipe_ctx *grouped_pipes[]);
 	void (*enable_timing_synchronization)(struct dc *dc,
+			struct dc_state *state,
 			int group_index, int group_size,
 			struct pipe_ctx *grouped_pipes[]);
 	void (*enable_vblanks_synchronization)(struct dc *dc,
@@ -338,6 +339,8 @@ struct hw_sequencer_funcs {
 
 	/* HW State Logging Related */
 	void (*log_hw_state)(struct dc *dc, struct dc_log_buffer_ctx *log_ctx);
+	void (*log_color_state)(struct dc *dc,
+				struct dc_log_buffer_ctx *log_ctx);
 	void (*get_hw_state)(struct dc *dc, char *pBuf,
 			unsigned int bufSize, unsigned int mask);
 	void (*clear_status_bits)(struct dc *dc, unsigned int mask);
@@ -374,10 +377,14 @@ struct hw_sequencer_funcs {
 	/* Idle Optimization Related */
 	bool (*apply_idle_power_optimizations)(struct dc *dc, bool enable);
 
-	bool (*does_plane_fit_in_mall)(struct dc *dc, struct dc_plane_state *plane,
+	bool (*does_plane_fit_in_mall)(struct dc *dc,
+			unsigned int pitch,
+			unsigned int height,
+			enum surface_pixel_format format,
 			struct dc_cursor_attributes *cursor_attr);
 	void (*commit_subvp_config)(struct dc *dc, struct dc_state *context);
 	void (*enable_phantom_streams)(struct dc *dc, struct dc_state *context);
+	void (*disable_phantom_streams)(struct dc *dc, struct dc_state *context);
 	void (*subvp_pipe_control_lock)(struct dc *dc,
 			struct dc_state *context,
 			bool lock,
@@ -414,15 +421,16 @@ struct hw_sequencer_funcs {
 		struct pg_block_update *update_state);
 	void (*calc_blocks_to_ungate)(struct dc *dc, struct dc_state *context,
 		struct pg_block_update *update_state);
-	void (*block_power_control)(struct dc *dc,
-		struct pg_block_update *update_state, bool power_on);
+	void (*hw_block_power_up)(struct dc *dc,
+		struct pg_block_update *update_state);
+	void (*hw_block_power_down)(struct dc *dc,
+		struct pg_block_update *update_state);
 	void (*root_clock_control)(struct dc *dc,
 		struct pg_block_update *update_state, bool power_on);
-	void (*set_idle_state)(const struct dc *dc, bool allow_idle);
-	uint32_t (*get_idle_state)(const struct dc *dc);
 	bool (*is_pipe_topology_transition_seamless)(struct dc *dc,
 			const struct dc_state *cur_ctx,
 			const struct dc_state *new_ctx);
+	void (*set_long_vtotal)(struct pipe_ctx **pipe_ctx, int num_pipes, uint32_t v_total_min, uint32_t v_total_max);
 };
 
 void color_space_to_black_color(
@@ -452,16 +460,17 @@ void get_mpctree_visual_confirm_color(
 		struct tg_color *color);
 
 void get_subvp_visual_confirm_color(
-	struct dc *dc,
-	struct dc_state *context,
 	struct pipe_ctx *pipe_ctx,
 	struct tg_color *color);
 
 void get_mclk_switch_visual_confirm_color(
-		struct dc *dc,
-		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
+
+void set_p_state_switch_method(
+		struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx);
 
 void hwss_execute_sequence(struct dc *dc,
 		struct block_sequence block_sequence[],
@@ -471,8 +480,10 @@ void hwss_build_fast_sequence(struct dc *dc,
 		struct dc_dmub_cmd *dc_dmub_cmd,
 		unsigned int dmub_cmd_count,
 		struct block_sequence block_sequence[],
-		int *num_steps,
-		struct pipe_ctx *pipe_ctx);
+		unsigned int *num_steps,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_stream_status *stream_status,
+		struct dc_state *context);
 
 void hwss_send_dmcub_cmd(union block_sequence_params *params);
 

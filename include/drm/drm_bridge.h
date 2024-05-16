@@ -107,7 +107,7 @@ struct drm_bridge_funcs {
 	 * Since this function is both called from the check phase of an atomic
 	 * commit, and the mode validation in the probe paths it is not allowed
 	 * to look at anything else but the passed-in mode, and validate it
-	 * against configuration-invariant hardward constraints. Any further
+	 * against configuration-invariant hardware constraints. Any further
 	 * limits which depend upon the configuration can only be checked in
 	 * @mode_fixup.
 	 *
@@ -194,7 +194,7 @@ struct drm_bridge_funcs {
 	 * or &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
-	 * singals) feeding it is no longer running when this callback is
+	 * signals) feeding it is no longer running when this callback is
 	 * called.
 	 *
 	 * The @post_disable callback is optional.
@@ -541,7 +541,7 @@ struct drm_bridge_funcs {
 	 * The @get_modes callback is mostly intended to support non-probeable
 	 * displays such as many fixed panels. Bridges that support reading
 	 * EDID shall leave @get_modes unimplemented and implement the
-	 * &drm_bridge_funcs->get_edid callback instead.
+	 * &drm_bridge_funcs->edid_read callback instead.
 	 *
 	 * This callback is optional. Bridges that implement it shall set the
 	 * DRM_BRIDGE_OP_MODES flag in their &drm_bridge->ops.
@@ -558,11 +558,11 @@ struct drm_bridge_funcs {
 			 struct drm_connector *connector);
 
 	/**
-	 * @get_edid:
+	 * @edid_read:
 	 *
-	 * Read and parse the EDID data of the connected display.
+	 * Read the EDID data of the connected display.
 	 *
-	 * The @get_edid callback is the preferred way of reporting mode
+	 * The @edid_read callback is the preferred way of reporting mode
 	 * information for a display connected to the bridge output. Bridges
 	 * that support reading EDID shall implement this callback and leave
 	 * the @get_modes callback unimplemented.
@@ -575,17 +575,18 @@ struct drm_bridge_funcs {
 	 * DRM_BRIDGE_OP_EDID flag in their &drm_bridge->ops.
 	 *
 	 * The connector parameter shall be used for the sole purpose of EDID
-	 * retrieval and parsing, and shall not be stored internally by bridge
-	 * drivers for future usage.
+	 * retrieval, and shall not be stored internally by bridge drivers for
+	 * future usage.
 	 *
 	 * RETURNS:
 	 *
-	 * An edid structure newly allocated with kmalloc() (or similar) on
-	 * success, or NULL otherwise. The caller is responsible for freeing
-	 * the returned edid structure with kfree().
+	 * An edid structure newly allocated with drm_edid_alloc() or returned
+	 * from drm_edid_read() family of functions on success, or NULL
+	 * otherwise. The caller is responsible for freeing the returned edid
+	 * structure with drm_edid_free().
 	 */
-	struct edid *(*get_edid)(struct drm_bridge *bridge,
-				 struct drm_connector *connector);
+	const struct drm_edid *(*edid_read)(struct drm_bridge *bridge,
+					    struct drm_connector *connector);
 
 	/**
 	 * @hpd_notify:
@@ -686,7 +687,7 @@ enum drm_bridge_ops {
 	/**
 	 * @DRM_BRIDGE_OP_EDID: The bridge can retrieve the EDID of the display
 	 * connected to its output. Bridges that set this flag shall implement
-	 * the &drm_bridge_funcs->get_edid callback.
+	 * the &drm_bridge_funcs->edid_read callback.
 	 */
 	DRM_BRIDGE_OP_EDID = BIT(1),
 	/**
@@ -888,8 +889,8 @@ drm_atomic_helper_bridge_propagate_bus_fmt(struct drm_bridge *bridge,
 enum drm_connector_status drm_bridge_detect(struct drm_bridge *bridge);
 int drm_bridge_get_modes(struct drm_bridge *bridge,
 			 struct drm_connector *connector);
-struct edid *drm_bridge_get_edid(struct drm_bridge *bridge,
-				 struct drm_connector *connector);
+const struct drm_edid *drm_bridge_edid_read(struct drm_bridge *bridge,
+					    struct drm_connector *connector);
 void drm_bridge_hpd_enable(struct drm_bridge *bridge,
 			   void (*cb)(void *data,
 				      enum drm_connector_status status),
@@ -949,7 +950,5 @@ static inline struct drm_bridge *drmm_of_get_bridge(struct drm_device *drm,
 	return ERR_PTR(-ENODEV);
 }
 #endif
-
-void drm_bridge_debugfs_init(struct drm_device *dev);
 
 #endif

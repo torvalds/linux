@@ -38,7 +38,7 @@ static int devm_pci_epc_match(struct device *dev, void *res, void *match_data)
  */
 void pci_epc_put(struct pci_epc *epc)
 {
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	module_put(epc->ops->owner);
@@ -87,7 +87,7 @@ EXPORT_SYMBOL_GPL(pci_epc_get);
  * @epc_features: pci_epc_features structure that holds the reserved bar bitmap
  *
  * Invoke to get the first unreserved BAR that can be used by the endpoint
- * function. For any incorrect value in reserved_bar return '0'.
+ * function.
  */
 enum pci_barno
 pci_epc_get_first_free_bar(const struct pci_epc_features *epc_features)
@@ -102,32 +102,27 @@ EXPORT_SYMBOL_GPL(pci_epc_get_first_free_bar);
  * @bar: the starting BAR number from where unreserved BAR should be searched
  *
  * Invoke to get the next unreserved BAR starting from @bar that can be used
- * for endpoint function. For any incorrect value in reserved_bar return '0'.
+ * for endpoint function.
  */
 enum pci_barno pci_epc_get_next_free_bar(const struct pci_epc_features
 					 *epc_features, enum pci_barno bar)
 {
-	unsigned long free_bar;
+	int i;
 
 	if (!epc_features)
 		return BAR_0;
 
 	/* If 'bar - 1' is a 64-bit BAR, move to the next BAR */
-	if ((epc_features->bar_fixed_64bit << 1) & 1 << bar)
+	if (bar > 0 && epc_features->bar[bar - 1].only_64bit)
 		bar++;
 
-	/* Find if the reserved BAR is also a 64-bit BAR */
-	free_bar = epc_features->reserved_bar & epc_features->bar_fixed_64bit;
+	for (i = bar; i < PCI_STD_NUM_BARS; i++) {
+		/* If the BAR is not reserved, return it. */
+		if (epc_features->bar[i].type != BAR_RESERVED)
+			return i;
+	}
 
-	/* Set the adjacent bit if the reserved BAR is also a 64-bit BAR */
-	free_bar <<= 1;
-	free_bar |= epc_features->reserved_bar;
-
-	free_bar = find_next_zero_bit(&free_bar, 6, bar);
-	if (free_bar > 5)
-		return NO_BAR;
-
-	return free_bar;
+	return NO_BAR;
 }
 EXPORT_SYMBOL_GPL(pci_epc_get_next_free_bar);
 
@@ -211,13 +206,13 @@ EXPORT_SYMBOL_GPL(pci_epc_start);
  * @epc: the EPC device which has to interrupt the host
  * @func_no: the physical endpoint function number in the EPC device
  * @vfunc_no: the virtual endpoint function number in the physical function
- * @type: specify the type of interrupt; legacy, MSI or MSI-X
+ * @type: specify the type of interrupt; INTX, MSI or MSI-X
  * @interrupt_num: the MSI or MSI-X interrupt number with range (1-N)
  *
- * Invoke to raise an legacy, MSI or MSI-X interrupt
+ * Invoke to raise an INTX, MSI or MSI-X interrupt
  */
 int pci_epc_raise_irq(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-		      enum pci_epc_irq_type type, u16 interrupt_num)
+		      unsigned int type, u16 interrupt_num)
 {
 	int ret;
 
@@ -660,7 +655,7 @@ void pci_epc_remove_epf(struct pci_epc *epc, struct pci_epf *epf,
 	struct list_head *list;
 	u32 func_no = 0;
 
-	if (!epc || IS_ERR(epc) || !epf)
+	if (IS_ERR_OR_NULL(epc) || !epf)
 		return;
 
 	if (type == PRIMARY_INTERFACE) {
@@ -691,7 +686,7 @@ void pci_epc_linkup(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -717,7 +712,7 @@ void pci_epc_linkdown(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -743,7 +738,7 @@ void pci_epc_init_notify(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -769,7 +764,7 @@ void pci_epc_bme_notify(struct pci_epc *epc)
 {
 	struct pci_epf *epf;
 
-	if (!epc || IS_ERR(epc))
+	if (IS_ERR_OR_NULL(epc))
 		return;
 
 	mutex_lock(&epc->list_lock);
@@ -869,7 +864,6 @@ __pci_epc_create(struct device *dev, const struct pci_epc_ops *ops,
 
 put_dev:
 	put_device(&epc->dev);
-	kfree(epc);
 
 err_ret:
 	return ERR_PTR(ret);

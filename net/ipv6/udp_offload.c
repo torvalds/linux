@@ -174,13 +174,7 @@ INDIRECT_CALLABLE_SCOPE int udp6_gro_complete(struct sk_buff *skb, int nhoff)
 		skb_shinfo(skb)->gso_type |= (SKB_GSO_FRAGLIST|SKB_GSO_UDP_L4);
 		skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
 
-		if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
-			if (skb->csum_level < SKB_MAX_CSUM_LEVEL)
-				skb->csum_level++;
-		} else {
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			skb->csum_level = 0;
-		}
+		__skb_incr_checksum_unnecessary(skb);
 
 		return 0;
 	}
@@ -192,20 +186,19 @@ INDIRECT_CALLABLE_SCOPE int udp6_gro_complete(struct sk_buff *skb, int nhoff)
 	return udp_gro_complete(skb, nhoff, udp6_lib_lookup_skb);
 }
 
-static const struct net_offload udpv6_offload = {
-	.callbacks = {
-		.gso_segment	=	udp6_ufo_fragment,
-		.gro_receive	=	udp6_gro_receive,
-		.gro_complete	=	udp6_gro_complete,
-	},
-};
-
-int udpv6_offload_init(void)
+int __init udpv6_offload_init(void)
 {
-	return inet6_add_offload(&udpv6_offload, IPPROTO_UDP);
+	net_hotdata.udpv6_offload = (struct net_offload) {
+		.callbacks = {
+			.gso_segment	=	udp6_ufo_fragment,
+			.gro_receive	=	udp6_gro_receive,
+			.gro_complete	=	udp6_gro_complete,
+		},
+	};
+	return inet6_add_offload(&net_hotdata.udpv6_offload, IPPROTO_UDP);
 }
 
 int udpv6_offload_exit(void)
 {
-	return inet6_del_offload(&udpv6_offload, IPPROTO_UDP);
+	return inet6_del_offload(&net_hotdata.udpv6_offload, IPPROTO_UDP);
 }

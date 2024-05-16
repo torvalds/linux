@@ -89,6 +89,7 @@ config CAN_RX_OFFLOAD
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
 	depends on (ARCH_AT91 || COMPILE_TEST) && HAS_IOMEM
+	select CAN_RX_OFFLOAD
 	help
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
@@ -167,6 +168,8 @@ config CAN_KVASER_PCIEFD
 	    Kvaser Mini PCI Express 2xHS v2
 	    Kvaser Mini PCI Express 1xCAN v3
 	    Kvaser Mini PCI Express 2xCAN v3
+	    Kvaser M.2 PCIe 4xCAN
+	    Kvaser PCIe 8xCAN
 
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"
@@ -217,6 +220,7 @@ config CAN_XILINXCAN
 source "drivers/net/can/c_can/Kconfig"
 source "drivers/net/can/cc770/Kconfig"
 source "drivers/net/can/ctucanfd/Kconfig"
+source "drivers/net/can/esd/Kconfig"
 source "drivers/net/can/ifi_canfd/Kconfig"
 source "drivers/net/can/m_can/Kconfig"
 source "drivers/net/can/mscan/Kconfig"

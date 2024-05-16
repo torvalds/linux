@@ -386,12 +386,19 @@ Sample userspace code:
 
   - Create session PPPoX data socket::
 
-        struct sockaddr_pppol2tp sax;
-        int fd;
-
-        /* Note, the tunnel socket must be bound already, else it
-         * will not be ready
+        /* Input: the L2TP tunnel UDP socket `tunnel_fd`, which needs to be
+         * bound already (both sockname and peername), otherwise it will not be
+         * ready.
          */
+
+        struct sockaddr_pppol2tp sax;
+        int session_fd;
+        int ret;
+
+        session_fd = socket(AF_PPPOX, SOCK_DGRAM, PX_PROTO_OL2TP);
+        if (session_fd < 0)
+                return -errno;
+
         sax.sa_family = AF_PPPOX;
         sax.sa_protocol = PX_PROTO_OL2TP;
         sax.pppol2tp.fd = tunnel_fd;
@@ -406,11 +413,127 @@ Sample userspace code:
         /* session_fd is the fd of the session's PPPoL2TP socket.
          * tunnel_fd is the fd of the tunnel UDP / L2TPIP socket.
          */
-        fd = connect(session_fd, (struct sockaddr *)&sax, sizeof(sax));
-        if (fd < 0 ) {
+        ret = connect(session_fd, (struct sockaddr *)&sax, sizeof(sax));
+        if (ret < 0 ) {
+                close(session_fd);
                 return -errno;
         }
+
+        return session_fd;
+
+L2TP control packets will still be available for read on `tunnel_fd`.
+
+  - Create PPP channel::
+
+        /* Input: the session PPPoX data socket `session_fd` which was created
+         * as described above.
+         */
+
+        int ppp_chan_fd;
+        int chindx;
+        int ret;
+
+        ret = ioctl(session_fd, PPPIOCGCHAN, &chindx);
+        if (ret < 0)
+                return -errno;
+
+        ppp_chan_fd = open("/dev/ppp", O_RDWR);
+        if (ppp_chan_fd < 0)
+                return -errno;
+
+        ret = ioctl(ppp_chan_fd, PPPIOCATTCHAN, &chindx);
+        if (ret < 0) {
+                close(ppp_chan_fd);
+                return -errno;
+        }
+
+        return ppp_chan_fd;
+
+LCP PPP frames will be available for read on `ppp_chan_fd`.
+
+  - Create PPP interface::
+
+        /* Input: the PPP channel `ppp_chan_fd` which was created as described
+         * above.
+         */
+
+        int ifunit = -1;
+        int ppp_if_fd;
+        int ret;
+
+        ppp_if_fd = open("/dev/ppp", O_RDWR);
+        if (ppp_if_fd < 0)
+                return -errno;
+
+        ret = ioctl(ppp_if_fd, PPPIOCNEWUNIT, &ifunit);
+        if (ret < 0) {
+                close(ppp_if_fd);
+                return -errno;
+        }
+
+        ret = ioctl(ppp_chan_fd, PPPIOCCONNECT, &ifunit);
+        if (ret < 0) {
+                close(ppp_if_fd);
+                return -errno;
+        }
+
+        return ppp_if_fd;
+
+IPCP/IPv6CP PPP frames will be available for read on `ppp_if_fd`.
+
+The ppp<ifunit> interface can then be configured as usual with netlink's
+RTM_NEWLINK, RTM_NEWADDR, RTM_NEWROUTE, or ioctl's SIOCSIFMTU, SIOCSIFADDR,
+SIOCSIFDSTADDR, SIOCSIFNETMASK, SIOCSIFFLAGS, or with the `ip` command.
+
+  - Bridging L2TP sessions which have PPP pseudowire types (this is also called
+    L2TP tunnel switching or L2TP multihop) is supported by bridging the PPP
+    channels of the two L2TP sessions to be bridged::
+
+        /* Input: the session PPPoX data sockets `session_fd1` and `session_fd2`
+         * which were created as described further above.
+         */
+
+        int ppp_chan_fd;
+        int chindx1;
+        int chindx2;
+        int ret;
+
+        ret = ioctl(session_fd1, PPPIOCGCHAN, &chindx1);
+        if (ret < 0)
+                return -errno;
+
+        ret = ioctl(session_fd2, PPPIOCGCHAN, &chindx2);
+        if (ret < 0)
+                return -errno;
+
+        ppp_chan_fd = open("/dev/ppp", O_RDWR);
+        if (ppp_chan_fd < 0)
+                return -errno;
+
+        ret = ioctl(ppp_chan_fd, PPPIOCATTCHAN, &chindx1);
+        if (ret < 0) {
+                close(ppp_chan_fd);
+                return -errno;
+        }
+
+        ret = ioctl(ppp_chan_fd, PPPIOCBRIDGECHAN, &chindx2);
+        close(ppp_chan_fd);
+        if (ret < 0)
+                return -errno;
+
         return 0;
+
+It can be noted that when bridging PPP channels, the PPP session is not locally
+terminated, and no local PPP interface is created.  PPP frames arriving on one
+channel are directly passed to the other channel, and vice versa.
+
+The PPP channel does not need to be kept open.  Only the session PPPoX data
+sockets need to be kept open.
+
+More generally, it is also possible in the same way to e.g. bridge a PPPoL2TP
+PPP channel with other types of PPP channels, such as PPPoE.
+
+See more details for the PPP side in ppp_generic.rst.
 
 Old L2TPv2-only API
 -------------------

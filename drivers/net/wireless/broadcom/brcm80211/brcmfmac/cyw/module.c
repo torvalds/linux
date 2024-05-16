@@ -20,6 +20,7 @@ static void __exit brcmf_cyw_exit(void)
 	brcmf_fwvid_unregister_vendor(BRCMF_FWVENDOR_CYW, THIS_MODULE);
 }
 
+MODULE_DESCRIPTION("Broadcom FullMAC WLAN driver plugin for Cypress/Infineon chipsets");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_IMPORT_NS(BRCMFMAC);
 

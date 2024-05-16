@@ -9,6 +9,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <linux/pinctrl/pinctrl.h>
 
@@ -485,14 +486,12 @@ static const struct acpi_device_id ehl_pinctrl_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, ehl_pinctrl_acpi_match);
 
-static INTEL_PINCTRL_PM_OPS(ehl_pinctrl_pm_ops);
-
 static struct platform_driver ehl_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_uid,
 	.driver = {
 		.name = "elkhartlake-pinctrl",
 		.acpi_match_table = ehl_pinctrl_acpi_match,
-		.pm = &ehl_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
 };
 module_platform_driver(ehl_pinctrl_driver);

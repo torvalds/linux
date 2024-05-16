@@ -38,32 +38,31 @@ extern int amd_iommu_guest_ir;
 extern enum io_pgtable_fmt amd_iommu_pgtable;
 extern int amd_iommu_gpt_level;
 
-/* IOMMUv2 specific functions */
-struct iommu_domain;
-
 bool amd_iommu_v2_supported(void);
-struct amd_iommu *get_amd_iommu(unsigned int idx);
-u8 amd_iommu_pc_get_max_banks(unsigned int idx);
-bool amd_iommu_pc_supported(void);
-u8 amd_iommu_pc_get_max_counters(unsigned int idx);
-int amd_iommu_pc_get_reg(struct amd_iommu *iommu, u8 bank, u8 cntr,
-			 u8 fxn, u64 *value);
-int amd_iommu_pc_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr,
-			 u8 fxn, u64 *value);
 
-int amd_iommu_register_ppr_notifier(struct notifier_block *nb);
-int amd_iommu_unregister_ppr_notifier(struct notifier_block *nb);
-void amd_iommu_domain_direct_map(struct iommu_domain *dom);
-int amd_iommu_domain_enable_v2(struct iommu_domain *dom, int pasids);
-int amd_iommu_flush_page(struct iommu_domain *dom, u32 pasid, u64 address);
+/* Device capabilities */
+int amd_iommu_pdev_enable_cap_pri(struct pci_dev *pdev);
+void amd_iommu_pdev_disable_cap_pri(struct pci_dev *pdev);
+
+/* GCR3 setup */
+int amd_iommu_set_gcr3(struct iommu_dev_data *dev_data,
+		       ioasid_t pasid, unsigned long gcr3);
+int amd_iommu_clear_gcr3(struct iommu_dev_data *dev_data, ioasid_t pasid);
+
+/*
+ * This function flushes all internal caches of
+ * the IOMMU used by this driver.
+ */
+void amd_iommu_flush_all_caches(struct amd_iommu *iommu);
 void amd_iommu_update_and_flush_device_table(struct protection_domain *domain);
 void amd_iommu_domain_update(struct protection_domain *domain);
 void amd_iommu_domain_flush_complete(struct protection_domain *domain);
-void amd_iommu_domain_flush_tlb_pde(struct protection_domain *domain);
-int amd_iommu_flush_tlb(struct iommu_domain *dom, u32 pasid);
-int amd_iommu_domain_set_gcr3(struct iommu_domain *dom, u32 pasid,
-			      unsigned long cr3);
-int amd_iommu_domain_clear_gcr3(struct iommu_domain *dom, u32 pasid);
+void amd_iommu_domain_flush_pages(struct protection_domain *domain,
+				  u64 address, size_t size);
+void amd_iommu_dev_flush_pasid_pages(struct iommu_dev_data *dev_data,
+				     ioasid_t pasid, u64 address, size_t size);
+void amd_iommu_dev_flush_pasid_all(struct iommu_dev_data *dev_data,
+				   ioasid_t pasid);
 
 #ifdef CONFIG_IRQ_REMAP
 int amd_iommu_create_irq_domain(struct amd_iommu *iommu);
@@ -74,10 +73,6 @@ static inline int amd_iommu_create_irq_domain(struct amd_iommu *iommu)
 }
 #endif
 
-#define PPR_SUCCESS			0x0
-#define PPR_INVALID			0x1
-#define PPR_FAILURE			0xf
-
 int amd_iommu_complete_ppr(struct pci_dev *pdev, u32 pasid,
 			   int status, int tag);
 
@@ -87,9 +82,25 @@ static inline bool is_rd890_iommu(struct pci_dev *pdev)
 	       (pdev->device == PCI_DEVICE_ID_RD890_IOMMU);
 }
 
-static inline bool iommu_feature(struct amd_iommu *iommu, u64 mask)
+static inline bool check_feature(u64 mask)
 {
-	return !!(iommu->features & mask);
+	return (amd_iommu_efr & mask);
+}
+
+static inline bool check_feature2(u64 mask)
+{
+	return (amd_iommu_efr2 & mask);
+}
+
+static inline int check_feature_gpt_level(void)
+{
+	return ((amd_iommu_efr >> FEATURE_GATS_SHIFT) & FEATURE_GATS_MASK);
+}
+
+static inline bool amd_iommu_gt_ppr_supported(void)
+{
+	return (check_feature(FEATURE_GT) &&
+		check_feature(FEATURE_PPR));
 }
 
 static inline u64 iommu_virt_to_phys(void *vaddr)
@@ -105,7 +116,6 @@ static inline void *iommu_phys_to_virt(unsigned long paddr)
 static inline
 void amd_iommu_domain_set_pt_root(struct protection_domain *domain, u64 root)
 {
-	atomic64_set(&domain->iop.pt_root, root);
 	domain->iop.root = (u64 *)(root & PAGE_MASK);
 	domain->iop.mode = root & 7; /* lowest 3 bits encode pgtable mode */
 }
@@ -132,6 +142,21 @@ static inline void *alloc_pgtable_page(int nid, gfp_t gfp)
 	return page ? page_address(page) : NULL;
 }
 
+/*
+ * This must be called after device probe completes. During probe
+ * use rlookup_amd_iommu() get the iommu.
+ */
+static inline struct amd_iommu *get_amd_iommu_from_dev(struct device *dev)
+{
+	return iommu_get_iommu_dev(dev, struct amd_iommu, iommu);
+}
+
+/* This must be called after device probe completes. */
+static inline struct amd_iommu *get_amd_iommu_from_dev_data(struct iommu_dev_data *dev_data)
+{
+	return iommu_get_iommu_dev(dev_data->dev, struct amd_iommu, iommu);
+}
+
 bool translation_pre_enabled(struct amd_iommu *iommu);
 bool amd_iommu_is_attach_deferred(struct device *dev);
 int __init add_special_device(u8 type, u8 id, u32 *devid, bool cmd_line);
@@ -146,8 +171,4 @@ void amd_iommu_domain_set_pgtable(struct protection_domain *domain,
 				  u64 *root, int mode);
 struct dev_table_entry *get_dev_table(struct amd_iommu *iommu);
 
-extern u64 amd_iommu_efr;
-extern u64 amd_iommu_efr2;
-
-extern bool amd_iommu_snp_en;
 #endif

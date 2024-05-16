@@ -234,12 +234,11 @@ static int cell_edac_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cell_edac_remove(struct platform_device *pdev)
+static void cell_edac_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = edac_mc_del_mc(&pdev->dev);
 	if (mci)
 		edac_mc_free(mci);
-	return 0;
 }
 
 static struct platform_driver cell_edac_driver = {
@@ -247,7 +246,7 @@ static struct platform_driver cell_edac_driver = {
 		.name	= "cbe-mic",
 	},
 	.probe		= cell_edac_probe,
-	.remove		= cell_edac_remove,
+	.remove_new	= cell_edac_remove,
 };
 
 static int __init cell_edac_init(void)

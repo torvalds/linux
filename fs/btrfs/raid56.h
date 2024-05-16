@@ -7,8 +7,17 @@
 #ifndef BTRFS_RAID56_H
 #define BTRFS_RAID56_H
 
+#include <linux/types.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+#include <linux/bio.h>
+#include <linux/refcount.h>
 #include <linux/workqueue.h>
 #include "volumes.h"
+
+struct page;
+struct sector_ptr;
+struct btrfs_fs_info;
 
 enum btrfs_rbio_ops {
 	BTRFS_RBIO_WRITE,
@@ -164,7 +173,7 @@ struct raid56_bio_trace_info {
 	u8 stripe_nr;
 };
 
-static inline int nr_data_stripes(const struct map_lookup *map)
+static inline int nr_data_stripes(const struct btrfs_chunk_map *map)
 {
 	return map->num_stripes - btrfs_nr_parity_stripes(map->type);
 }

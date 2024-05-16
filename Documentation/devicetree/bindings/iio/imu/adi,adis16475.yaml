@@ -47,6 +47,10 @@ properties:
   spi-max-frequency:
     maximum: 2000000
 
+  spi-cs-inactive-delay-ns:
+    minimum: 16000
+    default: 16000
+
   interrupts:
     maxItems: 1
 

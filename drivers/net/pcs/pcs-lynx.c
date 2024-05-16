@@ -398,4 +398,5 @@ void lynx_pcs_destroy(struct phylink_pcs *pcs)
 }
 EXPORT_SYMBOL(lynx_pcs_destroy);
 
+MODULE_DESCRIPTION("NXP Lynx PCS phylink library");
 MODULE_LICENSE("Dual BSD/GPL");

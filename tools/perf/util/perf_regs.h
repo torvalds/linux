@@ -26,9 +26,7 @@ enum {
 int arch_sdt_arg_parse_op(char *old_op, char **new_op);
 uint64_t arch__intr_reg_mask(void);
 uint64_t arch__user_reg_mask(void);
-
-#ifdef HAVE_PERF_REGS_SUPPORT
-extern const struct sample_reg sample_reg_masks[];
+const struct sample_reg *arch__sample_reg_masks(void);
 
 const char *perf_reg_name(int id, const char *arch);
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id);
@@ -67,34 +65,4 @@ static inline uint64_t DWARF_MINIMAL_REGS(const char *arch)
 	return (1ULL << perf_arch_reg_ip(arch)) | (1ULL << perf_arch_reg_sp(arch));
 }
 
-#else
-
-static inline uint64_t DWARF_MINIMAL_REGS(const char *arch __maybe_unused)
-{
-	return 0;
-}
-
-static inline const char *perf_reg_name(int id __maybe_unused, const char *arch __maybe_unused)
-{
-	return "unknown";
-}
-
-static inline int perf_reg_value(u64 *valp __maybe_unused,
-				 struct regs_dump *regs __maybe_unused,
-				 int id __maybe_unused)
-{
-	return 0;
-}
-
-static inline uint64_t perf_arch_reg_ip(const char *arch __maybe_unused)
-{
-	return 0;
-}
-
-static inline uint64_t perf_arch_reg_sp(const char *arch __maybe_unused)
-{
-	return 0;
-}
-
-#endif /* HAVE_PERF_REGS_SUPPORT */
 #endif /* __PERF_REGS_H */

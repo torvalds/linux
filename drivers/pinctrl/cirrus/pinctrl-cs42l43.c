@@ -5,10 +5,10 @@
 // Copyright (c) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <linux/array_size.h>
 #include <linux/bits.h>
 #include <linux/build_bug.h>
 #include <linux/err.h>
-#include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/mfd/cs42l43.h>
 #include <linux/mfd/cs42l43-regs.h>
@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
-#include <linux/string_helpers.h>
+#include <linux/string_choices.h>
 
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -276,7 +276,7 @@ static const struct pinmux_ops cs42l43_pin_mux_ops = {
 
 static const unsigned int cs42l43_pin_drv_str_ma[] = { 1, 2, 4, 8, 9, 10, 12, 16 };
 
-static inline int cs42l43_pin_get_drv_str(struct cs42l43_pin *priv, unsigned int pin)
+static int cs42l43_pin_get_drv_str(struct cs42l43_pin *priv, unsigned int pin)
 {
 	const struct cs42l43_pin_data *pdat = cs42l43_pin_pins[pin].drv_data;
 	unsigned int val;
@@ -289,8 +289,8 @@ static inline int cs42l43_pin_get_drv_str(struct cs42l43_pin *priv, unsigned int
 	return cs42l43_pin_drv_str_ma[(val & pdat->mask) >> pdat->shift];
 }
 
-static inline int cs42l43_pin_set_drv_str(struct cs42l43_pin *priv, unsigned int pin,
-					  unsigned int ma)
+static int cs42l43_pin_set_drv_str(struct cs42l43_pin *priv, unsigned int pin,
+				   unsigned int ma)
 {
 	const struct cs42l43_pin_data *pdat = cs42l43_pin_pins[pin].drv_data;
 	int i;
@@ -314,7 +314,7 @@ err:
 	return -EINVAL;
 }
 
-static inline int cs42l43_pin_get_db(struct cs42l43_pin *priv, unsigned int pin)
+static int cs42l43_pin_get_db(struct cs42l43_pin *priv, unsigned int pin)
 {
 	unsigned int val;
 	int ret;
@@ -332,8 +332,8 @@ static inline int cs42l43_pin_get_db(struct cs42l43_pin *priv, unsigned int pin)
 	return 85; // Debounce is roughly 85uS
 }
 
-static inline int cs42l43_pin_set_db(struct cs42l43_pin *priv, unsigned int pin,
-				     unsigned int us)
+static int cs42l43_pin_set_db(struct cs42l43_pin *priv, unsigned int pin,
+			      unsigned int us)
 {
 	if (pin >= CS42L43_NUM_GPIOS)
 		return -ENOTSUPP;
@@ -490,7 +490,7 @@ static void cs42l43_gpio_set(struct gpio_chip *chip, unsigned int offset, int va
 	int ret;
 
 	dev_dbg(priv->dev, "Setting gpio%d to %s\n",
-		offset + 1, value ? "high" : "low");
+		offset + 1, str_high_low(value));
 
 	ret = pm_runtime_resume_and_get(priv->dev);
 	if (ret) {
@@ -506,17 +506,12 @@ static void cs42l43_gpio_set(struct gpio_chip *chip, unsigned int offset, int va
 	pm_runtime_put(priv->dev);
 }
 
-static int cs42l43_gpio_direction_in(struct gpio_chip *chip, unsigned int offset)
-{
-	return pinctrl_gpio_direction_input(chip->base + offset);
-}
-
 static int cs42l43_gpio_direction_out(struct gpio_chip *chip,
 				      unsigned int offset, int value)
 {
 	cs42l43_gpio_set(chip, offset, value);
 
-	return pinctrl_gpio_direction_output(chip->base + offset);
+	return pinctrl_gpio_direction_output(chip, offset);
 }
 
 static int cs42l43_gpio_add_pin_ranges(struct gpio_chip *chip)
@@ -551,7 +546,7 @@ static int cs42l43_pin_probe(struct platform_device *pdev)
 
 	priv->gpio_chip.request = gpiochip_generic_request;
 	priv->gpio_chip.free = gpiochip_generic_free;
-	priv->gpio_chip.direction_input = cs42l43_gpio_direction_in;
+	priv->gpio_chip.direction_input = pinctrl_gpio_direction_input;
 	priv->gpio_chip.direction_output = cs42l43_gpio_direction_out;
 	priv->gpio_chip.add_pin_ranges = cs42l43_gpio_add_pin_ranges;
 	priv->gpio_chip.get = cs42l43_gpio_get;

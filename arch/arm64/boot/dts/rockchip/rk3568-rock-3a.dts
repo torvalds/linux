@@ -15,6 +15,7 @@
 		ethernet0 = &gmac1;
 		mmc0 = &sdhci;
 		mmc1 = &sdmmc0;
+		mmc2 = &sdmmc2;
 	};
 
 	chosen: chosen {
@@ -747,6 +748,9 @@
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc3v3_sys>;
 	vqmmc-supply = <&vcc_1v8>;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2021, 2023 Intel Corporation
  */
 #ifndef __iwl_fw_api_rfi_h__
 #define __iwl_fw_api_rfi_h__
@@ -25,8 +25,9 @@ struct iwl_rfi_lut_entry {
 /**
  * struct iwl_rfi_config_cmd - RFI configuration table
  *
- * @entry: a table can have 24 frequency/channel mappings
+ * @table: a table can have 24 frequency/channel mappings
  * @oem: specifies if this is the default table or set by OEM
+ * @reserved: (reserved/padding)
  */
 struct iwl_rfi_config_cmd {
 	struct iwl_rfi_lut_entry table[IWL_RFI_LUT_SIZE];
@@ -35,7 +36,7 @@ struct iwl_rfi_config_cmd {
 } __packed; /* RFI_CONFIG_CMD_API_S_VER_1 */
 
 /**
- * iwl_rfi_freq_table_status - status of the frequency table query
+ * enum iwl_rfi_freq_table_status - status of the frequency table query
  * @RFI_FREQ_TABLE_OK: can be used
  * @RFI_FREQ_TABLE_DVFS_NOT_READY: DVFS is not ready yet, should try later
  * @RFI_FREQ_TABLE_DISABLED: the feature is disabled in FW

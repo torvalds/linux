@@ -16,7 +16,7 @@ struct qpaci_info_block {
 	u64 header;
 	struct {
 		u64 : 8;
-		u64 num_cc : 8;	/* # of supported crypto counters */
+		u64 num_cc : 8;		/* # of supported crypto counters */
 		u64 : 9;
 		u64 num_nnpa : 7;	/* # of supported NNPA counters */
 		u64 : 32;
@@ -81,4 +81,5 @@ enum paievt_mode {
 	PAI_MODE_COUNTING,
 };
 
+#define PAI_SAVE_AREA(x)	((x)->hw.event_base)
 #endif

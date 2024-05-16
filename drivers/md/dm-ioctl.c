@@ -25,7 +25,7 @@
 #include <linux/ima.h>
 
 #define DM_MSG_PREFIX "ioctl"
-#define DM_DRIVER_EMAIL "dm-devel@redhat.com"
+#define DM_DRIVER_EMAIL "dm-devel@lists.linux.dev"
 
 struct dm_file {
 	/*
@@ -1295,8 +1295,8 @@ static void retrieve_status(struct dm_table *table,
 		spec->status = 0;
 		spec->sector_start = ti->begin;
 		spec->length = ti->len;
-		strncpy(spec->target_type, ti->type->name,
-			sizeof(spec->target_type) - 1);
+		strscpy_pad(spec->target_type, ti->type->name,
+			sizeof(spec->target_type));
 
 		outptr += sizeof(struct dm_target_spec);
 		remaining = len - (outptr - outbuf);
@@ -1941,7 +1941,8 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 			   minimum_data_size - sizeof(param_kernel->version)))
 		return -EFAULT;
 
-	if (param_kernel->data_size < minimum_data_size) {
+	if (unlikely(param_kernel->data_size < minimum_data_size) ||
+	    unlikely(param_kernel->data_size > DM_MAX_TARGETS * DM_MAX_TARGET_PARAMS)) {
 		DMERR("Invalid data size in the ioctl structure: %u",
 		      param_kernel->data_size);
 		return -EINVAL;

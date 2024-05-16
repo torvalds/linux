@@ -501,7 +501,6 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 		dev->minor, cmd, arg);
 
 	retval = 0;
-	io_res = 0;
 	switch (cmd) {
 	case IOW_WRITE:
 		if (dev->product_id == USB_DEVICE_ID_CODEMERCS_IOW24 ||

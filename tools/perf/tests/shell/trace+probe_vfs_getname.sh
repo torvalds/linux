@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
+# shellcheck source=lib/probe.sh
 . "$(dirname $0)"/lib/probe.sh
 
 skip_if_no_perf_probe || exit 2

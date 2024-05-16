@@ -71,7 +71,7 @@ AS64FLAGS := -D__VDSO64__
 targets += vdso32.lds
 CPPFLAGS_vdso32.lds += -P -C -Upowerpc
 targets += vdso64.lds
-CPPFLAGS_vdso64.lds += -P -C -U$(ARCH)
+CPPFLAGS_vdso64.lds += -P -C
 
 # link rule for the .so file, .lds has to be first
 $(obj)/vdso32.so.dbg: $(src)/vdso32.lds $(obj-vdso32) $(obj)/vgettimeofday-32.o FORCE

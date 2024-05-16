@@ -96,7 +96,7 @@ struct pcie_port_service_driver {
 int pcie_port_service_register(struct pcie_port_service_driver *new);
 void pcie_port_service_unregister(struct pcie_port_service_driver *new);
 
-extern struct bus_type pcie_port_bus_type;
+extern const struct bus_type pcie_port_bus_type;
 
 struct pci_dev;
 

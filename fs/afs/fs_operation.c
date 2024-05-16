@@ -35,13 +35,15 @@ struct afs_operation *afs_alloc_operation(struct key *key, struct afs_volume *vo
 		key_get(key);
 	}
 
-	op->key		= key;
-	op->volume	= afs_get_volume(volume, afs_volume_trace_get_new_op);
-	op->net		= volume->cell->net;
-	op->cb_v_break	= volume->cb_v_break;
-	op->debug_id	= atomic_inc_return(&afs_operation_debug_counter);
-	op->error	= -EDESTADDRREQ;
-	op->ac.error	= SHRT_MAX;
+	op->key			= key;
+	op->volume		= afs_get_volume(volume, afs_volume_trace_get_new_op);
+	op->net			= volume->cell->net;
+	op->cb_v_break		= atomic_read(&volume->cb_v_break);
+	op->pre_volsync.creation = volume->creation_time;
+	op->pre_volsync.update	= volume->update_time;
+	op->debug_id		= atomic_inc_return(&afs_operation_debug_counter);
+	op->nr_iterations	= -1;
+	afs_op_set_error(op, -EDESTADDRREQ);
 
 	_leave(" = [op=%08x]", op->debug_id);
 	return op;
@@ -71,7 +73,7 @@ static bool afs_get_io_locks(struct afs_operation *op)
 		swap(vnode, vnode2);
 
 	if (mutex_lock_interruptible(&vnode->io_lock) < 0) {
-		op->error = -ERESTARTSYS;
+		afs_op_set_error(op, -ERESTARTSYS);
 		op->flags |= AFS_OPERATION_STOP;
 		_leave(" = f [I 0]");
 		return false;
@@ -80,7 +82,7 @@ static bool afs_get_io_locks(struct afs_operation *op)
 
 	if (vnode2) {
 		if (mutex_lock_interruptible_nested(&vnode2->io_lock, 1) < 0) {
-			op->error = -ERESTARTSYS;
+			afs_op_set_error(op, -ERESTARTSYS);
 			op->flags |= AFS_OPERATION_STOP;
 			mutex_unlock(&vnode->io_lock);
 			op->flags &= ~AFS_OPERATION_LOCK_0;
@@ -147,7 +149,7 @@ bool afs_begin_vnode_operation(struct afs_operation *op)
 
 	afs_prepare_vnode(op, &op->file[0], 0);
 	afs_prepare_vnode(op, &op->file[1], 1);
-	op->cb_v_break = op->volume->cb_v_break;
+	op->cb_v_break = atomic_read(&op->volume->cb_v_break);
 	_leave(" = true");
 	return true;
 }
@@ -159,16 +161,16 @@ static void afs_end_vnode_operation(struct afs_operation *op)
 {
 	_enter("");
 
-	if (op->error == -EDESTADDRREQ ||
-	    op->error == -EADDRNOTAVAIL ||
-	    op->error == -ENETUNREACH ||
-	    op->error == -EHOSTUNREACH)
+	switch (afs_op_error(op)) {
+	case -EDESTADDRREQ:
+	case -EADDRNOTAVAIL:
+	case -ENETUNREACH:
+	case -EHOSTUNREACH:
 		afs_dump_edestaddrreq(op);
+		break;
+	}
 
 	afs_drop_io_locks(op);
-
-	if (op->error == -ECONNABORTED)
-		op->error = afs_abort_to_error(op->ac.abort_code);
 }
 
 /*
@@ -179,37 +181,43 @@ void afs_wait_for_operation(struct afs_operation *op)
 	_enter("");
 
 	while (afs_select_fileserver(op)) {
-		op->cb_s_break = op->server->cb_s_break;
+		op->call_responded = false;
+		op->call_error = 0;
+		op->call_abort_code = 0;
 		if (test_bit(AFS_SERVER_FL_IS_YFS, &op->server->flags) &&
 		    op->ops->issue_yfs_rpc)
 			op->ops->issue_yfs_rpc(op);
 		else if (op->ops->issue_afs_rpc)
 			op->ops->issue_afs_rpc(op);
 		else
-			op->ac.error = -ENOTSUPP;
+			op->call_error = -ENOTSUPP;
 
-		if (op->call)
-			op->error = afs_wait_for_call_to_complete(op->call, &op->ac);
+		if (op->call) {
+			afs_wait_for_call_to_complete(op->call);
+			op->call_abort_code = op->call->abort_code;
+			op->call_error = op->call->error;
+			op->call_responded = op->call->responded;
+			afs_put_call(op->call);
+		}
 	}
 
-	switch (op->error) {
-	case 0:
+	if (op->call_responded)
+		set_bit(AFS_SERVER_FL_RESPONDING, &op->server->flags);
+
+	if (!afs_op_error(op)) {
 		_debug("success");
 		op->ops->success(op);
-		break;
-	case -ECONNABORTED:
+	} else if (op->cumul_error.aborted) {
 		if (op->ops->aborted)
 			op->ops->aborted(op);
-		fallthrough;
-	default:
+	} else {
 		if (op->ops->failed)
 			op->ops->failed(op);
-		break;
 	}
 
 	afs_end_vnode_operation(op);
 
-	if (op->error == 0 && op->ops->edit_dir) {
+	if (!afs_op_error(op) && op->ops->edit_dir) {
 		_debug("edit_dir");
 		op->ops->edit_dir(op);
 	}
@@ -221,7 +229,8 @@ void afs_wait_for_operation(struct afs_operation *op)
  */
 int afs_put_operation(struct afs_operation *op)
 {
-	int i, ret = op->error;
+	struct afs_addr_list *alist;
+	int i, ret = afs_op_error(op);
 
 	_enter("op=%08x,%d", op->debug_id, ret);
 
@@ -243,9 +252,19 @@ int afs_put_operation(struct afs_operation *op)
 		kfree(op->more_files);
 	}
 
-	afs_end_cursor(&op->ac);
+	if (op->estate) {
+		alist = op->estate->addresses;
+		if (alist) {
+			if (op->call_responded &&
+			    op->addr_index != alist->preferred &&
+			    test_bit(alist->preferred, &op->addr_tried))
+				WRITE_ONCE(alist->preferred, op->addr_index);
+		}
+	}
+
+	afs_clear_server_states(op);
 	afs_put_serverlist(op->net, op->server_list);
-	afs_put_volume(op->net, op->volume, afs_volume_trace_put_put_op);
+	afs_put_volume(op->volume, afs_volume_trace_put_put_op);
 	key_put(op->key);
 	kfree(op);
 	return ret;

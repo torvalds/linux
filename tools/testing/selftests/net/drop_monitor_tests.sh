@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # This test is for checking drop monitor functionality.
-
+source lib.sh
 ret=0
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
 TESTS="
@@ -13,10 +11,6 @@ TESTS="
 	hw_drops
 "
 
-IP="ip -netns ns1"
-TC="tc -netns ns1"
-DEVLINK="devlink -N ns1"
-NS_EXEC="ip netns exec ns1"
 NETDEVSIM_PATH=/sys/bus/netdevsim/
 DEV_ADDR=1337
 DEV=netdevsim${DEV_ADDR}
@@ -43,7 +37,7 @@ setup()
 	modprobe netdevsim &> /dev/null
 
 	set -e
-	ip netns add ns1
+	setup_ns NS1
 	$IP link add dummy10 up type dummy
 
 	$NS_EXEC echo "$DEV_ADDR 1" > ${NETDEVSIM_PATH}/new_device
@@ -57,7 +51,7 @@ setup()
 cleanup()
 {
 	$NS_EXEC echo "$DEV_ADDR" > ${NETDEVSIM_PATH}/del_device
-	ip netns del ns1
+	cleanup_ns ${NS1}
 }
 
 sw_drops_test()
@@ -194,8 +188,15 @@ if [ $? -ne 0 ]; then
 	exit $ksft_skip
 fi
 
-# start clean
+# create netns first so we can get the namespace name
+setup_ns NS1
 cleanup &> /dev/null
+trap cleanup EXIT
+
+IP="ip -netns ${NS1}"
+TC="tc -netns ${NS1}"
+DEVLINK="devlink -N ${NS1}"
+NS_EXEC="ip netns exec ${NS1}"
 
 for t in $TESTS
 do

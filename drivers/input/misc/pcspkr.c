@@ -95,15 +95,13 @@ static int pcspkr_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int pcspkr_remove(struct platform_device *dev)
+static void pcspkr_remove(struct platform_device *dev)
 {
 	struct input_dev *pcspkr_dev = platform_get_drvdata(dev);
 
 	input_unregister_device(pcspkr_dev);
 	/* turn off the speaker */
 	pcspkr_event(NULL, EV_SND, SND_BELL, 0);
-
-	return 0;
 }
 
 static int pcspkr_suspend(struct device *dev)
@@ -129,7 +127,7 @@ static struct platform_driver pcspkr_platform_driver = {
 		.pm	= &pcspkr_pm_ops,
 	},
 	.probe		= pcspkr_probe,
-	.remove		= pcspkr_remove,
+	.remove_new	= pcspkr_remove,
 	.shutdown	= pcspkr_shutdown,
 };
 module_platform_driver(pcspkr_platform_driver);

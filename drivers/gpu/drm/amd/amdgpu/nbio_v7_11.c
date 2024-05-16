@@ -89,7 +89,9 @@ static void nbio_v7_11_vpe_doorbell_range(struct amdgpu_device *adev, int instan
 					  bool use_doorbell, int doorbell_index,
 					  int doorbell_size)
 {
-	u32 reg = SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VPE_DOORBELL_RANGE);
+	u32 reg = instance == 0 ?
+		  SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VPE_DOORBELL_RANGE) :
+		  SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VPE1_DOORBELL_RANGE);
 	u32 doorbell_range = RREG32_PCIE_PORT(reg);
 
 	if (use_doorbell) {
@@ -112,7 +114,10 @@ static void nbio_v7_11_vcn_doorbell_range(struct amdgpu_device *adev,
 					  bool use_doorbell,
 					  int doorbell_index, int instance)
 {
-	u32 reg = SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VCN0_DOORBELL_RANGE);
+	u32 reg = instance == 0 ?
+		SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VCN0_DOORBELL_RANGE):
+		SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VCN1_DOORBELL_RANGE);
+
 	u32 doorbell_range = RREG32_PCIE_PORT(reg);
 
 	if (use_doorbell) {
@@ -259,17 +264,92 @@ const struct nbio_hdp_flush_reg nbio_v7_11_hdp_flush_reg = {
 
 static void nbio_v7_11_init_registers(struct amdgpu_device *adev)
 {
-/*	uint32_t def, data;
+	uint32_t def, data;
 
-		def = data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3);
-		data = REG_SET_FIELD(data, BIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3,
-			CI_SWUS_MAX_READ_REQUEST_SIZE_MODE, 1);
-		data = REG_SET_FIELD(data, BIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3,
-			CI_SWUS_MAX_READ_REQUEST_SIZE_PRIV, 1);
+	def = data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3);
+	data = REG_SET_FIELD(data, BIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3,
+				CI_SWUS_MAX_READ_REQUEST_SIZE_MODE, 1);
+	data = REG_SET_FIELD(data, BIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3,
+				CI_SWUS_MAX_READ_REQUEST_SIZE_PRIV, 1);
 
-		if (def != data)
-			WREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3, data);
-*/
+	if (def != data)
+		WREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3, data);
+
+}
+
+static void nbio_v7_11_update_medium_grain_clock_gating(struct amdgpu_device *adev,
+						       bool enable)
+{
+	uint32_t def, data;
+
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_BIF_MGCG))
+		return;
+
+	def = data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL);
+	if (enable) {
+		data |= (BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK |
+			 BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__TXCLK_DYN_GATE_ENABLE_MASK |
+			 BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__TXCLK_LCNT_GATE_ENABLE_MASK |
+			 BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__TXCLK_REGS_GATE_ENABLE_MASK |
+			 BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__TXCLK_PRBS_GATE_ENABLE_MASK |
+			 BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__REFCLK_REGS_GATE_ENABLE_MASK);
+	} else {
+		data &= ~(BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK |
+			  BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__TXCLK_DYN_GATE_ENABLE_MASK |
+			  BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__TXCLK_LCNT_GATE_ENABLE_MASK |
+			  BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__TXCLK_REGS_GATE_ENABLE_MASK |
+			  BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__TXCLK_PRBS_GATE_ENABLE_MASK |
+			  BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__REFCLK_REGS_GATE_ENABLE_MASK);
+	}
+
+	if (def != data)
+		WREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL, data);
+}
+
+static void nbio_v7_11_update_medium_grain_light_sleep(struct amdgpu_device *adev,
+						      bool enable)
+{
+	uint32_t def, data;
+
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_BIF_LS))
+		return;
+
+	def = data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2);
+	if (enable)
+		data |= BIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2__SLV_MEM_LS_EN_MASK;
+	else
+		data &= ~BIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2__SLV_MEM_LS_EN_MASK;
+
+	if (def != data)
+		WREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2, data);
+
+	def = data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1);
+	if (enable) {
+		data |= (BIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1__MST_MEM_LS_EN_MASK |
+			BIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1__REPLAY_MEM_LS_EN_MASK);
+	} else {
+		data &= ~(BIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1__MST_MEM_LS_EN_MASK |
+			BIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1__REPLAY_MEM_LS_EN_MASK);
+	}
+
+	if (def != data)
+		WREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1, data);
+}
+
+static void nbio_v7_11_get_clockgating_state(struct amdgpu_device *adev,
+					    u64 *flags)
+{
+	uint32_t data;
+
+	/* AMD_CG_SUPPORT_BIF_MGCG */
+	data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL);
+	if (data & BIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_BIF_MGCG;
+
+	/* AMD_CG_SUPPORT_BIF_LS */
+	data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2);
+	if (data & BIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2__SLV_MEM_LS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_BIF_LS;
 }
 
 const struct amdgpu_nbio_funcs nbio_v7_11_funcs = {
@@ -288,6 +368,9 @@ const struct amdgpu_nbio_funcs nbio_v7_11_funcs = {
 	.enable_doorbell_aperture = nbio_v7_11_enable_doorbell_aperture,
 	.enable_doorbell_selfring_aperture = nbio_v7_11_enable_doorbell_selfring_aperture,
 	.ih_doorbell_range = nbio_v7_11_ih_doorbell_range,
+	.update_medium_grain_clock_gating = nbio_v7_11_update_medium_grain_clock_gating,
+	.update_medium_grain_light_sleep = nbio_v7_11_update_medium_grain_light_sleep,
+	.get_clockgating_state = nbio_v7_11_get_clockgating_state,
 	.ih_control = nbio_v7_11_ih_control,
 	.init_registers = nbio_v7_11_init_registers,
 	.remap_hdp_registers = nbio_v7_11_remap_hdp_registers,

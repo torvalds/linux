@@ -300,7 +300,7 @@ err:
 	return res;
 }
 
-static int mpc85xx_pci_err_remove(struct platform_device *op)
+static void mpc85xx_pci_err_remove(struct platform_device *op)
 {
 	struct edac_pci_ctl_info *pci = dev_get_drvdata(&op->dev);
 	struct mpc85xx_pci_pdata *pdata = pci->pvt_info;
@@ -312,8 +312,6 @@ static int mpc85xx_pci_err_remove(struct platform_device *op)
 
 	edac_pci_del_device(&op->dev);
 	edac_pci_free_ctl_info(pci);
-
-	return 0;
 }
 
 static const struct platform_device_id mpc85xx_pci_err_match[] = {
@@ -325,7 +323,7 @@ static const struct platform_device_id mpc85xx_pci_err_match[] = {
 
 static struct platform_driver mpc85xx_pci_err_driver = {
 	.probe = mpc85xx_pci_err_probe,
-	.remove = mpc85xx_pci_err_remove,
+	.remove_new = mpc85xx_pci_err_remove,
 	.id_table = mpc85xx_pci_err_match,
 	.driver = {
 		.name = "mpc85xx_pci_err",
@@ -591,7 +589,7 @@ err:
 	return res;
 }
 
-static int mpc85xx_l2_err_remove(struct platform_device *op)
+static void mpc85xx_l2_err_remove(struct platform_device *op)
 {
 	struct edac_device_ctl_info *edac_dev = dev_get_drvdata(&op->dev);
 	struct mpc85xx_l2_pdata *pdata = edac_dev->pvt_info;
@@ -606,7 +604,6 @@ static int mpc85xx_l2_err_remove(struct platform_device *op)
 	out_be32(pdata->l2_vbase + MPC85XX_L2_ERRDIS, orig_l2_err_disable);
 	edac_device_del_device(&op->dev);
 	edac_device_free_ctl_info(edac_dev);
-	return 0;
 }
 
 static const struct of_device_id mpc85xx_l2_err_of_match[] = {
@@ -630,7 +627,7 @@ MODULE_DEVICE_TABLE(of, mpc85xx_l2_err_of_match);
 
 static struct platform_driver mpc85xx_l2_err_driver = {
 	.probe = mpc85xx_l2_err_probe,
-	.remove = mpc85xx_l2_err_remove,
+	.remove_new = mpc85xx_l2_err_remove,
 	.driver = {
 		.name = "mpc85xx_l2_err",
 		.of_match_table = mpc85xx_l2_err_of_match,
@@ -659,7 +656,7 @@ MODULE_DEVICE_TABLE(of, mpc85xx_mc_err_of_match);
 
 static struct platform_driver mpc85xx_mc_err_driver = {
 	.probe = fsl_mc_err_probe,
-	.remove = fsl_mc_err_remove,
+	.remove_new = fsl_mc_err_remove,
 	.driver = {
 		.name = "mpc85xx_mc_err",
 		.of_match_table = mpc85xx_mc_err_of_match,

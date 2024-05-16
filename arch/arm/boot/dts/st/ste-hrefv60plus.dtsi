@@ -3,7 +3,6 @@
  * Copyright 2012 ST-Ericsson AB
  */
 
-#include "ste-href-ab8500.dtsi"
 #include "ste-href.dtsi"
 
 / {
@@ -191,7 +190,7 @@
 
 		// External Micro SD slot
 		mmc@80126000 {
-			cd-gpios  = <&gpio2 31 GPIO_ACTIVE_HIGH>; // 95
+			cd-gpios = <&gpio2 31 GPIO_ACTIVE_HIGH>; // 95
 		};
 
 		pinctrl {

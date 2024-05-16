@@ -68,6 +68,8 @@ struct locomo {
 #endif
 };
 
+static const struct bus_type locomo_bus_type;
+
 struct locomo_dev_info {
 	unsigned long	offset;
 	unsigned long	length;
@@ -842,7 +844,7 @@ static void locomo_bus_remove(struct device *dev)
 		drv->remove(ldev);
 }
 
-struct bus_type locomo_bus_type = {
+static const struct bus_type locomo_bus_type = {
 	.name		= "locomo-bus",
 	.match		= locomo_match,
 	.probe		= locomo_bus_probe,

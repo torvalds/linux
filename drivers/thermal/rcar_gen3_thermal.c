@@ -428,18 +428,20 @@ static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
 		.compatible = "renesas,r8a779g0-thermal",
 		.data = &rcar_gen4_thermal_info,
 	},
+	{
+		.compatible = "renesas,r8a779h0-thermal",
+		.data = &rcar_gen4_thermal_info,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcar_gen3_thermal_dt_ids);
 
-static int rcar_gen3_thermal_remove(struct platform_device *pdev)
+static void rcar_gen3_thermal_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static void rcar_gen3_hwmon_action(void *data)
@@ -594,7 +596,7 @@ static struct platform_driver rcar_gen3_thermal_driver = {
 		.of_match_table = rcar_gen3_thermal_dt_ids,
 	},
 	.probe		= rcar_gen3_thermal_probe,
-	.remove		= rcar_gen3_thermal_remove,
+	.remove_new	= rcar_gen3_thermal_remove,
 };
 module_platform_driver(rcar_gen3_thermal_driver);
 

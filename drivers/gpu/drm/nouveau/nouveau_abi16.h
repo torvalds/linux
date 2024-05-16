@@ -26,7 +26,7 @@ struct nouveau_abi16_chan {
 	struct nouveau_bo *ntfy;
 	struct nouveau_vma *ntfy_vma;
 	struct nvkm_mm  heap;
-	struct nouveau_sched_entity sched_entity;
+	struct nouveau_sched *sched;
 };
 
 struct nouveau_abi16 {
@@ -48,18 +48,6 @@ struct drm_nouveau_grobj_alloc {
 	int      channel;
 	uint32_t handle;
 	int      class;
-};
-
-struct drm_nouveau_notifierobj_alloc {
-	uint32_t channel;
-	uint32_t handle;
-	uint32_t size;
-	uint32_t offset;
-};
-
-struct drm_nouveau_gpuobj_free {
-	int      channel;
-	uint32_t handle;
 };
 
 struct drm_nouveau_setparam {

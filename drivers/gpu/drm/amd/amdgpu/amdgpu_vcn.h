@@ -160,6 +160,48 @@
 		}                                                                     \
 	} while (0)
 
+#define SOC24_DPG_MODE_OFFSET(ip, inst_idx, reg)						\
+	({											\
+		uint32_t internal_reg_offset, addr;						\
+		bool video_range, aon_range;				\
+												\
+		addr = (adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg);		\
+		addr <<= 2;									\
+		video_range = ((((0xFFFFF & addr) >= (VCN_VID_SOC_ADDRESS)) &&			\
+				((0xFFFFF & addr) < ((VCN_VID_SOC_ADDRESS + 0x2600)))));	\
+		aon_range   = ((((0xFFFFF & addr) >= (VCN_AON_SOC_ADDRESS)) &&			\
+				((0xFFFFF & addr) < ((VCN_AON_SOC_ADDRESS + 0x600)))));		\
+		if (video_range)								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN_VID_SOC_ADDRESS) +	\
+				(VCN_VID_IP_ADDRESS));						\
+		else if (aon_range)								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN_AON_SOC_ADDRESS) +	\
+				(VCN_AON_IP_ADDRESS));						\
+		else										\
+			internal_reg_offset = (0xFFFFF & addr);					\
+												\
+		internal_reg_offset >>= 2;							\
+	})
+
+#define WREG32_SOC24_DPG_MODE(inst_idx, offset, value, mask_en, indirect)		\
+	do {										\
+		if (!indirect) {							\
+			WREG32_SOC15(VCN, GET_INST(VCN, inst_idx),			\
+				     regUVD_DPG_LMA_DATA, value);			\
+			WREG32_SOC15(							\
+				VCN, GET_INST(VCN, inst_idx),				\
+				regUVD_DPG_LMA_CTL,					\
+				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |		\
+				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |		\
+				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));	\
+		} else {								\
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ =		\
+				offset;							\
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ =		\
+				value;							\
+		}									\
+	} while (0)
+
 #define AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE (1 << 2)
 #define AMDGPU_FW_SHARED_FLAG_0_DRM_KEY_INJECT (1 << 4)
 #define AMDGPU_VCN_FW_SHARED_FLAG_0_RB	(1 << 6)
@@ -169,6 +211,9 @@
 #define AMDGPU_VCN_SMU_VERSION_INFO_FLAG (1 << 11)
 #define AMDGPU_VCN_SMU_DPM_INTERFACE_FLAG (1 << 11)
 #define AMDGPU_VCN_VF_RB_SETUP_FLAG (1 << 14)
+#define AMDGPU_VCN_VF_RB_DECOUPLE_FLAG (1 << 15)
+
+#define MAX_NUM_VCN_RB_SETUP 4
 
 #define AMDGPU_VCN_IB_FLAG_DECODE_BUFFER	0x00000001
 #define AMDGPU_VCN_CMD_FLAG_MSG_BUFFER		0x00000001
@@ -261,7 +306,7 @@ struct amdgpu_vcn_ras {
 struct amdgpu_vcn {
 	unsigned		fw_version;
 	struct delayed_work	idle_work;
-	const struct firmware	*fw;	/* VCN firmware */
+	const struct firmware	*fw[AMDGPU_MAX_VCN_INSTANCES];	/* VCN firmware */
 	unsigned		num_enc_rings;
 	enum amd_powergating_state cur_state;
 	bool			indirect_sram;
@@ -335,20 +380,40 @@ struct amdgpu_fw_shared {
 	struct amdgpu_fw_shared_smu_interface_info smu_interface_info;
 };
 
+struct amdgpu_vcn_rb_setup_info {
+	uint32_t  rb_addr_lo;
+	uint32_t  rb_addr_hi;
+	uint32_t  rb_size;
+};
+
 struct amdgpu_fw_shared_rb_setup {
 	uint32_t is_rb_enabled_flags;
-	uint32_t rb_addr_lo;
-	uint32_t rb_addr_hi;
-	uint32_t  rb_size;
-	uint32_t  rb4_addr_lo;
-	uint32_t  rb4_addr_hi;
-	uint32_t  rb4_size;
-	uint32_t  reserved[6];
+
+	union {
+		struct {
+			uint32_t rb_addr_lo;
+			uint32_t rb_addr_hi;
+			uint32_t  rb_size;
+			uint32_t  rb4_addr_lo;
+			uint32_t  rb4_addr_hi;
+			uint32_t  rb4_size;
+			uint32_t  reserved[6];
+		};
+
+		struct {
+			struct amdgpu_vcn_rb_setup_info rb_info[MAX_NUM_VCN_RB_SETUP];
+		};
+	};
 };
 
 struct amdgpu_fw_shared_drm_key_wa {
 	uint8_t  method;
 	uint8_t  reserved[3];
+};
+
+struct amdgpu_fw_shared_queue_decouple {
+	uint8_t  is_enabled;
+	uint8_t  reserved[7];
 };
 
 struct amdgpu_vcn4_fw_shared {
@@ -361,6 +426,8 @@ struct amdgpu_vcn4_fw_shared {
 	struct amdgpu_fw_shared_rb_setup rb_setup;
 	struct amdgpu_fw_shared_smu_interface_info smu_dpm_interface;
 	struct amdgpu_fw_shared_drm_key_wa drm_key_wa;
+	uint8_t pad3[9];
+	struct amdgpu_fw_shared_queue_decouple decouple;
 };
 
 struct amdgpu_vcn_fwlog {
@@ -376,6 +443,25 @@ struct amdgpu_vcn_decode_buffer {
 	uint32_t msg_buffer_address_hi;
 	uint32_t msg_buffer_address_lo;
 	uint32_t pad[30];
+};
+
+struct amdgpu_vcn_rb_metadata {
+	uint32_t size;
+	uint32_t present_flag_0;
+
+	uint8_t version;
+	uint8_t ring_id;
+	uint8_t pad[26];
+};
+
+struct amdgpu_vcn5_fw_shared {
+	uint32_t present_flag_0;
+	uint8_t pad[12];
+	struct amdgpu_fw_shared_unified_queue_struct sq;
+	uint8_t pad1[8];
+	struct amdgpu_fw_shared_fw_logging fw_log;
+	struct amdgpu_fw_shared_rb_setup rb_setup;
+	uint8_t pad2[4];
 };
 
 #define VCN_BLOCK_ENCODE_DISABLE_MASK 0x80

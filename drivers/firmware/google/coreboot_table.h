@@ -13,6 +13,7 @@
 #define __COREBOOT_TABLE_H
 
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 
 /* Coreboot table header structure */
 struct coreboot_table_header {
@@ -93,7 +94,7 @@ struct coreboot_driver {
 	int (*probe)(struct coreboot_device *);
 	void (*remove)(struct coreboot_device *);
 	struct device_driver drv;
-	u32 tag;
+	const struct coreboot_device_id *id_table;
 };
 
 /* Register a driver that uses the data from a coreboot table. */

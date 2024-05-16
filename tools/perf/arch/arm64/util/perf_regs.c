@@ -16,7 +16,7 @@
 #define HWCAP_SVE	(1 << 22)
 #endif
 
-const struct sample_reg sample_reg_masks[] = {
+static const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(x0, PERF_REG_ARM64_X0),
 	SMPL_REG(x1, PERF_REG_ARM64_X1),
 	SMPL_REG(x2, PERF_REG_ARM64_X2),
@@ -174,4 +174,9 @@ uint64_t arch__user_reg_mask(void)
 		}
 	}
 	return PERF_REGS_MASK;
+}
+
+const struct sample_reg *arch__sample_reg_masks(void)
+{
+	return sample_reg_masks;
 }

@@ -225,25 +225,6 @@ void irq_raise(
 	return;
 }
 
-void irq_controller_get_state(const irq_ID_t ID,
-			      struct irq_controller_state *state)
-{
-	assert(ID < N_IRQ_ID);
-	assert(state);
-
-	state->irq_edge = irq_reg_load(ID,
-				       _HRT_IRQ_CONTROLLER_EDGE_REG_IDX);
-	state->irq_mask = irq_reg_load(ID,
-				       _HRT_IRQ_CONTROLLER_MASK_REG_IDX);
-	state->irq_status = irq_reg_load(ID,
-					 _HRT_IRQ_CONTROLLER_STATUS_REG_IDX);
-	state->irq_enable = irq_reg_load(ID,
-					 _HRT_IRQ_CONTROLLER_ENABLE_REG_IDX);
-	state->irq_level_not_pulse = irq_reg_load(ID,
-				     _HRT_IRQ_CONTROLLER_EDGE_NOT_PULSE_REG_IDX);
-	return;
-}
-
 bool any_virq_signal(void)
 {
 	unsigned int irq_status = irq_reg_load(IRQ0_ID,

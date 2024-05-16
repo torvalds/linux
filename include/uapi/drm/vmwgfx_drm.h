@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
 /**************************************************************************
  *
- * Copyright © 2009-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2023 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -902,7 +903,8 @@ struct drm_vmw_shader_arg {
 /**
  * enum drm_vmw_surface_flags
  *
- * @drm_vmw_surface_flag_shareable:     Whether the surface is shareable
+ * @drm_vmw_surface_flag_shareable:     Deprecated - all userspace surfaces are
+ *                                      shareable.
  * @drm_vmw_surface_flag_scanout:       Whether the surface is a scanout
  *                                      surface.
  * @drm_vmw_surface_flag_create_buffer: Create a backup buffer if none is

@@ -56,6 +56,16 @@ config REGULATOR_USERSPACE_CONSUMER
 
 	  If unsure, say no.
 
+config REGULATOR_NETLINK_EVENTS
+	bool "Enable support for receiving regulator events via netlink"
+	depends on NET
+	help
+	  Enabling this option allows the kernel to broadcast regulator events using
+	  the netlink mechanism. User-space applications can subscribe to these events
+	  for real-time updates on various regulator events.
+
+	  If unsure, say no.
+
 config REGULATOR_88PG86X
 	tristate "Marvell 88PG86X voltage regulators"
 	depends on I2C
@@ -278,7 +288,7 @@ config REGULATOR_CROS_EC
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
-	depends on !CC_IS_CLANG # https://bugs.llvm.org/show_bug.cgi?id=38789
+	depends on !CC_IS_CLANG # https://llvm.org/pr38789
 	help
 	  Say y here to support the BUCKs and LDOs regulators found on
 	  Dialog Semiconductor DA9030/DA9034 PMIC.
@@ -563,6 +573,16 @@ config REGULATOR_MAX5970
 	  This driver controls a Maxim 5970/5978 switch via I2C bus.
 	  The MAX5970/5978 is a smart switch with no output regulation, but
 	  fault protection and voltage and current monitoring capabilities.
+
+config REGULATOR_MAX77503
+	tristate "Analog Devices MAX77503 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls a Analog Devices MAX77503 14V input, 1.5A
+	  high-efficiency buck converter via I2C bus.
+	  Say M here if you want to include support for the regulator as a
+	  module.
 
 config REGULATOR_MAX77541
 	tristate "Analog Devices MAX77541/77540 Regulator"

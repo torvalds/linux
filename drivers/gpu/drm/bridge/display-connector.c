@@ -81,12 +81,12 @@ display_connector_detect(struct drm_bridge *bridge)
 	}
 }
 
-static struct edid *display_connector_get_edid(struct drm_bridge *bridge,
-					       struct drm_connector *connector)
+static const struct drm_edid *display_connector_edid_read(struct drm_bridge *bridge,
+							  struct drm_connector *connector)
 {
 	struct display_connector *conn = to_display_connector(bridge);
 
-	return drm_get_edid(connector, conn->bridge.ddc);
+	return drm_edid_read_ddc(connector, conn->bridge.ddc);
 }
 
 /*
@@ -172,7 +172,7 @@ static u32 *display_connector_get_input_bus_fmts(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs display_connector_bridge_funcs = {
 	.attach = display_connector_attach,
 	.detect = display_connector_detect,
-	.get_edid = display_connector_get_edid,
+	.edid_read = display_connector_edid_read,
 	.atomic_get_output_bus_fmts = display_connector_get_output_bus_fmts,
 	.atomic_get_input_bus_fmts = display_connector_get_input_bus_fmts,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,

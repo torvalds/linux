@@ -156,6 +156,12 @@
 #define WILC_GP_REG_0			0x149c
 #define WILC_GP_REG_1			0x14a0
 
+#define GLOBAL_MODE_CONTROL		0x1614
+#define PWR_SEQ_MISC_CTRL		0x3008
+
+#define WILC_GLOBAL_MODE_ENABLE_WIFI	BIT(0)
+#define WILC_PWR_SEQ_ENABLE_WIFI_SLEEP	BIT(28)
+
 #define WILC_HAVE_SDIO_IRQ_GPIO		BIT(0)
 #define WILC_HAVE_USE_PMU		BIT(1)
 #define WILC_HAVE_SLEEP_CLK_SRC_RTC	BIT(2)
@@ -402,6 +408,11 @@ struct wilc_cfg_rsp {
 };
 
 struct wilc_vif;
+
+static inline bool is_wilc1000(u32 id)
+{
+	return (id & (~WILC_CHIP_REV_FIELD)) == WILC_1000_BASE_ID;
+}
 
 int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 				u32 buffer_size);

@@ -29,13 +29,7 @@ properties:
   interrupts:
     maxItems: 1
 
-  interrupt-controller: true
-  "#interrupt-cells": true
-  gpio-controller: true
-  "#gpio-cells": true
-  gpio-ranges: true
   gpio-reserved-ranges: true
-  wakeup-parent: true
 
 patternProperties:
   "-state$":
@@ -97,7 +91,7 @@ required:
   - reg
   - reg-names
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

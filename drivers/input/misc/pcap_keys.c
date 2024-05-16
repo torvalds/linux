@@ -99,7 +99,7 @@ fail:
 	return err;
 }
 
-static int pcap_keys_remove(struct platform_device *pdev)
+static void pcap_keys_remove(struct platform_device *pdev)
 {
 	struct pcap_keys *pcap_keys = platform_get_drvdata(pdev);
 
@@ -108,13 +108,11 @@ static int pcap_keys_remove(struct platform_device *pdev)
 
 	input_unregister_device(pcap_keys->input);
 	kfree(pcap_keys);
-
-	return 0;
 }
 
 static struct platform_driver pcap_keys_device_driver = {
 	.probe		= pcap_keys_probe,
-	.remove		= pcap_keys_remove,
+	.remove_new	= pcap_keys_remove,
 	.driver		= {
 		.name	= "pcap-keys",
 	}

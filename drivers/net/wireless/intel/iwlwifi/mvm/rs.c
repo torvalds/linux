@@ -4161,6 +4161,8 @@ static int rs_drv_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
  * @mvm: The mvm component
  * @mvmsta: The station
  * @enable: Enable Tx protection?
+ *
+ * Returns: an error code
  */
 int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			  bool enable)

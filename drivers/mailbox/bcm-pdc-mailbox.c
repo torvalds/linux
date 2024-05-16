@@ -33,10 +33,9 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox/brcm-message.h>
@@ -1494,7 +1493,6 @@ static int pdc_dt_read(struct platform_device *pdev, struct pdc_state *pdcs)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = pdev->dev.of_node;
-	const struct of_device_id *match;
 	const int *hw_type;
 	int err;
 
@@ -1509,11 +1507,9 @@ static int pdc_dt_read(struct platform_device *pdev, struct pdc_state *pdcs)
 
 	pdcs->hw_type = PDC_HW;
 
-	match = of_match_device(of_match_ptr(pdc_mbox_of_match), dev);
-	if (match != NULL) {
-		hw_type = match->data;
+	hw_type = device_get_match_data(dev);
+	if (hw_type)
 		pdcs->hw_type = *hw_type;
-	}
 
 	return 0;
 }
@@ -1609,7 +1605,7 @@ cleanup:
 	return err;
 }
 
-static int pdc_remove(struct platform_device *pdev)
+static void pdc_remove(struct platform_device *pdev)
 {
 	struct pdc_state *pdcs = platform_get_drvdata(pdev);
 
@@ -1621,12 +1617,11 @@ static int pdc_remove(struct platform_device *pdev)
 
 	dma_pool_destroy(pdcs->rx_buf_pool);
 	dma_pool_destroy(pdcs->ring_pool);
-	return 0;
 }
 
 static struct platform_driver pdc_mbox_driver = {
 	.probe = pdc_probe,
-	.remove = pdc_remove,
+	.remove_new = pdc_remove,
 	.driver = {
 		   .name = "brcm-iproc-pdc-mbox",
 		   .of_match_table = pdc_mbox_of_match,

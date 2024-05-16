@@ -20,24 +20,6 @@
 
 #define HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES 2
 
-u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates)
-{
-	int i;
-	u32 ret = 0;
-	/* The device only supports 2GHz */
-	struct ieee80211_supported_band *sband = wdev->hw->wiphy->bands[NL80211_BAND_2GHZ];
-
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if (rates & BIT(i)) {
-			if (i >= sband->n_bitrates)
-				dev_warn(wdev->dev, "unsupported basic rate\n");
-			else
-				ret |= BIT(sband->bitrates[i].hw_value);
-		}
-	}
-	return ret;
-}
-
 void wfx_cooling_timeout_work(struct work_struct *work)
 {
 	struct wfx_dev *wdev = container_of(to_delayed_work(work), struct wfx_dev,
@@ -114,10 +96,12 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	*total_flags &= FIF_BCN_PRBRESP_PROMISC | FIF_ALLMULTI | FIF_OTHER_BSS |
 			FIF_PROBE_REQ | FIF_PSPOLL;
 
+	/* Filters are ignored during the scan. No frames are filtered. */
+	if (mutex_is_locked(&wdev->scan_lock))
+		return;
+
 	mutex_lock(&wdev->conf_mutex);
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		mutex_lock(&wvif->scan_lock);
-
 		/* Note: FIF_BCN_PRBRESP_PROMISC covers probe response and
 		 * beacons from other BSS
 		 */
@@ -144,8 +128,6 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		else
 			filter_prbreq = true;
 		wfx_hif_set_rx_filter(wvif, filter_bssid, filter_prbreq);
-
-		mutex_unlock(&wvif->scan_lock);
 	}
 	mutex_unlock(&wdev->conf_mutex);
 }
@@ -162,13 +144,13 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 		struct wfx_vif *wvif_ch0 = wdev_to_wvif(wvif->wdev, 0);
 		struct ieee80211_vif *vif_ch0 = wvif_to_vif(wvif_ch0);
 
-		chan0 = vif_ch0->bss_conf.chandef.chan;
+		chan0 = vif_ch0->bss_conf.chanreq.oper.chan;
 	}
 	if (wdev_to_wvif(wvif->wdev, 1)) {
 		struct wfx_vif *wvif_ch1 = wdev_to_wvif(wvif->wdev, 1);
 		struct ieee80211_vif *vif_ch1 = wvif_to_vif(wvif_ch1);
 
-		chan1 = vif_ch1->bss_conf.chandef.chan;
+		chan1 = vif_ch1->bss_conf.chanreq.oper.chan;
 	}
 	if (chan0 && chan1 && vif->type != NL80211_IFTYPE_AP) {
 		if (chan0->hw_value == chan1->hw_value) {
@@ -354,29 +336,43 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 	return 0;
 }
 
-static void wfx_set_mfp_ap(struct wfx_vif *wvif)
+static int wfx_set_mfp_ap(struct wfx_vif *wvif)
 {
 	struct ieee80211_vif *vif = wvif_to_vif(wvif);
 	struct sk_buff *skb = ieee80211_beacon_get(wvif->wdev->hw, vif, 0);
 	const int ieoffset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
-	const u16 *ptr = (u16 *)cfg80211_find_ie(WLAN_EID_RSN, skb->data + ieoffset,
-						 skb->len - ieoffset);
 	const int pairwise_cipher_suite_count_offset = 8 / sizeof(u16);
 	const int pairwise_cipher_suite_size = 4 / sizeof(u16);
 	const int akm_suite_size = 4 / sizeof(u16);
+	int ret = -EINVAL;
+	const u16 *ptr;
 
-	if (ptr) {
-		ptr += pairwise_cipher_suite_count_offset;
-		if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
-			return;
-		ptr += 1 + pairwise_cipher_suite_size * *ptr;
-		if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
-			return;
-		ptr += 1 + akm_suite_size * *ptr;
-		if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
-			return;
-		wfx_hif_set_mfp(wvif, *ptr & BIT(7), *ptr & BIT(6));
-	}
+	if (unlikely(!skb))
+		return -ENOMEM;
+
+	ptr = (u16 *)cfg80211_find_ie(WLAN_EID_RSN, skb->data + ieoffset,
+				      skb->len - ieoffset);
+	if (unlikely(!ptr))
+		goto free_skb;
+
+	ptr += pairwise_cipher_suite_count_offset;
+	if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
+		goto free_skb;
+
+	ptr += 1 + pairwise_cipher_suite_size * *ptr;
+	if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
+		goto free_skb;
+
+	ptr += 1 + akm_suite_size * *ptr;
+	if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
+		goto free_skb;
+
+	wfx_hif_set_mfp(wvif, *ptr & BIT(7), *ptr & BIT(6));
+	ret = 0;
+
+free_skb:
+	dev_kfree_skb(skb);
+	return ret;
 }
 
 int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -394,15 +390,19 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	ret = wfx_hif_start(wvif, &vif->bss_conf, wvif->channel);
 	if (ret > 0)
 		return -EIO;
-	wfx_set_mfp_ap(wvif);
-	return ret;
+	return wfx_set_mfp_ap(wvif);
 }
 
 void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		 struct ieee80211_bss_conf *link_conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+	struct wfx_dev *wdev = wvif->wdev;
 
+	wvif =  NULL;
+	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
+		wfx_update_pm(wvif);
+	wvif = (struct wfx_vif *)vif->drv_priv;
 	wfx_reset(wvif);
 }
 
@@ -634,18 +634,14 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 
 void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd)
 {
-	struct wfx_vif *wvif_it;
-
 	if (notify_cmd != STA_NOTIFY_AWAKE)
 		return;
 
 	/* Device won't be able to honor CAB if a scan is in progress on any interface. Prefer to
 	 * skip this DTIM and wait for the next one.
 	 */
-	wvif_it = NULL;
-	while ((wvif_it = wvif_iterate(wvif->wdev, wvif_it)) != NULL)
-		if (mutex_is_locked(&wvif_it->scan_lock))
-			return;
+	if (mutex_is_locked(&wvif->wdev->scan_lock))
+		return;
 
 	if (!wfx_tx_queues_has_cab(wvif) || wvif->after_dtim_tx_allowed)
 		dev_warn(wvif->wdev->dev, "incorrect sequence (%d CAB in queue)",
@@ -743,9 +739,9 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	complete(&wvif->set_pm_mode_complete);
 	INIT_WORK(&wvif->tx_policy_upload_work, wfx_tx_policy_upload_work);
 
-	mutex_init(&wvif->scan_lock);
 	init_completion(&wvif->scan_complete);
 	INIT_WORK(&wvif->scan_work, wfx_hw_scan_work);
+	INIT_WORK(&wvif->remain_on_channel_work, wfx_remain_on_channel_work);
 
 	wfx_tx_queues_init(wvif);
 	wfx_tx_policy_init(wvif);

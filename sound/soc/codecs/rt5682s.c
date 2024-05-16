@@ -1323,9 +1323,9 @@ static int set_i2s_event(struct snd_soc_dapm_widget *w,
 	if (SND_SOC_DAPM_EVENT_ON(event))
 		on = 1;
 
-	if (!strcmp(w->name, "I2S1") && !rt5682s->wclk_enabled)
+	if (!snd_soc_dapm_widget_name_cmp(w, "I2S1") && !rt5682s->wclk_enabled)
 		rt5682s_set_i2s(rt5682s, RT5682S_AIF1, on);
-	else if (!strcmp(w->name, "I2S2"))
+	else if (!snd_soc_dapm_widget_name_cmp(w, "I2S2"))
 		rt5682s_set_i2s(rt5682s, RT5682S_AIF2, on);
 
 	return 0;
@@ -2971,6 +2971,8 @@ static int rt5682s_parse_dt(struct rt5682s_priv *rt5682s, struct device *dev)
 		&rt5682s->pdata.dmic_delay);
 	device_property_read_u32(dev, "realtek,amic-delay-ms",
 		&rt5682s->pdata.amic_delay);
+	device_property_read_u32(dev, "realtek,ldo-sel",
+		&rt5682s->pdata.ldo_dacref);
 
 	if (device_property_read_string_array(dev, "clock-output-names",
 					      rt5682s->pdata.dai_clk_names,
@@ -3250,6 +3252,27 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c)
 		break;
 	}
 
+	/* LDO output voltage control */
+	switch (rt5682s->pdata.ldo_dacref) {
+	case RT5682S_LDO_1_607V:
+		break;
+	case RT5682S_LDO_1_5V:
+		regmap_update_bits(rt5682s->regmap, RT5682S_BIAS_CUR_CTRL_7,
+			RT5682S_LDO_DACREF_MASK, RT5682S_LDO_DACREF_1_5V);
+		break;
+	case RT5682S_LDO_1_406V:
+		regmap_update_bits(rt5682s->regmap, RT5682S_BIAS_CUR_CTRL_7,
+			RT5682S_LDO_DACREF_MASK, RT5682S_LDO_DACREF_1_406V);
+		break;
+	case RT5682S_LDO_1_731V:
+		regmap_update_bits(rt5682s->regmap, RT5682S_BIAS_CUR_CTRL_7,
+			RT5682S_LDO_DACREF_MASK, RT5682S_LDO_DACREF_1_731V);
+		break;
+	default:
+		dev_warn(&i2c->dev, "invalid LDO output setting.\n");
+		break;
+	}
+
 	INIT_DELAYED_WORK(&rt5682s->jack_detect_work, rt5682s_jack_detect_handler);
 	INIT_DELAYED_WORK(&rt5682s->jd_check_work, rt5682s_jd_check_handler);
 
@@ -3260,7 +3283,7 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c)
 		if (!ret)
 			rt5682s->irq = i2c->irq;
 		else
-			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
+			dev_err(&i2c->dev, "Failed to request IRQ: %d\n", ret);
 	}
 
 	return devm_snd_soc_register_component(&i2c->dev, &rt5682s_soc_component_dev,

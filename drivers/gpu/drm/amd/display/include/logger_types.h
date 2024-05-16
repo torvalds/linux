@@ -64,6 +64,7 @@
 #define DC_LOG_DWB(...) drm_dbg((DC_LOGGER)->dev, __VA_ARGS__)
 #define DC_LOG_DP2(...) drm_dbg_dp((DC_LOGGER)->dev, __VA_ARGS__)
 #define DC_LOG_AUTO_DPM_TEST(...) pr_debug("[AutoDPMTest]: "__VA_ARGS__)
+#define DC_LOG_IPS(...) pr_debug("[IPS]: "__VA_ARGS__)
 
 struct dc_log_buffer_ctx {
 	char *buf;

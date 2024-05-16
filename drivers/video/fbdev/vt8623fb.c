@@ -390,8 +390,13 @@ static int vt8623fb_set_par(struct fb_info *info)
 		info->tileops = NULL;
 
 		/* in 4bpp supports 8p wide tiles only, any tiles otherwise */
-		info->pixmap.blit_x = (bpp == 4) ? (1 << (8 - 1)) : (~(u32)0);
-		info->pixmap.blit_y = ~(u32)0;
+		if (bpp == 4) {
+			bitmap_zero(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+			set_bit(8 - 1, info->pixmap.blit_x);
+		} else {
+			bitmap_fill(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+		}
+		bitmap_fill(info->pixmap.blit_y, FB_MAX_BLIT_HEIGHT);
 
 		offset_value = (info->var.xres_virtual * bpp) / 64;
 		fetch_value  = ((info->var.xres * bpp) / 128) + 4;
@@ -408,8 +413,10 @@ static int vt8623fb_set_par(struct fb_info *info)
 		info->tileops = &vt8623fb_tile_ops;
 
 		/* supports 8x16 tiles only */
-		info->pixmap.blit_x = 1 << (8 - 1);
-		info->pixmap.blit_y = 1 << (16 - 1);
+		bitmap_zero(info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
+		set_bit(8 - 1, info->pixmap.blit_x);
+		bitmap_zero(info->pixmap.blit_y, FB_MAX_BLIT_HEIGHT);
+		set_bit(16 - 1, info->pixmap.blit_y);
 
 		offset_value = info->var.xres_virtual / 16;
 		fetch_value  = (info->var.xres / 8) + 8;
@@ -644,6 +651,7 @@ static const struct fb_ops vt8623fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= vt8623fb_open,
 	.fb_release	= vt8623fb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= vt8623fb_check_var,
 	.fb_set_par	= vt8623fb_set_par,
 	.fb_setcolreg	= vt8623fb_setcolreg,
@@ -652,6 +660,7 @@ static const struct fb_ops vt8623fb_ops = {
 	.fb_fillrect	= vt8623fb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= vt8623fb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 	.fb_get_caps    = svga_get_caps,
 };
 

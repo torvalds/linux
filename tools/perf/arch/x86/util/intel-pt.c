@@ -60,36 +60,31 @@ struct intel_pt_recording {
 	size_t				priv_size;
 };
 
-static int intel_pt_parse_terms_with_default(struct perf_pmu *pmu,
+static int intel_pt_parse_terms_with_default(const struct perf_pmu *pmu,
 					     const char *str,
 					     u64 *config)
 {
-	struct list_head *terms;
+	struct parse_events_terms terms;
 	struct perf_event_attr attr = { .size = 0, };
 	int err;
 
-	terms = malloc(sizeof(struct list_head));
-	if (!terms)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(terms);
-
-	err = parse_events_terms(terms, str, /*input=*/ NULL);
+	parse_events_terms__init(&terms);
+	err = parse_events_terms(&terms, str, /*input=*/ NULL);
 	if (err)
 		goto out_free;
 
 	attr.config = *config;
-	err = perf_pmu__config_terms(pmu, &attr, terms, /*zero=*/true, /*err=*/NULL);
+	err = perf_pmu__config_terms(pmu, &attr, &terms, /*zero=*/true, /*err=*/NULL);
 	if (err)
 		goto out_free;
 
 	*config = attr.config;
 out_free:
-	parse_events_terms__delete(terms);
+	parse_events_terms__exit(&terms);
 	return err;
 }
 
-static int intel_pt_parse_terms(struct perf_pmu *pmu, const char *str, u64 *config)
+static int intel_pt_parse_terms(const struct perf_pmu *pmu, const char *str, u64 *config)
 {
 	*config = 0;
 	return intel_pt_parse_terms_with_default(pmu, str, config);
@@ -182,7 +177,7 @@ static int intel_pt_pick_bit(int bits, int target)
 	return pick;
 }
 
-static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
+static u64 intel_pt_default_config(const struct perf_pmu *intel_pt_pmu)
 {
 	char buf[256];
 	int mtc, mtc_periods = 0, mtc_period;
@@ -261,20 +256,17 @@ static int intel_pt_parse_snapshot_options(struct auxtrace_record *itr,
 	return 0;
 }
 
-struct perf_event_attr *
-intel_pt_pmu_default_config(struct perf_pmu *intel_pt_pmu)
+void intel_pt_pmu_default_config(const struct perf_pmu *intel_pt_pmu,
+				 struct perf_event_attr *attr)
 {
-	struct perf_event_attr *attr;
+	static u64 config;
+	static bool initialized;
 
-	attr = zalloc(sizeof(struct perf_event_attr));
-	if (!attr)
-		return NULL;
-
-	attr->config = intel_pt_default_config(intel_pt_pmu);
-
-	intel_pt_pmu->selectable = true;
-
-	return attr;
+	if (!initialized) {
+		config = intel_pt_default_config(intel_pt_pmu);
+		initialized = true;
+	}
+	attr->config = config;
 }
 
 static const char *intel_pt_find_filter(struct evlist *evlist,
@@ -377,7 +369,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 			ui__warning("Intel Processor Trace: TSC not available\n");
 	}
 
-	per_cpu_mmaps = !perf_cpu_map__empty(session->evlist->core.user_requested_cpus);
+	per_cpu_mmaps = !perf_cpu_map__has_any_cpu_or_is_empty(session->evlist->core.user_requested_cpus);
 
 	auxtrace_info->type = PERF_AUXTRACE_INTEL_PT;
 	auxtrace_info->priv[INTEL_PT_PMU_TYPE] = intel_pt_pmu->type;
@@ -782,7 +774,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	 * Per-cpu recording needs sched_switch events to distinguish different
 	 * threads.
 	 */
-	if (have_timing_info && !perf_cpu_map__empty(cpus) &&
+	if (have_timing_info && !perf_cpu_map__has_any_cpu_or_is_empty(cpus) &&
 	    !record_opts__no_switch_events(opts)) {
 		if (perf_can_record_switch_events()) {
 			bool cpu_wide = !target__none(&opts->target) &&
@@ -840,7 +832,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		 * In the case of per-cpu mmaps, we need the CPU on the
 		 * AUX event.
 		 */
-		if (!perf_cpu_map__empty(cpus))
+		if (!perf_cpu_map__has_any_cpu_or_is_empty(cpus))
 			evsel__set_sample_bit(intel_pt_evsel, CPU);
 	}
 
@@ -866,7 +858,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			tracking_evsel->immediate = true;
 
 		/* In per-cpu case, always need the time of mmap events etc */
-		if (!perf_cpu_map__empty(cpus)) {
+		if (!perf_cpu_map__has_any_cpu_or_is_empty(cpus)) {
 			evsel__set_sample_bit(tracking_evsel, TIME);
 			/* And the CPU for switch events */
 			evsel__set_sample_bit(tracking_evsel, CPU);
@@ -878,7 +870,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	 * Warn the user when we do not have enough information to decode i.e.
 	 * per-cpu with no sched_switch (except workload-only).
 	 */
-	if (!ptr->have_sched_switch && !perf_cpu_map__empty(cpus) &&
+	if (!ptr->have_sched_switch && !perf_cpu_map__has_any_cpu_or_is_empty(cpus) &&
 	    !target__none(&opts->target) &&
 	    !intel_pt_evsel->core.attr.exclude_user)
 		ui__warning("Intel Processor Trace decoding will not be possible except for kernel tracing!\n");

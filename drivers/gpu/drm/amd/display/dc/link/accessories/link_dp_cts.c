@@ -53,27 +53,12 @@ static enum dc_link_rate get_link_rate_from_test_link_rate(uint8_t test_rate)
 		return LINK_RATE_UHBR10;
 	case DP_TEST_LINK_RATE_UHBR20:
 		return LINK_RATE_UHBR20;
+	case DP_TEST_LINK_RATE_UHBR13_5_LEGACY:
 	case DP_TEST_LINK_RATE_UHBR13_5:
 		return LINK_RATE_UHBR13_5;
 	default:
 		return LINK_RATE_UNKNOWN;
 	}
-}
-
-static bool is_dp_phy_sqaure_pattern(enum dp_test_pattern test_pattern)
-{
-	return (DP_TEST_PATTERN_SQUARE_BEGIN <= test_pattern &&
-			test_pattern <= DP_TEST_PATTERN_SQUARE_END);
-}
-
-static bool is_dp_phy_pattern(enum dp_test_pattern test_pattern)
-{
-	if ((DP_TEST_PATTERN_PHY_PATTERN_BEGIN <= test_pattern &&
-			test_pattern <= DP_TEST_PATTERN_PHY_PATTERN_END) ||
-			test_pattern == DP_TEST_PATTERN_VIDEO_MODE)
-		return true;
-	else
-		return false;
 }
 
 static void dp_retrain_link_dp_test(struct dc_link *link,
@@ -118,6 +103,11 @@ static void dp_test_send_link_training(struct dc_link *link)
 			&test_rate,
 			1);
 	link_settings.link_rate = get_link_rate_from_test_link_rate(test_rate);
+
+	if (link_settings.link_rate == LINK_RATE_UNKNOWN) {
+		DC_LOG_ERROR("%s: Invalid test link rate.", __func__);
+		ASSERT(0);
+	}
 
 	/* Set preferred link settings */
 	link->verified_link_cap.lane_count = link_settings.lane_count;
@@ -355,7 +345,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 				test_pattern_size);
 	}
 
-	if (is_dp_phy_sqaure_pattern(test_pattern)) {
+	if (IS_DP_PHY_SQUARE_PATTERN(test_pattern)) {
 		test_pattern_size = 1; // Square pattern data is 1 byte (DP spec)
 		core_link_read_dpcd(
 				link,
@@ -457,7 +447,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			controller_color_space = pipe_ctx->stream_res.test_pattern_params.color_space;
 
 			if (controller_color_space == CONTROLLER_DP_COLOR_SPACE_UDEFINED) {
-				DC_LOG_WARNING("%s: Color space must be defined for test pattern", __func__);
+				DC_LOG_ERROR("%s: Color space must be defined for test pattern", __func__);
 				ASSERT(0);
 			}
 
@@ -592,6 +582,7 @@ bool dp_set_test_pattern(
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size)
 {
+	const struct link_hwss *link_hwss;
 	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
 	struct pipe_ctx *pipe_ctx = NULL;
 	unsigned int lane;
@@ -616,6 +607,8 @@ bool dp_set_test_pattern(
 	if (pipe_ctx == NULL)
 		return false;
 
+	link->pending_test_pattern = test_pattern;
+
 	/* Reset CRTC Test Pattern if it is currently running and request is VideoMode */
 	if (link->test_pattern_enabled && test_pattern ==
 			DP_TEST_PATTERN_VIDEO_MODE) {
@@ -636,12 +629,13 @@ bool dp_set_test_pattern(
 		/* Reset Test Pattern state */
 		link->test_pattern_enabled = false;
 		link->current_test_pattern = test_pattern;
+		link->pending_test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 
 		return true;
 	}
 
 	/* Check for PHY Test Patterns */
-	if (is_dp_phy_pattern(test_pattern)) {
+	if (IS_DP_PHY_PATTERN(test_pattern)) {
 		/* Set DPCD Lane Settings before running test pattern */
 		if (p_link_settings != NULL) {
 			if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
@@ -674,6 +668,7 @@ bool dp_set_test_pattern(
 			/* Set Test Pattern state */
 			link->test_pattern_enabled = true;
 			link->current_test_pattern = test_pattern;
+			link->pending_test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 			if (p_link_settings != NULL)
 				dpcd_set_link_settings(link,
 						p_link_settings);
@@ -749,7 +744,7 @@ bool dp_set_test_pattern(
 			return false;
 
 		if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_12) {
-			if (is_dp_phy_sqaure_pattern(test_pattern))
+			if (IS_DP_PHY_SQUARE_PATTERN(test_pattern))
 				core_link_write_dpcd(link,
 						DP_LINK_SQUARE_PATTERN,
 						p_custom_pattern,
@@ -828,17 +823,21 @@ bool dp_set_test_pattern(
 
 		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 		/* update MSA to requested color space */
-		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
-				&pipe_ctx->stream->timing,
-				color_space,
-				pipe_ctx->stream->use_vsc_sdp_for_colorimetry,
-				link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
+		link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+		pipe_ctx->stream->output_color_space = color_space;
+		link_hwss->setup_stream_attribute(pipe_ctx);
 
 		if (pipe_ctx->stream->use_vsc_sdp_for_colorimetry) {
 			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)
 				pipe_ctx->stream->vsc_infopacket.sb[17] |= (1 << 7); // sb17 bit 7 Dynamic Range: 0 = VESA range, 1 = CTA range
 			else
 				pipe_ctx->stream->vsc_infopacket.sb[17] &= ~(1 << 7);
+
+			if (color_space == COLOR_SPACE_YCBCR601_LIMITED)
+				pipe_ctx->stream->vsc_infopacket.sb[16] &= 0xf0;
+			else if (color_space == COLOR_SPACE_YCBCR709_LIMITED)
+				pipe_ctx->stream->vsc_infopacket.sb[16] |= 1;
+
 			resource_build_info_frame(pipe_ctx);
 			link->dc->hwss.update_info_frame(pipe_ctx);
 		}
@@ -873,6 +872,7 @@ bool dp_set_test_pattern(
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 		link->current_test_pattern = test_pattern;
+		link->pending_test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 	}
 
 	return true;
@@ -884,7 +884,7 @@ void dp_set_preferred_link_settings(struct dc *dc,
 {
 	int i;
 	struct pipe_ctx *pipe;
-	struct dc_stream_state *link_stream;
+	struct dc_stream_state *link_stream = 0;
 	struct dc_link_settings store_settings = *link_setting;
 
 	link->preferred_link_setting = store_settings;

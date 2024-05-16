@@ -164,7 +164,7 @@
 
 &bsc {
 	flash@0 {
-		compatible = "cfi-flash", "mtd-rom";
+		compatible = "cfi-flash";
 		reg = <0x0 0x08000000>;
 		bank-width = <2>;
 
@@ -207,6 +207,18 @@
 
 &cmt1 {
 	status = "okay";
+};
+
+&extal1_clk {
+	clock-frequency = <26000000>;
+};
+
+&extal2_clk {
+	clock-frequency = <48000000>;
+};
+
+&extalr_clk {
+	clock-frequency = <32768>;
 };
 
 &pfc {

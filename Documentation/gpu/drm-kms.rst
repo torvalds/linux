@@ -360,6 +360,8 @@ Format Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fourcc.c
    :export:
 
+.. _kms_dumb_buffer_objects:
+
 Dumb Buffer Objects
 ===================
 
@@ -395,6 +397,21 @@ Plane Damage Tracking Functions Reference
 
 .. kernel-doc:: include/drm/drm_damage_helper.h
    :internal:
+
+Plane Panic Feature
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_panic.c
+   :doc: overview
+
+Plane Panic Functions Reference
+-------------------------------
+
+.. kernel-doc:: include/drm/drm_panic.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_panic.c
+   :export:
 
 Display Modes Function Reference
 ================================
@@ -494,6 +511,13 @@ addition to the one mentioned above:
 
 * An IGT test must be submitted where reasonable.
 
+For historical reasons, non-standard, driver-specific properties exist. If a KMS
+driver wants to add support for one of those properties, the requirements for
+new properties apply where possible. Additionally, the documented behavior must
+match the de facto semantics of the existing property to ensure compatibility.
+Developers of the driver that first added the property should help with those
+tasks and must ACK the documented behavior if possible.
+
 Property Types and Blob Property Support
 ----------------------------------------
 
@@ -546,6 +570,8 @@ Plane Composition Properties
 .. kernel-doc:: drivers/gpu/drm/drm_blend.c
    :doc: overview
 
+.. _damage_tracking_properties:
+
 Damage Tracking Properties
 --------------------------
 
@@ -576,6 +602,12 @@ Variable Refresh Properties
 
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: Variable refresh properties
+
+Cursor Hotspot Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :doc: hotspot properties
 
 Existing KMS Properties
 -----------------------

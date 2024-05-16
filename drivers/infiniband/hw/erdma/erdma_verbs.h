@@ -361,5 +361,9 @@ int erdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		    unsigned int *sg_offset);
 void erdma_port_event(struct erdma_dev *dev, enum ib_event_type reason);
 void erdma_set_mtu(struct erdma_dev *dev, u32 mtu);
+struct rdma_hw_stats *erdma_alloc_hw_port_stats(struct ib_device *device,
+						u32 port_num);
+int erdma_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+		       u32 port, int index);
 
 #endif

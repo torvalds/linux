@@ -54,8 +54,10 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ALC5632
 	imply SND_SOC_AUDIO_IIO_AUX
 	imply SND_SOC_AW8738
+	imply SND_SOC_AW87390
 	imply SND_SOC_AW88395
 	imply SND_SOC_AW88261
+	imply SND_SOC_AW88399
 	imply SND_SOC_BT_SCO
 	imply SND_SOC_BD28623
 	imply SND_SOC_CHV3_CODEC
@@ -112,6 +114,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES8328_I2C
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7241
+	imply SND_SOC_FRAMER
 	imply SND_SOC_GTM601
 	imply SND_SOC_HDAC_HDMI
 	imply SND_SOC_HDAC_HDA
@@ -218,6 +221,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1316_SDW
 	imply SND_SOC_RT1318_SDW
 	imply SND_SOC_RT9120
+	imply SND_SOC_RTQ9128
 	imply SND_SOC_SDW_MOCKUP
 	imply SND_SOC_SGTL5000
 	imply SND_SOC_SI476X
@@ -273,6 +277,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WCD9335
 	imply SND_SOC_WCD934X
 	imply SND_SOC_WCD938X_SDW
+	imply SND_SOC_WCD939X_SDW
 	imply SND_SOC_LPASS_MACRO_COMMON
 	imply SND_SOC_LPASS_RX_MACRO
 	imply SND_SOC_LPASS_TX_MACRO
@@ -638,12 +643,12 @@ config SND_SOC_AW8738
 	  operation mode using the Awinic-specific one-wire pulse control.
 
 config SND_SOC_AW88395_LIB
+	select CRC8
 	tristate
 
 config SND_SOC_AW88395
 	tristate "Soc Audio for awinic aw88395"
 	depends on I2C
-	select CRC8
 	select CRC32
 	select REGMAP_I2C
 	select GPIOLIB
@@ -657,7 +662,6 @@ config SND_SOC_AW88395
 config SND_SOC_AW88261
 	tristate "Soc Audio for awinic aw88261"
 	depends on I2C
-	select CRC8
 	select REGMAP_I2C
 	select GPIOLIB
 	select SND_SOC_AW88395_LIB
@@ -667,6 +671,30 @@ config SND_SOC_AW88261
 	  digital Smart K audio amplifier. The output voltage of
 	  boost converter can be adjusted smartly according to
 	  the input amplitude.
+
+config SND_SOC_AW87390
+	tristate "Soc Audio for awinic aw87390"
+	depends on I2C
+	select REGMAP_I2C
+	select SND_SOC_AW88395_LIB
+	help
+	  The awinic aw87390 is specifically designed to improve
+	  the musical output dynamic range, enhance the overall
+	  sound quality, which is a new high efficiency, low
+	  noise, constant large volume, 6th Smart K audio amplifier.
+
+config SND_SOC_AW88399
+	tristate "Soc Audio for awinic aw88399"
+	depends on I2C
+	select CRC8
+	select REGMAP_I2C
+	select GPIOLIB
+	select SND_SOC_AW88395_LIB
+	help
+	  This option enables support for aw88399 Smart PA.
+	  The awinic AW88399 is an I2S/TDM input, high efficiency
+	  digital Smart K audio amplifier and SKTune speaker
+	  protection algorithms.
 
 config SND_SOC_BD28623
 	tristate "ROHM BD28623 CODEC"
@@ -700,6 +728,22 @@ config SND_SOC_CROS_EC_CODEC
 	help
 	  If you say yes here you will get support for the
 	  ChromeOS Embedded Controller's Audio Codec.
+
+config SND_SOC_CS_AMP_LIB
+	tristate
+
+config SND_SOC_CS_AMP_LIB_TEST
+	tristate "KUnit test for Cirrus Logic cs-amp-lib"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	select SND_SOC_CS_AMP_LIB
+	help
+	  This builds KUnit tests for the Cirrus Logic common
+	  amplifier library.
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".
 
 config SND_SOC_CS35L32
 	tristate "Cirrus Logic CS35L32 CODEC"
@@ -769,6 +813,7 @@ config SND_SOC_CS35L56
 	tristate
 
 config SND_SOC_CS35L56_SHARED
+	select SND_SOC_CS_AMP_LIB
 	tristate
 
 config SND_SOC_CS35L56_I2C
@@ -1050,6 +1095,10 @@ config SND_SOC_ES7134
 config SND_SOC_ES7241
 	tristate "Everest Semi ES7241 CODEC"
 
+config SND_SOC_ES83XX_DSM_COMMON
+	depends on ACPI
+	tristate
+
 config SND_SOC_ES8316
 	tristate "Everest Semi ES8316 CODEC"
 	depends on I2C
@@ -1070,6 +1119,20 @@ config SND_SOC_ES8328_SPI
 	tristate "Everest Semi ES8328 CODEC (SPI)"
 	depends on SPI_MASTER
 	select SND_SOC_ES8328
+
+config SND_SOC_FRAMER
+	tristate "Framer codec"
+	depends on GENERIC_FRAMER
+	help
+	  Enable support for the framer codec.
+	  The framer codec uses the generic framer infrastructure to transport
+	  some audio data over an analog E1/T1/J1 line.
+	  This codec allows to use some of the time slots available on the TDM
+	  bus on which the framer is connected to transport the audio data.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-framer.
+
 
 config SND_SOC_GTM601
 	tristate 'GTM601 UMTS modem audio codec'
@@ -1636,6 +1699,20 @@ config SND_SOC_RT9120
 	  Enable support for Richtek RT9120 20W, stereo, inductor-less,
 	  high-efficiency Class-D audio amplifier.
 
+config SND_SOC_RTQ9128
+	tristate "Richtek RTQ9128 45W Digital Input Amplifier"
+	depends on I2C
+	select REGMAP
+	help
+	  Enable support for Richtek RTQ9128 digital input 4-channel
+	  automotive audio amplifier.  It is a ultra-low output noise,
+	  high-efficiency, four-channel class-D audio power amplifier
+	  that can deliver over 87% power efficienty at 4x75W into 4Ohm,
+	  25V supply in automotive applications.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-soc-rtq9128.
+
 config SND_SOC_SDW_MOCKUP
 	tristate "SoundWire mockup codec"
 	depends on EXPERT
@@ -2015,6 +2092,25 @@ config SND_SOC_WCD938X_SDW
 	  The WCD9380/9385 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SM8250.
 
+config SND_SOC_WCD939X
+	depends on SND_SOC_WCD939X_SDW
+	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
+	depends on TYPEC || !TYPEC
+	select SND_SOC_WCD_CLASSH
+
+config SND_SOC_WCD939X_SDW
+	tristate "WCD9390/WCD9395 Codec - SDW"
+	depends on TYPEC || !TYPEC
+	select SND_SOC_WCD939X
+	select SND_SOC_WCD_MBHC
+	select REGMAP_IRQ
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  The WCD9390/9395 is a audio codec IC Integrated in
+	  Qualcomm SoCs like SM8650.
+
 config SND_SOC_WL1273
 	tristate
 
@@ -2256,7 +2352,6 @@ config SND_SOC_WSA881X
 	tristate "WSA881X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8810/WSA8815 Class-D
 	  Smart Speaker Amplifier.
@@ -2265,7 +2360,6 @@ config SND_SOC_WSA883X
 	tristate "WSA883X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8830/WSA8835 Class-D
 	  Smart Speaker Amplifier.
@@ -2274,7 +2368,6 @@ config SND_SOC_WSA884X
 	tristate "WSA884X Codec"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
-	tristate
 	help
 	  This enables support for Qualcomm WSA8840/WSA8845/WSA8845H Class-D
 	  Smart Speaker Amplifier.

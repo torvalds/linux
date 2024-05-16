@@ -37,7 +37,7 @@ config HW_RANDOM_TIMERIOMEM
 
 config HW_RANDOM_INTEL
 	tristate "Intel HW Random Number Generator support"
-	depends on (X86 || IA64 || COMPILE_TEST) && PCI
+	depends on (X86 || COMPILE_TEST) && PCI
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the Random Number

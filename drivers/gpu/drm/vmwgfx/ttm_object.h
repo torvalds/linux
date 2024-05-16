@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright (c) 2006-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2006-2023 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -288,7 +288,6 @@ extern void ttm_object_device_release(struct ttm_object_device **p_tdev);
 extern int ttm_prime_object_init(struct ttm_object_file *tfile,
 				 size_t size,
 				 struct ttm_prime_object *prime,
-				 bool shareable,
 				 enum ttm_object_type type,
 				 void (*refcount_release)
 				 (struct ttm_base_object **));

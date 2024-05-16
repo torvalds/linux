@@ -35,6 +35,8 @@ properties:
     description: Phandle to an RPM MSG RAM slice containing the master stats
     minItems: 1
     maxItems: 5
+    items:
+      maxItems: 1
 
   qcom,master-names:
     $ref: /schemas/types.yaml#/definitions/string-array

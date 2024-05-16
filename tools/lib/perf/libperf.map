@@ -1,15 +1,15 @@
 LIBPERF_0.0.1 {
 	global:
 		libperf_init;
-		perf_cpu_map__dummy_new;
-		perf_cpu_map__default_new;
+		perf_cpu_map__new_any_cpu;
+		perf_cpu_map__new_online_cpus;
 		perf_cpu_map__get;
 		perf_cpu_map__put;
 		perf_cpu_map__new;
 		perf_cpu_map__read;
 		perf_cpu_map__nr;
 		perf_cpu_map__cpu;
-		perf_cpu_map__empty;
+		perf_cpu_map__has_any_cpu_or_is_empty;
 		perf_cpu_map__max;
 		perf_cpu_map__has;
 		perf_thread_map__new_array;

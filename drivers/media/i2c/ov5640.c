@@ -399,7 +399,7 @@ struct ov5640_mode_info {
 	const struct reg_value *reg_data;
 	u32 reg_data_size;
 
-	/* Used by s_frame_interval only. */
+	/* Used by set_frame_interval only. */
 	u32 max_fps;
 	u32 def_fps;
 };
@@ -2797,8 +2797,7 @@ static int ov5640_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state,
-						 format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 	else
 		fmt = &sensor->fmt;
 
@@ -2850,12 +2849,22 @@ static int ov5640_try_fmt_internal(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static void __v4l2_ctrl_vblank_update(struct ov5640_dev *sensor, u32 vblank)
+{
+	const struct ov5640_mode_info *mode = sensor->current_mode;
+
+	__v4l2_ctrl_modify_range(sensor->ctrls.vblank, OV5640_MIN_VBLANK,
+				 OV5640_MAX_VTS - mode->height, 1, vblank);
+
+	__v4l2_ctrl_s_ctrl(sensor->ctrls.vblank, vblank);
+}
+
 static int ov5640_update_pixel_rate(struct ov5640_dev *sensor)
 {
 	const struct ov5640_mode_info *mode = sensor->current_mode;
 	enum ov5640_pixel_rate_id pixel_rate_id = mode->pixel_rate;
 	struct v4l2_mbus_framefmt *fmt = &sensor->fmt;
-	const struct ov5640_timings *timings;
+	const struct ov5640_timings *timings = ov5640_timings(sensor, mode);
 	s32 exposure_val, exposure_max;
 	unsigned int hblank;
 	unsigned int i = 0;
@@ -2873,6 +2882,8 @@ static int ov5640_update_pixel_rate(struct ov5640_dev *sensor)
 	if (!ov5640_is_csi2(sensor)) {
 		__v4l2_ctrl_s_ctrl_int64(sensor->ctrls.pixel_rate,
 					 ov5640_calc_pixel_rate(sensor));
+
+		__v4l2_ctrl_vblank_update(sensor, timings->vblank_def);
 
 		return 0;
 	}
@@ -2916,15 +2927,12 @@ static int ov5640_update_pixel_rate(struct ov5640_dev *sensor)
 	__v4l2_ctrl_s_ctrl_int64(sensor->ctrls.pixel_rate, pixel_rate);
 	__v4l2_ctrl_s_ctrl(sensor->ctrls.link_freq, i);
 
-	timings = ov5640_timings(sensor, mode);
 	hblank = timings->htot - mode->width;
 	__v4l2_ctrl_modify_range(sensor->ctrls.hblank,
 				 hblank, hblank, 1, hblank);
 
 	vblank = timings->vblank_def;
-	__v4l2_ctrl_modify_range(sensor->ctrls.vblank, OV5640_MIN_VBLANK,
-				 OV5640_MAX_VTS - mode->height, 1, vblank);
-	__v4l2_ctrl_s_ctrl(sensor->ctrls.vblank, vblank);
+	__v4l2_ctrl_vblank_update(sensor, vblank);
 
 	exposure_max = timings->crop.height + vblank - 4;
 	exposure_val = clamp_t(s32, sensor->ctrls.exposure->val,
@@ -2962,7 +2970,7 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, 0) = *mbus_fmt;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *mbus_fmt;
 		goto out;
 	}
 
@@ -3596,10 +3604,18 @@ static int ov5640_enum_frame_interval(
 	return 0;
 }
 
-static int ov5640_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int ov5640_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	mutex_lock(&sensor->lock);
 	fi->interval = sensor->frame_interval;
@@ -3608,12 +3624,20 @@ static int ov5640_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov5640_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int ov5640_set_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
 	const struct ov5640_mode_info *mode;
 	int frame_rate, ret = 0;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad != 0)
 		return -EINVAL;
@@ -3736,13 +3760,13 @@ out:
 	return ret;
 }
 
-static int ov5640_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
+static int ov5640_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *state)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
 	struct v4l2_mbus_framefmt *fmt =
-				v4l2_subdev_get_try_format(sd, state, 0);
-	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, state, 0);
+				v4l2_subdev_state_get_format(state, 0);
+	struct v4l2_rect *crop = v4l2_subdev_state_get_crop(state, 0);
 
 	*fmt = ov5640_is_csi2(sensor) ? ov5640_csi2_default_fmt :
 					ov5640_dvp_default_fmt;
@@ -3762,17 +3786,16 @@ static const struct v4l2_subdev_core_ops ov5640_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops ov5640_video_ops = {
-	.g_frame_interval = ov5640_g_frame_interval,
-	.s_frame_interval = ov5640_s_frame_interval,
 	.s_stream = ov5640_s_stream,
 };
 
 static const struct v4l2_subdev_pad_ops ov5640_pad_ops = {
-	.init_cfg = ov5640_init_cfg,
 	.enum_mbus_code = ov5640_enum_mbus_code,
 	.get_fmt = ov5640_get_fmt,
 	.set_fmt = ov5640_set_fmt,
 	.get_selection = ov5640_get_selection,
+	.get_frame_interval = ov5640_get_frame_interval,
+	.set_frame_interval = ov5640_set_frame_interval,
 	.enum_frame_size = ov5640_enum_frame_size,
 	.enum_frame_interval = ov5640_enum_frame_interval,
 };
@@ -3781,6 +3804,10 @@ static const struct v4l2_subdev_ops ov5640_subdev_ops = {
 	.core = &ov5640_core_ops,
 	.video = &ov5640_video_ops,
 	.pad = &ov5640_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov5640_internal_ops = {
+	.init_state = ov5640_init_state,
 };
 
 static int ov5640_get_regulators(struct ov5640_dev *sensor)
@@ -3897,6 +3924,7 @@ static int ov5640_probe(struct i2c_client *client)
 		return PTR_ERR(sensor->reset_gpio);
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov5640_subdev_ops);
+	sensor->sd.internal_ops = &ov5640_internal_ops;
 
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
@@ -3919,7 +3947,7 @@ static int ov5640_probe(struct i2c_client *client)
 	ret = ov5640_sensor_resume(dev);
 	if (ret) {
 		dev_err(dev, "failed to power on\n");
-		goto entity_cleanup;
+		goto free_ctrls;
 	}
 
 	pm_runtime_set_active(dev);
@@ -3944,8 +3972,9 @@ static int ov5640_probe(struct i2c_client *client)
 err_pm_runtime:
 	pm_runtime_put_noidle(dev);
 	pm_runtime_disable(dev);
-	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	ov5640_sensor_suspend(dev);
+free_ctrls:
+	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 entity_cleanup:
 	media_entity_cleanup(&sensor->sd.entity);
 	mutex_destroy(&sensor->lock);

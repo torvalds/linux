@@ -25,11 +25,13 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
+#include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -166,10 +168,8 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	int scr;
 	u8 cdm = 0;
 	u32 speed;
-	u8 bits_per_word;
 
 	/* Start with the generic configuration for this device. */
-	bits_per_word = spi->bits_per_word;
 	speed = spi->max_speed_hz;
 
 	/*
@@ -177,9 +177,6 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 	 * the transfer to overwrite the generic configuration with zeros.
 	 */
 	if (t) {
-		if (t->bits_per_word)
-			bits_per_word = t->bits_per_word;
-
 		if (t->speed_hz)
 			speed = min(t->speed_hz, spi->max_speed_hz);
 	}
@@ -362,22 +359,22 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 
 	/* Setup the state for the bitbang driver */
 	bbp = &hw->bitbang;
-	bbp->master = hw->host;
+	bbp->ctlr = hw->host;
 	bbp->setup_transfer = spi_ppc4xx_setupxfer;
 	bbp->txrx_bufs = spi_ppc4xx_txrx;
 	bbp->use_dma = 0;
-	bbp->master->setup = spi_ppc4xx_setup;
-	bbp->master->cleanup = spi_ppc4xx_cleanup;
-	bbp->master->bits_per_word_mask = SPI_BPW_MASK(8);
-	bbp->master->use_gpio_descriptors = true;
+	bbp->ctlr->setup = spi_ppc4xx_setup;
+	bbp->ctlr->cleanup = spi_ppc4xx_cleanup;
+	bbp->ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
+	bbp->ctlr->use_gpio_descriptors = true;
 	/*
 	 * The SPI core will count the number of GPIO descriptors to figure
 	 * out the number of chip selects available on the platform.
 	 */
-	bbp->master->num_chipselect = 0;
+	bbp->ctlr->num_chipselect = 0;
 
 	/* the spi->mode bits understood by this driver: */
-	bbp->master->mode_bits =
+	bbp->ctlr->mode_bits =
 		SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST;
 
 	/* Get the clock for the OPB */

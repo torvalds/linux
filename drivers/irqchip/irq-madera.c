@@ -222,7 +222,7 @@ static int madera_irq_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int madera_irq_remove(struct platform_device *pdev)
+static void madera_irq_remove(struct platform_device *pdev)
 {
 	struct madera *madera = dev_get_drvdata(pdev->dev.parent);
 
@@ -232,13 +232,11 @@ static int madera_irq_remove(struct platform_device *pdev)
 	 */
 	madera->irq_dev = NULL;
 	regmap_del_irq_chip(madera->irq, madera->irq_data);
-
-	return 0;
 }
 
 static struct platform_driver madera_irq_driver = {
-	.probe	= &madera_irq_probe,
-	.remove = &madera_irq_remove,
+	.probe		= madera_irq_probe,
+	.remove_new	= madera_irq_remove,
 	.driver = {
 		.name	= "madera-irq",
 		.pm	= &madera_irq_pm_ops,

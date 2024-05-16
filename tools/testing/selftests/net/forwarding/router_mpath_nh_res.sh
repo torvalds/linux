@@ -5,9 +5,12 @@ ALL_TESTS="
 	ping_ipv4
 	ping_ipv6
 	multipath_test
+	nh_stats_test_v4
+	nh_stats_test_v6
 "
 NUM_NETIFS=8
 source lib.sh
+source router_mpath_nh_lib.sh
 
 h1_create()
 {
@@ -205,7 +208,7 @@ multipath4_test()
 	t0_rp13=$(link_stats_tx_packets_get $rp13)
 
 	ip vrf exec vrf-h1 $MZ $h1 -q -p 64 -A 192.0.2.2 -B 198.51.100.2 \
-		-d 1msec -t udp "sp=1024,dp=0-32768"
+		-d $MZ_DELAY -t udp "sp=1024,dp=0-32768"
 
 	t1_rp12=$(link_stats_tx_packets_get $rp12)
 	t1_rp13=$(link_stats_tx_packets_get $rp13)
@@ -235,7 +238,7 @@ multipath6_l4_test()
 	t0_rp13=$(link_stats_tx_packets_get $rp13)
 
 	$MZ $h1 -6 -q -p 64 -A 2001:db8:1::2 -B 2001:db8:2::2 \
-		-d 1msec -t udp "sp=1024,dp=0-32768"
+		-d $MZ_DELAY -t udp "sp=1024,dp=0-32768"
 
 	t1_rp12=$(link_stats_tx_packets_get $rp12)
 	t1_rp13=$(link_stats_tx_packets_get $rp13)
@@ -331,6 +334,16 @@ multipath_test()
 	multipath6_l4_test "Weighted MP 11:45" 11 45
 
 	ip nexthop replace id 106 group 104,1/105,1 type resilient
+}
+
+nh_stats_test_v4()
+{
+	__nh_stats_test_v4 resilient
+}
+
+nh_stats_test_v6()
+{
+	__nh_stats_test_v6 resilient
 }
 
 setup_prepare()

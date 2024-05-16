@@ -334,14 +334,25 @@ static ssize_t kxtj9_set_poll(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(poll, S_IRUGO|S_IWUSR, kxtj9_get_poll, kxtj9_set_poll);
 
-static struct attribute *kxtj9_attributes[] = {
+static struct attribute *kxtj9_attrs[] = {
 	&dev_attr_poll.attr,
 	NULL
 };
 
-static struct attribute_group kxtj9_attribute_group = {
-	.attrs = kxtj9_attributes
+static umode_t kxtj9_attr_is_visible(struct kobject *kobj,
+				     struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct i2c_client *client = to_i2c_client(dev);
+
+	return client->irq ? attr->mode : 0;
+}
+
+static struct attribute_group kxtj9_group = {
+	.attrs = kxtj9_attrs,
+	.is_visible = kxtj9_attr_is_visible,
 };
+__ATTRIBUTE_GROUPS(kxtj9);
 
 static void kxtj9_poll(struct input_dev *input)
 {
@@ -482,13 +493,6 @@ static int kxtj9_probe(struct i2c_client *client)
 			dev_err(&client->dev, "request irq failed: %d\n", err);
 			return err;
 		}
-
-		err = devm_device_add_group(&client->dev,
-					    &kxtj9_attribute_group);
-		if (err) {
-			dev_err(&client->dev, "sysfs create failed: %d\n", err);
-			return err;
-		}
 	}
 
 	return 0;
@@ -535,8 +539,9 @@ MODULE_DEVICE_TABLE(i2c, kxtj9_id);
 
 static struct i2c_driver kxtj9_driver = {
 	.driver = {
-		.name	= NAME,
-		.pm	= pm_sleep_ptr(&kxtj9_pm_ops),
+		.name		= NAME,
+		.dev_groups	= kxtj9_groups,
+		.pm		= pm_sleep_ptr(&kxtj9_pm_ops),
 	},
 	.probe		= kxtj9_probe,
 	.id_table	= kxtj9_id,

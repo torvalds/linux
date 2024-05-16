@@ -9,6 +9,14 @@
 #
 source "arch/$(SRCARCH)/Kconfig"
 
+config ARCH_CONFIGURES_CPU_MITIGATIONS
+	bool
+
+if !ARCH_CONFIGURES_CPU_MITIGATIONS
+config CPU_MITIGATIONS
+	def_bool y
+endif
+
 menu "General architecture-dependent options"
 
 config ARCH_HAS_SUBPAGE_FAULTS
@@ -301,17 +309,13 @@ config ARCH_HAS_DMA_CLEAR_UNCACHED
 config ARCH_HAS_CPU_FINALIZE_INIT
 	bool
 
-# Select if arch init_task must go in the __init_task_data section
-config ARCH_TASK_STRUCT_ON_STACK
+# The architecture has a per-task state that includes the mm's PASID
+config ARCH_HAS_CPU_PASID
 	bool
-
-# Select if arch has its private alloc_task_struct() function
-config ARCH_TASK_STRUCT_ALLOCATOR
-	bool
+	select IOMMU_MM_DATA
 
 config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	bool
-	depends on !ARCH_TASK_STRUCT_ALLOCATOR
 	help
 	  An architecture should select this to provide hardened usercopy
 	  knowledge about what region of the thread_struct should be
@@ -319,10 +323,6 @@ config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	  FPU registers. Specifically, arch_thread_struct_whitelist()
 	  should be implemented. Without this, the entire thread_struct
 	  field in task_struct will be left whitelisted.
-
-# Select if arch has its private alloc_thread_stack() function
-config ARCH_THREAD_STACK_ALLOCATOR
-	bool
 
 # Select if arch wants to size task_struct dynamically via arch_task_struct_size:
 config ARCH_WANTS_DYNAMIC_TASK_STRUCT
@@ -681,6 +681,7 @@ config SHADOW_CALL_STACK
 	bool "Shadow Call Stack"
 	depends on ARCH_SUPPORTS_SHADOW_CALL_STACK
 	depends on DYNAMIC_FTRACE_WITH_ARGS || DYNAMIC_FTRACE_WITH_REGS || !FUNCTION_GRAPH_TRACER
+	depends on MMU
 	help
 	  This option enables the compiler's Shadow Call Stack, which
 	  uses a shadow stack to protect function return addresses from
@@ -806,7 +807,7 @@ config CFI_CLANG
 	depends on ARCH_SUPPORTS_CFI_CLANG
 	depends on $(cc-option,-fsanitize=kcfi)
 	help
-	  This option enables Clang’s forward-edge Control Flow Integrity
+	  This option enables Clang's forward-edge Control Flow Integrity
 	  (CFI) checking, where the compiler injects a runtime check to each
 	  indirect function call to ensure the target is a valid function with
 	  the correct static type. This restricts possible call targets and
@@ -1085,17 +1086,106 @@ config HAVE_ARCH_COMPAT_MMAP_BASES
 	  and vice-versa 32-bit applications to call 64-bit mmap().
 	  Required for applications doing different bitness syscalls.
 
+config HAVE_PAGE_SIZE_4KB
+	bool
+
+config HAVE_PAGE_SIZE_8KB
+	bool
+
+config HAVE_PAGE_SIZE_16KB
+	bool
+
+config HAVE_PAGE_SIZE_32KB
+	bool
+
+config HAVE_PAGE_SIZE_64KB
+	bool
+
+config HAVE_PAGE_SIZE_256KB
+	bool
+
+choice
+	prompt "MMU page size"
+
+config PAGE_SIZE_4KB
+	bool "4KiB pages"
+	depends on HAVE_PAGE_SIZE_4KB
+	help
+	  This option select the standard 4KiB Linux page size and the only
+	  available option on many architectures. Using 4KiB page size will
+	  minimize memory consumption and is therefore recommended for low
+	  memory systems.
+	  Some software that is written for x86 systems makes incorrect
+	  assumptions about the page size and only runs on 4KiB pages.
+
+config PAGE_SIZE_8KB
+	bool "8KiB pages"
+	depends on HAVE_PAGE_SIZE_8KB
+	help
+	  This option is the only supported page size on a few older
+	  processors, and can be slightly faster than 4KiB pages.
+
+config PAGE_SIZE_16KB
+	bool "16KiB pages"
+	depends on HAVE_PAGE_SIZE_16KB
+	help
+	  This option is usually a good compromise between memory
+	  consumption and performance for typical desktop and server
+	  workloads, often saving a level of page table lookups compared
+	  to 4KB pages as well as reducing TLB pressure and overhead of
+	  per-page operations in the kernel at the expense of a larger
+	  page cache.
+
+config PAGE_SIZE_32KB
+	bool "32KiB pages"
+	depends on HAVE_PAGE_SIZE_32KB
+	help
+	  Using 32KiB page size will result in slightly higher performance
+	  kernel at the price of higher memory consumption compared to
+	  16KiB pages.	This option is available only on cnMIPS cores.
+	  Note that you will need a suitable Linux distribution to
+	  support this.
+
+config PAGE_SIZE_64KB
+	bool "64KiB pages"
+	depends on HAVE_PAGE_SIZE_64KB
+	help
+	  Using 64KiB page size will result in slightly higher performance
+	  kernel at the price of much higher memory consumption compared to
+	  4KiB or 16KiB pages.
+	  This is not suitable for general-purpose workloads but the
+	  better performance may be worth the cost for certain types of
+	  supercomputing or database applications that work mostly with
+	  large in-memory data rather than small files.
+
+config PAGE_SIZE_256KB
+	bool "256KiB pages"
+	depends on HAVE_PAGE_SIZE_256KB
+	help
+	  256KiB pages have little practical value due to their extreme
+	  memory usage.  The kernel will only be able to run applications
+	  that have been compiled with '-zmax-page-size' set to 256KiB
+	  (the default is 64KiB or 4KiB on most architectures).
+
+endchoice
+
 config PAGE_SIZE_LESS_THAN_64KB
 	def_bool y
-	depends on !ARM64_64K_PAGES
-	depends on !IA64_PAGE_SIZE_64KB
 	depends on !PAGE_SIZE_64KB
-	depends on !PARISC_PAGE_SIZE_64KB
 	depends on PAGE_SIZE_LESS_THAN_256KB
 
 config PAGE_SIZE_LESS_THAN_256KB
 	def_bool y
 	depends on !PAGE_SIZE_256KB
+
+config PAGE_SHIFT
+	int
+	default	12 if PAGE_SIZE_4KB
+	default	13 if PAGE_SIZE_8KB
+	default	14 if PAGE_SIZE_16KB
+	default	15 if PAGE_SIZE_32KB
+	default	16 if PAGE_SIZE_64KB
+	default	18 if PAGE_SIZE_256KB
 
 # This allows to use a set of generic functions to determine mmap base
 # address by giving priority to top-down scheme only if the process
@@ -1471,6 +1561,14 @@ config DYNAMIC_SIGFRAME
 config HAVE_ARCH_NODE_DEV_GROUP
 	bool
 
+config ARCH_HAS_HW_PTE_YOUNG
+	bool
+	help
+	  Architectures that select this option are capable of setting the
+	  accessed bit in PTE entries when using them as part of linear address
+	  translations. Architectures that require runtime check should select
+	  this option and override arch_has_hw_pte_young().
+
 config ARCH_HAS_NONLEAF_PMD_YOUNG
 	bool
 	help
@@ -1506,5 +1604,17 @@ config FUNCTION_ALIGNMENT
 	default 8 if FUNCTION_ALIGNMENT_8B
 	default 4 if FUNCTION_ALIGNMENT_4B
 	default 0
+
+config CC_HAS_MIN_FUNCTION_ALIGNMENT
+	# Detect availability of the GCC option -fmin-function-alignment which
+	# guarantees minimal alignment for all functions, unlike
+	# -falign-functions which the compiler ignores for cold functions.
+	def_bool $(cc-option, -fmin-function-alignment=8)
+
+config CC_HAS_SANE_FUNCTION_ALIGNMENT
+	# Set if the guaranteed alignment with -fmin-function-alignment is
+	# available or extra care is required in the kernel. Clang provides
+	# strict alignment always, even with -falign-functions.
+	def_bool CC_HAS_MIN_FUNCTION_ALIGNMENT || CC_IS_CLANG
 
 endmenu

@@ -20,6 +20,7 @@
 #include <linux/filter.h>
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
+#include <linux/kstrtox.h>
 #include "preload/bpf_preload.h"
 
 enum bpf_type {
@@ -98,9 +99,9 @@ static const struct inode_operations bpf_prog_iops = { };
 static const struct inode_operations bpf_map_iops  = { };
 static const struct inode_operations bpf_link_iops  = { };
 
-static struct inode *bpf_get_inode(struct super_block *sb,
-				   const struct inode *dir,
-				   umode_t mode)
+struct inode *bpf_get_inode(struct super_block *sb,
+			    const struct inode *dir,
+			    umode_t mode)
 {
 	struct inode *inode;
 
@@ -118,8 +119,7 @@ static struct inode *bpf_get_inode(struct super_block *sb,
 		return ERR_PTR(-ENOSPC);
 
 	inode->i_ino = get_next_ino();
-	inode->i_atime = inode_set_ctime_current(inode);
-	inode->i_mtime = inode->i_atime;
+	simple_inode_init_ts(inode);
 
 	inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
 
@@ -147,7 +147,7 @@ static void bpf_dentry_finalize(struct dentry *dentry, struct inode *inode,
 	d_instantiate(dentry, inode);
 	dget(dentry);
 
-	dir->i_mtime = inode_set_ctime_current(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 }
 
 static int bpf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
@@ -595,15 +595,183 @@ struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type typ
 }
 EXPORT_SYMBOL(bpf_prog_get_type_path);
 
+struct bpffs_btf_enums {
+	const struct btf *btf;
+	const struct btf_type *cmd_t;
+	const struct btf_type *map_t;
+	const struct btf_type *prog_t;
+	const struct btf_type *attach_t;
+};
+
+static int find_bpffs_btf_enums(struct bpffs_btf_enums *info)
+{
+	const struct btf *btf;
+	const struct btf_type *t;
+	const char *name;
+	int i, n;
+
+	memset(info, 0, sizeof(*info));
+
+	btf = bpf_get_btf_vmlinux();
+	if (IS_ERR(btf))
+		return PTR_ERR(btf);
+	if (!btf)
+		return -ENOENT;
+
+	info->btf = btf;
+
+	for (i = 1, n = btf_nr_types(btf); i < n; i++) {
+		t = btf_type_by_id(btf, i);
+		if (!btf_type_is_enum(t))
+			continue;
+
+		name = btf_name_by_offset(btf, t->name_off);
+		if (!name)
+			continue;
+
+		if (strcmp(name, "bpf_cmd") == 0)
+			info->cmd_t = t;
+		else if (strcmp(name, "bpf_map_type") == 0)
+			info->map_t = t;
+		else if (strcmp(name, "bpf_prog_type") == 0)
+			info->prog_t = t;
+		else if (strcmp(name, "bpf_attach_type") == 0)
+			info->attach_t = t;
+		else
+			continue;
+
+		if (info->cmd_t && info->map_t && info->prog_t && info->attach_t)
+			return 0;
+	}
+
+	return -ESRCH;
+}
+
+static bool find_btf_enum_const(const struct btf *btf, const struct btf_type *enum_t,
+				const char *prefix, const char *str, int *value)
+{
+	const struct btf_enum *e;
+	const char *name;
+	int i, n, pfx_len = strlen(prefix);
+
+	*value = 0;
+
+	if (!btf || !enum_t)
+		return false;
+
+	for (i = 0, n = btf_vlen(enum_t); i < n; i++) {
+		e = &btf_enum(enum_t)[i];
+
+		name = btf_name_by_offset(btf, e->name_off);
+		if (!name || strncasecmp(name, prefix, pfx_len) != 0)
+			continue;
+
+		/* match symbolic name case insensitive and ignoring prefix */
+		if (strcasecmp(name + pfx_len, str) == 0) {
+			*value = e->val;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void seq_print_delegate_opts(struct seq_file *m,
+				    const char *opt_name,
+				    const struct btf *btf,
+				    const struct btf_type *enum_t,
+				    const char *prefix,
+				    u64 delegate_msk, u64 any_msk)
+{
+	const struct btf_enum *e;
+	bool first = true;
+	const char *name;
+	u64 msk;
+	int i, n, pfx_len = strlen(prefix);
+
+	delegate_msk &= any_msk; /* clear unknown bits */
+
+	if (delegate_msk == 0)
+		return;
+
+	seq_printf(m, ",%s", opt_name);
+	if (delegate_msk == any_msk) {
+		seq_printf(m, "=any");
+		return;
+	}
+
+	if (btf && enum_t) {
+		for (i = 0, n = btf_vlen(enum_t); i < n; i++) {
+			e = &btf_enum(enum_t)[i];
+			name = btf_name_by_offset(btf, e->name_off);
+			if (!name || strncasecmp(name, prefix, pfx_len) != 0)
+				continue;
+			msk = 1ULL << e->val;
+			if (delegate_msk & msk) {
+				/* emit lower-case name without prefix */
+				seq_printf(m, "%c", first ? '=' : ':');
+				name += pfx_len;
+				while (*name) {
+					seq_printf(m, "%c", tolower(*name));
+					name++;
+				}
+
+				delegate_msk &= ~msk;
+				first = false;
+			}
+		}
+	}
+	if (delegate_msk)
+		seq_printf(m, "%c0x%llx", first ? '=' : ':', delegate_msk);
+}
+
 /*
  * Display the mount options in /proc/mounts.
  */
 static int bpf_show_options(struct seq_file *m, struct dentry *root)
 {
-	umode_t mode = d_inode(root)->i_mode & S_IALLUGO & ~S_ISVTX;
+	struct inode *inode = d_inode(root);
+	umode_t mode = inode->i_mode & S_IALLUGO & ~S_ISVTX;
+	struct bpf_mount_opts *opts = root->d_sb->s_fs_info;
+	u64 mask;
 
+	if (!uid_eq(inode->i_uid, GLOBAL_ROOT_UID))
+		seq_printf(m, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, inode->i_uid));
+	if (!gid_eq(inode->i_gid, GLOBAL_ROOT_GID))
+		seq_printf(m, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, inode->i_gid));
 	if (mode != S_IRWXUGO)
 		seq_printf(m, ",mode=%o", mode);
+
+	if (opts->delegate_cmds || opts->delegate_maps ||
+	    opts->delegate_progs || opts->delegate_attachs) {
+		struct bpffs_btf_enums info;
+
+		/* ignore errors, fallback to hex */
+		(void)find_bpffs_btf_enums(&info);
+
+		mask = (1ULL << __MAX_BPF_CMD) - 1;
+		seq_print_delegate_opts(m, "delegate_cmds",
+					info.btf, info.cmd_t, "BPF_",
+					opts->delegate_cmds, mask);
+
+		mask = (1ULL << __MAX_BPF_MAP_TYPE) - 1;
+		seq_print_delegate_opts(m, "delegate_maps",
+					info.btf, info.map_t, "BPF_MAP_TYPE_",
+					opts->delegate_maps, mask);
+
+		mask = (1ULL << __MAX_BPF_PROG_TYPE) - 1;
+		seq_print_delegate_opts(m, "delegate_progs",
+					info.btf, info.prog_t, "BPF_PROG_TYPE_",
+					opts->delegate_progs, mask);
+
+		mask = (1ULL << __MAX_BPF_ATTACH_TYPE) - 1;
+		seq_print_delegate_opts(m, "delegate_attachs",
+					info.btf, info.attach_t, "BPF_",
+					opts->delegate_attachs, mask);
+	}
+
 	return 0;
 }
 
@@ -618,7 +786,7 @@ static void bpf_free_inode(struct inode *inode)
 	free_inode_nonrcu(inode);
 }
 
-static const struct super_operations bpf_super_ops = {
+const struct super_operations bpf_super_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
 	.show_options	= bpf_show_options,
@@ -626,23 +794,33 @@ static const struct super_operations bpf_super_ops = {
 };
 
 enum {
+	OPT_UID,
+	OPT_GID,
 	OPT_MODE,
+	OPT_DELEGATE_CMDS,
+	OPT_DELEGATE_MAPS,
+	OPT_DELEGATE_PROGS,
+	OPT_DELEGATE_ATTACHS,
 };
 
 static const struct fs_parameter_spec bpf_fs_parameters[] = {
+	fsparam_u32	("uid",				OPT_UID),
+	fsparam_u32	("gid",				OPT_GID),
 	fsparam_u32oct	("mode",			OPT_MODE),
+	fsparam_string	("delegate_cmds",		OPT_DELEGATE_CMDS),
+	fsparam_string	("delegate_maps",		OPT_DELEGATE_MAPS),
+	fsparam_string	("delegate_progs",		OPT_DELEGATE_PROGS),
+	fsparam_string	("delegate_attachs",		OPT_DELEGATE_ATTACHS),
 	{}
-};
-
-struct bpf_mount_opts {
-	umode_t mode;
 };
 
 static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	struct bpf_mount_opts *opts = fc->fs_private;
+	struct bpf_mount_opts *opts = fc->s_fs_info;
 	struct fs_parse_result result;
-	int opt;
+	kuid_t uid;
+	kgid_t gid;
+	int opt, err;
 
 	opt = fs_parse(fc, bpf_fs_parameters, param, &result);
 	if (opt < 0) {
@@ -663,12 +841,103 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	}
 
 	switch (opt) {
+	case OPT_UID:
+		uid = make_kuid(current_user_ns(), result.uint_32);
+		if (!uid_valid(uid))
+			goto bad_value;
+
+		/*
+		 * The requested uid must be representable in the
+		 * filesystem's idmapping.
+		 */
+		if (!kuid_has_mapping(fc->user_ns, uid))
+			goto bad_value;
+
+		opts->uid = uid;
+		break;
+	case OPT_GID:
+		gid = make_kgid(current_user_ns(), result.uint_32);
+		if (!gid_valid(gid))
+			goto bad_value;
+
+		/*
+		 * The requested gid must be representable in the
+		 * filesystem's idmapping.
+		 */
+		if (!kgid_has_mapping(fc->user_ns, gid))
+			goto bad_value;
+
+		opts->gid = gid;
+		break;
 	case OPT_MODE:
 		opts->mode = result.uint_32 & S_IALLUGO;
+		break;
+	case OPT_DELEGATE_CMDS:
+	case OPT_DELEGATE_MAPS:
+	case OPT_DELEGATE_PROGS:
+	case OPT_DELEGATE_ATTACHS: {
+		struct bpffs_btf_enums info;
+		const struct btf_type *enum_t;
+		const char *enum_pfx;
+		u64 *delegate_msk, msk = 0;
+		char *p;
+		int val;
+
+		/* ignore errors, fallback to hex */
+		(void)find_bpffs_btf_enums(&info);
+
+		switch (opt) {
+		case OPT_DELEGATE_CMDS:
+			delegate_msk = &opts->delegate_cmds;
+			enum_t = info.cmd_t;
+			enum_pfx = "BPF_";
+			break;
+		case OPT_DELEGATE_MAPS:
+			delegate_msk = &opts->delegate_maps;
+			enum_t = info.map_t;
+			enum_pfx = "BPF_MAP_TYPE_";
+			break;
+		case OPT_DELEGATE_PROGS:
+			delegate_msk = &opts->delegate_progs;
+			enum_t = info.prog_t;
+			enum_pfx = "BPF_PROG_TYPE_";
+			break;
+		case OPT_DELEGATE_ATTACHS:
+			delegate_msk = &opts->delegate_attachs;
+			enum_t = info.attach_t;
+			enum_pfx = "BPF_";
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		while ((p = strsep(&param->string, ":"))) {
+			if (strcmp(p, "any") == 0) {
+				msk |= ~0ULL;
+			} else if (find_btf_enum_const(info.btf, enum_t, enum_pfx, p, &val)) {
+				msk |= 1ULL << val;
+			} else {
+				err = kstrtou64(p, 0, &msk);
+				if (err)
+					return err;
+			}
+		}
+
+		/* Setting delegation mount options requires privileges */
+		if (msk && !capable(CAP_SYS_ADMIN))
+			return -EPERM;
+
+		*delegate_msk |= msk;
+		break;
+	}
+	default:
+		/* ignore unknown mount options */
 		break;
 	}
 
 	return 0;
+bad_value:
+	return invalfc(fc, "Bad value for '%s'", param->key);
 }
 
 struct bpf_preload_ops *bpf_preload_ops;
@@ -740,9 +1009,13 @@ out:
 static int bpf_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	static const struct tree_descr bpf_rfiles[] = { { "" } };
-	struct bpf_mount_opts *opts = fc->fs_private;
+	struct bpf_mount_opts *opts = sb->s_fs_info;
 	struct inode *inode;
 	int ret;
+
+	/* Mounting an instance of BPF FS requires privileges */
+	if (fc->user_ns != &init_user_ns && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	ret = simple_fill_super(sb, BPF_FS_MAGIC, bpf_rfiles);
 	if (ret)
@@ -751,6 +1024,8 @@ static int bpf_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &bpf_super_ops;
 
 	inode = sb->s_root->d_inode;
+	inode->i_uid = opts->uid;
+	inode->i_gid = opts->gid;
 	inode->i_op = &bpf_dir_iops;
 	inode->i_mode &= ~S_IALLUGO;
 	populate_bpffs(sb->s_root);
@@ -765,7 +1040,7 @@ static int bpf_get_tree(struct fs_context *fc)
 
 static void bpf_free_fc(struct fs_context *fc)
 {
-	kfree(fc->fs_private);
+	kfree(fc->s_fs_info);
 }
 
 static const struct fs_context_operations bpf_context_ops = {
@@ -786,10 +1061,26 @@ static int bpf_init_fs_context(struct fs_context *fc)
 		return -ENOMEM;
 
 	opts->mode = S_IRWXUGO;
+	opts->uid = current_fsuid();
+	opts->gid = current_fsgid();
 
-	fc->fs_private = opts;
+	/* start out with no BPF token delegation enabled */
+	opts->delegate_cmds = 0;
+	opts->delegate_maps = 0;
+	opts->delegate_progs = 0;
+	opts->delegate_attachs = 0;
+
+	fc->s_fs_info = opts;
 	fc->ops = &bpf_context_ops;
 	return 0;
+}
+
+static void bpf_kill_super(struct super_block *sb)
+{
+	struct bpf_mount_opts *opts = sb->s_fs_info;
+
+	kill_litter_super(sb);
+	kfree(opts);
 }
 
 static struct file_system_type bpf_fs_type = {
@@ -797,7 +1088,8 @@ static struct file_system_type bpf_fs_type = {
 	.name		= "bpf",
 	.init_fs_context = bpf_init_fs_context,
 	.parameters	= bpf_fs_parameters,
-	.kill_sb	= kill_litter_super,
+	.kill_sb	= bpf_kill_super,
+	.fs_flags	= FS_USERNS_MOUNT,
 };
 
 static int __init bpf_init(void)

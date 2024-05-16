@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2015 - 2021 Intel Corporation */
 #include "main.h"
 
@@ -1393,17 +1393,12 @@ int irdma_ieq_check_mpacrc(struct shash_desc *desc, void *addr, u32 len,
 			   u32 val)
 {
 	u32 crc = 0;
-	int ret;
-	int ret_code = 0;
 
-	crypto_shash_init(desc);
-	ret = crypto_shash_update(desc, addr, len);
-	if (!ret)
-		crypto_shash_final(desc, (u8 *)&crc);
+	crypto_shash_digest(desc, addr, len, (u8 *)&crc);
 	if (crc != val)
-		ret_code = -EINVAL;
+		return -EINVAL;
 
-	return ret_code;
+	return 0;
 }
 
 /**

@@ -27,7 +27,6 @@ struct stm32_breakinput {
 };
 
 struct stm32_pwm {
-	struct pwm_chip chip;
 	struct mutex lock; /* protect pwm config/enable */
 	struct clk *clk;
 	struct regmap *regmap;
@@ -40,7 +39,7 @@ struct stm32_pwm {
 
 static inline struct stm32_pwm *to_stm32_pwm_dev(struct pwm_chip *chip)
 {
-	return container_of(chip, struct stm32_pwm, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static u32 active_channels(struct stm32_pwm *dev)
@@ -50,21 +49,6 @@ static u32 active_channels(struct stm32_pwm *dev)
 	regmap_read(dev->regmap, TIM_CCER, &ccer);
 
 	return ccer & TIM_CCER_CCXE;
-}
-
-static int write_ccrx(struct stm32_pwm *dev, int ch, u32 value)
-{
-	switch (ch) {
-	case 0:
-		return regmap_write(dev->regmap, TIM_CCR1, value);
-	case 1:
-		return regmap_write(dev->regmap, TIM_CCR2, value);
-	case 2:
-		return regmap_write(dev->regmap, TIM_CCR3, value);
-	case 3:
-		return regmap_write(dev->regmap, TIM_CCR4, value);
-	}
-	return -EINVAL;
 }
 
 #define TIM_CCER_CC12P (TIM_CCER_CC1P | TIM_CCER_CC2P)
@@ -105,11 +89,12 @@ static int write_ccrx(struct stm32_pwm *dev, int ch, u32 value)
  * - Period     = t2 - t0
  * - Duty cycle = t1 - t0
  */
-static int stm32_pwm_raw_capture(struct stm32_pwm *priv, struct pwm_device *pwm,
+static int stm32_pwm_raw_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 				 unsigned long tmo_ms, u32 *raw_prd,
 				 u32 *raw_dty)
 {
-	struct device *parent = priv->chip.dev->parent;
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	struct device *parent = pwmchip_parent(chip)->parent;
 	enum stm32_timers_dmas dma_id;
 	u32 ccen, ccr;
 	int ret;
@@ -185,7 +170,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	ret = clk_enable(priv->clk);
 	if (ret) {
-		dev_err(priv->chip.dev, "failed to enable counter clock\n");
+		dev_err(pwmchip_parent(chip), "failed to enable counter clock\n");
 		goto unlock;
 	}
 
@@ -223,7 +208,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 			   TIM_CCER_CC12P : TIM_CCER_CC34P, pwm->hwpwm < 2 ?
 			   TIM_CCER_CC2P : TIM_CCER_CC4P);
 
-	ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd, &raw_dty);
+	ret = stm32_pwm_raw_capture(chip, pwm, tmo_ms, &raw_prd, &raw_dty);
 	if (ret)
 		goto stop;
 
@@ -244,7 +229,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 		/* 2nd measure with new scale */
 		psc /= scale;
 		regmap_write(priv->regmap, TIM_PSC, psc);
-		ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd,
+		ret = stm32_pwm_raw_capture(chip, pwm, tmo_ms, &raw_prd,
 					    &raw_dty);
 		if (ret)
 			goto stop;
@@ -272,7 +257,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 			   FIELD_PREP(TIM_CCMR_IC1PSC, icpsc) |
 			   FIELD_PREP(TIM_CCMR_IC2PSC, icpsc));
 
-	ret = stm32_pwm_raw_capture(priv, pwm, tmo_ms, &raw_prd, &raw_dty);
+	ret = stm32_pwm_raw_capture(chip, pwm, tmo_ms, &raw_prd, &raw_dty);
 	if (ret)
 		goto stop;
 
@@ -323,7 +308,7 @@ unlock:
 	return ret;
 }
 
-static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
+static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
 			    int duty_ns, int period_ns)
 {
 	unsigned long long prd, div, dty;
@@ -369,7 +354,7 @@ static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
 	dty = prd * duty_ns;
 	do_div(dty, period_ns);
 
-	write_ccrx(priv, ch, dty);
+	regmap_write(priv->regmap, TIM_CCR1 + 4 * ch, dty);
 
 	/* Configure output mode */
 	shift = (ch & 0x1) * CCMR_CHANNEL_SHIFT;
@@ -386,7 +371,7 @@ static int stm32_pwm_config(struct stm32_pwm *priv, int ch,
 	return 0;
 }
 
-static int stm32_pwm_set_polarity(struct stm32_pwm *priv, int ch,
+static int stm32_pwm_set_polarity(struct stm32_pwm *priv, unsigned int ch,
 				  enum pwm_polarity polarity)
 {
 	u32 mask;
@@ -401,7 +386,7 @@ static int stm32_pwm_set_polarity(struct stm32_pwm *priv, int ch,
 	return 0;
 }
 
-static int stm32_pwm_enable(struct stm32_pwm *priv, int ch)
+static int stm32_pwm_enable(struct stm32_pwm *priv, unsigned int ch)
 {
 	u32 mask;
 	int ret;
@@ -426,7 +411,7 @@ static int stm32_pwm_enable(struct stm32_pwm *priv, int ch)
 	return 0;
 }
 
-static void stm32_pwm_disable(struct stm32_pwm *priv, int ch)
+static void stm32_pwm_disable(struct stm32_pwm *priv, unsigned int ch)
 {
 	u32 mask;
 
@@ -486,9 +471,50 @@ static int stm32_pwm_apply_locked(struct pwm_chip *chip, struct pwm_device *pwm,
 	return ret;
 }
 
+static int stm32_pwm_get_state(struct pwm_chip *chip,
+			       struct pwm_device *pwm, struct pwm_state *state)
+{
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
+	int ch = pwm->hwpwm;
+	unsigned long rate;
+	u32 ccer, psc, arr, ccr;
+	u64 dty, prd;
+	int ret;
+
+	mutex_lock(&priv->lock);
+
+	ret = regmap_read(priv->regmap, TIM_CCER, &ccer);
+	if (ret)
+		goto out;
+
+	state->enabled = ccer & (TIM_CCER_CC1E << (ch * 4));
+	state->polarity = (ccer & (TIM_CCER_CC1P << (ch * 4))) ?
+			  PWM_POLARITY_INVERSED : PWM_POLARITY_NORMAL;
+	ret = regmap_read(priv->regmap, TIM_PSC, &psc);
+	if (ret)
+		goto out;
+	ret = regmap_read(priv->regmap, TIM_ARR, &arr);
+	if (ret)
+		goto out;
+	ret = regmap_read(priv->regmap, TIM_CCR1 + 4 * ch, &ccr);
+	if (ret)
+		goto out;
+
+	rate = clk_get_rate(priv->clk);
+
+	prd = (u64)NSEC_PER_SEC * (psc + 1) * (arr + 1);
+	state->period = DIV_ROUND_UP_ULL(prd, rate);
+	dty = (u64)NSEC_PER_SEC * (psc + 1) * ccr;
+	state->duty_cycle = DIV_ROUND_UP_ULL(dty, rate);
+
+out:
+	mutex_unlock(&priv->lock);
+	return ret;
+}
+
 static const struct pwm_ops stm32pwm_ops = {
-	.owner = THIS_MODULE,
 	.apply = stm32_pwm_apply_locked,
+	.get_state = stm32_pwm_get_state,
 	.capture = IS_ENABLED(CONFIG_DMA_ENGINE) ? stm32_pwm_capture : NULL,
 };
 
@@ -579,32 +605,23 @@ static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
 	priv->have_complementary_output = (ccer != 0);
 }
 
-static int stm32_pwm_detect_channels(struct stm32_pwm *priv)
+static unsigned int stm32_pwm_detect_channels(struct regmap *regmap,
+					      unsigned int *num_enabled)
 {
-	u32 ccer;
-	int npwm = 0;
+	u32 ccer, ccer_backup;
 
 	/*
 	 * If channels enable bits don't exist writing 1 will have no
 	 * effect so we can detect and count them.
 	 */
-	regmap_set_bits(priv->regmap, TIM_CCER, TIM_CCER_CCXE);
-	regmap_read(priv->regmap, TIM_CCER, &ccer);
-	regmap_clear_bits(priv->regmap, TIM_CCER, TIM_CCER_CCXE);
+	regmap_read(regmap, TIM_CCER, &ccer_backup);
+	regmap_set_bits(regmap, TIM_CCER, TIM_CCER_CCXE);
+	regmap_read(regmap, TIM_CCER, &ccer);
+	regmap_write(regmap, TIM_CCER, ccer_backup);
 
-	if (ccer & TIM_CCER_CC1E)
-		npwm++;
+	*num_enabled = hweight32(ccer_backup & TIM_CCER_CCXE);
 
-	if (ccer & TIM_CCER_CC2E)
-		npwm++;
-
-	if (ccer & TIM_CCER_CC3E)
-		npwm++;
-
-	if (ccer & TIM_CCER_CC4E)
-		npwm++;
-
-	return npwm;
+	return hweight32(ccer & TIM_CCER_CCXE);
 }
 
 static int stm32_pwm_probe(struct platform_device *pdev)
@@ -612,12 +629,18 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct stm32_timers *ddata = dev_get_drvdata(pdev->dev.parent);
+	struct pwm_chip *chip;
 	struct stm32_pwm *priv;
+	unsigned int npwm, num_enabled;
+	unsigned int i;
 	int ret;
 
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	npwm = stm32_pwm_detect_channels(ddata->regmap, &num_enabled);
+
+	chip = devm_pwmchip_alloc(dev, npwm, sizeof(*priv));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	priv = to_stm32_pwm_dev(chip);
 
 	mutex_init(&priv->lock);
 	priv->regmap = ddata->regmap;
@@ -633,33 +656,36 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 
 	stm32_pwm_detect_complementary(priv);
 
-	priv->chip.dev = dev;
-	priv->chip.ops = &stm32pwm_ops;
-	priv->chip.npwm = stm32_pwm_detect_channels(priv);
+	chip->ops = &stm32pwm_ops;
 
-	ret = devm_pwmchip_add(dev, &priv->chip);
+	/* Initialize clock refcount to number of enabled PWM channels. */
+	for (i = 0; i < num_enabled; i++)
+		clk_enable(priv->clk);
+
+	ret = devm_pwmchip_add(dev, chip);
 	if (ret < 0)
 		return ret;
 
-	platform_set_drvdata(pdev, priv);
+	platform_set_drvdata(pdev, chip);
 
 	return 0;
 }
 
-static int __maybe_unused stm32_pwm_suspend(struct device *dev)
+static int stm32_pwm_suspend(struct device *dev)
 {
-	struct stm32_pwm *priv = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
 	unsigned int i;
 	u32 ccer, mask;
 
 	/* Look for active channels */
 	ccer = active_channels(priv);
 
-	for (i = 0; i < priv->chip.npwm; i++) {
+	for (i = 0; i < chip->npwm; i++) {
 		mask = TIM_CCER_CC1E << (i * 4);
 		if (ccer & mask) {
 			dev_err(dev, "PWM %u still in use by consumer %s\n",
-				i, priv->chip.pwms[i].label);
+				i, chip->pwms[i].label);
 			return -EBUSY;
 		}
 	}
@@ -667,9 +693,10 @@ static int __maybe_unused stm32_pwm_suspend(struct device *dev)
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static int __maybe_unused stm32_pwm_resume(struct device *dev)
+static int stm32_pwm_resume(struct device *dev)
 {
-	struct stm32_pwm *priv = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct stm32_pwm *priv = to_stm32_pwm_dev(chip);
 	int ret;
 
 	ret = pinctrl_pm_select_default_state(dev);
@@ -680,7 +707,7 @@ static int __maybe_unused stm32_pwm_resume(struct device *dev)
 	return stm32_pwm_apply_breakinputs(priv);
 }
 
-static SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
 
 static const struct of_device_id stm32_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm",	},
@@ -693,7 +720,7 @@ static struct platform_driver stm32_pwm_driver = {
 	.driver	= {
 		.name = "stm32-pwm",
 		.of_match_table = stm32_pwm_of_match,
-		.pm = &stm32_pwm_pm_ops,
+		.pm = pm_ptr(&stm32_pwm_pm_ops),
 	},
 };
 module_platform_driver(stm32_pwm_driver);

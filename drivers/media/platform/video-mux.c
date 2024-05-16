@@ -89,10 +89,10 @@ static int video_mux_link_setup(struct media_entity *entity,
 
 		/* Propagate the active format to the source */
 		sd_state = v4l2_subdev_lock_and_get_active_state(sd);
-		source_mbusformat = v4l2_subdev_get_pad_format(sd, sd_state,
-							       source_pad);
-		*source_mbusformat = *v4l2_subdev_get_pad_format(sd, sd_state,
-								 vmux->active);
+		source_mbusformat = v4l2_subdev_state_get_format(sd_state,
+								 source_pad);
+		*source_mbusformat = *v4l2_subdev_state_get_format(sd_state,
+								   vmux->active);
 		v4l2_subdev_unlock_state(sd_state);
 	} else {
 		if (vmux->active != local->index)
@@ -154,11 +154,11 @@ static int video_mux_set_format(struct v4l2_subdev *sd,
 	struct media_pad *pad = &vmux->pads[sdformat->pad];
 	u16 source_pad = sd->entity.num_pads - 1;
 
-	mbusformat = v4l2_subdev_get_pad_format(sd, sd_state, sdformat->pad);
+	mbusformat = v4l2_subdev_state_get_format(sd_state, sdformat->pad);
 	if (!mbusformat)
 		return -EINVAL;
 
-	source_mbusformat = v4l2_subdev_get_pad_format(sd, sd_state, source_pad);
+	source_mbusformat = v4l2_subdev_state_get_format(sd_state, source_pad);
 	if (!source_mbusformat)
 		return -EINVAL;
 
@@ -268,8 +268,8 @@ static int video_mux_set_format(struct v4l2_subdev *sd,
 
 	/* Source pad mirrors active sink pad, no limitations on sink pads */
 	if ((pad->flags & MEDIA_PAD_FL_SOURCE) && vmux->active >= 0)
-		sdformat->format = *v4l2_subdev_get_pad_format(sd, sd_state,
-							       vmux->active);
+		sdformat->format = *v4l2_subdev_state_get_format(sd_state,
+								 vmux->active);
 
 	*mbusformat = sdformat->format;
 
@@ -282,8 +282,8 @@ static int video_mux_set_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int video_mux_init_cfg(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_state *sd_state)
+static int video_mux_init_state(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state)
 {
 	struct video_mux *vmux = v4l2_subdev_to_video_mux(sd);
 	struct v4l2_mbus_framefmt *mbusformat;
@@ -292,7 +292,7 @@ static int video_mux_init_cfg(struct v4l2_subdev *sd,
 	mutex_lock(&vmux->lock);
 
 	for (i = 0; i < sd->entity.num_pads; i++) {
-		mbusformat = v4l2_subdev_get_pad_format(sd, sd_state, i);
+		mbusformat = v4l2_subdev_state_get_format(sd_state, i);
 		*mbusformat = video_mux_format_mbus_default;
 	}
 
@@ -302,7 +302,6 @@ static int video_mux_init_cfg(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops video_mux_pad_ops = {
-	.init_cfg = video_mux_init_cfg,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = video_mux_set_format,
 };
@@ -310,6 +309,10 @@ static const struct v4l2_subdev_pad_ops video_mux_pad_ops = {
 static const struct v4l2_subdev_ops video_mux_subdev_ops = {
 	.pad = &video_mux_pad_ops,
 	.video = &video_mux_subdev_video_ops,
+};
+
+static const struct v4l2_subdev_internal_ops video_mux_internal_ops = {
+	.init_state = video_mux_init_state,
 };
 
 static int video_mux_notify_bound(struct v4l2_async_notifier *notifier,
@@ -400,6 +403,7 @@ static int video_mux_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vmux);
 
 	v4l2_subdev_init(&vmux->subdev, &video_mux_subdev_ops);
+	vmux->subdev.internal_ops = &video_mux_internal_ops;
 	snprintf(vmux->subdev.name, sizeof(vmux->subdev.name), "%pOFn", np);
 	vmux->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	vmux->subdev.dev = dev;

@@ -42,6 +42,8 @@ int pdsc_err_to_errno(enum pds_core_status_code code)
 		return -ERANGE;
 	case PDS_RC_BAD_ADDR:
 		return -EFAULT;
+	case PDS_RC_BAD_PCI:
+		return -ENXIO;
 	case PDS_RC_EOPCODE:
 	case PDS_RC_EINTR:
 	case PDS_RC_DEV_CMD:
@@ -55,6 +57,9 @@ int pdsc_err_to_errno(enum pds_core_status_code code)
 
 bool pdsc_is_fw_running(struct pdsc *pdsc)
 {
+	if (!pdsc->info_regs)
+		return false;
+
 	pdsc->fw_status = ioread8(&pdsc->info_regs->fw_status);
 	pdsc->last_fw_time = jiffies;
 	pdsc->last_hb = ioread32(&pdsc->info_regs->fw_heartbeat);
@@ -62,7 +67,7 @@ bool pdsc_is_fw_running(struct pdsc *pdsc)
 	/* Firmware is useful only if the running bit is set and
 	 * fw_status != 0xff (bad PCI read)
 	 */
-	return (pdsc->fw_status != 0xff) &&
+	return (pdsc->fw_status != PDS_RC_BAD_PCI) &&
 		(pdsc->fw_status & PDS_CORE_FW_STS_F_RUNNING);
 }
 
@@ -128,6 +133,7 @@ static int pdsc_devcmd_wait(struct pdsc *pdsc, u8 opcode, int max_seconds)
 	unsigned long max_wait;
 	unsigned long duration;
 	int timeout = 0;
+	bool running;
 	int done = 0;
 	int err = 0;
 	int status;
@@ -136,6 +142,10 @@ static int pdsc_devcmd_wait(struct pdsc *pdsc, u8 opcode, int max_seconds)
 	max_wait = start_time + (max_seconds * HZ);
 
 	while (!done && !timeout) {
+		running = pdsc_is_fw_running(pdsc);
+		if (!running)
+			break;
+
 		done = pdsc_devcmd_done(pdsc);
 		if (done)
 			break;
@@ -152,7 +162,7 @@ static int pdsc_devcmd_wait(struct pdsc *pdsc, u8 opcode, int max_seconds)
 		dev_dbg(dev, "DEVCMD %d %s after %ld secs\n",
 			opcode, pdsc_devcmd_str(opcode), duration / HZ);
 
-	if (!done || timeout) {
+	if ((!done || timeout) && running) {
 		dev_err(dev, "DEVCMD %d %s timeout, done %d timeout %d max_seconds=%d\n",
 			opcode, pdsc_devcmd_str(opcode), done, timeout,
 			max_seconds);
@@ -175,13 +185,17 @@ int pdsc_devcmd_locked(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
 {
 	int err;
 
+	if (!pdsc->cmd_regs)
+		return -ENXIO;
+
 	memcpy_toio(&pdsc->cmd_regs->cmd, cmd, sizeof(*cmd));
 	pdsc_devcmd_dbell(pdsc);
 	err = pdsc_devcmd_wait(pdsc, cmd->opcode, max_seconds);
-	memcpy_fromio(comp, &pdsc->cmd_regs->comp, sizeof(*comp));
 
 	if ((err == -ENXIO || err == -ETIMEDOUT) && pdsc->wq)
 		queue_work(pdsc->wq, &pdsc->health_work);
+	else
+		memcpy_fromio(comp, &pdsc->cmd_regs->comp, sizeof(*comp));
 
 	return err;
 }
@@ -214,6 +228,9 @@ int pdsc_devcmd_reset(struct pdsc *pdsc)
 	union pds_core_dev_cmd cmd = {
 		.reset.opcode = PDS_CORE_CMD_RESET,
 	};
+
+	if (!pdsc_is_fw_running(pdsc))
+		return 0;
 
 	return pdsc_devcmd(pdsc, &cmd, &comp, pdsc->devcmd_timeout);
 }
@@ -254,10 +271,14 @@ static int pdsc_identify(struct pdsc *pdsc)
 	struct pds_core_drv_identity drv = {};
 	size_t sz;
 	int err;
+	int n;
 
 	drv.drv_type = cpu_to_le32(PDS_DRIVER_LINUX);
-	snprintf(drv.driver_ver_str, sizeof(drv.driver_ver_str),
-		 "%s %s", PDS_CORE_DRV_NAME, utsname()->release);
+	/* Catching the return quiets a Wformat-truncation complaint */
+	n = snprintf(drv.driver_ver_str, sizeof(drv.driver_ver_str),
+		     "%s %s", PDS_CORE_DRV_NAME, utsname()->release);
+	if (n > sizeof(drv.driver_ver_str))
+		dev_dbg(pdsc->dev, "release name truncated, don't care\n");
 
 	/* Next let's get some info about the device
 	 * We use the devcmd_lock at this level in order to
@@ -298,11 +319,20 @@ static int pdsc_identify(struct pdsc *pdsc)
 	return 0;
 }
 
-int pdsc_dev_reinit(struct pdsc *pdsc)
+void pdsc_dev_uninit(struct pdsc *pdsc)
 {
-	pdsc_init_devinfo(pdsc);
+	if (pdsc->intr_info) {
+		int i;
 
-	return pdsc_identify(pdsc);
+		for (i = 0; i < pdsc->nintrs; i++)
+			pdsc_intr_free(pdsc, i);
+
+		kfree(pdsc->intr_info);
+		pdsc->intr_info = NULL;
+		pdsc->nintrs = 0;
+	}
+
+	pci_free_irq_vectors(pdsc->pdev);
 }
 
 int pdsc_dev_init(struct pdsc *pdsc)
@@ -330,10 +360,8 @@ int pdsc_dev_init(struct pdsc *pdsc)
 
 	/* Get intr_info struct array for tracking */
 	pdsc->intr_info = kcalloc(nintrs, sizeof(*pdsc->intr_info), GFP_KERNEL);
-	if (!pdsc->intr_info) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!pdsc->intr_info)
+		return -ENOMEM;
 
 	err = pci_alloc_irq_vectors(pdsc->pdev, nintrs, nintrs, PCI_IRQ_MSIX);
 	if (err != nintrs) {

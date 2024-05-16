@@ -1424,12 +1424,6 @@ static const struct cpr_acc_desc qcs404_cpr_acc_desc = {
 	.acc_desc = &qcs404_acc_desc,
 };
 
-static unsigned int cpr_get_performance_state(struct generic_pm_domain *genpd,
-					      struct dev_pm_opp *opp)
-{
-	return dev_pm_opp_get_level(opp);
-}
-
 static int cpr_power_off(struct generic_pm_domain *domain)
 {
 	struct cpr_drv *drv = container_of(domain, struct cpr_drv, pd);
@@ -1698,7 +1692,6 @@ static int cpr_probe(struct platform_device *pdev)
 	drv->pd.power_off = cpr_power_off;
 	drv->pd.power_on = cpr_power_on;
 	drv->pd.set_performance_state = cpr_set_performance_state;
-	drv->pd.opp_to_performance_state = cpr_get_performance_state;
 	drv->pd.attach_dev = cpr_pd_attach_dev;
 
 	ret = pm_genpd_init(&drv->pd, NULL, true);
@@ -1719,7 +1712,7 @@ err_remove_genpd:
 	return ret;
 }
 
-static int cpr_remove(struct platform_device *pdev)
+static void cpr_remove(struct platform_device *pdev)
 {
 	struct cpr_drv *drv = platform_get_drvdata(pdev);
 
@@ -1732,8 +1725,6 @@ static int cpr_remove(struct platform_device *pdev)
 	pm_genpd_remove(&drv->pd);
 
 	debugfs_remove_recursive(drv->debugfs);
-
-	return 0;
 }
 
 static const struct of_device_id cpr_match_table[] = {
@@ -1744,7 +1735,7 @@ MODULE_DEVICE_TABLE(of, cpr_match_table);
 
 static struct platform_driver cpr_driver = {
 	.probe		= cpr_probe,
-	.remove		= cpr_remove,
+	.remove_new	= cpr_remove,
 	.driver		= {
 		.name	= "qcom-cpr",
 		.of_match_table = cpr_match_table,

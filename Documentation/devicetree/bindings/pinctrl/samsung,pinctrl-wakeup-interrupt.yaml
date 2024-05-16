@@ -28,15 +28,27 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - samsung,s3c2410-wakeup-eint
-      - samsung,s3c2412-wakeup-eint
-      - samsung,s3c64xx-wakeup-eint
-      - samsung,s5pv210-wakeup-eint
-      - samsung,exynos4210-wakeup-eint
-      - samsung,exynos7-wakeup-eint
-      - samsung,exynos850-wakeup-eint
-      - samsung,exynosautov9-wakeup-eint
+    oneOf:
+      - enum:
+          - samsung,s3c2410-wakeup-eint
+          - samsung,s3c2412-wakeup-eint
+          - samsung,s3c64xx-wakeup-eint
+          - samsung,s5pv210-wakeup-eint
+          - samsung,exynos4210-wakeup-eint
+          - samsung,exynos7-wakeup-eint
+          - samsung,exynosautov920-wakeup-eint
+      - items:
+          - enum:
+              - samsung,exynos5433-wakeup-eint
+              - samsung,exynos7885-wakeup-eint
+              - samsung,exynos850-wakeup-eint
+          - const: samsung,exynos7-wakeup-eint
+      - items:
+          - enum:
+              - google,gs101-wakeup-eint
+              - samsung,exynosautov9-wakeup-eint
+          - const: samsung,exynos850-wakeup-eint
+          - const: samsung,exynos7-wakeup-eint
 
   interrupts:
     description:
@@ -79,11 +91,14 @@ allOf:
   - if:
       properties:
         compatible:
-          contains:
-            enum:
-              - samsung,s5pv210-wakeup-eint
-              - samsung,exynos4210-wakeup-eint
-              - samsung,exynos7-wakeup-eint
+          # Match without "contains", to skip newer variants which are still
+          # compatible with samsung,exynos7-wakeup-eint
+          enum:
+            - samsung,s5pv210-wakeup-eint
+            - samsung,exynos4210-wakeup-eint
+            - samsung,exynos5433-wakeup-eint
+            - samsung,exynos7-wakeup-eint
+            - samsung,exynos7885-wakeup-eint
     then:
       properties:
         interrupts:
@@ -98,7 +113,7 @@ allOf:
           contains:
             enum:
               - samsung,exynos850-wakeup-eint
-              - samsung,exynosautov9-wakeup-eint
+              - samsung,exynosautov920-wakeup-eint
     then:
       properties:
         interrupts: false

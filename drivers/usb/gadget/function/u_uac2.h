@@ -35,6 +35,11 @@
 #define UAC2_DEF_REQ_NUM 2
 #define UAC2_DEF_INT_REQ_NUM	10
 
+#define UAC2_DEF_P_TERM_TYPE 0x301
+	/* UAC_OUTPUT_TERMINAL_SPEAKER */
+#define UAC2_DEF_C_TERM_TYPE 0x201
+	/* UAC_INPUT_TERMINAL_MICROPHONE*/
+
 struct f_uac2_opts {
 	struct usb_function_instance	func_inst;
 	int				p_chmask;
@@ -64,6 +69,9 @@ struct f_uac2_opts {
 	bool			bound;
 
 	char			function_name[32];
+
+	s16				p_terminal_type;
+	s16				c_terminal_type;
 
 	struct mutex			lock;
 	int				refcnt;

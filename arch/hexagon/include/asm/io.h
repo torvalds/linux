@@ -59,12 +59,6 @@ static inline void *phys_to_virt(unsigned long address)
 }
 
 /*
- * convert a physical pointer to a virtual kernel pointer for
- * /dev/mem access.
- */
-#define xlate_dev_mem_ptr(p)    __va(p)
-
-/*
  * IO port access primitives.  Hexagon doesn't have special IO access
  * instructions; all I/O is memory mapped.
  *
@@ -173,9 +167,6 @@ static inline void writel(u32 data, volatile void __iomem *addr)
  */
 #define _PAGE_IOREMAP (_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
 		       (__HEXAGON_C_DEV << 6))
-
-#define ioremap_uc(addr, size) ioremap((addr), (size))
-
 
 #define __raw_writel writel
 

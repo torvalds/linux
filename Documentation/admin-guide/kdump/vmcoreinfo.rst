@@ -65,11 +65,11 @@ Defines the beginning of the text section. In general, _stext indicates
 the kernel start address. Used to convert a virtual address from the
 direct kernel map to a physical address.
 
-vmap_area_list
---------------
+VMALLOC_START
+-------------
 
-Stores the virtual area list. makedumpfile gets the vmalloc start value
-from this variable and its value is necessary for vmalloc translation.
+Stores the base address of vmalloc area. makedumpfile gets this value
+since is necessary for vmalloc translation.
 
 mem_map
 -------
@@ -172,7 +172,7 @@ variables.
 Offset of the free_list's member. This value is used to compute the number
 of free pages.
 
-Each zone has a free_area structure array called free_area[MAX_ORDER + 1].
+Each zone has a free_area structure array called free_area[NR_PAGE_ORDERS].
 The free_list represents a linked list of free page blocks.
 
 (list_head, next|prev)
@@ -189,11 +189,11 @@ Offsets of the vmap_area's members. They carry vmalloc-specific
 information. Makedumpfile gets the start address of the vmalloc region
 from this.
 
-(zone.free_area, MAX_ORDER + 1)
--------------------------------
+(zone.free_area, NR_PAGE_ORDERS)
+--------------------------------
 
 Free areas descriptor. User-space tools use this value to iterate the
-free_area ranges. MAX_ORDER is used by the zone buddy allocator.
+free_area ranges. NR_PAGE_ORDERS is used by the zone buddy allocator.
 
 prb
 ---
@@ -412,36 +412,6 @@ Denotes whether physical address extensions are enabled. It has the cost
 of a higher page table lookup overhead, and also consumes more page
 table space per process. Used to check whether PAE was enabled in the
 crash kernel when converting virtual addresses to physical addresses.
-
-ia64
-====
-
-pgdat_list|(pgdat_list, MAX_NUMNODES)
--------------------------------------
-
-pg_data_t array storing all NUMA nodes information. MAX_NUMNODES
-indicates the number of the nodes.
-
-node_memblk|(node_memblk, NR_NODE_MEMBLKS)
-------------------------------------------
-
-List of node memory chunks. Filled when parsing the SRAT table to obtain
-information about memory nodes. NR_NODE_MEMBLKS indicates the number of
-node memory chunks.
-
-These values are used to compute the number of nodes the crashed kernel used.
-
-node_memblk_s|(node_memblk_s, start_paddr)|(node_memblk_s, size)
-----------------------------------------------------------------
-
-The size of a struct node_memblk_s and the offsets of the
-node_memblk_s's members. Used to compute the number of nodes.
-
-PGTABLE_3|PGTABLE_4
--------------------
-
-User-space tools need to know whether the crash kernel was in 3-level or
-4-level paging mode. Used to distinguish the page table.
 
 ARM64
 =====

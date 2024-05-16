@@ -44,7 +44,6 @@ struct inet_connection_sock_af_ops {
 				      struct request_sock *req_unhash,
 				      bool *own_req);
 	u16	    net_header_len;
-	u16	    net_frag_header_len;
 	u16	    sockaddr_len;
 	int	    (*setsockopt)(struct sock *sk, int level, int optname,
 				  sockptr_t optval, unsigned int optlen);
@@ -114,7 +113,10 @@ struct inet_connection_sock {
 		__u8		  quick;	 /* Scheduled number of quick acks	   */
 		__u8		  pingpong;	 /* The session is interactive		   */
 		__u8		  retry;	 /* Number of attempts			   */
-		__u32		  ato;		 /* Predicted tick of soft clock	   */
+		#define ATO_BITS 8
+		__u32		  ato:ATO_BITS,	 /* Predicted tick of soft clock	   */
+				  lrcv_flowlabel:20, /* last received ipv6 flowlabel	   */
+				  unused:4;
 		unsigned long	  timeout;	 /* Currently scheduled timeout		   */
 		__u32		  lrcvtime;	 /* timestamp of last received data packet */
 		__u16		  last_seg_size; /* Size of last incoming segment	   */
@@ -173,6 +175,7 @@ void inet_csk_init_xmit_timers(struct sock *sk,
 			       void (*delack_handler)(struct timer_list *),
 			       void (*keepalive_handler)(struct timer_list *));
 void inet_csk_clear_xmit_timers(struct sock *sk);
+void inet_csk_clear_xmit_timers_sync(struct sock *sk);
 
 static inline void inet_csk_schedule_ack(struct sock *sk)
 {
@@ -325,11 +328,10 @@ void inet_csk_update_fastreuse(struct inet_bind_bucket *tb,
 
 struct dst_entry *inet_csk_update_pmtu(struct sock *sk, u32 mtu);
 
-#define TCP_PINGPONG_THRESH	1
-
 static inline void inet_csk_enter_pingpong_mode(struct sock *sk)
 {
-	inet_csk(sk)->icsk_ack.pingpong = TCP_PINGPONG_THRESH;
+	inet_csk(sk)->icsk_ack.pingpong =
+		READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_pingpong_thresh);
 }
 
 static inline void inet_csk_exit_pingpong_mode(struct sock *sk)
@@ -339,12 +341,29 @@ static inline void inet_csk_exit_pingpong_mode(struct sock *sk)
 
 static inline bool inet_csk_in_pingpong_mode(struct sock *sk)
 {
-	return inet_csk(sk)->icsk_ack.pingpong >= TCP_PINGPONG_THRESH;
+	return inet_csk(sk)->icsk_ack.pingpong >=
+	       READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_pingpong_thresh);
+}
+
+static inline void inet_csk_inc_pingpong_cnt(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (icsk->icsk_ack.pingpong < U8_MAX)
+		icsk->icsk_ack.pingpong++;
 }
 
 static inline bool inet_csk_has_ulp(const struct sock *sk)
 {
 	return inet_test_bit(IS_ICSK, sk) && !!inet_csk(sk)->icsk_ulp_ops;
+}
+
+static inline void inet_init_csk_locks(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	spin_lock_init(&icsk->icsk_accept_queue.rskq_lock);
+	spin_lock_init(&icsk->icsk_accept_queue.fastopenq.lock);
 }
 
 #endif /* _INET_CONNECTION_SOCK_H */

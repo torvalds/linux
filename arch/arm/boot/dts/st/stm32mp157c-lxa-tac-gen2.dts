@@ -148,7 +148,7 @@
 		compatible = "ti,lmp92064";
 		reg = <0>;
 
-		reset-gpios = <&gpioa 4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpioa 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		shunt-resistor-micro-ohms = <15000>;
 		spi-max-frequency = <5000000>;
 		vdd-supply = <&reg_pb_3v3>;

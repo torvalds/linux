@@ -59,9 +59,6 @@
 #define NGBE_EEPROM_VERSION_L			0x1D
 #define NGBE_EEPROM_VERSION_H			0x1E
 
-/* Media-dependent registers. */
-#define NGBE_MDIO_CLAUSE_SELECT			0x11220
-
 /* GPIO Registers */
 #define NGBE_GPIO_DR				0x14800
 #define NGBE_GPIO_DDR				0x14804
@@ -83,7 +80,7 @@
 				NGBE_PX_MISC_IEN_GPIO)
 
 #define NGBE_INTR_ALL				0x1FF
-#define NGBE_INTR_MISC(A)			BIT((A)->num_q_vectors)
+#define NGBE_INTR_MISC				BIT(0)
 
 #define NGBE_PHY_CONFIG(reg_offset)		(0x14000 + ((reg_offset) * 4))
 #define NGBE_CFG_LAN_SPEED			0x14440
@@ -108,6 +105,7 @@
 #define NGBE_FW_CMD_ST_FAIL			0x70657376
 
 #define NGBE_MAX_FDIR_INDICES			7
+#define NGBE_MAX_RSS_INDICES			8
 
 #define NGBE_MAX_RX_QUEUES			(NGBE_MAX_FDIR_INDICES + 1)
 #define NGBE_MAX_TX_QUEUES			(NGBE_MAX_FDIR_INDICES + 1)
@@ -132,5 +130,9 @@
 #define NGBE_MIN_RXD				128
 
 extern char ngbe_driver_name[];
+
+void ngbe_down(struct wx *wx);
+void ngbe_up(struct wx *wx);
+int ngbe_setup_tc(struct net_device *dev, u8 tc);
 
 #endif /* _NGBE_TYPE_H_ */

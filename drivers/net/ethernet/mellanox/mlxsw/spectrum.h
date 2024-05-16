@@ -78,11 +78,6 @@ struct mlxsw_sp_span_entry;
 enum mlxsw_sp_l3proto;
 union mlxsw_sp_l3addr;
 
-struct mlxsw_sp_upper {
-	struct net_device *dev;
-	unsigned int ref_count;
-};
-
 enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_SUBPORT,
 	MLXSW_SP_RIF_TYPE_VLAN,
@@ -136,6 +131,7 @@ struct mlxsw_sp_span_ops;
 struct mlxsw_sp_qdisc_state;
 struct mlxsw_sp_mall_entry;
 struct mlxsw_sp_pgt;
+struct mlxsw_sp_lag;
 
 struct mlxsw_sp_port_mapping {
 	u8 module;
@@ -164,7 +160,8 @@ struct mlxsw_sp {
 	const struct mlxsw_bus_info *bus_info;
 	unsigned char base_mac[ETH_ALEN];
 	const unsigned char *mac_mask;
-	struct mlxsw_sp_upper *lags;
+	struct mlxsw_sp_lag *lags;
+	u16 max_lag;
 	struct mlxsw_sp_port_mapping *port_mapping;
 	struct mlxsw_sp_port_mapping_events port_mapping_events;
 	struct rhashtable sample_trigger_ht;
@@ -205,13 +202,14 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_mall_ops *mall_ops;
 	const struct mlxsw_sp_router_ops *router_ops;
 	const struct mlxsw_listener *listeners;
-	const struct mlxsw_sp_fid_family **fid_family_arr;
+	const struct mlxsw_sp_fid_core_ops *fid_core_ops;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
 	struct rhashtable ipv6_addr_ht;
 	struct mutex ipv6_addr_ht_lock; /* Protects ipv6_addr_ht */
 	struct mlxsw_sp_pgt *pgt;
 	bool pgt_smpe_index_valid;
+	u16 lag_pgt_base;
 };
 
 struct mlxsw_sp_ptp_ops {
@@ -251,11 +249,10 @@ struct mlxsw_sp_ptp_ops {
 			       const struct mlxsw_tx_info *tx_info);
 };
 
-static inline struct mlxsw_sp_upper *
-mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
-{
-	return &mlxsw_sp->lags[lag_id];
-}
+struct mlxsw_sp_fid_core_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp);
+	void (*fini)(struct mlxsw_sp *mlxsw_sp);
+};
 
 struct mlxsw_sp_port_pcpu_stats {
 	u64			rx_packets;
@@ -507,6 +504,10 @@ enum mlxsw_sp_flood_type {
 	MLXSW_SP_FLOOD_TYPE_UC,
 	MLXSW_SP_FLOOD_TYPE_BC,
 	MLXSW_SP_FLOOD_TYPE_MC,
+	/* For RSP FIDs in CFF mode. */
+	MLXSW_SP_FLOOD_TYPE_NOT_UC,
+	/* For NVE traffic. */
+	MLXSW_SP_FLOOD_TYPE_ANY,
 };
 
 int mlxsw_sp_port_get_stats_raw(struct net_device *dev, int grp,
@@ -705,8 +706,8 @@ int mlxsw_sp_port_kill_vid(struct net_device *dev,
 int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 			   u16 vid_end, bool is_member, bool untagged);
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
-			      unsigned int counter_index, u64 *packets,
-			      u64 *bytes);
+			      unsigned int counter_index, bool clear,
+			      u64 *packets, u64 *bytes);
 int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				unsigned int *p_counter_index);
 void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
@@ -752,6 +753,8 @@ union mlxsw_sp_l3addr {
 };
 
 u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
+int mlxsw_sp_rif_subport_port(const struct mlxsw_sp_rif *rif,
+			      u16 *port, bool *is_lag);
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
@@ -1318,11 +1321,11 @@ struct mlxsw_sp_fid *mlxsw_sp_fid_dummy_get(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid);
 int mlxsw_sp_port_fids_init(struct mlxsw_sp_port *mlxsw_sp_port);
 void mlxsw_sp_port_fids_fini(struct mlxsw_sp_port *mlxsw_sp_port);
-int mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp);
-void mlxsw_sp_fids_fini(struct mlxsw_sp *mlxsw_sp);
+int mlxsw_sp_fid_port_join_lag(const struct mlxsw_sp_port *mlxsw_sp_port);
+void mlxsw_sp_fid_port_leave_lag(const struct mlxsw_sp_port *mlxsw_sp_port);
 
-extern const struct mlxsw_sp_fid_family *mlxsw_sp1_fid_family_arr[];
-extern const struct mlxsw_sp_fid_family *mlxsw_sp2_fid_family_arr[];
+extern const struct mlxsw_sp_fid_core_ops mlxsw_sp1_fid_core_ops;
+extern const struct mlxsw_sp_fid_core_ops mlxsw_sp2_fid_core_ops;
 
 /* spectrum_mr.c */
 enum mlxsw_sp_mr_route_prio {
@@ -1480,7 +1483,7 @@ int mlxsw_sp_policer_resources_register(struct mlxsw_core *mlxsw_core);
 /* spectrum_pgt.c */
 int mlxsw_sp_pgt_mid_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_mid);
 void mlxsw_sp_pgt_mid_free(struct mlxsw_sp *mlxsw_sp, u16 mid_base);
-int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
+int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 *mid_base,
 				 u16 count);
 void mlxsw_sp_pgt_mid_free_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
 				 u16 count);

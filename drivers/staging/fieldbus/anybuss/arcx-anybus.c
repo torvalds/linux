@@ -218,7 +218,10 @@ static const struct regulator_desc can_power_desc = {
 	.ops = &can_power_ops,
 };
 
-static struct class *controller_class;
+static const struct class controller_class = {
+	.name = "arcx_anybus_controller",
+};
+
 static DEFINE_IDA(controller_index_ida);
 
 static int controller_probe(struct platform_device *pdev)
@@ -282,7 +285,7 @@ static int controller_probe(struct platform_device *pdev)
 		}
 	}
 
-	id = ida_simple_get(&controller_index_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&controller_index_ida, GFP_KERNEL);
 	if (id < 0) {
 		err = id;
 		goto out_reset;
@@ -301,7 +304,7 @@ static int controller_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto out_ida;
 	}
-	cd->class_dev->class = controller_class;
+	cd->class_dev->class = &controller_class;
 	cd->class_dev->groups = controller_attribute_groups;
 	cd->class_dev->parent = dev;
 	cd->class_dev->id = id;
@@ -315,7 +318,7 @@ static int controller_probe(struct platform_device *pdev)
 out_dev:
 	put_device(cd->class_dev);
 out_ida:
-	ida_simple_remove(&controller_index_ida, id);
+	ida_free(&controller_index_ida, id);
 out_reset:
 	gpiod_set_value_cansleep(cd->reset_gpiod, 1);
 	return err;
@@ -327,7 +330,7 @@ static void controller_remove(struct platform_device *pdev)
 	int id = cd->class_dev->id;
 
 	device_unregister(cd->class_dev);
-	ida_simple_remove(&controller_index_ida, id);
+	ida_free(&controller_index_ida, id);
 	gpiod_set_value_cansleep(cd->reset_gpiod, 1);
 }
 
@@ -351,12 +354,12 @@ static int __init controller_init(void)
 {
 	int err;
 
-	controller_class = class_create("arcx_anybus_controller");
-	if (IS_ERR(controller_class))
-		return PTR_ERR(controller_class);
+	err = class_register(&controller_class);
+	if (err)
+		return err;
 	err = platform_driver_register(&controller_driver);
 	if (err)
-		class_destroy(controller_class);
+		class_unregister(&controller_class);
 
 	return err;
 }
@@ -364,7 +367,7 @@ static int __init controller_init(void)
 static void __exit controller_exit(void)
 {
 	platform_driver_unregister(&controller_driver);
-	class_destroy(controller_class);
+	class_unregister(&controller_class);
 	ida_destroy(&controller_index_ida);
 }
 

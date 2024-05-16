@@ -60,6 +60,7 @@
 
 #define DMC_EVT_CTL_EVENT_ID_MASK	REG_GENMASK(15, 8)
 #define DMC_EVT_CTL_EVENT_ID_FALSE	0x01
+#define DMC_EVT_CTL_EVENT_ID_VBLANK_A	0x32 /* main DMC */
 /* An event handler scheduled to run at a 1 kHz frequency. */
 #define DMC_EVT_CTL_EVENT_ID_CLK_MSEC	0xbf
 
@@ -95,5 +96,11 @@
 
 #define TGL_DMC_DEBUG3		_MMIO(0x101090)
 #define DG1_DMC_DEBUG3		_MMIO(0x13415c)
+
+#define DMC_WAKELOCK_CFG	_MMIO(0x8F1B0)
+#define  DMC_WAKELOCK_CFG_ENABLE REG_BIT(31)
+#define DMC_WAKELOCK1_CTL	_MMIO(0x8F140)
+#define  DMC_WAKELOCK_CTL_REQ	 REG_BIT(31)
+#define  DMC_WAKELOCK_CTL_ACK	 REG_BIT(15)
 
 #endif /* __INTEL_DMC_REGS_H__ */

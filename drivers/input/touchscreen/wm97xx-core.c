@@ -756,11 +756,9 @@ batt_err:
 	return ret;
 }
 
-static int wm97xx_mfd_remove(struct platform_device *pdev)
+static void wm97xx_mfd_remove(struct platform_device *pdev)
 {
 	wm97xx_remove(&pdev->dev);
-
-	return 0;
 }
 
 static int wm97xx_suspend(struct device *dev)
@@ -878,7 +876,7 @@ static struct platform_driver wm97xx_mfd_driver = {
 		.pm =		pm_sleep_ptr(&wm97xx_pm_ops),
 	},
 	.probe =	wm97xx_mfd_probe,
-	.remove =	wm97xx_mfd_remove,
+	.remove_new =	wm97xx_mfd_remove,
 };
 
 static int __init wm97xx_init(void)

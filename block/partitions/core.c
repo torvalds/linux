@@ -274,17 +274,6 @@ void drop_partition(struct block_device *part)
 	put_device(&part->bd_device);
 }
 
-static void delete_partition(struct block_device *part)
-{
-	/*
-	 * Remove the block device from the inode hash, so that it cannot be
-	 * looked up any more even when openers still hold references.
-	 */
-	remove_inode_hash(part->bd_inode);
-	bdev_mark_dead(part, false);
-	drop_partition(part);
-}
-
 static ssize_t whole_disk_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -316,18 +305,10 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	 * Partitions are not supported on zoned block devices that are used as
 	 * such.
 	 */
-	switch (disk->queue->limits.zoned) {
-	case BLK_ZONED_HM:
+	if (bdev_is_zoned(disk->part0)) {
 		pr_warn("%s: partitions not supported on host managed zoned block device\n",
 			disk->disk_name);
 		return ERR_PTR(-ENXIO);
-	case BLK_ZONED_HA:
-		pr_info("%s: disabling host aware zoned block device support due to partitions\n",
-			disk->disk_name);
-		disk_set_zoned(disk, BLK_ZONED_NONE);
-		break;
-	case BLK_ZONED_NONE:
-		break;
 	}
 
 	if (xa_load(&disk->part_tbl, partno))
@@ -438,23 +419,17 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
 		sector_t length)
 {
-	sector_t capacity = get_capacity(disk), end;
 	struct block_device *part;
 	int ret;
 
 	mutex_lock(&disk->open_mutex);
-	if (check_add_overflow(start, length, &end)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (start >= capacity || end > capacity) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (!disk_live(disk)) {
 		ret = -ENXIO;
+		goto out;
+	}
+
+	if (disk->flags & GENHD_FL_NO_PART) {
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -485,7 +460,18 @@ int bdev_del_partition(struct gendisk *disk, int partno)
 	if (atomic_read(&part->bd_openers))
 		goto out_unlock;
 
-	delete_partition(part);
+	/*
+	 * We verified that @part->bd_openers is zero above and so
+	 * @part->bd_holder{_ops} can't be set. And since we hold
+	 * @disk->open_mutex the device can't be claimed by anyone.
+	 *
+	 * So no need to call @part->bd_holder_ops->mark_dead() here.
+	 * Just delete the partition and invalidate it.
+	 */
+
+	remove_inode_hash(part->bd_inode);
+	invalidate_bdev(part);
+	drop_partition(part);
 	ret = 0;
 out_unlock:
 	mutex_unlock(&disk->open_mutex);
@@ -570,8 +556,8 @@ static bool blk_add_partition(struct gendisk *disk,
 	part = add_partition(disk, p, from, size, state->parts[p].flags,
 			     &state->parts[p].info);
 	if (IS_ERR(part) && PTR_ERR(part) != -ENXIO) {
-		printk(KERN_ERR " %s: p%d could not be added: %ld\n",
-		       disk->disk_name, p, -PTR_ERR(part));
+		printk(KERN_ERR " %s: p%d could not be added: %pe\n",
+		       disk->disk_name, p, part);
 		return true;
 	}
 
@@ -613,7 +599,7 @@ static int blk_add_partitions(struct gendisk *disk)
 	/*
 	 * Partitions are not supported on host managed zoned block devices.
 	 */
-	if (disk->queue->limits.zoned == BLK_ZONED_HM) {
+	if (bdev_is_zoned(disk->part0)) {
 		pr_warn("%s: ignoring partition table on host managed zoned block device\n",
 			disk->disk_name);
 		ret = 0;
@@ -663,8 +649,23 @@ rescan:
 	sync_blockdev(disk->part0);
 	invalidate_bdev(disk->part0);
 
-	xa_for_each_start(&disk->part_tbl, idx, part, 1)
-		delete_partition(part);
+	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
+		/*
+		 * Remove the block device from the inode hash, so that
+		 * it cannot be looked up any more even when openers
+		 * still hold references.
+		 */
+		remove_inode_hash(part->bd_inode);
+
+		/*
+		 * If @disk->open_partitions isn't elevated but there's
+		 * still an active holder of that block device things
+		 * are broken.
+		 */
+		WARN_ON_ONCE(atomic_read(&part->bd_openers));
+		invalidate_bdev(part);
+		drop_partition(part);
+	}
 	clear_bit(GD_NEED_PART_SCAN, &disk->state);
 
 	/*

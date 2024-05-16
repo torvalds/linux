@@ -89,4 +89,4 @@
 
    ../doc-guide/maintainer-profile
    ../../../nvdimm/maintainer-entry-profile
-   ../../../riscv/patch-acceptance
+   ../../../arch/riscv/patch-acceptance

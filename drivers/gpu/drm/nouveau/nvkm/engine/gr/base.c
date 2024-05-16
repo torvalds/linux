@@ -160,7 +160,11 @@ static int
 nvkm_gr_init(struct nvkm_engine *engine)
 {
 	struct nvkm_gr *gr = nvkm_gr(engine);
-	return gr->func->init(gr);
+
+	if (gr->func->init)
+		return gr->func->init(gr);
+
+	return 0;
 }
 
 static int

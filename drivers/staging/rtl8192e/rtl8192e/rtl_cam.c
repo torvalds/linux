@@ -17,7 +17,7 @@ void rtl92e_cam_reset(struct net_device *dev)
 {
 	u32 ulcommand = 0;
 
-	ulcommand |= BIT31 | BIT30;
+	ulcommand |= BIT(31) | BIT(30);
 	rtl92e_writel(dev, RWCAM, ulcommand);
 }
 
@@ -31,11 +31,6 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 	if (((ieee->pairwise_key_type == KEY_TYPE_WEP40) ||
 	     (ieee->pairwise_key_type == KEY_TYPE_WEP104)) &&
 	     (priv->rtllib->auth_mode != 2)) {
-		SECR_value |= SCR_RxUseDK;
-		SECR_value |= SCR_TxUseDK;
-	} else if ((ieee->iw_mode == IW_MODE_ADHOC) &&
-		   (ieee->pairwise_key_type & (KEY_TYPE_CCMP |
-		   KEY_TYPE_TKIP))) {
 		SECR_value |= SCR_RxUseDK;
 		SECR_value |= SCR_TxUseDK;
 	}
@@ -94,13 +89,13 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 	}
 
 	if (DefaultKey)
-		usConfig |= BIT15 | (KeyType << 2);
+		usConfig |= BIT(15) | (KeyType << 2);
 	else
-		usConfig |= BIT15 | (KeyType << 2) | KeyIndex;
+		usConfig |= BIT(15) | (KeyType << 2) | KeyIndex;
 
 	for (i = 0; i < CAM_CONTENT_COUNT; i++) {
 		TargetCommand  = i + CAM_CONTENT_COUNT * EntryNo;
-		TargetCommand |= BIT31 | BIT16;
+		TargetCommand |= BIT(31) | BIT(16);
 
 		if (i == 0) {
 			TargetContent = (u32)(*(MacAddr + 0)) << 16 |
@@ -117,116 +112,11 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 			rtl92e_writel(dev, WCAMI, TargetContent);
 			rtl92e_writel(dev, RWCAM, TargetCommand);
 		} else {
-			if (KeyContent != NULL) {
+			if (KeyContent) {
 				rtl92e_writel(dev, WCAMI,
 					      (u32)(*(KeyContent + i - 2)));
 				rtl92e_writel(dev, RWCAM, TargetCommand);
 				udelay(100);
-			}
-		}
-	}
-}
-
-void rtl92e_cam_restore(struct net_device *dev)
-{
-	u8 EntryId = 0;
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 *MacAddr = priv->rtllib->current_network.bssid;
-
-	static u8	CAM_CONST_ADDR[4][6] = {
-		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		{0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
-		{0x00, 0x00, 0x00, 0x00, 0x00, 0x02},
-		{0x00, 0x00, 0x00, 0x00, 0x00, 0x03}
-	};
-	static u8	CAM_CONST_BROAD[] = {
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-	};
-
-	if ((priv->rtllib->pairwise_key_type == KEY_TYPE_WEP40) ||
-	    (priv->rtllib->pairwise_key_type == KEY_TYPE_WEP104)) {
-		for (EntryId = 0; EntryId < 4; EntryId++) {
-			MacAddr = CAM_CONST_ADDR[EntryId];
-			if (priv->rtllib->swcamtable[EntryId].bused) {
-				rtl92e_set_key(dev, EntryId, EntryId,
-					       priv->rtllib->pairwise_key_type,
-					       MacAddr, 0,
-					       (u32 *)(&priv->rtllib->swcamtable
-						       [EntryId].key_buf[0]));
-			}
-		}
-
-	} else if (priv->rtllib->pairwise_key_type == KEY_TYPE_TKIP) {
-		if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
-			rtl92e_set_key(dev, 4, 0,
-				       priv->rtllib->pairwise_key_type,
-				       (const u8 *)dev->dev_addr, 0,
-				       (u32 *)(&priv->rtllib->swcamtable[4].key_buf[0]));
-		} else {
-			rtl92e_set_key(dev, 4, 0,
-				       priv->rtllib->pairwise_key_type,
-				       MacAddr, 0,
-				       (u32 *)(&priv->rtllib->swcamtable[4].key_buf[0]));
-		}
-
-	} else if (priv->rtllib->pairwise_key_type == KEY_TYPE_CCMP) {
-		if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
-			rtl92e_set_key(dev, 4, 0,
-				       priv->rtllib->pairwise_key_type,
-				       (const u8 *)dev->dev_addr, 0,
-				       (u32 *)(&priv->rtllib->swcamtable[4].key_buf[0]));
-		} else {
-			rtl92e_set_key(dev, 4, 0,
-				       priv->rtllib->pairwise_key_type, MacAddr,
-				       0, (u32 *)(&priv->rtllib->swcamtable[4].key_buf[0]));
-			}
-	}
-
-	if (priv->rtllib->group_key_type == KEY_TYPE_TKIP) {
-		MacAddr = CAM_CONST_BROAD;
-		for (EntryId = 1; EntryId < 4; EntryId++) {
-			if (priv->rtllib->swcamtable[EntryId].bused) {
-				rtl92e_set_key(dev, EntryId, EntryId,
-					       priv->rtllib->group_key_type,
-					       MacAddr, 0,
-					       (u32 *)(&priv->rtllib->swcamtable[EntryId].key_buf[0]));
-			}
-		}
-		if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
-			if (priv->rtllib->swcamtable[0].bused) {
-				rtl92e_set_key(dev, 0, 0,
-					       priv->rtllib->group_key_type,
-					       CAM_CONST_ADDR[0], 0,
-					       (u32 *)(&priv->rtllib->swcamtable[0].key_buf[0]));
-			} else {
-				netdev_warn(dev,
-					    "%s(): ADHOC TKIP: missing key entry.\n",
-					    __func__);
-				return;
-			}
-		}
-	} else if (priv->rtllib->group_key_type == KEY_TYPE_CCMP) {
-		MacAddr = CAM_CONST_BROAD;
-		for (EntryId = 1; EntryId < 4; EntryId++) {
-			if (priv->rtllib->swcamtable[EntryId].bused) {
-				rtl92e_set_key(dev, EntryId, EntryId,
-					       priv->rtllib->group_key_type,
-					       MacAddr, 0,
-					       (u32 *)(&priv->rtllib->swcamtable[EntryId].key_buf[0]));
-			}
-		}
-
-		if (priv->rtllib->iw_mode == IW_MODE_ADHOC) {
-			if (priv->rtllib->swcamtable[0].bused) {
-				rtl92e_set_key(dev, 0, 0,
-					       priv->rtllib->group_key_type,
-					       CAM_CONST_ADDR[0], 0,
-					       (u32 *)(&priv->rtllib->swcamtable[0].key_buf[0]));
-			} else {
-				netdev_warn(dev,
-					    "%s(): ADHOC CCMP: missing key entry.\n",
-					    __func__);
-				return;
 			}
 		}
 	}

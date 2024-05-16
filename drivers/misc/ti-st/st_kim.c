@@ -590,7 +590,7 @@ static ssize_t store_dev_name(struct device *dev,
 {
 	struct kim_data_s *kim_data = dev_get_drvdata(dev);
 	pr_debug("storing dev name >%s<", buf);
-	strncpy(kim_data->dev_name, buf, count);
+	strscpy(kim_data->dev_name, buf, sizeof(kim_data->dev_name));
 	pr_debug("stored dev name >%s<", kim_data->dev_name);
 	return count;
 }
@@ -751,7 +751,8 @@ static int kim_probe(struct platform_device *pdev)
 	}
 
 	/* copying platform data */
-	strncpy(kim_gdata->dev_name, pdata->dev_name, UART_DEV_NAME_LEN);
+	strscpy(kim_gdata->dev_name, pdata->dev_name,
+		sizeof(kim_gdata->dev_name));
 	kim_gdata->flow_cntrl = pdata->flow_cntrl;
 	kim_gdata->baud_rate = pdata->baud_rate;
 	pr_info("sysfs entries created\n");
@@ -773,7 +774,7 @@ err_core_init:
 	return err;
 }
 
-static int kim_remove(struct platform_device *pdev)
+static void kim_remove(struct platform_device *pdev)
 {
 	/* free the GPIOs requested */
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
@@ -797,7 +798,6 @@ static int kim_remove(struct platform_device *pdev)
 
 	kfree(kim_gdata);
 	kim_gdata = NULL;
-	return 0;
 }
 
 static int kim_suspend(struct platform_device *pdev, pm_message_t state)
@@ -824,7 +824,7 @@ static int kim_resume(struct platform_device *pdev)
 /* entry point for ST KIM module, called in from ST Core */
 static struct platform_driver kim_platform_driver = {
 	.probe = kim_probe,
-	.remove = kim_remove,
+	.remove_new = kim_remove,
 	.suspend = kim_suspend,
 	.resume = kim_resume,
 	.driver = {

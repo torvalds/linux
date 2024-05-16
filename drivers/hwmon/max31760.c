@@ -60,7 +60,7 @@ static const struct regmap_config regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x5B,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = max31760_volatile_reg,
 };
 
@@ -578,7 +578,6 @@ static DEFINE_SIMPLE_DEV_PM_OPS(max31760_pm_ops, max31760_suspend,
 				max31760_resume);
 
 static struct i2c_driver max31760_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "max31760",
 		.of_match_table = max31760_of_match,

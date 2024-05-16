@@ -35,7 +35,7 @@ struct netup_spi_regs {
 
 struct netup_spi {
 	struct device			*dev;
-	struct spi_master		*master;
+	struct spi_controller		*ctlr;
 	struct netup_spi_regs __iomem	*regs;
 	u8 __iomem			*mmio;
 	spinlock_t			lock;
@@ -78,7 +78,7 @@ irqreturn_t netup_spi_interrupt(struct netup_spi *spi)
 	reg = readw(&spi->regs->control_stat);
 	if (!(reg & NETUP_SPI_CTRL_IRQ)) {
 		spin_unlock_irqrestore(&spi->lock, flags);
-		dev_dbg(&spi->master->dev,
+		dev_dbg(&spi->ctlr->dev,
 			"%s(): not mine interrupt\n", __func__);
 		return IRQ_NONE;
 	}
@@ -88,15 +88,15 @@ irqreturn_t netup_spi_interrupt(struct netup_spi *spi)
 	spi->state = SPI_STATE_DONE;
 	wake_up(&spi->waitq);
 	spin_unlock_irqrestore(&spi->lock, flags);
-	dev_dbg(&spi->master->dev,
+	dev_dbg(&spi->ctlr->dev,
 		"%s(): SPI interrupt handled\n", __func__);
 	return IRQ_HANDLED;
 }
 
-static int netup_spi_transfer(struct spi_master *master,
+static int netup_spi_transfer(struct spi_controller *ctlr,
 			      struct spi_message *msg)
 {
-	struct netup_spi *spi = spi_master_get_devdata(master);
+	struct netup_spi *spi = spi_controller_get_devdata(ctlr);
 	struct spi_transfer *t;
 	int result = 0;
 	u32 tr_size;
@@ -131,7 +131,7 @@ static int netup_spi_transfer(struct spi_master *master,
 				NETUP_SPI_CTRL_START |
 				(frag_last ? NETUP_SPI_CTRL_LAST_CS : 0),
 				&spi->regs->control_stat);
-			dev_dbg(&spi->master->dev,
+			dev_dbg(&spi->ctlr->dev,
 				"%s(): control_stat 0x%04x\n",
 				__func__, readw(&spi->regs->control_stat));
 			wait_event_timeout(spi->waitq,
@@ -144,11 +144,11 @@ static int netup_spi_transfer(struct spi_master *master,
 				}
 			} else {
 				if (spi->state == SPI_STATE_START) {
-					dev_dbg(&spi->master->dev,
+					dev_dbg(&spi->ctlr->dev,
 						"%s(): transfer timeout\n",
 						__func__);
 				} else {
-					dev_dbg(&spi->master->dev,
+					dev_dbg(&spi->ctlr->dev,
 						"%s(): invalid state %d\n",
 						__func__, spi->state);
 				}
@@ -161,7 +161,7 @@ static int netup_spi_transfer(struct spi_master *master,
 	}
 done:
 	msg->status = result;
-	spi_finalize_current_message(master);
+	spi_finalize_current_message(ctlr);
 	return result;
 }
 
@@ -172,30 +172,30 @@ static int netup_spi_setup(struct spi_device *spi)
 
 int netup_spi_init(struct netup_unidvb_dev *ndev)
 {
-	struct spi_master *master;
+	struct spi_controller *ctlr;
 	struct netup_spi *nspi;
 
-	master = devm_spi_alloc_master(&ndev->pci_dev->dev,
-		sizeof(struct netup_spi));
-	if (!master) {
+	ctlr = devm_spi_alloc_master(&ndev->pci_dev->dev,
+					 sizeof(struct netup_spi));
+	if (!ctlr) {
 		dev_err(&ndev->pci_dev->dev,
 			"%s(): unable to alloc SPI master\n", __func__);
 		return -EINVAL;
 	}
-	nspi = spi_master_get_devdata(master);
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
-	master->bus_num = -1;
-	master->num_chipselect = 1;
-	master->transfer_one_message = netup_spi_transfer;
-	master->setup = netup_spi_setup;
+	nspi = spi_controller_get_devdata(ctlr);
+	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
+	ctlr->bus_num = -1;
+	ctlr->num_chipselect = 1;
+	ctlr->transfer_one_message = netup_spi_transfer;
+	ctlr->setup = netup_spi_setup;
 	spin_lock_init(&nspi->lock);
 	init_waitqueue_head(&nspi->waitq);
-	nspi->master = master;
+	nspi->ctlr = ctlr;
 	nspi->regs = (struct netup_spi_regs __iomem *)(ndev->bmmio0 + 0x4000);
 	writew(2, &nspi->regs->clock_divider);
 	writew(NETUP_UNIDVB_IRQ_SPI, ndev->bmmio0 + REG_IMASK_SET);
 	ndev->spi = nspi;
-	if (spi_register_master(master)) {
+	if (spi_register_controller(ctlr)) {
 		ndev->spi = NULL;
 		dev_err(&ndev->pci_dev->dev,
 			"%s(): unable to register SPI bus\n", __func__);
@@ -207,8 +207,8 @@ int netup_spi_init(struct netup_unidvb_dev *ndev)
 		ndev->pci_bus,
 		ndev->pci_slot,
 		ndev->pci_func);
-	if (!spi_new_device(master, &netup_spi_board)) {
-		spi_unregister_master(master);
+	if (!spi_new_device(ctlr, &netup_spi_board)) {
+		spi_unregister_controller(ctlr);
 		ndev->spi = NULL;
 		dev_err(&ndev->pci_dev->dev,
 			"%s(): unable to create SPI device\n", __func__);
@@ -227,7 +227,7 @@ void netup_spi_release(struct netup_unidvb_dev *ndev)
 	if (!spi)
 		return;
 
-	spi_unregister_master(spi->master);
+	spi_unregister_controller(spi->ctlr);
 	spin_lock_irqsave(&spi->lock, flags);
 	reg = readw(&spi->regs->control_stat);
 	writew(reg | NETUP_SPI_CTRL_IRQ, &spi->regs->control_stat);

@@ -299,10 +299,7 @@ do {									\
 	net_ratelimited_function(pr_debug, fmt, ##__VA_ARGS__)
 #else
 #define net_dbg_ratelimited(fmt, ...)				\
-	do {							\
-		if (0)						\
-			no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); \
-	} while (0)
+	no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 #endif
 
 #define net_get_random_once(buf, nbytes)			\

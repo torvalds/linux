@@ -266,7 +266,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c)
 		if (!ret)
 			rt5682->irq = i2c->irq;
 		else
-			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
+			dev_err(&i2c->dev, "Failed to request IRQ: %d\n", ret);
 	}
 
 #ifdef CONFIG_COMMON_CLK

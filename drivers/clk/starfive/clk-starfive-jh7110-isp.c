@@ -53,7 +53,7 @@ static const struct jh71x0_clk_data jh7110_ispclk_data[] = {
 		    JH7110_ISPCLK_MIPI_RX0_PXL),
 	JH71X0_GATE(JH7110_ISPCLK_VIN_PIXEL_IF3, "vin_pixel_if3", 0,
 		    JH7110_ISPCLK_MIPI_RX0_PXL),
-	JH71X0__MUX(JH7110_ISPCLK_VIN_P_AXI_WR, "vin_p_axi_wr", 2,
+	JH71X0__MUX(JH7110_ISPCLK_VIN_P_AXI_WR, "vin_p_axi_wr", 0, 2,
 		    JH7110_ISPCLK_MIPI_RX0_PXL,
 		    JH7110_ISPCLK_DVP_INV),
 	/* ispv2_top_wrapper */
@@ -202,12 +202,10 @@ err_exit:
 	return ret;
 }
 
-static int jh7110_ispcrg_remove(struct platform_device *pdev)
+static void jh7110_ispcrg_remove(struct platform_device *pdev)
 {
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id jh7110_ispcrg_match[] = {
@@ -218,7 +216,7 @@ MODULE_DEVICE_TABLE(of, jh7110_ispcrg_match);
 
 static struct platform_driver jh7110_ispcrg_driver = {
 	.probe = jh7110_ispcrg_probe,
-	.remove = jh7110_ispcrg_remove,
+	.remove_new = jh7110_ispcrg_remove,
 	.driver = {
 		.name = "clk-starfive-jh7110-isp",
 		.of_match_table = jh7110_ispcrg_match,

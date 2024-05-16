@@ -165,17 +165,17 @@ int relocate_restore_code(void)
 	pgd = (pgd_t *)__va(read_cr3_pa()) +
 		pgd_index(relocated_restore_code);
 	p4d = p4d_offset(pgd, relocated_restore_code);
-	if (p4d_large(*p4d)) {
+	if (p4d_leaf(*p4d)) {
 		set_p4d(p4d, __p4d(p4d_val(*p4d) & ~_PAGE_NX));
 		goto out;
 	}
 	pud = pud_offset(p4d, relocated_restore_code);
-	if (pud_large(*pud)) {
+	if (pud_leaf(*pud)) {
 		set_pud(pud, __pud(pud_val(*pud) & ~_PAGE_NX));
 		goto out;
 	}
 	pmd = pmd_offset(pud, relocated_restore_code);
-	if (pmd_large(*pmd)) {
+	if (pmd_leaf(*pmd)) {
 		set_pmd(pmd, __pmd(pmd_val(*pmd) & ~_PAGE_NX));
 		goto out;
 	}

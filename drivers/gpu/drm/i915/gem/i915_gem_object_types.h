@@ -386,7 +386,7 @@ struct drm_i915_gem_object {
 	 * and kernel mode driver for caching policy control after GEN12.
 	 * In the meantime platform specific tables are created to translate
 	 * i915_cache_level into pat index, for more details check the macros
-	 * defined i915/i915_pci.c, e.g. PVC_CACHELEVEL.
+	 * defined i915/i915_pci.c, e.g. TGL_CACHELEVEL.
 	 * For backward compatibility, this field contains values exactly match
 	 * the entries of enum i915_cache_level for pre-GEN12 platforms (See
 	 * LEGACY_CACHELEVEL), so that the PTE encode functions for these

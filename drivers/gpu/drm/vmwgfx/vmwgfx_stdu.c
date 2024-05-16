@@ -27,12 +27,14 @@
 
 #include "vmwgfx_bo.h"
 #include "vmwgfx_kms.h"
+#include "vmwgfx_vkms.h"
 #include "vmw_surface_cache.h"
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
 
 #define vmw_crtc_to_stdu(x) \
 	container_of(x, struct vmw_screen_target_display_unit, base.crtc)
@@ -53,7 +55,6 @@ enum stdu_content_type {
  * struct vmw_stdu_dirty - closure structure for the update functions
  *
  * @base: The base type we derive from. Used by vmw_kms_helper_dirty().
- * @transfer: Transfer direction for DMA command.
  * @left: Left side of bounding box.
  * @right: Right side of bounding box.
  * @top: Top side of bounding box.
@@ -100,7 +101,7 @@ struct vmw_stdu_update_gb_image {
 };
 
 /**
- * struct vmw_screen_target_display_unit
+ * struct vmw_screen_target_display_unit - conglomerated STDU structure
  *
  * @base: VMW specific DU structure
  * @display_srf: surface to be displayed.  The dimension of this will always
@@ -208,6 +209,8 @@ static int vmw_stdu_define_st(struct vmw_private *dev_priv,
  * @res: Buffer to bind to the screen target.  Set to NULL to blank screen.
  *
  * Binding a surface to a Screen Target the same as flipping
+ *
+ * Returns: %0 on success or -errno code on failure
  */
 static int vmw_stdu_bind_st(struct vmw_private *dev_priv,
 			    struct vmw_screen_target_display_unit *stdu,
@@ -314,6 +317,9 @@ static int vmw_stdu_update_st(struct vmw_private *dev_priv,
  *
  * @dev_priv:  VMW DRM device
  * @stdu: display unit to destroy
+ *
+ * Returns: %0 on success, negative error code on failure. -ERESTARTSYS if
+ * interrupted.
  */
 static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 			       struct vmw_screen_target_display_unit *stdu)
@@ -403,23 +409,12 @@ static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			  crtc->x, crtc->y);
 }
 
-
-static void vmw_stdu_crtc_helper_prepare(struct drm_crtc *crtc)
-{
-}
-
-static void vmw_stdu_crtc_atomic_enable(struct drm_crtc *crtc,
-					struct drm_atomic_state *state)
-{
-}
-
 static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 					 struct drm_atomic_state *state)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
 	int ret;
-
 
 	if (!crtc) {
 		DRM_ERROR("CRTC is NULL\n");
@@ -428,6 +423,9 @@ static void vmw_stdu_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	stdu     = vmw_crtc_to_stdu(crtc);
 	dev_priv = vmw_priv(crtc->dev);
+
+	if (dev_priv->vkms_enabled)
+		drm_crtc_vblank_off(crtc);
 
 	if (stdu->defined) {
 		ret = vmw_stdu_bind_st(dev_priv, stdu, NULL);
@@ -536,7 +534,8 @@ static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
  * If DMA-ing till the screen target system, the function will also notify
  * the screen target system that a bounding box of the cliprects has been
  * updated.
- * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
+ *
+ * Returns: %0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
  */
 int vmw_kms_stdu_readback(struct vmw_private *dev_priv,
@@ -703,7 +702,7 @@ static void vmw_kms_stdu_surface_fifo_commit(struct vmw_kms_dirty *dirty)
  * case the device has already synchronized.
  * @crtc: If crtc is passed, perform surface dirty on that crtc only.
  *
- * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
+ * Returns: %0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
  */
 int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
@@ -765,7 +764,6 @@ out_unref:
 	return ret;
 }
 
-
 /*
  *  Screen Target CRTC dispatch table
  */
@@ -777,6 +775,12 @@ static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
+	.enable_vblank		= vmw_vkms_enable_vblank,
+	.disable_vblank		= vmw_vkms_disable_vblank,
+	.get_vblank_timestamp	= vmw_vkms_get_vblank_timestamp,
+	.get_crc_sources	= vmw_vkms_get_crc_sources,
+	.set_crc_source		= vmw_vkms_set_crc_source,
+	.verify_crc_source	= vmw_vkms_verify_crc_source,
 };
 
 
@@ -830,7 +834,7 @@ static void vmw_stdu_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
-	.fill_modes = vmw_du_connector_fill_modes,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = vmw_stdu_connector_destroy,
 	.reset = vmw_du_connector_reset,
 	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
@@ -840,6 +844,8 @@ static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 
 static const struct
 drm_connector_helper_funcs vmw_stdu_connector_helper_funcs = {
+	.get_modes = vmw_connector_get_modes,
+	.mode_valid = vmw_connector_mode_valid
 };
 
 
@@ -887,7 +893,7 @@ vmw_stdu_primary_plane_cleanup_fb(struct drm_plane *plane,
  * backed by a buffer object.  The display surface is pinned here, and it'll
  * be unpinned in .cleanup_fb()
  *
- * Returns 0 on success
+ * Returns: %0 on success
  */
 static int
 vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
@@ -1406,6 +1412,17 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 		vmw_fence_obj_unreference(&fence);
 }
 
+static void
+vmw_stdu_crtc_atomic_flush(struct drm_crtc *crtc,
+			   struct drm_atomic_state *state)
+{
+	struct vmw_private *vmw = vmw_priv(crtc->dev);
+	struct vmw_screen_target_display_unit *stdu = vmw_crtc_to_stdu(crtc);
+
+	if (vmw->vkms_enabled)
+		vmw_vkms_set_crc_surface(crtc, stdu->display_srf);
+	vmw_vkms_crtc_atomic_flush(crtc, state);
+}
 
 static const struct drm_plane_funcs vmw_stdu_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
@@ -1446,12 +1463,11 @@ drm_plane_helper_funcs vmw_stdu_primary_plane_helper_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
-	.prepare = vmw_stdu_crtc_helper_prepare,
 	.mode_set_nofb = vmw_stdu_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
-	.atomic_flush = vmw_du_crtc_atomic_flush,
-	.atomic_enable = vmw_stdu_crtc_atomic_enable,
+	.atomic_flush = vmw_stdu_crtc_atomic_flush,
+	.atomic_enable = vmw_vkms_crtc_atomic_enable,
 	.atomic_disable = vmw_stdu_crtc_atomic_disable,
 };
 
@@ -1465,6 +1481,8 @@ static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
  * This function is called once per CRTC, and allocates one Screen Target
  * display unit to represent that CRTC.  Since the SVGA device does not separate
  * out encoder and connector, they are represented as part of the STDU as well.
+ *
+ * Returns: %0 on success or -errno code on failure
  */
 static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 {
@@ -1566,6 +1584,9 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 				   dev->mode_config.suggested_x_property, 0);
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.suggested_y_property, 0);
+
+	vmw_du_init(&stdu->base);
+
 	return 0;
 
 err_free_unregister:

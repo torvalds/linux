@@ -72,7 +72,7 @@ static const struct regmap_config khadas_mcu_regmap_config = {
 	.max_register	= KHADAS_MCU_CMD_FAN_STATUS_CTRL_REG,
 	.volatile_reg	= khadas_mcu_reg_volatile,
 	.writeable_reg	= khadas_mcu_reg_writeable,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static struct mfd_cell khadas_mcu_fan_cells[] = {

@@ -863,7 +863,7 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 	preempt_enable();
 }
 
-extern struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
+struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
 
 static inline unsigned gfs2_max_stuffed_size(const struct gfs2_inode *ip)
 {

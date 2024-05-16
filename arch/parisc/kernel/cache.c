@@ -58,7 +58,7 @@ int pa_serialize_tlb_flushes __ro_after_init;
 
 struct pdc_cache_info cache_info __ro_after_init;
 #ifndef CONFIG_PA20
-struct pdc_btlb_info btlb_info __ro_after_init;
+struct pdc_btlb_info btlb_info;
 #endif
 
 DEFINE_STATIC_KEY_TRUE(parisc_has_cache);
@@ -263,6 +263,10 @@ parisc_cache_init(void)
 	dcache_stride = CAFL_STRIDE(cache_info.dc_conf);
 	icache_stride = CAFL_STRIDE(cache_info.ic_conf);
 #undef CAFL_STRIDE
+
+	/* stride needs to be non-zero, otherwise cache flushes will not work */
+	WARN_ON(cache_info.dc_size && dcache_stride == 0);
+	WARN_ON(cache_info.ic_size && icache_stride == 0);
 
 	if ((boot_cpu_data.pdc.capabilities & PDC_MODEL_NVA_MASK) ==
 						PDC_MODEL_NVA_UNSUPPORTED) {
@@ -850,7 +854,7 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
 #endif
 			"   fic,m	%3(%4,%0)\n"
 			"2: sync\n"
-			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b)
+			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b, "%1")
 			: "+r" (start), "+r" (error)
 			: "r" (end), "r" (dcache_stride), "i" (SR_USER));
 	}
@@ -865,7 +869,7 @@ SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
 #endif
 			"   fdc,m	%3(%4,%0)\n"
 			"2: sync\n"
-			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b)
+			ASM_EXCEPTIONTABLE_ENTRY_EFAULT(1b, 2b, "%1")
 			: "+r" (start), "+r" (error)
 			: "r" (end), "r" (icache_stride), "i" (SR_USER));
 	}

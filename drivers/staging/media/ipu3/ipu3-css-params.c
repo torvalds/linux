@@ -2425,15 +2425,15 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 					acc->awb_fr.stripes[1].grid_cfg.width,
 					b_w_log2);
 		acc->awb_fr.stripes[1].grid_cfg.x_end = end;
-
-		/*
-		 * To reduce complexity of debubbling and loading
-		 * statistics fix grid_height_per_slice to 1 for both
-		 * stripes.
-		 */
-		for (i = 0; i < stripes; i++)
-			acc->awb_fr.stripes[i].grid_cfg.height_per_slice = 1;
 	}
+
+	/*
+	 * To reduce complexity of debubbling and loading
+	 * statistics fix grid_height_per_slice to 1 for both
+	 * stripes.
+	 */
+	for (i = 0; i < stripes; i++)
+		acc->awb_fr.stripes[i].grid_cfg.height_per_slice = 1;
 
 	if (imgu_css_awb_fr_ops_calc(css, pipe, &acc->awb_fr))
 		return -EINVAL;
@@ -2597,14 +2597,14 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 			imgu_css_grid_end(acc->af.stripes[1].grid_cfg.x_start,
 					  acc->af.stripes[1].grid_cfg.width,
 					  b_w_log2);
-
-		/*
-		 * To reduce complexity of debubbling and loading statistics
-		 * fix grid_height_per_slice to 1 for both stripes
-		 */
-		for (i = 0; i < stripes; i++)
-			acc->af.stripes[i].grid_cfg.height_per_slice = 1;
 	}
+
+	/*
+	 * To reduce complexity of debubbling and loading statistics
+	 * fix grid_height_per_slice to 1 for both stripes
+	 */
+	for (i = 0; i < stripes; i++)
+		acc->af.stripes[i].grid_cfg.height_per_slice = 1;
 
 	if (imgu_css_af_ops_calc(css, pipe, &acc->af))
 		return -EINVAL;
@@ -2677,14 +2677,14 @@ int imgu_css_cfg_acc(struct imgu_css *css, unsigned int pipe,
 			imgu_css_grid_end(acc->awb.stripes[1].grid.x_start,
 					  acc->awb.stripes[1].grid.width,
 					  b_w_log2);
-
-		/*
-		 * To reduce complexity of debubbling and loading statistics
-		 * fix grid_height_per_slice to 1 for both stripes
-		 */
-		for (i = 0; i < stripes; i++)
-			acc->awb.stripes[i].grid.height_per_slice = 1;
 	}
+
+	/*
+	 * To reduce complexity of debubbling and loading statistics
+	 * fix grid_height_per_slice to 1 for both stripes
+	 */
+	for (i = 0; i < stripes; i++)
+		acc->awb.stripes[i].grid.height_per_slice = 1;
 
 	if (imgu_css_awb_ops_calc(css, pipe, &acc->awb))
 		return -EINVAL;

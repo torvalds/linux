@@ -212,7 +212,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	unsigned long flags;
 
 	/* If range @start to @end is more than 32 TLB entries deep,
-	 * its better to move to a new ASID rather than searching for
+	 * it's better to move to a new ASID rather than searching for
 	 * individual entries and then shooting them down
 	 *
 	 * The calc above is rough, doesn't account for unaligned parts,
@@ -408,7 +408,7 @@ static void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *p
 	 * -More importantly it makes this handler inconsistent with fast-path
 	 *  TLB Refill handler which always deals with "current"
 	 *
-	 * Lets see the use cases when current->mm != vma->mm and we land here
+	 * Let's see the use cases when current->mm != vma->mm and we land here
 	 *  1. execve->copy_strings()->__get_user_pages->handle_mm_fault
 	 *     Here VM wants to pre-install a TLB entry for user stack while
 	 *     current->mm still points to pre-execve mm (hence the condition).
@@ -478,21 +478,15 @@ void update_mmu_cache_range(struct vm_fault *vmf, struct vm_area_struct *vma,
 
 	create_tlb(vma, vaddr, ptep);
 
-	if (page == ZERO_PAGE(0)) {
+	if (page == ZERO_PAGE(0))
 		return;
-	}
 
 	/*
-	 * Exec page : Independent of aliasing/page-color considerations,
-	 *	       since icache doesn't snoop dcache on ARC, any dirty
-	 *	       K-mapping of a code page needs to be wback+inv so that
-	 *	       icache fetch by userspace sees code correctly.
-	 * !EXEC page: If K-mapping is NOT congruent to U-mapping, flush it
-	 *	       so userspace sees the right data.
-	 *  (Avoids the flush for Non-exec + congruent mapping case)
+	 * For executable pages, since icache doesn't snoop dcache, any
+	 * dirty K-mapping of a code page needs to be wback+inv so that
+	 * icache fetch by userspace sees code correctly.
 	 */
-	if ((vma->vm_flags & VM_EXEC) ||
-	     addr_not_cache_congruent(paddr, vaddr)) {
+	if (vma->vm_flags & VM_EXEC) {
 		struct folio *folio = page_folio(page);
 		int dirty = !test_and_set_bit(PG_dc_clean, &folio->flags);
 		if (dirty) {

@@ -282,7 +282,7 @@ static int risp_set_pad_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		isp->mf = format->format;
 	} else {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		framefmt = v4l2_subdev_state_get_format(sd_state, 0);
 		*framefmt = format->format;
 	}
 
@@ -302,7 +302,7 @@ static int risp_get_pad_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		format->format = isp->mf;
 	else
-		format->format = *v4l2_subdev_get_try_format(sd, sd_state, 0);
+		format->format = *v4l2_subdev_state_get_format(sd_state, 0);
 
 	mutex_unlock(&isp->lock);
 
@@ -467,7 +467,7 @@ static int risp_probe(struct platform_device *pdev)
 	isp->subdev.dev = &pdev->dev;
 	v4l2_subdev_init(&isp->subdev, &rcar_isp_subdev_ops);
 	v4l2_set_subdevdata(&isp->subdev, &pdev->dev);
-	snprintf(isp->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s %s",
+	snprintf(isp->subdev.name, sizeof(isp->subdev.name), "%s %s",
 		 KBUILD_MODNAME, dev_name(&pdev->dev));
 	isp->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
 
@@ -518,6 +518,7 @@ static void risp_remove(struct platform_device *pdev)
 static struct platform_driver rcar_isp_driver = {
 	.driver = {
 		.name = "rcar-isp",
+		.suppress_bind_attrs = true,
 		.of_match_table = risp_of_id_table,
 	},
 	.probe = risp_probe,

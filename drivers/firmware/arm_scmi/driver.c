@@ -85,6 +85,13 @@ struct scmi_xfers_info {
  * @gid: A reference for per-protocol devres management.
  * @users: A refcount to track effective users of this protocol.
  * @priv: Reference for optional protocol private data.
+ * @version: Protocol version supported by the platform as detected at runtime.
+ * @negotiated_version: When the platform supports a newer protocol version,
+ *			the agent will try to negotiate with the platform the
+ *			usage of the newest version known to it, since
+ *			backward compatibility is NOT automatically assured.
+ *			This field is NON-zero when a successful negotiation
+ *			has completed.
  * @ph: An embedded protocol handle that will be passed down to protocol
  *	initialization code to identify this instance.
  *
@@ -97,6 +104,8 @@ struct scmi_protocol_instance {
 	void				*gid;
 	refcount_t			users;
 	void				*priv;
+	unsigned int			version;
+	unsigned int			negotiated_version;
 	struct scmi_protocol_handle	ph;
 };
 
@@ -1392,15 +1401,17 @@ static int version_get(const struct scmi_protocol_handle *ph, u32 *version)
  *
  * @ph: A reference to the protocol handle.
  * @priv: The private data to set.
+ * @version: The detected protocol version for the core to register.
  *
  * Return: 0 on Success
  */
 static int scmi_set_protocol_priv(const struct scmi_protocol_handle *ph,
-				  void *priv)
+				  void *priv, u32 version)
 {
 	struct scmi_protocol_instance *pi = ph_to_pi(ph);
 
 	pi->priv = priv;
+	pi->version = version;
 
 	return 0;
 }
@@ -1438,6 +1449,7 @@ struct scmi_msg_resp_domain_name_get {
  * @ph: A protocol handle reference.
  * @cmd_id: The specific command ID to use.
  * @res_id: The specific resource ID to use.
+ * @flags: A pointer to specific flags to use, if any.
  * @name: A pointer to the preallocated area where the retrieved name will be
  *	  stored as a NULL terminated string.
  * @len: The len in bytes of the @name char array.
@@ -1445,19 +1457,22 @@ struct scmi_msg_resp_domain_name_get {
  * Return: 0 on Succcess
  */
 static int scmi_common_extended_name_get(const struct scmi_protocol_handle *ph,
-					 u8 cmd_id, u32 res_id, char *name,
-					 size_t len)
+					 u8 cmd_id, u32 res_id, u32 *flags,
+					 char *name, size_t len)
 {
 	int ret;
+	size_t txlen;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_domain_name_get *resp;
 
-	ret = ph->xops->xfer_get_init(ph, cmd_id, sizeof(res_id),
-				      sizeof(*resp), &t);
+	txlen = !flags ? sizeof(res_id) : sizeof(res_id) + sizeof(*flags);
+	ret = ph->xops->xfer_get_init(ph, cmd_id, txlen, sizeof(*resp), &t);
 	if (ret)
 		goto out;
 
 	put_unaligned_le32(res_id, t->tx.buf);
+	if (flags)
+		put_unaligned_le32(*flags, t->tx.buf + sizeof(res_id));
 	resp = t->rx.buf;
 
 	ret = ph->xops->do_xfer(ph, t);
@@ -1609,7 +1624,7 @@ static void
 scmi_common_fastchannel_init(const struct scmi_protocol_handle *ph,
 			     u8 describe_id, u32 message_id, u32 valid_size,
 			     u32 domain, void __iomem **p_addr,
-			     struct scmi_fc_db_info **p_db)
+			     struct scmi_fc_db_info **p_db, u32 *rate_limit)
 {
 	int ret;
 	u32 flags;
@@ -1652,6 +1667,9 @@ scmi_common_fastchannel_init(const struct scmi_protocol_handle *ph,
 		ret = -EINVAL;
 		goto err_xfer;
 	}
+
+	if (rate_limit)
+		*rate_limit = le32_to_cpu(resp->rate_limit) & GENMASK(19, 0);
 
 	phys_addr = le32_to_cpu(resp->chan_addr_low);
 	phys_addr |= (u64)le32_to_cpu(resp->chan_addr_high) << 32;
@@ -1746,10 +1764,44 @@ static void scmi_common_fastchannel_db_ring(struct scmi_fc_db_info *db)
 #endif
 }
 
+/**
+ * scmi_protocol_msg_check  - Check protocol message attributes
+ *
+ * @ph: A reference to the protocol handle.
+ * @message_id: The ID of the message to check.
+ * @attributes: A parameter to optionally return the retrieved message
+ *		attributes, in case of Success.
+ *
+ * An helper to check protocol message attributes for a specific protocol
+ * and message pair.
+ *
+ * Return: 0 on SUCCESS
+ */
+static int scmi_protocol_msg_check(const struct scmi_protocol_handle *ph,
+				   u32 message_id, u32 *attributes)
+{
+	int ret;
+	struct scmi_xfer *t;
+
+	ret = xfer_get_init(ph, PROTOCOL_MESSAGE_ATTRIBUTES,
+			    sizeof(__le32), 0, &t);
+	if (ret)
+		return ret;
+
+	put_unaligned_le32(message_id, t->tx.buf);
+	ret = do_xfer(ph, t);
+	if (!ret && attributes)
+		*attributes = get_unaligned_le32(t->rx.buf);
+	xfer_put(ph, t);
+
+	return ret;
+}
+
 static const struct scmi_proto_helpers_ops helpers_ops = {
 	.extended_name_get = scmi_common_extended_name_get,
 	.iter_response_init = scmi_iterator_init,
 	.iter_response_run = scmi_iterator_run,
+	.protocol_msg_check = scmi_protocol_msg_check,
 	.fastchannel_init = scmi_common_fastchannel_init,
 	.fastchannel_db_ring = scmi_common_fastchannel_db_ring,
 };
@@ -1771,6 +1823,44 @@ scmi_revision_area_get(const struct scmi_protocol_handle *ph)
 	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
 
 	return pi->handle->version;
+}
+
+/**
+ * scmi_protocol_version_negotiate  - Negotiate protocol version
+ *
+ * @ph: A reference to the protocol handle.
+ *
+ * An helper to negotiate a protocol version different from the latest
+ * advertised as supported from the platform: on Success backward
+ * compatibility is assured by the platform.
+ *
+ * Return: 0 on Success
+ */
+static int scmi_protocol_version_negotiate(struct scmi_protocol_handle *ph)
+{
+	int ret;
+	struct scmi_xfer *t;
+	struct scmi_protocol_instance *pi = ph_to_pi(ph);
+
+	/* At first check if NEGOTIATE_PROTOCOL_VERSION is supported ... */
+	ret = scmi_protocol_msg_check(ph, NEGOTIATE_PROTOCOL_VERSION, NULL);
+	if (ret)
+		return ret;
+
+	/* ... then attempt protocol version negotiation */
+	ret = xfer_get_init(ph, NEGOTIATE_PROTOCOL_VERSION,
+			    sizeof(__le32), 0, &t);
+	if (ret)
+		return ret;
+
+	put_unaligned_le32(pi->proto->supported_version, t->tx.buf);
+	ret = do_xfer(ph, t);
+	if (!ret)
+		pi->negotiated_version = pi->proto->supported_version;
+
+	xfer_put(ph, t);
+
+	return ret;
 }
 
 /**
@@ -1844,6 +1934,22 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 
 	devres_close_group(handle->dev, pi->gid);
 	dev_dbg(handle->dev, "Initialized protocol: 0x%X\n", pi->proto->id);
+
+	if (pi->version > proto->supported_version) {
+		ret = scmi_protocol_version_negotiate(&pi->ph);
+		if (!ret) {
+			dev_info(handle->dev,
+				 "Protocol 0x%X successfully negotiated version 0x%X\n",
+				 proto->id, pi->negotiated_version);
+		} else {
+			dev_warn(handle->dev,
+				 "Detected UNSUPPORTED higher version 0x%X for protocol 0x%X.\n",
+				 pi->version, pi->proto->id);
+			dev_warn(handle->dev,
+				 "Trying version 0x%X. Backward compatibility is NOT assured.\n",
+				 pi->proto->supported_version);
+		}
+	}
 
 	return pi;
 
@@ -2820,7 +2926,7 @@ clear_ida:
 	return ret;
 }
 
-static int scmi_remove(struct platform_device *pdev)
+static void scmi_remove(struct platform_device *pdev)
 {
 	int id;
 	struct scmi_info *info = platform_get_drvdata(pdev);
@@ -2854,8 +2960,6 @@ static int scmi_remove(struct platform_device *pdev)
 	scmi_cleanup_txrx_channels(info);
 
 	ida_free(&scmi_id, info->id);
-
-	return 0;
 }
 
 static ssize_t protocol_version_show(struct device *dev,
@@ -2915,6 +3019,7 @@ static const struct of_device_id scmi_of_match[] = {
 #ifdef CONFIG_ARM_SCMI_TRANSPORT_SMC
 	{ .compatible = "arm,scmi-smc", .data = &scmi_smc_desc},
 	{ .compatible = "arm,scmi-smc-param", .data = &scmi_smc_desc},
+	{ .compatible = "qcom,scmi-smc", .data = &scmi_smc_desc},
 #endif
 #ifdef CONFIG_ARM_SCMI_TRANSPORT_VIRTIO
 	{ .compatible = "arm,scmi-virtio", .data = &scmi_virtio_desc},
@@ -2932,7 +3037,7 @@ static struct platform_driver scmi_driver = {
 		   .dev_groups = versions_groups,
 		   },
 	.probe = scmi_probe,
-	.remove = scmi_remove,
+	.remove_new = scmi_remove,
 };
 
 /**

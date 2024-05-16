@@ -8,8 +8,8 @@
  * Copyright (C)      2016  Kees Cook
  */
 
-/* No PAGE_TABLE_ISOLATION support needed either: */
-#undef CONFIG_PAGE_TABLE_ISOLATION
+/* No MITIGATION_PAGE_TABLE_ISOLATION support needed either: */
+#undef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 
 #include "error.h"
 #include "misc.h"
@@ -159,8 +159,9 @@ void initialize_identity_maps(void *rmode)
 	 * or does not touch all the pages covering them.
 	 */
 	kernel_add_identity_map((unsigned long)_head, (unsigned long)_end);
-	boot_params = rmode;
-	kernel_add_identity_map((unsigned long)boot_params, (unsigned long)(boot_params + 1));
+	boot_params_ptr = rmode;
+	kernel_add_identity_map((unsigned long)boot_params_ptr,
+				(unsigned long)(boot_params_ptr + 1));
 	cmdline = get_cmd_line_ptr();
 	kernel_add_identity_map(cmdline, cmdline + COMMAND_LINE_SIZE);
 
@@ -168,7 +169,7 @@ void initialize_identity_maps(void *rmode)
 	 * Also map the setup_data entries passed via boot_params in case they
 	 * need to be accessed by uncompressed kernel via the identity mapping.
 	 */
-	sd = (struct setup_data *)boot_params->hdr.setup_data;
+	sd = (struct setup_data *)boot_params_ptr->hdr.setup_data;
 	while (sd) {
 		unsigned long sd_addr = (unsigned long)sd;
 
@@ -283,7 +284,7 @@ static int set_clr_page_flags(struct x86_mapping_info *info,
 	pudp = pud_offset(p4dp, address);
 	pmdp = pmd_offset(pudp, address);
 
-	if (pmd_large(*pmdp))
+	if (pmd_leaf(*pmdp))
 		ptep = split_large_pmd(info, pmdp, address);
 	else
 		ptep = pte_offset_kernel(pmdp, address);
@@ -384,4 +385,9 @@ void do_boot_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * the faulting address.
 	 */
 	kernel_add_identity_map(address, end);
+}
+
+void do_boot_nmi_trap(struct pt_regs *regs, unsigned long error_code)
+{
+	spurious_nmi_count++;
 }

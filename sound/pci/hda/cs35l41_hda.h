@@ -10,6 +10,7 @@
 #ifndef __CS35L41_HDA_H__
 #define __CS35L41_HDA_H__
 
+#include <linux/acpi.h>
 #include <linux/efi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
@@ -18,6 +19,8 @@
 
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/firmware/cirrus/wmfw.h>
+
+#define CS35L41_MAX_ACCEPTABLE_SPI_SPEED_HZ	1000000
 
 struct cs35l41_amp_cal_data {
 	u32 calTarget[2];
@@ -34,8 +37,8 @@ struct cs35l41_amp_efi_data {
 } __packed;
 
 enum cs35l41_hda_spk_pos {
-	CS35l41_LEFT,
-	CS35l41_RIGHT,
+	CS35L41_LEFT,
+	CS35L41_RIGHT,
 };
 
 enum cs35l41_hda_gpio_function {
@@ -45,10 +48,16 @@ enum cs35l41_hda_gpio_function {
 	CS35l41_SYNC,
 };
 
+enum control_bus {
+	I2C,
+	SPI
+};
+
 struct cs35l41_hda {
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *cs_gpio;
 	struct cs35l41_hw_cfg hw_cfg;
 	struct hda_codec *codec;
 
@@ -70,6 +79,11 @@ struct cs35l41_hda {
 	bool halo_initialized;
 	bool playback_started;
 	struct cs_dsp cs_dsp;
+	struct acpi_device *dacpi;
+	bool mute_override;
+	enum control_bus control_bus;
+	bool bypass_fw;
+
 };
 
 enum halo_state {
@@ -81,7 +95,7 @@ enum halo_state {
 extern const struct dev_pm_ops cs35l41_hda_pm_ops;
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
-		      struct regmap *regmap);
+		      struct regmap *regmap, enum control_bus control_bus);
 void cs35l41_hda_remove(struct device *dev);
 int cs35l41_get_speaker_id(struct device *dev, int amp_index, int num_amps, int fixed_gpio_id);
 

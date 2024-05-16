@@ -1041,7 +1041,7 @@ static void rfcomm_tty_flush_buffer(struct tty_struct *tty)
 	tty_wakeup(tty);
 }
 
-static void rfcomm_tty_send_xchar(struct tty_struct *tty, char ch)
+static void rfcomm_tty_send_xchar(struct tty_struct *tty, u8 ch)
 {
 	BT_DBG("tty %p ch %c", tty, ch);
 }

@@ -50,6 +50,7 @@ import drgn
 from drgn.helpers.linux.list import list_for_each_entry,list_empty
 from drgn.helpers.linux.percpu import per_cpu_ptr
 from drgn.helpers.linux.cpumask import for_each_cpu,for_each_possible_cpu
+from drgn.helpers.linux.nodemask import for_each_node
 from drgn.helpers.linux.idr import idr_for_each
 
 import argparse
@@ -75,6 +76,22 @@ def cpumask_str(cpumask):
         output += f'{v:08x}'
     return output.strip()
 
+wq_type_len = 9
+
+def wq_type_str(wq):
+    if wq.flags & WQ_BH:
+        return f'{"bh":{wq_type_len}}'
+    elif wq.flags & WQ_UNBOUND:
+        if wq.flags & WQ_ORDERED:
+            return f'{"ordered":{wq_type_len}}'
+        else:
+            if wq.unbound_attrs.affn_strict:
+                return f'{"unbound,S":{wq_type_len}}'
+            else:
+                return f'{"unbound":{wq_type_len}}'
+    else:
+        return f'{"percpu":{wq_type_len}}'
+
 worker_pool_idr         = prog['worker_pool_idr']
 workqueues              = prog['workqueues']
 wq_unbound_cpumask      = prog['wq_unbound_cpumask']
@@ -82,6 +99,7 @@ wq_pod_types            = prog['wq_pod_types']
 wq_affn_dfl             = prog['wq_affn_dfl']
 wq_affn_names           = prog['wq_affn_names']
 
+WQ_BH                   = prog['WQ_BH']
 WQ_UNBOUND              = prog['WQ_UNBOUND']
 WQ_ORDERED              = prog['__WQ_ORDERED']
 WQ_MEM_RECLAIM          = prog['WQ_MEM_RECLAIM']
@@ -91,6 +109,11 @@ WQ_AFFN_SMT             = prog['WQ_AFFN_SMT']
 WQ_AFFN_CACHE           = prog['WQ_AFFN_CACHE']
 WQ_AFFN_NUMA            = prog['WQ_AFFN_NUMA']
 WQ_AFFN_SYSTEM          = prog['WQ_AFFN_SYSTEM']
+
+POOL_BH                 = prog['POOL_BH']
+
+WQ_NAME_LEN             = prog['WQ_NAME_LEN'].value_()
+cpumask_str_len         = len(cpumask_str(wq_unbound_cpumask))
 
 print('Affinity Scopes')
 print('===============')
@@ -133,10 +156,12 @@ for pi, pool in idr_for_each(worker_pool_idr):
 
 for pi, pool in idr_for_each(worker_pool_idr):
     pool = drgn.Object(prog, 'struct worker_pool', address=pool)
-    print(f'pool[{pi:0{max_pool_id_len}}] ref={pool.refcnt.value_():{max_ref_len}} nice={pool.attrs.nice.value_():3} ', end='')
+    print(f'pool[{pi:0{max_pool_id_len}}] flags=0x{pool.flags.value_():02x} ref={pool.refcnt.value_():{max_ref_len}} nice={pool.attrs.nice.value_():3} ', end='')
     print(f'idle/workers={pool.nr_idle.value_():3}/{pool.nr_workers.value_():3} ', end='')
     if pool.cpu >= 0:
         print(f'cpu={pool.cpu.value_():3}', end='')
+        if pool.flags & POOL_BH:
+            print(' bh', end='')
     else:
         print(f'cpus={cpumask_str(pool.attrs.cpumask)}', end='')
         print(f' pod_cpus={cpumask_str(pool.attrs.__pod_cpumask)}', end='')
@@ -148,24 +173,13 @@ print('')
 print('Workqueue CPU -> pool')
 print('=====================')
 
-print('[    workqueue     \     type   CPU', end='')
+print(f'[{"workqueue":^{WQ_NAME_LEN-2}}\\ {"type   CPU":{wq_type_len}}', end='')
 for cpu in for_each_possible_cpu(prog):
     print(f' {cpu:{max_pool_id_len}}', end='')
 print(' dfl]')
 
 for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
-    print(f'{wq.name.string_().decode()[-24:]:24}', end='')
-    if wq.flags & WQ_UNBOUND:
-        if wq.flags & WQ_ORDERED:
-            print(' ordered   ', end='')
-        else:
-            print(' unbound', end='')
-            if wq.unbound_attrs.affn_strict:
-                print(',S ', end='')
-            else:
-                print('   ', end='')
-    else:
-        print(' percpu    ', end='')
+    print(f'{wq.name.string_().decode():{WQ_NAME_LEN}} {wq_type_str(wq):10}', end='')
 
     for cpu in for_each_possible_cpu(prog):
         pool_id = per_cpu_ptr(wq.cpu_pwq, cpu)[0].pool.id.value_()
@@ -175,3 +189,65 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
     if wq.flags & WQ_UNBOUND:
         print(f' {wq.dfl_pwq.pool.id.value_():{max_pool_id_len}}', end='')
     print('')
+
+print('')
+print('Workqueue -> rescuer')
+print('====================')
+
+ucpus_len = max(cpumask_str_len, len("unbound_cpus"))
+rcpus_len = max(cpumask_str_len, len("rescuer_cpus"))
+
+print(f'[{"workqueue":^{WQ_NAME_LEN-2}}\\ {"unbound_cpus":{ucpus_len}}    pid {"rescuer_cpus":{rcpus_len}} ]')
+
+for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
+    if not (wq.flags & WQ_MEM_RECLAIM):
+        continue
+
+    print(f'{wq.name.string_().decode():{WQ_NAME_LEN}}', end='')
+    if wq.unbound_attrs.value_() != 0:
+        print(f' {cpumask_str(wq.unbound_attrs.cpumask):{ucpus_len}}', end='')
+    else:
+        print(f' {"":{ucpus_len}}', end='')
+
+    print(f' {wq.rescuer.task.pid.value_():6}', end='')
+    print(f' {cpumask_str(wq.rescuer.task.cpus_ptr):{rcpus_len}}', end='')
+    print('')
+
+print('')
+print('Unbound workqueue -> node_nr/max_active')
+print('=======================================')
+
+if 'node_to_cpumask_map' in prog:
+    __cpu_online_mask = prog['__cpu_online_mask']
+    node_to_cpumask_map = prog['node_to_cpumask_map']
+    nr_node_ids = prog['nr_node_ids'].value_()
+
+    print(f'online_cpus={cpumask_str(__cpu_online_mask.address_of_())}')
+    for node in for_each_node():
+        print(f'NODE[{node:02}]={cpumask_str(node_to_cpumask_map[node])}')
+    print('')
+
+    print(f'[{"workqueue":^{WQ_NAME_LEN-2}}\\ min max', end='')
+    first = True
+    for node in for_each_node():
+        if first:
+            print(f'  NODE {node}', end='')
+            first = False
+        else:
+            print(f' {node:7}', end='')
+    print(f' {"dfl":>7} ]')
+    print('')
+
+    for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
+        if not (wq.flags & WQ_UNBOUND):
+            continue
+
+        print(f'{wq.name.string_().decode():{WQ_NAME_LEN}} ', end='')
+        print(f'{wq.min_active.value_():3} {wq.max_active.value_():3}', end='')
+        for node in for_each_node():
+            nna = wq.node_nr_active[node]
+            print(f' {nna.nr.counter.value_():3}/{nna.max.value_():3}', end='')
+        nna = wq.node_nr_active[nr_node_ids]
+        print(f' {nna.nr.counter.value_():3}/{nna.max.value_():3}')
+else:
+    printf(f'node_to_cpumask_map not present, is NUMA enabled?')

@@ -90,26 +90,4 @@ required:
 
 unevaluatedProperties: false
 
-examples:
-  - |
-    #include <dt-bindings/input/input.h>
-    #include <dt-bindings/interrupt-controller/arm-gic.h>
-
-    pmic {
-        compatible = "mediatek,mt6397";
-
-        keys {
-          compatible = "mediatek,mt6397-keys";
-          mediatek,long-press-mode = <1>;
-          power-off-time-sec = <0>;
-
-          key-power {
-            linux,keycodes = <KEY_POWER>;
-            wakeup-source;
-          };
-
-          key-home {
-            linux,keycodes = <KEY_VOLUMEDOWN>;
-          };
-        };
-    };
+...

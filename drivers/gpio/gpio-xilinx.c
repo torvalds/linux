@@ -52,7 +52,6 @@
  * @dir: GPIO direction shadow register
  * @gpio_lock: Lock used for synchronization
  * @irq: IRQ used by GPIO device
- * @irqchip: IRQ chip
  * @enable: GPIO IRQ enable/disable bitfield
  * @rising_edge: GPIO IRQ rising edge enable/disable bitfield
  * @falling_edge: GPIO IRQ falling edge enable/disable bitfield
@@ -332,7 +331,7 @@ static int __maybe_unused xgpio_suspend(struct device *dev)
  *
  * Return: 0 always
  */
-static int xgpio_remove(struct platform_device *pdev)
+static void xgpio_remove(struct platform_device *pdev)
 {
 	struct xgpio_instance *gpio = platform_get_drvdata(pdev);
 
@@ -340,8 +339,6 @@ static int xgpio_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(gpio->clk);
-
-	return 0;
 }
 
 /**
@@ -715,7 +712,7 @@ MODULE_DEVICE_TABLE(of, xgpio_of_match);
 
 static struct platform_driver xgpio_plat_driver = {
 	.probe		= xgpio_probe,
-	.remove		= xgpio_remove,
+	.remove_new	= xgpio_remove,
 	.driver		= {
 			.name = "gpio-xilinx",
 			.of_match_table	= xgpio_of_match,

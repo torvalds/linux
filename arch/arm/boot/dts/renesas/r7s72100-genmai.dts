@@ -29,9 +29,33 @@
 		reg = <0x08000000 0x08000000>;
 	};
 
-	lbsc {
+	flash@18000000 {
+		compatible = "mtd-rom";
+		reg = <0x18000000 0x08000000>;
+		bank-width = <4>;
+		device-width = <1>;
+
+		clocks = <&mstp9_clks R7S72100_CLK_SPIBSC0>;
+		power-domains = <&cpg_clocks>;
+
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "user";
+				reg = <0x00000000 0x04000000>;
+			};
+
+			partition@4000000 {
+				label = "user1";
+				reg = <0x04000000 0x40000000>;
+			};
+		};
 	};
 
 	leds {
@@ -85,6 +109,62 @@
 
 &extal_clk {
 	clock-frequency = <13330000>;
+};
+
+&bsc {
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0x00000000 0x04000000>;
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00040000>;
+			};
+
+			partition@40000 {
+				label = "uboot-env";
+				reg = <0x00040000 0x00020000>;
+			};
+
+			partition@60000 {
+				label = "flash";
+				reg = <0x00060000 0x03fa0000>;
+			};
+		};
+	};
+
+	flash@4000000 {
+		compatible = "cfi-flash";
+		reg = <0x04000000 0x04000000>;
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot1";
+				reg = <0x00000000 0x00040000>;
+			};
+
+			partition@40000 {
+				label = "uboot-env1";
+				reg = <0x00040000 0x00020000>;
+			};
+
+			partition@60000 {
+				label = "flash1";
+				reg = <0x00060000 0x03fa0000>;
+			};
+		};
+	};
 };
 
 &usb_x1_clk {

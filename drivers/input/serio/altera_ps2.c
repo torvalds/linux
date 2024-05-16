@@ -125,13 +125,11 @@ static int altera_ps2_probe(struct platform_device *pdev)
 /*
  * Remove one device from this driver.
  */
-static int altera_ps2_remove(struct platform_device *pdev)
+static void altera_ps2_remove(struct platform_device *pdev)
 {
 	struct ps2if *ps2if = platform_get_drvdata(pdev);
 
 	serio_unregister_port(ps2if->io);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -148,7 +146,7 @@ MODULE_DEVICE_TABLE(of, altera_ps2_match);
  */
 static struct platform_driver altera_ps2_driver = {
 	.probe		= altera_ps2_probe,
-	.remove		= altera_ps2_remove,
+	.remove_new	= altera_ps2_remove,
 	.driver	= {
 		.name	= DRV_NAME,
 		.of_match_table = of_match_ptr(altera_ps2_match),

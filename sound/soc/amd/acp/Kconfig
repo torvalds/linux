@@ -30,13 +30,15 @@ config SND_SOC_AMD_ACP_PCM
 
 config SND_SOC_AMD_ACP_PCI
 	tristate "AMD ACP PCI Driver Support"
-	select SND_SOC_AMD_ACP_LEGACY_COMMON
 	depends on X86 && PCI
+	depends on ACPI
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
 	help
 	  This options enables generic PCI driver for ACP device.
 
 config SND_AMD_ASOC_RENOIR
 	tristate "AMD ACP ASOC Renoir Support"
+	depends on ACPI
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
@@ -47,6 +49,7 @@ config SND_AMD_ASOC_RENOIR
 
 config SND_AMD_ASOC_REMBRANDT
 	tristate "AMD ACP ASOC Rembrandt Support"
+	depends on ACPI
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
@@ -56,6 +59,32 @@ config SND_AMD_ASOC_REMBRANDT
 	  This option enables Rembrandt I2S support on AMD platform.
 	  Say Y if you want to enable AUDIO on Rembrandt
 	  If unsure select "N".
+
+config SND_AMD_ASOC_ACP63
+	tristate "AMD ACP ASOC ACP6.3 Support"
+	depends on X86 && PCI
+	depends on ACPI
+	select SND_SOC_AMD_ACP_PCM
+	select SND_SOC_AMD_ACP_I2S
+	select SND_SOC_AMD_ACP_PDM
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	help
+	  This option enables Acp6.3 I2S support on AMD platform.
+	  Say Y if you want to enable AUDIO on ACP6.3
+	  If unsure select "N".
+
+config SND_AMD_ASOC_ACP70
+	tristate "AMD ACP ASOC Acp7.0 Support"
+	depends on X86 && PCI
+	depends on ACPI
+	select SND_SOC_AMD_ACP_PCM
+	select SND_SOC_AMD_ACP_I2S
+	select SND_SOC_AMD_ACP_PDM
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	help
+	This option enables Acp7.0 PDM support on AMD platform.
+	Say Y if you want to enable AUDIO on ACP7.0
+          If unsure select "N".
 
 config SND_SOC_AMD_MACH_COMMON
 	tristate
@@ -87,3 +116,10 @@ config SND_SOC_AMD_SOF_MACH
 	  This option enables SOF sound card support for ACP audio.
 
 endif # SND_SOC_AMD_ACP_COMMON
+
+config SND_AMD_SOUNDWIRE_ACPI
+	tristate
+	depends on ACPI
+	help
+	  This options enables ACPI helper functions for SoundWire
+	  interface for AMD platforms.

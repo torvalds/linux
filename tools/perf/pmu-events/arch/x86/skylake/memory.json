@@ -1008,7 +1008,7 @@
         "BriefDescription": "Number of times an RTM execution aborted due to any reasons (multiple categories may count as one).",
         "EventCode": "0xC9",
         "EventName": "RTM_RETIRED.ABORTED",
-        "PEBS": "1",
+        "PEBS": "2",
         "PublicDescription": "Number of times RTM abort was triggered.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"

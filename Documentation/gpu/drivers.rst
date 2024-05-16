@@ -3,9 +3,11 @@ GPU Driver Documentation
 ========================
 
 .. toctree::
+   :maxdepth: 3
 
    amdgpu/index
    i915
+   imagination/index
    mcde
    meson
    pl111
@@ -16,6 +18,7 @@ GPU Driver Documentation
    vkms
    bridge/dw-hdmi
    xen-front
+   xe/index
    afbc
    komeda-kms
    panfrost

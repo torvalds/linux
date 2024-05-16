@@ -1,0 +1,266 @@
+[
+	{
+		"EventName": "hnf_cache_miss",
+		"EventidCode": "0x1",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts total cache misses in first lookup result (high priority).",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_slc_sf_cache_access",
+		"EventidCode": "0x2",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of cache accesses in first access (high priority).",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_cache_fill",
+		"EventidCode": "0x3",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts total allocations in HN SLC (all cache line allocations to SLC).",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_pocq_retry",
+		"EventidCode": "0x4",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of retried requests.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_pocq_reqs_recvd",
+		"EventidCode": "0x5",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of requests that HN receives.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_sf_hit",
+		"EventidCode": "0x6",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of SF hits.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_sf_evictions",
+		"EventidCode": "0x7",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of SF eviction cache invalidations initiated.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_dir_snoops_sent",
+		"EventidCode": "0x8",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of directed snoops sent (not including SF back invalidation).",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_brd_snoops_sent",
+		"EventidCode": "0x9",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of multicast snoops sent (not including SF back invalidation).",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_slc_eviction",
+		"EventidCode": "0xa",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of SLC evictions (dirty only).",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_slc_fill_invalid_way",
+		"EventidCode": "0xb",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of SLC fills to an invalid way.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_mc_retries",
+		"EventidCode": "0xc",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of retried transactions by the MC.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_mc_reqs",
+		"EventidCode": "0xd",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of requests that are sent to MC.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hnf_qos_hh_retry",
+		"EventidCode": "0xe",
+		"NodeType": "0x5",
+		"BriefDescription": "Counts number of times a HighHigh priority request is protocolretried at the HN-F.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "rnid_s0_rdata_beats",
+		"EventidCode": "0x1",
+		"NodeType": "0xa",
+		"BriefDescription": "Number of RData beats (RVALID and RREADY) dispatched on port 0. This event measures the read bandwidth, including CMO responses.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "rnid_s1_rdata_beats",
+		"EventidCode": "0x2",
+		"NodeType": "0xa",
+		"BriefDescription": "Number of RData beats (RVALID and RREADY) dispatched on port 1. This event measures the read bandwidth, including CMO responses.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "rnid_s2_rdata_beats",
+		"EventidCode": "0x3",
+		"NodeType": "0xa",
+		"BriefDescription": "Number of RData beats (RVALID and RREADY) dispatched on port 2. This event measures the read bandwidth, including CMO responses.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "rnid_rxdat_flits",
+		"EventidCode": "0x4",
+		"NodeType": "0xa",
+		"BriefDescription": "Number of RXDAT flits received. This event measures the true read data bandwidth, excluding CMOs.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "rnid_txdat_flits",
+		"EventidCode": "0x5",
+		"NodeType": "0xa",
+		"BriefDescription": "Number of TXDAT flits dispatched. This event measures the write bandwidth.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "rnid_txreq_flits_total",
+		"EventidCode": "0x6",
+		"NodeType": "0xa",
+		"BriefDescription": "Number of TXREQ flits dispatched. This event measures the total request bandwidth.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "rnid_txreq_flits_retried",
+		"EventidCode": "0x7",
+		"NodeType": "0xa",
+		"BriefDescription": "Number of retried TXREQ flits dispatched. This event measures the retry rate.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "sbsx_txrsp_retryack",
+		"EventidCode": "0x4",
+		"NodeType": "0x7",
+		"BriefDescription": "Number of RXREQ flits dispatched. This event is a measure of the retry rate.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "sbsx_txdat_flitv",
+		"EventidCode": "0x5",
+		"NodeType": "0x7",
+		"BriefDescription": "Number of TXDAT flits dispatched from XP to SBSX. This event is a measure of the write bandwidth.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "sbsx_arvalid_no_arready",
+		"EventidCode": "0x21",
+		"NodeType": "0x7",
+		"BriefDescription": "Number of cycles the SBSX bridge is stalled because of backpressure on AR channel.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "sbsx_awvalid_no_awready",
+		"EventidCode": "0x22",
+		"NodeType": "0x7",
+		"BriefDescription": "Number of cycles the SBSX bridge is stalled because of backpressure on AW channel.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "sbsx_wvalid_no_wready",
+		"EventidCode": "0x23",
+		"NodeType": "0x7",
+		"BriefDescription": "Number of cycles the SBSX bridge is stalled because of backpressure on W channel.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hni_txrsp_retryack",
+		"EventidCode": "0x2a",
+		"NodeType": "0x4",
+		"BriefDescription": "Number of RXREQ flits dispatched. This event is a measure of the retry rate.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hni_arvalid_no_arready",
+		"EventidCode": "0x2b",
+		"NodeType": "0x4",
+		"BriefDescription": "Number of cycles the HN-I bridge is stalled because of backpressure on AR channel.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hni_arready_no_arvalid",
+		"EventidCode": "0x2c",
+		"NodeType": "0x4",
+		"BriefDescription": "Number of cycles the AR channel is waiting for new requests from HN-I bridge.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hni_awvalid_no_awready",
+		"EventidCode": "0x2d",
+		"NodeType": "0x4",
+		"BriefDescription": "Number of cycles the HN-I bridge is stalled because of backpressure on AW channel.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hni_awready_no_awvalid",
+		"EventidCode": "0x2e",
+		"NodeType": "0x4",
+		"BriefDescription": "Number of cycles the AW channel is waiting for new requests from HN-I bridge.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hni_wvalid_no_wready",
+		"EventidCode": "0x2f",
+		"NodeType": "0x4",
+		"BriefDescription": "Number of cycles the HN-I bridge is stalled because of backpressure on W channel.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	},
+	{
+		"EventName": "hni_txdat_stall",
+		"EventidCode": "0x30",
+		"NodeType": "0x4",
+		"BriefDescription": "TXDAT valid but no link credit available.",
+		"Unit": "arm_cmn",
+		"Compat": "(434|436|43c|43a).*"
+	}
+]

@@ -17,6 +17,7 @@
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_hyp.h>
+#include <asm/kvm_nested.h>
 #include <asm/ptrace.h>
 #include <asm/cputype.h>
 #include <asm/virt.h>
@@ -62,7 +63,7 @@ static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 #else
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 {
-	return test_bit(KVM_ARM_VCPU_EL1_32BIT, vcpu->arch.features);
+	return vcpu_has_feature(vcpu, KVM_ARM_VCPU_EL1_32BIT);
 }
 #endif
 
@@ -71,14 +72,14 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 	vcpu->arch.hcr_el2 = HCR_GUEST_FLAGS;
 	if (has_vhe() || has_hvhe())
 		vcpu->arch.hcr_el2 |= HCR_E2H;
-	if (cpus_have_const_cap(ARM64_HAS_RAS_EXTN)) {
+	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN)) {
 		/* route synchronous external abort exceptions to EL2 */
 		vcpu->arch.hcr_el2 |= HCR_TEA;
 		/* trap error record accesses */
 		vcpu->arch.hcr_el2 |= HCR_TERR;
 	}
 
-	if (cpus_have_const_cap(ARM64_HAS_STAGE2_FWB)) {
+	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB)) {
 		vcpu->arch.hcr_el2 |= HCR_FWB;
 	} else {
 		/*
@@ -208,7 +209,8 @@ static inline bool vcpu_is_el2(const struct kvm_vcpu *vcpu)
 
 static inline bool __vcpu_el2_e2h_is_set(const struct kvm_cpu_context *ctxt)
 {
-	return ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H;
+	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
+		(ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H));
 }
 
 static inline bool vcpu_el2_e2h_is_set(const struct kvm_vcpu *vcpu)
@@ -243,7 +245,7 @@ static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
 
 static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
 {
-	return __is_hyp_ctxt(&vcpu->arch.ctxt);
+	return vcpu_has_nv(vcpu) && __is_hyp_ctxt(&vcpu->arch.ctxt);
 }
 
 /*
@@ -399,29 +401,34 @@ static __always_inline u8 kvm_vcpu_trap_get_fault(const struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC;
 }
 
-static __always_inline u8 kvm_vcpu_trap_get_fault_type(const struct kvm_vcpu *vcpu)
+static inline
+bool kvm_vcpu_trap_is_permission_fault(const struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC_TYPE;
+	return esr_fsc_is_permission_fault(kvm_vcpu_get_esr(vcpu));
 }
 
-static __always_inline u8 kvm_vcpu_trap_get_fault_level(const struct kvm_vcpu *vcpu)
+static inline
+bool kvm_vcpu_trap_is_translation_fault(const struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC_LEVEL;
+	return esr_fsc_is_translation_fault(kvm_vcpu_get_esr(vcpu));
+}
+
+static inline
+u64 kvm_vcpu_trap_get_perm_fault_granule(const struct kvm_vcpu *vcpu)
+{
+	unsigned long esr = kvm_vcpu_get_esr(vcpu);
+
+	BUG_ON(!esr_fsc_is_permission_fault(esr));
+	return BIT(ARM64_HW_PGTABLE_LEVEL_SHIFT(esr & ESR_ELx_FSC_LEVEL));
 }
 
 static __always_inline bool kvm_vcpu_abt_issea(const struct kvm_vcpu *vcpu)
 {
 	switch (kvm_vcpu_trap_get_fault(vcpu)) {
 	case ESR_ELx_FSC_EXTABT:
-	case ESR_ELx_FSC_SEA_TTW0:
-	case ESR_ELx_FSC_SEA_TTW1:
-	case ESR_ELx_FSC_SEA_TTW2:
-	case ESR_ELx_FSC_SEA_TTW3:
+	case ESR_ELx_FSC_SEA_TTW(-1) ... ESR_ELx_FSC_SEA_TTW(3):
 	case ESR_ELx_FSC_SECC:
-	case ESR_ELx_FSC_SECC_TTW0:
-	case ESR_ELx_FSC_SECC_TTW1:
-	case ESR_ELx_FSC_SECC_TTW2:
-	case ESR_ELx_FSC_SECC_TTW3:
+	case ESR_ELx_FSC_SECC_TTW(-1) ... ESR_ELx_FSC_SECC_TTW(3):
 		return true;
 	default:
 		return false;
@@ -449,12 +456,7 @@ static inline bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
 		 * first), then a permission fault to allow the flags
 		 * to be set.
 		 */
-		switch (kvm_vcpu_trap_get_fault_type(vcpu)) {
-		case ESR_ELx_FSC_PERM:
-			return true;
-		default:
-			return false;
-		}
+		return kvm_vcpu_trap_is_permission_fault(vcpu);
 	}
 
 	if (kvm_vcpu_trap_is_iabt(vcpu))
@@ -465,7 +467,7 @@ static inline bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
 
 static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 {
-	return vcpu_read_sys_reg(vcpu, MPIDR_EL1) & MPIDR_HWID_BITMASK;
+	return __vcpu_sys_reg(vcpu, MPIDR_EL1) & MPIDR_HWID_BITMASK;
 }
 
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
@@ -564,12 +566,6 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 		vcpu_set_flag((v), PENDING_EXCEPTION);			\
 		vcpu_set_flag((v), e);					\
 	} while (0)
-
-
-static inline bool vcpu_has_feature(struct kvm_vcpu *vcpu, int feature)
-{
-	return test_bit(feature, vcpu->arch.features);
-}
 
 static __always_inline void kvm_write_cptr_el2(u64 val)
 {

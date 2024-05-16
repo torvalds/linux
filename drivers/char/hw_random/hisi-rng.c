@@ -79,8 +79,6 @@ static int hisi_rng_probe(struct platform_device *pdev)
 	if (!rng)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, rng);
-
 	rng->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rng->base))
 		return PTR_ERR(rng->base);
@@ -91,10 +89,8 @@ static int hisi_rng_probe(struct platform_device *pdev)
 	rng->rng.read = hisi_rng_read;
 
 	ret = devm_hwrng_register(&pdev->dev, &rng->rng);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register hwrng\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to register hwrng\n");
 
 	return 0;
 }

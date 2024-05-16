@@ -21,50 +21,6 @@
 
 #define base_idx(X) ((X) & 0xffffff)
 
-static char nulldfa_src[] = {
-	#include "nulldfa.in"
-};
-struct aa_dfa *nulldfa;
-
-static char stacksplitdfa_src[] = {
-	#include "stacksplitdfa.in"
-};
-struct aa_dfa *stacksplitdfa;
-
-int __init aa_setup_dfa_engine(void)
-{
-	int error;
-
-	nulldfa = aa_dfa_unpack(nulldfa_src, sizeof(nulldfa_src),
-				TO_ACCEPT1_FLAG(YYTD_DATA32) |
-				TO_ACCEPT2_FLAG(YYTD_DATA32));
-	if (IS_ERR(nulldfa)) {
-		error = PTR_ERR(nulldfa);
-		nulldfa = NULL;
-		return error;
-	}
-
-	stacksplitdfa = aa_dfa_unpack(stacksplitdfa_src,
-				      sizeof(stacksplitdfa_src),
-				      TO_ACCEPT1_FLAG(YYTD_DATA32) |
-				      TO_ACCEPT2_FLAG(YYTD_DATA32));
-	if (IS_ERR(stacksplitdfa)) {
-		aa_put_dfa(nulldfa);
-		nulldfa = NULL;
-		error = PTR_ERR(stacksplitdfa);
-		stacksplitdfa = NULL;
-		return error;
-	}
-
-	return 0;
-}
-
-void __init aa_teardown_dfa_engine(void)
-{
-	aa_put_dfa(stacksplitdfa);
-	aa_put_dfa(nulldfa);
-}
-
 /**
  * unpack_table - unpack a dfa table (one of accept, default, base, next check)
  * @blob: data to unpack (NOT NULL)
@@ -136,7 +92,7 @@ fail:
 
 /**
  * verify_table_headers - verify that the tables headers are as expected
- * @tables - array of dfa tables to check (NOT NULL)
+ * @tables: array of dfa tables to check (NOT NULL)
  * @flags: flags controlling what type of accept table are acceptable
  *
  * Assumes dfa has gone through the first pass verification done by unpacking
@@ -283,7 +239,7 @@ static void dfa_free(struct aa_dfa *dfa)
 
 /**
  * aa_dfa_free_kref - free aa_dfa by kref (called by aa_put_dfa)
- * @kr: kref callback for freeing of a dfa  (NOT NULL)
+ * @kref: kref callback for freeing of a dfa  (NOT NULL)
  */
 void aa_dfa_free_kref(struct kref *kref)
 {

@@ -149,7 +149,7 @@ static int __init corenet_generic_probe(void)
 	extern struct smp_ops_t smp_85xx_ops;
 #endif
 
-	if (of_device_compatible_match(of_root, boards))
+	if (of_machine_compatible_match(boards))
 		return 1;
 
 	/* Check if we're running under the Freescale hypervisor */

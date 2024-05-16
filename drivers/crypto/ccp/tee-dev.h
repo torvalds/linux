@@ -17,20 +17,9 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 
-#define TEE_DEFAULT_TIMEOUT		10
+#define TEE_DEFAULT_CMD_TIMEOUT		(10 * MSEC_PER_SEC)
+#define TEE_DEFAULT_RING_TIMEOUT	10
 #define MAX_BUFFER_SIZE			988
-
-/**
- * enum tee_ring_cmd_id - TEE interface commands for ring buffer configuration
- * @TEE_RING_INIT_CMD:		Initialize ring buffer
- * @TEE_RING_DESTROY_CMD:	Destroy ring buffer
- * @TEE_RING_MAX_CMD:		Maximum command id
- */
-enum tee_ring_cmd_id {
-	TEE_RING_INIT_CMD		= 0x00010000,
-	TEE_RING_DESTROY_CMD		= 0x00020000,
-	TEE_RING_MAX_CMD		= 0x000F0000,
-};
 
 /**
  * struct tee_init_ring_cmd - Command to init TEE ring buffer

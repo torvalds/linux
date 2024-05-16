@@ -54,12 +54,22 @@ enum {
 	BNXT_RE_UCNTX_CMASK_HAVE_MODE = 0x02ULL,
 	BNXT_RE_UCNTX_CMASK_WC_DPI_ENABLED = 0x04ULL,
 	BNXT_RE_UCNTX_CMASK_DBR_PACING_ENABLED = 0x08ULL,
+	BNXT_RE_UCNTX_CMASK_POW2_DISABLED = 0x10ULL,
+	BNXT_RE_COMP_MASK_UCNTX_HW_RETX_ENABLED = 0x40,
 };
 
 enum bnxt_re_wqe_mode {
 	BNXT_QPLIB_WQE_MODE_STATIC	= 0x00,
 	BNXT_QPLIB_WQE_MODE_VARIABLE	= 0x01,
 	BNXT_QPLIB_WQE_MODE_INVALID	= 0x02,
+};
+
+enum {
+	BNXT_RE_COMP_MASK_REQ_UCNTX_POW2_SUPPORT = 0x01,
+};
+
+struct bnxt_re_uctx_req {
+	__aligned_u64 comp_mask;
 };
 
 struct bnxt_re_uctx_resp {
@@ -92,11 +102,16 @@ struct bnxt_re_cq_req {
 	__aligned_u64 cq_handle;
 };
 
+enum bnxt_re_cq_mask {
+	BNXT_RE_CQ_TOGGLE_PAGE_SUPPORT = 0x1,
+};
+
 struct bnxt_re_cq_resp {
 	__u32 cqid;
 	__u32 tail;
 	__u32 phase;
 	__u32 rsvd;
+	__aligned_u64 comp_mask;
 };
 
 struct bnxt_re_resize_cq_req {
@@ -133,6 +148,7 @@ enum bnxt_re_shpg_offt {
 enum bnxt_re_objects {
 	BNXT_RE_OBJECT_ALLOC_PAGE = (1U << UVERBS_ID_NS_SHIFT),
 	BNXT_RE_OBJECT_NOTIFY_DRV,
+	BNXT_RE_OBJECT_GET_TOGGLE_MEM,
 };
 
 enum bnxt_re_alloc_page_type {
@@ -160,5 +176,30 @@ enum bnxt_re_alloc_page_methods {
 
 enum bnxt_re_notify_drv_methods {
 	BNXT_RE_METHOD_NOTIFY_DRV = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+/* Toggle mem */
+
+enum bnxt_re_get_toggle_mem_type {
+	BNXT_RE_CQ_TOGGLE_MEM = 0,
+	BNXT_RE_SRQ_TOGGLE_MEM,
+};
+
+enum bnxt_re_var_toggle_mem_attrs {
+	BNXT_RE_TOGGLE_MEM_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	BNXT_RE_TOGGLE_MEM_TYPE,
+	BNXT_RE_TOGGLE_MEM_RES_ID,
+	BNXT_RE_TOGGLE_MEM_MMAP_PAGE,
+	BNXT_RE_TOGGLE_MEM_MMAP_OFFSET,
+	BNXT_RE_TOGGLE_MEM_MMAP_LENGTH,
+};
+
+enum bnxt_re_toggle_mem_attrs {
+	BNXT_RE_RELEASE_TOGGLE_MEM_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum bnxt_re_toggle_mem_methods {
+	BNXT_RE_METHOD_GET_TOGGLE_MEM = (1U << UVERBS_ID_NS_SHIFT),
+	BNXT_RE_METHOD_RELEASE_TOGGLE_MEM,
 };
 #endif /* __BNXT_RE_UVERBS_ABI_H__*/

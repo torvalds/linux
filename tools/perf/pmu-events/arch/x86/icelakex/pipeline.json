@@ -519,7 +519,7 @@
         "BriefDescription": "Cycles when Reservation Station (RS) is empty for the thread",
         "EventCode": "0x5e",
         "EventName": "RS_EVENTS.EMPTY_CYCLES",
-        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor. This is usually caused when the front-end pipeline runs into stravation periods (e.g. branch mispredictions or i-cache misses)",
+        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor. This is usually caused when the front-end pipeline runs into starvation periods (e.g. branch mispredictions or i-cache misses)",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },

@@ -10,6 +10,7 @@
 #include <asm/proto.h>
 #include <asm/desc.h>
 #include <asm/hw_irq.h>
+#include <asm/ia32.h>
 #include <asm/idtentry.h>
 
 #define DPL0		0x0
@@ -116,8 +117,11 @@ static const __initconst struct idt_data def_idts[] = {
 #endif
 
 	SYSG(X86_TRAP_OF,		asm_exc_overflow),
+};
+
+static const struct idt_data ia32_idt[] __initconst = {
 #if defined(CONFIG_IA32_EMULATION)
-	SYSG(IA32_SYSCALL_VECTOR,	entry_INT80_compat),
+	SYSG(IA32_SYSCALL_VECTOR,	asm_int80_emulation),
 #elif defined(CONFIG_X86_32)
 	SYSG(IA32_SYSCALL_VECTOR,	entry_INT80_32),
 #endif
@@ -149,7 +153,7 @@ static const __initconst struct idt_data apic_idts[] = {
 #ifdef CONFIG_X86_LOCAL_APIC
 	INTG(LOCAL_TIMER_VECTOR,		asm_sysvec_apic_timer_interrupt),
 	INTG(X86_PLATFORM_IPI_VECTOR,		asm_sysvec_x86_platform_ipi),
-# ifdef CONFIG_HAVE_KVM
+# if IS_ENABLED(CONFIG_KVM)
 	INTG(POSTED_INTR_VECTOR,		asm_sysvec_kvm_posted_intr_ipi),
 	INTG(POSTED_INTR_WAKEUP_VECTOR,		asm_sysvec_kvm_posted_intr_wakeup_ipi),
 	INTG(POSTED_INTR_NESTED_VECTOR,		asm_sysvec_kvm_posted_intr_nested_ipi),
@@ -225,6 +229,9 @@ void __init idt_setup_early_traps(void)
 void __init idt_setup_traps(void)
 {
 	idt_setup_from_table(idt_table, def_idts, ARRAY_SIZE(def_idts), true);
+
+	if (ia32_enabled())
+		idt_setup_from_table(idt_table, ia32_idt, ARRAY_SIZE(ia32_idt), true);
 }
 
 #ifdef CONFIG_X86_64
@@ -330,7 +337,7 @@ void idt_invalidate(void)
 	load_idt(&idt);
 }
 
-void __init alloc_intr_gate(unsigned int n, const void *addr)
+void __init idt_install_sysvec(unsigned int n, const void *function)
 {
 	if (WARN_ON(n < FIRST_SYSTEM_VECTOR))
 		return;
@@ -339,5 +346,5 @@ void __init alloc_intr_gate(unsigned int n, const void *addr)
 		return;
 
 	if (!WARN_ON(test_and_set_bit(n, system_vectors)))
-		set_intr_gate(n, addr);
+		set_intr_gate(n, function);
 }

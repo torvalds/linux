@@ -21,8 +21,6 @@
 #include "v3d_drv.h"
 #include "v3d_regs.h"
 
-#define V3D_MMU_PAGE_SHIFT 12
-
 /* Note: All PTEs for the 1MB superpage must be filled with the
  * superpage bit set.
  */

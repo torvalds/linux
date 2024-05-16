@@ -25,3 +25,8 @@ $(kapi)/facility-defs.h: $(obj)/gen_facilities FORCE
 
 $(kapi)/dis-defs.h: $(obj)/gen_opcode_table FORCE
 	$(call filechk,dis-defs.h)
+
+hostprogs	+= relocs
+PHONY		+= relocs
+relocs: $(obj)/relocs
+	@:

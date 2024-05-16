@@ -168,7 +168,7 @@
 	i2c_pins: i2c-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c_0";
+			groups = "i2c_0";
 		};
 
 		conf {

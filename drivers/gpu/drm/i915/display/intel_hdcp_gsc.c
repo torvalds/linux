@@ -13,6 +13,12 @@
 #include "intel_hdcp_gsc.h"
 #include "intel_hdcp_gsc_message.h"
 
+struct intel_hdcp_gsc_message {
+	struct i915_vma *vma;
+	void *hdcp_cmd_in;
+	void *hdcp_cmd_out;
+};
+
 bool intel_hdcp_gsc_cs_required(struct drm_i915_private *i915)
 {
 	return DISPLAY_VER(i915) >= 14;
@@ -65,7 +71,7 @@ static int intel_hdcp_gsc_initialize_message(struct drm_i915_private *i915,
 		goto out_unmap;
 	}
 
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
 		goto out_unmap;
 

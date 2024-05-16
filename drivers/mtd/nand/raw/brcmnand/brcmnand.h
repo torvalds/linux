@@ -24,6 +24,8 @@ struct brcmnand_soc {
 	void (*ctlrdy_set_enabled)(struct brcmnand_soc *soc, bool en);
 	void (*prepare_data_bus)(struct brcmnand_soc *soc, bool prepare,
 				 bool is_param);
+	void (*read_data_bus)(struct brcmnand_soc *soc, void __iomem *flash_cache,
+			      u32 *buffer, int fc_words);
 	const struct brcmnand_io_ops *ops;
 };
 
@@ -88,7 +90,7 @@ static inline void brcmnand_soc_write(struct brcmnand_soc *soc, u32 val,
 }
 
 int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc);
-int brcmnand_remove(struct platform_device *pdev);
+void brcmnand_remove(struct platform_device *pdev);
 
 extern const struct dev_pm_ops brcmnand_pm_ops;
 

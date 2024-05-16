@@ -58,7 +58,7 @@
 /*---------------------  Export Functions  --------------------------*/
 
 bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData);
-bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType, u16 byChannel);
+bool RFbSelectChannel(struct vnt_private *priv, unsigned char rf_type, u16 byChannel);
 bool RFbInit(struct vnt_private *priv);
 bool rf_write_wake_prog_syn(struct vnt_private *priv, unsigned char rf_type, u16 channel);
 bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH);

@@ -17,7 +17,6 @@ struct mdp5_ctl_manager;
 struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 		void __iomem *mmio_base, struct mdp5_cfg_handler *cfg_hnd);
 void mdp5_ctlm_hw_reset(struct mdp5_ctl_manager *ctlm);
-void mdp5_ctlm_destroy(struct mdp5_ctl_manager *ctlm);
 
 /*
  * CTL prototypes:

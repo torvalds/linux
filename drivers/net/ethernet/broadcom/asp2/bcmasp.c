@@ -31,6 +31,20 @@ static void _intr2_mask_set(struct bcmasp_priv *priv, u32 mask)
 	priv->irq_mask |= mask;
 }
 
+void bcmasp_enable_phy_irq(struct bcmasp_intf *intf, int en)
+{
+	struct bcmasp_priv *priv = intf->parent;
+
+	/* Only supported with internal phys */
+	if (!intf->internal_phy)
+		return;
+
+	if (en)
+		_intr2_mask_clear(priv, ASP_INTR2_PHY_EVENT(intf->channel));
+	else
+		_intr2_mask_set(priv, ASP_INTR2_PHY_EVENT(intf->channel));
+}
+
 void bcmasp_enable_tx_irq(struct bcmasp_intf *intf, int en)
 {
 	struct bcmasp_priv *priv = intf->parent;
@@ -79,6 +93,9 @@ static void bcmasp_intr2_handling(struct bcmasp_intf *intf, u32 status)
 			__napi_schedule_irqoff(&intf->tx_napi);
 		}
 	}
+
+	if (status & ASP_INTR2_PHY_EVENT(intf->channel))
+		phy_mac_interrupt(intf->ndev->phydev);
 }
 
 static irqreturn_t bcmasp_isr(int irq, void *data)
@@ -535,9 +552,6 @@ int bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
 	int j = 0, i;
 
 	for (i = 0; i < NUM_NET_FILTERS; i++) {
-		if (j == *rule_cnt)
-			return -EMSGSIZE;
-
 		if (!priv->net_filters[i].claimed ||
 		    priv->net_filters[i].port != intf->port)
 			continue;
@@ -546,6 +560,9 @@ int bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
 		    priv->net_filters[i].wake_filter &&
 		    priv->net_filters[i - 1].wake_filter)
 			continue;
+
+		if (j == *rule_cnt)
+			return -EMSGSIZE;
 
 		rule_locs[j++] = priv->net_filters[i].fs.location;
 	}
@@ -972,7 +989,26 @@ static void bcmasp_core_init(struct bcmasp_priv *priv)
 		      ASP_INTR2_CLEAR);
 }
 
-static void bcmasp_core_clock_select(struct bcmasp_priv *priv, bool slow)
+static void bcmasp_core_clock_select_many(struct bcmasp_priv *priv, bool slow)
+{
+	u32 reg;
+
+	reg = ctrl2_core_rl(priv, ASP_CTRL2_CORE_CLOCK_SELECT);
+	if (slow)
+		reg &= ~ASP_CTRL2_CORE_CLOCK_SELECT_MAIN;
+	else
+		reg |= ASP_CTRL2_CORE_CLOCK_SELECT_MAIN;
+	ctrl2_core_wl(priv, reg, ASP_CTRL2_CORE_CLOCK_SELECT);
+
+	reg = ctrl2_core_rl(priv, ASP_CTRL2_CPU_CLOCK_SELECT);
+	if (slow)
+		reg &= ~ASP_CTRL2_CPU_CLOCK_SELECT_MAIN;
+	else
+		reg |= ASP_CTRL2_CPU_CLOCK_SELECT_MAIN;
+	ctrl2_core_wl(priv, reg, ASP_CTRL2_CPU_CLOCK_SELECT);
+}
+
+static void bcmasp_core_clock_select_one(struct bcmasp_priv *priv, bool slow)
 {
 	u32 reg;
 
@@ -1166,6 +1202,24 @@ static void bcmasp_wol_irq_destroy_per_intf(struct bcmasp_priv *priv)
 	}
 }
 
+static void bcmasp_eee_fixup(struct bcmasp_intf *intf, bool en)
+{
+	u32 reg, phy_lpi_overwrite;
+
+	reg = rx_edpkt_core_rl(intf->parent, ASP_EDPKT_SPARE_REG);
+	phy_lpi_overwrite = intf->internal_phy ? ASP_EDPKT_SPARE_REG_EPHY_LPI :
+			    ASP_EDPKT_SPARE_REG_GPHY_LPI;
+
+	if (en)
+		reg |= phy_lpi_overwrite;
+	else
+		reg &= ~phy_lpi_overwrite;
+
+	rx_edpkt_core_wl(intf->parent, reg, ASP_EDPKT_SPARE_REG);
+
+	usleep_range(50, 100);
+}
+
 static struct bcmasp_hw_info v20_hw_info = {
 	.rx_ctrl_flush = ASP_RX_CTRL_FLUSH,
 	.umac2fb = UMAC2FB_OFFSET,
@@ -1178,6 +1232,7 @@ static const struct bcmasp_plat_data v20_plat_data = {
 	.init_wol = bcmasp_init_wol_per_intf,
 	.enable_wol = bcmasp_enable_wol_per_intf,
 	.destroy_wol = bcmasp_wol_irq_destroy_per_intf,
+	.core_clock_select = bcmasp_core_clock_select_one,
 	.hw_info = &v20_hw_info,
 };
 
@@ -1194,17 +1249,39 @@ static const struct bcmasp_plat_data v21_plat_data = {
 	.init_wol = bcmasp_init_wol_shared,
 	.enable_wol = bcmasp_enable_wol_shared,
 	.destroy_wol = bcmasp_wol_irq_destroy_shared,
+	.core_clock_select = bcmasp_core_clock_select_one,
 	.hw_info = &v21_hw_info,
 };
+
+static const struct bcmasp_plat_data v22_plat_data = {
+	.init_wol = bcmasp_init_wol_shared,
+	.enable_wol = bcmasp_enable_wol_shared,
+	.destroy_wol = bcmasp_wol_irq_destroy_shared,
+	.core_clock_select = bcmasp_core_clock_select_many,
+	.hw_info = &v21_hw_info,
+	.eee_fixup = bcmasp_eee_fixup,
+};
+
+static void bcmasp_set_pdata(struct bcmasp_priv *priv, const struct bcmasp_plat_data *pdata)
+{
+	priv->init_wol = pdata->init_wol;
+	priv->enable_wol = pdata->enable_wol;
+	priv->destroy_wol = pdata->destroy_wol;
+	priv->core_clock_select = pdata->core_clock_select;
+	priv->eee_fixup = pdata->eee_fixup;
+	priv->hw_info = pdata->hw_info;
+}
 
 static const struct of_device_id bcmasp_of_match[] = {
 	{ .compatible = "brcm,asp-v2.0", .data = &v20_plat_data },
 	{ .compatible = "brcm,asp-v2.1", .data = &v21_plat_data },
+	{ .compatible = "brcm,asp-v2.2", .data = &v22_plat_data },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, bcmasp_of_match);
 
 static const struct of_device_id bcmasp_mdio_of_match[] = {
+	{ .compatible = "brcm,asp-v2.2-mdio", },
 	{ .compatible = "brcm,asp-v2.1-mdio", },
 	{ .compatible = "brcm,asp-v2.0-mdio", },
 	{ /* sentinel */ },
@@ -1265,16 +1342,13 @@ static int bcmasp_probe(struct platform_device *pdev)
 	if (!pdata)
 		return dev_err_probe(dev, -EINVAL, "unable to find platform data\n");
 
-	priv->init_wol = pdata->init_wol;
-	priv->enable_wol = pdata->enable_wol;
-	priv->destroy_wol = pdata->destroy_wol;
-	priv->hw_info = pdata->hw_info;
+	bcmasp_set_pdata(priv, pdata);
 
 	/* Enable all clocks to ensure successful probing */
 	bcmasp_core_clock_set(priv, ASP_CTRL_CLOCK_CTRL_ASP_ALL_DISABLE, 0);
 
 	/* Switch to the main clock */
-	bcmasp_core_clock_select(priv, false);
+	priv->core_clock_select(priv, false);
 
 	bcmasp_intr2_mask_set_all(priv);
 	bcmasp_intr2_clear_all(priv);
@@ -1344,17 +1418,15 @@ of_put_exit:
 	return ret;
 }
 
-static int bcmasp_remove(struct platform_device *pdev)
+static void bcmasp_remove(struct platform_device *pdev)
 {
 	struct bcmasp_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	if (!priv)
-		return 0;
+		return;
 
 	priv->destroy_wol(priv);
 	bcmasp_remove_intfs(priv);
-
-	return 0;
 }
 
 static void bcmasp_shutdown(struct platform_device *pdev)
@@ -1383,7 +1455,7 @@ static int __maybe_unused bcmasp_suspend(struct device *d)
 	 */
 	bcmasp_core_clock_set(priv, 0, ASP_CTRL_CLOCK_CTRL_ASP_TX_DISABLE);
 
-	bcmasp_core_clock_select(priv, true);
+	priv->core_clock_select(priv, true);
 
 	clk_disable_unprepare(priv->clk);
 
@@ -1401,7 +1473,7 @@ static int __maybe_unused bcmasp_resume(struct device *d)
 		return ret;
 
 	/* Switch to the main clock domain */
-	bcmasp_core_clock_select(priv, false);
+	priv->core_clock_select(priv, false);
 
 	/* Re-enable all clocks for re-initialization */
 	bcmasp_core_clock_set(priv, ASP_CTRL_CLOCK_CTRL_ASP_ALL_DISABLE, 0);
@@ -1428,7 +1500,7 @@ static SIMPLE_DEV_PM_OPS(bcmasp_pm_ops,
 
 static struct platform_driver bcmasp_driver = {
 	.probe = bcmasp_probe,
-	.remove = bcmasp_remove,
+	.remove_new = bcmasp_remove,
 	.shutdown = bcmasp_shutdown,
 	.driver = {
 		.name = "brcm,asp-v2",

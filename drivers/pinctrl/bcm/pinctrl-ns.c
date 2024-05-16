@@ -7,11 +7,11 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 #include "../core.h"
@@ -171,8 +171,8 @@ static int ns_pinctrl_set_mux(struct pinctrl_dev *pctrl_dev,
 	if (!group)
 		return -EINVAL;
 
-	for (i = 0; i < group->num_pins; i++)
-		unset |= BIT(group->pins[i]);
+	for (i = 0; i < group->grp.npins; i++)
+		unset |= BIT(group->grp.pins[i]);
 
 	tmp = readl(ns_pinctrl->base);
 	tmp &= ~unset;
@@ -208,7 +208,6 @@ static const struct of_device_id ns_pinctrl_of_match_table[] = {
 static int ns_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	struct ns_pinctrl *ns_pinctrl;
 	struct pinctrl_desc *pctldesc;
 	struct pinctrl_pin_desc *pin;
@@ -225,10 +224,7 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 
 	ns_pinctrl->dev = dev;
 
-	of_id = of_match_device(ns_pinctrl_of_match_table, dev);
-	if (!of_id)
-		return -EINVAL;
-	ns_pinctrl->chipset_flag = (uintptr_t)of_id->data;
+	ns_pinctrl->chipset_flag = (uintptr_t)device_get_match_data(dev);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "cru_gpio_control");

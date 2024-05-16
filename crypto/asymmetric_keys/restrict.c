@@ -102,6 +102,10 @@ int restrict_link_by_signature(struct key *dest_keyring,
 
 	if (use_builtin_keys && !test_bit(KEY_FLAG_BUILTIN, &key->flags))
 		ret = -ENOKEY;
+	else if (IS_BUILTIN(CONFIG_SECONDARY_TRUSTED_KEYRING_SIGNED_BY_BUILTIN) &&
+		 !strcmp(dest_keyring->description, ".secondary_trusted_keys") &&
+		 !test_bit(KEY_FLAG_BUILTIN, &key->flags))
+		ret = -ENOKEY;
 	else
 		ret = verify_signature(key, sig);
 	key_put(key);

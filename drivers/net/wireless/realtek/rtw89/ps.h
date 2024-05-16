@@ -33,6 +33,10 @@ static inline void rtw89_enter_ips_by_hwflags(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 
+	/* prevent entering IPS after ROC, but it is scanning */
+	if (rtwdev->scanning)
+		return;
+
 	if (hw->conf.flags & IEEE80211_CONF_IDLE)
 		rtw89_enter_ips(rtwdev);
 }

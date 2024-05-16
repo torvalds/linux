@@ -1650,6 +1650,8 @@ double dml32_TruncToValidBPP(
 			MaxLinkBPP = 2 * MaxLinkBPP;
 	}
 
+	*RequiredSlots = dml_ceil(DesiredBPP / MaxLinkBPP * 64, 1);
+
 	if (DesiredBPP == 0) {
 		if (DSCEnable) {
 			if (MaxLinkBPP < MinDSCBPP)
@@ -1676,10 +1678,6 @@ double dml32_TruncToValidBPP(
 		else
 			return DesiredBPP;
 	}
-
-	*RequiredSlots = dml_ceil(DesiredBPP / MaxLinkBPP * 64, 1);
-
-	return BPP_INVALID;
 } // TruncToValidBPP
 
 double dml32_RequiredDTBCLK(
@@ -1975,8 +1973,8 @@ void dml32_CalculateVMRowAndSwath(
 	unsigned int PTEBufferSizeInRequestsForChroma[DC__NUM_DPP__MAX];
 	unsigned int PDEAndMetaPTEBytesFrameY;
 	unsigned int PDEAndMetaPTEBytesFrameC;
-	unsigned int MetaRowByteY[DC__NUM_DPP__MAX];
-	unsigned int MetaRowByteC[DC__NUM_DPP__MAX];
+	unsigned int MetaRowByteY[DC__NUM_DPP__MAX] = {0};
+	unsigned int MetaRowByteC[DC__NUM_DPP__MAX] = {0};
 	unsigned int PixelPTEBytesPerRowY[DC__NUM_DPP__MAX];
 	unsigned int PixelPTEBytesPerRowC[DC__NUM_DPP__MAX];
 	unsigned int PixelPTEBytesPerRowY_one_row_per_frame[DC__NUM_DPP__MAX];
@@ -3423,6 +3421,7 @@ bool dml32_CalculatePrefetchSchedule(
 		unsigned int SwathHeightC,
 		double TWait,
 		double TPreReq,
+		bool ExtendPrefetchIfPossible,
 		/* Output */
 		double   *DSTXAfterScaler,
 		double   *DSTYAfterScaler,
@@ -3892,12 +3891,32 @@ bool dml32_CalculatePrefetchSchedule(
 			/* Clamp to oto for bandwidth calculation */
 			LinesForPrefetchBandwidth = dst_y_prefetch_oto;
 		} else {
-			*DestinationLinesForPrefetch = dst_y_prefetch_equ;
-			TimeForFetchingMetaPTE = Tvm_equ;
-			TimeForFetchingRowInVBlank = Tr0_equ;
-			*PrefetchBandwidth = prefetch_bw_equ;
-			/* Clamp to equ for bandwidth calculation */
-			LinesForPrefetchBandwidth = dst_y_prefetch_equ;
+			/* For mode programming we want to extend the prefetch as much as possible
+			 * (up to oto, or as long as we can for equ) if we're not already applying
+			 * the 60us prefetch requirement. This is to avoid intermittent underflow
+			 * issues during prefetch.
+			 *
+			 * The prefetch extension is applied under the following scenarios:
+			 * 1. We're in prefetch mode > 0 (i.e. we don't support MCLK switch in blank)
+			 * 2. We're using subvp or drr methods of p-state switch, in which case we
+			 *    we don't care if prefetch takes up more of the blanking time
+			 *
+			 * Mode programming typically chooses the smallest prefetch time possible
+			 * (i.e. highest bandwidth during prefetch) presumably to create margin between
+			 * p-states / c-states that happen in vblank and prefetch. Therefore we only
+			 * apply this prefetch extension when p-state in vblank is not required (UCLK
+			 * p-states take up the most vblank time).
+			 */
+			if (ExtendPrefetchIfPossible && TPreReq == 0 && VStartup < MaxVStartup) {
+				MyError = true;
+			} else {
+				*DestinationLinesForPrefetch = dst_y_prefetch_equ;
+				TimeForFetchingMetaPTE = Tvm_equ;
+				TimeForFetchingRowInVBlank = Tr0_equ;
+				*PrefetchBandwidth = prefetch_bw_equ;
+				/* Clamp to equ for bandwidth calculation */
+				LinesForPrefetchBandwidth = dst_y_prefetch_equ;
+			}
 		}
 
 		*DestinationLinesToRequestVMInVBlank = dml_ceil(4.0 * TimeForFetchingMetaPTE / LineTime, 1.0) / 4.0;
@@ -4270,7 +4289,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 	unsigned int i, j, k;
 	unsigned int SurfaceWithMinActiveFCLKChangeMargin = 0;
 	unsigned int DRAMClockChangeSupportNumber = 0;
-	unsigned int LastSurfaceWithoutMargin;
+	unsigned int LastSurfaceWithoutMargin = 0;
 	unsigned int DRAMClockChangeMethod = 0;
 	bool FoundFirstSurfaceWithMinActiveFCLKChangeMargin = false;
 	double MinActiveFCLKChangeMargin = 0.;
@@ -5635,9 +5654,9 @@ void dml32_CalculateStutterEfficiency(
 	double LastZ8StutterPeriod = 0.0;
 	double LastStutterPeriod = 0.0;
 	unsigned int TotalNumberOfActiveOTG = 0;
-	double doublePixelClock;
-	unsigned int doubleHTotal;
-	unsigned int doubleVTotal;
+	double doublePixelClock = 0;
+	unsigned int doubleHTotal = 0;
+	unsigned int doubleVTotal = 0;
 	bool SameTiming = true;
 	double DETBufferingTimeY;
 	double SwathWidthYCriticalSurface = 0.0;

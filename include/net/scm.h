@@ -5,6 +5,7 @@
 #include <linux/limits.h>
 #include <linux/net.h>
 #include <linux/cred.h>
+#include <linux/file.h>
 #include <linux/security.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
@@ -24,6 +25,7 @@ struct scm_creds {
 
 struct scm_fp_list {
 	short			count;
+	short			count_unix;
 	short			max;
 	struct user_struct	*user;
 	struct file		*fp[SCM_MAX_FD];
@@ -206,6 +208,14 @@ static inline void scm_recv_unix(struct socket *sock, struct msghdr *msg,
 		scm_pidfd_recv(msg, scm);
 
 	scm_destroy_cred(scm);
+}
+
+static inline int scm_recv_one_fd(struct file *f, int __user *ufd,
+				  unsigned int flags)
+{
+	if (!ufd)
+		return -EFAULT;
+	return receive_fd(f, ufd, flags);
 }
 
 #endif /* __LINUX_NET_SCM_H */

@@ -558,10 +558,8 @@ struct inode *qnx6_iget(struct super_block *sb, unsigned ino)
 	i_uid_write(inode, (uid_t)fs32_to_cpu(sbi, raw_inode->di_uid));
 	i_gid_write(inode, (gid_t)fs32_to_cpu(sbi, raw_inode->di_gid));
 	inode->i_size    = fs64_to_cpu(sbi, raw_inode->di_size);
-	inode->i_mtime.tv_sec   = fs32_to_cpu(sbi, raw_inode->di_mtime);
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_sec   = fs32_to_cpu(sbi, raw_inode->di_atime);
-	inode->i_atime.tv_nsec = 0;
+	inode_set_mtime(inode, fs32_to_cpu(sbi, raw_inode->di_mtime), 0);
+	inode_set_atime(inode, fs32_to_cpu(sbi, raw_inode->di_atime), 0);
 	inode_set_ctime(inode, fs32_to_cpu(sbi, raw_inode->di_ctime), 0);
 
 	/* calc blocks based on 512 byte blocksize */
@@ -617,7 +615,7 @@ static int init_inodecache(void)
 	qnx6_inode_cachep = kmem_cache_create("qnx6_inode_cache",
 					     sizeof(struct qnx6_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+						SLAB_ACCOUNT),
 					     init_once);
 	if (!qnx6_inode_cachep)
 		return -ENOMEM;

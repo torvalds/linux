@@ -139,13 +139,13 @@ static irqreturn_t liteuart_interrupt(int irq, void *data)
 	 * if polling, the context would be "in_serving_softirq", so use
 	 * irq[save|restore] spin_lock variants to cover all possibilities
 	 */
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	isr = litex_read8(port->membase + OFF_EV_PENDING) & uart->irq_reg;
 	if (isr & EV_RX)
 		liteuart_rx_chars(port);
 	if (isr & EV_TX)
 		liteuart_tx_chars(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return IRQ_RETVAL(isr);
 }
@@ -195,10 +195,10 @@ static int liteuart_startup(struct uart_port *port)
 		}
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	/* only enabling rx irqs during startup */
 	liteuart_update_irq_reg(port, true, EV_RX);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	if (!port->irq) {
 		timer_setup(&uart->timer, liteuart_timer, 0);
@@ -213,9 +213,9 @@ static void liteuart_shutdown(struct uart_port *port)
 	struct liteuart_port *uart = to_liteuart_port(port);
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	liteuart_update_irq_reg(port, false, EV_RX | EV_TX);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	if (port->irq)
 		free_irq(port->irq, port);
@@ -229,13 +229,13 @@ static void liteuart_set_termios(struct uart_port *port, struct ktermios *new,
 	unsigned int baud;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* update baudrate */
 	baud = uart_get_baud_rate(port, new, old, 0, 460800);
 	uart_update_timeout(port, new->c_cflag, baud);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *liteuart_type(struct uart_port *port)
@@ -336,15 +336,13 @@ err_erase_id:
 	return ret;
 }
 
-static int liteuart_remove(struct platform_device *pdev)
+static void liteuart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	unsigned int line = port->line;
 
 	uart_remove_one_port(&liteuart_driver, port);
 	xa_erase(&liteuart_array, line);
-
-	return 0;
 }
 
 static const struct of_device_id liteuart_of_match[] = {
@@ -355,7 +353,7 @@ MODULE_DEVICE_TABLE(of, liteuart_of_match);
 
 static struct platform_driver liteuart_platform_driver = {
 	.probe = liteuart_probe,
-	.remove = liteuart_remove,
+	.remove_new = liteuart_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = liteuart_of_match,
@@ -382,9 +380,9 @@ static void liteuart_console_write(struct console *co, const char *s,
 	uart = (struct liteuart_port *)xa_load(&liteuart_array, co->index);
 	port = &uart->port;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	uart_console_write(port, s, count, liteuart_putchar);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static int liteuart_console_setup(struct console *co, char *options)

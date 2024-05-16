@@ -188,7 +188,8 @@ static int process_pma_cmd(struct mlx5_ib_dev *dev, u32 port_num,
 		mdev = dev->mdev;
 		mdev_port_num = 1;
 	}
-	if (MLX5_CAP_GEN(dev->mdev, num_ports) == 1) {
+	if (MLX5_CAP_GEN(dev->mdev, num_ports) == 1 &&
+	    !mlx5_core_mp_enabled(mdev)) {
 		/* set local port to one for Function-Per-Port HCA. */
 		mdev = dev->mdev;
 		mdev_port_num = 1;
@@ -615,6 +616,19 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u32 port,
 			if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP &&
 			    props->port_cap_flags2 & IB_PORT_LINK_SPEED_NDR_SUP)
 				props->active_speed = IB_SPEED_NDR;
+			break;
+		}
+	}
+
+	/* Check if extended speeds 2 (XDR/...) are supported */
+	if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP &&
+	    props->port_cap_flags2 & IB_PORT_EXTENDED_SPEEDS2_SUP) {
+		ext_active_speed = (out_mad->data[56] >> 4) & 0x6;
+
+		switch (ext_active_speed) {
+		case 2:
+			if (props->port_cap_flags2 & IB_PORT_LINK_SPEED_XDR_SUP)
+				props->active_speed = IB_SPEED_XDR;
 			break;
 		}
 	}

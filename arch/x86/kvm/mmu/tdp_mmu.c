@@ -73,11 +73,8 @@ static void tdp_mmu_free_sp_rcu_callback(struct rcu_head *head)
 	tdp_mmu_free_sp(sp);
 }
 
-void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
-			  bool shared)
+void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root)
 {
-	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
-
 	if (!refcount_dec_and_test(&root->tdp_mmu_root_count))
 		return;
 
@@ -106,9 +103,15 @@ void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
  */
 static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 					      struct kvm_mmu_page *prev_root,
-					      bool shared, bool only_valid)
+					      bool only_valid)
 {
 	struct kvm_mmu_page *next_root;
+
+	/*
+	 * While the roots themselves are RCU-protected, fields such as
+	 * role.invalid are protected by mmu_lock.
+	 */
+	lockdep_assert_held(&kvm->mmu_lock);
 
 	rcu_read_lock();
 
@@ -132,7 +135,7 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 	rcu_read_unlock();
 
 	if (prev_root)
-		kvm_tdp_mmu_put_root(kvm, prev_root, shared);
+		kvm_tdp_mmu_put_root(kvm, prev_root);
 
 	return next_root;
 }
@@ -144,26 +147,22 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
  * recent root. (Unless keeping a live reference is desirable.)
  *
  * If shared is set, this function is operating under the MMU lock in read
- * mode. In the unlikely event that this thread must free a root, the lock
- * will be temporarily dropped and reacquired in write mode.
+ * mode.
  */
-#define __for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared, _only_valid)\
-	for (_root = tdp_mmu_next_root(_kvm, NULL, _shared, _only_valid);	\
-	     _root;								\
-	     _root = tdp_mmu_next_root(_kvm, _root, _shared, _only_valid))	\
-		if (kvm_lockdep_assert_mmu_lock_held(_kvm, _shared) &&		\
-		    kvm_mmu_page_as_id(_root) != _as_id) {			\
+#define __for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _only_valid)	\
+	for (_root = tdp_mmu_next_root(_kvm, NULL, _only_valid);		\
+	     ({ lockdep_assert_held(&(_kvm)->mmu_lock); }), _root;		\
+	     _root = tdp_mmu_next_root(_kvm, _root, _only_valid))		\
+		if (_as_id >= 0 && kvm_mmu_page_as_id(_root) != _as_id) {	\
 		} else
 
-#define for_each_valid_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared)	\
-	__for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared, true)
+#define for_each_valid_tdp_mmu_root_yield_safe(_kvm, _root, _as_id)	\
+	__for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, true)
 
-#define for_each_tdp_mmu_root_yield_safe(_kvm, _root, _shared)			\
-	for (_root = tdp_mmu_next_root(_kvm, NULL, _shared, false);		\
-	     _root;								\
-	     _root = tdp_mmu_next_root(_kvm, _root, _shared, false))		\
-		if (!kvm_lockdep_assert_mmu_lock_held(_kvm, _shared)) {		\
-		} else
+#define for_each_tdp_mmu_root_yield_safe(_kvm, _root)			\
+	for (_root = tdp_mmu_next_root(_kvm, NULL, false);		\
+	     ({ lockdep_assert_held(&(_kvm)->mmu_lock); }), _root;	\
+	     _root = tdp_mmu_next_root(_kvm, _root, false))
 
 /*
  * Iterate over all TDP MMU roots.  Requires that mmu_lock be held for write,
@@ -172,11 +171,18 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
  * Holding mmu_lock for write obviates the need for RCU protection as the list
  * is guaranteed to be stable.
  */
-#define for_each_tdp_mmu_root(_kvm, _root, _as_id)			\
-	list_for_each_entry(_root, &_kvm->arch.tdp_mmu_roots, link)	\
-		if (kvm_lockdep_assert_mmu_lock_held(_kvm, false) &&	\
-		    kvm_mmu_page_as_id(_root) != _as_id) {		\
+#define __for_each_tdp_mmu_root(_kvm, _root, _as_id, _only_valid)		\
+	list_for_each_entry(_root, &_kvm->arch.tdp_mmu_roots, link)		\
+		if (kvm_lockdep_assert_mmu_lock_held(_kvm, false) &&		\
+		    ((_as_id >= 0 && kvm_mmu_page_as_id(_root) != _as_id) ||	\
+		     ((_only_valid) && (_root)->role.invalid))) {		\
 		} else
+
+#define for_each_tdp_mmu_root(_kvm, _root, _as_id)			\
+	__for_each_tdp_mmu_root(_kvm, _root, _as_id, false)
+
+#define for_each_valid_tdp_mmu_root(_kvm, _root, _as_id)		\
+	__for_each_tdp_mmu_root(_kvm, _root, _as_id, true)
 
 static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu)
 {
@@ -217,22 +223,41 @@ static void tdp_mmu_init_child_sp(struct kvm_mmu_page *child_sp,
 	tdp_mmu_init_sp(child_sp, iter->sptep, iter->gfn, role);
 }
 
-hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
+int kvm_tdp_mmu_alloc_root(struct kvm_vcpu *vcpu)
 {
-	union kvm_mmu_page_role role = vcpu->arch.mmu->root_role;
+	struct kvm_mmu *mmu = vcpu->arch.mmu;
+	union kvm_mmu_page_role role = mmu->root_role;
+	int as_id = kvm_mmu_role_as_id(role);
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_mmu_page *root;
 
-	lockdep_assert_held_write(&kvm->mmu_lock);
+	/*
+	 * Check for an existing root before acquiring the pages lock to avoid
+	 * unnecessary serialization if multiple vCPUs are loading a new root.
+	 * E.g. when bringing up secondary vCPUs, KVM will already have created
+	 * a valid root on behalf of the primary vCPU.
+	 */
+	read_lock(&kvm->mmu_lock);
+
+	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, as_id) {
+		if (root->role.word == role.word)
+			goto out_read_unlock;
+	}
+
+	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
 
 	/*
-	 * Check for an existing root before allocating a new one.  Note, the
-	 * role check prevents consuming an invalid root.
+	 * Recheck for an existing root after acquiring the pages lock, another
+	 * vCPU may have raced ahead and created a new usable root.  Manually
+	 * walk the list of roots as the standard macros assume that the pages
+	 * lock is *not* held.  WARN if grabbing a reference to a usable root
+	 * fails, as the last reference to a root can only be put *after* the
+	 * root has been invalidated, which requires holding mmu_lock for write.
 	 */
-	for_each_tdp_mmu_root(kvm, root, kvm_mmu_role_as_id(role)) {
+	list_for_each_entry(root, &kvm->arch.tdp_mmu_roots, link) {
 		if (root->role.word == role.word &&
-		    kvm_tdp_mmu_get_root(root))
-			goto out;
+		    !WARN_ON_ONCE(!kvm_tdp_mmu_get_root(root)))
+			goto out_spin_unlock;
 	}
 
 	root = tdp_mmu_alloc_sp(vcpu);
@@ -246,13 +271,20 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 	 * is ultimately put by kvm_tdp_mmu_zap_invalidated_roots().
 	 */
 	refcount_set(&root->tdp_mmu_root_count, 2);
-
-	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
 	list_add_rcu(&root->link, &kvm->arch.tdp_mmu_roots);
-	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
 
-out:
-	return __pa(root->spt);
+out_spin_unlock:
+	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
+out_read_unlock:
+	read_unlock(&kvm->mmu_lock);
+	/*
+	 * Note, KVM_REQ_MMU_FREE_OBSOLETE_ROOTS will prevent entering the guest
+	 * and actually consuming the root if it's invalidated after dropping
+	 * mmu_lock, and the root can't be freed as this vCPU holds a reference.
+	 */
+	mmu->root.hpa = __pa(root->spt);
+	mmu->root.pgd = 0;
+	return 0;
 }
 
 static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
@@ -276,28 +308,18 @@ static void tdp_unaccount_mmu_page(struct kvm *kvm, struct kvm_mmu_page *sp)
  *
  * @kvm: kvm instance
  * @sp: the page to be removed
- * @shared: This operation may not be running under the exclusive use of
- *	    the MMU lock and the operation must synchronize with other
- *	    threads that might be adding or removing pages.
  */
-static void tdp_mmu_unlink_sp(struct kvm *kvm, struct kvm_mmu_page *sp,
-			      bool shared)
+static void tdp_mmu_unlink_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	tdp_unaccount_mmu_page(kvm, sp);
 
 	if (!sp->nx_huge_page_disallowed)
 		return;
 
-	if (shared)
-		spin_lock(&kvm->arch.tdp_mmu_pages_lock);
-	else
-		lockdep_assert_held_write(&kvm->mmu_lock);
-
+	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
 	sp->nx_huge_page_disallowed = false;
 	untrack_possible_nx_huge_page(kvm, sp);
-
-	if (shared)
-		spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
+	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
 }
 
 /**
@@ -326,7 +348,7 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 
 	trace_kvm_mmu_prepare_zap_page(sp);
 
-	tdp_mmu_unlink_sp(kvm, sp, shared);
+	tdp_mmu_unlink_sp(kvm, sp);
 
 	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
 		tdp_ptep_t sptep = pt + i;
@@ -745,15 +767,26 @@ static void tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
 	rcu_read_lock();
 
 	/*
-	 * To avoid RCU stalls due to recursively removing huge swaths of SPs,
-	 * split the zap into two passes.  On the first pass, zap at the 1gb
-	 * level, and then zap top-level SPs on the second pass.  "1gb" is not
-	 * arbitrary, as KVM must be able to zap a 1gb shadow page without
-	 * inducing a stall to allow in-place replacement with a 1gb hugepage.
+	 * Zap roots in multiple passes of decreasing granularity, i.e. zap at
+	 * 4KiB=>2MiB=>1GiB=>root, in order to better honor need_resched() (all
+	 * preempt models) or mmu_lock contention (full or real-time models).
+	 * Zapping at finer granularity marginally increases the total time of
+	 * the zap, but in most cases the zap itself isn't latency sensitive.
 	 *
-	 * Because zapping a SP recurses on its children, stepping down to
-	 * PG_LEVEL_4K in the iterator itself is unnecessary.
+	 * If KVM is configured to prove the MMU, skip the 4KiB and 2MiB zaps
+	 * in order to mimic the page fault path, which can replace a 1GiB page
+	 * table with an equivalent 1GiB hugepage, i.e. can get saddled with
+	 * zapping a 1GiB region that's fully populated with 4KiB SPTEs.  This
+	 * allows verifying that KVM can safely zap 1GiB regions, e.g. without
+	 * inducing RCU stalls, without relying on a relatively rare event
+	 * (zapping roots is orders of magnitude more common).  Note, because
+	 * zapping a SP recurses on its children, stepping down to PG_LEVEL_4K
+	 * in the iterator itself is unnecessary.
 	 */
+	if (!IS_ENABLED(CONFIG_KVM_PROVE_MMU)) {
+		__tdp_mmu_zap_root(kvm, root, shared, PG_LEVEL_4K);
+		__tdp_mmu_zap_root(kvm, root, shared, PG_LEVEL_2M);
+	}
 	__tdp_mmu_zap_root(kvm, root, shared, PG_LEVEL_1G);
 	__tdp_mmu_zap_root(kvm, root, shared, root->role.level);
 
@@ -811,7 +844,13 @@ static bool tdp_mmu_zap_leafs(struct kvm *kvm, struct kvm_mmu_page *root,
 			continue;
 
 		tdp_mmu_iter_set_spte(kvm, &iter, 0);
-		flush = true;
+
+		/*
+		 * Zappings SPTEs in invalid roots doesn't require a TLB flush,
+		 * see kvm_tdp_mmu_zap_invalidated_roots() for details.
+		 */
+		if (!root->role.invalid)
+			flush = true;
 	}
 
 	rcu_read_unlock();
@@ -824,15 +863,16 @@ static bool tdp_mmu_zap_leafs(struct kvm *kvm, struct kvm_mmu_page *root,
 }
 
 /*
- * Zap leaf SPTEs for the range of gfns, [start, end), for all roots. Returns
- * true if a TLB flush is needed before releasing the MMU lock, i.e. if one or
- * more SPTEs were zapped since the MMU lock was last acquired.
+ * Zap leaf SPTEs for the range of gfns, [start, end), for all *VALID** roots.
+ * Returns true if a TLB flush is needed before releasing the MMU lock, i.e. if
+ * one or more SPTEs were zapped since the MMU lock was last acquired.
  */
 bool kvm_tdp_mmu_zap_leafs(struct kvm *kvm, gfn_t start, gfn_t end, bool flush)
 {
 	struct kvm_mmu_page *root;
 
-	for_each_tdp_mmu_root_yield_safe(kvm, root, false)
+	lockdep_assert_held_write(&kvm->mmu_lock);
+	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, -1)
 		flush = tdp_mmu_zap_leafs(kvm, root, start, end, true, flush);
 
 	return flush;
@@ -854,7 +894,8 @@ void kvm_tdp_mmu_zap_all(struct kvm *kvm)
 	 * is being destroyed or the userspace VMM has exited.  In both cases,
 	 * KVM_RUN is unreachable, i.e. no vCPUs will ever service the request.
 	 */
-	for_each_tdp_mmu_root_yield_safe(kvm, root, false)
+	lockdep_assert_held_write(&kvm->mmu_lock);
+	for_each_tdp_mmu_root_yield_safe(kvm, root)
 		tdp_mmu_zap_root(kvm, root, false);
 }
 
@@ -868,7 +909,7 @@ void kvm_tdp_mmu_zap_invalidated_roots(struct kvm *kvm)
 
 	read_lock(&kvm->mmu_lock);
 
-	for_each_tdp_mmu_root_yield_safe(kvm, root, true) {
+	for_each_tdp_mmu_root_yield_safe(kvm, root) {
 		if (!root->tdp_mmu_scheduled_root_to_zap)
 			continue;
 
@@ -891,7 +932,7 @@ void kvm_tdp_mmu_zap_invalidated_roots(struct kvm *kvm)
 		 * the root must be reachable by mmu_notifiers while it's being
 		 * zapped
 		 */
-		kvm_tdp_mmu_put_root(kvm, root, true);
+		kvm_tdp_mmu_put_root(kvm, root);
 	}
 
 	read_unlock(&kvm->mmu_lock);
@@ -905,7 +946,7 @@ void kvm_tdp_mmu_zap_invalidated_roots(struct kvm *kvm)
  * the VM is being destroyed).
  *
  * Note, kvm_tdp_mmu_zap_invalidated_roots() is gifted the TDP MMU's reference.
- * See kvm_tdp_mmu_get_vcpu_root_hpa().
+ * See kvm_tdp_mmu_alloc_root().
  */
 void kvm_tdp_mmu_invalidate_all_roots(struct kvm *kvm)
 {
@@ -1125,7 +1166,7 @@ bool kvm_tdp_mmu_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range,
 {
 	struct kvm_mmu_page *root;
 
-	__for_each_tdp_mmu_root_yield_safe(kvm, root, range->slot->as_id, false, false)
+	__for_each_tdp_mmu_root_yield_safe(kvm, root, range->slot->as_id, false)
 		flush = tdp_mmu_zap_leafs(kvm, root, range->start, range->end,
 					  range->may_block, flush);
 
@@ -1314,7 +1355,7 @@ bool kvm_tdp_mmu_wrprot_slot(struct kvm *kvm,
 
 	lockdep_assert_held_read(&kvm->mmu_lock);
 
-	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, true)
+	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id)
 		spte_set |= wrprot_gfn_range(kvm, root, slot->base_gfn,
 			     slot->base_gfn + slot->npages, min_level);
 
@@ -1345,6 +1386,8 @@ static struct kvm_mmu_page *tdp_mmu_alloc_sp_for_split(struct kvm *kvm,
 						       bool shared)
 {
 	struct kvm_mmu_page *sp;
+
+	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
 
 	/*
 	 * Since we are allocating while under the MMU lock we have to be
@@ -1496,41 +1539,45 @@ void kvm_tdp_mmu_try_split_huge_pages(struct kvm *kvm,
 	int r = 0;
 
 	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
-
-	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, shared) {
+	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id) {
 		r = tdp_mmu_split_huge_pages_root(kvm, root, start, end, target_level, shared);
 		if (r) {
-			kvm_tdp_mmu_put_root(kvm, root, shared);
+			kvm_tdp_mmu_put_root(kvm, root);
 			break;
 		}
 	}
 }
 
-/*
- * Clear the dirty status of all the SPTEs mapping GFNs in the memslot. If
- * AD bits are enabled, this will involve clearing the dirty bit on each SPTE.
- * If AD bits are not enabled, this will require clearing the writable bit on
- * each SPTE. Returns true if an SPTE has been changed and the TLBs need to
- * be flushed.
- */
+static bool tdp_mmu_need_write_protect(struct kvm_mmu_page *sp)
+{
+	/*
+	 * All TDP MMU shadow pages share the same role as their root, aside
+	 * from level, so it is valid to key off any shadow page to determine if
+	 * write protection is needed for an entire tree.
+	 */
+	return kvm_mmu_page_ad_need_write_protect(sp) || !kvm_ad_enabled();
+}
+
 static bool clear_dirty_gfn_range(struct kvm *kvm, struct kvm_mmu_page *root,
 			   gfn_t start, gfn_t end)
 {
-	u64 dbit = kvm_ad_enabled() ? shadow_dirty_mask : PT_WRITABLE_MASK;
+	const u64 dbit = tdp_mmu_need_write_protect(root) ? PT_WRITABLE_MASK :
+							    shadow_dirty_mask;
 	struct tdp_iter iter;
 	bool spte_set = false;
 
 	rcu_read_lock();
 
-	tdp_root_for_each_leaf_pte(iter, root, start, end) {
+	tdp_root_for_each_pte(iter, root, start, end) {
 retry:
+		if (!is_shadow_present_pte(iter.old_spte) ||
+		    !is_last_spte(iter.old_spte, iter.level))
+			continue;
+
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, true))
 			continue;
 
-		if (!is_shadow_present_pte(iter.old_spte))
-			continue;
-
-		KVM_MMU_WARN_ON(kvm_ad_enabled() &&
+		KVM_MMU_WARN_ON(dbit == shadow_dirty_mask &&
 				spte_ad_need_write_protect(iter.old_spte));
 
 		if (!(iter.old_spte & dbit))
@@ -1547,11 +1594,9 @@ retry:
 }
 
 /*
- * Clear the dirty status of all the SPTEs mapping GFNs in the memslot. If
- * AD bits are enabled, this will involve clearing the dirty bit on each SPTE.
- * If AD bits are not enabled, this will require clearing the writable bit on
- * each SPTE. Returns true if an SPTE has been changed and the TLBs need to
- * be flushed.
+ * Clear the dirty status (D-bit or W-bit) of all the SPTEs mapping GFNs in the
+ * memslot. Returns true if an SPTE has been changed and the TLBs need to be
+ * flushed.
  */
 bool kvm_tdp_mmu_clear_dirty_slot(struct kvm *kvm,
 				  const struct kvm_memory_slot *slot)
@@ -1560,26 +1605,18 @@ bool kvm_tdp_mmu_clear_dirty_slot(struct kvm *kvm,
 	bool spte_set = false;
 
 	lockdep_assert_held_read(&kvm->mmu_lock);
-
-	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, true)
+	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id)
 		spte_set |= clear_dirty_gfn_range(kvm, root, slot->base_gfn,
 				slot->base_gfn + slot->npages);
 
 	return spte_set;
 }
 
-/*
- * Clears the dirty status of all the 4k SPTEs mapping GFNs for which a bit is
- * set in mask, starting at gfn. The given memslot is expected to contain all
- * the GFNs represented by set bits in the mask. If AD bits are enabled,
- * clearing the dirty status will involve clearing the dirty bit on each SPTE
- * or, if AD bits are not enabled, clearing the writable bit on each SPTE.
- */
 static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 				  gfn_t gfn, unsigned long mask, bool wrprot)
 {
-	u64 dbit = (wrprot || !kvm_ad_enabled()) ? PT_WRITABLE_MASK :
-						   shadow_dirty_mask;
+	const u64 dbit = (wrprot || tdp_mmu_need_write_protect(root)) ? PT_WRITABLE_MASK :
+									shadow_dirty_mask;
 	struct tdp_iter iter;
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
@@ -1591,7 +1628,7 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 		if (!mask)
 			break;
 
-		KVM_MMU_WARN_ON(kvm_ad_enabled() &&
+		KVM_MMU_WARN_ON(dbit == shadow_dirty_mask &&
 				spte_ad_need_write_protect(iter.old_spte));
 
 		if (iter.level > PG_LEVEL_4K ||
@@ -1617,11 +1654,9 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 }
 
 /*
- * Clears the dirty status of all the 4k SPTEs mapping GFNs for which a bit is
- * set in mask, starting at gfn. The given memslot is expected to contain all
- * the GFNs represented by set bits in the mask. If AD bits are enabled,
- * clearing the dirty status will involve clearing the dirty bit on each SPTE
- * or, if AD bits are not enabled, clearing the writable bit on each SPTE.
+ * Clear the dirty status (D-bit or W-bit) of all the 4k SPTEs mapping GFNs for
+ * which a bit is set in mask, starting at gfn. The given memslot is expected to
+ * contain all the GFNs represented by set bits in the mask.
  */
 void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 				       struct kvm_memory_slot *slot,
@@ -1630,7 +1665,7 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 {
 	struct kvm_mmu_page *root;
 
-	for_each_tdp_mmu_root(kvm, root, slot->as_id)
+	for_each_valid_tdp_mmu_root(kvm, root, slot->as_id)
 		clear_dirty_pt_masked(kvm, root, gfn, mask, wrprot);
 }
 
@@ -1695,8 +1730,7 @@ void kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
 	struct kvm_mmu_page *root;
 
 	lockdep_assert_held_read(&kvm->mmu_lock);
-
-	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, true)
+	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id)
 		zap_collapsible_spte_range(kvm, root, slot);
 }
 
@@ -1749,7 +1783,7 @@ bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
 	bool spte_set = false;
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
-	for_each_tdp_mmu_root(kvm, root, slot->as_id)
+	for_each_valid_tdp_mmu_root(kvm, root, slot->as_id)
 		spte_set |= write_protect_gfn(kvm, root, gfn, min_level);
 
 	return spte_set;

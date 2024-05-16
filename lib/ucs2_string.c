@@ -32,6 +32,58 @@ ucs2_strsize(const ucs2_char_t *data, unsigned long maxlength)
 }
 EXPORT_SYMBOL(ucs2_strsize);
 
+/**
+ * ucs2_strscpy() - Copy a UCS2 string into a sized buffer.
+ *
+ * @dst: Pointer to the destination buffer where to copy the string to.
+ * @src: Pointer to the source buffer where to copy the string from.
+ * @count: Size of the destination buffer, in UCS2 (16-bit) characters.
+ *
+ * Like strscpy(), only for UCS2 strings.
+ *
+ * Copy the source string @src, or as much of it as fits, into the destination
+ * buffer @dst. The behavior is undefined if the string buffers overlap. The
+ * destination buffer @dst is always NUL-terminated, unless it's zero-sized.
+ *
+ * Return: The number of characters copied into @dst (excluding the trailing
+ * %NUL terminator) or -E2BIG if @count is 0 or @src was truncated due to the
+ * destination buffer being too small.
+ */
+ssize_t ucs2_strscpy(ucs2_char_t *dst, const ucs2_char_t *src, size_t count)
+{
+	long res;
+
+	/*
+	 * Ensure that we have a valid amount of space. We need to store at
+	 * least one NUL-character.
+	 */
+	if (count == 0 || WARN_ON_ONCE(count > INT_MAX / sizeof(*dst)))
+		return -E2BIG;
+
+	/*
+	 * Copy at most 'count' characters, return early if we find a
+	 * NUL-terminator.
+	 */
+	for (res = 0; res < count; res++) {
+		ucs2_char_t c;
+
+		c = src[res];
+		dst[res] = c;
+
+		if (!c)
+			return res;
+	}
+
+	/*
+	 * The loop above terminated without finding a NUL-terminator,
+	 * exceeding the 'count': Enforce proper NUL-termination and return
+	 * error.
+	 */
+	dst[count - 1] = 0;
+	return -E2BIG;
+}
+EXPORT_SYMBOL(ucs2_strscpy);
+
 int
 ucs2_strncmp(const ucs2_char_t *a, const ucs2_char_t *b, size_t len)
 {

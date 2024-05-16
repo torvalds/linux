@@ -46,9 +46,9 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8173[] = {
 		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
-		.bp_infracfg = {
-			BUS_PROT_UPDATE_TOPAXI(MT8173_TOP_AXI_PROT_EN_MM_M0 |
-					       MT8173_TOP_AXI_PROT_EN_MM_M1),
+		.bp_cfg = {
+			BUS_PROT_INFRA_UPDATE_TOPAXI(MT8173_TOP_AXI_PROT_EN_MM_M0 |
+						     MT8173_TOP_AXI_PROT_EN_MM_M1),
 		},
 	},
 	[MT8173_POWER_DOMAIN_VENC_LT] = {
@@ -106,11 +106,11 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8173[] = {
 		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND,
 		.sram_pdn_bits = GENMASK(13, 8),
 		.sram_pdn_ack_bits = GENMASK(21, 16),
-		.bp_infracfg = {
-			BUS_PROT_UPDATE_TOPAXI(MT8173_TOP_AXI_PROT_EN_MFG_S |
-					       MT8173_TOP_AXI_PROT_EN_MFG_M0 |
-					       MT8173_TOP_AXI_PROT_EN_MFG_M1 |
-					       MT8173_TOP_AXI_PROT_EN_MFG_SNOOP_OUT),
+		.bp_cfg = {
+			BUS_PROT_INFRA_UPDATE_TOPAXI(MT8173_TOP_AXI_PROT_EN_MFG_S |
+						     MT8173_TOP_AXI_PROT_EN_MFG_M0 |
+						     MT8173_TOP_AXI_PROT_EN_MFG_M1 |
+						     MT8173_TOP_AXI_PROT_EN_MFG_SNOOP_OUT),
 		},
 	},
 };

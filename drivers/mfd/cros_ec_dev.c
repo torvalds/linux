@@ -74,6 +74,10 @@ static const struct mfd_cell cros_ec_cec_cells[] = {
 	{ .name = "cros-ec-cec", },
 };
 
+static const struct mfd_cell cros_ec_gpio_cells[] = {
+	{ .name = "cros-ec-gpio", },
+};
+
 static const struct mfd_cell cros_ec_rtc_cells[] = {
 	{ .name = "cros-ec-rtc", },
 };
@@ -91,11 +95,20 @@ static const struct mfd_cell cros_usbpd_notify_cells[] = {
 	{ .name = "cros-usbpd-notify", },
 };
 
+static const struct mfd_cell cros_ec_wdt_cells[] = {
+	{ .name = "cros-ec-wdt", }
+};
+
 static const struct cros_feature_to_cells cros_subdevices[] = {
 	{
 		.id		= EC_FEATURE_CEC,
 		.mfd_cells	= cros_ec_cec_cells,
 		.num_cells	= ARRAY_SIZE(cros_ec_cec_cells),
+	},
+	{
+		.id		= EC_FEATURE_GPIO,
+		.mfd_cells	= cros_ec_gpio_cells,
+		.num_cells	= ARRAY_SIZE(cros_ec_gpio_cells),
 	},
 	{
 		.id		= EC_FEATURE_RTC,
@@ -106,6 +119,11 @@ static const struct cros_feature_to_cells cros_subdevices[] = {
 		.id		= EC_FEATURE_USB_PD,
 		.mfd_cells	= cros_usbpd_charger_cells,
 		.num_cells	= ARRAY_SIZE(cros_usbpd_charger_cells),
+	},
+	{
+		.id		= EC_FEATURE_HANG_DETECT,
+		.mfd_cells	= cros_ec_wdt_cells,
+		.num_cells	= ARRAY_SIZE(cros_ec_wdt_cells),
 	},
 };
 
@@ -288,13 +306,12 @@ failed:
 	return retval;
 }
 
-static int ec_device_remove(struct platform_device *pdev)
+static void ec_device_remove(struct platform_device *pdev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
 
 	mfd_remove_devices(ec->dev);
 	device_unregister(&ec->class_dev);
-	return 0;
 }
 
 static const struct platform_device_id cros_ec_id[] = {
@@ -309,7 +326,7 @@ static struct platform_driver cros_ec_dev_driver = {
 	},
 	.id_table = cros_ec_id,
 	.probe = ec_device_probe,
-	.remove = ec_device_remove,
+	.remove_new = ec_device_remove,
 };
 
 static int __init cros_ec_dev_init(void)

@@ -99,6 +99,7 @@
 #define PROTO_ID_MASK		GENMASK(31, 24)
 #define EVT_ID_MASK		GENMASK(23, 16)
 #define SRC_ID_MASK		GENMASK(15, 0)
+#define NOTIF_UNSUPP		-1
 
 /*
  * Builds an unsigned 32bit key from the given input tuple to be used
@@ -788,6 +789,7 @@ int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
 
 	pd->ph = ph;
 	for (i = 0; i < ee->num_events; i++, evt++) {
+		int id;
 		struct scmi_registered_event *r_evt;
 
 		r_evt = devm_kzalloc(ni->handle->dev, sizeof(*r_evt),
@@ -808,6 +810,11 @@ int scmi_register_protocol_events(const struct scmi_handle *handle, u8 proto_id,
 					     evt->max_report_sz, GFP_KERNEL);
 		if (!r_evt->report)
 			return -ENOMEM;
+
+		for (id = 0; id < r_evt->num_sources; id++)
+			if (ee->ops->is_notify_supported &&
+			    !ee->ops->is_notify_supported(ph, r_evt->evt->id, id))
+				refcount_set(&r_evt->sources[id], NOTIF_UNSUPP);
 
 		pd->registered_events[i] = r_evt;
 		/* Ensure events are updated */
@@ -1166,7 +1173,13 @@ static inline int __scmi_enable_evt(struct scmi_registered_event *r_evt,
 			int ret = 0;
 
 			sid = &r_evt->sources[src_id];
-			if (refcount_read(sid) == 0) {
+			if (refcount_read(sid) == NOTIF_UNSUPP) {
+				dev_dbg(r_evt->proto->ph->dev,
+					"Notification NOT supported - proto_id:%d  evt_id:%d  src_id:%d",
+					r_evt->proto->id, r_evt->evt->id,
+					src_id);
+				ret = -EOPNOTSUPP;
+			} else if (refcount_read(sid) == 0) {
 				ret = REVT_NOTIFY_ENABLE(r_evt, r_evt->evt->id,
 							 src_id);
 				if (!ret)
@@ -1179,6 +1192,8 @@ static inline int __scmi_enable_evt(struct scmi_registered_event *r_evt,
 	} else {
 		for (; num_sources; src_id++, num_sources--) {
 			sid = &r_evt->sources[src_id];
+			if (refcount_read(sid) == NOTIF_UNSUPP)
+				continue;
 			if (refcount_dec_and_test(sid))
 				REVT_NOTIFY_DISABLE(r_evt,
 						    r_evt->evt->id, src_id);

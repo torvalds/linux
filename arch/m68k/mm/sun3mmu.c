@@ -24,7 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/io.h>
 
-extern void mmu_emu_init (unsigned long bootmem_end);
+#include "../sun3/sun3.h"
 
 const char bad_pmd_string[] = "Bad pmd in pte_alloc: %08lx\n";
 

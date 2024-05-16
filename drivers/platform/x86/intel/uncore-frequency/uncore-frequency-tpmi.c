@@ -28,7 +28,8 @@
 
 #include "uncore-frequency-common.h"
 
-#define	UNCORE_HEADER_VERSION		1
+#define	UNCORE_MAJOR_VERSION		0
+#define	UNCORE_MINOR_VERSION		2
 #define UNCORE_HEADER_INDEX		0
 #define UNCORE_FABRIC_CLUSTER_OFFSET	8
 
@@ -65,6 +66,7 @@ struct tpmi_uncore_struct {
 	int min_ratio;
 	struct tpmi_uncore_power_domain_info *pd_info;
 	struct tpmi_uncore_cluster_info root_cluster;
+	bool write_blocked;
 };
 
 #define UNCORE_GENMASK_MIN_RATIO	GENMASK_ULL(21, 15)
@@ -156,6 +158,9 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 	cluster_info = container_of(data, struct tpmi_uncore_cluster_info, uncore_data);
 	uncore_root = cluster_info->uncore_root;
 
+	if (uncore_root->write_blocked)
+		return -EPERM;
+
 	/* Update each cluster in a package */
 	if (cluster_info->root_domain) {
 		struct tpmi_uncore_struct *uncore_root = cluster_info->uncore_root;
@@ -232,10 +237,20 @@ static void remove_cluster_entries(struct tpmi_uncore_struct *tpmi_uncore)
 
 static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_device_id *id)
 {
+	bool read_blocked = 0, write_blocked = 0;
 	struct intel_tpmi_plat_info *plat_info;
 	struct tpmi_uncore_struct *tpmi_uncore;
 	int ret, i, pkg = 0;
 	int num_resources;
+
+	ret = tpmi_get_feature_status(auxdev, TPMI_ID_UNCORE, &read_blocked, &write_blocked);
+	if (ret)
+		dev_info(&auxdev->dev, "Can't read feature status: ignoring blocked status\n");
+
+	if (read_blocked) {
+		dev_info(&auxdev->dev, "Firmware has blocked reads, exiting\n");
+		return -ENODEV;
+	}
 
 	/* Get number of power domains, which is equal to number of resources */
 	num_resources = tpmi_get_resource_count(auxdev);
@@ -265,6 +280,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 	}
 
 	tpmi_uncore->power_domain_count = num_resources;
+	tpmi_uncore->write_blocked = write_blocked;
 
 	/* Get the package ID from the TPMI core */
 	plat_info = tpmi_get_platform_data(auxdev);
@@ -302,11 +318,20 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 		/* Check for version and skip this resource if there is mismatch */
 		header = readq(pd_info->uncore_base);
 		pd_info->ufs_header_ver = header & UNCORE_VERSION_MASK;
-		if (pd_info->ufs_header_ver != UNCORE_HEADER_VERSION) {
-			dev_info(&auxdev->dev, "Uncore: Unsupported version:%d\n",
-				pd_info->ufs_header_ver);
+
+		if (pd_info->ufs_header_ver == TPMI_VERSION_INVALID)
 			continue;
+
+		if (TPMI_MAJOR_VERSION(pd_info->ufs_header_ver) != UNCORE_MAJOR_VERSION) {
+			dev_err(&auxdev->dev, "Uncore: Unsupported major version:%lx\n",
+				TPMI_MAJOR_VERSION(pd_info->ufs_header_ver));
+			ret = -ENODEV;
+			goto remove_clusters;
 		}
+
+		if (TPMI_MINOR_VERSION(pd_info->ufs_header_ver) > UNCORE_MINOR_VERSION)
+			dev_info(&auxdev->dev, "Uncore: Ignore: Unsupported minor version:%lx\n",
+				 TPMI_MINOR_VERSION(pd_info->ufs_header_ver));
 
 		/* Get Cluster ID Mask */
 		cluster_mask = FIELD_GET(UNCORE_LOCAL_FABRIC_CLUSTER_ID_MASK, header);

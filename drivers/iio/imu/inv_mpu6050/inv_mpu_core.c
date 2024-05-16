@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 
 #include <linux/iio/common/inv_sensors_timestamp.h>
 #include <linux/iio/iio.h>
@@ -566,15 +567,12 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 static int inv_mpu6050_sensor_set(struct inv_mpu6050_state  *st, int reg,
 				int axis, int val)
 {
-	int ind, result;
+	int ind;
 	__be16 d = cpu_to_be16(val);
 
 	ind = (axis - IIO_MOD_X) * 2;
-	result = regmap_bulk_write(st->map, reg + ind, &d, sizeof(d));
-	if (result)
-		return -EINVAL;
 
-	return 0;
+	return regmap_bulk_write(st->map, reg + ind, &d, sizeof(d));
 }
 
 static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
@@ -586,7 +584,7 @@ static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
 	ind = (axis - IIO_MOD_X) * 2;
 	result = regmap_bulk_read(st->map, reg + ind, &d, sizeof(d));
 	if (result)
-		return -EINVAL;
+		return result;
 	*val = (short)be16_to_cpup(&d);
 
 	return IIO_VAL_INT;
@@ -749,13 +747,13 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 			ret = inv_mpu6050_sensor_show(st, st->reg->gyro_offset,
 						chan->channel2, val);
 			mutex_unlock(&st->lock);
-			return IIO_VAL_INT;
+			return ret;
 		case IIO_ACCEL:
 			mutex_lock(&st->lock);
 			ret = inv_mpu6050_sensor_show(st, st->reg->accl_offset,
 						chan->channel2, val);
 			mutex_unlock(&st->lock);
-			return IIO_VAL_INT;
+			return ret;
 
 		default:
 			return -EINVAL;
@@ -1495,6 +1493,8 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	st->irq = irq;
 	st->map = regmap;
 
+	st->level_shifter = device_property_read_bool(dev,
+						      "invensense,level-shifter");
 	pdata = dev_get_platdata(dev);
 	if (!pdata) {
 		result = iio_read_mount_matrix(dev, &st->orientation);

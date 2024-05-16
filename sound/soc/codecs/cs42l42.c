@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
@@ -24,7 +23,6 @@
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -2197,7 +2195,6 @@ int cs42l42_suspend(struct device *dev)
 	/* Discharge FILT+ */
 	regmap_update_bits(cs42l42->regmap, CS42L42_PWR_CTL2,
 			   CS42L42_DISCHARGE_FILT_MASK, CS42L42_DISCHARGE_FILT_MASK);
-	msleep(CS42L42_FILT_DISCHARGE_TIME_MS);
 
 	regcache_cache_only(cs42l42->regmap, true);
 	gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);

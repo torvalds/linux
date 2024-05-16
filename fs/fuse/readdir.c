@@ -476,7 +476,7 @@ retry_locked:
 	if (!fi->rdc.cached) {
 		/* Starting cache? Set cache mtime. */
 		if (!ctx->pos && !fi->rdc.size) {
-			fi->rdc.mtime = inode->i_mtime;
+			fi->rdc.mtime = inode_get_mtime(inode);
 			fi->rdc.iversion = inode_query_iversion(inode);
 		}
 		spin_unlock(&fi->rdc.lock);
@@ -488,8 +488,10 @@ retry_locked:
 	 * changed, and reset the cache if so.
 	 */
 	if (!ctx->pos) {
+		struct timespec64 mtime = inode_get_mtime(inode);
+
 		if (inode_peek_iversion(inode) != fi->rdc.iversion ||
-		    !timespec64_equal(&fi->rdc.mtime, &inode->i_mtime)) {
+		    !timespec64_equal(&fi->rdc.mtime, &mtime)) {
 			fuse_rdc_reset(inode);
 			goto retry_locked;
 		}
@@ -590,15 +592,11 @@ int fuse_readdir(struct file *file, struct dir_context *ctx)
 	if (fuse_is_bad(inode))
 		return -EIO;
 
-	mutex_lock(&ff->readdir.lock);
-
 	err = UNCACHED;
 	if (ff->open_flags & FOPEN_CACHE_DIR)
 		err = fuse_readdir_cached(file, ctx);
 	if (err == UNCACHED)
 		err = fuse_readdir_uncached(file, ctx);
-
-	mutex_unlock(&ff->readdir.lock);
 
 	return err;
 }

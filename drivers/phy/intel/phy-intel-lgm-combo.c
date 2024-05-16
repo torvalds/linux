@@ -508,7 +508,7 @@ static const struct phy_ops intel_cbphy_ops = {
 };
 
 static struct phy *intel_cbphy_xlate(struct device *dev,
-				     struct of_phandle_args *args)
+				     const struct of_phandle_args *args)
 {
 	struct intel_combo_phy *cbphy = dev_get_drvdata(dev);
 	u32 iphy_id;

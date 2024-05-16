@@ -145,6 +145,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->mac_idx = RTW89_MAC_0;
 	rtwvif->phy_idx = RTW89_PHY_0;
 	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
+	rtwvif->chanctx_assigned = false;
 	rtwvif->hit_rule = 0;
 	rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
@@ -225,6 +226,7 @@ static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 rx_fltr;
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
@@ -271,16 +273,29 @@ static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
 		}
 	}
 
+	rx_fltr = rtwdev->hal.rx_fltr;
+
+	/* mac80211 doesn't configure filter when HW scan, driver need to
+	 * set by itself. However, during P2P scan might have configure
+	 * filter to overwrite filter that HW scan needed, so we need to
+	 * check scan and append related filter
+	 */
+	if (rtwdev->scanning) {
+		rx_fltr &= ~B_AX_A_BCN_CHK_EN;
+		rx_fltr &= ~B_AX_A_BC;
+		rx_fltr &= ~B_AX_A_A1_MATCH;
+	}
+
 	rtw89_write32_mask(rtwdev,
 			   rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, RTW89_MAC_0),
 			   B_AX_RX_FLTR_CFG_MASK,
-			   rtwdev->hal.rx_fltr);
+			   rx_fltr);
 	if (!rtwdev->dbcc_en)
 		goto out;
 	rtw89_write32_mask(rtwdev,
 			   rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, RTW89_MAC_1),
 			   B_AX_RX_FLTR_CFG_MASK,
-			   rtwdev->hal.rx_fltr);
+			   rx_fltr);
 
 out:
 	mutex_unlock(&rtwdev->mutex);
@@ -327,11 +342,14 @@ static void ____rtw89_conf_tx_edca(struct rtw89_dev *rtwdev,
 	rtw89_fw_h2c_set_edca(rtwdev, rtwvif, ac_to_fw_idx[ac], val);
 }
 
-static const u32 ac_to_mu_edca_param[IEEE80211_NUM_ACS] = {
-	[IEEE80211_AC_VO] = R_AX_MUEDCA_VO_PARAM_0,
-	[IEEE80211_AC_VI] = R_AX_MUEDCA_VI_PARAM_0,
-	[IEEE80211_AC_BE] = R_AX_MUEDCA_BE_PARAM_0,
-	[IEEE80211_AC_BK] = R_AX_MUEDCA_BK_PARAM_0,
+#define R_MUEDCA_ACS_PARAM(acs) {R_AX_MUEDCA_ ## acs ## _PARAM_0, \
+				 R_BE_MUEDCA_ ## acs ## _PARAM_0}
+
+static const u32 ac_to_mu_edca_param[IEEE80211_NUM_ACS][RTW89_CHIP_GEN_NUM] = {
+	[IEEE80211_AC_VO] = R_MUEDCA_ACS_PARAM(VO),
+	[IEEE80211_AC_VI] = R_MUEDCA_ACS_PARAM(VI),
+	[IEEE80211_AC_BE] = R_MUEDCA_ACS_PARAM(BE),
+	[IEEE80211_AC_BK] = R_MUEDCA_ACS_PARAM(BK),
 };
 
 static void ____rtw89_conf_tx_mu_edca(struct rtw89_dev *rtwdev,
@@ -339,6 +357,7 @@ static void ____rtw89_conf_tx_mu_edca(struct rtw89_dev *rtwdev,
 {
 	struct ieee80211_tx_queue_params *params = &rtwvif->tx_params[ac];
 	struct ieee80211_he_mu_edca_param_ac_rec *mu_edca;
+	int gen = rtwdev->chip->chip_gen;
 	u8 aifs, aifsn;
 	u16 timer_32us;
 	u32 reg;
@@ -355,7 +374,7 @@ static void ____rtw89_conf_tx_mu_edca(struct rtw89_dev *rtwdev,
 	val = FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_TIMER_MASK, timer_32us) |
 	      FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_CW_MASK, mu_edca->ecw_min_max) |
 	      FIELD_PREP(B_AX_MUEDCA_BE_PARAM_0_AIFS_MASK, aifs);
-	reg = rtw89_mac_reg_by_idx(rtwdev, ac_to_mu_edca_param[ac], rtwvif->mac_idx);
+	reg = rtw89_mac_reg_by_idx(rtwdev, ac_to_mu_edca_param[ac][gen], rtwvif->mac_idx);
 	rtw89_write32(rtwdev, reg, val);
 
 	rtw89_mac_set_hw_muedca_ctrl(rtwdev, rtwvif, true);
@@ -422,7 +441,7 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 			 * when disconnected by peer
 			 */
 			if (rtwdev->scanning)
-				rtw89_hw_scan_abort(rtwdev, vif);
+				rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
 		}
 	}
 
@@ -430,10 +449,11 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 		ether_addr_copy(rtwvif->bssid, conf->bssid);
 		rtw89_cam_bssid_changed(rtwdev, rtwvif);
 		rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
+		WRITE_ONCE(rtwvif->sync_bcn_tsf, 0);
 	}
 
 	if (changed & BSS_CHANGED_BEACON)
-		rtw89_fw_h2c_update_beacon(rtwdev, rtwvif);
+		rtw89_chip_h2c_update_beacon(rtwdev, rtwvif);
 
 	if (changed & BSS_CHANGED_ERP_SLOT)
 		rtw89_conf_tx(rtwdev, rtwvif);
@@ -445,7 +465,7 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 		rtw89_mac_bf_set_gid_table(rtwdev, vif, conf);
 
 	if (changed & BSS_CHANGED_P2P_PS)
-		rtw89_process_p2p_ps(rtwdev, vif);
+		rtw89_core_update_p2p_ps(rtwdev, vif);
 
 	if (changed & BSS_CHANGED_CQM)
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
@@ -472,10 +492,13 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 		return -EOPNOTSUPP;
 	}
 
+	if (rtwdev->scanning)
+		rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
+
 	ether_addr_copy(rtwvif->bssid, vif->bss_conf.bssid);
 	rtw89_cam_bssid_changed(rtwdev, rtwvif);
 	rtw89_mac_port_update(rtwdev, rtwvif);
-	rtw89_fw_h2c_assoc_cmac_tbl(rtwdev, vif, NULL);
+	rtw89_chip_h2c_assoc_cmac_tbl(rtwdev, vif, NULL);
 	rtw89_fw_h2c_role_maintain(rtwdev, rtwvif, NULL, RTW89_ROLE_TYPE_CHANGE);
 	rtw89_fw_h2c_join_info(rtwdev, rtwvif, NULL, true);
 	rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
@@ -496,7 +519,7 @@ void rtw89_ops_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_mac_stop_ap(rtwdev, rtwvif);
-	rtw89_fw_h2c_assoc_cmac_tbl(rtwdev, vif, NULL);
+	rtw89_chip_h2c_assoc_cmac_tbl(rtwdev, vif, NULL);
 	rtw89_fw_h2c_join_info(rtwdev, rtwvif, NULL, true);
 	mutex_unlock(&rtwdev->mutex);
 }
@@ -638,6 +661,8 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		mutex_lock(&rtwdev->mutex);
 		clear_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
+		clear_bit(tid, rtwsta->ampdu_map);
+		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, vif, sta);
 		mutex_unlock(&rtwdev->mutex);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -646,17 +671,19 @@ static int rtw89_ops_ampdu_action(struct ieee80211_hw *hw,
 		set_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags);
 		rtwsta->ampdu_params[tid].agg_num = params->buf_size;
 		rtwsta->ampdu_params[tid].amsdu = params->amsdu;
+		set_bit(tid, rtwsta->ampdu_map);
 		rtw89_leave_ps_mode(rtwdev);
+		rtw89_chip_h2c_ampdu_cmac_tbl(rtwdev, vif, sta);
 		mutex_unlock(&rtwdev->mutex);
 		break;
 	case IEEE80211_AMPDU_RX_START:
 		mutex_lock(&rtwdev->mutex);
-		rtw89_fw_h2c_ba_cam(rtwdev, rtwsta, true, params);
+		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta, true, params);
 		mutex_unlock(&rtwdev->mutex);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		mutex_lock(&rtwdev->mutex);
-		rtw89_fw_h2c_ba_cam(rtwdev, rtwsta, false, params);
+		rtw89_chip_h2c_ba_cam(rtwdev, rtwsta, false, params);
 		mutex_unlock(&rtwdev->mutex);
 		break;
 	default:
@@ -968,7 +995,7 @@ static int rtw89_ops_remain_on_channel(struct ieee80211_hw *hw,
 	}
 
 	if (rtwdev->scanning)
-		rtw89_hw_scan_abort(rtwdev, vif);
+		rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
 
 	if (type == IEEE80211_ROC_TYPE_MGMT_TX)
 		roc->state = RTW89_ROC_MGMT;

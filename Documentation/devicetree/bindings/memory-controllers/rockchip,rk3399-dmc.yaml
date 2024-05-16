@@ -18,7 +18,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Node to get DDR loading. Refer to
-      Documentation/devicetree/bindings/devfreq/event/rockchip-dfi.txt.
+      Documentation/devicetree/bindings/devfreq/event/rockchip,dfi.yaml.
 
   clocks:
     maxItems: 1

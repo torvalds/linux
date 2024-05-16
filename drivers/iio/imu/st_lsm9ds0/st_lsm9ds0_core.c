@@ -7,10 +7,10 @@
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */
 
-#include <linux/device.h>
+#include <linux/array_size.h>
+#include <linux/dev_printk.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/iio/common/st_sensors.h>
@@ -25,10 +25,9 @@ static int st_lsm9ds0_probe_accel(struct st_lsm9ds0 *lsm9ds0, struct regmap *reg
 	struct st_sensor_data *data;
 
 	settings = st_accel_get_settings(lsm9ds0->name);
-	if (!settings) {
-		dev_err(dev, "device name %s not recognized.\n", lsm9ds0->name);
-		return -ENODEV;
-	}
+	if (!settings)
+		return dev_err_probe(dev, -ENODEV, "device name %s not recognized.\n",
+				     lsm9ds0->name);
 
 	lsm9ds0->accel = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!lsm9ds0->accel)
@@ -51,10 +50,9 @@ static int st_lsm9ds0_probe_magn(struct st_lsm9ds0 *lsm9ds0, struct regmap *regm
 	struct st_sensor_data *data;
 
 	settings = st_magn_get_settings(lsm9ds0->name);
-	if (!settings) {
-		dev_err(dev, "device name %s not recognized.\n", lsm9ds0->name);
-		return -ENODEV;
-	}
+	if (!settings)
+		return dev_err_probe(dev, -ENODEV, "device name %s not recognized.\n",
+				     lsm9ds0->name);
 
 	lsm9ds0->magn = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!lsm9ds0->magn)
@@ -80,8 +78,7 @@ int st_lsm9ds0_probe(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap)
 	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(regulator_names),
 					     regulator_names);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "unable to enable Vdd supply\n");
+		return dev_err_probe(dev, ret, "unable to enable Vdd supply\n");
 
 	/* Setup accelerometer device */
 	ret = st_lsm9ds0_probe_accel(lsm9ds0, regmap);

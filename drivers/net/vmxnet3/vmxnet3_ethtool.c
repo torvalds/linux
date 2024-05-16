@@ -245,20 +245,20 @@ vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 
 	for (j = 0; j < adapter->num_tx_queues; j++) {
 		for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_dev_stats); i++)
-			ethtool_sprintf(&buf, vmxnet3_tq_dev_stats[i].desc);
+			ethtool_puts(&buf, vmxnet3_tq_dev_stats[i].desc);
 		for (i = 0; i < ARRAY_SIZE(vmxnet3_tq_driver_stats); i++)
-			ethtool_sprintf(&buf, vmxnet3_tq_driver_stats[i].desc);
+			ethtool_puts(&buf, vmxnet3_tq_driver_stats[i].desc);
 	}
 
 	for (j = 0; j < adapter->num_rx_queues; j++) {
 		for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_dev_stats); i++)
-			ethtool_sprintf(&buf, vmxnet3_rq_dev_stats[i].desc);
+			ethtool_puts(&buf, vmxnet3_rq_dev_stats[i].desc);
 		for (i = 0; i < ARRAY_SIZE(vmxnet3_rq_driver_stats); i++)
-			ethtool_sprintf(&buf, vmxnet3_rq_driver_stats[i].desc);
+			ethtool_puts(&buf, vmxnet3_rq_driver_stats[i].desc);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(vmxnet3_global_stats); i++)
-		ethtool_sprintf(&buf, vmxnet3_global_stats[i].desc);
+		ethtool_puts(&buf, vmxnet3_global_stats[i].desc);
 }
 
 netdev_features_t vmxnet3_fix_features(struct net_device *netdev,
@@ -1136,27 +1136,26 @@ vmxnet3_get_rss_indir_size(struct net_device *netdev)
 }
 
 static int
-vmxnet3_get_rss(struct net_device *netdev, u32 *p, u8 *key, u8 *hfunc)
+vmxnet3_get_rss(struct net_device *netdev, struct ethtool_rxfh_param *rxfh)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 	unsigned int n = rssConf->indTableSize;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (!p)
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (!rxfh->indir)
 		return 0;
 	if (n > UPT1_RSS_MAX_IND_TABLE_SIZE)
 		return 0;
 	while (n--)
-		p[n] = rssConf->indTable[n];
+		rxfh->indir[n] = rssConf->indTable[n];
 	return 0;
 
 }
 
 static int
-vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key,
-		const u8 hfunc)
+vmxnet3_set_rss(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
+		struct netlink_ext_ack *extack)
 {
 	unsigned int i;
 	unsigned long flags;
@@ -1164,13 +1163,14 @@ vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key,
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 
 	/* We do not allow change in unsupported parameters */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (rxfh->key ||
+	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	     rxfh->hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;
-	if (!p)
+	if (!rxfh->indir)
 		return 0;
 	for (i = 0; i < rssConf->indTableSize; i++)
-		rssConf->indTable[i] = p[i];
+		rssConf->indTable[i] = rxfh->indir[i];
 
 	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,

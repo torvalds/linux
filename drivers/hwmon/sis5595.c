@@ -153,13 +153,9 @@ static inline s8 TEMP_TO_REG(long val)
 }
 
 /*
- * FAN DIV: 1, 2, 4, or 8 (defaults to 2)
- * REG: 0, 1, 2, or 3 (respectively) (defaults to 1)
+ * FAN DIV: 1, 2, 4, or 8
+ * REG: 0, 1, 2, or 3 (respectively)
  */
-static inline u8 DIV_TO_REG(int val)
-{
-	return val == 8 ? 3 : val == 4 ? 2 : val == 1 ? 0 : 1;
-}
 #define DIV_FROM_REG(val) (1 << (val))
 
 /*
@@ -709,7 +705,7 @@ exit_remove_files:
 	return err;
 }
 
-static int sis5595_remove(struct platform_device *pdev)
+static void sis5595_remove(struct platform_device *pdev)
 {
 	struct sis5595_data *data = platform_get_drvdata(pdev);
 
@@ -717,8 +713,6 @@ static int sis5595_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group);
 	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_in4);
 	sysfs_remove_group(&pdev->dev.kobj, &sis5595_group_temp1);
-
-	return 0;
 }
 
 static const struct pci_device_id sis5595_pci_ids[] = {
@@ -790,7 +784,7 @@ static struct platform_driver sis5595_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= sis5595_probe,
-	.remove		= sis5595_remove,
+	.remove_new	= sis5595_remove,
 };
 
 static int sis5595_pci_probe(struct pci_dev *dev,

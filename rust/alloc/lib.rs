@@ -58,6 +58,11 @@
 //! [`Rc`]: rc
 //! [`RefCell`]: core::cell
 
+// To run alloc tests without x.py without ending up with two copies of alloc, Miri needs to be
+// able to "empty" this crate. See <https://github.com/rust-lang/miri-test-libstd/issues/4>.
+// rustc itself never sets the feature, so this line has no effect there.
+#![cfg(any(not(feature = "miri-test-libstd"), test, doctest))]
+//
 #![allow(unused_attributes)]
 #![stable(feature = "alloc", since = "1.36.0")]
 #![doc(
@@ -75,13 +80,10 @@
     not(no_sync),
     target_has_atomic = "ptr"
 ))]
+#![doc(rust_logo)]
+#![feature(rustdoc_internals)]
 #![no_std]
 #![needs_allocator]
-// To run alloc tests without x.py without ending up with two copies of alloc, Miri needs to be
-// able to "empty" this crate. See <https://github.com/rust-lang/miri-test-libstd/issues/4>.
-// rustc itself never sets the feature, so this line has no affect there.
-#![cfg(any(not(feature = "miri-test-libstd"), test, doctest))]
-//
 // Lints:
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(fuzzy_provenance_casts)]
@@ -90,6 +92,8 @@
 #![warn(missing_docs)]
 #![allow(explicit_outlives_requirements)]
 #![warn(multiple_supertrait_upcastable)]
+#![allow(internal_features)]
+#![allow(rustdoc::redundant_explicit_links)]
 //
 // Library features:
 // tidy-alphabetical-start
@@ -113,13 +117,13 @@
 #![feature(const_eval_select)]
 #![feature(const_maybe_uninit_as_mut_ptr)]
 #![feature(const_maybe_uninit_write)]
-#![feature(const_maybe_uninit_zeroed)]
 #![feature(const_pin)]
 #![feature(const_refs_to_cell)]
 #![feature(const_size_of_val)]
 #![feature(const_waker)]
 #![feature(core_intrinsics)]
 #![feature(core_panic)]
+#![feature(deprecated_suggestion)]
 #![feature(dispatch_from_dyn)]
 #![feature(error_generic_member_access)]
 #![feature(error_in_core)]
@@ -138,13 +142,10 @@
 #![feature(maybe_uninit_uninit_array)]
 #![feature(maybe_uninit_uninit_array_transpose)]
 #![feature(pattern)]
-#![feature(pointer_byte_offsets)]
-#![feature(provide_any)]
 #![feature(ptr_internals)]
 #![feature(ptr_metadata)]
 #![feature(ptr_sub_ptr)]
 #![feature(receiver_trait)]
-#![feature(saturating_int_impl)]
 #![feature(set_ptr_value)]
 #![feature(sized_type_properties)]
 #![feature(slice_from_ptr_range)]
@@ -155,6 +156,7 @@
 #![feature(std_internals)]
 #![feature(str_internals)]
 #![feature(strict_provenance)]
+#![feature(trusted_fused)]
 #![feature(trusted_len)]
 #![feature(trusted_random_access)]
 #![feature(try_trait_v2)]
@@ -167,7 +169,7 @@
 //
 // Language features:
 // tidy-alphabetical-start
-#![cfg_attr(not(test), feature(generator_trait))]
+#![cfg_attr(not(test), feature(coroutine_trait))]
 #![cfg_attr(test, feature(panic_update_hook))]
 #![cfg_attr(test, feature(test))]
 #![feature(allocator_internals)]
@@ -275,7 +277,7 @@ pub(crate) mod test_helpers {
     /// seed not being the same for every RNG invocation too.
     pub(crate) fn test_rng() -> rand_xorshift::XorShiftRng {
         use std::hash::{BuildHasher, Hash, Hasher};
-        let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+        let mut hasher = std::hash::RandomState::new().build_hasher();
         std::panic::Location::caller().hash(&mut hasher);
         let hc64 = hasher.finish();
         let seed_vec =

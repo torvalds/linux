@@ -19,11 +19,11 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_irq.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/property.h>
 #include <linux/remoteproc/pruss.h>
 #include <linux/regmap.h>
 #include <linux/remoteproc.h>
@@ -421,12 +421,14 @@ static int prueth_init_rx_chns(struct prueth_emac *emac,
 		if (!i)
 			fdqring_id = k3_udma_glue_rx_flow_get_fdq_id(rx_chn->rx_chn,
 								     i);
-		rx_chn->irq[i] = k3_udma_glue_rx_get_irq(rx_chn->rx_chn, i);
-		if (rx_chn->irq[i] <= 0) {
-			ret = rx_chn->irq[i];
+		ret = k3_udma_glue_rx_get_irq(rx_chn->rx_chn, i);
+		if (ret <= 0) {
+			if (!ret)
+				ret = -ENXIO;
 			netdev_err(ndev, "Failed to get rx dma irq");
 			goto fail;
 		}
+		rx_chn->irq[i] = ret;
 	}
 
 	return 0;
@@ -1029,6 +1031,8 @@ static void emac_adjust_link(struct net_device *ndev)
 		 * values
 		 */
 		if (emac->link) {
+			if (emac->duplex == DUPLEX_HALF)
+				icssg_config_half_duplex(emac);
 			/* Set the RGMII cfg for gig en and full duplex */
 			icssg_update_rgmii_cfg(prueth->miig_rt, emac);
 
@@ -1147,9 +1151,13 @@ static int emac_phy_connect(struct prueth_emac *emac)
 		return -ENODEV;
 	}
 
+	if (!emac->half_duplex) {
+		dev_dbg(prueth->dev, "half duplex mode is not supported\n");
+		phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
+		phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
+	}
+
 	/* remove unsupported modes */
-	phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
-	phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
 	phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 	phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_Pause_BIT);
 	phy_remove_link_mode(ndev->phydev, ETHTOOL_LINK_MODE_Asym_Pause_BIT);
@@ -1483,9 +1491,6 @@ static int emac_ndo_stop(struct net_device *ndev)
 	/* Destroying the queued work in ndo_stop() */
 	cancel_delayed_work_sync(&emac->stats_work);
 
-	/* stop PRUs */
-	prueth_emac_stop(emac);
-
 	if (prueth->emacs_initialized == 1)
 		icss_iep_exit(emac->iep);
 
@@ -1496,7 +1501,6 @@ static int emac_ndo_stop(struct net_device *ndev)
 
 	free_irq(emac->rx_chns.irq[rx_flow], emac);
 	prueth_ndev_del_tx_napi(emac, emac->tx_ch_num);
-	prueth_cleanup_tx_chns(emac);
 
 	prueth_cleanup_rx_chns(emac, &emac->rx_chns, max_rx_flows);
 	prueth_cleanup_tx_chns(emac);
@@ -1653,6 +1657,19 @@ static void emac_ndo_get_stats64(struct net_device *ndev,
 	stats->tx_dropped = ndev->stats.tx_dropped;
 }
 
+static int emac_ndo_get_phys_port_name(struct net_device *ndev, char *name,
+				       size_t len)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	int ret;
+
+	ret = snprintf(name, len, "p%d", emac->port_id);
+	if (ret >= len)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct net_device_ops emac_netdev_ops = {
 	.ndo_open = emac_ndo_open,
 	.ndo_stop = emac_ndo_stop,
@@ -1663,6 +1680,7 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_set_rx_mode = emac_ndo_set_rx_mode,
 	.ndo_eth_ioctl = emac_ndo_ioctl,
 	.ndo_get_stats64 = emac_ndo_get_stats64,
+	.ndo_get_phys_port_name = emac_ndo_get_phys_port_name,
 };
 
 /* get emac_port corresponding to eth_node name */
@@ -1928,8 +1946,6 @@ static void prueth_put_cores(struct prueth *prueth, int slice)
 		pru_rproc_put(prueth->pru[slice]);
 }
 
-static const struct of_device_id prueth_dt_match[];
-
 static int prueth_probe(struct platform_device *pdev)
 {
 	struct device_node *eth_node, *eth_ports_node;
@@ -1938,7 +1954,6 @@ static int prueth_probe(struct platform_device *pdev)
 	struct genpool_data_align gp_data = {
 		.align = SZ_64K,
 	};
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct device_node *np;
 	struct prueth *prueth;
@@ -1948,17 +1963,13 @@ static int prueth_probe(struct platform_device *pdev)
 
 	np = dev->of_node;
 
-	match = of_match_device(prueth_dt_match, dev);
-	if (!match)
-		return -ENODEV;
-
 	prueth = devm_kzalloc(dev, sizeof(*prueth), GFP_KERNEL);
 	if (!prueth)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, prueth);
 	prueth->pdev = pdev;
-	prueth->pdata = *(const struct prueth_pdata *)match->data;
+	prueth->pdata = *(const struct prueth_pdata *)device_get_match_data(dev);
 
 	prueth->dev = dev;
 	eth_ports_node = of_get_child_by_name(np, "ethernet-ports");
@@ -2050,7 +2061,7 @@ static int prueth_probe(struct platform_device *pdev)
 				       &prueth->shram);
 	if (ret) {
 		dev_err(dev, "unable to get PRUSS SHRD RAM2: %d\n", ret);
-		pruss_put(prueth->pruss);
+		goto put_pruss;
 	}
 
 	prueth->sram_pool = of_gen_pool_get(np, "sram", 0);
@@ -2092,10 +2103,7 @@ static int prueth_probe(struct platform_device *pdev)
 	prueth->iep1 = icss_iep_get_idx(np, 1);
 	if (IS_ERR(prueth->iep1)) {
 		ret = dev_err_probe(dev, PTR_ERR(prueth->iep1), "iep1 get failed\n");
-		icss_iep_put(prueth->iep0);
-		prueth->iep0 = NULL;
-		prueth->iep1 = NULL;
-		goto free_pool;
+		goto put_iep0;
 	}
 
 	if (prueth->pdata.quirk_10m_link_issue) {
@@ -2113,6 +2121,10 @@ static int prueth_probe(struct platform_device *pdev)
 				      eth0_node->name);
 			goto exit_iep;
 		}
+
+		if (of_find_property(eth0_node, "ti,half-duplex-capable", NULL))
+			prueth->emac[PRUETH_MAC0]->half_duplex = 1;
+
 		prueth->emac[PRUETH_MAC0]->iep = prueth->iep0;
 	}
 
@@ -2123,6 +2135,9 @@ static int prueth_probe(struct platform_device *pdev)
 				      eth1_node->name);
 			goto netdev_exit;
 		}
+
+		if (of_find_property(eth1_node, "ti,half-duplex-capable", NULL))
+			prueth->emac[PRUETH_MAC1]->half_duplex = 1;
 
 		prueth->emac[PRUETH_MAC1]->iep = prueth->iep0;
 	}
@@ -2185,6 +2200,12 @@ netdev_exit:
 exit_iep:
 	if (prueth->pdata.quirk_10m_link_issue)
 		icss_iep_exit_fw(prueth->iep1);
+	icss_iep_put(prueth->iep1);
+
+put_iep0:
+	icss_iep_put(prueth->iep0);
+	prueth->iep0 = NULL;
+	prueth->iep1 = NULL;
 
 free_pool:
 	gen_pool_free(prueth->sram_pool,
@@ -2192,6 +2213,8 @@ free_pool:
 
 put_mem:
 	pruss_release_mem_region(prueth->pruss, &prueth->shram);
+
+put_pruss:
 	pruss_put(prueth->pruss);
 
 put_cores:
@@ -2313,8 +2336,13 @@ static const struct prueth_pdata am654_icssg_pdata = {
 	.quirk_10m_link_issue = 1,
 };
 
+static const struct prueth_pdata am64x_icssg_pdata = {
+	.fdqring_mode = K3_RINGACC_RING_MODE_RING,
+};
+
 static const struct of_device_id prueth_dt_match[] = {
 	{ .compatible = "ti,am654-icssg-prueth", .data = &am654_icssg_pdata },
+	{ .compatible = "ti,am642-icssg-prueth", .data = &am64x_icssg_pdata },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, prueth_dt_match);

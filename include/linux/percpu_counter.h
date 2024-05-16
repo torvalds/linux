@@ -57,6 +57,8 @@ void percpu_counter_add_batch(struct percpu_counter *fbc, s64 amount,
 			      s32 batch);
 s64 __percpu_counter_sum(struct percpu_counter *fbc);
 int __percpu_counter_compare(struct percpu_counter *fbc, s64 rhs, s32 batch);
+bool __percpu_counter_limited_add(struct percpu_counter *fbc, s64 limit,
+				  s64 amount, s32 batch);
 void percpu_counter_sync(struct percpu_counter *fbc);
 
 static inline int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs)
@@ -67,6 +69,13 @@ static inline int percpu_counter_compare(struct percpu_counter *fbc, s64 rhs)
 static inline void percpu_counter_add(struct percpu_counter *fbc, s64 amount)
 {
 	percpu_counter_add_batch(fbc, amount, percpu_counter_batch);
+}
+
+static inline bool
+percpu_counter_limited_add(struct percpu_counter *fbc, s64 limit, s64 amount)
+{
+	return __percpu_counter_limited_add(fbc, limit, amount,
+					    percpu_counter_batch);
 }
 
 /*
@@ -183,6 +192,27 @@ percpu_counter_add(struct percpu_counter *fbc, s64 amount)
 	local_irq_save(flags);
 	fbc->count += amount;
 	local_irq_restore(flags);
+}
+
+static inline bool
+percpu_counter_limited_add(struct percpu_counter *fbc, s64 limit, s64 amount)
+{
+	unsigned long flags;
+	bool good = false;
+	s64 count;
+
+	if (amount == 0)
+		return true;
+
+	local_irq_save(flags);
+	count = fbc->count + amount;
+	if ((amount > 0 && count <= limit) ||
+	    (amount < 0 && count >= limit)) {
+		fbc->count = count;
+		good = true;
+	}
+	local_irq_restore(flags);
+	return good;
 }
 
 /* non-SMP percpu_counter_add_local is the same with percpu_counter_add */

@@ -858,7 +858,7 @@ unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
 	}
 
 	kvm->arch.secure_guest |= KVMPPC_SECURE_INIT_DONE;
-	pr_info("LPID %d went secure\n", kvm->arch.lpid);
+	pr_info("LPID %lld went secure\n", kvm->arch.lpid);
 
 out:
 	srcu_read_unlock(&kvm->srcu, srcu_idx);

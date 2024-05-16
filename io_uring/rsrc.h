@@ -2,8 +2,6 @@
 #ifndef IOU_RSRC_H
 #define IOU_RSRC_H
 
-#include <net/af_unix.h>
-
 #include "alloc_cache.h"
 
 #define IO_NODE_ALLOC_CACHE_MAX 32
@@ -75,28 +73,6 @@ int io_sqe_files_unregister(struct io_ring_ctx *ctx);
 int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			  unsigned nr_args, u64 __user *tags);
 
-int __io_scm_file_account(struct io_ring_ctx *ctx, struct file *file);
-
-#if defined(CONFIG_UNIX)
-static inline bool io_file_need_scm(struct file *filp)
-{
-	return !!unix_get_socket(filp);
-}
-#else
-static inline bool io_file_need_scm(struct file *filp)
-{
-	return false;
-}
-#endif
-
-static inline int io_scm_file_account(struct io_ring_ctx *ctx,
-				      struct file *file)
-{
-	if (likely(!io_file_need_scm(file)))
-		return 0;
-	return __io_scm_file_account(ctx, file);
-}
-
 int io_register_files_update(struct io_ring_ctx *ctx, void __user *arg,
 			     unsigned nr_args);
 int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
@@ -124,17 +100,21 @@ static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
 	node->refs++;
 }
 
+static inline void __io_req_set_rsrc_node(struct io_kiocb *req,
+					  struct io_ring_ctx *ctx)
+{
+	lockdep_assert_held(&ctx->uring_lock);
+	req->rsrc_node = ctx->rsrc_node;
+	io_charge_rsrc_node(ctx, ctx->rsrc_node);
+}
+
 static inline void io_req_set_rsrc_node(struct io_kiocb *req,
 					struct io_ring_ctx *ctx,
 					unsigned int issue_flags)
 {
 	if (!req->rsrc_node) {
 		io_ring_submit_lock(ctx, issue_flags);
-
-		lockdep_assert_held(&ctx->uring_lock);
-
-		req->rsrc_node = ctx->rsrc_node;
-		io_charge_rsrc_node(ctx, ctx->rsrc_node);
+		__io_req_set_rsrc_node(req, ctx);
 		io_ring_submit_unlock(ctx, issue_flags);
 	}
 }

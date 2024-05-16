@@ -15,7 +15,6 @@ struct nouveau_bo {
 	struct ttm_placement placement;
 	u32 valid_domains;
 	struct ttm_place placements[3];
-	struct ttm_place busy_placements[3];
 	bool force_coherent;
 	struct ttm_bo_kmap_obj kmap;
 	struct list_head head;
@@ -26,6 +25,11 @@ struct nouveau_bo {
 	struct list_head entry;
 	int pbbo_index;
 	bool validate_mapped;
+
+	/* Root GEM object we derive the dma_resv of in case this BO is not
+	 * shared between VMs.
+	 */
+	struct drm_gem_object *r_obj;
 	bool no_share;
 
 	/* GPU address space is independent of CPU word size */
@@ -81,6 +85,8 @@ int  nouveau_bo_new(struct nouveau_cli *, u64 size, int align, u32 domain,
 		    u32 tile_mode, u32 tile_flags, struct sg_table *sg,
 		    struct dma_resv *robj,
 		    struct nouveau_bo **);
+int  nouveau_bo_pin_locked(struct nouveau_bo *nvbo, uint32_t domain, bool contig);
+void nouveau_bo_unpin_locked(struct nouveau_bo *nvbo);
 int  nouveau_bo_pin(struct nouveau_bo *, u32 flags, bool contig);
 int  nouveau_bo_unpin(struct nouveau_bo *);
 int  nouveau_bo_map(struct nouveau_bo *);

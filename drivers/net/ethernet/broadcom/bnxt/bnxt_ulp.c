@@ -42,13 +42,10 @@ static void bnxt_fill_msix_vecs(struct bnxt *bp, struct bnxt_msix_entry *ent)
 	for (i = 0; i < num_msix; i++) {
 		ent[i].vector = bp->irq_tbl[idx + i].vector;
 		ent[i].ring_idx = idx + i;
-		if (bp->flags & BNXT_FLAG_CHIP_P5) {
-			ent[i].db_offset = DB_PF_OFFSET_P5;
-			if (BNXT_VF(bp))
-				ent[i].db_offset = DB_VF_OFFSET_P5;
-		} else {
+		if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+			ent[i].db_offset = bp->db_offset;
+		else
 			ent[i].db_offset = (idx + i) * 0x80;
-		}
 	}
 }
 
@@ -213,6 +210,9 @@ void bnxt_ulp_start(struct bnxt *bp, int err)
 	if (err)
 		return;
 
+	if (edev->ulp_tbl->msix_requested)
+		bnxt_fill_msix_vecs(bp, edev->msix_entries);
+
 	if (aux_priv) {
 		struct auxiliary_device *adev;
 
@@ -333,6 +333,7 @@ static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 	edev->pdev = bp->pdev;
 	edev->l2_db_size = bp->db_size;
 	edev->l2_db_size_nc = bp->db_size;
+	edev->l2_db_offset = bp->db_offset;
 
 	if (bp->flags & BNXT_FLAG_ROCEV1_CAP)
 		edev->flags |= BNXT_EN_FLAG_ROCEV1_CAP;
@@ -394,12 +395,13 @@ void bnxt_rdma_aux_device_init(struct bnxt *bp)
 	if (!edev)
 		goto aux_dev_uninit;
 
+	aux_priv->edev = edev;
+
 	ulp = kzalloc(sizeof(*ulp), GFP_KERNEL);
 	if (!ulp)
 		goto aux_dev_uninit;
 
 	edev->ulp_tbl = ulp;
-	aux_priv->edev = edev;
 	bp->edev = edev;
 	bnxt_set_edev_info(edev, bp);
 

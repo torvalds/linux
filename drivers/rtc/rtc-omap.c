@@ -18,12 +18,12 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/rtc.h>
 #include <linux/rtc/rtc-omap.h>
 
@@ -729,16 +729,14 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	struct omap_rtc	*rtc;
 	u8 reg, mask, new_ctrl;
 	const struct platform_device_id *id_entry;
-	const struct of_device_id *of_id;
 	int ret;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
-	of_id = of_match_device(omap_rtc_of_match, &pdev->dev);
-	if (of_id) {
-		rtc->type = of_id->data;
+	rtc->type = device_get_match_data(&pdev->dev);
+	if (rtc->type) {
 		rtc->is_pmic_controller = rtc->type->has_pmic_mode &&
 			of_device_is_system_power_controller(pdev->dev.of_node);
 	} else {

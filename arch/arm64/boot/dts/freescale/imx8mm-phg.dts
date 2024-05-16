@@ -111,6 +111,11 @@
 	};
 };
 
+/* QSPI is not populated on the SoM */
+&flexspi {
+	status = "disabled";
+};
+
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;

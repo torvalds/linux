@@ -42,6 +42,7 @@
 #include <net/ip.h>
 #include <net/vxlan.h>
 #include <net/devlink.h>
+#include <net/rps.h>
 
 #include <linux/mlx4/driver.h>
 #include <linux/mlx4/device.h>
@@ -1072,7 +1073,8 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 				    1, MLX4_MCAST_CONFIG);
 
 		/* Update multicast list - we cache all addresses so they won't
-		 * change while HW is updated holding the command semaphor */
+		 * change while HW is updated holding the command semaphore
+		 */
 		netif_addr_lock_bh(dev);
 		mlx4_en_cache_mclist(dev);
 		netif_addr_unlock_bh(dev);
@@ -1817,7 +1819,7 @@ int mlx4_en_start_port(struct net_device *dev)
 	    mlx4_en_set_rss_steer_rules(priv))
 		mlx4_warn(mdev, "Failed setting steering rules\n");
 
-	/* Attach rx QP to bradcast address */
+	/* Attach rx QP to broadcast address */
 	eth_broadcast_addr(&mc_list[10]);
 	mc_list[5] = priv->port; /* needed for B0 steering support */
 	if (mlx4_multicast_attach(mdev->dev, priv->rss_map.indir_qp, mc_list,

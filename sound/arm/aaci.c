@@ -737,10 +737,8 @@ static const struct snd_pcm_ops aaci_capture_ops = {
 /*
  * Power Management.
  */
-#ifdef CONFIG_PM
 static int aaci_do_suspend(struct snd_card *card)
 {
-	struct aaci *aaci = card->private_data;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
 	return 0;
 }
@@ -763,12 +761,7 @@ static int aaci_resume(struct device *dev)
 	return card ? aaci_do_resume(card) : 0;
 }
 
-static SIMPLE_DEV_PM_OPS(aaci_dev_pm_ops, aaci_suspend, aaci_resume);
-#define AACI_DEV_PM_OPS (&aaci_dev_pm_ops)
-#else
-#define AACI_DEV_PM_OPS NULL
-#endif
-
+static DEFINE_SIMPLE_DEV_PM_OPS(aaci_dev_pm_ops, aaci_suspend, aaci_resume);
 
 static const struct ac97_pcm ac97_defs[] = {
 	[0] = {	/* Front PCM */
@@ -1081,7 +1074,7 @@ MODULE_DEVICE_TABLE(amba, aaci_ids);
 static struct amba_driver aaci_driver = {
 	.drv		= {
 		.name	= DRIVER_NAME,
-		.pm	= AACI_DEV_PM_OPS,
+		.pm	= &aaci_dev_pm_ops,
 	},
 	.probe		= aaci_probe,
 	.remove		= aaci_remove,

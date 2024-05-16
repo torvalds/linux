@@ -29,7 +29,6 @@ static struct ctl_table dnotify_sysctls[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{}
 };
 static void __init dnotify_sysctl_init(void)
 {
@@ -39,9 +38,9 @@ static void __init dnotify_sysctl_init(void)
 #define dnotify_sysctl_init() do { } while (0)
 #endif
 
-static struct kmem_cache *dnotify_struct_cache __read_mostly;
-static struct kmem_cache *dnotify_mark_cache __read_mostly;
-static struct fsnotify_group *dnotify_group __read_mostly;
+static struct kmem_cache *dnotify_struct_cache __ro_after_init;
+static struct kmem_cache *dnotify_mark_cache __ro_after_init;
+static struct fsnotify_group *dnotify_group __ro_after_init;
 
 /*
  * dnotify will attach one of these to each inode (i_fsnotify_marks) which
@@ -265,7 +264,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 	struct dnotify_struct *dn;
 	struct inode *inode;
 	fl_owner_t id = current->files;
-	struct file *f;
+	struct file *f = NULL;
 	int destroy = 0, error = 0;
 	__u32 mask;
 
@@ -345,7 +344,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned int arg)
 	}
 
 	rcu_read_lock();
-	f = lookup_fd_rcu(fd);
+	f = lookup_fdget_rcu(fd);
 	rcu_read_unlock();
 
 	/* if (f != filp) means that we lost a race and another task/thread
@@ -392,6 +391,8 @@ out_err:
 		fsnotify_put_mark(new_fsn_mark);
 	if (dn)
 		kmem_cache_free(dnotify_struct_cache, dn);
+	if (f)
+		fput(f);
 	return error;
 }
 

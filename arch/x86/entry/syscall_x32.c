@@ -11,8 +11,12 @@
 #include <asm/syscalls_x32.h>
 #undef __SYSCALL
 
-#define __SYSCALL(nr, sym) __x64_##sym,
+#define __SYSCALL(nr, sym) case nr: return __x64_##sym(regs);
 
-asmlinkage const sys_call_ptr_t x32_sys_call_table[] = {
-#include <asm/syscalls_x32.h>
+long x32_sys_call(const struct pt_regs *regs, unsigned int nr)
+{
+	switch (nr) {
+	#include <asm/syscalls_x32.h>
+	default: return __x64_sys_ni_syscall(regs);
+	}
 };

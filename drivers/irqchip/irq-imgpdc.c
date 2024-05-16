@@ -461,12 +461,11 @@ err_generic:
 	return ret;
 }
 
-static int pdc_intc_remove(struct platform_device *pdev)
+static void pdc_intc_remove(struct platform_device *pdev)
 {
 	struct pdc_intc_priv *priv = platform_get_drvdata(pdev);
 
 	irq_domain_remove(priv->domain);
-	return 0;
 }
 
 static const struct of_device_id pdc_intc_match[] = {
@@ -479,8 +478,8 @@ static struct platform_driver pdc_intc_driver = {
 		.name		= "pdc-intc",
 		.of_match_table	= pdc_intc_match,
 	},
-	.probe = pdc_intc_probe,
-	.remove = pdc_intc_remove,
+	.probe		= pdc_intc_probe,
+	.remove_new	= pdc_intc_remove,
 };
 
 static int __init pdc_intc_init(void)

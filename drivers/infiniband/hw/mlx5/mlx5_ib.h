@@ -753,10 +753,25 @@ struct umr_common {
 	unsigned int state;
 };
 
+#define NUM_MKEYS_PER_PAGE \
+	((PAGE_SIZE - sizeof(struct list_head)) / sizeof(u32))
+
+struct mlx5_mkeys_page {
+	u32 mkeys[NUM_MKEYS_PER_PAGE];
+	struct list_head list;
+};
+static_assert(sizeof(struct mlx5_mkeys_page) == PAGE_SIZE);
+
+struct mlx5_mkeys_queue {
+	struct list_head pages_list;
+	u32 num_pages;
+	unsigned long ci;
+	spinlock_t lock; /* sync list ops */
+};
+
 struct mlx5_cache_ent {
-	struct xarray		mkeys;
-	unsigned long		stored;
-	unsigned long		reserved;
+	struct mlx5_mkeys_queue	mkeys_queue;
+	u32			pending;
 
 	char                    name[4];
 
@@ -1362,7 +1377,6 @@ int mlx5_ib_query_port(struct ib_device *ibdev, u32 port,
 		       struct ib_port_attr *props);
 void mlx5_ib_populate_pas(struct ib_umem *umem, size_t page_size, __be64 *pas,
 			  u64 access_flags);
-void mlx5_ib_copy_pas(u64 *old, u64 *new, int step, int num);
 int mlx5_ib_get_cqe_size(struct ib_cq *ibcq);
 int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev);
 void mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev);

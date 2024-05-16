@@ -2,9 +2,7 @@
 #
 # Building vDSO images for sparc.
 #
-
-VDSO64-$(CONFIG_SPARC64)	:= y
-VDSOCOMPAT-$(CONFIG_COMPAT)	:= y
+UBSAN_SANITIZE := n
 
 # files to link into the vdso
 vobjs-y := vdso-note.o vclock_gettime.o
@@ -13,22 +11,15 @@ vobjs-y := vdso-note.o vclock_gettime.o
 obj-y				+= vma.o
 
 # vDSO images to build
-vdso_img-$(VDSO64-y)		+= 64
-vdso_img-$(VDSOCOMPAT-y)	+= 32
+obj-$(CONFIG_SPARC64)		+= vdso-image-64.o
+obj-$(CONFIG_COMPAT)		+= vdso-image-32.o
 
-vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
+vobjs := $(addprefix $(obj)/, $(vobjs-y))
 
 $(obj)/vdso.o: $(obj)/vdso.so
 
 targets += vdso.lds $(vobjs-y)
-
-# Build the vDSO image C files and link them in.
-vdso_img_objs := $(vdso_img-y:%=vdso-image-%.o)
-vdso_img_cfiles := $(vdso_img-y:%=vdso-image-%.c)
-vdso_img_sodbg := $(vdso_img-y:%=vdso%.so.dbg)
-obj-y += $(vdso_img_objs)
-targets += $(vdso_img_cfiles)
-targets += $(vdso_img_sodbg) $(vdso_img-y:%=vdso%.so)
+targets += $(foreach x, 32 64, vdso-image-$(x).c vdso$(x).so vdso$(x).so.dbg)
 
 CPPFLAGS_vdso.lds += -P -C
 
@@ -116,30 +107,3 @@ quiet_cmd_vdso = VDSO    $@
 
 VDSO_LDFLAGS = -shared --hash-style=both --build-id=sha1 -Bsymbolic
 GCOV_PROFILE := n
-
-#
-# Install the unstripped copies of vdso*.so.  If our toolchain supports
-# build-id, install .build-id links as well.
-#
-quiet_cmd_vdso_install = INSTALL $(@:install_%=%)
-define cmd_vdso_install
-	cp $< "$(MODLIB)/vdso/$(@:install_%=%)"; \
-	if readelf -n $< |grep -q 'Build ID'; then \
-	  buildid=`readelf -n $< |grep 'Build ID' |sed -e 's/^.*Build ID: \(.*\)$$/\1/'`; \
-	  first=`echo $$buildid | cut -b-2`; \
-	  last=`echo $$buildid | cut -b3-`; \
-	  mkdir -p "$(MODLIB)/vdso/.build-id/$$first"; \
-	  ln -sf "../../$(@:install_%=%)" "$(MODLIB)/vdso/.build-id/$$first/$$last.debug"; \
-	fi
-endef
-
-vdso_img_insttargets := $(vdso_img_sodbg:%.dbg=install_%)
-
-$(MODLIB)/vdso: FORCE
-	@mkdir -p $(MODLIB)/vdso
-
-$(vdso_img_insttargets): install_%: $(obj)/%.dbg $(MODLIB)/vdso FORCE
-	$(call cmd,vdso_install)
-
-PHONY += vdso_install $(vdso_img_insttargets)
-vdso_install: $(vdso_img_insttargets) FORCE

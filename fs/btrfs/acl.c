@@ -12,7 +12,6 @@
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include "ctree.h"
-#include "btrfs_inode.h"
 #include "xattr.h"
 #include "acl.h"
 

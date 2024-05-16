@@ -50,7 +50,7 @@ int gb_hd_cport_reserve(struct gb_host_device *hd, u16 cport_id)
 	struct ida *id_map = &hd->cport_id_map;
 	int ret;
 
-	ret = ida_simple_get(id_map, cport_id, cport_id + 1, GFP_KERNEL);
+	ret = ida_alloc_range(id_map, cport_id, cport_id, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(&hd->dev, "failed to reserve cport %u\n", cport_id);
 		return ret;
@@ -64,7 +64,7 @@ void gb_hd_cport_release_reserved(struct gb_host_device *hd, u16 cport_id)
 {
 	struct ida *id_map = &hd->cport_id_map;
 
-	ida_simple_remove(id_map, cport_id);
+	ida_free(id_map, cport_id);
 }
 EXPORT_SYMBOL_GPL(gb_hd_cport_release_reserved);
 
@@ -80,16 +80,16 @@ int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id,
 
 	if (cport_id < 0) {
 		ida_start = 0;
-		ida_end = hd->num_cports;
+		ida_end = hd->num_cports - 1;
 	} else if (cport_id < hd->num_cports) {
 		ida_start = cport_id;
-		ida_end = cport_id + 1;
+		ida_end = cport_id;
 	} else {
 		dev_err(&hd->dev, "cport %d not available\n", cport_id);
 		return -EINVAL;
 	}
 
-	return ida_simple_get(id_map, ida_start, ida_end, GFP_KERNEL);
+	return ida_alloc_range(id_map, ida_start, ida_end, GFP_KERNEL);
 }
 
 /* Locking: Caller guarantees serialisation */
@@ -100,7 +100,7 @@ void gb_hd_cport_release(struct gb_host_device *hd, u16 cport_id)
 		return;
 	}
 
-	ida_simple_remove(&hd->cport_id_map, cport_id);
+	ida_free(&hd->cport_id_map, cport_id);
 }
 
 static void gb_hd_release(struct device *dev)
@@ -111,12 +111,12 @@ static void gb_hd_release(struct device *dev)
 
 	if (hd->svc)
 		gb_svc_put(hd->svc);
-	ida_simple_remove(&gb_hd_bus_id_map, hd->bus_id);
+	ida_free(&gb_hd_bus_id_map, hd->bus_id);
 	ida_destroy(&hd->cport_id_map);
 	kfree(hd);
 }
 
-struct device_type greybus_hd_type = {
+const struct device_type greybus_hd_type = {
 	.name		= "greybus_host_device",
 	.release	= gb_hd_release,
 };
@@ -162,7 +162,7 @@ struct gb_host_device *gb_hd_create(struct gb_hd_driver *driver,
 	if (!hd)
 		return ERR_PTR(-ENOMEM);
 
-	ret = ida_simple_get(&gb_hd_bus_id_map, 1, 0, GFP_KERNEL);
+	ret = ida_alloc_min(&gb_hd_bus_id_map, 1, GFP_KERNEL);
 	if (ret < 0) {
 		kfree(hd);
 		return ERR_PTR(ret);

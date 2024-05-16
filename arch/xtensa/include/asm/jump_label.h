@@ -13,7 +13,7 @@
 static __always_inline bool arch_static_branch(struct static_key *key,
 					       bool branch)
 {
-	asm_volatile_goto("1:\n\t"
+	asm goto("1:\n\t"
 			  "_nop\n\t"
 			  ".pushsection __jump_table,  \"aw\"\n\t"
 			  ".word 1b, %l[l_yes], %c0\n\t"
@@ -38,7 +38,7 @@ static __always_inline bool arch_static_branch_jump(struct static_key *key,
 	 * make it reachable and wrap both into a no-transform block
 	 * to avoid any assembler interference with this.
 	 */
-	asm_volatile_goto("1:\n\t"
+	asm goto("1:\n\t"
 			  ".begin no-transform\n\t"
 			  "_j %l[l_yes]\n\t"
 			  "2:\n\t"

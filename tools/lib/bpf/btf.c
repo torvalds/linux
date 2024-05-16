@@ -448,6 +448,165 @@ static int btf_parse_type_sec(struct btf *btf)
 	return 0;
 }
 
+static int btf_validate_str(const struct btf *btf, __u32 str_off, const char *what, __u32 type_id)
+{
+	const char *s;
+
+	s = btf__str_by_offset(btf, str_off);
+	if (!s) {
+		pr_warn("btf: type [%u]: invalid %s (string offset %u)\n", type_id, what, str_off);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int btf_validate_id(const struct btf *btf, __u32 id, __u32 ctx_id)
+{
+	const struct btf_type *t;
+
+	t = btf__type_by_id(btf, id);
+	if (!t) {
+		pr_warn("btf: type [%u]: invalid referenced type ID %u\n", ctx_id, id);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int btf_validate_type(const struct btf *btf, const struct btf_type *t, __u32 id)
+{
+	__u32 kind = btf_kind(t);
+	int err, i, n;
+
+	err = btf_validate_str(btf, t->name_off, "type name", id);
+	if (err)
+		return err;
+
+	switch (kind) {
+	case BTF_KIND_UNKN:
+	case BTF_KIND_INT:
+	case BTF_KIND_FWD:
+	case BTF_KIND_FLOAT:
+		break;
+	case BTF_KIND_PTR:
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_CONST:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_VAR:
+	case BTF_KIND_DECL_TAG:
+	case BTF_KIND_TYPE_TAG:
+		err = btf_validate_id(btf, t->type, id);
+		if (err)
+			return err;
+		break;
+	case BTF_KIND_ARRAY: {
+		const struct btf_array *a = btf_array(t);
+
+		err = btf_validate_id(btf, a->type, id);
+		err = err ?: btf_validate_id(btf, a->index_type, id);
+		if (err)
+			return err;
+		break;
+	}
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION: {
+		const struct btf_member *m = btf_members(t);
+
+		n = btf_vlen(t);
+		for (i = 0; i < n; i++, m++) {
+			err = btf_validate_str(btf, m->name_off, "field name", id);
+			err = err ?: btf_validate_id(btf, m->type, id);
+			if (err)
+				return err;
+		}
+		break;
+	}
+	case BTF_KIND_ENUM: {
+		const struct btf_enum *m = btf_enum(t);
+
+		n = btf_vlen(t);
+		for (i = 0; i < n; i++, m++) {
+			err = btf_validate_str(btf, m->name_off, "enum name", id);
+			if (err)
+				return err;
+		}
+		break;
+	}
+	case BTF_KIND_ENUM64: {
+		const struct btf_enum64 *m = btf_enum64(t);
+
+		n = btf_vlen(t);
+		for (i = 0; i < n; i++, m++) {
+			err = btf_validate_str(btf, m->name_off, "enum name", id);
+			if (err)
+				return err;
+		}
+		break;
+	}
+	case BTF_KIND_FUNC: {
+		const struct btf_type *ft;
+
+		err = btf_validate_id(btf, t->type, id);
+		if (err)
+			return err;
+		ft = btf__type_by_id(btf, t->type);
+		if (btf_kind(ft) != BTF_KIND_FUNC_PROTO) {
+			pr_warn("btf: type [%u]: referenced type [%u] is not FUNC_PROTO\n", id, t->type);
+			return -EINVAL;
+		}
+		break;
+	}
+	case BTF_KIND_FUNC_PROTO: {
+		const struct btf_param *m = btf_params(t);
+
+		n = btf_vlen(t);
+		for (i = 0; i < n; i++, m++) {
+			err = btf_validate_str(btf, m->name_off, "param name", id);
+			err = err ?: btf_validate_id(btf, m->type, id);
+			if (err)
+				return err;
+		}
+		break;
+	}
+	case BTF_KIND_DATASEC: {
+		const struct btf_var_secinfo *m = btf_var_secinfos(t);
+
+		n = btf_vlen(t);
+		for (i = 0; i < n; i++, m++) {
+			err = btf_validate_id(btf, m->type, id);
+			if (err)
+				return err;
+		}
+		break;
+	}
+	default:
+		pr_warn("btf: type [%u]: unrecognized kind %u\n", id, kind);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+/* Validate basic sanity of BTF. It's intentionally less thorough than
+ * kernel's validation and validates only properties of BTF that libbpf relies
+ * on to be correct (e.g., valid type IDs, valid string offsets, etc)
+ */
+static int btf_sanity_check(const struct btf *btf)
+{
+	const struct btf_type *t;
+	__u32 i, n = btf__type_cnt(btf);
+	int err;
+
+	for (i = 1; i < n; i++) {
+		t = btf_type_by_id(btf, i);
+		err = btf_validate_type(btf, t, i);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 __u32 btf__type_cnt(const struct btf *btf)
 {
 	return btf->start_id + btf->nr_types;
@@ -902,6 +1061,7 @@ static struct btf *btf_new(const void *data, __u32 size, struct btf *base_btf)
 
 	err = btf_parse_str_sec(btf);
 	err = err ?: btf_parse_type_sec(btf);
+	err = err ?: btf_sanity_check(btf);
 	if (err)
 		goto done;
 
@@ -917,6 +1077,11 @@ done:
 struct btf *btf__new(const void *data, __u32 size)
 {
 	return libbpf_ptr(btf_new(data, size, NULL));
+}
+
+struct btf *btf__new_split(const void *data, __u32 size, struct btf *base_btf)
+{
+	return libbpf_ptr(btf_new(data, size, base_btf));
 }
 
 static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
@@ -1157,7 +1322,9 @@ struct btf *btf__parse_split(const char *path, struct btf *base_btf)
 
 static void *btf_get_raw_data(const struct btf *btf, __u32 *size, bool swap_endian);
 
-int btf_load_into_kernel(struct btf *btf, char *log_buf, size_t log_sz, __u32 log_level)
+int btf_load_into_kernel(struct btf *btf,
+			 char *log_buf, size_t log_sz, __u32 log_level,
+			 int token_fd)
 {
 	LIBBPF_OPTS(bpf_btf_load_opts, opts);
 	__u32 buf_sz = 0, raw_size;
@@ -1207,6 +1374,10 @@ retry_load:
 		opts.log_level = log_level;
 	}
 
+	opts.token_fd = token_fd;
+	if (token_fd)
+		opts.btf_flags |= BPF_F_TOKEN_FD;
+
 	btf->fd = bpf_btf_load(raw_data, raw_size, &opts);
 	if (btf->fd < 0) {
 		/* time to turn on verbose mode and try again */
@@ -1234,7 +1405,7 @@ done:
 
 int btf__load_into_kernel(struct btf *btf)
 {
-	return btf_load_into_kernel(btf, NULL, 0, 0);
+	return btf_load_into_kernel(btf, NULL, 0, 0, 0);
 }
 
 int btf__fd(const struct btf *btf)
@@ -2879,11 +3050,15 @@ done:
 	return btf_ext;
 }
 
-const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext, __u32 *size)
+const void *btf_ext__raw_data(const struct btf_ext *btf_ext, __u32 *size)
 {
 	*size = btf_ext->data_size;
 	return btf_ext->data;
 }
+
+__attribute__((alias("btf_ext__raw_data")))
+const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext, __u32 *size);
+
 
 struct btf_dedup;
 
@@ -4766,10 +4941,9 @@ static int btf_dedup_remap_types(struct btf_dedup *d)
  */
 struct btf *btf__load_vmlinux_btf(void)
 {
+	const char *sysfs_btf_path = "/sys/kernel/btf/vmlinux";
+	/* fall back locations, trying to find vmlinux on disk */
 	const char *locations[] = {
-		/* try canonical vmlinux BTF through sysfs first */
-		"/sys/kernel/btf/vmlinux",
-		/* fall back to trying to find vmlinux on disk otherwise */
 		"/boot/vmlinux-%1$s",
 		"/lib/modules/%1$s/vmlinux-%1$s",
 		"/lib/modules/%1$s/build/vmlinux",
@@ -4783,8 +4957,23 @@ struct btf *btf__load_vmlinux_btf(void)
 	struct btf *btf;
 	int i, err;
 
-	uname(&buf);
+	/* is canonical sysfs location accessible? */
+	if (faccessat(AT_FDCWD, sysfs_btf_path, F_OK, AT_EACCESS) < 0) {
+		pr_warn("kernel BTF is missing at '%s', was CONFIG_DEBUG_INFO_BTF enabled?\n",
+			sysfs_btf_path);
+	} else {
+		btf = btf__parse(sysfs_btf_path, NULL);
+		if (!btf) {
+			err = -errno;
+			pr_warn("failed to read kernel BTF from '%s': %d\n", sysfs_btf_path, err);
+			return libbpf_err_ptr(err);
+		}
+		pr_debug("loaded kernel BTF from '%s'\n", sysfs_btf_path);
+		return btf;
+	}
 
+	/* try fallback locations */
+	uname(&buf);
 	for (i = 0; i < ARRAY_SIZE(locations); i++) {
 		snprintf(path, PATH_MAX, locations[i], buf.release);
 

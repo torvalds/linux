@@ -1360,9 +1360,8 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 			return -EINVAL;
 		}
 
-	if (!hl_device_operational(hdev, &status)) {
+	if (!hl_device_operational(hdev, &status))
 		return -EBUSY;
-	}
 
 	if ((args->in.cs_flags & HL_CS_FLAGS_STAGED_SUBMISSION) &&
 			!hdev->supports_staged_submission) {

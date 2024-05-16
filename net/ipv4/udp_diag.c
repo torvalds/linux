@@ -237,6 +237,7 @@ static int udplite_diag_destroy(struct sk_buff *in_skb,
 #endif
 
 static const struct inet_diag_handler udp_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = udp_diag_dump,
 	.dump_one	 = udp_diag_dump_one,
 	.idiag_get_info  = udp_diag_get_info,
@@ -260,6 +261,7 @@ static int udplite_diag_dump_one(struct netlink_callback *cb,
 }
 
 static const struct inet_diag_handler udplite_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = udplite_diag_dump,
 	.dump_one	 = udplite_diag_dump_one,
 	.idiag_get_info  = udp_diag_get_info,
@@ -296,5 +298,6 @@ static void __exit udp_diag_exit(void)
 module_init(udp_diag_init);
 module_exit(udp_diag_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("UDP socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2-17 /* AF_INET - IPPROTO_UDP */);
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2-136 /* AF_INET - IPPROTO_UDPLITE */);

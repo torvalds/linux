@@ -94,7 +94,7 @@ static void ath_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (info->flags & (IEEE80211_TX_CTL_REQ_TX_STATUS |
 			   IEEE80211_TX_STATUS_EOSP)) {
-		ieee80211_tx_status(hw, skb);
+		ieee80211_tx_status_skb(hw, skb);
 		return;
 	}
 
@@ -369,12 +369,11 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 	struct list_head bf_head;
 	struct ath_tx_status ts;
 	struct ath_frame_info *fi;
-	int ret;
 
 	memset(&ts, 0, sizeof(ts));
 	INIT_LIST_HEAD(&bf_head);
 
-	while ((ret = ath_tid_dequeue(tid, &skb)) == 0) {
+	while (ath_tid_dequeue(tid, &skb) == 0) {
 		fi = get_frame_info(skb);
 		bf = fi->bf;
 

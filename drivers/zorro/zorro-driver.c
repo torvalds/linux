@@ -150,7 +150,7 @@ static int zorro_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct bus_type zorro_bus_type = {
+const struct bus_type zorro_bus_type = {
 	.name		= "zorro",
 	.dev_name	= "zorro",
 	.dev_groups	= zorro_device_attribute_groups,

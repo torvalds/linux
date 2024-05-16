@@ -441,7 +441,7 @@ int btintel_read_version(struct hci_dev *hdev, struct intel_version *ver)
 		return PTR_ERR(skb);
 	}
 
-	if (skb->len != sizeof(*ver)) {
+	if (!skb || skb->len != sizeof(*ver)) {
 		bt_dev_err(hdev, "Intel version event size mismatch");
 		kfree_skb(skb);
 		return -EILSEQ;
@@ -535,6 +535,8 @@ static int btintel_version_info_tlv(struct hci_dev *hdev,
 	bt_dev_info(hdev, "%s timestamp %u.%u buildtype %u build %u", variant,
 		    2000 + (version->timestamp >> 8), version->timestamp & 0xff,
 		    version->build_type, version->build_num);
+	if (version->img_type == 0x03)
+		bt_dev_info(hdev, "Firmware SHA1: 0x%8.8x", version->git_sha1);
 
 	return 0;
 }
@@ -629,6 +631,9 @@ static int btintel_parse_version_tlv(struct hci_dev *hdev,
 		case INTEL_TLV_OTP_BDADDR:
 			memcpy(&version->otp_bd_addr, tlv->val,
 							sizeof(bdaddr_t));
+			break;
+		case INTEL_TLV_GIT_SHA1:
+			version->git_sha1 = get_unaligned_le32(tlv->val);
 			break;
 		default:
 			/* Ignore rest of information */
@@ -2665,6 +2670,119 @@ static void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
 	}
 }
 
+static void btintel_print_fseq_info(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+	u8 *p;
+	u32 val;
+	const char *str;
+
+	skb = __hci_cmd_sync(hdev, 0xfcb3, 0, NULL, HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb)) {
+		bt_dev_dbg(hdev, "Reading fseq status command failed (%ld)",
+			   PTR_ERR(skb));
+		return;
+	}
+
+	if (skb->len < (sizeof(u32) * 16 + 2)) {
+		bt_dev_dbg(hdev, "Malformed packet of length %u received",
+			   skb->len);
+		kfree_skb(skb);
+		return;
+	}
+
+	p = skb_pull_data(skb, 1);
+	if (*p) {
+		bt_dev_dbg(hdev, "Failed to get fseq status (0x%2.2x)", *p);
+		kfree_skb(skb);
+		return;
+	}
+
+	p = skb_pull_data(skb, 1);
+	switch (*p) {
+	case 0:
+		str = "Success";
+		break;
+	case 1:
+		str = "Fatal error";
+		break;
+	case 2:
+		str = "Semaphore acquire error";
+		break;
+	default:
+		str = "Unknown error";
+		break;
+	}
+
+	if (*p) {
+		bt_dev_err(hdev, "Fseq status: %s (0x%2.2x)", str, *p);
+		kfree_skb(skb);
+		return;
+	}
+
+	bt_dev_info(hdev, "Fseq status: %s (0x%2.2x)", str, *p);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Reason: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Global version: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Installed version: 0x%8.8x", val);
+
+	p = skb->data;
+	skb_pull_data(skb, 4);
+	bt_dev_info(hdev, "Fseq executed: %2.2u.%2.2u.%2.2u.%2.2u", p[0], p[1],
+		    p[2], p[3]);
+
+	p = skb->data;
+	skb_pull_data(skb, 4);
+	bt_dev_info(hdev, "Fseq BT Top: %2.2u.%2.2u.%2.2u.%2.2u", p[0], p[1],
+		    p[2], p[3]);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq Top init version: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq Cnvio init version: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq MBX Wifi file version: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq BT version: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq Top reset address: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq MBX timeout: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq MBX ack: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq CNVi id: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq CNVr id: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq Error handle: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq Magic noalive indication: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq OTP version: 0x%8.8x", val);
+
+	val = get_unaligned_le32(skb_pull_data(skb, 4));
+	bt_dev_dbg(hdev, "Fseq MBX otp version: 0x%8.8x", val);
+
+	kfree_skb(skb);
+}
+
 static int btintel_setup_combined(struct hci_dev *hdev)
 {
 	const u8 param[1] = { 0xFF };
@@ -2897,6 +3015,7 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 
 		err = btintel_bootloader_setup_tlv(hdev, &ver_tlv);
 		btintel_register_devcoredump_support(hdev);
+		btintel_print_fseq_info(hdev);
 		break;
 	default:
 		bt_dev_err(hdev, "Unsupported Intel hw variant (%u)",

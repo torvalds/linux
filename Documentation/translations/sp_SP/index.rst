@@ -76,6 +76,5 @@ Traducciones al español
 .. toctree::
    :maxdepth: 1
 
-   howto
    process/index
    wrappers/memory-barriers

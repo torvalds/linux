@@ -120,7 +120,7 @@ bool dp_parse_link_loss_status(
 
 static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 {
-	union dpcd_psr_configuration psr_configuration;
+	union dpcd_psr_configuration psr_configuration = {0};
 
 	if (!link->psr_settings.psr_feature_enabled)
 		return false;
@@ -184,14 +184,14 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 	return false;
 }
 
-static bool handle_hpd_irq_replay_sink(struct dc_link *link)
+static void handle_hpd_irq_replay_sink(struct dc_link *link)
 {
-	union dpcd_replay_configuration replay_configuration;
+	union dpcd_replay_configuration replay_configuration = {0};
 	/*AMD Replay version reuse DP_PSR_ERROR_STATUS for REPLAY_ERROR status.*/
-	union psr_error_status replay_error_status;
+	union psr_error_status replay_error_status = {0};
 
 	if (!link->replay_settings.replay_feature_enabled)
-		return false;
+		return;
 
 	dm_helpers_dp_read_dpcd(
 		link->ctx,
@@ -219,6 +219,12 @@ static bool handle_hpd_irq_replay_sink(struct dc_link *link)
 		link->replay_settings.config.replay_error_status.bits.STATE_TRANSITION_ERROR) {
 		bool allow_active;
 
+		if (link->replay_settings.config.replay_error_status.bits.DESYNC_ERROR)
+			link->replay_settings.config.received_desync_error_hpd = 1;
+
+		if (link->replay_settings.config.force_disable_desync_error_check)
+			return;
+
 		/* Acknowledge and clear configuration bits */
 		dm_helpers_dp_write_dpcd(
 			link->ctx,
@@ -243,7 +249,6 @@ static bool handle_hpd_irq_replay_sink(struct dc_link *link)
 			edp_set_replay_allow_active(link, &allow_active, true, false, NULL);
 		}
 	}
-	return true;
 }
 
 void dp_handle_link_loss(struct dc_link *link)
@@ -260,7 +265,7 @@ void dp_handle_link_loss(struct dc_link *link)
 
 	for (i = count - 1; i >= 0; i--) {
 		// Always use max settings here for DP 1.4a LL Compliance CTS
-		if (link->is_automated) {
+		if (link->skip_fallback_on_link_loss) {
 			pipes[i]->link_config.dp_link_settings.lane_count =
 					link->verified_link_cap.lane_count;
 			pipes[i]->link_config.dp_link_settings.link_rate =
@@ -275,7 +280,7 @@ void dp_handle_link_loss(struct dc_link *link)
 static void read_dpcd204h_on_irq_hpd(struct dc_link *link, union hpd_irq_data *irq_data)
 {
 	enum dc_status retval;
-	union lane_align_status_updated dpcd_lane_status_updated;
+	union lane_align_status_updated dpcd_lane_status_updated = {0};
 
 	retval = core_link_read_dpcd(
 			link,
@@ -315,7 +320,7 @@ enum dc_status dp_read_hpd_rx_irq_data(
 		/* Read 14 bytes in a single read and then copy only the required fields.
 		 * This is more efficient than doing it in two separate AUX reads. */
 
-		uint8_t tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI + 1];
+		uint8_t tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI + 1] = {0};
 
 		retval = core_link_read_dpcd(
 			link,
@@ -399,7 +404,9 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 
 	if (hpd_irq_dpcd_data.bytes.device_service_irq.bits.AUTOMATED_TEST) {
 		// Workaround for DP 1.4a LL Compliance CTS as USB4 has to share encoders unlike DP and USBC
-		link->is_automated = true;
+		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+			link->skip_fallback_on_link_loss = true;
+
 		device_service_clear.bits.AUTOMATED_TEST = 1;
 		core_link_write_dpcd(
 			link,
@@ -424,9 +431,7 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 		/* PSR-related error was detected and handled */
 		return true;
 
-	if (handle_hpd_irq_replay_sink(link))
-		/* Replay-related error was detected and handled */
-		return true;
+	handle_hpd_irq_replay_sink(link);
 
 	/* If PSR-related error handled, Main link may be off,
 	 * so do not handle as a normal sink status change interrupt.

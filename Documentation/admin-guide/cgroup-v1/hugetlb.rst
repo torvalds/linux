@@ -65,10 +65,12 @@ files include::
 
 1. Page fault accounting
 
-hugetlb.<hugepagesize>.limit_in_bytes
-hugetlb.<hugepagesize>.max_usage_in_bytes
-hugetlb.<hugepagesize>.usage_in_bytes
-hugetlb.<hugepagesize>.failcnt
+::
+
+  hugetlb.<hugepagesize>.limit_in_bytes
+  hugetlb.<hugepagesize>.max_usage_in_bytes
+  hugetlb.<hugepagesize>.usage_in_bytes
+  hugetlb.<hugepagesize>.failcnt
 
 The HugeTLB controller allows users to limit the HugeTLB usage (page fault) per
 control group and enforces the limit during page fault. Since HugeTLB
@@ -82,10 +84,12 @@ getting SIGBUS.
 
 2. Reservation accounting
 
-hugetlb.<hugepagesize>.rsvd.limit_in_bytes
-hugetlb.<hugepagesize>.rsvd.max_usage_in_bytes
-hugetlb.<hugepagesize>.rsvd.usage_in_bytes
-hugetlb.<hugepagesize>.rsvd.failcnt
+::
+
+  hugetlb.<hugepagesize>.rsvd.limit_in_bytes
+  hugetlb.<hugepagesize>.rsvd.max_usage_in_bytes
+  hugetlb.<hugepagesize>.rsvd.usage_in_bytes
+  hugetlb.<hugepagesize>.rsvd.failcnt
 
 The HugeTLB controller allows to limit the HugeTLB reservations per control
 group and enforces the controller limit at reservation time and at the fault of

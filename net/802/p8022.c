@@ -60,4 +60,5 @@ void unregister_8022_client(struct datalink_proto *proto)
 EXPORT_SYMBOL(register_8022_client);
 EXPORT_SYMBOL(unregister_8022_client);
 
+MODULE_DESCRIPTION("Support for 802.2 demultiplexing off Ethernet");
 MODULE_LICENSE("GPL");

@@ -12,7 +12,7 @@
 #define str_has_pfx(str, pfx) \
 	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
 
-#define TEST_LOADER_LOG_BUF_SZ 1048576
+#define TEST_LOADER_LOG_BUF_SZ 2097152
 
 #define TEST_TAG_EXPECT_FAILURE "comment:test_expect_failure"
 #define TEST_TAG_EXPECT_SUCCESS "comment:test_expect_success"
@@ -27,6 +27,7 @@
 #define TEST_TAG_RETVAL_PFX_UNPRIV "comment:test_retval_unpriv="
 #define TEST_TAG_AUXILIARY "comment:test_auxiliary"
 #define TEST_TAG_AUXILIARY_UNPRIV "comment:test_auxiliary_unpriv"
+#define TEST_BTF_PATH "comment:test_btf_path="
 
 /* Warning: duplicated in bpf_misc.h */
 #define POINTER_VALUE	0xcafe4all
@@ -58,6 +59,7 @@ struct test_spec {
 	const char *prog_name;
 	struct test_subspec priv;
 	struct test_subspec unpriv;
+	const char *btf_custom_path;
 	int log_level;
 	int prog_flags;
 	int mode_mask;
@@ -69,7 +71,7 @@ static int tester_init(struct test_loader *tester)
 {
 	if (!tester->log_buf) {
 		tester->log_buf_sz = TEST_LOADER_LOG_BUF_SZ;
-		tester->log_buf = malloc(tester->log_buf_sz);
+		tester->log_buf = calloc(tester->log_buf_sz, 1);
 		if (!ASSERT_OK_PTR(tester->log_buf, "tester_log_buf"))
 			return -ENOMEM;
 	}
@@ -153,6 +155,14 @@ static int parse_retval(const char *str, int *val, const char *name)
 	return parse_int(str, val, name);
 }
 
+static void update_flags(int *flags, int flag, bool clear)
+{
+	if (clear)
+		*flags &= ~flag;
+	else
+		*flags |= flag;
+}
+
 /* Uses btf_decl_tag attributes to describe the expected test
  * behavior, see bpf_misc.h for detailed description of each attribute
  * and attribute combinations.
@@ -171,6 +181,7 @@ static int parse_test_spec(struct test_loader *tester,
 	memset(spec, 0, sizeof(*spec));
 
 	spec->prog_name = bpf_program__name(prog);
+	spec->prog_flags = testing_prog_flags();
 
 	btf = bpf_object__btf(obj);
 	if (!btf) {
@@ -187,7 +198,8 @@ static int parse_test_spec(struct test_loader *tester,
 	for (i = 1; i < btf__type_cnt(btf); i++) {
 		const char *s, *val, *msg;
 		const struct btf_type *t;
-		int tmp;
+		bool clear;
+		int flags;
 
 		t = btf__type_by_id(btf, i);
 		if (!btf_is_decl_tag(t))
@@ -253,24 +265,33 @@ static int parse_test_spec(struct test_loader *tester,
 				goto cleanup;
 		} else if (str_has_pfx(s, TEST_TAG_PROG_FLAGS_PFX)) {
 			val = s + sizeof(TEST_TAG_PROG_FLAGS_PFX) - 1;
+
+			clear = val[0] == '!';
+			if (clear)
+				val++;
+
 			if (strcmp(val, "BPF_F_STRICT_ALIGNMENT") == 0) {
-				spec->prog_flags |= BPF_F_STRICT_ALIGNMENT;
+				update_flags(&spec->prog_flags, BPF_F_STRICT_ALIGNMENT, clear);
 			} else if (strcmp(val, "BPF_F_ANY_ALIGNMENT") == 0) {
-				spec->prog_flags |= BPF_F_ANY_ALIGNMENT;
+				update_flags(&spec->prog_flags, BPF_F_ANY_ALIGNMENT, clear);
 			} else if (strcmp(val, "BPF_F_TEST_RND_HI32") == 0) {
-				spec->prog_flags |= BPF_F_TEST_RND_HI32;
+				update_flags(&spec->prog_flags, BPF_F_TEST_RND_HI32, clear);
 			} else if (strcmp(val, "BPF_F_TEST_STATE_FREQ") == 0) {
-				spec->prog_flags |= BPF_F_TEST_STATE_FREQ;
+				update_flags(&spec->prog_flags, BPF_F_TEST_STATE_FREQ, clear);
 			} else if (strcmp(val, "BPF_F_SLEEPABLE") == 0) {
-				spec->prog_flags |= BPF_F_SLEEPABLE;
+				update_flags(&spec->prog_flags, BPF_F_SLEEPABLE, clear);
 			} else if (strcmp(val, "BPF_F_XDP_HAS_FRAGS") == 0) {
-				spec->prog_flags |= BPF_F_XDP_HAS_FRAGS;
+				update_flags(&spec->prog_flags, BPF_F_XDP_HAS_FRAGS, clear);
+			} else if (strcmp(val, "BPF_F_TEST_REG_INVARIANTS") == 0) {
+				update_flags(&spec->prog_flags, BPF_F_TEST_REG_INVARIANTS, clear);
 			} else /* assume numeric value */ {
-				err = parse_int(val, &tmp, "test prog flags");
+				err = parse_int(val, &flags, "test prog flags");
 				if (err)
 					goto cleanup;
-				spec->prog_flags |= tmp;
+				update_flags(&spec->prog_flags, flags, clear);
 			}
+		} else if (str_has_pfx(s, TEST_BTF_PATH)) {
+			spec->btf_custom_path = s + sizeof(TEST_BTF_PATH) - 1;
 		}
 	}
 
@@ -480,7 +501,7 @@ static bool is_unpriv_capable_map(struct bpf_map *map)
 	}
 }
 
-static int do_prog_test_run(int fd_prog, int *retval)
+static int do_prog_test_run(int fd_prog, int *retval, bool empty_opts)
 {
 	__u8 tmp_out[TEST_DATA_LEN << 2] = {};
 	__u8 tmp_in[TEST_DATA_LEN] = {};
@@ -493,6 +514,10 @@ static int do_prog_test_run(int fd_prog, int *retval)
 		.repeat = 1,
 	);
 
+	if (empty_opts) {
+		memset(&topts, 0, sizeof(struct bpf_test_run_opts));
+		topts.sz = sizeof(struct bpf_test_run_opts);
+	}
 	err = bpf_prog_test_run_opts(fd_prog, &topts);
 	saved_errno = errno;
 
@@ -538,7 +563,7 @@ void run_subtest(struct test_loader *tester,
 		 bool unpriv)
 {
 	struct test_subspec *subspec = unpriv ? &spec->unpriv : &spec->priv;
-	struct bpf_program *tprog, *tprog_iter;
+	struct bpf_program *tprog = NULL, *tprog_iter;
 	struct test_spec *spec_iter;
 	struct cap_state caps = {};
 	struct bpf_object *tobj;
@@ -560,6 +585,9 @@ void run_subtest(struct test_loader *tester,
 			return;
 		}
 	}
+
+	/* Implicitly reset to NULL if next test case doesn't specify */
+	open_opts->btf_custom_path = spec->btf_custom_path;
 
 	tobj = bpf_object__open_mem(obj_bytes, obj_byte_cnt, open_opts);
 	if (!ASSERT_OK_PTR(tobj, "obj_open_mem")) /* shouldn't happen */
@@ -625,7 +653,8 @@ void run_subtest(struct test_loader *tester,
 			}
 		}
 
-		do_prog_test_run(bpf_program__fd(tprog), &retval);
+		do_prog_test_run(bpf_program__fd(tprog), &retval,
+				 bpf_program__type(tprog) == BPF_PROG_TYPE_SYSCALL ? true : false);
 		if (retval != subspec->retval && subspec->retval != POINTER_VALUE) {
 			PRINT_FAIL("Unexpected retval: %d != %d\n", retval, subspec->retval);
 			goto tobj_cleanup;
@@ -664,7 +693,7 @@ static void process_subtest(struct test_loader *tester,
 		++nr_progs;
 
 	specs = calloc(nr_progs, sizeof(struct test_spec));
-	if (!ASSERT_OK_PTR(specs, "Can't alloc specs array"))
+	if (!ASSERT_OK_PTR(specs, "specs_alloc"))
 		return;
 
 	i = 0;

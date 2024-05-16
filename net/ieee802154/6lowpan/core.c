@@ -93,7 +93,7 @@ static int lowpan_neigh_construct(struct net_device *dev, struct neighbour *n)
 
 static int lowpan_get_iflink(const struct net_device *dev)
 {
-	return lowpan_802154_dev(dev)->wdev->ifindex;
+	return READ_ONCE(lowpan_802154_dev(dev)->wdev->ifindex);
 }
 
 static const struct net_device_ops lowpan_netdev_ops = {
@@ -280,5 +280,6 @@ static void __exit lowpan_cleanup_module(void)
 
 module_init(lowpan_init_module);
 module_exit(lowpan_cleanup_module);
+MODULE_DESCRIPTION("IPv6 over Low power Wireless Personal Area Network IEEE 802.15.4 core");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_RTNL_LINK("lowpan");

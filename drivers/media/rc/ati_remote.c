@@ -251,7 +251,7 @@ struct ati_remote {
 
 	char rc_name[NAME_BUFSIZE];
 	char rc_phys[NAME_BUFSIZE];
-	char mouse_name[NAME_BUFSIZE];
+	char mouse_name[NAME_BUFSIZE + 6];
 	char mouse_phys[NAME_BUFSIZE];
 
 	wait_queue_head_t wait;

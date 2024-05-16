@@ -9,7 +9,6 @@
 #ifndef __ASM_STACKTRACE_COMMON_H
 #define __ASM_STACKTRACE_COMMON_H
 
-#include <linux/kprobes.h>
 #include <linux/types.h>
 
 struct stack_info {
@@ -23,12 +22,6 @@ struct stack_info {
  * @fp:          The fp value in the frame record (or the real fp)
  * @pc:          The lr value in the frame record (or the real lr)
  *
- * @kr_cur:      When KRETPROBES is selected, holds the kretprobe instance
- *               associated with the most recently encountered replacement lr
- *               value.
- *
- * @task:        The task being unwound.
- *
  * @stack:       The stack currently being unwound.
  * @stacks:      An array of stacks which can be unwound.
  * @nr_stacks:   The number of stacks in @stacks.
@@ -36,10 +29,6 @@ struct stack_info {
 struct unwind_state {
 	unsigned long fp;
 	unsigned long pc;
-#ifdef CONFIG_KRETPROBES
-	struct llist_node *kr_cur;
-#endif
-	struct task_struct *task;
 
 	struct stack_info stack;
 	struct stack_info *stacks;
@@ -66,14 +55,8 @@ static inline bool stackinfo_on_stack(const struct stack_info *info,
 	return true;
 }
 
-static inline void unwind_init_common(struct unwind_state *state,
-				      struct task_struct *task)
+static inline void unwind_init_common(struct unwind_state *state)
 {
-	state->task = task;
-#ifdef CONFIG_KRETPROBES
-	state->kr_cur = NULL;
-#endif
-
 	state->stack = stackinfo_get_unknown();
 }
 

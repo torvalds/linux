@@ -337,12 +337,18 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 		src_idx = media_entity_get_fwnode_pad(&src_sd->entity,
 						      endpoint,
 						      MEDIA_PAD_FL_SOURCE);
-		if (src_idx < 0)
+		if (src_idx < 0) {
+			dev_dbg(src_sd->dev, "no source pad found for %pfw\n",
+				endpoint);
 			continue;
+		}
 
 		remote_ep = fwnode_graph_get_remote_endpoint(endpoint);
-		if (!remote_ep)
+		if (!remote_ep) {
+			dev_dbg(src_sd->dev, "no remote ep found for %pfw\n",
+				endpoint);
 			continue;
+		}
 
 		/*
 		 * ask the sink to verify it owns the remote endpoint,
@@ -353,8 +359,12 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 						       MEDIA_PAD_FL_SINK);
 		fwnode_handle_put(remote_ep);
 
-		if (sink_idx < 0 || sink_idx != sink->index)
+		if (sink_idx < 0 || sink_idx != sink->index) {
+			dev_dbg(src_sd->dev,
+				"sink pad index mismatch or error (is %d, expected %u)\n",
+				sink_idx, sink->index);
 			continue;
+		}
 
 		/*
 		 * the source endpoint corresponds to one of its source pads,
@@ -367,8 +377,13 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 		src = &src_sd->entity.pads[src_idx];
 
 		/* skip if link already exists */
-		if (media_entity_find_link(src, sink))
+		if (media_entity_find_link(src, sink)) {
+			dev_dbg(src_sd->dev,
+				"link %s:%d -> %s:%d already exists\n",
+				src_sd->entity.name, src_idx,
+				sink->entity->name, sink_idx);
 			continue;
+		}
 
 		dev_dbg(src_sd->dev, "creating link %s:%d -> %s:%d\n",
 			src_sd->entity.name, src_idx,

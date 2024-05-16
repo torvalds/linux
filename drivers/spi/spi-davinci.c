@@ -459,7 +459,7 @@ static bool davinci_spi_can_dma(struct spi_controller *host,
 
 static int davinci_spi_check_error(struct davinci_spi *dspi, int int_status)
 {
-	struct device *sdev = dspi->bitbang.master->dev.parent;
+	struct device *sdev = dspi->bitbang.ctlr->dev.parent;
 
 	if (int_status & SPIFLG_TIMEOUT_MASK) {
 		dev_err(sdev, "SPI Time-out Error\n");
@@ -742,7 +742,7 @@ static irqreturn_t davinci_spi_irq(s32 irq, void *data)
 
 static int davinci_spi_request_dma(struct davinci_spi *dspi)
 {
-	struct device *sdev = dspi->bitbang.master->dev.parent;
+	struct device *sdev = dspi->bitbang.ctlr->dev.parent;
 
 	dspi->dma_rx = dma_request_chan(sdev, "rx");
 	if (IS_ERR(dspi->dma_rx))
@@ -913,16 +913,13 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_host;
 
-	dspi->bitbang.master = host;
+	dspi->bitbang.ctlr = host;
 
-	dspi->clk = devm_clk_get(&pdev->dev, NULL);
+	dspi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(dspi->clk)) {
 		ret = -ENODEV;
 		goto free_host;
 	}
-	ret = clk_prepare_enable(dspi->clk);
-	if (ret)
-		goto free_host;
 
 	host->use_gpio_descriptors = true;
 	host->dev.of_node = pdev->dev.of_node;
@@ -947,7 +944,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 
 	ret = davinci_spi_request_dma(dspi);
 	if (ret == -EPROBE_DEFER) {
-		goto free_clk;
+		goto free_host;
 	} else if (ret) {
 		dev_info(&pdev->dev, "DMA is not supported (%d)\n", ret);
 		dspi->dma_rx = NULL;
@@ -991,8 +988,6 @@ free_dma:
 		dma_release_channel(dspi->dma_rx);
 		dma_release_channel(dspi->dma_tx);
 	}
-free_clk:
-	clk_disable_unprepare(dspi->clk);
 free_host:
 	spi_controller_put(host);
 err:
@@ -1017,8 +1012,6 @@ static void davinci_spi_remove(struct platform_device *pdev)
 	dspi = spi_controller_get_devdata(host);
 
 	spi_bitbang_stop(&dspi->bitbang);
-
-	clk_disable_unprepare(dspi->clk);
 
 	if (dspi->dma_rx) {
 		dma_release_channel(dspi->dma_rx);

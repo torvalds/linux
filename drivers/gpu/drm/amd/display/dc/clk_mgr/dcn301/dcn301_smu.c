@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 
 #include "dcn301_smu.h"
+#include "dm_helpers.h"
 
 #include "vangogh_ip_offset.h"
 
@@ -120,7 +121,10 @@ static int dcn301_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 
 	result = dcn301_smu_wait_for_response(clk_mgr, 10, 200000);
 
-	ASSERT(result == VBIOSSMC_Result_OK);
+	if (IS_SMU_TIMEOUT(result)) {
+		ASSERT(0);
+		dm_helpers_smu_timeout(CTX, msg_id, param, 10 * 200000);
+	}
 
 	/* Actual dispclk set is returned in the parameter register */
 	return REG_READ(MP1_SMN_C2PMSG_83);
@@ -179,10 +183,6 @@ int dcn301_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int request
 			clk_mgr,
 			VBIOSSMC_MSG_SetHardMinDcfclkByFreq,
 			khz_to_mhz_ceil(requested_dcfclk_khz));
-
-#ifdef DBG
-	smu_print("actual_dcfclk_set_mhz %d is set to : %d\n", actual_dcfclk_set_mhz, actual_dcfclk_set_mhz * 1000);
-#endif
 
 	return actual_dcfclk_set_mhz * 1000;
 }

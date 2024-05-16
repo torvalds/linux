@@ -31,7 +31,7 @@ static struct damon_sysfs_scheme_region *damon_sysfs_scheme_region_alloc(
 		return NULL;
 	sysfs_region->kobj = (struct kobject){};
 	sysfs_region->ar = region->ar;
-	sysfs_region->nr_accesses = region->nr_accesses;
+	sysfs_region->nr_accesses = region->nr_accesses_bp / 10000;
 	sysfs_region->age = region->age;
 	INIT_LIST_HEAD(&sysfs_region->list);
 	return sysfs_region;
@@ -113,11 +113,55 @@ static const struct kobj_type damon_sysfs_scheme_region_ktype = {
  * scheme regions directory
  */
 
+/*
+ * enum damos_sysfs_regions_upd_status - Represent DAMOS tried regions update
+ *					 status
+ * @DAMOS_TRIED_REGIONS_UPD_IDLE:		Waiting for next request.
+ * @DAMOS_TRIED_REGIONS_UPD_STARTED:		Update started.
+ * @DAMOS_TRIED_REGIONS_UPD_FINISHED:	Update finished.
+ *
+ * Each DAMON-based operation scheme (&struct damos) has its own apply
+ * interval, and we need to expose the scheme tried regions based on only
+ * single snapshot.  For this, we keep the tried regions update status for each
+ * scheme.  The status becomes 'idle' at the beginning.
+ *
+ * Once the tried regions update request is received, the request handling
+ * start function (damon_sysfs_scheme_update_regions_start()) sets the status
+ * of all schemes as 'idle' again, and register ->before_damos_apply()
+ * callback.
+ *
+ * Then, the first followup ->before_damos_apply() callback
+ * (damon_sysfs_before_damos_apply()) sets the status 'started'.  The first
+ * ->after_sampling() or ->after_aggregation() callback
+ *  (damon_sysfs_cmd_request_callback()) after the call is called only after
+ *  the scheme is completely applied to the given snapshot.  Hence the callback
+ *  knows the situation by showing 'started' status, and sets the status as
+ *  'finished'.  Then, damon_sysfs_before_damos_apply() understands the
+ *  situation by showing the 'finished' status and do nothing.
+ *
+ * If DAMOS is not applied to any region due to any reasons including the
+ * access pattern, the watermarks, the quotas, and the filters,
+ * ->before_damos_apply() will not be called back.  Until the situation is
+ * changed, the update will not be finished.  To avoid this,
+ * damon_sysfs_after_sampling() set the status as 'finished' if more than two
+ * apply intervals of the scheme is passed while the state is 'idle'.
+ *
+ *  Finally, the tried regions request handling finisher function
+ *  (damon_sysfs_schemes_update_regions_stop()) unregisters the callbacks.
+ */
+enum damos_sysfs_regions_upd_status {
+	DAMOS_TRIED_REGIONS_UPD_IDLE,
+	DAMOS_TRIED_REGIONS_UPD_STARTED,
+	DAMOS_TRIED_REGIONS_UPD_FINISHED,
+};
+
 struct damon_sysfs_scheme_regions {
 	struct kobject kobj;
 	struct list_head regions_list;
 	int nr_regions;
 	unsigned long total_bytes;
+	enum damos_sysfs_regions_upd_status upd_status;
+	unsigned long upd_timeout_jiffies;
 };
 
 static struct damon_sysfs_scheme_regions *
@@ -126,10 +170,14 @@ damon_sysfs_scheme_regions_alloc(void)
 	struct damon_sysfs_scheme_regions *regions = kmalloc(sizeof(*regions),
 			GFP_KERNEL);
 
+	if (!regions)
+		return NULL;
+
 	regions->kobj = (struct kobject){};
 	INIT_LIST_HEAD(&regions->regions_list);
 	regions->nr_regions = 0;
 	regions->total_bytes = 0;
+	regions->upd_status = DAMOS_TRIED_REGIONS_UPD_IDLE;
 	return regions;
 }
 
@@ -773,6 +821,240 @@ static const struct kobj_type damon_sysfs_watermarks_ktype = {
 };
 
 /*
+ * quota goal directory
+ */
+
+struct damos_sysfs_quota_goal {
+	struct kobject kobj;
+	enum damos_quota_goal_metric metric;
+	unsigned long target_value;
+	unsigned long current_value;
+};
+
+/* This should match with enum damos_action */
+static const char * const damos_sysfs_quota_goal_metric_strs[] = {
+	"user_input",
+	"some_mem_psi_us",
+};
+
+static struct damos_sysfs_quota_goal *damos_sysfs_quota_goal_alloc(void)
+{
+	return kzalloc(sizeof(struct damos_sysfs_quota_goal), GFP_KERNEL);
+}
+
+static ssize_t target_metric_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damos_sysfs_quota_goal *goal = container_of(kobj,
+			struct damos_sysfs_quota_goal, kobj);
+
+	return sysfs_emit(buf, "%s\n",
+			damos_sysfs_quota_goal_metric_strs[goal->metric]);
+}
+
+static ssize_t target_metric_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct damos_sysfs_quota_goal *goal = container_of(kobj,
+			struct damos_sysfs_quota_goal, kobj);
+	enum damos_quota_goal_metric m;
+
+	for (m = 0; m < NR_DAMOS_QUOTA_GOAL_METRICS; m++) {
+		if (sysfs_streq(buf, damos_sysfs_quota_goal_metric_strs[m])) {
+			goal->metric = m;
+			return count;
+		}
+	}
+	return -EINVAL;
+}
+
+static ssize_t target_value_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damos_sysfs_quota_goal *goal = container_of(kobj, struct
+			damos_sysfs_quota_goal, kobj);
+
+	return sysfs_emit(buf, "%lu\n", goal->target_value);
+}
+
+static ssize_t target_value_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct damos_sysfs_quota_goal *goal = container_of(kobj, struct
+			damos_sysfs_quota_goal, kobj);
+	int err = kstrtoul(buf, 0, &goal->target_value);
+
+	return err ? err : count;
+}
+
+static ssize_t current_value_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damos_sysfs_quota_goal *goal = container_of(kobj, struct
+			damos_sysfs_quota_goal, kobj);
+
+	return sysfs_emit(buf, "%lu\n", goal->current_value);
+}
+
+static ssize_t current_value_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct damos_sysfs_quota_goal *goal = container_of(kobj, struct
+			damos_sysfs_quota_goal, kobj);
+	int err = kstrtoul(buf, 0, &goal->current_value);
+
+	/* feed callback should check existence of this file and read value */
+	return err ? err : count;
+}
+
+static void damos_sysfs_quota_goal_release(struct kobject *kobj)
+{
+	/* or, notify this release to the feed callback */
+	kfree(container_of(kobj, struct damos_sysfs_quota_goal, kobj));
+}
+
+static struct kobj_attribute damos_sysfs_quota_goal_target_metric_attr =
+		__ATTR_RW_MODE(target_metric, 0600);
+
+static struct kobj_attribute damos_sysfs_quota_goal_target_value_attr =
+		__ATTR_RW_MODE(target_value, 0600);
+
+static struct kobj_attribute damos_sysfs_quota_goal_current_value_attr =
+		__ATTR_RW_MODE(current_value, 0600);
+
+static struct attribute *damos_sysfs_quota_goal_attrs[] = {
+	&damos_sysfs_quota_goal_target_metric_attr.attr,
+	&damos_sysfs_quota_goal_target_value_attr.attr,
+	&damos_sysfs_quota_goal_current_value_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(damos_sysfs_quota_goal);
+
+static const struct kobj_type damos_sysfs_quota_goal_ktype = {
+	.release = damos_sysfs_quota_goal_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_groups = damos_sysfs_quota_goal_groups,
+};
+
+/*
+ * quota goals directory
+ */
+
+struct damos_sysfs_quota_goals {
+	struct kobject kobj;
+	struct damos_sysfs_quota_goal **goals_arr;	/* counted by nr */
+	int nr;
+};
+
+static struct damos_sysfs_quota_goals *damos_sysfs_quota_goals_alloc(void)
+{
+	return kzalloc(sizeof(struct damos_sysfs_quota_goals), GFP_KERNEL);
+}
+
+static void damos_sysfs_quota_goals_rm_dirs(
+		struct damos_sysfs_quota_goals *goals)
+{
+	struct damos_sysfs_quota_goal **goals_arr = goals->goals_arr;
+	int i;
+
+	for (i = 0; i < goals->nr; i++)
+		kobject_put(&goals_arr[i]->kobj);
+	goals->nr = 0;
+	kfree(goals_arr);
+	goals->goals_arr = NULL;
+}
+
+static int damos_sysfs_quota_goals_add_dirs(
+		struct damos_sysfs_quota_goals *goals, int nr_goals)
+{
+	struct damos_sysfs_quota_goal **goals_arr, *goal;
+	int err, i;
+
+	damos_sysfs_quota_goals_rm_dirs(goals);
+	if (!nr_goals)
+		return 0;
+
+	goals_arr = kmalloc_array(nr_goals, sizeof(*goals_arr),
+			GFP_KERNEL | __GFP_NOWARN);
+	if (!goals_arr)
+		return -ENOMEM;
+	goals->goals_arr = goals_arr;
+
+	for (i = 0; i < nr_goals; i++) {
+		goal = damos_sysfs_quota_goal_alloc();
+		if (!goal) {
+			damos_sysfs_quota_goals_rm_dirs(goals);
+			return -ENOMEM;
+		}
+
+		err = kobject_init_and_add(&goal->kobj,
+				&damos_sysfs_quota_goal_ktype, &goals->kobj,
+				"%d", i);
+		if (err) {
+			kobject_put(&goal->kobj);
+			damos_sysfs_quota_goals_rm_dirs(goals);
+			return err;
+		}
+
+		goals_arr[i] = goal;
+		goals->nr++;
+	}
+	return 0;
+}
+
+static ssize_t nr_goals_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damos_sysfs_quota_goals *goals = container_of(kobj,
+			struct damos_sysfs_quota_goals, kobj);
+
+	return sysfs_emit(buf, "%d\n", goals->nr);
+}
+
+static ssize_t nr_goals_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct damos_sysfs_quota_goals *goals;
+	int nr, err = kstrtoint(buf, 0, &nr);
+
+	if (err)
+		return err;
+	if (nr < 0)
+		return -EINVAL;
+
+	goals = container_of(kobj, struct damos_sysfs_quota_goals, kobj);
+
+	if (!mutex_trylock(&damon_sysfs_lock))
+		return -EBUSY;
+	err = damos_sysfs_quota_goals_add_dirs(goals, nr);
+	mutex_unlock(&damon_sysfs_lock);
+	if (err)
+		return err;
+
+	return count;
+}
+
+static void damos_sysfs_quota_goals_release(struct kobject *kobj)
+{
+	kfree(container_of(kobj, struct damos_sysfs_quota_goals, kobj));
+}
+
+static struct kobj_attribute damos_sysfs_quota_goals_nr_attr =
+		__ATTR_RW_MODE(nr_goals, 0600);
+
+static struct attribute *damos_sysfs_quota_goals_attrs[] = {
+	&damos_sysfs_quota_goals_nr_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(damos_sysfs_quota_goals);
+
+static const struct kobj_type damos_sysfs_quota_goals_ktype = {
+	.release = damos_sysfs_quota_goals_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_groups = damos_sysfs_quota_goals_groups,
+};
+
+/*
  * scheme/weights directory
  */
 
@@ -890,9 +1172,11 @@ static const struct kobj_type damon_sysfs_weights_ktype = {
 struct damon_sysfs_quotas {
 	struct kobject kobj;
 	struct damon_sysfs_weights *weights;
+	struct damos_sysfs_quota_goals *goals;
 	unsigned long ms;
 	unsigned long sz;
 	unsigned long reset_interval_ms;
+	unsigned long effective_sz;	/* Effective size quota in bytes */
 };
 
 static struct damon_sysfs_quotas *damon_sysfs_quotas_alloc(void)
@@ -903,6 +1187,7 @@ static struct damon_sysfs_quotas *damon_sysfs_quotas_alloc(void)
 static int damon_sysfs_quotas_add_dirs(struct damon_sysfs_quotas *quotas)
 {
 	struct damon_sysfs_weights *weights;
+	struct damos_sysfs_quota_goals *goals;
 	int err;
 
 	weights = damon_sysfs_weights_alloc(0, 0, 0);
@@ -911,16 +1196,35 @@ static int damon_sysfs_quotas_add_dirs(struct damon_sysfs_quotas *quotas)
 
 	err = kobject_init_and_add(&weights->kobj, &damon_sysfs_weights_ktype,
 			&quotas->kobj, "weights");
-	if (err)
+	if (err) {
 		kobject_put(&weights->kobj);
-	else
-		quotas->weights = weights;
+		return err;
+	}
+	quotas->weights = weights;
+
+	goals = damos_sysfs_quota_goals_alloc();
+	if (!goals) {
+		kobject_put(&weights->kobj);
+		return -ENOMEM;
+	}
+	err = kobject_init_and_add(&goals->kobj,
+			&damos_sysfs_quota_goals_ktype, &quotas->kobj,
+			"goals");
+	if (err) {
+		kobject_put(&weights->kobj);
+		kobject_put(&goals->kobj);
+	} else {
+		quotas->goals = goals;
+	}
+
 	return err;
 }
 
 static void damon_sysfs_quotas_rm_dirs(struct damon_sysfs_quotas *quotas)
 {
 	kobject_put(&quotas->weights->kobj);
+	damos_sysfs_quota_goals_rm_dirs(quotas->goals);
+	kobject_put(&quotas->goals->kobj);
 }
 
 static ssize_t ms_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -986,6 +1290,15 @@ static ssize_t reset_interval_ms_store(struct kobject *kobj,
 	return count;
 }
 
+static ssize_t effective_bytes_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damon_sysfs_quotas *quotas = container_of(kobj,
+			struct damon_sysfs_quotas, kobj);
+
+	return sysfs_emit(buf, "%lu\n", quotas->effective_sz);
+}
+
 static void damon_sysfs_quotas_release(struct kobject *kobj)
 {
 	kfree(container_of(kobj, struct damon_sysfs_quotas, kobj));
@@ -1000,10 +1313,14 @@ static struct kobj_attribute damon_sysfs_quotas_sz_attr =
 static struct kobj_attribute damon_sysfs_quotas_reset_interval_ms_attr =
 		__ATTR_RW_MODE(reset_interval_ms, 0600);
 
+static struct kobj_attribute damon_sysfs_quotas_effective_bytes_attr =
+		__ATTR_RO_MODE(effective_bytes, 0400);
+
 static struct attribute *damon_sysfs_quotas_attrs[] = {
 	&damon_sysfs_quotas_ms_attr.attr,
 	&damon_sysfs_quotas_sz_attr.attr,
 	&damon_sysfs_quotas_reset_interval_ms_attr.attr,
+	&damon_sysfs_quotas_effective_bytes_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(damon_sysfs_quotas);
@@ -1121,6 +1438,7 @@ struct damon_sysfs_scheme {
 	struct kobject kobj;
 	enum damos_action action;
 	struct damon_sysfs_access_pattern *access_pattern;
+	unsigned long apply_interval_us;
 	struct damon_sysfs_quotas *quotas;
 	struct damon_sysfs_watermarks *watermarks;
 	struct damon_sysfs_scheme_filters *filters;
@@ -1141,7 +1459,7 @@ static const char * const damon_sysfs_damos_action_strs[] = {
 };
 
 static struct damon_sysfs_scheme *damon_sysfs_scheme_alloc(
-		enum damos_action action)
+		enum damos_action action, unsigned long apply_interval_us)
 {
 	struct damon_sysfs_scheme *scheme = kmalloc(sizeof(*scheme),
 				GFP_KERNEL);
@@ -1150,6 +1468,7 @@ static struct damon_sysfs_scheme *damon_sysfs_scheme_alloc(
 		return NULL;
 	scheme->kobj = (struct kobject){};
 	scheme->action = action;
+	scheme->apply_interval_us = apply_interval_us;
 	return scheme;
 }
 
@@ -1353,6 +1672,25 @@ static ssize_t action_store(struct kobject *kobj, struct kobj_attribute *attr,
 	return -EINVAL;
 }
 
+static ssize_t apply_interval_us_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damon_sysfs_scheme *scheme = container_of(kobj,
+			struct damon_sysfs_scheme, kobj);
+
+	return sysfs_emit(buf, "%lu\n", scheme->apply_interval_us);
+}
+
+static ssize_t apply_interval_us_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	struct damon_sysfs_scheme *scheme = container_of(kobj,
+			struct damon_sysfs_scheme, kobj);
+	int err = kstrtoul(buf, 0, &scheme->apply_interval_us);
+
+	return err ? err : count;
+}
+
 static void damon_sysfs_scheme_release(struct kobject *kobj)
 {
 	kfree(container_of(kobj, struct damon_sysfs_scheme, kobj));
@@ -1361,8 +1699,12 @@ static void damon_sysfs_scheme_release(struct kobject *kobj)
 static struct kobj_attribute damon_sysfs_scheme_action_attr =
 		__ATTR_RW_MODE(action, 0600);
 
+static struct kobj_attribute damon_sysfs_scheme_apply_interval_us_attr =
+		__ATTR_RW_MODE(apply_interval_us, 0600);
+
 static struct attribute *damon_sysfs_scheme_attrs[] = {
 	&damon_sysfs_scheme_action_attr.attr,
+	&damon_sysfs_scheme_apply_interval_us_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(damon_sysfs_scheme);
@@ -1413,7 +1755,11 @@ static int damon_sysfs_schemes_add_dirs(struct damon_sysfs_schemes *schemes,
 	schemes->schemes_arr = schemes_arr;
 
 	for (i = 0; i < nr_schemes; i++) {
-		scheme = damon_sysfs_scheme_alloc(DAMOS_STAT);
+		/*
+		 * apply_interval_us as 0 means same to aggregation interval
+		 * (same to before-apply_interval behavior)
+		 */
+		scheme = damon_sysfs_scheme_alloc(DAMOS_STAT, 0);
 		if (!scheme) {
 			damon_sysfs_schemes_rm_dirs(schemes);
 			return -ENOMEM;
@@ -1573,6 +1919,79 @@ static int damon_sysfs_set_scheme_filters(struct damos *scheme,
 	return 0;
 }
 
+static int damos_sysfs_set_quota_score(
+		struct damos_sysfs_quota_goals *sysfs_goals,
+		struct damos_quota *quota)
+{
+	struct damos_quota_goal *goal, *next;
+	int i;
+
+	damos_for_each_quota_goal_safe(goal, next, quota)
+		damos_destroy_quota_goal(goal);
+
+	for (i = 0; i < sysfs_goals->nr; i++) {
+		struct damos_sysfs_quota_goal *sysfs_goal =
+			sysfs_goals->goals_arr[i];
+
+		if (!sysfs_goal->target_value)
+			continue;
+
+		goal = damos_new_quota_goal(sysfs_goal->metric,
+				sysfs_goal->target_value);
+		if (!goal)
+			return -ENOMEM;
+		if (sysfs_goal->metric == DAMOS_QUOTA_USER_INPUT)
+			goal->current_value = sysfs_goal->current_value;
+		damos_add_quota_goal(quota, goal);
+	}
+	return 0;
+}
+
+int damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
+		struct damon_ctx *ctx)
+{
+	struct damos *scheme;
+	int i = 0;
+
+	damon_for_each_scheme(scheme, ctx) {
+		struct damon_sysfs_scheme *sysfs_scheme;
+		int err;
+
+		/* user could have removed the scheme sysfs dir */
+		if (i >= sysfs_schemes->nr)
+			break;
+
+		sysfs_scheme = sysfs_schemes->schemes_arr[i];
+		err = damos_sysfs_set_quota_score(sysfs_scheme->quotas->goals,
+				&scheme->quota);
+		if (err)
+			/* kdamond will clean up schemes and terminated */
+			return err;
+		i++;
+	}
+	return 0;
+}
+
+void damos_sysfs_update_effective_quotas(
+		struct damon_sysfs_schemes *sysfs_schemes,
+		struct damon_ctx *ctx)
+{
+	struct damos *scheme;
+	int schemes_idx = 0;
+
+	damon_for_each_scheme(scheme, ctx) {
+		struct damon_sysfs_quotas *sysfs_quotas;
+
+		/* user could have removed the scheme sysfs dir */
+		if (schemes_idx >= sysfs_schemes->nr)
+			break;
+
+		sysfs_quotas =
+			sysfs_schemes->schemes_arr[schemes_idx++]->quotas;
+		sysfs_quotas->effective_sz = scheme->quota.esz;
+	}
+}
+
 static struct damos *damon_sysfs_mk_scheme(
 		struct damon_sysfs_scheme *sysfs_scheme)
 {
@@ -1610,10 +2029,16 @@ static struct damos *damon_sysfs_mk_scheme(
 		.low = sysfs_wmarks->low,
 	};
 
-	scheme = damon_new_scheme(&pattern, sysfs_scheme->action, &quota,
-			&wmarks);
+	scheme = damon_new_scheme(&pattern, sysfs_scheme->action,
+			sysfs_scheme->apply_interval_us, &quota, &wmarks);
 	if (!scheme)
 		return NULL;
+
+	err = damos_sysfs_set_quota_score(sysfs_quotas->goals, &scheme->quota);
+	if (err) {
+		damon_destroy_scheme(scheme);
+		return NULL;
+	}
 
 	err = damon_sysfs_set_scheme_filters(scheme, sysfs_filters);
 	if (err) {
@@ -1641,6 +2066,7 @@ static void damon_sysfs_update_scheme(struct damos *scheme,
 	scheme->pattern.max_age_region = access_pattern->age->max;
 
 	scheme->action = sysfs_scheme->action;
+	scheme->apply_interval_us = sysfs_scheme->apply_interval_us;
 
 	scheme->quota.ms = sysfs_quotas->ms;
 	scheme->quota.sz = sysfs_quotas->sz;
@@ -1648,6 +2074,12 @@ static void damon_sysfs_update_scheme(struct damos *scheme,
 	scheme->quota.weight_sz = sysfs_weights->sz;
 	scheme->quota.weight_nr_accesses = sysfs_weights->nr_accesses;
 	scheme->quota.weight_age = sysfs_weights->age;
+
+	err = damos_sysfs_set_quota_score(sysfs_quotas->goals, &scheme->quota);
+	if (err) {
+		damon_destroy_scheme(scheme);
+		return;
+	}
 
 	scheme->wmarks.metric = sysfs_wmarks->metric;
 	scheme->wmarks.interval = sysfs_wmarks->interval_us;
@@ -1747,11 +2179,17 @@ static int damon_sysfs_before_damos_apply(struct damon_ctx *ctx,
 		return 0;
 
 	sysfs_regions = sysfs_schemes->schemes_arr[schemes_idx]->tried_regions;
+	if (sysfs_regions->upd_status == DAMOS_TRIED_REGIONS_UPD_FINISHED)
+		return 0;
+	if (sysfs_regions->upd_status == DAMOS_TRIED_REGIONS_UPD_IDLE)
+		sysfs_regions->upd_status = DAMOS_TRIED_REGIONS_UPD_STARTED;
 	sysfs_regions->total_bytes += r->ar.end - r->ar.start;
 	if (damos_regions_upd_total_bytes_only)
 		return 0;
 
 	region = damon_sysfs_scheme_region_alloc(r);
+	if (!region)
+		return 0;
 	list_add_tail(&region->list, &sysfs_regions->regions_list);
 	sysfs_regions->nr_regions++;
 	if (kobject_init_and_add(&region->kobj,
@@ -1761,6 +2199,29 @@ static int damon_sysfs_before_damos_apply(struct damon_ctx *ctx,
 		kobject_put(&region->kobj);
 	}
 	return 0;
+}
+
+/*
+ * DAMON callback that called after each accesses sampling.  While this
+ * callback is registered, damon_sysfs_lock should be held to ensure the
+ * regions directories exist.
+ */
+void damos_sysfs_mark_finished_regions_updates(struct damon_ctx *ctx)
+{
+	struct damon_sysfs_schemes *sysfs_schemes =
+		damon_sysfs_schemes_for_damos_callback;
+	struct damon_sysfs_scheme_regions *sysfs_regions;
+	int i;
+
+	for (i = 0; i < sysfs_schemes->nr; i++) {
+		sysfs_regions = sysfs_schemes->schemes_arr[i]->tried_regions;
+		if (sysfs_regions->upd_status ==
+				DAMOS_TRIED_REGIONS_UPD_STARTED ||
+				time_after(jiffies,
+					sysfs_regions->upd_timeout_jiffies))
+			sysfs_regions->upd_status =
+				DAMOS_TRIED_REGIONS_UPD_FINISHED;
+	}
 }
 
 /* Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock */
@@ -1786,6 +2247,43 @@ int damon_sysfs_schemes_clear_regions(
 	return 0;
 }
 
+static struct damos *damos_sysfs_nth_scheme(int n, struct damon_ctx *ctx)
+{
+	struct damos *scheme;
+	int i = 0;
+
+	damon_for_each_scheme(scheme, ctx) {
+		if (i == n)
+			return scheme;
+		i++;
+	}
+	return NULL;
+}
+
+static void damos_tried_regions_init_upd_status(
+		struct damon_sysfs_schemes *sysfs_schemes,
+		struct damon_ctx *ctx)
+{
+	int i;
+	struct damos *scheme;
+	struct damon_sysfs_scheme_regions *sysfs_regions;
+
+	for (i = 0; i < sysfs_schemes->nr; i++) {
+		sysfs_regions = sysfs_schemes->schemes_arr[i]->tried_regions;
+		scheme = damos_sysfs_nth_scheme(i, ctx);
+		if (!scheme) {
+			sysfs_regions->upd_status =
+				DAMOS_TRIED_REGIONS_UPD_FINISHED;
+			continue;
+		}
+		sysfs_regions->upd_status = DAMOS_TRIED_REGIONS_UPD_IDLE;
+		sysfs_regions->upd_timeout_jiffies = jiffies +
+			2 * usecs_to_jiffies(scheme->apply_interval_us ?
+					scheme->apply_interval_us :
+					ctx->attrs.aggr_interval);
+	}
+}
+
 /* Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock */
 int damon_sysfs_schemes_update_regions_start(
 		struct damon_sysfs_schemes *sysfs_schemes,
@@ -1793,9 +2291,26 @@ int damon_sysfs_schemes_update_regions_start(
 {
 	damon_sysfs_schemes_clear_regions(sysfs_schemes, ctx);
 	damon_sysfs_schemes_for_damos_callback = sysfs_schemes;
+	damos_tried_regions_init_upd_status(sysfs_schemes, ctx);
 	damos_regions_upd_total_bytes_only = total_bytes_only;
 	ctx->callback.before_damos_apply = damon_sysfs_before_damos_apply;
 	return 0;
+}
+
+bool damos_sysfs_regions_upd_done(void)
+{
+	struct damon_sysfs_schemes *sysfs_schemes =
+		damon_sysfs_schemes_for_damos_callback;
+	struct damon_sysfs_scheme_regions *sysfs_regions;
+	int i;
+
+	for (i = 0; i < sysfs_schemes->nr; i++) {
+		sysfs_regions = sysfs_schemes->schemes_arr[i]->tried_regions;
+		if (sysfs_regions->upd_status !=
+				DAMOS_TRIED_REGIONS_UPD_FINISHED)
+			return false;
+	}
+	return true;
 }
 
 /*

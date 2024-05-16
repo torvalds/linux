@@ -681,23 +681,36 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
 	struct hdac_bus *bus = sof_to_bus(sdev);
+	bool imr_lost = false;
 	int ret, j;
 
 	/*
-	 * The memory used for IMR boot loses its content in deeper than S3 state
-	 * We must not try IMR boot on next power up (as it will fail).
-	 *
+	 * The memory used for IMR boot loses its content in deeper than S3
+	 * state on CAVS platforms.
+	 * On ACE platforms due to the system architecture the IMR content is
+	 * lost at S3 state already, they are tailored for s2idle use.
+	 * We must not try IMR boot on next power up in these cases as it will
+	 * fail.
+	 */
+	if (sdev->system_suspend_target > SOF_SUSPEND_S3 ||
+	    (chip->hw_ip_version >= SOF_INTEL_ACE_1_0 &&
+	     sdev->system_suspend_target == SOF_SUSPEND_S3))
+		imr_lost = true;
+
+	/*
 	 * In case of firmware crash or boot failure set the skip_imr_boot to true
 	 * as well in order to try to re-load the firmware to do a 'cold' boot.
 	 */
-	if (sdev->system_suspend_target > SOF_SUSPEND_S3 ||
-	    sdev->fw_state == SOF_FW_CRASHED ||
+	if (imr_lost || sdev->fw_state == SOF_FW_CRASHED ||
 	    sdev->fw_state == SOF_FW_BOOT_FAILED)
 		hda->skip_imr_boot = true;
 
 	ret = chip->disable_interrupts(sdev);
 	if (ret < 0)
 		return ret;
+
+	/* make sure that no irq handler is pending before shutdown */
+	synchronize_irq(sdev->ipc_irq);
 
 	hda_codec_jack_wake_enable(sdev, runtime_suspend);
 
@@ -745,6 +758,7 @@ skip_dsp:
 
 static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 {
+	const struct sof_intel_dsp_desc *chip;
 	int ret;
 
 	/* display codec must be powered before link reset */
@@ -776,6 +790,10 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 		hda_dsp_ctrl_ppcap_enable(sdev, true);
 		hda_dsp_ctrl_ppcap_int_enable(sdev, true);
 	}
+
+	chip = get_chip_info(sdev->pdata);
+	if (chip && chip->hw_ip_version >= SOF_INTEL_ACE_2_0)
+		hda_sdw_int_enable(sdev, true);
 
 cleanup:
 	/* display codec can powered off after controller init */

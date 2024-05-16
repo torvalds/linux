@@ -12,7 +12,7 @@
 #include <net/bpf_sk_storage.h>
 
 /* "extern" is to avoid sparse warning.  It is only used in bpf_struct_ops.c. */
-extern struct bpf_struct_ops bpf_tcp_congestion_ops;
+static struct bpf_struct_ops bpf_tcp_congestion_ops;
 
 static u32 unsupported_ops[] = {
 	offsetof(struct tcp_congestion_ops, get_info),
@@ -20,6 +20,7 @@ static u32 unsupported_ops[] = {
 
 static const struct btf_type *tcp_sock_type;
 static u32 tcp_sock_id, sock_id;
+static const struct btf_type *tcp_congestion_ops_type;
 
 static int bpf_tcp_ca_init(struct btf *btf)
 {
@@ -35,6 +36,11 @@ static int bpf_tcp_ca_init(struct btf *btf)
 		return -EINVAL;
 	tcp_sock_id = type_id;
 	tcp_sock_type = btf_type_by_id(btf, tcp_sock_id);
+
+	type_id = btf_find_by_name_kind(btf, "tcp_congestion_ops", BTF_KIND_STRUCT);
+	if (type_id < 0)
+		return -EINVAL;
+	tcp_congestion_ops_type = btf_type_by_id(btf, type_id);
 
 	return 0;
 }
@@ -149,7 +155,7 @@ static u32 prog_ops_moff(const struct bpf_prog *prog)
 	u32 midx;
 
 	midx = prog->expected_attach_type;
-	t = bpf_tcp_congestion_ops.type;
+	t = tcp_congestion_ops_type;
 	m = &btf_type_member(t)[midx];
 
 	return __btf_member_bit_offset(t, m) / 8;
@@ -191,17 +197,17 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 	case BPF_FUNC_ktime_get_coarse_ns:
 		return &bpf_ktime_get_coarse_ns_proto;
 	default:
-		return bpf_base_func_proto(func_id);
+		return bpf_base_func_proto(func_id, prog);
 	}
 }
 
-BTF_SET8_START(bpf_tcp_ca_check_kfunc_ids)
+BTF_KFUNCS_START(bpf_tcp_ca_check_kfunc_ids)
 BTF_ID_FLAGS(func, tcp_reno_ssthresh)
 BTF_ID_FLAGS(func, tcp_reno_cong_avoid)
 BTF_ID_FLAGS(func, tcp_reno_undo_cwnd)
 BTF_ID_FLAGS(func, tcp_slow_start)
 BTF_ID_FLAGS(func, tcp_cong_avoid_ai)
-BTF_SET8_END(bpf_tcp_ca_check_kfunc_ids)
+BTF_KFUNCS_END(bpf_tcp_ca_check_kfunc_ids)
 
 static const struct btf_kfunc_id_set bpf_tcp_ca_kfunc_set = {
 	.owner = THIS_MODULE,
@@ -271,7 +277,75 @@ static int bpf_tcp_ca_validate(void *kdata)
 	return tcp_validate_congestion_control(kdata);
 }
 
-struct bpf_struct_ops bpf_tcp_congestion_ops = {
+static u32 bpf_tcp_ca_ssthresh(struct sock *sk)
+{
+	return 0;
+}
+
+static void bpf_tcp_ca_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+{
+}
+
+static void bpf_tcp_ca_set_state(struct sock *sk, u8 new_state)
+{
+}
+
+static void bpf_tcp_ca_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
+{
+}
+
+static void bpf_tcp_ca_in_ack_event(struct sock *sk, u32 flags)
+{
+}
+
+static void bpf_tcp_ca_pkts_acked(struct sock *sk, const struct ack_sample *sample)
+{
+}
+
+static u32 bpf_tcp_ca_min_tso_segs(struct sock *sk)
+{
+	return 0;
+}
+
+static void bpf_tcp_ca_cong_control(struct sock *sk, const struct rate_sample *rs)
+{
+}
+
+static u32 bpf_tcp_ca_undo_cwnd(struct sock *sk)
+{
+	return 0;
+}
+
+static u32 bpf_tcp_ca_sndbuf_expand(struct sock *sk)
+{
+	return 0;
+}
+
+static void __bpf_tcp_ca_init(struct sock *sk)
+{
+}
+
+static void __bpf_tcp_ca_release(struct sock *sk)
+{
+}
+
+static struct tcp_congestion_ops __bpf_ops_tcp_congestion_ops = {
+	.ssthresh = bpf_tcp_ca_ssthresh,
+	.cong_avoid = bpf_tcp_ca_cong_avoid,
+	.set_state = bpf_tcp_ca_set_state,
+	.cwnd_event = bpf_tcp_ca_cwnd_event,
+	.in_ack_event = bpf_tcp_ca_in_ack_event,
+	.pkts_acked = bpf_tcp_ca_pkts_acked,
+	.min_tso_segs = bpf_tcp_ca_min_tso_segs,
+	.cong_control = bpf_tcp_ca_cong_control,
+	.undo_cwnd = bpf_tcp_ca_undo_cwnd,
+	.sndbuf_expand = bpf_tcp_ca_sndbuf_expand,
+
+	.init = __bpf_tcp_ca_init,
+	.release = __bpf_tcp_ca_release,
+};
+
+static struct bpf_struct_ops bpf_tcp_congestion_ops = {
 	.verifier_ops = &bpf_tcp_ca_verifier_ops,
 	.reg = bpf_tcp_ca_reg,
 	.unreg = bpf_tcp_ca_unreg,
@@ -281,10 +355,17 @@ struct bpf_struct_ops bpf_tcp_congestion_ops = {
 	.init = bpf_tcp_ca_init,
 	.validate = bpf_tcp_ca_validate,
 	.name = "tcp_congestion_ops",
+	.cfi_stubs = &__bpf_ops_tcp_congestion_ops,
+	.owner = THIS_MODULE,
 };
 
 static int __init bpf_tcp_ca_kfunc_init(void)
 {
-	return register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &bpf_tcp_ca_kfunc_set);
+	int ret;
+
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &bpf_tcp_ca_kfunc_set);
+	ret = ret ?: register_bpf_struct_ops(&bpf_tcp_congestion_ops, tcp_congestion_ops);
+
+	return ret;
 }
 late_initcall(bpf_tcp_ca_kfunc_init);

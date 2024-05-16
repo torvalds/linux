@@ -4,11 +4,17 @@
 
 #include <stdbool.h>
 
+enum {
+	TEST_OK   =  0,
+	TEST_FAIL = -1,
+	TEST_SKIP = -2,
+};
+
 #define TEST_ASSERT_VAL(text, cond)					 \
 do {									 \
 	if (!(cond)) {							 \
 		pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
-		return -1;						 \
+		return TEST_FAIL;					 \
 	}								 \
 } while (0)
 
@@ -17,15 +23,9 @@ do {									 \
 	if (val != expected) {						 \
 		pr_debug("FAILED %s:%d %s (%d != %d)\n",		 \
 			 __FILE__, __LINE__, text, val, expected);	 \
-		return -1;						 \
+		return TEST_FAIL;						 \
 	}								 \
 } while (0)
-
-enum {
-	TEST_OK   =  0,
-	TEST_FAIL = -1,
-	TEST_SKIP = -2,
-};
 
 struct test_suite;
 
@@ -145,6 +145,7 @@ DECLARE_SUITE(dlfilter);
 DECLARE_SUITE(sigtrap);
 DECLARE_SUITE(event_groups);
 DECLARE_SUITE(symbols);
+DECLARE_SUITE(util);
 
 /*
  * PowerPC and S390 do not support creation of instruction breakpoints using the
@@ -206,5 +207,6 @@ DECLARE_WORKLOAD(brstack);
 DECLARE_WORKLOAD(datasym);
 
 extern const char *dso_to_test;
+extern const char *test_objdump_path;
 
 #endif /* TESTS_H */

@@ -26,18 +26,6 @@ config VIDEO_ATOMISP
 	  To compile this driver as a module, choose M here: the
 	  module will be called atomisp
 
-config VIDEO_ATOMISP_ISP2401
-	bool "Use Intel Atom ISP on Cherrytail/Anniedale (ISP2401)"
-	depends on VIDEO_ATOMISP
-	help
-	  Enable support for Atom ISP2401-based boards.
-
-	  Select this option for  Anniedale (Merrifield+ / Moorefield)
-	  and Cherrytrail SoCs.
-
-	  Disabling it enables support for Atom ISP2400-based boards
-	  (Merrifield and Baytrail SoCs).
-
 if VIDEO_ATOMISP
 source "drivers/staging/media/atomisp/i2c/Kconfig"
 endif

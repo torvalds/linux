@@ -35,6 +35,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/hns-abi.h>
+#include "hns_roce_debugfs.h"
 
 #define PCI_REVISION_ID_HIP08			0x21
 #define PCI_REVISION_ID_HIP09			0x30
@@ -146,6 +147,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_SDI_MODE		= BIT(14),
 	HNS_ROCE_CAP_FLAG_STASH			= BIT(17),
 	HNS_ROCE_CAP_FLAG_CQE_INLINE		= BIT(19),
+	HNS_ROCE_CAP_FLAG_SRQ_RECORD_DB         = BIT(22),
 };
 
 #define HNS_ROCE_DB_TYPE_COUNT			2
@@ -177,6 +179,7 @@ enum {
 
 #define HNS_ROCE_CMD_SUCCESS			1
 
+#define HNS_ROCE_MAX_HOP_NUM			3
 /* The minimum page size is 4K for hardware */
 #define HNS_HW_PAGE_SHIFT			12
 #define HNS_HW_PAGE_SIZE			(1 << HNS_HW_PAGE_SHIFT)
@@ -267,6 +270,11 @@ struct hns_roce_hem_list {
 	dma_addr_t root_ba; /* pointer to the root ba table */
 };
 
+enum mtr_type {
+	MTR_DEFAULT = 0,
+	MTR_PBL,
+};
+
 struct hns_roce_buf_attr {
 	struct {
 		size_t	size;  /* region size */
@@ -275,7 +283,10 @@ struct hns_roce_buf_attr {
 	unsigned int region_count; /* valid region count */
 	unsigned int page_shift;  /* buffer page shift */
 	unsigned int user_access; /* umem access flag */
+	u64 iova;
+	enum mtr_type type;
 	bool mtt_only; /* only alloc buffer-required MTT memory */
+	bool adaptive; /* adaptive for page_shift and hopnum */
 };
 
 struct hns_roce_hem_cfg {
@@ -453,6 +464,8 @@ struct hns_roce_srq {
 	spinlock_t		lock;
 	struct mutex		mutex;
 	void (*event)(struct hns_roce_srq *srq, enum hns_roce_event event);
+	struct hns_roce_db	rdb;
+	u32			cap_flags;
 };
 
 struct hns_roce_uar_table {
@@ -581,6 +594,13 @@ struct hns_roce_work {
 	u32 queue_num;
 };
 
+enum hns_roce_cong_type {
+	CONG_TYPE_DCQCN,
+	CONG_TYPE_LDCP,
+	CONG_TYPE_HC3,
+	CONG_TYPE_DIP,
+};
+
 struct hns_roce_qp {
 	struct ib_qp		ibqp;
 	struct hns_roce_wq	rq;
@@ -624,6 +644,7 @@ struct hns_roce_qp {
 	struct list_head	sq_node; /* all send qps are on a list */
 	struct hns_user_mmap_entry *dwqe_mmap_entry;
 	u32			config;
+	enum hns_roce_cong_type	cong_type;
 };
 
 struct hns_roce_ib_iboe {
@@ -693,13 +714,6 @@ struct hns_roce_eq {
 
 struct hns_roce_eq_table {
 	struct hns_roce_eq	*eq;
-};
-
-enum cong_type {
-	CONG_TYPE_DCQCN,
-	CONG_TYPE_LDCP,
-	CONG_TYPE_HC3,
-	CONG_TYPE_DIP,
 };
 
 struct hns_roce_caps {
@@ -831,7 +845,8 @@ struct hns_roce_caps {
 	u16		default_aeq_period;
 	u16		default_aeq_arm_st;
 	u16		default_ceq_arm_st;
-	enum cong_type	cong_type;
+	u8		cong_cap;
+	enum hns_roce_cong_type default_cong_type;
 };
 
 enum hns_roce_device_state {
@@ -864,6 +879,29 @@ enum hns_roce_hw_pkt_stat_index {
 	HNS_ROCE_HW_CQ_POE_CNT,
 	HNS_ROCE_HW_CQ_NOTIFY_CNT,
 	HNS_ROCE_HW_CNT_TOTAL
+};
+
+enum hns_roce_sw_dfx_stat_index {
+	HNS_ROCE_DFX_AEQE_CNT,
+	HNS_ROCE_DFX_CEQE_CNT,
+	HNS_ROCE_DFX_CMDS_CNT,
+	HNS_ROCE_DFX_CMDS_ERR_CNT,
+	HNS_ROCE_DFX_MBX_POSTED_CNT,
+	HNS_ROCE_DFX_MBX_POLLED_CNT,
+	HNS_ROCE_DFX_MBX_EVENT_CNT,
+	HNS_ROCE_DFX_QP_CREATE_ERR_CNT,
+	HNS_ROCE_DFX_QP_MODIFY_ERR_CNT,
+	HNS_ROCE_DFX_CQ_CREATE_ERR_CNT,
+	HNS_ROCE_DFX_CQ_MODIFY_ERR_CNT,
+	HNS_ROCE_DFX_SRQ_CREATE_ERR_CNT,
+	HNS_ROCE_DFX_SRQ_MODIFY_ERR_CNT,
+	HNS_ROCE_DFX_XRCD_ALLOC_ERR_CNT,
+	HNS_ROCE_DFX_MR_REG_ERR_CNT,
+	HNS_ROCE_DFX_MR_REREG_ERR_CNT,
+	HNS_ROCE_DFX_AH_CREATE_ERR_CNT,
+	HNS_ROCE_DFX_MMAP_ERR_CNT,
+	HNS_ROCE_DFX_UCTX_ALLOC_ERR_CNT,
+	HNS_ROCE_DFX_CNT_TOTAL
 };
 
 struct hns_roce_hw {
@@ -908,6 +946,8 @@ struct hns_roce_hw {
 	int (*query_cqc)(struct hns_roce_dev *hr_dev, u32 cqn, void *buffer);
 	int (*query_qpc)(struct hns_roce_dev *hr_dev, u32 qpn, void *buffer);
 	int (*query_mpt)(struct hns_roce_dev *hr_dev, u32 key, void *buffer);
+	int (*query_srqc)(struct hns_roce_dev *hr_dev, u32 srqn, void *buffer);
+	int (*query_sccc)(struct hns_roce_dev *hr_dev, u32 qpn, void *buffer);
 	int (*query_hw_counter)(struct hns_roce_dev *hr_dev,
 				u64 *stats, u32 port, int *hw_counters);
 	const struct ib_device_ops *hns_roce_dev_ops;
@@ -975,6 +1015,8 @@ struct hns_roce_dev {
 	u32 is_vf;
 	u32 cong_algo_tmpl_id;
 	u64 dwqe_page;
+	struct hns_roce_dev_debugfs dbgfs;
+	atomic64_t *dfx_cnt;
 };
 
 static inline struct hns_roce_dev *to_hr_dev(struct ib_device *ib_dev)
@@ -1122,8 +1164,13 @@ void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev);
 
 /* hns roce hw need current block and next block addr from mtt */
 #define MTT_MIN_COUNT	 2
+static inline dma_addr_t hns_roce_get_mtr_ba(struct hns_roce_mtr *mtr)
+{
+	return mtr->hem_cfg.root_ba;
+}
+
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		      u32 offset, u64 *mtt_buf, int mtt_max, u64 *base_addr);
+		      u32 offset, u64 *mtt_buf, int mtt_max);
 int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			struct hns_roce_buf_attr *buf_attr,
 			unsigned int page_shift, struct ib_udata *udata,
@@ -1239,6 +1286,8 @@ int hns_roce_fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ib_qp);
 int hns_roce_fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ib_qp);
 int hns_roce_fill_res_mr_entry(struct sk_buff *msg, struct ib_mr *ib_mr);
 int hns_roce_fill_res_mr_entry_raw(struct sk_buff *msg, struct ib_mr *ib_mr);
+int hns_roce_fill_res_srq_entry(struct sk_buff *msg, struct ib_srq *ib_srq);
+int hns_roce_fill_res_srq_entry_raw(struct sk_buff *msg, struct ib_srq *ib_srq);
 struct hns_user_mmap_entry *
 hns_roce_user_mmap_entry_insert(struct ib_ucontext *ucontext, u64 address,
 				size_t length,

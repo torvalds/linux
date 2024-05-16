@@ -7,6 +7,10 @@
 div.body h1 { font-size: 180%; }
 div.body h2 { font-size: 150%; }
 div.body h3 { font-size: 130%; }
+div.body h4 { font-size: 110%; }
+
+/* toctree captions are styled like h2 */
+div.toctree-wrapper p.caption[role=heading] { font-size: 150%; }
 
 /* Tighten up the layout slightly */
 div.body { padding: 0 15px 0 10px; }
@@ -18,6 +22,12 @@ div.sphinxsidebar { font-size: inherit;
 div.document {
     margin: 20px 10px 0 10px; 
     width: auto;
+}
+
+/* Size the logo appropriately */
+img.logo {
+    width: 104px;
+    margin-bottom: 20px;
 }
 
 /*
@@ -72,4 +82,57 @@ input.kernel-toc-toggle { display: none; }
     }
     h3.kernel-toc-contents { display: inline; }
     div.kerneltoc a { color: black; }
+}
+
+/* Language selection menu */
+
+div.admonition {
+    /*
+     * Make sure we don't overlap notes and warnings at the top of the
+     * document.
+     */
+    clear: both;
+}
+
+div.language-selection {
+    background: #eeeeee;
+    border: 1px solid #cccccc;
+    margin-bottom: 1em;
+    padding: .5em;
+
+    position: relative;
+    float: right;
+}
+
+div.language-selection a {
+    display: block;
+    padding: 0.5em;
+    color: #333333;
+    text-decoration: none;
+}
+
+div.language-selection ul {
+    display: none;
+    position: absolute;
+
+    /* Align with the parent div */
+    top: 100%;
+    right: 0;
+    margin: 0;
+
+    list-style: none;
+
+    background: #fafafa;
+    border: 1px solid #cccccc;
+
+    /* Never break menu item lines */
+    white-space: nowrap;
+}
+
+div.language-selection:hover ul {
+    display: block;
+}
+
+div.language-selection ul li:hover {
+    background: #dddddd;
 }

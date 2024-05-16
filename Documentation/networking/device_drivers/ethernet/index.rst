@@ -32,6 +32,7 @@ Contents:
    intel/e1000
    intel/e1000e
    intel/fm10k
+   intel/idpf
    intel/igb
    intel/igbvf
    intel/ixgbe
@@ -41,6 +42,7 @@ Contents:
    intel/ice
    marvell/octeontx2
    marvell/octeon_ep
+   marvell/octeon_ep_vf
    mellanox/mlx5/index
    microsoft/netvsc
    neterion/s2io

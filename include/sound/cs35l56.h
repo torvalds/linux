@@ -12,6 +12,7 @@
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
+#include <sound/cs-amp-lib.h>
 
 #define CS35L56_DEVID					0x0000000
 #define CS35L56_REVID					0x0000004
@@ -23,6 +24,9 @@
 #define CS35L56_BLOCK_ENABLES2				0x000201C
 #define CS35L56_REFCLK_INPUT				0x0002C04
 #define CS35L56_GLOBAL_SAMPLE_RATE			0x0002C0C
+#define CS35L56_OTP_MEM_53				0x00300D4
+#define CS35L56_OTP_MEM_54				0x00300D8
+#define CS35L56_OTP_MEM_55				0x00300DC
 #define CS35L56_ASP1_ENABLES1				0x0004800
 #define CS35L56_ASP1_CONTROL1				0x0004804
 #define CS35L56_ASP1_CONTROL2				0x0004808
@@ -75,6 +79,7 @@
 #define CS35L56_DSP1_AHBM_WINDOW_DEBUG_0		0x25E2040
 #define CS35L56_DSP1_AHBM_WINDOW_DEBUG_1		0x25E2044
 #define CS35L56_DSP1_XMEM_UNPACKED24_0			0x2800000
+#define CS35L56_DSP1_FW_VER				0x2800010
 #define CS35L56_DSP1_HALO_STATE_A1			0x2801E58
 #define CS35L56_DSP1_HALO_STATE				0x28021E0
 #define CS35L56_DSP1_PM_CUR_STATE_A1			0x2804000
@@ -241,10 +246,9 @@
 
 #define CS35L56_CONTROL_PORT_READY_US			2200
 #define CS35L56_HALO_STATE_POLL_US			1000
-#define CS35L56_HALO_STATE_TIMEOUT_US			50000
-#define CS35L56_HIBERNATE_WAKE_POLL_US			500
-#define CS35L56_HIBERNATE_WAKE_TIMEOUT_US		5000
+#define CS35L56_HALO_STATE_TIMEOUT_US			250000
 #define CS35L56_RESET_PULSE_MIN_US			1100
+#define CS35L56_WAKE_HOLD_TIME_US			1000
 
 #define CS35L56_SDW1_PLAYBACK_PORT			1
 #define CS35L56_SDW1_CAPTURE_PORT			3
@@ -257,11 +261,15 @@ struct cs35l56_base {
 	struct regmap *regmap;
 	int irq;
 	struct mutex irq_lock;
+	u8 type;
 	u8 rev;
 	bool init_done;
 	bool fw_patched;
 	bool secured;
 	bool can_hibernate;
+	bool cal_data_valid;
+	s8 cal_index;
+	struct cirrus_amp_cal_data cal_data;
 	struct gpio_desc *reset_gpio;
 };
 
@@ -269,10 +277,13 @@ extern struct regmap_config cs35l56_regmap_i2c;
 extern struct regmap_config cs35l56_regmap_spi;
 extern struct regmap_config cs35l56_regmap_sdw;
 
+extern const struct cirrus_amp_cal_controls cs35l56_calibration_controls;
+
 extern const char * const cs35l56_tx_input_texts[CS35L56_NUM_INPUT_SRC];
 extern const unsigned int cs35l56_tx_input_values[CS35L56_NUM_INPUT_SRC];
 
 int cs35l56_set_patch(struct cs35l56_base *cs35l56_base);
+int cs35l56_force_sync_asp1_registers_from_cache(struct cs35l56_base *cs35l56_base);
 int cs35l56_mbox_send(struct cs35l56_base *cs35l56_base, unsigned int command);
 int cs35l56_firmware_shutdown(struct cs35l56_base *cs35l56_base);
 int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base);
@@ -285,7 +296,11 @@ int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base);
 int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base);
 int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_soundwire);
 void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
+int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base);
+int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
+			     bool *fw_missing, unsigned int *fw_version);
 int cs35l56_hw_init(struct cs35l56_base *cs35l56_base);
+int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base);
 int cs35l56_get_bclk_freq_id(unsigned int freq);
 void cs35l56_fill_supply_names(struct regulator_bulk_data *data);
 

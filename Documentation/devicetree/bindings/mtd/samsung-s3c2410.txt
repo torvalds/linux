@@ -19,7 +19,7 @@ Optional child properties:
 
 Each child device node may optionally contain a 'partitions' sub-node,
 which further contains sub-nodes describing the flash partition mapping.
-See partition.txt for more detail.
+See mtd.yaml for more detail.
 
 Example:
 

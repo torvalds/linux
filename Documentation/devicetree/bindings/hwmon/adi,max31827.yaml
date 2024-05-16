@@ -32,6 +32,68 @@ properties:
       Must have values in the interval (1.6V; 3.6V) in order for the device to
       function correctly.
 
+  adi,comp-int:
+    description:
+      If present interrupt mode is used. If not present comparator mode is used
+      (default).
+    type: boolean
+
+  adi,alarm-pol:
+    description:
+      Sets the alarms active state.
+            - 0 = active low
+            - 1 = active high
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+
+  adi,fault-q:
+    description:
+      Select how many consecutive temperature faults must occur before
+      overtemperature or undertemperature faults are indicated in the
+      corresponding status bits.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8]
+
+  adi,timeout-enable:
+    description:
+      Enables timeout. Bus timeout resets the I2C-compatible interface when SCL
+      is low for more than 30ms (nominal).
+    type: boolean
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,max31829
+
+    then:
+      properties:
+        adi,alarm-pol:
+          default: 1
+
+    else:
+      properties:
+        adi,alarm-pol:
+          default: 0
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,max31827
+
+    then:
+      properties:
+        adi,fault-q:
+          default: 1
+
+    else:
+      properties:
+        adi,fault-q:
+          default: 4
+
+
 required:
   - compatible
   - reg
@@ -49,6 +111,10 @@ examples:
             compatible = "adi,max31827";
             reg = <0x42>;
             vref-supply = <&reg_vdd>;
+            adi,comp-int;
+            adi,alarm-pol = <0>;
+            adi,fault-q = <1>;
+            adi,timeout-enable;
         };
     };
 ...

@@ -15,9 +15,11 @@
 #include <uapi/linux/io_uring.h>
 
 #include "io_uring.h"
+#include "napi.h"
 #include "sqpoll.h"
 
 #define IORING_SQPOLL_CAP_ENTRIES_VALUE 8
+#define IORING_TW_CAP_ENTRIES_VALUE	8
 
 enum {
 	IO_SQ_THREAD_SHOULD_STOP = 0,
@@ -193,6 +195,9 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 			ret = io_submit_sqes(ctx, to_submit);
 		mutex_unlock(&ctx->uring_lock);
 
+		if (io_napi(ctx))
+			ret += io_napi_sqpoll_busy_poll(ctx);
+
 		if (to_submit && wq_has_sleeper(&ctx->sqo_sq_wait))
 			wake_up(&ctx->sqo_sq_wait);
 		if (creds)
@@ -214,25 +219,77 @@ static bool io_sqd_handle_event(struct io_sq_data *sqd)
 			did_sig = get_signal(&ksig);
 		cond_resched();
 		mutex_lock(&sqd->lock);
+		sqd->sq_cpu = raw_smp_processor_id();
 	}
 	return did_sig || test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
 }
 
+/*
+ * Run task_work, processing the retry_list first. The retry_list holds
+ * entries that we passed on in the previous run, if we had more task_work
+ * than we were asked to process. Newly queued task_work isn't run until the
+ * retry list has been fully processed.
+ */
+static unsigned int io_sq_tw(struct llist_node **retry_list, int max_entries)
+{
+	struct io_uring_task *tctx = current->io_uring;
+	unsigned int count = 0;
+
+	if (*retry_list) {
+		*retry_list = io_handle_tw_list(*retry_list, &count, max_entries);
+		if (count >= max_entries)
+			return count;
+		max_entries -= count;
+	}
+
+	*retry_list = tctx_task_work_run(tctx, max_entries, &count);
+	return count;
+}
+
+static bool io_sq_tw_pending(struct llist_node *retry_list)
+{
+	struct io_uring_task *tctx = current->io_uring;
+
+	return retry_list || !llist_empty(&tctx->task_list);
+}
+
+static void io_sq_update_worktime(struct io_sq_data *sqd, struct rusage *start)
+{
+	struct rusage end;
+
+	getrusage(current, RUSAGE_SELF, &end);
+	end.ru_stime.tv_sec -= start->ru_stime.tv_sec;
+	end.ru_stime.tv_usec -= start->ru_stime.tv_usec;
+
+	sqd->work_time += end.ru_stime.tv_usec + end.ru_stime.tv_sec * 1000000;
+}
+
 static int io_sq_thread(void *data)
 {
+	struct llist_node *retry_list = NULL;
 	struct io_sq_data *sqd = data;
 	struct io_ring_ctx *ctx;
+	struct rusage start;
 	unsigned long timeout = 0;
 	char buf[TASK_COMM_LEN];
 	DEFINE_WAIT(wait);
 
+	/* offload context creation failed, just exit */
+	if (!current->io_uring)
+		goto err_out;
+
 	snprintf(buf, sizeof(buf), "iou-sqp-%d", sqd->task_pid);
 	set_task_comm(current, buf);
 
-	if (sqd->sq_cpu != -1)
+	/* reset to our pid after we've set task_comm, for fdinfo */
+	sqd->task_pid = current->pid;
+
+	if (sqd->sq_cpu != -1) {
 		set_cpus_allowed_ptr(current, cpumask_of(sqd->sq_cpu));
-	else
+	} else {
 		set_cpus_allowed_ptr(current, cpu_online_mask);
+		sqd->sq_cpu = raw_smp_processor_id();
+	}
 
 	mutex_lock(&sqd->lock);
 	while (1) {
@@ -245,28 +302,32 @@ static int io_sq_thread(void *data)
 		}
 
 		cap_entries = !list_is_singular(&sqd->ctx_list);
+		getrusage(current, RUSAGE_SELF, &start);
 		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
 			int ret = __io_sq_thread(ctx, cap_entries);
 
 			if (!sqt_spin && (ret > 0 || !wq_list_empty(&ctx->iopoll_list)))
 				sqt_spin = true;
 		}
-		if (io_run_task_work())
+		if (io_sq_tw(&retry_list, IORING_TW_CAP_ENTRIES_VALUE))
 			sqt_spin = true;
 
 		if (sqt_spin || !time_after(jiffies, timeout)) {
-			if (sqt_spin)
+			if (sqt_spin) {
+				io_sq_update_worktime(sqd, &start);
 				timeout = jiffies + sqd->sq_thread_idle;
+			}
 			if (unlikely(need_resched())) {
 				mutex_unlock(&sqd->lock);
 				cond_resched();
 				mutex_lock(&sqd->lock);
+				sqd->sq_cpu = raw_smp_processor_id();
 			}
 			continue;
 		}
 
 		prepare_to_wait(&sqd->wait, &wait, TASK_INTERRUPTIBLE);
-		if (!io_sqd_events_pending(sqd) && !task_work_pending(current)) {
+		if (!io_sqd_events_pending(sqd) && !io_sq_tw_pending(retry_list)) {
 			bool needs_sched = true;
 
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
@@ -294,6 +355,7 @@ static int io_sq_thread(void *data)
 				mutex_unlock(&sqd->lock);
 				schedule();
 				mutex_lock(&sqd->lock);
+				sqd->sq_cpu = raw_smp_processor_id();
 			}
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 				atomic_andnot(IORING_SQ_NEED_WAKEUP,
@@ -304,13 +366,16 @@ static int io_sq_thread(void *data)
 		timeout = jiffies + sqd->sq_thread_idle;
 	}
 
+	if (retry_list)
+		io_sq_tw(&retry_list, UINT_MAX);
+
 	io_uring_cancel_generic(true, sqd);
 	sqd->thread = NULL;
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 		atomic_or(IORING_SQ_NEED_WAKEUP, &ctx->rings->sq_flags);
 	io_run_task_work();
 	mutex_unlock(&sqd->lock);
-
+err_out:
 	complete(&sqd->exited);
 	do_exit(0);
 }

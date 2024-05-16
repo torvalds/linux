@@ -11,6 +11,7 @@
 / {
 	model = "TQ-Systems GmbH i.MX8MQ TQMa8MQ on MBa8Mx";
 	compatible = "tq,imx8mq-tqma8mq-mba8mx", "tq,imx8mq-tqma8mq", "fsl,imx8mq";
+	chassis-type = "embedded";
 
 	aliases {
 		eeprom0 = &eeprom3;
@@ -25,18 +26,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbcon0>;
 		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-	};
-
-	pcie0_refclk: pcie0-refclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <100000000>;
-	};
-
-	pcie1_refclk: pcie1-refclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <100000000>;
 	};
 
 	reg_otg_vbus: regulator-otg-vbus {
@@ -102,23 +91,24 @@
 	gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>;
 };
 
+/* PCIe slot on X36 */
 &pcie0 {
 	reset-gpio = <&expander0 14 GPIO_ACTIVE_LOW>;
 	clocks = <&clk IMX8MQ_CLK_PCIE1_ROOT>,
-		 <&pcie0_refclk>,
-		 <&clk IMX8MQ_CLK_PCIE1_PHY>,
+		 <&pcieclk 3>,
+		 <&pcieclk 2>,
 		 <&clk IMX8MQ_CLK_PCIE1_AUX>;
 	status = "okay";
 };
 
 /*
- * miniPCIe, also usable for cards with USB. Therefore configure the reset as
+ * miniPCIe on X28, also usable for cards with USB. Therefore configure the reset as
  * static gpio hog.
  */
 &pcie1 {
 	clocks = <&clk IMX8MQ_CLK_PCIE2_ROOT>,
-		 <&pcie1_refclk>,
-		 <&clk IMX8MQ_CLK_PCIE2_PHY>,
+		 <&pcieclk 1>,
+		 <&pcieclk 0>,
 		 <&clk IMX8MQ_CLK_PCIE2_AUX>;
 	status = "okay";
 };
@@ -170,6 +160,7 @@
 };
 
 &usb3_phy1 {
+	vbus-supply = <&reg_hub_vbus>;
 	status = "okay";
 };
 

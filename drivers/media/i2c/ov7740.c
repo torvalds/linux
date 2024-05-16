@@ -83,9 +83,7 @@
 
 struct ov7740 {
 	struct v4l2_subdev subdev;
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_pad pad;
-#endif
 	struct v4l2_mbus_framefmt format;
 	const struct ov7740_pixfmt *fmt;  /* Current format */
 	const struct ov7740_framesize *frmsize;
@@ -120,7 +118,6 @@ struct ov7740 {
 	struct v4l2_ctrl *contrast;
 
 	struct mutex mutex;	/* To serialize asynchronus callbacks */
-	bool streaming;		/* Streaming on/off */
 
 	struct gpio_desc *resetb_gpio;
 	struct gpio_desc *pwdn_gpio;
@@ -618,10 +615,6 @@ static int ov7740_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov7740->mutex);
-	if (ov7740->streaming == enable) {
-		mutex_unlock(&ov7740->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -635,8 +628,6 @@ static int ov7740_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov7740->streaming = enable;
-
 	mutex_unlock(&ov7740->mutex);
 	return ret;
 
@@ -647,34 +638,8 @@ err_unlock:
 	return ret;
 }
 
-static int ov7740_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
-{
-	struct v4l2_fract *tpf = &ival->interval;
-
-
-	tpf->numerator = 1;
-	tpf->denominator = 60;
-
-	return 0;
-}
-
-static int ov7740_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
-{
-	struct v4l2_fract *tpf = &ival->interval;
-
-
-	tpf->numerator = 1;
-	tpf->denominator = 60;
-
-	return 0;
-}
-
 static const struct v4l2_subdev_video_ops ov7740_subdev_video_ops = {
 	.s_stream = ov7740_set_stream,
-	.s_frame_interval = ov7740_s_frame_interval,
-	.g_frame_interval = ov7740_g_frame_interval,
 };
 
 static const struct reg_sequence ov7740_format_yuyv[] = {
@@ -807,9 +772,7 @@ static int ov7740_set_fmt(struct v4l2_subdev *sd,
 	struct ov7740 *ov7740 = container_of(sd, struct ov7740, subdev);
 	const struct ov7740_pixfmt *ovfmt;
 	const struct ov7740_framesize *fsize;
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	struct v4l2_mbus_framefmt *mbus_fmt;
-#endif
 	int ret;
 
 	mutex_lock(&ov7740->mutex);
@@ -822,11 +785,9 @@ static int ov7740_set_fmt(struct v4l2_subdev *sd,
 		ret = ov7740_try_fmt_internal(sd, &format->format, NULL, NULL);
 		if (ret)
 			goto error;
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state,
-						      format->pad);
+
+		mbus_fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		*mbus_fmt = format->format;
-#endif
 		mutex_unlock(&ov7740->mutex);
 		return 0;
 	}
@@ -851,26 +812,30 @@ static int ov7740_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct ov7740 *ov7740 = container_of(sd, struct ov7740, subdev);
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	struct v4l2_mbus_framefmt *mbus_fmt;
-#endif
-	int ret = 0;
 
 	mutex_lock(&ov7740->mutex);
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		mbus_fmt = v4l2_subdev_state_get_format(sd_state, 0);
 		format->format = *mbus_fmt;
-		ret = 0;
-#else
-		ret = -EINVAL;
-#endif
 	} else {
 		format->format = ov7740->format;
 	}
 	mutex_unlock(&ov7740->mutex);
 
-	return ret;
+	return 0;
+}
+
+static int ov7740_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
+{
+	struct v4l2_fract *tpf = &ival->interval;
+
+	tpf->numerator = 1;
+	tpf->denominator = 60;
+
+	return 0;
 }
 
 static const struct v4l2_subdev_pad_ops ov7740_subdev_pad_ops = {
@@ -879,6 +844,8 @@ static const struct v4l2_subdev_pad_ops ov7740_subdev_pad_ops = {
 	.enum_mbus_code = ov7740_enum_mbus_code,
 	.get_fmt = ov7740_get_fmt,
 	.set_fmt = ov7740_set_fmt,
+	.get_frame_interval = ov7740_get_frame_interval,
+	.set_frame_interval = ov7740_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov7740_subdev_ops = {
@@ -899,12 +866,11 @@ static void ov7740_get_default_format(struct v4l2_subdev *sd,
 	format->field = V4L2_FIELD_NONE;
 }
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static int ov7740_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ov7740 *ov7740 = container_of(sd, struct ov7740, subdev);
 	struct v4l2_mbus_framefmt *format =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 
 	mutex_lock(&ov7740->mutex);
 	ov7740_get_default_format(sd, format);
@@ -916,7 +882,6 @@ static int ov7740_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 static const struct v4l2_subdev_internal_ops ov7740_subdev_internal_ops = {
 	.open = ov7740_open,
 };
-#endif
 
 static int ov7740_probe_dt(struct i2c_client *client,
 			   struct ov7740 *ov7740)
@@ -1094,18 +1059,14 @@ static int ov7740_probe(struct i2c_client *client)
 	sd = &ov7740->subdev;
 	v4l2_i2c_subdev_init(sd, client, &ov7740_subdev_ops);
 
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &ov7740_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
-#endif
 
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	ov7740->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sd->entity, 1, &ov7740->pad);
 	if (ret)
 		return ret;
-#endif
 
 	ret = ov7740_set_power(ov7740, 1);
 	if (ret)

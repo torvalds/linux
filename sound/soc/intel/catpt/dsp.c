@@ -387,7 +387,7 @@ int catpt_dsp_power_down(struct catpt_dev *cdev)
 	mask = cdev->spec->d3srampgd_bit | cdev->spec->d3pgd_bit;
 	catpt_updatel_pci(cdev, VDRTCTL0, mask, cdev->spec->d3pgd_bit);
 
-	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D3hot);
+	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, (__force u32)PCI_D3hot);
 	/* give hw time to drop off */
 	udelay(50);
 
@@ -411,7 +411,7 @@ int catpt_dsp_power_up(struct catpt_dev *cdev)
 	val = mask & (~CATPT_VDRTCTL2_DTCGE);
 	catpt_updatel_pci(cdev, VDRTCTL2, mask, val);
 
-	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D0);
+	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, (__force u32)PCI_D0);
 
 	/* SRAM power gating none */
 	mask = cdev->spec->d3srampgd_bit | cdev->spec->d3pgd_bit;

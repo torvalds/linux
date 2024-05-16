@@ -42,13 +42,6 @@ typedef u32 unative_t;
 
 
 /*
- * IA-64 wants insane amounts of unrolling.  On other architectures that
- * is just a waste of space.
- */
-#if ($# <= 8) || defined(__ia64__)
-
-
-/*
  * These sub-operations are separate inlines since they can sometimes be
  * specially optimized using architecture-specific hacks.
  */
@@ -152,5 +145,3 @@ const struct raid6_calls raid6_intx$# = {
 	"int" NSTRING "x$#",
 	0
 };
-
-#endif

@@ -27,7 +27,7 @@ static const struct reg_field st_mmap_thermal_regfields[MAX_REGFIELDS] = {
 	 * written simultaneously for powering on and off the temperature
 	 * sensor. regmap_update_bits() will be used to update the register.
 	 */
-	[INT_THRESH_HI]	= REG_FIELD(STIH416_MPE_INT_THRESH, 	0,  7),
+	[INT_THRESH_HI]	= REG_FIELD(STIH416_MPE_INT_THRESH,	0,  7),
 	[DCORRECT]	= REG_FIELD(STIH416_MPE_CONF,		5,  9),
 	[OVERFLOW]	= REG_FIELD(STIH416_MPE_STATUS,		9,  9),
 	[DATA]		= REG_FIELD(STIH416_MPE_STATUS,		11, 18),

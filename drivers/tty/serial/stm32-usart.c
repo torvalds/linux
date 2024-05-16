@@ -9,6 +9,7 @@
  * Inspired by st-asc.c from STMicroelectronics (c)
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/delay.h>
@@ -39,60 +40,64 @@
 /* Register offsets */
 static struct stm32_usart_info __maybe_unused stm32f4_info = {
 	.ofs = {
-		.isr	= 0x00,
-		.rdr	= 0x04,
-		.tdr	= 0x04,
-		.brr	= 0x08,
-		.cr1	= 0x0c,
-		.cr2	= 0x10,
-		.cr3	= 0x14,
-		.gtpr	= 0x18,
-		.rtor	= UNDEF_REG,
-		.rqr	= UNDEF_REG,
-		.icr	= UNDEF_REG,
+		.isr		= 0x00,
+		.rdr		= 0x04,
+		.tdr		= 0x04,
+		.brr		= 0x08,
+		.cr1		= 0x0c,
+		.cr2		= 0x10,
+		.cr3		= 0x14,
+		.gtpr		= 0x18,
+		.rtor		= UNDEF_REG,
+		.rqr		= UNDEF_REG,
+		.icr		= UNDEF_REG,
+		.presc		= UNDEF_REG,
+		.hwcfgr1	= UNDEF_REG,
 	},
 	.cfg = {
 		.uart_enable_bit = 13,
 		.has_7bits_data = false,
-		.fifosize = 1,
 	}
 };
 
 static struct stm32_usart_info __maybe_unused stm32f7_info = {
 	.ofs = {
-		.cr1	= 0x00,
-		.cr2	= 0x04,
-		.cr3	= 0x08,
-		.brr	= 0x0c,
-		.gtpr	= 0x10,
-		.rtor	= 0x14,
-		.rqr	= 0x18,
-		.isr	= 0x1c,
-		.icr	= 0x20,
-		.rdr	= 0x24,
-		.tdr	= 0x28,
+		.cr1		= 0x00,
+		.cr2		= 0x04,
+		.cr3		= 0x08,
+		.brr		= 0x0c,
+		.gtpr		= 0x10,
+		.rtor		= 0x14,
+		.rqr		= 0x18,
+		.isr		= 0x1c,
+		.icr		= 0x20,
+		.rdr		= 0x24,
+		.tdr		= 0x28,
+		.presc		= UNDEF_REG,
+		.hwcfgr1	= UNDEF_REG,
 	},
 	.cfg = {
 		.uart_enable_bit = 0,
 		.has_7bits_data = true,
 		.has_swap = true,
-		.fifosize = 1,
 	}
 };
 
 static struct stm32_usart_info __maybe_unused stm32h7_info = {
 	.ofs = {
-		.cr1	= 0x00,
-		.cr2	= 0x04,
-		.cr3	= 0x08,
-		.brr	= 0x0c,
-		.gtpr	= 0x10,
-		.rtor	= 0x14,
-		.rqr	= 0x18,
-		.isr	= 0x1c,
-		.icr	= 0x20,
-		.rdr	= 0x24,
-		.tdr	= 0x28,
+		.cr1		= 0x00,
+		.cr2		= 0x04,
+		.cr3		= 0x08,
+		.brr		= 0x0c,
+		.gtpr		= 0x10,
+		.rtor		= 0x14,
+		.rqr		= 0x18,
+		.isr		= 0x1c,
+		.icr		= 0x20,
+		.rdr		= 0x24,
+		.tdr		= 0x28,
+		.presc		= 0x2c,
+		.hwcfgr1	= 0x3f0,
 	},
 	.cfg = {
 		.uart_enable_bit = 0,
@@ -100,7 +105,6 @@ static struct stm32_usart_info __maybe_unused stm32h7_info = {
 		.has_swap = true,
 		.has_wakeup = true,
 		.has_fifo = true,
-		.fifosize = 16,
 	}
 };
 
@@ -226,12 +230,6 @@ static int stm32_usart_config_rs485(struct uart_port *port, struct ktermios *ter
 
 	stm32_usart_clr_bits(port, ofs->cr1, BIT(cfg->uart_enable_bit));
 
-	if (port->rs485_rx_during_tx_gpio)
-		gpiod_set_value_cansleep(port->rs485_rx_during_tx_gpio,
-					 !!(rs485conf->flags & SER_RS485_RX_DURING_TX));
-	else
-		rs485conf->flags |= SER_RS485_RX_DURING_TX;
-
 	if (rs485conf->flags & SER_RS485_ENABLED) {
 		cr1 = readl_relaxed(port->membase + ofs->cr1);
 		cr3 = readl_relaxed(port->membase + ofs->cr3);
@@ -256,6 +254,10 @@ static int stm32_usart_config_rs485(struct uart_port *port, struct ktermios *ter
 
 		writel_relaxed(cr3, port->membase + ofs->cr3);
 		writel_relaxed(cr1, port->membase + ofs->cr1);
+
+		if (!port->rs485_rx_during_tx_gpio)
+			rs485conf->flags |= SER_RS485_RX_DURING_TX;
+
 	} else {
 		stm32_usart_clr_bits(port, ofs->cr3,
 				     USART_CR3_DEM | USART_CR3_DEP);
@@ -537,7 +539,7 @@ static void stm32_usart_rx_dma_complete(void *arg)
 	unsigned int size;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	size = stm32_usart_receive_chars(port, false);
 	uart_unlock_and_check_sysrq_irqrestore(port, flags);
 	if (size)
@@ -643,9 +645,9 @@ static void stm32_usart_tx_dma_complete(void *arg)
 	stm32_usart_tx_dma_terminate(stm32port);
 
 	/* Let's see if we have pending data to send */
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	stm32_usart_transmit_chars(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void stm32_usart_tx_interrupt_enable(struct uart_port *port)
@@ -859,6 +861,7 @@ static irqreturn_t stm32_usart_interrupt(int irq, void *ptr)
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	u32 sr;
 	unsigned int size;
+	irqreturn_t ret = IRQ_NONE;
 
 	sr = readl_relaxed(port->membase + ofs->isr);
 
@@ -867,11 +870,14 @@ static irqreturn_t stm32_usart_interrupt(int irq, void *ptr)
 	    (sr & USART_SR_TC)) {
 		stm32_usart_tc_interrupt_disable(port);
 		stm32_usart_rs485_rts_disable(port);
+		ret = IRQ_HANDLED;
 	}
 
-	if ((sr & USART_SR_RTOF) && ofs->icr != UNDEF_REG)
+	if ((sr & USART_SR_RTOF) && ofs->icr != UNDEF_REG) {
 		writel_relaxed(USART_ICR_RTOCF,
 			       port->membase + ofs->icr);
+		ret = IRQ_HANDLED;
+	}
 
 	if ((sr & USART_SR_WUF) && ofs->icr != UNDEF_REG) {
 		/* Clear wake up flag and disable wake up interrupt */
@@ -880,6 +886,7 @@ static irqreturn_t stm32_usart_interrupt(int irq, void *ptr)
 		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_WUFIE);
 		if (irqd_is_wakeup_set(irq_get_irq_data(port->irq)))
 			pm_wakeup_event(tport->tty->dev, 0);
+		ret = IRQ_HANDLED;
 	}
 
 	/*
@@ -889,30 +896,33 @@ static irqreturn_t stm32_usart_interrupt(int irq, void *ptr)
 	if (!stm32_port->throttled) {
 		if (((sr & USART_SR_RXNE) && !stm32_usart_rx_dma_started(stm32_port)) ||
 		    ((sr & USART_SR_ERR_MASK) && stm32_usart_rx_dma_started(stm32_port))) {
-			spin_lock(&port->lock);
+			uart_port_lock(port);
 			size = stm32_usart_receive_chars(port, false);
 			uart_unlock_and_check_sysrq(port);
 			if (size)
 				tty_flip_buffer_push(tport);
+			ret = IRQ_HANDLED;
 		}
 	}
 
 	if ((sr & USART_SR_TXE) && !(stm32_port->tx_ch)) {
-		spin_lock(&port->lock);
+		uart_port_lock(port);
 		stm32_usart_transmit_chars(port);
-		spin_unlock(&port->lock);
+		uart_port_unlock(port);
+		ret = IRQ_HANDLED;
 	}
 
 	/* Receiver timeout irq for DMA RX */
 	if (stm32_usart_rx_dma_started(stm32_port) && !stm32_port->throttled) {
-		spin_lock(&port->lock);
+		uart_port_lock(port);
 		size = stm32_usart_receive_chars(port, false);
 		uart_unlock_and_check_sysrq(port);
 		if (size)
 			tty_flip_buffer_push(tport);
+		ret = IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static void stm32_usart_set_mctrl(struct uart_port *port, unsigned int mctrl)
@@ -993,7 +1003,7 @@ static void stm32_usart_throttle(struct uart_port *port)
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/*
 	 * Pause DMA transfer, so the RX data gets queued into the FIFO.
@@ -1006,7 +1016,7 @@ static void stm32_usart_throttle(struct uart_port *port)
 		stm32_usart_clr_bits(port, ofs->cr3, stm32_port->cr3_irq);
 
 	stm32_port->throttled = true;
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /* Unthrottle the remote, the input buffer can now accept data. */
@@ -1016,7 +1026,7 @@ static void stm32_usart_unthrottle(struct uart_port *port)
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	stm32_usart_set_bits(port, ofs->cr1, stm32_port->cr1_irq);
 	if (stm32_port->cr3_irq)
 		stm32_usart_set_bits(port, ofs->cr3, stm32_port->cr3_irq);
@@ -1030,7 +1040,7 @@ static void stm32_usart_unthrottle(struct uart_port *port)
 	if (stm32_port->rx_ch)
 		stm32_usart_rx_dma_start_or_resume(port);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /* Receive stop */
@@ -1047,9 +1057,20 @@ static void stm32_usart_stop_rx(struct uart_port *port)
 		stm32_usart_clr_bits(port, ofs->cr3, stm32_port->cr3_irq);
 }
 
-/* Handle breaks - ignored by us */
 static void stm32_usart_break_ctl(struct uart_port *port, int break_state)
 {
+	struct stm32_port *stm32_port = to_stm32_port(port);
+	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	if (break_state)
+		stm32_usart_set_bits(port, ofs->rqr, USART_RQR_SBKRQ);
+	else
+		stm32_usart_clr_bits(port, ofs->rqr, USART_RQR_SBKRQ);
+
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static int stm32_usart_startup(struct uart_port *port)
@@ -1071,6 +1092,7 @@ static int stm32_usart_startup(struct uart_port *port)
 		val |= USART_CR2_SWAP;
 		writel_relaxed(val, port->membase + ofs->cr2);
 	}
+	stm32_port->throttled = false;
 
 	/* RX FIFO Flush */
 	if (ofs->rqr != UNDEF_REG)
@@ -1138,6 +1160,8 @@ static void stm32_usart_shutdown(struct uart_port *port)
 	free_irq(port->irq, port);
 }
 
+static const unsigned int stm32_usart_presc_val[] = {1, 2, 4, 6, 8, 10, 12, 16, 32, 64, 128, 256};
+
 static void stm32_usart_set_termios(struct uart_port *port,
 				    struct ktermios *termios,
 				    const struct ktermios *old)
@@ -1146,19 +1170,21 @@ static void stm32_usart_set_termios(struct uart_port *port,
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 	const struct stm32_usart_config *cfg = &stm32_port->info->cfg;
 	struct serial_rs485 *rs485conf = &port->rs485;
-	unsigned int baud, bits;
+	unsigned int baud, bits, uart_clk, uart_clk_pres;
 	u32 usartdiv, mantissa, fraction, oversampling;
 	tcflag_t cflag = termios->c_cflag;
-	u32 cr1, cr2, cr3, isr;
+	u32 cr1, cr2, cr3, isr, brr, presc;
 	unsigned long flags;
 	int ret;
 
 	if (!stm32_port->hw_flow_control)
 		cflag &= ~CRTSCTS;
 
-	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 8);
+	uart_clk = clk_get_rate(stm32_port->clk);
 
-	spin_lock_irqsave(&port->lock, flags);
+	baud = uart_get_baud_rate(port, termios, old, 0, uart_clk / 8);
+
+	uart_port_lock_irqsave(port, &flags);
 
 	ret = readl_relaxed_poll_timeout_atomic(port->membase + ofs->isr,
 						isr,
@@ -1258,27 +1284,48 @@ static void stm32_usart_set_termios(struct uart_port *port,
 		cr3 |= USART_CR3_CTSE | USART_CR3_RTSE;
 	}
 
-	usartdiv = DIV_ROUND_CLOSEST(port->uartclk, baud);
+	for (presc = 0; presc <= USART_PRESC_MAX; presc++) {
+		uart_clk_pres = DIV_ROUND_CLOSEST(uart_clk, stm32_usart_presc_val[presc]);
+		usartdiv = DIV_ROUND_CLOSEST(uart_clk_pres, baud);
 
-	/*
-	 * The USART supports 16 or 8 times oversampling.
-	 * By default we prefer 16 times oversampling, so that the receiver
-	 * has a better tolerance to clock deviations.
-	 * 8 times oversampling is only used to achieve higher speeds.
-	 */
-	if (usartdiv < 16) {
-		oversampling = 8;
-		cr1 |= USART_CR1_OVER8;
-		stm32_usart_set_bits(port, ofs->cr1, USART_CR1_OVER8);
-	} else {
-		oversampling = 16;
-		cr1 &= ~USART_CR1_OVER8;
-		stm32_usart_clr_bits(port, ofs->cr1, USART_CR1_OVER8);
+		/*
+		 * The USART supports 16 or 8 times oversampling.
+		 * By default we prefer 16 times oversampling, so that the receiver
+		 * has a better tolerance to clock deviations.
+		 * 8 times oversampling is only used to achieve higher speeds.
+		 */
+		if (usartdiv < 16) {
+			oversampling = 8;
+			cr1 |= USART_CR1_OVER8;
+			stm32_usart_set_bits(port, ofs->cr1, USART_CR1_OVER8);
+		} else {
+			oversampling = 16;
+			cr1 &= ~USART_CR1_OVER8;
+			stm32_usart_clr_bits(port, ofs->cr1, USART_CR1_OVER8);
+		}
+
+		mantissa = (usartdiv / oversampling) << USART_BRR_DIV_M_SHIFT;
+		fraction = usartdiv % oversampling;
+		brr = mantissa | fraction;
+
+		if (FIELD_FIT(USART_BRR_MASK, brr)) {
+			if (ofs->presc != UNDEF_REG) {
+				port->uartclk = uart_clk_pres;
+				writel_relaxed(presc, port->membase + ofs->presc);
+			} else if (presc) {
+				/* We need a prescaler but we don't have it (STM32F4, STM32F7) */
+				dev_err(port->dev,
+					"unable to set baudrate, input clock is too high");
+			}
+			break;
+		} else if (presc == USART_PRESC_MAX) {
+			/* Even with prescaler and brr at max value we can't set baudrate */
+			dev_err(port->dev, "unable to set baudrate, input clock is too high");
+			break;
+		}
 	}
 
-	mantissa = (usartdiv / oversampling) << USART_BRR_DIV_M_SHIFT;
-	fraction = usartdiv % oversampling;
-	writel_relaxed(mantissa | fraction, port->membase + ofs->brr);
+	writel_relaxed(brr, port->membase + ofs->brr);
 
 	uart_update_timeout(port, cflag, baud);
 
@@ -1349,7 +1396,7 @@ static void stm32_usart_set_termios(struct uart_port *port,
 	writel_relaxed(cr1, port->membase + ofs->cr1);
 
 	stm32_usart_set_bits(port, ofs->cr1, BIT(cfg->uart_enable_bit));
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	/* Handle modem control interrupts */
 	if (UART_ENABLE_MS(port, termios->c_cflag))
@@ -1399,9 +1446,9 @@ static void stm32_usart_pm(struct uart_port *port, unsigned int state,
 		pm_runtime_get_sync(port->dev);
 		break;
 	case UART_PM_STATE_OFF:
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 		stm32_usart_clr_bits(port, ofs->cr1, BIT(cfg->uart_enable_bit));
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 		pm_runtime_put_sync(port->dev);
 		break;
 	}
@@ -1462,37 +1509,57 @@ static const struct uart_ops stm32_uart_ops = {
 #endif /* CONFIG_CONSOLE_POLL */
 };
 
-/*
- * STM32H7 RX & TX FIFO threshold configuration (CR3 RXFTCFG / TXFTCFG)
- * Note: 1 isn't a valid value in RXFTCFG / TXFTCFG. In this case,
- * RXNEIE / TXEIE can be used instead of threshold irqs: RXFTIE / TXFTIE.
- * So, RXFTCFG / TXFTCFG bitfields values are encoded as array index + 1.
- */
-static const u32 stm32h7_usart_fifo_thresh_cfg[] = { 1, 2, 4, 8, 12, 14, 16 };
+struct stm32_usart_thresh_ratio {
+	int mul;
+	int div;
+};
 
-static void stm32_usart_get_ftcfg(struct platform_device *pdev, const char *p,
-				  int *ftcfg)
+static const struct stm32_usart_thresh_ratio stm32h7_usart_fifo_thresh_cfg[] = {
+	{1, 8}, {1, 4}, {1, 2}, {3, 4}, {7, 8}, {1, 1} };
+
+static int stm32_usart_get_thresh_value(u32 fifo_size, int index)
 {
-	u32 bytes, i;
+	return fifo_size * stm32h7_usart_fifo_thresh_cfg[index].mul /
+		stm32h7_usart_fifo_thresh_cfg[index].div;
+}
 
-	/* DT option to get RX & TX FIFO threshold (default to 8 bytes) */
+static int stm32_usart_get_ftcfg(struct platform_device *pdev, struct stm32_port *stm32port,
+				 const char *p, int *ftcfg)
+{
+	const struct stm32_usart_offsets *ofs = &stm32port->info->ofs;
+	u32 bytes, i, cfg8;
+	int fifo_size;
+
+	if (WARN_ON(ofs->hwcfgr1 == UNDEF_REG))
+		return 1;
+
+	cfg8 = FIELD_GET(USART_HWCFGR1_CFG8,
+			 readl_relaxed(stm32port->port.membase + ofs->hwcfgr1));
+
+	/* On STM32H7, hwcfgr is not present, so returned value will be 0 */
+	fifo_size = cfg8 ? 1 << cfg8 : STM32H7_USART_FIFO_SIZE;
+
+	/* DT option to get RX & TX FIFO threshold (default to half fifo size) */
 	if (of_property_read_u32(pdev->dev.of_node, p, &bytes))
-		bytes = 8;
+		bytes = fifo_size / 2;
 
-	for (i = 0; i < ARRAY_SIZE(stm32h7_usart_fifo_thresh_cfg); i++)
-		if (stm32h7_usart_fifo_thresh_cfg[i] >= bytes)
+	if (bytes < stm32_usart_get_thresh_value(fifo_size, 0)) {
+		*ftcfg = -EINVAL;
+		return fifo_size;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(stm32h7_usart_fifo_thresh_cfg); i++) {
+		if (stm32_usart_get_thresh_value(fifo_size, i) >= bytes)
 			break;
+	}
 	if (i >= ARRAY_SIZE(stm32h7_usart_fifo_thresh_cfg))
 		i = ARRAY_SIZE(stm32h7_usart_fifo_thresh_cfg) - 1;
 
-	dev_dbg(&pdev->dev, "%s set to %d bytes\n", p,
-		stm32h7_usart_fifo_thresh_cfg[i]);
+	dev_dbg(&pdev->dev, "%s set to %d/%d bytes\n", p,
+		stm32_usart_get_thresh_value(fifo_size, i), fifo_size);
 
-	/* Provide FIFO threshold ftcfg (1 is invalid: threshold irq unused) */
-	if (i)
-		*ftcfg = i - 1;
-	else
-		*ftcfg = -EINVAL;
+	*ftcfg = i;
+	return fifo_size;
 }
 
 static void stm32_usart_deinit_port(struct stm32_port *stm32port)
@@ -1522,7 +1589,6 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 	port->flags	= UPF_BOOT_AUTOCONF;
 	port->ops	= &stm32_uart_ops;
 	port->dev	= &pdev->dev;
-	port->fifosize	= stm32port->info->cfg.fifosize;
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_STM32_CONSOLE);
 	port->irq = irq;
 	port->rs485_config = stm32_usart_config_rs485;
@@ -1537,14 +1603,6 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 
 	stm32port->swap = stm32port->info->cfg.has_swap &&
 		of_property_read_bool(pdev->dev.of_node, "rx-tx-swap");
-
-	stm32port->fifoen = stm32port->info->cfg.has_fifo;
-	if (stm32port->fifoen) {
-		stm32_usart_get_ftcfg(pdev, "rx-threshold",
-				      &stm32port->rxftcfg);
-		stm32_usart_get_ftcfg(pdev, "tx-threshold",
-				      &stm32port->txftcfg);
-	}
 
 	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(port->membase))
@@ -1566,6 +1624,15 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 	if (!stm32port->port.uartclk) {
 		ret = -EINVAL;
 		goto err_clk;
+	}
+
+	stm32port->fifoen = stm32port->info->cfg.has_fifo;
+	if (stm32port->fifoen) {
+		stm32_usart_get_ftcfg(pdev, stm32port, "rx-threshold", &stm32port->rxftcfg);
+		port->fifosize = stm32_usart_get_ftcfg(pdev, stm32port, "tx-threshold",
+						       &stm32port->txftcfg);
+	} else {
+		port->fifosize = 1;
 	}
 
 	stm32port->gpios = mctrl_gpio_init(&stm32port->port, 0);
@@ -1811,7 +1878,7 @@ err_dma_rx:
 	return ret;
 }
 
-static int stm32_usart_serial_remove(struct platform_device *pdev)
+static void stm32_usart_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct stm32_port *stm32_port = to_stm32_port(port);
@@ -1850,8 +1917,6 @@ static int stm32_usart_serial_remove(struct platform_device *pdev)
 	}
 
 	stm32_usart_deinit_port(stm32_port);
-
-	return 0;
 }
 
 static void __maybe_unused stm32_usart_console_putchar(struct uart_port *port, unsigned char ch)
@@ -1884,9 +1949,9 @@ static void stm32_usart_console_write(struct console *co, const char *s,
 	int locked = 1;
 
 	if (oops_in_progress)
-		locked = spin_trylock_irqsave(&port->lock, flags);
+		locked = uart_port_trylock_irqsave(port, &flags);
 	else
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 
 	/* Save and disable interrupts, enable the transmitter */
 	old_cr1 = readl_relaxed(port->membase + ofs->cr1);
@@ -1900,7 +1965,7 @@ static void stm32_usart_console_write(struct console *co, const char *s,
 	writel_relaxed(old_cr1, port->membase + ofs->cr1);
 
 	if (locked)
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static int stm32_usart_console_setup(struct console *co, char *options)
@@ -2035,7 +2100,7 @@ static int __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
 		 * low-power mode.
 		 */
 		if (stm32_port->rx_ch) {
-			spin_lock_irqsave(&port->lock, flags);
+			uart_port_lock_irqsave(port, &flags);
 			/* Poll data from DMA RX buffer if any */
 			if (!stm32_usart_rx_dma_pause(stm32_port))
 				size += stm32_usart_receive_chars(port, true);
@@ -2135,7 +2200,7 @@ static const struct dev_pm_ops stm32_serial_pm_ops = {
 
 static struct platform_driver stm32_serial_driver = {
 	.probe		= stm32_usart_serial_probe,
-	.remove		= stm32_usart_serial_remove,
+	.remove_new	= stm32_usart_serial_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm	= &stm32_serial_pm_ops,

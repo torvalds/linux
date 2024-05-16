@@ -662,12 +662,12 @@ static int lib80211_tkip_get_key(void *key, int len, u8 * seq, void *priv)
 	memcpy(key, tkey->key, TKIP_KEY_LEN);
 
 	if (seq) {
-		/* Return the sequence number of the last transmitted frame. */
-		u16 iv16 = tkey->tx_iv16;
-		u32 iv32 = tkey->tx_iv32;
-		if (iv16 == 0)
-			iv32--;
-		iv16--;
+		/*
+		 * Not clear if this should return the value as is
+		 * or - as the code previously seemed to partially
+		 * have been written as - subtract one from it. It
+		 * was working this way for a long time so leave it.
+		 */
 		seq[0] = tkey->tx_iv16;
 		seq[1] = tkey->tx_iv16 >> 8;
 		seq[2] = tkey->tx_iv32;

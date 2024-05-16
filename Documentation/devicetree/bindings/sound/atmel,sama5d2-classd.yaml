@@ -18,7 +18,12 @@ description:
 
 properties:
   compatible:
-    const: atmel,sama5d2-classd
+    oneOf:
+      - items:
+          - const: atmel,sama5d2-classd
+      - items:
+          - const: microchip,sam9x7-classd
+          - const: atmel,sama5d2-classd
 
   reg:
     maxItems: 1

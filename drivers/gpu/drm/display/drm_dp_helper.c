@@ -533,6 +533,15 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	mutex_lock(&aux->hw_mutex);
 
 	/*
+	 * If the device attached to the aux bus is powered down then there's
+	 * no reason to attempt a transfer. Error out immediately.
+	 */
+	if (aux->powered_down) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	/*
 	 * The specification doesn't give any recommendation on how often to
 	 * retry native transactions. We used to retry 7 times like for
 	 * aux i2c transactions but real world devices this wasn't
@@ -598,6 +607,29 @@ int drm_dp_dpcd_probe(struct drm_dp_aux *aux, unsigned int offset)
 	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_probe);
+
+/**
+ * drm_dp_dpcd_set_powered() - Set whether the DP device is powered
+ * @aux: DisplayPort AUX channel; for convenience it's OK to pass NULL here
+ *       and the function will be a no-op.
+ * @powered: true if powered; false if not
+ *
+ * If the endpoint device on the DP AUX bus is known to be powered down
+ * then this function can be called to make future transfers fail immediately
+ * instead of needing to time out.
+ *
+ * If this function is never called then a device defaults to being powered.
+ */
+void drm_dp_dpcd_set_powered(struct drm_dp_aux *aux, bool powered)
+{
+	if (!aux)
+		return;
+
+	mutex_lock(&aux->hw_mutex);
+	aux->powered_down = !powered;
+	mutex_unlock(&aux->hw_mutex);
+}
+EXPORT_SYMBOL(drm_dp_dpcd_set_powered);
 
 /**
  * drm_dp_dpcd_read() - read a series of bytes from the DPCD
@@ -1858,6 +1890,9 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 	struct drm_dp_aux_msg msg;
 	int err = 0;
 
+	if (aux->powered_down)
+		return -EBUSY;
+
 	dp_aux_i2c_transfer_size = clamp(dp_aux_i2c_transfer_size, 1, DP_AUX_MAX_PAYLOAD_BYTES);
 
 	memset(&msg, 0, sizeof(msg));
@@ -2078,7 +2113,7 @@ EXPORT_SYMBOL(drm_dp_aux_init);
  * drm_dp_aux_register() in &drm_connector_funcs.late_register, and likewise to
  * call drm_dp_aux_unregister() in &drm_connector_funcs.early_unregister.
  * Functions which don't follow this will likely Oops when
- * %CONFIG_DRM_DP_AUX_CHARDEV is enabled.
+ * %CONFIG_DRM_DISPLAY_DP_AUX_CHARDEV is enabled.
  *
  * For devices where the AUX channel is a device that exists independently of
  * the &drm_device that uses it, such as SoCs and bridge devices, it is
@@ -2102,7 +2137,6 @@ int drm_dp_aux_register(struct drm_dp_aux *aux)
 	if (!aux->ddc.algo)
 		drm_dp_aux_init(aux);
 
-	aux->ddc.class = I2C_CLASS_DDC;
 	aux->ddc.owner = THIS_MODULE;
 	aux->ddc.dev.parent = aux->dev;
 
@@ -2245,6 +2279,10 @@ static const struct dpcd_quirk dpcd_quirk_list[] = {
 	{ OUI(0x00, 0x00, 0x00), DEVICE_ID('C', 'H', '7', '5', '1', '1'), false, BIT(DP_DPCD_QUIRK_NO_SINK_COUNT) },
 	/* Synaptics DP1.4 MST hubs can support DSC without virtual DPCD */
 	{ OUI(0x90, 0xCC, 0x24), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) },
+	/* Synaptics DP1.4 MST hubs require DSC for some modes on which it applies HBLANK expansion. */
+	{ OUI(0x90, 0xCC, 0x24), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_HBLANK_EXPANSION_REQUIRES_DSC) },
+	/* MediaTek panels (at least in U3224KBA) require DSC for modes with a short HBLANK on UHBR links. */
+	{ OUI(0x00, 0x0C, 0xE7), DEVICE_ID_ANY, false, BIT(DP_DPCD_QUIRK_HBLANK_EXPANSION_REQUIRES_DSC) },
 	/* Apple MacBookPro 2017 15 inch eDP Retina panel reports too low DP_MAX_LINK_RATE */
 	{ OUI(0x00, 0x10, 0xfa), DEVICE_ID(101, 68, 21, 101, 98, 97), false, BIT(DP_DPCD_QUIRK_CAN_DO_MAX_LINK_RATE_3_24_GBPS) },
 };
@@ -2325,6 +2363,33 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_read_desc);
+
+/**
+ * drm_dp_dsc_sink_bpp_incr() - Get bits per pixel increment
+ * @dsc_dpcd: DSC capabilities from DPCD
+ *
+ * Returns the bpp precision supported by the DP sink.
+ */
+u8 drm_dp_dsc_sink_bpp_incr(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	u8 bpp_increment_dpcd = dsc_dpcd[DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT];
+
+	switch (bpp_increment_dpcd) {
+	case DP_DSC_BITS_PER_PIXEL_1_16:
+		return 16;
+	case DP_DSC_BITS_PER_PIXEL_1_8:
+		return 8;
+	case DP_DSC_BITS_PER_PIXEL_1_4:
+		return 4;
+	case DP_DSC_BITS_PER_PIXEL_1_2:
+		return 2;
+	case DP_DSC_BITS_PER_PIXEL_1_1:
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_dsc_sink_bpp_incr);
 
 /**
  * drm_dp_dsc_sink_max_slice_count() - Get the max slice count
@@ -2869,24 +2934,155 @@ static const char *dp_content_type_get_name(enum dp_content_type content_type)
 	}
 }
 
-void drm_dp_vsc_sdp_log(const char *level, struct device *dev,
-			const struct drm_dp_vsc_sdp *vsc)
+void drm_dp_vsc_sdp_log(struct drm_printer *p, const struct drm_dp_vsc_sdp *vsc)
 {
-#define DP_SDP_LOG(fmt, ...) dev_printk(level, dev, fmt, ##__VA_ARGS__)
-	DP_SDP_LOG("DP SDP: %s, revision %u, length %u\n", "VSC",
+	drm_printf(p, "DP SDP: VSC, revision %u, length %u\n",
 		   vsc->revision, vsc->length);
-	DP_SDP_LOG("    pixelformat: %s\n",
+	drm_printf(p, "    pixelformat: %s\n",
 		   dp_pixelformat_get_name(vsc->pixelformat));
-	DP_SDP_LOG("    colorimetry: %s\n",
+	drm_printf(p, "    colorimetry: %s\n",
 		   dp_colorimetry_get_name(vsc->pixelformat, vsc->colorimetry));
-	DP_SDP_LOG("    bpc: %u\n", vsc->bpc);
-	DP_SDP_LOG("    dynamic range: %s\n",
+	drm_printf(p, "    bpc: %u\n", vsc->bpc);
+	drm_printf(p, "    dynamic range: %s\n",
 		   dp_dynamic_range_get_name(vsc->dynamic_range));
-	DP_SDP_LOG("    content type: %s\n",
+	drm_printf(p, "    content type: %s\n",
 		   dp_content_type_get_name(vsc->content_type));
-#undef DP_SDP_LOG
 }
 EXPORT_SYMBOL(drm_dp_vsc_sdp_log);
+
+void drm_dp_as_sdp_log(struct drm_printer *p, const struct drm_dp_as_sdp *as_sdp)
+{
+	drm_printf(p, "DP SDP: AS_SDP, revision %u, length %u\n",
+		   as_sdp->revision, as_sdp->length);
+	drm_printf(p, "    vtotal: %d\n", as_sdp->vtotal);
+	drm_printf(p, "    target_rr: %d\n", as_sdp->target_rr);
+	drm_printf(p, "    duration_incr_ms: %d\n", as_sdp->duration_incr_ms);
+	drm_printf(p, "    duration_decr_ms: %d\n", as_sdp->duration_decr_ms);
+	drm_printf(p, "    operation_mode: %d\n", as_sdp->mode);
+}
+EXPORT_SYMBOL(drm_dp_as_sdp_log);
+
+/**
+ * drm_dp_as_sdp_supported() - check if adaptive sync sdp is supported
+ * @aux: DisplayPort AUX channel
+ * @dpcd: DisplayPort configuration data
+ *
+ * Returns true if adaptive sync sdp is supported, else returns false
+ */
+bool drm_dp_as_sdp_supported(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	u8 rx_feature;
+
+	if (dpcd[DP_DPCD_REV] < DP_DPCD_REV_13)
+		return false;
+
+	if (drm_dp_dpcd_readb(aux, DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1,
+			      &rx_feature) != 1) {
+		drm_dbg_dp(aux->drm_dev,
+			   "Failed to read DP_DPRX_FEATURE_ENUMERATION_LIST_CONT_1\n");
+		return false;
+	}
+
+	return (rx_feature & DP_ADAPTIVE_SYNC_SDP_SUPPORTED);
+}
+EXPORT_SYMBOL(drm_dp_as_sdp_supported);
+
+/**
+ * drm_dp_vsc_sdp_supported() - check if vsc sdp is supported
+ * @aux: DisplayPort AUX channel
+ * @dpcd: DisplayPort configuration data
+ *
+ * Returns true if vsc sdp is supported, else returns false
+ */
+bool drm_dp_vsc_sdp_supported(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	u8 rx_feature;
+
+	if (dpcd[DP_DPCD_REV] < DP_DPCD_REV_13)
+		return false;
+
+	if (drm_dp_dpcd_readb(aux, DP_DPRX_FEATURE_ENUMERATION_LIST, &rx_feature) != 1) {
+		drm_dbg_dp(aux->drm_dev, "failed to read DP_DPRX_FEATURE_ENUMERATION_LIST\n");
+		return false;
+	}
+
+	return (rx_feature & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
+}
+EXPORT_SYMBOL(drm_dp_vsc_sdp_supported);
+
+/**
+ * drm_dp_vsc_sdp_pack() - pack a given vsc sdp into generic dp_sdp
+ * @vsc: vsc sdp initialized according to its purpose as defined in
+ *       table 2-118 - table 2-120 in DP 1.4a specification
+ * @sdp: valid handle to the generic dp_sdp which will be packed
+ *
+ * Returns length of sdp on success and error code on failure
+ */
+ssize_t drm_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
+			    struct dp_sdp *sdp)
+{
+	size_t length = sizeof(struct dp_sdp);
+
+	memset(sdp, 0, sizeof(struct dp_sdp));
+
+	/*
+	 * Prepare VSC Header for SU as per DP 1.4a spec, Table 2-119
+	 * VSC SDP Header Bytes
+	 */
+	sdp->sdp_header.HB0 = 0; /* Secondary-Data Packet ID = 0 */
+	sdp->sdp_header.HB1 = vsc->sdp_type; /* Secondary-data Packet Type */
+	sdp->sdp_header.HB2 = vsc->revision; /* Revision Number */
+	sdp->sdp_header.HB3 = vsc->length; /* Number of Valid Data Bytes */
+
+	if (vsc->revision == 0x6) {
+		sdp->db[0] = 1;
+		sdp->db[3] = 1;
+	}
+
+	/*
+	 * Revision 0x5 and revision 0x7 supports Pixel Encoding/Colorimetry
+	 * Format as per DP 1.4a spec and DP 2.0 respectively.
+	 */
+	if (!(vsc->revision == 0x5 || vsc->revision == 0x7))
+		goto out;
+
+	/* VSC SDP Payload for DB16 through DB18 */
+	/* Pixel Encoding and Colorimetry Formats  */
+	sdp->db[16] = (vsc->pixelformat & 0xf) << 4; /* DB16[7:4] */
+	sdp->db[16] |= vsc->colorimetry & 0xf; /* DB16[3:0] */
+
+	switch (vsc->bpc) {
+	case 6:
+		/* 6bpc: 0x0 */
+		break;
+	case 8:
+		sdp->db[17] = 0x1; /* DB17[3:0] */
+		break;
+	case 10:
+		sdp->db[17] = 0x2;
+		break;
+	case 12:
+		sdp->db[17] = 0x3;
+		break;
+	case 16:
+		sdp->db[17] = 0x4;
+		break;
+	default:
+		WARN(1, "Missing case %d\n", vsc->bpc);
+		return -EINVAL;
+	}
+
+	/* Dynamic Range and Component Bit Depth */
+	if (vsc->dynamic_range == DP_DYNAMIC_RANGE_CTA)
+		sdp->db[17] |= 0x80;  /* DB17[7] */
+
+	/* Content Type */
+	sdp->db[18] = vsc->content_type & 0x7;
+
+out:
+	return length;
+}
+EXPORT_SYMBOL(drm_dp_vsc_sdp_pack);
 
 /**
  * drm_dp_get_pcon_max_frl_bw() - maximum frl supported by PCON
@@ -3898,3 +4094,172 @@ int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux)
 EXPORT_SYMBOL(drm_panel_dp_aux_backlight);
 
 #endif
+
+/* See DP Standard v2.1 2.6.4.4.1.1, 2.8.4.4, 2.8.7 */
+static int drm_dp_link_symbol_cycles(int lane_count, int pixels, int bpp_x16,
+				     int symbol_size, bool is_mst)
+{
+	int cycles = DIV_ROUND_UP(pixels * bpp_x16, 16 * symbol_size * lane_count);
+	int align = is_mst ? 4 / lane_count : 1;
+
+	return ALIGN(cycles, align);
+}
+
+static int drm_dp_link_dsc_symbol_cycles(int lane_count, int pixels, int slice_count,
+					 int bpp_x16, int symbol_size, bool is_mst)
+{
+	int slice_pixels = DIV_ROUND_UP(pixels, slice_count);
+	int slice_data_cycles = drm_dp_link_symbol_cycles(lane_count, slice_pixels,
+							  bpp_x16, symbol_size, is_mst);
+	int slice_eoc_cycles = is_mst ? 4 / lane_count : 1;
+
+	return slice_count * (slice_data_cycles + slice_eoc_cycles);
+}
+
+/**
+ * drm_dp_bw_overhead - Calculate the BW overhead of a DP link stream
+ * @lane_count: DP link lane count
+ * @hactive: pixel count of the active period in one scanline of the stream
+ * @dsc_slice_count: DSC slice count if @flags/DRM_DP_LINK_BW_OVERHEAD_DSC is set
+ * @bpp_x16: bits per pixel in .4 binary fixed point
+ * @flags: DRM_DP_OVERHEAD_x flags
+ *
+ * Calculate the BW allocation overhead of a DP link stream, depending
+ * on the link's
+ * - @lane_count
+ * - SST/MST mode (@flags / %DRM_DP_OVERHEAD_MST)
+ * - symbol size (@flags / %DRM_DP_OVERHEAD_UHBR)
+ * - FEC mode (@flags / %DRM_DP_OVERHEAD_FEC)
+ * - SSC/REF_CLK mode (@flags / %DRM_DP_OVERHEAD_SSC_REF_CLK)
+ * as well as the stream's
+ * - @hactive timing
+ * - @bpp_x16 color depth
+ * - compression mode (@flags / %DRM_DP_OVERHEAD_DSC).
+ * Note that this overhead doesn't account for the 8b/10b, 128b/132b
+ * channel coding efficiency, for that see
+ * @drm_dp_link_bw_channel_coding_efficiency().
+ *
+ * Returns the overhead as 100% + overhead% in 1ppm units.
+ */
+int drm_dp_bw_overhead(int lane_count, int hactive,
+		       int dsc_slice_count,
+		       int bpp_x16, unsigned long flags)
+{
+	int symbol_size = flags & DRM_DP_BW_OVERHEAD_UHBR ? 32 : 8;
+	bool is_mst = flags & DRM_DP_BW_OVERHEAD_MST;
+	u32 overhead = 1000000;
+	int symbol_cycles;
+
+	if (lane_count == 0 || hactive == 0 || bpp_x16 == 0) {
+		DRM_DEBUG_KMS("Invalid BW overhead params: lane_count %d, hactive %d, bpp_x16 %d.%04d\n",
+			      lane_count, hactive,
+			      bpp_x16 >> 4, (bpp_x16 & 0xf) * 625);
+		return 0;
+	}
+
+	/*
+	 * DP Standard v2.1 2.6.4.1
+	 * SSC downspread and ref clock variation margin:
+	 *   5300ppm + 300ppm ~ 0.6%
+	 */
+	if (flags & DRM_DP_BW_OVERHEAD_SSC_REF_CLK)
+		overhead += 6000;
+
+	/*
+	 * DP Standard v2.1 2.6.4.1.1, 3.5.1.5.4:
+	 * FEC symbol insertions for 8b/10b channel coding:
+	 * After each 250 data symbols on 2-4 lanes:
+	 *   250 LL + 5 FEC_PARITY_PH + 1 CD_ADJ   (256 byte FEC block)
+	 * After each 2 x 250 data symbols on 1 lane:
+	 *   2 * 250 LL + 11 FEC_PARITY_PH + 1 CD_ADJ (512 byte FEC block)
+	 * After 256 (2-4 lanes) or 128 (1 lane) FEC blocks:
+	 *   256 * 256 bytes + 1 FEC_PM
+	 * or
+	 *   128 * 512 bytes + 1 FEC_PM
+	 * (256 * 6 + 1) / (256 * 250) = 2.4015625 %
+	 */
+	if (flags & DRM_DP_BW_OVERHEAD_FEC)
+		overhead += 24016;
+
+	/*
+	 * DP Standard v2.1 2.7.9, 5.9.7
+	 * The FEC overhead for UHBR is accounted for in its 96.71% channel
+	 * coding efficiency.
+	 */
+	WARN_ON((flags & DRM_DP_BW_OVERHEAD_UHBR) &&
+		(flags & DRM_DP_BW_OVERHEAD_FEC));
+
+	if (flags & DRM_DP_BW_OVERHEAD_DSC)
+		symbol_cycles = drm_dp_link_dsc_symbol_cycles(lane_count, hactive,
+							      dsc_slice_count,
+							      bpp_x16, symbol_size,
+							      is_mst);
+	else
+		symbol_cycles = drm_dp_link_symbol_cycles(lane_count, hactive,
+							  bpp_x16, symbol_size,
+							  is_mst);
+
+	return DIV_ROUND_UP_ULL(mul_u32_u32(symbol_cycles * symbol_size * lane_count,
+					    overhead * 16),
+				hactive * bpp_x16);
+}
+EXPORT_SYMBOL(drm_dp_bw_overhead);
+
+/**
+ * drm_dp_bw_channel_coding_efficiency - Get a DP link's channel coding efficiency
+ * @is_uhbr: Whether the link has a 128b/132b channel coding
+ *
+ * Return the channel coding efficiency of the given DP link type, which is
+ * either 8b/10b or 128b/132b (aka UHBR). The corresponding overhead includes
+ * the 8b -> 10b, 128b -> 132b pixel data to link symbol conversion overhead
+ * and for 128b/132b any link or PHY level control symbol insertion overhead
+ * (LLCP, FEC, PHY sync, see DP Standard v2.1 3.5.2.18). For 8b/10b the
+ * corresponding FEC overhead is BW allocation specific, included in the value
+ * returned by drm_dp_bw_overhead().
+ *
+ * Returns the efficiency in the 100%/coding-overhead% ratio in
+ * 1ppm units.
+ */
+int drm_dp_bw_channel_coding_efficiency(bool is_uhbr)
+{
+	if (is_uhbr)
+		return 967100;
+	else
+		/*
+		 * Note that on 8b/10b MST the efficiency is only
+		 * 78.75% due to the 1 out of 64 MTPH packet overhead,
+		 * not accounted for here.
+		 */
+		return 800000;
+}
+EXPORT_SYMBOL(drm_dp_bw_channel_coding_efficiency);
+
+/**
+ * drm_dp_max_dprx_data_rate - Get the max data bandwidth of a DPRX sink
+ * @max_link_rate: max DPRX link rate in 10kbps units
+ * @max_lanes: max DPRX lane count
+ *
+ * Given a link rate and lanes, get the data bandwidth.
+ *
+ * Data bandwidth is the actual payload rate, which depends on the data
+ * bandwidth efficiency and the link rate.
+ *
+ * Note that protocol layers above the DPRX link level considered here can
+ * further limit the maximum data rate. Such layers are the MST topology (with
+ * limits on the link between the source and first branch device as well as on
+ * the whole MST path until the DPRX link) and (Thunderbolt) DP tunnels -
+ * which in turn can encapsulate an MST link with its own limit - with each
+ * SST or MST encapsulated tunnel sharing the BW of a tunnel group.
+ *
+ * Returns the maximum data rate in kBps units.
+ */
+int drm_dp_max_dprx_data_rate(int max_link_rate, int max_lanes)
+{
+	int ch_coding_efficiency =
+		drm_dp_bw_channel_coding_efficiency(drm_dp_is_uhbr_rate(max_link_rate));
+
+	return DIV_ROUND_DOWN_ULL(mul_u32_u32(max_link_rate * 10 * max_lanes,
+					      ch_coding_efficiency),
+				  1000000 * 8);
+}
+EXPORT_SYMBOL(drm_dp_max_dprx_data_rate);

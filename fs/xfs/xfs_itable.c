@@ -107,12 +107,12 @@ xfs_bulkstat_one_int(
 	buf->bs_size = ip->i_disk_size;
 
 	buf->bs_nlink = inode->i_nlink;
-	buf->bs_atime = inode->i_atime.tv_sec;
-	buf->bs_atime_nsec = inode->i_atime.tv_nsec;
-	buf->bs_mtime = inode->i_mtime.tv_sec;
-	buf->bs_mtime_nsec = inode->i_mtime.tv_nsec;
-	buf->bs_ctime = inode_get_ctime(inode).tv_sec;
-	buf->bs_ctime_nsec = inode_get_ctime(inode).tv_nsec;
+	buf->bs_atime = inode_get_atime_sec(inode);
+	buf->bs_atime_nsec = inode_get_atime_nsec(inode);
+	buf->bs_mtime = inode_get_mtime_sec(inode);
+	buf->bs_mtime_nsec = inode_get_mtime_nsec(inode);
+	buf->bs_ctime = inode_get_ctime_sec(inode);
+	buf->bs_ctime_nsec = inode_get_ctime_nsec(inode);
 	buf->bs_gen = inode->i_generation;
 	buf->bs_mode = inode->i_mode;
 
@@ -197,8 +197,8 @@ xfs_bulkstat_one(
 
 	ASSERT(breq->icount == 1);
 
-	bc.buf = kmem_zalloc(sizeof(struct xfs_bulkstat),
-			KM_MAYFAIL);
+	bc.buf = kzalloc(sizeof(struct xfs_bulkstat),
+			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 
@@ -214,7 +214,7 @@ xfs_bulkstat_one(
 			breq->startino, &bc);
 	xfs_trans_cancel(tp);
 out:
-	kmem_free(bc.buf);
+	kfree(bc.buf);
 
 	/*
 	 * If we reported one inode to userspace then we abort because we hit
@@ -289,8 +289,8 @@ xfs_bulkstat(
 	if (xfs_bulkstat_already_done(breq->mp, breq->startino))
 		return 0;
 
-	bc.buf = kmem_zalloc(sizeof(struct xfs_bulkstat),
-			KM_MAYFAIL);
+	bc.buf = kzalloc(sizeof(struct xfs_bulkstat),
+			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!bc.buf)
 		return -ENOMEM;
 
@@ -309,7 +309,7 @@ xfs_bulkstat(
 			xfs_bulkstat_iwalk, breq->icount, &bc);
 	xfs_trans_cancel(tp);
 out:
-	kmem_free(bc.buf);
+	kfree(bc.buf);
 
 	/*
 	 * We found some inodes, so clear the error status and return them.

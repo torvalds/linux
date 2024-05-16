@@ -9,6 +9,7 @@
 #include <linux/mfd/cs42l43.h>
 #include <linux/mfd/cs42l43-regs.h>
 #include <linux/module.h>
+#include <linux/soundwire/sdw.h>
 #include <sound/pcm.h>
 #include <sound/sdw.h>
 #include <sound/soc-component.h>
@@ -31,11 +32,7 @@ int cs42l43_sdw_add_peripheral(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	snd_sdw_params_to_config(substream, params, &sconfig, &pconfig);
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		pconfig.num = dai->id;
-	else
-		pconfig.num = dai->id;
+	pconfig.num = dai->id;
 
 	ret = sdw_stream_add_slave(sdw, &sconfig, &pconfig, 1, sdw_stream);
 	if (ret) {

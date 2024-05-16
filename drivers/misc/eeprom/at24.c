@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/nvmem-provider.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
@@ -92,7 +93,7 @@ struct at24_data {
 	 * them for us.
 	 */
 	u8 bank_addr_shift;
-	struct regmap *client_regmaps[];
+	struct regmap *client_regmaps[] __counted_by(num_addresses);
 };
 
 /*
@@ -191,9 +192,13 @@ AT24_CHIP_DATA(at24_data_24c16, 16384 / 8, 0);
 AT24_CHIP_DATA(at24_data_24cs16, 16,
 	AT24_FLAG_SERIAL | AT24_FLAG_READONLY);
 AT24_CHIP_DATA(at24_data_24c32, 32768 / 8, AT24_FLAG_ADDR16);
+/* M24C32-D Additional Write lockable page (M24C32-D order codes) */
+AT24_CHIP_DATA(at24_data_24c32d_wlp, 32, AT24_FLAG_ADDR16);
 AT24_CHIP_DATA(at24_data_24cs32, 16,
 	AT24_FLAG_ADDR16 | AT24_FLAG_SERIAL | AT24_FLAG_READONLY);
 AT24_CHIP_DATA(at24_data_24c64, 65536 / 8, AT24_FLAG_ADDR16);
+/* M24C64-D Additional Write lockable page (M24C64-D order codes) */
+AT24_CHIP_DATA(at24_data_24c64d_wlp, 32, AT24_FLAG_ADDR16);
 AT24_CHIP_DATA(at24_data_24cs64, 16,
 	AT24_FLAG_ADDR16 | AT24_FLAG_SERIAL | AT24_FLAG_READONLY);
 AT24_CHIP_DATA(at24_data_24c128, 131072 / 8, AT24_FLAG_ADDR16);
@@ -222,8 +227,10 @@ static const struct i2c_device_id at24_ids[] = {
 	{ "24c16",	(kernel_ulong_t)&at24_data_24c16 },
 	{ "24cs16",	(kernel_ulong_t)&at24_data_24cs16 },
 	{ "24c32",	(kernel_ulong_t)&at24_data_24c32 },
+	{ "24c32d-wl",	(kernel_ulong_t)&at24_data_24c32d_wlp },
 	{ "24cs32",	(kernel_ulong_t)&at24_data_24cs32 },
 	{ "24c64",	(kernel_ulong_t)&at24_data_24c64 },
+	{ "24c64-wl",	(kernel_ulong_t)&at24_data_24c64d_wlp },
 	{ "24cs64",	(kernel_ulong_t)&at24_data_24cs64 },
 	{ "24c128",	(kernel_ulong_t)&at24_data_24c128 },
 	{ "24c256",	(kernel_ulong_t)&at24_data_24c256 },
@@ -236,7 +243,7 @@ static const struct i2c_device_id at24_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, at24_ids);
 
-static const struct of_device_id at24_of_match[] = {
+static const struct of_device_id __maybe_unused at24_of_match[] = {
 	{ .compatible = "atmel,24c00",		.data = &at24_data_24c00 },
 	{ .compatible = "atmel,24c01",		.data = &at24_data_24c01 },
 	{ .compatible = "atmel,24cs01",		.data = &at24_data_24cs01 },
@@ -252,8 +259,10 @@ static const struct of_device_id at24_of_match[] = {
 	{ .compatible = "atmel,24c16",		.data = &at24_data_24c16 },
 	{ .compatible = "atmel,24cs16",		.data = &at24_data_24cs16 },
 	{ .compatible = "atmel,24c32",		.data = &at24_data_24c32 },
+	{ .compatible = "atmel,24c32d-wl",	.data = &at24_data_24c32d_wlp },
 	{ .compatible = "atmel,24cs32",		.data = &at24_data_24cs32 },
 	{ .compatible = "atmel,24c64",		.data = &at24_data_24c64 },
+	{ .compatible = "atmel,24c64d-wl",	.data = &at24_data_24c64d_wlp },
 	{ .compatible = "atmel,24cs64",		.data = &at24_data_24cs64 },
 	{ .compatible = "atmel,24c128",		.data = &at24_data_24c128 },
 	{ .compatible = "atmel,24c256",		.data = &at24_data_24c256 },
@@ -431,12 +440,9 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	if (off + count > at24->byte_len)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
 		return ret;
-	}
-
 	/*
 	 * Read data from chip, protecting against concurrent updates
 	 * from this host, but not from other I2C masters.
@@ -478,12 +484,9 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	if (off + count > at24->byte_len)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
 		return ret;
-	}
-
 	/*
 	 * Write data to chip, protecting against concurrent updates
 	 * from this host, but not from other I2C masters.
@@ -507,32 +510,6 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	pm_runtime_put(dev);
 
 	return 0;
-}
-
-static const struct at24_chip_data *at24_get_chip_data(struct device *dev)
-{
-	struct device_node *of_node = dev->of_node;
-	const struct at24_chip_data *cdata;
-	const struct i2c_device_id *id;
-
-	id = i2c_match_id(at24_ids, to_i2c_client(dev));
-
-	/*
-	 * The I2C core allows OF nodes compatibles to match against the
-	 * I2C device ID table as a fallback, so check not only if an OF
-	 * node is present but also if it matches an OF device ID entry.
-	 */
-	if (of_node && of_match_device(at24_of_match, dev))
-		cdata = of_device_get_match_data(dev);
-	else if (id)
-		cdata = (void *)id->driver_data;
-	else
-		cdata = acpi_device_get_match_data(dev);
-
-	if (!cdata)
-		return ERR_PTR(-ENODEV);
-
-	return cdata;
 }
 
 static int at24_make_dummy_client(struct at24_data *at24, unsigned int index,
@@ -581,6 +558,31 @@ static unsigned int at24_get_offset_adj(u8 flags, unsigned int byte_len)
 	}
 }
 
+static void at24_probe_temp_sensor(struct i2c_client *client)
+{
+	struct at24_data *at24 = i2c_get_clientdata(client);
+	struct i2c_board_info info = { .type = "jc42" };
+	int ret;
+	u8 val;
+
+	/*
+	 * Byte 2 has value 11 for DDR3, earlier versions don't
+	 * support the thermal sensor present flag
+	 */
+	ret = at24_read(at24, 2, &val, 1);
+	if (ret || val != 11)
+		return;
+
+	/* Byte 32, bit 7 is set if temp sensor is present */
+	ret = at24_read(at24, 32, &val, 1);
+	if (ret || !(val & BIT(7)))
+		return;
+
+	info.addr = 0x18 | (client->addr & 7);
+
+	i2c_new_client_device(client->adapter, &info);
+}
+
 static int at24_probe(struct i2c_client *client)
 {
 	struct regmap_config regmap_config = { };
@@ -601,9 +603,9 @@ static int at24_probe(struct i2c_client *client)
 	i2c_fn_block = i2c_check_functionality(client->adapter,
 					       I2C_FUNC_SMBUS_WRITE_I2C_BLOCK);
 
-	cdata = at24_get_chip_data(dev);
-	if (IS_ERR(cdata))
-		return PTR_ERR(cdata);
+	cdata = i2c_get_match_data(client);
+	if (!cdata)
+		return -ENODEV;
 
 	err = device_property_read_u32(dev, "pagesize", &page_size);
 	if (err)
@@ -756,15 +758,6 @@ static int at24_probe(struct i2c_client *client)
 	}
 	pm_runtime_enable(dev);
 
-	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
-	if (IS_ERR(at24->nvmem)) {
-		pm_runtime_disable(dev);
-		if (!pm_runtime_status_suspended(dev))
-			regulator_disable(at24->vcc_reg);
-		return dev_err_probe(dev, PTR_ERR(at24->nvmem),
-				     "failed to register nvmem\n");
-	}
-
 	/*
 	 * Perform a one-byte test read to verify that the chip is functional,
 	 * unless powering on the device is to be avoided during probe (i.e.
@@ -779,6 +772,19 @@ static int at24_probe(struct i2c_client *client)
 			return -ENODEV;
 		}
 	}
+
+	at24->nvmem = devm_nvmem_register(dev, &nvmem_config);
+	if (IS_ERR(at24->nvmem)) {
+		pm_runtime_disable(dev);
+		if (!pm_runtime_status_suspended(dev))
+			regulator_disable(at24->vcc_reg);
+		return dev_err_probe(dev, PTR_ERR(at24->nvmem),
+				     "failed to register nvmem\n");
+	}
+
+	/* If this a SPD EEPROM, probe for DDR3 thermal sensor */
+	if (cdata == &at24_data_spd)
+		at24_probe_temp_sensor(client);
 
 	pm_runtime_idle(dev);
 
@@ -830,7 +836,7 @@ static struct i2c_driver at24_driver = {
 	.driver = {
 		.name = "at24",
 		.pm = &at24_pm_ops,
-		.of_match_table = at24_of_match,
+		.of_match_table = of_match_ptr(at24_of_match),
 		.acpi_match_table = ACPI_PTR(at24_acpi_ids),
 	},
 	.probe = at24_probe,

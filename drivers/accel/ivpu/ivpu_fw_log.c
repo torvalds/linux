@@ -20,7 +20,7 @@
 unsigned int ivpu_log_level = IVPU_FW_LOG_ERROR;
 module_param(ivpu_log_level, uint, 0444);
 MODULE_PARM_DESC(ivpu_log_level,
-		 "VPU firmware default trace level: debug=" __stringify(IVPU_FW_LOG_DEBUG)
+		 "NPU firmware default trace level: debug=" __stringify(IVPU_FW_LOG_DEBUG)
 		 " info=" __stringify(IVPU_FW_LOG_INFO)
 		 " warn=" __stringify(IVPU_FW_LOG_WARN)
 		 " error=" __stringify(IVPU_FW_LOG_ERROR)
@@ -31,10 +31,10 @@ static int fw_log_ptr(struct ivpu_device *vdev, struct ivpu_bo *bo, u32 *offset,
 {
 	struct vpu_tracing_buffer_header *log;
 
-	if ((*offset + sizeof(*log)) > bo->base.size)
+	if ((*offset + sizeof(*log)) > ivpu_bo_size(bo))
 		return -EINVAL;
 
-	log = bo->kvaddr + *offset;
+	log = ivpu_bo_vaddr(bo) + *offset;
 
 	if (log->vpu_canary_start != VPU_TRACING_BUFFER_CANARY)
 		return -EINVAL;
@@ -43,7 +43,7 @@ static int fw_log_ptr(struct ivpu_device *vdev, struct ivpu_bo *bo, u32 *offset,
 		ivpu_dbg(vdev, FW_BOOT, "Invalid header size 0x%x\n", log->header_size);
 		return -EINVAL;
 	}
-	if ((char *)log + log->size > (char *)bo->kvaddr + bo->base.size) {
+	if ((char *)log + log->size > (char *)ivpu_bo_vaddr(bo) + ivpu_bo_size(bo)) {
 		ivpu_dbg(vdev, FW_BOOT, "Invalid log size 0x%x\n", log->size);
 		return -EINVAL;
 	}
@@ -121,11 +121,11 @@ void ivpu_fw_log_print(struct ivpu_device *vdev, bool only_new_msgs, struct drm_
 	u32 next = 0;
 
 	while (fw_log_ptr(vdev, vdev->fw->mem_log_crit, &next, &log_header) == 0)
-		fw_log_print_buffer(vdev, log_header, "VPU critical", only_new_msgs, p);
+		fw_log_print_buffer(vdev, log_header, "NPU critical", only_new_msgs, p);
 
 	next = 0;
 	while (fw_log_ptr(vdev, vdev->fw->mem_log_verb, &next, &log_header) == 0)
-		fw_log_print_buffer(vdev, log_header, "VPU verbose", only_new_msgs, p);
+		fw_log_print_buffer(vdev, log_header, "NPU verbose", only_new_msgs, p);
 }
 
 void ivpu_fw_log_clear(struct ivpu_device *vdev)

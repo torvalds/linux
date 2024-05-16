@@ -10,11 +10,54 @@
 #include "intel_display_types.h"
 #include "intel_global_state.h"
 
+struct intel_global_commit {
+	struct kref ref;
+	struct completion done;
+};
+
+static struct intel_global_commit *commit_new(void)
+{
+	struct intel_global_commit *commit;
+
+	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	if (!commit)
+		return NULL;
+
+	init_completion(&commit->done);
+	kref_init(&commit->ref);
+
+	return commit;
+}
+
+static void __commit_free(struct kref *kref)
+{
+	struct intel_global_commit *commit =
+		container_of(kref, typeof(*commit), ref);
+
+	kfree(commit);
+}
+
+static struct intel_global_commit *commit_get(struct intel_global_commit *commit)
+{
+	if (commit)
+		kref_get(&commit->ref);
+
+	return commit;
+}
+
+static void commit_put(struct intel_global_commit *commit)
+{
+	if (commit)
+		kref_put(&commit->ref, __commit_free);
+}
+
 static void __intel_atomic_global_state_free(struct kref *kref)
 {
 	struct intel_global_state *obj_state =
 		container_of(kref, struct intel_global_state, ref);
 	struct intel_global_obj *obj = obj_state->obj;
+
+	commit_put(obj_state->commit);
 
 	obj->funcs->atomic_destroy_state(obj, obj_state);
 }
@@ -127,6 +170,8 @@ intel_atomic_get_global_obj_state(struct intel_atomic_state *state,
 
 	obj_state->obj = obj;
 	obj_state->changed = false;
+	obj_state->serialized = false;
+	obj_state->commit = NULL;
 
 	kref_init(&obj_state->ref);
 
@@ -239,19 +284,13 @@ int intel_atomic_lock_global_state(struct intel_global_state *obj_state)
 
 int intel_atomic_serialize_global_state(struct intel_global_state *obj_state)
 {
-	struct intel_atomic_state *state = obj_state->state;
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc *crtc;
+	int ret;
 
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		struct intel_crtc_state *crtc_state;
+	ret = intel_atomic_lock_global_state(obj_state);
+	if (ret)
+		return ret;
 
-		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
-	}
-
-	obj_state->changed = true;
+	obj_state->serialized = true;
 
 	return 0;
 }
@@ -266,4 +305,80 @@ intel_atomic_global_state_is_serialized(struct intel_atomic_state *state)
 		if (!intel_atomic_get_new_crtc_state(state, crtc))
 			return false;
 	return true;
+}
+
+int
+intel_atomic_global_state_setup_commit(struct intel_atomic_state *state)
+{
+	const struct intel_global_state *old_obj_state;
+	struct intel_global_state *new_obj_state;
+	struct intel_global_obj *obj;
+	int i;
+
+	for_each_oldnew_global_obj_in_state(state, obj, old_obj_state,
+					    new_obj_state, i) {
+		struct intel_global_commit *commit = NULL;
+
+		if (new_obj_state->serialized) {
+			/*
+			 * New commit which is going to be completed
+			 * after the hardware reprogramming is done.
+			 */
+			commit = commit_new();
+			if (!commit)
+				return -ENOMEM;
+		} else if (new_obj_state->changed) {
+			/*
+			 * We're going to swap to this state, so carry the
+			 * previous commit along, in case it's not yet done.
+			 */
+			commit = commit_get(old_obj_state->commit);
+		}
+
+		new_obj_state->commit = commit;
+	}
+
+	return 0;
+}
+
+int
+intel_atomic_global_state_wait_for_dependencies(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_global_state *old_obj_state;
+	struct intel_global_obj *obj;
+	int i;
+
+	for_each_old_global_obj_in_state(state, obj, old_obj_state, i) {
+		struct intel_global_commit *commit = old_obj_state->commit;
+		long ret;
+
+		if (!commit)
+			continue;
+
+		ret = wait_for_completion_timeout(&commit->done, 10 * HZ);
+		if (ret == 0) {
+			drm_err(&i915->drm, "global state timed out\n");
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
+void
+intel_atomic_global_state_commit_done(struct intel_atomic_state *state)
+{
+	const struct intel_global_state *new_obj_state;
+	struct intel_global_obj *obj;
+	int i;
+
+	for_each_new_global_obj_in_state(state, obj, new_obj_state, i) {
+		struct intel_global_commit *commit = new_obj_state->commit;
+
+		if (!new_obj_state->serialized)
+			continue;
+
+		complete_all(&commit->done);
+	}
 }

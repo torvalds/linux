@@ -6,19 +6,14 @@
  *                         Cirrus Logic International Semiconductor Ltd.
  */
 
-#include <linux/clk.h>
-#include <linux/completion.h>
-#include <linux/device.h>
-#include <linux/mutex.h>
-#include <linux/regmap.h>
-#include <linux/soundwire/sdw.h>
-#include <linux/types.h>
-#include <sound/cs42l43.h>
-#include <sound/pcm.h>
-#include <sound/soc-jack.h>
-
 #ifndef CS42L43_ASOC_INT_H
 #define CS42L43_ASOC_INT_H
+
+#include <linux/completion.h>
+#include <linux/mutex.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+#include <sound/pcm.h>
 
 #define CS42L43_INTERNAL_SYSCLK		24576000
 #define CS42L43_DEFAULT_SLOTS		0x3F
@@ -28,10 +23,22 @@
 #define CS42L43_HP_TIMEOUT_MS		2000
 #define CS42L43_LOAD_TIMEOUT_MS		1000
 
+#define CS42L43_HP_ILIMIT_BACKOFF_MS	1000
+#define CS42L43_HP_ILIMIT_DECAY_MS	300
+#define CS42L43_HP_ILIMIT_MAX_COUNT	4
+
 #define CS42L43_ASP_MAX_CHANNELS	6
 #define CS42L43_N_EQ_COEFFS		15
 
 #define CS42L43_N_BUTTONS	6
+
+struct clk;
+struct device;
+
+struct snd_soc_component;
+struct snd_soc_jack;
+
+struct cs42l43;
 
 struct cs42l43_codec {
 	struct device *dev;
@@ -88,6 +95,11 @@ struct cs42l43_codec {
 	bool button_detect_running;
 	bool jack_present;
 	int jack_override;
+
+	struct work_struct hp_ilimit_work;
+	struct delayed_work hp_ilimit_clear_work;
+	bool hp_ilimited;
+	int hp_ilimit_count;
 };
 
 #if IS_REACHABLE(CONFIG_SND_SOC_CS42L43_SDW)

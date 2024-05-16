@@ -50,6 +50,11 @@
  * present for a given platform.
  */
 
+static struct drm_i915_private *rpm_to_i915(struct intel_runtime_pm *rpm)
+{
+	return container_of(rpm, struct drm_i915_private, runtime_pm);
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 
 static void init_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm)
@@ -158,9 +163,7 @@ intel_runtime_pm_release(struct intel_runtime_pm *rpm, int wakelock)
 static intel_wakeref_t __intel_runtime_pm_get(struct intel_runtime_pm *rpm,
 					      bool wakelock)
 {
-	struct drm_i915_private *i915 = container_of(rpm,
-						     struct drm_i915_private,
-						     runtime_pm);
+	struct drm_i915_private *i915 = rpm_to_i915(rpm);
 	int ret;
 
 	ret = pm_runtime_get_sync(rpm->kdev);
@@ -243,7 +246,10 @@ static intel_wakeref_t __intel_runtime_pm_get_if_active(struct intel_runtime_pm 
 		 * function, since the power state is undefined. This applies
 		 * atm to the late/early system suspend/resume handlers.
 		 */
-		if (pm_runtime_get_if_active(rpm->kdev, ignore_usecount) <= 0)
+		if ((ignore_usecount &&
+		     pm_runtime_get_if_active(rpm->kdev) <= 0) ||
+		    (!ignore_usecount &&
+		     pm_runtime_get_if_in_use(rpm->kdev) <= 0))
 			return 0;
 	}
 
@@ -266,15 +272,11 @@ intel_wakeref_t intel_runtime_pm_get_if_active(struct intel_runtime_pm *rpm)
  * intel_runtime_pm_get_noresume - grab a runtime pm reference
  * @rpm: the intel_runtime_pm structure
  *
- * This function grabs a device-level runtime pm reference (mostly used for GEM
- * code to ensure the GTT or GT is on).
+ * This function grabs a device-level runtime pm reference.
  *
- * It will _not_ power up the device but instead only check that it's powered
- * on.  Therefore it is only valid to call this functions from contexts where
- * the device is known to be powered up and where trying to power it up would
- * result in hilarity and deadlocks. That pretty much means only the system
- * suspend/resume code where this is used to grab runtime pm references for
- * delayed setup down in work items.
+ * It will _not_ resume the device but instead only get an extra wakeref.
+ * Therefore it is only valid to call this functions from contexts where
+ * the device is known to be active and with another wakeref previously hold.
  *
  * Any runtime pm reference obtained by this function must have a symmetric
  * call to intel_runtime_pm_put() to release the reference again.
@@ -283,7 +285,7 @@ intel_wakeref_t intel_runtime_pm_get_if_active(struct intel_runtime_pm *rpm)
  */
 intel_wakeref_t intel_runtime_pm_get_noresume(struct intel_runtime_pm *rpm)
 {
-	assert_rpm_wakelock_held(rpm);
+	assert_rpm_raw_wakeref_held(rpm);
 	pm_runtime_get_noresume(rpm->kdev);
 
 	intel_runtime_pm_acquire(rpm, true);
@@ -365,9 +367,7 @@ void intel_runtime_pm_put(struct intel_runtime_pm *rpm, intel_wakeref_t wref)
  */
 void intel_runtime_pm_enable(struct intel_runtime_pm *rpm)
 {
-	struct drm_i915_private *i915 = container_of(rpm,
-						     struct drm_i915_private,
-						     runtime_pm);
+	struct drm_i915_private *i915 = rpm_to_i915(rpm);
 	struct device *kdev = rpm->kdev;
 
 	/*
@@ -420,9 +420,7 @@ void intel_runtime_pm_enable(struct intel_runtime_pm *rpm)
 
 void intel_runtime_pm_disable(struct intel_runtime_pm *rpm)
 {
-	struct drm_i915_private *i915 = container_of(rpm,
-						     struct drm_i915_private,
-						     runtime_pm);
+	struct drm_i915_private *i915 = rpm_to_i915(rpm);
 	struct device *kdev = rpm->kdev;
 
 	/* Transfer rpm ownership back to core */
@@ -437,9 +435,7 @@ void intel_runtime_pm_disable(struct intel_runtime_pm *rpm)
 
 void intel_runtime_pm_driver_release(struct intel_runtime_pm *rpm)
 {
-	struct drm_i915_private *i915 = container_of(rpm,
-						     struct drm_i915_private,
-						     runtime_pm);
+	struct drm_i915_private *i915 = rpm_to_i915(rpm);
 	int count = atomic_read(&rpm->wakeref_count);
 
 	intel_wakeref_auto_fini(&rpm->userfault_wakeref);
@@ -458,8 +454,7 @@ void intel_runtime_pm_driver_last_release(struct intel_runtime_pm *rpm)
 
 void intel_runtime_pm_init_early(struct intel_runtime_pm *rpm)
 {
-	struct drm_i915_private *i915 =
-			container_of(rpm, struct drm_i915_private, runtime_pm);
+	struct drm_i915_private *i915 = rpm_to_i915(rpm);
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	struct device *kdev = &pdev->dev;
 

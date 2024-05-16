@@ -157,14 +157,6 @@ changing the e.g. exposure of the webcam.
 Of course, you can always do all the locking yourself by leaving both lock
 pointers at ``NULL``.
 
-If you use the old :ref:`videobuf framework <vb_framework>` then you must
-pass the :c:type:`video_device`->lock to the videobuf queue initialize
-function: if videobuf has to wait for a frame to arrive, then it will
-temporarily unlock the lock and relock it afterwards. If your driver also
-waits in the code, then you should do the same to allow other
-processes to access the device node while the first process is waiting for
-something.
-
 In the case of :ref:`videobuf2 <vb2_framework>` you will need to implement the
 ``wait_prepare()`` and ``wait_finish()`` callbacks to unlock/lock if applicable.
 If you use the ``queue->lock`` pointer, then you can use the helper functions

@@ -64,7 +64,7 @@ config GREYBUS_HID
 
 config GREYBUS_LIGHT
 	tristate "Greybus LED Class driver"
-	depends on LEDS_CLASS
+	depends on LEDS_CLASS_FLASH
 	help
 	  Select this option if you have a device that follows the
 	  Greybus LED Class specification.

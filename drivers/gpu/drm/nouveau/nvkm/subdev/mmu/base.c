@@ -403,6 +403,10 @@ nvkm_mmu_dtor(struct nvkm_subdev *subdev)
 
 	nvkm_mmu_ptc_fini(mmu);
 	mutex_destroy(&mmu->mutex);
+
+	if (mmu->func->dtor)
+		mmu->func->dtor(mmu);
+
 	return mmu;
 }
 

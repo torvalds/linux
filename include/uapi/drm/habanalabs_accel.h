@@ -846,6 +846,7 @@ enum hl_server_type {
 #define HL_INFO_HW_ERR_EVENT			36
 #define HL_INFO_FW_ERR_EVENT			37
 #define HL_INFO_USER_ENGINE_ERR_EVENT		38
+#define HL_INFO_DEV_SIGNED			40
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -1256,6 +1257,7 @@ struct hl_info_dev_memalloc_page_sizes {
 #define SEC_SIGNATURE_BUF_SZ	255	/* (256 - 1) 1 byte used for size */
 #define SEC_PUB_DATA_BUF_SZ	510	/* (512 - 2) 2 bytes used for size */
 #define SEC_CERTIFICATE_BUF_SZ	2046	/* (2048 - 2) 2 bytes used for size */
+#define SEC_DEV_INFO_BUF_SZ	5120
 
 /*
  * struct hl_info_sec_attest - attestation report of the boot
@@ -1288,6 +1290,32 @@ struct hl_info_sec_attest {
 	__u8 public_data[SEC_PUB_DATA_BUF_SZ];
 	__u8 certificate[SEC_CERTIFICATE_BUF_SZ];
 	__u8 pad0[2];
+};
+
+/*
+ * struct hl_info_signed - device information signed by a secured device.
+ * @nonce: number only used once. random number provided by host. this also passed to the quote
+ *         command as a qualifying data.
+ * @pub_data_len: length of the public data (bytes)
+ * @certificate_len: length of the certificate (bytes)
+ * @info_sig_len: length of the attestation signature (bytes)
+ * @public_data: public key info signed info data (outPublic + name + qualifiedName)
+ * @certificate: certificate for the signing key
+ * @info_sig: signature of the info + nonce data.
+ * @dev_info_len: length of device info (bytes)
+ * @dev_info: device info as byte array.
+ */
+struct hl_info_signed {
+	__u32 nonce;
+	__u16 pub_data_len;
+	__u16 certificate_len;
+	__u8 info_sig_len;
+	__u8 public_data[SEC_PUB_DATA_BUF_SZ];
+	__u8 certificate[SEC_CERTIFICATE_BUF_SZ];
+	__u8 info_sig[SEC_SIGNATURE_BUF_SZ];
+	__u16 dev_info_len;
+	__u8 dev_info[SEC_DEV_INFO_BUF_SZ];
+	__u8 pad[2];
 };
 
 /**

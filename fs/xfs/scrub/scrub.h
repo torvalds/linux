@@ -35,6 +35,14 @@ struct xchk_meta_ops {
 	/* Repair or optimize the metadata. */
 	int		(*repair)(struct xfs_scrub *);
 
+	/*
+	 * Re-scrub the metadata we repaired, in case there's extra work that
+	 * we need to do to check our repair work.  If this is NULL, we'll use
+	 * the ->scrub function pointer, assuming that the regular scrub is
+	 * sufficient.
+	 */
+	int		(*repair_eval)(struct xfs_scrub *sc);
+
 	/* Decide if we even have this piece of metadata. */
 	bool		(*has)(struct xfs_mount *);
 
@@ -91,6 +99,9 @@ struct xfs_scrub {
 	/* xfile used by the scrubbers; freed at teardown. */
 	struct xfile			*xfile;
 
+	/* buffer target for in-memory btrees; also freed at teardown. */
+	struct xfs_buftarg		*xmbtp;
+
 	/* Lock flags for @ip. */
 	uint				ilock_flags;
 
@@ -113,6 +124,10 @@ struct xfs_scrub {
 #define XCHK_HAVE_FREEZE_PROT	(1U << 1)  /* do we have freeze protection? */
 #define XCHK_FSGATES_DRAIN	(1U << 2)  /* defer ops draining enabled */
 #define XCHK_NEED_DRAIN		(1U << 3)  /* scrub needs to drain defer ops */
+#define XCHK_FSGATES_QUOTA	(1U << 4)  /* quota live update enabled */
+#define XCHK_FSGATES_DIRENTS	(1U << 5)  /* directory live update enabled */
+#define XCHK_FSGATES_RMAP	(1U << 6)  /* rmapbt live update enabled */
+#define XREP_RESET_PERAG_RESV	(1U << 30) /* must reset AG space reservation */
 #define XREP_ALREADY_FIXED	(1U << 31) /* checking our repair work */
 
 /*
@@ -121,7 +136,10 @@ struct xfs_scrub {
  * features are gated off via dynamic code patching, which is why the state
  * must be enabled during scrub setup and can only be torn down afterwards.
  */
-#define XCHK_FSGATES_ALL	(XCHK_FSGATES_DRAIN)
+#define XCHK_FSGATES_ALL	(XCHK_FSGATES_DRAIN | \
+				 XCHK_FSGATES_QUOTA | \
+				 XCHK_FSGATES_DIRENTS | \
+				 XCHK_FSGATES_RMAP)
 
 /* Metadata scrubbers */
 int xchk_tester(struct xfs_scrub *sc);
@@ -129,10 +147,8 @@ int xchk_superblock(struct xfs_scrub *sc);
 int xchk_agf(struct xfs_scrub *sc);
 int xchk_agfl(struct xfs_scrub *sc);
 int xchk_agi(struct xfs_scrub *sc);
-int xchk_bnobt(struct xfs_scrub *sc);
-int xchk_cntbt(struct xfs_scrub *sc);
-int xchk_inobt(struct xfs_scrub *sc);
-int xchk_finobt(struct xfs_scrub *sc);
+int xchk_allocbt(struct xfs_scrub *sc);
+int xchk_iallocbt(struct xfs_scrub *sc);
 int xchk_rmapbt(struct xfs_scrub *sc);
 int xchk_refcountbt(struct xfs_scrub *sc);
 int xchk_inode(struct xfs_scrub *sc);
@@ -160,14 +176,21 @@ xchk_rtsummary(struct xfs_scrub *sc)
 #endif
 #ifdef CONFIG_XFS_QUOTA
 int xchk_quota(struct xfs_scrub *sc);
+int xchk_quotacheck(struct xfs_scrub *sc);
 #else
 static inline int
 xchk_quota(struct xfs_scrub *sc)
 {
 	return -ENOENT;
 }
+static inline int
+xchk_quotacheck(struct xfs_scrub *sc)
+{
+	return -ENOENT;
+}
 #endif
 int xchk_fscounters(struct xfs_scrub *sc);
+int xchk_nlinks(struct xfs_scrub *sc);
 
 /* cross-referencing helpers */
 void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbno,

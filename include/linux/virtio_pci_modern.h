@@ -5,44 +5,48 @@
 #include <linux/pci.h>
 #include <linux/virtio_pci.h>
 
-struct virtio_pci_modern_common_cfg {
-	struct virtio_pci_common_cfg cfg;
-
-	__le16 queue_notify_data;	/* read-write */
-	__le16 queue_reset;		/* read-write */
-};
-
+/**
+ * struct virtio_pci_modern_device - info for modern PCI virtio
+ * @pci_dev:	    Ptr to the PCI device struct
+ * @common:	    Position of the common capability in the PCI config
+ * @device:	    Device-specific data (non-legacy mode)
+ * @notify_base:    Base of vq notifications (non-legacy mode)
+ * @notify_pa:	    Physical base of vq notifications
+ * @isr:	    Where to read and clear interrupt
+ * @notify_len:	    So we can sanity-check accesses
+ * @device_len:	    So we can sanity-check accesses
+ * @notify_map_cap: Capability for when we need to map notifications per-vq
+ * @notify_offset_multiplier: Multiply queue_notify_off by this value
+ *                            (non-legacy mode).
+ * @modern_bars:    Bitmask of BARs
+ * @id:		    Device and vendor id
+ * @device_id_check: Callback defined before vp_modern_probe() to be used to
+ *		    verify the PCI device is a vendor's expected device rather
+ *		    than the standard virtio PCI device
+ *		    Returns the found device id or ERRNO
+ * @dma_mask:	    Optional mask instead of the traditional DMA_BIT_MASK(64),
+ *		    for vendor devices with DMA space address limitations
+ */
 struct virtio_pci_modern_device {
 	struct pci_dev *pci_dev;
 
 	struct virtio_pci_common_cfg __iomem *common;
-	/* Device-specific data (non-legacy mode)  */
 	void __iomem *device;
-	/* Base of vq notifications (non-legacy mode). */
 	void __iomem *notify_base;
-	/* Physical base of vq notifications */
 	resource_size_t notify_pa;
-	/* Where to read and clear interrupt */
 	u8 __iomem *isr;
 
-	/* So we can sanity-check accesses. */
 	size_t notify_len;
 	size_t device_len;
+	size_t common_len;
 
-	/* Capability for when we need to map notifications per-vq. */
 	int notify_map_cap;
 
-	/* Multiply queue_notify_off by this value. (non-legacy mode). */
 	u32 notify_offset_multiplier;
-
 	int modern_bars;
-
 	struct virtio_device_id id;
 
-	/* optional check for vendor virtio device, returns dev_id or -ERRNO */
 	int (*device_id_check)(struct pci_dev *pdev);
-
-	/* optional mask for devices with limited DMA space */
 	u64 dma_mask;
 };
 
@@ -121,4 +125,6 @@ int vp_modern_probe(struct virtio_pci_modern_device *mdev);
 void vp_modern_remove(struct virtio_pci_modern_device *mdev);
 int vp_modern_get_queue_reset(struct virtio_pci_modern_device *mdev, u16 index);
 void vp_modern_set_queue_reset(struct virtio_pci_modern_device *mdev, u16 index);
+u16 vp_modern_avq_num(struct virtio_pci_modern_device *mdev);
+u16 vp_modern_avq_index(struct virtio_pci_modern_device *mdev);
 #endif

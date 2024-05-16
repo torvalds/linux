@@ -2,16 +2,18 @@
 #include <linux/sched/task.h>
 #include <linux/pgtable.h>
 #include <linux/kasan.h>
+#include <asm/page-states.h>
 #include <asm/pgalloc.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
+#include <asm/ctlreg.h>
 #include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/abs_lowcore.h>
 #include "decompressor.h"
 #include "boot.h"
 
-unsigned long __bootdata_preserved(s390_invalid_asce);
+struct ctlreg __bootdata_preserved(s390_invalid_asce);
 
 #ifdef CONFIG_PROC_FS
 atomic_long_t __bootdata_preserved(direct_pages_count[PG_DIRECT_MAP_MAX]);
@@ -69,6 +71,10 @@ static void kasan_populate_shadow(void)
 	crst_table_init((unsigned long *)kasan_early_shadow_pud, pud_val(pud_z));
 	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
 	memset64((u64 *)kasan_early_shadow_pte, pte_val(pte_z), PTRS_PER_PTE);
+	__arch_set_page_dat(kasan_early_shadow_p4d, 1UL << CRST_ALLOC_ORDER);
+	__arch_set_page_dat(kasan_early_shadow_pud, 1UL << CRST_ALLOC_ORDER);
+	__arch_set_page_dat(kasan_early_shadow_pmd, 1UL << CRST_ALLOC_ORDER);
+	__arch_set_page_dat(kasan_early_shadow_pte, 1);
 
 	/*
 	 * Current memory layout:
@@ -166,8 +172,6 @@ static bool kasan_pmd_populate_zero_shadow(pmd_t *pmd, unsigned long addr,
 
 static bool kasan_pte_populate_zero_shadow(pte_t *pte, enum populate_mode mode)
 {
-	pte_t entry;
-
 	if (mode == POPULATE_KASAN_ZERO_SHADOW) {
 		set_pte(pte, pte_z);
 		return true;
@@ -224,6 +228,7 @@ static void *boot_crst_alloc(unsigned long val)
 
 	table = (unsigned long *)physmem_alloc_top_down(RR_VMEM, size, size);
 	crst_table_init(table, val);
+	__arch_set_page_dat(table, 1UL << CRST_ALLOC_ORDER);
 	return table;
 }
 
@@ -239,6 +244,7 @@ static pte_t *boot_pte_alloc(void)
 	if (!pte_leftover) {
 		pte_leftover = (void *)physmem_alloc_top_down(RR_VMEM, PAGE_SIZE, PAGE_SIZE);
 		pte = pte_leftover + _PAGE_TABLE_SIZE;
+		__arch_set_page_dat(pte, 1);
 	} else {
 		pte = pte_leftover;
 		pte_leftover = NULL;
@@ -327,7 +333,7 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 			}
 			pte = boot_pte_alloc();
 			pmd_populate(&init_mm, pmd, pte);
-		} else if (pmd_large(*pmd)) {
+		} else if (pmd_leaf(*pmd)) {
 			continue;
 		}
 		pgtable_pte_populate(pmd, addr, next, mode);
@@ -360,7 +366,7 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 			}
 			pmd = boot_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			pud_populate(&init_mm, pud, pmd);
-		} else if (pud_large(*pud)) {
+		} else if (pud_leaf(*pud)) {
 			continue;
 		}
 		pgtable_pmd_populate(pud, addr, next, mode);
@@ -419,6 +425,14 @@ void setup_vmem(unsigned long asce_limit)
 	unsigned long asce_bits;
 	int i;
 
+	/*
+	 * Mark whole memory as no-dat. This must be done before any
+	 * page tables are allocated, or kernel image builtin pages
+	 * are marked as dat tables.
+	 */
+	for_each_physmem_online_range(i, &start, &end)
+		__arch_set_page_nodat((void *)start, (end - start) >> PAGE_SHIFT);
+
 	if (asce_limit == _REGION1_SIZE) {
 		asce_type = _REGION2_ENTRY_EMPTY;
 		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
@@ -426,10 +440,12 @@ void setup_vmem(unsigned long asce_limit)
 		asce_type = _REGION3_ENTRY_EMPTY;
 		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 	}
-	s390_invalid_asce = invalid_pg_dir | _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
+	s390_invalid_asce.val = invalid_pg_dir | _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
 
 	crst_table_init((unsigned long *)swapper_pg_dir, asce_type);
 	crst_table_init((unsigned long *)invalid_pg_dir, _REGION3_ENTRY_EMPTY);
+	__arch_set_page_dat((void *)swapper_pg_dir, 1UL << CRST_ALLOC_ORDER);
+	__arch_set_page_dat((void *)invalid_pg_dir, 1UL << CRST_ALLOC_ORDER);
 
 	/*
 	 * To allow prefixing the lowcore must be mapped with 4KB pages.
@@ -447,12 +463,12 @@ void setup_vmem(unsigned long asce_limit)
 
 	kasan_populate_shadow();
 
-	S390_lowcore.kernel_asce = swapper_pg_dir | asce_bits;
+	S390_lowcore.kernel_asce.val = swapper_pg_dir | asce_bits;
 	S390_lowcore.user_asce = s390_invalid_asce;
 
-	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	__ctl_load(S390_lowcore.user_asce, 7, 7);
-	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
+	local_ctl_load(1, &S390_lowcore.kernel_asce);
+	local_ctl_load(7, &S390_lowcore.user_asce);
+	local_ctl_load(13, &S390_lowcore.kernel_asce);
 
-	init_mm.context.asce = S390_lowcore.kernel_asce;
+	init_mm.context.asce = S390_lowcore.kernel_asce.val;
 }

@@ -240,5 +240,5 @@ module_init(dm_rr_init);
 module_exit(dm_rr_exit);
 
 MODULE_DESCRIPTION(DM_NAME " round-robin multipath path selector");
-MODULE_AUTHOR("Sistina Software <dm-devel@redhat.com>");
+MODULE_AUTHOR("Sistina Software <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

@@ -334,7 +334,7 @@ static ssize_t chp_cmg_show(struct device *dev, struct device_attribute *attr,
 		return 0;
 	if (chp->cmg == -1) /* channel measurements not available */
 		return sprintf(buf, "unknown\n");
-	return sprintf(buf, "%x\n", chp->cmg);
+	return sprintf(buf, "%d\n", chp->cmg);
 }
 
 static DEVICE_ATTR(cmg, 0444, chp_cmg_show, NULL);

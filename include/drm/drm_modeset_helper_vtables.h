@@ -48,6 +48,7 @@
  * To make this clear all the helper vtables are pulled together in this location here.
  */
 
+struct drm_scanout_buffer;
 struct drm_writeback_connector;
 struct drm_writeback_job;
 
@@ -134,7 +135,7 @@ struct drm_crtc_helper_funcs {
 	 * Since this function is both called from the check phase of an atomic
 	 * commit, and the mode validation in the probe paths it is not allowed
 	 * to look at anything else but the passed-in mode, and validate it
-	 * against configuration-invariant hardward constraints. Any further
+	 * against configuration-invariant hardware constraints. Any further
 	 * limits which depend upon the configuration can only be checked in
 	 * @mode_fixup or @atomic_check.
 	 *
@@ -550,7 +551,7 @@ struct drm_encoder_helper_funcs {
 	 * Since this function is both called from the check phase of an atomic
 	 * commit, and the mode validation in the probe paths it is not allowed
 	 * to look at anything else but the passed-in mode, and validate it
-	 * against configuration-invariant hardward constraints. Any further
+	 * against configuration-invariant hardware constraints. Any further
 	 * limits which depend upon the configuration can only be checked in
 	 * @mode_fixup or @atomic_check.
 	 *
@@ -898,7 +899,8 @@ struct drm_connector_helper_funcs {
 	 *
 	 * RETURNS:
 	 *
-	 * The number of modes added by calling drm_mode_probed_add().
+	 * The number of modes added by calling drm_mode_probed_add(). Return 0
+	 * on failures (no modes) instead of negative error codes.
 	 */
 	int (*get_modes)(struct drm_connector *connector);
 
@@ -1154,6 +1156,11 @@ struct drm_connector_helper_funcs {
 	 * This operation is optional.
 	 *
 	 * This callback is used by the drm_kms_helper_poll_enable() helpers.
+	 *
+	 * This operation does not need to perform any hpd state tracking as
+	 * the DRM core handles that maintenance and ensures the calls to enable
+	 * and disable hpd are balanced.
+	 *
 	 */
 	void (*enable_hpd)(struct drm_connector *connector);
 
@@ -1165,6 +1172,11 @@ struct drm_connector_helper_funcs {
 	 * This operation is optional.
 	 *
 	 * This callback is used by the drm_kms_helper_poll_disable() helpers.
+	 *
+	 * This operation does not need to perform any hpd state tracking as
+	 * the DRM core handles that maintenance and ensures the calls to enable
+	 * and disable hpd are balanced.
+	 *
 	 */
 	void (*disable_hpd)(struct drm_connector *connector);
 };
@@ -1432,6 +1444,44 @@ struct drm_plane_helper_funcs {
 	 */
 	void (*atomic_async_update)(struct drm_plane *plane,
 				    struct drm_atomic_state *state);
+
+	/**
+	 * @get_scanout_buffer:
+	 *
+	 * Get the current scanout buffer, to display a message with drm_panic.
+	 * The driver should do the minimum changes to provide a buffer,
+	 * that can be used to display the panic screen. Currently only linear
+	 * buffers are supported. Non-linear buffer support is on the TODO list.
+	 * The device &dev.mode_config.panic_lock is taken before calling this
+	 * function, so you can safely access the &plane.state
+	 * It is called from a panic callback, and must follow its restrictions.
+	 * Please look the documentation at drm_panic_trylock() for an in-depth
+	 * discussions of what's safe and what is not allowed.
+	 * It's a best effort mode, so it's expected that in some complex cases
+	 * the panic screen won't be displayed.
+	 * The returned &drm_scanout_buffer.map must be valid if no error code is
+	 * returned.
+	 *
+	 * Return:
+	 * %0 on success, negative errno on failure.
+	 */
+	int (*get_scanout_buffer)(struct drm_plane *plane,
+				  struct drm_scanout_buffer *sb);
+
+	/**
+	 * @panic_flush:
+	 *
+	 * It is used by drm_panic, and is called after the panic screen is
+	 * drawn to the scanout buffer. In this function, the driver
+	 * can send additional commands to the hardware, to make the scanout
+	 * buffer visible.
+	 * It is only called if get_scanout_buffer() returned successfully, and
+	 * the &dev.mode_config.panic_lock is held during the entire sequence.
+	 * It is called from a panic callback, and must follow its restrictions.
+	 * Please look the documentation at drm_panic_trylock() for an in-depth
+	 * discussions of what's safe and what is not allowed.
+	 */
+	void (*panic_flush)(struct drm_plane *plane);
 };
 
 /**
@@ -1464,7 +1514,7 @@ struct drm_mode_config_helper_funcs {
 	 * swapped into the various state pointers. The passed in state
 	 * therefore contains copies of the old/previous state. This hook should
 	 * commit the new state into hardware. Note that the helpers have
-	 * already waited for preceeding atomic commits and fences, but drivers
+	 * already waited for preceding atomic commits and fences, but drivers
 	 * can add more waiting calls at the start of their implementation, e.g.
 	 * to wait for driver-internal request for implicit syncing, before
 	 * starting to commit the update to the hardware.

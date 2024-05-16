@@ -181,7 +181,7 @@ static inline void pfx##out##bwlq##p(type val, unsigned long port)	\
 {									\
 	volatile type *__addr;						\
 									\
-	__addr = __ioport_map(port, sizeof(type));			\
+	__addr = (void __iomem *)sh_io_port_base + port;		\
 	*__addr = val;							\
 	slow;								\
 }									\
@@ -191,7 +191,7 @@ static inline type pfx##in##bwlq##p(unsigned long port)			\
 	volatile type *__addr;						\
 	type __val;							\
 									\
-	__addr = __ioport_map(port, sizeof(type));			\
+	__addr = (void __iomem *)sh_io_port_base + port;		\
 	__val = *__addr;						\
 	slow;								\
 									\
@@ -301,15 +301,6 @@ unsigned long long poke_real_address_q(unsigned long long addr,
 #define ioremap_cache(addr, size)  \
 	ioremap_prot((addr), (size), pgprot_val(PAGE_KERNEL))
 #endif /* CONFIG_MMU */
-
-#define ioremap_uc	ioremap
-
-/*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
-#define unxlate_dev_mem_ptr(p, v) do { } while (0)
 
 #include <asm-generic/io.h>
 

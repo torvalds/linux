@@ -1970,22 +1970,15 @@ static void aspeed_video_debugfs_remove(struct aspeed_video *video)
 	debugfs_entry = NULL;
 }
 
-static int aspeed_video_debugfs_create(struct aspeed_video *video)
+static void aspeed_video_debugfs_create(struct aspeed_video *video)
 {
 	debugfs_entry = debugfs_create_file(DEVICE_NAME, 0444, NULL,
 					    video,
 					    &aspeed_video_debugfs_fops);
-	if (!debugfs_entry)
-		aspeed_video_debugfs_remove(video);
-
-	return !debugfs_entry ? -EIO : 0;
 }
 #else
 static void aspeed_video_debugfs_remove(struct aspeed_video *video) { }
-static int aspeed_video_debugfs_create(struct aspeed_video *video)
-{
-	return 0;
-}
+static void aspeed_video_debugfs_create(struct aspeed_video *video) { }
 #endif /* CONFIG_DEBUG_FS */
 
 static int aspeed_video_setup_video(struct aspeed_video *video)
@@ -2041,7 +2034,7 @@ static int aspeed_video_setup_video(struct aspeed_video *video)
 	vbq->drv_priv = video;
 	vbq->buf_struct_size = sizeof(struct aspeed_video_buffer);
 	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	vbq->min_buffers_needed = ASPEED_VIDEO_V4L2_MIN_BUF_REQ;
+	vbq->min_queued_buffers = ASPEED_VIDEO_V4L2_MIN_BUF_REQ;
 
 	rc = vb2_queue_init(vbq);
 	if (rc) {
@@ -2198,9 +2191,7 @@ static int aspeed_video_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	rc = aspeed_video_debugfs_create(video);
-	if (rc)
-		dev_err(video->dev, "debugfs create failed\n");
+	aspeed_video_debugfs_create(video);
 
 	return 0;
 }

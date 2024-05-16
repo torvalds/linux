@@ -339,7 +339,7 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 	in6_dev = in6_dev_get(netdev);
 	if (!in6_dev)
 		goto out;
-	is_router = !!in6_dev->cnf.forwarding;
+	is_router = !!READ_ONCE(in6_dev->cnf.forwarding);
 	in6_dev_put(in6_dev);
 
 	/* ipv6_stub != NULL if in6_dev_get returned an inet6_dev */

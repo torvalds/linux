@@ -242,18 +242,7 @@ struct qaic_attach_slice_entry {
  * @dbc_id: In. Associate the sliced BO with this DBC.
  * @handle: In. GEM handle of the BO to slice.
  * @dir: In. Direction of data flow. 1 = DMA_TO_DEVICE, 2 = DMA_FROM_DEVICE
- * @size: In. Total length of BO being used. This should not exceed base
- *	  size of BO (struct drm_gem_object.base)
- *	  For BOs being allocated using DRM_IOCTL_QAIC_CREATE_BO, size of
- *	  BO requested is PAGE_SIZE aligned then allocated hence allocated
- *	  BO size maybe bigger. This size should not exceed the new
- *	  PAGE_SIZE aligned BO size.
- * @dev_addr: In. Device address this slice pushes to or pulls from.
- * @db_addr: In. Address of the doorbell to ring.
- * @db_data: In. Data to write to the doorbell.
- * @db_len: In. Size of the doorbell data in bits - 32, 16, or 8.  0 is for
- *	    inactive doorbells.
- * @offset: In. Start of this slice as an offset from the start of the BO.
+ * @size: Deprecated. This value is ignored and size of @handle is used instead.
  */
 struct qaic_attach_slice_hdr {
 	__u32 count;
@@ -287,8 +276,9 @@ struct qaic_execute_entry {
  * struct qaic_partial_execute_entry - Defines a BO to resize and submit.
  * @handle: In. GEM handle of the BO to commit to the device.
  * @dir: In. Direction of data. 1 = to device, 2 = from device.
- * @resize: In. New size of the BO.  Must be <= the original BO size.  0 is
- *	    short for no resize.
+ * @resize: In. New size of the BO.  Must be <= the original BO size.
+ *	    @resize as 0 would be interpreted as no DMA transfer is
+ *	    involved.
  */
 struct qaic_partial_execute_entry {
 	__u32 handle;

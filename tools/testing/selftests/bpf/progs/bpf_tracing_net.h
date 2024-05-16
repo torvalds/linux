@@ -26,6 +26,7 @@
 #define IPV6_AUTOFLOWLABEL	70
 
 #define TC_ACT_UNSPEC		(-1)
+#define TC_ACT_OK		0
 #define TC_ACT_SHOT		2
 
 #define SOL_TCP			6
@@ -50,8 +51,24 @@
 #define ICSK_TIME_LOSS_PROBE	5
 #define ICSK_TIME_REO_TIMEOUT	6
 
+#define ETH_ALEN		6
 #define ETH_HLEN		14
+#define ETH_P_IP		0x0800
 #define ETH_P_IPV6		0x86DD
+
+#define NEXTHDR_TCP		6
+
+#define TCPOPT_NOP		1
+#define TCPOPT_EOL		0
+#define TCPOPT_MSS		2
+#define TCPOPT_WINDOW		3
+#define TCPOPT_TIMESTAMP	8
+#define TCPOPT_SACK_PERM	4
+
+#define TCPOLEN_MSS		4
+#define TCPOLEN_WINDOW		3
+#define TCPOLEN_TIMESTAMP	10
+#define TCPOLEN_SACK_PERM	2
 
 #define CHECKSUM_NONE		0
 #define CHECKSUM_PARTIAL	3
@@ -71,6 +88,8 @@
 #define inet_rcv_saddr		sk.__sk_common.skc_rcv_saddr
 #define inet_dport		sk.__sk_common.skc_dport
 
+#define udp_portaddr_hash	inet.sk.__sk_common.skc_u16hashes[1]
+
 #define ir_loc_addr		req.__req_common.skc_rcv_saddr
 #define ir_num			req.__req_common.skc_num
 #define ir_rmt_addr		req.__req_common.skc_daddr
@@ -84,6 +103,7 @@
 #define sk_rmem_alloc		sk_backlog.rmem_alloc
 #define sk_refcnt		__sk_common.skc_refcnt
 #define sk_state		__sk_common.skc_state
+#define sk_net			__sk_common.skc_net
 #define sk_v6_daddr		__sk_common.skc_v6_daddr
 #define sk_v6_rcv_saddr		__sk_common.skc_v6_rcv_saddr
 #define sk_flags		__sk_common.skc_flags

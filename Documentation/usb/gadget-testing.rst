@@ -206,6 +206,14 @@ the standard procedure for using FunctionFS (mount it, run the userspace
 process which implements the function proper). The gadget should be enabled
 by writing a suitable string to usb_gadget/<gadget>/UDC.
 
+The FFS function provides just one attribute in its function directory:
+
+	ready
+
+The attribute is read-only and signals if the function is ready (1) to be
+used, E.G. if userspace has written descriptors and strings to ep0, so
+the gadget can be enabled.
+
 Testing the FFS function
 ------------------------
 
@@ -448,15 +456,17 @@ Function-specific configfs interface
 The function name to use when creating the function directory is "ncm".
 The NCM function provides these attributes in its function directory:
 
-	=============== ==================================================
-	ifname		network device interface name associated with this
-			function instance
-	qmult		queue length multiplier for high and super speed
-	host_addr	MAC address of host's end of this
-			Ethernet over USB link
-	dev_addr	MAC address of device's end of this
-			Ethernet over USB link
-	=============== ==================================================
+	======================= ==================================================
+	ifname			network device interface name associated with this
+				function instance
+	qmult			queue length multiplier for high and super speed
+	host_addr		MAC address of host's end of this
+				Ethernet over USB link
+	dev_addr		MAC address of device's end of this
+				Ethernet over USB link
+	max_segment_size	Segment size required for P2P connections. This
+				will set MTU to 14 bytes
+	======================= ==================================================
 
 and after creating the functions/ncm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
@@ -755,6 +765,8 @@ The uac2 function provides these attributes in its function directory:
 	req_number       the number of pre-allocated request for both capture
 	                 and playback
 	function_name    name of the interface
+	c_terminal_type  code of the capture terminal type
+	p_terminal_type  code of the playback terminal type
 	================ ====================================================
 
 The attributes have sane default values.

@@ -26,7 +26,6 @@
 	mmc-pwrseq = <&wifi_pwrseq>;
 	non-removable;
 	ti,fails-without-test-cd;
-	ti,driver-strength-ohm = <50>;
 	vmmc-supply = <&reg_3v3>;
 	status = "okay";
 };
@@ -35,5 +34,11 @@
 &main_uart5 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart5>;
+	uart-has-rtscts;
 	status = "okay";
+
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+		fw-init-baudrate = <3000000>;
+	};
 };

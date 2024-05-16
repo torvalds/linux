@@ -27,11 +27,11 @@ The important bits (aka "The TL;DR")
    is optional, but recommended):
 
     * For mailed reports, check if the reporter included a line like ``#regzbot
-      introduced v5.13..v5.14-rc1``. If not, send a reply (with the regressions
+      introduced: v5.13..v5.14-rc1``. If not, send a reply (with the regressions
       list in CC) containing a paragraph like the following, which tells regzbot
       when the issue started to happen::
 
-       #regzbot ^introduced 1f2e3d4c5b6a
+       #regzbot ^introduced: 1f2e3d4c5b6a
 
     * When forwarding reports from a bug tracker to the regressions list (see
       above), include a paragraph like the following::
@@ -79,7 +79,7 @@ When doing either, consider making the Linux kernel regression tracking bot
 "regzbot" immediately start tracking the issue:
 
  * For mailed reports, check if the reporter included a "regzbot command" like
-   ``#regzbot introduced 1f2e3d4c5b6a``. If not, send a reply (with the
+   ``#regzbot introduced: 1f2e3d4c5b6a``. If not, send a reply (with the
    regressions list in CC) with a paragraph like the following:::
 
        #regzbot ^introduced: v5.13..v5.14-rc1
@@ -398,9 +398,9 @@ By using a 'regzbot command' in a direct or indirect reply to the mail with the
 regression report. These commands need to be in their own paragraph (IOW: they
 need to be separated from the rest of the mail using blank lines).
 
-One such command is ``#regzbot introduced <version or commit>``, which makes
+One such command is ``#regzbot introduced: <version or commit>``, which makes
 regzbot consider your mail as a regressions report added to the tracking, as
-already described above; ``#regzbot ^introduced <version or commit>`` is another
+already described above; ``#regzbot ^introduced: <version or commit>`` is another
 such command, which makes regzbot consider the parent mail as a report for a
 regression which it starts to track.
 
@@ -432,7 +432,7 @@ or itself is a reply to that mail:
  * Mark a regression as fixed by a commit that is heading upstream or already
    landed::
 
-       #regzbot fixed-by: 1f2e3d4c5d
+       #regzbot fix: 1f2e3d4c5d
 
  * Mark a regression as a duplicate of another one already tracked by regzbot::
 

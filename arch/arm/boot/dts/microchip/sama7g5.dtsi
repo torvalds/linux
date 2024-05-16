@@ -698,7 +698,7 @@
 		};
 
 		flx0: flexcom@e1818000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe1818000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 38>;
 			#address-cells = <1>;
@@ -714,7 +714,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 38>;
 				clock-names = "usart";
 				dmas = <&dma1 AT91_XDMAC_DT_PERID(6)>,
-					<&dma1 AT91_XDMAC_DT_PERID(5)>;
+				       <&dma1 AT91_XDMAC_DT_PERID(5)>;
 				dma-names = "tx", "rx";
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -723,7 +723,7 @@
 		};
 
 		flx1: flexcom@e181c000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe181c000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 39>;
 			#address-cells = <1>;
@@ -740,14 +740,14 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 39>;
 				atmel,fifo-size = <32>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(8)>,
-					<&dma0 AT91_XDMAC_DT_PERID(7)>;
+				       <&dma0 AT91_XDMAC_DT_PERID(7)>;
 				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 		};
 
 		flx3: flexcom@e1824000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe1824000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 41>;
 			#address-cells = <1>;
@@ -763,7 +763,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 41>;
 				clock-names = "usart";
 				dmas = <&dma1 AT91_XDMAC_DT_PERID(12)>,
-					<&dma1 AT91_XDMAC_DT_PERID(11)>;
+				       <&dma1 AT91_XDMAC_DT_PERID(11)>;
 				dma-names = "tx", "rx";
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -791,7 +791,7 @@
 		};
 
 		flx4: flexcom@e2018000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2018000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 42>;
 			#address-cells = <1>;
@@ -807,7 +807,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 42>;
 				clock-names = "usart";
 				dmas = <&dma1 AT91_XDMAC_DT_PERID(14)>,
-					<&dma1 AT91_XDMAC_DT_PERID(13)>;
+				       <&dma1 AT91_XDMAC_DT_PERID(13)>;
 				dma-names = "tx", "rx";
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -817,7 +817,7 @@
 		};
 
 		flx7: flexcom@e2024000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2024000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 45>;
 			#address-cells = <1>;
@@ -833,7 +833,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 45>;
 				clock-names = "usart";
 				dmas = <&dma1 AT91_XDMAC_DT_PERID(20)>,
-					<&dma1 AT91_XDMAC_DT_PERID(19)>;
+				       <&dma1 AT91_XDMAC_DT_PERID(19)>;
 				dma-names = "tx", "rx";
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -911,7 +911,7 @@
 		};
 
 		flx8: flexcom@e2818000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2818000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 46>;
 			#address-cells = <1>;
@@ -928,14 +928,14 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 46>;
 				atmel,fifo-size = <32>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(22)>,
-					<&dma0 AT91_XDMAC_DT_PERID(21)>;
+				       <&dma0 AT91_XDMAC_DT_PERID(21)>;
 				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 		};
 
 		flx9: flexcom@e281c000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe281c000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 47>;
 			#address-cells = <1>;
@@ -952,14 +952,38 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 47>;
 				atmel,fifo-size = <32>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(24)>,
-					<&dma0 AT91_XDMAC_DT_PERID(23)>;
+				       <&dma0 AT91_XDMAC_DT_PERID(23)>;
+				dma-names = "tx", "rx";
+				status = "disabled";
+			};
+		};
+
+		flx10: flexcom@e2820000 {
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
+			reg = <0xe2820000 0x200>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 48>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0xe2820000 0x800>;
+			status = "disabled";
+
+			i2c10: i2c@600 {
+				compatible = "microchip,sama7g5-i2c", "microchip,sam9x60-i2c";
+				reg = <0x600 0x200>;
+				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 48>;
+				atmel,fifo-size = <32>;
+				dmas = <&dma0 AT91_XDMAC_DT_PERID(26)>,
+				       <&dma0 AT91_XDMAC_DT_PERID(25)>;
 				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 		};
 
 		flx11: flexcom@e2824000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2824000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 49>;
 			#address-cells = <1>;
@@ -977,7 +1001,7 @@
 				#size-cells = <0>;
 				atmel,fifo-size = <32>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(28)>,
-					    <&dma0 AT91_XDMAC_DT_PERID(27)>;
+				       <&dma0 AT91_XDMAC_DT_PERID(27)>;
 				dma-names = "tx", "rx";
 				status = "disabled";
 			};

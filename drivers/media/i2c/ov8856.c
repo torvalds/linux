@@ -1438,9 +1438,6 @@ struct ov8856 {
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
-
 	/* lanes index */
 	u8 nlanes;
 
@@ -2042,9 +2039,6 @@ static int ov8856_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (ov8856->streaming == enable)
-		return 0;
-
 	mutex_lock(&ov8856->mutex);
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -2064,7 +2058,6 @@ static int ov8856_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov8856->streaming = enable;
 	mutex_unlock(&ov8856->mutex);
 
 	return ret;
@@ -2125,45 +2118,6 @@ static int ov8856_power_off(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ov8856_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov8856 *ov8856 = to_ov8856(sd);
-
-	mutex_lock(&ov8856->mutex);
-	if (ov8856->streaming)
-		ov8856_stop_streaming(ov8856);
-
-	ov8856_power_off(dev);
-	mutex_unlock(&ov8856->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused ov8856_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov8856 *ov8856 = to_ov8856(sd);
-	int ret;
-
-	mutex_lock(&ov8856->mutex);
-
-	ov8856_power_on(dev);
-	if (ov8856->streaming) {
-		ret = ov8856_start_streaming(ov8856);
-		if (ret) {
-			ov8856->streaming = false;
-			ov8856_stop_streaming(ov8856);
-			mutex_unlock(&ov8856->mutex);
-			return ret;
-		}
-	}
-
-	mutex_unlock(&ov8856->mutex);
-
-	return 0;
-}
-
 static int ov8856_set_format(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *fmt)
@@ -2180,7 +2134,7 @@ static int ov8856_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&ov8856->mutex);
 	ov8856_update_pad_format(ov8856, mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov8856->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov8856->link_freq, mode->link_freq_index);
@@ -2218,9 +2172,8 @@ static int ov8856_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov8856->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov8856->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		ov8856_update_pad_format(ov8856, ov8856->cur_mode, &fmt->format);
 
@@ -2271,7 +2224,7 @@ static int ov8856_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov8856->mutex);
 	ov8856_update_pad_format(ov8856, &ov8856->priv_lane->supported_modes[0],
-				 v4l2_subdev_get_try_format(sd, fh->state, 0));
+				 v4l2_subdev_state_get_format(fh->state, 0));
 	mutex_unlock(&ov8856->mutex);
 
 	return 0;
@@ -2501,7 +2454,6 @@ probe_power_off:
 }
 
 static const struct dev_pm_ops ov8856_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov8856_suspend, ov8856_resume)
 	SET_RUNTIME_PM_OPS(ov8856_power_off, ov8856_power_on, NULL)
 };
 

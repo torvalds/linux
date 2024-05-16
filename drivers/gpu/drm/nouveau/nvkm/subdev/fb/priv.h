@@ -6,6 +6,9 @@
 #include <subdev/therm.h>
 struct nvkm_bios;
 
+int r535_fb_new(const struct nvkm_fb_func *,
+		struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
+
 struct nvkm_fb_func {
 	void *(*dtor)(struct nvkm_fb *);
 	u32 (*tags)(struct nvkm_fb *);

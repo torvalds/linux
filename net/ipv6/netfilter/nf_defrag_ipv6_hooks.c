@@ -182,3 +182,4 @@ module_init(nf_defrag_init);
 module_exit(nf_defrag_fini);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("IPv6 defragmentation support");

@@ -1399,6 +1399,7 @@ void tap_destroy_cdev(dev_t major, struct cdev *tap_cdev)
 }
 EXPORT_SYMBOL_GPL(tap_destroy_cdev);
 
+MODULE_DESCRIPTION("Common library for drivers implementing the TAP interface");
 MODULE_AUTHOR("Arnd Bergmann <arnd@arndb.de>");
 MODULE_AUTHOR("Sainath Grandhi <sainath.grandhi@intel.com>");
 MODULE_LICENSE("GPL");

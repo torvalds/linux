@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -18,7 +18,8 @@
 #include "qmi.h"
 
 #define ATH11K_PCI_BAR_NUM		0
-#define ATH11K_PCI_DMA_MASK		32
+#define ATH11K_PCI_DMA_MASK		36
+#define ATH11K_PCI_COHERENT_DMA_MASK	32
 
 #define TCSR_SOC_HW_VERSION		0x0224
 #define TCSR_SOC_HW_VERSION_MAJOR_MASK	GENMASK(11, 8)
@@ -27,6 +28,8 @@
 #define QCA6390_DEVICE_ID		0x1101
 #define QCN9074_DEVICE_ID		0x1104
 #define WCN6855_DEVICE_ID		0x1103
+
+#define TCSR_SOC_HW_SUB_VER	0x1910010
 
 static const struct pci_device_id ath11k_pci_id_table[] = {
 	{ PCI_VDEVICE(QCOM, QCA6390_DEVICE_ID) },
@@ -526,11 +529,21 @@ static int ath11k_pci_claim(struct ath11k_pci *ab_pci, struct pci_dev *pdev)
 		goto disable_device;
 	}
 
-	ret = dma_set_mask_and_coherent(&pdev->dev,
-					DMA_BIT_MASK(ATH11K_PCI_DMA_MASK));
+	ret = dma_set_mask(&pdev->dev,
+			   DMA_BIT_MASK(ATH11K_PCI_DMA_MASK));
 	if (ret) {
 		ath11k_err(ab, "failed to set pci dma mask to %d: %d\n",
 			   ATH11K_PCI_DMA_MASK, ret);
+		goto release_region;
+	}
+
+	ab_pci->dma_mask = DMA_BIT_MASK(ATH11K_PCI_DMA_MASK);
+
+	ret = dma_set_coherent_mask(&pdev->dev,
+				    DMA_BIT_MASK(ATH11K_PCI_COHERENT_DMA_MASK));
+	if (ret) {
+		ath11k_err(ab, "failed to set pci coherent dma mask to %d: %d\n",
+			   ATH11K_PCI_COHERENT_DMA_MASK, ret);
 		goto release_region;
 	}
 
@@ -731,8 +744,8 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	struct ath11k_base *ab;
 	struct ath11k_pci *ab_pci;
 	u32 soc_hw_version_major, soc_hw_version_minor, addr;
-	const struct ath11k_pci_ops *pci_ops;
 	int ret;
+	u32 sub_version;
 
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI);
 
@@ -777,6 +790,12 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 
 	switch (pci_dev->device) {
 	case QCA6390_DEVICE_ID:
+		ret = ath11k_pcic_register_pci_ops(ab, &ath11k_pci_ops_qca6390);
+		if (ret) {
+			ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
+			goto err_pci_free_region;
+		}
+
 		ath11k_pci_read_hw_version(ab, &soc_hw_version_major,
 					   &soc_hw_version_minor);
 		switch (soc_hw_version_major) {
@@ -790,13 +809,21 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 			goto err_pci_free_region;
 		}
 
-		pci_ops = &ath11k_pci_ops_qca6390;
 		break;
 	case QCN9074_DEVICE_ID:
-		pci_ops = &ath11k_pci_ops_qcn9074;
+		ret = ath11k_pcic_register_pci_ops(ab, &ath11k_pci_ops_qcn9074);
+		if (ret) {
+			ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
+			goto err_pci_free_region;
+		}
 		ab->hw_rev = ATH11K_HW_QCN9074_HW10;
 		break;
 	case WCN6855_DEVICE_ID:
+		ret = ath11k_pcic_register_pci_ops(ab, &ath11k_pci_ops_qca6390);
+		if (ret) {
+			ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
+			goto err_pci_free_region;
+		}
 		ab->id.bdf_search = ATH11K_BDF_SEARCH_BUS_AND_BOARD;
 		ath11k_pci_read_hw_version(ab, &soc_hw_version_major,
 					   &soc_hw_version_minor);
@@ -809,7 +836,19 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 				break;
 			case 0x10:
 			case 0x11:
-				ab->hw_rev = ATH11K_HW_WCN6855_HW21;
+				sub_version = ath11k_pcic_read32(ab, TCSR_SOC_HW_SUB_VER);
+				ath11k_dbg(ab, ATH11K_DBG_PCI, "sub_version 0x%x\n",
+					   sub_version);
+				switch (sub_version) {
+				case 0x1019A0E1:
+				case 0x1019B0E1:
+				case 0x1019C0E1:
+				case 0x1019D0E1:
+					ab->hw_rev = ATH11K_HW_QCA2066_HW21;
+					break;
+				default:
+					ab->hw_rev = ATH11K_HW_WCN6855_HW21;
+				}
 				break;
 			default:
 				goto unsupported_wcn6855_soc;
@@ -823,18 +862,11 @@ unsupported_wcn6855_soc:
 			goto err_pci_free_region;
 		}
 
-		pci_ops = &ath11k_pci_ops_qca6390;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unknown PCI device found: 0x%x\n",
 			pci_dev->device);
 		ret = -EOPNOTSUPP;
-		goto err_pci_free_region;
-	}
-
-	ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
-	if (ret) {
-		ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
 		goto err_pci_free_region;
 	}
 
@@ -854,10 +886,16 @@ unsupported_wcn6855_soc:
 	if (ret)
 		goto err_pci_disable_msi;
 
+	ret = ath11k_pci_set_irq_affinity_hint(ab_pci, cpumask_of(0));
+	if (ret) {
+		ath11k_err(ab, "failed to set irq affinity %d\n", ret);
+		goto err_pci_disable_msi;
+	}
+
 	ret = ath11k_mhi_register(ab_pci);
 	if (ret) {
 		ath11k_err(ab, "failed to register mhi: %d\n", ret);
-		goto err_pci_disable_msi;
+		goto err_irq_affinity_cleanup;
 	}
 
 	ret = ath11k_hal_srng_init(ab);
@@ -878,12 +916,6 @@ unsupported_wcn6855_soc:
 		goto err_ce_free;
 	}
 
-	ret = ath11k_pci_set_irq_affinity_hint(ab_pci, cpumask_of(0));
-	if (ret) {
-		ath11k_err(ab, "failed to set irq affinity %d\n", ret);
-		goto err_free_irq;
-	}
-
 	/* kernel may allocate a dummy vector before request_irq and
 	 * then allocate a real vector when request_irq is called.
 	 * So get msi_data here again to avoid spurious interrupt
@@ -892,19 +924,16 @@ unsupported_wcn6855_soc:
 	ret = ath11k_pci_config_msi_data(ab_pci);
 	if (ret) {
 		ath11k_err(ab, "failed to config msi_data: %d\n", ret);
-		goto err_irq_affinity_cleanup;
+		goto err_free_irq;
 	}
 
 	ret = ath11k_core_init(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to init core: %d\n", ret);
-		goto err_irq_affinity_cleanup;
+		goto err_free_irq;
 	}
 	ath11k_qmi_fwreset_from_cold_boot(ab);
 	return 0;
-
-err_irq_affinity_cleanup:
-	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 err_free_irq:
 	ath11k_pcic_free_irq(ab);
@@ -917,6 +946,9 @@ err_hal_srng_deinit:
 
 err_mhi_unregister:
 	ath11k_mhi_unregister(ab_pci);
+
+err_irq_affinity_cleanup:
+	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 err_pci_disable_msi:
 	ath11k_pci_free_msi(ab_pci);

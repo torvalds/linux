@@ -1,2 +1,0 @@
-* replace platform device code with DT nodes once the driver supports DT
-* remove staging board code when no more platform devices are needed

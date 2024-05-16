@@ -218,14 +218,13 @@ err_runtime_pm_disable:
 	return ret;
 }
 
-static int irqc_remove(struct platform_device *pdev)
+static void irqc_remove(struct platform_device *pdev)
 {
 	struct irqc_priv *p = platform_get_drvdata(pdev);
 
 	irq_domain_remove(p->irq_domain);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int __maybe_unused irqc_suspend(struct device *dev)
@@ -248,11 +247,11 @@ MODULE_DEVICE_TABLE(of, irqc_dt_ids);
 
 static struct platform_driver irqc_device_driver = {
 	.probe		= irqc_probe,
-	.remove		= irqc_remove,
+	.remove_new	= irqc_remove,
 	.driver		= {
-		.name	= "renesas_irqc",
+		.name		= "renesas_irqc",
 		.of_match_table	= irqc_dt_ids,
-		.pm	= &irqc_pm_ops,
+		.pm		= &irqc_pm_ops,
 	}
 };
 

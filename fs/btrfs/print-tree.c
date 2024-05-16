@@ -9,6 +9,8 @@
 #include "print-tree.h"
 #include "accessors.h"
 #include "tree-checker.h"
+#include "volumes.h"
+#include "raid-stripe-tree.h"
 
 struct root_name_map {
 	u64 id;
@@ -28,6 +30,7 @@ static const struct root_name_map root_map[] = {
 	{ BTRFS_FREE_SPACE_TREE_OBJECTID,	"FREE_SPACE_TREE"	},
 	{ BTRFS_BLOCK_GROUP_TREE_OBJECTID,	"BLOCK_GROUP_TREE"	},
 	{ BTRFS_DATA_RELOC_TREE_OBJECTID,	"DATA_RELOC_TREE"	},
+	{ BTRFS_RAID_STRIPE_TREE_OBJECTID,	"RAID_STRIPE_TREE"	},
 };
 
 const char *btrfs_root_name(const struct btrfs_key *key, char *buf)
@@ -80,12 +83,20 @@ static void print_extent_data_ref(const struct extent_buffer *eb,
 	       btrfs_extent_data_ref_count(eb, ref));
 }
 
+static void print_extent_owner_ref(const struct extent_buffer *eb,
+				   const struct btrfs_extent_owner_ref *ref)
+{
+	ASSERT(btrfs_fs_incompat(eb->fs_info, SIMPLE_QUOTA));
+	pr_cont("extent data owner root %llu\n", btrfs_extent_owner_ref_root_id(eb, ref));
+}
+
 static void print_extent_item(const struct extent_buffer *eb, int slot, int type)
 {
 	struct btrfs_extent_item *ei;
 	struct btrfs_extent_inline_ref *iref;
 	struct btrfs_extent_data_ref *dref;
 	struct btrfs_shared_data_ref *sref;
+	struct btrfs_extent_owner_ref *oref;
 	struct btrfs_disk_key key;
 	unsigned long end;
 	unsigned long ptr;
@@ -161,6 +172,10 @@ static void print_extent_item(const struct extent_buffer *eb, int slot, int type
 			"\t\t\t(parent %llu not aligned to sectorsize %u)\n",
 				     offset, eb->fs_info->sectorsize);
 			break;
+		case BTRFS_EXTENT_OWNER_REF_KEY:
+			oref = (struct btrfs_extent_owner_ref *)(&iref->offset);
+			print_extent_owner_ref(eb, oref);
+			break;
 		default:
 			pr_cont("(extent %llu has INVALID ref type %d)\n",
 				  eb->start, type);
@@ -187,6 +202,22 @@ static void print_uuid_item(const struct extent_buffer *l, unsigned long offset,
 		item_size -= sizeof(u64);
 		offset += sizeof(u64);
 	}
+}
+
+static void print_raid_stripe_key(const struct extent_buffer *eb, u32 item_size,
+				  struct btrfs_stripe_extent *stripe)
+{
+	const int num_stripes = btrfs_num_raid_stripes(item_size);
+	const u8 encoding = btrfs_stripe_extent_encoding(eb, stripe);
+
+	pr_info("\t\t\tencoding: %s\n",
+		(encoding && encoding < BTRFS_NR_RAID_TYPES) ?
+		btrfs_raid_array[encoding].raid_name : "unknown");
+
+	for (int i = 0; i < num_stripes; i++)
+		pr_info("\t\t\tstride %d devid %llu physical %llu\n",
+			i, btrfs_raid_stride_devid(eb, &stripe->strides[i]),
+			btrfs_raid_stride_physical(eb, &stripe->strides[i]));
 }
 
 /*
@@ -348,6 +379,10 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 		case BTRFS_UUID_KEY_RECEIVED_SUBVOL:
 			print_uuid_item(l, btrfs_item_ptr_offset(l, i),
 					btrfs_item_size(l, i));
+			break;
+		case BTRFS_RAID_STRIPE_KEY:
+			print_raid_stripe_key(l, btrfs_item_size(l, i),
+				btrfs_item_ptr(l, i, struct btrfs_stripe_extent));
 			break;
 		}
 	}

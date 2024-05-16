@@ -10,7 +10,7 @@
 /*
  * PAGE_SHIFT determines the page size: 4KB
  */
-#define PAGE_SHIFT	12
+#define PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 #define THREAD_SIZE	(PAGE_SIZE * 2)
@@ -80,11 +80,6 @@ extern unsigned long va_pa_offset;
 static inline unsigned long virt_to_pfn(const void *kaddr)
 {
 	return __pa(kaddr) >> PAGE_SHIFT;
-}
-
-static inline void * pfn_to_virt(unsigned long pfn)
-{
-	return (void *)((unsigned long)__va(pfn) << PAGE_SHIFT);
 }
 
 #define MAP_NR(x)	PFN_DOWN((unsigned long)(x) - PAGE_OFFSET - \

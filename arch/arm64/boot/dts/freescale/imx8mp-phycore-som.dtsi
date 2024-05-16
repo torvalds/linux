@@ -175,7 +175,6 @@
 	rv3028: rtc@52 {
 		compatible = "microcrystal,rv3028";
 		reg = <0x52>;
-		trickle-resistor-ohms = <3000>;
 	};
 };
 
@@ -197,6 +196,19 @@
 	pinctrl-0 = <&pinctrl_wdog>;
 	fsl,ext-reset-output;
 	status = "okay";
+};
+
+&gpio1 {
+	gpio-line-names = "", "", "X_PMIC_WDOG_B", "",
+		"", "", "", "", "", "",
+		"", "", "", "", "", "X_nETHPHY_INT";
+};
+
+&gpio4 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "", "", "", "",
+		"", "", "X_PMIC_IRQ_B";
 };
 
 &iomuxc {

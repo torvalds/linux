@@ -807,7 +807,7 @@ err_trig:
 	return ret;
 }
 
-static int mxs_lradc_adc_remove(struct platform_device *pdev)
+static void mxs_lradc_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *iio = platform_get_drvdata(pdev);
 	struct mxs_lradc_adc *adc = iio_priv(iio);
@@ -816,8 +816,6 @@ static int mxs_lradc_adc_remove(struct platform_device *pdev)
 	mxs_lradc_adc_hw_stop(adc);
 	iio_triggered_buffer_cleanup(iio);
 	mxs_lradc_adc_trigger_remove(iio);
-
-	return 0;
 }
 
 static struct platform_driver mxs_lradc_adc_driver = {
@@ -825,7 +823,7 @@ static struct platform_driver mxs_lradc_adc_driver = {
 		.name	= "mxs-lradc-adc",
 	},
 	.probe	= mxs_lradc_adc_probe,
-	.remove = mxs_lradc_adc_remove,
+	.remove_new = mxs_lradc_adc_remove,
 };
 module_platform_driver(mxs_lradc_adc_driver);
 

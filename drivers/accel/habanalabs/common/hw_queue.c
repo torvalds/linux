@@ -84,6 +84,8 @@ void hl_hw_queue_submit_bd(struct hl_device *hdev, struct hl_hw_queue *q,
 		u32 ctl, u32 len, u64 ptr)
 {
 	struct hl_bd *bd;
+	u64 addr;
+	int i;
 
 	bd = q->kernel_address;
 	bd += hl_pi_2_offset(q->pi);
@@ -91,7 +93,16 @@ void hl_hw_queue_submit_bd(struct hl_device *hdev, struct hl_hw_queue *q,
 	bd->len = cpu_to_le32(len);
 	bd->ptr = cpu_to_le64(ptr);
 
+	if (q->dram_bd)
+		for (i = 0 ; i < 2 ; i++) {
+			addr = q->pq_dram_address +
+			((hl_pi_2_offset(q->pi) * sizeof(struct hl_bd))	+ (i * sizeof(u64)));
+			hdev->asic_funcs->access_dev_mem(hdev, PCI_REGION_DRAM,	addr,
+						(u64 *)(bd) + i, DEBUGFS_WRITE64);
+		}
+
 	q->pi = hl_queue_inc_ptr(q->pi);
+
 	hdev->asic_funcs->ring_doorbell(hdev, q->hw_queue_id, q->pi);
 }
 
@@ -1087,12 +1098,18 @@ int hl_hw_queues_create(struct hl_device *hdev)
 		q->supports_sync_stream =
 				asic->hw_queues_props[i].supports_sync_stream;
 		q->collective_mode = asic->hw_queues_props[i].collective_mode;
+		q->dram_bd = asic->hw_queues_props[i].dram_bd;
+
 		rc = queue_init(hdev, q, i);
 		if (rc) {
 			dev_err(hdev->dev,
 				"failed to initialize queue %d\n", i);
 			goto release_queues;
 		}
+
+		/* Set DRAM PQ address for the queue if it should be at DRAM */
+		if (q->dram_bd)
+			q->pq_dram_address = asic->hw_queues_props[i].q_dram_bd_address;
 	}
 
 	return 0;

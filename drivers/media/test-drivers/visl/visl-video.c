@@ -40,6 +40,9 @@ static void visl_set_current_codec(struct visl_ctx *ctx)
 	case V4L2_PIX_FMT_HEVC_SLICE:
 		ctx->current_codec = VISL_CODEC_HEVC;
 		break;
+	case V4L2_PIX_FMT_AV1_FRAME:
+		ctx->current_codec = VISL_CODEC_AV1;
+		break;
 	default:
 		dprintk(ctx->dev, "Warning: unsupported fourcc: %d\n", fourcc);
 		ctx->current_codec = VISL_CODEC_NONE;
@@ -218,6 +221,21 @@ const struct visl_coded_format_desc visl_coded_fmts[] = {
 		.num_decoded_fmts = ARRAY_SIZE(visl_decoded_fmts),
 		.decoded_fmts = visl_decoded_fmts,
 	},
+	{
+		.pixelformat = V4L2_PIX_FMT_AV1_FRAME,
+		.frmsize = {
+			.min_width = 64,
+			.max_width = 4096,
+			.step_width = 1,
+			.min_height = 64,
+			.max_height = 2304,
+			.step_height = 1,
+		},
+		.ctrls = &visl_av1_ctrls,
+		.num_decoded_fmts = ARRAY_SIZE(visl_decoded_fmts),
+		.decoded_fmts = visl_decoded_fmts,
+	},
+
 };
 
 const size_t num_coded_fmts = ARRAY_SIZE(visl_coded_fmts);
@@ -524,6 +542,9 @@ const struct v4l2_ioctl_ops visl_ioctl_ops = {
 
 	.vidioc_streamon		= v4l2_m2m_ioctl_streamon,
 	.vidioc_streamoff		= v4l2_m2m_ioctl_streamoff,
+
+	.vidioc_decoder_cmd		= v4l2_m2m_ioctl_stateless_decoder_cmd,
+	.vidioc_try_decoder_cmd		= v4l2_m2m_ioctl_stateless_try_decoder_cmd,
 
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,

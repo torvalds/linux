@@ -36,6 +36,7 @@ config ARM64
 	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
 	select ARCH_HAS_PTE_DEVMAP
 	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_HW_PTE_YOUNG
 	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_SET_DIRECT_MAP
 	select ARCH_HAS_SET_MEMORY
@@ -106,7 +107,7 @@ config ARM64
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_WANTS_NO_INSTR
 	select ARCH_WANTS_THP_SWAP if ARM64_4K_PAGES
-	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_UBSAN
 	select ARM_AMBA
 	select ARM_ARCH_TIMER
 	select ARM_GIC
@@ -119,6 +120,7 @@ config ARM64
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select CPU_PM if (SUSPEND || CPU_IDLE)
+	select CPUMASK_OFFSTACK if NR_CPUS > 256
 	select CRC32
 	select DCACHE_WORD_ACCESS
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
@@ -132,6 +134,7 @@ config ARM64
 	select GENERIC_ARCH_TOPOLOGY
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_CPU_DEVICES
 	select GENERIC_CPU_VULNERABILITIES
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
@@ -154,7 +157,7 @@ config ARM64
 	select HAVE_MOVE_PUD
 	select HAVE_PCI
 	select HAVE_ACPI_APEI if (ACPI && EFI)
-	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
+	select HAVE_ALIGNED_STRUCT_PAGE
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_BITREVERSE
 	select HAVE_ARCH_COMPILER_H
@@ -162,7 +165,7 @@ config ARM64
 	select HAVE_ARCH_HUGE_VMAP
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
-	select HAVE_ARCH_KASAN if !(ARM64_16K_PAGES && ARM64_VA_BITS_48)
+	select HAVE_ARCH_KASAN
 	select HAVE_ARCH_KASAN_VMALLOC if HAVE_ARCH_KASAN
 	select HAVE_ARCH_KASAN_SW_TAGS if HAVE_ARCH_KASAN
 	select HAVE_ARCH_KASAN_HW_TAGS if (HAVE_ARCH_KASAN && ARM64_MTE)
@@ -196,7 +199,7 @@ config ARM64
 		if DYNAMIC_FTRACE_WITH_ARGS && DYNAMIC_FTRACE_WITH_CALL_OPS
 	select HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS \
 		if (DYNAMIC_FTRACE_WITH_ARGS && !CFI_CLANG && \
-		    !CC_OPTIMIZE_FOR_SIZE)
+		    (CC_IS_CLANG || !CC_OPTIMIZE_FOR_SIZE))
 	select FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY \
 		if DYNAMIC_FTRACE_WITH_ARGS
 	select HAVE_SAMPLE_FTRACE_DIRECT
@@ -214,7 +217,6 @@ config ARM64
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_TIME_ACCOUNTING
-	select HAVE_KVM
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_PERF_EVENTS
@@ -227,6 +229,7 @@ config ARM64
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select MMU_GATHER_RCU_TABLE_FREE
 	select HAVE_RSEQ
+	select HAVE_RUST if CPU_LITTLE_ENDIAN
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_KPROBES
@@ -275,27 +278,21 @@ config 64BIT
 config MMU
 	def_bool y
 
-config ARM64_PAGE_SHIFT
-	int
-	default 16 if ARM64_64K_PAGES
-	default 14 if ARM64_16K_PAGES
-	default 12
-
 config ARM64_CONT_PTE_SHIFT
 	int
-	default 5 if ARM64_64K_PAGES
-	default 7 if ARM64_16K_PAGES
+	default 5 if PAGE_SIZE_64KB
+	default 7 if PAGE_SIZE_16KB
 	default 4
 
 config ARM64_CONT_PMD_SHIFT
 	int
-	default 5 if ARM64_64K_PAGES
-	default 5 if ARM64_16K_PAGES
+	default 5 if PAGE_SIZE_64KB
+	default 5 if PAGE_SIZE_16KB
 	default 4
 
 config ARCH_MMAP_RND_BITS_MIN
-	default 14 if ARM64_64K_PAGES
-	default 16 if ARM64_16K_PAGES
+	default 14 if PAGE_SIZE_64KB
+	default 16 if PAGE_SIZE_16KB
 	default 18
 
 # max bits determined by the following formula:
@@ -366,7 +363,9 @@ config PGTABLE_LEVELS
 	default 3 if ARM64_64K_PAGES && (ARM64_VA_BITS_48 || ARM64_VA_BITS_52)
 	default 3 if ARM64_4K_PAGES && ARM64_VA_BITS_39
 	default 3 if ARM64_16K_PAGES && ARM64_VA_BITS_47
+	default 4 if ARM64_16K_PAGES && (ARM64_VA_BITS_48 || ARM64_VA_BITS_52)
 	default 4 if !ARM64_64K_PAGES && ARM64_VA_BITS_48
+	default 5 if ARM64_4K_PAGES && ARM64_VA_BITS_52
 
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
@@ -380,8 +379,8 @@ config BROKEN_GAS_INST
 config BUILTIN_RETURN_ADDRESS_STRIPS_PAC
 	bool
 	# Clang's __builtin_return_adddress() strips the PAC since 12.0.0
-	# https://reviews.llvm.org/D75044
-	default y if CC_IS_CLANG && (CLANG_VERSION >= 120000)
+	# https://github.com/llvm/llvm-project/commit/2a96f47c5ffca84cd774ad402cacd137f4bf45e2
+	default y if CC_IS_CLANG
 	# GCC's __builtin_return_address() strips the PAC since 11.1.0,
 	# and this was backported to 10.2.0, 9.4.0, 8.5.0, but not earlier
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94891
@@ -394,13 +393,13 @@ config BUILTIN_RETURN_ADDRESS_STRIPS_PAC
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN_GENERIC || KASAN_SW_TAGS
-	default 0xdfff800000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && !KASAN_SW_TAGS
-	default 0xdfffc00000000000 if ARM64_VA_BITS_47 && !KASAN_SW_TAGS
+	default 0xdfff800000000000 if (ARM64_VA_BITS_48 || (ARM64_VA_BITS_52 && !ARM64_16K_PAGES)) && !KASAN_SW_TAGS
+	default 0xdfffc00000000000 if (ARM64_VA_BITS_47 || ARM64_VA_BITS_52) && ARM64_16K_PAGES && !KASAN_SW_TAGS
 	default 0xdffffe0000000000 if ARM64_VA_BITS_42 && !KASAN_SW_TAGS
 	default 0xdfffffc000000000 if ARM64_VA_BITS_39 && !KASAN_SW_TAGS
 	default 0xdffffff800000000 if ARM64_VA_BITS_36 && !KASAN_SW_TAGS
-	default 0xefff800000000000 if (ARM64_VA_BITS_48 || ARM64_VA_BITS_52) && KASAN_SW_TAGS
-	default 0xefffc00000000000 if ARM64_VA_BITS_47 && KASAN_SW_TAGS
+	default 0xefff800000000000 if (ARM64_VA_BITS_48 || (ARM64_VA_BITS_52 && !ARM64_16K_PAGES)) && KASAN_SW_TAGS
+	default 0xefffc00000000000 if (ARM64_VA_BITS_47 || ARM64_VA_BITS_52) && ARM64_16K_PAGES && KASAN_SW_TAGS
 	default 0xeffffe0000000000 if ARM64_VA_BITS_42 && KASAN_SW_TAGS
 	default 0xefffffc000000000 if ARM64_VA_BITS_39 && KASAN_SW_TAGS
 	default 0xeffffff800000000 if ARM64_VA_BITS_36 && KASAN_SW_TAGS
@@ -545,9 +544,8 @@ config ARM64_ERRATUM_832075
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_834220
-	bool "Cortex-A57: 834220: Stage 2 translation fault might be incorrectly reported in presence of a Stage 1 fault"
+	bool "Cortex-A57: 834220: Stage 2 translation fault might be incorrectly reported in presence of a Stage 1 fault (rare)"
 	depends on KVM
-	default y
 	help
 	  This option adds an alternative code sequence to work around ARM
 	  erratum 834220 on Cortex-A57 parts up to r1p2.
@@ -563,7 +561,7 @@ config ARM64_ERRATUM_834220
 	  as it depends on the alternative framework, which will only patch
 	  the kernel if an affected CPU is detected.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config ARM64_ERRATUM_1742098
 	bool "Cortex-A57/A72: 1742098: ELR recorded incorrectly on interrupt taken between cryptographic instructions in a sequence"
@@ -690,8 +688,7 @@ config ARM64_WORKAROUND_REPEAT_TLBI
 	bool
 
 config ARM64_ERRATUM_2441007
-	bool "Cortex-A55: Completion of affected memory accesses might not be guaranteed by completion of a TLBI"
-	default y
+	bool "Cortex-A55: Completion of affected memory accesses might not be guaranteed by completion of a TLBI (rare)"
 	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
 	  This option adds a workaround for ARM Cortex-A55 erratum #2441007.
@@ -704,11 +701,10 @@ config ARM64_ERRATUM_2441007
 	  Work around this by adding the affected CPUs to the list that needs
 	  TLB sequences to be done twice.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config ARM64_ERRATUM_1286807
-	bool "Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation"
-	default y
+	bool "Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation (rare)"
 	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
 	  This option adds a workaround for ARM Cortex-A76 erratum 1286807.
@@ -721,6 +717,8 @@ config ARM64_ERRATUM_1286807
 	  TLBI+DSB completes before a read using the translation being
 	  invalidated has been observed by other observers. The
 	  workaround repeats the TLBI+DSB operation.
+
+	  If unsure, say N.
 
 config ARM64_ERRATUM_1463225
 	bool "Cortex-A76: Software Step might prevent interrupt recognition"
@@ -741,8 +739,7 @@ config ARM64_ERRATUM_1463225
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_1542419
-	bool "Neoverse-N1: workaround mis-ordering of instruction fetches"
-	default y
+	bool "Neoverse-N1: workaround mis-ordering of instruction fetches (rare)"
 	help
 	  This option adds a workaround for ARM Neoverse-N1 erratum
 	  1542419.
@@ -754,7 +751,7 @@ config ARM64_ERRATUM_1542419
 	  Workaround the issue by hiding the DIC feature from EL0. This
 	  forces user-space to perform cache maintenance.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config ARM64_ERRATUM_1508412
 	bool "Cortex-A77: 1508412: workaround deadlock on sequence of NC/Device load and store exclusive or PAR read"
@@ -929,8 +926,7 @@ config ARM64_ERRATUM_2224489
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_2441009
-	bool "Cortex-A510: Completion of affected memory accesses might not be guaranteed by completion of a TLBI"
-	default y
+	bool "Cortex-A510: Completion of affected memory accesses might not be guaranteed by completion of a TLBI (rare)"
 	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
 	  This option adds a workaround for ARM Cortex-A510 erratum #2441009.
@@ -943,7 +939,7 @@ config ARM64_ERRATUM_2441009
 	  Work around this by adding the affected CPUs to the list that needs
 	  TLB sequences to be done twice.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config ARM64_ERRATUM_2064142
 	bool "Cortex-A510: 2064142: workaround TRBE register writes while disabled"
@@ -1037,13 +1033,31 @@ config ARM64_ERRATUM_2645198
 
 	  If unsure, say Y.
 
+config ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD
+	bool
+
 config ARM64_ERRATUM_2966298
 	bool "Cortex-A520: 2966298: workaround for speculatively executed unprivileged load"
+	select ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD
 	default y
 	help
 	  This option adds the workaround for ARM Cortex-A520 erratum 2966298.
 
 	  On an affected Cortex-A520 core, a speculatively executed unprivileged
+	  load might leak data from a privileged level via a cache side channel.
+
+	  Work around this problem by executing a TLBI before returning to EL0.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_3117295
+	bool "Cortex-A510: 3117295: workaround for speculatively executed unprivileged load"
+	select ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 3117295.
+
+	  On an affected Cortex-A510 core, a speculatively executed unprivileged
 	  load might leak data from a privileged level via a cache side channel.
 
 	  Work around this problem by executing a TLBI before returning to EL0.
@@ -1239,11 +1253,13 @@ choice
 
 config ARM64_4K_PAGES
 	bool "4KB"
+	select HAVE_PAGE_SIZE_4KB
 	help
 	  This feature enables 4KB pages support.
 
 config ARM64_16K_PAGES
 	bool "16KB"
+	select HAVE_PAGE_SIZE_16KB
 	help
 	  The system will use 16KB pages support. AArch32 emulation
 	  requires applications compiled with 16K (or a multiple of 16K)
@@ -1251,6 +1267,7 @@ config ARM64_16K_PAGES
 
 config ARM64_64K_PAGES
 	bool "64KB"
+	select HAVE_PAGE_SIZE_64KB
 	help
 	  This feature enables 64KB pages support (4KB by default)
 	  allowing only two levels of page tables and faster TLB
@@ -1261,9 +1278,7 @@ endchoice
 
 choice
 	prompt "Virtual address space size"
-	default ARM64_VA_BITS_39 if ARM64_4K_PAGES
-	default ARM64_VA_BITS_47 if ARM64_16K_PAGES
-	default ARM64_VA_BITS_42 if ARM64_64K_PAGES
+	default ARM64_VA_BITS_52
 	help
 	  Allows choosing one of multiple possible virtual address
 	  space sizes. The level of translation table is determined by
@@ -1271,26 +1286,26 @@ choice
 
 config ARM64_VA_BITS_36
 	bool "36-bit" if EXPERT
-	depends on ARM64_16K_PAGES
+	depends on PAGE_SIZE_16KB
 
 config ARM64_VA_BITS_39
 	bool "39-bit"
-	depends on ARM64_4K_PAGES
+	depends on PAGE_SIZE_4KB
 
 config ARM64_VA_BITS_42
 	bool "42-bit"
-	depends on ARM64_64K_PAGES
+	depends on PAGE_SIZE_64KB
 
 config ARM64_VA_BITS_47
 	bool "47-bit"
-	depends on ARM64_16K_PAGES
+	depends on PAGE_SIZE_16KB
 
 config ARM64_VA_BITS_48
 	bool "48-bit"
 
 config ARM64_VA_BITS_52
 	bool "52-bit"
-	depends on ARM64_64K_PAGES && (ARM64_PAN || !ARM64_SW_TTBR0_PAN)
+	depends on ARM64_PAN || !ARM64_SW_TTBR0_PAN
 	help
 	  Enable 52-bit virtual addressing for userspace when explicitly
 	  requested via a hint to mmap(). The kernel will also use 52-bit
@@ -1337,10 +1352,11 @@ choice
 
 config ARM64_PA_BITS_48
 	bool "48-bit"
+	depends on ARM64_64K_PAGES || !ARM64_VA_BITS_52
 
 config ARM64_PA_BITS_52
-	bool "52-bit (ARMv8.2)"
-	depends on ARM64_64K_PAGES
+	bool "52-bit"
+	depends on ARM64_64K_PAGES || ARM64_VA_BITS_52
 	depends on ARM64_PAN || !ARM64_SW_TTBR0_PAN
 	help
 	  Enable support for a 52-bit physical address space, introduced as
@@ -1357,6 +1373,10 @@ config ARM64_PA_BITS
 	default 48 if ARM64_PA_BITS_48
 	default 52 if ARM64_PA_BITS_52
 
+config ARM64_LPA2
+	def_bool y
+	depends on ARM64_PA_BITS_52 && !ARM64_64K_PAGES
+
 choice
 	prompt "Endianness"
 	default CPU_LITTLE_ENDIAN
@@ -1367,7 +1387,8 @@ choice
 
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
-	depends on !LD_IS_LLD || LLD_VERSION >= 130000
+	# https://github.com/llvm/llvm-project/commit/1379b150991f70a5782e9a143c2ba5308da1161c
+	depends on AS_IS_GNU || AS_VERSION >= 150000
 	help
 	  Say Y if you plan on running a kernel with a big-endian userspace.
 
@@ -1405,7 +1426,7 @@ config SCHED_SMT
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
-	default "256"
+	default "512"
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
@@ -1496,6 +1517,9 @@ config ARCH_DEFAULT_KEXEC_IMAGE_VERIFY_SIG
 config ARCH_SUPPORTS_CRASH_DUMP
 	def_bool y
 
+config ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
+	def_bool CRASH_RESERVE
+
 config TRANS_TABLE
 	def_bool y
 	depends on HIBERNATION || KEXEC_CORE
@@ -1514,15 +1538,15 @@ config XEN
 
 # include/linux/mmzone.h requires the following to be true:
 #
-#   MAX_ORDER + PAGE_SHIFT <= SECTION_SIZE_BITS
+#   MAX_PAGE_ORDER + PAGE_SHIFT <= SECTION_SIZE_BITS
 #
-# so the maximum value of MAX_ORDER is SECTION_SIZE_BITS - PAGE_SHIFT:
+# so the maximum value of MAX_PAGE_ORDER is SECTION_SIZE_BITS - PAGE_SHIFT:
 #
-#     | SECTION_SIZE_BITS |  PAGE_SHIFT  |  max MAX_ORDER  |  default MAX_ORDER |
-# ----+-------------------+--------------+-----------------+--------------------+
-# 4K  |       27          |      12      |       15        |         10         |
-# 16K |       27          |      14      |       13        |         11         |
-# 64K |       29          |      16      |       13        |         13         |
+#     | SECTION_SIZE_BITS |  PAGE_SHIFT  |  max MAX_PAGE_ORDER  |  default MAX_PAGE_ORDER |
+# ----+-------------------+--------------+----------------------+-------------------------+
+# 4K  |       27          |      12      |       15             |         10              |
+# 16K |       27          |      14      |       13             |         11              |
+# 64K |       29          |      16      |       13             |         13              |
 config ARCH_FORCE_MAX_ORDER
 	int
 	default "13" if ARM64_64K_PAGES
@@ -1530,21 +1554,21 @@ config ARCH_FORCE_MAX_ORDER
 	default "10"
 	help
 	  The kernel page allocator limits the size of maximal physically
-	  contiguous allocations. The limit is called MAX_ORDER and it
+	  contiguous allocations. The limit is called MAX_PAGE_ORDER and it
 	  defines the maximal power of two of number of pages that can be
 	  allocated as a single contiguous block. This option allows
 	  overriding the default setting when ability to allocate very
 	  large blocks of physically contiguous memory is required.
 
 	  The maximal size of allocation cannot exceed the size of the
-	  section, so the value of MAX_ORDER should satisfy
+	  section, so the value of MAX_PAGE_ORDER should satisfy
 
-	    MAX_ORDER + PAGE_SHIFT <= SECTION_SIZE_BITS
+	    MAX_PAGE_ORDER + PAGE_SHIFT <= SECTION_SIZE_BITS
 
 	  Don't change if unsure.
 
 config UNMAP_KERNEL_AT_EL0
-	bool "Unmap kernel when running in userspace (aka \"KAISER\")" if EXPERT
+	bool "Unmap kernel when running in userspace (KPTI)" if EXPERT
 	default y
 	help
 	  Speculation attacks against some high-performance processors can
@@ -1993,8 +2017,6 @@ config ARM64_BTI_KERNEL
 	depends on !CC_IS_GCC || GCC_VERSION >= 100100
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106671
 	depends on !CC_IS_GCC
-	# https://github.com/llvm/llvm-project/commit/a88c722e687e6780dcd6a58718350dc76fcc4cc9
-	depends on !CC_IS_CLANG || CLANG_VERSION >= 120000
 	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_ARGS)
 	help
 	  Build the kernel with Branch Target Identification annotations
@@ -2197,12 +2219,21 @@ config STACKPROTECTOR_PER_TASK
 
 config UNWIND_PATCH_PAC_INTO_SCS
 	bool "Enable shadow call stack dynamically using code patching"
-	# needs Clang with https://reviews.llvm.org/D111780 incorporated
+	# needs Clang with https://github.com/llvm/llvm-project/commit/de07cde67b5d205d58690be012106022aea6d2b3 incorporated
 	depends on CC_IS_CLANG && CLANG_VERSION >= 150000
 	depends on ARM64_PTR_AUTH_KERNEL && CC_HAS_BRANCH_PROT_PAC_RET
 	depends on SHADOW_CALL_STACK
 	select UNWIND_TABLES
 	select DYNAMIC_SCS
+
+config ARM64_CONTPTE
+	bool "Contiguous PTE mappings for user memory" if EXPERT
+	depends on TRANSPARENT_HUGEPAGE
+	default y
+	help
+	  When enabled, user mappings are configured using the PTE contiguous
+	  bit, for any mappings that meet the size and alignment requirements.
+	  This reduces TLB pressure and improves performance.
 
 endmenu # "Kernel Features"
 

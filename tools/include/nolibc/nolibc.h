@@ -74,10 +74,10 @@
  *            -I../nolibc -o hello hello.c -lgcc
  *
  * The available standard (but limited) include files are:
- *   ctype.h, errno.h, signal.h, stdio.h, stdlib.h, string.h, time.h
+ *   ctype.h, errno.h, signal.h, stdarg.h, stdio.h, stdlib.h, string.h, time.h
  *
  * In addition, the following ones are expected to be provided by the compiler:
- *   float.h, stdarg.h, stddef.h
+ *   float.h, stddef.h
  *
  * The following ones which are part to the C standard are not provided:
  *   assert.h, locale.h, math.h, setjmp.h, limits.h

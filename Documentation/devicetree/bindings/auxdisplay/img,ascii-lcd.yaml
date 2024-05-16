@@ -50,6 +50,6 @@ additionalProperties: false
 examples:
   - |
     lcd: lcd@17fff000 {
-            compatible = "img,boston-lcd";
-            reg = <0x17fff000 0x8>;
+        compatible = "img,boston-lcd";
+        reg = <0x17fff000 0x8>;
     };

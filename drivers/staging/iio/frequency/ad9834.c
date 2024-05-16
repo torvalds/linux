@@ -394,13 +394,6 @@ static void ad9834_disable_reg(void *data)
 	regulator_disable(reg);
 }
 
-static void ad9834_disable_clk(void *data)
-{
-	struct clk *clk = data;
-
-	clk_disable_unprepare(clk);
-}
-
 static int ad9834_probe(struct spi_device *spi)
 {
 	struct ad9834_state *st;
@@ -429,21 +422,11 @@ static int ad9834_probe(struct spi_device *spi)
 	}
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
-	st->mclk = devm_clk_get(&spi->dev, NULL);
+	st->mclk = devm_clk_get_enabled(&spi->dev, NULL);
 	if (IS_ERR(st->mclk)) {
-		ret = PTR_ERR(st->mclk);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(st->mclk);
-	if (ret) {
 		dev_err(&spi->dev, "Failed to enable master clock\n");
-		return ret;
+		return PTR_ERR(st->mclk);
 	}
-
-	ret = devm_add_action_or_reset(&spi->dev, ad9834_disable_clk, st->mclk);
-	if (ret)
-		return ret;
 
 	st->spi = spi;
 	st->devid = spi_get_device_id(spi)->driver_data;

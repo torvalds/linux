@@ -272,18 +272,17 @@ NESTED(except_vec_vi, 0, sp)
 	.set	push
 	.set	noreorder
 	PTR_LA	v1, except_vec_vi_handler
-FEXPORT(except_vec_vi_lui)
-	lui	v0, 0		/* Patched */
 	jr	v1
 FEXPORT(except_vec_vi_ori)
-	 ori	v0, 0		/* Patched */
+	 ori	v0, zero, 0		/* Offset in vi_handlers[] */
 	.set	pop
 	END(except_vec_vi)
 EXPORT(except_vec_vi_end)
 
 /*
  * Common Vectored Interrupt code
- * Complete the register saves and invoke the handler which is passed in $v0
+ * Complete the register saves and invoke the handler, $v0 holds
+ * offset into vi_handlers[]
  */
 NESTED(except_vec_vi_handler, 0, sp)
 	SAVE_TEMP
@@ -331,6 +330,7 @@ NESTED(except_vec_vi_handler, 0, sp)
 	/* Save task's sp on IRQ stack so that unwinding can follow it */
 	LONG_S	s1, 0(sp)
 2:
+	PTR_L	v0, vi_handlers(v0)
 	jalr	v0
 
 	/* Restore sp */

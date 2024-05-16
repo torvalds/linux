@@ -20,6 +20,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
 #ifndef __DML2_DC_RESOURCE_MGMT_H__
@@ -28,6 +30,8 @@
 #include "dml2_dc_types.h"
 
 struct dml2_context;
+struct dml2_dml_to_dc_pipe_mapping;
+struct dml_display_cfg_st;
 
 /*
  * dml2_map_dc_pipes - Creates a pipe linkage in dc_state based on current display config.

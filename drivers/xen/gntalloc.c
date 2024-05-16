@@ -317,7 +317,7 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 		rc = -EFAULT;
 		goto out_free;
 	}
-	if (copy_to_user(arg->gref_ids, gref_ids,
+	if (copy_to_user(arg->gref_ids_flex, gref_ids,
 			sizeof(gref_ids[0]) * op.count)) {
 		rc = -EFAULT;
 		goto out_free;

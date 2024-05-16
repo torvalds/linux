@@ -59,16 +59,13 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 
 	rflags = htab_convert_pte_flags(new_pmd, flags);
 
-#if 0
-	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {
+	/*
+	 * THPs are only supported on platforms that can do mixed page size
+	 * segments (MPSS) and all such platforms have coherent icache. Hence we
+	 * don't need to do lazy icache flush (hash_page_do_lazy_icache()) on
+	 * noexecute fault.
+	 */
 
-		/*
-		 * No CPU has hugepages but lacks no execute, so we
-		 * don't need to worry about that case
-		 */
-		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
-	}
-#endif
 	/*
 	 * Find the slot index details for this ea, using base page size.
 	 */

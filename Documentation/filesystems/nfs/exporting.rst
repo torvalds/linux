@@ -122,12 +122,9 @@ are exportable by setting the s_export_op field in the struct
 super_block.  This field must point to a "struct export_operations"
 struct which has the following members:
 
-  encode_fh (optional)
+  encode_fh (mandatory)
     Takes a dentry and creates a filehandle fragment which may later be used
-    to find or create a dentry for the same object.  The default
-    implementation creates a filehandle fragment that encodes a 32bit inode
-    and generation number for the inode encoded, and if necessary the
-    same information for the parent.
+    to find or create a dentry for the same object.
 
   fh_to_dentry (mandatory)
     Given a filehandle fragment, this should find the implied object and
@@ -241,3 +238,10 @@ following flags are defined:
     all of an inode's dirty data on last close. Exports that behave this
     way should set EXPORT_OP_FLUSH_ON_CLOSE so that NFSD knows to skip
     waiting for writeback when closing such files.
+
+  EXPORT_OP_ASYNC_LOCK - Indicates a capable filesystem to do async lock
+    requests from lockd. Only set EXPORT_OP_ASYNC_LOCK if the filesystem has
+    it's own ->lock() functionality as core posix_lock_file() implementation
+    has no async lock request handling yet. For more information about how to
+    indicate an async lock request from a ->lock() file_operations struct, see
+    fs/locks.c and comment for the function vfs_lock_file().

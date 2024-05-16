@@ -261,6 +261,7 @@ out_ascii:
 
 /**
  * ksmbd_extract_sharename() - get share name from tree connect request
+ * @um: pointer to a unicode_map structure for character encoding handling
  * @treename:	buffer containing tree name and share name
  *
  * Return:      share name on success, otherwise error

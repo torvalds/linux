@@ -210,7 +210,7 @@ static int ipv6_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 
 	if (optlen < GROUP_FILTER_SIZE(0))
 		return -EINVAL;
-	if (optlen > READ_ONCE(sysctl_optmem_max))
+	if (optlen > READ_ONCE(sock_net(sk)->core.sysctl_optmem_max))
 		return -ENOBUFS;
 
 	gsf = memdup_sockptr(optval, optlen);
@@ -244,7 +244,7 @@ static int compat_ipv6_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 
 	if (optlen < size0)
 		return -EINVAL;
-	if (optlen > READ_ONCE(sysctl_optmem_max) - 4)
+	if (optlen > READ_ONCE(sock_net(sk)->core.sysctl_optmem_max) - 4)
 		return -ENOBUFS;
 
 	p = kmalloc(optlen + 4, GFP_KERNEL);
@@ -415,6 +415,154 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 	if (ip6_mroute_opt(optname))
 		return ip6_mroute_setsockopt(sk, optname, optval, optlen);
 
+	/* Handle options that can be set without locking the socket. */
+	switch (optname) {
+	case IPV6_UNICAST_HOPS:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val > 255 || val < -1)
+			return -EINVAL;
+		WRITE_ONCE(np->hop_limit, val);
+		return 0;
+	case IPV6_MULTICAST_LOOP:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val != valbool)
+			return -EINVAL;
+		inet6_assign_bit(MC6_LOOP, sk, valbool);
+		return 0;
+	case IPV6_MULTICAST_HOPS:
+		if (sk->sk_type == SOCK_STREAM)
+			return retv;
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val > 255 || val < -1)
+			return -EINVAL;
+		WRITE_ONCE(np->mcast_hops,
+			   val == -1 ? IPV6_DEFAULT_MCASTHOPS : val);
+		return 0;
+	case IPV6_MTU:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val && val < IPV6_MIN_MTU)
+			return -EINVAL;
+		WRITE_ONCE(np->frag_size, val);
+		return 0;
+	case IPV6_MINHOPCOUNT:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val < 0 || val > 255)
+			return -EINVAL;
+
+		if (val)
+			static_branch_enable(&ip6_min_hopcount);
+
+		/* tcp_v6_err() and tcp_v6_rcv() might read min_hopcount
+		 * while we are changing it.
+		 */
+		WRITE_ONCE(np->min_hopcount, val);
+		return 0;
+	case IPV6_RECVERR_RFC4884:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val < 0 || val > 1)
+			return -EINVAL;
+		inet6_assign_bit(RECVERR6_RFC4884, sk, valbool);
+		return 0;
+	case IPV6_MULTICAST_ALL:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		inet6_assign_bit(MC6_ALL, sk, valbool);
+		return 0;
+	case IPV6_AUTOFLOWLABEL:
+		inet6_assign_bit(AUTOFLOWLABEL, sk, valbool);
+		inet6_set_bit(AUTOFLOWLABEL_SET, sk);
+		return 0;
+	case IPV6_DONTFRAG:
+		inet6_assign_bit(DONTFRAG, sk, valbool);
+		return 0;
+	case IPV6_RECVERR:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		inet6_assign_bit(RECVERR6, sk, valbool);
+		if (!val)
+			skb_errqueue_purge(&sk->sk_error_queue);
+		return 0;
+	case IPV6_ROUTER_ALERT_ISOLATE:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		inet6_assign_bit(RTALERT_ISOLATE, sk, valbool);
+		return 0;
+	case IPV6_MTU_DISCOVER:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val < IPV6_PMTUDISC_DONT || val > IPV6_PMTUDISC_OMIT)
+			return -EINVAL;
+		WRITE_ONCE(np->pmtudisc, val);
+		return 0;
+	case IPV6_FLOWINFO_SEND:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		inet6_assign_bit(SNDFLOW, sk, valbool);
+		return 0;
+	case IPV6_ADDR_PREFERENCES:
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		return ip6_sock_set_addr_preferences(sk, val);
+	case IPV6_MULTICAST_IF:
+		if (sk->sk_type == SOCK_STREAM)
+			return -ENOPROTOOPT;
+		if (optlen < sizeof(int))
+			return -EINVAL;
+		if (val) {
+			struct net_device *dev;
+			int bound_dev_if, midx;
+
+			rcu_read_lock();
+
+			dev = dev_get_by_index_rcu(net, val);
+			if (!dev) {
+				rcu_read_unlock();
+				return -ENODEV;
+			}
+			midx = l3mdev_master_ifindex_rcu(dev);
+
+			rcu_read_unlock();
+
+			bound_dev_if = READ_ONCE(sk->sk_bound_dev_if);
+			if (bound_dev_if &&
+			    bound_dev_if != val &&
+			    (!midx || midx != bound_dev_if))
+				return -EINVAL;
+		}
+		WRITE_ONCE(np->mcast_oif, val);
+		return 0;
+	case IPV6_UNICAST_IF:
+	{
+		struct net_device *dev;
+		int ifindex;
+
+		if (optlen != sizeof(int))
+			return -EINVAL;
+
+		ifindex = (__force int)ntohl((__force __be32)val);
+		if (!ifindex) {
+			WRITE_ONCE(np->ucast_oif, 0);
+			return 0;
+		}
+
+		dev = dev_get_by_index(net, ifindex);
+		if (!dev)
+			return -EADDRNOTAVAIL;
+		dev_put(dev);
+
+		if (READ_ONCE(sk->sk_bound_dev_if))
+			return -EINVAL;
+
+		WRITE_ONCE(np->ucast_oif, ifindex);
+		return 0;
+	}
+	}
 	if (needs_rtnl)
 		rtnl_lock();
 	sockopt_lock_sock(sk);
@@ -733,95 +881,7 @@ done:
 		}
 		break;
 	}
-	case IPV6_UNICAST_HOPS:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val > 255 || val < -1)
-			goto e_inval;
-		np->hop_limit = val;
-		retv = 0;
-		break;
 
-	case IPV6_MULTICAST_HOPS:
-		if (sk->sk_type == SOCK_STREAM)
-			break;
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val > 255 || val < -1)
-			goto e_inval;
-		np->mcast_hops = (val == -1 ? IPV6_DEFAULT_MCASTHOPS : val);
-		retv = 0;
-		break;
-
-	case IPV6_MULTICAST_LOOP:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val != valbool)
-			goto e_inval;
-		np->mc_loop = valbool;
-		retv = 0;
-		break;
-
-	case IPV6_UNICAST_IF:
-	{
-		struct net_device *dev = NULL;
-		int ifindex;
-
-		if (optlen != sizeof(int))
-			goto e_inval;
-
-		ifindex = (__force int)ntohl((__force __be32)val);
-		if (ifindex == 0) {
-			np->ucast_oif = 0;
-			retv = 0;
-			break;
-		}
-
-		dev = dev_get_by_index(net, ifindex);
-		retv = -EADDRNOTAVAIL;
-		if (!dev)
-			break;
-		dev_put(dev);
-
-		retv = -EINVAL;
-		if (sk->sk_bound_dev_if)
-			break;
-
-		np->ucast_oif = ifindex;
-		retv = 0;
-		break;
-	}
-
-	case IPV6_MULTICAST_IF:
-		if (sk->sk_type == SOCK_STREAM)
-			break;
-		if (optlen < sizeof(int))
-			goto e_inval;
-
-		if (val) {
-			struct net_device *dev;
-			int midx;
-
-			rcu_read_lock();
-
-			dev = dev_get_by_index_rcu(net, val);
-			if (!dev) {
-				rcu_read_unlock();
-				retv = -ENODEV;
-				break;
-			}
-			midx = l3mdev_master_ifindex_rcu(dev);
-
-			rcu_read_unlock();
-
-			if (sk->sk_bound_dev_if &&
-			    sk->sk_bound_dev_if != val &&
-			    (!midx || midx != sk->sk_bound_dev_if))
-				goto e_inval;
-		}
-		np->mcast_oif = val;
-		retv = 0;
-		break;
 	case IPV6_ADD_MEMBERSHIP:
 	case IPV6_DROP_MEMBERSHIP:
 	{
@@ -862,13 +922,6 @@ done:
 			retv = ipv6_sock_ac_drop(sk, mreq.ipv6mr_ifindex, &mreq.ipv6mr_acaddr);
 		break;
 	}
-	case IPV6_MULTICAST_ALL:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		np->mc_all = valbool;
-		retv = 0;
-		break;
-
 	case MCAST_JOIN_GROUP:
 	case MCAST_LEAVE_GROUP:
 		if (in_compat_syscall())
@@ -895,42 +948,8 @@ done:
 		if (optlen < sizeof(int))
 			goto e_inval;
 		retv = ip6_ra_control(sk, val);
-		break;
-	case IPV6_ROUTER_ALERT_ISOLATE:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		np->rtalert_isolate = valbool;
-		retv = 0;
-		break;
-	case IPV6_MTU_DISCOVER:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val < IPV6_PMTUDISC_DONT || val > IPV6_PMTUDISC_OMIT)
-			goto e_inval;
-		np->pmtudisc = val;
-		retv = 0;
-		break;
-	case IPV6_MTU:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val && val < IPV6_MIN_MTU)
-			goto e_inval;
-		np->frag_size = val;
-		retv = 0;
-		break;
-	case IPV6_RECVERR:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		np->recverr = valbool;
-		if (!val)
-			skb_errqueue_purge(&sk->sk_error_queue);
-		retv = 0;
-		break;
-	case IPV6_FLOWINFO_SEND:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		np->sndflow = valbool;
-		retv = 0;
+		if (retv == 0)
+			inet6_assign_bit(RTALERT, sk, valbool);
 		break;
 	case IPV6_FLOWLABEL_MGR:
 		retv = ipv6_flowlabel_opt(sk, optval, optlen);
@@ -943,45 +962,8 @@ done:
 		retv = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 
-	case IPV6_ADDR_PREFERENCES:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		retv = __ip6_sock_set_addr_preferences(sk, val);
-		break;
-	case IPV6_MINHOPCOUNT:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val < 0 || val > 255)
-			goto e_inval;
-
-		if (val)
-			static_branch_enable(&ip6_min_hopcount);
-
-		/* tcp_v6_err() and tcp_v6_rcv() might read min_hopcount
-		 * while we are changing it.
-		 */
-		WRITE_ONCE(np->min_hopcount, val);
-		retv = 0;
-		break;
-	case IPV6_DONTFRAG:
-		np->dontfrag = valbool;
-		retv = 0;
-		break;
-	case IPV6_AUTOFLOWLABEL:
-		np->autoflowlabel = valbool;
-		np->autoflowlabel_set = 1;
-		retv = 0;
-		break;
 	case IPV6_RECVFRAGSIZE:
 		np->rxopt.bits.recvfragsize = valbool;
-		retv = 0;
-		break;
-	case IPV6_RECVERR_RFC4884:
-		if (optlen < sizeof(int))
-			goto e_inval;
-		if (val < 0 || val > 1)
-			goto e_inval;
-		np->recverr_rfc4884 = valbool;
 		retv = 0;
 		break;
 	}
@@ -1173,14 +1155,17 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		sockopt_release_sock(sk);
 		if (!skb) {
 			if (np->rxopt.bits.rxinfo) {
+				int mcast_oif = READ_ONCE(np->mcast_oif);
 				struct in6_pktinfo src_info;
-				src_info.ipi6_ifindex = np->mcast_oif ? np->mcast_oif :
+
+				src_info.ipi6_ifindex = mcast_oif ? :
 					np->sticky_pktinfo.ipi6_ifindex;
-				src_info.ipi6_addr = np->mcast_oif ? sk->sk_v6_daddr : np->sticky_pktinfo.ipi6_addr;
+				src_info.ipi6_addr = mcast_oif ? sk->sk_v6_daddr : np->sticky_pktinfo.ipi6_addr;
 				put_cmsg(&msg, SOL_IPV6, IPV6_PKTINFO, sizeof(src_info), &src_info);
 			}
 			if (np->rxopt.bits.rxhlim) {
-				int hlim = np->mcast_hops;
+				int hlim = READ_ONCE(np->mcast_hops);
+
 				put_cmsg(&msg, SOL_IPV6, IPV6_HOPLIMIT, sizeof(hlim), &hlim);
 			}
 			if (np->rxopt.bits.rxtclass) {
@@ -1189,15 +1174,18 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 				put_cmsg(&msg, SOL_IPV6, IPV6_TCLASS, sizeof(tclass), &tclass);
 			}
 			if (np->rxopt.bits.rxoinfo) {
+				int mcast_oif = READ_ONCE(np->mcast_oif);
 				struct in6_pktinfo src_info;
-				src_info.ipi6_ifindex = np->mcast_oif ? np->mcast_oif :
+
+				src_info.ipi6_ifindex = mcast_oif ? :
 					np->sticky_pktinfo.ipi6_ifindex;
-				src_info.ipi6_addr = np->mcast_oif ? sk->sk_v6_daddr :
-								     np->sticky_pktinfo.ipi6_addr;
+				src_info.ipi6_addr = mcast_oif ? sk->sk_v6_daddr :
+								 np->sticky_pktinfo.ipi6_addr;
 				put_cmsg(&msg, SOL_IPV6, IPV6_2292PKTINFO, sizeof(src_info), &src_info);
 			}
 			if (np->rxopt.bits.rxohlim) {
-				int hlim = np->mcast_hops;
+				int hlim = READ_ONCE(np->mcast_hops);
+
 				put_cmsg(&msg, SOL_IPV6, IPV6_2292HOPLIMIT, sizeof(hlim), &hlim);
 			}
 			if (np->rxopt.bits.rxflow) {
@@ -1347,9 +1335,9 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		struct dst_entry *dst;
 
 		if (optname == IPV6_UNICAST_HOPS)
-			val = np->hop_limit;
+			val = READ_ONCE(np->hop_limit);
 		else
-			val = np->mcast_hops;
+			val = READ_ONCE(np->mcast_hops);
 
 		if (val < 0) {
 			rcu_read_lock();
@@ -1360,36 +1348,36 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		}
 
 		if (val < 0)
-			val = sock_net(sk)->ipv6.devconf_all->hop_limit;
+			val = READ_ONCE(sock_net(sk)->ipv6.devconf_all->hop_limit);
 		break;
 	}
 
 	case IPV6_MULTICAST_LOOP:
-		val = np->mc_loop;
+		val = inet6_test_bit(MC6_LOOP, sk);
 		break;
 
 	case IPV6_MULTICAST_IF:
-		val = np->mcast_oif;
+		val = READ_ONCE(np->mcast_oif);
 		break;
 
 	case IPV6_MULTICAST_ALL:
-		val = np->mc_all;
+		val = inet6_test_bit(MC6_ALL, sk);
 		break;
 
 	case IPV6_UNICAST_IF:
-		val = (__force int)htonl((__u32) np->ucast_oif);
+		val = (__force int)htonl((__u32) READ_ONCE(np->ucast_oif));
 		break;
 
 	case IPV6_MTU_DISCOVER:
-		val = np->pmtudisc;
+		val = READ_ONCE(np->pmtudisc);
 		break;
 
 	case IPV6_RECVERR:
-		val = np->recverr;
+		val = inet6_test_bit(RECVERR6, sk);
 		break;
 
 	case IPV6_FLOWINFO_SEND:
-		val = np->sndflow;
+		val = inet6_test_bit(SNDFLOW, sk);
 		break;
 
 	case IPV6_FLOWLABEL_MGR:
@@ -1424,45 +1412,51 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	}
 
 	case IPV6_ADDR_PREFERENCES:
+		{
+		u8 srcprefs = READ_ONCE(np->srcprefs);
 		val = 0;
 
-		if (np->srcprefs & IPV6_PREFER_SRC_TMP)
+		if (srcprefs & IPV6_PREFER_SRC_TMP)
 			val |= IPV6_PREFER_SRC_TMP;
-		else if (np->srcprefs & IPV6_PREFER_SRC_PUBLIC)
+		else if (srcprefs & IPV6_PREFER_SRC_PUBLIC)
 			val |= IPV6_PREFER_SRC_PUBLIC;
 		else {
 			/* XXX: should we return system default? */
 			val |= IPV6_PREFER_SRC_PUBTMP_DEFAULT;
 		}
 
-		if (np->srcprefs & IPV6_PREFER_SRC_COA)
+		if (srcprefs & IPV6_PREFER_SRC_COA)
 			val |= IPV6_PREFER_SRC_COA;
 		else
 			val |= IPV6_PREFER_SRC_HOME;
 		break;
-
+		}
 	case IPV6_MINHOPCOUNT:
-		val = np->min_hopcount;
+		val = READ_ONCE(np->min_hopcount);
 		break;
 
 	case IPV6_DONTFRAG:
-		val = np->dontfrag;
+		val = inet6_test_bit(DONTFRAG, sk);
 		break;
 
 	case IPV6_AUTOFLOWLABEL:
-		val = ip6_autoflowlabel(sock_net(sk), np);
+		val = ip6_autoflowlabel(sock_net(sk), sk);
 		break;
 
 	case IPV6_RECVFRAGSIZE:
 		val = np->rxopt.bits.recvfragsize;
 		break;
 
+	case IPV6_ROUTER_ALERT:
+		val = inet6_test_bit(RTALERT, sk);
+		break;
+
 	case IPV6_ROUTER_ALERT_ISOLATE:
-		val = np->rtalert_isolate;
+		val = inet6_test_bit(RTALERT_ISOLATE, sk);
 		break;
 
 	case IPV6_RECVERR_RFC4884:
-		val = np->recverr_rfc4884;
+		val = inet6_test_bit(RECVERR6_RFC4884, sk);
 		break;
 
 	default:

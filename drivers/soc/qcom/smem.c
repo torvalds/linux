@@ -285,7 +285,7 @@ struct qcom_smem {
 	struct smem_partition partitions[SMEM_HOST_COUNT];
 
 	unsigned num_regions;
-	struct smem_region regions[];
+	struct smem_region regions[] __counted_by(num_regions);
 };
 
 static void *
@@ -368,7 +368,7 @@ bool qcom_smem_is_available(void)
 {
 	return !!__smem;
 }
-EXPORT_SYMBOL(qcom_smem_is_available);
+EXPORT_SYMBOL_GPL(qcom_smem_is_available);
 
 static int qcom_smem_alloc_private(struct qcom_smem *smem,
 				   struct smem_partition *part,
@@ -655,8 +655,6 @@ invalid_canary:
 void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 {
 	struct smem_partition *part;
-	unsigned long flags;
-	int ret;
 	void *ptr = ERR_PTR(-EPROBE_DEFER);
 
 	if (!__smem)
@@ -664,12 +662,6 @@ void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 
 	if (WARN_ON(item >= __smem->item_count))
 		return ERR_PTR(-EINVAL);
-
-	ret = hwspin_lock_timeout_irqsave(__smem->hwlock,
-					  HWSPINLOCK_TIMEOUT,
-					  &flags);
-	if (ret)
-		return ERR_PTR(ret);
 
 	if (host < SMEM_HOST_COUNT && __smem->partitions[host].virt_base) {
 		part = &__smem->partitions[host];
@@ -681,10 +673,7 @@ void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 		ptr = qcom_smem_get_global(__smem, item, size);
 	}
 
-	hwspin_unlock_irqrestore(__smem->hwlock, &flags);
-
 	return ptr;
-
 }
 EXPORT_SYMBOL_GPL(qcom_smem_get);
 
@@ -1187,14 +1176,12 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_smem_remove(struct platform_device *pdev)
+static void qcom_smem_remove(struct platform_device *pdev)
 {
 	platform_device_unregister(__smem->socinfo);
 
 	hwspin_lock_free(__smem->hwlock);
 	__smem = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id qcom_smem_of_match[] = {
@@ -1205,7 +1192,7 @@ MODULE_DEVICE_TABLE(of, qcom_smem_of_match);
 
 static struct platform_driver qcom_smem_driver = {
 	.probe = qcom_smem_probe,
-	.remove = qcom_smem_remove,
+	.remove_new = qcom_smem_remove,
 	.driver  = {
 		.name = "qcom-smem",
 		.of_match_table = qcom_smem_of_match,

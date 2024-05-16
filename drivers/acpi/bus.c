@@ -408,7 +408,7 @@ static void acpi_bus_decode_usb_osc(const char *msg, u32 bits)
 static u8 sb_usb_uuid_str[] = "23A0D13A-26AB-486C-9C5F-0FFA525A575A";
 static void acpi_bus_osc_negotiate_usb_control(void)
 {
-	u32 capbuf[3];
+	u32 capbuf[3], *capbuf_ret;
 	struct acpi_osc_context context = {
 		.uuid_str = sb_usb_uuid_str,
 		.rev = 1,
@@ -428,7 +428,12 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 	control = OSC_USB_USB3_TUNNELING | OSC_USB_DP_TUNNELING |
 		  OSC_USB_PCIE_TUNNELING | OSC_USB_XDOMAIN;
 
-	capbuf[OSC_QUERY_DWORD] = 0;
+	/*
+	 * Run _OSC first with query bit set, trying to get control over
+	 * all tunneling. The platform can then clear out bits in the
+	 * control dword that it does not want to grant to the OS.
+	 */
+	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
 	capbuf[OSC_SUPPORT_DWORD] = 0;
 	capbuf[OSC_CONTROL_DWORD] = control;
 
@@ -441,8 +446,29 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 		goto out_free;
 	}
 
+	/*
+	 * Run _OSC again now with query bit clear and the control dword
+	 * matching what the platform granted (which may not have all
+	 * the control bits set).
+	 */
+	capbuf_ret = context.ret.pointer;
+
+	capbuf[OSC_QUERY_DWORD] = 0;
+	capbuf[OSC_CONTROL_DWORD] = capbuf_ret[OSC_CONTROL_DWORD];
+
+	kfree(context.ret.pointer);
+
+	status = acpi_run_osc(handle, &context);
+	if (ACPI_FAILURE(status))
+		return;
+
+	if (context.ret.length != sizeof(capbuf)) {
+		pr_info("USB4 _OSC: returned invalid length buffer\n");
+		goto out_free;
+	}
+
 	osc_sb_native_usb4_control =
-		control &  acpi_osc_ctx_get_pci_control(&context);
+		control & acpi_osc_ctx_get_pci_control(&context);
 
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS supports", control);
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS controls",
@@ -556,12 +582,12 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device,
 
 int acpi_dev_install_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
-				    acpi_notify_handler handler)
+				    acpi_notify_handler handler, void *context)
 {
 	acpi_status status;
 
 	status = acpi_install_notify_handler(adev->handle, handler_type,
-					     handler, adev);
+					     handler, context);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -1071,7 +1097,7 @@ static void acpi_device_remove(struct device *dev)
 	put_device(dev);
 }
 
-struct bus_type acpi_bus_type = {
+const struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.match		= acpi_bus_match,
 	.probe		= acpi_device_probe,

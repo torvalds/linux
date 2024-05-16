@@ -11,7 +11,9 @@
  * negotiation messages to ME FW command payloads and vice versa.
  */
 
+#include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/mei.h>
 #include <linux/mei_cl_bus.h>
@@ -22,27 +24,67 @@
 
 #include "mei_pxp.h"
 
+static inline int mei_pxp_reenable(const struct device *dev, struct mei_cl_device *cldev)
+{
+	int ret;
+
+	dev_warn(dev, "Trying to reset the channel...\n");
+	ret = mei_cldev_disable(cldev);
+	if (ret < 0)
+		dev_warn(dev, "mei_cldev_disable failed. %d\n", ret);
+	/*
+	 * Explicitly ignoring disable failure,
+	 * enable may fix the states and succeed
+	 */
+	ret = mei_cldev_enable(cldev);
+	if (ret < 0)
+		dev_err(dev, "mei_cldev_enable failed. %d\n", ret);
+	return ret;
+}
+
 /**
  * mei_pxp_send_message() - Sends a PXP message to ME FW.
  * @dev: device corresponding to the mei_cl_device
  * @message: a message buffer to send
  * @size: size of the message
- * Return: 0 on Success, <0 on Failure
+ * @timeout_ms: timeout in milliseconds, zero means wait indefinitely.
+ *
+ * Returns: 0 on Success, <0 on Failure with the following defined failures.
+ *         -ENODEV: Client was not connected.
+ *                  Caller may attempt to try again immediately.
+ *         -ENOMEM: Internal memory allocation failure experienced.
+ *                  Caller may sleep to allow kernel reclaim before retrying.
+ *         -EINTR : Calling thread received a signal. Caller may choose
+ *                  to abandon with the same thread id.
+ *         -ETIME : Request is timed out.
+ *                  Caller may attempt to try again immediately.
  */
 static int
-mei_pxp_send_message(struct device *dev, const void *message, size_t size)
+mei_pxp_send_message(struct device *dev, const void *message, size_t size, unsigned long timeout_ms)
 {
 	struct mei_cl_device *cldev;
 	ssize_t byte;
+	int ret;
 
 	if (!dev || !message)
 		return -EINVAL;
 
 	cldev = to_mei_cl_device(dev);
 
-	byte = mei_cldev_send(cldev, message, size);
+	byte = mei_cldev_send_timeout(cldev, message, size, timeout_ms);
 	if (byte < 0) {
 		dev_dbg(dev, "mei_cldev_send failed. %zd\n", byte);
+		switch (byte) {
+		case -ENOMEM:
+			fallthrough;
+		case -ENODEV:
+			fallthrough;
+		case -ETIME:
+			ret = mei_pxp_reenable(dev, cldev);
+			if (ret)
+				byte = ret;
+			break;
+		}
 		return byte;
 	}
 
@@ -54,23 +96,53 @@ mei_pxp_send_message(struct device *dev, const void *message, size_t size)
  * @dev: device corresponding to the mei_cl_device
  * @buffer: a message buffer to contain the received message
  * @size: size of the buffer
- * Return: bytes sent on Success, <0 on Failure
+ * @timeout_ms: timeout in milliseconds, zero means wait indefinitely.
+ *
+ * Returns: number of bytes send on Success, <0 on Failure with the following defined failures.
+ *         -ENODEV: Client was not connected.
+ *                  Caller may attempt to try again from send immediately.
+ *         -ENOMEM: Internal memory allocation failure experienced.
+ *                  Caller may sleep to allow kernel reclaim before retrying.
+ *         -EINTR : Calling thread received a signal. Caller will need to repeat calling
+ *                  (with a different owning thread) to retrieve existing unclaimed response
+ *                  (and may discard it).
+ *         -ETIME : Request is timed out.
+ *                  Caller may attempt to try again from send immediately.
  */
 static int
-mei_pxp_receive_message(struct device *dev, void *buffer, size_t size)
+mei_pxp_receive_message(struct device *dev, void *buffer, size_t size, unsigned long timeout_ms)
 {
 	struct mei_cl_device *cldev;
 	ssize_t byte;
+	bool retry = false;
+	int ret;
 
 	if (!dev || !buffer)
 		return -EINVAL;
 
 	cldev = to_mei_cl_device(dev);
 
-	byte = mei_cldev_recv(cldev, buffer, size);
+retry:
+	byte = mei_cldev_recv_timeout(cldev, buffer, size, timeout_ms);
 	if (byte < 0) {
 		dev_dbg(dev, "mei_cldev_recv failed. %zd\n", byte);
-		return byte;
+		switch (byte) {
+		case -ENOMEM:
+			/* Retry the read when pages are reclaimed */
+			msleep(20);
+			if (!retry) {
+				retry = true;
+				goto retry;
+			}
+			fallthrough;
+		case -ENODEV:
+			fallthrough;
+		case -ETIME:
+			ret = mei_pxp_reenable(dev, cldev);
+			if (ret)
+				byte = ret;
+			break;
+		}
 	}
 
 	return byte;
@@ -154,12 +226,21 @@ static int mei_pxp_component_match(struct device *dev, int subcomponent,
 				   void *data)
 {
 	struct device *base = data;
+	struct pci_dev *pdev;
 
 	if (!dev)
 		return 0;
 
-	if (!dev->driver || strcmp(dev->driver->name, "i915") ||
-	    subcomponent != I915_COMPONENT_PXP)
+	if (!dev_is_pci(dev))
+		return 0;
+
+	pdev = to_pci_dev(dev);
+
+	if (pdev->class != (PCI_CLASS_DISPLAY_VGA << 8) ||
+	    pdev->vendor != PCI_VENDOR_ID_INTEL)
+		return 0;
+
+	if (subcomponent != I915_COMPONENT_PXP)
 		return 0;
 
 	base = base->parent;

@@ -294,7 +294,6 @@ static void fill_sockaddr(struct sock_addr *addr, bool abstract)
 static void client(FIXTURE_DATA(scm_pidfd) *self,
 		   const FIXTURE_VARIANT(scm_pidfd) *variant)
 {
-	int err;
 	int cfd;
 	socklen_t len;
 	struct ucred peer_cred;

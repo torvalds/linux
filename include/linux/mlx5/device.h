@@ -366,6 +366,9 @@ enum mlx5_driver_event {
 	MLX5_DRIVER_EVENT_UPLINK_NETDEV,
 	MLX5_DRIVER_EVENT_MACSEC_SA_ADDED,
 	MLX5_DRIVER_EVENT_MACSEC_SA_DELETED,
+	MLX5_DRIVER_EVENT_SF_PEER_DEVLINK,
+	MLX5_DRIVER_EVENT_AFFILIATION_DONE,
+	MLX5_DRIVER_EVENT_AFFILIATION_REMOVED,
 };
 
 enum {
@@ -915,7 +918,7 @@ static inline u8 get_cqe_tls_offload(struct mlx5_cqe64 *cqe)
 	return (cqe->tls_outer_l3_tunneled >> 3) & 0x3;
 }
 
-static inline bool cqe_has_vlan(struct mlx5_cqe64 *cqe)
+static inline bool cqe_has_vlan(const struct mlx5_cqe64 *cqe)
 {
 	return cqe->l4_l3_hdr_type & 0x1;
 }

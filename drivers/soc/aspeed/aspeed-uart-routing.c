@@ -565,14 +565,12 @@ static int aspeed_uart_routing_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aspeed_uart_routing_remove(struct platform_device *pdev)
+static void aspeed_uart_routing_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct aspeed_uart_routing *uart_routing = platform_get_drvdata(pdev);
 
 	sysfs_remove_group(&dev->kobj, uart_routing->attr_grp);
-
-	return 0;
 }
 
 static const struct of_device_id aspeed_uart_routing_table[] = {
@@ -591,7 +589,7 @@ static struct platform_driver aspeed_uart_routing_driver = {
 		.of_match_table = aspeed_uart_routing_table,
 	},
 	.probe = aspeed_uart_routing_probe,
-	.remove = aspeed_uart_routing_remove,
+	.remove_new = aspeed_uart_routing_remove,
 };
 
 module_platform_driver(aspeed_uart_routing_driver);

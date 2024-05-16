@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -9,7 +9,7 @@
 #include "mvm.h"
 
 /* Maps the driver specific channel width definition to the fw values */
-u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
+u8 iwl_mvm_get_channel_width(const struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -33,7 +33,7 @@ u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
  * Maps the driver specific control channel position (relative to the center
  * freq) definitions to the the fw values
  */
-u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
+u8 iwl_mvm_get_ctrl_pos(const struct cfg80211_chan_def *chandef)
 {
 	int offs = chandef->chan->center_freq - chandef->center_freq1;
 	int abs_offs = abs(offs);
@@ -99,17 +99,6 @@ static void iwl_mvm_phy_ctxt_set_rxchain(struct iwl_mvm *mvm,
 		active_cnt = 2;
 	}
 
-	/*
-	 * If the firmware requested it, then we know that it supports
-	 * getting zero for the values to indicate "use one, but pick
-	 * which one yourself", which means it can dynamically pick one
-	 * that e.g. has better RSSI.
-	 */
-	if (mvm->fw_static_smps_request && active_cnt == 1 && idle_cnt == 1) {
-		idle_cnt = 0;
-		active_cnt = 0;
-	}
-
 	*rxchain_info = cpu_to_le32(iwl_mvm_get_valid_rx_ant(mvm) <<
 					PHY_RX_CHAIN_VALID_POS);
 	*rxchain_info |= cpu_to_le32(idle_cnt << PHY_RX_CHAIN_CNT_POS);
@@ -127,7 +116,7 @@ static void iwl_mvm_phy_ctxt_set_rxchain(struct iwl_mvm *mvm,
 static void iwl_mvm_phy_ctxt_cmd_data_v1(struct iwl_mvm *mvm,
 					 struct iwl_mvm_phy_ctxt *ctxt,
 					 struct iwl_phy_context_cmd_v1 *cmd,
-					 struct cfg80211_chan_def *chandef,
+					 const struct cfg80211_chan_def *chandef,
 					 u8 chains_static, u8 chains_dynamic)
 {
 	struct iwl_phy_context_cmd_tail *tail =
@@ -148,7 +137,7 @@ static void iwl_mvm_phy_ctxt_cmd_data_v1(struct iwl_mvm *mvm,
 static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 				      struct iwl_mvm_phy_ctxt *ctxt,
 				      struct iwl_phy_context_cmd *cmd,
-				      struct cfg80211_chan_def *chandef,
+				      const struct cfg80211_chan_def *chandef,
 				      u8 chains_static, u8 chains_dynamic)
 {
 	cmd->lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm,
@@ -192,6 +181,9 @@ int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	iwl_mvm_phy_ctxt_set_rxchain(mvm, ctxt, &cmd.rlc.rx_chain_info,
 				     chains_static, chains_dynamic);
 
+	IWL_DEBUG_FW(mvm, "Send RLC command: phy=%d, rx_chain_info=0x%x\n",
+		     ctxt->id, cmd.rlc.rx_chain_info);
+
 	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(RLC_CONFIG_CMD,
 						    DATA_PATH_GROUP, 2),
 				    0, sizeof(cmd), &cmd);
@@ -205,14 +197,18 @@ int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
  */
 static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 				  struct iwl_mvm_phy_ctxt *ctxt,
-				  struct cfg80211_chan_def *chandef,
+				  const struct cfg80211_chan_def *chandef,
+				  const struct cfg80211_chan_def *ap,
 				  u8 chains_static, u8 chains_dynamic,
 				  u32 action)
 {
 	int ret;
 	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_CONTEXT_CMD, 1);
 
-	if (ver == 3 || ver == 4) {
+	if (ver < 5 || !ap || !ap->chan)
+		ap = NULL;
+
+	if (ver >= 3 && ver <= 6) {
 		struct iwl_phy_context_cmd cmd = {};
 
 		/* Set the command header fields */
@@ -222,6 +218,14 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 		iwl_mvm_phy_ctxt_cmd_data(mvm, ctxt, &cmd, chandef,
 					  chains_static,
 					  chains_dynamic);
+
+		if (ap) {
+			cmd.sbb_bandwidth = iwl_mvm_get_channel_width(ap);
+			cmd.sbb_ctrl_channel_loc = iwl_mvm_get_ctrl_pos(ap);
+		}
+
+		if (ver == 6)
+			cmd.puncture_mask = cpu_to_le16(chandef->punctured);
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD,
 					   0, sizeof(cmd), &cmd);
@@ -262,9 +266,12 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
  * Send a command to add a PHY context based on the current HW configuration.
  */
 int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
-			 struct cfg80211_chan_def *chandef,
+			 const struct cfg80211_chan_def *chandef,
+			 const struct cfg80211_chan_def *ap,
 			 u8 chains_static, u8 chains_dynamic)
 {
+	int ret;
+
 	WARN_ON(!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 		ctxt->ref);
 	lockdep_assert_held(&mvm->mutex);
@@ -273,9 +280,16 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	ctxt->width = chandef->width;
 	ctxt->center_freq1 = chandef->center_freq1;
 
-	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
-				      chains_static, chains_dynamic,
-				      FW_CTXT_ACTION_ADD);
+	ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef, ap,
+				     chains_static, chains_dynamic,
+				     FW_CTXT_ACTION_ADD);
+
+	if (ret)
+		return ret;
+
+	ctxt->ref++;
+
+	return 0;
 }
 
 /*
@@ -285,6 +299,11 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 {
 	lockdep_assert_held(&mvm->mutex);
+
+	/* If we were taking the first ref, we should have
+	 * called iwl_mvm_phy_ctxt_add.
+	 */
+	WARN_ON(!ctxt->ref);
 	ctxt->ref++;
 }
 
@@ -294,14 +313,19 @@ void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
  * changed.
  */
 int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
-			     struct cfg80211_chan_def *chandef,
+			     const struct cfg80211_chan_def *chandef,
+			     const struct cfg80211_chan_def *ap,
 			     u8 chains_static, u8 chains_dynamic)
 {
 	enum iwl_ctxt_action action = FW_CTXT_ACTION_MODIFY;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP, RLC_CONFIG_CMD), 0) >= 2 &&
+	if (WARN_ON_ONCE(!ctxt->ref))
+		return -EINVAL;
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP,
+						   RLC_CONFIG_CMD), 0) >= 2 &&
 	    ctxt->channel == chandef->chan &&
 	    ctxt->width == chandef->width &&
 	    ctxt->center_freq1 == chandef->center_freq1)
@@ -314,7 +338,7 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 		int ret;
 
 		/* ... remove it here ...*/
-		ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
+		ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef, NULL,
 					     chains_static, chains_dynamic,
 					     FW_CTXT_ACTION_REMOVE);
 		if (ret)
@@ -328,13 +352,14 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	ctxt->width = chandef->width;
 	ctxt->center_freq1 = chandef->center_freq1;
 
-	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
+	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef, ap,
 				      chains_static, chains_dynamic,
 				      action);
 }
 
 void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 {
+	struct cfg80211_chan_def chandef;
 	lockdep_assert_held(&mvm->mutex);
 
 	if (WARN_ON_ONCE(!ctxt))
@@ -342,41 +367,13 @@ void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 
 	ctxt->ref--;
 
-	/*
-	 * Move unused phy's to a default channel. When the phy is moved the,
-	 * fw will cleanup immediate quiet bit if it was previously set,
-	 * otherwise we might not be able to reuse this phy.
-	 */
-	if (ctxt->ref == 0) {
-		struct ieee80211_channel *chan = NULL;
-		struct cfg80211_chan_def chandef;
-		struct ieee80211_supported_band *sband;
-		enum nl80211_band band;
-		int channel;
+	if (ctxt->ref)
+		return;
 
-		for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
-			sband = mvm->hw->wiphy->bands[band];
+	cfg80211_chandef_create(&chandef, ctxt->channel, NL80211_CHAN_NO_HT);
 
-			if (!sband)
-				continue;
-
-			for (channel = 0; channel < sband->n_channels; channel++)
-				if (!(sband->channels[channel].flags &
-						IEEE80211_CHAN_DISABLED)) {
-					chan = &sband->channels[channel];
-					break;
-				}
-
-			if (chan)
-				break;
-		}
-
-		if (WARN_ON(!chan))
-			return;
-
-		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
-		iwl_mvm_phy_ctxt_changed(mvm, ctxt, &chandef, 1, 1);
-	}
+	iwl_mvm_phy_ctxt_apply(mvm, ctxt, &chandef, NULL, 1, 1,
+			       FW_CTXT_ACTION_REMOVE);
 }
 
 static void iwl_mvm_binding_iterator(void *_data, u8 *mac,

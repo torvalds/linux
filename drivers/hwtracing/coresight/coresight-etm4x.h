@@ -1016,7 +1016,6 @@ struct etmv4_drvdata {
 	void __iomem			*base;
 	struct coresight_device		*csdev;
 	spinlock_t			spinlock;
-	local_t				mode;
 	int				cpu;
 	u8				arch;
 	u8				nr_pe;
@@ -1036,7 +1035,7 @@ struct etmv4_drvdata {
 	u8				ctxid_size;
 	u8				vmid_size;
 	u8				ccsize;
-	u8				ccitmin;
+	u16				ccitmin;
 	u8				s_ex_level;
 	u8				ns_ex_level;
 	u8				q_support;

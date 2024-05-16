@@ -109,11 +109,9 @@ static inline void dip2vip_cpy(struct vxfs_sb_info *sbi,
 	set_nlink(inode, vip->vii_nlink);
 	inode->i_size = vip->vii_size;
 
-	inode->i_atime.tv_sec = vip->vii_atime;
+	inode_set_atime(inode, vip->vii_atime, 0);
 	inode_set_ctime(inode, vip->vii_ctime, 0);
-	inode->i_mtime.tv_sec = vip->vii_mtime;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
+	inode_set_mtime(inode, vip->vii_mtime, 0);
 
 	inode->i_blocks = vip->vii_blocks;
 	inode->i_generation = vip->vii_gen;

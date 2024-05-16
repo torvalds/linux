@@ -285,7 +285,8 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi1>;
-	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>,
+		   <&gpio4 24 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	flash@0 {
@@ -293,6 +294,12 @@
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 		status = "okay";
+	};
+
+	tpm@1 {
+		compatible = "tcg,tpm_tis-spi";
+		reg = <0x1>;
+		spi-max-frequency = <36000000>;
 	};
 };
 
@@ -319,7 +326,7 @@
 
 &gpio4 {
 	gpio-line-names = "", "", "", "",
-		"", "", "uart3_rs232#", "uart3_rs422#",
+		"dig1_ctl", "dig2_ctl", "uart3_rs232#", "uart3_rs422#",
 		"uart3_rs485#", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "",
 		"", "", "", "uart4_rs485#", "", "sim1det#", "sim2det#", "";
@@ -357,6 +364,8 @@
 		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		adc {
 			compatible = "gw,gsc-adc";
@@ -642,7 +651,6 @@
 		pinctrl-0 = <&pinctrl_ksz>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
-		phy-mode = "rgmii-id";
 
 		ports {
 			#address-cells = <1>;
@@ -678,7 +686,6 @@
 
 			port@5 {
 				reg = <5>;
-				label = "cpu";
 				ethernet = <&fec1>;
 				phy-mode = "rgmii-id";
 
@@ -842,6 +849,8 @@
 
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
+			MX8MM_IOMUXC_SAI1_RXD2_GPIO4_IO4	0x40000041 /* DIG1_CTL */
+			MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5	0x40000041 /* DIG2_CTL */
 			MX8MM_IOMUXC_SPDIF_TX_GPIO5_IO3		0x40000041 /* DIG2_OUT */
 			MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4		0x40000041 /* DIG2_IN */
 			MX8MM_IOMUXC_GPIO1_IO06_GPIO1_IO6	0x40000041 /* DIG1_IN */
@@ -987,6 +996,7 @@
 			MX8MM_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI	0x82
 			MX8MM_IOMUXC_ECSPI1_MISO_ECSPI1_MISO	0x82
 			MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9	0x140
+			MX8MM_IOMUXC_SAI2_TXFS_GPIO4_IO24	0x140
 		>;
 	};
 

@@ -151,7 +151,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(&up->port, ch))
+		if (uart_prepare_sysrq_char(&up->port, ch))
 			goto ignore_char;
 
 		uart_insert_char(&up->port, *status, UART_LSR_OE, ch, flag);
@@ -225,14 +225,14 @@ static inline irqreturn_t serial_pxa_irq(int irq, void *dev_id)
 	iir = serial_in(up, UART_IIR);
 	if (iir & UART_IIR_NO_INT)
 		return IRQ_NONE;
-	spin_lock(&up->port.lock);
+	uart_port_lock(&up->port);
 	lsr = serial_in(up, UART_LSR);
 	if (lsr & UART_LSR_DR)
 		receive_chars(up, &lsr);
 	check_modem_status(up);
 	if (lsr & UART_LSR_THRE)
 		transmit_chars(up);
-	spin_unlock(&up->port.lock);
+	uart_unlock_and_check_sysrq(&up->port);
 	return IRQ_HANDLED;
 }
 
@@ -242,9 +242,9 @@ static unsigned int serial_pxa_tx_empty(struct uart_port *port)
 	unsigned long flags;
 	unsigned int ret;
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 	ret = serial_in(up, UART_LSR) & UART_LSR_TEMT ? TIOCSER_TEMT : 0;
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 
 	return ret;
 }
@@ -295,13 +295,13 @@ static void serial_pxa_break_ctl(struct uart_port *port, int break_state)
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 	unsigned long flags;
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 	if (break_state == -1)
 		up->lcr |= UART_LCR_SBC;
 	else
 		up->lcr &= ~UART_LCR_SBC;
 	serial_out(up, UART_LCR, up->lcr);
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 }
 
 static int serial_pxa_startup(struct uart_port *port)
@@ -346,10 +346,10 @@ static int serial_pxa_startup(struct uart_port *port)
 	 */
 	serial_out(up, UART_LCR, UART_LCR_WLEN8);
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 	up->port.mctrl |= TIOCM_OUT2;
 	serial_pxa_set_mctrl(&up->port, up->port.mctrl);
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 
 	/*
 	 * Finally, enable interrupts.  Note: Modem status interrupts
@@ -383,10 +383,10 @@ static void serial_pxa_shutdown(struct uart_port *port)
 	up->ier = 0;
 	serial_out(up, UART_IER, 0);
 
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 	up->port.mctrl &= ~TIOCM_OUT2;
 	serial_pxa_set_mctrl(&up->port, up->port.mctrl);
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 
 	/*
 	 * Disable break condition and FIFOs
@@ -434,7 +434,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * Ok, we're now changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
-	spin_lock_irqsave(&up->port.lock, flags);
+	uart_port_lock_irqsave(&up->port, &flags);
 
 	/*
 	 * Ensure the port will be enabled.
@@ -504,7 +504,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 	up->lcr = cval;					/* Save LCR */
 	serial_pxa_set_mctrl(&up->port, up->port.mctrl);
 	serial_out(up, UART_FCR, fcr);
-	spin_unlock_irqrestore(&up->port.lock, flags);
+	uart_port_unlock_irqrestore(&up->port, flags);
 }
 
 static void
@@ -604,13 +604,10 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	int locked = 1;
 
 	clk_enable(up->clk);
-	local_irq_save(flags);
-	if (up->port.sysrq)
-		locked = 0;
-	else if (oops_in_progress)
-		locked = spin_trylock(&up->port.lock);
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(&up->port, &flags);
 	else
-		spin_lock(&up->port.lock);
+		uart_port_lock_irqsave(&up->port, &flags);
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -628,10 +625,8 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	serial_out(up, UART_IER, ier);
 
 	if (locked)
-		spin_unlock(&up->port.lock);
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(&up->port, flags);
 	clk_disable(up->clk);
-
 }
 
 #ifdef CONFIG_CONSOLE_POLL

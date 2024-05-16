@@ -1,0 +1,128 @@
+[
+    {
+        "ArchStdEvent": "SW_INCR"
+    },
+    {
+        "ArchStdEvent": "ST_RETIRED"
+    },
+    {
+        "ArchStdEvent": "LD_SPEC"
+    },
+    {
+        "ArchStdEvent": "ST_SPEC"
+    },
+    {
+        "ArchStdEvent": "LDST_SPEC"
+    },
+    {
+        "ArchStdEvent": "DP_SPEC"
+    },
+    {
+        "ArchStdEvent": "ASE_SPEC"
+    },
+    {
+        "ArchStdEvent": "VFP_SPEC"
+    },
+    {
+        "ArchStdEvent": "PC_WRITE_SPEC"
+    },
+    {
+        "ArchStdEvent": "BR_IMMED_RETIRED"
+    },
+    {
+        "ArchStdEvent": "BR_RETURN_RETIRED"
+    },
+    {
+        "ArchStdEvent": "CRYPTO_SPEC"
+    },
+    {
+        "ArchStdEvent": "ISB_SPEC"
+    },
+    {
+        "ArchStdEvent": "DSB_SPEC"
+    },
+    {
+        "ArchStdEvent": "DMB_SPEC"
+    },
+    {
+        "ArchStdEvent": "RC_LD_SPEC"
+    },
+    {
+        "ArchStdEvent": "RC_ST_SPEC"
+    },
+    {
+        "ArchStdEvent": "INST_RETIRED"
+    },
+    {
+        "ArchStdEvent": "CID_WRITE_RETIRED"
+    },
+    {
+        "ArchStdEvent": "PC_WRITE_RETIRED"
+    },
+    {
+        "ArchStdEvent": "INST_SPEC"
+    },
+    {
+        "ArchStdEvent": "TTBR_WRITE_RETIRED"
+    },
+    {
+        "ArchStdEvent": "BR_RETIRED"
+    },
+    {
+        "ArchStdEvent": "BR_MIS_PRED_RETIRED"
+    },
+    {
+        "ArchStdEvent": "OP_RETIRED"
+    },
+    {
+        "ArchStdEvent": "OP_SPEC"
+    },
+    {
+        "PublicDescription": "Operation speculatively executed - ASE Scalar",
+        "EventCode": "0xd210",
+        "EventName": "ASE_SCALAR_SPEC",
+        "BriefDescription": "Operation speculatively executed - ASE Scalar"
+    },
+    {
+        "PublicDescription": "Operation speculatively executed - ASE Vector",
+        "EventCode": "0xd211",
+        "EventName": "ASE_VECTOR_SPEC",
+        "BriefDescription": "Operation speculatively executed - ASE Vector"
+    },
+    {
+        "PublicDescription": "Barrier speculatively executed, CSDB",
+        "EventCode": "0x7f",
+        "EventName": "CSDB_SPEC",
+        "BriefDescription": "Barrier speculatively executed, CSDB"
+    },
+    {
+        "PublicDescription": "Prefetch sent to L2.",
+        "EventCode": "0xd106",
+        "EventName": "ICF_PREFETCH_DISPATCH",
+        "BriefDescription": "Prefetch sent to L2."
+    },
+    {
+        "PublicDescription": "Prefetch response received but was dropped since we don't support inflight upgrades.",
+        "EventCode": "0xd107",
+        "EventName": "ICF_PREFETCH_DROPPED_NO_UPGRADE",
+        "BriefDescription": "Prefetch response received but was dropped since we don't support inflight upgrades."
+    },
+    {
+        "PublicDescription": "Prefetch request missed TLB.",
+        "EventCode": "0xd108",
+        "EventName": "ICF_PREFETCH_DROPPED_TLB_MISS",
+        "BriefDescription": "Prefetch request missed TLB."
+    },
+    {
+        "PublicDescription": "Prefetch request dropped since duplicate was found in TLB.",
+        "EventCode": "0xd109",
+        "EventName": "ICF_PREFETCH_DROPPED_DUPLICATE",
+        "BriefDescription": "Prefetch request dropped since duplicate was found in TLB."
+    },
+    {
+        "PublicDescription": "Prefetch request dropped since it was found in cache.",
+        "EventCode": "0xd10a",
+        "EventName": "ICF_PREFETCH_DROPPED_CACHE_HIT",
+        "BriefDescription": "Prefetch request dropped since it was found in cache."
+    }
+]

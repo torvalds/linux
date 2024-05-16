@@ -487,8 +487,7 @@ void qca8k_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 		return;
 
 	for (i = 0; i < priv->info->mib_count; i++)
-		strncpy(data + i * ETH_GSTRING_LEN, ar8327_mib[i].name,
-			ETH_GSTRING_LEN);
+		ethtool_puts(&data, ar8327_mib[i].name);
 }
 
 void qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
@@ -500,7 +499,7 @@ void qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 	u32 hi = 0;
 	int ret;
 
-	if (priv->mgmt_master && priv->info->ops->autocast_mib &&
+	if (priv->mgmt_conduit && priv->info->ops->autocast_mib &&
 	    priv->info->ops->autocast_mib(ds, port, data) > 0)
 		return;
 
@@ -535,7 +534,7 @@ int qca8k_get_sset_count(struct dsa_switch *ds, int port, int sset)
 }
 
 int qca8k_set_mac_eee(struct dsa_switch *ds, int port,
-		      struct ethtool_eee *eee)
+		      struct ethtool_keee *eee)
 {
 	u32 lpi_en = QCA8K_REG_EEE_CTRL_LPI_EN(port);
 	struct qca8k_priv *priv = ds->priv;
@@ -559,7 +558,7 @@ exit:
 }
 
 int qca8k_get_mac_eee(struct dsa_switch *ds, int port,
-		      struct ethtool_eee *e)
+		      struct ethtool_keee *e)
 {
 	/* Nothing to do on the port's MAC */
 	return 0;
@@ -762,7 +761,7 @@ int qca8k_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	int ret;
 
 	/* We have only have a general MTU setting.
-	 * DSA always set the CPU port's MTU to the largest MTU of the slave
+	 * DSA always set the CPU port's MTU to the largest MTU of the user
 	 * ports.
 	 * Setting MTU just for the CPU port is sufficient to correctly set a
 	 * value for every port.

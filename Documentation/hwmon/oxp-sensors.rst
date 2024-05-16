@@ -33,6 +33,7 @@ Currently the driver supports the following handhelds:
  - AOK ZOE A1 PRO
  - Aya Neo 2
  - Aya Neo AIR
+ - Aya Neo AIR Plus (Mendocino)
  - Aya Neo AIR Pro
  - Aya Neo Geek
  - OneXPlayer AMD

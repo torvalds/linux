@@ -8,10 +8,12 @@ config PARISC
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_SYSCALL_TRACEPOINTS
 	select ARCH_WANT_FRAME_POINTERS
+	select ARCH_HAS_CPU_CACHE_ALIASING
+	select ARCH_HAS_DMA_ALLOC if PA11
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_STRICT_MODULE_RWX
-	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_UBSAN
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_NO_SG_CHAIN
 	select ARCH_SUPPORTS_HUGETLBFS if PA20
@@ -24,7 +26,7 @@ config PARISC
 	select RTC_DRV_GENERIC
 	select INIT_ALL_POSSIBLE
 	select BUG
-	select BUILDTIME_TABLE_SORT
+	select HAVE_KERNEL_UNCOMPRESSED
 	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_KERNEL_BZIP2
@@ -113,9 +115,12 @@ config ARCH_HAS_ILOG2_U64
 	default n
 
 config GENERIC_BUG
-	bool
-	default y
+	def_bool y
 	depends on BUG
+	select GENERIC_BUG_RELATIVE_POINTERS if 64BIT
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	bool
 
 config GENERIC_HWEIGHT
 	bool
@@ -138,11 +143,11 @@ config ARCH_MMAP_RND_COMPAT_BITS_MIN
 	default 8
 
 config ARCH_MMAP_RND_BITS_MAX
-	default 24 if 64BIT
-	default 17
+	default 18 if 64BIT
+	default 13
 
 config ARCH_MMAP_RND_COMPAT_BITS_MAX
-	default 17
+	default 13
 
 # unless you want to implement ACPI on PA-RISC ... ;-)
 config PM
@@ -233,9 +238,9 @@ config PARISC_HUGE_KERNEL
 	def_bool y if !MODULES || UBSAN || FTRACE || COMPILE_TEST
 
 config MLONGCALLS
-	def_bool y if PARISC_HUGE_KERNEL
 	bool "Enable the -mlong-calls compiler option for big kernels" if !PARISC_HUGE_KERNEL
 	depends on PA8X00
+	default PARISC_HUGE_KERNEL
 	help
 	  If you configure the kernel to include many drivers built-in instead
 	  as modules, the kernel executable may become too big, so that the
@@ -250,9 +255,9 @@ config MLONGCALLS
 	  Enabling this option will probably slow down your kernel.
 
 config 64BIT
-	def_bool y if "$(ARCH)" = "parisc64"
 	bool "64-bit kernel" if "$(ARCH)" = "parisc"
 	depends on PA8X00
+	default "$(ARCH)" = "parisc64"
 	help
 	  Enable this if you want to support 64bit kernel on PA-RISC platform.
 
@@ -269,6 +274,7 @@ choice
 
 config PARISC_PAGE_SIZE_4KB
 	bool "4KB"
+	select HAVE_PAGE_SIZE_4KB
 	help
 	  This lets you select the page size of the kernel.  For best
 	  performance, a page size of 16KB is recommended.  For best
@@ -284,10 +290,12 @@ config PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_16KB
 	bool "16KB"
+	select HAVE_PAGE_SIZE_16KB
 	depends on PA8X00 && BROKEN && !KFENCE
 
 config PARISC_PAGE_SIZE_64KB
 	bool "64KB"
+	select HAVE_PAGE_SIZE_64KB
 	depends on PA8X00 && BROKEN && !KFENCE
 
 endchoice

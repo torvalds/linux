@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2021, Linaro Limited
 
+#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>
 #include "q6dsp-lpass-clocks.h"
 #include "q6prm.h"
 

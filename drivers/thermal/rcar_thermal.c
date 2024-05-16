@@ -371,7 +371,7 @@ static irqreturn_t rcar_thermal_irq(int irq, void *data)
 /*
  *		platform functions
  */
-static int rcar_thermal_remove(struct platform_device *pdev)
+static void rcar_thermal_remove(struct platform_device *pdev)
 {
 	struct rcar_thermal_common *common = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -388,8 +388,6 @@ static int rcar_thermal_remove(struct platform_device *pdev)
 
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static int rcar_thermal_probe(struct platform_device *pdev)
@@ -491,7 +489,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 						&rcar_thermal_zone_ops);
 		} else {
 			priv->zone = thermal_zone_device_register_with_trips(
-				"rcar_thermal", trips, ARRAY_SIZE(trips), 0, priv,
+				"rcar_thermal", trips, ARRAY_SIZE(trips), priv,
 						&rcar_thermal_zone_ops, NULL, 0,
 						idle);
 
@@ -581,7 +579,7 @@ static struct platform_driver rcar_thermal_driver = {
 		.of_match_table = rcar_thermal_dt_ids,
 	},
 	.probe		= rcar_thermal_probe,
-	.remove		= rcar_thermal_remove,
+	.remove_new	= rcar_thermal_remove,
 };
 module_platform_driver(rcar_thermal_driver);
 

@@ -86,7 +86,7 @@ static int map_ring_data(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	amdgpu_sync_create(&sync);
 
-	drm_exec_init(&exec, 0);
+	drm_exec_init(&exec, 0, 0);
 	drm_exec_until_all_locked(&exec) {
 		r = drm_exec_lock_obj(&exec, &bo->tbo.base);
 		drm_exec_retry_on_contention(&exec);
@@ -149,7 +149,7 @@ static int unmap_ring_data(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	struct drm_exec exec;
 	long r;
 
-	drm_exec_init(&exec, 0);
+	drm_exec_init(&exec, 0, 0);
 	drm_exec_until_all_locked(&exec) {
 		r = drm_exec_lock_obj(&exec, &bo->tbo.base);
 		drm_exec_retry_on_contention(&exec);
@@ -189,10 +189,13 @@ static void setup_vpe_queue(struct amdgpu_device *adev,
 	mqd->rptr_val = 0;
 	mqd->unmapped = 1;
 
+	if (adev->vpe.collaborate_mode)
+		memcpy(++mqd, test->mqd_data_cpu_addr, sizeof(struct MQD_INFO));
+
 	qinfo->mqd_addr = test->mqd_data_gpu_addr;
 	qinfo->csa_addr = test->ctx_data_gpu_addr +
 		offsetof(struct umsch_mm_test_ctx_data, vpe_ctx_csa);
-	qinfo->doorbell_offset_0 = (adev->doorbell_index.vpe_ring + 1) << 1;
+	qinfo->doorbell_offset_0 = 0;
 	qinfo->doorbell_offset_1 = 0;
 }
 
@@ -287,7 +290,10 @@ static int submit_vpe_queue(struct amdgpu_device *adev, struct umsch_mm_test *te
 	ring[5] = 0;
 
 	mqd->wptr_val = (6 << 2);
-	// WDOORBELL32(adev->umsch_mm.agdb_index[CONTEXT_PRIORITY_LEVEL_NORMAL], mqd->wptr_val);
+	if (adev->vpe.collaborate_mode)
+		(++mqd)->wptr_val = (6 << 2);
+
+	WDOORBELL32(adev->umsch_mm.agdb_index[CONTEXT_PRIORITY_LEVEL_NORMAL], mqd->wptr_val);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (*fence == test_pattern)
@@ -358,7 +364,7 @@ static int setup_umsch_mm_test(struct amdgpu_device *adev,
 
 	memset(test->ring_data_cpu_addr, 0, sizeof(struct umsch_mm_test_ring_data));
 
-	test->ring_data_gpu_addr = AMDGPU_VA_RESERVED_SIZE;
+	test->ring_data_gpu_addr = AMDGPU_VA_RESERVED_BOTTOM;
 	r = map_ring_data(adev, test->vm, test->ring_data_obj, &test->bo_va,
 			  test->ring_data_gpu_addr, sizeof(struct umsch_mm_test_ring_data));
 	if (r)
@@ -571,6 +577,7 @@ int amdgpu_umsch_mm_init_microcode(struct amdgpu_umsch_mm *umsch)
 
 	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(4, 0, 5):
+	case IP_VERSION(4, 0, 6):
 		fw_name = "amdgpu/umsch_mm_4_0_0.bin";
 		break;
 	default:
@@ -750,6 +757,7 @@ static int umsch_mm_early_init(void *handle)
 
 	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(4, 0, 5):
+	case IP_VERSION(4, 0, 6):
 		umsch_mm_v4_0_set_funcs(&adev->umsch_mm);
 		break;
 	default:
@@ -765,6 +773,9 @@ static int umsch_mm_early_init(void *handle)
 static int umsch_mm_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_in_reset(adev) || adev->in_s0ix || adev->in_suspend)
+		return 0;
 
 	return umsch_mm_test(adev);
 }
@@ -843,6 +854,20 @@ static int umsch_mm_hw_fini(void *handle)
 	return 0;
 }
 
+static int umsch_mm_suspend(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return umsch_mm_hw_fini(adev);
+}
+
+static int umsch_mm_resume(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return umsch_mm_hw_init(adev);
+}
+
 static const struct amd_ip_funcs umsch_mm_v4_0_ip_funcs = {
 	.name = "umsch_mm_v4_0",
 	.early_init = umsch_mm_early_init,
@@ -851,6 +876,10 @@ static const struct amd_ip_funcs umsch_mm_v4_0_ip_funcs = {
 	.sw_fini = umsch_mm_sw_fini,
 	.hw_init = umsch_mm_hw_init,
 	.hw_fini = umsch_mm_hw_fini,
+	.suspend = umsch_mm_suspend,
+	.resume = umsch_mm_resume,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version umsch_mm_v4_0_ip_block = {

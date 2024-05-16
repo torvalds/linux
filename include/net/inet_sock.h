@@ -234,17 +234,13 @@ struct inet_sock {
 	int			uc_index;
 	int			mc_index;
 	__be32			mc_addr;
-	struct {
-		__u16 lo;
-		__u16 hi;
-	}			local_port_range;
+	u32			local_port_range;	/* high << 16 | low */
 
 	struct ip_mc_socklist __rcu	*mc_list;
 	struct inet_cork_full	cork;
 };
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
-#define IPCORK_ALLFRAG	2	/* always fragment (for ipv6 for now) */
 
 enum {
 	INET_FLAGS_PKTINFO	= 0,
@@ -268,6 +264,17 @@ enum {
 	INET_FLAGS_NODEFRAG	= 17,
 	INET_FLAGS_BIND_ADDRESS_NO_PORT = 18,
 	INET_FLAGS_DEFER_CONNECT = 19,
+	INET_FLAGS_MC6_LOOP	= 20,
+	INET_FLAGS_RECVERR6_RFC4884 = 21,
+	INET_FLAGS_MC6_ALL	= 22,
+	INET_FLAGS_AUTOFLOWLABEL_SET = 23,
+	INET_FLAGS_AUTOFLOWLABEL = 24,
+	INET_FLAGS_DONTFRAG	= 25,
+	INET_FLAGS_RECVERR6	= 26,
+	INET_FLAGS_REPFLOW	= 27,
+	INET_FLAGS_RTALERT_ISOLATE = 28,
+	INET_FLAGS_SNDFLOW	= 29,
+	INET_FLAGS_RTALERT	= 30,
 };
 
 /* cmsg flags for inet */
@@ -300,11 +307,6 @@ static inline unsigned long inet_cmsg_flags(const struct inet_sock *inet)
 	clear_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
 #define inet_assign_bit(nr, sk, val)		\
 	assign_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags, val)
-
-static inline bool sk_is_inet(struct sock *sk)
-{
-	return sk->sk_family == AF_INET || sk->sk_family == AF_INET6;
-}
 
 /**
  * sk_to_full_sk - Access to a full socket

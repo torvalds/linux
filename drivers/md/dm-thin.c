@@ -453,12 +453,13 @@ static int bio_detain(struct pool *pool, struct dm_cell_key *key, struct bio *bi
 	cell_prealloc = dm_bio_prison_alloc_cell(pool->prison, GFP_NOIO);
 
 	r = dm_bio_detain(pool->prison, key, bio, cell_prealloc, cell_result);
-	if (r)
+	if (r) {
 		/*
 		 * We reused an old cell; we can get rid of
 		 * the new one.
 		 */
 		dm_bio_prison_free_cell(pool->prison, cell_prealloc);
+	}
 
 	return r;
 }
@@ -707,9 +708,10 @@ static void get_bio_block_range(struct thin_c *tc, struct bio *bio,
 		(void) sector_div(e, pool->sectors_per_block);
 	}
 
-	if (e < b)
+	if (e < b) {
 		/* Can happen if the bio is within a single block. */
 		e = b;
+	}
 
 	*begin = b;
 	*end = e;
@@ -721,13 +723,14 @@ static void remap(struct thin_c *tc, struct bio *bio, dm_block_t block)
 	sector_t bi_sector = bio->bi_iter.bi_sector;
 
 	bio_set_dev(bio, tc->pool_dev->bdev);
-	if (block_size_is_power_of_two(pool))
+	if (block_size_is_power_of_two(pool)) {
 		bio->bi_iter.bi_sector =
 			(block << pool->sectors_per_block_shift) |
 			(bi_sector & (pool->sectors_per_block - 1));
-	else
+	} else {
 		bio->bi_iter.bi_sector = (block * pool->sectors_per_block) +
 				 sector_div(bi_sector, pool->sectors_per_block);
+	}
 }
 
 static void remap_to_origin(struct thin_c *tc, struct bio *bio)
@@ -1401,9 +1404,10 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 	if (pool->pf.zero_new_blocks) {
 		if (io_overwrites_block(pool, bio))
 			remap_and_issue_overwrite(tc, bio, data_block, m);
-		else
+		else {
 			ll_zero(tc, m, data_block * pool->sectors_per_block,
 				(data_block + 1) * pool->sectors_per_block);
+		}
 	} else
 		process_prepared_mapping(m);
 }
@@ -1416,17 +1420,17 @@ static void schedule_external_copy(struct thin_c *tc, dm_block_t virt_block,
 	sector_t virt_block_begin = virt_block * pool->sectors_per_block;
 	sector_t virt_block_end = (virt_block + 1) * pool->sectors_per_block;
 
-	if (virt_block_end <= tc->origin_size)
+	if (virt_block_end <= tc->origin_size) {
 		schedule_copy(tc, virt_block, tc->origin_dev,
 			      virt_block, data_dest, cell, bio,
 			      pool->sectors_per_block);
 
-	else if (virt_block_begin < tc->origin_size)
+	} else if (virt_block_begin < tc->origin_size) {
 		schedule_copy(tc, virt_block, tc->origin_dev,
 			      virt_block, data_dest, cell, bio,
 			      tc->origin_size - virt_block_begin);
 
-	else
+	} else
 		schedule_zero(tc, virt_block, data_dest, cell, bio);
 }
 
@@ -4560,5 +4564,5 @@ module_param_named(no_space_timeout, no_space_timeout_secs, uint, 0644);
 MODULE_PARM_DESC(no_space_timeout, "Out of data space queue IO timeout in seconds");
 
 MODULE_DESCRIPTION(DM_NAME " thin provisioning target");
-MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

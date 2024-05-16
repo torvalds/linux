@@ -41,7 +41,7 @@ class aarch64_page_ops():
             self.SECTION_SIZE_BITS = 27
         self.MAX_PHYSMEM_BITS = constants.LX_CONFIG_ARM64_VA_BITS
 
-        self.PAGE_SHIFT = constants.LX_CONFIG_ARM64_PAGE_SHIFT
+        self.PAGE_SHIFT = constants.LX_CONFIG_PAGE_SHIFT
         self.PAGE_SIZE = 1 << self.PAGE_SHIFT
         self.PAGE_MASK = (~(self.PAGE_SIZE - 1)) & ((1 << 64) - 1)
 

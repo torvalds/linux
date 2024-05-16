@@ -29,7 +29,6 @@
  * @data: led configuration data;
  * @led_cdev: led class data;
  * @base_color: base led color (other colors have constant offset from base);
- * @led_data: led data;
  * @data_parent: pointer to private device control data of parent;
  * @led_cdev_name: class device name
  */
@@ -275,13 +274,11 @@ static int mlxreg_led_probe(struct platform_device *pdev)
 	return mlxreg_led_config(priv);
 }
 
-static int mlxreg_led_remove(struct platform_device *pdev)
+static void mlxreg_led_remove(struct platform_device *pdev)
 {
 	struct mlxreg_led_priv_data *priv = dev_get_drvdata(&pdev->dev);
 
 	mutex_destroy(&priv->access_lock);
-
-	return 0;
 }
 
 static struct platform_driver mlxreg_led_driver = {
@@ -289,7 +286,7 @@ static struct platform_driver mlxreg_led_driver = {
 	    .name = "leds-mlxreg",
 	},
 	.probe = mlxreg_led_probe,
-	.remove = mlxreg_led_remove,
+	.remove_new = mlxreg_led_remove,
 };
 
 module_platform_driver(mlxreg_led_driver);

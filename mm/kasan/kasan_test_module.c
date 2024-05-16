@@ -5,7 +5,7 @@
  * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
  */
 
-#define pr_fmt(fmt) "kasan test: %s " fmt, __func__
+#define pr_fmt(fmt) "kasan: test: " fmt
 
 #include <linux/mman.h>
 #include <linux/module.h>
@@ -62,7 +62,7 @@ static noinline void __init copy_user_test(void)
 	kfree(kmem);
 }
 
-static int __init test_kasan_module_init(void)
+static int __init kasan_test_module_init(void)
 {
 	/*
 	 * Temporarily enable multi-shot mode. Otherwise, KASAN would only
@@ -77,5 +77,5 @@ static int __init test_kasan_module_init(void)
 	return -EAGAIN;
 }
 
-module_init(test_kasan_module_init);
+module_init(kasan_test_module_init);
 MODULE_LICENSE("GPL");

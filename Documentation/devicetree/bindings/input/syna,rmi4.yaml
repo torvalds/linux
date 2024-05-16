@@ -164,6 +164,8 @@ patternProperties:
 
   "^rmi4-f[0-9a-f]+@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     description:
       Other functions, not documented yet.
 

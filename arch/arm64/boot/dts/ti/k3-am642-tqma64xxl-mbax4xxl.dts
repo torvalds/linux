@@ -8,6 +8,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/net/ti-dp83867.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/pwm/pwm.h>
@@ -19,6 +20,7 @@
 	compatible = "tq,am642-tqma6442l-mbax4xxl", "tq,am642-tqma6442l",
 		     "ti,am642";
 	model = "TQ-Systems TQMa64xxL SoM on MBax4xxL carrier board";
+	chassis-type = "embedded";
 
 	aliases {
 		ethernet0 = &cpsw_port1;
@@ -58,12 +60,14 @@
 		pinctrl-0 = <&mcu_gpio_leds_pins>;
 
 		led-0 {
-			label = "led0";
 			gpios = <&mcu_gpio0 8 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_INDICATOR;
 		};
 		led-1 {
-			label = "led1";
 			gpios = <&mcu_gpio0 9 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_YELLOW>;
+			function = LED_FUNCTION_INDICATOR;
 		};
 	};
 
@@ -170,7 +174,8 @@
 
 &main_gpio1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&main_gpio1_hog_pins>;
+	pinctrl-0 = <&main_gpio1_hog_pins>,
+		    <&main_gpio1_pru_pins>;
 	gpio-line-names =
 		"", "", "", "", /* 0-3 */
 		"", "", "", "", /* 4-7 */
@@ -417,10 +422,8 @@
 	cd-gpios = <&main_gpio1 77 GPIO_ACTIVE_LOW>;
 	disable-wp;
 	no-mmc;
-	ti,driver-strength-ohm = <50>;
 	ti,fails-without-test-cd;
 	/* Enabled by overlay */
-	status = "disabled";
 };
 
 &tscadc0 {
@@ -542,6 +545,79 @@
 			AM64X_IOPAD(0x0238, PIN_OUTPUT, 7)
 			/* (C19) EXTINTn.GPIO1_70 - PHY_INT# */
 			AM64X_IOPAD(0x0278, PIN_INPUT, 7)
+		>;
+	};
+
+	main_gpio1_pru_pins: main-gpio1-pru-pins {
+		pinctrl-single,pins = <
+			/* (Y1) PRG0_PRU0_GPO0.GPIO1_0 */
+			AM64X_IOPAD(0x0160, PIN_INPUT, 7)
+			/* (R4) PRG0_PRU0_GPO1.GPIO1_1 */
+			AM64X_IOPAD(0x0164, PIN_INPUT, 7)
+			/* (U2) PRG0_PRU0_GPO2.GPIO1_2 */
+			AM64X_IOPAD(0x0168, PIN_INPUT, 7)
+			/* (V2) PRG0_PRU0_GPO3.GPIO1_3 */
+			AM64X_IOPAD(0x016c, PIN_INPUT, 7)
+			/* (AA2) PRG0_PRU0_GPO4.GPIO1_4 */
+			AM64X_IOPAD(0x0170, PIN_INPUT, 7)
+			/* (R3) PRG0_PRU0_GPO5.GPIO1_5 */
+			AM64X_IOPAD(0x0174, PIN_INPUT, 7)
+			/* (T3) PRG0_PRU0_GPO6.GPIO1_6 */
+			AM64X_IOPAD(0x0178, PIN_INPUT, 7)
+			/* (T1) PRG0_PRU0_GPO7.GPIO1_7 */
+			AM64X_IOPAD(0x017c, PIN_INPUT, 7)
+			/* (T2) PRG0_PRU0_GPO8.GPIO1_8 */
+			AM64X_IOPAD(0x0180, PIN_INPUT, 7)
+			/* (Y3) PRG0_PRU0_GPO11.GPIO1_11 */
+			AM64X_IOPAD(0x018c, PIN_INPUT, 7)
+			/* (AA3) PRG0_PRU0_GPO12.GPIO1_12 */
+			AM64X_IOPAD(0x0190, PIN_INPUT, 7)
+			/* (R6) PRG0_PRU0_GPO13.GPIO1_13 */
+			AM64X_IOPAD(0x0194, PIN_INPUT, 7)
+			/* (V4) PRG0_PRU0_GPO14.GPIO1_14 */
+			AM64X_IOPAD(0x0198, PIN_INPUT, 7)
+			/* (T5) PRG0_PRU0_GPO15.GPIO1_15 */
+			AM64X_IOPAD(0x019c, PIN_INPUT, 7)
+			/* (U4) PRG0_PRU0_GPO16.GPIO1_16 */
+			AM64X_IOPAD(0x01a0, PIN_INPUT, 7)
+			/* (U1) PRG0_PRU0_GPO17.GPIO1_17 */
+			AM64X_IOPAD(0x01a4, PIN_INPUT, 7)
+			/* (V1) PRG0_PRU0_GPO18.GPIO1_18 */
+			AM64X_IOPAD(0x01a8, PIN_INPUT, 7)
+			/* (W1) PRG0_PRU0_GPO19.GPIO1_19 */
+			AM64X_IOPAD(0x01ac, PIN_INPUT, 7)
+			/* (Y2) PRG0_PRU1_GPO0.GPIO1_20 */
+			AM64X_IOPAD(0x01b0, PIN_INPUT, 7)
+			/* (W2) PRG0_PRU1_GPO1.GPIO1_21 */
+			AM64X_IOPAD(0x01b4, PIN_INPUT, 7)
+			/* (V3) PRG0_PRU1_GPO2.GPIO1_22 */
+			AM64X_IOPAD(0x01b8, PIN_INPUT, 7)
+			/* (T4) PRG0_PRU1_GPO3.GPIO1_23 */
+			AM64X_IOPAD(0x01bc, PIN_INPUT, 7)
+			/* (W3) PRG0_PRU1_GPO4.GPIO1_24 */
+			AM64X_IOPAD(0x01c0, PIN_INPUT, 7)
+			/* (P4) PRG0_PRU1_GPO5.GPIO1_25 */
+			AM64X_IOPAD(0x01c4, PIN_INPUT, 7)
+			/* (R5) PRG0_PRU1_GPO6.GPIO1_26 */
+			AM64X_IOPAD(0x01c8, PIN_INPUT, 7)
+			/* (R1) PRG0_PRU1_GPO8.GPIO1_28 */
+			AM64X_IOPAD(0x01d0, PIN_INPUT, 7)
+			/* (W4) PRG0_PRU1_GPO11.GPIO1_31 */
+			AM64X_IOPAD(0x01dc, PIN_INPUT, 7)
+			/* (Y4) PRG0_PRU1_GPO12.GPIO1_32 */
+			AM64X_IOPAD(0x01e0, PIN_INPUT, 7)
+			/* (T6) PRG0_PRU1_GPO13.GPIO1_33 */
+			AM64X_IOPAD(0x01e4, PIN_INPUT, 7)
+			/* (U6) PRG0_PRU1_GPO14.GPIO1_34 */
+			AM64X_IOPAD(0x01e8, PIN_INPUT, 7)
+			/* (U5) PRG0_PRU1_GPO15.GPIO1_35 */
+			AM64X_IOPAD(0x01ec, PIN_INPUT, 7)
+			/* (AA4) PRG0_PRU1_GPO16.GPIO1_36 */
+			AM64X_IOPAD(0x01f0, PIN_INPUT, 7)
+			/* (P2) PRG0_MDIO0_MDIO.GPIO1_40 */
+			AM64X_IOPAD(0x0200, PIN_INPUT, 7)
+			/* (P3) PRG0_MDIO0_MDC.GPIO1_41 */
+			AM64X_IOPAD(0x0204, PIN_INPUT, 7)
 		>;
 	};
 

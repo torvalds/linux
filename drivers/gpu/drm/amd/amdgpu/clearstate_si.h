@@ -21,8 +21,7 @@
  *
  */
 
-static const u32 si_SECT_CONTEXT_def_1[] =
-{
+static const u32 si_SECT_CONTEXT_def_1[] = {
     0x00000000, // DB_RENDER_CONTROL
     0x00000000, // DB_COUNT_CONTROL
     0x00000000, // DB_DEPTH_VIEW
@@ -236,8 +235,7 @@ static const u32 si_SECT_CONTEXT_def_1[] =
     0x00000000, // PA_SC_VPORT_ZMIN_15
     0x3f800000, // PA_SC_VPORT_ZMAX_15
 };
-static const u32 si_SECT_CONTEXT_def_2[] =
-{
+static const u32 si_SECT_CONTEXT_def_2[] = {
     0x00000000, // CP_PERFMON_CNTX_CNTL
     0x00000000, // CP_RINGID
     0x00000000, // CP_VMID
@@ -511,8 +509,7 @@ static const u32 si_SECT_CONTEXT_def_2[] =
     0x00000000, // CB_BLEND6_CONTROL
     0x00000000, // CB_BLEND7_CONTROL
 };
-static const u32 si_SECT_CONTEXT_def_3[] =
-{
+static const u32 si_SECT_CONTEXT_def_3[] = {
     0x00000000, // PA_CL_POINT_X_RAD
     0x00000000, // PA_CL_POINT_Y_RAD
     0x00000000, // PA_CL_POINT_SIZE
@@ -520,8 +517,7 @@ static const u32 si_SECT_CONTEXT_def_3[] =
     0x00000000, // VGT_DMA_BASE_HI
     0x00000000, // VGT_DMA_BASE
 };
-static const u32 si_SECT_CONTEXT_def_4[] =
-{
+static const u32 si_SECT_CONTEXT_def_4[] = {
     0x00000000, // DB_DEPTH_CONTROL
     0x00000000, // DB_EQAA
     0x00000000, // CB_COLOR_CONTROL
@@ -680,16 +676,13 @@ static const u32 si_SECT_CONTEXT_def_4[] =
     0x00000000, // VGT_GS_OUT_PRIM_TYPE
     0x00000000, // IA_ENHANCE
 };
-static const u32 si_SECT_CONTEXT_def_5[] =
-{
+static const u32 si_SECT_CONTEXT_def_5[] = {
     0x00000000, // VGT_PRIMITIVEID_EN
 };
-static const u32 si_SECT_CONTEXT_def_6[] =
-{
+static const u32 si_SECT_CONTEXT_def_6[] = {
     0x00000000, // VGT_PRIMITIVEID_RESET
 };
-static const u32 si_SECT_CONTEXT_def_7[] =
-{
+static const u32 si_SECT_CONTEXT_def_7[] = {
     0x00000000, // VGT_MULTI_PRIM_IB_RESET_EN
     0, // HOLE
     0, // HOLE
@@ -924,8 +917,7 @@ static const u32 si_SECT_CONTEXT_def_7[] =
     0x00000000, // CB_COLOR7_CLEAR_WORD0
     0x00000000, // CB_COLOR7_CLEAR_WORD1
 };
-static const struct cs_extent_def si_SECT_CONTEXT_defs[] =
-{
+static const struct cs_extent_def si_SECT_CONTEXT_defs[] = {
     {si_SECT_CONTEXT_def_1, 0x0000a000, 212 },
     {si_SECT_CONTEXT_def_2, 0x0000a0d8, 272 },
     {si_SECT_CONTEXT_def_3, 0x0000a1f5, 6 },

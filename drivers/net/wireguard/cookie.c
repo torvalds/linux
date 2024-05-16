@@ -12,9 +12,9 @@
 
 #include <crypto/blake2s.h>
 #include <crypto/chacha20poly1305.h>
+#include <crypto/utils.h>
 
 #include <net/ipv6.h>
-#include <crypto/algapi.h>
 
 void wg_cookie_checker_init(struct cookie_checker *checker,
 			    struct wg_device *wg)

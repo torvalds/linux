@@ -2158,12 +2158,22 @@ static int sysc_reset(struct sysc *ddata)
 		sysc_val = sysc_read_sysconfig(ddata);
 		sysc_val |= sysc_mask;
 		sysc_write(ddata, sysc_offset, sysc_val);
-		/* Flush posted write */
+
+		/*
+		 * Some devices need a delay before reading registers
+		 * after reset. Presumably a srst_udelay is not needed
+		 * for devices that use a rstctrl register reset.
+		 */
+		if (ddata->cfg.srst_udelay)
+			fsleep(ddata->cfg.srst_udelay);
+
+		/*
+		 * Flush posted write. For devices needing srst_udelay
+		 * this should trigger an interconnect error if the
+		 * srst_udelay value is needed but not configured.
+		 */
 		sysc_val = sysc_read_sysconfig(ddata);
 	}
-
-	if (ddata->cfg.srst_udelay)
-		fsleep(ddata->cfg.srst_udelay);
 
 	if (ddata->post_reset_quirk)
 		ddata->post_reset_quirk(ddata);
@@ -2390,7 +2400,7 @@ static int sysc_child_add_clocks(struct sysc *ddata,
 	return 0;
 }
 
-static struct device_type sysc_device_type = {
+static const struct device_type sysc_device_type = {
 };
 
 static struct sysc *sysc_child_to_parent(struct device *dev)
@@ -3387,7 +3397,7 @@ unprepare:
 	return error;
 }
 
-static int sysc_remove(struct platform_device *pdev)
+static void sysc_remove(struct platform_device *pdev)
 {
 	struct sysc *ddata = platform_get_drvdata(pdev);
 	int error;
@@ -3412,8 +3422,6 @@ static int sysc_remove(struct platform_device *pdev)
 
 unprepare:
 	sysc_unprepare(ddata);
-
-	return 0;
 }
 
 static const struct of_device_id sysc_match[] = {
@@ -3439,7 +3447,7 @@ MODULE_DEVICE_TABLE(of, sysc_match);
 
 static struct platform_driver sysc_driver = {
 	.probe		= sysc_probe,
-	.remove		= sysc_remove,
+	.remove_new	= sysc_remove,
 	.driver         = {
 		.name   = "ti-sysc",
 		.of_match_table	= sysc_match,

@@ -37,7 +37,7 @@
 			no-map;
 		};
 
-		rsc_table: rsc-table@1fff8000{
+		rsc_table: rsc-table@1fff8000 {
 			reg = <0 0x1fff8000 0 0x1000>;
 			no-map;
 		};

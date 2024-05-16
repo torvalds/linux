@@ -15,6 +15,7 @@
 #include "vmx_ops.h"
 #include "../cpuid.h"
 #include "run_flags.h"
+#include "../mmu.h"
 
 #define MSR_TYPE_R	1
 #define MSR_TYPE_W	2
@@ -108,6 +109,8 @@ struct lbr_desc {
 	/* True if LBRs are marked as not intercepted in the MSR bitmap */
 	bool msr_passthrough;
 };
+
+extern struct x86_pmu_lbr vmx_lbr_caps;
 
 /*
  * The nested_vmx structure is part of vcpu_vmx, and holds information we need
@@ -241,9 +244,11 @@ struct nested_vmx {
 		bool guest_mode;
 	} smm;
 
+#ifdef CONFIG_KVM_HYPERV
 	gpa_t hv_evmcs_vmptr;
 	struct kvm_host_map hv_evmcs_map;
 	struct hv_enlightened_vmcs *hv_evmcs;
+#endif
 };
 
 struct vcpu_vmx {
@@ -329,8 +334,6 @@ struct vcpu_vmx {
 	/* Dynamic PLE window. */
 	unsigned int ple_window;
 	bool ple_window_dirty;
-
-	bool req_immediate_exit;
 
 	/* Support for PML */
 #define PML_ENTITY_NUM		512
@@ -419,6 +422,8 @@ void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
 
 u64 vmx_get_l2_tsc_offset(struct kvm_vcpu *vcpu);
 u64 vmx_get_l2_tsc_multiplier(struct kvm_vcpu *vcpu);
+
+gva_t vmx_get_untagged_addr(struct kvm_vcpu *vcpu, gva_t gva, unsigned int flags);
 
 static inline void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr,
 					     int type, bool value)
@@ -717,7 +722,8 @@ static inline bool vmx_need_pf_intercept(struct kvm_vcpu *vcpu)
 	if (!enable_ept)
 		return true;
 
-	return allow_smaller_maxphyaddr && cpuid_maxphyaddr(vcpu) < boot_cpu_data.x86_phys_bits;
+	return allow_smaller_maxphyaddr &&
+	       cpuid_maxphyaddr(vcpu) < kvm_get_shadow_phys_bits();
 }
 
 static inline bool is_unrestricted_guest(struct kvm_vcpu *vcpu)
@@ -743,16 +749,6 @@ static inline int vmx_get_instr_info_reg2(u32 vmx_instr_info)
 static inline bool vmx_can_use_ipiv(struct kvm_vcpu *vcpu)
 {
 	return  lapic_in_kernel(vcpu) && enable_ipiv;
-}
-
-static inline bool guest_cpuid_has_evmcs(struct kvm_vcpu *vcpu)
-{
-	/*
-	 * eVMCS is exposed to the guest if Hyper-V is enabled in CPUID and
-	 * eVMCS has been explicitly enabled by userspace.
-	 */
-	return vcpu->arch.hyperv_enabled &&
-	       to_vmx(vcpu)->nested.enlightened_vmcs_enabled;
 }
 
 #endif /* __KVM_X86_VMX_H */

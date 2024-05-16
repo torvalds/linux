@@ -4,8 +4,6 @@
 
 #include <linux/percpu.h>
 
-extern struct clocksource kvm_clock;
-
 DECLARE_PER_CPU(struct pvclock_vsyscall_time_info *, hv_clock_per_cpu);
 
 static __always_inline struct pvclock_vcpu_time_info *this_cpu_pvti(void)

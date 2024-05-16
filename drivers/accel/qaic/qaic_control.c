@@ -1022,7 +1022,8 @@ static void *msg_xfer(struct qaic_device *qdev, struct wrapper_list *wrappers, u
 	int xfer_count = 0;
 	int retry_count;
 
-	if (qdev->in_reset) {
+	/* Allow QAIC_BOOT state since we need to check control protocol version */
+	if (qdev->dev_state == QAIC_OFFLINE) {
 		mutex_unlock(&qdev->cntl_mutex);
 		return ERR_PTR(-ENODEV);
 	}
@@ -1138,7 +1139,7 @@ static int abort_dma_cont(struct qaic_device *qdev, struct wrapper_list *wrapper
 		if (!list_is_first(&wrapper->list, &wrappers->list))
 			kref_put(&wrapper->ref_count, free_wrapper);
 
-	wrapper = add_wrapper(wrappers, offsetof(struct wrapper_msg, trans) + sizeof(*out_trans));
+	wrapper = add_wrapper(wrappers, sizeof(*wrapper));
 
 	if (!wrapper)
 		return -ENOMEM;
@@ -1306,7 +1307,7 @@ int qaic_manage_ioctl(struct drm_device *dev, void *data, struct drm_file *file_
 	qdev = usr->qddev->qdev;
 
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 		srcu_read_unlock(&usr->qddev_lock, usr_rcu_id);
 		return -ENODEV;

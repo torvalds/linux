@@ -200,7 +200,7 @@ static int qat_uclo_parse_num(char *str, unsigned int *num)
 	unsigned long ae = 0;
 	int i;
 
-	strncpy(buf, str, 15);
+	strscpy(buf, str, sizeof(buf));
 	for (i = 0; i < 16; i++) {
 		if (!isdigit(buf[i])) {
 			buf[i] = '\0';
@@ -733,6 +733,7 @@ qat_uclo_get_dev_type(struct icp_qat_fw_loader_handle *handle)
 	case ADF_4XXX_PCI_DEVICE_ID:
 	case ADF_401XX_PCI_DEVICE_ID:
 	case ADF_402XX_PCI_DEVICE_ID:
+	case ADF_420XX_PCI_DEVICE_ID:
 		return ICP_QAT_AC_4XXX_A_DEV_TYPE;
 	default:
 		pr_err("QAT: unsupported device 0x%x\n",

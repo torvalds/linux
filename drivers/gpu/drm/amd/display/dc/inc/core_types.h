@@ -90,6 +90,9 @@ struct resource_funcs {
 	void (*update_soc_for_wm_a)(
 				struct dc *dc, struct dc_state *context);
 
+	unsigned int (*calculate_mall_ways_from_bytes)(
+				const struct dc *dc,
+				unsigned int total_size_in_mall_bytes);
 	/**
 	 * @populate_dml_pipes - Populate pipe data struct
 	 *
@@ -200,11 +203,8 @@ struct resource_funcs {
 			unsigned int pipe_cnt,
             unsigned int index);
 
-	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context, bool fast_update);
-	void (*retain_phantom_pipes)(struct dc *dc, struct dc_state *context);
 	void (*get_panel_config_defaults)(struct dc_panel_config *panel_config);
-	void (*save_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
-	void (*restore_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
+	void (*build_pipe_pix_clk_params)(struct pipe_ctx *pipe_ctx);
 };
 
 struct audio_support{
@@ -339,7 +339,9 @@ struct stream_resource {
 };
 
 struct plane_resource {
+	/* scl_data is scratch space required to program a plane */
 	struct scaler_data scl_data;
+	/* Below pointers to hw objects are required to enable the plane */
 	struct hubp *hubp;
 	struct mem_input *mi;
 	struct input_pixel_processor *ipp;
@@ -382,6 +384,16 @@ union pipe_update_flags {
 		uint32_t test_pattern_changed : 1;
 	} bits;
 	uint32_t raw;
+};
+
+enum p_state_switch_method {
+	P_STATE_UNKNOWN						= 0,
+	P_STATE_V_BLANK						= 1,
+	P_STATE_FPO,
+	P_STATE_V_ACTIVE,
+	P_STATE_SUB_VP,
+	P_STATE_DRR_SUB_VP,
+	P_STATE_V_BLANK_SUB_VP
 };
 
 struct pipe_ctx {
@@ -432,6 +444,7 @@ struct pipe_ctx {
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
 	union pipe_update_flags update_flags;
+	enum p_state_switch_method p_state_type;
 	struct tg_color visual_confirm_color;
 	bool has_vactive_margin;
 	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
@@ -461,6 +474,8 @@ struct resource_context {
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];
 	bool is_mpc_3dlut_acquired[MAX_PIPES];
+	/* solely used for build scalar data in dml2 */
+	struct pipe_ctx temp_pipe;
 };
 
 struct dce_bw_output {
@@ -486,7 +501,7 @@ struct dcn_bw_writeback {
 
 struct dcn_bw_output {
 	struct dc_clocks clk;
-	struct dcn_watermark_set watermarks;
+	union dcn_watermark_set watermarks;
 	struct dcn_bw_writeback bw_writeback;
 	int compbuf_size_kb;
 	unsigned int mall_ss_size_bytes;
@@ -505,6 +520,7 @@ struct bw_context {
 	union bw_output bw;
 	struct display_mode_lib dml;
 	struct dml2_context *dml2;
+	struct dml2_context *dml2_dc_power_source;
 };
 
 struct dc_dmub_cmd {
@@ -525,6 +541,14 @@ struct dc_state {
 	 * @stream_status: Planes status on a given stream
 	 */
 	struct dc_stream_status stream_status[MAX_PIPES];
+	/**
+	 * @phantom_streams: Stream state properties for phantoms
+	 */
+	struct dc_stream_state *phantom_streams[MAX_PHANTOM_PIPES];
+	/**
+	 * @phantom_planes: Planes state properties for phantoms
+	 */
+	struct dc_plane_state *phantom_planes[MAX_PHANTOM_PIPES];
 
 	/**
 	 * @stream_count: Total of streams in use
@@ -532,6 +556,14 @@ struct dc_state {
 	uint8_t stream_count;
 	uint8_t stream_mask;
 
+	/**
+	 * @stream_count: Total phantom streams in use
+	 */
+	uint8_t phantom_stream_count;
+	/**
+	 * @stream_count: Total phantom planes in use
+	 */
+	uint8_t phantom_plane_count;
 	/**
 	 * @res_ctx: Persistent state of resources
 	 */
@@ -578,16 +610,7 @@ struct dc_state {
 		unsigned int stutter_period_us;
 	} perf_params;
 
-	struct {
-		/* used to temporarily backup plane states of a stream during
-		 * dc update. The reason is that plane states are overwritten
-		 * with surface updates in dc update. Once they are overwritten
-		 * current state is no longer valid. We want to temporarily
-		 * store current value in plane states so we can still recover
-		 * a valid current state during dc update.
-		 */
-		struct dc_plane_state plane_states[MAX_SURFACE_NUM];
-	} scratch;
+	enum dc_power_source_type power_source;
 };
 
 struct replay_context {

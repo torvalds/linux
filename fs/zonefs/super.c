@@ -15,12 +15,13 @@
 #include <linux/writeback.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
-#include <linux/parser.h>
 #include <linux/uio.h>
 #include <linux/mman.h>
 #include <linux/sched/mm.h>
 #include <linux/crc32.h>
 #include <linux/task_io_accounting_ops.h>
+#include <linux/fs_parser.h>
+#include <linux/fs_context.h>
 
 #include "zonefs.h"
 
@@ -113,7 +114,7 @@ static int zonefs_zone_mgmt(struct super_block *sb,
 
 	trace_zonefs_zone_mgmt(sb, z, op);
 	ret = blkdev_zone_mgmt(sb->s_bdev, op, z->z_sector,
-			       z->z_size >> SECTOR_SHIFT, GFP_NOFS);
+			       z->z_size >> SECTOR_SHIFT);
 	if (ret) {
 		zonefs_err(sb,
 			   "Zone management operation %s at %llu failed %d\n",
@@ -246,16 +247,18 @@ static void zonefs_inode_update_mode(struct inode *inode)
 	z->z_mode = inode->i_mode;
 }
 
-struct zonefs_ioerr_data {
-	struct inode	*inode;
-	bool		write;
-};
-
 static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 			      void *data)
 {
-	struct zonefs_ioerr_data *err = data;
-	struct inode *inode = err->inode;
+	struct blk_zone *z = data;
+
+	*z = *zone;
+	return 0;
+}
+
+static void zonefs_handle_io_error(struct inode *inode, struct blk_zone *zone,
+				   bool write)
+{
 	struct zonefs_zone *z = zonefs_inode_zone(inode);
 	struct super_block *sb = inode->i_sb;
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
@@ -270,8 +273,8 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 	data_size = zonefs_check_zone_condition(sb, z, zone);
 	isize = i_size_read(inode);
 	if (!(z->z_flags & (ZONEFS_ZONE_READONLY | ZONEFS_ZONE_OFFLINE)) &&
-	    !err->write && isize == data_size)
-		return 0;
+	    !write && isize == data_size)
+		return;
 
 	/*
 	 * At this point, we detected either a bad zone or an inconsistency
@@ -292,7 +295,7 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 	 * In all cases, warn about inode size inconsistency and handle the
 	 * IO error according to the zone condition and to the mount options.
 	 */
-	if (zonefs_zone_is_seq(z) && isize != data_size)
+	if (isize != data_size)
 		zonefs_warn(sb,
 			    "inode %lu: invalid size %lld (should be %lld)\n",
 			    inode->i_ino, isize, data_size);
@@ -352,8 +355,6 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 	zonefs_i_size_write(inode, data_size);
 	z->z_wpoffset = data_size;
 	zonefs_inode_account_active(inode);
-
-	return 0;
 }
 
 /*
@@ -367,23 +368,25 @@ void __zonefs_io_error(struct inode *inode, bool write)
 {
 	struct zonefs_zone *z = zonefs_inode_zone(inode);
 	struct super_block *sb = inode->i_sb;
-	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 	unsigned int noio_flag;
-	unsigned int nr_zones = 1;
-	struct zonefs_ioerr_data err = {
-		.inode = inode,
-		.write = write,
-	};
+	struct blk_zone zone;
 	int ret;
 
 	/*
-	 * The only files that have more than one zone are conventional zone
-	 * files with aggregated conventional zones, for which the inode zone
-	 * size is always larger than the device zone size.
+	 * Conventional zone have no write pointer and cannot become read-only
+	 * or offline. So simply fake a report for a single or aggregated zone
+	 * and let zonefs_handle_io_error() correct the zone inode information
+	 * according to the mount options.
 	 */
-	if (z->z_size > bdev_zone_sectors(sb->s_bdev))
-		nr_zones = z->z_size >>
-			(sbi->s_zone_sectors_shift + SECTOR_SHIFT);
+	if (!zonefs_zone_is_seq(z)) {
+		zone.start = z->z_sector;
+		zone.len = z->z_size >> SECTOR_SHIFT;
+		zone.wp = zone.start + zone.len;
+		zone.type = BLK_ZONE_TYPE_CONVENTIONAL;
+		zone.cond = BLK_ZONE_COND_NOT_WP;
+		zone.capacity = zone.len;
+		goto handle_io_error;
+	}
 
 	/*
 	 * Memory allocations in blkdev_report_zones() can trigger a memory
@@ -394,12 +397,20 @@ void __zonefs_io_error(struct inode *inode, bool write)
 	 * the GFP_NOIO context avoids both problems.
 	 */
 	noio_flag = memalloc_noio_save();
-	ret = blkdev_report_zones(sb->s_bdev, z->z_sector, nr_zones,
-				  zonefs_io_error_cb, &err);
-	if (ret != nr_zones)
+	ret = blkdev_report_zones(sb->s_bdev, z->z_sector, 1,
+				  zonefs_io_error_cb, &zone);
+	memalloc_noio_restore(noio_flag);
+
+	if (ret != 1) {
 		zonefs_err(sb, "Get inode %lu zone information failed %d\n",
 			   inode->i_ino, ret);
-	memalloc_noio_restore(noio_flag);
+		zonefs_warn(sb, "remounting filesystem read-only\n");
+		sb->s_flags |= SB_RDONLY;
+		return;
+	}
+
+handle_io_error:
+	zonefs_handle_io_error(inode, &zone, write);
 }
 
 static struct kmem_cache *zonefs_inode_cachep;
@@ -460,58 +471,47 @@ static int zonefs_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 enum {
-	Opt_errors_ro, Opt_errors_zro, Opt_errors_zol, Opt_errors_repair,
-	Opt_explicit_open, Opt_err,
+	Opt_errors, Opt_explicit_open,
 };
 
-static const match_table_t tokens = {
-	{ Opt_errors_ro,	"errors=remount-ro"},
-	{ Opt_errors_zro,	"errors=zone-ro"},
-	{ Opt_errors_zol,	"errors=zone-offline"},
-	{ Opt_errors_repair,	"errors=repair"},
-	{ Opt_explicit_open,	"explicit-open" },
-	{ Opt_err,		NULL}
+struct zonefs_context {
+	unsigned long s_mount_opts;
 };
 
-static int zonefs_parse_options(struct super_block *sb, char *options)
+static const struct constant_table zonefs_param_errors[] = {
+	{"remount-ro",		ZONEFS_MNTOPT_ERRORS_RO},
+	{"zone-ro",		ZONEFS_MNTOPT_ERRORS_ZRO},
+	{"zone-offline",	ZONEFS_MNTOPT_ERRORS_ZOL},
+	{"repair", 		ZONEFS_MNTOPT_ERRORS_REPAIR},
+	{}
+};
+
+static const struct fs_parameter_spec zonefs_param_spec[] = {
+	fsparam_enum	("errors",		Opt_errors, zonefs_param_errors),
+	fsparam_flag	("explicit-open",	Opt_explicit_open),
+	{}
+};
+
+static int zonefs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
-	substring_t args[MAX_OPT_ARGS];
-	char *p;
+	struct zonefs_context *ctx = fc->fs_private;
+	struct fs_parse_result result;
+	int opt;
 
-	if (!options)
-		return 0;
+	opt = fs_parse(fc, zonefs_param_spec, param, &result);
+	if (opt < 0)
+		return opt;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_errors_ro:
-			sbi->s_mount_opts &= ~ZONEFS_MNTOPT_ERRORS_MASK;
-			sbi->s_mount_opts |= ZONEFS_MNTOPT_ERRORS_RO;
-			break;
-		case Opt_errors_zro:
-			sbi->s_mount_opts &= ~ZONEFS_MNTOPT_ERRORS_MASK;
-			sbi->s_mount_opts |= ZONEFS_MNTOPT_ERRORS_ZRO;
-			break;
-		case Opt_errors_zol:
-			sbi->s_mount_opts &= ~ZONEFS_MNTOPT_ERRORS_MASK;
-			sbi->s_mount_opts |= ZONEFS_MNTOPT_ERRORS_ZOL;
-			break;
-		case Opt_errors_repair:
-			sbi->s_mount_opts &= ~ZONEFS_MNTOPT_ERRORS_MASK;
-			sbi->s_mount_opts |= ZONEFS_MNTOPT_ERRORS_REPAIR;
-			break;
-		case Opt_explicit_open:
-			sbi->s_mount_opts |= ZONEFS_MNTOPT_EXPLICIT_OPEN;
-			break;
-		default:
-			return -EINVAL;
-		}
+	switch (opt) {
+	case Opt_errors:
+		ctx->s_mount_opts &= ~ZONEFS_MNTOPT_ERRORS_MASK;
+		ctx->s_mount_opts |= result.uint_32;
+		break;
+	case Opt_explicit_open:
+		ctx->s_mount_opts |= ZONEFS_MNTOPT_EXPLICIT_OPEN;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -531,13 +531,6 @@ static int zonefs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",errors=repair");
 
 	return 0;
-}
-
-static int zonefs_remount(struct super_block *sb, int *flags, char *data)
-{
-	sync_filesystem(sb);
-
-	return zonefs_parse_options(sb, data);
 }
 
 static int zonefs_inode_setattr(struct mnt_idmap *idmap,
@@ -658,8 +651,8 @@ static struct inode *zonefs_get_file_inode(struct inode *dir,
 
 	inode->i_ino = ino;
 	inode->i_mode = z->z_mode;
-	inode->i_mtime = inode->i_atime = inode_set_ctime_to_ts(inode,
-								inode_get_ctime(dir));
+	inode_set_mtime_to_ts(inode,
+			      inode_set_atime_to_ts(inode, inode_set_ctime_to_ts(inode, inode_get_ctime(dir))));
 	inode->i_uid = z->z_uid;
 	inode->i_gid = z->z_gid;
 	inode->i_size = z->z_wpoffset;
@@ -695,8 +688,8 @@ static struct inode *zonefs_get_zgroup_inode(struct super_block *sb,
 	inode->i_ino = ino;
 	inode_init_owner(&nop_mnt_idmap, inode, root, S_IFDIR | 0555);
 	inode->i_size = sbi->s_zgroup[ztype].g_nr_zones;
-	inode->i_mtime = inode->i_atime = inode_set_ctime_to_ts(inode,
-								inode_get_ctime(root));
+	inode_set_mtime_to_ts(inode,
+			      inode_set_atime_to_ts(inode, inode_set_ctime_to_ts(inode, inode_get_ctime(root))));
 	inode->i_private = &sbi->s_zgroup[ztype];
 	set_nlink(inode, 2);
 
@@ -747,8 +740,6 @@ static struct dentry *zonefs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = zonefs_get_dir_inode(dir, dentry);
 	else
 		inode = zonefs_get_file_inode(dir, dentry);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
 
 	return d_splice_alias(inode, dentry);
 }
@@ -1057,7 +1048,7 @@ static int zonefs_init_zgroup(struct super_block *sb,
 	zonefs_info(sb, "Zone group \"%s\" has %u file%s\n",
 		    zonefs_zgroup_name(ztype),
 		    zgroup->g_nr_zones,
-		    zgroup->g_nr_zones > 1 ? "s" : "");
+		    str_plural(zgroup->g_nr_zones));
 
 	return 0;
 }
@@ -1197,7 +1188,6 @@ static const struct super_operations zonefs_sops = {
 	.alloc_inode	= zonefs_alloc_inode,
 	.free_inode	= zonefs_free_inode,
 	.statfs		= zonefs_statfs,
-	.remount_fs	= zonefs_remount,
 	.show_options	= zonefs_show_options,
 };
 
@@ -1242,9 +1232,10 @@ static void zonefs_release_zgroup_inodes(struct super_block *sb)
  * sub-directories and files according to the device zone configuration and
  * format options.
  */
-static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
+static int zonefs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct zonefs_sb_info *sbi;
+	struct zonefs_context *ctx = fc->fs_private;
 	struct inode *inode;
 	enum zonefs_ztype ztype;
 	int ret;
@@ -1281,7 +1272,7 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_uid = GLOBAL_ROOT_UID;
 	sbi->s_gid = GLOBAL_ROOT_GID;
 	sbi->s_perm = 0640;
-	sbi->s_mount_opts = ZONEFS_MNTOPT_ERRORS_RO;
+	sbi->s_mount_opts = ctx->s_mount_opts;
 
 	atomic_set(&sbi->s_wro_seq_files, 0);
 	sbi->s_max_wro_seq_files = bdev_max_open_zones(sb->s_bdev);
@@ -1289,10 +1280,6 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_max_active_seq_files = bdev_max_active_zones(sb->s_bdev);
 
 	ret = zonefs_read_super(sb);
-	if (ret)
-		return ret;
-
-	ret = zonefs_parse_options(sb, data);
 	if (ret)
 		return ret;
 
@@ -1319,7 +1306,7 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 
 	inode->i_ino = bdev_nr_zones(sb->s_bdev);
 	inode->i_mode = S_IFDIR | 0555;
-	inode->i_mtime = inode->i_atime = inode_set_ctime_current(inode);
+	simple_inode_init_ts(inode);
 	inode->i_op = &zonefs_dir_inode_operations;
 	inode->i_fop = &zonefs_dir_operations;
 	inode->i_size = 2;
@@ -1356,12 +1343,6 @@ cleanup:
 	return ret;
 }
 
-static struct dentry *zonefs_mount(struct file_system_type *fs_type,
-				   int flags, const char *dev_name, void *data)
-{
-	return mount_bdev(fs_type, flags, dev_name, data, zonefs_fill_super);
-}
-
 static void zonefs_kill_super(struct super_block *sb)
 {
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
@@ -1376,22 +1357,72 @@ static void zonefs_kill_super(struct super_block *sb)
 	kfree(sbi);
 }
 
+static void zonefs_free_fc(struct fs_context *fc)
+{
+	struct zonefs_context *ctx = fc->fs_private;
+
+	kfree(ctx);
+}
+
+static int zonefs_get_tree(struct fs_context *fc)
+{
+	return get_tree_bdev(fc, zonefs_fill_super);
+}
+
+static int zonefs_reconfigure(struct fs_context *fc)
+{
+	struct zonefs_context *ctx = fc->fs_private;
+	struct super_block *sb = fc->root->d_sb;
+	struct zonefs_sb_info *sbi = sb->s_fs_info;
+
+	sync_filesystem(fc->root->d_sb);
+	/* Copy new options from ctx into sbi. */
+	sbi->s_mount_opts = ctx->s_mount_opts;
+
+	return 0;
+}
+
+static const struct fs_context_operations zonefs_context_ops = {
+	.parse_param    = zonefs_parse_param,
+	.get_tree       = zonefs_get_tree,
+	.reconfigure	= zonefs_reconfigure,
+	.free           = zonefs_free_fc,
+};
+
+/*
+ * Set up the filesystem mount context.
+ */
+static int zonefs_init_fs_context(struct fs_context *fc)
+{
+	struct zonefs_context *ctx;
+
+	ctx = kzalloc(sizeof(struct zonefs_context), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->s_mount_opts = ZONEFS_MNTOPT_ERRORS_RO;
+	fc->ops = &zonefs_context_ops;
+	fc->fs_private = ctx;
+
+	return 0;
+}
+
 /*
  * File system definition and registration.
  */
 static struct file_system_type zonefs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "zonefs",
-	.mount		= zonefs_mount,
-	.kill_sb	= zonefs_kill_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "zonefs",
+	.kill_sb		= zonefs_kill_super,
+	.fs_flags		= FS_REQUIRES_DEV,
+	.init_fs_context	= zonefs_init_fs_context,
+	.parameters		= zonefs_param_spec,
 };
 
 static int __init zonefs_init_inodecache(void)
 {
 	zonefs_inode_cachep = kmem_cache_create("zonefs_inode_cache",
 			sizeof(struct zonefs_inode_info), 0,
-			(SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD | SLAB_ACCOUNT),
+			SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
 			NULL);
 	if (zonefs_inode_cachep == NULL)
 		return -ENOMEM;

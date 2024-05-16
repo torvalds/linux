@@ -8,6 +8,14 @@
 #include "gve_adminq.h"
 #include "gve_utils.h"
 
+bool gve_tx_was_added_to_block(struct gve_priv *priv, int queue_idx)
+{
+	struct gve_notify_block *block =
+			&priv->ntfy_blocks[gve_tx_idx_to_ntfy(priv, queue_idx)];
+
+	return block->tx != NULL;
+}
+
 void gve_tx_remove_from_block(struct gve_priv *priv, int queue_idx)
 {
 	struct gve_notify_block *block =
@@ -30,6 +38,14 @@ void gve_tx_add_to_block(struct gve_priv *priv, int queue_idx)
 			    queue_idx);
 }
 
+bool gve_rx_was_added_to_block(struct gve_priv *priv, int queue_idx)
+{
+	struct gve_notify_block *block =
+			&priv->ntfy_blocks[gve_rx_idx_to_ntfy(priv, queue_idx)];
+
+	return block->rx != NULL;
+}
+
 void gve_rx_remove_from_block(struct gve_priv *priv, int queue_idx)
 {
 	struct gve_notify_block *block =
@@ -48,11 +64,9 @@ void gve_rx_add_to_block(struct gve_priv *priv, int queue_idx)
 	rx->ntfy_id = ntfy_idx;
 }
 
-struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
-			    struct gve_rx_slot_page_info *page_info, u16 len)
+struct sk_buff *gve_rx_copy_data(struct net_device *dev, struct napi_struct *napi,
+				 u8 *data, u16 len)
 {
-	void *va = page_info->page_address + page_info->page_offset +
-		page_info->pad;
 	struct sk_buff *skb;
 
 	skb = napi_alloc_skb(napi, len);
@@ -60,10 +74,19 @@ struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
 		return NULL;
 
 	__skb_put(skb, len);
-	skb_copy_to_linear_data_offset(skb, 0, va, len);
+	skb_copy_to_linear_data_offset(skb, 0, data, len);
 	skb->protocol = eth_type_trans(skb, dev);
 
 	return skb;
+}
+
+struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
+			    struct gve_rx_slot_page_info *page_info, u16 len)
+{
+	void *va = page_info->page_address + page_info->page_offset +
+		page_info->pad;
+
+	return gve_rx_copy_data(dev, napi, va, len);
 }
 
 void gve_dec_pagecnt_bias(struct gve_rx_slot_page_info *page_info)
@@ -80,4 +103,19 @@ void gve_dec_pagecnt_bias(struct gve_rx_slot_page_info *page_info)
 		/* Set pagecount back up to max. */
 		page_ref_add(page_info->page, INT_MAX - pagecount);
 	}
+}
+
+void gve_add_napi(struct gve_priv *priv, int ntfy_idx,
+		  int (*gve_poll)(struct napi_struct *, int))
+{
+	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+	netif_napi_add(priv->dev, &block->napi, gve_poll);
+}
+
+void gve_remove_napi(struct gve_priv *priv, int ntfy_idx)
+{
+	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+	netif_napi_del(&block->napi);
 }

@@ -11,17 +11,12 @@
  *
  */
 
-#define KMSG_COMPONENT "dasd"
-
 #include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/blkpg.h>
 
 #include <linux/uaccess.h>
-
-/* This is ugly... */
-#define PRINTK_HEADER "dasd_gendisk:"
 
 #include "dasd_int.h"
 
@@ -39,6 +34,16 @@ MODULE_PARM_DESC(nr_hw_queues, "Default number of hardware queues for new DASD d
  */
 int dasd_gendisk_alloc(struct dasd_block *block)
 {
+	struct queue_limits lim = {
+		/*
+		 * With page sized segments, each segment can be translated into
+		 * one idaw/tidaw.
+		 */
+		.max_segment_size = PAGE_SIZE,
+		.seg_boundary_mask = PAGE_SIZE - 1,
+		.dma_alignment = PAGE_SIZE - 1,
+		.max_segments = USHRT_MAX,
+	};
 	struct gendisk *gdp;
 	struct dasd_device *base;
 	int len, rc;
@@ -58,11 +63,12 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	if (rc)
 		return rc;
 
-	gdp = blk_mq_alloc_disk(&block->tag_set, block);
+	gdp = blk_mq_alloc_disk(&block->tag_set, &lim, block);
 	if (IS_ERR(gdp)) {
 		blk_mq_free_tag_set(&block->tag_set);
 		return PTR_ERR(gdp);
 	}
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, gdp->queue);
 
 	/* Initialize gendisk structure. */
 	gdp->major = DASD_MAJOR;
@@ -127,15 +133,15 @@ void dasd_gendisk_free(struct dasd_block *block)
  */
 int dasd_scan_partitions(struct dasd_block *block)
 {
-	struct block_device *bdev;
+	struct file *bdev_file;
 	int rc;
 
-	bdev = blkdev_get_by_dev(disk_devt(block->gdp), BLK_OPEN_READ, NULL,
-				 NULL);
-	if (IS_ERR(bdev)) {
+	bdev_file = bdev_file_open_by_dev(disk_devt(block->gdp), BLK_OPEN_READ,
+				       NULL, NULL);
+	if (IS_ERR(bdev_file)) {
 		DBF_DEV_EVENT(DBF_ERR, block->base,
 			      "scan partitions error, blkdev_get returned %ld",
-			      PTR_ERR(bdev));
+			      PTR_ERR(bdev_file));
 		return -ENODEV;
 	}
 
@@ -147,16 +153,15 @@ int dasd_scan_partitions(struct dasd_block *block)
 				"scan partitions error, rc %d", rc);
 
 	/*
-	 * Since the matching blkdev_put call to the blkdev_get in
-	 * this function is not called before dasd_destroy_partitions
-	 * the offline open_count limit needs to be increased from
-	 * 0 to 1. This is done by setting device->bdev (see
-	 * dasd_generic_set_offline). As long as the partition
-	 * detection is running no offline should be allowed. That
-	 * is why the assignment to device->bdev is done AFTER
-	 * the BLKRRPART ioctl.
+	 * Since the matching fput() call to the
+	 * bdev_file_open_by_path() in this function is not called before
+	 * dasd_destroy_partitions the offline open_count limit needs to be
+	 * increased from 0 to 1. This is done by setting device->bdev_file
+	 * (see dasd_generic_set_offline). As long as the partition detection
+	 * is running no offline should be allowed. That is why the assignment
+	 * to block->bdev_file is done AFTER the BLKRRPART ioctl.
 	 */
-	block->bdev = bdev;
+	block->bdev_file = bdev_file;
 	return 0;
 }
 
@@ -166,21 +171,21 @@ int dasd_scan_partitions(struct dasd_block *block)
  */
 void dasd_destroy_partitions(struct dasd_block *block)
 {
-	struct block_device *bdev;
+	struct file *bdev_file;
 
 	/*
-	 * Get the bdev pointer from the device structure and clear
-	 * device->bdev to lower the offline open_count limit again.
+	 * Get the bdev_file pointer from the device structure and clear
+	 * device->bdev_file to lower the offline open_count limit again.
 	 */
-	bdev = block->bdev;
-	block->bdev = NULL;
+	bdev_file = block->bdev_file;
+	block->bdev_file = NULL;
 
-	mutex_lock(&bdev->bd_disk->open_mutex);
-	bdev_disk_changed(bdev->bd_disk, true);
-	mutex_unlock(&bdev->bd_disk->open_mutex);
+	mutex_lock(&file_bdev(bdev_file)->bd_disk->open_mutex);
+	bdev_disk_changed(file_bdev(bdev_file)->bd_disk, true);
+	mutex_unlock(&file_bdev(bdev_file)->bd_disk->open_mutex);
 
 	/* Matching blkdev_put to the blkdev_get in dasd_scan_partitions. */
-	blkdev_put(bdev, NULL);
+	fput(bdev_file);
 }
 
 int dasd_gendisk_init(void)

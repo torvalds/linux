@@ -210,7 +210,7 @@ struct rnand_chip {
 	u32 tim_gen_seq1;
 	u32 tim_gen_seq2;
 	u32 tim_gen_seq3;
-	struct rnand_chip_sel sels[];
+	struct rnand_chip_sel sels[] __counted_by(nsels);
 };
 
 struct rnandc {

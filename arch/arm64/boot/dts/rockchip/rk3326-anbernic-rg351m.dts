@@ -6,30 +6,16 @@
  */
 
 /dts-v1/;
-#include "rk3326-odroid-go.dtsi"
+#include "rk3326-anbernic-rg351m.dtsi"
 
 / {
 	model = "Anbernic RG351M";
 	compatible = "anbernic,rg351m", "rockchip,rk3326";
-
-	vibrator {
-		compatible = "pwm-vibrator";
-		pwms = <&pwm0 0 1000000 0>;
-		pwm-names = "enable";
-	};
 };
-
-/delete-node/ &builtin_gamepad;
-/delete-node/ &vcc_host; /* conflicts with pwm vibration motor */
 
 &internal_display {
 	compatible = "elida,kd35t133";
 	iovcc-supply = <&vcc_lcd>;
+	rotation = <270>;
 	vdd-supply = <&vcc_lcd>;
 };
-
-&pwm0 {
-	status = "okay";
-};
-
-/delete-node/ &rk817_charger;

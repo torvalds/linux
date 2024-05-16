@@ -1882,8 +1882,6 @@ struct ov5670 {
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
 	/* True if the device has been identified */
 	bool identified;
 };
@@ -2198,13 +2196,13 @@ error:
 	return ret;
 }
 
-static int ov5670_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
+static int ov5670_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *state)
 {
 	struct v4l2_mbus_framefmt *fmt =
-				v4l2_subdev_get_try_format(sd, state, 0);
+				v4l2_subdev_state_get_format(state, 0);
 	const struct ov5670_mode *default_mode = &supported_modes[0];
-	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, state, 0);
+	struct v4l2_rect *crop = v4l2_subdev_state_get_crop(state, 0);
 
 	fmt->width = default_mode->width;
 	fmt->height = default_mode->height;
@@ -2265,9 +2263,8 @@ static int ov5670_do_get_pad_format(struct ov5670 *ov5670,
 				    struct v4l2_subdev_format *fmt)
 {
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov5670->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		ov5670_update_pad_format(ov5670->cur_mode, fmt);
 
@@ -2312,7 +2309,7 @@ static int ov5670_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	ov5670_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov5670->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov5670->link_freq, mode->link_freq_index);
@@ -2471,8 +2468,6 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov5670->mutex);
-	if (ov5670->streaming == enable)
-		goto unlock_and_return;
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -2486,7 +2481,6 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 		ret = ov5670_stop_streaming(ov5670);
 		pm_runtime_put(&client->dev);
 	}
-	ov5670->streaming = enable;
 	goto unlock_and_return;
 
 error:
@@ -2541,34 +2535,6 @@ static int __maybe_unused ov5670_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ov5670_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov5670 *ov5670 = to_ov5670(sd);
-
-	if (ov5670->streaming)
-		ov5670_stop_streaming(ov5670);
-
-	return 0;
-}
-
-static int __maybe_unused ov5670_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov5670 *ov5670 = to_ov5670(sd);
-	int ret;
-
-	if (ov5670->streaming) {
-		ret = ov5670_start_streaming(ov5670);
-		if (ret) {
-			ov5670_stop_streaming(ov5670);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static const struct v4l2_subdev_core_ops ov5670_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
@@ -2583,7 +2549,7 @@ __ov5670_get_pad_crop(struct ov5670 *sensor, struct v4l2_subdev_state *state,
 
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&sensor->sd, state, pad);
+		return v4l2_subdev_state_get_crop(state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return mode->analog_crop;
 	}
@@ -2626,7 +2592,6 @@ static const struct v4l2_subdev_video_ops ov5670_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ov5670_pad_ops = {
-	.init_cfg = ov5670_init_cfg,
 	.enum_mbus_code = ov5670_enum_mbus_code,
 	.get_fmt = ov5670_get_pad_format,
 	.set_fmt = ov5670_set_pad_format,
@@ -2644,6 +2609,10 @@ static const struct v4l2_subdev_ops ov5670_subdev_ops = {
 	.video = &ov5670_video_ops,
 	.pad = &ov5670_pad_ops,
 	.sensor = &ov5670_sensor_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov5670_internal_ops = {
+	.init_state = ov5670_init_state,
 };
 
 static const struct media_entity_operations ov5670_subdev_entity_ops = {
@@ -2709,6 +2678,7 @@ static int ov5670_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov5670->sd, client, &ov5670_subdev_ops);
+	ov5670->sd.internal_ops = &ov5670_internal_ops;
 
 	ret = ov5670_regulators_probe(ov5670);
 	if (ret)
@@ -2771,8 +2741,6 @@ static int ov5670_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ov5670->streaming = false;
-
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
 		pm_runtime_set_active(&client->dev);
@@ -2827,7 +2795,6 @@ static void ov5670_remove(struct i2c_client *client)
 }
 
 static const struct dev_pm_ops ov5670_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov5670_suspend, ov5670_resume)
 	SET_RUNTIME_PM_OPS(ov5670_runtime_suspend, ov5670_runtime_resume, NULL)
 };
 

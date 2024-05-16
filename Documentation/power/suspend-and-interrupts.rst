@@ -78,7 +78,7 @@ handling the given IRQ as a system wakeup interrupt line and disable_irq_wake()
 turns that logic off.
 
 Calling enable_irq_wake() causes suspend_device_irqs() to treat the given IRQ
-in a special way.  Namely, the IRQ remains enabled, by on the first interrupt
+in a special way.  Namely, the IRQ remains enabled, but on the first interrupt
 it will be disabled, marked as pending and "suspended" so that it will be
 re-enabled by resume_device_irqs() during the subsequent system resume.  Also
 the PM core is notified about the event which causes the system suspend in

@@ -1947,7 +1947,7 @@ static void __exit smq_exit(void)
 module_init(smq_init);
 module_exit(smq_exit);
 
-MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("smq cache policy");
 

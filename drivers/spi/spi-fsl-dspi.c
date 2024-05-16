@@ -502,15 +502,12 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 		return -ENOMEM;
 
 	dma->chan_rx = dma_request_chan(dev, "rx");
-	if (IS_ERR(dma->chan_rx)) {
-		return dev_err_probe(dev, PTR_ERR(dma->chan_rx),
-			"rx dma channel not available\n");
-	}
+	if (IS_ERR(dma->chan_rx))
+		return dev_err_probe(dev, PTR_ERR(dma->chan_rx), "rx dma channel not available\n");
 
 	dma->chan_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan_tx)) {
-		ret = PTR_ERR(dma->chan_tx);
-		dev_err_probe(dev, ret, "tx dma channel not available\n");
+		ret = dev_err_probe(dev, PTR_ERR(dma->chan_tx), "tx dma channel not available\n");
 		goto err_tx_channel;
 	}
 
@@ -541,16 +538,14 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 	cfg.direction = DMA_DEV_TO_MEM;
 	ret = dmaengine_slave_config(dma->chan_rx, &cfg);
 	if (ret) {
-		dev_err(dev, "can't configure rx dma channel\n");
-		ret = -EINVAL;
+		dev_err_probe(dev, ret, "can't configure rx dma channel\n");
 		goto err_slave_config;
 	}
 
 	cfg.direction = DMA_MEM_TO_DEV;
 	ret = dmaengine_slave_config(dma->chan_tx, &cfg);
 	if (ret) {
-		dev_err(dev, "can't configure tx dma channel\n");
-		ret = -EINVAL;
+		dev_err_probe(dev, ret, "can't configure tx dma channel\n");
 		goto err_slave_config;
 	}
 
@@ -1372,19 +1367,16 @@ static int dspi_probe(struct platform_device *pdev)
 		}
 	}
 
-	dspi->clk = devm_clk_get(&pdev->dev, "dspi");
+	dspi->clk = devm_clk_get_enabled(&pdev->dev, "dspi");
 	if (IS_ERR(dspi->clk)) {
 		ret = PTR_ERR(dspi->clk);
 		dev_err(&pdev->dev, "unable to get clock\n");
 		goto out_ctlr_put;
 	}
-	ret = clk_prepare_enable(dspi->clk);
-	if (ret)
-		goto out_ctlr_put;
 
 	ret = dspi_init(dspi);
 	if (ret)
-		goto out_clk_put;
+		goto out_ctlr_put;
 
 	dspi->irq = platform_get_irq(pdev, 0);
 	if (dspi->irq <= 0) {
@@ -1400,7 +1392,7 @@ static int dspi_probe(struct platform_device *pdev)
 				   IRQF_SHARED, pdev->name, dspi);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Unable to attach DSPI interrupt\n");
-		goto out_clk_put;
+		goto out_ctlr_put;
 	}
 
 poll_mode:
@@ -1432,8 +1424,6 @@ out_release_dma:
 out_free_irq:
 	if (dspi->irq)
 		free_irq(dspi->irq, dspi);
-out_clk_put:
-	clk_disable_unprepare(dspi->clk);
 out_ctlr_put:
 	spi_controller_put(ctlr);
 
@@ -1458,7 +1448,6 @@ static void dspi_remove(struct platform_device *pdev)
 	dspi_release_dma(dspi);
 	if (dspi->irq)
 		free_irq(dspi->irq, dspi);
-	clk_disable_unprepare(dspi->clk);
 }
 
 static void dspi_shutdown(struct platform_device *pdev)

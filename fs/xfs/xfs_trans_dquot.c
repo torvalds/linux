@@ -17,6 +17,7 @@
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 
 STATIC void	xfs_trans_alloc_dqinfo(xfs_trans_t *);
 
@@ -120,6 +121,116 @@ xfs_trans_dup_dqinfo(
 	}
 }
 
+#ifdef CONFIG_XFS_LIVE_HOOKS
+/*
+ * Use a static key here to reduce the overhead of quota live updates.  If the
+ * compiler supports jump labels, the static branch will be replaced by a nop
+ * sled when there are no hook users.  Online fsck is currently the only
+ * caller, so this is a reasonable tradeoff.
+ *
+ * Note: Patching the kernel code requires taking the cpu hotplug lock.  Other
+ * parts of the kernel allocate memory with that lock held, which means that
+ * XFS callers cannot hold any locks that might be used by memory reclaim or
+ * writeback when calling the static_branch_{inc,dec} functions.
+ */
+DEFINE_STATIC_XFS_HOOK_SWITCH(xfs_dqtrx_hooks_switch);
+
+void
+xfs_dqtrx_hook_disable(void)
+{
+	xfs_hooks_switch_off(&xfs_dqtrx_hooks_switch);
+}
+
+void
+xfs_dqtrx_hook_enable(void)
+{
+	xfs_hooks_switch_on(&xfs_dqtrx_hooks_switch);
+}
+
+/* Schedule a transactional dquot update on behalf of an inode. */
+void
+xfs_trans_mod_ino_dquot(
+	struct xfs_trans		*tp,
+	struct xfs_inode		*ip,
+	struct xfs_dquot		*dqp,
+	unsigned int			field,
+	int64_t				delta)
+{
+	xfs_trans_mod_dquot(tp, dqp, field, delta);
+
+	if (xfs_hooks_switched_on(&xfs_dqtrx_hooks_switch)) {
+		struct xfs_mod_ino_dqtrx_params	p = {
+			.tx_id		= (uintptr_t)tp,
+			.ino		= ip->i_ino,
+			.q_type		= xfs_dquot_type(dqp),
+			.q_id		= dqp->q_id,
+			.delta		= delta
+		};
+		struct xfs_quotainfo	*qi = tp->t_mountp->m_quotainfo;
+
+		xfs_hooks_call(&qi->qi_mod_ino_dqtrx_hooks, field, &p);
+	}
+}
+
+/* Call the specified functions during a dquot counter update. */
+int
+xfs_dqtrx_hook_add(
+	struct xfs_quotainfo	*qi,
+	struct xfs_dqtrx_hook	*hook)
+{
+	int			error;
+
+	/*
+	 * Transactional dquot updates first call the mod hook when changes
+	 * are attached to the transaction and then call the apply hook when
+	 * those changes are committed (or canceled).
+	 *
+	 * The apply hook must be installed before the mod hook so that we
+	 * never fail to catch the end of a quota update sequence.
+	 */
+	error = xfs_hooks_add(&qi->qi_apply_dqtrx_hooks, &hook->apply_hook);
+	if (error)
+		goto out;
+
+	error = xfs_hooks_add(&qi->qi_mod_ino_dqtrx_hooks, &hook->mod_hook);
+	if (error)
+		goto out_apply;
+
+	return 0;
+
+out_apply:
+	xfs_hooks_del(&qi->qi_apply_dqtrx_hooks, &hook->apply_hook);
+out:
+	return error;
+}
+
+/* Stop calling the specified function during a dquot counter update. */
+void
+xfs_dqtrx_hook_del(
+	struct xfs_quotainfo	*qi,
+	struct xfs_dqtrx_hook	*hook)
+{
+	/*
+	 * The mod hook must be removed before apply hook to avoid giving the
+	 * hook consumer with an incomplete update.  No hooks should be running
+	 * after these functions return.
+	 */
+	xfs_hooks_del(&qi->qi_mod_ino_dqtrx_hooks, &hook->mod_hook);
+	xfs_hooks_del(&qi->qi_apply_dqtrx_hooks, &hook->apply_hook);
+}
+
+/* Configure dquot update hook functions. */
+void
+xfs_dqtrx_hook_setup(
+	struct xfs_dqtrx_hook	*hook,
+	notifier_fn_t		mod_fn,
+	notifier_fn_t		apply_fn)
+{
+	xfs_hook_setup(&hook->mod_hook, mod_fn);
+	xfs_hook_setup(&hook->apply_hook, apply_fn);
+}
+#endif /* CONFIG_XFS_LIVE_HOOKS */
+
 /*
  * Wrap around mod_dquot to account for both user and group quotas.
  */
@@ -137,11 +248,11 @@ xfs_trans_mod_dquot_byino(
 		return;
 
 	if (XFS_IS_UQUOTA_ON(mp) && ip->i_udquot)
-		(void) xfs_trans_mod_dquot(tp, ip->i_udquot, field, delta);
+		xfs_trans_mod_ino_dquot(tp, ip, ip->i_udquot, field, delta);
 	if (XFS_IS_GQUOTA_ON(mp) && ip->i_gdquot)
-		(void) xfs_trans_mod_dquot(tp, ip->i_gdquot, field, delta);
+		xfs_trans_mod_ino_dquot(tp, ip, ip->i_gdquot, field, delta);
 	if (XFS_IS_PQUOTA_ON(mp) && ip->i_pdquot)
-		(void) xfs_trans_mod_dquot(tp, ip->i_pdquot, field, delta);
+		xfs_trans_mod_ino_dquot(tp, ip, ip->i_pdquot, field, delta);
 }
 
 STATIC struct xfs_dqtrx *
@@ -321,6 +432,29 @@ xfs_apply_quota_reservation_deltas(
 	}
 }
 
+#ifdef CONFIG_XFS_LIVE_HOOKS
+/* Call downstream hooks now that it's time to apply dquot deltas. */
+static inline void
+xfs_trans_apply_dquot_deltas_hook(
+	struct xfs_trans		*tp,
+	struct xfs_dquot		*dqp)
+{
+	if (xfs_hooks_switched_on(&xfs_dqtrx_hooks_switch)) {
+		struct xfs_apply_dqtrx_params	p = {
+			.tx_id		= (uintptr_t)tp,
+			.q_type		= xfs_dquot_type(dqp),
+			.q_id		= dqp->q_id,
+		};
+		struct xfs_quotainfo	*qi = tp->t_mountp->m_quotainfo;
+
+		xfs_hooks_call(&qi->qi_apply_dqtrx_hooks,
+				XFS_APPLY_DQTRX_COMMIT, &p);
+	}
+}
+#else
+# define xfs_trans_apply_dquot_deltas_hook(tp, dqp)	((void)0)
+#endif /* CONFIG_XFS_LIVE_HOOKS */
+
 /*
  * Called by xfs_trans_commit() and similar in spirit to
  * xfs_trans_apply_sb_deltas().
@@ -365,6 +499,8 @@ xfs_trans_apply_dquot_deltas(
 				break;
 
 			ASSERT(XFS_DQ_IS_LOCKED(dqp));
+
+			xfs_trans_apply_dquot_deltas_hook(tp, dqp);
 
 			/*
 			 * adjust the actual number of blocks used
@@ -465,6 +601,29 @@ xfs_trans_apply_dquot_deltas(
 	}
 }
 
+#ifdef CONFIG_XFS_LIVE_HOOKS
+/* Call downstream hooks now that it's time to cancel dquot deltas. */
+static inline void
+xfs_trans_unreserve_and_mod_dquots_hook(
+	struct xfs_trans		*tp,
+	struct xfs_dquot		*dqp)
+{
+	if (xfs_hooks_switched_on(&xfs_dqtrx_hooks_switch)) {
+		struct xfs_apply_dqtrx_params	p = {
+			.tx_id		= (uintptr_t)tp,
+			.q_type		= xfs_dquot_type(dqp),
+			.q_id		= dqp->q_id,
+		};
+		struct xfs_quotainfo	*qi = tp->t_mountp->m_quotainfo;
+
+		xfs_hooks_call(&qi->qi_apply_dqtrx_hooks,
+				XFS_APPLY_DQTRX_UNRESERVE, &p);
+	}
+}
+#else
+# define xfs_trans_unreserve_and_mod_dquots_hook(tp, dqp)	((void)0)
+#endif /* CONFIG_XFS_LIVE_HOOKS */
+
 /*
  * Release the reservations, and adjust the dquots accordingly.
  * This is called only when the transaction is being aborted. If by
@@ -495,6 +654,9 @@ xfs_trans_unreserve_and_mod_dquots(
 			 */
 			if ((dqp = qtrx->qt_dquot) == NULL)
 				break;
+
+			xfs_trans_unreserve_and_mod_dquots_hook(tp, dqp);
+
 			/*
 			 * Unreserve the original reservation. We don't care
 			 * about the number of blocks used field, or deltas.
@@ -706,6 +868,7 @@ error_return:
 error_corrupt:
 	xfs_dqunlock(dqp);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+	xfs_fs_mark_sick(mp, XFS_SICK_FS_QUOTACHECK);
 	return -EFSCORRUPTED;
 }
 
@@ -796,7 +959,7 @@ xfs_trans_reserve_quota_nblks(
 		return 0;
 
 	ASSERT(!xfs_is_quota_inode(&mp->m_sb, ip->i_ino));
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 
 	if (force)
 		qflags |= XFS_QMOPT_FORCE_RES;

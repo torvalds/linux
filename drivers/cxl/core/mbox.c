@@ -63,6 +63,7 @@ static struct cxl_mem_command cxl_mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(GET_SHUTDOWN_STATE, 0, 0x1, 0),
 	CXL_CMD(SET_SHUTDOWN_STATE, 0x1, 0, 0),
 	CXL_CMD(GET_SCAN_MEDIA_CAPS, 0x10, 0x4, 0),
+	CXL_CMD(GET_TIMESTAMP, 0, 0x8, 0),
 };
 
 /*
@@ -836,54 +837,37 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(cxl_enumerate_cmds, CXL);
 
-/*
- * General Media Event Record
- * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
- */
-static const uuid_t gen_media_event_uuid =
-	UUID_INIT(0xfbcd0a77, 0xc260, 0x417f,
-		  0x85, 0xa9, 0x08, 0x8b, 0x16, 0x21, 0xeb, 0xa6);
-
-/*
- * DRAM Event Record
- * CXL rev 3.0 section 8.2.9.2.1.2; Table 8-44
- */
-static const uuid_t dram_event_uuid =
-	UUID_INIT(0x601dcbb3, 0x9c06, 0x4eab,
-		  0xb8, 0xaf, 0x4e, 0x9b, 0xfb, 0x5c, 0x96, 0x24);
-
-/*
- * Memory Module Event Record
- * CXL rev 3.0 section 8.2.9.2.1.3; Table 8-45
- */
-static const uuid_t mem_mod_event_uuid =
-	UUID_INIT(0xfe927475, 0xdd59, 0x4339,
-		  0xa5, 0x86, 0x79, 0xba, 0xb1, 0x13, 0xb7, 0x74);
-
-static void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
-				   enum cxl_event_log_type type,
-				   struct cxl_event_record_raw *record)
+void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
+			    enum cxl_event_log_type type,
+			    enum cxl_event_type event_type,
+			    const uuid_t *uuid, union cxl_event *evt)
 {
-	uuid_t *id = &record->hdr.id;
+	if (event_type == CXL_CPER_EVENT_GEN_MEDIA)
+		trace_cxl_general_media(cxlmd, type, &evt->gen_media);
+	else if (event_type == CXL_CPER_EVENT_DRAM)
+		trace_cxl_dram(cxlmd, type, &evt->dram);
+	else if (event_type == CXL_CPER_EVENT_MEM_MODULE)
+		trace_cxl_memory_module(cxlmd, type, &evt->mem_module);
+	else
+		trace_cxl_generic_event(cxlmd, type, uuid, &evt->generic);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_event_trace_record, CXL);
 
-	if (uuid_equal(id, &gen_media_event_uuid)) {
-		struct cxl_event_gen_media *rec =
-				(struct cxl_event_gen_media *)record;
+static void __cxl_event_trace_record(const struct cxl_memdev *cxlmd,
+				     enum cxl_event_log_type type,
+				     struct cxl_event_record_raw *record)
+{
+	enum cxl_event_type ev_type = CXL_CPER_EVENT_GENERIC;
+	const uuid_t *uuid = &record->id;
 
-		trace_cxl_general_media(cxlmd, type, rec);
-	} else if (uuid_equal(id, &dram_event_uuid)) {
-		struct cxl_event_dram *rec = (struct cxl_event_dram *)record;
+	if (uuid_equal(uuid, &CXL_EVENT_GEN_MEDIA_UUID))
+		ev_type = CXL_CPER_EVENT_GEN_MEDIA;
+	else if (uuid_equal(uuid, &CXL_EVENT_DRAM_UUID))
+		ev_type = CXL_CPER_EVENT_DRAM;
+	else if (uuid_equal(uuid, &CXL_EVENT_MEM_MODULE_UUID))
+		ev_type = CXL_CPER_EVENT_MEM_MODULE;
 
-		trace_cxl_dram(cxlmd, type, rec);
-	} else if (uuid_equal(id, &mem_mod_event_uuid)) {
-		struct cxl_event_mem_module *rec =
-				(struct cxl_event_mem_module *)record;
-
-		trace_cxl_memory_module(cxlmd, type, rec);
-	} else {
-		/* For unknown record types print just the header */
-		trace_cxl_generic_event(cxlmd, type, record);
-	}
+	cxl_event_trace_record(cxlmd, type, ev_type, uuid, &record->event);
 }
 
 static int cxl_clear_event_record(struct cxl_memdev_state *mds,
@@ -926,9 +910,12 @@ static int cxl_clear_event_record(struct cxl_memdev_state *mds,
 	 */
 	i = 0;
 	for (cnt = 0; cnt < total; cnt++) {
-		payload->handles[i++] = get_pl->records[cnt].hdr.handle;
+		struct cxl_event_record_raw *raw = &get_pl->records[cnt];
+		struct cxl_event_generic *gen = &raw->event.generic;
+
+		payload->handles[i++] = gen->hdr.handle;
 		dev_dbg(mds->cxlds.dev, "Event log '%d': Clearing %u\n", log,
-			le16_to_cpu(payload->handles[i]));
+			le16_to_cpu(payload->handles[i - 1]));
 
 		if (i == max_handles) {
 			payload->nr_recs = i;
@@ -959,24 +946,22 @@ static void cxl_mem_get_records_log(struct cxl_memdev_state *mds,
 	struct cxl_memdev *cxlmd = mds->cxlds.cxlmd;
 	struct device *dev = mds->cxlds.dev;
 	struct cxl_get_event_payload *payload;
-	struct cxl_mbox_cmd mbox_cmd;
 	u8 log_type = type;
 	u16 nr_rec;
 
 	mutex_lock(&mds->event.log_lock);
 	payload = mds->event.buf;
 
-	mbox_cmd = (struct cxl_mbox_cmd) {
-		.opcode = CXL_MBOX_OP_GET_EVENT_RECORD,
-		.payload_in = &log_type,
-		.size_in = sizeof(log_type),
-		.payload_out = payload,
-		.size_out = mds->payload_size,
-		.min_out = struct_size(payload, records, 0),
-	};
-
 	do {
 		int rc, i;
+		struct cxl_mbox_cmd mbox_cmd = (struct cxl_mbox_cmd) {
+			.opcode = CXL_MBOX_OP_GET_EVENT_RECORD,
+			.payload_in = &log_type,
+			.size_in = sizeof(log_type),
+			.payload_out = payload,
+			.size_out = mds->payload_size,
+			.min_out = struct_size(payload, records, 0),
+		};
 
 		rc = cxl_internal_send_cmd(mds, &mbox_cmd);
 		if (rc) {
@@ -991,8 +976,8 @@ static void cxl_mem_get_records_log(struct cxl_memdev_state *mds,
 			break;
 
 		for (i = 0; i < nr_rec; i++)
-			cxl_event_trace_record(cxlmd, type,
-					       &payload->records[i]);
+			__cxl_event_trace_record(cxlmd, type,
+						 &payload->records[i]);
 
 		if (payload->flags & CXL_GET_EVENT_FLAG_OVERFLOW)
 			trace_cxl_overflow(cxlmd, type, payload);
@@ -1125,20 +1110,7 @@ int cxl_dev_state_identify(struct cxl_memdev_state *mds)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_dev_state_identify, CXL);
 
-/**
- * cxl_mem_sanitize() - Send a sanitization command to the device.
- * @mds: The device data for the operation
- * @cmd: The specific sanitization command opcode
- *
- * Return: 0 if the command was executed successfully, regardless of
- * whether or not the actual security operation is done in the background,
- * such as for the Sanitize case.
- * Error return values can be the result of the mailbox command, -EINVAL
- * when security requirements are not met or invalid contexts.
- *
- * See CXL 3.0 @8.2.9.8.5.1 Sanitize and @8.2.9.8.5.2 Secure Erase.
- */
-int cxl_mem_sanitize(struct cxl_memdev_state *mds, u16 cmd)
+static int __cxl_mem_sanitize(struct cxl_memdev_state *mds, u16 cmd)
 {
 	int rc;
 	u32 sec_out = 0;
@@ -1183,7 +1155,45 @@ int cxl_mem_sanitize(struct cxl_memdev_state *mds, u16 cmd)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_mem_sanitize, CXL);
+
+
+/**
+ * cxl_mem_sanitize() - Send a sanitization command to the device.
+ * @cxlmd: The device for the operation
+ * @cmd: The specific sanitization command opcode
+ *
+ * Return: 0 if the command was executed successfully, regardless of
+ * whether or not the actual security operation is done in the background,
+ * such as for the Sanitize case.
+ * Error return values can be the result of the mailbox command, -EINVAL
+ * when security requirements are not met or invalid contexts, or -EBUSY
+ * if the sanitize operation is already in flight.
+ *
+ * See CXL 3.0 @8.2.9.8.5.1 Sanitize and @8.2.9.8.5.2 Secure Erase.
+ */
+int cxl_mem_sanitize(struct cxl_memdev *cxlmd, u16 cmd)
+{
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_port  *endpoint;
+	int rc;
+
+	/* synchronize with cxl_mem_probe() and decoder write operations */
+	device_lock(&cxlmd->dev);
+	endpoint = cxlmd->endpoint;
+	down_read(&cxl_region_rwsem);
+	/*
+	 * Require an endpoint to be safe otherwise the driver can not
+	 * be sure that the device is unmapped.
+	 */
+	if (endpoint && cxl_num_decoders_committed(endpoint) == 0)
+		rc = __cxl_mem_sanitize(mds, cmd);
+	else
+		rc = -EBUSY;
+	up_read(&cxl_region_rwsem);
+	device_unlock(&cxlmd->dev);
+
+	return rc;
+}
 
 static int add_dpa_res(struct device *dev, struct resource *parent,
 		       struct resource *res, resource_size_t start,
@@ -1224,8 +1234,7 @@ int cxl_mem_create_range_info(struct cxl_memdev_state *mds)
 		return 0;
 	}
 
-	cxlds->dpa_res =
-		(struct resource)DEFINE_RES_MEM(0, mds->total_bytes);
+	cxlds->dpa_res = DEFINE_RES_MEM(0, mds->total_bytes);
 
 	if (mds->partition_align_bytes == 0) {
 		rc = add_dpa_res(dev, &cxlds->dpa_res, &cxlds->ram_res, 0,
@@ -1285,7 +1294,6 @@ int cxl_mem_get_poison(struct cxl_memdev *cxlmd, u64 offset, u64 len,
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 	struct cxl_mbox_poison_out *po;
 	struct cxl_mbox_poison_in pi;
-	struct cxl_mbox_cmd mbox_cmd;
 	int nr_records = 0;
 	int rc;
 
@@ -1297,16 +1305,16 @@ int cxl_mem_get_poison(struct cxl_memdev *cxlmd, u64 offset, u64 len,
 	pi.offset = cpu_to_le64(offset);
 	pi.length = cpu_to_le64(len / CXL_POISON_LEN_MULT);
 
-	mbox_cmd = (struct cxl_mbox_cmd) {
-		.opcode = CXL_MBOX_OP_GET_POISON,
-		.size_in = sizeof(pi),
-		.payload_in = &pi,
-		.size_out = mds->payload_size,
-		.payload_out = po,
-		.min_out = struct_size(po, record, 0),
-	};
-
 	do {
+		struct cxl_mbox_cmd mbox_cmd = (struct cxl_mbox_cmd){
+			.opcode = CXL_MBOX_OP_GET_POISON,
+			.size_in = sizeof(pi),
+			.payload_in = &pi,
+			.size_out = mds->payload_size,
+			.payload_out = po,
+			.min_out = struct_size(po, record, 0),
+		};
+
 		rc = cxl_internal_send_cmd(mds, &mbox_cmd);
 		if (rc)
 			break;
@@ -1377,7 +1385,11 @@ struct cxl_memdev_state *cxl_memdev_state_create(struct device *dev)
 	mutex_init(&mds->mbox_mutex);
 	mutex_init(&mds->event.log_lock);
 	mds->cxlds.dev = dev;
+	mds->cxlds.reg_map.host = dev;
+	mds->cxlds.reg_map.resource = CXL_RESOURCE_NONE;
 	mds->cxlds.type = CXL_DEVTYPE_CLASSMEM;
+	mds->ram_perf.qos_class = CXL_QOS_CLASS_INVALID;
+	mds->pmem_perf.qos_class = CXL_QOS_CLASS_INVALID;
 
 	return mds;
 }

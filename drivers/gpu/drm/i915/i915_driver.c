@@ -231,15 +231,9 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
-	mutex_init(&dev_priv->display.backlight.lock);
 
 	mutex_init(&dev_priv->sb_lock);
 	cpu_latency_qos_add_request(&dev_priv->sb_qos, PM_QOS_DEFAULT_VALUE);
-
-	mutex_init(&dev_priv->display.audio.mutex);
-	mutex_init(&dev_priv->display.wm.wm_mutex);
-	mutex_init(&dev_priv->display.pps.mutex);
-	mutex_init(&dev_priv->display.hdcp.hdcp_mutex);
 
 	i915_memcpy_init_early(dev_priv);
 	intel_runtime_pm_init_early(&dev_priv->runtime_pm);
@@ -687,7 +681,8 @@ i915_print_iommu_status(struct drm_i915_private *i915, struct drm_printer *p)
 static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 {
 	if (drm_debug_enabled(DRM_UT_DRIVER)) {
-		struct drm_printer p = drm_debug_printer("i915 device info:");
+		struct drm_printer p = drm_dbg_printer(&dev_priv->drm, DRM_UT_DRIVER,
+						       "device info:");
 		struct intel_gt *gt;
 		unsigned int i;
 
@@ -805,7 +800,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_cleanup_modeset2;
 
 	ret = intel_pxp_init(i915);
-	if (ret != -ENODEV)
+	if (ret && ret != -ENODEV)
 		drm_dbg(&i915->drm, "pxp init failed with %d\n", ret);
 
 	ret = intel_display_driver_probe(i915);
@@ -909,6 +904,8 @@ static void i915_driver_release(struct drm_device *dev)
 	intel_runtime_pm_driver_release(rpm);
 
 	i915_driver_late_release(dev_priv);
+
+	intel_display_device_remove(dev_priv);
 }
 
 static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
@@ -921,27 +918,6 @@ static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 		return ret;
 
 	return 0;
-}
-
-/**
- * i915_driver_lastclose - clean up after all DRM clients have exited
- * @dev: DRM device
- *
- * Take care of cleaning up after all DRM clients have exited.  In the
- * mode setting case, we want to restore the kernel's initial mode (just
- * in case the last client left us in a bad state).
- *
- * Additionally, in the non-mode setting case, we'll tear down the GTT
- * and DMA structures, since the kernel won't be using them, and clea
- * up any GEM state.
- */
-static void i915_driver_lastclose(struct drm_device *dev)
-{
-	struct drm_i915_private *i915 = to_i915(dev);
-
-	intel_fbdev_restore_mode(i915);
-
-	vga_switcheroo_process_delayed_switch();
 }
 
 static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
@@ -1007,8 +983,10 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_runtime_pm_disable(&i915->runtime_pm);
 	intel_power_domains_disable(i915);
 
+	intel_fbdev_set_suspend(&i915->drm, FBINFO_STATE_SUSPENDED, true);
 	if (HAS_DISPLAY(i915)) {
 		drm_kms_helper_poll_disable(&i915->drm);
+		intel_display_driver_disable_user_access(i915);
 
 		drm_atomic_helper_shutdown(&i915->drm);
 	}
@@ -1017,6 +995,9 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 
 	intel_runtime_pm_disable_interrupts(i915);
 	intel_hpd_cancel_work(i915);
+
+	if (HAS_DISPLAY(i915))
+		intel_display_driver_suspend_access(i915);
 
 	intel_suspend_encoders(i915);
 	intel_shutdown_encoders(i915);
@@ -1084,8 +1065,11 @@ static int i915_drm_suspend(struct drm_device *dev)
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
 	intel_power_domains_disable(dev_priv);
-	if (HAS_DISPLAY(dev_priv))
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
+	if (HAS_DISPLAY(dev_priv)) {
 		drm_kms_helper_poll_disable(dev);
+		intel_display_driver_disable_user_access(dev_priv);
+	}
 
 	pci_save_state(pdev);
 
@@ -1095,6 +1079,9 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 	intel_hpd_cancel_work(dev_priv);
+
+	if (HAS_DISPLAY(dev_priv))
+		intel_display_driver_suspend_access(dev_priv);
 
 	intel_suspend_encoders(dev_priv);
 
@@ -1106,8 +1093,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_suspend(dev_priv, opregion_target_state);
-
-	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
 
 	dev_priv->suspend_count++;
 
@@ -1247,15 +1232,21 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_display_driver_init_hw(dev_priv);
 
 	intel_clock_gating_init(dev_priv);
+
+	if (HAS_DISPLAY(dev_priv))
+		intel_display_driver_resume_access(dev_priv);
+
 	intel_hpd_init(dev_priv);
 
 	/* MST sideband requires HPD interrupts enabled */
 	intel_dp_mst_resume(dev_priv);
 	intel_display_driver_resume(dev_priv);
 
-	intel_hpd_poll_disable(dev_priv);
-	if (HAS_DISPLAY(dev_priv))
+	if (HAS_DISPLAY(dev_priv)) {
+		intel_display_driver_enable_user_access(dev_priv);
 		drm_kms_helper_poll_enable(dev);
+	}
+	intel_hpd_poll_disable(dev_priv);
 
 	intel_opregion_resume(dev_priv);
 
@@ -1819,7 +1810,6 @@ static const struct drm_driver i915_drm_driver = {
 	    DRIVER_SYNCOBJ_TIMELINE,
 	.release = i915_driver_release,
 	.open = i915_driver_open,
-	.lastclose = i915_driver_lastclose,
 	.postclose = i915_driver_postclose,
 	.show_fdinfo = PTR_IF(IS_ENABLED(CONFIG_PROC_FS), i915_drm_client_fdinfo),
 

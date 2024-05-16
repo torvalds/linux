@@ -6,24 +6,29 @@
  *
  *  Copyright (C) 2017 Sudip Mukherjee, All Rights Reserved.
  */
-#include <linux/acpi.h>
+#include <linux/bits.h>
+#include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/dmi.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/kernel.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/property.h>
+#include <linux/string.h>
+#include <linux/types.h>
+
+#include <linux/serial_8250.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/tty.h>
-#include <linux/8250_pci.h>
-#include <linux/delay.h>
 
 #include <asm/byteorder.h>
 
 #include "8250.h"
+#include "8250_pcilib.h"
 
 #define PCI_DEVICE_ID_ACCESSIO_COM_2S		0x1052
 #define PCI_DEVICE_ID_ACCESSIO_COM_4S		0x105d
@@ -46,12 +51,6 @@
 
 #define PCI_SUBDEVICE_ID_USR_2980		0x0128
 #define PCI_SUBDEVICE_ID_USR_2981		0x0129
-
-#define PCI_DEVICE_ID_SEALEVEL_710xC		0x1001
-#define PCI_DEVICE_ID_SEALEVEL_720xC		0x1002
-#define PCI_DEVICE_ID_SEALEVEL_740xC		0x1004
-#define PCI_DEVICE_ID_SEALEVEL_780xC		0x1008
-#define PCI_DEVICE_ID_SEALEVEL_716xC		0x1010
 
 #define UART_EXAR_INT0		0x80
 #define UART_EXAR_8XMODE	0x88	/* 8X sampling rate select */
@@ -83,6 +82,9 @@
 #define UART_EXAR_MPIOOD_15_8	0x9a	/* MPIOOD[15:8] */
 
 #define UART_EXAR_RS485_DLY(x)	((x) << 4)
+
+#define UART_EXAR_DLD			0x02 /* Divisor Fractional */
+#define UART_EXAR_DLD_485_POLARITY	0x80 /* RS-485 Enable Signal Polarity */
 
 /*
  * IOT2040 MPIO wiring semantics:
@@ -201,9 +203,9 @@ static int xr17v35x_startup(struct uart_port *port)
 	 *
 	 * Synchronize UART_IER access against the console.
 	 */
-	spin_lock_irq(&port->lock);
+	uart_port_lock_irq(port);
 	serial_port_out(port, UART_IER, 0);
-	spin_unlock_irq(&port->lock);
+	uart_port_unlock_irq(port);
 
 	return serial8250_do_startup(port);
 }
@@ -233,13 +235,12 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 			 struct uart_8250_port *port)
 {
 	const struct exar8250_board *board = priv->board;
-	unsigned int bar = 0;
 	unsigned char status;
+	int err;
 
-	port->port.iotype = UPIO_MEM;
-	port->port.mapbase = pci_resource_start(pcidev, bar) + offset;
-	port->port.membase = priv->virt + offset;
-	port->port.regshift = board->reg_shift;
+	err = serial8250_pci_setup_port(pcidev, port, 0, offset, board->reg_shift);
+	if (err)
+		return err;
 
 	/*
 	 * XR17V35x UARTs have an extra divisor register, DLD that gets enabled
@@ -379,7 +380,7 @@ static struct platform_device *__xr17v35x_register_gpio(struct pci_dev *pcidev,
 		return NULL;
 
 	pdev->dev.parent = &pcidev->dev;
-	ACPI_COMPANION_SET(&pdev->dev, ACPI_COMPANION(&pcidev->dev));
+	device_set_node(&pdev->dev, dev_fwnode(&pcidev->dev));
 
 	if (device_add_software_node(&pdev->dev, node) < 0 ||
 	    platform_device_add(pdev) < 0) {
@@ -445,8 +446,46 @@ static int generic_rs485_config(struct uart_port *port, struct ktermios *termios
 	return 0;
 }
 
+static int sealevel_rs485_config(struct uart_port *port, struct ktermios *termios,
+				  struct serial_rs485 *rs485)
+{
+	u8 __iomem *p = port->membase;
+	u8 old_lcr;
+	u8 efr;
+	u8 dld;
+	int ret;
+
+	ret = generic_rs485_config(port, termios, rs485);
+	if (ret)
+		return ret;
+
+	if (rs485->flags & SER_RS485_ENABLED) {
+		old_lcr = readb(p + UART_LCR);
+
+		/* Set EFR[4]=1 to enable enhanced feature registers */
+		efr = readb(p + UART_XR_EFR);
+		efr |= UART_EFR_ECB;
+		writeb(efr, p + UART_XR_EFR);
+
+		/* Set MCR to use DTR as Auto-RS485 Enable signal */
+		writeb(UART_MCR_OUT1, p + UART_MCR);
+
+		/* Set LCR[7]=1 to enable access to DLD register */
+		writeb(old_lcr | UART_LCR_DLAB, p + UART_LCR);
+
+		/* Set DLD[7]=1 for inverted RS485 Enable logic */
+		dld = readb(p + UART_EXAR_DLD);
+		dld |= UART_EXAR_DLD_485_POLARITY;
+		writeb(dld, p + UART_EXAR_DLD);
+
+		writeb(old_lcr, p + UART_LCR);
+	}
+
+	return 0;
+}
+
 static const struct serial_rs485 generic_rs485_supported = {
-	.flags = SER_RS485_ENABLED,
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND,
 };
 
 static const struct exar8250_platform exar8250_default_platform = {
@@ -490,7 +529,8 @@ static int iot2040_rs485_config(struct uart_port *port, struct ktermios *termios
 }
 
 static const struct serial_rs485 iot2040_rs485_supported = {
-	.flags = SER_RS485_ENABLED | SER_RS485_RX_DURING_TX | SER_RS485_TERMINATE_BUS,
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
+		 SER_RS485_RX_DURING_TX | SER_RS485_TERMINATE_BUS,
 };
 
 static const struct property_entry iot2040_gpio_properties[] = {
@@ -565,6 +605,9 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	port->port.uartclk = baud * 16;
 	port->port.rs485_config = platform->rs485_config;
 	port->port.rs485_supported = *(platform->rs485_supported);
+
+	if (pcidev->subsystem_vendor == PCI_VENDOR_ID_SEALEVEL)
+		port->port.rs485_config = sealevel_rs485_config;
 
 	/*
 	 * Setup the UART clock for the devices on expansion slot to
@@ -652,8 +695,6 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 		nr_ports = BIT(((pcidev->device & 0x38) >> 3) - 1);
 	else if (board->num_ports)
 		nr_ports = board->num_ports;
-	else if (pcidev->vendor == PCI_VENDOR_ID_SEALEVEL)
-		nr_ports = pcidev->device & 0xff;
 	else
 		nr_ports = pcidev->device & 0x0f;
 
@@ -677,13 +718,13 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	uart.port.irq = pci_irq_vector(pcidev, 0);
 	uart.port.dev = &pcidev->dev;
 
+	/* Clear interrupts */
+	exar_misc_clear(priv);
+
 	rc = devm_request_irq(&pcidev->dev, uart.port.irq, exar_misc_handler,
 			 IRQF_SHARED, "exar_uart", priv);
 	if (rc)
 		return rc;
-
-	/* Clear interrupts */
-	exar_misc_clear(priv);
 
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
 		rc = board->setup(priv, pcidev, &uart, i);
@@ -717,28 +758,24 @@ static void exar_pci_remove(struct pci_dev *pcidev)
 	for (i = 0; i < priv->nr; i++)
 		serial8250_unregister_port(priv->line[i]);
 
+	/* Ensure that every init quirk is properly torn down */
 	if (priv->board->exit)
 		priv->board->exit(pcidev);
 }
 
-static int __maybe_unused exar_suspend(struct device *dev)
+static int exar_suspend(struct device *dev)
 {
-	struct pci_dev *pcidev = to_pci_dev(dev);
-	struct exar8250 *priv = pci_get_drvdata(pcidev);
+	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
 
 	for (i = 0; i < priv->nr; i++)
 		if (priv->line[i] >= 0)
 			serial8250_suspend_port(priv->line[i]);
 
-	/* Ensure that every init quirk is properly torn down */
-	if (priv->board->exit)
-		priv->board->exit(pcidev);
-
 	return 0;
 }
 
-static int __maybe_unused exar_resume(struct device *dev)
+static int exar_resume(struct device *dev)
 {
 	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
@@ -752,7 +789,7 @@ static int __maybe_unused exar_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(exar_pci_pm, exar_suspend, exar_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(exar_pci_pm, exar_suspend, exar_resume);
 
 static const struct exar8250_board pbn_fastcom335_2 = {
 	.num_ports	= 2,
@@ -893,12 +930,6 @@ static const struct pci_device_id exar_pci_tbl[] = {
 	EXAR_DEVICE(COMMTECH, 4224PCI335, pbn_fastcom335_4),
 	EXAR_DEVICE(COMMTECH, 2324PCI335, pbn_fastcom335_4),
 	EXAR_DEVICE(COMMTECH, 2328PCI335, pbn_fastcom335_8),
-
-	EXAR_DEVICE(SEALEVEL, 710xC, pbn_exar_XR17V35x),
-	EXAR_DEVICE(SEALEVEL, 720xC, pbn_exar_XR17V35x),
-	EXAR_DEVICE(SEALEVEL, 740xC, pbn_exar_XR17V35x),
-	EXAR_DEVICE(SEALEVEL, 780xC, pbn_exar_XR17V35x),
-	EXAR_DEVICE(SEALEVEL, 716xC, pbn_exar_XR17V35x),
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, exar_pci_tbl);
@@ -908,12 +939,13 @@ static struct pci_driver exar_pci_driver = {
 	.probe		= exar_pci_probe,
 	.remove		= exar_pci_remove,
 	.driver         = {
-		.pm     = &exar_pci_pm,
+		.pm     = pm_sleep_ptr(&exar_pci_pm),
 	},
 	.id_table	= exar_pci_tbl,
 };
 module_pci_driver(exar_pci_driver);
 
+MODULE_IMPORT_NS(SERIAL_8250_PCI);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Exar Serial Driver");
 MODULE_AUTHOR("Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>");

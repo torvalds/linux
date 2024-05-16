@@ -31,7 +31,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		interrupts = <GIC_PPI 9 0xf04>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 
 		CPU0: cpu@0 {
 			compatible = "qcom,krait";
@@ -110,11 +110,23 @@
 
 	pmu {
 		compatible = "qcom,krait-pmu";
-		interrupts = <GIC_PPI 7 0xf04>;
+		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
 	rpm: remoteproc {
 		compatible = "qcom,msm8974-rpm-proc", "qcom,rpm-proc";
+
+		master-stats {
+			compatible = "qcom,rpm-master-stats";
+			qcom,rpm-msg-ram = <&apss_master_stats>,
+					   <&mpss_master_stats>,
+					   <&lpss_master_stats>,
+					   <&pronto_master_stats>;
+			qcom,master-names = "APSS",
+					    "MPSS",
+					    "LPSS",
+					    "PRONTO";
+		};
 
 		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
@@ -334,6 +346,19 @@
 			reg = <0xf9011000 0x1000>;
 		};
 
+		saw_l2: power-manager@f9012000 {
+			compatible = "qcom,msm8974-saw2-v2.1-l2", "qcom,saw2";
+			reg = <0xf9012000 0x1000>;
+		};
+
+		watchdog@f9017000 {
+			compatible = "qcom,apss-wdt-msm8974", "qcom,kpss-wdt";
+			reg = <0xf9017000 0x1000>;
+			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&sleep_clk>;
+		};
+
 		timer@f9020000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -393,35 +418,14 @@
 			};
 		};
 
-		saw0: power-controller@f9089000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf9089000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw1: power-controller@f9099000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf9099000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw2: power-controller@f90a9000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf90a9000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw3: power-controller@f90b9000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf90b9000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw_l2: power-controller@f9012000 {
-			compatible = "qcom,saw2";
-			reg = <0xf9012000 0x1000>;
-			regulator;
-		};
-
 		acc0: power-manager@f9088000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf9088000 0x1000>, <0xf9008000 0x1000>;
+		};
+
+		saw0: power-manager@f9089000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9089000 0x1000>, <0xf9009000 0x1000>;
 		};
 
 		acc1: power-manager@f9098000 {
@@ -429,14 +433,29 @@
 			reg = <0xf9098000 0x1000>, <0xf9008000 0x1000>;
 		};
 
+		saw1: power-manager@f9099000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9099000 0x1000>, <0xf9009000 0x1000>;
+		};
+
 		acc2: power-manager@f90a8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf90a8000 0x1000>, <0xf9008000 0x1000>;
 		};
 
+		saw2: power-manager@f90a9000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90a9000 0x1000>, <0xf9009000 0x1000>;
+		};
+
 		acc3: power-manager@f90b8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf90b8000 0x1000>, <0xf9008000 0x1000>;
+		};
+
+		saw3: power-manager@f90b9000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90b9000 0x1000>, <0xf9009000 0x1000>;
 		};
 
 		sdhc_1: mmc@f9824900 {
@@ -518,7 +537,7 @@
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9923000 0x1000>;
-			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP1_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
@@ -546,7 +565,7 @@
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9925000 0x1000>;
-			interrupts = <0 97 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
@@ -646,7 +665,7 @@
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9968000 0x1000>;
-			interrupts = <0 106 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_QUP6_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
@@ -1051,6 +1070,15 @@
 			};
 		};
 
+		bimc: interconnect@fc380000 {
+			reg = <0xfc380000 0x6a000>;
+			compatible = "qcom,msm8974-bimc";
+			#interconnect-cells = <1>;
+			clock-names = "bus", "bus_a";
+			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
+				 <&rpmcc RPM_SMD_BIMC_A_CLK>;
+		};
+
 		gcc: clock-controller@fc400000 {
 			compatible = "qcom,gcc-msm8974";
 			#clock-cells = <1>;
@@ -1067,15 +1095,26 @@
 		rpm_msg_ram: sram@fc428000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0xfc428000 0x4000>;
-		};
 
-		bimc: interconnect@fc380000 {
-			reg = <0xfc380000 0x6a000>;
-			compatible = "qcom,msm8974-bimc";
-			#interconnect-cells = <1>;
-			clock-names = "bus", "bus_a";
-			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
-			         <&rpmcc RPM_SMD_BIMC_A_CLK>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xfc428000 0x4000>;
+
+			apss_master_stats: sram@150 {
+				reg = <0x150 0x14>;
+			};
+
+			mpss_master_stats: sram@b50 {
+				reg = <0xb50 0x14>;
+			};
+
+			lpss_master_stats: sram@1550 {
+				reg = <0x1550 0x14>;
+			};
+
+			pronto_master_stats: sram@1f50 {
+				reg = <0x1f50 0x14>;
+			};
 		};
 
 		snoc: interconnect@fc460000 {
@@ -1084,7 +1123,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
-			         <&rpmcc RPM_SMD_SNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_SNOC_A_CLK>;
 		};
 
 		pnoc: interconnect@fc468000 {
@@ -1093,7 +1132,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_PNOC_CLK>,
-			         <&rpmcc RPM_SMD_PNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_PNOC_A_CLK>;
 		};
 
 		ocmemnoc: interconnect@fc470000 {
@@ -1102,7 +1141,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
-			         <&rpmcc RPM_SMD_OCMEMGX_A_CLK>;
+				 <&rpmcc RPM_SMD_OCMEMGX_A_CLK>;
 		};
 
 		mmssnoc: interconnect@fc478000 {
@@ -1111,7 +1150,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&mmcc MMSS_S0_AXI_CLK>,
-			         <&mmcc MMSS_S0_AXI_CLK>;
+				 <&mmcc MMSS_S0_AXI_CLK>;
 		};
 
 		cnoc: interconnect@fc480000 {
@@ -1120,7 +1159,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_CNOC_CLK>,
-			         <&rpmcc RPM_SMD_CNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_CNOC_A_CLK>;
 		};
 
 		tsens: thermal-sensor@fc4a9000 {
@@ -1194,7 +1233,7 @@
 
 		qfprom: qfprom@fc4bc000 {
 			compatible = "qcom,msm8974-qfprom", "qcom,qfprom";
-			reg = <0xfc4bc000 0x1000>;
+			reg = <0xfc4bc000 0x2100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
@@ -1599,13 +1638,6 @@
 				data-pins {
 					pins = "sdc2_data";
 					bias-pull-up;
-					drive-strength = <2>;
-				};
-
-				cd-pins {
-					pins = "gpio54";
-					function = "gpio";
-					bias-disable;
 					drive-strength = <2>;
 				};
 			};
@@ -2370,37 +2402,10 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		interrupts = <GIC_PPI 2 0xf08>,
-			     <GIC_PPI 3 0xf08>,
-			     <GIC_PPI 4 0xf08>,
-			     <GIC_PPI 1 0xf08>;
+		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <19200000>;
-	};
-
-	vreg_boost: vreg-boost {
-		compatible = "regulator-fixed";
-
-		regulator-name = "vreg-boost";
-		regulator-min-microvolt = <3150000>;
-		regulator-max-microvolt = <3150000>;
-
-		regulator-always-on;
-		regulator-boot-on;
-
-		gpio = <&pm8941_gpios 21 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&boost_bypass_n_pin>;
-	};
-
-	vreg_vph_pwr: vreg-vph-pwr {
-		compatible = "regulator-fixed";
-		regulator-name = "vph-pwr";
-
-		regulator-min-microvolt = <3600000>;
-		regulator-max-microvolt = <3600000>;
-
-		regulator-always-on;
 	};
 };

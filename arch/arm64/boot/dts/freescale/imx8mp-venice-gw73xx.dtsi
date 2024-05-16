@@ -8,6 +8,22 @@
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 
 / {
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon1>;
+		type = "micro";
+		label = "otg";
+		vbus-supply = <&reg_usb1_vbus>;
+		id-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
+	};
+
 	led-controller {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -95,8 +111,15 @@
 &ecspi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi2>;
-	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>,
+		   <&gpio1 10 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	tpm@1 {
+		compatible = "atmel,attpm20p", "tcg,tpm_tis-spi";
+		reg = <0x1>;
+		spi-max-frequency = <36000000>;
+	};
 };
 
 &gpio4 {
@@ -125,7 +148,6 @@
 		st,drdy-int-pin = <1>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-names = "INT1";
 	};
 };
 
@@ -181,7 +203,6 @@
 };
 
 &usb3_phy0 {
-	vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";
 };
 
@@ -195,13 +216,10 @@
 	role-switch-default-mode = "peripheral";
 	status = "okay";
 
-	connector {
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usbcon1>;
-		type = "micro";
-		label = "otg";
-		id-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 

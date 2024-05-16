@@ -336,6 +336,7 @@
 			interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2";
 			clocks = <&cpg CPG_MOD 125>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A77995_PD_ALWAYS_ON>;
@@ -348,7 +349,9 @@
 			reg = <0 0xe6fc0000 0 0x30>;
 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
 			clocks = <&cpg CPG_MOD 124>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A77995_PD_ALWAYS_ON>;
@@ -361,7 +364,9 @@
 			reg = <0 0xe6fd0000 0 0x30>;
 			interrupts = <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
 			clocks = <&cpg CPG_MOD 123>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A77995_PD_ALWAYS_ON>;
@@ -375,6 +380,7 @@
 			interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2";
 			clocks = <&cpg CPG_MOD 122>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A77995_PD_ALWAYS_ON>;
@@ -388,6 +394,7 @@
 			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tuni0", "tuni1", "tuni2";
 			clocks = <&cpg CPG_MOD 121>;
 			clock-names = "fck";
 			power-domains = <&sysc R8A77995_PD_ALWAYS_ON>;
@@ -1063,7 +1070,7 @@
 				 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>,
 				 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>,
 				 <&audio_clk_a>, <&audio_clk_b>,
-				 <&cpg CPG_CORE R8A77995_CLK_ZA2>;
+				 <&cpg CPG_MOD 922>;
 			clock-names = "ssi-all",
 				      "ssi.4", "ssi.3",
 				      "src.6", "src.5",

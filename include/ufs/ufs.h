@@ -14,6 +14,7 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <uapi/scsi/scsi_bsg_ufs.h>
+#include <linux/time64.h>
 
 /*
  * Using static_assert() is not allowed in UAPI header files. Hence the check
@@ -98,9 +99,10 @@ enum upiu_response_transaction {
 	UPIU_TRANSACTION_REJECT_UPIU	= 0x3F,
 };
 
-/* UPIU Read/Write flags */
+/* UPIU Read/Write flags. See also table "UPIU Flags" in the UFS standard. */
 enum {
 	UPIU_CMD_FLAGS_NONE	= 0x00,
+	UPIU_CMD_FLAGS_CP	= 0x04,
 	UPIU_CMD_FLAGS_WRITE	= 0x20,
 	UPIU_CMD_FLAGS_READ	= 0x40,
 };
@@ -550,6 +552,14 @@ struct ufs_vreg_info {
 	struct ufs_vreg *vdd_hba;
 };
 
+/* UFS device descriptor wPeriodicRTCUpdate bit9 defines RTC time baseline */
+#define UFS_RTC_TIME_BASELINE BIT(9)
+
+enum ufs_rtc_time {
+	UFS_RTC_RELATIVE,
+	UFS_RTC_ABSOLUTE
+};
+
 struct ufs_dev_info {
 	bool	f_power_on_wp_en;
 	/* Keeps information if any of the LU is power on write protected */
@@ -577,6 +587,11 @@ struct ufs_dev_info {
 
 	/* UFS EXT_IID Enable */
 	bool	b_ext_iid_en;
+
+	/* UFS RTC */
+	enum ufs_rtc_time rtc_type;
+	time64_t rtc_time_baseline;
+	u32 rtc_update_period;
 };
 
 /*

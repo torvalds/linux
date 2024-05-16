@@ -4,36 +4,92 @@
 $id: http://devicetree.org/schemas/iio/adc/adi,ad7091r5.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AD7091R5 4-Channel 12-Bit ADC
+title: Analog Devices AD7091R-2/-4/-5/-8 Multi-Channel 12-Bit ADCs
 
 maintainers:
   - Michael Hennerich <michael.hennerich@analog.com>
+  - Marcelo Schmitt <marcelo.schmitt@analog.com>
 
 description: |
-  Analog Devices AD7091R5 4-Channel 12-Bit ADC
+  Analog Devices AD7091R5 4-Channel 12-Bit ADC supporting I2C interface
   https://www.analog.com/media/en/technical-documentation/data-sheets/ad7091r-5.pdf
+  Analog Devices AD7091R-2/AD7091R-4/AD7091R-8 2-/4-/8-Channel 12-Bit ADCs
+  supporting SPI interface
+  https://www.analog.com/media/en/technical-documentation/data-sheets/AD7091R-2_7091R-4_7091R-8.pdf
 
 properties:
   compatible:
     enum:
+      - adi,ad7091r2
+      - adi,ad7091r4
       - adi,ad7091r5
+      - adi,ad7091r8
 
   reg:
     maxItems: 1
+
+  vdd-supply:
+    description:
+      Provide VDD power to the sensor (VDD range is from 2.7V to 5.25V).
+
+  vdrive-supply:
+    description:
+      Determines the voltage level at which the interface logic will operate.
+      The V_drive voltage range is from 1.8V to 5.25V and must not exceed VDD by
+      more than 0.3V.
 
   vref-supply:
     description:
       Phandle to the vref power supply
 
-  interrupts:
+  convst-gpios:
+    description:
+      GPIO connected to the CONVST pin.
+      This logic input is used to initiate conversions on the analog
+      input channels.
     maxItems: 1
 
+  reset-gpios:
+    maxItems: 1
+
+  interrupts:
+    description:
+      Interrupt for signaling when conversion results exceed the high limit for
+      ADC readings or fall below the low limit for them. Interrupt source must
+      be attached to ALERT/BUSY/GPO0 pin.
+    maxItems: 1
 
 required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+  # AD7091R-2 does not have ALERT/BUSY/GPO pin
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7091r2
+    then:
+      properties:
+        interrupts: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7091r2
+              - adi,ad7091r4
+              - adi,ad7091r8
+    then:
+      required:
+        - convst-gpios
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -48,6 +104,24 @@ examples:
             reg = <0x2f>;
 
             interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-parent = <&gpio>;
+        };
+    };
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "adi,ad7091r8";
+            reg = <0x0>;
+            spi-max-frequency = <1000000>;
+            vref-supply = <&adc_vref>;
+            convst-gpios = <&gpio 25 GPIO_ACTIVE_LOW>;
+            reset-gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
+            interrupts = <22 IRQ_TYPE_EDGE_FALLING>;
             interrupt-parent = <&gpio>;
         };
     };

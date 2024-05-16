@@ -80,7 +80,7 @@ int test_core_type_id(void *ctx)
 	 * to detect whether this test has to be executed, however strange
 	 * that might look like.
 	 *
-	 *   [0] https://reviews.llvm.org/D85174
+	 *   [0] https://github.com/llvm/llvm-project/commit/00602ee7ef0bf6c68d690a2bd729c12b95c95c99
 	 */
 #if __has_builtin(__builtin_preserve_type_info)
 	struct core_reloc_type_id_output *out = (void *)&data.out;

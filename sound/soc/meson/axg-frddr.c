@@ -7,6 +7,7 @@
  * This driver implements the frontend playback DAI of AXG and G12A based SoCs
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/module.h>
@@ -59,8 +60,8 @@ static int axg_frddr_dai_hw_params(struct snd_pcm_substream *substream,
 	/* Trim the FIFO depth if the period is small to improve latency */
 	depth = min(period, fifo->depth);
 	val = (depth / AXG_FIFO_BURST) - 1;
-	regmap_update_bits(fifo->map, FIFO_CTRL1, CTRL1_FRDDR_DEPTH_MASK,
-			   CTRL1_FRDDR_DEPTH(val));
+	regmap_update_bits(fifo->map, FIFO_CTRL1, CTRL1_FRDDR_DEPTH,
+			   FIELD_PREP(CTRL1_FRDDR_DEPTH, val));
 
 	return 0;
 }
@@ -109,7 +110,9 @@ static struct snd_soc_dai_driver axg_frddr_dai_drv = {
 		.stream_name	= "Playback",
 		.channels_min	= 1,
 		.channels_max	= AXG_FIFO_CH_MAX,
-		.rates		= AXG_FIFO_RATES,
+		.rates		= SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min	= 5515,
+		.rate_max	= 384000,
 		.formats	= AXG_FIFO_FORMATS,
 	},
 	.ops		= &axg_frddr_ops,
@@ -184,7 +187,9 @@ static struct snd_soc_dai_driver g12a_frddr_dai_drv = {
 		.stream_name	= "Playback",
 		.channels_min	= 1,
 		.channels_max	= AXG_FIFO_CH_MAX,
-		.rates		= AXG_FIFO_RATES,
+		.rates		= SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min	= 5515,
+		.rate_max	= 384000,
 		.formats	= AXG_FIFO_FORMATS,
 	},
 	.ops		= &g12a_frddr_ops,

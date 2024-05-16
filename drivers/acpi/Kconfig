@@ -12,6 +12,7 @@ menuconfig ACPI
 	select PNP
 	select NLS
 	select CRC32
+	select FIRMWARE_TABLE
 	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -59,6 +60,10 @@ config ACPI_CCA_REQUIRED
 
 config ACPI_TABLE_LIB
 	bool
+
+config ACPI_THERMAL_LIB
+       depends on THERMAL
+       bool
 
 config ACPI_DEBUGGER
 	bool "AML debugger interface"
@@ -257,7 +262,7 @@ config ACPI_CPU_FREQ_PSS
 config ACPI_PROCESSOR_CSTATE
 	def_bool y
 	depends on ACPI_PROCESSOR
-	depends on IA64 || X86
+	depends on X86
 
 config ACPI_PROCESSOR_IDLE
 	bool
@@ -281,9 +286,9 @@ config ACPI_CPPC_LIB
 
 config ACPI_PROCESSOR
 	tristate "Processor"
-	depends on X86 || IA64 || ARM64 || LOONGARCH
+	depends on X86 || ARM64 || LOONGARCH || RISCV
 	select ACPI_PROCESSOR_IDLE
-	select ACPI_CPU_FREQ_PSS if X86 || IA64 || LOONGARCH
+	select ACPI_CPU_FREQ_PSS if X86 || LOONGARCH
 	select THERMAL
 	default y
 	help
@@ -309,7 +314,6 @@ config ACPI_HOTPLUG_CPU
 	bool
 	depends on ACPI_PROCESSOR && HOTPLUG_CPU
 	select ACPI_CONTAINER
-	default y
 
 config ACPI_PROCESSOR_AGGREGATOR
 	tristate "Processor Aggregator"
@@ -326,6 +330,7 @@ config ACPI_THERMAL
 	tristate "Thermal Zone"
 	depends on ACPI_PROCESSOR
 	select THERMAL
+	select ACPI_THERMAL_LIB
 	default y
 	help
 	  This driver supports ACPI thermal zones.  Most mobile and
@@ -444,20 +449,6 @@ config ACPI_HED
 	  which is used to report some hardware errors notified via
 	  SCI, mainly the corrected errors.
 
-config ACPI_CUSTOM_METHOD
-	tristate "Allow ACPI methods to be inserted/replaced at run time"
-	depends on DEBUG_FS
-	help
-	  This debug facility allows ACPI AML methods to be inserted and/or
-	  replaced without rebooting the system. For details refer to:
-	  Documentation/firmware-guide/acpi/method-customizing.rst.
-
-	  NOTE: This option is security sensitive, because it allows arbitrary
-	  kernel memory to be written to by root (uid=0) users, allowing them
-	  to bypass certain security measures (e.g. if root is not allowed to
-	  load additional kernel modules after boot, this feature may be used
-	  to override that restriction).
-
 config ACPI_BGRT
 	bool "Boottime Graphics Resource Table support"
 	depends on EFI && (X86 || ARM64)
@@ -469,7 +460,6 @@ config ACPI_BGRT
 
 config ACPI_REDUCED_HARDWARE_ONLY
 	bool "Hardware-reduced ACPI support only" if EXPERT
-	def_bool n
 	help
 	  This config item changes the way the ACPI code is built.  When this
 	  option is selected, the kernel will use a specialized version of

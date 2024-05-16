@@ -11,6 +11,7 @@
 #include <linux/idr.h>
 
 #include <drm/drm_accel.h>
+#include <drm/drm_auth.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
@@ -22,7 +23,7 @@ static struct idr accel_minors_idr;
 
 static struct dentry *accel_debugfs_root;
 
-static struct device_type accel_sysfs_device_minor = {
+static const struct device_type accel_sysfs_device_minor = {
 	.name = "accel_minor"
 };
 

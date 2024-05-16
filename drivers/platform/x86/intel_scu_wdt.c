@@ -13,7 +13,6 @@
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
-#include <asm/intel-mid.h>
 #include <asm/io_apic.h>
 #include <asm/hw_irq.h>
 

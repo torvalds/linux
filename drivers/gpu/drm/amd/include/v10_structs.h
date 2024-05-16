@@ -24,8 +24,7 @@
 #ifndef V10_STRUCTS_H_
 #define V10_STRUCTS_H_
 
-struct v10_gfx_mqd
-{
+struct v10_gfx_mqd {
 	uint32_t reserved_0; // offset: 0  (0x0)
 	uint32_t reserved_1; // offset: 1  (0x1)
 	uint32_t reserved_2; // offset: 2  (0x2)

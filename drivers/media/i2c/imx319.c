@@ -70,7 +70,7 @@
 #define IMX319_REG_ORIENTATION		0x0101
 
 /* default link frequency and external clock */
-#define IMX319_LINK_FREQ_DEFAULT	482400000
+#define IMX319_LINK_FREQ_DEFAULT	482400000LL
 #define IMX319_EXT_CLK			19200000
 #define IMX319_LINK_FREQ_INDEX		0
 
@@ -107,8 +107,7 @@ struct imx319_mode {
 
 struct imx319_hwcfg {
 	u32 ext_clk;			/* sensor external clk */
-	s64 *link_freqs;		/* CSI-2 link frequencies */
-	unsigned int nr_of_link_freqs;
+	unsigned long link_freq_bitmap;
 };
 
 struct imx319 {
@@ -129,7 +128,6 @@ struct imx319 {
 	const struct imx319_mode *cur_mode;
 
 	struct imx319_hwcfg *hwcfg;
-	s64 link_def_freq;	/* CSI-2 link default frequency */
 
 	/*
 	 * Mutex for serialized access:
@@ -138,8 +136,6 @@ struct imx319 {
 	 */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
 	/* True if the device has been identified */
 	bool identified;
 };
@@ -1656,7 +1652,10 @@ static const char * const imx319_test_pattern_menu[] = {
 	"Pseudorandom Sequence (PN9)",
 };
 
-/* supported link frequencies */
+/*
+ * When adding more than the one below, make sure the disallowed ones will
+ * actually be disabled in the LINK_FREQ control.
+ */
 static const s64 link_freq_menu_items[] = {
 	IMX319_LINK_FREQ_DEFAULT,
 };
@@ -1862,7 +1861,7 @@ static int imx319_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct imx319 *imx319 = to_imx319(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->state, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 
 	mutex_lock(&imx319->mutex);
 
@@ -2003,10 +2002,9 @@ static int imx319_do_get_pad_format(struct imx319 *imx319,
 				    struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
-	struct v4l2_subdev *sd = &imx319->sd;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		imx319_update_pad_format(imx319, imx319->cur_mode, fmt);
@@ -2057,11 +2055,11 @@ imx319_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	imx319_update_pad_format(imx319, mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		imx319->cur_mode = mode;
-		pixel_rate = imx319->link_def_freq * 2 * 4;
+		pixel_rate = IMX319_LINK_FREQ_DEFAULT * 2 * 4;
 		do_div(pixel_rate, 10);
 		__v4l2_ctrl_s_ctrl_int64(imx319->pixel_rate, pixel_rate);
 		/* Update limits and set FPS to default */
@@ -2166,10 +2164,6 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&imx319->mutex);
-	if (imx319->streaming == enable) {
-		mutex_unlock(&imx319->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -2188,8 +2182,6 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	imx319->streaming = enable;
-
 	/* vflip and hflip cannot change during streaming */
 	__v4l2_ctrl_grab(imx319->vflip, enable);
 	__v4l2_ctrl_grab(imx319->hflip, enable);
@@ -2203,37 +2195,6 @@ err_rpm_put:
 err_unlock:
 	mutex_unlock(&imx319->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused imx319_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx319 *imx319 = to_imx319(sd);
-
-	if (imx319->streaming)
-		imx319_stop_streaming(imx319);
-
-	return 0;
-}
-
-static int __maybe_unused imx319_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx319 *imx319 = to_imx319(sd);
-	int ret;
-
-	if (imx319->streaming) {
-		ret = imx319_start_streaming(imx319);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	imx319_stop_streaming(imx319);
-	imx319->streaming = 0;
 	return ret;
 }
 
@@ -2295,7 +2256,7 @@ static int imx319_init_controls(struct imx319 *imx319)
 		imx319->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	/* pixel_rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
-	pixel_rate = imx319->link_def_freq * 2 * 4;
+	pixel_rate = IMX319_LINK_FREQ_DEFAULT * 2 * 4;
 	do_div(pixel_rate, 10);
 	/* By default, PIXEL_RATE is read only */
 	imx319->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &imx319_ctrl_ops,
@@ -2372,7 +2333,6 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 	};
 	struct fwnode_handle *ep;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	unsigned int i;
 	int ret;
 
 	if (!fwnode)
@@ -2404,23 +2364,13 @@ static struct imx319_hwcfg *imx319_get_hwcfg(struct device *dev)
 		goto out_err;
 	}
 
-	dev_dbg(dev, "num of link freqs: %d", bus_cfg.nr_of_link_frequencies);
-	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_warn(dev, "no link frequencies defined");
+	ret = v4l2_link_freq_to_bitmap(dev, bus_cfg.link_frequencies,
+				       bus_cfg.nr_of_link_frequencies,
+				       link_freq_menu_items,
+				       ARRAY_SIZE(link_freq_menu_items),
+				       &cfg->link_freq_bitmap);
+	if (ret)
 		goto out_err;
-	}
-
-	cfg->nr_of_link_freqs = bus_cfg.nr_of_link_frequencies;
-	cfg->link_freqs = devm_kcalloc(dev,
-				       bus_cfg.nr_of_link_frequencies + 1,
-				       sizeof(*cfg->link_freqs), GFP_KERNEL);
-	if (!cfg->link_freqs)
-		goto out_err;
-
-	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++) {
-		cfg->link_freqs[i] = bus_cfg.link_frequencies[i];
-		dev_dbg(dev, "link_freq[%d] = %lld", i, cfg->link_freqs[i]);
-	}
 
 	v4l2_fwnode_endpoint_free(&bus_cfg);
 	fwnode_handle_put(ep);
@@ -2437,7 +2387,6 @@ static int imx319_probe(struct i2c_client *client)
 	struct imx319 *imx319;
 	bool full_power;
 	int ret;
-	u32 i;
 
 	imx319 = devm_kzalloc(&client->dev, sizeof(*imx319), GFP_KERNEL);
 	if (!imx319)
@@ -2465,20 +2414,6 @@ static int imx319_probe(struct i2c_client *client)
 		goto error_probe;
 	}
 
-	imx319->link_def_freq = link_freq_menu_items[IMX319_LINK_FREQ_INDEX];
-	for (i = 0; i < imx319->hwcfg->nr_of_link_freqs; i++) {
-		if (imx319->hwcfg->link_freqs[i] == imx319->link_def_freq) {
-			dev_dbg(&client->dev, "link freq index %d matched", i);
-			break;
-		}
-	}
-
-	if (i == imx319->hwcfg->nr_of_link_freqs) {
-		dev_err(&client->dev, "no link frequency supported");
-		ret = -EINVAL;
-		goto error_probe;
-	}
-
 	/* Set default mode to max resolution */
 	imx319->cur_mode = &supported_modes[0];
 
@@ -2503,19 +2438,21 @@ static int imx319_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor(&imx319->sd);
-	if (ret < 0)
-		goto error_media_entity;
-
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
 		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
+	ret = v4l2_async_register_subdev_sensor(&imx319->sd);
+	if (ret < 0)
+		goto error_media_entity_pm;
+
 	return 0;
 
-error_media_entity:
+error_media_entity_pm:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	media_entity_cleanup(&imx319->sd.entity);
 
 error_handler_free:
@@ -2542,10 +2479,6 @@ static void imx319_remove(struct i2c_client *client)
 	mutex_destroy(&imx319->mutex);
 }
 
-static const struct dev_pm_ops imx319_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx319_suspend, imx319_resume)
-};
-
 static const struct acpi_device_id imx319_acpi_ids[] __maybe_unused = {
 	{ "SONY319A" },
 	{ /* sentinel */ }
@@ -2555,7 +2488,6 @@ MODULE_DEVICE_TABLE(acpi, imx319_acpi_ids);
 static struct i2c_driver imx319_i2c_driver = {
 	.driver = {
 		.name = "imx319",
-		.pm = &imx319_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx319_acpi_ids),
 	},
 	.probe = imx319_probe,

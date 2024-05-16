@@ -119,7 +119,10 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		    strcmp(hash_algo, "sha224") != 0 &&
 		    strcmp(hash_algo, "sha256") != 0 &&
 		    strcmp(hash_algo, "sha384") != 0 &&
-		    strcmp(hash_algo, "sha512") != 0)
+		    strcmp(hash_algo, "sha512") != 0 &&
+		    strcmp(hash_algo, "sha3-256") != 0 &&
+		    strcmp(hash_algo, "sha3-384") != 0 &&
+		    strcmp(hash_algo, "sha3-512") != 0)
 			return -EINVAL;
 	} else if (strcmp(pkey->pkey_algo, "sm2") == 0) {
 		if (strcmp(encoding, "raw") != 0)

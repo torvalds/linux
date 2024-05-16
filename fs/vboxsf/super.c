@@ -151,11 +151,11 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 		if (!sbi->nls) {
 			vbg_err("vboxsf: Count not load '%s' nls\n", nls_name);
 			err = -EINVAL;
-			goto fail_free;
+			goto fail_destroy_idr;
 		}
 	}
 
-	sbi->bdi_id = ida_simple_get(&vboxsf_bdi_ida, 0, 0, GFP_KERNEL);
+	sbi->bdi_id = ida_alloc(&vboxsf_bdi_ida, GFP_KERNEL);
 	if (sbi->bdi_id < 0) {
 		err = sbi->bdi_id;
 		goto fail_free;
@@ -221,9 +221,10 @@ fail_unmap:
 	vboxsf_unmap_folder(sbi->root);
 fail_free:
 	if (sbi->bdi_id >= 0)
-		ida_simple_remove(&vboxsf_bdi_ida, sbi->bdi_id);
+		ida_free(&vboxsf_bdi_ida, sbi->bdi_id);
 	if (sbi->nls)
 		unload_nls(sbi->nls);
+fail_destroy_idr:
 	idr_destroy(&sbi->ino_idr);
 	kfree(sbi);
 	return err;
@@ -268,7 +269,7 @@ static void vboxsf_put_super(struct super_block *sb)
 
 	vboxsf_unmap_folder(sbi->root);
 	if (sbi->bdi_id >= 0)
-		ida_simple_remove(&vboxsf_bdi_ida, sbi->bdi_id);
+		ida_free(&vboxsf_bdi_ida, sbi->bdi_id);
 	if (sbi->nls)
 		unload_nls(sbi->nls);
 
@@ -339,8 +340,7 @@ static int vboxsf_setup(void)
 	vboxsf_inode_cachep =
 		kmem_cache_create("vboxsf_inode_cache",
 				  sizeof(struct vboxsf_inode), 0,
-				  (SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
-				   SLAB_ACCOUNT),
+				  SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
 				  vboxsf_inode_init_once);
 	if (!vboxsf_inode_cachep) {
 		err = -ENOMEM;

@@ -5,6 +5,18 @@ Design
 ======
 
 
+.. _damon_design_execution_model_and_data_structures:
+
+Execution Model and Data Structures
+===================================
+
+The monitoring-related information including the monitoring request
+specification and DAMON-based operation schemes are stored in a data structure
+called DAMON ``context``.  DAMON executes each context with a kernel thread
+called ``kdamond``.  Multiple kdamonds could run in parallel, for different
+types of monitoring.
+
+
 Overall Architecture
 ====================
 
@@ -18,6 +30,8 @@ DAMON subsystem is configured with three layers including
 - Modules: Implements kernel modules for various purposes that provides
   interfaces for the user space, on top of the core layer.
 
+
+.. _damon_design_configurable_operations_set:
 
 Configurable Operations Set
 ---------------------------
@@ -51,6 +65,8 @@ modules that built on top of the core layer using the API, which can be easily
 used by the user space end users.
 
 
+.. _damon_operations_set:
+
 Operations Set Layer
 ====================
 
@@ -59,16 +75,26 @@ The monitoring operations are defined in two parts:
 1. Identification of the monitoring target address range for the address space.
 2. Access check of specific address range in the target space.
 
-DAMON currently provides the implementations of the operations for the physical
-and virtual address spaces. Below two subsections describe how those work.
+DAMON currently provides below three operation sets.  Below two subsections
+describe how those work.
 
+ - vaddr: Monitor virtual address spaces of specific processes
+ - fvaddr: Monitor fixed virtual address ranges
+ - paddr: Monitor the physical address space of the system
+
+
+ .. _damon_design_vaddr_target_regions_construction:
 
 VMA-based Target Address Range Construction
 -------------------------------------------
 
-This is only for the virtual address space monitoring operations
-implementation.  That for the physical address space simply asks users to
-manually set the monitoring target address ranges.
+A mechanism of ``vaddr`` DAMON operations set that automatically initializes
+and updates the monitoring target address regions so that entire memory
+mappings of the target processes can be covered.
+
+This mechanism is only for the ``vaddr`` operations set.  In cases of
+``fvaddr`` and ``paddr`` operation sets, users are asked to manually set the
+monitoring target address ranges.
 
 Only small parts in the super-huge virtual address space of the processes are
 mapped to the physical memory and accessed.  Thus, tracking the unmapped
@@ -154,6 +180,8 @@ The monitoring overhead of this mechanism will arbitrarily increase as the
 size of the target workload grows.
 
 
+.. _damon_design_region_based_sampling:
+
 Region Based Sampling
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -163,9 +191,10 @@ assumption (pages in a region have the same access frequencies) is kept, only
 one page in the region is required to be checked.  Thus, for each ``sampling
 interval``, DAMON randomly picks one page in each region, waits for one
 ``sampling interval``, checks whether the page is accessed meanwhile, and
-increases the access frequency of the region if so.  Therefore, the monitoring
-overhead is controllable by setting the number of regions.  DAMON allows users
-to set the minimum and the maximum number of regions for the trade-off.
+increases the access frequency counter of the region if so.  The counter is
+called ``nr_regions`` of the region.  Therefore, the monitoring overhead is
+controllable by setting the number of regions.  DAMON allows users to set the
+minimum and the maximum number of regions for the trade-off.
 
 This scheme, however, cannot preserve the quality of the output if the
 assumption is not guaranteed.
@@ -189,6 +218,8 @@ will not exceed the user-specified maximum number of regions after the split.
 In this way, DAMON provides its best-effort quality and minimal overhead while
 keeping the bounds users set for their trade-off.
 
+
+.. _damon_design_age_tracking:
 
 Age Tracking
 ~~~~~~~~~~~~
@@ -254,7 +285,8 @@ works, DAMON provides a feature called Data Access Monitoring-based Operation
 Schemes (DAMOS).  It lets users specify their desired schemes at a high
 level.  For such specifications, DAMON starts monitoring, finds regions having
 the access pattern of interest, and applies the user-desired operation actions
-to the regions as soon as found.
+to the regions, for every user-specified time interval called
+``apply_interval``.
 
 
 .. _damon_design_damos_action:
@@ -276,9 +308,29 @@ not mandated to support all actions of the list.  Hence, the availability of
 specific DAMOS action depends on what operations set is selected to be used
 together.
 
-Applying an action to a region is considered as changing the region's
-characteristics.  Hence, DAMOS resets the age of regions when an action is
-applied to those.
+The list of the supported actions, their meaning, and DAMON operations sets
+that supports each action are as below.
+
+ - ``willneed``: Call ``madvise()`` for the region with ``MADV_WILLNEED``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``cold``: Call ``madvise()`` for the region with ``MADV_COLD``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``pageout``: Reclaim the region.
+   Supported by ``vaddr``, ``fvaddr`` and ``paddr`` operations set.
+ - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``lru_prio``: Prioritize the region on its LRU lists.
+   Supported by ``paddr`` operations set.
+ - ``lru_deprio``: Deprioritize the region on its LRU lists.
+   Supported by ``paddr`` operations set.
+ - ``stat``: Do nothing but count the statistics.
+   Supported by all operations sets.
+
+Applying the actions except ``stat`` to a region is considered as changing the
+region's characteristics.  Hence, DAMOS resets the age of regions when any such
+actions are applied to those.
 
 
 .. _damon_design_damos_access_pattern:
@@ -338,6 +390,35 @@ to specify the weight of each access pattern property and passes the
 information to the underlying mechanism.  Nevertheless, how and even whether
 the weight will be respected are up to the underlying prioritization mechanism
 implementation.
+
+
+.. _damon_design_damos_quotas_auto_tuning:
+
+Aim-oriented Feedback-driven Auto-tuning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Automatic feedback-driven quota tuning.  Instead of setting the absolute quota
+value, users can specify the metric of their interest, and what target value
+they want the metric value to be.  DAMOS then automatically tunes the
+aggressiveness (the quota) of the corresponding scheme.  For example, if DAMOS
+is under achieving the goal, DAMOS automatically increases the quota.  If DAMOS
+is over achieving the goal, it decreases the quota.
+
+The goal can be specified with three parameters, namely ``target_metric``,
+``target_value``, and ``current_value``.  The auto-tuning mechanism tries to
+make ``current_value`` of ``target_metric`` be same to ``target_value``.
+Currently, two ``target_metric`` are provided.
+
+- ``user_input``: User-provided value.  Users could use any metric that they
+  has interest in for the value.  Use space main workload's latency or
+  throughput, system metrics like free memory ratio or memory pressure stall
+  time (PSI) could be examples.  Note that users should explicitly set
+  ``current_value`` on their own in this case.  In other words, users should
+  repeatedly provide the feedback.
+- ``some_mem_psi_us``: System-wide ``some`` memory pressure stall information
+  in microseconds that measured from last quota reset to next quota reset.
+  DAMOS does the measurement on its own, so only ``target_value`` need to be
+  set by users at the initial time.  In other words, DAMOS does self-feedback.
 
 
 .. _damon_design_damos_watermarks:

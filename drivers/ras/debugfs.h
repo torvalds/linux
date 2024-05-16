@@ -4,6 +4,10 @@
 
 #include <linux/debugfs.h>
 
-extern struct dentry *ras_debugfs_dir;
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+struct dentry *ras_get_debugfs_root(void);
+#else
+static inline struct dentry *ras_get_debugfs_root(void) { return NULL; }
+#endif /* DEBUG_FS */
 
 #endif /* __RAS_DEBUGFS_H__ */

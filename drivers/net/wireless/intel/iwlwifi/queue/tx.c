@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 #include <net/tso.h>
 #include <linux/tcp.h>
@@ -271,9 +271,10 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 		meta = NULL;
 		goto unmap;
 	}
-	IWL_WARN(trans,
-		 "TB bug workaround: copied %d bytes from 0x%llx to 0x%llx\n",
-		 len, (unsigned long long)oldphys, (unsigned long long)phys);
+	IWL_DEBUG_TX(trans,
+		     "TB bug workaround: copied %d bytes from 0x%llx to 0x%llx\n",
+		     len, (unsigned long long)oldphys,
+		     (unsigned long long)phys);
 
 	ret = 0;
 unmap:
@@ -352,7 +353,7 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd),
 			     &dev_cmd->hdr, start_len, 0);
 
-	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
+	ip_hdrlen = skb_network_header_len(skb);
 	snap_ip_tcp_hdrlen = 8 + ip_hdrlen + tcp_hdrlen(skb);
 	total_len = skb->len - snap_ip_tcp_hdrlen - hdr_len;
 	amsdu_pad = 0;
@@ -1575,7 +1576,7 @@ void iwl_txq_progress(struct iwl_txq *txq)
 
 /* Frees buffers until index _not_ inclusive */
 void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
-		     struct sk_buff_head *skbs)
+		     struct sk_buff_head *skbs, bool is_flush)
 {
 	struct iwl_txq *txq = trans->txqs.txq[txq_id];
 	int tfd_num, read_ptr, last_to_free;
@@ -1588,9 +1589,9 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		return;
 
 	tfd_num = iwl_txq_get_cmd_index(txq, ssn);
-	read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr);
 
 	spin_lock_bh(&txq->lock);
+	read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr);
 
 	if (!test_bit(txq_id, trans->txqs.queue_used)) {
 		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
@@ -1601,8 +1602,8 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	if (read_ptr == tfd_num)
 		goto out;
 
-	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
-			   txq_id, txq->read_ptr, tfd_num, ssn);
+	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d (%d) -> %d (%d)\n",
+			   txq_id, read_ptr, txq->read_ptr, tfd_num, ssn);
 
 	/*Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used */
@@ -1630,7 +1631,8 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	     read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr)) {
 		struct sk_buff *skb = txq->entries[read_ptr].skb;
 
-		if (WARN_ON_ONCE(!skb))
+		if (WARN_ONCE(!skb, "no SKB at %d (%d) on queue %d\n",
+			      read_ptr, txq->read_ptr, txq_id))
 			continue;
 
 		iwl_txq_free_tso_page(trans, skb);
@@ -1650,9 +1652,11 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	if (iwl_txq_space(trans, txq) > txq->low_mark &&
 	    test_bit(txq_id, trans->txqs.queue_stopped)) {
 		struct sk_buff_head overflow_skbs;
+		struct sk_buff *skb;
 
 		__skb_queue_head_init(&overflow_skbs);
-		skb_queue_splice_init(&txq->overflow_q, &overflow_skbs);
+		skb_queue_splice_init(&txq->overflow_q,
+				      is_flush ? skbs : &overflow_skbs);
 
 		/*
 		 * We are going to transmit from the overflow queue.
@@ -1672,8 +1676,7 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		 */
 		spin_unlock_bh(&txq->lock);
 
-		while (!skb_queue_empty(&overflow_skbs)) {
-			struct sk_buff *skb = __skb_dequeue(&overflow_skbs);
+		while ((skb = __skb_dequeue(&overflow_skbs))) {
 			struct iwl_device_tx_cmd *dev_cmd_ptr;
 
 			dev_cmd_ptr = *(void **)((u8 *)skb->cb +

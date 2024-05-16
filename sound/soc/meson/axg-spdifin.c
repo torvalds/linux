@@ -179,9 +179,9 @@ static int axg_spdifin_sample_mode_config(struct snd_soc_dai *dai,
 			   SPDIFIN_CTRL1_BASE_TIMER,
 			   FIELD_PREP(SPDIFIN_CTRL1_BASE_TIMER, rate / 1000));
 
-	/* Threshold based on the minimum width between two edges */
+	/* Threshold based on the maximum width between two edges */
 	regmap_update_bits(priv->map, SPDIFIN_CTRL0,
-			   SPDIFIN_CTRL0_WIDTH_SEL, SPDIFIN_CTRL0_WIDTH_SEL);
+			   SPDIFIN_CTRL0_WIDTH_SEL, 0);
 
 	/* Calculate the last timer which has no threshold */
 	t_next = axg_spdifin_mode_timer(priv, i, rate);
@@ -199,7 +199,7 @@ static int axg_spdifin_sample_mode_config(struct snd_soc_dai *dai,
 		axg_spdifin_write_timer(priv->map, i, t);
 
 		/* Set the threshold value */
-		axg_spdifin_write_threshold(priv->map, i, t + t_next);
+		axg_spdifin_write_threshold(priv->map, i, 3 * (t + t_next));
 
 		/* Save the current timer for the next threshold calculation */
 		t_next = t;

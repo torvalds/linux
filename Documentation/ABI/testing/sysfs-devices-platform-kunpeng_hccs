@@ -3,7 +3,7 @@ What:		/sys/devices/platform/HISI04Bx:00/chipX/linked_full_lane
 What:		/sys/devices/platform/HISI04Bx:00/chipX/crc_err_cnt
 Date:		November 2023
 KernelVersion:	6.6
-Contact:	Huisong Li <lihuisong@huawei.org>
+Contact:	Huisong Li <lihuisong@huawei.com>
 Description:
 		The /sys/devices/platform/HISI04Bx:00/chipX/ directory
 		contains read-only attributes exposing some summarization
@@ -26,7 +26,7 @@ What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/linked_full_lane
 What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/crc_err_cnt
 Date:		November 2023
 KernelVersion:	6.6
-Contact:	Huisong Li <lihuisong@huawei.org>
+Contact:	Huisong Li <lihuisong@huawei.com>
 Description:
 		The /sys/devices/platform/HISI04Bx:00/chipX/dieY/ directory
 		contains read-only attributes exposing some summarization
@@ -54,7 +54,7 @@ What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/hccsN/lane_mask
 What:		/sys/devices/platform/HISI04Bx:00/chipX/dieY/hccsN/crc_err_cnt
 Date:		November 2023
 KernelVersion:	6.6
-Contact:	Huisong Li <lihuisong@huawei.org>
+Contact:	Huisong Li <lihuisong@huawei.com>
 Description:
 		The /sys/devices/platform/HISI04Bx/chipX/dieX/hccsN/ directory
 		contains read-only attributes exposing information about

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/of.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
 

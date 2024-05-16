@@ -24,7 +24,7 @@
 
 #include "mpc85xx.h"
 
-void __init p1010_rdb_pic_init(void)
+static void __init p1010_rdb_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 	  MPIC_SINGLE_DEST_CPU,

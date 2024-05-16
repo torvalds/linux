@@ -151,8 +151,8 @@ error:
 static int stm32_sai_probe(struct platform_device *pdev)
 {
 	struct stm32_sai_data *sai;
+	const struct stm32_sai_conf *conf;
 	struct reset_control *rst;
-	const struct of_device_id *of_id;
 	u32 val;
 	int ret;
 
@@ -164,9 +164,9 @@ static int stm32_sai_probe(struct platform_device *pdev)
 	if (IS_ERR(sai->base))
 		return PTR_ERR(sai->base);
 
-	of_id = of_match_device(stm32_sai_ids, &pdev->dev);
-	if (of_id)
-		memcpy(&sai->conf, (const struct stm32_sai_conf *)of_id->data,
+	conf = device_get_match_data(&pdev->dev);
+	if (conf)
+		memcpy(&sai->conf, (const struct stm32_sai_conf *)conf,
 		       sizeof(struct stm32_sai_conf));
 	else
 		return -EINVAL;

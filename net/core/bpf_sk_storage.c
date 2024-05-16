@@ -275,9 +275,10 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 static int bpf_sk_storage_charge(struct bpf_local_storage_map *smap,
 				 void *owner, u32 size)
 {
-	int optmem_max = READ_ONCE(sysctl_optmem_max);
 	struct sock *sk = (struct sock *)owner;
+	int optmem_max;
 
+	optmem_max = READ_ONCE(sock_net(sk)->core.sysctl_optmem_max);
 	/* same check as in sock_kmalloc() */
 	if (size <= optmem_max &&
 	    atomic_read(&sk->sk_omem_alloc) + size < optmem_max) {

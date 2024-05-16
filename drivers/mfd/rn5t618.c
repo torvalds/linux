@@ -13,7 +13,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/rn5t618.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
@@ -62,7 +62,7 @@ static const struct regmap_config rn5t618_regmap_config = {
 	.val_bits	= 8,
 	.volatile_reg	= rn5t618_volatile_reg,
 	.max_register	= RN5T618_MAX_REG,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static const struct regmap_irq rc5t619_irqs[] = {
@@ -179,22 +179,15 @@ MODULE_DEVICE_TABLE(of, rn5t618_of_match);
 
 static int rn5t618_i2c_probe(struct i2c_client *i2c)
 {
-	const struct of_device_id *of_id;
 	struct rn5t618 *priv;
 	int ret;
-
-	of_id = of_match_device(rn5t618_of_match, &i2c->dev);
-	if (!of_id) {
-		dev_err(&i2c->dev, "Failed to find matching DT ID\n");
-		return -EINVAL;
-	}
 
 	priv = devm_kzalloc(&i2c->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, priv);
-	priv->variant = (long)of_id->data;
+	priv->variant = (long)i2c_get_match_data(i2c);
 	priv->irq = i2c->irq;
 	priv->dev = &i2c->dev;
 

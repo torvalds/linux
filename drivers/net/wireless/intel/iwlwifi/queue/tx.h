@@ -71,7 +71,8 @@ static inline void iwl_txq_stop(struct iwl_trans *trans, struct iwl_txq *txq)
 
 /**
  * iwl_txq_inc_wrap - increment queue index, wrap back to beginning
- * @index -- current index
+ * @trans: the transport (for configuration data)
+ * @index: current index
  */
 static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 {
@@ -81,7 +82,8 @@ static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 
 /**
  * iwl_txq_dec_wrap - decrement queue index, wrap back to end
- * @index -- current index
+ * @trans: the transport (for configuration data)
+ * @index: current index
  */
 static inline int iwl_txq_dec_wrap(struct iwl_trans *trans, int index)
 {
@@ -179,7 +181,7 @@ void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 				      struct iwl_txq *txq, u16 byte_cnt,
 				      int num_tbs);
 void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
-		     struct sk_buff_head *skbs);
+		     struct sk_buff_head *skbs, bool is_flush);
 void iwl_txq_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
 void iwl_trans_txq_freeze_timer(struct iwl_trans *trans, unsigned long txqs,
 				bool freeze);

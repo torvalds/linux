@@ -318,7 +318,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	} else if (ret > 0) {
 		/* Don't override defaults. */
 		if (bind)
-			return 0;
+			return ACT_P_BOUND;
 
 		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			tcf_idr_release(*act, bind);
@@ -401,6 +401,7 @@ static struct tc_action_ops act_bpf_ops __read_mostly = {
 	.init		=	tcf_bpf_init,
 	.size		=	sizeof(struct tcf_bpf),
 };
+MODULE_ALIAS_NET_ACT("bpf");
 
 static __net_init int bpf_init_net(struct net *net)
 {

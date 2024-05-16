@@ -276,11 +276,11 @@ int hv_unmap_ioapic_interrupt(int ioapic_id, struct hv_interrupt_entry *entry);
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 bool hv_ghcb_negotiate_protocol(void);
 void __noreturn hv_ghcb_terminate(unsigned int set, unsigned int reason);
-int hv_snp_boot_ap(int cpu, unsigned long start_ip);
+int hv_snp_boot_ap(u32 cpu, unsigned long start_ip);
 #else
 static inline bool hv_ghcb_negotiate_protocol(void) { return false; }
 static inline void hv_ghcb_terminate(unsigned int set, unsigned int reason) {}
-static inline int hv_snp_boot_ap(int cpu, unsigned long start_ip) { return 0; }
+static inline int hv_snp_boot_ap(u32 cpu, unsigned long start_ip) { return 0; }
 #endif
 
 #if defined(CONFIG_AMD_MEM_ENCRYPT) || defined(CONFIG_INTEL_TDX_GUEST)
@@ -293,24 +293,24 @@ static inline void hv_ivm_msr_write(u64 msr, u64 value) {}
 static inline void hv_ivm_msr_read(u64 msr, u64 *value) {}
 #endif
 
-static inline bool hv_is_synic_reg(unsigned int reg)
+static inline bool hv_is_synic_msr(unsigned int reg)
 {
-	return (reg >= HV_REGISTER_SCONTROL) &&
-	       (reg <= HV_REGISTER_SINT15);
+	return (reg >= HV_X64_MSR_SCONTROL) &&
+	       (reg <= HV_X64_MSR_SINT15);
 }
 
-static inline bool hv_is_sint_reg(unsigned int reg)
+static inline bool hv_is_sint_msr(unsigned int reg)
 {
-	return (reg >= HV_REGISTER_SINT0) &&
-	       (reg <= HV_REGISTER_SINT15);
+	return (reg >= HV_X64_MSR_SINT0) &&
+	       (reg <= HV_X64_MSR_SINT15);
 }
 
-u64 hv_get_register(unsigned int reg);
-void hv_set_register(unsigned int reg, u64 value);
-u64 hv_get_non_nested_register(unsigned int reg);
-void hv_set_non_nested_register(unsigned int reg, u64 value);
+u64 hv_get_msr(unsigned int reg);
+void hv_set_msr(unsigned int reg, u64 value);
+u64 hv_get_non_nested_msr(unsigned int reg);
+void hv_set_non_nested_msr(unsigned int reg, u64 value);
 
-static __always_inline u64 hv_raw_get_register(unsigned int reg)
+static __always_inline u64 hv_raw_get_msr(unsigned int reg)
 {
 	return __rdmsr(reg);
 }
@@ -331,10 +331,10 @@ static inline int hyperv_flush_guest_mapping_range(u64 as,
 {
 	return -1;
 }
-static inline void hv_set_register(unsigned int reg, u64 value) { }
-static inline u64 hv_get_register(unsigned int reg) { return 0; }
-static inline void hv_set_non_nested_register(unsigned int reg, u64 value) { }
-static inline u64 hv_get_non_nested_register(unsigned int reg) { return 0; }
+static inline void hv_set_msr(unsigned int reg, u64 value) { }
+static inline u64 hv_get_msr(unsigned int reg) { return 0; }
+static inline void hv_set_non_nested_msr(unsigned int reg, u64 value) { }
+static inline u64 hv_get_non_nested_msr(unsigned int reg) { return 0; }
 #endif /* CONFIG_HYPERV */
 
 

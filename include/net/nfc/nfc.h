@@ -196,7 +196,7 @@ struct nfc_dev {
 };
 #define to_nfc_dev(_dev) container_of(_dev, struct nfc_dev, dev)
 
-extern struct class nfc_class;
+extern const struct class nfc_class;
 
 struct nfc_dev *nfc_allocate_device(const struct nfc_ops *ops,
 				    u32 supported_protocols,

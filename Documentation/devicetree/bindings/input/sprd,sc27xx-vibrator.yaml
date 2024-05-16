@@ -28,21 +28,4 @@ required:
 
 additionalProperties: false
 
-examples:
-  - |
-    #include <dt-bindings/interrupt-controller/arm-gic.h>
-    sc2731_pmic: pmic@0 {
-      compatible = "sprd,sc2731";
-      reg = <0 0>;
-      spi-max-frequency = <26000000>;
-      interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
-      interrupt-controller;
-      #interrupt-cells = <2>;
-      #address-cells = <1>;
-      #size-cells = <0>;
-
-      vibrator@eb4 {
-        compatible = "sprd,sc2731-vibrator";
-        reg = <0xeb4>;
-      };
-    };
+...

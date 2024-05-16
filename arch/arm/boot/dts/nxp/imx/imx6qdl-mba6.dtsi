@@ -500,21 +500,21 @@
 
 	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
-			/* 100 k PD, DSE 120 OHM, SPPEED LO */
+			/* 100 k PD, DSE 120 OHM, SPEED LO */
 			MX6QDL_PAD_GPIO_9__PWM1_OUT 0x00003050
 		>;
 	};
 
 	pinctrl_pwm3: pwm3grp {
 		fsl,pins = <
-			/* 100 k PD, DSE 120 OHM, SPPEED LO */
+			/* 100 k PD, DSE 120 OHM, SPEED LO */
 			MX6QDL_PAD_SD4_DAT1__PWM3_OUT 0x00003050
 		>;
 	};
 
 	pinctrl_pwm4: pwm4grp {
 		fsl,pins = <
-			/* 100 k PD, DSE 120 OHM, SPPEED LO */
+			/* 100 k PD, DSE 120 OHM, SPEED LO */
 			MX6QDL_PAD_SD4_DAT2__PWM4_OUT 0x00003050
 		>;
 	};

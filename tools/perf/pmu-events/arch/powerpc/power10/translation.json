@@ -10,11 +10,6 @@
     "BriefDescription": "Stores completed from S2Q (2nd-level store queue). This event includes regular stores, stcx and cache inhibited stores. The following operations are excluded (pteupdate, snoop tlbie complete, store atomics, miso, load atomic payloads, tlbie, tlbsync, slbieg, isync, msgsnd, slbiag, cpabort, copy, tcheck, tend, stsync, dcbst, icbi, dcbf, hwsync, lwsync, ptesync, eieio, msgsync)."
   },
   {
-    "EventCode": "0x200FE",
-    "EventName": "PM_DATA_FROM_L2MISS",
-    "BriefDescription": "The processor's L1 data cache was reloaded from a source beyond the local core's L2 due to a demand miss."
-  },
-  {
     "EventCode": "0x300F0",
     "EventName": "PM_ST_MISS_L1",
     "BriefDescription": "Store Missed L1."

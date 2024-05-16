@@ -12,7 +12,7 @@
 	compatible = "amlogic,s400", "amlogic,a113d", "amlogic,meson-axg";
 	model = "Amlogic Meson AXG S400 Development Board";
 
-	adc_keys {
+	keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
 		io-channel-names = "buttons";
@@ -66,7 +66,6 @@
 		VDDA-supply = <&vcc_3v3>;
 		VDDP-supply = <&vcc_3v3>;
 		VDDD-supply = <&vcc_3v3>;
-		status = "okay";
 		sound-name-prefix = "Linein";
 	};
 
@@ -75,14 +74,12 @@
 		compatible = "everest,es7154";
 		VDD-supply = <&vcc_3v3>;
 		PVDD-supply = <&vcc_5v>;
-		status = "okay";
 		sound-name-prefix = "Lineout";
 	};
 
 	spdif_dit: audio-codec-2 {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
-		status = "okay";
 		sound-name-prefix = "DIT";
 	};
 
@@ -91,14 +88,12 @@
 		compatible = "dmic-codec";
 		num-channels = <7>;
 		wakeup-delay-ms = <50>;
-		status = "okay";
 		sound-name-prefix = "MIC";
 	};
 
 	spdif_dir: audio-codec-4 {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dir";
-		status = "okay";
 		sound-name-prefix = "DIR";
 	};
 
@@ -116,7 +111,7 @@
 		reg = <0x0 0x0 0x0 0x40000000>;
 	};
 
-	main_12v: regulator-main_12v {
+	main_12v: regulator-main-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "12V";
 		regulator-min-microvolt = <12000000>;
@@ -124,7 +119,7 @@
 		regulator-always-on;
 	};
 
-	vcc_3v3: regulator-vcc_3v3 {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -133,7 +128,7 @@
 		regulator-always-on;
 	};
 
-	vcc_5v: regulator-vcc_5v {
+	vcc_5v: regulator-vcc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC5V";
 		regulator-min-microvolt = <5000000>;
@@ -144,7 +139,7 @@
 		enable-active-high;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -153,7 +148,7 @@
 		regulator-always-on;
 	};
 
-	vddio_ao18: regulator-vddio_ao18 {
+	vddio_ao18: regulator-vddio-ao18 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_AO18";
 		regulator-min-microvolt = <1800000>;
@@ -162,7 +157,7 @@
 		regulator-always-on;
 	};
 
-	vddio_boot: regulator-vddio_boot {
+	vddio_boot: regulator-vddio-boot {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_BOOT";
 		regulator-min-microvolt = <1800000>;
@@ -171,7 +166,7 @@
 		regulator-always-on;
 	};
 
-	usb_pwr: regulator-usb_pwr {
+	usb_pwr: regulator-usb-pwr {
 		compatible = "regulator-fixed";
 		regulator-name = "USB_PWR";
 		regulator-min-microvolt = <5000000>;

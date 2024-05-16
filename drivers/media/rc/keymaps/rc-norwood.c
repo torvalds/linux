@@ -79,3 +79,4 @@ module_exit(exit_rc_map_norwood)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Norwood Micro (non-Pro) TV Tuner remote controller keytable");

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -94,7 +94,7 @@ lpfc_nvme_create_queue(struct nvme_fc_local_port *pnvme_lport,
 	lport = (struct lpfc_nvme_lport *)pnvme_lport->private;
 	vport = lport->vport;
 
-	if (!vport || vport->load_flag & FC_UNLOADING ||
+	if (!vport || test_bit(FC_UNLOADING, &vport->load_flag) ||
 	    vport->phba->hba_flag & HBA_IOQ_FLUSH)
 		return -ENODEV;
 
@@ -674,7 +674,7 @@ lpfc_nvme_ls_req(struct nvme_fc_local_port *pnvme_lport,
 		return -EINVAL;
 
 	vport = lport->vport;
-	if (vport->load_flag & FC_UNLOADING ||
+	if (test_bit(FC_UNLOADING, &vport->load_flag) ||
 	    vport->phba->hba_flag & HBA_IOQ_FLUSH)
 		return -ENODEV;
 
@@ -765,7 +765,7 @@ lpfc_nvme_xmt_ls_rsp(struct nvme_fc_local_port *localport,
 	struct lpfc_nvme_lport *lport;
 	int rc;
 
-	if (axchg->phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &axchg->phba->pport->load_flag))
 		return -ENODEV;
 
 	lport = (struct lpfc_nvme_lport *)localport->private;
@@ -810,7 +810,7 @@ lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
 		return;
 	vport = lport->vport;
 
-	if (vport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &vport->load_flag))
 		return;
 
 	ndlp = lpfc_findnode_did(vport, pnvme_rport->port_id);
@@ -950,7 +950,7 @@ lpfc_nvme_io_cmd_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	int cpu;
 #endif
-	int offline = 0;
+	bool offline = false;
 
 	/* Sanity check on return of outstanding command */
 	if (!lpfc_ncmd) {
@@ -1124,7 +1124,9 @@ out_err:
 			nCmd->transferred_length = 0;
 			nCmd->rcv_rsplen = 0;
 			nCmd->status = NVME_SC_INTERNAL;
-			offline = pci_channel_offline(vport->phba->pcidev);
+			if (pci_channel_offline(vport->phba->pcidev) ||
+			    lpfc_ncmd->result == IOERR_SLI_DOWN)
+				offline = true;
 		}
 	}
 
@@ -1565,7 +1567,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 
 	phba = vport->phba;
 
-	if ((unlikely(vport->load_flag & FC_UNLOADING)) ||
+	if ((unlikely(test_bit(FC_UNLOADING, &vport->load_flag))) ||
 	    phba->hba_flag & HBA_IOQ_FLUSH) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
 				 "6124 Fail IO, Driver unload\n");
@@ -1884,7 +1886,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 
 	if (unlikely(!freqpriv))
 		return;
-	if (vport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &vport->load_flag))
 		return;
 
 	/* Announce entry to new IO submit field. */
@@ -2261,7 +2263,7 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 			if (!vport->localport ||
 			    test_bit(HBA_PCI_ERR, &vport->phba->bit_flags) ||
 			    phba->link_state == LPFC_HBA_ERROR ||
-			    vport->load_flag & FC_UNLOADING)
+			    test_bit(FC_UNLOADING, &vport->load_flag))
 				return;
 
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -2614,16 +2616,16 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		/* No concern about the role change on the nvme remoteport.
 		 * The transport will update it.
 		 */
-		spin_lock_irq(&vport->phba->hbalock);
+		spin_lock_irq(&ndlp->lock);
 		ndlp->fc4_xpt_flags |= NVME_XPT_UNREG_WAIT;
-		spin_unlock_irq(&vport->phba->hbalock);
+		spin_unlock_irq(&ndlp->lock);
 
 		/* Don't let the host nvme transport keep sending keep-alives
 		 * on this remoteport. Vport is unloading, no recovery. The
 		 * return values is ignored.  The upcall is a courtesy to the
 		 * transport.
 		 */
-		if (vport->load_flag & FC_UNLOADING ||
+		if (test_bit(FC_UNLOADING, &vport->load_flag) ||
 		    unlikely(vport->phba->link_state == LPFC_HBA_ERROR))
 			(void)nvme_fc_set_remoteport_devloss(remoteport, 0);
 
@@ -2642,7 +2644,7 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 					 "port_state x%x\n",
 					 ret, remoteport->port_state);
 
-			if (vport->load_flag & FC_UNLOADING) {
+			if (test_bit(FC_UNLOADING, &vport->load_flag)) {
 				/* Only 1 thread can drop the initial node
 				 * reference. Check if another thread has set
 				 * NLP_DROPPED.

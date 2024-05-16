@@ -105,8 +105,8 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 }
 
 /**
- * qat_crypto_vf_dev_config()
- *     create dev config required to create crypto inst.
+ * qat_crypto_vf_dev_config() - create dev config required to create
+ * crypto inst.
  *
  * @accel_dev: Pointer to acceleration device.
  *

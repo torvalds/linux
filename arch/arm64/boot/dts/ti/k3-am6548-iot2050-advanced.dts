@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) Siemens AG, 2018-2021
  *
@@ -17,6 +17,7 @@
 
 #include "k3-am6548-iot2050-advanced-common.dtsi"
 #include "k3-am65-iot2050-common-pg1.dtsi"
+#include "k3-am65-iot2050-arduino-connector.dtsi"
 
 / {
 	compatible = "siemens,iot2050-advanced", "ti,am654";

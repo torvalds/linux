@@ -7,7 +7,7 @@
  *  Stack switching code can no longer reliably rely on the fact that
  *  if we are NOT in user mode, stack is switched to kernel mode.
  *  e.g. L2 IRQ interrupted a L1 ISR which had not yet completed
- *  it's prologue including stack switching from user mode
+ *  its prologue including stack switching from user mode
  *
  * Vineetg: Aug 28th 2008: Bug #94984
  *  -Zero Overhead Loop Context shd be cleared when entering IRQ/EXcp/Trap
@@ -32,6 +32,91 @@
 #include <asm/asm-offsets.h>
 #include <asm/irqflags-compact.h>
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
+
+/* Note on the LD/ST addr modes with addr reg wback
+ *
+ * LD.a same as LD.aw
+ *
+ * LD.a    reg1, [reg2, x]  => Pre Incr
+ *      Eff Addr for load = [reg2 + x]
+ *
+ * LD.ab   reg1, [reg2, x]  => Post Incr
+ *      Eff Addr for load = [reg2]
+ */
+
+.macro PUSHAX aux
+	lr	r9, [\aux]
+	push	r9
+.endm
+
+.macro POPAX aux
+	pop	r9
+	sr	r9, [\aux]
+.endm
+
+.macro  SAVE_R0_TO_R12
+	push	r0
+	push	r1
+	push	r2
+	push	r3
+	push	r4
+	push	r5
+	push	r6
+	push	r7
+	push	r8
+	push	r9
+	push	r10
+	push	r11
+	push	r12
+.endm
+
+.macro RESTORE_R12_TO_R0
+	pop	r12
+	pop	r11
+	pop	r10
+	pop	r9
+	pop	r8
+	pop	r7
+	pop	r6
+	pop	r5
+	pop	r4
+	pop	r3
+	pop	r2
+	pop	r1
+	pop	r0
+.endm
+
+.macro SAVE_ABI_CALLEE_REGS
+	push	r13
+	push	r14
+	push	r15
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	r22
+	push	r23
+	push	r24
+	push	r25
+.endm
+
+.macro RESTORE_ABI_CALLEE_REGS
+	pop	r25
+	pop	r24
+	pop	r23
+	pop	r22
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	pop	r15
+	pop	r14
+	pop	r13
+.endm
 
 /*--------------------------------------------------------------
  * Switch to Kernel Mode stack if SP points to User Mode stack
@@ -58,7 +143,7 @@
 	 * 2. L1 IRQ taken, ISR starts (CPU auto-switched to KERNEL mode)
 	 * 3. But before it could switch SP from USER to KERNEL stack
 	 *      a L2 IRQ "Interrupts" L1
-	 * Thay way although L2 IRQ happened in Kernel mode, stack is still
+	 * That way although L2 IRQ happened in Kernel mode, stack is still
 	 * not switched.
 	 * To handle this, we may need to switch stack even if in kernel mode
 	 * provided SP has values in range of USER mode stack ( < 0x7000_0000 )
@@ -88,7 +173,7 @@
 
 	GET_CURR_TASK_ON_CPU   r9
 
-	/* With current tsk in r9, get it's kernel mode stack base */
+	/* With current tsk in r9, get its kernel mode stack base */
 	GET_TSK_STACK_BASE  r9, r9
 
 	/* save U mode SP @ pt_regs->sp */
@@ -197,7 +282,7 @@
  * NOTE:
  *
  * It is recommended that lp_count/ilink1/ilink2 not be used as a dest reg
- * for memory load operations. If used in that way interrupts are deffered
+ * for memory load operations. If used in that way interrupts are deferred
  * by hardware and that is not good.
  *-------------------------------------------------------------*/
 .macro EXCEPTION_EPILOGUE
@@ -235,7 +320,7 @@
 	SWITCH_TO_KERNEL_STK
 
 
-	PUSH	0x003\LVL\()abcd    /* Dummy ECR */
+	st.a	0x003\LVL\()abcd, [sp, -4]	/* Dummy ECR */
 	sub	sp, sp, 8	    /* skip orig_r0 (not needed)
 				       skip pt_regs->sp, already saved above */
 
@@ -265,7 +350,7 @@
  * NOTE:
  *
  * It is recommended that lp_count/ilink1/ilink2 not be used as a dest reg
- * for memory load operations. If used in that way interrupts are deffered
+ * for memory load operations. If used in that way interrupts are deferred
  * by hardware and that is not good.
  *-------------------------------------------------------------*/
 .macro INTERRUPT_EPILOGUE  LVL

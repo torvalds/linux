@@ -21,8 +21,8 @@ struct tb_ctl;
 typedef bool (*event_cb)(void *data, enum tb_cfg_pkg_type type,
 			 const void *buf, size_t size);
 
-struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, int timeout_msec, event_cb cb,
-			    void *cb_data);
+struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, int index, int timeout_msec,
+			    event_cb cb, void *cb_data);
 void tb_ctl_start(struct tb_ctl *ctl);
 void tb_ctl_stop(struct tb_ctl *ctl);
 void tb_ctl_free(struct tb_ctl *ctl);

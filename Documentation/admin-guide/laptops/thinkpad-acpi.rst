@@ -53,6 +53,7 @@ detailed description):
 	- Lap mode sensor
 	- Setting keyboard language
 	- WWAN Antenna type
+	- Auxmac
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -443,7 +444,9 @@ event	code	Key		Notes
 
 0x1008	0x07	FN+F8		IBM: toggle screen expand
 				Lenovo: configure UltraNav,
-				or toggle screen expand
+				or toggle screen expand.
+				On newer platforms (2024+)
+				replaced by 0x131f (see below)
 
 0x1009	0x08	FN+F9		-
 
@@ -502,6 +505,9 @@ event	code	Key		Notes
 0x1018	0x17	THINKPAD	ThinkPad/Access IBM/Lenovo key
 
 0x1019	0x18	unknown
+
+0x131f	...	FN+F8	        Platform Mode change.
+				Implemented in driver.
 
 ...	...	...
 
@@ -1510,6 +1516,25 @@ Currently 2 antenna types are supported as mentioned below:
 
 The property is read-only. If the platform doesn't have support the sysfs
 class is not created.
+
+Auxmac
+------
+
+sysfs: auxmac
+
+Some newer Thinkpads have a feature called MAC Address Pass-through. This
+feature is implemented by the system firmware to provide a system unique MAC,
+that can override a dock or USB ethernet dongle MAC, when connected to a
+network. This property enables user-space to easily determine the MAC address
+if the feature is enabled.
+
+The values of this auxiliary MAC are:
+
+        cat /sys/devices/platform/thinkpad_acpi/auxmac
+
+If the feature is disabled, the value will be 'disabled'.
+
+This property is read-only.
 
 Adaptive keyboard
 -----------------

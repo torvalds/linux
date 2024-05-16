@@ -6,6 +6,22 @@
 #ifndef BTRFS_DISK_IO_H
 #define BTRFS_DISK_IO_H
 
+#include <linux/sizes.h>
+#include <linux/compiler_types.h>
+#include "ctree.h"
+#include "fs.h"
+
+struct block_device;
+struct super_block;
+struct extent_buffer;
+struct btrfs_device;
+struct btrfs_fs_devices;
+struct btrfs_fs_info;
+struct btrfs_super_block;
+struct btrfs_trans_handle;
+struct btrfs_tree_parent_check;
+struct btrfs_transaction;
+
 #define BTRFS_SUPER_MIRROR_MAX	 3
 #define BTRFS_SUPER_MIRROR_SHIFT 12
 
@@ -25,10 +41,6 @@ static inline u64 btrfs_sb_offset(int mirror)
 	return BTRFS_SUPER_INFO_OFFSET;
 }
 
-struct btrfs_device;
-struct btrfs_fs_devices;
-struct btrfs_tree_parent_check;
-
 void btrfs_check_leaked_roots(struct btrfs_fs_info *fs_info);
 void btrfs_init_fs_info(struct btrfs_fs_info *fs_info);
 struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
@@ -37,9 +49,6 @@ struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
 						u64 bytenr, u64 owner_root,
 						int level);
-void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
-			      struct extent_buffer *buf);
-void btrfs_clear_oneshot_options(struct btrfs_fs_info *fs_info);
 int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info);
 int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
 			   const struct btrfs_super_block *disk_sb);
@@ -64,7 +73,7 @@ void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
 				     u64 objectid, bool check_ref);
 struct btrfs_root *btrfs_get_new_fs_root(struct btrfs_fs_info *fs_info,
-					 u64 objectid, dev_t anon_dev);
+					 u64 objectid, dev_t *anon_dev);
 struct btrfs_root *btrfs_get_fs_root_commit_root(struct btrfs_fs_info *fs_info,
 						 struct btrfs_path *path,
 						 u64 objectid);
@@ -104,7 +113,8 @@ static inline struct btrfs_root *btrfs_grab_root(struct btrfs_root *root)
 }
 
 void btrfs_put_root(struct btrfs_root *root);
-void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
+void btrfs_mark_buffer_dirty(struct btrfs_trans_handle *trans,
+			     struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_extent_buffer(struct extent_buffer *buf,

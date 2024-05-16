@@ -146,6 +146,14 @@ static inline unsigned long kvm_get_active_pcid(struct kvm_vcpu *vcpu)
 	return kvm_get_pcid(vcpu, kvm_read_cr3(vcpu));
 }
 
+static inline unsigned long kvm_get_active_cr3_lam_bits(struct kvm_vcpu *vcpu)
+{
+	if (!guest_can_use(vcpu, X86_FEATURE_LAM))
+		return 0;
+
+	return kvm_read_cr3(vcpu) & (X86_CR3_LAM_U48 | X86_CR3_LAM_U57);
+}
+
 static inline void kvm_mmu_load_pgd(struct kvm_vcpu *vcpu)
 {
 	u64 root_hpa = vcpu->arch.mmu->root.hpa;
@@ -235,6 +243,13 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	}
 
 	return -(u32)fault & errcode;
+}
+
+bool __kvm_mmu_honors_guest_mtrrs(bool vm_has_noncoherent_dma);
+
+static inline bool kvm_mmu_honors_guest_mtrrs(struct kvm *kvm)
+{
+	return __kvm_mmu_honors_guest_mtrrs(kvm_arch_has_noncoherent_dma(kvm));
 }
 
 void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end);

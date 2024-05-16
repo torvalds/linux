@@ -435,7 +435,7 @@ static int yogabook_pdev_set_kbd_backlight(struct yogabook_data *data, u8 level)
 		.enabled = level,
 	};
 
-	pwm_apply_state(data->kbd_bl_pwm, &state);
+	pwm_apply_might_sleep(data->kbd_bl_pwm, &state);
 	gpiod_set_value(data->kbd_bl_led_enable, level ? 1 : 0);
 	return 0;
 }

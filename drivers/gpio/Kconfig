@@ -478,6 +478,25 @@ config GPIO_MXS
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 
+config GPIO_NOMADIK
+	bool "Nomadik GPIO driver"
+	depends on ARCH_U8500 || ARCH_NOMADIK || MACH_EYEQ5 || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support the Nomadik SoC GPIO block. This block is also
+	  used by the Mobileye EyeQ5 SoC.
+
+	  It handles up to 32 GPIOs per bank, that can all be interrupt sources.
+	  It is deeply interconnected with the associated pinctrl driver as GPIO
+	  registers handle muxing ("alternate functions") as well.
+
+config GPIO_NPCM_SGPIO
+	bool "Nuvoton SGPIO support"
+	depends on ARCH_NPCM || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to support Nuvoton NPCM7XX/NPCM8XX SGPIO functionality.
+
 config GPIO_OCTEON
 	tristate "Cavium OCTEON GPIO"
 	depends on CAVIUM_OCTEON_SOC
@@ -552,6 +571,19 @@ config GPIO_ROCKCHIP
 	default ARCH_ROCKCHIP
 	help
 	  Say yes here to support GPIO on Rockchip SoCs.
+
+config GPIO_RTD
+	tristate "Realtek DHC GPIO support"
+	depends on ARCH_REALTEK
+	default y
+	select GPIOLIB_IRQCHIP
+	help
+	  This option enables support for GPIOs found on Realtek DHC(Digital
+	  Home Center) SoCs family, including RTD1295, RTD1315E, RTD1319,
+	  RTD1319D, RTD1395, RTD1619 and RTD1619B.
+
+	  Say yes here to support GPIO functionality and GPIO interrupt on
+	  Realtek DHC SoCs.
 
 config GPIO_SAMA5D2_PIOBU
 	tristate "SAMA5D2 PIOBU GPIO support"
@@ -691,8 +723,9 @@ config GPIO_UNIPHIER
 	  Say yes here to support UniPhier GPIOs.
 
 config GPIO_VF610
-	def_bool y
-	depends on ARCH_MXC
+	bool "VF610 GPIO support"
+	default y if SOC_VF610
+	depends on ARCH_MXC || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support i.MX or Vybrid vf610 GPIOs.
@@ -1220,6 +1253,16 @@ config GPIO_BD9571MWV
 	  This driver can also be built as a module. If so, the module
 	  will be called gpio-bd9571mwv.
 
+config GPIO_CROS_EC
+	tristate "ChromeOS EC GPIO support"
+	depends on CROS_EC
+	help
+	  GPIO driver for the ChromeOS Embedded Controller (EC). GPIOs
+	  cannot be set unless the system is unlocked.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gpio-cros-ec.
+
 config GPIO_CRYSTAL_COVE
 	tristate "GPIO support for Crystal Cove PMIC"
 	depends on (X86 || COMPILE_TEST) && INTEL_SOC_PMIC
@@ -1312,9 +1355,9 @@ config GPIO_KEMPLD
 
 config GPIO_LJCA
 	tristate "INTEL La Jolla Cove Adapter GPIO support"
-	depends on MFD_LJCA
+	depends on USB_LJCA
 	select GPIOLIB_IRQCHIP
-	default MFD_LJCA
+	default USB_LJCA
 	help
 	  Select this option to enable GPIO driver for the INTEL
 	  La Jolla Cove Adapter (LJCA) board.
@@ -1790,9 +1833,11 @@ config GPIO_LATCH
 	  connected to other GPIOs.
 
 config GPIO_MOCKUP
-	tristate "GPIO Testing Driver"
+	tristate "GPIO Testing Driver (DEPRECATED)"
 	select IRQ_SIM
 	help
+	  This module is DEPRECATED. Please consider using gpio-sim instead.
+
 	  This enables GPIO Testing driver, which provides a way to test GPIO
 	  subsystem through sysfs (or char device) and debugfs.
 	  User could use it through the script in

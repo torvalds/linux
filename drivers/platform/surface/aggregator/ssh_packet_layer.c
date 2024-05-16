@@ -1887,9 +1887,9 @@ int ssh_ptl_rx_stop(struct ssh_ptl *ptl)
  * Return: Returns the number of bytes transferred (positive or zero) on
  * success. Returns %-ESHUTDOWN if the packet layer has been shut down.
  */
-int ssh_ptl_rx_rcvbuf(struct ssh_ptl *ptl, const u8 *buf, size_t n)
+ssize_t ssh_ptl_rx_rcvbuf(struct ssh_ptl *ptl, const u8 *buf, size_t n)
 {
-	int used;
+	size_t used;
 
 	if (test_bit(SSH_PTL_SF_SHUTDOWN_BIT, &ptl->state))
 		return -ESHUTDOWN;

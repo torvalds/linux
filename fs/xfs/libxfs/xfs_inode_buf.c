@@ -18,6 +18,7 @@
 #include "xfs_trans.h"
 #include "xfs_ialloc.h"
 #include "xfs_dir2.h"
+#include "xfs_health.h"
 
 #include <linux/iversion.h>
 
@@ -132,9 +133,14 @@ xfs_imap_to_bp(
 	struct xfs_imap		*imap,
 	struct xfs_buf		**bpp)
 {
-	return xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
-				   imap->im_len, XBF_UNMAPPED, bpp,
-				   &xfs_inode_buf_ops);
+	int			error;
+
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
+			imap->im_len, XBF_UNMAPPED, bpp, &xfs_inode_buf_ops);
+	if (xfs_metadata_is_sick(error))
+		xfs_agno_mark_sick(mp, xfs_daddr_to_agno(mp, imap->im_blkno),
+				XFS_SICK_AG_INODES);
+	return error;
 }
 
 static inline struct timespec64 xfs_inode_decode_bigtime(uint64_t ts)
@@ -220,8 +226,10 @@ xfs_inode_from_disk(
 	 * a time before epoch is converted to a time long after epoch
 	 * on 64 bit systems.
 	 */
-	inode->i_atime = xfs_inode_from_disk_ts(from, from->di_atime);
-	inode->i_mtime = xfs_inode_from_disk_ts(from, from->di_mtime);
+	inode_set_atime_to_ts(inode,
+			      xfs_inode_from_disk_ts(from, from->di_atime));
+	inode_set_mtime_to_ts(inode,
+			      xfs_inode_from_disk_ts(from, from->di_mtime));
 	inode_set_ctime_to_ts(inode,
 			      xfs_inode_from_disk_ts(from, from->di_ctime));
 
@@ -315,8 +323,8 @@ xfs_inode_to_disk(
 	to->di_projid_lo = cpu_to_be16(ip->i_projid & 0xffff);
 	to->di_projid_hi = cpu_to_be16(ip->i_projid >> 16);
 
-	to->di_atime = xfs_inode_to_disk_ts(ip, inode->i_atime);
-	to->di_mtime = xfs_inode_to_disk_ts(ip, inode->i_mtime);
+	to->di_atime = xfs_inode_to_disk_ts(ip, inode_get_atime(inode));
+	to->di_mtime = xfs_inode_to_disk_ts(ip, inode_get_mtime(inode));
 	to->di_ctime = xfs_inode_to_disk_ts(ip, inode_get_ctime(inode));
 	to->di_nlink = cpu_to_be32(inode->i_nlink);
 	to->di_gen = cpu_to_be32(inode->i_generation);
@@ -506,6 +514,9 @@ xfs_dinode_verify(
 
 	/* Fork checks carried over from xfs_iformat_fork */
 	if (mode && nextents + naextents > nblocks)
+		return __this_address;
+
+	if (nextents + naextents == 0 && nblocks != 0)
 		return __this_address;
 
 	if (S_ISDIR(mode) && nextents > mp->m_dir_geo->max_extents)

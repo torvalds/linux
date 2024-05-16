@@ -162,10 +162,10 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		interrupts = <1 2 0xf08>,
-			     <1 3 0xf08>,
-			     <1 4 0xf08>,
-			     <1 1 0xf08>;
+		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <48000000>;
 		always-on;
 	};
@@ -224,7 +224,7 @@
 		};
 
 		sdhci: mmc@7824900 {
-			compatible = "qcom,sdhci-msm-v4";
+			compatible = "qcom,ipq4019-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0x7824900 0x11c>, <0x7824000 0x800>;
 			reg-names = "hc", "core";
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
@@ -350,34 +350,29 @@
 			reg = <0x0b0b8000 0x1000>, <0xb008000 0x1000>;
 		};
 
-		saw0: regulator@b089000 {
-			compatible = "qcom,saw2";
+		saw0: power-manager@b089000 {
+			compatible = "qcom,ipq4019-saw2-cpu", "qcom,saw2";
 			reg = <0x0b089000 0x1000>, <0x0b009000 0x1000>;
-			regulator;
 		};
 
-		saw1: regulator@b099000 {
-			compatible = "qcom,saw2";
+		saw1: power-manager@b099000 {
+			compatible = "qcom,ipq4019-saw2-cpu", "qcom,saw2";
 			reg = <0x0b099000 0x1000>, <0x0b009000 0x1000>;
-			regulator;
 		};
 
-		saw2: regulator@b0a9000 {
-			compatible = "qcom,saw2";
+		saw2: power-manager@b0a9000 {
+			compatible = "qcom,ipq4019-saw2-cpu", "qcom,saw2";
 			reg = <0x0b0a9000 0x1000>, <0x0b009000 0x1000>;
-			regulator;
 		};
 
-		saw3: regulator@b0b9000 {
-			compatible = "qcom,saw2";
+		saw3: power-manager@b0b9000 {
+			compatible = "qcom,ipq4019-saw2-cpu", "qcom,saw2";
 			reg = <0x0b0b9000 0x1000>, <0x0b009000 0x1000>;
-			regulator;
 		};
 
-		saw_l2: regulator@b012000 {
-			compatible = "qcom,saw2";
+		saw_l2: power-manager@b012000 {
+			compatible = "qcom,ipq4019-saw2-l2", "qcom,saw2";
 			reg = <0xb012000 0x1000>;
-			regulator;
 		};
 
 		blsp1_uart1: serial@78af000 {
@@ -417,7 +412,7 @@
 			reg = <0x4ab000 0x4>;
 		};
 
-		pcie0: pci@40000000 {
+		pcie0: pcie@40000000 {
 			compatible = "qcom,pcie-ipq4019";
 			reg = <0x40000000 0xf1d>,
 			      <0x40000f20 0xa8>,
@@ -684,7 +679,7 @@
 			clocks = <&gcc GCC_USB2_MASTER_CLK>,
 				 <&gcc GCC_USB2_SLEEP_CLK>,
 				 <&gcc GCC_USB2_MOCK_UTMI_CLK>;
-			clock-names = "master", "sleep", "mock_utmi";
+			clock-names = "core", "sleep", "mock_utmi";
 			ranges;
 			status = "disabled";
 

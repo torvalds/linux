@@ -98,32 +98,25 @@ The possible values in this file are:
    * - 'Vulnerable'
      - The CPU is affected by this vulnerability and the microcode and kernel mitigation are not applied.
    * - 'Vulnerable: Clear CPU buffers attempted, no microcode'
-     - The system tries to clear the buffers but the microcode might not support the operation.
+     - The processor is vulnerable but microcode is not updated. The
+       mitigation is enabled on a best effort basis.
+
+       If the processor is vulnerable but the availability of the microcode
+       based mitigation mechanism is not advertised via CPUID, the kernel
+       selects a best effort mitigation mode. This mode invokes the mitigation
+       instructions without a guarantee that they clear the CPU buffers.
+
+       This is done to address virtualization scenarios where the host has the
+       microcode update applied, but the hypervisor is not yet updated to
+       expose the CPUID to the guest. If the host has updated microcode the
+       protection takes effect; otherwise a few CPU cycles are wasted
+       pointlessly.
    * - 'Mitigation: Clear CPU buffers'
      - The microcode has been updated to clear the buffers. TSX is still enabled.
    * - 'Mitigation: TSX disabled'
      - TSX is disabled.
    * - 'Not affected'
      - The CPU is not affected by this issue.
-
-.. _ucode_needed:
-
-Best effort mitigation mode
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If the processor is vulnerable, but the availability of the microcode-based
-mitigation mechanism is not advertised via CPUID the kernel selects a best
-effort mitigation mode.  This mode invokes the mitigation instructions
-without a guarantee that they clear the CPU buffers.
-
-This is done to address virtualization scenarios where the host has the
-microcode update applied, but the hypervisor is not yet updated to expose the
-CPUID to the guest. If the host has updated microcode the protection takes
-effect; otherwise a few CPU cycles are wasted pointlessly.
-
-The state in the tsx_async_abort sysfs file reflects this situation
-accordingly.
-
 
 Mitigation mechanism
 --------------------

@@ -128,3 +128,4 @@ module_exit(exit_rc_map_manli)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("MANLI MTV00[0x0c] and BeholdTV 40[13] remote controller keytable");

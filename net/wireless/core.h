@@ -3,7 +3,7 @@
  * Wireless configuration interface internals.
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
@@ -160,6 +160,16 @@ extern struct workqueue_struct *cfg80211_wq;
 extern struct list_head cfg80211_rdev_list;
 extern int cfg80211_rdev_list_generation;
 
+/* This is constructed like this so it can be used in if/else */
+static inline int for_each_rdev_check_rtnl(void)
+{
+	ASSERT_RTNL();
+	return 0;
+}
+#define for_each_rdev(rdev)						\
+	if (for_each_rdev_check_rtnl()) {} else				\
+		list_for_each_entry(rdev, &cfg80211_rdev_list, list)
+
 struct cfg80211_internal_bss {
 	struct list_head list;
 	struct list_head hidden_list;
@@ -225,22 +235,6 @@ void cfg80211_init_wdev(struct wireless_dev *wdev);
 void cfg80211_register_wdev(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev);
 
-static inline void wdev_lock(struct wireless_dev *wdev)
-	__acquires(wdev)
-{
-	mutex_lock(&wdev->mtx);
-	__acquire(wdev->mtx);
-}
-
-static inline void wdev_unlock(struct wireless_dev *wdev)
-	__releases(wdev)
-{
-	__release(wdev->mtx);
-	mutex_unlock(&wdev->mtx);
-}
-
-#define ASSERT_WDEV_LOCK(wdev) lockdep_assert_held(&(wdev)->mtx)
-
 static inline bool cfg80211_has_monitors_only(struct cfg80211_registered_device *rdev)
 {
 	lockdep_assert_held(&rdev->wiphy.mtx);
@@ -276,7 +270,7 @@ struct cfg80211_event {
 			struct ieee80211_channel *channel;
 		} ij;
 		struct {
-			u8 bssid[ETH_ALEN];
+			u8 peer_addr[ETH_ALEN];
 			const u8 *td_bitmap;
 			u8 td_bitmap_len;
 		} pa;
@@ -299,6 +293,7 @@ struct cfg80211_cqm_config {
 	u32 rssi_hyst;
 	s32 last_rssi_event_value;
 	enum nl80211_cqm_rssi_threshold_event last_rssi_event_type;
+	bool use_range_api;
 	int n_rssi_thresholds;
 	s32 rssi_thresholds[] __counted_by(n_rssi_thresholds);
 };
@@ -329,8 +324,6 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 			 struct cfg80211_ibss_params *params,
 			 struct cfg80211_cached_keys *connkeys);
 void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
-int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
 void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
@@ -345,8 +338,6 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
 			 struct mesh_setup *setup,
 			 const struct mesh_config *conf);
-int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev);
 int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
 int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
@@ -354,21 +345,13 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 			      struct cfg80211_chan_def *chandef);
 
 /* OCB */
-int __cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
-			struct net_device *dev,
-			struct ocb_setup *setup);
 int cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
 		      struct net_device *dev,
 		      struct ocb_setup *setup);
-int __cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
-			 struct net_device *dev);
 int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev);
 
 /* AP */
-int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, int link,
-		       bool notify);
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev, int link,
 		     bool notify);
@@ -379,7 +362,8 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct cfg80211_auth_request *req);
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
-			struct cfg80211_assoc_request *req);
+			struct cfg80211_assoc_request *req,
+			struct netlink_ext_ack *extack);
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, const u8 *bssid,
 			 const u8 *ie, int ie_len, u16 reason,
@@ -422,7 +406,7 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			bool wextev);
 void __cfg80211_roamed(struct wireless_dev *wdev,
 		       struct cfg80211_roam_info *info);
-void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid,
+void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *peer_addr,
 				const u8 *td_bitmap, u8 td_bitmap_len);
 int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev);
@@ -464,7 +448,8 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev, enum nl80211_iftype ntype,
 			  struct vif_params *params);
 void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev);
-void cfg80211_process_wiphy_works(struct cfg80211_registered_device *rdev);
+void cfg80211_process_wiphy_works(struct cfg80211_registered_device *rdev,
+				  struct wiphy_work *end);
 void cfg80211_process_wdev_events(struct wireless_dev *wdev);
 
 bool cfg80211_does_bw_fit_range(const struct ieee80211_freq_range *freq_range,
@@ -474,28 +459,14 @@ int cfg80211_scan(struct cfg80211_registered_device *rdev);
 
 extern struct work_struct cfg80211_disconnect_work;
 
-/**
- * cfg80211_chandef_dfs_usable - checks if chandef is DFS usable
- * @wiphy: the wiphy to validate against
- * @chandef: the channel definition to check
- *
- * Checks if chandef is usable and we can/need start CAC on such channel.
- *
- * Return: true if all channels available and at least
- *	   one channel requires CAC (NL80211_DFS_USABLE)
- */
-bool cfg80211_chandef_dfs_usable(struct wiphy *wiphy,
-				 const struct cfg80211_chan_def *chandef);
+#define NL80211_BSS_USE_FOR_ALL	(NL80211_BSS_USE_FOR_NORMAL | \
+				 NL80211_BSS_USE_FOR_MLD_LINK)
 
 void cfg80211_set_dfs_state(struct wiphy *wiphy,
 			    const struct cfg80211_chan_def *chandef,
 			    enum nl80211_dfs_state dfs_state);
 
 void cfg80211_dfs_channels_update_work(struct work_struct *work);
-
-unsigned int
-cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
-			      const struct cfg80211_chan_def *chandef);
 
 void cfg80211_sched_dfs_chan_update(struct cfg80211_registered_device *rdev);
 
@@ -521,6 +492,9 @@ bool cfg80211_is_sub_chan(struct cfg80211_chan_def *chandef,
 bool cfg80211_wdev_on_sub_chan(struct wireless_dev *wdev,
 			       struct ieee80211_channel *chan,
 			       bool primary_only);
+bool _cfg80211_chandef_usable(struct wiphy *wiphy,
+			      const struct cfg80211_chan_def *chandef,
+			      u32 prohibited_flags, bool monitor);
 
 static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 {
@@ -545,8 +519,6 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype, int num);
 
-void __cfg80211_leave(struct cfg80211_registered_device *rdev,
-		      struct wireless_dev *wdev);
 void cfg80211_leave(struct cfg80211_registered_device *rdev,
 		    struct wireless_dev *wdev);
 
@@ -580,5 +552,60 @@ void cfg80211_remove_links(struct wireless_dev *wdev);
 int cfg80211_remove_virtual_intf(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev);
 void cfg80211_wdev_release_link_bsses(struct wireless_dev *wdev, u16 link_mask);
+
+/**
+ * struct cfg80211_colocated_ap - colocated AP information
+ *
+ * @list: linked list to all colocated APs
+ * @bssid: BSSID of the reported AP
+ * @ssid: SSID of the reported AP
+ * @ssid_len: length of the ssid
+ * @center_freq: frequency the reported AP is on
+ * @unsolicited_probe: the reported AP is part of an ESS, where all the APs
+ *	that operate in the same channel as the reported AP and that might be
+ *	detected by a STA receiving this frame, are transmitting unsolicited
+ *	Probe Response frames every 20 TUs
+ * @oct_recommended: OCT is recommended to exchange MMPDUs with the reported AP
+ * @same_ssid: the reported AP has the same SSID as the reporting AP
+ * @multi_bss: the reported AP is part of a multiple BSSID set
+ * @transmitted_bssid: the reported AP is the transmitting BSSID
+ * @colocated_ess: all the APs that share the same ESS as the reported AP are
+ *	colocated and can be discovered via legacy bands.
+ * @short_ssid_valid: short_ssid is valid and can be used
+ * @short_ssid: the short SSID for this SSID
+ * @psd_20: The 20MHz PSD EIRP of the primary 20MHz channel for the reported AP
+ */
+struct cfg80211_colocated_ap {
+	struct list_head list;
+	u8 bssid[ETH_ALEN];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	size_t ssid_len;
+	u32 short_ssid;
+	u32 center_freq;
+	u8 unsolicited_probe:1,
+	   oct_recommended:1,
+	   same_ssid:1,
+	   multi_bss:1,
+	   transmitted_bssid:1,
+	   colocated_ess:1,
+	   short_ssid_valid:1;
+	s8 psd_20;
+};
+
+#if IS_ENABLED(CONFIG_CFG80211_KUNIT_TEST)
+#define EXPORT_SYMBOL_IF_CFG80211_KUNIT(sym) EXPORT_SYMBOL_IF_KUNIT(sym)
+#define VISIBLE_IF_CFG80211_KUNIT
+void cfg80211_free_coloc_ap_list(struct list_head *coloc_ap_list);
+
+int cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
+				struct list_head *list);
+
+size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
+			   const u8 *subie, size_t subie_len,
+			   u8 *new_ie, size_t new_ie_len);
+#else
+#define EXPORT_SYMBOL_IF_CFG80211_KUNIT(sym)
+#define VISIBLE_IF_CFG80211_KUNIT static
+#endif /* IS_ENABLED(CONFIG_CFG80211_KUNIT_TEST) */
 
 #endif /* __NET_WIRELESS_CORE_H */

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
+#include <linux/ras.h>
 #include "amd64_edac.h"
 #include <asm/amd_nb.h>
 
@@ -996,15 +997,23 @@ static struct local_node_map {
 #define LNTM_NODE_COUNT				GENMASK(27, 16)
 #define LNTM_BASE_NODE_ID			GENMASK(11, 0)
 
-static int gpu_get_node_map(void)
+static int gpu_get_node_map(struct amd64_pvt *pvt)
 {
 	struct pci_dev *pdev;
 	int ret;
 	u32 tmp;
 
 	/*
-	 * Node ID 0 is reserved for CPUs.
-	 * Therefore, a non-zero Node ID means we've already cached the values.
+	 * Mapping of nodes from hardware-provided AMD Node ID to a
+	 * Linux logical one is applicable for MI200 models. Therefore,
+	 * return early for other heterogeneous systems.
+	 */
+	if (pvt->F3->device != PCI_DEVICE_ID_AMD_MI200_DF_F3)
+		return 0;
+
+	/*
+	 * Node ID 0 is reserved for CPUs. Therefore, a non-zero Node ID
+	 * means the values have been already cached.
 	 */
 	if (gpu_node_map.base_node_id)
 		return 0;
@@ -1041,281 +1050,6 @@ static int fixup_node_id(int node_id, struct mce *m)
 
 	/* Convert the hardware-provided AMD Node ID to a Linux logical one. */
 	return nid - gpu_node_map.base_node_id + 1;
-}
-
-/* Protect the PCI config register pairs used for DF indirect access. */
-static DEFINE_MUTEX(df_indirect_mutex);
-
-/*
- * Data Fabric Indirect Access uses FICAA/FICAD.
- *
- * Fabric Indirect Configuration Access Address (FICAA): Constructed based
- * on the device's Instance Id and the PCI function and register offset of
- * the desired register.
- *
- * Fabric Indirect Configuration Access Data (FICAD): There are FICAD LO
- * and FICAD HI registers but so far we only need the LO register.
- *
- * Use Instance Id 0xFF to indicate a broadcast read.
- */
-#define DF_BROADCAST	0xFF
-static int __df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo)
-{
-	struct pci_dev *F4;
-	u32 ficaa;
-	int err = -ENODEV;
-
-	if (node >= amd_nb_num())
-		goto out;
-
-	F4 = node_to_amd_nb(node)->link;
-	if (!F4)
-		goto out;
-
-	ficaa  = (instance_id == DF_BROADCAST) ? 0 : 1;
-	ficaa |= reg & 0x3FC;
-	ficaa |= (func & 0x7) << 11;
-	ficaa |= instance_id << 16;
-
-	mutex_lock(&df_indirect_mutex);
-
-	err = pci_write_config_dword(F4, 0x5C, ficaa);
-	if (err) {
-		pr_warn("Error writing DF Indirect FICAA, FICAA=0x%x\n", ficaa);
-		goto out_unlock;
-	}
-
-	err = pci_read_config_dword(F4, 0x98, lo);
-	if (err)
-		pr_warn("Error reading DF Indirect FICAD LO, FICAA=0x%x.\n", ficaa);
-
-out_unlock:
-	mutex_unlock(&df_indirect_mutex);
-
-out:
-	return err;
-}
-
-static int df_indirect_read_instance(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo)
-{
-	return __df_indirect_read(node, func, reg, instance_id, lo);
-}
-
-static int df_indirect_read_broadcast(u16 node, u8 func, u16 reg, u32 *lo)
-{
-	return __df_indirect_read(node, func, reg, DF_BROADCAST, lo);
-}
-
-struct addr_ctx {
-	u64 ret_addr;
-	u32 tmp;
-	u16 nid;
-	u8 inst_id;
-};
-
-static int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
-{
-	u64 dram_base_addr, dram_limit_addr, dram_hole_base;
-
-	u8 die_id_shift, die_id_mask, socket_id_shift, socket_id_mask;
-	u8 intlv_num_dies, intlv_num_chan, intlv_num_sockets;
-	u8 intlv_addr_sel, intlv_addr_bit;
-	u8 num_intlv_bits, hashed_bit;
-	u8 lgcy_mmio_hole_en, base = 0;
-	u8 cs_mask, cs_id = 0;
-	bool hash_enabled = false;
-
-	struct addr_ctx ctx;
-
-	memset(&ctx, 0, sizeof(ctx));
-
-	/* Start from the normalized address */
-	ctx.ret_addr = norm_addr;
-
-	ctx.nid = nid;
-	ctx.inst_id = umc;
-
-	/* Read D18F0x1B4 (DramOffset), check if base 1 is used. */
-	if (df_indirect_read_instance(nid, 0, 0x1B4, umc, &ctx.tmp))
-		goto out_err;
-
-	/* Remove HiAddrOffset from normalized address, if enabled: */
-	if (ctx.tmp & BIT(0)) {
-		u64 hi_addr_offset = (ctx.tmp & GENMASK_ULL(31, 20)) << 8;
-
-		if (norm_addr >= hi_addr_offset) {
-			ctx.ret_addr -= hi_addr_offset;
-			base = 1;
-		}
-	}
-
-	/* Read D18F0x110 (DramBaseAddress). */
-	if (df_indirect_read_instance(nid, 0, 0x110 + (8 * base), umc, &ctx.tmp))
-		goto out_err;
-
-	/* Check if address range is valid. */
-	if (!(ctx.tmp & BIT(0))) {
-		pr_err("%s: Invalid DramBaseAddress range: 0x%x.\n",
-			__func__, ctx.tmp);
-		goto out_err;
-	}
-
-	lgcy_mmio_hole_en = ctx.tmp & BIT(1);
-	intlv_num_chan	  = (ctx.tmp >> 4) & 0xF;
-	intlv_addr_sel	  = (ctx.tmp >> 8) & 0x7;
-	dram_base_addr	  = (ctx.tmp & GENMASK_ULL(31, 12)) << 16;
-
-	/* {0, 1, 2, 3} map to address bits {8, 9, 10, 11} respectively */
-	if (intlv_addr_sel > 3) {
-		pr_err("%s: Invalid interleave address select %d.\n",
-			__func__, intlv_addr_sel);
-		goto out_err;
-	}
-
-	/* Read D18F0x114 (DramLimitAddress). */
-	if (df_indirect_read_instance(nid, 0, 0x114 + (8 * base), umc, &ctx.tmp))
-		goto out_err;
-
-	intlv_num_sockets = (ctx.tmp >> 8) & 0x1;
-	intlv_num_dies	  = (ctx.tmp >> 10) & 0x3;
-	dram_limit_addr	  = ((ctx.tmp & GENMASK_ULL(31, 12)) << 16) | GENMASK_ULL(27, 0);
-
-	intlv_addr_bit = intlv_addr_sel + 8;
-
-	/* Re-use intlv_num_chan by setting it equal to log2(#channels) */
-	switch (intlv_num_chan) {
-	case 0:	intlv_num_chan = 0; break;
-	case 1: intlv_num_chan = 1; break;
-	case 3: intlv_num_chan = 2; break;
-	case 5:	intlv_num_chan = 3; break;
-	case 7:	intlv_num_chan = 4; break;
-
-	case 8: intlv_num_chan = 1;
-		hash_enabled = true;
-		break;
-	default:
-		pr_err("%s: Invalid number of interleaved channels %d.\n",
-			__func__, intlv_num_chan);
-		goto out_err;
-	}
-
-	num_intlv_bits = intlv_num_chan;
-
-	if (intlv_num_dies > 2) {
-		pr_err("%s: Invalid number of interleaved nodes/dies %d.\n",
-			__func__, intlv_num_dies);
-		goto out_err;
-	}
-
-	num_intlv_bits += intlv_num_dies;
-
-	/* Add a bit if sockets are interleaved. */
-	num_intlv_bits += intlv_num_sockets;
-
-	/* Assert num_intlv_bits <= 4 */
-	if (num_intlv_bits > 4) {
-		pr_err("%s: Invalid interleave bits %d.\n",
-			__func__, num_intlv_bits);
-		goto out_err;
-	}
-
-	if (num_intlv_bits > 0) {
-		u64 temp_addr_x, temp_addr_i, temp_addr_y;
-		u8 die_id_bit, sock_id_bit, cs_fabric_id;
-
-		/*
-		 * Read FabricBlockInstanceInformation3_CS[BlockFabricID].
-		 * This is the fabric id for this coherent slave. Use
-		 * umc/channel# as instance id of the coherent slave
-		 * for FICAA.
-		 */
-		if (df_indirect_read_instance(nid, 0, 0x50, umc, &ctx.tmp))
-			goto out_err;
-
-		cs_fabric_id = (ctx.tmp >> 8) & 0xFF;
-		die_id_bit   = 0;
-
-		/* If interleaved over more than 1 channel: */
-		if (intlv_num_chan) {
-			die_id_bit = intlv_num_chan;
-			cs_mask	   = (1 << die_id_bit) - 1;
-			cs_id	   = cs_fabric_id & cs_mask;
-		}
-
-		sock_id_bit = die_id_bit;
-
-		/* Read D18F1x208 (SystemFabricIdMask). */
-		if (intlv_num_dies || intlv_num_sockets)
-			if (df_indirect_read_broadcast(nid, 1, 0x208, &ctx.tmp))
-				goto out_err;
-
-		/* If interleaved over more than 1 die. */
-		if (intlv_num_dies) {
-			sock_id_bit  = die_id_bit + intlv_num_dies;
-			die_id_shift = (ctx.tmp >> 24) & 0xF;
-			die_id_mask  = (ctx.tmp >> 8) & 0xFF;
-
-			cs_id |= ((cs_fabric_id & die_id_mask) >> die_id_shift) << die_id_bit;
-		}
-
-		/* If interleaved over more than 1 socket. */
-		if (intlv_num_sockets) {
-			socket_id_shift	= (ctx.tmp >> 28) & 0xF;
-			socket_id_mask	= (ctx.tmp >> 16) & 0xFF;
-
-			cs_id |= ((cs_fabric_id & socket_id_mask) >> socket_id_shift) << sock_id_bit;
-		}
-
-		/*
-		 * The pre-interleaved address consists of XXXXXXIIIYYYYY
-		 * where III is the ID for this CS, and XXXXXXYYYYY are the
-		 * address bits from the post-interleaved address.
-		 * "num_intlv_bits" has been calculated to tell us how many "I"
-		 * bits there are. "intlv_addr_bit" tells us how many "Y" bits
-		 * there are (where "I" starts).
-		 */
-		temp_addr_y = ctx.ret_addr & GENMASK_ULL(intlv_addr_bit - 1, 0);
-		temp_addr_i = (cs_id << intlv_addr_bit);
-		temp_addr_x = (ctx.ret_addr & GENMASK_ULL(63, intlv_addr_bit)) << num_intlv_bits;
-		ctx.ret_addr    = temp_addr_x | temp_addr_i | temp_addr_y;
-	}
-
-	/* Add dram base address */
-	ctx.ret_addr += dram_base_addr;
-
-	/* If legacy MMIO hole enabled */
-	if (lgcy_mmio_hole_en) {
-		if (df_indirect_read_broadcast(nid, 0, 0x104, &ctx.tmp))
-			goto out_err;
-
-		dram_hole_base = ctx.tmp & GENMASK(31, 24);
-		if (ctx.ret_addr >= dram_hole_base)
-			ctx.ret_addr += (BIT_ULL(32) - dram_hole_base);
-	}
-
-	if (hash_enabled) {
-		/* Save some parentheses and grab ls-bit at the end. */
-		hashed_bit =	(ctx.ret_addr >> 12) ^
-				(ctx.ret_addr >> 18) ^
-				(ctx.ret_addr >> 21) ^
-				(ctx.ret_addr >> 30) ^
-				cs_id;
-
-		hashed_bit &= BIT(0);
-
-		if (hashed_bit != ((ctx.ret_addr >> intlv_addr_bit) & BIT(0)))
-			ctx.ret_addr ^= BIT(intlv_addr_bit);
-	}
-
-	/* Is calculated system address is above DRAM limit address? */
-	if (ctx.ret_addr > dram_limit_addr)
-		goto out_err;
-
-	*sys_addr = ctx.ret_addr;
-	return 0;
-
-out_err:
-	return -EINVAL;
 }
 
 static int get_channel_from_ecc_syndrome(struct mem_ctl_info *, u16);
@@ -1907,7 +1641,7 @@ ddr3:
 /* On F10h and later ErrAddr is MC4_ADDR[47:1] */
 static u64 get_error_address(struct amd64_pvt *pvt, struct mce *m)
 {
-	u16 mce_nid = topology_die_id(m->extcpu);
+	u16 mce_nid = topology_amd_node_id(m->extcpu);
 	struct mem_ctl_info *mci;
 	u8 start_bit = 1;
 	u8 end_bit   = 47;
@@ -3065,9 +2799,10 @@ static void decode_umc_error(int node_id, struct mce *m)
 {
 	u8 ecc_type = (m->status >> 45) & 0x3;
 	struct mem_ctl_info *mci;
+	unsigned long sys_addr;
 	struct amd64_pvt *pvt;
+	struct atl_err a_err;
 	struct err_info err;
-	u64 sys_addr;
 
 	node_id = fixup_node_id(node_id, m);
 
@@ -3098,7 +2833,12 @@ static void decode_umc_error(int node_id, struct mce *m)
 
 	pvt->ops->get_err_info(m, &err);
 
-	if (umc_normaddr_to_sysaddr(m->addr, pvt->mc_node_id, err.channel, &sys_addr)) {
+	a_err.addr = m->addr;
+	a_err.ipid = m->ipid;
+	a_err.cpu  = m->extcpu;
+
+	sys_addr = amd_convert_umc_mca_addr_to_sys_addr(&a_err);
+	if (IS_ERR_VALUE(sys_addr)) {
 		err.err_code = ERR_NORM_ADDR;
 		goto log_error;
 	}
@@ -3438,7 +3178,7 @@ static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, u16 nid)
 	int cpu;
 
 	for_each_online_cpu(cpu)
-		if (topology_die_id(cpu) == nid)
+		if (topology_amd_node_id(cpu) == nid)
 			cpumask_set_cpu(cpu, mask);
 }
 
@@ -3851,7 +3591,7 @@ static void gpu_init_csrows(struct mem_ctl_info *mci)
 
 			dimm->nr_pages = gpu_get_csrow_nr_pages(pvt, umc, cs);
 			dimm->edac_mode = EDAC_SECDED;
-			dimm->mtype = MEM_HBM2;
+			dimm->mtype = pvt->dram_type;
 			dimm->dtype = DEV_X16;
 			dimm->grain = 64;
 		}
@@ -3880,7 +3620,7 @@ static bool gpu_ecc_enabled(struct amd64_pvt *pvt)
 	return true;
 }
 
-static inline u32 gpu_get_umc_base(u8 umc, u8 channel)
+static inline u32 gpu_get_umc_base(struct amd64_pvt *pvt, u8 umc, u8 channel)
 {
 	/*
 	 * On CPUs, there is one channel per UMC, so UMC numbering equals
@@ -3893,13 +3633,16 @@ static inline u32 gpu_get_umc_base(u8 umc, u8 channel)
 	 * On GPU nodes channels are selected in 3rd nibble
 	 * HBM chX[3:0]= [Y  ]5X[3:0]000;
 	 * HBM chX[7:4]= [Y+1]5X[3:0]000
+	 *
+	 * On MI300 APU nodes, same as GPU nodes but channels are selected
+	 * in the base address of 0x90000
 	 */
 	umc *= 2;
 
 	if (channel >= 4)
 		umc++;
 
-	return 0x50000 + (umc << 20) + ((channel % 4) << 12);
+	return pvt->gpu_umc_base + (umc << 20) + ((channel % 4) << 12);
 }
 
 static void gpu_read_mc_regs(struct amd64_pvt *pvt)
@@ -3910,7 +3653,7 @@ static void gpu_read_mc_regs(struct amd64_pvt *pvt)
 
 	/* Read registers from each UMC */
 	for_each_umc(i) {
-		umc_base = gpu_get_umc_base(i, 0);
+		umc_base = gpu_get_umc_base(pvt, i, 0);
 		umc = &pvt->umc[i];
 
 		amd_smn_read(nid, umc_base + UMCCH_UMC_CFG, &umc->umc_cfg);
@@ -3927,7 +3670,7 @@ static void gpu_read_base_mask(struct amd64_pvt *pvt)
 
 	for_each_umc(umc) {
 		for_each_chip_select(cs, umc, pvt) {
-			base_reg = gpu_get_umc_base(umc, cs) + UMCCH_BASE_ADDR;
+			base_reg = gpu_get_umc_base(pvt, umc, cs) + UMCCH_BASE_ADDR;
 			base = &pvt->csels[umc].csbases[cs];
 
 			if (!amd_smn_read(pvt->mc_node_id, base_reg, base)) {
@@ -3935,7 +3678,7 @@ static void gpu_read_base_mask(struct amd64_pvt *pvt)
 					 umc, cs, *base, base_reg);
 			}
 
-			mask_reg = gpu_get_umc_base(umc, cs) + UMCCH_ADDR_MASK;
+			mask_reg = gpu_get_umc_base(pvt, umc, cs) + UMCCH_ADDR_MASK;
 			mask = &pvt->csels[umc].csmasks[cs];
 
 			if (!amd_smn_read(pvt->mc_node_id, mask_reg, mask)) {
@@ -3960,7 +3703,7 @@ static int gpu_hw_info_get(struct amd64_pvt *pvt)
 {
 	int ret;
 
-	ret = gpu_get_node_map();
+	ret = gpu_get_node_map(pvt);
 	if (ret)
 		return ret;
 
@@ -4125,6 +3868,8 @@ static int per_family_init(struct amd64_pvt *pvt)
 			if (pvt->F3->device == PCI_DEVICE_ID_AMD_MI200_DF_F3) {
 				pvt->ctl_name		= "MI200";
 				pvt->max_mcs		= 4;
+				pvt->dram_type		= MEM_HBM2;
+				pvt->gpu_umc_base	= 0x50000;
 				pvt->ops		= &gpu_ops;
 			} else {
 				pvt->ctl_name		= "F19h_M30h";
@@ -4141,6 +3886,13 @@ static int per_family_init(struct amd64_pvt *pvt)
 		case 0x70 ... 0x7f:
 			pvt->ctl_name			= "F19h_M70h";
 			pvt->flags.zn_regs_v2		= 1;
+			break;
+		case 0x90 ... 0x9f:
+			pvt->ctl_name			= "F19h_M90h";
+			pvt->max_mcs			= 4;
+			pvt->dram_type			= MEM_HBM3;
+			pvt->gpu_umc_base		= 0x90000;
+			pvt->ops			= &gpu_ops;
 			break;
 		case 0xa0 ... 0xaf:
 			pvt->ctl_name			= "F19h_MA0h";
@@ -4180,23 +3932,33 @@ static const struct attribute_group *amd64_edac_attr_groups[] = {
 	NULL
 };
 
+/*
+ * For heterogeneous and APU models EDAC CHIP_SELECT and CHANNEL layers
+ * should be swapped to fit into the layers.
+ */
+static unsigned int get_layer_size(struct amd64_pvt *pvt, u8 layer)
+{
+	bool is_gpu = (pvt->ops == &gpu_ops);
+
+	if (!layer)
+		return is_gpu ? pvt->max_mcs
+			      : pvt->csels[0].b_cnt;
+	else
+		return is_gpu ? pvt->csels[0].b_cnt
+			      : pvt->max_mcs;
+}
+
 static int init_one_instance(struct amd64_pvt *pvt)
 {
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
 	int ret = -ENOMEM;
 
-	/*
-	 * For Heterogeneous family EDAC CHIP_SELECT and CHANNEL layers should
-	 * be swapped to fit into the layers.
-	 */
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
-	layers[0].size = (pvt->F3->device == PCI_DEVICE_ID_AMD_MI200_DF_F3) ?
-			 pvt->max_mcs : pvt->csels[0].b_cnt;
+	layers[0].size = get_layer_size(pvt, 0);
 	layers[0].is_virt_csrow = true;
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
-	layers[1].size = (pvt->F3->device == PCI_DEVICE_ID_AMD_MI200_DF_F3) ?
-			 pvt->csels[0].b_cnt : pvt->max_mcs;
+	layers[1].size = get_layer_size(pvt, 1);
 	layers[1].is_virt_csrow = false;
 
 	mci = edac_mc_alloc(pvt->mc_node_id, ARRAY_SIZE(layers), layers, 0);

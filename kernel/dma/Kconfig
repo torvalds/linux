@@ -135,12 +135,23 @@ config DMA_COHERENT_POOL
 
 config DMA_GLOBAL_POOL
 	select DMA_DECLARE_COHERENT
+	depends on !ARCH_HAS_DMA_SET_UNCACHED
+	depends on !DMA_DIRECT_REMAP
 	bool
 
 config DMA_DIRECT_REMAP
 	bool
 	select DMA_COHERENT_POOL
 	select DMA_NONCOHERENT_MMAP
+
+#
+# Fallback to arch code for DMA allocations.  This should eventually go away.
+#
+config ARCH_HAS_DMA_ALLOC
+	depends on !ARCH_HAS_DMA_SET_UNCACHED
+	depends on !DMA_DIRECT_REMAP
+	depends on !DMA_GLOBAL_POOL
+	bool
 
 config DMA_CMA
 	bool "DMA Contiguous Memory Allocator"

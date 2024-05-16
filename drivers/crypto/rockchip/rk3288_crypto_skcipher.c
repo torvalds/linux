@@ -445,8 +445,8 @@ static int rk_cipher_tfm_init(struct crypto_skcipher *tfm)
 		return PTR_ERR(ctx->fallback_tfm);
 	}
 
-	tfm->reqsize = sizeof(struct rk_cipher_rctx) +
-		crypto_skcipher_reqsize(ctx->fallback_tfm);
+	crypto_skcipher_set_reqsize(tfm, sizeof(struct rk_cipher_rctx) +
+				    crypto_skcipher_reqsize(ctx->fallback_tfm));
 
 	return 0;
 }

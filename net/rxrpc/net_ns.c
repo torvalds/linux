@@ -45,6 +45,7 @@ static __net_init int rxrpc_init_net(struct net *net)
 	atomic_set(&rxnet->nr_calls, 1);
 
 	atomic_set(&rxnet->nr_conns, 1);
+	INIT_LIST_HEAD(&rxnet->bundle_proc_list);
 	INIT_LIST_HEAD(&rxnet->conn_proc_list);
 	INIT_LIST_HEAD(&rxnet->service_conns);
 	rwlock_init(&rxnet->conn_lock);
@@ -77,6 +78,9 @@ static __net_init int rxrpc_init_net(struct net *net)
 			sizeof(struct seq_net_private));
 	proc_create_net("conns", 0444, rxnet->proc_net,
 			&rxrpc_connection_seq_ops,
+			sizeof(struct seq_net_private));
+	proc_create_net("bundles", 0444, rxnet->proc_net,
+			&rxrpc_bundle_seq_ops,
 			sizeof(struct seq_net_private));
 	proc_create_net("peers", 0444, rxnet->proc_net,
 			&rxrpc_peer_seq_ops,

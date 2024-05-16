@@ -150,10 +150,7 @@ static bool read_supported_features(struct hci_dev *hdev,
 
 	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, sizeof(cp), &cp,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR_OR_NULL(skb)) {
-		if (!skb)
-			skb = ERR_PTR(-EIO);
-
+	if (IS_ERR(skb)) {
 		bt_dev_err(hdev, "Failed to read MSFT supported features (%ld)",
 			   PTR_ERR(skb));
 		return false;
@@ -353,7 +350,7 @@ static void msft_remove_addr_filters_sync(struct hci_dev *hdev, u8 handle)
 
 		skb = __hci_cmd_sync(hdev, hdev->msft_opcode, sizeof(cp), &cp,
 				     HCI_CMD_TIMEOUT);
-		if (IS_ERR_OR_NULL(skb)) {
+		if (IS_ERR(skb)) {
 			kfree(address_filter);
 			continue;
 		}
@@ -442,11 +439,8 @@ static int msft_remove_monitor_sync(struct hci_dev *hdev,
 
 	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, sizeof(cp), &cp,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR_OR_NULL(skb)) {
-		if (!skb)
-			return -EIO;
+	if (IS_ERR(skb))
 		return PTR_ERR(skb);
-	}
 
 	return msft_le_cancel_monitor_advertisement_cb(hdev, hdev->msft_opcode,
 						       monitor, skb);
@@ -559,7 +553,7 @@ static int msft_add_monitor_sync(struct hci_dev *hdev,
 	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, total_size, cp,
 			     HCI_CMD_TIMEOUT);
 
-	if (IS_ERR_OR_NULL(skb)) {
+	if (IS_ERR(skb)) {
 		err = PTR_ERR(skb);
 		goto out_free;
 	}
@@ -740,10 +734,10 @@ static int msft_cancel_address_filter_sync(struct hci_dev *hdev, void *data)
 
 	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, sizeof(cp), &cp,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR_OR_NULL(skb)) {
+	if (IS_ERR(skb)) {
 		bt_dev_err(hdev, "MSFT: Failed to cancel address (%pMR) filter",
 			   &address_filter->bdaddr);
-		err = -EIO;
+		err = PTR_ERR(skb);
 		goto done;
 	}
 	kfree_skb(skb);
@@ -881,6 +875,7 @@ static int msft_add_address_filter_sync(struct hci_dev *hdev, void *data)
 		remove = true;
 		goto done;
 	}
+
 	cp->sub_opcode           = MSFT_OP_LE_MONITOR_ADVERTISEMENT;
 	cp->rssi_high		 = address_filter->rssi_high;
 	cp->rssi_low		 = address_filter->rssi_low;
@@ -893,7 +888,9 @@ static int msft_add_address_filter_sync(struct hci_dev *hdev, void *data)
 
 	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, size, cp,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR_OR_NULL(skb)) {
+	kfree(cp);
+
+	if (IS_ERR(skb)) {
 		bt_dev_err(hdev, "Failed to enable address %pMR filter",
 			   &address_filter->bdaddr);
 		skb = NULL;

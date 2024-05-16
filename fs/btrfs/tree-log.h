@@ -6,9 +6,17 @@
 #ifndef BTRFS_TREE_LOG_H
 #define BTRFS_TREE_LOG_H
 
+#include <linux/list.h>
+#include <linux/fs.h>
 #include "messages.h"
 #include "ctree.h"
 #include "transaction.h"
+
+struct inode;
+struct dentry;
+struct btrfs_ordered_extent;
+struct btrfs_root;
+struct btrfs_trans_handle;
 
 /* return value for btrfs_log_dentry_safe that means we don't need to log it at all */
 #define BTRFS_NO_LOG_SYNC 256
@@ -36,37 +44,20 @@ struct btrfs_log_ctx {
 	struct list_head conflict_inodes;
 	int num_conflict_inodes;
 	bool logging_conflict_inodes;
+	/*
+	 * Used for fsyncs that need to copy items from the subvolume tree to
+	 * the log tree (full sync flag set or copy everything flag set) to
+	 * avoid allocating a temporary extent buffer while holding a lock on
+	 * an extent buffer of the subvolume tree and under the log transaction.
+	 * Also helps to avoid allocating and freeing a temporary extent buffer
+	 * in case we need to process multiple leaves from the subvolume tree.
+	 */
+	struct extent_buffer *scratch_eb;
 };
 
-static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
-				      struct inode *inode)
-{
-	ctx->log_ret = 0;
-	ctx->log_transid = 0;
-	ctx->log_new_dentries = false;
-	ctx->logging_new_name = false;
-	ctx->logging_new_delayed_dentries = false;
-	ctx->logged_before = false;
-	ctx->inode = inode;
-	INIT_LIST_HEAD(&ctx->list);
-	INIT_LIST_HEAD(&ctx->ordered_extents);
-	INIT_LIST_HEAD(&ctx->conflict_inodes);
-	ctx->num_conflict_inodes = 0;
-	ctx->logging_conflict_inodes = false;
-}
-
-static inline void btrfs_release_log_ctx_extents(struct btrfs_log_ctx *ctx)
-{
-	struct btrfs_ordered_extent *ordered;
-	struct btrfs_ordered_extent *tmp;
-
-	ASSERT(inode_is_locked(ctx->inode));
-
-	list_for_each_entry_safe(ordered, tmp, &ctx->ordered_extents, log_list) {
-		list_del_init(&ordered->log_list);
-		btrfs_put_ordered_extent(ordered);
-	}
-}
+void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx, struct inode *inode);
+void btrfs_init_log_ctx_scratch_eb(struct btrfs_log_ctx *ctx);
+void btrfs_release_log_ctx_extents(struct btrfs_log_ctx *ctx);
 
 static inline void btrfs_set_log_full_commit(struct btrfs_trans_handle *trans)
 {

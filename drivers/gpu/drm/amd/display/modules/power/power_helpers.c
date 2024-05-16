@@ -31,7 +31,7 @@
 
 #define DIV_ROUNDUP(a, b) (((a)+((b)/2))/(b))
 #define bswap16_based_on_endian(big_endian, value) \
-	(big_endian) ? cpu_to_be16(value) : cpu_to_le16(value)
+	((big_endian) ? cpu_to_be16(value) : cpu_to_le16(value))
 
 /* Possible Min Reduction config from least aggressive to most aggressive
  *  0    1     2     3     4     5     6     7     8     9     10    11   12
@@ -839,6 +839,8 @@ bool is_psr_su_specific_panel(struct dc_link *link)
 				((dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x08) ||
 				(dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x07)))
 				isPSRSUSupported = false;
+			else if (dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x03)
+				isPSRSUSupported = false;
 			else if (dpcd_caps->psr_info.force_psrsu_cap == 0x1)
 				isPSRSUSupported = true;
 		}
@@ -969,6 +971,39 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 	}
 
 	return true;
+}
+
+void set_replay_coasting_vtotal(struct dc_link *link,
+	enum replay_coasting_vtotal_type type,
+	uint32_t vtotal)
+{
+	link->replay_settings.coasting_vtotal_table[type] = vtotal;
+}
+
+void set_replay_ips_full_screen_video_src_vtotal(struct dc_link *link, uint16_t vtotal)
+{
+	link->replay_settings.abm_with_ips_on_full_screen_video_pseudo_vtotal = vtotal;
+}
+
+void calculate_replay_link_off_frame_count(struct dc_link *link,
+	uint16_t vtotal, uint16_t htotal)
+{
+	uint8_t max_link_off_frame_count = 0;
+	uint16_t max_deviation_line = 0,  pixel_deviation_per_line = 0;
+
+	max_deviation_line = link->dpcd_caps.pr_info.max_deviation_line;
+	pixel_deviation_per_line = link->dpcd_caps.pr_info.pixel_deviation_per_line;
+
+	if (htotal != 0 && vtotal != 0)
+		max_link_off_frame_count = htotal * max_deviation_line / (pixel_deviation_per_line * vtotal);
+	else
+		ASSERT(0);
+
+	link->replay_settings.link_off_frame_count_level =
+		max_link_off_frame_count >= PR_LINK_OFF_FRAME_COUNT_BEST ? PR_LINK_OFF_FRAME_COUNT_BEST :
+		max_link_off_frame_count >= PR_LINK_OFF_FRAME_COUNT_GOOD ? PR_LINK_OFF_FRAME_COUNT_GOOD :
+		PR_LINK_OFF_FRAME_COUNT_FAIL;
+
 }
 
 bool fill_custom_backlight_caps(unsigned int config_no, struct dm_acpi_atif_backlight_caps *caps)

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/suspend.h>
 #include <asm/tlbflush.h>
 
 extern int restore_image(void);

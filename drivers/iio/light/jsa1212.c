@@ -12,10 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-#include <linux/acpi.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -438,7 +438,7 @@ static struct i2c_driver jsa1212_driver = {
 	.driver = {
 		.name	= JSA1212_DRIVER_NAME,
 		.pm	= pm_sleep_ptr(&jsa1212_pm_ops),
-		.acpi_match_table = ACPI_PTR(jsa1212_acpi_match),
+		.acpi_match_table = jsa1212_acpi_match,
 	},
 	.probe		= jsa1212_probe,
 	.remove		= jsa1212_remove,

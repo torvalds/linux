@@ -29,8 +29,19 @@ static int bcm84881_wait_init(struct phy_device *phydev)
 					 100000, 2000000, false);
 }
 
+static void bcm84881_fill_possible_interfaces(struct phy_device *phydev)
+{
+	unsigned long *possible = phydev->possible_interfaces;
+
+	__set_bit(PHY_INTERFACE_MODE_SGMII, possible);
+	__set_bit(PHY_INTERFACE_MODE_2500BASEX, possible);
+	__set_bit(PHY_INTERFACE_MODE_10GBASER, possible);
+}
+
 static int bcm84881_config_init(struct phy_device *phydev)
 {
+	bcm84881_fill_possible_interfaces(phydev);
+
 	switch (phydev->interface) {
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_2500BASEX:
@@ -39,6 +50,7 @@ static int bcm84881_config_init(struct phy_device *phydev)
 	default:
 		return -ENODEV;
 	}
+
 	return 0;
 }
 

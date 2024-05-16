@@ -64,13 +64,13 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 		printk(KERN_WARNING "cio: orb indicates transport mode\n");
 		printk(KERN_WARNING "cio: last tcw:\n");
 		print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
-			       phys_to_virt(orb->tm.tcw),
+			       dma32_to_virt(orb->tm.tcw),
 			       sizeof(struct tcw), 0);
 	} else {
 		printk(KERN_WARNING "cio: orb indicates command mode\n");
-		if ((void *)(addr_t)orb->cmd.cpa ==
+		if (dma32_to_virt(orb->cmd.cpa) ==
 		    &private->dma_area->sense_ccw ||
-		    (void *)(addr_t)orb->cmd.cpa ==
+		    dma32_to_virt(orb->cmd.cpa) ==
 		    cdev->private->dma_area->iccws)
 			printk(KERN_WARNING "cio: last channel program "
 			       "(intern):\n");
@@ -78,7 +78,7 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 			printk(KERN_WARNING "cio: last channel program:\n");
 
 		print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
-			       phys_to_virt(orb->cmd.cpa),
+			       dma32_to_virt(orb->cmd.cpa),
 			       sizeof(struct ccw1), 0);
 	}
 	printk(KERN_WARNING "cio: ccw device state: %d\n",
@@ -504,6 +504,11 @@ callback:
 		ccw_device_done(cdev, DEV_STATE_ONLINE);
 		/* Deliver fake irb to device driver, if needed. */
 		if (cdev->private->flags.fake_irb) {
+			CIO_MSG_EVENT(2, "fakeirb: deliver device 0.%x.%04x intparm %lx type=%d\n",
+				      cdev->private->dev_id.ssid,
+				      cdev->private->dev_id.devno,
+				      cdev->private->intparm,
+				      cdev->private->flags.fake_irb);
 			create_fake_irb(&cdev->private->dma_area->irb,
 					cdev->private->flags.fake_irb);
 			cdev->private->flags.fake_irb = 0;

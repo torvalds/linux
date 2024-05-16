@@ -23,7 +23,7 @@
 #include "xfs_refcount.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_alloc_btree.h"
-#include "xfs_rtalloc.h"
+#include "xfs_rtbitmap.h"
 #include "xfs_ag.h"
 
 /* Convert an xfs_fsmap to an fsmap. */
@@ -483,11 +483,11 @@ xfs_getfsmap_rtdev_rtbitmap_helper(
 	xfs_rtblock_t			rtbno;
 	xfs_daddr_t			rec_daddr, len_daddr;
 
-	rtbno = rec->ar_startext * mp->m_sb.sb_rextsize;
+	rtbno = xfs_rtx_to_rtb(mp, rec->ar_startext);
 	rec_daddr = XFS_FSB_TO_BB(mp, rtbno);
 	irec.rm_startblock = rtbno;
 
-	rtbno = rec->ar_extcount * mp->m_sb.sb_rextsize;
+	rtbno = xfs_rtx_to_rtb(mp, rec->ar_extcount);
 	len_daddr = XFS_FSB_TO_BB(mp, rtbno);
 	irec.rm_blockcount = rtbno;
 
@@ -514,7 +514,7 @@ xfs_getfsmap_rtdev_rtbitmap(
 	uint64_t			eofs;
 	int				error;
 
-	eofs = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rextents * mp->m_sb.sb_rextsize);
+	eofs = XFS_FSB_TO_BB(mp, xfs_rtx_to_rtb(mp, mp->m_sb.sb_rextents));
 	if (keys[0].fmr_physical >= eofs)
 		return 0;
 	start_rtb = XFS_BB_TO_FSBT(mp,
@@ -539,11 +539,8 @@ xfs_getfsmap_rtdev_rtbitmap(
 	 * Set up query parameters to return free rtextents covering the range
 	 * we want.
 	 */
-	alow.ar_startext = start_rtb;
-	ahigh.ar_startext = end_rtb;
-	do_div(alow.ar_startext, mp->m_sb.sb_rextsize);
-	if (do_div(ahigh.ar_startext, mp->m_sb.sb_rextsize))
-		ahigh.ar_startext++;
+	alow.ar_startext = xfs_rtb_to_rtx(mp, start_rtb);
+	ahigh.ar_startext = xfs_rtb_to_rtxup(mp, end_rtb);
 	error = xfs_rtalloc_query_range(mp, tp, &alow, &ahigh,
 			xfs_getfsmap_rtdev_rtbitmap_helper, info);
 	if (error)
@@ -766,8 +763,8 @@ xfs_getfsmap_datadev_bnobt_query(
 		return xfs_getfsmap_datadev_bnobt_helper(*curpp, &key[1], info);
 
 	/* Allocate cursor for this AG and query_range it. */
-	*curpp = xfs_allocbt_init_cursor(tp->t_mountp, tp, info->agf_bp,
-			info->pag, XFS_BTNUM_BNO);
+	*curpp = xfs_bnobt_init_cursor(tp->t_mountp, tp, info->agf_bp,
+			info->pag);
 	key->ar_startblock = info->low.rm_startblock;
 	key[1].ar_startblock = info->high.rm_startblock;
 	return xfs_alloc_query_range(*curpp, key, &key[1],

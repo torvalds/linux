@@ -167,7 +167,6 @@ struct dcn10_link_enc_registers {
 	uint32_t DIO_LINKD_CNTL;
 	uint32_t DIO_LINKE_CNTL;
 	uint32_t DIO_LINKF_CNTL;
-	uint32_t DIG_FIFO_CTRL0;
 	uint32_t DIO_CLK_CNTL;
 	uint32_t DIG_BE_CLK_CNTL;
 };
@@ -475,9 +474,6 @@ struct dcn10_link_enc_registers {
 	type HPO_DP_ENC_SEL;\
 	type HPO_HDMI_ENC_SEL
 
-#define DCN32_LINK_ENCODER_REG_FIELD_LIST(type) \
-	type DIG_FIFO_OUTPUT_PIXEL_MODE
-
 #define DCN35_LINK_ENCODER_REG_FIELD_LIST(type) \
 	type DIG_BE_ENABLE;\
 	type DIG_RB_SWITCH_EN;\
@@ -512,7 +508,6 @@ struct dcn10_link_enc_shift {
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
-	DCN32_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 	DCN35_LINK_ENCODER_REG_FIELD_LIST(uint8_t);
 };
 
@@ -521,7 +516,6 @@ struct dcn10_link_enc_mask {
 	DCN20_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN30_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN31_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
-	DCN32_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 	DCN35_LINK_ENCODER_REG_FIELD_LIST(uint32_t);
 };
 

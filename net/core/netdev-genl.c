@@ -5,22 +5,61 @@
 #include <linux/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/xdp.h>
+#include <net/xdp_sock.h>
+#include <net/netdev_rx_queue.h>
+#include <net/netdev_queues.h>
+#include <net/busy_poll.h>
 
 #include "netdev-genl-gen.h"
+#include "dev.h"
+
+struct netdev_nl_dump_ctx {
+	unsigned long	ifindex;
+	unsigned int	rxq_idx;
+	unsigned int	txq_idx;
+	unsigned int	napi_id;
+};
+
+static struct netdev_nl_dump_ctx *netdev_dump_ctx(struct netlink_callback *cb)
+{
+	NL_ASSERT_DUMP_CTX_FITS(struct netdev_nl_dump_ctx);
+
+	return (struct netdev_nl_dump_ctx *)cb->ctx;
+}
 
 static int
 netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
 		   const struct genl_info *info)
 {
+	u64 xsk_features = 0;
+	u64 xdp_rx_meta = 0;
 	void *hdr;
 
 	hdr = genlmsg_iput(rsp, info);
 	if (!hdr)
 		return -EMSGSIZE;
 
+#define XDP_METADATA_KFUNC(_, flag, __, xmo) \
+	if (netdev->xdp_metadata_ops && netdev->xdp_metadata_ops->xmo) \
+		xdp_rx_meta |= flag;
+XDP_METADATA_KFUNC_xxx
+#undef XDP_METADATA_KFUNC
+
+	if (netdev->xsk_tx_metadata_ops) {
+		if (netdev->xsk_tx_metadata_ops->tmo_fill_timestamp)
+			xsk_features |= NETDEV_XSK_FLAGS_TX_TIMESTAMP;
+		if (netdev->xsk_tx_metadata_ops->tmo_request_checksum)
+			xsk_features |= NETDEV_XSK_FLAGS_TX_CHECKSUM;
+	}
+
 	if (nla_put_u32(rsp, NETDEV_A_DEV_IFINDEX, netdev->ifindex) ||
 	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XDP_FEATURES,
-			      netdev->xdp_features, NETDEV_A_DEV_PAD)) {
+			      netdev->xdp_features, NETDEV_A_DEV_PAD) ||
+	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XDP_RX_METADATA_FEATURES,
+			      xdp_rx_meta, NETDEV_A_DEV_PAD) ||
+	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XSK_FEATURES,
+			      xsk_features, NETDEV_A_DEV_PAD)) {
 		genlmsg_cancel(rsp, hdr);
 		return -EINVAL;
 	}
@@ -101,22 +140,538 @@ err_free_msg:
 
 int netdev_nl_dev_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct netdev_nl_dump_ctx *ctx = netdev_dump_ctx(cb);
 	struct net *net = sock_net(skb->sk);
 	struct net_device *netdev;
 	int err = 0;
 
 	rtnl_lock();
-	for_each_netdev_dump(net, netdev, cb->args[0]) {
+	for_each_netdev_dump(net, netdev, ctx->ifindex) {
 		err = netdev_nl_dev_fill(netdev, skb, genl_info_dump(cb));
 		if (err < 0)
 			break;
 	}
 	rtnl_unlock();
 
-	if (err != -EMSGSIZE)
+	return err;
+}
+
+static int
+netdev_nl_napi_fill_one(struct sk_buff *rsp, struct napi_struct *napi,
+			const struct genl_info *info)
+{
+	void *hdr;
+	pid_t pid;
+
+	if (WARN_ON_ONCE(!napi->dev))
+		return -EINVAL;
+	if (!(napi->dev->flags & IFF_UP))
+		return 0;
+
+	hdr = genlmsg_iput(rsp, info);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (napi->napi_id >= MIN_NAPI_ID &&
+	    nla_put_u32(rsp, NETDEV_A_NAPI_ID, napi->napi_id))
+		goto nla_put_failure;
+
+	if (nla_put_u32(rsp, NETDEV_A_NAPI_IFINDEX, napi->dev->ifindex))
+		goto nla_put_failure;
+
+	if (napi->irq >= 0 && nla_put_u32(rsp, NETDEV_A_NAPI_IRQ, napi->irq))
+		goto nla_put_failure;
+
+	if (napi->thread) {
+		pid = task_pid_nr(napi->thread);
+		if (nla_put_u32(rsp, NETDEV_A_NAPI_PID, pid))
+			goto nla_put_failure;
+	}
+
+	genlmsg_end(rsp, hdr);
+
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(rsp, hdr);
+	return -EMSGSIZE;
+}
+
+int netdev_nl_napi_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct napi_struct *napi;
+	struct sk_buff *rsp;
+	u32 napi_id;
+	int err;
+
+	if (GENL_REQ_ATTR_CHECK(info, NETDEV_A_NAPI_ID))
+		return -EINVAL;
+
+	napi_id = nla_get_u32(info->attrs[NETDEV_A_NAPI_ID]);
+
+	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!rsp)
+		return -ENOMEM;
+
+	rtnl_lock();
+
+	napi = napi_by_id(napi_id);
+	if (napi)
+		err = netdev_nl_napi_fill_one(rsp, napi, info);
+	else
+		err = -EINVAL;
+
+	rtnl_unlock();
+
+	if (err)
+		goto err_free_msg;
+
+	return genlmsg_reply(rsp, info);
+
+err_free_msg:
+	nlmsg_free(rsp);
+	return err;
+}
+
+static int
+netdev_nl_napi_dump_one(struct net_device *netdev, struct sk_buff *rsp,
+			const struct genl_info *info,
+			struct netdev_nl_dump_ctx *ctx)
+{
+	struct napi_struct *napi;
+	int err = 0;
+
+	if (!(netdev->flags & IFF_UP))
 		return err;
 
-	return skb->len;
+	list_for_each_entry(napi, &netdev->napi_list, dev_list) {
+		if (ctx->napi_id && napi->napi_id >= ctx->napi_id)
+			continue;
+
+		err = netdev_nl_napi_fill_one(rsp, napi, info);
+		if (err)
+			return err;
+		ctx->napi_id = napi->napi_id;
+	}
+	return err;
+}
+
+int netdev_nl_napi_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct netdev_nl_dump_ctx *ctx = netdev_dump_ctx(cb);
+	const struct genl_info *info = genl_info_dump(cb);
+	struct net *net = sock_net(skb->sk);
+	struct net_device *netdev;
+	u32 ifindex = 0;
+	int err = 0;
+
+	if (info->attrs[NETDEV_A_NAPI_IFINDEX])
+		ifindex = nla_get_u32(info->attrs[NETDEV_A_NAPI_IFINDEX]);
+
+	rtnl_lock();
+	if (ifindex) {
+		netdev = __dev_get_by_index(net, ifindex);
+		if (netdev)
+			err = netdev_nl_napi_dump_one(netdev, skb, info, ctx);
+		else
+			err = -ENODEV;
+	} else {
+		for_each_netdev_dump(net, netdev, ctx->ifindex) {
+			err = netdev_nl_napi_dump_one(netdev, skb, info, ctx);
+			if (err < 0)
+				break;
+			ctx->napi_id = 0;
+		}
+	}
+	rtnl_unlock();
+
+	return err;
+}
+
+static int
+netdev_nl_queue_fill_one(struct sk_buff *rsp, struct net_device *netdev,
+			 u32 q_idx, u32 q_type, const struct genl_info *info)
+{
+	struct netdev_rx_queue *rxq;
+	struct netdev_queue *txq;
+	void *hdr;
+
+	hdr = genlmsg_iput(rsp, info);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(rsp, NETDEV_A_QUEUE_ID, q_idx) ||
+	    nla_put_u32(rsp, NETDEV_A_QUEUE_TYPE, q_type) ||
+	    nla_put_u32(rsp, NETDEV_A_QUEUE_IFINDEX, netdev->ifindex))
+		goto nla_put_failure;
+
+	switch (q_type) {
+	case NETDEV_QUEUE_TYPE_RX:
+		rxq = __netif_get_rx_queue(netdev, q_idx);
+		if (rxq->napi && nla_put_u32(rsp, NETDEV_A_QUEUE_NAPI_ID,
+					     rxq->napi->napi_id))
+			goto nla_put_failure;
+		break;
+	case NETDEV_QUEUE_TYPE_TX:
+		txq = netdev_get_tx_queue(netdev, q_idx);
+		if (txq->napi && nla_put_u32(rsp, NETDEV_A_QUEUE_NAPI_ID,
+					     txq->napi->napi_id))
+			goto nla_put_failure;
+	}
+
+	genlmsg_end(rsp, hdr);
+
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(rsp, hdr);
+	return -EMSGSIZE;
+}
+
+static int netdev_nl_queue_validate(struct net_device *netdev, u32 q_id,
+				    u32 q_type)
+{
+	switch (q_type) {
+	case NETDEV_QUEUE_TYPE_RX:
+		if (q_id >= netdev->real_num_rx_queues)
+			return -EINVAL;
+		return 0;
+	case NETDEV_QUEUE_TYPE_TX:
+		if (q_id >= netdev->real_num_tx_queues)
+			return -EINVAL;
+	}
+	return 0;
+}
+
+static int
+netdev_nl_queue_fill(struct sk_buff *rsp, struct net_device *netdev, u32 q_idx,
+		     u32 q_type, const struct genl_info *info)
+{
+	int err = 0;
+
+	if (!(netdev->flags & IFF_UP))
+		return err;
+
+	err = netdev_nl_queue_validate(netdev, q_idx, q_type);
+	if (err)
+		return err;
+
+	return netdev_nl_queue_fill_one(rsp, netdev, q_idx, q_type, info);
+}
+
+int netdev_nl_queue_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	u32 q_id, q_type, ifindex;
+	struct net_device *netdev;
+	struct sk_buff *rsp;
+	int err;
+
+	if (GENL_REQ_ATTR_CHECK(info, NETDEV_A_QUEUE_ID) ||
+	    GENL_REQ_ATTR_CHECK(info, NETDEV_A_QUEUE_TYPE) ||
+	    GENL_REQ_ATTR_CHECK(info, NETDEV_A_QUEUE_IFINDEX))
+		return -EINVAL;
+
+	q_id = nla_get_u32(info->attrs[NETDEV_A_QUEUE_ID]);
+	q_type = nla_get_u32(info->attrs[NETDEV_A_QUEUE_TYPE]);
+	ifindex = nla_get_u32(info->attrs[NETDEV_A_QUEUE_IFINDEX]);
+
+	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!rsp)
+		return -ENOMEM;
+
+	rtnl_lock();
+
+	netdev = __dev_get_by_index(genl_info_net(info), ifindex);
+	if (netdev)
+		err = netdev_nl_queue_fill(rsp, netdev, q_id, q_type, info);
+	else
+		err = -ENODEV;
+
+	rtnl_unlock();
+
+	if (err)
+		goto err_free_msg;
+
+	return genlmsg_reply(rsp, info);
+
+err_free_msg:
+	nlmsg_free(rsp);
+	return err;
+}
+
+static int
+netdev_nl_queue_dump_one(struct net_device *netdev, struct sk_buff *rsp,
+			 const struct genl_info *info,
+			 struct netdev_nl_dump_ctx *ctx)
+{
+	int err = 0;
+	int i;
+
+	if (!(netdev->flags & IFF_UP))
+		return err;
+
+	for (i = ctx->rxq_idx; i < netdev->real_num_rx_queues;) {
+		err = netdev_nl_queue_fill_one(rsp, netdev, i,
+					       NETDEV_QUEUE_TYPE_RX, info);
+		if (err)
+			return err;
+		ctx->rxq_idx = i++;
+	}
+	for (i = ctx->txq_idx; i < netdev->real_num_tx_queues;) {
+		err = netdev_nl_queue_fill_one(rsp, netdev, i,
+					       NETDEV_QUEUE_TYPE_TX, info);
+		if (err)
+			return err;
+		ctx->txq_idx = i++;
+	}
+
+	return err;
+}
+
+int netdev_nl_queue_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct netdev_nl_dump_ctx *ctx = netdev_dump_ctx(cb);
+	const struct genl_info *info = genl_info_dump(cb);
+	struct net *net = sock_net(skb->sk);
+	struct net_device *netdev;
+	u32 ifindex = 0;
+	int err = 0;
+
+	if (info->attrs[NETDEV_A_QUEUE_IFINDEX])
+		ifindex = nla_get_u32(info->attrs[NETDEV_A_QUEUE_IFINDEX]);
+
+	rtnl_lock();
+	if (ifindex) {
+		netdev = __dev_get_by_index(net, ifindex);
+		if (netdev)
+			err = netdev_nl_queue_dump_one(netdev, skb, info, ctx);
+		else
+			err = -ENODEV;
+	} else {
+		for_each_netdev_dump(net, netdev, ctx->ifindex) {
+			err = netdev_nl_queue_dump_one(netdev, skb, info, ctx);
+			if (err < 0)
+				break;
+			ctx->rxq_idx = 0;
+			ctx->txq_idx = 0;
+		}
+	}
+	rtnl_unlock();
+
+	return err;
+}
+
+#define NETDEV_STAT_NOT_SET		(~0ULL)
+
+static void netdev_nl_stats_add(void *_sum, const void *_add, size_t size)
+{
+	const u64 *add = _add;
+	u64 *sum = _sum;
+
+	while (size) {
+		if (*add != NETDEV_STAT_NOT_SET && *sum != NETDEV_STAT_NOT_SET)
+			*sum += *add;
+		sum++;
+		add++;
+		size -= 8;
+	}
+}
+
+static int netdev_stat_put(struct sk_buff *rsp, unsigned int attr_id, u64 value)
+{
+	if (value == NETDEV_STAT_NOT_SET)
+		return 0;
+	return nla_put_uint(rsp, attr_id, value);
+}
+
+static int
+netdev_nl_stats_write_rx(struct sk_buff *rsp, struct netdev_queue_stats_rx *rx)
+{
+	if (netdev_stat_put(rsp, NETDEV_A_QSTATS_RX_PACKETS, rx->packets) ||
+	    netdev_stat_put(rsp, NETDEV_A_QSTATS_RX_BYTES, rx->bytes) ||
+	    netdev_stat_put(rsp, NETDEV_A_QSTATS_RX_ALLOC_FAIL, rx->alloc_fail))
+		return -EMSGSIZE;
+	return 0;
+}
+
+static int
+netdev_nl_stats_write_tx(struct sk_buff *rsp, struct netdev_queue_stats_tx *tx)
+{
+	if (netdev_stat_put(rsp, NETDEV_A_QSTATS_TX_PACKETS, tx->packets) ||
+	    netdev_stat_put(rsp, NETDEV_A_QSTATS_TX_BYTES, tx->bytes))
+		return -EMSGSIZE;
+	return 0;
+}
+
+static int
+netdev_nl_stats_queue(struct net_device *netdev, struct sk_buff *rsp,
+		      u32 q_type, int i, const struct genl_info *info)
+{
+	const struct netdev_stat_ops *ops = netdev->stat_ops;
+	struct netdev_queue_stats_rx rx;
+	struct netdev_queue_stats_tx tx;
+	void *hdr;
+
+	hdr = genlmsg_iput(rsp, info);
+	if (!hdr)
+		return -EMSGSIZE;
+	if (nla_put_u32(rsp, NETDEV_A_QSTATS_IFINDEX, netdev->ifindex) ||
+	    nla_put_u32(rsp, NETDEV_A_QSTATS_QUEUE_TYPE, q_type) ||
+	    nla_put_u32(rsp, NETDEV_A_QSTATS_QUEUE_ID, i))
+		goto nla_put_failure;
+
+	switch (q_type) {
+	case NETDEV_QUEUE_TYPE_RX:
+		memset(&rx, 0xff, sizeof(rx));
+		ops->get_queue_stats_rx(netdev, i, &rx);
+		if (!memchr_inv(&rx, 0xff, sizeof(rx)))
+			goto nla_cancel;
+		if (netdev_nl_stats_write_rx(rsp, &rx))
+			goto nla_put_failure;
+		break;
+	case NETDEV_QUEUE_TYPE_TX:
+		memset(&tx, 0xff, sizeof(tx));
+		ops->get_queue_stats_tx(netdev, i, &tx);
+		if (!memchr_inv(&tx, 0xff, sizeof(tx)))
+			goto nla_cancel;
+		if (netdev_nl_stats_write_tx(rsp, &tx))
+			goto nla_put_failure;
+		break;
+	}
+
+	genlmsg_end(rsp, hdr);
+	return 0;
+
+nla_cancel:
+	genlmsg_cancel(rsp, hdr);
+	return 0;
+nla_put_failure:
+	genlmsg_cancel(rsp, hdr);
+	return -EMSGSIZE;
+}
+
+static int
+netdev_nl_stats_by_queue(struct net_device *netdev, struct sk_buff *rsp,
+			 const struct genl_info *info,
+			 struct netdev_nl_dump_ctx *ctx)
+{
+	const struct netdev_stat_ops *ops = netdev->stat_ops;
+	int i, err;
+
+	if (!(netdev->flags & IFF_UP))
+		return 0;
+
+	i = ctx->rxq_idx;
+	while (ops->get_queue_stats_rx && i < netdev->real_num_rx_queues) {
+		err = netdev_nl_stats_queue(netdev, rsp, NETDEV_QUEUE_TYPE_RX,
+					    i, info);
+		if (err)
+			return err;
+		ctx->rxq_idx = i++;
+	}
+	i = ctx->txq_idx;
+	while (ops->get_queue_stats_tx && i < netdev->real_num_tx_queues) {
+		err = netdev_nl_stats_queue(netdev, rsp, NETDEV_QUEUE_TYPE_TX,
+					    i, info);
+		if (err)
+			return err;
+		ctx->txq_idx = i++;
+	}
+
+	ctx->rxq_idx = 0;
+	ctx->txq_idx = 0;
+	return 0;
+}
+
+static int
+netdev_nl_stats_by_netdev(struct net_device *netdev, struct sk_buff *rsp,
+			  const struct genl_info *info)
+{
+	struct netdev_queue_stats_rx rx_sum, rx;
+	struct netdev_queue_stats_tx tx_sum, tx;
+	const struct netdev_stat_ops *ops;
+	void *hdr;
+	int i;
+
+	ops = netdev->stat_ops;
+	/* Netdev can't guarantee any complete counters */
+	if (!ops->get_base_stats)
+		return 0;
+
+	memset(&rx_sum, 0xff, sizeof(rx_sum));
+	memset(&tx_sum, 0xff, sizeof(tx_sum));
+
+	ops->get_base_stats(netdev, &rx_sum, &tx_sum);
+
+	/* The op was there, but nothing reported, don't bother */
+	if (!memchr_inv(&rx_sum, 0xff, sizeof(rx_sum)) &&
+	    !memchr_inv(&tx_sum, 0xff, sizeof(tx_sum)))
+		return 0;
+
+	hdr = genlmsg_iput(rsp, info);
+	if (!hdr)
+		return -EMSGSIZE;
+	if (nla_put_u32(rsp, NETDEV_A_QSTATS_IFINDEX, netdev->ifindex))
+		goto nla_put_failure;
+
+	for (i = 0; i < netdev->real_num_rx_queues; i++) {
+		memset(&rx, 0xff, sizeof(rx));
+		if (ops->get_queue_stats_rx)
+			ops->get_queue_stats_rx(netdev, i, &rx);
+		netdev_nl_stats_add(&rx_sum, &rx, sizeof(rx));
+	}
+	for (i = 0; i < netdev->real_num_tx_queues; i++) {
+		memset(&tx, 0xff, sizeof(tx));
+		if (ops->get_queue_stats_tx)
+			ops->get_queue_stats_tx(netdev, i, &tx);
+		netdev_nl_stats_add(&tx_sum, &tx, sizeof(tx));
+	}
+
+	if (netdev_nl_stats_write_rx(rsp, &rx_sum) ||
+	    netdev_nl_stats_write_tx(rsp, &tx_sum))
+		goto nla_put_failure;
+
+	genlmsg_end(rsp, hdr);
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(rsp, hdr);
+	return -EMSGSIZE;
+}
+
+int netdev_nl_qstats_get_dumpit(struct sk_buff *skb,
+				struct netlink_callback *cb)
+{
+	struct netdev_nl_dump_ctx *ctx = netdev_dump_ctx(cb);
+	const struct genl_info *info = genl_info_dump(cb);
+	struct net *net = sock_net(skb->sk);
+	struct net_device *netdev;
+	unsigned int scope;
+	int err = 0;
+
+	scope = 0;
+	if (info->attrs[NETDEV_A_QSTATS_SCOPE])
+		scope = nla_get_uint(info->attrs[NETDEV_A_QSTATS_SCOPE]);
+
+	rtnl_lock();
+	for_each_netdev_dump(net, netdev, ctx->ifindex) {
+		if (!netdev->stat_ops)
+			continue;
+
+		switch (scope) {
+		case 0:
+			err = netdev_nl_stats_by_netdev(netdev, skb, info);
+			break;
+		case NETDEV_QSTATS_SCOPE_QUEUE:
+			err = netdev_nl_stats_by_queue(netdev, skb, info, ctx);
+			break;
+		}
+		if (err < 0)
+			break;
+	}
+	rtnl_unlock();
+
+	return err;
 }
 
 static int netdev_genl_netdevice_event(struct notifier_block *nb,

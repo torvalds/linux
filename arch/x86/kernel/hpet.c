@@ -52,7 +52,7 @@ unsigned long				hpet_address;
 u8					hpet_blockid; /* OS timer block num */
 bool					hpet_msi_disable;
 
-#ifdef CONFIG_GENERIC_MSI_IRQ
+#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_GENERIC_MSI_IRQ)
 static DEFINE_PER_CPU(struct hpet_channel *, cpu_hpet_channel);
 static struct irq_domain		*hpet_domain;
 #endif
@@ -469,7 +469,7 @@ static void __init hpet_legacy_clockevent_register(struct hpet_channel *hc)
 /*
  * HPET MSI Support
  */
-#ifdef CONFIG_GENERIC_MSI_IRQ
+#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_GENERIC_MSI_IRQ)
 static void hpet_msi_unmask(struct irq_data *data)
 {
 	struct hpet_channel *hc = irq_data_get_irq_handler_data(data);
@@ -568,7 +568,7 @@ static struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	fwspec.param_count = 1;
 	fwspec.param[0] = hpet_id;
 
-	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_ANY);
+	parent = irq_find_matching_fwspec(&fwspec, DOMAIN_BUS_GENERIC_MSI);
 	if (!parent) {
 		irq_domain_free_fwnode(fn);
 		kfree(domain_info);
@@ -707,7 +707,7 @@ static void __init hpet_select_clockevents(void)
 
 	hpet_base.nr_clockevents = 0;
 
-	/* No point if MSI is disabled or CPU has an Always Runing APIC Timer */
+	/* No point if MSI is disabled or CPU has an Always Running APIC Timer */
 	if (hpet_msi_disable || boot_cpu_has(X86_FEATURE_ARAT))
 		return;
 
@@ -965,7 +965,7 @@ static bool __init mwait_pc10_supported(void)
  * and per CPU timer interrupts.
  *
  * The probability that this problem is going to be solved in the
- * forseeable future is close to zero, so the kernel has to be cluttered
+ * foreseeable future is close to zero, so the kernel has to be cluttered
  * with heuristics to keep up with the ever growing amount of hardware and
  * firmware trainwrecks. Hopefully some day hardware people will understand
  * that the approach of "This can be fixed in software" is not sustainable.
@@ -1438,7 +1438,7 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 	memset(&curr_time, 0, sizeof(struct rtc_time));
 
 	if (hpet_rtc_flags & (RTC_UIE | RTC_AIE)) {
-		if (unlikely(mc146818_get_time(&curr_time) < 0)) {
+		if (unlikely(mc146818_get_time(&curr_time, 10) < 0)) {
 			pr_err_ratelimited("unable to read current time from RTC\n");
 			return IRQ_HANDLED;
 		}

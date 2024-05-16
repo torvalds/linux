@@ -656,7 +656,7 @@ EXPORT_SYMBOL_GPL(dm_bm_checksum);
 /*----------------------------------------------------------------*/
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@lists.linux.dev>");
 MODULE_DESCRIPTION("Immutable metadata library for dm");
 
 /*----------------------------------------------------------------*/

@@ -83,6 +83,14 @@ typedef unsigned int xfs_buf_flags_t;
 #define XFS_BSTATE_DISPOSE	 (1 << 0)	/* buffer being discarded */
 #define XFS_BSTATE_IN_FLIGHT	 (1 << 1)	/* I/O in flight */
 
+struct xfs_buf_cache {
+	spinlock_t		bc_lock;
+	struct rhashtable	bc_hash;
+};
+
+int xfs_buf_cache_init(struct xfs_buf_cache *bch);
+void xfs_buf_cache_destroy(struct xfs_buf_cache *bch);
+
 /*
  * The xfs_buftarg contains 2 notions of "sector size" -
  *
@@ -96,10 +104,12 @@ typedef unsigned int xfs_buf_flags_t;
  * The latter is derived from the underlying device, and controls direct IO
  * alignment constraints.
  */
-typedef struct xfs_buftarg {
+struct xfs_buftarg {
 	dev_t			bt_dev;
+	struct file		*bt_bdev_file;
 	struct block_device	*bt_bdev;
 	struct dax_device	*bt_daxdev;
+	struct file		*bt_file;
 	u64			bt_dax_part_off;
 	struct xfs_mount	*bt_mount;
 	unsigned int		bt_meta_sectorsize;
@@ -108,12 +118,15 @@ typedef struct xfs_buftarg {
 	size_t			bt_logical_sectormask;
 
 	/* LRU control structures */
-	struct shrinker		bt_shrinker;
+	struct shrinker		*bt_shrinker;
 	struct list_lru		bt_lru;
 
 	struct percpu_counter	bt_io_count;
 	struct ratelimit_state	bt_ioerror_rl;
-} xfs_buftarg_t;
+
+	/* built-in cache, if we're not using the perag one */
+	struct xfs_buf_cache	bt_cache[];
+};
 
 #define XB_PAGES	2
 
@@ -318,6 +331,7 @@ extern void xfs_buf_stale(struct xfs_buf *bp);
 /* Delayed Write Buffer Routines */
 extern void xfs_buf_delwri_cancel(struct list_head *);
 extern bool xfs_buf_delwri_queue(struct xfs_buf *, struct list_head *);
+void xfs_buf_delwri_queue_here(struct xfs_buf *bp, struct list_head *bl);
 extern int xfs_buf_delwri_submit(struct list_head *);
 extern int xfs_buf_delwri_submit_nowait(struct list_head *);
 extern int xfs_buf_delwri_pushbuf(struct xfs_buf *, struct list_head *);
@@ -364,7 +378,7 @@ xfs_buf_update_cksum(struct xfs_buf *bp, unsigned long cksum_offset)
  *	Handling of buftargs.
  */
 struct xfs_buftarg *xfs_alloc_buftarg(struct xfs_mount *mp,
-		struct block_device *bdev);
+		struct file *bdev_file);
 extern void xfs_free_buftarg(struct xfs_buftarg *);
 extern void xfs_buftarg_wait(struct xfs_buftarg *);
 extern void xfs_buftarg_drain(struct xfs_buftarg *);
@@ -376,5 +390,10 @@ extern int xfs_setsize_buftarg(struct xfs_buftarg *, unsigned int);
 int xfs_buf_reverify(struct xfs_buf *bp, const struct xfs_buf_ops *ops);
 bool xfs_verify_magic(struct xfs_buf *bp, __be32 dmagic);
 bool xfs_verify_magic16(struct xfs_buf *bp, __be16 dmagic);
+
+/* for xfs_buf_mem.c only: */
+int xfs_init_buftarg(struct xfs_buftarg *btp, size_t logical_sectorsize,
+		const char *descr);
+void xfs_destroy_buftarg(struct xfs_buftarg *btp);
 
 #endif	/* __XFS_BUF_H__ */

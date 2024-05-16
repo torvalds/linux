@@ -434,7 +434,7 @@ static struct bio *clone_bio(struct dm_target *ti, struct flakey_c *fc, struct b
 
 	remaining_size = size;
 
-	order = MAX_ORDER - 1;
+	order = MAX_PAGE_ORDER;
 	while (remaining_size) {
 		struct page *pages;
 		unsigned size_to_add, to_copy;
@@ -690,5 +690,5 @@ static struct target_type flakey_target = {
 module_dm(flakey);
 
 MODULE_DESCRIPTION(DM_NAME " flakey target");
-MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

@@ -163,12 +163,10 @@ static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 	    (!HAS_PCH_SPLIT(dev_priv) || HAS_PCH_NOP(dev_priv)))
 		return;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_LNL)
+	if (INTEL_PCH_TYPE(dev_priv) >= PCH_MTL)
 		hpd->pch_hpd = hpd_mtp;
 	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
 		hpd->pch_hpd = hpd_sde_dg1;
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_MTP)
-		hpd->pch_hpd = hpd_mtp;
 	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		hpd->pch_hpd = hpd_icp;
 	else if (HAS_PCH_CNP(dev_priv) || HAS_PCH_SPT(dev_priv))
@@ -1139,7 +1137,7 @@ static void xelpdp_hpd_irq_setup(struct drm_i915_private *i915)
 
 	if (INTEL_PCH_TYPE(i915) >= PCH_LNL)
 		xe2lpd_sde_hpd_irq_setup(i915);
-	else if (INTEL_PCH_TYPE(i915) >= PCH_MTP)
+	else if (INTEL_PCH_TYPE(i915) >= PCH_MTL)
 		mtp_hpd_irq_setup(i915);
 }
 
@@ -1361,10 +1359,23 @@ static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	bxt_hpd_detection_setup(dev_priv);
 }
 
+static void g45_hpd_peg_band_gap_wa(struct drm_i915_private *i915)
+{
+	/*
+	 * For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
+	 * 0xd.  Failure to do so will result in spurious interrupts being
+	 * generated on the port when a cable is not attached.
+	 */
+	intel_de_rmw(i915, PEG_BAND_GAP_DATA, 0xf, 0xd);
+}
+
 static void i915_hpd_enable_detection(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	u32 hotplug_en = hpd_mask_i915[encoder->hpd_pin];
+
+	if (IS_G45(i915))
+		g45_hpd_peg_band_gap_wa(i915);
 
 	/* HPD sense and interrupt enable are one and the same */
 	i915_hotplug_interrupt_update(i915, hotplug_en, hotplug_en);
@@ -1388,6 +1399,9 @@ static void i915_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	if (IS_G4X(dev_priv))
 		hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
 	hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
+
+	if (IS_G45(dev_priv))
+		g45_hpd_peg_band_gap_wa(dev_priv);
 
 	/* Ignore TV since it's buggy */
 	i915_hotplug_interrupt_update_locked(dev_priv,
@@ -1430,7 +1444,7 @@ void intel_hpd_enable_detection(struct intel_encoder *encoder)
 
 void intel_hpd_irq_setup(struct drm_i915_private *i915)
 {
-	if (i915->display_irqs_enabled && i915->display.funcs.hotplug)
+	if (i915->display.irq.display_irqs_enabled && i915->display.funcs.hotplug)
 		i915->display.funcs.hotplug->hpd_irq_setup(i915);
 }
 

@@ -96,6 +96,8 @@ static const struct serdes_mux lan966x_serdes_muxes[] = {
 	SERDES_MUX_SGMII(SERDES6G(1), 3, HSIO_HW_CFG_SD6G_1_CFG,
 			 HSIO_HW_CFG_SD6G_1_CFG_SET(1)),
 
+	SERDES_MUX_SGMII(SERDES6G(2), 4, 0, 0),
+
 	SERDES_MUX_RGMII(RGMII(0), 2, HSIO_HW_CFG_RGMII_0_CFG |
 			 HSIO_HW_CFG_RGMII_ENA |
 			 HSIO_HW_CFG_GMII_ENA,
@@ -516,7 +518,7 @@ static const struct phy_ops serdes_ops = {
 };
 
 static struct phy *serdes_simple_xlate(struct device *dev,
-				       struct of_phandle_args *args)
+				       const struct of_phandle_args *args)
 {
 	struct serdes_ctrl *ctrl = dev_get_drvdata(dev);
 	unsigned int port, idx, i;

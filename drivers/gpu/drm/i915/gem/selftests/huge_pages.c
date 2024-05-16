@@ -115,7 +115,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 		do {
 			struct page *page;
 
-			GEM_BUG_ON(order > MAX_ORDER);
+			GEM_BUG_ON(order > MAX_PAGE_ORDER);
 			page = alloc_pages(GFP | __GFP_ZERO, order);
 			if (!page)
 				goto err;
@@ -713,7 +713,7 @@ static int igt_ppgtt_huge_fill(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	unsigned int supported = RUNTIME_INFO(i915)->page_sizes;
-	bool has_pte64 = GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50);
+	bool has_pte64 = GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55);
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
 	unsigned long max_pages;
@@ -857,7 +857,7 @@ out:
 static int igt_ppgtt_64K(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	bool has_pte64 = GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50);
+	bool has_pte64 = GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55);
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;

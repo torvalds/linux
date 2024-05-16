@@ -4,6 +4,7 @@
  *
  * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -47,8 +48,8 @@ int hashtab_init(struct hashtab *h, u32 nel_hint)
 	return 0;
 }
 
-int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst,
-		     void *key, void *datum)
+int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst, void *key,
+		     void *datum)
 {
 	struct hashtab_node *newnode;
 
@@ -83,8 +84,7 @@ void hashtab_destroy(struct hashtab *h)
 	h->htable = NULL;
 }
 
-int hashtab_map(struct hashtab *h,
-		int (*apply)(void *k, void *d, void *args),
+int hashtab_map(struct hashtab *h, int (*apply)(void *k, void *d, void *args),
 		void *args)
 {
 	u32 i;
@@ -107,10 +107,12 @@ int hashtab_map(struct hashtab *h,
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 {
 	u32 i, chain_len, slots_used, max_chain_len;
+	u64 chain2_len_sum;
 	struct hashtab_node *cur;
 
 	slots_used = 0;
 	max_chain_len = 0;
+	chain2_len_sum = 0;
 	for (i = 0; i < h->size; i++) {
 		cur = h->htable[i];
 		if (cur) {
@@ -123,19 +125,21 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 
 			if (chain_len > max_chain_len)
 				max_chain_len = chain_len;
+
+			chain2_len_sum += (u64)chain_len * chain_len;
 		}
 	}
 
 	info->slots_used = slots_used;
 	info->max_chain_len = max_chain_len;
+	info->chain2_len_sum = chain2_len_sum;
 }
 #endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
 int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
-		int (*copy)(struct hashtab_node *new,
-			struct hashtab_node *orig, void *args),
-		int (*destroy)(void *k, void *d, void *args),
-		void *args)
+		      int (*copy)(struct hashtab_node *new,
+				  struct hashtab_node *orig, void *args),
+		      int (*destroy)(void *k, void *d, void *args), void *args)
 {
 	struct hashtab_node *cur, *tmp, *tail;
 	u32 i;
@@ -173,7 +177,7 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 
 	return 0;
 
- error:
+error:
 	for (i = 0; i < new->size; i++) {
 		for (cur = new->htable[i]; cur; cur = tmp) {
 			tmp = cur->next;
@@ -188,7 +192,7 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 
 void __init hashtab_cache_init(void)
 {
-		hashtab_node_cachep = kmem_cache_create("hashtab_node",
-			sizeof(struct hashtab_node),
-			0, SLAB_PANIC, NULL);
+	hashtab_node_cachep = kmem_cache_create("hashtab_node",
+						sizeof(struct hashtab_node), 0,
+						SLAB_PANIC, NULL);
 }

@@ -1,10 +1,11 @@
 
+#include <linux/atomic.h>
 #include <linux/export.h>
 #include <linux/generic-radix-tree.h>
 #include <linux/gfp.h>
 #include <linux/kmemleak.h>
 
-#define GENRADIX_ARY		(PAGE_SIZE / sizeof(struct genradix_node *))
+#define GENRADIX_ARY		(GENRADIX_NODE_SIZE / sizeof(struct genradix_node *))
 #define GENRADIX_ARY_SHIFT	ilog2(GENRADIX_ARY)
 
 struct genradix_node {
@@ -13,13 +14,13 @@ struct genradix_node {
 		struct genradix_node	*children[GENRADIX_ARY];
 
 		/* Leaf: */
-		u8			data[PAGE_SIZE];
+		u8			data[GENRADIX_NODE_SIZE];
 	};
 };
 
 static inline int genradix_depth_shift(unsigned depth)
 {
-	return PAGE_SHIFT + GENRADIX_ARY_SHIFT * depth;
+	return GENRADIX_NODE_SHIFT + GENRADIX_ARY_SHIFT * depth;
 }
 
 /*
@@ -32,7 +33,7 @@ static inline size_t genradix_depth_size(unsigned depth)
 
 /* depth that's needed for a genradix that can address up to ULONG_MAX: */
 #define GENRADIX_MAX_DEPTH	\
-	DIV_ROUND_UP(BITS_PER_LONG - PAGE_SHIFT, GENRADIX_ARY_SHIFT)
+	DIV_ROUND_UP(BITS_PER_LONG - GENRADIX_NODE_SHIFT, GENRADIX_ARY_SHIFT)
 
 #define GENRADIX_DEPTH_MASK				\
 	((unsigned long) (roundup_pow_of_two(GENRADIX_MAX_DEPTH + 1) - 1))
@@ -78,23 +79,12 @@ EXPORT_SYMBOL(__genradix_ptr);
 
 static inline struct genradix_node *genradix_alloc_node(gfp_t gfp_mask)
 {
-	struct genradix_node *node;
-
-	node = (struct genradix_node *)__get_free_page(gfp_mask|__GFP_ZERO);
-
-	/*
-	 * We're using pages (not slab allocations) directly for kernel data
-	 * structures, so we need to explicitly inform kmemleak of them in order
-	 * to avoid false positive memory leak reports.
-	 */
-	kmemleak_alloc(node, PAGE_SIZE, 1, gfp_mask);
-	return node;
+	return kzalloc(GENRADIX_NODE_SIZE, gfp_mask);
 }
 
 static inline void genradix_free_node(struct genradix_node *node)
 {
-	kmemleak_free(node);
-	free_page((unsigned long)node);
+	kfree(node);
 }
 
 /*
@@ -166,6 +156,10 @@ void *__genradix_iter_peek(struct genradix_iter *iter,
 	struct genradix_root *r;
 	struct genradix_node *n;
 	unsigned level, i;
+
+	if (iter->offset == SIZE_MAX)
+		return NULL;
+
 restart:
 	r = READ_ONCE(radix->root);
 	if (!r)
@@ -184,11 +178,18 @@ restart:
 			(GENRADIX_ARY - 1);
 
 		while (!n->children[i]) {
+			size_t objs_per_ptr = genradix_depth_size(level);
+
+			if (iter->offset + objs_per_ptr < iter->offset) {
+				iter->offset	= SIZE_MAX;
+				iter->pos	= SIZE_MAX;
+				return NULL;
+			}
+
 			i++;
-			iter->offset = round_down(iter->offset +
-					   genradix_depth_size(level),
-					   genradix_depth_size(level));
-			iter->pos = (iter->offset >> PAGE_SHIFT) *
+			iter->offset = round_down(iter->offset + objs_per_ptr,
+						  objs_per_ptr);
+			iter->pos = (iter->offset >> GENRADIX_NODE_SHIFT) *
 				objs_per_page;
 			if (i == GENRADIX_ARY)
 				goto restart;
@@ -197,9 +198,67 @@ restart:
 		n = n->children[i];
 	}
 
-	return &n->data[iter->offset & (PAGE_SIZE - 1)];
+	return &n->data[iter->offset & (GENRADIX_NODE_SIZE - 1)];
 }
 EXPORT_SYMBOL(__genradix_iter_peek);
+
+void *__genradix_iter_peek_prev(struct genradix_iter *iter,
+				struct __genradix *radix,
+				size_t objs_per_page,
+				size_t obj_size_plus_page_remainder)
+{
+	struct genradix_root *r;
+	struct genradix_node *n;
+	unsigned level, i;
+
+	if (iter->offset == SIZE_MAX)
+		return NULL;
+
+restart:
+	r = READ_ONCE(radix->root);
+	if (!r)
+		return NULL;
+
+	n	= genradix_root_to_node(r);
+	level	= genradix_root_to_depth(r);
+
+	if (ilog2(iter->offset) >= genradix_depth_shift(level)) {
+		iter->offset = genradix_depth_size(level);
+		iter->pos = (iter->offset >> GENRADIX_NODE_SHIFT) * objs_per_page;
+
+		iter->offset -= obj_size_plus_page_remainder;
+		iter->pos--;
+	}
+
+	while (level) {
+		level--;
+
+		i = (iter->offset >> genradix_depth_shift(level)) &
+			(GENRADIX_ARY - 1);
+
+		while (!n->children[i]) {
+			size_t objs_per_ptr = genradix_depth_size(level);
+
+			iter->offset = round_down(iter->offset, objs_per_ptr);
+			iter->pos = (iter->offset >> GENRADIX_NODE_SHIFT) * objs_per_page;
+
+			if (!iter->offset)
+				return NULL;
+
+			iter->offset -= obj_size_plus_page_remainder;
+			iter->pos--;
+
+			if (!i)
+				goto restart;
+			--i;
+		}
+
+		n = n->children[i];
+	}
+
+	return &n->data[iter->offset & (GENRADIX_NODE_SIZE - 1)];
+}
+EXPORT_SYMBOL(__genradix_iter_peek_prev);
 
 static void genradix_free_recurse(struct genradix_node *n, unsigned level)
 {
@@ -219,7 +278,7 @@ int __genradix_prealloc(struct __genradix *radix, size_t size,
 {
 	size_t offset;
 
-	for (offset = 0; offset < size; offset += PAGE_SIZE)
+	for (offset = 0; offset < size; offset += GENRADIX_NODE_SIZE)
 		if (!__genradix_ptr_alloc(radix, offset, gfp_mask))
 			return -ENOMEM;
 

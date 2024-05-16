@@ -13,9 +13,102 @@ use crate::{
 };
 
 /// Byte string without UTF-8 validity guarantee.
-///
-/// `BStr` is simply an alias to `[u8]`, but has a more evident semantical meaning.
-pub type BStr = [u8];
+#[repr(transparent)]
+pub struct BStr([u8]);
+
+impl BStr {
+    /// Returns the length of this string.
+    #[inline]
+    pub const fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if the string is empty.
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Creates a [`BStr`] from a `[u8]`.
+    #[inline]
+    pub const fn from_bytes(bytes: &[u8]) -> &Self {
+        // SAFETY: `BStr` is transparent to `[u8]`.
+        unsafe { &*(bytes as *const [u8] as *const BStr) }
+    }
+}
+
+impl fmt::Display for BStr {
+    /// Formats printable ASCII characters, escaping the rest.
+    ///
+    /// ```
+    /// # use kernel::{fmt, b_str, str::{BStr, CString}};
+    /// let ascii = b_str!("Hello, BStr!");
+    /// let s = CString::try_from_fmt(fmt!("{}", ascii)).unwrap();
+    /// assert_eq!(s.as_bytes(), "Hello, BStr!".as_bytes());
+    ///
+    /// let non_ascii = b_str!("🦀");
+    /// let s = CString::try_from_fmt(fmt!("{}", non_ascii)).unwrap();
+    /// assert_eq!(s.as_bytes(), "\\xf0\\x9f\\xa6\\x80".as_bytes());
+    /// ```
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for &b in &self.0 {
+            match b {
+                // Common escape codes.
+                b'\t' => f.write_str("\\t")?,
+                b'\n' => f.write_str("\\n")?,
+                b'\r' => f.write_str("\\r")?,
+                // Printable characters.
+                0x20..=0x7e => f.write_char(b as char)?,
+                _ => write!(f, "\\x{:02x}", b)?,
+            }
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Debug for BStr {
+    /// Formats printable ASCII characters with a double quote on either end,
+    /// escaping the rest.
+    ///
+    /// ```
+    /// # use kernel::{fmt, b_str, str::{BStr, CString}};
+    /// // Embedded double quotes are escaped.
+    /// let ascii = b_str!("Hello, \"BStr\"!");
+    /// let s = CString::try_from_fmt(fmt!("{:?}", ascii)).unwrap();
+    /// assert_eq!(s.as_bytes(), "\"Hello, \\\"BStr\\\"!\"".as_bytes());
+    ///
+    /// let non_ascii = b_str!("😺");
+    /// let s = CString::try_from_fmt(fmt!("{:?}", non_ascii)).unwrap();
+    /// assert_eq!(s.as_bytes(), "\"\\xf0\\x9f\\x98\\xba\"".as_bytes());
+    /// ```
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_char('"')?;
+        for &b in &self.0 {
+            match b {
+                // Common escape codes.
+                b'\t' => f.write_str("\\t")?,
+                b'\n' => f.write_str("\\n")?,
+                b'\r' => f.write_str("\\r")?,
+                // String escape characters.
+                b'\"' => f.write_str("\\\"")?,
+                b'\\' => f.write_str("\\\\")?,
+                // Printable characters.
+                0x20..=0x7e => f.write_char(b as char)?,
+                _ => write!(f, "\\x{:02x}", b)?,
+            }
+        }
+        f.write_char('"')
+    }
+}
+
+impl Deref for BStr {
+    type Target = [u8];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Creates a new [`BStr`] from a string literal.
 ///
@@ -33,7 +126,7 @@ pub type BStr = [u8];
 macro_rules! b_str {
     ($str:literal) => {{
         const S: &'static str = $str;
-        const C: &'static $crate::str::BStr = S.as_bytes();
+        const C: &'static $crate::str::BStr = $crate::str::BStr::from_bytes(S.as_bytes());
         C
     }};
 }
@@ -149,13 +242,13 @@ impl CStr {
         self.0.as_ptr() as _
     }
 
-    /// Convert the string to a byte slice without the trailing 0 byte.
+    /// Convert the string to a byte slice without the trailing `NUL` byte.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         &self.0[..self.len()]
     }
 
-    /// Convert the string to a byte slice containing the trailing 0 byte.
+    /// Convert the string to a byte slice containing the trailing `NUL` byte.
     #[inline]
     pub const fn as_bytes_with_nul(&self) -> &[u8] {
         &self.0
@@ -191,9 +284,9 @@ impl CStr {
     /// ```
     /// # use kernel::c_str;
     /// # use kernel::str::CStr;
+    /// let bar = c_str!("ツ");
     /// // SAFETY: String literals are guaranteed to be valid UTF-8
     /// // by the Rust compiler.
-    /// let bar = c_str!("ツ");
     /// assert_eq!(unsafe { bar.as_str_unchecked() }, "ツ");
     /// ```
     #[inline]
@@ -271,7 +364,7 @@ impl fmt::Debug for CStr {
 impl AsRef<BStr> for CStr {
     #[inline]
     fn as_ref(&self) -> &BStr {
-        self.as_bytes()
+        BStr::from_bytes(self.as_bytes())
     }
 }
 
@@ -280,7 +373,7 @@ impl Deref for CStr {
 
     #[inline]
     fn deref(&self) -> &Self::Target {
-        self.as_bytes()
+        self.as_ref()
     }
 }
 
@@ -327,7 +420,7 @@ where
 
     #[inline]
     fn index(&self, index: Idx) -> &Self::Output {
-        &self.as_bytes()[index]
+        &self.as_ref()[index]
     }
 }
 
@@ -357,6 +450,21 @@ macro_rules! c_str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::format;
+
+    const ALL_ASCII_CHARS: &'static str =
+        "\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x09\\x0a\\x0b\\x0c\\x0d\\x0e\\x0f\
+        \\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f \
+        !\"#$%&'()*+,-./0123456789:;<=>?@\
+        ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\x7f\
+        \\x80\\x81\\x82\\x83\\x84\\x85\\x86\\x87\\x88\\x89\\x8a\\x8b\\x8c\\x8d\\x8e\\x8f\
+        \\x90\\x91\\x92\\x93\\x94\\x95\\x96\\x97\\x98\\x99\\x9a\\x9b\\x9c\\x9d\\x9e\\x9f\
+        \\xa0\\xa1\\xa2\\xa3\\xa4\\xa5\\xa6\\xa7\\xa8\\xa9\\xaa\\xab\\xac\\xad\\xae\\xaf\
+        \\xb0\\xb1\\xb2\\xb3\\xb4\\xb5\\xb6\\xb7\\xb8\\xb9\\xba\\xbb\\xbc\\xbd\\xbe\\xbf\
+        \\xc0\\xc1\\xc2\\xc3\\xc4\\xc5\\xc6\\xc7\\xc8\\xc9\\xca\\xcb\\xcc\\xcd\\xce\\xcf\
+        \\xd0\\xd1\\xd2\\xd3\\xd4\\xd5\\xd6\\xd7\\xd8\\xd9\\xda\\xdb\\xdc\\xdd\\xde\\xdf\
+        \\xe0\\xe1\\xe2\\xe3\\xe4\\xe5\\xe6\\xe7\\xe8\\xe9\\xea\\xeb\\xec\\xed\\xee\\xef\
+        \\xf0\\xf1\\xf2\\xf3\\xf4\\xf5\\xf6\\xf7\\xf8\\xf9\\xfa\\xfb\\xfc\\xfd\\xfe\\xff";
 
     #[test]
     fn test_cstr_to_str() {
@@ -380,6 +488,69 @@ mod tests {
         let checked_cstr = CStr::from_bytes_with_nul(good_bytes).unwrap();
         let unchecked_str = unsafe { checked_cstr.as_str_unchecked() };
         assert_eq!(unchecked_str, "🐧");
+    }
+
+    #[test]
+    fn test_cstr_display() {
+        let hello_world = CStr::from_bytes_with_nul(b"hello, world!\0").unwrap();
+        assert_eq!(format!("{}", hello_world), "hello, world!");
+        let non_printables = CStr::from_bytes_with_nul(b"\x01\x09\x0a\0").unwrap();
+        assert_eq!(format!("{}", non_printables), "\\x01\\x09\\x0a");
+        let non_ascii = CStr::from_bytes_with_nul(b"d\xe9j\xe0 vu\0").unwrap();
+        assert_eq!(format!("{}", non_ascii), "d\\xe9j\\xe0 vu");
+        let good_bytes = CStr::from_bytes_with_nul(b"\xf0\x9f\xa6\x80\0").unwrap();
+        assert_eq!(format!("{}", good_bytes), "\\xf0\\x9f\\xa6\\x80");
+    }
+
+    #[test]
+    fn test_cstr_display_all_bytes() {
+        let mut bytes: [u8; 256] = [0; 256];
+        // fill `bytes` with [1..=255] + [0]
+        for i in u8::MIN..=u8::MAX {
+            bytes[i as usize] = i.wrapping_add(1);
+        }
+        let cstr = CStr::from_bytes_with_nul(&bytes).unwrap();
+        assert_eq!(format!("{}", cstr), ALL_ASCII_CHARS);
+    }
+
+    #[test]
+    fn test_cstr_debug() {
+        let hello_world = CStr::from_bytes_with_nul(b"hello, world!\0").unwrap();
+        assert_eq!(format!("{:?}", hello_world), "\"hello, world!\"");
+        let non_printables = CStr::from_bytes_with_nul(b"\x01\x09\x0a\0").unwrap();
+        assert_eq!(format!("{:?}", non_printables), "\"\\x01\\x09\\x0a\"");
+        let non_ascii = CStr::from_bytes_with_nul(b"d\xe9j\xe0 vu\0").unwrap();
+        assert_eq!(format!("{:?}", non_ascii), "\"d\\xe9j\\xe0 vu\"");
+        let good_bytes = CStr::from_bytes_with_nul(b"\xf0\x9f\xa6\x80\0").unwrap();
+        assert_eq!(format!("{:?}", good_bytes), "\"\\xf0\\x9f\\xa6\\x80\"");
+    }
+
+    #[test]
+    fn test_bstr_display() {
+        let hello_world = BStr::from_bytes(b"hello, world!");
+        assert_eq!(format!("{}", hello_world), "hello, world!");
+        let escapes = BStr::from_bytes(b"_\t_\n_\r_\\_\'_\"_");
+        assert_eq!(format!("{}", escapes), "_\\t_\\n_\\r_\\_'_\"_");
+        let others = BStr::from_bytes(b"\x01");
+        assert_eq!(format!("{}", others), "\\x01");
+        let non_ascii = BStr::from_bytes(b"d\xe9j\xe0 vu");
+        assert_eq!(format!("{}", non_ascii), "d\\xe9j\\xe0 vu");
+        let good_bytes = BStr::from_bytes(b"\xf0\x9f\xa6\x80");
+        assert_eq!(format!("{}", good_bytes), "\\xf0\\x9f\\xa6\\x80");
+    }
+
+    #[test]
+    fn test_bstr_debug() {
+        let hello_world = BStr::from_bytes(b"hello, world!");
+        assert_eq!(format!("{:?}", hello_world), "\"hello, world!\"");
+        let escapes = BStr::from_bytes(b"_\t_\n_\r_\\_\'_\"_");
+        assert_eq!(format!("{:?}", escapes), "\"_\\t_\\n_\\r_\\\\_'_\\\"_\"");
+        let others = BStr::from_bytes(b"\x01");
+        assert_eq!(format!("{:?}", others), "\"\\x01\"");
+        let non_ascii = BStr::from_bytes(b"d\xe9j\xe0 vu");
+        assert_eq!(format!("{:?}", non_ascii), "\"d\\xe9j\\xe0 vu\"");
+        let good_bytes = BStr::from_bytes(b"\xf0\x9f\xa6\x80");
+        assert_eq!(format!("{:?}", good_bytes), "\"\\xf0\\x9f\\xa6\\x80\"");
     }
 }
 
@@ -449,7 +620,7 @@ impl RawFormatter {
         self.pos as _
     }
 
-    /// Return the number of bytes written to the formatter.
+    /// Returns the number of bytes written to the formatter.
     pub(crate) fn bytes_written(&self) -> usize {
         self.pos - self.beg
     }
@@ -605,6 +776,12 @@ impl<'a> TryFrom<&'a CStr> for CString {
         // INVARIANT: The `CStr` and `CString` types have the same invariants for
         // the string data, and we copied it over without changes.
         Ok(CString { buf })
+    }
+}
+
+impl fmt::Debug for CString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&**self, f)
     }
 }
 

@@ -227,7 +227,7 @@ static inline void csr_writeq(u64 val, u32 reg)
 #define LOONGSON_CSR_NODECNT	0x408
 #define LOONGSON_CSR_CPUTEMP	0x428
 
-/* PerCore CSR, only accessable by local cores */
+/* PerCore CSR, only accessible by local cores */
 #define LOONGSON_CSR_IPI_STATUS	0x1000
 #define LOONGSON_CSR_IPI_EN	0x1004
 #define LOONGSON_CSR_IPI_SET	0x1008

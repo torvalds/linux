@@ -1904,7 +1904,7 @@ static unsigned int mmc_test_rnd_num(unsigned int rnd_cnt)
 }
 
 static int mmc_test_rnd_perf(struct mmc_test_card *test, int write, int print,
-			     unsigned long sz)
+			     unsigned long sz, int secs, int force_retuning)
 {
 	unsigned int dev_addr, cnt, rnd_addr, range1, range2, last_ea = 0, ea;
 	unsigned int ssz;
@@ -1921,7 +1921,7 @@ static int mmc_test_rnd_perf(struct mmc_test_card *test, int write, int print,
 	for (cnt = 0; cnt < UINT_MAX; cnt++) {
 		ktime_get_ts64(&ts2);
 		ts = timespec64_sub(ts2, ts1);
-		if (ts.tv_sec >= 10)
+		if (ts.tv_sec >= secs)
 			break;
 		ea = mmc_test_rnd_num(range1);
 		if (ea == last_ea)
@@ -1929,6 +1929,8 @@ static int mmc_test_rnd_perf(struct mmc_test_card *test, int write, int print,
 		last_ea = ea;
 		dev_addr = rnd_addr + test->card->pref_erase * ea +
 			   ssz * mmc_test_rnd_num(range2);
+		if (force_retuning)
+			mmc_retune_needed(test->card->host);
 		ret = mmc_test_area_io(test, sz, dev_addr, write, 0, 0);
 		if (ret)
 			return ret;
@@ -1953,24 +1955,35 @@ static int mmc_test_random_perf(struct mmc_test_card *test, int write)
 		 */
 		if (write) {
 			next = rnd_next;
-			ret = mmc_test_rnd_perf(test, write, 0, sz);
+			ret = mmc_test_rnd_perf(test, write, 0, sz, 10, 0);
 			if (ret)
 				return ret;
 			rnd_next = next;
 		}
-		ret = mmc_test_rnd_perf(test, write, 1, sz);
+		ret = mmc_test_rnd_perf(test, write, 1, sz, 10, 0);
 		if (ret)
 			return ret;
 	}
 	sz = t->max_tfr;
 	if (write) {
 		next = rnd_next;
-		ret = mmc_test_rnd_perf(test, write, 0, sz);
+		ret = mmc_test_rnd_perf(test, write, 0, sz, 10, 0);
 		if (ret)
 			return ret;
 		rnd_next = next;
 	}
-	return mmc_test_rnd_perf(test, write, 1, sz);
+	return mmc_test_rnd_perf(test, write, 1, sz, 10, 0);
+}
+
+static int mmc_test_retuning(struct mmc_test_card *test)
+{
+	if (!mmc_can_retune(test->card->host)) {
+		pr_info("%s: No retuning - test skipped\n",
+			mmc_hostname(test->card->host));
+		return RESULT_UNSUP_HOST;
+	}
+
+	return mmc_test_rnd_perf(test, 0, 0, 8192, 30, 1);
 }
 
 /*
@@ -2921,6 +2934,14 @@ static const struct mmc_test_case mmc_test_cases[] = {
 		.run = mmc_test_cmds_during_write_cmd23_nonblock,
 		.cleanup = mmc_test_area_cleanup,
 	},
+
+	{
+		.name = "Re-tuning reliability",
+		.prepare = mmc_test_area_prepare,
+		.run = mmc_test_retuning,
+		.cleanup = mmc_test_area_cleanup,
+	},
+
 };
 
 static DEFINE_MUTEX(mmc_test_lock);

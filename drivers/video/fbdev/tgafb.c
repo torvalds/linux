@@ -73,6 +73,7 @@ static struct tc_driver tgafb_tc_driver;
 
 static const struct fb_ops tgafb_ops = {
 	.owner			= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var		= tgafb_check_var,
 	.fb_set_par		= tgafb_set_par,
 	.fb_setcolreg		= tgafb_setcolreg,
@@ -81,6 +82,7 @@ static const struct fb_ops tgafb_ops = {
 	.fb_fillrect		= tgafb_fillrect,
 	.fb_copyarea		= tgafb_copyarea,
 	.fb_imageblit		= tgafb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 
@@ -378,7 +380,7 @@ tgafb_set_par(struct fb_info *info)
 		BT463_LOAD_ADDR(par, 0x0000);
 		TGA_WRITE_REG(par, BT463_PALETTE << 2, TGA_RAMDAC_SETUP_REG);
 
-#ifdef CONFIG_HW_CONSOLE
+#ifdef CONFIG_VT
 		for (i = 0; i < 16; i++) {
 			int j = color_table[i];
 

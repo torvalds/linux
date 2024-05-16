@@ -12,6 +12,9 @@
 	extern phys_addr_t arm_dma_zone_size; \
 	arm_dma_zone_size && arm_dma_zone_size < (0x100000000ULL - PAGE_OFFSET) ? \
 		(PAGE_OFFSET + arm_dma_zone_size) : 0xffffffffUL; })
+
+extern phys_addr_t arm_dma_limit;
+#define ARCH_LOW_ADDRESS_LIMIT arm_dma_limit
 #endif
 
 #ifdef CONFIG_ISA_DMA_API

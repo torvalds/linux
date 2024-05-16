@@ -35,15 +35,6 @@
 /* Core 0 Port 0 counter */
 #define smnPCIEP_NAK_COUNTER 0x1A340218
 
-#define smnPCIE_PERF_CNTL_TXCLK3		0x1A38021c
-#define smnPCIE_PERF_CNTL_TXCLK7		0x1A380888
-#define smnPCIE_PERF_COUNT_CNTL			0x1A380200
-#define smnPCIE_PERF_COUNT0_TXCLK3		0x1A380220
-#define smnPCIE_PERF_COUNT0_TXCLK7		0x1A38088C
-#define smnPCIE_PERF_COUNT0_UPVAL_TXCLK3	0x1A3808F8
-#define smnPCIE_PERF_COUNT0_UPVAL_TXCLK7	0x1A380918
-
-
 static void nbio_v7_9_remap_hdp_registers(struct amdgpu_device *adev)
 {
 	WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL,
@@ -56,8 +47,15 @@ static u32 nbio_v7_9_get_rev_id(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
+	tmp = IP_VERSION_SUBREV(amdgpu_ip_version_full(adev, NBIO_HWIP, 0));
+	/* If it is VF or subrevision holds a non-zero value, that should be used */
+	if (tmp || amdgpu_sriov_vf(adev))
+		return tmp;
+
+	/* If discovery subrev is not updated, use register version */
 	tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0);
-	tmp = REG_GET_FIELD(tmp, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0, STRAP_ATI_REV_ID_DEV0_F0);
+	tmp = REG_GET_FIELD(tmp, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0,
+			    STRAP_ATI_REV_ID_DEV0_F0);
 
 	return tmp;
 }
@@ -424,6 +422,12 @@ static void nbio_v7_9_init_registers(struct amdgpu_device *adev)
 	u32 inst_mask;
 	int i;
 
+	if (amdgpu_sriov_vf(adev))
+		adev->rmmio_remap.reg_offset =
+			SOC15_REG_OFFSET(
+				NBIO, 0,
+				regBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL)
+			<< 2;
 	WREG32_SOC15(NBIO, 0, regXCC_DOORBELL_FENCE,
 		0xff & ~(adev->gfx.xcc_mask));
 
@@ -471,59 +475,6 @@ static u64 nbio_v7_9_get_pcie_replay_count(struct amdgpu_device *adev)
 	return (nak_r + nak_g);
 }
 
-static void nbio_v7_9_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
-				     uint64_t *count1)
-{
-	uint32_t perfctrrx = 0;
-	uint32_t perfctrtx = 0;
-
-	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
-	 */
-	if (adev->flags & AMD_IS_APU)
-		return;
-
-	/* Use TXCLK3 counter group for rx event */
-	/* Use TXCLK7 counter group for tx event */
-	/* Set the 2 events that we wish to watch, defined above */
-	/* 40 is event# for received msgs */
-	/* 2 is event# of posted requests sent */
-	perfctrrx = REG_SET_FIELD(perfctrrx, PCIE_PERF_CNTL_TXCLK3, EVENT0_SEL, 40);
-	perfctrtx = REG_SET_FIELD(perfctrtx, PCIE_PERF_CNTL_TXCLK7, EVENT0_SEL, 2);
-
-	/* Write to enable desired perf counters */
-	WREG32_PCIE(smnPCIE_PERF_CNTL_TXCLK3, perfctrrx);
-	WREG32_PCIE(smnPCIE_PERF_CNTL_TXCLK7, perfctrtx);
-
-	/* Zero out and enable SHADOW_WR
-	 * Write 0x6:
-	 * Bit 1 = Global Shadow wr(1)
-	 * Bit 2 = Global counter reset enable(1)
-	 */
-	WREG32_PCIE(smnPCIE_PERF_COUNT_CNTL, 0x00000006);
-
-	/* Enable Gloabl Counter
-	 * Write 0x1:
-	 * Bit 0 = Global Counter Enable(1)
-	 */
-	WREG32_PCIE(smnPCIE_PERF_COUNT_CNTL, 0x00000001);
-
-	msleep(1000);
-
-	/* Disable Global Counter, Reset and enable SHADOW_WR
-	 * Write 0x6:
-	 * Bit 1 = Global Shadow wr(1)
-	 * Bit 2 = Global counter reset enable(1)
-	 */
-	WREG32_PCIE(smnPCIE_PERF_COUNT_CNTL, 0x00000006);
-
-	/* Get the upper and lower count  */
-	*count0 = RREG32_PCIE(smnPCIE_PERF_COUNT0_TXCLK3) |
-		  ((uint64_t)RREG32_PCIE(smnPCIE_PERF_COUNT0_UPVAL_TXCLK3) << 32);
-	*count1 = RREG32_PCIE(smnPCIE_PERF_COUNT0_TXCLK7) |
-		  ((uint64_t)RREG32_PCIE(smnPCIE_PERF_COUNT0_UPVAL_TXCLK7) << 32);
-}
-
 const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_9_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_9_get_hdp_flush_done_offset,
@@ -548,7 +499,6 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_memory_partition_mode = nbio_v7_9_get_memory_partition_mode,
 	.init_registers = nbio_v7_9_init_registers,
 	.get_pcie_replay_count = nbio_v7_9_get_pcie_replay_count,
-	.get_pcie_usage = nbio_v7_9_get_pcie_usage,
 };
 
 static void nbio_v7_9_query_ras_error_count(struct amdgpu_device *adev,
@@ -590,8 +540,7 @@ static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 
 			if (err_data.ce_count)
 				dev_info(adev->dev, "%ld correctable hardware "
-						"errors detected in %s block, "
-						"no user action is needed.\n",
+						"errors detected in %s block\n",
 						obj->err_data.ce_count,
 						get_ras_block_str(adev->nbio.ras_if));
 
@@ -604,11 +553,6 @@ static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 
 		dev_info(adev->dev, "RAS controller interrupt triggered "
 					"by NBIF error\n");
-
-		/* ras_controller_int is dedicated for nbif ras error,
-		 * not the global interrupt for sync flood
-		 */
-		amdgpu_ras_reset_gpu(adev);
 	}
 
 	amdgpu_ras_error_data_fini(&err_data);

@@ -213,6 +213,7 @@ static struct Qdisc_ops plug_qdisc_ops __read_mostly = {
 	.reset       =	     qdisc_reset_queue,
 	.owner       =       THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("plug");
 
 static int __init plug_module_init(void)
 {
@@ -226,3 +227,4 @@ static void __exit plug_module_exit(void)
 module_init(plug_module_init)
 module_exit(plug_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Qdisc to plug and unplug traffic via netlink control");

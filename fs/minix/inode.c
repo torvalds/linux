@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/highuid.h>
+#include <linux/mpage.h>
 #include <linux/vfs.h>
 #include <linux/writeback.h>
 
@@ -86,7 +87,7 @@ static int __init init_inodecache(void)
 	minix_inode_cachep = kmem_cache_create("minix_inode_cache",
 					     sizeof(struct minix_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+						SLAB_ACCOUNT),
 					     init_once);
 	if (minix_inode_cachep == NULL)
 		return -ENOMEM;
@@ -397,9 +398,10 @@ static int minix_get_block(struct inode *inode, sector_t block,
 		return V2_minix_get_block(inode, block, bh_result, create);
 }
 
-static int minix_writepage(struct page *page, struct writeback_control *wbc)
+static int minix_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
 {
-	return block_write_full_page(page, minix_get_block, wbc);
+	return mpage_writepages(mapping, wbc, minix_get_block);
 }
 
 static int minix_read_folio(struct file *file, struct folio *folio)
@@ -444,9 +446,10 @@ static const struct address_space_operations minix_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio = minix_read_folio,
-	.writepage = minix_writepage,
+	.writepages = minix_writepages,
 	.write_begin = minix_write_begin,
 	.write_end = generic_write_end,
+	.migrate_folio = buffer_migrate_folio,
 	.bmap = minix_bmap,
 	.direct_IO = noop_direct_IO
 };
@@ -501,7 +504,8 @@ static struct inode *V1_minix_iget(struct inode *inode)
 	i_gid_write(inode, raw_inode->i_gid);
 	set_nlink(inode, raw_inode->i_nlinks);
 	inode->i_size = raw_inode->i_size;
-	inode->i_mtime = inode->i_atime = inode_set_ctime(inode, raw_inode->i_time, 0);
+	inode_set_mtime_to_ts(inode,
+			      inode_set_atime_to_ts(inode, inode_set_ctime(inode, raw_inode->i_time, 0)));
 	inode->i_blocks = 0;
 	for (i = 0; i < 9; i++)
 		minix_inode->u.i1_data[i] = raw_inode->i_zone[i];
@@ -538,11 +542,9 @@ static struct inode *V2_minix_iget(struct inode *inode)
 	i_gid_write(inode, raw_inode->i_gid);
 	set_nlink(inode, raw_inode->i_nlinks);
 	inode->i_size = raw_inode->i_size;
-	inode->i_mtime.tv_sec = raw_inode->i_mtime;
-	inode->i_atime.tv_sec = raw_inode->i_atime;
+	inode_set_mtime(inode, raw_inode->i_mtime, 0);
+	inode_set_atime(inode, raw_inode->i_atime, 0);
 	inode_set_ctime(inode, raw_inode->i_ctime, 0);
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_nsec = 0;
 	inode->i_blocks = 0;
 	for (i = 0; i < 10; i++)
 		minix_inode->u.i2_data[i] = raw_inode->i_zone[i];
@@ -589,7 +591,7 @@ static struct buffer_head * V1_minix_update_inode(struct inode * inode)
 	raw_inode->i_gid = fs_high2lowgid(i_gid_read(inode));
 	raw_inode->i_nlinks = inode->i_nlink;
 	raw_inode->i_size = inode->i_size;
-	raw_inode->i_time = inode->i_mtime.tv_sec;
+	raw_inode->i_time = inode_get_mtime_sec(inode);
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
 		raw_inode->i_zone[0] = old_encode_dev(inode->i_rdev);
 	else for (i = 0; i < 9; i++)
@@ -616,9 +618,9 @@ static struct buffer_head * V2_minix_update_inode(struct inode * inode)
 	raw_inode->i_gid = fs_high2lowgid(i_gid_read(inode));
 	raw_inode->i_nlinks = inode->i_nlink;
 	raw_inode->i_size = inode->i_size;
-	raw_inode->i_mtime = inode->i_mtime.tv_sec;
-	raw_inode->i_atime = inode->i_atime.tv_sec;
-	raw_inode->i_ctime = inode_get_ctime(inode).tv_sec;
+	raw_inode->i_mtime = inode_get_mtime_sec(inode);
+	raw_inode->i_atime = inode_get_atime_sec(inode);
+	raw_inode->i_ctime = inode_get_ctime_sec(inode);
 	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
 		raw_inode->i_zone[0] = old_encode_dev(inode->i_rdev);
 	else for (i = 0; i < 10; i++)

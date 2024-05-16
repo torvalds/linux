@@ -14,7 +14,6 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
-#include "disk-io.h"
 #include "locking.h"
 #include "fs.h"
 #include "accessors.h"
@@ -487,7 +486,7 @@ static int rollback_verity(struct btrfs_inode *inode)
 	}
 	inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
 	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, inode);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -554,7 +553,7 @@ static int finish_verity(struct btrfs_inode *inode, const void *desc,
 	}
 	inode->ro_flags |= BTRFS_INODE_RO_VERITY;
 	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, inode);
 	if (ret)
 		goto end_trans;
 	ret = del_orphan(trans, inode);

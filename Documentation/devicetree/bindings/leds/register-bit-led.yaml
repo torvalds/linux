@@ -60,7 +60,7 @@ examples:
   - |
 
     syscon@10000000 {
-        compatible = "arm,realview-pb1176-syscon", "syscon";
+        compatible = "arm,realview-pb1176-syscon", "syscon", "simple-mfd";
         reg = <0x10000000 0x1000>;
         #address-cells = <1>;
         #size-cells = <1>;

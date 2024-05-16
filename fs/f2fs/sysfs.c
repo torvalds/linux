@@ -143,6 +143,33 @@ static ssize_t pending_discard_show(struct f2fs_attr *a,
 				&SM_I(sbi)->dcc_info->discard_cmd_cnt));
 }
 
+static ssize_t issued_discard_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	if (!SM_I(sbi)->dcc_info)
+		return -EINVAL;
+	return sysfs_emit(buf, "%llu\n", (unsigned long long)atomic_read(
+				&SM_I(sbi)->dcc_info->issued_discard));
+}
+
+static ssize_t queued_discard_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	if (!SM_I(sbi)->dcc_info)
+		return -EINVAL;
+	return sysfs_emit(buf, "%llu\n", (unsigned long long)atomic_read(
+				&SM_I(sbi)->dcc_info->queued_discard));
+}
+
+static ssize_t undiscard_blks_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	if (!SM_I(sbi)->dcc_info)
+		return -EINVAL;
+	return sysfs_emit(buf, "%u\n",
+				SM_I(sbi)->dcc_info->undiscard_blks);
+}
+
 static ssize_t gc_mode_show(struct f2fs_attr *a,
 		struct f2fs_sb_info *sbi, char *buf)
 {
@@ -466,8 +493,8 @@ out:
 		spin_lock(&sbi->stat_lock);
 		if (t > (unsigned long)(sbi->user_block_count -
 				F2FS_OPTION(sbi).root_reserved_blocks -
-				sbi->blocks_per_seg *
-				SM_I(sbi)->additional_reserved_segments)) {
+				SEGS_TO_BLKS(sbi,
+				SM_I(sbi)->additional_reserved_segments))) {
 			spin_unlock(&sbi->stat_lock);
 			return -EINVAL;
 		}
@@ -516,8 +543,15 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "discard_io_aware")) {
+		if (t >= DPOLICY_IO_AWARE_MAX)
+			return -EINVAL;
+		*ui = t;
+		return count;
+	}
+
 	if (!strcmp(a->attr.name, "migration_granularity")) {
-		if (t == 0 || t > sbi->segs_per_sec)
+		if (t == 0 || t > SEGS_PER_SEC(sbi))
 			return -EINVAL;
 	}
 
@@ -734,6 +768,13 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "dir_level")) {
+		if (t > MAX_DIR_HASH_DEPTH)
+			return -EINVAL;
+		sbi->dir_level = t;
+		return count;
+	}
+
 	*ui = (unsigned int)t;
 
 	return count;
@@ -926,6 +967,7 @@ DCC_INFO_GENERAL_RW_ATTR(discard_io_aware_gran);
 DCC_INFO_GENERAL_RW_ATTR(discard_urgent_util);
 DCC_INFO_GENERAL_RW_ATTR(discard_granularity);
 DCC_INFO_GENERAL_RW_ATTR(max_ordered_discard);
+DCC_INFO_GENERAL_RW_ATTR(discard_io_aware);
 
 /* NM_INFO ATTR */
 NM_INFO_RW_ATTR(max_roll_forward_node_blocks, max_rf_node_blocks);
@@ -1074,6 +1116,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(discard_urgent_util),
 	ATTR_LIST(discard_granularity),
 	ATTR_LIST(max_ordered_discard),
+	ATTR_LIST(discard_io_aware),
 	ATTR_LIST(pending_discard),
 	ATTR_LIST(gc_mode),
 	ATTR_LIST(ipu_policy),
@@ -1197,9 +1240,16 @@ ATTRIBUTE_GROUPS(f2fs_feat);
 
 F2FS_GENERAL_RO_ATTR(sb_status);
 F2FS_GENERAL_RO_ATTR(cp_status);
+F2FS_GENERAL_RO_ATTR(issued_discard);
+F2FS_GENERAL_RO_ATTR(queued_discard);
+F2FS_GENERAL_RO_ATTR(undiscard_blks);
+
 static struct attribute *f2fs_stat_attrs[] = {
 	ATTR_LIST(sb_status),
 	ATTR_LIST(cp_status),
+	ATTR_LIST(issued_discard),
+	ATTR_LIST(queued_discard),
+	ATTR_LIST(undiscard_blks),
 	NULL,
 };
 ATTRIBUTE_GROUPS(f2fs_stat);
@@ -1442,6 +1492,50 @@ static int __maybe_unused discard_plist_seq_show(struct seq_file *seq,
 	return 0;
 }
 
+static int __maybe_unused disk_map_seq_show(struct seq_file *seq,
+						void *offset)
+{
+	struct super_block *sb = seq->private;
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	int i;
+
+	seq_printf(seq, "Address Layout   : %5luB Block address (# of Segments)\n",
+					F2FS_BLKSIZE);
+	seq_printf(seq, " SB            : %12s\n", "0/1024B");
+	seq_printf(seq, " seg0_blkaddr  : 0x%010x\n", SEG0_BLKADDR(sbi));
+	seq_printf(seq, " Checkpoint    : 0x%010x (%10d)\n",
+			le32_to_cpu(F2FS_RAW_SUPER(sbi)->cp_blkaddr), 2);
+	seq_printf(seq, " SIT           : 0x%010x (%10d)\n",
+			SIT_I(sbi)->sit_base_addr,
+			le32_to_cpu(F2FS_RAW_SUPER(sbi)->segment_count_sit));
+	seq_printf(seq, " NAT           : 0x%010x (%10d)\n",
+			NM_I(sbi)->nat_blkaddr,
+			le32_to_cpu(F2FS_RAW_SUPER(sbi)->segment_count_nat));
+	seq_printf(seq, " SSA           : 0x%010x (%10d)\n",
+			SM_I(sbi)->ssa_blkaddr,
+			le32_to_cpu(F2FS_RAW_SUPER(sbi)->segment_count_ssa));
+	seq_printf(seq, " Main          : 0x%010x (%10d)\n",
+			SM_I(sbi)->main_blkaddr,
+			le32_to_cpu(F2FS_RAW_SUPER(sbi)->segment_count_main));
+	seq_printf(seq, " # of Sections : %12d\n",
+			le32_to_cpu(F2FS_RAW_SUPER(sbi)->section_count));
+	seq_printf(seq, " Segs/Sections : %12d\n",
+			SEGS_PER_SEC(sbi));
+	seq_printf(seq, " Section size  : %12d MB\n",
+			SEGS_PER_SEC(sbi) << 1);
+
+	if (!f2fs_is_multi_device(sbi))
+		return 0;
+
+	seq_puts(seq, "\nDisk Map for multi devices:\n");
+	for (i = 0; i < sbi->s_ndevs; i++)
+		seq_printf(seq, "Disk:%2d (zoned=%d): 0x%010x - 0x%010x on %s\n",
+			i, bdev_is_zoned(FDEV(i).bdev),
+			FDEV(i).start_blk, FDEV(i).end_blk,
+			FDEV(i).path);
+	return 0;
+}
+
 int __init f2fs_init_sysfs(void)
 {
 	int ret;
@@ -1523,6 +1617,8 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 				victim_bits_seq_show, sb);
 	proc_create_single_data("discard_plist_info", 0444, sbi->s_proc,
 				discard_plist_seq_show, sb);
+	proc_create_single_data("disk_map", 0444, sbi->s_proc,
+				disk_map_seq_show, sb);
 	return 0;
 put_feature_list_kobj:
 	kobject_put(&sbi->s_feature_list_kobj);

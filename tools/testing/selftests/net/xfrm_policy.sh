@@ -18,8 +18,7 @@
 # ns1: ping 10.0.2.254: does NOT pass via ipsec tunnel (exception)
 # ns2: ping 10.0.1.254: does NOT pass via ipsec tunnel (exception)
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
+source lib.sh
 ret=0
 policy_checks_ok=1
 
@@ -204,24 +203,24 @@ check_xfrm() {
 	ip=$2
 	local lret=0
 
-	ip netns exec ns1 ping -q -c 1 10.0.2.$ip > /dev/null
+	ip netns exec ${ns[1]} ping -q -c 1 10.0.2.$ip > /dev/null
 
-	check_ipt_policy_count ns3
+	check_ipt_policy_count ${ns[3]}
 	if [ $? -ne $rval ] ; then
 		lret=1
 	fi
-	check_ipt_policy_count ns4
+	check_ipt_policy_count ${ns[4]}
 	if [ $? -ne $rval ] ; then
 		lret=1
 	fi
 
-	ip netns exec ns2 ping -q -c 1 10.0.1.$ip > /dev/null
+	ip netns exec ${ns[2]} ping -q -c 1 10.0.1.$ip > /dev/null
 
-	check_ipt_policy_count ns3
+	check_ipt_policy_count ${ns[3]}
 	if [ $? -ne $rval ] ; then
 		lret=1
 	fi
-	check_ipt_policy_count ns4
+	check_ipt_policy_count ${ns[4]}
 	if [ $? -ne $rval ] ; then
 		lret=1
 	fi
@@ -270,11 +269,11 @@ check_hthresh_repeat()
 	i=0
 
 	for i in $(seq 1 10);do
-		ip -net ns1 xfrm policy update src e000:0001::0000 dst ff01::0014:0000:0001 dir in tmpl src :: dst :: proto esp mode tunnel priority 100 action allow || break
-		ip -net ns1 xfrm policy set hthresh6 0 28 || break
+		ip -net ${ns[1]} xfrm policy update src e000:0001::0000 dst ff01::0014:0000:0001 dir in tmpl src :: dst :: proto esp mode tunnel priority 100 action allow || break
+		ip -net ${ns[1]} xfrm policy set hthresh6 0 28 || break
 
-		ip -net ns1 xfrm policy update src e000:0001::0000 dst ff01::01 dir in tmpl src :: dst :: proto esp mode tunnel priority 100 action allow || break
-		ip -net ns1 xfrm policy set hthresh6 0 28 || break
+		ip -net ${ns[1]} xfrm policy update src e000:0001::0000 dst ff01::01 dir in tmpl src :: dst :: proto esp mode tunnel priority 100 action allow || break
+		ip -net ${ns[1]} xfrm policy set hthresh6 0 28 || break
 	done
 
 	if [ $i -ne 10 ] ;then
@@ -347,79 +346,80 @@ if [ $? -ne 0 ];then
 	exit $ksft_skip
 fi
 
-for i in 1 2 3 4; do
-    ip netns add ns$i
-    ip -net ns$i link set lo up
-done
+setup_ns ns1 ns2 ns3 ns4
+ns[1]=$ns1
+ns[2]=$ns2
+ns[3]=$ns3
+ns[4]=$ns4
 
 DEV=veth0
-ip link add $DEV netns ns1 type veth peer name eth1 netns ns3
-ip link add $DEV netns ns2 type veth peer name eth1 netns ns4
+ip link add $DEV netns ${ns[1]} type veth peer name eth1 netns ${ns[3]}
+ip link add $DEV netns ${ns[2]} type veth peer name eth1 netns ${ns[4]}
 
-ip link add $DEV netns ns3 type veth peer name veth0 netns ns4
+ip link add $DEV netns ${ns[3]} type veth peer name veth0 netns ${ns[4]}
 
 DEV=veth0
 for i in 1 2; do
-    ip -net ns$i link set $DEV up
-    ip -net ns$i addr add 10.0.$i.2/24 dev $DEV
-    ip -net ns$i addr add dead:$i::2/64 dev $DEV
+    ip -net ${ns[$i]} link set $DEV up
+    ip -net ${ns[$i]} addr add 10.0.$i.2/24 dev $DEV
+    ip -net ${ns[$i]} addr add dead:$i::2/64 dev $DEV
 
-    ip -net ns$i addr add 10.0.$i.253 dev $DEV
-    ip -net ns$i addr add 10.0.$i.254 dev $DEV
-    ip -net ns$i addr add dead:$i::fd dev $DEV
-    ip -net ns$i addr add dead:$i::fe dev $DEV
+    ip -net ${ns[$i]} addr add 10.0.$i.253 dev $DEV
+    ip -net ${ns[$i]} addr add 10.0.$i.254 dev $DEV
+    ip -net ${ns[$i]} addr add dead:$i::fd dev $DEV
+    ip -net ${ns[$i]} addr add dead:$i::fe dev $DEV
 done
 
 for i in 3 4; do
-ip -net ns$i link set eth1 up
-ip -net ns$i link set veth0 up
+    ip -net ${ns[$i]} link set eth1 up
+    ip -net ${ns[$i]} link set veth0 up
 done
 
-ip -net ns1 route add default via 10.0.1.1
-ip -net ns2 route add default via 10.0.2.1
+ip -net ${ns[1]} route add default via 10.0.1.1
+ip -net ${ns[2]} route add default via 10.0.2.1
 
-ip -net ns3 addr add 10.0.1.1/24 dev eth1
-ip -net ns3 addr add 10.0.3.1/24 dev veth0
-ip -net ns3 addr add 2001:1::1/64 dev eth1
-ip -net ns3 addr add 2001:3::1/64 dev veth0
+ip -net ${ns[3]} addr add 10.0.1.1/24 dev eth1
+ip -net ${ns[3]} addr add 10.0.3.1/24 dev veth0
+ip -net ${ns[3]} addr add 2001:1::1/64 dev eth1
+ip -net ${ns[3]} addr add 2001:3::1/64 dev veth0
 
-ip -net ns3 route add default via 10.0.3.10
+ip -net ${ns[3]} route add default via 10.0.3.10
 
-ip -net ns4 addr add 10.0.2.1/24 dev eth1
-ip -net ns4 addr add 10.0.3.10/24 dev veth0
-ip -net ns4 addr add 2001:2::1/64 dev eth1
-ip -net ns4 addr add 2001:3::10/64 dev veth0
-ip -net ns4 route add default via 10.0.3.1
+ip -net ${ns[4]} addr add 10.0.2.1/24 dev eth1
+ip -net ${ns[4]} addr add 10.0.3.10/24 dev veth0
+ip -net ${ns[4]} addr add 2001:2::1/64 dev eth1
+ip -net ${ns[4]} addr add 2001:3::10/64 dev veth0
+ip -net ${ns[4]} route add default via 10.0.3.1
 
 for j in 4 6; do
 	for i in 3 4;do
-		ip netns exec ns$i sysctl net.ipv$j.conf.eth1.forwarding=1 > /dev/null
-		ip netns exec ns$i sysctl net.ipv$j.conf.veth0.forwarding=1 > /dev/null
+		ip netns exec ${ns[$i]} sysctl net.ipv$j.conf.eth1.forwarding=1 > /dev/null
+		ip netns exec ${ns[$i]} sysctl net.ipv$j.conf.veth0.forwarding=1 > /dev/null
 	done
 done
 
 # abuse iptables rule counter to check if ping matches a policy
-ip netns exec ns3 iptables -p icmp -A FORWARD -m policy --dir out --pol ipsec
-ip netns exec ns4 iptables -p icmp -A FORWARD -m policy --dir out --pol ipsec
+ip netns exec ${ns[3]} iptables -p icmp -A FORWARD -m policy --dir out --pol ipsec
+ip netns exec ${ns[4]} iptables -p icmp -A FORWARD -m policy --dir out --pol ipsec
 if [ $? -ne 0 ];then
 	echo "SKIP: Could not insert iptables rule"
-	for i in 1 2 3 4;do ip netns del ns$i;done
+	cleanup_ns $ns1 $ns2 $ns3 $ns4
 	exit $ksft_skip
 fi
 
 #          localip  remoteip  localnet    remotenet
-do_esp ns3 10.0.3.1 10.0.3.10 10.0.1.0/24 10.0.2.0/24 $SPI1 $SPI2
-do_esp ns3 dead:3::1 dead:3::10 dead:1::/64 dead:2::/64 $SPI1 $SPI2
-do_esp ns4 10.0.3.10 10.0.3.1 10.0.2.0/24 10.0.1.0/24 $SPI2 $SPI1
-do_esp ns4 dead:3::10 dead:3::1 dead:2::/64 dead:1::/64 $SPI2 $SPI1
+do_esp ${ns[3]} 10.0.3.1 10.0.3.10 10.0.1.0/24 10.0.2.0/24 $SPI1 $SPI2
+do_esp ${ns[3]} dead:3::1 dead:3::10 dead:1::/64 dead:2::/64 $SPI1 $SPI2
+do_esp ${ns[4]} 10.0.3.10 10.0.3.1 10.0.2.0/24 10.0.1.0/24 $SPI2 $SPI1
+do_esp ${ns[4]} dead:3::10 dead:3::1 dead:2::/64 dead:1::/64 $SPI2 $SPI1
 
-do_dummies4 ns3
-do_dummies6 ns4
+do_dummies4 ${ns[3]}
+do_dummies6 ${ns[4]}
 
-do_esp_policy_get_check ns3 10.0.1.0/24 10.0.2.0/24
-do_esp_policy_get_check ns4 10.0.2.0/24 10.0.1.0/24
-do_esp_policy_get_check ns3 dead:1::/64 dead:2::/64
-do_esp_policy_get_check ns4 dead:2::/64 dead:1::/64
+do_esp_policy_get_check ${ns[3]} 10.0.1.0/24 10.0.2.0/24
+do_esp_policy_get_check ${ns[4]} 10.0.2.0/24 10.0.1.0/24
+do_esp_policy_get_check ${ns[3]} dead:1::/64 dead:2::/64
+do_esp_policy_get_check ${ns[4]} dead:2::/64 dead:1::/64
 
 # ping to .254 should use ipsec, exception is not installed.
 check_xfrm 1 254
@@ -432,11 +432,11 @@ fi
 
 # installs exceptions
 #                localip  remoteip   encryptdst  plaindst
-do_exception ns3 10.0.3.1 10.0.3.10 10.0.2.253 10.0.2.240/28
-do_exception ns4 10.0.3.10 10.0.3.1 10.0.1.253 10.0.1.240/28
+do_exception ${ns[3]} 10.0.3.1 10.0.3.10 10.0.2.253 10.0.2.240/28
+do_exception ${ns[4]} 10.0.3.10 10.0.3.1 10.0.1.253 10.0.1.240/28
 
-do_exception ns3 dead:3::1 dead:3::10 dead:2::fd  dead:2:f0::/96
-do_exception ns4 dead:3::10 dead:3::1 dead:1::fd  dead:1:f0::/96
+do_exception ${ns[3]} dead:3::1 dead:3::10 dead:2::fd  dead:2:f0::/96
+do_exception ${ns[4]} dead:3::10 dead:3::1 dead:1::fd  dead:1:f0::/96
 
 check_exceptions "exceptions"
 if [ $? -ne 0 ]; then
@@ -444,14 +444,14 @@ if [ $? -ne 0 ]; then
 fi
 
 # insert block policies with adjacent/overlapping netmasks
-do_overlap ns3
+do_overlap ${ns[3]}
 
 check_exceptions "exceptions and block policies"
 if [ $? -ne 0 ]; then
 	ret=1
 fi
 
-for n in ns3 ns4;do
+for n in ${ns[3]} ${ns[4]};do
 	ip -net $n xfrm policy set hthresh4 28 24 hthresh6 126 125
 	sleep $((RANDOM%5))
 done
@@ -459,19 +459,19 @@ done
 check_exceptions "exceptions and block policies after hresh changes"
 
 # full flush of policy db, check everything gets freed incl. internal meta data
-ip -net ns3 xfrm policy flush
+ip -net ${ns[3]} xfrm policy flush
 
-do_esp_policy ns3 10.0.3.1 10.0.3.10 10.0.1.0/24 10.0.2.0/24
-do_exception ns3 10.0.3.1 10.0.3.10 10.0.2.253 10.0.2.240/28
+do_esp_policy ${ns[3]} 10.0.3.1 10.0.3.10 10.0.1.0/24 10.0.2.0/24
+do_exception ${ns[3]} 10.0.3.1 10.0.3.10 10.0.2.253 10.0.2.240/28
 
 # move inexact policies to hash table
-ip -net ns3 xfrm policy set hthresh4 16 16
+ip -net ${ns[3]} xfrm policy set hthresh4 16 16
 
 sleep $((RANDOM%5))
 check_exceptions "exceptions and block policies after hthresh change in ns3"
 
 # restore original hthresh settings -- move policies back to tables
-for n in ns3 ns4;do
+for n in ${ns[3]} ${ns[4]};do
 	ip -net $n xfrm policy set hthresh4 32 32 hthresh6 128 128
 	sleep $((RANDOM%5))
 done
@@ -479,8 +479,8 @@ check_exceptions "exceptions and block policies after htresh change to normal"
 
 check_hthresh_repeat "policies with repeated htresh change"
 
-check_random_order ns3 "policies inserted in random order"
+check_random_order ${ns[3]} "policies inserted in random order"
 
-for i in 1 2 3 4;do ip netns del ns$i;done
+cleanup_ns $ns1 $ns2 $ns3 $ns4
 
 exit $ret

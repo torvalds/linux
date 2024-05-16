@@ -3,9 +3,16 @@
 #ifndef BTRFS_EXTENT_IO_TREE_H
 #define BTRFS_EXTENT_IO_TREE_H
 
+#include <linux/rbtree.h>
+#include <linux/spinlock.h>
+#include <linux/refcount.h>
+#include <linux/list.h>
+#include <linux/wait.h>
 #include "misc.h"
 
 struct extent_changeset;
+struct btrfs_fs_info;
+struct btrfs_inode;
 
 /* Bits for the extent state */
 enum {
@@ -87,9 +94,17 @@ enum {
 
 struct extent_io_tree {
 	struct rb_root state;
-	struct btrfs_fs_info *fs_info;
-	/* Inode associated with this tree, or NULL. */
-	struct btrfs_inode *inode;
+	/*
+	 * The fs_info is needed for trace points, a tree attached to an inode
+	 * needs the inode.
+	 *
+	 * owner == IO_TREE_INODE_IO - then inode is valid and fs_info can be
+	 *                             accessed as inode->root->fs_info
+	 */
+	union {
+		struct btrfs_fs_info *fs_info;
+		struct btrfs_inode *inode;
+	};
 
 	/* Who owns this io tree, should be one of IO_TREE_* */
 	u8 owner;
@@ -112,6 +127,10 @@ struct extent_state {
 #endif
 };
 
+struct btrfs_inode *extent_io_tree_to_inode(struct extent_io_tree *tree);
+const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree);
+const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree);
+
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner);
 void extent_io_tree_release(struct extent_io_tree *tree);
@@ -131,8 +150,9 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		     struct extent_state **cached_state);
 
 void free_extent_state(struct extent_state *state);
-int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, int filled, struct extent_state *cached_state);
+bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
+		    struct extent_state *cached_state);
+bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
@@ -192,7 +212,5 @@ int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state);
-void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
-		     struct extent_state **cached_state);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */

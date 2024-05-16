@@ -32,6 +32,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_reset.h"
 #include "vi.h"
 #include "soc15.h"
 #include "nv.h"
@@ -69,58 +70,6 @@ void amdgpu_virt_init_setting(struct amdgpu_device *adev)
 	/* Reduce kcq number to 2 to reduce latency */
 	if (amdgpu_num_kcq == -1)
 		amdgpu_num_kcq = 2;
-}
-
-void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
-					uint32_t reg0, uint32_t reg1,
-					uint32_t ref, uint32_t mask)
-{
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
-	struct amdgpu_ring *ring = &kiq->ring;
-	signed long r, cnt = 0;
-	unsigned long flags;
-	uint32_t seq;
-
-	if (adev->mes.ring.sched.ready) {
-		amdgpu_mes_reg_write_reg_wait(adev, reg0, reg1,
-					      ref, mask);
-		return;
-	}
-
-	spin_lock_irqsave(&kiq->ring_lock, flags);
-	amdgpu_ring_alloc(ring, 32);
-	amdgpu_ring_emit_reg_write_reg_wait(ring, reg0, reg1,
-					    ref, mask);
-	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
-	if (r)
-		goto failed_undo;
-
-	amdgpu_ring_commit(ring);
-	spin_unlock_irqrestore(&kiq->ring_lock, flags);
-
-	r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
-
-	/* don't wait anymore for IRQ context */
-	if (r < 1 && in_interrupt())
-		goto failed_kiq;
-
-	might_sleep();
-	while (r < 1 && cnt++ < MAX_KIQ_REG_TRY) {
-
-		msleep(MAX_KIQ_REG_BAILOUT_INTERVAL);
-		r = amdgpu_fence_wait_polling(ring, seq, MAX_KIQ_REG_WAIT);
-	}
-
-	if (cnt > MAX_KIQ_REG_TRY)
-		goto failed_kiq;
-
-	return;
-
-failed_undo:
-	amdgpu_ring_undo(ring);
-	spin_unlock_irqrestore(&kiq->ring_lock, flags);
-failed_kiq:
-	dev_err(adev->dev, "failed to write reg %x wait reg %x\n", reg0, reg1);
 }
 
 /**
@@ -302,11 +251,11 @@ static int amdgpu_virt_init_ras_err_handler_data(struct amdgpu_device *adev)
 	if (!*data)
 		goto data_failure;
 
-	bps = kmalloc_array(align_space, sizeof((*data)->bps), GFP_KERNEL);
+	bps = kmalloc_array(align_space, sizeof(*(*data)->bps), GFP_KERNEL);
 	if (!bps)
 		goto bps_failure;
 
-	bps_bo = kmalloc_array(align_space, sizeof((*data)->bps_bo), GFP_KERNEL);
+	bps_bo = kmalloc_array(align_space, sizeof(*(*data)->bps_bo), GFP_KERNEL);
 	if (!bps_bo)
 		goto bps_bo_failure;
 
@@ -339,8 +288,10 @@ static void amdgpu_virt_ras_release_bp(struct amdgpu_device *adev)
 
 	for (i = data->last_reserved - 1; i >= 0; i--) {
 		bo = data->bps_bo[i];
-		amdgpu_bo_free_kernel(&bo, NULL, NULL);
-		data->bps_bo[i] = bo;
+		if (bo) {
+			amdgpu_bo_free_kernel(&bo, NULL, NULL);
+			data->bps_bo[i] = bo;
+		}
 		data->last_reserved = i;
 	}
 }
@@ -380,6 +331,8 @@ static void amdgpu_virt_ras_reserve_bps(struct amdgpu_device *adev)
 {
 	struct amdgpu_virt *virt = &adev->virt;
 	struct amdgpu_virt_ras_err_handler_data *data = virt->virt_eh_data;
+	struct amdgpu_vram_mgr *mgr = &adev->mman.vram_mgr;
+	struct ttm_resource_manager *man = &mgr->manager;
 	struct amdgpu_bo *bo = NULL;
 	uint64_t bp;
 	int i;
@@ -395,12 +348,18 @@ static void amdgpu_virt_ras_reserve_bps(struct amdgpu_device *adev)
 		 * 2) a ras bad page has been reserved (duplicate error injection
 		 *    for one page);
 		 */
-		if (amdgpu_bo_create_kernel_at(adev, bp << AMDGPU_GPU_PAGE_SHIFT,
-					       AMDGPU_GPU_PAGE_SIZE,
-					       &bo, NULL))
-			DRM_DEBUG("RAS WARN: reserve vram for retired page %llx fail\n", bp);
-
-		data->bps_bo[i] = bo;
+		if  (ttm_resource_manager_used(man)) {
+			amdgpu_vram_mgr_reserve_range(&adev->mman.vram_mgr,
+				bp << AMDGPU_GPU_PAGE_SHIFT,
+				AMDGPU_GPU_PAGE_SIZE);
+			data->bps_bo[i] = NULL;
+		} else {
+			if (amdgpu_bo_create_kernel_at(adev, bp << AMDGPU_GPU_PAGE_SHIFT,
+							AMDGPU_GPU_PAGE_SIZE,
+							&bo, NULL))
+				DRM_DEBUG("RAS WARN: reserve vram for retired page %llx fail\n", bp);
+			data->bps_bo[i] = bo;
+		}
 		data->last_reserved = i + 1;
 		bo = NULL;
 	}
@@ -466,7 +425,7 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 		return -EINVAL;
 
 	if (pf2vf_info->size > 1024) {
-		DRM_ERROR("invalid pf2vf message size\n");
+		dev_err(adev->dev, "invalid pf2vf message size: 0x%x\n", pf2vf_info->size);
 		return -EINVAL;
 	}
 
@@ -477,7 +436,9 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 			adev->virt.fw_reserve.p_pf2vf, pf2vf_info->size,
 			adev->virt.fw_reserve.checksum_key, checksum);
 		if (checksum != checkval) {
-			DRM_ERROR("invalid pf2vf message\n");
+			dev_err(adev->dev,
+				"invalid pf2vf message: header checksum=0x%x calculated checksum=0x%x\n",
+				checksum, checkval);
 			return -EINVAL;
 		}
 
@@ -491,7 +452,9 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 			adev->virt.fw_reserve.p_pf2vf, pf2vf_info->size,
 			0, checksum);
 		if (checksum != checkval) {
-			DRM_ERROR("invalid pf2vf message\n");
+			dev_err(adev->dev,
+				"invalid pf2vf message: header checksum=0x%x calculated checksum=0x%x\n",
+				checksum, checkval);
 			return -EINVAL;
 		}
 
@@ -527,7 +490,7 @@ static int amdgpu_virt_read_pf2vf_data(struct amdgpu_device *adev)
 			((struct amd_sriov_msg_pf2vf_info *)pf2vf_info)->uuid;
 		break;
 	default:
-		DRM_ERROR("invalid pf2vf version\n");
+		dev_err(adev->dev, "invalid pf2vf version: 0x%x\n", pf2vf_info->version);
 		return -EINVAL;
 	}
 
@@ -613,6 +576,11 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 	vf2pf_info->decode_usage = 0;
 
 	vf2pf_info->dummy_page_addr = (uint64_t)adev->dummy_page_addr;
+	vf2pf_info->mes_info_addr = (uint64_t)adev->mes.resource_1_gpu_addr;
+
+	if (adev->mes.resource_1) {
+		vf2pf_info->mes_info_size = adev->mes.resource_1->tbo.base.size;
+	}
 	vf2pf_info->checksum =
 		amd_sriov_msg_checksum(
 		vf2pf_info, vf2pf_info->header.size, 0, 0);
@@ -626,8 +594,22 @@ static void amdgpu_virt_update_vf2pf_work_item(struct work_struct *work)
 	int ret;
 
 	ret = amdgpu_virt_read_pf2vf_data(adev);
-	if (ret)
+	if (ret) {
+		adev->virt.vf2pf_update_retry_cnt++;
+		if ((adev->virt.vf2pf_update_retry_cnt >= AMDGPU_VF2PF_UPDATE_MAX_RETRY_LIMIT) &&
+		    amdgpu_sriov_runtime(adev) && !amdgpu_in_reset(adev)) {
+			amdgpu_ras_set_fed(adev, true);
+			if (amdgpu_reset_domain_schedule(adev->reset_domain,
+							  &adev->virt.flr_work))
+				return;
+			else
+				dev_err(adev->dev, "Failed to queue work! at %s", __func__);
+		}
+
 		goto out;
+	}
+
+	adev->virt.vf2pf_update_retry_cnt = 0;
 	amdgpu_virt_write_vf2pf_data(adev);
 
 out:
@@ -648,6 +630,7 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 	adev->virt.fw_reserve.p_pf2vf = NULL;
 	adev->virt.fw_reserve.p_vf2pf = NULL;
 	adev->virt.vf2pf_update_interval_ms = 0;
+	adev->virt.vf2pf_update_retry_cnt = 0;
 
 	if (adev->mman.fw_vram_usage_va && adev->mman.drv_vram_usage_va) {
 		DRM_WARN("Currently fw_vram and drv_vram should not have values at the same time!");
@@ -746,12 +729,6 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 		if (is_virtual_machine() && !xen_initial_domain())
 			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 	}
-
-	if (amdgpu_sriov_vf(adev) && adev->asic_type == CHIP_SIENNA_CICHLID)
-		/* VF MMIO access (except mailbox range) from CPU
-		 * will be blocked during sriov runtime
-		 */
-		adev->virt.caps |= AMDGPU_VF_MMIO_ACCESS_PROTECT;
 
 	/* we have the ability to check now */
 	if (amdgpu_sriov_vf(adev)) {
@@ -942,7 +919,7 @@ void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
 	}
 }
 
-static bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
+bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
 						 u32 acc_flags, u32 hwip,
 						 bool write, u32 *rlcg_flag)
 {
@@ -975,7 +952,7 @@ static bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
 	return ret;
 }
 
-static u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag, u32 xcc_id)
+u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag, u32 xcc_id)
 {
 	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
 	uint32_t timeout = 50000;
@@ -1021,7 +998,7 @@ static u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v
 		 * SCRATCH_REG0 	= read/write value
 		 * SCRATCH_REG1[30:28]	= command
 		 * SCRATCH_REG1[19:0]	= address in dword
-		 * SCRATCH_REG1[26:24]	= Error reporting
+		 * SCRATCH_REG1[27:24]	= Error reporting
 		 */
 		writel(v, scratch_reg0);
 		writel((offset | flag), scratch_reg1);
@@ -1035,7 +1012,8 @@ static u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v
 			udelay(10);
 		}
 
-		if (i >= timeout) {
+		tmp = readl(scratch_reg1);
+		if (i >= timeout || (tmp & AMDGPU_RLCG_SCRATCH1_ERROR_MASK) != 0) {
 			if (amdgpu_sriov_rlcg_error_report_enabled(adev)) {
 				if (tmp & AMDGPU_RLCG_VFGATE_DISABLED) {
 					dev_err(adev->dev,
@@ -1092,4 +1070,15 @@ u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 		return RREG32_NO_KIQ(offset);
 	else
 		return RREG32(offset);
+}
+
+bool amdgpu_sriov_xnack_support(struct amdgpu_device *adev)
+{
+	bool xnack_mode = true;
+
+	if (amdgpu_sriov_vf(adev) &&
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 2))
+		xnack_mode = false;
+
+	return xnack_mode;
 }

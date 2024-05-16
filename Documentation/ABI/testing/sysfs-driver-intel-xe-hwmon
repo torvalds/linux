@@ -1,0 +1,110 @@
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power1_max
+Date:		September 2023
+KernelVersion:	6.5
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RW. Card reactive sustained  (PL1) power limit in microwatts.
+
+		The power controller will throttle the operating frequency
+		if the power averaged over a window (typically seconds)
+		exceeds this limit. A read value of 0 means that the PL1
+		power limit is disabled, writing 0 disables the
+		limit. Writing values > 0 and <= TDP will enable the power limit.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power1_rated_max
+Date:		September 2023
+KernelVersion:	6.5
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Card default power limit (default TDP setting).
+
+		Only supported for particular Intel Xe graphics platforms.
+
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/energy1_input
+Date:		September 2023
+KernelVersion:	6.5
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Card energy input of device in microjoules.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power1_max_interval
+Date:		October 2023
+KernelVersion:	6.6
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RW. Card sustained power limit interval (Tau in PL1/Tau) in
+		milliseconds over which sustained power is averaged.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power2_max
+Date:		February 2024
+KernelVersion:	6.8
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RW. Package reactive sustained  (PL1) power limit in microwatts.
+
+		The power controller will throttle the operating frequency
+		if the power averaged over a window (typically seconds)
+		exceeds this limit. A read value of 0 means that the PL1
+		power limit is disabled, writing 0 disables the
+		limit. Writing values > 0 and <= TDP will enable the power limit.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power2_rated_max
+Date:		February 2024
+KernelVersion:	6.8
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Package default power limit (default TDP setting).
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power2_crit
+Date:		February 2024
+KernelVersion:	6.8
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RW. Package reactive critical (I1) power limit in microwatts.
+
+		Package reactive critical (I1) power limit in microwatts is exposed
+		for client products. The power controller will throttle the
+		operating frequency if the power averaged over a window exceeds
+		this limit.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/curr2_crit
+Date:		February 2024
+KernelVersion:	6.8
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RW. Package reactive critical (I1) power limit in milliamperes.
+
+		Package reactive critical (I1) power limit in milliamperes is
+		exposed for server products. The power controller will throttle
+		the operating frequency if the power averaged over a window
+		exceeds this limit.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/energy2_input
+Date:		February 2024
+KernelVersion:	6.8
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Package energy input of device in microjoules.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/power2_max_interval
+Date:		February 2024
+KernelVersion:	6.8
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RW. Package sustained power limit interval (Tau in PL1/Tau) in
+		milliseconds over which sustained power is averaged.
+
+		Only supported for particular Intel Xe graphics platforms.
+
+What:		/sys/bus/pci/drivers/xe/.../hwmon/hwmon<i>/in1_input
+Date:		February 2024
+KernelVersion:	6.8
+Contact:	intel-xe@lists.freedesktop.org
+Description:	RO. Package current voltage in millivolt.
+
+		Only supported for particular Intel Xe graphics platforms.

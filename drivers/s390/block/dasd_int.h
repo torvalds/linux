@@ -113,9 +113,6 @@ do { \
 			    __dev_id.ssid, __dev_id.devno, d_data);	\
 } while (0)
 
-/* limit size for an errorstring */
-#define ERRORLENGTH 30
-
 /* definition of dbf debug levels */
 #define	DBF_EMERG	0	/* system is unusable			*/
 #define	DBF_ALERT	1	/* action must be taken immediately	*/
@@ -125,32 +122,6 @@ do { \
 #define	DBF_NOTICE	5	/* normal but significant condition	*/
 #define	DBF_INFO	6	/* informational			*/
 #define	DBF_DEBUG	6	/* debug-level messages			*/
-
-/* messages to be written via klogd and dbf */
-#define DEV_MESSAGE(d_loglevel,d_device,d_string,d_args...)\
-do { \
-	printk(d_loglevel PRINTK_HEADER " %s: " d_string "\n", \
-	       dev_name(&d_device->cdev->dev), d_args); \
-	DBF_DEV_EVENT(DBF_ALERT, d_device, d_string, d_args); \
-} while(0)
-
-#define MESSAGE(d_loglevel,d_string,d_args...)\
-do { \
-	printk(d_loglevel PRINTK_HEADER " " d_string "\n", d_args); \
-	DBF_EVENT(DBF_ALERT, d_string, d_args); \
-} while(0)
-
-/* messages to be written via klogd only */
-#define DEV_MESSAGE_LOG(d_loglevel,d_device,d_string,d_args...)\
-do { \
-	printk(d_loglevel PRINTK_HEADER " %s: " d_string "\n", \
-	       dev_name(&d_device->cdev->dev), d_args); \
-} while(0)
-
-#define MESSAGE_LOG(d_loglevel,d_string,d_args...)\
-do { \
-	printk(d_loglevel PRINTK_HEADER " " d_string "\n", d_args); \
-} while(0)
 
 /* Macro to calculate number of blocks per page */
 #define BLOCKS_PER_PAGE(blksize) (PAGE_SIZE / blksize)
@@ -283,7 +254,7 @@ struct dasd_pprc_dev_info {
 	__u8 secondary;		/* 7       Secondary device address */
 	__u16 pprc_id;		/* 8-9     Peer-to-Peer Remote Copy ID */
 	__u8 reserved2[12];	/* 10-21   reserved */
-	__u16 prim_cu_ssid;	/* 22-23   Pimary Control Unit SSID */
+	__u16 prim_cu_ssid;	/* 22-23   Primary Control Unit SSID */
 	__u8 reserved3[12];	/* 24-35   reserved */
 	__u16 sec_cu_ssid;	/* 36-37   Secondary Control Unit SSID */
 	__u8 reserved4[90];	/* 38-127  reserved */
@@ -322,6 +293,7 @@ struct dasd_discipline {
 	struct module *owner;
 	char ebcname[8];	/* a name used for tagging and printks */
 	char name[8];		/* a name used for tagging and printks */
+	bool has_discard;
 
 	struct list_head list;	/* used for list of disciplines */
 
@@ -360,10 +332,7 @@ struct dasd_discipline {
 	int (*online_to_ready) (struct dasd_device *);
 	int (*basic_to_known)(struct dasd_device *);
 
-	/*
-	 * Initialize block layer request queue.
-	 */
-	void (*setup_blk_queue)(struct dasd_block *);
+	unsigned int (*max_sectors)(struct dasd_block *);
 	/* (struct dasd_device *);
 	 * Device operation functions. build_cp creates a ccw chain for
 	 * a block device request, start_io starts the request and
@@ -650,7 +619,7 @@ struct dasd_block {
 	struct gendisk *gdp;
 	spinlock_t request_queue_lock;
 	struct blk_mq_tag_set tag_set;
-	struct block_device *bdev;
+	struct file *bdev_file;
 	atomic_t open_count;
 
 	unsigned long blocks;	   /* size of volume in blocks */

@@ -23,6 +23,12 @@
 /* Max retries on the same chunk */
 #define MAX_IFS_RETRIES  5
 
+struct run_params {
+	struct ifs_data *ifsd;
+	union ifs_scan *activate;
+	union ifs_status status;
+};
+
 /*
  * Number of TSC cycles that a logical CPU will wait for the other
  * logical CPU on the core in the WRMSR(ACTIVATE_SCAN).
@@ -40,6 +46,8 @@ enum ifs_status_err_code {
 	IFS_UNASSIGNED_ERROR_CODE		= 7,
 	IFS_EXCEED_NUMBER_OF_THREADS_CONCURRENT	= 8,
 	IFS_INTERRUPTED_DURING_EXECUTION	= 9,
+	IFS_UNASSIGNED_ERROR_CODE_0xA		= 0xA,
+	IFS_CORRUPTED_CHUNK		= 0xB,
 };
 
 static const char * const scan_test_status[] = {
@@ -55,6 +63,8 @@ static const char * const scan_test_status[] = {
 	[IFS_EXCEED_NUMBER_OF_THREADS_CONCURRENT] =
 	"Exceeded number of Logical Processors (LP) allowed to run Scan-At-Field concurrently",
 	[IFS_INTERRUPTED_DURING_EXECUTION] = "Interrupt occurred prior to SCAN start",
+	[IFS_UNASSIGNED_ERROR_CODE_0xA] = "Unassigned error code 0xA",
+	[IFS_CORRUPTED_CHUNK] = "Scan operation aborted due to corrupted image. Try reloading",
 };
 
 static void message_not_tested(struct device *dev, int cpu, union ifs_status status)
@@ -123,114 +133,16 @@ static bool can_restart(union ifs_status status)
 	case IFS_MISMATCH_ARGUMENTS_BETWEEN_THREADS:
 	case IFS_CORE_NOT_CAPABLE_CURRENTLY:
 	case IFS_UNASSIGNED_ERROR_CODE:
+	case IFS_UNASSIGNED_ERROR_CODE_0xA:
+	case IFS_CORRUPTED_CHUNK:
 		break;
 	}
 	return false;
 }
 
-/*
- * Execute the scan. Called "simultaneously" on all threads of a core
- * at high priority using the stop_cpus mechanism.
- */
-static int doscan(void *data)
-{
-	int cpu = smp_processor_id();
-	u64 *msrs = data;
-	int first;
-
-	/* Only the first logical CPU on a core reports result */
-	first = cpumask_first(cpu_smt_mask(cpu));
-
-	/*
-	 * This WRMSR will wait for other HT threads to also write
-	 * to this MSR (at most for activate.delay cycles). Then it
-	 * starts scan of each requested chunk. The core scan happens
-	 * during the "execution" of the WRMSR. This instruction can
-	 * take up to 200 milliseconds (in the case where all chunks
-	 * are processed in a single pass) before it retires.
-	 */
-	wrmsrl(MSR_ACTIVATE_SCAN, msrs[0]);
-
-	if (cpu == first) {
-		/* Pass back the result of the scan */
-		rdmsrl(MSR_SCAN_STATUS, msrs[1]);
-	}
-
-	return 0;
-}
-
-/*
- * Use stop_core_cpuslocked() to synchronize writing to MSR_ACTIVATE_SCAN
- * on all threads of the core to be tested. Loop if necessary to complete
- * run of all chunks. Include some defensive tests to make sure forward
- * progress is made, and that the whole test completes in a reasonable time.
- */
-static void ifs_test_core(int cpu, struct device *dev)
-{
-	union ifs_scan activate;
-	union ifs_status status;
-	unsigned long timeout;
-	struct ifs_data *ifsd;
-	u64 msrvals[2];
-	int retries;
-
-	ifsd = ifs_get_data(dev);
-
-	activate.rsvd = 0;
-	activate.delay = IFS_THREAD_WAIT;
-	activate.sigmce = 0;
-	activate.start = 0;
-	activate.stop = ifsd->valid_chunks - 1;
-
-	timeout = jiffies + HZ / 2;
-	retries = MAX_IFS_RETRIES;
-
-	while (activate.start <= activate.stop) {
-		if (time_after(jiffies, timeout)) {
-			status.error_code = IFS_SW_TIMEOUT;
-			break;
-		}
-
-		msrvals[0] = activate.data;
-		stop_core_cpuslocked(cpu, doscan, msrvals);
-
-		status.data = msrvals[1];
-
-		trace_ifs_status(cpu, activate, status);
-
-		/* Some cases can be retried, give up for others */
-		if (!can_restart(status))
-			break;
-
-		if (status.chunk_num == activate.start) {
-			/* Check for forward progress */
-			if (--retries == 0) {
-				if (status.error_code == IFS_NO_ERROR)
-					status.error_code = IFS_SW_PARTIAL_COMPLETION;
-				break;
-			}
-		} else {
-			retries = MAX_IFS_RETRIES;
-			activate.start = status.chunk_num;
-		}
-	}
-
-	/* Update status for this core */
-	ifsd->scan_details = status.data;
-
-	if (status.control_error || status.signature_error) {
-		ifsd->status = SCAN_TEST_FAIL;
-		message_fail(dev, cpu, status);
-	} else if (status.error_code) {
-		ifsd->status = SCAN_NOT_TESTED;
-		message_not_tested(dev, cpu, status);
-	} else {
-		ifsd->status = SCAN_TEST_PASS;
-	}
-}
-
 #define SPINUNIT 100 /* 100 nsec */
-static atomic_t array_cpus_out;
+static atomic_t array_cpus_in;
+static atomic_t scan_cpus_in;
 
 /*
  * Simplified cpu sibling rendezvous loop based on microcode loader __wait_for_cpus()
@@ -251,11 +163,146 @@ static void wait_for_sibling_cpu(atomic_t *t, long long timeout)
 	}
 }
 
+/*
+ * Execute the scan. Called "simultaneously" on all threads of a core
+ * at high priority using the stop_cpus mechanism.
+ */
+static int doscan(void *data)
+{
+	int cpu = smp_processor_id(), start, stop;
+	struct run_params *params = data;
+	union ifs_status status;
+	struct ifs_data *ifsd;
+	int first;
+
+	ifsd = params->ifsd;
+
+	if (ifsd->generation) {
+		start = params->activate->gen2.start;
+		stop = params->activate->gen2.stop;
+	} else {
+		start = params->activate->gen0.start;
+		stop = params->activate->gen0.stop;
+	}
+
+	/* Only the first logical CPU on a core reports result */
+	first = cpumask_first(cpu_smt_mask(cpu));
+
+	wait_for_sibling_cpu(&scan_cpus_in, NSEC_PER_SEC);
+
+	/*
+	 * This WRMSR will wait for other HT threads to also write
+	 * to this MSR (at most for activate.delay cycles). Then it
+	 * starts scan of each requested chunk. The core scan happens
+	 * during the "execution" of the WRMSR. This instruction can
+	 * take up to 200 milliseconds (in the case where all chunks
+	 * are processed in a single pass) before it retires.
+	 */
+	wrmsrl(MSR_ACTIVATE_SCAN, params->activate->data);
+	rdmsrl(MSR_SCAN_STATUS, status.data);
+
+	trace_ifs_status(ifsd->cur_batch, start, stop, status.data);
+
+	/* Pass back the result of the scan */
+	if (cpu == first)
+		params->status = status;
+
+	return 0;
+}
+
+/*
+ * Use stop_core_cpuslocked() to synchronize writing to MSR_ACTIVATE_SCAN
+ * on all threads of the core to be tested. Loop if necessary to complete
+ * run of all chunks. Include some defensive tests to make sure forward
+ * progress is made, and that the whole test completes in a reasonable time.
+ */
+static void ifs_test_core(int cpu, struct device *dev)
+{
+	union ifs_scan activate;
+	union ifs_status status;
+	unsigned long timeout;
+	struct ifs_data *ifsd;
+	int to_start, to_stop;
+	int status_chunk;
+	struct run_params params;
+	int retries;
+
+	ifsd = ifs_get_data(dev);
+
+	activate.gen0.rsvd = 0;
+	activate.delay = IFS_THREAD_WAIT;
+	activate.sigmce = 0;
+	to_start = 0;
+	to_stop = ifsd->valid_chunks - 1;
+
+	params.ifsd = ifs_get_data(dev);
+
+	if (ifsd->generation) {
+		activate.gen2.start = to_start;
+		activate.gen2.stop = to_stop;
+	} else {
+		activate.gen0.start = to_start;
+		activate.gen0.stop = to_stop;
+	}
+
+	timeout = jiffies + HZ / 2;
+	retries = MAX_IFS_RETRIES;
+
+	while (to_start <= to_stop) {
+		if (time_after(jiffies, timeout)) {
+			status.error_code = IFS_SW_TIMEOUT;
+			break;
+		}
+
+		params.activate = &activate;
+		atomic_set(&scan_cpus_in, 0);
+		stop_core_cpuslocked(cpu, doscan, &params);
+
+		status = params.status;
+
+		/* Some cases can be retried, give up for others */
+		if (!can_restart(status))
+			break;
+
+		status_chunk = ifsd->generation ? status.gen2.chunk_num : status.gen0.chunk_num;
+		if (status_chunk == to_start) {
+			/* Check for forward progress */
+			if (--retries == 0) {
+				if (status.error_code == IFS_NO_ERROR)
+					status.error_code = IFS_SW_PARTIAL_COMPLETION;
+				break;
+			}
+		} else {
+			retries = MAX_IFS_RETRIES;
+			if (ifsd->generation)
+				activate.gen2.start = status_chunk;
+			else
+				activate.gen0.start = status_chunk;
+			to_start = status_chunk;
+		}
+	}
+
+	/* Update status for this core */
+	ifsd->scan_details = status.data;
+
+	if (status.control_error || status.signature_error) {
+		ifsd->status = SCAN_TEST_FAIL;
+		message_fail(dev, cpu, status);
+	} else if (status.error_code) {
+		ifsd->status = SCAN_NOT_TESTED;
+		message_not_tested(dev, cpu, status);
+	} else {
+		ifsd->status = SCAN_TEST_PASS;
+	}
+}
+
 static int do_array_test(void *data)
 {
 	union ifs_array *command = data;
 	int cpu = smp_processor_id();
 	int first;
+
+	wait_for_sibling_cpu(&array_cpus_in, NSEC_PER_SEC);
 
 	/*
 	 * Only one logical CPU on a core needs to trigger the Array test via MSR write.
@@ -267,9 +314,6 @@ static int do_array_test(void *data)
 		/* Pass back the result of the test */
 		rdmsrl(MSR_ARRAY_BIST, command->data);
 	}
-
-	/* Tests complete faster if the sibling is spinning here */
-	wait_for_sibling_cpu(&array_cpus_out, NSEC_PER_SEC);
 
 	return 0;
 }
@@ -291,7 +335,7 @@ static void ifs_array_test_core(int cpu, struct device *dev)
 			timed_out = true;
 			break;
 		}
-		atomic_set(&array_cpus_out, 0);
+		atomic_set(&array_cpus_in, 0);
 		stop_core_cpuslocked(cpu, do_array_test, &command);
 
 		if (command.ctrl_result)
@@ -304,6 +348,38 @@ static void ifs_array_test_core(int cpu, struct device *dev)
 		ifsd->status = SCAN_TEST_FAIL;
 	else if (timed_out || command.array_bitmask)
 		ifsd->status = SCAN_NOT_TESTED;
+	else
+		ifsd->status = SCAN_TEST_PASS;
+}
+
+#define ARRAY_GEN1_TEST_ALL_ARRAYS	0x0ULL
+#define ARRAY_GEN1_STATUS_FAIL		0x1ULL
+
+static int do_array_test_gen1(void *status)
+{
+	int cpu = smp_processor_id();
+	int first;
+
+	first = cpumask_first(cpu_smt_mask(cpu));
+
+	if (cpu == first) {
+		wrmsrl(MSR_ARRAY_TRIGGER, ARRAY_GEN1_TEST_ALL_ARRAYS);
+		rdmsrl(MSR_ARRAY_STATUS, *((u64 *)status));
+	}
+
+	return 0;
+}
+
+static void ifs_array_test_gen1(int cpu, struct device *dev)
+{
+	struct ifs_data *ifsd = ifs_get_data(dev);
+	u64 status = 0;
+
+	stop_core_cpuslocked(cpu, do_array_test_gen1, &status);
+	ifsd->scan_details = status;
+
+	if (status & ARRAY_GEN1_STATUS_FAIL)
+		ifsd->status = SCAN_TEST_FAIL;
 	else
 		ifsd->status = SCAN_TEST_PASS;
 }
@@ -336,7 +412,10 @@ int do_core_test(int cpu, struct device *dev)
 			ifs_test_core(cpu, dev);
 		break;
 	case IFS_TYPE_ARRAY_BIST:
-		ifs_array_test_core(cpu, dev);
+		if (ifsd->array_gen == ARRAY_GEN0)
+			ifs_array_test_core(cpu, dev);
+		else
+			ifs_array_test_gen1(cpu, dev);
 		break;
 	default:
 		ret = -EINVAL;

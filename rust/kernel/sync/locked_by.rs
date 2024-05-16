@@ -9,13 +9,16 @@ use core::{cell::UnsafeCell, mem::size_of, ptr};
 /// Allows access to some data to be serialised by a lock that does not wrap it.
 ///
 /// In most cases, data protected by a lock is wrapped by the appropriate lock type, e.g.,
-/// [`super::Mutex`] or [`super::SpinLock`]. [`LockedBy`] is meant for cases when this is not
-/// possible. For example, if a container has a lock and some data in the contained elements needs
+/// [`Mutex`] or [`SpinLock`]. [`LockedBy`] is meant for cases when this is not possible.
+/// For example, if a container has a lock and some data in the contained elements needs
 /// to be protected by the same lock.
 ///
 /// [`LockedBy`] wraps the data in lieu of another locking primitive, and only allows access to it
 /// when the caller shows evidence that the 'external' lock is locked. It panics if the evidence
 /// refers to the wrong instance of the lock.
+///
+/// [`Mutex`]: super::Mutex
+/// [`SpinLock`]: super::SpinLock
 ///
 /// # Examples
 ///

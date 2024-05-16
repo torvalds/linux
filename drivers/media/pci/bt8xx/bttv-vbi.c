@@ -123,14 +123,12 @@ static void buf_cleanup_vbi(struct vb2_buffer *vb)
 
 static int start_streaming_vbi(struct vb2_queue *q, unsigned int count)
 {
-	int ret;
 	int seqnr = 0;
 	struct bttv_buffer *buf;
 	struct bttv *btv = vb2_get_drv_priv(q);
 
 	btv->framedrop = 0;
-	ret = check_alloc_btres_lock(btv, RESOURCE_VBI);
-	if (ret == 0) {
+	if (!check_alloc_btres_lock(btv, RESOURCE_VBI)) {
 		if (btv->field_count)
 			seqnr++;
 		while (!list_empty(&btv->vcapture)) {
@@ -141,13 +139,13 @@ static int start_streaming_vbi(struct vb2_queue *q, unsigned int count)
 			vb2_buffer_done(&buf->vbuf.vb2_buf,
 					VB2_BUF_STATE_QUEUED);
 		}
-		return !ret;
+		return -EBUSY;
 	}
 	if (!vb2_is_streaming(&btv->capq)) {
 		init_irqreg(btv);
 		btv->field_count = 0;
 	}
-	return !ret;
+	return 0;
 }
 
 static void stop_streaming_vbi(struct vb2_queue *q)

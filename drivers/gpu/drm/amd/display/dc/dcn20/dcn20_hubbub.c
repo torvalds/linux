@@ -570,7 +570,7 @@ void hubbub2_get_dchub_ref_freq(struct hubbub *hubbub,
 
 static bool hubbub2_program_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {

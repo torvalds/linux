@@ -12,7 +12,7 @@
 #define __SOF_AMD_ACP_H
 
 #include <linux/dmi.h>
-
+#include <linux/soundwire/sdw_amd.h>
 #include "../sof-priv.h"
 #include "../sof-audio.h"
 
@@ -31,6 +31,9 @@
 #define ACP_ASSERT_RESET			0x01
 #define ACP_RELEASE_RESET			0x00
 #define ACP_SOFT_RESET_DONE_MASK		0x00010001
+#define ACP_DSP_ASSERT_RESET			0x04
+#define ACP_DSP_RELEASE_RESET			0x00
+#define ACP_DSP_SOFT_RESET_DONE_MASK		0x00050004
 
 #define ACP_DSP_INTR_EN_MASK			0x00000001
 #define ACP3X_SRAM_PTE_OFFSET			0x02050000
@@ -54,27 +57,34 @@
 #define ACP3X_SCRATCH_MEMORY_ADDRESS		0x02050000
 #define ACP_SYSTEM_MEMORY_WINDOW		0x4000000
 #define ACP_IRAM_BASE_ADDRESS			0x000000
-#define ACP_DATA_RAM_BASE_ADDRESS		0x01000000
+#define ACP_DRAM_BASE_ADDRESS			0x01000000
 #define ACP_DRAM_PAGE_COUNT			128
-
+#define ACP_SRAM_BASE_ADDRESS			0x3806000
 #define ACP_DSP_TO_HOST_IRQ			0x04
 
 #define ACP_RN_PCI_ID				0x01
 #define ACP_VANGOGH_PCI_ID			0x50
 #define ACP_RMB_PCI_ID				0x6F
+#define ACP63_PCI_ID				0x63
 
 #define HOST_BRIDGE_CZN				0x1630
 #define HOST_BRIDGE_VGH				0x1645
 #define HOST_BRIDGE_RMB				0x14B5
+#define HOST_BRIDGE_ACP63			0x14E8
 #define ACP_SHA_STAT				0x8000
 #define ACP_PSP_TIMEOUT_US			1000000
 #define ACP_EXT_INTR_ERROR_STAT			0x20000000
 #define MP0_C2PMSG_114_REG			0x3810AC8
 #define MP0_C2PMSG_73_REG			0x3810A24
 #define MBOX_ACP_SHA_DMA_COMMAND		0x70000
+#define MBOX_ACP_IRAM_DRAM_FENCE_COMMAND	0x80000
 #define MBOX_DELAY_US				1000
 #define MBOX_READY_MASK				0x80000000
 #define MBOX_STATUS_MASK			0xFFFF
+#define MBOX_ISREADY_FLAG			0x40000000
+#define IRAM_DRAM_FENCE_0			0X0
+#define IRAM_DRAM_FENCE_1			0X01
+#define IRAM_DRAM_FENCE_2			0X02
 
 #define BOX_SIZE_512				0x200
 #define BOX_SIZE_1024				0x400
@@ -82,10 +92,17 @@
 #define EXCEPT_MAX_HDR_SIZE			0x400
 #define AMD_STACK_DUMP_SIZE			32
 
-#define SRAM1_SIZE				0x13A000
+#define SRAM1_SIZE				0x280000
 #define PROBE_STATUS_BIT			BIT(31)
 
 #define ACP_FIRMWARE_SIGNATURE			0x100
+#define ACP_ERROR_IRQ_MASK			BIT(29)
+#define ACP_SDW0_IRQ_MASK			BIT(21)
+#define ACP_SDW1_IRQ_MASK			BIT(2)
+#define SDW_ACPI_ADDR_ACP63			5
+#define ACP_DEFAULT_SRAM_LENGTH			0x00080000
+#define ACP_SRAM_PAGE_COUNT			128
+#define ACP6X_SDW_MAX_MANAGER_COUNT		2
 
 enum clock_source {
 	ACP_CLOCK_96M = 0,
@@ -175,13 +192,24 @@ struct sof_amd_acp_desc {
 	unsigned int host_bridge_id;
 	u32 pgfsm_base;
 	u32 ext_intr_enb;
+	u32 ext_intr_cntl;
 	u32 ext_intr_stat;
+	u32 ext_intr_stat1;
 	u32 dsp_intr_base;
 	u32 sram_pte_offset;
 	u32 hw_semaphore_offset;
 	u32 acp_clkmux_sel;
 	u32 fusion_dsp_offset;
 	u32 probe_reg_offset;
+	u32 reg_start_addr;
+	u32 reg_end_addr;
+	u32 sdw_max_link_count;
+	u64 sdw_acpi_dev_addr;
+};
+
+struct acp_quirk_entry {
+	bool signed_fw_image;
+	bool skip_iram_dram_size_mod;
 };
 
 /* Common device data struct for ACP devices */
@@ -190,22 +218,39 @@ struct acp_dev_data {
 	const struct firmware *fw_dbin;
 	/* DMIC device */
 	struct platform_device *dmic_dev;
+	/* mutex lock to protect ACP common registers access */
+	struct mutex acp_lock;
+	/* ACPI information stored between scan and probe steps */
+	struct sdw_amd_acpi_info info;
+	/* sdw context allocated by SoundWire driver */
+	struct sdw_amd_ctx *sdw;
 	unsigned int fw_bin_size;
 	unsigned int fw_data_bin_size;
+	unsigned int fw_sram_data_bin_size;
 	const char *fw_code_bin;
 	const char *fw_data_bin;
+	const char *fw_sram_data_bin;
 	u32 fw_bin_page_count;
+	u32 fw_data_bin_page_count;
+	u32 addr;
+	u32 reg_range;
+	u32 blk_type;
 	dma_addr_t sha_dma_addr;
 	u8 *bin_buf;
 	dma_addr_t dma_addr;
 	u8 *data_buf;
-	bool signed_fw_image;
+	dma_addr_t sram_dma_addr;
+	u8 *sram_data_buf;
+	struct acp_quirk_entry *quirks;
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 	struct acp_dsp_stream *dtrace_stream;
 	struct pci_dev *smn_dev;
 	struct acp_dsp_stream *probe_stream;
 	bool enable_fw_debug;
+	bool is_dram_in_use;
+	bool is_sram_in_use;
+	bool sdw_en_stat;
 };
 
 void memcpy_to_scratch(struct snd_sof_dev *sdev, u32 offset, unsigned int *src, size_t bytes);
@@ -220,7 +265,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 
 /* ACP device probe/remove */
 int amd_sof_acp_probe(struct snd_sof_dev *sdev);
-int amd_sof_acp_remove(struct snd_sof_dev *sdev);
+void amd_sof_acp_remove(struct snd_sof_dev *sdev);
 
 /* DSP Loader callbacks */
 int acp_sof_dsp_run(struct snd_sof_dev *sdev);
@@ -273,6 +318,8 @@ extern struct snd_sof_dsp_ops sof_vangogh_ops;
 int sof_vangogh_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_rembrandt_ops;
 int sof_rembrandt_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_acp63_ops;
+int sof_acp63_ops_init(struct snd_sof_dev *sdev);
 
 struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev);
 /* Machine configuration */

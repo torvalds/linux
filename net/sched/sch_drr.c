@@ -481,6 +481,7 @@ static struct Qdisc_ops drr_qdisc_ops __read_mostly = {
 	.destroy	= drr_destroy_qdisc,
 	.owner		= THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("drr");
 
 static int __init drr_init(void)
 {
@@ -495,3 +496,4 @@ static void __exit drr_exit(void)
 module_init(drr_init);
 module_exit(drr_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Deficit Round Robin scheduler");

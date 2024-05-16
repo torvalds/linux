@@ -37,10 +37,12 @@ extern void fpu_flush_thread(void);
  * The FPU context is only stored/restored for a user task and
  * PF_KTHREAD is used to distinguish between kernel and user threads.
  */
-static inline void switch_fpu_prepare(struct fpu *old_fpu, int cpu)
+static inline void switch_fpu_prepare(struct task_struct *old, int cpu)
 {
 	if (cpu_feature_enabled(X86_FEATURE_FPU) &&
-	    !(current->flags & (PF_KTHREAD | PF_USER_WORKER))) {
+	    !(old->flags & (PF_KTHREAD | PF_USER_WORKER))) {
+		struct fpu *old_fpu = &old->thread.fpu;
+
 		save_fpregs_to_fpstate(old_fpu);
 		/*
 		 * The save operation preserved register state, so the
@@ -60,10 +62,10 @@ static inline void switch_fpu_prepare(struct fpu *old_fpu, int cpu)
  * Delay loading of the complete FPU state until the return to userland.
  * PKRU is handled separately.
  */
-static inline void switch_fpu_finish(void)
+static inline void switch_fpu_finish(struct task_struct *new)
 {
 	if (cpu_feature_enabled(X86_FEATURE_FPU))
-		set_thread_flag(TIF_NEED_FPU_LOAD);
+		set_tsk_thread_flag(new, TIF_NEED_FPU_LOAD);
 }
 
 #endif /* _ASM_X86_FPU_SCHED_H */

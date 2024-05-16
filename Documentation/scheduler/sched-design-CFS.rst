@@ -100,6 +100,9 @@ which can be used to tune the scheduler from "desktop" (i.e., low latencies) to
 "server" (i.e., good batching) workloads.  It defaults to a setting suitable
 for desktop workloads.  SCHED_BATCH is handled by the CFS scheduler module too.
 
+In case CONFIG_HZ results in base_slice_ns < TICK_NSEC, the value of
+base_slice_ns will have little to no impact on the workloads.
+
 Due to its design, the CFS scheduler is not prone to any of the "attacks" that
 exist today against the heuristics of the stock scheduler: fiftyp.c, thud.c,
 chew.c, ring-test.c, massive_intr.c all work fine and do not impact
@@ -180,7 +183,7 @@ This is the (partial) list of the hooks:
    compat_yield sysctl is turned on; in that case, it places the scheduling
    entity at the right-most end of the red-black tree.
 
- - check_preempt_curr(...)
+ - wakeup_preempt(...)
 
    This function checks if a task that entered the runnable state should
    preempt the currently running task.
@@ -189,10 +192,10 @@ This is the (partial) list of the hooks:
 
    This function chooses the most appropriate task eligible to run next.
 
- - set_curr_task(...)
+ - set_next_task(...)
 
-   This function is called when a task changes its scheduling class or changes
-   its task group.
+   This function is called when a task changes its scheduling class, changes
+   its task group or is scheduled.
 
  - task_tick(...)
 

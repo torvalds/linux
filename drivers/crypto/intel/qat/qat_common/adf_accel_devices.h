@@ -6,9 +6,14 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/pci.h>
 #include <linux/ratelimit.h>
+#include <linux/types.h>
 #include "adf_cfg_common.h"
+#include "adf_rl.h"
+#include "adf_telemetry.h"
 #include "adf_pfvf_msg.h"
+#include "icp_qat_hw.h"
 
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCCVF_DEVICE_NAME "dh895xccvf"
@@ -17,19 +22,22 @@
 #define ADF_C3XXX_DEVICE_NAME "c3xxx"
 #define ADF_C3XXXVF_DEVICE_NAME "c3xxxvf"
 #define ADF_4XXX_DEVICE_NAME "4xxx"
+#define ADF_420XX_DEVICE_NAME "420xx"
 #define ADF_4XXX_PCI_DEVICE_ID 0x4940
 #define ADF_4XXXIOV_PCI_DEVICE_ID 0x4941
 #define ADF_401XX_PCI_DEVICE_ID 0x4942
 #define ADF_401XXIOV_PCI_DEVICE_ID 0x4943
 #define ADF_402XX_PCI_DEVICE_ID 0x4944
 #define ADF_402XXIOV_PCI_DEVICE_ID 0x4945
+#define ADF_420XX_PCI_DEVICE_ID 0x4946
+#define ADF_420XXIOV_PCI_DEVICE_ID 0x4947
 #define ADF_DEVICE_FUSECTL_OFFSET 0x40
 #define ADF_DEVICE_LEGFUSE_OFFSET 0x4C
 #define ADF_DEVICE_FUSECTL_MASK 0x80000000
 #define ADF_PCI_MAX_BARS 3
 #define ADF_DEVICE_NAME_LENGTH 32
 #define ADF_ETR_MAX_RINGS_PER_BANK 16
-#define ADF_MAX_MSIX_VECTOR_NAME 16
+#define ADF_MAX_MSIX_VECTOR_NAME 48
 #define ADF_DEVICE_NAME_PREFIX "qat_"
 
 enum adf_accel_capabilities {
@@ -79,6 +87,19 @@ enum dev_sku_info {
 	DEV_SKU_4,
 	DEV_SKU_VF,
 	DEV_SKU_UNKNOWN,
+};
+
+enum ras_errors {
+	ADF_RAS_CORR,
+	ADF_RAS_UNCORR,
+	ADF_RAS_FATAL,
+	ADF_RAS_ERRORS,
+};
+
+struct adf_error_counters {
+	atomic_t counter[ADF_RAS_ERRORS];
+	bool sysfs_added;
+	bool enabled;
 };
 
 static inline const char *get_sku_info(enum dev_sku_info info)
@@ -152,6 +173,13 @@ struct adf_accel_dev;
 struct adf_etr_data;
 struct adf_etr_ring_data;
 
+struct adf_ras_ops {
+	void (*enable_ras_errors)(struct adf_accel_dev *accel_dev);
+	void (*disable_ras_errors)(struct adf_accel_dev *accel_dev);
+	bool (*handle_interrupt)(struct adf_accel_dev *accel_dev,
+				 bool *reset_required);
+};
+
 struct adf_pfvf_ops {
 	int (*enable_comms)(struct adf_accel_dev *accel_dev);
 	u32 (*get_pf2vf_offset)(u32 i);
@@ -169,6 +197,16 @@ struct adf_dc_ops {
 	void (*build_deflate_ctx)(void *ctx);
 };
 
+struct adf_dev_err_mask {
+	u32 cppagentcmdpar_mask;
+	u32 parerr_ath_cph_mask;
+	u32 parerr_cpr_xlt_mask;
+	u32 parerr_dcpr_ucs_mask;
+	u32 parerr_pke_mask;
+	u32 parerr_wat_wcp_mask;
+	u32 ssmfeatren_mask;
+};
+
 struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
 	u32 (*get_accel_mask)(struct adf_hw_device_data *self);
@@ -182,6 +220,7 @@ struct adf_hw_device_data {
 	void (*get_arb_info)(struct arb_info *arb_csrs_info);
 	void (*get_admin_info)(struct admin_info *admin_csrs_info);
 	enum dev_sku_info (*get_sku)(struct adf_hw_device_data *self);
+	u16 (*get_ring_to_svc_map)(struct adf_accel_dev *accel_dev);
 	int (*alloc_irq)(struct adf_accel_dev *accel_dev);
 	void (*free_irq)(struct adf_accel_dev *accel_dev);
 	void (*enable_error_correction)(struct adf_accel_dev *accel_dev);
@@ -208,18 +247,26 @@ struct adf_hw_device_data {
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	const char *(*uof_get_name)(struct adf_accel_dev *accel_dev, u32 obj_num);
-	u32 (*uof_get_num_objs)(void);
+	u32 (*uof_get_num_objs)(struct adf_accel_dev *accel_dev);
+	int (*uof_get_obj_type)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	u32 (*uof_get_ae_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
+	int (*get_rp_group)(struct adf_accel_dev *accel_dev, u32 ae_mask);
+	u32 (*get_ena_thd_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	int (*dev_config)(struct adf_accel_dev *accel_dev);
 	struct adf_pfvf_ops pfvf_ops;
 	struct adf_hw_csr_ops csr_ops;
 	struct adf_dc_ops dc_ops;
+	struct adf_ras_ops ras_ops;
+	struct adf_dev_err_mask dev_err_mask;
+	struct adf_rl_hw_data rl_data;
+	struct adf_tl_hw_data tl_data;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses;
 	u32 straps;
 	u32 accel_capabilities_mask;
 	u32 extended_dc_capabilities;
+	u16 fw_capabilities;
 	u32 clock_frequency;
 	u32 instance_id;
 	u16 accel_mask;
@@ -227,6 +274,7 @@ struct adf_hw_device_data {
 	u32 admin_ae_mask;
 	u16 tx_rings_mask;
 	u16 ring_to_svc_map;
+	u32 thd_to_arb_map[ICP_QAT_HW_AE_DELIMITER];
 	u8 tx_rx_gap;
 	u8 num_banks;
 	u16 num_banks_per_vf;
@@ -235,6 +283,7 @@ struct adf_hw_device_data {
 	u8 num_logical_accel;
 	u8 num_engines;
 	u32 num_hb_ctrs;
+	u8 num_rps;
 };
 
 /* CSR write macro */
@@ -262,10 +311,12 @@ struct adf_hw_device_data {
 #define GET_SRV_TYPE(accel_dev, idx) \
 	(((GET_HW_DATA(accel_dev)->ring_to_svc_map) >> (ADF_SRV_TYPE_BIT_LEN * (idx))) \
 	& ADF_SRV_TYPE_MASK)
+#define GET_ERR_MASK(accel_dev) (&GET_HW_DATA(accel_dev)->dev_err_mask)
 #define GET_MAX_ACCELENGINES(accel_dev) (GET_HW_DATA(accel_dev)->num_engines)
 #define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_ops)
 #define GET_PFVF_OPS(accel_dev) (&(accel_dev)->hw_device->pfvf_ops)
 #define GET_DC_OPS(accel_dev) (&(accel_dev)->hw_device->dc_ops)
+#define GET_TL_DATA(accel_dev) GET_HW_DATA(accel_dev)->tl_data
 #define accel_to_pci_dev(accel_ptr) accel_ptr->accel_pci_dev.pci_dev
 
 struct adf_admin_comms;
@@ -282,6 +333,7 @@ struct adf_accel_vf_info {
 	struct ratelimit_state vf2pf_ratelimit;
 	u32 vf_nr;
 	bool init;
+	bool restarting;
 	u8 vf_compat_ver;
 };
 
@@ -291,24 +343,46 @@ struct adf_dc_data {
 	dma_addr_t ovf_buff_p;
 };
 
+struct adf_pm {
+	struct dentry *debugfs_pm_status;
+	bool present;
+	int idle_irq_counters;
+	int throttle_irq_counters;
+	int fw_irq_counters;
+	int host_ack_counter;
+	int host_nack_counter;
+	ssize_t (*print_pm_status)(struct adf_accel_dev *accel_dev,
+				   char __user *buf, size_t count, loff_t *pos);
+};
+
+struct adf_sysfs {
+	int ring_num;
+	struct rw_semaphore lock; /* protects access to the fields in this struct */
+};
+
 struct adf_accel_dev {
 	struct adf_etr_data *transport;
 	struct adf_hw_device_data *hw_device;
 	struct adf_cfg_device_data *cfg;
 	struct adf_fw_loader_data *fw_loader;
 	struct adf_admin_comms *admin;
+	struct adf_telemetry *telemetry;
 	struct adf_dc_data *dc_data;
+	struct adf_pm power_management;
 	struct list_head crypto_list;
 	struct list_head compression_list;
 	unsigned long status;
 	atomic_t ref_count;
 	struct dentry *debugfs_dir;
 	struct dentry *fw_cntr_dbgfile;
+	struct dentry *cnv_dbgfile;
 	struct list_head list;
 	struct module *owner;
 	struct adf_accel_pci accel_pci_dev;
 	struct adf_timer *timer;
 	struct adf_heartbeat *heartbeat;
+	struct adf_rl *rate_limiting;
+	struct adf_sysfs sysfs;
 	union {
 		struct {
 			/* protects VF2PF interrupts access */
@@ -326,8 +400,10 @@ struct adf_accel_dev {
 			u8 pf_compat_ver;
 		} vf;
 	};
+	struct adf_error_counters ras_errors;
 	struct mutex state_lock; /* protect state of the device */
 	bool is_vf;
+	bool autoreset_on_error;
 	u32 accel_id;
 };
 #endif

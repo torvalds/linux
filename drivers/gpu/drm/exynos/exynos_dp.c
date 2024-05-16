@@ -74,16 +74,15 @@ static int exynos_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 {
 	struct exynos_dp_device *dp = to_dp(plat_data);
 	struct drm_display_mode *mode;
-	int num_modes = 0;
 
 	if (dp->plat_data.panel)
-		return num_modes;
+		return 0;
 
 	mode = drm_mode_create(connector->dev);
 	if (!mode) {
 		DRM_DEV_ERROR(dp->dev,
 			      "failed to create a new display mode.\n");
-		return num_modes;
+		return 0;
 	}
 
 	drm_display_mode_from_videomode(&dp->vm, mode);
@@ -94,7 +93,7 @@ static int exynos_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 	drm_mode_set_name(mode);
 	drm_mode_probed_add(connector, mode);
 
-	return num_modes + 1;
+	return 1;
 }
 
 static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
@@ -250,14 +249,12 @@ out:
 	return component_add(&pdev->dev, &exynos_dp_ops);
 }
 
-static int exynos_dp_remove(struct platform_device *pdev)
+static void exynos_dp_remove(struct platform_device *pdev)
 {
 	struct exynos_dp_device *dp = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &exynos_dp_ops);
 	analogix_dp_remove(dp->adp);
-
-	return 0;
 }
 
 static int exynos_dp_suspend(struct device *dev)
@@ -285,7 +282,7 @@ MODULE_DEVICE_TABLE(of, exynos_dp_match);
 
 struct platform_driver dp_driver = {
 	.probe		= exynos_dp_probe,
-	.remove		= exynos_dp_remove,
+	.remove_new	= exynos_dp_remove,
 	.driver		= {
 		.name	= "exynos-dp",
 		.owner	= THIS_MODULE,

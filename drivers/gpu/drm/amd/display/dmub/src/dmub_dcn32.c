@@ -32,8 +32,6 @@
 #include "dcn/dcn_3_2_0_offset.h"
 #include "dcn/dcn_3_2_0_sh_mask.h"
 
-#define DCN_BASE__INST0_SEG2                       0x000034C0
-
 #define BASE_INNER(seg) ctx->dcn_reg_offsets[seg]
 #define CTX dmub
 #define REGS dmub->regs_dcn32
@@ -218,7 +216,8 @@ void dmub_dcn32_setup_windows(struct dmub_srv *dmub,
 		const struct dmub_window *cw3,
 		const struct dmub_window *cw4,
 		const struct dmub_window *cw5,
-		const struct dmub_window *cw6)
+		const struct dmub_window *cw6,
+		const struct dmub_window *region6)
 {
 	union dmub_addr offset;
 
@@ -479,6 +478,8 @@ void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 	diag_data->is_cw6_enabled = is_cw6_enabled;
 
 	diag_data->gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
+
+	diag_data->timeout_info = dmub->debug;
 }
 void dmub_dcn32_configure_dmub_in_system_memory(struct dmub_srv *dmub)
 {

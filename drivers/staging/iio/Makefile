@@ -8,4 +8,3 @@ obj-y += adc/
 obj-y += addac/
 obj-y += frequency/
 obj-y += impedance-analyzer/
-obj-y += resolver/

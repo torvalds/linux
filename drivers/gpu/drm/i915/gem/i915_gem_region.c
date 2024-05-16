@@ -129,7 +129,7 @@ i915_gem_object_create_region_at(struct intel_memory_region *mem,
 		return ERR_PTR(-EINVAL);
 
 	if (!(flags & I915_BO_ALLOC_GPU_ONLY) &&
-	    offset + size > mem->io_size &&
+	    offset + size > resource_size(&mem->io) &&
 	    !i915_ggtt_has_aperture(to_gt(mem->i915)->ggtt))
 		return ERR_PTR(-ENOSPC);
 

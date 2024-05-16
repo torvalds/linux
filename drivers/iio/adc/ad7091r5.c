@@ -12,42 +12,11 @@
 
 #include "ad7091r-base.h"
 
-static const struct iio_event_spec ad7091r5_events[] = {
-	{
-		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_RISING,
-		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
-				 BIT(IIO_EV_INFO_ENABLE),
-	},
-	{
-		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_FALLING,
-		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
-				 BIT(IIO_EV_INFO_ENABLE),
-	},
-	{
-		.type = IIO_EV_TYPE_THRESH,
-		.dir = IIO_EV_DIR_EITHER,
-		.mask_separate = BIT(IIO_EV_INFO_HYSTERESIS),
-	},
-};
-
-#define AD7091R_CHANNEL(idx, bits, ev, num_ev) { \
-	.type = IIO_VOLTAGE, \
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW), \
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE), \
-	.indexed = 1, \
-	.channel = idx, \
-	.event_spec = ev, \
-	.num_event_specs = num_ev, \
-	.scan_type.storagebits = 16, \
-	.scan_type.realbits = bits, \
-}
 static const struct iio_chan_spec ad7091r5_channels_irq[] = {
-	AD7091R_CHANNEL(0, 12, ad7091r5_events, ARRAY_SIZE(ad7091r5_events)),
-	AD7091R_CHANNEL(1, 12, ad7091r5_events, ARRAY_SIZE(ad7091r5_events)),
-	AD7091R_CHANNEL(2, 12, ad7091r5_events, ARRAY_SIZE(ad7091r5_events)),
-	AD7091R_CHANNEL(3, 12, ad7091r5_events, ARRAY_SIZE(ad7091r5_events)),
+	AD7091R_CHANNEL(0, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(1, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(2, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
+	AD7091R_CHANNEL(3, 12, ad7091r_events, ARRAY_SIZE(ad7091r_events)),
 };
 
 static const struct iio_chan_spec ad7091r5_channels_noirq[] = {
@@ -57,43 +26,98 @@ static const struct iio_chan_spec ad7091r5_channels_noirq[] = {
 	AD7091R_CHANNEL(3, 12, NULL, 0),
 };
 
+static int ad7091r5_set_mode(struct ad7091r_state *st, enum ad7091r_mode mode)
+{
+	int ret, conf;
+
+	switch (mode) {
+	case AD7091R_MODE_SAMPLE:
+		conf = 0;
+		break;
+	case AD7091R_MODE_COMMAND:
+		conf = AD7091R_REG_CONF_CMD;
+		break;
+	case AD7091R_MODE_AUTOCYCLE:
+		conf = AD7091R_REG_CONF_AUTO;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = regmap_update_bits(st->map, AD7091R_REG_CONF,
+				 AD7091R_REG_CONF_MODE_MASK, conf);
+	if (ret)
+		return ret;
+
+	st->mode = mode;
+
+	return 0;
+}
+
+static unsigned int ad7091r5_reg_result_chan_id(unsigned int val)
+{
+	return AD7091R5_REG_RESULT_CH_ID(val);
+}
+
 static const struct ad7091r_chip_info ad7091r5_chip_info_irq = {
+	.name = "ad7091r-5",
 	.channels = ad7091r5_channels_irq,
 	.num_channels = ARRAY_SIZE(ad7091r5_channels_irq),
 	.vref_mV = 2500,
+	.reg_result_chan_id = &ad7091r5_reg_result_chan_id,
+	.set_mode = &ad7091r5_set_mode,
 };
 
 static const struct ad7091r_chip_info ad7091r5_chip_info_noirq = {
+	.name = "ad7091r-5",
 	.channels = ad7091r5_channels_noirq,
 	.num_channels = ARRAY_SIZE(ad7091r5_channels_noirq),
 	.vref_mV = 2500,
+	.reg_result_chan_id = &ad7091r5_reg_result_chan_id,
+	.set_mode = &ad7091r5_set_mode,
+};
+
+static const struct regmap_config ad7091r_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 16,
+	.writeable_reg = ad7091r_writeable_reg,
+	.volatile_reg = ad7091r_volatile_reg,
+};
+
+static void ad7091r5_regmap_init(struct ad7091r_state *st,
+				 const struct regmap_config *regmap_conf)
+{
+	struct i2c_client *i2c = container_of(st->dev, struct i2c_client, dev);
+
+	st->map = devm_regmap_init_i2c(i2c, regmap_conf);
+}
+
+static struct ad7091r_init_info ad7091r5_init_info = {
+	.info_irq = &ad7091r5_chip_info_irq,
+	.info_no_irq = &ad7091r5_chip_info_noirq,
+	.regmap_config = &ad7091r_regmap_config,
+	.init_adc_regmap = &ad7091r5_regmap_init
 };
 
 static int ad7091r5_i2c_probe(struct i2c_client *i2c)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
-	const struct ad7091r_chip_info *chip_info;
-	struct regmap *map = devm_regmap_init_i2c(i2c, &ad7091r_regmap_config);
+	const struct ad7091r_init_info *init_info;
 
-	if (IS_ERR(map))
-		return PTR_ERR(map);
+	init_info = i2c_get_match_data(i2c);
+	if (!init_info)
+		return -EINVAL;
 
-	if (i2c->irq)
-		chip_info = &ad7091r5_chip_info_irq;
-	else
-		chip_info = &ad7091r5_chip_info_noirq;
-
-	return ad7091r_probe(&i2c->dev, id->name, chip_info, map, i2c->irq);
+	return ad7091r_probe(&i2c->dev, init_info, i2c->irq);
 }
 
 static const struct of_device_id ad7091r5_dt_ids[] = {
-	{ .compatible = "adi,ad7091r5" },
+	{ .compatible = "adi,ad7091r5", .data = &ad7091r5_init_info },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ad7091r5_dt_ids);
 
 static const struct i2c_device_id ad7091r5_i2c_ids[] = {
-	{"ad7091r5", 0},
+	{"ad7091r5", (kernel_ulong_t)&ad7091r5_init_info },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ad7091r5_i2c_ids);

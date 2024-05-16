@@ -11,7 +11,7 @@ saw any problems).
 
 What:		/sys/bus/pci/devices/<dev>/aer_dev_correctable
 Date:		July 2018
-KernelVersion: 4.19.0
+KernelVersion:	4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	List of correctable errors seen and reported by this
 		PCI device using ERR_COR. Note that since multiple errors may
@@ -32,7 +32,7 @@ Description:	List of correctable errors seen and reported by this
 
 What:		/sys/bus/pci/devices/<dev>/aer_dev_fatal
 Date:		July 2018
-KernelVersion: 4.19.0
+KernelVersion:	4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	List of uncorrectable fatal errors seen and reported by this
 		PCI device using ERR_FATAL. Note that since multiple errors may
@@ -62,7 +62,7 @@ Description:	List of uncorrectable fatal errors seen and reported by this
 
 What:		/sys/bus/pci/devices/<dev>/aer_dev_nonfatal
 Date:		July 2018
-KernelVersion: 4.19.0
+KernelVersion:	4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	List of uncorrectable nonfatal errors seen and reported by this
 		PCI device using ERR_NONFATAL. Note that since multiple errors
@@ -100,20 +100,20 @@ collectors) that are AER capable. These indicate the number of error messages as
 device, so these counters include them and are thus cumulative of all the error
 messages on the PCI hierarchy originating at that root port.
 
-What:		/sys/bus/pci/devices/<dev>/aer_stats/aer_rootport_total_err_cor
+What:		/sys/bus/pci/devices/<dev>/aer_rootport_total_err_cor
 Date:		July 2018
-KernelVersion: 4.19.0
+KernelVersion:	4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	Total number of ERR_COR messages reported to rootport.
 
-What:	    /sys/bus/pci/devices/<dev>/aer_stats/aer_rootport_total_err_fatal
+What:		/sys/bus/pci/devices/<dev>/aer_rootport_total_err_fatal
 Date:		July 2018
-KernelVersion: 4.19.0
+KernelVersion:	4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	Total number of ERR_FATAL messages reported to rootport.
 
-What:	    /sys/bus/pci/devices/<dev>/aer_stats/aer_rootport_total_err_nonfatal
+What:		/sys/bus/pci/devices/<dev>/aer_rootport_total_err_nonfatal
 Date:		July 2018
-KernelVersion: 4.19.0
+KernelVersion:	4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	Total number of ERR_NONFATAL messages reported to rootport.

@@ -29,18 +29,35 @@
 static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdevsim *ns = netdev_priv(dev);
+	unsigned int len = skb->len;
+	struct netdevsim *peer_ns;
 
+	rcu_read_lock();
 	if (!nsim_ipsec_tx(ns, skb))
-		goto out;
+		goto out_drop_free;
 
+	peer_ns = rcu_dereference(ns->peer);
+	if (!peer_ns)
+		goto out_drop_free;
+
+	skb_tx_timestamp(skb);
+	if (unlikely(dev_forward_skb(peer_ns->netdev, skb) == NET_RX_DROP))
+		goto out_drop_cnt;
+
+	rcu_read_unlock();
 	u64_stats_update_begin(&ns->syncp);
 	ns->tx_packets++;
-	ns->tx_bytes += skb->len;
+	ns->tx_bytes += len;
 	u64_stats_update_end(&ns->syncp);
+	return NETDEV_TX_OK;
 
-out:
+out_drop_free:
 	dev_kfree_skb(skb);
-
+out_drop_cnt:
+	rcu_read_unlock();
+	u64_stats_update_begin(&ns->syncp);
+	ns->tx_dropped++;
+	u64_stats_update_end(&ns->syncp);
 	return NETDEV_TX_OK;
 }
 
@@ -70,6 +87,7 @@ nsim_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		start = u64_stats_fetch_begin(&ns->syncp);
 		stats->tx_bytes = ns->tx_bytes;
 		stats->tx_packets = ns->tx_packets;
+		stats->tx_dropped = ns->tx_dropped;
 	} while (u64_stats_fetch_retry(&ns->syncp, start));
 }
 
@@ -265,6 +283,21 @@ nsim_set_features(struct net_device *dev, netdev_features_t features)
 	return 0;
 }
 
+static int nsim_get_iflink(const struct net_device *dev)
+{
+	struct netdevsim *nsim, *peer;
+	int iflink;
+
+	nsim = netdev_priv(dev);
+
+	rcu_read_lock();
+	peer = rcu_dereference(nsim->peer);
+	iflink = peer ? READ_ONCE(peer->netdev->ifindex) : 0;
+	rcu_read_unlock();
+
+	return iflink;
+}
+
 static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_start_xmit		= nsim_start_xmit,
 	.ndo_set_rx_mode	= nsim_set_rx_mode,
@@ -282,6 +315,7 @@ static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_set_vf_rss_query_en = nsim_set_vf_rss_query_en,
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
+	.ndo_get_iflink		= nsim_get_iflink,
 	.ndo_bpf		= nsim_bpf,
 };
 
@@ -302,7 +336,6 @@ static void nsim_setup(struct net_device *dev)
 	eth_hw_addr_random(dev);
 
 	dev->tx_queue_len = 0;
-	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE |
 			   IFF_NO_QUEUE;
@@ -369,6 +402,12 @@ static int nsim_init_netdevsim_vf(struct netdevsim *ns)
 	return err;
 }
 
+static void nsim_exit_netdevsim(struct netdevsim *ns)
+{
+	nsim_udp_tunnels_info_destroy(ns->netdev);
+	mock_phc_destroy(ns->phc);
+}
+
 struct netdevsim *
 nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 {
@@ -407,8 +446,13 @@ err_free_netdev:
 void nsim_destroy(struct netdevsim *ns)
 {
 	struct net_device *dev = ns->netdev;
+	struct netdevsim *peer;
 
 	rtnl_lock();
+	peer = rtnl_dereference(ns->peer);
+	if (peer)
+		RCU_INIT_POINTER(peer->peer, NULL);
+	RCU_INIT_POINTER(ns->peer, NULL);
 	unregister_netdevice(dev);
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port)) {
 		nsim_macsec_teardown(ns);
@@ -417,9 +461,13 @@ void nsim_destroy(struct netdevsim *ns)
 	}
 	rtnl_unlock();
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port))
-		nsim_udp_tunnels_info_destroy(dev);
-	mock_phc_destroy(ns->phc);
+		nsim_exit_netdevsim(ns);
 	free_netdev(dev);
+}
+
+bool netdev_is_nsim(struct net_device *dev)
+{
+	return dev->netdev_ops == &nsim_netdev_ops;
 }
 
 static int nsim_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -470,4 +518,5 @@ static void __exit nsim_module_exit(void)
 module_init(nsim_module_init);
 module_exit(nsim_module_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Simulated networking device for testing");
 MODULE_ALIAS_RTNL_LINK(DRV_NAME);

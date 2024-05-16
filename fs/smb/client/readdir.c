@@ -22,6 +22,7 @@
 #include "smb2proto.h"
 #include "fs_context.h"
 #include "cached_dir.h"
+#include "reparse.h"
 
 /*
  * To be safe - for UCS to UTF-8 with strings loaded with the rare long
@@ -71,6 +72,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	struct super_block *sb = parent->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
+	int rc;
 
 	cifs_dbg(FYI, "%s: for %s\n", __func__, name->name);
 
@@ -82,9 +84,11 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		 * We'll end up doing an on the wire call either way and
 		 * this spares us an invalidation.
 		 */
-		if (fattr->cf_flags & CIFS_FATTR_NEED_REVAL)
-			return;
 retry:
+		if ((fattr->cf_cifsattrs & ATTR_REPARSE) ||
+		    (fattr->cf_flags & CIFS_FATTR_NEED_REVAL))
+			return;
+
 		dentry = d_alloc_parallel(parent, name, &wq);
 	}
 	if (IS_ERR(dentry))
@@ -104,12 +108,36 @@ retry:
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM))
 				fattr->cf_uniqueid = CIFS_I(inode)->uniqueid;
 
-			/* update inode in place
-			 * if both i_ino and i_mode didn't change */
-			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid &&
-			    cifs_fattr_to_inode(inode, fattr) == 0) {
-				dput(dentry);
-				return;
+			/*
+			 * Update inode in place if both i_ino and i_mode didn't
+			 * change.
+			 */
+			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid) {
+				/*
+				 * Query dir responses don't provide enough
+				 * information about reparse points other than
+				 * their reparse tags.  Save an invalidation by
+				 * not clobbering some existing attributes when
+				 * reparse tag and ctime haven't changed.
+				 */
+				rc = 0;
+				if (fattr->cf_cifsattrs & ATTR_REPARSE) {
+					if (likely(reparse_inode_match(inode, fattr))) {
+						fattr->cf_mode = inode->i_mode;
+						fattr->cf_rdev = inode->i_rdev;
+						fattr->cf_uid = inode->i_uid;
+						fattr->cf_gid = inode->i_gid;
+						fattr->cf_eof = CIFS_I(inode)->netfs.remote_i_size;
+						fattr->cf_symlink_target = NULL;
+					} else {
+						CIFS_I(inode)->time = 0;
+						rc = -ESTALE;
+					}
+				}
+				if (!rc && !cifs_fattr_to_inode(inode, fattr, true)) {
+					dput(dentry);
+					return;
+				}
 			}
 		}
 		d_invalidate(dentry);
@@ -127,32 +155,13 @@ retry:
 	dput(dentry);
 }
 
-static bool reparse_file_needs_reval(const struct cifs_fattr *fattr)
-{
-	if (!(fattr->cf_cifsattrs & ATTR_REPARSE))
-		return false;
-	/*
-	 * The DFS tags should be only intepreted by server side as per
-	 * MS-FSCC 2.1.2.1, but let's include them anyway.
-	 *
-	 * Besides, if cf_cifstag is unset (0), then we still need it to be
-	 * revalidated to know exactly what reparse point it is.
-	 */
-	switch (fattr->cf_cifstag) {
-	case IO_REPARSE_TAG_DFS:
-	case IO_REPARSE_TAG_DFSR:
-	case IO_REPARSE_TAG_SYMLINK:
-	case IO_REPARSE_TAG_NFS:
-	case IO_REPARSE_TAG_MOUNT_POINT:
-	case 0:
-		return true;
-	}
-	return false;
-}
-
 static void
 cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 {
+	struct cifs_open_info_data data = {
+		.reparse = { .tag = fattr->cf_cifstag, },
+	};
+
 	fattr->cf_uid = cifs_sb->ctx->linux_uid;
 	fattr->cf_gid = cifs_sb->ctx->linux_gid;
 
@@ -165,7 +174,7 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	 * reasonably map some of them to directories vs. files vs. symlinks
 	 */
 	if ((fattr->cf_cifsattrs & ATTR_REPARSE) &&
-	    cifs_reparse_point_to_fattr(cifs_sb, fattr, fattr->cf_cifstag))
+	    cifs_reparse_point_to_fattr(cifs_sb, fattr, &data))
 		goto out_reparse;
 
 	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
@@ -177,14 +186,6 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	}
 
 out_reparse:
-	/*
-	 * We need to revalidate it further to make a decision about whether it
-	 * is a symbolic link, DFS referral or a reparse point with a direct
-	 * access like junctions, deduplicated files, NFS symlinks.
-	 */
-	if (reparse_file_needs_reval(fattr))
-		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
-
 	/* non-unix readdir doesn't provide nlink */
 	fattr->cf_flags |= CIFS_FATTR_UNKNOWN_NLINK;
 
@@ -265,9 +266,6 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 		fattr->cf_dtype = DT_REG;
 	}
 
-	if (reparse_file_needs_reval(fattr))
-		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
-
 	sid_to_id(cifs_sb, &parsed.owner, fattr, SIDOWNER);
 	sid_to_id(cifs_sb, &parsed.group, fattr, SIDGROUP);
 }
@@ -295,14 +293,16 @@ cifs_dir_info_to_fattr(struct cifs_fattr *fattr, FILE_DIRECTORY_INFO *info,
 }
 
 static void cifs_fulldir_info_to_fattr(struct cifs_fattr *fattr,
-				       SEARCH_ID_FULL_DIR_INFO *info,
+				       const void *info,
 				       struct cifs_sb_info *cifs_sb)
 {
+	const FILE_FULL_DIRECTORY_INFO *di = info;
+
 	__dir_info_to_fattr(fattr, info);
 
-	/* See MS-FSCC 2.4.19 FileIdFullDirectoryInformation */
+	/* See MS-FSCC 2.4.14, 2.4.19 */
 	if (fattr->cf_cifsattrs & ATTR_REPARSE)
-		fattr->cf_cifstag = le32_to_cpu(info->EaSize);
+		fattr->cf_cifstag = le32_to_cpu(di->EaSize);
 	cifs_fill_common_info(fattr, cifs_sb);
 }
 
@@ -326,38 +326,6 @@ cifs_std_info_to_fattr(struct cifs_fattr *fattr, FIND_FILE_STANDARD_INFO *info,
 
 	cifs_fill_common_info(fattr, cifs_sb);
 }
-
-/* BB eventually need to add the following helper function to
-      resolve NT_STATUS_STOPPED_ON_SYMLINK return code when
-      we try to do FindFirst on (NTFS) directory symlinks */
-/*
-int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
-			     unsigned int xid)
-{
-	__u16 fid;
-	int len;
-	int oplock = 0;
-	int rc;
-	struct cifs_tcon *ptcon = cifs_sb_tcon(cifs_sb);
-	char *tmpbuffer;
-
-	rc = CIFSSMBOpen(xid, ptcon, full_path, FILE_OPEN, GENERIC_READ,
-			OPEN_REPARSE_POINT, &fid, &oplock, NULL,
-			cifs_sb->local_nls,
-			cifs_remap(cifs_sb);
-	if (!rc) {
-		tmpbuffer = kmalloc(maxpath);
-		rc = CIFSSMBQueryReparseLinkInfo(xid, ptcon, full_path,
-				tmpbuffer,
-				maxpath -1,
-				fid,
-				cifs_sb->local_nls);
-		if (CIFSSMBClose(xid, ptcon, fid)) {
-			cifs_dbg(FYI, "Error closing temporary reparsepoint open\n");
-		}
-	}
-}
- */
 
 static int
 _initiate_cifs_search(const unsigned int xid, struct file *file,
@@ -416,7 +384,7 @@ ffirst_retry:
 	} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_ID_FULL_DIR_INFO;
 	} else /* not srvinos - BB fixme add check for backlevel? */ {
-		cifsFile->srch_inf.info_level = SMB_FIND_FILE_DIRECTORY_INFO;
+		cifsFile->srch_inf.info_level = SMB_FIND_FILE_FULL_DIRECTORY_INFO;
 	}
 
 	search_flags = CIFS_SEARCH_CLOSE_AT_END | CIFS_SEARCH_RETURN_RESUME;
@@ -427,13 +395,10 @@ ffirst_retry:
 					  &cifsFile->fid, search_flags,
 					  &cifsFile->srch_inf);
 
-	if (rc == 0)
+	if (rc == 0) {
 		cifsFile->invalidHandle = false;
-	/* BB add following call to handle readdir on new NTFS symlink errors
-	else if STATUS_STOPPED_ON_SYMLINK
-		call get_symlink_reparse_path and retry with new path */
-	else if ((rc == -EOPNOTSUPP) &&
-		(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
+	} else if ((rc == -EOPNOTSUPP) &&
+		   (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		goto ffirst_retry;
 	}
@@ -668,10 +633,10 @@ static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
 static int is_dir_changed(struct file *file)
 {
 	struct inode *inode = file_inode(file);
-	struct cifsInodeInfo *cifsInfo = CIFS_I(inode);
+	struct cifsInodeInfo *cifs_inode_info = CIFS_I(inode);
 
-	if (cifsInfo->time == 0)
-		return 1; /* directory was changed, perhaps due to unlink */
+	if (cifs_inode_info->time == 0)
+		return 1; /* directory was changed, e.g. unlink or new file */
 	else
 		return 0;
 
@@ -1010,10 +975,9 @@ static int cifs_filldir(char *find_entry, struct file *file,
 				       (FIND_FILE_STANDARD_INFO *)find_entry,
 				       cifs_sb);
 		break;
+	case SMB_FIND_FILE_FULL_DIRECTORY_INFO:
 	case SMB_FIND_FILE_ID_FULL_DIR_INFO:
-		cifs_fulldir_info_to_fattr(&fattr,
-					   (SEARCH_ID_FULL_DIR_INFO *)find_entry,
-					   cifs_sb);
+		cifs_fulldir_info_to_fattr(&fattr, find_entry, cifs_sb);
 		break;
 	default:
 		cifs_dir_info_to_fattr(&fattr,

@@ -101,6 +101,7 @@ struct iwl_mvm_scan_params {
 	bool scan_6ghz;
 	bool enable_6ghz_passive;
 	bool respect_p2p_go, respect_p2p_go_hb;
+	s8 tsf_report_link_id;
 	u8 bssid[ETH_ALEN] __aligned(2);
 };
 
@@ -240,13 +241,11 @@ iwl_mvm_scan_type _iwl_mvm_get_scan_type(struct iwl_mvm *mvm,
 			return IWL_SCAN_TYPE_FRAGMENTED;
 
 		/*
-		 * in case of DCM with GO where BSS DTIM interval < 220msec
-		 * set all scan requests as fast-balance scan
+		 * in case of DCM with P2P GO set all scan requests as
+		 * fast-balance scan
 		 */
 		if (vif && vif->type == NL80211_IFTYPE_STATION &&
-		    data.is_dcm_with_p2p_go &&
-		    ((vif->bss_conf.beacon_int *
-		      vif->bss_conf.dtim_period) < 220))
+		    data.is_dcm_with_p2p_go)
 			return IWL_SCAN_TYPE_FAST_BALANCE;
 	}
 
@@ -2342,20 +2341,15 @@ iwl_mvm_scan_umac_fill_general_p_v12(struct iwl_mvm *mvm,
 	if (gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_V2_FRAGMENTED_LMAC2)
 		gp->num_of_fragments[SCAN_HB_LMAC_IDX] = IWL_SCAN_NUM_OF_FRAGS;
 
+	mvm->scan_link_id = 0;
+
 	if (version < 16) {
 		gp->scan_start_mac_or_link_id = scan_vif->id;
 	} else {
-		struct iwl_mvm_vif_link_info *link_info;
-		u8 link_id = 0;
+		struct iwl_mvm_vif_link_info *link_info =
+			scan_vif->link[params->tsf_report_link_id];
 
-		/* Use one of the active link (if any). In the future it would
-		 * be possible that the link ID would be part of the scan
-		 * request coming from upper layers so we would need to use it.
-		 */
-		if (vif->active_links)
-			link_id = ffs(vif->active_links) - 1;
-
-		link_info = scan_vif->link[link_id];
+		mvm->scan_link_id = params->tsf_report_link_id;
 		if (!WARN_ON(!link_info))
 			gp->scan_start_mac_or_link_id = link_info->fw_link_id;
 	}
@@ -2819,7 +2813,8 @@ static int iwl_mvm_build_scan_cmd(struct iwl_mvm *mvm,
 		if (ver_handler->version != scan_ver)
 			continue;
 
-		return ver_handler->handler(mvm, vif, params, type, uid);
+		err = ver_handler->handler(mvm, vif, params, type, uid);
+		return err ? : uid;
 	}
 
 	err = iwl_mvm_scan_umac(mvm, vif, params, type, uid);
@@ -2976,6 +2971,14 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (req->duration)
 		params.iter_notif = true;
+
+	params.tsf_report_link_id = req->tsf_report_link_id;
+	if (params.tsf_report_link_id < 0) {
+		if (vif->active_links)
+			params.tsf_report_link_id = __ffs(vif->active_links);
+		else
+			params.tsf_report_link_id = 0;
+	}
 
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
@@ -3164,8 +3167,13 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 			.aborted = aborted,
 			.scan_start_tsf = mvm->scan_start,
 		};
+		struct iwl_mvm_vif *scan_vif = mvm->scan_vif;
+		struct iwl_mvm_vif_link_info *link_info =
+			scan_vif->link[mvm->scan_link_id];
 
-		memcpy(info.tsf_bssid, mvm->scan_vif->deflink.bssid, ETH_ALEN);
+		if (!WARN_ON(!link_info))
+			memcpy(info.tsf_bssid, link_info->bssid, ETH_ALEN);
+
 		ieee80211_scan_completed(mvm->hw, &info);
 		mvm->scan_vif = NULL;
 		cancel_delayed_work(&mvm->scan_timeout_dwork);
@@ -3408,7 +3416,7 @@ int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
 	if (!(mvm->scan_status & type))
 		return 0;
 
-	if (iwl_mvm_is_radio_killed(mvm)) {
+	if (!test_bit(STATUS_DEVICE_ENABLED, &mvm->trans->status)) {
 		ret = 0;
 		goto out;
 	}

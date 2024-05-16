@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021, 2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2021, 2023-2024 Intel Corporation
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fh_h__
@@ -570,18 +570,19 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 /**
  * struct iwl_rb_status - reserve buffer status
  * 	host memory mapped FH registers
- * @closed_rb_num [0:11] - Indicates the index of the RB which was closed
- * @closed_fr_num [0:11] - Indicates the index of the RX Frame which was closed
- * @finished_rb_num [0:11] - Indicates the index of the current RB
+ * @closed_rb_num: [0:11] Indicates the index of the RB which was closed
+ * @closed_fr_num: [0:11] Indicates the index of the RX Frame which was closed
+ * @finished_rb_num: [0:11] Indicates the index of the current RB
  * 	in which the last frame was written to
- * @finished_fr_num [0:11] - Indicates the index of the RX Frame
+ * @finished_fr_num: [0:11] Indicates the index of the RX Frame
  * 	which was transferred
+ * @__spare: reserved
  */
 struct iwl_rb_status {
 	__le16 closed_rb_num;
 	__le16 closed_fr_num;
 	__le16 finished_rb_num;
-	__le16 finished_fr_nam;
+	__le16 finished_fr_num;
 	__le32 __spare;
 } __packed;
 
@@ -651,15 +652,15 @@ struct iwl_tfd_tb {
  *
  * This structure contains dma address and length of transmission address
  *
- * @tb_len length of the tx buffer
- * @addr 64 bits dma address
+ * @tb_len: length of the tx buffer
+ * @addr: 64 bits dma address
  */
 struct iwl_tfh_tb {
 	__le16 tb_len;
 	__le64 addr;
 } __packed;
 
-/**
+/*
  * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
  * Both driver and device share these circular buffers, each of which must be
  * contiguous 256 TFDs.
@@ -681,12 +682,13 @@ struct iwl_tfh_tb {
 
 /**
  * struct iwl_tfd - Transmit Frame Descriptor (TFD)
- * @ __reserved1[3] reserved
- * @ num_tbs 0-4 number of active tbs
- *	     5   reserved
- *	     6-7 padding (not used)
- * @ tbs[20]	transmit frame buffer descriptors
- * @ __pad	padding
+ * @__reserved1: reserved
+ * @num_tbs:
+ *  0-4 number of active tbs
+ *  5   reserved
+ *  6-7 padding (not used)
+ * @tbs: transmit frame buffer descriptors
+ * @__pad: padding
  */
 struct iwl_tfd {
 	u8 __reserved1[3];
@@ -697,10 +699,11 @@ struct iwl_tfd {
 
 /**
  * struct iwl_tfh_tfd - Transmit Frame Descriptor (TFD)
- * @ num_tbs 0-4 number of active tbs
- *	     5 -15   reserved
- * @ tbs[25]	transmit frame buffer descriptors
- * @ __pad	padding
+ * @num_tbs:
+ *	0-4 number of active tbs
+ *	5-15   reserved
+ * @tbs:	transmit frame buffer descriptors
+ * @__pad:	padding
  */
 struct iwl_tfh_tfd {
 	__le16 num_tbs;
@@ -717,10 +720,12 @@ struct iwl_tfh_tfd {
  * struct iwlagn_schedq_bc_tbl scheduler byte count table
  *	base physical address provided by SCD_DRAM_BASE_ADDR
  * For devices up to 22000:
- * @tfd_offset  0-12 - tx command byte count
+ * @tfd_offset:
+ *	For devices up to 22000:
+ *		 0-12 - tx command byte count
  *		12-16 - station index
- * For 22000:
- * @tfd_offset  0-12 - tx command byte count
+ *	For 22000:
+ *		 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved
  */

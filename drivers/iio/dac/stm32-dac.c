@@ -11,12 +11,13 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/string_helpers.h>
+#include <linux/string_choices.h>
 
 #include "stm32-dac-core.h"
 
@@ -361,7 +362,7 @@ err_pm_put:
 	return ret;
 }
 
-static int stm32_dac_remove(struct platform_device *pdev)
+static void stm32_dac_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
@@ -370,8 +371,6 @@ static int stm32_dac_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
-
-	return 0;
 }
 
 static int stm32_dac_suspend(struct device *dev)
@@ -399,7 +398,7 @@ MODULE_DEVICE_TABLE(of, stm32_dac_of_match);
 
 static struct platform_driver stm32_dac_driver = {
 	.probe = stm32_dac_probe,
-	.remove = stm32_dac_remove,
+	.remove_new = stm32_dac_remove,
 	.driver = {
 		.name = "stm32-dac",
 		.of_match_table = stm32_dac_of_match,

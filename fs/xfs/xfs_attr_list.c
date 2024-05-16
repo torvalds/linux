@@ -22,6 +22,7 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_dir2.h"
+#include "xfs_health.h"
 
 STATIC int
 xfs_attr_shortform_compare(const void *a, const void *b)
@@ -56,14 +57,13 @@ xfs_attr_shortform_list(
 	struct xfs_attrlist_cursor_kern	*cursor = &context->cursor;
 	struct xfs_inode		*dp = context->dp;
 	struct xfs_attr_sf_sort		*sbuf, *sbp;
-	struct xfs_attr_shortform	*sf;
+	struct xfs_attr_sf_hdr		*sf = dp->i_af.if_data;
 	struct xfs_attr_sf_entry	*sfe;
 	int				sbsize, nsbuf, count, i;
 	int				error = 0;
 
-	sf = (struct xfs_attr_shortform *)dp->i_af.if_u1.if_data;
 	ASSERT(sf != NULL);
-	if (!sf->hdr.count)
+	if (!sf->count)
 		return 0;
 
 	trace_xfs_attr_list_sf(context);
@@ -79,12 +79,14 @@ xfs_attr_shortform_list(
 	 */
 	if (context->bufsize == 0 ||
 	    (XFS_ISRESET_CURSOR(cursor) &&
-	     (dp->i_af.if_bytes + sf->hdr.count * 16) < context->bufsize)) {
-		for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
+	     (dp->i_af.if_bytes + sf->count * 16) < context->bufsize)) {
+		for (i = 0, sfe = xfs_attr_sf_firstentry(sf); i < sf->count; i++) {
 			if (XFS_IS_CORRUPT(context->dp->i_mount,
 					   !xfs_attr_namecheck(sfe->nameval,
-							       sfe->namelen)))
+							       sfe->namelen))) {
+				xfs_dirattr_mark_sick(context->dp, XFS_ATTR_FORK);
 				return -EFSCORRUPTED;
+			}
 			context->put_listent(context,
 					     sfe->flags,
 					     sfe->nameval,
@@ -109,15 +111,15 @@ xfs_attr_shortform_list(
 	/*
 	 * It didn't all fit, so we have to sort everything on hashval.
 	 */
-	sbsize = sf->hdr.count * sizeof(*sbuf);
-	sbp = sbuf = kmem_alloc(sbsize, KM_NOFS);
+	sbsize = sf->count * sizeof(*sbuf);
+	sbp = sbuf = kmalloc(sbsize, GFP_KERNEL | __GFP_NOFAIL);
 
 	/*
 	 * Scan the attribute list for the rest of the entries, storing
 	 * the relevant info from only those that match into a buffer.
 	 */
 	nsbuf = 0;
-	for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
+	for (i = 0, sfe = xfs_attr_sf_firstentry(sf); i < sf->count; i++) {
 		if (unlikely(
 		    ((char *)sfe < (char *)sf) ||
 		    ((char *)sfe >= ((char *)sf + dp->i_af.if_bytes)))) {
@@ -125,7 +127,8 @@ xfs_attr_shortform_list(
 					     XFS_ERRLEVEL_LOW,
 					     context->dp->i_mount, sfe,
 					     sizeof(*sfe));
-			kmem_free(sbuf);
+			kfree(sbuf);
+			xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
 			return -EFSCORRUPTED;
 		}
 
@@ -176,6 +179,7 @@ xfs_attr_shortform_list(
 		if (XFS_IS_CORRUPT(context->dp->i_mount,
 				   !xfs_attr_namecheck(sbp->name,
 						       sbp->namelen))) {
+			xfs_dirattr_mark_sick(context->dp, XFS_ATTR_FORK);
 			error = -EFSCORRUPTED;
 			goto out;
 		}
@@ -189,7 +193,7 @@ xfs_attr_shortform_list(
 		cursor->offset++;
 	}
 out:
-	kmem_free(sbuf);
+	kfree(sbuf);
 	return error;
 }
 
@@ -263,8 +267,10 @@ xfs_attr_node_list_lookup(
 			return 0;
 
 		/* We can't point back to the root. */
-		if (XFS_IS_CORRUPT(mp, cursor->blkno == 0))
+		if (XFS_IS_CORRUPT(mp, cursor->blkno == 0)) {
+			xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
 			return -EFSCORRUPTED;
+		}
 	}
 
 	if (expected_level != 0)
@@ -276,6 +282,7 @@ xfs_attr_node_list_lookup(
 out_corruptbuf:
 	xfs_buf_mark_corrupt(bp);
 	xfs_trans_brelse(tp, bp);
+	xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
 	return -EFSCORRUPTED;
 }
 
@@ -305,6 +312,8 @@ xfs_attr_node_list(
 	if (cursor->blkno > 0) {
 		error = xfs_da3_node_read(context->tp, dp, cursor->blkno, &bp,
 				XFS_ATTR_FORK);
+		if (xfs_metadata_is_sick(error))
+			xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
 		if ((error != 0) && (error != -EFSCORRUPTED))
 			return error;
 		if (bp) {
@@ -465,8 +474,10 @@ xfs_attr3_leaf_list_int(
 		}
 
 		if (XFS_IS_CORRUPT(context->dp->i_mount,
-				   !xfs_attr_namecheck(name, namelen)))
+				   !xfs_attr_namecheck(name, namelen))) {
+			xfs_dirattr_mark_sick(context->dp, XFS_ATTR_FORK);
 			return -EFSCORRUPTED;
+		}
 		context->put_listent(context, entry->flags,
 					      name, namelen, valuelen);
 		if (context->seen_enough)
@@ -505,7 +516,7 @@ xfs_attr_list_ilocked(
 {
 	struct xfs_inode		*dp = context->dp;
 
-	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
 	/*
 	 * Decide on what work routines to call based on the inode size.

@@ -39,7 +39,7 @@ struct ip_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
 	struct rcu_head		rcu;
-	__be32			sl_addr[];
+	__be32			sl_addr[] __counted_by(sl_max);
 };
 
 #define IP_SFBLOCK	10	/* allocate this many at once */

@@ -31,7 +31,7 @@
 static __always_inline bool arch_static_branch(struct static_key *key,
 					       bool branch)
 {
-	asm_volatile_goto(".balign "__stringify(JUMP_LABEL_NOP_SIZE)"	\n"
+	asm goto(".balign "__stringify(JUMP_LABEL_NOP_SIZE)"		\n"
 		 "1:							\n"
 		 "nop							\n"
 		 ".pushsection __jump_table, \"aw\"			\n"
@@ -47,7 +47,7 @@ l_yes:
 static __always_inline bool arch_static_branch_jump(struct static_key *key,
 						    bool branch)
 {
-	asm_volatile_goto(".balign "__stringify(JUMP_LABEL_NOP_SIZE)"	\n"
+	asm goto(".balign "__stringify(JUMP_LABEL_NOP_SIZE)"		\n"
 		 "1:							\n"
 		 "b %l[l_yes]						\n"
 		 ".pushsection __jump_table, \"aw\"			\n"

@@ -9,6 +9,7 @@
 #include <linux/sched/task.h>
 #include <linux/cred.h>
 #include <linux/refcount.h>
+#include <linux/pid.h>
 #include <linux/posix-timers.h>
 #include <linux/mm_types.h>
 #include <asm/ptrace.h>
@@ -303,20 +304,11 @@ static inline void kernel_signal_stop(void)
 
 	schedule();
 }
-#ifdef __ia64__
-# define ___ARCH_SI_IA64(_a1, _a2, _a3) , _a1, _a2, _a3
-#else
-# define ___ARCH_SI_IA64(_a1, _a2, _a3)
-#endif
 
-int force_sig_fault_to_task(int sig, int code, void __user *addr
-	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
-	, struct task_struct *t);
-int force_sig_fault(int sig, int code, void __user *addr
-	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr));
-int send_sig_fault(int sig, int code, void __user *addr
-	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
-	, struct task_struct *t);
+int force_sig_fault_to_task(int sig, int code, void __user *addr,
+			    struct task_struct *t);
+int force_sig_fault(int sig, int code, void __user *addr);
+int send_sig_fault(int sig, int code, void __user *addr, struct task_struct *t);
 
 int force_sig_mceerr(int code, void __user *, short);
 int send_sig_mceerr(int code, void __user *, short, struct task_struct *);
@@ -441,7 +433,6 @@ static inline bool fault_signal_pending(vm_fault_t fault_flags,
  * This is required every time the blocked sigset_t changes.
  * callers must hold sighand->siglock.
  */
-extern void recalc_sigpending_and_wake(struct task_struct *t);
 extern void recalc_sigpending(void);
 extern void calculate_sigpending(void);
 
@@ -655,8 +646,12 @@ extern bool current_is_single_threaded(void);
 #define while_each_thread(g, t) \
 	while ((t = next_thread(t)) != g)
 
+#define for_other_threads(p, t)	\
+	for (t = p; (t = next_thread(t)) != p; )
+
 #define __for_each_thread(signal, t)	\
-	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_node)
+	list_for_each_entry_rcu(t, &(signal)->thread_head, thread_node, \
+		lockdep_is_held(&tasklist_lock))
 
 #define for_each_thread(p, t)		\
 	__for_each_thread((p)->signal, t)
@@ -715,21 +710,30 @@ bool same_thread_group(struct task_struct *p1, struct task_struct *p2)
 	return p1->signal == p2->signal;
 }
 
-static inline struct task_struct *next_thread(const struct task_struct *p)
+/*
+ * returns NULL if p is the last thread in the thread group
+ */
+static inline struct task_struct *__next_thread(struct task_struct *p)
 {
-	return list_entry_rcu(p->thread_group.next,
-			      struct task_struct, thread_group);
+	return list_next_or_null_rcu(&p->signal->thread_head,
+					&p->thread_node,
+					struct task_struct,
+					thread_node);
+}
+
+static inline struct task_struct *next_thread(struct task_struct *p)
+{
+	return __next_thread(p) ?: p->group_leader;
 }
 
 static inline int thread_group_empty(struct task_struct *p)
 {
-	return list_empty(&p->thread_group);
+	return thread_group_leader(p) &&
+	       list_is_last(&p->thread_node, &p->signal->thread_head);
 }
 
 #define delay_group_leader(p) \
 		(thread_group_leader(p) && !thread_group_empty(p))
-
-extern bool thread_group_exited(struct pid *pid);
 
 extern struct sighand_struct *__lock_task_sighand(struct task_struct *task,
 							unsigned long *flags);

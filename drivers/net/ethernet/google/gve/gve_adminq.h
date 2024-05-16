@@ -125,6 +125,15 @@ struct gve_device_option_jumbo_frames {
 
 static_assert(sizeof(struct gve_device_option_jumbo_frames) == 8);
 
+struct gve_device_option_buffer_sizes {
+	/* GVE_SUP_BUFFER_SIZES_MASK bit should be set */
+	__be32 supported_features_mask;
+	__be16 packet_buffer_size;
+	__be16 header_buffer_size;
+};
+
+static_assert(sizeof(struct gve_device_option_buffer_sizes) == 8);
+
 /* Terminology:
  *
  * RDA - Raw DMA Addressing - Buffers associated with SKBs are directly DMA
@@ -140,6 +149,7 @@ enum gve_dev_opt_id {
 	GVE_DEV_OPT_ID_DQO_RDA = 0x4,
 	GVE_DEV_OPT_ID_DQO_QPL = 0x7,
 	GVE_DEV_OPT_ID_JUMBO_FRAMES = 0x8,
+	GVE_DEV_OPT_ID_BUFFER_SIZES = 0xa,
 };
 
 enum gve_dev_opt_req_feat_mask {
@@ -149,10 +159,12 @@ enum gve_dev_opt_req_feat_mask {
 	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES = 0x0,
 	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES = 0x0,
 };
 
 enum gve_sup_feature_mask {
 	GVE_SUP_JUMBO_FRAMES_MASK = 1 << 2,
+	GVE_SUP_BUFFER_SIZES_MASK = 1 << 4,
 };
 
 #define GVE_DEV_OPT_LEN_GQI_RAW_ADDRESSING 0x0
@@ -165,6 +177,7 @@ enum gve_driver_capbility {
 	gve_driver_capability_dqo_qpl = 2, /* reserved for future use */
 	gve_driver_capability_dqo_rda = 3,
 	gve_driver_capability_alt_miss_compl = 4,
+	gve_driver_capability_flexible_buffer_size = 5,
 };
 
 #define GVE_CAP1(a) BIT((int)a)
@@ -176,7 +189,8 @@ enum gve_driver_capbility {
 	(GVE_CAP1(gve_driver_capability_gqi_qpl) | \
 	 GVE_CAP1(gve_driver_capability_gqi_rda) | \
 	 GVE_CAP1(gve_driver_capability_dqo_rda) | \
-	 GVE_CAP1(gve_driver_capability_alt_miss_compl))
+	 GVE_CAP1(gve_driver_capability_alt_miss_compl) | \
+	 GVE_CAP1(gve_driver_capability_flexible_buffer_size))
 
 #define GVE_DRIVER_CAPABILITY_FLAGS2 0x0
 #define GVE_DRIVER_CAPABILITY_FLAGS3 0x0
@@ -219,9 +233,10 @@ struct gve_adminq_register_page_list {
 	__be32 page_list_id;
 	__be32 num_pages;
 	__be64 page_address_list_addr;
+	__be64 page_size;
 };
 
-static_assert(sizeof(struct gve_adminq_register_page_list) == 16);
+static_assert(sizeof(struct gve_adminq_register_page_list) == 24);
 
 struct gve_adminq_unregister_page_list {
 	__be32 page_list_id;
@@ -259,7 +274,9 @@ struct gve_adminq_create_rx_queue {
 	__be16 packet_buffer_size;
 	__be16 rx_buff_ring_size;
 	u8 enable_rsc;
-	u8 padding[5];
+	u8 padding1;
+	__be16 header_buffer_size;
+	u8 padding2[2];
 };
 
 static_assert(sizeof(struct gve_adminq_create_rx_queue) == 56);

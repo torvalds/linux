@@ -38,7 +38,7 @@ gm107_nvenc_nofw(struct nvkm_nvenc *nvenc, int ver,
 	return 0;
 }
 
-static const struct nvkm_nvenc_fwif
+const struct nvkm_nvenc_fwif
 gm107_nvenc_fwif[] = {
 	{ -1, gm107_nvenc_nofw, &gm107_nvenc },
 	{}

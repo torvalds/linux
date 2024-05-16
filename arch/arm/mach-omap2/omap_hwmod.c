@@ -900,7 +900,7 @@ static int _init_interface_clks(struct omap_hwmod *oh)
 }
 
 /**
- * _init_opt_clk - get a struct clk * for the hwmod's optional clocks
+ * _init_opt_clks - get a struct clk * for the hwmod's optional clocks
  * @oh: struct omap_hwmod *
  *
  * Called from _init_clocks().  Populates the @oh omap_hwmod_opt_clk
@@ -2209,7 +2209,7 @@ int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
 		return err;
 
 	pr_debug("omap_hwmod: %s %pOFn at %pR\n",
-		 oh->name, np, &res);
+		 oh->name, np, res);
 
 	if (oh && oh->mpu_rt_idx) {
 		omap_hwmod_fix_mpu_rt_idx(oh, np, res);
@@ -2297,7 +2297,7 @@ static void __init parse_module_flags(struct omap_hwmod *oh,
 /**
  * _init - initialize internal data for the hwmod @oh
  * @oh: struct omap_hwmod *
- * @n: (unused)
+ * @data: (unused)
  *
  * Look up the clocks and the address space used by the MPU to access
  * registers belonging to the hwmod @oh.  @oh must already be
@@ -2493,7 +2493,7 @@ static void _setup_postsetup(struct omap_hwmod *oh)
 /**
  * _setup - prepare IP block hardware for use
  * @oh: struct omap_hwmod *
- * @n: (unused, pass NULL)
+ * @data: (unused, pass NULL)
  *
  * Configure the IP block represented by @oh.  This may include
  * enabling the IP block, resetting it, and placing it into a
@@ -3367,8 +3367,9 @@ static int omap_hwmod_check_module(struct device *dev,
  * omap_hwmod_allocate_module - allocate new module
  * @dev: struct device
  * @oh: module
+ * @data: module data
  * @sysc_fields: sysc register bits
- * @clockdomain: clockdomain
+ * @clkdm: clockdomain
  * @rev_offs: revision register offset
  * @sysc_offs: sysconfig register offset
  * @syss_offs: sysstatus register offset

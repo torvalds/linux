@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <crypto/hash.h>
@@ -38,6 +38,7 @@ void ath12k_dp_peer_cleanup(struct ath12k *ar, int vdev_id, const u8 *addr)
 
 	ath12k_dp_rx_peer_tid_cleanup(ar, peer);
 	crypto_free_shash(peer->tfm_mmic);
+	peer->dp_setup_done = false;
 	spin_unlock_bh(&ab->base_lock);
 }
 
@@ -960,9 +961,7 @@ int ath12k_dp_service_srng(struct ath12k_base *ab,
 		struct ath12k_dp *dp = &ab->dp;
 		struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 
-		ath12k_dp_rx_bufs_replenish(ab, 0, rx_ring, 0,
-					    ab->hw_params->hal_params->rx_buf_rbm,
-					    true);
+		ath12k_dp_rx_bufs_replenish(ab, rx_ring, 0);
 	}
 
 	/* TODO: Implement handler for other interrupts */
@@ -996,6 +995,29 @@ void ath12k_dp_pdev_pre_alloc(struct ath12k_base *ab)
 
 		/* TODO: Add any RXDMA setup required per pdev */
 	}
+}
+
+bool ath12k_dp_wmask_compaction_rx_tlv_supported(struct ath12k_base *ab)
+{
+	if (test_bit(WMI_TLV_SERVICE_WMSK_COMPACTION_RX_TLVS, ab->wmi_ab.svc_map) &&
+	    ab->hw_params->hal_ops->rxdma_ring_wmask_rx_mpdu_start &&
+	    ab->hw_params->hal_ops->rxdma_ring_wmask_rx_msdu_end &&
+	    ab->hw_params->hal_ops->get_hal_rx_compact_ops) {
+		return true;
+	}
+	return false;
+}
+
+void ath12k_dp_hal_rx_desc_init(struct ath12k_base *ab)
+{
+	if (ath12k_dp_wmask_compaction_rx_tlv_supported(ab)) {
+		/* RX TLVS compaction is supported, hence change the hal_rx_ops
+		 * to compact hal_rx_ops.
+		 */
+		ab->hal_rx_ops = ab->hw_params->hal_ops->get_hal_rx_compact_ops();
+	}
+	ab->hal.hal_desc_sz =
+		ab->hal_rx_ops->rx_desc_get_desc_size();
 }
 
 static void ath12k_dp_service_mon_ring(struct timer_list *t)

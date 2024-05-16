@@ -1200,7 +1200,34 @@ static void ipoib_timeout(struct net_device *dev, unsigned int txqueue)
 		   netif_queue_stopped(dev), priv->tx_head, priv->tx_tail,
 		   priv->global_tx_head, priv->global_tx_tail);
 
-	/* XXX reset QP, etc. */
+
+	schedule_work(&priv->tx_timeout_work);
+}
+
+void ipoib_ib_tx_timeout_work(struct work_struct *work)
+{
+	struct ipoib_dev_priv *priv = container_of(work,
+						   struct ipoib_dev_priv,
+						   tx_timeout_work);
+	int err;
+
+	rtnl_lock();
+
+	if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+		goto unlock;
+
+	ipoib_stop(priv->dev);
+	err = ipoib_open(priv->dev);
+	if (err) {
+		ipoib_warn(priv, "ipoib_open failed recovering from a tx_timeout, err(%d).\n",
+				err);
+		goto unlock;
+	}
+
+	netif_tx_wake_all_queues(priv->dev);
+unlock:
+	rtnl_unlock();
+
 }
 
 static int ipoib_hard_header(struct sk_buff *skb,
@@ -1245,10 +1272,10 @@ static int ipoib_get_iflink(const struct net_device *dev)
 
 	/* parent interface */
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags))
-		return dev->ifindex;
+		return READ_ONCE(dev->ifindex);
 
 	/* child/vlan interface */
-	return priv->parent->ifindex;
+	return READ_ONCE(priv->parent->ifindex);
 }
 
 static u32 ipoib_addr_hash(struct ipoib_neigh_hash *htbl, u8 *daddr)
@@ -2005,8 +2032,7 @@ static void ipoib_ndo_uninit(struct net_device *dev)
 		priv->wq = NULL;
 	}
 
-	if (priv->parent)
-		dev_put(priv->parent);
+	dev_put(priv->parent);
 }
 
 static int ipoib_set_vf_link_state(struct net_device *dev, int vf, int link_state)
@@ -2113,7 +2139,7 @@ void ipoib_setup_common(struct net_device *dev)
 
 	ipoib_set_ethtool_ops(dev);
 
-	dev->watchdog_timeo	 = HZ;
+	dev->watchdog_timeo	 = 10 * HZ;
 
 	dev->flags		|= IFF_BROADCAST | IFF_MULTICAST;
 
@@ -2151,10 +2177,12 @@ static void ipoib_build_priv(struct net_device *dev)
 
 	INIT_DELAYED_WORK(&priv->mcast_task,   ipoib_mcast_join_task);
 	INIT_WORK(&priv->carrier_on_task, ipoib_mcast_carrier_on_task);
+	INIT_WORK(&priv->reschedule_napi_work, ipoib_napi_schedule_work);
 	INIT_WORK(&priv->flush_light,   ipoib_ib_dev_flush_light);
 	INIT_WORK(&priv->flush_normal,   ipoib_ib_dev_flush_normal);
 	INIT_WORK(&priv->flush_heavy,   ipoib_ib_dev_flush_heavy);
 	INIT_WORK(&priv->restart_task, ipoib_mcast_restart_task);
+	INIT_WORK(&priv->tx_timeout_work, ipoib_ib_tx_timeout_work);
 	INIT_DELAYED_WORK(&priv->ah_reap_task, ipoib_reap_ah);
 	INIT_DELAYED_WORK(&priv->neigh_reap_task, ipoib_reap_neigh);
 }

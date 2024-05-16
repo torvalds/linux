@@ -215,6 +215,48 @@ static void stm32_timers_dma_remove(struct device *dev,
 			dma_release_channel(ddata->dma.chans[i]);
 }
 
+static const char * const stm32_timers_irq_name[STM32_TIMERS_MAX_IRQS] = {
+	"brk", "up", "trg-com", "cc"
+};
+
+static int stm32_timers_irq_probe(struct platform_device *pdev,
+				  struct stm32_timers *ddata)
+{
+	int i, ret;
+
+	/*
+	 * STM32 Timer may have either:
+	 * - a unique global interrupt line
+	 * - four dedicated interrupt lines that may be handled separately.
+	 * Optionally get them here, to be used by child devices.
+	 */
+	ret = platform_get_irq_byname_optional(pdev, "global");
+	if (ret < 0 && ret != -ENXIO) {
+		return ret;
+	} else if (ret != -ENXIO) {
+		ddata->irq[STM32_TIMERS_IRQ_GLOBAL_BRK] = ret;
+		ddata->nr_irqs = 1;
+		return 0;
+	}
+
+	for (i = 0; i < STM32_TIMERS_MAX_IRQS; i++) {
+		ret = platform_get_irq_byname_optional(pdev, stm32_timers_irq_name[i]);
+		if (ret < 0 && ret != -ENXIO) {
+			return ret;
+		} else if (ret != -ENXIO) {
+			ddata->irq[i] = ret;
+			ddata->nr_irqs++;
+		}
+	}
+
+	if (ddata->nr_irqs && ddata->nr_irqs != STM32_TIMERS_MAX_IRQS) {
+		dev_err(&pdev->dev, "Invalid number of IRQs %d\n", ddata->nr_irqs);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int stm32_timers_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -245,6 +287,10 @@ static int stm32_timers_probe(struct platform_device *pdev)
 
 	stm32_timers_get_arr_size(ddata);
 
+	ret = stm32_timers_irq_probe(pdev, ddata);
+	if (ret)
+		return ret;
+
 	ret = stm32_timers_dma_probe(dev, ddata);
 	if (ret) {
 		stm32_timers_dma_remove(dev, ddata);
@@ -260,7 +306,7 @@ static int stm32_timers_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int stm32_timers_remove(struct platform_device *pdev)
+static void stm32_timers_remove(struct platform_device *pdev)
 {
 	struct stm32_timers *ddata = platform_get_drvdata(pdev);
 
@@ -270,8 +316,6 @@ static int stm32_timers_remove(struct platform_device *pdev)
 	 */
 	of_platform_depopulate(&pdev->dev);
 	stm32_timers_dma_remove(&pdev->dev, ddata);
-
-	return 0;
 }
 
 static const struct of_device_id stm32_timers_of_match[] = {
@@ -282,7 +326,7 @@ MODULE_DEVICE_TABLE(of, stm32_timers_of_match);
 
 static struct platform_driver stm32_timers_driver = {
 	.probe = stm32_timers_probe,
-	.remove = stm32_timers_remove,
+	.remove_new = stm32_timers_remove,
 	.driver	= {
 		.name = "stm32-timers",
 		.of_match_table = stm32_timers_of_match,

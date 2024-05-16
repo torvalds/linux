@@ -15,8 +15,6 @@
 
 #include <platform.h>
 #include <loongson1.h>
-#include <dma.h>
-#include <nand.h>
 
 /* 8250/16550 compatible UART */
 #define LS1X_UART(_id)						\

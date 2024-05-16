@@ -30,7 +30,7 @@
 #define PFX DRV_MODULE_NAME	": "
 #define DRV_MODULE_VERSION	"0.2"
 
-MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_DESCRIPTION("UltraSPARC-III memory controller driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);

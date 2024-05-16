@@ -233,7 +233,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		dfps_data_mem: dfps_data_mem@3400000 {
+		dfps_data_mem: dfps-data@3400000 {
 			reg = <0 0x03400000 0 0x1000>;
 			no-map;
 		};
@@ -243,7 +243,7 @@
 			no-map;
 		};
 
-		smem_mem: smem_region@6a00000 {
+		smem_mem: smem@6a00000 {
 			reg = <0 0x06a00000 0 0x200000>;
 			no-map;
 		};
@@ -281,7 +281,7 @@
 			no-map;
 		};
 
-		reserved@6c00000 {
+		res_hyp_mem: reserved@6c00000 {
 			reg = <0 0x06c00000 0 0x400000>;
 			no-map;
 		};

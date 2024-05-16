@@ -441,7 +441,7 @@ config ROM
 
 config ROMVEC
 	hex "Address of the base of the ROM vectors"
-	default "0"
+	default "0x10c10000"
 	depends on ROM
 	help
 	  This is almost always the same as the base of the ROM. Since on all
@@ -450,7 +450,7 @@ config ROMVEC
 
 config ROMSTART
 	hex "Address of the base of system image in ROM"
-	default "0x400"
+	default "0x10c10400"
 	depends on ROM
 	help
 	  Define the start address of the system image in ROM. Commonly this

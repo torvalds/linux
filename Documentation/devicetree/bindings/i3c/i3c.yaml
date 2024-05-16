@@ -17,7 +17,7 @@ description: |
 
 properties:
   $nodename:
-    pattern: "^i3c-master@[0-9a-f]+$"
+    pattern: "^i3c@[0-9a-f]+$"
 
   "#address-cells":
     const: 3
@@ -55,6 +55,12 @@ properties:
 
       May not be supported by all controllers.
 
+  mctp-controller:
+    type: boolean
+    description: |
+      Indicates that the system is accessible via this bus as an endpoint for
+      MCTP over I3C transport.
+
 required:
   - "#address-cells"
   - "#size-cells"
@@ -65,7 +71,7 @@ patternProperties:
     description: |
       I2C child, should be named: <device-type>@<i2c-address>
 
-      All properties described in Documentation/devicetree/bindings/i2c/i2c.txt
+      All properties described in dtschema schemas/i2c/i2c-controller.yaml
       are valid here, except the reg property whose content is changed.
 
     properties:
@@ -119,12 +125,12 @@ patternProperties:
                 minimum: 0
                 maximum: 0x7f
               - description: |
-                  First half of the Provisional ID (following the PID
+                  First half of the Provisioned ID (following the PID
                   definition provided by the I3C specification).
 
                   Contains the manufacturer ID left-shifted by 1.
               - description: |
-                  Second half of the Provisional ID (following the PID
+                  Second half of the Provisioned ID (following the PID
                   definition provided by the I3C specification).
 
                   Contains the ORing of the part ID left-shifted by 16,
@@ -147,7 +153,7 @@ additionalProperties: true
 
 examples:
   - |
-    i3c-master@d040000 {
+    i3c@d040000 {
         compatible = "cdns,i3c-master";
         clocks = <&coreclock>, <&i3csysclock>;
         clock-names = "pclk", "sysclk";

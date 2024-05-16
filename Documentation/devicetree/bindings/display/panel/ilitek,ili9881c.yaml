@@ -16,8 +16,10 @@ properties:
   compatible:
     items:
       - enum:
+          - ampire,am8001280g
           - bananapi,lhr050h41
           - feixin,k101-im2byl02
+          - startek,kd050hdfia020
           - tdo,tl050hdv35
           - wanchanglong,w552946aba
       - const: ilitek,ili9881c

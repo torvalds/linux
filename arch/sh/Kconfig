@@ -2,6 +2,7 @@
 config SUPERH
 	def_bool y
 	select ARCH_32BIT_OFF_T
+	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM && MMU
 	select ARCH_ENABLE_MEMORY_HOTREMOVE if SPARSEMEM && MMU
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if (GUSA_RB || CPU_SH4A)
@@ -124,8 +125,7 @@ config ARCH_HAS_ILOG2_U64
 
 config NO_IOPORT_MAP
 	def_bool !PCI
-	depends on !SH_SH4202_MICRODEV && !SH_SHMIN && !SH_HP6XX && \
-		   !SH_SOLUTION_ENGINE
+	depends on !SH_SHMIN && !SH_HP6XX && !SH_SOLUTION_ENGINE
 
 config IO_TRAPPED
 	bool
@@ -384,10 +384,6 @@ config CPU_SUBTYPE_SH7760
 	bool "Support SH7760 processor"
 	select CPU_SH4
 
-config CPU_SUBTYPE_SH4_202
-	bool "Support SH4-202 processor"
-	select CPU_SH4
-
 # SH-4A Processor Support
 
 config CPU_SUBTYPE_SH7723
@@ -518,7 +514,6 @@ config SH_PCLK_FREQ
 			      CPU_SUBTYPE_SH7263 || \
 			      CPU_SUBTYPE_MXG
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
-	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
 	help
 	  This option is used to specify the peripheral clock frequency.
@@ -742,10 +737,6 @@ config CMDLINE
 endmenu
 
 menu "Bus options"
-
-config SUPERHYWAY
-	tristate "SuperHyway Bus support"
-	depends on CPU_SUBTYPE_SH4_202
 
 config MAPLE
 	bool "Maple Bus support"

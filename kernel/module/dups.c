@@ -207,7 +207,7 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 	 * optimization enabled ...
 	 */
 	ret = wait_for_completion_state(&kmod_req->first_req_done,
-					TASK_UNINTERRUPTIBLE | TASK_KILLABLE);
+					TASK_KILLABLE);
 	if (ret) {
 		*dup_ret = ret;
 		return true;

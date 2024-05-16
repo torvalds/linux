@@ -311,6 +311,7 @@ done:
 double block_range__coverage(struct block_range *br)
 {
 	struct symbol *sym;
+	struct annotated_branch *branch;
 
 	if (!br) {
 		if (block_ranges.blocks)
@@ -323,5 +324,9 @@ double block_range__coverage(struct block_range *br)
 	if (!sym)
 		return -1;
 
-	return (double)br->coverage / symbol__annotation(sym)->max_coverage;
+	branch = symbol__annotation(sym)->branch;
+	if (!branch)
+		return -1;
+
+	return (double)br->coverage / branch->max_coverage;
 }

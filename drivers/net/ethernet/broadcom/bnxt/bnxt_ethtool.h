@@ -43,12 +43,14 @@ struct bnxt_led_cfg {
 
 #define BNXT_PXP_REG_LEN	0x3110
 
+#define BNXT_IP_PROTO_FULL_MASK	0xFF
+
 extern const struct ethtool_ops bnxt_ethtool_ops;
 
 u32 bnxt_get_rxfh_indir_size(struct net_device *dev);
-u32 _bnxt_fw_to_ethtool_adv_spds(u16, u8);
+void _bnxt_fw_to_linkmode(unsigned long *mode, u16 fw_speeds);
 u32 bnxt_fw_to_ethtool_speed(u16);
-u16 bnxt_get_fw_auto_link_speeds(u32);
+u16 bnxt_get_fw_auto_link_speeds(const unsigned long *mode);
 int bnxt_hwrm_nvm_get_dev_info(struct bnxt *bp,
 			       struct hwrm_nvm_get_dev_info_output *nvm_dev_info);
 int bnxt_hwrm_firmware_reset(struct net_device *dev, u8 proc_type,

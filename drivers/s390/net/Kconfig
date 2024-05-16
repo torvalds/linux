@@ -103,10 +103,11 @@ config CCWGROUP
 config ISM
 	tristate "Support for ISM vPCI Adapter"
 	depends on PCI
+	imply SMC
 	default n
 	help
 	  Select this option if you want to use the Internal Shared Memory
-	  vPCI Adapter.
+	  vPCI Adapter. The adapter can be used with the SMC network protocol.
 
 	  To compile as a module choose M. The module name is ism.
 	  If unsure, choose N.

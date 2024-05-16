@@ -176,7 +176,7 @@ dw_edma_debugfs_regs_wr(struct dw_edma *dw, struct dentry *dent)
 	};
 	struct dentry *regs_dent, *ch_dent;
 	int nr_entries, i;
-	char name[16];
+	char name[32];
 
 	regs_dent = debugfs_create_dir(WRITE_STR, dent);
 
@@ -239,7 +239,7 @@ static noinline_for_stack void dw_edma_debugfs_regs_rd(struct dw_edma *dw,
 	};
 	struct dentry *regs_dent, *ch_dent;
 	int nr_entries, i;
-	char name[16];
+	char name[32];
 
 	regs_dent = debugfs_create_dir(READ_STR, dent);
 

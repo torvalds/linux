@@ -20,14 +20,6 @@
 
 #include "../kselftest.h"
 
-#ifndef PR_CAP_AMBIENT
-#define PR_CAP_AMBIENT			47
-# define PR_CAP_AMBIENT_IS_SET		1
-# define PR_CAP_AMBIENT_RAISE		2
-# define PR_CAP_AMBIENT_LOWER		3
-# define PR_CAP_AMBIENT_CLEAR_ALL	4
-#endif
-
 static int nerrs;
 static pid_t mpid;	/*  main() pid is used to avoid duplicate test counts */
 
@@ -96,11 +88,7 @@ static bool create_and_enter_ns(uid_t inner_uid)
 	outer_uid = getuid();
 	outer_gid = getgid();
 
-	/*
-	 * TODO: If we're already root, we could skip creating the userns.
-	 */
-
-	if (unshare(CLONE_NEWNS) == 0) {
+	if (outer_uid == 0 && unshare(CLONE_NEWNS) == 0) {
 		ksft_print_msg("[NOTE]\tUsing global UIDs for tests\n");
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) != 0)
 			ksft_exit_fail_msg("PR_SET_KEEPCAPS - %s\n",

@@ -136,6 +136,9 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 	};
 	int			error;
 
+	if (xfs_ifork_zapped(XFS_I(inode), XFS_ATTR_FORK))
+		return -EIO;
+
 	error = xfs_attr_get(&args);
 	if (error)
 		return error;
@@ -186,7 +189,7 @@ static const struct xattr_handler xfs_xattr_security_handler = {
 	.set	= xfs_xattr_set,
 };
 
-const struct xattr_handler *xfs_xattr_handlers[] = {
+const struct xattr_handler * const xfs_xattr_handlers[] = {
 	&xfs_xattr_user_handler,
 	&xfs_xattr_trusted_handler,
 	&xfs_xattr_security_handler,
@@ -293,6 +296,9 @@ xfs_vn_listxattr(
 	struct xfs_attr_list_context context;
 	struct inode	*inode = d_inode(dentry);
 	int		error;
+
+	if (xfs_ifork_zapped(XFS_I(inode), XFS_ATTR_FORK))
+		return -EIO;
 
 	/*
 	 * First read the regular on-disk attributes.

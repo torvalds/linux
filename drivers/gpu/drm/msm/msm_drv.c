@@ -17,8 +17,9 @@
 
 #include "msm_drv.h"
 #include "msm_debugfs.h"
+#include "msm_gem.h"
+#include "msm_gpu.h"
 #include "msm_kms.h"
-#include "adreno/adreno_gpu.h"
 
 /*
  * MSM driver version:
@@ -37,9 +38,10 @@
  * - 1.9.0 - Add MSM_SUBMIT_FENCE_SN_IN
  * - 1.10.0 - Add MSM_SUBMIT_BO_NO_IMPLICIT
  * - 1.11.0 - Add wait boost (MSM_WAIT_FENCE_BOOST, MSM_PREP_BOOST)
+ * - 1.12.0 - Add MSM_INFO_SET_METADATA and MSM_INFO_GET_METADATA
  */
 #define MSM_VERSION_MAJOR	1
-#define MSM_VERSION_MINOR	10
+#define MSM_VERSION_MINOR	12
 #define MSM_VERSION_PATCHLEVEL	0
 
 static void msm_deinit_vram(struct drm_device *ddev);
@@ -265,7 +267,9 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	if (ret)
 		goto err_deinit_vram;
 
-	msm_gem_shrinker_init(ddev);
+	ret = msm_gem_shrinker_init(ddev);
+	if (ret)
+		goto err_msm_uninit;
 
 	if (priv->kms_init) {
 		ret = msm_drm_kms_init(dev, drv);
@@ -285,8 +289,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	ret = msm_debugfs_late_init(ddev);
 	if (ret)
 		goto err_msm_uninit;
-
-	drm_kms_helper_poll_init(ddev);
 
 	if (priv->kms_init) {
 		drm_kms_helper_poll_init(ddev);
@@ -544,6 +546,85 @@ static int msm_ioctl_gem_info_set_iova(struct drm_device *dev,
 	return msm_gem_set_iova(obj, ctx->aspace, iova);
 }
 
+static int msm_ioctl_gem_info_set_metadata(struct drm_gem_object *obj,
+					   __user void *metadata,
+					   u32 metadata_size)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	void *buf;
+	int ret;
+
+	/* Impose a moderate upper bound on metadata size: */
+	if (metadata_size > 128) {
+		return -EOVERFLOW;
+	}
+
+	/* Use a temporary buf to keep copy_from_user() outside of gem obj lock: */
+	buf = memdup_user(metadata, metadata_size);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	ret = msm_gem_lock_interruptible(obj);
+	if (ret)
+		goto out;
+
+	msm_obj->metadata =
+		krealloc(msm_obj->metadata, metadata_size, GFP_KERNEL);
+	msm_obj->metadata_size = metadata_size;
+	memcpy(msm_obj->metadata, buf, metadata_size);
+
+	msm_gem_unlock(obj);
+
+out:
+	kfree(buf);
+
+	return ret;
+}
+
+static int msm_ioctl_gem_info_get_metadata(struct drm_gem_object *obj,
+					   __user void *metadata,
+					   u32 *metadata_size)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	void *buf;
+	int ret, len;
+
+	if (!metadata) {
+		/*
+		 * Querying the size is inherently racey, but
+		 * EXT_external_objects expects the app to confirm
+		 * via device and driver UUIDs that the exporter and
+		 * importer versions match.  All we can do from the
+		 * kernel side is check the length under obj lock
+		 * when userspace tries to retrieve the metadata
+		 */
+		*metadata_size = msm_obj->metadata_size;
+		return 0;
+	}
+
+	ret = msm_gem_lock_interruptible(obj);
+	if (ret)
+		return ret;
+
+	/* Avoid copy_to_user() under gem obj lock: */
+	len = msm_obj->metadata_size;
+	buf = kmemdup(msm_obj->metadata, len, GFP_KERNEL);
+
+	msm_gem_unlock(obj);
+
+	if (*metadata_size < len) {
+		ret = -ETOOSMALL;
+	} else if (copy_to_user(metadata, buf, len)) {
+		ret = -EFAULT;
+	} else {
+		*metadata_size = len;
+	}
+
+	kfree(buf);
+
+	return 0;
+}
+
 static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
@@ -566,6 +647,8 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 		break;
 	case MSM_INFO_SET_NAME:
 	case MSM_INFO_GET_NAME:
+	case MSM_INFO_SET_METADATA:
+	case MSM_INFO_GET_METADATA:
 		break;
 	default:
 		return -EINVAL;
@@ -618,7 +701,7 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 		break;
 	case MSM_INFO_GET_NAME:
 		if (args->value && (args->len < strlen(msm_obj->name))) {
-			ret = -EINVAL;
+			ret = -ETOOSMALL;
 			break;
 		}
 		args->len = strlen(msm_obj->name);
@@ -627,6 +710,14 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 					 msm_obj->name, args->len))
 				ret = -EFAULT;
 		}
+		break;
+	case MSM_INFO_SET_METADATA:
+		ret = msm_ioctl_gem_info_set_metadata(
+			obj, u64_to_user_ptr(args->value), args->len);
+		break;
+	case MSM_INFO_GET_METADATA:
+		ret = msm_ioctl_gem_info_get_metadata(
+			obj, u64_to_user_ptr(args->value), &args->len);
 		break;
 	}
 
@@ -878,6 +969,39 @@ static int add_components_mdp(struct device *master_dev,
 
 	return 0;
 }
+
+#if !IS_REACHABLE(CONFIG_DRM_MSM_MDP5) || !IS_REACHABLE(CONFIG_DRM_MSM_DPU)
+bool msm_disp_drv_should_bind(struct device *dev, bool dpu_driver)
+{
+	/* If just a single driver is enabled, use it no matter what */
+	return true;
+}
+#else
+
+static bool prefer_mdp5 = true;
+MODULE_PARM_DESC(prefer_mdp5, "Select whether MDP5 or DPU driver should be preferred");
+module_param(prefer_mdp5, bool, 0444);
+
+/* list all platforms supported by both mdp5 and dpu drivers */
+static const char *const msm_mdp5_dpu_migration[] = {
+	"qcom,sdm630-mdp5",
+	"qcom,sdm660-mdp5",
+	NULL,
+};
+
+bool msm_disp_drv_should_bind(struct device *dev, bool dpu_driver)
+{
+	/* If it is not an MDP5 device, do not try MDP5 driver */
+	if (!of_device_is_compatible(dev->of_node, "qcom,mdp5"))
+		return dpu_driver;
+
+	/* If it is not in the migration list, use MDP5 */
+	if (!of_device_compatible_match(dev->of_node, msm_mdp5_dpu_migration))
+		return !dpu_driver;
+
+	return prefer_mdp5 ? !dpu_driver : dpu_driver;
+}
+#endif
 
 /*
  * We don't know what's the best binding to link the gpu with the drm device.

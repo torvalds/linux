@@ -201,7 +201,7 @@ enum pgtable_bits {
  * The final layouts of the PTE bits are:
  *
  *   64-bit, R1 or earlier:     CCC D V G [S H] M A W R P
- *   32-bit, R1 or earler:      CCC D V G M A W R P
+ *   32-bit, R1 or earlier:     CCC D V G M A W R P
  *   64-bit, R2 or later:       CCC D V G RI/R XI [S H] M A W P
  *   32-bit, R2 or later:       CCC D V G RI/R XI M A W P
  */

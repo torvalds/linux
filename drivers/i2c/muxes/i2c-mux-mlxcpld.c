@@ -187,7 +187,7 @@ static struct platform_driver mlxcpld_mux_driver = {
 
 module_platform_driver(mlxcpld_mux_driver);
 
-MODULE_AUTHOR("Michael Shych (michaels@mellanox.com)");
+MODULE_AUTHOR("Michael Shych <michaels@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox I2C-CPLD-MUX driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:i2c-mux-mlxcpld");

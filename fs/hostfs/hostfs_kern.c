@@ -513,10 +513,14 @@ static int hostfs_inode_update(struct inode *ino, const struct hostfs_stat *st)
 	set_nlink(ino, st->nlink);
 	i_uid_write(ino, st->uid);
 	i_gid_write(ino, st->gid);
-	ino->i_atime =
-		(struct timespec64){ st->atime.tv_sec, st->atime.tv_nsec };
-	ino->i_mtime =
-		(struct timespec64){ st->mtime.tv_sec, st->mtime.tv_nsec };
+	inode_set_atime_to_ts(ino, (struct timespec64){
+			st->atime.tv_sec,
+			st->atime.tv_nsec,
+		});
+	inode_set_mtime_to_ts(ino, (struct timespec64){
+			st->mtime.tv_sec,
+			st->mtime.tv_nsec,
+		});
 	inode_set_ctime(ino, st->ctime.tv_sec, st->ctime.tv_nsec);
 	ino->i_size = st->size;
 	ino->i_blocks = st->blocks;
@@ -633,12 +637,8 @@ static struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
 
 	inode = hostfs_iget(ino->i_sb, name);
 	__putname(name);
-	if (IS_ERR(inode)) {
-		if (PTR_ERR(inode) == -ENOENT)
-			inode = NULL;
-		else
-			return ERR_CAST(inode);
-	}
+	if (inode == ERR_PTR(-ENOENT))
+		inode = NULL;
 
 	return d_splice_alias(inode, dentry);
 }

@@ -305,7 +305,7 @@ static void __init setup_zfcpdump(void)
 		return;
 	if (oldmem_data.start)
 		return;
-	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
+	strlcat(boot_command_line, " cio_ignore=all,!ipldev,!condev", COMMAND_LINE_SIZE);
 	console_loglevel = 2;
 }
 #else
@@ -381,12 +381,6 @@ void stack_free(unsigned long stack)
 #endif
 }
 
-void __init __noreturn arch_call_rest_init(void)
-{
-	smp_reinit_ipl_cpu();
-	rest_init();
-}
-
 static unsigned long __init stack_alloc_early(void)
 {
 	unsigned long stack;
@@ -414,15 +408,15 @@ static void __init setup_lowcore(void)
 
 	lc->restart_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;
 	lc->restart_psw.addr = __pa(restart_int_handler);
-	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->external_new_psw.mask = PSW_KERNEL_BITS;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->svc_new_psw.mask = PSW_KERNEL_BITS;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = PSW_KERNEL_BITS;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = PSW_KERNEL_BITS;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->current_task = (unsigned long)&init_task;
@@ -455,7 +449,6 @@ static void __init setup_lowcore(void)
 	lc->restart_fn = (unsigned long) do_restart;
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
-	__ctl_store(lc->cregs_save_area, 0, 15);
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
@@ -465,6 +458,7 @@ static void __init setup_lowcore(void)
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->user_asce = S390_lowcore.user_asce;
 
+	system_ctlreg_init_save_area(lc);
 	abs_lc = get_abs_lowcore();
 	abs_lc->restart_stack = lc->restart_stack;
 	abs_lc->restart_fn = lc->restart_fn;
@@ -472,7 +466,6 @@ static void __init setup_lowcore(void)
 	abs_lc->restart_source = lc->restart_source;
 	abs_lc->restart_psw = lc->restart_psw;
 	abs_lc->restart_flags = RESTART_FLAG_CTLREGS;
-	memcpy(abs_lc->cregs_save_area, lc->cregs_save_area, sizeof(abs_lc->cregs_save_area));
 	abs_lc->program_new_psw = lc->program_new_psw;
 	abs_lc->mcesad = lc->mcesad;
 	put_abs_lowcore(abs_lc);
@@ -511,12 +504,12 @@ static void __init setup_resources(void)
 	int j;
 	u64 i;
 
-	code_resource.start = (unsigned long) _text;
-	code_resource.end = (unsigned long) _etext - 1;
-	data_resource.start = (unsigned long) _etext;
-	data_resource.end = (unsigned long) _edata - 1;
-	bss_resource.start = (unsigned long) __bss_start;
-	bss_resource.end = (unsigned long) __bss_stop - 1;
+	code_resource.start = __pa_symbol(_text);
+	code_resource.end = __pa_symbol(_etext) - 1;
+	data_resource.start = __pa_symbol(_etext);
+	data_resource.end = __pa_symbol(_edata) - 1;
+	bss_resource.start = __pa_symbol(__bss_start);
+	bss_resource.end = __pa_symbol(__bss_stop) - 1;
 
 	for_each_mem_range(i, &start, &end) {
 		res = memblock_alloc(sizeof(*res), 8);
@@ -625,8 +618,8 @@ static void __init reserve_crashkernel(void)
 	phys_addr_t low, high;
 	int rc;
 
-	rc = parse_crashkernel(boot_command_line, ident_map_size, &crash_size,
-			       &crash_base);
+	rc = parse_crashkernel(boot_command_line, ident_map_size,
+			       &crash_size, &crash_base, NULL, NULL);
 
 	crash_base = ALIGN(crash_base, KEXEC_CRASH_MEM_ALIGN);
 	crash_size = ALIGN(crash_size, KEXEC_CRASH_MEM_ALIGN);
@@ -797,15 +790,15 @@ static void __init setup_cr(void)
 	__ctl_duct[4] = (unsigned long)__ctl_duald;
 
 	/* Update control registers CR2, CR5 and CR15 */
-	__ctl_store(cr2.val, 2, 2);
-	__ctl_store(cr5.val, 5, 5);
-	__ctl_store(cr15.val, 15, 15);
+	local_ctl_store(2, &cr2.reg);
+	local_ctl_store(5, &cr5.reg);
+	local_ctl_store(15, &cr15.reg);
 	cr2.ducto = (unsigned long)__ctl_duct >> 6;
 	cr5.pasteo = (unsigned long)__ctl_duct >> 6;
 	cr15.lsea = (unsigned long)__ctl_linkage_stack >> 3;
-	__ctl_load(cr2.val, 2, 2);
-	__ctl_load(cr5.val, 5, 5);
-	__ctl_load(cr15.val, 15, 15);
+	system_ctl_load(2, &cr2.reg);
+	system_ctl_load(5, &cr5.reg);
+	system_ctl_load(15, &cr15.reg);
 }
 
 /*
@@ -824,22 +817,6 @@ static void __init setup_randomness(void)
 
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
 		static_branch_enable(&s390_arch_random_available);
-}
-
-/*
- * Find the correct size for the task_struct. This depends on
- * the size of the struct fpu at the end of the thread_struct
- * which is embedded in the task_struct.
- */
-static void __init setup_task_size(void)
-{
-	int task_size = sizeof(struct task_struct);
-
-	if (!MACHINE_HAS_VX) {
-		task_size -= sizeof(__vector128) * __NUM_VXRS;
-		task_size += sizeof(freg_t) * __NUM_FPRS;
-	}
-	arch_task_struct_size = task_size;
 }
 
 /*
@@ -934,7 +911,6 @@ void __init setup_arch(char **cmdline_p)
 
 	os_info_init();
 	setup_ipl();
-	setup_task_size();
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */

@@ -711,6 +711,7 @@ static int copy_sve_reg_indices(const struct kvm_vcpu *vcpu,
 
 /**
  * kvm_arm_num_regs - how many registers do we present via KVM_GET_ONE_REG
+ * @vcpu: the vCPU pointer
  *
  * This is for all registers.
  */
@@ -729,6 +730,8 @@ unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu)
 
 /**
  * kvm_arm_copy_reg_indices - get indices of all registers.
+ * @vcpu: the vCPU pointer
+ * @uindices: register list to copy
  *
  * We do core registers right here, then we append system regs.
  */
@@ -815,7 +818,7 @@ int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 			      struct kvm_vcpu_events *events)
 {
 	events->exception.serror_pending = !!(vcpu->arch.hcr_el2 & HCR_VSE);
-	events->exception.serror_has_esr = cpus_have_const_cap(ARM64_HAS_RAS_EXTN);
+	events->exception.serror_has_esr = cpus_have_final_cap(ARM64_HAS_RAS_EXTN);
 
 	if (events->exception.serror_pending && events->exception.serror_has_esr)
 		events->exception.serror_esr = vcpu_get_vsesr(vcpu);
@@ -837,7 +840,7 @@ int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 	bool ext_dabt_pending = events->exception.ext_dabt_pending;
 
 	if (serror_pending && has_esr) {
-		if (!cpus_have_const_cap(ARM64_HAS_RAS_EXTN))
+		if (!cpus_have_final_cap(ARM64_HAS_RAS_EXTN))
 			return -EINVAL;
 
 		if (!((events->exception.serror_esr) & ~ESR_ELx_ISS_MASK))
@@ -874,7 +877,7 @@ u32 __attribute_const__ kvm_target_cpu(void)
 		break;
 	case ARM_CPU_IMP_APM:
 		switch (part_number) {
-		case APM_CPU_PART_POTENZA:
+		case APM_CPU_PART_XGENE:
 			return KVM_ARM_TARGET_XGENE_POTENZA;
 		}
 		break;
@@ -902,8 +905,8 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 
 /**
  * kvm_arch_vcpu_ioctl_set_guest_debug - set up guest debugging
- * @kvm:	pointer to the KVM struct
- * @kvm_guest_debug: the ioctl data buffer
+ * @vcpu: the vCPU pointer
+ * @dbg: the ioctl data buffer
  *
  * This sets up and enables the VM for guest debugging. Userspace
  * passes in a control flag to enable different debug types and
@@ -1072,7 +1075,7 @@ int kvm_vm_ioctl_mte_copy_tags(struct kvm *kvm,
 		} else {
 			/*
 			 * Only locking to serialise with a concurrent
-			 * set_pte_at() in the VMM but still overriding the
+			 * __set_ptes() in the VMM but still overriding the
 			 * tags, hence ignoring the return value.
 			 */
 			try_page_mte_tagging(page);

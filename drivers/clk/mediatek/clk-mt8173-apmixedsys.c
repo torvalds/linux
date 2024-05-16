@@ -152,8 +152,8 @@ static int clk_mt8173_apmixed_probe(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (IS_ERR_OR_NULL(clk_data)) {
-		iounmap(base);
-		return -ENOMEM;
+		r = -ENOMEM;
+		goto unmap_io;
 	}
 
 	fhctl_parse_dt(fhctl_node, pllfhs, ARRAY_SIZE(pllfhs));
@@ -188,6 +188,7 @@ unregister_plls:
 				  ARRAY_SIZE(pllfhs), clk_data);
 free_clk_data:
 	mtk_free_clk_data(clk_data);
+unmap_io:
 	iounmap(base);
 	return r;
 }

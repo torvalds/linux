@@ -84,7 +84,7 @@ static umode_t psp_security_is_visible(struct kobject *kobj, struct attribute *a
 	struct sp_device *sp = dev_get_drvdata(dev);
 	struct psp_device *psp = sp->psp_data;
 
-	if (psp && (psp->capability & PSP_CAPABILITY_PSP_SECURITY_REPORTING))
+	if (psp && PSP_CAPABILITY(psp, PSP_SECURITY_REPORTING))
 		return 0444;
 
 	return 0;
@@ -135,7 +135,7 @@ static umode_t psp_firmware_is_visible(struct kobject *kobj, struct attribute *a
 		val = ioread32(psp->io_regs + psp->vdata->bootloader_info_reg);
 
 	if (attr == &dev_attr_tee_version.attr &&
-	    psp->capability & PSP_CAPABILITY_TEE &&
+	    PSP_CAPABILITY(psp, TEE) &&
 	    psp->vdata->tee->info_reg)
 		val = ioread32(psp->io_regs + psp->vdata->tee->info_reg);
 
@@ -418,18 +418,12 @@ static const struct sev_vdata sevv2 = {
 };
 
 static const struct tee_vdata teev1 = {
-	.cmdresp_reg		= 0x10544,	/* C2PMSG_17 */
-	.cmdbuff_addr_lo_reg	= 0x10548,	/* C2PMSG_18 */
-	.cmdbuff_addr_hi_reg	= 0x1054c,	/* C2PMSG_19 */
 	.ring_wptr_reg          = 0x10550,	/* C2PMSG_20 */
 	.ring_rptr_reg          = 0x10554,	/* C2PMSG_21 */
 	.info_reg		= 0x109e8,	/* C2PMSG_58 */
 };
 
 static const struct tee_vdata teev2 = {
-	.cmdresp_reg		= 0x10944,	/* C2PMSG_17 */
-	.cmdbuff_addr_lo_reg	= 0x10948,	/* C2PMSG_18 */
-	.cmdbuff_addr_hi_reg	= 0x1094c,	/* C2PMSG_19 */
 	.ring_wptr_reg		= 0x10950,	/* C2PMSG_20 */
 	.ring_rptr_reg		= 0x10954,	/* C2PMSG_21 */
 };
@@ -466,6 +460,9 @@ static const struct psp_vdata pspv2 = {
 static const struct psp_vdata pspv3 = {
 	.tee			= &teev1,
 	.platform_access	= &pa_v1,
+	.cmdresp_reg		= 0x10544,	/* C2PMSG_17 */
+	.cmdbuff_addr_lo_reg	= 0x10548,	/* C2PMSG_18 */
+	.cmdbuff_addr_hi_reg	= 0x1054c,	/* C2PMSG_19 */
 	.bootloader_info_reg	= 0x109ec,	/* C2PMSG_59 */
 	.feature_reg		= 0x109fc,	/* C2PMSG_63 */
 	.inten_reg		= 0x10690,	/* P2CMSG_INTEN */
@@ -476,6 +473,9 @@ static const struct psp_vdata pspv3 = {
 static const struct psp_vdata pspv4 = {
 	.sev			= &sevv2,
 	.tee			= &teev1,
+	.cmdresp_reg		= 0x10544,	/* C2PMSG_17 */
+	.cmdbuff_addr_lo_reg	= 0x10548,	/* C2PMSG_18 */
+	.cmdbuff_addr_hi_reg	= 0x1054c,	/* C2PMSG_19 */
 	.bootloader_info_reg	= 0x109ec,	/* C2PMSG_59 */
 	.feature_reg		= 0x109fc,	/* C2PMSG_63 */
 	.inten_reg		= 0x10690,	/* P2CMSG_INTEN */
@@ -485,6 +485,9 @@ static const struct psp_vdata pspv4 = {
 static const struct psp_vdata pspv5 = {
 	.tee			= &teev2,
 	.platform_access	= &pa_v2,
+	.cmdresp_reg		= 0x10944,	/* C2PMSG_17 */
+	.cmdbuff_addr_lo_reg	= 0x10948,	/* C2PMSG_18 */
+	.cmdbuff_addr_hi_reg	= 0x1094c,	/* C2PMSG_19 */
 	.feature_reg		= 0x109fc,	/* C2PMSG_63 */
 	.inten_reg		= 0x10510,	/* P2CMSG_INTEN */
 	.intsts_reg		= 0x10514,	/* P2CMSG_INTSTS */
@@ -493,6 +496,9 @@ static const struct psp_vdata pspv5 = {
 static const struct psp_vdata pspv6 = {
 	.sev                    = &sevv2,
 	.tee                    = &teev2,
+	.cmdresp_reg		= 0x10944,	/* C2PMSG_17 */
+	.cmdbuff_addr_lo_reg	= 0x10948,	/* C2PMSG_18 */
+	.cmdbuff_addr_hi_reg	= 0x1094c,	/* C2PMSG_19 */
 	.feature_reg            = 0x109fc,	/* C2PMSG_63 */
 	.inten_reg              = 0x10510,	/* P2CMSG_INTEN */
 	.intsts_reg             = 0x10514,	/* P2CMSG_INTSTS */

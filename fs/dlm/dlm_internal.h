@@ -246,7 +246,7 @@ struct dlm_lkb {
 	int8_t			lkb_highbast;	/* highest mode bast sent for */
 
 	int8_t			lkb_wait_type;	/* type of reply waiting for */
-	atomic_t		lkb_wait_count;
+	int8_t			lkb_wait_count;
 	int			lkb_wait_nodeid; /* for debugging */
 
 	struct list_head	lkb_statequeue;	/* rsb g/c/w list */

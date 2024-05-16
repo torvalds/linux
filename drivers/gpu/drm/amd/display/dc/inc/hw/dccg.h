@@ -59,8 +59,9 @@ enum dentist_dispclk_change_mode {
 struct dp_dto_params {
 	int otg_inst;
 	enum signal_type signal;
-	long long pixclk_hz;
-	long long refclk_hz;
+	enum streamclk_source clk_src;
+	uint64_t pixclk_hz;
+	uint64_t refclk_hz;
 };
 
 enum pixel_rate_div {
@@ -105,6 +106,10 @@ struct dccg_funcs {
 	void (*otg_drop_pixel)(struct dccg *dccg,
 			uint32_t otg_inst);
 	void (*dccg_init)(struct dccg *dccg);
+	void (*set_dpstreamclk_root_clock_gating)(
+			struct dccg *dccg,
+			int dp_hpo_inst,
+			bool enable);
 
 	void (*set_dpstreamclk)(
 			struct dccg *dccg,
@@ -140,6 +145,11 @@ struct dccg_funcs {
 			int phy_inst,
 			enum physymclk_clock_source clk_src,
 			bool force_enable);
+
+	void (*set_physymclk_root_clock_gating)(
+			struct dccg *dccg,
+			int phy_inst,
+			bool enable);
 
 	void (*set_dtbclk_dto)(
 			struct dccg *dccg,
@@ -196,6 +206,10 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			enum streamclk_source src,
 			uint32_t otg_inst);
+	void (*set_dto_dscclk)(
+			struct dccg *dccg,
+			uint32_t dsc_inst);
+	void (*set_ref_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
 };
 
 #endif //__DAL_DCCG_H__

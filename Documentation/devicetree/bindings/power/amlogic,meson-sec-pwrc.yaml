@@ -12,7 +12,7 @@ maintainers:
   - Jianxin Pan <jianxin.pan@amlogic.com>
 
 description: |+
-  Secure Power Domains used in Meson A1/C1/S4 & C3 SoCs, and should be the child node
+  Secure Power Domains used in Meson A1/C1/S4 & C3/T7 SoCs, and should be the child node
   of secure-monitor.
 
 properties:
@@ -21,6 +21,7 @@ properties:
       - amlogic,meson-a1-pwrc
       - amlogic,meson-s4-pwrc
       - amlogic,c3-pwrc
+      - amlogic,t7-pwrc
 
   "#power-domain-cells":
     const: 1

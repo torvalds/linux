@@ -30,11 +30,13 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_de.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_dvo.h"
 #include "intel_dvo_dev.h"
@@ -217,14 +219,17 @@ intel_dvo_mode_valid(struct drm_connector *_connector,
 		     struct drm_display_mode *mode)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_fixed_mode(connector, mode);
-	int max_dotclk = to_i915(connector->base.dev)->max_dotclk_freq;
+	int max_dotclk = to_i915(connector->base.dev)->display.cdclk.max_dotclk_freq;
 	int target_clock = mode->clock;
+	enum drm_mode_status status;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
+	status = intel_cpu_transcoder_mode_valid(i915, mode);
+	if (status != MODE_OK)
+		return status;
 
 	/* XXX: Validate clock range */
 
@@ -322,13 +327,20 @@ intel_dvo_detect(struct drm_connector *_connector, bool force)
 	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
 
+	if (!intel_display_driver_check_access(i915))
+		return connector->base.status;
+
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);
 }
 
 static int intel_dvo_get_modes(struct drm_connector *_connector)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int num_modes;
+
+	if (!intel_display_driver_check_access(i915))
+		return drm_edid_connector_add_modes(&connector->base);
 
 	/*
 	 * We should probably have an i2c driver get_modes function for those
@@ -530,6 +542,7 @@ void intel_dvo_init(struct drm_i915_private *i915)
 	if (intel_dvo->dev.type == INTEL_DVO_CHIP_TMDS)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 			DRM_CONNECTOR_POLL_DISCONNECT;
+	connector->base.polled = connector->polled;
 
 	drm_connector_init_with_ddc(&i915->drm, &connector->base,
 				    &intel_dvo_connector_funcs,

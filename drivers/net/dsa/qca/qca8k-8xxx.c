@@ -323,14 +323,14 @@ static int qca8k_read_eth(struct qca8k_priv *priv, u32 reg, u32 *val, int len)
 
 	mutex_lock(&mgmt_eth_data->mutex);
 
-	/* Check mgmt_master if is operational */
-	if (!priv->mgmt_master) {
+	/* Check if the mgmt_conduit if is operational */
+	if (!priv->mgmt_conduit) {
 		kfree_skb(skb);
 		mutex_unlock(&mgmt_eth_data->mutex);
 		return -EINVAL;
 	}
 
-	skb->dev = priv->mgmt_master;
+	skb->dev = priv->mgmt_conduit;
 
 	reinit_completion(&mgmt_eth_data->rw_done);
 
@@ -375,14 +375,14 @@ static int qca8k_write_eth(struct qca8k_priv *priv, u32 reg, u32 *val, int len)
 
 	mutex_lock(&mgmt_eth_data->mutex);
 
-	/* Check mgmt_master if is operational */
-	if (!priv->mgmt_master) {
+	/* Check if the mgmt_conduit if is operational */
+	if (!priv->mgmt_conduit) {
 		kfree_skb(skb);
 		mutex_unlock(&mgmt_eth_data->mutex);
 		return -EINVAL;
 	}
 
-	skb->dev = priv->mgmt_master;
+	skb->dev = priv->mgmt_conduit;
 
 	reinit_completion(&mgmt_eth_data->rw_done);
 
@@ -508,7 +508,7 @@ qca8k_bulk_read(void *ctx, const void *reg_buf, size_t reg_len,
 	struct qca8k_priv *priv = ctx;
 	u32 reg = *(u16 *)reg_buf;
 
-	if (priv->mgmt_master &&
+	if (priv->mgmt_conduit &&
 	    !qca8k_read_eth(priv, reg, val_buf, val_len))
 		return 0;
 
@@ -531,7 +531,7 @@ qca8k_bulk_gather_write(void *ctx, const void *reg_buf, size_t reg_len,
 	u32 reg = *(u16 *)reg_buf;
 	u32 *val = (u32 *)val_buf;
 
-	if (priv->mgmt_master &&
+	if (priv->mgmt_conduit &&
 	    !qca8k_write_eth(priv, reg, val, val_len))
 		return 0;
 
@@ -626,7 +626,7 @@ qca8k_phy_eth_command(struct qca8k_priv *priv, bool read, int phy,
 	struct sk_buff *write_skb, *clear_skb, *read_skb;
 	struct qca8k_mgmt_eth_data *mgmt_eth_data;
 	u32 write_val, clear_val = 0, val;
-	struct net_device *mgmt_master;
+	struct net_device *mgmt_conduit;
 	int ret, ret1;
 	bool ack;
 
@@ -683,18 +683,18 @@ qca8k_phy_eth_command(struct qca8k_priv *priv, bool read, int phy,
 	 */
 	mutex_lock(&mgmt_eth_data->mutex);
 
-	/* Check if mgmt_master is operational */
-	mgmt_master = priv->mgmt_master;
-	if (!mgmt_master) {
+	/* Check if mgmt_conduit is operational */
+	mgmt_conduit = priv->mgmt_conduit;
+	if (!mgmt_conduit) {
 		mutex_unlock(&mgmt_eth_data->mutex);
 		mutex_unlock(&priv->bus->mdio_lock);
 		ret = -EINVAL;
-		goto err_mgmt_master;
+		goto err_mgmt_conduit;
 	}
 
-	read_skb->dev = mgmt_master;
-	clear_skb->dev = mgmt_master;
-	write_skb->dev = mgmt_master;
+	read_skb->dev = mgmt_conduit;
+	clear_skb->dev = mgmt_conduit;
+	write_skb->dev = mgmt_conduit;
 
 	reinit_completion(&mgmt_eth_data->rw_done);
 
@@ -780,7 +780,7 @@ exit:
 	return ret;
 
 	/* Error handling before lock */
-err_mgmt_master:
+err_mgmt_conduit:
 	kfree_skb(read_skb);
 err_read_skb:
 	kfree_skb(clear_skb);
@@ -947,36 +947,48 @@ static int
 qca8k_mdio_register(struct qca8k_priv *priv)
 {
 	struct dsa_switch *ds = priv->ds;
+	struct device *dev = ds->dev;
 	struct device_node *mdio;
 	struct mii_bus *bus;
+	int ret = 0;
 
-	bus = devm_mdiobus_alloc(ds->dev);
-	if (!bus)
-		return -ENOMEM;
+	mdio = of_get_child_by_name(dev->of_node, "mdio");
+	if (mdio && !of_device_is_available(mdio))
+		goto out_put_node;
 
+	bus = devm_mdiobus_alloc(dev);
+	if (!bus) {
+		ret = -ENOMEM;
+		goto out_put_node;
+	}
+
+	priv->internal_mdio_bus = bus;
 	bus->priv = (void *)priv;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "qca8k-%d.%d",
 		 ds->dst->index, ds->index);
-	bus->parent = ds->dev;
-	bus->phy_mask = ~ds->phys_mii_mask;
-	ds->slave_mii_bus = bus;
+	bus->parent = dev;
 
-	/* Check if the devicetree declare the port:phy mapping */
-	mdio = of_get_child_by_name(priv->dev->of_node, "mdio");
-	if (of_device_is_available(mdio)) {
-		bus->name = "qca8k slave mii";
+	if (mdio) {
+		/* Check if the device tree declares the port:phy mapping */
+		bus->name = "qca8k user mii";
 		bus->read = qca8k_internal_mdio_read;
 		bus->write = qca8k_internal_mdio_write;
-		return devm_of_mdiobus_register(priv->dev, bus, mdio);
+	} else {
+		/* If a mapping can't be found, the legacy mapping is used,
+		 * using qca8k_port_to_phy()
+		 */
+		ds->user_mii_bus = bus;
+		bus->phy_mask = ~ds->phys_mii_mask;
+		bus->name = "qca8k-legacy user mii";
+		bus->read = qca8k_legacy_mdio_read;
+		bus->write = qca8k_legacy_mdio_write;
 	}
 
-	/* If a mapping can't be found the legacy mapping is used,
-	 * using the qca8k_port_to_phy function
-	 */
-	bus->name = "qca8k-legacy slave mii";
-	bus->read = qca8k_legacy_mdio_read;
-	bus->write = qca8k_legacy_mdio_write;
-	return devm_mdiobus_register(priv->dev, bus);
+	ret = devm_of_mdiobus_register(dev, bus, mdio);
+
+out_put_node:
+	of_node_put(mdio);
+	return ret;
 }
 
 static int
@@ -985,7 +997,7 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 	u32 internal_mdio_mask = 0, external_mdio_mask = 0, reg;
 	struct device_node *ports, *port;
 	phy_interface_t mode;
-	int err;
+	int ret;
 
 	ports = of_get_child_by_name(priv->dev->of_node, "ports");
 	if (!ports)
@@ -995,11 +1007,11 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 		return -EINVAL;
 
 	for_each_available_child_of_node(ports, port) {
-		err = of_property_read_u32(port, "reg", &reg);
-		if (err) {
+		ret = of_property_read_u32(port, "reg", &reg);
+		if (ret) {
 			of_node_put(port);
 			of_node_put(ports);
-			return err;
+			return ret;
 		}
 
 		if (!dsa_is_user_port(priv->ds, reg))
@@ -1728,10 +1740,10 @@ qca8k_get_tag_protocol(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_master_change(struct dsa_switch *ds, const struct net_device *master,
-		    bool operational)
+qca8k_conduit_change(struct dsa_switch *ds, const struct net_device *conduit,
+		     bool operational)
 {
-	struct dsa_port *dp = master->dsa_ptr;
+	struct dsa_port *dp = conduit->dsa_ptr;
 	struct qca8k_priv *priv = ds->priv;
 
 	/* Ethernet MIB/MDIO is only supported for CPU port 0 */
@@ -1741,7 +1753,7 @@ qca8k_master_change(struct dsa_switch *ds, const struct net_device *master,
 	mutex_lock(&priv->mgmt_eth_data.mutex);
 	mutex_lock(&priv->mib_eth_data.mutex);
 
-	priv->mgmt_master = operational ? (struct net_device *)master : NULL;
+	priv->mgmt_conduit = operational ? (struct net_device *)conduit : NULL;
 
 	mutex_unlock(&priv->mib_eth_data.mutex);
 	mutex_unlock(&priv->mgmt_eth_data.mutex);
@@ -2016,7 +2028,7 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.get_phy_flags		= qca8k_get_phy_flags,
 	.port_lag_join		= qca8k_port_lag_join,
 	.port_lag_leave		= qca8k_port_lag_leave,
-	.master_state_change	= qca8k_master_change,
+	.conduit_state_change	= qca8k_conduit_change,
 	.connect_tag_protocol	= qca8k_connect_tag_protocol,
 };
 
@@ -2038,12 +2050,11 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	priv->info = of_device_get_match_data(priv->dev);
 
 	priv->reset_gpio = devm_gpiod_get_optional(priv->dev, "reset",
-						   GPIOD_ASIS);
+						   GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->reset_gpio))
 		return PTR_ERR(priv->reset_gpio);
 
 	if (priv->reset_gpio) {
-		gpiod_set_value_cansleep(priv->reset_gpio, 1);
 		/* The active low duration must be greater than 10 ms
 		 * and checkpatch.pl wants 20 ms.
 		 */

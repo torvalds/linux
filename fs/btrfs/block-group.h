@@ -3,7 +3,22 @@
 #ifndef BTRFS_BLOCK_GROUP_H
 #define BTRFS_BLOCK_GROUP_H
 
+#include <linux/atomic.h>
+#include <linux/mutex.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+#include <linux/refcount.h>
+#include <linux/wait.h>
+#include <linux/sizes.h>
+#include <linux/rwsem.h>
+#include <linux/rbtree.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "free-space-cache.h"
+
+struct btrfs_chunk_map;
+struct btrfs_fs_info;
+struct btrfs_inode;
+struct btrfs_trans_handle;
 
 enum btrfs_disk_cache_state {
 	BTRFS_DC_WRITTEN,
@@ -243,7 +258,7 @@ struct btrfs_block_group {
 	u64 zone_unusable;
 	u64 zone_capacity;
 	u64 meta_write_pointer;
-	struct map_lookup *physical_map;
+	struct btrfs_chunk_map *physical_map;
 	struct list_head active_bg_list;
 	struct work_struct zone_finish_work;
 	struct extent_buffer *last_eb;
@@ -253,6 +268,13 @@ struct btrfs_block_group {
 static inline u64 btrfs_block_group_end(struct btrfs_block_group *block_group)
 {
 	return (block_group->start + block_group->length);
+}
+
+static inline bool btrfs_is_block_group_used(const struct btrfs_block_group *bg)
+{
+	lockdep_assert_held(&bg->lock);
+
+	return (bg->used > 0 || bg->reserved > 0 || bg->pinned > 0);
 }
 
 static inline bool btrfs_is_block_group_data_only(
@@ -288,7 +310,6 @@ void btrfs_wait_nocow_writers(struct btrfs_block_group *bg);
 void btrfs_wait_block_group_cache_progress(struct btrfs_block_group *cache,
 				           u64 num_bytes);
 int btrfs_cache_block_group(struct btrfs_block_group *cache, bool wait);
-void btrfs_put_caching_control(struct btrfs_caching_control *ctl);
 struct btrfs_caching_control *btrfs_get_caching_control(
 		struct btrfs_block_group *cache);
 int btrfs_add_new_free_space(struct btrfs_block_group *block_group,
@@ -297,7 +318,7 @@ struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 				struct btrfs_fs_info *fs_info,
 				const u64 chunk_offset);
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
-			     u64 group_start, struct extent_map *em);
+			     struct btrfs_chunk_map *map);
 void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info);
 void btrfs_mark_bg_unused(struct btrfs_block_group *bg);
 void btrfs_reclaim_bgs_work(struct work_struct *work);

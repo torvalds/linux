@@ -1665,14 +1665,14 @@ bool kern_addr_valid(unsigned long addr)
 	if (pud_none(*pud))
 		return false;
 
-	if (pud_large(*pud))
+	if (pud_leaf(*pud))
 		return pfn_valid(pud_pfn(*pud));
 
 	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd))
 		return false;
 
-	if (pmd_large(*pmd))
+	if (pmd_leaf(*pmd))
 		return pfn_valid(pmd_pfn(*pmd));
 
 	pte = pte_offset_kernel(pmd, addr);
@@ -2968,7 +2968,7 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 	struct mm_struct *mm;
 	pmd_t entry = *pmd;
 
-	if (!pmd_large(entry) || !pmd_young(entry))
+	if (!pmd_leaf(entry) || !pmd_young(entry))
 		return;
 
 	pte = pmd_val(entry);

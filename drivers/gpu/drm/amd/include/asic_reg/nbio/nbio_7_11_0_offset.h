@@ -775,6 +775,14 @@
 #define regPCIE_USB4_ERR_CNTL5_BASE_IDX                                                                 5
 #define regPCIE_USB4_LC_CNTL1                                                                           0x420179
 #define regPCIE_USB4_LC_CNTL1_BASE_IDX                                                                  5
+#define regBIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL                                                      0x420118
+#define regBIF_BIF256_CI256_RC3X4_USB4_CPM_CONTROL_BASE_IDX                                             5
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2                                                       0x42001c
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_CNTL2_BASE_IDX                                              5
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1                                             0x420187
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_TX_POWER_CTRL_1_BASE_IDX                                    5
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3                                                  0x4201c6
+#define regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3_BASE_IDX                                         5
 
 
 // addressBlock: nbio_nbif0_bif_cfg_dev0_rc_bifcfgdecp
@@ -8699,10 +8707,10 @@
 #define regBIF_BX1_MM_CFGREGS_CNTL_BASE_IDX                                                             2
 #define regBIF_BX1_BX_RESET_CNTL                                                                        0x00f0
 #define regBIF_BX1_BX_RESET_CNTL_BASE_IDX                                                               2
-#define regBIF_BX1_INTERRUPT_CNTL                                                                       0x8e11
-#define regBIF_BX1_INTERRUPT_CNTL_BASE_IDX                                                              5
-#define regBIF_BX1_INTERRUPT_CNTL2                                                                      0x8e12
-#define regBIF_BX1_INTERRUPT_CNTL2_BASE_IDX                                                             5
+#define regBIF_BX1_INTERRUPT_CNTL                                                                       0x00f1
+#define regBIF_BX1_INTERRUPT_CNTL_BASE_IDX                                                              2
+#define regBIF_BX1_INTERRUPT_CNTL2                                                                      0x00f2
+#define regBIF_BX1_INTERRUPT_CNTL2_BASE_IDX                                                             2
 #define regBIF_BX1_CLKREQB_PAD_CNTL                                                                     0x00f8
 #define regBIF_BX1_CLKREQB_PAD_CNTL_BASE_IDX                                                            2
 #define regBIF_BX1_BIF_FEATURES_CONTROL_MISC                                                            0x00fb
@@ -8892,6 +8900,8 @@
 #define regGDC0_BIF_IH_DOORBELL_RANGE_BASE_IDX                                                          3
 #define regGDC0_BIF_VCN0_DOORBELL_RANGE                                                                 0x4f0af3
 #define regGDC0_BIF_VCN0_DOORBELL_RANGE_BASE_IDX                                                        3
+#define regGDC0_BIF_VPE1_DOORBELL_RANGE                                                                 0x4f0af4
+#define regGDC0_BIF_VPE1_DOORBELL_RANGE_BASE_IDX                                                        3
 #define regGDC0_BIF_RLC_DOORBELL_RANGE                                                                  0x4f0af5
 #define regGDC0_BIF_RLC_DOORBELL_RANGE_BASE_IDX                                                         3
 #define regGDC0_BIF_SDMA2_DOORBELL_RANGE                                                                0x4f0af6

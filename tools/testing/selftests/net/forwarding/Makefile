@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0+ OR MIT
 
-TEST_PROGS = bridge_igmp.sh \
+TEST_PROGS = bridge_fdb_learning_limit.sh \
+	bridge_igmp.sh \
 	bridge_locked_port.sh \
 	bridge_mdb.sh \
 	bridge_mdb_host.sh \
@@ -16,6 +17,7 @@ TEST_PROGS = bridge_igmp.sh \
 	dual_vxlan_bridge.sh \
 	ethtool_extended_state.sh \
 	ethtool_mm.sh \
+	ethtool_rmon.sh \
 	ethtool.sh \
 	gre_custom_multipath_hash.sh \
 	gre_inner_v4_multipath.sh \
@@ -110,7 +112,7 @@ TEST_PROGS = bridge_igmp.sh \
 	vxlan_symmetric_ipv6.sh \
 	vxlan_symmetric.sh
 
-TEST_PROGS_EXTENDED := devlink_lib.sh \
+TEST_FILES := devlink_lib.sh \
 	ethtool_lib.sh \
 	fib_offload_lib.sh \
 	forwarding.config.sample \
@@ -121,10 +123,14 @@ TEST_PROGS_EXTENDED := devlink_lib.sh \
 	mirror_gre_topo_lib.sh \
 	mirror_lib.sh \
 	mirror_topo_lib.sh \
+	router_mpath_nh_lib.sh \
 	sch_ets_core.sh \
 	sch_ets_tests.sh \
 	sch_tbf_core.sh \
 	sch_tbf_etsprio.sh \
 	tc_common.sh
+
+TEST_INCLUDES := \
+	../lib.sh
 
 include ../../lib.mk

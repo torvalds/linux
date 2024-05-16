@@ -6,9 +6,7 @@
 
 #[cfg(not(test))]
 use core::intrinsics;
-use core::intrinsics::{min_align_of_val, size_of_val};
 
-use core::ptr::Unique;
 #[cfg(not(test))]
 use core::ptr::{self, NonNull};
 
@@ -40,7 +38,6 @@ extern "Rust" {
     #[rustc_nounwind]
     fn __rust_alloc_zeroed(size: usize, align: usize) -> *mut u8;
 
-    #[cfg(not(bootstrap))]
     static __rust_no_alloc_shim_is_unstable: u8;
 }
 
@@ -98,7 +95,6 @@ pub unsafe fn alloc(layout: Layout) -> *mut u8 {
     unsafe {
         // Make sure we don't accidentally allow omitting the allocator shim in
         // stable code until it is actually stabilized.
-        #[cfg(not(bootstrap))]
         core::ptr::read_volatile(&__rust_no_alloc_shim_is_unstable);
 
         __rust_alloc(layout.size(), layout.align())
@@ -339,22 +335,6 @@ unsafe fn exchange_malloc(size: usize, align: usize) -> *mut u8 {
     }
 }
 
-#[cfg_attr(not(test), lang = "box_free")]
-#[inline]
-// This signature has to be the same as `Box`, otherwise an ICE will happen.
-// When an additional parameter to `Box` is added (like `A: Allocator`), this has to be added here as
-// well.
-// For example if `Box` is changed to  `struct Box<T: ?Sized, A: Allocator>(Unique<T>, A)`,
-// this function has to be changed to `fn box_free<T: ?Sized, A: Allocator>(Unique<T>, A)` as well.
-pub(crate) unsafe fn box_free<T: ?Sized, A: Allocator>(ptr: Unique<T>, alloc: A) {
-    unsafe {
-        let size = size_of_val(ptr.as_ref());
-        let align = min_align_of_val(ptr.as_ref());
-        let layout = Layout::from_size_align_unchecked(size, align);
-        alloc.deallocate(From::from(ptr.cast()), layout)
-    }
-}
-
 // # Allocation error handler
 
 #[cfg(not(no_global_oom_handling))]
@@ -365,18 +345,31 @@ extern "Rust" {
     fn __rust_alloc_error_handler(size: usize, align: usize) -> !;
 }
 
-/// Abort on memory allocation error or failure.
+/// Signal a memory allocation error.
 ///
-/// Callers of memory allocation APIs wishing to abort computation
+/// Callers of memory allocation APIs wishing to cease execution
 /// in response to an allocation error are encouraged to call this function,
-/// rather than directly invoking `panic!` or similar.
+/// rather than directly invoking [`panic!`] or similar.
 ///
-/// The default behavior of this function is to print a message to standard error
-/// and abort the process.
-/// It can be replaced with [`set_alloc_error_hook`] and [`take_alloc_error_hook`].
+/// This function is guaranteed to diverge (not return normally with a value), but depending on
+/// global configuration, it may either panic (resulting in unwinding or aborting as per
+/// configuration for all panics), or abort the process (with no unwinding).
+///
+/// The default behavior is:
+///
+///  * If the binary links against `std` (typically the case), then
+///   print a message to standard error and abort the process.
+///   This behavior can be replaced with [`set_alloc_error_hook`] and [`take_alloc_error_hook`].
+///   Future versions of Rust may panic by default instead.
+///
+/// * If the binary does not link against `std` (all of its crates are marked
+///   [`#![no_std]`][no_std]), then call [`panic!`] with a message.
+///   [The panic handler] applies as to any panic.
 ///
 /// [`set_alloc_error_hook`]: ../../std/alloc/fn.set_alloc_error_hook.html
 /// [`take_alloc_error_hook`]: ../../std/alloc/fn.take_alloc_error_hook.html
+/// [The panic handler]: https://doc.rust-lang.org/reference/runtime.html#the-panic_handler-attribute
+/// [no_std]: https://doc.rust-lang.org/reference/names/preludes.html#the-no_std-attribute
 #[stable(feature = "global_alloc", since = "1.28.0")]
 #[rustc_const_unstable(feature = "const_alloc_error", issue = "92523")]
 #[cfg(all(not(no_global_oom_handling), not(test)))]
@@ -386,13 +379,20 @@ pub const fn handle_alloc_error(layout: Layout) -> ! {
         panic!("allocation failed");
     }
 
+    #[inline]
     fn rt_error(layout: Layout) -> ! {
         unsafe {
             __rust_alloc_error_handler(layout.size(), layout.align());
         }
     }
 
-    unsafe { core::intrinsics::const_eval_select((layout,), ct_error, rt_error) }
+    #[cfg(not(feature = "panic_immediate_abort"))]
+    unsafe {
+        core::intrinsics::const_eval_select((layout,), ct_error, rt_error)
+    }
+
+    #[cfg(feature = "panic_immediate_abort")]
+    ct_error(layout)
 }
 
 // For alloc test `std::alloc::handle_alloc_error` can be used directly.
@@ -414,23 +414,25 @@ pub mod __alloc_error_handler {
             static __rust_alloc_error_handler_should_panic: u8;
         }
 
-        #[allow(unused_unsafe)]
         if unsafe { __rust_alloc_error_handler_should_panic != 0 } {
             panic!("memory allocation of {size} bytes failed")
         } else {
-            core::panicking::panic_nounwind_fmt(format_args!(
-                "memory allocation of {size} bytes failed"
-            ))
+            core::panicking::panic_nounwind_fmt(
+                format_args!("memory allocation of {size} bytes failed"),
+                /* force_no_backtrace */ false,
+            )
         }
     }
 }
 
+#[cfg(not(no_global_oom_handling))]
 /// Specialize clones into pre-allocated, uninitialized memory.
 /// Used by `Box::clone` and `Rc`/`Arc::make_mut`.
 pub(crate) trait WriteCloneIntoRaw: Sized {
     unsafe fn write_clone_into_raw(&self, target: *mut Self);
 }
 
+#[cfg(not(no_global_oom_handling))]
 impl<T: Clone> WriteCloneIntoRaw for T {
     #[inline]
     default unsafe fn write_clone_into_raw(&self, target: *mut Self) {
@@ -440,6 +442,7 @@ impl<T: Clone> WriteCloneIntoRaw for T {
     }
 }
 
+#[cfg(not(no_global_oom_handling))]
 impl<T: Copy> WriteCloneIntoRaw for T {
     #[inline]
     unsafe fn write_clone_into_raw(&self, target: *mut Self) {

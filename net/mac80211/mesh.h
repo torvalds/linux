@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  *             Javier Cardona <javier@cozybit.com>
  */
@@ -94,6 +94,7 @@ enum mesh_deferred_task_flags {
  * @is_root: the destination station of this path is a root node
  * @is_gate: the destination station of this path is a mesh gate
  * @path_change_count: the number of path changes to destination
+ * @fast_tx_check: timestamp of last fast-xmit enable attempt
  *
  *
  * The dst address is unique in the mesh path table. Since the mesh_path is
@@ -134,9 +135,38 @@ struct mesh_path {
 #define MESH_FAST_TX_CACHE_TIMEOUT		8000 /* msecs */
 
 /**
+ * enum ieee80211_mesh_fast_tx_type - cached mesh fast tx entry type
+ *
+ * @MESH_FAST_TX_TYPE_LOCAL: tx from the local vif address as SA
+ * @MESH_FAST_TX_TYPE_PROXIED: local tx with a different SA (e.g. bridged)
+ * @MESH_FAST_TX_TYPE_FORWARDED: forwarded from a different mesh point
+ * @NUM_MESH_FAST_TX_TYPE: number of entry types
+ */
+enum ieee80211_mesh_fast_tx_type {
+	MESH_FAST_TX_TYPE_LOCAL,
+	MESH_FAST_TX_TYPE_PROXIED,
+	MESH_FAST_TX_TYPE_FORWARDED,
+
+	/* must be last */
+	NUM_MESH_FAST_TX_TYPE
+};
+
+
+/**
+ * struct ieee80211_mesh_fast_tx_key - cached mesh fast tx entry key
+ *
+ * @addr: The Ethernet DA for this entry
+ * @type: cache entry type
+ */
+struct ieee80211_mesh_fast_tx_key {
+	u8 addr[ETH_ALEN] __aligned(2);
+	u16 type;
+};
+
+/**
  * struct ieee80211_mesh_fast_tx - cached mesh fast tx entry
  * @rhash: rhashtable pointer
- * @addr_key: The Ethernet DA which is the key for this entry
+ * @key: the lookup key for this cache entry
  * @fast_tx: base fast_tx data
  * @hdr: cached mesh and rfc1042 headers
  * @hdrlen: length of mesh + rfc1042
@@ -147,7 +177,7 @@ struct mesh_path {
  */
 struct ieee80211_mesh_fast_tx {
 	struct rhash_head rhash;
-	u8 addr_key[ETH_ALEN] __aligned(2);
+	struct ieee80211_mesh_fast_tx_key key;
 
 	struct ieee80211_fast_tx fast_tx;
 	u8 hdr[sizeof(struct ieee80211s_hdr) + sizeof(rfc1042_header)];
@@ -333,7 +363,8 @@ void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
 
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
 struct ieee80211_mesh_fast_tx *
-mesh_fast_tx_get(struct ieee80211_sub_if_data *sdata, const u8 *addr);
+mesh_fast_tx_get(struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_mesh_fast_tx_key *key);
 bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
 			      struct sk_buff *skb, u32 ctrl_flags);
 void mesh_fast_tx_cache(struct ieee80211_sub_if_data *sdata,

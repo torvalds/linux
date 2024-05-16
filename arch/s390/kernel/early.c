@@ -19,8 +19,10 @@
 #include <linux/kernel.h>
 #include <asm/asm-extable.h>
 #include <linux/memblock.h>
+#include <asm/access-regs.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
+#include <asm/fpu.h>
 #include <asm/ipl.h>
 #include <asm/lowcore.h>
 #include <asm/processor.h>
@@ -31,7 +33,6 @@
 #include <asm/sclp.h>
 #include <asm/facility.h>
 #include <asm/boot_data.h>
-#include <asm/switch_to.h>
 #include "entry.h"
 
 #define decompressor_handled_param(param)			\
@@ -46,6 +47,7 @@ decompressor_handled_param(vmalloc);
 decompressor_handled_param(dfltcc);
 decompressor_handled_param(facilities);
 decompressor_handled_param(nokaslr);
+decompressor_handled_param(cmma);
 #if IS_ENABLED(CONFIG_KVM)
 decompressor_handled_param(prot_virt);
 #endif
@@ -216,7 +218,7 @@ static __init void detect_machine_facilities(void)
 {
 	if (test_facility(8)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT1;
-		__ctl_set_bit(0, 23);
+		system_ctl_set_bit(0, CR0_EDAT_BIT);
 	}
 	if (test_facility(78))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
@@ -224,14 +226,12 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
 	if (test_facility(50) && test_facility(73)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
-		__ctl_set_bit(0, 55);
+		system_ctl_set_bit(0, CR0_TRANSACTIONAL_EXECUTION_BIT);
 	}
 	if (test_facility(51))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TLB_LC;
-	if (test_facility(129)) {
-		S390_lowcore.machine_flags |= MACHINE_FLAG_VX;
-		__ctl_set_bit(0, 17);
-	}
+	if (test_facility(129))
+		system_ctl_set_bit(0, CR0_VECTOR_BIT);
 	if (test_facility(130))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_NX;
 	if (test_facility(133))
@@ -240,7 +240,7 @@ static __init void detect_machine_facilities(void)
 		/* Enabled signed clock comparator comparisons */
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SCC;
 		clock_comparator_max = -1ULL >> 1;
-		__ctl_set_bit(0, 53);
+		system_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SIGN_BIT);
 	}
 	if (IS_ENABLED(CONFIG_PCI) && test_facility(153)) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PCI_MIO;
@@ -258,15 +258,9 @@ static inline void save_vector_registers(void)
 #endif
 }
 
-static inline void setup_control_registers(void)
+static inline void setup_low_address_protection(void)
 {
-	unsigned long reg;
-
-	__ctl_store(reg, 0, 0);
-	reg |= CR0_LOW_ADDRESS_PROTECTION;
-	reg |= CR0_EMERGENCY_SIGNAL_SUBMASK;
-	reg |= CR0_EXTERNAL_CALL_SUBMASK;
-	__ctl_load(reg, 0, 0);
+	system_ctl_set_bit(0, CR0_LOW_ADDRESS_PROTECTION_BIT);
 }
 
 static inline void setup_access_registers(void)
@@ -275,14 +269,6 @@ static inline void setup_access_registers(void)
 
 	restore_access_regs(acrs);
 }
-
-static int __init disable_vector_extension(char *str)
-{
-	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
-	__ctl_clear_bit(0, 17);
-	return 0;
-}
-early_param("novx", disable_vector_extension);
 
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 static void __init setup_boot_command_line(void)
@@ -314,7 +300,7 @@ void __init startup_init(void)
 	save_vector_registers();
 	setup_topology();
 	sclp_early_detect();
-	setup_control_registers();
+	setup_low_address_protection();
 	setup_access_registers();
 	lockdep_on();
 }

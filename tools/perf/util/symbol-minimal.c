@@ -159,9 +159,10 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 				goto out_free;
 
 			ret = read_build_id(buf, buf_size, bid, need_swap);
-			if (ret == 0)
+			if (ret == 0) {
 				ret = bid->size;
-			break;
+				break;
+			}
 		}
 	} else {
 		Elf64_Ehdr ehdr;
@@ -210,9 +211,10 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 				goto out_free;
 
 			ret = read_build_id(buf, buf_size, bid, need_swap);
-			if (ret == 0)
+			if (ret == 0) {
 				ret = bid->size;
-			break;
+				break;
+			}
 		}
 	}
 out_free:

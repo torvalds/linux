@@ -20,6 +20,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
 #include "display_mode_core.h"
@@ -29,6 +31,8 @@
 #include "dml_assert.h"
 
 #define DML2_MAX_FMT_420_BUFFER_WIDTH 4096
+#define TB_BORROWED_MAX 400
+
 // ---------------------------
 //  Declaration Begins
 // ---------------------------
@@ -1507,7 +1511,7 @@ static dml_bool_t CalculatePrefetchSchedule(struct display_mode_lib_scratch_st *
 		dml_print("DML: Tvm: %fus - time to fetch page tables for meta surface\n", s->TimeForFetchingMetaPTE);
 		dml_print("DML: Tr0: %fus - time to fetch first row of data pagetables and first row of meta data (done in parallel)\n", s->TimeForFetchingRowInVBlank);
 		dml_print("DML: Tsw: %fus = time to fetch enough pixel data and cursor data to feed the scalers init position and detile\n", (dml_float_t)s->LinesToRequestPrefetchPixelData * s->LineTime);
-		dml_print("DML: To: %fus - time for propogation from scaler to optc\n", (*p->DSTYAfterScaler + ((dml_float_t) (*p->DSTXAfterScaler) / (dml_float_t)p->myPipe->HTotal)) * s->LineTime);
+		dml_print("DML: To: %fus - time for propagation from scaler to optc\n", (*p->DSTYAfterScaler + ((dml_float_t) (*p->DSTXAfterScaler) / (dml_float_t)p->myPipe->HTotal)) * s->LineTime);
 		dml_print("DML: Tvstartup - TSetup - Tcalc - Twait - Tpre - To > 0\n");
 		dml_print("DML: Tslack(pre): %fus - time left over in schedule\n", p->VStartup * s->LineTime - s->TimeForFetchingMetaPTE - 2 * s->TimeForFetchingRowInVBlank - (*p->DSTYAfterScaler + ((dml_float_t) (*p->DSTXAfterScaler) / (dml_float_t)p->myPipe->HTotal)) * s->LineTime - p->TWait - p->TCalc - *p->TSetup);
 		dml_print("DML: row_bytes = dpte_row_bytes (per_pipe) = PixelPTEBytesPerRow = : %u\n", p->PixelPTEBytesPerRow);
@@ -2780,6 +2784,8 @@ static dml_float_t TruncToValidBPP(
 		}
 	}
 
+	*RequiredSlots = (dml_uint_t)(dml_ceil(DesiredBPP / MaxLinkBPP * 64, 1));
+
 	if (DesiredBPP == 0) {
 		if (DSCEnable) {
 			if (MaxLinkBPP < MinDSCBPP) {
@@ -2808,10 +2814,6 @@ static dml_float_t TruncToValidBPP(
 			return DesiredBPP;
 		}
 	}
-
-	*RequiredSlots = (dml_uint_t)(dml_ceil(DesiredBPP / MaxLinkBPP * 64, 1));
-
-	return __DML_DPP_INVALID__;
 } // TruncToValidBPP
 
 static void CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
@@ -3788,9 +3790,9 @@ static void CalculateStutterEfficiency(struct display_mode_lib_scratch_st *scrat
 	dml_bool_t FoundCriticalSurface = false;
 
 	dml_uint_t TotalNumberOfActiveOTG = 0;
-	dml_float_t SinglePixelClock;
-	dml_uint_t SingleHTotal;
-	dml_uint_t SingleVTotal;
+	dml_float_t SinglePixelClock = 0;
+	dml_uint_t SingleHTotal = 0;
+	dml_uint_t SingleVTotal = 0;
 	dml_bool_t SameTiming = true;
 
 	dml_float_t LastStutterPeriod = 0.0;
@@ -4799,7 +4801,7 @@ static void CalculateSurfaceSizeInMall(
 		if (UseMALLForStaticScreen[k] == dml_use_mall_static_screen_enable)
 			TotalSurfaceSizeInMALL = TotalSurfaceSizeInMALL + SurfaceSizeInMALL[k];
 	}
-	*ExceededMALLSize = (TotalSurfaceSizeInMALL <= MALLAllocatedForDCN * 1024 * 1024 ? false : true);
+	*ExceededMALLSize = (TotalSurfaceSizeInMALL > MALLAllocatedForDCN * 1024 * 1024);
 } // CalculateSurfaceSizeInMall
 
 static void CalculateDETBufferSize(
@@ -5418,7 +5420,7 @@ static void CalculateOutputLink(
 					*OutBpp = TruncToValidBPP((1 - Downspreading / 100) * 13500, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
 												OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
 
-					if (OutBpp == 0 && PHYCLKD32PerState < 20000 / 32 && DSCEnable == dml_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
+					if (*OutBpp == 0 && PHYCLKD32PerState < 20000 / 32 && DSCEnable == dml_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
 						*RequiresDSC = true;
 						LinkDSCEnable = true;
 						*OutBpp = TruncToValidBPP((1 - Downspreading / 100) * 13500, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
@@ -6208,16 +6210,509 @@ static dml_uint_t CalculateMaxVStartup(
 	return max_vstartup_lines;
 }
 
+static void set_calculate_prefetch_schedule_params(struct display_mode_lib_st *mode_lib,
+						   struct CalculatePrefetchSchedule_params_st *CalculatePrefetchSchedule_params,
+						   dml_uint_t j,
+						   dml_uint_t k)
+{
+				CalculatePrefetchSchedule_params->DSCDelay = mode_lib->ms.DSCDelayPerState[k];
+				CalculatePrefetchSchedule_params->EnhancedPrefetchScheduleAccelerationFinal = mode_lib->ms.policy.EnhancedPrefetchScheduleAccelerationFinal;
+				CalculatePrefetchSchedule_params->DPPCLKDelaySubtotalPlusCNVCFormater = mode_lib->ms.ip.dppclk_delay_subtotal + mode_lib->ms.ip.dppclk_delay_cnvc_formatter;
+				CalculatePrefetchSchedule_params->DPPCLKDelaySCL = mode_lib->ms.ip.dppclk_delay_scl;
+				CalculatePrefetchSchedule_params->DPPCLKDelaySCLLBOnly = mode_lib->ms.ip.dppclk_delay_scl_lb_only;
+				CalculatePrefetchSchedule_params->DPPCLKDelayCNVCCursor = mode_lib->ms.ip.dppclk_delay_cnvc_cursor;
+				CalculatePrefetchSchedule_params->DISPCLKDelaySubtotal = mode_lib->ms.ip.dispclk_delay_subtotal;
+				CalculatePrefetchSchedule_params->DPP_RECOUT_WIDTH = (dml_uint_t)(mode_lib->ms.SwathWidthYThisState[k] / mode_lib->ms.cache_display_cfg.plane.HRatio[k]);
+				CalculatePrefetchSchedule_params->OutputFormat = mode_lib->ms.cache_display_cfg.output.OutputFormat[k];
+				CalculatePrefetchSchedule_params->MaxInterDCNTileRepeaters = mode_lib->ms.ip.max_inter_dcn_tile_repeaters;
+				CalculatePrefetchSchedule_params->GPUVMPageTableLevels = mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels;
+				CalculatePrefetchSchedule_params->GPUVMEnable = mode_lib->ms.cache_display_cfg.plane.GPUVMEnable;
+				CalculatePrefetchSchedule_params->HostVMEnable = mode_lib->ms.cache_display_cfg.plane.HostVMEnable;
+				CalculatePrefetchSchedule_params->HostVMMaxNonCachedPageTableLevels = mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels;
+				CalculatePrefetchSchedule_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024;
+				CalculatePrefetchSchedule_params->DynamicMetadataEnable = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataEnable[k];
+				CalculatePrefetchSchedule_params->DynamicMetadataVMEnabled = mode_lib->ms.ip.dynamic_metadata_vm_enabled;
+				CalculatePrefetchSchedule_params->DynamicMetadataLinesBeforeActiveRequired = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataLinesBeforeActiveRequired[k];
+				CalculatePrefetchSchedule_params->DynamicMetadataTransmittedBytes = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataTransmittedBytes[k];
+				CalculatePrefetchSchedule_params->UrgentLatency = mode_lib->ms.UrgLatency;
+				CalculatePrefetchSchedule_params->UrgentExtraLatency = mode_lib->ms.ExtraLatency;
+				CalculatePrefetchSchedule_params->TCalc = mode_lib->ms.TimeCalc;
+				CalculatePrefetchSchedule_params->PDEAndMetaPTEBytesFrame = mode_lib->ms.PDEAndMetaPTEBytesPerFrame[j][k];
+				CalculatePrefetchSchedule_params->MetaRowByte = mode_lib->ms.MetaRowBytes[j][k];
+				CalculatePrefetchSchedule_params->PixelPTEBytesPerRow = mode_lib->ms.DPTEBytesPerRow[j][k];
+				CalculatePrefetchSchedule_params->PrefetchSourceLinesY = mode_lib->ms.PrefetchLinesY[j][k];
+				CalculatePrefetchSchedule_params->VInitPreFillY = mode_lib->ms.PrefillY[k];
+				CalculatePrefetchSchedule_params->MaxNumSwathY = mode_lib->ms.MaxNumSwY[k];
+				CalculatePrefetchSchedule_params->PrefetchSourceLinesC = mode_lib->ms.PrefetchLinesC[j][k];
+				CalculatePrefetchSchedule_params->VInitPreFillC = mode_lib->ms.PrefillC[k];
+				CalculatePrefetchSchedule_params->MaxNumSwathC = mode_lib->ms.MaxNumSwC[k];
+				CalculatePrefetchSchedule_params->swath_width_luma_ub = mode_lib->ms.swath_width_luma_ub_this_state[k];
+				CalculatePrefetchSchedule_params->swath_width_chroma_ub = mode_lib->ms.swath_width_chroma_ub_this_state[k];
+				CalculatePrefetchSchedule_params->SwathHeightY = mode_lib->ms.SwathHeightYThisState[k];
+				CalculatePrefetchSchedule_params->SwathHeightC = mode_lib->ms.SwathHeightCThisState[k];
+				CalculatePrefetchSchedule_params->TWait = mode_lib->ms.TWait;
+				CalculatePrefetchSchedule_params->DestinationLinesForPrefetch = &mode_lib->ms.LineTimesForPrefetch[k];
+				CalculatePrefetchSchedule_params->DestinationLinesToRequestVMInVBlank = &mode_lib->ms.LinesForMetaPTE[k];
+				CalculatePrefetchSchedule_params->DestinationLinesToRequestRowInVBlank = &mode_lib->ms.LinesForMetaAndDPTERow[k];
+				CalculatePrefetchSchedule_params->VRatioPrefetchY = &mode_lib->ms.VRatioPreY[j][k];
+				CalculatePrefetchSchedule_params->VRatioPrefetchC = &mode_lib->ms.VRatioPreC[j][k];
+				CalculatePrefetchSchedule_params->RequiredPrefetchPixDataBWLuma = &mode_lib->ms.RequiredPrefetchPixelDataBWLuma[k];
+				CalculatePrefetchSchedule_params->RequiredPrefetchPixDataBWChroma = &mode_lib->ms.RequiredPrefetchPixelDataBWChroma[k];
+				CalculatePrefetchSchedule_params->NotEnoughTimeForDynamicMetadata = &mode_lib->ms.support.NoTimeForDynamicMetadata[j][k];
+				CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->ms.Tno_bw[k];
+}
+
+static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
+{
+	struct dml_core_mode_support_locals_st *s = &mode_lib->scratch.dml_core_mode_support_locals;
+	struct CalculatePrefetchSchedule_params_st *CalculatePrefetchSchedule_params = &mode_lib->scratch.CalculatePrefetchSchedule_params;
+	struct CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_params_st *CalculateWatermarks_params = &mode_lib->scratch.CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_params;
+	struct DmlPipe *myPipe;
+	dml_uint_t j, k;
+
+	for (j = 0; j < 2; ++j) {
+		mode_lib->ms.TimeCalc = 24 / mode_lib->ms.ProjectedDCFCLKDeepSleep[j];
+
+		for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
+			mode_lib->ms.NoOfDPPThisState[k] = mode_lib->ms.NoOfDPP[j][k];
+			mode_lib->ms.swath_width_luma_ub_this_state[k] = mode_lib->ms.swath_width_luma_ub_all_states[j][k];
+			mode_lib->ms.swath_width_chroma_ub_this_state[k] = mode_lib->ms.swath_width_chroma_ub_all_states[j][k];
+			mode_lib->ms.SwathWidthYThisState[k] = mode_lib->ms.SwathWidthYAllStates[j][k];
+			mode_lib->ms.SwathWidthCThisState[k] = mode_lib->ms.SwathWidthCAllStates[j][k];
+			mode_lib->ms.SwathHeightYThisState[k] = mode_lib->ms.SwathHeightYAllStates[j][k];
+			mode_lib->ms.SwathHeightCThisState[k] = mode_lib->ms.SwathHeightCAllStates[j][k];
+			mode_lib->ms.UnboundedRequestEnabledThisState = mode_lib->ms.UnboundedRequestEnabledAllStates[j];
+			mode_lib->ms.CompressedBufferSizeInkByteThisState = mode_lib->ms.CompressedBufferSizeInkByteAllStates[j];
+			mode_lib->ms.DETBufferSizeInKByteThisState[k] = mode_lib->ms.DETBufferSizeInKByteAllStates[j][k];
+			mode_lib->ms.DETBufferSizeYThisState[k] = mode_lib->ms.DETBufferSizeYAllStates[j][k];
+			mode_lib->ms.DETBufferSizeCThisState[k] = mode_lib->ms.DETBufferSizeCAllStates[j][k];
+		}
+
+		mode_lib->ms.support.VActiveBandwithSupport[j] = CalculateVActiveBandwithSupport(
+			mode_lib->ms.num_active_planes,
+			mode_lib->ms.ReturnBWPerState[j],
+			mode_lib->ms.NotUrgentLatencyHiding,
+			mode_lib->ms.ReadBandwidthLuma,
+			mode_lib->ms.ReadBandwidthChroma,
+			mode_lib->ms.cursor_bw,
+			mode_lib->ms.meta_row_bandwidth_this_state,
+			mode_lib->ms.dpte_row_bandwidth_this_state,
+			mode_lib->ms.NoOfDPPThisState,
+			mode_lib->ms.UrgentBurstFactorLuma,
+			mode_lib->ms.UrgentBurstFactorChroma,
+			mode_lib->ms.UrgentBurstFactorCursor);
+
+		s->VMDataOnlyReturnBWPerState = dml_get_return_bw_mbps_vm_only(
+																	&mode_lib->ms.soc,
+																	mode_lib->ms.state.use_ideal_dram_bw_strobe,
+																	mode_lib->ms.cache_display_cfg.plane.HostVMEnable,
+																	mode_lib->ms.DCFCLKState[j],
+																	mode_lib->ms.state.fabricclk_mhz,
+																	mode_lib->ms.state.dram_speed_mts);
+
+		s->HostVMInefficiencyFactor = 1;
+		if (mode_lib->ms.cache_display_cfg.plane.GPUVMEnable && mode_lib->ms.cache_display_cfg.plane.HostVMEnable)
+			s->HostVMInefficiencyFactor = mode_lib->ms.ReturnBWPerState[j] / s->VMDataOnlyReturnBWPerState;
+
+		mode_lib->ms.ExtraLatency = CalculateExtraLatency(
+				mode_lib->ms.soc.round_trip_ping_latency_dcfclk_cycles,
+				s->ReorderingBytes,
+				mode_lib->ms.DCFCLKState[j],
+				mode_lib->ms.TotalNumberOfActiveDPP[j],
+				mode_lib->ms.ip.pixel_chunk_size_kbytes,
+				mode_lib->ms.TotalNumberOfDCCActiveDPP[j],
+				mode_lib->ms.ip.meta_chunk_size_kbytes,
+				mode_lib->ms.ReturnBWPerState[j],
+				mode_lib->ms.cache_display_cfg.plane.GPUVMEnable,
+				mode_lib->ms.cache_display_cfg.plane.HostVMEnable,
+				mode_lib->ms.num_active_planes,
+				mode_lib->ms.NoOfDPPThisState,
+				mode_lib->ms.dpte_group_bytes,
+				s->HostVMInefficiencyFactor,
+				mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024,
+				mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels);
+
+		s->NextMaxVStartup = s->MaxVStartupAllPlanes[j];
+		s->MaxVStartup = 0;
+		s->AllPrefetchModeTested = true;
+		for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+			CalculatePrefetchMode(mode_lib->ms.policy.AllowForPStateChangeOrStutterInVBlank[k], &s->MinPrefetchMode[k], &s->MaxPrefetchMode[k]);
+			s->NextPrefetchMode[k] = s->MinPrefetchMode[k];
+		}
+
+		do {
+			s->MaxVStartup = s->NextMaxVStartup;
+			s->AllPrefetchModeTested = true;
+
+			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+				mode_lib->ms.PrefetchMode[k] = s->NextPrefetchMode[k];
+				mode_lib->ms.TWait = CalculateTWait(
+								mode_lib->ms.PrefetchMode[k],
+								mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange[k],
+								mode_lib->ms.policy.SynchronizeDRRDisplaysForUCLKPStateChangeFinal,
+								mode_lib->ms.cache_display_cfg.timing.DRRDisplay[k],
+								mode_lib->ms.state.dram_clock_change_latency_us,
+								mode_lib->ms.state.fclk_change_latency_us,
+								mode_lib->ms.UrgLatency,
+								mode_lib->ms.state.sr_enter_plus_exit_time_us);
+
+				myPipe = &s->myPipe;
+				myPipe->Dppclk = mode_lib->ms.RequiredDPPCLKPerSurface[j][k];
+				myPipe->Dispclk = mode_lib->ms.RequiredDISPCLK[j];
+				myPipe->PixelClock = mode_lib->ms.cache_display_cfg.timing.PixelClock[k];
+				myPipe->DCFClkDeepSleep = mode_lib->ms.ProjectedDCFCLKDeepSleep[j];
+				myPipe->DPPPerSurface = mode_lib->ms.NoOfDPP[j][k];
+				myPipe->ScalerEnabled = mode_lib->ms.cache_display_cfg.plane.ScalerEnabled[k];
+				myPipe->SourceScan = mode_lib->ms.cache_display_cfg.plane.SourceScan[k];
+				myPipe->BlockWidth256BytesY = mode_lib->ms.Read256BlockWidthY[k];
+				myPipe->BlockHeight256BytesY = mode_lib->ms.Read256BlockHeightY[k];
+				myPipe->BlockWidth256BytesC = mode_lib->ms.Read256BlockWidthC[k];
+				myPipe->BlockHeight256BytesC = mode_lib->ms.Read256BlockHeightC[k];
+				myPipe->InterlaceEnable = mode_lib->ms.cache_display_cfg.timing.Interlace[k];
+				myPipe->NumberOfCursors = mode_lib->ms.cache_display_cfg.plane.NumberOfCursors[k];
+				myPipe->VBlank = mode_lib->ms.cache_display_cfg.timing.VTotal[k] - mode_lib->ms.cache_display_cfg.timing.VActive[k];
+				myPipe->HTotal = mode_lib->ms.cache_display_cfg.timing.HTotal[k];
+				myPipe->HActive = mode_lib->ms.cache_display_cfg.timing.HActive[k];
+				myPipe->DCCEnable = mode_lib->ms.cache_display_cfg.surface.DCCEnable[k];
+				myPipe->ODMMode = mode_lib->ms.ODMModePerState[k];
+				myPipe->SourcePixelFormat = mode_lib->ms.cache_display_cfg.surface.SourcePixelFormat[k];
+				myPipe->BytePerPixelY = mode_lib->ms.BytePerPixelY[k];
+				myPipe->BytePerPixelC = mode_lib->ms.BytePerPixelC[k];
+				myPipe->ProgressiveToInterlaceUnitInOPP = mode_lib->ms.ip.ptoi_supported;
+
+#ifdef __DML_VBA_DEBUG__
+				dml_print("DML::%s: Calling CalculatePrefetchSchedule for j=%u, k=%u\n", __func__, j, k);
+				dml_print("DML::%s: MaximumVStartup = %u\n", __func__, s->MaximumVStartup[j][k]);
+				dml_print("DML::%s: MaxVStartup = %u\n", __func__, s->MaxVStartup);
+				dml_print("DML::%s: NextPrefetchMode = %u\n", __func__, s->NextPrefetchMode[k]);
+				dml_print("DML::%s: AllowForPStateChangeOrStutterInVBlank = %u\n", __func__, mode_lib->ms.policy.AllowForPStateChangeOrStutterInVBlank[k]);
+				dml_print("DML::%s: PrefetchMode = %u\n", __func__, mode_lib->ms.PrefetchMode[k]);
+#endif
+
+				CalculatePrefetchSchedule_params->HostVMInefficiencyFactor = s->HostVMInefficiencyFactor;
+				CalculatePrefetchSchedule_params->myPipe = myPipe;
+				CalculatePrefetchSchedule_params->VStartup = (dml_uint_t)(dml_min(s->MaxVStartup, s->MaximumVStartup[j][k]));
+				CalculatePrefetchSchedule_params->MaxVStartup = s->MaximumVStartup[j][k];
+				CalculatePrefetchSchedule_params->DSTXAfterScaler = &s->DSTXAfterScaler[k];
+				CalculatePrefetchSchedule_params->DSTYAfterScaler = &s->DSTYAfterScaler[k];
+				CalculatePrefetchSchedule_params->prefetch_vmrow_bw = &mode_lib->ms.prefetch_vmrow_bw[k];
+				CalculatePrefetchSchedule_params->Tdmdl_vm = &s->dummy_single[0];
+				CalculatePrefetchSchedule_params->Tdmdl = &s->dummy_single[1];
+				CalculatePrefetchSchedule_params->TSetup = &s->dummy_single[2];
+				CalculatePrefetchSchedule_params->VUpdateOffsetPix = &s->dummy_integer[0];
+				CalculatePrefetchSchedule_params->VUpdateWidthPix = &s->dummy_integer[1];
+				CalculatePrefetchSchedule_params->VReadyOffsetPix = &s->dummy_integer[2];
+
+				set_calculate_prefetch_schedule_params(mode_lib, CalculatePrefetchSchedule_params, j, k);
+
+				mode_lib->ms.support.NoTimeForPrefetch[j][k] =
+								CalculatePrefetchSchedule(&mode_lib->scratch,
+								CalculatePrefetchSchedule_params);
+			}
+
+			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+					CalculateUrgentBurstFactor(
+							mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange[k],
+							mode_lib->ms.swath_width_luma_ub_this_state[k],
+							mode_lib->ms.swath_width_chroma_ub_this_state[k],
+							mode_lib->ms.SwathHeightYThisState[k],
+							mode_lib->ms.SwathHeightCThisState[k],
+							mode_lib->ms.cache_display_cfg.timing.HTotal[k] / mode_lib->ms.cache_display_cfg.timing.PixelClock[k],
+							mode_lib->ms.UrgLatency,
+							mode_lib->ms.ip.cursor_buffer_size,
+							mode_lib->ms.cache_display_cfg.plane.CursorWidth[k],
+							mode_lib->ms.cache_display_cfg.plane.CursorBPP[k],
+							mode_lib->ms.VRatioPreY[j][k],
+							mode_lib->ms.VRatioPreC[j][k],
+							mode_lib->ms.BytePerPixelInDETY[k],
+							mode_lib->ms.BytePerPixelInDETC[k],
+							mode_lib->ms.DETBufferSizeYThisState[k],
+							mode_lib->ms.DETBufferSizeCThisState[k],
+							/* Output */
+							&mode_lib->ms.UrgentBurstFactorCursorPre[k],
+							&mode_lib->ms.UrgentBurstFactorLumaPre[k],
+							&mode_lib->ms.UrgentBurstFactorChroma[k],
+							&mode_lib->ms.NotUrgentLatencyHidingPre[k]);
+
+					mode_lib->ms.cursor_bw_pre[k] = mode_lib->ms.cache_display_cfg.plane.NumberOfCursors[k] * mode_lib->ms.cache_display_cfg.plane.CursorWidth[k] *
+													mode_lib->ms.cache_display_cfg.plane.CursorBPP[k] / 8.0 / (mode_lib->ms.cache_display_cfg.timing.HTotal[k] /
+													mode_lib->ms.cache_display_cfg.timing.PixelClock[k]) * mode_lib->ms.VRatioPreY[j][k];
+			}
+
+			{
+			CalculatePrefetchBandwithSupport(
+				mode_lib->ms.num_active_planes,
+				mode_lib->ms.ReturnBWPerState[j],
+				mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange,
+				mode_lib->ms.NotUrgentLatencyHidingPre,
+				mode_lib->ms.ReadBandwidthLuma,
+				mode_lib->ms.ReadBandwidthChroma,
+				mode_lib->ms.RequiredPrefetchPixelDataBWLuma,
+				mode_lib->ms.RequiredPrefetchPixelDataBWChroma,
+				mode_lib->ms.cursor_bw,
+				mode_lib->ms.meta_row_bandwidth_this_state,
+				mode_lib->ms.dpte_row_bandwidth_this_state,
+				mode_lib->ms.cursor_bw_pre,
+				mode_lib->ms.prefetch_vmrow_bw,
+				mode_lib->ms.NoOfDPPThisState,
+				mode_lib->ms.UrgentBurstFactorLuma,
+				mode_lib->ms.UrgentBurstFactorChroma,
+				mode_lib->ms.UrgentBurstFactorCursor,
+				mode_lib->ms.UrgentBurstFactorLumaPre,
+				mode_lib->ms.UrgentBurstFactorChromaPre,
+				mode_lib->ms.UrgentBurstFactorCursorPre,
+
+				/* output */
+				&s->dummy_single[0], // dml_float_t *PrefetchBandwidth
+				&s->dummy_single[1], // dml_float_t *PrefetchBandwidthNotIncludingMALLPrefetch
+				&mode_lib->mp.FractionOfUrgentBandwidth, // dml_float_t *FractionOfUrgentBandwidth
+				&mode_lib->ms.support.PrefetchSupported[j]);
+			}
+
+			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+				if (mode_lib->ms.LineTimesForPrefetch[k] < 2.0
+					|| mode_lib->ms.LinesForMetaPTE[k] >= 32.0
+					|| mode_lib->ms.LinesForMetaAndDPTERow[k] >= 16.0
+					|| mode_lib->ms.support.NoTimeForPrefetch[j][k] == true) {
+						mode_lib->ms.support.PrefetchSupported[j] = false;
+				}
+			}
+
+			mode_lib->ms.support.DynamicMetadataSupported[j] = true;
+			for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
+				if (mode_lib->ms.support.NoTimeForDynamicMetadata[j][k] == true) {
+					mode_lib->ms.support.DynamicMetadataSupported[j] = false;
+				}
+			}
+
+			mode_lib->ms.support.VRatioInPrefetchSupported[j] = true;
+			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+				if (mode_lib->ms.support.NoTimeForPrefetch[j][k] == true ||
+					mode_lib->ms.VRatioPreY[j][k] > __DML_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__ ||
+					mode_lib->ms.VRatioPreC[j][k] > __DML_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__ ||
+					((s->MaxVStartup < s->MaximumVStartup[j][k] || mode_lib->ms.policy.EnhancedPrefetchScheduleAccelerationFinal == 0) &&
+						(mode_lib->ms.VRatioPreY[j][k] > __DML_MAX_VRATIO_PRE__ || mode_lib->ms.VRatioPreC[j][k] > __DML_MAX_VRATIO_PRE__))) {
+							mode_lib->ms.support.VRatioInPrefetchSupported[j] = false;
+				}
+			}
+
+			s->AnyLinesForVMOrRowTooLarge = false;
+			for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
+				if (mode_lib->ms.LinesForMetaAndDPTERow[k] >= 16 || mode_lib->ms.LinesForMetaPTE[k] >= 32) {
+					s->AnyLinesForVMOrRowTooLarge = true;
+				}
+			}
+
+			if (mode_lib->ms.support.PrefetchSupported[j] == true && mode_lib->ms.support.VRatioInPrefetchSupported[j] == true) {
+				mode_lib->ms.BandwidthAvailableForImmediateFlip = CalculateBandwidthAvailableForImmediateFlip(
+						mode_lib->ms.num_active_planes,
+						mode_lib->ms.ReturnBWPerState[j],
+						mode_lib->ms.ReadBandwidthLuma,
+						mode_lib->ms.ReadBandwidthChroma,
+						mode_lib->ms.RequiredPrefetchPixelDataBWLuma,
+						mode_lib->ms.RequiredPrefetchPixelDataBWChroma,
+						mode_lib->ms.cursor_bw,
+						mode_lib->ms.cursor_bw_pre,
+						mode_lib->ms.NoOfDPPThisState,
+						mode_lib->ms.UrgentBurstFactorLuma,
+						mode_lib->ms.UrgentBurstFactorChroma,
+						mode_lib->ms.UrgentBurstFactorCursor,
+						mode_lib->ms.UrgentBurstFactorLumaPre,
+						mode_lib->ms.UrgentBurstFactorChromaPre,
+						mode_lib->ms.UrgentBurstFactorCursorPre);
+
+				mode_lib->ms.TotImmediateFlipBytes = 0;
+				for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+					if (!(mode_lib->ms.policy.ImmediateFlipRequirement[k] == dml_immediate_flip_not_required)) {
+						mode_lib->ms.TotImmediateFlipBytes = mode_lib->ms.TotImmediateFlipBytes + mode_lib->ms.NoOfDPP[j][k] * mode_lib->ms.PDEAndMetaPTEBytesPerFrame[j][k] + mode_lib->ms.MetaRowBytes[j][k];
+						if (mode_lib->ms.use_one_row_for_frame_flip[j][k]) {
+							mode_lib->ms.TotImmediateFlipBytes = mode_lib->ms.TotImmediateFlipBytes + mode_lib->ms.NoOfDPP[j][k] * (2 * mode_lib->ms.DPTEBytesPerRow[j][k]);
+						} else {
+							mode_lib->ms.TotImmediateFlipBytes = mode_lib->ms.TotImmediateFlipBytes + mode_lib->ms.NoOfDPP[j][k] * mode_lib->ms.DPTEBytesPerRow[j][k];
+						}
+					}
+				}
+
+				for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+					CalculateFlipSchedule(
+						s->HostVMInefficiencyFactor,
+						mode_lib->ms.ExtraLatency,
+						mode_lib->ms.UrgLatency,
+						mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels,
+						mode_lib->ms.cache_display_cfg.plane.HostVMEnable,
+						mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels,
+						mode_lib->ms.cache_display_cfg.plane.GPUVMEnable,
+						mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024,
+						mode_lib->ms.PDEAndMetaPTEBytesPerFrame[j][k],
+						mode_lib->ms.MetaRowBytes[j][k],
+						mode_lib->ms.DPTEBytesPerRow[j][k],
+						mode_lib->ms.BandwidthAvailableForImmediateFlip,
+						mode_lib->ms.TotImmediateFlipBytes,
+						mode_lib->ms.cache_display_cfg.surface.SourcePixelFormat[k],
+						(mode_lib->ms.cache_display_cfg.timing.HTotal[k] / mode_lib->ms.cache_display_cfg.timing.PixelClock[k]),
+						mode_lib->ms.cache_display_cfg.plane.VRatio[k],
+						mode_lib->ms.cache_display_cfg.plane.VRatioChroma[k],
+						mode_lib->ms.Tno_bw[k],
+						mode_lib->ms.cache_display_cfg.surface.DCCEnable[k],
+						mode_lib->ms.dpte_row_height[k],
+						mode_lib->ms.meta_row_height[k],
+						mode_lib->ms.dpte_row_height_chroma[k],
+						mode_lib->ms.meta_row_height_chroma[k],
+						mode_lib->ms.use_one_row_for_frame_flip[j][k], // 24
+
+						/* Output */
+						&mode_lib->ms.DestinationLinesToRequestVMInImmediateFlip[k],
+						&mode_lib->ms.DestinationLinesToRequestRowInImmediateFlip[k],
+						&mode_lib->ms.final_flip_bw[k],
+						&mode_lib->ms.ImmediateFlipSupportedForPipe[k]);
+				}
+
+				{
+				CalculateImmediateFlipBandwithSupport(mode_lib->ms.num_active_planes,
+													mode_lib->ms.ReturnBWPerState[j],
+													mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange,
+													mode_lib->ms.policy.ImmediateFlipRequirement,
+													mode_lib->ms.final_flip_bw,
+													mode_lib->ms.ReadBandwidthLuma,
+													mode_lib->ms.ReadBandwidthChroma,
+													mode_lib->ms.RequiredPrefetchPixelDataBWLuma,
+													mode_lib->ms.RequiredPrefetchPixelDataBWChroma,
+													mode_lib->ms.cursor_bw,
+													mode_lib->ms.meta_row_bandwidth_this_state,
+													mode_lib->ms.dpte_row_bandwidth_this_state,
+													mode_lib->ms.cursor_bw_pre,
+													mode_lib->ms.prefetch_vmrow_bw,
+													mode_lib->ms.NoOfDPP[j], // VBA_ERROR DPPPerSurface is not assigned at this point, should use NoOfDpp here
+													mode_lib->ms.UrgentBurstFactorLuma,
+													mode_lib->ms.UrgentBurstFactorChroma,
+													mode_lib->ms.UrgentBurstFactorCursor,
+													mode_lib->ms.UrgentBurstFactorLumaPre,
+													mode_lib->ms.UrgentBurstFactorChromaPre,
+													mode_lib->ms.UrgentBurstFactorCursorPre,
+
+													/* output */
+													&s->dummy_single[0], // dml_float_t *TotalBandwidth
+													&s->dummy_single[1], // dml_float_t *TotalBandwidthNotIncludingMALLPrefetch
+													&s->dummy_single[2], // dml_float_t *FractionOfUrgentBandwidth
+													&mode_lib->ms.support.ImmediateFlipSupportedForState[j]); // dml_bool_t *ImmediateFlipBandwidthSupport
+				}
+
+				for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+					if (!(mode_lib->ms.policy.ImmediateFlipRequirement[k] == dml_immediate_flip_not_required) && (mode_lib->ms.ImmediateFlipSupportedForPipe[k] == false))
+						mode_lib->ms.support.ImmediateFlipSupportedForState[j] = false;
+				}
+
+			} else { // if prefetch not support, assume iflip not supported
+				mode_lib->ms.support.ImmediateFlipSupportedForState[j] = false;
+			}
+
+			if (s->MaxVStartup <= __DML_VBA_MIN_VSTARTUP__ || s->AnyLinesForVMOrRowTooLarge == false) {
+				s->NextMaxVStartup = s->MaxVStartupAllPlanes[j];
+				for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
+					s->NextPrefetchMode[k] = s->NextPrefetchMode[k] + 1;
+
+					if (s->NextPrefetchMode[k] <= s->MaxPrefetchMode[k])
+						s->AllPrefetchModeTested = false;
+				}
+			} else {
+				s->NextMaxVStartup = s->NextMaxVStartup - 1;
+			}
+		} while (!((mode_lib->ms.support.PrefetchSupported[j] == true && mode_lib->ms.support.DynamicMetadataSupported[j] == true &&
+					mode_lib->ms.support.VRatioInPrefetchSupported[j] == true &&
+					// consider flip support is okay if when there is no hostvm and the user does't require a iflip OR the flip bw is ok
+					// If there is hostvm, DCN needs to support iflip for invalidation
+					((s->ImmediateFlipRequiredFinal) || mode_lib->ms.support.ImmediateFlipSupportedForState[j] == true)) ||
+					(s->NextMaxVStartup == s->MaxVStartupAllPlanes[j] && s->AllPrefetchModeTested)));
+
+		for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
+			mode_lib->ms.use_one_row_for_frame_this_state[k] = mode_lib->ms.use_one_row_for_frame[j][k];
+		}
+
+		s->mSOCParameters.UrgentLatency = mode_lib->ms.UrgLatency;
+		s->mSOCParameters.ExtraLatency = mode_lib->ms.ExtraLatency;
+		s->mSOCParameters.WritebackLatency = mode_lib->ms.state.writeback_latency_us;
+		s->mSOCParameters.DRAMClockChangeLatency = mode_lib->ms.state.dram_clock_change_latency_us;
+		s->mSOCParameters.FCLKChangeLatency = mode_lib->ms.state.fclk_change_latency_us;
+		s->mSOCParameters.SRExitTime = mode_lib->ms.state.sr_exit_time_us;
+		s->mSOCParameters.SREnterPlusExitTime = mode_lib->ms.state.sr_enter_plus_exit_time_us;
+		s->mSOCParameters.SRExitZ8Time = mode_lib->ms.state.sr_exit_z8_time_us;
+		s->mSOCParameters.SREnterPlusExitZ8Time = mode_lib->ms.state.sr_enter_plus_exit_z8_time_us;
+		s->mSOCParameters.USRRetrainingLatency = mode_lib->ms.state.usr_retraining_latency_us;
+		s->mSOCParameters.SMNLatency = mode_lib->ms.soc.smn_latency_us;
+
+		CalculateWatermarks_params->USRRetrainingRequiredFinal = mode_lib->ms.policy.USRRetrainingRequiredFinal;
+		CalculateWatermarks_params->UseMALLForPStateChange = mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange;
+		CalculateWatermarks_params->PrefetchMode = mode_lib->ms.PrefetchMode;
+		CalculateWatermarks_params->NumberOfActiveSurfaces = mode_lib->ms.num_active_planes;
+		CalculateWatermarks_params->MaxLineBufferLines = mode_lib->ms.ip.max_line_buffer_lines;
+		CalculateWatermarks_params->LineBufferSize = mode_lib->ms.ip.line_buffer_size_bits;
+		CalculateWatermarks_params->WritebackInterfaceBufferSize = mode_lib->ms.ip.writeback_interface_buffer_size_kbytes;
+		CalculateWatermarks_params->DCFCLK = mode_lib->ms.DCFCLKState[j];
+		CalculateWatermarks_params->ReturnBW = mode_lib->ms.ReturnBWPerState[j];
+		CalculateWatermarks_params->SynchronizeTimingsFinal = mode_lib->ms.policy.SynchronizeTimingsFinal;
+		CalculateWatermarks_params->SynchronizeDRRDisplaysForUCLKPStateChangeFinal = mode_lib->ms.policy.SynchronizeDRRDisplaysForUCLKPStateChangeFinal;
+		CalculateWatermarks_params->DRRDisplay = mode_lib->ms.cache_display_cfg.timing.DRRDisplay;
+		CalculateWatermarks_params->dpte_group_bytes = mode_lib->ms.dpte_group_bytes;
+		CalculateWatermarks_params->meta_row_height = mode_lib->ms.meta_row_height;
+		CalculateWatermarks_params->meta_row_height_chroma = mode_lib->ms.meta_row_height_chroma;
+		CalculateWatermarks_params->mmSOCParameters = s->mSOCParameters;
+		CalculateWatermarks_params->WritebackChunkSize = mode_lib->ms.ip.writeback_chunk_size_kbytes;
+		CalculateWatermarks_params->SOCCLK = mode_lib->ms.state.socclk_mhz;
+		CalculateWatermarks_params->DCFClkDeepSleep = mode_lib->ms.ProjectedDCFCLKDeepSleep[j];
+		CalculateWatermarks_params->DETBufferSizeY = mode_lib->ms.DETBufferSizeYThisState;
+		CalculateWatermarks_params->DETBufferSizeC = mode_lib->ms.DETBufferSizeCThisState;
+		CalculateWatermarks_params->SwathHeightY = mode_lib->ms.SwathHeightYThisState;
+		CalculateWatermarks_params->SwathHeightC = mode_lib->ms.SwathHeightCThisState;
+		CalculateWatermarks_params->LBBitPerPixel = mode_lib->ms.cache_display_cfg.plane.LBBitPerPixel;
+		CalculateWatermarks_params->SwathWidthY = mode_lib->ms.SwathWidthYThisState;
+		CalculateWatermarks_params->SwathWidthC = mode_lib->ms.SwathWidthCThisState;
+		CalculateWatermarks_params->HRatio = mode_lib->ms.cache_display_cfg.plane.HRatio;
+		CalculateWatermarks_params->HRatioChroma = mode_lib->ms.cache_display_cfg.plane.HRatioChroma;
+		CalculateWatermarks_params->VTaps = mode_lib->ms.cache_display_cfg.plane.VTaps;
+		CalculateWatermarks_params->VTapsChroma = mode_lib->ms.cache_display_cfg.plane.VTapsChroma;
+		CalculateWatermarks_params->VRatio = mode_lib->ms.cache_display_cfg.plane.VRatio;
+		CalculateWatermarks_params->VRatioChroma = mode_lib->ms.cache_display_cfg.plane.VRatioChroma;
+		CalculateWatermarks_params->HTotal = mode_lib->ms.cache_display_cfg.timing.HTotal;
+		CalculateWatermarks_params->VTotal = mode_lib->ms.cache_display_cfg.timing.VTotal;
+		CalculateWatermarks_params->VActive = mode_lib->ms.cache_display_cfg.timing.VActive;
+		CalculateWatermarks_params->PixelClock = mode_lib->ms.cache_display_cfg.timing.PixelClock;
+		CalculateWatermarks_params->BlendingAndTiming = mode_lib->ms.cache_display_cfg.plane.BlendingAndTiming;
+		CalculateWatermarks_params->DPPPerSurface = mode_lib->ms.NoOfDPPThisState;
+		CalculateWatermarks_params->BytePerPixelDETY = mode_lib->ms.BytePerPixelInDETY;
+		CalculateWatermarks_params->BytePerPixelDETC = mode_lib->ms.BytePerPixelInDETC;
+		CalculateWatermarks_params->DSTXAfterScaler = s->DSTXAfterScaler;
+		CalculateWatermarks_params->DSTYAfterScaler = s->DSTYAfterScaler;
+		CalculateWatermarks_params->WritebackEnable = mode_lib->ms.cache_display_cfg.writeback.WritebackEnable;
+		CalculateWatermarks_params->WritebackPixelFormat = mode_lib->ms.cache_display_cfg.writeback.WritebackPixelFormat;
+		CalculateWatermarks_params->WritebackDestinationWidth = mode_lib->ms.cache_display_cfg.writeback.WritebackDestinationWidth;
+		CalculateWatermarks_params->WritebackDestinationHeight = mode_lib->ms.cache_display_cfg.writeback.WritebackDestinationHeight;
+		CalculateWatermarks_params->WritebackSourceHeight = mode_lib->ms.cache_display_cfg.writeback.WritebackSourceHeight;
+		CalculateWatermarks_params->UnboundedRequestEnabled = mode_lib->ms.UnboundedRequestEnabledThisState;
+		CalculateWatermarks_params->CompressedBufferSizeInkByte = mode_lib->ms.CompressedBufferSizeInkByteThisState;
+
+		// Output
+		CalculateWatermarks_params->Watermark = &s->dummy_watermark; // Watermarks *Watermark
+		CalculateWatermarks_params->DRAMClockChangeSupport = &mode_lib->ms.support.DRAMClockChangeSupport[j];
+		CalculateWatermarks_params->MaxActiveDRAMClockChangeLatencySupported = &s->dummy_single_array[0]; // dml_float_t *MaxActiveDRAMClockChangeLatencySupported[]
+		CalculateWatermarks_params->SubViewportLinesNeededInMALL = &mode_lib->ms.SubViewportLinesNeededInMALL[j]; // dml_uint_t SubViewportLinesNeededInMALL[]
+		CalculateWatermarks_params->FCLKChangeSupport = &mode_lib->ms.support.FCLKChangeSupport[j];
+		CalculateWatermarks_params->MaxActiveFCLKChangeLatencySupported = &s->dummy_single[0]; // dml_float_t *MaxActiveFCLKChangeLatencySupported
+		CalculateWatermarks_params->USRRetrainingSupport = &mode_lib->ms.support.USRRetrainingSupport[j];
+		CalculateWatermarks_params->ActiveDRAMClockChangeLatencyMargin = mode_lib->ms.support.ActiveDRAMClockChangeLatencyMargin;
+
+		CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(&mode_lib->scratch,
+			CalculateWatermarks_params);
+
+	} // for j
+}
+
 /// @brief The Mode Support function.
 dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 {
 	struct dml_core_mode_support_locals_st *s = &mode_lib->scratch.dml_core_mode_support_locals;
-	struct CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_params_st *CalculateWatermarks_params = &mode_lib->scratch.CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_params;
-	struct CalculateVMRowAndSwath_params_st *CalculateVMRowAndSwath_params = &mode_lib->scratch.CalculateVMRowAndSwath_params;
 	struct UseMinimumDCFCLK_params_st *UseMinimumDCFCLK_params = &mode_lib->scratch.UseMinimumDCFCLK_params;
 	struct CalculateSwathAndDETConfiguration_params_st *CalculateSwathAndDETConfiguration_params = &mode_lib->scratch.CalculateSwathAndDETConfiguration_params;
-	struct CalculatePrefetchSchedule_params_st *CalculatePrefetchSchedule_params = &mode_lib->scratch.CalculatePrefetchSchedule_params;
-	struct DmlPipe *myPipe;
+	struct CalculateVMRowAndSwath_params_st *CalculateVMRowAndSwath_params = &mode_lib->scratch.CalculateVMRowAndSwath_params;
 
 	dml_uint_t j, k, m;
 
@@ -7192,7 +7687,7 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 		CalculateVMRowAndSwath_params->HostVMMaxNonCachedPageTableLevels = mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels;
 		CalculateVMRowAndSwath_params->GPUVMMaxPageTableLevels = mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels;
 		CalculateVMRowAndSwath_params->GPUVMMinPageSizeKBytes = mode_lib->ms.cache_display_cfg.plane.GPUVMMinPageSizeKBytes;
-		CalculateVMRowAndSwath_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes;
+		CalculateVMRowAndSwath_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024;
 		CalculateVMRowAndSwath_params->PTEBufferModeOverrideEn = mode_lib->ms.cache_display_cfg.plane.PTEBufferModeOverrideEn;
 		CalculateVMRowAndSwath_params->PTEBufferModeOverrideVal = mode_lib->ms.cache_display_cfg.plane.PTEBufferMode;
 		CalculateVMRowAndSwath_params->PTEBufferSizeNotExceeded = mode_lib->ms.PTEBufferSizeNotExceededPerState;
@@ -7462,7 +7957,7 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 		UseMinimumDCFCLK_params->GPUVMMaxPageTableLevels = mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels;
 		UseMinimumDCFCLK_params->HostVMEnable = mode_lib->ms.cache_display_cfg.plane.HostVMEnable;
 		UseMinimumDCFCLK_params->NumberOfActiveSurfaces = mode_lib->ms.num_active_planes;
-		UseMinimumDCFCLK_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes;
+		UseMinimumDCFCLK_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024;
 		UseMinimumDCFCLK_params->HostVMMaxNonCachedPageTableLevels = mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels;
 		UseMinimumDCFCLK_params->DynamicMetadataVMEnabled = mode_lib->ms.ip.dynamic_metadata_vm_enabled;
 		UseMinimumDCFCLK_params->ImmediateFlipRequirement = s->ImmediateFlipRequiredFinal;
@@ -7546,484 +8041,8 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 	}
 
 	/* Prefetch Check */
+	dml_prefetch_check(mode_lib);
 
-	for (j = 0; j < 2; ++j) {
-		mode_lib->ms.TimeCalc = 24 / mode_lib->ms.ProjectedDCFCLKDeepSleep[j];
-
-		for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-			mode_lib->ms.NoOfDPPThisState[k] = mode_lib->ms.NoOfDPP[j][k];
-			mode_lib->ms.swath_width_luma_ub_this_state[k] = mode_lib->ms.swath_width_luma_ub_all_states[j][k];
-			mode_lib->ms.swath_width_chroma_ub_this_state[k] = mode_lib->ms.swath_width_chroma_ub_all_states[j][k];
-			mode_lib->ms.SwathWidthYThisState[k] = mode_lib->ms.SwathWidthYAllStates[j][k];
-			mode_lib->ms.SwathWidthCThisState[k] = mode_lib->ms.SwathWidthCAllStates[j][k];
-			mode_lib->ms.SwathHeightYThisState[k] = mode_lib->ms.SwathHeightYAllStates[j][k];
-			mode_lib->ms.SwathHeightCThisState[k] = mode_lib->ms.SwathHeightCAllStates[j][k];
-			mode_lib->ms.UnboundedRequestEnabledThisState = mode_lib->ms.UnboundedRequestEnabledAllStates[j];
-			mode_lib->ms.CompressedBufferSizeInkByteThisState = mode_lib->ms.CompressedBufferSizeInkByteAllStates[j];
-			mode_lib->ms.DETBufferSizeInKByteThisState[k] = mode_lib->ms.DETBufferSizeInKByteAllStates[j][k];
-			mode_lib->ms.DETBufferSizeYThisState[k] = mode_lib->ms.DETBufferSizeYAllStates[j][k];
-			mode_lib->ms.DETBufferSizeCThisState[k] = mode_lib->ms.DETBufferSizeCAllStates[j][k];
-		}
-
-		mode_lib->ms.support.VActiveBandwithSupport[j] = CalculateVActiveBandwithSupport(
-			mode_lib->ms.num_active_planes,
-			mode_lib->ms.ReturnBWPerState[j],
-			mode_lib->ms.NotUrgentLatencyHiding,
-			mode_lib->ms.ReadBandwidthLuma,
-			mode_lib->ms.ReadBandwidthChroma,
-			mode_lib->ms.cursor_bw,
-			mode_lib->ms.meta_row_bandwidth_this_state,
-			mode_lib->ms.dpte_row_bandwidth_this_state,
-			mode_lib->ms.NoOfDPPThisState,
-			mode_lib->ms.UrgentBurstFactorLuma,
-			mode_lib->ms.UrgentBurstFactorChroma,
-			mode_lib->ms.UrgentBurstFactorCursor);
-
-		s->VMDataOnlyReturnBWPerState = dml_get_return_bw_mbps_vm_only(
-																	&mode_lib->ms.soc,
-																	mode_lib->ms.state.use_ideal_dram_bw_strobe,
-																	mode_lib->ms.cache_display_cfg.plane.HostVMEnable,
-																	mode_lib->ms.DCFCLKState[j],
-																	mode_lib->ms.state.fabricclk_mhz,
-																	mode_lib->ms.state.dram_speed_mts);
-
-		s->HostVMInefficiencyFactor = 1;
-		if (mode_lib->ms.cache_display_cfg.plane.GPUVMEnable && mode_lib->ms.cache_display_cfg.plane.HostVMEnable)
-			s->HostVMInefficiencyFactor = mode_lib->ms.ReturnBWPerState[j] / s->VMDataOnlyReturnBWPerState;
-
-		mode_lib->ms.ExtraLatency = CalculateExtraLatency(
-				mode_lib->ms.soc.round_trip_ping_latency_dcfclk_cycles,
-				s->ReorderingBytes,
-				mode_lib->ms.DCFCLKState[j],
-				mode_lib->ms.TotalNumberOfActiveDPP[j],
-				mode_lib->ms.ip.pixel_chunk_size_kbytes,
-				mode_lib->ms.TotalNumberOfDCCActiveDPP[j],
-				mode_lib->ms.ip.meta_chunk_size_kbytes,
-				mode_lib->ms.ReturnBWPerState[j],
-				mode_lib->ms.cache_display_cfg.plane.GPUVMEnable,
-				mode_lib->ms.cache_display_cfg.plane.HostVMEnable,
-				mode_lib->ms.num_active_planes,
-				mode_lib->ms.NoOfDPPThisState,
-				mode_lib->ms.dpte_group_bytes,
-				s->HostVMInefficiencyFactor,
-				mode_lib->ms.soc.hostvm_min_page_size_kbytes,
-				mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels);
-
-		s->NextMaxVStartup = s->MaxVStartupAllPlanes[j];
-		s->MaxVStartup = 0;
-		s->AllPrefetchModeTested = true;
-		for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-			CalculatePrefetchMode(mode_lib->ms.policy.AllowForPStateChangeOrStutterInVBlank[k], &s->MinPrefetchMode[k], &s->MaxPrefetchMode[k]);
-			s->NextPrefetchMode[k] = s->MinPrefetchMode[k];
-		}
-
-		do {
-			s->MaxVStartup = s->NextMaxVStartup;
-			s->AllPrefetchModeTested = true;
-
-			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-				mode_lib->ms.PrefetchMode[k] = s->NextPrefetchMode[k];
-				mode_lib->ms.TWait = CalculateTWait(
-								mode_lib->ms.PrefetchMode[k],
-								mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange[k],
-								mode_lib->ms.policy.SynchronizeDRRDisplaysForUCLKPStateChangeFinal,
-								mode_lib->ms.cache_display_cfg.timing.DRRDisplay[k],
-								mode_lib->ms.state.dram_clock_change_latency_us,
-								mode_lib->ms.state.fclk_change_latency_us,
-								mode_lib->ms.UrgLatency,
-								mode_lib->ms.state.sr_enter_plus_exit_time_us);
-
-				myPipe = &s->myPipe;
-				myPipe->Dppclk = mode_lib->ms.RequiredDPPCLKPerSurface[j][k];
-				myPipe->Dispclk = mode_lib->ms.RequiredDISPCLK[j];
-				myPipe->PixelClock = mode_lib->ms.cache_display_cfg.timing.PixelClock[k];
-				myPipe->DCFClkDeepSleep = mode_lib->ms.ProjectedDCFCLKDeepSleep[j];
-				myPipe->DPPPerSurface = mode_lib->ms.NoOfDPP[j][k];
-				myPipe->ScalerEnabled = mode_lib->ms.cache_display_cfg.plane.ScalerEnabled[k];
-				myPipe->SourceScan = mode_lib->ms.cache_display_cfg.plane.SourceScan[k];
-				myPipe->BlockWidth256BytesY = mode_lib->ms.Read256BlockWidthY[k];
-				myPipe->BlockHeight256BytesY = mode_lib->ms.Read256BlockHeightY[k];
-				myPipe->BlockWidth256BytesC = mode_lib->ms.Read256BlockWidthC[k];
-				myPipe->BlockHeight256BytesC = mode_lib->ms.Read256BlockHeightC[k];
-				myPipe->InterlaceEnable = mode_lib->ms.cache_display_cfg.timing.Interlace[k];
-				myPipe->NumberOfCursors = mode_lib->ms.cache_display_cfg.plane.NumberOfCursors[k];
-				myPipe->VBlank = mode_lib->ms.cache_display_cfg.timing.VTotal[k] - mode_lib->ms.cache_display_cfg.timing.VActive[k];
-				myPipe->HTotal = mode_lib->ms.cache_display_cfg.timing.HTotal[k];
-				myPipe->HActive = mode_lib->ms.cache_display_cfg.timing.HActive[k];
-				myPipe->DCCEnable = mode_lib->ms.cache_display_cfg.surface.DCCEnable[k];
-				myPipe->ODMMode = mode_lib->ms.ODMModePerState[k];
-				myPipe->SourcePixelFormat = mode_lib->ms.cache_display_cfg.surface.SourcePixelFormat[k];
-				myPipe->BytePerPixelY = mode_lib->ms.BytePerPixelY[k];
-				myPipe->BytePerPixelC = mode_lib->ms.BytePerPixelC[k];
-				myPipe->ProgressiveToInterlaceUnitInOPP = mode_lib->ms.ip.ptoi_supported;
-
-#ifdef __DML_VBA_DEBUG__
-				dml_print("DML::%s: Calling CalculatePrefetchSchedule for j=%u, k=%u\n", __func__, j, k);
-				dml_print("DML::%s: MaximumVStartup = %u\n", __func__, s->MaximumVStartup[j][k]);
-				dml_print("DML::%s: MaxVStartup = %u\n", __func__, s->MaxVStartup);
-				dml_print("DML::%s: NextPrefetchMode = %u\n", __func__, s->NextPrefetchMode[k]);
-				dml_print("DML::%s: AllowForPStateChangeOrStutterInVBlank = %u\n", __func__, mode_lib->ms.policy.AllowForPStateChangeOrStutterInVBlank[k]);
-				dml_print("DML::%s: PrefetchMode = %u\n", __func__, mode_lib->ms.PrefetchMode[k]);
-#endif
-
-				CalculatePrefetchSchedule_params->EnhancedPrefetchScheduleAccelerationFinal = mode_lib->ms.policy.EnhancedPrefetchScheduleAccelerationFinal;
-				CalculatePrefetchSchedule_params->HostVMInefficiencyFactor = s->HostVMInefficiencyFactor;
-				CalculatePrefetchSchedule_params->myPipe = myPipe;
-				CalculatePrefetchSchedule_params->DSCDelay = mode_lib->ms.DSCDelayPerState[k];
-				CalculatePrefetchSchedule_params->DPPCLKDelaySubtotalPlusCNVCFormater = mode_lib->ms.ip.dppclk_delay_subtotal + mode_lib->ms.ip.dppclk_delay_cnvc_formatter;
-				CalculatePrefetchSchedule_params->DPPCLKDelaySCL = mode_lib->ms.ip.dppclk_delay_scl;
-				CalculatePrefetchSchedule_params->DPPCLKDelaySCLLBOnly = mode_lib->ms.ip.dppclk_delay_scl_lb_only;
-				CalculatePrefetchSchedule_params->DPPCLKDelayCNVCCursor = mode_lib->ms.ip.dppclk_delay_cnvc_cursor;
-				CalculatePrefetchSchedule_params->DISPCLKDelaySubtotal = mode_lib->ms.ip.dispclk_delay_subtotal;
-				CalculatePrefetchSchedule_params->DPP_RECOUT_WIDTH = (dml_uint_t)(mode_lib->ms.SwathWidthYThisState[k] / mode_lib->ms.cache_display_cfg.plane.HRatio[k]);
-				CalculatePrefetchSchedule_params->OutputFormat = mode_lib->ms.cache_display_cfg.output.OutputFormat[k];
-				CalculatePrefetchSchedule_params->MaxInterDCNTileRepeaters = mode_lib->ms.ip.max_inter_dcn_tile_repeaters;
-				CalculatePrefetchSchedule_params->VStartup = (dml_uint_t)(dml_min(s->MaxVStartup, s->MaximumVStartup[j][k]));
-				CalculatePrefetchSchedule_params->MaxVStartup = s->MaximumVStartup[j][k];
-				CalculatePrefetchSchedule_params->GPUVMPageTableLevels = mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels;
-				CalculatePrefetchSchedule_params->GPUVMEnable = mode_lib->ms.cache_display_cfg.plane.GPUVMEnable;
-				CalculatePrefetchSchedule_params->HostVMEnable = mode_lib->ms.cache_display_cfg.plane.HostVMEnable;
-				CalculatePrefetchSchedule_params->HostVMMaxNonCachedPageTableLevels = mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels;
-				CalculatePrefetchSchedule_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes;
-				CalculatePrefetchSchedule_params->DynamicMetadataEnable = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataEnable[k];
-				CalculatePrefetchSchedule_params->DynamicMetadataVMEnabled = mode_lib->ms.ip.dynamic_metadata_vm_enabled;
-				CalculatePrefetchSchedule_params->DynamicMetadataLinesBeforeActiveRequired = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataLinesBeforeActiveRequired[k];
-				CalculatePrefetchSchedule_params->DynamicMetadataTransmittedBytes = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataTransmittedBytes[k];
-				CalculatePrefetchSchedule_params->UrgentLatency = mode_lib->ms.UrgLatency;
-				CalculatePrefetchSchedule_params->UrgentExtraLatency = mode_lib->ms.ExtraLatency;
-				CalculatePrefetchSchedule_params->TCalc = mode_lib->ms.TimeCalc;
-				CalculatePrefetchSchedule_params->PDEAndMetaPTEBytesFrame = mode_lib->ms.PDEAndMetaPTEBytesPerFrame[j][k];
-				CalculatePrefetchSchedule_params->MetaRowByte = mode_lib->ms.MetaRowBytes[j][k];
-				CalculatePrefetchSchedule_params->PixelPTEBytesPerRow = mode_lib->ms.DPTEBytesPerRow[j][k];
-				CalculatePrefetchSchedule_params->PrefetchSourceLinesY = mode_lib->ms.PrefetchLinesY[j][k];
-				CalculatePrefetchSchedule_params->VInitPreFillY = mode_lib->ms.PrefillY[k];
-				CalculatePrefetchSchedule_params->MaxNumSwathY = mode_lib->ms.MaxNumSwY[k];
-				CalculatePrefetchSchedule_params->PrefetchSourceLinesC = mode_lib->ms.PrefetchLinesC[j][k];
-				CalculatePrefetchSchedule_params->VInitPreFillC = mode_lib->ms.PrefillC[k];
-				CalculatePrefetchSchedule_params->MaxNumSwathC = mode_lib->ms.MaxNumSwC[k];
-				CalculatePrefetchSchedule_params->swath_width_luma_ub = mode_lib->ms.swath_width_luma_ub_this_state[k];
-				CalculatePrefetchSchedule_params->swath_width_chroma_ub = mode_lib->ms.swath_width_chroma_ub_this_state[k];
-				CalculatePrefetchSchedule_params->SwathHeightY = mode_lib->ms.SwathHeightYThisState[k];
-				CalculatePrefetchSchedule_params->SwathHeightC = mode_lib->ms.SwathHeightCThisState[k];
-				CalculatePrefetchSchedule_params->TWait = mode_lib->ms.TWait;
-				CalculatePrefetchSchedule_params->DSTXAfterScaler = &s->DSTXAfterScaler[k];
-				CalculatePrefetchSchedule_params->DSTYAfterScaler = &s->DSTYAfterScaler[k];
-				CalculatePrefetchSchedule_params->DestinationLinesForPrefetch = &mode_lib->ms.LineTimesForPrefetch[k];
-				CalculatePrefetchSchedule_params->DestinationLinesToRequestVMInVBlank = &mode_lib->ms.LinesForMetaPTE[k];
-				CalculatePrefetchSchedule_params->DestinationLinesToRequestRowInVBlank = &mode_lib->ms.LinesForMetaAndDPTERow[k];
-				CalculatePrefetchSchedule_params->VRatioPrefetchY = &mode_lib->ms.VRatioPreY[j][k];
-				CalculatePrefetchSchedule_params->VRatioPrefetchC = &mode_lib->ms.VRatioPreC[j][k];
-				CalculatePrefetchSchedule_params->RequiredPrefetchPixDataBWLuma = &mode_lib->ms.RequiredPrefetchPixelDataBWLuma[k];
-				CalculatePrefetchSchedule_params->RequiredPrefetchPixDataBWChroma = &mode_lib->ms.RequiredPrefetchPixelDataBWChroma[k];
-				CalculatePrefetchSchedule_params->NotEnoughTimeForDynamicMetadata = &mode_lib->ms.support.NoTimeForDynamicMetadata[j][k];
-				CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->ms.Tno_bw[k];
-				CalculatePrefetchSchedule_params->prefetch_vmrow_bw = &mode_lib->ms.prefetch_vmrow_bw[k];
-				CalculatePrefetchSchedule_params->Tdmdl_vm = &s->dummy_single[0];
-				CalculatePrefetchSchedule_params->Tdmdl = &s->dummy_single[1];
-				CalculatePrefetchSchedule_params->TSetup = &s->dummy_single[2];
-				CalculatePrefetchSchedule_params->VUpdateOffsetPix = &s->dummy_integer[0];
-				CalculatePrefetchSchedule_params->VUpdateWidthPix = &s->dummy_integer[1];
-				CalculatePrefetchSchedule_params->VReadyOffsetPix = &s->dummy_integer[2];
-
-				mode_lib->ms.support.NoTimeForPrefetch[j][k] =
-								CalculatePrefetchSchedule(&mode_lib->scratch,
-								CalculatePrefetchSchedule_params);
-			}
-
-			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-					CalculateUrgentBurstFactor(
-							mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange[k],
-							mode_lib->ms.swath_width_luma_ub_this_state[k],
-							mode_lib->ms.swath_width_chroma_ub_this_state[k],
-							mode_lib->ms.SwathHeightYThisState[k],
-							mode_lib->ms.SwathHeightCThisState[k],
-							mode_lib->ms.cache_display_cfg.timing.HTotal[k] / mode_lib->ms.cache_display_cfg.timing.PixelClock[k],
-							mode_lib->ms.UrgLatency,
-							mode_lib->ms.ip.cursor_buffer_size,
-							mode_lib->ms.cache_display_cfg.plane.CursorWidth[k],
-							mode_lib->ms.cache_display_cfg.plane.CursorBPP[k],
-							mode_lib->ms.VRatioPreY[j][k],
-							mode_lib->ms.VRatioPreC[j][k],
-							mode_lib->ms.BytePerPixelInDETY[k],
-							mode_lib->ms.BytePerPixelInDETC[k],
-							mode_lib->ms.DETBufferSizeYThisState[k],
-							mode_lib->ms.DETBufferSizeCThisState[k],
-							/* Output */
-							&mode_lib->ms.UrgentBurstFactorCursorPre[k],
-							&mode_lib->ms.UrgentBurstFactorLumaPre[k],
-							&mode_lib->ms.UrgentBurstFactorChroma[k],
-							&mode_lib->ms.NotUrgentLatencyHidingPre[k]);
-
-					mode_lib->ms.cursor_bw_pre[k] = mode_lib->ms.cache_display_cfg.plane.NumberOfCursors[k] * mode_lib->ms.cache_display_cfg.plane.CursorWidth[k] *
-													mode_lib->ms.cache_display_cfg.plane.CursorBPP[k] / 8.0 / (mode_lib->ms.cache_display_cfg.timing.HTotal[k] /
-													mode_lib->ms.cache_display_cfg.timing.PixelClock[k]) * mode_lib->ms.VRatioPreY[j][k];
-			}
-
-			{
-			CalculatePrefetchBandwithSupport(
-				mode_lib->ms.num_active_planes,
-				mode_lib->ms.ReturnBWPerState[j],
-				mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange,
-				mode_lib->ms.NotUrgentLatencyHidingPre,
-				mode_lib->ms.ReadBandwidthLuma,
-				mode_lib->ms.ReadBandwidthChroma,
-				mode_lib->ms.RequiredPrefetchPixelDataBWLuma,
-				mode_lib->ms.RequiredPrefetchPixelDataBWChroma,
-				mode_lib->ms.cursor_bw,
-				mode_lib->ms.meta_row_bandwidth_this_state,
-				mode_lib->ms.dpte_row_bandwidth_this_state,
-				mode_lib->ms.cursor_bw_pre,
-				mode_lib->ms.prefetch_vmrow_bw,
-				mode_lib->ms.NoOfDPPThisState,
-				mode_lib->ms.UrgentBurstFactorLuma,
-				mode_lib->ms.UrgentBurstFactorChroma,
-				mode_lib->ms.UrgentBurstFactorCursor,
-				mode_lib->ms.UrgentBurstFactorLumaPre,
-				mode_lib->ms.UrgentBurstFactorChromaPre,
-				mode_lib->ms.UrgentBurstFactorCursorPre,
-
-				/* output */
-				&s->dummy_single[0], // dml_float_t *PrefetchBandwidth
-				&s->dummy_single[1], // dml_float_t *PrefetchBandwidthNotIncludingMALLPrefetch
-				&mode_lib->mp.FractionOfUrgentBandwidth, // dml_float_t *FractionOfUrgentBandwidth
-				&mode_lib->ms.support.PrefetchSupported[j]);
-			}
-
-			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-				if (mode_lib->ms.LineTimesForPrefetch[k] < 2.0
-					|| mode_lib->ms.LinesForMetaPTE[k] >= 32.0
-					|| mode_lib->ms.LinesForMetaAndDPTERow[k] >= 16.0
-					|| mode_lib->ms.support.NoTimeForPrefetch[j][k] == true) {
-						mode_lib->ms.support.PrefetchSupported[j] = false;
-				}
-			}
-
-			mode_lib->ms.support.DynamicMetadataSupported[j] = true;
-			for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-				if (mode_lib->ms.support.NoTimeForDynamicMetadata[j][k] == true) {
-					mode_lib->ms.support.DynamicMetadataSupported[j] = false;
-				}
-			}
-
-			mode_lib->ms.support.VRatioInPrefetchSupported[j] = true;
-			for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-				if (mode_lib->ms.support.NoTimeForPrefetch[j][k] == true ||
-					mode_lib->ms.VRatioPreY[j][k] > __DML_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__ ||
-					mode_lib->ms.VRatioPreC[j][k] > __DML_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__ ||
-					((s->MaxVStartup < s->MaximumVStartup[j][k] || mode_lib->ms.policy.EnhancedPrefetchScheduleAccelerationFinal == 0) &&
-						(mode_lib->ms.VRatioPreY[j][k] > __DML_MAX_VRATIO_PRE__ || mode_lib->ms.VRatioPreC[j][k] > __DML_MAX_VRATIO_PRE__))) {
-							mode_lib->ms.support.VRatioInPrefetchSupported[j] = false;
-				}
-			}
-
-			s->AnyLinesForVMOrRowTooLarge = false;
-			for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-				if (mode_lib->ms.LinesForMetaAndDPTERow[k] >= 16 || mode_lib->ms.LinesForMetaPTE[k] >= 32) {
-					s->AnyLinesForVMOrRowTooLarge = true;
-				}
-			}
-
-			if (mode_lib->ms.support.PrefetchSupported[j] == true && mode_lib->ms.support.VRatioInPrefetchSupported[j] == true) {
-				mode_lib->ms.BandwidthAvailableForImmediateFlip = CalculateBandwidthAvailableForImmediateFlip(
-						mode_lib->ms.num_active_planes,
-						mode_lib->ms.ReturnBWPerState[j],
-						mode_lib->ms.ReadBandwidthLuma,
-						mode_lib->ms.ReadBandwidthChroma,
-						mode_lib->ms.RequiredPrefetchPixelDataBWLuma,
-						mode_lib->ms.RequiredPrefetchPixelDataBWChroma,
-						mode_lib->ms.cursor_bw,
-						mode_lib->ms.cursor_bw_pre,
-						mode_lib->ms.NoOfDPPThisState,
-						mode_lib->ms.UrgentBurstFactorLuma,
-						mode_lib->ms.UrgentBurstFactorChroma,
-						mode_lib->ms.UrgentBurstFactorCursor,
-						mode_lib->ms.UrgentBurstFactorLumaPre,
-						mode_lib->ms.UrgentBurstFactorChromaPre,
-						mode_lib->ms.UrgentBurstFactorCursorPre);
-
-				mode_lib->ms.TotImmediateFlipBytes = 0;
-				for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-					if (!(mode_lib->ms.policy.ImmediateFlipRequirement[k] == dml_immediate_flip_not_required)) {
-						mode_lib->ms.TotImmediateFlipBytes = mode_lib->ms.TotImmediateFlipBytes + mode_lib->ms.NoOfDPP[j][k] * mode_lib->ms.PDEAndMetaPTEBytesPerFrame[j][k] + mode_lib->ms.MetaRowBytes[j][k];
-						if (mode_lib->ms.use_one_row_for_frame_flip[j][k]) {
-							mode_lib->ms.TotImmediateFlipBytes = mode_lib->ms.TotImmediateFlipBytes + mode_lib->ms.NoOfDPP[j][k] * (2 * mode_lib->ms.DPTEBytesPerRow[j][k]);
-						} else {
-							mode_lib->ms.TotImmediateFlipBytes = mode_lib->ms.TotImmediateFlipBytes + mode_lib->ms.NoOfDPP[j][k] * mode_lib->ms.DPTEBytesPerRow[j][k];
-						}
-					}
-				}
-
-				for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-					CalculateFlipSchedule(
-						s->HostVMInefficiencyFactor,
-						mode_lib->ms.ExtraLatency,
-						mode_lib->ms.UrgLatency,
-						mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels,
-						mode_lib->ms.cache_display_cfg.plane.HostVMEnable,
-						mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels,
-						mode_lib->ms.cache_display_cfg.plane.GPUVMEnable,
-						mode_lib->ms.soc.hostvm_min_page_size_kbytes,
-						mode_lib->ms.PDEAndMetaPTEBytesPerFrame[j][k],
-						mode_lib->ms.MetaRowBytes[j][k],
-						mode_lib->ms.DPTEBytesPerRow[j][k],
-						mode_lib->ms.BandwidthAvailableForImmediateFlip,
-						mode_lib->ms.TotImmediateFlipBytes,
-						mode_lib->ms.cache_display_cfg.surface.SourcePixelFormat[k],
-						(mode_lib->ms.cache_display_cfg.timing.HTotal[k] / mode_lib->ms.cache_display_cfg.timing.PixelClock[k]),
-						mode_lib->ms.cache_display_cfg.plane.VRatio[k],
-						mode_lib->ms.cache_display_cfg.plane.VRatioChroma[k],
-						mode_lib->ms.Tno_bw[k],
-						mode_lib->ms.cache_display_cfg.surface.DCCEnable[k],
-						mode_lib->ms.dpte_row_height[k],
-						mode_lib->ms.meta_row_height[k],
-						mode_lib->ms.dpte_row_height_chroma[k],
-						mode_lib->ms.meta_row_height_chroma[k],
-						mode_lib->ms.use_one_row_for_frame_flip[j][k], // 24
-
-						/* Output */
-						&mode_lib->ms.DestinationLinesToRequestVMInImmediateFlip[k],
-						&mode_lib->ms.DestinationLinesToRequestRowInImmediateFlip[k],
-						&mode_lib->ms.final_flip_bw[k],
-						&mode_lib->ms.ImmediateFlipSupportedForPipe[k]);
-				}
-
-				{
-				CalculateImmediateFlipBandwithSupport(mode_lib->ms.num_active_planes,
-													mode_lib->ms.ReturnBWPerState[j],
-													mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange,
-													mode_lib->ms.policy.ImmediateFlipRequirement,
-													mode_lib->ms.final_flip_bw,
-													mode_lib->ms.ReadBandwidthLuma,
-													mode_lib->ms.ReadBandwidthChroma,
-													mode_lib->ms.RequiredPrefetchPixelDataBWLuma,
-													mode_lib->ms.RequiredPrefetchPixelDataBWChroma,
-													mode_lib->ms.cursor_bw,
-													mode_lib->ms.meta_row_bandwidth_this_state,
-													mode_lib->ms.dpte_row_bandwidth_this_state,
-													mode_lib->ms.cursor_bw_pre,
-													mode_lib->ms.prefetch_vmrow_bw,
-													mode_lib->ms.NoOfDPP[j], // VBA_ERROR DPPPerSurface is not assigned at this point, should use NoOfDpp here
-													mode_lib->ms.UrgentBurstFactorLuma,
-													mode_lib->ms.UrgentBurstFactorChroma,
-													mode_lib->ms.UrgentBurstFactorCursor,
-													mode_lib->ms.UrgentBurstFactorLumaPre,
-													mode_lib->ms.UrgentBurstFactorChromaPre,
-													mode_lib->ms.UrgentBurstFactorCursorPre,
-
-													/* output */
-													&s->dummy_single[0], // dml_float_t *TotalBandwidth
-													&s->dummy_single[1], // dml_float_t *TotalBandwidthNotIncludingMALLPrefetch
-													&s->dummy_single[2], // dml_float_t *FractionOfUrgentBandwidth
-													&mode_lib->ms.support.ImmediateFlipSupportedForState[j]); // dml_bool_t *ImmediateFlipBandwidthSupport
-				}
-
-				for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-					if (!(mode_lib->ms.policy.ImmediateFlipRequirement[k] == dml_immediate_flip_not_required) && (mode_lib->ms.ImmediateFlipSupportedForPipe[k] == false))
-						mode_lib->ms.support.ImmediateFlipSupportedForState[j] = false;
-				}
-
-			} else { // if prefetch not support, assume iflip not supported
-				mode_lib->ms.support.ImmediateFlipSupportedForState[j] = false;
-			}
-
-			if (s->MaxVStartup <= __DML_VBA_MIN_VSTARTUP__ || s->AnyLinesForVMOrRowTooLarge == false) {
-				s->NextMaxVStartup = s->MaxVStartupAllPlanes[j];
-				for (k = 0; k <= mode_lib->ms.num_active_planes - 1; k++) {
-					s->NextPrefetchMode[k] = s->NextPrefetchMode[k] + 1;
-
-					if (s->NextPrefetchMode[k] <= s->MaxPrefetchMode[k])
-						s->AllPrefetchModeTested = false;
-				}
-			} else {
-				s->NextMaxVStartup = s->NextMaxVStartup - 1;
-			}
-		} while (!((mode_lib->ms.support.PrefetchSupported[j] == true && mode_lib->ms.support.DynamicMetadataSupported[j] == true &&
-					mode_lib->ms.support.VRatioInPrefetchSupported[j] == true &&
-					// consider flip support is okay if when there is no hostvm and the user does't require a iflip OR the flip bw is ok
-					// If there is hostvm, DCN needs to support iflip for invalidation
-					((s->ImmediateFlipRequiredFinal) || mode_lib->ms.support.ImmediateFlipSupportedForState[j] == true)) ||
-					(s->NextMaxVStartup == s->MaxVStartupAllPlanes[j] && s->AllPrefetchModeTested)));
-
-		for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-			mode_lib->ms.use_one_row_for_frame_this_state[k] = mode_lib->ms.use_one_row_for_frame[j][k];
-		}
-
-		s->mSOCParameters.UrgentLatency = mode_lib->ms.UrgLatency;
-		s->mSOCParameters.ExtraLatency = mode_lib->ms.ExtraLatency;
-		s->mSOCParameters.WritebackLatency = mode_lib->ms.state.writeback_latency_us;
-		s->mSOCParameters.DRAMClockChangeLatency = mode_lib->ms.state.dram_clock_change_latency_us;
-		s->mSOCParameters.FCLKChangeLatency = mode_lib->ms.state.fclk_change_latency_us;
-		s->mSOCParameters.SRExitTime = mode_lib->ms.state.sr_exit_time_us;
-		s->mSOCParameters.SREnterPlusExitTime = mode_lib->ms.state.sr_enter_plus_exit_time_us;
-		s->mSOCParameters.SRExitZ8Time = mode_lib->ms.state.sr_exit_z8_time_us;
-		s->mSOCParameters.SREnterPlusExitZ8Time = mode_lib->ms.state.sr_enter_plus_exit_z8_time_us;
-		s->mSOCParameters.USRRetrainingLatency = mode_lib->ms.state.usr_retraining_latency_us;
-		s->mSOCParameters.SMNLatency = mode_lib->ms.soc.smn_latency_us;
-
-		CalculateWatermarks_params->USRRetrainingRequiredFinal = mode_lib->ms.policy.USRRetrainingRequiredFinal;
-		CalculateWatermarks_params->UseMALLForPStateChange = mode_lib->ms.cache_display_cfg.plane.UseMALLForPStateChange;
-		CalculateWatermarks_params->PrefetchMode = mode_lib->ms.PrefetchMode;
-		CalculateWatermarks_params->NumberOfActiveSurfaces = mode_lib->ms.num_active_planes;
-		CalculateWatermarks_params->MaxLineBufferLines = mode_lib->ms.ip.max_line_buffer_lines;
-		CalculateWatermarks_params->LineBufferSize = mode_lib->ms.ip.line_buffer_size_bits;
-		CalculateWatermarks_params->WritebackInterfaceBufferSize = mode_lib->ms.ip.writeback_interface_buffer_size_kbytes;
-		CalculateWatermarks_params->DCFCLK = mode_lib->ms.DCFCLKState[j];
-		CalculateWatermarks_params->ReturnBW = mode_lib->ms.ReturnBWPerState[j];
-		CalculateWatermarks_params->SynchronizeTimingsFinal = mode_lib->ms.policy.SynchronizeTimingsFinal;
-		CalculateWatermarks_params->SynchronizeDRRDisplaysForUCLKPStateChangeFinal = mode_lib->ms.policy.SynchronizeDRRDisplaysForUCLKPStateChangeFinal;
-		CalculateWatermarks_params->DRRDisplay = mode_lib->ms.cache_display_cfg.timing.DRRDisplay;
-		CalculateWatermarks_params->dpte_group_bytes = mode_lib->ms.dpte_group_bytes;
-		CalculateWatermarks_params->meta_row_height = mode_lib->ms.meta_row_height;
-		CalculateWatermarks_params->meta_row_height_chroma = mode_lib->ms.meta_row_height_chroma;
-		CalculateWatermarks_params->mmSOCParameters = s->mSOCParameters;
-		CalculateWatermarks_params->WritebackChunkSize = mode_lib->ms.ip.writeback_chunk_size_kbytes;
-		CalculateWatermarks_params->SOCCLK = mode_lib->ms.state.socclk_mhz;
-		CalculateWatermarks_params->DCFClkDeepSleep = mode_lib->ms.ProjectedDCFCLKDeepSleep[j];
-		CalculateWatermarks_params->DETBufferSizeY = mode_lib->ms.DETBufferSizeYThisState;
-		CalculateWatermarks_params->DETBufferSizeC = mode_lib->ms.DETBufferSizeCThisState;
-		CalculateWatermarks_params->SwathHeightY = mode_lib->ms.SwathHeightYThisState;
-		CalculateWatermarks_params->SwathHeightC = mode_lib->ms.SwathHeightCThisState;
-		CalculateWatermarks_params->LBBitPerPixel = mode_lib->ms.cache_display_cfg.plane.LBBitPerPixel;
-		CalculateWatermarks_params->SwathWidthY = mode_lib->ms.SwathWidthYThisState;
-		CalculateWatermarks_params->SwathWidthC = mode_lib->ms.SwathWidthCThisState;
-		CalculateWatermarks_params->HRatio = mode_lib->ms.cache_display_cfg.plane.HRatio;
-		CalculateWatermarks_params->HRatioChroma = mode_lib->ms.cache_display_cfg.plane.HRatioChroma;
-		CalculateWatermarks_params->VTaps = mode_lib->ms.cache_display_cfg.plane.VTaps;
-		CalculateWatermarks_params->VTapsChroma = mode_lib->ms.cache_display_cfg.plane.VTapsChroma;
-		CalculateWatermarks_params->VRatio = mode_lib->ms.cache_display_cfg.plane.VRatio;
-		CalculateWatermarks_params->VRatioChroma = mode_lib->ms.cache_display_cfg.plane.VRatioChroma;
-		CalculateWatermarks_params->HTotal = mode_lib->ms.cache_display_cfg.timing.HTotal;
-		CalculateWatermarks_params->VTotal = mode_lib->ms.cache_display_cfg.timing.VTotal;
-		CalculateWatermarks_params->VActive = mode_lib->ms.cache_display_cfg.timing.VActive;
-		CalculateWatermarks_params->PixelClock = mode_lib->ms.cache_display_cfg.timing.PixelClock;
-		CalculateWatermarks_params->BlendingAndTiming = mode_lib->ms.cache_display_cfg.plane.BlendingAndTiming;
-		CalculateWatermarks_params->DPPPerSurface = mode_lib->ms.NoOfDPPThisState;
-		CalculateWatermarks_params->BytePerPixelDETY = mode_lib->ms.BytePerPixelInDETY;
-		CalculateWatermarks_params->BytePerPixelDETC = mode_lib->ms.BytePerPixelInDETC;
-		CalculateWatermarks_params->DSTXAfterScaler = s->DSTXAfterScaler;
-		CalculateWatermarks_params->DSTYAfterScaler = s->DSTYAfterScaler;
-		CalculateWatermarks_params->WritebackEnable = mode_lib->ms.cache_display_cfg.writeback.WritebackEnable;
-		CalculateWatermarks_params->WritebackPixelFormat = mode_lib->ms.cache_display_cfg.writeback.WritebackPixelFormat;
-		CalculateWatermarks_params->WritebackDestinationWidth = mode_lib->ms.cache_display_cfg.writeback.WritebackDestinationWidth;
-		CalculateWatermarks_params->WritebackDestinationHeight = mode_lib->ms.cache_display_cfg.writeback.WritebackDestinationHeight;
-		CalculateWatermarks_params->WritebackSourceHeight = mode_lib->ms.cache_display_cfg.writeback.WritebackSourceHeight;
-		CalculateWatermarks_params->UnboundedRequestEnabled = mode_lib->ms.UnboundedRequestEnabledThisState;
-		CalculateWatermarks_params->CompressedBufferSizeInkByte = mode_lib->ms.CompressedBufferSizeInkByteThisState;
-
-		// Output
-		CalculateWatermarks_params->Watermark = &s->dummy_watermark; // Watermarks *Watermark
-		CalculateWatermarks_params->DRAMClockChangeSupport = &mode_lib->ms.support.DRAMClockChangeSupport[j];
-		CalculateWatermarks_params->MaxActiveDRAMClockChangeLatencySupported = &s->dummy_single_array[0]; // dml_float_t *MaxActiveDRAMClockChangeLatencySupported[]
-		CalculateWatermarks_params->SubViewportLinesNeededInMALL = &mode_lib->ms.SubViewportLinesNeededInMALL[j]; // dml_uint_t SubViewportLinesNeededInMALL[]
-		CalculateWatermarks_params->FCLKChangeSupport = &mode_lib->ms.support.FCLKChangeSupport[j];
-		CalculateWatermarks_params->MaxActiveFCLKChangeLatencySupported = &s->dummy_single[0]; // dml_float_t *MaxActiveFCLKChangeLatencySupported
-		CalculateWatermarks_params->USRRetrainingSupport = &mode_lib->ms.support.USRRetrainingSupport[j];
-		CalculateWatermarks_params->ActiveDRAMClockChangeLatencyMargin = mode_lib->ms.support.ActiveDRAMClockChangeLatencyMargin;
-
-		CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(&mode_lib->scratch,
-			CalculateWatermarks_params);
-
-	} // for j
 	// End of Prefetch Check
 	dml_print("DML::%s: Done prefetch calculation\n", __func__);
 
@@ -8680,7 +8699,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	CalculateVMRowAndSwath_params->HostVMMaxNonCachedPageTableLevels = mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels;
 	CalculateVMRowAndSwath_params->GPUVMMaxPageTableLevels = mode_lib->ms.cache_display_cfg.plane.GPUVMMaxPageTableLevels;
 	CalculateVMRowAndSwath_params->GPUVMMinPageSizeKBytes = mode_lib->ms.cache_display_cfg.plane.GPUVMMinPageSizeKBytes;
-	CalculateVMRowAndSwath_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes;
+	CalculateVMRowAndSwath_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024;
 	CalculateVMRowAndSwath_params->PTEBufferModeOverrideEn = mode_lib->ms.cache_display_cfg.plane.PTEBufferModeOverrideEn;
 	CalculateVMRowAndSwath_params->PTEBufferModeOverrideVal = mode_lib->ms.cache_display_cfg.plane.PTEBufferMode;
 	CalculateVMRowAndSwath_params->PTEBufferSizeNotExceeded = s->dummy_boolean_array[0];
@@ -8786,7 +8805,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 			mode_lib->ms.cache_display_cfg.hw.DPPPerSurface,
 			locals->dpte_group_bytes,
 			s->HostVMInefficiencyFactor,
-			mode_lib->ms.soc.hostvm_min_page_size_kbytes,
+			mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024,
 			mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels);
 
 	locals->TCalc = 24.0 / locals->DCFCLKDeepSleep;
@@ -8976,7 +8995,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 			CalculatePrefetchSchedule_params->GPUVMEnable = mode_lib->ms.cache_display_cfg.plane.GPUVMEnable;
 			CalculatePrefetchSchedule_params->HostVMEnable = mode_lib->ms.cache_display_cfg.plane.HostVMEnable;
 			CalculatePrefetchSchedule_params->HostVMMaxNonCachedPageTableLevels = mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels;
-			CalculatePrefetchSchedule_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes;
+			CalculatePrefetchSchedule_params->HostVMMinPageSize = mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024;
 			CalculatePrefetchSchedule_params->DynamicMetadataEnable = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataEnable[k];
 			CalculatePrefetchSchedule_params->DynamicMetadataVMEnabled = mode_lib->ms.ip.dynamic_metadata_vm_enabled;
 			CalculatePrefetchSchedule_params->DynamicMetadataLinesBeforeActiveRequired = mode_lib->ms.cache_display_cfg.plane.DynamicMetadataLinesBeforeActiveRequired[k];
@@ -9221,7 +9240,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 						mode_lib->ms.cache_display_cfg.plane.HostVMEnable,
 						mode_lib->ms.cache_display_cfg.plane.HostVMMaxPageTableLevels,
 						mode_lib->ms.cache_display_cfg.plane.GPUVMEnable,
-						mode_lib->ms.soc.hostvm_min_page_size_kbytes,
+						mode_lib->ms.soc.hostvm_min_page_size_kbytes * 1024,
 						locals->PDEAndMetaPTEBytesFrame[k],
 						locals->MetaRowByte[k],
 						locals->PixelPTEBytesPerRow[k],
@@ -9306,7 +9325,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 				if (mode_lib->ms.policy.ImmediateFlipRequirement[k] != dml_immediate_flip_not_required && locals->ImmediateFlipSupportedForPipe[k] == false) {
 					locals->ImmediateFlipSupported = false;
 #ifdef __DML_VBA_DEBUG__
-					dml_print("DML::%s: Pipe %0d not supporing iflip\n", __func__, k);
+					dml_print("DML::%s: Pipe %0d not supporting iflip\n", __func__, k);
 #endif
 				}
 			}
@@ -9359,7 +9378,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	if (locals->PrefetchAndImmediateFlipSupported) {
 		dml_print("DML::%s: Good, Prefetch and flip scheduling solution found at VStartupLines=%u (MaxVStartupAllPlanes=%u)\n", __func__, s->VStartupLines-1, s->MaxVStartupAllPlanes);
 	} else {
-		dml_print("DML::%s: Bad, Prefetch and flip scheduling soluation NOT found solution! (MaxVStartupAllPlanes=%u)\n", __func__, s->MaxVStartupAllPlanes);
+		dml_print("DML::%s: Bad, Prefetch and flip scheduling solution did NOT find solution! (MaxVStartupAllPlanes=%u)\n", __func__, s->MaxVStartupAllPlanes);
 	}
 
 	//Watermarks and NB P-State/DRAM Clock Change Support
@@ -9427,13 +9446,13 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 		CalculateWatermarks_params->CompressedBufferSizeInkByte = locals->CompressedBufferSizeInkByte;
 
 		// Output
-		CalculateWatermarks_params->Watermark = &s->dummy_watermark; // Watermarks *Watermark
-		CalculateWatermarks_params->DRAMClockChangeSupport = &mode_lib->ms.support.DRAMClockChangeSupport[j];
-		CalculateWatermarks_params->MaxActiveDRAMClockChangeLatencySupported = &s->dummy_single_array[0][0]; // dml_float_t *MaxActiveDRAMClockChangeLatencySupported[]
-		CalculateWatermarks_params->SubViewportLinesNeededInMALL = &mode_lib->ms.SubViewportLinesNeededInMALL[j]; // dml_uint_t SubViewportLinesNeededInMALL[]
-		CalculateWatermarks_params->FCLKChangeSupport = &mode_lib->ms.support.FCLKChangeSupport[j];
-		CalculateWatermarks_params->MaxActiveFCLKChangeLatencySupported = &s->dummy_single[0]; // dml_float_t *MaxActiveFCLKChangeLatencySupported
-		CalculateWatermarks_params->USRRetrainingSupport = &mode_lib->ms.support.USRRetrainingSupport[j];
+		CalculateWatermarks_params->Watermark = &locals->Watermark; // Watermarks *Watermark
+		CalculateWatermarks_params->DRAMClockChangeSupport = &locals->DRAMClockChangeSupport;
+		CalculateWatermarks_params->MaxActiveDRAMClockChangeLatencySupported = locals->MaxActiveDRAMClockChangeLatencySupported; // dml_float_t *MaxActiveDRAMClockChangeLatencySupported[]
+		CalculateWatermarks_params->SubViewportLinesNeededInMALL = locals->SubViewportLinesNeededInMALL; // dml_uint_t SubViewportLinesNeededInMALL[]
+		CalculateWatermarks_params->FCLKChangeSupport = &locals->FCLKChangeSupport;
+		CalculateWatermarks_params->MaxActiveFCLKChangeLatencySupported = &locals->MaxActiveFCLKChangeLatencySupported; // dml_float_t *MaxActiveFCLKChangeLatencySupported
+		CalculateWatermarks_params->USRRetrainingSupport = &locals->USRRetrainingSupport;
 
 		CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 			&mode_lib->scratch,
@@ -9441,8 +9460,10 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 
 		/* Copy the calculated watermarks to mp.Watermark as the getter functions are
 		 * implemented by the DML team to copy the calculated values from the mp.Watermark interface.
+		 * &mode_lib->mp.Watermark and &locals->Watermark are the same address, memcpy may lead to
+		 * unexpected behavior. memmove should be used.
 		 */
-		memcpy(&mode_lib->mp.Watermark, CalculateWatermarks_params->Watermark, sizeof(struct Watermarks));
+		memmove(&mode_lib->mp.Watermark, CalculateWatermarks_params->Watermark, sizeof(struct Watermarks));
 
 		for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
 			if (mode_lib->ms.cache_display_cfg.writeback.WritebackEnable[k] == true) {
@@ -10195,6 +10216,7 @@ dml_get_var_func(fraction_of_urgent_bandwidth_imm_flip, dml_float_t, mode_lib->m
 dml_get_var_func(urgent_latency, dml_float_t, mode_lib->mp.UrgentLatency);
 dml_get_var_func(clk_dcf_deepsleep, dml_float_t, mode_lib->mp.DCFCLKDeepSleep);
 dml_get_var_func(wm_writeback_dram_clock_change, dml_float_t, mode_lib->mp.Watermark.WritebackDRAMClockChangeWatermark);
+dml_get_var_func(wm_writeback_urgent, dml_float_t, mode_lib->mp.Watermark.WritebackUrgentWatermark);
 dml_get_var_func(stutter_efficiency, dml_float_t, mode_lib->mp.StutterEfficiency);
 dml_get_var_func(stutter_efficiency_no_vblank, dml_float_t, mode_lib->mp.StutterEfficiencyNotIncludingVBlank);
 dml_get_var_func(stutter_efficiency_z8, dml_float_t, mode_lib->mp.Z8StutterEfficiency);

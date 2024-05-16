@@ -559,8 +559,8 @@ static void bt1_pcie_host_deinit(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops bt1_pcie_host_ops = {
-	.host_init = bt1_pcie_host_init,
-	.host_deinit = bt1_pcie_host_deinit,
+	.init = bt1_pcie_host_init,
+	.deinit = bt1_pcie_host_deinit,
 };
 
 static struct bt1_pcie *bt1_pcie_create_data(struct platform_device *pdev)

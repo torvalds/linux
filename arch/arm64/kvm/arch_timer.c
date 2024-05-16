@@ -295,8 +295,7 @@ static u64 wfit_delay_ns(struct kvm_vcpu *vcpu)
 	u64 val = vcpu_get_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu));
 	struct arch_timer_context *ctx;
 
-	ctx = (vcpu_has_nv(vcpu) && is_hyp_ctxt(vcpu)) ? vcpu_hvtimer(vcpu)
-						       : vcpu_vtimer(vcpu);
+	ctx = is_hyp_ctxt(vcpu) ? vcpu_hvtimer(vcpu) : vcpu_vtimer(vcpu);
 
 	return kvm_counter_compute_delta(ctx, val);
 }
@@ -453,7 +452,7 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				   timer_ctx->irq.level);
 
 	if (!userspace_irqchip(vcpu->kvm)) {
-		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
+		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu,
 					  timer_irq(timer_ctx),
 					  timer_ctx->irq.level,
 					  timer_ctx);
@@ -746,7 +745,7 @@ static void kvm_timer_vcpu_load_nested_switch(struct kvm_vcpu *vcpu,
 		WARN_ON_ONCE(ret);
 
 		/*
-		 * The virtual offset behaviour is "interresting", as it
+		 * The virtual offset behaviour is "interesting", as it
 		 * always applies when HCR_EL2.E2H==0, but only when
 		 * accessed from EL1 when HCR_EL2.E2H==1. So make sure we
 		 * track E2H when putting the HV timer in "direct" mode.
@@ -936,7 +935,7 @@ void kvm_timer_sync_user(struct kvm_vcpu *vcpu)
 		unmask_vtimer_irq_user(vcpu);
 }
 
-int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
+void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = vcpu_timer(vcpu);
 	struct timer_map map;
@@ -980,8 +979,6 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 		soft_timer_cancel(&map.emul_vtimer->hrtimer);
 	if (map.emul_ptimer)
 		soft_timer_cancel(&map.emul_ptimer->hrtimer);
-
-	return 0;
 }
 
 static void timer_context_init(struct kvm_vcpu *vcpu, int timerid)

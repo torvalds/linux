@@ -37,6 +37,7 @@
 #include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_de.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_drrs.h"
 #include "intel_lvds_regs.h"
@@ -46,10 +47,12 @@
 
 bool intel_panel_use_ssc(struct drm_i915_private *i915)
 {
-	if (i915->params.panel_use_ssc >= 0)
-		return i915->params.panel_use_ssc != 0;
-	return i915->display.vbt.lvds_use_ssc &&
-		!intel_has_quirk(i915, QUIRK_LVDS_SSC_DISABLE);
+	struct intel_display *display = &i915->display;
+
+	if (display->params.panel_use_ssc >= 0)
+		return display->params.panel_use_ssc != 0;
+	return display->vbt.lvds_use_ssc &&
+		!intel_has_quirk(display, QUIRK_LVDS_SSC_DISABLE);
 }
 
 const struct drm_display_mode *
@@ -682,6 +685,9 @@ intel_panel_detect(struct drm_connector *connector, bool force)
 
 	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
+
+	if (!intel_display_driver_check_access(i915))
+		return connector->status;
 
 	return connector_status_connected;
 }

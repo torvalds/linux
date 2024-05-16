@@ -33,17 +33,27 @@
 #endif
 
 int verbose;
+int debug_kmaps;
 int debug_peo_args;
 bool dump_trace = false, quiet = false;
 int debug_ordered_events;
 static int redirect_to_stderr;
 int debug_data_convert;
-static FILE *debug_file;
+static FILE *_debug_file;
 bool debug_display_time;
+
+FILE *debug_file(void)
+{
+	if (!_debug_file) {
+		pr_warning_once("debug_file not set");
+		debug_set_file(stderr);
+	}
+	return _debug_file;
+}
 
 void debug_set_file(FILE *file)
 {
-	debug_file = file;
+	_debug_file = file;
 }
 
 void debug_set_display_time(bool set)
@@ -78,8 +88,8 @@ int veprintf(int level, int var, const char *fmt, va_list args)
 		if (use_browser >= 1 && !redirect_to_stderr) {
 			ui_helpline__vshow(fmt, args);
 		} else {
-			ret = fprintf_time(debug_file);
-			ret += vfprintf(debug_file, fmt, args);
+			ret = fprintf_time(debug_file());
+			ret += vfprintf(debug_file(), fmt, args);
 		}
 	}
 
@@ -107,9 +117,8 @@ static int veprintf_time(u64 t, const char *fmt, va_list args)
 	nsecs -= secs  * NSEC_PER_SEC;
 	usecs  = nsecs / NSEC_PER_USEC;
 
-	ret = fprintf(stderr, "[%13" PRIu64 ".%06" PRIu64 "] ",
-		      secs, usecs);
-	ret += vfprintf(stderr, fmt, args);
+	ret = fprintf(debug_file(), "[%13" PRIu64 ".%06" PRIu64 "] ", secs, usecs);
+	ret += vfprintf(debug_file(), fmt, args);
 	return ret;
 }
 
@@ -221,6 +230,7 @@ static struct sublevel_option debug_opts[] = {
 	{ .name = "stderr",		.value_ptr = &redirect_to_stderr},
 	{ .name = "data-convert",	.value_ptr = &debug_data_convert },
 	{ .name = "perf-event-open",	.value_ptr = &debug_peo_args },
+	{ .name = "kmaps",		.value_ptr = &debug_kmaps },
 	{ .name = NULL, }
 };
 
@@ -259,6 +269,7 @@ int perf_quiet_option(void)
 	/* For debug variables that are used as bool types, set to 0. */
 	redirect_to_stderr = 0;
 	debug_peo_args = 0;
+	debug_kmaps = 0;
 
 	return 0;
 }

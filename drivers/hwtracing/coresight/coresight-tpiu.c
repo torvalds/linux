@@ -58,6 +58,7 @@ struct tpiu_drvdata {
 	void __iomem		*base;
 	struct clk		*atclk;
 	struct coresight_device	*csdev;
+	spinlock_t		spinlock;
 };
 
 static void tpiu_enable_hw(struct csdev_access *csa)
@@ -72,8 +73,11 @@ static void tpiu_enable_hw(struct csdev_access *csa)
 static int tpiu_enable(struct coresight_device *csdev, enum cs_mode mode,
 		       void *__unused)
 {
+	struct tpiu_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	guard(spinlock)(&drvdata->spinlock);
 	tpiu_enable_hw(&csdev->access);
-	atomic_inc(&csdev->refcnt);
+	csdev->refcnt++;
 	dev_dbg(&csdev->dev, "TPIU enabled\n");
 	return 0;
 }
@@ -96,7 +100,11 @@ static void tpiu_disable_hw(struct csdev_access *csa)
 
 static int tpiu_disable(struct coresight_device *csdev)
 {
-	if (atomic_dec_return(&csdev->refcnt))
+	struct tpiu_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	guard(spinlock)(&drvdata->spinlock);
+	csdev->refcnt--;
+	if (csdev->refcnt)
 		return -EBUSY;
 
 	tpiu_disable_hw(&csdev->access);
@@ -131,6 +139,8 @@ static int tpiu_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
+
+	spin_lock_init(&drvdata->spinlock);
 
 	drvdata->atclk = devm_clk_get(&adev->dev, "atclk"); /* optional */
 	if (!IS_ERR(drvdata->atclk)) {
@@ -218,7 +228,7 @@ static const struct amba_id tpiu_ids[] = {
 		.id	= 0x000bb9e7,
 		.mask	= 0x000fffff,
 	},
-	{ 0, 0},
+	{ 0, 0, NULL },
 };
 
 MODULE_DEVICE_TABLE(amba, tpiu_ids);

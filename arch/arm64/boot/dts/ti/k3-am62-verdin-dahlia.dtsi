@@ -185,7 +185,6 @@
 
 /* Verdin SD_1 */
 &sdhci1 {
-	ti,driver-strength-ohm = <33>;
 	status = "okay";
 };
 
@@ -214,6 +213,5 @@
 
 /* Verdin UART_2 */
 &wkup_uart0 {
-	/* FIXME: WKUP UART0 is used by DM firmware */
-	status = "reserved";
+	status = "okay";
 };

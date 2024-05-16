@@ -711,8 +711,7 @@ static bool intel_spi_cmp_mem_op(const struct intel_spi_mem_op *iop,
 {
 	if (iop->mem_op.cmd.nbytes != op->cmd.nbytes ||
 	    iop->mem_op.cmd.buswidth != op->cmd.buswidth ||
-	    iop->mem_op.cmd.dtr != op->cmd.dtr ||
-	    iop->mem_op.cmd.opcode != op->cmd.opcode)
+	    iop->mem_op.cmd.dtr != op->cmd.dtr)
 		return false;
 
 	if (iop->mem_op.addr.nbytes != op->addr.nbytes ||
@@ -737,11 +736,12 @@ intel_spi_match_mem_op(struct intel_spi *ispi, const struct spi_mem_op *op)
 	const struct intel_spi_mem_op *iop;
 
 	for (iop = ispi->mem_ops; iop->mem_op.cmd.opcode; iop++) {
-		if (intel_spi_cmp_mem_op(iop, op))
-			break;
+		if (iop->mem_op.cmd.opcode == op->cmd.opcode &&
+		    intel_spi_cmp_mem_op(iop, op))
+			return iop;
 	}
 
-	return iop->mem_op.cmd.opcode ? iop : NULL;
+	return NULL;
 }
 
 static bool intel_spi_supports_mem_op(struct spi_mem *mem,
@@ -1254,6 +1254,13 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 		if (end > part->size)
 			part->size = end;
 	}
+
+	/*
+	 * Regions can refer to the second chip too so in this case we
+	 * just make the BIOS partition to occupy the whole chip.
+	 */
+	if (ispi->chip0_size && part->size > ispi->chip0_size)
+		part->size = MTDPART_SIZ_FULL;
 }
 
 static int intel_spi_read_desc(struct intel_spi *ispi)
@@ -1346,8 +1353,13 @@ static int intel_spi_read_desc(struct intel_spi *ispi)
 static int intel_spi_populate_chip(struct intel_spi *ispi)
 {
 	struct flash_platform_data *pdata;
+	struct mtd_partition *parts;
 	struct spi_board_info chip;
 	int ret;
+
+	ret = intel_spi_read_desc(ispi);
+	if (ret)
+		return ret;
 
 	pdata = devm_kzalloc(ispi->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -1368,15 +1380,27 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 	if (!spi_new_device(ispi->host, &chip))
 		return -ENODEV;
 
-	ret = intel_spi_read_desc(ispi);
-	if (ret)
-		return ret;
-
 	/* Add the second chip if present */
 	if (ispi->host->num_chipselect < 2)
 		return 0;
 
-	chip.platform_data = NULL;
+	pdata = devm_kzalloc(ispi->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	pdata->name = devm_kasprintf(ispi->dev, GFP_KERNEL, "%s-chip1",
+				     dev_name(ispi->dev));
+	pdata->nr_parts = 1;
+	parts = devm_kcalloc(ispi->dev, pdata->nr_parts, sizeof(*parts),
+			     GFP_KERNEL);
+	if (!parts)
+		return -ENOMEM;
+
+	parts[0].size = MTDPART_SIZ_FULL;
+	parts[0].name = "BIOS1";
+	pdata->parts = parts;
+
+	chip.platform_data = pdata;
 	chip.chip_select = 1;
 
 	if (!spi_new_device(ispi->host, &chip))

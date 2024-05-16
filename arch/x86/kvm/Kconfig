@@ -7,7 +7,6 @@ source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
-	depends on HAVE_KVM || X86
 	default y
 	help
 	  Say Y here to get to see options for using your Linux host to run other
@@ -20,20 +19,17 @@ if VIRTUALIZATION
 
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
-	depends on HAVE_KVM
 	depends on HIGH_RES_TIMERS
 	depends on X86_LOCAL_APIC
-	select PREEMPT_NOTIFIERS
-	select MMU_NOTIFIER
+	select KVM_COMMON
+	select KVM_GENERIC_MMU_NOTIFIER
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_PFNCACHE
-	select HAVE_KVM_IRQFD
 	select HAVE_KVM_DIRTY_RING_TSO
 	select HAVE_KVM_DIRTY_RING_ACQ_REL
-	select IRQ_BYPASS_MANAGER
 	select HAVE_KVM_IRQ_BYPASS
 	select HAVE_KVM_IRQ_ROUTING
-	select HAVE_KVM_EVENTFD
+	select HAVE_KVM_READONLY_MEM
 	select KVM_ASYNC_PF
 	select USER_RETURN_NOTIFIER
 	select KVM_MMIO
@@ -46,7 +42,6 @@ config KVM
 	select KVM_XFER_TO_GUEST_WORK
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select KVM_VFIO
-	select INTERVAL_TREE
 	select HAVE_KVM_PM_NOTIFIER if PM
 	select KVM_GENERIC_HARDWARE_ENABLING
 	help
@@ -65,17 +60,30 @@ config KVM
 
 config KVM_WERROR
 	bool "Compile KVM with -Werror"
-	# KASAN may cause the build to fail due to larger frames
-	default y if X86_64 && !KASAN
-	# We use the dependency on !COMPILE_TEST to not be enabled
-	# blindly in allmodconfig or allyesconfig configurations
-	depends on KVM
-	depends on (X86_64 && !KASAN) || !COMPILE_TEST
-	depends on EXPERT
+	# Disallow KVM's -Werror if KASAN is enabled, e.g. to guard against
+	# randomized configs from selecting KVM_WERROR=y, which doesn't play
+	# nice with KASAN.  KASAN builds generates warnings for the default
+	# FRAME_WARN, i.e. KVM_WERROR=y with KASAN=y requires special tuning.
+	# Building KVM with -Werror and KASAN is still doable via enabling
+	# the kernel-wide WERROR=y.
+	depends on KVM && EXPERT && !KASAN
 	help
 	  Add -Werror to the build flags for KVM.
 
 	  If in doubt, say "N".
+
+config KVM_SW_PROTECTED_VM
+	bool "Enable support for KVM software-protected VMs"
+	depends on EXPERT
+	depends on KVM && X86_64
+	select KVM_GENERIC_PRIVATE_MEM
+	help
+	  Enable support for KVM software-protected VMs.  Currently, software-
+	  protected VMs are purely a development and testing vehicle for
+	  KVM_CREATE_GUEST_MEMFD.  Attempting to run a "real" VM workload as a
+	  software-protected VM will fail miserably.
+
+	  If unsure, say "N".
 
 config KVM_INTEL
 	tristate "KVM for Intel (and compatible) processors support"
@@ -110,10 +118,11 @@ config KVM_AMD
 	  will be called kvm-amd.
 
 config KVM_AMD_SEV
-	def_bool y
 	bool "AMD Secure Encrypted Virtualization (SEV) support"
+	default y
 	depends on KVM_AMD && X86_64
 	depends on CRYPTO_DEV_SP_PSP && !(KVM_AMD=y && CRYPTO_DEV_CCP_DD=m)
+	select ARCH_HAS_CC_PLATFORM
 	help
 	  Provides support for launching Encrypted VMs (SEV) and Encrypted VMs
 	  with Encrypted State (SEV-ES) on AMD processors.
@@ -128,6 +137,20 @@ config KVM_SMM
 	  firmware to implement UEFI secure boot.
 
 	  If unsure, say Y.
+
+config KVM_HYPERV
+	bool "Support for Microsoft Hyper-V emulation"
+	depends on KVM
+	default y
+	help
+	  Provides KVM support for emulating Microsoft Hyper-V.  This allows KVM
+	  to expose a subset of the paravirtualized interfaces defined in the
+	  Hyper-V Hypervisor Top-Level Functional Specification (TLFS):
+	  https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/tlfs
+	  These interfaces are required for the correct and performant functioning
+	  of Windows and Hyper-V guests on KVM.
+
+	  If unsure, say "Y".
 
 config KVM_XEN
 	bool "Support for Xen hypercall interface"
@@ -153,5 +176,16 @@ config KVM_PROVE_MMU
 
 config KVM_EXTERNAL_WRITE_TRACKING
 	bool
+
+config KVM_MAX_NR_VCPUS
+	int "Maximum number of vCPUs per KVM guest"
+	depends on KVM
+	range 1024 4096
+	default 4096 if MAXSMP
+	default 1024
+	help
+	  Set the maximum number of vCPUs per KVM guest. Larger values will increase
+	  the memory footprint of each KVM guest, regardless of how many vCPUs are
+	  created for a given VM.
 
 endif # VIRTUALIZATION

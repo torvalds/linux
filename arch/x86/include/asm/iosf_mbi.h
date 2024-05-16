@@ -111,7 +111,7 @@ int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask);
  * This function will block all kernel access to the PMIC I2C bus, so that the
  * P-Unit can safely access the PMIC over the shared I2C bus.
  *
- * Note on these systems the i2c-bus driver will request a sempahore from the
+ * Note on these systems the i2c-bus driver will request a semaphore from the
  * P-Unit for exclusive access to the PMIC bus when i2c drivers are accessing
  * it, but this does not appear to be sufficient, we still need to avoid making
  * certain P-Unit requests during the access window to avoid problems.

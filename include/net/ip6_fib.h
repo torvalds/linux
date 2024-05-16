@@ -30,12 +30,6 @@
 
 #define RT6_DEBUG 2
 
-#if RT6_DEBUG >= 3
-#define RT6_TRACE(x...) pr_debug(x)
-#else
-#define RT6_TRACE(x...) do { ; } while (0)
-#endif
-
 struct rt6_info;
 struct fib6_info;
 
@@ -250,16 +244,30 @@ static inline bool fib6_requires_src(const struct fib6_info *rt)
 	return rt->fib6_src.plen > 0;
 }
 
+/* The callers should hold f6i->fib6_table->tb6_lock if a route has ever
+ * been added to a table before.
+ */
+static inline void fib6_clean_expires(struct fib6_info *f6i)
+{
+	f6i->fib6_flags &= ~RTF_EXPIRES;
+	f6i->expires = 0;
+}
+
+/* The callers should hold f6i->fib6_table->tb6_lock if a route has ever
+ * been added to a table before.
+ */
+static inline void fib6_set_expires(struct fib6_info *f6i,
+				    unsigned long expires)
+{
+	f6i->expires = expires;
+	f6i->fib6_flags |= RTF_EXPIRES;
+}
+
 static inline bool fib6_check_expired(const struct fib6_info *f6i)
 {
 	if (f6i->fib6_flags & RTF_EXPIRES)
 		return time_after(jiffies, f6i->expires);
 	return false;
-}
-
-static inline bool fib6_has_expires(const struct fib6_info *f6i)
-{
-	return f6i->fib6_flags & RTF_EXPIRES;
 }
 
 /* Function to safely get fn->fn_sernum for passed in rt
@@ -328,8 +336,10 @@ static inline bool fib6_info_hold_safe(struct fib6_info *f6i)
 
 static inline void fib6_info_release(struct fib6_info *f6i)
 {
-	if (f6i && refcount_dec_and_test(&f6i->fib6_ref))
+	if (f6i && refcount_dec_and_test(&f6i->fib6_ref)) {
+		DEBUG_NET_WARN_ON_ONCE(!hlist_unhashed(&f6i->gc_link));
 		call_rcu(&f6i->rcu, fib6_info_destroy_rcu);
+	}
 }
 
 enum fib6_walk_state {
@@ -500,46 +510,36 @@ void fib6_gc_cleanup(void);
 
 int fib6_init(void);
 
-/* fib6_info must be locked by the caller, and fib6_info->fib6_table can be
- * NULL.
+/* Add the route to the gc list if it is not already there
+ *
+ * The callers should hold f6i->fib6_table->tb6_lock.
  */
-static inline void fib6_set_expires_locked(struct fib6_info *f6i,
-					   unsigned long expires)
+static inline void fib6_add_gc_list(struct fib6_info *f6i)
 {
-	struct fib6_table *tb6;
+	/* If fib6_node is null, the f6i is not in (or removed from) the
+	 * table.
+	 *
+	 * There is a gap between finding the f6i from the table and
+	 * calling this function without the protection of the tb6_lock.
+	 * This check makes sure the f6i is not added to the gc list when
+	 * it is not on the table.
+	 */
+	if (!rcu_dereference_protected(f6i->fib6_node,
+				       lockdep_is_held(&f6i->fib6_table->tb6_lock)))
+		return;
 
-	tb6 = f6i->fib6_table;
-	f6i->expires = expires;
-	if (tb6 && !fib6_has_expires(f6i))
-		hlist_add_head(&f6i->gc_link, &tb6->tb6_gc_hlist);
-	f6i->fib6_flags |= RTF_EXPIRES;
+	if (hlist_unhashed(&f6i->gc_link))
+		hlist_add_head(&f6i->gc_link, &f6i->fib6_table->tb6_gc_hlist);
 }
 
-/* fib6_info must be locked by the caller, and fib6_info->fib6_table can be
- * NULL.  If fib6_table is NULL, the fib6_info will no be inserted into the
- * list of GC candidates until it is inserted into a table.
+/* Remove the route from the gc list if it is on the list.
+ *
+ * The callers should hold f6i->fib6_table->tb6_lock.
  */
-static inline void fib6_set_expires(struct fib6_info *f6i,
-				    unsigned long expires)
+static inline void fib6_remove_gc_list(struct fib6_info *f6i)
 {
-	spin_lock_bh(&f6i->fib6_table->tb6_lock);
-	fib6_set_expires_locked(f6i, expires);
-	spin_unlock_bh(&f6i->fib6_table->tb6_lock);
-}
-
-static inline void fib6_clean_expires_locked(struct fib6_info *f6i)
-{
-	if (fib6_has_expires(f6i))
+	if (!hlist_unhashed(&f6i->gc_link))
 		hlist_del_init(&f6i->gc_link);
-	f6i->fib6_flags &= ~RTF_EXPIRES;
-	f6i->expires = 0;
-}
-
-static inline void fib6_clean_expires(struct fib6_info *f6i)
-{
-	spin_lock_bh(&f6i->fib6_table->tb6_lock);
-	fib6_clean_expires_locked(f6i);
-	spin_unlock_bh(&f6i->fib6_table->tb6_lock);
 }
 
 struct ipv6_route_iter {

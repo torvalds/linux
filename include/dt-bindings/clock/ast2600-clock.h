@@ -86,6 +86,7 @@
 #define ASPEED_CLK_MAC3RCLK		69
 #define ASPEED_CLK_MAC4RCLK		70
 #define ASPEED_CLK_I3C			71
+#define ASPEED_CLK_FSI			72
 
 /* Only list resets here that are not part of a clock gate + reset pair */
 #define ASPEED_RESET_ADC		55

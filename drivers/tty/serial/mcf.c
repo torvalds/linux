@@ -135,12 +135,12 @@ static void mcf_break_ctl(struct uart_port *port, int break_state)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	if (break_state == -1)
 		writeb(MCFUART_UCR_CMDBREAKSTART, port->membase + MCFUART_UCR);
 	else
 		writeb(MCFUART_UCR_CMDBREAKSTOP, port->membase + MCFUART_UCR);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /****************************************************************************/
@@ -150,7 +150,7 @@ static int mcf_startup(struct uart_port *port)
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Reset UART, get it into known state... */
 	writeb(MCFUART_UCR_CMDRESETRX, port->membase + MCFUART_UCR);
@@ -164,7 +164,7 @@ static int mcf_startup(struct uart_port *port)
 	pp->imr = MCFUART_UIR_RXREADY;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return 0;
 }
@@ -176,7 +176,7 @@ static void mcf_shutdown(struct uart_port *port)
 	struct mcf_uart *pp = container_of(port, struct mcf_uart, port);
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Disable all interrupts now */
 	pp->imr = 0;
@@ -186,7 +186,7 @@ static void mcf_shutdown(struct uart_port *port)
 	writeb(MCFUART_UCR_CMDRESETRX, port->membase + MCFUART_UCR);
 	writeb(MCFUART_UCR_CMDRESETTX, port->membase + MCFUART_UCR);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /****************************************************************************/
@@ -252,7 +252,7 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 		mr2 |= MCFUART_MR2_TXCTS;
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	if (port->rs485.flags & SER_RS485_ENABLED) {
 		dev_dbg(port->dev, "Setting UART to RS485\n");
 		mr2 |= MCFUART_MR2_TXRTS;
@@ -273,7 +273,7 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 		port->membase + MCFUART_UCSR);
 	writeb(MCFUART_UCR_RXENABLE | MCFUART_UCR_TXENABLE,
 		port->membase + MCFUART_UCR);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /****************************************************************************/
@@ -350,7 +350,7 @@ static irqreturn_t mcf_interrupt(int irq, void *data)
 
 	isr = readb(port->membase + MCFUART_UISR) & pp->imr;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 	if (isr & MCFUART_UIR_RXREADY) {
 		mcf_rx_chars(pp);
 		ret = IRQ_HANDLED;
@@ -359,7 +359,7 @@ static irqreturn_t mcf_interrupt(int irq, void *data)
 		mcf_tx_chars(pp);
 		ret = IRQ_HANDLED;
 	}
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return ret;
 }
@@ -468,33 +468,6 @@ static struct mcf_uart mcf_ports[4];
 
 /****************************************************************************/
 #if defined(CONFIG_SERIAL_MCF_CONSOLE)
-/****************************************************************************/
-
-int __init early_mcf_setup(struct mcf_platform_uart *platp)
-{
-	struct uart_port *port;
-	int i;
-
-	for (i = 0; ((i < MCF_MAXPORTS) && (platp[i].mapbase)); i++) {
-		port = &mcf_ports[i].port;
-
-		port->line = i;
-		port->type = PORT_MCF;
-		port->mapbase = platp[i].mapbase;
-		port->membase = (platp[i].membase) ? platp[i].membase :
-			(unsigned char __iomem *) port->mapbase;
-		port->iotype = SERIAL_IO_MEM;
-		port->irq = platp[i].irq;
-		port->uartclk = MCF_BUSCLK;
-		port->flags = UPF_BOOT_AUTOCONF;
-		port->rs485_config = mcf_config_rs485;
-		port->rs485_supported = mcf_rs485_supported;
-		port->ops = &mcf_uart_ops;
-	}
-
-	return 0;
-}
-
 /****************************************************************************/
 
 static void mcf_console_putc(struct console *co, const char c)
@@ -627,7 +600,7 @@ static int mcf_probe(struct platform_device *pdev)
 
 /****************************************************************************/
 
-static int mcf_remove(struct platform_device *pdev)
+static void mcf_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	int i;
@@ -637,15 +610,13 @@ static int mcf_remove(struct platform_device *pdev)
 		if (port)
 			uart_remove_one_port(&mcf_driver, port);
 	}
-
-	return 0;
 }
 
 /****************************************************************************/
 
 static struct platform_driver mcf_platform_driver = {
 	.probe		= mcf_probe,
-	.remove		= mcf_remove,
+	.remove_new	= mcf_remove,
 	.driver		= {
 		.name	= "mcfuart",
 	},

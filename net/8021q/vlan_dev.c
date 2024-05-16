@@ -504,28 +504,6 @@ static void vlan_dev_set_rx_mode(struct net_device *vlan_dev)
 	dev_uc_sync(vlan_dev_priv(vlan_dev)->real_dev, vlan_dev);
 }
 
-/*
- * vlan network devices have devices nesting below it, and are a special
- * "super class" of normal network devices; split their locks off into a
- * separate class since they always nest.
- */
-static struct lock_class_key vlan_netdev_xmit_lock_key;
-static struct lock_class_key vlan_netdev_addr_lock_key;
-
-static void vlan_dev_set_lockdep_one(struct net_device *dev,
-				     struct netdev_queue *txq,
-				     void *unused)
-{
-	lockdep_set_class(&txq->_xmit_lock, &vlan_netdev_xmit_lock_key);
-}
-
-static void vlan_dev_set_lockdep_class(struct net_device *dev)
-{
-	lockdep_set_class(&dev->addr_list_lock,
-			  &vlan_netdev_addr_lock_key);
-	netdev_for_each_tx_queue(dev, vlan_dev_set_lockdep_one, NULL);
-}
-
 static __be16 vlan_parse_protocol(const struct sk_buff *skb)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
@@ -559,7 +537,7 @@ static const struct header_ops vlan_passthru_header_ops = {
 	.parse_protocol = vlan_parse_protocol,
 };
 
-static struct device_type vlan_type = {
+static const struct device_type vlan_type = {
 	.name	= "vlan",
 };
 
@@ -627,7 +605,7 @@ static int vlan_dev_init(struct net_device *dev)
 
 	SET_NETDEV_DEVTYPE(dev, &vlan_type);
 
-	vlan_dev_set_lockdep_class(dev);
+	netdev_lockdep_set_classes(dev);
 
 	vlan->vlan_pcpu_stats = netdev_alloc_pcpu_stats(struct vlan_pcpu_stats);
 	if (!vlan->vlan_pcpu_stats)
@@ -702,20 +680,7 @@ static int vlan_ethtool_get_ts_info(struct net_device *dev,
 				    struct ethtool_ts_info *info)
 {
 	const struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
-	const struct ethtool_ops *ops = vlan->real_dev->ethtool_ops;
-	struct phy_device *phydev = vlan->real_dev->phydev;
-
-	if (phy_has_tsinfo(phydev)) {
-		return phy_ts_info(phydev, info);
-	} else if (ops->get_ts_info) {
-		return ops->get_ts_info(vlan->real_dev, info);
-	} else {
-		info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
-			SOF_TIMESTAMPING_SOFTWARE;
-		info->phc_index = -1;
-	}
-
-	return 0;
+	return ethtool_get_ts_info_by_layer(vlan->real_dev, info);
 }
 
 static void vlan_dev_get_stats64(struct net_device *dev,
@@ -797,9 +762,9 @@ static void vlan_dev_netpoll_cleanup(struct net_device *dev)
 
 static int vlan_dev_get_iflink(const struct net_device *dev)
 {
-	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
+	const struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
 
-	return real_dev->ifindex;
+	return READ_ONCE(real_dev->ifindex);
 }
 
 static int vlan_dev_fill_forward_path(struct net_device_path_ctx *ctx,

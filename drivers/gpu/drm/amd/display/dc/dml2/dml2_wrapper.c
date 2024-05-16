@@ -20,6 +20,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
 #include "display_mode_core.h"
@@ -74,6 +76,11 @@ static void map_hw_resources(struct dml2_context *dml2,
 			in_out_display_cfg->hw.DLGRefClkFreqMHz = 50;
 		}
 		for (j = 0; j < mode_support_info->DPPPerSurface[i]; j++) {
+			if (i >= __DML2_WRAPPER_MAX_STREAMS_PLANES__) {
+				dml_print("DML::%s: Index out of bounds: i=%d, __DML2_WRAPPER_MAX_STREAMS_PLANES__=%d\n",
+					  __func__, i, __DML2_WRAPPER_MAX_STREAMS_PLANES__);
+				break;
+			}
 			dml2->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_stream_id[num_pipes] = dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_stream_id[i];
 			dml2->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_stream_id_valid[num_pipes] = true;
 			dml2->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_plane_id[num_pipes] = dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_plane_id[i];
@@ -416,7 +423,7 @@ static int find_drr_eligible_stream(struct dc_state *display_state)
 	int i;
 
 	for (i = 0; i < display_state->stream_count; i++) {
-		if (display_state->streams[i]->mall_stream_config.type == SUBVP_NONE
+		if (dc_state_get_stream_subvp_type(display_state, display_state->streams[i]) == SUBVP_NONE
 			&& display_state->streams[i]->ignore_msa_timing_param) {
 			// Use ignore_msa_timing_param flag to identify as DRR
 			return i;
@@ -563,6 +570,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 	struct dml2_dcn_clocks out_clks;
 	unsigned int result = 0;
 	bool need_recalculation = false;
+	uint32_t cstate_enter_plus_exit_z8_ns;
 
 	if (!context || context->stream_count == 0)
 		return true;
@@ -632,12 +640,23 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 		dml2_extract_watermark_set(&context->bw_ctx.bw.dcn.watermarks.b, &dml2->v20.dml_core_ctx);
 		memcpy(&context->bw_ctx.bw.dcn.watermarks.c, &dml2->v20.g6_temp_read_watermark_set, sizeof(context->bw_ctx.bw.dcn.watermarks.c));
 		dml2_extract_watermark_set(&context->bw_ctx.bw.dcn.watermarks.d, &dml2->v20.dml_core_ctx);
+		dml2_extract_writeback_wm(context, &dml2->v20.dml_core_ctx);
+		//copy for deciding zstate use
+		context->bw_ctx.dml.vba.StutterPeriod = context->bw_ctx.dml2->v20.dml_core_ctx.mp.StutterPeriod;
+
+		cstate_enter_plus_exit_z8_ns = context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_z8_ns;
+
+		if (context->bw_ctx.dml.vba.StutterPeriod < in_dc->debug.minimum_z8_residency_time &&
+				cstate_enter_plus_exit_z8_ns < in_dc->debug.minimum_z8_residency_time * 1000)
+			cstate_enter_plus_exit_z8_ns = in_dc->debug.minimum_z8_residency_time * 1000;
+
+		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.cstate_enter_plus_exit_z8_ns = cstate_enter_plus_exit_z8_ns;
 	}
 
 	return result;
 }
 
-static bool dml2_validate_only(const struct dc_state *context)
+static bool dml2_validate_only(struct dc_state *context)
 {
 	struct dml2_context *dml2 = context->bw_ctx.dml2;
 	unsigned int result = 0;
@@ -672,13 +691,13 @@ static void dml2_apply_debug_options(const struct dc *dc, struct dml2_context *d
 	}
 }
 
-bool dml2_validate(const struct dc *in_dc, struct dc_state *context, bool fast_validate)
+bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2, bool fast_validate)
 {
 	bool out = false;
 
-	if (!(context->bw_ctx.dml2))
+	if (!dml2)
 		return false;
-	dml2_apply_debug_options(in_dc, context->bw_ctx.dml2);
+	dml2_apply_debug_options(in_dc, dml2);
 
 
 	/* Use dml_validate_only for fast_validate path */
@@ -689,13 +708,13 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, bool fast_v
 	return out;
 }
 
-bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
+static inline struct dml2_context *dml2_allocate_memory(void)
 {
-	// Allocate Mode Lib Ctx
-	*dml2 = (struct dml2_context *) kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
+	return (struct dml2_context *) kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
+}
 
-	if (!(*dml2))
-		return false;
+static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
+{
 
 	// Store config options
 	(*dml2)->config = *config;
@@ -723,9 +742,18 @@ bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options
 	initialize_dml2_soc_bbox(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.soc);
 
 	initialize_dml2_soc_states(*dml2, in_dc, &(*dml2)->v20.dml_core_ctx.soc, &(*dml2)->v20.dml_core_ctx.states);
+}
 
-	/*Initialize DML20 instance which calls dml2_core_create, and core_dcn3_populate_informative*/
-	//dml2_initialize_instance(&(*dml_ctx)->v20.dml_init);
+bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
+{
+	// Allocate Mode Lib Ctx
+	*dml2 = dml2_allocate_memory();
+
+	if (!(*dml2))
+		return false;
+
+	dml2_init(in_dc, config, dml2);
+
 	return true;
 }
 
@@ -742,4 +770,34 @@ void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 {
 	*fclk_change_support = (unsigned int) dml2->v20.dml_core_ctx.ms.support.FCLKChangeSupport[0];
 	*dram_clk_change_support = (unsigned int) dml2->v20.dml_core_ctx.ms.support.DRAMClockChangeSupport[0];
+}
+
+void dml2_copy(struct dml2_context *dst_dml2,
+	struct dml2_context *src_dml2)
+{
+	/* copy Mode Lib Ctx */
+	memcpy(dst_dml2, src_dml2, sizeof(struct dml2_context));
+}
+
+bool dml2_create_copy(struct dml2_context **dst_dml2,
+	struct dml2_context *src_dml2)
+{
+	/* Allocate Mode Lib Ctx */
+	*dst_dml2 = dml2_allocate_memory();
+
+	if (!(*dst_dml2))
+		return false;
+
+	/* copy Mode Lib Ctx */
+	dml2_copy(*dst_dml2, src_dml2);
+
+	return true;
+}
+
+void dml2_reinit(const struct dc *in_dc,
+				 const struct dml2_configuration_options *config,
+				 struct dml2_context **dml2)
+{
+
+	dml2_init(in_dc, config, dml2);
 }

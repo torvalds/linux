@@ -62,6 +62,11 @@ void xen_arch_unregister_cpu(int num);
 #ifdef CONFIG_PVH
 void __init xen_pvh_init(struct boot_params *boot_params);
 void __init mem_map_via_hcall(struct boot_params *boot_params_p);
+#ifdef CONFIG_XEN_PVH
+void __init xen_reserve_extra_memory(struct boot_params *bootp);
+#else
+static inline void xen_reserve_extra_memory(struct boot_params *bootp) { }
+#endif
 #endif
 
 /* Lazy mode for batching updates / context switch */
@@ -99,5 +104,14 @@ static inline void leave_lazy(enum xen_lazy_mode mode)
 }
 
 enum xen_lazy_mode xen_get_lazy_mode(void);
+
+#if defined(CONFIG_XEN_DOM0) && defined(CONFIG_ACPI)
+void xen_sanitize_proc_cap_bits(uint32_t *buf);
+#else
+static inline void xen_sanitize_proc_cap_bits(uint32_t *buf)
+{
+	BUG();
+}
+#endif
 
 #endif /* _ASM_X86_XEN_HYPERVISOR_H */

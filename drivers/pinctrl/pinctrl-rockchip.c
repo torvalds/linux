@@ -3429,7 +3429,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rockchip_pinctrl_remove(struct platform_device *pdev)
+static void rockchip_pinctrl_remove(struct platform_device *pdev)
 {
 	struct rockchip_pinctrl *info = platform_get_drvdata(pdev);
 	struct rockchip_pin_bank *bank;
@@ -3450,8 +3450,6 @@ static int rockchip_pinctrl_remove(struct platform_device *pdev)
 		}
 		mutex_unlock(&bank->deferred_lock);
 	}
-
-	return 0;
 }
 
 static struct rockchip_pin_bank px30_pin_banks[] = {
@@ -3982,7 +3980,7 @@ static const struct of_device_id rockchip_pinctrl_dt_match[] = {
 
 static struct platform_driver rockchip_pinctrl_driver = {
 	.probe		= rockchip_pinctrl_probe,
-	.remove		= rockchip_pinctrl_remove,
+	.remove_new	= rockchip_pinctrl_remove,
 	.driver = {
 		.name	= "rockchip-pinctrl",
 		.pm = &rockchip_pinctrl_dev_pm_ops,

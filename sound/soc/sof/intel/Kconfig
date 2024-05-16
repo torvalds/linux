@@ -98,7 +98,7 @@ config SND_SOC_SOF_MERRIFIELD
 config SND_SOC_SOF_INTEL_SKL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
-	select SND_SOC_SOF_INTEL_IPC4
+	select SND_SOC_SOF_IPC4
 
 config SND_SOC_SOF_SKYLAKE
 	tristate "SOF support for SkyLake"
@@ -124,7 +124,7 @@ config SND_SOC_SOF_INTEL_APL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_IPC3
-	select SND_SOC_SOF_INTEL_IPC4
+	select SND_SOC_SOF_IPC4
 
 config SND_SOC_SOF_APOLLOLAKE
 	tristate "SOF support for Apollolake"
@@ -151,7 +151,7 @@ config SND_SOC_SOF_INTEL_CNL
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
 	select SND_SOC_SOF_IPC3
-	select SND_SOC_SOF_INTEL_IPC4
+	select SND_SOC_SOF_IPC4
 
 config SND_SOC_SOF_CANNONLAKE
 	tristate "SOF support for Cannonlake"
@@ -187,7 +187,7 @@ config SND_SOC_SOF_INTEL_ICL
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
 	select SND_SOC_SOF_IPC3
-	select SND_SOC_SOF_INTEL_IPC4
+	select SND_SOC_SOF_IPC4
 
 config SND_SOC_SOF_ICELAKE
 	tristate "SOF support for Icelake"
@@ -214,7 +214,7 @@ config SND_SOC_SOF_INTEL_TGL
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
 	select SND_SOC_SOF_IPC3
-	select SND_SOC_SOF_INTEL_IPC4
+	select SND_SOC_SOF_IPC4
 
 config SND_SOC_SOF_TIGERLAKE
 	tristate "SOF support for Tigerlake"
@@ -250,7 +250,7 @@ config SND_SOC_SOF_INTEL_MTL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
-	select SND_SOC_SOF_INTEL_IPC4
+	select SND_SOC_SOF_IPC4
 
 config SND_SOC_SOF_METEORLAKE
 	tristate "SOF support for Meteorlake"
@@ -266,7 +266,7 @@ config SND_SOC_SOF_INTEL_LNL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
-	select SND_SOC_SOF_INTEL_IPC4
+	select SND_SOC_SOF_IPC4
 
 config SND_SOC_SOF_LUNARLAKE
 	tristate "SOF support for Lunarlake"

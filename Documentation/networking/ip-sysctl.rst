@@ -745,6 +745,13 @@ tcp_comp_sack_nr - INTEGER
 
 	Default : 44
 
+tcp_backlog_ack_defer - BOOLEAN
+	If set, user thread processing socket backlog tries sending
+	one ACK for the whole queue. This helps to avoid potential
+	long latencies at end of a TCP socket syscall.
+
+	Default : true
+
 tcp_slow_start_after_idle - BOOLEAN
 	If set, provide RFC2861 behavior and time out the congestion
 	window after an idle period.  An idle period is defined at
@@ -1175,6 +1182,19 @@ tcp_plb_cong_thresh - INTEGER
 	Possible Values: 0 - 256
 
 	Default: 128
+
+tcp_pingpong_thresh - INTEGER
+	The number of estimated data replies sent for estimated incoming data
+	requests that must happen before TCP considers that a connection is a
+	"ping-pong" (request-response) connection for which delayed
+	acknowledgments can provide benefits.
+
+	This threshold is 1 by default, but some applications may need a higher
+	threshold for optimal performance.
+
+	Possible Values: 1 - 255
+
+	Default: 1
 
 UDP variables
 =============
@@ -2304,6 +2324,17 @@ accept_ra_pinfo - BOOLEAN
 		- enabled if accept_ra is enabled.
 		- disabled if accept_ra is disabled.
 
+ra_honor_pio_life - BOOLEAN
+	Whether to use RFC4862 Section 5.5.3e to determine the valid
+	lifetime of an address matching a prefix sent in a Router
+	Advertisement Prefix Information Option.
+
+	- If enabled, the PIO valid lifetime will always be honored.
+	- If disabled, RFC4862 section 5.5.3e is used to determine
+	  the valid lifetime of the address.
+
+	Default: 0 (disabled)
+
 accept_ra_rt_info_min_plen - INTEGER
 	Minimum prefix length of Route Information in RA.
 
@@ -2471,12 +2502,18 @@ use_tempaddr - INTEGER
 		* -1 (for point-to-point devices and loopback devices)
 
 temp_valid_lft - INTEGER
-	valid lifetime (in seconds) for temporary addresses.
+	valid lifetime (in seconds) for temporary addresses. If less than the
+	minimum required lifetime (typically 5-7 seconds), temporary addresses
+	will not be created.
 
 	Default: 172800 (2 days)
 
 temp_prefered_lft - INTEGER
-	Preferred lifetime (in seconds) for temporary addresses.
+	Preferred lifetime (in seconds) for temporary addresses. If
+	temp_prefered_lft is less than the minimum required lifetime (typically
+	5-7 seconds), the preferred lifetime is the minimum required. If
+	temp_prefered_lft is greater than temp_valid_lft, the preferred lifetime
+	is temp_valid_lft.
 
 	Default: 86400 (1 day)
 
@@ -2497,6 +2534,16 @@ max_desync_factor - INTEGER
 	value is in seconds.
 
 	Default: 600
+
+regen_min_advance - INTEGER
+	How far in advance (in seconds), at minimum, to create a new temporary
+	address before the current one is deprecated. This value is added to
+	the amount of time that may be required for duplicate address detection
+	to determine when to create a new address. Linux permits setting this
+	value to less than the default of 2 seconds, but a value less than 2
+	does not conform to RFC 8981.
+
+	Default: 2
 
 regen_max_retry - INTEGER
 	Number of attempts before give up attempting to generate

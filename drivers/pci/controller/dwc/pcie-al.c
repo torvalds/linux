@@ -311,7 +311,7 @@ static int al_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops al_pcie_host_ops = {
-	.host_init = al_pcie_host_init,
+	.init = al_pcie_host_init,
 };
 
 static int al_pcie_probe(struct platform_device *pdev)

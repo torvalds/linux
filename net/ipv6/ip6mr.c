@@ -242,7 +242,7 @@ static int __net_init ip6mr_rules_init(struct net *net)
 		goto err1;
 	}
 
-	err = fib_default_rule_add(ops, 0x7fff, RT6_TABLE_DFLT, 0);
+	err = fib_default_rule_add(ops, 0x7fff, RT6_TABLE_DFLT);
 	if (err < 0)
 		goto err2;
 
@@ -1373,10 +1373,7 @@ int __init ip6_mr_init(void)
 {
 	int err;
 
-	mrt_cachep = kmem_cache_create("ip6_mrt_cache",
-				       sizeof(struct mfc6_cache),
-				       0, SLAB_HWCACHE_ALIGN,
-				       NULL);
+	mrt_cachep = KMEM_CACHE(mfc6_cache, SLAB_HWCACHE_ALIGN);
 	if (!mrt_cachep)
 		return -ENOMEM;
 
@@ -2595,7 +2592,9 @@ static int ip6mr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = cb->nlh;
-	struct fib_dump_filter filter = {};
+	struct fib_dump_filter filter = {
+		.rtnl_held = true,
+	};
 	int err;
 
 	if (cb->strict_check) {

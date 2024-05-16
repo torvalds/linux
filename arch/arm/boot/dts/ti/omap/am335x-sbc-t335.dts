@@ -2,7 +2,7 @@
 /*
  * am335x-sbc-t335.dts - Device Tree file for Compulab SBC-T335
  *
- * Copyright (C) 2014 - 2015 CompuLab Ltd. - http://www.compulab.co.il/
+ * Copyright (C) 2014 - 2015 CompuLab Ltd. - https://www.compulab.co.il/
  */
 
 #include "am335x-cm-t335.dts"

@@ -156,7 +156,7 @@ static void do_task(struct rxe_task *task)
 
 		default:
 			WARN_ON(1);
-			rxe_dbg_qp(task->qp, "unexpected task state = %d",
+			rxe_dbg_qp(task->qp, "unexpected task state = %d\n",
 				   task->state);
 			task->state = TASK_STATE_IDLE;
 		}
@@ -167,7 +167,7 @@ exit:
 			if (WARN_ON(task->num_done != task->num_sched))
 				rxe_dbg_qp(
 					task->qp,
-					"%ld tasks scheduled, %ld tasks done",
+					"%ld tasks scheduled, %ld tasks done\n",
 					task->num_sched, task->num_done);
 		}
 		spin_unlock_irqrestore(&task->lock, flags);

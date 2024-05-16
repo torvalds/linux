@@ -181,6 +181,17 @@ config BD957XMUF_WATCHDOG
 	  watchdog. Alternatively say M to compile the driver as a module,
 	  which will be called bd9576_wdt.
 
+config CROS_EC_WATCHDOG
+	tristate "ChromeOS EC-based watchdog"
+	select WATCHDOG_CORE
+	depends on CROS_EC
+	help
+	  Watchdog driver for Chromebook devices equipped with embedded controller.
+	  Trigger event is recorded in EC and checked on the subsequent boot.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_wdt.
+
 config DA9052_WATCHDOG
 	tristate "Dialog DA9052 Watchdog"
 	depends on PMIC_DA9052 || COMPILE_TEST
@@ -512,7 +523,6 @@ config S3C2410_WATCHDOG
 	tristate "S3C6410/S5Pv210/Exynos Watchdog"
 	depends on ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select WATCHDOG_CORE
-	select MFD_SYSCON if ARCH_EXYNOS
 	help
 	  Watchdog timer block in the Samsung S3C64xx, S5Pv210 and Exynos
 	  SoCs. This will reboot the system when the timer expires with
@@ -1287,7 +1297,7 @@ config INTEL_MID_WATCHDOG
 
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
-	depends on (X86 || IA64) && PCI
+	depends on X86 && PCI
 	select WATCHDOG_CORE
 	depends on I2C || I2C=n
 	depends on MFD_INTEL_PMC_BXT || !MFD_INTEL_PMC_BXT
@@ -1767,12 +1777,6 @@ config SIBYTE_WDOG
 
 	  To compile this driver as a loadable module, choose M here.
 	  The module will be called sb_wdog.
-
-config AR7_WDT
-	tristate "TI AR7 Watchdog Timer"
-	depends on AR7 || (MIPS && 32BIT && COMPILE_TEST)
-	help
-	  Hardware driver for the TI AR7 Watchdog Timer.
 
 config TXX9_WDT
 	tristate "Toshiba TXx9 Watchdog Timer"

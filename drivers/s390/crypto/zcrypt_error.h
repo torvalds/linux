@@ -98,17 +98,30 @@ static inline int convert_error(struct zcrypt_queue *zq,
 	case REP88_ERROR_MESSAGE_MALFORMD:	 /* 0x22 */
 	case REP88_ERROR_KEY_TYPE:		 /* 0x34 */
 		/* RY indicates malformed request */
-		ZCRYPT_DBF_WARN("%s dev=%02x.%04x RY=0x%02x => rc=EINVAL\n",
-				__func__, card, queue, ehdr->reply_code);
+		if (ehdr->reply_code == REP82_ERROR_FILTERED_BY_HYPERVISOR &&
+		    ehdr->type == TYPE86_RSP_CODE) {
+			struct {
+				struct type86_hdr hdr;
+				struct type86_fmt2_ext fmt2;
+			} __packed * head = reply->msg;
+			unsigned int apfs = *((u32 *)head->fmt2.apfs);
+
+			ZCRYPT_DBF_WARN("%s dev=%02x.%04x RY=0x%02x apfs=0x%x => rc=EINVAL\n",
+					__func__, card, queue,
+					ehdr->reply_code, apfs);
+		} else {
+			ZCRYPT_DBF_WARN("%s dev=%02x.%04x RY=0x%02x => rc=EINVAL\n",
+					__func__, card, queue,
+					ehdr->reply_code);
+		}
 		return -EINVAL;
 	case REP82_ERROR_MACHINE_FAILURE:	 /* 0x10 */
 	case REP82_ERROR_MESSAGE_TYPE:		 /* 0x20 */
 	case REP82_ERROR_TRANSPORT_FAIL:	 /* 0x90 */
 		/*
-		 * Msg to wrong type or card/infrastructure failure.
-		 * Trigger rescan of the ap bus, trigger retry request.
+		 * Msg to wrong type or card/infrastructure failure. Return
+		 * EAGAIN, the upper layer may do a retry on the request.
 		 */
-		atomic_set(&zcrypt_rescan_req, 1);
 		/* For type 86 response show the apfs value (failure reason) */
 		if (ehdr->reply_code == REP82_ERROR_TRANSPORT_FAIL &&
 		    ehdr->type == TYPE86_RSP_CODE) {

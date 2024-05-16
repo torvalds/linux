@@ -250,7 +250,7 @@ static void tcx_link_dealloc(struct bpf_link *link)
 
 static void tcx_link_fdinfo(const struct bpf_link *link, struct seq_file *seq)
 {
-	const struct tcx_link *tcx = tcx_link_const(link);
+	const struct tcx_link *tcx = tcx_link(link);
 	u32 ifindex = 0;
 
 	rtnl_lock();
@@ -267,7 +267,7 @@ static void tcx_link_fdinfo(const struct bpf_link *link, struct seq_file *seq)
 static int tcx_link_fill_info(const struct bpf_link *link,
 			      struct bpf_link_info *info)
 {
-	const struct tcx_link *tcx = tcx_link_const(link);
+	const struct tcx_link *tcx = tcx_link(link);
 	u32 ifindex = 0;
 
 	rtnl_lock();

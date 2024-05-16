@@ -56,10 +56,4 @@ struct dccg *dccg301_create(
 	const struct dccg_shift *dccg_shift,
 	const struct dccg_mask *dccg_mask);
 
-struct dccg *dccg301_create(
-	struct dc_context *ctx,
-	const struct dccg_registers *regs,
-	const struct dccg_shift *dccg_shift,
-	const struct dccg_mask *dccg_mask);
-
 #endif //__DCN301_DCCG_H__

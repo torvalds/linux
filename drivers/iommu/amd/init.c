@@ -30,6 +30,7 @@
 #include <asm/io_apic.h>
 #include <asm/irq_remapping.h>
 #include <asm/set_memory.h>
+#include <asm/sev.h>
 
 #include <linux/crash_dump.h>
 
@@ -82,8 +83,6 @@
 #define ACPI_DEVFLAG_LINT0              0x40
 #define ACPI_DEVFLAG_LINT1              0x80
 #define ACPI_DEVFLAG_ATSDIS             0x10000000
-
-#define LOOP_TIMEOUT	2000000
 
 #define IVRS_GET_SBDF_ID(seg, bus, dev, fn)	(((seg & 0xffff) << 16) | ((bus & 0xff) << 8) \
 						 | ((dev & 0x1f) << 3) | (fn & 0x7))
@@ -187,9 +186,6 @@ static int amd_iommus_present;
 bool amd_iommu_np_cache __read_mostly;
 bool amd_iommu_iotlb_sup __read_mostly = true;
 
-u32 amd_iommu_max_pasid __read_mostly = ~0;
-
-bool amd_iommu_v2_present __read_mostly;
 static bool amd_iommu_pc_present __read_mostly;
 bool amdr_ivrs_remap_support __read_mostly;
 
@@ -272,7 +268,7 @@ int amd_iommu_get_num_iommus(void)
  * Iterate through all the IOMMUs to get common EFR
  * masks among all IOMMUs and warn if found inconsistency.
  */
-static void get_global_efr(void)
+static __init void get_global_efr(void)
 {
 	struct amd_iommu *iommu;
 
@@ -302,16 +298,6 @@ static void get_global_efr(void)
 	}
 
 	pr_info("Using global IVHD EFR:%#llx, EFR2:%#llx\n", amd_iommu_efr, amd_iommu_efr2);
-}
-
-static bool check_feature_on_all_iommus(u64 mask)
-{
-	return !!(amd_iommu_efr & mask);
-}
-
-static inline int check_feature_gpt_level(void)
-{
-	return ((amd_iommu_efr >> FEATURE_GATS_SHIFT) & FEATURE_GATS_MASK);
 }
 
 /*
@@ -399,7 +385,7 @@ static void iommu_set_cwwb_range(struct amd_iommu *iommu)
 	u64 start = iommu_virt_to_phys((void *)iommu->cmd_sem);
 	u64 entry = start & PM_ADDR_MASK;
 
-	if (!check_feature_on_all_iommus(FEATURE_SNP))
+	if (!check_feature(FEATURE_SNP))
 		return;
 
 	/* Note:
@@ -869,7 +855,7 @@ static void *__init iommu_alloc_4k_pages(struct amd_iommu *iommu,
 	void *buf = (void *)__get_free_pages(gfp, order);
 
 	if (buf &&
-	    check_feature_on_all_iommus(FEATURE_SNP) &&
+	    check_feature(FEATURE_SNP) &&
 	    set_memory_4k((unsigned long)buf, (1 << order))) {
 		free_pages((unsigned long)buf, order);
 		buf = NULL;
@@ -985,14 +971,14 @@ static int iommu_ga_log_enable(struct amd_iommu *iommu)
 	iommu_feature_enable(iommu, CONTROL_GAINT_EN);
 	iommu_feature_enable(iommu, CONTROL_GALOG_EN);
 
-	for (i = 0; i < LOOP_TIMEOUT; ++i) {
+	for (i = 0; i < MMIO_STATUS_TIMEOUT; ++i) {
 		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
 		if (status & (MMIO_STATUS_GALOG_RUN_MASK))
 			break;
 		udelay(10);
 	}
 
-	if (WARN_ON(i >= LOOP_TIMEOUT))
+	if (WARN_ON(i >= MMIO_STATUS_TIMEOUT))
 		return -EINVAL;
 
 	return 0;
@@ -1048,7 +1034,7 @@ static void iommu_enable_xt(struct amd_iommu *iommu)
 
 static void iommu_enable_gt(struct amd_iommu *iommu)
 {
-	if (!iommu_feature(iommu, FEATURE_GT))
+	if (!check_feature(FEATURE_GT))
 		return;
 
 	iommu_feature_enable(iommu, CONTROL_GT_EN);
@@ -1987,7 +1973,7 @@ static void init_iommu_perf_ctr(struct amd_iommu *iommu)
 	u64 val;
 	struct pci_dev *pdev = iommu->dev;
 
-	if (!iommu_feature(iommu, FEATURE_PC))
+	if (!check_feature(FEATURE_PC))
 		return;
 
 	amd_iommu_pc_present = true;
@@ -2014,8 +2000,7 @@ static ssize_t amd_iommu_show_features(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct amd_iommu *iommu = dev_to_amd_iommu(dev);
-	return sysfs_emit(buf, "%llx:%llx\n", iommu->features2, iommu->features);
+	return sysfs_emit(buf, "%llx:%llx\n", amd_iommu_efr, amd_iommu_efr2);
 }
 static DEVICE_ATTR(features, S_IRUGO, amd_iommu_show_features, NULL);
 
@@ -2051,9 +2036,9 @@ static void __init late_iommu_features_init(struct amd_iommu *iommu)
 	features = readq(iommu->mmio_base + MMIO_EXT_FEATURES);
 	features2 = readq(iommu->mmio_base + MMIO_EXT_FEATURES2);
 
-	if (!iommu->features) {
-		iommu->features = features;
-		iommu->features2 = features2;
+	if (!amd_iommu_efr) {
+		amd_iommu_efr = features;
+		amd_iommu_efr2 = features2;
 		return;
 	}
 
@@ -2061,12 +2046,12 @@ static void __init late_iommu_features_init(struct amd_iommu *iommu)
 	 * Sanity check and warn if EFR values from
 	 * IVHD and MMIO conflict.
 	 */
-	if (features != iommu->features ||
-	    features2 != iommu->features2) {
+	if (features != amd_iommu_efr ||
+	    features2 != amd_iommu_efr2) {
 		pr_warn(FW_WARN
 			"EFR mismatch. Use IVHD EFR (%#llx : %#llx), EFR2 (%#llx : %#llx).\n",
-			features, iommu->features,
-			features2, iommu->features2);
+			features, amd_iommu_efr,
+			features2, amd_iommu_efr2);
 	}
 }
 
@@ -2084,6 +2069,9 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 	/* Prevent binding other PCI device drivers to IOMMU devices */
 	iommu->dev->match_driver = false;
 
+	/* ACPI _PRT won't have an IRQ for IOMMU */
+	iommu->dev->irq_managed = 1;
+
 	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_CAP_HDR_OFFSET,
 			      &iommu->cap);
 
@@ -2092,20 +2080,17 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 
 	late_iommu_features_init(iommu);
 
-	if (iommu_feature(iommu, FEATURE_GT)) {
+	if (check_feature(FEATURE_GT)) {
 		int glxval;
-		u32 max_pasid;
 		u64 pasmax;
 
-		pasmax = iommu->features & FEATURE_PASID_MASK;
+		pasmax = amd_iommu_efr & FEATURE_PASID_MASK;
 		pasmax >>= FEATURE_PASID_SHIFT;
-		max_pasid  = (1 << (pasmax + 1)) - 1;
+		iommu->iommu.max_pasids = (1 << (pasmax + 1)) - 1;
 
-		amd_iommu_max_pasid = min(amd_iommu_max_pasid, max_pasid);
+		BUG_ON(iommu->iommu.max_pasids & ~PASID_MASK);
 
-		BUG_ON(amd_iommu_max_pasid & ~PASID_MASK);
-
-		glxval   = iommu->features & FEATURE_GLXVAL_MASK;
+		glxval   = amd_iommu_efr & FEATURE_GLXVAL_MASK;
 		glxval >>= FEATURE_GLXVAL_SHIFT;
 
 		if (amd_iommu_max_glx_val == -1)
@@ -2114,13 +2099,7 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 			amd_iommu_max_glx_val = min(amd_iommu_max_glx_val, glxval);
 	}
 
-	if (iommu_feature(iommu, FEATURE_GT) &&
-	    iommu_feature(iommu, FEATURE_PPR)) {
-		iommu->is_iommu_v2   = true;
-		amd_iommu_v2_present = true;
-	}
-
-	if (iommu_feature(iommu, FEATURE_PPR) && alloc_ppr_log(iommu))
+	if (check_feature(FEATURE_PPR) && alloc_ppr_log(iommu))
 		return -ENOMEM;
 
 	if (iommu->cap & (1UL << IOMMU_CAP_NPCACHE)) {
@@ -2132,12 +2111,9 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 	init_iommu_perf_ctr(iommu);
 
 	if (amd_iommu_pgtable == AMD_IOMMU_V2) {
-		if (!iommu_feature(iommu, FEATURE_GIOSUP) ||
-		    !iommu_feature(iommu, FEATURE_GT)) {
+		if (!check_feature(FEATURE_GIOSUP) ||
+		    !check_feature(FEATURE_GT)) {
 			pr_warn("Cannot enable v2 page table for DMA-API. Fallback to v1.\n");
-			amd_iommu_pgtable = AMD_IOMMU_V1;
-		} else if (iommu_default_passthrough()) {
-			pr_warn("V2 page table doesn't support passthrough mode. Fallback to v1.\n");
 			amd_iommu_pgtable = AMD_IOMMU_V1;
 		}
 	}
@@ -2186,35 +2162,29 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 
 static void print_iommu_info(void)
 {
+	int i;
 	static const char * const feat_str[] = {
 		"PreF", "PPR", "X2APIC", "NX", "GT", "[5]",
 		"IA", "GA", "HE", "PC"
 	};
-	struct amd_iommu *iommu;
 
-	for_each_iommu(iommu) {
-		struct pci_dev *pdev = iommu->dev;
-		int i;
+	if (amd_iommu_efr) {
+		pr_info("Extended features (%#llx, %#llx):", amd_iommu_efr, amd_iommu_efr2);
 
-		pci_info(pdev, "Found IOMMU cap 0x%x\n", iommu->cap_ptr);
-
-		if (iommu->cap & (1 << IOMMU_CAP_EFR)) {
-			pr_info("Extended features (%#llx, %#llx):", iommu->features, iommu->features2);
-
-			for (i = 0; i < ARRAY_SIZE(feat_str); ++i) {
-				if (iommu_feature(iommu, (1ULL << i)))
-					pr_cont(" %s", feat_str[i]);
-			}
-
-			if (iommu->features & FEATURE_GAM_VAPIC)
-				pr_cont(" GA_vAPIC");
-
-			if (iommu->features & FEATURE_SNP)
-				pr_cont(" SNP");
-
-			pr_cont("\n");
+		for (i = 0; i < ARRAY_SIZE(feat_str); ++i) {
+			if (check_feature(1ULL << i))
+				pr_cont(" %s", feat_str[i]);
 		}
+
+		if (check_feature(FEATURE_GAM_VAPIC))
+			pr_cont(" GA_vAPIC");
+
+		if (check_feature(FEATURE_SNP))
+			pr_cont(" SNP");
+
+		pr_cont("\n");
 	}
+
 	if (irq_remapping_enabled) {
 		pr_info("Interrupt remapping enabled\n");
 		if (amd_iommu_xt_mode == IRQ_REMAP_X2APIC_MODE)
@@ -2257,7 +2227,7 @@ static int __init amd_iommu_init_pci(void)
 		init_device_table_dma(pci_seg);
 
 	for_each_iommu(iommu)
-		iommu_flush_all_caches(iommu);
+		amd_iommu_flush_all_caches(iommu);
 
 	print_iommu_info();
 
@@ -2803,11 +2773,12 @@ static void early_enable_iommu(struct amd_iommu *iommu)
 	iommu_enable_command_buffer(iommu);
 	iommu_enable_event_buffer(iommu);
 	iommu_set_exclusion_range(iommu);
+	iommu_enable_gt(iommu);
 	iommu_enable_ga(iommu);
 	iommu_enable_xt(iommu);
 	iommu_enable_irtcachedis(iommu);
 	iommu_enable(iommu);
-	iommu_flush_all_caches(iommu);
+	amd_iommu_flush_all_caches(iommu);
 }
 
 /*
@@ -2859,11 +2830,12 @@ static void early_enable_iommus(void)
 			iommu_disable_irtcachedis(iommu);
 			iommu_enable_command_buffer(iommu);
 			iommu_enable_event_buffer(iommu);
+			iommu_enable_gt(iommu);
 			iommu_enable_ga(iommu);
 			iommu_enable_xt(iommu);
 			iommu_enable_irtcachedis(iommu);
 			iommu_set_device_table(iommu);
-			iommu_flush_all_caches(iommu);
+			amd_iommu_flush_all_caches(iommu);
 		}
 	}
 }
@@ -2872,10 +2844,8 @@ static void enable_iommus_v2(void)
 {
 	struct amd_iommu *iommu;
 
-	for_each_iommu(iommu) {
+	for_each_iommu(iommu)
 		iommu_enable_ppr_log(iommu);
-		iommu_enable_gt(iommu);
-	}
 }
 
 static void enable_iommus_vapic(void)
@@ -2900,19 +2870,19 @@ static void enable_iommus_vapic(void)
 		 * Need to set and poll check the GALOGRun bit to zero before
 		 * we can set/ modify GA Log registers safely.
 		 */
-		for (i = 0; i < LOOP_TIMEOUT; ++i) {
+		for (i = 0; i < MMIO_STATUS_TIMEOUT; ++i) {
 			status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
 			if (!(status & MMIO_STATUS_GALOG_RUN_MASK))
 				break;
 			udelay(10);
 		}
 
-		if (WARN_ON(i >= LOOP_TIMEOUT))
+		if (WARN_ON(i >= MMIO_STATUS_TIMEOUT))
 			return;
 	}
 
 	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) &&
-	    !check_feature_on_all_iommus(FEATURE_GAM_VAPIC)) {
+	    !check_feature(FEATURE_GAM_VAPIC)) {
 		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
 		return;
 	}
@@ -3255,6 +3225,39 @@ out:
 	return true;
 }
 
+static void iommu_snp_enable(void)
+{
+#ifdef CONFIG_KVM_AMD_SEV
+	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
+		return;
+	/*
+	 * The SNP support requires that IOMMU must be enabled, and is
+	 * configured with V1 page table (DTE[Mode] = 0 is not supported).
+	 */
+	if (no_iommu || iommu_default_passthrough()) {
+		pr_warn("SNP: IOMMU disabled or configured in passthrough mode, SNP cannot be supported.\n");
+		goto disable_snp;
+	}
+
+	if (amd_iommu_pgtable != AMD_IOMMU_V1) {
+		pr_warn("SNP: IOMMU is configured with V2 page table mode, SNP cannot be supported.\n");
+		goto disable_snp;
+	}
+
+	amd_iommu_snp_en = check_feature(FEATURE_SNP);
+	if (!amd_iommu_snp_en) {
+		pr_warn("SNP: IOMMU SNP feature not enabled, SNP cannot be supported.\n");
+		goto disable_snp;
+	}
+
+	pr_info("IOMMU SNP support enabled.\n");
+	return;
+
+disable_snp:
+	cc_platform_clear(CC_ATTR_HOST_SEV_SNP);
+#endif
+}
+
 /****************************************************************************
  *
  * AMD IOMMU Initialization State Machine
@@ -3290,6 +3293,7 @@ static int __init state_next(void)
 		break;
 	case IOMMU_ENABLED:
 		register_syscore_ops(&amd_iommu_syscore_ops);
+		iommu_snp_enable();
 		ret = amd_iommu_init_pci();
 		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_PCI_INIT;
 		break;
@@ -3327,7 +3331,7 @@ static int __init state_next(void)
 				uninit_device_table_dma(pci_seg);
 
 			for_each_iommu(iommu)
-				iommu_flush_all_caches(iommu);
+				amd_iommu_flush_all_caches(iommu);
 		}
 	}
 	return ret;
@@ -3698,9 +3702,8 @@ bool amd_iommu_v2_supported(void)
 	 * (i.e. EFR[SNPSup]=1), IOMMUv2 page table cannot be used without
 	 * setting up IOMMUv1 page table.
 	 */
-	return amd_iommu_v2_present && !amd_iommu_snp_en;
+	return amd_iommu_gt_ppr_supported() && !amd_iommu_snp_en;
 }
-EXPORT_SYMBOL(amd_iommu_v2_supported);
 
 struct amd_iommu *get_amd_iommu(unsigned int idx)
 {
@@ -3729,13 +3732,11 @@ u8 amd_iommu_pc_get_max_banks(unsigned int idx)
 
 	return 0;
 }
-EXPORT_SYMBOL(amd_iommu_pc_get_max_banks);
 
 bool amd_iommu_pc_supported(void)
 {
 	return amd_iommu_pc_present;
 }
-EXPORT_SYMBOL(amd_iommu_pc_supported);
 
 u8 amd_iommu_pc_get_max_counters(unsigned int idx)
 {
@@ -3746,7 +3747,6 @@ u8 amd_iommu_pc_get_max_counters(unsigned int idx)
 
 	return 0;
 }
-EXPORT_SYMBOL(amd_iommu_pc_get_max_counters);
 
 static int iommu_pc_get_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr,
 				u8 fxn, u64 *value, bool is_write)
@@ -3802,40 +3802,85 @@ int amd_iommu_pc_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr, u8 fxn, u64 
 	return iommu_pc_get_set_reg(iommu, bank, cntr, fxn, value, true);
 }
 
-#ifdef CONFIG_AMD_MEM_ENCRYPT
-int amd_iommu_snp_enable(void)
+#ifdef CONFIG_KVM_AMD_SEV
+static int iommu_page_make_shared(void *page)
 {
-	/*
-	 * The SNP support requires that IOMMU must be enabled, and is
-	 * not configured in the passthrough mode.
-	 */
-	if (no_iommu || iommu_default_passthrough()) {
-		pr_err("SNP: IOMMU is disabled or configured in passthrough mode, SNP cannot be supported");
-		return -EINVAL;
+	unsigned long paddr, pfn;
+
+	paddr = iommu_virt_to_phys(page);
+	/* Cbit maybe set in the paddr */
+	pfn = __sme_clr(paddr) >> PAGE_SHIFT;
+
+	if (!(pfn % PTRS_PER_PMD)) {
+		int ret, level;
+		bool assigned;
+
+		ret = snp_lookup_rmpentry(pfn, &assigned, &level);
+		if (ret) {
+			pr_warn("IOMMU PFN %lx RMP lookup failed, ret %d\n", pfn, ret);
+			return ret;
+		}
+
+		if (!assigned) {
+			pr_warn("IOMMU PFN %lx not assigned in RMP table\n", pfn);
+			return -EINVAL;
+		}
+
+		if (level > PG_LEVEL_4K) {
+			ret = psmash(pfn);
+			if (!ret)
+				goto done;
+
+			pr_warn("PSMASH failed for IOMMU PFN %lx huge RMP entry, ret: %d, level: %d\n",
+				pfn, ret, level);
+			return ret;
+		}
 	}
 
-	/*
-	 * Prevent enabling SNP after IOMMU_ENABLED state because this process
-	 * affect how IOMMU driver sets up data structures and configures
-	 * IOMMU hardware.
-	 */
-	if (init_state > IOMMU_ENABLED) {
-		pr_err("SNP: Too late to enable SNP for IOMMU.\n");
-		return -EINVAL;
-	}
+done:
+	return rmp_make_shared(pfn, PG_LEVEL_4K);
+}
 
-	amd_iommu_snp_en = check_feature_on_all_iommus(FEATURE_SNP);
-	if (!amd_iommu_snp_en)
-		return -EINVAL;
+static int iommu_make_shared(void *va, size_t size)
+{
+	void *page;
+	int ret;
 
-	pr_info("SNP enabled\n");
+	if (!va)
+		return 0;
 
-	/* Enforce IOMMU v1 pagetable when SNP is enabled. */
-	if (amd_iommu_pgtable != AMD_IOMMU_V1) {
-		pr_warn("Force to using AMD IOMMU v1 page table due to SNP\n");
-		amd_iommu_pgtable = AMD_IOMMU_V1;
+	for (page = va; page < (va + size); page += PAGE_SIZE) {
+		ret = iommu_page_make_shared(page);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
 }
+
+int amd_iommu_snp_disable(void)
+{
+	struct amd_iommu *iommu;
+	int ret;
+
+	if (!amd_iommu_snp_en)
+		return 0;
+
+	for_each_iommu(iommu) {
+		ret = iommu_make_shared(iommu->evt_buf, EVT_BUFFER_SIZE);
+		if (ret)
+			return ret;
+
+		ret = iommu_make_shared(iommu->ppr_log, PPR_LOG_SIZE);
+		if (ret)
+			return ret;
+
+		ret = iommu_make_shared((void *)iommu->cmd_sem, PAGE_SIZE);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(amd_iommu_snp_disable);
 #endif

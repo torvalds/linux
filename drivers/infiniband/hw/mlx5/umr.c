@@ -332,8 +332,8 @@ static int mlx5r_umr_post_send_wait(struct mlx5_ib_dev *dev, u32 mkey,
 
 		WARN_ON_ONCE(1);
 		mlx5_ib_warn(dev,
-			"reg umr failed (%u). Trying to recover and resubmit the flushed WQEs\n",
-			umr_context.status);
+			"reg umr failed (%u). Trying to recover and resubmit the flushed WQEs, mkey = %u\n",
+			umr_context.status, mkey);
 		mutex_lock(&umrc->lock);
 		err = mlx5r_umr_recover(dev);
 		mutex_unlock(&umrc->lock);

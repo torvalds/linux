@@ -3,7 +3,7 @@
  * Driver for Zarlink ZL10036 DVB-S silicon tuner
  *
  * Copyright (C) 2006 Tino Reichardt
- * Copyright (C) 2007-2009 Matthias Schwarzott <zzam@gentoo.de>
+ * Copyright (C) 2007-2009 Matthias Schwarzott <zzam@gentoo.org>
  */
 
 #ifndef DVB_ZL10036_H

@@ -9,13 +9,8 @@ Intel(R) Management Engine Interface (Intel(R) MEI)
 **Copyright** |copy| 2019 Intel Corporation
 
 
-.. only:: html
-
-   .. class:: toc-title
-
-        Table of Contents
-
 .. toctree::
+   :caption: Table of Contents
    :maxdepth: 3
 
    mei

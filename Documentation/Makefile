@@ -97,6 +97,22 @@ quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4)
 		cp $(if $(patsubst /%,,$(DOCS_CSS)),$(abspath $(srctree)/$(DOCS_CSS)),$(DOCS_CSS)) $(BUILDDIR)/$3/_static/; \
 	fi
 
+YNL_INDEX:=$(srctree)/Documentation/networking/netlink_spec/index.rst
+YNL_RST_DIR:=$(srctree)/Documentation/networking/netlink_spec
+YNL_YAML_DIR:=$(srctree)/Documentation/netlink/specs
+YNL_TOOL:=$(srctree)/tools/net/ynl/ynl-gen-rst.py
+
+YNL_RST_FILES_TMP := $(patsubst %.yaml,%.rst,$(wildcard $(YNL_YAML_DIR)/*.yaml))
+YNL_RST_FILES := $(patsubst $(YNL_YAML_DIR)%,$(YNL_RST_DIR)%, $(YNL_RST_FILES_TMP))
+
+$(YNL_INDEX): $(YNL_RST_FILES)
+	$(Q)$(YNL_TOOL) -o $@ -x
+
+$(YNL_RST_DIR)/%.rst: $(YNL_YAML_DIR)/%.yaml $(YNL_TOOL)
+	$(Q)$(YNL_TOOL) -i $< -o $@
+
+htmldocs texinfodocs latexdocs epubdocs xmldocs: $(YNL_INDEX)
+
 htmldocs:
 	@$(srctree)/scripts/sphinx-pre-install --version-check
 	@+$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,html,$(var),,$(var)))
@@ -162,6 +178,7 @@ refcheckdocs:
 	$(Q)cd $(srctree);scripts/documentation-file-ref-check
 
 cleandocs:
+	$(Q)rm -f $(YNL_INDEX) $(YNL_RST_FILES)
 	$(Q)rm -rf $(BUILDDIR)
 	$(Q)$(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/userspace-api/media clean
 

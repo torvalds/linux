@@ -1249,7 +1249,7 @@ static ssize_t dp_sdp_message_debugfs_write(struct file *f, const char __user *b
 				 size_t size, loff_t *pos)
 {
 	int r;
-	uint8_t data[36];
+	uint8_t data[36] = {0};
 	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
 	struct dm_crtc_state *acrtc_state;
 	uint32_t write_size = 36;
@@ -1483,7 +1483,7 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 	const uint32_t rd_buf_size = 10;
 	struct pipe_ctx *pipe_ctx;
 	ssize_t result = 0;
-	int i, r, str_len = 30;
+	int i, r, str_len = 10;
 
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
@@ -2936,7 +2936,7 @@ static int psr_read_residency(void *data, u64 *val)
 {
 	struct amdgpu_dm_connector *connector = data;
 	struct dc_link *link = connector->dc_link;
-	u32 residency;
+	u32 residency = 0;
 
 	link->dc->link_srv->edp_get_psr_residency(link, &residency);
 
@@ -2970,6 +2970,132 @@ static int allow_edp_hotplug_detection_set(void *data, u64 val)
 
 	return 0;
 }
+
+/* check if kernel disallow eDP enter psr state
+ * cat /sys/kernel/debug/dri/0/eDP-X/disallow_edp_enter_psr
+ * 0: allow edp enter psr; 1: disallow
+ */
+static int disallow_edp_enter_psr_get(void *data, u64 *val)
+{
+	struct amdgpu_dm_connector *aconnector = data;
+
+	*val = (u64) aconnector->disallow_edp_enter_psr;
+	return 0;
+}
+
+/* set kernel disallow eDP enter psr state
+ * echo 0x0 /sys/kernel/debug/dri/0/eDP-X/disallow_edp_enter_psr
+ * 0: allow edp enter psr; 1: disallow
+ *
+ * usage: test app read crc from PSR eDP rx.
+ *
+ * during kernel boot up, kernel write dpcd 0x170 = 5.
+ * this notify eDP rx psr enable and let rx check crc.
+ * rx fw will start checking crc for rx internal logic.
+ * crc read count within dpcd 0x246 is not updated and
+ * value is 0. when eDP tx driver wants to read rx crc
+ * from dpcd 0x246, 0x270, read count 0 lead tx driver
+ * timeout.
+ *
+ * to avoid this, we add this debugfs to let test app to disbable
+ * rx crc checking for rx internal logic. then test app can read
+ * non-zero crc read count.
+ *
+ * expected app sequence is as below:
+ * 1. disable eDP PHY and notify eDP rx with dpcd 0x600 = 2.
+ * 2. echo 0x1 /sys/kernel/debug/dri/0/eDP-X/disallow_edp_enter_psr
+ * 3. enable eDP PHY and notify eDP rx with dpcd 0x600 = 1 but
+ *    without dpcd 0x170 = 5.
+ * 4. read crc from rx dpcd 0x270, 0x246, etc.
+ * 5. echo 0x0 /sys/kernel/debug/dri/0/eDP-X/disallow_edp_enter_psr.
+ *    this will let eDP back to normal with psr setup dpcd 0x170 = 5.
+ */
+static int disallow_edp_enter_psr_set(void *data, u64 val)
+{
+	struct amdgpu_dm_connector *aconnector = data;
+
+	aconnector->disallow_edp_enter_psr = val ? true : false;
+	return 0;
+}
+
+static int dmub_trace_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+	struct dmub_srv *srv = adev->dm.dc->ctx->dmub_srv->dmub;
+	enum dmub_gpint_command cmd;
+	u64 mask = 0xffff;
+	u8 shift = 0;
+	u32 res;
+	int i;
+
+	if (!srv->fw_version)
+		return -EINVAL;
+
+	for (i = 0;  i < 4; i++) {
+		res = (val & mask) >> shift;
+
+		switch (i) {
+		case 0:
+			cmd = DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD0;
+			break;
+		case 1:
+			cmd = DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD1;
+			break;
+		case 2:
+			cmd = DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD2;
+			break;
+		case 3:
+			cmd = DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD3;
+			break;
+		}
+
+		if (!dc_wake_and_execute_gpint(adev->dm.dc->ctx, cmd, res, NULL, DM_DMUB_WAIT_TYPE_WAIT))
+			return -EIO;
+
+		usleep_range(100, 1000);
+
+		mask <<= 16;
+		shift += 16;
+	}
+
+	return 0;
+}
+
+static int dmub_trace_mask_show(void *data, u64 *val)
+{
+	enum dmub_gpint_command cmd = DMUB_GPINT__GET_TRACE_BUFFER_MASK_WORD0;
+	struct amdgpu_device *adev = data;
+	struct dmub_srv *srv = adev->dm.dc->ctx->dmub_srv->dmub;
+	u8 shift = 0;
+	u64 raw = 0;
+	u64 res = 0;
+	int i = 0;
+
+	if (!srv->fw_version)
+		return -EINVAL;
+
+	while (i < 4) {
+		uint32_t response;
+
+		if (!dc_wake_and_execute_gpint(adev->dm.dc->ctx, cmd, 0, &response, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+			return -EIO;
+
+		raw = response;
+		usleep_range(100, 1000);
+
+		cmd++;
+		res |= (raw << shift);
+		shift += 16;
+		i++;
+	}
+
+	*val = res;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(dmub_trace_mask_fops, dmub_trace_mask_show,
+			 dmub_trace_mask_set, "0x%llx\n");
 
 /*
  * Set dmcub trace event IRQ enable or disable.
@@ -3012,6 +3138,10 @@ DEFINE_DEBUGFS_ATTRIBUTE(psr_residency_fops, psr_read_residency, NULL,
 DEFINE_DEBUGFS_ATTRIBUTE(allow_edp_hotplug_detection_fops,
 			allow_edp_hotplug_detection_get,
 			allow_edp_hotplug_detection_set, "%llu\n");
+
+DEFINE_DEBUGFS_ATTRIBUTE(disallow_edp_enter_psr_fops,
+			disallow_edp_enter_psr_get,
+			disallow_edp_enter_psr_set, "%llu\n");
 
 DEFINE_SHOW_ATTRIBUTE(current_backlight);
 DEFINE_SHOW_ATTRIBUTE(target_backlight);
@@ -3186,6 +3316,8 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 					&edp_ilr_debugfs_fops);
 		debugfs_create_file("allow_edp_hotplug_detection", 0644, dir, connector,
 					&allow_edp_hotplug_detection_fops);
+		debugfs_create_file("disallow_edp_enter_psr", 0644, dir, connector,
+					&disallow_edp_enter_psr_fops);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(connector_debugfs_entries); i++) {
@@ -3645,14 +3777,22 @@ static int capabilities_show(struct seq_file *m, void *unused)
 	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
 	struct dc *dc = adev->dm.dc;
 	bool mall_supported = dc->caps.mall_size_total;
+	bool subvp_supported = dc->caps.subvp_fw_processing_delay_us;
 	unsigned int mall_in_use = false;
+	unsigned int subvp_in_use = false;
+
 	struct hubbub *hubbub = dc->res_pool->hubbub;
 
 	if (hubbub->funcs->get_mall_en)
 		hubbub->funcs->get_mall_en(hubbub, &mall_in_use);
 
+	if (dc->cap_funcs.get_subvp_en)
+		subvp_in_use = dc->cap_funcs.get_subvp_en(dc, dc->current_state);
+
 	seq_printf(m, "mall supported: %s, enabled: %s\n",
 			   mall_supported ? "yes" : "no", mall_in_use ? "yes" : "no");
+	seq_printf(m, "sub-viewport supported: %s, enabled: %s\n",
+			   subvp_supported ? "yes" : "no", subvp_in_use ? "yes" : "no");
 
 	return 0;
 }
@@ -3875,6 +4015,9 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 
 	debugfs_create_file_unsafe("amdgpu_dm_force_timing_sync", 0644, root,
 				   adev, &force_timing_sync_ops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_dmub_trace_mask", 0644, root,
+				   adev, &dmub_trace_mask_fops);
 
 	debugfs_create_file_unsafe("amdgpu_dm_dmcub_trace_event_en", 0644, root,
 				   adev, &dmcub_trace_event_state_fops);

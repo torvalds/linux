@@ -21,7 +21,7 @@ unsafe fn krealloc_aligned(ptr: *mut u8, new_layout: Layout, flags: bindings::gf
 
     let mut size = layout.size();
 
-    if layout.align() > bindings::BINDINGS_ARCH_SLAB_MINALIGN {
+    if layout.align() > bindings::ARCH_SLAB_MINALIGN {
         // The alignment requirement exceeds the slab guarantee, thus try to enlarge the size
         // to use the "power-of-two" size/alignment guarantee (see comments in `kmalloc()` for
         // more information).
@@ -35,7 +35,7 @@ unsafe fn krealloc_aligned(ptr: *mut u8, new_layout: Layout, flags: bindings::gf
     // - `ptr` is either null or a pointer returned from a previous `k{re}alloc()` by the
     //   function safety requirement.
     // - `size` is greater than 0 since it's either a `layout.size()` (which cannot be zero
-    //    according to the function safety requirement) or a result from `next_power_of_two()`.
+    //   according to the function safety requirement) or a result from `next_power_of_two()`.
     unsafe { bindings::krealloc(ptr as *const core::ffi::c_void, size, flags) as *mut u8 }
 }
 

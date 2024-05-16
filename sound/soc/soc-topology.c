@@ -1706,14 +1706,14 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	/*
 	 * Many topology are assuming link has Codec / Platform, and
 	 * these might be overwritten at soc_tplg_dai_link_load().
-	 * Don't use &asoc_dummy_dlc here.
+	 * Don't use &snd_soc_dummy_dlc here.
 	 */
-	link->codecs		= &dlc[1];	/* Don't use &asoc_dummy_dlc here */
+	link->codecs		= &dlc[1];	/* Don't use &snd_soc_dummy_dlc here */
 	link->codecs->name	= "snd-soc-dummy";
 	link->codecs->dai_name	= "snd-soc-dummy-dai";
 	link->num_codecs	= 1;
 
-	link->platforms		= &dlc[2];	/* Don't use &asoc_dummy_dlc here */
+	link->platforms		= &dlc[2];	/* Don't use &snd_soc_dummy_dlc here */
 	link->platforms->name	= "snd-soc-dummy";
 	link->num_platforms	= 1;
 

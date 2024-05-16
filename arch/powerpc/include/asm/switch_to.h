@@ -48,6 +48,10 @@ static inline void disable_kernel_fp(void)
 #else
 static inline void save_fpu(struct task_struct *t) { }
 static inline void flush_fp_to_thread(struct task_struct *t) { }
+static inline void enable_kernel_fp(void)
+{
+	BUILD_BUG();
+}
 #endif
 
 #ifdef CONFIG_ALTIVEC

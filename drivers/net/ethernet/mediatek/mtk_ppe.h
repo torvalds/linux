@@ -88,13 +88,13 @@ enum {
 #define MTK_FOE_WINFO_BSS_V3		GENMASK(23, 16)
 #define MTK_FOE_WINFO_WCID_V3		GENMASK(15, 0)
 
-#define MTK_FOE_WINFO_PAO_USR_INFO	GENMASK(15, 0)
-#define MTK_FOE_WINFO_PAO_TID		GENMASK(19, 16)
-#define MTK_FOE_WINFO_PAO_IS_FIXEDRATE	BIT(20)
-#define MTK_FOE_WINFO_PAO_IS_PRIOR	BIT(21)
-#define MTK_FOE_WINFO_PAO_IS_SP		BIT(22)
-#define MTK_FOE_WINFO_PAO_HF		BIT(23)
-#define MTK_FOE_WINFO_PAO_AMSDU_EN	BIT(24)
+#define MTK_FOE_WINFO_AMSDU_USR_INFO	GENMASK(15, 0)
+#define MTK_FOE_WINFO_AMSDU_TID		GENMASK(19, 16)
+#define MTK_FOE_WINFO_AMSDU_IS_FIXEDRATE	BIT(20)
+#define MTK_FOE_WINFO_AMSDU_IS_PRIOR	BIT(21)
+#define MTK_FOE_WINFO_AMSDU_IS_SP	BIT(22)
+#define MTK_FOE_WINFO_AMSDU_HF		BIT(23)
+#define MTK_FOE_WINFO_AMSDU_EN		BIT(24)
 
 enum {
 	MTK_FOE_STATE_INVALID,
@@ -123,7 +123,7 @@ struct mtk_foe_mac_info {
 
 	/* netsys_v3 */
 	u32 w3info;
-	u32 wpao;
+	u32 amsdu;
 };
 
 /* software-only entry type */
@@ -392,7 +392,8 @@ int mtk_foe_entry_set_vlan(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 int mtk_foe_entry_set_pppoe(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 			    int sid);
 int mtk_foe_entry_set_wdma(struct mtk_eth *eth, struct mtk_foe_entry *entry,
-			   int wdma_idx, int txq, int bss, int wcid);
+			   int wdma_idx, int txq, int bss, int wcid,
+			   bool amsdu_en);
 int mtk_foe_entry_set_queue(struct mtk_eth *eth, struct mtk_foe_entry *entry,
 			    unsigned int queue);
 int mtk_foe_entry_commit(struct mtk_ppe *ppe, struct mtk_flow_entry *entry);

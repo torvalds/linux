@@ -33,7 +33,7 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
-#include <linux/string_helpers.h>
+#include <linux/string_choices.h>
 #include <linux/units.h>
 
 #include <linux/iio/buffer.h>

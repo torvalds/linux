@@ -423,6 +423,59 @@ static noinline void check_cmpxchg(struct xarray *xa)
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
 
+static noinline void check_cmpxchg_order(struct xarray *xa)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	void *FIVE = xa_mk_value(5);
+	unsigned int i, order = 3;
+
+	XA_BUG_ON(xa, xa_store_order(xa, 0, order, FIVE, GFP_KERNEL));
+
+	/* Check entry FIVE has the order saved */
+	XA_BUG_ON(xa, xa_get_order(xa, xa_to_value(FIVE)) != order);
+
+	/* Check all the tied indexes have the same entry and order */
+	for (i = 0; i < (1 << order); i++) {
+		XA_BUG_ON(xa, xa_load(xa, i) != FIVE);
+		XA_BUG_ON(xa, xa_get_order(xa, i) != order);
+	}
+
+	/* Ensure that nothing is stored at index '1 << order' */
+	XA_BUG_ON(xa, xa_load(xa, 1 << order) != NULL);
+
+	/*
+	 * Additionally, keep the node information and the order at
+	 * '1 << order'
+	 */
+	XA_BUG_ON(xa, xa_store_order(xa, 1 << order, order, FIVE, GFP_KERNEL));
+	for (i = (1 << order); i < (1 << order) + (1 << order) - 1; i++) {
+		XA_BUG_ON(xa, xa_load(xa, i) != FIVE);
+		XA_BUG_ON(xa, xa_get_order(xa, i) != order);
+	}
+
+	/* Conditionally replace FIVE entry at index '0' with NULL */
+	XA_BUG_ON(xa, xa_cmpxchg(xa, 0, FIVE, NULL, GFP_KERNEL) != FIVE);
+
+	/* Verify the order is lost at FIVE (and old) entries */
+	XA_BUG_ON(xa, xa_get_order(xa, xa_to_value(FIVE)) != 0);
+
+	/* Verify the order and entries are lost in all the tied indexes */
+	for (i = 0; i < (1 << order); i++) {
+		XA_BUG_ON(xa, xa_load(xa, i) != NULL);
+		XA_BUG_ON(xa, xa_get_order(xa, i) != 0);
+	}
+
+	/* Verify node and order are kept at '1 << order' */
+	for (i = (1 << order); i < (1 << order) + (1 << order) - 1; i++) {
+		XA_BUG_ON(xa, xa_load(xa, i) != FIVE);
+		XA_BUG_ON(xa, xa_get_order(xa, i) != order);
+	}
+
+	xa_store_order(xa, 0, BITS_PER_LONG - 1, NULL, GFP_KERNEL);
+	XA_BUG_ON(xa, !xa_empty(xa));
+#endif
+}
+
 static noinline void check_reserve(struct xarray *xa)
 {
 	void *entry;
@@ -670,6 +723,181 @@ static noinline void check_multi_store(struct xarray *xa)
 	for (i = 1; i < 20; i++) {
 		check_multi_store_3(xa, 0, i);
 		check_multi_store_3(xa, 1UL << i, i);
+	}
+#endif
+}
+
+#ifdef CONFIG_XARRAY_MULTI
+/* mimics page cache __filemap_add_folio() */
+static noinline void check_xa_multi_store_adv_add(struct xarray *xa,
+						  unsigned long index,
+						  unsigned int order,
+						  void *p)
+{
+	XA_STATE(xas, xa, index);
+	unsigned int nrpages = 1UL << order;
+
+	/* users are responsible for index alignemnt to the order when adding */
+	XA_BUG_ON(xa, index & (nrpages - 1));
+
+	xas_set_order(&xas, index, order);
+
+	do {
+		xas_lock_irq(&xas);
+
+		xas_store(&xas, p);
+		XA_BUG_ON(xa, xas_error(&xas));
+		XA_BUG_ON(xa, xa_load(xa, index) != p);
+
+		xas_unlock_irq(&xas);
+	} while (xas_nomem(&xas, GFP_KERNEL));
+
+	XA_BUG_ON(xa, xas_error(&xas));
+}
+
+/* mimics page_cache_delete() */
+static noinline void check_xa_multi_store_adv_del_entry(struct xarray *xa,
+							unsigned long index,
+							unsigned int order)
+{
+	XA_STATE(xas, xa, index);
+
+	xas_set_order(&xas, index, order);
+	xas_store(&xas, NULL);
+	xas_init_marks(&xas);
+}
+
+static noinline void check_xa_multi_store_adv_delete(struct xarray *xa,
+						     unsigned long index,
+						     unsigned int order)
+{
+	xa_lock_irq(xa);
+	check_xa_multi_store_adv_del_entry(xa, index, order);
+	xa_unlock_irq(xa);
+}
+
+/* mimics page cache filemap_get_entry() */
+static noinline void *test_get_entry(struct xarray *xa, unsigned long index)
+{
+	XA_STATE(xas, xa, index);
+	void *p;
+	static unsigned int loops = 0;
+
+	rcu_read_lock();
+repeat:
+	xas_reset(&xas);
+	p = xas_load(&xas);
+	if (xas_retry(&xas, p))
+		goto repeat;
+	rcu_read_unlock();
+
+	/*
+	 * This is not part of the page cache, this selftest is pretty
+	 * aggressive and does not want to trust the xarray API but rather
+	 * test it, and for order 20 (4 GiB block size) we can loop over
+	 * over a million entries which can cause a soft lockup. Page cache
+	 * APIs won't be stupid, proper page cache APIs loop over the proper
+	 * order so when using a larger order we skip shared entries.
+	 */
+	if (++loops % XA_CHECK_SCHED == 0)
+		schedule();
+
+	return p;
+}
+
+static unsigned long some_val = 0xdeadbeef;
+static unsigned long some_val_2 = 0xdeaddead;
+
+/* mimics the page cache usage */
+static noinline void check_xa_multi_store_adv(struct xarray *xa,
+					      unsigned long pos,
+					      unsigned int order)
+{
+	unsigned int nrpages = 1UL << order;
+	unsigned long index, base, next_index, next_next_index;
+	unsigned int i;
+
+	index = pos >> PAGE_SHIFT;
+	base = round_down(index, nrpages);
+	next_index = round_down(base + nrpages, nrpages);
+	next_next_index = round_down(next_index + nrpages, nrpages);
+
+	check_xa_multi_store_adv_add(xa, base, order, &some_val);
+
+	for (i = 0; i < nrpages; i++)
+		XA_BUG_ON(xa, test_get_entry(xa, base + i) != &some_val);
+
+	XA_BUG_ON(xa, test_get_entry(xa, next_index) != NULL);
+
+	/* Use order 0 for the next item */
+	check_xa_multi_store_adv_add(xa, next_index, 0, &some_val_2);
+	XA_BUG_ON(xa, test_get_entry(xa, next_index) != &some_val_2);
+
+	/* Remove the next item */
+	check_xa_multi_store_adv_delete(xa, next_index, 0);
+
+	/* Now use order for a new pointer */
+	check_xa_multi_store_adv_add(xa, next_index, order, &some_val_2);
+
+	for (i = 0; i < nrpages; i++)
+		XA_BUG_ON(xa, test_get_entry(xa, next_index + i) != &some_val_2);
+
+	check_xa_multi_store_adv_delete(xa, next_index, order);
+	check_xa_multi_store_adv_delete(xa, base, order);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	/* starting fresh again */
+
+	/* let's test some holes now */
+
+	/* hole at base and next_next */
+	check_xa_multi_store_adv_add(xa, next_index, order, &some_val_2);
+
+	for (i = 0; i < nrpages; i++)
+		XA_BUG_ON(xa, test_get_entry(xa, base + i) != NULL);
+
+	for (i = 0; i < nrpages; i++)
+		XA_BUG_ON(xa, test_get_entry(xa, next_index + i) != &some_val_2);
+
+	for (i = 0; i < nrpages; i++)
+		XA_BUG_ON(xa, test_get_entry(xa, next_next_index + i) != NULL);
+
+	check_xa_multi_store_adv_delete(xa, next_index, order);
+	XA_BUG_ON(xa, !xa_empty(xa));
+
+	/* hole at base and next */
+
+	check_xa_multi_store_adv_add(xa, next_next_index, order, &some_val_2);
+
+	for (i = 0; i < nrpages; i++)
+		XA_BUG_ON(xa, test_get_entry(xa, base + i) != NULL);
+
+	for (i = 0; i < nrpages; i++)
+		XA_BUG_ON(xa, test_get_entry(xa, next_index + i) != NULL);
+
+	for (i = 0; i < nrpages; i++)
+		XA_BUG_ON(xa, test_get_entry(xa, next_next_index + i) != &some_val_2);
+
+	check_xa_multi_store_adv_delete(xa, next_next_index, order);
+	XA_BUG_ON(xa, !xa_empty(xa));
+}
+#endif
+
+static noinline void check_multi_store_advanced(struct xarray *xa)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	unsigned int max_order = IS_ENABLED(CONFIG_XARRAY_MULTI) ? 20 : 1;
+	unsigned long end = ULONG_MAX/2;
+	unsigned long pos, i;
+
+	/*
+	 * About 117 million tests below.
+	 */
+	for (pos = 7; pos < end; pos = (pos * pos) + 564) {
+		for (i = 0; i < max_order; i++) {
+			check_xa_multi_store_adv(xa, pos, i);
+			check_xa_multi_store_adv(xa, pos + 157, i);
+		}
 	}
 #endif
 }
@@ -1801,9 +2029,11 @@ static int xarray_checks(void)
 	check_xas_erase(&array);
 	check_insert(&array);
 	check_cmpxchg(&array);
+	check_cmpxchg_order(&array);
 	check_reserve(&array);
 	check_reserve(&xa0);
 	check_multi_store(&array);
+	check_multi_store_advanced(&array);
 	check_get_order(&array);
 	check_xa_alloc();
 	check_find(&array);

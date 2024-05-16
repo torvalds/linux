@@ -39,7 +39,7 @@ static inline struct nf_conn_labels *nf_ct_labels_ext_add(struct nf_conn *ct)
 #ifdef CONFIG_NF_CONNTRACK_LABELS
 	struct net *net = nf_ct_net(ct);
 
-	if (net->ct.labels_used == 0)
+	if (atomic_read(&net->ct.labels_used) == 0)
 		return NULL;
 
 	return nf_ct_ext_add(ct, NF_CT_EXT_LABELS, GFP_ATOMIC);

@@ -12,15 +12,14 @@
  */
 
 #include <linux/raid/pq.h>
-#include <asm/fpu/api.h>
-#include <asm/vx-insn.h>
+#include <asm/fpu.h>
 
 #define NSIZE 16
 
-static inline void LOAD_CONST(void)
+static __always_inline void LOAD_CONST(void)
 {
-	asm volatile("VREPIB %v24,7");
-	asm volatile("VREPIB %v25,0x1d");
+	fpu_vrepib(24, 0x07);
+	fpu_vrepib(25, 0x1d);
 }
 
 /*
@@ -28,10 +27,7 @@ static inline void LOAD_CONST(void)
  * vector register y left by 1 bit and stores the result in
  * vector register x.
  */
-static inline void SHLBYTE(int x, int y)
-{
-	asm volatile ("VAB %0,%1,%1" : : "i" (x), "i" (y));
-}
+#define SHLBYTE(x, y)		fpu_vab(x, y, y)
 
 /*
  * For each of the 16 bytes in the vector register y the MASK()
@@ -39,49 +35,17 @@ static inline void SHLBYTE(int x, int y)
  * or 0x00 if the high bit is 0. The result is stored in vector
  * register x.
  */
-static inline void MASK(int x, int y)
-{
-	asm volatile ("VESRAVB	%0,%1,24" : : "i" (x), "i" (y));
-}
+#define MASK(x, y)		fpu_vesravb(x, y, 24)
 
-static inline void AND(int x, int y, int z)
-{
-	asm volatile ("VN %0,%1,%2" : : "i" (x), "i" (y), "i" (z));
-}
-
-static inline void XOR(int x, int y, int z)
-{
-	asm volatile ("VX %0,%1,%2" : : "i" (x), "i" (y), "i" (z));
-}
-
-static inline void LOAD_DATA(int x, u8 *ptr)
-{
-	typedef struct { u8 _[16 * $#]; } addrtype;
-	register addrtype *__ptr asm("1") = (addrtype *) ptr;
-
-	asm volatile ("VLM %2,%3,0,%1"
-		      : : "m" (*__ptr), "a" (__ptr), "i" (x),
-			  "i" (x + $# - 1));
-}
-
-static inline void STORE_DATA(int x, u8 *ptr)
-{
-	typedef struct { u8 _[16 * $#]; } addrtype;
-	register addrtype *__ptr asm("1") = (addrtype *) ptr;
-
-	asm volatile ("VSTM %2,%3,0,1"
-		      : "=m" (*__ptr) : "a" (__ptr), "i" (x),
-			"i" (x + $# - 1));
-}
-
-static inline void COPY_VEC(int x, int y)
-{
-	asm volatile ("VLR %0,%1" : : "i" (x), "i" (y));
-}
+#define AND(x, y, z)		fpu_vn(x, y, z)
+#define XOR(x, y, z)		fpu_vx(x, y, z)
+#define LOAD_DATA(x, ptr)	fpu_vlm(x, x + $# - 1, ptr)
+#define STORE_DATA(x, ptr)	fpu_vstm(x, x + $# - 1, ptr)
+#define COPY_VEC(x, y)		fpu_vlr(x, y)
 
 static void raid6_s390vx$#_gen_syndrome(int disks, size_t bytes, void **ptrs)
 {
-	struct kernel_fpu vxstate;
+	DECLARE_KERNEL_FPU_ONSTACK32(vxstate);
 	u8 **dptr, *p, *q;
 	int d, z, z0;
 
@@ -114,7 +78,7 @@ static void raid6_s390vx$#_gen_syndrome(int disks, size_t bytes, void **ptrs)
 static void raid6_s390vx$#_xor_syndrome(int disks, int start, int stop,
 					size_t bytes, void **ptrs)
 {
-	struct kernel_fpu vxstate;
+	DECLARE_KERNEL_FPU_ONSTACK32(vxstate);
 	u8 **dptr, *p, *q;
 	int d, z, z0;
 
@@ -158,7 +122,7 @@ static void raid6_s390vx$#_xor_syndrome(int disks, int start, int stop,
 
 static int raid6_s390vx$#_valid(void)
 {
-	return MACHINE_HAS_VX;
+	return cpu_has_vx();
 }
 
 const struct raid6_calls raid6_s390vx$# = {

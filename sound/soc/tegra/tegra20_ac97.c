@@ -12,12 +12,11 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -39,11 +38,15 @@ static void tegra20_ac97_codec_reset(struct snd_ac97 *ac97)
 	u32 readback;
 	unsigned long timeout;
 
-	/* reset line is not driven by DAC pad group, have to toggle GPIO */
-	gpio_set_value(workdata->reset_gpio, 0);
+	/*
+	 * The reset line is not driven by DAC pad group, have to toggle GPIO.
+	 * The RESET line is active low but this is abstracted by the GPIO
+	 * library.
+	 */
+	gpiod_set_value(workdata->reset_gpio, 1);
 	udelay(2);
 
-	gpio_set_value(workdata->reset_gpio, 1);
+	gpiod_set_value(workdata->reset_gpio, 0);
 	udelay(2);
 
 	timeout = jiffies + msecs_to_jiffies(100);
@@ -66,14 +69,10 @@ static void tegra20_ac97_codec_warm_reset(struct snd_ac97 *ac97)
 	 * the controller cmd is not working, have to toggle sync line
 	 * manually.
 	 */
-	gpio_request(workdata->sync_gpio, "codec-sync");
-
-	gpio_direction_output(workdata->sync_gpio, 1);
-
+	gpiod_direction_output(workdata->sync_gpio, 1);
 	udelay(2);
-	gpio_set_value(workdata->sync_gpio, 0);
+	gpiod_set_value(workdata->sync_gpio, 0);
 	udelay(2);
-	gpio_free(workdata->sync_gpio);
 
 	timeout = jiffies + msecs_to_jiffies(100);
 
@@ -342,28 +341,26 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 		goto err_clk_put;
 	}
 
-	ac97->reset_gpio = of_get_named_gpio(pdev->dev.of_node,
-					     "nvidia,codec-reset-gpio", 0);
-	if (gpio_is_valid(ac97->reset_gpio)) {
-		ret = devm_gpio_request_one(&pdev->dev, ac97->reset_gpio,
-					    GPIOF_OUT_INIT_HIGH, "codec-reset");
-		if (ret) {
-			dev_err(&pdev->dev, "could not get codec-reset GPIO\n");
-			goto err_clk_put;
-		}
-	} else {
-		dev_err(&pdev->dev, "no codec-reset GPIO supplied\n");
-		ret = -EINVAL;
+	/* Obtain RESET de-asserted */
+	ac97->reset_gpio = devm_gpiod_get(&pdev->dev,
+					  "nvidia,codec-reset",
+					  GPIOD_OUT_LOW);
+	if (IS_ERR(ac97->reset_gpio)) {
+		ret = PTR_ERR(ac97->reset_gpio);
+		dev_err(&pdev->dev, "no RESET GPIO supplied: %d\n", ret);
 		goto err_clk_put;
 	}
+	gpiod_set_consumer_name(ac97->reset_gpio, "codec-reset");
 
-	ac97->sync_gpio = of_get_named_gpio(pdev->dev.of_node,
-					    "nvidia,codec-sync-gpio", 0);
-	if (!gpio_is_valid(ac97->sync_gpio)) {
-		dev_err(&pdev->dev, "no codec-sync GPIO supplied\n");
-		ret = -EINVAL;
+	ac97->sync_gpio = devm_gpiod_get(&pdev->dev,
+					 "nvidia,codec-sync",
+					 GPIOD_OUT_LOW);
+	if (IS_ERR(ac97->sync_gpio)) {
+		ret = PTR_ERR(ac97->sync_gpio);
+		dev_err(&pdev->dev, "no codec-sync GPIO supplied: %d\n", ret);
 		goto err_clk_put;
 	}
+	gpiod_set_consumer_name(ac97->sync_gpio, "codec-sync");
 
 	ac97->capture_dma_data.addr = mem->start + TEGRA20_AC97_FIFO_RX1;
 	ac97->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;

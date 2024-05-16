@@ -28,8 +28,8 @@
 #include <linux/cpu.h>
 #include <linux/entry-common.h>
 #include <asm/asm-extable.h>
-#include <asm/fpu/api.h>
 #include <asm/vtime.h>
+#include <asm/fpu.h>
 #include "entry.h"
 
 static inline void __user *get_trap_ip(struct pt_regs *regs)
@@ -43,10 +43,12 @@ static inline void __user *get_trap_ip(struct pt_regs *regs)
 	return (void __user *) (address - (regs->int_code >> 16));
 }
 
+#ifdef CONFIG_GENERIC_BUG
 int is_valid_bugaddr(unsigned long addr)
 {
 	return 1;
 }
+#endif
 
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 {
@@ -193,14 +195,14 @@ static void vector_exception(struct pt_regs *regs)
 {
 	int si_code, vic;
 
-	if (!MACHINE_HAS_VX) {
+	if (!cpu_has_vx()) {
 		do_trap(regs, SIGILL, ILL_ILLOPN, "illegal operation");
 		return;
 	}
 
 	/* get vector interrupt code from fpc */
-	save_fpu_regs();
-	vic = (current->thread.fpu.fpc & 0xf00) >> 8;
+	save_user_fpu_regs();
+	vic = (current->thread.ufpu.fpc & 0xf00) >> 8;
 	switch (vic) {
 	case 1: /* invalid vector operation */
 		si_code = FPE_FLTINV;
@@ -225,9 +227,9 @@ static void vector_exception(struct pt_regs *regs)
 
 static void data_exception(struct pt_regs *regs)
 {
-	save_fpu_regs();
-	if (current->thread.fpu.fpc & FPC_DXC_MASK)
-		do_fp_trap(regs, current->thread.fpu.fpc);
+	save_user_fpu_regs();
+	if (current->thread.ufpu.fpc & FPC_DXC_MASK)
+		do_fp_trap(regs, current->thread.ufpu.fpc);
 	else
 		do_trap(regs, SIGILL, ILL_ILLOPN, "data exception");
 }
@@ -286,6 +288,17 @@ static void __init test_monitor_call(void)
 
 void __init trap_init(void)
 {
+	unsigned long flags;
+	struct ctlreg cr0;
+
+	local_irq_save(flags);
+	cr0 = local_ctl_clear_bit(0, CR0_LOW_ADDRESS_PROTECTION_BIT);
+	psw_bits(S390_lowcore.external_new_psw).mcheck = 1;
+	psw_bits(S390_lowcore.program_new_psw).mcheck = 1;
+	psw_bits(S390_lowcore.svc_new_psw).mcheck = 1;
+	psw_bits(S390_lowcore.io_new_psw).mcheck = 1;
+	local_ctl_load(0, &cr0);
+	local_irq_restore(flags);
 	local_mcck_enable();
 	test_monitor_call();
 }

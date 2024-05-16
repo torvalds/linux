@@ -405,9 +405,10 @@ static int queue_setup(struct vb2_queue *vq,
 {
 	struct video_i2c_data *data = vb2_get_drv_priv(vq);
 	unsigned int size = data->chip->buffer_size;
+	unsigned int q_num_bufs = vb2_get_num_buffers(vq);
 
-	if (vq->num_buffers + *nbuffers < 2)
-		*nbuffers = 2;
+	if (q_num_bufs + *nbuffers < 2)
+		*nbuffers = 2 - q_num_bufs;
 
 	if (*nplanes)
 		return sizes[0] < size ? -EINVAL : 0;
@@ -759,7 +760,6 @@ static void video_i2c_release(struct video_device *vdev)
 
 static int video_i2c_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct video_i2c_data *data;
 	struct v4l2_device *v4l2_dev;
 	struct vb2_queue *queue;
@@ -769,11 +769,8 @@ static int video_i2c_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	if (dev_fwnode(&client->dev))
-		data->chip = device_get_match_data(&client->dev);
-	else if (id)
-		data->chip = &video_i2c_chip[id->driver_data];
-	else
+	data->chip = i2c_get_match_data(client);
+	if (!data->chip)
 		goto error_free_device;
 
 	data->regmap = regmap_init_i2c(client, data->chip->regmap_config);
@@ -798,7 +795,7 @@ static int video_i2c_probe(struct i2c_client *client)
 	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	queue->drv_priv = data;
 	queue->buf_struct_size = sizeof(struct video_i2c_buffer);
-	queue->min_buffers_needed = 1;
+	queue->min_queued_buffers = 1;
 	queue->ops = &video_i2c_video_qops;
 	queue->mem_ops = &vb2_vmalloc_memops;
 
@@ -940,8 +937,8 @@ static const struct dev_pm_ops video_i2c_pm_ops = {
 };
 
 static const struct i2c_device_id video_i2c_id_table[] = {
-	{ "amg88xx", AMG88XX },
-	{ "mlx90640", MLX90640 },
+	{ "amg88xx", (kernel_ulong_t)&video_i2c_chip[AMG88XX] },
+	{ "mlx90640", (kernel_ulong_t)&video_i2c_chip[MLX90640] },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, video_i2c_id_table);

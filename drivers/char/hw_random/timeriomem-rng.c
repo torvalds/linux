@@ -174,13 +174,11 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int timeriomem_rng_remove(struct platform_device *pdev)
+static void timeriomem_rng_remove(struct platform_device *pdev)
 {
 	struct timeriomem_rng_private *priv = platform_get_drvdata(pdev);
 
 	hrtimer_cancel(&priv->timer);
-
-	return 0;
 }
 
 static const struct of_device_id timeriomem_rng_match[] = {
@@ -195,7 +193,7 @@ static struct platform_driver timeriomem_rng_driver = {
 		.of_match_table	= timeriomem_rng_match,
 	},
 	.probe		= timeriomem_rng_probe,
-	.remove		= timeriomem_rng_remove,
+	.remove_new	= timeriomem_rng_remove,
 };
 
 module_platform_driver(timeriomem_rng_driver);

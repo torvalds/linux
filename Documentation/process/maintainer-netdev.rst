@@ -193,9 +193,23 @@ Review timelines
 Generally speaking, the patches get triaged quickly (in less than
 48h). But be patient, if your patch is active in patchwork (i.e. it's
 listed on the project's patch list) the chances it was missed are close to zero.
-Asking the maintainer for status updates on your
-patch is a good way to ensure your patch is ignored or pushed to the
-bottom of the priority list.
+
+The high volume of development on netdev makes reviewers move on
+from discussions relatively quickly. New comments and replies
+are very unlikely to arrive after a week of silence. If a patch
+is no longer active in patchwork and the thread went idle for more
+than a week - clarify the next steps and/or post the next version.
+
+For RFC postings specifically, if nobody responded in a week - reviewers
+either missed the posting or have no strong opinions. If the code is ready,
+repost as a PATCH.
+
+Emails saying just "ping" or "bump" are considered rude. If you can't figure
+out the status of the patch from patchwork or where the discussion has
+landed - describe your best guess and ask if it's correct. For example::
+
+  I don't understand what the next steps are. Person X seems to be unhappy
+  with A, should I do B and repost the patches?
 
 .. _Changes requested:
 
@@ -417,7 +431,7 @@ patchwork checks
 Checks in patchwork are mostly simple wrappers around existing kernel
 scripts, the sources are available at:
 
-https://github.com/kuba-moo/nipa/tree/master/tests
+https://github.com/linux-netdev/nipa/tree/master/tests
 
 **Do not** post your patches just to run them through the checks.
 You must ensure that your patches are ready by testing them locally
@@ -440,6 +454,21 @@ in a way which would break what would normally be considered uAPI.
 ``netdevsim`` is reserved for use by upstream tests only, so any
 new ``netdevsim`` features must be accompanied by selftests under
 ``tools/testing/selftests/``.
+
+Reviewer guidance
+-----------------
+
+Reviewing other people's patches on the list is highly encouraged,
+regardless of the level of expertise. For general guidance and
+helpful tips please see :ref:`development_advancedtopics_reviews`.
+
+It's safe to assume that netdev maintainers know the community and the level
+of expertise of the reviewers. The reviewers should not be concerned about
+their comments impeding or derailing the patch flow.
+
+Less experienced reviewers are highly encouraged to do more in-depth
+review of submissions and not focus exclusively on trivial or subjective
+matters like code formatting, tags etc.
 
 Testimonials / feedback
 -----------------------

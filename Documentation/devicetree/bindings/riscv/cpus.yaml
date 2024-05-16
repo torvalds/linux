@@ -32,6 +32,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - amd,mbv32
               - andestech,ax45mp
               - canaan,k210
               - sifive,bullet0
@@ -47,6 +48,7 @@ properties:
               - sifive,u74-mc
               - thead,c906
               - thead,c910
+              - thead,c920
           - const: riscv
       - items:
           - enum:
@@ -61,8 +63,8 @@ properties:
 
   mmu-type:
     description:
-      Identifies the MMU address translation mode used on this
-      hart.  These values originate from the RISC-V Privileged
+      Identifies the largest MMU address translation mode supported by
+      this hart.  These values originate from the RISC-V Privileged
       Specification document, available from
       https://riscv.org/specifications/
     $ref: /schemas/types.yaml#/definitions/string
@@ -73,10 +75,19 @@ properties:
       - riscv,sv57
       - riscv,none
 
+  reg:
+    description:
+      The hart ID of this CPU node.
+
   riscv,cbom-block-size:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The blocksize in bytes for the Zicbom cache operations.
+
+  riscv,cbop-block-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The blocksize in bytes for the Zicbop cache operations.
 
   riscv,cboz-block-size:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -99,7 +110,11 @@ properties:
         const: 1
 
       compatible:
-        const: riscv,cpu-intc
+        oneOf:
+          - items:
+              - const: andestech,cpu-intc
+              - const: riscv,cpu-intc
+          - const: riscv,cpu-intc
 
       interrupt-controller: true
 

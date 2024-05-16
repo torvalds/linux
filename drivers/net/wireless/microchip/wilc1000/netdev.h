@@ -13,6 +13,7 @@
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
 #include <linux/gpio/consumer.h>
+#include <linux/rculist.h>
 
 #include "hif.h"
 #include "wlan.h"
@@ -26,6 +27,13 @@
 
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
+
+#define TX_BACKOFF_WEIGHT_MS			1
+
+#define wilc_for_each_vif(w, v) \
+	struct wilc *_w = w; \
+	list_for_each_entry_srcu(v, &_w->vif_list, list, \
+				 srcu_read_lock_held(&_w->srcu))
 
 struct wilc_wfi_stats {
 	unsigned long rx_packets;

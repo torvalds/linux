@@ -356,10 +356,10 @@ static void omap_sham_copy_ready_hash(struct ahash_request *req)
 
 	if (big_endian)
 		for (i = 0; i < d; i++)
-			hash[i] = be32_to_cpup((__be32 *)in + i);
+			put_unaligned(be32_to_cpup((__be32 *)in + i), &hash[i]);
 	else
 		for (i = 0; i < d; i++)
-			hash[i] = le32_to_cpup((__le32 *)in + i);
+			put_unaligned(le32_to_cpup((__le32 *)in + i), &hash[i]);
 }
 
 static void omap_sham_write_ctrl_omap2(struct omap_sham_dev *dd, size_t length,
@@ -1435,7 +1435,6 @@ static struct ahash_engine_alg algs_sha1_md5[] = {
 						CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= SHA1_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1458,7 +1457,6 @@ static struct ahash_engine_alg algs_sha1_md5[] = {
 						CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= SHA1_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1483,7 +1481,6 @@ static struct ahash_engine_alg algs_sha1_md5[] = {
 		.cra_blocksize		= SHA1_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx) +
 					sizeof(struct omap_sham_hmac_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_sha1_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1508,7 +1505,6 @@ static struct ahash_engine_alg algs_sha1_md5[] = {
 		.cra_blocksize		= SHA1_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx) +
 					sizeof(struct omap_sham_hmac_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_md5_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1535,7 +1531,6 @@ static struct ahash_engine_alg algs_sha224_sha256[] = {
 						CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= SHA224_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1558,7 +1553,6 @@ static struct ahash_engine_alg algs_sha224_sha256[] = {
 						CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= SHA256_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1583,7 +1577,6 @@ static struct ahash_engine_alg algs_sha224_sha256[] = {
 		.cra_blocksize		= SHA224_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx) +
 					sizeof(struct omap_sham_hmac_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_sha224_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1608,7 +1601,6 @@ static struct ahash_engine_alg algs_sha224_sha256[] = {
 		.cra_blocksize		= SHA256_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx) +
 					sizeof(struct omap_sham_hmac_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_sha256_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1634,7 +1626,6 @@ static struct ahash_engine_alg algs_sha384_sha512[] = {
 						CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= SHA384_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1657,7 +1648,6 @@ static struct ahash_engine_alg algs_sha384_sha512[] = {
 						CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= SHA512_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1682,7 +1672,6 @@ static struct ahash_engine_alg algs_sha384_sha512[] = {
 		.cra_blocksize		= SHA384_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx) +
 					sizeof(struct omap_sham_hmac_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_sha384_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -1707,7 +1696,6 @@ static struct ahash_engine_alg algs_sha384_sha512[] = {
 		.cra_blocksize		= SHA512_BLOCK_SIZE,
 		.cra_ctxsize		= sizeof(struct omap_sham_ctx) +
 					sizeof(struct omap_sham_hmac_ctx),
-		.cra_alignmask		= OMAP_ALIGN_MASK,
 		.cra_module		= THIS_MODULE,
 		.cra_init		= omap_sham_cra_sha512_init,
 		.cra_exit		= omap_sham_cra_exit,
@@ -2200,7 +2188,7 @@ data_err:
 	return err;
 }
 
-static int omap_sham_remove(struct platform_device *pdev)
+static void omap_sham_remove(struct platform_device *pdev)
 {
 	struct omap_sham_dev *dd;
 	int i, j;
@@ -2224,13 +2212,11 @@ static int omap_sham_remove(struct platform_device *pdev)
 		dma_release_channel(dd->dma_lch);
 
 	sysfs_remove_group(&dd->dev->kobj, &omap_sham_attr_group);
-
-	return 0;
 }
 
 static struct platform_driver omap_sham_driver = {
 	.probe	= omap_sham_probe,
-	.remove	= omap_sham_remove,
+	.remove_new = omap_sham_remove,
 	.driver	= {
 		.name	= "omap-sham",
 		.of_match_table	= omap_sham_of_match,

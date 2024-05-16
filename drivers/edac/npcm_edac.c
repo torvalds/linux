@@ -410,7 +410,7 @@ free_edac_mc:
 	return rc;
 }
 
-static int edac_remove(struct platform_device *pdev)
+static void edac_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 	struct priv_data *priv = mci->pvt_info;
@@ -426,8 +426,6 @@ static int edac_remove(struct platform_device *pdev)
 	regmap_write(npcm_regmap, pdata->ctl_int_mask_master,
 		     pdata->int_mask_master_global_mask);
 	regmap_update_bits(npcm_regmap, pdata->ctl_ecc_en, pdata->ecc_en_mask, 0);
-
-	return 0;
 }
 
 static const struct npcm_platform_data npcm750_edac = {
@@ -533,7 +531,7 @@ static struct platform_driver npcm_edac_driver = {
 		.of_match_table = npcm_edac_of_match,
 	},
 	.probe = edac_probe,
-	.remove = edac_remove,
+	.remove_new = edac_remove,
 };
 
 module_platform_driver(npcm_edac_driver);

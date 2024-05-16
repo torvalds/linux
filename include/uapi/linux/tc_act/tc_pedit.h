@@ -62,7 +62,7 @@ struct tc_pedit_sel {
 	tc_gen;
 	unsigned char           nkeys;
 	unsigned char           flags;
-	struct tc_pedit_key     keys[0];
+	struct tc_pedit_key     keys[] __counted_by(nkeys);
 };
 
 #define tc_pedit tc_pedit_sel

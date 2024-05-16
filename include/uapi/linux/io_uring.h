@@ -43,6 +43,10 @@ struct io_uring_sqe {
 	union {
 		__u64	addr;	/* pointer to buffer or iovecs */
 		__u64	splice_off_in;
+		struct {
+			__u32	level;
+			__u32	optname;
+		};
 	};
 	__u32	len;		/* buffer size or number of iovecs */
 	union {
@@ -65,6 +69,9 @@ struct io_uring_sqe {
 		__u32		xattr_flags;
 		__u32		msg_ring_flags;
 		__u32		uring_cmd_flags;
+		__u32		waitid_flags;
+		__u32		futex_flags;
+		__u32		install_fd_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	/* pack this to avoid bogus arm OABI complaints */
@@ -79,6 +86,7 @@ struct io_uring_sqe {
 	union {
 		__s32	splice_fd_in;
 		__u32	file_index;
+		__u32	optlen;
 		struct {
 			__u16	addr_len;
 			__u16	__pad3[1];
@@ -89,6 +97,7 @@ struct io_uring_sqe {
 			__u64	addr3;
 			__u64	__pad2[1];
 		};
+		__u64	optval;
 		/*
 		 * If the ring is initialized with IORING_SETUP_SQE128, then
 		 * this field is used for 80 bytes of arbitrary command data
@@ -240,19 +249,25 @@ enum io_uring_op {
 	IORING_OP_URING_CMD,
 	IORING_OP_SEND_ZC,
 	IORING_OP_SENDMSG_ZC,
+	IORING_OP_READ_MULTISHOT,
+	IORING_OP_WAITID,
+	IORING_OP_FUTEX_WAIT,
+	IORING_OP_FUTEX_WAKE,
+	IORING_OP_FUTEX_WAITV,
+	IORING_OP_FIXED_FD_INSTALL,
+	IORING_OP_FTRUNCATE,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
 };
 
 /*
- * sqe->uring_cmd_flags
+ * sqe->uring_cmd_flags		top 8bits aren't available for userspace
  * IORING_URING_CMD_FIXED	use registered buffer; pass this flag
  *				along with setting sqe->buf_index.
- * IORING_URING_CMD_POLLED	driver use only
  */
 #define IORING_URING_CMD_FIXED	(1U << 0)
-#define IORING_URING_CMD_POLLED	(1U << 31)
+#define IORING_URING_CMD_MASK	IORING_URING_CMD_FIXED
 
 
 /*
@@ -373,6 +388,13 @@ enum {
 #define IORING_MSG_RING_CQE_SKIP	(1U << 0)
 /* Pass through the flags from sqe->file_index to cqe->flags */
 #define IORING_MSG_RING_FLAGS_PASS	(1U << 1)
+
+/*
+ * IORING_OP_FIXED_FD_INSTALL flags (sqe->install_fd_flags)
+ *
+ * IORING_FIXED_FD_NO_CLOEXEC	Don't mark the fd as O_CLOEXEC
+ */
+#define IORING_FIXED_FD_NO_CLOEXEC	(1U << 0)
 
 /*
  * IO completion data structure (Completion Queue Entry)
@@ -546,6 +568,13 @@ enum {
 	/* register a range of fixed file slots for automatic slot allocation */
 	IORING_REGISTER_FILE_ALLOC_RANGE	= 25,
 
+	/* return status information for a buffer group */
+	IORING_REGISTER_PBUF_STATUS		= 26,
+
+	/* set/clear busy poll settings */
+	IORING_REGISTER_NAPI			= 27,
+	IORING_UNREGISTER_NAPI			= 28,
+
 	/* this goes last */
 	IORING_REGISTER_LAST,
 
@@ -672,6 +701,21 @@ struct io_uring_buf_reg {
 	__u64	resv[3];
 };
 
+/* argument for IORING_REGISTER_PBUF_STATUS */
+struct io_uring_buf_status {
+	__u32	buf_group;	/* input */
+	__u32	head;		/* output */
+	__u32	resv[8];
+};
+
+/* argument for IORING_(UN)REGISTER_NAPI */
+struct io_uring_napi {
+	__u32	busy_poll_to;
+	__u8	prefer_busy_poll;
+	__u8	pad[3];
+	__u64	resv;
+};
+
 /*
  * io_uring_restriction->opcode values
  */
@@ -734,6 +778,8 @@ struct io_uring_recvmsg_out {
 enum {
 	SOCKET_URING_OP_SIOCINQ		= 0,
 	SOCKET_URING_OP_SIOCOUTQ,
+	SOCKET_URING_OP_GETSOCKOPT,
+	SOCKET_URING_OP_SETSOCKOPT,
 };
 
 #ifdef __cplusplus

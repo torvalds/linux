@@ -19,6 +19,7 @@
 void perf_mmap__init(struct perf_mmap *map, struct perf_mmap *prev,
 		     bool overwrite, libperf_unmap_cb_t unmap_cb)
 {
+	/* Assume fields were zero initialized. */
 	map->fd = -1;
 	map->overwrite = overwrite;
 	map->unmap_cb  = unmap_cb;
@@ -51,13 +52,18 @@ int perf_mmap__mmap(struct perf_mmap *map, struct perf_mmap_param *mp,
 
 void perf_mmap__munmap(struct perf_mmap *map)
 {
-	if (map && map->base != NULL) {
+	if (!map)
+		return;
+
+	zfree(&map->event_copy);
+	map->event_copy_sz = 0;
+	if (map->base) {
 		munmap(map->base, perf_mmap__mmap_len(map));
 		map->base = NULL;
 		map->fd = -1;
 		refcount_set(&map->refcnt, 0);
 	}
-	if (map && map->unmap_cb)
+	if (map->unmap_cb)
 		map->unmap_cb(map);
 }
 
@@ -223,8 +229,16 @@ static union perf_event *perf_mmap__read(struct perf_mmap *map,
 		 */
 		if ((*startp & map->mask) + size != ((*startp + size) & map->mask)) {
 			unsigned int offset = *startp;
-			unsigned int len = min(sizeof(*event), size), cpy;
+			unsigned int len = size, cpy;
 			void *dst = map->event_copy;
+
+			if (size > map->event_copy_sz) {
+				dst = realloc(map->event_copy, size);
+				if (!dst)
+					return NULL;
+				map->event_copy = dst;
+				map->event_copy_sz = size;
+			}
 
 			do {
 				cpy = min(map->mask + 1 - (offset & map->mask), len);

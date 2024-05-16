@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# order file for git, to produce patches which are easier to review
+# by diffing the important stuff like header changes first.
+#
+# one-off usage:
+#   git diff -O scripts/git.orderFile ...
+#
+# add to git config:
+#   git config diff.orderFile scripts/git.orderFile
+#
+
+MAINTAINERS
+
+# Documentation
+Documentation/*
+*.rst
+
+# git-specific
+.gitignore
+scripts/git.orderFile
+
+# build system
+Kconfig*
+*/Kconfig*
+Kbuild*
+*/Kbuild*
+Makefile*
+*/Makefile*
+*.mak
+*.mk
+scripts/*
+
+# semantic patches
+*.cocci
+
+# headers
+*types.h
+*.h
+
+# code
+*.c

@@ -9,15 +9,20 @@
  *      Contact: David Cohen <david.a.cohen@linux.intel.com>
  */
 
+#include <linux/bitops.h>
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/math.h>
 #include <linux/module.h>
-#include <linux/nmi.h>
+#include <linux/panic.h>
 #include <linux/platform_device.h>
+#include <linux/types.h>
 #include <linux/watchdog.h>
+
 #include <linux/platform_data/intel-mid_wdt.h>
 
 #include <asm/intel_scu_ipc.h>
-#include <asm/intel-mid.h>
 
 #define IPC_WATCHDOG 0xf8
 
@@ -122,7 +127,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdt_dev;
-	struct intel_mid_wdt_pdata *pdata = dev->platform_data;
+	struct intel_mid_wdt_pdata *pdata = dev_get_platdata(dev);
 	struct mid_wdt *mid;
 	int ret;
 

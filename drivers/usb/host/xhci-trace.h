@@ -172,8 +172,7 @@ DECLARE_EVENT_CLASS(xhci_log_free_virt_dev,
 		__field(void *, vdev)
 		__field(unsigned long long, out_ctx)
 		__field(unsigned long long, in_ctx)
-		__field(u8, fake_port)
-		__field(u8, real_port)
+		__field(int, slot_id)
 		__field(u16, current_mel)
 
 	),
@@ -181,13 +180,12 @@ DECLARE_EVENT_CLASS(xhci_log_free_virt_dev,
 		__entry->vdev = vdev;
 		__entry->in_ctx = (unsigned long long) vdev->in_ctx->dma;
 		__entry->out_ctx = (unsigned long long) vdev->out_ctx->dma;
-		__entry->fake_port = (u8) vdev->fake_port;
-		__entry->real_port = (u8) vdev->real_port;
+		__entry->slot_id = (int) vdev->slot_id;
 		__entry->current_mel = (u16) vdev->current_mel;
 		),
-	TP_printk("vdev %p ctx %llx | %llx fake_port %d real_port %d current_mel %d",
-		__entry->vdev, __entry->in_ctx, __entry->out_ctx,
-		__entry->fake_port, __entry->real_port, __entry->current_mel
+	TP_printk("vdev %p slot %d ctx %llx | %llx current_mel %d",
+		__entry->vdev, __entry->slot_id, __entry->in_ctx,
+		__entry->out_ctx, __entry->current_mel
 	)
 );
 
@@ -509,35 +507,38 @@ DEFINE_EVENT(xhci_log_ring, xhci_inc_deq,
 );
 
 DECLARE_EVENT_CLASS(xhci_log_portsc,
-		    TP_PROTO(u32 portnum, u32 portsc),
-		    TP_ARGS(portnum, portsc),
+		    TP_PROTO(struct xhci_port *port, u32 portsc),
+		    TP_ARGS(port, portsc),
 		    TP_STRUCT__entry(
+				     __field(u32, busnum)
 				     __field(u32, portnum)
 				     __field(u32, portsc)
 				     ),
 		    TP_fast_assign(
-				   __entry->portnum = portnum;
+				   __entry->busnum = port->rhub->hcd->self.busnum;
+				   __entry->portnum = port->hcd_portnum;
 				   __entry->portsc = portsc;
 				   ),
-		    TP_printk("port-%d: %s",
+		    TP_printk("port %d-%d: %s",
+			      __entry->busnum,
 			      __entry->portnum,
 			      xhci_decode_portsc(__get_buf(XHCI_MSG_MAX), __entry->portsc)
 			      )
 );
 
 DEFINE_EVENT(xhci_log_portsc, xhci_handle_port_status,
-	     TP_PROTO(u32 portnum, u32 portsc),
-	     TP_ARGS(portnum, portsc)
+	     TP_PROTO(struct xhci_port *port, u32 portsc),
+	     TP_ARGS(port, portsc)
 );
 
 DEFINE_EVENT(xhci_log_portsc, xhci_get_port_status,
-	     TP_PROTO(u32 portnum, u32 portsc),
-	     TP_ARGS(portnum, portsc)
+	     TP_PROTO(struct xhci_port *port, u32 portsc),
+	     TP_ARGS(port, portsc)
 );
 
 DEFINE_EVENT(xhci_log_portsc, xhci_hub_status_data,
-	     TP_PROTO(u32 portnum, u32 portsc),
-	     TP_ARGS(portnum, portsc)
+	     TP_PROTO(struct xhci_port *port, u32 portsc),
+	     TP_ARGS(port, portsc)
 );
 
 DECLARE_EVENT_CLASS(xhci_log_doorbell,

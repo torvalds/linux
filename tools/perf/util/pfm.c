@@ -145,7 +145,20 @@ static bool is_libpfm_event_supported(const char *name, struct perf_cpu_map *cpu
 
 	evsel->is_libpfm_event = true;
 
-	if (evsel__open(evsel, cpus, threads) < 0)
+	ret = evsel__open(evsel, cpus, threads);
+	if (ret == -EACCES) {
+		/*
+		 * This happens if the paranoid value
+		 * /proc/sys/kernel/perf_event_paranoid is set to 2
+		 * Re-run with exclude_kernel set; we don't do that
+		 * by default as some ARM machines do not support it.
+		 *
+		 */
+		evsel->core.attr.exclude_kernel = 1;
+		ret = evsel__open(evsel, cpus, threads);
+
+	}
+	if (ret < 0)
 		result = false;
 
 	evsel__close(evsel);

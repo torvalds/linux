@@ -201,7 +201,7 @@ static int rxe_init_sq(struct rxe_qp *qp, struct ib_qp_init_attr *init,
 	qp->sq.queue = rxe_queue_init(rxe, &qp->sq.max_wr, wqe_size,
 				      QUEUE_TYPE_FROM_CLIENT);
 	if (!qp->sq.queue) {
-		rxe_err_qp(qp, "Unable to allocate send queue");
+		rxe_err_qp(qp, "Unable to allocate send queue\n");
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -211,7 +211,7 @@ static int rxe_init_sq(struct rxe_qp *qp, struct ib_qp_init_attr *init,
 			   qp->sq.queue->buf, qp->sq.queue->buf_size,
 			   &qp->sq.queue->ip);
 	if (err) {
-		rxe_err_qp(qp, "do_mmap_info failed, err = %d", err);
+		rxe_err_qp(qp, "do_mmap_info failed, err = %d\n", err);
 		goto err_free;
 	}
 
@@ -292,7 +292,7 @@ static int rxe_init_rq(struct rxe_qp *qp, struct ib_qp_init_attr *init,
 	qp->rq.queue = rxe_queue_init(rxe, &qp->rq.max_wr, wqe_size,
 				      QUEUE_TYPE_FROM_CLIENT);
 	if (!qp->rq.queue) {
-		rxe_err_qp(qp, "Unable to allocate recv queue");
+		rxe_err_qp(qp, "Unable to allocate recv queue\n");
 		err = -ENOMEM;
 		goto err_out;
 	}
@@ -302,7 +302,7 @@ static int rxe_init_rq(struct rxe_qp *qp, struct ib_qp_init_attr *init,
 			   qp->rq.queue->buf, qp->rq.queue->buf_size,
 			   &qp->rq.queue->ip);
 	if (err) {
-		rxe_err_qp(qp, "do_mmap_info failed, err = %d", err);
+		rxe_err_qp(qp, "do_mmap_info failed, err = %d\n", err);
 		goto err_free;
 	}
 

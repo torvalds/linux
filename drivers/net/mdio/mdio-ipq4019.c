@@ -14,6 +14,20 @@
 #include <linux/clk.h>
 
 #define MDIO_MODE_REG				0x40
+#define   MDIO_MODE_MDC_MODE			BIT(12)
+/* 0 = Clause 22, 1 = Clause 45 */
+#define   MDIO_MODE_C45				BIT(8)
+#define   MDIO_MODE_DIV_MASK			GENMASK(7, 0)
+#define     MDIO_MODE_DIV(x)			FIELD_PREP(MDIO_MODE_DIV_MASK, (x) - 1)
+#define     MDIO_MODE_DIV_1			0x0
+#define     MDIO_MODE_DIV_2			0x1
+#define     MDIO_MODE_DIV_4			0x3
+#define     MDIO_MODE_DIV_8			0x7
+#define     MDIO_MODE_DIV_16			0xf
+#define     MDIO_MODE_DIV_32			0x1f
+#define     MDIO_MODE_DIV_64			0x3f
+#define     MDIO_MODE_DIV_128			0x7f
+#define     MDIO_MODE_DIV_256			0xff
 #define MDIO_ADDR_REG				0x44
 #define MDIO_DATA_WRITE_REG			0x48
 #define MDIO_DATA_READ_REG			0x4c
@@ -25,9 +39,6 @@
 #define MDIO_CMD_ACCESS_CODE_C45_ADDR	0
 #define MDIO_CMD_ACCESS_CODE_C45_WRITE	1
 #define MDIO_CMD_ACCESS_CODE_C45_READ	2
-
-/* 0 = Clause 22, 1 = Clause 45 */
-#define MDIO_MODE_C45				BIT(8)
 
 #define IPQ4019_MDIO_TIMEOUT	10000
 #define IPQ4019_MDIO_SLEEP		10
@@ -41,6 +52,7 @@ struct ipq4019_mdio_data {
 	void __iomem	*membase;
 	void __iomem *eth_ldo_rdy;
 	struct clk *mdio_clk;
+	unsigned int mdc_rate;
 };
 
 static int ipq4019_mdio_wait_busy(struct mii_bus *bus)
@@ -203,6 +215,38 @@ static int ipq4019_mdio_write_c22(struct mii_bus *bus, int mii_id, int regnum,
 	return 0;
 }
 
+static int ipq4019_mdio_set_div(struct ipq4019_mdio_data *priv)
+{
+	unsigned long ahb_rate;
+	int div;
+	u32 val;
+
+	/* If we don't have a clock for AHB use the fixed value */
+	ahb_rate = IPQ_MDIO_CLK_RATE;
+	if (priv->mdio_clk)
+		ahb_rate = clk_get_rate(priv->mdio_clk);
+
+	/* MDC rate is ahb_rate/(MDIO_MODE_DIV + 1)
+	 * While supported, internal documentation doesn't
+	 * assure correct functionality of the MDIO bus
+	 * with divider of 1, 2 or 4.
+	 */
+	for (div = 8; div <= 256; div *= 2) {
+		/* The requested rate is supported by the div */
+		if (priv->mdc_rate == DIV_ROUND_UP(ahb_rate, div)) {
+			val = readl(priv->membase + MDIO_MODE_REG);
+			val &= ~MDIO_MODE_DIV_MASK;
+			val |= MDIO_MODE_DIV(div);
+			writel(val, priv->membase + MDIO_MODE_REG);
+
+			return 0;
+		}
+	}
+
+	/* The requested rate is not supported */
+	return -EINVAL;
+}
+
 static int ipq_mdio_reset(struct mii_bus *bus)
 {
 	struct ipq4019_mdio_data *priv = bus->priv;
@@ -225,10 +269,58 @@ static int ipq_mdio_reset(struct mii_bus *bus)
 		return ret;
 
 	ret = clk_prepare_enable(priv->mdio_clk);
-	if (ret == 0)
-		mdelay(10);
+	if (ret)
+		return ret;
 
-	return ret;
+	mdelay(10);
+
+	/* Restore MDC rate */
+	return ipq4019_mdio_set_div(priv);
+}
+
+static void ipq4019_mdio_select_mdc_rate(struct platform_device *pdev,
+					 struct ipq4019_mdio_data *priv)
+{
+	unsigned long ahb_rate;
+	int div;
+	u32 val;
+
+	/* MDC rate defined in DT, we don't have to decide a default value */
+	if (!of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+				  &priv->mdc_rate))
+		return;
+
+	/* If we don't have a clock for AHB use the fixed value */
+	ahb_rate = IPQ_MDIO_CLK_RATE;
+	if (priv->mdio_clk)
+		ahb_rate = clk_get_rate(priv->mdio_clk);
+
+	/* Check what is the current div set */
+	val = readl(priv->membase + MDIO_MODE_REG);
+	div = FIELD_GET(MDIO_MODE_DIV_MASK, val);
+
+	/* div is not set to the default value of /256
+	 * Probably someone changed that (bootloader, other drivers)
+	 * Keep this and don't overwrite it.
+	 */
+	if (div != MDIO_MODE_DIV_256) {
+		priv->mdc_rate = DIV_ROUND_UP(ahb_rate, div + 1);
+		return;
+	}
+
+	/* If div is /256 assume nobody have set this value and
+	 * try to find one MDC rate that is close the 802.3 spec of
+	 * 2.5MHz
+	 */
+	for (div = 256; div >= 8; div /= 2) {
+		/* Stop as soon as we found a divider that
+		 * reached the closest value to 2.5MHz
+		 */
+		if (DIV_ROUND_UP(ahb_rate, div) > 2500000)
+			break;
+
+		priv->mdc_rate = DIV_ROUND_UP(ahb_rate, div);
+	}
 }
 
 static int ipq4019_mdio_probe(struct platform_device *pdev)
@@ -251,6 +343,11 @@ static int ipq4019_mdio_probe(struct platform_device *pdev)
 	priv->mdio_clk = devm_clk_get_optional(&pdev->dev, "gcc_mdio_ahb_clk");
 	if (IS_ERR(priv->mdio_clk))
 		return PTR_ERR(priv->mdio_clk);
+
+	ipq4019_mdio_select_mdc_rate(pdev, priv);
+	ret = ipq4019_mdio_set_div(priv);
+	if (ret)
+		return ret;
 
 	/* The platform resource is provided on the chipset IPQ5018 */
 	/* This resource is optional */
@@ -278,13 +375,11 @@ static int ipq4019_mdio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ipq4019_mdio_remove(struct platform_device *pdev)
+static void ipq4019_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
 
 	mdiobus_unregister(bus);
-
-	return 0;
 }
 
 static const struct of_device_id ipq4019_mdio_dt_ids[] = {
@@ -296,7 +391,7 @@ MODULE_DEVICE_TABLE(of, ipq4019_mdio_dt_ids);
 
 static struct platform_driver ipq4019_mdio_driver = {
 	.probe = ipq4019_mdio_probe,
-	.remove = ipq4019_mdio_remove,
+	.remove_new = ipq4019_mdio_remove,
 	.driver = {
 		.name = "ipq4019-mdio",
 		.of_match_table = ipq4019_mdio_dt_ids,

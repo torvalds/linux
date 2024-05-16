@@ -3,6 +3,7 @@
  * Software WEP encryption implementation
  * Copyright 2002, Jouni Malinen <jkmaline@cc.hut.fi>
  * Copyright 2003, Instant802 Networks, Inc.
+ * Copyright (C) 2023 Intel Corporation
  */
 
 #include <linux/netdevice.h>
@@ -250,18 +251,18 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
 		if (skb_linearize(rx->skb))
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_OOM;
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key))
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_WEP_DEC_FAIL;
 	} else if (!(status->flag & RX_FLAG_IV_STRIPPED)) {
 		if (!pskb_may_pull(rx->skb, ieee80211_hdrlen(fc) +
 					    IEEE80211_WEP_IV_LEN))
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_NO_IV;
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
 		if (!(status->flag & RX_FLAG_ICV_STRIPPED) &&
 		    pskb_trim(rx->skb, rx->skb->len - IEEE80211_WEP_ICV_LEN))
-			return RX_DROP_UNUSABLE;
+			return RX_DROP_U_NO_ICV;
 	}
 
 	return RX_CONTINUE;

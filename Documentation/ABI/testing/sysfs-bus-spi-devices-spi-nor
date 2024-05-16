@@ -25,6 +25,9 @@ KernelVersion:	5.14
 Contact:	linux-mtd@lists.infradead.org
 Description:	(RO) Part name of the SPI NOR flash.
 
+		The attribute is optional. User space should not rely on
+		it to be present or even correct. Instead, user space
+		should read the jedec_id attribute.
 
 What:		/sys/bus/spi/devices/.../spi-nor/sfdp
 Date:		April 2021

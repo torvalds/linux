@@ -574,7 +574,7 @@ int intel_gvt_set_opregion(struct intel_vgpu *vgpu)
 	ret = intel_vgpu_register_reg(vgpu,
 			PCI_VENDOR_ID_INTEL | VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
 			VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION,
-			&intel_vgpu_regops_opregion, OPREGION_SIZE,
+			&intel_vgpu_regops_opregion, INTEL_GVT_OPREGION_SIZE,
 			VFIO_REGION_INFO_FLAG_READ, base);
 
 	return ret;
@@ -1379,7 +1379,7 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 		intel_gvt_reset_vgpu(vgpu);
 		return 0;
 	} else if (cmd == VFIO_DEVICE_QUERY_GFX_PLANE) {
-		struct vfio_device_gfx_plane_info dmabuf;
+		struct vfio_device_gfx_plane_info dmabuf = {};
 		int ret = 0;
 
 		minsz = offsetofend(struct vfio_device_gfx_plane_info,

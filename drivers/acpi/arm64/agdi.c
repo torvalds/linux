@@ -58,7 +58,7 @@ static int agdi_probe(struct platform_device *pdev)
 	return agdi_sdei_probe(pdev, adata);
 }
 
-static int agdi_remove(struct platform_device *pdev)
+static void agdi_remove(struct platform_device *pdev)
 {
 	struct agdi_data *adata = dev_get_platdata(&pdev->dev);
 	int err, i;
@@ -67,7 +67,7 @@ static int agdi_remove(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Failed to disable sdei-event #%d (%pe)\n",
 			adata->sdei_event, ERR_PTR(err));
-		return 0;
+		return;
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -81,8 +81,6 @@ static int agdi_remove(struct platform_device *pdev)
 	if (err)
 		dev_err(&pdev->dev, "Failed to unregister sdei-event #%d (%pe)\n",
 			adata->sdei_event, ERR_PTR(err));
-
-	return 0;
 }
 
 static struct platform_driver agdi_driver = {
@@ -90,7 +88,7 @@ static struct platform_driver agdi_driver = {
 		.name = "agdi",
 	},
 	.probe = agdi_probe,
-	.remove = agdi_remove,
+	.remove_new = agdi_remove,
 };
 
 void __init acpi_agdi_init(void)

@@ -371,7 +371,7 @@ static inline u32 dsu_pmu_get_reset_overflow(void)
 	return __dsu_pmu_get_reset_overflow();
 }
 
-/**
+/*
  * dsu_pmu_set_event_period: Set the period for the counter.
  *
  * All DSU PMU event counters, except the cycle counter are 32bit
@@ -602,7 +602,7 @@ static struct dsu_pmu *dsu_pmu_alloc(struct platform_device *pdev)
 	return dsu_pmu;
 }
 
-/**
+/*
  * dsu_pmu_dt_get_cpus: Get the list of CPUs in the cluster
  * from device tree.
  */
@@ -632,7 +632,7 @@ static int dsu_pmu_dt_get_cpus(struct device *dev, cpumask_t *mask)
 	return 0;
 }
 
-/**
+/*
  * dsu_pmu_acpi_get_cpus: Get the list of CPUs in the cluster
  * from ACPI.
  */
@@ -774,14 +774,12 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	return rc;
 }
 
-static int dsu_pmu_device_remove(struct platform_device *pdev)
+static void dsu_pmu_device_remove(struct platform_device *pdev)
 {
 	struct dsu_pmu *dsu_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&dsu_pmu->pmu);
 	cpuhp_state_remove_instance(dsu_pmu_cpuhp_state, &dsu_pmu->cpuhp_node);
-
-	return 0;
 }
 
 static const struct of_device_id dsu_pmu_of_match[] = {
@@ -806,7 +804,7 @@ static struct platform_driver dsu_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = dsu_pmu_device_probe,
-	.remove = dsu_pmu_device_remove,
+	.remove_new = dsu_pmu_device_remove,
 };
 
 static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)

@@ -70,7 +70,8 @@ amdgpu-y += amdgpu_device.o amdgpu_doorbell_mgr.o amdgpu_kms.o \
 	amdgpu_cs.o amdgpu_bios.o amdgpu_benchmark.o \
 	atombios_dp.o amdgpu_afmt.o amdgpu_trace_points.o \
 	atombios_encoders.o amdgpu_sa.o atombios_i2c.o \
-	amdgpu_dma_buf.o amdgpu_vm.o amdgpu_vm_pt.o amdgpu_ib.o amdgpu_pll.o \
+	amdgpu_dma_buf.o amdgpu_vm.o amdgpu_vm_pt.o amdgpu_vm_tlb_fence.o \
+	amdgpu_ib.o amdgpu_pll.o \
 	amdgpu_ucode.o amdgpu_bo_list.o amdgpu_ctx.o amdgpu_sync.o \
 	amdgpu_gtt_mgr.o amdgpu_preempt_mgr.o amdgpu_vram_mgr.o amdgpu_virt.o \
 	amdgpu_atomfirmware.o amdgpu_vf_error.o amdgpu_sched.o \
@@ -80,7 +81,7 @@ amdgpu-y += amdgpu_device.o amdgpu_doorbell_mgr.o amdgpu_kms.o \
 	amdgpu_umc.o smu_v11_0_i2c.o amdgpu_fru_eeprom.o amdgpu_rap.o \
 	amdgpu_fw_attestation.o amdgpu_securedisplay.o \
 	amdgpu_eeprom.o amdgpu_mca.o amdgpu_psp_ta.o amdgpu_lsdma.o \
-	amdgpu_ring_mux.o amdgpu_xcp.o
+	amdgpu_ring_mux.o amdgpu_xcp.o amdgpu_seq64.o amdgpu_aca.o amdgpu_dev_coredump.o
 
 amdgpu-$(CONFIG_PROC_FS) += amdgpu_fdinfo.o
 
@@ -98,13 +99,14 @@ amdgpu-y += \
 	vega20_reg_init.o nbio_v7_4.o nbio_v2_3.o nv.o arct_reg_init.o mxgpu_nv.o \
 	nbio_v7_2.o hdp_v4_0.o hdp_v5_0.o aldebaran_reg_init.o aldebaran.o soc21.o \
 	sienna_cichlid.o smu_v13_0_10.o nbio_v4_3.o hdp_v6_0.o nbio_v7_7.o hdp_v5_2.o lsdma_v6_0.o \
-	nbio_v7_9.o aqua_vanjaram.o nbio_v7_11.o
+	nbio_v7_9.o aqua_vanjaram.o nbio_v7_11.o lsdma_v7_0.o hdp_v7_0.o nbif_v6_3_1.o
 
 # add DF block
 amdgpu-y += \
 	df_v1_7.o \
 	df_v3_6.o \
-	df_v4_3.o
+	df_v4_3.o \
+	df_v4_6_2.o
 
 # add GMC block
 amdgpu-y += \
@@ -131,7 +133,8 @@ amdgpu-y += \
 	vega20_ih.o \
 	navi10_ih.o \
 	ih_v6_0.o \
-	ih_v6_1.o
+	ih_v6_1.o \
+	ih_v7_0.o
 
 # add PSP block
 amdgpu-y += \
@@ -142,7 +145,8 @@ amdgpu-y += \
 	psp_v11_0_8.o \
 	psp_v12_0.o \
 	psp_v13_0.o \
-	psp_v13_0_4.o
+	psp_v13_0_4.o \
+	psp_v14_0.o
 
 # add DCE block
 amdgpu-y += \
@@ -207,6 +211,7 @@ amdgpu-y += \
 	vcn_v4_0.o \
 	vcn_v4_0_3.o \
 	vcn_v4_0_5.o \
+	vcn_v5_0_0.o \
 	amdgpu_jpeg.o \
 	jpeg_v1_0.o \
 	jpeg_v2_0.o \
@@ -214,7 +219,8 @@ amdgpu-y += \
 	jpeg_v3_0.o \
 	jpeg_v4_0.o \
 	jpeg_v4_0_3.o \
-	jpeg_v4_0_5.o
+	jpeg_v4_0_5.o \
+	jpeg_v5_0_0.o
 
 # add VPE block
 amdgpu-y += \
@@ -232,7 +238,8 @@ amdgpu-y += \
 	athub_v1_0.o \
 	athub_v2_0.o \
 	athub_v2_1.o \
-	athub_v3_0.o
+	athub_v3_0.o \
+	athub_v4_1_0.o
 
 # add SMUIO block
 amdgpu-y += \
@@ -241,7 +248,8 @@ amdgpu-y += \
 	smuio_v11_0_6.o \
 	smuio_v13_0.o \
 	smuio_v13_0_3.o \
-	smuio_v13_0_6.o
+	smuio_v13_0_6.o \
+	smuio_v14_0_2.o
 
 # add reset block
 amdgpu-y += \

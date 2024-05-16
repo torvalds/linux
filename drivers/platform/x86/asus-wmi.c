@@ -16,6 +16,7 @@
 #include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/fb.h>
 #include <linux/hwmon.h>
@@ -25,6 +26,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
@@ -99,13 +101,6 @@ module_param(fnlock_default, bool, 0444);
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_LP_XHCI	0x9c31
 
 #define ASUS_ACPI_UID_ASUSWMI		"ASUSWMI"
-#define ASUS_ACPI_UID_ATK		"ATK"
-
-#define WMI_EVENT_QUEUE_SIZE		0x10
-#define WMI_EVENT_QUEUE_END		0x1
-#define WMI_EVENT_MASK			0xFFFF
-/* The WMI hotkey event value is always the same. */
-#define WMI_EVENT_VALUE_ATK		0xFF
 
 #define WMI_EVENT_MASK			0xFFFF
 
@@ -126,6 +121,15 @@ module_param(fnlock_default, bool, 0444);
 #define NVIDIA_BOOST_MAX	25
 #define NVIDIA_TEMP_MIN		75
 #define NVIDIA_TEMP_MAX		87
+
+#define ASUS_SCREENPAD_BRIGHT_MIN 20
+#define ASUS_SCREENPAD_BRIGHT_MAX 255
+#define ASUS_SCREENPAD_BRIGHT_DEFAULT 60
+
+/* Controls the power state of the USB0 hub on ROG Ally which input is on */
+#define ASUS_USB0_PWR_EC0_CSEE "\\_SB.PCI0.SBRG.EC0.CSEE"
+/* 300ms so far seems to produce a reliable result on AC and battery */
+#define ASUS_USB0_PWR_EC0_CSEE_WAIT 300
 
 static const char * const ashs_ids[] = { "ATK4001", "ATK4002", NULL };
 
@@ -208,10 +212,10 @@ struct asus_wmi {
 	int dsts_id;
 	int spec;
 	int sfun;
-	bool wmi_event_queue;
 
 	struct input_dev *inputdev;
 	struct backlight_device *backlight_device;
+	struct backlight_device *screenpad_backlight_device;
 	struct platform_device *platform_device;
 
 	struct led_classdev wlan_led;
@@ -293,6 +297,9 @@ struct asus_wmi {
 	struct work_struct hotplug_work;
 
 	bool fnlock_locked;
+
+	/* The ROG Ally device requires the MCU USB device be disconnected before suspend */
+	bool ally_mcu_usb_switch;
 
 	struct asus_wmi_debug debug;
 
@@ -474,7 +481,17 @@ static int asus_wmi_evaluate_method_agfn(const struct acpi_buffer args)
 
 static int asus_wmi_get_devstate(struct asus_wmi *asus, u32 dev_id, u32 *retval)
 {
-	return asus_wmi_evaluate_method(asus->dsts_id, dev_id, 0, retval);
+	int err;
+
+	err = asus_wmi_evaluate_method(asus->dsts_id, dev_id, 0, retval);
+
+	if (err)
+		return err;
+
+	if (*retval == ~0)
+		return -ENODEV;
+
+	return 0;
 }
 
 static int asus_wmi_set_devstate(u32 dev_id, u32 ctrl_param,
@@ -1605,7 +1622,6 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_MICMUTE_LED)) {
 		asus->micmute_led.name = "platform::micmute";
 		asus->micmute_led.max_brightness = 1;
-		asus->micmute_led.brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
 		asus->micmute_led.brightness_set_blocking = micmute_led_set;
 		asus->micmute_led.default_trigger = "audio-micmute";
 
@@ -3776,6 +3792,124 @@ static int is_display_toggle(int code)
 	return 0;
 }
 
+/* Screenpad backlight *******************************************************/
+
+static int read_screenpad_backlight_power(struct asus_wmi *asus)
+{
+	int ret;
+
+	ret = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_SCREENPAD_POWER);
+	if (ret < 0)
+		return ret;
+	/* 1 == powered */
+	return ret ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+}
+
+static int read_screenpad_brightness(struct backlight_device *bd)
+{
+	struct asus_wmi *asus = bl_get_data(bd);
+	u32 retval;
+	int err;
+
+	err = read_screenpad_backlight_power(asus);
+	if (err < 0)
+		return err;
+	/* The device brightness can only be read if powered, so return stored */
+	if (err == FB_BLANK_POWERDOWN)
+		return asus->driver->screenpad_brightness - ASUS_SCREENPAD_BRIGHT_MIN;
+
+	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_SCREENPAD_LIGHT, &retval);
+	if (err < 0)
+		return err;
+
+	return (retval & ASUS_WMI_DSTS_BRIGHTNESS_MASK) - ASUS_SCREENPAD_BRIGHT_MIN;
+}
+
+static int update_screenpad_bl_status(struct backlight_device *bd)
+{
+	struct asus_wmi *asus = bl_get_data(bd);
+	int power, err = 0;
+	u32 ctrl_param;
+
+	power = read_screenpad_backlight_power(asus);
+	if (power < 0)
+		return power;
+
+	if (bd->props.power != power) {
+		if (power != FB_BLANK_UNBLANK) {
+			/* Only brightness > 0 can power it back on */
+			ctrl_param = asus->driver->screenpad_brightness - ASUS_SCREENPAD_BRIGHT_MIN;
+			err = asus_wmi_set_devstate(ASUS_WMI_DEVID_SCREENPAD_LIGHT,
+						    ctrl_param, NULL);
+		} else {
+			err = asus_wmi_set_devstate(ASUS_WMI_DEVID_SCREENPAD_POWER, 0, NULL);
+		}
+	} else if (power == FB_BLANK_UNBLANK) {
+		/* Only set brightness if powered on or we get invalid/unsync state */
+		ctrl_param = bd->props.brightness + ASUS_SCREENPAD_BRIGHT_MIN;
+		err = asus_wmi_set_devstate(ASUS_WMI_DEVID_SCREENPAD_LIGHT, ctrl_param, NULL);
+	}
+
+	/* Ensure brightness is stored to turn back on with */
+	if (err == 0)
+		asus->driver->screenpad_brightness = bd->props.brightness + ASUS_SCREENPAD_BRIGHT_MIN;
+
+	return err;
+}
+
+static const struct backlight_ops asus_screenpad_bl_ops = {
+	.get_brightness = read_screenpad_brightness,
+	.update_status = update_screenpad_bl_status,
+	.options = BL_CORE_SUSPENDRESUME,
+};
+
+static int asus_screenpad_init(struct asus_wmi *asus)
+{
+	struct backlight_device *bd;
+	struct backlight_properties props;
+	int err, power;
+	int brightness = 0;
+
+	power = read_screenpad_backlight_power(asus);
+	if (power < 0)
+		return power;
+
+	if (power != FB_BLANK_POWERDOWN) {
+		err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_SCREENPAD_LIGHT, &brightness);
+		if (err < 0)
+			return err;
+	}
+	/* default to an acceptable min brightness on boot if too low */
+	if (brightness < ASUS_SCREENPAD_BRIGHT_MIN)
+		brightness = ASUS_SCREENPAD_BRIGHT_DEFAULT;
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW; /* ensure this bd is last to be picked */
+	props.max_brightness = ASUS_SCREENPAD_BRIGHT_MAX - ASUS_SCREENPAD_BRIGHT_MIN;
+	bd = backlight_device_register("asus_screenpad",
+				       &asus->platform_device->dev, asus,
+				       &asus_screenpad_bl_ops, &props);
+	if (IS_ERR(bd)) {
+		pr_err("Could not register backlight device\n");
+		return PTR_ERR(bd);
+	}
+
+	asus->screenpad_backlight_device = bd;
+	asus->driver->screenpad_brightness = brightness;
+	bd->props.brightness = brightness - ASUS_SCREENPAD_BRIGHT_MIN;
+	bd->props.power = power;
+	backlight_update_status(bd);
+
+	return 0;
+}
+
+static void asus_screenpad_exit(struct asus_wmi *asus)
+{
+	backlight_device_unregister(asus->screenpad_backlight_device);
+
+	asus->screenpad_backlight_device = NULL;
+}
+
 /* Fn-lock ********************************************************************/
 
 static bool asus_wmi_has_fnlock_key(struct asus_wmi *asus)
@@ -3887,50 +4021,14 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 static void asus_wmi_notify(u32 value, void *context)
 {
 	struct asus_wmi *asus = context;
-	int code;
-	int i;
+	int code = asus_wmi_get_event_code(value);
 
-	for (i = 0; i < WMI_EVENT_QUEUE_SIZE + 1; i++) {
-		code = asus_wmi_get_event_code(value);
-		if (code < 0) {
-			pr_warn("Failed to get notify code: %d\n", code);
-			return;
-		}
-
-		if (code == WMI_EVENT_QUEUE_END || code == WMI_EVENT_MASK)
-			return;
-
-		asus_wmi_handle_event_code(code, asus);
-
-		/*
-		 * Double check that queue is present:
-		 * ATK (with queue) uses 0xff, ASUSWMI (without) 0xd2.
-		 */
-		if (!asus->wmi_event_queue || value != WMI_EVENT_VALUE_ATK)
-			return;
+	if (code < 0) {
+		pr_warn("Failed to get notify code: %d\n", code);
+		return;
 	}
 
-	pr_warn("Failed to process event queue, last code: 0x%x\n", code);
-}
-
-static int asus_wmi_notify_queue_flush(struct asus_wmi *asus)
-{
-	int code;
-	int i;
-
-	for (i = 0; i < WMI_EVENT_QUEUE_SIZE + 1; i++) {
-		code = asus_wmi_get_event_code(WMI_EVENT_VALUE_ATK);
-		if (code < 0) {
-			pr_warn("Failed to get event during flush: %d\n", code);
-			return code;
-		}
-
-		if (code == WMI_EVENT_QUEUE_END || code == WMI_EVENT_MASK)
-			return 0;
-	}
-
-	pr_warn("Failed to flush event queue\n");
-	return -EIO;
+	asus_wmi_handle_event_code(code, asus);
 }
 
 /* Sysfs **********************************************************************/
@@ -4170,23 +4268,6 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 		asus->dsts_id = ASUS_WMI_METHODID_DSTS;
 	}
 
-	/*
-	 * Some devices can have multiple event codes stored in a queue before
-	 * the module load if it was unloaded intermittently after calling
-	 * the INIT method (enables event handling). The WMI notify handler is
-	 * expected to retrieve all event codes until a retrieved code equals
-	 * queue end marker (One or Ones). Old codes are flushed from the queue
-	 * upon module load. Not enabling this when it should be has minimal
-	 * visible impact so fall back if anything goes wrong.
-	 */
-	wmi_uid = wmi_get_acpi_device_uid(asus->driver->event_guid);
-	if (wmi_uid && !strcmp(wmi_uid, ASUS_ACPI_UID_ATK)) {
-		dev_info(dev, "Detected ATK, enable event queue\n");
-
-		if (!asus_wmi_notify_queue_flush(asus))
-			asus->wmi_event_queue = true;
-	}
-
 	/* CWAP allow to define the behavior of the Fn+F2 key,
 	 * this method doesn't seems to be present on Eee PCs */
 	if (asus->driver->quirks->wapf >= 0)
@@ -4364,6 +4445,8 @@ static int asus_wmi_add(struct platform_device *pdev)
 	asus->nv_temp_tgt_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_NV_THERM_TARGET);
 	asus->panel_overdrive_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PANEL_OD);
 	asus->mini_led_mode_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_MINI_LED_MODE);
+	asus->ally_mcu_usb_switch = acpi_has_method(NULL, ASUS_USB0_PWR_EC0_CSEE)
+						&& dmi_match(DMI_BOARD_NAME, "RC71L");
 
 	err = fan_boost_mode_check_present(asus);
 	if (err)
@@ -4424,6 +4507,12 @@ static int asus_wmi_add(struct platform_device *pdev)
 	} else if (asus->driver->quirks->wmi_backlight_set_devstate)
 		err = asus_wmi_set_devstate(ASUS_WMI_DEVID_BACKLIGHT, 2, NULL);
 
+	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_SCREENPAD_LIGHT)) {
+		err = asus_screenpad_init(asus);
+		if (err && err != -ENODEV)
+			goto fail_screenpad;
+	}
+
 	if (asus_wmi_has_fnlock_key(asus)) {
 		asus->fnlock_locked = fnlock_default;
 		asus_wmi_fnlock_update(asus);
@@ -4437,6 +4526,12 @@ static int asus_wmi_add(struct platform_device *pdev)
 		goto fail_wmi_handler;
 	}
 
+	if (asus->driver->i8042_filter) {
+		err = i8042_install_filter(asus->driver->i8042_filter);
+		if (err)
+			pr_warn("Unable to install key filter - %d\n", err);
+	}
+
 	asus_wmi_battery_init(asus);
 
 	asus_wmi_debugfs_init(asus);
@@ -4447,6 +4542,8 @@ fail_wmi_handler:
 	asus_wmi_backlight_exit(asus);
 fail_backlight:
 	asus_wmi_rfkill_exit(asus);
+fail_screenpad:
+	asus_screenpad_exit(asus);
 fail_rfkill:
 	asus_wmi_led_exit(asus);
 fail_leds:
@@ -4466,13 +4563,16 @@ fail_platform:
 	return err;
 }
 
-static int asus_wmi_remove(struct platform_device *device)
+static void asus_wmi_remove(struct platform_device *device)
 {
 	struct asus_wmi *asus;
 
 	asus = platform_get_drvdata(device);
+	if (asus->driver->i8042_filter)
+		i8042_remove_filter(asus->driver->i8042_filter);
 	wmi_remove_notify_handler(asus->driver->event_guid);
 	asus_wmi_backlight_exit(asus);
+	asus_screenpad_exit(asus);
 	asus_wmi_input_exit(asus);
 	asus_wmi_led_exit(asus);
 	asus_wmi_rfkill_exit(asus);
@@ -4486,7 +4586,6 @@ static int asus_wmi_remove(struct platform_device *device)
 		platform_profile_remove();
 
 	kfree(asus);
-	return 0;
 }
 
 /* Platform driver - hibernate/resume callbacks *******************************/
@@ -4521,6 +4620,43 @@ static int asus_hotk_resume(struct device *device)
 		asus_wmi_fnlock_update(asus);
 
 	asus_wmi_tablet_mode_get_state(asus);
+
+	return 0;
+}
+
+static int asus_hotk_resume_early(struct device *device)
+{
+	struct asus_wmi *asus = dev_get_drvdata(device);
+
+	if (asus->ally_mcu_usb_switch) {
+		if (ACPI_FAILURE(acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE, 0xB8)))
+			dev_err(device, "ROG Ally MCU failed to connect USB dev\n");
+		else
+			msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
+	}
+	return 0;
+}
+
+static int asus_hotk_prepare(struct device *device)
+{
+	struct asus_wmi *asus = dev_get_drvdata(device);
+	int result, err;
+
+	if (asus->ally_mcu_usb_switch) {
+		/* When powersave is enabled it causes many issues with resume of USB hub */
+		result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_MCU_POWERSAVE);
+		if (result == 1) {
+			dev_warn(device, "MCU powersave enabled, disabling to prevent resume issues");
+			err = asus_wmi_set_devstate(ASUS_WMI_DEVID_MCU_POWERSAVE, 0, &result);
+			if (err || result != 1)
+				dev_err(device, "Failed to set MCU powersave mode: %d\n", err);
+		}
+		/* sleep required to ensure USB0 is disabled before sleep continues */
+		if (ACPI_FAILURE(acpi_execute_simple_method(NULL, ASUS_USB0_PWR_EC0_CSEE, 0xB7)))
+			dev_err(device, "ROG Ally MCU failed to disconnect USB dev\n");
+		else
+			msleep(ASUS_USB0_PWR_EC0_CSEE_WAIT);
+	}
 	return 0;
 }
 
@@ -4568,6 +4704,8 @@ static const struct dev_pm_ops asus_pm_ops = {
 	.thaw = asus_hotk_thaw,
 	.restore = asus_hotk_restore,
 	.resume = asus_hotk_resume,
+	.resume_early = asus_hotk_resume_early,
+	.prepare = asus_hotk_prepare,
 };
 
 /* Registration ***************************************************************/
@@ -4608,7 +4746,7 @@ int __init_or_module asus_wmi_register_driver(struct asus_wmi_driver *driver)
 		return -EBUSY;
 
 	platform_driver = &driver->platform_driver;
-	platform_driver->remove = asus_wmi_remove;
+	platform_driver->remove_new = asus_wmi_remove;
 	platform_driver->driver.owner = driver->owner;
 	platform_driver->driver.name = driver->name;
 	platform_driver->driver.pm = &asus_pm_ops;

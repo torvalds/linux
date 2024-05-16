@@ -6,6 +6,10 @@
 menu "IPv6: Netfilter Configuration"
 	depends on INET && IPV6 && NETFILTER
 
+# old sockopt interface and eval loop
+config IP6_NF_IPTABLES_LEGACY
+	tristate
+
 config NF_SOCKET_IPV6
 	tristate "IPv6 socket lookup support"
 	help
@@ -147,7 +151,7 @@ config IP6_NF_MATCH_MH
 config IP6_NF_MATCH_RPFILTER
 	tristate '"rpfilter" reverse path filter match support'
 	depends on NETFILTER_ADVANCED
-	depends on IP6_NF_MANGLE || IP6_NF_RAW
+	depends on IP6_NF_MANGLE || IP6_NF_RAW || NFT_COMPAT
 	help
 	  This option allows you to match packets whose replies would
 	  go out via the interface the packet came in.
@@ -186,6 +190,8 @@ config IP6_NF_TARGET_HL
 config IP6_NF_FILTER
 	tristate "Packet filtering"
 	default m if NETFILTER_ADVANCED=n
+	select IP6_NF_IPTABLES_LEGACY
+	tristate
 	help
 	  Packet filtering defines a table `filter', which has a series of
 	  rules for simple packet filtering at local input, forwarding and
@@ -195,7 +201,7 @@ config IP6_NF_FILTER
 
 config IP6_NF_TARGET_REJECT
 	tristate "REJECT target support"
-	depends on IP6_NF_FILTER
+	depends on IP6_NF_FILTER || NFT_COMPAT
 	select NF_REJECT_IPV6
 	default m if NETFILTER_ADVANCED=n
 	help
@@ -221,6 +227,7 @@ config IP6_NF_TARGET_SYNPROXY
 config IP6_NF_MANGLE
 	tristate "Packet mangling"
 	default m if NETFILTER_ADVANCED=n
+	select IP6_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `mangle' table to iptables: see the man page for
 	  iptables(8).  This table is used for various packet alterations
@@ -230,6 +237,7 @@ config IP6_NF_MANGLE
 
 config IP6_NF_RAW
 	tristate  'raw table support (required for TRACE)'
+	select IP6_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `raw' table to ip6tables. This table is the very
 	  first in the netfilter framework and hooks in at the PREROUTING
@@ -243,6 +251,7 @@ config IP6_NF_SECURITY
 	tristate "Security table"
 	depends on SECURITY
 	depends on NETFILTER_ADVANCED
+	select IP6_NF_IPTABLES_LEGACY
 	help
 	  This option adds a `security' table to iptables, for use
 	  with Mandatory Access Control (MAC) policy.
@@ -254,6 +263,7 @@ config IP6_NF_NAT
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	select NF_NAT
+	select IP6_NF_IPTABLES_LEGACY
 	select NETFILTER_XT_NAT
 	help
 	  This enables the `nat' table in ip6tables. This allows masquerading,
@@ -262,24 +272,22 @@ config IP6_NF_NAT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-if IP6_NF_NAT
-
 config IP6_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
 	select NETFILTER_XT_TARGET_MASQUERADE
+	depends on IP6_NF_NAT
 	help
 	  This is a backwards-compat option for the user's convenience
 	  (e.g. when running oldconfig). It selects NETFILTER_XT_TARGET_MASQUERADE.
 
 config IP6_NF_TARGET_NPT
 	tristate "NPT (Network Prefix translation) target support"
+	depends on IP6_NF_NAT || NFT_COMPAT
 	help
 	  This option adds the `SNPT' and `DNPT' target, which perform
 	  stateless IPv6-to-IPv6 Network Prefix Translation per RFC 6296.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
-
-endif # IP6_NF_NAT
 
 endif # IP6_NF_IPTABLES
 endmenu

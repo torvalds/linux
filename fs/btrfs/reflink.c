@@ -25,12 +25,11 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 				     const u64 olen,
 				     int no_time_update)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
 	inode_inc_iversion(inode);
 	if (!no_time_update) {
-		inode->i_mtime = inode_set_ctime_current(inode);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	}
 	/*
 	 * We round up to the block size at eof when determining which
@@ -43,7 +42,7 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 		btrfs_inode_safe_disk_i_size_write(BTRFS_I(inode), 0);
 	}
 
-	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+	ret = btrfs_update_inode(trans, BTRFS_I(inode));
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
@@ -142,9 +141,9 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (datal < block_size)
 		memzero_page(page, datal, block_size - datal);
 
-	btrfs_page_set_uptodate(fs_info, page, file_offset, block_size);
-	btrfs_page_clear_checked(fs_info, page, file_offset, block_size);
-	btrfs_page_set_dirty(fs_info, page, file_offset, block_size);
+	btrfs_folio_set_uptodate(fs_info, page_folio(page), file_offset, block_size);
+	btrfs_folio_clear_checked(fs_info, page_folio(page), file_offset, block_size);
+	btrfs_folio_set_dirty(fs_info, page_folio(page), file_offset, block_size);
 out_unlock:
 	if (page) {
 		unlock_page(page);
@@ -175,7 +174,7 @@ static int clone_copy_inline_extent(struct inode *dst,
 				    char *inline_data,
 				    struct btrfs_trans_handle **trans_out)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(dst->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(dst);
 	struct btrfs_root *root = BTRFS_I(dst)->root;
 	const u64 aligned_end = ALIGN(new_key->offset + datal,
 				      fs_info->sectorsize);
@@ -338,7 +337,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 		       const u64 off, const u64 olen, const u64 olen_aligned,
 		       const u64 destoff, int no_time_update)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct btrfs_path *path = NULL;
 	struct extent_buffer *leaf;
 	struct btrfs_trans_handle *trans;
@@ -664,7 +663,7 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 				   struct inode *dst, u64 dst_loff)
 {
 	struct btrfs_fs_info *fs_info = BTRFS_I(src)->root->fs_info;
-	const u64 bs = fs_info->sb->s_blocksize;
+	const u64 bs = fs_info->sectorsize;
 	int ret;
 
 	/*
@@ -727,11 +726,11 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 {
 	struct inode *inode = file_inode(file);
 	struct inode *src = file_inode(file_src);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	int ret;
 	int wb_ret;
 	u64 len = olen;
-	u64 bs = fs_info->sb->s_blocksize;
+	u64 bs = fs_info->sectorsize;
 
 	/*
 	 * VFS's generic_remap_file_range_prep() protects us from cloning the
@@ -797,7 +796,7 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 {
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
-	u64 bs = BTRFS_I(inode_out)->root->fs_info->sb->s_blocksize;
+	u64 bs = BTRFS_I(inode_out)->root->fs_info->sectorsize;
 	u64 wb_len;
 	int ret;
 

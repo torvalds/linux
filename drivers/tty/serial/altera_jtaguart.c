@@ -147,14 +147,14 @@ static irqreturn_t altera_jtaguart_interrupt(int irq, void *data)
 	isr = (readl(port->membase + ALTERA_JTAGUART_CONTROL_REG) >>
 	       ALTERA_JTAGUART_CONTROL_RI_OFF) & port->read_status_mask;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	if (isr & ALTERA_JTAGUART_CONTROL_RE_MSK)
 		altera_jtaguart_rx_chars(port);
 	if (isr & ALTERA_JTAGUART_CONTROL_WE_MSK)
 		altera_jtaguart_tx_chars(port);
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_RETVAL(isr);
 }
@@ -180,14 +180,14 @@ static int altera_jtaguart_startup(struct uart_port *port)
 		return ret;
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Enable RX interrupts now */
 	port->read_status_mask = ALTERA_JTAGUART_CONTROL_RE_MSK;
 	writel(port->read_status_mask,
 			port->membase + ALTERA_JTAGUART_CONTROL_REG);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return 0;
 }
@@ -196,14 +196,14 @@ static void altera_jtaguart_shutdown(struct uart_port *port)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Disable all interrupts now */
 	port->read_status_mask = 0;
 	writel(port->read_status_mask,
 			port->membase + ALTERA_JTAGUART_CONTROL_REG);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	free_irq(port->irq, port);
 }
@@ -264,33 +264,33 @@ static void altera_jtaguart_console_putc(struct uart_port *port, unsigned char c
 	unsigned long flags;
 	u32 status;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	while (!altera_jtaguart_tx_space(port, &status)) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 
 		if ((status & ALTERA_JTAGUART_CONTROL_AC_MSK) == 0) {
 			return;	/* no connection activity */
 		}
 
 		cpu_relax();
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 	}
 	writel(c, port->membase + ALTERA_JTAGUART_DATA_REG);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 #else
 static void altera_jtaguart_console_putc(struct uart_port *port, unsigned char c)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	while (!altera_jtaguart_tx_space(port, NULL)) {
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 		cpu_relax();
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 	}
 	writel(c, port->membase + ALTERA_JTAGUART_DATA_REG);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 #endif
 
@@ -425,7 +425,7 @@ static int altera_jtaguart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int altera_jtaguart_remove(struct platform_device *pdev)
+static void altera_jtaguart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	int i = pdev->id;
@@ -436,8 +436,6 @@ static int altera_jtaguart_remove(struct platform_device *pdev)
 	port = &altera_jtaguart_ports[i];
 	uart_remove_one_port(&altera_jtaguart_driver, port);
 	iounmap(port->membase);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -451,7 +449,7 @@ MODULE_DEVICE_TABLE(of, altera_jtaguart_match);
 
 static struct platform_driver altera_jtaguart_platform_driver = {
 	.probe	= altera_jtaguart_probe,
-	.remove	= altera_jtaguart_remove,
+	.remove_new = altera_jtaguart_remove,
 	.driver	= {
 		.name		= DRV_NAME,
 		.of_match_table	= of_match_ptr(altera_jtaguart_match),

@@ -5,10 +5,28 @@
 #include <core/engine.h>
 #include <core/object.h>
 #include <core/event.h>
+#include <subdev/gsp.h>
 
 struct nvkm_disp {
 	const struct nvkm_disp_func *func;
 	struct nvkm_engine engine;
+
+	struct {
+		struct nvkm_gsp_client client;
+		struct nvkm_gsp_device device;
+
+		struct nvkm_gsp_object objcom;
+		struct nvkm_gsp_object object;
+
+#define NVKM_DPYID_PLUG   BIT(0)
+#define NVKM_DPYID_UNPLUG BIT(1)
+#define NVKM_DPYID_IRQ    BIT(2)
+		struct nvkm_event event;
+		struct nvkm_gsp_event hpd;
+		struct nvkm_gsp_event irq;
+
+		u32 assigned_sors;
+	} rm;
 
 	struct list_head heads;
 	struct list_head iors;
@@ -69,4 +87,5 @@ int gp102_disp_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct
 int gv100_disp_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_disp **);
 int tu102_disp_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_disp **);
 int ga102_disp_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_disp **);
+int ad102_disp_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_disp **);
 #endif

@@ -20,20 +20,34 @@ description:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - qcom,sc8180x-pmic-glink
-          - qcom,sc8280xp-pmic-glink
-          - qcom,sm8350-pmic-glink
-          - qcom,sm8450-pmic-glink
-          - qcom,sm8550-pmic-glink
-      - const: qcom,pmic-glink
+    oneOf:
+      - items:
+          - enum:
+              - qcom,qcm6490-pmic-glink
+              - qcom,sc8180x-pmic-glink
+              - qcom,sc8280xp-pmic-glink
+              - qcom,sm8350-pmic-glink
+              - qcom,sm8450-pmic-glink
+              - qcom,sm8550-pmic-glink
+          - const: qcom,pmic-glink
+      - items:
+          - enum:
+              - qcom,sm8650-pmic-glink
+              - qcom,x1e80100-pmic-glink
+          - const: qcom,sm8550-pmic-glink
+          - const: qcom,pmic-glink
 
   '#address-cells':
     const: 1
 
   '#size-cells':
     const: 0
+
+  orientation-gpios:
+    description: Array of input gpios for the Type-C connector orientation indication.
+      The GPIO indication is used to detect the orientation of the Type-C connector.
+      The array should contain a gpio entry for each PMIC Glink connector, in reg order.
+      It is defined that GPIO active level means "CC2" or Reversed/Flipped orientation.
 
 patternProperties:
   '^connector@\d$':
@@ -43,6 +57,20 @@ patternProperties:
 
 required:
   - compatible
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - qcom,sm8450-pmic-glink
+                - qcom,sm8550-pmic-glink
+                - qcom,x1e80100-pmic-glink
+    then:
+      properties:
+        orientation-gpios: false
 
 additionalProperties: false
 

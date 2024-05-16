@@ -2,7 +2,7 @@
 #ifndef _LINUX_INDIRECT_CALL_WRAPPER_H
 #define _LINUX_INDIRECT_CALL_WRAPPER_H
 
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 
 /*
  * INDIRECT_CALL_$NR - wrapper for indirect calls with $NR known builtin
@@ -11,7 +11,7 @@
  *  @__VA_ARGS__: arguments for @f
  *
  * Avoid retpoline overhead for known builtin, checking @f vs each of them and
- * eventually invoking directly the builtin function. The functions are check
+ * eventually invoking directly the builtin function. The functions are checked
  * in the given order. Fallback to the indirect call.
  */
 #define INDIRECT_CALL_1(f, f1, ...)					\

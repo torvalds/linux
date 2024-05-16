@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+config DRM_RZG2L_DU
+	tristate "DRM Support for RZ/G2L Display Unit"
+	depends on ARCH_RZG2L || COMPILE_TEST
+	depends on DRM && OF
+	depends on VIDEO_RENESAS_VSP1
+	select DRM_GEM_DMA_HELPER
+	select DRM_KMS_HELPER
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have an RZ/G2L alike chipset.
+	  If M is selected the module will be called rzg2l-du-drm.

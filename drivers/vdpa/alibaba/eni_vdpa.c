@@ -254,6 +254,13 @@ static u16 eni_vdpa_get_vq_num_min(struct vdpa_device *vdpa)
 	return vp_legacy_get_queue_size(ldev, 0);
 }
 
+static u16 eni_vdpa_get_vq_size(struct vdpa_device *vdpa, u16 qid)
+{
+	struct virtio_pci_legacy_device *ldev = vdpa_to_ldev(vdpa);
+
+	return vp_legacy_get_queue_size(ldev, qid);
+}
+
 static int eni_vdpa_get_vq_state(struct vdpa_device *vdpa, u16 qid,
 				struct vdpa_vq_state *state)
 {
@@ -416,6 +423,7 @@ static const struct vdpa_config_ops eni_vdpa_ops = {
 	.reset		= eni_vdpa_reset,
 	.get_vq_num_max	= eni_vdpa_get_vq_num_max,
 	.get_vq_num_min	= eni_vdpa_get_vq_num_min,
+	.get_vq_size	= eni_vdpa_get_vq_size,
 	.get_vq_state	= eni_vdpa_get_vq_state,
 	.set_vq_state	= eni_vdpa_set_vq_state,
 	.set_vq_cb	= eni_vdpa_set_vq_cb,
@@ -497,7 +505,7 @@ static int eni_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!eni_vdpa->vring) {
 		ret = -ENOMEM;
 		ENI_ERR(pdev, "failed to allocate virtqueues\n");
-		goto err;
+		goto err_remove_vp_legacy;
 	}
 
 	for (i = 0; i < eni_vdpa->queues; i++) {
@@ -509,11 +517,13 @@ static int eni_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = vdpa_register_device(&eni_vdpa->vdpa, eni_vdpa->queues);
 	if (ret) {
 		ENI_ERR(pdev, "failed to register to vdpa bus\n");
-		goto err;
+		goto err_remove_vp_legacy;
 	}
 
 	return 0;
 
+err_remove_vp_legacy:
+	vp_legacy_remove(&eni_vdpa->ldev);
 err:
 	put_device(&eni_vdpa->vdpa.dev);
 	return ret;

@@ -1903,6 +1903,10 @@ int amdkfd_fence_wait_timeout(struct device_queue_manager *dqm,
 	uint64_t *fence_addr =  dqm->fence_addr;
 
 	while (*fence_addr != fence_value) {
+		/* Fatal err detected, this response won't come */
+		if (amdgpu_amdkfd_is_fed(dqm->dev->adev))
+			return -EIO;
+
 		if (time_after(jiffies, end_jiffies)) {
 			dev_err(dev, "qcm fence wait loop timeout expired\n");
 			/* In HWS case, this is used to halt the driver thread
@@ -1993,10 +1997,10 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 	 * check those fields
 	 */
 	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ];
-	if (mqd_mgr->read_doorbell_id(dqm->packet_mgr.priv_queue->queue->mqd)) {
-		dev_err(dev, "HIQ MQD's queue_doorbell_id0 is not 0, Queue preemption time out\n");
+	if (mqd_mgr->check_preemption_failed(mqd_mgr, dqm->packet_mgr.priv_queue->queue->mqd)) {
 		while (halt_if_hws_hang)
 			schedule();
+		kfd_hws_hang(dqm);
 		return -ETIME;
 	}
 

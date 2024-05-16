@@ -208,7 +208,8 @@ static int genphy_c45_baset1_an_config_aneg(struct phy_device *phydev)
 
 	adv_l_mask = MDIO_AN_T1_ADV_L_FORCE_MS | MDIO_AN_T1_ADV_L_PAUSE_CAP |
 		MDIO_AN_T1_ADV_L_PAUSE_ASYM;
-	adv_m_mask = MDIO_AN_T1_ADV_M_MST | MDIO_AN_T1_ADV_M_B10L;
+	adv_m_mask = MDIO_AN_T1_ADV_M_1000BT1 | MDIO_AN_T1_ADV_M_100BT1 |
+		MDIO_AN_T1_ADV_M_MST | MDIO_AN_T1_ADV_M_B10L;
 
 	switch (phydev->master_slave_set) {
 	case MASTER_SLAVE_CFG_MASTER_FORCE:
@@ -706,6 +707,22 @@ int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv)
 			changed = 1;
 	}
 
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP2_FEATURES)) {
+		val = linkmode_to_mii_eee_cap2_t(adv);
+
+		/* IEEE 802.3-2022 45.2.7.16 EEE advertisement 2
+		 * (Register 7.62)
+		 */
+		val = phy_modify_mmd_changed(phydev, MDIO_MMD_AN,
+					     MDIO_AN_EEE_ADV2,
+					     MDIO_EEE_2_5GT | MDIO_EEE_5GT,
+					     val);
+		if (val < 0)
+			return val;
+		if (val > 0)
+			changed = 1;
+	}
+
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
 			      phydev->supported_eee)) {
 		val = linkmode_adv_to_mii_10base_t1_t(adv);
@@ -745,6 +762,17 @@ int genphy_c45_read_eee_adv(struct phy_device *phydev, unsigned long *adv)
 		mii_eee_cap1_mod_linkmode_t(adv, val);
 	}
 
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP2_FEATURES)) {
+		/* IEEE 802.3-2022 45.2.7.16 EEE advertisement 2
+		 * (Register 7.62)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV2);
+		if (val < 0)
+			return val;
+
+		mii_eee_cap2_mod_linkmode_adv_t(adv, val);
+	}
+
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
 			      phydev->supported_eee)) {
 		/* IEEE 802.3cg-2019 45.2.7.25 10BASE-T1 AN control register
@@ -779,6 +807,17 @@ static int genphy_c45_read_eee_lpa(struct phy_device *phydev,
 			return val;
 
 		mii_eee_cap1_mod_linkmode_t(lpa, val);
+	}
+
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP2_FEATURES)) {
+		/* IEEE 802.3-2022 45.2.7.17 EEE link partner ability 2
+		 * (Register 7.63)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE2);
+		if (val < 0)
+			return val;
+
+		mii_eee_cap2_mod_linkmode_adv_t(lpa, val);
 	}
 
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
@@ -831,6 +870,30 @@ static int genphy_c45_read_eee_cap1(struct phy_device *phydev)
 }
 
 /**
+ * genphy_c45_read_eee_cap2 - read supported EEE link modes from register 3.21
+ * @phydev: target phy_device struct
+ */
+static int genphy_c45_read_eee_cap2(struct phy_device *phydev)
+{
+	int val;
+
+	/* IEEE 802.3-2022 45.2.3.11 EEE control and capability 2
+	 * (Register 3.21)
+	 */
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE2);
+	if (val < 0)
+		return val;
+
+	/* IEEE 802.3-2022 45.2.3.11 says 9 bits are reserved. */
+	if (val == 0xffff)
+		return 0;
+
+	mii_eee_cap2_mod_linkmode_sup_t(phydev->supported_eee, val);
+
+	return 0;
+}
+
+/**
  * genphy_c45_read_eee_abilities - read supported EEE link modes
  * @phydev: target phy_device struct
  */
@@ -844,6 +907,13 @@ int genphy_c45_read_eee_abilities(struct phy_device *phydev)
 	 */
 	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
 		val = genphy_c45_read_eee_cap1(phydev);
+		if (val)
+			return val;
+	}
+
+	/* Same for cap2 (3.21) */
+	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP2_FEATURES)) {
+		val = genphy_c45_read_eee_cap2(phydev);
 		if (val)
 			return val;
 	}
@@ -920,6 +990,79 @@ int genphy_c45_pma_baset1_read_abilities(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_read_abilities);
 
 /**
+ * genphy_c45_pma_read_ext_abilities - read supported link modes from PMA
+ * @phydev: target phy_device struct
+ *
+ * Read the supported link modes from the PMA/PMD extended ability register
+ * (Register 1.11).
+ */
+int genphy_c45_pma_read_ext_abilities(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_EXTABLE);
+	if (val < 0)
+		return val;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10GBLRM);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10GBT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10GBKX4);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10GBKR);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_1000BT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_1000BKX);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_100BTX);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_100BTX);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10BT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10BT);
+
+	if (val & MDIO_PMA_EXTABLE_NBT) {
+		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+				   MDIO_PMA_NG_EXTABLE);
+		if (val < 0)
+			return val;
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_NG_EXTABLE_2_5GBT);
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_NG_EXTABLE_5GBT);
+	}
+
+	if (val & MDIO_PMA_EXTABLE_BT1) {
+		val = genphy_c45_pma_baset1_read_abilities(phydev);
+		if (val < 0)
+			return val;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_read_ext_abilities);
+
+/**
  * genphy_c45_pma_read_abilities - read supported link modes from PMA
  * @phydev: target phy_device struct
  *
@@ -962,63 +1105,9 @@ int genphy_c45_pma_read_abilities(struct phy_device *phydev)
 			 val & MDIO_PMA_STAT2_10GBER);
 
 	if (val & MDIO_PMA_STAT2_EXTABLE) {
-		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_EXTABLE);
+		val = genphy_c45_pma_read_ext_abilities(phydev);
 		if (val < 0)
 			return val;
-
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10GBLRM);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10GBT);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10GBKX4);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10GBKR);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_1000BT);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_1000BKX);
-
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_100BTX);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_100BTX);
-
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10BT);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10BT);
-
-		if (val & MDIO_PMA_EXTABLE_NBT) {
-			val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
-					   MDIO_PMA_NG_EXTABLE);
-			if (val < 0)
-				return val;
-
-			linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-					 phydev->supported,
-					 val & MDIO_PMA_NG_EXTABLE_2_5GBT);
-
-			linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-					 phydev->supported,
-					 val & MDIO_PMA_NG_EXTABLE_5GBT);
-		}
-
-		if (val & MDIO_PMA_EXTABLE_BT1) {
-			val = genphy_c45_pma_baset1_read_abilities(phydev);
-			if (val < 0)
-				return val;
-		}
 	}
 
 	/* This is optional functionality. If not supported, we may get an error
@@ -1424,17 +1513,17 @@ EXPORT_SYMBOL(genphy_c45_eee_is_active);
 /**
  * genphy_c45_ethtool_get_eee - get EEE supported and status
  * @phydev: target phy_device struct
- * @data: ethtool_eee data
+ * @data: ethtool_keee data
  *
  * Description: it reports the Supported/Advertisement/LP Advertisement
  * capabilities.
  */
 int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
-			       struct ethtool_eee *data)
+			       struct ethtool_keee *data)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv) = {};
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp) = {};
-	bool overflow = false, is_enabled;
+	bool is_enabled;
 	int ret;
 
 	ret = genphy_c45_eee_is_active(phydev, adv, lp, &is_enabled);
@@ -1443,17 +1532,9 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 
 	data->eee_enabled = is_enabled;
 	data->eee_active = ret;
-
-	if (!ethtool_convert_link_mode_to_legacy_u32(&data->supported,
-						     phydev->supported_eee))
-		overflow = true;
-	if (!ethtool_convert_link_mode_to_legacy_u32(&data->advertised, adv))
-		overflow = true;
-	if (!ethtool_convert_link_mode_to_legacy_u32(&data->lp_advertised, lp))
-		overflow = true;
-
-	if (overflow)
-		phydev_warn(phydev, "Not all supported or advertised EEE link modes were passed to the user space\n");
+	linkmode_copy(data->supported, phydev->supported_eee);
+	linkmode_copy(data->advertised, adv);
+	linkmode_copy(data->lp_advertised, lp);
 
 	return 0;
 }
@@ -1462,50 +1543,53 @@ EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
 /**
  * genphy_c45_ethtool_set_eee - set EEE supported and status
  * @phydev: target phy_device struct
- * @data: ethtool_eee data
+ * @data: ethtool_keee data
  *
  * Description: sets the Supported/Advertisement/LP Advertisement
  * capabilities. If eee_enabled is false, no links modes are
  * advertised, but the previously advertised link modes are
  * retained. This allows EEE to be enabled/disabled in a
  * non-destructive way.
+ * Returns either error code, 0 if there was no change, or positive
+ * value if there was a change which triggered auto-neg.
  */
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
-			       struct ethtool_eee *data)
+			       struct ethtool_keee *data)
 {
 	int ret;
 
 	if (data->eee_enabled) {
-		if (data->advertised) {
-			__ETHTOOL_DECLARE_LINK_MODE_MASK(adv);
+		unsigned long *adv = data->advertised;
 
-			ethtool_convert_legacy_u32_to_link_mode(adv,
-								data->advertised);
-			linkmode_andnot(adv, adv, phydev->supported_eee);
-			if (!linkmode_empty(adv)) {
+		if (!linkmode_empty(adv)) {
+			__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp);
+
+			if (linkmode_andnot(tmp, adv, phydev->supported_eee)) {
 				phydev_warn(phydev, "At least some EEE link modes are not supported.\n");
 				return -EINVAL;
 			}
-
-			ethtool_convert_legacy_u32_to_link_mode(phydev->advertising_eee,
-								data->advertised);
 		} else {
-			linkmode_copy(phydev->advertising_eee,
-				      phydev->supported_eee);
+			adv = phydev->supported_eee;
 		}
 
-		phydev->eee_enabled = true;
-	} else {
-		phydev->eee_enabled = false;
+		linkmode_copy(phydev->advertising_eee, adv);
 	}
 
-	ret = genphy_c45_an_config_eee_aneg(phydev);
-	if (ret < 0)
-		return ret;
-	if (ret > 0)
-		return phy_restart_aneg(phydev);
+	phydev->eee_enabled = data->eee_enabled;
 
-	return 0;
+	ret = genphy_c45_an_config_eee_aneg(phydev);
+	if (ret > 0) {
+		ret = phy_restart_aneg(phydev);
+		if (ret < 0)
+			return ret;
+
+		/* explicitly return 1, otherwise (ret > 0) value will be
+		 * overwritten by phy_restart_aneg().
+		 */
+		return 1;
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(genphy_c45_ethtool_set_eee);
 

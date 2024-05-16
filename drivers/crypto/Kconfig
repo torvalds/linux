@@ -306,6 +306,7 @@ config CRYPTO_DEV_SAHARA
 	select CRYPTO_SKCIPHER
 	select CRYPTO_AES
 	select CRYPTO_ECB
+	select CRYPTO_ENGINE
 	help
 	  This option enables support for the SAHARA HW crypto accelerator
 	  found in some Freescale i.MX chips.
@@ -601,6 +602,7 @@ config CRYPTO_DEV_QCE_SW_MAX_LEN
 config CRYPTO_DEV_QCOM_RNG
 	tristate "Qualcomm Random Number Generator Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
+	depends on HW_RANDOM
 	select CRYPTO_RNG
 	help
 	  This driver provides support for the Random Number
@@ -609,13 +611,13 @@ config CRYPTO_DEV_QCOM_RNG
 	  To compile this driver as a module, choose M here. The
 	  module will be called qcom-rng. If unsure, say N.
 
-config CRYPTO_DEV_VMX
-	bool "Support for VMX cryptographic acceleration instructions"
-	depends on PPC64 && VSX
-	help
-	  Support for VMX cryptographic acceleration instructions.
-
-source "drivers/crypto/vmx/Kconfig"
+#config CRYPTO_DEV_VMX
+#	bool "Support for VMX cryptographic acceleration instructions"
+#	depends on PPC64 && VSX
+#	help
+#	  Support for VMX cryptographic acceleration instructions.
+#
+#source "drivers/crypto/vmx/Kconfig"
 
 config CRYPTO_DEV_IMGTEC_HASH
 	tristate "Imagination Technologies hardware hash accelerator"

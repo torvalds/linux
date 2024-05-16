@@ -28,28 +28,17 @@ description: |
 properties:
   compatible:
     oneOf:
-      - const: "fsl,imx51-src"
+      - const: fsl,imx51-src
       - items:
-          - const: "fsl,imx50-src"
-          - const: "fsl,imx51-src"
-      - items:
-          - const: "fsl,imx53-src"
-          - const: "fsl,imx51-src"
-      - items:
-          - const: "fsl,imx6q-src"
-          - const: "fsl,imx51-src"
-      - items:
-          - const: "fsl,imx6sx-src"
-          - const: "fsl,imx51-src"
-      - items:
-          - const: "fsl,imx6sl-src"
-          - const: "fsl,imx51-src"
-      - items:
-          - const: "fsl,imx6ul-src"
-          - const: "fsl,imx51-src"
-      - items:
-          - const: "fsl,imx6sll-src"
-          - const: "fsl,imx51-src"
+          - enum:
+              - fsl,imx50-src
+              - fsl,imx53-src
+              - fsl,imx6q-src
+              - fsl,imx6sx-src
+              - fsl,imx6sl-src
+              - fsl,imx6ul-src
+              - fsl,imx6sll-src
+          - const: fsl,imx51-src
 
   reg:
     maxItems: 1

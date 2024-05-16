@@ -715,7 +715,7 @@ static int exynos5420_usbdrd_phy_calibrate(struct exynos5_usbdrd_phy *phy_drd)
 }
 
 static struct phy *exynos5_usbdrd_phy_xlate(struct device *dev,
-					struct of_phandle_args *args)
+					const struct of_phandle_args *args)
 {
 	struct exynos5_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 

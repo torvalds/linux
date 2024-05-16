@@ -28,6 +28,7 @@
  */
 
 #include <linux/ascii85.h>
+#include <linux/debugfs.h>
 #include <linux/highmem.h>
 #include <linux/nmi.h>
 #include <linux/pagevec.h>
@@ -661,6 +662,7 @@ static void err_print_params(struct drm_i915_error_state_buf *m,
 	struct drm_printer p = i915_error_printer(m);
 
 	i915_params_dump(params, &p);
+	intel_display_params_dump(m->i915, &p);
 }
 
 static void err_print_pciid(struct drm_i915_error_state_buf *m,
@@ -1028,6 +1030,7 @@ static void i915_vma_coredump_free(struct i915_vma_coredump *vma)
 static void cleanup_params(struct i915_gpu_coredump *error)
 {
 	i915_params_free(&error->params);
+	intel_display_params_free(&error->display_params);
 }
 
 static void cleanup_uc(struct intel_uc_coredump *uc)
@@ -1155,7 +1158,7 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 			dma_addr_t offset = dma - mem->region.start;
 			void __iomem *s;
 
-			if (offset + PAGE_SIZE > mem->io_size) {
+			if (offset + PAGE_SIZE > resource_size(&mem->io)) {
 				ret = -EINVAL;
 				break;
 			}
@@ -1243,8 +1246,7 @@ static void engine_record_registers(struct intel_engine_coredump *ee)
 		if (MEDIA_VER(i915) >= 13 && engine->gt->type == GT_MEDIA)
 			ee->fault_reg = intel_uncore_read(engine->uncore,
 							  XELPMP_RING_FAULT_REG);
-
-		else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+		else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 			ee->fault_reg = intel_gt_mcr_read_any(engine->gt,
 							      XEHP_RING_FAULT_REG);
 		else if (GRAPHICS_VER(i915) >= 12)
@@ -1850,7 +1852,7 @@ static void gt_record_global_regs(struct intel_gt_coredump *gt)
 	if (GRAPHICS_VER(i915) == 7)
 		gt->err_int = intel_uncore_read(uncore, GEN7_ERR_INT);
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		gt->fault_data0 = intel_gt_mcr_read_any((struct intel_gt *)gt->_gt,
 							XEHP_FAULT_TLB_DATA0);
 		gt->fault_data1 = intel_gt_mcr_read_any((struct intel_gt *)gt->_gt,
@@ -1989,6 +1991,7 @@ static void capture_gen(struct i915_gpu_coredump *error)
 	error->suspend_count = i915->suspend_count;
 
 	i915_params_copy(&error->params, &i915->params);
+	intel_display_params_copy(&error->display_params);
 	memcpy(&error->device_info,
 	       INTEL_INFO(i915),
 	       sizeof(error->device_info));
@@ -2175,7 +2178,7 @@ void i915_error_state_store(struct i915_gpu_coredump *error)
 	    ktime_get_real_seconds() - DRIVER_TIMESTAMP < DAY_AS_SECONDS(180)) {
 		pr_info("GPU hangs can indicate a bug anywhere in the entire gfx stack, including userspace.\n");
 		pr_info("Please file a _new_ bug report at https://gitlab.freedesktop.org/drm/intel/issues/new.\n");
-		pr_info("Please see https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs for details.\n");
+		pr_info("Please see https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html for details.\n");
 		pr_info("drm/i915 developers can then reassign to the right component if it's not a kernel issue.\n");
 		pr_info("The GPU crash dump is required to analyze GPU hangs, so please always attach it.\n");
 		pr_info("GPU crash dump saved to /sys/class/drm/card%d/error\n",

@@ -9,6 +9,7 @@
 	compatible = "azw,beelink-a1", "rockchip,rk3328";
 
 	aliases {
+		ethernet0 = &gmac2io;
 		mmc0 = &sdmmc;
 		mmc1 = &emmc;
 	};

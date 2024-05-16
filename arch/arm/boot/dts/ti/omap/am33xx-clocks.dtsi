@@ -108,30 +108,31 @@
 		compatible = "ti,clksel";
 		reg = <0x664>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		ehrpwm0_tbclk: clock-ehrpwm0-tbclk {
+		ehrpwm0_tbclk: clock-ehrpwm0-tbclk@0 {
+			reg = <0>;
 			#clock-cells = <0>;
 			compatible = "ti,gate-clock";
 			clock-output-names = "ehrpwm0_tbclk";
 			clocks = <&l4ls_gclk>;
-			ti,bit-shift = <0>;
 		};
 
-		ehrpwm1_tbclk: clock-ehrpwm1-tbclk {
+		ehrpwm1_tbclk: clock-ehrpwm1-tbclk@1 {
+			reg = <1>;
 			#clock-cells = <0>;
 			compatible = "ti,gate-clock";
 			clock-output-names = "ehrpwm1_tbclk";
 			clocks = <&l4ls_gclk>;
-			ti,bit-shift = <1>;
 		};
 
-		ehrpwm2_tbclk: clock-ehrpwm2-tbclk {
+		ehrpwm2_tbclk: clock-ehrpwm2-tbclk@2 {
+			reg = <2>;
 			#clock-cells = <0>;
 			compatible = "ti,gate-clock";
 			clock-output-names = "ehrpwm2_tbclk";
 			clocks = <&l4ls_gclk>;
-			ti,bit-shift = <2>;
 		};
 	};
 };
@@ -566,17 +567,19 @@
 		compatible = "ti,clksel";
 		reg = <0x52c>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		gfx_fclk_clksel_ck: clock-gfx-fclk-clksel {
+		gfx_fclk_clksel_ck: clock-gfx-fclk-clksel@1 {
+			reg = <1>;
 			#clock-cells = <0>;
 			compatible = "ti,mux-clock";
 			clock-output-names = "gfx_fclk_clksel_ck";
 			clocks = <&dpll_core_m4_ck>, <&dpll_per_m2_ck>;
-			ti,bit-shift = <1>;
 		};
 
-		gfx_fck_div_ck: clock-gfx-fck-div {
+		gfx_fck_div_ck: clock-gfx-fck-div@0 {
+			reg = <0>;
 			#clock-cells = <0>;
 			compatible = "ti,divider-clock";
 			clock-output-names = "gfx_fck_div_ck";
@@ -589,30 +592,32 @@
 		compatible = "ti,clksel";
 		reg = <0x700>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		sysclkout_pre_ck: clock-sysclkout-pre {
+		sysclkout_pre_ck: clock-sysclkout-pre@0 {
+			reg = <0>;
 			#clock-cells = <0>;
 			compatible = "ti,mux-clock";
 			clock-output-names = "sysclkout_pre_ck";
 			clocks = <&clk_32768_ck>, <&l3_gclk>, <&dpll_ddr_m2_ck>, <&dpll_per_m2_ck>, <&lcd_gclk>;
 		};
 
-		clkout2_div_ck: clock-clkout2-div {
+		clkout2_div_ck: clock-clkout2-div@3 {
+			reg = <3>;
 			#clock-cells = <0>;
 			compatible = "ti,divider-clock";
 			clock-output-names = "clkout2_div_ck";
 			clocks = <&sysclkout_pre_ck>;
-			ti,bit-shift = <3>;
 			ti,max-div = <8>;
 		};
 
-		clkout2_ck: clock-clkout2 {
+		clkout2_ck: clock-clkout2@7 {
+			reg = <7>;
 			#clock-cells = <0>;
 			compatible = "ti,gate-clock";
 			clock-output-names = "clkout2_ck";
 			clocks = <&clkout2_div_ck>;
-			ti,bit-shift = <7>;
 		};
 	};
 };

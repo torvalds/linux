@@ -4,6 +4,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/clock.h>
 #include <sound/sof/ipc4/header.h>
 #include "sof-priv.h"
 #include "ipc4-priv.h"
@@ -41,24 +42,12 @@
  * The two pointers are offsets within the buffer.
  */
 
-#define SOF_MTRACE_DESCRIPTOR_SIZE		12 /* 3 x u32 */
-
 #define FW_EPOCH_DELTA				11644473600LL
 
-#define INVALID_SLOT_OFFSET			0xffffffff
 #define MAX_ALLOWED_LIBRARIES			16
-#define MAX_MTRACE_SLOTS			15
 
-#define SOF_MTRACE_PAGE_SIZE			0x1000
-#define SOF_MTRACE_SLOT_SIZE			SOF_MTRACE_PAGE_SIZE
+#define SOF_IPC4_INVALID_SLOT_OFFSET		0xffffffff
 
-/* debug log slot types */
-#define SOF_MTRACE_SLOT_UNUSED			0x00000000
-#define SOF_MTRACE_SLOT_CRITICAL_LOG		0x54524300 /* byte 0: core ID */
-#define SOF_MTRACE_SLOT_DEBUG_LOG		0x474f4c00 /* byte 0: core ID */
-#define SOF_MTRACE_SLOT_GDB_STUB		0x42444700
-#define SOF_MTRACE_SLOT_TELEMETRY		0x4c455400
-#define SOF_MTRACE_SLOT_BROKEN			0x44414544
  /* for debug and critical types */
 #define SOF_MTRACE_SLOT_CORE_MASK		GENMASK(7, 0)
 #define SOF_MTRACE_SLOT_TYPE_MASK		GENMASK(31, 8)
@@ -140,7 +129,7 @@ static int sof_ipc4_mtrace_dfs_open(struct inode *inode, struct file *file)
 	if (unlikely(ret))
 		goto out;
 
-	core_data->log_buffer = kmalloc(SOF_MTRACE_SLOT_SIZE, GFP_KERNEL);
+	core_data->log_buffer = kmalloc(SOF_IPC4_DEBUG_SLOT_SIZE, GFP_KERNEL);
 	if (!core_data->log_buffer) {
 		debugfs_file_put(file->f_path.dentry);
 		ret = -ENOMEM;
@@ -212,13 +201,13 @@ static ssize_t sof_ipc4_mtrace_dfs_read(struct file *file, char __user *buffer,
 		return 0;
 	}
 
-	if (core_data->slot_offset == INVALID_SLOT_OFFSET)
+	if (core_data->slot_offset == SOF_IPC4_INVALID_SLOT_OFFSET)
 		return 0;
 
 	/* The log data buffer starts after the two pointer in the slot */
 	log_buffer_offset =  core_data->slot_offset + (sizeof(u32) * 2);
 	/* The log data size excludes the pointers */
-	log_buffer_size = SOF_MTRACE_SLOT_SIZE - (sizeof(u32) * 2);
+	log_buffer_size = SOF_IPC4_DEBUG_SLOT_SIZE - (sizeof(u32) * 2);
 
 	read_ptr = core_data->host_read_ptr;
 	write_ptr = core_data->dsp_write_ptr;
@@ -424,7 +413,6 @@ static int ipc4_mtrace_enable(struct snd_sof_dev *sdev)
 	const struct sof_ipc_ops *iops = sdev->ipc->ops;
 	struct sof_ipc4_msg msg;
 	u64 system_time;
-	ktime_t kt;
 	int ret;
 
 	if (priv->mtrace_state != SOF_MTRACE_DISABLED)
@@ -436,9 +424,12 @@ static int ipc4_mtrace_enable(struct snd_sof_dev *sdev)
 	msg.primary |= SOF_IPC4_MOD_INSTANCE(SOF_IPC4_MOD_INIT_BASEFW_INSTANCE_ID);
 	msg.extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_FW_PARAM_SYSTEM_TIME);
 
-	/* The system time is in usec, UTC, epoch is 1601-01-01 00:00:00 */
-	kt = ktime_add_us(ktime_get_real(), FW_EPOCH_DELTA * USEC_PER_SEC);
-	system_time = ktime_to_us(kt);
+	/*
+	 * local_clock() is used to align with dmesg, so both kernel and firmware logs have
+	 * the same base and a minor delta due to the IPC. system time is in us format but
+	 * local_clock() returns the time in ns, so convert to ns.
+	 */
+	system_time = div64_u64(local_clock(), NSEC_PER_USEC);
 	msg.data_size = sizeof(system_time);
 	msg.data_ptr = &system_time;
 	ret = iops->set_get_data(sdev, &msg, msg.data_size, true);
@@ -510,13 +501,13 @@ static void sof_mtrace_find_core_slots(struct snd_sof_dev *sdev)
 	u32 slot_desc_type_offset, type, core;
 	int i;
 
-	for (i = 0; i < MAX_MTRACE_SLOTS; i++) {
+	for (i = 0; i < SOF_IPC4_MAX_DEBUG_SLOTS; i++) {
 		/* The type is the second u32 in the slot descriptor */
 		slot_desc_type_offset = sdev->debug_box.offset;
-		slot_desc_type_offset += SOF_MTRACE_DESCRIPTOR_SIZE * i + sizeof(u32);
+		slot_desc_type_offset += SOF_IPC4_DEBUG_DESCRIPTOR_SIZE * i + sizeof(u32);
 		sof_mailbox_read(sdev, slot_desc_type_offset, &type, sizeof(type));
 
-		if ((type & SOF_MTRACE_SLOT_TYPE_MASK) == SOF_MTRACE_SLOT_DEBUG_LOG) {
+		if ((type & SOF_MTRACE_SLOT_TYPE_MASK) == SOF_IPC4_DEBUG_SLOT_DEBUG_LOG) {
 			core = type & SOF_MTRACE_SLOT_CORE_MASK;
 
 			if (core >= sdev->num_cores) {
@@ -533,7 +524,7 @@ static void sof_mtrace_find_core_slots(struct snd_sof_dev *sdev)
 			 * debug_box + SOF_MTRACE_SLOT_SIZE offset
 			 */
 			core_data->slot_offset = sdev->debug_box.offset;
-			core_data->slot_offset += SOF_MTRACE_SLOT_SIZE * (i + 1);
+			core_data->slot_offset += SOF_IPC4_DEBUG_SLOT_SIZE * (i + 1);
 			dev_dbg(sdev->dev, "slot%d is used for core%u\n", i, core);
 			if (core_data->delayed_pos_update) {
 				sof_ipc4_mtrace_update_pos(sdev, core);
@@ -633,7 +624,7 @@ int sof_ipc4_mtrace_update_pos(struct snd_sof_dev *sdev, int core)
 
 	core_data = &priv->cores[core];
 
-	if (core_data->slot_offset == INVALID_SLOT_OFFSET) {
+	if (core_data->slot_offset == SOF_IPC4_INVALID_SLOT_OFFSET) {
 		core_data->delayed_pos_update = true;
 		return 0;
 	}

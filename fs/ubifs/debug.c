@@ -237,14 +237,14 @@ void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
 	pr_err("\tuid            %u\n", (unsigned int)i_uid_read(inode));
 	pr_err("\tgid            %u\n", (unsigned int)i_gid_read(inode));
 	pr_err("\tatime          %u.%u\n",
-	       (unsigned int)inode->i_atime.tv_sec,
-	       (unsigned int)inode->i_atime.tv_nsec);
+	       (unsigned int) inode_get_atime_sec(inode),
+	       (unsigned int) inode_get_atime_nsec(inode));
 	pr_err("\tmtime          %u.%u\n",
-	       (unsigned int)inode->i_mtime.tv_sec,
-	       (unsigned int)inode->i_mtime.tv_nsec);
+	       (unsigned int) inode_get_mtime_sec(inode),
+	       (unsigned int) inode_get_mtime_nsec(inode));
 	pr_err("\tctime          %u.%u\n",
-	       (unsigned int) inode_get_ctime(inode).tv_sec,
-	       (unsigned int) inode_get_ctime(inode).tv_nsec);
+	       (unsigned int) inode_get_ctime_sec(inode),
+	       (unsigned int) inode_get_ctime_nsec(inode));
 	pr_err("\tcreat_sqnum    %llu\n", ui->creat_sqnum);
 	pr_err("\txattr_size     %u\n", ui->xattr_size);
 	pr_err("\txattr_cnt      %u\n", ui->xattr_cnt);
@@ -1742,17 +1742,22 @@ int dbg_check_idx_size(struct ubifs_info *c, long long idx_size)
 	err = dbg_walk_index(c, NULL, add_size, &calc);
 	if (err) {
 		ubifs_err(c, "error %d while walking the index", err);
-		return err;
+		goto out_err;
 	}
 
 	if (calc != idx_size) {
 		ubifs_err(c, "index size check failed: calculated size is %lld, should be %lld",
 			  calc, idx_size);
 		dump_stack();
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_err;
 	}
 
 	return 0;
+
+out_err:
+	ubifs_destroy_tnc_tree(c);
+	return err;
 }
 
 /**

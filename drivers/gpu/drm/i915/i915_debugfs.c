@@ -30,7 +30,10 @@
 #include <linux/sort.h>
 #include <linux/string_helpers.h>
 
+#include <linux/debugfs.h>
 #include <drm/drm_debugfs.h>
+
+#include "display/intel_display_params.h"
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_gt.h"
@@ -68,13 +71,13 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(i915));
 
 	intel_device_info_print(INTEL_INFO(i915), RUNTIME_INFO(i915), &p);
-	intel_display_device_info_print(DISPLAY_INFO(i915), DISPLAY_RUNTIME_INFO(i915), &p);
 	i915_print_iommu_status(i915, &p);
 	intel_gt_info_print(&to_gt(i915)->info, &p);
 	intel_driver_caps_print(&i915->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
 	i915_params_dump(&i915->params, &p);
+	intel_display_params_dump(i915, &p);
 	kernel_param_unlock(THIS_MODULE);
 
 	return 0;
@@ -152,18 +155,6 @@ static const char *i915_cache_level_str(struct drm_i915_gem_object *obj)
 		case 2: return " UC";
 		case 3: return " WB (1-Way Coh)";
 		case 4: return " WB (2-Way Coh)";
-		default: return " not defined";
-		}
-	} else if (IS_PONTEVECCHIO(i915)) {
-		switch (obj->pat_index) {
-		case 0: return " UC";
-		case 1: return " WC";
-		case 2: return " WT";
-		case 3: return " WB";
-		case 4: return " WT (CLOS1)";
-		case 5: return " WB (CLOS1)";
-		case 6: return " WT (CLOS2)";
-		case 7: return " WT (CLOS2)";
 		default: return " not defined";
 		}
 	} else if (GRAPHICS_VER(i915) >= 12) {

@@ -13,11 +13,13 @@
 #include <linux/io.h>
 #include <linux/mdio/mdio-xgene.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <linux/of_platform.h>
 #include <linux/phy.h>
+#include <linux/platform_device.h>
 #include <linux/prefetch.h>
+#include <linux/property.h>
 #include <net/ip.h>
 
 u32 xgene_mdio_rd_mac(struct xgene_mdio_pdata *pdata, u32 rd_addr)
@@ -326,24 +328,11 @@ static int xgene_mdio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mii_bus *mdio_bus;
-	const struct of_device_id *of_id;
 	struct xgene_mdio_pdata *pdata;
 	void __iomem *csr_base;
 	int mdio_id = 0, ret = 0;
 
-	of_id = of_match_device(xgene_mdio_of_match, &pdev->dev);
-	if (of_id) {
-		mdio_id = (uintptr_t)of_id->data;
-	} else {
-#ifdef CONFIG_ACPI
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(xgene_mdio_acpi_match, &pdev->dev);
-		if (acpi_id)
-			mdio_id = (enum xgene_mdio_id)acpi_id->driver_data;
-#endif
-	}
-
+	mdio_id = (uintptr_t)device_get_match_data(&pdev->dev);
 	if (!mdio_id)
 		return -ENODEV;
 
@@ -432,7 +421,7 @@ out_clk:
 	return ret;
 }
 
-static int xgene_mdio_remove(struct platform_device *pdev)
+static void xgene_mdio_remove(struct platform_device *pdev)
 {
 	struct xgene_mdio_pdata *pdata = platform_get_drvdata(pdev);
 	struct mii_bus *mdio_bus = pdata->mdio_bus;
@@ -443,18 +432,16 @@ static int xgene_mdio_remove(struct platform_device *pdev)
 
 	if (dev->of_node)
 		clk_disable_unprepare(pdata->clk);
-
-	return 0;
 }
 
 static struct platform_driver xgene_mdio_driver = {
 	.driver = {
 		.name = "xgene-mdio",
-		.of_match_table = of_match_ptr(xgene_mdio_of_match),
+		.of_match_table = xgene_mdio_of_match,
 		.acpi_match_table = ACPI_PTR(xgene_mdio_acpi_match),
 	},
 	.probe = xgene_mdio_probe,
-	.remove = xgene_mdio_remove,
+	.remove_new = xgene_mdio_remove,
 };
 
 module_platform_driver(xgene_mdio_driver);

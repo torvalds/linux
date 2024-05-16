@@ -189,9 +189,6 @@ static bool gen12_needs_ccs_aux_inv(struct intel_engine_cs *engine)
 {
 	i915_reg_t reg = gen12_get_aux_inv_reg(engine);
 
-	if (IS_PONTEVECCHIO(engine->i915))
-		return false;
-
 	/*
 	 * So far platforms supported by i915 having flat ccs do not require
 	 * AUX invalidation. Check also whether the engine requires it.
@@ -833,7 +830,7 @@ u32 *gen12_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs)
 		cs = gen12_emit_pipe_control(cs, 0,
 					     PIPE_CONTROL_DEPTH_CACHE_FLUSH, 0);
 
-	if (GRAPHICS_VER(i915) == 12 && GRAPHICS_VER_FULL(i915) < IP_VER(12, 50))
+	if (GRAPHICS_VER(i915) == 12 && GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))
 		/* Wa_1409600907 */
 		flags |= PIPE_CONTROL_DEPTH_STALL;
 

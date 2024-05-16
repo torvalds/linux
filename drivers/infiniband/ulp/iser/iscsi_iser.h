@@ -182,7 +182,7 @@ enum iser_data_dir {
  *
  * @sg:           pointer to the sg list
  * @size:         num entries of this sg
- * @data_len:     total beffer byte len
+ * @data_len:     total buffer byte len
  * @dma_nents:    returned by dma_map_sg
  */
 struct iser_data_buf {
@@ -299,7 +299,6 @@ struct ib_conn;
  *
  * @ib_device:     RDMA device
  * @pd:            Protection Domain for this device
- * @mr:            Global DMA memory region
  * @event_handler: IB events handle routine
  * @ig_list:	   entry in devices list
  * @refcount:      Reference counter, dominated by open iser connections
@@ -317,12 +316,10 @@ struct iser_device {
  *
  * @mr:         memory region
  * @sig_mr:     signature memory region
- * @mr_valid:   is mr valid indicator
  */
 struct iser_reg_resources {
 	struct ib_mr                     *mr;
 	struct ib_mr                     *sig_mr;
-	u8				  mr_valid:1;
 };
 
 /**
@@ -389,7 +386,7 @@ struct ib_conn {
  *                    to max number of post recvs
  * @max_cmds:         maximum cmds allowed for this connection
  * @name:             connection peer portal
- * @release_work:     deffered work for release job
+ * @release_work:     deferred work for release job
  * @state_mutex:      protects iser onnection state
  * @stop_completion:  conn_stop completion
  * @ib_completion:    RDMA cleanup completion

@@ -504,7 +504,7 @@ prlog "# of undefined(test bug): " `echo $UNDEFINED_CASES | wc -w`
 if [ "$KTAP" = "1" ]; then
   echo -n "# Totals:"
   echo -n " pass:"`echo $PASSED_CASES | wc -w`
-  echo -n " faii:"`echo $FAILED_CASES | wc -w`
+  echo -n " fail:"`echo $FAILED_CASES | wc -w`
   echo -n " xfail:"`echo $XFAILED_CASES | wc -w`
   echo -n " xpass:0"
   echo -n " skip:"`echo $UNTESTED_CASES $UNSUPPORTED_CASES | wc -w`

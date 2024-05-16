@@ -40,7 +40,8 @@ void gve_parse_device_option(struct gve_priv *priv,
 			     struct gve_device_option_gqi_qpl **dev_op_gqi_qpl,
 			     struct gve_device_option_dqo_rda **dev_op_dqo_rda,
 			     struct gve_device_option_jumbo_frames **dev_op_jumbo_frames,
-			     struct gve_device_option_dqo_qpl **dev_op_dqo_qpl)
+			     struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
+			     struct gve_device_option_buffer_sizes **dev_op_buffer_sizes)
 {
 	u32 req_feat_mask = be32_to_cpu(option->required_features_mask);
 	u16 option_length = be16_to_cpu(option->option_length);
@@ -147,6 +148,23 @@ void gve_parse_device_option(struct gve_priv *priv,
 		}
 		*dev_op_jumbo_frames = (void *)(option + 1);
 		break;
+	case GVE_DEV_OPT_ID_BUFFER_SIZES:
+		if (option_length < sizeof(**dev_op_buffer_sizes) ||
+		    req_feat_mask != GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES) {
+			dev_warn(&priv->pdev->dev, GVE_DEVICE_OPTION_ERROR_FMT,
+				 "Buffer Sizes",
+				 (int)sizeof(**dev_op_buffer_sizes),
+				 GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES,
+				 option_length, req_feat_mask);
+			break;
+		}
+
+		if (option_length > sizeof(**dev_op_buffer_sizes))
+			dev_warn(&priv->pdev->dev,
+				 GVE_DEVICE_OPTION_TOO_BIG_FMT,
+				 "Buffer Sizes");
+		*dev_op_buffer_sizes = (void *)(option + 1);
+		break;
 	default:
 		/* If we don't recognize the option just continue
 		 * without doing anything.
@@ -164,7 +182,8 @@ gve_process_device_options(struct gve_priv *priv,
 			   struct gve_device_option_gqi_qpl **dev_op_gqi_qpl,
 			   struct gve_device_option_dqo_rda **dev_op_dqo_rda,
 			   struct gve_device_option_jumbo_frames **dev_op_jumbo_frames,
-			   struct gve_device_option_dqo_qpl **dev_op_dqo_qpl)
+			   struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
+			   struct gve_device_option_buffer_sizes **dev_op_buffer_sizes)
 {
 	const int num_options = be16_to_cpu(descriptor->num_device_options);
 	struct gve_device_option *dev_opt;
@@ -185,7 +204,7 @@ gve_process_device_options(struct gve_priv *priv,
 		gve_parse_device_option(priv, descriptor, dev_opt,
 					dev_op_gqi_rda, dev_op_gqi_qpl,
 					dev_op_dqo_rda, dev_op_jumbo_frames,
-					dev_op_dqo_qpl);
+					dev_op_dqo_qpl, dev_op_buffer_sizes);
 		dev_opt = next_opt;
 	}
 
@@ -194,12 +213,19 @@ gve_process_device_options(struct gve_priv *priv,
 
 int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 {
-	priv->adminq = dma_alloc_coherent(dev, PAGE_SIZE,
-					  &priv->adminq_bus_addr, GFP_KERNEL);
-	if (unlikely(!priv->adminq))
+	priv->adminq_pool = dma_pool_create("adminq_pool", dev,
+					    GVE_ADMINQ_BUFFER_SIZE, 0, 0);
+	if (unlikely(!priv->adminq_pool))
 		return -ENOMEM;
+	priv->adminq = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL,
+				      &priv->adminq_bus_addr);
+	if (unlikely(!priv->adminq)) {
+		dma_pool_destroy(priv->adminq_pool);
+		return -ENOMEM;
+	}
 
-	priv->adminq_mask = (PAGE_SIZE / sizeof(union gve_adminq_command)) - 1;
+	priv->adminq_mask =
+		(GVE_ADMINQ_BUFFER_SIZE / sizeof(union gve_adminq_command)) - 1;
 	priv->adminq_prod_cnt = 0;
 	priv->adminq_cmd_fail = 0;
 	priv->adminq_timeouts = 0;
@@ -218,9 +244,20 @@ int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 	priv->adminq_get_ptype_map_cnt = 0;
 
 	/* Setup Admin queue with the device */
-	iowrite32be(priv->adminq_bus_addr / PAGE_SIZE,
-		    &priv->reg_bar0->adminq_pfn);
-
+	if (priv->pdev->revision < 0x1) {
+		iowrite32be(priv->adminq_bus_addr / PAGE_SIZE,
+			    &priv->reg_bar0->adminq_pfn);
+	} else {
+		iowrite16be(GVE_ADMINQ_BUFFER_SIZE,
+			    &priv->reg_bar0->adminq_length);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		iowrite32be(priv->adminq_bus_addr >> 32,
+			    &priv->reg_bar0->adminq_base_address_hi);
+#endif
+		iowrite32be(priv->adminq_bus_addr,
+			    &priv->reg_bar0->adminq_base_address_lo);
+		iowrite32be(GVE_DRIVER_STATUS_RUN_MASK, &priv->reg_bar0->driver_status);
+	}
 	gve_set_admin_queue_ok(priv);
 	return 0;
 }
@@ -230,16 +267,27 @@ void gve_adminq_release(struct gve_priv *priv)
 	int i = 0;
 
 	/* Tell the device the adminq is leaving */
-	iowrite32be(0x0, &priv->reg_bar0->adminq_pfn);
-	while (ioread32be(&priv->reg_bar0->adminq_pfn)) {
-		/* If this is reached the device is unrecoverable and still
-		 * holding memory. Continue looping to avoid memory corruption,
-		 * but WARN so it is visible what is going on.
-		 */
-		if (i == GVE_MAX_ADMINQ_RELEASE_CHECK)
-			WARN(1, "Unrecoverable platform error!");
-		i++;
-		msleep(GVE_ADMINQ_SLEEP_LEN);
+	if (priv->pdev->revision < 0x1) {
+		iowrite32be(0x0, &priv->reg_bar0->adminq_pfn);
+		while (ioread32be(&priv->reg_bar0->adminq_pfn)) {
+			/* If this is reached the device is unrecoverable and still
+			 * holding memory. Continue looping to avoid memory corruption,
+			 * but WARN so it is visible what is going on.
+			 */
+			if (i == GVE_MAX_ADMINQ_RELEASE_CHECK)
+				WARN(1, "Unrecoverable platform error!");
+			i++;
+			msleep(GVE_ADMINQ_SLEEP_LEN);
+		}
+	} else {
+		iowrite32be(GVE_DRIVER_STATUS_RESET_MASK, &priv->reg_bar0->driver_status);
+		while (!(ioread32be(&priv->reg_bar0->device_status)
+				& GVE_DEVICE_STATUS_DEVICE_IS_RESET)) {
+			if (i == GVE_MAX_ADMINQ_RELEASE_CHECK)
+				WARN(1, "Unrecoverable platform error!");
+			i++;
+			msleep(GVE_ADMINQ_SLEEP_LEN);
+		}
 	}
 	gve_clear_device_rings_ok(priv);
 	gve_clear_device_resources_ok(priv);
@@ -251,7 +299,8 @@ void gve_adminq_free(struct device *dev, struct gve_priv *priv)
 	if (!gve_get_admin_queue_ok(priv))
 		return;
 	gve_adminq_release(priv);
-	dma_free_coherent(dev, PAGE_SIZE, priv->adminq, priv->adminq_bus_addr);
+	dma_pool_free(priv->adminq_pool, priv->adminq, priv->adminq_bus_addr);
+	dma_pool_destroy(priv->adminq_pool);
 	gve_clear_admin_queue_ok(priv);
 }
 
@@ -610,6 +659,9 @@ static int gve_adminq_create_rx_queue(struct gve_priv *priv, u32 queue_index)
 			cpu_to_be16(rx_buff_ring_entries);
 		cmd.create_rx_queue.enable_rsc =
 			!!(priv->dev->features & NETIF_F_LRO);
+		if (priv->header_split_enabled)
+			cmd.create_rx_queue.header_buffer_size =
+				cpu_to_be16(priv->header_buf_size);
 	}
 
 	return gve_adminq_issue_cmd(priv, &cmd);
@@ -697,18 +749,7 @@ static int gve_set_desc_cnt(struct gve_priv *priv,
 			    struct gve_device_descriptor *descriptor)
 {
 	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
-	if (priv->tx_desc_cnt * sizeof(priv->tx->desc[0]) < PAGE_SIZE) {
-		dev_err(&priv->pdev->dev, "Tx desc count %d too low\n",
-			priv->tx_desc_cnt);
-		return -EINVAL;
-	}
 	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
-	if (priv->rx_desc_cnt * sizeof(priv->rx->desc.desc_ring[0])
-	    < PAGE_SIZE) {
-		dev_err(&priv->pdev->dev, "Rx desc count %d too low\n",
-			priv->rx_desc_cnt);
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -736,7 +777,9 @@ static void gve_enable_supported_features(struct gve_priv *priv,
 					  const struct gve_device_option_jumbo_frames
 					  *dev_op_jumbo_frames,
 					  const struct gve_device_option_dqo_qpl
-					  *dev_op_dqo_qpl)
+					  *dev_op_dqo_qpl,
+					  const struct gve_device_option_buffer_sizes
+					  *dev_op_buffer_sizes)
 {
 	/* Before control reaches this point, the page-size-capped max MTU from
 	 * the gve_device_descriptor field has already been stored in
@@ -760,10 +803,22 @@ static void gve_enable_supported_features(struct gve_priv *priv,
 		if (priv->rx_pages_per_qpl == 0)
 			priv->rx_pages_per_qpl = DQO_QPL_DEFAULT_RX_PAGES;
 	}
+
+	if (dev_op_buffer_sizes &&
+	    (supported_features_mask & GVE_SUP_BUFFER_SIZES_MASK)) {
+		priv->max_rx_buffer_size =
+			be16_to_cpu(dev_op_buffer_sizes->packet_buffer_size);
+		priv->header_buf_size =
+			be16_to_cpu(dev_op_buffer_sizes->header_buffer_size);
+		dev_info(&priv->pdev->dev,
+			 "BUFFER SIZES device option enabled with max_rx_buffer_size of %u, header_buf_size of %u.\n",
+			 priv->max_rx_buffer_size, priv->header_buf_size);
+	}
 }
 
 int gve_adminq_describe_device(struct gve_priv *priv)
 {
+	struct gve_device_option_buffer_sizes *dev_op_buffer_sizes = NULL;
 	struct gve_device_option_jumbo_frames *dev_op_jumbo_frames = NULL;
 	struct gve_device_option_gqi_rda *dev_op_gqi_rda = NULL;
 	struct gve_device_option_gqi_qpl *dev_op_gqi_qpl = NULL;
@@ -778,8 +833,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	u16 mtu;
 
 	memset(&cmd, 0, sizeof(cmd));
-	descriptor = dma_alloc_coherent(&priv->pdev->dev, PAGE_SIZE,
-					&descriptor_bus, GFP_KERNEL);
+	descriptor = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL,
+				    &descriptor_bus);
 	if (!descriptor)
 		return -ENOMEM;
 	cmd.opcode = cpu_to_be32(GVE_ADMINQ_DESCRIBE_DEVICE);
@@ -787,7 +842,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 						cpu_to_be64(descriptor_bus);
 	cmd.describe_device.device_descriptor_version =
 			cpu_to_be32(GVE_ADMINQ_DEVICE_DESCRIPTOR_VERSION);
-	cmd.describe_device.available_length = cpu_to_be32(PAGE_SIZE);
+	cmd.describe_device.available_length =
+		cpu_to_be32(GVE_ADMINQ_BUFFER_SIZE);
 
 	err = gve_adminq_execute_cmd(priv, &cmd);
 	if (err)
@@ -796,7 +852,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	err = gve_process_device_options(priv, descriptor, &dev_op_gqi_rda,
 					 &dev_op_gqi_qpl, &dev_op_dqo_rda,
 					 &dev_op_jumbo_frames,
-					 &dev_op_dqo_qpl);
+					 &dev_op_dqo_qpl,
+					 &dev_op_buffer_sizes);
 	if (err)
 		goto free_device_descriptor;
 
@@ -865,11 +922,11 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	priv->default_num_queues = be16_to_cpu(descriptor->default_num_queues);
 
 	gve_enable_supported_features(priv, supported_features_mask,
-				      dev_op_jumbo_frames, dev_op_dqo_qpl);
+				      dev_op_jumbo_frames, dev_op_dqo_qpl,
+				      dev_op_buffer_sizes);
 
 free_device_descriptor:
-	dma_free_coherent(&priv->pdev->dev, PAGE_SIZE, descriptor,
-			  descriptor_bus);
+	dma_pool_free(priv->adminq_pool, descriptor, descriptor_bus);
 	return err;
 }
 
@@ -898,6 +955,7 @@ int gve_adminq_register_page_list(struct gve_priv *priv,
 		.page_list_id = cpu_to_be32(qpl->id),
 		.num_pages = cpu_to_be32(num_entries),
 		.page_address_list_addr = cpu_to_be64(page_list_bus),
+		.page_size = cpu_to_be64(PAGE_SIZE),
 	};
 
 	err = gve_adminq_execute_cmd(priv, &cmd);

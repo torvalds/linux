@@ -18,6 +18,7 @@
 #include <linux/lockdep.h>
 #include <linux/mutex.h>
 #include <linux/preempt.h>
+#include <linux/seqlock_types.h>
 #include <linux/spinlock.h>
 
 #include <asm/processor.h>
@@ -36,37 +37,6 @@
  * is not affected.
  */
 #define KCSAN_SEQLOCK_REGION_MAX 1000
-
-/*
- * Sequence counters (seqcount_t)
- *
- * This is the raw counting mechanism, without any writer protection.
- *
- * Write side critical sections must be serialized and non-preemptible.
- *
- * If readers can be invoked from hardirq or softirq contexts,
- * interrupts or bottom halves must also be respectively disabled before
- * entering the write section.
- *
- * This mechanism can't be used if the protected data contains pointers,
- * as the writer can invalidate a pointer that a reader is following.
- *
- * If the write serialization mechanism is one of the common kernel
- * locking primitives, use a sequence counter with associated lock
- * (seqcount_LOCKNAME_t) instead.
- *
- * If it's desired to automatically handle the sequence counter writer
- * serialization and non-preemptibility requirements, use a sequential
- * lock (seqlock_t) instead.
- *
- * See Documentation/locking/seqlock.rst
- */
-typedef struct seqcount {
-	unsigned sequence;
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lockdep_map dep_map;
-#endif
-} seqcount_t;
 
 static inline void __seqcount_init(seqcount_t *s, const char *name,
 					  struct lock_class_key *key)
@@ -132,28 +102,6 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
  */
 
 /*
- * For PREEMPT_RT, seqcount_LOCKNAME_t write side critical sections cannot
- * disable preemption. It can lead to higher latencies, and the write side
- * sections will not be able to acquire locks which become sleeping locks
- * (e.g. spinlock_t).
- *
- * To remain preemptible while avoiding a possible livelock caused by the
- * reader preempting the writer, use a different technique: let the reader
- * detect if a seqcount_LOCKNAME_t writer is in progress. If that is the
- * case, acquire then release the associated LOCKNAME writer serialization
- * lock. This will allow any possibly-preempted writer to make progress
- * until the end of its writer serialization lock critical section.
- *
- * This lock-unlock technique must be implemented for all of PREEMPT_RT
- * sleeping locks.  See Documentation/locking/locktypes.rst
- */
-#if defined(CONFIG_LOCKDEP) || defined(CONFIG_PREEMPT_RT)
-#define __SEQ_LOCK(expr)	expr
-#else
-#define __SEQ_LOCK(expr)
-#endif
-
-/*
  * typedef seqcount_LOCKNAME_t - sequence counter with LOCKNAME associated
  * @seqcount:	The real sequence counter
  * @lock:	Pointer to the associated lock
@@ -191,18 +139,17 @@ static inline void seqcount_lockdep_reader_access(const seqcount_t *s)
  * @lockname:		"LOCKNAME" part of seqcount_LOCKNAME_t
  * @locktype:		LOCKNAME canonical C data type
  * @preemptible:	preemptibility of above locktype
- * @lockmember:		argument for lockdep_assert_held()
- * @lockbase:		associated lock release function (prefix only)
- * @lock_acquire:	associated lock acquisition function (full call)
+ * @lockbase:		prefix for associated lock/unlock
  */
-#define SEQCOUNT_LOCKNAME(lockname, locktype, preemptible, lockmember, lockbase, lock_acquire) \
-typedef struct seqcount_##lockname {					\
-	seqcount_t		seqcount;				\
-	__SEQ_LOCK(locktype	*lock);					\
-} seqcount_##lockname##_t;						\
-									\
+#define SEQCOUNT_LOCKNAME(lockname, locktype, preemptible, lockbase)	\
 static __always_inline seqcount_t *					\
 __seqprop_##lockname##_ptr(seqcount_##lockname##_t *s)			\
+{									\
+	return &s->seqcount;						\
+}									\
+									\
+static __always_inline const seqcount_t *				\
+__seqprop_##lockname##_const_ptr(const seqcount_##lockname##_t *s)	\
 {									\
 	return &s->seqcount;						\
 }									\
@@ -216,7 +163,7 @@ __seqprop_##lockname##_sequence(const seqcount_##lockname##_t *s)	\
 		return seq;						\
 									\
 	if (preemptible && unlikely(seq & 1)) {				\
-		__SEQ_LOCK(lock_acquire);				\
+		__SEQ_LOCK(lockbase##_lock(s->lock));			\
 		__SEQ_LOCK(lockbase##_unlock(s->lock));			\
 									\
 		/*							\
@@ -242,7 +189,7 @@ __seqprop_##lockname##_preemptible(const seqcount_##lockname##_t *s)	\
 static __always_inline void						\
 __seqprop_##lockname##_assert(const seqcount_##lockname##_t *s)		\
 {									\
-	__SEQ_LOCK(lockdep_assert_held(lockmember));			\
+	__SEQ_LOCK(lockdep_assert_held(s->lock));			\
 }
 
 /*
@@ -250,6 +197,11 @@ __seqprop_##lockname##_assert(const seqcount_##lockname##_t *s)		\
  */
 
 static inline seqcount_t *__seqprop_ptr(seqcount_t *s)
+{
+	return s;
+}
+
+static inline const seqcount_t *__seqprop_const_ptr(const seqcount_t *s)
 {
 	return s;
 }
@@ -271,10 +223,11 @@ static inline void __seqprop_assert(const seqcount_t *s)
 
 #define __SEQ_RT	IS_ENABLED(CONFIG_PREEMPT_RT)
 
-SEQCOUNT_LOCKNAME(raw_spinlock, raw_spinlock_t,  false,    s->lock,        raw_spin, raw_spin_lock(s->lock))
-SEQCOUNT_LOCKNAME(spinlock,     spinlock_t,      __SEQ_RT, s->lock,        spin,     spin_lock(s->lock))
-SEQCOUNT_LOCKNAME(rwlock,       rwlock_t,        __SEQ_RT, s->lock,        read,     read_lock(s->lock))
-SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     s->lock,        mutex,    mutex_lock(s->lock))
+SEQCOUNT_LOCKNAME(raw_spinlock, raw_spinlock_t,  false,    raw_spin)
+SEQCOUNT_LOCKNAME(spinlock,     spinlock_t,      __SEQ_RT, spin)
+SEQCOUNT_LOCKNAME(rwlock,       rwlock_t,        __SEQ_RT, read)
+SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
+#undef SEQCOUNT_LOCKNAME
 
 /*
  * SEQCNT_LOCKNAME_ZERO - static initializer for seqcount_LOCKNAME_t
@@ -294,19 +247,20 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     s->lock,        mutex
 #define SEQCNT_WW_MUTEX_ZERO(name, lock) 	SEQCOUNT_LOCKNAME_ZERO(name, lock)
 
 #define __seqprop_case(s, lockname, prop)				\
-	seqcount_##lockname##_t: __seqprop_##lockname##_##prop((void *)(s))
+	seqcount_##lockname##_t: __seqprop_##lockname##_##prop
 
 #define __seqprop(s, prop) _Generic(*(s),				\
-	seqcount_t:		__seqprop_##prop((void *)(s)),		\
+	seqcount_t:		__seqprop_##prop,			\
 	__seqprop_case((s),	raw_spinlock,	prop),			\
 	__seqprop_case((s),	spinlock,	prop),			\
 	__seqprop_case((s),	rwlock,		prop),			\
 	__seqprop_case((s),	mutex,		prop))
 
-#define seqprop_ptr(s)			__seqprop(s, ptr)
-#define seqprop_sequence(s)		__seqprop(s, sequence)
-#define seqprop_preemptible(s)		__seqprop(s, preemptible)
-#define seqprop_assert(s)		__seqprop(s, assert)
+#define seqprop_ptr(s)			__seqprop(s, ptr)(s)
+#define seqprop_const_ptr(s)		__seqprop(s, const_ptr)(s)
+#define seqprop_sequence(s)		__seqprop(s, sequence)(s)
+#define seqprop_preemptible(s)		__seqprop(s, preemptible)(s)
+#define seqprop_assert(s)		__seqprop(s, assert)(s)
 
 /**
  * __read_seqcount_begin() - begin a seqcount_t read section w/o barrier
@@ -355,7 +309,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     s->lock,        mutex
  */
 #define read_seqcount_begin(s)						\
 ({									\
-	seqcount_lockdep_reader_access(seqprop_ptr(s));			\
+	seqcount_lockdep_reader_access(seqprop_const_ptr(s));		\
 	raw_read_seqcount_begin(s);					\
 })
 
@@ -421,7 +375,7 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     s->lock,        mutex
  * Return: true if a read section retry is required, else false
  */
 #define __read_seqcount_retry(s, start)					\
-	do___read_seqcount_retry(seqprop_ptr(s), start)
+	do___read_seqcount_retry(seqprop_const_ptr(s), start)
 
 static inline int do___read_seqcount_retry(const seqcount_t *s, unsigned start)
 {
@@ -441,7 +395,7 @@ static inline int do___read_seqcount_retry(const seqcount_t *s, unsigned start)
  * Return: true if a read section retry is required, else false
  */
 #define read_seqcount_retry(s, start)					\
-	do_read_seqcount_retry(seqprop_ptr(s), start)
+	do_read_seqcount_retry(seqprop_const_ptr(s), start)
 
 static inline int do_read_seqcount_retry(const seqcount_t *s, unsigned start)
 {
@@ -574,7 +528,7 @@ static inline void do_write_seqcount_end(seqcount_t *s)
  * via WRITE_ONCE): a) to ensure the writes become visible to other threads
  * atomically, avoiding compiler optimizations; b) to document which writes are
  * meant to propagate to the reader critical section. This is necessary because
- * neither writes before and after the barrier are enclosed in a seq-writer
+ * neither writes before nor after the barrier are enclosed in a seq-writer
  * critical section that would ensure readers are aware of ongoing writes::
  *
  *	seqcount_t seq;
@@ -784,25 +738,6 @@ static inline void raw_write_seqcount_latch(seqcount_latch_t *s)
 	smp_wmb();      /* increment "sequence" before following stores */
 }
 
-/*
- * Sequential locks (seqlock_t)
- *
- * Sequence counters with an embedded spinlock for writer serialization
- * and non-preemptibility.
- *
- * For more info, see:
- *    - Comments on top of seqcount_t
- *    - Documentation/locking/seqlock.rst
- */
-typedef struct {
-	/*
-	 * Make sure that readers don't starve writers on PREEMPT_RT: use
-	 * seqcount_spinlock_t instead of seqcount_t. Check __SEQ_LOCK().
-	 */
-	seqcount_spinlock_t seqcount;
-	spinlock_t lock;
-} seqlock_t;
-
 #define __SEQLOCK_UNLOCKED(lockname)					\
 	{								\
 		.seqcount = SEQCNT_SPINLOCK_ZERO(lockname, &(lockname).lock), \
@@ -864,7 +799,7 @@ static inline unsigned read_seqretry(const seqlock_t *sl, unsigned start)
 }
 
 /*
- * For all seqlock_t write side functions, use the the internal
+ * For all seqlock_t write side functions, use the internal
  * do_write_seqcount_begin() instead of generic write_seqcount_begin().
  * This way, no redundant lockdep_assert_held() checks are added.
  */

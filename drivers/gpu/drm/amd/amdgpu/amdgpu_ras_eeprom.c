@@ -214,6 +214,12 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 			control->i2c_address = EEPROM_I2C_MADDR_0;
 		return true;
 	case IP_VERSION(13, 0, 0):
+		if (strnstr(atom_ctx->vbios_pn, "D707",
+			    sizeof(atom_ctx->vbios_pn)))
+			control->i2c_address = EEPROM_I2C_MADDR_0;
+		else
+			control->i2c_address = EEPROM_I2C_MADDR_4;
+		return true;
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 10):
 		control->i2c_address = EEPROM_I2C_MADDR_4;
@@ -398,6 +404,22 @@ static int amdgpu_ras_eeprom_correct_header_tag(
 	return res;
 }
 
+static void amdgpu_ras_set_eeprom_table_version(struct amdgpu_ras_eeprom_control *control)
+{
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+	struct amdgpu_ras_eeprom_table_header *hdr = &control->tbl_hdr;
+
+	switch (amdgpu_ip_version(adev, UMC_HWIP, 0)) {
+	case IP_VERSION(8, 10, 0):
+	case IP_VERSION(12, 0, 0):
+		hdr->version = RAS_TABLE_VER_V2_1;
+		return;
+	default:
+		hdr->version = RAS_TABLE_VER_V1;
+		return;
+	}
+}
+
 /**
  * amdgpu_ras_eeprom_reset_table -- Reset the RAS EEPROM table
  * @control: pointer to control structure
@@ -417,11 +439,7 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	mutex_lock(&control->ras_tbl_mutex);
 
 	hdr->header = RAS_TABLE_HDR_VAL;
-	if (adev->umc.ras &&
-	    adev->umc.ras->set_eeprom_table_version)
-		adev->umc.ras->set_eeprom_table_version(hdr);
-	else
-		hdr->version = RAS_TABLE_VER_V1;
+	amdgpu_ras_set_eeprom_table_version(control);
 
 	if (hdr->version == RAS_TABLE_VER_V2_1) {
 		hdr->first_rec_offset = RAS_RECORD_START_V2_1;
@@ -729,6 +747,9 @@ amdgpu_ras_eeprom_update_header(struct amdgpu_ras_eeprom_control *control)
 			control->tbl_rai.rma_status = GPU_RETIRED__ECC_REACH_THRESHOLD;
 			control->tbl_rai.health_percent = 0;
 		}
+
+		/* ignore the -ENOTSUPP return value */
+		amdgpu_dpm_send_rma_reason(adev);
 	}
 
 	if (control->tbl_hdr.version == RAS_TABLE_VER_V2_1)

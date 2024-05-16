@@ -332,11 +332,11 @@ static int rk_hash_run(struct crypto_engine *engine, void *breq)
 theend:
 	pm_runtime_put_autosuspend(rkc->dev);
 
+	rk_hash_unprepare(engine, breq);
+
 	local_bh_disable();
 	crypto_finalize_hash_request(engine, breq, err);
 	local_bh_enable();
-
-	rk_hash_unprepare(engine, breq);
 
 	return 0;
 }
@@ -393,7 +393,6 @@ struct rk_crypto_tmp rk_ahash_sha1 = {
 					       CRYPTO_ALG_NEED_FALLBACK,
 				  .cra_blocksize = SHA1_BLOCK_SIZE,
 				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
-				  .cra_alignmask = 3,
 				  .cra_module = THIS_MODULE,
 			}
 		}
@@ -426,7 +425,6 @@ struct rk_crypto_tmp rk_ahash_sha256 = {
 					       CRYPTO_ALG_NEED_FALLBACK,
 				  .cra_blocksize = SHA256_BLOCK_SIZE,
 				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
-				  .cra_alignmask = 3,
 				  .cra_module = THIS_MODULE,
 			}
 		}
@@ -459,7 +457,6 @@ struct rk_crypto_tmp rk_ahash_md5 = {
 					       CRYPTO_ALG_NEED_FALLBACK,
 				  .cra_blocksize = SHA1_BLOCK_SIZE,
 				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
-				  .cra_alignmask = 3,
 				  .cra_module = THIS_MODULE,
 			}
 		}

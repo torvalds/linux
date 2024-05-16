@@ -210,6 +210,8 @@ nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 				CASE(SEC2  );
 				CASE(NVDEC );
 				CASE(NVENC );
+				CASE(NVJPG );
+				CASE(OFA   );
 				default:
 					WARN_ON(1);
 					break;
@@ -347,8 +349,14 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 	nvkm_chid_unref(&fifo->cgid);
 	nvkm_chid_unref(&fifo->chid);
 
+	mutex_destroy(&fifo->userd.mutex);
+
 	nvkm_event_fini(&fifo->nonstall.event);
 	mutex_destroy(&fifo->mutex);
+
+	if (fifo->func->dtor)
+		fifo->func->dtor(fifo);
+
 	return fifo;
 }
 
@@ -382,6 +390,9 @@ nvkm_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	fifo->timeout.chan_msec = 10000;
 	spin_lock_init(&fifo->lock);
 	mutex_init(&fifo->mutex);
+
+	INIT_LIST_HEAD(&fifo->userd.list);
+	mutex_init(&fifo->userd.mutex);
 
 	return nvkm_engine_ctor(&nvkm_fifo, device, type, inst, true, &fifo->engine);
 }

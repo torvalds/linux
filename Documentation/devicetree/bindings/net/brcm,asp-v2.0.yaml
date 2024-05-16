@@ -17,6 +17,10 @@ properties:
     oneOf:
       - items:
           - enum:
+              - brcm,bcm74165b0-asp
+          - const: brcm,asp-v2.2
+      - items:
+          - enum:
               - brcm,bcm74165-asp
           - const: brcm,asp-v2.1
       - items:
@@ -53,7 +57,7 @@ properties:
         const: 0
 
     patternProperties:
-      "^port@[0-9]+$":
+      "^port@[0-9a-f]+$":
         type: object
 
         $ref: ethernet-controller.yaml#

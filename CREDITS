@@ -9,10 +9,6 @@
 			Linus
 ----------
 
-N: Matt Mackal
-E: mpm@selenic.com
-D: SLOB slab allocator
-
 N: Matti Aarnio
 E: mea@nic.funet.fi
 D: Alpha systems hacking, IPv6 and other network related stuff
@@ -66,6 +62,11 @@ W: https://www.almesberger.net/
 D: dosfs, LILO, some fd features, ATM, various other hacks here and there
 S: Buenos Aires
 S: Argentina
+
+NTFS FILESYSTEM
+N: Anton Altaparmakov
+E: anton@tuxera.com
+D: NTFS filesystem
 
 N: Tim Alpaerts
 E: tim_alpaerts@toyota-motor-europe.com
@@ -183,6 +184,7 @@ E: ralf@gnu.org
 P: 1024/AF7B30C1 CF 97 C2 CC 6D AE A7 FE  C8 BA 9C FC 88 DE 32 C3
 D: Linux/MIPS port
 D: Linux/68k hacker
+D: AX25 maintainer
 S: Hauptstrasse 19
 S: 79837 St. Blasien
 S: Germany
@@ -323,6 +325,9 @@ N: Ohad Ben Cohen
 E: ohad@wizery.com
 D: Remote Processor (remoteproc) subsystem
 D: Remote Processor Messaging (rpmsg) subsystem
+D: Hardware spinlock (hwspinlock) subsystem
+D: OMAP hwspinlock driver
+D: OMAP remoteproc driver
 
 N: Krzysztof Benedyczak
 E: golbi@mat.uni.torun.pl
@@ -678,6 +683,10 @@ D: Media subsystem (V4L/DVB) drivers and core
 D: EDAC drivers and EDAC 3.0 core rework
 S: Brazil
 
+N: Landen Chao
+E: Landen.Chao@mediatek.com
+D: MT7531 Ethernet switch support
+
 N: Raymond Chen
 E: raymondc@microsoft.com
 D: Author of Configure script
@@ -814,6 +823,10 @@ E: cristi@dnt.ro
 D: Support for Xircom PGSDB9 (firmware and host driver)
 S: Bucharest
 S: Romania
+
+N: John Crispin
+E: john@phrozen.org
+D: MediaTek MT7623 Gigabit ethernet support
 
 N: Laurence Culhane
 E: loz@holmes.demon.co.uk
@@ -1425,6 +1438,10 @@ S: University of Stellenbosch
 S: Stellenbosch, Western Cape
 S: South Africa
 
+N: Andy Gross
+E: agross@kernel.org
+D: Qualcomm SoC subsystem and drivers
+
 N: Grant Grundler
 E: grantgrundler@gmail.com
 W: http://obmouse.sourceforge.net/
@@ -1535,6 +1552,10 @@ N: Andrew Haylett
 E: ajh@primag.co.uk
 D: Selection mechanism
 
+N: Johan Hedberg
+E: johan.hedberg@gmail.com
+D: Bluetooth subsystem maintainer
+
 N: Andre Hedrick
 E: andre@linux-ide.org
 E: andre@linuxdiskcert.org
@@ -1571,6 +1592,10 @@ D: chief codingstyle nitpicker
 S: Ampferstr. 50 / 4
 S: 6020 Innsbruck
 S: Austria
+
+N: Mark Hemment
+E: markhe@nextd.demon.co.uk
+D: SLAB allocator implementation
 
 N: Richard Henderson
 E: rth@twiddle.net
@@ -1828,6 +1853,13 @@ S: K osmidomkum 723
 S: 160 00 Praha 6
 S: Czech Republic
 
+N: Michael Kerrisk
+E: mtk.manpages@gmail.com
+W: https://man7.org/
+P: 4096R/3A35CE5E E522 595B 52ED A4E6 BFCC  CB5E 8561 9911 3A35 CE5E
+D: Maintainer of the Linux man-pages project
+D: Linux man pages online, at <https://man7.org/linux/man-pages/>
+
 N: Niels Kristian Bech Jensen
 E: nkbj1970@hotmail.com
 D: Miscellaneous kernel updates and fixes.
@@ -1854,6 +1886,10 @@ D: CPUFREQ maintenance.
 D: Fedora kernel maintenance (2003-2014).
 D: 'Trinity' and similar fuzz testing work.
 D: Misc/Other.
+
+N: Tom Joseph
+E: tjoseph@cadence.com
+D: Cadence PCIe driver
 
 N: Martin Josfsson
 E: gandalf@wlug.westbo.se
@@ -2125,6 +2161,23 @@ D: Various other kernel patches, cleanups and fixes
 S: 2213 La Terrace Circle
 S: San Jose, CA 95123
 S: USA
+
+N: Mike Kravetz
+E: mike.kravetz@oracle.com
+D: Maintenance and development of the hugetlb subsystem
+
+N: Seth Jennings
+E: sjenning@redhat.com
+D: Creation and maintenance of zswap
+
+N: Dan Streetman
+E: ddstreet@ieee.org
+D: Maintenance and development of zswap
+D: Creation and maintenance of the zpool API
+
+N: Vitaly Wool
+E: vitaly.wool@konsulko.com
+D: Maintenance and development of zswap
 
 N: Andreas S. Krebs
 E: akrebs@altavista.net
@@ -2436,6 +2489,10 @@ D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
 D: work on suspend-to-ram/disk, killing duplicates from ioctl32,
 D: Altera SoCFPGA and Nokia N900 support.
 S: Czech Republic
+
+N: Olivia Mackall
+E: olivia@selenic.com
+D: SLOB slab allocator
 
 N: Paul Mackerras
 E: paulus@samba.org
@@ -2903,6 +2960,11 @@ S: 2364 Old Trail Drive
 S: Reston, Virginia 20191
 S: USA
 
+N: Sekhar Nori
+E: nori.sekhar@gmail.com
+D: Maintainer of Texas Instruments DaVinci machine support, contributor
+D: to device drivers relevant to that SoC family.
+
 N: Fredrik Noring
 E: noring@nocrew.org
 W: http://www.lysator.liu.se/~noring/
@@ -2943,6 +3005,14 @@ D: IPX development and support
 
 N: Venkatesh Pallipadi (Venki)
 D: x86/HPET
+
+N: Antti Palosaari
+E: crope@iki.fi
+D: Various DVB drivers
+W: https://palosaari.fi/linux/
+S: Yliopistokatu 1 D 513
+S: FI-90570 Oulu
+S: FINLAND
 
 N: Kyungmin Park
 E: kyungmin.park@samsung.com
@@ -3018,6 +3088,10 @@ S: Demonstratsii 8-382
 S: Tula 300000
 S: Russia
 
+N: Thomas Petazzoni
+E: thomas.petazzoni@bootlin.com
+D: Driver for the Marvell Armada 370/XP network unit.
+
 N: Gordon Peters
 E: GordPeters@smarttech.com
 D: Isochronous receive for IEEE 1394 driver (OHCI module).
@@ -3071,6 +3145,10 @@ D: Book: "Linux verstehen und anwenden" (Hanser-Verlag)
 S: Triftstra=DFe 55
 S: 13353 Berlin
 S: Germany
+
+N: Gustavo Pimental
+E: gustavo.pimentel@synopsys.com
+D: PCI driver for Synopsys DesignWare
 
 N: Emanuel Pirker
 E: epirker@edu.uni-klu.ac.at
@@ -3916,6 +3994,10 @@ S: 21513 Conradia Ct
 S: Cupertino, CA 95014
 S: USA
 
+N: Manohar Vanga
+E: manohar.vanga@gmail.com
+D: VME subsystem maintainer
+
 N: Thibaut Varène
 E: hacks+kernel@slashdirt.org
 W: http://hacks.slashdirt.org/
@@ -4015,6 +4097,10 @@ D: v2.0 kernel maintainer
 D: Fixes for the NE/2-driver
 D: Miscellaneous MCA-support
 D: Cleanup of the Config-files
+
+N: Martyn Welch
+E: martyn@welchs.me.uk
+D: VME subsystem maintainer
 
 N: Matt Welsh
 E: mdw@metalab.unc.edu

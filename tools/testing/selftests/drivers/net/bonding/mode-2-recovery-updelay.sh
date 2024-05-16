@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
 # Regression Test:
@@ -23,7 +23,7 @@ REQUIRE_MZ=no
 REQUIRE_JQ=no
 NUM_NETIFS=0
 lib_dir=$(dirname "$0")
-source "$lib_dir"/net_forwarding_lib.sh
+source "$lib_dir"/../../../net/forwarding/lib.sh
 source "$lib_dir"/lag_lib.sh
 
 cleanup()

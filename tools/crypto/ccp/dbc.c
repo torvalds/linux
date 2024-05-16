@@ -8,6 +8,7 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <string.h>
 #include <sys/ioctl.h>
 
@@ -22,16 +23,14 @@ int get_nonce(int fd, void *nonce_out, void *signature)
 	struct dbc_user_nonce tmp = {
 		.auth_needed = !!signature,
 	};
-	int ret;
 
 	assert(nonce_out);
 
 	if (signature)
 		memcpy(tmp.signature, signature, sizeof(tmp.signature));
 
-	ret = ioctl(fd, DBCIOCNONCE, &tmp);
-	if (ret)
-		return ret;
+	if (ioctl(fd, DBCIOCNONCE, &tmp))
+		return errno;
 	memcpy(nonce_out, tmp.nonce, sizeof(tmp.nonce));
 
 	return 0;
@@ -47,7 +46,9 @@ int set_uid(int fd, __u8 *uid, __u8 *signature)
 	memcpy(tmp.uid, uid, sizeof(tmp.uid));
 	memcpy(tmp.signature, signature, sizeof(tmp.signature));
 
-	return ioctl(fd, DBCIOCUID, &tmp);
+	if (ioctl(fd, DBCIOCUID, &tmp))
+		return errno;
+	return 0;
 }
 
 int process_param(int fd, int msg_index, __u8 *signature, int *data)
@@ -63,10 +64,10 @@ int process_param(int fd, int msg_index, __u8 *signature, int *data)
 
 	memcpy(tmp.signature, signature, sizeof(tmp.signature));
 
-	ret = ioctl(fd, DBCIOCPARAM, &tmp);
-	if (ret)
-		return ret;
+	if (ioctl(fd, DBCIOCPARAM, &tmp))
+		return errno;
 
 	*data = tmp.param;
+	memcpy(signature, tmp.signature, sizeof(tmp.signature));
 	return 0;
 }

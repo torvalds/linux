@@ -45,7 +45,7 @@ const struct dst_metrics dst_default_metrics = {
 EXPORT_SYMBOL(dst_default_metrics);
 
 void dst_init(struct dst_entry *dst, struct dst_ops *ops,
-	      struct net_device *dev, int initial_ref, int initial_obsolete,
+	      struct net_device *dev, int initial_obsolete,
 	      unsigned short flags)
 {
 	dst->dev = dev;
@@ -66,7 +66,7 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst->tclassid = 0;
 #endif
 	dst->lwtstate = NULL;
-	rcuref_init(&dst->__rcuref, initial_ref);
+	rcuref_init(&dst->__rcuref, 1);
 	INIT_LIST_HEAD(&dst->rt_uncached);
 	dst->__use = 0;
 	dst->lastuse = jiffies;
@@ -77,7 +77,7 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 EXPORT_SYMBOL(dst_init);
 
 void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
-		int initial_ref, int initial_obsolete, unsigned short flags)
+		int initial_obsolete, unsigned short flags)
 {
 	struct dst_entry *dst;
 
@@ -90,13 +90,13 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 	if (!dst)
 		return NULL;
 
-	dst_init(dst, ops, dev, initial_ref, initial_obsolete, flags);
+	dst_init(dst, ops, dev, initial_obsolete, flags);
 
 	return dst;
 }
 EXPORT_SYMBOL(dst_alloc);
 
-struct dst_entry *dst_destroy(struct dst_entry * dst)
+static void dst_destroy(struct dst_entry *dst)
 {
 	struct dst_entry *child = NULL;
 
@@ -126,15 +126,13 @@ struct dst_entry *dst_destroy(struct dst_entry * dst)
 	dst = child;
 	if (dst)
 		dst_release_immediate(dst);
-	return NULL;
 }
-EXPORT_SYMBOL(dst_destroy);
 
 static void dst_destroy_rcu(struct rcu_head *head)
 {
 	struct dst_entry *dst = container_of(head, struct dst_entry, rcu_head);
 
-	dst = dst_destroy(dst);
+	dst_destroy(dst);
 }
 
 /* Operations to mark dst as DEAD and clean up the net device referenced
@@ -270,7 +268,7 @@ static void __metadata_dst_init(struct metadata_dst *md_dst,
 	struct dst_entry *dst;
 
 	dst = &md_dst->dst;
-	dst_init(dst, &dst_blackhole_ops, NULL, 1, DST_OBSOLETE_NONE,
+	dst_init(dst, &dst_blackhole_ops, NULL, DST_OBSOLETE_NONE,
 		 DST_METADATA | DST_NOCOUNT);
 	memset(dst + 1, 0, sizeof(*md_dst) + optslen - sizeof(*dst));
 	md_dst->type = type;

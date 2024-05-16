@@ -923,6 +923,15 @@ static int amd_gpio_suspend(struct device *dev)
 
 		raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 		gpio_dev->saved_regs[i] = readl(gpio_dev->base + pin * 4) & ~PIN_IRQ_PENDING;
+
+		/* mask any interrupts not intended to be a wake source */
+		if (!(gpio_dev->saved_regs[i] & WAKE_SOURCE)) {
+			writel(gpio_dev->saved_regs[i] & ~BIT(INTERRUPT_MASK_OFF),
+			       gpio_dev->base + pin * 4);
+			pm_pr_dbg("Disabling GPIO #%d interrupt for suspend.\n",
+				  pin);
+		}
+
 		raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 	}
 
@@ -1150,7 +1159,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, gpio_dev->irq, amd_gpio_irq_handler,
-			       IRQF_SHARED, KBUILD_MODNAME, gpio_dev);
+			       IRQF_SHARED | IRQF_COND_ONESHOT, KBUILD_MODNAME, gpio_dev);
 	if (ret)
 		goto out2;
 
@@ -1166,7 +1175,7 @@ out2:
 	return ret;
 }
 
-static int amd_gpio_remove(struct platform_device *pdev)
+static void amd_gpio_remove(struct platform_device *pdev)
 {
 	struct amd_gpio *gpio_dev;
 
@@ -1174,8 +1183,6 @@ static int amd_gpio_remove(struct platform_device *pdev)
 
 	gpiochip_remove(&gpio_dev->gc);
 	acpi_unregister_wakeup_handler(amd_gpio_check_wake, gpio_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -1197,7 +1204,7 @@ static struct platform_driver amd_gpio_driver = {
 #endif
 	},
 	.probe		= amd_gpio_probe,
-	.remove		= amd_gpio_remove,
+	.remove_new	= amd_gpio_remove,
 };
 
 module_platform_driver(amd_gpio_driver);
