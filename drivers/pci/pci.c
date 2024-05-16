@@ -142,8 +142,8 @@ enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_DEFAULT;
  * the dfl or actual value as it sees fit.  Don't forget this is
  * measured in 32-bit words, not bytes.
  */
-u8 pci_dfl_cache_line_size = L1_CACHE_BYTES >> 2;
-u8 pci_cache_line_size;
+u8 pci_dfl_cache_line_size __ro_after_init = L1_CACHE_BYTES >> 2;
+u8 pci_cache_line_size __ro_after_init ;
 
 /*
  * If we set up a device for bus mastering, we need to check the latency
@@ -6163,8 +6163,9 @@ EXPORT_SYMBOL(pcie_get_width_cap);
  * and width, multiplying them, and applying encoding overhead.  The result
  * is in Mb/s, i.e., megabits/second of raw bandwidth.
  */
-u32 pcie_bandwidth_capable(struct pci_dev *dev, enum pci_bus_speed *speed,
-			   enum pcie_link_width *width)
+static u32 pcie_bandwidth_capable(struct pci_dev *dev,
+				  enum pci_bus_speed *speed,
+				  enum pcie_link_width *width)
 {
 	*speed = pcie_get_speed_cap(dev);
 	*width = pcie_get_width_cap(dev);
