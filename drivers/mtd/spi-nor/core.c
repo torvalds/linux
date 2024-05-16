@@ -2893,7 +2893,7 @@ static int spi_nor_late_init_params(struct spi_nor *nor)
 		spi_nor_init_default_locking_ops(nor);
 
 	if (params->n_banks > 1)
-		params->bank_size = div64_u64(params->size, params->n_banks);
+		params->bank_size = div_u64(params->size, params->n_banks);
 
 	return 0;
 }
@@ -3406,7 +3406,7 @@ static int spi_nor_set_mtd_eraseregions(struct spi_nor *nor)
 			return -EINVAL;
 
 		mtd_region[i].erasesize = erasesize;
-		mtd_region[i].numblocks = div64_ul(region[i].size, erasesize);
+		mtd_region[i].numblocks = div_u64(region[i].size, erasesize);
 		mtd_region[i].offset = region[i].offset;
 	}
 
