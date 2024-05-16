@@ -258,6 +258,12 @@ L:	linux-acenic@sunsite.dk
 S:	Maintained
 F:	drivers/net/ethernet/alteon/acenic*
 
+ACER ASPIRE 1 EMBEDDED CONTROLLER DRIVER
+M:	Nikita Travkin <nikita@trvn.ru>
+S:	Maintained
+F:	Documentation/devicetree/bindings/platform/acer,aspire1-ec.yaml
+F:	drivers/platform/arm64/acer-aspire1-ec.c
+
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
 M:	Peter Kaestle <peter@piie.net>
 L:	platform-driver-x86@vger.kernel.org
@@ -353,6 +359,12 @@ Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 B:	https://bugzilla.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
 F:	drivers/acpi/pmic/
+
+ACPI QUICKSTART DRIVER
+M:	Armin Wolf <W_Armin@gmx.de>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/quickstart.c
 
 ACPI SERIAL MULTI INSTANTIATE DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
@@ -3110,6 +3122,16 @@ S:	Maintained
 F:	arch/arm64/boot/Makefile
 F:	scripts/make_fit.py
 
+ARM64 PLATFORM DRIVERS
+M:	Hans de Goede <hdegoede@redhat.com>
+M:	Ilpo Järvinen <ilpo.jarvinen@linux.intel.com>
+R:	Bryan O'Donoghue <bryan.odonoghue@linaro.org>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+Q:	https://patchwork.kernel.org/project/platform-driver-x86/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pdx86/platform-drivers-x86.git
+F:	drivers/platform/arm64/
+
 ARM64 PORT (AARCH64 ARCHITECTURE)
 M:	Catalin Marinas <catalin.marinas@arm.com>
 M:	Will Deacon <will@kernel.org>
@@ -5291,7 +5313,6 @@ F:	lib/closure.c
 
 CMPC ACPI DRIVER
 M:	Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
-M:	Daniel Oliveira Nascimento <don@syst.com.br>
 L:	platform-driver-x86@vger.kernel.org
 S:	Supported
 F:	drivers/platform/x86/classmate-laptop.c
@@ -15190,6 +15211,14 @@ MSI WMI SUPPORT
 L:	platform-driver-x86@vger.kernel.org
 S:	Orphan
 F:	drivers/platform/x86/msi-wmi.c
+
+MSI WMI PLATFORM FEATURES
+M:	Armin Wolf <W_Armin@gmx.de>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/debugfs-msi-wmi-platform
+F:	Documentation/wmi/devices/msi-wmi-platform.rst
+F:	drivers/platform/x86/msi-wmi-platform.c
 
 MSI001 MEDIA DRIVER
 L:	linux-media@vger.kernel.org

@@ -1153,6 +1153,34 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 	return 0;
 }
 
+static int ec_read_multiple(u8 address, u8 *buffer, size_t bytes)
+{
+	size_t i;
+	int ret;
+
+	for (i = 0; i < bytes; i++) {
+		ret = ec_read(address + i, &buffer[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int ec_write_multiple(u8 address, u8 *buffer, size_t bytes)
+{
+	size_t i;
+	int ret;
+
+	for (i = 0; i < bytes; i++) {
+		ret = ec_write(address + i, buffer[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 /*
  * WMI can have EmbeddedControl access regions. In which case, we just want to
  * hand these off to the EC driver.
@@ -1162,35 +1190,37 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 			  u32 bits, u64 *value,
 			  void *handler_context, void *region_context)
 {
-	int result = 0;
-	u8 temp = 0;
+	int bytes = bits / BITS_PER_BYTE;
+	int ret;
 
-	if ((address > 0xFF) || !value)
+	if (!value)
+		return AE_NULL_ENTRY;
+
+	if (!bytes || bytes > sizeof(*value))
+		return AE_BAD_PARAMETER;
+
+	if (address > U8_MAX || address + bytes - 1 > U8_MAX)
 		return AE_BAD_PARAMETER;
 
 	if (function != ACPI_READ && function != ACPI_WRITE)
 		return AE_BAD_PARAMETER;
 
-	if (bits != 8)
-		return AE_BAD_PARAMETER;
+	if (function == ACPI_READ)
+		ret = ec_read_multiple(address, (u8 *)value, bytes);
+	else
+		ret = ec_write_multiple(address, (u8 *)value, bytes);
 
-	if (function == ACPI_READ) {
-		result = ec_read(address, &temp);
-		*value = temp;
-	} else {
-		temp = 0xff & *value;
-		result = ec_write(address, temp);
-	}
-
-	switch (result) {
+	switch (ret) {
 	case -EINVAL:
 		return AE_BAD_PARAMETER;
 	case -ENODEV:
 		return AE_NOT_FOUND;
 	case -ETIME:
 		return AE_TIME;
-	default:
+	case 0:
 		return AE_OK;
+	default:
+		return AE_ERROR;
 	}
 }
 
