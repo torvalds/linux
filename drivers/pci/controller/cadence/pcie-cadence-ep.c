@@ -743,6 +743,8 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 
 	spin_lock_init(&ep->lock);
 
+	pci_epc_init_notify(epc);
+
 	return 0;
 
  free_epc_mem:
