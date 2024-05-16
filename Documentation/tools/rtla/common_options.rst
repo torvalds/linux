@@ -14,10 +14,6 @@
 
         Print debug info.
 
-**-t**, **--trace**\[*=file*]
-
-        Save the stopped trace to [*file|osnoise_trace.txt*].
-
 **-e**, **--event** *sys:event*
 
         Enable an event in the trace (**-t**) session. The argument can be a specific event, e.g., **-e** *sched:sched_switch*, or all events of a system group, e.g., **-e** *sched*. Multiple **-e** are allowed. It is only active when **-t** or **-a** are set.

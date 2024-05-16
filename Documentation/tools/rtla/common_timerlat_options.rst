@@ -22,6 +22,10 @@
         Save the stack trace at the *IRQ* if a *Thread* latency is higher than the
         argument in us.
 
+**-t**, **--trace** \[*file*]
+
+        Save the stopped trace to [*file|timerlat_trace.txt*].
+
 **--dma-latency** *us*
         Set the /dev/cpu_dma_latency to *us*, aiming to bound exit from idle latencies.
         *cyclictest* sets this value to *0* by default, use **--dma-latency** *0* to have
