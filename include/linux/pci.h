@@ -1656,8 +1656,6 @@ struct msix_entry {
 	u16	entry;	/* Driver uses to specify entry, OS writes */
 };
 
-struct msi_domain_template;
-
 #ifdef CONFIG_PCI_MSI
 int pci_msi_vec_count(struct pci_dev *dev);
 void pci_disable_msi(struct pci_dev *dev);
@@ -1690,11 +1688,6 @@ void pci_msix_free_irq(struct pci_dev *pdev, struct msi_map map);
 void pci_free_irq_vectors(struct pci_dev *dev);
 int pci_irq_vector(struct pci_dev *dev, unsigned int nr);
 const struct cpumask *pci_irq_get_affinity(struct pci_dev *pdev, int vec);
-bool pci_create_ims_domain(struct pci_dev *pdev, const struct msi_domain_template *template,
-			   unsigned int hwsize, void *data);
-struct msi_map pci_ims_alloc_irq(struct pci_dev *pdev, union msi_instance_cookie *icookie,
-				 const struct irq_affinity_desc *affdesc);
-void pci_ims_free_irq(struct pci_dev *pdev, struct msi_map map);
 
 #else
 static inline int pci_msi_vec_count(struct pci_dev *dev) { return -ENOSYS; }
@@ -1758,25 +1751,6 @@ static inline const struct cpumask *pci_irq_get_affinity(struct pci_dev *pdev,
 {
 	return cpu_possible_mask;
 }
-
-static inline bool pci_create_ims_domain(struct pci_dev *pdev,
-					 const struct msi_domain_template *template,
-					 unsigned int hwsize, void *data)
-{ return false; }
-
-static inline struct msi_map pci_ims_alloc_irq(struct pci_dev *pdev,
-					       union msi_instance_cookie *icookie,
-					       const struct irq_affinity_desc *affdesc)
-{
-	struct msi_map map = { .index = -ENOSYS, };
-
-	return map;
-}
-
-static inline void pci_ims_free_irq(struct pci_dev *pdev, struct msi_map map)
-{
-}
-
 #endif
 
 /**
