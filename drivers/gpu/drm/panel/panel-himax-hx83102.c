@@ -285,12 +285,10 @@ static int boe_nv110wum_init(struct hx83102 *ctx)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, HX83102_SETSPCCMD, 0x3f);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, HX83102_SETBANK, 0x00);
 	hx83102_enable_extended_cmds(&dsi_ctx, false);
-	if (dsi_ctx.accum_err)
-		return dsi_ctx.accum_err;
 
-	msleep(50);
+	mipi_dsi_msleep(dsi_ctx, 50);
 
-	return 0;
+	return dsi_ctx.accum_err;
 };
 
 static int ivo_t109nw41_init(struct hx83102 *ctx)
@@ -392,12 +390,10 @@ static int ivo_t109nw41_init(struct hx83102 *ctx)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, HX83102_SETSPCCMD, 0x3f);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, HX83102_SETBANK, 0x00);
 	hx83102_enable_extended_cmds(&dsi_ctx, false);
-	if (dsi_ctx.accum_err)
-		return dsi_ctx.accum_err;
 
-	msleep(60);
+	mipi_dsi_msleep(dsi_ctx, 60);
 
-	return 0;
+	return dsi_ctx.accum_err;
 };
 
 static const struct drm_display_mode starry_mode = {
@@ -472,40 +468,20 @@ static int hx83102_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int hx83102_panel_enter_sleep_mode(struct hx83102 *ctx)
-{
-	struct mipi_dsi_device *dsi = ctx->dsi;
-	int ret;
-
-	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
-
-	ret = mipi_dsi_dcs_set_display_off(dsi);
-	if (ret < 0)
-		return ret;
-
-	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int hx83102_disable(struct drm_panel *panel)
 {
 	struct hx83102 *ctx = panel_to_hx83102(panel);
 	struct mipi_dsi_device *dsi = ctx->dsi;
-	struct device *dev = &dsi->dev;
-	int ret;
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = dsi };
 
-	ret = hx83102_panel_enter_sleep_mode(ctx);
-	if (ret < 0) {
-		dev_err(dev, "failed to set panel off: %d\n", ret);
-		return ret;
-	}
+	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
-	msleep(150);
+	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
+	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
 
-	return 0;
+	mipi_dsi_msleep(&dsi_ctx, 150);
+
+	return dsi_ctx.accum_err;
 }
 
 static int hx83102_unprepare(struct drm_panel *panel)
@@ -526,32 +502,30 @@ static int hx83102_prepare(struct drm_panel *panel)
 {
 	struct hx83102 *ctx = panel_to_hx83102(panel);
 	struct mipi_dsi_device *dsi = ctx->dsi;
-	struct device *dev = &dsi->dev;
-	int ret;
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = dsi };
 
 	gpiod_set_value(ctx->enable_gpio, 0);
 	usleep_range(1000, 1500);
 
-	ret = regulator_enable(ctx->pp1800);
-	if (ret < 0)
-		return ret;
+	dsi_ctx.accum_err = regulator_enable(ctx->pp1800);
+	if (dsi_ctx.accum_err)
+		return dsi_ctx.accum_err;
 
 	usleep_range(3000, 5000);
 
-	ret = regulator_enable(ctx->avdd);
-	if (ret < 0)
+	dsi_ctx.accum_err = regulator_enable(ctx->avdd);
+	if (dsi_ctx.accum_err)
 		goto poweroff1v8;
-	ret = regulator_enable(ctx->avee);
-	if (ret < 0)
+	dsi_ctx.accum_err = regulator_enable(ctx->avee);
+	if (dsi_ctx.accum_err)
 		goto poweroffavdd;
 
 	usleep_range(10000, 11000);
 
-	ret = mipi_dsi_dcs_nop(ctx->dsi);
-	if (ret < 0) {
-		dev_err(dev, "Failed to send NOP: %d\n", ret);
+	mipi_dsi_dcs_nop_multi(&dsi_ctx);
+	if (dsi_ctx.accum_err)
 		goto poweroff;
-	}
+
 	usleep_range(1000, 2000);
 
 	gpiod_set_value(ctx->enable_gpio, 1);
@@ -561,23 +535,13 @@ static int hx83102_prepare(struct drm_panel *panel)
 	gpiod_set_value(ctx->enable_gpio, 1);
 	usleep_range(6000, 10000);
 
-	ret = ctx->desc->init(ctx);
-	if (ret < 0)
-		goto poweroff;
+	dsi_ctx.accum_err = ctx->desc->init(ctx);
 
-	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
-	if (ret) {
-		dev_err(dev, "Failed to exit sleep mode: %d\n", ret);
+	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
+	mipi_dsi_msleep(dsi_ctx, 120);
+	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
+	if (dsi_ctx.accum_err)
 		goto poweroff;
-	}
-
-	msleep(120);
-
-	ret = mipi_dsi_dcs_set_display_on(dsi);
-	if (ret) {
-		dev_err(dev, "Failed to turn on the display: %d\n", ret);
-		goto poweroff;
-	}
 
 	return 0;
 
@@ -590,7 +554,7 @@ poweroff1v8:
 	usleep_range(5000, 7000);
 	regulator_disable(ctx->pp1800);
 
-	return ret;
+	return dsi_ctx.accum_err;
 }
 
 static int hx83102_get_modes(struct drm_panel *panel,
