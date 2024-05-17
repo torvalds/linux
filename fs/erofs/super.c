@@ -943,26 +943,14 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	struct erofs_sb_info *sbi = EROFS_SB(root->d_sb);
 	struct erofs_mount_opts *opt = &sbi->opt;
 
-#ifdef CONFIG_EROFS_FS_XATTR
-	if (test_opt(opt, XATTR_USER))
-		seq_puts(seq, ",user_xattr");
-	else
-		seq_puts(seq, ",nouser_xattr");
-#endif
-#ifdef CONFIG_EROFS_FS_POSIX_ACL
-	if (test_opt(opt, POSIX_ACL))
-		seq_puts(seq, ",acl");
-	else
-		seq_puts(seq, ",noacl");
-#endif
-#ifdef CONFIG_EROFS_FS_ZIP
-	if (opt->cache_strategy == EROFS_ZIP_CACHE_DISABLED)
-		seq_puts(seq, ",cache_strategy=disabled");
-	else if (opt->cache_strategy == EROFS_ZIP_CACHE_READAHEAD)
-		seq_puts(seq, ",cache_strategy=readahead");
-	else if (opt->cache_strategy == EROFS_ZIP_CACHE_READAROUND)
-		seq_puts(seq, ",cache_strategy=readaround");
-#endif
+	if (IS_ENABLED(CONFIG_EROFS_FS_XATTR))
+		seq_puts(seq, test_opt(opt, XATTR_USER) ?
+				",user_xattr" : ",nouser_xattr");
+	if (IS_ENABLED(CONFIG_EROFS_FS_POSIX_ACL))
+		seq_puts(seq, test_opt(opt, POSIX_ACL) ? ",acl" : ",noacl");
+	if (IS_ENABLED(CONFIG_EROFS_FS_ZIP))
+		seq_printf(seq, ",cache_strategy=%s",
+			  erofs_param_cache_strategy[opt->cache_strategy].name);
 	if (test_opt(opt, DAX_ALWAYS))
 		seq_puts(seq, ",dax=always");
 	if (test_opt(opt, DAX_NEVER))

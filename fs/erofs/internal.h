@@ -64,15 +64,12 @@ enum {
 };
 
 struct erofs_mount_opts {
-#ifdef CONFIG_EROFS_FS_ZIP
 	/* current strategy of how to use managed cache */
 	unsigned char cache_strategy;
 	/* strategy of sync decompression (0 - auto, 1 - force on, 2 - force off) */
 	unsigned int sync_decompress;
-
 	/* threshold for decompression synchronously */
 	unsigned int max_sync_decompress_pages;
-#endif
 	unsigned int mount_opt;
 };
 
