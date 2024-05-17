@@ -169,7 +169,6 @@ typedef struct {
   uint8_t  VpeClkLevelsEnabled;
   uint8_t  NumMemPstatesEnabled;
   uint8_t  NumFclkLevelsEnabled;
-  uint8_t  spare;
 
   uint32_t MinGfxClk;
   uint32_t MaxGfxClk;
