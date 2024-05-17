@@ -377,6 +377,7 @@ static int battery_chg_fw_write(struct battery_chg_dev *bcdev, void *data,
 		up_read(&bcdev->state_sem);
 		return -ENOTCONN;
 	}
+	up_read(&bcdev->state_sem);
 
 	reinit_completion(&bcdev->fw_buf_ack);
 	rc = pmic_glink_write(bcdev->client, data, len);
@@ -385,14 +386,12 @@ static int battery_chg_fw_write(struct battery_chg_dev *bcdev, void *data,
 					msecs_to_jiffies(WLS_FW_WAIT_TIME_MS));
 		if (!rc) {
 			pr_err("Error, timed out sending message\n");
-			up_read(&bcdev->state_sem);
 			return -ETIMEDOUT;
 		}
 
 		rc = 0;
 	}
 
-	up_read(&bcdev->state_sem);
 	return rc;
 }
 
@@ -412,9 +411,9 @@ static int battery_chg_write(struct battery_chg_dev *bcdev, void *data,
 		up_read(&bcdev->state_sem);
 		return 0;
 	}
+	up_read(&bcdev->state_sem);
 
 	if (bcdev->debug_battery_detected && bcdev->block_tx) {
-		up_read(&bcdev->state_sem);
 		return 0;
 	}
 
@@ -427,7 +426,6 @@ static int battery_chg_write(struct battery_chg_dev *bcdev, void *data,
 					msecs_to_jiffies(BC_WAIT_TIME_MS));
 		if (!rc) {
 			pr_err("Error, timed out sending message\n");
-			up_read(&bcdev->state_sem);
 			mutex_unlock(&bcdev->rw_lock);
 			return -ETIMEDOUT;
 		}
@@ -447,7 +445,6 @@ static int battery_chg_write(struct battery_chg_dev *bcdev, void *data,
 		}
 	}
 	mutex_unlock(&bcdev->rw_lock);
-	up_read(&bcdev->state_sem);
 
 	return rc;
 }
@@ -977,20 +974,18 @@ static int battery_chg_callback(void *priv, void *data, size_t len)
 		hdr->type, hdr->opcode, len);
 
 	down_read(&bcdev->state_sem);
-
 	if (!bcdev->initialized) {
 		pr_debug("Driver initialization failed: Dropping glink callback message: state %d\n",
 			 bcdev->state);
 		up_read(&bcdev->state_sem);
 		return 0;
 	}
+	up_read(&bcdev->state_sem);
 
 	if (hdr->opcode == BC_NOTIFY_IND)
 		handle_notification(bcdev, data, len);
 	else
 		handle_message(bcdev, data, len);
-
-	up_read(&bcdev->state_sem);
 
 	return 0;
 }
