@@ -866,7 +866,7 @@ struct fuse_conn {
 	/** Negotiated minor version */
 	unsigned minor;
 
-	/** Entry on the fuse_mount_list */
+	/** Entry on the fuse_conn_list */
 	struct list_head entry;
 
 	/** Device ID from the root super block */
