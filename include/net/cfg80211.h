@@ -2200,7 +2200,7 @@ struct cfg80211_sar_sub_specs {
 struct cfg80211_sar_specs {
 	enum nl80211_sar_type type;
 	u32 num_sub_specs;
-	struct cfg80211_sar_sub_specs sub_specs[];
+	struct cfg80211_sar_sub_specs sub_specs[] __counted_by(num_sub_specs);
 };
 
 
@@ -2838,7 +2838,7 @@ struct cfg80211_sched_scan_request {
 	struct list_head list;
 
 	/* keep last */
-	struct ieee80211_channel *channels[];
+	struct ieee80211_channel *channels[] __counted_by(n_channels);
 };
 
 /**
@@ -3582,7 +3582,7 @@ struct cfg80211_coalesce {
 struct cfg80211_wowlan_nd_match {
 	struct cfg80211_ssid ssid;
 	int n_channels;
-	u32 channels[];
+	u32 channels[] __counted_by(n_channels);
 };
 
 /**
@@ -3596,7 +3596,7 @@ struct cfg80211_wowlan_nd_match {
  */
 struct cfg80211_wowlan_nd_info {
 	int n_matches;
-	struct cfg80211_wowlan_nd_match *matches[];
+	struct cfg80211_wowlan_nd_match *matches[] __counted_by(n_matches);
 };
 
 /**
