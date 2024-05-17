@@ -159,14 +159,17 @@
 
 /include/ "pq3-etsec2-0.dtsi"
 	enet0: enet0_grp2: ethernet@b0000 {
+		fsl,pmc-handle = <&etsec1_clk>;
 	};
 
 /include/ "pq3-etsec2-1.dtsi"
 	enet1: enet1_grp2: ethernet@b1000 {
+		fsl,pmc-handle = <&etsec2_clk>;
 	};
 
 /include/ "pq3-etsec2-2.dtsi"
 	enet2: enet2_grp2: ethernet@b2000 {
+		fsl,pmc-handle = <&etsec3_clk>;
 	};
 
 	global-utilities@e0000 {
@@ -174,6 +177,8 @@
 		reg = <0xe0000 0x1000>;
 		fsl,has-rstcr;
 	};
+
+/include/ "pq3-power.dtsi"
 };
 
 &qe {
