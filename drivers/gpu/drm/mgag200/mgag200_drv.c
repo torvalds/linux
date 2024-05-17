@@ -146,12 +146,18 @@ int mgag200_device_preinit(struct mga_device *mdev)
 	}
 	mdev->vram_res = res;
 
+#if defined(CONFIG_DRM_MGAG200_DISABLE_WRITECOMBINE)
+	mdev->vram = devm_ioremap(dev->dev, res->start, resource_size(res));
+	if (!mdev->vram)
+		return -ENOMEM;
+#else
 	mdev->vram = devm_ioremap_wc(dev->dev, res->start, resource_size(res));
 	if (!mdev->vram)
 		return -ENOMEM;
 
 	/* Don't fail on errors, but performance might be reduced. */
 	devm_arch_phys_wc_add(dev->dev, res->start, resource_size(res));
+#endif
 
 	return 0;
 }
