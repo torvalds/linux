@@ -1744,8 +1744,11 @@ static int css_populate_dir(struct cgroup_subsys_state *css)
 			if (cgroup_psi_enabled()) {
 				ret = cgroup_addrm_files(css, cgrp,
 							 cgroup_psi_files, true);
-				if (ret < 0)
+				if (ret < 0) {
+					cgroup_addrm_files(css, cgrp,
+							   cgroup_base_files, false);
 					return ret;
+				}
 			}
 		} else {
 			ret = cgroup_addrm_files(css, cgrp,
