@@ -251,7 +251,7 @@ static __always_inline bool mmu_has_feature(unsigned long feature)
 #endif
 
 #ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DEBUG
-	if (!static_key_initialized) {
+	if (!static_key_feature_checks_initialized) {
 		printk("Warning! mmu_has_feature() used prior to jump label init!\n");
 		dump_stack();
 		return early_mmu_has_feature(feature);

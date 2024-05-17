@@ -16,8 +16,6 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 
-static LIST_HEAD(module_bug_list);
-
 static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
 				    const Elf_Shdr *sechdrs,
 				    const char *name)

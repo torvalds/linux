@@ -360,10 +360,6 @@ static int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu,
 		break;
 	}
 
-#if 0
-	printk(KERN_INFO "Deliver interrupt 0x%x? %x\n", vec, deliver);
-#endif
-
 	if (deliver)
 		kvmppc_inject_interrupt(vcpu, vec, 0);
 
