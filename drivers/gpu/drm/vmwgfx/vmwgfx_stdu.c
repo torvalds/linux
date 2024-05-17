@@ -92,11 +92,6 @@ struct vmw_stdu_update {
 	SVGA3dCmdUpdateGBScreenTarget body;
 };
 
-struct vmw_stdu_dma {
-	SVGA3dCmdHeader     header;
-	SVGA3dCmdSurfaceDMA body;
-};
-
 struct vmw_stdu_surface_copy {
 	SVGA3dCmdHeader      header;
 	SVGA3dCmdSurfaceCopy body;
