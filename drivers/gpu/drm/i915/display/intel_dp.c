@@ -1181,6 +1181,10 @@ bool intel_dp_has_dsc(const struct intel_connector *connector)
 	if (connector->mst_port && !HAS_DSC_MST(i915))
 		return false;
 
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP &&
+	    connector->panel.vbt.edp.dsc_disable)
+		return false;
+
 	if (!drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd))
 		return false;
 

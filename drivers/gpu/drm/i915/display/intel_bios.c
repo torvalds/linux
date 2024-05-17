@@ -1525,6 +1525,10 @@ parse_edp(struct drm_i915_private *i915,
 	if (i915->display.vbt.version >= 244)
 		panel->vbt.edp.max_link_rate =
 			edp->edp_max_port_link_rate[panel_type] * 20;
+
+	if (i915->display.vbt.version >= 251)
+		panel->vbt.edp.dsc_disable =
+			panel_bool(edp->edp_dsc_disable, panel_type);
 }
 
 static void
