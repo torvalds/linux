@@ -51,7 +51,7 @@ struct virtio_fs_vq {
 	struct work_struct done_work;
 	struct list_head queued_reqs;
 	struct list_head end_reqs;	/* End these requests */
-	struct delayed_work dispatch_work;
+	struct work_struct dispatch_work;
 	struct fuse_dev *fud;
 	bool connected;
 	long in_flight;
@@ -233,7 +233,7 @@ static void virtio_fs_drain_queue(struct virtio_fs_vq *fsvq)
 	}
 
 	flush_work(&fsvq->done_work);
-	flush_delayed_work(&fsvq->dispatch_work);
+	flush_work(&fsvq->dispatch_work);
 }
 
 static void virtio_fs_drain_all_queues_locked(struct virtio_fs *fs)
@@ -408,6 +408,10 @@ static void virtio_fs_hiprio_done_work(struct work_struct *work)
 			dec_in_flight_req(fsvq);
 		}
 	} while (!virtqueue_enable_cb(vq));
+
+	if (!list_empty(&fsvq->queued_reqs))
+		schedule_work(&fsvq->dispatch_work);
+
 	spin_unlock(&fsvq->lock);
 }
 
@@ -415,7 +419,7 @@ static void virtio_fs_request_dispatch_work(struct work_struct *work)
 {
 	struct fuse_req *req;
 	struct virtio_fs_vq *fsvq = container_of(work, struct virtio_fs_vq,
-						 dispatch_work.work);
+						 dispatch_work);
 	int ret;
 
 	pr_debug("virtio-fs: worker %s called.\n", __func__);
@@ -450,8 +454,6 @@ static void virtio_fs_request_dispatch_work(struct work_struct *work)
 			if (ret == -ENOSPC) {
 				spin_lock(&fsvq->lock);
 				list_add_tail(&req->list, &fsvq->queued_reqs);
-				schedule_delayed_work(&fsvq->dispatch_work,
-						      msecs_to_jiffies(1));
 				spin_unlock(&fsvq->lock);
 				return;
 			}
@@ -498,8 +500,6 @@ static int send_forget_request(struct virtio_fs_vq *fsvq,
 			pr_debug("virtio-fs: Could not queue FORGET: err=%d. Will try later\n",
 				 ret);
 			list_add_tail(&forget->list, &fsvq->queued_reqs);
-			schedule_delayed_work(&fsvq->dispatch_work,
-					      msecs_to_jiffies(1));
 			if (!in_flight)
 				inc_in_flight_req(fsvq);
 			/* Queue is full */
@@ -531,7 +531,7 @@ static void virtio_fs_hiprio_dispatch_work(struct work_struct *work)
 {
 	struct virtio_fs_forget *forget;
 	struct virtio_fs_vq *fsvq = container_of(work, struct virtio_fs_vq,
-						 dispatch_work.work);
+						 dispatch_work);
 	pr_debug("virtio-fs: worker %s called.\n", __func__);
 	while (1) {
 		spin_lock(&fsvq->lock);
@@ -709,6 +709,12 @@ static void virtio_fs_requests_done_work(struct work_struct *work)
 			virtio_fs_request_complete(req, fsvq);
 		}
 	}
+
+	/* Try to push previously queued requests, as the queue might no longer be full */
+	spin_lock(&fsvq->lock);
+	if (!list_empty(&fsvq->queued_reqs))
+		schedule_work(&fsvq->dispatch_work);
+	spin_unlock(&fsvq->lock);
 }
 
 static void virtio_fs_map_queues(struct virtio_device *vdev, struct virtio_fs *fs)
@@ -770,12 +776,12 @@ static void virtio_fs_init_vq(struct virtio_fs_vq *fsvq, char *name,
 
 	if (vq_type == VQ_REQUEST) {
 		INIT_WORK(&fsvq->done_work, virtio_fs_requests_done_work);
-		INIT_DELAYED_WORK(&fsvq->dispatch_work,
-				  virtio_fs_request_dispatch_work);
+		INIT_WORK(&fsvq->dispatch_work,
+				virtio_fs_request_dispatch_work);
 	} else {
 		INIT_WORK(&fsvq->done_work, virtio_fs_hiprio_done_work);
-		INIT_DELAYED_WORK(&fsvq->dispatch_work,
-				  virtio_fs_hiprio_dispatch_work);
+		INIT_WORK(&fsvq->dispatch_work,
+				virtio_fs_hiprio_dispatch_work);
 	}
 }
 
@@ -1375,8 +1381,6 @@ __releases(fiq->lock)
 			spin_lock(&fsvq->lock);
 			list_add_tail(&req->list, &fsvq->queued_reqs);
 			inc_in_flight_req(fsvq);
-			schedule_delayed_work(&fsvq->dispatch_work,
-						msecs_to_jiffies(1));
 			spin_unlock(&fsvq->lock);
 			return;
 		}
@@ -1386,7 +1390,7 @@ __releases(fiq->lock)
 		/* Can't end request in submission context. Use a worker */
 		spin_lock(&fsvq->lock);
 		list_add_tail(&req->list, &fsvq->end_reqs);
-		schedule_delayed_work(&fsvq->dispatch_work, 0);
+		schedule_work(&fsvq->dispatch_work);
 		spin_unlock(&fsvq->lock);
 		return;
 	}
