@@ -699,11 +699,12 @@ bpf_alu32_trunc:
 		 */
 		case BPF_ALU | BPF_END | BPF_FROM_LE:
 		case BPF_ALU | BPF_END | BPF_FROM_BE:
+		case BPF_ALU64 | BPF_END | BPF_FROM_LE:
 #ifdef __BIG_ENDIAN__
 			if (BPF_SRC(code) == BPF_FROM_BE)
 				goto emit_clear;
 #else /* !__BIG_ENDIAN__ */
-			if (BPF_SRC(code) == BPF_FROM_LE)
+			if (BPF_CLASS(code) == BPF_ALU && BPF_SRC(code) == BPF_FROM_LE)
 				goto emit_clear;
 #endif
 			switch (imm) {
