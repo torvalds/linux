@@ -128,6 +128,7 @@ static struct platform_driver simatic_ipc_led_driver = {
 };
 module_platform_driver(simatic_ipc_led_driver);
 
+MODULE_DESCRIPTION("LED driver for Siemens Simatic IPCs");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" KBUILD_MODNAME);
 MODULE_AUTHOR("Henning Schild <henning.schild@siemens.com>");
