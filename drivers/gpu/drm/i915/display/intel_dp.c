@@ -1424,7 +1424,6 @@ static bool intel_dp_supports_dsc(const struct intel_connector *connector,
 		return false;
 
 	return intel_dsc_source_support(crtc_state) &&
-		connector->dp.dsc_decompression_aux &&
 		drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd);
 }
 
