@@ -84,20 +84,6 @@ resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size)
 	return offset - 65536;
 }
 
-#if defined(CONFIG_DRM_MGAG200_IOBURST_WORKAROUND)
-static struct drm_gem_object *mgag200_create_object(struct drm_device *dev, size_t size)
-{
-	struct drm_gem_shmem_object *shmem;
-
-	shmem = kzalloc(sizeof(*shmem), GFP_KERNEL);
-	if (!shmem)
-		return NULL;
-
-	shmem->map_wc = true;
-	return &shmem->base;
-}
-#endif
-
 /*
  * DRM driver
  */
@@ -113,9 +99,6 @@ static const struct drm_driver mgag200_driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
-#if defined(CONFIG_DRM_MGAG200_IOBURST_WORKAROUND)
-	.gem_create_object = mgag200_create_object,
-#endif
 	DRM_GEM_SHMEM_DRIVER_OPS,
 };
 

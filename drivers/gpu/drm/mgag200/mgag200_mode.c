@@ -13,7 +13,6 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_cache.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_format_helper.h>
@@ -439,13 +438,6 @@ static void mgag200_handle_damage(struct mga_device *mdev, const struct iosys_ma
 
 	iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, clip));
 	drm_fb_memcpy(&dst, fb->pitches, vmap, fb, clip);
-
-	/* Flushing the cache greatly improves latency on x86_64 */
-#if defined(CONFIG_DRM_MGAG200_IOBURST_WORKAROUND)
-	if (!vmap->is_iomem)
-		drm_clflush_virt_range(vmap->vaddr + clip->y1 * fb->pitches[0],
-				       drm_rect_height(clip) * fb->pitches[0]);
-#endif
 }
 
 /*
