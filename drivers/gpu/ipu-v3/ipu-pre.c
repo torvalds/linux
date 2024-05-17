@@ -5,6 +5,7 @@
 
 #include <drm/drm_fourcc.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/genalloc.h>
 #include <linux/module.h>
@@ -256,10 +257,6 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 
 void ipu_pre_update(struct ipu_pre *pre, uint64_t modifier, unsigned int bufaddr)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(5);
-	unsigned short current_yblock;
-	u32 val;
-
 	if (bufaddr == pre->cur.bufaddr &&
 	    modifier == pre->cur.modifier)
 		return;
@@ -270,8 +267,11 @@ void ipu_pre_update(struct ipu_pre *pre, uint64_t modifier, unsigned int bufaddr
 	if (modifier != pre->cur.modifier)
 		ipu_pre_configure_modifier(pre, modifier);
 
-	do {
-		if (time_after(jiffies, timeout)) {
+	for (int i = 0;; i++) {
+		unsigned short current_yblock;
+		u32 val;
+
+		if (i > 500) {
 			dev_warn(pre->dev, "timeout waiting for PRE safe window\n");
 			return;
 		}
@@ -280,8 +280,14 @@ void ipu_pre_update(struct ipu_pre *pre, uint64_t modifier, unsigned int bufaddr
 		current_yblock =
 			(val >> IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_SHIFT) &
 			IPU_PRE_STORE_ENG_STATUS_STORE_BLOCK_Y_MASK;
-	} while (current_yblock == 0 ||
-		 current_yblock >= pre->cur.safe_window_end);
+
+		if (current_yblock != 0 &&
+		    current_yblock < pre->cur.safe_window_end)
+			break;
+
+		udelay(10);
+		cpu_relax();
+	}
 
 	writel(pre->cur.ctrl | IPU_PRE_CTRL_SDW_UPDATE,
 	       pre->regs + IPU_PRE_CTRL);
