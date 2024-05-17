@@ -872,7 +872,7 @@ static int __clk_alpha_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	 */
 	if (is_enabled(&pll->clkr.hw) &&
 	    !(pll->flags & SUPPORTS_DYNAMIC_UPDATE))
-		hw->init->ops->disable(hw);
+		clk_alpha_pll_disable(hw);
 
 	regmap_write(pll->clkr.regmap, PLL_L_VAL(pll), l);
 
@@ -911,9 +911,9 @@ static int __clk_alpha_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		(pll->flags & SUPPORTS_DYNAMIC_UPDATE))
 		clk_alpha_pll_dynamic_update(pll);
 
-	if (is_enabled(&pll->clkr.hw) &&
+	if (!is_enabled(&pll->clkr.hw) &&
 		!(pll->flags & SUPPORTS_DYNAMIC_UPDATE))
-		hw->init->ops->enable(hw);
+		clk_alpha_pll_enable(hw);
 
 	return clk_alpha_pll_update_latch(pll, is_enabled);
 }
@@ -4577,7 +4577,7 @@ static int clk_alpha_pll_calibrate(struct clk_hw *hw)
 
 
 	pr_debug("pll %s: setting back to required rate %lu, freq_hz %ld\n",
-				hw->init->name, clk_hw_get_rate(hw), freq_hz);
+				clk_hw_get_name(hw), clk_hw_get_rate(hw), freq_hz);
 
 	/* Setup the PLL for the new frequency */
 	a <<= (ALPHA_REG_BITWIDTH - ALPHA_BITWIDTH);
