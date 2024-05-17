@@ -554,7 +554,7 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
  * This is like mapping_evict_folio(), except it ignores the folio's
  * refcount.  We do this because invalidate_inode_pages2() needs stronger
  * invalidation guarantees, and cannot afford to leave folios behind because
- * shrink_page_list() has a temp ref on them, or because they're transiently
+ * shrink_folio_list() has a temp ref on them, or because they're transiently
  * sitting in the folio_add_lru() caches.
  */
 static int invalidate_complete_folio2(struct address_space *mapping,

@@ -191,13 +191,13 @@ have become evictable again (via munlock() for example) and have been "rescued"
 from the unevictable list.  However, there may be situations where we decide,
 for the sake of expediency, to leave an unevictable folio on one of the regular
 active/inactive LRU lists for vmscan to deal with.  vmscan checks for such
-folios in all of the shrink_{active|inactive|page}_list() functions and will
+folios in all of the shrink_{active|inactive|folio}_list() functions and will
 "cull" such folios that it encounters: that is, it diverts those folios to the
 unevictable list for the memory cgroup and node being scanned.
 
 There may be situations where a folio is mapped into a VM_LOCKED VMA,
 but the folio does not have the mlocked flag set.  Such folios will make
-it all the way to shrink_active_list() or shrink_page_list() where they
+it all the way to shrink_active_list() or shrink_folio_list() where they
 will be detected when vmscan walks the reverse map in folio_referenced()
 or try_to_unmap().  The folio is culled to the unevictable list when it
 is released by the shrinker.
@@ -269,7 +269,7 @@ the LRU.  Such pages can be "noticed" by memory management in several places:
 
  (4) in the fault path and when a VM_LOCKED stack segment is expanded; or
 
- (5) as mentioned above, in vmscan:shrink_page_list() when attempting to
+ (5) as mentioned above, in vmscan:shrink_folio_list() when attempting to
      reclaim a page in a VM_LOCKED VMA by folio_referenced() or try_to_unmap().
 
 mlocked pages become unlocked and rescued from the unevictable list when:
@@ -548,12 +548,12 @@ Some examples of these unevictable pages on the LRU lists are:
  (3) pages still mapped into VM_LOCKED VMAs, which should be marked mlocked,
      but events left mlock_count too low, so they were munlocked too early.
 
-vmscan's shrink_inactive_list() and shrink_page_list() also divert obviously
+vmscan's shrink_inactive_list() and shrink_folio_list() also divert obviously
 unevictable pages found on the inactive lists to the appropriate memory cgroup
 and node unevictable list.
 
 rmap's folio_referenced_one(), called via vmscan's shrink_active_list() or
-shrink_page_list(), and rmap's try_to_unmap_one() called via shrink_page_list(),
+shrink_folio_list(), and rmap's try_to_unmap_one() called via shrink_folio_list(),
 check for (3) pages still mapped into VM_LOCKED VMAs, and call mlock_vma_folio()
 to correct them.  Such pages are culled to the unevictable list when released
 by the shrinker.
