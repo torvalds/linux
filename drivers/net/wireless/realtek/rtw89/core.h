@@ -884,6 +884,13 @@ enum rtw89_ps_mode {
 #define RTW89_BYR_BW_NUM (RTW89_CHANNEL_WIDTH_320 + 1)
 #define RTW89_PPE_BW_NUM (RTW89_CHANNEL_WIDTH_320 + 1)
 
+enum rtw89_pe_duration {
+	RTW89_PE_DURATION_0 = 0,
+	RTW89_PE_DURATION_8 = 1,
+	RTW89_PE_DURATION_16 = 2,
+	RTW89_PE_DURATION_16_20 = 3,
+};
+
 enum rtw89_ru_bandwidth {
 	RTW89_RU26 = 0,
 	RTW89_RU52 = 1,

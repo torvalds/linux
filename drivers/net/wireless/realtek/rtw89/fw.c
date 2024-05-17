@@ -2752,11 +2752,11 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 		ppe8 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
 
 		if (ppe16 != 7 && ppe8 == 7)
-			pads[i] = 2;
+			pads[i] = RTW89_PE_DURATION_16;
 		else if (ppe8 != 7)
-			pads[i] = 1;
+			pads[i] = RTW89_PE_DURATION_8;
 		else
-			pads[i] = 0;
+			pads[i] = RTW89_PE_DURATION_0;
 	}
 }
 
@@ -2889,11 +2889,11 @@ static void __get_sta_eht_pkt_padding(struct rtw89_dev *rtwdev,
 		ppe8 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
 
 		if (ppe16 != 7 && ppe8 == 7)
-			pads[i] = 2;
+			pads[i] = RTW89_PE_DURATION_16_20;
 		else if (ppe8 != 7)
-			pads[i] = 1;
+			pads[i] = RTW89_PE_DURATION_8;
 		else
-			pads[i] = 0;
+			pads[i] = RTW89_PE_DURATION_0;
 	}
 }
 
