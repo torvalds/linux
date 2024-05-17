@@ -239,8 +239,8 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 static int spi_gpio_setup(struct spi_device *spi)
 {
 	struct gpio_desc	*cs;
-	int			status = 0;
 	struct spi_gpio		*spi_gpio = spi_to_spi_gpio(spi);
+	int ret;
 
 	/*
 	 * The CS GPIOs have already been
@@ -248,15 +248,14 @@ static int spi_gpio_setup(struct spi_device *spi)
 	 */
 	if (spi_gpio->cs_gpios) {
 		cs = spi_gpio->cs_gpios[spi_get_chipselect(spi, 0)];
-		if (!spi->controller_state && cs)
-			status = gpiod_direction_output(cs,
-						  !(spi->mode & SPI_CS_HIGH));
+		if (!spi->controller_state && cs) {
+			ret = gpiod_direction_output(cs, !(spi->mode & SPI_CS_HIGH));
+			if (ret)
+				return ret;
+		}
 	}
 
-	if (!status)
-		status = spi_bitbang_setup(spi);
-
-	return status;
+	return spi_bitbang_setup(spi);
 }
 
 static int spi_gpio_set_direction(struct spi_device *spi, bool output)
