@@ -527,12 +527,12 @@ static int rfcomm_get_dev_list(void __user *arg)
 	list_for_each_entry(dev, &rfcomm_dev_list, list) {
 		if (!tty_port_get(&dev->port))
 			continue;
-		(di + n)->id      = dev->id;
-		(di + n)->flags   = dev->flags;
-		(di + n)->state   = dev->dlc->state;
-		(di + n)->channel = dev->channel;
-		bacpy(&(di + n)->src, &dev->src);
-		bacpy(&(di + n)->dst, &dev->dst);
+		di[n].id      = dev->id;
+		di[n].flags   = dev->flags;
+		di[n].state   = dev->dlc->state;
+		di[n].channel = dev->channel;
+		bacpy(&di[n].src, &dev->src);
+		bacpy(&di[n].dst, &dev->dst);
 		tty_port_put(&dev->port);
 		if (++n >= dev_num)
 			break;
