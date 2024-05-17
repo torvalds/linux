@@ -91,11 +91,6 @@ struct dc_reg_value_masks {
 	uint32_t mask;
 };
 
-struct dc_reg_sequence {
-	uint32_t addr;
-	struct dc_reg_value_masks value_masks;
-};
-
 static inline void set_reg_field_value_masks(
 	struct dc_reg_value_masks *field_value_mask,
 	uint32_t value,
