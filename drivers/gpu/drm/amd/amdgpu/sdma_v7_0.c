@@ -167,10 +167,6 @@ static void sdma_v7_0_ring_set_wptr(struct amdgpu_ring *ring)
 			DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
 					ring->doorbell_index, ring->wptr << 2);
 			WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
-
-			if (*is_queue_unmap)
-				WDOORBELL64(aggregated_db_index,
-					    ring->wptr << 2);
 		}
 	} else {
 		if (ring->use_doorbell) {
