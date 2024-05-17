@@ -244,6 +244,7 @@ int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 				 struct intel_version_tlv *ver);
 int btintel_shutdown_combined(struct hci_dev *hdev);
 void btintel_hw_error(struct hci_dev *hdev, u8 code);
+void btintel_print_fseq_info(struct hci_dev *hdev);
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
@@ -371,6 +372,10 @@ static inline int btintel_shutdown_combined(struct hci_dev *hdev)
 }
 
 static inline void btintel_hw_error(struct hci_dev *hdev, u8 code)
+{
+}
+
+static inline void btintel_print_fseq_info(struct hci_dev *hdev)
 {
 }
 #endif
