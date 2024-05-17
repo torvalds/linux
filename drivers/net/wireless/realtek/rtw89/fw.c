@@ -6245,7 +6245,14 @@ void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 
 	ret = rtw89_hw_scan_offload(rtwdev, vif, false);
 	if (ret)
-		rtw89_hw_scan_complete(rtwdev, vif, true);
+		rtw89_warn(rtwdev, "rtw89_hw_scan_offload failed ret %d\n", ret);
+
+	/* Indicate ieee80211_scan_completed() before returning, which is safe
+	 * because scan abort command always waits for completion of
+	 * RTW89_SCAN_END_SCAN_NOTIFY, so that ieee80211_stop() can flush scan
+	 * work properly.
+	 */
+	rtw89_hw_scan_complete(rtwdev, vif, true);
 }
 
 static bool rtw89_is_any_vif_connected_or_connecting(struct rtw89_dev *rtwdev)
