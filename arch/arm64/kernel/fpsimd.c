@@ -1509,30 +1509,12 @@ void do_fpsimd_exc(unsigned long esr, struct pt_regs *regs)
 
 static void fpsimd_load_kernel_state(struct task_struct *task)
 {
-	struct cpu_fp_state *last = this_cpu_ptr(&fpsimd_last_state);
-
-	/*
-	 * Elide the load if this CPU holds the most recent kernel mode
-	 * FPSIMD context of the current task.
-	 */
-	if (last->st == &task->thread.kernel_fpsimd_state &&
-	    task->thread.kernel_fpsimd_cpu == smp_processor_id())
-		return;
-
 	fpsimd_load_state(&task->thread.kernel_fpsimd_state);
 }
 
 static void fpsimd_save_kernel_state(struct task_struct *task)
 {
-	struct cpu_fp_state cpu_fp_state = {
-		.st		= &task->thread.kernel_fpsimd_state,
-		.to_save	= FP_STATE_FPSIMD,
-	};
-
 	fpsimd_save_state(&task->thread.kernel_fpsimd_state);
-	fpsimd_bind_state_to_cpu(&cpu_fp_state);
-
-	task->thread.kernel_fpsimd_cpu = smp_processor_id();
 }
 
 void fpsimd_thread_switch(struct task_struct *next)
