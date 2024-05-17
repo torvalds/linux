@@ -16,6 +16,13 @@ under names like ``rustc``, ``rust-src``, ``rust-bindgen``, etc. However,
 at the time of writing, they are likely not to be recent enough unless
 the distribution tracks the latest releases.
 
+Prebuilt stable versions of LLVM+Rust are provided on `kernel.org
+<https://kernel.org/pub/tools/llvm/rust/>`_. These are the same slim and fast
+LLVM toolchains from :ref:`Getting LLVM <getting_llvm>` with versions of Rust
+added to them that Rust for Linux supports, depending on the Linux version. Two
+sets are provided: the "latest LLVM" and "matching LLVM" (please see the link
+for more information).
+
 To easily check whether the requirements are met, the following target
 can be used::
 
