@@ -17,9 +17,16 @@
 
 #include "clk-exynos-arm64.h"
 
+/* PLL register bits */
+#define PLL_CON1_MANUAL		BIT(1)
+
 /* Gate register bits */
 #define GATE_MANUAL		BIT(20)
 #define GATE_ENABLE_HWACG	BIT(28)
+
+/* PLL_CONx_PLL register offsets range */
+#define PLL_CON_OFF_START	0x100
+#define PLL_CON_OFF_END		0x600
 
 /* Gate register offsets range */
 #define GATE_OFF_START		0x2000
@@ -38,17 +45,36 @@ struct exynos_arm64_cmu_data {
 	struct samsung_clk_provider *ctx;
 };
 
+/* Check if the register offset is a GATE register */
+static bool is_gate_reg(unsigned long off)
+{
+	return off >= GATE_OFF_START && off <= GATE_OFF_END;
+}
+
+/* Check if the register offset is a PLL_CONx register */
+static bool is_pll_conx_reg(unsigned long off)
+{
+	return off >= PLL_CON_OFF_START && off <= PLL_CON_OFF_END;
+}
+
+/* Check if the register offset is a PLL_CON1 register */
+static bool is_pll_con1_reg(unsigned long off)
+{
+	return is_pll_conx_reg(off) && (off & 0xf) == 0x4 && !(off & 0x10);
+}
+
 /**
  * exynos_arm64_init_clocks - Set clocks initial configuration
- * @np:			CMU device tree node with "reg" property (CMU addr)
- * @reg_offs:		Register offsets array for clocks to init
- * @reg_offs_len:	Number of register offsets in reg_offs array
+ * @np:		CMU device tree node with "reg" property (CMU addr)
+ * @cmu:	CMU data
  *
- * Set manual control mode for all gate clocks.
+ * Set manual control mode for all gate and PLL clocks.
  */
 static void __init exynos_arm64_init_clocks(struct device_node *np,
-		const unsigned long *reg_offs, size_t reg_offs_len)
+					    const struct samsung_cmu_info *cmu)
 {
+	const unsigned long *reg_offs = cmu->clk_regs;
+	size_t reg_offs_len = cmu->nr_clk_regs;
 	void __iomem *reg_base;
 	size_t i;
 
@@ -60,14 +86,14 @@ static void __init exynos_arm64_init_clocks(struct device_node *np,
 		void __iomem *reg = reg_base + reg_offs[i];
 		u32 val;
 
-		/* Modify only gate clock registers */
-		if (reg_offs[i] < GATE_OFF_START || reg_offs[i] > GATE_OFF_END)
-			continue;
-
-		val = readl(reg);
-		val |= GATE_MANUAL;
-		val &= ~GATE_ENABLE_HWACG;
-		writel(val, reg);
+		if (cmu->manual_plls && is_pll_con1_reg(reg_offs[i])) {
+			writel(PLL_CON1_MANUAL, reg);
+		} else if (is_gate_reg(reg_offs[i])) {
+			val = readl(reg);
+			val |= GATE_MANUAL;
+			val &= ~GATE_ENABLE_HWACG;
+			writel(val, reg);
+		}
 	}
 
 	iounmap(reg_base);
@@ -177,7 +203,7 @@ void __init exynos_arm64_register_cmu(struct device *dev,
 		pr_err("%s: could not enable bus clock %s; err = %d\n",
 		       __func__, cmu->clk_name, err);
 
-	exynos_arm64_init_clocks(np, cmu->clk_regs, cmu->nr_clk_regs);
+	exynos_arm64_init_clocks(np, cmu);
 	samsung_cmu_register_one(np, cmu);
 }
 
@@ -224,7 +250,7 @@ int __init exynos_arm64_register_cmu_pm(struct platform_device *pdev,
 		       __func__, cmu->clk_name, ret);
 
 	if (set_manual)
-		exynos_arm64_init_clocks(np, cmu->clk_regs, cmu->nr_clk_regs);
+		exynos_arm64_init_clocks(np, cmu);
 
 	reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg_base))
