@@ -51,7 +51,7 @@
 #define __KSELFTEST_HARNESS_H
 
 #ifndef _GNU_SOURCE
-static_assert(0, "kselftest harness requires _GNU_SOURCE to be defined");
+#define _GNU_SOURCE
 #endif
 #include <asm/types.h>
 #include <ctype.h>
