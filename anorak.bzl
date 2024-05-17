@@ -7,6 +7,9 @@ target_name = "anorak"
 def define_anorak():
     _anorak_in_tree_modules = [
         # keep sorted
+        "drivers/bus/mhi/devices/mhi_dev_dtr.ko",
+        "drivers/bus/mhi/devices/mhi_dev_uci.ko",
+        "drivers/bus/mhi/host/mhi.ko",
         "drivers/clk/qcom/camcc-anorak.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
@@ -46,6 +49,7 @@ def define_anorak():
         "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/nvmem/nvmem_qfprom.ko",
+        "drivers/pci/controller/pci-msm-drv.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/pinctrl/qcom/pinctrl-anorak.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
