@@ -559,6 +559,9 @@ struct xe_file {
 		struct mutex lock;
 	} exec_queue;
 
+	/** @runtime: hw engine class runtime in ticks for this drm client */
+	u64 runtime[XE_ENGINE_CLASS_MAX];
+
 	/** @client: drm client */
 	struct xe_drm_client *client;
 };
