@@ -1432,8 +1432,8 @@ bool intel_dp_supports_fec(struct intel_dp *intel_dp,
 		drm_dp_sink_supports_fec(connector->dp.fec_capability);
 }
 
-static bool intel_dp_supports_dsc(const struct intel_connector *connector,
-				  const struct intel_crtc_state *crtc_state)
+bool intel_dp_supports_dsc(const struct intel_connector *connector,
+			   const struct intel_crtc_state *crtc_state)
 {
 	if (!intel_dp_has_dsc(connector))
 		return false;

@@ -421,18 +421,6 @@ static int intel_dp_mst_update_slots(struct intel_encoder *encoder,
 	return 0;
 }
 
-static bool
-intel_dp_mst_dsc_source_support(const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-
-	/*
-	 * FIXME: Enabling DSC on ICL results in blank screen and FIFO pipe /
-	 * transcoder underruns, re-enable DSC after fixing this issue.
-	 */
-	return DISPLAY_VER(i915) >= 12 && intel_dsc_source_support(crtc_state);
-}
-
 static int mode_hblank_period_ns(const struct drm_display_mode *mode)
 {
 	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(mode->htotal - mode->hdisplay,
@@ -477,7 +465,7 @@ adjust_limits_for_dsc_hblank_expansion_quirk(const struct intel_connector *conne
 		return true;
 
 	if (!dsc) {
-		if (intel_dp_mst_dsc_source_support(crtc_state)) {
+		if (intel_dp_supports_dsc(connector, crtc_state)) {
 			drm_dbg_kms(&i915->drm,
 				    "[CRTC:%d:%s][CONNECTOR:%d:%s] DSC needed by hblank expansion quirk\n",
 				    crtc->base.base.id, crtc->base.name,
@@ -623,7 +611,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 			    str_yes_no(ret), str_yes_no(joiner_needs_dsc),
 			    str_yes_no(intel_dp->force_dsc_en));
 
-		if (!intel_dp_mst_dsc_source_support(pipe_config))
+		if (!intel_dp_supports_dsc(connector, pipe_config))
 			return -EINVAL;
 
 		if (!intel_dp_mst_compute_config_limits(intel_dp,
