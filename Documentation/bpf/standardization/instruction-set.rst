@@ -14,6 +14,13 @@ set architecture (ISA).
 Documentation conventions
 =========================
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in
+BCP 14 `<https://www.rfc-editor.org/info/rfc2119>`_
+`RFC8174 <https://www.rfc-editor.org/info/rfc8174>`_
+when, and only when, they appear in all capitals, as shown here.
+
 For brevity and consistency, this document refers to families
 of types using a shorthand syntax and refers to several expository,
 mnemonic functions when describing the semantics of instructions.
@@ -106,9 +113,9 @@ Conformance groups
 
 An implementation does not need to support all instructions specified in this
 document (e.g., deprecated instructions).  Instead, a number of conformance
-groups are specified.  An implementation must support the base32 conformance
-group and may support additional conformance groups, where supporting a
-conformance group means it must support all instructions in that conformance
+groups are specified.  An implementation MUST support the base32 conformance
+group and MAY support additional conformance groups, where supporting a
+conformance group means it MUST support all instructions in that conformance
 group.
 
 The use of named conformance groups enables interoperability between a runtime
@@ -209,7 +216,7 @@ For example::
   07     1       0        00 00  11 22 33 44  r1 += 0x11223344 // big
 
 Note that most instructions do not use all of the fields.
-Unused fields shall be cleared to zero.
+Unused fields SHALL be cleared to zero.
 
 Wide instruction encoding
 --------------------------
@@ -374,7 +381,7 @@ interpreted as a 64-bit signed value.
 Note that there are varying definitions of the signed modulo operation
 when the dividend or divisor are negative, where implementations often
 vary by language such that Python, Ruby, etc.  differ from C, Go, Java,
-etc. This specification requires that signed modulo use truncated division
+etc. This specification requires that signed modulo MUST use truncated division
 (where -13 % 3 == -1) as implemented in C, Go, etc.::
 
    a % n = a - n * trunc(a / n)
@@ -404,7 +411,7 @@ only and do not use a separate source register or immediate value.
 For ``ALU``, the 1-bit source operand field in the opcode is used to
 select what byte order the operation converts from or to. For
 ``ALU64``, the 1-bit source operand field in the opcode is reserved
-and must be set to 0.
+and MUST be set to 0.
 
 =====  ========  =====  =================================================
 class  source    value  description
@@ -512,7 +519,8 @@ for each program type, but static IDs are unique across all program types.
 
 Platforms that support the BPF Type Format (BTF) support identifying
 a helper function by a BTF ID encoded in the 'imm' field, where the BTF ID
-identifies the helper name and type.
+identifies the helper name and type.  Further documentation of BTF
+is outside the scope of this document and is left for future work.
 
 Program-local functions
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -722,5 +730,5 @@ carried over from classic BPF. These instructions used an instruction
 class of ``LD``, a size modifier of ``W``, ``H``, or ``B``, and a
 mode modifier of ``ABS`` or ``IND``.  The 'dst_reg' and 'offset' fields were
 set to zero, and 'src_reg' was set to zero for ``ABS``.  However, these
-instructions are deprecated and should no longer be used.  All legacy packet
+instructions are deprecated and SHOULD no longer be used.  All legacy packet
 access instructions belong to the "packet" conformance group.
