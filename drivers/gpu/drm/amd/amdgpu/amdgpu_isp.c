@@ -30,47 +30,16 @@
 
 #include "amdgpu.h"
 #include "amdgpu_isp.h"
-
-#include "ivsrcid/isp/irqsrcs_isp_4_1.h"
-
-#define mmDAGB0_WRCLI5_V4_1	0x6811C
-#define mmDAGB0_WRCLI9_V4_1	0x6812C
-#define mmDAGB0_WRCLI10_V4_1	0x68130
-#define mmDAGB0_WRCLI14_V4_1	0x68140
-#define mmDAGB0_WRCLI19_V4_1	0x68154
-#define mmDAGB0_WRCLI20_V4_1	0x68158
-
-static const unsigned int isp_int_srcid[MAX_ISP_INT_SRC] = {
-	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT9,
-	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT10,
-	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT11,
-	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT12,
-	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT13,
-	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT14,
-	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT15,
-	ISP_4_1__SRCID__ISP_RINGBUFFER_WPT16
-};
+#include "isp_v4_1_0.h"
+#include "isp_v4_1_1.h"
 
 static int isp_sw_init(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	adev->isp.parent = adev->dev;
-
-	adev->isp.cgs_device = amdgpu_cgs_create_device(adev);
-	if (!adev->isp.cgs_device)
-		return -EINVAL;
-
 	return 0;
 }
 
 static int isp_sw_fini(void *handle)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->isp.cgs_device)
-		amdgpu_cgs_destroy_device(adev->isp.cgs_device);
-
 	return 0;
 }
 
@@ -83,93 +52,18 @@ static int isp_sw_fini(void *handle)
 static int isp_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_isp *isp = &adev->isp;
+
 	const struct amdgpu_ip_block *ip_block =
 		amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_ISP);
-	u64 isp_base;
-	int int_idx;
-	int r;
 
 	if (!ip_block)
 		return -EINVAL;
 
-	if (adev->rmmio_size == 0 || adev->rmmio_size < 0x5289)
-		return -EINVAL;
+	if (isp->funcs->hw_init != NULL)
+		return isp->funcs->hw_init(isp);
 
-	isp_base = adev->rmmio_base;
-
-	adev->isp.isp_cell = kcalloc(1, sizeof(struct mfd_cell), GFP_KERNEL);
-	if (!adev->isp.isp_cell) {
-		r = -ENOMEM;
-		DRM_ERROR("%s: isp mfd cell alloc failed\n", __func__);
-		goto failure;
-	}
-
-	adev->isp.isp_res = kcalloc(9, sizeof(struct resource), GFP_KERNEL);
-	if (!adev->isp.isp_res) {
-		r = -ENOMEM;
-		DRM_ERROR("%s: isp mfd res alloc failed\n", __func__);
-		goto failure;
-	}
-
-	adev->isp.isp_pdata = kzalloc(sizeof(*adev->isp.isp_pdata), GFP_KERNEL);
-	if (!adev->isp.isp_pdata) {
-		r = -ENOMEM;
-		DRM_ERROR("%s: isp platform data alloc failed\n", __func__);
-		goto failure;
-	}
-
-	/* initialize isp platform data */
-	adev->isp.isp_pdata->adev = (void *)adev;
-	adev->isp.isp_pdata->asic_type = adev->asic_type;
-	adev->isp.isp_pdata->base_rmmio_size = adev->rmmio_size;
-
-	adev->isp.isp_res[0].name = "isp_reg";
-	adev->isp.isp_res[0].flags = IORESOURCE_MEM;
-	adev->isp.isp_res[0].start = isp_base;
-	adev->isp.isp_res[0].end = isp_base + ISP_REGS_OFFSET_END;
-
-	for (int_idx = 0; int_idx < MAX_ISP_INT_SRC; int_idx++) {
-		adev->isp.isp_res[int_idx + 1].name = "isp_irq";
-		adev->isp.isp_res[int_idx + 1].flags = IORESOURCE_IRQ;
-		adev->isp.isp_res[int_idx + 1].start =
-			amdgpu_irq_create_mapping(adev, isp_int_srcid[int_idx]);
-		adev->isp.isp_res[int_idx + 1].end =
-			adev->isp.isp_res[int_idx + 1].start;
-	}
-
-	adev->isp.isp_cell[0].name = "amd_isp_capture";
-	adev->isp.isp_cell[0].num_resources = 9;
-	adev->isp.isp_cell[0].resources = &adev->isp.isp_res[0];
-	adev->isp.isp_cell[0].platform_data = adev->isp.isp_pdata;
-	adev->isp.isp_cell[0].pdata_size = sizeof(struct isp_platform_data);
-
-	r = mfd_add_hotplug_devices(adev->isp.parent, adev->isp.isp_cell, 1);
-	if (r) {
-		DRM_ERROR("%s: add mfd hotplug device failed\n", __func__);
-		goto failure;
-	}
-
-	/*
-	 * Temporary WA added to disable MMHUB TLSi until the GART initialization
-	 * is ready to support MMHUB TLSi and SAW for ISP HW to access GART memory
-	 * using the TLSi path
-	 */
-	cgs_write_register(adev->isp.cgs_device, mmDAGB0_WRCLI5_V4_1 >> 2, 0xFE5FEAA8);
-	cgs_write_register(adev->isp.cgs_device, mmDAGB0_WRCLI9_V4_1 >> 2, 0xFE5FEAA8);
-	cgs_write_register(adev->isp.cgs_device, mmDAGB0_WRCLI10_V4_1 >> 2, 0xFE5FEAA8);
-	cgs_write_register(adev->isp.cgs_device, mmDAGB0_WRCLI14_V4_1 >> 2, 0xFE5FEAA8);
-	cgs_write_register(adev->isp.cgs_device, mmDAGB0_WRCLI19_V4_1 >> 2, 0xFE5FEAA8);
-	cgs_write_register(adev->isp.cgs_device, mmDAGB0_WRCLI20_V4_1 >> 2, 0xFE5FEAA8);
-
-	return 0;
-
-failure:
-
-	kfree(adev->isp.isp_pdata);
-	kfree(adev->isp.isp_res);
-	kfree(adev->isp.isp_cell);
-
-	return r;
+	return -ENODEV;
 }
 
 /**
@@ -181,15 +75,12 @@ failure:
 static int isp_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_isp *isp = &adev->isp;
 
-	/* remove isp mfd device */
-	mfd_remove_devices(adev->isp.parent);
+	if (isp->funcs->hw_fini != NULL)
+		return isp->funcs->hw_fini(isp);
 
-	kfree(adev->isp.isp_res);
-	kfree(adev->isp.isp_cell);
-	kfree(adev->isp.isp_pdata);
-
-	return 0;
+	return -ENODEV;
 }
 
 static int isp_suspend(void *handle)
@@ -235,17 +126,29 @@ static int isp_load_fw_by_psp(struct amdgpu_device *adev)
 
 static int isp_early_init(void *handle)
 {
-	int ret = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_isp *isp = &adev->isp;
 
-	ret = isp_load_fw_by_psp(adev);
-	if (ret) {
-		DRM_WARN("%s: isp fw load failed %d\n", __func__, ret);
-		/* allow amdgpu init to proceed though isp fw load fails */
-		ret = 0;
+	switch (amdgpu_ip_version(adev, ISP_HWIP, 0)) {
+	case IP_VERSION(4, 1, 0):
+		isp_v4_1_0_set_isp_funcs(isp);
+		break;
+	case IP_VERSION(4, 1, 1):
+		isp_v4_1_1_set_isp_funcs(isp);
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	return ret;
+	isp->adev = adev;
+	isp->parent = adev->dev;
+
+	if (isp_load_fw_by_psp(adev)) {
+		DRM_WARN("%s: isp fw load failed\n", __func__);
+		return 0;
+	}
+
+	return 0;
 }
 
 static bool isp_is_idle(void *handle)
@@ -292,10 +195,18 @@ static const struct amd_ip_funcs isp_ip_funcs = {
 	.set_powergating_state = isp_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version isp_ip_block = {
+const struct amdgpu_ip_block_version isp_v4_1_0_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_ISP,
 	.major = 4,
 	.minor = 1,
 	.rev = 0,
+	.funcs = &isp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version isp_v4_1_1_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_ISP,
+	.major = 4,
+	.minor = 1,
+	.rev = 1,
 	.funcs = &isp_ip_funcs,
 };

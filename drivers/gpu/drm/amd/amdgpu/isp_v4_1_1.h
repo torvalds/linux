@@ -25,36 +25,15 @@
  *
  */
 
-#ifndef __AMDGPU_ISP_H__
-#define __AMDGPU_ISP_H__
+#ifndef __ISP_V4_1_1_H__
+#define __ISP_V4_1_1_H__
 
-#define ISP_REGS_OFFSET_END 0x629A4
+#include "amdgpu_isp.h"
 
-struct amdgpu_isp;
+#include "ivsrcid/isp/irqsrcs_isp_4_1.h"
 
-struct isp_platform_data {
-	void *adev;
-	u32 asic_type;
-	resource_size_t base_rmmio_size;
-};
+#define MAX_ISP411_INT_SRC 8
 
-struct isp_funcs {
-	int (*hw_init)(struct amdgpu_isp *isp);
-	int (*hw_fini)(struct amdgpu_isp *isp);
-};
+void isp_v4_1_1_set_isp_funcs(struct amdgpu_isp *isp);
 
-struct amdgpu_isp {
-	struct device *parent;
-	struct amdgpu_device	*adev;
-	const struct isp_funcs	*funcs;
-	struct mfd_cell *isp_cell;
-	struct resource *isp_res;
-	struct isp_platform_data *isp_pdata;
-	unsigned int harvest_config;
-	const struct firmware	*fw;
-};
-
-extern const struct amdgpu_ip_block_version isp_v4_1_0_ip_block;
-extern const struct amdgpu_ip_block_version isp_v4_1_1_ip_block;
-
-#endif /* __AMDGPU_ISP_H__ */
+#endif

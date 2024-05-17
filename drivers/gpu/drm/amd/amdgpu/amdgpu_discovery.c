@@ -2391,8 +2391,10 @@ static int amdgpu_discovery_set_isp_ip_blocks(struct amdgpu_device *adev)
 #if defined(CONFIG_DRM_AMD_ISP)
 	switch (amdgpu_ip_version(adev, ISP_HWIP, 0)) {
 	case IP_VERSION(4, 1, 0):
+		amdgpu_device_ip_block_add(adev, &isp_v4_1_0_ip_block);
+		break;
 	case IP_VERSION(4, 1, 1):
-		amdgpu_device_ip_block_add(adev, &isp_ip_block);
+		amdgpu_device_ip_block_add(adev, &isp_v4_1_1_ip_block);
 		break;
 	default:
 		break;
