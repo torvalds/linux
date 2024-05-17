@@ -66,4 +66,18 @@ void xe_lrc_snapshot_capture_delayed(struct xe_lrc_snapshot *snapshot);
 void xe_lrc_snapshot_print(struct xe_lrc_snapshot *snapshot, struct drm_printer *p);
 void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot);
 
+/**
+ * xe_lrc_update_timestamp - readout LRC timestamp and update cached value
+ * @lrc: logical ring context for this exec queue
+ * @old_ts: pointer where to save the previous timestamp
+ *
+ * Read the current timestamp for this LRC and update the cached value. The
+ * previous cached value is also returned in @old_ts so the caller can calculate
+ * the delta between 2 updates. Note that this is not intended to be called from
+ * any place, but just by the paths updating the drm client utilization.
+ *
+ * Returns the current LRC timestamp
+ */
+u32 xe_lrc_update_timestamp(struct xe_lrc *lrc, u32 *old_ts);
+
 #endif
