@@ -217,8 +217,7 @@ void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf)
 	if (!__drm_debug_enabled(category))
 		return;
 
-	/* Note: __builtin_return_address(0) is useless here. */
-	__drm_dev_vprintk(dev, KERN_DEBUG, NULL, p->prefix, vaf);
+	__drm_dev_vprintk(dev, KERN_DEBUG, p->origin, p->prefix, vaf);
 }
 EXPORT_SYMBOL(__drm_printfn_dbg);
 
