@@ -1171,11 +1171,14 @@ bool intel_dp_need_joiner(struct intel_dp *intel_dp,
 	       connector->force_bigjoiner_enable;
 }
 
-static bool intel_dp_has_dsc(const struct intel_connector *connector)
+bool intel_dp_has_dsc(const struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 
 	if (!HAS_DSC(i915))
+		return false;
+
+	if (connector->mst_port && !HAS_DSC_MST(i915))
 		return false;
 
 	if (!drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd))

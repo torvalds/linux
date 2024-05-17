@@ -1459,8 +1459,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		return 0;
 	}
 
-	if (HAS_DSC_MST(dev_priv) &&
-	    drm_dp_sink_supports_dsc(intel_connector->dp.dsc_dpcd)) {
+	if (intel_dp_has_dsc(intel_connector)) {
 		/*
 		 * TBD pass the connector BPC,
 		 * for now U8_MAX so that max BPC on that platform would be picked
