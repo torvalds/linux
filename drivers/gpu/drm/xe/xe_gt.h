@@ -38,6 +38,19 @@ int xe_gt_init_hwconfig(struct xe_gt *gt);
 int xe_gt_init_early(struct xe_gt *gt);
 int xe_gt_init(struct xe_gt *gt);
 int xe_gt_record_default_lrcs(struct xe_gt *gt);
+
+/**
+ * xe_gt_record_user_engines - save data related to engines available to
+ * usersapce
+ * @gt: GT structure
+ *
+ * Walk the available HW engines from gt->info.engine_mask and calculate data
+ * related to those engines that may be used by userspace. To be used whenever
+ * available engines change in runtime (e.g. with ccs_mode) or during
+ * initialization
+ */
+void xe_gt_record_user_engines(struct xe_gt *gt);
+
 void xe_gt_suspend_prepare(struct xe_gt *gt);
 int xe_gt_suspend(struct xe_gt *gt);
 int xe_gt_resume(struct xe_gt *gt);

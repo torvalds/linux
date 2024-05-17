@@ -113,7 +113,11 @@ struct xe_gt {
 		enum xe_gt_type type;
 		/** @info.reference_clock: clock frequency */
 		u32 reference_clock;
-		/** @info.engine_mask: mask of engines present on GT */
+		/**
+		 * @info.engine_mask: mask of engines present on GT. Some of
+		 * them may be reserved in runtime and not available for user.
+		 * See @user_engines.mask
+		 */
 		u64 engine_mask;
 		/** @info.gmdid: raw GMD_ID value from hardware */
 		u32 gmdid;
@@ -368,6 +372,21 @@ struct xe_gt {
 		/** @wa_active.oob: bitmap with active OOB workaroudns */
 		unsigned long *oob;
 	} wa_active;
+
+	/** @user_engines: engines present in GT and available to userspace */
+	struct {
+		/**
+		 * @user_engines.mask: like @info->engine_mask, but take in
+		 * consideration only engines available to userspace
+		 */
+		u64 mask;
+
+		/**
+		 * @user_engines.instances_per_class: aggregate per class the
+		 * number of engines available to userspace
+		 */
+		u8 instances_per_class[XE_ENGINE_CLASS_MAX];
+	} user_engines;
 };
 
 #endif

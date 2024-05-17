@@ -560,7 +560,30 @@ int xe_gt_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
+	xe_gt_record_user_engines(gt);
+
 	return drmm_add_action_or_reset(&gt_to_xe(gt)->drm, gt_fini, gt);
+}
+
+void xe_gt_record_user_engines(struct xe_gt *gt)
+{
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+
+	gt->user_engines.mask = 0;
+	memset(gt->user_engines.instances_per_class, 0,
+	       sizeof(gt->user_engines.instances_per_class));
+
+	for_each_hw_engine(hwe, gt, id) {
+		if (xe_hw_engine_is_reserved(hwe))
+			continue;
+
+		gt->user_engines.mask |= BIT_ULL(id);
+		gt->user_engines.instances_per_class[hwe->class]++;
+	}
+
+	xe_gt_assert(gt, (gt->user_engines.mask | gt->info.engine_mask)
+		     == gt->info.engine_mask);
 }
 
 static int do_gt_reset(struct xe_gt *gt)
