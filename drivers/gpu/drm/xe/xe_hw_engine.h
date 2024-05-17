@@ -68,5 +68,6 @@ static inline bool xe_hw_engine_is_valid(struct xe_hw_engine *hwe)
 }
 
 const char *xe_hw_engine_class_to_str(enum xe_engine_class class);
+u64 xe_hw_engine_read_timestamp(struct xe_hw_engine *hwe);
 
 #endif
