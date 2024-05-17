@@ -547,7 +547,11 @@ static int hx83102_prepare(struct drm_panel *panel)
 
 	usleep_range(10000, 11000);
 
-	mipi_dsi_dcs_nop(ctx->dsi);
+	ret = mipi_dsi_dcs_nop(ctx->dsi);
+	if (ret < 0) {
+		dev_err(dev, "Failed to send NOP: %d\n", ret);
+		goto poweroff;
+	}
 	usleep_range(1000, 2000);
 
 	gpiod_set_value(ctx->enable_gpio, 1);
