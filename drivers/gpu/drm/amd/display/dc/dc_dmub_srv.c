@@ -1653,6 +1653,7 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 	/* send global configuration parameters */
 	global_cmd->config.global.max_allow_delay_us = 100 * 1000; //100ms
 	global_cmd->config.global.lock_wait_time_us = 5000; //5ms
+	global_cmd->config.global.recovery_timeout_us = 5000; //5ms
 
 	/* copy static feature configuration */
 	global_cmd->config.global.features.all = dc->debug.fams2_config.all;
