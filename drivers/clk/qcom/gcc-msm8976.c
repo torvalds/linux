@@ -4154,3 +4154,4 @@ module_exit(gcc_msm8976_exit);
 
 MODULE_AUTHOR("AngeloGioacchino Del Regno <angelogioacchino.delregno@somainline.org>");
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("QTI MSM8996 Global Clock Controller");

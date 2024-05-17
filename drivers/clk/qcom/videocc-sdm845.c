@@ -343,3 +343,4 @@ static struct platform_driver video_cc_sdm845_driver = {
 module_platform_driver(video_cc_sdm845_driver);
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("QTI SDM845 VIDEOCC Driver");

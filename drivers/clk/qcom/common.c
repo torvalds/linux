@@ -356,3 +356,4 @@ int qcom_cc_probe_by_index(struct platform_device *pdev, int index,
 EXPORT_SYMBOL_GPL(qcom_cc_probe_by_index);
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("QTI Common Clock module");
