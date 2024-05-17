@@ -51,10 +51,6 @@ struct i2c_payloads {
 	struct vector payloads;
 };
 
-struct aux_payloads {
-	struct vector payloads;
-};
-
 static bool i2c_payloads_create(
 		struct dc_context *ctx,
 		struct i2c_payloads *payloads,
