@@ -436,8 +436,8 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	ret = meson_clk_pll_enable(hw);
 	if (ret) {
-		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
-			__func__, old_rate);
+		pr_warn("%s: pll %s didn't lock, trying to set old rate %lu\n",
+			__func__, clk_hw_get_name(hw), old_rate);
 		/*
 		 * FIXME: Do we really need/want this HACK ?
 		 * It looks unsafe. what happens if the clock gets into a
@@ -486,4 +486,4 @@ EXPORT_SYMBOL_GPL(meson_clk_pll_ro_ops);
 MODULE_DESCRIPTION("Amlogic PLL driver");
 MODULE_AUTHOR("Carlo Caione <carlo@endlessm.com>");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
