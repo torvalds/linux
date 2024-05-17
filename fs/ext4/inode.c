@@ -1650,6 +1650,35 @@ static void ext4_print_free_blocks(struct inode *inode)
 }
 
 /*
+ * Check whether the cluster containing lblk has been allocated or has
+ * delalloc reservation.
+ *
+ * Returns 0 if the cluster doesn't have either, 1 if it has delalloc
+ * reservation, 2 if it's already been allocated, negative error code on
+ * failure.
+ */
+static int ext4_clu_alloc_state(struct inode *inode, ext4_lblk_t lblk)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	int ret;
+
+	/* Has delalloc reservation? */
+	if (ext4_es_scan_clu(inode, &ext4_es_is_delonly, lblk))
+		return 1;
+
+	/* Already been allocated? */
+	if (ext4_es_scan_clu(inode, &ext4_es_is_mapped, lblk))
+		return 2;
+	ret = ext4_clu_mapped(inode, EXT4_B2C(sbi, lblk));
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		return 2;
+
+	return 0;
+}
+
+/*
  * ext4_insert_delayed_block - adds a delayed block to the extents status
  *                             tree, incrementing the reserved cluster/block
  *                             count or making a pending reservation
@@ -1682,23 +1711,15 @@ static int ext4_insert_delayed_block(struct inode *inode, ext4_lblk_t lblk)
 		if (ret != 0)   /* ENOSPC */
 			return ret;
 	} else {   /* bigalloc */
-		if (!ext4_es_scan_clu(inode, &ext4_es_is_delonly, lblk)) {
-			if (!ext4_es_scan_clu(inode,
-					      &ext4_es_is_mapped, lblk)) {
-				ret = ext4_clu_mapped(inode,
-						      EXT4_B2C(sbi, lblk));
-				if (ret < 0)
-					return ret;
-				if (ret == 0) {
-					ret = ext4_da_reserve_space(inode, 1);
-					if (ret != 0)   /* ENOSPC */
-						return ret;
-				} else {
-					allocated = true;
-				}
-			} else {
-				allocated = true;
-			}
+		ret = ext4_clu_alloc_state(inode, lblk);
+		if (ret < 0)
+			return ret;
+		if (ret == 2)
+			allocated = true;
+		if (ret == 0) {
+			ret = ext4_da_reserve_space(inode, 1);
+			if (ret != 0)   /* ENOSPC */
+				return ret;
 		}
 	}
 
