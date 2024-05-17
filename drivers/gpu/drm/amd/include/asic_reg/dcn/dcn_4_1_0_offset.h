@@ -258,6 +258,17 @@
 #define regHDMISTREAMCLK0_DTO_PARAM                                                                     0x005b
 #define regHDMISTREAMCLK0_DTO_PARAM_BASE_IDX                                                            2
 
+// base address: 0x0
+
+
+// base address: 0x30
+
+
+// addressBlock: dcn_dcec_dmu_fgsec_dispdec
+// base address: 0x0
+#define regDMCUB_RBBMIF_SEC_CNTL                                                                        0x017a
+#define regDMCUB_RBBMIF_SEC_CNTL_BASE_IDX                                                               2
+
 // addressBlock: dcn_dcec_dmu_rbbmif_dispdec
 // base address: 0x0
 #define regRBBMIF_TIMEOUT                                                                               0x017f
@@ -861,6 +872,10 @@
 #define regDWB_OVERFLOW_COUNTER_BASE_IDX                                                                2
 #define regDWB_SOFT_RESET                                                                               0x323b
 #define regDWB_SOFT_RESET_BASE_IDX                                                                      2
+#define regDWB_DEBUG_CTRL                                                                               0x323c
+#define regDWB_DEBUG_CTRL_BASE_IDX                                                                      2
+#define regDWB_DEBUG                                                                                    0x323d
+#define regDWB_DEBUG_BASE_IDX                                                                           2
 
 
 // addressBlock: dcn_dcec_wb0_dispdec_dwbcp_dispdec
@@ -1073,6 +1088,10 @@
 #define regMCIF_WB_ARBITRATION_CONTROL_BASE_IDX                                                         2
 #define regMCIF_WB_SCLK_CHANGE                                                                          0x027f
 #define regMCIF_WB_SCLK_CHANGE_BASE_IDX                                                                 2
+#define regMCIF_WB_TEST_DEBUG_INDEX                                                                     0x0280
+#define regMCIF_WB_TEST_DEBUG_INDEX_BASE_IDX                                                            2
+#define regMCIF_WB_TEST_DEBUG_DATA                                                                      0x0281
+#define regMCIF_WB_TEST_DEBUG_DATA_BASE_IDX                                                             2
 #define regMCIF_WB_BUF_1_ADDR_Y                                                                         0x0282
 #define regMCIF_WB_BUF_1_ADDR_Y_BASE_IDX                                                                2
 #define regMCIF_WB_BUF_1_ADDR_C                                                                         0x0284
@@ -7706,7 +7725,10 @@
 #define regMPC_OUT3_CSC_C31_C32_B_BASE_IDX                                                              3
 #define regMPC_OUT3_CSC_C33_C34_B                                                                       0x033e
 #define regMPC_OUT3_CSC_C33_C34_B_BASE_IDX                                                              3
-
+#define regMPC_OCSC_TEST_DEBUG_INDEX                                                                    0x035b
+#define regMPC_OCSC_TEST_DEBUG_INDEX_BASE_IDX                                                           3
+#define regMPC_OCSC_TEST_DEBUG_DATA                                                                     0x035c
+#define regMPC_OCSC_TEST_DEBUG_DATA_BASE_IDX                                                            3
 
 // addressBlock: dcn_dcec_opp_abm0_dispdec
 // base address: 0x0
@@ -12857,6 +12879,8 @@
 #define regHDMI_TB_ENC_CRC_CNTL_BASE_IDX                                                                3
 #define regHDMI_TB_ENC_CRC_RESULT_0                                                                     0x0904
 #define regHDMI_TB_ENC_CRC_RESULT_0_BASE_IDX                                                            3
+#define regHDMI_TB_ENC_ENCRYPTION_CONTROL                                                               0x0907
+#define regHDMI_TB_ENC_ENCRYPTION_CONTROL_BASE_IDX                                                      3
 #define regHDMI_TB_ENC_MODE                                                                             0x0908
 #define regHDMI_TB_ENC_MODE_BASE_IDX                                                                    3
 #define regHDMI_TB_ENC_INPUT_FIFO_STATUS                                                                0x0909
@@ -14297,6 +14321,8 @@
 #define regRDPCSTX0_RDPCSTX_PATTERN_DETECT_CTRL_BASE_IDX                                                2
 #define regRDPCSTX0_RDPCSTX_CNTL4                                                                       0x293c
 #define regRDPCSTX0_RDPCSTX_CNTL4_BASE_IDX                                                              2
+#define regRDPCSTX0_RDPCSTX_DEBUG_CONFIG                                                                0x293d
+#define regRDPCSTX0_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL0                                                                   0x2940
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL1                                                                   0x2941
@@ -14347,6 +14373,8 @@
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL16_BASE_IDX                                                         2
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL17                                                                  0x295a
 #define regRDPCSTX0_RDPCSTX_PHY_CNTL17_BASE_IDX                                                         2
+#define regRDPCSTX0_RDPCSTX_DEBUG_CONFIG2                                                               0x295b
+#define regRDPCSTX0_RDPCSTX_DEBUG_CONFIG2_BASE_IDX                                                      2
 #define regRDPCSTX0_RDPCS_CNTL3                                                                         0x295c
 #define regRDPCSTX0_RDPCS_CNTL3_BASE_IDX                                                                2
 #define regRDPCSTX0_RDPCS_TX_PLL_UPDATE_ADDR_OVRRD                                                      0x295d
@@ -14383,6 +14411,8 @@
 #define regRDPCSTX1_RDPCSTX_PATTERN_DETECT_CTRL_BASE_IDX                                                2
 #define regRDPCSTX1_RDPCSTX_CNTL4                                                                       0x2a14
 #define regRDPCSTX1_RDPCSTX_CNTL4_BASE_IDX                                                              2
+#define regRDPCSTX1_RDPCSTX_DEBUG_CONFIG                                                                0x2a15
+#define regRDPCSTX1_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL0                                                                   0x2a18
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL1                                                                   0x2a19
@@ -14433,6 +14463,8 @@
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL16_BASE_IDX                                                         2
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL17                                                                  0x2a32
 #define regRDPCSTX1_RDPCSTX_PHY_CNTL17_BASE_IDX                                                         2
+#define regRDPCSTX1_RDPCSTX_DEBUG_CONFIG2                                                               0x2a33
+#define regRDPCSTX1_RDPCSTX_DEBUG_CONFIG2_BASE_IDX                                                      2
 #define regRDPCSTX1_RDPCS_CNTL3                                                                         0x2a34
 #define regRDPCSTX1_RDPCS_CNTL3_BASE_IDX                                                                2
 #define regRDPCSTX1_RDPCS_TX_PLL_UPDATE_ADDR_OVRRD                                                      0x2a35
@@ -14469,6 +14501,8 @@
 #define regRDPCSTX2_RDPCSTX_PATTERN_DETECT_CTRL_BASE_IDX                                                2
 #define regRDPCSTX2_RDPCSTX_CNTL4                                                                       0x2aec
 #define regRDPCSTX2_RDPCSTX_CNTL4_BASE_IDX                                                              2
+#define regRDPCSTX2_RDPCSTX_DEBUG_CONFIG                                                                0x2aed
+#define regRDPCSTX2_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL0                                                                   0x2af0
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL1                                                                   0x2af1
@@ -14519,6 +14553,8 @@
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL16_BASE_IDX                                                         2
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL17                                                                  0x2b0a
 #define regRDPCSTX2_RDPCSTX_PHY_CNTL17_BASE_IDX                                                         2
+#define regRDPCSTX2_RDPCSTX_DEBUG_CONFIG2                                                               0x2b0b
+#define regRDPCSTX2_RDPCSTX_DEBUG_CONFIG2_BASE_IDX                                                      2
 #define regRDPCSTX2_RDPCS_CNTL3                                                                         0x2b0c
 #define regRDPCSTX2_RDPCS_CNTL3_BASE_IDX                                                                2
 #define regRDPCSTX2_RDPCS_TX_PLL_UPDATE_ADDR_OVRRD                                                      0x2b0d
@@ -14555,6 +14591,8 @@
 #define regRDPCSTX3_RDPCSTX_PATTERN_DETECT_CTRL_BASE_IDX                                                2
 #define regRDPCSTX3_RDPCSTX_CNTL4                                                                       0x2bc4
 #define regRDPCSTX3_RDPCSTX_CNTL4_BASE_IDX                                                              2
+#define regRDPCSTX3_RDPCSTX_DEBUG_CONFIG                                                                0x2bc5
+#define regRDPCSTX3_RDPCSTX_DEBUG_CONFIG_BASE_IDX                                                       2
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL0                                                                   0x2bc8
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL0_BASE_IDX                                                          2
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL1                                                                   0x2bc9
@@ -14605,6 +14643,8 @@
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL16_BASE_IDX                                                         2
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL17                                                                  0x2be2
 #define regRDPCSTX3_RDPCSTX_PHY_CNTL17_BASE_IDX                                                         2
+#define regRDPCSTX3_RDPCSTX_DEBUG_CONFIG2                                                               0x2be3
+#define regRDPCSTX3_RDPCSTX_DEBUG_CONFIG2_BASE_IDX                                                      2
 #define regRDPCSTX3_RDPCS_CNTL3                                                                         0x2be4
 #define regRDPCSTX3_RDPCS_CNTL3_BASE_IDX                                                                2
 #define regRDPCSTX3_RDPCS_TX_PLL_UPDATE_ADDR_OVRRD                                                      0x2be5
@@ -15392,6 +15432,15 @@
 #define ixOTG2_OTG_DOUT_INTERFACE_01_A                                                                 0x0043
 #define ixOTG2_OTG_DOUT_INTERFACE_01_B                                                                 0x0044
 #define ixOTG2_OTG_DOUT_INTERFACE_02                                                                   0x0045
+#define ixDCIO_DEBUG_ID                                                                                0x0000
+#define ixDCIO_DEBUG1B                                                                                 0x001b
+#define ixDCIO_DEBUG1C                                                                                 0x001c
+#define ixDCIO_DEBUG1D                                                                                 0x001d
+#define ixDCIO_DEBUG1E                                                                                 0x001e
+#define ixDCIO_DEBUG1F                                                                                 0x001f
+#define ixDCIO_DEBUG20                                                                                 0x0020
+#define ixDCIO_DEBUG21                                                                                 0x0021
+#define ixDCIO_DEBUG22                                                                                 0x0022
 
 
 // addressBlock: otg3_otgdebugind
