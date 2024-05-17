@@ -1171,6 +1171,19 @@ bool intel_dp_need_joiner(struct intel_dp *intel_dp,
 	       connector->force_bigjoiner_enable;
 }
 
+static bool intel_dp_has_dsc(const struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+
+	if (!HAS_DSC(i915))
+		return false;
+
+	if (!drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd))
+		return false;
+
+	return true;
+}
+
 static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *_connector,
 		    struct drm_display_mode *mode)
@@ -1225,8 +1238,7 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 	mode_rate = intel_dp_link_required(target_clock,
 					   intel_dp_mode_min_output_bpp(connector, mode));
 
-	if (HAS_DSC(dev_priv) &&
-	    drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd)) {
+	if (intel_dp_has_dsc(connector)) {
 		enum intel_output_format sink_format, output_format;
 		int pipe_bpp;
 
