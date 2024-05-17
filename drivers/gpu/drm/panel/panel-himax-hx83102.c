@@ -578,13 +578,13 @@ static int hx83102_prepare(struct drm_panel *panel)
 	return 0;
 
 poweroff:
+	gpiod_set_value(ctx->enable_gpio, 0);
 	regulator_disable(ctx->avee);
 poweroffavdd:
 	regulator_disable(ctx->avdd);
 poweroff1v8:
 	usleep_range(5000, 7000);
 	regulator_disable(ctx->pp1800);
-	gpiod_set_value(ctx->enable_gpio, 0);
 
 	return ret;
 }
