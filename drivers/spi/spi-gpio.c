@@ -5,16 +5,16 @@
  * Copyright (C) 2006,2008 David Brownell
  * Copyright (C) 2017 Linus Walleij
  */
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/gpio/consumer.h>
-#include <linux/of.h>
+#include <linux/property.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/spi/spi_gpio.h>
-
 
 /*
  * This bitbanging SPI host driver should help make systems usable
@@ -326,29 +326,6 @@ static int spi_gpio_request(struct device *dev, struct spi_gpio *spi_gpio)
 	return PTR_ERR_OR_ZERO(spi_gpio->sck);
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id spi_gpio_dt_ids[] = {
-	{ .compatible = "spi-gpio" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, spi_gpio_dt_ids);
-
-static int spi_gpio_probe_dt(struct platform_device *pdev,
-			     struct spi_controller *host)
-{
-	host->dev.of_node = pdev->dev.of_node;
-	host->use_gpio_descriptors = true;
-
-	return 0;
-}
-#else
-static inline int spi_gpio_probe_dt(struct platform_device *pdev,
-				    struct spi_controller *host)
-{
-	return 0;
-}
-#endif
-
 static int spi_gpio_probe_pdata(struct platform_device *pdev,
 				struct spi_controller *host)
 {
@@ -389,19 +366,21 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	struct spi_controller		*host;
 	struct spi_gpio			*spi_gpio;
 	struct device			*dev = &pdev->dev;
+	struct fwnode_handle		*fwnode = dev_fwnode(dev);
 	struct spi_bitbang		*bb;
 
 	host = devm_spi_alloc_host(dev, sizeof(*spi_gpio));
 	if (!host)
 		return -ENOMEM;
 
-	if (pdev->dev.of_node)
-		status = spi_gpio_probe_dt(pdev, host);
-	else
+	if (fwnode) {
+		device_set_node(&host->dev, fwnode);
+		host->use_gpio_descriptors = true;
+	} else {
 		status = spi_gpio_probe_pdata(pdev, host);
-
-	if (status)
-		return status;
+		if (status)
+			return status;
+	}
 
 	spi_gpio = spi_controller_get_devdata(host);
 
@@ -459,10 +438,16 @@ static int spi_gpio_probe(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
+static const struct of_device_id spi_gpio_dt_ids[] = {
+	{ .compatible = "spi-gpio" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spi_gpio_dt_ids);
+
 static struct platform_driver spi_gpio_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.of_match_table = of_match_ptr(spi_gpio_dt_ids),
+		.of_match_table = spi_gpio_dt_ids,
 	},
 	.probe		= spi_gpio_probe,
 };
