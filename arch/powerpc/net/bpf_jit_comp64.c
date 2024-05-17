@@ -676,8 +676,14 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 				/* special mov32 for zext */
 				EMIT(PPC_RAW_RLWINM(dst_reg, dst_reg, 0, 0, 31));
 				break;
-			}
-			EMIT(PPC_RAW_MR(dst_reg, src_reg));
+			} else if (off == 8) {
+				EMIT(PPC_RAW_EXTSB(dst_reg, src_reg));
+			} else if (off == 16) {
+				EMIT(PPC_RAW_EXTSH(dst_reg, src_reg));
+			} else if (off == 32) {
+				EMIT(PPC_RAW_EXTSW(dst_reg, src_reg));
+			} else if (dst_reg != src_reg)
+				EMIT(PPC_RAW_MR(dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_MOV | BPF_K: /* (u32) dst = imm */
 		case BPF_ALU64 | BPF_MOV | BPF_K: /* dst = (s64) imm */
