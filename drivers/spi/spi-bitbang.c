@@ -38,26 +38,19 @@
  * working quickly, or testing for differences that aren't speed related.
  */
 
+typedef unsigned int (*spi_bb_txrx_bufs_fn)(struct spi_device *, spi_bb_txrx_word_fn,
+					    unsigned int, struct spi_transfer *,
+					    unsigned int);
+
 struct spi_bitbang_cs {
 	unsigned	nsecs;	/* (clock cycle time)/2 */
-	u32		(*txrx_word)(struct spi_device *spi, unsigned nsecs,
-					u32 word, u8 bits, unsigned flags);
-	unsigned	(*txrx_bufs)(struct spi_device *,
-					u32 (*txrx_word)(
-						struct spi_device *spi,
-						unsigned nsecs,
-						u32 word, u8 bits,
-						unsigned flags),
-					unsigned, struct spi_transfer *,
-					unsigned);
+	spi_bb_txrx_word_fn txrx_word;
+	spi_bb_txrx_bufs_fn txrx_bufs;
 };
 
 static unsigned bitbang_txrx_8(
 	struct spi_device	*spi,
-	u32			(*txrx_word)(struct spi_device *spi,
-					unsigned nsecs,
-					u32 word, u8 bits,
-					unsigned flags),
+	spi_bb_txrx_word_fn txrx_word,
 	unsigned		ns,
 	struct spi_transfer	*t,
 	unsigned flags
@@ -83,10 +76,7 @@ static unsigned bitbang_txrx_8(
 
 static unsigned bitbang_txrx_16(
 	struct spi_device	*spi,
-	u32			(*txrx_word)(struct spi_device *spi,
-					unsigned nsecs,
-					u32 word, u8 bits,
-					unsigned flags),
+	spi_bb_txrx_word_fn txrx_word,
 	unsigned		ns,
 	struct spi_transfer	*t,
 	unsigned flags
@@ -112,10 +102,7 @@ static unsigned bitbang_txrx_16(
 
 static unsigned bitbang_txrx_32(
 	struct spi_device	*spi,
-	u32			(*txrx_word)(struct spi_device *spi,
-					unsigned nsecs,
-					u32 word, u8 bits,
-					unsigned flags),
+	spi_bb_txrx_word_fn txrx_word,
 	unsigned		ns,
 	struct spi_transfer	*t,
 	unsigned flags
