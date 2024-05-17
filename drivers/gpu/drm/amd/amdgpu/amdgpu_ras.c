@@ -3611,12 +3611,11 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	amdgpu_ras_event_mgr_init(adev);
 
 	if (amdgpu_aca_is_enabled(adev)) {
-		if (amdgpu_in_reset(adev))
-			r = amdgpu_aca_reset(adev);
-		 else
+		if (!amdgpu_in_reset(adev)) {
 			r = amdgpu_aca_init(adev);
-		if (r)
-			return r;
+			if (r)
+				return r;
+		}
 
 		if (!amdgpu_sriov_vf(adev))
 			amdgpu_ras_set_aca_debug_mode(adev, false);

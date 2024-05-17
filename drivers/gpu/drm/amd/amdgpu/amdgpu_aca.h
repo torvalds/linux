@@ -192,7 +192,6 @@ struct aca_info {
 
 int amdgpu_aca_init(struct amdgpu_device *adev);
 void amdgpu_aca_fini(struct amdgpu_device *adev);
-int amdgpu_aca_reset(struct amdgpu_device *adev);
 void amdgpu_aca_set_smu_funcs(struct amdgpu_device *adev, const struct aca_smu_funcs *smu_funcs);
 bool amdgpu_aca_is_enabled(struct amdgpu_device *adev);
 

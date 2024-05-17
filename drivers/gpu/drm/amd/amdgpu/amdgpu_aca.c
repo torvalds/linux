@@ -712,13 +712,6 @@ void amdgpu_aca_fini(struct amdgpu_device *adev)
 	atomic_set(&aca->ue_update_flag, 0);
 }
 
-int amdgpu_aca_reset(struct amdgpu_device *adev)
-{
-	amdgpu_aca_fini(adev);
-
-	return amdgpu_aca_init(adev);
-}
-
 void amdgpu_aca_set_smu_funcs(struct amdgpu_device *adev, const struct aca_smu_funcs *smu_funcs)
 {
 	struct amdgpu_aca *aca = &adev->aca;
