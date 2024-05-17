@@ -30,7 +30,7 @@ struct spi_bitbang {
 	int	(*txrx_bufs)(struct spi_device *spi, struct spi_transfer *t);
 
 	/* txrx_word[SPI_MODE_*]() just looks like a shift register */
-	spi_bb_txrx_word_fn txrx_word[4];
+	spi_bb_txrx_word_fn txrx_word[SPI_MODE_X_MASK + 1];
 
 	int	(*set_line_direction)(struct spi_device *spi, bool output);
 };
