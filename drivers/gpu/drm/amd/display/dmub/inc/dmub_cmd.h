@@ -1882,7 +1882,8 @@ struct dmub_rb_cmd_idle_opt_dcn_restore {
  */
 struct dmub_dcn_notify_idle_cntl_data {
 	uint8_t driver_idle;
-	uint8_t reserved[59];
+	uint8_t skip_otg_disable;
+	uint8_t reserved[58];
 };
 
 /**

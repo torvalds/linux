@@ -1256,6 +1256,9 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 
 	cmd.idle_opt_notify_idle.cntl_data.driver_idle = allow_idle;
 
+	if (dc->work_arounds.skip_psr_ips_crtc_disable)
+		cmd.idle_opt_notify_idle.cntl_data.skip_otg_disable = true;
+
 	if (allow_idle) {
 		volatile struct dmub_shared_state_ips_driver *ips_driver =
 			&dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_DRIVER].data.ips_driver;

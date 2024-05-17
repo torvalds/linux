@@ -304,6 +304,7 @@ struct dc_bug_wa {
 		uint8_t dcfclk : 1;
 		uint8_t dcfclk_ds: 1;
 	} clock_update_disable_mask;
+	bool skip_psr_ips_crtc_disable;
 	//Customer Specific WAs
 	uint32_t force_backlight_start_level;
 };
