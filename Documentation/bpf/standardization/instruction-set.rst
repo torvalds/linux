@@ -476,9 +476,6 @@ the jump instruction.  Thus 'PC += 1' skips execution of the next
 instruction if it's a basic instruction or results in undefined behavior
 if the next instruction is a 128-bit wide instruction.
 
-The BPF program needs to store the return value into register R0 before doing an
-``EXIT``.
-
 Example:
 
 ``{JSGE, X, JMP32}`` means::
