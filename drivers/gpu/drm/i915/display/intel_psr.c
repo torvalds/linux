@@ -1421,8 +1421,9 @@ static bool _compute_alpm_params(struct intel_dp *intel_dp,
 	fast_wake_time = precharge + preamble + phy_wake +
 		tfw_exit_latency;
 
-	if (DISPLAY_VER(i915) >= 12)
-		/* TODO: Check how we can use ALPM_CTL fast wake extended field */
+	if (DISPLAY_VER(i915) >= 20)
+		max_wake_lines = 68;
+	else if (DISPLAY_VER(i915) >= 12)
 		max_wake_lines = 12;
 	else
 		max_wake_lines = 8;
