@@ -510,20 +510,33 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 		case BPF_ALU | BPF_DIV | BPF_X: /* (u32) dst /= (u32) src */
 		case BPF_ALU | BPF_MOD | BPF_X: /* (u32) dst %= (u32) src */
 			if (BPF_OP(code) == BPF_MOD) {
-				EMIT(PPC_RAW_DIVWU(tmp1_reg, dst_reg, src_reg));
+				if (off)
+					EMIT(PPC_RAW_DIVW(tmp1_reg, dst_reg, src_reg));
+				else
+					EMIT(PPC_RAW_DIVWU(tmp1_reg, dst_reg, src_reg));
+
 				EMIT(PPC_RAW_MULW(tmp1_reg, src_reg, tmp1_reg));
 				EMIT(PPC_RAW_SUB(dst_reg, dst_reg, tmp1_reg));
 			} else
-				EMIT(PPC_RAW_DIVWU(dst_reg, dst_reg, src_reg));
+				if (off)
+					EMIT(PPC_RAW_DIVW(dst_reg, dst_reg, src_reg));
+				else
+					EMIT(PPC_RAW_DIVWU(dst_reg, dst_reg, src_reg));
 			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_DIV | BPF_X: /* dst /= src */
 		case BPF_ALU64 | BPF_MOD | BPF_X: /* dst %= src */
 			if (BPF_OP(code) == BPF_MOD) {
-				EMIT(PPC_RAW_DIVDU(tmp1_reg, dst_reg, src_reg));
+				if (off)
+					EMIT(PPC_RAW_DIVD(tmp1_reg, dst_reg, src_reg));
+				else
+					EMIT(PPC_RAW_DIVDU(tmp1_reg, dst_reg, src_reg));
 				EMIT(PPC_RAW_MULD(tmp1_reg, src_reg, tmp1_reg));
 				EMIT(PPC_RAW_SUB(dst_reg, dst_reg, tmp1_reg));
 			} else
-				EMIT(PPC_RAW_DIVDU(dst_reg, dst_reg, src_reg));
+				if (off)
+					EMIT(PPC_RAW_DIVD(dst_reg, dst_reg, src_reg));
+				else
+					EMIT(PPC_RAW_DIVDU(dst_reg, dst_reg, src_reg));
 			break;
 		case BPF_ALU | BPF_MOD | BPF_K: /* (u32) dst %= (u32) imm */
 		case BPF_ALU | BPF_DIV | BPF_K: /* (u32) dst /= (u32) imm */
@@ -544,19 +557,31 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, u32 *fimage, struct code
 			switch (BPF_CLASS(code)) {
 			case BPF_ALU:
 				if (BPF_OP(code) == BPF_MOD) {
-					EMIT(PPC_RAW_DIVWU(tmp2_reg, dst_reg, tmp1_reg));
+					if (off)
+						EMIT(PPC_RAW_DIVW(tmp2_reg, dst_reg, tmp1_reg));
+					else
+						EMIT(PPC_RAW_DIVWU(tmp2_reg, dst_reg, tmp1_reg));
 					EMIT(PPC_RAW_MULW(tmp1_reg, tmp1_reg, tmp2_reg));
 					EMIT(PPC_RAW_SUB(dst_reg, dst_reg, tmp1_reg));
 				} else
-					EMIT(PPC_RAW_DIVWU(dst_reg, dst_reg, tmp1_reg));
+					if (off)
+						EMIT(PPC_RAW_DIVW(dst_reg, dst_reg, tmp1_reg));
+					else
+						EMIT(PPC_RAW_DIVWU(dst_reg, dst_reg, tmp1_reg));
 				break;
 			case BPF_ALU64:
 				if (BPF_OP(code) == BPF_MOD) {
-					EMIT(PPC_RAW_DIVDU(tmp2_reg, dst_reg, tmp1_reg));
+					if (off)
+						EMIT(PPC_RAW_DIVD(tmp2_reg, dst_reg, tmp1_reg));
+					else
+						EMIT(PPC_RAW_DIVDU(tmp2_reg, dst_reg, tmp1_reg));
 					EMIT(PPC_RAW_MULD(tmp1_reg, tmp1_reg, tmp2_reg));
 					EMIT(PPC_RAW_SUB(dst_reg, dst_reg, tmp1_reg));
 				} else
-					EMIT(PPC_RAW_DIVDU(dst_reg, dst_reg, tmp1_reg));
+					if (off)
+						EMIT(PPC_RAW_DIVD(dst_reg, dst_reg, tmp1_reg));
+					else
+						EMIT(PPC_RAW_DIVDU(dst_reg, dst_reg, tmp1_reg));
 				break;
 			}
 			goto bpf_alu32_trunc;
