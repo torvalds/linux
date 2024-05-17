@@ -478,7 +478,11 @@ static int ili9882t_prepare(struct drm_panel *panel)
 	usleep_range(10000, 11000);
 
 	// MIPI needs to keep the LP11 state before the lcm_reset pin is pulled high
-	mipi_dsi_dcs_nop(ili->dsi);
+	ret = mipi_dsi_dcs_nop(ili->dsi);
+	if (ret < 0) {
+		dev_err(&ili->dsi->dev, "Failed to send NOP: %d\n", ret);
+		goto poweroff;
+	}
 	usleep_range(1000, 2000);
 
 	gpiod_set_value(ili->enable_gpio, 1);
