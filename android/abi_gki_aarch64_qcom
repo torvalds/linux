@@ -3804,6 +3804,7 @@
   usb_debug_root
   usb_decode_ctrl
   usb_deregister
+  usb_deregister_device_driver
   usb_device_match_id
   usb_disabled
   usb_driver_claim_interface
@@ -3839,6 +3840,7 @@
   usb_put_dev
   usb_put_function_instance
   usb_put_intf
+  usb_register_device_driver
   usb_register_driver
   usb_register_notify
   usb_remove_phy
