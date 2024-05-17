@@ -67,6 +67,13 @@ void xe_gt_remove(struct xe_gt *gt);
 struct xe_hw_engine *
 xe_gt_any_hw_engine_by_reset_domain(struct xe_gt *gt, enum xe_engine_class class);
 
+/**
+ * xe_gt_any_hw_engine - scan the list of engines and return the
+ * first available
+ * @gt: GT structure
+ */
+struct xe_hw_engine *xe_gt_any_hw_engine(struct xe_gt *gt);
+
 struct xe_hw_engine *xe_gt_hw_engine(struct xe_gt *gt,
 				     enum xe_engine_class class,
 				     u16 instance,
