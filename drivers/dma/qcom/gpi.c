@@ -476,12 +476,6 @@ struct gpi_dev {
 	struct gpii *gpiis;
 };
 
-struct reg_info {
-	char *name;
-	u32 offset;
-	u32 val;
-};
-
 struct gchan {
 	struct virt_dma_chan vc;
 	u32 chid;
