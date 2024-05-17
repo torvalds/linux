@@ -1435,11 +1435,13 @@ bool intel_dp_supports_fec(struct intel_dp *intel_dp,
 static bool intel_dp_supports_dsc(const struct intel_connector *connector,
 				  const struct intel_crtc_state *crtc_state)
 {
+	if (!intel_dp_has_dsc(connector))
+		return false;
+
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP) && !crtc_state->fec_enable)
 		return false;
 
-	return intel_dsc_source_support(crtc_state) &&
-		drm_dp_sink_supports_dsc(connector->dp.dsc_dpcd);
+	return intel_dsc_source_support(crtc_state);
 }
 
 static int intel_dp_hdmi_compute_bpc(struct intel_dp *intel_dp,
