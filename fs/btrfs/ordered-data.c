@@ -859,7 +859,7 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 	/* start IO across the range first to instantiate any delalloc
 	 * extents
 	 */
-	ret = btrfs_fdatawrite_range(inode, start, orig_end);
+	ret = btrfs_fdatawrite_range(BTRFS_I(inode), start, orig_end);
 	if (ret)
 		return ret;
 
