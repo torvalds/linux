@@ -1137,7 +1137,7 @@ static int disarm_kprobe_ftrace(struct kprobe *p)
 		ipmodify ? &kprobe_ipmodify_enabled : &kprobe_ftrace_enabled);
 }
 
-void kprobe_ftrace_kill()
+void kprobe_ftrace_kill(void)
 {
 	kprobe_ftrace_disabled = true;
 }
