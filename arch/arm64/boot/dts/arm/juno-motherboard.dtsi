@@ -158,7 +158,8 @@
 				};
 
 				apbregs@10000 {
-					compatible = "syscon", "simple-mfd";
+					compatible = "arm,juno-fpga-apb-regs",
+						     "syscon", "simple-mfd";
 					reg = <0x010000 0x1000>;
 					ranges = <0x0 0x10000 0x1000>;
 					#address-cells = <1>;
