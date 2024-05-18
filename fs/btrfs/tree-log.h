@@ -37,7 +37,7 @@ struct btrfs_log_ctx {
 	bool logging_new_delayed_dentries;
 	/* Indicate if the inode being logged was logged before. */
 	bool logged_before;
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	struct list_head list;
 	/* Only used for fast fsyncs. */
 	struct list_head ordered_extents;
@@ -55,7 +55,7 @@ struct btrfs_log_ctx {
 	struct extent_buffer *scratch_eb;
 };
 
-void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx, struct inode *inode);
+void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx, struct btrfs_inode *inode);
 void btrfs_init_log_ctx_scratch_eb(struct btrfs_log_ctx *ctx);
 void btrfs_release_log_ctx_extents(struct btrfs_log_ctx *ctx);
 

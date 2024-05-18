@@ -1758,7 +1758,7 @@ static int start_ordered_ops(struct inode *inode, loff_t start, loff_t end)
 
 static inline bool skip_inode_logging(const struct btrfs_log_ctx *ctx)
 {
-	struct btrfs_inode *inode = BTRFS_I(ctx->inode);
+	struct btrfs_inode *inode = ctx->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
 	if (btrfs_inode_in_log(inode, btrfs_get_fs_generation(fs_info)) &&
@@ -1805,7 +1805,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	trace_btrfs_sync_file(file, datasync);
 
-	btrfs_init_log_ctx(&ctx, inode);
+	btrfs_init_log_ctx(&ctx, BTRFS_I(inode));
 
 	/*
 	 * Always set the range to a full range, otherwise we can get into
