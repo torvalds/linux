@@ -103,7 +103,7 @@ bool		nfssvc_encode_voidres(struct svc_rqst *rqstp,
 /*
  * Function prototypes.
  */
-int		nfsd_svc(int nrservs, struct net *net, const struct cred *cred);
+int		nfsd_svc(int nrservs, struct net *net, const struct cred *cred, const char *scope);
 int		nfsd_dispatch(struct svc_rqst *rqstp);
 
 int		nfsd_nrthreads(struct net *);
@@ -230,7 +230,6 @@ void		nfsd_lockd_shutdown(void);
 #define	nfserr_nospc		cpu_to_be32(NFSERR_NOSPC)
 #define	nfserr_rofs		cpu_to_be32(NFSERR_ROFS)
 #define	nfserr_mlink		cpu_to_be32(NFSERR_MLINK)
-#define	nfserr_opnotsupp	cpu_to_be32(NFSERR_OPNOTSUPP)
 #define	nfserr_nametoolong	cpu_to_be32(NFSERR_NAMETOOLONG)
 #define	nfserr_notempty		cpu_to_be32(NFSERR_NOTEMPTY)
 #define	nfserr_dquot		cpu_to_be32(NFSERR_DQUOT)
