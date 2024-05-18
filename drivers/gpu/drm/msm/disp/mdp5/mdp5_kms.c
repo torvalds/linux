@@ -19,6 +19,9 @@
 #include "msm_mmu.h"
 #include "mdp5_kms.h"
 
+#define MDP5_DEFAULT_BW MBps_to_icc(6400)
+#define MDP5_CFG_BW MBps_to_icc(100)
+
 static int mdp5_hw_init(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
@@ -229,6 +232,30 @@ static const struct mdp_kms_funcs kms_funcs = {
 	.set_irqmask         = mdp5_set_irqmask,
 };
 
+void mdp5_kms_set_bandwidth(struct mdp5_kms *mdp5_kms)
+{
+	int i;
+	u32 full_bw = 0;
+	struct drm_crtc *tmp_crtc;
+
+	if (!mdp5_kms->num_paths)
+		return;
+
+	drm_for_each_crtc(tmp_crtc, mdp5_kms->dev) {
+		if (!tmp_crtc->enabled)
+			continue;
+
+		full_bw += Bps_to_icc(to_mdp5_crtc_state(tmp_crtc->state)->new_crtc_bw);
+	}
+
+	full_bw /= mdp5_kms->num_paths;
+
+	DBG("SET BW to %d\n", full_bw);
+
+	for (i = 0; i < mdp5_kms->num_paths; i++)
+		icc_set_bw(mdp5_kms->paths[i], full_bw, full_bw);
+}
+
 static int mdp5_disable(struct mdp5_kms *mdp5_kms)
 {
 	DBG("");
@@ -243,6 +270,14 @@ static int mdp5_disable(struct mdp5_kms *mdp5_kms)
 	clk_disable_unprepare(mdp5_kms->core_clk);
 	clk_disable_unprepare(mdp5_kms->lut_clk);
 
+	if (!mdp5_kms->enable_count) {
+		int i;
+
+		for (i = 0; i < mdp5_kms->num_paths; i++)
+			icc_set_bw(mdp5_kms->paths[i], 0, 0);
+		icc_set_bw(mdp5_kms->path_rot, 0, 0);
+	}
+
 	return 0;
 }
 
@@ -251,6 +286,14 @@ static int mdp5_enable(struct mdp5_kms *mdp5_kms)
 	DBG("");
 
 	mdp5_kms->enable_count++;
+
+	if (mdp5_kms->enable_count == 1) {
+		int i;
+
+		for (i = 0; i < mdp5_kms->num_paths; i++)
+			icc_set_bw(mdp5_kms->paths[i], 0, MDP5_DEFAULT_BW);
+		icc_set_bw(mdp5_kms->path_rot, 0, MDP5_DEFAULT_BW);
+	}
 
 	clk_prepare_enable(mdp5_kms->ahb_clk);
 	clk_prepare_enable(mdp5_kms->axi_clk);
@@ -703,6 +746,40 @@ static int interface_init(struct mdp5_kms *mdp5_kms)
 	return 0;
 }
 
+static int mdp5_setup_interconnect(struct mdp5_kms *mdp5_kms)
+{
+	struct icc_path *path0 = msm_icc_get(&mdp5_kms->pdev->dev, "mdp0-mem");
+	struct icc_path *path1 = msm_icc_get(&mdp5_kms->pdev->dev, "mdp1-mem");
+	struct icc_path *path_rot = msm_icc_get(&mdp5_kms->pdev->dev, "rotator-mem");
+
+	if (IS_ERR(path0))
+		return PTR_ERR(path0);
+
+	if (!path0) {
+		/* no interconnect support is not necessarily a fatal
+		 * condition, the platform may simply not have an
+		 * interconnect driver yet.  But warn about it in case
+		 * bootloader didn't setup bus clocks high enough for
+		 * scanout.
+		 */
+		dev_warn(&mdp5_kms->pdev->dev, "No interconnect support may cause display underflows!\n");
+		return 0;
+	}
+
+	mdp5_kms->paths[0] = path0;
+	mdp5_kms->num_paths = 1;
+
+	if (!IS_ERR_OR_NULL(path1)) {
+		mdp5_kms->paths[1] = path1;
+		mdp5_kms->num_paths++;
+	}
+
+	if (!IS_ERR_OR_NULL(path_rot))
+		mdp5_kms->path_rot = path_rot;
+
+	return 0;
+}
+
 static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
@@ -710,12 +787,21 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 	struct mdp5_cfg *config;
 	u32 major, minor;
 	int ret;
+	int i;
 
 	mdp5_kms->dev = dev;
 
 	ret = mdp5_global_obj_init(mdp5_kms);
 	if (ret)
 		goto fail;
+
+	ret = mdp5_setup_interconnect(mdp5_kms);
+	if (ret)
+		goto fail;
+
+	for (i = 0; i < mdp5_kms->num_paths; i++)
+		icc_set_bw(mdp5_kms->paths[i], 0, MDP5_DEFAULT_BW);
+	icc_set_bw(mdp5_kms->path_rot, 0, MDP5_DEFAULT_BW);
 
 	/* we need to set a default rate before enabling.  Set a safe
 	 * rate first, then figure out hw revision, and then set a
@@ -780,39 +866,6 @@ fail:
 	return ret;
 }
 
-static int mdp5_setup_interconnect(struct platform_device *pdev)
-{
-	struct icc_path *path0 = msm_icc_get(&pdev->dev, "mdp0-mem");
-	struct icc_path *path1 = msm_icc_get(&pdev->dev, "mdp1-mem");
-	struct icc_path *path_cfg = msm_icc_get(&pdev->dev, "cpu-cfg");
-	struct icc_path *path_rot = msm_icc_get(&pdev->dev, "rotator-mem");
-
-	if (IS_ERR(path0))
-		return PTR_ERR(path0);
-
-	if (!path0) {
-		/* no interconnect support is not necessarily a fatal
-		 * condition, the platform may simply not have an
-		 * interconnect driver yet.  But warn about it in case
-		 * bootloader didn't setup bus clocks high enough for
-		 * scanout.
-		 */
-		dev_warn(&pdev->dev, "No interconnect support may cause display underflows!\n");
-		return 0;
-	}
-
-	icc_set_bw(path0, 0, MBps_to_icc(6400));
-
-	if (!IS_ERR_OR_NULL(path1))
-		icc_set_bw(path1, 0, MBps_to_icc(6400));
-	if (!IS_ERR_OR_NULL(path_rot))
-		icc_set_bw(path_rot, 0, MBps_to_icc(6400));
-	if (!IS_ERR_OR_NULL(path_cfg))
-		icc_set_bw(path_cfg, 0, MBps_to_icc(500));
-
-	return 0;
-}
-
 static int mdp5_dev_probe(struct platform_device *pdev)
 {
 	struct mdp5_kms *mdp5_kms;
@@ -826,10 +879,6 @@ static int mdp5_dev_probe(struct platform_device *pdev)
 	mdp5_kms = devm_kzalloc(&pdev->dev, sizeof(*mdp5_kms), GFP_KERNEL);
 	if (!mdp5_kms)
 		return -ENOMEM;
-
-	ret = mdp5_setup_interconnect(pdev);
-	if (ret)
-		return ret;
 
 	mdp5_kms->pdev = pdev;
 
