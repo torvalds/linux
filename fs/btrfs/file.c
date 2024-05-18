@@ -1884,7 +1884,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * to wait for the IO to stabilize the logical address.
 	 */
 	if (full_sync || btrfs_is_zoned(fs_info)) {
-		ret = btrfs_wait_ordered_range(inode, start, len);
+		ret = btrfs_wait_ordered_range(BTRFS_I(inode), start, len);
 		clear_bit(BTRFS_INODE_COW_WRITE_ERROR, &BTRFS_I(inode)->runtime_flags);
 	} else {
 		/*
@@ -1909,7 +1909,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		 */
 		if (test_and_clear_bit(BTRFS_INODE_COW_WRITE_ERROR,
 				       &BTRFS_I(inode)->runtime_flags))
-			ret = btrfs_wait_ordered_range(inode, start, len);
+			ret = btrfs_wait_ordered_range(BTRFS_I(inode), start, len);
 	}
 
 	if (ret)
@@ -2014,7 +2014,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 		ret = btrfs_end_transaction(trans);
 		if (ret)
 			goto out;
-		ret = btrfs_wait_ordered_range(inode, start, len);
+		ret = btrfs_wait_ordered_range(BTRFS_I(inode), start, len);
 		if (ret)
 			goto out;
 
@@ -2814,7 +2814,7 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 
 	btrfs_inode_lock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 
-	ret = btrfs_wait_ordered_range(inode, offset, len);
+	ret = btrfs_wait_ordered_range(BTRFS_I(inode), offset, len);
 	if (ret)
 		goto out_only_mutex;
 
@@ -3309,7 +3309,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	 * the file range and, due to the previous locking we did, we know there
 	 * can't be more delalloc or ordered extents in the range.
 	 */
-	ret = btrfs_wait_ordered_range(inode, alloc_start,
+	ret = btrfs_wait_ordered_range(BTRFS_I(inode), alloc_start,
 				       alloc_end - alloc_start);
 	if (ret)
 		goto out;

@@ -5081,7 +5081,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 		struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 
 		if (btrfs_is_zoned(fs_info)) {
-			ret = btrfs_wait_ordered_range(inode,
+			ret = btrfs_wait_ordered_range(BTRFS_I(inode),
 					ALIGN(newsize, fs_info->sectorsize),
 					(u64)-1);
 			if (ret)
@@ -5111,7 +5111,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 			 * wait for disk_i_size to be stable and then update the
 			 * in-memory size to match.
 			 */
-			err = btrfs_wait_ordered_range(inode, 0, (u64)-1);
+			err = btrfs_wait_ordered_range(BTRFS_I(inode), 0, (u64)-1);
 			if (err)
 				return err;
 			i_size_write(inode, BTRFS_I(inode)->disk_i_size);
@@ -7955,7 +7955,7 @@ static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 * if we have delalloc in those ranges.
 	 */
 	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC) {
-		ret = btrfs_wait_ordered_range(inode, 0, LLONG_MAX);
+		ret = btrfs_wait_ordered_range(btrfs_inode, 0, LLONG_MAX);
 		if (ret)
 			return ret;
 	}
@@ -7969,7 +7969,7 @@ static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 * possible a new write may have happened in between those two steps.
 	 */
 	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC) {
-		ret = btrfs_wait_ordered_range(inode, 0, LLONG_MAX);
+		ret = btrfs_wait_ordered_range(btrfs_inode, 0, LLONG_MAX);
 		if (ret) {
 			btrfs_inode_unlock(btrfs_inode, BTRFS_ILOCK_SHARED);
 			return ret;
@@ -8238,7 +8238,7 @@ static int btrfs_truncate(struct btrfs_inode *inode, bool skip_writeback)
 	const u64 min_size = btrfs_calc_metadata_size(fs_info, 1);
 
 	if (!skip_writeback) {
-		ret = btrfs_wait_ordered_range(&inode->vfs_inode,
+		ret = btrfs_wait_ordered_range(inode,
 					       inode->vfs_inode.i_size & (~mask),
 					       (u64)-1);
 		if (ret)
@@ -10062,7 +10062,7 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 	for (;;) {
 		struct btrfs_ordered_extent *ordered;
 
-		ret = btrfs_wait_ordered_range(&inode->vfs_inode, start,
+		ret = btrfs_wait_ordered_range(inode, start,
 					       lockend - start + 1);
 		if (ret)
 			goto out_unlock_inode;
@@ -10305,7 +10305,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	for (;;) {
 		struct btrfs_ordered_extent *ordered;
 
-		ret = btrfs_wait_ordered_range(&inode->vfs_inode, start, num_bytes);
+		ret = btrfs_wait_ordered_range(inode, start, num_bytes);
 		if (ret)
 			goto out_folios;
 		ret = invalidate_inode_pages2_range(inode->vfs_inode.i_mapping,
@@ -10578,7 +10578,7 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	 * file changes again after this, the user is doing something stupid and
 	 * we don't really care.
 	 */
-	ret = btrfs_wait_ordered_range(inode, 0, (u64)-1);
+	ret = btrfs_wait_ordered_range(BTRFS_I(inode), 0, (u64)-1);
 	if (ret)
 		return ret;
 
