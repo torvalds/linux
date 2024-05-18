@@ -6233,6 +6233,8 @@ static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu,
 		else if (is_alignment_check(intr_info) &&
 			 !vmx_guest_inject_ac(vcpu))
 			return true;
+		else if (is_ve_fault(intr_info))
+			return true;
 		return false;
 	case EXIT_REASON_EXTERNAL_INTERRUPT:
 		return true;
