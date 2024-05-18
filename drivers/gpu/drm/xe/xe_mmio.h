@@ -28,6 +28,8 @@ int xe_mmio_probe_vram(struct xe_device *xe);
 u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg);
 int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
 		   u32 *out_val, bool atomic);
+int xe_mmio_wait32_not(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 timeout_us,
+		       u32 *out_val, bool atomic);
 
 static inline u32 xe_mmio_adjusted_addr(const struct xe_gt *gt, u32 addr)
 {
