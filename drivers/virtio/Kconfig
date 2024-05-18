@@ -194,4 +194,13 @@ config VIRTIO_DMA_SHARED_BUFFER
 	 This option adds a flavor of dma buffers that are backed by
 	 virtio resources.
 
+config VIRTIO_MMIO_POLL_RESET
+	bool "Virti-mmio device synchronous reset support"
+	depends on VIRTIO_MMIO
+	help
+	  Say y here to enable synchronous reset for the MMIO transport based
+	  virtio device. After writing 0 to device_status, the driver must
+	  wait for a read of device_status to return 0 before reinitializing
+	  the device.
+
 endif # VIRTIO_MENU
