@@ -805,5 +805,15 @@ int ksz_dcb_init(struct ksz_device *dev)
 	if (ret)
 		return ret;
 
+	/* Enable 802.1p priority control on Port 2 during switch initialization.
+	 * This setup is critical for the apptrust functionality on Port 1, which
+	 * relies on the priority settings of Port 2. Note: Port 1 is naturally
+	 * configured before Port 2, necessitating this configuration order.
+	 */
+	if (ksz_is_ksz88x3(dev))
+		return ksz_prmw8(dev, KSZ_PORT_2, KSZ8_REG_PORT_1_CTRL_0,
+				 KSZ8_PORT_802_1P_ENABLE,
+				 KSZ8_PORT_802_1P_ENABLE);
+
 	return 0;
 }

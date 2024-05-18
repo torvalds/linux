@@ -3815,7 +3815,7 @@ F:	arch/arm/net/
 BPF JIT for ARM64
 M:	Daniel Borkmann <daniel@iogearbox.net>
 M:	Alexei Starovoitov <ast@kernel.org>
-M:	Zi Shen Lim <zlim.lnx@gmail.com>
+M:	Puranjay Mohan <puranjay@kernel.org>
 L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/arm64/net/
@@ -22392,7 +22392,6 @@ F:	drivers/counter/ti-eqep.c
 
 TI ETHERNET SWITCH DRIVER (CPSW)
 R:	Siddharth Vadapalli <s-vadapalli@ti.com>
-R:	Ravi Gunasekaran <r-gunasekaran@ti.com>
 R:	Roger Quadros <rogerq@kernel.org>
 L:	linux-omap@vger.kernel.org
 L:	netdev@vger.kernel.org
