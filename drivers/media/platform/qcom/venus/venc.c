@@ -885,6 +885,10 @@ static int venc_set_properties(struct venus_inst *inst)
 		else
 			en.enable = 1;
 
+		/* Seems to be broken */
+		if (IS_V3(inst->core) && is_fw_rev_or_older(inst->core, 4, 4, 60))
+			en.enable = 1;
+
 		ret = hfi_session_set_property(inst, ptype, &en);
 		if (ret)
 			return ret;

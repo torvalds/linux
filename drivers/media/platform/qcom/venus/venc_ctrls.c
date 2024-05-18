@@ -224,6 +224,11 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 				en.enable = 0;
 			else
 				en.enable = 1;
+
+			/* Seems to be broken */
+			if (IS_V3(inst->core) && is_fw_rev_or_older(inst->core, 4, 4, 60))
+				en.enable = 1;
+
 			ptype = HFI_PROPERTY_CONFIG_VENC_SYNC_FRAME_SEQUENCE_HEADER;
 			ret = hfi_session_set_property(inst, ptype, &en);
 			if (ret) {
