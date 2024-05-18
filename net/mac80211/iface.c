@@ -686,6 +686,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 			ieee80211_del_virtual_monitor(local);
 
 		ieee80211_recalc_idle(local);
+		ieee80211_recalc_offload(local);
 
 		if (!(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE))
 			break;
