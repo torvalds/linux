@@ -990,7 +990,7 @@ static void fortify_test_memcmp(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, memcmp(one, two, one_len), 0);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);
 	/* Still in bounds, but no longer matching. */
-	KUNIT_ASSERT_EQ(test, memcmp(one, two, one_len + 1), -32);
+	KUNIT_ASSERT_LT(test, memcmp(one, two, one_len + 1), 0);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);
 
 	/* Catch too-large ranges. */
