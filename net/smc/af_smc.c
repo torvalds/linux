@@ -2689,7 +2689,7 @@ out:
 }
 
 static int smc_accept(struct socket *sock, struct socket *new_sock,
-		      int flags, bool kern)
+		      struct proto_accept_arg *arg)
 {
 	struct sock *sk = sock->sk, *nsk;
 	DECLARE_WAITQUEUE(wait, current);
@@ -2708,7 +2708,7 @@ static int smc_accept(struct socket *sock, struct socket *new_sock,
 	}
 
 	/* Wait for an incoming connection */
-	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, arg->flags & O_NONBLOCK);
 	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	while (!(nsk = smc_accept_dequeue(sk, new_sock))) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -2735,7 +2735,7 @@ static int smc_accept(struct socket *sock, struct socket *new_sock,
 	if (rc)
 		goto out;
 
-	if (lsmc->sockopt_defer_accept && !(flags & O_NONBLOCK)) {
+	if (lsmc->sockopt_defer_accept && !(arg->flags & O_NONBLOCK)) {
 		/* wait till data arrives on the socket */
 		timeo = msecs_to_jiffies(lsmc->sockopt_defer_accept *
 								MSEC_PER_SEC);
