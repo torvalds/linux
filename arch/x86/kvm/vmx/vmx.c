@@ -5218,7 +5218,12 @@ static int handle_exception_nmi(struct kvm_vcpu *vcpu)
 		return handle_ud(vcpu);
 
 	if (WARN_ON_ONCE(is_ve_fault(intr_info))) {
+		struct vmx_ve_information *ve_info = vmx->ve_info;
+
+		WARN_ONCE(ve_info->exit_reason != EXIT_REASON_EPT_VIOLATION,
+			  "Unexpected #VE on VM-Exit reason 0x%x", ve_info->exit_reason);
 		dump_vmcs(vcpu);
+		kvm_mmu_print_sptes(vcpu, ve_info->guest_physical_address, "#VE");
 		return 1;
 	}
 

@@ -4104,6 +4104,22 @@ static int get_walk(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes, int *root_level
 	return leaf;
 }
 
+static int get_sptes_lockless(struct kvm_vcpu *vcpu, u64 addr, u64 *sptes,
+			      int *root_level)
+{
+	int leaf;
+
+	walk_shadow_page_lockless_begin(vcpu);
+
+	if (is_tdp_mmu_active(vcpu))
+		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes, root_level);
+	else
+		leaf = get_walk(vcpu, addr, sptes, root_level);
+
+	walk_shadow_page_lockless_end(vcpu);
+	return leaf;
+}
+
 /* return true if reserved bit(s) are detected on a valid, non-MMIO SPTE. */
 static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 {
@@ -4112,15 +4128,7 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 	int root, leaf, level;
 	bool reserved = false;
 
-	walk_shadow_page_lockless_begin(vcpu);
-
-	if (is_tdp_mmu_active(vcpu))
-		leaf = kvm_tdp_mmu_get_walk(vcpu, addr, sptes, &root);
-	else
-		leaf = get_walk(vcpu, addr, sptes, &root);
-
-	walk_shadow_page_lockless_end(vcpu);
-
+	leaf = get_sptes_lockless(vcpu, addr, sptes, &root);
 	if (unlikely(leaf < 0)) {
 		*sptep = 0ull;
 		return reserved;
@@ -5923,6 +5931,22 @@ emulate:
 				       insn_len);
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
+
+void kvm_mmu_print_sptes(struct kvm_vcpu *vcpu, gpa_t gpa, const char *msg)
+{
+	u64 sptes[PT64_ROOT_MAX_LEVEL + 1];
+	int root_level, leaf, level;
+
+	leaf = get_sptes_lockless(vcpu, gpa, sptes, &root_level);
+	if (unlikely(leaf < 0))
+		return;
+
+	pr_err("%s %llx", msg, gpa);
+	for (level = root_level; level >= leaf; level--)
+		pr_cont(", spte[%d] = 0x%llx", level, sptes[level]);
+	pr_cont("\n");
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_print_sptes);
 
 static void __kvm_mmu_invalidate_addr(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 				      u64 addr, hpa_t root_hpa)
