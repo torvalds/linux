@@ -53,6 +53,10 @@ static int msm_mdss_parse_data_bus_icc_path(struct device *dev,
 	if (IS_ERR_OR_NULL(path0))
 		return PTR_ERR_OR_ZERO(path0);
 
+	reg_bus_path = devm_of_icc_get(dev, "cpu-cfg");
+	if (PTR_ERR(reg_bus_path) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
 	msm_mdss->mdp_path[0] = path0;
 	msm_mdss->num_mdp_paths = 1;
 
@@ -62,7 +66,6 @@ static int msm_mdss_parse_data_bus_icc_path(struct device *dev,
 		msm_mdss->num_mdp_paths++;
 	}
 
-	reg_bus_path = of_icc_get(dev, "cpu-cfg");
 	if (!IS_ERR_OR_NULL(reg_bus_path))
 		msm_mdss->reg_bus_path = reg_bus_path;
 
