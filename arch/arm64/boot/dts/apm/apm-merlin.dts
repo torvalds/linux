@@ -32,7 +32,7 @@
 	};
 
 	poweroff_mbox: poweroff_mbox@10548000 {
-		compatible = "syscon";
+		compatible = "apm,merlin-poweroff-mailbox", "syscon";
 		reg = <0x0 0x10548000 0x0 0x30>;
 	};
 
