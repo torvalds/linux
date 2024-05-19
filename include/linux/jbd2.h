@@ -1588,10 +1588,8 @@ void jbd2_journal_put_journal_head(struct journal_head *jh);
  */
 extern struct kmem_cache *jbd2_handle_cache;
 
-static inline handle_t *jbd2_alloc_handle(gfp_t gfp_flags)
-{
-	return kmem_cache_zalloc(jbd2_handle_cache, gfp_flags);
-}
+#define jbd2_alloc_handle(_gfp_flags)	\
+		((handle_t *)kmem_cache_zalloc(jbd2_handle_cache, _gfp_flags))
 
 static inline void jbd2_free_handle(handle_t *handle)
 {
@@ -1604,10 +1602,8 @@ static inline void jbd2_free_handle(handle_t *handle)
  */
 extern struct kmem_cache *jbd2_inode_cache;
 
-static inline struct jbd2_inode *jbd2_alloc_inode(gfp_t gfp_flags)
-{
-	return kmem_cache_alloc(jbd2_inode_cache, gfp_flags);
-}
+#define jbd2_alloc_inode(_gfp_flags)	\
+		((struct jbd2_inode *)kmem_cache_alloc(jbd2_inode_cache, _gfp_flags))
 
 static inline void jbd2_free_inode(struct jbd2_inode *jinode)
 {

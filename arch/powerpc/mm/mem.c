@@ -17,6 +17,7 @@
 #include <linux/suspend.h>
 #include <linux/dma-direct.h>
 #include <linux/execmem.h>
+#include <linux/vmalloc.h>
 
 #include <asm/swiotlb.h>
 #include <asm/machdep.h>

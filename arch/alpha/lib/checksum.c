@@ -15,6 +15,7 @@
 #include <net/checksum.h>
 
 #include <asm/byteorder.h>
+#include <asm/checksum.h>
 
 static inline unsigned short from64to16(unsigned long x)
 {

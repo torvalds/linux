@@ -205,7 +205,7 @@ static int move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		 */
 		if (pte_present(pte))
 			force_flush = true;
-		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
+		pte = move_pte(pte, old_addr, new_addr);
 		pte = move_soft_dirty_pte(pte);
 		set_pte_at(mm, new_addr, new_pte, pte);
 	}
