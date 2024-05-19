@@ -846,13 +846,6 @@ struct btrfs_root *btrfs_extent_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 	return btrfs_global_root(fs_info, &key);
 }
 
-struct btrfs_root *btrfs_block_group_root(struct btrfs_fs_info *fs_info)
-{
-	if (btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE))
-		return fs_info->block_group_root;
-	return btrfs_extent_root(fs_info, 0);
-}
-
 struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     u64 objectid)
 {
