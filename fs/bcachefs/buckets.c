@@ -1465,7 +1465,7 @@ int bch2_trans_mark_dev_sbs_flags(struct bch_fs *c,
 	for_each_online_member(c, ca) {
 		int ret = bch2_trans_mark_dev_sb(c, ca, flags);
 		if (ret) {
-			bch2_dev_put(ca);
+			percpu_ref_put(&ca->io_ref);
 			return ret;
 		}
 	}
