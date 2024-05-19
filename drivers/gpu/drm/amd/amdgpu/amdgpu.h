@@ -345,9 +345,9 @@ enum amdgpu_kiq_irq {
 	AMDGPU_CP_KIQ_IRQ_DRIVER0 = 0,
 	AMDGPU_CP_KIQ_IRQ_LAST
 };
-#define SRIOV_USEC_TIMEOUT  1200000 /* wait 12 * 100ms for SRIOV */
-#define MAX_KIQ_REG_WAIT       5000 /* in usecs, 5ms */
-#define MAX_KIQ_REG_BAILOUT_INTERVAL   5 /* in msecs, 5ms */
+#define SRIOV_USEC_TIMEOUT 1200000 /* wait 12 * 100ms for SRIOV */
+#define MAX_KIQ_REG_WAIT (amdgpu_sriov_vf(adev) ? 50000 : 5000) /* in usecs, extend for VF */
+#define MAX_KIQ_REG_BAILOUT_INTERVAL 5 /* in msecs, 5ms */
 #define MAX_KIQ_REG_TRY 1000
 
 int amdgpu_device_ip_set_clockgating_state(void *dev,
