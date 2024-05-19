@@ -231,8 +231,6 @@ int ufshcd_mcq_memory_alloc(struct ufs_hba *hba)
 
 /* Operation and runtime registers configuration */
 #define MCQ_CFG_n(r, i)	((r) + MCQ_QCFG_SIZE * (i))
-#define MCQ_OPR_OFFSET_n(p, i) \
-	(hba->mcq_opr[(p)].offset + hba->mcq_opr[(p)].stride * (i))
 
 static void __iomem *mcq_opr_base(struct ufs_hba *hba,
 					 enum ufshcd_mcq_opr n, int i)
@@ -343,10 +341,10 @@ void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba)
 		ufsmcq_writelx(hba, upper_32_bits(hwq->sqe_dma_addr),
 			      MCQ_CFG_n(REG_SQUBA, i));
 		/* Submission Queue Doorbell Address Offset */
-		ufsmcq_writelx(hba, MCQ_OPR_OFFSET_n(OPR_SQD, i),
+		ufsmcq_writelx(hba, ufshcd_mcq_opr_offset(hba, OPR_SQD, i),
 			      MCQ_CFG_n(REG_SQDAO, i));
 		/* Submission Queue Interrupt Status Address Offset */
-		ufsmcq_writelx(hba, MCQ_OPR_OFFSET_n(OPR_SQIS, i),
+		ufsmcq_writelx(hba, ufshcd_mcq_opr_offset(hba, OPR_SQIS, i),
 			      MCQ_CFG_n(REG_SQISAO, i));
 
 		/* Completion Queue Lower Base Address */
@@ -356,10 +354,10 @@ void ufshcd_mcq_make_queues_operational(struct ufs_hba *hba)
 		ufsmcq_writelx(hba, upper_32_bits(hwq->cqe_dma_addr),
 			      MCQ_CFG_n(REG_CQUBA, i));
 		/* Completion Queue Doorbell Address Offset */
-		ufsmcq_writelx(hba, MCQ_OPR_OFFSET_n(OPR_CQD, i),
+		ufsmcq_writelx(hba, ufshcd_mcq_opr_offset(hba, OPR_CQD, i),
 			      MCQ_CFG_n(REG_CQDAO, i));
 		/* Completion Queue Interrupt Status Address Offset */
-		ufsmcq_writelx(hba, MCQ_OPR_OFFSET_n(OPR_CQIS, i),
+		ufsmcq_writelx(hba, ufshcd_mcq_opr_offset(hba, OPR_CQIS, i),
 			      MCQ_CFG_n(REG_CQISAO, i));
 
 		/* Save the base addresses for quicker access */
