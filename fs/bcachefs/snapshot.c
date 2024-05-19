@@ -32,7 +32,7 @@ void bch2_snapshot_tree_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_snapshot_tree_invalid(struct bch_fs *c, struct bkey_s_c k,
-			       enum bkey_invalid_flags flags,
+			       enum bch_validate_flags flags,
 			       struct printbuf *err)
 {
 	int ret = 0;
@@ -49,7 +49,7 @@ int bch2_snapshot_tree_lookup(struct btree_trans *trans, u32 id,
 			      struct bch_snapshot_tree *s)
 {
 	int ret = bch2_bkey_get_val_typed(trans, BTREE_ID_snapshot_trees, POS(0, id),
-					  BTREE_ITER_WITH_UPDATES, snapshot_tree, s);
+					  BTREE_ITER_with_updates, snapshot_tree, s);
 
 	if (bch2_err_matches(ret, ENOENT))
 		ret = -BCH_ERR_ENOENT_snapshot_tree;
@@ -223,7 +223,7 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_snapshot_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  enum bkey_invalid_flags flags,
+			  enum bch_validate_flags flags,
 			  struct printbuf *err)
 {
 	struct bkey_s_c_snapshot s;
@@ -298,7 +298,7 @@ static void set_is_ancestor_bitmap(struct bch_fs *c, u32 id)
 static int __bch2_mark_snapshot(struct btree_trans *trans,
 		       enum btree_id btree, unsigned level,
 		       struct bkey_s_c old, struct bkey_s_c new,
-		       unsigned flags)
+		       enum btree_iter_update_trigger_flags flags)
 {
 	struct bch_fs *c = trans->c;
 	struct snapshot_t *t;
@@ -352,7 +352,7 @@ err:
 int bch2_mark_snapshot(struct btree_trans *trans,
 		       enum btree_id btree, unsigned level,
 		       struct bkey_s_c old, struct bkey_s new,
-		       unsigned flags)
+		       enum btree_iter_update_trigger_flags flags)
 {
 	return __bch2_mark_snapshot(trans, btree, level, old, new.s_c, flags);
 }
@@ -361,7 +361,7 @@ int bch2_snapshot_lookup(struct btree_trans *trans, u32 id,
 			 struct bch_snapshot *s)
 {
 	return bch2_bkey_get_val_typed(trans, BTREE_ID_snapshots, POS(0, id),
-				       BTREE_ITER_WITH_UPDATES, snapshot, s);
+				       BTREE_ITER_with_updates, snapshot, s);
 }
 
 static int bch2_snapshot_live(struct btree_trans *trans, u32 id)
@@ -618,7 +618,7 @@ int bch2_check_snapshot_trees(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_snapshot_trees, POS_MIN,
-			BTREE_ITER_PREFETCH, k,
+			BTREE_ITER_prefetch, k,
 			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		check_snapshot_tree(trans, &iter, k)));
 	bch_err_fn(c, ret);
@@ -695,7 +695,7 @@ static int snapshot_tree_ptr_repair(struct btree_trans *trans,
 
 	root = bch2_bkey_get_iter_typed(trans, &root_iter,
 			       BTREE_ID_snapshots, POS(0, root_id),
-			       BTREE_ITER_WITH_UPDATES, snapshot);
+			       BTREE_ITER_with_updates, snapshot);
 	ret = bkey_err(root);
 	if (ret)
 		goto err;
@@ -886,7 +886,7 @@ int bch2_check_snapshots(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_reverse_commit(trans, iter,
 				BTREE_ID_snapshots, POS_MAX,
-				BTREE_ITER_PREFETCH, k,
+				BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			check_snapshot(trans, &iter, k)));
 	bch_err_fn(c, ret);
@@ -900,7 +900,8 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 	if (bch2_snapshot_equiv(c, id))
 		return 0;
 
-	u32 tree_id;
+	/* 0 is an invalid tree ID */
+	u32 tree_id = 0;
 	int ret = bch2_snapshot_tree_create(trans, id, 0, &tree_id);
 	if (ret)
 		return ret;
@@ -1001,7 +1002,7 @@ int bch2_reconstruct_snapshots(struct bch_fs *c)
 			r.btree = btree;
 
 			ret = for_each_btree_key(trans, iter, btree, POS_MIN,
-					BTREE_ITER_ALL_SNAPSHOTS|BTREE_ITER_PREFETCH, k, ({
+					BTREE_ITER_all_snapshots|BTREE_ITER_prefetch, k, ({
 				get_snapshot_trees(c, &r, k.k->p);
 			}));
 			if (ret)
@@ -1018,7 +1019,7 @@ int bch2_reconstruct_snapshots(struct bch_fs *c)
 		darray_for_each(*t, id) {
 			if (fsck_err_on(!bch2_snapshot_equiv(c, *id),
 					c, snapshot_node_missing,
-					"snapshot node %u from tree %s missing", *id, buf.buf)) {
+					"snapshot node %u from tree %s missing, recreate?", *id, buf.buf)) {
 				if (t->nr > 1) {
 					bch_err(c, "cannot reconstruct snapshot trees with multiple nodes");
 					ret = -BCH_ERR_fsck_repair_unimplemented;
@@ -1090,7 +1091,7 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 	int ret = 0;
 
 	s = bch2_bkey_get_iter_typed(trans, &iter, BTREE_ID_snapshots, POS(0, id),
-				     BTREE_ITER_INTENT, snapshot);
+				     BTREE_ITER_intent, snapshot);
 	ret = bkey_err(s);
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), c,
 				"missing snapshot %u", id);
@@ -1199,7 +1200,7 @@ static int create_snapids(struct btree_trans *trans, u32 parent, u32 tree,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_snapshots,
-			     POS_MIN, BTREE_ITER_INTENT);
+			     POS_MIN, BTREE_ITER_intent);
 	k = bch2_btree_iter_peek(&iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -1367,7 +1368,7 @@ static int snapshot_delete_key(struct btree_trans *trans,
 	if (snapshot_list_has_id(deleted, k.k->p.snapshot) ||
 	    snapshot_list_has_id(equiv_seen, equiv)) {
 		return bch2_btree_delete_at(trans, iter,
-					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+					    BTREE_UPDATE_internal_snapshot_node);
 	} else {
 		return snapshot_list_add(c, equiv_seen, equiv);
 	}
@@ -1404,15 +1405,15 @@ static int move_key_to_correct_snapshot(struct btree_trans *trans,
 		new->k.p.snapshot = equiv;
 
 		bch2_trans_iter_init(trans, &new_iter, iter->btree_id, new->k.p,
-				     BTREE_ITER_ALL_SNAPSHOTS|
-				     BTREE_ITER_CACHED|
-				     BTREE_ITER_INTENT);
+				     BTREE_ITER_all_snapshots|
+				     BTREE_ITER_cached|
+				     BTREE_ITER_intent);
 
 		ret =   bch2_btree_iter_traverse(&new_iter) ?:
 			bch2_trans_update(trans, &new_iter, new,
-					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+					BTREE_UPDATE_internal_snapshot_node) ?:
 			bch2_btree_delete_at(trans, iter,
-					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+					BTREE_UPDATE_internal_snapshot_node);
 		bch2_trans_iter_exit(trans, &new_iter);
 		if (ret)
 			return ret;
@@ -1603,12 +1604,12 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 
 		ret = for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
-				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
 			snapshot_delete_key(trans, &iter, k, &deleted, &equiv_seen, &last_pos)) ?:
 		      for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
-				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
 			move_key_to_correct_snapshot(trans, &iter, k));
 
@@ -1643,7 +1644,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	 * nodes some depth fields will be off:
 	 */
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_snapshots, POS_MIN,
-				  BTREE_ITER_INTENT, k,
+				  BTREE_ITER_intent, k,
 				  NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		bch2_fix_child_of_deleted_snapshot(trans, &iter, k, &deleted_interior));
 	if (ret)
@@ -1699,8 +1700,8 @@ int __bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, id, pos,
-			     BTREE_ITER_NOT_EXTENTS|
-			     BTREE_ITER_ALL_SNAPSHOTS);
+			     BTREE_ITER_not_extents|
+			     BTREE_ITER_all_snapshots);
 	while (1) {
 		k = bch2_btree_iter_prev(&iter);
 		ret = bkey_err(k);
@@ -1752,7 +1753,7 @@ static int bch2_propagate_key_to_snapshot_leaf(struct btree_trans *trans,
 
 	pos.snapshot = leaf_id;
 
-	bch2_trans_iter_init(trans, &iter, btree, pos, BTREE_ITER_INTENT);
+	bch2_trans_iter_init(trans, &iter, btree, pos, BTREE_ITER_intent);
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)

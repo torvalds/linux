@@ -198,7 +198,7 @@ int bch2_fpunch(struct bch_fs *c, subvol_inum inum, u64 start, u64 end,
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     POS(inum.inum, start),
-			     BTREE_ITER_INTENT);
+			     BTREE_ITER_intent);
 
 	ret = bch2_fpunch_at(trans, &iter, inum, end, i_sectors_delta);
 
@@ -230,7 +230,7 @@ static int truncate_set_isize(struct btree_trans *trans,
 	struct bch_inode_unpacked inode_u;
 	int ret;
 
-	ret   = bch2_inode_peek(trans, &iter, &inode_u, inum, BTREE_ITER_INTENT) ?:
+	ret   = bch2_inode_peek(trans, &iter, &inode_u, inum, BTREE_ITER_intent) ?:
 		(inode_u.bi_size = new_i_size, 0) ?:
 		bch2_inode_write(trans, &iter, &inode_u);
 
@@ -256,7 +256,7 @@ static int __bch2_resume_logged_op_truncate(struct btree_trans *trans,
 
 	bch2_trans_iter_init(trans, &fpunch_iter, BTREE_ID_extents,
 			     POS(inum.inum, round_up(new_i_size, block_bytes(c)) >> 9),
-			     BTREE_ITER_INTENT);
+			     BTREE_ITER_intent);
 	ret = bch2_fpunch_at(trans, &fpunch_iter, inum, U64_MAX, i_sectors_delta);
 	bch2_trans_iter_exit(trans, &fpunch_iter);
 
@@ -317,7 +317,7 @@ static int adjust_i_size(struct btree_trans *trans, subvol_inum inum, u64 offset
 	offset	<<= 9;
 	len	<<= 9;
 
-	ret = bch2_inode_peek(trans, &iter, &inode_u, inum, BTREE_ITER_INTENT);
+	ret = bch2_inode_peek(trans, &iter, &inode_u, inum, BTREE_ITER_intent);
 	if (ret)
 		return ret;
 
@@ -365,7 +365,7 @@ static int __bch2_resume_logged_op_finsert(struct btree_trans *trans,
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     POS(inum.inum, 0),
-			     BTREE_ITER_INTENT);
+			     BTREE_ITER_intent);
 
 	switch (op->v.state) {
 case LOGGED_OP_FINSERT_start:

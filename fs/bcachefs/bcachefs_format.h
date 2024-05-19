@@ -76,6 +76,7 @@
 #include <asm/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/uuid.h>
+#include <uapi/linux/magic.h>
 #include "vstructs.h"
 
 #ifdef __KERNEL__
@@ -589,6 +590,13 @@ struct bch_member {
 	__le64			errors_reset_time;
 	__le64			seq;
 	__le64			btree_allocated_bitmap;
+	/*
+	 * On recovery from a clean shutdown we don't normally read the journal,
+	 * but we still want to resume writing from where we left off so we
+	 * don't overwrite more than is necessary, for list journal debugging:
+	 */
+	__le32			last_journal_bucket;
+	__le32			last_journal_bucket_offset;
 };
 
 /*
@@ -1283,7 +1291,7 @@ enum bch_compression_opts {
 	UUID_INIT(0xc68573f6, 0x66ce, 0x90a9,				\
 		  0xd9, 0x6a, 0x60, 0xcf, 0x80, 0x3d, 0xf7, 0xef)
 
-#define BCACHEFS_STATFS_MAGIC		0xca451a4e
+#define BCACHEFS_STATFS_MAGIC		BCACHEFS_SUPER_MAGIC
 
 #define JSET_MAGIC		__cpu_to_le64(0x245235c1a3625032ULL)
 #define BSET_MAGIC		__cpu_to_le64(0x90135c78b99e07f5ULL)
