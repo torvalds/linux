@@ -35,6 +35,9 @@
 
 void bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
 {
+	if (btree >= BTREE_ID_NR_MAX)
+		return;
+
 	u64 b = BIT_ULL(btree);
 
 	if (!(c->sb.btrees_lost_data & b)) {
