@@ -179,7 +179,7 @@ DEFINE_PER_CPU(unsigned long, hw_pressure);
 void topology_update_hw_pressure(const struct cpumask *cpus,
 				      unsigned long capped_freq)
 {
-	unsigned long max_capacity, capacity, hw_pressure;
+	unsigned long max_capacity, capacity, pressure;
 	u32 max_freq;
 	int cpu;
 
@@ -196,12 +196,12 @@ void topology_update_hw_pressure(const struct cpumask *cpus,
 	else
 		capacity = mult_frac(max_capacity, capped_freq, max_freq);
 
-	hw_pressure = max_capacity - capacity;
+	pressure = max_capacity - capacity;
 
-	trace_hw_pressure_update(cpu, hw_pressure);
+	trace_hw_pressure_update(cpu, pressure);
 
 	for_each_cpu(cpu, cpus)
-		WRITE_ONCE(per_cpu(hw_pressure, cpu), hw_pressure);
+		WRITE_ONCE(per_cpu(hw_pressure, cpu), pressure);
 }
 EXPORT_SYMBOL_GPL(topology_update_hw_pressure);
 
