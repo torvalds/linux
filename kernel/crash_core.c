@@ -4,6 +4,8 @@
  * Copyright (C) 2002-2004 Eric Biederman  <ebiederm@xmission.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/buildid.h>
 #include <linux/init.h>
 #include <linux/utsname.h>
