@@ -648,26 +648,26 @@ err:
 
 static int bch2_alloc_ciphers(struct bch_fs *c)
 {
-	int ret;
+	if (c->chacha20)
+		return 0;
 
-	if (!c->chacha20)
-		c->chacha20 = crypto_alloc_sync_skcipher("chacha20", 0, 0);
-	ret = PTR_ERR_OR_ZERO(c->chacha20);
-
+	struct crypto_sync_skcipher *chacha20 = crypto_alloc_sync_skcipher("chacha20", 0, 0);
+	int ret = PTR_ERR_OR_ZERO(chacha20);
 	if (ret) {
 		bch_err(c, "error requesting chacha20 module: %s", bch2_err_str(ret));
 		return ret;
 	}
 
-	if (!c->poly1305)
-		c->poly1305 = crypto_alloc_shash("poly1305", 0, 0);
-	ret = PTR_ERR_OR_ZERO(c->poly1305);
-
+	struct crypto_shash *poly1305 = crypto_alloc_shash("poly1305", 0, 0);
+	ret = PTR_ERR_OR_ZERO(poly1305);
 	if (ret) {
 		bch_err(c, "error requesting poly1305 module: %s", bch2_err_str(ret));
+		crypto_free_sync_skcipher(chacha20);
 		return ret;
 	}
 
+	c->chacha20	= chacha20;
+	c->poly1305	= poly1305;
 	return 0;
 }
 
@@ -762,11 +762,11 @@ err:
 
 void bch2_fs_encryption_exit(struct bch_fs *c)
 {
-	if (!IS_ERR_OR_NULL(c->poly1305))
+	if (c->poly1305)
 		crypto_free_shash(c->poly1305);
-	if (!IS_ERR_OR_NULL(c->chacha20))
+	if (c->chacha20)
 		crypto_free_sync_skcipher(c->chacha20);
-	if (!IS_ERR_OR_NULL(c->sha256))
+	if (c->sha256)
 		crypto_free_shash(c->sha256);
 }
 
@@ -779,6 +779,7 @@ int bch2_fs_encryption_init(struct bch_fs *c)
 	c->sha256 = crypto_alloc_shash("sha256", 0, 0);
 	ret = PTR_ERR_OR_ZERO(c->sha256);
 	if (ret) {
+		c->sha256 = NULL;
 		bch_err(c, "error requesting sha256 module: %s", bch2_err_str(ret));
 		goto out;
 	}
