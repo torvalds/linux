@@ -14,7 +14,6 @@
 struct rockchip_mmc_clock {
 	struct clk_hw	hw;
 	void __iomem	*reg;
-	int		id;
 	int		shift;
 	int		cached_phase;
 	struct notifier_block clk_rate_change_nb;

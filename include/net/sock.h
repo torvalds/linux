@@ -1194,6 +1194,13 @@ static inline void sk_prot_clear_nulls(struct sock *sk, int size)
 	       size - offsetof(struct sock, sk_node.pprev));
 }
 
+struct proto_accept_arg {
+	int flags;
+	int err;
+	int is_empty;
+	bool kern;
+};
+
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
  */
@@ -1208,8 +1215,8 @@ struct proto {
 					int addr_len);
 	int			(*disconnect)(struct sock *sk, int flags);
 
-	struct sock *		(*accept)(struct sock *sk, int flags, int *err,
-					  bool kern);
+	struct sock *		(*accept)(struct sock *sk,
+					  struct proto_accept_arg *arg);
 
 	int			(*ioctl)(struct sock *sk, int cmd,
 					 int *karg);
@@ -1804,7 +1811,7 @@ int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
 int sock_no_bind(struct socket *, struct sockaddr *, int);
 int sock_no_connect(struct socket *, struct sockaddr *, int, int);
 int sock_no_socketpair(struct socket *, struct socket *);
-int sock_no_accept(struct socket *, struct socket *, int, bool);
+int sock_no_accept(struct socket *, struct socket *, struct proto_accept_arg *);
 int sock_no_getname(struct socket *, struct sockaddr *, int);
 int sock_no_ioctl(struct socket *, unsigned int, unsigned long);
 int sock_no_listen(struct socket *, int);

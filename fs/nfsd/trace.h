@@ -749,6 +749,76 @@ TRACE_EVENT_CONDITION(nfsd_seq4_status,
 	)
 );
 
+DECLARE_EVENT_CLASS(nfsd_cs_slot_class,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct nfsd4_create_session *cs
+	),
+	TP_ARGS(clp, cs),
+	TP_STRUCT__entry(
+		__field(u32, seqid)
+		__field(u32, slot_seqid)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_fast_assign(
+		const struct nfsd4_clid_slot *slot = &clp->cl_cs_slot;
+
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen);
+		__entry->seqid = cs->seqid;
+		__entry->slot_seqid = slot->sl_seqid;
+	),
+	TP_printk("addr=%pISpc client %08x:%08x seqid=%u slot_seqid=%u",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->seqid, __entry->slot_seqid
+	)
+);
+
+#define DEFINE_CS_SLOT_EVENT(name) \
+DEFINE_EVENT(nfsd_cs_slot_class, nfsd_##name, \
+	TP_PROTO( \
+		const struct nfs4_client *clp, \
+		const struct nfsd4_create_session *cs \
+	), \
+	TP_ARGS(clp, cs))
+
+DEFINE_CS_SLOT_EVENT(slot_seqid_conf);
+DEFINE_CS_SLOT_EVENT(slot_seqid_unconf);
+
+TRACE_EVENT(nfsd_slot_seqid_sequence,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct nfsd4_sequence *seq,
+		const struct nfsd4_slot *slot
+	),
+	TP_ARGS(clp, seq, slot),
+	TP_STRUCT__entry(
+		__field(u32, seqid)
+		__field(u32, slot_seqid)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
+		__field(bool, in_use)
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen);
+		__entry->seqid = seq->seqid;
+		__entry->slot_seqid = slot->sl_seqid;
+	),
+	TP_printk("addr=%pISpc client %08x:%08x seqid=%u slot_seqid=%u (%sin use)",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->seqid, __entry->slot_seqid,
+		__entry->in_use ? "" : "not "
+	)
+);
+
 DECLARE_EVENT_CLASS(nfsd_clientid_class,
 	TP_PROTO(const clientid_t *clid),
 	TP_ARGS(clid),
@@ -777,6 +847,30 @@ DEFINE_CLIENTID_EVENT(replaced);
 DEFINE_CLIENTID_EVENT(purged);
 DEFINE_CLIENTID_EVENT(renew);
 DEFINE_CLIENTID_EVENT(stale);
+
+TRACE_EVENT(nfsd_mark_client_expired,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		int cl_rpc_users
+	),
+	TP_ARGS(clp, cl_rpc_users),
+	TP_STRUCT__entry(
+		__field(int, cl_rpc_users)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_fast_assign(
+		__entry->cl_rpc_users = cl_rpc_users;
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_printk("addr=%pISpc client %08x:%08x cl_rpc_users=%d",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->cl_rpc_users)
+);
 
 DECLARE_EVENT_CLASS(nfsd_net_class,
 	TP_PROTO(const struct nfsd_net *nn),
@@ -1534,7 +1628,7 @@ TRACE_EVENT(nfsd_cb_seq_status,
 		__entry->seq_status = cb->cb_seq_status;
 	),
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		" sessionid=%08x:%08x:%08x:%08x tk_status=%d seq_status=%d\n",
+		" sessionid=%08x:%08x:%08x:%08x tk_status=%d seq_status=%d",
 		__entry->task_id, __entry->client_id,
 		__entry->cl_boot, __entry->cl_id,
 		__entry->seqno, __entry->reserved,
@@ -1573,7 +1667,7 @@ TRACE_EVENT(nfsd_cb_free_slot,
 		__entry->slot_seqno = session->se_cb_seq_nr;
 	),
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		" sessionid=%08x:%08x:%08x:%08x new slot seqno=%u\n",
+		" sessionid=%08x:%08x:%08x:%08x new slot seqno=%u",
 		__entry->task_id, __entry->client_id,
 		__entry->cl_boot, __entry->cl_id,
 		__entry->seqno, __entry->reserved,
@@ -1978,7 +2072,7 @@ TRACE_EVENT(nfsd_ctl_time,
 		__entry->time = time;
 		__assign_str(name, name);
 	),
-	TP_printk("file=%s time=%d\n",
+	TP_printk("file=%s time=%d",
 		__get_str(name), __entry->time
 	)
 );
