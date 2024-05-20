@@ -1666,10 +1666,6 @@ static int spi_imx_setup(struct spi_device *spi)
 	return 0;
 }
 
-static void spi_imx_cleanup(struct spi_device *spi)
-{
-}
-
 static int
 spi_imx_prepare_message(struct spi_controller *controller, struct spi_message *msg)
 {
@@ -1766,7 +1762,6 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	controller->transfer_one = spi_imx_transfer_one;
 	controller->setup = spi_imx_setup;
-	controller->cleanup = spi_imx_cleanup;
 	controller->prepare_message = spi_imx_prepare_message;
 	controller->unprepare_message = spi_imx_unprepare_message;
 	controller->target_abort = spi_imx_target_abort;
