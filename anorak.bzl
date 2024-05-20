@@ -108,6 +108,8 @@ def define_anorak():
         "drivers/soc/qcom/rq_stats.ko",
         "drivers/soc/qcom/secure_buffer.ko",
         "drivers/soc/qcom/smem.ko",
+        "drivers/soc/qcom/smp2p.ko",
+        "drivers/soc/qcom/smp2p_sleepstate.ko",
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/sysmon_subsystem_stats.ko",
         "drivers/spi/spi-msm-geni.ko",
