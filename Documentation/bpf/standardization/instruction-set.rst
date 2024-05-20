@@ -393,6 +393,19 @@ The ``MOVSX`` instruction does a move operation with sign extension.
 operands into 64-bit operands.  Unlike other arithmetic instructions,
 ``MOVSX`` is only defined for register source operands (``X``).
 
+``{MOV, K, ALU64}`` means::
+
+  dst = (s64)imm
+
+``{MOV, X, ALU}`` means::
+
+  dst = (u32)src
+
+``{MOVSX, X, ALU}`` with 'offset' 8 means::
+
+  dst = (u32)(s32)(s8)src
+
+
 The ``NEG`` instruction is only defined when the source bit is clear
 (``K``).
 
@@ -490,6 +503,10 @@ Example:
   if (s32)dst s>= (s32)src goto +offset
 
 where 's>=' indicates a signed '>=' comparison.
+
+``{JLE, K, JMP}`` means::
+
+  if dst <= (u64)(s64)imm goto +offset
 
 ``{JA, K, JMP32}`` means::
 
