@@ -7902,10 +7902,10 @@ perform a bulk copy of tags to/from the guest.
 7.29 KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM
 -------------------------------------
 
-Architectures: x86 SEV enabled
-Type: vm
-Parameters: args[0] is the fd of the source vm
-Returns: 0 on success
+:Architectures: x86 SEV enabled
+:Type: vm
+:Parameters: args[0] is the fd of the source vm
+:Returns: 0 on success
 
 This capability enables userspace to migrate the encryption context from the VM
 indicated by the fd to the VM this is called on.
