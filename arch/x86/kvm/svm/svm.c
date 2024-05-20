@@ -703,7 +703,7 @@ static int svm_cpu_init(int cpu)
 	int ret = -ENOMEM;
 
 	memset(sd, 0, sizeof(struct svm_cpu_data));
-	sd->save_area = snp_safe_alloc_page();
+	sd->save_area = __snp_safe_alloc_page(GFP_KERNEL);
 	if (!sd->save_area)
 		return ret;
 

@@ -694,7 +694,13 @@ void sev_guest_memory_reclaimed(struct kvm *kvm);
 int sev_handle_vmgexit(struct kvm_vcpu *vcpu);
 
 /* These symbols are used in common code and are stubbed below.  */
-struct page *snp_safe_alloc_page(void);
+struct page *__snp_safe_alloc_page(gfp_t gfp);
+
+static inline struct page *snp_safe_alloc_page(void)
+{
+	return __snp_safe_alloc_page(GFP_KERNEL_ACCOUNT);
+}
+
 void sev_free_vcpu(struct kvm_vcpu *vcpu);
 void sev_vm_destroy(struct kvm *kvm);
 void __init sev_set_cpu_caps(void);
@@ -704,9 +710,14 @@ int sev_cpu_init(struct svm_cpu_data *sd);
 int sev_dev_get_attr(u32 group, u64 attr, u64 *val);
 extern unsigned int max_sev_asid;
 #else
+static inline struct page *__snp_safe_alloc_page(gfp_t gfp)
+{
+	return alloc_page(gfp | __GFP_ZERO);
+}
+
 static inline struct page *snp_safe_alloc_page(void)
 {
-	return alloc_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	return __snp_safe_alloc_page(GFP_KERNEL_ACCOUNT);
 }
 
 static inline void sev_free_vcpu(struct kvm_vcpu *vcpu) {}
