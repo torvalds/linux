@@ -3,9 +3,11 @@
  * Copyright © 2021-2023 Intel Corporation
  */
 
-#include <linux/minmax.h>
-
 #include "xe_mmio.h"
+
+#include <linux/delay.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/minmax.h>
 
 #include <drm/drm_managed.h>
 #include <drm/xe_drm.h>
@@ -19,6 +21,7 @@
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_printk.h"
 #include "xe_macros.h"
 #include "xe_module.h"
 #include "xe_sriov.h"
