@@ -2468,6 +2468,8 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable);
 
 bool dc_set_replay_allow_active(struct dc *dc, bool active);
 
+bool dc_set_ips_disable(struct dc *dc, unsigned int disable_ips);
+
 void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);
 

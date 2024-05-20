@@ -5332,6 +5332,16 @@ bool dc_set_replay_allow_active(struct dc *dc, bool active)
 	return true;
 }
 
+/* set IPS disable state */
+bool dc_set_ips_disable(struct dc *dc, unsigned int disable_ips)
+{
+	dc_exit_ips_for_hw_access(dc);
+
+	dc->config.disable_ips = disable_ips;
+
+	return true;
+}
+
 void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const *caller_name)
 {
 	if (dc->debug.disable_idle_power_optimizations)
