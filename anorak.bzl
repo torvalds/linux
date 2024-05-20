@@ -30,6 +30,8 @@ def define_anorak():
         "drivers/edac/qcom_edac.ko",
         "drivers/firmware/arm_scmi/qcom_scmi_vendor.ko",
         "drivers/firmware/qcom-scm.ko",
+        "drivers/gpu/drm/display/drm_display_helper.ko",
+        "drivers/gpu/drm/display/drm_dp_aux_bus.ko",
         "drivers/hwspinlock/qcom_hwspinlock.ko",
         "drivers/hwtracing/stm/stm_console.ko",
         "drivers/hwtracing/stm/stm_core.ko",
