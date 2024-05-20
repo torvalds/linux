@@ -1617,10 +1617,8 @@ static noinline void submit_compressed_extents(struct btrfs_work *work, bool do_
 	u64 alloc_hint = 0;
 
 	if (do_free) {
-		struct async_chunk *async_chunk;
 		struct async_cow *async_cow;
 
-		async_chunk = container_of(work, struct async_chunk, work);
 		btrfs_add_delayed_iput(async_chunk->inode);
 		if (async_chunk->blkcg_css)
 			css_put(async_chunk->blkcg_css);

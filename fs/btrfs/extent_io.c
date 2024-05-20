@@ -3507,7 +3507,6 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 
 	for (int i = 0; i < num_folios; i++) {
 		struct folio *folio = new->folios[i];
-		int ret;
 
 		ret = attach_extent_buffer_folio(new, folio, NULL);
 		if (ret < 0) {
@@ -4589,8 +4588,7 @@ static void assert_eb_folio_uptodate(const struct extent_buffer *eb, int i)
 		return;
 
 	if (fs_info->nodesize < PAGE_SIZE) {
-		struct folio *folio = eb->folios[0];
-
+		folio = eb->folios[0];
 		ASSERT(i == 0);
 		if (WARN_ON(!btrfs_subpage_test_uptodate(fs_info, folio,
 							 eb->start, eb->len)))
