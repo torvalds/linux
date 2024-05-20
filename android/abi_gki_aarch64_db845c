@@ -848,6 +848,7 @@
   vunmap
   vzalloc
   wait_for_completion_interruptible
+  wait_for_completion_interruptible_timeout
   wait_for_completion_timeout
   __wake_up
   wake_up_process
