@@ -50,19 +50,16 @@ int ath12k_core_suspend(struct ath12k_base *ab)
 	if (!ab->hw_params->supports_suspend)
 		return -EOPNOTSUPP;
 
-	rcu_read_lock();
 	for (i = 0; i < ab->num_radios; i++) {
-		ar = ath12k_mac_get_ar_by_pdev_id(ab, i);
+		ar = ab->pdevs[i].ar;
 		if (!ar)
 			continue;
 		ret = ath12k_mac_wait_tx_complete(ar);
 		if (ret) {
 			ath12k_warn(ab, "failed to wait tx complete: %d\n", ret);
-			rcu_read_unlock();
 			return ret;
 		}
 	}
-	rcu_read_unlock();
 
 	/* PM framework skips suspend_late/resume_early callbacks
 	 * if other devices report errors in their suspend callbacks.
