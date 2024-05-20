@@ -902,9 +902,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 4>,
-			       <&edma0 1 3>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 3>,
+			       <&edma0 1 4>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -923,9 +923,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 6>,
-			       <&edma0 1 5>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 5>,
+			       <&edma0 1 6>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -944,9 +944,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 8>,
-			       <&edma0 1 7>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 7>,
+			       <&edma0 1 8>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -965,9 +965,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 10>,
-			       <&edma0 1 9>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 9>,
+			       <&edma0 1 10>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -986,9 +986,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 12>,
-			       <&edma0 1 11>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 11>,
+			       <&edma0 1 12>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
@@ -1007,9 +1007,9 @@
 				 <&clockgen QORIQ_CLK_PLATFORM_PLL
 					    QORIQ_CLK_PLL_DIV(2)>;
 			clock-names = "bus", "mclk1", "mclk2", "mclk3";
-			dma-names = "tx", "rx";
-			dmas = <&edma0 1 14>,
-			       <&edma0 1 13>;
+			dma-names = "rx", "tx";
+			dmas = <&edma0 1 13>,
+			       <&edma0 1 14>;
 			fsl,sai-asynchronous;
 			status = "disabled";
 		};
