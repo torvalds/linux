@@ -282,7 +282,7 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 		if (IS_ERR(file)) {
 			put_unused_fd(ufd);
 			kfree(ctx);
-			return ufd;
+			return PTR_ERR(file);
 		}
 		file->f_mode |= FMODE_NOWAIT;
 
