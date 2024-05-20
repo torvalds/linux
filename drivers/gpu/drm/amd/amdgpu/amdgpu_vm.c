@@ -3008,7 +3008,7 @@ void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
  * amdgpu_vm_is_bo_always_valid - check if the BO is VM always valid
  *
  * @vm: VM to test against.
- * @abo: BO to be tested.
+ * @bo: BO to be tested.
  *
  * Returns true if the BO shares the dma_resv object with the root PD and is
  * always guaranteed to be valid inside the VM.
