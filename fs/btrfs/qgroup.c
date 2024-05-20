@@ -1341,12 +1341,14 @@ static int flush_reservations(struct btrfs_fs_info *fs_info)
 	if (ret)
 		return ret;
 	btrfs_wait_ordered_roots(fs_info, U64_MAX, NULL);
-	trans = btrfs_join_transaction(fs_info->tree_root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
-	ret = btrfs_commit_transaction(trans);
 
-	return ret;
+	trans = btrfs_attach_transaction_barrier(fs_info->tree_root);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		return (ret == -ENOENT) ? 0 : ret;
+	}
+
+	return btrfs_commit_transaction(trans);
 }
 
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
