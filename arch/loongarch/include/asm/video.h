@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
-#ifndef _ASM_FB_H_
-#define _ASM_FB_H_
+#ifndef _ASM_VIDEO_H_
+#define _ASM_VIDEO_H_
 
 #include <linux/compiler.h>
 #include <linux/string.h>
@@ -26,6 +26,6 @@ static inline void fb_memset_io(volatile void __iomem *addr, int c, size_t n)
 }
 #define fb_memset fb_memset_io
 
-#include <asm-generic/fb.h>
+#include <asm-generic/video.h>
 
-#endif /* _ASM_FB_H_ */
+#endif /* _ASM_VIDEO_H_ */

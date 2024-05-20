@@ -1,5 +1,5 @@
-#ifndef _ASM_FB_H_
-#define _ASM_FB_H_
+#ifndef _ASM_VIDEO_H_
+#define _ASM_VIDEO_H_
 
 #include <asm/page.h>
 
@@ -13,8 +13,8 @@ static inline pgprot_t pgprot_framebuffer(pgprot_t prot,
 
 /*
  * MIPS doesn't define __raw_ I/O macros, so the helpers
- * in <asm-generic/fb.h> don't generate fb_readq() and
- * fb_write(). We have to provide them here.
+ * in <asm-generic/video.h> don't generate fb_readq() and
+ * fb_writeq(). We have to provide them here.
  *
  * TODO: Convert MIPS to generic I/O. The helpers below can
  *       then be removed.
@@ -33,6 +33,6 @@ static inline void fb_writeq(u64 b, volatile void __iomem *addr)
 #define fb_writeq fb_writeq
 #endif
 
-#include <asm-generic/fb.h>
+#include <asm-generic/video.h>
 
-#endif /* _ASM_FB_H_ */
+#endif /* _ASM_VIDEO_H_ */
