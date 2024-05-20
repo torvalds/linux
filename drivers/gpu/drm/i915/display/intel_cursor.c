@@ -508,7 +508,7 @@ static void i9xx_cursor_disable_sel_fetch_arm(struct intel_plane *plane,
 	if (!crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id), 0);
+	intel_de_write_fw(dev_priv, SEL_FETCH_CUR_CTL(pipe), 0);
 }
 
 static void wa_16021440873(struct intel_plane *plane,
@@ -523,7 +523,7 @@ static void wa_16021440873(struct intel_plane *plane,
 	ctl &= ~MCURSOR_MODE_MASK;
 	ctl |= MCURSOR_MODE_64_2B;
 
-	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id), ctl);
+	intel_de_write_fw(dev_priv, SEL_FETCH_CUR_CTL(pipe), ctl);
 
 	intel_de_write(dev_priv, PIPE_SRCSZ_ERLY_TPT(dev_priv, pipe),
 		       PIPESRC_HEIGHT(et_y_position));
@@ -548,7 +548,7 @@ static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
 					  val);
 		}
 
-		intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id),
+		intel_de_write_fw(dev_priv, SEL_FETCH_CUR_CTL(pipe),
 				  plane_state->ctl);
 	} else {
 		/* Wa_16021440873 */

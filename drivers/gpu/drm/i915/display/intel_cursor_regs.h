@@ -95,4 +95,9 @@
 #define _CUR_BUF_CFG_B		0x7117c
 #define CUR_BUF_CFG(pipe)	_MMIO_PIPE((pipe), _CUR_BUF_CFG_A, _CUR_BUF_CFG_B)
 
+/* tgl+ */
+#define _SEL_FETCH_CUR_CTL_A	0x70880
+#define _SEL_FETCH_CUR_CTL_B	0x71880
+#define SEL_FETCH_CUR_CTL(pipe)	_MMIO_PIPE((pipe), _SEL_FETCH_CUR_CTL_A, _SEL_FETCH_CUR_CTL_B)
+
 #endif /* __INTEL_CURSOR_REGS_H__ */
