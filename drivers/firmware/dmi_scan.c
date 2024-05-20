@@ -42,6 +42,7 @@ static struct dmi_memdev_info {
 	u8 type;		/* DDR2, DDR3, DDR4 etc */
 } *dmi_memdev;
 static int dmi_memdev_nr;
+static int dmi_memdev_populated_nr __initdata;
 
 static const char * __init dmi_string_nosave(const struct dmi_header *dm, u8 s)
 {
@@ -100,6 +101,17 @@ static void dmi_decode_table(u8 *buf,
 	while ((!dmi_num || i < dmi_num) &&
 	       (data - buf + sizeof(struct dmi_header)) <= dmi_len) {
 		const struct dmi_header *dm = (const struct dmi_header *)data;
+
+		/*
+		 * If a short entry is found (less than 4 bytes), not only it
+		 * is invalid, but we cannot reliably locate the next entry.
+		 */
+		if (dm->length < sizeof(struct dmi_header)) {
+			pr_warn(FW_BUG
+				"Corrupted DMI table, offset %zd (only %d entries processed)\n",
+				data - buf, i);
+			break;
+		}
 
 		/*
 		 *  We want to know the total length (formatted area and
@@ -447,6 +459,9 @@ static void __init save_mem_devices(const struct dmi_header *dm, void *v)
 		bytes = (u64)size << 20;
 	else
 		bytes = (u64)get_unaligned((u32 *)&d[0x1C]) << 20;
+
+	if (bytes)
+		dmi_memdev_populated_nr++;
 
 	dmi_memdev[nr].size = bytes;
 	nr++;
@@ -824,6 +839,8 @@ void __init dmi_setup(void)
 		return;
 
 	dmi_memdev_walk();
+	pr_info("DMI: Memory slots populated: %d/%d\n",
+		dmi_memdev_populated_nr, dmi_memdev_nr);
 	dump_stack_set_arch_desc("%s", dmi_ids_string);
 }
 
