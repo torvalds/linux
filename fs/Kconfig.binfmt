@@ -176,4 +176,12 @@ config COREDUMP
 	  certainly want to say Y here. Not necessary on systems that never
 	  need debugging or only ever run flawless code.
 
+config EXEC_KUNIT_TEST
+	bool "Build execve tests" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the exec KUnit tests, which tests boundary conditions
+	  of various aspects of the exec internals.
+
 endmenu

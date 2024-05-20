@@ -486,6 +486,15 @@ static int count_strings_kernel(const char *const *argv)
 	return i;
 }
 
+/*
+ * Calculate bprm->argmin from:
+ * - _STK_LIM
+ * - ARG_MAX
+ * - bprm->rlim_stack.rlim_cur
+ * - bprm->argc
+ * - bprm->envc
+ * - bprm->p
+ */
 static int bprm_stack_limits(struct linux_binprm *bprm)
 {
 	unsigned long limit, ptr_size;
@@ -2211,3 +2220,7 @@ static int __init init_fs_exec_sysctls(void)
 
 fs_initcall(init_fs_exec_sysctls);
 #endif /* CONFIG_SYSCTL */
+
+#ifdef CONFIG_EXEC_KUNIT_TEST
+#include "exec_test.c"
+#endif
