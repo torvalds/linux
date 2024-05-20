@@ -1976,7 +1976,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 	/* We need to enable stream encoder for TMDS first to apply 1/4 TMDS
 	 * character clock in case that beyond 340MHz.
 	 */
-	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) || dc_is_dvi_signal(pipe_ctx->stream->signal))
 		link_hwss->setup_stream_encoder(pipe_ctx);
 
 	dc->hwss.enable_tmds_link_output(
