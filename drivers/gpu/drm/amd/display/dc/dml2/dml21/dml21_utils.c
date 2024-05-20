@@ -85,8 +85,8 @@ void find_pipe_regs_idx(const struct dml2_context *dml_ctx,
 int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 		struct dc_state *context,
 		struct dml2_context *dml_ctx,
-		struct pipe_ctx **dc_main_pipes,
-		struct pipe_ctx **dc_phantom_pipes,
+		struct pipe_ctx *dc_main_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__],
+		struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__],
 		int dml_plane_idx)
 {
 	unsigned int dml_stream_index;
@@ -99,6 +99,9 @@ int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 	struct dc_stream_status *dc_phantom_stream_status;
 	struct dc_plane_state *dc_phantom_plane;
 	int num_pipes = 0;
+
+	memset(dc_main_pipes, 0, sizeof(struct pipe_ctx *) * __DML2_WRAPPER_MAX_STREAMS_PLANES__);
+	memset(dc_phantom_pipes, 0, sizeof(struct pipe_ctx *) * __DML2_WRAPPER_MAX_STREAMS_PLANES__);
 
 	dml_stream_index = dml_ctx->v21.mode_programming.programming->plane_programming[dml_plane_idx].plane_descriptor->stream_index;
 	main_stream_id = dml_ctx->v21.dml_to_dc_pipe_mapping.dml_pipe_idx_to_stream_id[dml_stream_index];

@@ -1361,7 +1361,7 @@ static bool validate_pstate_support_strategy_cofunctionality(struct dml2_pmo_ins
 			break;
 		}
 
-		strategy_matches_drr_requirements =
+		strategy_matches_drr_requirements &=
 				stream_matches_drr_policy(pmo, display_cfg, per_stream_pstate_strategy[stream_index], stream_index);
 
 		if (per_stream_pstate_strategy[stream_index] == dml2_pmo_pstate_strategy_fw_svp ||

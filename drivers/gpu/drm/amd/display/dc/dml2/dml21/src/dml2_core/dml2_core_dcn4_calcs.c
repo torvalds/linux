@@ -4501,24 +4501,6 @@ static void CalculateSurfaceSizeInMall(
 						math_floor2((double)composition->viewport.plane1.y_start + composition->viewport.plane1.height + ReadBlockHeightC[k] - 1, ReadBlockHeightC[k]) -
 						math_floor2(composition->viewport.plane1.y_start, ReadBlockHeightC[k])) * BytesPerPixelC[k]);
 			}
-			if (surface->dcc.enable) {
-				SurfaceSizeInMALL[k] = (unsigned int)(SurfaceSizeInMALL[k] +
-					math_min2(math_ceil2(surface->plane0.width, 8 * Read256BytesBlockWidthY[k]),
-						math_floor2(composition->viewport.plane0.x_start + composition->viewport.plane0.width + 8 * Read256BytesBlockWidthY[k] - 1, 8 * Read256BytesBlockWidthY[k]) -
-						math_floor2(composition->viewport.plane0.x_start, 8 * Read256BytesBlockWidthY[k])) *
-					math_min2(math_ceil2(surface->plane0.height, 8 * Read256BytesBlockHeightY[k]),
-						math_floor2(composition->viewport.plane0.y_start + composition->viewport.plane0.height + 8 * Read256BytesBlockHeightY[k] - 1, 8 * Read256BytesBlockHeightY[k]) -
-						math_floor2(composition->viewport.plane0.y_start, 8 * Read256BytesBlockHeightY[k])) * BytesPerPixelY[k] / 256) + (64 * 1024);
-				if (Read256BytesBlockWidthC[k] > 0) {
-					SurfaceSizeInMALL[k] = (unsigned int)(SurfaceSizeInMALL[k] +
-						math_min2(math_ceil2(surface->plane1.width, 8 * Read256BytesBlockWidthC[k]),
-							math_floor2(composition->viewport.plane1.y_start + composition->viewport.plane1.width + 8 * Read256BytesBlockWidthC[k] - 1, 8 * Read256BytesBlockWidthC[k]) -
-							math_floor2(composition->viewport.plane1.y_start, 8 * Read256BytesBlockWidthC[k])) *
-						math_min2(math_ceil2(surface->plane1.height, 8 * Read256BytesBlockHeightC[k]),
-							math_floor2(composition->viewport.plane1.y_start + composition->viewport.plane1.height + 8 * Read256BytesBlockHeightC[k] - 1, 8 * Read256BytesBlockHeightC[k]) -
-							math_floor2(composition->viewport.plane1.y_start, 8 * Read256BytesBlockHeightC[k])) * BytesPerPixelC[k] / 256);
-				}
-			}
 		} else {
 			SurfaceSizeInMALL[k] = (unsigned int)(math_ceil2(math_min2(surface->plane0.width, composition->viewport.plane0.width + ReadBlockWidthY[k] - 1), ReadBlockWidthY[k]) *
 				math_ceil2(math_min2(surface->plane0.height, composition->viewport.plane0.height + ReadBlockHeightY[k] - 1), ReadBlockHeightY[k]) * BytesPerPixelY[k]);
@@ -4526,17 +4508,6 @@ static void CalculateSurfaceSizeInMall(
 				SurfaceSizeInMALL[k] = (unsigned int)(SurfaceSizeInMALL[k] +
 					math_ceil2(math_min2(surface->plane1.width, composition->viewport.plane1.width + ReadBlockWidthC[k] - 1), ReadBlockWidthC[k]) *
 					math_ceil2(math_min2(surface->plane1.height, composition->viewport.plane1.height + ReadBlockHeightC[k] - 1), ReadBlockHeightC[k]) * BytesPerPixelC[k]);
-			}
-			if (surface->dcc.enable) {
-				SurfaceSizeInMALL[k] = (unsigned int)(SurfaceSizeInMALL[k] +
-					math_ceil2(math_min2(surface->plane0.width, composition->viewport.plane0.width + 8 * Read256BytesBlockWidthY[k] - 1), 8 * Read256BytesBlockWidthY[k]) *
-					math_ceil2(math_min2(surface->plane0.height, composition->viewport.plane0.height + 8 * Read256BytesBlockHeightY[k] - 1), 8 * Read256BytesBlockHeightY[k]) * BytesPerPixelY[k] / 256) + (64 * 1024);
-
-				if (Read256BytesBlockWidthC[k] > 0) {
-					SurfaceSizeInMALL[k] = (unsigned int)(SurfaceSizeInMALL[k] +
-						math_ceil2(math_min2(surface->plane1.width, composition->viewport.plane1.width + 8 * Read256BytesBlockWidthC[k] - 1), 8 * Read256BytesBlockWidthC[k]) *
-						math_ceil2(math_min2(surface->plane1.height, composition->viewport.plane1.height + 8 * Read256BytesBlockHeightC[k] - 1), 8 * Read256BytesBlockHeightC[k]) * BytesPerPixelC[k] / 256);
-				}
 			}
 		}
 	}
