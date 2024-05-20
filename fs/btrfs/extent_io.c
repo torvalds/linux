@@ -4606,7 +4606,7 @@ static void __write_extent_buffer(const struct extent_buffer *eb,
 	size_t cur;
 	size_t offset;
 	char *kaddr;
-	char *src = (char *)srcv;
+	const char *src = (const char *)srcv;
 	unsigned long i = get_eb_folio_index(eb, start);
 	/* For unmapped (dummy) ebs, no need to check their uptodate status. */
 	const bool check_uptodate = !test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
