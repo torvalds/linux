@@ -1182,6 +1182,19 @@ static const struct gpmi_devdata gpmi_devdata_imx7d = {
 	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx7d),
 };
 
+static const char *gpmi_clks_for_mx8qxp[GPMI_CLK_MAX] = {
+	"gpmi_io", "gpmi_apb", "gpmi_bch", "gpmi_bch_apb",
+};
+
+static const struct gpmi_devdata gpmi_devdata_imx8qxp = {
+	.type = IS_MX8QXP,
+	.bch_max_ecc_strength = 62,
+	.max_chain_delay = 12000,
+	.support_edo_timing = true,
+	.clks = gpmi_clks_for_mx8qxp,
+	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx8qxp),
+};
+
 static int acquire_register_block(struct gpmi_nand_data *this,
 				  const char *res_name)
 {
@@ -2725,6 +2738,7 @@ static const struct of_device_id gpmi_nand_id_table[] = {
 	{ .compatible = "fsl,imx6q-gpmi-nand", .data = &gpmi_devdata_imx6q, },
 	{ .compatible = "fsl,imx6sx-gpmi-nand", .data = &gpmi_devdata_imx6sx, },
 	{ .compatible = "fsl,imx7d-gpmi-nand", .data = &gpmi_devdata_imx7d,},
+	{ .compatible = "fsl,imx8qxp-gpmi-nand", .data = &gpmi_devdata_imx8qxp, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
