@@ -86,6 +86,7 @@ struct gpmi_devdata {
 	int max_chain_delay; /* See the SDR EDO mode */
 	const char * const *clks;
 	const int clks_count;
+	bool support_edo_timing;
 };
 
 /**
