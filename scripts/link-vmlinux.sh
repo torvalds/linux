@@ -193,7 +193,7 @@ kallsyms_step()
 mksysmap()
 {
 	info NM ${2}
-	${CONFIG_SHELL} "${srctree}/scripts/mksysmap" ${1} ${2}
+	${NM} -n "${1}" | "${srctree}/scripts/mksysmap" > "${2}"
 }
 
 sorttable()
