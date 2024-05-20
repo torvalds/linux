@@ -242,12 +242,12 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 
 #define subpage_calc_start_bit(fs_info, folio, name, start, len)	\
 ({									\
-	unsigned int start_bit;						\
+	unsigned int __start_bit;						\
 									\
 	btrfs_subpage_assert(fs_info, folio, start, len);		\
-	start_bit = offset_in_page(start) >> fs_info->sectorsize_bits;	\
-	start_bit += fs_info->subpage_info->name##_offset;		\
-	start_bit;							\
+	__start_bit = offset_in_page(start) >> fs_info->sectorsize_bits; \
+	__start_bit += fs_info->subpage_info->name##_offset;		\
+	__start_bit;							\
 })
 
 void btrfs_subpage_start_reader(const struct btrfs_fs_info *fs_info,

@@ -229,11 +229,11 @@ bool __cold abort_should_print_stack(int error);
  */
 #define btrfs_abort_transaction(trans, error)		\
 do {								\
-	bool first = false;					\
+	bool __first = false;					\
 	/* Report first abort since mount */			\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
 			&((trans)->fs_info->fs_state))) {	\
-		first = true;					\
+		__first = true;					\
 		if (WARN(abort_should_print_stack(error),	\
 			KERN_ERR				\
 			"BTRFS: Transaction aborted (error %d)\n",	\
@@ -246,7 +246,7 @@ do {								\
 		}						\
 	}							\
 	__btrfs_abort_transaction((trans), __func__,		\
-				  __LINE__, (error), first);	\
+				  __LINE__, (error), __first);	\
 } while (0)
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans);
