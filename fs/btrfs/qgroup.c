@@ -3222,7 +3222,6 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 			 struct btrfs_qgroup_inherit *inherit)
 {
 	int ret = 0;
-	int i;
 	u64 *i_qgroups;
 	bool committing = false;
 	struct btrfs_fs_info *fs_info = trans->fs_info;
@@ -3279,7 +3278,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 		i_qgroups = (u64 *)(inherit + 1);
 		nums = inherit->num_qgroups + 2 * inherit->num_ref_copies +
 		       2 * inherit->num_excl_copies;
-		for (i = 0; i < nums; ++i) {
+		for (int i = 0; i < nums; i++) {
 			srcgroup = find_qgroup_rb(fs_info, *i_qgroups);
 
 			/*
@@ -3306,7 +3305,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 	 */
 	if (inherit) {
 		i_qgroups = (u64 *)(inherit + 1);
-		for (i = 0; i < inherit->num_qgroups; ++i, ++i_qgroups) {
+		for (int i = 0; i < inherit->num_qgroups; i++, i_qgroups++) {
 			if (*i_qgroups == 0)
 				continue;
 			ret = add_qgroup_relation_item(trans, objectid,
@@ -3392,7 +3391,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 		goto unlock;
 
 	i_qgroups = (u64 *)(inherit + 1);
-	for (i = 0; i < inherit->num_qgroups; ++i) {
+	for (int i = 0; i < inherit->num_qgroups; i++) {
 		if (*i_qgroups) {
 			ret = add_relation_rb(fs_info, qlist_prealloc[i], objectid,
 					      *i_qgroups);
@@ -3412,7 +3411,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 		++i_qgroups;
 	}
 
-	for (i = 0; i <  inherit->num_ref_copies; ++i, i_qgroups += 2) {
+	for (int i = 0; i < inherit->num_ref_copies; i++, i_qgroups += 2) {
 		struct btrfs_qgroup *src;
 		struct btrfs_qgroup *dst;
 
@@ -3433,7 +3432,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 		/* Manually tweaking numbers certainly needs a rescan */
 		need_rescan = true;
 	}
-	for (i = 0; i <  inherit->num_excl_copies; ++i, i_qgroups += 2) {
+	for (int i = 0; i < inherit->num_excl_copies; i++, i_qgroups += 2) {
 		struct btrfs_qgroup *src;
 		struct btrfs_qgroup *dst;
 

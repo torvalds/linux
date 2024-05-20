@@ -5626,8 +5626,6 @@ static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 	u64 start = ctl->start;
 	u64 type = ctl->type;
 	int ret;
-	int i;
-	int j;
 
 	map = btrfs_alloc_chunk_map(ctl->num_stripes, GFP_NOFS);
 	if (!map)
@@ -5642,8 +5640,8 @@ static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 	map->sub_stripes = ctl->sub_stripes;
 	map->num_stripes = ctl->num_stripes;
 
-	for (i = 0; i < ctl->ndevs; ++i) {
-		for (j = 0; j < ctl->dev_stripes; ++j) {
+	for (int i = 0; i < ctl->ndevs; i++) {
+		for (int j = 0; j < ctl->dev_stripes; j++) {
 			int s = i * ctl->dev_stripes + j;
 			map->stripes[s].dev = devices_info[i].dev;
 			map->stripes[s].physical = devices_info[i].dev_offset +
@@ -6621,7 +6619,6 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	struct btrfs_chunk_map *map;
 	struct btrfs_io_geometry io_geom = { 0 };
 	u64 map_offset;
-	int i;
 	int ret = 0;
 	int num_copies;
 	struct btrfs_io_context *bioc = NULL;
@@ -6767,7 +6764,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		 * For all other non-RAID56 profiles, just copy the target
 		 * stripe into the bioc.
 		 */
-		for (i = 0; i < io_geom.num_stripes; i++) {
+		for (int i = 0; i < io_geom.num_stripes; i++) {
 			ret = set_io_stripe(fs_info, logical, length,
 					    &bioc->stripes[i], map, &io_geom);
 			if (ret < 0)

@@ -87,9 +87,8 @@ static int sb_write_pointer(struct block_device *bdev, struct blk_zone *zones,
 	bool empty[BTRFS_NR_SB_LOG_ZONES];
 	bool full[BTRFS_NR_SB_LOG_ZONES];
 	sector_t sector;
-	int i;
 
-	for (i = 0; i < BTRFS_NR_SB_LOG_ZONES; i++) {
+	for (int i = 0; i < BTRFS_NR_SB_LOG_ZONES; i++) {
 		ASSERT(zones[i].type != BLK_ZONE_TYPE_CONVENTIONAL);
 		empty[i] = (zones[i].cond == BLK_ZONE_COND_EMPTY);
 		full[i] = sb_zone_is_full(&zones[i]);
@@ -121,9 +120,8 @@ static int sb_write_pointer(struct block_device *bdev, struct blk_zone *zones,
 		struct address_space *mapping = bdev->bd_mapping;
 		struct page *page[BTRFS_NR_SB_LOG_ZONES];
 		struct btrfs_super_block *super[BTRFS_NR_SB_LOG_ZONES];
-		int i;
 
-		for (i = 0; i < BTRFS_NR_SB_LOG_ZONES; i++) {
+		for (int i = 0; i < BTRFS_NR_SB_LOG_ZONES; i++) {
 			u64 zone_end = (zones[i].start + zones[i].capacity) << SECTOR_SHIFT;
 			u64 bytenr = ALIGN_DOWN(zone_end, BTRFS_SUPER_INFO_SIZE) -
 						BTRFS_SUPER_INFO_SIZE;
@@ -144,7 +142,7 @@ static int sb_write_pointer(struct block_device *bdev, struct blk_zone *zones,
 		else
 			sector = zones[0].start;
 
-		for (i = 0; i < BTRFS_NR_SB_LOG_ZONES; i++)
+		for (int i = 0; i < BTRFS_NR_SB_LOG_ZONES; i++)
 			btrfs_release_disk_super(super[i]);
 	} else if (!full[0] && (empty[1] || full[1])) {
 		sector = zones[0].wp;
