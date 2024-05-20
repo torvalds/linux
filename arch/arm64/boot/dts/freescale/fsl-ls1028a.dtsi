@@ -674,7 +674,7 @@
 		};
 
 		pcie_ep1: pcie-ep@3400000 {
-			compatible = "fsl,ls1028a-pcie-ep","fsl,ls-pcie-ep";
+			compatible = "fsl,ls1028a-pcie-ep";
 			reg = <0x00 0x03400000 0x0 0x00100000
 			       0x80 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
@@ -713,7 +713,7 @@
 		};
 
 		pcie_ep2: pcie-ep@3500000 {
-			compatible = "fsl,ls1028a-pcie-ep","fsl,ls-pcie-ep";
+			compatible = "fsl,ls1028a-pcie-ep";
 			reg = <0x00 0x03500000 0x0 0x00100000
 			       0x88 0x00000000 0x8 0x00000000>;
 			reg-names = "regs", "addr_space";
