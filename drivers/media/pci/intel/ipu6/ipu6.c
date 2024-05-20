@@ -727,9 +727,6 @@ static void ipu6_pci_remove(struct pci_dev *pdev)
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
-
 	release_firmware(isp->cpd_fw);
 
 	ipu6_mmu_cleanup(psys_mmu);
