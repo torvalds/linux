@@ -445,17 +445,6 @@ do {									\
 #define this_cpu_try_cmpxchg128(pcp, ovalp, nval)	percpu_try_cmpxchg128_op(16, volatile, pcp, ovalp, nval)
 #endif
 
-/*
- * this_cpu_read() makes gcc load the percpu variable every time it is
- * accessed while this_cpu_read_stable() allows the value to be cached.
- * this_cpu_read_stable() is more efficient and can be used if its value
- * is guaranteed to be valid across cpus.  The current users include
- * pcpu_hot.current_task and pcpu_hot.top_of_stack, both of which are
- * actually per-thread variables implemented as per-CPU variables and
- * thus stable for the duration of the respective task.
- */
-#define this_cpu_read_stable(pcp)	__pcpu_size_call_return(this_cpu_read_stable_, pcp)
-
 #define raw_cpu_read_1(pcp)		__raw_cpu_read(1, , pcp)
 #define raw_cpu_read_2(pcp)		__raw_cpu_read(2, , pcp)
 #define raw_cpu_read_4(pcp)		__raw_cpu_read(4, , pcp)
@@ -469,16 +458,6 @@ do {									\
 #define this_cpu_write_1(pcp, val)	__raw_cpu_write(1, volatile, pcp, val)
 #define this_cpu_write_2(pcp, val)	__raw_cpu_write(2, volatile, pcp, val)
 #define this_cpu_write_4(pcp, val)	__raw_cpu_write(4, volatile, pcp, val)
-
-#ifdef CONFIG_X86_64
-#define raw_cpu_read_8(pcp)		__raw_cpu_read(8, , pcp)
-#define raw_cpu_write_8(pcp, val)	__raw_cpu_write(8, , pcp, val)
-
-#define this_cpu_read_8(pcp)		__raw_cpu_read(8, volatile, pcp)
-#define this_cpu_write_8(pcp, val)	__raw_cpu_write(8, volatile, pcp, val)
-#endif
-
-#define this_cpu_read_const(pcp)	__raw_cpu_read_const(pcp)
 
 #define this_cpu_read_stable_1(pcp)	__raw_cpu_read_stable(1, pcp)
 #define this_cpu_read_stable_2(pcp)	__raw_cpu_read_stable(2, pcp)
@@ -535,6 +514,12 @@ do {									\
  * 32 bit must fall back to generic operations.
  */
 #ifdef CONFIG_X86_64
+#define raw_cpu_read_8(pcp)		__raw_cpu_read(8, , pcp)
+#define raw_cpu_write_8(pcp, val)	__raw_cpu_write(8, , pcp, val)
+
+#define this_cpu_read_8(pcp)		__raw_cpu_read(8, volatile, pcp)
+#define this_cpu_write_8(pcp, val)	__raw_cpu_write(8, volatile, pcp, val)
+
 #define this_cpu_read_stable_8(pcp)	__raw_cpu_read_stable(8, pcp)
 
 #define raw_cpu_add_8(pcp, val)			percpu_add_op(8, , (pcp), val)
@@ -560,6 +545,19 @@ do {									\
 
 #define raw_cpu_read_long(pcp)		raw_cpu_read_4(pcp)
 #endif
+
+#define this_cpu_read_const(pcp)	__raw_cpu_read_const(pcp)
+
+/*
+ * this_cpu_read() makes gcc load the percpu variable every time it is
+ * accessed while this_cpu_read_stable() allows the value to be cached.
+ * this_cpu_read_stable() is more efficient and can be used if its value
+ * is guaranteed to be valid across cpus.  The current users include
+ * pcpu_hot.current_task and pcpu_hot.top_of_stack, both of which are
+ * actually per-thread variables implemented as per-CPU variables and
+ * thus stable for the duration of the respective task.
+ */
+#define this_cpu_read_stable(pcp)	__pcpu_size_call_return(this_cpu_read_stable_, pcp)
 
 #define x86_this_cpu_constant_test_bit(_nr, _var)			\
 ({									\
