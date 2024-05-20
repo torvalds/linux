@@ -625,18 +625,14 @@ static __always_inline						\
 void folio_set_hugetlb_##flname(struct folio *folio)		\
 	{	void *private = &folio->private;		\
 		set_bit(HPG_##flname, private);			\
-	}							\
-static inline void SetHPage##uname(struct page *page)		\
-	{ set_bit(HPG_##flname, &(page->private)); }
+	}
 
 #define CLEARHPAGEFLAG(uname, flname)				\
 static __always_inline						\
 void folio_clear_hugetlb_##flname(struct folio *folio)		\
 	{	void *private = &folio->private;		\
 		clear_bit(HPG_##flname, private);		\
-	}							\
-static inline void ClearHPage##uname(struct page *page)		\
-	{ clear_bit(HPG_##flname, &(page->private)); }
+	}
 #else
 #define TESTHPAGEFLAG(uname, flname)				\
 static inline bool						\
@@ -648,15 +644,11 @@ static inline int HPage##uname(struct page *page)		\
 #define SETHPAGEFLAG(uname, flname)				\
 static inline void						\
 folio_set_hugetlb_##flname(struct folio *folio) 		\
-	{ }							\
-static inline void SetHPage##uname(struct page *page)		\
 	{ }
 
 #define CLEARHPAGEFLAG(uname, flname)				\
 static inline void						\
 folio_clear_hugetlb_##flname(struct folio *folio)		\
-	{ }							\
-static inline void ClearHPage##uname(struct page *page)		\
 	{ }
 #endif
 
