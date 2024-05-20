@@ -1012,7 +1012,7 @@ static bool all_timings_support_drr(const struct dml2_pmo_instance *pmo,
 			stream_descriptor = &display_config->display_config.stream_descriptors[i];
 			stream_fams2_meta = &pmo->scratch.pmo_dcn4.stream_fams2_meta[i];
 
-			if (!stream_descriptor->timing.drr_config.enabled || stream_descriptor->overrides.disable_fams2_drr)
+			if (!stream_descriptor->timing.drr_config.enabled)
 				return false;
 
 			/* cannot support required vtotal */

@@ -410,7 +410,6 @@ struct dml2_stream_parameters {
 		enum dml2_odm_mode odm_mode;
 		bool disable_dynamic_odm;
 		bool disable_subvp;
-		bool disable_fams2_drr;
 		int minimum_vblank_idle_requirement_us;
 		bool minimize_active_latency_hiding;
 
