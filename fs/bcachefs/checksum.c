@@ -352,8 +352,12 @@ int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 		bytes += bv.bv_len;
 	}
 
-	sg_mark_end(sg - 1);
-	return do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
+	if (sg != sgl) {
+		sg_mark_end(sg - 1);
+		return do_encrypt_sg(c->chacha20, nonce, sgl, bytes);
+	}
+
+	return ret;
 }
 
 struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
