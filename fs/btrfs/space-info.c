@@ -605,8 +605,6 @@ static inline u64 calc_reclaim_items_nr(const struct btrfs_fs_info *fs_info,
 	return nr;
 }
 
-#define EXTENT_SIZE_PER_ITEM	SZ_256K
-
 /*
  * shrink metadata reservation for delalloc
  */
