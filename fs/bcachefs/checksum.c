@@ -233,7 +233,7 @@ struct bch_csum bch2_checksum(struct bch_fs *c, unsigned type,
 		return ret;
 	}
 	default:
-		BUG();
+		return (struct bch_csum) {};
 	}
 }
 
@@ -307,7 +307,7 @@ static struct bch_csum __bch2_checksum_bio(struct bch_fs *c, unsigned type,
 		return ret;
 	}
 	default:
-		BUG();
+		return (struct bch_csum) {};
 	}
 }
 
