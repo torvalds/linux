@@ -284,7 +284,7 @@ config ETHQOS_QCOM_VER4
 	  only applicable for EMAC version 4.
 
 config ETHQOS_QCOM_SERDES
-	bool "Enable Serdes driver"
+	tristate "Enable Serdes driver"
 	depends on STMMAC_ETH
 	default n
 	help

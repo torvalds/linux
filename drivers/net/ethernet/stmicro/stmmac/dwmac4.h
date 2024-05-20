@@ -336,7 +336,7 @@ enum power_event {
 #define MTL_RXQ_DMA_Q04MDMACH(x)	((x) << 0)
 #define MTL_RXQ_DMA_QXMDMACH_MASK(x)	GENMASK(11 + (8 * ((x) - 1)), 8 * (x))
 #define MTL_RXQ_DMA_QXMDMACH(chan, q)	((chan) << (8 * (q)))
-#ifdef CONFIG_DWMAC_QCOM_VER3
+#if IS_ENABLED(CONFIG_DWMAC_QCOM_VER3)
 #define MTL_CHAN_BASE_ADDR		0x00008000
 #define MTL_CHAN_BASE_OFFSET		0x1000
 #else
@@ -393,7 +393,7 @@ enum power_event {
 #define MTL_OP_MODE_RTC_128		(3 << MTL_OP_MODE_RTC_SHIFT)
 
 /* MTL ETS Control register */
-#ifdef CONFIG_DWMAC_QCOM_VER3
+#if IS_ENABLED(CONFIG_DWMAC_QCOM_VER3)
 #define MTL_ETS_CTRL_BASE_ADDR		0x00008010
 #define MTL_ETS_CTRL_BASE_OFFSET	0x1000
 #else
@@ -407,7 +407,7 @@ enum power_event {
 #define MTL_ETS_CTRL_AVALG		BIT(2)
 
 /* MTL Queue Quantum Weight */
-#ifdef CONFIG_DWMAC_QCOM_VER3
+#if IS_ENABLED(CONFIG_DWMAC_QCOM_VER3)
 #define MTL_TXQ_WEIGHT_BASE_ADDR	0x00008018
 #define MTL_TXQ_WEIGHT_BASE_OFFSET	0x1000
 #else
@@ -419,7 +419,7 @@ enum power_event {
 #define MTL_TXQ_WEIGHT_ISCQW_MASK	GENMASK(20, 0)
 
 /* MTL sendSlopeCredit register */
-#ifdef CONFIG_DWMAC_QCOM_VER3
+#if IS_ENABLED(CONFIG_DWMAC_QCOM_VER3)
 #define MTL_SEND_SLP_CRED_BASE_ADDR	0x0000801c
 #define MTL_SEND_SLP_CRED_OFFSET	0x1000
 #else
@@ -432,7 +432,7 @@ enum power_event {
 #define MTL_SEND_SLP_CRED_SSC_MASK	GENMASK(13, 0)
 
 /* MTL hiCredit register */
-#ifdef CONFIG_DWMAC_QCOM_VER3
+#if IS_ENABLED(CONFIG_DWMAC_QCOM_VER3)
 #define MTL_HIGH_CRED_BASE_ADDR		0x00008020
 #define MTL_HIGH_CRED_OFFSET		0x1000
 #else
@@ -445,7 +445,7 @@ enum power_event {
 #define MTL_HIGH_CRED_HC_MASK		GENMASK(28, 0)
 
 /* MTL loCredit register */
-#ifdef CONFIG_DWMAC_QCOM_VER3
+#if IS_ENABLED(CONFIG_DWMAC_QCOM_VER3)
 #define MTL_LOW_CRED_BASE_ADDR		0x00008024
 #define MTL_LOW_CRED_OFFSET		0x1000
 #else

@@ -93,7 +93,7 @@
 #define DMA_TBS_DEF_FTOS		(DMA_TBS_FTOS | DMA_TBS_FTOV)
 
 /* Following DMA defines are chanels oriented */
-#ifdef CONFIG_DWMAC_QCOM_VER3
+#if IS_ENABLED(CONFIG_DWMAC_QCOM_VER3)
 #define DMA_CHAN_BASE_ADDR		0x00008100
 #define DMA_CHAN_BASE_OFFSET		0x1000
 #else
