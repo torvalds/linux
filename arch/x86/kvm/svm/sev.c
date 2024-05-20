@@ -3380,13 +3380,13 @@ void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
 	}
 }
 
-struct page *__snp_safe_alloc_page(gfp_t gfp)
+struct page *snp_safe_alloc_page_node(int node, gfp_t gfp)
 {
 	unsigned long pfn;
 	struct page *p;
 
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
-		return alloc_page(gfp | __GFP_ZERO);
+		return alloc_pages_node(node, gfp | __GFP_ZERO, 0);
 
 	/*
 	 * Allocate an SNP-safe page to workaround the SNP erratum where
@@ -3397,7 +3397,7 @@ struct page *__snp_safe_alloc_page(gfp_t gfp)
 	 * Allocate one extra page, choose a page which is not
 	 * 2MB-aligned, and free the other.
 	 */
-	p = alloc_pages(gfp | __GFP_ZERO, 1);
+	p = alloc_pages_node(node, gfp | __GFP_ZERO, 1);
 	if (!p)
 		return NULL;
 
