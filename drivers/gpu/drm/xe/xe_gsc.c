@@ -5,6 +5,8 @@
 
 #include "xe_gsc.h"
 
+#include <linux/delay.h>
+
 #include <drm/drm_managed.h>
 
 #include <generated/xe_wa_oob.h>

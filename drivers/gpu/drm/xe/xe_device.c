@@ -5,6 +5,7 @@
 
 #include "xe_device.h"
 
+#include <linux/delay.h>
 #include <linux/units.h>
 
 #include <drm/drm_aperture.h>
@@ -32,6 +33,7 @@
 #include "xe_gsc_proxy.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_printk.h"
 #include "xe_hwmon.h"
 #include "xe_irq.h"
 #include "xe_memirq.h"

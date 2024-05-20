@@ -14,6 +14,7 @@
 #include "xe_force_wake.h"
 #include "xe_gsc.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_module.h"

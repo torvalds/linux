@@ -5,6 +5,8 @@
 
 #include "xe_huc.h"
 
+#include <linux/delay.h>
+
 #include <drm/drm_managed.h>
 
 #include "abi/gsc_pxp_commands_abi.h"
