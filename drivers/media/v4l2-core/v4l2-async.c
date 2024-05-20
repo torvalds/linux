@@ -323,8 +323,12 @@ static int v4l2_async_create_ancillary_links(struct v4l2_async_notifier *n,
 	    sd->entity.function != MEDIA_ENT_F_FLASH)
 		return 0;
 
-	if (!n->sd)
+	if (!n->sd) {
+		dev_warn(notifier_dev(n),
+			 "not a sub-device notifier, not creating an ancillary link for %s!\n",
+			 dev_name(sd->dev));
 		return 0;
+	}
 
 	link = media_create_ancillary_link(&n->sd->entity, &sd->entity);
 
