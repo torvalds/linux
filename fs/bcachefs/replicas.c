@@ -23,14 +23,12 @@ static int bch2_memcmp(const void *l, const void *r,  const void *priv)
 static void verify_replicas_entry(struct bch_replicas_entry_v1 *e)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
-	unsigned i;
-
 	BUG_ON(e->data_type >= BCH_DATA_NR);
 	BUG_ON(!e->nr_devs);
 	BUG_ON(e->nr_required > 1 &&
 	       e->nr_required >= e->nr_devs);
 
-	for (i = 0; i + 1 < e->nr_devs; i++)
+	for (unsigned i = 0; i + 1 < e->nr_devs; i++)
 		BUG_ON(e->devs[i] >= e->devs[i + 1]);
 #endif
 }
@@ -192,24 +190,17 @@ cpu_replicas_add_entry(struct bch_fs *c,
 		       struct bch_replicas_cpu *old,
 		       struct bch_replicas_entry_v1 *new_entry)
 {
-	unsigned i;
 	struct bch_replicas_cpu new = {
 		.nr		= old->nr + 1,
 		.entry_size	= max_t(unsigned, old->entry_size,
 					replicas_entry_bytes(new_entry)),
 	};
 
-	for (i = 0; i < new_entry->nr_devs; i++)
-		BUG_ON(!bch2_dev_exists(c, new_entry->devs[i]));
-
-	BUG_ON(!new_entry->data_type);
-	verify_replicas_entry(new_entry);
-
 	new.entries = kcalloc(new.nr, new.entry_size, GFP_KERNEL);
 	if (!new.entries)
 		return new;
 
-	for (i = 0; i < old->nr; i++)
+	for (unsigned i = 0; i < old->nr; i++)
 		memcpy(cpu_replicas_entry(&new, i),
 		       cpu_replicas_entry(old, i),
 		       old->entry_size);
@@ -229,8 +220,6 @@ static inline int __replicas_entry_idx(struct bch_replicas_cpu *r,
 
 	if (unlikely(entry_size > r->entry_size))
 		return -1;
-
-	verify_replicas_entry(search);
 
 #define entry_cmp(_l, _r)	memcmp(_l, _r, entry_size)
 	idx = eytzinger0_find(r->entries, r->nr, r->entry_size,
