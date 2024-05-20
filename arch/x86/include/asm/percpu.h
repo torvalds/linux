@@ -190,10 +190,10 @@ do {									\
 
 #endif /* CONFIG_USE_X86_SEG_SUPPORT */
 
-#define percpu_stable_op(size, op, _var)				\
+#define __raw_cpu_read_stable(size, _var)				\
 ({									\
 	__pcpu_type_##size pfo_val__;					\
-	asm(__pcpu_op2_##size(op, __force_percpu_arg(a[var]), "%[val]")	\
+	asm(__pcpu_op2_##size("mov", __force_percpu_arg(a[var]), "%[val]") \
 	    : [val] __pcpu_reg_##size("=", pfo_val__)			\
 	    : [var] "i" (&(_var)));					\
 	(typeof(_var))(unsigned long) pfo_val__;			\
@@ -480,9 +480,9 @@ do {									\
 
 #define this_cpu_read_const(pcp)	__raw_cpu_read_const(pcp)
 
-#define this_cpu_read_stable_1(pcp)	percpu_stable_op(1, "mov", pcp)
-#define this_cpu_read_stable_2(pcp)	percpu_stable_op(2, "mov", pcp)
-#define this_cpu_read_stable_4(pcp)	percpu_stable_op(4, "mov", pcp)
+#define this_cpu_read_stable_1(pcp)	__raw_cpu_read_stable(1, pcp)
+#define this_cpu_read_stable_2(pcp)	__raw_cpu_read_stable(2, pcp)
+#define this_cpu_read_stable_4(pcp)	__raw_cpu_read_stable(4, pcp)
 
 #define raw_cpu_add_1(pcp, val)		percpu_add_op(1, , (pcp), val)
 #define raw_cpu_add_2(pcp, val)		percpu_add_op(2, , (pcp), val)
@@ -535,7 +535,7 @@ do {									\
  * 32 bit must fall back to generic operations.
  */
 #ifdef CONFIG_X86_64
-#define this_cpu_read_stable_8(pcp)	percpu_stable_op(8, "mov", pcp)
+#define this_cpu_read_stable_8(pcp)	__raw_cpu_read_stable(8, pcp)
 
 #define raw_cpu_add_8(pcp, val)			percpu_add_op(8, , (pcp), val)
 #define raw_cpu_and_8(pcp, val)			percpu_binary_op(8, , "and", (pcp), val)
