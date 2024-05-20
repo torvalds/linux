@@ -1152,9 +1152,6 @@ static dma_addr_t iommu_dma_map_page(struct device *dev, struct page *page,
 	 */
 	if (dev_use_swiotlb(dev, size, dir) &&
 	    iova_offset(iovad, phys | size)) {
-		void *padding_start;
-		size_t padding_size, aligned_size;
-
 		if (!is_swiotlb_active(dev)) {
 			dev_warn_once(dev, "DMA bounce buffers are inactive, unable to map unaligned transaction.\n");
 			return DMA_MAPPING_ERROR;
@@ -1162,24 +1159,30 @@ static dma_addr_t iommu_dma_map_page(struct device *dev, struct page *page,
 
 		trace_swiotlb_bounced(dev, phys, size);
 
-		aligned_size = iova_align(iovad, size);
-		phys = swiotlb_tbl_map_single(dev, phys, size, aligned_size,
+		phys = swiotlb_tbl_map_single(dev, phys, size,
 					      iova_mask(iovad), dir, attrs);
 
 		if (phys == DMA_MAPPING_ERROR)
 			return DMA_MAPPING_ERROR;
 
-		/* Cleanup the padding area. */
-		padding_start = phys_to_virt(phys);
-		padding_size = aligned_size;
+		/*
+		 * Untrusted devices should not see padding areas with random
+		 * leftover kernel data, so zero the pre- and post-padding.
+		 * swiotlb_tbl_map_single() has initialized the bounce buffer
+		 * proper to the contents of the original memory buffer.
+		 */
+		if (dev_is_untrusted(dev)) {
+			size_t start, virt = (size_t)phys_to_virt(phys);
 
-		if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC) &&
-		    (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)) {
-			padding_start += size;
-			padding_size -= size;
+			/* Pre-padding */
+			start = iova_align_down(iovad, virt);
+			memset((void *)start, 0, virt - start);
+
+			/* Post-padding */
+			start = virt + size;
+			memset((void *)start, 0,
+			       iova_align(iovad, start) - start);
 		}
-
-		memset(padding_start, 0, padding_size);
 	}
 
 	if (!coherent && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
@@ -1718,7 +1721,8 @@ static size_t iommu_dma_max_mapping_size(struct device *dev)
 }
 
 static const struct dma_map_ops iommu_dma_ops = {
-	.flags			= DMA_F_PCI_P2PDMA_SUPPORTED,
+	.flags			= DMA_F_PCI_P2PDMA_SUPPORTED |
+				  DMA_F_CAN_SKIP_SYNC,
 	.alloc			= iommu_dma_alloc,
 	.free			= iommu_dma_free,
 	.alloc_pages_op		= dma_common_alloc_pages,
