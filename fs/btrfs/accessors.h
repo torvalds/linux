@@ -34,7 +34,7 @@ void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *e
 
 static inline u8 get_unaligned_le8(const void *p)
 {
-       return *(u8 *)p;
+       return *(const u8 *)p;
 }
 
 static inline void put_unaligned_le8(u8 val, void *p)
