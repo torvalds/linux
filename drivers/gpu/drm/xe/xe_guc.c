@@ -295,6 +295,23 @@ static int xe_guc_realloc_post_hwconfig(struct xe_guc *guc)
 	return 0;
 }
 
+static int vf_guc_init(struct xe_guc *guc)
+{
+	int err;
+
+	xe_guc_comm_init_early(guc);
+
+	err = xe_guc_ct_init(&guc->ct);
+	if (err)
+		return err;
+
+	err = xe_guc_relay_init(&guc->relay);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 int xe_guc_init(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -308,6 +325,13 @@ int xe_guc_init(struct xe_guc *guc)
 
 	if (!xe_uc_fw_is_enabled(&guc->fw))
 		return 0;
+
+	if (IS_SRIOV_VF(xe)) {
+		ret = vf_guc_init(guc);
+		if (ret)
+			goto out;
+		return 0;
+	}
 
 	ret = xe_guc_log_init(&guc->log);
 	if (ret)
@@ -342,6 +366,19 @@ out:
 	return ret;
 }
 
+static int vf_guc_init_post_hwconfig(struct xe_guc *guc)
+{
+	int err;
+
+	err = xe_guc_submit_init(guc, xe_gt_sriov_vf_guc_ids(guc_to_gt(guc)));
+	if (err)
+		return err;
+
+	/* XXX xe_guc_db_mgr_init not needed for now */
+
+	return 0;
+}
+
 /**
  * xe_guc_init_post_hwconfig - initialize GuC post hwconfig load
  * @guc: The GuC object
@@ -351,6 +388,9 @@ out:
 int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 {
 	int ret;
+
+	if (IS_SRIOV_VF(guc_to_xe(guc)))
+		return vf_guc_init_post_hwconfig(guc);
 
 	ret = xe_guc_realloc_post_hwconfig(guc);
 	if (ret)
