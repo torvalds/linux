@@ -728,7 +728,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 	struct ieee80211_hdr_3addr  *hdr = (struct ieee80211_hdr_3addr *)skb->data;
 	u16		fc = le16_to_cpu(hdr->frame_control);
 
-	u16		LLCOffset = sizeof(struct ieee80211_hdr_3addr);
+	u16		llc_offset = sizeof(struct ieee80211_hdr_3addr);
 	u16		ChkLength;
 	bool		is_aggregate_frame = false;
 	u16		nSubframe_Length;
@@ -742,16 +742,16 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 		is_aggregate_frame = true;
 
 	if (RTLLIB_QOS_HAS_SEQ(fc))
-		LLCOffset += 2;
+		llc_offset += 2;
 	if (rx_stats->contain_htc)
-		LLCOffset += sHTCLng;
+		llc_offset += sHTCLng;
 
-	ChkLength = LLCOffset;
+	ChkLength = llc_offset;
 
 	if (skb->len <= ChkLength)
 		return 0;
 
-	skb_pull(skb, LLCOffset);
+	skb_pull(skb, llc_offset);
 	ieee->is_aggregate_frame = is_aggregate_frame;
 	if (!is_aggregate_frame) {
 		rxb->nr_subframes = 1;
