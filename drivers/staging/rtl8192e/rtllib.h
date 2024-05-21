@@ -910,7 +910,7 @@ struct rtllib_network {
 	u8 hidden_ssid_len;
 	struct rtllib_qos_data qos_data;
 
-	bool	bWithAironetIE;
+	bool	with_aironet_ie;
 	bool	ckip_supported;
 	bool	ccx_rm_enable;
 	u8	CcxRmState[2];

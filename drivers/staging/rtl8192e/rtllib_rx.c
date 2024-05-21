@@ -2090,7 +2090,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			netdev_dbg(ieee->dev, "MFIE_TYPE_AIRONET: %d bytes\n",
 				   info_element->len);
 			if (info_element->len > IE_CISCO_FLAG_POSITION) {
-				network->bWithAironetIE = true;
+				network->with_aironet_ie = true;
 
 				if ((info_element->data[IE_CISCO_FLAG_POSITION]
 				     & SUPPORT_CKIP_MIC) ||
@@ -2100,7 +2100,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				else
 					network->ckip_supported = false;
 			} else {
-				network->bWithAironetIE = false;
+				network->with_aironet_ie = false;
 				network->ckip_supported = false;
 			}
 			break;
@@ -2345,7 +2345,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	dst->country_ie_len = src->country_ie_len;
 	memcpy(dst->country_ie_buf, src->country_ie_buf, src->country_ie_len);
 
-	dst->bWithAironetIE = src->bWithAironetIE;
+	dst->with_aironet_ie = src->with_aironet_ie;
 	dst->ckip_supported = src->ckip_supported;
 	memcpy(dst->CcxRmState, src->CcxRmState, 2);
 	dst->ccx_rm_enable = src->ccx_rm_enable;
