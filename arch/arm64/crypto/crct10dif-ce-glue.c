@@ -98,7 +98,7 @@ static struct shash_alg crc_t10dif_alg[] = {{
 
 	.base.cra_name		= "crct10dif",
 	.base.cra_driver_name	= "crct10dif-arm64-neon",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= 150,
 	.base.cra_blocksize	= CRC_T10DIF_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
