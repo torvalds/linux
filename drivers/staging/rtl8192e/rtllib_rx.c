@@ -1383,7 +1383,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 0;
 }
 
-static int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
+static int rtllib_rx_monitor(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -1434,7 +1434,7 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 		ret = rtllib_rx_InfraAdhoc(ieee, skb, rx_stats);
 		break;
 	case IW_MODE_MONITOR:
-		ret = rtllib_rx_Monitor(ieee, skb, rx_stats);
+		ret = rtllib_rx_monitor(ieee, skb, rx_stats);
 		break;
 	default:
 		netdev_info(ieee->dev, "%s: ERR iw mode!!!\n", __func__);
