@@ -491,13 +491,13 @@ void rtllib_flush_rx_ts_pending_pkts(struct rtllib_device *ieee,
 				     struct rx_ts_record *ts)
 {
 	struct rx_reorder_entry *pRxReorderEntry;
-	u8 RfdCnt = 0;
+	u8 rfd_cnt = 0;
 
 	del_timer_sync(&ts->rx_pkt_pending_timer);
 	while (!list_empty(&ts->rx_pending_pkt_list)) {
-		if (RfdCnt >= REORDER_WIN_SIZE) {
+		if (rfd_cnt >= REORDER_WIN_SIZE) {
 			netdev_info(ieee->dev,
-				    "-------------->%s() error! RfdCnt >= REORDER_WIN_SIZE\n",
+				    "-------------->%s() error! rfd_cnt >= REORDER_WIN_SIZE\n",
 				    __func__);
 			break;
 		}
@@ -509,13 +509,13 @@ void rtllib_flush_rx_ts_pending_pkts(struct rtllib_device *ieee,
 			   pRxReorderEntry->SeqNum);
 		list_del_init(&pRxReorderEntry->list);
 
-		ieee->rfd_array[RfdCnt] = pRxReorderEntry->prxb;
+		ieee->rfd_array[rfd_cnt] = pRxReorderEntry->prxb;
 
-		RfdCnt = RfdCnt + 1;
+		rfd_cnt = rfd_cnt + 1;
 		list_add_tail(&pRxReorderEntry->list,
 			      &ieee->RxReorder_Unused_List);
 	}
-	rtllib_indicate_packets(ieee, ieee->rfd_array, RfdCnt);
+	rtllib_indicate_packets(ieee, ieee->rfd_array, rfd_cnt);
 
 	ts->rx_indicate_seq = 0xffff;
 }
