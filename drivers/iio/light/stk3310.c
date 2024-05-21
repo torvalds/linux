@@ -477,8 +477,7 @@ static int stk3310_init(struct iio_dev *indio_dev)
 	    chipid != STK3311_CHIP_ID_VAL &&
 	    chipid != STK3311X_CHIP_ID_VAL &&
 	    chipid != STK3335_CHIP_ID_VAL) {
-		dev_err(&client->dev, "invalid chip id: 0x%x\n", chipid);
-		return -ENODEV;
+		dev_warn(&client->dev, "unknown chip id: 0x%x\n", chipid);
 	}
 
 	state = STK3310_STATE_EN_ALS | STK3310_STATE_EN_PS;
