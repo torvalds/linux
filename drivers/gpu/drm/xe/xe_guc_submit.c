@@ -278,7 +278,20 @@ static void primelockdep(struct xe_guc *guc)
 	fs_reclaim_release(GFP_KERNEL);
 }
 
-int xe_guc_submit_init(struct xe_guc *guc)
+/**
+ * xe_guc_submit_init() - Initialize GuC submission.
+ * @guc: the &xe_guc to initialize
+ * @num_ids: number of GuC context IDs to use
+ *
+ * The bare-metal or PF driver can pass ~0 as &num_ids to indicate that all
+ * GuC context IDs supported by the GuC firmware should be used for submission.
+ *
+ * Only VF drivers will have to provide explicit number of GuC context IDs
+ * that they can use for submission.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_guc_submit_init(struct xe_guc *guc, unsigned int num_ids)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
@@ -288,7 +301,7 @@ int xe_guc_submit_init(struct xe_guc *guc)
 	if (err)
 		return err;
 
-	err = xe_guc_id_mgr_init(&guc->submission_state.idm, ~0);
+	err = xe_guc_id_mgr_init(&guc->submission_state.idm, num_ids);
 	if (err)
 		return err;
 

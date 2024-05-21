@@ -358,7 +358,7 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 
 	guc_init_params_post_hwconfig(guc);
 
-	ret = xe_guc_submit_init(guc);
+	ret = xe_guc_submit_init(guc, ~0);
 	if (ret)
 		return ret;
 
