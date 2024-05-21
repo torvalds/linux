@@ -1407,7 +1407,7 @@ struct rtllib_device {
 	struct work_struct wx_sync_scan_wq;
 
 	union {
-		struct rtllib_rxb *RfdArray[REORDER_WIN_SIZE];
+		struct rtllib_rxb *rfd_array[REORDER_WIN_SIZE];
 		struct rtllib_rxb *stats_IndicateArray[REORDER_WIN_SIZE];
 		struct rtllib_rxb *prxbIndicateArray[REORDER_WIN_SIZE];
 		struct {

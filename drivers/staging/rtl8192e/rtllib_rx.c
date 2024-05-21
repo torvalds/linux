@@ -509,13 +509,13 @@ void rtllib_flush_rx_ts_pending_pkts(struct rtllib_device *ieee,
 			   pRxReorderEntry->SeqNum);
 		list_del_init(&pRxReorderEntry->list);
 
-		ieee->RfdArray[RfdCnt] = pRxReorderEntry->prxb;
+		ieee->rfd_array[RfdCnt] = pRxReorderEntry->prxb;
 
 		RfdCnt = RfdCnt + 1;
 		list_add_tail(&pRxReorderEntry->list,
 			      &ieee->RxReorder_Unused_List);
 	}
-	rtllib_indicate_packets(ieee, ieee->RfdArray, RfdCnt);
+	rtllib_indicate_packets(ieee, ieee->rfd_array, RfdCnt);
 
 	ts->rx_indicate_seq = 0xffff;
 }
