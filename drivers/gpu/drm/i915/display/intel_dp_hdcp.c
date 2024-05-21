@@ -693,7 +693,7 @@ int intel_dp_hdcp_get_remote_capability(struct intel_connector *connector,
 
 	*hdcp_capable = false;
 	*hdcp2_capable = false;
-	if (!intel_encoder_is_mst(connector->encoder))
+	if (!connector->mst_port)
 		return -EINVAL;
 
 	aux = &connector->port->aux;
