@@ -79,7 +79,7 @@ check_per_thread()
 		echo "[Skip] paranoid and not root"
 		return
 	fi
-	perf stat --per-thread -a $2 true
+	perf stat --per-thread -p $$ $2 true
 	commachecker --per-thread
 	echo "[Success]"
 }
