@@ -732,7 +732,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 	u16		ChkLength;
 	bool		is_aggregate_frame = false;
 	u16		nSubframe_Length;
-	u8		nPadding_Length = 0;
+	u8		pad_len = 0;
 	u16		SeqNum = 0;
 	struct sk_buff *sub_skb;
 	/* just for debug purpose */
@@ -833,15 +833,15 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 		skb_pull(skb, nSubframe_Length);
 
 		if (skb->len != 0) {
-			nPadding_Length = 4 - ((nSubframe_Length +
+			pad_len = 4 - ((nSubframe_Length +
 					  ETHERNET_HEADER_SIZE) % 4);
-			if (nPadding_Length == 4)
-				nPadding_Length = 0;
+			if (pad_len == 4)
+				pad_len = 0;
 
-			if (skb->len < nPadding_Length)
+			if (skb->len < pad_len)
 				return 0;
 
-			skb_pull(skb, nPadding_Length);
+			skb_pull(skb, pad_len);
 		}
 	}
 
