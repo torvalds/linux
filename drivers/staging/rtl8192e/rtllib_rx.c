@@ -1823,9 +1823,9 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 				network->bMBssidValid = true;
 				network->MBssidMask = 0xff <<
 						      (network->MBssidMask);
-				ether_addr_copy(network->MBssid,
+				ether_addr_copy(network->mb_ssid,
 						network->bssid);
-				network->MBssid[5] &= network->MBssidMask;
+				network->mb_ssid[5] &= network->MBssidMask;
 			} else {
 				network->bMBssidValid = false;
 			}
@@ -2351,7 +2351,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	dst->ccx_rm_enable = src->ccx_rm_enable;
 	dst->MBssidMask = src->MBssidMask;
 	dst->bMBssidValid = src->bMBssidValid;
-	memcpy(dst->MBssid, src->MBssid, 6);
+	memcpy(dst->mb_ssid, src->mb_ssid, 6);
 	dst->bWithCcxVerNum = src->bWithCcxVerNum;
 	dst->bss_ccx_ver_number = src->bss_ccx_ver_number;
 }
