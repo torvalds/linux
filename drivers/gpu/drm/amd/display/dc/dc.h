@@ -1067,6 +1067,8 @@ struct dchub_init_data {
 	bool dchub_info_valid;
 };
 
+struct dml2_soc_bb;
+
 struct dc_init_data {
 	struct hw_asic_id asic_id;
 	void *driver; /* ctx */
@@ -1099,6 +1101,7 @@ struct dc_init_data {
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
 	uint32_t *clk_reg_offsets;
+	struct dml2_soc_bb *bb_from_dmub;
 };
 
 struct dc_callback_init {

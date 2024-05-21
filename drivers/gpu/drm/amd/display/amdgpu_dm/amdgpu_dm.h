@@ -578,6 +578,11 @@ struct amdgpu_display_manager {
 	 * Guards access to DPIA AUX
 	 */
 	struct mutex dpia_aux_lock;
+
+	/*
+	 * Bounding box data read from dmub during early initialization for DCN4+
+	 */
+	struct dml2_soc_bb *bb_from_dmub;
 };
 
 enum dsc_clock_force_state {
@@ -964,4 +969,9 @@ amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
 
 int convert_dc_color_depth_into_bpc(enum dc_color_depth display_color_depth);
 struct idle_workqueue *idle_create_workqueue(struct amdgpu_device *adev);
+
+void *dm_allocate_gpu_mem(struct amdgpu_device *adev,
+						  enum dc_gpu_mem_alloc_type type,
+						  size_t size,
+						  long long *addr);
 #endif /* __AMDGPU_DM_H__ */

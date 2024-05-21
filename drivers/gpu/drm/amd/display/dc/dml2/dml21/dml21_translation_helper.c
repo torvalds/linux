@@ -26,7 +26,11 @@ static void dml21_init_socbb_params(struct dml2_initialize_instance_in_out *dml_
 		break;
 	case DCN_VERSION_4_01:
 	default:
-		soc_bb = &dml2_socbb_dcn401;
+		if (config->bb_from_dmub)
+			soc_bb = config->bb_from_dmub;
+		else
+			soc_bb = &dml2_socbb_dcn401;
+
 		qos_params = &dml_dcn401_soc_qos_params;
 	}
 

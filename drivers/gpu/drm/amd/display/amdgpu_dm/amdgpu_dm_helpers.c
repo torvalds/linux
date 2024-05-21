@@ -1045,30 +1045,8 @@ void *dm_helpers_allocate_gpu_mem(
 		long long *addr)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct dal_allocation *da;
-	u32 domain = (type == DC_MEM_ALLOC_TYPE_GART) ?
-		AMDGPU_GEM_DOMAIN_GTT : AMDGPU_GEM_DOMAIN_VRAM;
-	int ret;
 
-	da = kzalloc(sizeof(struct dal_allocation), GFP_KERNEL);
-	if (!da)
-		return NULL;
-
-	ret = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
-				      domain, &da->bo,
-				      &da->gpu_addr, &da->cpu_ptr);
-
-	*addr = da->gpu_addr;
-
-	if (ret) {
-		kfree(da);
-		return NULL;
-	}
-
-	/* add da to list in dm */
-	list_add(&da->list, &adev->dm.da_list);
-
-	return da->cpu_ptr;
+	return dm_allocate_gpu_mem(adev, type, size, addr);
 }
 
 void dm_helpers_free_gpu_mem(
