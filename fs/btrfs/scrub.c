@@ -2450,9 +2450,13 @@ static int finish_extent_writes_for_zoned(struct btrfs_root *root,
 	btrfs_wait_nocow_writers(cache);
 	btrfs_wait_ordered_roots(fs_info, U64_MAX, cache);
 
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	trans = btrfs_attach_transaction_barrier(root);
+	if (IS_ERR(trans)) {
+		int ret = PTR_ERR(trans);
+
+		return (ret == -ENOENT) ? 0 : ret;
+	}
+
 	return btrfs_commit_transaction(trans);
 }
 
