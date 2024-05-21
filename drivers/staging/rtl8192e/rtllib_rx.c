@@ -1810,12 +1810,12 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 	    info_element->data[2] == 0x96 &&
 	    info_element->data[3] == 0x01) {
 		if (info_element->len == 6) {
-			memcpy(network->CcxRmState, &info_element->data[4], 2);
-			if (network->CcxRmState[0] != 0)
+			memcpy(network->ccx_rm_state, &info_element->data[4], 2);
+			if (network->ccx_rm_state[0] != 0)
 				network->ccx_rm_enable = true;
 			else
 				network->ccx_rm_enable = false;
-			network->mb_ssid_mask = network->CcxRmState[1] & 0x07;
+			network->mb_ssid_mask = network->ccx_rm_state[1] & 0x07;
 			if (network->mb_ssid_mask != 0) {
 				network->mb_ssid_valid = true;
 				network->mb_ssid_mask = 0xff <<
@@ -2344,7 +2344,7 @@ static inline void update_network(struct rtllib_device *ieee,
 
 	dst->with_aironet_ie = src->with_aironet_ie;
 	dst->ckip_supported = src->ckip_supported;
-	memcpy(dst->CcxRmState, src->CcxRmState, 2);
+	memcpy(dst->ccx_rm_state, src->ccx_rm_state, 2);
 	dst->ccx_rm_enable = src->ccx_rm_enable;
 	dst->mb_ssid_mask = src->mb_ssid_mask;
 	dst->mb_ssid_valid = src->mb_ssid_valid;
