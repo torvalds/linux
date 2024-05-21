@@ -81,6 +81,13 @@ static const struct reg_field stk3310_reg_field_flag_psint =
 static const struct reg_field stk3310_reg_field_flag_nf =
 				REG_FIELD(STK3310_REG_FLAG, 0, 0);
 
+static const u8 stk3310_chip_ids[] = {
+	STK3310_CHIP_ID_VAL,
+	STK3311X_CHIP_ID_VAL,
+	STK3311_CHIP_ID_VAL,
+	STK3335_CHIP_ID_VAL,
+};
+
 /* Estimate maximum proximity values with regard to measurement scale. */
 static const int stk3310_ps_max[4] = {
 	STK3310_PS_MAX_VAL / 640,
@@ -196,6 +203,16 @@ static struct attribute *stk3310_attributes[] = {
 static const struct attribute_group stk3310_attribute_group = {
 	.attrs = stk3310_attributes
 };
+
+static int stk3310_check_chip_id(const u8 chip_id)
+{
+	for (int i = 0; i < ARRAY_SIZE(stk3310_chip_ids); i++) {
+		if (chip_id == stk3310_chip_ids[i])
+			return 0;
+	}
+
+	return -ENODEV;
+}
 
 static int stk3310_get_index(const int table[][2], int table_size,
 			     int val, int val2)
@@ -473,12 +490,9 @@ static int stk3310_init(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	if (chipid != STK3310_CHIP_ID_VAL &&
-	    chipid != STK3311_CHIP_ID_VAL &&
-	    chipid != STK3311X_CHIP_ID_VAL &&
-	    chipid != STK3335_CHIP_ID_VAL) {
+	ret = stk3310_check_chip_id(chipid);
+	if (ret < 0)
 		dev_warn(&client->dev, "unknown chip id: 0x%x\n", chipid);
-	}
 
 	state = STK3310_STATE_EN_ALS | STK3310_STATE_EN_PS;
 	ret = stk3310_set_state(data, state);
