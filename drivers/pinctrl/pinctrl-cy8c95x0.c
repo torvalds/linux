@@ -453,7 +453,6 @@ cy8c95x0_mux_reg_read(void *context, unsigned int off, unsigned int *val)
 	u8 port = CY8C95X0_MUX_REGMAP_TO_PORT(off);
 	int ret, reg = CY8C95X0_MUX_REGMAP_TO_REG(off);
 
-	mutex_lock(&chip->i2c_lock);
 	/* Select the correct bank */
 	ret = regmap_write(chip->regmap, CY8C95X0_PORTSEL, port);
 	if (ret < 0)
@@ -463,11 +462,7 @@ cy8c95x0_mux_reg_read(void *context, unsigned int off, unsigned int *val)
 	 * Read the register through direct access regmap. The target range
 	 * is marked volatile.
 	 */
-	ret = regmap_read(chip->regmap, reg, val);
-out:
-	mutex_unlock(&chip->i2c_lock);
-
-	return ret;
+	return regmap_read(chip->regmap, reg, val);
 }
 
 static int
@@ -477,7 +472,6 @@ cy8c95x0_mux_reg_write(void *context, unsigned int off, unsigned int val)
 	u8 port = CY8C95X0_MUX_REGMAP_TO_PORT(off);
 	int ret, reg = CY8C95X0_MUX_REGMAP_TO_REG(off);
 
-	mutex_lock(&chip->i2c_lock);
 	/* Select the correct bank */
 	ret = regmap_write(chip->regmap, CY8C95X0_PORTSEL, port);
 	if (ret < 0)
@@ -487,11 +481,7 @@ cy8c95x0_mux_reg_write(void *context, unsigned int off, unsigned int val)
 	 * Write the register through direct access regmap. The target range
 	 * is marked volatile.
 	 */
-	ret = regmap_write(chip->regmap, reg, val);
-out:
-	mutex_unlock(&chip->i2c_lock);
-
-	return ret;
+	return regmap_write(chip->regmap, reg, val);
 }
 
 static bool cy8c95x0_mux_accessible_register(struct device *dev, unsigned int off)
@@ -524,6 +514,7 @@ static const struct regmap_config cy8c95x0_muxed_regmap = {
 	.num_reg_defaults_raw = MUXED_STRIDE * BANK_SZ,
 	.readable_reg = cy8c95x0_mux_accessible_register,
 	.writeable_reg = cy8c95x0_mux_accessible_register,
+	.disable_locking = true,
 };
 
 /* Direct access regmap */
@@ -542,6 +533,7 @@ static const struct regmap_config cy8c95x0_i2c_regmap = {
 
 	.cache_type = REGCACHE_FLAT,
 	.max_register = CY8C95X0_COMMAND,
+	.disable_locking = true,
 };
 
 static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip,
@@ -559,6 +551,8 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
 	if (reg == CY8C95X0_PORTSEL)
 		return -EINVAL;
 
+	mutex_lock(&chip->i2c_lock);
+
 	/* Registers behind the PORTSEL mux have their own regmap */
 	if (cy8c95x0_muxed_register(reg)) {
 		regmap = chip->muxed_regmap;
@@ -574,7 +568,7 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
 
 	ret = regmap_update_bits_base(regmap, off, mask, val, change, async, force);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/* Update the cache when a WC bit is written */
 	if (cy8c95x0_wc_register(reg) && (mask & val)) {
@@ -595,6 +589,8 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
 			regcache_cache_only(regmap, false);
 		}
 	}
+out:
+	mutex_unlock(&chip->i2c_lock);
 
 	return ret;
 }
@@ -667,7 +663,9 @@ static int cy8c95x0_regmap_read(struct cy8c95x0_pinctrl *chip, unsigned int reg,
 				unsigned int port, unsigned int *read_val)
 {
 	struct regmap *regmap;
-	int off;
+	int off, ret;
+
+	mutex_lock(&chip->i2c_lock);
 
 	/* Registers behind the PORTSEL mux have their own regmap */
 	if (cy8c95x0_muxed_register(reg)) {
@@ -682,7 +680,11 @@ static int cy8c95x0_regmap_read(struct cy8c95x0_pinctrl *chip, unsigned int reg,
 			off = reg;
 	}
 
-	return regmap_read(regmap, off, read_val);
+	ret = regmap_read(regmap, off, read_val);
+
+	mutex_unlock(&chip->i2c_lock);
+
+	return ret;
 }
 
 static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
