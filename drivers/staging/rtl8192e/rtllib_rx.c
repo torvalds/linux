@@ -529,7 +529,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 	u8 win_size = ht_info->rx_reorder_win_size;
 	u16 win_end = 0;
 	u8 index = 0;
-	bool bMatchWinStart = false, bPktInBuf = false;
+	bool match_win_start = false, bPktInBuf = false;
 	unsigned long flags;
 
 	netdev_dbg(ieee->dev,
@@ -567,7 +567,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 	 */
 	if (SN_EQUAL(SeqNum, ts->rx_indicate_seq)) {
 		ts->rx_indicate_seq = (ts->rx_indicate_seq + 1) % 4096;
-		bMatchWinStart = true;
+		match_win_start = true;
 	} else if (SN_LESS(win_end, SeqNum)) {
 		if (SeqNum >= (win_size - 1))
 			ts->rx_indicate_seq = SeqNum + 1 - win_size;
@@ -589,7 +589,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 	 * 2. All packets with SeqNum larger than or equal to
 	 *	 WinStart => Buffer it.
 	 */
-	if (bMatchWinStart) {
+	if (match_win_start) {
 		/* Current packet is going to be indicated.*/
 		netdev_dbg(ieee->dev,
 			   "Packets indication! IndicateSeq: %d, NewSeq: %d\n",
