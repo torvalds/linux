@@ -1380,11 +1380,12 @@ failure:
 
 static int mes_v12_0_kiq_hw_fini(struct amdgpu_device *adev)
 {
-	if (!adev->enable_uni_mes && adev->mes.ring.sched.ready)
+	if (adev->mes.ring.sched.ready) {
 		mes_v12_0_kiq_dequeue_sched(adev);
+		adev->mes.ring.sched.ready = false;
+	}
 
-	if (!amdgpu_sriov_vf(adev))
-		mes_v12_0_enable(adev, false);
+	mes_v12_0_enable(adev, false);
 
 	return 0;
 }
