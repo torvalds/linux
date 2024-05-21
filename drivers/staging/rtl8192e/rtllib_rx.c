@@ -882,7 +882,7 @@ static int rtllib_rx_check_duplicate(struct rtllib_device *ieee,
 	if (!ieee->ht_info->cur_rx_reorder_enable ||
 		!ieee->current_network.qos_data.active ||
 		!IsDataFrame(skb->data) ||
-		IsLegacyDataFrame(skb->data)) {
+		is_legacy_data_frame(skb->data)) {
 		if (!ieee80211_is_beacon(hdr->frame_control)) {
 			if (is_duplicate_packet(ieee, hdr))
 				return -1;
