@@ -1223,7 +1223,7 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 	kfree(rxb);
 }
 
-static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
+static int rtllib_rx_infra_adhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 		 struct rtllib_rx_stats *rx_stats)
 {
 	struct net_device *dev = ieee->dev;
@@ -1431,7 +1431,7 @@ int rtllib_rx(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	switch (ieee->iw_mode) {
 	case IW_MODE_INFRA:
-		ret = rtllib_rx_InfraAdhoc(ieee, skb, rx_stats);
+		ret = rtllib_rx_infra_adhoc(ieee, skb, rx_stats);
 		break;
 	case IW_MODE_MONITOR:
 		ret = rtllib_rx_monitor(ieee, skb, rx_stats);
