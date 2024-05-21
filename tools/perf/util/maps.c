@@ -741,7 +741,6 @@ static unsigned int first_ending_after(struct maps *maps, const struct map *map)
  */
 static int __maps__fixup_overlap_and_insert(struct maps *maps, struct map *new)
 {
-	struct map **maps_by_address;
 	int err = 0;
 	FILE *fp = debug_file();
 
@@ -749,12 +748,12 @@ sort_again:
 	if (!maps__maps_by_address_sorted(maps))
 		__maps__sort_by_address(maps);
 
-	maps_by_address = maps__maps_by_address(maps);
 	/*
 	 * Iterate through entries where the end of the existing entry is
 	 * greater-than the new map's start.
 	 */
 	for (unsigned int i = first_ending_after(maps, new); i < maps__nr_maps(maps); ) {
+		struct map **maps_by_address = maps__maps_by_address(maps);
 		struct map *pos = maps_by_address[i];
 		struct map *before = NULL, *after = NULL;
 
@@ -821,8 +820,10 @@ sort_again:
 			/* Maps are still ordered, go to next one. */
 			i++;
 			if (after) {
-				__maps__insert(maps, after);
+				err = __maps__insert(maps, after);
 				map__put(after);
+				if (err)
+					goto out_err;
 				if (!maps__maps_by_address_sorted(maps)) {
 					/*
 					 * Sorting broken so invariants don't
@@ -851,7 +852,7 @@ sort_again:
 		check_invariants(maps);
 	}
 	/* Add the map. */
-	__maps__insert(maps, new);
+	err = __maps__insert(maps, new);
 out_err:
 	return err;
 }
