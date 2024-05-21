@@ -1836,10 +1836,10 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 	    info_element->data[2] == 0x96 &&
 	    info_element->data[3] == 0x03) {
 		if (info_element->len == 5) {
-			network->bWithCcxVerNum = true;
+			network->with_ccx_ver_num = true;
 			network->bss_ccx_ver_number = info_element->data[4];
 		} else {
-			network->bWithCcxVerNum = false;
+			network->with_ccx_ver_num = false;
 			network->bss_ccx_ver_number = 0;
 		}
 	}
@@ -2349,7 +2349,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	dst->mb_ssid_mask = src->mb_ssid_mask;
 	dst->mb_ssid_valid = src->mb_ssid_valid;
 	memcpy(dst->mb_ssid, src->mb_ssid, 6);
-	dst->bWithCcxVerNum = src->bWithCcxVerNum;
+	dst->with_ccx_ver_num = src->with_ccx_ver_num;
 	dst->bss_ccx_ver_number = src->bss_ccx_ver_number;
 }
 
