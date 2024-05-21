@@ -597,6 +597,7 @@ static int xe_info_init_early(struct xe_device *xe,
 {
 	int err;
 
+	xe->info.platform_name = desc->platform_name;
 	xe->info.platform = desc->platform;
 	xe->info.subplatform = subplatform_desc ?
 		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
