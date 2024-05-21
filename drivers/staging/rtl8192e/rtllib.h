@@ -728,7 +728,7 @@ union frameqos {
 #define QOS_VERSION_1		   1
 
 struct rtllib_qos_information_element {
-	u8 elementID;
+	u8 element_id;
 	u8 length;
 	u8 qui[QOS_OUI_LEN];
 	u8 qui_type;

@@ -1456,7 +1456,7 @@ static u8 qos_oui[QOS_OUI_LEN] = { 0x00, 0x50, 0xF2 };
 static int rtllib_verify_qos_info(struct rtllib_qos_information_element
 				     *info_element, int sub_type)
 {
-	if (info_element->elementID != QOS_ELEMENT_ID)
+	if (info_element->element_id != QOS_ELEMENT_ID)
 		return -1;
 	if (info_element->qui_subtype != sub_type)
 		return -1;
