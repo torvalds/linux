@@ -729,7 +729,6 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 	u16		fc = le16_to_cpu(hdr->frame_control);
 
 	u16		llc_offset = sizeof(struct ieee80211_hdr_3addr);
-	u16		ChkLength;
 	bool		is_aggregate_frame = false;
 	u16		nSubframe_Length;
 	u8		pad_len = 0;
@@ -746,9 +745,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 	if (rx_stats->contain_htc)
 		llc_offset += sHTCLng;
 
-	ChkLength = llc_offset;
-
-	if (skb->len <= ChkLength)
+	if (skb->len <= llc_offset)
 		return 0;
 
 	skb_pull(skb, llc_offset);
