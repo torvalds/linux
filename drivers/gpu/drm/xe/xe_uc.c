@@ -51,7 +51,7 @@ int xe_uc_init(struct xe_uc *uc)
 		goto err;
 
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
-		goto err;
+		return 0;
 
 	ret = xe_wopcm_init(&uc->wopcm);
 	if (ret)
