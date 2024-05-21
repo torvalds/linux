@@ -1600,7 +1600,7 @@ int swsusp_check(bool exclusive)
 
 put:
 		if (error)
-			fput(hib_resume_bdev_file);
+			bdev_fput(hib_resume_bdev_file);
 		else
 			pr_debug("Image signature found, resuming\n");
 	} else {
