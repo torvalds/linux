@@ -403,7 +403,7 @@ drop:
 	return 1;
 }
 
-static bool AddReorderEntry(struct rx_ts_record *ts,
+static bool add_reorder_entry(struct rx_ts_record *ts,
 			    struct rx_reorder_entry *pReorderEntry)
 {
 	struct list_head *pList = &ts->rx_pending_pkt_list;
@@ -610,7 +610,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 			pReorderEntry->SeqNum = SeqNum;
 			pReorderEntry->prxb = prxb;
 
-			if (!AddReorderEntry(ts, pReorderEntry)) {
+			if (!add_reorder_entry(ts, pReorderEntry)) {
 				int i;
 
 				netdev_dbg(ieee->dev,
