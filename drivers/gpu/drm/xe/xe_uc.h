@@ -6,7 +6,7 @@
 #ifndef _XE_UC_H_
 #define _XE_UC_H_
 
-#include "xe_uc_types.h"
+struct xe_uc;
 
 int xe_uc_init(struct xe_uc *uc);
 int xe_uc_init_hwconfig(struct xe_uc *uc);
