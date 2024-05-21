@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <unistd.h>
+#include <pthread.h>
 #include <test_progs.h>
 #include "uprobe_multi.skel.h"
 #include "uprobe_multi_bench.skel.h"
@@ -27,7 +28,10 @@ noinline void uprobe_multi_func_3(void)
 
 struct child {
 	int go[2];
+	int c2p[2]; /* child -> parent channel */
 	int pid;
+	int tid;
+	pthread_t thread;
 };
 
 static void release_child(struct child *child)
@@ -38,6 +42,10 @@ static void release_child(struct child *child)
 		return;
 	close(child->go[1]);
 	close(child->go[0]);
+	if (child->thread)
+		pthread_join(child->thread, NULL);
+	close(child->c2p[0]);
+	close(child->c2p[1]);
 	if (child->pid > 0)
 		waitpid(child->pid, &child_status, 0);
 }
@@ -63,7 +71,7 @@ static struct child *spawn_child(void)
 	if (pipe(child.go))
 		return NULL;
 
-	child.pid = fork();
+	child.pid = child.tid = fork();
 	if (child.pid < 0) {
 		release_child(&child);
 		errno = EINVAL;
@@ -89,6 +97,66 @@ static struct child *spawn_child(void)
 	return &child;
 }
 
+static void *child_thread(void *ctx)
+{
+	struct child *child = ctx;
+	int c = 0, err;
+
+	child->tid = syscall(SYS_gettid);
+
+	/* let parent know we are ready */
+	err = write(child->c2p[1], &c, 1);
+	if (err != 1)
+		pthread_exit(&err);
+
+	/* wait for parent's kick */
+	err = read(child->go[0], &c, 1);
+	if (err != 1)
+		pthread_exit(&err);
+
+	uprobe_multi_func_1();
+	uprobe_multi_func_2();
+	uprobe_multi_func_3();
+
+	err = 0;
+	pthread_exit(&err);
+}
+
+static struct child *spawn_thread(void)
+{
+	static struct child child;
+	int c, err;
+
+	/* pipe to notify child to execute the trigger functions */
+	if (pipe(child.go))
+		return NULL;
+	/* pipe to notify parent that child thread is ready */
+	if (pipe(child.c2p)) {
+		close(child.go[0]);
+		close(child.go[1]);
+		return NULL;
+	}
+
+	child.pid = getpid();
+
+	err = pthread_create(&child.thread, NULL, child_thread, &child);
+	if (err) {
+		err = -errno;
+		close(child.go[0]);
+		close(child.go[1]);
+		close(child.c2p[0]);
+		close(child.c2p[1]);
+		errno = -err;
+		return NULL;
+	}
+
+	err = read(child.c2p[0], &c, 1);
+	if (!ASSERT_EQ(err, 1, "child_thread_ready"))
+		return NULL;
+
+	return &child;
+}
+
 static void uprobe_multi_test_run(struct uprobe_multi *skel, struct child *child)
 {
 	skel->bss->uprobe_multi_func_1_addr = (__u64) uprobe_multi_func_1;
@@ -103,14 +171,21 @@ static void uprobe_multi_test_run(struct uprobe_multi *skel, struct child *child
 	 * passed at the probe attach.
 	 */
 	skel->bss->pid = child ? 0 : getpid();
+	skel->bss->expect_pid = child ? child->pid : 0;
+
+	/* trigger all probes, if we are testing child *process*, just to make
+	 * sure that PID filtering doesn't let through activations from wrong
+	 * PIDs; when we test child *thread*, we don't want to do this to
+	 * avoid double counting number of triggering events
+	 */
+	if (!child || !child->thread) {
+		uprobe_multi_func_1();
+		uprobe_multi_func_2();
+		uprobe_multi_func_3();
+	}
 
 	if (child)
 		kick_child(child);
-
-	/* trigger all probes */
-	uprobe_multi_func_1();
-	uprobe_multi_func_2();
-	uprobe_multi_func_3();
 
 	/*
 	 * There are 2 entry and 2 exit probe called for each uprobe_multi_func_[123]
@@ -126,8 +201,12 @@ static void uprobe_multi_test_run(struct uprobe_multi *skel, struct child *child
 
 	ASSERT_EQ(skel->bss->uprobe_multi_sleep_result, 6, "uprobe_multi_sleep_result");
 
-	if (child)
+	ASSERT_FALSE(skel->bss->bad_pid_seen, "bad_pid_seen");
+
+	if (child) {
 		ASSERT_EQ(skel->bss->child_pid, child->pid, "uprobe_multi_child_pid");
+		ASSERT_EQ(skel->bss->child_tid, child->tid, "uprobe_multi_child_tid");
+	}
 }
 
 static void test_skel_api(void)
@@ -207,6 +286,13 @@ test_attach_api(const char *binary, const char *pattern, struct bpf_uprobe_multi
 	/* pid filter */
 	child = spawn_child();
 	if (!ASSERT_OK_PTR(child, "spawn_child"))
+		return;
+
+	__test_attach_api(binary, pattern, opts, child);
+
+	/* pid filter (thread) */
+	child = spawn_thread();
+	if (!ASSERT_OK_PTR(child, "spawn_thread"))
 		return;
 
 	__test_attach_api(binary, pattern, opts, child);
@@ -492,6 +578,13 @@ static void test_link_api(void)
 	/* pid filter */
 	child = spawn_child();
 	if (!ASSERT_OK_PTR(child, "spawn_child"))
+		return;
+
+	__test_link_api(child);
+
+	/* pid filter (thread) */
+	child = spawn_thread();
+	if (!ASSERT_OK_PTR(child, "spawn_thread"))
 		return;
 
 	__test_link_api(child);
