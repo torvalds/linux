@@ -800,25 +800,6 @@ static inline void nfs_folio_mark_unstable(struct folio *folio,
 /*
  * Determine the number of bytes of data the page contains
  */
-static inline
-unsigned int nfs_page_length(struct page *page)
-{
-	loff_t i_size = i_size_read(page_file_mapping(page)->host);
-
-	if (i_size > 0) {
-		pgoff_t index = page_index(page);
-		pgoff_t end_index = (i_size - 1) >> PAGE_SHIFT;
-		if (index < end_index)
-			return PAGE_SIZE;
-		if (index == end_index)
-			return ((i_size - 1) & ~PAGE_MASK) + 1;
-	}
-	return 0;
-}
-
-/*
- * Determine the number of bytes of data the page contains
- */
 static inline size_t nfs_folio_length(struct folio *folio)
 {
 	loff_t i_size = i_size_read(folio_file_mapping(folio)->host);
