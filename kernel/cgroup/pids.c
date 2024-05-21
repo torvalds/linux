@@ -57,10 +57,12 @@ struct pids_cgroup {
 	atomic64_t			limit;
 	int64_t				watermark;
 
-	/* Handle for "pids.events" */
+	/* Handles for pids.events[.local] */
 	struct cgroup_file		events_file;
+	struct cgroup_file		events_local_file;
 
 	atomic64_t			events[NR_PIDCG_EVENTS];
+	atomic64_t			events_local[NR_PIDCG_EVENTS];
 };
 
 static struct pids_cgroup *css_pids(struct cgroup_subsys_state *css)
@@ -244,21 +246,23 @@ static void pids_event(struct pids_cgroup *pids_forking,
 	struct pids_cgroup *p = pids_forking;
 	bool limit = false;
 
+	/* Only log the first time limit is hit. */
+	if (atomic64_inc_return(&p->events_local[PIDCG_FORKFAIL]) == 1) {
+		pr_info("cgroup: fork rejected by pids controller in ");
+		pr_cont_cgroup_path(p->css.cgroup);
+		pr_cont("\n");
+	}
+	cgroup_file_notify(&p->events_local_file);
+	if (!cgroup_subsys_on_dfl(pids_cgrp_subsys) ||
+	    cgrp_dfl_root.flags & CGRP_ROOT_PIDS_LOCAL_EVENTS)
+		return;
+
 	for (; parent_pids(p); p = parent_pids(p)) {
-		/* Only log the first time limit is hit. */
-		if (atomic64_inc_return(&p->events[PIDCG_FORKFAIL]) == 1) {
-			pr_info("cgroup: fork rejected by pids controller in ");
-			pr_cont_cgroup_path(p->css.cgroup);
-			pr_cont("\n");
-		}
-		cgroup_file_notify(&p->events_file);
-
-		if (!cgroup_subsys_on_dfl(pids_cgrp_subsys) ||
-		    cgrp_dfl_root.flags & CGRP_ROOT_PIDS_LOCAL_EVENTS)
-			break;
-
-		if (p == pids_over_limit)
+		if (p == pids_over_limit) {
 			limit = true;
+			atomic64_inc(&p->events_local[PIDCG_MAX]);
+			cgroup_file_notify(&p->events_local_file);
+		}
 		if (limit)
 			atomic64_inc(&p->events[PIDCG_MAX]);
 
@@ -368,16 +372,32 @@ static s64 pids_peak_read(struct cgroup_subsys_state *css,
 	return READ_ONCE(pids->watermark);
 }
 
-static int pids_events_show(struct seq_file *sf, void *v)
+static int __pids_events_show(struct seq_file *sf, bool local)
 {
 	struct pids_cgroup *pids = css_pids(seq_css(sf));
 	enum pidcg_event pe = PIDCG_MAX;
+	atomic64_t *events;
 
 	if (!cgroup_subsys_on_dfl(pids_cgrp_subsys) ||
-	    cgrp_dfl_root.flags & CGRP_ROOT_PIDS_LOCAL_EVENTS)
+	    cgrp_dfl_root.flags & CGRP_ROOT_PIDS_LOCAL_EVENTS) {
 		pe = PIDCG_FORKFAIL;
+		local = true;
+	}
+	events = local ? pids->events_local : pids->events;
 
-	seq_printf(sf, "max %lld\n", (s64)atomic64_read(&pids->events[pe]));
+	seq_printf(sf, "max %lld\n", (s64)atomic64_read(&events[pe]));
+	return 0;
+}
+
+static int pids_events_show(struct seq_file *sf, void *v)
+{
+	__pids_events_show(sf, false);
+	return 0;
+}
+
+static int pids_events_local_show(struct seq_file *sf, void *v)
+{
+	__pids_events_show(sf, true);
 	return 0;
 }
 
@@ -404,8 +424,41 @@ static struct cftype pids_files[] = {
 		.file_offset = offsetof(struct pids_cgroup, events_file),
 		.flags = CFTYPE_NOT_ON_ROOT,
 	},
+	{
+		.name = "events.local",
+		.seq_show = pids_events_local_show,
+		.file_offset = offsetof(struct pids_cgroup, events_local_file),
+		.flags = CFTYPE_NOT_ON_ROOT,
+	},
 	{ }	/* terminate */
 };
+
+static struct cftype pids_files_legacy[] = {
+	{
+		.name = "max",
+		.write = pids_max_write,
+		.seq_show = pids_max_show,
+		.flags = CFTYPE_NOT_ON_ROOT,
+	},
+	{
+		.name = "current",
+		.read_s64 = pids_current_read,
+		.flags = CFTYPE_NOT_ON_ROOT,
+	},
+	{
+		.name = "peak",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_s64 = pids_peak_read,
+	},
+	{
+		.name = "events",
+		.seq_show = pids_events_show,
+		.file_offset = offsetof(struct pids_cgroup, events_file),
+		.flags = CFTYPE_NOT_ON_ROOT,
+	},
+	{ }	/* terminate */
+};
+
 
 struct cgroup_subsys pids_cgrp_subsys = {
 	.css_alloc	= pids_css_alloc,
@@ -415,7 +468,7 @@ struct cgroup_subsys pids_cgrp_subsys = {
 	.can_fork	= pids_can_fork,
 	.cancel_fork	= pids_cancel_fork,
 	.release	= pids_release,
-	.legacy_cftypes	= pids_files,
+	.legacy_cftypes = pids_files_legacy,
 	.dfl_cftypes	= pids_files,
 	.threaded	= true,
 };

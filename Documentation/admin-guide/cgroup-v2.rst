@@ -2220,6 +2220,11 @@ PID Interface Files
 		The number of times the cgroup's total number of processes hit the pids.max
 		limit (see also pids_localevents).
 
+  pids.events.local
+	Similar to pids.events but the fields in the file are local
+	to the cgroup i.e. not hierarchical. The file modified event
+	generated on this file reflects only the local events.
+
 Organisational operations are not blocked by cgroup policies, so it is
 possible to have pids.current > pids.max.  This can be done by either
 setting the limit to be smaller than pids.current, or attaching enough
