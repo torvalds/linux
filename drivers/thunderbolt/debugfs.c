@@ -7,6 +7,7 @@
  *	    Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
 #include <linux/uaccess.h>
@@ -436,8 +437,7 @@ static bool both_lanes(const struct tb_margining *margining)
 static unsigned int
 independent_voltage_margins(const struct tb_margining *margining)
 {
-	return (margining->caps[0] & USB4_MARGIN_CAP_0_VOLTAGE_INDP_MASK) >>
-		USB4_MARGIN_CAP_0_VOLTAGE_INDP_SHIFT;
+	return FIELD_GET(USB4_MARGIN_CAP_0_VOLTAGE_INDP_MASK, margining->caps[0]);
 }
 
 static bool supports_time(const struct tb_margining *margining)
@@ -449,8 +449,7 @@ static bool supports_time(const struct tb_margining *margining)
 static unsigned int
 independent_time_margins(const struct tb_margining *margining)
 {
-	return (margining->caps[1] & USB4_MARGIN_CAP_1_TIME_INDP_MASK) >>
-		USB4_MARGIN_CAP_1_TIME_INDP_SHIFT;
+	return FIELD_GET(USB4_MARGIN_CAP_1_TIME_INDP_MASK, margining->caps[1]);
 }
 
 static ssize_t
@@ -845,7 +844,7 @@ static void voltage_margin_show(struct seq_file *s,
 {
 	unsigned int tmp, voltage;
 
-	tmp = val & USB4_MARGIN_HW_RES_1_MARGIN_MASK;
+	tmp = FIELD_GET(USB4_MARGIN_HW_RES_1_MARGIN_MASK, val);
 	voltage = tmp * margining->max_voltage_offset / margining->voltage_steps;
 	seq_printf(s, "%u mV (%u)", voltage, tmp);
 	if (val & USB4_MARGIN_HW_RES_1_EXCEEDS)
@@ -858,7 +857,7 @@ static void time_margin_show(struct seq_file *s,
 {
 	unsigned int tmp, interval;
 
-	tmp = val & USB4_MARGIN_HW_RES_1_MARGIN_MASK;
+	tmp = FIELD_GET(USB4_MARGIN_HW_RES_1_MARGIN_MASK, val);
 	interval = tmp * margining->max_time_offset / margining->time_steps;
 	seq_printf(s, "%u mUI (%u)", interval, tmp);
 	if (val & USB4_MARGIN_HW_RES_1_EXCEEDS)
@@ -1085,19 +1084,15 @@ static struct tb_margining *margining_alloc(struct tb_port *port,
 	if (supports_software(margining))
 		margining->software = true;
 
-	val = (margining->caps[0] & USB4_MARGIN_CAP_0_VOLTAGE_STEPS_MASK) >>
-		USB4_MARGIN_CAP_0_VOLTAGE_STEPS_SHIFT;
+	val = FIELD_GET(USB4_MARGIN_CAP_0_VOLTAGE_STEPS_MASK, margining->caps[0]);
 	margining->voltage_steps = val;
-	val = (margining->caps[0] & USB4_MARGIN_CAP_0_MAX_VOLTAGE_OFFSET_MASK) >>
-		USB4_MARGIN_CAP_0_MAX_VOLTAGE_OFFSET_SHIFT;
+	val = FIELD_GET(USB4_MARGIN_CAP_0_MAX_VOLTAGE_OFFSET_MASK, margining->caps[0]);
 	margining->max_voltage_offset = 74 + val * 2;
 
 	if (supports_time(margining)) {
-		val = (margining->caps[1] & USB4_MARGIN_CAP_1_TIME_STEPS_MASK) >>
-			USB4_MARGIN_CAP_1_TIME_STEPS_SHIFT;
+		val = FIELD_GET(USB4_MARGIN_CAP_1_TIME_STEPS_MASK, margining->caps[1]);
 		margining->time_steps = val;
-		val = (margining->caps[1] & USB4_MARGIN_CAP_1_TIME_OFFSET_MASK) >>
-			USB4_MARGIN_CAP_1_TIME_OFFSET_SHIFT;
+		val = FIELD_GET(USB4_MARGIN_CAP_1_TIME_OFFSET_MASK, margining->caps[1]);
 		/*
 		 * Store it as mUI (milli Unit Interval) because we want
 		 * to keep it as integer.
@@ -1107,11 +1102,9 @@ static struct tb_margining *margining_alloc(struct tb_port *port,
 
 	dir = debugfs_create_dir("margining", parent);
 	if (supports_hardware(margining)) {
-		val = (margining->caps[1] & USB4_MARGIN_CAP_1_MIN_BER_MASK) >>
-			USB4_MARGIN_CAP_1_MIN_BER_SHIFT;
+		val = FIELD_GET(USB4_MARGIN_CAP_1_MIN_BER_MASK, margining->caps[1]);
 		margining->min_ber_level = val;
-		val = (margining->caps[1] & USB4_MARGIN_CAP_1_MAX_BER_MASK) >>
-			USB4_MARGIN_CAP_1_MAX_BER_SHIFT;
+		val = FIELD_GET(USB4_MARGIN_CAP_1_MAX_BER_MASK, margining->caps[1]);
 		margining->max_ber_level = val;
 
 		/* Set the default to minimum */
