@@ -238,11 +238,13 @@ static unsigned int io_sq_tw(struct llist_node **retry_list, int max_entries)
 	if (*retry_list) {
 		*retry_list = io_handle_tw_list(*retry_list, &count, max_entries);
 		if (count >= max_entries)
-			return count;
+			goto out;
 		max_entries -= count;
 	}
-
 	*retry_list = tctx_task_work_run(tctx, max_entries, &count);
+out:
+	if (task_work_pending(current))
+		task_work_run();
 	return count;
 }
 
