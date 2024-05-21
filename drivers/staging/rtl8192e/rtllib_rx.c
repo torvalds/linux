@@ -406,24 +406,24 @@ drop:
 static bool add_reorder_entry(struct rx_ts_record *ts,
 			    struct rx_reorder_entry *pReorderEntry)
 {
-	struct list_head *pList = &ts->rx_pending_pkt_list;
+	struct list_head *list = &ts->rx_pending_pkt_list;
 
-	while (pList->next != &ts->rx_pending_pkt_list) {
+	while (list->next != &ts->rx_pending_pkt_list) {
 		if (SN_LESS(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)
-		    list_entry(pList->next, struct rx_reorder_entry,
+		    list_entry(list->next, struct rx_reorder_entry,
 		    list))->SeqNum))
-			pList = pList->next;
+			list = list->next;
 		else if (SN_EQUAL(pReorderEntry->SeqNum,
-			((struct rx_reorder_entry *)list_entry(pList->next,
+			((struct rx_reorder_entry *)list_entry(list->next,
 			struct rx_reorder_entry, list))->SeqNum))
 			return false;
 		else
 			break;
 	}
-	pReorderEntry->list.next = pList->next;
+	pReorderEntry->list.next = list->next;
 	pReorderEntry->list.next->prev = &pReorderEntry->list;
-	pReorderEntry->list.prev = pList;
-	pList->next = &pReorderEntry->list;
+	pReorderEntry->list.prev = list;
+	list->next = &pReorderEntry->list;
 
 	return true;
 }
