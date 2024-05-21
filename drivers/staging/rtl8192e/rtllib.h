@@ -915,7 +915,7 @@ struct rtllib_network {
 	bool	ccx_rm_enable;
 	u8	CcxRmState[2];
 	bool	bMBssidValid;
-	u8	MBssidMask;
+	u8	mb_ssid_mask;
 	u8	mb_ssid[ETH_ALEN];
 	bool	bWithCcxVerNum;
 	u8	bss_ccx_ver_number;
