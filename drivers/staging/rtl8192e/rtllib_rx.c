@@ -2183,7 +2183,7 @@ static inline int rtllib_network_init(
 	network->turbo_enable = 0;
 	network->SignalStrength = stats->SignalStrength;
 	network->RSSI = stats->SignalStrength;
-	network->CountryIeLen = 0;
+	network->country_ie_len = 0;
 	memset(network->country_ie_buf, 0, MAX_IE_LEN);
 	ht_initialize_bss_desc(&network->bssht);
 	network->flags |= NETWORK_HAS_CCK;
@@ -2342,8 +2342,8 @@ static inline void update_network(struct rtllib_device *ieee,
 	dst->RSSI = src->RSSI;
 	dst->turbo_enable = src->turbo_enable;
 
-	dst->CountryIeLen = src->CountryIeLen;
-	memcpy(dst->country_ie_buf, src->country_ie_buf, src->CountryIeLen);
+	dst->country_ie_len = src->country_ie_len;
+	memcpy(dst->country_ie_buf, src->country_ie_buf, src->country_ie_len);
 
 	dst->bWithAironetIE = src->bWithAironetIE;
 	dst->ckip_supported = src->ckip_supported;
