@@ -363,10 +363,10 @@ bool dp_is_128b_132b_signal(struct pipe_ctx *pipe_ctx)
 
 bool dp_is_lttpr_present(struct dc_link *link)
 {
+	/* Some sink devices report invalid LTTPR revision, so don't validate against that cap */
 	return (dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) != 0 &&
 			link->dpcd_caps.lttpr_caps.max_lane_count > 0 &&
-			link->dpcd_caps.lttpr_caps.max_lane_count <= 4 &&
-			link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
+			link->dpcd_caps.lttpr_caps.max_lane_count <= 4);
 }
 
 /* in DP compliance test, DPR-120 may have
@@ -399,7 +399,20 @@ static enum dc_link_rate get_link_rate_from_max_link_bw(
 
 static enum dc_link_rate get_lttpr_max_link_rate(struct dc_link *link)
 {
-	enum dc_link_rate lttpr_max_link_rate = link->dpcd_caps.lttpr_caps.max_link_rate;
+
+	enum dc_link_rate lttpr_max_link_rate = LINK_RATE_UNKNOWN;
+
+	switch (link->dpcd_caps.lttpr_caps.max_link_rate) {
+	case LINK_RATE_LOW:
+	case LINK_RATE_HIGH:
+	case LINK_RATE_HIGH2:
+	case LINK_RATE_HIGH3:
+		lttpr_max_link_rate = link->dpcd_caps.lttpr_caps.max_link_rate;
+		break;
+	default:
+		// Assume all LTTPRs support up to HBR3 to improve misbehaving sink interop
+		lttpr_max_link_rate = LINK_RATE_HIGH3;
+	}
 
 	if (link->dpcd_caps.lttpr_caps.supported_128b_132b_rates.bits.UHBR20)
 		lttpr_max_link_rate = LINK_RATE_UHBR20;
