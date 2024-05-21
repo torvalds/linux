@@ -8018,9 +8018,12 @@ commit_trans:
 	 * an unnecessary update of the root's item in the root tree when
 	 * committing the transaction if that root wasn't changed before.
 	 */
-	trans = btrfs_join_transaction(root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	trans = btrfs_attach_transaction_barrier(root);
+	if (IS_ERR(trans)) {
+		int ret = PTR_ERR(trans);
+
+		return (ret == -ENOENT) ? 0 : ret;
+	}
 
 	return btrfs_commit_transaction(trans);
 }
