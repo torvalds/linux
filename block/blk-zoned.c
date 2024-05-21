@@ -1257,7 +1257,7 @@ void blk_zone_write_plug_bio_endio(struct bio *bio)
 	 * is not called. So we need to schedule execution of the next
 	 * plugged BIO here.
 	 */
-	if (bio->bi_bdev->bd_has_submit_bio)
+	if (bdev_test_flag(bio->bi_bdev, BD_HAS_SUBMIT_BIO))
 		disk_zone_wplug_unplug_bio(disk, zwplug);
 
 	/* Drop the reference we took when entering this function. */
@@ -1326,7 +1326,7 @@ static void blk_zone_wplug_bio_work(struct work_struct *work)
 	 * path for BIO-based devices will not do that. So drop this extra
 	 * reference here.
 	 */
-	if (bdev->bd_has_submit_bio)
+	if (bdev_test_flag(bdev, BD_HAS_SUBMIT_BIO))
 		blk_queue_exit(bdev->bd_disk->queue);
 
 put_zwplug:
