@@ -240,8 +240,11 @@ cgroup v2 currently supports the following mount options.
           v2 is remounted later on).
 
   pids_localevents
-        Represent fork failures inside cgroup's pids.events:max (v1 behavior),
-        not its limit being hit (v2 behavior).
+        The option restores v1-like behavior of pids.events:max, that is only
+        local (inside cgroup proper) fork failures are counted. Without this
+        option pids.events.max represents any pids.max enforcemnt across
+        cgroup's subtree.
+
 
 
 Organizing Processes and Threads
@@ -2214,7 +2217,7 @@ PID Interface Files
 	modified event. The following entries are defined.
 
 	  max
-		The number of times the cgroup's number of processes hit the
+		The number of times the cgroup's total number of processes hit the pids.max
 		limit (see also pids_localevents).
 
 Organisational operations are not blocked by cgroup policies, so it is
