@@ -83,6 +83,13 @@
 					"0", "1", "0",
 					"0", "0", "1";
 		};
+
+		light-sensor@53 {
+			/* it has ltr579 alps sensor */
+			compatible = "liteon,ltrf216a";
+			reg = <0x53>;
+			vdd-supply = <&pm8953_l10>;
+		};
 	};
 
 	irled {
