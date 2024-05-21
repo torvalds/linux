@@ -222,6 +222,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1308_SDW
 	imply SND_SOC_RT1316_SDW
 	imply SND_SOC_RT1318_SDW
+	imply SND_SOC_RT1320_SDW
 	imply SND_SOC_RT9120
 	imply SND_SOC_RTQ9128
 	imply SND_SOC_SDW_MOCKUP
@@ -1574,6 +1575,12 @@ config SND_SOC_RT1318_SDW
 	tristate "Realtek RT1318 Codec - SDW"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
+
+config SND_SOC_RT1320_SDW
+	tristate "Realtek RT1320 Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
 
 config SND_SOC_RT5514
 	tristate
