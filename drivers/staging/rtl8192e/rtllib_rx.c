@@ -429,14 +429,14 @@ static bool add_reorder_entry(struct rx_ts_record *ts,
 }
 
 void rtllib_indicate_packets(struct rtllib_device *ieee,
-			     struct rtllib_rxb **prxbIndicateArray, u8 index)
+			     struct rtllib_rxb **prxb_indicate_array, u8 index)
 {
 	struct net_device_stats *stats = &ieee->stats;
 	u8 i = 0, j = 0;
 	u16 ethertype;
 
 	for (j = 0; j < index; j++) {
-		struct rtllib_rxb *prxb = prxbIndicateArray[j];
+		struct rtllib_rxb *prxb = prxb_indicate_array[j];
 
 		for (i = 0; i < prxb->nr_subframes; i++) {
 			struct sk_buff *sub_skb = prxb->subframes[i];
@@ -594,7 +594,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 		netdev_dbg(ieee->dev,
 			   "Packets indication! IndicateSeq: %d, NewSeq: %d\n",
 			   ts->rx_indicate_seq, SeqNum);
-		ieee->prxbIndicateArray[0] = prxb;
+		ieee->prxb_indicate_array[0] = prxb;
 		index = 1;
 	} else {
 		/* Current packet is going to be inserted into pending list.*/
@@ -675,7 +675,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 				ts->rx_indicate_seq = (ts->rx_indicate_seq + 1) %
 						     4096;
 
-			ieee->prxbIndicateArray[index] = pReorderEntry->prxb;
+			ieee->prxb_indicate_array[index] = pReorderEntry->prxb;
 			netdev_dbg(ieee->dev, "%s(): Indicate SeqNum %d!\n",
 				   __func__, pReorderEntry->SeqNum);
 			index++;
@@ -706,7 +706,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 					       flags);
 			return;
 		}
-		rtllib_indicate_packets(ieee, ieee->prxbIndicateArray, index);
+		rtllib_indicate_packets(ieee, ieee->prxb_indicate_array, index);
 		bPktInBuf = false;
 	}
 
