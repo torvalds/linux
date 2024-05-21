@@ -950,7 +950,7 @@ struct rtllib_network {
 	struct rtllib_wmm_ac_param wmm_param[4];
 	u8 turbo_enable;
 	u16 CountryIeLen;
-	u8 CountryIeBuf[MAX_IE_LEN];
+	u8 country_ie_buf[MAX_IE_LEN];
 	struct bss_ht bssht;
 	bool broadcom_cap_exist;
 	bool realtek_cap_exit;
