@@ -7998,32 +7998,29 @@ out:
  */
 static int ensure_commit_roots_uptodate(struct send_ctx *sctx)
 {
-	int i;
-	struct btrfs_trans_handle *trans = NULL;
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = sctx->parent_root;
 
-again:
-	if (sctx->parent_root &&
-	    sctx->parent_root->node != sctx->parent_root->commit_root)
+	if (root && root->node != root->commit_root)
 		goto commit_trans;
 
-	for (i = 0; i < sctx->clone_roots_cnt; i++)
-		if (sctx->clone_roots[i].root->node !=
-		    sctx->clone_roots[i].root->commit_root)
+	for (int i = 0; i < sctx->clone_roots_cnt; i++) {
+		root = sctx->clone_roots[i].root;
+		if (root->node != root->commit_root)
 			goto commit_trans;
-
-	if (trans)
-		return btrfs_end_transaction(trans);
+	}
 
 	return 0;
 
 commit_trans:
-	/* Use any root, all fs roots will get their commit roots updated. */
-	if (!trans) {
-		trans = btrfs_join_transaction(sctx->send_root);
-		if (IS_ERR(trans))
-			return PTR_ERR(trans);
-		goto again;
-	}
+	/*
+	 * Use the first root we found. We could use any but that would cause
+	 * an unnecessary update of the root's item in the root tree when
+	 * committing the transaction if that root wasn't changed before.
+	 */
+	trans = btrfs_join_transaction(root);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 
 	return btrfs_commit_transaction(trans);
 }
