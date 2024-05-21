@@ -64,22 +64,23 @@ void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
 	}
 
 	// Shaper LUT (RAM), 3D LUT (mode, bit-depth, size)
-	REG_GET(CM_SHAPER_CONTROL,
-		CM_SHAPER_LUT_MODE, &s->shaper_lut_mode);
-	REG_GET(CM_3DLUT_MODE,
-		CM_3DLUT_MODE_CURRENT, &s->lut3d_mode);
-	REG_GET(CM_3DLUT_READ_WRITE_CONTROL,
-		CM_3DLUT_30BIT_EN, &s->lut3d_bit_depth);
-	REG_GET(CM_3DLUT_MODE,
-		CM_3DLUT_SIZE, &s->lut3d_size);
+	if (REG(CM_SHAPER_CONTROL))
+		REG_GET(CM_SHAPER_CONTROL, CM_SHAPER_LUT_MODE, &s->shaper_lut_mode);
+	if (REG(CM_3DLUT_MODE))
+		REG_GET(CM_3DLUT_MODE, CM_3DLUT_MODE_CURRENT, &s->lut3d_mode);
+	if (REG(CM_3DLUT_READ_WRITE_CONTROL))
+		REG_GET(CM_3DLUT_READ_WRITE_CONTROL, CM_3DLUT_30BIT_EN, &s->lut3d_bit_depth);
+	if (REG(CM_3DLUT_MODE))
+		REG_GET(CM_3DLUT_MODE, CM_3DLUT_SIZE, &s->lut3d_size);
 
 	// Blend/Out Gamma (RAM)
-	REG_GET(CM_BLNDGAM_CONTROL,
-		CM_BLNDGAM_MODE_CURRENT, &s->rgam_lut_mode);
-	if (s->rgam_lut_mode){
-		REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_SELECT_CURRENT, &rgam_lut_mode);
-		if (!rgam_lut_mode)
-			s->rgam_lut_mode = LUT_RAM_A; // Otherwise, LUT_RAM_B
+	if (REG(CM_BLNDGAM_CONTROL)) {
+		REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_MODE_CURRENT, &s->rgam_lut_mode);
+		if (s->rgam_lut_mode) {
+			REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_SELECT_CURRENT, &rgam_lut_mode);
+			if (!rgam_lut_mode)
+				s->rgam_lut_mode = LUT_RAM_A; // Otherwise, LUT_RAM_B
+		}
 	}
 }
 
