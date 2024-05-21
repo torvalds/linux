@@ -71,7 +71,7 @@ __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field overrides in table");
 
 #define PLATFORM(x)		\
-	.platform = (x),	\
+	.platform = XE_##x,	\
 	.platform_name = #x
 
 #define NOP(x)	x
@@ -218,7 +218,7 @@ static const struct xe_media_desc media_xe2 = {
 static const struct xe_device_desc tgl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_TIGERLAKE),
+	PLATFORM(TIGERLAKE),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -227,7 +227,7 @@ static const struct xe_device_desc tgl_desc = {
 static const struct xe_device_desc rkl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_ROCKETLAKE),
+	PLATFORM(ROCKETLAKE),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -238,7 +238,7 @@ static const u16 adls_rpls_ids[] = { XE_RPLS_IDS(NOP), 0 };
 static const struct xe_device_desc adl_s_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_ALDERLAKE_S),
+	PLATFORM(ALDERLAKE_S),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -253,7 +253,7 @@ static const u16 adlp_rplu_ids[] = { XE_RPLU_IDS(NOP), 0 };
 static const struct xe_device_desc adl_p_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_ALDERLAKE_P),
+	PLATFORM(ALDERLAKE_P),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -266,7 +266,7 @@ static const struct xe_device_desc adl_p_desc = {
 static const struct xe_device_desc adl_n_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_ALDERLAKE_N),
+	PLATFORM(ALDERLAKE_N),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -279,7 +279,7 @@ static const struct xe_device_desc dg1_desc = {
 	.graphics = &graphics_xelpp,
 	.media = &media_xem,
 	DGFX_FEATURES,
-	PLATFORM(XE_DG1),
+	PLATFORM(DG1),
 	.has_display = true,
 	.has_heci_gscfi = 1,
 	.require_force_probe = true,
@@ -291,7 +291,7 @@ static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
 
 #define DG2_FEATURES \
 	DGFX_FEATURES, \
-	PLATFORM(XE_DG2), \
+	PLATFORM(DG2), \
 	.has_heci_gscfi = 1, \
 	.subplatforms = (const struct xe_subplatform_desc[]) { \
 		{ XE_SUBPLATFORM_DG2_G10, "G10", dg2_g10_ids }, \
@@ -321,7 +321,7 @@ static const struct xe_device_desc dg2_desc = {
 static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.graphics = &graphics_xehpc,
 	DGFX_FEATURES,
-	PLATFORM(XE_PVC),
+	PLATFORM(PVC),
 	.has_display = false,
 	.has_heci_gscfi = 1,
 	.require_force_probe = true,
@@ -330,19 +330,19 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 static const struct xe_device_desc mtl_desc = {
 	/* .graphics and .media determined via GMD_ID */
 	.require_force_probe = true,
-	PLATFORM(XE_METEORLAKE),
+	PLATFORM(METEORLAKE),
 	.has_display = true,
 };
 
 static const struct xe_device_desc lnl_desc = {
-	PLATFORM(XE_LUNARLAKE),
+	PLATFORM(LUNARLAKE),
 	.has_display = true,
 	.require_force_probe = true,
 };
 
 static const struct xe_device_desc bmg_desc __maybe_unused = {
 	DGFX_FEATURES,
-	PLATFORM(XE_BATTLEMAGE),
+	PLATFORM(BATTLEMAGE),
 	.require_force_probe = true,
 };
 
