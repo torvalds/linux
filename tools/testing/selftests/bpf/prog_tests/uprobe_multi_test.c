@@ -397,7 +397,7 @@ static void test_attach_api_fails(void)
 	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
 	if (!ASSERT_ERR(link_fd, "link_fd"))
 		goto cleanup;
-	ASSERT_EQ(link_fd, -ESRCH, "pid_is_wrong");
+	ASSERT_EQ(link_fd, -EINVAL, "pid_is_wrong");
 
 cleanup:
 	if (link_fd >= 0)
