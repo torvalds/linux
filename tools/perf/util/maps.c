@@ -744,7 +744,6 @@ static int __maps__fixup_overlap_and_insert(struct maps *maps, struct map *new)
 	int err = 0;
 	FILE *fp = debug_file();
 
-sort_again:
 	if (!maps__maps_by_address_sorted(maps))
 		__maps__sort_by_address(maps);
 
@@ -820,36 +819,54 @@ sort_again:
 			/* Maps are still ordered, go to next one. */
 			i++;
 			if (after) {
-				err = __maps__insert(maps, after);
-				map__put(after);
-				if (err)
-					goto out_err;
-				if (!maps__maps_by_address_sorted(maps)) {
-					/*
-					 * Sorting broken so invariants don't
-					 * hold, sort and go again.
-					 */
-					goto sort_again;
-				}
 				/*
-				 * Maps are still ordered, skip after and go to
-				 * next one (terminate loop).
+				 * 'before' and 'after' mean 'new' split the
+				 * 'pos' mapping and therefore there are no
+				 * later mappings.
 				 */
-				i++;
+				err = __maps__insert(maps, new);
+				if (!err)
+					err = __maps__insert(maps, after);
+				map__put(after);
+				check_invariants(maps);
+				return err;
 			}
+			check_invariants(maps);
 		} else if (after) {
+			/*
+			 * 'after' means 'new' split 'pos' and there are no
+			 * later mappings.
+			 */
 			map__put(maps_by_address[i]);
-			maps_by_address[i] = after;
-			/* Maps are ordered, go to next one. */
-			i++;
+			maps_by_address[i] = map__get(new);
+			err = __maps__insert(maps, after);
+			map__put(after);
+			check_invariants(maps);
+			return err;
 		} else {
+			struct map *next = NULL;
+
+			if (i + 1 < maps__nr_maps(maps))
+				next = maps_by_address[i + 1];
+
+			if (!next  || map__start(next) >= map__end(new)) {
+				/*
+				 * Replace existing mapping and end knowing
+				 * there aren't later overlapping or any
+				 * mappings.
+				 */
+				map__put(maps_by_address[i]);
+				maps_by_address[i] = map__get(new);
+				check_invariants(maps);
+				return err;
+			}
 			__maps__remove(maps, pos);
+			check_invariants(maps);
 			/*
 			 * Maps are ordered but no need to increase `i` as the
 			 * later maps were moved down.
 			 */
 		}
-		check_invariants(maps);
 	}
 	/* Add the map. */
 	err = __maps__insert(maps, new);
