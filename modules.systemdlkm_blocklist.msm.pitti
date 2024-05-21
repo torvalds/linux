@@ -2,3 +2,5 @@
 # Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
 
 blocklist kheaders
+blocklist zram
+blocklist zsmalloc
