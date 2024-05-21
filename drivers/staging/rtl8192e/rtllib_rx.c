@@ -526,19 +526,19 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	struct rx_reorder_entry *pReorderEntry = NULL;
-	u8 WinSize = ht_info->rx_reorder_win_size;
+	u8 win_size = ht_info->rx_reorder_win_size;
 	u16 win_end = 0;
 	u8 index = 0;
 	bool bMatchWinStart = false, bPktInBuf = false;
 	unsigned long flags;
 
 	netdev_dbg(ieee->dev,
-		   "%s(): Seq is %d, ts->rx_indicate_seq is %d, WinSize is %d\n",
-		   __func__, SeqNum, ts->rx_indicate_seq, WinSize);
+		   "%s(): Seq is %d, ts->rx_indicate_seq is %d, win_size is %d\n",
+		   __func__, SeqNum, ts->rx_indicate_seq, win_size);
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 
-	win_end = (ts->rx_indicate_seq + WinSize - 1) % 4096;
+	win_end = (ts->rx_indicate_seq + win_size - 1) % 4096;
 	/* Rx Reorder initialize condition.*/
 	if (ts->rx_indicate_seq == 0xffff)
 		ts->rx_indicate_seq = SeqNum;
@@ -569,11 +569,11 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 		ts->rx_indicate_seq = (ts->rx_indicate_seq + 1) % 4096;
 		bMatchWinStart = true;
 	} else if (SN_LESS(win_end, SeqNum)) {
-		if (SeqNum >= (WinSize - 1))
-			ts->rx_indicate_seq = SeqNum + 1 - WinSize;
+		if (SeqNum >= (win_size - 1))
+			ts->rx_indicate_seq = SeqNum + 1 - win_size;
 		else
 			ts->rx_indicate_seq = 4095 -
-					     (WinSize - (SeqNum + 1)) + 1;
+					     (win_size - (SeqNum + 1)) + 1;
 		netdev_dbg(ieee->dev,
 			   "Window Shift! IndicateSeq: %d, NewSeq: %d\n",
 			   ts->rx_indicate_seq, SeqNum);
