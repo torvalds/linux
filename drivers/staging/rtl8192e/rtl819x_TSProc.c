@@ -18,7 +18,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 
 	unsigned long flags = 0;
 	u8 index = 0;
-	bool bPktInBuf = false;
+	bool pkt_in_buf = false;
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 	if (ts->rx_timeout_indicate_seq != 0xffff) {
@@ -50,7 +50,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 				list_add_tail(&pReorderEntry->list,
 					      &ieee->RxReorder_Unused_List);
 			} else {
-				bPktInBuf = true;
+				pkt_in_buf = true;
 				break;
 			}
 		}
@@ -68,10 +68,10 @@ static void RxPktPendingTimeout(struct timer_list *t)
 			return;
 		}
 		rtllib_indicate_packets(ieee, ieee->stats_IndicateArray, index);
-		bPktInBuf = false;
+		pkt_in_buf = false;
 	}
 
-	if (bPktInBuf && (ts->rx_timeout_indicate_seq == 0xffff)) {
+	if (pkt_in_buf && (ts->rx_timeout_indicate_seq == 0xffff)) {
 		ts->rx_timeout_indicate_seq = ts->rx_indicate_seq;
 		mod_timer(&ts->rx_pkt_pending_timer,  jiffies +
 			  msecs_to_jiffies(ieee->ht_info->rx_reorder_pending_time)

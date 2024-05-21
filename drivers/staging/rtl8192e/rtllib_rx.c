@@ -529,7 +529,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 	u8 win_size = ht_info->rx_reorder_win_size;
 	u16 win_end = 0;
 	u8 index = 0;
-	bool match_win_start = false, bPktInBuf = false;
+	bool match_win_start = false, pkt_in_buf = false;
 	unsigned long flags;
 
 	netdev_dbg(ieee->dev,
@@ -665,7 +665,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 				netdev_err(ieee->dev,
 					   "%s(): Buffer overflow!\n",
 					   __func__);
-				bPktInBuf = true;
+				pkt_in_buf = true;
 				break;
 			}
 
@@ -683,7 +683,7 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 			list_add_tail(&pReorderEntry->list,
 				      &ieee->RxReorder_Unused_List);
 		} else {
-			bPktInBuf = true;
+			pkt_in_buf = true;
 			break;
 		}
 	}
@@ -707,10 +707,10 @@ static void rx_reorder_indicate_packet(struct rtllib_device *ieee,
 			return;
 		}
 		rtllib_indicate_packets(ieee, ieee->prxb_indicate_array, index);
-		bPktInBuf = false;
+		pkt_in_buf = false;
 	}
 
-	if (bPktInBuf && ts->rx_timeout_indicate_seq == 0xffff) {
+	if (pkt_in_buf && ts->rx_timeout_indicate_seq == 0xffff) {
 		netdev_dbg(ieee->dev, "%s(): SET rx timeout timer\n", __func__);
 		ts->rx_timeout_indicate_seq = ts->rx_indicate_seq;
 		spin_unlock_irqrestore(&ieee->reorder_spinlock, flags);
