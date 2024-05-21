@@ -275,7 +275,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 
 	if (!ht_info->current_ht_support || !ht_info->enable_ht)
 		return;
-	if (!IsQoSDataFrame(skb->data))
+	if (!is_qos_data_frame(skb->data))
 		return;
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
@@ -472,7 +472,7 @@ static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	if (is_multicast_ether_addr(dst))
 		return 0;
-	if (IsQoSDataFrame(skb->data)) {
+	if (is_qos_data_frame(skb->data)) {
 		struct tx_ts_record *ts = NULL;
 
 		if (!rtllib_get_ts(ieee, (struct ts_common_info **)(&ts), dst,
