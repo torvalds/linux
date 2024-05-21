@@ -254,7 +254,7 @@ static void netfs_issue_write(struct netfs_io_request *wreq,
 	stream->construct = NULL;
 
 	if (subreq->start + subreq->len > wreq->start + wreq->submitted)
-		wreq->len = wreq->submitted = subreq->start + subreq->len - wreq->start;
+		WRITE_ONCE(wreq->submitted, subreq->start + subreq->len - wreq->start);
 	netfs_do_issue_write(stream, subreq);
 }
 
