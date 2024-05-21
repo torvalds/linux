@@ -2356,7 +2356,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	dst->bss_ccx_ver_number = src->bss_ccx_ver_number;
 }
 
-static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
+static int is_passive_channel(struct rtllib_device *rtllib, u8 channel)
 {
 	if (channel > MAX_CHANNEL_NUMBER) {
 		netdev_info(rtllib->dev, "%s(): Invalid Channel\n", __func__);
@@ -2432,7 +2432,7 @@ static inline void rtllib_process_probe_response(
 		goto free_network;
 
 	if (ieee80211_is_probe_resp(frame_ctl)) {
-		if (IsPassiveChannel(ieee, network->channel)) {
+		if (is_passive_channel(ieee, network->channel)) {
 			netdev_info(ieee->dev,
 				    "GetScanInfo(): For Global Domain, filter probe response at channel(%d).\n",
 				    network->channel);
