@@ -117,6 +117,10 @@
 	};
 };
 
+&aw2013_led {
+	status = "okay";
+};
+
 &camss {
 	status = "okay";
 	vdda-supply = <&pm8953_s3>;
