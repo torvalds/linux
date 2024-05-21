@@ -743,7 +743,7 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	if (RTLLIB_QOS_HAS_SEQ(fc))
 		LLCOffset += 2;
-	if (rx_stats->bContainHTC)
+	if (rx_stats->contain_htc)
 		LLCOffset += sHTCLng;
 
 	ChkLength = LLCOffset;
@@ -862,7 +862,7 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 			netdev_info(ieee->dev, "%s: find HTCControl!\n",
 				    __func__);
 		hdrlen += 4;
-		rx_stats->bContainHTC = true;
+		rx_stats->contain_htc = true;
 	}
 
 	return hdrlen;
