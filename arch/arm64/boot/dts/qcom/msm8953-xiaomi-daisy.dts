@@ -76,6 +76,18 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		imu@68 {
+			compatible = "bosch,bmi160";
+			reg = <0x68>;
+
+			vdd-supply = <&pm8953_l10>;
+			vddio-supply = <&pm8953_l6>;
+
+			mount-matrix = "0", "1", "0",
+					"-1", "0", "0",
+					"0", "0", "1";
+		};
+
 		imu@6a {
 			compatible = "st,lsm6dsl";
 			reg = <0x6a>;
@@ -84,6 +96,13 @@
 			mount-matrix = "-1", "0", "0",
 					"0", "-1", "0",
 					"0", "0", "1";
+		};
+
+		light-sensor@53 {
+			/* it has ltr579 alps sensor */
+			compatible = "liteon,ltrf216a";
+			reg = <0x53>;
+			vdd-supply = <&pm8953_l10>;
 		};
 	};
 
