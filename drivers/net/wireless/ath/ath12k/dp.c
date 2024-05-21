@@ -1349,13 +1349,14 @@ static inline void *ath12k_dp_cc_get_desc_addr_ptr(struct ath12k_base *ab,
 struct ath12k_rx_desc_info *ath12k_dp_get_rx_desc(struct ath12k_base *ab,
 						  u32 cookie)
 {
+	struct ath12k_dp *dp = &ab->dp;
 	struct ath12k_rx_desc_info **desc_addr_ptr;
 	u16 start_ppt_idx, end_ppt_idx, ppt_idx, spt_idx;
 
 	ppt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_PPT);
 	spt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_SPT);
 
-	start_ppt_idx = ATH12K_RX_SPT_PAGE_OFFSET;
+	start_ppt_idx = dp->rx_ppt_base + ATH12K_RX_SPT_PAGE_OFFSET;
 	end_ppt_idx = start_ppt_idx + ATH12K_NUM_RX_SPT_PAGES;
 
 	if (ppt_idx < start_ppt_idx ||
@@ -1363,6 +1364,7 @@ struct ath12k_rx_desc_info *ath12k_dp_get_rx_desc(struct ath12k_base *ab,
 	    spt_idx > ATH12K_MAX_SPT_ENTRIES)
 		return NULL;
 
+	ppt_idx = ppt_idx - dp->rx_ppt_base;
 	desc_addr_ptr = ath12k_dp_cc_get_desc_addr_ptr(ab, ppt_idx, spt_idx);
 
 	return *desc_addr_ptr;
@@ -1397,7 +1399,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 	struct ath12k_rx_desc_info *rx_descs, **rx_desc_addr;
 	struct ath12k_tx_desc_info *tx_descs, **tx_desc_addr;
 	u32 i, j, pool_id, tx_spt_page;
-	u32 ppt_idx;
+	u32 ppt_idx, cookie_ppt_idx;
 
 	spin_lock_bh(&dp->rx_desc_lock);
 
@@ -1412,10 +1414,11 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 		}
 
 		ppt_idx = ATH12K_RX_SPT_PAGE_OFFSET + i;
+		cookie_ppt_idx = dp->rx_ppt_base + ppt_idx;
 		dp->spt_info->rxbaddr[i] = &rx_descs[0];
 
 		for (j = 0; j < ATH12K_MAX_SPT_ENTRIES; j++) {
-			rx_descs[j].cookie = ath12k_dp_cc_cookie_gen(ppt_idx, j);
+			rx_descs[j].cookie = ath12k_dp_cc_cookie_gen(cookie_ppt_idx, j);
 			rx_descs[j].magic = ATH12K_DP_RX_DESC_MAGIC;
 			list_add_tail(&rx_descs[j].list, &dp->rx_desc_free_list);
 
@@ -1476,6 +1479,7 @@ static int ath12k_dp_cmem_init(struct ath12k_base *ab,
 		end = start + ATH12K_NUM_TX_SPT_PAGES;
 		break;
 	case ATH12K_DP_RX_DESC:
+		cmem_base += ATH12K_PPT_ADDR_OFFSET(dp->rx_ppt_base);
 		start = ATH12K_RX_SPT_PAGE_OFFSET;
 		end = start + ATH12K_NUM_RX_SPT_PAGES;
 		break;
@@ -1517,6 +1521,8 @@ static int ath12k_dp_cc_init(struct ath12k_base *ab)
 		ath12k_warn(ab, "SPT page allocation failure");
 		return -ENOMEM;
 	}
+
+	dp->rx_ppt_base = ab->device_id * ATH12K_NUM_RX_SPT_PAGES;
 
 	for (i = 0; i < dp->num_spt_pages; i++) {
 		dp->spt_info[i].vaddr = dma_alloc_coherent(ab->dev,

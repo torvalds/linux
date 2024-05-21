@@ -350,6 +350,7 @@ struct ath12k_dp {
 	struct ath12k_hp_update_timer tx_ring_timer[DP_TCL_NUM_RING_MAX];
 	struct ath12k_spt_info *spt_info;
 	u32 num_spt_pages;
+	u32 rx_ppt_base;
 	struct list_head rx_desc_free_list;
 	/* protects the free desc list */
 	spinlock_t rx_desc_lock;
