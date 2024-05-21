@@ -37,6 +37,8 @@
 
 #define STK3310_CHIP_ID_VAL			0x13
 #define STK3311_CHIP_ID_VAL			0x1D
+#define STK3311A_CHIP_ID_VAL			0x15
+#define STK3311S34_CHIP_ID_VAL			0x1E
 #define STK3311X_CHIP_ID_VAL			0x12
 #define STK3335_CHIP_ID_VAL			0x51
 #define STK3310_PSINT_EN			0x01
@@ -83,6 +85,8 @@ static const struct reg_field stk3310_reg_field_flag_nf =
 
 static const u8 stk3310_chip_ids[] = {
 	STK3310_CHIP_ID_VAL,
+	STK3311A_CHIP_ID_VAL,
+	STK3311S34_CHIP_ID_VAL,
 	STK3311X_CHIP_ID_VAL,
 	STK3311_CHIP_ID_VAL,
 	STK3335_CHIP_ID_VAL,
