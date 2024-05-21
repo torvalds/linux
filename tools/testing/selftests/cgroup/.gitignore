@@ -7,5 +7,6 @@ test_hugetlb_memcg
 test_kill
 test_kmem
 test_memcontrol
+test_pids
 test_zswap
 wait_inotify
