@@ -344,7 +344,7 @@ static int migrate_test_run_device(struct xe_device *xe)
 		struct xe_migrate *m = tile->migrate;
 
 		kunit_info(test, "Testing tile id %d.\n", id);
-		xe_vm_lock(m->q->vm, true);
+		xe_vm_lock(m->q->vm, false);
 		xe_migrate_sanity_test(m, test);
 		xe_vm_unlock(m->q->vm);
 	}
