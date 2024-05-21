@@ -366,6 +366,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	switch (type) {
 	case KFD_QUEUE_TYPE_SDMA:
 	case KFD_QUEUE_TYPE_SDMA_XGMI:
+	case KFD_QUEUE_TYPE_SDMA_BY_ENG_ID:
 		/* SDMA queues are always allocated statically no matter
 		 * which scheduler mode is used. We also do not need to
 		 * check whether a SDMA queue can be allocated here, because
