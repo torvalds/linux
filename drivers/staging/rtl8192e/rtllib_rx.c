@@ -1025,7 +1025,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	frag = WLAN_GET_SEQ_FRAG(sc);
 
-	if ((!rx_stats->Decrypted))
+	if ((!rx_stats->decrypted))
 		ieee->need_sw_enc = 1;
 	else
 		ieee->need_sw_enc = 0;
