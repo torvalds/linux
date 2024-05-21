@@ -1922,6 +1922,7 @@ enum cgroup2_param {
 	Opt_memory_localevents,
 	Opt_memory_recursiveprot,
 	Opt_memory_hugetlb_accounting,
+	Opt_pids_localevents,
 	nr__cgroup2_params
 };
 
@@ -1931,6 +1932,7 @@ static const struct fs_parameter_spec cgroup2_fs_parameters[] = {
 	fsparam_flag("memory_localevents",	Opt_memory_localevents),
 	fsparam_flag("memory_recursiveprot",	Opt_memory_recursiveprot),
 	fsparam_flag("memory_hugetlb_accounting", Opt_memory_hugetlb_accounting),
+	fsparam_flag("pids_localevents",	Opt_pids_localevents),
 	{}
 };
 
@@ -1959,6 +1961,9 @@ static int cgroup2_parse_param(struct fs_context *fc, struct fs_parameter *param
 		return 0;
 	case Opt_memory_hugetlb_accounting:
 		ctx->flags |= CGRP_ROOT_MEMORY_HUGETLB_ACCOUNTING;
+		return 0;
+	case Opt_pids_localevents:
+		ctx->flags |= CGRP_ROOT_PIDS_LOCAL_EVENTS;
 		return 0;
 	}
 	return -EINVAL;
@@ -1989,6 +1994,11 @@ static void apply_cgroup_root_flags(unsigned int root_flags)
 			cgrp_dfl_root.flags |= CGRP_ROOT_MEMORY_HUGETLB_ACCOUNTING;
 		else
 			cgrp_dfl_root.flags &= ~CGRP_ROOT_MEMORY_HUGETLB_ACCOUNTING;
+
+		if (root_flags & CGRP_ROOT_PIDS_LOCAL_EVENTS)
+			cgrp_dfl_root.flags |= CGRP_ROOT_PIDS_LOCAL_EVENTS;
+		else
+			cgrp_dfl_root.flags &= ~CGRP_ROOT_PIDS_LOCAL_EVENTS;
 	}
 }
 
@@ -2004,6 +2014,8 @@ static int cgroup_show_options(struct seq_file *seq, struct kernfs_root *kf_root
 		seq_puts(seq, ",memory_recursiveprot");
 	if (cgrp_dfl_root.flags & CGRP_ROOT_MEMORY_HUGETLB_ACCOUNTING)
 		seq_puts(seq, ",memory_hugetlb_accounting");
+	if (cgrp_dfl_root.flags & CGRP_ROOT_PIDS_LOCAL_EVENTS)
+		seq_puts(seq, ",pids_localevents");
 	return 0;
 }
 
@@ -7062,7 +7074,8 @@ static ssize_t features_show(struct kobject *kobj, struct kobj_attribute *attr,
 			"favordynmods\n"
 			"memory_localevents\n"
 			"memory_recursiveprot\n"
-			"memory_hugetlb_accounting\n");
+			"memory_hugetlb_accounting\n"
+			"pids_localevents\n");
 }
 static struct kobj_attribute cgroup_features_attr = __ATTR_RO(features);
 
