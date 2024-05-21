@@ -189,8 +189,8 @@ EXPORT_SYMBOL(end_buffer_write_sync);
 static struct buffer_head *
 __find_get_block_slow(struct block_device *bdev, sector_t block)
 {
-	struct inode *bd_inode = bdev->bd_inode;
-	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct address_space *bd_mapping = bdev->bd_mapping;
+	const int blkbits = bd_mapping->host->i_blkbits;
 	struct buffer_head *ret = NULL;
 	pgoff_t index;
 	struct buffer_head *bh;
@@ -199,7 +199,7 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 	int all_mapped = 1;
 	static DEFINE_RATELIMIT_STATE(last_warned, HZ, 1);
 
-	index = ((loff_t)block << bd_inode->i_blkbits) / PAGE_SIZE;
+	index = ((loff_t)block << blkbits) / PAGE_SIZE;
 	folio = __filemap_get_folio(bd_mapping, index, FGP_ACCESSED, 0);
 	if (IS_ERR(folio))
 		goto out;
@@ -233,7 +233,7 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 		       (unsigned long long)block,
 		       (unsigned long long)bh->b_blocknr,
 		       bh->b_state, bh->b_size, bdev,
-		       1 << bd_inode->i_blkbits);
+		       1 << blkbits);
 	}
 out_unlock:
 	spin_unlock(&bd_mapping->i_private_lock);
@@ -1041,12 +1041,12 @@ static sector_t folio_init_buffers(struct folio *folio,
 static bool grow_dev_folio(struct block_device *bdev, sector_t block,
 		pgoff_t index, unsigned size, gfp_t gfp)
 {
-	struct inode *inode = bdev->bd_inode;
+	struct address_space *mapping = bdev->bd_mapping;
 	struct folio *folio;
 	struct buffer_head *bh;
 	sector_t end_block = 0;
 
-	folio = __filemap_get_folio(inode->i_mapping, index,
+	folio = __filemap_get_folio(mapping, index,
 			FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp);
 	if (IS_ERR(folio))
 		return false;
@@ -1080,10 +1080,10 @@ static bool grow_dev_folio(struct block_device *bdev, sector_t block,
 	 * lock to be atomic wrt __find_get_block(), which does not
 	 * run under the folio lock.
 	 */
-	spin_lock(&inode->i_mapping->i_private_lock);
+	spin_lock(&mapping->i_private_lock);
 	link_dev_buffers(folio, bh);
 	end_block = folio_init_buffers(folio, bdev, size);
-	spin_unlock(&inode->i_mapping->i_private_lock);
+	spin_unlock(&mapping->i_private_lock);
 unlock:
 	folio_unlock(folio);
 	folio_put(folio);
@@ -1486,7 +1486,7 @@ struct buffer_head *__bread_gfp(struct block_device *bdev, sector_t block,
 {
 	struct buffer_head *bh;
 
-	gfp |= mapping_gfp_constraint(bdev->bd_inode->i_mapping, ~__GFP_FS);
+	gfp |= mapping_gfp_constraint(bdev->bd_mapping, ~__GFP_FS);
 
 	/*
 	 * Prefer looping in the allocator rather than here, at least that
@@ -1719,16 +1719,16 @@ EXPORT_SYMBOL(create_empty_buffers);
  */
 void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 {
-	struct inode *bd_inode = bdev->bd_inode;
-	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct address_space *bd_mapping = bdev->bd_mapping;
+	const int blkbits = bd_mapping->host->i_blkbits;
 	struct folio_batch fbatch;
-	pgoff_t index = ((loff_t)block << bd_inode->i_blkbits) / PAGE_SIZE;
+	pgoff_t index = ((loff_t)block << blkbits) / PAGE_SIZE;
 	pgoff_t end;
 	int i, count;
 	struct buffer_head *bh;
 	struct buffer_head *head;
 
-	end = ((loff_t)(block + len - 1) << bd_inode->i_blkbits) / PAGE_SIZE;
+	end = ((loff_t)(block + len - 1) << blkbits) / PAGE_SIZE;
 	folio_batch_init(&fbatch);
 	while (filemap_get_folios(bd_mapping, &index, end, &fbatch)) {
 		count = folio_batch_count(&fbatch);
