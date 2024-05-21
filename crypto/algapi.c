@@ -1056,6 +1056,9 @@ EXPORT_SYMBOL_GPL(crypto_type_has_alg);
 
 static void __init crypto_start_tests(void)
 {
+	if (!IS_BUILTIN(CONFIG_CRYPTO_ALGAPI))
+		return;
+
 	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
 		return;
 
