@@ -881,7 +881,7 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 	addr = pci_iomap_range(pdev, 0, i915_mmio_reg_offset(GMD_ID_DISPLAY), sizeof(u32));
 	if (!addr) {
 		drm_err(&i915->drm, "Cannot map MMIO BAR to read display GMD_ID\n");
-		return &no_display;
+		return NULL;
 	}
 
 	val = ioread32(addr);
@@ -889,7 +889,7 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 
 	if (val == 0) {
 		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
-		return &no_display;
+		return NULL;
 	}
 
 	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
@@ -903,7 +903,7 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 
 	drm_err(&i915->drm, "Unrecognized display IP version %d.%02d; disabling display.\n",
 		*ver, *rel);
-	return &no_display;
+	return NULL;
 }
 
 static const struct intel_display_device_info *
@@ -914,7 +914,7 @@ probe_display(struct drm_i915_private *i915)
 
 	if (has_no_display(pdev)) {
 		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
-		return &no_display;
+		return NULL;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(intel_display_ids); i++) {
@@ -925,7 +925,7 @@ probe_display(struct drm_i915_private *i915)
 	drm_dbg(&i915->drm, "No display ID found for device ID %04x; disabling display.\n",
 		pdev->device);
 
-	return &no_display;
+	return NULL;
 }
 
 void intel_display_device_probe(struct drm_i915_private *i915)
@@ -943,6 +943,9 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	else
 		info = probe_display(i915);
 
+	if (!info)
+		goto no_display;
+
 	DISPLAY_INFO(i915) = info;
 
 	memcpy(DISPLAY_RUNTIME_INFO(i915),
@@ -954,6 +957,11 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 		DISPLAY_RUNTIME_INFO(i915)->ip.rel = rel;
 		DISPLAY_RUNTIME_INFO(i915)->ip.step = step;
 	}
+
+	return;
+
+no_display:
+	DISPLAY_INFO(i915) = &no_display;
 }
 
 void intel_display_device_remove(struct drm_i915_private *i915)
