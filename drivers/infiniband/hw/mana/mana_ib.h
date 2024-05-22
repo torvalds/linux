@@ -140,6 +140,7 @@ enum mana_ib_command_code {
 	MANA_IB_DESTROY_CQ      = 0x30009,
 	MANA_IB_CREATE_RC_QP    = 0x3000a,
 	MANA_IB_DESTROY_RC_QP   = 0x3000b,
+	MANA_IB_SET_QP_STATE	= 0x3000d,
 };
 
 struct mana_ib_query_adapter_caps_req {
@@ -283,6 +284,42 @@ struct mana_rnic_destroy_rc_qp_req {
 }; /* HW Data */
 
 struct mana_rnic_destroy_rc_qp_resp {
+	struct gdma_resp_hdr hdr;
+}; /* HW Data */
+
+struct mana_ib_ah_attr {
+	u8 src_addr[16];
+	u8 dest_addr[16];
+	u8 src_mac[ETH_ALEN];
+	u8 dest_mac[ETH_ALEN];
+	u8 src_addr_type;
+	u8 dest_addr_type;
+	u8 hop_limit;
+	u8 traffic_class;
+	u16 src_port;
+	u16 dest_port;
+	u32 reserved;
+};
+
+struct mana_rnic_set_qp_state_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t adapter;
+	mana_handle_t qp_handle;
+	u64 attr_mask;
+	u32 qp_state;
+	u32 path_mtu;
+	u32 rq_psn;
+	u32 sq_psn;
+	u32 dest_qpn;
+	u32 max_dest_rd_atomic;
+	u32 retry_cnt;
+	u32 rnr_retry;
+	u32 min_rnr_timer;
+	u32 reserved;
+	struct mana_ib_ah_attr ah_attr;
+}; /* HW Data */
+
+struct mana_rnic_set_qp_state_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW Data */
 
