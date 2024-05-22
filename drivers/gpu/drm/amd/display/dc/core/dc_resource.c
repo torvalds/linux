@@ -4287,7 +4287,7 @@ static void set_avi_info_frame(
 	}
 
 	if (rid != 0 && fr_ind != 0) {
-		hdmi_info.bits.header.version = 5;
+		hdmi_info.bits.header.version = 4;
 		hdmi_info.bits.header.length = 15;
 
 		hdmi_info.bits.FR0_FR3 = fr_ind & 0xF;
