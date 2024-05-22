@@ -70,6 +70,7 @@
 #include "orphan.h"
 #include "backref.h"
 #include "raid-stripe-tree.h"
+#include "fiemap.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -7927,57 +7928,6 @@ struct iomap_dio *btrfs_dio_write(struct kiocb *iocb, struct iov_iter *iter,
 
 	return __iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops, &btrfs_dio_ops,
 			    IOMAP_DIO_PARTIAL, &data, done_before);
-}
-
-static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
-			u64 start, u64 len)
-{
-	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
-	int	ret;
-
-	ret = fiemap_prep(inode, fieinfo, start, &len, 0);
-	if (ret)
-		return ret;
-
-	/*
-	 * fiemap_prep() called filemap_write_and_wait() for the whole possible
-	 * file range (0 to LLONG_MAX), but that is not enough if we have
-	 * compression enabled. The first filemap_fdatawrite_range() only kicks
-	 * in the compression of data (in an async thread) and will return
-	 * before the compression is done and writeback is started. A second
-	 * filemap_fdatawrite_range() is needed to wait for the compression to
-	 * complete and writeback to start. We also need to wait for ordered
-	 * extents to complete, because our fiemap implementation uses mainly
-	 * file extent items to list the extents, searching for extent maps
-	 * only for file ranges with holes or prealloc extents to figure out
-	 * if we have delalloc in those ranges.
-	 */
-	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC) {
-		ret = btrfs_wait_ordered_range(btrfs_inode, 0, LLONG_MAX);
-		if (ret)
-			return ret;
-	}
-
-	btrfs_inode_lock(btrfs_inode, BTRFS_ILOCK_SHARED);
-
-	/*
-	 * We did an initial flush to avoid holding the inode's lock while
-	 * triggering writeback and waiting for the completion of IO and ordered
-	 * extents. Now after we locked the inode we do it again, because it's
-	 * possible a new write may have happened in between those two steps.
-	 */
-	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC) {
-		ret = btrfs_wait_ordered_range(btrfs_inode, 0, LLONG_MAX);
-		if (ret) {
-			btrfs_inode_unlock(btrfs_inode, BTRFS_ILOCK_SHARED);
-			return ret;
-		}
-	}
-
-	ret = extent_fiemap(btrfs_inode, fieinfo, start, len);
-	btrfs_inode_unlock(btrfs_inode, BTRFS_ILOCK_SHARED);
-
-	return ret;
 }
 
 /*
