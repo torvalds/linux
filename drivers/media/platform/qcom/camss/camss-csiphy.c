@@ -216,9 +216,9 @@ static int csiphy_set_power(struct v4l2_subdev *sd, int on)
 
 		enable_irq(csiphy->irq);
 
-		csiphy->ops->reset(csiphy);
+		csiphy->res->hw_ops->reset(csiphy);
 
-		csiphy->ops->hw_version_read(csiphy, dev);
+		csiphy->res->hw_ops->hw_version_read(csiphy, dev);
 	} else {
 		disable_irq(csiphy->irq);
 
@@ -243,7 +243,7 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
 {
 	struct csiphy_config *cfg = &csiphy->cfg;
 	s64 link_freq;
-	u8 lane_mask = csiphy->ops->get_lane_mask(&cfg->csi2->lane_cfg);
+	u8 lane_mask = csiphy->res->hw_ops->get_lane_mask(&cfg->csi2->lane_cfg);
 	u8 bpp = csiphy_get_bpp(csiphy->formats, csiphy->nformats,
 				csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
 	u8 num_lanes = csiphy->cfg.csi2->lane_cfg.num_data;
@@ -272,7 +272,7 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
 		wmb();
 	}
 
-	csiphy->ops->lanes_enable(csiphy, cfg, link_freq, lane_mask);
+	csiphy->res->hw_ops->lanes_enable(csiphy, cfg, link_freq, lane_mask);
 
 	return 0;
 }
@@ -285,7 +285,7 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
  */
 static void csiphy_stream_off(struct csiphy_device *csiphy)
 {
-	csiphy->ops->lanes_disable(csiphy, &csiphy->cfg);
+	csiphy->res->hw_ops->lanes_disable(csiphy, &csiphy->cfg);
 }
 
 
@@ -564,7 +564,7 @@ int msm_csiphy_subdev_init(struct camss *camss,
 	csiphy->camss = camss;
 	csiphy->id = id;
 	csiphy->cfg.combo_mode = 0;
-	csiphy->ops = res->ops;
+	csiphy->res = &res->csiphy;
 
 	switch (camss->res->version) {
 	case CAMSS_8x16:
@@ -610,7 +610,7 @@ int msm_csiphy_subdev_init(struct camss *camss,
 	snprintf(csiphy->irq_name, sizeof(csiphy->irq_name), "%s_%s%d",
 		 dev_name(dev), MSM_CSIPHY_NAME, csiphy->id);
 
-	ret = devm_request_irq(dev, csiphy->irq, csiphy->ops->isr,
+	ret = devm_request_irq(dev, csiphy->irq, csiphy->res->hw_ops->isr,
 			       IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN,
 			       csiphy->irq_name, csiphy);
 	if (ret < 0) {

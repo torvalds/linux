@@ -48,11 +48,11 @@ struct camss_subdev_resources {
 	u32 clock_rate[CAMSS_RES_MAX][CAMSS_RES_MAX];
 	char *reg[CAMSS_RES_MAX];
 	char *interrupt[CAMSS_RES_MAX];
-	char *pd_name;
-	u8 line_num;
-	bool has_pd;
-	bool is_lite;
-	const void *ops;
+	union {
+		struct csiphy_subdev_resources csiphy;
+		struct csid_subdev_resources csid;
+		struct vfe_subdev_resources vfe;
+	};
 };
 
 struct icc_bw_tbl {

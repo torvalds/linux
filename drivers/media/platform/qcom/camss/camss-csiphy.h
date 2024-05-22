@@ -63,6 +63,10 @@ struct csiphy_hw_ops {
 	irqreturn_t (*isr)(int irq, void *dev);
 };
 
+struct csiphy_subdev_resources {
+	const struct csiphy_hw_ops *hw_ops;
+};
+
 struct csiphy_device {
 	struct camss *camss;
 	u8 id;
@@ -78,7 +82,7 @@ struct csiphy_device {
 	u32 timer_clk_rate;
 	struct csiphy_config cfg;
 	struct v4l2_mbus_framefmt fmt[MSM_CSIPHY_PADS_NUM];
-	const struct csiphy_hw_ops *ops;
+	const struct csiphy_subdev_resources *res;
 	const struct csiphy_format *formats;
 	unsigned int nformats;
 };
