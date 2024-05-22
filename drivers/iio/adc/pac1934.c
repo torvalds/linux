@@ -227,11 +227,6 @@ struct pac1934_features {
 	const char	*name;
 };
 
-struct samp_rate_mapping {
-	u16 samp_rate;
-	u8 shift2value;
-};
-
 static const unsigned int samp_rate_map_tbl[] = {
 	[PAC1934_SAMP_1024SPS] = 1024,
 	[PAC1934_SAMP_256SPS] = 256,
