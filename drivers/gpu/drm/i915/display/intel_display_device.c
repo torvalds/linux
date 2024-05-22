@@ -862,21 +862,13 @@ static const struct {
 };
 
 static const struct intel_display_device_info *
-probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step)
+probe_gmdid_display(struct drm_i915_private *i915, struct intel_display_ip_ver *ip_ver)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct intel_display_ip_ver gmd_id;
 	void __iomem *addr;
 	u32 val;
 	int i;
-
-	/* The caller expects to ver, rel and step to be initialized
-	 * here, and there's no good way to check when there was a
-	 * failure and no_display was returned.  So initialize all these
-	 * values here zero, to be sure.
-	 */
-	*ver = 0;
-	*rel = 0;
-	*step = 0;
 
 	addr = pci_iomap_range(pdev, 0, i915_mmio_reg_offset(GMD_ID_DISPLAY), sizeof(u32));
 	if (!addr) {
@@ -892,17 +884,20 @@ probe_gmdid_display(struct drm_i915_private *i915, u16 *ver, u16 *rel, u16 *step
 		return NULL;
 	}
 
-	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
-	*rel = REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
-	*step = REG_FIELD_GET(GMD_ID_STEP, val);
+	gmd_id.ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val);
+	gmd_id.rel = REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
+	gmd_id.step = REG_FIELD_GET(GMD_ID_STEP, val);
 
-	for (i = 0; i < ARRAY_SIZE(gmdid_display_map); i++)
-		if (*ver == gmdid_display_map[i].ver &&
-		    *rel == gmdid_display_map[i].rel)
+	for (i = 0; i < ARRAY_SIZE(gmdid_display_map); i++) {
+		if (gmd_id.ver == gmdid_display_map[i].ver &&
+		    gmd_id.rel == gmdid_display_map[i].rel) {
+			*ip_ver = gmd_id;
 			return gmdid_display_map[i].display;
+		}
+	}
 
 	drm_err(&i915->drm, "Unrecognized display IP version %d.%02d; disabling display.\n",
-		*ver, *rel);
+		gmd_id.ver, gmd_id.rel);
 	return NULL;
 }
 
@@ -927,7 +922,7 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	const struct intel_display_device_info *info;
-	u16 ver, rel, step;
+	struct intel_display_ip_ver ip_ver = {};
 
 	/* Add drm device backpointer as early as possible. */
 	i915->display.drm = &i915->drm;
@@ -940,7 +935,7 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	}
 
 	if (HAS_GMD_ID(i915))
-		info = probe_gmdid_display(i915, &ver, &rel, &step);
+		info = probe_gmdid_display(i915, &ip_ver);
 	else
 		info = probe_display(i915);
 
@@ -953,11 +948,8 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	       &DISPLAY_INFO(i915)->__runtime_defaults,
 	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
 
-	if (HAS_GMD_ID(i915)) {
-		DISPLAY_RUNTIME_INFO(i915)->ip.ver = ver;
-		DISPLAY_RUNTIME_INFO(i915)->ip.rel = rel;
-		DISPLAY_RUNTIME_INFO(i915)->ip.step = step;
-	}
+	if (ip_ver.ver || ip_ver.rel || ip_ver.step)
+		DISPLAY_RUNTIME_INFO(i915)->ip = ip_ver;
 
 	return;
 

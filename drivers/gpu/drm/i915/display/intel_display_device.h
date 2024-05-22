@@ -111,7 +111,7 @@ struct drm_printer;
 	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
 
 struct intel_display_runtime_info {
-	struct {
+	struct intel_display_ip_ver {
 		u16 ver;
 		u16 rel;
 		u16 step;
