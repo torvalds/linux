@@ -93,16 +93,14 @@ void xe_gt_sanitize(struct xe_gt *gt)
 	gt->uc.guc.submission_state.enabled = false;
 }
 
-/**
- * xe_gt_remove() - Clean up the GT structures before driver removal
- * @gt: the GT object
- *
- * This function should only act on objects/structures that must be cleaned
- * before the driver removal callback is complete and therefore can't be
- * deferred to a drmm action.
+/*
+ * Clean up the GT structures before driver removal. This function should only
+ * act on objects/structures that must be cleaned before the driver removal
+ * callback is complete and therefore can't be deferred to a drmm action.
  */
-void xe_gt_remove(struct xe_gt *gt)
+static void gt_remove(void *arg)
 {
+	struct xe_gt *gt = arg;
 	int i;
 
 	xe_uc_remove(&gt->uc);
@@ -568,7 +566,7 @@ int xe_gt_init(struct xe_gt *gt)
 
 	xe_gt_record_user_engines(gt);
 
-	return 0;
+	return devm_add_action_or_reset(gt_to_xe(gt)->drm.dev, gt_remove, gt);
 }
 
 void xe_gt_record_user_engines(struct xe_gt *gt)
