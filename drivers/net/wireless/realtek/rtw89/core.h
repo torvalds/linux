@@ -1136,6 +1136,8 @@ struct rtw89_tx_desc_info {
 	bool hiq;
 	u8 port;
 	bool er_cap;
+	bool stbc;
+	bool ldpc;
 };
 
 struct rtw89_core_tx_request {

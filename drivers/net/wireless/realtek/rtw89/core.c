@@ -813,6 +813,8 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	desc_info->mac_id = rtw89_core_tx_get_mac_id(rtwdev, tx_req);
 	desc_info->port = desc_info->hiq ? rtwvif->port : 0;
 	desc_info->er_cap = rtwsta ? rtwsta->er_cap : false;
+	desc_info->stbc = rtwsta ? rtwsta->ra.stbc_cap : false;
+	desc_info->ldpc = rtwsta ? rtwsta->ra.ldpc_cap : false;
 
 	/* enable wd_info for AMPDU */
 	desc_info->en_wd_info = true;
@@ -1127,6 +1129,8 @@ static __le32 rtw89_build_txwd_info0(struct rtw89_tx_desc_info *desc_info)
 {
 	u32 dword = FIELD_PREP(RTW89_TXWD_INFO0_USE_RATE, desc_info->use_rate) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_RATE, desc_info->data_rate) |
+		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_STBC, desc_info->stbc) |
+		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_LDPC, desc_info->ldpc) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_DISDATAFB, desc_info->dis_data_fb) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_MULTIPORT_ID, desc_info->port);
 
@@ -1135,7 +1139,9 @@ static __le32 rtw89_build_txwd_info0(struct rtw89_tx_desc_info *desc_info)
 
 static __le32 rtw89_build_txwd_info0_v1(struct rtw89_tx_desc_info *desc_info)
 {
-	u32 dword = FIELD_PREP(RTW89_TXWD_INFO0_DISDATAFB, desc_info->dis_data_fb) |
+	u32 dword = FIELD_PREP(RTW89_TXWD_INFO0_DATA_STBC, desc_info->stbc) |
+		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_LDPC, desc_info->ldpc) |
+		    FIELD_PREP(RTW89_TXWD_INFO0_DISDATAFB, desc_info->dis_data_fb) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_MULTIPORT_ID, desc_info->port) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_ER, desc_info->er_cap) |
 		    FIELD_PREP(RTW89_TXWD_INFO0_DATA_BW_ER, 0);
@@ -1301,7 +1307,9 @@ static __le32 rtw89_build_txwd_body7_v2(struct rtw89_tx_desc_info *desc_info)
 
 static __le32 rtw89_build_txwd_info0_v2(struct rtw89_tx_desc_info *desc_info)
 {
-	u32 dword = FIELD_PREP(BE_TXD_INFO0_DISDATAFB, desc_info->dis_data_fb) |
+	u32 dword = FIELD_PREP(BE_TXD_INFO0_DATA_STBC, desc_info->stbc) |
+		    FIELD_PREP(BE_TXD_INFO0_DATA_LDPC, desc_info->ldpc) |
+		    FIELD_PREP(BE_TXD_INFO0_DISDATAFB, desc_info->dis_data_fb) |
 		    FIELD_PREP(BE_TXD_INFO0_MULTIPORT_ID, desc_info->port);
 
 	return cpu_to_le32(dword);
