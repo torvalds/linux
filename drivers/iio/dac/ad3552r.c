@@ -140,7 +140,9 @@ enum ad3552r_ch_vref_select {
 };
 
 enum ad3542r_id {
+	AD3541R_ID = 0x400b,
 	AD3542R_ID = 0x4009,
+	AD3551R_ID = 0x400a,
 	AD3552R_ID = 0x4008,
 };
 
@@ -1079,6 +1081,15 @@ static int ad3552r_probe(struct spi_device *spi)
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
+static const struct ad3552r_model_data ad3541r_model_data = {
+	.model_name = "ad3541r",
+	.chip_id = AD3541R_ID,
+	.num_hw_channels = 1,
+	.ranges_table = ad3542r_ch_ranges,
+	.num_ranges = ARRAY_SIZE(ad3542r_ch_ranges),
+	.requires_output_range = true,
+};
+
 static const struct ad3552r_model_data ad3542r_model_data = {
 	.model_name = "ad3542r",
 	.chip_id = AD3542R_ID,
@@ -1086,6 +1097,15 @@ static const struct ad3552r_model_data ad3542r_model_data = {
 	.ranges_table = ad3542r_ch_ranges,
 	.num_ranges = ARRAY_SIZE(ad3542r_ch_ranges),
 	.requires_output_range = true,
+};
+
+static const struct ad3552r_model_data ad3551r_model_data = {
+	.model_name = "ad3551r",
+	.chip_id = AD3551R_ID,
+	.num_hw_channels = 1,
+	.ranges_table = ad3552r_ch_ranges,
+	.num_ranges = ARRAY_SIZE(ad3552r_ch_ranges),
+	.requires_output_range = false,
 };
 
 static const struct ad3552r_model_data ad3552r_model_data = {
@@ -1099,8 +1119,16 @@ static const struct ad3552r_model_data ad3552r_model_data = {
 
 static const struct spi_device_id ad3552r_id[] = {
 	{
+		.name = "ad3541r",
+		.driver_data = (kernel_ulong_t)&ad3541r_model_data
+	},
+	{
 		.name = "ad3542r",
 		.driver_data = (kernel_ulong_t)&ad3542r_model_data
+	},
+	{
+		.name = "ad3551r",
+		.driver_data = (kernel_ulong_t)&ad3551r_model_data
 	},
 	{
 		.name = "ad3552r",
@@ -1111,7 +1139,9 @@ static const struct spi_device_id ad3552r_id[] = {
 MODULE_DEVICE_TABLE(spi, ad3552r_id);
 
 static const struct of_device_id ad3552r_of_match[] = {
+	{ .compatible = "adi,ad3541r", .data = &ad3541r_model_data },
 	{ .compatible = "adi,ad3542r", .data = &ad3542r_model_data },
+	{ .compatible = "adi,ad3551r", .data = &ad3551r_model_data },
 	{ .compatible = "adi,ad3552r", .data = &ad3552r_model_data },
 	{ }
 };
