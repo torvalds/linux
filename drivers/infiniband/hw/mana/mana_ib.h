@@ -248,6 +248,10 @@ struct mana_rnic_destroy_cq_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW Data */
 
+enum mana_rnic_create_rc_flags {
+	MANA_RC_FLAG_NO_FMR = 2,
+};
+
 struct mana_rnic_create_qp_req {
 	struct gdma_req_hdr hdr;
 	mana_handle_t adapter;
