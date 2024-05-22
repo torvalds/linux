@@ -1783,30 +1783,6 @@ char *map_names[] = {
 	"tls_sock_map",
 };
 
-int prog_attach_type[] = {
-	BPF_SK_SKB_STREAM_PARSER,
-	BPF_SK_SKB_STREAM_VERDICT,
-	BPF_SK_SKB_STREAM_VERDICT,
-	BPF_CGROUP_SOCK_OPS,
-	BPF_SK_MSG_VERDICT,
-	BPF_SK_MSG_VERDICT,
-	BPF_SK_MSG_VERDICT,
-	BPF_SK_MSG_VERDICT,
-	BPF_SK_MSG_VERDICT,
-};
-
-int prog_type[] = {
-	BPF_PROG_TYPE_SK_SKB,
-	BPF_PROG_TYPE_SK_SKB,
-	BPF_PROG_TYPE_SK_SKB,
-	BPF_PROG_TYPE_SOCK_OPS,
-	BPF_PROG_TYPE_SK_MSG,
-	BPF_PROG_TYPE_SK_MSG,
-	BPF_PROG_TYPE_SK_MSG,
-	BPF_PROG_TYPE_SK_MSG,
-	BPF_PROG_TYPE_SK_MSG,
-};
-
 static int populate_progs(char *bpf_file)
 {
 	struct bpf_program *prog;
@@ -1823,13 +1799,6 @@ static int populate_progs(char *bpf_file)
 		printf("Unable to load eBPF objects in file '%s' : %s\n",
 		       bpf_file, err_buf);
 		return -1;
-	}
-
-	bpf_object__for_each_program(prog, obj) {
-		bpf_program__set_type(prog, prog_type[i]);
-		bpf_program__set_expected_attach_type(prog,
-						      prog_attach_type[i]);
-		i++;
 	}
 
 	i = bpf_object__load(obj);
