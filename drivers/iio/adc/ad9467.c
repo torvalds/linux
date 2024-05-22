@@ -107,27 +107,27 @@
 #define AD9647_MAX_TEST_POINTS		32
 
 struct ad9467_chip_info {
-	const char		*name;
-	unsigned int		id;
-	const struct		iio_chan_spec *channels;
-	unsigned int		num_channels;
-	const unsigned int	(*scale_table)[2];
-	int			num_scales;
-	unsigned long		max_rate;
-	unsigned int		default_output_mode;
-	unsigned int		vref_mask;
-	unsigned int		num_lanes;
+	const char *name;
+	unsigned int id;
+	const struct iio_chan_spec *channels;
+	unsigned int num_channels;
+	const unsigned int (*scale_table)[2];
+	int num_scales;
+	unsigned long max_rate;
+	unsigned int default_output_mode;
+	unsigned int vref_mask;
+	unsigned int num_lanes;
 	/* data clock output */
-	bool			has_dco;
+	bool has_dco;
 };
 
 struct ad9467_state {
-	const struct ad9467_chip_info	*info;
-	struct iio_backend		*back;
-	struct spi_device		*spi;
-	struct clk			*clk;
-	unsigned int			output_mode;
-	unsigned int                    (*scales)[2];
+	const struct ad9467_chip_info *info;
+	struct iio_backend *back;
+	struct spi_device *spi;
+	struct clk *clk;
+	unsigned int output_mode;
+	unsigned int (*scales)[2];
 	/*
 	 * Times 2 because we may also invert the signal polarity and run the
 	 * calibration again. For some reference on the test points (ad9265) see:
@@ -138,10 +138,10 @@ struct ad9467_state {
 	 * at the io delay control section.
 	 */
 	DECLARE_BITMAP(calib_map, AD9647_MAX_TEST_POINTS * 2);
-	struct gpio_desc		*pwrdown_gpio;
+	struct gpio_desc *pwrdown_gpio;
 	/* ensure consistent state obtained on multiple related accesses */
-	struct mutex			lock;
-	u8				buf[3] __aligned(IIO_DMA_MINALIGN);
+	struct mutex lock;
+	u8 buf[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad9467_spi_read(struct ad9467_state *st, unsigned int reg)
