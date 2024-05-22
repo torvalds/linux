@@ -3636,6 +3636,7 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 	rc = smb2_copychunk_range(xid, cfile, cfile, off, count, off + len);
 	if (rc < 0)
 		goto out_2;
+	cifsi->netfs.zero_point = new_eof;
 
 	rc = smb3_zero_data(file, tcon, off, len, xid);
 	if (rc < 0)
