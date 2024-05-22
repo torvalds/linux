@@ -444,7 +444,6 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-			stream_status = NULL;
 			if (!pipe->stream)
 				continue;
 
@@ -464,7 +463,6 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	for (i = 0, k = 0; context && i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		stream_status = NULL;
 		if (!resource_is_pipe_type(pipe, OTG_MASTER))
 			continue;
 
