@@ -54,4 +54,9 @@ struct camss_formats {
 	const struct camss_format_info *formats;
 };
 
+u8 camss_format_get_bpp(const struct camss_format_info *formats, unsigned int nformats, u32 code);
+u32 camss_format_find_code(u32 *code, unsigned int n_code, unsigned int index, u32 req_code);
+int camss_format_find_format(u32 code, u32 pixelformat, const struct camss_format_info *formats,
+			     unsigned int nformats);
+
 #endif /* __CAMSS_FORMAT_H__ */
