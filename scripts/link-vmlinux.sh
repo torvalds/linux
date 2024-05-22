@@ -201,7 +201,6 @@ sorttable()
 	${objtree}/scripts/sorttable ${1}
 }
 
-# Delete output files in case of error
 cleanup()
 {
 	rm -f .btf.*
