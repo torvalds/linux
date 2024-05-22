@@ -137,7 +137,9 @@ static const struct camss_subdev_resources vfe_res_8x16[] = {
 		.interrupt = { "vfe0" },
 		.vfe = {
 			.line_num = 3,
-			.hw_ops = &vfe_ops_4_1
+			.hw_ops = &vfe_ops_4_1,
+			.formats_rdi = &vfe_formats_rdi_8x16,
+			.formats_pix = &vfe_formats_pix_8x16
 		}
 	}
 };
@@ -303,7 +305,9 @@ static const struct camss_subdev_resources vfe_res_8x96[] = {
 		.vfe = {
 			.line_num = 3,
 			.has_pd = true,
-			.hw_ops = &vfe_ops_4_7
+			.hw_ops = &vfe_ops_4_7,
+			.formats_rdi = &vfe_formats_rdi_8x96,
+			.formats_pix = &vfe_formats_pix_8x96
 		}
 	},
 
@@ -326,7 +330,9 @@ static const struct camss_subdev_resources vfe_res_8x96[] = {
 		.vfe = {
 			.line_num = 3,
 			.has_pd = true,
-			.hw_ops = &vfe_ops_4_7
+			.hw_ops = &vfe_ops_4_7,
+			.formats_rdi = &vfe_formats_rdi_8x96,
+			.formats_pix = &vfe_formats_pix_8x96
 		}
 	}
 };
@@ -513,7 +519,9 @@ static const struct camss_subdev_resources vfe_res_660[] = {
 		.vfe = {
 			.line_num = 3,
 			.has_pd = true,
-			.hw_ops = &vfe_ops_4_8
+			.hw_ops = &vfe_ops_4_8,
+			.formats_rdi = &vfe_formats_rdi_8x96,
+			.formats_pix = &vfe_formats_pix_8x96
 		}
 	},
 
@@ -539,7 +547,9 @@ static const struct camss_subdev_resources vfe_res_660[] = {
 		.vfe = {
 			.line_num = 3,
 			.has_pd = true,
-			.hw_ops = &vfe_ops_4_8
+			.hw_ops = &vfe_ops_4_8,
+			.formats_rdi = &vfe_formats_rdi_8x96,
+			.formats_pix = &vfe_formats_pix_8x96
 		}
 	}
 };
@@ -724,7 +734,9 @@ static const struct camss_subdev_resources vfe_res_845[] = {
 		.vfe = {
 			.line_num = 4,
 			.has_pd = true,
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 
@@ -749,7 +761,9 @@ static const struct camss_subdev_resources vfe_res_845[] = {
 		.vfe = {
 			.line_num = 4,
 			.has_pd = true,
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 
@@ -773,7 +787,9 @@ static const struct camss_subdev_resources vfe_res_845[] = {
 		.vfe = {
 			.is_lite = true,
 			.line_num = 4,
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	}
 };
@@ -938,7 +954,9 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 			.line_num = 3,
 			.has_pd = true,
 			.pd_name = "ife0",
-			.hw_ops = &vfe_ops_480
+			.hw_ops = &vfe_ops_480,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE1 */
@@ -962,7 +980,9 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 			.line_num = 3,
 			.has_pd = true,
 			.pd_name = "ife1",
-			.hw_ops = &vfe_ops_480
+			.hw_ops = &vfe_ops_480,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE2 (lite) */
@@ -984,7 +1004,9 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 		.vfe = {
 			.is_lite = true,
 			.line_num = 4,
-			.hw_ops = &vfe_ops_480
+			.hw_ops = &vfe_ops_480,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE3 (lite) */
@@ -1006,7 +1028,9 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 		.vfe = {
 			.is_lite = true,
 			.line_num = 4,
-			.hw_ops = &vfe_ops_480
+			.hw_ops = &vfe_ops_480,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 };
@@ -1216,7 +1240,9 @@ static const struct camss_subdev_resources vfe_res_sc8280xp[] = {
 		.vfe = {
 			.line_num = 4,
 			.pd_name = "ife0",
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE1 */
@@ -1234,7 +1260,9 @@ static const struct camss_subdev_resources vfe_res_sc8280xp[] = {
 		.vfe = {
 			.line_num = 4,
 			.pd_name = "ife1",
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE2 */
@@ -1252,7 +1280,9 @@ static const struct camss_subdev_resources vfe_res_sc8280xp[] = {
 		.vfe = {
 			.line_num = 4,
 			.pd_name = "ife2",
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE3 */
@@ -1270,7 +1300,9 @@ static const struct camss_subdev_resources vfe_res_sc8280xp[] = {
 		.vfe = {
 			.line_num = 4,
 			.pd_name = "ife3",
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE_LITE_0 */
@@ -1287,7 +1319,9 @@ static const struct camss_subdev_resources vfe_res_sc8280xp[] = {
 		.vfe = {
 			.is_lite = true,
 			.line_num = 4,
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE_LITE_1 */
@@ -1304,7 +1338,9 @@ static const struct camss_subdev_resources vfe_res_sc8280xp[] = {
 		.vfe = {
 			.is_lite = true,
 			.line_num = 4,
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE_LITE_2 */
@@ -1321,7 +1357,9 @@ static const struct camss_subdev_resources vfe_res_sc8280xp[] = {
 		.vfe = {
 			.is_lite = true,
 			.line_num = 4,
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 	/* VFE_LITE_3 */
@@ -1338,7 +1376,9 @@ static const struct camss_subdev_resources vfe_res_sc8280xp[] = {
 		.vfe = {
 			.is_lite = true,
 			.line_num = 4,
-			.hw_ops = &vfe_ops_170
+			.hw_ops = &vfe_ops_170,
+			.formats_rdi = &vfe_formats_rdi_845,
+			.formats_pix = &vfe_formats_pix_845
 		}
 	},
 };

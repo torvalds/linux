@@ -92,7 +92,7 @@ struct vfe_line {
 	struct v4l2_rect crop;
 	struct camss_video video_out;
 	struct vfe_output output;
-	const struct vfe_format *formats;
+	const struct camss_format_info *formats;
 	unsigned int nformats;
 };
 
@@ -132,6 +132,8 @@ struct vfe_subdev_resources {
 	bool has_pd;
 	char *pd_name;
 	const struct vfe_hw_ops *hw_ops;
+	const struct camss_formats *formats_rdi;
+	const struct camss_formats *formats_pix;
 };
 
 struct vfe_device {
@@ -223,6 +225,13 @@ void vfe_pm_domain_off(struct vfe_device *vfe);
  * @vfe: VFE Device
  */
 int vfe_pm_domain_on(struct vfe_device *vfe);
+
+extern const struct camss_formats vfe_formats_rdi_8x16;
+extern const struct camss_formats vfe_formats_pix_8x16;
+extern const struct camss_formats vfe_formats_rdi_8x96;
+extern const struct camss_formats vfe_formats_pix_8x96;
+extern const struct camss_formats vfe_formats_rdi_845;
+extern const struct camss_formats vfe_formats_pix_845;
 
 extern const struct vfe_hw_ops vfe_ops_4_1;
 extern const struct vfe_hw_ops vfe_ops_4_7;
