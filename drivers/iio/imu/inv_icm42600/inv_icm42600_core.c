@@ -66,6 +66,22 @@ static const struct inv_icm42600_conf inv_icm42600_default_conf = {
 	.temp_en = false,
 };
 
+static const struct inv_icm42600_conf inv_icm42686_default_conf = {
+	.gyro = {
+		.mode = INV_ICM42600_SENSOR_MODE_OFF,
+		.fs = INV_ICM42686_GYRO_FS_4000DPS,
+		.odr = INV_ICM42600_ODR_50HZ,
+		.filter = INV_ICM42600_FILTER_BW_ODR_DIV_2,
+	},
+	.accel = {
+		.mode = INV_ICM42600_SENSOR_MODE_OFF,
+		.fs = INV_ICM42686_ACCEL_FS_32G,
+		.odr = INV_ICM42600_ODR_50HZ,
+		.filter = INV_ICM42600_FILTER_BW_ODR_DIV_2,
+	},
+	.temp_en = false,
+};
+
 static const struct inv_icm42600_hw inv_icm42600_hw[INV_CHIP_NB] = {
 	[INV_CHIP_ICM42600] = {
 		.whoami = INV_ICM42600_WHOAMI_ICM42600,
@@ -82,9 +98,19 @@ static const struct inv_icm42600_hw inv_icm42600_hw[INV_CHIP_NB] = {
 		.name = "icm42605",
 		.conf = &inv_icm42600_default_conf,
 	},
+	[INV_CHIP_ICM42686] = {
+		.whoami = INV_ICM42600_WHOAMI_ICM42686,
+		.name = "icm42686",
+		.conf = &inv_icm42686_default_conf,
+	},
 	[INV_CHIP_ICM42622] = {
 		.whoami = INV_ICM42600_WHOAMI_ICM42622,
 		.name = "icm42622",
+		.conf = &inv_icm42600_default_conf,
+	},
+	[INV_CHIP_ICM42688] = {
+		.whoami = INV_ICM42600_WHOAMI_ICM42688,
+		.name = "icm42688",
 		.conf = &inv_icm42600_default_conf,
 	},
 	[INV_CHIP_ICM42631] = {

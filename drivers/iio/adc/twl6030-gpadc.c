@@ -519,7 +519,7 @@ static int twl6030_gpadc_read_raw(struct iio_dev *indio_dev,
 {
 	struct twl6030_gpadc_data *gpadc = iio_priv(indio_dev);
 	int ret;
-	long timeout;
+	long time_left;
 
 	mutex_lock(&gpadc->lock);
 
@@ -529,12 +529,12 @@ static int twl6030_gpadc_read_raw(struct iio_dev *indio_dev,
 		goto err;
 	}
 	/* wait for conversion to complete */
-	timeout = wait_for_completion_interruptible_timeout(
+	time_left = wait_for_completion_interruptible_timeout(
 				&gpadc->irq_complete, msecs_to_jiffies(5000));
-	if (timeout == 0) {
+	if (time_left == 0) {
 		ret = -ETIMEDOUT;
 		goto err;
-	} else if (timeout < 0) {
+	} else if (time_left < 0) {
 		ret = -EINTR;
 		goto err;
 	}
