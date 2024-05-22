@@ -591,7 +591,7 @@ static void lp5521_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lp5521_id[] = {
-	{ "lp5521", 0 }, /* Three channel chip */
+	{ "lp5521" }, /* Three channel chip */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp5521_id);
