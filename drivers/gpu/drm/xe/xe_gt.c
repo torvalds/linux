@@ -58,9 +58,17 @@
 #include "xe_wa.h"
 #include "xe_wopcm.h"
 
+static void gt_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_gt *gt = arg;
+
+	destroy_workqueue(gt->ordered_wq);
+}
+
 struct xe_gt *xe_gt_alloc(struct xe_tile *tile)
 {
 	struct xe_gt *gt;
+	int err;
 
 	gt = drmm_kzalloc(&tile_to_xe(tile)->drm, sizeof(*gt), GFP_KERNEL);
 	if (!gt)
@@ -68,6 +76,10 @@ struct xe_gt *xe_gt_alloc(struct xe_tile *tile)
 
 	gt->tile = tile;
 	gt->ordered_wq = alloc_ordered_workqueue("gt-ordered-wq", 0);
+
+	err = drmm_add_action_or_reset(&gt_to_xe(gt)->drm, gt_fini, gt);
+	if (err)
+		return ERR_PTR(err);
 
 	return gt;
 }
@@ -91,15 +103,9 @@ void xe_gt_sanitize(struct xe_gt *gt)
  */
 void xe_gt_remove(struct xe_gt *gt)
 {
-	xe_uc_remove(&gt->uc);
-}
-
-static void gt_fini(struct drm_device *drm, void *arg)
-{
-	struct xe_gt *gt = arg;
 	int i;
 
-	destroy_workqueue(gt->ordered_wq);
+	xe_uc_remove(&gt->uc);
 
 	for (i = 0; i < XE_ENGINE_CLASS_MAX; ++i)
 		xe_hw_fence_irq_finish(&gt->fence_irq[i]);
@@ -562,7 +568,7 @@ int xe_gt_init(struct xe_gt *gt)
 
 	xe_gt_record_user_engines(gt);
 
-	return drmm_add_action_or_reset(&gt_to_xe(gt)->drm, gt_fini, gt);
+	return 0;
 }
 
 void xe_gt_record_user_engines(struct xe_gt *gt)
