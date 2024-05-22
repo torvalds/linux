@@ -3317,11 +3317,11 @@ static void dasd_release(struct gendisk *disk)
 /*
  * Return disk geometry.
  */
-static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+static int dasd_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
 	struct dasd_device *base;
 
-	base = dasd_device_from_gendisk(bdev->bd_disk);
+	base = dasd_device_from_gendisk(disk);
 	if (!base)
 		return -ENODEV;
 
@@ -3331,7 +3331,8 @@ static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 		return -EINVAL;
 	}
 	base->discipline->fill_geometry(base->block, geo);
-	geo->start = get_start_sect(bdev) >> base->block->s2b_shift;
+	// geo->start is left unchanged by the above
+	geo->start >>= base->block->s2b_shift;
 	dasd_put_device(base);
 	return 0;
 }

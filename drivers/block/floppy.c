@@ -3363,9 +3363,9 @@ static int get_floppy_geometry(int drive, int type, struct floppy_struct **g)
 	return 0;
 }
 
-static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+static int fd_getgeo(struct gendisk *disk, struct hd_geometry *geo)
 {
-	int drive = (long)bdev->bd_disk->private_data;
+	int drive = (long)disk->private_data;
 	int type = ITYPE(drive_state[drive].fd_device);
 	struct floppy_struct *g;
 	int ret;
