@@ -125,7 +125,6 @@
 #include "link_enc_cfg.h"
 
 #define DCN3_16_MAX_DET_SIZE 384
-#define DCN3_16_MIN_COMPBUF_SIZE_KB 128
 #define DCN3_16_CRB_SEGMENT_SIZE_KB 64
 
 enum dcn31_clk_src_array_id {
@@ -1306,6 +1305,8 @@ static struct hpo_dp_link_encoder *dcn31_hpo_dp_link_encoder_create(
 
 	/* allocate HPO link encoder */
 	hpo_dp_enc31 = kzalloc(sizeof(struct dcn31_hpo_dp_link_encoder), GFP_KERNEL);
+	if (!hpo_dp_enc31)
+		return NULL; /* out of memory */
 
 	hpo_dp_link_encoder31_construct(hpo_dp_enc31, ctx, inst,
 					&hpo_dp_link_enc_regs[inst],
@@ -1614,7 +1615,7 @@ static int dcn316_populate_dml_pipes_from_context(
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = 0;
 	const int max_usable_det = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes - DCN3_16_MIN_COMPBUF_SIZE_KB;
 
 	DC_FP_START();

@@ -214,20 +214,24 @@ sun4i_hdmi_connector_mode_valid(struct drm_connector *connector,
 static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 {
 	struct sun4i_hdmi *hdmi = drm_connector_to_sun4i_hdmi(connector);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
-	edid = drm_get_edid(connector, hdmi->ddc_i2c ?: hdmi->i2c);
-	if (!edid)
+	drm_edid = drm_edid_read_ddc(connector, hdmi->ddc_i2c ?: hdmi->i2c);
+
+	drm_edid_connector_update(connector, drm_edid);
+	cec_s_phys_addr(hdmi->cec_adap,
+			connector->display_info.source_physical_address, false);
+
+	if (!drm_edid)
 		return 0;
 
 	DRM_DEBUG_DRIVER("Monitor is %s monitor\n",
 			 connector->display_info.is_hdmi ? "an HDMI" : "a DVI");
 
-	drm_connector_update_edid_property(connector, edid);
-	cec_s_phys_addr_from_edid(hdmi->cec_adap, edid);
-	ret = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+
+	ret = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return ret;
 }

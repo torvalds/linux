@@ -1639,7 +1639,7 @@ static int pasemi_mac_change_mtu(struct net_device *dev, int new_mtu)
 	reg |= PAS_MAC_CFG_MACCFG_MAXF(new_mtu + ETH_HLEN + 4);
 	write_mac_reg(mac, PAS_MAC_CFG_MACCFG, reg);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	/* MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
 	mac->bufsz = new_mtu + ETH_HLEN + ETH_FCS_LEN + LOCAL_SKB_ALIGN + 128;
 

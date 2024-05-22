@@ -170,7 +170,7 @@ static ssize_t tag_show(struct kobject *kobj,
 {
 	struct virtio_fs *fs = container_of(kobj, struct virtio_fs, kobj);
 
-	return sysfs_emit(buf, fs->tag);
+	return sysfs_emit(buf, "%s\n", fs->tag);
 }
 
 static struct kobj_attribute virtio_fs_tag_attr = __ATTR_RO(tag);

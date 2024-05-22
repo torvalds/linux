@@ -188,6 +188,15 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config FPU
+	bool "FPU support"
+	default y
+	help
+	  Say N here if you want to disable all floating-point related procedures
+	  in the kernel and reduce binary size.
+
+	  If you don't know what to do here, say Y.
+
 source "kernel/Kconfig.hz"
 
 config OPENRISC_NO_SPR_SR_DSX

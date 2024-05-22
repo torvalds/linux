@@ -298,6 +298,7 @@
 		reg = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		vdd-supply = <&reg_mba6_3p3v>;
 
 		ethernet@1 {
 			compatible = "usb424,9e00";
@@ -441,8 +442,6 @@
 
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
-			MX6QDL_PAD_DI0_PIN4__GPIO4_IO20 0x0001b099
-
 			MX6QDL_PAD_ENET_RXD1__GPIO1_IO26 0x0001b099
 			MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x0001b099
 			MX6QDL_PAD_ENET_TXD0__GPIO1_IO30 0x0001b099

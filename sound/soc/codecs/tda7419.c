@@ -614,7 +614,7 @@ static int tda7419_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id tda7419_i2c_id[] = {
-	{ "tda7419", 0 },
+	{ "tda7419" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tda7419_i2c_id);

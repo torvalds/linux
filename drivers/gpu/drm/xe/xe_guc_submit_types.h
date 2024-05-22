@@ -61,17 +61,6 @@ struct guc_submit_parallel_scratch {
 	u32 wq[WQ_SIZE / sizeof(u32)];
 };
 
-struct lrc_snapshot {
-	u32 context_desc;
-	u32 head;
-	struct {
-		u32 internal;
-		u32 memory;
-	} tail;
-	u32 start_seqno;
-	u32 seqno;
-};
-
 struct pending_list_snapshot {
 	u32 seqno;
 	bool fence;
@@ -109,7 +98,7 @@ struct xe_guc_submit_exec_queue_snapshot {
 	} sched_props;
 
 	/** @lrc: LRC Snapshot */
-	struct lrc_snapshot *lrc;
+	struct xe_lrc_snapshot **lrc;
 
 	/** @schedule_state: Schedule State at the moment of Crash */
 	u32 schedule_state;

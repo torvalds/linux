@@ -2,11 +2,11 @@
 #ifndef _BCACHEFS_SNAPSHOT_H
 #define _BCACHEFS_SNAPSHOT_H
 
-enum bkey_invalid_flags;
+enum bch_validate_flags;
 
 void bch2_snapshot_tree_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_snapshot_tree_invalid(struct bch_fs *, struct bkey_s_c,
-			       enum bkey_invalid_flags, struct printbuf *);
+			       enum bch_validate_flags, struct printbuf *);
 
 #define bch2_bkey_ops_snapshot_tree ((struct bkey_ops) {	\
 	.key_invalid	= bch2_snapshot_tree_invalid,		\
@@ -20,9 +20,10 @@ int bch2_snapshot_tree_lookup(struct btree_trans *, u32, struct bch_snapshot_tre
 
 void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_snapshot_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+			  enum bch_validate_flags, struct printbuf *);
 int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
-		       struct bkey_s_c, struct bkey_s, unsigned);
+		       struct bkey_s_c, struct bkey_s,
+		       enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_snapshot ((struct bkey_ops) {		\
 	.key_invalid	= bch2_snapshot_invalid,		\
@@ -77,7 +78,7 @@ static inline u32 __bch2_snapshot_parent(struct bch_fs *c, u32 id)
 		return 0;
 
 	u32 parent = s->parent;
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBU) &&
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
 	    parent &&
 	    s->depth != snapshot_t(c, parent)->depth + 1)
 		panic("id %u depth=%u parent %u depth=%u\n",
@@ -133,11 +134,6 @@ static inline u32 bch2_snapshot_equiv(struct bch_fs *c, u32 id)
 	rcu_read_unlock();
 
 	return id;
-}
-
-static inline bool bch2_snapshot_is_equiv(struct bch_fs *c, u32 id)
-{
-	return id == bch2_snapshot_equiv(c, id);
 }
 
 static inline int bch2_snapshot_is_internal_node(struct bch_fs *c, u32 id)

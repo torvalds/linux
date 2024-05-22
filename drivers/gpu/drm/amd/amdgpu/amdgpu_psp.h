@@ -73,8 +73,10 @@ enum psp_bootloader_cmd {
 	PSP_BL__LOAD_KEY_DATABASE	= 0x80000,
 	PSP_BL__LOAD_SOCDRV             = 0xB0000,
 	PSP_BL__LOAD_DBGDRV             = 0xC0000,
+	PSP_BL__LOAD_HADDRV		= PSP_BL__LOAD_DBGDRV,
 	PSP_BL__LOAD_INTFDRV		= 0xD0000,
-	PSP_BL__LOAD_RASDRV		    = 0xE0000,
+	PSP_BL__LOAD_RASDRV		= 0xE0000,
+	PSP_BL__LOAD_IPKEYMGRDRV	= 0xF0000,
 	PSP_BL__DRAM_LONG_TRAIN		= 0x100000,
 	PSP_BL__DRAM_SHORT_TRAIN	= 0x200000,
 	PSP_BL__LOAD_TOS_SPL_TABLE	= 0x10000000,
@@ -117,6 +119,7 @@ struct psp_funcs {
 	int (*bootloader_load_intf_drv)(struct psp_context *psp);
 	int (*bootloader_load_dbg_drv)(struct psp_context *psp);
 	int (*bootloader_load_ras_drv)(struct psp_context *psp);
+	int (*bootloader_load_ipkeymgr_drv)(struct psp_context *psp);
 	int (*bootloader_load_sos)(struct psp_context *psp);
 	int (*ring_create)(struct psp_context *psp,
 			   enum psp_ring_type ring_type);
@@ -336,6 +339,7 @@ struct psp_context {
 	struct psp_bin_desc		intf_drv;
 	struct psp_bin_desc		dbg_drv;
 	struct psp_bin_desc		ras_drv;
+	struct psp_bin_desc		ipkeymgr_drv;
 
 	/* tmr buffer */
 	struct amdgpu_bo		*tmr_bo;
@@ -424,6 +428,9 @@ struct amdgpu_psp_funcs {
 #define psp_bootloader_load_ras_drv(psp) \
 		((psp)->funcs->bootloader_load_ras_drv ? \
 		(psp)->funcs->bootloader_load_ras_drv((psp)) : 0)
+#define psp_bootloader_load_ipkeymgr_drv(psp) \
+		((psp)->funcs->bootloader_load_ipkeymgr_drv ? \
+		 (psp)->funcs->bootloader_load_ipkeymgr_drv((psp)) : 0)
 #define psp_bootloader_load_sos(psp) \
 		((psp)->funcs->bootloader_load_sos ? (psp)->funcs->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \

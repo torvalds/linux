@@ -119,7 +119,7 @@ static void rsnd_cmd_debug_info(struct seq_file *m,
 				struct rsnd_dai_stream *io,
 				struct rsnd_mod *mod)
 {
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
 				  0x180 + rsnd_mod_id_raw(mod) * 0x20, 0x30);
 }
 #define DEBUG_INFO .debug_info = rsnd_cmd_debug_info
@@ -156,10 +156,6 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_cmd *cmd;
 	int i, nr;
-
-	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv))
-		return 0;
 
 	/* same number as DVC */
 	nr = priv->dvc_nr;

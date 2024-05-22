@@ -32,6 +32,7 @@
 #include "reg_helper.h"
 #include "dc.h"
 #include "dcn_calc_math.h"
+#include "dc_dmub_srv.h"
 
 #define REG(reg)\
 	optc1->tg_regs->reg
@@ -213,6 +214,167 @@ static bool optc35_configure_crc(struct timing_generator *optc,
 	return true;
 }
 
+static void optc35_setup_manual_trigger(struct timing_generator *optc)
+{
+	if (!optc || !optc->ctx)
+		return;
+
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	struct dc *dc = optc->ctx->dc;
+
+	if (dc->caps.dmub_caps.mclk_sw && !dc->debug.disable_fams)
+		dc_dmub_srv_set_drr_manual_trigger_cmd(dc, optc->inst);
+	else {
+		/*
+		 * MIN_MASK_EN is gone and MASK is now always enabled.
+		 *
+		 * To get it to it work with manual trigger we need to make sure
+		 * we program the correct bit.
+		 */
+		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
+				OTG_V_TOTAL_MIN_SEL, 1,
+				OTG_V_TOTAL_MAX_SEL, 1,
+				OTG_FORCE_LOCK_ON_EVENT, 0,
+				OTG_SET_V_TOTAL_MIN_MASK, (1 << 1)); /* TRIGA */
+
+		// Setup manual flow control for EOF via TRIG_A
+		if (optc->funcs && optc->funcs->setup_manual_trigger)
+			optc->funcs->setup_manual_trigger(optc);
+	}
+}
+
+void optc35_set_drr(
+	struct timing_generator *optc,
+	const struct drr_params *params)
+{
+	if (!optc || !params)
+		return;
+
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t max_otg_v_total = optc1->max_v_total - 1;
+
+	if (params != NULL &&
+		params->vertical_total_max > 0 &&
+		params->vertical_total_min > 0) {
+
+		if (params->vertical_total_mid != 0) {
+
+			REG_SET(OTG_V_TOTAL_MID, 0,
+				OTG_V_TOTAL_MID, params->vertical_total_mid - 1);
+
+			REG_UPDATE_2(OTG_V_TOTAL_CONTROL,
+					OTG_VTOTAL_MID_REPLACING_MAX_EN, 1,
+					OTG_VTOTAL_MID_FRAME_NUM,
+					(uint8_t)params->vertical_total_mid_frame_num);
+
+		}
+
+		if (optc->funcs && optc->funcs->set_vtotal_min_max)
+			optc->funcs->set_vtotal_min_max(optc,
+				params->vertical_total_min - 1, params->vertical_total_max - 1);
+		optc35_setup_manual_trigger(optc);
+	} else {
+		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
+				OTG_SET_V_TOTAL_MIN_MASK, 0,
+				OTG_V_TOTAL_MIN_SEL, 0,
+				OTG_V_TOTAL_MAX_SEL, 0,
+				OTG_FORCE_LOCK_ON_EVENT, 0);
+
+		if (optc->funcs && optc->funcs->set_vtotal_min_max)
+			optc->funcs->set_vtotal_min_max(optc, 0, 0);
+	}
+
+	REG_WRITE(OTG_V_COUNT_STOP_CONTROL, max_otg_v_total);
+	REG_WRITE(OTG_V_COUNT_STOP_CONTROL2, 0);
+}
+
+static void optc35_set_long_vtotal(
+	struct timing_generator *optc,
+	const struct long_vtotal_params *params)
+{
+	if (!optc || !params)
+		return;
+
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t vcount_stop_timer = 0, vcount_stop = 0;
+	uint32_t max_otg_v_total = optc1->max_v_total - 1;
+
+	if (params->vertical_total_min <= max_otg_v_total && params->vertical_total_max <= max_otg_v_total)
+		return;
+
+	if (params->vertical_total_max == 0 || params->vertical_total_min == 0) {
+		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
+						OTG_SET_V_TOTAL_MIN_MASK, 0,
+						OTG_V_TOTAL_MIN_SEL, 0,
+						OTG_V_TOTAL_MAX_SEL, 0,
+						OTG_FORCE_LOCK_ON_EVENT, 0);
+
+		if (optc->funcs && optc->funcs->set_vtotal_min_max)
+			optc->funcs->set_vtotal_min_max(optc, 0, 0);
+	} else if (params->vertical_total_max == params->vertical_total_min) {
+		vcount_stop = params->vertical_blank_start;
+		vcount_stop_timer = params->vertical_total_max - max_otg_v_total;
+
+		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
+				OTG_V_TOTAL_MIN_SEL, 1,
+				OTG_V_TOTAL_MAX_SEL, 1,
+				OTG_FORCE_LOCK_ON_EVENT, 0,
+				OTG_SET_V_TOTAL_MIN_MASK, 0);
+
+		if (optc->funcs && optc->funcs->set_vtotal_min_max)
+			optc->funcs->set_vtotal_min_max(optc, max_otg_v_total, max_otg_v_total);
+
+		REG_WRITE(OTG_V_COUNT_STOP_CONTROL, vcount_stop);
+		REG_WRITE(OTG_V_COUNT_STOP_CONTROL2, vcount_stop_timer);
+	} else {
+		// Variable rate, keep DRR trigger mask
+		if (params->vertical_total_min > max_otg_v_total) {
+			// cannot be supported
+			// If MAX_OTG_V_COUNT < DRR trigger < v_total_min < v_total_max,
+			// DRR trigger will drop the vtotal counting directly to a new frame.
+			// But it should trigger between v_total_min and v_total_max.
+			ASSERT(0);
+
+			REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
+				OTG_SET_V_TOTAL_MIN_MASK, 0,
+				OTG_V_TOTAL_MIN_SEL, 0,
+				OTG_V_TOTAL_MAX_SEL, 0,
+				OTG_FORCE_LOCK_ON_EVENT, 0);
+
+			if (optc->funcs && optc->funcs->set_vtotal_min_max)
+				optc->funcs->set_vtotal_min_max(optc, 0, 0);
+
+			REG_WRITE(OTG_V_COUNT_STOP_CONTROL, max_otg_v_total);
+			REG_WRITE(OTG_V_COUNT_STOP_CONTROL2, 0);
+		} else {
+			// For total_min <= MAX_OTG_V_COUNT and total_max > MAX_OTG_V_COUNT
+			vcount_stop = params->vertical_total_min;
+			vcount_stop_timer = params->vertical_total_max - max_otg_v_total;
+
+			// Example:
+			// params->vertical_total_min 1000
+			// params->vertical_total_max 2000
+			// MAX_OTG_V_COUNT_STOP = 1500
+			//
+			// If DRR event not happened,
+			//     time     0,1,2,3,4,...1000,1001,........,1500,1501,1502,     ...1999
+			//     vcount   0,1,2,3,4....1000...................,1001,1002,1003,...1399
+			//     vcount2                       0,1,2,3,4,..499,
+			// else (DRR event happened, ex : at line 1004)
+			//     time    0,1,2,3,4,...1000,1001.....1004, 0
+			//     vcount  0,1,2,3,4....1000,.............. 0 (new frame)
+			//     vcount2                      0,1,2,   3, -
+			if (optc->funcs && optc->funcs->set_vtotal_min_max)
+				optc->funcs->set_vtotal_min_max(optc,
+					params->vertical_total_min - 1, max_otg_v_total);
+			optc35_setup_manual_trigger(optc);
+
+			REG_WRITE(OTG_V_COUNT_STOP_CONTROL, vcount_stop);
+			REG_WRITE(OTG_V_COUNT_STOP_CONTROL2, vcount_stop_timer);
+		}
+	}
+}
+
 static struct timing_generator_funcs dcn35_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -245,7 +407,7 @@ static struct timing_generator_funcs dcn35_tg_funcs = {
 		.lock_doublebuffer_enable = optc3_lock_doublebuffer_enable,
 		.lock_doublebuffer_disable = optc3_lock_doublebuffer_disable,
 		.enable_optc_clock = optc1_enable_optc_clock,
-		.set_drr = optc31_set_drr,
+		.set_drr = optc35_set_drr,
 		.get_last_used_drr_vtotal = optc2_get_last_used_drr_vtotal,
 		.set_vtotal_min_max = optc1_set_vtotal_min_max,
 		.set_static_screen_control = optc1_set_static_screen_control,
@@ -275,6 +437,7 @@ static struct timing_generator_funcs dcn35_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.init_odm = optc3_init_odm,
+		.set_long_vtotal = optc35_set_long_vtotal,
 };
 
 void dcn35_timing_generator_init(struct optc *optc1)

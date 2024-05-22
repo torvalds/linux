@@ -205,7 +205,7 @@ disable_dpm:
 	dpm_ctl &= 0xfffffffe; /* Disable DPM */
 	WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_enable), dpm_ctl);
 	dev_dbg(adev->dev, "%s: disable vpe dpm\n", __func__);
-	return 0;
+	return -EINVAL;
 }
 
 int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev)

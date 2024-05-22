@@ -15,7 +15,6 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
-#include "sof_board_helpers.h"
 #include "sof_sdw_common.h"
 
 /*
@@ -44,11 +43,6 @@ static int rt_sdca_jack_add_codec_device_props(struct device *sdw_dev)
 	return ret;
 }
 
-static const struct snd_soc_dapm_widget rt_sdca_jack_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone", NULL),
-	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-};
-
 static const struct snd_soc_dapm_route rt711_sdca_map[] = {
 	{ "Headphone", NULL, "rt711 HP" },
 	{ "rt711 MIC2", NULL, "Headset Mic" },
@@ -69,11 +63,6 @@ static const struct snd_soc_dapm_route rt722_sdca_map[] = {
 	{ "rt722 MIC2", NULL, "Headset Mic" },
 };
 
-static const struct snd_kcontrol_new rt_sdca_jack_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Headphone"),
-	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-};
-
 static struct snd_soc_jack_pin rt_sdca_jack_pins[] = {
 	{
 		.pin    = "Headphone",
@@ -86,10 +75,19 @@ static struct snd_soc_jack_pin rt_sdca_jack_pins[] = {
 };
 
 static const char * const jack_codecs[] = {
-	"rt711", "rt712", "rt713"
+	"rt711", "rt712", "rt713", "rt722"
 };
 
-int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
+/*
+ * The sdca suffix is required for rt711 since there are two generations of the same chip.
+ * RT713 is an SDCA device but the sdca suffix is required for backwards-compatibility with
+ * previous UCM definitions.
+ */
+static const char * const need_sdca_suffix[] = {
+	"rt711", "rt713"
+};
+
+int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -97,6 +95,7 @@ int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_component *component;
 	struct snd_soc_jack *jack;
 	int ret;
+	int i;
 
 	codec_dai = get_codec_dai_by_name(rtd, jack_codecs, ARRAY_SIZE(jack_codecs));
 	if (!codec_dai)
@@ -104,23 +103,20 @@ int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 
 	component = codec_dai->component;
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "%s hs:%s-sdca",
+					  "%s hs:%s",
 					  card->components, component->name_prefix);
 	if (!card->components)
 		return -ENOMEM;
 
-	ret = snd_soc_add_card_controls(card, rt_sdca_jack_controls,
-					ARRAY_SIZE(rt_sdca_jack_controls));
-	if (ret) {
-		dev_err(card->dev, "rt sdca jack controls addition failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt_sdca_jack_widgets,
-					ARRAY_SIZE(rt_sdca_jack_widgets));
-	if (ret) {
-		dev_err(card->dev, "rt sdca jack widgets addition failed: %d\n", ret);
-		return ret;
+	for (i = 0; i < ARRAY_SIZE(need_sdca_suffix); i++) {
+		if (strstr(codec_dai->name, need_sdca_suffix[i])) {
+			/* Add -sdca suffix for existing UCMs */
+			card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+							  "%s-sdca", card->components);
+			if (!card->components)
+				return -ENOMEM;
+			break;
+		}
 	}
 
 	if (strstr(component->name_prefix, "rt711")) {
@@ -192,7 +188,6 @@ int sof_sdw_rt_sdca_jack_exit(struct snd_soc_card *card, struct snd_soc_dai_link
 }
 
 int sof_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
-			      const struct snd_soc_acpi_link_adr *link,
 			      struct snd_soc_dai_link *dai_links,
 			      struct sof_sdw_codec_info *info,
 			      bool playback)

@@ -1408,7 +1408,7 @@ static int __cmd_kmem(struct perf_session *session)
 	}
 
 	evlist__for_each_entry(session->evlist, evsel) {
-		if (!strcmp(evsel__name(evsel), "kmem:mm_page_alloc") &&
+		if (evsel__name_is(evsel, "kmem:mm_page_alloc") &&
 		    evsel__field(evsel, "pfn")) {
 			use_pfn = true;
 			break;

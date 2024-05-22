@@ -467,9 +467,9 @@ const char *reg_type_str(struct bpf_verifier_env *env, enum bpf_reg_type type)
 
 	if (type & PTR_MAYBE_NULL) {
 		if (base_type(type) == PTR_TO_BTF_ID)
-			strncpy(postfix, "or_null_", 16);
+			strscpy(postfix, "or_null_");
 		else
-			strncpy(postfix, "_or_null", 16);
+			strscpy(postfix, "_or_null");
 	}
 
 	snprintf(prefix, sizeof(prefix), "%s%s%s%s%s%s%s",

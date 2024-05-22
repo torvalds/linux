@@ -978,20 +978,12 @@ static int max_cb_time(struct net *net)
 	return max(((u32)nn->nfsd4_lease)/10, 1u) * HZ;
 }
 
-static struct workqueue_struct *callback_wq;
-
 static bool nfsd4_queue_cb(struct nfsd4_callback *cb)
 {
-	trace_nfsd_cb_queue(cb->cb_clp, cb);
-	return queue_delayed_work(callback_wq, &cb->cb_work, 0);
-}
+	struct nfs4_client *clp = cb->cb_clp;
 
-static void nfsd4_queue_cb_delayed(struct nfsd4_callback *cb,
-				   unsigned long msecs)
-{
-	trace_nfsd_cb_queue(cb->cb_clp, cb);
-	queue_delayed_work(callback_wq, &cb->cb_work,
-			   msecs_to_jiffies(msecs));
+	trace_nfsd_cb_queue(clp, cb);
+	return queue_work(clp->cl_callback_wq, &cb->cb_work);
 }
 
 static void nfsd41_cb_inflight_begin(struct nfs4_client *clp)
@@ -1161,7 +1153,7 @@ void nfsd4_probe_callback(struct nfs4_client *clp)
 void nfsd4_probe_callback_sync(struct nfs4_client *clp)
 {
 	nfsd4_probe_callback(clp);
-	flush_workqueue(callback_wq);
+	flush_workqueue(clp->cl_callback_wq);
 }
 
 void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
@@ -1380,19 +1372,6 @@ static const struct rpc_call_ops nfsd4_cb_ops = {
 	.rpc_release = nfsd4_cb_release,
 };
 
-int nfsd4_create_callback_queue(void)
-{
-	callback_wq = alloc_ordered_workqueue("nfsd4_callbacks", 0);
-	if (!callback_wq)
-		return -ENOMEM;
-	return 0;
-}
-
-void nfsd4_destroy_callback_queue(void)
-{
-	destroy_workqueue(callback_wq);
-}
-
 /* must be called under the state lock */
 void nfsd4_shutdown_callback(struct nfs4_client *clp)
 {
@@ -1406,7 +1385,7 @@ void nfsd4_shutdown_callback(struct nfs4_client *clp)
 	 * client, destroy the rpc client, and stop:
 	 */
 	nfsd4_run_cb(&clp->cl_cb_null);
-	flush_workqueue(callback_wq);
+	flush_workqueue(clp->cl_callback_wq);
 	nfsd41_cb_inflight_wait_complete(clp);
 }
 
@@ -1428,9 +1407,9 @@ static struct nfsd4_conn * __nfsd4_find_backchannel(struct nfs4_client *clp)
 
 /*
  * Note there isn't a lot of locking in this code; instead we depend on
- * the fact that it is run from the callback_wq, which won't run two
- * work items at once.  So, for example, callback_wq handles all access
- * of cl_cb_client and all calls to rpc_create or rpc_shutdown_client.
+ * the fact that it is run from clp->cl_callback_wq, which won't run two
+ * work items at once.  So, for example, clp->cl_callback_wq handles all
+ * access of cl_cb_client and all calls to rpc_create or rpc_shutdown_client.
  */
 static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 {
@@ -1490,7 +1469,7 @@ static void
 nfsd4_run_cb_work(struct work_struct *work)
 {
 	struct nfsd4_callback *cb =
-		container_of(work, struct nfsd4_callback, cb_work.work);
+		container_of(work, struct nfsd4_callback, cb_work);
 	struct nfs4_client *clp = cb->cb_clp;
 	struct rpc_clnt *clnt;
 	int flags;
@@ -1502,16 +1481,8 @@ nfsd4_run_cb_work(struct work_struct *work)
 
 	clnt = clp->cl_cb_client;
 	if (!clnt) {
-		if (test_bit(NFSD4_CLIENT_CB_KILL, &clp->cl_flags))
-			nfsd41_destroy_cb(cb);
-		else {
-			/*
-			 * XXX: Ideally, we could wait for the client to
-			 *	reconnect, but I haven't figured out how
-			 *	to do that yet.
-			 */
-			nfsd4_queue_cb_delayed(cb, 25);
-		}
+		/* Callback channel broken, or client killed; give up: */
+		nfsd41_destroy_cb(cb);
 		return;
 	}
 
@@ -1544,7 +1515,7 @@ void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 	cb->cb_msg.rpc_argp = cb;
 	cb->cb_msg.rpc_resp = cb;
 	cb->cb_ops = ops;
-	INIT_DELAYED_WORK(&cb->cb_work, nfsd4_run_cb_work);
+	INIT_WORK(&cb->cb_work, nfsd4_run_cb_work);
 	cb->cb_status = 0;
 	cb->cb_need_restart = false;
 	cb->cb_holds_slot = false;

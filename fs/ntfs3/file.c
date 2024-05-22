@@ -1236,4 +1236,12 @@ const struct file_operations ntfs_file_operations = {
 	.fallocate	= ntfs_fallocate,
 	.release	= ntfs_file_release,
 };
+
+const struct file_operations ntfs_legacy_file_operations = {
+	.llseek		= generic_file_llseek,
+	.read_iter	= ntfs_file_read_iter,
+	.splice_read	= ntfs_file_splice_read,
+	.open		= ntfs_file_open,
+	.release	= ntfs_file_release,
+};
 // clang-format on

@@ -9,7 +9,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include "optee_private.h"
 
 struct notif_entry {

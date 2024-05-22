@@ -108,8 +108,8 @@ DTC_FLAGS	?= -p 1024
 # these files into the build dir, fix up any includes and ensure that dependent
 # files are copied in the right order.
 
-# these need to be seperate variables because they are copied out of different
-# directories in the kernel tree. Sure you COULd merge them, but it's a
+# these need to be separate variables because they are copied out of different
+# directories in the kernel tree. Sure you COULD merge them, but it's a
 # cure-is-worse-than-disease situation.
 zlib-decomp-$(CONFIG_KERNEL_GZIP) := decompress_inflate.c
 zlib-$(CONFIG_KERNEL_GZIP) := inffast.c inflate.c inftrees.c
@@ -218,7 +218,7 @@ $(addprefix $(obj)/,$(libfdt) $(libfdtheader)): $(obj)/%: $(srctree)/scripts/dtc
 $(obj)/empty.c:
 	$(Q)touch $@
 
-$(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds : $(obj)/%: $(srctree)/$(src)/%.S
+$(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds : $(obj)/%: $(src)/%.S
 	$(Q)cp $< $@
 
 clean-files := $(zlib-) $(zlibheader-) $(zliblinuxheader-) \
@@ -252,9 +252,9 @@ targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a) zImage.lds
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds
 
-dtstree		:= $(srctree)/$(src)/dts
+dtstree		:= $(src)/dts
 
-wrapper		:=$(srctree)/$(src)/wrapper
+wrapper		:= $(src)/wrapper
 wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree) \
 			$(wrapper) FORCE
 

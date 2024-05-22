@@ -145,14 +145,18 @@ xfs_discard_extents(
 	return error;
 }
 
+struct xfs_trim_cur {
+	xfs_agblock_t	start;
+	xfs_extlen_t	count;
+	xfs_agblock_t	end;
+	xfs_extlen_t	minlen;
+	bool		by_bno;
+};
 
 static int
 xfs_trim_gather_extents(
 	struct xfs_perag	*pag,
-	xfs_daddr_t		start,
-	xfs_daddr_t		end,
-	xfs_daddr_t		minlen,
-	struct xfs_alloc_rec_incore *tcur,
+	struct xfs_trim_cur	*tcur,
 	struct xfs_busy_extents	*extents,
 	uint64_t		*blocks_trimmed)
 {
@@ -179,21 +183,26 @@ xfs_trim_gather_extents(
 	if (error)
 		goto out_trans_cancel;
 
-	cur = xfs_cntbt_init_cursor(mp, tp, agbp, pag);
-
-	/*
-	 * Look up the extent length requested in the AGF and start with it.
-	 */
-	if (tcur->ar_startblock == NULLAGBLOCK)
-		error = xfs_alloc_lookup_ge(cur, 0, tcur->ar_blockcount, &i);
-	else
-		error = xfs_alloc_lookup_le(cur, tcur->ar_startblock,
-				tcur->ar_blockcount, &i);
+	if (tcur->by_bno) {
+		/* sub-AG discard request always starts at tcur->start */
+		cur = xfs_bnobt_init_cursor(mp, tp, agbp, pag);
+		error = xfs_alloc_lookup_le(cur, tcur->start, 0, &i);
+		if (!error && !i)
+			error = xfs_alloc_lookup_ge(cur, tcur->start, 0, &i);
+	} else if (tcur->start == 0) {
+		/* first time through a by-len starts with max length */
+		cur = xfs_cntbt_init_cursor(mp, tp, agbp, pag);
+		error = xfs_alloc_lookup_ge(cur, 0, tcur->count, &i);
+	} else {
+		/* nth time through a by-len starts where we left off */
+		cur = xfs_cntbt_init_cursor(mp, tp, agbp, pag);
+		error = xfs_alloc_lookup_le(cur, tcur->start, tcur->count, &i);
+	}
 	if (error)
 		goto out_del_cursor;
 	if (i == 0) {
 		/* nothing of that length left in the AG, we are done */
-		tcur->ar_blockcount = 0;
+		tcur->count = 0;
 		goto out_del_cursor;
 	}
 
@@ -204,8 +213,6 @@ xfs_trim_gather_extents(
 	while (i) {
 		xfs_agblock_t	fbno;
 		xfs_extlen_t	flen;
-		xfs_daddr_t	dbno;
-		xfs_extlen_t	dlen;
 
 		error = xfs_alloc_get_rec(cur, &fbno, &flen, &i);
 		if (error)
@@ -221,36 +228,44 @@ xfs_trim_gather_extents(
 			 * Update the cursor to point at this extent so we
 			 * restart the next batch from this extent.
 			 */
-			tcur->ar_startblock = fbno;
-			tcur->ar_blockcount = flen;
-			break;
-		}
-
-		/*
-		 * use daddr format for all range/len calculations as that is
-		 * the format the range/len variables are supplied in by
-		 * userspace.
-		 */
-		dbno = XFS_AGB_TO_DADDR(mp, pag->pag_agno, fbno);
-		dlen = XFS_FSB_TO_BB(mp, flen);
-
-		/*
-		 * Too small?  Give up.
-		 */
-		if (dlen < minlen) {
-			trace_xfs_discard_toosmall(mp, pag->pag_agno, fbno, flen);
-			tcur->ar_blockcount = 0;
+			tcur->start = fbno;
+			tcur->count = flen;
 			break;
 		}
 
 		/*
 		 * If the extent is entirely outside of the range we are
-		 * supposed to discard skip it.  Do not bother to trim
-		 * down partially overlapping ranges for now.
+		 * supposed to skip it.  Do not bother to trim down partially
+		 * overlapping ranges for now.
 		 */
-		if (dbno + dlen < start || dbno > end) {
+		if (fbno + flen < tcur->start) {
 			trace_xfs_discard_exclude(mp, pag->pag_agno, fbno, flen);
 			goto next_extent;
+		}
+		if (fbno > tcur->end) {
+			trace_xfs_discard_exclude(mp, pag->pag_agno, fbno, flen);
+			if (tcur->by_bno) {
+				tcur->count = 0;
+				break;
+			}
+			goto next_extent;
+		}
+
+		/* Trim the extent returned to the range we want. */
+		if (fbno < tcur->start) {
+			flen -= tcur->start - fbno;
+			fbno = tcur->start;
+		}
+		if (fbno + flen > tcur->end + 1)
+			flen = tcur->end - fbno + 1;
+
+		/* Too small?  Give up. */
+		if (flen < tcur->minlen) {
+			trace_xfs_discard_toosmall(mp, pag->pag_agno, fbno, flen);
+			if (tcur->by_bno)
+				goto next_extent;
+			tcur->count = 0;
+			break;
 		}
 
 		/*
@@ -266,7 +281,10 @@ xfs_trim_gather_extents(
 				&extents->extent_list);
 		*blocks_trimmed += flen;
 next_extent:
-		error = xfs_btree_decrement(cur, 0, &i);
+		if (tcur->by_bno)
+			error = xfs_btree_increment(cur, 0, &i);
+		else
+			error = xfs_btree_decrement(cur, 0, &i);
 		if (error)
 			break;
 
@@ -276,7 +294,7 @@ next_extent:
 		 * is no more extents to search.
 		 */
 		if (i == 0)
-			tcur->ar_blockcount = 0;
+			tcur->count = 0;
 	}
 
 	/*
@@ -306,16 +324,21 @@ xfs_trim_should_stop(void)
 static int
 xfs_trim_extents(
 	struct xfs_perag	*pag,
-	xfs_daddr_t		start,
-	xfs_daddr_t		end,
-	xfs_daddr_t		minlen,
+	xfs_agblock_t		start,
+	xfs_agblock_t		end,
+	xfs_extlen_t		minlen,
 	uint64_t		*blocks_trimmed)
 {
-	struct xfs_alloc_rec_incore tcur = {
-		.ar_blockcount = pag->pagf_longest,
-		.ar_startblock = NULLAGBLOCK,
+	struct xfs_trim_cur	tcur = {
+		.start		= start,
+		.count		= pag->pagf_longest,
+		.end		= end,
+		.minlen		= minlen,
 	};
 	int			error = 0;
+
+	if (start != 0 || end != pag->block_count)
+		tcur.by_bno = true;
 
 	do {
 		struct xfs_busy_extents	*extents;
@@ -330,8 +353,8 @@ xfs_trim_extents(
 		extents->owner = extents;
 		INIT_LIST_HEAD(&extents->extent_list);
 
-		error = xfs_trim_gather_extents(pag, start, end, minlen,
-				&tcur, extents, blocks_trimmed);
+		error = xfs_trim_gather_extents(pag, &tcur, extents,
+				blocks_trimmed);
 		if (error) {
 			kfree(extents);
 			break;
@@ -354,7 +377,7 @@ xfs_trim_extents(
 		if (xfs_trim_should_stop())
 			break;
 
-	} while (tcur.ar_blockcount != 0);
+	} while (tcur.count != 0);
 
 	return error;
 
@@ -378,8 +401,10 @@ xfs_ioc_trim(
 	unsigned int		granularity =
 		bdev_discard_granularity(mp->m_ddev_targp->bt_bdev);
 	struct fstrim_range	range;
-	xfs_daddr_t		start, end, minlen;
-	xfs_agnumber_t		agno;
+	xfs_daddr_t		start, end;
+	xfs_extlen_t		minlen;
+	xfs_agnumber_t		start_agno, end_agno;
+	xfs_agblock_t		start_agbno, end_agbno;
 	uint64_t		blocks_trimmed = 0;
 	int			error, last_error = 0;
 
@@ -399,7 +424,8 @@ xfs_ioc_trim(
 		return -EFAULT;
 
 	range.minlen = max_t(u64, granularity, range.minlen);
-	minlen = BTOBB(range.minlen);
+	minlen = XFS_B_TO_FSB(mp, range.minlen);
+
 	/*
 	 * Truncating down the len isn't actually quite correct, but using
 	 * BBTOB would mean we trivially get overflows for values
@@ -413,15 +439,21 @@ xfs_ioc_trim(
 		return -EINVAL;
 
 	start = BTOBB(range.start);
-	end = start + BTOBBT(range.len) - 1;
+	end = min_t(xfs_daddr_t, start + BTOBBT(range.len),
+		    XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)) - 1;
 
-	if (end > XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks) - 1)
-		end = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks) - 1;
+	start_agno = xfs_daddr_to_agno(mp, start);
+	start_agbno = xfs_daddr_to_agbno(mp, start);
+	end_agno = xfs_daddr_to_agno(mp, end);
+	end_agbno = xfs_daddr_to_agbno(mp, end);
 
-	agno = xfs_daddr_to_agno(mp, start);
-	for_each_perag_range(mp, agno, xfs_daddr_to_agno(mp, end), pag) {
-		error = xfs_trim_extents(pag, start, end, minlen,
-					  &blocks_trimmed);
+	for_each_perag_range(mp, start_agno, end_agno, pag) {
+		xfs_agblock_t	agend = pag->block_count;
+
+		if (start_agno == end_agno)
+			agend = end_agbno;
+		error = xfs_trim_extents(pag, start_agbno, agend, minlen,
+				&blocks_trimmed);
 		if (error)
 			last_error = error;
 
@@ -429,6 +461,7 @@ xfs_ioc_trim(
 			xfs_perag_rele(pag);
 			break;
 		}
+		start_agbno = 0;
 	}
 
 	if (last_error)

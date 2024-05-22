@@ -72,7 +72,7 @@ static int mpu3050_i2c_probe(struct i2c_client *client)
 	else {
 		mpu3050->i2cmux->priv = mpu3050;
 		/* Ignore failure, not critical */
-		i2c_mux_add_adapter(mpu3050->i2cmux, 0, 0, 0);
+		i2c_mux_add_adapter(mpu3050->i2cmux, 0, 0);
 	}
 
 	return 0;

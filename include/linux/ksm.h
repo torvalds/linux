@@ -45,16 +45,16 @@ static inline void ksm_might_unmap_zero_page(struct mm_struct *mm, pte_t pte)
 
 static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 {
-	int ret;
+	if (test_bit(MMF_VM_MERGEABLE, &oldmm->flags))
+		return __ksm_enter(mm);
 
-	if (test_bit(MMF_VM_MERGEABLE, &oldmm->flags)) {
-		ret = __ksm_enter(mm);
-		if (ret)
-			return ret;
-	}
+	return 0;
+}
 
-	if (test_bit(MMF_VM_MERGE_ANY, &oldmm->flags))
-		set_bit(MMF_VM_MERGE_ANY, &mm->flags);
+static inline int ksm_execve(struct mm_struct *mm)
+{
+	if (test_bit(MMF_VM_MERGE_ANY, &mm->flags))
+		return __ksm_enter(mm);
 
 	return 0;
 }
@@ -81,15 +81,9 @@ struct folio *ksm_might_need_to_copy(struct folio *folio,
 
 void rmap_walk_ksm(struct folio *folio, struct rmap_walk_control *rwc);
 void folio_migrate_ksm(struct folio *newfolio, struct folio *folio);
-
-#ifdef CONFIG_MEMORY_FAILURE
-void collect_procs_ksm(struct page *page, struct list_head *to_kill,
-		       int force_early);
-#endif
-
-#ifdef CONFIG_PROC_FS
+void collect_procs_ksm(struct folio *folio, struct page *page,
+		struct list_head *to_kill, int force_early);
 long ksm_process_profit(struct mm_struct *);
-#endif /* CONFIG_PROC_FS */
 
 #else  /* !CONFIG_KSM */
 
@@ -107,6 +101,11 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 	return 0;
 }
 
+static inline int ksm_execve(struct mm_struct *mm)
+{
+	return 0;
+}
+
 static inline void ksm_exit(struct mm_struct *mm)
 {
 }
@@ -115,12 +114,10 @@ static inline void ksm_might_unmap_zero_page(struct mm_struct *mm, pte_t pte)
 {
 }
 
-#ifdef CONFIG_MEMORY_FAILURE
-static inline void collect_procs_ksm(struct page *page,
+static inline void collect_procs_ksm(struct folio *folio, struct page *page,
 				     struct list_head *to_kill, int force_early)
 {
 }
-#endif
 
 #ifdef CONFIG_MMU
 static inline int ksm_madvise(struct vm_area_struct *vma, unsigned long start,

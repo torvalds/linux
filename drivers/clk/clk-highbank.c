@@ -37,7 +37,6 @@
 struct hb_clk {
         struct clk_hw	hw;
 	void __iomem	*reg;
-	char *parent_name;
 };
 #define to_hb_clk(p) container_of(p, struct hb_clk, hw)
 

@@ -16,9 +16,9 @@
 #ifndef _HRT_BITS_H
 #define _HRT_BITS_H
 
-#include "defs.h"
+#include <linux/args.h>
 
-#define _hrt_ones(n) HRTCAT(_hrt_ones_, n)
+#define _hrt_ones(n)	CONCATENATE(_hrt_ones_, n)
 #define _hrt_ones_0x0  0x00000000U
 #define _hrt_ones_0x1  0x00000001U
 #define _hrt_ones_0x2  0x00000003U

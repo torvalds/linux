@@ -50,11 +50,13 @@ struct dcn_watermarks {
 	uint32_t usr_retraining_ns;
 };
 
-struct dcn_watermark_set {
-	struct dcn_watermarks a;
-	struct dcn_watermarks b;
-	struct dcn_watermarks c;
-	struct dcn_watermarks d;
+union dcn_watermark_set {
+	struct {
+		struct dcn_watermarks a;
+		struct dcn_watermarks b;
+		struct dcn_watermarks c;
+		struct dcn_watermarks d;
+	}; // legacy
 };
 
 struct dce_watermarks {

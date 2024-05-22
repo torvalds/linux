@@ -173,15 +173,13 @@ static int imx8mp_hdmi_pvi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int imx8mp_hdmi_pvi_remove(struct platform_device *pdev)
+static void imx8mp_hdmi_pvi_remove(struct platform_device *pdev)
 {
 	struct imx8mp_hdmi_pvi *pvi = platform_get_drvdata(pdev);
 
 	drm_bridge_remove(&pvi->bridge);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id imx8mp_hdmi_pvi_match[] = {
@@ -195,7 +193,7 @@ MODULE_DEVICE_TABLE(of, imx8mp_hdmi_pvi_match);
 
 static struct platform_driver imx8mp_hdmi_pvi_driver = {
 	.probe	= imx8mp_hdmi_pvi_probe,
-	.remove	= imx8mp_hdmi_pvi_remove,
+	.remove_new = imx8mp_hdmi_pvi_remove,
 	.driver		= {
 		.name = "imx-hdmi-pvi",
 		.of_match_table	= imx8mp_hdmi_pvi_match,

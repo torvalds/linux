@@ -46,6 +46,7 @@
 #define LED_FUNCTION_CAPSLOCK "capslock"
 #define LED_FUNCTION_SCROLLLOCK "scrolllock"
 #define LED_FUNCTION_NUMLOCK "numlock"
+#define LED_FUNCTION_FNLOCK "fnlock"
 /*   Obsolete equivalents: "tpacpi::thinklight" (IBM/Lenovo Thinkpads),
      "lp5523:kb{1,2,3,4,5,6}" (Nokia N900) */
 #define LED_FUNCTION_KBD_BACKLIGHT "kbd_backlight"

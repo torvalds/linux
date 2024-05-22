@@ -1375,14 +1375,14 @@ static int cik_asic_pci_config_reset(struct amdgpu_device *adev)
 	return r;
 }
 
-static bool cik_asic_supports_baco(struct amdgpu_device *adev)
+static int cik_asic_supports_baco(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 	case CHIP_HAWAII:
 		return amdgpu_dpm_is_baco_supported(adev);
 	default:
-		return false;
+		return 0;
 	}
 }
 
@@ -2210,6 +2210,8 @@ static const struct amd_ip_funcs cik_common_ip_funcs = {
 	.soft_reset = cik_common_soft_reset,
 	.set_clockgating_state = cik_common_set_clockgating_state,
 	.set_powergating_state = cik_common_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ip_block_version cik_common_ip_block =

@@ -36,6 +36,11 @@ struct node_memory_type_map {
 
 static DEFINE_MUTEX(memory_tier_lock);
 static LIST_HEAD(memory_tiers);
+/*
+ * The list is used to store all memory types that are not created
+ * by a device driver.
+ */
+static LIST_HEAD(default_memory_types);
 static struct node_memory_type_map node_memory_types[MAX_NUMNODES];
 struct memory_dev_type *default_dram_type;
 
@@ -108,6 +113,8 @@ static struct demotion_nodes *node_demotion __read_mostly;
 
 static BLOCKING_NOTIFIER_HEAD(mt_adistance_algorithms);
 
+/* The lock is used to protect `default_dram_perf*` info and nid. */
+static DEFINE_MUTEX(default_dram_perf_lock);
 static bool default_dram_perf_error;
 static struct access_coordinate default_dram_perf;
 static int default_dram_perf_ref_nid = NUMA_NO_NODE;
@@ -505,7 +512,8 @@ static inline void __init_node_memory_type(int node, struct memory_dev_type *mem
 static struct memory_tier *set_node_memory_tier(int node)
 {
 	struct memory_tier *memtier;
-	struct memory_dev_type *memtype;
+	struct memory_dev_type *memtype = default_dram_type;
+	int adist = MEMTIER_ADISTANCE_DRAM;
 	pg_data_t *pgdat = NODE_DATA(node);
 
 
@@ -514,7 +522,16 @@ static struct memory_tier *set_node_memory_tier(int node)
 	if (!node_state(node, N_MEMORY))
 		return ERR_PTR(-EINVAL);
 
-	__init_node_memory_type(node, default_dram_type);
+	mt_calc_adistance(node, &adist);
+	if (!node_memory_types[node].memtype) {
+		memtype = mt_find_alloc_memory_type(adist, &default_memory_types);
+		if (IS_ERR(memtype)) {
+			memtype = default_dram_type;
+			pr_info("Failed to allocate a memory type. Fall back.\n");
+		}
+	}
+
+	__init_node_memory_type(node, memtype);
 
 	memtype = node_memory_types[node].memtype;
 	node_set(node, memtype->nodes);
@@ -623,6 +640,64 @@ void clear_node_memory_type(int node, struct memory_dev_type *memtype)
 }
 EXPORT_SYMBOL_GPL(clear_node_memory_type);
 
+struct memory_dev_type *mt_find_alloc_memory_type(int adist, struct list_head *memory_types)
+{
+	struct memory_dev_type *mtype;
+
+	list_for_each_entry(mtype, memory_types, list)
+		if (mtype->adistance == adist)
+			return mtype;
+
+	mtype = alloc_memory_type(adist);
+	if (IS_ERR(mtype))
+		return mtype;
+
+	list_add(&mtype->list, memory_types);
+
+	return mtype;
+}
+EXPORT_SYMBOL_GPL(mt_find_alloc_memory_type);
+
+void mt_put_memory_types(struct list_head *memory_types)
+{
+	struct memory_dev_type *mtype, *mtn;
+
+	list_for_each_entry_safe(mtype, mtn, memory_types, list) {
+		list_del(&mtype->list);
+		put_memory_type(mtype);
+	}
+}
+EXPORT_SYMBOL_GPL(mt_put_memory_types);
+
+/*
+ * This is invoked via `late_initcall()` to initialize memory tiers for
+ * CPU-less memory nodes after driver initialization, which is
+ * expected to provide `adistance` algorithms.
+ */
+static int __init memory_tier_late_init(void)
+{
+	int nid;
+
+	guard(mutex)(&memory_tier_lock);
+	for_each_node_state(nid, N_MEMORY) {
+		/*
+		 * Some device drivers may have initialized memory tiers
+		 * between `memory_tier_init()` and `memory_tier_late_init()`,
+		 * potentially bringing online memory nodes and
+		 * configuring memory tiers. Exclude them here.
+		 */
+		if (node_memory_types[nid].memtype)
+			continue;
+
+		set_node_memory_tier(nid);
+	}
+
+	establish_demotion_targets();
+
+	return 0;
+}
+late_initcall(memory_tier_late_init);
+
 static void dump_hmem_attrs(struct access_coordinate *coord, const char *prefix)
 {
 	pr_info(
@@ -634,25 +709,19 @@ static void dump_hmem_attrs(struct access_coordinate *coord, const char *prefix)
 int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 			     const char *source)
 {
-	int rc = 0;
-
-	mutex_lock(&memory_tier_lock);
-	if (default_dram_perf_error) {
-		rc = -EIO;
-		goto out;
-	}
+	guard(mutex)(&default_dram_perf_lock);
+	if (default_dram_perf_error)
+		return -EIO;
 
 	if (perf->read_latency + perf->write_latency == 0 ||
-	    perf->read_bandwidth + perf->write_bandwidth == 0) {
-		rc = -EINVAL;
-		goto out;
-	}
+	    perf->read_bandwidth + perf->write_bandwidth == 0)
+		return -EINVAL;
 
 	if (default_dram_perf_ref_nid == NUMA_NO_NODE) {
 		default_dram_perf = *perf;
 		default_dram_perf_ref_nid = nid;
 		default_dram_perf_ref_source = kstrdup(source, GFP_KERNEL);
-		goto out;
+		return 0;
 	}
 
 	/*
@@ -680,27 +749,25 @@ int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 		pr_info(
 "  disable default DRAM node performance based abstract distance algorithm.\n");
 		default_dram_perf_error = true;
-		rc = -EINVAL;
+		return -EINVAL;
 	}
 
-out:
-	mutex_unlock(&memory_tier_lock);
-	return rc;
+	return 0;
 }
 
 int mt_perf_to_adistance(struct access_coordinate *perf, int *adist)
 {
+	guard(mutex)(&default_dram_perf_lock);
 	if (default_dram_perf_error)
 		return -EIO;
-
-	if (default_dram_perf_ref_nid == NUMA_NO_NODE)
-		return -ENOENT;
 
 	if (perf->read_latency + perf->write_latency == 0 ||
 	    perf->read_bandwidth + perf->write_bandwidth == 0)
 		return -EINVAL;
 
-	mutex_lock(&memory_tier_lock);
+	if (default_dram_perf_ref_nid == NUMA_NO_NODE)
+		return -ENOENT;
+
 	/*
 	 * The abstract distance of a memory node is in direct proportion to
 	 * its memory latency (read + write) and inversely proportional to its
@@ -713,7 +780,6 @@ int mt_perf_to_adistance(struct access_coordinate *perf, int *adist)
 		(default_dram_perf.read_latency + default_dram_perf.write_latency) *
 		(default_dram_perf.read_bandwidth + default_dram_perf.write_bandwidth) /
 		(perf->read_bandwidth + perf->write_bandwidth);
-	mutex_unlock(&memory_tier_lock);
 
 	return 0;
 }
@@ -826,7 +892,8 @@ static int __init memory_tier_init(void)
 	 * For now we can have 4 faster memory tiers with smaller adistance
 	 * than default DRAM tier.
 	 */
-	default_dram_type = alloc_memory_type(MEMTIER_ADISTANCE_DRAM);
+	default_dram_type = mt_find_alloc_memory_type(MEMTIER_ADISTANCE_DRAM,
+						      &default_memory_types);
 	if (IS_ERR(default_dram_type))
 		panic("%s() failed to allocate default DRAM tier\n", __func__);
 
@@ -836,6 +903,14 @@ static int __init memory_tier_init(void)
 	 * types assigned.
 	 */
 	for_each_node_state(node, N_MEMORY) {
+		if (!node_state(node, N_CPU))
+			/*
+			 * Defer memory tier initialization on
+			 * CPUless numa nodes. These will be initialized
+			 * after firmware and devices are initialized.
+			 */
+			continue;
+
 		memtier = set_node_memory_tier(node);
 		if (IS_ERR(memtier))
 			/*

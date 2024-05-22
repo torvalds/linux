@@ -251,7 +251,7 @@ static __always_inline bool mmu_has_feature(unsigned long feature)
 #endif
 
 #ifdef CONFIG_JUMP_LABEL_FEATURE_CHECK_DEBUG
-	if (!static_key_initialized) {
+	if (!static_key_feature_checks_initialized) {
 		printk("Warning! mmu_has_feature() used prior to jump label init!\n");
 		dump_stack();
 		return early_mmu_has_feature(feature);
@@ -404,10 +404,6 @@ extern void *abatron_pteptrs[2];
 #include <asm/book3s/32/mmu-hash.h>
 #elif defined(CONFIG_PPC_MMU_NOHASH)
 #include <asm/nohash/mmu.h>
-#endif
-
-#if defined(CONFIG_FA_DUMP) || defined(CONFIG_PRESERVE_FA_DUMP)
-#define __HAVE_ARCH_RESERVED_KERNEL_PAGES
 #endif
 
 #endif /* __KERNEL__ */

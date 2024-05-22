@@ -12,11 +12,18 @@
 #define MDIO_PG0_G2 2
 #define MDIO_PG1_G2 3
 #define RAC_CTRL_PPR			0x00
+#define RAC_ANA03			0x03
+#define OOBS_SEN_MASK			GENMASK(5, 1)
+#define RAC_ANA09			0x09
+#define BAC_OOBS_SEL			BIT(4)
 #define RAC_ANA0A			0x0A
 #define B_BAC_EQ_SEL			BIT(5)
 #define RAC_ANA0C			0x0C
 #define B_PCIE_BIT_PSAVE		BIT(15)
+#define RAC_ANA0D			0x0D
+#define BAC_RX_TEST_EN			BIT(6)
 #define RAC_ANA10			0x10
+#define ADDR_SEL_PINOUT_DIS_VAL		0x3C4
 #define B_PCIE_BIT_PINOUT_DIS		BIT(3)
 #define RAC_REG_REV2			0x1B
 #define BAC_CMU_EN_DLY_MASK		GENMASK(15, 12)
@@ -26,11 +33,17 @@
 #define RAC_REG_FLD_0			0x1D
 #define BAC_AUTOK_N_MASK		GENMASK(3, 2)
 #define PCIE_AUTOK_4			0x3
+#define RAC_ANA1E			0x1E
+#define RAC_ANA1E_G1_VAL		0x66EA
+#define RAC_ANA1E_G2_VAL		0x6EEA
 #define RAC_ANA1F			0x1F
+#define OOBS_LEVEL_MASK			GENMASK(12, 8)
 #define RAC_ANA24			0x24
 #define B_AX_DEGLITCH			GENMASK(11, 8)
 #define RAC_ANA26			0x26
 #define B_AX_RXEN			GENMASK(15, 14)
+#define RAC_ANA2E			0x2E
+#define RAC_ANA2E_VAL			0xFFFE
 #define RAC_CTRL_PPR_V1			0x30
 #define B_AX_CLK_CALIB_EN		BIT(12)
 #define B_AX_CALIB_EN			BIT(13)

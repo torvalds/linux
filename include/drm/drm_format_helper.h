@@ -25,6 +25,7 @@ struct iosys_map;
  * All fields are considered private.
  */
 struct drm_format_conv_state {
+	/* private: */
 	struct {
 		void *mem;
 		size_t size;

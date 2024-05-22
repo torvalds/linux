@@ -6,6 +6,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
+#include <../../../tools/include/linux/filter.h>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
@@ -73,6 +74,94 @@ __naked int subprog_result_precise(void)
 		:
 		: __imm_ptr(vals)
 		: __clobber_common, "r6"
+	);
+}
+
+__naked __noinline __used
+static unsigned long fp_leaking_subprog()
+{
+	asm volatile (
+		".8byte %[r0_eq_r10_cast_s8];"
+		"exit;"
+		:: __imm_insn(r0_eq_r10_cast_s8, BPF_MOVSX64_REG(BPF_REG_0, BPF_REG_10, 8))
+	);
+}
+
+__naked __noinline __used
+static unsigned long sneaky_fp_leaking_subprog()
+{
+	asm volatile (
+		"r1 = r10;"
+		".8byte %[r0_eq_r1_cast_s8];"
+		"exit;"
+		:: __imm_insn(r0_eq_r1_cast_s8, BPF_MOVSX64_REG(BPF_REG_0, BPF_REG_1, 8))
+	);
+}
+
+SEC("?raw_tp")
+__success __log_level(2)
+__msg("6: (0f) r1 += r0")
+__msg("mark_precise: frame0: last_idx 6 first_idx 0 subseq_idx -1")
+__msg("mark_precise: frame0: regs=r0 stack= before 5: (bf) r1 = r6")
+__msg("mark_precise: frame0: regs=r0 stack= before 4: (27) r0 *= 4")
+__msg("mark_precise: frame0: regs=r0 stack= before 3: (57) r0 &= 3")
+__msg("mark_precise: frame0: regs=r0 stack= before 10: (95) exit")
+__msg("mark_precise: frame1: regs=r0 stack= before 9: (bf) r0 = (s8)r10")
+__msg("7: R0_w=scalar")
+__naked int fp_precise_subprog_result(void)
+{
+	asm volatile (
+		"call fp_leaking_subprog;"
+		/* use subprog's returned value (which is derived from r10=fp
+		 * register), as index into vals array, forcing all of that to
+		 * be known precisely
+		 */
+		"r0 &= 3;"
+		"r0 *= 4;"
+		"r1 = %[vals];"
+		/* force precision marking */
+		"r1 += r0;"
+		"r0 = *(u32 *)(r1 + 0);"
+		"exit;"
+		:
+		: __imm_ptr(vals)
+		: __clobber_common
+	);
+}
+
+SEC("?raw_tp")
+__success __log_level(2)
+__msg("6: (0f) r1 += r0")
+__msg("mark_precise: frame0: last_idx 6 first_idx 0 subseq_idx -1")
+__msg("mark_precise: frame0: regs=r0 stack= before 5: (bf) r1 = r6")
+__msg("mark_precise: frame0: regs=r0 stack= before 4: (27) r0 *= 4")
+__msg("mark_precise: frame0: regs=r0 stack= before 3: (57) r0 &= 3")
+__msg("mark_precise: frame0: regs=r0 stack= before 11: (95) exit")
+__msg("mark_precise: frame1: regs=r0 stack= before 10: (bf) r0 = (s8)r1")
+/* here r1 is marked precise, even though it's fp register, but that's fine
+ * because by the time we get out of subprogram it has to be derived from r10
+ * anyways, at which point we'll break precision chain
+ */
+__msg("mark_precise: frame1: regs=r1 stack= before 9: (bf) r1 = r10")
+__msg("7: R0_w=scalar")
+__naked int sneaky_fp_precise_subprog_result(void)
+{
+	asm volatile (
+		"call sneaky_fp_leaking_subprog;"
+		/* use subprog's returned value (which is derived from r10=fp
+		 * register), as index into vals array, forcing all of that to
+		 * be known precisely
+		 */
+		"r0 &= 3;"
+		"r0 *= 4;"
+		"r1 = %[vals];"
+		/* force precision marking */
+		"r1 += r0;"
+		"r0 = *(u32 *)(r1 + 0);"
+		"exit;"
+		:
+		: __imm_ptr(vals)
+		: __clobber_common
 	);
 }
 

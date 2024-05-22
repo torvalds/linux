@@ -221,7 +221,7 @@ static int gud_connector_get_modes(struct drm_connector *connector)
 	struct gud_display_mode_req *reqmodes = NULL;
 	struct gud_connector_get_edid_ctx edid_ctx;
 	unsigned int i, num_modes = 0;
-	struct edid *edid = NULL;
+	const struct drm_edid *drm_edid = NULL;
 	int idx, ret;
 
 	if (!drm_dev_enter(connector->dev, &idx))
@@ -238,13 +238,13 @@ static int gud_connector_get_modes(struct drm_connector *connector)
 		gud_conn_err(connector, "Invalid EDID size", ret);
 	} else if (ret > 0) {
 		edid_ctx.len = ret;
-		edid = drm_do_get_edid(connector, gud_connector_get_edid_block, &edid_ctx);
+		drm_edid = drm_edid_read_custom(connector, gud_connector_get_edid_block, &edid_ctx);
 	}
 
 	kfree(edid_ctx.buf);
-	drm_connector_update_edid_property(connector, edid);
+	drm_edid_connector_update(connector, drm_edid);
 
-	if (edid && edid_ctx.edid_override)
+	if (drm_edid && edid_ctx.edid_override)
 		goto out;
 
 	reqmodes = kmalloc_array(GUD_CONNECTOR_MAX_NUM_MODES, sizeof(*reqmodes), GFP_KERNEL);
@@ -276,10 +276,10 @@ static int gud_connector_get_modes(struct drm_connector *connector)
 	}
 out:
 	if (!num_modes)
-		num_modes = drm_add_edid_modes(connector, edid);
+		num_modes = drm_edid_connector_add_modes(connector);
 
 	kfree(reqmodes);
-	kfree(edid);
+	drm_edid_free(drm_edid);
 	drm_dev_exit(idx);
 
 	return num_modes;

@@ -18,16 +18,11 @@
 #include <linux/kvm_para.h>
 #include <linux/stringify.h>
 
-#include "../kvm_util.h"
+#include "kvm_util.h"
+#include "ucall_common.h"
 
 extern bool host_cpu_is_intel;
 extern bool host_cpu_is_amd;
-
-enum vm_guest_x86_subtype {
-	VM_SUBTYPE_NONE = 0,
-	VM_SUBTYPE_SEV,
-	VM_SUBTYPE_SEV_ES,
-};
 
 /* Forced emulation prefix, used to invoke the emulator unconditionally. */
 #define KVM_FEP "ud2; .byte 'k', 'v', 'm';"
@@ -1139,8 +1134,6 @@ struct idt_entry {
 	uint32_t offset2; uint32_t reserved;
 };
 
-void vm_init_descriptor_tables(struct kvm_vm *vm);
-void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
 void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
 

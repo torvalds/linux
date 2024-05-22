@@ -274,6 +274,16 @@ static void rx_class_set_or(struct regmap *miig_rt, int slice, int n,
 	regmap_write(miig_rt, offset, data);
 }
 
+static u32 rx_class_get_or(struct regmap *miig_rt, int slice, int n)
+{
+	u32 offset, val;
+
+	offset = RX_CLASS_N_REG(slice, n, RX_CLASS_OR_EN);
+	regmap_read(miig_rt, offset, &val);
+
+	return val;
+}
+
 void icssg_class_set_host_mac_addr(struct regmap *miig_rt, const u8 *mac)
 {
 	regmap_write(miig_rt, MAC_INTERFACE_0, (u32)(mac[0] | mac[1] << 8 |
@@ -286,6 +296,26 @@ void icssg_class_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac)
 	regmap_write(miig_rt, offs[slice].mac0, (u32)(mac[0] | mac[1] << 8 |
 		     mac[2] << 16 | mac[3] << 24));
 	regmap_write(miig_rt, offs[slice].mac1, (u32)(mac[4] | mac[5] << 8));
+}
+
+static void icssg_class_ft1_add_mcast(struct regmap *miig_rt, int slice,
+				      int slot, const u8 *addr, const u8 *mask)
+{
+	u32 val;
+	int i;
+
+	WARN(slot >= FT1_NUM_SLOTS, "invalid slot: %d\n", slot);
+
+	rx_class_ft1_set_da(miig_rt, slice, slot, addr);
+	rx_class_ft1_set_da_mask(miig_rt, slice, slot, mask);
+	rx_class_ft1_cfg_set_type(miig_rt, slice, slot, FT1_CFG_TYPE_EQ);
+
+	/* Enable the FT1 slot in OR enable for all classifiers */
+	for (i = 0; i < ICSSG_NUM_CLASSIFIERS_IN_USE; i++) {
+		val = rx_class_get_or(miig_rt, slice, i);
+		val |= RX_CLASS_FT_FT1_MATCH(slot);
+		rx_class_set_or(miig_rt, slice, i, val);
+	}
 }
 
 /* disable all RX traffic */
@@ -331,28 +361,93 @@ void icssg_class_disable(struct regmap *miig_rt, int slice)
 	regmap_write(miig_rt, offs[slice].rx_class_cfg2, 0);
 }
 
-void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti)
+void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti,
+			 bool is_sr1)
 {
+	int num_classifiers = is_sr1 ? ICSSG_NUM_CLASSIFIERS_IN_USE : 1;
 	u32 data;
+	int n;
 
 	/* defaults */
 	icssg_class_disable(miig_rt, slice);
 
 	/* Setup Classifier */
-	/* match on Broadcast or MAC_PRU address */
-	data = RX_CLASS_FT_BC | RX_CLASS_FT_DA_P;
+	for (n = 0; n < num_classifiers; n++) {
+		/* match on Broadcast or MAC_PRU address */
+		data = RX_CLASS_FT_BC | RX_CLASS_FT_DA_P;
 
-	/* multicast */
-	if (allmulti)
-		data |= RX_CLASS_FT_MC;
+		/* multicast */
+		if (allmulti)
+			data |= RX_CLASS_FT_MC;
 
-	rx_class_set_or(miig_rt, slice, 0, data);
+		rx_class_set_or(miig_rt, slice, n, data);
 
-	/* set CFG1 for OR_OR_AND for classifier */
-	rx_class_sel_set_type(miig_rt, slice, 0, RX_CLASS_SEL_TYPE_OR_OR_AND);
+		/* set CFG1 for OR_OR_AND for classifier */
+		rx_class_sel_set_type(miig_rt, slice, n,
+				      RX_CLASS_SEL_TYPE_OR_OR_AND);
+	}
 
 	/* clear CFG2 */
 	regmap_write(miig_rt, offs[slice].rx_class_cfg2, 0);
+}
+
+void icssg_class_promiscuous_sr1(struct regmap *miig_rt, int slice)
+{
+	u32 data, offset;
+	int n;
+
+	/* defaults */
+	icssg_class_disable(miig_rt, slice);
+
+	/* Setup Classifier */
+	for (n = 0; n < ICSSG_NUM_CLASSIFIERS_IN_USE; n++) {
+		/* set RAW_MASK to bypass filters */
+		offset = RX_CLASS_GATES_N_REG(slice, n);
+		regmap_read(miig_rt, offset, &data);
+		data |= RX_CLASS_GATES_RAW_MASK;
+		regmap_write(miig_rt, offset, data);
+	}
+}
+
+void icssg_class_add_mcast_sr1(struct regmap *miig_rt, int slice,
+			       struct net_device *ndev)
+{
+	u8 mask_addr[6] = { 0, 0, 0, 0, 0, 0xff };
+	struct netdev_hw_addr *ha;
+	int slot = 2;
+
+	rx_class_ft1_set_start_len(miig_rt, slice, 0, 6);
+	/* reserve first 2 slots for
+	 *	1) 01-80-C2-00-00-XX Known Service Ethernet Multicast addresses
+	 *	2) 01-00-5e-00-00-XX Local Network Control Block
+	 *			      (224.0.0.0 - 224.0.0.255  (224.0.0/24))
+	 */
+	icssg_class_ft1_add_mcast(miig_rt, slice, 0,
+				  eth_reserved_addr_base, mask_addr);
+	icssg_class_ft1_add_mcast(miig_rt, slice, 1,
+				  eth_ipv4_mcast_addr_base, mask_addr);
+	mask_addr[5] = 0;
+	netdev_for_each_mc_addr(ha, ndev) {
+		/* skip addresses matching reserved slots */
+		if (!memcmp(eth_reserved_addr_base, ha->addr, 5) ||
+		    !memcmp(eth_ipv4_mcast_addr_base, ha->addr, 5)) {
+			netdev_dbg(ndev, "mcast skip %pM\n", ha->addr);
+			continue;
+		}
+
+		if (slot >= FT1_NUM_SLOTS) {
+			netdev_dbg(ndev,
+				   "can't add more than %d MC addresses, enabling allmulti\n",
+				   FT1_NUM_SLOTS);
+			icssg_class_default(miig_rt, slice, 1, true);
+			break;
+		}
+
+		netdev_dbg(ndev, "mcast add %pM\n", ha->addr);
+		icssg_class_ft1_add_mcast(miig_rt, slice, slot,
+					  ha->addr, mask_addr);
+		slot++;
+	}
 }
 
 /* required for SAV check */

@@ -63,6 +63,8 @@ struct amdgpu_mmhub_funcs {
 				uint64_t page_table_base);
 	void (*update_power_gating)(struct amdgpu_device *adev,
                                 bool enable);
+	bool (*query_utcl2_poison_status)(struct amdgpu_device *adev,
+				int hub_inst);
 };
 
 struct amdgpu_mmhub {

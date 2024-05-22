@@ -86,18 +86,18 @@ static inline struct hdmi_phy *pll_get_phy(struct hdmi_pll_8996 *pll)
 static inline void hdmi_pll_write(struct hdmi_pll_8996 *pll, int offset,
 				  u32 data)
 {
-	msm_writel(data, pll->mmio_qserdes_com + offset);
+	writel(data, pll->mmio_qserdes_com + offset);
 }
 
 static inline u32 hdmi_pll_read(struct hdmi_pll_8996 *pll, int offset)
 {
-	return msm_readl(pll->mmio_qserdes_com + offset);
+	return readl(pll->mmio_qserdes_com + offset);
 }
 
 static inline void hdmi_tx_chan_write(struct hdmi_pll_8996 *pll, int channel,
 				      int offset, int data)
 {
-	 msm_writel(data, pll->mmio_qserdes_tx[channel] + offset);
+	 writel(data, pll->mmio_qserdes_tx[channel] + offset);
 }
 
 static inline u32 pll_get_cpctrl(u64 frac_start, unsigned long ref_clk,

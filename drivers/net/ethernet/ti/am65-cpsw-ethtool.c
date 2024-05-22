@@ -695,6 +695,17 @@ static int am65_cpsw_get_ethtool_ts_info(struct net_device *ndev,
 					 struct ethtool_ts_info *info)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+	unsigned int ptp_v2_filter;
+
+	ptp_v2_filter = BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT)	 |
+			BIT(HWTSTAMP_FILTER_PTP_V2_L4_SYNC)	 |
+			BIT(HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+			BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT)	 |
+			BIT(HWTSTAMP_FILTER_PTP_V2_L2_SYNC)	 |
+			BIT(HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+			BIT(HWTSTAMP_FILTER_PTP_V2_EVENT)	 |
+			BIT(HWTSTAMP_FILTER_PTP_V2_SYNC)	 |
+			BIT(HWTSTAMP_FILTER_PTP_V2_DELAY_REQ);
 
 	if (!IS_ENABLED(CONFIG_TI_K3_AM65_CPTS))
 		return ethtool_op_get_ts_info(ndev, info);
@@ -708,7 +719,7 @@ static int am65_cpsw_get_ethtool_ts_info(struct net_device *ndev,
 		SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->phc_index = am65_cpts_phc_index(common->cpts);
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
-	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | ptp_v2_filter;
 	return 0;
 }
 

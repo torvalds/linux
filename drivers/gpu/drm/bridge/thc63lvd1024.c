@@ -123,26 +123,11 @@ static int thc63_parse_dt(struct thc63_dev *thc63)
 	struct device_node *endpoint;
 	struct device_node *remote;
 
-	endpoint = of_graph_get_endpoint_by_regs(thc63->dev->of_node,
-						 THC63_RGB_OUT0, -1);
-	if (!endpoint) {
-		dev_err(thc63->dev, "Missing endpoint in port@%u\n",
-			THC63_RGB_OUT0);
-		return -ENODEV;
-	}
-
-	remote = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
+	remote = of_graph_get_remote_node(thc63->dev->of_node,
+					  THC63_RGB_OUT0, -1);
 	if (!remote) {
-		dev_err(thc63->dev, "Endpoint in port@%u unconnected\n",
+		dev_err(thc63->dev, "No remote endpoint for port@%u\n",
 			THC63_RGB_OUT0);
-		return -ENODEV;
-	}
-
-	if (!of_device_is_available(remote)) {
-		dev_err(thc63->dev, "port@%u remote endpoint is disabled\n",
-			THC63_RGB_OUT0);
-		of_node_put(remote);
 		return -ENODEV;
 	}
 

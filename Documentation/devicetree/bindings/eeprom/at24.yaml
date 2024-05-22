@@ -69,13 +69,9 @@ properties:
               - items:
                   pattern: c32$
               - items:
-                  pattern: c32d-wl$
-              - items:
                   pattern: cs32$
               - items:
                   pattern: c64$
-              - items:
-                  pattern: c64d-wl$
               - items:
                   pattern: cs64$
               - items:
@@ -136,6 +132,7 @@ properties:
               - renesas,r1ex24128
               - samsung,s524ad0xd1
           - const: atmel,24c128
+      - pattern: '^atmel,24c(32|64)d-wl$' # Actual vendor is st
 
   label:
     description: Descriptive name of the EEPROM.

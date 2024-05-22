@@ -165,13 +165,6 @@ sh_css_sp_configure_sync_gen(int width,
 			     int vblank_cycles);
 
 void
-sh_css_sp_configure_tpg(int x_mask,
-			int y_mask,
-			int x_delta,
-			int y_delta,
-			int xy_mask);
-
-void
 sh_css_sp_configure_prbs(int seed);
 
 void

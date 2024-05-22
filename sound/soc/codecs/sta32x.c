@@ -1154,9 +1154,9 @@ static int sta32x_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id sta32x_i2c_id[] = {
-	{ "sta326", 0 },
-	{ "sta328", 0 },
-	{ "sta329", 0 },
+	{ "sta326" },
+	{ "sta328" },
+	{ "sta329" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sta32x_i2c_id);

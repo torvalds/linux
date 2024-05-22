@@ -540,3 +540,18 @@ int trace_is_off(struct trace_instance *tool, struct trace_instance *trace)
 
 	return 0;
 }
+
+/*
+ * trace_set_buffer_size - set the per-cpu tracing buffer size.
+ */
+int trace_set_buffer_size(struct trace_instance *trace, int size)
+{
+	int retval;
+
+	debug_msg("Setting trace buffer size to %d Kb\n", size);
+	retval = tracefs_instance_set_buffer_size(trace->inst, size, -1);
+	if (retval)
+		err_msg("Error setting trace buffer size\n");
+
+	return retval;
+}

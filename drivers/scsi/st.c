@@ -206,7 +206,6 @@ static int st_remove(struct device *);
 static struct scsi_driver st_template = {
 	.gendrv = {
 		.name		= "st",
-		.owner		= THIS_MODULE,
 		.probe		= st_probe,
 		.remove		= st_remove,
 		.groups		= st_drv_groups,

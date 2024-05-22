@@ -143,12 +143,6 @@ struct ampdu_info {
 	struct brcms_fifo_info fifo_tb[NUM_FFPLD_FIFO];
 };
 
-/* used for flushing ampdu packets */
-struct cb_del_ampdu_pars {
-	struct ieee80211_sta *sta;
-	u16 tid;
-};
-
 static void brcms_c_scb_ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
 {
 	u32 rate, mcs;

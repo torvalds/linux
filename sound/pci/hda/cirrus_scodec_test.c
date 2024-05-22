@@ -366,5 +366,6 @@ static struct kunit_suite cirrus_scodec_test_suite = {
 kunit_test_suite(cirrus_scodec_test_suite);
 
 MODULE_IMPORT_NS(SND_HDA_CIRRUS_SCODEC);
+MODULE_DESCRIPTION("KUnit test for the Cirrus side-codec library");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

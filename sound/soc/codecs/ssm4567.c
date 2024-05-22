@@ -471,7 +471,7 @@ static int ssm4567_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ssm4567_i2c_ids[] = {
-	{ "ssm4567", 0 },
+	{ "ssm4567" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssm4567_i2c_ids);

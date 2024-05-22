@@ -709,6 +709,7 @@ static int ali_drw_pmu_probe(struct platform_device *pdev)
 
 	drw_pmu->pmu = (struct pmu) {
 		.module		= THIS_MODULE,
+		.parent		= &pdev->dev,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= ali_drw_pmu_event_init,
 		.add		= ali_drw_pmu_add,
@@ -746,18 +747,14 @@ static int ali_drw_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	struct ali_drw_pmu_irq *irq;
 	struct ali_drw_pmu *drw_pmu;
 	unsigned int target;
-	int ret;
-	cpumask_t node_online_cpus;
 
 	irq = hlist_entry_safe(node, struct ali_drw_pmu_irq, node);
 	if (cpu != irq->cpu)
 		return 0;
 
-	ret = cpumask_and(&node_online_cpus,
-			  cpumask_of_node(cpu_to_node(cpu)), cpu_online_mask);
-	if (ret)
-		target = cpumask_any_but(&node_online_cpus, cpu);
-	else
+	target = cpumask_any_and_but(cpumask_of_node(cpu_to_node(cpu)),
+				     cpu_online_mask, cpu);
+	if (target >= nr_cpu_ids)
 		target = cpumask_any_but(cpu_online_mask, cpu);
 
 	if (target >= nr_cpu_ids)

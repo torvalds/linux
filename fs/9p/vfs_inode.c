@@ -364,7 +364,8 @@ void v9fs_evict_inode(struct inode *inode)
 		clear_inode(inode);
 }
 
-struct inode *v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid)
+struct inode *
+v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid, bool new)
 {
 	dev_t rdev;
 	int retval;
@@ -376,8 +377,18 @@ struct inode *v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid)
 	inode = iget_locked(sb, QID2INO(&fid->qid));
 	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(inode->i_state & I_NEW)) {
+		if (!new) {
+			goto done;
+		} else {
+			p9_debug(P9_DEBUG_VFS, "WARNING: Inode collision %ld\n",
+						inode->i_ino);
+			iput(inode);
+			remove_inode_hash(inode);
+			inode = iget_locked(sb, QID2INO(&fid->qid));
+			WARN_ON(!(inode->i_state & I_NEW));
+		}
+	}
 
 	/*
 	 * initialize the inode with the stat info
@@ -401,11 +412,11 @@ struct inode *v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid)
 	v9fs_set_netfs_context(inode);
 	v9fs_cache_inode_get_cookie(inode);
 	unlock_new_inode(inode);
+done:
 	return inode;
 error:
 	iget_failed(inode);
 	return ERR_PTR(retval);
-
 }
 
 /**
@@ -437,8 +448,15 @@ static int v9fs_at_to_dotl_flags(int flags)
  */
 static void v9fs_dec_count(struct inode *inode)
 {
-	if (!S_ISDIR(inode->i_mode) || inode->i_nlink > 2)
-		drop_nlink(inode);
+	if (!S_ISDIR(inode->i_mode) || inode->i_nlink > 2) {
+		if (inode->i_nlink) {
+			drop_nlink(inode);
+		} else {
+			p9_debug(P9_DEBUG_VFS,
+						"WARNING: unexpected i_nlink zero %d inode %ld\n",
+						inode->i_nlink, inode->i_ino);
+		}
+	}
 }
 
 /**
@@ -488,6 +506,9 @@ static int v9fs_remove(struct inode *dir, struct dentry *dentry, int flags)
 			v9fs_dec_count(dir);
 		} else
 			v9fs_dec_count(inode);
+
+		if (inode->i_nlink <= 0)	/* no more refs unhash it */
+			remove_inode_hash(inode);
 
 		v9fs_invalidate_inode_attr(inode);
 		v9fs_invalidate_inode_attr(dir);
@@ -554,7 +575,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		/*
 		 * instantiate inode and assign the unopened fid to the dentry
 		 */
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb, true);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			p9_debug(P9_DEBUG_VFS,
@@ -683,7 +704,7 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	else if (IS_ERR(fid))
 		inode = ERR_CAST(fid);
 	else
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb, false);
 	/*
 	 * If we had a rename on the server and a parallel lookup
 	 * for the new name, then make sure we instantiate with

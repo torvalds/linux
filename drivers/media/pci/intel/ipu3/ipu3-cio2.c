@@ -4,9 +4,9 @@
  *
  * Based partially on Intel IPU4 driver written by
  *  Sakari Ailus <sakari.ailus@linux.intel.com>
- *  Samu Onkalo <samu.onkalo@intel.com>
+ *  Samu Onkalo
  *  Jouni Högander <jouni.hogander@intel.com>
- *  Jouni Ukkonen <jouni.ukkonen@intel.com>
+ *  Jouni Ukkonen
  *  Antti Laakso <antti.laakso@intel.com>
  * et al.
  */
@@ -1752,17 +1752,17 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 
 	v4l2_async_nf_init(&cio2->notifier, &cio2->v4l2_dev);
 
-	/* Register notifier for subdevices we care */
-	r = cio2_parse_firmware(cio2);
-	if (r)
-		goto fail_clean_notifier;
-
 	r = devm_request_irq(dev, pci_dev->irq, cio2_irq, IRQF_SHARED,
 			     CIO2_NAME, cio2);
 	if (r) {
 		dev_err(dev, "failed to request IRQ (%d)\n", r);
 		goto fail_clean_notifier;
 	}
+
+	/* Register notifier for subdevices we care */
+	r = cio2_parse_firmware(cio2);
+	if (r)
+		goto fail_clean_notifier;
 
 	pm_runtime_put_noidle(dev);
 	pm_runtime_allow(dev);
@@ -1807,15 +1807,9 @@ static int __maybe_unused cio2_runtime_suspend(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
 	void __iomem *const base = cio2->base;
-	u16 pm;
 
 	writel(CIO2_D0I3C_I3, base + CIO2_REG_D0I3C);
 	dev_dbg(dev, "cio2 runtime suspend.\n");
-
-	pci_read_config_word(pci_dev, pci_dev->pm_cap + CIO2_PMCSR_OFFSET, &pm);
-	pm = (pm >> CIO2_PMCSR_D0D3_SHIFT) << CIO2_PMCSR_D0D3_SHIFT;
-	pm |= CIO2_PMCSR_D3;
-	pci_write_config_word(pci_dev, pci_dev->pm_cap + CIO2_PMCSR_OFFSET, pm);
 
 	return 0;
 }
@@ -1825,14 +1819,9 @@ static int __maybe_unused cio2_runtime_resume(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
 	void __iomem *const base = cio2->base;
-	u16 pm;
 
 	writel(CIO2_D0I3C_RR, base + CIO2_REG_D0I3C);
 	dev_dbg(dev, "cio2 runtime resume.\n");
-
-	pci_read_config_word(pci_dev, pci_dev->pm_cap + CIO2_PMCSR_OFFSET, &pm);
-	pm = (pm >> CIO2_PMCSR_D0D3_SHIFT) << CIO2_PMCSR_D0D3_SHIFT;
-	pci_write_config_word(pci_dev, pci_dev->pm_cap + CIO2_PMCSR_OFFSET, pm);
 
 	return 0;
 }
@@ -2006,10 +1995,10 @@ static struct pci_driver cio2_pci_driver = {
 
 module_pci_driver(cio2_pci_driver);
 
-MODULE_AUTHOR("Tuukka Toivonen <tuukka.toivonen@intel.com>");
+MODULE_AUTHOR("Tuukka Toivonen");
 MODULE_AUTHOR("Tianshu Qiu <tian.shu.qiu@intel.com>");
 MODULE_AUTHOR("Jian Xu Zheng");
-MODULE_AUTHOR("Yuning Pu <yuning.pu@intel.com>");
+MODULE_AUTHOR("Yuning Pu");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("IPU3 CIO2 driver");

@@ -12,6 +12,7 @@
 #include <drm/xe_drm.h>
 
 #include "regs/xe_engine_regs.h"
+#include "regs/xe_gt_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
@@ -147,8 +148,8 @@ query_engine_cycles(struct xe_device *xe,
 	if (!hwe)
 		return -EINVAL;
 
-	xe_device_mem_access_get(xe);
-	xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL))
+		return -EIO;
 
 	__read_timestamps(gt,
 			  RING_TIMESTAMP(hwe->mmio_base),
@@ -159,7 +160,6 @@ query_engine_cycles(struct xe_device *xe,
 			  cpu_clock);
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	xe_device_mem_access_put(xe);
 	resp.width = 36;
 
 	/* Only write to the output fields of user query */
@@ -403,6 +403,13 @@ static int query_gt_list(struct xe_device *xe, struct drm_xe_device_query *query
 				BIT(gt_to_tile(gt)->id) << 1;
 		gt_list->gt_list[id].far_mem_regions = xe->info.mem_region_mask ^
 			gt_list->gt_list[id].near_mem_regions;
+
+		gt_list->gt_list[id].ip_ver_major =
+			REG_FIELD_GET(GMD_ID_ARCH_MASK, gt->info.gmdid);
+		gt_list->gt_list[id].ip_ver_minor =
+			REG_FIELD_GET(GMD_ID_RELEASE_MASK, gt->info.gmdid);
+		gt_list->gt_list[id].ip_ver_rev =
+			REG_FIELD_GET(GMD_ID_REVID, gt->info.gmdid);
 	}
 
 	if (copy_to_user(query_ptr, gt_list, size)) {
@@ -433,9 +440,7 @@ static int query_hwconfig(struct xe_device *xe,
 	if (!hwconfig)
 		return -ENOMEM;
 
-	xe_device_mem_access_get(xe);
 	xe_guc_hwconfig_copy(&gt->uc.guc, hwconfig);
-	xe_device_mem_access_put(xe);
 
 	if (copy_to_user(query_ptr, hwconfig, size)) {
 		kfree(hwconfig);
@@ -544,14 +549,44 @@ query_uc_fw_version(struct xe_device *xe, struct drm_xe_device_query *query)
 		version = &guc->fw.versions.found[XE_UC_FW_VER_COMPATIBILITY];
 		break;
 	}
+	case XE_QUERY_UC_TYPE_HUC: {
+		struct xe_gt *media_gt = NULL;
+		struct xe_huc *huc;
+
+		if (MEDIA_VER(xe) >= 13) {
+			struct xe_tile *tile;
+			u8 gt_id;
+
+			for_each_tile(tile, xe, gt_id) {
+				if (tile->media_gt) {
+					media_gt = tile->media_gt;
+					break;
+				}
+			}
+		} else {
+			media_gt = xe->tiles[0].primary_gt;
+		}
+
+		if (!media_gt)
+			break;
+
+		huc = &media_gt->uc.huc;
+		if (huc->fw.status == XE_UC_FIRMWARE_RUNNING)
+			version = &huc->fw.versions.found[XE_UC_FW_VER_RELEASE];
+		break;
+	}
 	default:
 		return -EINVAL;
 	}
 
-	resp.branch_ver = 0;
-	resp.major_ver = version->major;
-	resp.minor_ver = version->minor;
-	resp.patch_ver = version->patch;
+	if (version) {
+		resp.branch_ver = 0;
+		resp.major_ver = version->major;
+		resp.minor_ver = version->minor;
+		resp.patch_ver = version->patch;
+	} else {
+		return -ENODEV;
+	}
 
 	if (copy_to_user(query_ptr, &resp, size))
 		return -EFAULT;

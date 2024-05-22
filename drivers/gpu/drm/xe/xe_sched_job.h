@@ -10,6 +10,7 @@
 
 struct drm_printer;
 struct xe_vm;
+struct xe_sync_entry;
 
 #define XE_SCHED_HANG_LIMIT 1
 #define XE_SCHED_JOB_TIMEOUT LONG_MAX
@@ -58,6 +59,8 @@ void xe_sched_job_arm(struct xe_sched_job *job);
 void xe_sched_job_push(struct xe_sched_job *job);
 
 int xe_sched_job_last_fence_add_dep(struct xe_sched_job *job, struct xe_vm *vm);
+void xe_sched_job_init_user_fence(struct xe_sched_job *job,
+				  struct xe_sync_entry *sync);
 
 static inline struct xe_sched_job *
 to_xe_sched_job(struct drm_sched_job *drm)

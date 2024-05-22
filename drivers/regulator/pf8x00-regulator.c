@@ -142,7 +142,7 @@ static const struct regmap_config pf8x00_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = PF8X00_PAGE_SELECT,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* VLDOx output: 1.5V to 5.0V */

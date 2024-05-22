@@ -12,6 +12,8 @@
 #include <linux/hwmon.h>
 
 #define PHY_ID_88Q2220_REVB0	(MARVELL_PHY_ID_88Q2220 | 0x1)
+#define PHY_ID_88Q2220_REVB1	(MARVELL_PHY_ID_88Q2220 | 0x2)
+#define PHY_ID_88Q2220_REVB2	(MARVELL_PHY_ID_88Q2220 | 0x3)
 
 #define MDIO_MMD_AN_MV_STAT			32769
 #define MDIO_MMD_AN_MV_STAT_ANEG		0x0100
@@ -127,6 +129,49 @@ static const struct mmd_val mv88q222x_revb0_init_seq1[] = {
 	{ MDIO_MMD_PCS, 0xfe79, 0x4 },
 	{ MDIO_MMD_PCS, 0xfe5f, 0xe8 },
 	{ MDIO_MMD_PCS, 0xfe05, 0x755c },
+};
+
+static const struct mmd_val mv88q222x_revb1_init_seq0[] = {
+	{ MDIO_MMD_PCS, 0xffe4, 0x0007 },
+	{ MDIO_MMD_AN, MDIO_AN_T1_CTRL, 0x0 },
+	{ MDIO_MMD_PCS, 0xffe3, 0x7000 },
+	{ MDIO_MMD_PMAPMD, MDIO_CTRL1, 0x0840 },
+};
+
+static const struct mmd_val mv88q222x_revb2_init_seq0[] = {
+	{ MDIO_MMD_PCS, 0xffe4, 0x0007 },
+	{ MDIO_MMD_AN, MDIO_AN_T1_CTRL, 0x0 },
+	{ MDIO_MMD_PMAPMD, MDIO_CTRL1, 0x0840 },
+};
+
+static const struct mmd_val mv88q222x_revb1_revb2_init_seq1[] = {
+	{ MDIO_MMD_PCS, 0xfe07, 0x125a },
+	{ MDIO_MMD_PCS, 0xfe09, 0x1288 },
+	{ MDIO_MMD_PCS, 0xfe08, 0x2588 },
+	{ MDIO_MMD_PCS, 0xfe72, 0x042c },
+	{ MDIO_MMD_PCS, 0xffe4, 0x0071 },
+	{ MDIO_MMD_PCS, 0xffe4, 0x0001 },
+	{ MDIO_MMD_PCS, 0xfe1b, 0x0048 },
+	{ MDIO_MMD_PMAPMD, 0x0000, 0x0000 },
+	{ MDIO_MMD_PCS, 0x0000, 0x0000 },
+	{ MDIO_MMD_PCS, 0xffdb, 0xfc10 },
+	{ MDIO_MMD_PCS, 0xfe1b, 0x58 },
+	{ MDIO_MMD_PCS, 0xfcad, 0x030c },
+	{ MDIO_MMD_PCS, 0x8032, 0x6001 },
+	{ MDIO_MMD_PCS, 0xfdff, 0x05a5 },
+	{ MDIO_MMD_PCS, 0xfdec, 0xdbaf },
+	{ MDIO_MMD_PCS, 0xfcab, 0x1054 },
+	{ MDIO_MMD_PCS, 0xfcac, 0x1483 },
+	{ MDIO_MMD_PCS, 0x8033, 0xc801 },
+	{ MDIO_MMD_AN, 0x8032, 0x2020 },
+	{ MDIO_MMD_AN, 0x8031, 0xa28 },
+	{ MDIO_MMD_AN, 0x8031, 0xc28 },
+	{ MDIO_MMD_PCS, 0xfbba, 0x0cb2 },
+	{ MDIO_MMD_PCS, 0xfbbb, 0x0c4a },
+	{ MDIO_MMD_PCS, 0xfe5f, 0xe8 },
+	{ MDIO_MMD_PCS, 0xfe05, 0x755c },
+	{ MDIO_MMD_PCS, 0xfa20, 0x002a },
+	{ MDIO_MMD_PCS, 0xfe11, 0x1105 },
 };
 
 static int mv88q2xxx_soft_reset(struct phy_device *phydev)
@@ -687,29 +732,70 @@ static int mv88q222x_soft_reset(struct phy_device *phydev)
 	return 0;
 }
 
-static int mv88q222x_revb0_config_init(struct phy_device *phydev)
+static int mv88q222x_write_mmd_vals(struct phy_device *phydev,
+				    const struct mmd_val *vals, size_t len)
 {
-	int ret, i;
+	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(mv88q222x_revb0_init_seq0); i++) {
-		ret = phy_write_mmd(phydev, mv88q222x_revb0_init_seq0[i].devad,
-				    mv88q222x_revb0_init_seq0[i].regnum,
-				    mv88q222x_revb0_init_seq0[i].val);
+	for (; len; vals++, len--) {
+		ret = phy_write_mmd(phydev, vals->devad, vals->regnum,
+				    vals->val);
 		if (ret < 0)
 			return ret;
 	}
+
+	return 0;
+}
+
+static int mv88q222x_revb0_config_init(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb0_init_seq0,
+				       ARRAY_SIZE(mv88q222x_revb0_init_seq0));
+	if (ret < 0)
+		return ret;
 
 	usleep_range(5000, 10000);
 
-	for (i = 0; i < ARRAY_SIZE(mv88q222x_revb0_init_seq1); i++) {
-		ret = phy_write_mmd(phydev, mv88q222x_revb0_init_seq1[i].devad,
-				    mv88q222x_revb0_init_seq1[i].regnum,
-				    mv88q222x_revb0_init_seq1[i].val);
-		if (ret < 0)
-			return ret;
-	}
+	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb0_init_seq1,
+				       ARRAY_SIZE(mv88q222x_revb0_init_seq1));
+	if (ret < 0)
+		return ret;
 
 	return mv88q2xxx_config_init(phydev);
+}
+
+static int mv88q222x_revb1_revb2_config_init(struct phy_device *phydev)
+{
+	bool is_rev_b1 = phydev->c45_ids.device_ids[MDIO_MMD_PMAPMD] == PHY_ID_88Q2220_REVB1;
+	int ret;
+
+	if (is_rev_b1)
+		ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb1_init_seq0,
+					       ARRAY_SIZE(mv88q222x_revb1_init_seq0));
+	else
+		ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb2_init_seq0,
+					       ARRAY_SIZE(mv88q222x_revb2_init_seq0));
+	if (ret < 0)
+		return ret;
+
+	usleep_range(3000, 5000);
+
+	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb1_revb2_init_seq1,
+				       ARRAY_SIZE(mv88q222x_revb1_revb2_init_seq1));
+	if (ret < 0)
+		return ret;
+
+	return mv88q2xxx_config_init(phydev);
+}
+
+static int mv88q222x_config_init(struct phy_device *phydev)
+{
+	if (phydev->c45_ids.device_ids[MDIO_MMD_PMAPMD] == PHY_ID_88Q2220_REVB0)
+		return mv88q222x_revb0_config_init(phydev);
+	else
+		return mv88q222x_revb1_revb2_config_init(phydev);
 }
 
 static int mv88q222x_cable_test_start(struct phy_device *phydev)
@@ -810,14 +896,15 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.get_sqi_max		= mv88q2xxx_get_sqi_max,
 	},
 	{
-		PHY_ID_MATCH_EXACT(PHY_ID_88Q2220_REVB0),
+		.phy_id			= MARVELL_PHY_ID_88Q2220,
+		.phy_id_mask		= MARVELL_PHY_ID_MASK,
 		.name			= "mv88q2220",
 		.flags			= PHY_POLL_CABLE_TEST,
 		.probe			= mv88q2xxx_probe,
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q2xxx_config_aneg,
 		.aneg_done		= genphy_c45_aneg_done,
-		.config_init		= mv88q222x_revb0_config_init,
+		.config_init		= mv88q222x_config_init,
 		.read_status		= mv88q2xxx_read_status,
 		.soft_reset		= mv88q222x_soft_reset,
 		.config_intr		= mv88q2xxx_config_intr,
@@ -836,7 +923,7 @@ module_phy_driver(mv88q2xxx_driver);
 
 static struct mdio_device_id __maybe_unused mv88q2xxx_tbl[] = {
 	{ MARVELL_PHY_ID_88Q2110, MARVELL_PHY_ID_MASK },
-	{ PHY_ID_MATCH_EXACT(PHY_ID_88Q2220_REVB0), },
+	{ MARVELL_PHY_ID_88Q2220, MARVELL_PHY_ID_MASK },
 	{ /*sentinel*/ }
 };
 MODULE_DEVICE_TABLE(mdio, mv88q2xxx_tbl);

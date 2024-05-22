@@ -58,7 +58,7 @@ static void store_node(struct topo_scan *tscan, u16 nr_nodes, u16 node_id)
 	tscan->amd_node_id = node_id;
 }
 
-static bool parse_8000_001e(struct topo_scan *tscan, bool has_0xb)
+static bool parse_8000_001e(struct topo_scan *tscan, bool has_topoext)
 {
 	struct {
 		// eax
@@ -86,7 +86,7 @@ static bool parse_8000_001e(struct topo_scan *tscan, bool has_0xb)
 	 * If leaf 0xb is available, then the domain shifts are set
 	 * already and nothing to do here.
 	 */
-	if (!has_0xb) {
+	if (!has_topoext) {
 		/*
 		 * Leaf 0x80000008 set the CORE domain shift already.
 		 * Update the SMT domain, but do not propagate it.
@@ -119,7 +119,7 @@ static bool parse_8000_001e(struct topo_scan *tscan, bool has_0xb)
 	return true;
 }
 
-static bool parse_fam10h_node_id(struct topo_scan *tscan)
+static void parse_fam10h_node_id(struct topo_scan *tscan)
 {
 	union {
 		struct {
@@ -131,20 +131,20 @@ static bool parse_fam10h_node_id(struct topo_scan *tscan)
 	} nid;
 
 	if (!boot_cpu_has(X86_FEATURE_NODEID_MSR))
-		return false;
+		return;
 
 	rdmsrl(MSR_FAM10H_NODE_ID, nid.msr);
 	store_node(tscan, nid.nodes_per_pkg + 1, nid.node_id);
 	tscan->c->topo.llc_id = nid.node_id;
-	return true;
 }
 
 static void legacy_set_llc(struct topo_scan *tscan)
 {
 	unsigned int apicid = tscan->c->topo.initial_apicid;
 
-	/* parse_8000_0008() set everything up except llc_id */
-	tscan->c->topo.llc_id = apicid >> tscan->dom_shifts[TOPO_CORE_DOMAIN];
+	/* If none of the parsers set LLC ID then use the die ID for it. */
+	if (tscan->c->topo.llc_id == BAD_APICID)
+		tscan->c->topo.llc_id = apicid >> tscan->dom_shifts[TOPO_CORE_DOMAIN];
 }
 
 static void topoext_fixup(struct topo_scan *tscan)
@@ -169,28 +169,28 @@ static void topoext_fixup(struct topo_scan *tscan)
 
 static void parse_topology_amd(struct topo_scan *tscan)
 {
-	bool has_0xb = false;
+	bool has_topoext = false;
 
 	/*
 	 * If the extended topology leaf 0x8000_001e is available
-	 * try to get SMT and CORE shift from leaf 0xb first, then
-	 * try to get the CORE shift from leaf 0x8000_0008.
+	 * try to get SMT, CORE, TILE, and DIE shifts from extended
+	 * CPUID leaf 0x8000_0026 on supported processors first. If
+	 * extended CPUID leaf 0x8000_0026 is not supported, try to
+	 * get SMT and CORE shift from leaf 0xb first, then try to
+	 * get the CORE shift from leaf 0x8000_0008.
 	 */
 	if (cpu_feature_enabled(X86_FEATURE_TOPOEXT))
-		has_0xb = cpu_parse_topology_ext(tscan);
+		has_topoext = cpu_parse_topology_ext(tscan);
 
-	if (!has_0xb && !parse_8000_0008(tscan))
+	if (!has_topoext && !parse_8000_0008(tscan))
 		return;
 
 	/* Prefer leaf 0x8000001e if available */
-	if (parse_8000_001e(tscan, has_0xb))
+	if (parse_8000_001e(tscan, has_topoext))
 		return;
 
 	/* Try the NODEID MSR */
-	if (parse_fam10h_node_id(tscan))
-		return;
-
-	legacy_set_llc(tscan);
+	parse_fam10h_node_id(tscan);
 }
 
 void cpu_parse_topology_amd(struct topo_scan *tscan)
@@ -198,6 +198,7 @@ void cpu_parse_topology_amd(struct topo_scan *tscan)
 	tscan->amd_nodes_per_pkg = 1;
 	topoext_fixup(tscan);
 	parse_topology_amd(tscan);
+	legacy_set_llc(tscan);
 
 	if (tscan->amd_nodes_per_pkg > 1)
 		set_cpu_cap(tscan->c, X86_FEATURE_AMD_DCM);

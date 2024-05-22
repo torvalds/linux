@@ -21,6 +21,8 @@ struct dlm_config_node {
 	uint32_t comm_seq;
 };
 
+extern const struct rhashtable_params dlm_rhash_rsb_params;
+
 #define DLM_MAX_ADDR_COUNT 3
 
 #define DLM_PROTO_TCP	0

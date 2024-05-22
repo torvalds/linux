@@ -177,7 +177,7 @@ int main(int argc, char **argv)
 	ksft_print_header();
 
 	if (prereq() || geteuid())
-		return ksft_exit_skip("Prerequisites unsatisfied\n");
+		ksft_exit_skip("Prerequisites unsatisfied\n");
 
 	ksft_set_plan(1);
 
@@ -225,7 +225,7 @@ int main(int argc, char **argv)
 	}
 
 	if (check_compaction(mem_free, hugepage_size) == 0)
-		return ksft_exit_pass();
+		ksft_exit_pass();
 
-	return ksft_exit_fail();
+	ksft_exit_fail();
 }

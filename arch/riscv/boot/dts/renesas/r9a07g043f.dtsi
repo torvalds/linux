@@ -54,6 +54,81 @@
 	dma-noncoherent;
 	interrupt-parent = <&plic>;
 
+	irqc: interrupt-controller@110a0000 {
+		compatible = "renesas,r9a07g043f-irqc";
+		reg = <0 0x110a0000 0 0x20000>;
+		#interrupt-cells = <2>;
+		#address-cells = <0>;
+		interrupt-controller;
+		interrupts = <32 IRQ_TYPE_LEVEL_HIGH>,
+			     <33 IRQ_TYPE_LEVEL_HIGH>,
+			     <34 IRQ_TYPE_LEVEL_HIGH>,
+			     <35 IRQ_TYPE_LEVEL_HIGH>,
+			     <36 IRQ_TYPE_LEVEL_HIGH>,
+			     <37 IRQ_TYPE_LEVEL_HIGH>,
+			     <38 IRQ_TYPE_LEVEL_HIGH>,
+			     <39 IRQ_TYPE_LEVEL_HIGH>,
+			     <40 IRQ_TYPE_LEVEL_HIGH>,
+			     <476 IRQ_TYPE_LEVEL_HIGH>,
+			     <477 IRQ_TYPE_LEVEL_HIGH>,
+			     <478 IRQ_TYPE_LEVEL_HIGH>,
+			     <479 IRQ_TYPE_LEVEL_HIGH>,
+			     <480 IRQ_TYPE_LEVEL_HIGH>,
+			     <481 IRQ_TYPE_LEVEL_HIGH>,
+			     <482 IRQ_TYPE_LEVEL_HIGH>,
+			     <483 IRQ_TYPE_LEVEL_HIGH>,
+			     <484 IRQ_TYPE_LEVEL_HIGH>,
+			     <485 IRQ_TYPE_LEVEL_HIGH>,
+			     <486 IRQ_TYPE_LEVEL_HIGH>,
+			     <487 IRQ_TYPE_LEVEL_HIGH>,
+			     <488 IRQ_TYPE_LEVEL_HIGH>,
+			     <489 IRQ_TYPE_LEVEL_HIGH>,
+			     <490 IRQ_TYPE_LEVEL_HIGH>,
+			     <491 IRQ_TYPE_LEVEL_HIGH>,
+			     <492 IRQ_TYPE_LEVEL_HIGH>,
+			     <493 IRQ_TYPE_LEVEL_HIGH>,
+			     <494 IRQ_TYPE_LEVEL_HIGH>,
+			     <495 IRQ_TYPE_LEVEL_HIGH>,
+			     <496 IRQ_TYPE_LEVEL_HIGH>,
+			     <497 IRQ_TYPE_LEVEL_HIGH>,
+			     <498 IRQ_TYPE_LEVEL_HIGH>,
+			     <499 IRQ_TYPE_LEVEL_HIGH>,
+			     <500 IRQ_TYPE_LEVEL_HIGH>,
+			     <501 IRQ_TYPE_LEVEL_HIGH>,
+			     <502 IRQ_TYPE_LEVEL_HIGH>,
+			     <503 IRQ_TYPE_LEVEL_HIGH>,
+			     <504 IRQ_TYPE_LEVEL_HIGH>,
+			     <505 IRQ_TYPE_LEVEL_HIGH>,
+			     <506 IRQ_TYPE_LEVEL_HIGH>,
+			     <507 IRQ_TYPE_LEVEL_HIGH>,
+			     <57 IRQ_TYPE_LEVEL_HIGH>,
+			     <66 IRQ_TYPE_EDGE_RISING>,
+			     <67 IRQ_TYPE_EDGE_RISING>,
+			     <68 IRQ_TYPE_EDGE_RISING>,
+			     <69 IRQ_TYPE_EDGE_RISING>,
+			     <70 IRQ_TYPE_EDGE_RISING>,
+			     <71 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "nmi",
+				  "irq0", "irq1", "irq2", "irq3",
+				  "irq4", "irq5", "irq6", "irq7",
+				  "tint0", "tint1", "tint2", "tint3",
+				  "tint4", "tint5", "tint6", "tint7",
+				  "tint8", "tint9", "tint10", "tint11",
+				  "tint12", "tint13", "tint14", "tint15",
+				  "tint16", "tint17", "tint18", "tint19",
+				  "tint20", "tint21", "tint22", "tint23",
+				  "tint24", "tint25", "tint26", "tint27",
+				  "tint28", "tint29", "tint30", "tint31",
+				  "bus-err", "ec7tie1-0", "ec7tie2-0",
+				  "ec7tiovf-0", "ec7tie1-1", "ec7tie2-1",
+				  "ec7tiovf-1";
+		clocks = <&cpg CPG_MOD R9A07G043_IAX45_CLK>,
+			 <&cpg CPG_MOD R9A07G043_IAX45_PCLK>;
+		clock-names = "clk", "pclk";
+		power-domains = <&cpg>;
+		resets = <&cpg R9A07G043_IAX45_RESETN>;
+	};
+
 	plic: interrupt-controller@12c00000 {
 		compatible = "renesas,r9a07g043-plic", "andestech,nceplic100";
 		#interrupt-cells = <2>;

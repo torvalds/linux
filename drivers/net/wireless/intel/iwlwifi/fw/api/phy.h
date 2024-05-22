@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2019-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2019-2022, 2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -41,6 +41,11 @@ enum iwl_phy_ops_subcmd_ids {
 	 * @PER_PLATFORM_ANT_GAIN_CMD: &union iwl_ppag_table_cmd
 	 */
 	PER_PLATFORM_ANT_GAIN_CMD = 0x07,
+
+	/**
+	 * @AP_TX_POWER_CONSTRAINTS_CMD: &struct iwl_txpower_constraints_cmd
+	 */
+	AP_TX_POWER_CONSTRAINTS_CMD = 0x0C,
 
 	/**
 	 * @CT_KILL_NOTIFICATION: &struct ct_kill_notif

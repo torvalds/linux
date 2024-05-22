@@ -202,29 +202,47 @@ void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 	EMIT(PPC_RAW_BLR());
 }
 
-static int bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx, u64 func)
+static int
+bpf_jit_emit_func_call_hlp(u32 *image, u32 *fimage, struct codegen_context *ctx, u64 func)
 {
 	unsigned long func_addr = func ? ppc_function_entry((void *)func) : 0;
 	long reladdr;
 
-	if (WARN_ON_ONCE(!core_kernel_text(func_addr)))
+	if (WARN_ON_ONCE(!kernel_text_address(func_addr)))
 		return -EINVAL;
 
-	if (IS_ENABLED(CONFIG_PPC_KERNEL_PCREL)) {
-		reladdr = func_addr - CTX_NIA(ctx);
+#ifdef CONFIG_PPC_KERNEL_PCREL
+	reladdr = func_addr - local_paca->kernelbase;
 
-		if (reladdr >= (long)SZ_8G || reladdr < -(long)SZ_8G) {
-			pr_err("eBPF: address of %ps out of range of pcrel address.\n",
-				(void *)func);
-			return -ERANGE;
-		}
-		/* pla r12,addr */
-		EMIT(PPC_PREFIX_MLS | __PPC_PRFX_R(1) | IMM_H18(reladdr));
-		EMIT(PPC_INST_PADDI | ___PPC_RT(_R12) | IMM_L(reladdr));
-		EMIT(PPC_RAW_MTCTR(_R12));
-		EMIT(PPC_RAW_BCTR());
-
+	if (reladdr < (long)SZ_8G && reladdr >= -(long)SZ_8G) {
+		EMIT(PPC_RAW_LD(_R12, _R13, offsetof(struct paca_struct, kernelbase)));
+		/* Align for subsequent prefix instruction */
+		if (!IS_ALIGNED((unsigned long)fimage + CTX_NIA(ctx), 8))
+			EMIT(PPC_RAW_NOP());
+		/* paddi r12,r12,addr */
+		EMIT(PPC_PREFIX_MLS | __PPC_PRFX_R(0) | IMM_H18(reladdr));
+		EMIT(PPC_INST_PADDI | ___PPC_RT(_R12) | ___PPC_RA(_R12) | IMM_L(reladdr));
 	} else {
+		unsigned long pc = (unsigned long)fimage + CTX_NIA(ctx);
+		bool alignment_needed = !IS_ALIGNED(pc, 8);
+
+		reladdr = func_addr - (alignment_needed ? pc + 4 :  pc);
+
+		if (reladdr < (long)SZ_8G && reladdr >= -(long)SZ_8G) {
+			if (alignment_needed)
+				EMIT(PPC_RAW_NOP());
+			/* pla r12,addr */
+			EMIT(PPC_PREFIX_MLS | __PPC_PRFX_R(1) | IMM_H18(reladdr));
+			EMIT(PPC_INST_PADDI | ___PPC_RT(_R12) | IMM_L(reladdr));
+		} else {
+			/* We can clobber r12 */
+			PPC_LI64(_R12, func);
+		}
+	}
+	EMIT(PPC_RAW_MTCTR(_R12));
+	EMIT(PPC_RAW_BCTRL());
+#else
+	if (core_kernel_text(func_addr)) {
 		reladdr = func_addr - kernel_toc_addr();
 		if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
 			pr_err("eBPF: address of %ps out of range of kernel_toc.\n", (void *)func);
@@ -235,7 +253,32 @@ static int bpf_jit_emit_func_call_hlp(u32 *image, struct codegen_context *ctx, u
 		EMIT(PPC_RAW_ADDI(_R12, _R12, PPC_LO(reladdr)));
 		EMIT(PPC_RAW_MTCTR(_R12));
 		EMIT(PPC_RAW_BCTRL());
+	} else {
+		if (IS_ENABLED(CONFIG_PPC64_ELF_ABI_V1)) {
+			/* func points to the function descriptor */
+			PPC_LI64(bpf_to_ppc(TMP_REG_2), func);
+			/* Load actual entry point from function descriptor */
+			EMIT(PPC_RAW_LD(bpf_to_ppc(TMP_REG_1), bpf_to_ppc(TMP_REG_2), 0));
+			/* ... and move it to CTR */
+			EMIT(PPC_RAW_MTCTR(bpf_to_ppc(TMP_REG_1)));
+			/*
+			 * Load TOC from function descriptor at offset 8.
+			 * We can clobber r2 since we get called through a
+			 * function pointer (so caller will save/restore r2).
+			 */
+			EMIT(PPC_RAW_LD(_R2, bpf_to_ppc(TMP_REG_2), 8));
+		} else {
+			PPC_LI64(_R12, func);
+			EMIT(PPC_RAW_MTCTR(_R12));
+		}
+		EMIT(PPC_RAW_BCTRL());
+		/*
+		 * Load r2 with kernel TOC as kernel TOC is used if function address falls
+		 * within core kernel text.
+		 */
+		EMIT(PPC_RAW_LD(_R2, _R13, offsetof(struct paca_struct, kernel_toc)));
 	}
+#endif
 
 	return 0;
 }
@@ -285,7 +328,7 @@ static int bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 o
 	int b2p_index = bpf_to_ppc(BPF_REG_3);
 	int bpf_tailcall_prologue_size = 8;
 
-	if (IS_ENABLED(CONFIG_PPC64_ELF_ABI_V2))
+	if (!IS_ENABLED(CONFIG_PPC_KERNEL_PCREL) && IS_ENABLED(CONFIG_PPC64_ELF_ABI_V2))
 		bpf_tailcall_prologue_size += 4; /* skip past the toc load */
 
 	/*
@@ -993,7 +1036,7 @@ emit_clear:
 				return ret;
 
 			if (func_addr_fixed)
-				ret = bpf_jit_emit_func_call_hlp(image, ctx, func_addr);
+				ret = bpf_jit_emit_func_call_hlp(image, fimage, ctx, func_addr);
 			else
 				ret = bpf_jit_emit_func_call_rel(image, fimage, ctx, func_addr);
 

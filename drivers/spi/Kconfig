@@ -57,6 +57,16 @@ config SPI_MEM
 
 comment "SPI Master Controller Drivers"
 
+config SPI_AIROHA_SNFI
+	tristate "Airoha SPI NAND Flash Interface"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	depends on SPI_MASTER
+	select REGMAP_MMIO
+	help
+	  This enables support for SPI-NAND mode on the Airoha NAND
+	  Flash Interface found on Airoha ARM SoCs. This controller
+	  is implemented as a SPI-MEM controller.
+
 config SPI_ALTERA
 	tristate "Altera SPI Controller platform driver"
 	select SPI_ALTERA_CORE
@@ -216,11 +226,11 @@ config SPI_BCMBCA_HSSPI
 	  explicitly.
 
 config SPI_BITBANG
-	tristate "Utilities for Bitbanging SPI masters"
+	tristate "Utilities for Bitbanging SPI host controllers"
 	help
 	  With a few GPIO pins, your system can bitbang the SPI protocol.
 	  Select this to get SPI support through I/O pins (GPIO, parallel
-	  port, etc).  Or, some systems' SPI master controller drivers use
+	  port, etc).  Or, some systems' SPI host controller drivers use
 	  this code to manage the per-word or per-transfer accesses to the
 	  hardware shift registers.
 
@@ -246,7 +256,7 @@ config SPI_CADENCE
 
 config SPI_CADENCE_QUADSPI
 	tristate "Cadence Quad SPI controller"
-	depends on OF && (ARM || ARM64 || X86 || RISCV || COMPILE_TEST)
+	depends on OF && (ARM || ARM64 || X86 || RISCV || MIPS || COMPILE_TEST)
 	help
 	  Enable support for the Cadence Quad SPI Flash controller.
 
@@ -284,6 +294,7 @@ config SPI_COLDFIRE_QSPI
 config SPI_CS42L43
 	tristate "Cirrus Logic CS42L43 SPI controller"
 	depends on MFD_CS42L43 && PINCTRL_CS42L43
+	select GPIO_SWNODE_UNDEFINED
 	help
 	  This enables support for the SPI controller inside the Cirrus Logic
 	  CS42L43 audio codec.
@@ -817,12 +828,11 @@ config SPI_PPC4xx
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on ARCH_PXA || ARCH_MMP || PCI || ACPI || COMPILE_TEST
+	depends on ARCH_PXA || ARCH_MMP || (X86 && (PCI || ACPI)) || COMPILE_TEST
 	select PXA_SSP if ARCH_PXA || ARCH_MMP
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
-	  controller. The driver can be configured to use any SSP port and
-	  additional documentation can be found a Documentation/spi/pxa2xx.rst.
+	  controller. The driver can be configured to use any SSP port.
 
 config SPI_PXA2XX_PCI
 	def_tristate SPI_PXA2XX && PCI && COMMON_CLK

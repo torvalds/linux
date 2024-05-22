@@ -24,9 +24,6 @@
 
 struct dsa_8021q_context;
 struct tc_action;
-struct phy_device;
-struct fixed_phy_status;
-struct phylink_link_state;
 
 #define DSA_TAG_PROTO_NONE_VALUE		0
 #define DSA_TAG_PROTO_BRCM_VALUE		1
@@ -327,6 +324,12 @@ struct dsa_port {
 	};
 };
 
+static inline struct dsa_port *
+dsa_phylink_to_port(struct phylink_config *config)
+{
+	return container_of(config, struct dsa_port, pl_config);
+}
+
 /* TODO: ideally DSA ports would have a single dp->link_dp member,
  * and no dst->rtable nor this struct dsa_link would be needed,
  * but this would require some more complex tree walking,
@@ -430,6 +433,11 @@ struct dsa_switch {
 	 */
 	u32			fdb_isolation:1;
 
+	/* Drivers that have global DSCP mapping settings must set this to
+	 * true to automatically apply the settings to all ports.
+	 */
+	u32			dscp_prio_mapping_is_global:1;
+
 	/* Listener for switch fabric events */
 	struct notifier_block	nb;
 
@@ -450,6 +458,11 @@ struct dsa_switch {
 	 * The switch operations.
 	 */
 	const struct dsa_switch_ops	*ops;
+
+	/*
+	 * Allow a DSA switch driver to override the phylink MAC ops
+	 */
+	const struct phylink_mac_ops	*phylink_mac_ops;
 
 	/*
 	 * User mii_bus and devices for the individual ports.
@@ -576,6 +589,10 @@ static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 
 #define dsa_switch_for_each_user_port(_dp, _ds) \
 	dsa_switch_for_each_port((_dp), (_ds)) \
+		if (dsa_port_is_user((_dp)))
+
+#define dsa_switch_for_each_user_port_continue_reverse(_dp, _ds) \
+	dsa_switch_for_each_port_continue_reverse((_dp), (_ds)) \
 		if (dsa_port_is_user((_dp)))
 
 #define dsa_switch_for_each_cpu_port(_dp, _ds) \
@@ -858,14 +875,6 @@ struct dsa_switch_ops {
 			     int regnum, u16 val);
 
 	/*
-	 * Link state adjustment (called from libphy)
-	 */
-	void	(*adjust_link)(struct dsa_switch *ds, int port,
-				struct phy_device *phydev);
-	void	(*fixed_link_update)(struct dsa_switch *ds, int port,
-				struct fixed_phy_status *st);
-
-	/*
 	 * PHYLINK integration
 	 */
 	void	(*phylink_get_caps)(struct dsa_switch *ds, int port,
@@ -955,6 +964,10 @@ struct dsa_switch_ops {
 				      u8 prio);
 	int	(*port_del_dscp_prio)(struct dsa_switch *ds, int port, u8 dscp,
 				      u8 prio);
+	int	(*port_set_apptrust)(struct dsa_switch *ds, int port,
+				     const u8 *sel, int nsel);
+	int	(*port_get_apptrust)(struct dsa_switch *ds, int port, u8 *sel,
+				     int *nsel);
 
 	/*
 	 * Suspend and resume
@@ -1247,7 +1260,8 @@ struct dsa_switch_ops {
 int dsa_devlink_param_get(struct devlink *dl, u32 id,
 			  struct devlink_param_gset_ctx *ctx);
 int dsa_devlink_param_set(struct devlink *dl, u32 id,
-			  struct devlink_param_gset_ctx *ctx);
+			  struct devlink_param_gset_ctx *ctx,
+			  struct netlink_ext_ack *extack);
 int dsa_devlink_params_register(struct dsa_switch *ds,
 				const struct devlink_param *params,
 				size_t params_count);

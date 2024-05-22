@@ -223,6 +223,9 @@ struct ath12k_pdev_dp {
 #define ATH12K_NUM_TX_SPT_PAGES	(ATH12K_TX_SPT_PAGES_PER_POOL * ATH12K_HW_MAX_QUEUES)
 #define ATH12K_NUM_SPT_PAGES	(ATH12K_NUM_RX_SPT_PAGES + ATH12K_NUM_TX_SPT_PAGES)
 
+#define ATH12K_TX_SPT_PAGE_OFFSET 0
+#define ATH12K_RX_SPT_PAGE_OFFSET ATH12K_NUM_TX_SPT_PAGES
+
 /* The SPT pages are divided for RX and TX, first block for RX
  * and remaining for TX
  */
@@ -245,7 +248,7 @@ struct ath12k_pdev_dp {
 #define ATH12K_CC_SPT_MSB 8
 #define ATH12K_CC_PPT_MSB 19
 #define ATH12K_CC_PPT_SHIFT 9
-#define ATH12k_DP_CC_COOKIE_SPT	GENMASK(8, 0)
+#define ATH12K_DP_CC_COOKIE_SPT	GENMASK(8, 0)
 #define ATH12K_DP_CC_COOKIE_PPT	GENMASK(19, 9)
 
 #define DP_REO_QREF_NUM		GENMASK(31, 16)
@@ -282,6 +285,8 @@ struct ath12k_rx_desc_info {
 	struct sk_buff *skb;
 	u32 cookie;
 	u32 magic;
+	u8 in_use	: 1,
+	   reserved	: 7;
 };
 
 struct ath12k_tx_desc_info {
@@ -347,8 +352,7 @@ struct ath12k_dp {
 	struct ath12k_spt_info *spt_info;
 	u32 num_spt_pages;
 	struct list_head rx_desc_free_list;
-	struct list_head rx_desc_used_list;
-	/* protects the free and used desc list */
+	/* protects the free desc list */
 	spinlock_t rx_desc_lock;
 
 	struct list_head tx_desc_free_list[ATH12K_HW_MAX_QUEUES];
@@ -376,8 +380,6 @@ struct ath12k_dp {
 
 /* peer meta data */
 #define HTT_TCL_META_DATA_PEER_ID		GENMASK(15, 2)
-
-#define HTT_TX_WBM_COMP_STATUS_OFFSET 8
 
 /* HTT tx completion is overlaid in wbm_release_ring */
 #define HTT_TX_WBM_COMP_INFO0_STATUS		GENMASK(16, 13)

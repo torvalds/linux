@@ -10,6 +10,7 @@
 #include <net/ipv6.h>
 #include <linux/netdevice.h>
 #include <crypto/aes.h>
+#include <linux/skbuff_ref.h>
 #include "chcr_ktls.h"
 
 static LIST_HEAD(uld_ctx_list);

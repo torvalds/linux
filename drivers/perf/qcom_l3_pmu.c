@@ -748,6 +748,7 @@ static int qcom_l3_cache_pmu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	l3pmu->pmu = (struct pmu) {
+		.parent		= &pdev->dev,
 		.task_ctx_nr	= perf_invalid_context,
 
 		.pmu_enable	= qcom_l3_cache__pmu_enable,

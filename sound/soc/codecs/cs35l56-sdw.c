@@ -188,8 +188,6 @@ static void cs35l56_sdw_init(struct sdw_slave *peripheral)
 			goto out;
 	}
 
-	regcache_cache_only(cs35l56->base.regmap, false);
-
 	ret = cs35l56_init(cs35l56);
 	if (ret < 0) {
 		regcache_cache_only(cs35l56->base.regmap, true);

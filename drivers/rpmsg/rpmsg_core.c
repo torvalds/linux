@@ -20,7 +20,9 @@
 
 #include "rpmsg_internal.h"
 
-struct class *rpmsg_class;
+const struct class rpmsg_class = {
+	.name = "rpmsg",
+};
 EXPORT_SYMBOL(rpmsg_class);
 
 /**
@@ -715,16 +717,16 @@ static int __init rpmsg_init(void)
 {
 	int ret;
 
-	rpmsg_class = class_create("rpmsg");
-	if (IS_ERR(rpmsg_class)) {
-		pr_err("failed to create rpmsg class\n");
-		return PTR_ERR(rpmsg_class);
+	ret = class_register(&rpmsg_class);
+	if (ret) {
+		pr_err("failed to register rpmsg class\n");
+		return ret;
 	}
 
 	ret = bus_register(&rpmsg_bus);
 	if (ret) {
 		pr_err("failed to register rpmsg bus: %d\n", ret);
-		class_destroy(rpmsg_class);
+		class_destroy(&rpmsg_class);
 	}
 	return ret;
 }
@@ -733,7 +735,7 @@ postcore_initcall(rpmsg_init);
 static void __exit rpmsg_fini(void)
 {
 	bus_unregister(&rpmsg_bus);
-	class_destroy(rpmsg_class);
+	class_destroy(&rpmsg_class);
 }
 module_exit(rpmsg_fini);
 

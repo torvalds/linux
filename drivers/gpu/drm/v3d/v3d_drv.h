@@ -36,15 +36,27 @@ static inline char *v3d_queue_to_string(enum v3d_queue queue)
 	return "UNKNOWN";
 }
 
+struct v3d_stats {
+	u64 start_ns;
+	u64 enabled_ns;
+	u64 jobs_completed;
+
+	/*
+	 * This seqcount is used to protect the access to the GPU stats
+	 * variables. It must be used as, while we are reading the stats,
+	 * IRQs can happen and the stats can be updated.
+	 */
+	seqcount_t lock;
+};
+
 struct v3d_queue_state {
 	struct drm_gpu_scheduler sched;
 
 	u64 fence_context;
 	u64 emit_seqno;
 
-	u64 start_ns;
-	u64 enabled_ns;
-	u64 jobs_sent;
+	/* Stores the GPU stats for this queue in the global context. */
+	struct v3d_stats stats;
 };
 
 /* Performance monitor object. The perform lifetime is controlled by userspace
@@ -188,11 +200,8 @@ struct v3d_file_priv {
 
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
 
-	u64 start_ns[V3D_MAX_QUEUES];
-
-	u64 enabled_ns[V3D_MAX_QUEUES];
-
-	u64 jobs_sent[V3D_MAX_QUEUES];
+	/* Stores the GPU stats for a specific queue for this fd. */
+	struct v3d_stats stats[V3D_MAX_QUEUES];
 };
 
 struct v3d_bo {
@@ -508,6 +517,10 @@ struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 /* v3d_debugfs.c */
 void v3d_debugfs_init(struct drm_minor *minor);
 
+/* v3d_drv.c */
+void v3d_get_stats(const struct v3d_stats *stats, u64 timestamp,
+		   u64 *active_runtime, u64 *jobs_completed);
+
 /* v3d_fence.c */
 extern const struct dma_fence_ops v3d_fence_ops;
 struct dma_fence *v3d_fence_create(struct v3d_dev *v3d, enum v3d_queue queue);
@@ -543,6 +556,7 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo);
 void v3d_mmu_remove_ptes(struct v3d_bo *bo);
 
 /* v3d_sched.c */
+void v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue);
 int v3d_sched_init(struct v3d_dev *v3d);
 void v3d_sched_fini(struct v3d_dev *v3d);
 

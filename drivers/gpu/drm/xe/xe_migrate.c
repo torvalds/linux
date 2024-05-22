@@ -16,6 +16,7 @@
 
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_gpu_commands.h"
+#include "regs/xe_gtt_defs.h"
 #include "tests/xe_test.h"
 #include "xe_assert.h"
 #include "xe_bb.h"
@@ -155,8 +156,8 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	bo = xe_bo_create_pin_map(vm->xe, tile, vm,
 				  num_entries * XE_PAGE_SIZE,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-				  XE_BO_CREATE_PINNED_BIT);
+				  XE_BO_FLAG_VRAM_IF_DGFX(tile) |
+				  XE_BO_FLAG_PINNED);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -984,7 +985,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 	struct xe_res_cursor src_it;
 	struct ttm_resource *src = dst;
 	int err;
-	int pass = 0;
 
 	if (!clear_vram)
 		xe_res_first_sg(xe_bo_sg(bo), 0, bo->size, &src_it);
@@ -1004,8 +1004,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		u32 avail_pts = max_mem_transfer_per_pass(xe) / LEVEL0_PAGE_TABLE_ENCODE_SIZE;
 
 		clear_L0 = xe_migrate_res_sizes(m, &src_it);
-
-		drm_dbg(&xe->drm, "Pass %u, size: %llu\n", pass++, clear_L0);
 
 		/* Calculate final sizes and batch size.. */
 		batch_size = 2 +

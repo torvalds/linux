@@ -7,6 +7,8 @@
 
 #include <linux/tracepoint.h>
 
+#define TRACE_SCMI_MAX_TAG_LEN	6
+
 TRACE_EVENT(scmi_fc_call,
 	TP_PROTO(u8 protocol_id, u8 msg_id, u32 res_id, u32 val1, u32 val2),
 	TP_ARGS(protocol_id, msg_id, res_id, val1, val2),
@@ -150,7 +152,7 @@ TRACE_EVENT(scmi_msg_dump,
 		__field(u8, channel_id)
 		__field(u8, protocol_id)
 		__field(u8, msg_id)
-		__array(char, tag, 5)
+		__array(char, tag, TRACE_SCMI_MAX_TAG_LEN)
 		__field(u16, seq)
 		__field(int, status)
 		__field(size_t, len)
@@ -162,7 +164,7 @@ TRACE_EVENT(scmi_msg_dump,
 		__entry->channel_id = channel_id;
 		__entry->protocol_id = protocol_id;
 		__entry->msg_id = msg_id;
-		strscpy(__entry->tag, tag, 5);
+		strscpy(__entry->tag, tag, TRACE_SCMI_MAX_TAG_LEN);
 		__entry->seq = seq;
 		__entry->status = status;
 		__entry->len = len;

@@ -151,7 +151,7 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 
 	ret = uart_read_port_properties(&uart.port);
 	if (ret)
-		return ret;
+		goto dis_uart_clk;
 
 	uart.port.iotype = UPIO_MEM32;
 	uart.port.regshift = 2;

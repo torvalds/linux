@@ -285,25 +285,22 @@ static void snd_ctl_led_ctl_destroy(struct snd_ctl_led_ctl *lctl)
 static void snd_ctl_led_clean(struct snd_card *card)
 {
 	unsigned int group;
+	struct snd_ctl_led_ctl *lctl, *_lctl;
 	struct snd_ctl_led *led;
-	struct snd_ctl_led_ctl *lctl;
 
 	for (group = 0; group < MAX_LED; group++) {
 		led = &snd_ctl_leds[group];
-repeat:
-		list_for_each_entry(lctl, &led->controls, list)
-			if (!card || lctl->card == card) {
+		list_for_each_entry_safe(lctl, _lctl, &led->controls, list)
+			if (!card || lctl->card == card)
 				snd_ctl_led_ctl_destroy(lctl);
-				goto repeat;
-			}
 	}
 }
 
 static int snd_ctl_led_reset(int card_number, unsigned int group)
 {
 	struct snd_card *card __free(snd_card_unref) = NULL;
+	struct snd_ctl_led_ctl *lctl, *_lctl;
 	struct snd_ctl_led *led;
-	struct snd_ctl_led_ctl *lctl;
 	struct snd_kcontrol_volatile *vd;
 	bool change = false;
 
@@ -315,14 +312,12 @@ static int snd_ctl_led_reset(int card_number, unsigned int group)
 		if (!snd_ctl_led_card_valid[card_number])
 			return -ENXIO;
 		led = &snd_ctl_leds[group];
-repeat:
-		list_for_each_entry(lctl, &led->controls, list)
+		list_for_each_entry_safe(lctl, _lctl, &led->controls, list)
 			if (lctl->card == card) {
 				vd = &lctl->kctl->vd[lctl->index_offset];
 				vd->access &= ~group_to_access(group);
 				snd_ctl_led_ctl_destroy(lctl);
 				change = true;
-				goto repeat;
 			}
 	}
 	if (change)

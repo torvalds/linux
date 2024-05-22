@@ -46,6 +46,8 @@
 
 #define FUNCTIONFS_MAGIC	0xa647361 /* Chosen by a honest dice roll ;) */
 
+#define DMABUF_ENQUEUE_TIMEOUT_MS 5000
+
 MODULE_IMPORT_NS(DMA_BUF);
 
 /* Reference counter handling */
@@ -850,6 +852,7 @@ static void ffs_user_copy_worker(struct work_struct *work)
 						   work);
 	int ret = io_data->status;
 	bool kiocb_has_eventfd = io_data->kiocb->ki_flags & IOCB_EVENTFD;
+	unsigned long flags;
 
 	if (io_data->read && ret > 0) {
 		kthread_use_mm(io_data->mm);
@@ -861,6 +864,11 @@ static void ffs_user_copy_worker(struct work_struct *work)
 
 	if (io_data->ffs->ffs_eventfd && !kiocb_has_eventfd)
 		eventfd_signal(io_data->ffs->ffs_eventfd);
+
+	spin_lock_irqsave(&io_data->ffs->eps_lock, flags);
+	usb_ep_free_request(io_data->ep, io_data->req);
+	io_data->req = NULL;
+	spin_unlock_irqrestore(&io_data->ffs->eps_lock, flags);
 
 	if (io_data->read)
 		kfree(io_data->to_free);
@@ -875,7 +883,6 @@ static void ffs_epfile_async_io_complete(struct usb_ep *_ep,
 	struct ffs_data *ffs = io_data->ffs;
 
 	io_data->status = req->status ? req->status : req->actual;
-	usb_ep_free_request(_ep, req);
 
 	INIT_WORK(&io_data->work, ffs_user_copy_worker);
 	queue_work(ffs->io_completion_wq, &io_data->work);
@@ -1578,10 +1585,13 @@ static int ffs_dmabuf_transfer(struct file *file,
 	struct ffs_dmabuf_priv *priv;
 	struct ffs_dma_fence *fence;
 	struct usb_request *usb_req;
+	enum dma_resv_usage resv_dir;
 	struct dma_buf *dmabuf;
+	unsigned long timeout;
 	struct ffs_ep *ep;
 	bool cookie;
 	u32 seqno;
+	long retl;
 	int ret;
 
 	if (req->flags & ~USB_FFS_DMABUF_TRANSFER_MASK)
@@ -1615,17 +1625,14 @@ static int ffs_dmabuf_transfer(struct file *file,
 		goto err_attachment_put;
 
 	/* Make sure we don't have writers */
-	if (!dma_resv_test_signaled(dmabuf->resv, DMA_RESV_USAGE_WRITE)) {
-		pr_vdebug("FFS WRITE fence is not signaled\n");
-		ret = -EBUSY;
-		goto err_resv_unlock;
-	}
-
-	/* If we're writing to the DMABUF, make sure we don't have readers */
-	if (epfile->in &&
-	    !dma_resv_test_signaled(dmabuf->resv, DMA_RESV_USAGE_READ)) {
-		pr_vdebug("FFS READ fence is not signaled\n");
-		ret = -EBUSY;
+	timeout = nonblock ? 0 : msecs_to_jiffies(DMABUF_ENQUEUE_TIMEOUT_MS);
+	retl = dma_resv_wait_timeout(dmabuf->resv,
+				     dma_resv_usage_rw(epfile->in),
+				     true, timeout);
+	if (retl == 0)
+		retl = -EBUSY;
+	if (retl < 0) {
+		ret = (int)retl;
 		goto err_resv_unlock;
 	}
 
@@ -1665,8 +1672,9 @@ static int ffs_dmabuf_transfer(struct file *file,
 	dma_fence_init(&fence->base, &ffs_dmabuf_fence_ops,
 		       &priv->lock, priv->context, seqno);
 
-	dma_resv_add_fence(dmabuf->resv, &fence->base,
-			   dma_resv_usage_rw(epfile->in));
+	resv_dir = epfile->in ? DMA_RESV_USAGE_WRITE : DMA_RESV_USAGE_READ;
+
+	dma_resv_add_fence(dmabuf->resv, &fence->base, resv_dir);
 	dma_resv_unlock(dmabuf->resv);
 
 	/* Now that the dma_fence is in place, queue the transfer. */
@@ -3803,7 +3811,7 @@ static int ffs_func_setup(struct usb_function *f,
 	__ffs_event_add(ffs, FUNCTIONFS_SETUP);
 	spin_unlock_irqrestore(&ffs->ev.waitq.lock, flags);
 
-	return creq->wLength == 0 ? USB_GADGET_DELAYED_STATUS : 0;
+	return ffs->ev.setup.wLength == 0 ? USB_GADGET_DELAYED_STATUS : 0;
 }
 
 static bool ffs_func_req_match(struct usb_function *f,

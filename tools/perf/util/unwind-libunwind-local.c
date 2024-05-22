@@ -329,27 +329,27 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 	};
 	int ret, fd;
 
-	if (dso->data.eh_frame_hdr_offset == 0) {
+	if (dso__data(dso)->eh_frame_hdr_offset == 0) {
 		fd = dso__data_get_fd(dso, ui->machine);
 		if (fd < 0)
 			return -EINVAL;
 
 		/* Check the .eh_frame section for unwinding info */
 		ret = elf_section_address_and_offset(fd, ".eh_frame_hdr",
-						     &dso->data.eh_frame_hdr_addr,
-						     &dso->data.eh_frame_hdr_offset);
-		dso->data.elf_base_addr = elf_base_address(fd);
+						     &dso__data(dso)->eh_frame_hdr_addr,
+						     &dso__data(dso)->eh_frame_hdr_offset);
+		dso__data(dso)->elf_base_addr = elf_base_address(fd);
 		dso__data_put_fd(dso);
-		if (ret || dso->data.eh_frame_hdr_offset == 0)
+		if (ret || dso__data(dso)->eh_frame_hdr_offset == 0)
 			return -EINVAL;
 	}
 
 	maps__for_each_map(thread__maps(ui->thread), read_unwind_spec_eh_frame_maps_cb, &args);
 
-	args.base_addr -= dso->data.elf_base_addr;
+	args.base_addr -= dso__data(dso)->elf_base_addr;
 	/* Address of .eh_frame_hdr */
-	*segbase = args.base_addr + dso->data.eh_frame_hdr_addr;
-	ret = unwind_spec_ehframe(dso, ui->machine, dso->data.eh_frame_hdr_offset,
+	*segbase = args.base_addr + dso__data(dso)->eh_frame_hdr_addr;
+	ret = unwind_spec_ehframe(dso, ui->machine, dso__data(dso)->eh_frame_hdr_offset,
 				   table_data, fde_count);
 	if (ret)
 		return ret;
@@ -460,7 +460,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		return -EINVAL;
 	}
 
-	pr_debug("unwind: find_proc_info dso %s\n", dso->name);
+	pr_debug("unwind: find_proc_info dso %s\n", dso__name(dso));
 
 	/* Check the .eh_frame section for unwinding info */
 	if (!read_unwind_spec_eh_frame(dso, ui, &table_data, &segbase, &fde_count)) {

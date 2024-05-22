@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include "alloc_cache.h"
+#define IO_POLL_ALLOC_CACHE_MAX 32
 
 enum {
 	IO_APOLL_OK,
@@ -17,10 +17,7 @@ struct io_poll {
 };
 
 struct async_poll {
-	union {
-		struct io_poll		poll;
-		struct io_cache_entry	cache;
-	};
+	struct io_poll		poll;
 	struct io_poll		*double_poll;
 };
 
@@ -45,7 +42,5 @@ int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags);
 bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 			bool cancel_all);
-
-void io_apoll_cache_free(struct io_cache_entry *entry);
 
 void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts);
