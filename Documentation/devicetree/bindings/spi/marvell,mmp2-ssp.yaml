@@ -10,12 +10,17 @@ title: PXA2xx SSP SPI Controller
 maintainers:
   - Lubomir Rintel <lkundrak@v3.sk>
 
-allOf:
-  - $ref: spi-controller.yaml#
-
 properties:
   compatible:
-    const: marvell,mmp2-ssp
+    enum:
+      - marvell,mmp2-ssp
+      - mrvl,ce4100-ssp
+      - mvrl,pxa168-ssp
+      - mrvl,pxa25x-ssp
+      - mvrl,pxa25x-nssp
+      - mrvl,pxa27x-ssp
+      - mrvl,pxa3xx-ssp
+      - mrvl,pxa910-ssp
 
   interrupts:
     maxItems: 1
@@ -25,6 +30,16 @@ properties:
 
   clocks:
     maxItems: 1
+
+  dmas:
+    items:
+      - description: Receive DMA
+      - description: Transmit DMA
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
 
   ready-gpios:
     description: |
@@ -40,6 +55,18 @@ required:
 
 dependencies:
   ready-gpios: [ spi-slave ]
+
+allOf:
+  - $ref: spi-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: marvell,mmp2-ssp
+    then:
+      properties:
+        dmas: false
+        dma-names: false
 
 unevaluatedProperties: false
 
