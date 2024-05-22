@@ -17,9 +17,7 @@ properties:
   compatible:
     enum:
       - aspeed,ast2600-fsi-master
-
-  reg:
-    maxItems: 1
+      - aspeed,ast2700-fsi-master
 
   clocks:
     maxItems: 1
@@ -41,6 +39,30 @@ properties:
 
   interrupts:
     maxItems: 1
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - aspeed,ast2600-fsi-master
+then:
+  properties:
+    reg:
+      maxItems: 1
+else:
+  properties:
+    reg:
+      minItems: 1
+      items:
+        - description: OPB control registers
+        - description: FSI controller registers
+        - description: FSI link address space
+    reg-names:
+      items:
+        - const: opb
+        - const: ctrl
+        - const: fsi
 
 required:
   - compatible
@@ -76,5 +98,24 @@ examples:
             #address-cells = <1>;
             #size-cells = <1>;
             chip-id = <0>;
+        };
+    };
+  - |
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        fsi-master@21800000 {
+            compatible = "aspeed,ast2700-fsi-master";
+            reg = <0x0 0x21800000 0x0 0x100>,
+                  <0x0 0x21000000 0x0 0x1000>,
+                  <0x0 0x20000000 0x0 0x1000000>;
+            reg-names = "opb", "ctrl", "fsi";
+            #interrupt-cells = <1>;
+            interrupt-controller;
+            interrupts-extended = <&intc 6>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pinctrl_fsi0_default>;
+            clocks = <&syscon 40>;
         };
     };
