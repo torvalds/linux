@@ -2159,6 +2159,15 @@ void uprobe_handle_trampoline(struct pt_regs *regs)
 
 		instruction_pointer_set(regs, ri->orig_ret_vaddr);
 		do {
+			/* pop current instance from the stack of pending return instances,
+			 * as it's not pending anymore: we just fixed up original
+			 * instruction pointer in regs and are about to call handlers;
+			 * this allows fixup_uretprobe_trampoline_entries() to properly fix up
+			 * captured stack traces from uretprobe handlers, in which pending
+			 * trampoline addresses on the stack are replaced with correct
+			 * original return addresses
+			 */
+			utask->return_instances = ri->next;
 			if (valid)
 				handle_uretprobe_chain(ri, regs);
 			ri = free_ret_instance(ri);
