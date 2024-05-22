@@ -117,7 +117,7 @@
 #define AD3552R_REG_ADDR_CH_INPUT_24B(ch)		(0x4B - (1 - ch) * 3)
 
 /* Useful defines */
-#define AD3552R_NUM_CH					2
+#define AD3552R_MAX_CH					2
 #define AD3552R_MASK_CH(ch)				BIT(ch)
 #define AD3552R_MASK_ALL_CH				GENMASK(1, 0)
 #define AD3552R_MAX_REG_SIZE				3
@@ -279,8 +279,8 @@ struct ad3552r_desc {
 	struct gpio_desc	*gpio_reset;
 	struct gpio_desc	*gpio_ldac;
 	struct spi_device	*spi;
-	struct ad3552r_ch_data	ch_data[AD3552R_NUM_CH];
-	struct iio_chan_spec	channels[AD3552R_NUM_CH + 1];
+	struct ad3552r_ch_data	ch_data[AD3552R_MAX_CH];
+	struct iio_chan_spec	channels[AD3552R_MAX_CH + 1];
 	unsigned long		enabled_ch;
 	unsigned int		num_ch;
 };
@@ -539,7 +539,7 @@ static int32_t ad3552r_trigger_hw_ldac(struct gpio_desc *ldac)
 static int ad3552r_write_all_channels(struct ad3552r_desc *dac, u8 *data)
 {
 	int err, len;
-	u8 addr, buff[AD3552R_NUM_CH * AD3552R_MAX_REG_SIZE + 1];
+	u8 addr, buff[AD3552R_MAX_CH * AD3552R_MAX_REG_SIZE + 1];
 
 	addr = AD3552R_REG_ADDR_CH_INPUT_24B(1);
 	/* CH1 */
@@ -597,7 +597,7 @@ static irqreturn_t ad3552r_trigger_handler(int irq, void *p)
 	struct iio_buffer *buf = indio_dev->buffer;
 	struct ad3552r_desc *dac = iio_priv(indio_dev);
 	/* Maximum size of a scan */
-	u8 buff[AD3552R_NUM_CH * AD3552R_MAX_REG_SIZE];
+	u8 buff[AD3552R_MAX_CH * AD3552R_MAX_REG_SIZE];
 	int err;
 
 	memset(buff, 0, sizeof(buff));
