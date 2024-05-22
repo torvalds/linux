@@ -1981,6 +1981,8 @@ static int validate_page_before_insert(struct page *page)
 {
 	struct folio *folio = page_folio(page);
 
+	if (!folio_ref_count(folio))
+		return -EINVAL;
 	if (folio_test_anon(folio) || folio_test_slab(folio) ||
 	    page_has_type(page))
 		return -EINVAL;
@@ -2035,8 +2037,6 @@ static int insert_page_in_batch_locked(struct vm_area_struct *vma, pte_t *pte,
 {
 	int err;
 
-	if (!page_count(page))
-		return -EINVAL;
 	err = validate_page_before_insert(page);
 	if (err)
 		return err;
@@ -2170,8 +2170,6 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
 {
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return -EFAULT;
-	if (!page_count(page))
-		return -EINVAL;
 	if (!(vma->vm_flags & VM_MIXEDMAP)) {
 		BUG_ON(mmap_read_trylock(vma->vm_mm));
 		BUG_ON(vma->vm_flags & VM_PFNMAP);
