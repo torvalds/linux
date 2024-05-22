@@ -1337,4 +1337,5 @@ static struct platform_driver clk_mt8195_topck_drv = {
 		.of_match_table = of_match_clk_mt8195_topck,
 	},
 };
-builtin_platform_driver(clk_mt8195_topck_drv);
+module_platform_driver(clk_mt8195_topck_drv);
+MODULE_LICENSE("GPL");

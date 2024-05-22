@@ -72,5 +72,5 @@ static struct platform_driver clk_mt2701_eth_drv = {
 		.of_match_table = of_match_clk_mt2701_eth,
 	},
 };
-
-builtin_platform_driver(clk_mt2701_eth_drv);
+module_platform_driver(clk_mt2701_eth_drv);
+MODULE_LICENSE("GPL");

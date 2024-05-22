@@ -874,4 +874,19 @@ static struct platform_driver mtk_mutex_driver = {
 	},
 };
 
-builtin_platform_driver(mtk_mutex_driver);
+static int __init mtk_mutex_init(void)
+{
+	return platform_driver_register(&mtk_mutex_driver);
+}
+
+static void __exit mtk_mutex_exit(void)
+{
+	platform_driver_unregister(&mtk_mutex_driver);
+}
+
+module_init(mtk_mutex_init);
+module_exit(mtk_mutex_exit);
+
+MODULE_AUTHOR("Yongqiang Niu <yongqiang.niu@mediatek.com>");
+MODULE_DESCRIPTION("MediaTek SoC MUTEX driver");
+MODULE_LICENSE("GPL");

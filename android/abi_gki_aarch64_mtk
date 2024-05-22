@@ -589,8 +589,10 @@
   dev_pm_opp_of_remove_table
   dev_pm_opp_put
   dev_pm_opp_put_opp_table
+  dev_pm_opp_register_notifier
   dev_pm_opp_remove_all_dynamic
   dev_pm_opp_set_config
+  dev_pm_opp_unregister_notifier
   dev_pm_qos_add_notifier
   dev_pm_qos_remove_notifier
   dev_pm_qos_update_request
@@ -2517,6 +2519,7 @@
   snd_soc_resume
   snd_soc_rtdcom_lookup
   snd_soc_set_runtime_hwparams
+  snd_soc_suspend
   snd_soc_unregister_component
   snd_vendor_set_ops
   snprintf

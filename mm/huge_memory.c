@@ -1917,6 +1917,146 @@ unlock:
 	return ret;
 }
 
+#ifdef CONFIG_USERFAULTFD
+/*
+ * The PT lock for src_pmd and dst_vma/src_vma (for reading) are locked by
+ * the caller, but it must return after releasing the page_table_lock.
+ * Just move the page from src_pmd to dst_pmd if possible.
+ * Return zero if succeeded in moving the page, -EAGAIN if it needs to be
+ * repeated by the caller, or other errors in case of failure.
+ */
+int move_pages_huge_pmd(struct mm_struct *mm, pmd_t *dst_pmd, pmd_t *src_pmd, pmd_t dst_pmdval,
+			struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma,
+			unsigned long dst_addr, unsigned long src_addr)
+{
+	pmd_t _dst_pmd, src_pmdval;
+	struct page *src_page;
+	struct folio *src_folio;
+	struct anon_vma *src_anon_vma;
+	spinlock_t *src_ptl, *dst_ptl;
+	pgtable_t src_pgtable;
+	struct mmu_notifier_range range;
+	int err = 0;
+
+	src_pmdval = *src_pmd;
+	src_ptl = pmd_lockptr(mm, src_pmd);
+
+	lockdep_assert_held(src_ptl);
+	vma_assert_locked(src_vma);
+	vma_assert_locked(dst_vma);
+
+	/* Sanity checks before the operation */
+	if (WARN_ON_ONCE(!pmd_none(dst_pmdval)) || WARN_ON_ONCE(src_addr & ~HPAGE_PMD_MASK) ||
+	    WARN_ON_ONCE(dst_addr & ~HPAGE_PMD_MASK)) {
+		spin_unlock(src_ptl);
+		return -EINVAL;
+	}
+
+	if (!pmd_trans_huge(src_pmdval)) {
+		spin_unlock(src_ptl);
+		if (is_pmd_migration_entry(src_pmdval)) {
+			pmd_migration_entry_wait(mm, &src_pmdval);
+			return -EAGAIN;
+		}
+		return -ENOENT;
+	}
+
+	src_page = pmd_page(src_pmdval);
+
+	if (!is_huge_zero_pmd(src_pmdval)) {
+		if (unlikely(!PageAnonExclusive(src_page))) {
+			spin_unlock(src_ptl);
+			return -EBUSY;
+		}
+
+		src_folio = page_folio(src_page);
+		folio_get(src_folio);
+	} else
+		src_folio = NULL;
+
+	spin_unlock(src_ptl);
+
+	flush_cache_range(src_vma, src_addr, src_addr + HPAGE_PMD_SIZE);
+	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, src_vma, mm, src_addr,
+				src_addr + HPAGE_PMD_SIZE);
+	mmu_notifier_invalidate_range_start(&range);
+
+	if (src_folio) {
+		folio_lock(src_folio);
+
+		/*
+		 * split_huge_page walks the anon_vma chain without the page
+		 * lock. Serialize against it with the anon_vma lock, the page
+		 * lock is not enough.
+		 */
+		src_anon_vma = folio_get_anon_vma(src_folio);
+		if (!src_anon_vma) {
+			err = -EAGAIN;
+			goto unlock_folio;
+		}
+		anon_vma_lock_write(src_anon_vma);
+	} else
+		src_anon_vma = NULL;
+
+	dst_ptl = pmd_lockptr(mm, dst_pmd);
+	double_pt_lock(src_ptl, dst_ptl);
+	if (unlikely(!pmd_same(*src_pmd, src_pmdval) ||
+		     !pmd_same(*dst_pmd, dst_pmdval))) {
+		err = -EAGAIN;
+		goto unlock_ptls;
+	}
+	if (src_folio) {
+		if (folio_maybe_dma_pinned(src_folio) ||
+		    !PageAnonExclusive(&src_folio->page)) {
+			err = -EBUSY;
+			goto unlock_ptls;
+		}
+
+		if (WARN_ON_ONCE(!folio_test_head(src_folio)) ||
+		    WARN_ON_ONCE(!folio_test_anon(src_folio))) {
+			err = -EBUSY;
+			goto unlock_ptls;
+		}
+
+		src_pmdval = pmdp_huge_clear_flush(src_vma, src_addr, src_pmd);
+		/* Folio got pinned from under us. Put it back and fail the move. */
+		if (folio_maybe_dma_pinned(src_folio)) {
+			set_pmd_at(mm, src_addr, src_pmd, src_pmdval);
+			err = -EBUSY;
+			goto unlock_ptls;
+		}
+
+		page_move_anon_rmap(&src_folio->page, dst_vma);
+		WRITE_ONCE(src_folio->index, linear_page_index(dst_vma, dst_addr));
+
+		_dst_pmd = mk_huge_pmd(&src_folio->page, dst_vma->vm_page_prot);
+		/* Follow mremap() behavior and treat the entry dirty after the move */
+		_dst_pmd = pmd_mkwrite(pmd_mkdirty(_dst_pmd));
+	} else {
+		src_pmdval = pmdp_huge_clear_flush(src_vma, src_addr, src_pmd);
+		_dst_pmd = mk_huge_pmd(src_page, dst_vma->vm_page_prot);
+	}
+	set_pmd_at(mm, dst_addr, dst_pmd, _dst_pmd);
+
+	src_pgtable = pgtable_trans_huge_withdraw(mm, src_pmd);
+	pgtable_trans_huge_deposit(mm, dst_pmd, src_pgtable);
+unlock_ptls:
+	double_pt_unlock(src_ptl, dst_ptl);
+	if (src_anon_vma) {
+		anon_vma_unlock_write(src_anon_vma);
+		put_anon_vma(src_anon_vma);
+	}
+unlock_folio:
+	/* unblock rmap walks */
+	if (src_folio)
+		folio_unlock(src_folio);
+	mmu_notifier_invalidate_range_end(&range);
+	if (src_folio)
+		folio_put(src_folio);
+	return err;
+}
+#endif /* CONFIG_USERFAULTFD */
+
 /*
  * Returns page table lock pointer if a given pmd maps a thp, NULL otherwise.
  *

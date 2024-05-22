@@ -1094,8 +1094,11 @@
   ether_setup
   eth_header_parse
   eth_mac_addr
+  ethnl_cable_test_amplitude
   ethnl_cable_test_fault_length
+  ethnl_cable_test_pulse
   ethnl_cable_test_result
+  ethnl_cable_test_step
   eth_platform_get_mac_address
   eth_prepare_mac_addr_change
   ethtool_convert_legacy_u32_to_link_mode
@@ -1212,10 +1215,12 @@
   genphy_c45_check_and_restart_aneg
   genphy_c45_pma_setup_forced
   genphy_c45_read_status
+  genphy_check_and_restart_aneg
   __genphy_config_aneg
   genphy_read_abilities
   genphy_read_mmd_unsupported
   genphy_read_status
+  genphy_read_status_fixed
   genphy_restart_aneg
   genphy_resume
   genphy_soft_reset
@@ -2197,6 +2202,7 @@
   of_match_device
   of_match_node
   __of_mdiobus_register
+  of_mdio_find_bus
   of_modalias_node
   of_n_addr_cells
   of_node_name_eq
@@ -2337,6 +2343,7 @@
   perf_trace_run_bpf_submit
   phy_attached_info
   phy_calibrate
+  phy_config_aneg
   phy_device_free
   phy_device_register
   phy_do_ioctl_running
@@ -2346,6 +2353,7 @@
   phy_ethtool_get_wol
   phy_ethtool_set_wol
   phy_exit
+  phy_gbit_fibre_features
   phy_init
   phy_init_eee
   phy_init_hw
@@ -2481,6 +2489,10 @@
   power_supply_set_property
   power_supply_unregister
   power_supply_unreg_notifier
+  powercap_register_control_type
+  powercap_register_zone
+  powercap_unregister_control_type
+  powercap_unregister_zone
   ppp_channel_index
   ppp_dev_name
   ppp_input
@@ -3430,6 +3442,8 @@
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
   __traceiter_android_vh_gic_v3_suspend
+  __traceiter_android_vh_hibernate_save_cmp_len
+  __traceiter_android_vh_hibernated_do_mem_alloc
   __traceiter_android_vh_ignore_dmabuf_vmap_bounds
   __traceiter_android_vh_init_aes_encrypt
   __traceiter_android_vh_ipi_stop
@@ -3579,6 +3593,8 @@
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_gic_v3_suspend
+  __tracepoint_android_vh_hibernate_save_cmp_len
+  __tracepoint_android_vh_hibernated_do_mem_alloc
   __tracepoint_android_vh_ignore_dmabuf_vmap_bounds
   __tracepoint_android_vh_init_aes_encrypt
   __tracepoint_android_vh_ipi_stop
@@ -3800,6 +3816,7 @@
   usb_debug_root
   usb_decode_ctrl
   usb_deregister
+  usb_deregister_device_driver
   usb_device_match_id
   usb_disabled
   usb_driver_claim_interface
@@ -3835,6 +3852,7 @@
   usb_put_dev
   usb_put_function_instance
   usb_put_intf
+  usb_register_device_driver
   usb_register_driver
   usb_register_notify
   usb_remove_phy

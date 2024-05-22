@@ -267,6 +267,8 @@
   devm_usb_get_phy
   _dev_notice
   dev_open
+  dev_pm_domain_attach_by_name
+  dev_pm_domain_detach
   dev_pm_opp_clear_config
   dev_pm_opp_disable
   dev_pm_opp_find_freq_ceil
@@ -2334,12 +2336,12 @@
   reserve_iova
 
 # required by rknpu.ko
-  dev_pm_domain_attach_by_name
-  dev_pm_domain_detach
+  alloc_iova
   drm_gem_handle_delete
   drm_gem_mmap_obj
   drm_gem_prime_export
   drm_gem_prime_import_dev
+  free_iova
   of_dma_configure_id
   set_user_nice
   vmf_insert_mixed
