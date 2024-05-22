@@ -41,12 +41,6 @@ struct xe_subplatform_desc {
 	const u16 *pciidlist;
 };
 
-struct xe_gt_desc {
-	enum xe_gt_type type;
-	u32 mmio_adj_limit;
-	u32 mmio_adj_offset;
-};
-
 struct xe_device_desc {
 	/* Should only ever be set for platforms without GMD_ID */
 	const struct xe_graphics_desc *graphics;
