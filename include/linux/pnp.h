@@ -469,6 +469,8 @@ int compare_pnp_id(struct pnp_id *pos, const char *id);
 int pnp_register_driver(struct pnp_driver *drv);
 void pnp_unregister_driver(struct pnp_driver *drv);
 
+#define dev_is_pnp(d) ((d)->bus == &pnp_bus_type)
+
 #else
 
 /* device management */
@@ -499,6 +501,8 @@ static inline int pnp_is_active(struct pnp_dev *dev) { return 0; }
 static inline int compare_pnp_id(struct pnp_id *pos, const char *id) { return -ENODEV; }
 static inline int pnp_register_driver(struct pnp_driver *drv) { return -ENODEV; }
 static inline void pnp_unregister_driver(struct pnp_driver *drv) { }
+
+#define dev_is_pnp(d) false
 
 #endif /* CONFIG_PNP */
 

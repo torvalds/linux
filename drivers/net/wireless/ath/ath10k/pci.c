@@ -721,7 +721,7 @@ bool ath10k_pci_irq_pending(struct ath10k *ar)
 	return false;
 }
 
-void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar)
+void ath10k_pci_disable_and_clear_intx_irq(struct ath10k *ar)
 {
 	/* IMPORTANT: INTR_CLR register has to be set after
 	 * INTR_ENABLE is set to 0, otherwise interrupt can not be
@@ -739,7 +739,7 @@ void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar)
 				PCIE_INTR_ENABLE_ADDRESS);
 }
 
-void ath10k_pci_enable_legacy_irq(struct ath10k *ar)
+void ath10k_pci_enable_intx_irq(struct ath10k *ar)
 {
 	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS +
 			   PCIE_INTR_ENABLE_ADDRESS,
@@ -1935,7 +1935,7 @@ static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
 static void ath10k_pci_irq_disable(struct ath10k *ar)
 {
 	ath10k_ce_disable_interrupts(ar);
-	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_intx_irq(ar);
 	ath10k_pci_irq_msi_fw_mask(ar);
 }
 
@@ -1949,7 +1949,7 @@ static void ath10k_pci_irq_sync(struct ath10k *ar)
 static void ath10k_pci_irq_enable(struct ath10k *ar)
 {
 	ath10k_ce_enable_interrupts(ar);
-	ath10k_pci_enable_legacy_irq(ar);
+	ath10k_pci_enable_intx_irq(ar);
 	ath10k_pci_irq_msi_fw_unmask(ar);
 }
 
@@ -3111,11 +3111,11 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 		return IRQ_NONE;
 	}
 
-	if ((ar_pci->oper_irq_mode == ATH10K_PCI_IRQ_LEGACY) &&
+	if ((ar_pci->oper_irq_mode == ATH10K_PCI_IRQ_INTX) &&
 	    !ath10k_pci_irq_pending(ar))
 		return IRQ_NONE;
 
-	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_intx_irq(ar);
 	ath10k_pci_irq_msi_fw_mask(ar);
 	napi_schedule(&ar->napi);
 
@@ -3152,7 +3152,7 @@ static int ath10k_pci_napi_poll(struct napi_struct *ctx, int budget)
 			napi_schedule(ctx);
 			goto out;
 		}
-		ath10k_pci_enable_legacy_irq(ar);
+		ath10k_pci_enable_intx_irq(ar);
 		ath10k_pci_irq_msi_fw_unmask(ar);
 	}
 
@@ -3177,7 +3177,7 @@ static int ath10k_pci_request_irq_msi(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_pci_request_irq_legacy(struct ath10k *ar)
+static int ath10k_pci_request_irq_intx(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
@@ -3199,8 +3199,8 @@ static int ath10k_pci_request_irq(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	switch (ar_pci->oper_irq_mode) {
-	case ATH10K_PCI_IRQ_LEGACY:
-		return ath10k_pci_request_irq_legacy(ar);
+	case ATH10K_PCI_IRQ_INTX:
+		return ath10k_pci_request_irq_intx(ar);
 	case ATH10K_PCI_IRQ_MSI:
 		return ath10k_pci_request_irq_msi(ar);
 	default:
@@ -3232,7 +3232,7 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 			    ath10k_pci_irq_mode);
 
 	/* Try MSI */
-	if (ath10k_pci_irq_mode != ATH10K_PCI_IRQ_LEGACY) {
+	if (ath10k_pci_irq_mode != ATH10K_PCI_IRQ_INTX) {
 		ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_MSI;
 		ret = pci_enable_msi(ar_pci->pdev);
 		if (ret == 0)
@@ -3250,7 +3250,7 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 	 * For now, fix the race by repeating the write in below
 	 * synchronization checking.
 	 */
-	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_LEGACY;
+	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_INTX;
 
 	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + PCIE_INTR_ENABLE_ADDRESS,
 			   PCIE_INTR_FIRMWARE_MASK | PCIE_INTR_CE_MASK_ALL);
@@ -3258,7 +3258,7 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_pci_deinit_irq_legacy(struct ath10k *ar)
+static void ath10k_pci_deinit_irq_intx(struct ath10k *ar)
 {
 	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + PCIE_INTR_ENABLE_ADDRESS,
 			   0);
@@ -3269,8 +3269,8 @@ static int ath10k_pci_deinit_irq(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	switch (ar_pci->oper_irq_mode) {
-	case ATH10K_PCI_IRQ_LEGACY:
-		ath10k_pci_deinit_irq_legacy(ar);
+	case ATH10K_PCI_IRQ_INTX:
+		ath10k_pci_deinit_irq_intx(ar);
 		break;
 	default:
 		pci_disable_msi(ar_pci->pdev);
@@ -3307,14 +3307,14 @@ int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 		if (val & FW_IND_INITIALIZED)
 			break;
 
-		if (ar_pci->oper_irq_mode == ATH10K_PCI_IRQ_LEGACY)
+		if (ar_pci->oper_irq_mode == ATH10K_PCI_IRQ_INTX)
 			/* Fix potential race by repeating CORE_BASE writes */
-			ath10k_pci_enable_legacy_irq(ar);
+			ath10k_pci_enable_intx_irq(ar);
 
 		mdelay(10);
 	} while (time_before(jiffies, timeout));
 
-	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_intx_irq(ar);
 	ath10k_pci_irq_msi_fw_mask(ar);
 
 	if (val == 0xffffffff) {

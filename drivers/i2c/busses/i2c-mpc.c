@@ -304,13 +304,12 @@ static void mpc_i2c_setup_512x(struct device_node *node,
 					 struct mpc_i2c *i2c,
 					 u32 clock)
 {
-	struct device_node *node_ctrl;
 	void __iomem *ctrl;
 	u32 idx;
 
 	/* Enable I2C interrupts for mpc5121 */
-	node_ctrl = of_find_compatible_node(NULL, NULL,
-					    "fsl,mpc5121-i2c-ctrl");
+	struct device_node *node_ctrl __free(device_node) =
+		of_find_compatible_node(NULL, NULL, "fsl,mpc5121-i2c-ctrl");
 	if (node_ctrl) {
 		ctrl = of_iomap(node_ctrl, 0);
 		if (ctrl) {
@@ -321,7 +320,6 @@ static void mpc_i2c_setup_512x(struct device_node *node,
 			setbits32(ctrl, 1 << (24 + idx * 2));
 			iounmap(ctrl);
 		}
-		of_node_put(node_ctrl);
 	}
 
 	/* The clock setup for the 52xx works also fine for the 512x */
@@ -358,11 +356,11 @@ static const struct mpc_i2c_divider mpc_i2c_dividers_8xxx[] = {
 
 static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 {
-	struct device_node *node;
 	u32 __iomem *reg;
 	u32 val = 0;
 
-	node = of_find_node_by_name(NULL, "global-utilities");
+	struct device_node *node __free(device_node) =
+		of_find_node_by_name(NULL, "global-utilities");
 	if (node) {
 		const u32 *prop = of_get_property(node, "reg", NULL);
 		if (prop) {
@@ -383,7 +381,6 @@ static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 			iounmap(reg);
 		}
 	}
-	of_node_put(node);
 
 	return val;
 }

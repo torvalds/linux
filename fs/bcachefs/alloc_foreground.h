@@ -30,8 +30,14 @@ void bch2_dev_stripe_increment(struct bch_dev *, struct dev_stripe_state *);
 
 long bch2_bucket_alloc_new_fs(struct bch_dev *);
 
+static inline struct bch_dev *ob_dev(struct bch_fs *c, struct open_bucket *ob)
+{
+	return bch2_dev_have_ref(c, ob->dev);
+}
+
 struct open_bucket *bch2_bucket_alloc(struct bch_fs *, struct bch_dev *,
-				      enum bch_watermark, struct closure *);
+				      enum bch_watermark, enum bch_data_type,
+				      struct closure *);
 
 static inline void ob_push(struct bch_fs *c, struct open_buckets *obs,
 			   struct open_bucket *ob)
@@ -184,7 +190,7 @@ bch2_alloc_sectors_append_ptrs_inlined(struct bch_fs *c, struct write_point *wp,
 	wp->sectors_allocated	+= sectors;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+		struct bch_dev *ca = ob_dev(c, ob);
 		struct bch_extent_ptr ptr = bch2_ob_ptr(c, ob);
 
 		ptr.cached = cached ||
@@ -220,5 +226,10 @@ void bch2_open_buckets_to_text(struct printbuf *, struct bch_fs *);
 void bch2_open_buckets_partial_to_text(struct printbuf *, struct bch_fs *);
 
 void bch2_write_points_to_text(struct printbuf *, struct bch_fs *);
+
+void bch2_fs_alloc_debug_to_text(struct printbuf *, struct bch_fs *);
+void bch2_dev_alloc_debug_to_text(struct printbuf *, struct bch_dev *);
+
+void bch2_print_allocator_stuck(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_FOREGROUND_H */

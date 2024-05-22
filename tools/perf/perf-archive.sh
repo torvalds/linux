@@ -34,7 +34,7 @@ if [ $UNPACK -eq 1 ]; then
 		TARGET=`find . -regex "\./perf.*\.tar\.bz2"`
 		TARGET_NUM=`echo -n "$TARGET" | grep -c '^'`
 
-		if [ -z "$TARGET" -o $TARGET_NUM -gt 1 ]; then
+		if [ -z "$TARGET" ] || [ $TARGET_NUM -gt 1 ]; then
 			echo -e "Error: $TARGET_NUM files found for unpacking:\n$TARGET"
 			echo "Provide the requested file as an argument"
 			exit 1

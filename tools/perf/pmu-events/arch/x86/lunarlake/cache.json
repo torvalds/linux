@@ -31,7 +31,7 @@
         "EventCode": "0x2e",
         "EventName": "LONGEST_LAT_CACHE.REFERENCE",
         "PublicDescription": "Counts the number of cacheable memory requests that access the Last Level Cache (LLC). Requests include demand loads, reads for ownership (RFO), instruction fetches and L1 HW prefetches. If the platform has an L3 cache, the LLC is the L3 cache, otherwise it is the L2 cache. Counts on a per core basis.",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x4f",
         "Unit": "cpu_atom"
     },
@@ -94,7 +94,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x400",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -106,7 +106,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x80",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -118,7 +118,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x10",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -130,7 +130,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x800",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -142,7 +142,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x100",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -154,7 +154,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x20",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -166,7 +166,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x4",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -178,7 +178,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x200",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -190,7 +190,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x40",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -202,7 +202,7 @@
         "MSRIndex": "0x3F6",
         "MSRValue": "0x8",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
@@ -212,7 +212,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.STORE_LATENCY",
         "PEBS": "2",
-        "SampleAfterValue": "1000003",
+        "SampleAfterValue": "200003",
         "UMask": "0x6",
         "Unit": "cpu_atom"
     }

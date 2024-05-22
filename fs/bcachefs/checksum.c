@@ -469,9 +469,8 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 
 /* BCH_SB_FIELD_crypt: */
 
-static int bch2_sb_crypt_validate(struct bch_sb *sb,
-				  struct bch_sb_field *f,
-				  struct printbuf *err)
+static int bch2_sb_crypt_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				  enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
 
@@ -494,14 +493,10 @@ static void bch2_sb_crypt_to_text(struct printbuf *out, struct bch_sb *sb,
 {
 	struct bch_sb_field_crypt *crypt = field_to_type(f, crypt);
 
-	prt_printf(out, "KFD:               %llu", BCH_CRYPT_KDF_TYPE(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt n:          %llu", BCH_KDF_SCRYPT_N(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt r:          %llu", BCH_KDF_SCRYPT_R(crypt));
-	prt_newline(out);
-	prt_printf(out, "scrypt p:          %llu", BCH_KDF_SCRYPT_P(crypt));
-	prt_newline(out);
+	prt_printf(out, "KFD:               %llu\n", BCH_CRYPT_KDF_TYPE(crypt));
+	prt_printf(out, "scrypt n:          %llu\n", BCH_KDF_SCRYPT_N(crypt));
+	prt_printf(out, "scrypt r:          %llu\n", BCH_KDF_SCRYPT_R(crypt));
+	prt_printf(out, "scrypt p:          %llu\n", BCH_KDF_SCRYPT_P(crypt));
 }
 
 const struct bch_sb_field_ops bch_sb_field_ops_crypt = {

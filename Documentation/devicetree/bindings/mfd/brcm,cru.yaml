@@ -34,19 +34,19 @@ properties:
 
 patternProperties:
   '^clock-controller@[a-f0-9]+$':
-    $ref: ../clock/brcm,iproc-clocks.yaml
+    $ref: /schemas/clock/brcm,iproc-clocks.yaml
 
   '^phy@[a-f0-9]+$':
-    $ref: ../phy/bcm-ns-usb2-phy.yaml
+    $ref: /schemas/phy/bcm-ns-usb2-phy.yaml
 
   '^pinctrl@[a-f0-9]+$':
-    $ref: ../pinctrl/brcm,ns-pinmux.yaml
+    $ref: /schemas/pinctrl/brcm,ns-pinmux.yaml
 
   '^syscon@[a-f0-9]+$':
     $ref: syscon.yaml
 
   '^thermal@[a-f0-9]+$':
-    $ref: ../thermal/brcm,ns-thermal.yaml
+    $ref: /schemas/thermal/brcm,ns-thermal.yaml
 
 additionalProperties: false
 

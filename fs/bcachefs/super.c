@@ -264,7 +264,6 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	bch2_open_buckets_stop(c, NULL, true);
 	bch2_rebalance_stop(c);
 	bch2_copygc_stop(c);
-	bch2_gc_thread_stop(c);
 	bch2_fs_ec_flush(c);
 
 	bch_verbose(c, "flushing journal and stopping allocators, journal seq %llu",
@@ -285,7 +284,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	bch_verbose(c, "flushing journal and stopping allocators complete, journal seq %llu",
 		    journal_cur_seq(&c->journal));
 
-	if (test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags) &&
+	if (test_bit(JOURNAL_replay_done, &c->journal.flags) &&
 	    !test_bit(BCH_FS_emergency_ro, &c->flags))
 		set_bit(BCH_FS_clean_shutdown, &c->flags);
 
@@ -467,7 +466,8 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	 * overwriting whatever was there previously, and there must always be
 	 * at least one non-flush write in the journal or recovery will fail:
 	 */
-	set_bit(JOURNAL_NEED_FLUSH_WRITE, &c->journal.flags);
+	set_bit(JOURNAL_need_flush_write, &c->journal.flags);
+	set_bit(JOURNAL_running, &c->journal.flags);
 
 	for_each_rw_member(c, ca)
 		bch2_dev_allocator_add(c, ca);
@@ -484,12 +484,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		atomic_long_inc(&c->writes[i]);
 	}
 #endif
-
-	ret = bch2_gc_thread_start(c);
-	if (ret) {
-		bch_err(c, "error starting gc thread");
-		return ret;
-	}
 
 	ret = bch2_journal_reclaim_start(&c->journal);
 	if (ret)
@@ -537,9 +531,7 @@ int bch2_fs_read_write_early(struct bch_fs *c)
 
 static void __bch2_fs_free(struct bch_fs *c)
 {
-	unsigned i;
-
-	for (i = 0; i < BCH_TIME_STAT_NR; i++)
+	for (unsigned i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_exit(&c->times[i]);
 
 	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
@@ -572,6 +564,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	BUG_ON(atomic_read(&c->journal_keys.ref));
 	bch2_fs_btree_write_buffer_exit(c);
 	percpu_free_rwsem(&c->mark_lock);
+	EBUG_ON(percpu_u64_get(c->online_reserved));
 	free_percpu(c->online_reserved);
 
 	darray_exit(&c->btree_roots_extra);
@@ -615,8 +608,6 @@ void __bch2_fs_stop(struct bch_fs *c)
 	bch_verbose(c, "shutting down");
 
 	set_bit(BCH_FS_stopping, &c->flags);
-
-	cancel_work_sync(&c->journal_seq_blacklist_gc_work);
 
 	down_write(&c->state_lock);
 	bch2_fs_read_only(c);
@@ -665,6 +656,7 @@ void bch2_fs_free(struct bch_fs *c)
 		struct bch_dev *ca = rcu_dereference_protected(c->devs[i], true);
 
 		if (ca) {
+			EBUG_ON(atomic_long_read(&ca->ref) != 1);
 			bch2_free_super(&ca->disk_sb);
 			bch2_dev_free(ca);
 		}
@@ -719,7 +711,7 @@ static int bch2_fs_online(struct bch_fs *c)
 		ret = bch2_dev_sysfs_online(c, ca);
 		if (ret) {
 			bch_err(c, "error creating sysfs objects");
-			percpu_ref_put(&ca->ref);
+			bch2_dev_put(ca);
 			goto err;
 		}
 	}
@@ -778,6 +770,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);
 
+	bch2_fs_gc_init(c);
 	bch2_fs_copygc_init(c);
 	bch2_fs_btree_key_cache_init_early(&c->btree_key_cache);
 	bch2_fs_btree_iter_init_early(c);
@@ -800,15 +793,10 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	spin_lock_init(&c->btree_write_error_lock);
 
-	INIT_WORK(&c->journal_seq_blacklist_gc_work,
-		  bch2_blacklist_entries_gc);
-
 	INIT_LIST_HEAD(&c->journal_iters);
 
 	INIT_LIST_HEAD(&c->fsck_error_msgs);
 	mutex_init(&c->fsck_error_msgs_lock);
-
-	seqcount_init(&c->gc_pos_lock);
 
 	seqcount_init(&c->usage_lock);
 
@@ -940,7 +928,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		goto err;
 
 	for (i = 0; i < c->sb.nr_devices; i++)
-		if (bch2_dev_exists(c->disk_sb.sb, i) &&
+		if (bch2_member_exists(c->disk_sb.sb, i) &&
 		    bch2_dev_alloc(c, i)) {
 			ret = -EEXIST;
 			goto err;
@@ -1101,7 +1089,7 @@ static int bch2_dev_in_fs(struct bch_sb_handle *fs,
 	if (!uuid_equal(&fs->sb->uuid, &sb->sb->uuid))
 		return -BCH_ERR_device_not_a_member_of_filesystem;
 
-	if (!bch2_dev_exists(fs->sb, sb->sb->dev_idx))
+	if (!bch2_member_exists(fs->sb, sb->sb->dev_idx))
 		return -BCH_ERR_device_has_been_removed;
 
 	if (fs->sb->block_size != sb->sb->block_size)
@@ -1200,11 +1188,11 @@ static void bch2_dev_free(struct bch_dev *ca)
 	if (ca->kobj.state_in_sysfs)
 		kobject_del(&ca->kobj);
 
+	kfree(ca->buckets_nouse);
 	bch2_free_super(&ca->disk_sb);
 	bch2_dev_journal_exit(ca);
 
 	free_percpu(ca->io_done);
-	bioset_exit(&ca->replica_set);
 	bch2_dev_buckets_free(ca);
 	free_page((unsigned long) ca->sb_read_scratch);
 
@@ -1212,7 +1200,9 @@ static void bch2_dev_free(struct bch_dev *ca)
 	bch2_time_stats_quantiles_exit(&ca->io_latency[READ]);
 
 	percpu_ref_exit(&ca->io_ref);
+#ifndef CONFIG_BCACHEFS_DEBUG
 	percpu_ref_exit(&ca->ref);
+#endif
 	kobject_put(&ca->kobj);
 }
 
@@ -1239,12 +1229,14 @@ static void __bch2_dev_offline(struct bch_fs *c, struct bch_dev *ca)
 	bch2_dev_journal_exit(ca);
 }
 
+#ifndef CONFIG_BCACHEFS_DEBUG
 static void bch2_dev_ref_complete(struct percpu_ref *ref)
 {
 	struct bch_dev *ca = container_of(ref, struct bch_dev, ref);
 
 	complete(&ca->ref_completion);
 }
+#endif
 
 static void bch2_dev_io_ref_complete(struct percpu_ref *ref)
 {
@@ -1313,14 +1305,17 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 	ca->nr_btree_reserve = DIV_ROUND_UP(BTREE_NODE_RESERVE,
 			     ca->mi.bucket_size / btree_sectors(c));
 
-	if (percpu_ref_init(&ca->ref, bch2_dev_ref_complete,
-			    0, GFP_KERNEL) ||
-	    percpu_ref_init(&ca->io_ref, bch2_dev_io_ref_complete,
+#ifndef CONFIG_BCACHEFS_DEBUG
+	if (percpu_ref_init(&ca->ref, bch2_dev_ref_complete, 0, GFP_KERNEL))
+		goto err;
+#else
+	atomic_long_set(&ca->ref, 1);
+#endif
+
+	if (percpu_ref_init(&ca->io_ref, bch2_dev_io_ref_complete,
 			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
 	    !(ca->sb_read_scratch = (void *) __get_free_page(GFP_KERNEL)) ||
 	    bch2_dev_buckets_alloc(c, ca) ||
-	    bioset_init(&ca->replica_set, 4,
-			offsetof(struct bch_write_bio, bio), 0) ||
 	    !(ca->io_done	= alloc_percpu(*ca->io_done)))
 		goto err;
 
@@ -1411,10 +1406,9 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 	    le64_to_cpu(c->disk_sb.sb->seq))
 		bch2_sb_to_fs(c, sb->sb);
 
-	BUG_ON(sb->sb->dev_idx >= c->sb.nr_devices ||
-	       !c->devs[sb->sb->dev_idx]);
+	BUG_ON(!bch2_dev_exists(c, sb->sb->dev_idx));
 
-	ca = bch_dev_locked(c, sb->sb->dev_idx);
+	ca = bch2_dev_locked(c, sb->sb->dev_idx);
 
 	ret = __bch2_dev_attach_bdev(ca, sb);
 	if (ret)
@@ -1506,10 +1500,10 @@ static bool bch2_fs_may_start(struct bch_fs *c)
 		mutex_lock(&c->sb_lock);
 
 		for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
-			if (!bch2_dev_exists(c->disk_sb.sb, i))
+			if (!bch2_member_exists(c->disk_sb.sb, i))
 				continue;
 
-			ca = bch_dev_locked(c, i);
+			ca = bch2_dev_locked(c, i);
 
 			if (!bch2_dev_is_online(ca) &&
 			    (ca->mi.state == BCH_MEMBER_STATE_rw ||
@@ -1599,17 +1593,17 @@ static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 	 * with bch2_do_invalidates() and bch2_do_discards()
 	 */
 	ret =   bch2_btree_delete_range(c, BTREE_ID_lru, start, end,
-					BTREE_TRIGGER_NORUN, NULL) ?:
+					BTREE_TRIGGER_norun, NULL) ?:
 		bch2_btree_delete_range(c, BTREE_ID_need_discard, start, end,
-					BTREE_TRIGGER_NORUN, NULL) ?:
+					BTREE_TRIGGER_norun, NULL) ?:
 		bch2_btree_delete_range(c, BTREE_ID_freespace, start, end,
-					BTREE_TRIGGER_NORUN, NULL) ?:
+					BTREE_TRIGGER_norun, NULL) ?:
 		bch2_btree_delete_range(c, BTREE_ID_backpointers, start, end,
-					BTREE_TRIGGER_NORUN, NULL) ?:
+					BTREE_TRIGGER_norun, NULL) ?:
 		bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
-					BTREE_TRIGGER_NORUN, NULL) ?:
+					BTREE_TRIGGER_norun, NULL) ?:
 		bch2_btree_delete_range(c, BTREE_ID_bucket_gens, start, end,
-					BTREE_TRIGGER_NORUN, NULL);
+					BTREE_TRIGGER_norun, NULL);
 	bch_err_msg(c, ret, "removing dev alloc info");
 	return ret;
 }
@@ -1626,7 +1620,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	 * We consume a reference to ca->ref, regardless of whether we succeed
 	 * or fail:
 	 */
-	percpu_ref_put(&ca->ref);
+	bch2_dev_put(ca);
 
 	if (!bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_failed, flags)) {
 		bch_err(ca, "Cannot remove without losing data");
@@ -1678,7 +1672,12 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	rcu_assign_pointer(c->devs[ca->dev_idx], NULL);
 	mutex_unlock(&c->sb_lock);
 
+#ifndef CONFIG_BCACHEFS_DEBUG
 	percpu_ref_kill(&ca->ref);
+#else
+	ca->dying = true;
+	bch2_dev_put(ca);
+#endif
 	wait_for_completion(&ca->ref_completion);
 
 	bch2_dev_free(ca);
@@ -1777,9 +1776,28 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (dynamic_fault("bcachefs:add:no_slot"))
 		goto no_slot;
 
-	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++)
-		if (!bch2_dev_exists(c->disk_sb.sb, dev_idx))
-			goto have_slot;
+	if (c->sb.nr_devices < BCH_SB_MEMBERS_MAX) {
+		dev_idx = c->sb.nr_devices;
+		goto have_slot;
+	}
+
+	int best = -1;
+	u64 best_last_mount = 0;
+	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++) {
+		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, dev_idx);
+		if (bch2_member_alive(&m))
+			continue;
+
+		u64 last_mount = le64_to_cpu(m.last_mount);
+		if (best < 0 || last_mount < best_last_mount) {
+			best = dev_idx;
+			best_last_mount = last_mount;
+		}
+	}
+	if (best >= 0) {
+		dev_idx = best;
+		goto have_slot;
+	}
 no_slot:
 	ret = -BCH_ERR_ENOSPC_sb_members;
 	bch_err_msg(c, ret, "setting up new superblock");
@@ -1821,7 +1839,7 @@ have_slot:
 
 	bch2_dev_usage_journal_reserve(c);
 
-	ret = bch2_trans_mark_dev_sb(c, ca);
+	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_transactional);
 	bch_err_msg(ca, ret, "marking new superblock");
 	if (ret)
 		goto err_late;
@@ -1884,9 +1902,9 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	if (ret)
 		goto err;
 
-	ca = bch_dev_locked(c, dev_idx);
+	ca = bch2_dev_locked(c, dev_idx);
 
-	ret = bch2_trans_mark_dev_sb(c, ca);
+	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_transactional);
 	bch_err_msg(c, ret, "bringing %s online: error from bch2_trans_mark_dev_sb", path);
 	if (ret)
 		goto err;
@@ -1979,7 +1997,7 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	if (ret)
 		goto err;
 
-	ret = bch2_trans_mark_dev_sb(c, ca);
+	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_transactional);
 	if (ret)
 		goto err;
 

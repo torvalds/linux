@@ -81,7 +81,7 @@ properties:
       - pwms
 
   regulators:
-    $ref: ../regulator/maxim,max77693.yaml
+    $ref: /schemas/regulator/maxim,max77693.yaml
     description:
       List of child nodes that specify the regulators.
 
