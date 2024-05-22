@@ -164,12 +164,7 @@ fn main() {
         ts.push("llvm-target", "x86_64-linux-gnu");
         ts.push("target-pointer-width", "64");
     } else if cfg.has("LOONGARCH") {
-        ts.push("arch", "loongarch64");
-        ts.push("data-layout", "e-m:e-p:64:64-i64:64-i128:128-n64-S128");
-        ts.push("features", "-f,-d");
-        ts.push("llvm-target", "loongarch64-linux-gnusf");
-        ts.push("llvm-abiname", "lp64s");
-        ts.push("target-pointer-width", "64");
+        panic!("loongarch uses the builtin rustc loongarch64-unknown-none-softfloat target");
     } else {
         panic!("Unsupported architecture");
     }
