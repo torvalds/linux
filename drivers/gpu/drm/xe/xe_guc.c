@@ -241,7 +241,7 @@ static void guc_write_params(struct xe_guc *guc)
 		xe_mmio_write32(gt, SOFT_SCRATCH(1 + i), guc->params[i]);
 }
 
-static void guc_fini(struct drm_device *drm, void *arg)
+static void guc_fini(void *arg)
 {
 	struct xe_guc *guc = arg;
 	struct xe_gt *gt = guc_to_gt(guc);
@@ -349,7 +349,7 @@ int xe_guc_init(struct xe_guc *guc)
 	if (ret)
 		goto out;
 
-	ret = drmm_add_action_or_reset(&xe->drm, guc_fini, guc);
+	ret = devm_add_action_or_reset(xe->drm.dev, guc_fini, guc);
 	if (ret)
 		goto out;
 
