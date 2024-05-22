@@ -1023,30 +1023,3 @@ void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p)
 	xe_guc_ct_print(&guc->ct, p, false);
 	xe_guc_submit_print(guc, p);
 }
-
-/**
- * xe_guc_in_reset() - Detect if GuC MIA is in reset.
- * @guc: The GuC object
- *
- * This function detects runtime resume from d3cold by leveraging
- * GUC_STATUS, GUC doesn't get reset during d3hot,
- * it strictly to be called from RPM resume handler.
- *
- * Return: true if failed to get forcewake or GuC MIA is in Reset,
- * otherwise false.
- */
-bool xe_guc_in_reset(struct xe_guc *guc)
-{
-	struct xe_gt *gt = guc_to_gt(guc);
-	u32 status;
-	int err;
-
-	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (err)
-		return true;
-
-	status = xe_mmio_read32(gt, GUC_STATUS);
-	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
-
-	return  status & GS_MIA_IN_RESET;
-}
