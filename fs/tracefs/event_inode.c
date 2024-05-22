@@ -250,49 +250,9 @@ static void update_events_attr(struct eventfs_inode *ei, struct super_block *sb)
 		ei->attr.gid = parent->i_gid;
 }
 
-static void set_top_events_ownership(struct inode *inode)
-{
-	struct tracefs_inode *ti = get_tracefs(inode);
-	struct eventfs_inode *ei = ti->private;
-
-	/* The top events directory doesn't get automatically updated */
-	if (!ei || !ei->is_events)
-		return;
-
-	update_events_attr(ei, inode->i_sb);
-
-	if (!(ei->attr.mode & EVENTFS_SAVE_UID))
-		inode->i_uid = ei->attr.uid;
-
-	if (!(ei->attr.mode & EVENTFS_SAVE_GID))
-		inode->i_gid = ei->attr.gid;
-}
-
-static int eventfs_get_attr(struct mnt_idmap *idmap,
-			    const struct path *path, struct kstat *stat,
-			    u32 request_mask, unsigned int flags)
-{
-	struct dentry *dentry = path->dentry;
-	struct inode *inode = d_backing_inode(dentry);
-
-	set_top_events_ownership(inode);
-
-	generic_fillattr(idmap, request_mask, inode, stat);
-	return 0;
-}
-
-static int eventfs_permission(struct mnt_idmap *idmap,
-			      struct inode *inode, int mask)
-{
-	set_top_events_ownership(inode);
-	return generic_permission(idmap, inode, mask);
-}
-
 static const struct inode_operations eventfs_dir_inode_operations = {
 	.lookup		= eventfs_root_lookup,
 	.setattr	= eventfs_set_attr,
-	.getattr	= eventfs_get_attr,
-	.permission	= eventfs_permission,
 };
 
 static const struct inode_operations eventfs_file_inode_operations = {
