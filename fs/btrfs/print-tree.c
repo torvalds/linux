@@ -109,7 +109,7 @@ static void print_extent_item(const struct extent_buffer *eb, int slot, int type
 		btrfs_err(eb->fs_info,
 			  "unexpected extent item size, has %u expect >= %zu",
 			  item_size, sizeof(*ei));
-		btrfs_handle_fs_error(eb->fs_info, -EUCLEAN, NULL);
+		return;
 	}
 
 	ei = btrfs_item_ptr(eb, slot, struct btrfs_extent_item);
