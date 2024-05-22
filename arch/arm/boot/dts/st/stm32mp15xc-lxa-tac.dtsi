@@ -379,11 +379,6 @@ baseboard_eeprom: &sip_eeprom {
 	};
 };
 
-&pwr_regulators {
-	vdd-supply = <&vdd>;
-	vdd_3v3_usbfs-supply = <&vdd_usb>;
-};
-
 &rtc {
 	status = "okay";
 };

@@ -215,6 +215,11 @@
 	status = "okay";
 };
 
+&pwr_regulators {
+	vdd-supply = <&vdd>;
+	vdd_3v3_usbfs-supply = <&vdd_usb>;
+};
+
 &usbphyc_port0 {
 	phy-supply = <&vdd_usb>;
 };
