@@ -422,7 +422,7 @@ __aqua_vanjaram_get_auto_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 
 	if (adev->gmc.num_mem_partitions == num_xcc / 2)
 		return (adev->flags & AMD_IS_APU) ? AMDGPU_TPX_PARTITION_MODE :
-						    AMDGPU_QPX_PARTITION_MODE;
+						    AMDGPU_CPX_PARTITION_MODE;
 
 	if (adev->gmc.num_mem_partitions == 2 && !(adev->flags & AMD_IS_APU))
 		return AMDGPU_DPX_PARTITION_MODE;
