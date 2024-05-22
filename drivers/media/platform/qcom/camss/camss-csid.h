@@ -157,6 +157,7 @@ struct csid_hw_ops {
 struct csid_subdev_resources {
 	bool is_lite;
 	const struct csid_hw_ops *hw_ops;
+	const struct parent_dev_ops *parent_dev_ops;
 	const struct csid_formats *formats;
 };
 
