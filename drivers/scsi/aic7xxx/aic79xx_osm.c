@@ -731,7 +731,7 @@ ahd_linux_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 
 	ahd = *((struct ahd_softc **)sdev->host->hostdata);
 
-	if (scsi_partsize(bdev, capacity, geom))
+	if (scsi_partsize(bdev->bd_disk, capacity, geom))
 		return 0;
 
 	heads = 64;

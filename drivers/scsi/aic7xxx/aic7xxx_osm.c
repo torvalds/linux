@@ -696,7 +696,7 @@ ahc_linux_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 	ahc = *((struct ahc_softc **)sdev->host->hostdata);
 	channel = sdev_channel(sdev);
 
-	if (scsi_partsize(bdev, capacity, geom))
+	if (scsi_partsize(bdev->bd_disk, capacity, geom))
 		return 0;
 
 	heads = 64;

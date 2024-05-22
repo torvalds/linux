@@ -381,7 +381,7 @@ static int arcmsr_bios_param(struct scsi_device *sdev,
 {
 	int heads, sectors, cylinders, total_capacity;
 
-	if (scsi_partsize(bdev, capacity, geom))
+	if (scsi_partsize(bdev->bd_disk, capacity, geom))
 		return 0;
 
 	total_capacity = capacity;

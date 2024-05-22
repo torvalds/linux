@@ -2813,7 +2813,7 @@ megaraid_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 			geom[2] = cylinders;
 	}
 	else {
-		if (scsi_partsize(bdev, capacity, geom))
+		if (scsi_partsize(bdev->bd_disk, capacity, geom))
 			return 0;
 
 		dev_info(&adapter->dev->dev,

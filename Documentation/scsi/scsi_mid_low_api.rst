@@ -380,7 +380,7 @@ Details::
 
     /**
     * scsi_bios_ptable - return copy of block device's partition table
-    * @dev:        pointer to block device
+    * @dev:        pointer to gendisk
     *
     *      Returns pointer to partition table, or NULL for failure
     *
@@ -390,7 +390,7 @@ Details::
     *
     *      Defined in: drivers/scsi/scsicam.c
     **/
-    unsigned char *scsi_bios_ptable(struct block_device *dev)
+    unsigned char *scsi_bios_ptable(struct gendisk *dev)
 
 
     /**

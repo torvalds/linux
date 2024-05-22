@@ -472,7 +472,7 @@ static int fdomain_biosparam(struct scsi_device *sdev,
 			     struct block_device *bdev,	sector_t capacity,
 			     int geom[])
 {
-	unsigned char *p = scsi_bios_ptable(bdev);
+	unsigned char *p = scsi_bios_ptable(bdev->bd_disk);
 
 	if (p && p[65] == 0xaa && p[64] == 0x55 /* Partition table valid */
 	    && p[4]) {	 /* Partition type */
