@@ -3909,10 +3909,6 @@ static int sev_snp_ap_creation(struct vcpu_svm *svm)
 out:
 	if (kick) {
 		kvm_make_request(KVM_REQ_UPDATE_PROTECTED_GUEST_STATE, target_vcpu);
-
-		if (target_vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)
-			kvm_make_request(KVM_REQ_UNBLOCK, target_vcpu);
-
 		kvm_vcpu_kick(target_vcpu);
 	}
 
@@ -4476,16 +4472,6 @@ struct page *snp_safe_alloc_page(struct kvm_vcpu *vcpu)
 		__free_page(p + 1);
 
 	return p;
-}
-
-void sev_vcpu_unblocking(struct kvm_vcpu *vcpu)
-{
-	if (!sev_snp_guest(vcpu->kvm))
-		return;
-
-	if (kvm_test_request(KVM_REQ_UPDATE_PROTECTED_GUEST_STATE, vcpu) &&
-	    vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)
-		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 }
 
 void sev_handle_rmp_fault(struct kvm_vcpu *vcpu, gpa_t gpa, u64 error_code)
