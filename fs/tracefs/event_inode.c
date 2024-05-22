@@ -37,7 +37,6 @@ static DEFINE_MUTEX(eventfs_mutex);
 
 struct eventfs_root_inode {
 	struct eventfs_inode		ei;
-	struct inode			*parent_inode;
 	struct dentry			*events_dir;
 };
 
@@ -229,27 +228,6 @@ static int eventfs_set_attr(struct mnt_idmap *idmap, struct dentry *dentry,
 	return ret;
 }
 
-static void update_events_attr(struct eventfs_inode *ei, struct super_block *sb)
-{
-	struct eventfs_root_inode *rei;
-	struct inode *parent;
-
-	rei = get_root_inode(ei);
-
-	/* Use the parent inode permissions unless root set its permissions */
-	parent = rei->parent_inode;
-
-	if (rei->ei.attr.mode & EVENTFS_SAVE_UID)
-		ei->attr.uid = rei->ei.attr.uid;
-	else
-		ei->attr.uid = parent->i_uid;
-
-	if (rei->ei.attr.mode & EVENTFS_SAVE_GID)
-		ei->attr.gid = rei->ei.attr.gid;
-	else
-		ei->attr.gid = parent->i_gid;
-}
-
 static const struct inode_operations eventfs_dir_inode_operations = {
 	.lookup		= eventfs_root_lookup,
 	.setattr	= eventfs_set_attr,
@@ -321,60 +299,30 @@ void eventfs_remount(struct tracefs_inode *ti, bool update_uid, bool update_gid)
 			  update_gid, ti->vfs_inode.i_gid, 0);
 }
 
-/* Return the evenfs_inode of the "events" directory */
-static struct eventfs_inode *eventfs_find_events(struct dentry *dentry)
+static void update_inode_attr(struct inode *inode, umode_t mode,
+			      struct eventfs_attr *attr, struct eventfs_root_inode *rei)
 {
-	struct eventfs_inode *ei;
-
-	do {
-		// The parent is stable because we do not do renames
-		dentry = dentry->d_parent;
-		// ... and directories always have d_fsdata
-		ei = dentry->d_fsdata;
-
-		/*
-		 * If the ei is being freed, the ownership of the children
-		 * doesn't matter.
-		 */
-		if (ei->is_freed)
-			return NULL;
-
-		// Walk upwards until you find the events inode
-	} while (!ei->is_events);
-
-	update_events_attr(ei, dentry->d_sb);
-
-	return ei;
-}
-
-static void update_inode_attr(struct dentry *dentry, struct inode *inode,
-			      struct eventfs_attr *attr, umode_t mode)
-{
-	struct eventfs_inode *events_ei = eventfs_find_events(dentry);
-
-	if (!events_ei)
-		return;
-
-	inode->i_mode = mode;
-	inode->i_uid = events_ei->attr.uid;
-	inode->i_gid = events_ei->attr.gid;
-
-	if (!attr)
-		return;
-
-	if (attr->mode & EVENTFS_SAVE_MODE)
+	if (attr && attr->mode & EVENTFS_SAVE_MODE)
 		inode->i_mode = attr->mode & EVENTFS_MODE_MASK;
+	else
+		inode->i_mode = mode;
 
-	if (attr->mode & EVENTFS_SAVE_UID)
+	if (attr && attr->mode & EVENTFS_SAVE_UID)
 		inode->i_uid = attr->uid;
+	else
+		inode->i_uid = rei->ei.attr.uid;
 
-	if (attr->mode & EVENTFS_SAVE_GID)
+	if (attr && attr->mode & EVENTFS_SAVE_GID)
 		inode->i_gid = attr->gid;
+	else
+		inode->i_gid = rei->ei.attr.gid;
 }
 
 static struct inode *eventfs_get_inode(struct dentry *dentry, struct eventfs_attr *attr,
 				       umode_t mode,  struct eventfs_inode *ei)
 {
+	struct eventfs_root_inode *rei;
+	struct eventfs_inode *pei;
 	struct tracefs_inode *ti;
 	struct inode *inode;
 
@@ -386,7 +334,16 @@ static struct inode *eventfs_get_inode(struct dentry *dentry, struct eventfs_att
 	ti->private = ei;
 	ti->flags |= TRACEFS_EVENT_INODE;
 
-	update_inode_attr(dentry, inode, attr, mode);
+	/* Find the top dentry that holds the "events" directory */
+	do {
+		dentry = dentry->d_parent;
+		/* Directories always have d_fsdata */
+		pei = dentry->d_fsdata;
+	} while (!pei->is_events);
+
+	rei = get_root_inode(pei);
+
+	update_inode_attr(inode, mode, attr, rei);
 
 	return inode;
 }
@@ -823,7 +780,6 @@ struct eventfs_inode *eventfs_create_events_dir(const char *name, struct dentry 
 	// Note: we have a ref to the dentry from tracefs_start_creating()
 	rei = get_root_inode(ei);
 	rei->events_dir = dentry;
-	rei->parent_inode = d_inode(dentry->d_sb->s_root);
 
 	ei->entries = entries;
 	ei->nr_entries = size;
