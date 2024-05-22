@@ -21,8 +21,14 @@ __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field initialization overrides for display info");
 
 struct platform_desc {
+	enum intel_display_platform platform;
+	const char *name;
 	const struct intel_display_device_info *info; /* NULL for GMD ID */
 };
+
+#define PLATFORM(_platform)			 \
+	.platform = (INTEL_DISPLAY_##_platform), \
+	.name = #_platform
 
 static const struct intel_display_device_info no_display = {};
 
@@ -205,6 +211,7 @@ static const struct intel_display_device_info no_display = {};
 	.__runtime_defaults.cpu_transcoder_mask = BIT(TRANSCODER_A)
 
 static const struct platform_desc i830_desc = {
+	PLATFORM(I830),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -213,6 +220,7 @@ static const struct platform_desc i830_desc = {
 };
 
 static const struct platform_desc i845_desc = {
+	PLATFORM(I845G),
 	.info = &(const struct intel_display_device_info) {
 		I845_DISPLAY,
 
@@ -221,6 +229,7 @@ static const struct platform_desc i845_desc = {
 };
 
 static const struct platform_desc i85x_desc = {
+	PLATFORM(I85X),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -230,6 +239,7 @@ static const struct platform_desc i85x_desc = {
 };
 
 static const struct platform_desc i865g_desc = {
+	PLATFORM(I865G),
 	.info = &(const struct intel_display_device_info) {
 		I845_DISPLAY,
 
@@ -251,6 +261,7 @@ static const struct platform_desc i865g_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) /* SDVO B/C */
 
 static const struct platform_desc i915g_desc = {
+	PLATFORM(I915G),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -260,6 +271,7 @@ static const struct platform_desc i915g_desc = {
 };
 
 static const struct platform_desc i915gm_desc = {
+	PLATFORM(I915GM),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -272,6 +284,7 @@ static const struct platform_desc i915gm_desc = {
 };
 
 static const struct platform_desc i945g_desc = {
+	PLATFORM(I945G),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -282,6 +295,7 @@ static const struct platform_desc i945g_desc = {
 };
 
 static const struct platform_desc i945gm_desc = {
+	PLATFORM(I915GM),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -295,6 +309,7 @@ static const struct platform_desc i945gm_desc = {
 };
 
 static const struct platform_desc g33_desc = {
+	PLATFORM(G33),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -303,6 +318,7 @@ static const struct platform_desc g33_desc = {
 };
 
 static const struct platform_desc pnv_desc = {
+	PLATFORM(PINEVIEW),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -323,6 +339,7 @@ static const struct platform_desc pnv_desc = {
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
 
 static const struct platform_desc i965g_desc = {
+	PLATFORM(I965G),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -332,6 +349,7 @@ static const struct platform_desc i965g_desc = {
 };
 
 static const struct platform_desc i965gm_desc = {
+	PLATFORM(I965GM),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -343,6 +361,7 @@ static const struct platform_desc i965gm_desc = {
 };
 
 static const struct platform_desc g45_desc = {
+	PLATFORM(G45),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 
@@ -351,6 +370,7 @@ static const struct platform_desc g45_desc = {
 };
 
 static const struct platform_desc gm45_desc = {
+	PLATFORM(GM45),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.supports_tv = 1,
@@ -373,12 +393,14 @@ static const struct platform_desc gm45_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
 
 static const struct platform_desc ilk_d_desc = {
+	PLATFORM(IRONLAKE),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 	},
 };
 
 static const struct platform_desc ilk_m_desc = {
+	PLATFORM(IRONLAKE),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 
@@ -387,6 +409,7 @@ static const struct platform_desc ilk_m_desc = {
 };
 
 static const struct platform_desc snb_desc = {
+	PLATFORM(SANDYBRIDGE),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		I9XX_PIPE_OFFSETS,
@@ -403,6 +426,7 @@ static const struct platform_desc snb_desc = {
 };
 
 static const struct platform_desc ivb_desc = {
+	PLATFORM(IVYBRIDGE),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		IVB_PIPE_OFFSETS,
@@ -419,6 +443,7 @@ static const struct platform_desc ivb_desc = {
 };
 
 static const struct platform_desc vlv_desc = {
+	PLATFORM(VALLEYVIEW),
 	.info = &(const struct intel_display_device_info) {
 		.has_gmch = 1,
 		.has_hotplug = 1,
@@ -436,6 +461,7 @@ static const struct platform_desc vlv_desc = {
 };
 
 static const struct platform_desc hsw_desc = {
+	PLATFORM(HASWELL),
 	.info = &(const struct intel_display_device_info) {
 		.has_ddi = 1,
 		.has_dp_mst = 1,
@@ -458,6 +484,7 @@ static const struct platform_desc hsw_desc = {
 };
 
 static const struct platform_desc bdw_desc = {
+	PLATFORM(BROADWELL),
 	.info = &(const struct intel_display_device_info) {
 		.has_ddi = 1,
 		.has_dp_mst = 1,
@@ -480,6 +507,7 @@ static const struct platform_desc bdw_desc = {
 };
 
 static const struct platform_desc chv_desc = {
+	PLATFORM(CHERRYVIEW),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		.has_gmch = 1,
@@ -522,18 +550,22 @@ static const struct intel_display_device_info skl_display = {
 };
 
 static const struct platform_desc skl_desc = {
+	PLATFORM(SKYLAKE),
 	.info = &skl_display,
 };
 
 static const struct platform_desc kbl_desc = {
+	PLATFORM(KABYLAKE),
 	.info = &skl_display,
 };
 
 static const struct platform_desc cfl_desc = {
+	PLATFORM(COFFEELAKE),
 	.info = &skl_display,
 };
 
 static const struct platform_desc cml_desc = {
+	PLATFORM(COMETLAKE),
 	.info = &skl_display,
 };
 
@@ -561,6 +593,7 @@ static const struct platform_desc cml_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C)
 
 static const struct platform_desc bxt_desc = {
+	PLATFORM(BROXTON),
 	.info = &(const struct intel_display_device_info) {
 		GEN9_LP_DISPLAY,
 		.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
@@ -570,6 +603,7 @@ static const struct platform_desc bxt_desc = {
 };
 
 static const struct platform_desc glk_desc = {
+	PLATFORM(GEMINILAKE),
 	.info = &(const struct intel_display_device_info) {
 		GEN9_LP_DISPLAY,
 		.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
@@ -621,6 +655,7 @@ static const struct platform_desc glk_desc = {
 	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A)
 
 static const struct platform_desc icl_desc = {
+	PLATFORM(ICELAKE),
 	.info = &(const struct intel_display_device_info) {
 		ICL_DISPLAY,
 
@@ -635,10 +670,12 @@ static const struct intel_display_device_info jsl_ehl_display = {
 };
 
 static const struct platform_desc jsl_desc = {
+	PLATFORM(JASPERLAKE),
 	.info = &jsl_ehl_display,
 };
 
 static const struct platform_desc ehl_desc = {
+	PLATFORM(ELKHARTLAKE),
 	.info = &jsl_ehl_display,
 };
 
@@ -686,6 +723,7 @@ static const struct platform_desc ehl_desc = {
 	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A)
 
 static const struct platform_desc tgl_desc = {
+	PLATFORM(TIGERLAKE),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 
@@ -699,6 +737,7 @@ static const struct platform_desc tgl_desc = {
 };
 
 static const struct platform_desc dg1_desc = {
+	PLATFORM(DG1),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 
@@ -708,6 +747,7 @@ static const struct platform_desc dg1_desc = {
 };
 
 static const struct platform_desc rkl_desc = {
+	PLATFORM(ROCKETLAKE),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 		.abox_mask = BIT(0),
@@ -723,6 +763,7 @@ static const struct platform_desc rkl_desc = {
 };
 
 static const struct platform_desc adl_s_desc = {
+	PLATFORM(ALDERLAKE_S),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 		.has_hti = 1,
@@ -790,6 +831,7 @@ static const struct intel_display_device_info xe_lpd_display = {
 };
 
 static const struct platform_desc adl_p_desc = {
+	PLATFORM(ALDERLAKE_P),
 	.info = &xe_lpd_display,
 };
 
@@ -805,6 +847,7 @@ static const struct intel_display_device_info xe_hpd_display = {
 };
 
 static const struct platform_desc dg2_desc = {
+	PLATFORM(DG2),
 	.info = &xe_hpd_display,
 };
 
@@ -877,9 +920,11 @@ static const struct intel_display_device_info xe2_hpd_display = {
  * reported by the hardware.
  */
 static const struct platform_desc mtl_desc = {
+	PLATFORM(METEORLAKE),
 };
 
 static const struct platform_desc lnl_desc = {
+	PLATFORM(LUNARLAKE),
 };
 
 __diag_pop();
@@ -1049,6 +1094,9 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	memcpy(DISPLAY_RUNTIME_INFO(i915),
 	       &DISPLAY_INFO(i915)->__runtime_defaults,
 	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
+
+	drm_WARN_ON(&i915->drm, !desc->platform || !desc->name);
+	DISPLAY_RUNTIME_INFO(i915)->platform = desc->platform;
 
 	if (ip_ver.ver || ip_ver.rel || ip_ver.step)
 		DISPLAY_RUNTIME_INFO(i915)->ip = ip_ver;

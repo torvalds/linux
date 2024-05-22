@@ -14,6 +14,62 @@
 struct drm_i915_private;
 struct drm_printer;
 
+/* Keep in gen based order, and chronological order within a gen */
+enum intel_display_platform {
+	INTEL_DISPLAY_PLATFORM_UNINITIALIZED = 0,
+	/* Display ver 2 */
+	INTEL_DISPLAY_I830,
+	INTEL_DISPLAY_I845G,
+	INTEL_DISPLAY_I85X,
+	INTEL_DISPLAY_I865G,
+	/* Display ver 3 */
+	INTEL_DISPLAY_I915G,
+	INTEL_DISPLAY_I915GM,
+	INTEL_DISPLAY_I945G,
+	INTEL_DISPLAY_I945GM,
+	INTEL_DISPLAY_G33,
+	INTEL_DISPLAY_PINEVIEW,
+	/* Display ver 4 */
+	INTEL_DISPLAY_I965G,
+	INTEL_DISPLAY_I965GM,
+	INTEL_DISPLAY_G45,
+	INTEL_DISPLAY_GM45,
+	/* Display ver 5 */
+	INTEL_DISPLAY_IRONLAKE,
+	/* Display ver 6 */
+	INTEL_DISPLAY_SANDYBRIDGE,
+	/* Display ver 7 */
+	INTEL_DISPLAY_IVYBRIDGE,
+	INTEL_DISPLAY_VALLEYVIEW,
+	INTEL_DISPLAY_HASWELL,
+	/* Display ver 8 */
+	INTEL_DISPLAY_BROADWELL,
+	INTEL_DISPLAY_CHERRYVIEW,
+	/* Display ver 9 */
+	INTEL_DISPLAY_SKYLAKE,
+	INTEL_DISPLAY_BROXTON,
+	INTEL_DISPLAY_KABYLAKE,
+	INTEL_DISPLAY_GEMINILAKE,
+	INTEL_DISPLAY_COFFEELAKE,
+	INTEL_DISPLAY_COMETLAKE,
+	/* Display ver 11 */
+	INTEL_DISPLAY_ICELAKE,
+	INTEL_DISPLAY_JASPERLAKE,
+	INTEL_DISPLAY_ELKHARTLAKE,
+	/* Display ver 12 */
+	INTEL_DISPLAY_TIGERLAKE,
+	INTEL_DISPLAY_ROCKETLAKE,
+	INTEL_DISPLAY_DG1,
+	INTEL_DISPLAY_ALDERLAKE_S,
+	/* Display ver 13 */
+	INTEL_DISPLAY_ALDERLAKE_P,
+	INTEL_DISPLAY_DG2,
+	/* Display ver 14 (based on GMD ID) */
+	INTEL_DISPLAY_METEORLAKE,
+	/* Display ver 20 (based on GMD ID) */
+	INTEL_DISPLAY_LUNARLAKE,
+};
+
 #define DEV_INFO_DISPLAY_FOR_EACH_FLAG(func) \
 	/* Keep in alphabetical order */ \
 	func(cursor_needs_physical); \
@@ -111,6 +167,8 @@ struct drm_printer;
 	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
 
 struct intel_display_runtime_info {
+	enum intel_display_platform platform;
+
 	struct intel_display_ip_ver {
 		u16 ver;
 		u16 rel;
