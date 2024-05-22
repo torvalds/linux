@@ -1126,10 +1126,6 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 */
 
 	if (param.rotation == ROTATION_ANGLE_90 || param.rotation == ROTATION_ANGLE_270) {
-		x_pos = pipe_ctx->stream->dst.x + x_pos * pipe_ctx->stream->dst.width /
-			pipe_ctx->stream->src.height;
-		y_pos = pipe_ctx->stream->dst.y + y_pos * pipe_ctx->stream->dst.height /
-			pipe_ctx->stream->src.width;
 	} else {
 		x_pos = pipe_ctx->stream->dst.x + x_pos * pipe_ctx->stream->dst.width /
 			pipe_ctx->stream->src.width;
@@ -1225,15 +1221,6 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 			}
 		}
 	} else if (param.rotation == ROTATION_ANGLE_90) {
-		if (!param.mirror) {
-			uint32_t temp_y = pos_cpy.y;
-
-			pos_cpy.y = pipe_ctx->plane_res.scl_data.recout.height - pos_cpy.x;
-			pos_cpy.x = temp_y - prev_odm_width;
-		} else {
-			swap(pos_cpy.x, pos_cpy.y);
-		}
-
 	} else if (param.rotation == ROTATION_ANGLE_270) {
 		// Swap axis and mirror vertically
 		uint32_t temp_x = pos_cpy.x;
@@ -1284,15 +1271,6 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 				pos_cpy.y = temp_x;
 			}
 		} else {
-			if (param.mirror) {
-				swap(pos_cpy.x, pos_cpy.y);
-
-				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width - pos_cpy.x + 2 * pipe_ctx->plane_res.scl_data.recout.x;
-				pos_cpy.y = (2 * pipe_ctx->plane_res.scl_data.recout.y) + pipe_ctx->plane_res.scl_data.recout.height - pos_cpy.y;
-			} else {
-				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width - pos_cpy.y;
-				pos_cpy.y = temp_x;
-			}
 		}
 	} else if (param.rotation == ROTATION_ANGLE_180) {
 		// Mirror horizontally and vertically
@@ -1320,7 +1298,6 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 					}
 				}
 			} else {
-				pos_cpy.x = recout_width - pos_cpy.x + 2 * recout_x;
 			}
 		}
 
@@ -1332,8 +1309,6 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		 * Simplify it as:
 		 *   pos_cpy.y = recout.y * 2 + recout.height - pos_cpy.y
 		 */
-		pos_cpy.y = (2 * pipe_ctx->plane_res.scl_data.recout.y) +
-			pipe_ctx->plane_res.scl_data.recout.height - pos_cpy.y;
 	}
 
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
