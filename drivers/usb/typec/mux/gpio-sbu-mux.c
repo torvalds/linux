@@ -48,10 +48,10 @@ static int gpio_sbu_switch_set(struct typec_switch_dev *sw,
 	}
 
 	if (enabled != sbu_mux->enabled)
-		gpiod_set_value(sbu_mux->enable_gpio, enabled);
+		gpiod_set_value_cansleep(sbu_mux->enable_gpio, enabled);
 
 	if (swapped != sbu_mux->swapped)
-		gpiod_set_value(sbu_mux->select_gpio, swapped);
+		gpiod_set_value_cansleep(sbu_mux->select_gpio, swapped);
 
 	sbu_mux->enabled = enabled;
 	sbu_mux->swapped = swapped;
@@ -82,7 +82,7 @@ static int gpio_sbu_mux_set(struct typec_mux_dev *mux,
 		break;
 	}
 
-	gpiod_set_value(sbu_mux->enable_gpio, sbu_mux->enabled);
+	gpiod_set_value_cansleep(sbu_mux->enable_gpio, sbu_mux->enabled);
 
 	mutex_unlock(&sbu_mux->lock);
 
@@ -141,7 +141,7 @@ static void gpio_sbu_mux_remove(struct platform_device *pdev)
 {
 	struct gpio_sbu_mux *sbu_mux = platform_get_drvdata(pdev);
 
-	gpiod_set_value(sbu_mux->enable_gpio, 0);
+	gpiod_set_value_cansleep(sbu_mux->enable_gpio, 0);
 
 	typec_mux_unregister(sbu_mux->mux);
 	typec_switch_unregister(sbu_mux->sw);

@@ -5,4 +5,5 @@ Contact:	Matthias Kaehlcke <matthias@kaehlcke.net>
 		linux-usb@vger.kernel.org
 Description:
 		(RW) Controls whether the USB hub remains always powered
-		during system suspend or not.
+		during system suspend or not. This attribute is not
+		available for non-hub devices.
