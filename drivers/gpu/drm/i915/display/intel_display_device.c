@@ -912,11 +912,6 @@ probe_display(struct drm_i915_private *i915)
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int i;
 
-	if (has_no_display(pdev)) {
-		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
-		return NULL;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(intel_display_ids); i++) {
 		if (intel_display_ids[i].devid == pdev->device)
 			return intel_display_ids[i].info;
@@ -930,6 +925,7 @@ probe_display(struct drm_i915_private *i915)
 
 void intel_display_device_probe(struct drm_i915_private *i915)
 {
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	const struct intel_display_device_info *info;
 	u16 ver, rel, step;
 
@@ -937,6 +933,11 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	i915->display.drm = &i915->drm;
 
 	intel_display_params_copy(&i915->display.params);
+
+	if (has_no_display(pdev)) {
+		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
+		goto no_display;
+	}
 
 	if (HAS_GMD_ID(i915))
 		info = probe_gmdid_display(i915, &ver, &rel, &step);
