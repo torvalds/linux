@@ -436,6 +436,7 @@ struct amdgpu_gfx {
 
 	/* IP reg dump */
 	uint32_t			*ip_dump_core;
+	uint32_t			*ip_dump_cp_queues;
 };
 
 struct amdgpu_gfx_ras_reg_entry {
