@@ -8001,23 +8001,15 @@ static int ensure_commit_roots_uptodate(struct send_ctx *sctx)
 	struct btrfs_root *root = sctx->parent_root;
 
 	if (root && root->node != root->commit_root)
-		goto commit_trans;
+		return btrfs_commit_current_transaction(root);
 
 	for (int i = 0; i < sctx->clone_roots_cnt; i++) {
 		root = sctx->clone_roots[i].root;
 		if (root->node != root->commit_root)
-			goto commit_trans;
+			return btrfs_commit_current_transaction(root);
 	}
 
 	return 0;
-
-commit_trans:
-	/*
-	 * Use the first root we found. We could use any but that would cause
-	 * an unnecessary update of the root's item in the root tree when
-	 * committing the transaction if that root wasn't changed before.
-	 */
-	return btrfs_commit_current_transaction(root);
 }
 
 /*
