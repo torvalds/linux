@@ -210,7 +210,9 @@ static int eventfs_set_attr(struct mnt_idmap *idmap, struct dentry *dentry,
 	 * determined by the parent directory.
 	 */
 	if (dentry->d_inode->i_mode & S_IFDIR) {
-		update_attr(&ei->attr, iattr);
+		/* Just use the inode permissions for the events directory */
+		if (!ei->is_events)
+			update_attr(&ei->attr, iattr);
 
 	} else {
 		name = dentry->d_name.name;
@@ -789,14 +791,12 @@ struct eventfs_inode *eventfs_create_events_dir(const char *name, struct dentry 
 	uid = d_inode(dentry->d_parent)->i_uid;
 	gid = d_inode(dentry->d_parent)->i_gid;
 
+	/*
+	 * The ei->attr will be used as the default values for the
+	 * files beneath this directory.
+	 */
 	ei->attr.uid = uid;
 	ei->attr.gid = gid;
-
-	/*
-	 * When the "events" directory is created, it takes on the
-	 * permissions of its parent. But can be reset on remount.
-	 */
-	ei->attr.mode |= EVENTFS_SAVE_UID | EVENTFS_SAVE_GID;
 
 	INIT_LIST_HEAD(&ei->children);
 	INIT_LIST_HEAD(&ei->list);
