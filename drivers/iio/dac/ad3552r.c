@@ -139,7 +139,7 @@ enum ad3552r_ch_vref_select {
 	AD3552R_EXTERNAL_VREF_PIN_INPUT
 };
 
-enum ad3542r_id {
+enum ad3552r_id {
 	AD3541R_ID = 0x400b,
 	AD3542R_ID = 0x4009,
 	AD3551R_ID = 0x400a,
@@ -265,7 +265,7 @@ struct ad3552r_ch_data {
 
 struct ad3552r_model_data {
 	const char *model_name;
-	enum ad3542r_id chip_id;
+	enum ad3552r_id chip_id;
 	unsigned int num_hw_channels;
 	const s32 (*ranges_table)[2];
 	int num_ranges;
