@@ -95,9 +95,9 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 		return NULL;
 	}
 
-	field = kzalloc((sizeof(struct hid_field) +
-			 usages * sizeof(struct hid_usage) +
-			 3 * usages * sizeof(unsigned int)), GFP_KERNEL);
+	field = kvzalloc((sizeof(struct hid_field) +
+			  usages * sizeof(struct hid_usage) +
+			  3 * usages * sizeof(unsigned int)), GFP_KERNEL);
 	if (!field)
 		return NULL;
 
@@ -661,7 +661,7 @@ static void hid_free_report(struct hid_report *report)
 	kfree(report->field_entries);
 
 	for (n = 0; n < report->maxfield; n++)
-		kfree(report->field[n]);
+		kvfree(report->field[n]);
 	kfree(report);
 }
 
