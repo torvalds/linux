@@ -7713,7 +7713,8 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 
 	mode_lib->ms.support.DTBCLKRequiredMoreThanSupported = false;
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-		if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].output.output_encoder == dml2_hdmifrl) {
+		if (display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].output.output_encoder == dml2_hdmifrl &&
+				!dml_is_phantom_pipe(&display_cfg->plane_descriptors[k])) {
 			mode_lib->ms.RequiredDTBCLK[k] = RequiredDTBCLK(
 				mode_lib->ms.RequiresDSC[k],
 				s->PixelClockBackEnd[k],
@@ -7728,6 +7729,13 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			if (mode_lib->ms.RequiredDTBCLK[k] > ((double)min_clk_table->max_clocks_khz.dtbclk / 1000)) {
 				mode_lib->ms.support.DTBCLKRequiredMoreThanSupported = true;
 			}
+		} else {
+			/* Phantom DTBCLK can be calculated different from main because phantom has no DSC and thus
+			 * will have a different output BPP. Ignore phantom DTBCLK requirement and only consider
+			 * non-phantom DTBCLK requirements. In map_mode_to_soc_dpm we choose the highest DTBCLK
+			 * required - by setting phantom dtbclk to 0 we ignore it.
+			 */
+			mode_lib->ms.RequiredDTBCLK[k] = 0;
 		}
 	}
 
