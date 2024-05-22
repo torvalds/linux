@@ -936,6 +936,8 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	/* Add drm device backpointer as early as possible. */
 	i915->display.drm = &i915->drm;
 
+	intel_display_params_copy(&i915->display.params);
+
 	if (HAS_GMD_ID(i915))
 		info = probe_gmdid_display(i915, &ver, &rel, &step);
 	else
@@ -952,8 +954,6 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 		DISPLAY_RUNTIME_INFO(i915)->ip.rel = rel;
 		DISPLAY_RUNTIME_INFO(i915)->ip.step = step;
 	}
-
-	intel_display_params_copy(&i915->display.params);
 }
 
 void intel_display_device_remove(struct drm_i915_private *i915)
