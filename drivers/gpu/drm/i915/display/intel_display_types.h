@@ -744,6 +744,9 @@ struct intel_plane_state {
 	struct intel_fb_view view;
 	u32 phys_dma_addr; /* for cursor_needs_physical */
 
+	/* for legacy cursor fb unpin */
+	struct drm_vblank_work unpin_work;
+
 	/* Plane pxp decryption state */
 	bool decrypt;
 
