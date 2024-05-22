@@ -394,7 +394,10 @@ bool dc_stream_program_cursor_position(
 	bool reset_idle_optimizations = false;
 	const struct dc_cursor_position *old_position;
 
-	old_position = stream ? &stream->cursor_position : NULL;
+	if (!stream)
+		return false;
+
+	old_position = &stream->cursor_position;
 	dc = stream->ctx->dc;
 
 	if (dc_stream_set_cursor_position(stream, position)) {
