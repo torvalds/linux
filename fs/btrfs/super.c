@@ -2257,9 +2257,7 @@ out:
 
 static int btrfs_freeze(struct super_block *sb)
 {
-	struct btrfs_trans_handle *trans;
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
-	struct btrfs_root *root = fs_info->tree_root;
 
 	set_bit(BTRFS_FS_FROZEN, &fs_info->flags);
 	/*
@@ -2268,14 +2266,7 @@ static int btrfs_freeze(struct super_block *sb)
 	 * we want to avoid on a frozen filesystem), or do the commit
 	 * ourselves.
 	 */
-	trans = btrfs_attach_transaction_barrier(root);
-	if (IS_ERR(trans)) {
-		/* no transaction, don't bother */
-		if (PTR_ERR(trans) == -ENOENT)
-			return 0;
-		return PTR_ERR(trans);
-	}
-	return btrfs_commit_transaction(trans);
+	return btrfs_commit_current_transaction(fs_info->tree_root);
 }
 
 static int check_dev_super(struct btrfs_device *dev)

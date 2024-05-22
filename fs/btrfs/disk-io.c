@@ -4144,9 +4144,6 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 
 int btrfs_commit_super(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_root *root = fs_info->tree_root;
-	struct btrfs_trans_handle *trans;
-
 	mutex_lock(&fs_info->cleaner_mutex);
 	btrfs_run_delayed_iputs(fs_info);
 	mutex_unlock(&fs_info->cleaner_mutex);
@@ -4156,14 +4153,7 @@ int btrfs_commit_super(struct btrfs_fs_info *fs_info)
 	down_write(&fs_info->cleanup_work_sem);
 	up_write(&fs_info->cleanup_work_sem);
 
-	trans = btrfs_attach_transaction_barrier(root);
-	if (IS_ERR(trans)) {
-		int ret = PTR_ERR(trans);
-
-		return (ret == -ENOENT) ? 0 : ret;
-	}
-
-	return btrfs_commit_transaction(trans);
+	return btrfs_commit_current_transaction(fs_info->tree_root);
 }
 
 static void warn_about_uncommitted_trans(struct btrfs_fs_info *fs_info)

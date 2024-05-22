@@ -823,14 +823,7 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		 * because that does not wait for a transaction to fully commit
 		 * (only for it to be unblocked, state TRANS_STATE_UNBLOCKED).
 		 */
-		trans = btrfs_attach_transaction_barrier(root);
-		if (IS_ERR(trans)) {
-			ret = PTR_ERR(trans);
-			if (ret == -ENOENT)
-				ret = 0;
-			break;
-		}
-		ret = btrfs_commit_transaction(trans);
+		ret = btrfs_commit_current_transaction(root);
 		break;
 	default:
 		ret = -ENOSPC;

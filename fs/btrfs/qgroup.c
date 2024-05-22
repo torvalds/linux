@@ -1334,7 +1334,6 @@ out:
  */
 static int flush_reservations(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_trans_handle *trans;
 	int ret;
 
 	ret = btrfs_start_delalloc_roots(fs_info, LONG_MAX, false);
@@ -1342,13 +1341,7 @@ static int flush_reservations(struct btrfs_fs_info *fs_info)
 		return ret;
 	btrfs_wait_ordered_roots(fs_info, U64_MAX, NULL);
 
-	trans = btrfs_attach_transaction_barrier(fs_info->tree_root);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		return (ret == -ENOENT) ? 0 : ret;
-	}
-
-	return btrfs_commit_transaction(trans);
+	return btrfs_commit_current_transaction(fs_info->tree_root);
 }
 
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
@@ -4027,7 +4020,6 @@ int
 btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info)
 {
 	int ret = 0;
-	struct btrfs_trans_handle *trans;
 
 	ret = qgroup_rescan_init(fs_info, 0, 1);
 	if (ret)
@@ -4044,16 +4036,10 @@ btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info)
 	 * going to clear all tracking information for a clean start.
 	 */
 
-	trans = btrfs_attach_transaction_barrier(fs_info->fs_root);
-	if (IS_ERR(trans) && trans != ERR_PTR(-ENOENT)) {
+	ret = btrfs_commit_current_transaction(fs_info->fs_root);
+	if (ret) {
 		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
-		return PTR_ERR(trans);
-	} else if (trans != ERR_PTR(-ENOENT)) {
-		ret = btrfs_commit_transaction(trans);
-		if (ret) {
-			fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
-			return ret;
-		}
+		return ret;
 	}
 
 	qgroup_rescan_zero_tracking(fs_info);
@@ -4189,7 +4175,6 @@ static int qgroup_unreserve_range(struct btrfs_inode *inode,
  */
 static int try_flush_qgroup(struct btrfs_root *root)
 {
-	struct btrfs_trans_handle *trans;
 	int ret;
 
 	/* Can't hold an open transaction or we run the risk of deadlocking. */
@@ -4212,15 +4197,7 @@ static int try_flush_qgroup(struct btrfs_root *root)
 		goto out;
 	btrfs_wait_ordered_extents(root, U64_MAX, NULL);
 
-	trans = btrfs_attach_transaction_barrier(root);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		if (ret == -ENOENT)
-			ret = 0;
-		goto out;
-	}
-
-	ret = btrfs_commit_transaction(trans);
+	ret = btrfs_commit_current_transaction(root);
 out:
 	clear_bit(BTRFS_ROOT_QGROUP_FLUSHING, &root->state);
 	wake_up(&root->qgroup_flush_wait);

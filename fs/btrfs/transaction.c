@@ -1989,6 +1989,25 @@ void btrfs_commit_transaction_async(struct btrfs_trans_handle *trans)
 	btrfs_put_transaction(cur_trans);
 }
 
+/*
+ * If there is a running transaction commit it or if it's already committing,
+ * wait for its commit to complete. Does not start and commit a new transaction
+ * if there isn't any running.
+ */
+int btrfs_commit_current_transaction(struct btrfs_root *root)
+{
+	struct btrfs_trans_handle *trans;
+
+	trans = btrfs_attach_transaction_barrier(root);
+	if (IS_ERR(trans)) {
+		int ret = PTR_ERR(trans);
+
+		return (ret == -ENOENT) ? 0 : ret;
+	}
+
+	return btrfs_commit_transaction(trans);
+}
+
 static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
