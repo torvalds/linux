@@ -1305,6 +1305,11 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	if (ip_ver.ver || ip_ver.rel || ip_ver.step)
 		DISPLAY_RUNTIME_INFO(i915)->ip = ip_ver;
 
+	drm_info(&i915->drm, "Found %s%s%s (device ID %04x) display version %u.%02u\n",
+		 desc->name, subdesc ? "/" : "", subdesc ? subdesc->name : "",
+		 pdev->device, DISPLAY_RUNTIME_INFO(i915)->ip.ver,
+		 DISPLAY_RUNTIME_INFO(i915)->ip.rel);
+
 	return;
 
 no_display:
