@@ -155,16 +155,6 @@ static inline u64 btrfs_qgroup_get_new_refcnt(const struct btrfs_qgroup *qg, u64
 	return qg->new_refcnt - seq;
 }
 
-/*
- * glue structure to represent the relations between qgroups.
- */
-struct btrfs_qgroup_list {
-	struct list_head next_group;
-	struct list_head next_member;
-	struct btrfs_qgroup *group;
-	struct btrfs_qgroup *member;
-};
-
 static int
 qgroup_rescan_init(struct btrfs_fs_info *fs_info, u64 progress_objectid,
 		   int init_flags);
@@ -1569,14 +1559,20 @@ out:
 	return ret;
 }
 
-int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst)
+/*
+ * Add relation between @src and @dst qgroup. The @prealloc is allocated by the
+ * callers and transferred here (either used or freed on error).
+ */
+int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst,
+			      struct btrfs_qgroup_list *prealloc)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup *member;
 	struct btrfs_qgroup_list *list;
-	struct btrfs_qgroup_list *prealloc = NULL;
 	int ret = 0;
+
+	ASSERT(prealloc);
 
 	/* Check the level of src and dst first */
 	if (btrfs_qgroup_level(src) >= btrfs_qgroup_level(dst))
@@ -1602,11 +1598,6 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst
 		}
 	}
 
-	prealloc = kzalloc(sizeof(*list), GFP_NOFS);
-	if (!prealloc) {
-		ret = -ENOMEM;
-		goto out;
-	}
 	ret = add_qgroup_relation_item(trans, src, dst);
 	if (ret)
 		goto out;
