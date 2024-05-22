@@ -483,8 +483,8 @@ static int max77976_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max77976_i2c_id[] = {
-	{ MAX77976_DRIVER_NAME, 0 },
-	{ },
+	{ MAX77976_DRIVER_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max77976_i2c_id);
 

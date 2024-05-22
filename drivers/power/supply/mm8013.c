@@ -284,7 +284,7 @@ static int mm8013_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mm8013_id_table[] = {
-	{ "mm8013", 0 },
+	{ "mm8013" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, mm8013_id_table);
