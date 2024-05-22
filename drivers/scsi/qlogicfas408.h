@@ -106,7 +106,7 @@ struct qlogicfas408_priv {
 irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id);
 int qlogicfas408_queuecommand(struct Scsi_Host *h, struct scsi_cmnd * cmd);
 int qlogicfas408_biosparam(struct scsi_device * disk,
-			   struct block_device *dev,
+			   struct gendisk *unused,
 			   sector_t capacity, int ip[]);
 int qlogicfas408_abort(struct scsi_cmnd * cmd);
 extern int qlogicfas408_host_reset(struct scsi_cmnd *cmd);

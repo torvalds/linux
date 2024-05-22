@@ -685,7 +685,7 @@ extern int sas_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 extern int sas_target_alloc(struct scsi_target *);
 int sas_sdev_configure(struct scsi_device *dev, struct queue_limits *lim);
 extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
-extern int sas_bios_param(struct scsi_device *, struct block_device *,
+extern int sas_bios_param(struct scsi_device *, struct gendisk *,
 			  sector_t capacity, int *hsc);
 int sas_execute_internal_abort_single(struct domain_device *device,
 				      u16 tag, unsigned int qid,

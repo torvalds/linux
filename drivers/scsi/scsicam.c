@@ -205,7 +205,7 @@ static int setsize(unsigned long capacity, unsigned int *cyls, unsigned int *hds
 
 /**
  * scsicam_bios_param - Determine geometry of a disk in cylinders/heads/sectors.
- * @bdev: which device
+ * @disk: which device
  * @capacity: size of the disk in sectors
  * @ip: return value: ip[0]=heads, ip[1]=sectors, ip[2]=cylinders
  *
@@ -215,13 +215,13 @@ static int setsize(unsigned long capacity, unsigned int *cyls, unsigned int *hds
  *
  * Returns : -1 on failure, 0 on success.
  */
-int scsicam_bios_param(struct block_device *bdev, sector_t capacity, int *ip)
+int scsicam_bios_param(struct gendisk *disk, sector_t capacity, int *ip)
 {
 	u64 capacity64 = capacity;	/* Suppress gcc warning */
 	int ret = 0;
 
 	/* try to infer mapping from partition table */
-	if (scsi_partsize(bdev->bd_disk, capacity, ip))
+	if (scsi_partsize(disk, capacity, ip))
 		return 0;
 
 	if (capacity64 < (1ULL << 32)) {
