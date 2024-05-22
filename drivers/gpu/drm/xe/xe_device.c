@@ -189,13 +189,6 @@ static const struct file_operations xe_driver_fops = {
 #endif
 };
 
-static void xe_driver_release(struct drm_device *dev)
-{
-	struct xe_device *xe = to_xe_device(dev);
-
-	pci_set_drvdata(to_pci_dev(xe->drm.dev), NULL);
-}
-
 static struct drm_driver driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should
 	 * deal with them for Intel hardware.
@@ -214,8 +207,6 @@ static struct drm_driver driver = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo = xe_drm_client_fdinfo,
 #endif
-	.release = &xe_driver_release,
-
 	.ioctls = xe_ioctls,
 	.num_ioctls = ARRAY_SIZE(xe_ioctls),
 	.fops = &xe_driver_fops,
