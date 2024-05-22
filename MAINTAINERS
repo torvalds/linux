@@ -21241,7 +21241,7 @@ S:	Maintained
 F:	drivers/staging/sm750fb/
 
 STAGING - VIA VT665X DRIVERS
-M:	Forest Bond <forest@alittletooquiet.net>
+M:	Philipp Hortmann <philipp.g.hortmann@gmail.com>
 S:	Odd Fixes
 F:	drivers/staging/vt665?/
 
