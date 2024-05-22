@@ -71,6 +71,8 @@ bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
 		return page && PageAnon(page) && PageAnonExclusive(page);
 	}
 
+	VM_WARN_ON_ONCE(is_zero_pfn(pte_pfn(pte)) && pte_dirty(pte));
+
 	/*
 	 * Writable MAP_SHARED mapping: "clean" might indicate that the FS still
 	 * needs a real write-fault for writenotify
