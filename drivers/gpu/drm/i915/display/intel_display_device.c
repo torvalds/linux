@@ -21,7 +21,7 @@ __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field initialization overrides for display info");
 
 struct platform_desc {
-	const struct intel_display_device_info *info;
+	const struct intel_display_device_info *info; /* NULL for GMD ID */
 };
 
 static const struct intel_display_device_info no_display = {};
@@ -871,6 +871,17 @@ static const struct intel_display_device_info xe2_hpd_display = {
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4),
 };
 
+/*
+ * Do not initialize the .info member of the platform desc for GMD ID based
+ * platforms. Their display will be probed automatically based on the IP version
+ * reported by the hardware.
+ */
+static const struct platform_desc mtl_desc = {
+};
+
+static const struct platform_desc lnl_desc = {
+};
+
 __diag_pop();
 
 /*
@@ -937,12 +948,8 @@ static const struct {
 	INTEL_RPLU_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
 	INTEL_RPLP_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
 	INTEL_DG2_IDS(INTEL_DISPLAY_DEVICE, &dg2_desc),
-
-	/*
-	 * Do not add any GMD_ID-based platforms to this list.  They will
-	 * be probed automatically based on the IP version reported by
-	 * the hardware.
-	 */
+	INTEL_MTL_IDS(INTEL_DISPLAY_DEVICE, &mtl_desc),
+	INTEL_LNL_IDS(INTEL_DISPLAY_DEVICE, &lnl_desc),
 };
 
 static const struct {
@@ -995,19 +1002,14 @@ probe_gmdid_display(struct drm_i915_private *i915, struct intel_display_ip_ver *
 	return NULL;
 }
 
-static const struct intel_display_device_info *
-probe_display(struct drm_i915_private *i915)
+static const struct platform_desc *find_platform_desc(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(intel_display_ids); i++) {
 		if (intel_display_ids[i].devid == pdev->device)
-			return intel_display_ids[i].desc->info;
+			return intel_display_ids[i].desc;
 	}
-
-	drm_dbg(&i915->drm, "No display ID found for device ID %04x; disabling display.\n",
-		pdev->device);
 
 	return NULL;
 }
@@ -1017,6 +1019,7 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	const struct intel_display_device_info *info;
 	struct intel_display_ip_ver ip_ver = {};
+	const struct platform_desc *desc;
 
 	/* Add drm device backpointer as early as possible. */
 	i915->display.drm = &i915->drm;
@@ -1028,11 +1031,16 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 		goto no_display;
 	}
 
-	if (HAS_GMD_ID(i915))
-		info = probe_gmdid_display(i915, &ip_ver);
-	else
-		info = probe_display(i915);
+	desc = find_platform_desc(pdev);
+	if (!desc) {
+		drm_dbg_kms(&i915->drm, "Unknown device ID %04x; disabling display.\n",
+			    pdev->device);
+		goto no_display;
+	}
 
+	info = desc->info;
+	if (!info)
+		info = probe_gmdid_display(i915, &ip_ver);
 	if (!info)
 		goto no_display;
 
