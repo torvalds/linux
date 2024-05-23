@@ -87,8 +87,8 @@
 #define DSPGAMC(dev_priv, plane, i)		_MMIO_PIPE2(dev_priv, plane, _DSPAGAMC + (5 - (i)) * 4) /* plane C only, 6 x u0.8 */
 
 /* CHV pipe B primary plane */
-#define _PRIMPOS_A		0x60a08
-#define PRIMPOS(plane)		_MMIO_TRANS2(dev_priv, plane, _PRIMPOS_A)
+#define _PRIMPOS_A			0x60a08
+#define PRIMPOS(dev_priv, plane)	_MMIO_TRANS2(dev_priv, plane, _PRIMPOS_A)
 #define   PRIM_POS_Y_MASK	REG_GENMASK(31, 16)
 #define   PRIM_POS_Y(y)		REG_FIELD_PREP(PRIM_POS_Y_MASK, (y))
 #define   PRIM_POS_X_MASK	REG_GENMASK(15, 0)

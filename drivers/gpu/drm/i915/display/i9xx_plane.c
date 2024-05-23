@@ -474,7 +474,7 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 		int crtc_w = drm_rect_width(&plane_state->uapi.dst);
 		int crtc_h = drm_rect_height(&plane_state->uapi.dst);
 
-		intel_de_write_fw(dev_priv, PRIMPOS(i9xx_plane),
+		intel_de_write_fw(dev_priv, PRIMPOS(dev_priv, i9xx_plane),
 				  PRIM_POS_Y(crtc_y) | PRIM_POS_X(crtc_x));
 		intel_de_write_fw(dev_priv, PRIMSIZE(i9xx_plane),
 				  PRIM_HEIGHT(crtc_h - 1) | PRIM_WIDTH(crtc_w - 1));
