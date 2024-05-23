@@ -63,7 +63,6 @@ int passed;
 int failed;
 int map_fd[9];
 struct bpf_map *maps[9];
-int prog_fd[9];
 struct bpf_program *progs[9];
 struct bpf_link *links[9];
 
@@ -1000,7 +999,7 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 	}
 
 	/* Attach to cgroups */
-	err = bpf_prog_attach(prog_fd[3], cg_fd, BPF_CGROUP_SOCK_OPS, 0);
+	err = bpf_prog_attach(bpf_program__fd(progs[3]), cg_fd, BPF_CGROUP_SOCK_OPS, 0);
 	if (err) {
 		fprintf(stderr, "ERROR: bpf_prog_attach (groups): %d (%s)\n",
 			err, strerror(errno));
@@ -1279,7 +1278,7 @@ run:
 		fprintf(stderr, "unknown test\n");
 out:
 	/* Detatch and zero all the maps */
-	bpf_prog_detach2(prog_fd[3], cg_fd, BPF_CGROUP_SOCK_OPS);
+	bpf_prog_detach2(bpf_program__fd(progs[3]), cg_fd, BPF_CGROUP_SOCK_OPS);
 
 	for (i = 0; i < ARRAY_SIZE(links); i++) {
 		if (links[i])
@@ -1803,7 +1802,6 @@ static int populate_progs(char *bpf_file)
 	i = 0;
 	bpf_object__for_each_program(prog, obj) {
 		progs[i] = prog;
-		prog_fd[i] = bpf_program__fd(prog);
 		i++;
 	}
 
