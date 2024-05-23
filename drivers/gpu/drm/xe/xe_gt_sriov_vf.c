@@ -284,6 +284,35 @@ static int guc_action_query_single_klv64(struct xe_guc *guc, u32 key, u64 *value
 	return 0;
 }
 
+/**
+ * xe_gt_sriov_vf_gmdid - Query GMDID over MMIO.
+ * @gt: the &xe_gt
+ *
+ * This function is for VF use only.
+ *
+ * Return: value of GMDID KLV on success or 0 on failure.
+ */
+u32 xe_gt_sriov_vf_gmdid(struct xe_gt *gt)
+{
+	const char *type = xe_gt_is_media_type(gt) ? "media" : "graphics";
+	struct xe_guc *guc = &gt->uc.guc;
+	u32 value;
+	int err;
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, gt->sriov.vf.guc_version.major > 1 || gt->sriov.vf.guc_version.minor >= 2);
+
+	err = guc_action_query_single_klv32(guc, GUC_KLV_GLOBAL_CFG_GMD_ID_KEY, &value);
+	if (unlikely(err)) {
+		xe_gt_sriov_err(gt, "Failed to obtain %s GMDID (%pe)\n",
+				type, ERR_PTR(err));
+		return 0;
+	}
+
+	xe_gt_sriov_dbg(gt, "%s GMDID = %#x\n", type, value);
+	return value;
+}
+
 static int vf_get_ggtt_info(struct xe_gt *gt)
 {
 	struct xe_gt_sriov_vf_selfconfig *config = &gt->sriov.vf.self_config;
