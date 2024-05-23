@@ -1986,8 +1986,17 @@ int intel_color_check(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	const struct intel_crtc_state *new_crtc_state =
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
+
+	/*
+	 * May need to update pipe gamma enable bits
+	 * when C8 planes are getting enabled/disabled.
+	 */
+	if (!old_crtc_state->c8_planes != !new_crtc_state->c8_planes)
+		new_crtc_state->uapi.color_mgmt_changed = true;
 
 	if (!intel_crtc_needs_color_update(new_crtc_state))
 		return 0;
