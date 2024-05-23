@@ -1805,6 +1805,7 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 		pr_err("HIQ MQD's queue_doorbell_id0 is not 0, Queue preemption time out\n");
 		while (halt_if_hws_hang)
 			schedule();
+		kfd_hws_hang(dqm);
 		return -ETIME;
 	}
 
