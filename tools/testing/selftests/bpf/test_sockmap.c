@@ -954,7 +954,8 @@ enum {
 
 static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 {
-	int i, key, next_key, err, tx_prog_fd = -1, zero = 0;
+	int i, key, next_key, err, zero = 0;
+	struct bpf_program *tx_prog;
 
 	/* If base test skip BPF setup */
 	if (test == BASE || test == BASE_SENDPAGE)
@@ -1015,27 +1016,27 @@ run:
 
 	/* Attach txmsg program to sockmap */
 	if (txmsg_pass)
-		tx_prog_fd = prog_fd[4];
+		tx_prog = progs[4];
 	else if (txmsg_redir)
-		tx_prog_fd = prog_fd[5];
+		tx_prog = progs[5];
 	else if (txmsg_apply)
-		tx_prog_fd = prog_fd[6];
+		tx_prog = progs[6];
 	else if (txmsg_cork)
-		tx_prog_fd = prog_fd[7];
+		tx_prog = progs[7];
 	else if (txmsg_drop)
-		tx_prog_fd = prog_fd[8];
+		tx_prog = progs[8];
 	else
-		tx_prog_fd = -1;
+		tx_prog = NULL;
 
-	if (tx_prog_fd > 0) {
+	if (tx_prog) {
 		int redir_fd;
 
-		err = bpf_prog_attach(tx_prog_fd,
-				      map_fd[1], BPF_SK_MSG_VERDICT, 0);
-		if (err) {
+		links[4] = bpf_program__attach_sockmap(tx_prog, map_fd[1]);
+		if (!links[4]) {
 			fprintf(stderr,
-				"ERROR: bpf_prog_attach (txmsg): %d (%s)\n",
-				err, strerror(errno));
+				"ERROR: bpf_program__attach_sockmap (txmsg): (%s)\n",
+				strerror(errno));
+			err = -1;
 			goto out;
 		}
 
@@ -1284,9 +1285,6 @@ out:
 		if (links[i])
 			bpf_link__detach(links[i]);
 	}
-
-	if (tx_prog_fd > 0)
-		bpf_prog_detach2(tx_prog_fd, map_fd[1], BPF_SK_MSG_VERDICT);
 
 	for (i = 0; i < 8; i++) {
 		key = next_key = 0;
