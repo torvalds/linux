@@ -632,12 +632,12 @@ void __drm_err(const char *format, ...);
 
 /* Helper for struct drm_device based WARNs */
 #define drm_WARN(drm, condition, format, arg...)			\
-	WARN(condition, "%s %s: " format,				\
+	WARN(condition, "%s %s: [drm] " format,				\
 			dev_driver_string((drm)->dev),			\
 			dev_name((drm)->dev), ## arg)
 
 #define drm_WARN_ONCE(drm, condition, format, arg...)			\
-	WARN_ONCE(condition, "%s %s: " format,				\
+	WARN_ONCE(condition, "%s %s: [drm] " format,			\
 			dev_driver_string((drm)->dev),			\
 			dev_name((drm)->dev), ## arg)
 
