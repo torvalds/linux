@@ -1078,7 +1078,6 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev)
 			    IP_VERSION(4, 0, 3))
 				break;
 		}
-		dev_info(adev->dev, "Will use PSP to load VCN firmware\n");
 	}
 }
 
