@@ -75,17 +75,22 @@ var SQ_WAVE_STATUS_ECC_ERR_MASK			= 0x20000
 var SQ_WAVE_STATUS_TRAP_EN_SHIFT		= 6
 var SQ_WAVE_IB_STS2_WAVE64_SHIFT		= 11
 var SQ_WAVE_IB_STS2_WAVE64_SIZE			= 1
+var SQ_WAVE_LDS_ALLOC_GRANULARITY		= 8
 var S_STATUS_HWREG				= HW_REG_STATUS
 var S_STATUS_ALWAYS_CLEAR_MASK			= SQ_WAVE_STATUS_SPI_PRIO_MASK|SQ_WAVE_STATUS_ECC_ERR_MASK
 var S_STATUS_HALT_MASK				= SQ_WAVE_STATUS_HALT_MASK
 var S_SAVE_PC_HI_TRAP_ID_MASK			= 0x00FF0000
 var S_SAVE_PC_HI_HT_MASK			= 0x01000000
 #else
+var SQ_WAVE_STATE_PRIV_BARRIER_COMPLETE_MASK	= 0x4
+var SQ_WAVE_STATE_PRIV_SCC_SHIFT		= 9
 var SQ_WAVE_STATE_PRIV_SYS_PRIO_MASK		= 0xC00
 var SQ_WAVE_STATE_PRIV_HALT_MASK		= 0x4000
 var SQ_WAVE_STATE_PRIV_POISON_ERR_MASK		= 0x8000
+var SQ_WAVE_STATE_PRIV_POISON_ERR_SHIFT		= 15
 var SQ_WAVE_STATUS_WAVE64_SHIFT			= 29
 var SQ_WAVE_STATUS_WAVE64_SIZE			= 1
+var SQ_WAVE_LDS_ALLOC_GRANULARITY		= 9
 var S_STATUS_HWREG				= HW_REG_WAVE_STATE_PRIV
 var S_STATUS_ALWAYS_CLEAR_MASK			= SQ_WAVE_STATE_PRIV_SYS_PRIO_MASK|SQ_WAVE_STATE_PRIV_POISON_ERR_MASK
 var S_STATUS_HALT_MASK				= SQ_WAVE_STATE_PRIV_HALT_MASK
@@ -149,8 +154,10 @@ var SQ_WAVE_EXCP_FLAG_PRIV_MEM_VIOL_MASK	= 0x10
 var SQ_WAVE_EXCP_FLAG_PRIV_SAVE_CONTEXT_SHIFT	= 5
 var SQ_WAVE_EXCP_FLAG_PRIV_SAVE_CONTEXT_MASK	= 0x20
 var SQ_WAVE_EXCP_FLAG_PRIV_ILLEGAL_INST_MASK	= 0x40
+var SQ_WAVE_EXCP_FLAG_PRIV_ILLEGAL_INST_SHIFT	= 6
 var SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_MASK	= 0x80
 var SQ_WAVE_EXCP_FLAG_PRIV_WAVE_START_MASK	= 0x100
+var SQ_WAVE_EXCP_FLAG_PRIV_WAVE_START_SHIFT	= 8
 var SQ_WAVE_EXCP_FLAG_PRIV_WAVE_END_MASK	= 0x200
 var SQ_WAVE_EXCP_FLAG_PRIV_TRAP_AFTER_INST_MASK	= 0x800
 var SQ_WAVE_TRAP_CTRL_ADDR_WATCH_MASK		= 0x80
@@ -430,7 +437,16 @@ L_EXIT_TRAP:
 	// Restore SQ_WAVE_STATUS.
 	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, not writable by s_setreg_b32
 	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, not writable by s_setreg_b32
+
+#if ASIC_FAMILY < CHIP_GFX12
 	s_setreg_b32	hwreg(S_STATUS_HWREG), s_save_status
+#else
+	// STATE_PRIV.BARRIER_COMPLETE may have changed since we read it.
+	// Only restore fields which the trap handler changes.
+	s_lshr_b32	s_save_status, s_save_status, SQ_WAVE_STATE_PRIV_SCC_SHIFT
+	s_setreg_b32	hwreg(S_STATUS_HWREG, SQ_WAVE_STATE_PRIV_SCC_SHIFT, \
+		SQ_WAVE_STATE_PRIV_POISON_ERR_SHIFT - SQ_WAVE_STATE_PRIV_SCC_SHIFT + 1), s_save_status
+#endif
 
 	s_rfe_b64	[ttmp0, ttmp1]
 
@@ -622,8 +638,15 @@ L_SAVE_HWREG:
 
 #if ASIC_FAMILY >= CHIP_GFX12
 	// Ensure no further changes to barrier or LDS state.
+	// STATE_PRIV.BARRIER_COMPLETE may change up to this point.
 	s_barrier_signal	-2
 	s_barrier_wait	-2
+
+	// Re-read final state of BARRIER_COMPLETE field for save.
+	s_getreg_b32	s_save_tmp, hwreg(S_STATUS_HWREG)
+	s_and_b32	s_save_tmp, s_save_tmp, SQ_WAVE_STATE_PRIV_BARRIER_COMPLETE_MASK
+	s_andn2_b32	s_save_status, s_save_status, SQ_WAVE_STATE_PRIV_BARRIER_COMPLETE_MASK
+	s_or_b32	s_save_status, s_save_status, s_save_tmp
 #endif
 
 	write_hwreg_to_mem(s_save_m0, s_save_buf_rsrc0, s_save_mem_offset)
@@ -764,8 +787,7 @@ L_SAVE_LDS_NORMAL:
 
 	// first wave do LDS save;
 
-	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 6			//LDS size in dwords = lds_size * 64dw
-	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, 2			//LDS size in bytes
+	s_lshl_b32	s_save_alloc_size, s_save_alloc_size, SQ_WAVE_LDS_ALLOC_GRANULARITY
 	s_mov_b32	s_save_buf_rsrc2, s_save_alloc_size			//NUM_RECORDS in bytes
 
 	// LDS at offset: size(VGPR)+size(SVGPR)+SIZE(SGPR)+SIZE(HWREG)
@@ -1050,8 +1072,7 @@ L_RESTORE_LDS_NORMAL:
 	s_getreg_b32	s_restore_alloc_size, hwreg(HW_REG_LDS_ALLOC,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT,SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)
 	s_and_b32	s_restore_alloc_size, s_restore_alloc_size, 0xFFFFFFFF	//lds_size is zero?
 	s_cbranch_scc0	L_RESTORE_VGPR						//no lds used? jump to L_RESTORE_VGPR
-	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 6		//LDS size in dwords = lds_size * 64dw
-	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, 2		//LDS size in bytes
+	s_lshl_b32	s_restore_alloc_size, s_restore_alloc_size, SQ_WAVE_LDS_ALLOC_GRANULARITY
 	s_mov_b32	s_restore_buf_rsrc2, s_restore_alloc_size		//NUM_RECORDS in bytes
 
 	// LDS at offset: size(VGPR)+size(SVGPR)+SIZE(SGPR)+SIZE(HWREG)
@@ -1338,9 +1359,6 @@ L_BARRIER_RESTORE_LOOP:
 	s_branch	L_BARRIER_RESTORE_LOOP
 
 L_SKIP_BARRIER_RESTORE:
-	// Make barrier and LDS state visible to all waves in the group.
-	s_barrier_signal	-2
-	s_barrier_wait	-2
 #endif
 
 	s_mov_b32	m0, s_restore_m0
@@ -1351,7 +1369,17 @@ L_SKIP_BARRIER_RESTORE:
 	s_setreg_b32	hwreg(HW_REG_SHADER_XNACK_MASK), s_restore_xnack_mask
 #endif
 
+#if ASIC_FAMILY < CHIP_GFX12
 	s_setreg_b32	hwreg(S_TRAPSTS_HWREG), s_restore_trapsts
+#else
+	// EXCP_FLAG_PRIV.SAVE_CONTEXT and HOST_TRAP may have changed.
+	// Only restore the other fields to avoid clobbering them.
+	s_setreg_b32	hwreg(S_TRAPSTS_HWREG, 0, SQ_WAVE_EXCP_FLAG_PRIV_SAVE_CONTEXT_SHIFT), s_restore_trapsts
+	s_lshr_b32	s_restore_trapsts, s_restore_trapsts, SQ_WAVE_EXCP_FLAG_PRIV_ILLEGAL_INST_SHIFT
+	s_setreg_b32	hwreg(S_TRAPSTS_HWREG, SQ_WAVE_EXCP_FLAG_PRIV_ILLEGAL_INST_SHIFT, 1), s_restore_trapsts
+	s_lshr_b32	s_restore_trapsts, s_restore_trapsts, SQ_WAVE_EXCP_FLAG_PRIV_WAVE_START_SHIFT - SQ_WAVE_EXCP_FLAG_PRIV_ILLEGAL_INST_SHIFT
+	s_setreg_b32	hwreg(S_TRAPSTS_HWREG, SQ_WAVE_EXCP_FLAG_PRIV_WAVE_START_SHIFT, 32 - SQ_WAVE_EXCP_FLAG_PRIV_WAVE_START_SHIFT), s_restore_trapsts
+#endif
 	s_setreg_b32	hwreg(HW_REG_MODE), s_restore_mode
 
 	// Restore trap temporaries 4-11, 13 initialized by SPI debug dispatch logic
@@ -1389,6 +1417,14 @@ L_RETURN_WITHOUT_PRIV:
 #endif
 
 	s_setreg_b32	hwreg(S_STATUS_HWREG), s_restore_status			// SCC is included, which is changed by previous salu
+
+#if ASIC_FAMILY >= CHIP_GFX12
+	// Make barrier and LDS state visible to all waves in the group.
+	// STATE_PRIV.BARRIER_COMPLETE may change after this point.
+	s_barrier_signal	-2
+	s_barrier_wait	-2
+#endif
+
 	s_rfe_b64	s_restore_pc_lo						//Return to the main shader program and resume execution
 
 L_END_PGM:
@@ -1500,11 +1536,6 @@ function write_vgprs_to_mem_with_sqc_w64(vgpr0, n_vgprs, s_rsrc, s_mem_offset)
 	end
 end
 #endif
-
-function get_lds_size_bytes(s_lds_size_byte)
-	s_getreg_b32	s_lds_size_byte, hwreg(HW_REG_LDS_ALLOC, SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT, SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)
-	s_lshl_b32	s_lds_size_byte, s_lds_size_byte, 8			//LDS size in dwords = lds_size * 64 *4Bytes // granularity 64DW
-end
 
 function get_vgpr_size_bytes(s_vgpr_size_byte, s_size)
 	s_getreg_b32	s_vgpr_size_byte, hwreg(HW_REG_GPR_ALLOC,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT,SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE)
