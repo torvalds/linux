@@ -41,6 +41,29 @@
 
 		vin-supply = <&vph_ext>;
 	};
+
+	reg_2v952_vcc: regulator-2v952-vcc {
+		compatible = "regulator-gpio";
+		regulator-name = "2v952_vcc";
+		regulator-min-microvolt = <1650000>;
+		regulator-max-microvolt = <3600000>;
+		enable-gpios = <&tlmm 102 GPIO_ACTIVE_HIGH>;
+		gpios = <&tlmm 84 GPIO_ACTIVE_HIGH>;
+		states = <1650000 0>, <3600000 1>;
+		startup-delay-us = <5000>;
+		enable-active-high;
+		regulator-boot-on;
+
+		vin-supply = <&vph_ext>;
+	};
+
+	reg_2v95_vdd: regulator-2v95-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "2v95_vdd";
+		regulator-min-microvolt = <2950000>;
+		regulator-max-microvolt = <2950000>;
+		vin-supply = <&reg_2v952_vcc>;
+	};
 };
 
 &apps_rsc {
@@ -259,8 +282,30 @@
 	status = "okay";
 };
 
+&sdhc {
+	cd-gpios = <&tlmm 103 GPIO_ACTIVE_LOW>;
+	vmmc-supply = <&reg_2v95_vdd>;
+	vqmmc-supply = <&reg_2v952_vcc>;
+	bus-width = <4>;
+	no-sdio;
+	no-mmc;
+
+	pinctrl-0 = <&sdc1_default &sd_cd>;
+	pinctrl-1 = <&sdc1_sleep &sd_cd>;
+	pinctrl-names = "default", "sleep";
+
+	status = "okay";
+};
+
 &tlmm {
 	gpio-reserved-ranges = <110 6>;
+
+	sd_cd: sd-cd-state {
+		pins = "gpio103";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
 };
 
 &uart1 {
