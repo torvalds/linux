@@ -602,8 +602,8 @@ int bch2_btree_cache_cannibalize_lock(struct btree_trans *trans, struct closure 
 	struct btree_cache *bc = &c->btree_cache;
 	struct task_struct *old;
 
-	old = cmpxchg(&bc->alloc_lock, NULL, current);
-	if (old == NULL || old == current)
+	old = NULL;
+	if (try_cmpxchg(&bc->alloc_lock, &old, current) || old == current)
 		goto success;
 
 	if (!cl) {
@@ -614,8 +614,8 @@ int bch2_btree_cache_cannibalize_lock(struct btree_trans *trans, struct closure 
 	closure_wait(&bc->alloc_wait, cl);
 
 	/* Try again, after adding ourselves to waitlist */
-	old = cmpxchg(&bc->alloc_lock, NULL, current);
-	if (old == NULL || old == current) {
+	old = NULL;
+	if (try_cmpxchg(&bc->alloc_lock, &old, current) || old == current) {
 		/* We raced */
 		closure_wake_up(&bc->alloc_wait);
 		goto success;

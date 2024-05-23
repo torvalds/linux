@@ -230,7 +230,6 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val, bool t
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *buf = journal_cur_buf(j);
 	union journal_res_state old, new;
-	u64 v = atomic64_read(&j->reservations.counter);
 	unsigned sectors;
 
 	BUG_ON(closed_val != JOURNAL_ENTRY_CLOSED_VAL &&
@@ -238,15 +237,16 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val, bool t
 
 	lockdep_assert_held(&j->lock);
 
+	old.v = atomic64_read(&j->reservations.counter);
 	do {
-		old.v = new.v = v;
+		new.v = old.v;
 		new.cur_entry_offset = closed_val;
 
 		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL ||
 		    old.cur_entry_offset == new.cur_entry_offset)
 			return;
-	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
-				       old.v, new.v)) != old.v);
+	} while (!atomic64_try_cmpxchg(&j->reservations.counter,
+				       &old.v, new.v));
 
 	if (!__journal_entry_is_open(old))
 		return;
@@ -353,7 +353,6 @@ static int journal_entry_open(struct journal *j)
 		((journal_cur_seq(j) + 1) & JOURNAL_BUF_MASK);
 	union journal_res_state old, new;
 	int u64s;
-	u64 v;
 
 	lockdep_assert_held(&j->lock);
 	BUG_ON(journal_entry_is_open(j));
@@ -432,9 +431,9 @@ static int journal_entry_open(struct journal *j)
 	 */
 	j->cur_entry_u64s = u64s;
 
-	v = atomic64_read(&j->reservations.counter);
+	old.v = atomic64_read(&j->reservations.counter);
 	do {
-		old.v = new.v = v;
+		new.v = old.v;
 
 		BUG_ON(old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL);
 
@@ -446,8 +445,8 @@ static int journal_entry_open(struct journal *j)
 
 		/* Handle any already added entries */
 		new.cur_entry_offset = le32_to_cpu(buf->data->u64s);
-	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
-				       old.v, new.v)) != old.v);
+	} while (!atomic64_try_cmpxchg(&j->reservations.counter,
+				       &old.v, new.v));
 
 	if (nr_unwritten_journal_entries(j) == 1)
 		mod_delayed_work(j->wq,

@@ -916,13 +916,13 @@ void bch2_trans_account_disk_usage_change(struct btree_trans *trans)
 	 */
 	s64 should_not_have_added = added - (s64) disk_res_sectors;
 	if (unlikely(should_not_have_added > 0)) {
-		u64 old, new, v = atomic64_read(&c->sectors_available);
+		u64 old, new;
 
+		old = atomic64_read(&c->sectors_available);
 		do {
-			old = v;
 			new = max_t(s64, 0, old - should_not_have_added);
-		} while ((v = atomic64_cmpxchg(&c->sectors_available,
-					       old, new)) != old);
+		} while (!atomic64_try_cmpxchg(&c->sectors_available,
+					       &old, new));
 
 		added -= should_not_have_added;
 		warn = true;
@@ -1523,7 +1523,7 @@ int __bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
 			      u64 sectors, int flags)
 {
 	struct bch_fs_pcpu *pcpu;
-	u64 old, v, get;
+	u64 old, get;
 	s64 sectors_available;
 	int ret;
 
@@ -1534,17 +1534,16 @@ int __bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
 	if (sectors <= pcpu->sectors_available)
 		goto out;
 
-	v = atomic64_read(&c->sectors_available);
+	old = atomic64_read(&c->sectors_available);
 	do {
-		old = v;
 		get = min((u64) sectors + SECTORS_CACHE, old);
 
 		if (get < sectors) {
 			preempt_enable();
 			goto recalculate;
 		}
-	} while ((v = atomic64_cmpxchg(&c->sectors_available,
-				       old, old - get)) != old);
+	} while (!atomic64_try_cmpxchg(&c->sectors_available,
+				       &old, old - get));
 
 	pcpu->sectors_available		+= get;
 

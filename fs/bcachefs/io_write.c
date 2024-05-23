@@ -69,11 +69,10 @@ void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw)
 	u64 io_latency = time_after64(now, submit_time)
 		? now - submit_time
 		: 0;
-	u64 old, new, v = atomic64_read(latency);
+	u64 old, new;
 
+	old = atomic64_read(latency);
 	do {
-		old = v;
-
 		/*
 		 * If the io latency was reasonably close to the current
 		 * latency, skip doing the update and atomic operation - most of
@@ -84,7 +83,7 @@ void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw)
 			break;
 
 		new = ewma_add(old, io_latency, 5);
-	} while ((v = atomic64_cmpxchg(latency, old, new)) != old);
+	} while (!atomic64_try_cmpxchg(latency, &old, new));
 
 	bch2_congested_acct(ca, io_latency, now, rw);
 

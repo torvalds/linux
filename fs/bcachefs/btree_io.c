@@ -1796,15 +1796,16 @@ int bch2_btree_root_read(struct bch_fs *c, enum btree_id id,
 static void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
 				      struct btree_write *w)
 {
-	unsigned long old, new, v = READ_ONCE(b->will_make_reachable);
+	unsigned long old, new;
 
+	old = READ_ONCE(b->will_make_reachable);
 	do {
-		old = new = v;
+		new = old;
 		if (!(old & 1))
 			break;
 
 		new &= ~1UL;
-	} while ((v = cmpxchg(&b->will_make_reachable, old, new)) != old);
+	} while (!try_cmpxchg(&b->will_make_reachable, &old, new));
 
 	if (old & 1)
 		closure_put(&((struct btree_update *) new)->cl);
@@ -1815,14 +1816,14 @@ static void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
 static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 {
 	struct btree_write *w = btree_prev_write(b);
-	unsigned long old, new, v;
+	unsigned long old, new;
 	unsigned type = 0;
 
 	bch2_btree_complete_write(c, b, w);
 
-	v = READ_ONCE(b->flags);
+	old = READ_ONCE(b->flags);
 	do {
-		old = new = v;
+		new = old;
 
 		if ((old & (1U << BTREE_NODE_dirty)) &&
 		    (old & (1U << BTREE_NODE_need_write)) &&
@@ -1842,7 +1843,7 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 			new &= ~(1U << BTREE_NODE_write_in_flight);
 			new &= ~(1U << BTREE_NODE_write_in_flight_inner);
 		}
-	} while ((v = cmpxchg(&b->flags, old, new)) != old);
+	} while (!try_cmpxchg(&b->flags, &old, new));
 
 	if (new & (1U << BTREE_NODE_write_in_flight))
 		__bch2_btree_node_write(c, b, BTREE_WRITE_ALREADY_STARTED|type);
@@ -2014,8 +2015,9 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 	 * dirty bit requires a write lock, we can't race with other threads
 	 * redirtying it:
 	 */
+	old = READ_ONCE(b->flags);
 	do {
-		old = new = READ_ONCE(b->flags);
+		new = old;
 
 		if (!(old & (1 << BTREE_NODE_dirty)))
 			return;
@@ -2046,7 +2048,7 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 		new |=  (1 << BTREE_NODE_write_in_flight_inner);
 		new |=  (1 << BTREE_NODE_just_written);
 		new ^=  (1 << BTREE_NODE_write_idx);
-	} while (cmpxchg_acquire(&b->flags, old, new) != old);
+	} while (!try_cmpxchg_acquire(&b->flags, &old, new));
 
 	if (new & (1U << BTREE_NODE_need_write))
 		return;

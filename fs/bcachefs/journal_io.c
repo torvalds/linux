@@ -1588,7 +1588,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_replicas_padded replicas;
 	union journal_res_state old, new;
-	u64 v, seq = le64_to_cpu(w->data->seq);
+	u64 seq = le64_to_cpu(w->data->seq);
 	int err = 0;
 
 	bch2_time_stats_update(!JSET_NO_FLUSH(w->data)
@@ -1647,14 +1647,15 @@ static CLOSURE_CALLBACK(journal_write_done)
 		if (j->watermark != BCH_WATERMARK_stripe)
 			journal_reclaim_kick(&c->journal);
 
-		v = atomic64_read(&j->reservations.counter);
+		old.v = atomic64_read(&j->reservations.counter);
 		do {
-			old.v = new.v = v;
+			new.v = old.v;
 			BUG_ON(journal_state_count(new, new.unwritten_idx));
 			BUG_ON(new.unwritten_idx != (seq & JOURNAL_BUF_MASK));
 
 			new.unwritten_idx++;
-		} while ((v = atomic64_cmpxchg(&j->reservations.counter, old.v, new.v)) != old.v);
+		} while (!atomic64_try_cmpxchg(&j->reservations.counter,
+					       &old.v, new.v));
 
 		closure_wake_up(&w->wait);
 		completed = true;
