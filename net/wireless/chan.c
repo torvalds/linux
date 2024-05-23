@@ -1523,28 +1523,38 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 static bool _cfg80211_reg_can_beacon(struct wiphy *wiphy,
 				     struct cfg80211_chan_def *chandef,
 				     enum nl80211_iftype iftype,
-				     bool check_no_ir)
+				     u32 prohibited_flags,
+				     u32 permitting_flags)
 {
-	bool res;
-	u32 prohibited_flags = IEEE80211_CHAN_DISABLED;
+	bool res, check_radar;
 	int dfs_required;
 
-	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_no_ir);
+	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype,
+				      prohibited_flags,
+				      permitting_flags);
 
-	if (check_no_ir)
-		prohibited_flags |= IEEE80211_CHAN_NO_IR;
+	if (!_cfg80211_chandef_usable(wiphy, chandef,
+				      IEEE80211_CHAN_DISABLED, 0))
+		return false;
 
 	dfs_required = cfg80211_chandef_dfs_required(wiphy, chandef, iftype);
-	if (dfs_required != 0)
-		prohibited_flags |= IEEE80211_CHAN_RADAR;
+	check_radar = dfs_required != 0;
 
 	if (dfs_required > 0 &&
 	    cfg80211_chandef_dfs_available(wiphy, chandef)) {
 		/* We can skip IEEE80211_CHAN_NO_IR if chandef dfs available */
-		prohibited_flags = IEEE80211_CHAN_DISABLED;
+		prohibited_flags &= ~IEEE80211_CHAN_NO_IR;
+		check_radar = false;
 	}
 
-	res = _cfg80211_chandef_usable(wiphy, chandef, prohibited_flags, 0);
+	if (check_radar &&
+	    !_cfg80211_chandef_usable(wiphy, chandef,
+				      IEEE80211_CHAN_RADAR, 0))
+		return false;
+
+	res = _cfg80211_chandef_usable(wiphy, chandef,
+				       prohibited_flags,
+				       permitting_flags);
 
 	trace_cfg80211_return_bool(res);
 	return res;
@@ -1555,6 +1565,7 @@ bool cfg80211_reg_check_beaconing(struct wiphy *wiphy,
 				  struct cfg80211_beaconing_check_config *cfg)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	u32 permitting_flags = 0;
 	bool check_no_ir = true;
 
 	/*
@@ -1569,8 +1580,12 @@ bool cfg80211_reg_check_beaconing(struct wiphy *wiphy,
 							   chandef->chan);
 	}
 
+	if (cfg->reg_power == IEEE80211_REG_VLP_AP)
+		permitting_flags |= IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP;
+
 	return _cfg80211_reg_can_beacon(wiphy, chandef, cfg->iftype,
-					check_no_ir);
+					check_no_ir ? IEEE80211_CHAN_NO_IR : 0,
+					permitting_flags);
 }
 EXPORT_SYMBOL(cfg80211_reg_check_beaconing);
 

@@ -125,6 +125,8 @@ struct wiphy;
  * @IEEE80211_CHAN_CAN_MONITOR: This channel can be used for monitor
  *	mode even in the presence of other (regulatory) restrictions,
  *	even if it is otherwise disabled.
+ * @IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP: Allow using this channel for AP operation
+ *	with very low power (VLP), even if otherwise set to NO_IR.
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED			= BIT(0),
@@ -152,6 +154,7 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT	= BIT(22),
 	IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT	= BIT(23),
 	IEEE80211_CHAN_CAN_MONITOR		= BIT(24),
+	IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP	= BIT(25),
 };
 
 #define IEEE80211_CHAN_NO_HT40 \
@@ -8806,9 +8809,12 @@ static inline void cfg80211_report_obss_beacon(struct wiphy *wiphy,
  * @relax: allow IR-relaxation conditions to apply (e.g. another
  *	interface connected already on the same channel)
  *	NOTE: If this is set, wiphy mutex must be held.
+ * @reg_power: &enum ieee80211_ap_reg_power value indicating the
+ *	advertised/used 6 GHz regulatory power setting
  */
 struct cfg80211_beaconing_check_config {
 	enum nl80211_iftype iftype;
+	enum ieee80211_ap_reg_power reg_power;
 	bool relax;
 };
 
