@@ -177,9 +177,6 @@ int bpf_prog3(struct __sk_buff *skb)
 		return bpf_sk_redirect_hash(skb, &tls_sock_map, &ret, flags);
 #endif
 	}
-	f = bpf_map_lookup_elem(&sock_skb_opts, &one);
-	if (f && *f)
-		ret = SK_DROP;
 	err = bpf_skb_adjust_room(skb, 4, 0, 0);
 	if (err)
 		return SK_DROP;
