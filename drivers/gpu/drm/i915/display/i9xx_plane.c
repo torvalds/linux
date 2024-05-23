@@ -485,7 +485,7 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, DSPOFFSET(i9xx_plane),
 				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
 	} else if (DISPLAY_VER(dev_priv) >= 4) {
-		intel_de_write_fw(dev_priv, DSPLINOFF(i9xx_plane),
+		intel_de_write_fw(dev_priv, DSPLINOFF(dev_priv, i9xx_plane),
 				  linear_offset);
 		intel_de_write_fw(dev_priv, DSPTILEOFF(i9xx_plane),
 				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
@@ -1041,7 +1041,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 					       DSPTILEOFF(i9xx_plane));
 		else
 			offset = intel_de_read(dev_priv,
-					       DSPLINOFF(i9xx_plane));
+					       DSPLINOFF(dev_priv, i9xx_plane));
 		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & DISP_ADDR_MASK;
 	} else {
 		offset = 0;
