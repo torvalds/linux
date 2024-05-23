@@ -2746,6 +2746,12 @@ struct rtl_priv {
 	 */
 	bool use_new_trx_flow;
 
+	/* For dual MAC RTL8192DU, things shared by the 2 USB interfaces */
+	u32 *curveindex_2g;
+	u32 *curveindex_5g;
+	struct mutex *mutex_for_power_on_off; /* for power on/off */
+	struct mutex *mutex_for_hw_init; /* for hardware init */
+
 #ifdef CONFIG_PM
 	struct wiphy_wowlan_support wowlan;
 #endif
