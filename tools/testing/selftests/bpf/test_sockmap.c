@@ -1285,7 +1285,7 @@ out:
 			bpf_link__detach(links[i]);
 	}
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < ARRAY_SIZE(map_fd); i++) {
 		key = next_key = 0;
 		bpf_map_update_elem(map_fd[i], &key, &zero, BPF_ANY);
 		while (bpf_map_get_next_key(map_fd[i], &key, &next_key) == 0) {
