@@ -811,9 +811,11 @@ use_clean:
 	clear_bit(BCH_FS_fsck_running, &c->flags);
 
 	/* fsync if we fixed errors */
-	if (test_bit(BCH_FS_errors_fixed, &c->flags)) {
+	if (test_bit(BCH_FS_errors_fixed, &c->flags) &&
+	    bch2_write_ref_tryget(c, BCH_WRITE_REF_fsync)) {
 		bch2_journal_flush_all_pins(&c->journal);
 		bch2_journal_meta(&c->journal);
+		bch2_write_ref_put(c, BCH_WRITE_REF_fsync);
 	}
 
 	/* If we fixed errors, verify that fs is actually clean now: */
