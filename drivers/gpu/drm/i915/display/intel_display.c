@@ -4254,11 +4254,9 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	if (c8_planes_changed(crtc_state))
 		crtc_state->uapi.color_mgmt_changed = true;
 
-	if (intel_crtc_needs_color_update(crtc_state)) {
-		ret = intel_color_check(state, crtc);
-		if (ret)
-			return ret;
-	}
+	ret = intel_color_check(state, crtc);
+	if (ret)
+		return ret;
 
 	ret = intel_compute_pipe_wm(state, crtc);
 	if (ret) {

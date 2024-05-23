@@ -1986,6 +1986,11 @@ int intel_color_check(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	if (!intel_crtc_needs_color_update(new_crtc_state))
+		return 0;
 
 	return i915->display.funcs.color->color_check(state, crtc);
 }
