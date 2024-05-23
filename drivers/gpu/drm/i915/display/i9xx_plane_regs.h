@@ -94,8 +94,8 @@
 #define   PRIM_POS_X_MASK	REG_GENMASK(15, 0)
 #define   PRIM_POS_X(x)		REG_FIELD_PREP(PRIM_POS_X_MASK, (x))
 
-#define _PRIMSIZE_A		0x60a0c
-#define PRIMSIZE(plane)		_MMIO_TRANS2(dev_priv, plane, _PRIMSIZE_A)
+#define _PRIMSIZE_A			0x60a0c
+#define PRIMSIZE(dev_priv, plane)	_MMIO_TRANS2(dev_priv, plane, _PRIMSIZE_A)
 #define   PRIM_HEIGHT_MASK	REG_GENMASK(31, 16)
 #define   PRIM_HEIGHT(h)	REG_FIELD_PREP(PRIM_HEIGHT_MASK, (h))
 #define   PRIM_WIDTH_MASK	REG_GENMASK(15, 0)
