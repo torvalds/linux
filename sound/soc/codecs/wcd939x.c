@@ -85,7 +85,6 @@ enum {
 #define WCD939X_MBHC_GET_X1(x)		((x) & 0x3FFF)
 
 /* Z value compared in milliOhm */
-#define WCD939X_MBHC_IS_SECOND_RAMP_REQUIRED(z) false
 #define WCD939X_ANA_MBHC_ZDET_CONST	(1018 * 1024)
 
 enum {
@@ -525,7 +524,7 @@ static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 						      WCD939X_DIGITAL_CDC_COMP_CTL_0,
 						      WCD939X_CDC_COMP_CTL_0_HPHL_COMP_EN,
 						      true);
-			 /* 5msec compander delay as per HW requirement */
+			/* 5msec compander delay as per HW requirement */
 			if (!wcd939x->comp2_enable ||
 			    snd_soc_component_read_field(component,
 							 WCD939X_DIGITAL_CDC_COMP_CTL_0,
@@ -1869,7 +1868,6 @@ static void wcd939x_mbhc_program_btn_thr(struct snd_soc_component *component,
 
 static bool wcd939x_mbhc_micb_en_status(struct snd_soc_component *component, int micb_num)
 {
-
 	if (micb_num == MIC_BIAS_2) {
 		u8 val;
 
