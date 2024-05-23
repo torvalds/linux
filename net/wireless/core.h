@@ -494,7 +494,8 @@ bool cfg80211_wdev_on_sub_chan(struct wireless_dev *wdev,
 			       bool primary_only);
 bool _cfg80211_chandef_usable(struct wiphy *wiphy,
 			      const struct cfg80211_chan_def *chandef,
-			      u32 prohibited_flags, bool monitor);
+			      u32 prohibited_flags,
+			      u32 permitting_flags);
 
 static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 {

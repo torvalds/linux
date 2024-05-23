@@ -1145,7 +1145,8 @@ EXPORT_SYMBOL(cfg80211_chandef_dfs_cac_time);
 
 static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 					u32 center_freq, u32 bandwidth,
-					u32 prohibited_flags, bool monitor)
+					u32 prohibited_flags,
+					u32 permitting_flags)
 {
 	struct ieee80211_channel *c;
 	u32 freq, start_freq, end_freq;
@@ -1157,7 +1158,7 @@ static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 		c = ieee80211_get_channel_khz(wiphy, freq);
 		if (!c)
 			return false;
-		if (monitor && c->flags & IEEE80211_CHAN_CAN_MONITOR)
+		if (c->flags & permitting_flags)
 			continue;
 		if (c->flags & prohibited_flags)
 			return false;
@@ -1221,7 +1222,8 @@ static bool cfg80211_edmg_usable(struct wiphy *wiphy, u8 edmg_channels,
 
 bool _cfg80211_chandef_usable(struct wiphy *wiphy,
 			      const struct cfg80211_chan_def *chandef,
-			      u32 prohibited_flags, bool monitor)
+			      u32 prohibited_flags,
+			      u32 permitting_flags)
 {
 	struct ieee80211_sta_ht_cap *ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap;
@@ -1383,22 +1385,23 @@ bool _cfg80211_chandef_usable(struct wiphy *wiphy,
 
 	if (!cfg80211_secondary_chans_ok(wiphy,
 					 ieee80211_chandef_to_khz(chandef),
-					 width, prohibited_flags, monitor))
+					 width, prohibited_flags,
+					 permitting_flags))
 		return false;
 
 	if (!chandef->center_freq2)
 		return true;
 	return cfg80211_secondary_chans_ok(wiphy,
 					   MHZ_TO_KHZ(chandef->center_freq2),
-					   width, prohibited_flags, monitor);
+					   width, prohibited_flags,
+					   permitting_flags);
 }
 
 bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			     const struct cfg80211_chan_def *chandef,
 			     u32 prohibited_flags)
 {
-	return _cfg80211_chandef_usable(wiphy, chandef, prohibited_flags,
-					false);
+	return _cfg80211_chandef_usable(wiphy, chandef, prohibited_flags, 0);
 }
 EXPORT_SYMBOL(cfg80211_chandef_usable);
 
@@ -1541,7 +1544,7 @@ static bool _cfg80211_reg_can_beacon(struct wiphy *wiphy,
 		prohibited_flags = IEEE80211_CHAN_DISABLED;
 	}
 
-	res = cfg80211_chandef_usable(wiphy, chandef, prohibited_flags);
+	res = _cfg80211_chandef_usable(wiphy, chandef, prohibited_flags, 0);
 
 	trace_cfg80211_return_bool(res);
 	return res;

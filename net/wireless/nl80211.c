@@ -3347,7 +3347,7 @@ static int _nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 
 	if (!_cfg80211_chandef_usable(&rdev->wiphy, chandef,
 				      IEEE80211_CHAN_DISABLED,
-				      monitor)) {
+				      monitor ? IEEE80211_CHAN_CAN_MONITOR : 0)) {
 		NL_SET_ERR_MSG(extack, "(extension) channel is disabled");
 		return -EINVAL;
 	}
