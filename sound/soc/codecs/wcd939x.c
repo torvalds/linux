@@ -1268,25 +1268,20 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 {
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
 	int micb_index = micb_num - 1;
-	u16 micb_field;
 	u16 micb_reg;
 
 	switch (micb_num) {
 	case MIC_BIAS_1:
 		micb_reg = WCD939X_ANA_MICB1;
-		micb_field = WCD939X_MICB1_ENABLE;
 		break;
 	case MIC_BIAS_2:
 		micb_reg = WCD939X_ANA_MICB2;
-		micb_field = WCD939X_MICB2_ENABLE;
 		break;
 	case MIC_BIAS_3:
 		micb_reg = WCD939X_ANA_MICB3;
-		micb_field = WCD939X_MICB3_ENABLE;
 		break;
 	case MIC_BIAS_4:
 		micb_reg = WCD939X_ANA_MICB4;
-		micb_field = WCD939X_MICB4_ENABLE;
 		break;
 	default:
 		dev_err(component->dev, "%s: Invalid micbias number: %d\n",
@@ -1300,7 +1295,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 		if (wcd939x->pullup_ref[micb_index] == 1 &&
 		    wcd939x->micb_ref[micb_index] == 0)
 			snd_soc_component_write_field(component, micb_reg,
-						      micb_field, MICB_BIAS_PULL_UP);
+						      WCD939X_MICB_ENABLE,
+						      MICB_BIAS_PULL_UP);
 		break;
 	case MICB_PULLUP_DISABLE:
 		if (wcd939x->pullup_ref[micb_index] > 0)
@@ -1308,7 +1304,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 		if (wcd939x->pullup_ref[micb_index] == 0 &&
 		    wcd939x->micb_ref[micb_index] == 0)
 			snd_soc_component_write_field(component, micb_reg,
-						      micb_field, MICB_BIAS_DISABLE);
+						      WCD939X_MICB_ENABLE,
+						      MICB_BIAS_DISABLE);
 		break;
 	case MICB_ENABLE:
 		wcd939x->micb_ref[micb_index]++;
@@ -1345,7 +1342,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 			snd_soc_component_write_field(component,
 						WCD939X_MICB4_TEST_CTL_2,
 						WCD939X_TEST_CTL_2_IBIAS_LDO_DRIVER, true);
-			snd_soc_component_write_field(component, micb_reg, micb_field,
+			snd_soc_component_write_field(component, micb_reg,
+						      WCD939X_MICB_ENABLE,
 						      MICB_BIAS_ENABLE);
 			if (micb_num == MIC_BIAS_2)
 				wcd_mbhc_event_notify(wcd939x->wcd_mbhc,
@@ -1362,7 +1360,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 		if (wcd939x->micb_ref[micb_index] == 0 &&
 		    wcd939x->pullup_ref[micb_index] > 0)
 			snd_soc_component_write_field(component, micb_reg,
-						      micb_field, MICB_BIAS_PULL_UP);
+						      WCD939X_MICB_ENABLE,
+						      MICB_BIAS_PULL_UP);
 		else if (wcd939x->micb_ref[micb_index] == 0 &&
 			 wcd939x->pullup_ref[micb_index] == 0) {
 			if (micb_num  == MIC_BIAS_2)
@@ -1370,7 +1369,8 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 						      WCD_EVENT_PRE_MICBIAS_2_OFF);
 
 			snd_soc_component_write_field(component, micb_reg,
-						      micb_field, MICB_BIAS_DISABLE);
+						      WCD939X_MICB_ENABLE,
+						      MICB_BIAS_DISABLE);
 			if (micb_num  == MIC_BIAS_2)
 				wcd_mbhc_event_notify(wcd939x->wcd_mbhc,
 						      WCD_EVENT_POST_MICBIAS_2_OFF);
@@ -1873,7 +1873,7 @@ static bool wcd939x_mbhc_micb_en_status(struct snd_soc_component *component, int
 	if (micb_num == MIC_BIAS_2) {
 		u8 val;
 
-		val = FIELD_GET(WCD939X_MICB2_ENABLE,
+		val = FIELD_GET(WCD939X_MICB_ENABLE,
 				snd_soc_component_read(component, WCD939X_ANA_MICB2));
 		if (val == MICB_BIAS_ENABLE)
 			return true;
@@ -1935,7 +1935,7 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 					    int req_volt, int micb_num)
 {
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
-	unsigned int micb_en_field, micb_vout_ctl_field;
+	unsigned int micb_vout_ctl_field;
 	unsigned int micb_reg, cur_vout_ctl, micb_en;
 	int req_vout_ctl;
 	int ret = 0;
@@ -1943,22 +1943,18 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 	switch (micb_num) {
 	case MIC_BIAS_1:
 		micb_reg = WCD939X_ANA_MICB1;
-		micb_en_field = WCD939X_MICB1_ENABLE;
 		micb_vout_ctl_field = WCD939X_MICB1_VOUT_CTL;
 		break;
 	case MIC_BIAS_2:
 		micb_reg = WCD939X_ANA_MICB2;
-		micb_en_field = WCD939X_MICB2_ENABLE;
 		micb_vout_ctl_field = WCD939X_MICB2_VOUT_CTL;
 		break;
 	case MIC_BIAS_3:
 		micb_reg = WCD939X_ANA_MICB3;
-		micb_en_field = WCD939X_MICB3_ENABLE;
 		micb_vout_ctl_field = WCD939X_MICB1_VOUT_CTL;
 		break;
 	case MIC_BIAS_4:
 		micb_reg = WCD939X_ANA_MICB4;
-		micb_en_field = WCD939X_MICB4_ENABLE;
 		micb_vout_ctl_field = WCD939X_MICB2_VOUT_CTL;
 		break;
 	default:
@@ -1975,7 +1971,7 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 	 * micbias.
 	 */
 	micb_en = snd_soc_component_read_field(component, micb_reg,
-					       micb_en_field);
+					       WCD939X_MICB_ENABLE);
 	cur_vout_ctl = snd_soc_component_read_field(component, micb_reg,
 						    micb_vout_ctl_field);
 
@@ -1996,14 +1992,16 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 
 	if (micb_en == MICB_BIAS_ENABLE)
 		snd_soc_component_write_field(component, micb_reg,
-					      micb_en_field, MICB_BIAS_PULL_DOWN);
+					      WCD939X_MICB_ENABLE,
+					      MICB_BIAS_PULL_DOWN);
 
 	snd_soc_component_write_field(component, micb_reg,
 				      micb_vout_ctl_field, req_vout_ctl);
 
 	if (micb_en == MICB_BIAS_ENABLE) {
 		snd_soc_component_write_field(component, micb_reg,
-					      micb_en_field, MICB_BIAS_ENABLE);
+					      WCD939X_MICB_ENABLE,
+					      MICB_BIAS_ENABLE);
 		/*
 		 * Add 2ms delay as per HW requirement after enabling
 		 * micbias
