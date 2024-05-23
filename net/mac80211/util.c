@@ -2175,8 +2175,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		local->in_reconfig = false;
 		barrier();
 
-		/* Restart deferred ROCs */
-		ieee80211_start_next_roc(local);
+		ieee80211_reconfig_roc(local);
 
 		/* Requeue all works */
 		list_for_each_entry(sdata, &local->interfaces, list)
