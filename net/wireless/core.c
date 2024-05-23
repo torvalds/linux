@@ -1145,7 +1145,8 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->background_cac_abort_wk);
 
 	cfg80211_rdev_free_wowlan(rdev);
-	cfg80211_rdev_free_coalesce(rdev);
+	cfg80211_free_coalesce(rdev->coalesce);
+	rdev->coalesce = NULL;
 }
 EXPORT_SYMBOL(wiphy_unregister);
 

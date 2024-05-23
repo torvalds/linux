@@ -3566,8 +3566,8 @@ struct cfg80211_coalesce_rules {
  * @n_rules: number of rules
  */
 struct cfg80211_coalesce {
-	struct cfg80211_coalesce_rules *rules;
 	int n_rules;
+	struct cfg80211_coalesce_rules rules[] __counted_by(n_rules);
 };
 
 /**
