@@ -26,7 +26,9 @@ properties:
           - rockchip,rk3568-vpu
           - rockchip,rk3588-av1-vpu
       - items:
-          - const: rockchip,rk3188-vpu
+          - enum:
+              - rockchip,rk3128-vpu
+              - rockchip,rk3188-vpu
           - const: rockchip,rk3066-vpu
       - items:
           - const: rockchip,rk3228-vpu
