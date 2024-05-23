@@ -13,6 +13,7 @@
 #include "abi/guc_communication_mmio_abi.h"
 #include "abi/guc_klvs_abi.h"
 #include "abi/guc_relay_actions_abi.h"
+#include "regs/xe_gt_regs.h"
 
 #include "xe_assert.h"
 #include "xe_device.h"
@@ -763,6 +764,12 @@ u32 xe_gt_sriov_vf_read32(struct xe_gt *gt, struct xe_reg reg)
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
 	xe_gt_assert(gt, gt->sriov.vf.pf_version.major);
 	xe_gt_assert(gt, !reg.vf);
+
+	if (reg.addr == GMD_ID.addr) {
+		xe_gt_sriov_dbg_verbose(gt, "gmdid(%#x) = %#x\n",
+					addr, gt->sriov.vf.runtime.gmdid);
+		return gt->sriov.vf.runtime.gmdid;
+	}
 
 	rr = vf_lookup_reg(gt, addr);
 	if (!rr) {
