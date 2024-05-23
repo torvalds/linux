@@ -2503,7 +2503,7 @@ static int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 			ab->qmi.dev_mem[i].size =
 				resp.dev_mem[i].size;
 			ath12k_dbg(ab, ATH12K_DBG_QMI,
-				   "devmem [%d] start ox%llx size %llu\n", i,
+				   "devmem [%d] start 0x%llx size %llu\n", i,
 				   ab->qmi.dev_mem[i].start,
 				   ab->qmi.dev_mem[i].size);
 		}
