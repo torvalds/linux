@@ -442,7 +442,7 @@ static void cpum_cf_make_setsize(enum cpumf_ctr_set ctrset)
 			ctrset_size = 48;
 		else if (cpumf_ctr_info.csvn >= 3 && cpumf_ctr_info.csvn <= 5)
 			ctrset_size = 128;
-		else if (cpumf_ctr_info.csvn == 6 || cpumf_ctr_info.csvn == 7)
+		else if (cpumf_ctr_info.csvn >= 6 && cpumf_ctr_info.csvn <= 8)
 			ctrset_size = 160;
 		break;
 	case CPUMF_CTR_SET_MT_DIAG:
