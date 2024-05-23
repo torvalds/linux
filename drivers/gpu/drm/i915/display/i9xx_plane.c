@@ -496,7 +496,7 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	 * disabled. Try to make the plane enable atomic by writing
 	 * the control register just before the surface register.
 	 */
-	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+	intel_de_write_fw(dev_priv, DSPCNTR(dev_priv, i9xx_plane), dspcntr);
 
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
@@ -539,7 +539,7 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 	 */
 	dspcntr = i9xx_plane_ctl_crtc(crtc_state);
 
-	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+	intel_de_write_fw(dev_priv, DSPCNTR(dev_priv, i9xx_plane), dspcntr);
 
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane), 0);
@@ -561,7 +561,7 @@ g4x_primary_async_flip(struct intel_plane *plane,
 	if (async_flip)
 		dspcntr |= DISP_ASYNC_FLIP;
 
-	intel_de_write_fw(dev_priv, DSPCNTR(i9xx_plane), dspcntr);
+	intel_de_write_fw(dev_priv, DSPCNTR(dev_priv, i9xx_plane), dspcntr);
 
 	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
@@ -685,7 +685,7 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 	if (!wakeref)
 		return false;
 
-	val = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
+	val = intel_de_read(dev_priv, DSPCNTR(dev_priv, i9xx_plane));
 
 	ret = val & DISP_ENABLE;
 
@@ -1012,7 +1012,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	fb->dev = dev;
 
-	val = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
+	val = intel_de_read(dev_priv, DSPCNTR(dev_priv, i9xx_plane));
 
 	if (DISPLAY_VER(dev_priv) >= 4) {
 		if (val & DISP_TILED) {

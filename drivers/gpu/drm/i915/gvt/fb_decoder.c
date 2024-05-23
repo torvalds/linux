@@ -217,7 +217,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (pipe >= I915_MAX_PIPES)
 		return -ENODEV;
 
-	val = vgpu_vreg_t(vgpu, DSPCNTR(pipe));
+	val = vgpu_vreg_t(vgpu, DSPCNTR(dev_priv, pipe));
 	plane->enabled = !!(val & DISP_ENABLE);
 	if (!plane->enabled)
 		return -ENODEV;

@@ -1038,7 +1038,7 @@ static void i9xx_get_config(struct intel_crtc_state *crtc_state)
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 	u32 tmp;
 
-	tmp = intel_de_read(dev_priv, DSPCNTR(i9xx_plane));
+	tmp = intel_de_read(dev_priv, DSPCNTR(dev_priv, i9xx_plane));
 
 	if (tmp & DISP_PIPE_GAMMA_ENABLE)
 		crtc_state->gamma_enable = true;

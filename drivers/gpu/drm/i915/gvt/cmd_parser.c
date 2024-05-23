@@ -1315,7 +1315,7 @@ static int gen8_decode_mi_display_flip(struct parser_exec_state *s,
 	info->async_flip = ((dword2 & GENMASK(1, 0)) == 0x1);
 
 	if (info->plane == PLANE_A) {
-		info->ctrl_reg = DSPCNTR(info->pipe);
+		info->ctrl_reg = DSPCNTR(dev_priv, info->pipe);
 		info->stride_reg = DSPSTRIDE(info->pipe);
 		info->surf_reg = DSPSURF(info->pipe);
 	} else if (info->plane == PLANE_B) {
@@ -1381,7 +1381,7 @@ static int skl_decode_mi_display_flip(struct parser_exec_state *s,
 	info->surf_val = (dword2 & GENMASK(31, 12)) >> 12;
 	info->async_flip = ((dword2 & GENMASK(1, 0)) == 0x1);
 
-	info->ctrl_reg = DSPCNTR(info->pipe);
+	info->ctrl_reg = DSPCNTR(dev_priv, info->pipe);
 	info->stride_reg = DSPSTRIDE(info->pipe);
 	info->surf_reg = DSPSURF(info->pipe);
 

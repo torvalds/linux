@@ -12,7 +12,7 @@
 #define DSPADDR_VLV(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPAADDR_VLV)
 
 #define _DSPACNTR				0x70180
-#define DSPCNTR(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPACNTR)
+#define DSPCNTR(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPACNTR)
 #define   DISP_ENABLE			REG_BIT(31)
 #define   DISP_PIPE_GAMMA_ENABLE	REG_BIT(30)
 #define   DISP_FORMAT_MASK		REG_GENMASK(29, 26)

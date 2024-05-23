@@ -165,7 +165,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(_MMIO(0x70094));
 	MMIO_D(_MMIO(0x70098));
 	MMIO_D(_MMIO(0x7009c));
-	MMIO_D(DSPCNTR(PIPE_A));
+	MMIO_D(DSPCNTR(dev_priv, PIPE_A));
 	MMIO_D(DSPADDR(PIPE_A));
 	MMIO_D(DSPSTRIDE(PIPE_A));
 	MMIO_D(DSPPOS(PIPE_A));
@@ -174,7 +174,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(DSPOFFSET(PIPE_A));
 	MMIO_D(DSPSURFLIVE(PIPE_A));
 	MMIO_D(REG_50080(PIPE_A, PLANE_PRIMARY));
-	MMIO_D(DSPCNTR(PIPE_B));
+	MMIO_D(DSPCNTR(dev_priv, PIPE_B));
 	MMIO_D(DSPADDR(PIPE_B));
 	MMIO_D(DSPSTRIDE(PIPE_B));
 	MMIO_D(DSPPOS(PIPE_B));
@@ -183,7 +183,7 @@ static int iterate_generic_mmio(struct intel_gvt_mmio_table_iter *iter)
 	MMIO_D(DSPOFFSET(PIPE_B));
 	MMIO_D(DSPSURFLIVE(PIPE_B));
 	MMIO_D(REG_50080(PIPE_B, PLANE_PRIMARY));
-	MMIO_D(DSPCNTR(PIPE_C));
+	MMIO_D(DSPCNTR(dev_priv, PIPE_C));
 	MMIO_D(DSPADDR(PIPE_C));
 	MMIO_D(DSPSTRIDE(PIPE_C));
 	MMIO_D(DSPPOS(PIPE_C));
