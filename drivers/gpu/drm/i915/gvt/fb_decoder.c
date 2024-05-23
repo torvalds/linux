@@ -155,7 +155,7 @@ static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
 
-	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
+	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(dev_priv, pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
 	if (GRAPHICS_VER(dev_priv) >= 9) {

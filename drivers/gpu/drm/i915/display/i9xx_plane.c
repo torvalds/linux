@@ -423,7 +423,7 @@ static void i9xx_plane_update_noarm(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 
-	intel_de_write_fw(dev_priv, DSPSTRIDE(i9xx_plane),
+	intel_de_write_fw(dev_priv, DSPSTRIDE(dev_priv, i9xx_plane),
 			  plane_state->view.color_plane[0].mapping_stride);
 
 	if (DISPLAY_VER(dev_priv) < 4) {
@@ -1055,7 +1055,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	fb->width = REG_FIELD_GET(PIPESRC_WIDTH_MASK, val) + 1;
 	fb->height = REG_FIELD_GET(PIPESRC_HEIGHT_MASK, val) + 1;
 
-	val = intel_de_read(dev_priv, DSPSTRIDE(i9xx_plane));
+	val = intel_de_read(dev_priv, DSPSTRIDE(dev_priv, i9xx_plane));
 	fb->pitches[0] = val & 0xffffffc0;
 
 	aligned_height = intel_fb_align_height(fb, 0, fb->height);

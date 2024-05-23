@@ -50,7 +50,7 @@
 #define DSPLINOFF(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPALINOFF)
 
 #define _DSPASTRIDE				0x70188
-#define DSPSTRIDE(plane)			_MMIO_PIPE2(dev_priv, plane, _DSPASTRIDE)
+#define DSPSTRIDE(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPASTRIDE)
 
 #define _DSPAPOS				0x7018C /* pre-g4x */
 #define DSPPOS(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPAPOS)
