@@ -522,6 +522,7 @@ struct amdgpu_ras {
 	bool update_channel_flag;
 	/* Record status of smu mca debug mode */
 	bool is_aca_debug_mode;
+	bool is_rma;
 
 	/* Record special requirements of gpu reset caller */
 	uint32_t  gpu_reset_flags;

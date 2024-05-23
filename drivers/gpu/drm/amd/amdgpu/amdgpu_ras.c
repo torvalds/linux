@@ -2926,7 +2926,6 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data **data;
 	u32  max_eeprom_records_count = 0;
-	bool exc_err_limit = false;
 	int ret;
 
 	if (!con || amdgpu_sriov_vf(adev))
@@ -2963,12 +2962,12 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	 */
 	if (adev->gmc.xgmi.pending_reset)
 		return 0;
-	ret = amdgpu_ras_eeprom_init(&con->eeprom_control, &exc_err_limit);
+	ret = amdgpu_ras_eeprom_init(&con->eeprom_control);
 	/*
-	 * This calling fails when exc_err_limit is true or
+	 * This calling fails when is_rma is true or
 	 * ret != 0.
 	 */
-	if (exc_err_limit || ret)
+	if (con->is_rma || ret)
 		goto free;
 
 	if (con->eeprom_control.ras_num_recs) {
@@ -3016,7 +3015,7 @@ out:
 	 * Except error threshold exceeding case, other failure cases in this
 	 * function would not fail amdgpu driver init.
 	 */
-	if (!exc_err_limit)
+	if (!con->is_rma)
 		ret = 0;
 	else
 		ret = -EINVAL;
