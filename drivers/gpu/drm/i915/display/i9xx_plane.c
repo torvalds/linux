@@ -577,7 +577,7 @@ vlv_primary_async_flip(struct intel_plane *plane,
 	u32 dspaddr_offset = plane_state->view.color_plane[0].offset;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
 
-	intel_de_write_fw(dev_priv, DSPADDR_VLV(i9xx_plane),
+	intel_de_write_fw(dev_priv, DSPADDR_VLV(dev_priv, i9xx_plane),
 			  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 }
 

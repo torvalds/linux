@@ -9,7 +9,7 @@
 #include "intel_display_reg_defs.h"
 
 #define _DSPAADDR_VLV				0x7017C /* vlv/chv */
-#define DSPADDR_VLV(plane)			_MMIO_PIPE2(dev_priv, plane, _DSPAADDR_VLV)
+#define DSPADDR_VLV(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPAADDR_VLV)
 
 #define _DSPACNTR				0x70180
 #define DSPCNTR(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPACNTR)
