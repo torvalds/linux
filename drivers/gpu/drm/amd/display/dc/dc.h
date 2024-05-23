@@ -291,6 +291,7 @@ struct dc_caps {
 	uint8_t subvp_drr_vblank_start_margin_us;
 	bool cursor_not_scaled;
 	bool dcmode_power_limits_present;
+	bool sequential_ono;
 };
 
 struct dc_bug_wa {
