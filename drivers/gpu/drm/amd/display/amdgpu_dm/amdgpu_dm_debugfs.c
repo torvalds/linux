@@ -1008,6 +1008,7 @@ static int replay_capability_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "Sink support: %s\n", str_yes_no(sink_support_replay));
 	seq_printf(m, "Driver support: %s\n", str_yes_no(driver_support_replay));
+	seq_printf(m, "Config support: %s\n", str_yes_no(link->replay_settings.config.replay_supported));
 
 	return 0;
 }
