@@ -2426,24 +2426,6 @@ enum ieee80211_ap_reg_power {
 		IEEE80211_REG_AP_POWER_AFTER_LAST - 1,
 };
 
-/**
- * enum ieee80211_client_reg_power - regulatory power for a client
- *
- * @IEEE80211_REG_UNSET_CLIENT: Client has no regulatory power mode
- * @IEEE80211_REG_DEFAULT_CLIENT: Default Client
- * @IEEE80211_REG_SUBORDINATE_CLIENT: Subordinate Client
- * @IEEE80211_REG_CLIENT_POWER_AFTER_LAST: internal
- * @IEEE80211_REG_CLIENT_POWER_MAX: maximum value
- */
-enum ieee80211_client_reg_power {
-	IEEE80211_REG_UNSET_CLIENT,
-	IEEE80211_REG_DEFAULT_CLIENT,
-	IEEE80211_REG_SUBORDINATE_CLIENT,
-	IEEE80211_REG_CLIENT_POWER_AFTER_LAST,
-	IEEE80211_REG_CLIENT_POWER_MAX =
-		IEEE80211_REG_CLIENT_POWER_AFTER_LAST - 1,
-};
-
 /* 802.11ax HE MAC capabilities */
 #define IEEE80211_HE_MAC_CAP0_HTC_HE				0x01
 #define IEEE80211_HE_MAC_CAP0_TWT_REQ				0x02
