@@ -3243,9 +3243,6 @@ static void intel_c10pll_state_verify(const struct intel_crtc_state *state,
 	const struct intel_c10pll_state *mpllb_sw_state = &state->dpll_hw_state.cx0pll.c10;
 	int i;
 
-	if (intel_crtc_needs_fastset(state))
-		return;
-
 	for (i = 0; i < ARRAY_SIZE(mpllb_sw_state->pll); i++) {
 		u8 expected = mpllb_sw_state->pll[i];
 
