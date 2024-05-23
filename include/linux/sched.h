@@ -544,6 +544,7 @@ struct sched_entity {
 
 	struct list_head		group_node;
 	unsigned int			on_rq;
+	unsigned int			sched_delayed;
 
 	u64				exec_start;
 	u64				sum_exec_runtime;
