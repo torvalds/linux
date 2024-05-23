@@ -455,7 +455,6 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 {
 	struct qcom_cpufreq_drv *drv;
 	struct nvmem_cell *speedbin_nvmem;
-	struct device_node *np;
 	struct device *cpu_dev;
 	char pvs_name_buffer[] = "speedXX-pvsXX-vXX";
 	char *pvs_name = pvs_name_buffer;
@@ -467,49 +466,40 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 	if (!cpu_dev)
 		return -ENODEV;
 
-	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	struct device_node *np __free(device_node) =
+		dev_pm_opp_of_get_opp_desc_node(cpu_dev);
 	if (!np)
 		return -ENOENT;
 
 	ret = of_device_is_compatible(np, "operating-points-v2-kryo-cpu") ||
 	      of_device_is_compatible(np, "operating-points-v2-krait-cpu");
-	if (!ret) {
-		of_node_put(np);
+	if (!ret)
 		return -ENOENT;
-	}
 
 	drv = devm_kzalloc(&pdev->dev, struct_size(drv, cpus, num_possible_cpus()),
 		           GFP_KERNEL);
-	if (!drv) {
-		of_node_put(np);
+	if (!drv)
 		return -ENOMEM;
-	}
 
 	match = pdev->dev.platform_data;
 	drv->data = match->data;
-	if (!drv->data) {
-		of_node_put(np);
+	if (!drv->data)
 		return -ENODEV;
-	}
 
 	if (drv->data->get_version) {
 		speedbin_nvmem = of_nvmem_cell_get(np, NULL);
-		if (IS_ERR(speedbin_nvmem)) {
-			of_node_put(np);
+		if (IS_ERR(speedbin_nvmem))
 			return dev_err_probe(cpu_dev, PTR_ERR(speedbin_nvmem),
 					     "Could not get nvmem cell\n");
-		}
 
 		ret = drv->data->get_version(cpu_dev,
 							speedbin_nvmem, &pvs_name, drv);
 		if (ret) {
-			of_node_put(np);
 			nvmem_cell_put(speedbin_nvmem);
 			return ret;
 		}
 		nvmem_cell_put(speedbin_nvmem);
 	}
-	of_node_put(np);
 
 	for_each_possible_cpu(cpu) {
 		struct device **virt_devs = NULL;
@@ -645,7 +635,7 @@ MODULE_DEVICE_TABLE(of, qcom_cpufreq_match_list);
  */
 static int __init qcom_cpufreq_init(void)
 {
-	struct device_node *np = of_find_node_by_path("/");
+	struct device_node *np __free(device_node) = of_find_node_by_path("/");
 	const struct of_device_id *match;
 	int ret;
 
@@ -653,7 +643,6 @@ static int __init qcom_cpufreq_init(void)
 		return -ENODEV;
 
 	match = of_match_node(qcom_cpufreq_match_list, np);
-	of_node_put(np);
 	if (!match)
 		return -ENODEV;
 
