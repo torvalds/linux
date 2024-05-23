@@ -487,7 +487,7 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		intel_de_write_fw(dev_priv, DSPLINOFF(dev_priv, i9xx_plane),
 				  linear_offset);
-		intel_de_write_fw(dev_priv, DSPTILEOFF(i9xx_plane),
+		intel_de_write_fw(dev_priv, DSPTILEOFF(dev_priv, i9xx_plane),
 				  DISP_OFFSET_Y(y) | DISP_OFFSET_X(x));
 	}
 
@@ -1038,7 +1038,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	} else if (DISPLAY_VER(dev_priv) >= 4) {
 		if (plane_config->tiling)
 			offset = intel_de_read(dev_priv,
-					       DSPTILEOFF(i9xx_plane));
+					       DSPTILEOFF(dev_priv, i9xx_plane));
 		else
 			offset = intel_de_read(dev_priv,
 					       DSPLINOFF(dev_priv, i9xx_plane));

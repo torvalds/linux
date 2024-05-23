@@ -274,7 +274,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 			_PIPE_V_SRCSZ_MASK) >> _PIPE_V_SRCSZ_SHIFT;
 	plane->height += 1;	/* raw height is one minus the real value */
 
-	val = vgpu_vreg_t(vgpu, DSPTILEOFF(pipe));
+	val = vgpu_vreg_t(vgpu, DSPTILEOFF(dev_priv, pipe));
 	plane->x_offset = (val & _PRI_PLANE_X_OFF_MASK) >>
 		_PRI_PLANE_X_OFF_SHIFT;
 	plane->y_offset = (val & _PRI_PLANE_Y_OFF_MASK) >>
