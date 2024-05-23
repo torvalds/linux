@@ -48,7 +48,7 @@ static void tsc2004_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id tsc2004_idtable[] = {
-	{ "tsc2004", 0 },
+	{ "tsc2004" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tsc2004_idtable);
