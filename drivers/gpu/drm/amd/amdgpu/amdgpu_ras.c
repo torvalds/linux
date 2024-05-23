@@ -2068,8 +2068,9 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	struct amdgpu_device *adev = obj->adev;
 	struct amdgpu_ras_block_object *block_obj =
 		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
-	if (!block_obj)
+	if (!block_obj || !con)
 		return;
 
 	/* both query_poison_status and handle_poison_consumption are optional,
@@ -2092,14 +2093,17 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	if (block_obj->hw_ops && block_obj->hw_ops->handle_poison_consumption)
 		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
 
-	/* gpu reset is fallback for failed and default cases */
-	if (poison_stat) {
+	/* gpu reset is fallback for failed and default cases.
+	 * For RMA case, amdgpu_umc_poison_handler will handle gpu reset.
+	 */
+	if (poison_stat && !con->is_rma) {
 		dev_info(adev->dev, "GPU reset for %s RAS poison consumption is issued!\n",
 				block_obj->ras_comm.name);
 		amdgpu_ras_reset_gpu(adev);
-	} else {
-		amdgpu_gfx_poison_consumption_handler(adev, entry);
 	}
+
+	if (!poison_stat)
+		amdgpu_gfx_poison_consumption_handler(adev, entry);
 }
 
 static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj,
@@ -2815,6 +2819,7 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 					      page_retirement_dwork.work);
 	struct amdgpu_device *adev = con->adev;
 	struct ras_err_data err_data;
+	unsigned long err_cnt;
 
 	if (amdgpu_in_reset(adev) || atomic_read(&con->in_recovery))
 		return;
@@ -2822,8 +2827,12 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 	amdgpu_ras_error_data_init(&err_data);
 
 	amdgpu_umc_handle_bad_pages(adev, &err_data);
+	err_cnt = err_data.err_addr_cnt;
 
 	amdgpu_ras_error_data_fini(&err_data);
+
+	if (err_cnt && con->is_rma)
+		amdgpu_ras_reset_gpu(adev);
 
 	mutex_lock(&con->umc_ecc_log.lock);
 	if (radix_tree_tagged(&con->umc_ecc_log.de_page_tree,
@@ -2881,7 +2890,8 @@ static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
 	if (poison_msg->pasid_fn)
 		poison_msg->pasid_fn(adev, pasid, poison_msg->data);
 
-	if (reset) {
+	/* for RMA, amdgpu_ras_poison_creation_handler will trigger gpu reset */
+	if (reset && !con->is_rma) {
 		flush_delayed_work(&con->page_retirement_dwork);
 
 		con->gpu_reset_flags |= reset;
@@ -4009,6 +4019,12 @@ int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	/* mode1 is the only selection for RMA status */
+	if (ras->is_rma) {
+		ras->gpu_reset_flags = 0;
+		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+	}
 
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
 		amdgpu_reset_domain_schedule(ras->adev->reset_domain, &ras->recovery_work);
