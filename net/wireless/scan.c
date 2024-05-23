@@ -2128,7 +2128,8 @@ static bool cfg80211_6ghz_power_type_valid(const u8 *ie, size_t ielen,
 	struct ieee80211_he_operation *he_oper;
 
 	tmp = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION, ie, ielen);
-	if (tmp && tmp->datalen >= sizeof(*he_oper) + 1) {
+	if (tmp && tmp->datalen >= sizeof(*he_oper) + 1 &&
+	    tmp->datalen >= ieee80211_he_oper_size(tmp->data + 1)) {
 		const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
 
 		he_oper = (void *)&tmp->data[1];
