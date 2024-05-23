@@ -802,10 +802,6 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		const struct thermal_trip *trip = &td->trip;
 		struct trip_stats *trip_stats;
 
-		/* Skip invalid trips. */
-		if (trip->temperature == THERMAL_TEMP_INVALID)
-			continue;
-
 		/*
 		 * There is no possible mitigation happening at the
 		 * critical trip point, so the stats will be always
