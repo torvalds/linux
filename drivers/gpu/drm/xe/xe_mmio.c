@@ -22,6 +22,7 @@
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_sriov_vf.h"
 #include "xe_macros.h"
 #include "xe_module.h"
 #include "xe_sriov.h"
@@ -478,6 +479,9 @@ u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+
+	if (!reg.vf && IS_SRIOV_VF(gt_to_xe(gt)))
+		return xe_gt_sriov_vf_read32(gt, reg);
 
 	return readl((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 }

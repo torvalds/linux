@@ -4,6 +4,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/bsearch.h>
 
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
@@ -21,6 +22,7 @@
 #include "xe_guc.h"
 #include "xe_guc_hxg_helpers.h"
 #include "xe_guc_relay.h"
+#include "xe_mmio.h"
 #include "xe_sriov.h"
 
 #define make_u64_from_u32(hi, lo) ((u64)((u64)(u32)(hi) << 32 | (u32)(lo)))
@@ -675,6 +677,57 @@ failed:
 	xe_gt_sriov_err(gt, "Failed to get runtime info (%pe)\n",
 			ERR_PTR(err));
 	return err;
+}
+
+static int vf_runtime_reg_cmp(const void *a, const void *b)
+{
+	const struct vf_runtime_reg *ra = a;
+	const struct vf_runtime_reg *rb = b;
+
+	return (int)ra->offset - (int)rb->offset;
+}
+
+static struct vf_runtime_reg *vf_lookup_reg(struct xe_gt *gt, u32 addr)
+{
+	struct xe_gt_sriov_vf_runtime *runtime = &gt->sriov.vf.runtime;
+	struct vf_runtime_reg key = { .offset = addr };
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	return bsearch(&key, runtime->regs, runtime->regs_size, sizeof(key),
+		       vf_runtime_reg_cmp);
+}
+
+/**
+ * xe_gt_sriov_vf_read32 - Get a register value from the runtime data.
+ * @gt: the &xe_gt
+ * @reg: the register to read
+ *
+ * This function is for VF use only.
+ * This function shall be called after VF has connected to PF.
+ * This function is dedicated for registers that VFs can't read directly.
+ *
+ * Return: register value obtained from the PF or 0 if not found.
+ */
+u32 xe_gt_sriov_vf_read32(struct xe_gt *gt, struct xe_reg reg)
+{
+	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	struct vf_runtime_reg *rr;
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, gt->sriov.vf.pf_version.major);
+	xe_gt_assert(gt, !reg.vf);
+
+	rr = vf_lookup_reg(gt, addr);
+	if (!rr) {
+		xe_gt_WARN(gt, IS_ENABLED(CONFIG_DRM_XE_DEBUG),
+			   "VF is trying to read an inaccessible register %#x+%#x\n",
+			   reg.addr, addr - reg.addr);
+		return 0;
+	}
+
+	xe_gt_sriov_dbg_verbose(gt, "runtime[%#x] = %#x\n", addr, rr->value);
+	return rr->value;
 }
 
 /**
