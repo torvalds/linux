@@ -1933,7 +1933,6 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 					    int req_volt, int micb_num)
 {
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
-	unsigned int micb_vout_ctl_field;
 	unsigned int micb_reg, cur_vout_ctl, micb_en;
 	int req_vout_ctl;
 	int ret = 0;
@@ -1941,19 +1940,15 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 	switch (micb_num) {
 	case MIC_BIAS_1:
 		micb_reg = WCD939X_ANA_MICB1;
-		micb_vout_ctl_field = WCD939X_MICB1_VOUT_CTL;
 		break;
 	case MIC_BIAS_2:
 		micb_reg = WCD939X_ANA_MICB2;
-		micb_vout_ctl_field = WCD939X_MICB2_VOUT_CTL;
 		break;
 	case MIC_BIAS_3:
 		micb_reg = WCD939X_ANA_MICB3;
-		micb_vout_ctl_field = WCD939X_MICB1_VOUT_CTL;
 		break;
 	case MIC_BIAS_4:
 		micb_reg = WCD939X_ANA_MICB4;
-		micb_vout_ctl_field = WCD939X_MICB2_VOUT_CTL;
 		break;
 	default:
 		return -EINVAL;
@@ -1971,7 +1966,7 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 	micb_en = snd_soc_component_read_field(component, micb_reg,
 					       WCD939X_MICB_ENABLE);
 	cur_vout_ctl = snd_soc_component_read_field(component, micb_reg,
-						    micb_vout_ctl_field);
+						    WCD939X_MICB_VOUT_CTL);
 
 	req_vout_ctl = wcd939x_get_micb_vout_ctl_val(req_volt);
 	if (req_vout_ctl < 0) {
@@ -1994,7 +1989,7 @@ static int wcd939x_mbhc_micb_adjust_voltage(struct snd_soc_component *component,
 					      MICB_BIAS_PULL_DOWN);
 
 	snd_soc_component_write_field(component, micb_reg,
-				      micb_vout_ctl_field, req_vout_ctl);
+				      WCD939X_MICB_VOUT_CTL, req_vout_ctl);
 
 	if (micb_en == MICB_BIAS_ENABLE) {
 		snd_soc_component_write_field(component, micb_reg,
@@ -2912,13 +2907,13 @@ static int wcd939x_set_micbias_data(struct wcd939x_priv *wcd939x)
 		return -EINVAL;
 
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB1,
-			   WCD939X_MICB1_VOUT_CTL, vout_ctl_1);
+			   WCD939X_MICB_VOUT_CTL, vout_ctl_1);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB2,
-			   WCD939X_MICB2_VOUT_CTL, vout_ctl_2);
+			   WCD939X_MICB_VOUT_CTL, vout_ctl_2);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB3,
-			   WCD939X_MICB3_VOUT_CTL, vout_ctl_3);
+			   WCD939X_MICB_VOUT_CTL, vout_ctl_3);
 	regmap_update_bits(wcd939x->regmap, WCD939X_ANA_MICB4,
-			   WCD939X_MICB4_VOUT_CTL, vout_ctl_4);
+			   WCD939X_MICB_VOUT_CTL, vout_ctl_4);
 
 	return 0;
 }
