@@ -2124,7 +2124,8 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 		if (cable_max_link_rate < max_link_cap.link_rate)
 			max_link_cap.link_rate = cable_max_link_rate;
 
-		if (!link->dpcd_caps.cable_id.bits.UHBR13_5_CAPABILITY)
+		if (!link->dpcd_caps.cable_id.bits.UHBR13_5_CAPABILITY &&
+				link->dpcd_caps.cable_id.bits.CABLE_TYPE >= 2)
 			is_uhbr13_5_supported = false;
 	}
 
