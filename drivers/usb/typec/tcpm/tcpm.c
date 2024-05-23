@@ -57,6 +57,7 @@
 	S(SNK_DISCOVERY_DEBOUNCE),		\
 	S(SNK_DISCOVERY_DEBOUNCE_DONE),		\
 	S(SNK_WAIT_CAPABILITIES),		\
+	S(SNK_WAIT_CAPABILITIES_TIMEOUT),	\
 	S(SNK_NEGOTIATE_CAPABILITIES),		\
 	S(SNK_NEGOTIATE_PPS_CAPABILITIES),	\
 	S(SNK_TRANSITION_SINK),			\
@@ -3108,7 +3109,8 @@ static void tcpm_pd_data_request(struct tcpm_port *port,
 						   PD_MSG_CTRL_REJECT :
 						   PD_MSG_CTRL_NOT_SUPP,
 						   NONE_AMS);
-		} else if (port->state == SNK_WAIT_CAPABILITIES) {
+		} else if (port->state == SNK_WAIT_CAPABILITIES ||
+			   port->state == SNK_WAIT_CAPABILITIES_TIMEOUT) {
 		/*
 		 * This message may be received even if VBUS is not
 		 * present. This is quite unexpected; see USB PD
@@ -5039,9 +5041,30 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_set_state(port, SNK_SOFT_RESET,
 				       PD_T_SINK_WAIT_CAP);
 		} else {
-			tcpm_set_state(port, hard_reset_state(port),
+			tcpm_set_state(port, SNK_WAIT_CAPABILITIES_TIMEOUT,
 				       PD_T_SINK_WAIT_CAP);
 		}
+		break;
+	case SNK_WAIT_CAPABILITIES_TIMEOUT:
+		/*
+		 * There are some USB PD sources in the field, which do not
+		 * properly implement the specification and fail to start
+		 * sending Source Capability messages after a soft reset. The
+		 * specification suggests to do a hard reset when no Source
+		 * capability message is received within PD_T_SINK_WAIT_CAP,
+		 * but that might effectively kil the machine's power source.
+		 *
+		 * This slightly diverges from the specification and tries to
+		 * recover from this by explicitly asking for the capabilities
+		 * using the Get_Source_Cap control message before falling back
+		 * to a hard reset. The control message should also be supported
+		 * and handled by all USB PD source and dual role devices
+		 * according to the specification.
+		 */
+		if (tcpm_pd_send_control(port, PD_CTRL_GET_SOURCE_CAP, TCPC_TX_SOP))
+			tcpm_set_state_cond(port, hard_reset_state(port), 0);
+		else
+			tcpm_set_state(port, hard_reset_state(port), PD_T_SINK_WAIT_CAP);
 		break;
 	case SNK_NEGOTIATE_CAPABILITIES:
 		port->pd_capable = true;
