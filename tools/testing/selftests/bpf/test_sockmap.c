@@ -1030,7 +1030,7 @@ run:
 		tx_prog_fd = -1;
 
 	if (tx_prog_fd > 0) {
-		int redir_fd, i = 0;
+		int redir_fd;
 
 		err = bpf_prog_attach(tx_prog_fd,
 				      map_fd[1], BPF_SK_MSG_VERDICT, 0);
@@ -1041,6 +1041,7 @@ run:
 			goto out;
 		}
 
+		i = 0;
 		err = bpf_map_update_elem(map_fd[1], &i, &c1, BPF_ANY);
 		if (err) {
 			fprintf(stderr,
