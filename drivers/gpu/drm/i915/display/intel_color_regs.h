@@ -37,9 +37,9 @@
 						  (i) * 4)
 
 /* i965/g4x/vlv/chv */
-#define  _PIPEAGCMAX           0x70010
-#define  _PIPEBGCMAX           0x71010
-#define PIPEGCMAX(pipe, i)     _MMIO_PIPE2(dev_priv, pipe, _PIPEAGCMAX + (i) * 4) /* u1.16 */
+#define  _PIPEAGCMAX			0x70010
+#define  _PIPEBGCMAX			0x71010
+#define PIPEGCMAX(dev_priv, pipe, i)	_MMIO_PIPE2(dev_priv, pipe, _PIPEAGCMAX + (i) * 4) /* u1.16 */
 
 /* ilk+ palette */
 #define _LGC_PALETTE_A           0x4a000

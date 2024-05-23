@@ -1284,9 +1284,9 @@ static void i965_load_lut_10p6(struct intel_crtc *crtc,
 				  i965_lut_10p6_udw(&lut[i]));
 	}
 
-	intel_de_write_fw(dev_priv, PIPEGCMAX(pipe, 0), lut[i].red);
-	intel_de_write_fw(dev_priv, PIPEGCMAX(pipe, 1), lut[i].green);
-	intel_de_write_fw(dev_priv, PIPEGCMAX(pipe, 2), lut[i].blue);
+	intel_de_write_fw(dev_priv, PIPEGCMAX(dev_priv, pipe, 0), lut[i].red);
+	intel_de_write_fw(dev_priv, PIPEGCMAX(dev_priv, pipe, 1), lut[i].green);
+	intel_de_write_fw(dev_priv, PIPEGCMAX(dev_priv, pipe, 2), lut[i].blue);
 }
 
 static void i965_load_luts(const struct intel_crtc_state *crtc_state)
@@ -3239,9 +3239,9 @@ static struct drm_property_blob *i965_read_lut_10p6(struct intel_crtc *crtc)
 		i965_lut_10p6_pack(&lut[i], ldw, udw);
 	}
 
-	lut[i].red = i965_lut_11p6_max_pack(intel_de_read_fw(dev_priv, PIPEGCMAX(pipe, 0)));
-	lut[i].green = i965_lut_11p6_max_pack(intel_de_read_fw(dev_priv, PIPEGCMAX(pipe, 1)));
-	lut[i].blue = i965_lut_11p6_max_pack(intel_de_read_fw(dev_priv, PIPEGCMAX(pipe, 2)));
+	lut[i].red = i965_lut_11p6_max_pack(intel_de_read_fw(dev_priv, PIPEGCMAX(dev_priv, pipe, 0)));
+	lut[i].green = i965_lut_11p6_max_pack(intel_de_read_fw(dev_priv, PIPEGCMAX(dev_priv, pipe, 1)));
+	lut[i].blue = i965_lut_11p6_max_pack(intel_de_read_fw(dev_priv, PIPEGCMAX(dev_priv, pipe, 2)));
 
 	return blob;
 }
