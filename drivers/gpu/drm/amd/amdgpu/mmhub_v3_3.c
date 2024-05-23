@@ -33,6 +33,10 @@
 #define regMMVM_L2_CNTL3_DEFAULT				0x80100007
 #define regMMVM_L2_CNTL4_DEFAULT				0x000000c1
 #define regMMVM_L2_CNTL5_DEFAULT				0x00003fe0
+#define regDAGB0_L1TLB_REG_RW_3_3                   0x00a4
+#define regDAGB0_L1TLB_REG_RW_3_3_BASE_IDX          1
+#define regDAGB1_L1TLB_REG_RW_3_3                   0x0163
+#define regDAGB1_L1TLB_REG_RW_3_3_BASE_IDX          1
 
 static const char *mmhub_client_ids_v3_3[][2] = {
 	[0][0] = "VMC",
@@ -396,6 +400,12 @@ static void mmhub_v3_3_init_saw_regs(struct amdgpu_device *adev)
 	WREG32_SOC15(MMHUB, 0, regMMVM_L2_SAW_CNTL4, tmp);
 }
 
+static void mmhub_v3_3_enable_tls(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(MMHUB, 0, regDAGB0_L1TLB_REG_RW_3_3, 0);
+	WREG32_SOC15(MMHUB, 0, regDAGB1_L1TLB_REG_RW_3_3, 3);
+}
+
 static int mmhub_v3_3_gart_enable(struct amdgpu_device *adev)
 {
 	/* GART Enable. */
@@ -411,6 +421,9 @@ static int mmhub_v3_3_gart_enable(struct amdgpu_device *adev)
 
 	/* standalone alone walker init */
 	mmhub_v3_3_init_saw_regs(adev);
+
+	/* enable mmhub tls */
+	mmhub_v3_3_enable_tls(adev);
 
 	return 0;
 }
