@@ -5208,6 +5208,8 @@ static void run_state_machine(struct tcpm_port *port)
 	case HARD_RESET_SEND:
 		if (port->ams != NONE_AMS)
 			tcpm_ams_finish(port);
+		if (!port->self_powered && port->port_type == TYPEC_PORT_SNK)
+			dev_err(port->dev, "Initiating hard-reset, which might result in machine power-loss.\n");
 		/*
 		 * State machine will be directed to HARD_RESET_START,
 		 * thus set upcoming_state to INVALID_STATE.
