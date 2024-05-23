@@ -3625,6 +3625,8 @@ void __init tcp_v4_init(void)
 		 */
 		inet_sk(sk)->pmtudisc = IP_PMTUDISC_DO;
 
+		sk->sk_clockid = CLOCK_MONOTONIC;
+
 		per_cpu(ipv4_tcp_sk, cpu) = sk;
 	}
 	if (register_pernet_subsys(&tcp_sk_ops))
