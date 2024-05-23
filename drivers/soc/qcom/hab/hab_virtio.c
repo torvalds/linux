@@ -979,7 +979,7 @@ int physical_channel_send(struct physical_channel *pchan,
 						&lock_flags, &vpc->s_list,
 						&vpc->out_wq, &vpc->s_cnt,
 						nonblocking_flag);
-		} else if (sizebytes <= OUT_MEDIUM_BUF_NUM) {
+		} else if (sizebytes <= OUT_MEDIUM_BUF_SIZE) {
 			hd = get_vh_buf_header(&vpc->lock[HAB_PCHAN_TX_VQ],
 						&lock_flags, &vpc->m_list,
 						&vpc->out_wq, &vpc->m_cnt,
