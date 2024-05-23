@@ -1550,22 +1550,12 @@ static bool _cfg80211_reg_can_beacon(struct wiphy *wiphy,
 	return res;
 }
 
-bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
-			     struct cfg80211_chan_def *chandef,
-			     enum nl80211_iftype iftype)
-{
-	return _cfg80211_reg_can_beacon(wiphy, chandef, iftype, true);
-}
-EXPORT_SYMBOL(cfg80211_reg_can_beacon);
-
-bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
-				   struct cfg80211_chan_def *chandef,
-				   enum nl80211_iftype iftype)
+bool cfg80211_reg_check_beaconing(struct wiphy *wiphy,
+				  struct cfg80211_chan_def *chandef,
+				  struct cfg80211_beaconing_check_config *cfg)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	bool check_no_ir;
-
-	lockdep_assert_held(&rdev->wiphy.mtx);
+	bool check_no_ir = true;
 
 	/*
 	 * Under certain conditions suggested by some regulatory bodies a
@@ -1573,12 +1563,16 @@ bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
 	 * only if such relaxations are not enabled and the conditions are not
 	 * met.
 	 */
-	check_no_ir = !cfg80211_ir_permissive_chan(wiphy, iftype,
-						   chandef->chan);
+	if (cfg->relax) {
+		lockdep_assert_held(&rdev->wiphy.mtx);
+		check_no_ir = !cfg80211_ir_permissive_chan(wiphy, cfg->iftype,
+							   chandef->chan);
+	}
 
-	return _cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_no_ir);
+	return _cfg80211_reg_can_beacon(wiphy, chandef, cfg->iftype,
+					check_no_ir);
 }
-EXPORT_SYMBOL(cfg80211_reg_can_beacon_relax);
+EXPORT_SYMBOL(cfg80211_reg_check_beaconing);
 
 int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 				 struct cfg80211_chan_def *chandef)
