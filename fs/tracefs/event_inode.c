@@ -305,6 +305,45 @@ static const struct file_operations eventfs_file_operations = {
 	.llseek		= generic_file_llseek,
 };
 
+static void eventfs_set_attrs(struct eventfs_inode *ei, bool update_uid, kuid_t uid,
+			      bool update_gid, kgid_t gid, int level)
+{
+	struct eventfs_inode *ei_child;
+
+	/* Update events/<system>/<event> */
+	if (WARN_ON_ONCE(level > 3))
+		return;
+
+	if (update_uid) {
+		ei->attr.mode &= ~EVENTFS_SAVE_UID;
+		ei->attr.uid = uid;
+	}
+
+	if (update_gid) {
+		ei->attr.mode &= ~EVENTFS_SAVE_GID;
+		ei->attr.gid = gid;
+	}
+
+	list_for_each_entry(ei_child, &ei->children, list) {
+		eventfs_set_attrs(ei_child, update_uid, uid, update_gid, gid, level + 1);
+	}
+
+	if (!ei->entry_attrs)
+		return;
+
+	for (int i = 0; i < ei->nr_entries; i++) {
+		if (update_uid) {
+			ei->entry_attrs[i].mode &= ~EVENTFS_SAVE_UID;
+			ei->entry_attrs[i].uid = uid;
+		}
+		if (update_gid) {
+			ei->entry_attrs[i].mode &= ~EVENTFS_SAVE_GID;
+			ei->entry_attrs[i].gid = gid;
+		}
+	}
+
+}
+
 /*
  * On a remount of tracefs, if UID or GID options are set, then
  * the mount point inode permissions should be used.
@@ -314,33 +353,12 @@ void eventfs_remount(struct tracefs_inode *ti, bool update_uid, bool update_gid)
 {
 	struct eventfs_inode *ei = ti->private;
 
-	if (!ei)
+	/* Only the events directory does the updates */
+	if (!ei || !ei->is_events || ei->is_freed)
 		return;
 
-	if (update_uid) {
-		ei->attr.mode &= ~EVENTFS_SAVE_UID;
-		ei->attr.uid = ti->vfs_inode.i_uid;
-	}
-
-
-	if (update_gid) {
-		ei->attr.mode &= ~EVENTFS_SAVE_GID;
-		ei->attr.gid = ti->vfs_inode.i_gid;
-	}
-
-	if (!ei->entry_attrs)
-		return;
-
-	for (int i = 0; i < ei->nr_entries; i++) {
-		if (update_uid) {
-			ei->entry_attrs[i].mode &= ~EVENTFS_SAVE_UID;
-			ei->entry_attrs[i].uid = ti->vfs_inode.i_uid;
-		}
-		if (update_gid) {
-			ei->entry_attrs[i].mode &= ~EVENTFS_SAVE_GID;
-			ei->entry_attrs[i].gid = ti->vfs_inode.i_gid;
-		}
-	}
+	eventfs_set_attrs(ei, update_uid, ti->vfs_inode.i_uid,
+			  update_gid, ti->vfs_inode.i_gid, 0);
 }
 
 /* Return the evenfs_inode of the "events" directory */
