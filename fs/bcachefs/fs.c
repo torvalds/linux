@@ -188,8 +188,7 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 	BUG_ON(!old);
 
 	if (unlikely(old != inode)) {
-		__destroy_inode(&inode->v);
-		kmem_cache_free(bch2_inode_cache, inode);
+		discard_new_inode(&inode->v);
 		inode = old;
 	} else {
 		mutex_lock(&c->vfs_inodes_lock);
