@@ -69,7 +69,7 @@ def pkt_byte_sum(cfg) -> None:
         return 0
 
     for _ in range(10):
-        rtstat = rtnl.getlink({"ifi-index": cfg.ifindex})['stats']
+        rtstat = rtnl.getlink({"ifi-index": cfg.ifindex})['stats64']
         if stat_cmp(rtstat, qstat) < 0:
             raise Exception("RTNL stats are lower, fetched later")
         qstat = get_qstat(cfg)

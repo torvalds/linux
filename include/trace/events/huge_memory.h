@@ -191,7 +191,7 @@ TRACE_EVENT(mm_khugepaged_scan_file,
 	TP_fast_assign(
 		__entry->mm = mm;
 		__entry->pfn = folio ? folio_pfn(folio) : -1;
-		__assign_str(filename, file->f_path.dentry->d_iname);
+		__assign_str(filename);
 		__entry->present = present;
 		__entry->swap = swap;
 		__entry->result = result;
@@ -228,7 +228,7 @@ TRACE_EVENT(mm_khugepaged_collapse_file,
 		__entry->index = index;
 		__entry->addr = addr;
 		__entry->is_shmem = is_shmem;
-		__assign_str(filename, file->f_path.dentry->d_iname);
+		__assign_str(filename);
 		__entry->nr = nr;
 		__entry->result = result;
 	),

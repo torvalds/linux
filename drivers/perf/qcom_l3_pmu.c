@@ -609,18 +609,9 @@ static void qcom_l3_cache__event_read(struct perf_event *event)
 
 /* formats */
 
-static ssize_t l3cache_pmu_format_show(struct device *dev,
-				       struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-	return sysfs_emit(buf, "%s\n", (char *) eattr->var);
-}
-
 #define L3CACHE_PMU_FORMAT_ATTR(_name, _config)				      \
 	(&((struct dev_ext_attribute[]) {				      \
-		{ .attr = __ATTR(_name, 0444, l3cache_pmu_format_show, NULL), \
+		{ .attr = __ATTR(_name, 0444, device_show_string, NULL),      \
 		  .var = (void *) _config, }				      \
 	})[0].attr.attr)
 

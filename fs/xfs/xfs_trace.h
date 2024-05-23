@@ -168,7 +168,7 @@ TRACE_EVENT(xlog_intent_recovery_failed,
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
-		__assign_str(name, ops->name);
+		__assign_str(name);
 		__entry->error = error;
 	),
 	TP_printk("dev %d:%d optype %s error %d",
@@ -1913,7 +1913,7 @@ TRACE_EVENT(xfs_alloc_cur_check,
 	),
 	TP_fast_assign(
 		__entry->dev = cur->bc_mp->m_super->s_dev;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->bno = bno;
 		__entry->len = len;
 		__entry->diff = diff;
@@ -2473,7 +2473,7 @@ DECLARE_EVENT_CLASS(xfs_btree_cur_class,
 	),
 	TP_fast_assign(
 		__entry->dev = cur->bc_mp->m_super->s_dev;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->level = level;
 		__entry->nlevels = cur->bc_nlevels;
 		__entry->ptr = cur->bc_levels[level].ptr;
@@ -2523,7 +2523,7 @@ TRACE_EVENT(xfs_btree_alloc_block,
 			__entry->ino = 0;
 			break;
 		}
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->error = error;
 		if (!error && stat) {
 			if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN) {
@@ -2567,7 +2567,7 @@ TRACE_EVENT(xfs_btree_free_block,
 			__entry->ino = cur->bc_ino.ip->i_ino;
 		else
 			__entry->ino = 0;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->agbno = xfs_daddr_to_agbno(cur->bc_mp,
 							xfs_buf_daddr(bp));
 	),
@@ -2643,7 +2643,7 @@ DECLARE_EVENT_CLASS(xfs_defer_pending_class,
 	),
 	TP_fast_assign(
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
-		__assign_str(name, dfp->dfp_ops->name);
+		__assign_str(name);
 		__entry->intent = dfp->dfp_intent;
 		__entry->flags = dfp->dfp_flags;
 		__entry->committed = dfp->dfp_done != NULL;
@@ -2732,7 +2732,7 @@ DECLARE_EVENT_CLASS(xfs_defer_pending_item_class,
 	),
 	TP_fast_assign(
 		__entry->dev = mp ? mp->m_super->s_dev : 0;
-		__assign_str(name, dfp->dfp_ops->name);
+		__assign_str(name);
 		__entry->intent = dfp->dfp_intent;
 		__entry->item = item;
 		__entry->committed = dfp->dfp_done != NULL;
@@ -4244,7 +4244,7 @@ TRACE_EVENT(xfs_btree_commit_afakeroot,
 	),
 	TP_fast_assign(
 		__entry->dev = cur->bc_mp->m_super->s_dev;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->agno = cur->bc_ag.pag->pag_agno;
 		__entry->agbno = cur->bc_ag.afake->af_root;
 		__entry->levels = cur->bc_ag.afake->af_levels;
@@ -4273,7 +4273,7 @@ TRACE_EVENT(xfs_btree_commit_ifakeroot,
 	),
 	TP_fast_assign(
 		__entry->dev = cur->bc_mp->m_super->s_dev;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->agno = XFS_INO_TO_AGNO(cur->bc_mp,
 					cur->bc_ino.ip->i_ino);
 		__entry->agino = XFS_INO_TO_AGINO(cur->bc_mp,
@@ -4312,7 +4312,7 @@ TRACE_EVENT(xfs_btree_bload_level_geometry,
 	),
 	TP_fast_assign(
 		__entry->dev = cur->bc_mp->m_super->s_dev;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->level = level;
 		__entry->nlevels = cur->bc_nlevels;
 		__entry->nr_this_level = nr_this_level;
@@ -4350,7 +4350,7 @@ TRACE_EVENT(xfs_btree_bload_block,
 	),
 	TP_fast_assign(
 		__entry->dev = cur->bc_mp->m_super->s_dev;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->level = level;
 		__entry->block_idx = block_idx;
 		__entry->nr_blocks = nr_blocks;
@@ -4573,7 +4573,7 @@ TRACE_EVENT(xfs_force_shutdown,
 		__entry->dev = mp->m_super->s_dev;
 		__entry->ptag = ptag;
 		__entry->flags = flags;
-		__assign_str(fname, fname);
+		__assign_str(fname);
 		__entry->line_num = line_num;
 	),
 	TP_printk("dev %d:%d tag %s flags %s file %s line_num %d",
@@ -4755,7 +4755,7 @@ DECLARE_EVENT_CLASS(xfbtree_freesp_class,
 	),
 	TP_fast_assign(
 		__entry->xfino = file_inode(xfbt->target->bt_file)->i_ino;
-		__assign_str(btname, cur->bc_ops->name);
+		__assign_str(btname);
 		__entry->nlevels = cur->bc_nlevels;
 		__entry->fileoff = fileoff;
 	),
@@ -5122,7 +5122,7 @@ DECLARE_EVENT_CLASS(xfs_getparents_rec_class,
 		__entry->bufsize = ppi->gp_bufsize;
 		__entry->parent_ino = pptr->gpr_parent.ha_fid.fid_ino;
 		__entry->parent_gen = pptr->gpr_parent.ha_fid.fid_gen;
-		__assign_str(name, pptr->gpr_name);
+		__assign_str(name);
 	),
 	TP_printk("dev %d:%d ino 0x%llx firstu %u reclen %u bufsize %u parent_ino 0x%llx parent_gen 0x%x name '%s'",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),

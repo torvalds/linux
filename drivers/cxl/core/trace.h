@@ -60,8 +60,8 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 		__array(u32, header_log, CXL_HEADERLOG_SIZE_U32)
 	),
 	TP_fast_assign(
-		__assign_str(memdev, dev_name(&cxlmd->dev));
-		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__assign_str(memdev);
+		__assign_str(host);
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->status = status;
 		__entry->first_error = fe;
@@ -106,8 +106,8 @@ TRACE_EVENT(cxl_aer_correctable_error,
 		__field(u32, status)
 	),
 	TP_fast_assign(
-		__assign_str(memdev, dev_name(&cxlmd->dev));
-		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__assign_str(memdev);
+		__assign_str(host);
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->status = status;
 	),
@@ -142,8 +142,8 @@ TRACE_EVENT(cxl_overflow,
 	),
 
 	TP_fast_assign(
-		__assign_str(memdev, dev_name(&cxlmd->dev));
-		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__assign_str(memdev);
+		__assign_str(host);
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->log = log;
 		__entry->count = le16_to_cpu(payload->overflow_err_count);
@@ -200,8 +200,8 @@ TRACE_EVENT(cxl_overflow,
 	__field(u8, hdr_maint_op_class)
 
 #define CXL_EVT_TP_fast_assign(cxlmd, l, hdr)					\
-	__assign_str(memdev, dev_name(&(cxlmd)->dev));				\
-	__assign_str(host, dev_name((cxlmd)->dev.parent));			\
+	__assign_str(memdev);				\
+	__assign_str(host);			\
 	__entry->log = (l);							\
 	__entry->serial = (cxlmd)->cxlds->serial;				\
 	__entry->hdr_length = (hdr).length;					\
@@ -359,10 +359,10 @@ TRACE_EVENT(cxl_general_media,
 		__entry->validity_flags = get_unaligned_le16(&rec->validity_flags);
 		__entry->hpa = hpa;
 		if (cxlr) {
-			__assign_str(region_name, dev_name(&cxlr->dev));
+			__assign_str(region_name);
 			uuid_copy(&__entry->region_uuid, &cxlr->params.uuid);
 		} else {
-			__assign_str(region_name, "");
+			__assign_str(region_name);
 			uuid_copy(&__entry->region_uuid, &uuid_null);
 		}
 	),
@@ -462,10 +462,10 @@ TRACE_EVENT(cxl_dram,
 			CXL_EVENT_DER_CORRECTION_MASK_SIZE);
 		__entry->hpa = hpa;
 		if (cxlr) {
-			__assign_str(region_name, dev_name(&cxlr->dev));
+			__assign_str(region_name);
 			uuid_copy(&__entry->region_uuid, &cxlr->params.uuid);
 		} else {
-			__assign_str(region_name, "");
+			__assign_str(region_name);
 			uuid_copy(&__entry->region_uuid, &uuid_null);
 		}
 	),
@@ -692,8 +692,8 @@ TRACE_EVENT(cxl_poison,
 	    ),
 
 	TP_fast_assign(
-		__assign_str(memdev, dev_name(&cxlmd->dev));
-		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__assign_str(memdev);
+		__assign_str(host);
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->overflow_ts = cxl_poison_overflow(flags, overflow_ts);
 		__entry->dpa = cxl_poison_record_dpa(record);
@@ -702,12 +702,12 @@ TRACE_EVENT(cxl_poison,
 		__entry->trace_type = trace_type;
 		__entry->flags = flags;
 		if (cxlr) {
-			__assign_str(region, dev_name(&cxlr->dev));
+			__assign_str(region);
 			memcpy(__entry->uuid, &cxlr->params.uuid, 16);
 			__entry->hpa = cxl_trace_hpa(cxlr, cxlmd,
 						     __entry->dpa);
 		} else {
-			__assign_str(region, "");
+			__assign_str(region);
 			memset(__entry->uuid, 0, 16);
 			__entry->hpa = ULLONG_MAX;
 		}

@@ -29,3 +29,16 @@ Description:	Initiates a SoC reset on the MHI controller.  A SoC reset is
                 This can be useful as a method of recovery if the device is
                 non-responsive, or as a means of loading new firmware as a
                 system administration task.
+
+What:           /sys/bus/mhi/devices/.../trigger_edl
+Date:           April 2024
+KernelVersion:  6.10
+Contact:        mhi@lists.linux.dev
+Description:    Writing a non-zero value to this file will force devices to
+                enter EDL (Emergency Download) mode. This entry only exists for
+                devices capable of entering the EDL mode using the standard EDL
+                triggering mechanism defined in the MHI spec v1.2. Once in EDL
+                mode, the flash programmer image can be downloaded to the
+                device to enter the flash programmer execution environment.
+                This can be useful if user wants to use QDL (Qualcomm Download,
+                which is used to download firmware over EDL) to update firmware.

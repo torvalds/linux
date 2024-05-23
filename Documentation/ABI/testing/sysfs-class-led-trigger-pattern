@@ -12,6 +12,16 @@ Description:
 		The exact format is described in:
 		Documentation/devicetree/bindings/leds/leds-trigger-pattern.txt
 
+What:		/sys/class/leds/<led>/hr_pattern
+Date:		April 2024
+Description:
+		Specify a software pattern for the LED, that supports altering
+		the brightness for the specified duration with one software
+		timer. It can do gradual dimming and step change of brightness.
+
+		Unlike the /sys/class/leds/<led>/pattern, this attribute runs
+		a pattern on high-resolution timer (hrtimer).
+
 What:		/sys/class/leds/<led>/hw_pattern
 Date:		September 2018
 KernelVersion:	4.20
