@@ -439,7 +439,7 @@ static void i9xx_plane_update_noarm(struct intel_plane *plane,
 		 */
 		intel_de_write_fw(dev_priv, DSPPOS(dev_priv, i9xx_plane),
 				  DISP_POS_Y(crtc_y) | DISP_POS_X(crtc_x));
-		intel_de_write_fw(dev_priv, DSPSIZE(i9xx_plane),
+		intel_de_write_fw(dev_priv, DSPSIZE(dev_priv, i9xx_plane),
 				  DISP_HEIGHT(crtc_h - 1) | DISP_WIDTH(crtc_w - 1));
 	}
 }

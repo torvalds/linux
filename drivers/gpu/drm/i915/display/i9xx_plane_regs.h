@@ -60,7 +60,7 @@
 #define   DISP_POS_X(x)			REG_FIELD_PREP(DISP_POS_X_MASK, (x))
 
 #define _DSPASIZE				0x70190 /* pre-g4x */
-#define DSPSIZE(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPASIZE)
+#define DSPSIZE(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPASIZE)
 #define   DISP_HEIGHT_MASK		REG_GENMASK(31, 16)
 #define   DISP_HEIGHT(h)		REG_FIELD_PREP(DISP_HEIGHT_MASK, (h))
 #define   DISP_WIDTH_MASK		REG_GENMASK(15, 0)
