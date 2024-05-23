@@ -36,6 +36,20 @@
 #define GUC_KLV_n_VALUE				(0xffffffffu << 0)
 
 /**
+ * DOC: GuC Global Config KLVs
+ *
+ * `GuC KLV`_ keys available for use with HOST2GUC_SELF_CFG_.
+ *
+ * _`GUC_KLV_GLOBAL_CFG_GMD_ID` : 0x3000
+ *      Refers to 32 bit architecture version as reported by the HW IP.
+ *      This key is supported on MTL+ platforms only.
+ *      Requires GuC ABI 1.2+.
+ */
+
+#define GUC_KLV_GLOBAL_CFG_GMD_ID_KEY			0x3000u
+#define GUC_KLV_GLOBAL_CFG_GMD_ID_LEN			1u
+
+/**
  * DOC: GuC Self Config KLVs
  *
  * `GuC KLV`_ keys available for use with HOST2GUC_SELF_CFG_.
