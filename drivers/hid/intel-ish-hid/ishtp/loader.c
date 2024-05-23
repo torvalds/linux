@@ -138,12 +138,13 @@ static void release_dma_bufs(struct ishtp_device *dev,
 			     struct loader_xfer_dma_fragment *fragment,
 			     void **dma_bufs, u32 fragment_size)
 {
+	dma_addr_t dma_addr;
 	int i;
 
 	for (i = 0; i < FRAGMENT_MAX_NUM; i++) {
 		if (dma_bufs[i]) {
-			dma_free_coherent(dev->devc, fragment_size, dma_bufs[i],
-					  fragment->fragment_tbl[i].ddr_adrs);
+			dma_addr = le64_to_cpu(fragment->fragment_tbl[i].ddr_adrs);
+			dma_free_coherent(dev->devc, fragment_size, dma_bufs[i], dma_addr);
 			dma_bufs[i] = NULL;
 		}
 	}
@@ -164,15 +165,16 @@ static int prepare_dma_bufs(struct ishtp_device *dev,
 			    struct loader_xfer_dma_fragment *fragment,
 			    void **dma_bufs, u32 fragment_size)
 {
+	dma_addr_t dma_addr;
 	u32 offset = 0;
 	int i;
 
 	for (i = 0; i < fragment->fragment_cnt && offset < ish_fw->size; i++) {
-		dma_bufs[i] = dma_alloc_coherent(dev->devc, fragment_size,
-						 &fragment->fragment_tbl[i].ddr_adrs, GFP_KERNEL);
+		dma_bufs[i] = dma_alloc_coherent(dev->devc, fragment_size, &dma_addr, GFP_KERNEL);
 		if (!dma_bufs[i])
 			return -ENOMEM;
 
+		fragment->fragment_tbl[i].ddr_adrs = cpu_to_le64(dma_addr);
 		fragment->fragment_tbl[i].length = clamp(ish_fw->size - offset, 0, fragment_size);
 		fragment->fragment_tbl[i].fw_off = offset;
 		memcpy(dma_bufs[i], ish_fw->data + offset, fragment->fragment_tbl[i].length);
