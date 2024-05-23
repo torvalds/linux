@@ -52,6 +52,8 @@ struct xe_gt_sriov_vf_selfconfig {
  * struct xe_gt_sriov_vf_runtime - VF runtime data.
  */
 struct xe_gt_sriov_vf_runtime {
+	/** @gmdid: cached value of the GDMID register. */
+	u32 gmdid;
 	/** @regs_size: size of runtime register array. */
 	u32 regs_size;
 	/** @num_regs: number of runtime registers in the array. */

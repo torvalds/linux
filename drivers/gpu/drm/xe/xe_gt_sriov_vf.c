@@ -284,6 +284,11 @@ static int guc_action_query_single_klv64(struct xe_guc *guc, u32 key, u64 *value
 	return 0;
 }
 
+static bool has_gmdid(struct xe_device *xe)
+{
+	return GRAPHICS_VERx100(xe) >= 1270;
+}
+
 /**
  * xe_gt_sriov_vf_gmdid - Query GMDID over MMIO.
  * @gt: the &xe_gt
@@ -300,6 +305,7 @@ u32 xe_gt_sriov_vf_gmdid(struct xe_gt *gt)
 	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, !GRAPHICS_VERx100(gt_to_xe(gt)) || has_gmdid(gt_to_xe(gt)));
 	xe_gt_assert(gt, gt->sriov.vf.guc_version.major > 1 || gt->sriov.vf.guc_version.minor >= 2);
 
 	err = guc_action_query_single_klv32(guc, GUC_KLV_GLOBAL_CFG_GMD_ID_KEY, &value);
@@ -409,6 +415,14 @@ static int vf_get_submission_cfg(struct xe_gt *gt)
 	return config->num_ctxs ? 0 : -ENODATA;
 }
 
+static void vf_cache_gmdid(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, has_gmdid(gt_to_xe(gt)));
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	gt->sriov.vf.runtime.gmdid = xe_gt_sriov_vf_gmdid(gt);
+}
+
 /**
  * xe_gt_sriov_vf_query_config - Query SR-IOV config data over MMIO.
  * @gt: the &xe_gt
@@ -435,6 +449,9 @@ int xe_gt_sriov_vf_query_config(struct xe_gt *gt)
 	err = vf_get_submission_cfg(gt);
 	if (unlikely(err))
 		return err;
+
+	if (has_gmdid(xe))
+		vf_cache_gmdid(gt);
 
 	return 0;
 }
