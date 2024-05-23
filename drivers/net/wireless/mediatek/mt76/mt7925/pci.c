@@ -373,6 +373,9 @@ static int mt7925_pci_probe(struct pci_dev *pdev,
 	bus_ops->rmw = mt7925_rmw;
 	dev->mt76.bus = bus_ops;
 
+	if (!mt7925_disable_aspm && mt76_pci_aspm_supported(pdev))
+		dev->aspm_supported = true;
+
 	ret = __mt792x_mcu_fw_pmctrl(dev);
 	if (ret)
 		goto err_free_dev;

@@ -809,6 +809,10 @@ int __mt792xe_mcu_drv_pmctrl(struct mt792x_dev *dev)
 
 	for (i = 0; i < MT792x_DRV_OWN_RETRY_COUNT; i++) {
 		mt76_wr(dev, MT_CONN_ON_LPCTL, PCIE_LPCR_HOST_CLR_OWN);
+
+		if (dev->aspm_supported)
+			usleep_range(2000, 3000);
+
 		if (mt76_poll_msec_tick(dev, MT_CONN_ON_LPCTL,
 					PCIE_LPCR_HOST_OWN_SYNC, 0, 50, 1))
 			break;
