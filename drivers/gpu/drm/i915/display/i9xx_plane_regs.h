@@ -67,7 +67,7 @@
 #define   DISP_WIDTH(w)			REG_FIELD_PREP(DISP_WIDTH_MASK, (w))
 
 #define _DSPASURF				0x7019C /* i965+ */
-#define DSPSURF(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPASURF)
+#define DSPSURF(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPASURF)
 #define   DISP_ADDR_MASK		REG_GENMASK(31, 12)
 
 #define _DSPATILEOFF				0x701A4 /* i965+ */

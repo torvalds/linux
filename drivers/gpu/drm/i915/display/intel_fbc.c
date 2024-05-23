@@ -364,8 +364,8 @@ static void i965_fbc_nuke(struct intel_fbc *fbc)
 	enum i9xx_plane_id i9xx_plane = fbc_state->plane->i9xx_plane;
 	struct drm_i915_private *dev_priv = fbc->i915;
 
-	intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
-			  intel_de_read_fw(dev_priv, DSPSURF(i9xx_plane)));
+	intel_de_write_fw(dev_priv, DSPSURF(dev_priv, i9xx_plane),
+			  intel_de_read_fw(dev_priv, DSPSURF(dev_priv, i9xx_plane)));
 }
 
 static const struct intel_fbc_funcs i965_fbc_funcs = {

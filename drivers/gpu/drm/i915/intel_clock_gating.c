@@ -141,8 +141,10 @@ static void g4x_disable_trickle_feed(struct drm_i915_private *dev_priv)
 		intel_uncore_rmw(&dev_priv->uncore, DSPCNTR(dev_priv, pipe),
 				 0, DISP_TRICKLE_FEED_DISABLE);
 
-		intel_uncore_rmw(&dev_priv->uncore, DSPSURF(pipe), 0, 0);
-		intel_uncore_posting_read(&dev_priv->uncore, DSPSURF(pipe));
+		intel_uncore_rmw(&dev_priv->uncore, DSPSURF(dev_priv, pipe),
+				 0, 0);
+		intel_uncore_posting_read(&dev_priv->uncore,
+					  DSPSURF(dev_priv, pipe));
 	}
 }
 

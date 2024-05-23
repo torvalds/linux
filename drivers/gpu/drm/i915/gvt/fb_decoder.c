@@ -251,7 +251,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 
 	plane->hw_format = fmt;
 
-	plane->base = vgpu_vreg_t(vgpu, DSPSURF(pipe)) & I915_GTT_PAGE_MASK;
+	plane->base = vgpu_vreg_t(vgpu, DSPSURF(dev_priv, pipe)) & I915_GTT_PAGE_MASK;
 	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
