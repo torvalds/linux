@@ -867,19 +867,24 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
 		btrfs_add_inode_defrag(NULL, inode, small_write);
 }
 
-static void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
+static int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
 {
-	unsigned long index = start >> PAGE_SHIFT;
 	unsigned long end_index = end >> PAGE_SHIFT;
 	struct page *page;
+	int ret = 0;
 
-	while (index <= end_index) {
+	for (unsigned long index = start >> PAGE_SHIFT;
+	     index <= end_index; index++) {
 		page = find_get_page(inode->i_mapping, index);
-		BUG_ON(!page); /* Pages should be in the extent_io_tree */
+		if (unlikely(!page)) {
+			if (!ret)
+				ret = -ENOENT;
+			continue;
+		}
 		clear_page_dirty_for_io(page);
 		put_page(page);
-		index++;
 	}
+	return ret;
 }
 
 /*
@@ -923,7 +928,16 @@ static void compress_file_range(struct btrfs_work *work)
 	 * Otherwise applications with the file mmap'd can wander in and change
 	 * the page contents while we are compressing them.
 	 */
-	extent_range_clear_dirty_for_io(&inode->vfs_inode, start, end);
+	ret = extent_range_clear_dirty_for_io(&inode->vfs_inode, start, end);
+
+	/*
+	 * All the folios should have been locked thus no failure.
+	 *
+	 * And even if some folios are missing, btrfs_compress_folios()
+	 * would handle them correctly, so here just do an ASSERT() check for
+	 * early logic errors.
+	 */
+	ASSERT(ret == 0);
 
 	/*
 	 * We need to save i_size before now because it could change in between
