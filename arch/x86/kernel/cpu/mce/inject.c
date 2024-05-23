@@ -487,12 +487,16 @@ static void prepare_msrs(void *info)
 			wrmsrl(MSR_AMD64_SMCA_MCx_ADDR(b), m.addr);
 		}
 
-		wrmsrl(MSR_AMD64_SMCA_MCx_MISC(b), m.misc);
 		wrmsrl(MSR_AMD64_SMCA_MCx_SYND(b), m.synd);
+
+		if (m.misc)
+			wrmsrl(MSR_AMD64_SMCA_MCx_MISC(b), m.misc);
 	} else {
 		wrmsrl(MSR_IA32_MCx_STATUS(b), m.status);
 		wrmsrl(MSR_IA32_MCx_ADDR(b), m.addr);
-		wrmsrl(MSR_IA32_MCx_MISC(b), m.misc);
+
+		if (m.misc)
+			wrmsrl(MSR_IA32_MCx_MISC(b), m.misc);
 	}
 }
 
