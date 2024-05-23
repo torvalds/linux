@@ -2428,7 +2428,6 @@ again:
 		else
 			p = dl_se->server_pick_next(dl_se);
 		if (!p) {
-			WARN_ON_ONCE(1);
 			dl_se->dl_yielded = 1;
 			update_curr_dl_se(rq, dl_se, 0);
 			goto again;
