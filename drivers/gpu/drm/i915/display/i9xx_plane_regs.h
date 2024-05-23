@@ -44,7 +44,7 @@
 #define   DISP_MIRROR			REG_BIT(8) /* CHV pipe B */
 
 #define _DSPAADDR				0x70184 /* pre-i965 */
-#define DSPADDR(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPAADDR)
+#define DSPADDR(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPAADDR)
 
 #define _DSPALINOFF				0x70184 /* i965+ */
 #define DSPLINOFF(plane)			_MMIO_PIPE2(dev_priv, plane, _DSPALINOFF)

@@ -502,7 +502,7 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 	else
-		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane),
+		intel_de_write_fw(dev_priv, DSPADDR(dev_priv, i9xx_plane),
 				  intel_plane_ggtt_offset(plane_state) + dspaddr_offset);
 }
 
@@ -544,7 +544,7 @@ static void i9xx_plane_disable_arm(struct intel_plane *plane,
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write_fw(dev_priv, DSPSURF(i9xx_plane), 0);
 	else
-		intel_de_write_fw(dev_priv, DSPADDR(i9xx_plane), 0);
+		intel_de_write_fw(dev_priv, DSPADDR(dev_priv, i9xx_plane), 0);
 }
 
 static void
@@ -1045,7 +1045,7 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 		base = intel_de_read(dev_priv, DSPSURF(i9xx_plane)) & DISP_ADDR_MASK;
 	} else {
 		offset = 0;
-		base = intel_de_read(dev_priv, DSPADDR(i9xx_plane));
+		base = intel_de_read(dev_priv, DSPADDR(dev_priv, i9xx_plane));
 	}
 	plane_config->base = base;
 
@@ -1096,7 +1096,7 @@ bool i9xx_fixup_initial_plane_config(struct intel_crtc *crtc,
 	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write(dev_priv, DSPSURF(i9xx_plane), base);
 	else
-		intel_de_write(dev_priv, DSPADDR(i9xx_plane), base);
+		intel_de_write(dev_priv, DSPADDR(dev_priv, i9xx_plane), base);
 
 	return true;
 }
