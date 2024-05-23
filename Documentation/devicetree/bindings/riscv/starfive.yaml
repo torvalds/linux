@@ -27,6 +27,7 @@ properties:
       - items:
           - enum:
               - milkv,mars
+              - pine64,star64
               - starfive,visionfive-2-v1.2a
               - starfive,visionfive-2-v1.3b
           - const: starfive,jh7110
