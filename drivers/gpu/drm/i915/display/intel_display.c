@@ -67,6 +67,7 @@
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
 #include "intel_cursor_regs.h"
+#include "intel_cx0_phy.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
@@ -4983,6 +4984,24 @@ pipe_config_pll_mismatch(struct drm_printer *p, bool fastset,
 	intel_dpll_dump_hw_state(i915, p, b);
 }
 
+static void
+pipe_config_cx0pll_mismatch(struct drm_printer *p, bool fastset,
+			    const struct intel_crtc *crtc,
+			    const char *name,
+			    const struct intel_cx0pll_state *a,
+			    const struct intel_cx0pll_state *b)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	char *chipname = a->use_c10 ? "C10" : "C20";
+
+	pipe_config_mismatch(p, fastset, crtc, name, chipname);
+
+	drm_printf(p, "expected:\n");
+	intel_cx0pll_dump_hw_state(i915, a);
+	drm_printf(p, "found:\n");
+	intel_cx0pll_dump_hw_state(i915, b);
+}
+
 bool
 intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 			  const struct intel_crtc_state *pipe_config,
@@ -5082,6 +5101,16 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		pipe_config_pll_mismatch(&p, fastset, crtc, __stringify(name), \
 					 &current_config->name, \
 					 &pipe_config->name); \
+		ret = false; \
+	} \
+} while (0)
+
+#define PIPE_CONF_CHECK_PLL_CX0(name) do { \
+	if (!intel_cx0pll_compare_hw_state(&current_config->name, \
+					   &pipe_config->name)) { \
+		pipe_config_cx0pll_mismatch(&p, fastset, crtc, __stringify(name), \
+					    &current_config->name, \
+					    &pipe_config->name); \
 		ret = false; \
 	} \
 } while (0)
@@ -5317,6 +5346,10 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	/* FIXME convert everything over the dpll_mgr */
 	if (dev_priv->display.dpll.mgr || HAS_GMCH(dev_priv))
 		PIPE_CONF_CHECK_PLL(dpll_hw_state);
+
+	/* FIXME convert MTL+ platforms over to dpll_mgr */
+	if (DISPLAY_VER(dev_priv) >= 14)
+		PIPE_CONF_CHECK_PLL_CX0(dpll_hw_state.cx0pll);
 
 	PIPE_CONF_CHECK_X(dsi_pll.ctrl);
 	PIPE_CONF_CHECK_X(dsi_pll.div);

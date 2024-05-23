@@ -2038,6 +2038,7 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 		if (crtc_state->port_clock == tables[i]->clock) {
 			crtc_state->dpll_hw_state.cx0pll.c10 = *tables[i];
 			intel_c10pll_update_pll(crtc_state, encoder);
+			crtc_state->dpll_hw_state.cx0pll.use_c10 = true;
 
 			return 0;
 		}
@@ -2105,8 +2106,8 @@ static void intel_c10_pll_program(struct drm_i915_private *i915,
 		      MB_WRITE_COMMITTED);
 }
 
-void intel_c10pll_dump_hw_state(struct drm_i915_private *i915,
-				const struct intel_c10pll_state *hw_state)
+static void intel_c10pll_dump_hw_state(struct drm_i915_private *i915,
+				       const struct intel_c10pll_state *hw_state)
 {
 	bool fracen;
 	int i;
@@ -2277,6 +2278,7 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 	for (i = 0; tables[i]; i++) {
 		if (crtc_state->port_clock == tables[i]->clock) {
 			crtc_state->dpll_hw_state.cx0pll.c20 = *tables[i];
+			crtc_state->dpll_hw_state.cx0pll.use_c10 = false;
 			return 0;
 		}
 	}
@@ -2410,8 +2412,8 @@ static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
 	intel_cx0_phy_transaction_end(encoder, wakeref);
 }
 
-void intel_c20pll_dump_hw_state(struct drm_i915_private *i915,
-				const struct intel_c20pll_state *hw_state)
+static void intel_c20pll_dump_hw_state(struct drm_i915_private *i915,
+				       const struct intel_c20pll_state *hw_state)
 {
 	int i;
 
@@ -2428,6 +2430,15 @@ void intel_c20pll_dump_hw_state(struct drm_i915_private *i915,
 		for (i = 0; i < ARRAY_SIZE(hw_state->mplla); i++)
 			drm_dbg_kms(&i915->drm, "mplla[%d] = 0x%.4x\n", i, hw_state->mplla[i]);
 	}
+}
+
+void intel_cx0pll_dump_hw_state(struct drm_i915_private *i915,
+				const struct intel_cx0pll_state *hw_state)
+{
+	if (hw_state->use_c10)
+		intel_c10pll_dump_hw_state(i915, &hw_state->c10);
+	else
+		intel_c20pll_dump_hw_state(i915, &hw_state->c20);
 }
 
 static u8 intel_c20_get_dp_rate(u32 clock)
@@ -3266,10 +3277,64 @@ static void intel_c10pll_state_verify(const struct intel_crtc_state *state,
 void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
 				   struct intel_cx0pll_state *pll_state)
 {
-	if (intel_encoder_is_c10phy(encoder))
+	pll_state->use_c10 = false;
+
+	if (intel_encoder_is_c10phy(encoder)) {
 		intel_c10pll_readout_hw_state(encoder, &pll_state->c10);
-	else
+		pll_state->use_c10 = true;
+	} else {
 		intel_c20pll_readout_hw_state(encoder, &pll_state->c20);
+	}
+}
+
+static bool mtl_compare_hw_state_c10(const struct intel_c10pll_state *a,
+				     const struct intel_c10pll_state *b)
+{
+	if (a->tx != b->tx)
+		return false;
+
+	if (a->cmn != b->cmn)
+		return false;
+
+	if (memcmp(&a->pll, &b->pll, sizeof(a->pll)) != 0)
+		return false;
+
+	return true;
+}
+
+static bool mtl_compare_hw_state_c20(const struct intel_c20pll_state *a,
+				     const struct intel_c20pll_state *b)
+{
+	if (memcmp(&a->tx, &b->tx, sizeof(a->tx)) != 0)
+		return false;
+
+	if (memcmp(&a->cmn, &b->cmn, sizeof(a->cmn)) != 0)
+		return false;
+
+	if (a->tx[0] & C20_PHY_USE_MPLLB) {
+		if (memcmp(&a->mpllb, &b->mpllb, sizeof(a->mpllb)) != 0)
+			return false;
+	} else {
+		if (memcmp(&a->mplla, &b->mplla, sizeof(a->mplla)) != 0)
+			return false;
+	}
+
+	return true;
+}
+
+bool intel_cx0pll_compare_hw_state(const struct intel_cx0pll_state *a,
+				   const struct intel_cx0pll_state *b)
+{
+
+	if (a->use_c10 != b->use_c10)
+		return false;
+
+	if (a->use_c10)
+		return mtl_compare_hw_state_c10(&a->c10,
+						&b->c10);
+	else
+		return mtl_compare_hw_state_c20(&a->c20,
+						&b->c20);
 }
 
 int intel_cx0pll_calc_port_clock(struct intel_encoder *encoder,
