@@ -1027,9 +1027,9 @@ run:
 	else if (txmsg_drop)
 		tx_prog_fd = prog_fd[8];
 	else
-		tx_prog_fd = 0;
+		tx_prog_fd = -1;
 
-	if (tx_prog_fd) {
+	if (tx_prog_fd > 0) {
 		int redir_fd, i = 0;
 
 		err = bpf_prog_attach(tx_prog_fd,
@@ -1285,7 +1285,7 @@ out:
 	bpf_prog_detach2(prog_fd[0], map_fd[8], BPF_SK_SKB_STREAM_PARSER);
 	bpf_prog_detach2(prog_fd[2], map_fd[8], BPF_SK_SKB_STREAM_VERDICT);
 
-	if (tx_prog_fd >= 0)
+	if (tx_prog_fd > 0)
 		bpf_prog_detach2(tx_prog_fd, map_fd[1], BPF_SK_MSG_VERDICT);
 
 	for (i = 0; i < 8; i++) {
