@@ -53,7 +53,7 @@
 #define DSPSTRIDE(dev_priv, plane)		_MMIO_PIPE2(dev_priv, plane, _DSPASTRIDE)
 
 #define _DSPAPOS				0x7018C /* pre-g4x */
-#define DSPPOS(plane)				_MMIO_PIPE2(dev_priv, plane, _DSPAPOS)
+#define DSPPOS(dev_priv, plane)			_MMIO_PIPE2(dev_priv, plane, _DSPAPOS)
 #define   DISP_POS_Y_MASK		REG_GENMASK(31, 16)
 #define   DISP_POS_Y(y)			REG_FIELD_PREP(DISP_POS_Y_MASK, (y))
 #define   DISP_POS_X_MASK		REG_GENMASK(15, 0)
