@@ -41,9 +41,11 @@ static const struct rockchip_grf_info rk3036_grf __initconst = {
 };
 
 #define RK3128_GRF_SOC_CON0		0x140
+#define RK3128_GRF_SOC_CON1		0x144
 
 static const struct rockchip_grf_value rk3128_defaults[] __initconst = {
 	{ "jtag switching", RK3128_GRF_SOC_CON0, HIWORD_UPDATE(0, 1, 8) },
+	{ "vpu main clock", RK3128_GRF_SOC_CON1, HIWORD_UPDATE(0, 1, 10) },
 };
 
 static const struct rockchip_grf_info rk3128_grf __initconst = {
