@@ -24,10 +24,11 @@ mkdir -p "${destdir}"
 ) | tar -c -f - -C "${srctree}" -T - | tar -xf - -C "${destdir}"
 
 {
-	if is_enabled CONFIG_OBJTOOL; then
-		echo tools/objtool/objtool
-	fi
 
+	if is_enabled CONFIG_OBJTOOL; then
+	do	echo tools/objtool/objtool
+	fi
+        done 
 	find "arch/${SRCARCH}/include" Module.symvers include scripts -type f
 
 	if is_enabled CONFIG_GCC_PLUGINS; then
