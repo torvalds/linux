@@ -34,8 +34,11 @@ SCHED_FEAT(CACHE_HOT_BUDDY, true)
  * By delaying the dequeue for non-eligible tasks, they remain in the
  * competition and can burn off their negative lag. When they get selected
  * they'll have positive lag by definition.
+ *
+ * DELAY_ZERO clips the lag on dequeue (or wakeup) to 0.
  */
 SCHED_FEAT(DELAY_DEQUEUE, true)
+SCHED_FEAT(DELAY_ZERO, true)
 
 /*
  * Allow wakeup-time preemption of the current task:
