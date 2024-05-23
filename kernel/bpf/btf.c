@@ -3442,10 +3442,12 @@ btf_find_graph_root(const struct btf *btf, const struct btf_type *pt,
 		goto end;						\
 	}
 
-static int btf_get_field_type(const char *name, u32 field_mask, u32 *seen_mask,
+static int btf_get_field_type(const struct btf *btf, const struct btf_type *var_type,
+			      u32 field_mask, u32 *seen_mask,
 			      int *align, int *sz)
 {
 	int type = 0;
+	const char *name = __btf_name_by_offset(btf, var_type->name_off);
 
 	if (field_mask & BPF_SPIN_LOCK) {
 		if (!strcmp(name, "bpf_spin_lock")) {
@@ -3481,7 +3483,7 @@ static int btf_get_field_type(const char *name, u32 field_mask, u32 *seen_mask,
 	field_mask_test_name(BPF_REFCOUNT,  "bpf_refcount");
 
 	/* Only return BPF_KPTR when all other types with matchable names fail */
-	if (field_mask & BPF_KPTR) {
+	if (field_mask & BPF_KPTR && !__btf_type_is_struct(var_type)) {
 		type = BPF_KPTR_REF;
 		goto end;
 	}
@@ -3494,39 +3496,81 @@ end:
 
 #undef field_mask_test_name
 
-/* Repeat a field for a specified number of times.
+/* Repeat a number of fields for a specified number of times.
  *
- * Copy and repeat the first field for repeat_cnt
- * times. The field is repeated by adding the offset of each field
- * with
+ * Copy the fields starting from the first field and repeat them for
+ * repeat_cnt times. The fields are repeated by adding the offset of each
+ * field with
  *   (i + 1) * elem_size
  * where i is the repeat index and elem_size is the size of an element.
  */
-static int btf_repeat_field(struct btf_field_info *info,
-			    u32 repeat_cnt, u32 elem_size)
+static int btf_repeat_fields(struct btf_field_info *info,
+			     u32 field_cnt, u32 repeat_cnt, u32 elem_size)
 {
-	u32 i;
+	u32 i, j;
 	u32 cur;
 
 	/* Ensure not repeating fields that should not be repeated. */
-	switch (info[0].type) {
-	case BPF_KPTR_UNREF:
-	case BPF_KPTR_REF:
-	case BPF_KPTR_PERCPU:
-	case BPF_LIST_HEAD:
-	case BPF_RB_ROOT:
-		break;
-	default:
-		return -EINVAL;
+	for (i = 0; i < field_cnt; i++) {
+		switch (info[i].type) {
+		case BPF_KPTR_UNREF:
+		case BPF_KPTR_REF:
+		case BPF_KPTR_PERCPU:
+		case BPF_LIST_HEAD:
+		case BPF_RB_ROOT:
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
-	cur = 1;
+	cur = field_cnt;
 	for (i = 0; i < repeat_cnt; i++) {
-		memcpy(&info[cur], &info[0], sizeof(info[0]));
-		info[cur++].off += (i + 1) * elem_size;
+		memcpy(&info[cur], &info[0], field_cnt * sizeof(info[0]));
+		for (j = 0; j < field_cnt; j++)
+			info[cur++].off += (i + 1) * elem_size;
 	}
 
 	return 0;
+}
+
+static int btf_find_struct_field(const struct btf *btf,
+				 const struct btf_type *t, u32 field_mask,
+				 struct btf_field_info *info, int info_cnt);
+
+/* Find special fields in the struct type of a field.
+ *
+ * This function is used to find fields of special types that is not a
+ * global variable or a direct field of a struct type. It also handles the
+ * repetition if it is the element type of an array.
+ */
+static int btf_find_nested_struct(const struct btf *btf, const struct btf_type *t,
+				  u32 off, u32 nelems,
+				  u32 field_mask, struct btf_field_info *info,
+				  int info_cnt)
+{
+	int ret, err, i;
+
+	ret = btf_find_struct_field(btf, t, field_mask, info, info_cnt);
+
+	if (ret <= 0)
+		return ret;
+
+	/* Shift the offsets of the nested struct fields to the offsets
+	 * related to the container.
+	 */
+	for (i = 0; i < ret; i++)
+		info[i].off += off;
+
+	if (nelems > 1) {
+		err = btf_repeat_fields(info, ret, nelems - 1, t->size);
+		if (err == 0)
+			ret *= nelems;
+		else
+			ret = err;
+	}
+
+	return ret;
 }
 
 static int btf_find_field_one(const struct btf *btf,
@@ -3555,8 +3599,18 @@ static int btf_find_field_one(const struct btf *btf,
 	if (nelems == 0)
 		return 0;
 
-	field_type = btf_get_field_type(__btf_name_by_offset(btf, var_type->name_off),
+	field_type = btf_get_field_type(btf, var_type,
 					field_mask, seen_mask, &align, &sz);
+	/* Look into variables of struct types */
+	if (!field_type && __btf_type_is_struct(var_type)) {
+		sz = var_type->size;
+		if (expected_size && expected_size != sz * nelems)
+			return 0;
+		ret = btf_find_nested_struct(btf, var_type, off, nelems, field_mask,
+					     &info[0], info_cnt);
+		return ret;
+	}
+
 	if (field_type == 0)
 		return 0;
 	if (field_type < 0)
@@ -3605,7 +3659,7 @@ static int btf_find_field_one(const struct btf *btf,
 	if (nelems > info_cnt)
 		return -E2BIG;
 	if (nelems > 1) {
-		ret = btf_repeat_field(info, nelems - 1, sz);
+		ret = btf_repeat_fields(info, 1, nelems - 1, sz);
 		if (ret < 0)
 			return ret;
 	}
