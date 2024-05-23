@@ -615,8 +615,13 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 
 static void __submit_bio(struct bio *bio)
 {
+	/* If plug is not used, add new plug here to cache nsecs time. */
+	struct blk_plug plug;
+
 	if (unlikely(!blk_crypto_bio_prep(&bio)))
 		return;
+
+	blk_start_plug(&plug);
 
 	if (!bdev_test_flag(bio->bi_bdev, BD_HAS_SUBMIT_BIO)) {
 		blk_mq_submit_bio(bio);
@@ -626,6 +631,8 @@ static void __submit_bio(struct bio *bio)
 		disk->fops->submit_bio(bio);
 		blk_queue_exit(disk->queue);
 	}
+
+	blk_finish_plug(&plug);
 }
 
 /*
@@ -650,13 +657,11 @@ static void __submit_bio(struct bio *bio)
 static void __submit_bio_noacct(struct bio *bio)
 {
 	struct bio_list bio_list_on_stack[2];
-	struct blk_plug plug;
 
 	BUG_ON(bio->bi_next);
 
 	bio_list_init(&bio_list_on_stack[0]);
 	current->bio_list = bio_list_on_stack;
-	blk_start_plug(&plug);
 
 	do {
 		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
@@ -690,23 +695,19 @@ static void __submit_bio_noacct(struct bio *bio)
 		bio_list_merge(&bio_list_on_stack[0], &bio_list_on_stack[1]);
 	} while ((bio = bio_list_pop(&bio_list_on_stack[0])));
 
-	blk_finish_plug(&plug);
 	current->bio_list = NULL;
 }
 
 static void __submit_bio_noacct_mq(struct bio *bio)
 {
 	struct bio_list bio_list[2] = { };
-	struct blk_plug plug;
 
 	current->bio_list = bio_list;
-	blk_start_plug(&plug);
 
 	do {
 		__submit_bio(bio);
 	} while ((bio = bio_list_pop(&bio_list[0])));
 
-	blk_finish_plug(&plug);
 	current->bio_list = NULL;
 }
 
