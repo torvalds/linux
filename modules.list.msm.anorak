@@ -59,6 +59,8 @@ icc-debug.ko
 qnoc-anorak.ko
 qnoc-qos.ko
 proxy-consumer.ko
+cqhci.ko
+sdhci-msm.ko
 rpmh-regulator.ko
 qti-fixed-regulator.ko
 debug-regulator.ko
