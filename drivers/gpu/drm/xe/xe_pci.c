@@ -20,6 +20,8 @@
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_gt.h"
+#include "xe_gt_sriov_vf.h"
+#include "xe_guc.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
@@ -469,10 +471,52 @@ static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, 
 
 	KUNIT_STATIC_STUB_REDIRECT(read_gmdid, xe, type, ver, revid);
 
-	if (type == GMDID_MEDIA)
-		gmdid_reg.addr += MEDIA_GT_GSI_OFFSET;
+	if (IS_SRIOV_VF(xe)) {
+		/*
+		 * To get the value of the GMDID register, VFs must obtain it
+		 * from the GuC using MMIO communication.
+		 *
+		 * Note that at this point the xe_gt is not fully uninitialized
+		 * and only basic access to MMIO registers is possible. To use
+		 * our existing GuC communication functions we must perform at
+		 * least basic xe_gt and xe_guc initialization.
+		 *
+		 * Since to obtain the value of GMDID_MEDIA we need to use the
+		 * media GuC, temporarly tweak the gt type.
+		 */
+		xe_gt_assert(gt, gt->info.type == XE_GT_TYPE_UNINITIALIZED);
 
-	val = xe_mmio_read32(gt, gmdid_reg);
+		if (type == GMDID_MEDIA) {
+			gt->info.id = 1;
+			gt->info.type = XE_GT_TYPE_MEDIA;
+		} else {
+			gt->info.id = 0;
+			gt->info.type = XE_GT_TYPE_MAIN;
+		}
+
+		xe_guc_comm_init_early(&gt->uc.guc);
+
+		/* Don't bother with GMDID if failed to negotiate the GuC ABI */
+		val = xe_gt_sriov_vf_bootstrap(gt) ? 0 : xe_gt_sriov_vf_gmdid(gt);
+
+		/*
+		 * Only undo xe_gt.info here, the remaining changes made above
+		 * will be overwritten as part of the regular initialization.
+		 */
+		gt->info.id = 0;
+		gt->info.type = XE_GT_TYPE_UNINITIALIZED;
+	} else {
+		/*
+		 * We need to apply the GSI offset explicitly here as at this
+		 * point the xe_gt is not fully uninitialized and only basic
+		 * access to MMIO registers is possible.
+		 */
+		if (type == GMDID_MEDIA)
+			gmdid_reg.addr += MEDIA_GT_GSI_OFFSET;
+
+		val = xe_mmio_read32(gt, gmdid_reg);
+	}
+
 	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val) * 100 + REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
 	*revid = REG_FIELD_GET(GMD_ID_REVID, val);
 }
