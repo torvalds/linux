@@ -478,7 +478,8 @@ static void i9xx_plane_update_arm(struct intel_plane *plane,
 				  PRIM_POS_Y(crtc_y) | PRIM_POS_X(crtc_x));
 		intel_de_write_fw(dev_priv, PRIMSIZE(dev_priv, i9xx_plane),
 				  PRIM_HEIGHT(crtc_h - 1) | PRIM_WIDTH(crtc_w - 1));
-		intel_de_write_fw(dev_priv, PRIMCNSTALPHA(i9xx_plane), 0);
+		intel_de_write_fw(dev_priv,
+				  PRIMCNSTALPHA(dev_priv, i9xx_plane), 0);
 	}
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
